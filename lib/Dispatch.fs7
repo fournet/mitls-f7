@@ -34,7 +34,8 @@ type preConnection =
 
 
 predicate type preds =
-	| DispSend of dState * ProtocolVersionType * fragment
+	| DispSend of dState * ContentType * fragment (* FIXME: AAAAAAARGH!!! ContentType was ProtocolVersionType, and the file was typechecking anyway!!! *)
+	| AppDataSendMap of bytes * int * int
         | ValidConnection of preConnection
 	| DispState of dState
         | ReadState of dState
@@ -48,14 +49,20 @@ val init :
       c:Connection{c.read.disp = Init /\ c.write.disp = Init}
 
 val next_fragment :
-        int -> c:Connection{c.write.disp <> Closed} ->
-                ((bool * c':Connection)) Error_handling.Result
+        int -> c:Connection{c.write.disp <> Closed /\ 
+	                    (c.appdata.app_out_fragno <> 0 => (?f,n,m. AppDataSendMap(f,n,m) /\
+			     c.appdata.app_out_fragno = n + 1 (* /\ c.write.conn.seq_num > m *) ))} ->
+                ((bool * c':Connection{?f'. AppDataSendMap(f',c.appdata.app_out_fragno,c.write.conn)})) Error_handling.Result
+
 val max_TLSPlaintext_fragment_length : int
 val fragmentLength : int
+
 val sendNextFragments : Connection -> Connection Error_handling.Result
+
 val deliver :
   Formats.ContentType ->
     Record.fragment -> c:Connection{c.read.disp <> Closed} -> (bool * Connection) Error_handling.Result
+
 val readNextAppFragment : Connection -> Connection Error_handling.Result
 
 (* Definition of ValidConnection, implicitly expressing all the found invariants *)
@@ -94,6 +101,13 @@ assume !dstate. DispState(dstate) <=> (
 	 dstate.conn.sparams.mac_algorithm <> MA_null))
 	)
 
+(* Mapping protocol seq_nums to record seq_num *)
+assume !c,f. (AppDataFragmentSend(c.appdata.app_info,c.appdata.app_out_fragno,f) /\ c.appdata.app_out_fragno = 0) => AppDataSendMap(f,c.appdata.app_out_fragno,c.write.conn.seq_num)
+assume !c,f,f',app_seq,rec_seq. (AppDataSendMap(f',app_seq,rec_seq) /\ AppDataFragmentSend(c.appdata.app_info,c.appdata.app_out_fragno,f) /\
+				c.appdata.app_out_fragno = app_seq + 1 (* /\ rec_seq < c.write.conn.seq_num *) ) =>
+		AppDataSendMap(f,c.appdata.app_out_fragno,c.write.conn.seq_num)
+
+
 assume !read. ReadState(read) <=> 
     (RecvConnState(read.conn) /\ DispState(read))
 
@@ -102,7 +116,8 @@ assume !write. WriteState(write) <=>
 
 assume !c,f. ValidConnection(c) /\
 	     DispSend(c.write,Application_data,f) /\
-             AppDataFragmentSend(c.appdata.app_info,c.appdata.app_out_fragno,f) => 
+             (* AppDataFragmentSend(c.appdata.app_info,c.appdata.app_out_fragno,f) /\ *)
+	     AppDataSendMap(f,c.appdata.app_out_fragno,c.write.conn.seq_num) => (* FIXME: where's c.appdata.app_info gone? :-) *)
                FragmentSend(c.write.conn,Application_data,f)
 
 assume !c,f. ValidConnection(c) /\

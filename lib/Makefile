@@ -62,7 +62,7 @@ formats.tc7: $(libperv) $(libfs7) $(recordfs7) formats.fs
 	time $(f7) -timeout 20 --define f7 -nokindcheck $(lperv) $(libfs7) $(recordfs7) formats.fs -scripts record -genlst | tee  formats.tc7 | grep "Failure\|error\|ERROR\|Exception"; echo ""
 
 %.tc7: $(libperv) $(libfs7) $(recordfs7) $(tlsfs7) %.fs
-	time $(f7) -timeout 50 --define f7 -nokindcheck $(lperv) $(libfs7) $(recordfs7) $(tlsfs7) $*.fs -scripts $* -genlst | tee  $*.tc7 | grep "Failure\|error\|ERROR\|Exception"; echo ""
+	time $(f7) -timeout 100 --define f7 -nokindcheck $(lperv) $(libfs7) $(recordfs7) $(tlsfs7) $*.fs -scripts $* -genlst | tee  $*.tc7 | grep "Failure\|error\|ERROR\|Exception"; echo ""
 
 clean:
 	@rm -f .tmp *.exe *.pdb *.dll *.obj *.cm* *.pv *.res *~ *.html *.smp *.tc7 *.vo *.glob libcoq.v
