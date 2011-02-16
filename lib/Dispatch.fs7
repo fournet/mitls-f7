@@ -102,7 +102,7 @@ assume !write. WriteState(write) <=>
 
 assume !c,f. ValidConnection(c) /\
 	     DispSend(c.write,Application_data,f) /\
-             ApplicationFragmentSend(c.appdata.app_info,f) => 
+             AppDataFragmentSend(c.appdata.app_info,c.appdata.app_out_fragno,f) => 
                FragmentSend(c.write.conn,Application_data,f)
 
 assume !c,f. ValidConnection(c) /\

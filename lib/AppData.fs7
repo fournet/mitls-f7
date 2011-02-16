@@ -3,40 +3,69 @@ module AppData
 open Data
 open Sessions
 open Formats
+open Record
+open Error_handling
 
 type pre_app_state =
   {app_info: SessionInfo;
-(*
+   app_outgone: bytes;
    app_out_fragno: int;
-   app_in_fragno: int;
-*)
+
    app_incoming: Data.bytes;
    app_outgoing: Data.bytes;}
 
 
 predicate type preds =
   | ApplicationState of pre_app_state 
-  | ApplicationSend of SessionInfo * bytes
-  | ApplicationFragmentSend of SessionInfo * Record.fragment
+  | AppDataNextPiece of SessionInfo * bytes
+  | AppDataOutStream of SessionInfo * bytes
+  | AppDataFragmentSend of SessionInfo * int * Record.fragment
 
 type app_state = (aps:pre_app_state){ApplicationState(aps) /\ aps.app_info.dir = OutDir}
 
-val init : i:SessionInfo{i.dir = OutDir} -> a:app_state
-val send_data : aps:app_state -> d:Data.bytes{ApplicationSend(aps.app_info,Concat(aps.app_outgoing,d))} -> app_state Error_handling.Result
+function type funs =
+  | InitAppState of SessionInfo
+
+val init : i:SessionInfo{i.dir = OutDir} -> a:app_state{a = InitAppState(i)}
+
+val send_data: aps:app_state -> d:Data.bytes{AppDataNextPiece(aps.app_info,d)} -> app_state
+
+val retrieve_data: app_state -> int -> (bytes * app_state) option
 
 val next_fragment: as1:app_state -> int -> 
-  (d:Record.fragment * as2:app_state{ApplicationFragmentSend(as1.app_info,d) /\ as2.app_info = as1.app_info}) option
+  (d:Record.fragment * as2:app_state{AppDataFragmentSend(as1.app_info,as1.app_out_fragno,d) /\ as2.app_info = as1.app_info /\ as2.app_out_fragno = as1.app_out_fragno + 1}) option
 
+(*
 val recv_fragment :
   as1:app_state -> 
   f:Record.fragment{ApplicationFragmentSend(PeerSession(SessionOtherDir(as1.app_info)),f)} -> 
   (as2:app_state{as2.app_info = as1.app_info}) Error_handling.Result
-
-assume !aps. ApplicationState(aps) <=> (ApplicationSend(aps.app_info,aps.app_outgoing) /\ 
-					(ApplicationSend(PeerSession(aps.app_info),aps.app_incoming) \/ Compromised(aps.app_info)))
- 
-assume !aps. ApplicationSend(aps,empty_bstr)
-assume !aps,f,d. ApplicationSend(aps,Concat(f,d)) => (ApplicationFragmentSend(aps,f) /\ ApplicationSend(aps,d)) 
-(*
-assume !aps,f,d. ApplicationFragmentSend(aps,f) /\ ApplicationSend(aps,d) => ApplicationSend(aps,Concat(d,f))
 *)
+
+val recv_fragment: app_state -> fragment -> app_state Result
+
+(* Predicates definitions *)
+assume !info. InitAppState(info) = {
+		app_info = info;
+		app_outgone = empty_bstr;
+		app_out_fragno = 0;
+		app_incoming = empty_bstr;
+		app_outgoing = empty_bstr}
+
+assume !aps. AppDataOutStream(aps.app_info,Concat(aps.app_outgone,empty_bstr))
+
+assume !aps. ApplicationState(aps) <=> (AppDataOutStream(aps.app_info,Concat(aps.app_outgone,aps.app_outgoing)) (* /\ 
+					(ApplicationSend(PeerSession(aps.app_info),aps.app_incoming) \/ Compromised(aps.app_info)) *) )
+ 
+(* When can we add data to the outgoing buffer *)
+assume !aps,d. ( AppDataOutStream(aps.app_info,Concat(aps.app_outgone,aps.app_outgoing)) /\ AppDataNextPiece(aps.app_info,d) ) =>
+				AppDataOutStream(aps.app_info,Concat(aps.app_outgone,Concat(aps.app_outgoing,d)))
+
+(* It is always possible to extract a fragment from a non-empty outgoing buffer *)
+assume !aps. (ApplicationState(aps) /\ aps.app_outgoing <> empty_bstr) =>
+		  (?f,rem. aps.app_outgoing = Concat(f,rem))
+
+(* When can we move data from outgoing to outgone -- "side effect": emitting a fragment *)
+assume !aps,f,rem. (aps.app_outgoing = Concat(f,rem) /\ AppDataOutStream(aps.app_info,Concat(aps.app_outgone,aps.app_outgoing))) =>
+		 ( AppDataFragmentSend(aps.app_info,aps.app_out_fragno,f) /\
+		   AppDataOutStream(aps.app_info,Concat(Concat(aps.app_outgone,f),rem)) )
