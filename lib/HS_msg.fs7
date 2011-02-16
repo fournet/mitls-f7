@@ -1,0 +1,47 @@
+module HS_msg
+type handshakeType =
+  | HT_hello_request
+  | HT_client_hello
+  | HT_server_hello
+  | HT_certificate
+  | HT_server_key_exchange
+  | HT_certificate_request
+  | HT_server_hello_done
+  | HT_certificate_verify
+  | HT_client_key_exchange
+  | HT_finished
+  | HT_unknown of int
+val bytes_of_hs_type : handshakeType -> Data.bytes
+val hs_type_of_bytes : Data.bytes -> handshakeType
+type helloRequest = Data.bytes
+type hrandom =
+  {time: int;
+   rnd: Data.bytes;}
+type cipherSuites = HS_ciphersuites.CipherSuite list
+type clientHello =
+  {client_version: Formats.ProtocolVersionType;
+   ch_random: hrandom;
+   ch_session_id: Sessions.sessionID;
+   cipher_suites: cipherSuites;
+   compression_methods: Formats.Compression list;
+   extensions: Data.bytes;}
+type serverHello =
+  {server_version: Formats.ProtocolVersionType;
+   sh_random: hrandom;
+   sh_session_id: Sessions.sessionID;
+   cipher_suite: HS_ciphersuites.CipherSuite;
+   compression_method: Formats.Compression;
+   neg_extensions: Data.bytes;}
+type ASN1Cert = Data.bytes
+type certificate =
+  {certificate_list: ASN1Cert;}
+type serverHelloDone = Data.bytes
+type preMasterSecret =
+  {pms_client_version: Formats.ProtocolVersionType;
+   pms_random: Data.bytes;}
+type clientKeyExchange =
+  | EncryptedPreMasterSecret of Data.bytes
+  | ClientDHPublic
+type certificateVerify = Data.bytes
+type finished = Data.bytes
+

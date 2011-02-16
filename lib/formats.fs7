@@ -1,0 +1,111 @@
+module Formats
+open Data
+
+type preContentType =
+  | Change_cipher_spec
+  | Alert
+  | Handshake
+  | Application_data
+  | UnknownCT
+
+type ContentType = ct:preContentType{ct = Change_cipher_spec \/ ct = Alert \/
+                ct = Handshake \/ ct = Application_data \/ ct = UnknownCT}
+
+val Change_cipher_spec_val : int
+val Alert_val : int
+val Handshake_val : int
+val Application_data_val : int
+
+type Compression =
+  | Null
+  | UnknownComp of int
+val bytes_of_compression : Compression -> Data.bytes
+val compression_of_bytes : Data.bytes -> Compression
+type ProtocolVersionType =
+  | SSL_2p0
+  | SSL_3p0
+  | TLS_1p0
+  | TLS_1p1
+  | TLS_1p2
+  | UnknownPV
+
+function type funs =
+  | ContentTypeBytes of ContentType
+  | ProtocolVersionBytes of ProtocolVersionType
+  | SequenceNumberBytes of int
+
+predicate type preds =
+  | PrintThis
+  | FailHere
+
+assume !sn. SequenceNumberBytes(sn) = Num(sn)
+
+val bytes_of_intpair: p:(int*int) -> b:bytes{!i,j. p = (i,j) => b = Concat(Num(i),Num(j))}
+val intpair_of_bytes:  b:bytes -> (i:int*j:int){b = Concat(Num(i),Num(j))}
+val empty_bstr: bytespub
+val bytes_of_seq: sn:int -> b:bytes{b = SequenceNumberBytes(sn)}
+
+val SSLv2 : Data.bytes
+val SSLv3 : Data.bytes
+val TLS1p0 : Data.bytes
+val TLS1p1 : Data.bytes
+val TLS1p2 : Data.bytes
+
+val bytes_of_contentType : c:ContentType -> b:Data.bytes{b = ContentTypeBytes(c)}
+val contentType_of_bytes : b:Data.bytes -> c:ContentType{b = ContentTypeBytes(c)}
+
+val bytes_of_protocolVersionType : p:ProtocolVersionType -> b:Data.bytes{b = ProtocolVersionBytes(p)}
+val protocolVersionType_of_bytes : b:Data.bytes -> p:ProtocolVersionType{b = ProtocolVersionBytes(p)}
+
+type ConnectionEnd =
+  | Client
+  | Server
+type BulkCipherAlgorithm =
+  | BCA_rc4
+  | BCA_des
+  | BCA_aes
+  | BCA_rc2
+  | BCA_3des
+  | BCA_des40
+  | BCA_idea
+  | BCA_null
+type CipherType =
+  | CT_stream
+  | CT_block
+type IsExportable = bool
+type MACAlgorithm =
+  | MA_md5
+  | MA_sha1
+  | MA_null
+val get_block_cipher_size : BulkCipherAlgorithm -> int
+val get_hash_size : MACAlgorithm -> int
+type SecurityParameters =
+  {cipher_type: CipherType;
+   bulk_cipher_algorithm: BulkCipherAlgorithm;
+   mac_algorithm: MACAlgorithm;}
+val ssl_pad1_md5 : Data.bytes
+val ssl_pad2_md5 : Data.bytes
+val ssl_pad1_sha1 : Data.bytes
+val ssl_pad2_sha1 : Data.bytes
+val vlenBytes_of_bytes : int -> Data.bytes -> Data.bytes
+val bytesAndRemainder_of_vlenBytesAndReminder :
+  int -> Data.bytes -> Data.bytes * Data.bytes
+
+(*
+assume !x:bytes. IsAppendedList(x,x::[])
+assume !h:bytes, t:bytes list, tc:bytes. IsAppendedList(tc,t) => IsAppendedList(Concat(h,tc),h::t)
+theorem !c,xl. IsAppendedList(c,xl) => ((?x. xl = x::[] /\ c = x) \/ (?h,t,tc. xl = h::t /\ IsAppendedList(tc,t) /\ c = Concat(h,tc)))
+
+val appendList: xl:bytes list -> b:bytes {IsAppendedList(b,xl)} 
+val splitList: b:bytes -> il:int list -> xl:bytes list {IsAppendedList(b,xl)}
+*)
+
+val appendList: dl:dbytes list -> b:bytes{(?b1,b2,b3. dl = b1::b2::b3::[] /\ b = Concat(b1,Concat(b2,b3))) \/ 
+					  (?b1,b2,b3,b4. dl = b1::b2::b3::b4::[] /\ b = Concat(b1,Concat(b2,Concat(b3,b4)))) \/ 
+					  (?b1,b2,b3,b4,b5. dl = b1::b2::b3::b4::b5::[] /\ b = Concat(b1,Concat(b2,Concat(b3,Concat(b4,b5))))) \/ 
+					  (?b1,b2,b3,b4,b5,b6. dl = b1::b2::b3::b4::b5::b6::[] /\ b = Concat(b1,Concat(b2,Concat(b3,Concat(b4,Concat(b5,b6))))))}
+
+				    
+val splitList: bytes -> int list -> bytes list
+
+

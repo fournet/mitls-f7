@@ -1,0 +1,42 @@
+module AppData
+
+open Data
+open Sessions
+open Formats
+
+type pre_app_state =
+  {app_info: SessionInfo;
+(*
+   app_out_fragno: int;
+   app_in_fragno: int;
+*)
+   app_incoming: Data.bytes;
+   app_outgoing: Data.bytes;}
+
+
+predicate type preds =
+  | ApplicationState of pre_app_state 
+  | ApplicationSend of SessionInfo * bytes
+  | ApplicationFragmentSend of SessionInfo * Record.fragment
+
+type app_state = (aps:pre_app_state){ApplicationState(aps) /\ aps.app_info.dir = OutDir}
+
+val init : i:SessionInfo{i.dir = OutDir} -> a:app_state
+val send_data : aps:app_state -> d:Data.bytes{ApplicationSend(aps.app_info,Concat(aps.app_outgoing,d))} -> app_state Error_handling.Result
+
+val next_fragment: as1:app_state -> int -> 
+  (d:Record.fragment * as2:app_state{ApplicationFragmentSend(as1.app_info,d) /\ as2.app_info = as1.app_info}) option
+
+val recv_fragment :
+  as1:app_state -> 
+  f:Record.fragment{ApplicationFragmentSend(PeerSession(SessionOtherDir(as1.app_info)),f)} -> 
+  (as2:app_state{as2.app_info = as1.app_info}) Error_handling.Result
+
+assume !aps. ApplicationState(aps) <=> (ApplicationSend(aps.app_info,aps.app_outgoing) /\ 
+					(ApplicationSend(PeerSession(aps.app_info),aps.app_incoming) \/ Compromised(aps.app_info)))
+ 
+assume !aps. ApplicationSend(aps,empty_bstr)
+assume !aps,f,d. ApplicationSend(aps,Concat(f,d)) => (ApplicationFragmentSend(aps,f) /\ ApplicationSend(aps,d)) 
+(*
+assume !aps,f,d. ApplicationFragmentSend(aps,f) /\ ApplicationSend(aps,d) => ApplicationSend(aps,Concat(d,f))
+*)

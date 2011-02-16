@@ -1,0 +1,99 @@
+module Handshake
+
+open Data
+open Record
+open Sessions
+open Error_handling
+open Formats
+
+type output_state =
+  | SendCCS
+  | SendHS of Data.bytes
+
+type clientState =
+  | ServerHello
+  | Certificate
+  | ServerKeyExchange
+  | CertReq
+  | CCCS
+  | CFinished
+  | CIdle
+type serverState =
+  | ClientHello
+  | Keying
+  | ClientKEX
+  | CertificateVerify
+  | SCCS
+  | SFinished
+  | SIdle
+type protoState =
+  | Client of clientState
+  | Server of serverState
+type protocolOptions =
+  {minVer: Formats.ProtocolVersionType;
+   maxVer: Formats.ProtocolVersionType;
+   ciphersuites: HS_msg.cipherSuites;
+   compressions: Formats.Compression list;}
+val defaultProtocolOptions : protocolOptions
+type pre_hs_state =
+  {hs_outgoing: Data.bytes;
+   ccs_outgoing: (Data.bytes * Record.ccs_data) option;
+   hs_outgoing_after_ccs: Data.bytes;
+   hs_incoming: Data.bytes;
+   hs_info: Sessions.SessionInfo;
+   poptions: protocolOptions;
+   pstate: protoState;} 
+
+predicate type preds =
+  | HandshakeState of pre_hs_state
+  | HandshakeFragmentSend of SessionInfo * fragment
+  | HandshakeCCSSend of SessionInfo * fragment
+
+
+type hs_state = (hs:pre_hs_state){HandshakeState(hs) /\ hs.hs_info.dir = OutDir}
+
+type HSFragReply =
+  | EmptyHSFrag
+  | HSFrag of bytes
+  | LastHSFrag of bytes
+  | CCSFrag of bytes * ccs_data
+
+val next_fragment: s:hs_state -> int ->
+	(r:HSFragReply * s':hs_state){
+		s'.hs_info = s.hs_info /\
+		(r = EmptyHSFrag => s' = s) /\
+		(!f. r = HSFrag(f) => (HandshakeFragmentSend(s.hs_info,f) /\ Pub(f))) /\
+		(* TODO: Pub(f) might not be true for the Finished message, in this case a different return value is needed *)
+		(!f. r = LastHSFrag(f) => (HandshakeFragmentSend(s.hs_info,f) /\ Pub(f))) /\
+		(!f,info,pv,compr,sparams,mk,cstate. r = CCSFrag(f,(info,pv,compr,sparams,mk,cstate)) =>
+		           (HandshakeCCSSend(s.hs_info,f) /\ Pub(f) /\
+			    NonNullCipherSettings((info,pv,compr,sparams,mk,cstate)) /\ info.dir = OutDir))}
+
+
+type recv_reply =
+  | HSAck of hs_state
+  | HSChangeVersion of hs_state * role * Formats.ProtocolVersionType
+  | HSFinished of hs_state
+val makeHSPacket : HS_msg.handshakeType -> Data.bytes -> Data.bytes
+val makeHelloRequestBytes : unit -> Data.bytes
+val makeTimestamp : unit -> int
+val makeCHello : protocolOptions -> Sessions.sessionID -> HS_msg.clientHello
+val b_of_cslist : HS_ciphersuites.CipherSuite list -> Data.bytes -> Data.bytes
+val bytes_of_cipherSuites : HS_ciphersuites.CipherSuite list -> Data.bytes
+val b_of_complist : Formats.Compression list -> Data.bytes -> Data.bytes
+val bytes_of_compressionMethods : Formats.Compression list -> Data.bytes
+val makeCHelloBytes : protocolOptions -> Sessions.sessionID -> Data.bytes
+val init_handshake: i:SessionInfo -> protocolOptions -> s:hs_state{s.hs_info = i}
+val rehandshake : hs_state -> bool -> hs_state Error_handling.Result
+val parse_fragment :
+  hs_state ->
+    Data.bytes -> hs_state * (HS_msg.handshakeType * Data.bytes) option
+val recv_fragment: hs_state -> Record.fragment ->
+	r:(recv_reply Error_handling.Result){
+		(!rr. r = Correct(rr) => (!hs,r,pv. rr = HSChangeVersion(hs,r,pv) => pv <> UnknownPV))
+	}
+val recv_ccs: hs_state -> Record.fragment ->
+	r:((hs_state * Record.ccs_data) Error_handling.Result){
+	(!s,info,pv,compr,sparams,mk,cstate. r = Correct((s,(info,pv,compr,sparams,mk,cstate))) => (NonNullCipherSettings((info,pv,compr,sparams,mk,cstate)) /\ info.dir = InDir))
+	}
+

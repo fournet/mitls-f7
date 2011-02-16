@@ -1,0 +1,78 @@
+module Alert
+
+open Data
+open Sessions
+
+type alertLevel =
+  | AL_warning
+  | AL_fatal
+  | AL_unknown_level of int
+type alertDescription =
+  | AD_close_notify
+  | AD_unexpected_message
+  | AD_bad_record_mac
+  | AD_decryption_failed
+  | AD_record_overflow
+  | AD_decompression_failure
+  | AD_handshake_failure
+  | AD_no_certificate
+  | AD_bad_certificate
+  | AD_unsupported_certificate
+  | AD_certificate_revoked
+  | AD_certificate_expired
+  | AD_certificate_unknown
+  | AD_illegal_parameter
+  | AD_unknown_ca
+  | AD_access_denied
+  | AD_decode_error
+  | AD_decrypt_error
+  | AD_export_restriction
+  | AD_protocol_version
+  | AD_insufficient_security
+  | AD_internal_error
+  | AD_user_cancelled
+  | AD_no_renegotiation
+  | AD_unknown_description of int
+type alert =
+  {level: alertLevel;
+   description: alertDescription;}
+type pre_al_state =
+  {al_info: SessionInfo;
+   al_incoming: Data.bytes;
+   al_outgoing: Data.bytes;}
+
+predicate type preds =
+    | AlertState of pre_al_state
+    | AlertFragmentSend of SessionInfo * Record.fragment
+
+type al_state = (als:pre_al_state){AlertState(als) /\ als.al_info.dir = OutDir}
+
+val init : i:SessionInfo -> s:al_state{s.al_info = i}
+type ALFragReply =
+    | EmptyALFrag
+    | ALFrag of bytes
+    | LastALFrag of bytes
+
+val next_fragment: als:al_state -> int ->
+        (r:ALFragReply * als':al_state){
+                als'.al_info = als.al_info /\
+                (r = EmptyALFrag => als' = als) /\
+                (!f. r = ALFrag(f) => (AlertFragmentSend(als.al_info,f) /\ Pub(f))) /\
+                (!f. r = LastALFrag(f) => (AlertFragmentSend(als.al_info,f) /\ Pub(f)))
+                }
+
+type alert_reply =
+  | ALAck of al_state
+  | ALClose of al_state
+  | ALClose_notify of al_state
+val intpair_of_alertDesc : alertDescription -> int * int
+val level_of_int : int -> alertLevel
+val desc_of_int : int -> alertDescription
+val alert_of_intpair : int * int -> alert
+val alert_of_bytes : Data.bytes -> alert
+val bytes_of_alertDesc : alertDescription -> Data.bytes
+val send_alert : al_state -> alertDescription -> al_state Error_handling.Result
+val handle_alert : al_state -> alert -> alert_reply Error_handling.Result
+val recv_fragment :
+  al_state -> Record.fragment -> alert_reply Error_handling.Result
+

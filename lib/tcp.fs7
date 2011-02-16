@@ -1,0 +1,24 @@
+﻿module Tcp
+
+open Data
+open Error_handling
+
+type NetworkStream
+type TcpListener
+
+(* Server side *)
+
+val listen: string -> int -> TcpListener
+val accept: TcpListener -> NetworkStream
+val stop: TcpListener -> unit
+
+(* Client side *)
+
+val connect: string -> int -> NetworkStream
+
+(* Input/Output *)
+
+val dataAvailable: NetworkStream -> r:bool Result{!y,z. r = Error(y,z) => y = Tcp /\ z = Internal}
+val read: NetworkStream -> int -> r:bytespub Result{!y,z. r = Error(y,z) => y = Tcp /\ z = Internal}
+val write: NetworkStream -> bytespub -> r:unit Result{!y,z. r = Error(y,z) => y = Tcp /\ z = Internal}
+val close: NetworkStream -> unit
