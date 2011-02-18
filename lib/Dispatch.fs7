@@ -35,7 +35,8 @@ type preConnection =
 
 predicate type preds =
 	| DispSend of dState * ContentType * fragment
-	| AppDataSendMap of bytes * int * int
+	| NoFrags of SessionInfo * ContentType * int * int
+	| ContentMap of SessionInfo * ContentType * int * fragment * bytes
         | ValidConnection of preConnection
 	| DispState of dState
         | ReadState of dState
@@ -50,10 +51,9 @@ val init :
 
 val next_fragment :
         int -> c:Connection{c.write.disp <> Closed /\ 
-	                    (c.appdata.app_out_fragno <> 0 => (?f,n,m. AppDataSendMap(f,n,m) /\
-			     c.appdata.app_out_fragno = n + 1 (* /\ c.write.conn.seq_num > m *) ))} ->
+	                    (?ct,n,f,outgone. ContentMap(c.write.conn.rec_info,ct,n,f,outgone))} ->
                 ((bool * c':Connection{
-                        ?f'. AppDataSendMap(f',c.appdata.app_out_fragno,c.write.conn.seq_num)}
+                        ?f'. ContentMap(c.write.conn.rec_info,ct,c.write.conn.seq_num,f',Concat(outgone,f))}
                  )) Error_handling.Result
 
 val max_TLSPlaintext_fragment_length : int
@@ -103,13 +103,14 @@ assume !dstate. DispState(dstate) <=> (
 	 dstate.conn.sparams.mac_algorithm <> MA_null))
 	)
 
-(* Mapping protocol seq_nums to record seq_num *)
-assume !c,f. (ValidConnection(c) /\ AppDataFragmentSend(c.appdata.app_info,c.appdata.app_out_fragno,f) /\ c.appdata.app_out_fragno = 0) =>
-                        AppDataSendMap(f,c.appdata.app_out_fragno,c.write.conn.seq_num)
-assume !c,f,f',app_seq,rec_seq. (AppDataSendMap(f',app_seq,rec_seq) /\ AppDataFragmentSend(c.appdata.app_info,c.appdata.app_out_fragno,f) /\
-				c.appdata.app_out_fragno = app_seq + 1 (* /\ rec_seq < c.write.conn.seq_num *) ) =>
-		AppDataSendMap(f,c.appdata.app_out_fragno,c.write.conn.seq_num)
+(* Mapping protocol history to record seq_num *)
+assume !info,ct,n,n'. n > n' => NoFrags(info,ct,n,n')
+assume !cs,ct,ct',n',f. NoFrags(cs.ds_info,ct,cs.write.conn.seq_num+1,n') /\ FragmentSend(cs,ct',f) /\ ct' <> ct /\ n' >= cs.write.conn.seq_num+1 =>
+		NoFrags(cs.ds_info,ct,cs.write.conn.seq_num,n')
 
+assume !cs,ct,f. FragmentSend(cs,ct,f) /\ cs.write.conn.seq_num = 0 => ContentMap(c.write.conn.rec_info,ct,0,f,empty_Fifo)
+assume !cs,ct,f. NoFrags(cs.ds_info,ct,0,cs.write.conn.seq_num-1) /\ FragmentSend(cs,ct,f) => ContentMap(c.write.conn.rec_info,ct,cs.write.conn.seq_num,emptyFifo)
+(* TODO: completely inductive case *)
 
 assume !read. ReadState(read) <=> 
     (RecvConnState(read.conn) /\ DispState(read))

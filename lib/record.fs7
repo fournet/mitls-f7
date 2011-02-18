@@ -35,6 +35,7 @@ predicate type preds =
   | RecvConnState of ConnectionState
   | FragmentSend of ConnectionState * ContentType * fragment
   | RecordSend of SessionInfo * ContentType * fragment * ProtocolVersionType * int * key
+  | UpperProtoSend of SessionInfo * ContentType * bytes * fragment
   | MACBytes of bytes * bytes * bytes * bytes * bytes
   | KHashBytes of bytes * bytes * bytes * bytes
   | TLSMKey of key * SessionInfo

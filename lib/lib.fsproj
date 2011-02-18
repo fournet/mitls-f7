@@ -58,6 +58,8 @@
     <Compile Include="Sessions.fs" />
     <Compile Include="record.fsi" />
     <Compile Include="record.fs" />
+    <Compile Include="FIFO.fsi" />
+    <Compile Include="FIFO.fs" />
     <Compile Include="HS_ciphersuites.fsi" />
     <Compile Include="HS_ciphersuites.fs" />
     <Compile Include="HS_msg.fsi" />
