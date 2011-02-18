@@ -110,7 +110,9 @@ assume !cs,ct,ct',n',f. NoFrags(cs.ds_info,ct,cs.write.conn.seq_num+1,n') /\ Fra
 
 assume !cs,ct,f. FragmentSend(cs,ct,f) /\ cs.write.conn.seq_num = 0 => ContentMap(c.write.conn.rec_info,ct,0,f,empty_Fifo)
 assume !cs,ct,f. NoFrags(cs.ds_info,ct,0,cs.write.conn.seq_num-1) /\ FragmentSend(cs,ct,f) => ContentMap(c.write.conn.rec_info,ct,cs.write.conn.seq_num,emptyFifo)
-(* TODO: completely inductive case *)
+assume !cs,ct,f,f',n,outgone. ContentMap(c.write.conn.rec_info,ct,n,f,outgone) /\ NoFrags(c.write.conn.rec_info,ct,n+1,c.write.conn.seq_num-1) /\
+			      FragmentSend(cs,ct,f') =>
+			         ContentMap(c.write.conn.rec_info,ct,c.write.conn.seq_num,f',Concat(outgone,f))
 
 assume !read. ReadState(read) <=> 
     (RecvConnState(read.conn) /\ DispState(read))
@@ -118,10 +120,12 @@ assume !read. ReadState(read) <=>
 assume !write. WriteState(write) <=> 
     (SendConnState(write.conn) /\ DispState(write))
 
-assume !c,f. ValidConnection(c) /\
+assume !c,f,f',outgone,sn. ValidConnection(c) /\
 	     DispSend(c.write,Application_data,f) /\
-             (* AppDataFragmentSend(c.appdata.app_info,c.appdata.app_out_fragno,f) /\ *)
-	     AppDataSendMap(f,c.appdata.app_out_fragno,c.write.conn.seq_num) => (* FIXME: where's c.appdata.app_info gone? :-) *)
+	     UpperProtoSend(c.ds_info,Application_data,Concat(outgone,f'),f) /\
+	     ContentMap(c.ds_info,Application_data,sn,f',outgone) /\
+	     sn < c.write.conn.seq_num /\
+	     NoFrags(c.ds_info,Application_data,sn+1,c.write.conn.seq_num-1) =>
                FragmentSend(c.write.conn,Application_data,f)
 
 assume !c,f. ValidConnection(c) /\
