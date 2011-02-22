@@ -5,15 +5,15 @@ all: record.dll record-a.dll Dispatch.dll Dispatch-a.dll
 lib7=../../../lib/fs7-interfaces/
 libperv = $(lib7)pervasives.fs7 $(lib7)tuples.fs7
 lperv = -pervasives $(lib7)pervasives.fs7 -tuples $(lib7)tuples.fs7
-libfs7 = $(lib7)pi.fs7 $(lib7)formulas.fs7 $(lib7)list.fs7 $(lib7)data.fs7 $(lib7)xml.fs7 $(lib7)prim-crypto.fs7 $(lib7)crypto.fs7 $(lib7)db.fs7 $(lib7)bytearray.fs7 
+libfs7 = $(lib7)pi.fs7 $(lib7)formulas.fs7 $(lib7)list.fs7 $(lib7)data.fs7 $(lib7)xml.fs7 $(lib7)prim-crypto.fs7 $(lib7)crypto.fs7 $(lib7)db.fs7 $(lib7)bytearray.fs7 Stream.fs7
 recordfs7 = Error.fs7 tcp.fs7 Sessions.fs7 formats.fs7 CryptoTLS.fs7 record.fs7 
 recordfsi = Error.fsi tcp.fsi Sessions.fsi formats.fsi CryptoTLS.fsi record.fsi 
 recordfs  = Error.fs  tcp.fs  Sessions.fs  formats.fs  CryptoTLS.fs record.fs
 recordfs-a = Error.fs  tcp-a.fs  Sessions.fs  formats.fs CryptoTLS.fs record.fs 
 
-tlsfs7 = FIFO.fs7 Alert.fs7 AppData.fs7 HS_ciphersuites.fs7 HS_msg.fs7 Handshake.fs7 Dispatch.fs7
-tlsfsi = FIFO.fsi Alert.fsi AppData.fsi HS_ciphersuites.fsi HS_msg.fsi Handshake.fsi Dispatch.fsi
-tlsfs  = FIFO.fs Alert.fs AppData.fs HS_ciphersuites.fs HS_msg.fs Handshake.fs Dispatch.fs
+tlsfs7 = Alert.fs7 AppData.fs7 HS_ciphersuites.fs7 HS_msg.fs7 Handshake.fs7 Dispatch.fs7
+tlsfsi = Alert.fsi AppData.fsi HS_ciphersuites.fsi HS_msg.fsi Handshake.fsi Dispatch.fsi
+tlsfs  = Alert.fs AppData.fs HS_ciphersuites.fs HS_msg.fs Handshake.fs Dispatch.fs
 
 clib=../../../lib/concrete-fs/
 slib=../../../lib/symbolic/
@@ -23,9 +23,9 @@ lpi= $(ilib)pi.mli $(slib)pi.ml
 intfs = $(ilib)formulas.mli $(ilib)data.mli $(ilib)db.mli $(ilib)crypto.mli $(ilib)xml.mli $(ilib)net.mli
 
 
-libs= $(clib)pi.fs $(intfs) $(clib)formulas.fs $(clib)db.fs $(clib)data.fs $(clib)crypto.fs $(clib)xml.fs $(clib)net.fs $(clib)bytearray.fs
-libs-a= $(intfs) $(slib)formulas.ml $(slib)db.ml $(slib)data.ml $(slib)crypto.ml $(slib)xml.ml $(slib)net.ml $(slib)bytearray.ml
-libs-a-pr= $(lpi) $(slib)formulas.ml $(slib)db.ml $(slib)data.ml $(slib)crypto.ml $(slib)xml.ml $(slib)net.ml $(slib)bytearray.ml
+libs= $(clib)pi.fs $(intfs) $(clib)formulas.fs $(clib)db.fs $(clib)data.fs $(clib)crypto.fs $(clib)xml.fs $(clib)net.fs $(clib)bytearray.fs Stream.fs
+libs-a= $(intfs) $(slib)formulas.ml $(slib)db.ml $(slib)data.ml $(slib)crypto.ml $(slib)xml.ml $(slib)net.ml $(slib)bytearray.ml Stream-a.fs
+libs-a-pr= $(lpi) $(slib)formulas.ml $(slib)db.ml $(slib)data.ml $(slib)crypto.ml $(slib)xml.ml $(slib)net.ml $(slib)bytearray.ml Stream-a.fs
 
 libsym-a.dll: $(lpi) $(libs-a) # building DLLs, e.g. for intellisense integration
 	$(fsc) $(lpi) $(libs-a) -a -o $@
