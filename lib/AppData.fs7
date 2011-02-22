@@ -5,27 +5,26 @@ open Sessions
 open Formats
 open Record
 open Error_handling
-open FIFO
+open Stream 
 
 type pre_app_state =
   {app_info: SessionInfo;
-   app_outgone: Fifo;
-
-   app_incoming: Fifo;
-   app_outgoing: Fifo}
+   app_incoming: Stream;
+   app_outgoing: Stream}
 
 
 predicate type preds =
   | ApplicationState of pre_app_state 
   | AppDataNextChunk of SessionInfo * bytes
-  | AppDataOutStream of SessionInfo * bytes
+  | AppDataOutStream of SessionInfo * Stream * Stream 
+  | AppDataInStream of SessionInfo * Stream * Stream 
 
-type app_state = (aps:pre_app_state){ApplicationState(aps) /\ aps.app_info.dir = OutDir}
+type app_state = (aps:pre_app_state){ApplicationState(aps)}
 
 function type funs =
   | InitAppState of SessionInfo
 
-val init : i:SessionInfo{i.dir = OutDir} -> a:app_state{a = InitAppState(i)}
+val init : i:SessionInfo -> a:app_state{a = InitAppState(i)}
 
 val send_data: aps:app_state -> d:Data.bytes{AppDataNextChunk(aps.app_info,d)} -> app_state
 
@@ -41,25 +40,42 @@ val recv_fragment :
   (as2:app_state{as2.app_info = as1.app_info}) Error_handling.Result
 *)
 
-val recv_fragment: app_state -> fragment -> app_state Result
+val recv_fragment: aps:app_state ->
+          d:fragment{UpperProtoSend(PeerSession(aps.app_info), Application_data, aps.app_outgone,} ->
+	  app_state Result
 
 (* Predicates definitions *)
 assume !info. InitAppState(info) = {
 		app_info = info;
-		app_outgone = empty_bstr;
-		app_incoming = empty_bstr;
-		app_outgoing = empty_bstr}
+		app_outgone = empty_stream;
+		app_income = empty_stream;
+		app_incoming = empty_stream;
+		app_outgoing = empty_stream}
 
-assume !aps. AppDataOutStream(aps.app_info,Concat(empty_bstr,empty_bstr))
+assume !aps. AppDataOutStream(aps.app_info,empty_stream,empty_stream)
+assume !aps. AppDataInStream(aps.app_info,empty_stream,empty_stream)
 
-assume !aps. ApplicationState(aps) <=> (AppDataOutStream(aps.app_info,Concat(aps.app_outgone,aps.app_outgoing)) (* /\ 
-					(ApplicationSend(PeerSession(aps.app_info),aps.app_incoming) \/ Compromised(aps.app_info)) *) )
+assume !aps. ApplicationState(aps) <=> (AppDataOutStream(aps.app_info,aps.app_outgone,aps.app_outgoing) /\ 
+					(AppDataInStream(SessionOtherDir(aps.app_info),aps.app_income,aps.app_incoming) \/ Compromised(aps.app_info)) )
+
+ask !i,aps. aps = InitAppState(i) => ApplicationState(aps)
  
 (* When can we add data to the outgoing buffer *)
-assume !aps,d. (ApplicationState(aps) /\ AppDataNextChunk(aps.app_info,d) ) =>
-				AppDataOutStream(aps.app_info,Concat(aps.app_outgone,Concat(aps.app_outgoing,d)))
+assume !aps,aps',d. ( ApplicationState(aps) /\ AppDataNextChunk(aps.app_info,d) /\
+		    aps'.app_info = aps.app_info /\
+ 		    aps'.app_income = aps.app_income /\
+		    aps'.app_outgone = aps.app_outgone /\
+		    aps'.app_incoming = aps.app_incoming /\
+		    StreamWrite(aps.app_outgoing,d,aps'.app_outgoing) ) =>
+		    ApplicationState(aps')
 
 (* When we get the next fragment from the fifo, we can send it, provided we associate it with its history *)
-assume !aps,aps',f,rem. (ApplicationState(aps) /\ IsConcat(aps.app_outgoing,f,rem) /\ FIFOSend(f)) =>
-		(UpperProtoSend(aps.app_info,Application_data,aps.app_outgone,f) /\
-		 ApplicationState(aps') /\ IsConcat(aps'.app_outgone,aps.app_outgone,f) /\ aps'.app_outgoing = rem )
+assume !aps,aps',d. ( ApplicationState(aps) /\
+		      aps'.app_info = aps.app_info /\
+		      aps'.app_income = aps.app_income /\
+		      aps'.app_incoming = aps.app_incoming /\
+		      StreamRead(aps.app_outgoing,d,aps'.app_outgoing) /\
+		      StreamWrite(aps.app_outgone,d,aps'.app_outgone)
+		    ) =>
+		    ( ApplicationState(aps') /\ UpperProtoSend(aps.app_info, Application_data, aps.app_outgone, d) )
+

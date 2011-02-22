@@ -12,8 +12,13 @@ type CipherState =
   | BlockCipherState of Crypto.key * bytes    // (key,iv)
   | StreamCipherState
 
+type Direction =
+    | CtoS
+    | StoC
+
 type ConnectionState = {
   rec_info: SessionInfo;
+  dir: Direction;
   net_conn: NetworkStream;                (* underlying TCP connection *)
   compression: Compression;
   protocol_version: ProtocolVersionType;
@@ -26,17 +31,34 @@ type ConnectionState = {
 type sendState = ConnectionState
 type recvState = ConnectionState
 type fragment = bytes
-type ccs_data = SessionInfo * ProtocolVersionType * Compression * SecurityParameters * Crypto.key * CipherState
+type ccs_data = {
+    ccs_info: SessionInfo;
+    ccs_pv: ProtocolVersionType;
+    ccs_comp: Compression;
+    ccs_sparams: SecurityParameters;
+    ccs_mkey: Crypto.key;
+    ccs_ciphstate: CipherState}
 
 type preds = FragmentSend of ConnectionState * ContentType * bytes
-             
+
+let indir info =
+    match getSessionRole info with
+    | ClientRole -> StoC
+    | ServerRole -> CtoS
+
+let outdir info =
+    match getSessionRole info with
+    | ClientRole -> CtoS
+    | ServerRole -> StoC
+  
 let incSeqNum (conn_state:ConnectionState) =
     let new_seq_num = conn_state.seq_num + 1 in
     { conn_state with seq_num = new_seq_num }
 
-let initConnState ns info pv =
+let initConnState ns info dir pv =
   let mkey = symkey empty_bstr in
     {rec_info = info;
+    dir = dir;
     net_conn = ns;
     compression = Null;
     protocol_version = pv;
@@ -50,9 +72,11 @@ let initConnState ns info pv =
               }
     }
 
-let create ns send_info recv_info minpv =
-    let sendState = initConnState ns send_info minpv in
-    let recvState = initConnState ns recv_info UnknownPV in
+let create ns info minpv =
+    let outDir = outdir info in
+    let sendState = initConnState ns info outDir minpv in
+    let inDir = indir info in
+    let recvState = initConnState ns info inDir UnknownPV in
     (sendState, recvState)
 
 let max_TLSPlaintext_fragment_length = 1<<<14
@@ -215,15 +239,17 @@ let send conn ct fragment =
 let send_setVersion conn pv =
     {conn with protocol_version = pv }
 
-let send_setCrypto conn (new_info, new_pv, new_comp, new_sec_params, new_mac_key, new_cipher_state) =
-    { rec_info = new_info;
+let send_setCrypto conn ccs_d =
+    let new_dir = outdir ccs_d.ccs_info in
+    { rec_info = ccs_d.ccs_info;
+      dir = new_dir;
       net_conn = conn.net_conn;
-      compression = new_comp;
-      protocol_version = new_pv;
-      cipher_state = new_cipher_state;
-      mk = new_mac_key;
+      compression = ccs_d.ccs_comp;
+      protocol_version = ccs_d.ccs_pv;
+      cipher_state = ccs_d.ccs_ciphstate;
+      mk = ccs_d.ccs_mkey;
       seq_num = 0;
-      sparams = new_sec_params}
+      sparams = ccs_d.ccs_sparams}
       
 let parse_header header =
   let [x;y;z] = splitList header [1;2] in
@@ -399,13 +425,15 @@ let recv_checkVersion conn pv =
     else
         Error(RecordVersion,CheckFailed)
 
-let recv_setCrypto conn (new_info, new_pv, new_comp, new_sec_params, new_mac_key, new_cipher_state) =
-    { rec_info = new_info;
+let recv_setCrypto conn ccs_d =
+    let new_dir = indir ccs_d.ccs_info;
+    { rec_info = ccs_d.ccs_info;
+      dir = new_dir;
       net_conn = conn.net_conn;
-      compression = new_comp;
-      protocol_version = new_pv;
-      cipher_state = new_cipher_state;
-      mk = new_mac_key;
+      compression = ccs_d.ccs_comp;
+      protocol_version = ccs_d.ccs_pv;
+      cipher_state = ccs_d.ccs_ciphstate;
+      mk = ccs_d.ccs_mkey;
       seq_num = 0;
-      sparams = new_sec_params;
+      sparams = ccs_d.ccs_sparams;
     }

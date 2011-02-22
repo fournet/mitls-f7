@@ -42,7 +42,6 @@ assume !sn. SequenceNumberBytes(sn) = Num(sn)
 
 val bytes_of_intpair: p:(int*int) -> b:bytes{!i,j. p = (i,j) => b = Concat(Num(i),Num(j))}
 val intpair_of_bytes:  b:bytes -> (i:int*j:int){b = Concat(Num(i),Num(j))}
-val empty_bstr: bytespub
 val bytes_of_seq: sn:int -> b:bytes{b = SequenceNumberBytes(sn)}
 
 val SSLv2 : Data.bytes

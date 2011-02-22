@@ -6,23 +6,17 @@ type role =
     | ClientRole
     | ServerRole
 
-type Direction =
-    | InDir
-    | OutDir
-
 type sessionID = bytes
 
 type SessionInfo = {
     role: role;
-    dir: Direction;
     clientID: string option;
     serverID: string option;
     sessionID: sessionID option;
     }
 
-let init_sessionInfo role dir =
+let init_sessionInfo role =
     { role = role;
-      dir = dir;
       clientID = None;
       serverID = None;
       sessionID = None}

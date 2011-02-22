@@ -38,15 +38,14 @@ type Connection = {
   }
 
 let init ns role poptions =
-    let send_info = init_sessionInfo role OutDir in
-    let recv_info = init_sessionInfo role InDir in
-    let (send,recv) = Record.create ns send_info recv_info poptions.minVer in
+    let info = init_sessionInfo role in
+    let (send,recv) = Record.create ns info poptions.minVer in
     let read_state = {disp = Init; conn = recv} in
     let write_state = {disp = Init; conn = send} in
-    let hs = Handshake.init_handshake send_info poptions in
-    let al = Alert.init send_info  in
-    let app = AppData.init send_info in
-    { ds_info = send_info;
+    let hs = Handshake.init_handshake info poptions in
+    let al = Alert.init info  in
+    let app = AppData.init info in
+    { ds_info = info;
       handshake = hs;
       alert = al;
       appdata = app;

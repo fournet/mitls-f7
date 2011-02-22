@@ -26,4 +26,4 @@ val retrieve_data: app_state -> int -> (bytes * app_state) option
 (* Dequeue app data from the output buffer *)
 val next_fragment: app_state -> int -> (fragment * app_state) option
 (* Enqueue app data in the input buffer *)
-val recv_fragment: app_state -> fragment -> app_state Result 
+val recv_fragment: app_state -> fragment -> app_state Result

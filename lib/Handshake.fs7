@@ -50,7 +50,7 @@ predicate type preds =
   | HandshakeCCSSend of SessionInfo * fragment
 
 
-type hs_state = (hs:pre_hs_state){HandshakeState(hs) /\ hs.hs_info.dir = OutDir}
+type hs_state = (hs:pre_hs_state){HandshakeState(hs)}
 
 type HSFragReply =
   | EmptyHSFrag
@@ -67,7 +67,7 @@ val next_fragment: s:hs_state -> int ->
 		(!f. r = LastHSFrag(f) => (HandshakeFragmentSend(s.hs_info,f) /\ Pub(f))) /\
 		(!f,info,pv,compr,sparams,mk,cstate. r = CCSFrag(f,(info,pv,compr,sparams,mk,cstate)) =>
 		           (HandshakeCCSSend(s.hs_info,f) /\ Pub(f) /\
-			    NonNullCipherSettings((info,pv,compr,sparams,mk,cstate)) /\ info.dir = OutDir))}
+			    NonNullCipherSettings((info,pv,compr,sparams,mk,cstate))))}
 
 
 type recv_reply =
@@ -94,6 +94,6 @@ val recv_fragment: hs_state -> Record.fragment ->
 	}
 val recv_ccs: hs_state -> Record.fragment ->
 	r:((hs_state * Record.ccs_data) Error_handling.Result){
-	(!s,info,pv,compr,sparams,mk,cstate. r = Correct((s,(info,pv,compr,sparams,mk,cstate))) => (NonNullCipherSettings((info,pv,compr,sparams,mk,cstate)) /\ info.dir = InDir))
+	(!s,info,pv,compr,sparams,mk,cstate. r = Correct((s,(info,pv,compr,sparams,mk,cstate))) => (NonNullCipherSettings((info,pv,compr,sparams,mk,cstate))))
 	}
 

@@ -45,7 +45,7 @@ predicate type preds =
     | AlertState of pre_al_state
     | AlertFragmentSend of SessionInfo * Record.fragment
 
-type al_state = (als:pre_al_state){AlertState(als) /\ als.al_info.dir = OutDir}
+type al_state = (als:pre_al_state){AlertState(als)}
 
 val init : i:SessionInfo -> s:al_state{s.al_info = i}
 type ALFragReply =

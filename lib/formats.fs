@@ -98,7 +98,6 @@ let bytes_of_intpair ((i,j): (int*int)) : bytes =
   let msg2 = bytes_of_int 1 j in
     append msg1 msg2
 
-let empty_bstr = zeroCreate 0
 let bytes_of_seq sn = bytes_of_int 8 sn
 
 let rec appendList (xl:bytes list) : bytes =

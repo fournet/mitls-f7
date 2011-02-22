@@ -74,12 +74,11 @@ assume !c. ValidConnection(c) <=>
    HandshakeState(c.handshake) /\
    AlertState(c.alert) /\
    ApplicationState(c.appdata) /\
-   c.ds_info.dir = OutDir (* /\
-   SessionOtherDir(c.ds_info) = c.read.conn.rec_info /\
+   c.ds_info = c.read.conn.rec_info /\
    c.ds_info = c.write.conn.rec_info /\
    c.ds_info = c.handshake.hs_info /\
    c.ds_info = c.alert.al_info /\
-   c.ds_info = c.appdata.app_info *) (* FIXME: Right now, too many troubles when updating the connection... *)
+   c.ds_info = c.appdata.app_info
   )
 
 (* ReadState and WriteState invariants *)
@@ -105,13 +104,13 @@ assume !dstate. DispState(dstate) <=> (
 
 (* Mapping protocol history to record seq_num *)
 assume !info,ct,n,n'. n > n' => NoFrags(info,ct,n,n')
-assume !cs,ct,ct',n',f. NoFrags(cs.ds_info,ct,cs.write.conn.seq_num+1,n') /\ FragmentSend(cs,ct',f) /\ ct' <> ct /\ n' >= cs.write.conn.seq_num+1 =>
+assume !cs,ct,ct',n',f. NoFrags(cs.ds_info,ct,cs.write.conn.seq_num+1,n') /\ FragmentSend(cs.write.conn.rec_info,cs.write.conn.seq_num,ct',f) /\ ct' <> ct /\ n' >= cs.write.conn.seq_num+1 =>
 		NoFrags(cs.ds_info,ct,cs.write.conn.seq_num,n')
 
-assume !cs,ct,f. FragmentSend(cs,ct,f) /\ cs.write.conn.seq_num = 0 => ContentMap(c.write.conn.rec_info,ct,0,f,empty_Fifo)
-assume !cs,ct,f. NoFrags(cs.ds_info,ct,0,cs.write.conn.seq_num-1) /\ FragmentSend(cs,ct,f) => ContentMap(c.write.conn.rec_info,ct,cs.write.conn.seq_num,emptyFifo)
+assume !cs,ct,f. FragmentSend(cs.write.conn.rec_info,cs.write.conn.seq_num,ct,f) /\ cs.write.conn.seq_num = 0 => ContentMap(c.write.conn.rec_info,ct,0,f,empty_Fifo)
+assume !cs,ct,f. NoFrags(cs.ds_info,ct,0,cs.write.conn.seq_num-1) /\ FragmentSend(cs.write.conn.rec_info,cs.write.conn.seq_num,ct,f) => ContentMap(c.write.conn.rec_info,ct,cs.write.conn.seq_num,emptyFifo)
 assume !cs,ct,f,f',n,outgone. ContentMap(c.write.conn.rec_info,ct,n,f,outgone) /\ NoFrags(c.write.conn.rec_info,ct,n+1,c.write.conn.seq_num-1) /\
-			      FragmentSend(cs,ct,f') =>
+			      FragmentSend(cs.write.conn.rec_info,cs.write.conn.seq_num,ct,f') =>
 			         ContentMap(c.write.conn.rec_info,ct,c.write.conn.seq_num,f',Concat(outgone,f))
 
 assume !read. ReadState(read) <=> 
@@ -126,25 +125,25 @@ assume !c,f,f',outgone,sn. ValidConnection(c) /\
 	     ContentMap(c.ds_info,Application_data,sn,f',outgone) /\
 	     sn < c.write.conn.seq_num /\
 	     NoFrags(c.ds_info,Application_data,sn+1,c.write.conn.seq_num-1) =>
-               FragmentSend(c.write.conn,Application_data,f)
+               FragmentSend(c.write.conn.rec_info,c.write.conn.seq_num,Application_data,f)
 
 assume !c,f. ValidConnection(c) /\
 	     DispSend(c.write,Handshake,f) /\
 	     HandshakeFragmentSend(c.handshake.hs_info,f) /\
              Pub(f) =>
-	       FragmentSend(c.write.conn,Handshake,f)
+	       FragmentSend(c.write.conn.rec_info,c.write.conn.seq_num,Handshake,f)
 
 assume !c,f. ValidConnection(c) /\
 	     DispSend(c.write,Change_cipher_spec,f) /\
 	     HandshakeCCSSend(c.handshake.hs_info,f) /\
              Pub(f) =>
-	       FragmentSend(c.write.conn,Change_cipher_spec,f)
+	       FragmentSend(c.write.conn.rec_info,c.write.conn.seq_num,Change_cipher_spec,f)
 
 assume !c,f. ValidConnection(c) /\
 	     DispSend(c.write,Alert,f) /\
 	     AlertFragmentSend(c.alert.al_info,f) /\
              Pub(f) =>
-	       FragmentSend(c.write.conn,Alert,f)
+	       FragmentSend(c.write.conn.rec_info,c.write.conn.seq_num,Alert,f)
 
 (* ARCHIVE FOLLOWS: *)
 

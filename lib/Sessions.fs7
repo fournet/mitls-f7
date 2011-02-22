@@ -8,65 +8,37 @@ type prerole =
 
 type role = r:prerole{r = ClientRole \/ r = ServerRole}
 
-type preDirection =
-    | InDir
-    | OutDir
-
-type Direction = d:preDirection{d = InDir \/ d = OutDir }
-
 type sessionID = bytes
 
 type SessionInfo = {
     role: role;
-    dir: Direction;
     clientID: string option;
     serverID: string option;
     sessionID: sessionID option;
     }
 
 function type funs =
-    | OtherRole of role
-    | OtherDir of Direction
-    | PeerSession of SessionInfo
-    | SessionOtherDir of SessionInfo
-    | InitSessionInfo of role * Direction
+    | IntOtherRole of role
+    | OtherRole of SessionInfo
+    | InitSessionInfo of role
 
 predicate type preds = Compromised of SessionInfo
 
-val init_sessionInfo: r:role -> d:Direction ->
-	s:SessionInfo{ s = InitSessionInfo(r,d) }
+val init_sessionInfo: r:role ->	s:SessionInfo{ s = InitSessionInfo(r) }
 
 val getSessionRole: i:SessionInfo -> r:role{r = i.role}
 val getSessionID: i:SessionInfo -> id:sessionID option{id = i.sessionID}
 
-assume !r,d. InitSessionInfo(r,d) = { role = r;
-			     	      dir = d;
-				      clientID = None;
-				      serverID = None;
-				      sessionID = None}
+assume !r,d. InitSessionInfo(r) = { role = r;
+				    clientID = None;
+				    serverID = None;
+				    sessionID = None}
 
-assume OtherRole(ClientRole) = ServerRole
-assume OtherRole(ServerRole) = ClientRole
-assume OtherDir(InDir) = OutDir
-assume OtherDir(OutDir) = InDir
+assume IntOtherRole(ClientRole) = ServerRole
+assume IntOtherRole(ServerRole) = ClientRole
 
-assume !s. PeerSession(s) = {
-	   	role = OtherRole(s.role);
-		dir = OtherDir(s.dir);
+assume !s. OtherRole(s) = {
+	   	role = IntOtherRole(s.role);
 		clientID = s.clientID;
 		serverID = s.serverID;
 		sessionID = s.sessionID}
-
-assume !s. SessionOtherDir(s) = {
-	   	role = s.role;
-		dir = OtherDir(s.dir);
-		clientID = s.clientID;
-		serverID = s.serverID;
-		sessionID = s.sessionID}
-
-(*
-ask !s,s'. s = PeerSession(s') => s' = PeerSession(s)
-ask !s. PeerSession(PeerSession(s)) = s
-ask !s,s'. s = SessionOtherDir(s') => s' = SessionOtherDir(s)
-ask !s. SessionOtherDir(SessionOtherDir(s)) = s
-*)

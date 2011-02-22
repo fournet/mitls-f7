@@ -5,7 +5,6 @@ open Data
 val intpair_of_bytes: bytes -> (int*int)
 val bytes_of_intpair: (int*int) -> bytes
 
-val empty_bstr: bytes
 val bytes_of_seq: int -> bytes
 
 type ContentType =

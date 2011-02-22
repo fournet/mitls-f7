@@ -2,25 +2,34 @@
 
 open Data
 open Tcp
-open Crypto
 open Formats
 open Error_handling
 open Sessions
 
 type CipherState = 
-  | BlockCipherState of key * bytes    // (key,iv)
+  | BlockCipherState of Crypto.key * bytes    // (key,iv)
   | StreamCipherState
 
 (* Internal interface for individual record processing *)
 
 type fragment = bytes (* f:bytes { f.Length in 0..2^14-1 } *)
 
+type Direction =
+    | CtoS
+    | StoC
+
 type ConnectionState
 type sendState = ConnectionState (* both implemented as ConnectionState for now *)
 type recvState = ConnectionState
-type ccs_data = SessionInfo * ProtocolVersionType * Compression * SecurityParameters * key * CipherState
+type ccs_data = {
+    ccs_info: SessionInfo;
+    ccs_pv: ProtocolVersionType;
+    ccs_comp: Compression;
+    ccs_sparams: SecurityParameters;
+    ccs_mkey: Crypto.key;
+    ccs_ciphstate: CipherState}
 
-val create: NetworkStream -> SessionInfo -> SessionInfo -> ProtocolVersionType -> sendState * recvState
+val create: NetworkStream -> SessionInfo -> ProtocolVersionType -> sendState * recvState
 (* we do not explicitly close connection states *)
 
 val send: sendState -> ContentType -> fragment -> sendState Result
