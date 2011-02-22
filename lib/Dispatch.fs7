@@ -7,6 +7,7 @@ open Formats
 open Handshake
 open Record
 open Sessions
+open Stream
 
 type predispatchState =
   | Init
@@ -37,6 +38,7 @@ predicate type preds =
 	| DispSend of dState * ContentType * fragment
 	| NoFrags of SessionInfo * ContentType * int * int
 	| ContentMap of SessionInfo * ContentType * int * fragment * bytes
+	| UpperProtoSend of SessionInfo * ContentType * bytes * Stream
         | ValidConnection of preConnection
 	| DispState of dState
         | ReadState of dState
@@ -121,7 +123,7 @@ assume !write. WriteState(write) <=>
 
 assume !c,f,f',outgone,sn. ValidConnection(c) /\
 	     DispSend(c.write,Application_data,f) /\
-	     UpperProtoSend(c.ds_info,Application_data,Concat(outgone,f'),f) /\
+	     UpperProtoSend(c.ds_info,Application_data,f,(*FIXME*)f) /\
 	     ContentMap(c.ds_info,Application_data,sn,f',outgone) /\
 	     sn < c.write.conn.seq_num /\
 	     NoFrags(c.ds_info,Application_data,sn+1,c.write.conn.seq_num-1) =>

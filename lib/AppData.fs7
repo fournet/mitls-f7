@@ -16,8 +16,7 @@ type pre_app_state =
 predicate type preds =
   | ApplicationState of pre_app_state 
   | AppDataNextChunk of SessionInfo * bytes
-  | AppDataOutStream of SessionInfo * Stream * Stream 
-  | AppDataInStream of SessionInfo * Stream * Stream 
+  | AppDataOutStream of SessionInfo * Stream
 
 type app_state = (aps:pre_app_state){ApplicationState(aps)}
 
@@ -31,7 +30,7 @@ val send_data: aps:app_state -> d:Data.bytes{AppDataNextChunk(aps.app_info,d)} -
 val retrieve_data: app_state -> int -> (bytes * app_state) option
 
 val next_fragment: as1:app_state -> int -> 
-  (d:Record.fragment * as2:app_state{UpperProtoSend(as1.app_info,Application_data,as1.app_outgone,d) /\ as2.app_info = as1.app_info}) option
+  (d:Record.fragment * as2:app_state{UpperProtoSend(as1.app_info,Application_data,d,as1.app_outgoing) /\ as2.app_info = as1.app_info}) option
 
 (*
 val recv_fragment :
@@ -41,41 +40,34 @@ val recv_fragment :
 *)
 
 val recv_fragment: aps:app_state ->
-          d:fragment{UpperProtoSend(PeerSession(aps.app_info), Application_data, aps.app_outgone,} ->
+          d:fragment{UpperProtoSend(OtherRole(aps.app_info), Application_data, d, aps.app_outgoing)} -> (* FIXME: doesn't make sense yet *)
 	  app_state Result
 
 (* Predicates definitions *)
 assume !info. InitAppState(info) = {
 		app_info = info;
-		app_outgone = empty_stream;
-		app_income = empty_stream;
 		app_incoming = empty_stream;
 		app_outgoing = empty_stream}
 
-assume !aps. AppDataOutStream(aps.app_info,empty_stream,empty_stream)
-assume !aps. AppDataInStream(aps.app_info,empty_stream,empty_stream)
+assume !aps. AppDataOutStream(aps.app_info,empty_stream)
 
-assume !aps. ApplicationState(aps) <=> (AppDataOutStream(aps.app_info,aps.app_outgone,aps.app_outgoing) /\ 
-					(AppDataInStream(SessionOtherDir(aps.app_info),aps.app_income,aps.app_incoming) \/ Compromised(aps.app_info)) )
+assume !aps. ApplicationState(aps) <=> (AppDataOutStream(aps.app_info,aps.app_outgoing) /\ 
+					(AppDataOutStream(OtherRole(aps.app_info),aps.app_incoming) \/ Compromised(OtherRole(aps.app_info))) ) (* FIXME: Troubles with stream handling *)
 
 ask !i,aps. aps = InitAppState(i) => ApplicationState(aps)
  
 (* When can we add data to the outgoing buffer *)
 assume !aps,aps',d. ( ApplicationState(aps) /\ AppDataNextChunk(aps.app_info,d) /\
 		    aps'.app_info = aps.app_info /\
- 		    aps'.app_income = aps.app_income /\
-		    aps'.app_outgone = aps.app_outgone /\
 		    aps'.app_incoming = aps.app_incoming /\
 		    StreamWrite(aps.app_outgoing,d,aps'.app_outgoing) ) =>
 		    ApplicationState(aps')
 
-(* When we get the next fragment from the fifo, we can send it, provided we associate it with its history *)
+(* When we can send data on the network from the outgoing stream *)
 assume !aps,aps',d. ( ApplicationState(aps) /\
 		      aps'.app_info = aps.app_info /\
-		      aps'.app_income = aps.app_income /\
 		      aps'.app_incoming = aps.app_incoming /\
-		      StreamRead(aps.app_outgoing,d,aps'.app_outgoing) /\
-		      StreamWrite(aps.app_outgone,d,aps'.app_outgone)
+		      StreamRead(aps.app_outgoing,d,aps'.app_outgoing)
 		    ) =>
-		    ( ApplicationState(aps') /\ UpperProtoSend(aps.app_info, Application_data, aps.app_outgone, d) )
+		    ( ApplicationState(aps') /\ UpperProtoSend(aps.app_info, Application_data, d, aps.app_outgoing) )
 
