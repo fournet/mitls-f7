@@ -3,14 +3,14 @@
 open Data
 open Bytearray
 
-type Stream = {
+type stream = {
     id: Pi.name;
     history: bytes;
     buffer: bytes}
 
 type preds =
-    | StreamWrite of Stream * bytes * Stream
-    | StreamRead of Stream * bytes * Stream
+    | StreamWrite of stream * bytes * stream
+    | StreamRead of stream * bytes * stream
 
 let empty_stream =
     {id = Pi.name "Stream";

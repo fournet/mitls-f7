@@ -9,8 +9,8 @@ open Stream
 
 type app_state = {
   app_info: SessionInfo
-  app_incoming: Stream (* unsolicited data *)
-  app_outgoing: Stream (* empty_bstr if nothing to be sent *) 
+  app_incoming: stream (* unsolicited data *)
+  app_outgoing: stream (* empty_bstr if nothing to be sent *) 
 }
 
 let init info =

@@ -38,7 +38,7 @@ predicate type preds =
 	| DispSend of dState * ContentType * fragment
 	| NoFrags of SessionInfo * ContentType * int * int
 	| ContentMap of SessionInfo * ContentType * int * fragment * bytes
-	| UpperProtoSend of SessionInfo * ContentType * bytes * Stream
+	(*| UpperProtoSend of SessionInfo * ContentType * stream * bytes*)
         | ValidConnection of preConnection
 	| DispState of dState
         | ReadState of dState
