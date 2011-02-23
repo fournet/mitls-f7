@@ -706,13 +706,12 @@ ask !cs,ccs,dir,cs'.
             dir = OutDir(ccs.ccs_info) /\
             cs' = UpdateCS(cs,ccs,dir) => 
             	SendConnState(cs')
-(*
-ask !cs,ccs,cs',dir.
-	    ccs = CCSDataOtherRole(cs') /\
-            NonNullCipherSettings(ccs) /\ 
-            dir = InDir(ccs.ccs_info) =>
+
+ask !cs,cs',dir.
+            NonNullCipherSettings(CCSDataOtherRole(cs')) /\ 
+            dir = InDir(cs'.rec_info) =>
                 RecvConnState(UpdateCS(cs,CCSData(cs'),dir))
-*)
+
 (* From InitConnState to {Send,Recv}ConnState *)
 
 ask !cs,ns,info,pv. InitConnState(cs,ns,info,InDir(info),pv) /\ pv = UnknownPV => RecvConnState(cs)
