@@ -4,21 +4,16 @@ open Data
 open Bytearray
 
 type stream = {
-    id: Pi.name;
+    id: bytes;
     history: bytes;
     buffer: bytes}
 
 type preds =
-    | StreamWrite of stream * bytes * stream
-    | StreamRead of stream * bytes * stream
+    | StreamWrite of stream * bytes
+    | StreamRead of stream * bytes
 
-let empty_stream =
-    {id = Pi.name "Stream";
-     history = empty_bstr;
-     buffer = empty_bstr}
-
-let new_stream () =
-    {id = Pi.name "Stream";
+let new_stream d =
+    {id = d;
      history = empty_bstr;
      buffer = empty_bstr}
 
@@ -28,7 +23,7 @@ let is_empty_stream s =
 let stream_write s d =
     let new_buff = append s.buffer d in
     let new_s = {s with buffer = new_buff} in
-    Pi.assume(StreamWrite(s,d,new_s));
+    Pi.assume(StreamWrite(s,d));
     new_s
 
 let stream_read s len =
@@ -36,5 +31,5 @@ let stream_read s len =
     let new_hist = append s.history d in
     let new_s = {s with buffer = new_buff
                         history = new_hist}
-    Pi.assume(StreamRead(s,d,new_s));
+    Pi.assume(StreamRead(s,d));
     (d,new_s)

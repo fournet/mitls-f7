@@ -17,43 +17,51 @@ predicate type preds =
   | ApplicationState of pre_app_state 
   | AppDataNextChunk of SessionInfo * bytes
   | ApplicationSend of SessionInfo * stream * bytes
+  | InitAppState of pre_app_state
 
 type app_state = (aps:pre_app_state){ApplicationState(aps)}
 
-function type funs =
-  | InitAppState of SessionInfo
+(* type app_state // abstract type at the implementation level *)
 
-val init : i:SessionInfo -> a:app_state{a = InitAppState(i)}
+(* Application interface *)
 
+(* Add data to be sent to the other party *)
 val send_data: aps:app_state -> d:Data.bytes{AppDataNextChunk(aps.app_info,d)} -> app_state
-
+(* Retrieve data that we received from the other party *)
 val retrieve_data: app_state -> int -> (bytes * app_state) option
 
-val next_fragment: as1:app_state -> int -> 
-  (d:Record.fragment * as2:app_state{ApplicationSend(as1.app_info,History(as1.app_outgoing),d) /\ as2.app_info = as1.app_info}) option
+(* Dispatcher interface *)
+val init : i:SessionInfo -> a:app_state{InitAppState(a)}
+
+val next_fragment: aps:app_state -> int -> 
+  (d:Record.fragment * aps':app_state{ApplicationSend(aps.app_info,aps.app_outgoing,d) /\ aps'.app_info = aps.app_info}) option
 
 val recv_fragment: aps:app_state ->
-          d:fragment{ApplicationSend(OtherRole(aps.app_info),aps.app_incoming,d)} ->
+          d:fragment{(?rs. ApplicationSend(OtherRole(aps.app_info),rs,d) /\ StreamBytes(aps.app_incoming) = PreviouslyRead(rs) ) \/ Compromised(OtherRole(aps.app_info))} ->
 	  app_state Result
 
 (* Application state definition *)
-assume !aps. ApplicationState(aps) <=> (?raps. raps.app_info = OtherRole(aps.app_info) /\ (aps.app_incoming = History(raps.app_outgoing) \/ Compromised(OtherRole(aps.app_info)) ))
-
-(* When we can send data on the network from the outgoing stream *) 
-assume !aps,d. ApplicationState(aps) /\ StreamRead(History(aps.app_outgoing),d) => ApplicationSend(aps.app_info,History(aps.app_outgoing),d)
-
-theorem !raps,d. ApplicationSend(raps.app_info,History(raps.app_outgoing),d) => StreamRead(History(raps.app_outgoing),d) /\ ApplicationState(raps)
-
-ask !aps,d. ApplicationState(aps) /\ ApplicationSend(OtherRole(aps.app_info),aps.app_incoming,d) => (StreamRead(aps.app_incoming,d) \/ Compromised(OtherRole(aps.app_info)))
+assume !aps. ApplicationState(aps) <=> (Stream(aps.app_incoming) /\ Stream(aps.app_outgoing) /\
+					((?raps. ApplicationState(raps) /\ raps.app_info = OtherRole(aps.app_info) /\
+					StreamBytes(aps.app_incoming) = PreviouslyRead(raps.app_outgoing) /\
+					StreamID(aps.app_incoming) = StreamID(raps.app_outgoing)) \/
+				      IsEmptyStream(aps.app_incoming) \/
+				      Compromised(OtherRole(aps.app_info))))
 
 (* When can we add data to the outgoing buffer *)
-assume !aps,d. AppDataNextChunk(aps.app_info,d) => StreamWrite(aps.app_outgoing,d)
+assume !aps,d. ApplicationState(aps) /\ AppDataNextChunk(aps.app_info,d) => StreamWrite(aps.app_outgoing,d)
+
+(* When we can send data on the network from the outgoing stream *) 
+assume !aps,d. ApplicationState(aps) /\ StreamRead(aps.app_outgoing,d) => ApplicationSend(aps.app_info,aps.app_outgoing,d)
+
+theorem !info,hist,d. ApplicationSend(info,hist,d) =>
+	(?aps. ApplicationState(aps) /\ info = aps.app_info /\ hist = aps.app_outgoing /\ StreamRead(aps.app_outgoing,d))
+
+ask !aps,rs,d. ApplicationState(aps) /\ ApplicationSend(OtherRole(aps.app_info),rs,d) /\ StreamBytes(aps.app_incoming) = PreviouslyRead(rs) =>
+		((StreamRead(rs,d) /\ StreamID(rs) = StreamID(aps.app_incoming)) \/ Compromised(OtherRole(aps.app_info)))
 
 (* Initial application state *)
-assume !info. InitAppState(info) = {
-		app_info = info;
-		app_incoming = empty_stream;
-		app_outgoing = empty_stream}
+assume !aps. InitAppState(aps) <=> ( IsEmptyStream(aps.app_incoming) /\ IsEmptyStream(aps.app_outgoing) )
 
-ask !i,aps. aps = InitAppState(i) => ApplicationState(aps)
+ask !aps. InitAppState(aps) => ApplicationState(aps)
 

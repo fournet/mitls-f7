@@ -15,8 +15,8 @@ type app_state = {
 
 let init info =
     {app_info = info;
-     app_incoming = new_stream();
-     app_outgoing = new_stream()}
+     app_incoming = new_stream Bytearray.empty_bstr;
+     app_outgoing = new_stream Bytearray.empty_bstr}
   
 let send_data (state:app_state) (data:bytes) =
     let new_out = stream_write state.app_outgoing data in
