@@ -38,11 +38,10 @@ type Connection = {
   }
 
 let init ns role poptions =
-    let info = init_sessionInfo role in
+    let (info,hs) = Handshake.init_handshake role poptions in
     let (send,recv) = Record.create ns info poptions.minVer in
     let read_state = {disp = Init; conn = recv} in
     let write_state = {disp = Init; conn = send} in
-    let hs = Handshake.init_handshake info poptions in
     let al = Alert.init info  in
     let app = AppData.init info in
     { ds_info = info;
@@ -117,12 +116,13 @@ let next_fragment n (c:Connection) : (bool * Connection) Result =
                           | Error (x,y) -> Error(x,y) (* TCP error, like above *)
                       | _ ->
                         Error(Dispatcher,InvalidState)
-          | (LastHSFrag(f),new_hs_state) ->     
-                      (* last handshake fragment: send it and switch to the Open state *) 
+          | (LastHSFrag(new_info,f),new_hs_state) ->     
+                      (* last handshake fragment: send it, update sessionInfo and switch to the Open state *) 
                       match c_write.disp with
                       | Finishing ->
                           match Record.send c_write.conn Handshake f with 
                           | Correct(ss) ->
+                            (* TODO: Update SessionInfo globally -- FIXME: read/write direction? *)
                             let new_write = {disp = Open; conn = ss} in
                             correct ( true,{ c with handshake = new_hs_state;
                                                     write     = new_write } )
@@ -200,10 +200,11 @@ let deliver ct f c =
             correct ( true,
                       { c with handshake = hs;
                                read = new_read} )
-    | Correct(HSFinished(hs)) ->
+    | Correct(HSFinished(new_info,hs)) ->
         (* Ensure we are in Finishing state *)
         match x with
         | Finishing ->
+            (* TODO: update SessionInfo globally -- FIXME: read/write issue? *)
             let new_read = {c_read with disp = Open} in
             correct ( true,
                       { c with handshake = hs; read = new_read } )

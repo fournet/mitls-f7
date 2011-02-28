@@ -13,13 +13,15 @@ type SessionInfo = {
     clientID: string option;
     serverID: string option;
     sessionID: sessionID option;
+    null_algs: bool
     }
 
 let init_sessionInfo role =
     { role = role;
       clientID = None;
       serverID = None;
-      sessionID = None}
+      sessionID = None;
+      null_algs = true}
 
 let getSessionRole info =
     info.role

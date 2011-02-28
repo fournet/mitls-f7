@@ -55,7 +55,7 @@ type hs_state = (hs:pre_hs_state){HandshakeState(hs)}
 type HSFragReply =
   | EmptyHSFrag
   | HSFrag of bytes
-  | LastHSFrag of bytes
+  | LastHSFrag of SessionInfo * bytes (* And NonNullSession(SessionInfo) *)
   | CCSFrag of bytes * ccs_data
 
 val next_fragment: s:hs_state -> int ->
@@ -73,7 +73,7 @@ val next_fragment: s:hs_state -> int ->
 type recv_reply =
   | HSAck of hs_state
   | HSChangeVersion of hs_state * role * Formats.ProtocolVersionType
-  | HSFinished of hs_state
+  | HSFinished of SessionInfo * hs_state (* And NonNullSession(SessionInfo) *)
 val makeHSPacket : HS_msg.handshakeType -> Data.bytes -> Data.bytes
 val makeHelloRequestBytes : unit -> Data.bytes
 val makeTimestamp : unit -> int
@@ -83,7 +83,7 @@ val bytes_of_cipherSuites : HS_ciphersuites.CipherSuite list -> Data.bytes
 val b_of_complist : Formats.Compression list -> Data.bytes -> Data.bytes
 val bytes_of_compressionMethods : Formats.Compression list -> Data.bytes
 val makeCHelloBytes : protocolOptions -> Sessions.sessionID -> Data.bytes
-val init_handshake: i:SessionInfo -> protocolOptions -> s:hs_state{s.hs_info = i}
+val init_handshake: role -> protocolOptions -> info:SessionInfo * s:hs_state{s.hs_info = info}
 val rehandshake : hs_state -> bool -> hs_state Error_handling.Result
 val parse_fragment :
   hs_state ->

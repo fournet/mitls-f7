@@ -28,7 +28,7 @@ val defaultProtocolOptions: protocolOptions
 
 type hs_state
 
-val init_handshake: SessionInfo -> protocolOptions -> hs_state
+val init_handshake: role -> protocolOptions -> SessionInfo * hs_state
 (*
 val rehandshake: hs_state -> hs_state Result (* new handshake on same connection *)
 val rekey: hs_state -> hs_state Result (* resume on same connection *)
@@ -38,7 +38,7 @@ val resume: SessionInfo -> hs_state (* resume on different connection; only clie
 type HSFragReply =
   | EmptyHSFrag
   | HSFrag of bytes
-  | LastHSFrag of bytes (* Useful to let the dispatcher switch to the Open state *)
+  | LastHSFrag of SessionInfo * bytes (* Useful to let the dispatcher switch to the Open state *)
   | CCSFrag of bytes * ccs_data
 
 val next_fragment: hs_state -> int -> (HSFragReply * hs_state)
@@ -47,7 +47,7 @@ type recv_reply =
   | HSAck of hs_state      (* fragment accepted, no visible effect so far *)
   | HSChangeVersion of hs_state * role * ProtocolVersionType 
                           (* ..., and we should use this new protocol version for sending *) 
-  | HSFinished of hs_state (* ..., and we can start sending data on the connection *)
+  | HSFinished of SessionInfo * hs_state (* ..., and we can start sending data on the connection *)
 
 (*type hs_output_reply = 
   | HS_Fragment of bytes

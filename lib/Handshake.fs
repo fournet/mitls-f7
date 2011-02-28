@@ -74,7 +74,7 @@ type hs_state = {
 type HSFragReply =
   | EmptyHSFrag
   | HSFrag of bytes
-  | LastHSFrag of bytes (* Useful to let the dispatcher switch to the Open state *)
+  | LastHSFrag of SessionInfo * bytes (* Useful to let the dispatcher switch to the Open state *)
   | CCSFrag of bytes * ccs_data
 
 let next_fragment state len =
@@ -101,7 +101,7 @@ type recv_reply =
   | HSAck of hs_state      (* fragment accepted, no visible effect so far *)
   | HSChangeVersion of hs_state * role * ProtocolVersionType 
                           (* ..., and we should use this new protocol version for sending *) 
-  | HSFinished of hs_state (* ..., and we can start sending data on the connection *)
+  | HSFinished of SessionInfo * hs_state (* ..., and we can start sending data on the connection *)
 
 let makeHSPacket ht data =
     let htb = bytes_of_hs_type ht in
@@ -161,25 +161,27 @@ let makeCHelloBytes poptions session =
     let data = appendList [cVerB; random; csessB; ccsuitesB; ccompmethB; cHello.extensions] in
     makeHSPacket HT_client_hello data
 
-let init_handshake info poptions =
-    let role = getSessionRole info in
+let init_handshake role poptions =
+    let info = init_sessionInfo role in
     match role with
     | ClientRole ->
-        {hs_outgoing = makeCHelloBytes poptions empty_bstr
-         ccs_outgoing = None
-         hs_outgoing_after_ccs = empty_bstr
-         hs_incoming = empty_bstr
-         hs_info = info
-         poptions = poptions
-         pstate = Client (ServerHello)}
+        let state = {hs_outgoing = makeCHelloBytes poptions empty_bstr
+                     ccs_outgoing = None
+                     hs_outgoing_after_ccs = empty_bstr
+                     hs_incoming = empty_bstr
+                     hs_info = info
+                     poptions = poptions
+                     pstate = Client (ServerHello)} in
+        (info,state)
     | ServerRole ->
-        {hs_outgoing = empty_bstr
-         ccs_outgoing = None
-         hs_outgoing_after_ccs = empty_bstr
-         hs_incoming = empty_bstr
-         hs_info = info
-         poptions = poptions
-         pstate = Server (ClientHello)}
+        let state = {hs_outgoing = empty_bstr
+                     ccs_outgoing = None
+                     hs_outgoing_after_ccs = empty_bstr
+                     hs_incoming = empty_bstr
+                     hs_info = info
+                     poptions = poptions
+                     pstate = Server (ClientHello)} in
+        (info,state)
 
 (*
 let rehandshake hs_state use_resumption =

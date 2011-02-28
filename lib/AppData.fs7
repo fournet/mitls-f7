@@ -17,7 +17,6 @@ predicate type preds =
   | ApplicationState of pre_app_state 
   | AppDataNextChunk of SessionInfo * bytes
   | ApplicationSend of SessionInfo * stream * bytes
-  | InitAppState of pre_app_state
 
 type app_state = (aps:pre_app_state){ApplicationState(aps)}
 
@@ -31,22 +30,24 @@ val send_data: aps:app_state -> d:Data.bytes{AppDataNextChunk(aps.app_info,d)} -
 val retrieve_data: app_state -> int -> (bytes * app_state) option
 
 (* Dispatcher interface *)
-val init : i:SessionInfo -> a:app_state{InitAppState(a)}
+val init : i:SessionInfo{NonNullSession(i)} -> a:app_state
 
 val next_fragment: aps:app_state -> int -> 
   (d:Record.fragment * aps':app_state{ApplicationSend(aps.app_info,aps.app_outgoing,d) /\ aps'.app_info = aps.app_info}) option
 
 val recv_fragment: aps:app_state ->
-          d:fragment{(?rs. ApplicationSend(OtherRole(aps.app_info),rs,d) /\ StreamBytes(aps.app_incoming) = PreviouslyRead(rs) ) \/ Compromised(OtherRole(aps.app_info))} ->
+          d:fragment{(?rs. ApplicationSend(OtherRole(aps.app_info),rs,d)) \/ Compromised(OtherRole(aps.app_info))} ->
 	  app_state Result
 
 (* Application state definition *)
 assume !aps. ApplicationState(aps) <=> (Stream(aps.app_incoming) /\ Stream(aps.app_outgoing) /\
-					((?raps. ApplicationState(raps) /\ raps.app_info = OtherRole(aps.app_info) /\
-					StreamBytes(aps.app_incoming) = PreviouslyRead(raps.app_outgoing) /\
-					StreamID(aps.app_incoming) = StreamID(raps.app_outgoing)) \/
-				      IsEmptyStream(aps.app_incoming) \/
+					((?raps. ApplicationState(raps) /\
+					         Established(raps.app_info,raps.app_outgoing,aps.app_info,aps.app_incoming)) \/
 				      Compromised(OtherRole(aps.app_info))))
+
+(* TODO: Application state uniqueness *)
+assume !aps,aps'. aps.app_info = aps'.app_info /\ ApplicationState(aps) /\ ApplicationState(aps') =>
+        ( StreamID(aps.app_outgoing) = StreamID(aps'.app_outgoing) /\ StreamID(aps.app_incoming) = StreamID(aps'.app_incoming) )
 
 (* When can we add data to the outgoing buffer *)
 assume !aps,d. ApplicationState(aps) /\ AppDataNextChunk(aps.app_info,d) => StreamWrite(aps.app_outgoing,d)
@@ -57,11 +58,8 @@ assume !aps,d. ApplicationState(aps) /\ StreamRead(aps.app_outgoing,d) => Applic
 theorem !info,hist,d. ApplicationSend(info,hist,d) =>
 	(?aps. ApplicationState(aps) /\ info = aps.app_info /\ hist = aps.app_outgoing /\ StreamRead(aps.app_outgoing,d))
 
-ask !aps,rs,d. ApplicationState(aps) /\ ApplicationSend(OtherRole(aps.app_info),rs,d) /\ StreamBytes(aps.app_incoming) = PreviouslyRead(rs) =>
-		((StreamRead(rs,d) /\ StreamID(rs) = StreamID(aps.app_incoming)) \/ Compromised(OtherRole(aps.app_info)))
+ask !aps,rs,d. ApplicationState(aps) /\ ApplicationSend(OtherRole(aps.app_info),rs,d) =>
+		((StreamRead(rs,d) /\ StreamID(rs) = StreamID(aps.app_incoming) ) \/ Compromised(OtherRole(aps.app_info)))
 
-(* Initial application state *)
-assume !aps. InitAppState(aps) <=> ( IsEmptyStream(aps.app_incoming) /\ IsEmptyStream(aps.app_outgoing) )
-
-ask !aps. InitAppState(aps) => ApplicationState(aps)
-
+(* TODO: to be proven handshake/session modules? *)
+theorem !aps. FreshSession(aps.info,Application_data) /\ IsEmptyStream(aps.app_incoming) => ApplicationState(aps)
