@@ -6,7 +6,7 @@ open Error_handling
 open Dispatch
 open Sessions
 open Tcp
-open Handshake (* Currently needed for protocolOptions, to be moved elsewhere *)
+open AppCommon
 
 
 (* We can't buffer application data internally. They are blessed by the application
@@ -58,8 +58,8 @@ open Handshake (* Currently needed for protocolOptions, to be moved elsewhere *)
     new SessionInfo), and bytes are the bytes sent with the previous Connection
 *)
 
-val writeFully: Connection -> bytes -> (Connection * bytes) Result
-val writeFragment: Connection -> bytes -> (Connection * bytes) Result
+val writeFragment: Connection -> bytes -> ((bytes * bytes) Result) * Connection
+val writeFully: Connection -> bytes -> ((bytes * bytes) Result) * Connection
 
 val read: Connection -> int -> (Connection * bytes) Result
 (* Polls whether there are data available in the current input buffer

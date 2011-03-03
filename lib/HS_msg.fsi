@@ -29,7 +29,6 @@ type helloRequest = bytes (* empty bitstring *)
 
 (* Client Hello *)
 type hrandom = {time : int; rnd : bytes}
-type cipherSuites = CipherSuite list
 
 type clientHello = {
     client_version: ProtocolVersionType;

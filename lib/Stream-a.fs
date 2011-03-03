@@ -33,3 +33,6 @@ let stream_read s len =
                         history = new_hist}
     Pi.assume(StreamRead(s,d));
     (d,new_s)
+
+let discard_content stream =
+    {stream with buffer = empty_bstr}

@@ -10,13 +10,7 @@ open HS_msg
 open HS_ciphersuites
 open Sessions
 open Crypto
-
-(* We may be sending either HS messages, or a CCS message, 
-   but not both at the same time (really?) *)
-
-type output_state = 
-  | SendCCS
-  | SendHS of bytes 
+open AppCommon
 
 type clientState =
     | ServerHello
@@ -40,27 +34,6 @@ type protoState =
     | Client of clientState
     | Server of serverState
 
-type protocolOptions = {
-    minVer: ProtocolVersionType
-    maxVer: ProtocolVersionType
-    ciphersuites: cipherSuites
-    compressions: Compression list
-    }
-
-let defaultProtocolOptions ={
-    minVer = SSL_3p0
-    maxVer = TLS_1p2
-    ciphersuites = [ TLS_RSA_WITH_AES_128_CBC_SHA;
-                    TLS_RSA_WITH_RC4_128_MD5;
-                    TLS_RSA_WITH_RC4_128_SHA;       
-                    TLS_RSA_WITH_DES_CBC_SHA;
-                    TLS_NULL_WITH_NULL_NULL;
-                    TLS_RSA_WITH_NULL_MD5;               
-                    TLS_RSA_WITH_NULL_SHA;
-                  ]
-    compressions = [ Null ]
-    }
-
 type hs_state = {
   hs_outgoing    : bytes (* outgiong data before a ccs *)
   ccs_outgoing: (bytes * ccs_data) option (* marker telling there's a ccs ready *)
@@ -74,13 +47,20 @@ type hs_state = {
 type HSFragReply =
   | EmptyHSFrag
   | HSFrag of bytes
-  | LastHSFrag of SessionInfo * bytes (* Useful to let the dispatcher switch to the Open state *)
+  | HSWriteSideFinished
+  | HSFullyFinished_Write of SessionInfo
   | CCSFrag of bytes * ccs_data
+
+let updateSessionInfo state info =
+    (* Maybe this setter will become more complex in the future:
+       e.g.: if we store a local copy of the next SessionInfo, we
+       might want to unset it now *)
+    {state with hs_info = info}
 
 let next_fragment state len =
     (* FIXME: The buffer we read from should depend on the state of the protocol,
        and not on whether a buffer is full or not, otherwise we cannot recognize the
-       LastHSFrag() case! *)
+       HSNewSessionInfo() case! *)
     match state.hs_outgoing with
     | x when equalBytes x empty_bstr ->
         match state.ccs_outgoing with
@@ -98,10 +78,11 @@ let next_fragment state len =
         (HSFrag(f),state)
 
 type recv_reply = 
-  | HSAck of hs_state      (* fragment accepted, no visible effect so far *)
-  | HSChangeVersion of hs_state * role * ProtocolVersionType 
+  | HSAck      (* fragment accepted, no visible effect so far *)
+  | HSChangeVersion of role * ProtocolVersionType 
                           (* ..., and we should use this new protocol version for sending *) 
-  | HSFinished of SessionInfo * hs_state (* ..., and we can start sending data on the connection *)
+  | HSReadSideFinished
+  | HSFullyFinished_Read of SessionInfo (* ..., and we can start sending data on the connection *)
 
 let makeHSPacket ht data =
     let htb = bytes_of_hs_type ht in
@@ -231,10 +212,10 @@ let parse_fragment hs_state fragment =
             (hs_state, Some(hstype,payload))
             
 
-let recv_fragment (hs_state:hs_state) (fragment:fragment) : recv_reply Result =
+let recv_fragment (hs_state:hs_state) (fragment:fragment) =
     let (hs_state,new_packet) = parse_fragment hs_state fragment in
     match new_packet with
-    | None -> correct (HSAck(hs_state))
+    | None -> (correct (HSAck), hs_state)
     | Some (data) ->
     let (hstype,payload) = data in
     match hs_state.pstate with
@@ -242,10 +223,10 @@ let recv_fragment (hs_state:hs_state) (fragment:fragment) : recv_reply Result =
         match cState with
         | ServerHello -> (* We're only willing to receive a ServerHello Message *)
             match hstype with
-            | HT_server_hello -> (* TODO *) correct (HSAck(hs_state))
-            | _ -> Error(HandshakeProto,CheckFailed)
-        | _ -> Error (HandshakeProto,Unsupported)
-    | Server (sState) -> Error (HandshakeProto,Unsupported)
+            | HT_server_hello -> (* TODO *) (correct (HSAck), hs_state)
+            | _ -> (Error(HandshakeProto,CheckFailed),hs_state)
+        | _ -> (Error (HandshakeProto,Unsupported),hs_state)
+    | Server (sState) -> (Error (HandshakeProto,Unsupported),hs_state)
 
-let recv_ccs (hs_state: hs_state) (fragment:fragment): (hs_state * ccs_data) Result =
-    Error (HandshakeProto,Unsupported)
+let recv_ccs (hs_state: hs_state) (fragment:fragment): ((ccs_data Result) * hs_state) =
+    (Error (HandshakeProto,Unsupported),hs_state)

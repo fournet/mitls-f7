@@ -10,7 +10,7 @@ open Stream
 type app_state = {
   app_info: SessionInfo
   app_incoming: stream (* unsolicited data *)
-  app_outgoing: stream (* empty_bstr if nothing to be sent *) 
+  app_outgoing: stream
 }
 
 let init info =
@@ -18,18 +18,25 @@ let init info =
      app_incoming = new_stream Bytearray.empty_bstr;
      app_outgoing = new_stream Bytearray.empty_bstr}
   
+let updateSessionInfo state info =
+    {state with app_info = info}
+
+let discard_outgoing state =
+    let new_out = Stream.discard_content state.app_outgoing in
+    {state with app_outgoing = new_out}
+
 let send_data (state:app_state) (data:bytes) =
     let new_out = stream_write state.app_outgoing data in
     {state with app_outgoing = new_out}
 
-let retrieve_data (state:app_state) (len:int) :(bytes * app_state) option =
-    if is_empty_stream state.app_incoming then
-        None
-    else
-        let (f,rem) = stream_read state.app_incoming len in
-        let state = {state with app_incoming = rem}
-        let res = (f,state) in
-        Some res
+let retrieve_data (state:app_state) (len:int) =
+    let (f,rem) = stream_read state.app_incoming len in
+    let state = {state with app_incoming = rem} in
+    let res = (f,state) in
+    res
+
+let retrieve_data_available state =
+    is_empty_stream state.app_incoming
 
 let next_fragment state len =
     if is_empty_stream state.app_outgoing then
@@ -42,4 +49,4 @@ let next_fragment state len =
 
 let recv_fragment (state:app_state) (fragment:fragment) =
     let new_in = stream_write state.app_incoming fragment in
-    correct ({state with app_incoming = new_in})
+    {state with app_incoming = new_in}

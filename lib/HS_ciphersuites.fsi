@@ -91,6 +91,8 @@ type CipherSuite =
 
     | UNKNOWN_CIPHERSUITE of int * int
 
+type cipherSuites = CipherSuite list
+
 val cipherSuite_of_intpair : int * int -> CipherSuite
 val intpair_of_cipherSuite : CipherSuite -> (int * int)
 val bytes_of_cipherSuite: CipherSuite -> bytes

@@ -16,6 +16,8 @@ type ErrorCause =
     | HandshakeProto
     | Dispatcher
     | TLS
+    | NewSessionInfo (* of bytes * Connection // FIXME: Circular dependency!!! *)
+    | MustRead
     | Other of string
 
 type ErrorKind =
@@ -24,6 +26,7 @@ type ErrorKind =
     | WrongInputParameters
     | InvalidState
     | Internal
+    | Notification
 
 type 'a Result =
     | Error of ErrorCause * ErrorKind

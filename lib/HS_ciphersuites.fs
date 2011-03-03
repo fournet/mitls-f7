@@ -93,6 +93,8 @@ type CipherSuite =
 
     | UNKNOWN_CIPHERSUITE of int * int
 
+type cipherSuites = CipherSuite list
+
 let cipherSuite_of_intpair i = 
    match i with
     |  ( 0x00,0x00 )  ->  TLS_NULL_WITH_NULL_NULL                

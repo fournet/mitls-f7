@@ -49,6 +49,9 @@ type al_state = {
 
 let init info = {al_info = info; al_incoming = empty_bstr; al_outgoing = empty_bstr}
 
+let updateSessionInfo state info =
+    {state with al_info = info}
+
 type ALFragReply =
     | EmptyALFrag
     | ALFrag of bytes

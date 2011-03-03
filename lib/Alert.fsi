@@ -55,3 +55,4 @@ val next_fragment: al_state -> int -> (ALFragReply * al_state)
 
 val recv_fragment: al_state -> fragment -> alert_reply Result 
 
+val updateSessionInfo: al_state -> SessionInfo -> al_state

@@ -7,24 +7,9 @@ open Error_handling
 open Formats
 open HS_msg
 open Sessions
-
-(* We may be sending either HS messages, or a CCS message, 
-   but not both at the same time (really?) *)
-
-type output_state = 
-  | SendCCS 
-  | SendHS of bytes 
+open AppCommon
 
 type protoState
-
-type protocolOptions = {
-    minVer: ProtocolVersionType
-    maxVer: ProtocolVersionType
-    ciphersuites: cipherSuites
-    compressions: Compression list
-    }
-
-val defaultProtocolOptions: protocolOptions
 
 type hs_state
 
@@ -38,21 +23,25 @@ val resume: SessionInfo -> hs_state (* resume on different connection; only clie
 type HSFragReply =
   | EmptyHSFrag
   | HSFrag of bytes
-  | LastHSFrag of SessionInfo * bytes (* Useful to let the dispatcher switch to the Open state *)
+  | HSWriteSideFinished
+  | HSFullyFinished_Write of SessionInfo
   | CCSFrag of bytes * ccs_data
 
 val next_fragment: hs_state -> int -> (HSFragReply * hs_state)
 
 type recv_reply = 
-  | HSAck of hs_state      (* fragment accepted, no visible effect so far *)
-  | HSChangeVersion of hs_state * role * ProtocolVersionType 
+  | HSAck      (* fragment accepted, no visible effect so far *)
+  | HSChangeVersion of role * ProtocolVersionType 
                           (* ..., and we should use this new protocol version for sending *) 
-  | HSFinished of SessionInfo * hs_state (* ..., and we can start sending data on the connection *)
+  | HSReadSideFinished
+  | HSFullyFinished_Read of SessionInfo (* ..., and we can start sending data on the connection *)
 
 (*type hs_output_reply = 
   | HS_Fragment of bytes
   | HS_CCS of ccs_data (* new ccs data *)
   | Idle*)
 
-val recv_fragment: hs_state -> fragment -> recv_reply Result
-val recv_ccs: hs_state -> fragment -> (hs_state * ccs_data) Result
+val recv_fragment: hs_state -> fragment -> (recv_reply Result) * hs_state
+val recv_ccs: hs_state -> fragment -> (ccs_data Result) * hs_state
+
+val updateSessionInfo: hs_state -> SessionInfo -> hs_state
