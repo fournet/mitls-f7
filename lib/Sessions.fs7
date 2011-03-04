@@ -15,8 +15,7 @@ type SessionInfo = {
     role: role;
     clientID: string option;
     serverID: string option;
-    sessionID: sessionID option;
-    null_algs: bool
+    sessionID: sessionID option
     }
 
 function type funs =
@@ -26,7 +25,6 @@ function type funs =
 
 predicate type preds =
     | Compromised of SessionInfo
-    | NonNullSession of SessionInfo
     | Established of send_info:SessionInfo * send_stream:stream * recv_info:SessionInfo * recv_stream:stream
 
 val init_sessionInfo: r:role ->	s:SessionInfo{ s = InitSessionInfo(r) }
@@ -41,18 +39,12 @@ assume !s. OtherRole(s) = {
 	   	role = IntOtherRole(s.role);
 		clientID = s.clientID;
 		serverID = s.serverID;
-		sessionID = s.sessionID;
-		null_algs = s.null_algs}
+		sessionID = s.sessionID}
 
 assume !r,d. InitSessionInfo(r) = { role = r;
 				    clientID = None;
 				    serverID = None;
-				    sessionID = None;
-				    null_algs = true}
-
-assume !info,cid,sid. NonNullSession(info) <=> (info.clientID = Some(cid) /\ info.sessionID = Some(sid) /\ info.null_algs = false )
-
-ask !info. NonNullSession(info) => NonNullSession(OtherRole(info))
+				    sessionID = None}
 
 assume !send_info,send_stream,recv_info,recv_stream. Established(send_info,send_stream,recv_info,recv_stream) <=>
-                                ( NonNullSession(send_info) /\ send_info = OtherRole(recv_info) /\ StreamClone(send_stream,recv_stream) )
+                                ( send_info = OtherRole(recv_info) /\ StreamClone(send_stream,recv_stream) )

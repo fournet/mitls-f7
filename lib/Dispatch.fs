@@ -77,6 +77,7 @@ let updateInfoGlobally conn =
     | None -> unexpectedError "[updateInfoglobally] should only be invoked with some new SessionInfo"
    
 let moveToOpenState c =
+    let c = updateInfoGlobally c in
     let read = c.read in
     match read.disp with
     | Finishing ->
@@ -169,7 +170,6 @@ let next_fragment n (c:Connection) : (bool Result) * Connection =
                        (Error(Dispatcher,Internal),c)
                    else
                        let c = {c with next_ds_info = Some (new_info)} in
-                       let c = updateInfoGlobally c in
                        let c = moveToOpenState c in
                        (Error(NewSessionInfo,Notification),c)
                 | _ -> (Error(Dispatcher,InvalidState),c)
@@ -190,9 +190,10 @@ let next_fragment n (c:Connection) : (bool Result) * Connection =
         | Error (x,y) -> (Error(x,y),{c with alert = new_al_state}) (* TCP error, like above *)
 
 let rec sendNextFragments c =
+    let unitVal = () in
     let c_write = c.write in
     match c_write.disp with
-    | Closed -> (correct(()),c)
+    | Closed -> (correct(unitVal),c)
     | _ ->
         match next_fragment fragmentLength c with
         | (Error (x,y),c) -> (Error(x,y),c)
@@ -202,14 +203,14 @@ let rec sendNextFragments c =
             (* note: eventually all buffered data will be sent, they're are already committed
                         to be sent *)
             match Record.dataAvailable c.read.conn with
-            | Error (x,y) -> (correct (()),c) (* There's an error with TCP, but we can ignore it right now, and just pretend there are data to send, so the error will show up next time *)
+            | Error (x,y) -> (correct (unitVal),c) (* There's an error with TCP, but we can ignore it right now, and just pretend there are data to send, so the error will show up next time *)
             | Correct dataAv ->
             if dataAv then
-                (correct(()),c)
+                (correct(unitVal),c)
             else
                 sendNextFragments c 
         else
-            (correct (()),c)
+            (correct (unitVal),c)
 
 (* we have received, decrypted, and verified a record (ct,f); what to do? *)
 let deliver ct f c = 
@@ -250,7 +251,6 @@ let deliver ct f c =
         match x with
         | Finishing ->
             let c = {c with next_ds_info = Some (new_info)} in
-            let c = updateInfoGlobally c in
             let c = moveToOpenState c in
             (Error(NewSessionInfo,Notification),c)
         | _ -> (Error(Dispatcher,InvalidState), c)

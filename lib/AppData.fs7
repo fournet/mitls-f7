@@ -6,6 +6,7 @@ open Formats
 open Record
 open Error_handling
 open Stream 
+open AppCommon
 
 type pre_app_state =
   {app_info: SessionInfo;
@@ -30,14 +31,14 @@ val retrieve_data: app_state -> int -> (bytes * app_state)
 val retrieve_data_available: app_state -> bool
 
 (* Dispatcher interface *)
-val init : i:SessionInfo{NonNullSession(i)} -> a:app_state
+val init : i:SessionInfo -> a:app_state{a.app_info = i}
 
 val next_fragment: aps:app_state -> int -> 
   (d:Record.fragment * aps':app_state{UpperProtoSend(aps.app_info,Application_data,d) /\ aps'.app_info = aps.app_info}) option
 
 val recv_fragment: aps:app_state ->
           d:fragment{(?rs. UpperProtoSend(OtherRole(aps.app_info),Application_data,d)) \/ Compromised(OtherRole(aps.app_info))} ->
-	  app_state Result
+	  app_state
 
 (* Application state definition *)
 assume !aps. ApplicationState(aps) <=> (Stream(aps.app_incoming) /\ Stream(aps.app_outgoing) /\

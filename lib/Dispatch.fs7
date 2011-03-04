@@ -9,6 +9,8 @@ open Record
 open Sessions
 open Stream
 open AppCommon
+open Error_handling
+open Bytearray
 
 type predispatchState =
   | Init
@@ -38,7 +40,7 @@ type preConnection =
 
 
 predicate type preds =
-	| DispSend of dState * ContentType * fragment
+	| DispSend of dState * ContentType
 	| ContentMap of SessionInfo * int * ContentType * bytes
         | ValidConnection of preConnection
 	| DispState of dState
@@ -55,8 +57,8 @@ val init :
 val appDataAvailable: Connection -> bool
 val getSessionInfo: Connection -> SessionInfo
 
-val updateInfoGlobally: Connection -> Connection
-val moveToOpenState: Connection -> Connection
+val updateInfoGlobally: c:Connection{c.write.disp <> Open /\ c.read.disp <> Open} -> Connection
+val moveToOpenState: c:Connection{(c.write.disp = Finishing \/ c.write.disp = Finished) /\ c.read.disp = Finishing} -> Connection
 
 val next_fragment :
         int ->  c:Connection{c.write.disp <> Closed} -> 
@@ -149,10 +151,10 @@ ask !c,p,f. ValidConnection(c) /\ FragmentSend(c.ds_info,c.read.conn.seq_num,p,f
 (* By linearity *)
 theorem !i,n,p,f,p',f'. FragmentSend(i,n,p,f) /\ FragmentSend(i,n,p',f') => (p = p' /\ f = f')
 
-assume !i,ct,n,h. ContentMap(i,-1,ct,empty_bstr)
-assume !i,ct,n,h. ContentMap(i,n,ct,h) /\ FragmentSend(i,n+1,ct,f) =>
-                   ContentMap(i,n+1,ct,Append(h,f))
-assume !i,ct,n,h. ContentMap(i,n,ct,h) /\ FragmentSend(i,n+1,ct',f) /\ ct <> ct' =>
+assume !i,ct,n. ContentMap(i,0,ct,empty_bstr)
+assume !i,n,ct,h,f. ContentMap(i,n,ct,h) /\ FragmentSend(i,n,ct,f) =>
+                   ContentMap(i,n+1,ct,AppendBytes(h,f))
+assume !i,n,ct,h,ct',f. ContentMap(i,n,ct,h) /\ FragmentSend(i,n,ct',f) /\ ct <> ct' =>
                    ContentMap(i,n+1,ct,h)
 
 
@@ -175,7 +177,7 @@ assume !cs,ct,f,f',n,outgone. ContentMap(c.write.conn.rec_info,ct,n,f,outgone) /
 
 assume !c,f,f',outgone,sn. ValidConnection(c) /\
 	     DispSend(c.write,Application_data,f) /\
-	     UpperProtoSend(c.ds_info,Application_data,f,(*FIXME*)f) /\
+	     UpperProtoSend(c.ds_info,Application_data,f,f) /\
 	     ContentMap(c.ds_info,Application_data,sn,f',outgone) /\
 	     sn < c.write.conn.seq_num /\
 	     NoFrags(c.ds_info,Application_data,sn+1,c.write.conn.seq_num-1) =>

@@ -59,6 +59,8 @@ val next_fragment: s:hs_state -> int ->
 			    NonNullCipherSettings(ccs)))}
 
 
+val updateSessionInfo: hs_state -> i:SessionInfo -> s':hs_state{s'.hs_info = i}
+
 type recv_reply =
   | HSAck
   | HSChangeVersion of role * Formats.ProtocolVersionType
@@ -74,7 +76,7 @@ val bytes_of_cipherSuites : HS_ciphersuites.CipherSuite list -> Data.bytes
 val b_of_complist : Formats.Compression list -> Data.bytes -> Data.bytes
 val bytes_of_compressionMethods : Formats.Compression list -> Data.bytes
 val makeCHelloBytes : protocolOptions -> Sessions.sessionID -> Data.bytes
-val init_handshake: role -> protocolOptions -> info:SessionInfo * s:hs_state{s.hs_info = info}
+val init_handshake: r:role -> protocolOptions -> (info:SessionInfo * s:hs_state){info = InitSessionInfo(r) /\ s.hs_info = info}
 val rehandshake : hs_state -> bool -> hs_state Error_handling.Result
 val parse_fragment :
   hs_state ->
