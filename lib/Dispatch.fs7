@@ -57,8 +57,8 @@ val init :
 val appDataAvailable: Connection -> bool
 val getSessionInfo: Connection -> SessionInfo
 
-val updateInfoGlobally: c:Connection{c.write.disp <> Open /\ c.read.disp <> Open} -> Connection
-val moveToOpenState: c:Connection{(c.write.disp = Finishing \/ c.write.disp = Finished) /\ c.read.disp = Finishing} -> Connection
+val updateInfoGlobally: c:Connection{c.write.disp <> Open /\ c.read.disp <> Open /\ c.next_ds_info <> None} -> Connection
+val moveToOpenState: c:Connection{(c.write.disp = Finishing \/ c.write.disp = Finished) /\ c.read.disp = Finishing /\ c.next_ds_info <> None} -> Connection
 
 val next_fragment :
         int ->  c:Connection{c.write.disp <> Closed} -> 

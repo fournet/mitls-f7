@@ -86,7 +86,8 @@ let moveToOpenState c =
         match write.disp with
         | x when x = Finishing || x = Finished ->
             let new_write = {write with disp = Open} in
-            {c with read = new_read; write = new_write}
+            let new_c =  {c with read = new_read; write = new_write} in
+	      check_new_c new_c
         | _ -> unexpectedError "[moveToOpenState] should only work on Finishing write states"
     | _ -> unexpectedError "[moveToOpenState] should only work on Finishing read states"
 
