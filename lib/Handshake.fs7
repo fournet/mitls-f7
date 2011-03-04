@@ -5,10 +5,7 @@ open Record
 open Sessions
 open Error_handling
 open Formats
-
-type output_state =
-  | SendCCS
-  | SendHS of Data.bytes
+open AppCommon
 
 type clientState =
   | ServerHello
@@ -29,12 +26,7 @@ type serverState =
 type protoState =
   | Client of clientState
   | Server of serverState
-type protocolOptions =
-  {minVer: Formats.ProtocolVersionType;
-   maxVer: Formats.ProtocolVersionType;
-   ciphersuites: HS_msg.cipherSuites;
-   compressions: Formats.Compression list;}
-val defaultProtocolOptions : protocolOptions
+
 type pre_hs_state =
   {hs_outgoing: Data.bytes;
    ccs_outgoing: (Data.bytes * Record.ccs_data) option;
@@ -55,7 +47,8 @@ type hs_state = (hs:pre_hs_state){HandshakeState(hs)}
 type HSFragReply =
   | EmptyHSFrag
   | HSFrag of bytes
-  | LastHSFrag of SessionInfo * bytes (* And NonNullSession(SessionInfo) *)
+  | HSWriteSideFinished
+  | HSFullyFinished_Write of SessionInfo
   | CCSFrag of bytes * ccs_data
 
 val next_fragment: s:hs_state -> int ->
@@ -64,16 +57,17 @@ val next_fragment: s:hs_state -> int ->
 		(r = EmptyHSFrag => s' = s) /\
 		(!f. r = HSFrag(f) => (HandshakeFragmentSend(s.hs_info,f) /\ Pub(f))) /\
 		(* TODO: Pub(f) might not be true for the Finished message, in this case a different return value is needed *)
-		(!f. r = LastHSFrag(f) => (HandshakeFragmentSend(s.hs_info,f) /\ Pub(f))) /\
 		(!f,info,pv,compr,sparams,mk,cstate. r = CCSFrag(f,(info,pv,compr,sparams,mk,cstate)) =>
 		           (HandshakeCCSSend(s.hs_info,f) /\ Pub(f) /\
 			    NonNullCipherSettings((info,pv,compr,sparams,mk,cstate))))}
 
 
 type recv_reply =
-  | HSAck of hs_state
-  | HSChangeVersion of hs_state * role * Formats.ProtocolVersionType
-  | HSFinished of SessionInfo * hs_state (* And NonNullSession(SessionInfo) *)
+  | HSAck
+  | HSChangeVersion of role * Formats.ProtocolVersionType
+  | HSReadSideFinished
+  | HSFullyFinished_Read of SessionInfo 
+
 val makeHSPacket : HS_msg.handshakeType -> Data.bytes -> Data.bytes
 val makeHelloRequestBytes : unit -> Data.bytes
 val makeTimestamp : unit -> int
@@ -89,11 +83,11 @@ val parse_fragment :
   hs_state ->
     Data.bytes -> hs_state * (HS_msg.handshakeType * Data.bytes) option
 val recv_fragment: hs_state -> Record.fragment ->
-	r:(recv_reply Error_handling.Result){
+	(r:(recv_reply Error_handling.Result) * hs_state){
 		(!rr. r = Correct(rr) => (!hs,r,pv. rr = HSChangeVersion(hs,r,pv) => pv <> UnknownPV))
 	}
 val recv_ccs: hs_state -> Record.fragment ->
-	r:((hs_state * Record.ccs_data) Error_handling.Result){
-	(!s,info,pv,compr,sparams,mk,cstate. r = Correct((s,(info,pv,compr,sparams,mk,cstate))) => (NonNullCipherSettings((info,pv,compr,sparams,mk,cstate))))
+	(r:(Record.ccs_data Error_handling.Result) * hs_state){
+	(!ccs. r = Correct(ccs) => (NonNullCipherSettings(ccs)))
 	}
 

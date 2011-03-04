@@ -17,7 +17,6 @@ type helloRequest = Data.bytes
 type hrandom =
   {time: int;
    rnd: Data.bytes;}
-type cipherSuites = HS_ciphersuites.CipherSuite list
 type clientHello =
   {client_version: Formats.ProtocolVersionType;
    ch_random: hrandom;

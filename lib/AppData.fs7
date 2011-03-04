@@ -27,7 +27,8 @@ type app_state = (aps:pre_app_state){ApplicationState(aps)}
 (* Add data to be sent to the other party *)
 val send_data: aps:app_state -> d:Data.bytes{AppDataNextChunk(aps.app_info,d)} -> app_state
 (* Retrieve data that we received from the other party *)
-val retrieve_data: app_state -> int -> (bytes * app_state) option
+val retrieve_data: app_state -> int -> (bytes * app_state)
+val retrieve_data_available: app_state -> bool
 
 (* Dispatcher interface *)
 val init : i:SessionInfo{NonNullSession(i)} -> a:app_state

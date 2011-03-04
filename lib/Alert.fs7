@@ -48,6 +48,8 @@ predicate type preds =
 type al_state = (als:pre_al_state){AlertState(als)}
 
 val init : i:SessionInfo -> s:al_state{s.al_info = i}
+val updateSessionInfo: al_state -> SessionInfo -> al_state
+
 type ALFragReply =
     | EmptyALFrag
     | ALFrag of bytes

@@ -11,9 +11,9 @@ recordfsi = Error.fsi tcp.fsi Sessions.fsi formats.fsi CryptoTLS.fsi record.fsi
 recordfs  = Error.fs  tcp.fs  Sessions.fs  formats.fs  CryptoTLS.fs record.fs
 recordfs-a = Error.fs  tcp-a.fs  Sessions.fs  formats.fs CryptoTLS.fs record.fs 
 
-tlsfs7 = Alert.fs7 AppData.fs7 HS_ciphersuites.fs7 HS_msg.fs7 Handshake.fs7 Dispatch.fs7
-tlsfsi = Alert.fsi AppData.fsi HS_ciphersuites.fsi HS_msg.fsi Handshake.fsi Dispatch.fsi
-tlsfs  = Alert.fs AppData.fs HS_ciphersuites.fs HS_msg.fs Handshake.fs Dispatch.fs
+tlsfs7 = HS_ciphersuites.fs7 AppCommon.fs7 Alert.fs7 AppData.fs7 HS_msg.fs7 Handshake.fs7 Dispatch.fs7
+tlsfsi = HS_ciphersuites.fsi AppCommon.fsi Alert.fsi AppData.fsi HS_msg.fsi Handshake.fsi Dispatch.fsi
+tlsfs  = HS_ciphersuites.fs  AppCommon.fs  Alert.fs  AppData.fs  HS_msg.fs  Handshake.fs  Dispatch.fs
 
 clib=../../../lib/concrete-fs/
 slib=../../../lib/symbolic/

@@ -8,17 +8,19 @@ open Handshake
 open Record
 open Sessions
 open Stream
+open AppCommon
 
 type predispatchState =
   | Init
   | FirstHandshake
   | Finishing
+  | Finished
   | Open
   | Closing
   | Closed
 
 type dispatchState = ds:predispatchState{ds = Init \/ ds = FirstHandshake \/
-                ds = Finishing \/ ds = Open \/ ds = Closing \/ ds = Closed}
+                ds = Finishing \/ ds = Finished \/ ds = Open \/ ds = Closing \/ ds = Closed}
 
 type dState = {
     disp: dispatchState;
@@ -31,7 +33,8 @@ type preConnection =
    alert: Alert.al_state;
    appdata: AppData.app_state;
    read: dState;
-   write: dState;}
+   write: dState;
+   next_ds_info: SessionInfo option}
 
 
 predicate type preds =
@@ -51,23 +54,28 @@ val init :
       r:role -> po:Handshake.protocolOptions{ po.minVer <> UnknownPV /\ po.maxVer <> UnknownPV} ->
       c:Connection{c.read.disp = Init /\ c.write.disp = Init}
 
+val appDataAvailable: Connection -> bool
+val getSessionInfo: Connection -> SessionInfo
+
+let updateInfoGlobally: Connection -> Connection
+let moveToOpenState: Connection -> Connection
+
 val next_fragment :
         int -> c:Connection{c.write.disp <> Closed /\ 
 	                    (?ct,n,f,outgone. ContentMap(c.write.conn.rec_info,ct,n,f,outgone))} ->
-                ((bool * c':Connection{
-                        ?f'. ContentMap(c.write.conn.rec_info,ct,c.write.conn.seq_num,f',Concat(outgone,f))}
-                 )) Error_handling.Result
+                ((bool Error_handling.Result) * c':Connection{?f'. ContentMap(c.write.conn.rec_info,ct,c.write.conn.seq_num,f',Concat(outgone,f))})
 
-val max_TLSPlaintext_fragment_length : int
-val fragmentLength : int
-
-val sendNextFragments : Connection -> Connection Error_handling.Result
+val sendNextFragments : Connection -> (unit Error_handling.Result) * Connection
 
 val deliver :
   Formats.ContentType ->
-    Record.fragment -> c:Connection{c.read.disp <> Closed} -> (bool * Connection) Error_handling.Result
+    Record.fragment -> c:Connection{c.read.disp <> Closed} -> (bool Error_handling.Result) * Connection
 
-val readNextAppFragment : Connection -> Connection Error_handling.Result
+val readNextAppFragment : Connection -> (unit Error_handling.Result) * Connection
+
+val writeOneAppFragment: Connection -> bytes -> ((bytes * bytes) Result) * Connection
+
+val readOneAppFragmnet: Connection -> int -> (bytes Result) * Connection
 
 (* Definition of ValidConnection, implicitly expressing all the found invariants *)
 assume !c. ValidConnection(c) <=> 

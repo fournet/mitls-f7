@@ -27,7 +27,6 @@ function type funs =
 predicate type preds =
     | Compromised of SessionInfo
     | NonNullSession of SessionInfo
-    | FreshSession of SessionInfo * ContentType
     | Established of send_info:SessionInfo * send_stream:stream * recv_info:SessionInfo * recv_stream:stream
 
 val init_sessionInfo: r:role ->	s:SessionInfo{ s = InitSessionInfo(r) }
@@ -51,7 +50,7 @@ assume !r,d. InitSessionInfo(r) = { role = r;
 				    sessionID = None;
 				    null_algs = true}
 
-assume !info,cid,sid. NonNullSession(info) <=> (info.clientID = Some(cid) /\ info.sessionID = Some(sid) /\ null_algs = false )
+assume !info,cid,sid. NonNullSession(info) <=> (info.clientID = Some(cid) /\ info.sessionID = Some(sid) /\ info.null_algs = false )
 
 ask !info. NonNullSession(info) => NonNullSession(OtherRole(info))
 

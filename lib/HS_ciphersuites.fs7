@@ -73,6 +73,9 @@ type CipherSuite =
   | TLS_DES_64_CBC_WITH_MD5
   | TLS_DES_192_EDE3_CBC_WITH_MD5
   | UNKNOWN_CIPHERSUITE of int * int
+
+type cipherSuites = CipherSuite list
+
 val cipherSuite_of_intpair : int * int -> CipherSuite
 val intpair_of_cipherSuite : CipherSuite -> int * int
 val bytes_of_cipherSuite : CipherSuite -> Data.bytes
