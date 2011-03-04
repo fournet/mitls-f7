@@ -62,5 +62,3 @@ theorem !info,hist,d. ApplicationSend(info,hist,d) =>
 ask !aps,rs,d. ApplicationState(aps) /\ ApplicationSend(OtherRole(aps.app_info),rs,d) =>
 		((StreamRead(rs,d) /\ StreamID(rs) = StreamID(aps.app_incoming) ) \/ Compromised(OtherRole(aps.app_info)))
 
-(* TODO: to be proven handshake/session modules? *)
-theorem !aps. FreshSession(aps.info,Application_data) /\ IsEmptyStream(aps.app_incoming) => ApplicationState(aps)

@@ -39,9 +39,9 @@ type preConnection =
 
 predicate type preds =
 	| DispSend of dState * ContentType * fragment
-	| NoFrags of SessionInfo * ContentType * int * int
-	| ContentMap of SessionInfo * ContentType * int * fragment * bytes
-	(*| UpperProtoSend of SessionInfo * ContentType * stream * bytes*)
+	| ContentMap of SessionInfo * int * ContentType * bytes
+	| UpperProtoSend of SessionInfo * ContentType * stream * bytes
+	(*| NoFrags of SessionInfo * ContentType * int * int *)
         | ValidConnection of preConnection
 	| DispState of dState
         | ReadState of dState
@@ -51,19 +51,19 @@ type Connection = c:preConnection{ValidConnection(c)}
 
 val init :
   Tcp.NetworkStream ->
-      r:role -> po:Handshake.protocolOptions{ po.minVer <> UnknownPV /\ po.maxVer <> UnknownPV} ->
+      r:role -> po:protocolOptions{ po.minVer <> UnknownPV /\ po.maxVer <> UnknownPV} ->
       c:Connection{c.read.disp = Init /\ c.write.disp = Init}
 
 val appDataAvailable: Connection -> bool
 val getSessionInfo: Connection -> SessionInfo
 
-let updateInfoGlobally: Connection -> Connection
-let moveToOpenState: Connection -> Connection
+val updateInfoGlobally: Connection -> Connection
+val moveToOpenState: Connection -> Connection
 
 val next_fragment :
-        int -> c:Connection{c.write.disp <> Closed /\ 
-	                    (?ct,n,f,outgone. ContentMap(c.write.conn.rec_info,ct,n,f,outgone))} ->
-                ((bool Error_handling.Result) * c':Connection{?f'. ContentMap(c.write.conn.rec_info,ct,c.write.conn.seq_num,f',Concat(outgone,f))})
+        int ->  c:Connection{c.write.disp <> Closed} -> 
+                ((bool Error_handling.Result) * c':Connection)
+                (* maybe say that c' = IncSeqNum(c) ? *)
 
 val sendNextFragments : Connection -> (unit Error_handling.Result) * Connection
 
@@ -75,7 +75,7 @@ val readNextAppFragment : Connection -> (unit Error_handling.Result) * Connectio
 
 val writeOneAppFragment: Connection -> bytes -> ((bytes * bytes) Result) * Connection
 
-val readOneAppFragmnet: Connection -> int -> (bytes Result) * Connection
+val readOneAppFragment: Connection -> int -> (bytes Result) * Connection
 
 (* Definition of ValidConnection, implicitly expressing all the found invariants *)
 assume !c. ValidConnection(c) <=> 
@@ -88,19 +88,20 @@ assume !c. ValidConnection(c) <=>
    c.ds_info = c.write.conn.rec_info /\
    c.ds_info = c.handshake.hs_info /\
    c.ds_info = c.alert.al_info /\
-   c.ds_info = c.appdata.app_info
+   c.ds_info = c.appdata.app_info /\
+   ContentMap(c.ds_info,c.write.conn.seq_num,Application_data,PreviouslyRead(c.appdata.app_outgoing)) /\
+   (ContentMap(PeerSession(c.ds_info),c.read.conn.seq_num,Application_data,StreamBytes(c.appdata.app_incoming)) \/
+    Compromised(PeerSession(c.ds_info)))
+
+(* Similarly for HS, Alert:
+   ContentMap(c.ds_info,Handshake,c.write.conn.seq_num,PreviouslyRead(c.handshake.hs_outgoing)) /\
+   ContentMap(c.ds_info,Alert,c.write.conn.seq_num,PreviouslyRead(c.alert.al_outgoing)) /\
+*)
   )
 
+
+
 (* ReadState and WriteState invariants *)
-(* Which protocols can be sent in which dispatch states *)
-assume !dstate,proto,f. DispSend(dstate,proto,f) <=> (
-	((dstate.disp = Init \/ dstate.disp = FirstHandshake) /\
-	        proto <> Application_data) \/
-	(dstate.disp = Finishing /\
-	        (proto = Handshake \/ proto = Alert)) \/
-	(dstate.disp = Open) \/
-	(dstate.disp = Closing /\ proto = Alert)
-	)
 
 (* Crypto state associated with each dispatch state *)
 assume !dstate. DispState(dstate) <=> (
@@ -112,7 +113,55 @@ assume !dstate. DispState(dstate) <=> (
 	 dstate.conn.sparams.mac_algorithm <> MA_null))
 	)
 
+assume !read. ReadState(read) <=> 
+    (RecvConnState(read.conn) /\ DispState(read))
+
+assume !write. WriteState(write) <=> 
+    (SendConnState(write.conn) /\ DispState(write))
+
+
+(* Which protocols can be sent in which dispatch states *)
+assume !dstate,proto. DispSend(dstate,proto) <=> (
+	((dstate.disp = Init \/ dstate.disp = FirstHandshake) /\
+	        proto <> Application_data) \/
+	(dstate.disp = Finishing /\
+	        (proto = Handshake \/ proto = Alert)) \/
+	(dstate.disp = Open) \/
+	(dstate.disp = Closing /\ proto = Alert)
+	)
+
+
+assume !c,protocol,s,f.
+             ValidConnection(c) /\
+             DispSend(c.write,protocol) /\
+	     UpperProtoSend(c.ds_info,protocol,f) => 
+               FragmentSend(c.ds_info,c.write.conn.seq_num,protocol,f)
+
+theorem !i,n,p,f. FragmentSend(i,n,p,f) => (?c. ValidConnection(c) /\ DispSend(c.write,p) /\
+                                            UpperProtoSend(c.ds_info,p,f) /\
+                                            i = c.ds_info /\ n = c.write.conn.seq_num)
+
+(* On the receive side, we need something:
+ask !c,p,f. ValidConnection(c) /\ FragmentSend(c.ds_info,c.read.conn.seq_num,p,f) =>
+            (.....)
+*)
+
+(* By linearity *)
+theorem !i,n,p,f,p',f'. FragmentSend(i,n,p,f) /\ FragmentSend(i,n,p',f') => (p = p' /\ f = f')
+
+assume !i,ct,n,h. ContentMap(i,-1,ct,empty_bstr)
+assume !i,ct,n,h. ContentMap(i,n,ct,h) /\ FragmentSend(i,n+1,ct,f) =>
+                   ContentMap(i,n+1,ct,Append(h,f))
+assume !i,ct,n,h. ContentMap(i,n,ct,h) /\ FragmentSend(i,n+1,ct',f) /\ ct <> ct' =>
+                   ContentMap(i,n+1,ct,h)
+
+
+
+
+
 (* Mapping protocol history to record seq_num *)
+(*
+
 assume !info,ct,n,n'. n > n' => NoFrags(info,ct,n,n')
 assume !cs,ct,ct',n',f. NoFrags(cs.ds_info,ct,cs.write.conn.seq_num+1,n') /\ FragmentSend(cs.write.conn.rec_info,cs.write.conn.seq_num,ct',f) /\ ct' <> ct /\ n' >= cs.write.conn.seq_num+1 =>
 		NoFrags(cs.ds_info,ct,cs.write.conn.seq_num,n')
@@ -123,11 +172,6 @@ assume !cs,ct,f,f',n,outgone. ContentMap(c.write.conn.rec_info,ct,n,f,outgone) /
 			      FragmentSend(cs.write.conn.rec_info,cs.write.conn.seq_num,ct,f') =>
 			         ContentMap(c.write.conn.rec_info,ct,c.write.conn.seq_num,f',Concat(outgone,f))
 
-assume !read. ReadState(read) <=> 
-    (RecvConnState(read.conn) /\ DispState(read))
-
-assume !write. WriteState(write) <=> 
-    (SendConnState(write.conn) /\ DispState(write))
 
 assume !c,f,f',outgone,sn. ValidConnection(c) /\
 	     DispSend(c.write,Application_data,f) /\
@@ -136,6 +180,7 @@ assume !c,f,f',outgone,sn. ValidConnection(c) /\
 	     sn < c.write.conn.seq_num /\
 	     NoFrags(c.ds_info,Application_data,sn+1,c.write.conn.seq_num-1) =>
                FragmentSend(c.write.conn.rec_info,c.write.conn.seq_num,Application_data,f)
+
 
 assume !c,f. ValidConnection(c) /\
 	     DispSend(c.write,Handshake,f) /\
@@ -155,6 +200,7 @@ assume !c,f. ValidConnection(c) /\
              Pub(f) =>
 	       FragmentSend(c.write.conn.rec_info,c.write.conn.seq_num,Alert,f)
 
+*)
 (* ARCHIVE FOLLOWS: *)
 
 

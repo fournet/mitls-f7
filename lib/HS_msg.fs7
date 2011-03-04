@@ -1,4 +1,6 @@
 module HS_msg
+open HS_ciphersuites
+
 type handshakeType =
   | HT_hello_request
   | HT_client_hello
