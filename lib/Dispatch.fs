@@ -61,16 +61,12 @@ let appDataAvailable conn =
 let getSessionInfo conn =
     conn.ds_info
 
-let discardOutgoing conn =
-    let new_appdata = AppData.discard_outgoing conn.appdata in
-    {conn with appdata = new_appdata}
-
 let updateInfoGlobally conn =
     match conn.next_ds_info with
     | Some(new_info) ->
         let new_hs = Handshake.updateSessionInfo conn.handshake new_info in
         let new_alert = Alert.updateSessionInfo conn.alert new_info in
-        let new_appdata = AppData.updateSessionInfo conn.appdata new_info in
+        let new_appdata = AppData.init new_info in
         (* Read and write state should already have the same SessionInfo
            set after CCS *)
         {conn with ds_info = new_info;
@@ -158,14 +154,12 @@ let next_fragment n (c:Connection) : (bool Result) * Connection =
                 | Finishing ->
                     let c_write = {c_write with disp = Finished}
                     let c = {c with write = c_write} in
-                    let c = discardOutgoing c in
                     (Error(MustRead,Notification),c)
                 | _ -> (Error(Dispatcher,InvalidState), c)
           | (HSFullyFinished_Write(new_info),new_hs_state) ->
                 let c = {c with handshake = new_hs_state} in
                 match c_write.disp with
                 | Finishing ->
-                   let c = discardOutgoing c in
                    (* according to the protocol logic and the dispatcher
                       implementation, we must now have an empty input buffer.
                       This means we can directly report a NewSessionInfo error

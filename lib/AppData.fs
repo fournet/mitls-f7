@@ -17,13 +17,6 @@ let init info =
     {app_info = info;
      app_incoming = new_stream Bytearray.empty_bstr;
      app_outgoing = new_stream Bytearray.empty_bstr}
-  
-let updateSessionInfo state info =
-    {state with app_info = info}
-
-let discard_outgoing state =
-    let new_out = Stream.discard_content state.app_outgoing in
-    {state with app_outgoing = new_out}
 
 let send_data (state:app_state) (data:bytes) =
     let new_out = stream_write state.app_outgoing data in
