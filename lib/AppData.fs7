@@ -16,7 +16,6 @@ type pre_app_state =
 predicate type preds =
   | ApplicationState of pre_app_state 
   | AppDataNextChunk of SessionInfo * bytes
-  | ApplicationSend of SessionInfo * stream * bytes
 
 type app_state = (aps:pre_app_state){ApplicationState(aps)}
 
@@ -34,10 +33,10 @@ val retrieve_data_available: app_state -> bool
 val init : i:SessionInfo{NonNullSession(i)} -> a:app_state
 
 val next_fragment: aps:app_state -> int -> 
-  (d:Record.fragment * aps':app_state{ApplicationSend(aps.app_info,aps.app_outgoing,d) /\ aps'.app_info = aps.app_info}) option
+  (d:Record.fragment * aps':app_state{UpperProtoSend(aps.app_info,Application_data,d) /\ aps'.app_info = aps.app_info}) option
 
 val recv_fragment: aps:app_state ->
-          d:fragment{(?rs. ApplicationSend(OtherRole(aps.app_info),rs,d)) \/ Compromised(OtherRole(aps.app_info))} ->
+          d:fragment{(?rs. UpperProtoSend(OtherRole(aps.app_info),Application_data,d)) \/ Compromised(OtherRole(aps.app_info))} ->
 	  app_state Result
 
 (* Application state definition *)
@@ -54,11 +53,12 @@ assume !aps,aps'. aps.app_info = aps'.app_info /\ ApplicationState(aps) /\ Appli
 assume !aps,d. ApplicationState(aps) /\ AppDataNextChunk(aps.app_info,d) => StreamWrite(aps.app_outgoing,d)
 
 (* When we can send data on the network from the outgoing stream *) 
-assume !aps,d. ApplicationState(aps) /\ StreamRead(aps.app_outgoing,d) => ApplicationSend(aps.app_info,aps.app_outgoing,d)
+(*
+assume !aps,d. ApplicationState(aps) /\ StreamRead(aps.app_outgoing,d) => UpperProtoSend(aps.app_info,Application_data,d)
 
-theorem !info,hist,d. ApplicationSend(info,hist,d) =>
-	(?aps. ApplicationState(aps) /\ info = aps.app_info /\ hist = aps.app_outgoing /\ StreamRead(aps.app_outgoing,d))
+theorem !info,p,d. UpperProtoSend(info,p,d) =>
+	(?aps. ApplicationState(aps) /\ info = aps.app_info /\ p = Application_data /\ StreamRead(aps.app_outgoing,d))
 
-ask !aps,rs,d. ApplicationState(aps) /\ ApplicationSend(OtherRole(aps.app_info),rs,d) =>
+ask !aps,rs,d. ApplicationState(aps) /\ UpperProtoSend(OtherRole(aps.app_info),Application_data,d) =>
 		((StreamRead(rs,d) /\ StreamID(rs) = StreamID(aps.app_incoming) ) \/ Compromised(OtherRole(aps.app_info)))
-
+*)

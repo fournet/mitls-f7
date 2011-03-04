@@ -40,8 +40,6 @@ type preConnection =
 predicate type preds =
 	| DispSend of dState * ContentType * fragment
 	| ContentMap of SessionInfo * int * ContentType * bytes
-	| UpperProtoSend of SessionInfo * ContentType * stream * bytes
-	(*| NoFrags of SessionInfo * ContentType * int * int *)
         | ValidConnection of preConnection
 	| DispState of dState
         | ReadState of dState
@@ -84,14 +82,16 @@ assume !c. ValidConnection(c) <=>
    HandshakeState(c.handshake) /\
    AlertState(c.alert) /\
    ApplicationState(c.appdata) /\
-   c.ds_info = c.read.conn.rec_info /\
-   c.ds_info = c.write.conn.rec_info /\
    c.ds_info = c.handshake.hs_info /\
    c.ds_info = c.alert.al_info /\
    c.ds_info = c.appdata.app_info /\
-   ContentMap(c.ds_info,c.write.conn.seq_num,Application_data,PreviouslyRead(c.appdata.app_outgoing)) /\
-   (ContentMap(PeerSession(c.ds_info),c.read.conn.seq_num,Application_data,StreamBytes(c.appdata.app_incoming)) \/
-    Compromised(PeerSession(c.ds_info)))
+   ( c.write.disp = Open =>
+	c.ds_info = c.write.conn.rec_info /\
+	ContentMap(c.ds_info,c.write.conn.seq_num,Application_data,PreviouslyRead(c.appdata.app_outgoing)) ) /\
+   ( c.read.disp = Open =>
+	c.ds_info = c.read.conn.rec_info /\
+	(ContentMap(OtherRole(c.ds_info),c.read.conn.seq_num,Application_data,StreamBytes(c.appdata.app_incoming)) \/
+	 Compromised(OtherRole(c.ds_info))) )
 
 (* Similarly for HS, Alert:
    ContentMap(c.ds_info,Handshake,c.write.conn.seq_num,PreviouslyRead(c.handshake.hs_outgoing)) /\
@@ -216,6 +216,7 @@ assume !cs,ct,f. (SendConnState(cs) /\ ct = Handshake /\ ValidHSDataOut(f))
 (*
 assume !hs,ccs,cp,info,pv,compr,sparams,mk,cstate. (hs.ccs_outgoing = Some((ccs,cp)) /\ cp = (info,pv,compr,sparams,mk,cstate)) => (pv <> UnknownPV /\
 		(ValidStreamCipherSettings(ccs) \/ ValidBlockCipherSettings(ccs)))
+
 
 
 assume !hs,ccs,cp,write. (WriteState(write) /\ hs.hs_outgoing = empty_bstr /\ hs.ccs_outgoing = Some((ccs,cp))) => (

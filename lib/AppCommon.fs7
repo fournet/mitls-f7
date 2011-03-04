@@ -2,6 +2,9 @@
 
 open Formats
 open HS_ciphersuites
+open Sessions
+open Stream
+open Bytearray
 
 type protocolOptions = {
     minVer: ProtocolVersionType;
@@ -9,6 +12,9 @@ type protocolOptions = {
     ciphersuites: cipherSuites;
     compressions: Compression list
     }
+
+predicate type preds =
+	| UpperProtoSend of SessionInfo * ContentType * bytes
 
 val defaultProtocolOptions : protocolOptions
 

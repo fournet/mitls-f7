@@ -38,9 +38,6 @@ type pre_hs_state =
 
 predicate type preds =
   | HandshakeState of pre_hs_state
-  | HandshakeFragmentSend of SessionInfo * fragment
-  | HandshakeCCSSend of SessionInfo * fragment
-
 
 type hs_state = (hs:pre_hs_state){HandshakeState(hs)}
 
@@ -55,11 +52,11 @@ val next_fragment: s:hs_state -> int ->
 	(r:HSFragReply * s':hs_state){
 		s'.hs_info = s.hs_info /\
 		(r = EmptyHSFrag => s' = s) /\
-		(!f. r = HSFrag(f) => (HandshakeFragmentSend(s.hs_info,f) /\ Pub(f))) /\
+		(!f. r = HSFrag(f) => (UpperProtoSend(s.hs_info,Handshake,f) /\ Pub(f))) /\
 		(* TODO: Pub(f) might not be true for the Finished message, in this case a different return value is needed *)
-		(!f,info,pv,compr,sparams,mk,cstate. r = CCSFrag(f,(info,pv,compr,sparams,mk,cstate)) =>
-		           (HandshakeCCSSend(s.hs_info,f) /\ Pub(f) /\
-			    NonNullCipherSettings((info,pv,compr,sparams,mk,cstate))))}
+		(!f,ccs. r = CCSFrag(f,ccs) =>
+		           (UpperProtoSend(s.hs_info,Change_cipher_spec,f) /\ Pub(f) /\
+			    NonNullCipherSettings(ccs)))}
 
 
 type recv_reply =

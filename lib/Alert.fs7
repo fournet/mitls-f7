@@ -43,7 +43,6 @@ type pre_al_state =
 
 predicate type preds =
     | AlertState of pre_al_state
-    | AlertFragmentSend of SessionInfo * Record.fragment
 
 type al_state = (als:pre_al_state){AlertState(als)}
 
@@ -59,8 +58,8 @@ val next_fragment: als:al_state -> int ->
         (r:ALFragReply * als':al_state){
                 als'.al_info = als.al_info /\
                 (r = EmptyALFrag => als' = als) /\
-                (!f. r = ALFrag(f) => (AlertFragmentSend(als.al_info,f) /\ Pub(f))) /\
-                (!f. r = LastALFrag(f) => (AlertFragmentSend(als.al_info,f) /\ Pub(f)))
+                (!f. r = ALFrag(f) => (UpperProtoSend(als.al_info,Alert,f) /\ Pub(f))) /\
+                (!f. r = LastALFrag(f) => (UpperProtoSend(als.al_info,Alert,f) /\ Pub(f)))
                 }
 
 type alert_reply =
