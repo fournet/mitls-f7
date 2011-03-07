@@ -12,9 +12,11 @@ type CipherState =
   | BlockCipherState of Crypto.key * bytes    // (key,iv)
   | StreamCipherState
 
-type Direction =
+type preDirection =
     | CtoS
     | StoC
+
+type Direction = preDirection
 
 type ConnectionState = {
   rec_info: SessionInfo;

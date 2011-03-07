@@ -7,12 +7,14 @@ val bytes_of_intpair: (int*int) -> bytes
 
 val bytes_of_seq: int -> bytes
 
-type ContentType =
+type preContentType =
     | Change_cipher_spec
     | Alert
     | Handshake
     | Application_data
     | UnknownCT
+
+type ContentType = preContentType
 
 type Compression =
     | Null

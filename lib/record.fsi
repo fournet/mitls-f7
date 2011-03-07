@@ -14,9 +14,11 @@ type CipherState =
 
 type fragment = bytes (* f:bytes { f.Length in 0..2^14-1 } *)
 
-type Direction =
+type preDirection =
     | CtoS
     | StoC
+
+type Direction = preDirection
 
 type ConnectionState
 type sendState = ConnectionState (* both implemented as ConnectionState for now *)

@@ -11,7 +11,8 @@ open AppCommon
 
 type protoState
 
-type hs_state
+type pre_hs_state
+type hs_state = pre_hs_state
 
 val init_handshake: role -> protocolOptions -> SessionInfo * hs_state
 

@@ -53,7 +53,7 @@ Dispatch-a.dll: libsym-a.dll record-a.dll $(tlsfsi) $(tlsfs)
 
 
 record.tc7: $(libperv) $(libfs7) $(recordfs7) record.fs
-	time $(f7) -timeout 30 --define f7 -nokindcheck $(lperv) $(libfs7) $(recordfs7) record.fs -scripts record -genlst | tee  record.tc7 | grep "Failure\|error\|ERROR\|Exception"; echo ""
+	time $(f7) -nofstypecheck -timeout 300 --define f7 -nokindcheck $(lperv) $(libfs7) $(recordfs7) record.fs -scripts record -genlst | tee  record.tc7 | grep "Failure\|error\|ERROR\|Exception"; echo ""
 
 Sessions.tc7: $(libperv) $(libfs7) $(recordfs7) Sessions.fs
 	time $(f7) -timeout 20 --define f7 -nokindcheck $(lperv) $(libfs7) $(recordfs7) Sessions.fs -scripts Sessions -genlst | tee  Sessions.tc7 | grep "Failure\|error\|ERROR\|Exception"; echo ""

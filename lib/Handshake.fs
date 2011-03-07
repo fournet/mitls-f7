@@ -34,7 +34,7 @@ type protoState =
     | Client of clientState
     | Server of serverState
 
-type hs_state = {
+type pre_hs_state = {
   hs_outgoing    : bytes (* outgiong data before a ccs *)
   ccs_outgoing: (bytes * ccs_data) option (* marker telling there's a ccs ready *)
   hs_outgoing_after_ccs: bytes (* data to be sent after the ccs has been sent *)
@@ -43,6 +43,8 @@ type hs_state = {
   poptions: protocolOptions
   pstate : protoState
 }
+
+type hs_state = pre_hs_state
 
 type HSFragReply =
   | EmptyHSFrag

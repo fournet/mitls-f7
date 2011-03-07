@@ -9,7 +9,8 @@ open Handshake
 open Sessions
 open AppCommon
 
-type Connection
+type preConnection
+type Connection = preConnection
 
 val init: NetworkStream -> role -> protocolOptions -> Connection
 

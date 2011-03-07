@@ -18,10 +18,9 @@ type SessionInfo = {
     sessionID: sessionID option
     }
 
-function type funs =
-    | IntOtherRole of role
-    | OtherRole of SessionInfo
-    | InitSessionInfo of role
+function val IntOtherRole: role -> role
+function val OtherRole: SessionInfo -> SessionInfo
+function val InitSessionInfo: role -> SessionInfo
 
 predicate type preds =
     | Compromised of SessionInfo

@@ -3,10 +3,12 @@
 open Data
 open Bytearray
 
-type stream = {
+type prestream = {
     id: bytes;
     history: bytes;
     buffer: bytes}
+
+type stream = prestream
 
 type preds =
     | StreamWrite of stream * bytes

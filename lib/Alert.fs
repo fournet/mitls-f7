@@ -41,11 +41,13 @@ type alertDescription =
 
 type alert = {level: alertLevel; description: alertDescription}
 
-type al_state = {
+type pre_al_state = {
   al_info: SessionInfo;
   al_incoming: bytes (* incomplete incoming message *)
   al_outgoing: bytes (* emptybstr if nothing to be sent *) 
 }
+
+type al_state = pre_al_state
 
 let init info = {al_info = info; al_incoming = empty_bstr; al_outgoing = empty_bstr}
 

@@ -59,18 +59,17 @@ predicate type preds =
 type sendState = cs:ConnectionState{SendConnState(cs)}
 type recvState = cs:ConnectionState{RecvConnState(cs)}
 
-function type funs = 
-  | OutDir of SessionInfo
-  | InDir of SessionInfo
-  | CCSData of ConnectionState
-  | CCSDataOtherRole of ConnectionState
-  | Compressed of Compression * bytes
-  | IncSeqNum of ConnectionState
-  | UpdateIV of ConnectionState * bytes
-  | UpdatePV of ConnectionState * ProtocolVersionType
-  | UpdateCS of ConnectionState * ccs_data * Direction
-  | BlockKey of ConnectionState
-  | BlockIV of ConnectionState
+function val OutDir: SessionInfo -> Direction
+function val InDir: SessionInfo -> Direction
+function val CCSData: ConnectionState -> ccs_data
+function val CCSDataOtherRole: ConnectionState -> ccs_data
+function val Compressed: Compression * bytes -> bytes
+function val IncSeqNum: ConnectionState -> ConnectionState
+function val UpdateIV: ConnectionState * bytes -> ConnectionState
+function val UpdatePV: ConnectionState * ProtocolVersionType -> ConnectionState
+function val UpdateCS: ConnectionState * ccs_data * Direction -> ConnectionState
+function val BlockKey: ConnectionState -> key
+function val BlockIV: ConnectionState -> bytes
 
 val indir: si:SessionInfo -> d:Direction{d = InDir(si)}
 val outdir: si:SessionInfo -> d:Direction{d = OutDir(si)}

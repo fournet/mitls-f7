@@ -35,7 +35,8 @@ type alertDescription =
     | AD_no_renegotiation
     | AD_unknown_description of int
 
-type al_state
+type pre_al_state
+type al_state = pre_al_state
 
 type ALFragReply =
     | EmptyALFrag

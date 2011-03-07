@@ -9,7 +9,8 @@ open Record
 open Error_handling
 open Sessions
 
-type app_state
+type pre_app_state
+type app_state = pre_app_state
 
 val init: SessionInfo -> app_state
 

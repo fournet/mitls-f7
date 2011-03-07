@@ -7,11 +7,13 @@ open Sessions
 open Formats
 open Stream
 
-type app_state = {
+type pre_app_state = {
   app_info: SessionInfo
   app_incoming: stream (* unsolicited data *)
   app_outgoing: stream
 }
+
+type app_state = pre_app_state
 
 let init info =
     {app_info = info;

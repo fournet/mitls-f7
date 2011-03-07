@@ -2,9 +2,11 @@
 
 open Data
 
-type role =
+type prerole =
     | ClientRole
     | ServerRole
+
+type role = prerole
 
 type sessionID = bytes
 

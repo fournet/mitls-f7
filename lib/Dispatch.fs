@@ -11,7 +11,7 @@ open Alert
 open Sessions
 open AppCommon
 
-type dispatchState =
+type predispatchState =
   | Init (* of ProtocolVersionType * ProtocolVersionType *) (* min and max *)
   | FirstHandshake (* of ProtocolVersionType *)             (* set by the ServerHello *) 
   | Finishing
@@ -20,12 +20,14 @@ type dispatchState =
   | Closing
   | Closed
 
+type dispatchState = predispatchState
+
 type dState = {
     disp: dispatchState;
     conn: ConnectionState;
     }
 
-type Connection = {
+type preConnection = {
   ds_info: SessionInfo;
   (* abstract protocol states for HS/CCS, AL, and AD *)
   handshake: Handshake.hs_state
@@ -36,6 +38,8 @@ type Connection = {
   read  : dState;
   write : dState;
   }
+
+type Connection = preConnection
 
 let init ns role poptions =
     let (info,hs) = Handshake.init_handshake role poptions in
