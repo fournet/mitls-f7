@@ -29,9 +29,10 @@ type ProtocolVersionType =
   | TLS_1p2
   | UnknownPV
 
-function val ContentTypeBytes: ContentType -> bytes
-function val ProtocolVersionBytes: ProtocolVersionType -> bytes
-function val SequenceNumberBytes: int -> bytes
+function type funs =
+  | ContentTypeBytes of ContentType
+  | ProtocolVersionBytes of ProtocolVersionType
+  | SequenceNumberBytes of int
 
 predicate type preds =
   | PrintThis
