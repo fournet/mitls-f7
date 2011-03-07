@@ -243,7 +243,7 @@ val verify_mac: cs:recvState{cs.protocol_version <> UnknownPV}
 	r:unit Result{(!x. r = Correct (x) =>
 	               (cs.sparams.mac_algorithm <> MA_null => 
 		      ((?compr,f. d = Compressed(compr,f) /\ RecordSend(OtherRole(cs.rec_info),ct,f,cs.protocol_version,cs.seq_num,cs.mk))
-                         \/ Pub_k(cs.mk))))
+                         \/ Compromised(OtherRole(cs.rec_info)))))
                   /\
                       (!y,z. r = Error(y,z) => (y = MAC /\ (z = Internal \/ z = Unsupported \/ z = CheckFailed)))}
 
@@ -258,7 +258,7 @@ val recv :
                                 cs''.protocol_version = cs.protocol_version /\
                                 cs''.seq_num = cs.seq_num /\
 				cs''.mk = cs.mk)
-                        \/ Pub_k(cs.mk)))))
+                        \/ Compromised(OtherRole(cs.rec_info))))))
 	/\
 	(!y,z. r = Error(y,z) => (
 		(y = Tcp \/ y = RecordVersion \/ y = Encryption \/ y = MAC \/ y = RecordCompression \/ y = RecordPadding) /\
@@ -313,12 +313,10 @@ theorem !mk,info,info'. TLSMKey(mk,info) /\ TLSMKey(mk,info') => info = info'
 (* theorem !mk,info. TLSMKey(mk,info) => TLSMKey(mk,OtherRole(info)) *)
 
 (* Key compromise *)
-(*
 assume !mk,info. TLSMKey(mk,info) /\ Compromised(info) => Pub_k(mk)
 theorem !mk,info. TLSMKey(mk,info) /\ Pub_k(mk) => Compromised(info)
 assume !mk,info. TLSSKey(mk,info) /\ Compromised(info) => Pub_k(mk)
 theorem !mk,info. TLSSKey(mk,info) /\ Pub_k(mk) => Compromised(info)
-*)
 
 (* Format of MACed bytestring *)
 definition !mb,sn,ct,ver,d. MACBytes(mb,sn,ct,ver,d) <=> 
@@ -469,7 +467,7 @@ theorem !mk,mb,info'.
                     TLSVersion(pv) /\
                     MACBytes(mb,SequenceNumberBytes(sn),ContentTypeBytes(ct), (* One-One MACBytes *)
 		                ProtocolVersionBytes(pv),Compressed(compr,f)) /\
-		    RecordSend(info,ct,f,pv,sn,mk)) \/ Pub_k(mk))
+		    RecordSend(info,ct,f,pv,sn,mk)) \/ Compromised(info'))
 
 
 ask !info,ct,f,pv,sn,mk,compr,mb.
@@ -478,7 +476,7 @@ ask !info,ct,f,pv,sn,mk,compr,mb.
 		    TLSMKey(mk,info) /\ (* One-One TLSMKey *)
                     MACBytes(mb,SequenceNumberBytes(sn),ContentTypeBytes(ct), (* One-One MACBytes *)
 		                ProtocolVersionBytes(pv),Compressed(compr,f)) =>
-		    (RecordSend(info,ct,f,pv,sn,mk) \/ Pub_k(mk))
+		    (RecordSend(info,ct,f,pv,sn,mk) \/ Compromised(info))
 
 ask !cs. RecvConnState(cs) /\ cs.sparams.mac_algorithm <> MA_null => TLSMKey(cs.mk,OtherRole(cs.rec_info))
 
@@ -493,7 +491,7 @@ ask !cs,mb,ct,f.    TLSVersion(cs.protocol_version) /\
 		            cs'.protocol_version = cs.protocol_version /\
 		            cs'.seq_num = cs.seq_num /\
 		            cs'.mk = cs.mk )
-                    \/ Pub_k(cs.mk))
+                    \/ Compromised(OtherRole(cs.rec_info)))
 
 (* Old definition of MACSays *)
 (*
@@ -524,7 +522,7 @@ theorem !mk,mb,info'. TLSMKey(mk,info') /\
                     pv = SSL_3p0 /\
                     KHashBytes(mb,SequenceNumberBytes(sn),ContentTypeBytes(ct),
                                Compressed(compr,f)) /\
-		    RecordSend(info,ct,f,pv,sn,mk)) \/ Pub_k(mk))
+		    RecordSend(info,ct,f,pv,sn,mk)) \/ Compromised(info'))
 
 
 ask !info,ct,f,pv,sn,mk,compr,mb.
@@ -533,7 +531,7 @@ ask !info,ct,f,pv,sn,mk,compr,mb.
 		    TLSMKey(mk,info) /\ (* One-One TLSMKey *)
                     KHashBytes(mb,SequenceNumberBytes(sn),ContentTypeBytes(ct), (* One-One MACBytes *)
                                Compressed(compr,f)) =>
-		    (RecordSend(info,ct,f,pv,sn,mk)  \/ Pub_k(mk))
+		    (RecordSend(info,ct,f,pv,sn,mk)  \/ Compromised(info))
 
 ask !cs,mb,ct,f. RecvConnState(cs) /\ cs.sparams.mac_algorithm <> MA_null /\ 
                  KHashSays(cs.mk,mb) /\ 
@@ -545,7 +543,7 @@ ask !cs,mb,ct,f. RecvConnState(cs) /\ cs.sparams.mac_algorithm <> MA_null /\
                     cs'.protocol_version = cs.protocol_version /\
                     cs'.seq_num = cs.seq_num /\
                     cs'.mk = cs.mk) 
-             \/ Pub_k(cs.mk))
+             \/ Compromised(OtherRole(cs.rec_info)))
 
 (* Old definition of KHashSays *)
 (*
