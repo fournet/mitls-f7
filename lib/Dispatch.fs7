@@ -35,17 +35,15 @@ type preConnection =
    alert: Alert.al_state;
    appdata: AppData.app_state;
    read: dState;
-   write: dState;
-   next_ds_info: SessionInfo option}
+   write: dState}
 
 
 predicate type preds =
 	| DispSend of dState * ContentType
 	| ContentMap of SessionInfo * int * ContentType * bytes
         | ValidConnection of preConnection
-	| DispState of dState
-        | ReadState of dState
-        | WriteState of dState
+	| DispInv of dState
+	| DispState of dState * dState
 
 type Connection = c:preConnection{ValidConnection(c)}
 
@@ -57,8 +55,7 @@ val init :
 val appDataAvailable: Connection -> bool
 val getSessionInfo: Connection -> SessionInfo
 
-val updateInfoGlobally: c:Connection{c.write.disp <> Open /\ c.read.disp <> Open /\ c.next_ds_info <> None} -> Connection
-val moveToOpenState: c:Connection{(c.write.disp = Finishing \/ c.write.disp = Finished) /\ c.read.disp = Finishing /\ c.next_ds_info <> None} -> Connection
+val moveToOpenState: c:Connection -> s:SessionInfo -> Connection
 
 val next_fragment :
         int ->  c:Connection{c.write.disp <> Closed} -> 
@@ -79,8 +76,9 @@ val readOneAppFragment: Connection -> int -> (bytes Result) * Connection
 
 (* Definition of ValidConnection, implicitly expressing all the found invariants *)
 assume !c. ValidConnection(c) <=> 
-  (ReadState(c.read) /\ 
-   WriteState(c.write) /\
+  (RecvConnState(c.read.conn) /\ 
+   SendConnState(c.write.conn) /\
+   DispState(c.read,c.write) /\
    HandshakeState(c.handshake) /\
    AlertState(c.alert) /\
    ApplicationState(c.appdata) /\
@@ -102,11 +100,8 @@ assume !c. ValidConnection(c) <=>
   )
 
 
-
-(* ReadState and WriteState invariants *)
-
-(* Crypto state associated with each dispatch state *)
-assume !dstate. DispState(dstate) <=> (
+(* Invariants on the Dispatch automaton *)
+assume !dstate. DispInv(dstate) <=> (
 	((dstate.disp = Init \/ dstate.disp = FirstHandshake) =>
 	 (dstate.conn.sparams.bulk_cipher_algorithm = BCA_null /\
 	 dstate.conn.sparams.mac_algorithm = MA_null)) /\
@@ -115,11 +110,9 @@ assume !dstate. DispState(dstate) <=> (
 	 dstate.conn.sparams.mac_algorithm <> MA_null))
 	)
 
-assume !read. ReadState(read) <=> 
-    (RecvConnState(read.conn) /\ DispState(read))
-
-assume !write. WriteState(write) <=> 
-    (SendConnState(write.conn) /\ DispState(write))
+assume !read,write. DispState(read,write) <=> (
+	DispInv(read) /\ DispInv(write) /\
+	)
 
 
 (* Which protocols can be sent in which dispatch states *)
@@ -157,103 +150,3 @@ assume !i,n,ct,h,f. ContentMap(i,n,ct,h) /\ FragmentSend(i,n,ct,f) =>
 assume !i,n,ct,h,ct',f. ContentMap(i,n,ct,h) /\ FragmentSend(i,n,ct',f) /\ ct <> ct' =>
                    ContentMap(i,n+1,ct,h)
 
-
-
-
-
-(* Mapping protocol history to record seq_num *)
-(*
-
-assume !info,ct,n,n'. n > n' => NoFrags(info,ct,n,n')
-assume !cs,ct,ct',n',f. NoFrags(cs.ds_info,ct,cs.write.conn.seq_num+1,n') /\ FragmentSend(cs.write.conn.rec_info,cs.write.conn.seq_num,ct',f) /\ ct' <> ct /\ n' >= cs.write.conn.seq_num+1 =>
-		NoFrags(cs.ds_info,ct,cs.write.conn.seq_num,n')
-
-assume !cs,ct,f. FragmentSend(cs.write.conn.rec_info,cs.write.conn.seq_num,ct,f) /\ cs.write.conn.seq_num = 0 => ContentMap(c.write.conn.rec_info,ct,0,f,empty_Fifo)
-assume !cs,ct,f. NoFrags(cs.ds_info,ct,0,cs.write.conn.seq_num-1) /\ FragmentSend(cs.write.conn.rec_info,cs.write.conn.seq_num,ct,f) => ContentMap(c.write.conn.rec_info,ct,cs.write.conn.seq_num,emptyFifo)
-assume !cs,ct,f,f',n,outgone. ContentMap(c.write.conn.rec_info,ct,n,f,outgone) /\ NoFrags(c.write.conn.rec_info,ct,n+1,c.write.conn.seq_num-1) /\
-			      FragmentSend(cs.write.conn.rec_info,cs.write.conn.seq_num,ct,f') =>
-			         ContentMap(c.write.conn.rec_info,ct,c.write.conn.seq_num,f',Concat(outgone,f))
-
-
-assume !c,f,f',outgone,sn. ValidConnection(c) /\
-	     DispSend(c.write,Application_data,f) /\
-	     UpperProtoSend(c.ds_info,Application_data,f,f) /\
-	     ContentMap(c.ds_info,Application_data,sn,f',outgone) /\
-	     sn < c.write.conn.seq_num /\
-	     NoFrags(c.ds_info,Application_data,sn+1,c.write.conn.seq_num-1) =>
-               FragmentSend(c.write.conn.rec_info,c.write.conn.seq_num,Application_data,f)
-
-
-assume !c,f. ValidConnection(c) /\
-	     DispSend(c.write,Handshake,f) /\
-	     HandshakeFragmentSend(c.handshake.hs_info,f) /\
-             Pub(f) =>
-	       FragmentSend(c.write.conn.rec_info,c.write.conn.seq_num,Handshake,f)
-
-assume !c,f. ValidConnection(c) /\
-	     DispSend(c.write,Change_cipher_spec,f) /\
-	     HandshakeCCSSend(c.handshake.hs_info,f) /\
-             Pub(f) =>
-	       FragmentSend(c.write.conn.rec_info,c.write.conn.seq_num,Change_cipher_spec,f)
-
-assume !c,f. ValidConnection(c) /\
-	     DispSend(c.write,Alert,f) /\
-	     AlertFragmentSend(c.alert.al_info,f) /\
-             Pub(f) =>
-	       FragmentSend(c.write.conn.rec_info,c.write.conn.seq_num,Alert,f)
-
-*)
-(* ARCHIVE FOLLOWS: *)
-
-
-(* ValidHSState and CCS invariants *)
-(*
-assume !hs,write. WriteState(write) => (ValidHSState(hs) <=> ( ValidHSDataOut(hs.hs_outgoing) /\
-				       (write.conn.sparams.bulk_cipher_algorithm = BCA_null => Pub(hs.hs_outgoing) )))
-
-assume !cs,ct,f. (SendConnState(cs) /\ ct = Handshake /\ ValidHSDataOut(f))
-		    => FragmentSend(cs,ct,f)
-*)
-(* The following assume has to be proven by the Handhshake protocol. *)
-(*
-assume !hs,ccs,cp,info,pv,compr,sparams,mk,cstate. (hs.ccs_outgoing = Some((ccs,cp)) /\ cp = (info,pv,compr,sparams,mk,cstate)) => (pv <> UnknownPV /\
-		(ValidStreamCipherSettings(ccs) \/ ValidBlockCipherSettings(ccs)))
-
-
-
-assume !hs,ccs,cp,write. (WriteState(write) /\ hs.hs_outgoing = empty_bstr /\ hs.ccs_outgoing = Some((ccs,cp))) => (
-		ValidHSState(hs) <=> (
-			ValidHSDataOut(hs.hs_outgoing_after_ccs) /\ 
-			ValidCCSDataOut(ccs) /\
-			((write.disp = FirstHandshake /\ write.conn.sparams.bulk_cipher_algorithm = BCA_null /\ Pub(ccs)) \/
-			( write.disp = Open /\ write.conn.sparams.bulk_cipher_algorithm <> BCA_null))
-			
-		))
-
-assume !cs,ct,f. (SendConnState(cs) /\ ct = Change_cipher_spec /\ ValidCCSDataOut(f))
-		    => FragmentSend(cs,ct,f)
-*)        
-(* FIXME: This should happen only after ccs has been sent!
-			And the fact that the counter restarts (modeled in send_setCrypto) should break the stream property (not modeled) *)
-(* Valid Alert state invariants *)
-(*
-assume !alstate,write. WriteState(write) => (ValidAlState(alstate) <=> (ValidAlDataOut(alstate.al_outgoing) /\ Pub(alstate.al_outgoing)))
-
-assume !cs,ct,f. (SendConnState(cs) /\ ct = Alert /\ ValidAlDataOut(f))
-		    => FragmentSend(cs,ct,f)
-*)
-(* FIXME: Next assumption is cheating *) 
-(* ValidAppstate invariants *)
-(*
-assume !appstate,write. (WriteState(write) /\ write.disp = Open) => (ValidAppState(appstate) <=>
-ValidAppDataOut(appstate.app_outgoing))
-
-assume !cs,ct,f. (SendConnState(cs) /\ ct = Application_data /\ ValidAppDataOut(f))
-		    => FragmentSend(cs,ct,f)
-*)
-(* Distributivity of concat *)
-(*
-assume !d,f,rem. IsConcat(d,f,rem) /\ ValidAppDataOut(d) => ValidAppDataOut(f) /\ ValidAppDataOut(rem)
-assume !d,f,rem. IsConcat(d,f,rem) /\ ValidHSDataOut(d) => ValidHSDataOut(f) /\ ValidHSDataOut(rem)
-assume !d,f,rem. IsConcat(d,f,rem) /\ ValidAlDataOut(d) => ValidAlDataOut(f) /\ ValidAlDataOut(rem)
-*)

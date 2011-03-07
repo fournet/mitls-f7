@@ -35,9 +35,6 @@ type Connection = {
   (* connection state for reading and writing *)
   read  : dState;
   write : dState;
-
-  (* next SessionInfo to be used *)
-  next_ds_info: SessionInfo option;
   }
 
 let init ns role poptions =
@@ -52,32 +49,24 @@ let init ns role poptions =
       alert = al;
       appdata = app;
       read = read_state;
-      write = write_state;
-      next_ds_info = None}
+      write = write_state}
 
 let appDataAvailable conn =
     AppData.retrieve_data_available conn.appdata
 
 let getSessionInfo conn =
     conn.ds_info
-
-let updateInfoGlobally conn =
-    match conn.next_ds_info with
-    | Some(new_info) ->
-        let new_hs = Handshake.updateSessionInfo conn.handshake new_info in
-        let new_alert = Alert.updateSessionInfo conn.alert new_info in
-        let new_appdata = AppData.init new_info in
-        (* Read and write state should already have the same SessionInfo
-           set after CCS *)
-        {conn with ds_info = new_info;
-                   handshake = new_hs;
-                   alert = new_alert;
-                   appdata = new_appdata;
-                   next_ds_info = None}
-    | None -> unexpectedError "[updateInfoglobally] should only be invoked with some new SessionInfo"
    
-let moveToOpenState c =
-    let c = updateInfoGlobally c in
+let moveToOpenState c new_info =
+    let new_hs = Handshake.new_session_idle c.handshake new_info in
+    let new_alert = Alert.init new_info in
+    let new_appdata = AppData.init new_info in
+    (* Read and write state should already have the same SessionInfo
+        set after CCS *)
+    let c = {c with ds_info = new_info;
+                    handshake = new_hs;
+                    alert = new_alert;
+                    appdata = new_appdata} in
     let read = c.read in
     match read.disp with
     | Finishing ->
@@ -87,9 +76,8 @@ let moveToOpenState c =
         | x when x = Finishing || x = Finished ->
             let new_write = {write with disp = Open} in
             {c with read = new_read; write = new_write}
-        | _ -> unexpectedError "[moveToOpenState] should only work on Finishing write states"
+        | _ -> unexpectedError "[moveToOpenState] should only work on Finishing or Finished write states"
     | _ -> unexpectedError "[moveToOpenState] should only work on Finishing read states"
-
 
 (* which fragment should we send next? *)
 (* we must send this fragment before restoring the connection invariant *)
@@ -169,8 +157,7 @@ let next_fragment n (c:Connection) : (bool Result) * Connection =
                    if appDataAvailable c then (* this is a bug. *)
                        (Error(Dispatcher,Internal),c)
                    else
-                       let c = {c with next_ds_info = Some (new_info)} in
-                       let c = moveToOpenState c in
+                       let c = moveToOpenState c new_info in
                        (Error(NewSessionInfo,Notification),c)
                 | _ -> (Error(Dispatcher,InvalidState),c)
       | (ALFrag(f),new_al_state) ->        
@@ -250,8 +237,7 @@ let deliver ct f c =
         (* Ensure we are in Finishing state *)
         match x with
         | Finishing ->
-            let c = {c with next_ds_info = Some (new_info)} in
-            let c = moveToOpenState c in
+            let c = moveToOpenState c new_info in
             (Error(NewSessionInfo,Notification),c)
         | _ -> (Error(Dispatcher,InvalidState), c)
     | (Error(x,y),hs) -> (Error(x,y),{c with handshake = hs}) (* TODO: we might need to send some alerts *)

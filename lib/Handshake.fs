@@ -51,12 +51,6 @@ type HSFragReply =
   | HSFullyFinished_Write of SessionInfo
   | CCSFrag of bytes * ccs_data
 
-let updateSessionInfo state info =
-    (* Maybe this setter will become more complex in the future:
-       e.g.: if we store a local copy of the next SessionInfo, we
-       might want to unset it now *)
-    {state with hs_info = info}
-
 let next_fragment state len =
     (* FIXME: The buffer we read from should depend on the state of the protocol,
        and not on whether a buffer is full or not, otherwise we cannot recognize the
@@ -163,6 +157,25 @@ let init_handshake role poptions =
                      poptions = poptions
                      pstate = Server (ClientHello)} in
         (info,state)
+
+let new_session_idle state new_info =
+    match state.pstate with
+    | Client (s) ->
+        {state with hs_outgoing = empty_bstr;
+                    ccs_outgoing = None;
+                    hs_outgoing_after_ccs = empty_bstr;
+                    hs_incoming = empty_bstr;
+                    hs_info = new_info;
+                    poptions = state.poptions;
+                    pstate = Client(CIdle)}
+    | Server (s) ->
+        {state with hs_outgoing = empty_bstr;
+                    ccs_outgoing = None;
+                    hs_outgoing_after_ccs = empty_bstr;
+                    hs_incoming = empty_bstr;
+                    hs_info = new_info;
+                    poptions = state.poptions;
+                    pstate = Server(SIdle)}
 
 (*
 let rehandshake hs_state use_resumption =

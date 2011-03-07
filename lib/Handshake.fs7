@@ -38,6 +38,11 @@ type pre_hs_state =
 
 predicate type preds =
   | HandshakeState of pre_hs_state
+  | TLSProposedMKey of key * SessionInfo
+  | TLSConfirmedMKey of key * SessionInfo
+  | TLSProposedSKey of key * SessionInfo
+  | TLSConfirmedSKey of key * SessionInfo
+  | HSFinished of SessionInfo
 
 type hs_state = (hs:pre_hs_state){HandshakeState(hs)}
 
@@ -45,7 +50,7 @@ type HSFragReply =
   | EmptyHSFrag
   | HSFrag of bytes
   | HSWriteSideFinished
-  | HSFullyFinished_Write of SessionInfo
+  | HSFullyFinished_Write of s:SessionInfo{HSFinished(s)}
   | CCSFrag of bytes * ccs_data
 
 val next_fragment: s:hs_state -> int ->
@@ -56,16 +61,15 @@ val next_fragment: s:hs_state -> int ->
 		(* TODO: Pub(f) might not be true for the Finished message, in this case a different return value is needed *)
 		(!f,ccs. r = CCSFrag(f,ccs) =>
 		           (UpperProtoSend(s.hs_info,Change_cipher_spec,f) /\ Pub(f) /\
-			    NonNullCipherSettings(ccs)))}
-
-
-val updateSessionInfo: hs_state -> i:SessionInfo -> s':hs_state{s'.hs_info = i}
+			    NonNullCipherSettings(ccs) /\ TLSProposedMKey(ccs.ccs_mkey,ccs.ccs_info) /\
+			    (!sk,iv. ccs.ccs_ciphstate = BlockCipherState(sk,iv) => TLSProposedSKey(sk,ccs.ccs_info))
+			   ))}
 
 type recv_reply =
   | HSAck
   | HSChangeVersion of role * Formats.ProtocolVersionType
   | HSReadSideFinished
-  | HSFullyFinished_Read of SessionInfo 
+  | HSFullyFinished_Read of s:SessionInfo {HSFinished(s)}
 
 val makeHSPacket : HS_msg.handshakeType -> Data.bytes -> Data.bytes
 val makeHelloRequestBytes : unit -> Data.bytes
@@ -76,7 +80,11 @@ val bytes_of_cipherSuites : HS_ciphersuites.CipherSuite list -> Data.bytes
 val b_of_complist : Formats.Compression list -> Data.bytes -> Data.bytes
 val bytes_of_compressionMethods : Formats.Compression list -> Data.bytes
 val makeCHelloBytes : protocolOptions -> Sessions.sessionID -> Data.bytes
+
 val init_handshake: r:role -> protocolOptions -> (info:SessionInfo * s:hs_state){info = InitSessionInfo(r) /\ s.hs_info = info}
+
+val new_session_idle: hs_state -> i:SessionInfo -> s:hs_state{s.hs_info = i}
+
 val rehandshake : hs_state -> bool -> hs_state Error_handling.Result
 val parse_fragment :
   hs_state ->
@@ -87,6 +95,24 @@ val recv_fragment: hs_state -> Record.fragment ->
 	}
 val recv_ccs: hs_state -> Record.fragment ->
 	(r:(Record.ccs_data Error_handling.Result) * hs_state){
-	(!ccs. r = Correct(ccs) => (NonNullCipherSettings(ccs)))
+	(!ccs. r = Correct(ccs) => (NonNullCipherSettings(ccs) /\ TLSProposedMKey(ccs.ccs_mkey,ccs.ccs_info) /\
+			    (!sk,iv. ccs.ccs_ciphstate = BlockCipherState(sk,iv) => TLSProposedSKey(sk,ccs.ccs_info)) ))
 	}
 
+
+(* How can we obtain a confirmed key *)
+assume !mk,info. TLSProposedMKey(mk,info) /\ HSFinished(info) => TLSConfirmedMKey(mk,info)
+assume !sk,info. TLSProposedSKey(sk,info) /\ HSFinished(info) => TLSConfirmedSKey(sk,info)
+
+(* We can use proposed and confirmed keys in the record layer *)
+assume !mk,info. TLSProposedMKey(mk,info) => TLSMKey(mk,info)
+assume !mk,info. TLSConfirmedMKey(mk,info) => TLSMkey(mk,info)
+
+assume !sk,info. TLSProposedSKey(sk,info) => TLSSKey(sk,info)
+assume !sk,info. TLSConfirmedSKey(sk,info) => TLSSkey(sk,info)
+
+(* If a confirmed key is public, then the session is compromised *)
+assume !mk,info. TLSConfirmedMKey(mk,info) /\ Pub_k(mk) => Compromised(info)
+theorem !mk,info. TLSConfirmedMKey(mk,info) /\ Compromised(info) => Pub_k(mk)
+assume !sk,info. TLSConfirmedSKey(sk,info) /\ Pub_k(sk) => Compromised(info)
+theorem !sk,info. TLSConfirmedSKey(sk,info) /\ Compromised(info) => Pub_k(sk)

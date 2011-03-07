@@ -14,6 +14,9 @@ type protoState
 type hs_state
 
 val init_handshake: role -> protocolOptions -> SessionInfo * hs_state
+
+val new_session_idle: hs_state -> SessionInfo -> hs_state
+
 (*
 val rehandshake: hs_state -> hs_state Result (* new handshake on same connection *)
 val rekey: hs_state -> hs_state Result (* resume on same connection *)
@@ -43,5 +46,3 @@ type recv_reply =
 
 val recv_fragment: hs_state -> fragment -> (recv_reply Result) * hs_state
 val recv_ccs: hs_state -> fragment -> (ccs_data Result) * hs_state
-
-val updateSessionInfo: hs_state -> SessionInfo -> hs_state
