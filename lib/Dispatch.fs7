@@ -55,7 +55,8 @@ val init :
 val appDataAvailable: Connection -> bool
 val getSessionInfo: Connection -> SessionInfo
 
-val moveToOpenState: c:Connection -> s:SessionInfo -> Connection
+val moveToOpenState: c:Connection{c.read.disp = Finishing /\ (c.write.disp = Finishing \/ c.write.disp = Finished)} ->
+	s:SessionInfo{c.read.conn.rec_info = s /\ c.write.conn.rec_info = s} -> c':Connection{c.write.disp = Open /\ c.read.disp = Open}
 
 val next_fragment :
         int ->  c:Connection{c.write.disp <> Closed} -> 
@@ -111,7 +112,7 @@ assume !dstate. DispInv(dstate) <=> (
 	)
 
 assume !read,write. DispState(read,write) <=> (
-	DispInv(read) /\ DispInv(write) /\
+	DispInv(read) /\ DispInv(write)
 	)
 
 
