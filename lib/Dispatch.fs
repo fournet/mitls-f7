@@ -57,6 +57,32 @@ let init ns role poptions =
       read = read_state;
       write = write_state}
 
+let resume ns role info ops =
+    let hs = Handshake.resume_handshake role info ops in
+    let (send,recv) = Record.create ns info ops.minVer in
+    let read_state = {disp = Init; conn = recv} in
+    let write_state = {disp = Init; conn = send} in
+    let al = Alert.init info  in
+    let app = AppData.init info in
+    { ds_info = info;
+      handshake = hs;
+      alert = al;
+      appdata = app;
+      read = read_state;
+      write = write_state}
+
+let ask_rehandshake conn =
+    let new_hs = Handshake.start_rehandshake conn.handshake in
+    {conn with handshake = new_hs}
+
+let ask_rekey conn =
+    let new_hs = Handshake.start_rekey conn.handshake in
+    {conn with handshake = new_hs}
+
+let ask_hs_request conn =
+    let new_hs = Handshake.start_hs_request conn.handshake in
+    {conn with handshake = new_hs}
+
 let appDataAvailable conn =
     AppData.retrieve_data_available conn.appdata
 

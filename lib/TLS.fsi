@@ -97,7 +97,9 @@ val connect: NetworkStream -> protocolOptions -> (unit Result) * Connection
     resumption, the SessionInfo in the returned Connection will match
     the given SessionInfo. If the server did not accept resumption,
     a full handshake will be performed, and a new SessionInfo returned.
-    Implementation note: same as connect.
+    Implementation note: same as connect. Also note that protocolOptions
+    should be "compatible" with the resumed session, but we have no way to
+    enforce this at the moment.
 *)
 val resume: NetworkStream -> SessionInfo -> protocolOptions -> (unit Result) * Connection
 

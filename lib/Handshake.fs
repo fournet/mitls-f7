@@ -160,6 +160,43 @@ let init_handshake role poptions =
                      pstate = Server (ClientHello)} in
         (info,state)
 
+let resume_handshake role info poptions =
+    let sidOp = getSessionID info in
+    match sidOp with
+    | None -> unexpectedError "[resume_handshake] must be invoked on a non-null session"
+    | Some (sid) ->
+        match role with
+        | ClientRole ->
+            let state = {hs_outgoing = makeCHelloBytes poptions sid
+                         ccs_outgoing = None
+                         hs_outgoing_after_ccs = empty_bstr
+                         hs_incoming = empty_bstr
+                         hs_info = info
+                         poptions = poptions
+                         pstate = Client (ServerHello)} in
+            state
+        | ServerRole ->
+            let state = {hs_outgoing = empty_bstr
+                         ccs_outgoing = None
+                         hs_outgoing_after_ccs = empty_bstr
+                         hs_incoming = empty_bstr
+                         hs_info = info
+                         poptions = poptions
+                         pstate = Server (ClientHello)} in
+            state
+
+let start_rehandshake (state:hs_state) =
+    (* TODO: fill some outgoing buffers, discard current session... *)
+    state
+
+let start_rekey (state:hs_state) =
+    (* TODO: fill some outgoing buffers, don't discard current session... *)
+    state
+
+let start_hs_request (state:hs_state) =
+    (* TODO: fill the ougtgoing buffer with the HelloRequest... *)
+    state
+
 let new_session_idle state new_info =
     match state.pstate with
     | Client (s) ->

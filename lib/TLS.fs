@@ -30,7 +30,7 @@ let read conn len =
 let dataAvailable conn =
     appDataAvailable conn
 
-let shutdown conn = (* TODO *) ()
+let shutdown (conn:Connection) = (* TODO *) ()
 
 let getSessionInfo conn =
     Dispatch.getSessionInfo conn
@@ -50,6 +50,20 @@ let connect ns ops =
     let conn = Dispatch.init ns ClientRole ops in
     int_connect conn
 
-let resume ns info =
-    let conn = Dispatch.resume_client ns info in
+let resume ns info ops =
+    let conn = Dispatch.resume ns ClientRole info ops in
     int_connect conn
+
+let rehandshake conn =
+    Dispatch.ask_rehandshake conn
+
+let rekey conn =
+    Dispatch.ask_rekey conn
+
+let accept list ops =
+    let ns = Tcp.accept list in
+    let conn = Dispatch.init ns ServerRole ops in
+    int_connect conn
+
+let handshakeRequest conn =
+    Dispatch.ask_hs_request conn
