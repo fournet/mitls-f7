@@ -14,6 +14,8 @@ type Connection = preConnection
 
 val init: NetworkStream -> role -> protocolOptions -> Connection
 
+val resume_client: NetworkStream -> SessionInfo -> Connection
+
 (*
 val resume_session: NetworkStream -> SessionInfo -> Connection (* New connection same session *)
 val resume_connection: Connection -> Connection (* New crypto same TCP stream same session *)

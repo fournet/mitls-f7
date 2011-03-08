@@ -41,6 +41,8 @@ type preConnection = {
 
 type Connection = preConnection
 
+type preds = DebugPred of Connection
+
 let init ns role poptions =
     let (info,hs) = Handshake.init_handshake role poptions in
     let (send,recv) = Record.create ns info poptions.minVer in
@@ -64,7 +66,7 @@ let getSessionInfo conn =
 let moveToOpenState c new_info =
     let new_hs = Handshake.new_session_idle c.handshake new_info in
     let new_alert = Alert.init new_info in
-    let new_appdata = AppData.init new_info in
+    let new_appdata = AppData.set_SessionInfo c.appdata new_info in (* buffers have already been reset when each record layer direction did the CCS *)
     (* Read and write state should already have the same SessionInfo
         set after CCS *)
     let c = {c with ds_info = new_info;
@@ -75,10 +77,13 @@ let moveToOpenState c new_info =
     match read.disp with
     | Finishing ->
         let new_read = {read with disp = Open} in
-        let write = c.write in
-        match write.disp with
-        | x when x = Finishing || x = Finished ->
-            let new_write = {write with disp = Open} in
+        let c_write = c.write in
+        match c_write.disp with
+        | Finishing ->
+            let new_write = {c_write with disp = Open} in
+            {c with read = new_read; write = new_write}
+        | Finished ->
+            let new_write = {c_write with disp = Open} in
             {c with read = new_read; write = new_write}
         | _ -> unexpectedError "[moveToOpenState] should only work on Finishing or Finished write states"
     | _ -> unexpectedError "[moveToOpenState] should only work on Finishing read states"
@@ -108,6 +113,7 @@ let next_fragment n (c:Connection) : (bool Result) * Connection =
                             match Record.send c_write.conn Application_data f with
                             | Correct(ss) ->
                                 let new_write = { c_write with conn = ss } in
+                                (* Pi.assume(DebugPred(c)); *)
                                 (correct (true), { c with appdata = new_app_state;
                                                           write = new_write } )
                             | Error (x,y) -> (Error(x,y), {c with appdata = new_app_state}) (* This is a TCP error, there's not much we can do *)
@@ -115,17 +121,16 @@ let next_fragment n (c:Connection) : (bool Result) * Connection =
           | (CCSFrag(ccs,cp),new_hs_state) ->
                     (* we send a (complete) CCS fragment *)
                     match c_write.disp with
-                    (* Is the next test needed anymore, or do we rely on the
-                       HS to provide CCS in the right time? Problem of synch
-                       between HS state and Dispatcher state *)
                     | x when x = FirstHandshake || x = Open ->
                         match Record.send c_write.conn Change_cipher_spec ccs with
                         | Correct ss -> 
-                        (* we change the CS immediately afterward *)
+                            (* we change the CS immediately afterward *)
                             let ss = Record.send_setCrypto ss cp in
                             let new_write = {disp = Finishing; conn = ss} in
+                            let new_appdata = AppData.reset_outgoing c.appdata in
                             (correct (true), { c with handshake = new_hs_state;
-                                                      write = new_write } )
+                                                      write = new_write;
+                                                      appdata = new_appdata } )
                         | Error (x,y) -> (Error (x,y), {c with handshake = new_hs_state}) (* TCP error, like above *)
                     | _ -> (Error(Dispatcher, InvalidState),{c with handshake = new_hs_state})
           | (HSFrag(f),new_hs_state) ->     
@@ -212,38 +217,41 @@ let deliver ct f c =
   match (ct,c_read.disp) with 
 
   | Handshake, x when x = Init || x = FirstHandshake || x = Finishing || x = Open ->
-    match Handshake.recv_fragment c.handshake f with 
-    | (Correct(HSAck),hs)                 ->
-       (correct (true), { c with handshake = hs} )
-    | (Correct(HSChangeVersion(r,v)),hs)     ->
-        match r with
-        | ClientRole ->
-            match Record.recv_checkVersion c_read.conn v with
-            | Correct (dummy) ->
-                (correct (true), { c with handshake = hs} )
-            | Error(x,y) -> (Error(x,y), {c with handshake = hs} )
-        | ServerRole ->
-            let new_recv = Record.recv_setVersion c_read.conn v in
-            let new_read = {c_read with conn = new_recv} in
-            (correct (true), { c with handshake = hs;
-                                      read = new_read} )
-    | (Correct(HSReadSideFinished),hs) ->
+    match Handshake.recv_fragment c.handshake f with
+    | (Correct(corr),hs) ->
+        match corr with
+        | HSAck ->
+            let trueVar = true in
+            ((correct (trueVar), { c with handshake = hs} ))
+        | HSChangeVersion(r,v) ->
+            match r with
+            | ClientRole ->
+                match Record.recv_checkVersion c_read.conn v with
+                | Correct (dummy) ->
+                    (correct (true), { c with handshake = hs} )
+                | Error(x,y) -> (Error(x,y), {c with handshake = hs} )
+            | ServerRole ->
+                let new_recv = Record.recv_setVersion c_read.conn v in
+                let new_read = {c_read with conn = new_recv} in
+                (correct (true), { c with handshake = hs;
+                                          read = new_read} )
+        | HSReadSideFinished ->
         (* Ensure we are in Finishing state *)
-        match x with
-        | Finishing ->
-            (* We stop reading now. The subsequent writes invoked after
-               reading will send the appropriate handshake messages, and
-               the handshake will be fully completed *)
-            (correct (false),{c with handshake = hs})
-        | _ -> (Error(Dispatcher,InvalidState), {c with handshake = hs} )
-    | (Correct(HSFullyFinished_Read(new_info)),hs) ->
-        let c = {c with handshake = hs} in
-        (* Ensure we are in Finishing state *)
-        match x with
-        | Finishing ->
-            let c = moveToOpenState c new_info in
-            (Error(NewSessionInfo,Notification),c)
-        | _ -> (Error(Dispatcher,InvalidState), c)
+            match x with
+            | Finishing ->
+                (* We stop reading now. The subsequent writes invoked after
+                   reading will send the appropriate handshake messages, and
+                   the handshake will be fully completed *)
+                (correct (false),{c with handshake = hs})
+            | _ -> (Error(Dispatcher,InvalidState), {c with handshake = hs} )
+        | HSFullyFinished_Read(new_info) ->
+            let c = {c with handshake = hs} in
+            (* Ensure we are in Finishing state *)
+            match x with
+            | Finishing ->
+                let c = moveToOpenState c new_info in
+                (Error(NewSessionInfo,Notification),c)
+            | _ -> (Error(Dispatcher,InvalidState), c)
     | (Error(x,y),hs) -> (Error(x,y),{c with handshake = hs}) (* TODO: we might need to send some alerts *)
 
   | Change_cipher_spec, x when x = FirstHandshake || x = Open -> 
@@ -251,8 +259,12 @@ let deliver ct f c =
     | (Correct(cryptoparams),hs) ->
         let new_recv = Record.recv_setCrypto c_read.conn cryptoparams in
         let new_read = {disp = Finishing; conn = new_recv} in
+        (* Next statement should have no effect, since we should reach this
+           code always with an empty input buffer *)
+        let new_appdata = AppData.reset_incoming c.appdata in
         (correct (true), { c with handshake = hs;
-                                  read = new_read} )
+                                  read = new_read;
+                                  appdata = new_appdata} )
     | (Error (x,y),hs) -> (Error (x,y), {c with handshake = hs})
 
   | Alert, x ->
@@ -332,7 +344,7 @@ let readOneAppFragment conn n =
         (* Read from the TCP socket *)
         match readNextAppFragment conn with
         | (Correct (x),conn) ->
-            (* One fragment has been put in the buffer for sure *)
+            (* One fragment may have been put in the buffer *)
             let c_appdata = conn.appdata in
             let (read, new_appdata) = AppData.retrieve_data c_appdata n in
             let conn = {conn with appdata = new_appdata} in

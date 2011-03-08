@@ -5,6 +5,7 @@ open Bytearray
 open AppCommon
 open Dispatch
 open Error_handling
+open Sessions
 
 let writeFragment conn d =
     writeOneAppFragment conn d
@@ -34,7 +35,21 @@ let shutdown conn = (* TODO *) ()
 let getSessionInfo conn =
     Dispatch.getSessionInfo conn
 
-(* TODO
+let rec int_connect conn =
+    let unitVal = () in
+    match read conn 1 with
+    | (Correct b, conn) ->
+        if length b = 0 then
+            int_connect conn
+        else
+            unexpectedError "[int_connect] No user data should be received during the first handshake"
+    | (Error(NewSessionInfo,Notification),conn) -> (correct(unitVal),conn)
+    | (Error(x,y),conn) -> (Error(x,y),conn)
+
 let connect ns ops =
     let conn = Dispatch.init ns ClientRole ops in
-*)
+    int_connect conn
+
+let resume ns info =
+    let conn = Dispatch.resume_client ns info in
+    int_connect conn

@@ -38,10 +38,10 @@ type pre_hs_state =
 
 predicate type preds =
   | HandshakeState of pre_hs_state
-  | TLSProposedMKey of key * SessionInfo
-  | TLSConfirmedMKey of key * SessionInfo
-  | TLSProposedSKey of key * SessionInfo
-  | TLSConfirmedSKey of key * SessionInfo
+  | TLSProposedMKey of Crypto.key * SessionInfo
+  | TLSConfirmedMKey of Crypto.key * SessionInfo
+  | TLSProposedSKey of Crypto.key * SessionInfo
+  | TLSConfirmedSKey of Crypto.key * SessionInfo
   | HSFinished of SessionInfo
 
 type hs_state = (hs:pre_hs_state){HandshakeState(hs)}
@@ -106,13 +106,13 @@ assume !sk,info. TLSProposedSKey(sk,info) /\ HSFinished(info) => TLSConfirmedSKe
 
 (* We can use proposed and confirmed keys in the record layer *)
 assume !mk,info. TLSProposedMKey(mk,info) => TLSMKey(mk,info)
-assume !mk,info. TLSConfirmedMKey(mk,info) => TLSMkey(mk,info)
+assume !mk,info. TLSConfirmedMKey(mk,info) => TLSMKey(mk,info)
 
 assume !sk,info. TLSProposedSKey(sk,info) => TLSSKey(sk,info)
-assume !sk,info. TLSConfirmedSKey(sk,info) => TLSSkey(sk,info)
+assume !sk,info. TLSConfirmedSKey(sk,info) => TLSSKey(sk,info)
 
 (* If a confirmed key is public, then the session is compromised *)
-assume !mk,info. TLSConfirmedMKey(mk,info) /\ Pub_k(mk) => Compromised(info)
-theorem !mk,info. TLSConfirmedMKey(mk,info) /\ Compromised(info) => Pub_k(mk)
-assume !sk,info. TLSConfirmedSKey(sk,info) /\ Pub_k(sk) => Compromised(info)
-theorem !sk,info. TLSConfirmedSKey(sk,info) /\ Compromised(info) => Pub_k(sk)
+assume !mk,info. TLSConfirmedMKey(mk,info) /\ Crypto.Pub_k(mk) => Compromised(info)
+theorem !mk,info. TLSConfirmedMKey(mk,info) /\ Compromised(info) => Crypto.Pub_k(mk)
+assume !sk,info. TLSConfirmedSKey(sk,info) /\ Crypto.Pub_k(sk) => Compromised(info)
+theorem !sk,info. TLSConfirmedSKey(sk,info) /\ Compromised(info) => Crypto.Pub_k(sk)

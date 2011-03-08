@@ -80,13 +80,9 @@ val initConnState :
   ns:Tcp.NetworkStream -> si:SessionInfo{?r. si = InitSessionInfo(r)} -> d:Direction -> pv:Formats.ProtocolVersionType -> 
   cs:ConnectionState{InitConnState(cs,ns,si,d,pv)}
 val create :
-  Tcp.NetworkStream -> si:SessionInfo{?r. si = InitSessionInfo(r)} ->
+  ns:Tcp.NetworkStream -> si:SessionInfo{?r. si = InitSessionInfo(r)} ->
   minpv:Formats.ProtocolVersionType{minpv <> UnknownPV} ->
-  scs:sendState * rcs:recvState{scs.rec_info = si /\ rcs.rec_info = si /\
-                                scs.sparams.mac_algorithm = MA_null /\
-                                scs.sparams.bulk_cipher_algorithm = BCA_null /\
-                                rcs.sparams.mac_algorithm = MA_null /\
-                                rcs.sparams.bulk_cipher_algorithm = BCA_null}
+  scs:sendState * rcs:recvState{InitConnState(scs,ns,si,OutDir(si),minpv) /\ InitConnState(rcs,ns,si,InDir(si),UnknownPV)}
 val max_TLSPlaintext_fragment_length : int
 val max_TLSCompressed_fragment_length : int
 val max_TLSEncrypted_fragment_length : int

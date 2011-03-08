@@ -14,6 +14,10 @@ type app_state = pre_app_state
 
 val init: SessionInfo -> app_state
 
+val reset_incoming: app_state -> app_state
+val reset_outgoing: app_state -> app_state
+val set_SessionInfo: app_state -> SessionInfo -> app_state
+
 (* Application data to/form application *)
 
 (* Enqueue app data in the output buffer *)

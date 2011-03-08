@@ -44,6 +44,7 @@ predicate type preds =
         | ValidConnection of preConnection
 	| DispInv of dState
 	| DispState of dState * dState
+	| DebugPred of preConnection
 
 type Connection = c:preConnection{ValidConnection(c)}
 
@@ -55,8 +56,12 @@ val init :
 val appDataAvailable: Connection -> bool
 val getSessionInfo: Connection -> SessionInfo
 
-val moveToOpenState: c:Connection{c.read.disp = Finishing /\ (c.write.disp = Finishing \/ c.write.disp = Finished)} ->
-	s:SessionInfo{c.read.conn.rec_info = s /\ c.write.conn.rec_info = s} -> c':Connection{c.write.disp = Open /\ c.read.disp = Open}
+val moveToOpenState: c:Connection{c.read.disp = Finishing /\ TLSConfirmedMKey(c.read.conn.mk,OtherRole(c.read.conn.rec_info)) /\
+	(!sk,iv. c.read.conn.cipher_state = BlockCipherState(sk,iv) => TLSConfirmedSKey(sk,OtherRole(c.read.conn.rec_info))) /\
+	(c.write.disp = Finishing \/ c.write.disp = Finished) /\
+	TLSConfirmedMKey(c.write.conn.mk,c.write.conn.rec_info) /\
+	(!sk,iv. c.write.conn.cipher_state = BlockCipherState(sk,iv) => TLSConfirmedSKey(sk,c.write.conn.rec_info))} ->
+	s:SessionInfo{c.read.conn.rec_info = s /\ c.write.conn.rec_info = s} -> c':Connection{c'.write.disp = Open /\ c'.read.disp = Open}
 
 val next_fragment :
         int ->  c:Connection{c.write.disp <> Closed} -> 
@@ -87,12 +92,12 @@ assume !c. ValidConnection(c) <=>
    c.ds_info = c.alert.al_info /\
    c.ds_info = c.appdata.app_info /\
    ( c.write.disp = Open =>
-	c.ds_info = c.write.conn.rec_info /\
-	ContentMap(c.ds_info,c.write.conn.seq_num,Application_data,PreviouslyRead(c.appdata.app_outgoing)) ) /\
+	c.ds_info = c.write.conn.rec_info ) /\
    ( c.read.disp = Open =>
-	c.ds_info = c.read.conn.rec_info /\
-	(ContentMap(OtherRole(c.ds_info),c.read.conn.seq_num,Application_data,StreamBytes(c.appdata.app_incoming)) \/
-	 Compromised(OtherRole(c.ds_info))) )
+	c.ds_info = c.read.conn.rec_info ) /\
+    ContentMap(c.write.conn.rec_info,c.write.conn.seq_num,Application_data,PreviouslyRead(c.appdata.app_outgoing)) /\
+    (ContentMap(OtherRole(c.read.conn.rec_info),c.read.conn.seq_num,Application_data,StreamBytes(c.appdata.app_incoming)) \/
+	 Crypto.Pub_k(c.read.conn.mk) )
 
 (* Similarly for HS, Alert:
    ContentMap(c.ds_info,Handshake,c.write.conn.seq_num,PreviouslyRead(c.handshake.hs_outgoing)) /\
@@ -100,21 +105,36 @@ assume !c. ValidConnection(c) <=>
 *)
   )
 
+assume !c. DebugPred(c) => ContentMap(c.write.conn.rec_info,c.write.conn.seq_num,Application_data,PreviouslyRead(c.appdata.app_outgoing))
 
 (* Invariants on the Dispatch automaton *)
 assume !dstate. DispInv(dstate) <=> (
 	((dstate.disp = Init \/ dstate.disp = FirstHandshake) =>
 	 (dstate.conn.sparams.bulk_cipher_algorithm = BCA_null /\
 	 dstate.conn.sparams.mac_algorithm = MA_null)) /\
-	((dstate.disp = Finishing \/ dstate.disp = Open) =>
+	((dstate.disp = Finishing \/ dstate.disp = Finished \/ dstate.disp = Open) =>
 	 (dstate.conn.sparams.bulk_cipher_algorithm <> BCA_null /\
 	 dstate.conn.sparams.mac_algorithm <> MA_null))
 	)
 
+(* FIXME: We should say something about the SKeys, but we're not at the moment *)
 assume !read,write. DispState(read,write) <=> (
-	DispInv(read) /\ DispInv(write)
+	DispInv(read) /\ DispInv(write) /\
+	(read.disp = Finishing => (TLSProposedMKey(read.conn.mk,OtherRole(read.conn.rec_info)) (* /\
+				  (!sk,iv. read.conn.cipher_state = BlockCipherState(sk,iv) => TLSProposedSKey(sk,OtherRole(read.conn.rec_info))) *) )
+	) /\
+	(read.disp = Open => (TLSConfirmedMKey(read.conn.mk,OtherRole(read.conn.rec_info)) (* /\
+				  (!sk,iv. read.conn.cipher_state = BlockCipherState(sk,iv) => TLSConfirmedSKey(sk,OtherRole(read.conn.rec_info))) *) )
+	) /\
+	((write.disp = Finishing \/ write.disp = Finished) =>
+				  (TLSProposedMKey(write.conn.mk,write.conn.rec_info) (* /\
+				  (!sk,iv. write.conn.cipher_state = BlockCipherState(sk,iv) => TLSProposedSKey(sk,write.conn.rec_info)) *) )
+	) /\
+	(write.disp = Open =>
+			(TLSConfirmedMKey(write.conn.mk,write.conn.rec_info) (* /\
+			(!sk,iv. write.conn.cipher_state = BlockCipherState(sk,iv) => TLSConfirmedSKey(sk,write.conn.rec_info)) *) )
 	)
-
+	)
 
 (* Which protocols can be sent in which dispatch states *)
 assume !dstate,proto. DispSend(dstate,proto) <=> (
@@ -145,9 +165,23 @@ ask !c,p,f. ValidConnection(c) /\ FragmentSend(c.ds_info,c.read.conn.seq_num,p,f
 (* By linearity *)
 theorem !i,n,p,f,p',f'. FragmentSend(i,n,p,f) /\ FragmentSend(i,n,p',f') => (p = p' /\ f = f')
 
-assume !i,ct,n. ContentMap(i,0,ct,empty_bstr)
+assume !i,ct. ContentMap(i,0,ct,empty_bstr)
 assume !i,n,ct,h,f. ContentMap(i,n,ct,h) /\ FragmentSend(i,n,ct,f) =>
                    ContentMap(i,n+1,ct,AppendBytes(h,f))
 assume !i,n,ct,h,ct',f. ContentMap(i,n,ct,h) /\ FragmentSend(i,n,ct',f) /\ ct <> ct' =>
                    ContentMap(i,n+1,ct,h)
 
+ask !c,f,c'. ContentMap(c.write.conn.rec_info,c.write.conn.seq_num,Application_data,PreviouslyRead(c.appdata.app_outgoing)) /\
+             FragmentSend(c.write.conn.rec_info,c.write.conn.seq_num,Application_data,f) /\
+             c'.write.conn.rec_info = c.write.conn.rec_info /\ c'.write.conn.seq_num = c.write.conn.seq_num + 1 /\
+             PreviouslyRead(c'.appdata.app_outgoing) = AppendBytes(PreviouslyRead(c.appdata.app_outgoing),f) =>
+                ContentMap(c'.write.conn.rec_info,c'.write.conn.seq_num,Application_data,PreviouslyRead(c'.appdata.app_outgoing))
+
+ask !r,w,iv,w'. DispState(r,w) /\ w'.conn = IncSeqNum(UpdateIV(w.conn,iv)) /\ w'.disp = w.disp => DispState(r,w')
+
+ask !c,f,iv,c'. ValidConnection(c) /\ c.write.disp = Open /\ c'.ds_info = c.ds_info /\ c'.handshake = c.handshake /\ c'.alert = c.alert /\ c'.read = c.read /\
+                c'.write.conn = IncSeqNum(UpdateIV(c.write.conn,iv)) /\ DispState(c'.read,c'.write) /\ c'.write.disp = c.write.disp /\
+                ApplicationState(c'.appdata) /\ c'.appdata.app_info = c.appdata.app_info /\ c'.appdata.app_incoming = c.appdata.app_incoming /\
+                FragmentSend(c.write.conn.rec_info,c.write.conn.seq_num,Application_data,f) /\
+                PreviouslyRead(c'.appdata.app_outgoing) = AppendBytes(PreviouslyRead(c.appdata.app_outgoing),f) =>
+                        ValidConnection(c')

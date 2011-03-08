@@ -20,6 +20,21 @@ let init info =
      app_incoming = new_stream Bytearray.empty_bstr;
      app_outgoing = new_stream Bytearray.empty_bstr}
 
+let reset_incoming app_state =
+    { app_info = app_state.app_info;
+      app_incoming = new_stream Bytearray.empty_bstr;
+      app_outgoing = app_state.app_outgoing}
+
+let reset_outgoing app_state =
+    { app_info = app_state.app_info;
+      app_incoming = app_state.app_incoming;
+      app_outgoing = new_stream Bytearray.empty_bstr}
+
+let set_SessionInfo app_state info =
+    { app_info = info;
+      app_incoming = app_state.app_incoming;
+      app_outgoing = app_state.app_outgoing}
+
 let send_data (state:app_state) (data:bytes) =
     let new_out = stream_write state.app_outgoing data in
     {state with app_outgoing = new_out}

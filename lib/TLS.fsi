@@ -61,7 +61,7 @@ open AppCommon
 val writeFragment: Connection -> bytes -> ((bytes * bytes) Result) * Connection
 val writeFully: Connection -> bytes -> ((bytes * bytes) Result) * Connection
 
-val read: Connection -> int -> (Connection * bytes) Result
+val read: Connection -> int -> (bytes Result) * Connection
 (* Polls whether there are data available in the current input buffer
    (a processed application data fragment not yet delivered to the user).
    Note that this function will not check whether data are available on the
@@ -90,7 +90,7 @@ val getSessionInfo: Connection -> SessionInfo
    Typechecking will ensure that if the connection is with null parameters,
    the read function always returns the empty_bstr.
 *)
-val connect: NetworkStream -> protocolOptions -> Connection Result
+val connect: NetworkStream -> protocolOptions -> (unit Result) * Connection
 
 (* New Connection, old(/new) Session:
     Tries to perform a resumption handshake. If the server accepts
@@ -99,7 +99,7 @@ val connect: NetworkStream -> protocolOptions -> Connection Result
     a full handshake will be performed, and a new SessionInfo returned.
     Implementation note: same as connect.
 *)
-val resume: NetworkStream -> SessionInfo -> Connection Result
+val resume: NetworkStream -> SessionInfo -> protocolOptions -> (unit Result) * Connection
 
 (* Old Connection, new Session:
     Asks to start a new full handshake over the existing connection.
@@ -144,7 +144,7 @@ val rekey: Connection -> Connection
     If the client asks for session resumption (and server has that session
     in its cache), a short handshake will take place.
     Implementation note: same as connect. *)
-val accept: TcpListener -> protocolOptions -> Connection Result
+val accept: TcpListener -> protocolOptions -> (unit Result) * Connection
 
 (* Old Connectio, new/old Session:
     Sets an internal flag asking to send a Hello Request message on next
