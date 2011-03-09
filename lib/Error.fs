@@ -16,7 +16,7 @@ type ErrorCause =
     | HandshakeProto
     | Dispatcher
     | TLS
-    | NewSessionInfo (* of bytes * Connection // FIXME: Circular dependency!!! *)
+    | NewSessionInfo
     | MustRead
     | Other of string
 

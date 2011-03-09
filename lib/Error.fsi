@@ -16,7 +16,7 @@ type ErrorCause =
     | HandshakeProto
     | Dispatcher
     | TLS
-    | NewSessionInfo (* FIXME *)
+    | NewSessionInfo
     | MustRead
     | Other of string
 
