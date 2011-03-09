@@ -111,8 +111,8 @@ val resume: NetworkStream -> SessionInfo -> protocolOptions -> (unit Result) * C
       and if one forgets to set the flag then there is no way to know which data
       are sent/received before the handshake and which data are sent/received after.
 *)
-val rehandshake: c:Connection -> c':Connection{c.ds_info = c'.ds_info}
-val rehandshake_now: c:Connection -> res:(unit Result) * c':Connection{!x. res = Correct(x) => c.ds_info <> c'.ds_info}
+val rehandshake: c:Connection -> protocolOptions -> c':Connection{c.ds_info = c'.ds_info}
+val rehandshake_now: c:Connection -> protocolOptions -> res:(unit Result) * c':Connection{!x. res = Correct(x) => c.ds_info <> c'.ds_info}
 
 (* Old Connection, old(/new) Session:
     Asks to start a resumption handshake over the existing connection,
@@ -120,8 +120,8 @@ val rehandshake_now: c:Connection -> res:(unit Result) * c':Connection{!x. res =
     A full handshake will be performed if the server does not accept resumption.
     Like for the rehandshake function, no data will be sent/received, but only
     internal flags/buffers will be set. *)
-val rekey: c:Connection -> c':Connection{c.ds_info = c'.ds_info}
-val rekey_now: c:Connection -> res:(unit Result) * c':Connection{!x. res = Correct(x) => c.ds_info <> c'.ds_info}
+val rekey: c:Connection -> protocolOptions -> c':Connection{c.ds_info = c'.ds_info}
+val rekey_now: c:Connection -> protocolOptions -> res:(unit Result) * c':Connection{!x. res = Correct(x) => c.ds_info <> c'.ds_info}
 
 (* SERVER SIDE *)
 
@@ -138,8 +138,8 @@ val accept: TcpListener -> protocolOptions -> (unit Result) * Connection
     to be resumed is cached, a resumption handshake will take place.
     Rationale: same as rehandshake.
 *)
-val handshakeRequest: c:Connection -> c':Connection{c.ds_info = c'.ds_info}
-val handshakeRequest_now: c:Connection -> res:(unit Result) * c':Connection{!x. res = Correct(x) => c.ds_info <> c'.ds_info}
+val handshakeRequest: c:Connection -> protocolOptions -> c':Connection{c.ds_info = c'.ds_info}
+val handshakeRequest_now: c:Connection -> protocolOptions -> res:(unit Result) * c':Connection{!x. res = Correct(x) => c.ds_info <> c'.ds_info}
 
 (* Note: for all re-handshake functions (rehandshake, rekey, handshakeRequest),
     it is easy to implement the blocking version (similar to accept/connect)

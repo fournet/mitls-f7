@@ -135,8 +135,8 @@ val resume: NetworkStream -> SessionInfo -> protocolOptions -> (unit Result) * C
     Note that all read that happen between a re-handshake function is invoked
     and the NewSessionInfo error is reported are not blocking, assuming the other
     side sends appropriate handshake packets. *)
-val rehandshake: Connection -> Connection (* Only flag setting *)
-val rehandshake_now: Connection -> (unit Result) * Connection (* Blocking until handshake terminates *)
+val rehandshake: Connection -> protocolOptions -> Connection (* Only flag setting *)
+val rehandshake_now: Connection -> protocolOptions -> (unit Result) * Connection (* Blocking until handshake terminates *)
 
 (* Old Connection, old(/new) Session:
     Asks to start a resumption handshake over the existing connection,
@@ -144,8 +144,8 @@ val rehandshake_now: Connection -> (unit Result) * Connection (* Blocking until 
     A full handshake will be performed if the server does not accept resumption.
     Like for the rehandshake function, no data will be sent/received, but only
     internal flags/buffers will be set. *)
-val rekey: Connection -> Connection (* Only flag setting *)
-val rekey_now: Connection -> (unit Result) * Connection (* Blocking until handshake terminates *)
+val rekey: Connection -> protocolOptions -> Connection (* Only flag setting *)
+val rekey_now: Connection -> protocolOptions -> (unit Result) * Connection (* Blocking until handshake terminates *)
 
 (* SERVER SIDE *)
 
@@ -162,5 +162,5 @@ val accept: TcpListener -> protocolOptions -> (unit Result) * Connection
     to be resumed is cached, a resumption handshake will take place.
     Rationale: same as rehandshake.
 *)
-val handshakeRequest: Connection -> Connection (* Only flag setting *)
-val handshakeRequest_now: Connection -> (unit Result) * Connection (* Blocking until handshake terminates *)
+val handshakeRequest: Connection -> protocolOptions -> Connection (* Only flag setting *)
+val handshakeRequest_now: Connection -> protocolOptions -> (unit Result) * Connection (* Blocking until handshake terminates *)

@@ -54,18 +54,18 @@ let resume ns info ops =
     let conn = Dispatch.resume ns ClientRole info ops in
     int_consume conn
 
-let rehandshake conn =
-    Dispatch.ask_rehandshake conn
+let rehandshake conn ops =
+    Dispatch.ask_rehandshake conn ops
 
-let rehandshake_now conn =
-    let conn = rehandshake conn in
+let rehandshake_now conn ops =
+    let conn = rehandshake conn ops in
     int_consume conn
 
-let rekey conn =
-    Dispatch.ask_rekey conn
+let rekey conn ops =
+    Dispatch.ask_rekey conn ops
 
-let rekey_now conn =
-    let conn = rekey conn in
+let rekey_now conn ops =
+    let conn = rekey conn ops in
     int_consume conn
 
 let accept list ops =
@@ -73,9 +73,9 @@ let accept list ops =
     let conn = Dispatch.init ns ServerRole ops in
     int_consume conn
 
-let handshakeRequest conn =
-    Dispatch.ask_hs_request conn
+let handshakeRequest conn ops =
+    Dispatch.ask_hs_request conn ops
 
-let handshakeRequest_now conn =
-    let conn = handshakeRequest conn in
+let handshakeRequest_now conn ops =
+    let conn = handshakeRequest conn ops in
     int_consume conn

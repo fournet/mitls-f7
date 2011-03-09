@@ -71,16 +71,16 @@ let resume ns role info ops =
       read = read_state;
       write = write_state}
 
-let ask_rehandshake conn =
-    let new_hs = Handshake.start_rehandshake conn.handshake in
+let ask_rehandshake conn ops =
+    let new_hs = Handshake.start_rehandshake conn.handshake ops in
     {conn with handshake = new_hs}
 
-let ask_rekey conn =
-    let new_hs = Handshake.start_rekey conn.handshake in
+let ask_rekey conn ops =
+    let new_hs = Handshake.start_rekey conn.handshake ops in
     {conn with handshake = new_hs}
 
-let ask_hs_request conn =
-    let new_hs = Handshake.start_hs_request conn.handshake in
+let ask_hs_request conn ops =
+    let new_hs = Handshake.start_hs_request conn.handshake ops in
     {conn with handshake = new_hs}
 
 let appDataAvailable conn =

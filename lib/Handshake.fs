@@ -185,15 +185,15 @@ let resume_handshake role info poptions =
                          pstate = Server (ClientHello)} in
             state
 
-let start_rehandshake (state:hs_state) =
+let start_rehandshake (state:hs_state) (ops:protocolOptions) =
     (* TODO: fill some outgoing buffers, discard current session... *)
     state
 
-let start_rekey (state:hs_state) =
+let start_rekey (state:hs_state) (ops:protocolOptions) =
     (* TODO: fill some outgoing buffers, don't discard current session... *)
     state
 
-let start_hs_request (state:hs_state) =
+let start_hs_request (state:hs_state) (ops:protocolOptions) =
     (* TODO: fill the ougtgoing buffer with the HelloRequest... *)
     state
 

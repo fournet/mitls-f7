@@ -16,9 +16,9 @@ val init: NetworkStream -> role -> protocolOptions -> Connection
 
 val resume: NetworkStream -> role -> SessionInfo -> protocolOptions -> Connection
 
-val ask_rehandshake: Connection -> Connection
-val ask_rekey: Connection -> Connection
-val ask_hs_request: Connection -> Connection
+val ask_rehandshake: Connection -> protocolOptions -> Connection
+val ask_rekey: Connection -> protocolOptions -> Connection
+val ask_hs_request: Connection -> protocolOptions -> Connection
 
 (*
 val resume_session: NetworkStream -> SessionInfo -> Connection (* New connection same session *)
