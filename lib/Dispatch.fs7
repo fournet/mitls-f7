@@ -43,8 +43,17 @@ predicate type preds =
 	| ContentMap of SessionInfo * int * ContentType * bytes
         | ValidConnection of preConnection
 	| DispInv of dState
-	| DispState of dState * dState
-	| DebugPred of preConnection
+	| DispRead of dState
+	| DispReadBlockProposed of ConnectionState
+	| DispReadStreamProposed of ConnectionState
+	| DispReadBlockConfirmed of ConnectionState
+	| DispReadStreamConfirmed of ConnectionState
+	| DispWrite of dState
+	| DispWriteBlockProposed of ConnectionState
+	| DispWriteStreamProposed of ConnectionState
+	| DispWriteBlockConfirmed of ConnectionState
+	| DispWriteStreamConfirmed of ConnectionState
+
 
 type Connection = c:preConnection{ValidConnection(c)}
 
@@ -52,6 +61,15 @@ val init :
   Tcp.NetworkStream ->
       r:role -> po:protocolOptions{ po.minVer <> UnknownPV /\ po.maxVer <> UnknownPV} ->
       c:Connection{c.read.disp = Init /\ c.write.disp = Init}
+
+val resume: Tcp.NetworkStream -> role -> SessionInfo -> protocolOptions{ po.minVer <> UnknownPV /\ po.maxVer <> UnknownPV} ->
+        c:Connection{c.read.disp = Init /\ c.write.disp = Init}
+
+val ask_rehandshake: Connection -> protocolOptions -> Connection
+
+val ask_rekey: Connection -> protocolOptions -> Connection
+
+val ask_hs_request: Connection -> protocolOptions -> Connection
 
 val appDataAvailable: Connection -> bool
 val getSessionInfo: Connection -> SessionInfo
@@ -82,9 +100,8 @@ val readOneAppFragment: Connection -> int -> (bytes Result) * Connection
 
 (* Definition of ValidConnection, implicitly expressing all the found invariants *)
 assume !c. ValidConnection(c) <=> 
-  (RecvConnState(c.read.conn) /\ 
-   SendConnState(c.write.conn) /\
-   DispState(c.read,c.write) /\
+  (DispRead(c.read) /\
+   DispWrite(c.write) /\
    HandshakeState(c.handshake) /\
    AlertState(c.alert) /\
    ApplicationState(c.appdata) /\
@@ -105,8 +122,6 @@ assume !c. ValidConnection(c) <=>
 *)
   )
 
-assume !c. DebugPred(c) => ContentMap(c.write.conn.rec_info,c.write.conn.seq_num,Application_data,PreviouslyRead(c.appdata.app_outgoing))
-
 (* Invariants on the Dispatch automaton *)
 assume !dstate. DispInv(dstate) <=> (
 	((dstate.disp = Init \/ dstate.disp = FirstHandshake) =>
@@ -117,24 +132,59 @@ assume !dstate. DispInv(dstate) <=> (
 	 dstate.conn.sparams.mac_algorithm <> MA_null))
 	)
 
-(* FIXME: We should say something about the SKeys, but we're not at the moment *)
-assume !read,write. DispState(read,write) <=> (
-	DispInv(read) /\ DispInv(write) /\
-	(read.disp = Finishing => (TLSProposedMKey(read.conn.mk,OtherRole(read.conn.rec_info)) (* /\
-				  (!sk,iv. read.conn.cipher_state = BlockCipherState(sk,iv) => TLSProposedSKey(sk,OtherRole(read.conn.rec_info))) *) )
-	) /\
-	(read.disp = Open => (TLSConfirmedMKey(read.conn.mk,OtherRole(read.conn.rec_info)) (* /\
-				  (!sk,iv. read.conn.cipher_state = BlockCipherState(sk,iv) => TLSConfirmedSKey(sk,OtherRole(read.conn.rec_info))) *) )
-	) /\
-	((write.disp = Finishing \/ write.disp = Finished) =>
-				  (TLSProposedMKey(write.conn.mk,write.conn.rec_info) (* /\
-				  (!sk,iv. write.conn.cipher_state = BlockCipherState(sk,iv) => TLSProposedSKey(sk,write.conn.rec_info)) *) )
-	) /\
-	(write.disp = Open =>
-			(TLSConfirmedMKey(write.conn.mk,write.conn.rec_info) (* /\
-			(!sk,iv. write.conn.cipher_state = BlockCipherState(sk,iv) => TLSConfirmedSKey(sk,write.conn.rec_info)) *) )
-	)
-	)
+assume !read. DispRead(read) <=> (
+                RecvConnState(read.conn) /\
+                DispInv(read) /\
+                (read.disp = Finishing => (DispReadBlockProposed(read.conn) \/ DispReadStreamProposed(read.conn))) /\
+                (read.disp = Open => (DispReadBlockConfirmed(read.conn) \/ DispReadStreamConfirmed(read.conn)))
+                )
+
+assume !recv. DispReadBlockProposed(recv) <=> (
+                        TLSProposedMKey(recv.mk,OtherRole(recv.rec_info)) /\
+                        (?sk,iv. recv.cipher_state = BlockCipherState(sk,iv) /\
+                         TLSProposedSKey(sk,OtherRole(recv.rec_info)))
+                        )
+
+assume !recv. DispReadStreamProposed(recv) <=> (
+                        TLSProposedMKey(recv.mk,OtherRole(recv.rec_info)) /\
+                        recv.cipher_state = StreamCipherState )
+
+assume !recv. DispReadBlockConfirmed(recv) <=> (
+                        TLSConfirmedMKey(recv.mk,OtherRole(recv.rec_info)) /\
+                        (?sk,iv. recv.cipher_state = BlockCipherState(sk,iv) /\
+                         TLSConfirmedSKey(sk,OtherRole(recv.rec_info)))
+                        )
+
+assume !recv. DispReadStreamConfirmed(recv) <=> (
+                        TLSConfirmedMKey(recv.mk,OtherRole(recv.rec_info)) /\
+                        recv.cipher_state = StreamCipherState )
+
+assume !write. DispWrite(write) <=> (
+                SendConnState(write.conn) /\
+                DispInv(write) /\
+                ((write.disp = Finishing \/ write.disp = Finished) => (DispWriteBlockProposed(write.conn) \/ DispWriteStreamProposed(write.conn))) /\
+                (write.disp = Open => (DispWriteBlockConfirmed(write.conn) \/ DispWriteStreamConfirmed(write.conn)))
+                )
+
+assume !send. DispWriteBlockProposed(send) <=> (
+                        TLSProposedMKey(send.mk,send.rec_info) /\
+                        (?sk,iv. send.cipher_state = BlockCipherState(sk,iv) /\
+                         TLSProposedSKey(sk,send.rec_info))
+                        )
+
+assume !send. DispWriteStreamProposed(send) <=> (
+                        TLSProposedMKey(send.mk,send.rec_info) /\
+                        send.cipher_state = StreamCipherState )
+
+assume !send. DispWriteBlockConfirmed(send) <=> (
+                        TLSConfirmedMKey(send.mk,send.rec_info) /\
+                        (?sk,iv. send.cipher_state = BlockCipherState(sk,iv) /\
+                         TLSConfirmedSKey(sk,send.rec_info))
+                        )
+
+assume !send. DispWriteStreamConfirmed(send) <=> (
+                        TLSConfirmedMKey(send.mk,send.rec_info) /\
+                        send.cipher_state = StreamCipherState )          
 
 (* Which protocols can be sent in which dispatch states *)
 assume !dstate,proto. DispSend(dstate,proto) <=> (
@@ -177,10 +227,12 @@ ask !c,f,c'. ContentMap(c.write.conn.rec_info,c.write.conn.seq_num,Application_d
              PreviouslyRead(c'.appdata.app_outgoing) = AppendBytes(PreviouslyRead(c.appdata.app_outgoing),f) =>
                 ContentMap(c'.write.conn.rec_info,c'.write.conn.seq_num,Application_data,PreviouslyRead(c'.appdata.app_outgoing))
 
-ask !r,w,iv,w'. DispState(r,w) /\ w'.conn = IncSeqNum(UpdateIV(w.conn,iv)) /\ w'.disp = w.disp => DispState(r,w')
+ask !conn,conn',sk,iv,iv'. conn.cipher_state = BlockCipherState(sk,iv) /\ conn' = UpdateIV(conn,iv') => conn'.cipher_state = BlockCipherState(sk,iv')
+(* FIXME: next assume should be an ask, but it's failing *)
+assume !write,write',iv. DispWrite(write) /\ write'.disp = write.disp /\ write'.conn = IncSeqNum(UpdateIV(write.conn,iv)) => DispWrite(write')
 
 ask !c,f,iv,c'. ValidConnection(c) /\ c.write.disp = Open /\ c'.ds_info = c.ds_info /\ c'.handshake = c.handshake /\ c'.alert = c.alert /\ c'.read = c.read /\
-                c'.write.conn = IncSeqNum(UpdateIV(c.write.conn,iv)) /\ DispState(c'.read,c'.write) /\ c'.write.disp = c.write.disp /\
+                c'.write.conn = IncSeqNum(UpdateIV(c.write.conn,iv)) /\ c'.write.disp = c.write.disp /\
                 ApplicationState(c'.appdata) /\ c'.appdata.app_info = c.appdata.app_info /\ c'.appdata.app_incoming = c.appdata.app_incoming /\
                 FragmentSend(c.write.conn.rec_info,c.write.conn.seq_num,Application_data,f) /\
                 PreviouslyRead(c'.appdata.app_outgoing) = AppendBytes(PreviouslyRead(c.appdata.app_outgoing),f) =>

@@ -216,27 +216,6 @@ let new_session_idle state new_info =
                     poptions = state.poptions;
                     pstate = Server(SIdle)}
 
-(*
-let rehandshake hs_state use_resumption =
-    match hs_state.pstate with
-    | Client (CIdle) ->
-        (* Many invariants should hold, like outgoing and ingoing buffers are empty... *)
-        if use_resumption then
-            correct (  {hs_state with hs_outgoing = makeCHelloBytes hs_state.poptions hs_state.session
-                                      pstate = Client (ServerHello)} )
-        else
-            correct ( {hs_state with hs_outgoing = makeCHelloBytes hs_state.poptions hs_state.session
-                                     session = empty_bstr
-                                     pstate = Client (ServerHello)} )
-    | Server (SIdle) ->
-        (* ...many invariants should hold as well *)
-        (* use_resumption value is ignored *)
-        correct ( {hs_state with hs_outgoing = makeHelloRequestBytes ()
-                                 session = empty_bstr
-                                 pstate = Server (ClientHello)} )
-    | _ -> Error (HandshakeProto, InvalidState)
-*)
-
 let parse_fragment hs_state fragment =
     (* Inefficient but simple implementation:
        every time we get a new fragment, we reparse the whole received
