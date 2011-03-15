@@ -19,6 +19,7 @@ let flawed =
         match TLS.read tls 15 with
         | (Correct(req),tls) ->
             if req = expected_req then
+                (* We need client authentication *)
                 match TLS.handshakeRequest_now tls clientAuthOps with
                 | (Correct(x),tls) ->
                     if valid_client_id tls then
@@ -39,10 +40,12 @@ let correct =
         match TLS.read tls 15 with
         | (Correct(req),tls) ->
             if req = expected_req then
+                (* We need client authentication *)
                 match TLS.handshakeRequest_now tls clientAuthOps with
                 | (Correct(x),tls) ->
                     if valid_client_id tls then
-                        match TLS.read tls 15 with (* Re-read request from now-authenticated client *)
+                        (* Re-read request from now-authenticated client *)
+                        match TLS.read tls 15 with
                         | (Correct(req),tls) ->
                             if req = expected_req then
                                 ignore (TLS.writeFully tls secret_resp)

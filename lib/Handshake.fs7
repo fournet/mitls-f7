@@ -42,6 +42,8 @@ predicate type preds =
   | TLSConfirmedMKey of Crypto.key * SessionInfo
   | TLSProposedSKey of Crypto.key * SessionInfo
   | TLSConfirmedSKey of Crypto.key * SessionInfo
+  | CCSWrite of ccs_data
+  | CCSRead of ccs_data
   | HSFinished of SessionInfo
 
 type hs_state = (hs:pre_hs_state){HandshakeState(hs)}
@@ -59,11 +61,13 @@ val next_fragment: s:hs_state -> int ->
 		(r = EmptyHSFrag => s' = s) /\
 		(!f. r = HSFrag(f) => (UpperProtoSend(s.hs_info,Handshake,f) /\ Pub(f))) /\
 		(* TODO: Pub(f) might not be true for the Finished message, in this case a different return value is needed *)
+		(* FIXME: The fragments returned after the CCS must be blessed for the next sessioninfo, not the current one!
+		          This will also be true for the alert protocol... and input/output session infos at the record layer
+		          might not be synchronized... *)
 		(!f,ccs. r = CCSFrag(f,ccs) =>
 		           (UpperProtoSend(s.hs_info,Change_cipher_spec,f) /\ Pub(f) /\
-			    NonNullCipherSettings(ccs) /\ TLSProposedMKey(ccs.ccs_mkey,ccs.ccs_info) /\
-			    (!sk,iv. ccs.ccs_ciphstate = BlockCipherState(sk,iv) => TLSProposedSKey(sk,ccs.ccs_info))
-			   ))}
+                            CCSWrite(ccs))
+			   )}
 
 type recv_reply =
   | HSAck
@@ -102,21 +106,32 @@ val recv_fragment: hs_state -> Record.fragment ->
 	}
 val recv_ccs: hs_state -> Record.fragment ->
 	(r:(Record.ccs_data Error_handling.Result) * hs_state){
-	(!ccs. r = Correct(ccs) => (NonNullCipherSettings(ccs) /\ TLSProposedMKey(ccs.ccs_mkey,ccs.ccs_info) /\
-			    (!sk,iv. ccs.ccs_ciphstate = BlockCipherState(sk,iv) => TLSProposedSKey(sk,ccs.ccs_info)) ))
+	(!ccs. r = Correct(ccs) => CCSRead(ccs))
 	}
 
 
+assume !ccs. CCSWrite(ccs) =>
+                        (NonNullCipherSettings(ccs) /\ TLSProposedMKey(ccs.ccs_mkey,ccs.ccs_info) /\
+                         (!sk,iv. ccs.ccs_ciphstate = BlockCipherState(sk,iv) => TLSProposedSKey(sk,ccs.ccs_info)))
+
+assume !ccs. CCSRead(ccs) =>
+                (NonNullCipherSettings(ccs) /\ TLSProposedMKey(ccs.ccs_mkey,OtherRole(ccs.ccs_info)) /\
+		 (!sk,iv. ccs.ccs_ciphstate = BlockCipherState(sk,iv) => TLSProposedSKey(sk,OtherRole(ccs.ccs_info))) )
+
 (* How can we obtain a confirmed key *)
-assume !mk,info. TLSProposedMKey(mk,info) /\ HSFinished(info) => TLSConfirmedMKey(mk,info)
-assume !sk,info. TLSProposedSKey(sk,info) /\ HSFinished(info) => TLSConfirmedSKey(sk,info)
+assume !ccs. CCSWrite(ccs) /\ HSFinished(ccs.ccs_info) => TLSConfirmedMKey(ccs.ccs_mkey,ccs.ccs_info)
+assume !ccs. CCSRead(ccs) /\ HSFinished(ccs.ccs_info) => TLSConfirmedMKey(ccs.ccs_mkey,OtherRole(ccs.ccs_info))
+assume !ccs,sk,iv. CCSWrite(ccs) /\ HSFinished(ccs.ccs_info) /\ ccs.ccs_cipher_state = BlockCipherState(sk,iv) =>
+                TLSConfirmedSKey(sk,ccs.ccs_info)
+assume !ccs,sk,iv. CCSRead(ccs) /\ HSFinished(ccs.ccs_info) /\ ccs.ccs_cipher_state = BlockCipherState(sk,iv) =>
+                TLSConfirmedSKey(sk,OtherRole(ccs.ccs_info))
 
 (* We can use proposed and confirmed keys in the record layer *)
 assume !mk,info. TLSProposedMKey(mk,info) => TLSMKey(mk,info)
-assume !mk,info. TLSConfirmedMKey(mk,info) => TLSMKey(mk,info)
+(* assume !mk,info. TLSConfirmedMKey(mk,info) => TLSMKey(mk,info) *)
 
 assume !sk,info. TLSProposedSKey(sk,info) => TLSSKey(sk,info)
-assume !sk,info. TLSConfirmedSKey(sk,info) => TLSSKey(sk,info)
+(* assume !sk,info. TLSConfirmedSKey(sk,info) => TLSSKey(sk,info) *)
 
 (* If a confirmed key is public, then the session is compromised *)
 assume !mk,info. TLSConfirmedMKey(mk,info) /\ Compromised(info) => Crypto.Pub_k(mk)
