@@ -42,10 +42,11 @@ predicate type preds =
 	| DispSend of dState * ContentType
 	| ContentMap of SessionInfo * int * ContentType * bytes
         | ValidConnection of preConnection
-        | CoherentSession of SessionInfo * SessionInfo * SessionInfo * SessionInfo * ConnectionState * ConnectionState
+        | CoherentSession of SessionInfo * ConnectionState * ConnectionState
 	| DispInv of dState
 	| DispRead of dState
 	| DispWrite of dState
+	| FinishingState of dispatchState
 
 type Connection = c:preConnection{ValidConnection(c)}
 
@@ -54,7 +55,8 @@ val init :
       r:role -> po:protocolOptions{ po.minVer <> UnknownPV /\ po.maxVer <> UnknownPV} ->
       c:Connection{c.read.disp = Init /\ c.write.disp = Init}
 
-val resume: Tcp.NetworkStream -> role -> SessionInfo -> protocolOptions{ po.minVer <> UnknownPV /\ po.maxVer <> UnknownPV} ->
+val resume: Tcp.NetworkStream -> r:role -> s:SessionInfo{?sid. s = InitSessionInfo(r,Some(sid))} ->
+                po:protocolOptions{ po.minVer <> UnknownPV /\ po.maxVer <> UnknownPV} ->
         c:Connection{c.read.disp = Init /\ c.write.disp = Init}
 
 val ask_rehandshake: Connection -> protocolOptions -> Connection
@@ -66,12 +68,9 @@ val ask_hs_request: Connection -> protocolOptions -> Connection
 val appDataAvailable: Connection -> bool
 val getSessionInfo: Connection -> SessionInfo
 
-val moveToOpenState: c:Connection{c.read.disp = Finishing /\ TLSConfirmedMKey(c.read.conn.mk,OtherRole(c.read.conn.rec_info)) /\
-	(!sk,iv. c.read.conn.cipher_state = BlockCipherState(sk,iv) => TLSConfirmedSKey(sk,OtherRole(c.read.conn.rec_info))) /\
-	(c.write.disp = Finishing \/ c.write.disp = Finished) /\
-	TLSConfirmedMKey(c.write.conn.mk,c.write.conn.rec_info) /\
-	(!sk,iv. c.write.conn.cipher_state = BlockCipherState(sk,iv) => TLSConfirmedSKey(sk,c.write.conn.rec_info))} ->
-	s:SessionInfo{c.read.conn.rec_info = s /\ c.write.conn.rec_info = s} -> c':Connection{c'.write.disp = Open /\ c'.read.disp = Open}
+val moveToOpenState: c:Connection{FinishingState(c.read.disp) /\ FinishingState(c.write.disp)} ->
+	s:SessionInfo{HSFinished(s) /\ s = c.read.conn.rec_info /\ s = c.write.conn.rec_info} ->
+	c':Connection{c'.write.disp = Open /\ c'.read.disp = Open}
 
 val next_fragment :
         int ->  c:Connection{c.write.disp <> Closed} -> 
@@ -97,7 +96,7 @@ assume !c. ValidConnection(c) <=>
    HandshakeState(c.handshake) /\
    AlertState(c.alert) /\
    ApplicationState(c.appdata) /\
-   CoherentSession(c.ds_info,c.handshake.hs_info,c.alert.al_info,c.appdata.app_info,read,write) /\
+   CoherentSession(c.appdata.app_info,c.read,c.write) /\
    ContentMap(c.write.conn.rec_info,c.write.conn.seq_num,Application_data,PreviouslyRead(c.appdata.app_outgoing)) /\
    (ContentMap(OtherRole(c.read.conn.rec_info),c.read.conn.seq_num,Application_data,StreamBytes(c.appdata.app_incoming)) \/
 	 Crypto.Pub_k(c.read.conn.mk) )
@@ -108,46 +107,30 @@ assume !c. ValidConnection(c) <=>
 *)
   )
 
-assume !ds_info,hs_info,al_info,app_info,read,write.
-        CoherentSession(ds_info,hs_info,al_info,app_info,read,write) <=>
-                (ds_info = hs_info /\
-                 ds_info = al_info /\
-                 ds_info = app_info /\
-                 ( write.disp = Open =>
-                        ds_info = write.conn.rec_info ) /\
+assume !al_info,app_info,read,write.
+        CoherentSession(app_info,read,write) <=>
+                (( write.disp = Open =>
+                        app_info = write.conn.rec_info ) /\
                  ( read.disp = Open =>
-                        ds_info = read.conn.rec_info ))
+                        app_info = read.conn.rec_info ))
 
 (* Invariants on the Dispatch automaton *)
 assume !dstate. DispInv(dstate) <=> (
-	((dstate.disp = Init \/ dstate.disp = FirstHandshake) =>
-	 (dstate.conn.sparams.bulk_cipher_algorithm = BCA_null /\
-	 dstate.conn.sparams.mac_algorithm = MA_null)) /\
-	((dstate.disp = Finishing \/ dstate.disp = Finished \/ dstate.disp = Open) =>
-	 (dstate.conn.sparams.bulk_cipher_algorithm <> BCA_null /\
-	 dstate.conn.sparams.mac_algorithm <> MA_null))
+        (FinishingState(dstate.disp) =>
+                (dstate.conn.sparams.bulk_cipher_algorithm <> BCA_null /\
+	         dstate.conn.sparams.mac_algorithm <> MA_null) ) /\
+	(dstate.disp = Open =>
+                (dstate.conn.sparams.bulk_cipher_algorithm <> BCA_null /\
+	         dstate.conn.sparams.mac_algorithm <> MA_null /\
+	         HSFinished(dstate.conn.rec_info)) )
 	)
-
 assume !read. DispRead(read) <=> (
                 RecvConnState(read.conn) /\
-                DispInv(read) /\
-                (read.disp = Finishing => CCSRead(SecKey(read.conn),read.conn.mk,read.conn.rec_info) /\
-                (read.disp = Open => HSFinished(read.conn.rec_info) )
-                )
-(* TODO:
-- port DispWrite to the new predicates.
-- Make a common predicate for Finishing and Finished states
-- Maybe define CCSRead(info) and CCSReadKeys(sk,mk,info), and only use CCSRead in the dispatcher, and link
-  CCSRead and CCSReadKeys in the handshake (and also add a theorem that says that if we have a HSFinished event,
-  we must have had a CCSRead (and CCSWrite) for the same info). And add an assume that says that CCSRead(info) /\ CCSReadKeys(info',sk,mk) =>
-  info = info' /\ Proposed...
-*)
+                DispInv(read) )
+
 assume !write. DispWrite(write) <=> (
                 SendConnState(write.conn) /\
-                DispInv(write) /\
-                ((write.disp = Finishing \/ write.disp = Finished) => (DispWriteBlockProposed(write.conn) \/ DispWriteStreamProposed(write.conn))) /\
-                (write.disp = Open => (DispWriteBlockConfirmed(write.conn) \/ DispWriteStreamConfirmed(write.conn)))
-                )
+                DispInv(write) )
 
 (* Which protocols can be sent in which dispatch states *)
 assume !dstate,proto. DispSend(dstate,proto) <=> (
@@ -160,20 +143,35 @@ assume !dstate,proto. DispSend(dstate,proto) <=> (
 	)
 
 
-assume !c,protocol,s,f.
+assume !c,info,protocol,f.
+             protocol <> Application_data /\
              ValidConnection(c) /\
              DispSend(c.write,protocol) /\
-	     UpperProtoSend(c.ds_info,protocol,f) => 
-               FragmentSend(c.ds_info,c.write.conn.seq_num,protocol,f)
+	     UpperProtoSend(info,protocol,f) => 
+               FragmentSend(c.write.rec_info,c.write.conn.seq_num,protocol,f)
 
-theorem !i,n,p,f. FragmentSend(i,n,p,f) => (?c. ValidConnection(c) /\ DispSend(c.write,p) /\
-                                            UpperProtoSend(c.ds_info,p,f) /\
-                                            i = c.ds_info /\ n = c.write.conn.seq_num)
+assume !c,f.
+        ValidConnection(c) /\
+        c.write.disp = Open /\
+        UpperProtoSend(c.write.rec_info,Application_data,f) =>
+           FragmentSend(c.write.rec_info,c.write.conn.seq_num,Application_data,f)
+
+theorem !i,n,p,f. FragmentSend(i,n,p,f) /\ p <> Application_data =>
+                        (?c,info. ValidConnection(c) /\ DispSend(c.write,p) /\
+                         UpperProtoSend(info,p,f) /\
+                         i = c.write.rec_info /\ n = c.write.conn.seq_num)
+
+theorem !i,n,p,f. FragmentSend(i,n,p,f) /\ p = Application_data =>
+                        (?c. ValidConnection(c) /\ c.write.disp = Open /\
+                         UpperProtoSend(c.write.rec_info,p,f) /\
+                         i = c.write.rec_info /\ n = c.write.conn.seq_num)
 
 (* On the receive side, we need something:
 ask !c,p,f. ValidConnection(c) /\ FragmentSend(c.ds_info,c.read.conn.seq_num,p,f) =>
             (.....)
 *)
+
+assume !state. FinishingState(state) <=> (state = Finishing \/ state = Finished)
 
 (* By linearity *)
 theorem !i,n,p,f,p',f'. FragmentSend(i,n,p,f) /\ FragmentSend(i,n,p',f') => (p = p' /\ f = f')

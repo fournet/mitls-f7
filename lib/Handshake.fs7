@@ -38,12 +38,6 @@ type pre_hs_state =
 
 predicate type preds =
   | HandshakeState of pre_hs_state
-  | TLSProposedMKey of Crypto.key * SessionInfo
-  | TLSConfirmedMKey of Crypto.key * SessionInfo
-  | TLSProposedSKey of Crypto.key * SessionInfo
-  | TLSConfirmedSKey of Crypto.key * SessionInfo
-  | CCSWrite of ccs_data
-  | CCSRead of ccs_data
   | HSFinished of SessionInfo
 
 type hs_state = (hs:pre_hs_state){HandshakeState(hs)}
@@ -66,7 +60,7 @@ val next_fragment: s:hs_state -> int ->
 		          might not be synchronized... *)
 		(!f,ccs. r = CCSFrag(f,ccs) =>
 		           (UpperProtoSend(s.hs_info,Change_cipher_spec,f) /\ Pub(f) /\
-                            CCSWrite(ccs))
+                            NonNullCipherSettings(ccs))
 			   )}
 
 type recv_reply =
@@ -85,7 +79,7 @@ val b_of_complist : Formats.Compression list -> Data.bytes -> Data.bytes
 val bytes_of_compressionMethods : Formats.Compression list -> Data.bytes
 val makeCHelloBytes : protocolOptions -> Sessions.sessionID -> Data.bytes
 
-val init_handshake: r:role -> protocolOptions -> (info:SessionInfo * s:hs_state){info = InitSessionInfo(r) /\ s.hs_info = info}
+val init_handshake: r:role -> protocolOptions -> (info:SessionInfo * s:hs_state){info = InitSessionInfo(r,None) /\ s.hs_info = info}
 
 val resume_handshake: role -> SessionInfo -> protocolOptions -> hs_state
 
@@ -106,35 +100,20 @@ val recv_fragment: hs_state -> Record.fragment ->
 	}
 val recv_ccs: hs_state -> Record.fragment ->
 	(r:(Record.ccs_data Error_handling.Result) * hs_state){
-	(!ccs. r = Correct(ccs) => CCSRead(ccs))
+	(!ccs. r = Correct(ccs) => NonNullCipherSettings(ccs))
 	}
 
-
-assume !ccs. CCSWrite(ccs) =>
-                        (NonNullCipherSettings(ccs) /\ TLSProposedMKey(ccs.ccs_mkey,ccs.ccs_info) /\
-                         (!sk,iv. ccs.ccs_ciphstate = BlockCipherState(sk,iv) => TLSProposedSKey(sk,ccs.ccs_info)))
-
-assume !ccs. CCSRead(ccs) =>
-                (NonNullCipherSettings(ccs) /\ TLSProposedMKey(ccs.ccs_mkey,OtherRole(ccs.ccs_info)) /\
-		 (!sk,iv. ccs.ccs_ciphstate = BlockCipherState(sk,iv) => TLSProposedSKey(sk,OtherRole(ccs.ccs_info))) )
-
-(* How can we obtain a confirmed key *)
-assume !ccs. CCSWrite(ccs) /\ HSFinished(ccs.ccs_info) => TLSConfirmedMKey(ccs.ccs_mkey,ccs.ccs_info)
-assume !ccs. CCSRead(ccs) /\ HSFinished(ccs.ccs_info) => TLSConfirmedMKey(ccs.ccs_mkey,OtherRole(ccs.ccs_info))
-assume !ccs,sk,iv. CCSWrite(ccs) /\ HSFinished(ccs.ccs_info) /\ ccs.ccs_cipher_state = BlockCipherState(sk,iv) =>
-                TLSConfirmedSKey(sk,ccs.ccs_info)
-assume !ccs,sk,iv. CCSRead(ccs) /\ HSFinished(ccs.ccs_info) /\ ccs.ccs_cipher_state = BlockCipherState(sk,iv) =>
-                TLSConfirmedSKey(sk,OtherRole(ccs.ccs_info))
-
-(* We can use proposed and confirmed keys in the record layer *)
-assume !mk,info. TLSProposedMKey(mk,info) => TLSMKey(mk,info)
-(* assume !mk,info. TLSConfirmedMKey(mk,info) => TLSMKey(mk,info) *)
-
-assume !sk,info. TLSProposedSKey(sk,info) => TLSSKey(sk,info)
-(* assume !sk,info. TLSConfirmedSKey(sk,info) => TLSSKey(sk,info) *)
-
+(* A ccs such that NonNullCipherSettings(ccs) holds implies that there exist
+   TLSMKey(mk,info) and TLSSKey(sk,info) (where mk,sk,info are somehow bound to ccs).
+   This is enough for the keys to be used in the record layer, and for the dispatcher
+   to be in its Finishing/Finished states.
+   However, when the HS protocol emits the HSFinished(info) event, then it means we're in
+   an opened session, so the dispatcher can go to the open state, and we can lift Pub_K
+   to the compromised session *)
+   
 (* If a confirmed key is public, then the session is compromised *)
-assume !mk,info. TLSConfirmedMKey(mk,info) /\ Compromised(info) => Crypto.Pub_k(mk)
-theorem !mk,info. TLSConfirmedMKey(mk,info) /\ Crypto.Pub_k(mk) => Compromised(info)
-assume !sk,info. TLSConfirmedSKey(sk,info) /\ Compromised(info) => Crypto.Pub_k(sk)
-theorem !sk,info. TLSConfirmedSKey(sk,info) /\ Crypto.Pub_k(sk) => Compromised(info)
+assume !mk,info. TLSMKey(mk,info) /\ HSFinished(info) /\ Compromised(info) => Crypto.Pub_k(mk)
+theorem !mk,info. TLSMKey(mk,info) /\ HSFinished(info) /\ Crypto.Pub_k(mk) => Compromised(info)
+assume !sk,info. TLSSKey(sk,info) /\ HSFinished(info) /\ Compromised(info) => Crypto.Pub_k(sk)
+theorem !sk,info. TLSSKey(sk,info) /\ HSFinished(info) /\ Crypto.Pub_k(sk) => Compromised(info)
+

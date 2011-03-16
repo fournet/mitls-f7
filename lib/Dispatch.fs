@@ -94,7 +94,7 @@ let moveToOpenState c new_info =
     let new_alert = Alert.init new_info in
     let new_appdata = AppData.set_SessionInfo c.appdata new_info in (* buffers have already been reset when each record layer direction did the CCS *)
     (* Read and write state should already have the same SessionInfo
-        set after CCS *)
+        set after CCS, check it *)
     let c = {c with ds_info = new_info;
                     handshake = new_hs;
                     alert = new_alert;
@@ -102,6 +102,17 @@ let moveToOpenState c new_info =
     let read = c.read in
     match read.disp with
     | Finishing ->
+        let new_read = {read with disp = Open} in
+        let c_write = c.write in
+        match c_write.disp with
+        | Finishing ->
+            let new_write = {c_write with disp = Open} in
+            {c with read = new_read; write = new_write}
+        | Finished ->
+            let new_write = {c_write with disp = Open} in
+            {c with read = new_read; write = new_write}
+        | _ -> unexpectedError "[moveToOpenState] should only work on Finishing or Finished write states"
+    | Finished ->
         let new_read = {read with disp = Open} in
         let c_write = c.write in
         match c_write.disp with

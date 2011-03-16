@@ -439,3 +439,6 @@ let recv_setCrypto conn ccs_d =
       seq_num = 0;
       sparams = ccs_d.ccs_sparams;
     }
+
+let coherentrw given recv send =
+    given = recv.rec_info && given = send.rec_info

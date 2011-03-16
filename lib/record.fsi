@@ -44,6 +44,8 @@ val recv_setVersion: recvState -> ProtocolVersionType -> recvState (* server-sid
 val recv_checkVersion: recvState -> ProtocolVersionType -> unit Result    (* client-side only *)
 val recv_setCrypto:  recvState -> ccs_data -> recvState
 
+val coherentrw: SessionInfo -> recvState -> sendState -> bool
+
 (* ProtocolVersion: 
   - the interface can be used only for setting and checking them (they are never passed up)
   - initially, sendState is the minimal and recvState is Unknown. 

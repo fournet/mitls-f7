@@ -77,10 +77,10 @@ val outdir: si:SessionInfo -> d:Direction{d = OutDir(si)}
 
 val incSeqNum : cs:ConnectionState -> cs':ConnectionState{cs' = IncSeqNum(cs)}
 val initConnState :
-  ns:Tcp.NetworkStream -> si:SessionInfo{?r. si = InitSessionInfo(r)} -> d:Direction -> pv:Formats.ProtocolVersionType -> 
+  ns:Tcp.NetworkStream -> si:SessionInfo{?r,s. si = InitSessionInfo(r,s)} -> d:Direction -> pv:Formats.ProtocolVersionType -> 
   cs:ConnectionState{InitConnState(cs,ns,si,d,pv)}
 val create :
-  ns:Tcp.NetworkStream -> si:SessionInfo{?r. si = InitSessionInfo(r)} ->
+  ns:Tcp.NetworkStream -> si:SessionInfo{?r,s. si = InitSessionInfo(r,s)} ->
   minpv:Formats.ProtocolVersionType{minpv <> UnknownPV} ->
   scs:sendState * rcs:recvState{InitConnState(scs,ns,si,OutDir(si),minpv) /\ InitConnState(rcs,ns,si,InDir(si),UnknownPV)}
 val max_TLSPlaintext_fragment_length : int
@@ -275,6 +275,9 @@ val recv_checkVersion : c:recvState -> pv:Formats.ProtocolVersionType ->
 val recv_setCrypto: c:recvState -> ccs:ccs_data {?cs'. ccs = CCSData(cs') /\ NonNullCipherSettings(CCSDataOtherRole(cs'))} ->
 	c':recvState{c' = UpdateCS(c,ccs,InDir(ccs.ccs_info))}
 
+val coherentrw: s:SessionInfo -> recv:recvState -> send:sendState ->
+        r:bool{r = true => (s = recv.rec_info /\ s = send.rec_info)}
+
 (* Data Formatting Assumptions *)
 assume !a,b. (?d. d = Compressed(a,b))
 assume !b. Compressed(Null,b) = b
@@ -350,7 +353,7 @@ definition !cs,ns,info,dir,pv.
 		                cipher_type = CT_stream;
 			        mac_algorithm = MA_null}} /\
 	    (dir = CtoS \/ dir = StoC) /\
-	    (?role. info = InitSessionInfo(role) /\
+	    (?role,sid. info = InitSessionInfo(role,sid) /\
             (role = ClientRole \/ role = ServerRole)
 	    ))
 
