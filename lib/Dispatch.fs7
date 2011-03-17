@@ -72,10 +72,11 @@ val moveToOpenState: c:Connection{FinishingState(c.read.disp) /\ FinishingState(
 	s:SessionInfo{HSFinished(s) /\ s = c.read.conn.rec_info /\ s = c.write.conn.rec_info} ->
 	c':Connection{c'.write.disp = Open /\ c'.read.disp = Open}
 
+val closeConnection: c:Connection -> c':Connection{c'.appdata.app_info = c.appdata.app_info /\ c'.read.disp = Closed /\ c'.write.disp = Closed}
+
 val next_fragment :
         int ->  c:Connection{c.write.disp <> Closed} -> 
                 ((bool Error_handling.Result) * c':Connection)
-                (* maybe say that c' = IncSeqNum(c) ? *)
 
 val sendNextFragments : Connection -> (unit Error_handling.Result) * Connection
 
@@ -100,11 +101,6 @@ assume !c. ValidConnection(c) <=>
    ContentMap(c.write.conn.rec_info,c.write.conn.seq_num,Application_data,PreviouslyRead(c.appdata.app_outgoing)) /\
    (ContentMap(OtherRole(c.read.conn.rec_info),c.read.conn.seq_num,Application_data,StreamBytes(c.appdata.app_incoming)) \/
 	 Crypto.Pub_k(c.read.conn.mk) )
-
-(* Similarly for HS, Alert:
-   ContentMap(c.ds_info,Handshake,c.write.conn.seq_num,PreviouslyRead(c.handshake.hs_outgoing)) /\
-   ContentMap(c.ds_info,Alert,c.write.conn.seq_num,PreviouslyRead(c.alert.al_outgoing)) /\
-*)
   )
 
 assume !al_info,app_info,read,write.
@@ -116,6 +112,8 @@ assume !al_info,app_info,read,write.
 
 (* Invariants on the Dispatch automaton *)
 assume !dstate. DispInv(dstate) <=> (
+        dstate.disp = Closed (* A closed connectionState is always safe *) \/
+        (
         (FinishingState(dstate.disp) =>
                 (dstate.conn.sparams.bulk_cipher_algorithm <> BCA_null /\
 	         dstate.conn.sparams.mac_algorithm <> MA_null) ) /\
@@ -123,7 +121,7 @@ assume !dstate. DispInv(dstate) <=> (
                 (dstate.conn.sparams.bulk_cipher_algorithm <> BCA_null /\
 	         dstate.conn.sparams.mac_algorithm <> MA_null /\
 	         HSFinished(dstate.conn.rec_info)) )
-	)
+	))
 assume !read. DispRead(read) <=> (
                 RecvConnState(read.conn) /\
                 DispInv(read) )
@@ -148,23 +146,23 @@ assume !c,info,protocol,f.
              ValidConnection(c) /\
              DispSend(c.write,protocol) /\
 	     UpperProtoSend(info,protocol,f) => 
-               FragmentSend(c.write.rec_info,c.write.conn.seq_num,protocol,f)
+               FragmentSend(c.write.conn.rec_info,c.write.conn.seq_num,protocol,f)
 
 assume !c,f.
         ValidConnection(c) /\
         c.write.disp = Open /\
-        UpperProtoSend(c.write.rec_info,Application_data,f) =>
-           FragmentSend(c.write.rec_info,c.write.conn.seq_num,Application_data,f)
+        UpperProtoSend(c.write.conn.rec_info,Application_data,f) =>
+           FragmentSend(c.write.conn.rec_info,c.write.conn.seq_num,Application_data,f)
 
 theorem !i,n,p,f. FragmentSend(i,n,p,f) /\ p <> Application_data =>
                         (?c,info. ValidConnection(c) /\ DispSend(c.write,p) /\
                          UpperProtoSend(info,p,f) /\
-                         i = c.write.rec_info /\ n = c.write.conn.seq_num)
+                         i = c.write.conn.rec_info /\ n = c.write.conn.seq_num)
 
 theorem !i,n,p,f. FragmentSend(i,n,p,f) /\ p = Application_data =>
                         (?c. ValidConnection(c) /\ c.write.disp = Open /\
-                         UpperProtoSend(c.write.rec_info,p,f) /\
-                         i = c.write.rec_info /\ n = c.write.conn.seq_num)
+                         UpperProtoSend(c.write.conn.rec_info,p,f) /\
+                         i = c.write.conn.rec_info /\ n = c.write.conn.seq_num)
 
 (* On the receive side, we need something:
 ask !c,p,f. ValidConnection(c) /\ FragmentSend(c.ds_info,c.read.conn.seq_num,p,f) =>
@@ -188,18 +186,6 @@ ask !c,f,c'. ContentMap(c.write.conn.rec_info,c.write.conn.seq_num,Application_d
              PreviouslyRead(c'.appdata.app_outgoing) = AppendBytes(PreviouslyRead(c.appdata.app_outgoing),f) =>
                 ContentMap(c'.write.conn.rec_info,c'.write.conn.seq_num,Application_data,PreviouslyRead(c'.appdata.app_outgoing))
 *)
-(*
-ask !conn,conn',sk,iv,iv'. conn.cipher_state = BlockCipherState(sk,iv) /\ conn' = UpdateIV(conn,iv') => conn'.cipher_state = BlockCipherState(sk,iv')
-*)
-(* FIXME: next assume should be an ask, but it's failing *)
-(*
-assume !write,write',iv. DispWrite(write) /\ write'.disp = write.disp /\ write'.conn = IncSeqNum(UpdateIV(write.conn,iv)) => DispWrite(write')
-*)
-(*
-ask !c,f,iv,c'. ValidConnection(c) /\ c.write.disp = Open /\ c'.ds_info = c.ds_info /\ c'.handshake = c.handshake /\ c'.alert = c.alert /\ c'.read = c.read /\
-                c'.write.conn = IncSeqNum(UpdateIV(c.write.conn,iv)) /\ c'.write.disp = c.write.disp /\
-                ApplicationState(c'.appdata) /\ c'.appdata.app_info = c.appdata.app_info /\ c'.appdata.app_incoming = c.appdata.app_incoming /\
-                FragmentSend(c.write.conn.rec_info,c.write.conn.seq_num,Application_data,f) /\
-                PreviouslyRead(c'.appdata.app_outgoing) = AppendBytes(PreviouslyRead(c.appdata.app_outgoing),f) =>
-                        ValidConnection(c')
-*)
+
+ask !c,f. ValidConnection(c) /\ c.write.disp = Open /\ UpperProtoSend(c.appdata.app_info,Application_data,f) =>
+        FragmentSend(c.write.conn.rec_info,c.write.conn.seq_num,Application_data,f)

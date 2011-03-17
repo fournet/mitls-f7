@@ -125,6 +125,11 @@ let moveToOpenState c new_info =
         | _ -> unexpectedError "[moveToOpenState] should only work on Finishing or Finished write states"
     | _ -> unexpectedError "[moveToOpenState] should only work on Finishing read states"
 
+let closeConnection c =
+    let new_read = {c.read with disp = Closed} in
+    let new_write = {c.write with disp = Closed} in
+    {c with read = new_read; write = new_write}
+
 (* which fragment should we send next? *)
 (* we must send this fragment before restoring the connection invariant *)
 let next_fragment n (c:Connection) : (bool Result) * Connection =
@@ -150,11 +155,10 @@ let next_fragment n (c:Connection) : (bool Result) * Connection =
                             match Record.send c_write.conn Application_data f with
                             | Correct(ss) ->
                                 let new_write = { c_write with conn = ss } in
-                                (* Pi.assume(DebugPred(c)); *)
                                 (correct (true), { c with appdata = new_app_state;
                                                           write = new_write } )
-                            | Error (x,y) -> (Error(x,y), {c with appdata = new_app_state}) (* This is a TCP error, there's not much we can do *)
-                          | _ -> (Error(Dispatcher,InvalidState),{c with appdata = new_app_state})
+                            | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
+                          | _ -> (Error(Dispatcher,InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
           | (CCSFrag(ccs,cp),new_hs_state) ->
                     (* we send a (complete) CCS fragment *)
                     match c_write.disp with
@@ -168,8 +172,8 @@ let next_fragment n (c:Connection) : (bool Result) * Connection =
                             (correct (true), { c with handshake = new_hs_state;
                                                       write = new_write;
                                                       appdata = new_appdata } )
-                        | Error (x,y) -> (Error (x,y), {c with handshake = new_hs_state}) (* TCP error, like above *)
-                    | _ -> (Error(Dispatcher, InvalidState),{c with handshake = new_hs_state})
+                        | Error (x,y) -> (Error (x,y), closeConnection c) (* Unrecoverable error *)
+                    | _ -> (Error(Dispatcher, InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
           | (HSFrag(f),new_hs_state) ->     
                       (* we send some handshake fragment *)
                       match c_write.disp with
@@ -180,8 +184,8 @@ let next_fragment n (c:Connection) : (bool Result) * Connection =
                             let new_write = {c_write with conn = ss} in
                             (correct (true), { c with handshake = new_hs_state;
                                                       write     = new_write } )
-                          | Error (x,y) -> (Error(x,y), {c with handshake = new_hs_state}) (* TCP error, like above *)
-                      | _ -> (Error(Dispatcher,InvalidState), {c with handshake = new_hs_state})
+                          | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
+                      | _ -> (Error(Dispatcher,InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
           | (HSWriteSideFinished,new_hs_state) ->
                 let c = {c with handshake = new_hs_state} in
                 (* check we are in finishing state *)
@@ -190,7 +194,7 @@ let next_fragment n (c:Connection) : (bool Result) * Connection =
                     let c_write = {c_write with disp = Finished}
                     let c = {c with write = c_write} in
                     (Error(MustRead,Notification),c)
-                | _ -> (Error(Dispatcher,InvalidState), c)
+                | _ -> (Error(Dispatcher,InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
           | (HSFullyFinished_Write(new_info),new_hs_state) ->
                 let c = {c with handshake = new_hs_state} in
                 match c_write.disp with
@@ -201,18 +205,18 @@ let next_fragment n (c:Connection) : (bool Result) * Connection =
                       notification, and not a mustRead.
                       Check thus that we in fact have an empty input buffer *)
                    if appDataAvailable c then (* this is a bug. *)
-                       (Error(Dispatcher,Internal),c)
+                       (Error(Dispatcher,Internal), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
                    else
                        let c = moveToOpenState c new_info in
                        (Error(NewSessionInfo,Notification),c)
-                | _ -> (Error(Dispatcher,InvalidState),c)
+                | _ -> (Error(Dispatcher,InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
       | (ALFrag(f),new_al_state) ->        
         match Record.send c_write.conn Alert f with 
         | Correct ss ->
             let new_write = {disp = Closing; conn = ss} in
             (correct (true), { c with alert = new_al_state;
                                       write   = new_write } )
-        | Error (x,y) -> (Error(x,y), {c with alert = new_al_state}) (* TCP error, like above *)
+        | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
       | (LastALFrag(f),new_al_state) ->
         (* Same as above, but we set Closed dispatch state, instead of Closing *)
         match Record.send c_write.conn Alert f with 
@@ -220,7 +224,7 @@ let next_fragment n (c:Connection) : (bool Result) * Connection =
             let new_write = {disp = Closed; conn = ss} in
             (correct (false), { c with alert = new_al_state;
                                        write   = new_write } )
-        | Error (x,y) -> (Error(x,y),{c with alert = new_al_state}) (* TCP error, like above *)
+        | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
 
 let rec sendNextFragments c =
     let unitVal = () in
