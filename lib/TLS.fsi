@@ -156,7 +156,7 @@ val rekey_now: Connection -> protocolOptions -> (unit Result) * Connection (* Bl
     Implementation note: same as connect. *)
 val accept: TcpListener -> protocolOptions -> (unit Result) * Connection
 
-(* Old Connectio, new/old Session:
+(* Old Connection, new/old Session:
     Sets an internal flag asking to send a Hello Request message on next
     read/write operation. If client will ask for resumption and the session
     to be resumed is cached, a resumption handshake will take place.
