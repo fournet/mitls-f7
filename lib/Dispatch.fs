@@ -262,8 +262,7 @@ let deliver ct f c =
     | (Correct(corr),hs) ->
         match corr with
         | HSAck ->
-            let trueVar = true in
-            ((correct (trueVar), { c with handshake = hs} ))
+            ((correct (true), { c with handshake = hs} ))
         | HSChangeVersion(r,v) ->
             match r with
             | ClientRole ->

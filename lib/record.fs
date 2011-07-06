@@ -44,12 +44,12 @@ type ccs_data = {
 type preds = FragmentSend of ConnectionState * ContentType * bytes
 
 let indir info =
-    match getSessionRole info with
+    match info.role with
     | ClientRole -> StoC
     | ServerRole -> CtoS
 
 let outdir info =
-    match getSessionRole info with
+    match info.role with
     | ClientRole -> CtoS
     | ServerRole -> StoC
   

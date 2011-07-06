@@ -13,7 +13,7 @@ open Crypto
 open AppCommon
 
 type clientState =
-    | ServerHello
+    | ServerHello of sessionID (* client proposed session ID, useful to check wether we're going to do resumption or full negotiation *)
     | Certificate
     | ServerKeyExchange
     | CertReq
@@ -40,6 +40,7 @@ type pre_hs_state = {
   hs_outgoing_after_ccs: bytes (* data to be sent after the ccs has been sent *)
   hs_incoming    : bytes (* partial incoming HS message *)
   hs_info : SessionInfo;
+  hs_sessionStore: SessionDB.store<sessionID,SessionInfo>;
   poptions: protocolOptions
   pstate : protoState
 }
@@ -138,6 +139,30 @@ let makeCHelloBytes poptions session =
     let data = appendList [cVerB; random; csessB; ccsuitesB; ccompmethB; cHello.extensions] in
     makeHSPacket HT_client_hello data
 
+let split_varLen data lenSize =
+    let (lenBytes,data) = split data lenSize in
+    let len = int_of_bytes lenSize lenBytes in
+    split data len
+
+let parseSHello data =
+    let (serverVerBytes,data) = split data 2 in
+    let serverVer = protocolVersionType_of_bytes serverVerBytes in
+    let (serverTsBytes,data) = split data 4 in
+    let serverTs = int_of_bytes 4 serverTsBytes in
+    let (serverRdmBytes,data) = split data 28 in
+    let serverRdm = {time = serverTs; rnd = serverRdmBytes} in
+    let (sid,data) = split_varLen data 1 in
+    let (csBytes,data) = split data 2 in
+    let cs = cipherSuite_of_bytes csBytes in
+    let (cmBytes,data) = split data 1 in
+    let cm = compression_of_bytes cmBytes in
+    { server_version = serverVer
+      sh_random = serverRdm
+      sh_session_id = sid
+      cipher_suite = cs
+      compression_method = cm
+      neg_extensions = data}
+
 let init_handshake role poptions =
     let info = init_sessionInfo role in
     match role with
@@ -147,8 +172,9 @@ let init_handshake role poptions =
                      hs_outgoing_after_ccs = empty_bstr
                      hs_incoming = empty_bstr
                      hs_info = info
+                     hs_sessionStore = SessionDB.create ();
                      poptions = poptions
-                     pstate = Client (ServerHello)} in
+                     pstate = Client (ServerHello(empty_bstr))} in
         (info,state)
     | ServerRole ->
         let state = {hs_outgoing = empty_bstr
@@ -156,12 +182,13 @@ let init_handshake role poptions =
                      hs_outgoing_after_ccs = empty_bstr
                      hs_incoming = empty_bstr
                      hs_info = info
+                     hs_sessionStore = SessionDB.create ();
                      poptions = poptions
                      pstate = Server (ClientHello)} in
         (info,state)
 
 let resume_handshake role info poptions =
-    let sidOp = getSessionID info in
+    let sidOp = info.sessionID in
     match sidOp with
     | None -> unexpectedError "[resume_handshake] must be invoked on a non-null session"
     | Some (sid) ->
@@ -172,8 +199,9 @@ let resume_handshake role info poptions =
                          hs_outgoing_after_ccs = empty_bstr
                          hs_incoming = empty_bstr
                          hs_info = info
+                         hs_sessionStore = SessionDB.create (); (* FIXME: do we really want to resume with an empty DB? *)
                          poptions = poptions
-                         pstate = Client (ServerHello)} in
+                         pstate = Client (ServerHello(sid))} in
             state
         | ServerRole ->
             let state = {hs_outgoing = empty_bstr
@@ -181,6 +209,7 @@ let resume_handshake role info poptions =
                          hs_outgoing_after_ccs = empty_bstr
                          hs_incoming = empty_bstr
                          hs_info = info
+                         hs_sessionStore = SessionDB.create (); (* FIXME: do we really want to resume with an empty DB? *)
                          poptions = poptions
                          pstate = Server (ClientHello)} in
             state
@@ -251,12 +280,39 @@ let recv_fragment (hs_state:hs_state) (fragment:fragment) =
     let (hstype,payload) = data in
     match hs_state.pstate with
     | Client (cState) ->
-        match cState with
-        | ServerHello -> (* We're only willing to receive a ServerHello Message *)
-            match hstype with
-            | HT_server_hello -> (* TODO *) (correct (HSAck), hs_state)
-            | _ -> (Error(HandshakeProto,CheckFailed),hs_state)
-        | _ -> (Error (HandshakeProto,Unsupported),hs_state)
+        match hstype with
+        | HT_hello_request ->
+            match cState with
+            | CIdle -> (* This is a legitimate hello request. Properly handle it *)
+                match hs_state.poptions.honourHelloReq with
+                | HRPIgnore -> (correct (HSAck), hs_state)
+                | HRPResume -> let hs_state = start_rekey hs_state hs_state.poptions in (correct (HSAck), hs_state)
+                | HRPFull -> let hs_state = start_rehandshake hs_state hs_state.poptions in (correct (HSAck), hs_state)
+            | _ -> (* RFC 7.4.1.1: ignore this message *) (correct (HSAck), hs_state)
+         | HT_server_hello ->
+            match cState with
+            | ServerHello(proposedSID) ->
+                let shello = parseSHello payload in
+                (* Sanity checks on the received message *)
+                (* FIXME: are they security-relevant here? Or only functionality-relevant? *)
+                (* TODO: we want to check that the server agreed version is between maxVer and minVer.
+                    But first we have to define an order over versions! *)
+                match shello.sh_session_id with
+                | x when equalBytes x empty_bstr || not (equalBytes x proposedSID) -> (* do a full handshake *)
+                    (Error (HandshakeProto,InvalidState), hs_state)
+                | _ -> (* session resumption *)
+                    (* TODO: restore sessions parameters from some session store? *)
+                    (* Expect to receive a CCS *)
+                    let hs_state = { hs_state with pstate = Client(CCCS) } in
+                    (correct (HSAck), hs_state)
+            | _ -> (Error (HandshakeProto,InvalidState), hs_state)     
+         | _ -> (* Unsupported/Wrong message *) (Error (HandshakeProto,Unsupported), hs_state)
+            (* match cState with
+            | ServerHello -> (* We're only willing to receive a ServerHello Message *)
+                match hstype with
+                | HT_server_hello -> (* TODO *) (correct (HSAck), hs_state)
+                | _ -> (Error(HandshakeProto,CheckFailed),hs_state)
+            | _ -> (Error (HandshakeProto,Unsupported),hs_state) *)
     | Server (sState) -> (Error (HandshakeProto,Unsupported),hs_state)
 
 let recv_ccs (hs_state: hs_state) (fragment:fragment): ((ccs_data Result) * hs_state) =

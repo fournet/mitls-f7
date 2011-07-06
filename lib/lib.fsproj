@@ -50,6 +50,8 @@
   <ItemGroup>
     <Compile Include="Error.fsi" />
     <Compile Include="Error.fs" />
+    <Compile Include="SessionDB.fsi" />
+    <Compile Include="SessionDB.fs" />
     <Compile Include="tcp.fsi" />
     <Compile Include="tcp.fs" />
     <Compile Include="formats.fsi" />
@@ -58,12 +60,12 @@
     <Compile Include="Stream.fs" />
     <Compile Include="CryptoTLS.fsi" />
     <Compile Include="CryptoTLS.fs" />
+    <Compile Include="HS_ciphersuites.fsi" />
+    <Compile Include="HS_ciphersuites.fs" />
     <Compile Include="Sessions.fsi" />
     <Compile Include="Sessions.fs" />
     <Compile Include="record.fsi" />
     <Compile Include="record.fs" />
-    <Compile Include="HS_ciphersuites.fsi" />
-    <Compile Include="HS_ciphersuites.fs" />
     <Compile Include="AppCommon.fsi" />
     <Compile Include="AppCommon.fs" />
     <Compile Include="HS_msg.fsi" />

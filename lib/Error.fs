@@ -14,6 +14,8 @@ type ErrorCause =
     | AlertAlreadySent
     | AlertProto
     | HandshakeProto
+    | HSExtension
+    | HSParsing
     | Dispatcher
     | TLS
     | NewSessionInfo

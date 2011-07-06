@@ -1,6 +1,9 @@
 ﻿module Sessions
 
+open Bytearray
 open Data
+open Formats
+open HS_ciphersuites
 
 type prerole =
     | ClientRole
@@ -10,9 +13,18 @@ type role = prerole
 
 type sessionID = bytes
 
-type SessionInfo
+type SessionMoreInfo = {
+    mi_cipher_suite: CipherSuite
+    mi_compression: Compression
+    mi_pms: bytes 
+    }
+
+type SessionInfo = {
+    role: role;
+    clientID: string option;
+    serverID: string option;
+    sessionID: sessionID option
+    more_info: SessionMoreInfo
+    }
 
 val init_sessionInfo: role -> SessionInfo
-
-val getSessionRole: SessionInfo -> role
-val getSessionID: SessionInfo -> sessionID option
