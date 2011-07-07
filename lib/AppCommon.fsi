@@ -16,6 +16,10 @@ type protocolOptions = {
 
     (* Handshake specific options *)
     honourHelloReq: helloReqPolicy
+
+    (* Sessions database *)
+    sessionDBFileName: string
+    sessionDBExpiry: System.TimeSpan
     }
 
 val defaultProtocolOptions: protocolOptions

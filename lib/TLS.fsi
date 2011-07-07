@@ -73,8 +73,7 @@ val dataAvailable: Connection -> bool
    but does not close the underlying NetworkStream *)
 val shutdown: Connection -> unit
 
-(* Get SessionInfo from the current Connection. More functions operating
-   on SessionInfo, like getClientID or getServerID may be added *)
+(* Get SessionInfo from the current Connection. *)
 val getSessionInfo: Connection -> SessionInfo
 
 (* CLIENT SIDE *)

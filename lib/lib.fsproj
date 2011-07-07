@@ -50,8 +50,6 @@
   <ItemGroup>
     <Compile Include="Error.fsi" />
     <Compile Include="Error.fs" />
-    <Compile Include="SessionDB.fsi" />
-    <Compile Include="SessionDB.fs" />
     <Compile Include="tcp.fsi" />
     <Compile Include="tcp.fs" />
     <Compile Include="formats.fsi" />
@@ -68,6 +66,8 @@
     <Compile Include="record.fs" />
     <Compile Include="AppCommon.fsi" />
     <Compile Include="AppCommon.fs" />
+    <Compile Include="SessionDB.fsi" />
+    <Compile Include="SessionDB.fs" />
     <Compile Include="HS_msg.fsi" />
     <Compile Include="HS_msg.fs" />
     <Compile Include="Handshake.fsi" />

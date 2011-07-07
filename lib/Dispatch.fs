@@ -29,6 +29,7 @@ type dState = {
 
 type preConnection = {
   ds_info: SessionInfo;
+  poptions: protocolOptions;
   (* abstract protocol states for HS/CCS, AL, and AD *)
   handshake: Handshake.hs_state
   alert    : Alert.al_state
@@ -51,6 +52,7 @@ let init ns role poptions =
     let al = Alert.init info  in
     let app = AppData.init info in
     { ds_info = info;
+      poptions = poptions;
       handshake = hs;
       alert = al;
       appdata = app;
@@ -65,6 +67,7 @@ let resume ns role info ops =
     let al = Alert.init info  in
     let app = AppData.init info in
     { ds_info = info;
+      poptions = ops;
       handshake = hs;
       alert = al;
       appdata = app;
@@ -73,15 +76,18 @@ let resume ns role info ops =
 
 let ask_rehandshake conn ops =
     let new_hs = Handshake.start_rehandshake conn.handshake ops in
-    {conn with handshake = new_hs}
+    {conn with handshake = new_hs
+               poptions = ops}
 
 let ask_rekey conn ops =
     let new_hs = Handshake.start_rekey conn.handshake ops in
-    {conn with handshake = new_hs}
+    {conn with handshake = new_hs
+               poptions = ops}
 
 let ask_hs_request conn ops =
     let new_hs = Handshake.start_hs_request conn.handshake ops in
-    {conn with handshake = new_hs}
+    {conn with handshake = new_hs
+               poptions = ops}
 
 let appDataAvailable conn =
     AppData.retrieve_data_available conn.appdata

@@ -13,12 +13,12 @@ open Crypto
 open AppCommon
 
 type clientState =
-    | ServerHello of sessionID (* client proposed session ID, useful to check wether we're going to do resumption or full negotiation *)
+    | ServerHello of SessionInfo Option (* client proposed session to be resumed, useful to check wether we're going to do resumption or full negotiation *)
     | Certificate
     | ServerKeyExchange
     | CertReq
-    | CCCS
-    | CFinished
+    | CCCS of bool (* true: we're in session resumption; false: we're in full handshake *)
+    | CFinished of bool (* true: we're in session resumption; false: we're in full handshake *)
     | CIdle
 
 type serverState =
@@ -40,8 +40,7 @@ type pre_hs_state = {
   hs_outgoing_after_ccs: bytes (* data to be sent after the ccs has been sent *)
   hs_incoming    : bytes (* partial incoming HS message *)
   hs_info : SessionInfo;
-  hs_sessionStore: SessionDB.store<sessionID,SessionInfo>;
-  poptions: protocolOptions
+  poptions: protocolOptions;
   pstate : protoState
 }
 
@@ -172,9 +171,8 @@ let init_handshake role poptions =
                      hs_outgoing_after_ccs = empty_bstr
                      hs_incoming = empty_bstr
                      hs_info = info
-                     hs_sessionStore = SessionDB.create ();
                      poptions = poptions
-                     pstate = Client (ServerHello(empty_bstr))} in
+                     pstate = Client (ServerHello(None))} in
         (info,state)
     | ServerRole ->
         let state = {hs_outgoing = empty_bstr
@@ -182,7 +180,6 @@ let init_handshake role poptions =
                      hs_outgoing_after_ccs = empty_bstr
                      hs_incoming = empty_bstr
                      hs_info = info
-                     hs_sessionStore = SessionDB.create ();
                      poptions = poptions
                      pstate = Server (ClientHello)} in
         (info,state)
@@ -192,27 +189,29 @@ let resume_handshake role info poptions =
     match sidOp with
     | None -> unexpectedError "[resume_handshake] must be invoked on a non-null session"
     | Some (sid) ->
-        match role with
-        | ClientRole ->
-            let state = {hs_outgoing = makeCHelloBytes poptions sid
-                         ccs_outgoing = None
-                         hs_outgoing_after_ccs = empty_bstr
-                         hs_incoming = empty_bstr
-                         hs_info = info
-                         hs_sessionStore = SessionDB.create (); (* FIXME: do we really want to resume with an empty DB? *)
-                         poptions = poptions
-                         pstate = Client (ServerHello(sid))} in
-            state
-        | ServerRole ->
-            let state = {hs_outgoing = empty_bstr
-                         ccs_outgoing = None
-                         hs_outgoing_after_ccs = empty_bstr
-                         hs_incoming = empty_bstr
-                         hs_info = info
-                         hs_sessionStore = SessionDB.create (); (* FIXME: do we really want to resume with an empty DB? *)
-                         poptions = poptions
-                         pstate = Server (ClientHello)} in
-            state
+        (* Ensure the sid is in the SessionDB *)
+        match SessionDB.select poptions sid with
+        | None -> unexpectedError "[resume_handshake] requested session expired or never stored in DB"
+        | Some (_) ->
+            match role with
+            | ClientRole ->
+                let state = {hs_outgoing = makeCHelloBytes poptions sid
+                             ccs_outgoing = None
+                             hs_outgoing_after_ccs = empty_bstr
+                             hs_incoming = empty_bstr
+                             hs_info = info
+                             poptions = poptions
+                             pstate = Client (ServerHello(Some(info)))} in
+                state
+            | ServerRole ->
+                let state = {hs_outgoing = empty_bstr
+                             ccs_outgoing = None
+                             hs_outgoing_after_ccs = empty_bstr
+                             hs_incoming = empty_bstr
+                             hs_info = info
+                             poptions = poptions
+                             pstate = Server (ClientHello)} in
+                state
 
 let start_rehandshake (state:hs_state) (ops:protocolOptions) =
     (* TODO: fill some outgoing buffers, discard current session... *)
@@ -279,6 +278,9 @@ let recv_fragment (hs_state:hs_state) (fragment:fragment) =
     | Some (data) ->
     let (hstype,payload) = data in
     match hs_state.pstate with
+
+    (* *** CLIENT SIDE *** *)
+
     | Client (cState) ->
         match hstype with
         | HT_hello_request ->
@@ -291,21 +293,25 @@ let recv_fragment (hs_state:hs_state) (fragment:fragment) =
             | _ -> (* RFC 7.4.1.1: ignore this message *) (correct (HSAck), hs_state)
          | HT_server_hello ->
             match cState with
-            | ServerHello(proposedSID) ->
+            | ServerHello(sinfoOpt) ->
                 let shello = parseSHello payload in
                 (* Sanity checks on the received message *)
                 (* FIXME: are they security-relevant here? Or only functionality-relevant? *)
                 (* TODO: we want to check that the server agreed version is between maxVer and minVer.
                     But first we have to define an order over versions! *)
-                match shello.sh_session_id with
-                | x when equalBytes x empty_bstr || not (equalBytes x proposedSID) -> (* do a full handshake *)
-                    (Error (HandshakeProto,InvalidState), hs_state)
-                | _ -> (* session resumption *)
-                    (* TODO: restore sessions parameters from some session store? *)
-                    (* Expect to receive a CCS *)
-                    let hs_state = { hs_state with pstate = Client(CCCS) } in
-                    (correct (HSAck), hs_state)
-            | _ -> (Error (HandshakeProto,InvalidState), hs_state)     
+                match sinfoOpt with
+                | None -> (* we did not request resumption, do a full handshake *)
+                    (* TODO: if DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
+                | Some(sinfo) ->
+                    match sinfo.sessionID with
+                    | None -> unexpectedError "[recv_fragment] A resumed session should never have empty SID"
+                    | Some(sid) ->
+                        match sid with
+                        | shello.sh_session_id -> (* use resumption *)
+                            let hs_state = { hs_state with pstate = Client(CCCS(true))}
+                            (correct (HSAck), hs_state)
+                        | _ -> (* server did not agreed on resumptio, do a full handshake *)
+            | _ -> (* ServerHello arrived in the wrong state *) (Error (HandshakeProto,InvalidState), hs_state)     
          | _ -> (* Unsupported/Wrong message *) (Error (HandshakeProto,Unsupported), hs_state)
             (* match cState with
             | ServerHello -> (* We're only willing to receive a ServerHello Message *)
@@ -313,6 +319,9 @@ let recv_fragment (hs_state:hs_state) (fragment:fragment) =
                 | HT_server_hello -> (* TODO *) (correct (HSAck), hs_state)
                 | _ -> (Error(HandshakeProto,CheckFailed),hs_state)
             | _ -> (Error (HandshakeProto,Unsupported),hs_state) *)
+    
+    (* *** SERVER SIDE *** *)
+    
     | Server (sState) -> (Error (HandshakeProto,Unsupported),hs_state)
 
 let recv_ccs (hs_state: hs_state) (fragment:fragment): ((ccs_data Result) * hs_state) =

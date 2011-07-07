@@ -16,6 +16,10 @@ type protocolOptions = {
 
     (* Handshake specific options *)
     honourHelloReq: helloReqPolicy
+    
+    (* Sessions database *)
+    sessionDBFileName: string
+    sessionDBExpiry: System.TimeSpan
     }
 
 let defaultProtocolOptions ={
@@ -32,6 +36,9 @@ let defaultProtocolOptions ={
     compressions = [ Null ]
 
     honourHelloReq = HRPResume
+
+    sessionDBFileName = "sessionDBFile.bin"
+    sessionDBExpiry = new System.TimeSpan(2,0,0,0) (* two days *)
     }
 
 let max_TLSPlaintext_fragment_length = 1<<<14 (* just a reminder *)
