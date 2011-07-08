@@ -16,6 +16,7 @@ type protocolOptions = {
 
     (* Handshake specific options *)
     honourHelloReq: helloReqPolicy
+    allowAnonCipherSuite: bool
 
     (* Sessions database *)
     sessionDBFileName: string

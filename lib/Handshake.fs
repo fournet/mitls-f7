@@ -299,18 +299,28 @@ let recv_fragment (hs_state:hs_state) (fragment:fragment) =
                 (* FIXME: are they security-relevant here? Or only functionality-relevant? *)
                 (* TODO: we want to check that the server agreed version is between maxVer and minVer.
                     But first we have to define an order over versions! *)
-                match sinfoOpt with
-                | None -> (* we did not request resumption, do a full handshake *)
-                    (* TODO: if DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
-                | Some(sinfo) ->
-                    match sinfo.sessionID with
-                    | None -> unexpectedError "[recv_fragment] A resumed session should never have empty SID"
-                    | Some(sid) ->
-                        match sid with
-                        | shello.sh_session_id -> (* use resumption *)
-                            let hs_state = { hs_state with pstate = Client(CCCS(true))}
-                            (correct (HSAck), hs_state)
-                        | _ -> (* server did not agreed on resumptio, do a full handshake *)
+
+                (* Check that negotiated ciphersuite is in the allowed list. Note: if resuming a session, we still have
+                to check that this ciphersuite is the expected one! *)
+                if not (List.exists (fun x -> x = shello.cipher_suite) hs_state.poptions.ciphersuites) then
+                    (Error(),hs_state)
+                (* RFC Sec 7.4.1.4: in this implementation, we never send extensions, if the server sent any extension
+                   we MUST abot the handshake with unsupported_extension fatal alter (handled by the dispatcher) *)
+                if not (equalBytes shello.neg_extensions empty_bstr) then
+                    (Error(HSExtension,CheckFailed),hs_state)
+                else
+                    match sinfoOpt with
+                    | None -> (* we did not request resumption, do a full handshake *)
+                        (* TODO: if DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
+                    | Some(sinfo) ->
+                        match sinfo.sessionID with
+                        | None -> unexpectedError "[recv_fragment] A resumed session should never have empty SID"
+                        | Some(sid) ->
+                            match sid with
+                            | shello.sh_session_id -> (* use resumption *)
+                                let hs_state = { hs_state with pstate = Client(CCCS(true))}
+                                (correct (HSAck), hs_state)
+                            | _ -> (* server did not agreed on resumptio, do a full handshake *)
             | _ -> (* ServerHello arrived in the wrong state *) (Error (HandshakeProto,InvalidState), hs_state)     
          | _ -> (* Unsupported/Wrong message *) (Error (HandshakeProto,Unsupported), hs_state)
             (* match cState with

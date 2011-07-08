@@ -16,6 +16,7 @@ type protocolOptions = {
 
     (* Handshake specific options *)
     honourHelloReq: helloReqPolicy
+    allowAnonCipherSuite: bool
     
     (* Sessions database *)
     sessionDBFileName: string
@@ -36,6 +37,7 @@ let defaultProtocolOptions ={
     compressions = [ Null ]
 
     honourHelloReq = HRPResume
+    allowAnonCipherSuite = false
 
     sessionDBFileName = "sessionDBFile.bin"
     sessionDBExpiry = new System.TimeSpan(2,0,0,0) (* two days *)
