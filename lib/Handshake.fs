@@ -15,7 +15,7 @@ open AppCommon
 type clientState =
     | ServerHello of SessionInfo Option (* client proposed session to be resumed, useful to check wether we're going to do resumption or full negotiation *)
     | Certificate
-    | ServerKeyExchange
+    | ServerKeyExchange of CipherSuite
     | CertReq
     | CCCS of bool (* true: we're in session resumption; false: we're in full handshake *)
     | CFinished of bool (* true: we're in session resumption; false: we're in full handshake *)
@@ -303,32 +303,53 @@ let recv_fragment (hs_state:hs_state) (fragment:fragment) =
                 (* Check that negotiated ciphersuite is in the allowed list. Note: if resuming a session, we still have
                 to check that this ciphersuite is the expected one! *)
                 if not (List.exists (fun x -> x = shello.cipher_suite) hs_state.poptions.ciphersuites) then
-                    (Error(),hs_state)
-                (* RFC Sec 7.4.1.4: in this implementation, we never send extensions, if the server sent any extension
-                   we MUST abot the handshake with unsupported_extension fatal alter (handled by the dispatcher) *)
-                if not (equalBytes shello.neg_extensions empty_bstr) then
-                    (Error(HSExtension,CheckFailed),hs_state)
+                    (Error(HandshakeProto,CheckFailed),hs_state)
                 else
-                    match sinfoOpt with
-                    | None -> (* we did not request resumption, do a full handshake *)
-                        (* TODO: if DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
-                    | Some(sinfo) ->
-                        match sinfo.sessionID with
-                        | None -> unexpectedError "[recv_fragment] A resumed session should never have empty SID"
-                        | Some(sid) ->
-                            match sid with
-                            | shello.sh_session_id -> (* use resumption *)
-                                let hs_state = { hs_state with pstate = Client(CCCS(true))}
-                                (correct (HSAck), hs_state)
-                            | _ -> (* server did not agreed on resumptio, do a full handshake *)
-            | _ -> (* ServerHello arrived in the wrong state *) (Error (HandshakeProto,InvalidState), hs_state)     
+                    (* Same for compression method *)
+                    if not (List.exists (fun x -> x = shello.compression_method) hs_state.poptions.compressions) then
+                        (Error(HandshakeProto,CheckFailed),hs_state)
+                    else
+                        (* RFC Sec 7.4.1.4: in this implementation, we never send extensions, if the server sent any extension
+                           we MUST abot the handshake with unsupported_extension fatal alter (handled by the dispatcher) *)
+                        if not (equalBytes shello.neg_extensions empty_bstr) then
+                            (Error(HSExtension,CheckFailed),hs_state)
+                        else
+                            match sinfoOpt with
+                            | None -> (* we did not request resumption, do a full handshake *)
+                                (* If DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
+                                if isAnonCipherSuite shello.cipher_suite then
+                                    let hs_state = {hs_state with pstate = Client(ServerKeyExchange(shello.cipher_suite))} in
+                                    (correct (HSAck),hs_state)
+                                else
+                                    let hs_state = {hs_state with pstate = Client(Certificate)} in
+                                    (correct (HSAck),hs_state)
+                            | Some(sinfo) ->
+                                match sinfo.sessionID with
+                                | None -> unexpectedError "[recv_fragment] A resumed session should never have empty SID"
+                                | Some(sid) ->
+                                    if sid = shello.sh_session_id then (* use resumption *)
+                                        (* Check that ciph_suite and compression method are indeed the correct ones *)
+                                        if sinfo.more_info.mi_cipher_suite = shello.cipher_suite then
+                                            if sinfo.more_info.mi_compression = shello.compression_method then
+                                                let hs_state = { hs_state with pstate = Client(CCCS(true))}
+                                                (correct (HSAck), hs_state)
+                                            else (Error(HandshakeProto,CheckFailed),hs_state)
+                                        else (Error(HandshakeProto,CheckFailed),hs_state)
+                                    else (* server did not agreed on resumption, do a full handshake *)
+                                        (* If DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
+                                        if isAnonCipherSuite shello.cipher_suite then
+                                            let hs_state = {hs_state with pstate = Client(ServerKeyExchange(shello.cipher_suite))} in
+                                            (correct (HSAck),hs_state)
+                                        else
+                                            let hs_state = {hs_state with pstate = Client(Certificate)} in
+                                            (correct (HSAck),hs_state)
+            | _ -> (* ServerHello arrived in the wrong state *) (Error (HandshakeProto,InvalidState), hs_state)
+         | HT_certificate ->
+            match cState with
+            | Certificate ->
+                
+            | _ -> (* Certificate arrived in the wrong state *) (Error (HandshakeProto,InvalidState), hs_state)
          | _ -> (* Unsupported/Wrong message *) (Error (HandshakeProto,Unsupported), hs_state)
-            (* match cState with
-            | ServerHello -> (* We're only willing to receive a ServerHello Message *)
-                match hstype with
-                | HT_server_hello -> (* TODO *) (correct (HSAck), hs_state)
-                | _ -> (Error(HandshakeProto,CheckFailed),hs_state)
-            | _ -> (Error (HandshakeProto,Unsupported),hs_state) *)
     
     (* *** SERVER SIDE *** *)
     
