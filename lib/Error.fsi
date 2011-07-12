@@ -15,7 +15,10 @@ type ErrorCause =
     | AlertProto
     | HandshakeProto
     | HSExtension
+    | HSProtoVersion
     | HSParsing
+    | HSCertificate
+    | CertificateParsing
     | Dispatcher
     | TLS
     | NewSessionInfo

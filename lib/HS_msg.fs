@@ -6,6 +6,7 @@ open Formats
 open Record
 open HS_ciphersuites
 open Sessions
+open Principal
 
 type handshakeType =
     | HT_hello_request
@@ -79,8 +80,7 @@ type serverHello = {
 
 (* (Server and Client) Certificate *)
 
-type ASN1Cert = bytes
-type certificate = { certificate_list: ASN1Cert }
+type certificate = { certificate_list: pri_cert list }
 
 (* Server Key Exchange *)
 (* TODO *)

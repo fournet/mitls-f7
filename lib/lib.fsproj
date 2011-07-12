@@ -52,6 +52,8 @@
     <Compile Include="Error.fs" />
     <Compile Include="tcp.fsi" />
     <Compile Include="tcp.fs" />
+    <Compile Include="Principal.fsi" />
+    <Compile Include="Principal.fs" />
     <Compile Include="formats.fsi" />
     <Compile Include="formats.fs" />
     <Compile Include="Stream.fsi" />

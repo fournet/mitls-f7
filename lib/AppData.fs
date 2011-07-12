@@ -46,7 +46,7 @@ let retrieve_data (state:app_state) (len:int) =
     res
 
 let retrieve_data_available state =
-    is_empty_stream state.app_incoming
+    not (is_empty_stream state.app_incoming)
 
 let next_fragment state len =
     if is_empty_stream state.app_outgoing then

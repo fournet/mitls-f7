@@ -2,6 +2,7 @@
 
 open Formats
 open HS_ciphersuites
+open Principal
 
 type helloReqPolicy =
     | HRPIgnore
@@ -17,11 +18,14 @@ type protocolOptions = {
     (* Handshake specific options *)
     honourHelloReq: helloReqPolicy
     allowAnonCipherSuite: bool
+    certificateValidationPolicy: pri_cert list -> bool
     
     (* Sessions database *)
     sessionDBFileName: string
     sessionDBExpiry: System.TimeSpan
     }
+
+let defaultCertificateValidationPolicy certList = true
 
 let defaultProtocolOptions ={
     minVer = ProtocolVersionType.SSL_3p0
@@ -38,6 +42,7 @@ let defaultProtocolOptions ={
 
     honourHelloReq = HRPResume
     allowAnonCipherSuite = false
+    certificateValidationPolicy = defaultCertificateValidationPolicy
 
     sessionDBFileName = "sessionDBFile.bin"
     sessionDBExpiry = new System.TimeSpan(2,0,0,0) (* two days *)

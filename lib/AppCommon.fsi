@@ -2,6 +2,7 @@
 
 open Formats
 open HS_ciphersuites
+open Principal
 
 type helloReqPolicy =
     | HRPIgnore
@@ -17,6 +18,7 @@ type protocolOptions = {
     (* Handshake specific options *)
     honourHelloReq: helloReqPolicy
     allowAnonCipherSuite: bool
+    certificateValidationPolicy: pri_cert list -> bool
 
     (* Sessions database *)
     sessionDBFileName: string

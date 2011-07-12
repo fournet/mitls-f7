@@ -268,7 +268,7 @@ let cipherSuite_of_bytes b =
 
 let isAnonCipherSuite cs =
     match cs with
-    |  TLS_DH_anon_EXPORT_WITH_RC4_40_MD5    -> true
+    | TLS_DH_anon_EXPORT_WITH_RC4_40_MD5     -> true
     | TLS_DH_anon_WITH_RC4_128_MD5           -> true
     | TLS_DH_anon_EXPORT_WITH_DES40_CBC_SHA  -> true
     | TLS_DH_anon_WITH_DES_CBC_SHA           -> true
@@ -280,4 +280,28 @@ let isAnonCipherSuite cs =
     | TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA    -> true
     | TLS_ECDH_anon_WITH_AES_128_CBC_SHA     -> true
     | TLS_ECDH_anon_WITH_AES_256_CBC_SHA     -> true
+    | _ -> false
+
+let cipherSuiteRequiresKeyExchange cs =
+    match cs with
+    | TLS_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA  -> true
+    | TLS_DHE_DSS_WITH_DES_CBC_SHA           -> true
+    | TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA      -> true
+    | TLS_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA  -> true
+    | TLS_DHE_RSA_WITH_DES_CBC_SHA           -> true
+    | TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA      -> true
+    | TLS_DHE_DSS_WITH_AES_128_CBC_SHA       -> true
+    | TLS_DHE_RSA_WITH_AES_128_CBC_SHA       -> true
+    | TLS_DHE_DSS_WITH_AES_256_CBC_SHA       -> true
+    | TLS_DHE_RSA_WITH_AES_256_CBC_SHA       -> true
+    | TLS_ECDHE_ECDSA_WITH_NULL_SHA          -> true
+    | TLS_ECDHE_ECDSA_WITH_RC4_128_SHA       -> true
+    | TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA  -> true
+    | TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA   -> true
+    | TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA   -> true
+    | TLS_ECDHE_RSA_WITH_NULL_SHA            -> true
+    | TLS_ECDHE_RSA_WITH_RC4_128_SHA         -> true
+    | TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA    -> true
+    | TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA     -> true
+    | TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA     -> true
     | _ -> false
