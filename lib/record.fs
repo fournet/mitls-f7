@@ -78,7 +78,7 @@ let create ns info minpv =
     let outDir = outdir info in
     let sendState = initConnState ns info outDir minpv in
     let inDir = indir info in
-    let recvState = initConnState ns info inDir UnknownPV in
+    let recvState = initConnState ns info inDir ProtocolVersionType.UnknownPV in
     (sendState, recvState)
 
 let max_TLSPlaintext_fragment_length = 1<<<14
@@ -139,12 +139,11 @@ let compute_mac conn_state ct data =
         let bct = bytes_of_contentType ct in
         let bver = bytes_of_protocolVersionType version in
         match version with
-        | SSL_2p0 -> Error (MAC, Unsupported)
-        | SSL_3p0 -> compute_mac_ssl3 mac_alg mac_key bseq_num bct data
-        | x when x = TLS_1p0 || x = TLS_1p1 || x = TLS_1p2 -> 
+        | ProtocolVersionType.SSL_2p0 -> Error (MAC, Unsupported)
+        | ProtocolVersionType.SSL_3p0 -> compute_mac_ssl3 mac_alg mac_key bseq_num bct data
+        | x when x = ProtocolVersionType.TLS_1p0 || x = ProtocolVersionType.TLS_1p1 || x = ProtocolVersionType.TLS_1p2 -> 
             compute_mac_tls mac_alg mac_key bseq_num bct bver data
-        | UnknownPV -> 
-            unexpectedError "[compute_mac] only to be invoked after a version has been negotiated"
+        | _ -> unexpectedError "[compute_mac] only to be invoked after a version has been negotiated"
 
 let compute_padlen sp data =
     let bs = get_block_cipher_size sp.bulk_cipher_algorithm in
@@ -173,13 +172,13 @@ let get_last_block bs (msg:bytes) =
 let compute_next_iv version bulk_cipher_algorithm ciphertext =
     let bs = get_block_cipher_size bulk_cipher_algorithm in
     match version with
-    | x when x = TLS_1p1 || x = TLS_1p2 ->
+    | x when x = ProtocolVersionType.TLS_1p1 || x = ProtocolVersionType.TLS_1p2 ->
         let r = Crypto.mkRandom bs (* Only used when sending data *) in
           Pi.assume (Crypto.PubNonce(r)); r
-    | x when x = SSL_3p0 || x = TLS_1p1 ->
+    | x when x = ProtocolVersionType.SSL_3p0 || x = ProtocolVersionType.TLS_1p1 ->
         get_last_block bs ciphertext
-    | x when x = UnknownPV -> unexpectedError "[compute_next_iv] Protocol version must be known when computing IV"
-    | x when x = SSL_2p0 -> unexpectedError "[compute_next_iv] Unsupported protocol version, but the caller should not invoke us."
+    | x when x = ProtocolVersionType.SSL_2p0 -> unexpectedError "[compute_next_iv] Unsupported protocol version, but the caller should not invoke us."
+    | _ -> unexpectedError "[compute_next_iv] Protocol version must be known when computing IV"
 
 let encrypt_fun bca key iv data =
     match bca with
@@ -196,13 +195,13 @@ let encrypt_block conn_state data =
         | Correct encrypted ->
         let ver = conn_state.protocol_version in
         match ver with
-        | SSL_2p0 -> Error(Encryption,Unsupported)
+        | ProtocolVersionType.SSL_2p0 -> Error(Encryption,Unsupported)
         | _ ->
         let new_iv = compute_next_iv ver bca encrypted in
         let conn_state = { conn_state with cipher_state = BlockCipherState(key,new_iv) } in
         match ver with
-        | x when x = TLS_1p1 || x = TLS_1p2 -> let data = append iv encrypted in correct (conn_state, data)
-        | x when x = SSL_3p0 || x = TLS_1p0 -> correct (conn_state, encrypted)
+        | x when x = ProtocolVersionType.TLS_1p1 || x = ProtocolVersionType.TLS_1p2 -> let data = append iv encrypted in correct (conn_state, data)
+        | x when x = ProtocolVersionType.SSL_3p0 || x = ProtocolVersionType.TLS_1p0 -> correct (conn_state, encrypted)
     | _ -> unexpectedError "[encrypt_block] invoked on non BlockCipherState"
 
 let encrypt conn_state data =
@@ -263,10 +262,10 @@ let parse_header header =
 let get_iv_ciphertext version bulk_cipher_algorithm iv ciphertext =
     let bs = get_block_cipher_size bulk_cipher_algorithm in
     match version with
-    | x when x = TLS_1p1 || x = TLS_1p2 -> (iv,ciphertext)
-    | x when x = SSL_3p0 || x = TLS_1p0 -> (split ciphertext bs)
-    | x when x = UnknownPV -> unexpectedError "[get_iv_ciphertext] Protocol version must be known when getting the IV"
-    | x when x = SSL_2p0 -> unexpectedError "[get_iv_ciphertext] Unsupported protocol version, but the caller should ensure we are not called."
+    | x when x = ProtocolVersionType.TLS_1p1 || x = ProtocolVersionType.TLS_1p2 -> (iv,ciphertext)
+    | x when x = ProtocolVersionType.SSL_3p0 || x = ProtocolVersionType.TLS_1p0 -> (split ciphertext bs)
+    | x when x = ProtocolVersionType.SSL_2p0 -> unexpectedError "[get_iv_ciphertext] Unsupported protocol version, but the caller should ensure we are not called."
+    | _ -> unexpectedError "[get_iv_ciphertext] Protocol version must be known when getting the IV"
 
 
 let decrypt_fun block_cipher_algorithm key iv data  =
@@ -320,22 +319,22 @@ let check_padding version (data:bytes) =
     let padstart = dlen - padlen - 1 in
     let (data_no_pad,pad) = split tmpdata padstart in
     match version with
-    | v when v = TLS_1p0 || v = TLS_1p1 || v = TLS_1p2 ->
+    | v when v = ProtocolVersionType.TLS_1p0 || v = ProtocolVersionType.TLS_1p1 || v = ProtocolVersionType.TLS_1p2 ->
         let expected = createBytes padlen padlen in
         if equalBytes expected pad then
             check_padding_cont data_no_pad
         else
             (* in TLS1.0 we fail now, in more recent versions we fail later, see sec.6.2.3.2 Implementation Note *)
-            if  v = TLS_1p0 then
+            if  v = ProtocolVersionType.TLS_1p0 then
                 Error (RecordPadding,CheckFailed)
             else
                 (* Pretend we have a valid padding of length zero *)
                 check_padding_cont data
-    | SSL_3p0 ->
+    | ProtocolVersionType.SSL_3p0 ->
         (* Padding is random in SSL_3p0, no check to be done *)
         check_padding_cont data_no_pad
-    | SSL_2p0 -> Error(RecordPadding,Unsupported)
-    | UnknownPV -> unexpectedError "[check_padding] Protocol version should be known when checking the padding."
+    | ProtocolVersionType.SSL_2p0 -> Error(RecordPadding,Unsupported)
+    | _ -> unexpectedError "[check_padding] Protocol version should be known when checking the padding."
 
 let parse_plaintext conn_state data =
     let result_depadding =
@@ -363,7 +362,7 @@ let verify_mac conn ct compr givenmac =
         let bct = bytes_of_contentType ct in
         let bver = bytes_of_protocolVersionType version in
         match version with
-        | SSL_3p0 ->
+        | ProtocolVersionType.SSL_3p0 ->
             let mmsg = compute_mac_ssl_blob bseq_num bct compr in
             match mac_alg with
             | MA_md5 ->
@@ -371,15 +370,14 @@ let verify_mac conn ct compr givenmac =
             | MA_sha1 ->
                 keyedHashVerify sha1 ssl_pad1_sha1 ssl_pad2_sha1 mac_key mmsg givenmac
             | _ -> Error (MAC, Unsupported)
-        | v when v = TLS_1p0 || v = TLS_1p1 || v = TLS_1p2 ->
+        | v when v = ProtocolVersionType.TLS_1p0 || v = ProtocolVersionType.TLS_1p1 || v = ProtocolVersionType.TLS_1p2 ->
             let data = compute_mac_tls_blob bseq_num bct bver compr in
             match mac_alg with
             | MA_md5 -> hmacmd5Verify mac_key data givenmac
             | MA_sha1 -> hmacsha1Verify mac_key data givenmac
             | _ -> Error (MAC, Unsupported)
-        | UnknownPV -> 
-            unexpectedError "[verify_mac] only to be invoked after a version has been negotiated"
-        | SSL_2p0 -> Error (MAC, Unsupported)
+        | ProtocolVersionType.SSL_2p0 -> Error (MAC, Unsupported)
+        | _ -> unexpectedError "[verify_mac] only to be invoked after a version has been negotiated"
  
 let recv conn =
     let net = conn.net_conn in
@@ -387,7 +385,7 @@ let recv conn =
     | Error (x,y) -> Error (x,y)
     | Correct header ->
     let (ct,pv,len) = parse_header header in
-    if (conn.protocol_version <> UnknownPV && pv <> conn.protocol_version) || pv = UnknownPV then
+    if (conn.protocol_version <> ProtocolVersionType.UnknownPV && pv <> conn.protocol_version) || pv = ProtocolVersionType.UnknownPV then
         Error (RecordVersion,CheckFailed)
     else
         (* We commit to the received protocol version.

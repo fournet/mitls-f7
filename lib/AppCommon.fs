@@ -24,8 +24,8 @@ type protocolOptions = {
     }
 
 let defaultProtocolOptions ={
-    minVer = SSL_3p0
-    maxVer = TLS_1p2
+    minVer = ProtocolVersionType.SSL_3p0
+    maxVer = ProtocolVersionType.TLS_1p2
     ciphersuites = [ TLS_RSA_WITH_AES_128_CBC_SHA;
                     TLS_RSA_WITH_RC4_128_MD5;
                     TLS_RSA_WITH_RC4_128_SHA;       

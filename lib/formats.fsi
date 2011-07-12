@@ -21,12 +21,12 @@ type Compression =
     | UnknownComp of int
 
 type ProtocolVersionType =
-    | SSL_2p0
-    | SSL_3p0
-    | TLS_1p0
-    | TLS_1p1
-    | TLS_1p2
-    | UnknownPV
+    | SSL_2p0 = 10
+    | SSL_3p0 = 20
+    | TLS_1p0 = 30
+    | TLS_1p1 = 40
+    | TLS_1p2 = 50
+    | UnknownPV = -1
 
 type preds =
     | PrintThis

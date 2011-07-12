@@ -347,7 +347,7 @@ let recv_fragment (hs_state:hs_state) (fragment:fragment) =
          | HT_certificate ->
             match cState with
             | Certificate ->
-                
+                (* TODO *) (Error (HandshakeProto,Unsupported), hs_state)
             | _ -> (* Certificate arrived in the wrong state *) (Error (HandshakeProto,InvalidState), hs_state)
          | _ -> (* Unsupported/Wrong message *) (Error (HandshakeProto,Unsupported), hs_state)
     

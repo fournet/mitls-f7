@@ -84,12 +84,12 @@ let compression_of_bytes b =
     | x -> UnknownComp x
 
 type ProtocolVersionType =
-    | SSL_2p0
-    | SSL_3p0
-    | TLS_1p0
-    | TLS_1p1
-    | TLS_1p2
-    | UnknownPV
+    | SSL_2p0 = 10
+    | SSL_3p0 = 20
+    | TLS_1p0 = 30
+    | TLS_1p1 = 40
+    | TLS_1p2 = 50
+    | UnknownPV = -1
 
 let intpair_of_bytes (msg: bytes) : (int*int) =
   let (msg1,msg2) = split msg 1 in 
@@ -120,26 +120,27 @@ let TLS1p2 = bytes_of_intpair (3,3)
 
 let bytes_of_protocolVersionType pv =
     match pv with
-    | SSL_2p0 -> SSLv2
-    | SSL_3p0 -> SSLv3
-    | TLS_1p0 -> TLS1p0
-    | TLS_1p1 -> TLS1p1
-    | TLS_1p2 -> TLS1p2
-    | UnknownPV -> failwith "Cannot convert the Unknown protocol version to bytes"
+    | ProtocolVersionType.SSL_2p0 -> SSLv2
+    | ProtocolVersionType.SSL_3p0 -> SSLv3
+    | ProtocolVersionType.TLS_1p0 -> TLS1p0
+    | ProtocolVersionType.TLS_1p1 -> TLS1p1
+    | ProtocolVersionType.TLS_1p2 -> TLS1p2
+    | ProtocolVersionType.UnknownPV -> failwith "Cannot convert the Unknown protocol version to bytes"
+    | _ -> failwith "Cannot convert the Unknown protocol version to bytes"
 
 let protocolVersionType_of_bytes value =
     if value = SSLv2 then
-        SSL_2p0
+        ProtocolVersionType.SSL_2p0
     elif value = SSLv3 then
-        SSL_3p0
+        ProtocolVersionType.SSL_3p0
     elif value = TLS1p0 then
-        TLS_1p0
+        ProtocolVersionType.TLS_1p0
     elif value = TLS1p1 then
-        TLS_1p1
+        ProtocolVersionType.TLS_1p1
     elif value = TLS1p2 then
-        TLS_1p2
+        ProtocolVersionType.TLS_1p2
     else
-        UnknownPV
+        ProtocolVersionType.UnknownPV
 
 (* A.6. The Security Parameters *)
 
