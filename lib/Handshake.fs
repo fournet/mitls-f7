@@ -15,6 +15,7 @@ open Principal
 
 type clientSpecificState =
     { resumed_session: bool
+      client_certificate: pri_cert Option
     }
 
 type clientState =
@@ -22,9 +23,9 @@ type clientState =
     | Certificate of SessionInfo (* the session we're creating *)
     | ServerKeyExchange of SessionInfo (* Same as above *)
     | CertReqOrSHDone of SessionInfo (* Same as above *)
-    | CSHDone of SessionInfo (* Same as above *)
-    | CCCS of clientSpecificState
-    | CFinished of clientSpecificState
+    | CSHDone of SessionInfo * clientSpecificState
+    | CCCS of SessionInfo * clientSpecificState
+    | CFinished of SessionInfo * clientSpecificState
     | CIdle
 
 type serverState =
@@ -191,7 +192,59 @@ let parseCertificate data =
     | Error(x,y) -> Error(x,y)
     | Correct(certList) -> correct({certificate_list = certList})
 
-let parseCertReq ver data = Error(HSParsing,Internal)
+let rec certTypeList_of_bytes data res =
+    if length data > 1 then
+        let (thisByte,data) = split data 1 in
+        let thisInt = int_of_bytes 1 thisByte in
+        let res = [enum<ClientCertType>thisInt] @ res in
+        certTypeList_of_bytes data res
+    else
+        let thisInt = int_of_bytes 1 data in
+        [enum<ClientCertType>thisInt] @ res
+
+let rec sigAlgsList_of_bytes data res =
+    if length data > 2 then
+        let (thisFieldBytes,data) = split data 2 in
+        let (thisHashB,thisSigB) = split thisFieldBytes 1 in
+        let thisHash = int_of_bytes 1 thisHashB in
+        let thisSig = int_of_bytes 1 thisSigB in
+        let thisField = {SaHA_hash = enum<HashAlg>thisHash; SaHA_signature = enum<SigAlg>thisSig} in
+        let res = [thisField] @ res in
+        sigAlgsList_of_bytes data res
+    else
+        let (thisHashB,thisSigB) = split data 1 in
+        let thisHash = int_of_bytes 1 thisHashB in
+        let thisSig = int_of_bytes 1 thisSigB in
+        let thisField = {SaHA_hash = enum<HashAlg>thisHash; SaHA_signature = enum<SigAlg>thisSig} in
+        [thisField] @ res
+
+let rec distNamesList_of_bytes data res =
+    if length data > 0 then
+        let (nameBytes,data) = split_varLen data 2 in
+        let name = iutf8 nameBytes in (* FIXME: I have no idea wat "X501 represented in DER-encoding format" (RFC 5246, page 54) is. I assume UTF8 will do. *)
+        let res = [name] @ res in
+        distNamesList_of_bytes data res
+    else
+        res
+
+let parseCertReq ver data =
+    let (certTypeListBytes,data) = split_varLen data 1 in
+    let certTypeList = certTypeList_of_bytes certTypeListBytes [] in
+    let (sigAlgs,data) = (
+        if ver = ProtocolVersionType.TLS_1p2 then
+            let (sigAlgsBytes,data) = split_varLen data 2 in
+            let sigAlgsList = sigAlgsList_of_bytes sigAlgsBytes [] in
+            (Some(sigAlgsList),data)
+        else
+            (None,data)) in
+    let (distNamesBytes,_) = split_varLen data 2 in
+    let distNamesList = distNamesList_of_bytes distNamesBytes [] in
+    { client_certificate_type = certTypeList;
+      signature_and_hash_algorithm = sigAlgs;
+      certificate_authorities = distNamesList}
+
+let find_client_cert certReqMsg =
+    (* TODO *) None
 
 let init_handshake role poptions =
     let info = init_sessionInfo role in
@@ -376,8 +429,8 @@ let recv_fragment (hs_state:hs_state) (fragment:fragment) =
                                             if sinfo.more_info.mi_protocol_version = shello.server_version then
                                                 if sinfo.more_info.mi_cipher_suite = shello.cipher_suite then
                                                     if sinfo.more_info.mi_compression = shello.compression_method then
-                                                        let clSpecState = {resumed_session = true} in
-                                                        let hs_state = { hs_state with pstate = Client(CCCS(clSpecState))}
+                                                        let clSpecState = {resumed_session = true; client_certificate = None} in
+                                                        let hs_state = { hs_state with pstate = Client(CCCS(sinfo,clSpecState))}
                                                         (correct (HSAck), hs_state)
                                                     else (Error(HandshakeProto,CheckFailed),hs_state)
                                                 else (Error(HandshakeProto,CheckFailed),hs_state)
@@ -427,15 +480,16 @@ let recv_fragment (hs_state:hs_state) (fragment:fragment) =
         | HT_certificate_request ->
             match cState with
             | CertReqOrSHDone(sinfo) ->
-                match parseCertReq sinfo.more_info.mi_protocol_version payload with
-                | Error(x,y) -> (Error(x,y),hs_state)
-                | Correct(certReqMsg) ->
-                    (* TODO *) (Error (HandshakeProto,Unsupported), hs_state)
+                let certReqMsg = parseCertReq sinfo.more_info.mi_protocol_version payload in
+                let client_cert = find_client_cert certReqMsg in
+                let clSpecState = {resumed_session = false; client_certificate = client_cert} in
+                let hs_state = {hs_state with pstate = Client(CSHDone(sinfo,clSpecState))} in
+                (correct(HSAck),hs_state)
             | _ -> (* Certificate Request arrived in the wrong state *) (Error (HandshakeProto,InvalidState), hs_state)
         | HT_server_hello_done ->
             match cState with
             | CertReqOrSHDone(sinfo) -> (* TODO *) (Error (HandshakeProto,Unsupported), hs_state)
-            | CSHDone(sinfo) -> (* TODO *) (Error (HandshakeProto,Unsupported), hs_state)
+            | CSHDone(sinfo,clSpecState) -> (* TODO *) (Error (HandshakeProto,Unsupported), hs_state)
             | _ -> (* Server Hello Done arrived in the wrong state *) (Error (HandshakeProto,InvalidState), hs_state)
         | _ -> (* Unsupported/Wrong message *) (Error (HandshakeProto,Unsupported), hs_state)
     

@@ -87,25 +87,25 @@ type certificate = { certificate_list: pri_cert list }
 
 (* Certificate Request *)
 type ClientCertType =
-    | CLT_RSA_Sign = 1uy
-    | CLT_DSS_Sign = 2uy
-    | CLT_RSA_Fixed_DH = 3uy
-    | CLT_DSS_Fixed_DH = 4uy
+    | CLT_RSA_Sign = 1
+    | CLT_DSS_Sign = 2
+    | CLT_RSA_Fixed_DH = 3
+    | CLT_DSS_Fixed_DH = 4
 
 type HashAlg =
-    | HA_None = 0uy
-    | HA_md5 = 1uy
-    | HA_sha1 = 2uy
-    | HA_sha224 = 2uy
-    | HA_sha256 = 4uy
-    | HA_sha384 = 5uy
-    | HA_sha512 = 6uy
+    | HA_None = 0
+    | HA_md5 = 1
+    | HA_sha1 = 2
+    | HA_sha224 = 3
+    | HA_sha256 = 4
+    | HA_sha384 = 5
+    | HA_sha512 = 6
 
 type SigAlg =
-    | SA_anonymous = 0uy
-    | SA_rsa = 1uy
-    | SA_dsa = 2uy
-    | SA_ecdsa = 3uy
+    | SA_anonymous = 0
+    | SA_rsa = 1
+    | SA_dsa = 2
+    | SA_ecdsa = 3
 
 type SigAndHashAlg = {
     SaHA_hash: HashAlg;
@@ -115,6 +115,7 @@ type SigAndHashAlg = {
 type certificateRequest = {
     client_certificate_type: ClientCertType list
     signature_and_hash_algorithm: (SigAndHashAlg list) Option (* Some(x) for TLS 1.2, None for previous versions *)
+    certificate_authorities: string list
     }
 
 (* Server Hello Done *)
