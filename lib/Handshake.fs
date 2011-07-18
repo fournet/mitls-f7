@@ -59,6 +59,12 @@ type HSFragReply =
   | HSFullyFinished_Write of SessionInfo
   | CCSFrag of bytes * ccs_data
 
+let get_next_bytes data frag_len =
+    if frag_len >= length data then
+        (data,empty_bstr)
+    else
+        split data frag_len
+
 let next_fragment state len =
     (* FIXME: The buffer we read from should depend on the state of the protocol,
        and not on whether a buffer is full or not, otherwise we cannot recognize the
@@ -75,7 +81,7 @@ let next_fragment state len =
                                     hs_outgoing_after_ccs = empty_bstr}
             (CCSFrag (ccs,ciphsuite), state)
     | d ->
-        let (f,rem) = split d len in
+        let (f,rem) = get_next_bytes d len in
         let state = {state with hs_outgoing = rem} in
         (HSFrag(f),state)
 
