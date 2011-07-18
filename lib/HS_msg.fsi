@@ -59,7 +59,37 @@ type certificate = { certificate_list: pri_cert list }
 (* TODO *)
 
 (* Certificate Request *)
-(* TODO *)
+type ClientCertType =
+    | CLT_RSA_Sign = 1uy
+    | CLT_DSS_Sign = 2uy
+    | CLT_RSA_Fixed_DH = 3uy
+    | CLT_DSS_Fixed_DH = 4uy
+
+type HashAlg =
+    | HA_None = 0uy
+    | HA_md5 = 1uy
+    | HA_sha1 = 2uy
+    | HA_sha224 = 2uy
+    | HA_sha256 = 4uy
+    | HA_sha384 = 5uy
+    | HA_sha512 = 6uy
+
+type SigAlg =
+    | SA_anonymous = 0uy
+    | SA_rsa = 1uy
+    | SA_dsa = 2uy
+    | SA_ecdsa = 3uy
+
+type SigAndHashAlg = {
+    SaHA_hash: HashAlg;
+    SaHA_signature: SigAlg;
+    }
+
+type certificateRequest = {
+    client_certificate_type: ClientCertType list
+    signature_and_hash_algorithm: (SigAndHashAlg list) Option (* Some(x) for TLS 1.2, None for previous versions *)
+    (* TODO: cert auths *)
+    }
 
 (* Server Hello Done *)
 type serverHelloDone = bytes (* empty bitstring *)

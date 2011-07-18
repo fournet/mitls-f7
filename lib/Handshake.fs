@@ -13,14 +13,18 @@ open Crypto
 open AppCommon
 open Principal
 
+type clientSpecificState =
+    { resumed_session: bool
+    }
+
 type clientState =
     | ServerHello of SessionInfo Option (* client proposed session to be resumed, useful to check wether we're going to do resumption or full negotiation *)
     | Certificate of SessionInfo (* the session we're creating *)
     | ServerKeyExchange of SessionInfo (* Same as above *)
     | CertReqOrSHDone of SessionInfo (* Same as above *)
     | CSHDone of SessionInfo (* Same as above *)
-    | CCCS of bool (* true: we're in session resumption; false: we're in full handshake *)
-    | CFinished of bool (* true: we're in session resumption; false: we're in full handshake *)
+    | CCCS of clientSpecificState
+    | CFinished of clientSpecificState
     | CIdle
 
 type serverState =
@@ -180,6 +184,8 @@ let parseCertificate data =
     match parseCertificate_int certList [] with
     | Error(x,y) -> Error(x,y)
     | Correct(certList) -> correct({certificate_list = certList})
+
+let parseCertReq ver data = Error(HSParsing,Internal)
 
 let init_handshake role poptions =
     let info = init_sessionInfo role in
@@ -364,7 +370,8 @@ let recv_fragment (hs_state:hs_state) (fragment:fragment) =
                                             if sinfo.more_info.mi_protocol_version = shello.server_version then
                                                 if sinfo.more_info.mi_cipher_suite = shello.cipher_suite then
                                                     if sinfo.more_info.mi_compression = shello.compression_method then
-                                                        let hs_state = { hs_state with pstate = Client(CCCS(true))}
+                                                        let clSpecState = {resumed_session = true} in
+                                                        let hs_state = { hs_state with pstate = Client(CCCS(clSpecState))}
                                                         (correct (HSAck), hs_state)
                                                     else (Error(HandshakeProto,CheckFailed),hs_state)
                                                 else (Error(HandshakeProto,CheckFailed),hs_state)
@@ -414,12 +421,15 @@ let recv_fragment (hs_state:hs_state) (fragment:fragment) =
         | HT_certificate_request ->
             match cState with
             | CertReqOrSHDone(sinfo) ->
-                (* TODO *) (Error (HandshakeProto,Unsupported), hs_state)
+                match parseCertReq sinfo.more_info.mi_protocol_version payload with
+                | Error(x,y) -> (Error(x,y),hs_state)
+                | Correct(certReqMsg) ->
+                    (* TODO *) (Error (HandshakeProto,Unsupported), hs_state)
             | _ -> (* Certificate Request arrived in the wrong state *) (Error (HandshakeProto,InvalidState), hs_state)
         | HT_server_hello_done ->
             match cState with
-            | CertReqOrSHDone(sinfo) ->
-            | CSHDone(sinfo) ->
+            | CertReqOrSHDone(sinfo) -> (* TODO *) (Error (HandshakeProto,Unsupported), hs_state)
+            | CSHDone(sinfo) -> (* TODO *) (Error (HandshakeProto,Unsupported), hs_state)
             | _ -> (* Server Hello Done arrived in the wrong state *) (Error (HandshakeProto,InvalidState), hs_state)
         | _ -> (* Unsupported/Wrong message *) (Error (HandshakeProto,Unsupported), hs_state)
     
