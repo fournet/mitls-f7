@@ -51,6 +51,8 @@ type pre_hs_state = {
   poptions: protocolOptions;
   pstate : protoState
   hs_msg_log: bytes
+  hs_client_random: bytes
+  hs_server_random: bytes
 }
 
 type hs_state = pre_hs_state
@@ -151,7 +153,7 @@ let makeCHelloBytes poptions session =
     let ccsuitesB = bytes_of_cipherSuites cHello.cipher_suites in
     let ccompmethB = bytes_of_compressionMethods cHello.compression_methods in
     let data = appendList [cVerB; random; csessB; ccsuitesB; ccompmethB; cHello.extensions] in
-    makeHSPacket HT_client_hello data
+    ((makeHSPacket HT_client_hello data),random)
 
 let bytes_of_certificates certList =
     let certListB = List.map bytes_of_certificate certList in
@@ -246,6 +248,62 @@ let makeCertificateVerifyBytes cert data pv certReqMsg=
         (* TODO *) Error (HandshakeProto,Unsupported)
     | _ -> Error (HandshakeProto,Unsupported)
 
+let compute_master_secret pms ver crandom srandom = 
+    match ver with 
+    | ProtocolVersionType.SSL_3p0 -> ssl_prf pms (append crandom srandom) 48
+    | x when x = ProtocolVersionType.TLS_1p0 || x = ProtocolVersionType.TLS_1p1 ->
+        prf pms "master secret" (append crandom srandom) 48
+    | ProtocolVersionType.TLS_1p2 -> tls12prf pms "master secret" (append crandom srandom) 48
+    | _ -> Error (HandshakeProto,Unsupported)
+
+let expand_master_secret ver ms crandom srandom nb = 
+  match ver with 
+  | ProtocolVersionType.SSL_3p0 -> ssl_prf ms (append srandom crandom) nb
+  | x when x = ProtocolVersionType.TLS_1p0 || x = ProtocolVersionType.TLS_1p1 ->
+        prf ms "key expansion" (append srandom crandom) nb
+  | ProtocolVersionType.TLS_1p2 -> tls12prf ms "key expansion" (append srandom crandom) nb
+  | _ -> Error (HandshakeProto,Unsupported)
+
+let split_key_block key_block hsize ksize ivsize = 
+  let cmk = Array.sub key_block 0 hsize in
+  let smk = Array.sub key_block hsize hsize in
+  let cek = Array.sub key_block (2*hsize) ksize in
+  let sek = Array.sub key_block (2*hsize+ksize) ksize in
+  let civ = Array.sub key_block (2*hsize+2*ksize) ivsize in
+  let siv = Array.sub key_block (2*hsize+2*ksize+ivsize) ivsize in
+  (cmk,smk,cek,sek,civ,siv)
+
+let generateKeys role cr sr pv cs ms =
+  match securityParameters_of_ciphersuite cs with
+  | Error (x,y) -> Error(x,y)
+  | Correct (sp) ->
+      (* RFC2246 uses the field IV_size without defining it *)
+      let hsize = get_hash_size sp.mac_algorithm in
+      let ksize = get_block_cipher_size sp.bulk_cipher_algorithm in
+      let ivsize = 
+        if pv >= ProtocolVersionType.TLS_1p1 then
+            0
+        else
+            ksize
+      let nb = 2 * (hsize + ksize + ivsize) in
+      match expand_master_secret pv ms cr sr nb with
+      | Error (x,y) -> Error (x,y)
+      | Correct (key_block) ->
+          let (cmk,smk,cek,sek,civ,siv) = split_key_block key_block hsize ksize ivsize in 
+          let civ,siv = 
+            if pv >= ProtocolVersionType.TLS_1p1 then
+              let iv = Crypto.mkRandom ksize in
+              iv,iv
+            else
+              civ,siv
+          in
+          let rmk,rek,riv,wmk,wek,wiv = 
+            match role with 
+              | ClientRole -> smk,sek,siv,cmk,cek,civ
+              | ServerRole -> cmk,cek,civ,smk,sek,siv
+          in
+          correct ((sp,rmk,rek,riv,wmk,wek,wiv))
+
 let split_varLen data lenSize =
     let (lenBytes,data) = split data lenSize in
     let len = int_of_bytes lenSize lenBytes in
@@ -263,12 +321,13 @@ let parseSHello data =
     let cs = cipherSuite_of_bytes csBytes in
     let (cmBytes,data) = split data 1 in
     let cm = compression_of_bytes cmBytes in
-    { server_version = serverVer
-      sh_random = serverRdm
-      sh_session_id = sid
-      cipher_suite = cs
-      compression_method = cm
-      neg_extensions = data}
+    ({ server_version = serverVer
+       sh_random = serverRdm
+       sh_session_id = sid
+       cipher_suite = cs
+       compression_method = cm
+       neg_extensions = data},
+      append serverTsBytes serverRdmBytes)
 
 let rec parseCertificate_int toProcess list =
     if equalBytes toProcess empty_bstr then
@@ -352,7 +411,7 @@ let prepare_output hs_state clSpecState sinfo =
     match makeClientKEXBytes hs_state clSpecState sinfo with
     | Error (x,y) -> Error (x,y)
     | Correct (clientKEXBytes) ->
-        let certificateVerifyBytes =
+        let certificateVerifyBytesResult =
             match sinfo.clientID with
             | None ->
                 (* No client certificate ==> no certificateVerify message *)
@@ -366,24 +425,35 @@ let prepare_output hs_state clSpecState sinfo =
                         makeCertificateVerifyBytes cert to_sign sinfo.more_info.mi_protocol_version certReqMsg
                 else
                     correct (empty_bstr)
+        match certificateVerifyBytesResult with
+        | Error (x,y) -> Error (x,y)
+        | Correct (certificateVerifyBytes) ->
+            (* Enqueue current messages *)
+            let to_send = appendList [clientCertBytes;clientKEXBytes;certificateVerifyBytes] in
+            let new_outgoing = append hs_state.hs_outgoing to_send in
+            let hs_state = {hs_state with hs_outgoing = new_outgoing} in
 
-        let to_send = appendList [clientCertBytes;clientKEXBytes] in
-        let new_outgoing = append hs_state.hs_outgoing to_send in
-        let hs_state = {hs_state with hs_outgoing = new_outgoing} in
-        correct ((hs_state,sinfo))
+            (* Handle CCS and Finished, including computation of session secrets *)
+            match compute_master_secret sinfo.more_info.mi_pms sinfo.more_info.mi_protocol_version hs_state.hs_client_random hs_state.hs_server_random with
+            | Error (x,y) -> Error(x,y)
+            | Correct(ms) ->
+                correct ((hs_state,sinfo))
 
 let init_handshake role poptions =
     let info = init_sessionInfo role in
     match role with
     | ClientRole ->
-        let state = {hs_outgoing = makeCHelloBytes poptions empty_bstr
+        let (cHelloBytes,client_random) = makeCHelloBytes poptions empty_bstr in
+        let state = {hs_outgoing = cHelloBytes
                      ccs_outgoing = None
                      hs_outgoing_after_ccs = empty_bstr
                      hs_incoming = empty_bstr
                      hs_info = info
                      poptions = poptions
                      pstate = Client (ServerHello(None))
-                     hs_msg_log = empty_bstr} in
+                     hs_msg_log = empty_bstr
+                     hs_client_random = client_random
+                     hs_server_random = empty_bstr} in
         (info,state)
     | ServerRole ->
         let state = {hs_outgoing = empty_bstr
@@ -393,7 +463,9 @@ let init_handshake role poptions =
                      hs_info = info
                      poptions = poptions
                      pstate = Server (ClientHello)
-                     hs_msg_log = empty_bstr} in
+                     hs_msg_log = empty_bstr
+                     hs_client_random = empty_bstr
+                     hs_server_random = empty_bstr} in
         (info,state)
 
 let resume_handshake role info poptions =
@@ -407,14 +479,17 @@ let resume_handshake role info poptions =
         | Some (_) ->
             match role with
             | ClientRole ->
-                let state = {hs_outgoing = makeCHelloBytes poptions sid
+                let (cHelloBytes,client_random) = makeCHelloBytes poptions sid in
+                let state = {hs_outgoing = cHelloBytes
                              ccs_outgoing = None
                              hs_outgoing_after_ccs = empty_bstr
                              hs_incoming = empty_bstr
                              hs_info = info
                              poptions = poptions
                              pstate = Client (ServerHello(Some(info)))
-                             hs_msg_log = empty_bstr} in
+                             hs_msg_log = empty_bstr
+                             hs_client_random = client_random
+                             hs_server_random = empty_bstr} in
                 state
             | ServerRole ->
                 let state = {hs_outgoing = empty_bstr
@@ -424,7 +499,9 @@ let resume_handshake role info poptions =
                              hs_info = info
                              poptions = poptions
                              pstate = Server (ClientHello)
-                             hs_msg_log = empty_bstr} in
+                             hs_msg_log = empty_bstr
+                             hs_client_random = empty_bstr
+                             hs_server_random = empty_bstr} in
                 state
 
 let start_rehandshake (state:hs_state) (ops:protocolOptions) =
@@ -449,7 +526,9 @@ let new_session_idle state new_info =
          hs_info = new_info;
          poptions = state.poptions;
          pstate = Client(CIdle);
-         hs_msg_log = empty_bstr}
+         hs_msg_log = empty_bstr
+         hs_client_random = empty_bstr
+         hs_server_random = empty_bstr}
     | Server (s) ->
         {hs_outgoing = empty_bstr;
          ccs_outgoing = None;
@@ -458,7 +537,9 @@ let new_session_idle state new_info =
          hs_info = new_info;
          poptions = state.poptions;
          pstate = Server(SIdle);
-         hs_msg_log = empty_bstr}
+         hs_msg_log = empty_bstr
+         hs_client_random = empty_bstr
+         hs_server_random = empty_bstr}
 
 let enqueue_fragment hs_state fragment =
     let new_inc = append hs_state.hs_incoming fragment in
@@ -510,7 +591,7 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
         | HT_server_hello ->
             match cState with
             | ServerHello(sinfoOpt) ->
-                let shello = parseSHello payload in
+                let (shello,server_random) = parseSHello payload in
                 (* Sanity checks on the received message *)
                 (* FIXME: are they security-relevant here? Or only functionality-relevant? *)
                 
@@ -532,9 +613,10 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                             if not (equalBytes shello.neg_extensions empty_bstr) then
                                 (Error(HSExtension,CheckFailed),hs_state)
                             else
-                                (* Log the received packet *)
+                                (* Log the received packet, and store the server random *)
                                 let new_log = append hs_state.hs_msg_log to_log in
-                                let hs_state = {hs_state with hs_msg_log = new_log} in
+                                let hs_state = {hs_state with hs_msg_log = new_log
+                                                              hs_server_random = server_random}
                                 match sinfoOpt with
                                 | None -> (* we did not request resumption, do a full handshake *)
                                     (* define the sinfo we're going to establish *)

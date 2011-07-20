@@ -183,7 +183,8 @@ let compute_next_iv version bulk_cipher_algorithm ciphertext =
 let encrypt_fun bca key iv data =
     match bca with
     | BCA_des -> des_encrypt_wiv key iv data
-    | BCA_aes -> aes_encrypt_wiv key iv data
+    | BCA_aes_128 -> aes_encrypt_wiv key iv data
+    | BCA_aes_256 -> aes_encrypt_wiv key iv data
     | _ -> Error (Encryption, Unsupported)
 
 let encrypt_block conn_state data =
@@ -271,7 +272,8 @@ let get_iv_ciphertext version bulk_cipher_algorithm iv ciphertext =
 let decrypt_fun block_cipher_algorithm key iv data  =
     match block_cipher_algorithm with
         | BCA_des -> des_decrypt_wiv key iv data
-        | BCA_aes -> aes_decrypt_wiv key iv data
+        | BCA_aes_128 -> aes_decrypt_wiv key iv data
+        | BCA_aes_256 -> aes_decrypt_wiv key iv data
         | _ -> Error (Encryption, Unsupported) (* FIXME: other block BCAs are truly unsupported, but other stream BCAs (e.g. null) are in fact "unexpectedErrors" *)
 
 let block_decrypt conn_state data = 
@@ -279,7 +281,7 @@ let block_decrypt conn_state data =
     | BlockCipherState (key,iv) ->
         (let ver = conn_state.protocol_version in
         match ver with
-        | SSL_2p0 -> Error(Encryption,Unsupported)
+        | ProtocolVersionType.SSL_2p0 -> Error(Encryption,Unsupported)
         | _ ->
         let (iv,data) = get_iv_ciphertext ver
                                           conn_state.sparams.bulk_cipher_algorithm

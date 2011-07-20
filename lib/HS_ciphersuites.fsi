@@ -1,5 +1,7 @@
 ﻿module HS_ciphersuites
 open Data
+open Formats
+open Error_handling
 
 type CipherSuite =
     | TLS_NULL_WITH_NULL_NULL                
@@ -100,3 +102,4 @@ val cipherSuite_of_bytes: bytes -> CipherSuite
 val isAnonCipherSuite: CipherSuite -> bool
 val cipherSuiteRequiresKeyExchange: CipherSuite -> bool
 val canEncryptPMS: CipherSuite -> bool
+val securityParameters_of_ciphersuite: CipherSuite -> SecurityParameters Result

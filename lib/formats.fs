@@ -145,15 +145,15 @@ let protocolVersionType_of_bytes value =
 (* A.6. The Security Parameters *)
 
 type ConnectionEnd = Client | Server
-type BulkCipherAlgorithm = BCA_rc4 | BCA_des | BCA_aes | BCA_rc2 | BCA_3des | BCA_des40 | BCA_idea | BCA_null
+type BulkCipherAlgorithm = BCA_rc4 | BCA_des | BCA_aes_128 | BCA_aes_256 | BCA_rc2 | BCA_3des | BCA_des40 | BCA_idea | BCA_null
 type CipherType = CT_stream | CT_block
 type IsExportable = bool
-type MACAlgorithm = MA_md5 | MA_sha1 | MA_null
-
+type MACAlgorithm = MA_md5 | MA_sha1 | MA_sha256 | MA_sha384 | MA_sha512 | MA_null
 let get_block_cipher_size bca =
     match bca with
     | BCA_des -> 8
-    | BCA_aes -> 16
+    | BCA_aes_128 -> 16
+    | BCA_aes_256 -> 32
     | _ -> failwith "Unsupported cipher"
 
 let get_hash_size mac_alg =
@@ -161,6 +161,9 @@ let get_hash_size mac_alg =
     | MA_null -> 0
     | MA_md5 -> 16
     | MA_sha1 -> 20
+    | MA_sha256 -> 32
+    | MA_sha384 -> 48
+    | MA_sha512 -> 64
 
 type SecurityParameters = {
     cipher_type: CipherType;

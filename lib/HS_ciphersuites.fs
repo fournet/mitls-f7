@@ -2,7 +2,9 @@
 
 open Data
 open Formats
+open Error_handling
 
+(* TODO: all SHA256 ciphersuites are missing *)
 type CipherSuite =
     | TLS_NULL_WITH_NULL_NULL                
 
@@ -321,3 +323,24 @@ let canEncryptPMS cs =
     | TLS_RSA_WITH_AES_128_CBC_SHA           -> true
     | TLS_RSA_WITH_AES_256_CBC_SHA           -> true
     | _ -> false
+
+let securityParameters_of_ciphersuite cs =
+    let cast = 
+        match cs with (* TODO: many ciphersuites are missing here! *)
+        | TLS_NULL_WITH_NULL_NULL -> correct ((BCA_null,CT_stream,MA_null))
+        | TLS_RSA_WITH_AES_128_CBC_SHA -> correct ((BCA_aes_128,CT_block,MA_sha1))
+        | TLS_RSA_WITH_AES_256_CBC_SHA -> correct ((BCA_aes_256,CT_block,MA_sha1))
+        | TLS_RSA_WITH_DES_CBC_SHA -> correct ((BCA_des,CT_block,MA_sha1))
+        | TLS_RSA_WITH_RC4_128_SHA -> correct ((BCA_rc4,CT_stream,MA_sha1))
+        | TLS_RSA_WITH_NULL_MD5 -> correct ((BCA_null,CT_stream,MA_md5))
+        | TLS_RSA_WITH_NULL_SHA -> correct ((BCA_null,CT_stream,MA_sha1))
+        | TLS_RSA_WITH_RC4_128_MD5 -> correct ((BCA_rc4,CT_stream,MA_md5))
+        | _ -> Error(HandshakeProto,Unsupported)
+    match cast with
+    | Error (x,y) -> Error (x,y)
+    | Correct (result) ->
+    let (bca,ct,ma) = result in
+    correct (
+     {bulk_cipher_algorithm = bca;
+      cipher_type = ct;
+      mac_algorithm = ma;})

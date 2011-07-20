@@ -29,3 +29,14 @@ val des_decrypt_wiv: key -> bytes -> bytes -> bytes Result
 val aes_decrypt_wiv: key -> bytes -> bytes -> bytes Result
 
 val rsa_encrypt: key -> bytes -> bytes Result
+
+(* TLS Specific functions *)
+
+(* TLS 1.2 PRF *)
+val tls12prf: bytes -> str -> bytes -> int -> bytes Result
+
+(* TLS 1.0 and 1.1 PRF *)
+val prf: bytes -> str -> bytes -> int -> bytes Result
+
+(* SSL 3.0 PRF *)
+val ssl_prf: bytes -> bytes -> int -> bytes Result

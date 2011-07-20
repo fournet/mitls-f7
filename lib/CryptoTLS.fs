@@ -120,3 +120,61 @@ let rsa_encrypt key data =
         correct (Crypto.rsa_encrypt key data)
     with
         | _ -> Error (Encryption, Internal)
+
+(* Low level TLS 1.2 functions *)
+let hmacsha256_raw (k:Crypto.key) (x:bytes) : bytes = 
+  match k with 
+    | Crypto.SymKey key -> (new System.Security.Cryptography.HMACSHA256(key)).ComputeHash x
+    | _ -> failwith "HMAC-SHA256 only defined for symmetric keys"
+
+let p_sha256_raw secret seed nb = 
+  let it = (nb/32)+1 in
+  let res = Array.zeroCreate nb in
+    let a = ref seed in
+    for i=0 to it-2 do
+      a := hmacsha256_raw secret !a;
+      Array.blit (hmacsha256_raw secret (append !a seed)) 0 res (i*32) 32;
+    done;
+    a := hmacsha256_raw secret !a;
+    let r=nb%32 in
+    Array.blit (hmacsha256_raw secret (append !a seed)) 0 res (nb-r) r;
+    res
+
+let tls12prf_raw (secret:bytes) (label:str) (seed:bytes) (nb:int) =
+  let newseed = append (utf8 label) seed in
+  p_sha256_raw (symkey secret) newseed nb
+
+(* TLS 1.2 PRF *)
+let tls12prf (secret:bytes) (label:str) (seed:bytes) (nb:int) =
+    try
+        correct (tls12prf_raw secret label seed nb)
+    with
+        | _ -> Error (Encryption, Internal)
+
+
+(* TLS 1.0 and 1.1 PRF *)
+let prf (secret:bytes) (label:str) (seed:bytes) (nb:int) =
+    try
+        correct (Crypto.prf secret label seed nb)
+    with
+        | _ -> Error (Encryption, Internal)
+
+(* Low-level SSL 3.0 functions *)
+let ssl_prf1_raw secret label seed = Crypto.md5 (append secret (Crypto.sha1 (append (utf8 label) (append secret seed))))
+
+let ssl_prf_raw secret seed nb = 
+  let gen_label (i:int) = (*str (make_string (i+1) (char_of_int ((int_of_char 'A') + i))) *)
+        new System.String(char((int 'A')+i),i+1) in
+  let rec apply_prf res n = 
+    if n > nb then 
+      Array.sub res 0 nb
+    else apply_prf (append res (ssl_prf1_raw secret (gen_label (n/16)) seed)) (n+16)
+  in
+  apply_prf (Array.zeroCreate 0) 0
+
+(* SSL 3.0 PRF *)
+let ssl_prf secret seed nb =
+    try
+        correct (ssl_prf_raw secret seed nb)
+    with
+        | _ -> Error (Encryption,Internal)
