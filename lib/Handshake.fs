@@ -362,25 +362,24 @@ let new_session_idle state new_info =
          pstate = Server(SIdle);
          hs_msg_log = empty_bstr}
 
-let parse_fragment hs_state fragment =
-    (* Inefficient but simple implementation:
-       every time we get a new fragment, we reparse the whole received
-       packet, until a full packet is received. When a full packet is received,
-       it is removed from the buffer.
-       This algorithm can be easily made more efficient, but requires a more
-       complex code *)
+let enqueue_fragment hs_state fragment =
     let new_inc = append hs_state.hs_incoming fragment in
-    if length new_inc < 4 then
+    {hs_state with hs_incoming = new_inc}
+
+let parse_fragment hs_state =
+    (* Inefficient but simple implementation:
+       every time we reparse the whole incoming buffer,
+       searching for a full packet. When a full packet is found,
+       it is removed from the buffer. *)
+    if length hs_state.hs_incoming < 4 then
         (* Not enough data to even start parsing *)
-        let hs_state = {hs_state with hs_incoming = new_inc} in
         (hs_state, None)
     else
-        let (hstypeb,rem) = split new_inc 1 in
+        let (hstypeb,rem) = split hs_state.hs_incoming 1 in
         let (lenb,rem) = split rem 3 in
         let len = int_of_bytes 3 lenb in
         if length rem < len then
             (* not enough payload, try next time *)
-            let hs_state = {hs_state with hs_incoming = new_inc} in
             (hs_state, None)
         else
             let hstype = hs_type_of_bytes hstypeb in
@@ -388,30 +387,28 @@ let parse_fragment hs_state fragment =
             let hs_state = { hs_state with hs_incoming = rem } in
             let to_log = appendList [hstypeb;lenb;payload] in
             (hs_state, Some(hstype,payload,to_log))
-            
-
-let recv_fragment (hs_state:hs_state) (fragment:fragment) =
-    let (hs_state,new_packet) = parse_fragment hs_state fragment in
+        
+let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersionType Option) =
+    let (hs_state,new_packet) = parse_fragment hs_state in
     match new_packet with
-    | None -> (correct (HSAck), hs_state)
+    | None ->
+      match must_change_ver with
+      | None -> (correct (HSAck), hs_state)
+      | Some (pv) -> (correct (HSChangeVersion(ClientRole,pv)),hs_state)
     | Some (data) ->
-    let (hstype,payload,to_log) = data in
-    Printf.printf "DEBUG: Received message type %A\n" hstype
-    match hs_state.pstate with
-
-    (* *** CLIENT SIDE *** *)
-
-    | Client (cState) ->
+      let (hstype,payload,to_log) = data in
+      match hs_state.pstate with
+      | Client(cState) ->
         match hstype with
         | HT_hello_request ->
             match cState with
             | CIdle -> (* This is a legitimate hello request. Properly handle it *)
                 (* Do not log this message *)
                 match hs_state.poptions.honourHelloReq with
-                | HRPIgnore -> (correct (HSAck), hs_state)
-                | HRPResume -> let hs_state = start_rekey hs_state hs_state.poptions in (correct (HSAck), hs_state)
-                | HRPFull -> let hs_state = start_rehandshake hs_state hs_state.poptions in (correct (HSAck), hs_state)
-            | _ -> (* RFC 7.4.1.1: ignore this message *) (correct (HSAck), hs_state)
+                | HRPIgnore -> recv_fragment_client hs_state must_change_ver
+                | HRPResume -> let hs_state = start_rekey hs_state hs_state.poptions in (correct (HSAck), hs_state) (* Terminating case, we reset all buffers *)
+                | HRPFull -> let hs_state = start_rehandshake hs_state hs_state.poptions in (correct (HSAck), hs_state) (* Terminating case, we reset all buffers *)
+            | _ -> (* RFC 7.4.1.1: ignore this message *) recv_fragment_client hs_state must_change_ver
         | HT_server_hello ->
             match cState with
             | ServerHello(sinfoOpt) ->
@@ -456,10 +453,10 @@ let recv_fragment (hs_state:hs_state) (fragment:fragment) =
                                     (* If DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
                                     if isAnonCipherSuite shello.cipher_suite then
                                         let hs_state = {hs_state with pstate = Client(ServerKeyExchange(sinfo))} in
-                                        (correct (HSChangeVersion(ClientRole,shello.server_version)),hs_state)
+                                        recv_fragment_client hs_state (Some(shello.server_version))
                                     else
                                         let hs_state = {hs_state with pstate = Client(Certificate(sinfo))} in
-                                        (correct (HSChangeVersion(ClientRole,shello.server_version)),hs_state)
+                                        recv_fragment_client hs_state (Some(shello.server_version))
                                 | Some(sinfo) ->
                                     match sinfo.sessionID with
                                     | None -> unexpectedError "[recv_fragment] A resumed session should never have empty SID"
@@ -473,7 +470,7 @@ let recv_fragment (hs_state:hs_state) (fragment:fragment) =
                                                                            must_send_cert = false;
                                                                            client_certificate = None} in
                                                         let hs_state = { hs_state with pstate = Client(CCCS(sinfo,clSpecState))}
-                                                        (correct (HSChangeVersion(ClientRole,shello.server_version)), hs_state)
+                                                        recv_fragment_client hs_state (Some(shello.server_version))
                                                     else (Error(HandshakeProto,CheckFailed),hs_state)
                                                 else (Error(HandshakeProto,CheckFailed),hs_state)
                                             else (Error(HandshakeProto,CheckFailed),hs_state)
@@ -492,10 +489,10 @@ let recv_fragment (hs_state:hs_state) (fragment:fragment) =
                                             (* If DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
                                             if isAnonCipherSuite shello.cipher_suite then
                                                 let hs_state = {hs_state with pstate = Client(ServerKeyExchange(sinfo))} in
-                                                (correct (HSChangeVersion(ClientRole,shello.server_version)),hs_state)
+                                                recv_fragment_client hs_state (Some(shello.server_version))
                                             else
                                                 let hs_state = {hs_state with pstate = Client(Certificate(sinfo))} in
-                                                (correct (HSChangeVersion(ClientRole,shello.server_version)),hs_state)
+                                                recv_fragment_client hs_state (Some(shello.server_version))
             | _ -> (* ServerHello arrived in the wrong state *) (Error (HandshakeProto,InvalidState), hs_state)
         | HT_certificate ->
             match cState with
@@ -513,10 +510,10 @@ let recv_fragment (hs_state:hs_state) (fragment:fragment) =
                         let sinfo = {sinfo with serverID = Some(certMsg.certificate_list.Head)} in
                         if cipherSuiteRequiresKeyExchange sinfo.more_info.mi_cipher_suite then
                             let hs_state = {hs_state with pstate = Client(ServerKeyExchange(sinfo))} in
-                            (correct(HSAck),hs_state)
+                            recv_fragment_client hs_state must_change_ver
                         else
                             let hs_state = {hs_state with pstate = Client(CertReqOrSHDone(sinfo))} in
-                            (correct(HSAck),hs_state)
+                            recv_fragment_client hs_state must_change_ver
             | _ -> (* Certificate arrived in the wrong state *) (Error (HandshakeProto,InvalidState), hs_state)
         | HT_server_key_exchange ->
             match cState with
@@ -536,7 +533,7 @@ let recv_fragment (hs_state:hs_state) (fragment:fragment) =
                                    must_send_cert = true;
                                    client_certificate = client_cert} in
                 let hs_state = {hs_state with pstate = Client(CSHDone(sinfo,clSpecState))} in
-                (correct(HSAck),hs_state)
+                recv_fragment_client hs_state must_change_ver
             | _ -> (* Certificate Request arrived in the wrong state *) (Error (HandshakeProto,InvalidState), hs_state)
         | HT_server_hello_done ->
             match cState with
@@ -554,7 +551,7 @@ let recv_fragment (hs_state:hs_state) (fragment:fragment) =
                         client_certificate = None} in
                     let (hs_state,sinfo) = prepare_output hs_state clSpecState sinfo in
                     let hs_state = {hs_state with pstate = Client(CCCS(sinfo,clSpecState))}
-                    (correct(HSAck),hs_state)
+                    recv_fragment_client hs_state must_change_ver
             | CSHDone(sinfo,clSpecState) ->
                 if not (equalBytes payload empty_bstr) then
                     (Error(HSParsing,CheckFailed),hs_state)
@@ -565,13 +562,21 @@ let recv_fragment (hs_state:hs_state) (fragment:fragment) =
 
                     let (hs_state,sinfo) = prepare_output hs_state clSpecState sinfo in
                     let hs_state = {hs_state with pstate = Client(CCCS(sinfo,clSpecState))}
-                    (correct(HSAck),hs_state)
+                    recv_fragment_client hs_state must_change_ver
             | _ -> (* Server Hello Done arrived in the wrong state *) (Error (HandshakeProto,InvalidState), hs_state)
         | _ -> (* Unsupported/Wrong message *) (Error (HandshakeProto,Unsupported), hs_state)
-    
-    (* *** SERVER SIDE *** *)
-    
-    | Server (sState) -> (Error (HandshakeProto,Unsupported),hs_state)
+      
+      (* Should never happen *)
+      | Server(_) -> unexpectedError "[recv_fragment_client] should only be invoked when in client role."
+
+let recv_fragment_server (hs_state:hs_state) =
+    (Error(HandshakeProto,Unsupported),hs_state)
+
+let recv_fragment (hs_state:hs_state) (fragment:fragment) =
+    let hs_state = enqueue_fragment hs_state fragment in
+    match hs_state.pstate with
+    | Client (_) -> recv_fragment_client hs_state None
+    | Server (_) -> recv_fragment_server hs_state
 
 let recv_ccs (hs_state: hs_state) (fragment:fragment): ((ccs_data Result) * hs_state) =
     (Error (HandshakeProto,Unsupported),hs_state)
