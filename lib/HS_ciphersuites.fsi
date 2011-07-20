@@ -99,3 +99,4 @@ val bytes_of_cipherSuite: CipherSuite -> bytes
 val cipherSuite_of_bytes: bytes -> CipherSuite
 val isAnonCipherSuite: CipherSuite -> bool
 val cipherSuiteRequiresKeyExchange: CipherSuite -> bool
+val canEncryptPMS: CipherSuite -> bool

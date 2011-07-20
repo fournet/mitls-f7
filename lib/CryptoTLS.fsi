@@ -18,9 +18,14 @@ val keyedHashVerify: (bytes -> bytes Result) -> bytes -> bytes -> key -> bytes -
 
 val md5: bytes -> bytes Result
 val sha1: bytes -> bytes Result
+val sha256: bytes -> bytes Result
+val sha384: bytes -> bytes Result
+val sha512: bytes -> bytes Result
 
 val des_encrypt_wiv: key -> bytes -> bytes -> bytes Result
 val aes_encrypt_wiv: key -> bytes -> bytes -> bytes Result
 
 val des_decrypt_wiv: key -> bytes -> bytes -> bytes Result
 val aes_decrypt_wiv: key -> bytes -> bytes -> bytes Result
+
+val rsa_encrypt: key -> bytes -> bytes Result

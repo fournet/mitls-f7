@@ -71,6 +71,26 @@ let sha1 x =
     with
         | _ -> Error (Hash, Internal)
 
+let sha256 x =
+    try
+        correct (Crypto.sha256 x)
+    with
+        | _ -> Error (Hash,Internal)
+
+let sha384 (x:bytes) =
+    try
+        let sha_instance = System.Security.Cryptography.SHA384.Create () in
+        correct (sha_instance.ComputeHash x)
+    with
+        | _ -> Error (Hash,Internal)
+
+let sha512 (x:bytes) =
+    try
+        let sha_instance = System.Security.Cryptography.SHA512.Create () in
+        correct (sha_instance.ComputeHash x)
+    with
+        | _ -> Error (Hash,Internal)
+
 let des_encrypt_wiv key iv data =
     try
         correct (Crypto.des_encrypt_wiv key iv data)
@@ -92,5 +112,11 @@ let des_decrypt_wiv key iv data =
 let aes_decrypt_wiv key iv data =
     try
         correct (Crypto.aes_decrypt_wiv key iv data)
+    with
+        | _ -> Error (Encryption, Internal)
+
+let rsa_encrypt key data =
+    try
+        correct (Crypto.rsa_encrypt key data)
     with
         | _ -> Error (Encryption, Internal)

@@ -305,3 +305,19 @@ let cipherSuiteRequiresKeyExchange cs =
     | TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA     -> true
     | TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA     -> true
     | _ -> false
+
+let canEncryptPMS cs =
+    match cs with
+    | TLS_RSA_WITH_NULL_MD5                  -> true
+    | TLS_RSA_WITH_NULL_SHA                  -> true
+    | TLS_RSA_EXPORT_WITH_RC4_40_MD5         -> true
+    | TLS_RSA_WITH_RC4_128_MD5               -> true
+    | TLS_RSA_WITH_RC4_128_SHA               -> true
+    | TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5     -> true
+    | TLS_RSA_WITH_IDEA_CBC_SHA              -> true
+    | TLS_RSA_EXPORT_WITH_DES40_CBC_SHA      -> true
+    | TLS_RSA_WITH_DES_CBC_SHA               -> true
+    | TLS_RSA_WITH_3DES_EDE_CBC_SHA          -> true
+    | TLS_RSA_WITH_AES_128_CBC_SHA           -> true
+    | TLS_RSA_WITH_AES_256_CBC_SHA           -> true
+    | _ -> false
