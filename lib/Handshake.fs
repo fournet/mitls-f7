@@ -78,14 +78,21 @@ let next_fragment state len =
     match state.hs_outgoing with
     | x when equalBytes x empty_bstr ->
         match state.ccs_outgoing with
-        | None -> (EmptyHSFrag, state)
-        | Some x ->
-            let (ccs,ciphsuite) = x in
-            let new_hs_outgoing = state.hs_outgoing_after_ccs in
-            let state = {state with hs_outgoing = new_hs_outgoing;
-                                    ccs_outgoing = None;
-                                    hs_outgoing_after_ccs = empty_bstr}
-            (CCSFrag (ccs,ciphsuite), state)
+        | None ->
+            match state.hs_outgoing_after_ccs with
+            | x when equalBytes x empty_bstr -> (EmptyHSFrag,state)
+            | d ->
+                let (f,rem) = get_next_bytes d len in
+                let state = {state with hs_outgoing_after_ccs = rem} in
+                match rem with
+                | x when equalBytes x empty_bstr ->
+                    (* TODO:
+                        switch wheter it's client/server and then full/resumption to send a fullyFinished or WriteFinished event.
+                        Note: fullyFinished and WriteFinished should still contain the last fragment to be sent. This requires a change in the dispatch. *)
+                | _ -> (HSFrag(f),state)
+        | Some data ->
+            let state = {state with ccs_outgoing = None}
+            (CCSFrag data, state)
     | d ->
         let (f,rem) = get_next_bytes d len in
         let state = {state with hs_outgoing = rem} in
@@ -530,7 +537,8 @@ let prepare_client_output hs_state clSpecState sinfo =
                     match makeFinishedMsgBytes sinfo.more_info.mi_protocol_version ms ClientRole hs_state.hs_msg_log with
                     | Error (x,y) -> Error (x,y)
                     | Correct (finishedBytes) ->
-                        
+                        let new_out = append hs_state.hs_outgoing_after_ccs finishedBytes in
+                        let hs_state = {hs_state with hs_outgoing_after_ccs = new_out} in
                         correct (hs_state)
 
 let init_handshake role poptions =
