@@ -51,6 +51,9 @@ val ssl_pad2_md5: bytes
 val ssl_pad1_sha1: bytes
 val ssl_pad2_sha1: bytes
 
+val ssl_sender_client: bytes
+val ssl_sender_server: bytes
+
 val get_block_cipher_size: BulkCipherAlgorithm -> int
 val get_hash_size: MACAlgorithm -> int
 

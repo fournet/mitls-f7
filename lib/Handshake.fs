@@ -47,6 +47,7 @@ type pre_hs_state = {
   ccs_outgoing: (bytes * ccs_data) option (* marker telling there's a ccs ready *)
   hs_outgoing_after_ccs: bytes (* data to be sent after the ccs has been sent *)
   hs_incoming    : bytes (* partial incoming HS message *)
+  ccs_incoming: ccs_data option (* used to store the computed secrects for receving data. Not set when receiving CCS, but when we compute the session secrects *)
   hs_info : SessionInfo;
   poptions: protocolOptions;
   pstate : protoState
@@ -248,6 +249,9 @@ let makeCertificateVerifyBytes cert data pv certReqMsg=
         (* TODO *) Error (HandshakeProto,Unsupported)
     | _ -> Error (HandshakeProto,Unsupported)
 
+let makeCCSBytes () =
+    bytes_of_int 1 1
+
 let compute_master_secret pms ver crandom srandom = 
     match ver with 
     | ProtocolVersionType.SSL_3p0 -> ssl_prf pms (append crandom srandom) 48
@@ -303,6 +307,64 @@ let generateKeys role cr sr pv cs ms =
               | ServerRole -> cmk,cek,civ,smk,sek,siv
           in
           correct ((sp,rmk,rek,riv,wmk,wek,wiv))
+
+let bldVerifyData ver ms entity hsmsgs = 
+  match ver with 
+  | ProtocolVersionType.SSL_3p0 ->
+    let ssl_sender = 
+        match entity with
+        | ClientRole -> ssl_sender_client 
+        | ServerRole -> ssl_sender_server
+    let mm = append hsmsgs (append ssl_sender ms) in
+    match md5 (append mm ssl_pad1_md5) with
+    | Error (x,y) -> Error(HandshakeProto,Internal)
+    | Correct (inner_md5) ->
+        match md5 (append ms (append ssl_pad2_md5 (inner_md5))) with
+        | Error (x,y) -> Error(HandshakeProto,Internal)
+        | Correct (outer_md5) ->
+            match sha1 (append mm ssl_pad1_sha1) with
+            | Error (x,y) -> Error(HandshakeProto,Internal)
+            | Correct(inner_sha1) ->
+                match sha1 (append ms (append ssl_pad2_sha1 (inner_sha1))) with
+                | Error (x,y) -> Error(HandshakeProto,Internal)
+                | Correct (outer_sha1) ->
+                    correct (append outer_md5 outer_sha1)
+  | x when x = ProtocolVersionType.TLS_1p0 || x = ProtocolVersionType.TLS_1p1 -> 
+    let tls_label = 
+        match entity with
+        | ClientRole -> "client finished"
+        | ServerRole -> "server finished"
+    match md5 hsmsgs with
+    | Error (x,y) -> Error(HandshakeProto,Internal)
+    | Correct (md5hash) ->
+        match sha1 hsmsgs with
+        | Error (x,y) -> Error(HandshakeProto,Internal)
+        | Correct (sha1hash) ->
+            match prf ms tls_label (append md5hash sha1hash) 12 with
+            | Error (x,y) -> Error(HandshakeProto,Internal)
+            | Correct (result) -> correct (result)
+  | ProtocolVersionType.TLS_1p2 ->
+    let tls_label = 
+        match entity with
+        | ClientRole -> "client finished"
+        | ServerRole -> "server finished"
+    match sha256 hsmsgs with
+    | Error (x,y) -> Error(HandshakeProto,Internal)
+    | Correct(sha256hash) ->
+        match tls12prf ms tls_label sha256hash 12 with
+        | Error (x,y) -> Error(HandshakeProto,Internal)
+        | Correct(result) -> correct (result)
+  | _ -> Error(HandshakeProto,Unsupported)
+
+let makeFinishedMsgBytes ver ms entity hsmsgs =
+    match bldVerifyData ver ms entity hsmsgs with
+    | Error (x,y) -> Error (x,y)
+    | Correct (payload) -> correct (makeHSPacket HT_finished payload)
+
+let ciphstate_of_ciphtype ct key iv =
+    match ct with
+    | CT_block -> BlockCipherState (key,iv)
+    | CT_stream -> StreamCipherState
 
 let split_varLen data lenSize =
     let (lenBytes,data) = split data lenSize in
@@ -400,7 +462,7 @@ let parseCertReq ver data =
 let find_client_cert certReqMsg =
     (* TODO *) None
 
-let prepare_output hs_state clSpecState sinfo =
+let prepare_client_output hs_state clSpecState sinfo =
     let clientCertBytes =
         match clSpecState.must_send_cert with
         | Some (_) ->
@@ -431,13 +493,45 @@ let prepare_output hs_state clSpecState sinfo =
             (* Enqueue current messages *)
             let to_send = appendList [clientCertBytes;clientKEXBytes;certificateVerifyBytes] in
             let new_outgoing = append hs_state.hs_outgoing to_send in
-            let hs_state = {hs_state with hs_outgoing = new_outgoing} in
+            let new_log = append hs_state.hs_msg_log to_send in
+            let hs_state = {hs_state with hs_outgoing = new_outgoing
+                                          hs_msg_log = new_log} in
 
             (* Handle CCS and Finished, including computation of session secrets *)
             match compute_master_secret sinfo.more_info.mi_pms sinfo.more_info.mi_protocol_version hs_state.hs_client_random hs_state.hs_server_random with
             | Error (x,y) -> Error(x,y)
             | Correct(ms) ->
-                correct ((hs_state,sinfo))
+                match generateKeys ClientRole hs_state.hs_client_random hs_state.hs_server_random sinfo.more_info.mi_protocol_version sinfo.more_info.mi_cipher_suite ms with
+                | Error (x,y) -> Error(x,y)
+                | Correct(allKeys) ->
+                    let (sp,rmk,rek,riv,wmk,wek,wiv) = allKeys in
+                    let read_ciphstate = ciphstate_of_ciphtype sp.cipher_type (symkey rek) riv in
+                    let read_ccs_data =
+                       {ccs_info = sinfo
+                        ccs_pv = sinfo.more_info.mi_protocol_version
+                        ccs_comp = sinfo.more_info.mi_compression
+                        ccs_sparams = sp
+                        ccs_mkey = (symkey rmk)
+                        ccs_ciphstate = read_ciphstate}
+                    let write_ciphstate = ciphstate_of_ciphtype sp.cipher_type (symkey wek) wiv in
+                    let write_ccs_data =
+                       {ccs_info = sinfo
+                        ccs_pv = sinfo.more_info.mi_protocol_version
+                        ccs_comp = sinfo.more_info.mi_compression
+                        ccs_sparams = sp
+                        ccs_mkey = (symkey wmk)
+                        ccs_ciphstate = write_ciphstate}
+                    (* Put the ccs_data in the appropriate buffers. *)
+                    (* Side note: do not put sinfo in the hs_state yet, it is a proposed sinfo, not validated by finished messages checks. *)
+                    let hs_state = {hs_state with ccs_outgoing = Some((makeCCSBytes(),write_ccs_data))
+                                                  ccs_incoming = Some(read_ccs_data)}
+
+                    (* Now go for the creation of the Finished message *)
+                    match makeFinishedMsgBytes sinfo.more_info.mi_protocol_version ms ClientRole hs_state.hs_msg_log with
+                    | Error (x,y) -> Error (x,y)
+                    | Correct (finishedBytes) ->
+                        
+                        correct (hs_state)
 
 let init_handshake role poptions =
     let info = init_sessionInfo role in
@@ -448,6 +542,7 @@ let init_handshake role poptions =
                      ccs_outgoing = None
                      hs_outgoing_after_ccs = empty_bstr
                      hs_incoming = empty_bstr
+                     ccs_incoming = None
                      hs_info = info
                      poptions = poptions
                      pstate = Client (ServerHello(None))
@@ -460,6 +555,7 @@ let init_handshake role poptions =
                      ccs_outgoing = None
                      hs_outgoing_after_ccs = empty_bstr
                      hs_incoming = empty_bstr
+                     ccs_incoming = None
                      hs_info = info
                      poptions = poptions
                      pstate = Server (ClientHello)
@@ -484,6 +580,7 @@ let resume_handshake role info poptions =
                              ccs_outgoing = None
                              hs_outgoing_after_ccs = empty_bstr
                              hs_incoming = empty_bstr
+                             ccs_incoming = None
                              hs_info = info
                              poptions = poptions
                              pstate = Client (ServerHello(Some(info)))
@@ -496,6 +593,7 @@ let resume_handshake role info poptions =
                              ccs_outgoing = None
                              hs_outgoing_after_ccs = empty_bstr
                              hs_incoming = empty_bstr
+                             ccs_incoming = None
                              hs_info = info
                              poptions = poptions
                              pstate = Server (ClientHello)
@@ -523,6 +621,7 @@ let new_session_idle state new_info =
          ccs_outgoing = None;
          hs_outgoing_after_ccs = empty_bstr;
          hs_incoming = empty_bstr;
+         ccs_incoming = None
          hs_info = new_info;
          poptions = state.poptions;
          pstate = Client(CIdle);
@@ -534,6 +633,7 @@ let new_session_idle state new_info =
          ccs_outgoing = None;
          hs_outgoing_after_ccs = empty_bstr;
          hs_incoming = empty_bstr;
+         ccs_incoming = None
          hs_info = new_info;
          poptions = state.poptions;
          pstate = Server(SIdle);
@@ -731,7 +831,7 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                         resumed_session = false;
                         must_send_cert = None;
                         client_certificate = None} in
-                    match prepare_output hs_state clSpecState sinfo with
+                    match prepare_client_output hs_state clSpecState sinfo with
                     | Error (x,y) -> (Error (x,y), hs_state)
                     | Correct (result) ->
                         let (hs_state,sinfo) = result in
@@ -745,7 +845,7 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                     let new_log = append hs_state.hs_msg_log to_log in
                     let hs_state = {hs_state with hs_msg_log = new_log} in
 
-                    match prepare_output hs_state clSpecState sinfo with
+                    match prepare_client_output hs_state clSpecState sinfo with
                     | Error (x,y) -> (Error (x,y), hs_state)
                     | Correct (result) ->
                         let (hs_state,sinfo) = result in
