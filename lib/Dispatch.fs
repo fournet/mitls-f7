@@ -274,13 +274,20 @@ let deliver ct f c =
             | ClientRole ->
                 match Record.recv_checkVersion c_read.conn v with
                 | Correct (dummy) ->
-                    (correct (true), { c with handshake = hs} )
+                    (* Also update the protocol version on the writing side of the record *)
+                    let new_write_conn = Record.send_setVersion c.write.conn v in
+                    let new_write = {c.write with conn = new_write_conn} in
+                    (correct (true), { c with handshake = hs;
+                                              write = new_write} )
                 | Error(x,y) -> (Error(x,y), {c with handshake = hs} )
             | ServerRole ->
                 let new_recv = Record.recv_setVersion c_read.conn v in
                 let new_read = {c_read with conn = new_recv} in
+                let new_send = Record.send_setVersion c.write.conn v in
+                let new_write = {c.write with conn = new_send} in
                 (correct (true), { c with handshake = hs;
-                                          read = new_read} )
+                                          read = new_read;
+                                          write = new_write} )
         | HSReadSideFinished ->
         (* Ensure we are in Finishing state *)
             match x with
