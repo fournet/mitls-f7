@@ -61,8 +61,8 @@ type hs_state = pre_hs_state
 type HSFragReply =
   | EmptyHSFrag
   | HSFrag of bytes
-  | HSWriteSideFinished
-  | HSFullyFinished_Write of SessionInfo
+  | HSWriteSideFinished of bytes
+  | HSFullyFinished_Write of bytes * SessionInfo
   | CCSFrag of bytes * ccs_data
 
 let get_next_bytes data frag_len =
@@ -72,9 +72,11 @@ let get_next_bytes data frag_len =
         split data frag_len
 
 let next_fragment state len =
-    (* FIXME: The buffer we read from should depend on the state of the protocol,
-       and not on whether a buffer is full or not, otherwise we cannot recognize the
-       HSNewSessionInfo() case! *)
+    (* Assumptions: The buffer are filled in the following order:
+       1) hs_outgoing; 2) ccs_outgoing; 3) hs_outgoing_after_ccs
+       hs_outgoing_after_ccs is filled all at once; so, when it's empty,
+       we can conclude HS protocol is terminated, and no more data will be added to any buffer
+       (until a re-handshake, which resets everything anyway) *)
     match state.hs_outgoing with
     | x when equalBytes x empty_bstr ->
         match state.ccs_outgoing with
@@ -86,9 +88,29 @@ let next_fragment state len =
                 let state = {state with hs_outgoing_after_ccs = rem} in
                 match rem with
                 | x when equalBytes x empty_bstr ->
-                    (* TODO:
-                        switch wheter it's client/server and then full/resumption to send a fullyFinished or WriteFinished event.
-                        Note: fullyFinished and WriteFinished should still contain the last fragment to be sent. This requires a change in the dispatch. *)
+                    (* The logic of the next statement works like this:
+                        If we (be either client or server) are in CCS state, it means we finished writing, but we still have to read
+                        other side CCS and Finished messages, so issue a HSWriteSideFinished. If we're in Idle, it means the full
+                        protocol completed, and we issue a HSFullyFinished *)
+                    match state.pstate with
+                    | Client (cstate) ->
+                        (* Unfortunately, we cannot use the "resumed_session" flag of the client specific state, because there might
+                           be no such client specific state available. So, according to the handshake state machine, we infer whether
+                           we are doing full handshake or resumption. *)
+                        match cstate with
+                        | CCCS (_) -> (HSWriteSideFinished (f), state)
+                        | CIdle ->
+                            (* Note we can use state.hs_info, because the handshake already blessed the sinfo, and altered its state *)
+                            (HSFullyFinished_Write (f,state.hs_info), state)
+                        | _ -> unexpectedError "[next_fragment] invoked in invalid state"
+                    | Server (sstate) ->
+                        match sstate with
+                        | SCCS ->
+                            (HSWriteSideFinished (f), state)
+                        | SIdle ->
+                            (* Note we can use state.hs_info, because the handshake already blessed the sinfo, and altered its state *)
+                            (HSFullyFinished_Write (f,state.hs_info), state)
+                        | _ -> unexpectedError "[next_fragment] invoked in invalid state"
                 | _ -> (HSFrag(f),state)
         | Some data ->
             let state = {state with ccs_outgoing = None}
@@ -538,7 +560,9 @@ let prepare_client_output hs_state clSpecState sinfo =
                     | Error (x,y) -> Error (x,y)
                     | Correct (finishedBytes) ->
                         let new_out = append hs_state.hs_outgoing_after_ccs finishedBytes in
-                        let hs_state = {hs_state with hs_outgoing_after_ccs = new_out} in
+                        let new_log = append hs_state.hs_msg_log finishedBytes in
+                        let hs_state = {hs_state with hs_outgoing_after_ccs = new_out
+                                                      hs_msg_log = new_log} in
                         correct (hs_state)
 
 let init_handshake role poptions =
@@ -841,8 +865,7 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                         client_certificate = None} in
                     match prepare_client_output hs_state clSpecState sinfo with
                     | Error (x,y) -> (Error (x,y), hs_state)
-                    | Correct (result) ->
-                        let (hs_state,sinfo) = result in
+                    | Correct (hs_state) ->
                         let hs_state = {hs_state with pstate = Client(CCCS(sinfo,clSpecState))}
                         recv_fragment_client hs_state must_change_ver
             | CSHDone(sinfo,clSpecState) ->
@@ -855,8 +878,7 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
 
                     match prepare_client_output hs_state clSpecState sinfo with
                     | Error (x,y) -> (Error (x,y), hs_state)
-                    | Correct (result) ->
-                        let (hs_state,sinfo) = result in
+                    | Correct (hs_state) ->
                         let hs_state = {hs_state with pstate = Client(CCCS(sinfo,clSpecState))}
                         recv_fragment_client hs_state must_change_ver
             | _ -> (* Server Hello Done arrived in the wrong state *) (Error (HandshakeProto,InvalidState), hs_state)

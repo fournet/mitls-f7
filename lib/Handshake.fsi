@@ -33,8 +33,8 @@ val resume: SessionInfo -> hs_state (* resume on different connection; only clie
 type HSFragReply =
   | EmptyHSFrag
   | HSFrag of bytes
-  | HSWriteSideFinished
-  | HSFullyFinished_Write of SessionInfo
+  | HSWriteSideFinished of bytes
+  | HSFullyFinished_Write of bytes * SessionInfo
   | CCSFrag of bytes * ccs_data
 
 val next_fragment: hs_state -> int -> (HSFragReply * hs_state)

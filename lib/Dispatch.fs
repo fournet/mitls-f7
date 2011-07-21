@@ -192,17 +192,23 @@ let next_fragment n (c:Connection) : (bool Result) * Connection =
                                                       write     = new_write } )
                           | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
                       | _ -> (Error(Dispatcher,InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
-          | (HSWriteSideFinished,new_hs_state) ->
-                let c = {c with handshake = new_hs_state} in
+          | (HSWriteSideFinished(lastFrag),new_hs_state) ->
                 (* check we are in finishing state *)
                 match c_write.disp with
                 | Finishing ->
-                    let c_write = {c_write with disp = Finished}
-                    let c = {c with write = c_write} in
-                    (Error(MustRead,Notification),c)
+                    (* Send the last fragment *)
+                    match Record.send c_write.conn Handshake lastFrag with 
+                          | Correct(ss) ->
+                            let c_write = {c_write with conn = ss} in
+                            let c = { c with handshake = new_hs_state;
+                                             write     = c_write }
+                            (* Move to the new state *)
+                            let c_write = {c_write with disp = Finished}
+                            let c = {c with write = c_write} in
+                            (Error(MustRead,Notification),c)
+                          | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
                 | _ -> (Error(Dispatcher,InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
-          | (HSFullyFinished_Write(new_info),new_hs_state) ->
-                let c = {c with handshake = new_hs_state} in
+          | (HSFullyFinished_Write(lastFrag,new_info),new_hs_state) ->
                 match c_write.disp with
                 | Finishing ->
                    (* according to the protocol logic and the dispatcher
@@ -213,8 +219,16 @@ let next_fragment n (c:Connection) : (bool Result) * Connection =
                    if appDataAvailable c then (* this is a bug. *)
                        (Error(Dispatcher,Internal), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
                    else
-                       let c = moveToOpenState c new_info in
-                       (Error(NewSessionInfo,Notification),c)
+                       (* Send the last fragment *)
+                       match Record.send c_write.conn Handshake lastFrag with 
+                       | Correct(ss) ->
+                         let new_write = {c_write with conn = ss} in
+                         let c = { c with handshake = new_hs_state;
+                                          write     = new_write }
+                         (* Move to the new state *)
+                         let c = moveToOpenState c new_info in
+                         (Error(NewSessionInfo,Notification),c)
+                       | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
                 | _ -> (Error(Dispatcher,InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
       | (ALFrag(f),new_al_state) ->        
         match Record.send c_write.conn Alert f with 
@@ -270,24 +284,37 @@ let deliver ct f c =
         | HSAck ->
             ((correct (true), { c with handshake = hs} ))
         | HSChangeVersion(r,v) ->
-            match r with
-            | ClientRole ->
-                match Record.recv_checkVersion c_read.conn v with
-                | Correct (dummy) ->
-                    (* Also update the protocol version on the writing side of the record *)
-                    let new_write_conn = Record.send_setVersion c.write.conn v in
-                    let new_write = {c.write with conn = new_write_conn} in
+            match c_read.disp with
+            | Init ->
+                (* Then, also c_write must be in Init state. It means this is the very first, unprotected handshake,
+                   and we just negotiated the version. Tell the record layer which version to use; and move to the
+                   FirstHandshake state *)
+                match r with
+                | ClientRole ->
+                    match Record.recv_checkVersion c_read.conn v with
+                    | Correct (dummy) ->
+                        let c_read = {c_read with disp = FirstHandshake} in
+                        (* Also update the protocol version on the writing side of the record *)
+                        let new_write_conn = Record.send_setVersion c.write.conn v in
+                        let new_write = {c.write with conn = new_write_conn
+                                                      disp = FirstHandshake} in
+                        (correct (true), { c with handshake = hs;
+                                                  read = c_read;
+                                                  write = new_write} )
+                    | Error(x,y) -> (Error(x,y), {c with handshake = hs} )
+                | ServerRole ->
+                    let new_recv = Record.recv_setVersion c_read.conn v in
+                    let new_read = {c_read with conn = new_recv
+                                                disp = FirstHandshake} in
+                    let new_send = Record.send_setVersion c.write.conn v in
+                    let new_write = {c.write with conn = new_send
+                                                  disp = FirstHandshake} in
                     (correct (true), { c with handshake = hs;
+                                              read = new_read;
                                               write = new_write} )
-                | Error(x,y) -> (Error(x,y), {c with handshake = hs} )
-            | ServerRole ->
-                let new_recv = Record.recv_setVersion c_read.conn v in
-                let new_read = {c_read with conn = new_recv} in
-                let new_send = Record.send_setVersion c.write.conn v in
-                let new_write = {c.write with conn = new_send} in
-                (correct (true), { c with handshake = hs;
-                                          read = new_read;
-                                          write = new_write} )
+            | _ -> (* It means we are doing a re-negotiation. Don't alter the current version number at the record layer, because it
+                     is perfectly valid. It will be updated after the next CCS, along with all other session parameters *)
+                ((correct (true), { c with handshake = hs} ))
         | HSReadSideFinished ->
         (* Ensure we are in Finishing state *)
             match x with
