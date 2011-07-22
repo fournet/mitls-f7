@@ -121,6 +121,57 @@ let rsa_encrypt key data =
     with
         | _ -> Error (Encryption, Internal)
 
+(* No padding encryption functions *)
+let aes_encrypt_wiv_nopad_raw (k:Crypto.key) (iv:bytes) (plain:bytes) = 
+  match k with 
+      Crypto.SymKey key ->
+        let rij = new System.Security.Cryptography.RijndaelManaged() in
+        let keyl = 8 * key.Length  in
+        rij.set_KeySize(keyl);
+        rij.Padding <- System.Security.Cryptography.PaddingMode.None
+        let enc = rij.CreateEncryptor(key,iv) in
+        let mems = new System.IO.MemoryStream() in
+        let crs = new System.Security.Cryptography.CryptoStream(mems,enc,System.Security.Cryptography.CryptoStreamMode.Write) in
+        let _ =  crs.Write(plain,0,plain.Length) in
+        let _ = crs.FlushFinalBlock() in
+        let cipher = mems.ToArray() in
+        mems.Close();
+        crs.Close();
+        cipher
+    | _ -> failwith "AES only defined for symmetric keys"
+
+let aes_encrypt_wiv_nopad key iv data =
+    try
+        correct (aes_encrypt_wiv_nopad_raw key iv data)
+    with
+        | _ -> Error (Encryption, Internal)
+
+let des_encrypt_wiv_nopad_raw (k:Crypto.key) (iv:bytes) (plain:bytes) = 
+  match k with 
+      Crypto.SymKey key ->        
+        let des = new System.Security.Cryptography.DESCryptoServiceProvider() in
+        //let keyl = 8 * key.Length  in
+        //let block = 8 in (* 64 bits *)
+        //des.set_KeySize(keyl);
+        //print_any (des.get_Padding());
+        des.Padding <- System.Security.Cryptography.PaddingMode.None
+        let enc = des.CreateEncryptor(key,iv) in
+        let mems = new System.IO.MemoryStream() in
+        let crs = new System.Security.Cryptography.CryptoStream(mems,enc,System.Security.Cryptography.CryptoStreamMode.Write) in
+        let _ =  crs.Write(plain,0,plain.Length) in
+        let _ = crs.FlushFinalBlock() in 
+        let cip = mems.ToArray() in
+        mems.Close();
+        crs.Close();
+        cip
+    | _ -> failwith "DES only defined for symmetric keys"
+
+let des_encrypt_wiv_nopad key iv data =
+    try
+        correct (des_encrypt_wiv_nopad_raw key iv data)
+    with
+        | _ -> Error (Encryption, Internal)
+
 (* Low level TLS 1.2 functions *)
 let hmacsha256_raw (k:Crypto.key) (x:bytes) : bytes = 
   match k with 

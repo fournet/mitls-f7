@@ -148,7 +148,12 @@ let compute_mac conn_state ct data =
 let compute_padlen sp data =
     let bs = get_block_cipher_size sp.bulk_cipher_algorithm in
     let len_no_pad = (length data) + 1 in (* 1 byte for the padlen byte *)
-    let min_padlen = len_no_pad % bs in
+    let min_padlen =
+        let overflow = len_no_pad % bs in
+        if overflow = 0 then
+            overflow
+        else
+            bs - overflow
     let rand = bs * (((int_of_bytes 1 (Crypto.mkRandom 1)) - min_padlen) / bs) in 
     min_padlen + rand
 
@@ -182,9 +187,9 @@ let compute_next_iv version bulk_cipher_algorithm ciphertext =
 
 let encrypt_fun bca key iv data =
     match bca with
-    | BCA_des -> des_encrypt_wiv key iv data
-    | BCA_aes_128 -> aes_encrypt_wiv key iv data
-    | BCA_aes_256 -> aes_encrypt_wiv key iv data
+    | BCA_des -> des_encrypt_wiv_nopad key iv data
+    | BCA_aes_128 -> aes_encrypt_wiv_nopad key iv data
+    | BCA_aes_256 -> aes_encrypt_wiv_nopad key iv data
     | _ -> Error (Encryption, Unsupported)
 
 let encrypt_block conn_state data =
