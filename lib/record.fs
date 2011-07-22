@@ -175,7 +175,7 @@ let compute_next_iv version bulk_cipher_algorithm ciphertext =
     | x when x = ProtocolVersionType.TLS_1p1 || x = ProtocolVersionType.TLS_1p2 ->
         let r = Crypto.mkRandom bs (* Only used when sending data *) in
           Pi.assume (Crypto.PubNonce(r)); r
-    | x when x = ProtocolVersionType.SSL_3p0 || x = ProtocolVersionType.TLS_1p1 ->
+    | x when x = ProtocolVersionType.SSL_3p0 || x = ProtocolVersionType.TLS_1p0 ->
         get_last_block bs ciphertext
     | x when x = ProtocolVersionType.SSL_2p0 -> unexpectedError "[compute_next_iv] Unsupported protocol version, but the caller should not invoke us."
     | _ -> unexpectedError "[compute_next_iv] Protocol version must be known when computing IV"

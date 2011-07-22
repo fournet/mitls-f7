@@ -204,6 +204,8 @@ let makeClientKEXBytes hs_state clSpecInfo sinfo =
         let verBytes = bytes_of_protocolVersionType hs_state.poptions.maxVer in
         let rnd = Crypto.mkRandom 46 in
         let pms = append verBytes rnd in
+        let new_mi = {sinfo.more_info with mi_pms = pms} in
+        let sinfo = {sinfo with more_info = new_mi} in
         match sinfo.serverID with
         | None -> unexpectedError "[makeClientKEXBytes] Server certificate should always be present with a RSA signing cipher suite."
         | Some (serverCert) ->
@@ -212,10 +214,10 @@ let makeClientKEXBytes hs_state clSpecInfo sinfo =
             | Error (x,y) -> Error (HandshakeProto,Internal)
             | Correct (encpms) ->
                 if sinfo.more_info.mi_protocol_version = ProtocolVersionType.SSL_3p0 then
-                    correct (makeHSPacket HT_client_key_exchange encpms)
+                    correct ((makeHSPacket HT_client_key_exchange encpms),sinfo)
                 else
                     let encpms = vlenBytes_of_bytes 2 encpms in
-                    correct (makeHSPacket HT_client_key_exchange encpms)
+                    correct ((makeHSPacket HT_client_key_exchange encpms),sinfo)
     else
         match clSpecInfo.must_send_cert with
         | Some (_) ->
@@ -224,14 +226,14 @@ let makeClientKEXBytes hs_state clSpecInfo sinfo =
                          so we must use DH parameters *)
                 (* TODO: send public Yc value *)
                 let ycBytes = empty_bstr in
-                correct (makeHSPacket HT_client_key_exchange ycBytes)
+                correct ((makeHSPacket HT_client_key_exchange ycBytes),sinfo)
             | Some (cert) ->
                 (* TODO: check whether the certificate already contained suitable DH parameters *)
-                correct (makeHSPacket HT_client_key_exchange empty_bstr)
+                correct ((makeHSPacket HT_client_key_exchange empty_bstr),sinfo)
         | None ->
             (* Use DH parameters *)
             let ycBytes = empty_bstr in
-            correct (makeHSPacket HT_client_key_exchange ycBytes)
+            correct ((makeHSPacket HT_client_key_exchange ycBytes),sinfo)
 
 let hashNametoFun hn =
     match hn with
@@ -501,7 +503,8 @@ let prepare_client_output hs_state clSpecState sinfo =
 
     match makeClientKEXBytes hs_state clSpecState sinfo with
     | Error (x,y) -> Error (x,y)
-    | Correct (clientKEXBytes) ->
+    | Correct (result) ->
+        let (clientKEXBytes,sinfo) = result in
         let certificateVerifyBytesResult =
             match sinfo.clientID with
             | None ->
@@ -563,7 +566,7 @@ let prepare_client_output hs_state clSpecState sinfo =
                         let new_log = append hs_state.hs_msg_log finishedBytes in
                         let hs_state = {hs_state with hs_outgoing_after_ccs = new_out
                                                       hs_msg_log = new_log} in
-                        correct (hs_state)
+                        correct ((hs_state,sinfo))
 
 let init_handshake role poptions =
     let info = init_sessionInfo role in
@@ -865,7 +868,8 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                         client_certificate = None} in
                     match prepare_client_output hs_state clSpecState sinfo with
                     | Error (x,y) -> (Error (x,y), hs_state)
-                    | Correct (hs_state) ->
+                    | Correct (result) ->
+                        let (hs_state,sinfo) = result in
                         let hs_state = {hs_state with pstate = Client(CCCS(sinfo,clSpecState))}
                         recv_fragment_client hs_state must_change_ver
             | CSHDone(sinfo,clSpecState) ->
@@ -878,7 +882,8 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
 
                     match prepare_client_output hs_state clSpecState sinfo with
                     | Error (x,y) -> (Error (x,y), hs_state)
-                    | Correct (hs_state) ->
+                    | Correct (result) ->
+                        let (hs_state,sinfo) = result in
                         let hs_state = {hs_state with pstate = Client(CCCS(sinfo,clSpecState))}
                         recv_fragment_client hs_state must_change_ver
             | _ -> (* Server Hello Done arrived in the wrong state *) (Error (HandshakeProto,InvalidState), hs_state)
