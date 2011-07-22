@@ -904,4 +904,19 @@ let recv_fragment (hs_state:hs_state) (fragment:fragment) =
     | Server (_) -> recv_fragment_server hs_state
 
 let recv_ccs (hs_state: hs_state) (fragment:fragment): ((ccs_data Result) * hs_state) =
-    (Error (HandshakeProto,Unsupported),hs_state)
+    (* Some parsing *)
+    if length fragment <> 1 then
+        (Error(HandshakeProto,CheckFailed),hs_state)
+    else
+        if (int_of_bytes 1 fragment) <> 1 then
+            (Error(HandshakeProto,CheckFailed),hs_state)
+        else
+            (* CCS is good *)
+            match hs_state.pstate with
+            | Client (cstate) ->
+                (* Check we are in the right state (CCCS) *)
+                (* TODO *)
+                (Error(HandshakeProto,Unsupported),hs_state)
+            | Server (cstate) ->
+                (* TODO *)
+                (Error(HandshakeProto,Unsupported),hs_state)
