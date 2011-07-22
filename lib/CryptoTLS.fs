@@ -196,6 +196,9 @@ let tls12prf_raw (secret:bytes) (label:str) (seed:bytes) (nb:int) =
   p_sha256_raw (symkey secret) newseed nb
 
 (* TLS 1.2 PRF *)
+(* FIXME: the used hash algorithm should depend on the ciphersuite.
+   (function prfHashFun_of_ciphersuite already available)
+   Now it is fixed to sha256 *)
 let tls12prf (secret:bytes) (label:str) (seed:bytes) (nb:int) =
     try
         correct (tls12prf_raw secret label seed nb)

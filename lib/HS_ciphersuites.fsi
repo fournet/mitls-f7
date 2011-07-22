@@ -103,3 +103,6 @@ val isAnonCipherSuite: CipherSuite -> bool
 val cipherSuiteRequiresKeyExchange: CipherSuite -> bool
 val canEncryptPMS: CipherSuite -> bool
 val securityParameters_of_ciphersuite: CipherSuite -> SecurityParameters Result
+val verifyDataLen_of_ciphersuite: CipherSuite -> int
+val prfHashFun_of_ciphersuite: CipherSuite -> (bytes -> bytes Result)
+val verifyDataHashFun_of_ciphersuite: CipherSuite -> (bytes -> bytes Result)

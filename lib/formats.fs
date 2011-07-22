@@ -153,10 +153,26 @@ let get_block_cipher_size bca =
     match bca with
     | BCA_des -> 8
     | BCA_aes_128 -> 16
+    | BCA_aes_256 -> 16
+    | _ -> failwith "Unsupported cipher"
+
+let get_key_cipher_size bca =
+    match bca with
+    | BCA_des -> 8
+    | BCA_aes_128 -> 16
     | BCA_aes_256 -> 32
     | _ -> failwith "Unsupported cipher"
 
 let get_hash_size mac_alg =
+    match mac_alg with
+    | MA_null -> 0
+    | MA_md5 -> 16
+    | MA_sha1 -> 20
+    | MA_sha256 -> 32
+    | MA_sha384 -> 48
+    | MA_sha512 -> 64
+
+let get_hash_key_size mac_alg =
     match mac_alg with
     | MA_null -> 0
     | MA_md5 -> 16

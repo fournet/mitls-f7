@@ -344,3 +344,15 @@ let securityParameters_of_ciphersuite cs =
      {bulk_cipher_algorithm = bca;
       cipher_type = ct;
       mac_algorithm = ma;})
+
+let verifyDataLen_of_ciphersuite (cs:CipherSuite) =
+    match cs with
+    | _ -> 12
+
+let prfHashFun_of_ciphersuite (cs:CipherSuite) =
+    match cs with
+    | _ -> CryptoTLS.sha256
+
+let verifyDataHashFun_of_ciphersuite (cs:CipherSuite) =
+    match cs with
+    | _ -> CryptoTLS.sha256

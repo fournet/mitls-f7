@@ -313,8 +313,8 @@ let generateKeys role cr sr pv cs ms =
   | Error (x,y) -> Error(x,y)
   | Correct (sp) ->
       (* RFC2246 uses the field IV_size without defining it *)
-      let hsize = get_hash_size sp.mac_algorithm in
-      let ksize = get_block_cipher_size sp.bulk_cipher_algorithm in
+      let hsize = get_hash_key_size sp.mac_algorithm in
+      let ksize = get_key_cipher_size sp.bulk_cipher_algorithm in
       let ivsize = 
         if pv >= ProtocolVersionType.TLS_1p1 then
             0
@@ -339,7 +339,7 @@ let generateKeys role cr sr pv cs ms =
           in
           correct ((sp,rmk,rek,riv,wmk,wek,wiv))
 
-let bldVerifyData ver ms entity hsmsgs = 
+let bldVerifyData ver cs ms entity hsmsgs = 
   match ver with 
   | ProtocolVersionType.SSL_3p0 ->
     let ssl_sender = 
@@ -379,16 +379,18 @@ let bldVerifyData ver ms entity hsmsgs =
         match entity with
         | ClientRole -> "client finished"
         | ServerRole -> "server finished"
-    match sha256 hsmsgs with
+    let verifyDataHashFun = verifyDataHashFun_of_ciphersuite cs in
+    match verifyDataHashFun hsmsgs with
     | Error (x,y) -> Error(HandshakeProto,Internal)
-    | Correct(sha256hash) ->
-        match tls12prf ms tls_label sha256hash 12 with
+    | Correct(hashResult) ->
+        let verifyDataLen = verifyDataLen_of_ciphersuite cs in
+        match tls12prf ms tls_label hashResult verifyDataLen with
         | Error (x,y) -> Error(HandshakeProto,Internal)
         | Correct(result) -> correct (result)
   | _ -> Error(HandshakeProto,Unsupported)
 
-let makeFinishedMsgBytes ver ms entity hsmsgs =
-    match bldVerifyData ver ms entity hsmsgs with
+let makeFinishedMsgBytes ver cs ms entity hsmsgs =
+    match bldVerifyData ver cs ms entity hsmsgs with
     | Error (x,y) -> Error (x,y)
     | Correct (payload) -> correct (makeHSPacket HT_finished payload)
 
@@ -559,7 +561,7 @@ let prepare_client_output hs_state clSpecState sinfo =
                                                   ccs_incoming = Some(read_ccs_data)}
 
                     (* Now go for the creation of the Finished message *)
-                    match makeFinishedMsgBytes sinfo.more_info.mi_protocol_version ms ClientRole hs_state.hs_msg_log with
+                    match makeFinishedMsgBytes sinfo.more_info.mi_protocol_version sinfo.more_info.mi_cipher_suite ms ClientRole hs_state.hs_msg_log with
                     | Error (x,y) -> Error (x,y)
                     | Correct (finishedBytes) ->
                         let new_out = append hs_state.hs_outgoing_after_ccs finishedBytes in
@@ -581,7 +583,7 @@ let init_handshake role poptions =
                      hs_info = info
                      poptions = poptions
                      pstate = Client (ServerHello(None))
-                     hs_msg_log = empty_bstr
+                     hs_msg_log = cHelloBytes
                      hs_client_random = client_random
                      hs_server_random = empty_bstr} in
         (info,state)
@@ -619,7 +621,7 @@ let resume_handshake role info poptions =
                              hs_info = info
                              poptions = poptions
                              pstate = Client (ServerHello(Some(info)))
-                             hs_msg_log = empty_bstr
+                             hs_msg_log = cHelloBytes
                              hs_client_random = client_random
                              hs_server_random = empty_bstr} in
                 state

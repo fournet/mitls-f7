@@ -55,7 +55,9 @@ val ssl_sender_client: bytes
 val ssl_sender_server: bytes
 
 val get_block_cipher_size: BulkCipherAlgorithm -> int
+val get_key_cipher_size: BulkCipherAlgorithm -> int
 val get_hash_size: MACAlgorithm -> int
+val get_hash_key_size: MACAlgorithm -> int
 
 val bytes_of_contentType: ContentType -> bytes
 val contentType_of_bytes: bytes -> ContentType
