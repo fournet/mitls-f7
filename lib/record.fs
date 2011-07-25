@@ -324,24 +324,37 @@ let check_padding version (data:bytes) =
     let (tmpdata, padlenb) = split data (dlen - 1) in
     let padlen = int_of_bytes 1 padlenb in
     let padstart = dlen - padlen - 1 in
-    let (data_no_pad,pad) = split tmpdata padstart in
-    match version with
-    | v when v = ProtocolVersionType.TLS_1p0 || v = ProtocolVersionType.TLS_1p1 || v = ProtocolVersionType.TLS_1p2 ->
-        let expected = createBytes padlen padlen in
-        if equalBytes expected pad then
-            check_padding_cont data_no_pad
-        else
-            (* in TLS1.0 we fail now, in more recent versions we fail later, see sec.6.2.3.2 Implementation Note *)
-            if  v = ProtocolVersionType.TLS_1p0 then
-                Error (RecordPadding,CheckFailed)
+    if padstart < 0 then
+        (* Evidently padding has been corrupted, or has been incorrectly generated *)
+        (* in TLS1.0 we fail now, in more recent versions we fail later, see sec.6.2.3.2 Implementation Note *)
+        match version with
+        | v when v >= ProtocolVersionType.TLS_1p1 ->
+            (* Pretend we have a valid padding of length zero *)
+            check_padding_cont data
+        | v when v = ProtocolVersionType.SSL_3p0 || v = ProtocolVersionType.TLS_1p0 ->
+            (* in TLS1.0/SSL we fail now, in more recent versions we fail later, see sec.6.2.3.2 Implementation Note *)
+            Error (RecordPadding,CheckFailed)
+        | ProtocolVersionType.SSL_2p0 -> Error(RecordPadding,Unsupported)
+        | _ -> unexpectedError "[check_padding] Protocol version should be known when checking the padding."
+    else
+        let (data_no_pad,pad) = split tmpdata padstart in
+        match version with
+        | v when v = ProtocolVersionType.TLS_1p0 || v = ProtocolVersionType.TLS_1p1 || v = ProtocolVersionType.TLS_1p2 ->
+            let expected = createBytes padlen padlen in
+            if equalBytes expected pad then
+                check_padding_cont data_no_pad
             else
-                (* Pretend we have a valid padding of length zero *)
-                check_padding_cont data
-    | ProtocolVersionType.SSL_3p0 ->
-        (* Padding is random in SSL_3p0, no check to be done *)
-        check_padding_cont data_no_pad
-    | ProtocolVersionType.SSL_2p0 -> Error(RecordPadding,Unsupported)
-    | _ -> unexpectedError "[check_padding] Protocol version should be known when checking the padding."
+                (* in TLS1.0 we fail now, in more recent versions we fail later, see sec.6.2.3.2 Implementation Note *)
+                if  v = ProtocolVersionType.TLS_1p0 then
+                    Error (RecordPadding,CheckFailed)
+                else
+                    (* Pretend we have a valid padding of length zero *)
+                    check_padding_cont data
+        | ProtocolVersionType.SSL_3p0 ->
+            (* Padding is random in SSL_3p0, no check to be done *)
+            check_padding_cont data_no_pad
+        | ProtocolVersionType.SSL_2p0 -> Error(RecordPadding,Unsupported)
+        | _ -> unexpectedError "[check_padding] Protocol version should be known when checking the padding."
 
 let parse_plaintext conn_state data =
     let result_depadding =
