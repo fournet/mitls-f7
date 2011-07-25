@@ -268,8 +268,8 @@ let parse_header header =
 let get_iv_ciphertext version bulk_cipher_algorithm iv ciphertext =
     let bs = get_block_cipher_size bulk_cipher_algorithm in
     match version with
-    | x when x = ProtocolVersionType.TLS_1p1 || x = ProtocolVersionType.TLS_1p2 -> (iv,ciphertext)
-    | x when x = ProtocolVersionType.SSL_3p0 || x = ProtocolVersionType.TLS_1p0 -> (split ciphertext bs)
+    | x when x = ProtocolVersionType.TLS_1p1 || x = ProtocolVersionType.TLS_1p2 -> (split ciphertext bs)
+    | x when x = ProtocolVersionType.SSL_3p0 || x = ProtocolVersionType.TLS_1p0 -> (iv,ciphertext)
     | x when x = ProtocolVersionType.SSL_2p0 -> unexpectedError "[get_iv_ciphertext] Unsupported protocol version, but the caller should ensure we are not called."
     | _ -> unexpectedError "[get_iv_ciphertext] Protocol version must be known when getting the IV"
 

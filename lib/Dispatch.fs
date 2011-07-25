@@ -205,7 +205,7 @@ let next_fragment n (c:Connection) : (bool Result) * Connection =
                             (* Move to the new state *)
                             let c_write = {c_write with disp = Finished}
                             let c = {c with write = c_write} in
-                            (Error(MustRead,Notification),c)
+                            (correct (false), c)
                           | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
                 | _ -> (Error(Dispatcher,InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
           | (HSFullyFinished_Write(lastFrag,new_info),new_hs_state) ->

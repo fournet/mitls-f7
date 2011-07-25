@@ -18,6 +18,7 @@ type ErrorCause =
     | HSProtoVersion
     | HSParsing
     | HSCertificate
+    | HSDecrypt
     | CertificateParsing
     | Dispatcher
     | TLS
