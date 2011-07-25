@@ -56,7 +56,6 @@ type pre_hs_state = {
   hs_msg_log: bytes
   hs_client_random: bytes
   hs_server_random: bytes
-  hs_ms: bytes
 }
 
 type hs_state = pre_hs_state
@@ -153,6 +152,14 @@ let makeCHello poptions session =
     extensions = empty_bstr
     }
 
+let compute_master_secret pms ver crandom srandom = 
+    match ver with 
+    | ProtocolVersionType.SSL_3p0 -> ssl_prf pms (append crandom srandom) 48
+    | x when x = ProtocolVersionType.TLS_1p0 || x = ProtocolVersionType.TLS_1p1 ->
+        prf pms "master secret" (append crandom srandom) 48
+    | ProtocolVersionType.TLS_1p2 -> tls12prf pms "master secret" (append crandom srandom) 48
+    | _ -> Error (HandshakeProto,Unsupported)
+
 let rec b_of_cslist cslist acc =
     match cslist with
     | [] -> vlenBytes_of_bytes 2 acc
@@ -202,11 +209,9 @@ let makeCertificateBytes certOpt =
 
 let makeClientKEXBytes hs_state clSpecInfo sinfo =
     if canEncryptPMS sinfo.more_info.mi_cipher_suite then
-        let verBytes = bytes_of_protocolVersionType hs_state.poptions.maxVer in
+        let verBytes = bytes_of_protocolVersionType hs_state.poptions.maxVer in (* Use maximum supported client version, to avoid rollback *)
         let rnd = Crypto.mkRandom 46 in
         let pms = append verBytes rnd in
-        let new_mi = {sinfo.more_info with mi_pms = pms} in
-        let sinfo = {sinfo with more_info = new_mi} in
         match sinfo.serverID with
         | None -> unexpectedError "[makeClientKEXBytes] Server certificate should always be present with a RSA signing cipher suite."
         | Some (serverCert) ->
@@ -215,10 +220,10 @@ let makeClientKEXBytes hs_state clSpecInfo sinfo =
             | Error (x,y) -> Error (HandshakeProto,Internal)
             | Correct (encpms) ->
                 if sinfo.more_info.mi_protocol_version = ProtocolVersionType.SSL_3p0 then
-                    correct ((makeHSPacket HT_client_key_exchange encpms),sinfo)
+                    correct ((makeHSPacket HT_client_key_exchange encpms),pms)
                 else
                     let encpms = vlenBytes_of_bytes 2 encpms in
-                    correct ((makeHSPacket HT_client_key_exchange encpms),sinfo)
+                    correct ((makeHSPacket HT_client_key_exchange encpms),pms)
     else
         match clSpecInfo.must_send_cert with
         | Some (_) ->
@@ -227,14 +232,18 @@ let makeClientKEXBytes hs_state clSpecInfo sinfo =
                          so we must use DH parameters *)
                 (* TODO: send public Yc value *)
                 let ycBytes = empty_bstr in
-                correct ((makeHSPacket HT_client_key_exchange ycBytes),sinfo)
+                (* TODO: compute pms *)
+                let pms = empty_bstr in
+                correct ((makeHSPacket HT_client_key_exchange ycBytes),pms)
             | Some (cert) ->
                 (* TODO: check whether the certificate already contained suitable DH parameters *)
-                correct ((makeHSPacket HT_client_key_exchange empty_bstr),sinfo)
+                let pms = empty_bstr in
+                correct ((makeHSPacket HT_client_key_exchange empty_bstr),pms)
         | None ->
             (* Use DH parameters *)
             let ycBytes = empty_bstr in
-            correct ((makeHSPacket HT_client_key_exchange ycBytes),sinfo)
+            let pms = empty_bstr in
+            correct ((makeHSPacket HT_client_key_exchange ycBytes),pms)
 
 let hashNametoFun hn =
     match hn with
@@ -283,14 +292,6 @@ let makeCertificateVerifyBytes cert data pv certReqMsg=
 
 let makeCCSBytes () =
     bytes_of_int 1 1
-
-let compute_master_secret pms ver crandom srandom = 
-    match ver with 
-    | ProtocolVersionType.SSL_3p0 -> ssl_prf pms (append crandom srandom) 48
-    | x when x = ProtocolVersionType.TLS_1p0 || x = ProtocolVersionType.TLS_1p1 ->
-        prf pms "master secret" (append crandom srandom) 48
-    | ProtocolVersionType.TLS_1p2 -> tls12prf pms "master secret" (append crandom srandom) 48
-    | _ -> Error (HandshakeProto,Unsupported)
 
 let expand_master_secret ver ms crandom srandom nb = 
   match ver with 
@@ -502,35 +503,31 @@ let find_client_cert certReqMsg =
     (* TODO *) None
 
 let compute_session_secrets_and_CCSs hs_state sinfo role =
-    match compute_master_secret sinfo.more_info.mi_pms sinfo.more_info.mi_protocol_version hs_state.hs_client_random hs_state.hs_server_random with
+    match generateKeys role hs_state.hs_client_random hs_state.hs_server_random sinfo.more_info.mi_protocol_version sinfo.more_info.mi_cipher_suite sinfo.more_info.mi_ms with
     | Error (x,y) -> Error(x,y)
-    | Correct(ms) ->
-        let hs_state = {hs_state with hs_ms = ms} in
-        match generateKeys role hs_state.hs_client_random hs_state.hs_server_random sinfo.more_info.mi_protocol_version sinfo.more_info.mi_cipher_suite ms with
-        | Error (x,y) -> Error(x,y)
-        | Correct(allKeys) ->
-            let (sp,rmk,rek,riv,wmk,wek,wiv) = allKeys in
-            let read_ciphstate = ciphstate_of_ciphtype sp.cipher_type (symkey rek) riv in
-            let read_ccs_data =
-                {ccs_info = sinfo
-                 ccs_pv = sinfo.more_info.mi_protocol_version
-                 ccs_comp = sinfo.more_info.mi_compression
-                 ccs_sparams = sp
-                 ccs_mkey = (symkey rmk)
-                 ccs_ciphstate = read_ciphstate}
-            let write_ciphstate = ciphstate_of_ciphtype sp.cipher_type (symkey wek) wiv in
-            let write_ccs_data =
-                {ccs_info = sinfo
-                 ccs_pv = sinfo.more_info.mi_protocol_version
-                 ccs_comp = sinfo.more_info.mi_compression
-                 ccs_sparams = sp
-                 ccs_mkey = (symkey wmk)
-                 ccs_ciphstate = write_ciphstate}
-            (* Put the ccs_data in the appropriate buffers. *)
-            (* Side note: do not put sinfo in the hs_state yet, it is a proposed sinfo, not validated by finished messages checks. *)
-            let hs_state = {hs_state with ccs_outgoing = Some((makeCCSBytes(),write_ccs_data))
-                                          ccs_incoming = Some(read_ccs_data)} in
-            correct (hs_state)
+    | Correct(allKeys) ->
+        let (sp,rmk,rek,riv,wmk,wek,wiv) = allKeys in
+        let read_ciphstate = ciphstate_of_ciphtype sp.cipher_type (symkey rek) riv in
+        let read_ccs_data =
+            {ccs_info = sinfo
+             ccs_pv = sinfo.more_info.mi_protocol_version
+             ccs_comp = sinfo.more_info.mi_compression
+             ccs_sparams = sp
+             ccs_mkey = (symkey rmk)
+             ccs_ciphstate = read_ciphstate}
+        let write_ciphstate = ciphstate_of_ciphtype sp.cipher_type (symkey wek) wiv in
+        let write_ccs_data =
+            {ccs_info = sinfo
+             ccs_pv = sinfo.more_info.mi_protocol_version
+             ccs_comp = sinfo.more_info.mi_compression
+             ccs_sparams = sp
+             ccs_mkey = (symkey wmk)
+             ccs_ciphstate = write_ciphstate}
+        (* Put the ccs_data in the appropriate buffers. *)
+        (* Side note: do not put sinfo in the hs_state yet, it is a proposed sinfo, not validated by finished messages checks. *)
+        let hs_state = {hs_state with ccs_outgoing = Some((makeCCSBytes(),write_ccs_data))
+                                      ccs_incoming = Some(read_ccs_data)} in
+        correct (hs_state)
 
 let prepare_client_output_full hs_state clSpecState sinfo =
     let clientCertBytes =
@@ -543,47 +540,53 @@ let prepare_client_output_full hs_state clSpecState sinfo =
     match makeClientKEXBytes hs_state clSpecState sinfo with
     | Error (x,y) -> Error (x,y)
     | Correct (result) ->
-        let (clientKEXBytes,sinfo) = result in
-        let certificateVerifyBytesResult =
-            match sinfo.clientID with
-            | None ->
-                (* No client certificate ==> no certificateVerify message *)
-                correct (empty_bstr)
-            | Some (cert) ->
-                if certificate_has_signing_capability cert then
-                    let to_sign = appendList [hs_state.hs_msg_log;clientCertBytes;clientKEXBytes] in
-                    match clSpecState.must_send_cert with
-                    | None -> unexpectedError "[prepare_output] If client sent a certificate, it must have been requested to."
-                    | Some (certReqMsg) ->
-                        makeCertificateVerifyBytes cert to_sign sinfo.more_info.mi_protocol_version certReqMsg
-                else
-                    correct (empty_bstr)
-        match certificateVerifyBytesResult with
+        let (clientKEXBytes,pms) = result in
+        match compute_master_secret pms sinfo.more_info.mi_protocol_version hs_state.hs_client_random hs_state.hs_server_random with
+        (* TODO: here we should shred pms *)
         | Error (x,y) -> Error (x,y)
-        | Correct (certificateVerifyBytes) ->
-            (* Enqueue current messages *)
-            let to_send = appendList [clientCertBytes;clientKEXBytes;certificateVerifyBytes] in
-            let new_outgoing = append hs_state.hs_outgoing to_send in
-            let new_log = append hs_state.hs_msg_log to_send in
-            let hs_state = {hs_state with hs_outgoing = new_outgoing
-                                          hs_msg_log = new_log} in
-
-            (* Handle CCS and Finished, including computation of session secrets *)
-            match compute_session_secrets_and_CCSs hs_state sinfo ClientRole with
+        | Correct (ms) ->
+            let new_mi = {sinfo.more_info with mi_ms = ms} in
+            let sinfo = {sinfo with more_info = new_mi} in
+            let certificateVerifyBytesResult =
+                match sinfo.clientID with
+                | None ->
+                    (* No client certificate ==> no certificateVerify message *)
+                    correct (empty_bstr)
+                | Some (cert) ->
+                    if certificate_has_signing_capability cert then
+                        let to_sign = appendList [hs_state.hs_msg_log;clientCertBytes;clientKEXBytes] in
+                        match clSpecState.must_send_cert with
+                        | None -> unexpectedError "[prepare_output] If client sent a certificate, it must have been requested to."
+                        | Some (certReqMsg) ->
+                            makeCertificateVerifyBytes cert to_sign sinfo.more_info.mi_protocol_version certReqMsg
+                    else
+                        correct (empty_bstr)
+            match certificateVerifyBytesResult with
             | Error (x,y) -> Error (x,y)
-            | Correct (hs_state) ->
-                (* Now go for the creation of the Finished message *)
-                match makeFinishedMsgBytes sinfo.more_info.mi_protocol_version sinfo.more_info.mi_cipher_suite hs_state.hs_ms ClientRole hs_state.hs_msg_log with
+            | Correct (certificateVerifyBytes) ->
+                (* Enqueue current messages *)
+                let to_send = appendList [clientCertBytes;clientKEXBytes;certificateVerifyBytes] in
+                let new_outgoing = append hs_state.hs_outgoing to_send in
+                let new_log = append hs_state.hs_msg_log to_send in
+                let hs_state = {hs_state with hs_outgoing = new_outgoing
+                                              hs_msg_log = new_log} in
+
+                (* Handle CCS and Finished, including computation of session secrets *)
+                match compute_session_secrets_and_CCSs hs_state sinfo ClientRole with
                 | Error (x,y) -> Error (x,y)
-                | Correct (finishedBytes) ->
-                    let new_out = append hs_state.hs_outgoing_after_ccs finishedBytes in
-                    let new_log = append hs_state.hs_msg_log finishedBytes in
-                    let hs_state = {hs_state with hs_outgoing_after_ccs = new_out
-                                                  hs_msg_log = new_log} in
-                    correct ((hs_state,sinfo))
+                | Correct (hs_state) ->
+                    (* Now go for the creation of the Finished message *)
+                    match makeFinishedMsgBytes sinfo.more_info.mi_protocol_version sinfo.more_info.mi_cipher_suite sinfo.more_info.mi_ms ClientRole hs_state.hs_msg_log with
+                    | Error (x,y) -> Error (x,y)
+                    | Correct (finishedBytes) ->
+                        let new_out = append hs_state.hs_outgoing_after_ccs finishedBytes in
+                        let new_log = append hs_state.hs_msg_log finishedBytes in
+                        let hs_state = {hs_state with hs_outgoing_after_ccs = new_out
+                                                      hs_msg_log = new_log} in
+                        correct ((hs_state,sinfo))
 
 let prepare_client_output_resumption hs_state sinfo =
-    match makeFinishedMsgBytes sinfo.more_info.mi_protocol_version sinfo.more_info.mi_cipher_suite hs_state.hs_ms ClientRole hs_state.hs_msg_log with
+    match makeFinishedMsgBytes sinfo.more_info.mi_protocol_version sinfo.more_info.mi_cipher_suite sinfo.more_info.mi_ms ClientRole hs_state.hs_msg_log with
     | Error (x,y) -> Error (x,y)
     | Correct (finishedBytes) ->
         let new_out = append hs_state.hs_outgoing_after_ccs finishedBytes in
@@ -606,8 +609,7 @@ let init_handshake role poptions =
                      pstate = Client (ServerHello(None))
                      hs_msg_log = cHelloBytes
                      hs_client_random = client_random
-                     hs_server_random = empty_bstr
-                     hs_ms = empty_bstr} in
+                     hs_server_random = empty_bstr} in
         (info,state)
     | ServerRole ->
         let state = {hs_outgoing = empty_bstr
@@ -620,8 +622,7 @@ let init_handshake role poptions =
                      pstate = Server (ClientHello)
                      hs_msg_log = empty_bstr
                      hs_client_random = empty_bstr
-                     hs_server_random = empty_bstr
-                     hs_ms = empty_bstr} in
+                     hs_server_random = empty_bstr} in
         (info,state)
 
 let resume_handshake role info poptions =
@@ -647,8 +648,7 @@ let resume_handshake role info poptions =
                              pstate = Client (ServerHello(Some(info)))
                              hs_msg_log = cHelloBytes
                              hs_client_random = client_random
-                             hs_server_random = empty_bstr
-                             hs_ms = empty_bstr} in
+                             hs_server_random = empty_bstr} in
                 state
             | ServerRole ->
                 let state = {hs_outgoing = empty_bstr
@@ -661,8 +661,7 @@ let resume_handshake role info poptions =
                              pstate = Server (ClientHello)
                              hs_msg_log = empty_bstr
                              hs_client_random = empty_bstr
-                             hs_server_random = empty_bstr
-                             hs_ms = empty_bstr} in
+                             hs_server_random = empty_bstr} in
                 state
 
 let start_rehandshake (state:hs_state) (ops:protocolOptions) =
@@ -694,8 +693,7 @@ let new_session_idle state new_info =
          pstate = Client(CIdle);
          hs_msg_log = empty_bstr
          hs_client_random = empty_bstr
-         hs_server_random = empty_bstr
-         hs_ms = empty_bstr}
+         hs_server_random = empty_bstr}
     | Server (_) ->
         {hs_outgoing = empty_bstr;
          ccs_outgoing = None;
@@ -707,8 +705,7 @@ let new_session_idle state new_info =
          pstate = Server(SIdle);
          hs_msg_log = empty_bstr
          hs_client_random = empty_bstr
-         hs_server_random = empty_bstr
-         hs_ms = empty_bstr}
+         hs_server_random = empty_bstr}
 
 let enqueue_fragment hs_state fragment =
     let new_inc = append hs_state.hs_incoming fragment in
@@ -796,7 +793,7 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                                                   more_info = { mi_protocol_version = shello.server_version
                                                                 mi_cipher_suite = shello.cipher_suite
                                                                 mi_compression = shello.compression_method
-                                                                mi_pms = empty_bstr
+                                                                mi_ms = empty_bstr
                                                               }
                                                 } in
                                     (* If DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
@@ -835,7 +832,7 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                                                           more_info = { mi_protocol_version = shello.server_version
                                                                         mi_cipher_suite = shello.cipher_suite
                                                                         mi_compression = shello.compression_method
-                                                                        mi_pms = empty_bstr
+                                                                        mi_ms = empty_bstr
                                                                       }
                                                         } in
                                             (* If DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
@@ -928,7 +925,7 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
             match cState with
             | CFinished (sinfo,clSpState) ->
                 (* Check received content *)
-                match checkVerifyData sinfo.more_info.mi_protocol_version sinfo.more_info.mi_cipher_suite hs_state.hs_ms ServerRole hs_state.hs_msg_log payload with
+                match checkVerifyData sinfo.more_info.mi_protocol_version sinfo.more_info.mi_cipher_suite sinfo.more_info.mi_ms ServerRole hs_state.hs_msg_log payload with
                 | Error (x,y) -> (Error(x,y),hs_state)
                 | Correct(verifyDataisOK) ->
                     if not verifyDataisOK then

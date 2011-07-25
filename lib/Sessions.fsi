@@ -18,7 +18,7 @@ type SessionMoreInfo = {
     mi_protocol_version: ProtocolVersionType
     mi_cipher_suite: CipherSuite
     mi_compression: Compression
-    mi_pms: bytes
+    mi_ms: bytes
     }
 
 type SessionInfo = {

@@ -3,15 +3,15 @@
 open Error_handling
 
 let testCl () =
-    let ns = Tcp.connect "193.55.250.100" 4433 in
+    let ns = Tcp.connect "10.101.35.118" 4433 in
     let conn = TLS.connect ns AppCommon.defaultProtocolOptions in
     match conn with
     | (Error(x,y),_) -> Printf.printf "AYEEE!!! %A %A" x y
     | _ -> Printf.printf "Full OK"
     ignore (System.Console.ReadLine())
 
-let testRes =
-    let ns = Tcp.connect "193.55.250.100" 4433 in
+let testRes  =
+    let ns = Tcp.connect "10.101.35.118" 4433 in
     let dpo = AppCommon.defaultProtocolOptions in
     let sid = (SessionDB.getAllStoredIDs dpo).Head in
     printf "Asking resumption with %A" sid
@@ -22,7 +22,7 @@ let testRes =
         match conn with
         | (Error(x,y),_) -> Printf.printf "AYEEE!!! %A %A" x y
         | Correct(_), conn ->
-            let sifo = TLS.getSessionInfo conn in
+            let sinfo = TLS.getSessionInfo conn in
             match sinfo.sessionID with
             | None -> printf "DUNNO"
             | Some (newSid) ->
