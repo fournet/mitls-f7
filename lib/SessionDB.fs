@@ -58,3 +58,8 @@ let insert poptions key value =
     | None ->
         let map = Map.add key (value,System.DateTime.Now) map in
         store poptions.sessionDBFileName map
+
+let getAllStoredIDs poptions =
+    let map = load poptions.sessionDBFileName in
+    let mapList = Map.toList map in
+    List.map (fun (x,y) -> x) mapList

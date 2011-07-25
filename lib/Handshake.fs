@@ -27,6 +27,7 @@ type clientState =
     | CSHDone of SessionInfo * clientSpecificState
     | CCCS of SessionInfo * clientSpecificState
     | CFinished of SessionInfo * clientSpecificState
+    | CWatingToWrite of SessionInfo
     | CIdle
 
 type serverState =
@@ -36,6 +37,7 @@ type serverState =
     | CertificateVerify
     | SCCS
     | SFinished
+    | SWaitingToWrite of SessionInfo
     | SIdle
 
 type protoState =
@@ -100,17 +102,15 @@ let next_fragment state len =
                            we are doing full handshake or resumption. *)
                         match cstate with
                         | CCCS (_) -> (HSWriteSideFinished (f), state)
-                        | CIdle ->
-                            (* Note we can use state.hs_info, because the handshake already blessed the sinfo, and altered its state *)
-                            (HSFullyFinished_Write (f,state.hs_info), state)
+                        | CWatingToWrite (sinfo) ->
+                            (HSFullyFinished_Write (f,sinfo), state)
                         | _ -> unexpectedError "[next_fragment] invoked in invalid state"
                     | Server (sstate) ->
                         match sstate with
                         | SCCS ->
                             (HSWriteSideFinished (f), state)
-                        | SIdle ->
-                            (* Note we can use state.hs_info, because the handshake already blessed the sinfo, and altered its state *)
-                            (HSFullyFinished_Write (f,state.hs_info), state)
+                        | SWaitingToWrite (sinfo) ->
+                            (HSFullyFinished_Write (f,sinfo), state)
                         | _ -> unexpectedError "[next_fragment] invoked in invalid state"
                 | _ -> (HSFrag(f),state)
         | Some data ->
@@ -501,6 +501,37 @@ let parseCertReq ver data =
 let find_client_cert certReqMsg =
     (* TODO *) None
 
+let compute_session_secrets_and_CCSs hs_state sinfo role =
+    match compute_master_secret sinfo.more_info.mi_pms sinfo.more_info.mi_protocol_version hs_state.hs_client_random hs_state.hs_server_random with
+    | Error (x,y) -> Error(x,y)
+    | Correct(ms) ->
+        let hs_state = {hs_state with hs_ms = ms} in
+        match generateKeys role hs_state.hs_client_random hs_state.hs_server_random sinfo.more_info.mi_protocol_version sinfo.more_info.mi_cipher_suite ms with
+        | Error (x,y) -> Error(x,y)
+        | Correct(allKeys) ->
+            let (sp,rmk,rek,riv,wmk,wek,wiv) = allKeys in
+            let read_ciphstate = ciphstate_of_ciphtype sp.cipher_type (symkey rek) riv in
+            let read_ccs_data =
+                {ccs_info = sinfo
+                 ccs_pv = sinfo.more_info.mi_protocol_version
+                 ccs_comp = sinfo.more_info.mi_compression
+                 ccs_sparams = sp
+                 ccs_mkey = (symkey rmk)
+                 ccs_ciphstate = read_ciphstate}
+            let write_ciphstate = ciphstate_of_ciphtype sp.cipher_type (symkey wek) wiv in
+            let write_ccs_data =
+                {ccs_info = sinfo
+                 ccs_pv = sinfo.more_info.mi_protocol_version
+                 ccs_comp = sinfo.more_info.mi_compression
+                 ccs_sparams = sp
+                 ccs_mkey = (symkey wmk)
+                 ccs_ciphstate = write_ciphstate}
+            (* Put the ccs_data in the appropriate buffers. *)
+            (* Side note: do not put sinfo in the hs_state yet, it is a proposed sinfo, not validated by finished messages checks. *)
+            let hs_state = {hs_state with ccs_outgoing = Some((makeCCSBytes(),write_ccs_data))
+                                          ccs_incoming = Some(read_ccs_data)} in
+            correct (hs_state)
+
 let prepare_client_output_full hs_state clSpecState sinfo =
     let clientCertBytes =
         match clSpecState.must_send_cert with
@@ -538,44 +569,27 @@ let prepare_client_output_full hs_state clSpecState sinfo =
                                           hs_msg_log = new_log} in
 
             (* Handle CCS and Finished, including computation of session secrets *)
-            match compute_master_secret sinfo.more_info.mi_pms sinfo.more_info.mi_protocol_version hs_state.hs_client_random hs_state.hs_server_random with
-            | Error (x,y) -> Error(x,y)
-            | Correct(ms) ->
-                let hs_state = {hs_state with hs_ms = ms} in
-                match generateKeys ClientRole hs_state.hs_client_random hs_state.hs_server_random sinfo.more_info.mi_protocol_version sinfo.more_info.mi_cipher_suite ms with
-                | Error (x,y) -> Error(x,y)
-                | Correct(allKeys) ->
-                    let (sp,rmk,rek,riv,wmk,wek,wiv) = allKeys in
-                    let read_ciphstate = ciphstate_of_ciphtype sp.cipher_type (symkey rek) riv in
-                    let read_ccs_data =
-                       {ccs_info = sinfo
-                        ccs_pv = sinfo.more_info.mi_protocol_version
-                        ccs_comp = sinfo.more_info.mi_compression
-                        ccs_sparams = sp
-                        ccs_mkey = (symkey rmk)
-                        ccs_ciphstate = read_ciphstate}
-                    let write_ciphstate = ciphstate_of_ciphtype sp.cipher_type (symkey wek) wiv in
-                    let write_ccs_data =
-                       {ccs_info = sinfo
-                        ccs_pv = sinfo.more_info.mi_protocol_version
-                        ccs_comp = sinfo.more_info.mi_compression
-                        ccs_sparams = sp
-                        ccs_mkey = (symkey wmk)
-                        ccs_ciphstate = write_ciphstate}
-                    (* Put the ccs_data in the appropriate buffers. *)
-                    (* Side note: do not put sinfo in the hs_state yet, it is a proposed sinfo, not validated by finished messages checks. *)
-                    let hs_state = {hs_state with ccs_outgoing = Some((makeCCSBytes(),write_ccs_data))
-                                                  ccs_incoming = Some(read_ccs_data)}
+            match compute_session_secrets_and_CCSs hs_state sinfo ClientRole with
+            | Error (x,y) -> Error (x,y)
+            | Correct (hs_state) ->
+                (* Now go for the creation of the Finished message *)
+                match makeFinishedMsgBytes sinfo.more_info.mi_protocol_version sinfo.more_info.mi_cipher_suite hs_state.hs_ms ClientRole hs_state.hs_msg_log with
+                | Error (x,y) -> Error (x,y)
+                | Correct (finishedBytes) ->
+                    let new_out = append hs_state.hs_outgoing_after_ccs finishedBytes in
+                    let new_log = append hs_state.hs_msg_log finishedBytes in
+                    let hs_state = {hs_state with hs_outgoing_after_ccs = new_out
+                                                  hs_msg_log = new_log} in
+                    correct ((hs_state,sinfo))
 
-                    (* Now go for the creation of the Finished message *)
-                    match makeFinishedMsgBytes sinfo.more_info.mi_protocol_version sinfo.more_info.mi_cipher_suite ms ClientRole hs_state.hs_msg_log with
-                    | Error (x,y) -> Error (x,y)
-                    | Correct (finishedBytes) ->
-                        let new_out = append hs_state.hs_outgoing_after_ccs finishedBytes in
-                        let new_log = append hs_state.hs_msg_log finishedBytes in
-                        let hs_state = {hs_state with hs_outgoing_after_ccs = new_out
-                                                      hs_msg_log = new_log} in
-                        correct ((hs_state,sinfo))
+let prepare_client_output_resumption hs_state sinfo =
+    match makeFinishedMsgBytes sinfo.more_info.mi_protocol_version sinfo.more_info.mi_cipher_suite hs_state.hs_ms ClientRole hs_state.hs_msg_log with
+    | Error (x,y) -> Error (x,y)
+    | Correct (finishedBytes) ->
+        let new_out = append hs_state.hs_outgoing_after_ccs finishedBytes in
+        (* No need to log this message *)
+        let hs_state = {hs_state with hs_outgoing_after_ccs = new_out} in
+        correct (hs_state)
 
 let init_handshake role poptions =
     let info = init_sessionInfo role in
@@ -615,6 +629,7 @@ let resume_handshake role info poptions =
     match sidOp with
     | None -> unexpectedError "[resume_handshake] must be invoked on a non-null session"
     | Some (sid) ->
+        (* FIXME: Probably, the followin SessionDB interaction should be in dispatcher *)
         (* Ensure the sid is in the SessionDB *)
         match SessionDB.select poptions sid with
         | None -> unexpectedError "[resume_handshake] requested session expired or never stored in DB"
@@ -663,6 +678,10 @@ let start_hs_request (state:hs_state) (ops:protocolOptions) =
     state
 
 let new_session_idle state new_info =
+    (* FIXME: next SessionDB interaction should be in the dispatcher *)
+    match new_info.sessionID with
+    | None -> (* This session should not be stored *) ()
+    | Some (sid) -> SessionDB.insert state.poptions sid new_info
     match state.pstate with
     | Client (_) ->
         {hs_outgoing = empty_bstr;
@@ -796,11 +815,14 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                                             if sinfo.more_info.mi_protocol_version = shello.server_version then
                                                 if sinfo.more_info.mi_cipher_suite = shello.cipher_suite then
                                                     if sinfo.more_info.mi_compression = shello.compression_method then
-                                                        let clSpecState = {resumed_session = true;
-                                                                           must_send_cert = None;
-                                                                           client_certificate = None} in
-                                                        let hs_state = { hs_state with pstate = Client(CCCS(sinfo,clSpecState))}
-                                                        recv_fragment_client hs_state (Some(shello.server_version))
+                                                        match compute_session_secrets_and_CCSs hs_state sinfo ClientRole with
+                                                        | Error (x,y) -> (Error  (x,y),hs_state)
+                                                        | Correct (hs_state) ->
+                                                            let clSpecState = {resumed_session = true;
+                                                                               must_send_cert = None;
+                                                                               client_certificate = None} in
+                                                            let hs_state = { hs_state with pstate = Client(CCCS(sinfo,clSpecState))}
+                                                            recv_fragment_client hs_state (Some(shello.server_version))
                                                     else (Error(HandshakeProto,CheckFailed),hs_state)
                                                 else (Error(HandshakeProto,CheckFailed),hs_state)
                                             else (Error(HandshakeProto,CheckFailed),hs_state)
@@ -912,16 +934,20 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                     if not verifyDataisOK then
                         (Error(HSDecrypt,CheckFailed),hs_state)
                     else
-                        (* Log the received message *)
-                        let new_log = append hs_state.hs_msg_log to_log in
-                        let hs_state = {hs_state with hs_msg_log = new_log} in
                         if clSpState.resumed_session then
-                            (* TODO *)
-                            (Error (HandshakeProto,Unsupported), hs_state)
-                        else
+                            (* Log the received message *)
+                            let new_log = append hs_state.hs_msg_log to_log in
+                            let hs_state = {hs_state with hs_msg_log = new_log} in
+                            match prepare_client_output_resumption hs_state sinfo with
+                            | Error (x,y) -> (Error (x,y), hs_state)
+                            | Correct (hs_state) ->
+                                let hs_state = {hs_state with pstate = Client(CWatingToWrite (sinfo))} in
+                                (correct (HSReadSideFinished),hs_state)
+                        else    
                             (* Handshake fully completed successfully. Report this fact to the dispatcher:
-                               it will take care of moving the handshake to the Idle state, updating the sinfo with the
-                               one we've been creating in this handshake. *)
+                                it will take care of moving the handshake to the Idle state, updating the sinfo with the
+                                one we've been creating in this handshake. *)
+                            (* Note: no need to log this message *)
                             (correct (HSFullyFinished_Read (sinfo)),hs_state)
             | _ -> (* Finished arrived in the wrong state *) (Error (HandshakeProto,InvalidState), hs_state)
         | _ -> (* Unsupported/Wrong message *) (Error (HandshakeProto,Unsupported), hs_state)

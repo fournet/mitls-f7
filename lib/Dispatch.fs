@@ -401,6 +401,17 @@ let rec readNextAppFragment conn =
         sendNextFragments conn
 
 let writeOneAppFragment conn d =
+    (* FIXME: there's a bug on the writing side:
+       In this function, we assume that if sendNextFragments returns
+       a correct (_) value, then the app_data fragment has been sent.
+       However, sendNextFragments returns correct *without* sending
+       any app_data fragment at least in the following cases:
+       - An alert has been sent;
+       - The wirte-side part of a handshake has finised
+         (This used to be a MustRead error, but has been changed, because
+         it didn't make sense to return a MustRead error after a read invocation.
+         Anyway, all this logic need to be re-though about.)
+       We must fix this *)
     let c_write = conn.write in
     match c_write.disp with
     | Finished -> (Error(MustRead,Notification),conn)
