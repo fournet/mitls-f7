@@ -10,7 +10,7 @@ let testCl () =
     | _ -> Printf.printf "Full OK"
     ignore (System.Console.ReadLine())
 
-let testRes  =
+let testRes ()  =
     let ns = Tcp.connect "10.101.35.118" 4433 in
     let dpo = AppCommon.defaultProtocolOptions in
     let sid = (SessionDB.getAllStoredIDs dpo).Head in

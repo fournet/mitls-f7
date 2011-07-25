@@ -42,7 +42,7 @@ let rec int_consume conn =
         if length b = 0 then
             int_consume conn
         else
-            unexpectedError "[int_connect] No user data should be received during the first handshake"
+            unexpectedError "[int_connect] No user data should be received during the first handshake, or a synchronous re-handshake."
     | (Error(NewSessionInfo,Notification),conn) -> (correct(unitVal),conn)
     | (Error(x,y),conn) -> (Error(x,y),conn)
 
