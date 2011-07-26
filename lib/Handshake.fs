@@ -154,11 +154,19 @@ let makeCHello poptions session =
 
 let compute_master_secret pms ver crandom srandom = 
     match ver with 
-    | ProtocolVersionType.SSL_3p0 -> ssl_prf pms (append crandom srandom) 48
+    | ProtocolVersionType.SSL_3p0 ->
+        match ssl_prf pms (append crandom srandom) 48 with
+        | Error(x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
+        | Correct (res) -> correct (res)
     | x when x = ProtocolVersionType.TLS_1p0 || x = ProtocolVersionType.TLS_1p1 ->
-        prf pms "master secret" (append crandom srandom) 48
-    | ProtocolVersionType.TLS_1p2 -> tls12prf pms "master secret" (append crandom srandom) 48
-    | _ -> Error (HandshakeProto,Unsupported)
+        match prf pms "master secret" (append crandom srandom) 48 with
+        | Error(x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
+        | Correct (res) -> correct (res)
+    | ProtocolVersionType.TLS_1p2 ->
+        match tls12prf pms "master secret" (append crandom srandom) 48 with
+        | Error(x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
+        | Correct (res) -> correct (res)
+    | _ -> Error(HSError(AD_internal_error),HSSendAlert)
 
 let rec b_of_cslist cslist acc =
     match cslist with
@@ -217,7 +225,7 @@ let makeClientKEXBytes hs_state clSpecInfo sinfo =
         | Some (serverCert) ->
             let pubKey = pubKey_of_certificate serverCert in
             match rsa_encrypt pubKey pms with
-            | Error (x,y) -> Error (HandshakeProto,Internal)
+            | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
             | Correct (encpms) ->
                 if sinfo.more_info.mi_protocol_version = ProtocolVersionType.SSL_3p0 then
                     correct ((makeHSPacket HT_client_key_exchange encpms),pms)
@@ -249,11 +257,11 @@ let hashNametoFun hn =
     match hn with
     | HashAlg.HA_md5 -> correct (md5)
     | HashAlg.HA_sha1 -> correct (sha1)
-    | HashAlg.HA_sha224 -> Error (HandshakeProto,Unsupported)
+    | HashAlg.HA_sha224 -> Error(HSError(AD_internal_error),HSSendAlert)
     | HashAlg.HA_sha256 -> correct (sha256)
     | HashAlg.HA_sha384 -> correct (sha384)
     | HashAlg.HA_sha512 -> correct (sha512)
-    | _ -> Error (HandshakeProto,Unsupported)
+    | _ -> Error(HSError(AD_internal_error),HSSendAlert)
 
 let makeCertificateVerifyBytes cert data pv certReqMsg=
     let priKey = priKey_of_certificate cert in
@@ -274,10 +282,10 @@ let makeCertificateVerifyBytes cert data pv certReqMsg=
             | Error (x,y) -> Error (x,y)
             | Correct (hFun) ->
                 match hFun data with
-                | Error (x,y) -> Error (HandshakeProto, Internal)
+                | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
                 | Correct (hashed) ->
                     match rsa_encrypt priKey hashed with
-                    | Error (x,y) -> Error (HandshakeProto, Internal)
+                    | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
                     | Correct (signed) ->
                         let signed = vlenBytes_of_bytes 2 signed in
                         let hashAlgBytes = bytes_of_int 1 (int hashAlg) in
@@ -285,21 +293,29 @@ let makeCertificateVerifyBytes cert data pv certReqMsg=
                         let payload = appendList [hashAlgBytes;signAlgBytes;signed] in
                         correct (makeHSPacket HT_certificate_verify payload)
     | x when x = ProtocolVersionType.TLS_1p0 || x = ProtocolVersionType.TLS_1p1 ->
-        (* TODO *) Error (HandshakeProto,Unsupported)
+        (* TODO *) Error(HSError(AD_internal_error),HSSendAlert)
     | ProtocolVersionType.SSL_3p0 ->
-        (* TODO *) Error (HandshakeProto,Unsupported)
-    | _ -> Error (HandshakeProto,Unsupported)
+        (* TODO *) Error(HSError(AD_internal_error),HSSendAlert)
+    | _ -> Error(HSError(AD_internal_error),HSSendAlert)
 
 let makeCCSBytes () =
     bytes_of_int 1 1
 
 let expand_master_secret ver ms crandom srandom nb = 
   match ver with 
-  | ProtocolVersionType.SSL_3p0 -> ssl_prf ms (append srandom crandom) nb
+  | ProtocolVersionType.SSL_3p0 -> 
+     match ssl_prf ms (append srandom crandom) nb with
+     | Error(x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
+     | Correct (res) -> correct (res)
   | x when x = ProtocolVersionType.TLS_1p0 || x = ProtocolVersionType.TLS_1p1 ->
-        prf ms "key expansion" (append srandom crandom) nb
-  | ProtocolVersionType.TLS_1p2 -> tls12prf ms "key expansion" (append srandom crandom) nb
-  | _ -> Error (HandshakeProto,Unsupported)
+     match prf ms "key expansion" (append srandom crandom) nb with
+     | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
+     | Correct (res) -> correct(res)
+  | ProtocolVersionType.TLS_1p2 ->
+     match tls12prf ms "key expansion" (append srandom crandom) nb with
+     | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
+     | Correct (res) -> correct (res)
+  | _ -> Error(HSError(AD_internal_error),HSSendAlert)
 
 let split_key_block key_block hsize ksize ivsize = 
   let cmk = Array.sub key_block 0 hsize in
@@ -350,16 +366,16 @@ let bldVerifyData ver cs ms entity hsmsgs =
         | ServerRole -> ssl_sender_server
     let mm = append hsmsgs (append ssl_sender ms) in
     match md5 (append mm ssl_pad1_md5) with
-    | Error (x,y) -> Error(HandshakeProto,Internal)
+    | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
     | Correct (inner_md5) ->
         match md5 (append ms (append ssl_pad2_md5 (inner_md5))) with
-        | Error (x,y) -> Error(HandshakeProto,Internal)
+        | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
         | Correct (outer_md5) ->
             match sha1 (append mm ssl_pad1_sha1) with
-            | Error (x,y) -> Error(HandshakeProto,Internal)
+            | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
             | Correct(inner_sha1) ->
                 match sha1 (append ms (append ssl_pad2_sha1 (inner_sha1))) with
-                | Error (x,y) -> Error(HandshakeProto,Internal)
+                | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
                 | Correct (outer_sha1) ->
                     correct (append outer_md5 outer_sha1)
   | x when x = ProtocolVersionType.TLS_1p0 || x = ProtocolVersionType.TLS_1p1 -> 
@@ -368,13 +384,13 @@ let bldVerifyData ver cs ms entity hsmsgs =
         | ClientRole -> "client finished"
         | ServerRole -> "server finished"
     match md5 hsmsgs with
-    | Error (x,y) -> Error(HandshakeProto,Internal)
+    | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
     | Correct (md5hash) ->
         match sha1 hsmsgs with
-        | Error (x,y) -> Error(HandshakeProto,Internal)
+        | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
         | Correct (sha1hash) ->
             match prf ms tls_label (append md5hash sha1hash) 12 with
-            | Error (x,y) -> Error(HandshakeProto,Internal)
+            | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
             | Correct (result) -> correct (result)
   | ProtocolVersionType.TLS_1p2 ->
     let tls_label = 
@@ -383,13 +399,13 @@ let bldVerifyData ver cs ms entity hsmsgs =
         | ServerRole -> "server finished"
     let verifyDataHashFun = verifyDataHashFun_of_ciphersuite cs in
     match verifyDataHashFun hsmsgs with
-    | Error (x,y) -> Error(HandshakeProto,Internal)
+    | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
     | Correct(hashResult) ->
         let verifyDataLen = verifyDataLen_of_ciphersuite cs in
         match tls12prf ms tls_label hashResult verifyDataLen with
-        | Error (x,y) -> Error(HandshakeProto,Internal)
+        | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
         | Correct(result) -> correct (result)
-  | _ -> Error(HandshakeProto,Unsupported)
+  | _ -> Error(HSError(AD_internal_error),HSSendAlert)
 
 let checkVerifyData ver cs ms entity hsmsgs orig =
     match bldVerifyData ver cs ms entity hsmsgs with
@@ -437,7 +453,7 @@ let rec parseCertificate_int toProcess list =
     else
         let (nextCertBytes,toProcess) = split_varLen toProcess 3 in
         match certificate_of_bytes nextCertBytes with
-        | Error(x,y) -> Error(x,y)
+        | Error(x,y) -> Error(HSError(AD_bad_certificate),HSSendAlert)
         | Correct(nextCert) ->
             let list = list @ [nextCert] in
             parseCertificate_int toProcess list
@@ -499,7 +515,7 @@ let parseCertReq ver data =
       signature_and_hash_algorithm = sigAlgs;
       certificate_authorities = distNamesList}
 
-let find_client_cert certReqMsg =
+let find_client_cert (certReqMsg:certificateRequest) : (pri_cert list) option =
     (* TODO *) None
 
 let compute_session_secrets_and_CCSs hs_state sinfo role =
@@ -814,21 +830,21 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                 
                 (* Check that the server agreed version is between maxVer and minVer. *)
                 if not (shello.server_version >= hs_state.poptions.minVer && shello.server_version <= hs_state.poptions.maxVer) then
-                    (Error(HSProtoVersion,CheckFailed),hs_state)
+                    (Error(HSError(AD_illegal_parameter),HSSendAlert),hs_state)
                 else
                     (* Check that negotiated ciphersuite is in the allowed list. Note: if resuming a session, we still have
                     to check that this ciphersuite is the expected one! *)
                     if not (List.exists (fun x -> x = shello.cipher_suite) hs_state.poptions.ciphersuites) then
-                        (Error(HandshakeProto,CheckFailed),hs_state)
+                        (Error(HSError(AD_illegal_parameter),HSSendAlert),hs_state)
                     else
                         (* Same for compression method *)
                         if not (List.exists (fun x -> x = shello.compression_method) hs_state.poptions.compressions) then
-                            (Error(HandshakeProto,CheckFailed),hs_state)
+                            (Error(HSError(AD_illegal_parameter),HSSendAlert),hs_state)
                         else
                             (* RFC Sec 7.4.1.4: in this implementation, we never send extensions, if the server sent any extension
                                we MUST abot the handshake with unsupported_extension fatal alter (handled by the dispatcher) *)
                             if not (equalBytes shello.neg_extensions empty_bstr) then
-                                (Error(HSExtension,CheckFailed),hs_state)
+                                (Error(HSError(AD_unsupported_extension),HSSendAlert),hs_state)
                             else
                                 (* Log the received packet, and store the server random *)
                                 let new_log = append hs_state.hs_msg_log to_log in
@@ -871,9 +887,9 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                                                                                client_certificate = None} in
                                                             let hs_state = { hs_state with pstate = Client(CCCS(sinfo,clSpecState))}
                                                             recv_fragment_client hs_state (Some(shello.server_version))
-                                                    else (Error(HandshakeProto,CheckFailed),hs_state)
-                                                else (Error(HandshakeProto,CheckFailed),hs_state)
-                                            else (Error(HandshakeProto,CheckFailed),hs_state)
+                                                    else (Error(HSError(AD_illegal_parameter),HSSendAlert),hs_state)
+                                                else (Error(HSError(AD_illegal_parameter),HSSendAlert),hs_state)
+                                            else (Error(HSError(AD_illegal_parameter),HSSendAlert),hs_state)
                                         else (* server did not agreed on resumption, do a full handshake *)
                                             (* define the sinfo we're going to establish *)
                                             let sinfo = { role = ClientRole
@@ -893,7 +909,7 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                                             else
                                                 let hs_state = {hs_state with pstate = Client(Certificate(sinfo))} in
                                                 recv_fragment_client hs_state (Some(shello.server_version))
-            | _ -> (* ServerHello arrived in the wrong state *) (Error (HandshakeProto,InvalidState), hs_state)
+            | _ -> (* ServerHello arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
         | HT_certificate ->
             match cState with
             | Certificate(sinfo) ->
@@ -901,7 +917,7 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                 | Error(x,y) -> (Error(x,y),hs_state)
                 | Correct(certMsg) ->
                     if not (hs_state.poptions.certificateValidationPolicy certMsg.certificate_list) then
-                        (Error(HSCertificate,CheckFailed),hs_state)
+                        (Error(HSError(AD_bad_certificate),HSSendAlert),hs_state)
                     else (* We have validated server identity *)
                         (* Log the received packet *)
                         let new_log = append hs_state.hs_msg_log to_log in
@@ -914,12 +930,12 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                         else
                             let hs_state = {hs_state with pstate = Client(CertReqOrSHDone(sinfo))} in
                             recv_fragment_client hs_state must_change_ver
-            | _ -> (* Certificate arrived in the wrong state *) (Error (HandshakeProto,InvalidState), hs_state)
+            | _ -> (* Certificate arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
         | HT_server_key_exchange ->
             match cState with
             | ServerKeyExchange(sinfo) ->
-                (* TODO *) (Error (HandshakeProto,Unsupported), hs_state)
-            | _ -> (* Server Key Exchange arrived in the wrong state *) (Error (HandshakeProto,InvalidState), hs_state)
+                (* TODO *) (Error(HSError(AD_internal_error),HSSendAlert),hs_state)
+            | _ -> (* Server Key Exchange arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
         | HT_certificate_request ->
             match cState with
             | CertReqOrSHDone(sinfo) ->
@@ -930,18 +946,21 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                 let certReqMsg = parseCertReq sinfo.more_info.mi_protocol_version payload in
                 let client_cert = find_client_cert certReqMsg in
                 (* Update the sinfo we're establishing *)
-                (* FIXME *)
+                let sinfo = {sinfo with clientID =
+                                            match client_cert with
+                                            | None -> None
+                                            | Some(certList) -> Some(certList.Head)} in
                 let clSpecState = {resumed_session = false;
                                    must_send_cert = Some(certReqMsg);
                                    client_certificate = client_cert} in
                 let hs_state = {hs_state with pstate = Client(CSHDone(sinfo,clSpecState))} in
                 recv_fragment_client hs_state must_change_ver
-            | _ -> (* Certificate Request arrived in the wrong state *) (Error (HandshakeProto,InvalidState), hs_state)
+            | _ -> (* Certificate Request arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
         | HT_server_hello_done ->
             match cState with
             | CertReqOrSHDone(sinfo) ->
                 if not (equalBytes payload empty_bstr) then
-                    (Error(HSParsing,CheckFailed),hs_state)
+                    (Error(HSError(AD_decode_error),HSSendAlert),hs_state)
                 else
                     (* Log the received packet *)
                     let new_log = append hs_state.hs_msg_log to_log in
@@ -959,7 +978,7 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                         recv_fragment_client hs_state must_change_ver
             | CSHDone(sinfo,clSpecState) ->
                 if not (equalBytes payload empty_bstr) then
-                    (Error(HSParsing,CheckFailed),hs_state)
+                    (Error(HSError(AD_decode_error),HSSendAlert),hs_state)
                 else
                     (* Log the received packet *)
                     let new_log = append hs_state.hs_msg_log to_log in
@@ -971,7 +990,7 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                         let (hs_state,sinfo) = result in
                         let hs_state = {hs_state with pstate = Client(CCCS(sinfo,clSpecState))}
                         recv_fragment_client hs_state must_change_ver
-            | _ -> (* Server Hello Done arrived in the wrong state *) (Error (HandshakeProto,InvalidState), hs_state)
+            | _ -> (* Server Hello Done arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
         | HT_finished ->
             match cState with
             | CFinished (sinfo,clSpState) ->
@@ -980,7 +999,7 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                 | Error (x,y) -> (Error(x,y),hs_state)
                 | Correct(verifyDataisOK) ->
                     if not verifyDataisOK then
-                        (Error(HSDecrypt,CheckFailed),hs_state)
+                        (Error(HSError(AD_decrypt_error),HSSendAlert),hs_state)
                     else
                         if clSpState.resumed_session then
                             (* Log the received message *)
@@ -997,14 +1016,14 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                                 one we've been creating in this handshake. *)
                             (* Note: no need to log this message *)
                             (correct (HSFullyFinished_Read (sinfo)),hs_state)
-            | _ -> (* Finished arrived in the wrong state *) (Error (HandshakeProto,InvalidState), hs_state)
-        | _ -> (* Unsupported/Wrong message *) (Error (HandshakeProto,Unsupported), hs_state)
+            | _ -> (* Finished arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
+        | _ -> (* Unsupported/Wrong message *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
       
       (* Should never happen *)
       | Server(_) -> unexpectedError "[recv_fragment_client] should only be invoked when in client role."
 
 let recv_fragment_server (hs_state:hs_state) =
-    (Error(HandshakeProto,Unsupported),hs_state)
+    (Error(HSError(AD_internal_error),HSSendAlert),hs_state)
 
 let recv_fragment (hs_state:hs_state) (fragment:fragment) =
     let hs_state = enqueue_fragment hs_state fragment in
@@ -1015,10 +1034,10 @@ let recv_fragment (hs_state:hs_state) (fragment:fragment) =
 let recv_ccs (hs_state: hs_state) (fragment:fragment): ((ccs_data Result) * hs_state) =
     (* Some parsing *)
     if length fragment <> 1 then
-        (Error(HandshakeProto,CheckFailed),hs_state)
+        (Error(HSError(AD_decode_error),HSSendAlert),hs_state)
     else
         if (int_of_bytes 1 fragment) <> 1 then
-            (Error(HandshakeProto,CheckFailed),hs_state)
+            (Error(HSError(AD_decode_error),HSSendAlert),hs_state)
         else
             (* CCS is good *)
             match hs_state.pstate with
@@ -1032,7 +1051,7 @@ let recv_ccs (hs_state: hs_state) (fragment:fragment): ((ccs_data Result) * hs_s
                         let hs_state = {hs_state with ccs_incoming = None
                                                       pstate = Client (CFinished (sinfo,clSpState))} in
                         (correct(ccs_result),hs_state)
-                | _ -> (* CCS arrived in the wrong state *) (Error (HandshakeProto,InvalidState), hs_state)
+                | _ -> (* CCS arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
             | Server (cstate) ->
                 (* TODO *)
-                (Error(HandshakeProto,Unsupported),hs_state)
+                (Error(HSError(AD_internal_error),HSSendAlert),hs_state)

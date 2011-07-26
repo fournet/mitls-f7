@@ -335,7 +335,7 @@ let securityParameters_of_ciphersuite cs =
         | TLS_RSA_WITH_NULL_MD5 -> correct ((BCA_null,CT_stream,MA_md5))
         | TLS_RSA_WITH_NULL_SHA -> correct ((BCA_null,CT_stream,MA_sha1))
         | TLS_RSA_WITH_RC4_128_MD5 -> correct ((BCA_rc4,CT_stream,MA_md5))
-        | _ -> Error(HandshakeProto,Unsupported)
+        | _ -> Error(HSError(AD_decrypt_error),HSSendAlert)
     match cast with
     | Error (x,y) -> Error (x,y)
     | Correct (result) ->

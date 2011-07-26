@@ -12,33 +12,6 @@ type alertLevel =
     | AL_fatal
     | AL_unknown_level of int
 
-type alertDescription = 
-    | AD_close_notify
-    | AD_unexpected_message
-    | AD_bad_record_mac
-    | AD_decryption_failed
-    | AD_record_overflow
-    | AD_decompression_failure
-    | AD_handshake_failure
-    | AD_no_certificate
-    | AD_bad_certificate
-    | AD_unsupported_certificate
-    | AD_certificate_revoked
-    | AD_certificate_expired
-    | AD_certificate_unknown
-    | AD_illegal_parameter
-    | AD_unknown_ca
-    | AD_access_denied
-    | AD_decode_error
-    | AD_decrypt_error
-    | AD_export_restriction
-    | AD_protocol_version
-    | AD_insufficient_security
-    | AD_internal_error
-    | AD_user_cancelled
-    | AD_no_renegotiation
-    | AD_unknown_description of int
-
 type alert = {level: alertLevel; description: alertDescription}
 
 type pre_al_state = {
@@ -91,6 +64,7 @@ let intpair_of_alertDesc ad =
     | AD_internal_error ->          (2,80)
     | AD_user_cancelled ->          (1,90)
     | AD_no_renegotiation ->        (1,100)
+    | AD_unsupported_extension ->   (2,110)
     | AD_unknown_description x ->   failwith "Unknown alert description value"
 
 
@@ -125,7 +99,8 @@ let desc_of_int d =
     | 71 -> AD_insufficient_security 
     | 80 -> AD_internal_error 
     | 90 -> AD_user_cancelled 
-    | 100 -> AD_no_renegotiation 
+    | 100 -> AD_no_renegotiation
+    | 110 -> AD_unsupported_extension
     | x -> (AD_unknown_description x)
 
 let alert_of_intpair (l,d) = 
