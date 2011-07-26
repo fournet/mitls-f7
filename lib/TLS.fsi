@@ -146,6 +146,12 @@ val rehandshake_now: Connection -> protocolOptions -> (unit Result) * Connection
 val rekey: Connection -> protocolOptions -> Connection (* Only flag setting *)
 val rekey_now: Connection -> protocolOptions -> (unit Result) * Connection (* Blocking until handshake terminates *)
 
+(* Missing API: something like "re-resume":
+   Old Connection, old(/new) Session, but the tentatively resumed session
+   is not the current one. Probably not very useful, and the user might have
+   problem in understanding how to use it anyway. But it might be
+   useful to claim "complete" verification of different possible scenarios. *)
+
 (* SERVER SIDE *)
 
 (* New Connection, new/old Session:

@@ -145,7 +145,7 @@ let compute_mac conn_state ct data =
             compute_mac_tls mac_alg mac_key bseq_num bct bver data
         | _ -> unexpectedError "[compute_mac] only to be invoked after a version has been negotiated"
 
-let compute_padlen sp data =
+let compute_padlen sp ver data =
     let bs = get_block_cipher_size sp.bulk_cipher_algorithm in
     let len_no_pad = (length data) + 1 in (* 1 byte for the padlen byte *)
     let min_padlen =
@@ -154,15 +154,21 @@ let compute_padlen sp data =
             overflow
         else
             bs - overflow
-    let rand = bs * (((int_of_bytes 1 (Crypto.mkRandom 1)) - min_padlen) / bs) in 
-    min_padlen + rand
+    match ver with
+    | ProtocolVersionType.SSL_3p0 ->
+        (* At most one bs. See sec 5.2.3.2 of SSL 3 draft *)
+        min_padlen
+    | v when v >= ProtocolVersionType.TLS_1p0 ->
+        let rand = bs * (((int_of_bytes 1 (Crypto.mkRandom 1)) - min_padlen) / bs) in 
+        min_padlen + rand
+    | _ -> unexpectedError "Protocol version should be known (or not SSL2) when computing padding"
 
 let prepare_enc conn_state data =
     let sp = conn_state.sparams in
     match sp.cipher_type with
     | CT_stream -> data
     | CT_block ->
-        let padlen = compute_padlen sp data in
+        let padlen = compute_padlen sp conn_state.protocol_version data in
         append data (createBytes (padlen+1) padlen)
 
 let encrypt_stream conn_state (data:bytes) =
@@ -319,7 +325,7 @@ let decrypt conn_state (payload:bytes) =
 let check_padding_cont (data:bytes)  =
    correct (data)
 
-let check_padding version (data:bytes) =
+let check_padding sp version (data:bytes) =
     let dlen = length data in
     let (tmpdata, padlenb) = split data (dlen - 1) in
     let padlen = int_of_bytes 1 padlenb in
@@ -351,15 +357,24 @@ let check_padding version (data:bytes) =
                     (* Pretend we have a valid padding of length zero *)
                     check_padding_cont data
         | ProtocolVersionType.SSL_3p0 ->
-            (* Padding is random in SSL_3p0, no check to be done *)
-            check_padding_cont data_no_pad
+            (* Padding is random in SSL_3p0, no check to be done on its content.
+               However, its length should be at most on bs
+               (See sec 5.2.3.2 of SSL 3 draft). Enforce this check (which
+               is performed by openssl, and not by wireshark for example). *)
+            let bs = get_block_cipher_size sp.bulk_cipher_algorithm in
+            if padlen >= bs then
+                (* Insecurely report the error. Only TLS 1.1 and above should
+                   be secure with this respect *)
+                Error (RecordPadding,CheckFailed)
+            else
+                check_padding_cont data_no_pad
         | ProtocolVersionType.SSL_2p0 -> Error(RecordPadding,Unsupported)
         | _ -> unexpectedError "[check_padding] Protocol version should be known when checking the padding."
 
 let parse_plaintext conn_state data =
     let result_depadding =
         match conn_state.sparams.cipher_type with
-        | CT_block -> check_padding conn_state.protocol_version data
+        | CT_block -> check_padding conn_state.sparams conn_state.protocol_version data
         | CT_stream -> correct (data)
     match result_depadding with
     | Error (x,y) -> Error (x,y)

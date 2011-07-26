@@ -49,4 +49,4 @@ let defaultProtocolOptions ={
     }
 
 let max_TLSPlaintext_fragment_length = 1<<<14 (* just a reminder *)
-let fragmentLength = max_TLSPlaintext_fragment_length (*1*)
+let fragmentLength = max_TLSPlaintext_fragment_length (* 1 *)

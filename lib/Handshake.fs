@@ -628,49 +628,100 @@ let init_handshake role poptions =
 let resume_handshake role info poptions =
     let sidOp = info.sessionID in
     match sidOp with
-    | None -> unexpectedError "[resume_handshake] must be invoked on a non-null session"
+    | None -> unexpectedError "[resume_handshake] must be invoked on a resumable session (that is, with a non-null session ID)."
     | Some (sid) ->
         (* FIXME: Probably, the followin SessionDB interaction should be in dispatcher *)
         (* Ensure the sid is in the SessionDB *)
         match SessionDB.select poptions sid with
         | None -> unexpectedError "[resume_handshake] requested session expired or never stored in DB"
-        | Some (_) ->
-            match role with
-            | ClientRole ->
-                let (cHelloBytes,client_random) = makeCHelloBytes poptions sid in
-                let state = {hs_outgoing = cHelloBytes
-                             ccs_outgoing = None
-                             hs_outgoing_after_ccs = empty_bstr
-                             hs_incoming = empty_bstr
-                             ccs_incoming = None
-                             hs_info = info
-                             poptions = poptions
-                             pstate = Client (ServerHello(Some(info)))
-                             hs_msg_log = cHelloBytes
-                             hs_client_random = client_random
-                             hs_server_random = empty_bstr} in
-                state
-            | ServerRole ->
-                let state = {hs_outgoing = empty_bstr
-                             ccs_outgoing = None
-                             hs_outgoing_after_ccs = empty_bstr
-                             hs_incoming = empty_bstr
-                             ccs_incoming = None
-                             hs_info = info
-                             poptions = poptions
-                             pstate = Server (ClientHello)
-                             hs_msg_log = empty_bstr
-                             hs_client_random = empty_bstr
-                             hs_server_random = empty_bstr} in
-                state
+        | Some (retrievedSinfo) ->
+            if not (info = retrievedSinfo) then
+                unexpectedError "[resume_handshake] given session info and stored session info mismatch"
+            else
+                match role with
+                | ClientRole ->
+                    let (cHelloBytes,client_random) = makeCHelloBytes poptions sid in
+                    let state = {hs_outgoing = cHelloBytes
+                                 ccs_outgoing = None
+                                 hs_outgoing_after_ccs = empty_bstr
+                                 hs_incoming = empty_bstr
+                                 ccs_incoming = None
+                                 hs_info = info
+                                 poptions = poptions
+                                 pstate = Client (ServerHello(Some(info)))
+                                 hs_msg_log = cHelloBytes
+                                 hs_client_random = client_random
+                                 hs_server_random = empty_bstr} in
+                    state
+                | ServerRole ->
+                    let state = {hs_outgoing = empty_bstr
+                                 ccs_outgoing = None
+                                 hs_outgoing_after_ccs = empty_bstr
+                                 hs_incoming = empty_bstr
+                                 ccs_incoming = None
+                                 hs_info = info
+                                 poptions = poptions
+                                 pstate = Server (ClientHello)
+                                 hs_msg_log = empty_bstr
+                                 hs_client_random = empty_bstr
+                                 hs_server_random = empty_bstr} in
+                    state
 
 let start_rehandshake (state:hs_state) (ops:protocolOptions) =
-    (* TODO: fill some outgoing buffers, discard current session... *)
-    state
+    match state.pstate with
+    | Client (cstate) ->
+        match cstate with
+        | CIdle ->
+            let (cHelloBytes,client_random) = makeCHelloBytes ops empty_bstr in
+            let state = {hs_outgoing = cHelloBytes
+                         ccs_outgoing = None
+                         hs_outgoing_after_ccs = empty_bstr
+                         hs_incoming = empty_bstr
+                         ccs_incoming = None
+                         hs_info = state.hs_info
+                         poptions = ops
+                         pstate = Client (ServerHello(None))
+                         hs_msg_log = cHelloBytes
+                         hs_client_random = client_random
+                         hs_server_random = empty_bstr} in
+            state
+        | _ -> (* handshake already happening, ignore this request *)
+            state
+    | Server (_) -> unexpectedError "[start_rehandshake] should only be invoked on client side connections."
 
 let start_rekey (state:hs_state) (ops:protocolOptions) =
-    (* TODO: fill some outgoing buffers, don't discard current session... *)
-    state
+    let sidOp = state.hs_info.sessionID in
+    match sidOp with
+    | None -> unexpectedError "[resume_handshake] must be invoked on a resumable session (that is, with a non-null session ID)."
+    | Some (sid) ->
+        (* FIXME: Probably, the followin SessionDB interaction should be in dispatcher *)
+        (* Ensure the sid is in the SessionDB *)
+        match SessionDB.select ops sid with
+        | None -> unexpectedError "[resume_handshake] requested session expired or never stored in DB"
+        | Some (retrievedSinfo) ->
+            if not (state.hs_info = retrievedSinfo) then
+                unexpectedError "[resume_handshake] given session info and stored session info mismatch"
+            else
+                match state.pstate with
+                | Client (cstate) ->
+                    match cstate with
+                    | CIdle ->
+                        let (cHelloBytes,client_random) = makeCHelloBytes ops sid in
+                        let state = {hs_outgoing = cHelloBytes
+                                     ccs_outgoing = None
+                                     hs_outgoing_after_ccs = empty_bstr
+                                     hs_incoming = empty_bstr
+                                     ccs_incoming = None
+                                     hs_info = state.hs_info
+                                     poptions = ops
+                                     pstate = Client (ServerHello(Some(state.hs_info)))
+                                     hs_msg_log = cHelloBytes
+                                     hs_client_random = client_random
+                                     hs_server_random = empty_bstr} in
+                        state
+                    | _ -> (* Handshake already ongoing, ignore this request *)
+                        state
+                | Server (_) -> unexpectedError "[start_rehandshake] should only be invoked on client side connections."
 
 let start_hs_request (state:hs_state) (ops:protocolOptions) =
     (* TODO: fill the ougtgoing buffer with the HelloRequest... *)
