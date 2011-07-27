@@ -74,8 +74,9 @@ let testFullAndRehandshake () =
 
 let testResumptionRollbackAttack =
     (* Do a full new session in TLS 1.1 *)
-    let ops = {options with minVer = Formats.ProtocolVersionType.TLS_1p1
-                            maxVer = Formats.ProtocolVersionType.TLS_1p1} in
+    let ops = {options with minVer = Formats.ProtocolVersionType.TLS_1p0
+                            maxVer = Formats.ProtocolVersionType.TLS_1p0
+                            safe_renegotiation = false} in
     match testCl ops with
     | (Error(x,y),_,_) -> ()
     | (_,conn,ns) ->
