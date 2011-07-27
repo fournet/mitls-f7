@@ -135,10 +135,13 @@ let makeHSPacket ht data =
     let blen = bytes_of_int 3 len in
     appendList [htb; blen; data]
 
-let makeExtBytes extType data =
+let makeExtStructBytes extType data =
     let extBytes = bytes_of_HExt extType in
     let payload = vlenBytes_of_bytes 2 data in
     append extBytes payload
+
+let makeExtBytes data =
+    vlenBytes_of_bytes 2 data
 
 let makeHelloRequestBytes () =
     makeHSPacket HT_hello_request empty_bstr
@@ -149,14 +152,14 @@ let makeTimestamp () = (* FIXME: we may need to abstract this function *)
 
 let makeRenegExtBytes verifyData =
     let payload = vlenBytes_of_bytes 1 verifyData in
-    makeExtBytes HExt_renegotiation_info payload
+    makeExtStructBytes HExt_renegotiation_info payload
 
 let makeCHello poptions session prevCVerifyData =
     let random = { time = makeTimestamp ();
                    rnd = Crypto.mkRandom 28} in
     let ext =
         if poptions.safe_renegotiation then
-            makeRenegExtBytes prevCVerifyData
+            makeExtBytes (makeRenegExtBytes prevCVerifyData)
         else
             empty_bstr
     {
@@ -456,7 +459,11 @@ let rec extensionList_of_bytes_int data list =
         extensionList_of_bytes_int rem ([(extType,payload)] @ list)
 
 let extensionList_of_bytes data =
-    extensionList_of_bytes_int data []
+    let (exts,rem) = split_varLen data 2 in
+    if not (equalBytes rem empty_bstr) then
+        Error(HSError(AD_decode_error),HSSendAlert)
+    else
+        extensionList_of_bytes_int exts []
 
 let parseSHello data =
     let (serverVerBytes,data) = split data 2 in

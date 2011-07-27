@@ -3,7 +3,7 @@
 open Error_handling
 
 let serverIP = "193.55.250.100"
-let serverPort = 5556
+let serverPort = 4433
 let options = AppCommon.defaultProtocolOptions
 
 let testCl () =
@@ -40,7 +40,7 @@ let testRes ()  =
                     printf "Gotta Full handshake"
         ignore (System.Console.ReadLine ())
 
-let testFullAndReKey =
+let testFullAndReKey () =
     match testCl () with
     | (Error(x,y),_) -> ()
     | (_,conn) ->
