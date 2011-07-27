@@ -459,11 +459,15 @@ let rec extensionList_of_bytes_int data list =
         extensionList_of_bytes_int rem ([(extType,payload)] @ list)
 
 let extensionList_of_bytes data =
-    let (exts,rem) = split_varLen data 2 in
-    if not (equalBytes rem empty_bstr) then
-        Error(HSError(AD_decode_error),HSSendAlert)
-    else
-        extensionList_of_bytes_int exts []
+    match length data with
+    | 0 -> correct ([])
+    | 1 -> Error(HSError(AD_decode_error),HSSendAlert)
+    | _ ->
+        let (exts,rem) = split_varLen data 2 in
+        if not (equalBytes rem empty_bstr) then
+            Error(HSError(AD_decode_error),HSSendAlert)
+        else
+            extensionList_of_bytes_int exts []
 
 let parseSHello data =
     let (serverVerBytes,data) = split data 2 in
@@ -914,7 +918,7 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                 
                 (* Check that the server agreed version is between maxVer and minVer. *)
                 if not (shello.server_version >= hs_state.poptions.minVer && shello.server_version <= hs_state.poptions.maxVer) then
-                    (Error(HSError(AD_illegal_parameter),HSSendAlert),hs_state)
+                    (Error(HSError(AD_protocol_version),HSSendAlert),hs_state)
                 else
                     (* Check that negotiated ciphersuite is in the allowed list. Note: if resuming a session, we still have
                     to check that this ciphersuite is the expected one! *)
