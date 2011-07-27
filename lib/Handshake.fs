@@ -495,9 +495,10 @@ let inspect_SHello_extensions recvExt expected =
     | Error (x,y) -> Error (x,y)
     | Correct (extList) ->
         (* We expect to find exactly one extension *)
-        if not (extList.Length = 1) then
-            Error(HSError(AD_unsupported_extension),HSSendAlert)
-        else
+        match extList.Length with
+        | 0 -> Error(HSError(AD_handshake_failure),HSSendAlert)
+        | x when not (x = 1) -> Error(HSError(AD_unsupported_extension),HSSendAlert)
+        | _ ->
             let (extType,payload) = extList.Head in
             match extType with
             | HExt_renegotiation_info ->
