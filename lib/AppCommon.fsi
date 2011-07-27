@@ -19,6 +19,7 @@ type protocolOptions = {
     honourHelloReq: helloReqPolicy
     allowAnonCipherSuite: bool
     certificateValidationPolicy: pri_cert list -> bool
+    safe_renegotiation: bool
 
     (* Sessions database *)
     sessionDBFileName: string

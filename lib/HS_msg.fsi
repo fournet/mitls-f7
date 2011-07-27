@@ -23,6 +23,13 @@ type handshakeType =
 val bytes_of_hs_type: handshakeType -> bytes
 val hs_type_of_bytes: bytes -> handshakeType
 
+type helloExtension =
+    | HExt_renegotiation_info
+    | HEXT_unknown of bytes
+
+val bytes_of_HExt: helloExtension -> bytes
+val hExt_of_bytes: bytes -> helloExtension
+
 (* Message bodies *)
 
 (* Hello Request *)

@@ -50,6 +50,20 @@ let hs_type_of_bytes b =
     | 20 -> HT_finished
     | x -> HT_unknown (x)
 
+type helloExtension =
+    | HExt_renegotiation_info
+    | HEXT_unknown of bytes
+
+let bytes_of_HExt hExt =
+    match hExt with
+    | HExt_renegotiation_info -> bytes_of_intpair (0xFF, 0x01)
+    | HEXT_unknown (_) -> failwith "Unknown extension type"
+
+let hExt_of_bytes b =
+    match intpair_of_bytes b with
+    | (0xFF, 0x01) -> HExt_renegotiation_info
+    | _ -> HEXT_unknown b
+
 (* Message bodies *)
 
 (* Hello Request *)

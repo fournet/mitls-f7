@@ -19,6 +19,7 @@ type protocolOptions = {
     honourHelloReq: helloReqPolicy
     allowAnonCipherSuite: bool
     certificateValidationPolicy: pri_cert list -> bool
+    safe_renegotiation: bool
     
     (* Sessions database *)
     sessionDBFileName: string
@@ -43,6 +44,7 @@ let defaultProtocolOptions ={
     honourHelloReq = HRPResume
     allowAnonCipherSuite = false
     certificateValidationPolicy = defaultCertificateValidationPolicy
+    safe_renegotiation = true
 
     sessionDBFileName = "sessionDBFile.bin"
     sessionDBExpiry = new System.TimeSpan(2,0,0,0) (* two days *)

@@ -91,6 +91,10 @@ type CipherSuite =
     | TLS_DES_64_CBC_WITH_MD5
     | TLS_DES_192_EDE3_CBC_WITH_MD5
 
+    (* Signaling Cipher Suite Value (SCSV) for renegotiation_info extension.
+       Never to be negotiated. *)
+    | TLS_EMPTY_RENEGOTIATION_INFO_SCSV
+
     | UNKNOWN_CIPHERSUITE of int * int
 
 type cipherSuites = CipherSuite list

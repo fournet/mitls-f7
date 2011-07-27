@@ -54,7 +54,7 @@ let testFullAndReKey =
         | Correct(_), conn ->
             let sinfo = TLS.getSessionInfo conn in
             match sinfo.sessionID with
-            | None -> printf "Full handshale, and got new, non-resumable session."
+            | None -> printf "Full handshake, and got new, non-resumable session."
             | Some (newSid) ->
                 if sid = newSid then
                     Printf.printf "Re-keying OK"

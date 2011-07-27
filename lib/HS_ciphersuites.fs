@@ -93,6 +93,10 @@ type CipherSuite =
     | TLS_DES_64_CBC_WITH_MD5
     | TLS_DES_192_EDE3_CBC_WITH_MD5
 
+    (* Signaling Cipher Suite Value (SCSV) for renegotiation_info extension.
+       Never to be negotiated. *)
+    | TLS_EMPTY_RENEGOTIATION_INFO_SCSV
+
     | UNKNOWN_CIPHERSUITE of int * int
 
 type cipherSuites = CipherSuite list
@@ -175,7 +179,9 @@ let cipherSuite_of_intpair i =
     |  ( 0xC0, 0x16 )  ->  TLS_ECDH_anon_WITH_RC4_128_SHA         
     |  ( 0xC0, 0x17 )  ->  TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA    
     |  ( 0xC0, 0x18 )  ->  TLS_ECDH_anon_WITH_AES_128_CBC_SHA     
-    |  ( 0xC0, 0x19 )  ->  TLS_ECDH_anon_WITH_AES_256_CBC_SHA     
+    |  ( 0xC0, 0x19 )  ->  TLS_ECDH_anon_WITH_AES_256_CBC_SHA
+    
+    |  ( 0x00, 0xFF )  ->  TLS_EMPTY_RENEGOTIATION_INFO_SCSV   
 
     |  (x,y) -> UNKNOWN_CIPHERSUITE(x,y)
 
@@ -258,6 +264,8 @@ let intpair_of_cipherSuite i =
     | TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA    -> ( 0xC0, 0x17 )
     | TLS_ECDH_anon_WITH_AES_128_CBC_SHA     -> ( 0xC0, 0x18 )
     | TLS_ECDH_anon_WITH_AES_256_CBC_SHA     -> ( 0xC0, 0x19 )
+
+    | TLS_EMPTY_RENEGOTIATION_INFO_SCSV      -> ( 0x00, 0xFF )
 
     | UNKNOWN_CIPHERSUITE (x,y) -> (x,y)
     | x -> failwith "[int_of_ciphersuite] -- maybe a SSLv2 ciphersuite"
