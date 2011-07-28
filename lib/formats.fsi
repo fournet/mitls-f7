@@ -70,6 +70,7 @@ val bytesAndRemainder_of_vlenBytesAndReminder: int -> bytes -> (bytes * bytes)
 
 val compression_of_bytes: bytes -> Compression
 val bytes_of_compression: Compression -> bytes
+val compressions_of_bytes: bytes -> Compression list
 
 val appendList: bytes list -> bytes
 val splitList: bytes -> int list -> bytes list

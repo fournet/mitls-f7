@@ -276,6 +276,17 @@ let bytes_of_cipherSuite cs =
 let cipherSuite_of_bytes b =
     cipherSuite_of_intpair (intpair_of_bytes b)
 
+let rec cipherSuites_of_bytes_int b list =
+    if Bytearray.length b = 0 then
+        list
+    else
+        let (csB,rem) = split b 2 in
+        let cs = cipherSuite_of_bytes csB in
+        let list = [cs] @ list in
+        cipherSuites_of_bytes_int rem list
+
+let cipherSuites_of_bytes b = cipherSuites_of_bytes_int b []
+
 let isAnonCipherSuite cs =
     match cs with
     | TLS_DH_anon_EXPORT_WITH_RC4_40_MD5     -> true

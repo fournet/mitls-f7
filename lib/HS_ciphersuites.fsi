@@ -103,6 +103,7 @@ val cipherSuite_of_intpair : int * int -> CipherSuite
 val intpair_of_cipherSuite : CipherSuite -> (int * int)
 val bytes_of_cipherSuite: CipherSuite -> bytes
 val cipherSuite_of_bytes: bytes -> CipherSuite
+val cipherSuites_of_bytes: bytes -> cipherSuites
 val isAnonCipherSuite: CipherSuite -> bool
 val cipherSuiteRequiresKeyExchange: CipherSuite -> bool
 val canEncryptPMS: CipherSuite -> bool

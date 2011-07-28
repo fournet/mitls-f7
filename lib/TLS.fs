@@ -51,8 +51,9 @@ let connect ns ops =
     int_consume conn
 
 let resume ns info ops =
-    let conn = Dispatch.resume ns ClientRole info ops in
-    int_consume conn
+    match Dispatch.resume ns info ops with
+    | (Error(x,y),conn) -> (Error(x,y),conn)
+    | (Correct (_), conn) -> int_consume conn
 
 let rehandshake conn ops =
     Dispatch.ask_rehandshake conn ops

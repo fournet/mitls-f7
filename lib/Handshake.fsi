@@ -16,7 +16,7 @@ type hs_state = pre_hs_state
 
 val init_handshake: role -> protocolOptions -> SessionInfo * hs_state
 
-val resume_handshake: role -> SessionInfo -> protocolOptions -> hs_state
+val resume_handshake: SessionInfo -> protocolOptions -> hs_state
 
 val start_rehandshake: hs_state -> protocolOptions -> hs_state
 val start_rekey: hs_state -> protocolOptions -> hs_state

@@ -59,20 +59,24 @@ let init ns role poptions =
       read = read_state;
       write = write_state}
 
-let resume ns role info ops =
-    let hs = Handshake.resume_handshake role info ops in
+let resume ns info ops =
+    let hs = Handshake.resume_handshake info ops in
     let (send,recv) = Record.create ns info ops.minVer in
     let read_state = {disp = Init; conn = recv} in
     let write_state = {disp = Init; conn = send} in
     let al = Alert.init info  in
     let app = AppData.init info in
-    { ds_info = info;
-      poptions = ops;
-      handshake = hs;
-      alert = al;
-      appdata = app;
-      read = read_state;
-      write = write_state}
+    let res = { ds_info = info;
+                poptions = ops;
+                handshake = hs;
+                alert = al;
+                appdata = app;
+                read = read_state;
+                write = write_state}
+    let unitVal = () in
+    match info.role with
+    | ClientRole -> (correct (unitVal), res)
+    | ServerRole -> (Error(Dispatcher,WrongInputParameters),res)
 
 let ask_rehandshake conn ops =
     let new_hs = Handshake.start_rehandshake conn.handshake ops in

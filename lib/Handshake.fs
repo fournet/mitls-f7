@@ -129,6 +129,13 @@ type recv_reply =
   | HSReadSideFinished
   | HSFullyFinished_Read of SessionInfo (* ..., and we can start sending data on the connection *)
 
+let negotiate cList sList =
+    List.tryFind (
+        fun cAlg -> (
+                    List.exists (fun sAlg -> sAlg = cAlg) sList
+        )
+    ) cList
+
 let makeHSPacket ht data =
     let htb = bytes_of_hs_type ht in
     let len = length data in
@@ -469,6 +476,27 @@ let extensionList_of_bytes data =
         else
             extensionList_of_bytes_int exts []
 
+let parseCHello data =
+    let (clVerBytes,data) = split data 2 in
+    let clVer = protocolVersionType_of_bytes clVerBytes in
+    let (clTsBytes,data) = split data 4 in
+    let clTs = int_of_bytes 4 clTsBytes in
+    let (clRdmBytes,data) = split data 28 in
+    let clRdm = {time = clTs; rnd = clRdmBytes} in
+    let (sid,data) = split_varLen data 1 in
+    let (clCiphsuitesBytes,data) = split_varLen data 2 in
+    let clCiphsuites = cipherSuites_of_bytes clCiphsuitesBytes in
+    let (cmBytes,data) = split_varLen data 1 in
+    let cm = compressions_of_bytes cmBytes in
+    ({ client_version = clVer
+       ch_random = clRdm
+       ch_session_id = sid
+       cipher_suites = clCiphsuites
+       compression_methods = cm
+       extensions = data},
+     append clTsBytes clRdmBytes
+    )
+
 let parseSHello data =
     let (serverVerBytes,data) = split data 2 in
     let serverVer = protocolVersionType_of_bytes serverVerBytes in
@@ -718,7 +746,7 @@ let init_handshake role poptions =
                      hs_renegotiation_info_sVerifyData = empty_bstr} in
         (info,state)
 
-let resume_handshake role info poptions =
+let resume_handshake info poptions =
     let sidOp = info.sessionID in
     match sidOp with
     | None -> unexpectedError "[resume_handshake] must be invoked on a resumable session (that is, with a non-null session ID)."
@@ -731,7 +759,7 @@ let resume_handshake role info poptions =
             if not (info = retrievedSinfo) then
                 unexpectedError "[resume_handshake] given session info and stored session info mismatch"
             else
-                match role with
+                match info.role with
                 | ClientRole ->
                     let (cHelloBytes,client_random) = makeCHelloBytes poptions sid empty_bstr in
                     let state = {hs_outgoing = cHelloBytes
@@ -1124,14 +1152,65 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
       (* Should never happen *)
       | Server(_) -> unexpectedError "[recv_fragment_client] should only be invoked when in client role."
 
-let recv_fragment_server (hs_state:hs_state) =
-    (Error(HSError(AD_internal_error),HSSendAlert),hs_state)
+let recv_fragment_server (hs_state:hs_state) (must_change_ver:ProtocolVersionType Option) =
+    let (hs_state,new_packet) = parse_fragment hs_state in
+    match new_packet with
+    | None ->
+      match must_change_ver with
+      | None -> (correct (HSAck), hs_state)
+      | Some (pv) -> (correct (HSChangeVersion(ClientRole,pv)),hs_state)
+    | Some (data) ->
+      let (hstype,payload,to_log) = data in
+      match hs_state.pstate with
+      | Server(sState) ->
+        match hstype with
+        | HT_client_hello ->
+            match sState with
+            | ClientHello ->
+                let (cHello,cRandom) = parseCHello payload in
+                (* Check whether the client asked for session resumption *)
+                if equalBytes cHello.ch_session_id empty_bstr then
+                    (* Client did not ask for resumption. Do a full Handshake *)
+                    (* Negotiate the protocol parameters *)
+                    match enum<ProtocolVersionType>(System.Math.Min (int cHello.client_version, int hs_state.poptions.maxVer)) with
+                    | negPV when negPV >= ProtocolVersionType.SSL_3p0 ->
+                        match negotiate cHello.cipher_suites hs_state.poptions.ciphersuites with
+                        | None -> (Error(HSError(AD_handshake_failure),HSSendAlert),hs_state)
+                        | Some(negCS) ->
+                            match negotiate cHello.compression_methods hs_state.poptions.compressions with
+                            | None -> (Error(HSError(AD_handshake_failure),HSSendAlert),hs_state)
+                            | Some(negCM) ->
+                                (* TODO: now we don't support safe_renegotiation *)
+                                if not (equalBytes cHello.extensions empty_bstr) then
+                                    (Error(HSError(AD_unsupported_extension),HSSendAlert),hs_state)
+                                else
+                                    (* Fill in the session info we're establishing *)
+                                    let more_info = {mi_protocol_version = negPV
+                                                     mi_cipher_suite = negCS
+                                                     mi_compression = negCM
+                                                     mi_ms = empty_bstr} in
+                                    (*let sinfo = { role: ServerRole *)
+                                    (Error(HSError(AD_internal_error),HSSendAlert),hs_state)
+                    | _ -> (Error(HSError(AD_handshake_failure),HSSendAlert),hs_state)
+                else
+                    (* Client asked for resumption, let's see if we can satisfy the request *)
+                    match SessionDB.select hs_state.poptions cHello.ch_session_id with
+                    | None ->
+                        (* We don't have the requested session stored, go for a full handshake *)
+                        (Error(HSError(AD_internal_error),HSSendAlert),hs_state)
+                    | Some (sinfo) ->
+                        (* Check client proposed algorithms match with our stored session *)
+                        (Error(HSError(AD_internal_error),HSSendAlert),hs_state)
+            | _ -> (* Message arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
+        | _ -> (* Unsupported/Wrong message *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
+      (* Should never happen *)
+      | Client(_) -> unexpectedError "[recv_fragment_server] should only be invoked when in server role."
 
 let recv_fragment (hs_state:hs_state) (fragment:fragment) =
     let hs_state = enqueue_fragment hs_state fragment in
     match hs_state.pstate with
     | Client (_) -> recv_fragment_client hs_state None
-    | Server (_) -> recv_fragment_server hs_state
+    | Server (_) -> recv_fragment_server hs_state None
 
 let recv_ccs (hs_state: hs_state) (fragment:fragment): ((ccs_data Result) * hs_state) =
     (* Some parsing *)

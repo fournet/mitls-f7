@@ -83,6 +83,17 @@ let compression_of_bytes b =
     | 0 -> Null
     | x -> UnknownComp x
 
+let rec compressions_of_bytes_int b list =
+    if length b = 0 then
+        list
+    else
+        let (cmB,rem) = split b 1 in
+        let cm = compression_of_bytes cmB in
+        let list = [cm] @ list in
+        compressions_of_bytes_int rem list
+
+let compressions_of_bytes b = compressions_of_bytes_int b []
+
 type ProtocolVersionType =
     | SSL_2p0 = 10
     | SSL_3p0 = 20
