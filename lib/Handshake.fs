@@ -32,11 +32,11 @@ type clientState =
 
 type serverState =
     | ClientHello
-    | Keying
-    | ClientKEX
-    | CertificateVerify
-    | SCCS
-    | SFinished
+    | ClCert of SessionInfo (* The session we're creating *)
+    | ClientKEX of SessionInfo
+    | CertificateVerify of SessionInfo
+    | SCCS of SessionInfo
+    | SFinished of SessionInfo
     | SWaitingToWrite of SessionInfo
     | SIdle
 
@@ -108,7 +108,7 @@ let next_fragment state len =
                         | _ -> unexpectedError "[next_fragment] invoked in invalid state"
                     | Server (sstate) ->
                         match sstate with
-                        | SCCS ->
+                        | SCCS (_)->
                             (HSWriteSideFinished (f), state)
                         | SWaitingToWrite (sinfo) ->
                             (HSFullyFinished_Write (f,sinfo), state)
@@ -227,9 +227,25 @@ let makeCHelloBytes poptions session cVerifyData =
     let data = appendList [cVerB; random; csessB; ccsuitesB; ccompmethB; cHello.extensions] in
     ((makeHSPacket HT_client_hello data),random)
 
+let makeSHelloBytes sinfo =
+    let verB = bytes_of_protocolVersionType sinfo.more_info.mi_protocol_version in
+    let tsB = bytes_of_int 4 (makeTimestamp ()) in
+    let randB = Crypto.mkRandom 28 in
+    let sRandom = append tsB randB in
+    let sidRaw =
+        match sinfo.sessionID with
+        | None -> empty_bstr
+        | Some(sid) -> sid
+    let sidB = vlenBytes_of_bytes 1 sidRaw in
+    let csB = bytes_of_cipherSuite sinfo.more_info.mi_cipher_suite in
+    let cmB = bytes_of_compression sinfo.more_info.mi_compression in
+    (* TODO: currently no support for any extension *)
+    let ext = empty_bstr in
+    let data = appendList [verB;sRandom;sidB;csB;cmB;ext] in
+    ((makeHSPacket HT_server_hello data),sRandom)
+
 let bytes_of_certificates certList =
-    let certListB = List.map bytes_of_certificate certList in
-    appendList certListB
+    List.map bytes_of_certificate certList
 
 let makeCertificateBytes certOpt =
     match certOpt with
@@ -238,8 +254,40 @@ let makeCertificateBytes certOpt =
         makeHSPacket HT_certificate data
     | Some(certList) ->
         let pre_data = bytes_of_certificates certList in
+        let pre_data = List.map (fun cer -> vlenBytes_of_bytes 3 cer) pre_data in
+        let pre_data = appendList pre_data in
         let data = vlenBytes_of_bytes 3 pre_data in
         makeHSPacket HT_certificate data
+
+let makeCertificateRequestBytes cs ver =
+    (* TODO: now we send all possible choiches, including inconsistent ones, and we hope the client will pick the proper one. *)
+    let rsaB = bytes_of_int 1 (int ClientCertType.CLT_RSA_Sign) in
+    let dsaB = bytes_of_int 1 (int ClientCertType.CLT_DSS_Sign) in
+    let rsafixedB = bytes_of_int 1 (int ClientCertType.CLT_RSA_Fixed_DH) in
+    let dsafixedB = bytes_of_int 1 (int ClientCertType.CLT_DSS_Fixed_DH) in
+    let certTypes = appendList [rsaB;dsaB;rsafixedB;dsafixedB] in
+    let certTypes = vlenBytes_of_bytes 1 certTypes in
+    let sigAndAlg =
+        match ver with
+        | ProtocolVersionType.TLS_1p2 ->
+            (* For no particular reason, we will offer rsa-sha1 and dsa-sha1 *)
+            let rsaSigB = bytes_of_int 1 (int SigAlg.SA_rsa) in
+            let dsaSigB = bytes_of_int 1 (int SigAlg.SA_dsa) in
+            let sha1B = bytes_of_int 1 (int HashAlg.HA_sha1) in
+            let sigAndAlg = appendList [sha1B;rsaSigB;sha1B;dsaSigB] in
+            vlenBytes_of_bytes 2 sigAndAlg
+        | v when v >= ProtocolVersionType.SSL_3p0 ->
+            empty_bstr
+        | _ -> unexpectedError "[makeCertificateRequestBytes] invoked on unknown protocol version."
+    (* We specify no cert auth *)
+    let distName = vlenBytes_of_bytes 2 empty_bstr in
+    let distNames = vlenBytes_of_bytes 2 distName in
+    let data = appendList [certTypes;sigAndAlg;distNames] in
+    makeHSPacket HT_certificate_request data
+
+
+let makeSHelloDoneBytes unitVal =
+    makeHSPacket HT_server_hello_done empty_bstr
 
 let makeClientKEXBytes hs_state clSpecInfo sinfo =
     if canEncryptPMS sinfo.more_info.mi_cipher_suite then
@@ -776,21 +824,7 @@ let resume_handshake info poptions =
                                  hs_renegotiation_info_cVerifyData = empty_bstr
                                  hs_renegotiation_info_sVerifyData = empty_bstr} in
                     state
-                | ServerRole ->
-                    let state = {hs_outgoing = empty_bstr
-                                 ccs_outgoing = None
-                                 hs_outgoing_after_ccs = empty_bstr
-                                 hs_incoming = empty_bstr
-                                 ccs_incoming = None
-                                 hs_info = info
-                                 poptions = poptions
-                                 pstate = Server (ClientHello)
-                                 hs_msg_log = empty_bstr
-                                 hs_client_random = empty_bstr
-                                 hs_server_random = empty_bstr
-                                 hs_renegotiation_info_cVerifyData = empty_bstr
-                                 hs_renegotiation_info_sVerifyData = empty_bstr} in
-                    state
+                | ServerRole -> unexpectedError "[resume_handshake] should only be invoked on clients."
 
 let start_rehandshake (state:hs_state) (ops:protocolOptions) =
     match state.pstate with
@@ -1152,7 +1186,94 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
       (* Should never happen *)
       | Server(_) -> unexpectedError "[recv_fragment_client] should only be invoked when in client role."
 
-let recv_fragment_server (hs_state:hs_state) (must_change_ver:ProtocolVersionType Option) =
+let getServerCert cs =
+    (* TODO: Properly get the server certificate. Note this should be a list of certificates...*)
+    let data = System.IO.File.ReadAllBytes ("server.cer") in
+    match certificate_of_bytes data with
+    | Error(x,y) -> Error(HSError(AD_internal_error),HSSendAlert)
+    | Correct(cert) ->
+        let pri = System.IO.File.ReadAllText("server.pvk") in
+        let cert = set_priKey cert pri in
+        correct (cert)
+
+let prepare_server_output_full hs_state sinfo =
+    let (sHelloB,sRandom) = makeSHelloBytes sinfo in
+    let hs_state = {hs_state with hs_server_random = sRandom} in
+    let res =
+        if isAnonCipherSuite sinfo.more_info.mi_cipher_suite then
+            correct (empty_bstr,sinfo)
+        else
+            match getServerCert sinfo.more_info.mi_cipher_suite with
+            | Error(x,y) -> Error(x,y)
+            | Correct(sCert) ->
+                (* update server identity in the sinfo *)
+                let sinfo = {sinfo with serverID = Some(sCert)}
+                correct (makeCertificateBytes (Some([sCert])), sinfo)
+    match res with
+    | Error(x,y) -> Error(x,y)
+    | Correct (res) ->
+        let (certificateB,sinfo) = res in
+        let res =
+            if isAnonCipherSuite sinfo.more_info.mi_cipher_suite || cipherSuiteRequiresKeyExchange sinfo.more_info.mi_cipher_suite then
+                (* TODO: DH key exchange *)
+                Error(HSError(AD_internal_error),HSSendAlert)
+            else
+                correct (empty_bstr)
+        match res with
+        | Error(x,y) -> Error(x,y)
+        | Correct (serverKeyExchangeB) ->
+            let certificateRequestB =
+                if hs_state.poptions.request_client_certificate then
+                    makeCertificateRequestBytes sinfo.more_info.mi_cipher_suite sinfo.more_info.mi_protocol_version
+                else
+                    empty_bstr
+            let sHelloDoneB = makeSHelloDoneBytes () in
+            let output = appendList [sHelloB;certificateB;serverKeyExchangeB;certificateRequestB;sHelloDoneB] in
+            (* Log the output and put it into the output buffer *)
+            let new_log = append hs_state.hs_msg_log output in
+            let new_out = append hs_state.hs_outgoing output in
+            let hs_state = {hs_state with hs_msg_log = new_log
+                                          hs_outgoing = new_out} in
+            (* Compute the next state of the server *)
+            let hs_state =
+                if hs_state.poptions.request_client_certificate then
+                    {hs_state with pstate = Server(ClCert(sinfo))}
+                else
+                    {hs_state with pstate = Server(ClientKEX(sinfo))}
+            correct (hs_state)
+
+let start_server_full hs_state cHello cRandom to_log =
+    (* Negotiate the protocol parameters *)
+    match enum<ProtocolVersionType>(System.Math.Min (int cHello.client_version, int hs_state.poptions.maxVer)) with
+    | negPV when negPV >= ProtocolVersionType.SSL_3p0 ->
+        match negotiate cHello.cipher_suites hs_state.poptions.ciphersuites with
+        | None -> Error(HSError(AD_handshake_failure),HSSendAlert)
+        | Some(negCS) ->
+            match negotiate cHello.compression_methods hs_state.poptions.compressions with
+            | None -> Error(HSError(AD_handshake_failure),HSSendAlert)
+            | Some(negCM) ->
+                (* TODO: now we don't support safe_renegotiation, and we ignore any client proposed extension *)
+                let sid = Crypto.mkRandom 32 in
+                (* Fill in the session info we're establishing *)
+                let more_info = {mi_protocol_version = negPV
+                                 mi_cipher_suite = negCS
+                                 mi_compression = negCM
+                                 mi_ms = empty_bstr} in
+                let sinfo = { role = ServerRole
+                              clientID = None
+                              serverID = None
+                              sessionID = Some(sid)
+                              more_info = more_info} in
+                (* Log the received message *)
+                let new_log = append hs_state.hs_msg_log to_log in
+                let hs_state = {hs_state with hs_msg_log = new_log
+                                              hs_client_random = cRandom} in
+                match prepare_server_output_full hs_state sinfo with
+                | Error(x,y) -> Error(x,y)
+                | Correct(hs_state) -> correct ((hs_state,negPV))
+    | _ -> Error(HSError(AD_handshake_failure),HSSendAlert)
+
+let rec recv_fragment_server (hs_state:hs_state) (must_change_ver:ProtocolVersionType Option) =
     let (hs_state,new_packet) = parse_fragment hs_state in
     match new_packet with
     | None ->
@@ -1171,33 +1292,21 @@ let recv_fragment_server (hs_state:hs_state) (must_change_ver:ProtocolVersionTyp
                 (* Check whether the client asked for session resumption *)
                 if equalBytes cHello.ch_session_id empty_bstr then
                     (* Client did not ask for resumption. Do a full Handshake *)
-                    (* Negotiate the protocol parameters *)
-                    match enum<ProtocolVersionType>(System.Math.Min (int cHello.client_version, int hs_state.poptions.maxVer)) with
-                    | negPV when negPV >= ProtocolVersionType.SSL_3p0 ->
-                        match negotiate cHello.cipher_suites hs_state.poptions.ciphersuites with
-                        | None -> (Error(HSError(AD_handshake_failure),HSSendAlert),hs_state)
-                        | Some(negCS) ->
-                            match negotiate cHello.compression_methods hs_state.poptions.compressions with
-                            | None -> (Error(HSError(AD_handshake_failure),HSSendAlert),hs_state)
-                            | Some(negCM) ->
-                                (* TODO: now we don't support safe_renegotiation *)
-                                if not (equalBytes cHello.extensions empty_bstr) then
-                                    (Error(HSError(AD_unsupported_extension),HSSendAlert),hs_state)
-                                else
-                                    (* Fill in the session info we're establishing *)
-                                    let more_info = {mi_protocol_version = negPV
-                                                     mi_cipher_suite = negCS
-                                                     mi_compression = negCM
-                                                     mi_ms = empty_bstr} in
-                                    (*let sinfo = { role: ServerRole *)
-                                    (Error(HSError(AD_internal_error),HSSendAlert),hs_state)
-                    | _ -> (Error(HSError(AD_handshake_failure),HSSendAlert),hs_state)
+                    match start_server_full hs_state cHello cRandom to_log with
+                    | Error(x,y) -> (Error(x,y),hs_state)
+                    | Correct(res) ->
+                        let (hs_state,negPV) = res in
+                        recv_fragment_server hs_state (Some(negPV))
                 else
                     (* Client asked for resumption, let's see if we can satisfy the request *)
                     match SessionDB.select hs_state.poptions cHello.ch_session_id with
                     | None ->
                         (* We don't have the requested session stored, go for a full handshake *)
-                        (Error(HSError(AD_internal_error),HSSendAlert),hs_state)
+                        match start_server_full hs_state cHello cRandom to_log with
+                        | Error(x,y) -> (Error(x,y),hs_state)
+                        | Correct(res) ->
+                            let (hs_state,negPV) = res in
+                            recv_fragment_server hs_state (Some(negPV))
                     | Some (sinfo) ->
                         (* Check client proposed algorithms match with our stored session *)
                         (Error(HSError(AD_internal_error),HSSendAlert),hs_state)

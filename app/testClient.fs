@@ -72,7 +72,7 @@ let testFullAndRehandshake () =
             printf "Full re-handshake OK"
             ignore (System.Console.ReadLine ())
 
-let testResumptionRollbackAttack =
+let testResumptionRollbackAttack () =
     (* Do a full new session in TLS 1.1 *)
     let ops = {options with minVer = Formats.ProtocolVersionType.TLS_1p0
                             maxVer = Formats.ProtocolVersionType.TLS_1p0

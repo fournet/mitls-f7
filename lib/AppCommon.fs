@@ -16,8 +16,12 @@ type protocolOptions = {
     compressions: Compression list
 
     (* Handshake specific options *)
+    (* Client side *)
     honourHelloReq: helloReqPolicy
     allowAnonCipherSuite: bool
+    (* Server side *)
+    request_client_certificate: bool
+    (* Common *)
     certificateValidationPolicy: pri_cert list -> bool
     safe_renegotiation: bool
     
@@ -43,6 +47,7 @@ let defaultProtocolOptions ={
 
     honourHelloReq = HRPResume
     allowAnonCipherSuite = false
+    request_client_certificate = true
     certificateValidationPolicy = defaultCertificateValidationPolicy
     safe_renegotiation = true
 

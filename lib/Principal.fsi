@@ -12,5 +12,7 @@ val bytes_of_certificate: pri_cert -> bytes
 val pubKey_of_certificate: pri_cert -> key
 val priKey_of_certificate: pri_cert -> key
 
+val set_priKey: pri_cert -> string -> pri_cert
+
 val certificate_has_signing_capability: pri_cert -> bool
 val certificate_is_dsa: pri_cert -> bool

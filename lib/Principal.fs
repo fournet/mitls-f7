@@ -23,6 +23,12 @@ let priKey_of_certificate (PriCert(cert)) =
     let rawkey = cert.PrivateKey.ToXmlString(true)
     rsa_skey rawkey
 
+let set_priKey (PriCert(cert)) data =
+    let asimKey = AsymmetricAlgorithm.Create("RSA") in
+    asimKey.FromXmlString(data)
+    cert.PrivateKey <- asimKey
+    PriCert(cert)
+
 let certificate_has_signing_capability (PriCert(cert)) =
     (* TODO *) true
 

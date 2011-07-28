@@ -16,8 +16,12 @@ type protocolOptions = {
     compressions: Compression list
 
     (* Handshake specific options *)
+    (* Client side *)
     honourHelloReq: helloReqPolicy
     allowAnonCipherSuite: bool
+    (* Server side *)
+    request_client_certificate: bool
+    (* Common *)
     certificateValidationPolicy: pri_cert list -> bool
     safe_renegotiation: bool
 
