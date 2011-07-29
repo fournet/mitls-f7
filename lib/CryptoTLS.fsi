@@ -31,7 +31,11 @@ val aes_decrypt_wiv: key -> bytes -> bytes -> bytes Result
 val aes_encrypt_wiv_nopad: key -> bytes -> bytes -> bytes Result
 val des_encrypt_wiv_nopad: key -> bytes -> bytes -> bytes Result
 
+val des_decrypt_wiv_nopad: key -> bytes -> bytes -> bytes Result
+val aes_decrypt_wiv_nopad: key -> bytes -> bytes -> bytes Result
+
 val rsa_encrypt: key -> bytes -> bytes Result
+val rsa_decrypt: key -> bytes -> bytes Result
 
 (* TLS Specific functions *)
 

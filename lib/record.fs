@@ -282,9 +282,9 @@ let get_iv_ciphertext version bulk_cipher_algorithm iv ciphertext =
 
 let decrypt_fun block_cipher_algorithm key iv data  =
     match block_cipher_algorithm with
-        | BCA_des -> des_decrypt_wiv key iv data
-        | BCA_aes_128 -> aes_decrypt_wiv key iv data
-        | BCA_aes_256 -> aes_decrypt_wiv key iv data
+        | BCA_des -> des_decrypt_wiv_nopad key iv data
+        | BCA_aes_128 -> aes_decrypt_wiv_nopad key iv data
+        | BCA_aes_256 -> aes_decrypt_wiv_nopad key iv data
         | _ -> Error (Encryption, Unsupported) (* FIXME: other block BCAs are truly unsupported, but other stream BCAs (e.g. null) are in fact "unexpectedErrors" *)
 
 let block_decrypt conn_state data = 

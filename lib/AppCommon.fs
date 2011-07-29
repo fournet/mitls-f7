@@ -21,6 +21,7 @@ type protocolOptions = {
     allowAnonCipherSuite: bool
     (* Server side *)
     request_client_certificate: bool
+    check_client_version_in_pms_for_old_tls: bool
     (* Common *)
     certificateValidationPolicy: pri_cert list -> bool
     safe_renegotiation: bool
@@ -48,6 +49,7 @@ let defaultProtocolOptions ={
     honourHelloReq = HRPResume
     allowAnonCipherSuite = false
     request_client_certificate = true
+    check_client_version_in_pms_for_old_tls = true
     certificateValidationPolicy = defaultCertificateValidationPolicy
     safe_renegotiation = true
 

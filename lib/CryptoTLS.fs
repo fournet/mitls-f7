@@ -121,7 +121,13 @@ let rsa_encrypt key data =
     with
         | _ -> Error (Encryption, Internal)
 
-(* No padding encryption functions *)
+let rsa_decrypt key data =
+    try
+        correct (Crypto.rsa_decrypt key data)
+    with
+        | _ -> Error (Encryption, Internal)
+
+(* No padding encryption/decryption functions *)
 let aes_encrypt_wiv_nopad_raw (k:Crypto.key) (iv:bytes) (plain:bytes) = 
   match k with 
       Crypto.SymKey key ->
@@ -146,6 +152,27 @@ let aes_encrypt_wiv_nopad key iv data =
     with
         | _ -> Error (Encryption, Internal)
 
+let aes_decrypt_wiv_nopad_raw (k:Crypto.key) (iv:bytes) (cipher:bytes) = 
+  match k with 
+      Crypto.SymKey key ->
+        let rij = new System.Security.Cryptography.RijndaelManaged() in
+        let keyl = 8 * key.Length  in
+        rij.set_KeySize(keyl);
+        rij.Padding <- System.Security.Cryptography.PaddingMode.None;
+        let dec = rij.CreateDecryptor(key,iv) in
+        let mems = new System.IO.MemoryStream(cipher) in
+        let crs = new System.Security.Cryptography.CryptoStream(mems,dec,System.Security.Cryptography.CryptoStreamMode.Read) in
+        let plain = Array.zeroCreate(cipher.Length) in  
+        let _ =  crs.Read(plain,0,plain.Length) in
+        plain
+    | _ -> failwith "AES only defined for symmetric keys"
+
+let aes_decrypt_wiv_nopad key iv data =
+    try
+        correct(aes_decrypt_wiv_nopad_raw key iv data)
+    with
+        | _ -> Error(Encryption,Internal)
+
 let des_encrypt_wiv_nopad_raw (k:Crypto.key) (iv:bytes) (plain:bytes) = 
   match k with 
       Crypto.SymKey key ->        
@@ -169,6 +196,31 @@ let des_encrypt_wiv_nopad_raw (k:Crypto.key) (iv:bytes) (plain:bytes) =
 let des_encrypt_wiv_nopad key iv data =
     try
         correct (des_encrypt_wiv_nopad_raw key iv data)
+    with
+        | _ -> Error (Encryption, Internal)
+
+let des_decrypt_wiv_nopad_raw (k:Crypto.key) (iv:bytes) (cipher:bytes) = 
+  match k with 
+      Crypto.SymKey key ->
+        let des = new System.Security.Cryptography.DESCryptoServiceProvider() in
+        //let keyl = 8 * key.Length  in
+        //des.set_KeySize(keyl);*)
+        //let block = 8 in (* 64 bits *)
+        //print_any (des.get_Padding());
+        des.Padding <- System.Security.Cryptography.PaddingMode.None
+        let dec = des.CreateDecryptor(key,iv) in
+        let mems = new System.IO.MemoryStream(cipher) in
+        let crs = new System.Security.Cryptography.CryptoStream(mems,dec,System.Security.Cryptography.CryptoStreamMode.Read) in
+        let plain = Array.zeroCreate(cipher.Length) in 
+        let _ =  crs.Read(plain,0,plain.Length) in
+        mems.Close();
+        crs.Close();
+        plain
+    | _ -> failwith "DES only defined for symmetric keys"
+
+let des_decrypt_wiv_nopad key iv data =
+    try
+        correct (des_decrypt_wiv_nopad_raw key iv data)
     with
         | _ -> Error (Encryption, Internal)
 
