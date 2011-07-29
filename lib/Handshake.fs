@@ -280,8 +280,7 @@ let makeCertificateRequestBytes cs ver =
             empty_bstr
         | _ -> unexpectedError "[makeCertificateRequestBytes] invoked on unknown protocol version."
     (* We specify no cert auth *)
-    let distName = vlenBytes_of_bytes 2 empty_bstr in
-    let distNames = vlenBytes_of_bytes 2 distName in
+    let distNames = vlenBytes_of_bytes 2 empty_bstr in
     let data = appendList [certTypes;sigAndAlg;distNames] in
     makeHSPacket HT_certificate_request data
 
