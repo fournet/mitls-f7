@@ -568,6 +568,46 @@ let parseSHello data =
        neg_extensions = data},
       append serverTsBytes serverRdmBytes)
 
+let check_reneg_info payload expected =
+    let (recv,rem) = split_varLen payload 1 in
+    if not (equalBytes recv expected) then
+        false
+    else
+        (* Also check there were no more data in this extension! *)
+        if not (equalBytes rem empty_bstr) then
+            false
+        else
+            true
+
+let check_client_renegotiation_info cHello expected =
+    match extensionList_of_bytes cHello.extensions with
+    | Error(x,y) -> false
+    | Correct(extList) ->
+        (* Check there's at most one renegotiation_info extension *)
+        let ren_ext_list = List.filter (fun (ext,_) -> ext = HExt_renegotiation_info) extList in
+        if ren_ext_list.Length > 1 then
+            false
+        else
+            if equalBytes expected empty_bstr then
+                (* First handshake *)
+                if ren_ext_list.Length = 0 then
+                    let has_SCSV = List.exists (fun cs -> cs = TLS_EMPTY_RENEGOTIATION_INFO_SCSV ) cHello.cipher_suites in
+                    if has_SCSV then
+                        (* Client gave SCSV, and no extension. This is OK for first handshake *)
+                        true
+                    else
+                        (* Client doesn't support this extension, we fail *)
+                        false
+                else
+                    let ren_ext = ren_ext_list.Head in
+                    let (extType,payload) = ren_ext in
+                    check_reneg_info payload expected
+            else
+                (* Not first handshake *)
+                (* TODO *)
+                false
+                
+
 let inspect_SHello_extensions recvExt expected =
     (* Code is ad-hoc for the only extension we support now: renegotiation_info *)
     match extensionList_of_bytes recvExt with
@@ -582,17 +622,12 @@ let inspect_SHello_extensions recvExt expected =
             match extType with
             | HExt_renegotiation_info ->
                 (* Check its content *)
-                let (recv,rem) = split_varLen payload 1 in
-                if not (equalBytes recv expected) then
+                if check_reneg_info payload expected then
+                    let unitVal = () in
+                    correct (unitVal)
+                else
                     (* RFC 5746, sec 3.4: send a handshake failure alert *)
                     Error(HSError(AD_handshake_failure),HSSendAlert)
-                else
-                    (* Also check there were no more data in this extension! *)
-                    if not (equalBytes rem empty_bstr) then
-                        Error(HSError(AD_handshake_failure),HSSendAlert)
-                    else
-                        let unitVal = () in
-                        correct (unitVal)
             | _ -> Error(HSError(AD_unsupported_extension),HSSendAlert)
 
 let rec parseCertificate_int toProcess list =
@@ -1373,66 +1408,78 @@ let rec recv_fragment_server (hs_state:hs_state) (must_change_ver:ProtocolVersio
                 (* Log the received message *)
                 let new_log = append hs_state.hs_msg_log to_log in
                 let hs_state = {hs_state with hs_msg_log = new_log} in
-                (* Check whether the client asked for session resumption *)
-                if equalBytes cHello.ch_session_id empty_bstr then
-                    (* Client did not ask for resumption. Do a full Handshake *)
-                    match start_server_full hs_state cHello with
-                    | Error(x,y) -> (Error(x,y),hs_state)
-                    | Correct(res) ->
-                        let (hs_state,negPV) = res in
-                        recv_fragment_server hs_state (Some(negPV))
-                else
-                    (* Client asked for resumption, let's see if we can satisfy the request *)
-                    match SessionDB.select hs_state.poptions cHello.ch_session_id with
-                    | None ->
-                        (* We don't have the requested session stored, go for a full handshake *)
+                (* Handling of renegotiation_info extenstion *)
+                let extRes =
+                    if hs_state.poptions.safe_renegotiation then
+                        if check_client_renegotiation_info cHello hs_state.hs_renegotiation_info_cVerifyData then
+                            correct(hs_state)
+                        else
+                            (* We don't accept an insecure client *)
+                            Error(HSError(AD_handshake_failure),HSSendAlert)
+                    else
+                        (* We can ignore the extension, if any *)
+                        correct(hs_state)
+                match extRes with
+                | Error(x,y) -> (Error(x,y),hs_state)
+                | Correct(hs_state) ->
+                    (* Check whether the client asked for session resumption *)
+                    if equalBytes cHello.ch_session_id empty_bstr then
+                        (* Client did not ask for resumption. Do a full Handshake *)
                         match start_server_full hs_state cHello with
                         | Error(x,y) -> (Error(x,y),hs_state)
                         | Correct(res) ->
                             let (hs_state,negPV) = res in
                             recv_fragment_server hs_state (Some(negPV))
-                    | Some (sinfo) ->
-                        (* Check client proposed algorithms match with our stored session *)
-                        match sinfo.role with
-                        | ClientRole -> (* This session is not for us, we're a server. Do full handshake *)
+                    else
+                        (* Client asked for resumption, let's see if we can satisfy the request *)
+                        match SessionDB.select hs_state.poptions cHello.ch_session_id with
+                        | None ->
+                            (* We don't have the requested session stored, go for a full handshake *)
                             match start_server_full hs_state cHello with
                             | Error(x,y) -> (Error(x,y),hs_state)
                             | Correct(res) ->
                                 let (hs_state,negPV) = res in
                                 recv_fragment_server hs_state (Some(negPV))
-                        | ServerRole ->
-                            if cHello.client_version >= sinfo.more_info.mi_protocol_version then
-                                (* We have a common version *)
-                                match List.tryFind (fun cs -> cs = sinfo.more_info.mi_cipher_suite) cHello.cipher_suites with
-                                | None ->
-                                    (* Do a full handshake *)
-                                    match start_server_full hs_state cHello with
-                                    | Error(x,y) -> (Error(x,y),hs_state)
-                                    | Correct(res) ->
-                                        let (hs_state,negPV) = res in
-                                        recv_fragment_server hs_state (Some(negPV))
-                                | Some _ ->
-                                    match List.tryFind (fun cm -> cm = sinfo.more_info.mi_compression) cHello.compression_methods with
-                                    | None ->
+                        | Some (sinfo) ->
+                            (* Check client proposed algorithms match with our stored session *)
+                            match sinfo.role with
+                            | ClientRole -> (* This session is not for us, we're a server. Do full handshake *)
+                                match start_server_full hs_state cHello with
+                                | Error(x,y) -> (Error(x,y),hs_state)
+                                | Correct(res) ->
+                                    let (hs_state,negPV) = res in
+                                    recv_fragment_server hs_state (Some(negPV))
+                            | ServerRole ->
+                                if cHello.client_version >= sinfo.more_info.mi_protocol_version then
+                                    (* We have a common version *)
+                                    if List.exist (fun cs -> cs = sinfo.more_info.mi_cipher_suite) cHello.cipher_suites then
                                         (* Do a full handshake *)
                                         match start_server_full hs_state cHello with
                                         | Error(x,y) -> (Error(x,y),hs_state)
                                         | Correct(res) ->
                                             let (hs_state,negPV) = res in
                                             recv_fragment_server hs_state (Some(negPV))
-                                    | Some _ ->
-                                        (* Everything is ok, proceed with resumption *)
-                                        match prepare_server_output_resumption hs_state sinfo with
-                                        | Error(x,y) -> (Error(x,y), hs_state)
-                                        | Correct(hs_state) ->
-                                            recv_fragment_server hs_state (Some(sinfo.more_info.mi_protocol_version))
-                            else
-                                (* Do a full handshake *)
-                                match start_server_full hs_state cHello with
-                                | Error(x,y) -> (Error(x,y),hs_state)
-                                | Correct(res) ->
-                                    let (hs_state,negPV) = res in
-                                    recv_fragment_server hs_state (Some(negPV))
+                                    else
+                                        if List.exists (fun cm -> cm = sinfo.more_info.mi_compression) cHello.compression_methods then
+                                            (* Do a full handshake *)
+                                            match start_server_full hs_state cHello with
+                                            | Error(x,y) -> (Error(x,y),hs_state)
+                                            | Correct(res) ->
+                                                let (hs_state,negPV) = res in
+                                                recv_fragment_server hs_state (Some(negPV))
+                                        else
+                                            (* Everything is ok, proceed with resumption *)
+                                            match prepare_server_output_resumption hs_state sinfo with
+                                            | Error(x,y) -> (Error(x,y), hs_state)
+                                            | Correct(hs_state) ->
+                                                recv_fragment_server hs_state (Some(sinfo.more_info.mi_protocol_version))
+                                else
+                                    (* Do a full handshake *)
+                                    match start_server_full hs_state cHello with
+                                    | Error(x,y) -> (Error(x,y),hs_state)
+                                    | Correct(res) ->
+                                        let (hs_state,negPV) = res in
+                                        recv_fragment_server hs_state (Some(negPV))
             | _ -> (* Message arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
         | HT_certificate ->
             match sState with
