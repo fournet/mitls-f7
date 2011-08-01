@@ -22,6 +22,7 @@ type protocolOptions = {
     (* Server side *)
     request_client_certificate: bool
     check_client_version_in_pms_for_old_tls: bool
+    server_cert_file: string (* FIXME: certificates should be found in a better way. To be fixed *)
     (* Common *)
     certificateValidationPolicy: pri_cert list -> bool
     safe_renegotiation: bool
@@ -50,6 +51,7 @@ let defaultProtocolOptions ={
     allowAnonCipherSuite = false
     request_client_certificate = true
     check_client_version_in_pms_for_old_tls = true
+    server_cert_file = "server"
     certificateValidationPolicy = defaultCertificateValidationPolicy
     safe_renegotiation = true
 

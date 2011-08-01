@@ -42,8 +42,13 @@ let rec testS_int listn prevSid =
 let testS () =
     let listn = Tcp.listen serverAddr serverPort in
     testS_int listn Bytearray.empty_bstr
-    
+
+let empty_sessionDB () =
+    let allSids = SessionDB.getAllStoredIDs options in
+    List.iter (fun sid -> SessionDB.remove options sid) allSids
+
 let testHTTP =
+    empty_sessionDB ()
     let listn = Tcp.listen serverAddr serverPort in
     match TLS.accept listn options with
     | (Error(x,y),_) ->
@@ -60,7 +65,11 @@ let testHTTP =
             printfn "Client request"
             printfn "%s" req
             if req.StartsWith("GET /") then
-                (* First propose a re-handshake, then give the page *)
+                (* Empty the sessions DB, so we are sure we'll do a full handshake *)
+                empty_sessionDB ()
+                (* Change the server certificate file *)
+                let options = {options with server_cert_file = "server_untrusted"} in
+                (* Now propose a (full) re-handshake, then give the page *)
                 match TLS.handshakeRequest_now conn options with
                 | (Error(x,y),_) ->
                     printf "Renegotiation AYEEE!!! %A %A" x y
@@ -84,3 +93,21 @@ let testHTTP =
                 printfn "Client invalid request"
                 ignore (System.Console.ReadLine())
                 TLS.shutdown conn (* Currently does nothing... *)
+
+let putCertInFile () =
+    let store = new X509Store(StoreName.My,StoreLocation.CurrentUser) in
+    store.Open(OpenFlags.ReadOnly)
+    let certs = store.Certificates in
+    let search = certs.Find(X509FindType.FindBySubjectName,"Alfredo_Very_Untrusted",false) in
+    if (search.get_Count()) < 1 then
+        printfn "FAIL"
+        ignore (System.Console.ReadLine () )
+    else  
+        let cert = search.Item(0) in
+        let certBytes = cert.Export(X509ContentType.Cert) in
+        let priK = cert.PrivateKey in
+        let priKText = priK.ToXmlString (true) in
+        System.IO.File.WriteAllBytes("server_untrusted.cer",certBytes)
+        System.IO.File.WriteAllText("server_untrusted.pvk",priKText)
+        printf "SUCCESS"
+        ignore (System.Console.ReadLine () )

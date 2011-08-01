@@ -993,6 +993,7 @@ let start_hs_request (state:hs_state) (ops:protocolOptions) =
             (* Put HelloRequest in outgoing buffer (and do not log it), and move to the ClientHello state (so that we don't send HelloRequest again) *)
             let new_out = append state.hs_outgoing (makeHelloRequestBytes ()) in
             {state with hs_outgoing = new_out
+                        poptions = ops
                         pstate = Server(ClientHello)}
         | _ -> (* Handshake already ongoing, ignore this request *)
             state
@@ -1293,14 +1294,17 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
       (* Should never happen *)
       | Server(_) -> unexpectedError "[recv_fragment_client] should only be invoked when in client role."
 
-let getServerCert cs =
+let getServerCert cs ops =
     (* TODO: Properly get the server certificate. Note this should be a list of certificates...*)
-    let data = System.IO.File.ReadAllBytes ("server.cer") in
+    let data = System.IO.File.ReadAllBytes (ops.server_cert_file + ".cer") in
     match certificate_of_bytes data with
     | Error(x,y) -> Error(HSError(AD_internal_error),HSSendAlert)
     | Correct(cert) ->
-        let pri = System.IO.File.ReadAllText("server.pvk") in
+        let pri = System.IO.File.ReadAllText(ops.server_cert_file + ".pvk") in
         let cert = set_priKey cert pri in
+        (* FIXME TODO DEBUG: Remove next printing lines *)
+        printfn "Sending certificate of"
+        printfn "%s" (get_CN cert)
         correct (cert)
 
 let prepare_server_output_full hs_state sinfo maxClVer =
@@ -1311,7 +1315,7 @@ let prepare_server_output_full hs_state sinfo maxClVer =
         if isAnonCipherSuite sinfo.more_info.mi_cipher_suite then
             correct (empty_bstr,sinfo)
         else
-            match getServerCert sinfo.more_info.mi_cipher_suite with
+            match getServerCert sinfo.more_info.mi_cipher_suite hs_state.poptions with
             | Error(x,y) -> Error(x,y)
             | Correct(sCert) ->
                 (* update server identity in the sinfo *)

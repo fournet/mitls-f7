@@ -35,3 +35,6 @@ let certificate_has_signing_capability (PriCert(cert)) =
 let certificate_is_dsa (PriCert(cert)) =
     (* FIXME: no idea of what the friendly name is expected to be *)
     cert.SignatureAlgorithm.FriendlyName = "DSA"
+
+let get_CN (PriCert(cert)) =
+    cert.Subject

@@ -16,3 +16,5 @@ val set_priKey: pri_cert -> string -> pri_cert
 
 val certificate_has_signing_capability: pri_cert -> bool
 val certificate_is_dsa: pri_cert -> bool
+
+val get_CN: pri_cert -> string
