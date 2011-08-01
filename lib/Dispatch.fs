@@ -420,7 +420,7 @@ let writeOneAppFragment conn d =
     match c_write.disp with
     | Finished -> (Error(MustRead,Notification),conn)
     | _ ->
-    let (frag,rem) = split d fragmentLength in
+    let (frag,rem) = split_at_most d fragmentLength in
     let new_appdata = AppData.send_data conn.appdata frag in
     let conn = {conn with appdata = new_appdata} in
     match sendNextFragments conn with

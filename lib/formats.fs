@@ -113,6 +113,12 @@ let bytes_of_intpair ((i,j): (int*int)) : bytes =
 
 let bytes_of_seq sn = bytes_of_int 8 sn
 
+let split_at_most data len =
+    if len >= length data then
+        (data,empty_bstr)
+    else
+        split data len
+
 let rec appendList (xl:bytes list) : bytes =
     match xl with
     | [] -> empty_bstr

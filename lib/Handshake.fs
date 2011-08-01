@@ -73,12 +73,6 @@ type HSFragReply =
   | HSFullyFinished_Write of bytes * SessionInfo
   | CCSFrag of bytes * ccs_data
 
-let get_next_bytes data frag_len =
-    if frag_len >= length data then
-        (data,empty_bstr)
-    else
-        split data frag_len
-
 let next_fragment state len =
     (* Assumptions: The buffer are filled in the following order:
        1) hs_outgoing; 2) ccs_outgoing; 3) hs_outgoing_after_ccs
@@ -92,7 +86,7 @@ let next_fragment state len =
             match state.hs_outgoing_after_ccs with
             | x when equalBytes x empty_bstr -> (EmptyHSFrag,state)
             | d ->
-                let (f,rem) = get_next_bytes d len in
+                let (f,rem) = split_at_most d len in
                 let state = {state with hs_outgoing_after_ccs = rem} in
                 match rem with
                 | x when equalBytes x empty_bstr ->
@@ -122,7 +116,7 @@ let next_fragment state len =
             let state = {state with ccs_outgoing = None}
             (CCSFrag data, state)
     | d ->
-        let (f,rem) = get_next_bytes d len in
+        let (f,rem) = split_at_most d len in
         let state = {state with hs_outgoing = rem} in
         (HSFrag(f),state)
 
@@ -991,8 +985,17 @@ let start_rekey (state:hs_state) (ops:protocolOptions) =
                 | Server (_) -> unexpectedError "[start_rehandshake] should only be invoked on client side connections."
 
 let start_hs_request (state:hs_state) (ops:protocolOptions) =
-    (* TODO: fill the ougtgoing buffer with the HelloRequest... *)
-    state
+    match state.pstate with
+    | Client _ -> unexpectedError "[start_hs_request] should only be invoked on server side connections."
+    | Server (sstate) ->
+        match sstate with
+        | SIdle ->
+            (* Put HelloRequest in outgoing buffer (and do not log it), and move to the ClientHello state (so that we don't send HelloRequest again) *)
+            let new_out = append state.hs_outgoing (makeHelloRequestBytes ()) in
+            {state with hs_outgoing = new_out
+                        pstate = Server(ClientHello)}
+        | _ -> (* Handshake already ongoing, ignore this request *)
+            state
 
 let new_session_idle state new_info =
     (* FIXME: next SessionDB interaction should be in the dispatcher *)
@@ -1414,7 +1417,7 @@ let rec recv_fragment_server (hs_state:hs_state) (must_change_ver:ProtocolVersio
         match hstype with
         | HT_client_hello ->
             match sState with
-            | ClientHello ->
+            | x when x = ClientHello || x = SIdle ->
                 let (cHello,cRandom) = parseCHello payload in
                 let hs_state = {hs_state with hs_client_random = cRandom} in
                 (* Log the received message *)

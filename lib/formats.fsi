@@ -7,6 +7,8 @@ val bytes_of_intpair: (int*int) -> bytes
 
 val bytes_of_seq: int -> bytes
 
+val split_at_most: bytes -> int -> (bytes * bytes)
+
 type preContentType =
     | Change_cipher_spec
     | Alert
