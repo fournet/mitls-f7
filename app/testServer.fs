@@ -47,8 +47,20 @@ let empty_sessionDB () =
     let allSids = SessionDB.getAllStoredIDs options in
     List.iter (fun sid -> SessionDB.remove options sid) allSids
 
+let prepareResponse () =
+    let page = File.ReadAllBytes("index.html") in
+    let ctlen = page.Length in
+    let head = "HTTP/1.0 200 OK\r\nContent-Length: " + ctlen.ToString() + "\r\n\r\n" in
+    let headB = Array.map (fun x -> byte x) (head.ToCharArray()) in
+    let resp = Data.append headB page in
+    printfn "Response header"
+    printfn "%s" head
+    resp
+
 let testHTTP =
     empty_sessionDB ()
+    let options = {options with safe_renegotiation = false}
+    //let options = {options with server_cert_file = "server_untrusted"} in
     let listn = Tcp.listen serverAddr serverPort in
     match TLS.accept listn options with
     | (Error(x,y),_) ->
@@ -65,6 +77,16 @@ let testHTTP =
             printfn "Client request"
             printfn "%s" req
             if req.StartsWith("GET /") then
+                (* Send response *)
+                let resp = prepareResponse ()
+                match TLS.writeFully conn resp with
+                | (Error(x,y),_) ->
+                    printf "Renegotiation AYEEE!!! %A %A" x y
+                    ignore (System.Console.ReadLine())
+                | (Correct (_),conn) ->
+                    printf "Sending page OK"
+                    ignore (System.Console.ReadLine())
+
                 (* Empty the sessions DB, so we are sure we'll do a full handshake *)
                 empty_sessionDB ()
                 (* Change the server certificate file *)
@@ -75,20 +97,8 @@ let testHTTP =
                     printf "Renegotiation AYEEE!!! %A %A" x y
                     ignore (System.Console.ReadLine())
                 | (Correct (_),conn) ->
-                    let page = File.ReadAllBytes("index.html") in
-                    let ctlen = page.Length in
-                    let head = "HTTP/1.0 200 OK\r\nContent-Length: " + ctlen.ToString() + "\r\n\r\n" in
-                    let headB = Array.map (fun x -> byte x) (head.ToCharArray()) in
-                    let resp = Data.append headB page in
-                    printfn "Response header"
-                    printfn "%s" head
-                    match TLS.writeFully conn resp with
-                    | (Error(x,y),_) ->
-                        printf "Renegotiation AYEEE!!! %A %A" x y
-                        ignore (System.Console.ReadLine())
-                    | (Correct (_),conn) ->
-                        printf "Sending page OK"
-                        ignore (System.Console.ReadLine())
+                    printf "Renegotiation OK"
+                    ignore (System.Console.ReadLine())
             else
                 printfn "Client invalid request"
                 ignore (System.Console.ReadLine())
