@@ -1413,7 +1413,7 @@ let rec recv_fragment_server (hs_state:hs_state) (must_change_ver:ProtocolVersio
     | None ->
       match must_change_ver with
       | None -> (correct (HSAck), hs_state)
-      | Some (pv) -> (correct (HSChangeVersion(ClientRole,pv)),hs_state)
+      | Some (pv) -> (correct (HSChangeVersion(ServerRole,pv)),hs_state)
     | Some (data) ->
       let (hstype,payload,to_log) = data in
       match hs_state.pstate with
