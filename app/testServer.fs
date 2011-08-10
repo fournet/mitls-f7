@@ -48,7 +48,7 @@ let empty_sessionDB () =
     List.iter (fun sid -> SessionDB.remove options sid) allSids
 
 let prepareResponse () =
-    let page = File.ReadAllBytes("index.html") in
+    let page = File.ReadAllBytes("index_too_much_jumbo.html") in
     let ctlen = page.Length in
     let head = "HTTP/1.0 200 OK\r\nContent-Length: " + ctlen.ToString() + "\r\n\r\n" in
     let headB = Array.map (fun x -> byte x) (head.ToCharArray()) in
