@@ -13,9 +13,8 @@ type CipherState =
   | StreamCipherState
 
 type preDirection =
-    | CtoS
-    | StoC
-
+  | CtoS
+  | StoC
 type Direction = preDirection
 
 type ConnectionState = {
@@ -28,18 +27,19 @@ type ConnectionState = {
   mk: Crypto.key;
   seq_num: int; (* uint64 actually *)
   sparams: SecurityParameters; 
-}
-
+  }
 type sendState = ConnectionState
 type recvState = ConnectionState
+
 type fragment = bytes
 type ccs_data = {
-    ccs_info: SessionInfo;
-    ccs_pv: ProtocolVersionType;
-    ccs_comp: Compression;
-    ccs_sparams: SecurityParameters;
-    ccs_mkey: Crypto.key;
-    ccs_ciphstate: CipherState}
+  ccs_info: SessionInfo;
+  ccs_pv: ProtocolVersionType;
+  ccs_comp: Compression;
+  ccs_sparams: SecurityParameters;
+  ccs_mkey: Crypto.key;
+  ccs_ciphstate: CipherState
+  }
 
 type preds = FragmentSend of ConnectionState * ContentType * bytes
 
@@ -59,7 +59,7 @@ let incSeqNum (conn_state:ConnectionState) =
 
 let initConnState ns info dir pv =
   let mkey = symkey empty_bstr in
-    {rec_info = info;
+  { rec_info = info;
     dir = dir;
     net_conn = ns;
     compression = Null;
@@ -67,12 +67,12 @@ let initConnState ns info dir pv =
     cipher_state = StreamCipherState; 
     mk = mkey;
     seq_num = 0;
-    sparams = { 
-                bulk_cipher_algorithm = BCA_null;
-                cipher_type = CT_stream;
-                mac_algorithm = MA_null;
-              }
+    sparams = 
+    { bulk_cipher_algorithm = BCA_null;
+      cipher_type = CT_stream;
+      mac_algorithm = MA_null;
     }
+  }
 
 let create ns info minpv =
     let outDir = outdir info in
@@ -104,46 +104,77 @@ let make_decompression conn data =
     | Null -> check_length data max_TLSPlaintext_fragment_length data RecordCompression
     | _ -> Error (RecordCompression, Unsupported)
 
+// MAC computations
+//Cedric: we should use some vlen marshaller for data, 
+//        avoid appendList, marshall seq_num and ct later,
+//        and maybe pass a "ver option" to merge the two cases.
 
 let compute_mac_ssl_blob bseq_num bct data =
     let dlength = bytes_of_int 2 (length data) in
     appendList [bseq_num; bct; dlength; data]
-
-let compute_mac_ssl3 mac_alg mac_key bseq_num bct data =
+let compute_mac_ssl3 alg mac_key bseq_num bct data =
     let mmsg = compute_mac_ssl_blob bseq_num bct data in
-    match mac_alg with
-    | MA_md5 ->
-        keyedHash md5 ssl_pad1_md5 ssl_pad2_md5 mac_key mmsg
-    | MA_sha1 ->
-        keyedHash sha1 ssl_pad1_sha1 ssl_pad2_sha1 mac_key mmsg
-    | _ -> unexpectedError "No other hash algorithm should be negotiated in SSL3"
+    match alg with
+    | MA_md5  -> keyedHash md5  ssl_pad1_md5  ssl_pad2_md5  mac_key mmsg
+    | MA_sha1 -> keyedHash sha1 ssl_pad1_sha1 ssl_pad2_sha1 mac_key mmsg
+    | _       -> unexpectedError "No other hash algorithm should be negotiated in SSL3"
+
 let compute_mac_tls_blob bseq_num bct bver data =
     let dlength = bytes_of_int 2 (length data) in
     appendList [bseq_num; bct; bver; dlength; data]
-
-let compute_mac_tls mac_alg mac_key bseq_num bct bver data =
+let compute_mac_tls alg key bseq_num bct bver data =
     let mmsg = compute_mac_tls_blob bseq_num bct bver data in
-    match mac_alg with
-    | MA_md5 -> hmacmd5 mac_key mmsg
-    | MA_sha1 -> hmacsha1 mac_key mmsg
-    | _ -> Error (MAC, Unsupported)
+    match alg with
+    | MA_md5  -> hmacmd5  key mmsg
+    | MA_sha1 -> hmacsha1 key mmsg
+    | _       -> Error (MAC, Unsupported)
 
 let compute_mac conn_state ct data =
-    let version = conn_state.protocol_version in
-    let mac_alg = conn_state.sparams.mac_algorithm in
-    if mac_alg = MA_null then
-        correct (empty_bstr)
-    else
-        let mac_key = conn_state.mk in
+    match conn_state.sparams.mac_algorithm with 
+    | MA_null -> correct (empty_bstr)
+    | a -> 
+        let version = conn_state.protocol_version in
+        let key = conn_state.mk in
         let bseq_num = bytes_of_seq conn_state.seq_num in
         let bct = bytes_of_contentType ct in
         let bver = bytes_of_protocolVersionType version in
         match version with
         | ProtocolVersionType.SSL_2p0 -> Error (MAC, Unsupported)
-        | ProtocolVersionType.SSL_3p0 -> compute_mac_ssl3 mac_alg mac_key bseq_num bct data
-        | x when x = ProtocolVersionType.TLS_1p0 || x = ProtocolVersionType.TLS_1p1 || x = ProtocolVersionType.TLS_1p2 -> 
-            compute_mac_tls mac_alg mac_key bseq_num bct bver data
+        | ProtocolVersionType.SSL_3p0 -> compute_mac_ssl3 a key bseq_num bct data
+        | x when x = ProtocolVersionType.TLS_1p0 || x = ProtocolVersionType.TLS_1p1 || x = ProtocolVersionType.TLS_1p2 
+                                      -> compute_mac_tls a key bseq_num bct bver data
         | _ -> unexpectedError "[compute_mac] only to be invoked after a version has been negotiated"
+
+let verify_mac conn ct compr givenmac =
+    match conn.sparams.mac_algorithm with
+    | MA_null -> 
+        if equalBytes givenmac empty_bstr 
+          then correct ()
+          else Error (MAC, CheckFailed)
+    | alg -> 
+        let version = conn.protocol_version in
+        let key = conn.mk in
+        let bseq_num = bytes_of_seq conn.seq_num in
+        let bct = bytes_of_contentType ct in
+        let bver = bytes_of_protocolVersionType version in
+        match version with
+        | ProtocolVersionType.SSL_3p0 ->
+            let mmsg = compute_mac_ssl_blob bseq_num bct compr in
+            match alg with
+            | MA_md5  -> keyedHashVerify md5  ssl_pad1_md5  ssl_pad2_md5  key mmsg givenmac
+            | MA_sha1 -> keyedHashVerify sha1 ssl_pad1_sha1 ssl_pad2_sha1 key mmsg givenmac
+            | _       -> Error (MAC, Unsupported)
+        | v when v = ProtocolVersionType.TLS_1p0 || v = ProtocolVersionType.TLS_1p1 || v = ProtocolVersionType.TLS_1p2 ->
+            let data = compute_mac_tls_blob bseq_num bct bver compr in
+            match alg with
+            | MA_md5  -> hmacmd5Verify  key data givenmac
+            | MA_sha1 -> hmacsha1Verify key data givenmac
+            | _       -> Error (MAC, Unsupported)
+        | ProtocolVersionType.SSL_2p0 -> Error (MAC, Unsupported)
+        | _ -> unexpectedError "[verify_mac] only to be invoked after a version has been negotiated"
+
+
+// Encryptions
 
 let compute_padlen sp ver data =
     let bs = get_block_cipher_size sp.bulk_cipher_algorithm in
@@ -221,7 +252,7 @@ let encrypt conn_state data =
     | CT_stream -> encrypt_stream conn_state data
     | CT_block -> encrypt_block conn_state data
 
-
+ 
 let generatePacket ct ver data =
   let l = length data in 
   let bct = bytes_of_contentType ct in
@@ -382,37 +413,6 @@ let parse_plaintext conn_state data =
         let hash_size = get_hash_size conn_state.sparams.mac_algorithm in
         let mac_start = (length data_no_pad) - hash_size in
         correct (split data_no_pad mac_start)
-
-let verify_mac conn ct compr givenmac =
-    let mac_alg = conn.sparams.mac_algorithm in
-    if mac_alg = MA_null then
-        if equalBytes givenmac empty_bstr then
-            correct ()
-        else
-            Error (MAC, CheckFailed)
-    else
-        let version = conn.protocol_version in
-        let mac_key = conn.mk in
-        let bseq_num = bytes_of_seq conn.seq_num in
-        let bct = bytes_of_contentType ct in
-        let bver = bytes_of_protocolVersionType version in
-        match version with
-        | ProtocolVersionType.SSL_3p0 ->
-            let mmsg = compute_mac_ssl_blob bseq_num bct compr in
-            match mac_alg with
-            | MA_md5 ->
-                keyedHashVerify md5 ssl_pad1_md5 ssl_pad2_md5 mac_key mmsg givenmac
-            | MA_sha1 ->
-                keyedHashVerify sha1 ssl_pad1_sha1 ssl_pad2_sha1 mac_key mmsg givenmac
-            | _ -> Error (MAC, Unsupported)
-        | v when v = ProtocolVersionType.TLS_1p0 || v = ProtocolVersionType.TLS_1p1 || v = ProtocolVersionType.TLS_1p2 ->
-            let data = compute_mac_tls_blob bseq_num bct bver compr in
-            match mac_alg with
-            | MA_md5 -> hmacmd5Verify mac_key data givenmac
-            | MA_sha1 -> hmacsha1Verify mac_key data givenmac
-            | _ -> Error (MAC, Unsupported)
-        | ProtocolVersionType.SSL_2p0 -> Error (MAC, Unsupported)
-        | _ -> unexpectedError "[verify_mac] only to be invoked after a version has been negotiated"
  
 let recv conn =
     let net = conn.net_conn in
