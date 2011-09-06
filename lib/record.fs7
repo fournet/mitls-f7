@@ -10,13 +10,12 @@ open Error_handling
 open Sessions
 
 type CipherState =
-  | BlockCipherState of Crypto.key * Data.bytes
+  | BlockCipherState of Crypto.key * bytes
   | StreamCipherState
 
 type preDirection =
-	| CtoS
-	| StoC
-
+  | CtoS
+  | StoC
 type Direction = d:preDirection{d = CtoS \/ d = StoC}
 
 type ConnectionState =
@@ -29,7 +28,7 @@ type ConnectionState =
    mk: key;
    seq_num: int;
    sparams: Formats.SecurityParameters;}
-type fragment = Data.bytes
+type fragment = bytes
 type ccs_data = {
     ccs_info: SessionInfo;
     ccs_pv: ProtocolVersionType;
@@ -77,7 +76,10 @@ val outdir: si:SessionInfo -> d:Direction{d = OutDir(si)}
 
 val incSeqNum : cs:ConnectionState -> cs':ConnectionState{cs' = IncSeqNum(cs)}
 val initConnState :
-  ns:Tcp.NetworkStream -> si:SessionInfo{?r,s. si = InitSessionInfo(r,s)} -> d:Direction -> pv:Formats.ProtocolVersionType -> 
+  ns:Tcp.NetworkStream -> 
+  si:SessionInfo{?r,s. si = InitSessionInfo(r,s)} -> 
+  d:Direction -> 
+  pv:Formats.ProtocolVersionType -> 
   cs:ConnectionState{InitConnState(cs,ns,si,d,pv)}
 val create :
   ns:Tcp.NetworkStream -> si:SessionInfo{?r,s. si = InitSessionInfo(r,s)} ->
@@ -87,12 +89,12 @@ val max_TLSPlaintext_fragment_length : int
 val max_TLSCompressed_fragment_length : int
 val max_TLSEncrypted_fragment_length : int
 val check_length :
-  Data.bytes ->
+  bytes ->
     int -> i:'a -> e:Error_handling.ErrorCause -> r:'a Error_handling.Result{(!x. r = Correct(x) => x = i) /\ (!y,z. r = Error(y,z) => (y=e /\ z = CheckFailed))}
 val make_compression :
-  cs:sendState -> b:Data.bytes -> c:Data.bytes Error_handling.Result{(!x. c = Correct(x) => x = Compressed(cs.compression,b)) /\ (!y,z. c = Error(y,z) => y = RecordCompression)}
+  cs:sendState -> b:bytes -> c:bytes Error_handling.Result{(!x. c = Correct(x) => x = Compressed(cs.compression,b)) /\ (!y,z. c = Error(y,z) => y = RecordCompression)}
 val make_decompression :
-  cs:recvState -> c:Data.bytes -> b:Data.bytes Error_handling.Result{(!x. b = Correct(x) => c = Compressed(cs.compression,x)) /\ (!y,z. b = Error(y,z) => y = RecordCompression)}
+  cs:recvState -> c:bytes -> b:bytes Error_handling.Result{(!x. b = Correct(x) => c = Compressed(cs.compression,x)) /\ (!y,z. b = Error(y,z) => y = RecordCompression)}
 
 val compute_mac_ssl_blob: sn:bytes -> ct:bytes -> d:bytes ->
     mb:bytes{KHashBytes(mb,sn,ct,d)}
@@ -100,52 +102,49 @@ val compute_mac_ssl_blob: sn:bytes -> ct:bytes -> d:bytes ->
 val compute_mac_ssl3 :
   ma:Formats.MACAlgorithm{ma = MA_md5 \/ ma = MA_sha1} ->
     k:Crypto.key{MKey(k)} ->
-      sn:Data.bytes ->
-      ct:Data.bytes ->
-      d:Data.bytes{!mb. KHashBytes(mb,sn,ct,d) => KHashSays(k,mb)} ->
-              res:Data.bytes Error_handling.Result{
+      sn:bytes ->
+      ct:bytes ->
+      d:bytes{!mb. KHashBytes(mb,sn,ct,d) => KHashSays(k,mb)} ->
+              res:bytes Error_handling.Result{
                   (*(!x. res = Correct(x)) /\*)
                   (!y,z. res = Error(y,z) => (y = MAC /\ z = Internal) ) }
 
-val compute_mac_tls_blob : sn:Data.bytes -> ct:Data.bytes -> ver:Data.bytes ->
-      d:Data.bytes -> mb:bytes{MACBytes(mb,sn,ct,ver,d)}
+val compute_mac_tls_blob: 
+  sn:bytes -> ct:bytes -> ver:bytes -> d:bytes -> mb:bytes{MACBytes(mb,sn,ct,ver,d)}
 
-val compute_mac_tls :
+val compute_mac_tls:
   Formats.MACAlgorithm ->
-    k:Crypto.key{MKey(k)} ->
-      sn:Data.bytes ->
-        ct:Data.bytes ->
-          ver:Data.bytes -> 
-            d:Data.bytes{!mb. MACBytes(mb,sn,ct,ver,d) => MACSays(k,mb)} -> 
-              r:Data.bytes Error_handling.Result{
-	      (!y,z. r = Error(y,z) => y = MAC /\ (z = Internal \/ z = Unsupported))
-	      }
+  k:Crypto.key{MKey(k)} ->
+  sn:bytes ->
+  ct:bytes ->
+  ver:bytes -> 
+  d:bytes{!mb. MACBytes(mb,sn,ct,ver,d) => MACSays(k,mb)} -> 
+  r:bytes Error_handling.Result
+  { !y,z. r = Error(y,z) => y = MAC /\ (z = Internal \/ z = Unsupported)}
 
-val compute_mac :
+val compute_mac:
   cs:sendState -> 
-    ct:Formats.ContentType -> 
-      d:Data.bytes{?f. RecordSend(cs.rec_info,ct,f,cs.protocol_version,cs.seq_num,cs.mk) /\ d = Compressed(cs.compression,f)} ->
-       res:bytes Result{
-       (!x. res = Correct(x) => (cs.sparams.mac_algorithm = MA_null => Pub(x)))
-       /\
-       (!y,z. res = Error(y,z) => ( (y = MAC) /\ (z = Unsupported \/ z = Internal) ))
-       }
+  ct:Formats.ContentType -> 
+  d:bytes{?f. RecordSend(cs.rec_info,ct,f,cs.protocol_version,cs.seq_num,cs.mk) /\ d = Compressed(cs.compression,f)} ->
+  res:bytes Result
+  {   (!x. res = Correct(x) => (cs.sparams.mac_algorithm = MA_null => Pub(x)))
+  /\  (!y,z. res = Error(y,z) => ( (y = MAC) /\ (z = Unsupported \/ z = Internal) )) }
 
-val compute_padlen : Formats.SecurityParameters -> Data.bytes -> int
-val prepare_enc : ConnectionState -> d:Data.bytes -> r:Data.bytes{Pub(d) => Pub(r)}
+val compute_padlen : Formats.SecurityParameters -> bytes -> int
+val prepare_enc : ConnectionState -> d:bytes -> r:bytes{Pub(d) => Pub(r)}
 val encrypt_stream :
     cs:sendState{cs.sparams.cipher_type = CT_stream} ->
-      d:Data.bytes{cs.sparams.bulk_cipher_algorithm = BCA_null => Pub(d)} -> 
-        r:(sendState * Data.bytespub) Error_handling.Result{
+      d:bytes{cs.sparams.bulk_cipher_algorithm = BCA_null => Pub(d)} -> 
+        r:(sendState * bytespub) Error_handling.Result{
 	(!cs',x. r = Correct((cs',x)) => (cs' = cs))
 	/\
 	(!y,z. r = Error(y,z) => (y = Encryption) /\ (z = Internal \/ z = Unsupported))
 	}
 
-val get_last_block : int -> Data.bytespub -> Data.bytespub
+val get_last_block : int -> bytespub -> bytespub
 val compute_next_iv :
   pv:Formats.ProtocolVersionType{pv <> UnknownPV /\ pv <> SSL_2p0} ->
-    Formats.BulkCipherAlgorithm -> Data.bytespub -> Data.bytespub
+    Formats.BulkCipherAlgorithm -> bytespub -> bytespub
 
 val encrypt_fun: Formats.BulkCipherAlgorithm ->  k:key -> iv:bytes ->
   b:bytes{(SKey(k) /\ CanSymEncrypt(k,b)) \/ (Pub_k(k) /\ Pub(b))} -> 
@@ -154,8 +153,8 @@ val encrypt_fun: Formats.BulkCipherAlgorithm ->  k:key -> iv:bytes ->
 
 val encrypt_block :
     cs:sendState{cs.sparams.cipher_type = CT_block} ->
-      d:Data.bytes{cs.sparams.bulk_cipher_algorithm = BCA_null => Pub(d)} -> 
-      r:(sendState * Data.bytespub) Error_handling.Result{
+      d:bytes{cs.sparams.bulk_cipher_algorithm = BCA_null => Pub(d)} -> 
+      r:(sendState * bytespub) Error_handling.Result{
       (!cs',x. r = Correct((cs',x)) => (?iv. cs' = UpdateIV(cs,iv)))
       /\
       (!y,z. r = Error(y,z) => ((y = Encryption) /\ (z = Internal \/ z = Unsupported)))
@@ -163,15 +162,15 @@ val encrypt_block :
 
 val encrypt :
   cs:sendState ->
-    d:Data.bytes{cs.sparams.bulk_cipher_algorithm = BCA_null => Pub(d)} -> 
-      r:(sendState * Data.bytespub) Error_handling.Result{
+    d:bytes{cs.sparams.bulk_cipher_algorithm = BCA_null => Pub(d)} -> 
+      r:(sendState * bytespub) Error_handling.Result{
       (!cs',x. r = Correct((cs',x)) => (?iv. cs' = UpdateIV(cs,iv)))
       /\
       (!y,z. r = Error(y,z) => ((y = Encryption) /\ (z = Internal \/ z = Unsupported)))
       }
 
 val generatePacket :
-  Formats.ContentType -> Formats.ProtocolVersionType -> Data.bytespub -> Data.bytespub
+  Formats.ContentType -> Formats.ProtocolVersionType -> bytespub -> bytespub
 
 val send_setVersion :
   cs:ConnectionState -> pv:Formats.ProtocolVersionType -> cs':ConnectionState
@@ -179,7 +178,7 @@ val send_setVersion :
 val send :
   cs:sendState ->
     ct:Formats.ContentType ->  
-      f:Data.bytes{FragmentSend(cs.rec_info,cs.seq_num,ct,f) /\ (cs.sparams.bulk_cipher_algorithm = BCA_null => Pub(f))} -> 
+      f:bytes{FragmentSend(cs.rec_info,cs.seq_num,ct,f) /\ (cs.sparams.bulk_cipher_algorithm = BCA_null => Pub(f))} -> 
         r:(sendState Error_handling.Result){           
 	(!cs'. r = Correct(cs') => ((?iv. cs' = IncSeqNum(UpdateIV(cs,iv)))))
         /\
@@ -191,13 +190,13 @@ val send_setCrypto :
       cs':sendState{cs' = UpdateCS(cs,ccs,OutDir(ccs.ccs_info))}
 
 val parse_header :
-  Data.bytes -> Formats.ContentType * Formats.ProtocolVersionType * int
+  bytes -> Formats.ContentType * Formats.ProtocolVersionType * int
 
 val get_iv_ciphertext :
   pv:Formats.ProtocolVersionType{pv <> UnknownPV /\ pv <> SSL_2p0} ->
-    Formats.BulkCipherAlgorithm ->
-        Data.bytes ->
-            Data.bytespub -> (Data.bytes * Data.bytespub)
+  Formats.BulkCipherAlgorithm ->
+  bytes ->
+  bytespub -> (bytes * bytespub)
 
 val decrypt_fun: Formats.BulkCipherAlgorithm ->
       k:key{SKey(k) \/ Pub_k(k)} -> iv:bytes -> e:bytes ->
@@ -206,8 +205,8 @@ val decrypt_fun: Formats.BulkCipherAlgorithm ->
   
 val block_decrypt :
   cs:recvState{cs.sparams.cipher_type = CT_block} ->
-    Data.bytespub ->
-	r:((recvState * Data.bytes) Error_handling.Result){
+    bytespub ->
+	r:((recvState * bytes) Error_handling.Result){
 	(!cs',x. r = Correct((cs',x)) => ((?iv. cs' = UpdateIV(cs,iv))))
 	/\
 	(!y,z. r = Error(y,z) => ((y = Encryption) /\ (z = Internal \/ z = Unsupported \/ z = CheckFailed)))
@@ -215,21 +214,21 @@ val block_decrypt :
 
 val decrypt :
   cs:recvState ->
-    Data.bytespub -> 
-   r:((recvState * Data.bytes) Error_handling.Result){
+    bytespub -> 
+   r:((recvState * bytes) Error_handling.Result){
    (!cs',x. r = Correct((cs',x)) => ((?iv. cs' = UpdateIV(cs,iv))))
    /\
    (!y,z. r = Error(y,z) => ((y = Encryption) /\ (z = Internal \/ z = Unsupported \/ z = CheckFailed)))
    }
 
-val check_padding_cont : b:Data.bytes -> r:Data.bytes Error_handling.Result{r = Correct(b)}
+val check_padding_cont : b:bytes -> r:bytes Error_handling.Result{r = Correct(b)}
 val check_padding :
-  pv:Formats.ProtocolVersionType{pv <> UnknownPV} -> Data.bytes -> r:Data.bytes Error_handling.Result{
+  pv:Formats.ProtocolVersionType{pv <> UnknownPV} -> bytes -> r:bytes Error_handling.Result{
   				!y,z. r = Error(y,z) =>
   				((pv = SSL_2p0 /\ y = RecordPadding /\ z = Unsupported) \/
 				(pv = TLS_1p0 /\ y = RecordPadding /\ z = CheckFailed))}
 val parse_plaintext :
-  cs:ConnectionState{cs.protocol_version <> UnknownPV} -> Data.bytes -> r:((Data.bytes * Data.bytes) Error_handling.Result){
+  cs:ConnectionState{cs.protocol_version <> UnknownPV} -> bytes -> r:((bytes * bytes) Error_handling.Result){
   				!y,z. r = Error(y,z) =>
   				((cs.protocol_version = SSL_2p0 /\ y = RecordPadding /\ z = Unsupported) \/
 				(cs.protocol_version = TLS_1p0 /\ y = RecordPadding /\ z = CheckFailed))}
@@ -245,7 +244,7 @@ val verify_mac: cs:recvState{cs.protocol_version <> UnknownPV}
 
 val recv :
   cs:recvState ->
-    r:((Formats.ContentType * Data.bytes * recvState) Error_handling.Result){
+    r:((Formats.ContentType * bytes * recvState) Error_handling.Result){
 	(!ct,f,cs'. r = Correct((ct,f,cs')) =>
 	       ((?pv,iv. cs' = IncSeqNum(UpdateIV(UpdatePV(cs,pv),iv))) /\
 	            (cs.sparams.mac_algorithm <> MA_null =>
@@ -282,6 +281,7 @@ val coherentrw: s:SessionInfo -> recv:recvState -> send:sendState ->
 assume !a,b. (?d. d = Compressed(a,b))
 assume !b. Compressed(Null,b) = b
 assume !a,a',b,b'. Compressed(a,b) = Compressed(a',b') => b = b'
+//CF these should move next to their function definitions, and could be proved concretely
 assume !ct,ct'. ContentTypeBytes(ct) = ContentTypeBytes(ct') => ct = ct'
 assume !pv,pv'. ProtocolVersionBytes(pv) = ProtocolVersionBytes(pv') => pv = pv'
 assume !sn,sn'. SequenceNumberBytes(sn) = SequenceNumberBytes(sn') => sn = sn'
