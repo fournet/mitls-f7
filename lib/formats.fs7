@@ -19,8 +19,8 @@ val Application_data_val : int
 type Compression =
   | Null
   | UnknownComp of int
-val bytes_of_compression : Compression -> Data.bytes
-val compression_of_bytes : Data.bytes -> Compression
+val bytes_of_compression : Compression -> bytes
+val compression_of_bytes : bytes -> Compression
 type ProtocolVersionType =
   | SSL_2p0
   | SSL_3p0
@@ -40,22 +40,25 @@ predicate type preds =
 
 assume !sn. SequenceNumberBytes(sn) = Num(sn)
 
+//Cedric: not sure about these refinements; do we have Length(Num(i)) = 1??
+//Cedric: I'd separate general libraries from TLS-specific code
 val bytes_of_intpair: p:(int*int) -> b:bytes{!i,j. p = (i,j) => b = Concat(Num(i),Num(j))}
 val intpair_of_bytes:  b:bytes -> (i:int*j:int){b = Concat(Num(i),Num(j))}
 val bytes_of_seq: sn:int -> b:bytes{b = SequenceNumberBytes(sn)}
 
-val SSLv2 : Data.bytes
-val SSLv3 : Data.bytes
-val TLS1p0 : Data.bytes
-val TLS1p1 : Data.bytes
-val TLS1p2 : Data.bytes
+val SSLv2 : bytes
+val SSLv3 : bytes
+val TLS1p0 : bytes
+val TLS1p1 : bytes
+val TLS1p2 : bytes
 
-val bytes_of_contentType : c:ContentType -> b:Data.bytes{b = ContentTypeBytes(c)}
-val contentType_of_bytes : b:Data.bytes -> c:ContentType{b = ContentTypeBytes(c)}
+val bytes_of_contentType : c:ContentType -> b:bytes{b = ContentTypeBytes(c)}
+val contentType_of_bytes : b:bytes -> c:ContentType{b = ContentTypeBytes(c)}
 
-val bytes_of_protocolVersionType : p:ProtocolVersionType -> b:Data.bytes{b = ProtocolVersionBytes(p)}
-val protocolVersionType_of_bytes : b:Data.bytes -> p:ProtocolVersionType{b = ProtocolVersionBytes(p)}
+val bytes_of_protocolVersionType : p:ProtocolVersionType -> b:bytes{b = ProtocolVersionBytes(p)}
+val protocolVersionType_of_bytes : b:bytes -> p:ProtocolVersionType{b = ProtocolVersionBytes(p)}
 
+//Cedric: same as role? 
 type ConnectionEnd =
   | Client
   | Server
@@ -82,13 +85,13 @@ type SecurityParameters =
   {cipher_type: CipherType;
    bulk_cipher_algorithm: BulkCipherAlgorithm;
    mac_algorithm: MACAlgorithm;}
-val ssl_pad1_md5 : Data.bytes
-val ssl_pad2_md5 : Data.bytes
-val ssl_pad1_sha1 : Data.bytes
-val ssl_pad2_sha1 : Data.bytes
-val vlenBytes_of_bytes : int -> Data.bytes -> Data.bytes
+val ssl_pad1_md5 : bytes
+val ssl_pad2_md5 : bytes
+val ssl_pad1_sha1 : bytes
+val ssl_pad2_sha1 : bytes
+val vlenBytes_of_bytes : int -> bytes -> bytes
 val bytesAndRemainder_of_vlenBytesAndReminder :
-  int -> Data.bytes -> Data.bytes * Data.bytes
+  int -> bytes -> bytes * bytes
 
 (*
 assume !x:bytes. IsAppendedList(x,x::[])
