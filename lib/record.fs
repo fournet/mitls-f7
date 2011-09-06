@@ -194,6 +194,7 @@ let compute_padlen sp ver data =
         min_padlen + rand
     | _ -> unexpectedError "Protocol version should be known (or not SSL2) when computing padding"
 
+//Cedric: rename? why +1?  
 let prepare_enc conn_state data =
     let sp = conn_state.sparams in
     match sp.cipher_type with
@@ -201,7 +202,7 @@ let prepare_enc conn_state data =
     | CT_block ->
         let padlen = compute_padlen sp conn_state.protocol_version data in
         append data (createBytes (padlen+1) padlen)
-
+        
 let encrypt_stream conn_state (data:bytes) =
     match conn_state.sparams.bulk_cipher_algorithm with
     | BCA_null -> correct (conn_state, data)
@@ -280,8 +281,7 @@ let send conn ct fragment =
         | Error (x,y) -> Error (x,y)
         | Correct _ -> correct (conn)
 
-let send_setVersion conn pv =
-    {conn with protocol_version = pv }
+let send_setVersion conn pv = {conn with protocol_version = pv }
 
 let send_setCrypto conn ccs_d =
     let new_dir = outdir ccs_d.ccs_info in
