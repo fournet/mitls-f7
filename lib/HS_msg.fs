@@ -21,26 +21,27 @@ type handshakeType =
     | HT_finished
     | HT_unknown of int
 
-let bytes_of_hs_type handshakeType =
-    match handshakeType with
-    | HT_hello_request -> bytes_of_int 1 0
-    | HT_client_hello -> bytes_of_int 1 1
-    | HT_server_hello -> bytes_of_int 1 2
-    | HT_certificate -> bytes_of_int 1 11
-    | HT_server_key_exchange -> bytes_of_int 1 12
-    | HT_certificate_request -> bytes_of_int 1 13
-    | HT_server_hello_done -> bytes_of_int 1 14
-    | HT_certificate_verify -> bytes_of_int 1 15
-    | HT_client_key_exchange -> bytes_of_int 1 16
-    | HT_finished -> bytes_of_int 1 20
-    | HT_unknown x -> failwith "Unkown handhsake type"
+let bytes_of_hs_type t =
+  bytes_of_int 1 
+  // F7 still miss byte constants
+    ( match t with
+      | HT_hello_request       ->  0 
+      | HT_client_hello        ->  1
+      | HT_server_hello        ->  2
+      | HT_certificate         -> 11
+      | HT_server_key_exchange -> 12
+      | HT_certificate_request -> 13
+      | HT_server_hello_done   -> 14
+      | HT_certificate_verify  -> 15
+      | HT_client_key_exchange -> 16
+      | HT_finished            -> 20
+      | HT_unknown x           -> failwith "Unknown handshake type")
 
-let hs_type_of_bytes b =
-    let i = int_of_bytes 1 b in
-    match i with
-    | 0 -> HT_hello_request
-    | 1 -> HT_client_hello
-    | 2 -> HT_server_hello
+let hs_type_of_bytes b = 
+  match int_of_bytes 1 b with
+    |  0 -> HT_hello_request
+    |  1 -> HT_client_hello
+    |  2 -> HT_server_hello
     | 11 -> HT_certificate
     | 12 -> HT_server_key_exchange
     | 13 -> HT_certificate_request
@@ -48,7 +49,7 @@ let hs_type_of_bytes b =
     | 15 -> HT_certificate_verify
     | 16 -> HT_client_key_exchange
     | 20 -> HT_finished
-    | x -> HT_unknown (x)
+    |  x -> HT_unknown (x)
 
 type helloExtension =
     | HExt_renegotiation_info
