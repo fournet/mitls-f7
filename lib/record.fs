@@ -72,6 +72,7 @@ let initConnState ns info dir pv =
       cipher_type = CT_stream;
       mac_algorithm = MA_null;
     }
+//Cedric: why those initial sparams? 
   }
 
 let create ns info minpv =
@@ -81,9 +82,9 @@ let create ns info minpv =
     let recvState = initConnState ns info inDir ProtocolVersionType.UnknownPV in
     (sendState, recvState)
 
-let max_TLSPlaintext_fragment_length = 1<<<14
+let max_TLSPlaintext_fragment_length  = 1<<<14
 let max_TLSCompressed_fragment_length = 1<<<15
-let max_TLSEncrypted_fragment_length = 1<<<16
+let max_TLSEncrypted_fragment_length  = 1<<<16
 
 let check_length (item: bytes) max_len result errorType =
     if length item < max_len then
@@ -105,7 +106,7 @@ let make_decompression conn data =
     | _ -> Error (RecordCompression, Unsupported)
 
 // MAC computations
-//Cedric: we should use some vlen marshaller for data, 
+//Cedric: we should use some generic vlen marshaller for data, 
 //        avoid appendList, marshall seq_num and ct later,
 //        and maybe pass a "ver option" to merge the two cases.
 
@@ -178,7 +179,7 @@ let verify_mac conn ct compr givenmac =
 
 let compute_padlen sp ver data =
     let bs = get_block_cipher_size sp.bulk_cipher_algorithm in
-    let len_no_pad = (length data) + 1 in (* 1 byte for the padlen byte *)
+    let len_no_pad = length data + 1 in (* 1 byte for the padlen byte *)
     let min_padlen =
         let overflow = len_no_pad % bs in
         if overflow = 0 then
@@ -194,7 +195,7 @@ let compute_padlen sp ver data =
         min_padlen + rand
     | _ -> unexpectedError "Protocol version should be known (or not SSL2) when computing padding"
 
-//Cedric: rename? why +1?  
+//Cedric: rename? why +1? why not do this within encrypt? 
 let prepare_enc conn_state data =
     let sp = conn_state.sparams in
     match sp.cipher_type with
@@ -225,10 +226,10 @@ let compute_next_iv version bulk_cipher_algorithm ciphertext =
 
 let encrypt_fun bca key iv data =
     match bca with
-    | BCA_des -> des_encrypt_wiv_nopad key iv data
+    | BCA_des     -> des_encrypt_wiv_nopad key iv data
     | BCA_aes_128 -> aes_encrypt_wiv_nopad key iv data
     | BCA_aes_256 -> aes_encrypt_wiv_nopad key iv data
-    | _ -> Error (Encryption, Unsupported)
+    | _           -> Error (Encryption, Unsupported)
 
 let encrypt_block conn_state data =
     match conn_state.cipher_state with
@@ -260,7 +261,30 @@ let generatePacket ct ver data =
   let bver = bytes_of_protocolVersionType ver in
   let bl = bytes_of_int 2 l in
   let dl = [bct;bver;bl;data] in
-    appendList dl
+  appendList dl
+//Cedric: same code as for MAC? does it work with SSL?
+
+let lift (a:'a Result) (f: 'a -> 'b Result): 'b Result =
+  match a with 
+  | Error (x,y) -> Error (x,y) 
+  | Correct a -> f a
+
+let send' conn ct fragment =
+    match make_compression conn fragment with
+    | Correct compressed ->
+      match compute_mac conn ct compressed with
+      | Correct mac ->
+        let plain = prepare_enc conn (append compressed mac) in
+        match encrypt conn plain with
+        | Correct (conn, payload) ->
+          let conn = incSeqNum conn in
+          let packet = generatePacket ct conn.protocol_version payload in
+          match Tcp.write conn.net_conn packet with
+          | Correct _   -> correct conn
+          | Error (x,y) -> Error (x,y)
+        | Error (x,y) -> Error (x,y)
+      | Error (x,y) -> Error (x,y)
+    | Error (x,y) -> Error (x,y)
 
 let send conn ct fragment =
     match make_compression conn fragment with
@@ -313,10 +337,10 @@ let get_iv_ciphertext version bulk_cipher_algorithm iv ciphertext =
 
 let decrypt_fun block_cipher_algorithm key iv data  =
     match block_cipher_algorithm with
-        | BCA_des -> des_decrypt_wiv_nopad key iv data
-        | BCA_aes_128 -> aes_decrypt_wiv_nopad key iv data
-        | BCA_aes_256 -> aes_decrypt_wiv_nopad key iv data
-        | _ -> Error (Encryption, Unsupported) (* FIXME: other block BCAs are truly unsupported, but other stream BCAs (e.g. null) are in fact "unexpectedErrors" *)
+    | BCA_des     -> des_decrypt_wiv_nopad key iv data
+    | BCA_aes_128 -> aes_decrypt_wiv_nopad key iv data
+    | BCA_aes_256 -> aes_decrypt_wiv_nopad key iv data
+    | _           -> Error (Encryption, Unsupported) (* FIXME: other block BCAs are truly unsupported, but other stream BCAs (e.g. null) are in fact "unexpectedErrors" *)
 
 let block_decrypt conn_state data = 
     match conn_state.cipher_state with
@@ -340,11 +364,9 @@ let block_decrypt conn_state data =
     | _ -> unexpectedError "[block_decrypt] invoked with a non BlockCipherState" 
 
 
-
 let decrypt conn_state (payload:bytes) =
     (* Assume payload has correct maximum length.
-       Check that the compressed fragment has the correct
-       maximum length *)
+       Check that the compressed fragment has the correct maximum length *)
     let sp = conn_state.sparams in
     match sp.cipher_type with
     | CT_stream ->
@@ -355,6 +377,7 @@ let decrypt conn_state (payload:bytes) =
 
 let check_padding_cont (data:bytes)  =
    correct (data)
+//Cedric: ?
 
 let check_padding sp version (data:bytes) =
     let dlen = length data in
@@ -416,20 +439,23 @@ let parse_plaintext conn_state data =
  
 let recv conn =
     let net = conn.net_conn in
+//Cedric: we need refinements to keep track of lengths, starting from TCP.read etc
     match Tcp.read net 5 with
     | Error (x,y) -> Error (x,y)
     | Correct header ->
     let (ct,pv,len) = parse_header header in
-    if (conn.protocol_version <> ProtocolVersionType.UnknownPV && pv <> conn.protocol_version) || pv = ProtocolVersionType.UnknownPV then
-        Error (RecordVersion,CheckFailed)
+    if   (  conn.protocol_version <> ProtocolVersionType.UnknownPV 
+         && pv <> conn.protocol_version)
+      || pv = ProtocolVersionType.UnknownPV 
+    then Error (RecordVersion,CheckFailed)
     else
         (* We commit to the received protocol version.
            In fact, this only changes the protcol version when receiving the first fragment *)
         let conn = {conn with protocol_version = pv} in
         (* No need to check len, since it's on 2 bytes and the max allowed value
            is 2^16. So, here len is always safe *)
-        match Tcp.read net len with
-        | Error (x,y) -> Error (x,y)
+        match Tcp.read net len with 
+        | Error (x,y) -> Error (x,y) 
         | Correct payload ->
         match decrypt conn payload with
         | Error (x,y) -> Error (x,y)
