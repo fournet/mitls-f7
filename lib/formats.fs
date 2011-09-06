@@ -45,31 +45,32 @@ let contentType_of_bytes (b:bytes) =
         | _ -> Unknown
 *)
 
+(*
 let Change_cipher_spec_val = 20
-let Alert_val = 21
-let Handshake_val = 22
-let Application_data_val = 23
-
+let Alert_val              = 21
+let Handshake_val          = 22
+let Application_data_val   = 23 *)
 
 let bytes_of_contentType ct =
-    match ct with
-    | Change_cipher_spec -> bytes_of_int 1 Change_cipher_spec_val
-    | Alert -> bytes_of_int 1 Alert_val
-    | Handshake -> bytes_of_int 1 Handshake_val
-    | Application_data -> bytes_of_int 1 Application_data_val
-    | UnknownCT -> failwith "Cannot convert the Unknown content type to bytes"
+  bytes_of_int 1  
+   (match ct with
+    | Change_cipher_spec -> 20
+    | Alert              -> 21
+    | Handshake          -> 22
+    | Application_data   -> 23
+    | UnknownCT -> failwith "Cannot convert the Unknown content type to bytes")
 
 let contentType_of_bytes (b:bytes) =
-  let i = int_of_bytes 1 b in
-  if i = Change_cipher_spec_val then Change_cipher_spec
-  elif i = Alert_val then Alert
-  elif i = Handshake_val then Handshake
-  elif i = Application_data_val then Application_data
-  else UnknownCT
+  match int_of_bytes 1 b with 
+  | 20 -> Change_cipher_spec
+  | 21 -> Alert
+  | 22 -> Handshake
+  | 23 -> Application_data
+  | _  -> UnknownCT
 
 type Compression = 
-    | Null
-    | UnknownComp of int
+  | Null
+  | UnknownComp of int
 
 let bytes_of_compression comp =
     match comp with
@@ -206,8 +207,8 @@ type SecurityParameters = {
 
 (* SSLv3 constants *)
  
-let ssl_pad1_md5 = createBytes 48 0x36
-let ssl_pad2_md5 = createBytes 48 0x5c
+let ssl_pad1_md5  = createBytes 48 0x36
+let ssl_pad2_md5  = createBytes 48 0x5c
 let ssl_pad1_sha1 = createBytes 40 0x36
 let ssl_pad2_sha1 = createBytes 40 0x5c
 

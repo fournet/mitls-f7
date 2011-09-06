@@ -99,12 +99,13 @@ val appendList: xl:bytes list -> b:bytes {IsAppendedList(b,xl)}
 val splitList: b:bytes -> il:int list -> xl:bytes list {IsAppendedList(b,xl)}
 *)
 
+//Cedric: let's use infix concatenation instead... 
 val appendList: dl:dbytes list -> b:bytes{(?b1,b2,b3. dl = b1::b2::b3::[] /\ b = Concat(b1,Concat(b2,b3))) \/ 
 					  (?b1,b2,b3,b4. dl = b1::b2::b3::b4::[] /\ b = Concat(b1,Concat(b2,Concat(b3,b4)))) \/ 
 					  (?b1,b2,b3,b4,b5. dl = b1::b2::b3::b4::b5::[] /\ b = Concat(b1,Concat(b2,Concat(b3,Concat(b4,b5))))) \/ 
 					  (?b1,b2,b3,b4,b5,b6. dl = b1::b2::b3::b4::b5::b6::[] /\ b = Concat(b1,Concat(b2,Concat(b3,Concat(b4,Concat(b5,b6))))))}
 
-				    
+//Cedric: avoid? 				    
 val splitList: bytes -> int list -> bytes list
 
 
