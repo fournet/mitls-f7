@@ -1,19 +1,25 @@
 include ../../../../Makefile.inc
 
-all: record.dll record-a.dll Dispatch.dll Dispatch-a.dll
+#all: record.dll record-a.dll Dispatch.dll Dispatch-a.dll
+all: record.dll Dispatch.dll TLS.dll
 
 lib7=../../../lib/fs7-interfaces/
 libperv = $(lib7)pervasives.fs7 $(lib7)tuples.fs7
 lperv = -pervasives $(lib7)pervasives.fs7 -tuples $(lib7)tuples.fs7
-libfs7 = $(lib7)pi.fs7 $(lib7)formulas.fs7 $(lib7)list.fs7 $(lib7)data.fs7 $(lib7)xml.fs7 $(lib7)prim-crypto.fs7 $(lib7)crypto.fs7 $(lib7)db.fs7 $(lib7)bytearray.fs7 Stream.fs7
-recordfs7 = Error.fs7 tcp.fs7 Sessions.fs7 formats.fs7 CryptoTLS.fs7 record.fs7 
-recordfsi = Error.fsi tcp.fsi Sessions.fsi formats.fsi CryptoTLS.fsi record.fsi 
-recordfs  = Error.fs  tcp.fs  Sessions.fs  formats.fs  CryptoTLS.fs record.fs
+libfs7 = $(lib7)formulas.fs7 $(lib7)pi.fs7 $(lib7)data.fs7 $(lib7)list.fs7 $(lib7)xml.fs7 $(lib7)crypto.fs7 $(lib7)db.fs7 $(lib7)bytearray.fs7
+
+recordfs7 = Error.fs7 tcp.fs7 Principal.fs7 formats.fs7 Stream.fs7 CryptoTLS.fs7 HS_ciphersuites.fs7 Sessions.fs7 record.fs7 
+recordfsi = Error.fsi tcp.fsi Principal.fsi formats.fsi Stream.fsi CryptoTLS.fsi HS_ciphersuites.fsi Sessions.fsi record.fsi 
+recordfs = Error.fs tcp.fs Principal.fs formats.fs Stream.fs CryptoTLS.fs HS_ciphersuites.fs Sessions.fs record.fs 
 recordfs-a = Error.fs  tcp-a.fs  Sessions.fs  formats.fs CryptoTLS.fs record.fs 
 
-tlsfs7 = HS_ciphersuites.fs7 AppCommon.fs7 Alert.fs7 AppData.fs7 HS_msg.fs7 Handshake.fs7 Dispatch.fs7
-tlsfsi = HS_ciphersuites.fsi AppCommon.fsi Alert.fsi AppData.fsi HS_msg.fsi Handshake.fsi Dispatch.fsi
-tlsfs  = HS_ciphersuites.fs  AppCommon.fs  Alert.fs  AppData.fs  HS_msg.fs  Handshake.fs  Dispatch.fs
+dispatchfs7 = AppCommon.fs7 SessionDB.fs7 HS_msg.fs7 Handshake.fs7 AppData.fs7 Alert.fs7 Dispatch.fs7
+dispatchfsi = AppCommon.fsi SessionDB.fsi HS_msg.fsi Handshake.fsi AppData.fsi Alert.fsi Dispatch.fsi
+dispatchfs = AppCommon.fs SessionDB.fs HS_msg.fs Handshake.fs AppData.fs Alert.fs Dispatch.fs
+
+tlsfs7 = TLS.fs7
+tlsfsi = TLS.fsi
+tlsfs = TLS.fs
 
 clib=../../../lib/concrete-fs/
 slib=../../../lib/symbolic/
@@ -23,9 +29,10 @@ lpi= $(ilib)pi.mli $(slib)pi.ml
 intfs = $(ilib)formulas.mli $(ilib)data.mli $(ilib)db.mli $(ilib)crypto.mli $(ilib)xml.mli $(ilib)net.mli
 
 
-libs= $(clib)pi.fs $(intfs) $(clib)formulas.fs $(clib)db.fs $(clib)data.fs $(clib)crypto.fs $(clib)xml.fs $(clib)net.fs $(clib)bytearray.fs Stream.fs
-libs-a= $(intfs) $(slib)formulas.ml $(slib)db.ml $(slib)data.ml $(slib)crypto.ml $(slib)xml.ml $(slib)net.ml $(slib)bytearray.ml Stream-a.fs
-libs-a-pr= $(lpi) $(slib)formulas.ml $(slib)db.ml $(slib)data.ml $(slib)crypto.ml $(slib)xml.ml $(slib)net.ml $(slib)bytearray.ml Stream-a.fs
+#libs= $(clib)pi.fs $(intfs) $(clib)formulas.fs $(clib)db.fs $(clib)data.fs $(clib)crypto.fs $(clib)xml.fs $(clib)net.fs $(clib)bytearray.fs
+libs= $(clib)formulas.fs $(clib)pi.fs $(clib)db.fs $(clib)data.fs $(clib)crypto.fs $(clib)xml.fs $(clib)net.fs $(clib)bytearray.fs
+libs-a= $(intfs) $(slib)formulas.ml $(slib)db.ml $(slib)data.ml $(slib)crypto.ml $(slib)xml.ml $(slib)net.ml $(slib)bytearray.ml
+libs-a-pr= $(lpi) $(slib)formulas.ml $(slib)db.ml $(slib)data.ml $(slib)crypto.ml $(slib)xml.ml $(slib)net.ml $(slib)bytearray.ml
 
 libsym-a.dll: $(lpi) $(libs-a) # building DLLs, e.g. for intellisense integration
 	$(fsc) $(lpi) $(libs-a) -a -o $@
@@ -36,14 +43,17 @@ libsym.dll: $(libs)
 record.dll: libsym.dll $(recordfsi) $(recordfs)
 	$(fsc) -d concrete -r $^ -a -o record.dll
 
-Dispatch.dll: libsym.dll record.dll $(tlsfsi) $(tlsfs)
-	$(fsc) -r libsym.dll -r record.dll $(tlsfsi) $(tlsfs) -a -o Dispatch.dll
+Dispatch.dll: libsym.dll record.dll $(dispatchsi) $(dispatchfs)
+	$(fsc) -r libsym.dll -r record.dll $(dispatchfsi) $(dispatchfs) -a -o Dispatch.dll
+
+TLS.dll: libsym.dll record.dll Dispatch.dll $(tlsfsi) $(tlsfs)
+	$(fsc) -r libsym.dll -r record.dll -r Dispatch.dll $(tlsfsi) $(tlsfs) -a -o TLS.dll
 
 recordsig.fs7: libsym.dll $(recordfsi) $(recordfs-a)
 	$(fsc) -r $^ -a --sig:recordsig.fs7 -o recordsig.dll
 
-Dispatchsig.fs7: libsym.dll record-a.dll $(tlsfsi) $(tlsfs)
-	$(fsc) -r libsym.dll -r record-a.dll $(tlsfsi) $(tlsfs) -a --sig:Dispatchsig.fs7 -o Dispatchsig.dll
+Dispatchsig.fs7: libsym.dll record-a.dll $(dispatchfsi) $(dispatchfs)
+	$(fsc) -r libsym.dll -r record-a.dll $(dispatchfsi) $(dispatchfs) -a --sig:Dispatchsig.fs7 -o Dispatchsig.dll
 
 record-a.dll: libsym-a.dll $(recordfsi) $(recordfs-a)
 	$(fsc) -r $^ -a -o record-a.dll
