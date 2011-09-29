@@ -33,8 +33,20 @@
     <WarningLevel>3</WarningLevel>
     <DocumentationFile>bin\Release\lib.XML</DocumentationFile>
   </PropertyGroup>
-  <Import Project="$(MSBuildExtensionsPath32)\FSharp\1.0\Microsoft.FSharp.Targets" Condition="!Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
-  <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft F#\v4.0\Microsoft.FSharp.Targets" Condition=" Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
+  <ItemGroup>
+    <Reference Include="mscorlib" />
+    <Reference Include="FSharp.Core" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Numerics" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\lib\concrete-fs\concrete-fs-vs2010.fsproj">
+      <Name>concrete-fs-vs2010</Name>
+      <Project>{7d2902c6-8635-4b00-97c5-67c9c44cea40}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+  </ItemGroup>
   <ItemGroup>
     <Compile Include="Error.fsi" />
     <Compile Include="Error.fs" />
@@ -43,12 +55,10 @@
     <Compile Include="Principal.fsi" />
     <Compile Include="Principal.fs" />
     <Compile Include="formats.fsi" />
-    <None Include="formats.fs7" />
     <Compile Include="formats.fs" />
     <Compile Include="Stream.fsi" />
     <Compile Include="Stream.fs" />
     <Compile Include="CryptoTLS.fsi" />
-    <None Include="CryptoTLS.fs7" />
     <Compile Include="CryptoTLS.fs" />
     <Compile Include="HS_ciphersuites.fsi" />
     <Compile Include="HS_ciphersuites.fs" />
@@ -56,7 +66,6 @@
     <Compile Include="Sessions.fs" />
     <Compile Include="record.fsi" />
     <Compile Include="record.fs" />
-    <None Include="record.fs7" />
     <Compile Include="AppCommon.fsi" />
     <Compile Include="AppCommon.fs" />
     <Compile Include="SessionDB.fsi" />
@@ -74,18 +83,8 @@
     <Compile Include="TLS.fsi" />
     <Compile Include="TLS.fs" />
   </ItemGroup>
-  <ItemGroup>
-    <Reference Include="mscorlib" />
-    <Reference Include="FSharp.Core" />
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Numerics" />
-    <ProjectReference Include="..\..\..\lib\concrete-fs\concrete-fs-vs2010.fsproj">
-      <Name>concrete-fs-vs2010</Name>
-      <Project>{7d2902c6-8635-4b00-97c5-67c9c44cea40}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-  </ItemGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\FSharp\1.0\Microsoft.FSharp.Targets" Condition="!Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
+  <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft F#\v4.0\Microsoft.FSharp.Targets" Condition=" Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
 	     Other similar extension points exist, see Microsoft.Common.targets.
 	<Target Name="BeforeBuild">

@@ -1,4 +1,4 @@
-cd module Dispatch
+module Dispatch
 
 open AppData
 open Alert
