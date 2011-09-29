@@ -1,4 +1,4 @@
-module Dispatch
+cd module Dispatch
 
 open AppData
 open Alert
@@ -12,7 +12,7 @@ open AppCommon
 open Error_handling
 open Bytearray
 
-type predispatchState =
+type predispatchState = (* internal state of the dispatcher *)
   | Init
   | FirstHandshake
   | Finishing
@@ -21,13 +21,11 @@ type predispatchState =
   | Closing
   | Closed
 
-type dispatchState = ds:predispatchState{ds = Init \/ ds = FirstHandshake \/
-                ds = Finishing \/ ds = Finished \/ ds = Open \/ ds = Closing \/ ds = Closed}
+type dispatchState = ds:predispatchState
+  { ds = Init \/ ds = FirstHandshake \/ ds = Finishing \/ 
+    ds = Finished \/ ds = Open \/ ds = Closing \/ ds = Closed }
 
-type dState = {
-    disp: dispatchState;
-    conn: ConnectionState;
-    }
+type dState = { disp: dispatchState; conn: ConnectionState; }
 
 type preConnection =
   {ds_info: SessionInfo;
@@ -39,55 +37,56 @@ type preConnection =
 
 
 predicate type preds =
-	| DispSend of dState * ContentType
-	| ContentMap of SessionInfo * int * ContentType * bytes
-        | ValidConnection of preConnection
-        | CoherentSession of SessionInfo * ConnectionState * ConnectionState
-	| DispInv of dState
-	| DispRead of dState
-	| DispWrite of dState
-	| FinishingState of dispatchState
+  | DispSend of dState * ContentType
+  | ContentMap of SessionInfo * int * ContentType * bytes
+  | ValidConnection of preConnection
+  | CoherentSession of SessionInfo * ConnectionState * ConnectionState
+  | DispInv of dState
+  | DispRead of dState
+  | DispWrite of dState
+  | FinishingState of dispatchState
 
 type Connection = c:preConnection{ValidConnection(c)}
 
 val init :
-  Tcp.NetworkStream ->
-      r:role -> po:protocolOptions{ po.minVer <> UnknownPV /\ po.maxVer <> UnknownPV} ->
-      c:Connection{c.read.disp = Init /\ c.write.disp = Init}
+  Tcp.NetworkStream -> r:role -> 
+  po:protocolOptions{ po.minVer <> UnknownPV /\ po.maxVer <> UnknownPV} ->
+  c:Connection{c.read.disp = Init /\ c.write.disp = Init}
 
-val resume: Tcp.NetworkStream -> r:role -> s:SessionInfo{?sid. s = InitSessionInfo(r,Some(sid))} ->
-                po:protocolOptions{ po.minVer <> UnknownPV /\ po.maxVer <> UnknownPV} ->
-        c:Connection{c.read.disp = Init /\ c.write.disp = Init}
+val resume: 
+  Tcp.NetworkStream -> r:role -> 
+  s:SessionInfo{?sid. s = InitSessionInfo(r,Some(sid))} ->
+  po:protocolOptions{ po.minVer <> UnknownPV /\ po.maxVer <> UnknownPV} ->
+  c:Connection{c.read.disp = Init /\ c.write.disp = Init}
 
 val ask_rehandshake: Connection -> protocolOptions -> Connection
-
 val ask_rekey: Connection -> protocolOptions -> Connection
-
 val ask_hs_request: Connection -> protocolOptions -> Connection
-
 val appDataAvailable: Connection -> bool
 val getSessionInfo: Connection -> SessionInfo
 
-val moveToOpenState: c:Connection{FinishingState(c.read.disp) /\ FinishingState(c.write.disp)} ->
-	s:SessionInfo{HSFinished(s) /\ s = c.read.conn.rec_info /\ s = c.write.conn.rec_info} ->
-	c':Connection{c'.write.disp = Open /\ c'.read.disp = Open}
+val moveToOpenState: 
+  c:Connection{FinishingState(c.read.disp) /\ FinishingState(c.write.disp)} ->
+  s:SessionInfo{HSFinished(s) /\ s = c.read.conn.rec_info /\ s = c.write.conn.rec_info} ->
+  c':Connection{c'.write.disp = Open /\ c'.read.disp = Open}
 
 val closeConnection: c:Connection -> c':Connection{c'.appdata.app_info = c.appdata.app_info /\ c'.read.disp = Closed /\ c'.write.disp = Closed}
 
 val next_fragment :
-        int ->  c:Connection{c.write.disp <> Closed} -> 
-                ((bool Error_handling.Result) * c':Connection)
+  int ->  
+  c:Connection{c.write.disp <> Closed} -> 
+  ((bool Error_handling.Result) * c':Connection)
 
 val sendNextFragments : Connection -> (unit Error_handling.Result) * Connection
 
 val deliver :
   Formats.ContentType ->
-    Record.fragment -> c:Connection{c.read.disp <> Closed} -> (bool Error_handling.Result) * Connection
+  Record.fragment -> 
+  c:Connection{c.read.disp <> Closed} -> 
+  (bool Error_handling.Result) * Connection
 
 val readNextAppFragment : Connection -> (unit Error_handling.Result) * Connection
-
 val writeOneAppFragment: Connection -> bytes -> ((bytes * bytes) Result) * Connection
-
 val readOneAppFragment: Connection -> int -> (bytes Result) * Connection
 
 (* Definition of ValidConnection, implicitly expressing all the found invariants *)

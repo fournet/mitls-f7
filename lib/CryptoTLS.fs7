@@ -59,8 +59,8 @@ val des_encrypt_wiv: k:key -> iv:bytes ->
           Error(y,z) => ((y = Encryption) /\ (z = Internal)))}
 val aes_encrypt_wiv: k:key -> iv:bytes ->
   b:bytes{(SKey(k) /\ CanSymEncrypt(k,b)) \/ (Pub_k(k) /\ Pub(b))} -> 
-  r:bytespub Result{(!e. r = Correct(e) => IsEncryption(e,k,b)) /\ (!y,z. r =
-          Error(y,z) => ((y = Encryption) /\ (z = Internal)))}
+  r:bytespub Result{(!e. r = Correct(e) => IsEncryption(e,k,b)) /\ 
+  (!y,z. r = Error(y,z) => ((y = Encryption) /\ (z = Internal)))}
 
 val des_decrypt_wiv: k:key{SKey(k) \/ Pub_k(k)} -> iv:bytes -> e:bytes -> 
   r:bytes Result{(!b. r = Correct(b) => ((!p. IsEncryption(e,k,p) => b = p) /\
