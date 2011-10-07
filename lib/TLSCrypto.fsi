@@ -16,7 +16,9 @@ val MAC: ProtocolVersionType -> hashAlg (* or ciphersuite? *) -> bytes -> bytes 
 (* PRF *)
 
 (* Used when generating verifiData for the Finished message *)
-val prfVerifyData: ProtocolVersionType -> cipherSuite -> bytes -> role -> bytes -> bytes Result
+type masterSecret = bytes
+val prfVerifyData: ProtocolVersionType -> cipherSuite -> masterSecret -> role -> bytes -> bytes Result
 
 (* Used when generating the MS from the PMS *)
-val prfMS: protocolVersionType -> cipherSuite
+type preMasterSecret = bytes
+val prfMS: protocolVersionType -> cipherSuite -> 
