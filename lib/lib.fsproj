@@ -60,12 +60,14 @@
     <Compile Include="StdCrypto.fs" />
     <Compile Include="formats.fsi" />
     <Compile Include="formats.fs" />
+    <Compile Include="HS_ciphersuites.fsi" />
+    <Compile Include="HS_ciphersuites.fs" />
+    <Compile Include="TLSCrypto.fsi" />
+    <Compile Include="TLSCrypto.fs" />
     <Compile Include="Stream.fsi" />
     <Compile Include="Stream.fs" />
     <Compile Include="CryptoTLS.fsi" />
     <Compile Include="CryptoTLS.fs" />
-    <Compile Include="HS_ciphersuites.fsi" />
-    <Compile Include="HS_ciphersuites.fs" />
     <Compile Include="Sessions.fsi" />
     <Compile Include="Sessions.fs" />
     <Compile Include="record.fsi" />
