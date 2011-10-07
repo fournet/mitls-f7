@@ -37,14 +37,10 @@ let defaultCertificateValidationPolicy certList = true
 let defaultProtocolOptions ={
     minVer = ProtocolVersionType.SSL_3p0
     maxVer = ProtocolVersionType.TLS_1p2
-    ciphersuites = [ TLS_RSA_WITH_AES_128_CBC_SHA;
-                   // TLS_RSA_WITH_RC4_128_MD5; // don't include unsupported ciphersuites
-                   // TLS_RSA_WITH_RC4_128_SHA; // don't include unsupported ciphersuites
-                    TLS_RSA_WITH_DES_CBC_SHA;
-                    TLS_NULL_WITH_NULL_NULL;
-                    TLS_RSA_WITH_NULL_MD5;               
-                    TLS_RSA_WITH_NULL_SHA;
-                  ]
+    ciphersuites = cipherSuites_of_nameList
+                    [ TLS_RSA_WITH_AES_128_CBC_SHA;
+                      TLS_RSA_WITH_3DES_EDE_CBC_SHA;
+                    ]
     compressions = [ Null ]
 
     honourHelloReq = HRPResume

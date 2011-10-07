@@ -54,6 +54,10 @@
     <Compile Include="tcp.fs" />
     <Compile Include="Principal.fsi" />
     <Compile Include="Principal.fs" />
+    <Compile Include="Algorithms.fsi" />
+    <Compile Include="Algorithms.fs" />
+    <Compile Include="StdCrypto.fsi" />
+    <Compile Include="StdCrypto.fs" />
     <Compile Include="formats.fsi" />
     <Compile Include="formats.fs" />
     <Compile Include="Stream.fsi" />

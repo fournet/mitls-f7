@@ -36,7 +36,12 @@ type preds =
 
 (* A.6. The Security Parameters *)
 
-type ConnectionEnd = Client | Server
+type prerole =
+    | ClientRole
+    | ServerRole
+
+type role = prerole
+
 type BulkCipherAlgorithm = BCA_rc4 | BCA_des | BCA_aes_128 | BCA_aes_256 | BCA_rc2 | BCA_3des | BCA_des40 | BCA_idea | BCA_null
 type CipherType = CT_stream | CT_block
 type IsExportable = bool

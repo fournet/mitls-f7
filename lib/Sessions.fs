@@ -6,17 +6,11 @@ open Formats
 open HS_ciphersuites
 open Principal
 
-type prerole =
-    | ClientRole
-    | ServerRole
-
-type role = prerole
-
 type sessionID = bytes
 
 type SessionMoreInfo = {
     mi_protocol_version: ProtocolVersionType
-    mi_cipher_suite: CipherSuite
+    mi_cipher_suite: cipherSuite
     mi_compression: Compression
     mi_ms: bytes
     }
@@ -37,7 +31,7 @@ let init_sessionInfo role =
       more_info =
         {
         mi_protocol_version = ProtocolVersionType.UnknownPV;
-        mi_cipher_suite = TLS_NULL_WITH_NULL_NULL;
+        mi_cipher_suite = nullCipherSuite;
         mi_compression = Null;
         mi_ms = empty_bstr
         }

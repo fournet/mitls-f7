@@ -6,17 +6,11 @@ open Formats
 open HS_ciphersuites
 open Principal
 
-type prerole =
-    | ClientRole
-    | ServerRole
-
-type role = prerole
-
 type sessionID = bytes
 
 type SessionMoreInfo = {
     mi_protocol_version: ProtocolVersionType
-    mi_cipher_suite: CipherSuite
+    mi_cipher_suite: cipherSuite
     mi_compression: Compression
     mi_ms: bytes
     }

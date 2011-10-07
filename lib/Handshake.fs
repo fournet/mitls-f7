@@ -433,6 +433,8 @@ let generateKeys role cr sr pv cs ms =
           correct ((sp,rmk,rek,riv,wmk,wek,wiv))
 
 let bldVerifyData ver cs ms entity hsmsgs = 
+  (* FIXME: There should be only one (verifyData)prf function in CryptoTLS, that takes
+     ver and cs and performs the proper computation *)
   match ver with 
   | ProtocolVersionType.SSL_3p0 ->
     let ssl_sender = 
@@ -472,7 +474,7 @@ let bldVerifyData ver cs ms entity hsmsgs =
         match entity with
         | ClientRole -> "client finished"
         | ServerRole -> "server finished"
-    let verifyDataHashFun = verifyDataHashFun_of_ciphersuite cs in
+    let verifyDataHashAlg = verifyDataHashAlg_of_ciphersuite cs in
     match verifyDataHashFun hsmsgs with
     | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
     | Correct(hashResult) ->
@@ -586,7 +588,7 @@ let check_client_renegotiation_info cHello expected =
         if ren_ext_list.Length > 1 then
             false
         else
-            let has_SCSV = List.exists (fun cs -> cs = TLS_EMPTY_RENEGOTIATION_INFO_SCSV ) cHello.cipher_suites in
+            let has_SCSV = contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV cHello.cipher_suites in
             if equalBytes expected empty_bstr then
                 (* First handshake *)
                 if ren_ext_list.Length = 0 then

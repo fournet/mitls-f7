@@ -88,7 +88,7 @@ type serverHello = {
     server_version: ProtocolVersionType;
     sh_random: hrandom;
     sh_session_id: sessionID;
-    cipher_suite: CipherSuite;
+    cipher_suite: cipherSuite;
     compression_method: Compression;
     neg_extensions: bytes;
   }
