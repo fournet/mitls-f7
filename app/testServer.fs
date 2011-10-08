@@ -44,8 +44,9 @@ let testS () =
     testS_int listn Bytearray.empty_bstr
 
 let empty_sessionDB () =
-    let allSids = SessionDB.getAllStoredIDs options in
-    List.iter (fun sid -> SessionDB.remove options sid) allSids
+    try (let allSids = SessionDB.getAllStoredIDs options in
+         List.iter (fun sid -> SessionDB.remove options sid) allSids)
+    with _ -> SessionDB.create options
 
 let prepareResponse () =
     let page = File.ReadAllBytes("index_too_much_jumbo.html") in
