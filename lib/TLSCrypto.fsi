@@ -2,6 +2,7 @@
 
 open Data
 open Formats (* for ProtocolVersionType and role *)
+open StdCrypto
 open Algorithms
 open HS_ciphersuites
 open Error_handling
@@ -11,14 +12,17 @@ open Error_handling
    - Use custom keyed hash for SSL (implemented internally in this module)
 *)
 
-val MAC: ProtocolVersionType -> hashAlg (* or ciphersuite? *) -> bytes -> bytes Result
+val MAC: ProtocolVersionType -> hashAlg (* or ciphersuite? *) -> macKey -> bytes -> bytes Result
 
 (* PRF *)
 
 (* Used when generating verifiData for the Finished message *)
 type masterSecret = bytes
-val prfVerifyData: ProtocolVersionType -> cipherSuite -> masterSecret -> role -> bytes -> bytes Result
+val prfVerifyData: ProtocolVersionType -> cipherSuite -> masterSecret -> role (* From which a label is derived *) -> bytes -> bytes Result (* length depends on cs, 12 by default *)
 
 (* Used when generating the MS from the PMS *)
 type preMasterSecret = bytes
-val prfMS: protocolVersionType -> cipherSuite -> 
+val prfMS: ProtocolVersionType -> cipherSuite -> preMasterSecret -> (* No label, it's hardcoded. Of course we can make it explicit -> *) bytes (* crandom @| srandom, do we want bytes * bytes ? *) -> bytes Result (* of length 48 *)
+
+(* Used when generating key material from the MS. The result must still be split into the various keys. Of course this method can do the splitting internally and return a record/pair *)
+val prfKeyExp: ProtocolVersionType -> cipherSuite -> masterSecret -> (* No label, it's hardcoded. Of course we can make it explicit -> *) bytes (* crandom @| srandom, do we want bytes * bytes ? *) -> bytes Result (* length depends on cs *)

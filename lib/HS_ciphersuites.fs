@@ -2,27 +2,33 @@
 
 open Data
 open Algorithms
+open Formats (* for ProtocolVersionType *)
 open Error_handling
 
 type SCSVsuite =
     | TLS_EMPTY_RENEGOTIATION_INFO_SCSV
 
 type cipherSuite =
+    | NullCipherSuite
     | CipherSuite of kexAlg * authencAlg
+    | OnlyMACCipherSuite of kexAlg * hashAlg
     | SCSV of SCSVsuite
     | Unknown of bytes
 
 type cipherSuites = cipherSuite list
 
-let nullCipherSuite = CipherSuite (kexAlg.NULL, EncMAC (cipherAlg.NULL, hashAlg.NULL))
+let nullCipherSuite = NullCipherSuite
+
+let isNullCipherSuite cs =
+    cs = NullCipherSuite
 
 let cipherSuite_of_bytes b = 
     match b with
-    | [| 0x00uy; 0x00uy |] -> CipherSuite (kexAlg.NULL, EncMAC (cipherAlg.NULL, hashAlg.NULL))
+    | [| 0x00uy; 0x00uy |] -> NullCipherSuite
    
-    | [| 0x00uy; 0x01uy |] -> CipherSuite (kexAlg.RSA, EncMAC (cipherAlg.NULL, hashAlg.MD5))
-    | [| 0x00uy; 0x02uy |] -> CipherSuite (kexAlg.RSA, EncMAC (cipherAlg.NULL, hashAlg.SHA))
-    | [| 0x00uy; 0x3Buy |] -> CipherSuite (kexAlg.RSA, EncMAC (cipherAlg.NULL, hashAlg.SHA256))
+    | [| 0x00uy; 0x01uy |] -> OnlyMACCipherSuite (kexAlg.RSA, hashAlg.MD5)
+    | [| 0x00uy; 0x02uy |] -> OnlyMACCipherSuite (kexAlg.RSA, hashAlg.SHA)
+    | [| 0x00uy; 0x3Buy |] -> OnlyMACCipherSuite (kexAlg.RSA, hashAlg.SHA256)
     | [| 0x00uy; 0x04uy |] -> CipherSuite (kexAlg.RSA, EncMAC (cipherAlg.RC4_128, hashAlg.MD5))
     | [| 0x00uy; 0x05uy |] -> CipherSuite (kexAlg.RSA, EncMAC (cipherAlg.RC4_128, hashAlg.SHA))
     | [| 0x00uy; 0x0Auy |] -> CipherSuite (kexAlg.RSA, EncMAC (cipherAlg.THREEDES_EDE_CBC, hashAlg.SHA))
@@ -65,11 +71,11 @@ let cipherSuite_of_bytes b =
 
 let bytes_of_cipherSuite cs = 
     match cs with
-    | CipherSuite (kexAlg.NULL, EncMAC (cipherAlg.NULL, hashAlg.NULL))               -> [| 0x00uy; 0x00uy |]
+    | NullCipherSuite                                                                -> [| 0x00uy; 0x00uy |]
 
-    | CipherSuite (kexAlg.RSA, EncMAC (cipherAlg.NULL, hashAlg.MD5))                 -> [| 0x00uy; 0x01uy |]
-    | CipherSuite (kexAlg.RSA, EncMAC (cipherAlg.NULL, hashAlg.SHA))                 -> [| 0x00uy; 0x02uy |]
-    | CipherSuite (kexAlg.RSA, EncMAC (cipherAlg.NULL, hashAlg.SHA256))              -> [| 0x00uy; 0x3Buy |]
+    | OnlyMACCipherSuite (kexAlg.RSA, hashAlg.MD5)                                   -> [| 0x00uy; 0x01uy |]
+    | OnlyMACCipherSuite (kexAlg.RSA, hashAlg.SHA)                                   -> [| 0x00uy; 0x02uy |]
+    | OnlyMACCipherSuite (kexAlg.RSA, hashAlg.SHA256)                                -> [| 0x00uy; 0x3Buy |]
     | CipherSuite (kexAlg.RSA, EncMAC (cipherAlg.RC4_128, hashAlg.MD5))              -> [| 0x00uy; 0x04uy |]
     | CipherSuite (kexAlg.RSA, EncMAC (cipherAlg.RC4_128, hashAlg.SHA))              -> [| 0x00uy; 0x05uy |]
     | CipherSuite (kexAlg.RSA, EncMAC (cipherAlg.THREEDES_EDE_CBC, hashAlg.SHA))     -> [| 0x00uy; 0x0Auy |]
@@ -155,6 +161,7 @@ let prfHashAlg_of_ciphersuite (cs:cipherSuite) =
     match cs with
     | CipherSuite ( _ , EncMAC ( _ , SHA384 )) -> SHA384
     | CipherSuite ( _ , AEAD ( _ , SHA384 ))   -> SHA384
+    | NullCipherSuite | SCSV (_) | cipherSuite.Unknown (_) -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
     | _ -> SHA256
 
 let verifyDataHashAlg_of_ciphersuite (cs:cipherSuite) =
@@ -162,7 +169,20 @@ let verifyDataHashAlg_of_ciphersuite (cs:cipherSuite) =
     match cs with
     | CipherSuite ( _ , EncMAC ( _ , SHA384 )) -> SHA384
     | CipherSuite ( _ , AEAD ( _ , SHA384 ))   -> SHA384
+    | NullCipherSuite | SCSV (_) | cipherSuite.Unknown (_) -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
     | _ -> SHA256
+
+let getKeyExtensionLength pv cs =
+    let (keySize, hashSize, IVSize ) =
+        match cs with
+        | CipherSuite (_, EncMAC(cAlg, hAlg)) ->
+            match pv with
+            | x when x >= ProtocolVersionType.TLS_1p1 -> ((keyMaterialSize cAlg), 0, (macKeyLength hAlg)) (* TLS 1.1: no implicit IV *)
+            | _ -> ((keyMaterialSize cAlg), (ivSize cAlg), (macKeyLength hAlg))
+        | CipherSuite (_, AEAD(cAlg, hAlg)) -> ((aeadKeyMaterialSize cAlg), (aeadIVSize cAlg), (macKeyLength hAlg))
+        | OnlyMACCipherSuite (_,hAlg) -> (0,0,macKeyLength hAlg)
+        | _ -> unexpectedError "[getKeyExtensionLength] invoked on an invalid ciphersuite"
+    2 * (keySize + hashSize + IVSize)
 
 (* Not for verification, just to run the implementation *)
 
@@ -212,11 +232,11 @@ let cipherSuites_of_nameList nameList =
    List.map (
     fun name ->
         match name with
-        | TLS_NULL_WITH_NULL_NULL                -> CipherSuite (kexAlg.NULL, EncMAC (cipherAlg.NULL, hashAlg.NULL))
+        | TLS_NULL_WITH_NULL_NULL                -> NullCipherSuite
 
-        | TLS_RSA_WITH_NULL_MD5                  -> CipherSuite (kexAlg.RSA, EncMAC (cipherAlg.NULL, hashAlg.MD5))
-        | TLS_RSA_WITH_NULL_SHA                  -> CipherSuite (kexAlg.RSA, EncMAC (cipherAlg.NULL, hashAlg.SHA))
-        | TLS_RSA_WITH_NULL_SHA256               -> CipherSuite (kexAlg.RSA, EncMAC (cipherAlg.NULL, hashAlg.SHA256))
+        | TLS_RSA_WITH_NULL_MD5                  -> OnlyMACCipherSuite (kexAlg.RSA, hashAlg.MD5)
+        | TLS_RSA_WITH_NULL_SHA                  -> OnlyMACCipherSuite (kexAlg.RSA, hashAlg.SHA)
+        | TLS_RSA_WITH_NULL_SHA256               -> OnlyMACCipherSuite (kexAlg.RSA, hashAlg.SHA256)
         | TLS_RSA_WITH_RC4_128_MD5               -> CipherSuite (kexAlg.RSA, EncMAC (cipherAlg.RC4_128, hashAlg.MD5))
         | TLS_RSA_WITH_RC4_128_SHA               -> CipherSuite (kexAlg.RSA, EncMAC (cipherAlg.RC4_128, hashAlg.SHA))
         | TLS_RSA_WITH_3DES_EDE_CBC_SHA          -> CipherSuite (kexAlg.RSA, EncMAC (cipherAlg.THREEDES_EDE_CBC, hashAlg.SHA))

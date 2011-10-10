@@ -3,7 +3,6 @@
 (* Not abstracts, but only meant to be used by
    CryptoTLS and HS_Ciphersuites *)
 type kexAlg =
-    | NULL
     | RSA
     | DH_DSS
     | DH_RSA
@@ -12,14 +11,12 @@ type kexAlg =
     | DH_anon
 
 type cipherAlg =
-    | NULL
     | RC4_128
     | THREEDES_EDE_CBC
     | AES_128_CBC
     | AES_256_CBC
 
 type hashAlg =
-    | NULL
     | MD5
     | SHA
     | SHA256
@@ -36,8 +33,7 @@ type authencAlg =
 val keyMaterialSize: cipherAlg -> int
 val blockSize: cipherAlg -> int
 val ivSize: cipherAlg -> int
+val aeadKeyMaterialSize: aeadAlg -> int
+val aeadIVSize: aeadAlg -> int
 val macKeyLength: hashAlg -> int
 val macLength: hashAlg -> int
-
-val isNullCipherAlg: cipherAlg -> bool
-val isNullHashAlg: hashAlg -> bool

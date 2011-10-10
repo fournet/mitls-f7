@@ -1,7 +1,6 @@
 ﻿module Algorithms
 
 type kexAlg =
-    | NULL
     | RSA
     | DH_DSS
     | DH_RSA
@@ -10,14 +9,12 @@ type kexAlg =
     | DH_anon
 
 type cipherAlg =
-    | NULL
     | RC4_128
     | THREEDES_EDE_CBC
     | AES_128_CBC
     | AES_256_CBC
 
 type hashAlg =
-    | NULL
     | MD5
     | SHA
     | SHA256
@@ -33,7 +30,6 @@ type authencAlg =
 
 let keyMaterialSize ciph =
     match ciph with
-    | cipherAlg.NULL    -> 0
     | RC4_128           -> 16
     | THREEDES_EDE_CBC  -> 24
     | AES_128_CBC       -> 16
@@ -41,7 +37,6 @@ let keyMaterialSize ciph =
 
 let blockSize ciph =
     match ciph with
-    | cipherAlg.NULL    -> 0
     | RC4_128           -> 0
     | THREEDES_EDE_CBC  -> 8
     | AES_128_CBC       -> 16
@@ -49,15 +44,23 @@ let blockSize ciph =
 
 let ivSize ciph =
     match ciph with
-    | cipherAlg.NULL    -> 0
     | RC4_128           -> 0
     | THREEDES_EDE_CBC  -> 8
     | AES_128_CBC       -> 16
     | AES_256_CBC       -> 16
 
+let aeadKeyMaterialSize ciph =
+    match ciph with
+    | AES_128_GCM -> 16
+    | AES_256_GCM -> 16
+
+let aeadIVSize ciph =
+    match ciph with
+    | AES_128_GCM -> 16
+    | AES_256_GCM -> 16
+
 let macKeyLength mac =
     match mac with
-    | hashAlg.NULL   -> 0
     | MD5           -> 16
     | SHA           -> 20
     | SHA256        -> 32
@@ -65,18 +68,7 @@ let macKeyLength mac =
 
 let macLength mac =
     match mac with
-    | hashAlg.NULL   -> 0
     | MD5           -> 16
     | SHA           -> 20
     | SHA256        -> 32
     | SHA384        -> 48
-
-let isNullCipherAlg alg =
-    match alg with
-    | cipherAlg.NULL -> true
-    | _ -> false
-
-let isNullHashAlg alg =
-    match alg with
-    | hashAlg.NULL -> true
-    | _ -> false

@@ -1,6 +1,8 @@
 ﻿module HS_ciphersuites
+
 open Data
 open Algorithms
+open Formats (* for ProtocolVersionType *)
 open Error_handling
 
 type cipherSuite
@@ -8,6 +10,7 @@ type cipherSuite
 type cipherSuites = cipherSuite list
 
 val nullCipherSuite: cipherSuite
+val isNullCipherSuite: cipherSuite -> bool
 
 val isAnonCipherSuite: cipherSuite -> bool
 val cipherSuiteRequiresKeyExchange: cipherSuite -> bool
@@ -20,6 +23,8 @@ val verifyDataHashAlg_of_ciphersuite: cipherSuite -> hashAlg
 val bytes_of_cipherSuite: cipherSuite -> bytes
 val cipherSuite_of_bytes: bytes -> cipherSuite
 val cipherSuites_of_bytes: bytes -> cipherSuites
+
+val getKeyExtensionLength: ProtocolVersionType -> cipherSuite -> int
 
 (* Not for verification, just to run the implementation *)
 

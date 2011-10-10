@@ -6,10 +6,10 @@ open Bytearray
 open Record
 open Error_handling
 open Formats
+open StdCrypto
 open HS_msg
 open HS_ciphersuites
 open Sessions
-open CryptoTLS
 open AppCommon
 open Principal
 
@@ -161,7 +161,7 @@ let makeRenegExtBytes verifyData =
 
 let makeCHello poptions session prevCVerifyData =
     let random = { time = makeTimestamp ();
-                   rnd = Crypto.mkRandom 28} in
+                   rnd = mkRandom 28} in
     let ext =
         if poptions.safe_renegotiation then
             makeExtBytes (makeRenegExtBytes prevCVerifyData)

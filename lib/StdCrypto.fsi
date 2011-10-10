@@ -13,6 +13,9 @@ val hash: hashAlg -> bytes -> bytes Result
 type macKey = bytes
 type symKey = bytes
 
+val sslKeyedHash: hashAlg -> macKey -> bytes -> bytes Result
+val sslKeyedHashVerify: hashAlg -> macKey -> bytes -> bytes -> unit Result
+
 val hmac: hashAlg -> macKey -> bytes -> bytes Result
 val hmacVerify: hashAlg -> macKey -> bytes -> bytes -> unit Result
 
@@ -27,3 +30,6 @@ type asymKey
 
 val rsaEncrypt: asymKey -> bytes -> bytes Result
 val rsaDecrypt: asymKey -> bytes -> bytes Result
+
+(* FIXME: other raw stuff for handshake *)
+val mkRandom: int -> bytes

@@ -22,14 +22,12 @@ let sha384 (x:bytes) : bytes = sha384Instance.ComputeHash x
 
 (* Parametric hash algorithm (implements interface) *)
 let hash alg data =
-    (* Should never be invoked on the NULL hash algorithm *)
     try
         match alg with
         | MD5    -> correct (md5 data)
         | SHA    -> correct (sha1 data)
         | SHA256 -> correct (sha256 data)
         | SHA384 -> correct (sha384 data)
-        | hashAlg.NULL -> Error (Hash,Internal)
     with
     | _ -> Error (Hash, Internal)
 
@@ -52,14 +50,12 @@ let hmacsha384 key (data:bytes) =
 
 (* Parametric hmac algorithms (implement interface) *)
 let hmac alg key data =
-    (* Should never be invoked with the NULL hash algorithm *)
     try
         match alg with
         | MD5    -> correct (hmacmd5 key data)
         | SHA    -> correct (hmacsha1 key data)
         | SHA256 -> correct (hmacsha256 key data)
         | SHA384 -> correct (hmacsha384 key data)
-        | hashAlg.NULL -> Error (MAC,Internal)
     with
     | _ -> Error (MAC, Internal)
 
@@ -118,26 +114,24 @@ let threeDesDecrypt (key:symKey) iv (data:bytes) =
 
 (* Parametric symmetric enc/dec functions (implement interfaces) *)
 let symEncrypt alg key iv data =
-    (* Should never be invoked with the NULL (or any stream right now) encryption algorithm *)
+    (* Should never be invoked on a stream (right now) encryption algorithm *)
     try
         match alg with
         | THREEDES_EDE_CBC -> correct (threeDesEncrypt key iv data)
         | AES_128_CBC      -> correct (aesEncrypt key iv data)
         | AES_256_CBC      -> correct (aesEncrypt key iv data)
         | RC4_128          -> Error (Encryption, Internal)
-        | cipherAlg.NULL   -> Error (Encryption, Internal)
     with
     | _ -> Error (Encryption, Internal)
 
 let symDecrypt alg key iv data =
-    (* Should never be invoked with the NULL (or any stream right now) encryption algorithm *)
+    (* Should never be invoked on a stream (right now) encryption algorithm *)
     try
         match alg with
         | THREEDES_EDE_CBC -> correct (threeDesDecrypt key iv data)
         | AES_128_CBC      -> correct (aesDecrypt key iv data)
         | AES_256_CBC      -> correct (aesDecrypt key iv data)
         | RC4_128          -> Error (Encryption, Internal)
-        | cipherAlg.NULL   -> Error (Encryption, Internal)
     with
     | _ -> Error (Encryption, Internal)
 
@@ -158,3 +152,8 @@ let rsaDecrypt (k:asymKey) (v:bytes) =
       | AsymKey skey -> correct (skey.Decrypt(v,false))
   with
   | _ -> Error (Encryption, Internal)
+
+let rng = new System.Security.Cryptography.RNGCryptoServiceProvider ()
+let mkRandom len =
+    let x = Array.zeroCreate len in
+    rng.GetBytes x; x

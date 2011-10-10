@@ -33,20 +33,8 @@
     <WarningLevel>3</WarningLevel>
     <DocumentationFile>bin\Release\lib.XML</DocumentationFile>
   </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="mscorlib" />
-    <Reference Include="FSharp.Core" />
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Numerics" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\lib\concrete-fs\concrete-fs-vs2010.fsproj">
-      <Name>concrete-fs-vs2010</Name>
-      <Project>{7d2902c6-8635-4b00-97c5-67c9c44cea40}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-  </ItemGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\FSharp\1.0\Microsoft.FSharp.Targets" Condition="!Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
+  <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft F#\v4.0\Microsoft.FSharp.Targets" Condition=" Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
   <ItemGroup>
     <Compile Include="Error.fsi" />
     <Compile Include="Error.fs" />
@@ -66,8 +54,6 @@
     <Compile Include="TLSCrypto.fs" />
     <Compile Include="Stream.fsi" />
     <Compile Include="Stream.fs" />
-    <Compile Include="CryptoTLS.fsi" />
-    <Compile Include="CryptoTLS.fs" />
     <Compile Include="Sessions.fsi" />
     <Compile Include="Sessions.fs" />
     <Compile Include="record.fsi" />
@@ -89,8 +75,18 @@
     <Compile Include="TLS.fsi" />
     <Compile Include="TLS.fs" />
   </ItemGroup>
-  <Import Project="$(MSBuildExtensionsPath32)\FSharp\1.0\Microsoft.FSharp.Targets" Condition="!Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
-  <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft F#\v4.0\Microsoft.FSharp.Targets" Condition=" Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
+  <ItemGroup>
+    <Reference Include="mscorlib" />
+    <Reference Include="FSharp.Core" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Numerics" />
+    <ProjectReference Include="..\..\..\lib\concrete-fs\concrete-fs-vs2010.fsproj">
+      <Name>concrete-fs-vs2010</Name>
+      <Project>{7d2902c6-8635-4b00-97c5-67c9c44cea40}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+  </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
 	     Other similar extension points exist, see Microsoft.Common.targets.
 	<Target Name="BeforeBuild">
