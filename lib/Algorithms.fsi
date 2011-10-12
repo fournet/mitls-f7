@@ -37,3 +37,11 @@ val aeadKeyMaterialSize: aeadAlg -> int
 val aeadIVSize: aeadAlg -> int
 val macKeyLength: hashAlg -> int
 val macLength: hashAlg -> int
+val hashSize: hashAlg -> int
+
+(* SSL Constants *)
+open Data
+val ssl_pad1_md5: bytes
+val ssl_pad2_md5: bytes
+val ssl_pad1_sha1: bytes
+val ssl_pad2_sha1: bytes

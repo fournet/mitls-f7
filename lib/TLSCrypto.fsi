@@ -9,10 +9,10 @@ open Error_handling
 
 (* TLS-aware MAC function
    - Use standard HMAC for TLS
-   - Use custom keyed hash for SSL (implemented internally in this module)
+   - Use custom keyed hash for SSL
 *)
 
-val MAC: ProtocolVersionType -> hashAlg (* or ciphersuite? *) -> macKey -> bytes -> bytes Result
+val MAC: ProtocolVersionType -> hashAlg -> macKey -> bytes -> bytes Result
 
 (* PRF *)
 

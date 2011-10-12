@@ -69,11 +69,6 @@ let hmacVerify alg key data expected =
     | Error (x,y) -> Error(x,y)
 
 (* Raw SSL-specific keyed hash algorithm -- can throw exceptions *)
-let ssl_pad1_md5  = Bytearray.createBytes 48 0x36
-let ssl_pad2_md5  = Bytearray.createBytes 48 0x5c
-let ssl_pad1_sha1 = Bytearray.createBytes 40 0x36
-let ssl_pad2_sha1 = Bytearray.createBytes 40 0x5c
-
 let sslKeyedHash_raw (h_fun: bytes -> bytes) (pad1:bytes) (pad2:bytes) (key:macKey) (data:bytes) =
     let dataStep1 = Array.concat [key; pad1; data] in
     let step1 = h_fun dataStep1 in

@@ -35,14 +35,6 @@ type prerole =
 
 type role = prerole
 
-val ssl_pad1_md5: bytes
-val ssl_pad2_md5: bytes
-val ssl_pad1_sha1: bytes
-val ssl_pad2_sha1: bytes
-
-val ssl_sender_client: bytes
-val ssl_sender_server: bytes
-
 val bytes_of_contentType: ContentType -> bytes
 val contentType_of_bytes: bytes -> ContentType
 

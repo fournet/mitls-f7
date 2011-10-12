@@ -109,16 +109,6 @@ type prerole =
 
 type role = prerole
 
-(* SSLv3 constants *)
- 
-let ssl_pad1_md5  = createBytes 48 0x36
-let ssl_pad2_md5  = createBytes 48 0x5c
-let ssl_pad1_sha1 = createBytes 40 0x36
-let ssl_pad2_sha1 = createBytes 40 0x5c
-
-let ssl_sender_client = let l = List.map byte [0x43; 0x4C; 0x4E; 0x54] in Array.ofList l
-let ssl_sender_server = let l = List.map byte [0x53; 0x52; 0x56; 0x52] in Array.ofList l
-
 let vlenBytes_of_bytes (lenSize:int) data =
     let dlength = length data in
     let len = bytes_of_int lenSize dlength in
