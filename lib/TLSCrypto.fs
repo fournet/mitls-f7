@@ -12,13 +12,42 @@ let MAC pv alg key data =
     match pv with
     | ProtocolVersionType.SSL_3p0 -> sslKeyedHash alg key data
     | x when x >= ProtocolVersionType.TLS_1p0 -> hmac alg key data
-    | _ -> Error(MAC, Unsupported)
+    | _ -> unexpectedError "[MAC] invoked on unsupported protocol version"
+
+let VERIFY pv alg key data expected =
+    match pv with
+    | ProtocolVersionType.SSL_3p0 -> sslKeyedHashVerify alg key data expected
+    | x when x >= ProtocolVersionType.TLS_1p0 -> hmacVerify alg key data expected
+    | _ -> unexpectedError "[VERIFY] invoked on unsupported protocol version"
 
 
 (* Low-level prf functions *)
 type masterSecret = bytes
 
 (* SSL *)
+let ssl_prf_int secret label seed =
+    let allData = append (utf8 label) (append secret seed) in
+    match hash SHA allData with
+    | Error(x,y) -> Error(x,y)
+    | Correct(step1) ->
+        let allData = append secret step1 in
+        hash MD5 allData
+
+let ssl_prf secret seed nb = 
+  let gen_label (i:int) =
+        new System.String(char((int 'A')+i),i+1) in
+  let rec apply_prf res n = 
+    if n > nb then 
+      correct (Array.sub res 0 nb)
+    else
+        match ssl_prf_int secret (gen_label (n/16)) seed with
+        | Error(x,y) -> Error(x,y)
+        | Correct(step1) ->
+            apply_prf (append res step1) (n+16)
+  in
+  apply_prf (Array.zeroCreate 0) 0
+    
+
 let ssl_verifyData ms role data =
     let ssl_sender_client = [|0x43uy; 0x4Cuy; 0x4Euy; 0x54uy|] in
     let ssl_sender_server = [|0x53uy; 0x52uy; 0x56uy; 0x52uy|] in
@@ -114,12 +143,23 @@ let tls12VerifyData cs ms role data =
         | ServerRole -> "server finished"
     let verifyDataHashAlg = verifyDataHashAlg_of_ciphersuite cs in
     match hash verifyDataHashAlg data with
-    | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
+    | Error (x,y) -> Error(x,y)
     | Correct(hashResult) ->
         let verifyDataLen = verifyDataLen_of_ciphersuite cs in
         match tls12prf cs ms tls_label hashResult verifyDataLen with
         | Error (x,y) -> Error(x,y)
         | Correct(result) -> correct (result)
+
+(* Internal generic (SSL/TLS) implementation of PRF, used by
+   purpose specific PRFs *)
+let generic_prf pv cs secret label data len =
+    match pv with 
+    | ProtocolVersionType.SSL_3p0 -> ssl_prf secret data len
+    | ProtocolVersionType.TLS_1p0 | ProtocolVersionType.TLS_1p1 ->
+        tls_prf secret label data len
+    | ProtocolVersionType.TLS_1p2 ->
+        tls12prf cs secret label data len
+    | _ -> unexpectedError "[generic_prf] invoked on unsupported protocol version"
 
 (* High-level prf functions -- implement interface *)
 
@@ -131,3 +171,12 @@ let prfVerifyData pv cs ms role data =
   | ProtocolVersionType.TLS_1p2 ->
     tls12VerifyData cs ms role data
   | _ -> unexpectedError "[prfVerifyData] invoked on unsupported protocol version"
+
+type preMasterSecret = bytes
+
+let prfMS pv cs pms data =
+    generic_prf pv cs pms "master secret" data 48
+
+let prfKeyExp pv cs ms data =
+    let len = getKeyExtensionLength pv cs in
+    generic_prf pv cs ms "key expansion" data len

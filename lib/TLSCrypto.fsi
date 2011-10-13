@@ -13,6 +13,7 @@ open Error_handling
 *)
 
 val MAC: ProtocolVersionType -> hashAlg -> macKey -> bytes -> bytes Result
+val VERIFY: ProtocolVersionType -> hashAlg -> macKey -> bytes -> bytes -> unit Result
 
 (* PRF *)
 

@@ -87,6 +87,15 @@ let sslKeyedHash alg key data =
     with 
     | _ -> Error(MAC,Internal)
 
+let sslKeyedHashVerify alg key data expected =
+    match sslKeyedHash alg key data with
+    | Correct (result) ->
+        if equalBytes result expected then
+            correct ()
+        else
+            Error(MAC,CheckFailed)
+    | Error(x,y) -> Error(x,y)
+
 (* Raw symmetric enc/dec functions -- can throw exceptions *)
 let commonEnc enc data =
     let mems = new System.IO.MemoryStream() in
