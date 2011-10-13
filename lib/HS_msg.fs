@@ -7,6 +7,7 @@ open Record
 open HS_ciphersuites
 open Sessions
 open Principal
+open Error_handling
 
 type handshakeType =
     | HT_hello_request
@@ -35,7 +36,7 @@ let bytes_of_hs_type t =
       | HT_certificate_verify  -> 15
       | HT_client_key_exchange -> 16
       | HT_finished            -> 20
-      | HT_unknown x           -> failwith "Unknown handshake type")
+      | HT_unknown x           -> unexpectedError "Unknown handshake type")
 
 let hs_type_of_bytes b = 
   match int_of_bytes 1 b with
@@ -57,12 +58,12 @@ type helloExtension =
 
 let bytes_of_HExt hExt =
     match hExt with
-    | HExt_renegotiation_info -> bytes_of_intpair (0xFF, 0x01)
-    | HEXT_unknown (_) -> failwith "Unknown extension type"
+    | HExt_renegotiation_info -> [|0xFFuy; 0x01uy|]
+    | HEXT_unknown (_) -> unexpectedError "Unknown extension type"
 
 let hExt_of_bytes b =
-    match intpair_of_bytes b with
-    | (0xFF, 0x01) -> HExt_renegotiation_info
+    match b with
+    | [|0xFFuy; 0x01uy|] -> HExt_renegotiation_info
     | _ -> HEXT_unknown b
 
 (* Message bodies *)

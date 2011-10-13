@@ -2,7 +2,6 @@
 
 open Data
 open Bytearray
-open CryptoTLS
 open Tcp
 open Formats
 open Error_handling
@@ -10,7 +9,7 @@ open Sessions
 
 // change into part of the stateful encryption state.
 type CipherState = 
-  | BlockCipherState of Crypto.key * bytes    // (key,iv)
+  | BlockCipherState of key * bytes    // (key,iv)
   | StreamCipherState
 
 // could be at a higher level: does not belong to authenc.

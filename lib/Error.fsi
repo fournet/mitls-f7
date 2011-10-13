@@ -26,7 +26,7 @@ type alertDescription =
     | AD_user_cancelled
     | AD_no_renegotiation
     | AD_unsupported_extension
-    | AD_unknown_description of int
+    | AD_unknown_description of byte
 
 type ErrorCause =
     | Tcp

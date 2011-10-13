@@ -10,7 +10,7 @@ open Sessions
 type alertLevel = 
     | AL_warning
     | AL_fatal
-    | AL_unknown_level of int
+    | AL_unknown_level of byte
 
 type alert = {level: alertLevel; description: alertDescription}
 
@@ -36,88 +36,85 @@ type alert_reply =
 
 (* Conversions *)
 
-let intpair_of_alertDesc ad =
+let bytes_of_alertDesc ad =
   (* Severity (warning or fatal) is hardcoded,
      as specified in sec. 7.2.2 *)
   match ad with
-    | AD_close_notify ->            (1, 0)
-    | AD_unexpected_message ->      (2,10)
-    | AD_bad_record_mac ->          (2,20)
-    | AD_decryption_failed ->       (2,21)
-    | AD_record_overflow ->         (2,22)
-    | AD_decompression_failure ->   (2,30)
-    | AD_handshake_failure ->       (2,40)
-    | AD_no_certificate ->          (1,41)
-    | AD_bad_certificate ->         (1,42)
-    | AD_unsupported_certificate -> (1,43)
-    | AD_certificate_revoked ->     (1,44)
-    | AD_certificate_expired ->     (1,45)
-    | AD_certificate_unknown ->     (1,46)
-    | AD_illegal_parameter ->       (2,47)
-    | AD_unknown_ca ->              (2,48)
-    | AD_access_denied ->           (2,49)
-    | AD_decode_error ->            (2,50)
-    | AD_decrypt_error ->           (1,51)
-    | AD_export_restriction ->      (2,60)
-    | AD_protocol_version ->        (2,70)
-    | AD_insufficient_security ->   (2,71)
-    | AD_internal_error ->          (2,80)
-    | AD_user_cancelled ->          (1,90)
-    | AD_no_renegotiation ->        (1,100)
-    | AD_unsupported_extension ->   (2,110)
-    | AD_unknown_description x ->   failwith "Unknown alert description value"
+    | AD_close_notify ->            [|1uy;   0uy|]
+    | AD_unexpected_message ->      [|2uy;  10uy|]
+    | AD_bad_record_mac ->          [|2uy;  20uy|]
+    | AD_decryption_failed ->       [|2uy;  21uy|]
+    | AD_record_overflow ->         [|2uy;  22uy|]
+    | AD_decompression_failure ->   [|2uy;  30uy|]
+    | AD_handshake_failure ->       [|2uy;  40uy|]
+    | AD_no_certificate ->          [|1uy;  41uy|]
+    | AD_bad_certificate ->         [|1uy;  42uy|]
+    | AD_unsupported_certificate -> [|1uy;  43uy|]
+    | AD_certificate_revoked ->     [|1uy;  44uy|]
+    | AD_certificate_expired ->     [|1uy;  45uy|]
+    | AD_certificate_unknown ->     [|1uy;  46uy|]
+    | AD_illegal_parameter ->       [|2uy;  47uy|]
+    | AD_unknown_ca ->              [|2uy;  48uy|]
+    | AD_access_denied ->           [|2uy;  49uy|]
+    | AD_decode_error ->            [|2uy;  50uy|]
+    | AD_decrypt_error ->           [|1uy;  51uy|]
+    | AD_export_restriction ->      [|2uy;  60uy|]
+    | AD_protocol_version ->        [|2uy;  70uy|]
+    | AD_insufficient_security ->   [|2uy;  71uy|]
+    | AD_internal_error ->          [|2uy;  80uy|]
+    | AD_user_cancelled ->          [|1uy;  90uy|]
+    | AD_no_renegotiation ->        [|1uy; 100uy|]
+    | AD_unsupported_extension ->   [|2uy; 110uy|]
+    | AD_unknown_description x ->   unexpectedError "Unknown alert description value"
 
 
-let level_of_int l =
+let level_of_byte l =
     match l with
-    | 1 -> AL_warning
-    | 2 -> AL_fatal
+    | 1uy -> AL_warning
+    | 2uy -> AL_fatal
     | x -> (AL_unknown_level x)
 
-let desc_of_int d =
+let desc_of_byte d =
     match d with
-    |  0 -> AD_close_notify 
-    | 10 -> AD_unexpected_message 
-    | 20 -> AD_bad_record_mac 
-    | 21 -> AD_decryption_failed 
-    | 22 -> AD_record_overflow 
-    | 30 -> AD_decompression_failure 
-    | 40 -> AD_handshake_failure 
-    | 41 -> AD_no_certificate 
-    | 42 -> AD_bad_certificate 
-    | 43 -> AD_unsupported_certificate 
-    | 44 -> AD_certificate_revoked 
-    | 45 -> AD_certificate_expired 
-    | 46 -> AD_certificate_unknown 
-    | 47 -> AD_illegal_parameter 
-    | 48 -> AD_unknown_ca 
-    | 49 -> AD_access_denied 
-    | 50 -> AD_decode_error 
-    | 51 -> AD_decrypt_error 
-    | 60 -> AD_export_restriction 
-    | 70 -> AD_protocol_version 
-    | 71 -> AD_insufficient_security 
-    | 80 -> AD_internal_error 
-    | 90 -> AD_user_cancelled 
-    | 100 -> AD_no_renegotiation
-    | 110 -> AD_unsupported_extension
-    | x -> (AD_unknown_description x)
+    |   0uy -> AD_close_notify 
+    |  10uy -> AD_unexpected_message 
+    |  20uy -> AD_bad_record_mac 
+    |  21uy -> AD_decryption_failed 
+    |  22uy -> AD_record_overflow 
+    |  30uy -> AD_decompression_failure 
+    |  40uy -> AD_handshake_failure 
+    |  41uy -> AD_no_certificate 
+    |  42uy -> AD_bad_certificate 
+    |  43uy -> AD_unsupported_certificate 
+    |  44uy -> AD_certificate_revoked 
+    |  45uy -> AD_certificate_expired 
+    |  46uy -> AD_certificate_unknown 
+    |  47uy -> AD_illegal_parameter 
+    |  48uy -> AD_unknown_ca 
+    |  49uy -> AD_access_denied 
+    |  50uy -> AD_decode_error 
+    |  51uy -> AD_decrypt_error 
+    |  60uy -> AD_export_restriction 
+    |  70uy -> AD_protocol_version 
+    |  71uy -> AD_insufficient_security 
+    |  80uy -> AD_internal_error 
+    |  90uy -> AD_user_cancelled 
+    | 100uy -> AD_no_renegotiation
+    | 110uy -> AD_unsupported_extension
+    |   x   -> (AD_unknown_description x)
 
-let alert_of_intpair (l,d) = 
-  let level = level_of_int l in
-  let desc = desc_of_int d in   
+let alert_of_bytes (b:bytes) = 
+  let level = level_of_byte b.[0] in
+  let desc = desc_of_byte b.[1] in   
   {level = level; description = desc }
 
-let alert_of_bytes msg = alert_of_intpair (intpair_of_bytes msg)
-
-let bytes_of_alertDesc ad = 
-  bytes_of_intpair (intpair_of_alertDesc ad)
+let alert_of_alertDesc a =
+    alert_of_bytes (bytes_of_alertDesc a)
   
 let send_alert state alertDesc =
     (* Check it's a fatal alert *)
-    let (l,d) = intpair_of_alertDesc alertDesc in
-    let level = level_of_int l in
-    match level with
+    let alert = alert_of_alertDesc alertDesc in
+    match alert.level with
     | AL_unknown_level x -> Error (AlertProto,Unsupported)
     | AL_warning -> Error(AlertProto,Unsupported)
     | AL_fatal ->
