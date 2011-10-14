@@ -60,7 +60,6 @@
     <Compile Include="AEAD.fs" />
     <Compile Include="formats.fsi" />
     <Compile Include="formats.fs" />
-    <None Include="TLSCrypto.fs7" />
     <Compile Include="TLSCrypto.fsi" />
     <Compile Include="TLSCrypto.fs" />
     <Compile Include="Stream.fsi" />
