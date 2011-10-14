@@ -32,6 +32,7 @@ val prfHashAlg_of_ciphersuite: cipherSuite -> hashAlg
 val verifyDataHashAlg_of_ciphersuite: cipherSuite -> hashAlg
 
 val macAlg_of_ciphersuite: cipherSuite -> hashAlg
+val encAlg_of_ciphersuite: cipherSuite -> cipherAlg
 
 val compression_of_byte: byte -> Compression
 val byte_of_compression: Compression -> byte
@@ -42,6 +43,8 @@ val cipherSuite_of_bytes: bytes -> cipherSuite
 val cipherSuites_of_bytes: bytes -> cipherSuites
 
 val getKeyExtensionLength: ProtocolVersionType -> cipherSuite -> int
+
+val PVRequiresExplicitIV: ProtocolVersionType -> bool
 
 (* Not for verification, just to run the implementation *)
 

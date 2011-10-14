@@ -2,7 +2,7 @@
 
 open Data
 open Error_handling
-open Crypto
+open OtherCrypto
 open System.Security.Cryptography
 open System.Security.Cryptography.X509Certificates
 

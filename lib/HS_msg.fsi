@@ -4,7 +4,7 @@ open Data
 open Formats
 open Record
 open HS_ciphersuites
-open Sessions
+open TLSInfo
 open Principal
 
 type handshakeType =

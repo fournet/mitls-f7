@@ -218,11 +218,22 @@ let getKeyExtensionLength pv cs =
         | _ -> unexpectedError "[getKeyExtensionLength] invoked on an invalid ciphersuite"
     2 * (keySize + hashSize + IVSize)
 
+let PVRequiresExplicitIV pv =
+    match pv with
+    | ProtocolVersionType.SSL_3p0 | ProtocolVersionType.TLS_1p0 -> false
+    | x when x >= ProtocolVersionType.TLS_1p1 -> true
+    | _ -> unexpectedError "[PVRequiresExplicitIV] invoked on an invalid protocol version"
+
 let macAlg_of_ciphersuite cs =
     match cs with
     | CipherSuite (_, EncMAC(_,alg)) -> alg
     | OnlyMACCipherSuite (_, alg) -> alg
     | _ -> unexpectedError "[macAlg_of_ciphersuite] invoked on an invalid ciphersuite"
+
+let encAlg_of_ciphersuite cs =
+    match cs with
+    | CipherSuite (_, EncMAC(alg,_)) -> alg
+    | _ -> unexpectedError "[encAlg_of_ciphersuite] inovked on an invalid ciphersuite"
 
 (* Not for verification, just to run the implementation *)
 

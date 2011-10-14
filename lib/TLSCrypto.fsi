@@ -27,3 +27,13 @@ val prfMS: ProtocolVersionType -> cipherSuite -> preMasterSecret -> (* No label,
 
 (* Used when generating key material from the MS. The result must still be split into the various keys. Of course this method can do the splitting internally and return a record/pair *)
 val prfKeyExp: ProtocolVersionType -> cipherSuite -> masterSecret -> (* No label, it's hardcoded. Of course we can make it explicit -> *) bytes (* crandom @| srandom, do we want bytes * bytes ? *) -> bytes Result (* length depends on cs *)
+
+#if f7
+type (;si:SessionInfo) masterSecret
+type (;ki:KeyInfo) msgLog
+
+val prfVerifyData: ki:KeyInfo ->
+                   (;ki.sinfo) masterSecret ->
+                   (;ki) msgLog ->
+                   bytes Result (* prfResult type? *)
+#endif

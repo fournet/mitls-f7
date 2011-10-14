@@ -1,6 +1,6 @@
 ﻿module SessionDB
 
-open Sessions
+open TLSInfo
 open AppCommon
 
 val create: protocolOptions -> unit

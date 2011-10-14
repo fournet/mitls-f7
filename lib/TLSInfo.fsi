@@ -24,4 +24,6 @@ type KeyInfo = {
     sinfo: SessionInfo
     crand: bytes
     srand: bytes
+ (* cVerifyData: bytes
+    sVerifyData: bytes *)
     }

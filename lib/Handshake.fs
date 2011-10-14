@@ -9,7 +9,7 @@ open Formats
 open StdCrypto
 open HS_msg
 open HS_ciphersuites
-open Sessions
+open TLSInfo
 open AppCommon
 open Principal
 

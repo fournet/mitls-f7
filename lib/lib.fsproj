@@ -40,6 +40,8 @@
     <Compile Include="Error.fs" />
     <Compile Include="tcp.fsi" />
     <Compile Include="tcp.fs" />
+    <Compile Include="OtherCrypto.fsi" />
+    <Compile Include="OtherCrypto.fs" />
     <Compile Include="Principal.fsi" />
     <Compile Include="Principal.fs" />
     <Compile Include="Algorithms.fsi" />
@@ -48,10 +50,14 @@
     <Compile Include="HS_ciphersuites.fs" />
     <Compile Include="TLSInfo.fsi" />
     <Compile Include="TLSInfo.fs" />
-    <Compile Include="StdCrypto.fsi" />
-    <Compile Include="StdCrypto.fs" />
+    <Compile Include="HASH.fsi" />
+    <Compile Include="HASH.fs" />
     <Compile Include="MAC.fsi" />
     <Compile Include="MAC.fs" />
+    <Compile Include="ENC.fsi" />
+    <Compile Include="ENC.fs" />
+    <Compile Include="AEAD.fsi" />
+    <Compile Include="AEAD.fs" />
     <Compile Include="formats.fsi" />
     <Compile Include="formats.fs" />
     <None Include="TLSCrypto.fs7" />

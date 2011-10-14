@@ -13,9 +13,10 @@ val VERIFY: KeyInfo -> macKey -> text -> mac -> unit Result
 
 #if f7
 type (;ki:keyInfo) macKey
-type (;ki:keyInfo) text
-type (;ki:keyInfo) mac
+type (;ki:keyInfo) text = bytes
+type (;ki:keyInfo) mac = bytes
 
-val MAC: ki:KeyInfo -> (;ki) macKey -> (;ki) text -> ((;ki) mac) Result
-val VERIFY: ki:KeyInfo -> (;ki) macKey -> (;ki) text -> (;ki) mac -> unit Result
+val MAC: ki:KeyInfo -> (;ki) macKey -> t:(;ki) text{Msg(ki,t)} -> ((;ki) mac) Result
+val VERIFY: ki:KeyInfo -> (;ki) macKey -> t:(;ki) text -> (;ki) mac -> 
+            unit{CMA(ki) => Msg(ki,t)} Result
 #endif

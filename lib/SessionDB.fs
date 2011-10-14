@@ -1,6 +1,6 @@
 ﻿module SessionDB
 
-open Sessions
+open TLSInfo
 open AppCommon
 open System.IO
 open System.Runtime.Serialization.Formatters.Binary

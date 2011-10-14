@@ -5,7 +5,7 @@ open Bytearray
 open Formats
 open Record
 open HS_ciphersuites
-open Sessions
+open TLSInfo
 open Principal
 open Error_handling
 

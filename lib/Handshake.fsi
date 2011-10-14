@@ -6,7 +6,7 @@ open Record
 open Error_handling
 open Formats
 open HS_msg
-open Sessions
+open TLSInfo
 open AppCommon
 
 type protoState

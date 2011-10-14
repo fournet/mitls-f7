@@ -2,15 +2,15 @@
 
 open Data
 open Error_handling
-open Crypto
+open OtherCrypto
 
 type pri_cert
 
 val certificate_of_bytes: bytes -> pri_cert Result
 val bytes_of_certificate: pri_cert -> bytes
 
-val pubKey_of_certificate: pri_cert -> key
-val priKey_of_certificate: pri_cert -> key
+val pubKey_of_certificate: pri_cert -> asymKey
+val priKey_of_certificate: pri_cert -> asymKey
 
 val set_priKey: pri_cert -> string -> pri_cert
 
