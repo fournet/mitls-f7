@@ -2,12 +2,23 @@
 
 open Data
 open Algorithms
-open Formats (* for ProtocolVersionType *)
 open Error_handling
 
 type cipherSuite
 
 type cipherSuites = cipherSuite list
+
+type Compression =
+    | Null
+    | UnknownComp of byte
+
+type ProtocolVersionType =
+    | SSL_2p0 = 10
+    | SSL_3p0 = 20
+    | TLS_1p0 = 30
+    | TLS_1p1 = 40
+    | TLS_1p2 = 50
+    | UnknownPV = -1
 
 val nullCipherSuite: cipherSuite
 val isNullCipherSuite: cipherSuite -> bool
@@ -19,6 +30,12 @@ val contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV: cipherSuites -> bool
 val verifyDataLen_of_ciphersuite: cipherSuite -> int
 val prfHashAlg_of_ciphersuite: cipherSuite -> hashAlg
 val verifyDataHashAlg_of_ciphersuite: cipherSuite -> hashAlg
+
+val macAlg_of_ciphersuite: cipherSuite -> hashAlg
+
+val compression_of_byte: byte -> Compression
+val byte_of_compression: Compression -> byte
+val compressions_of_bytes: bytes -> Compression list
 
 val bytes_of_cipherSuite: cipherSuite -> bytes
 val cipherSuite_of_bytes: bytes -> cipherSuite

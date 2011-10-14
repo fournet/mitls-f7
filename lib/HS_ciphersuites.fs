@@ -1,8 +1,8 @@
 ﻿module HS_ciphersuites
 
 open Data
+open Bytearray
 open Algorithms
-open Formats (* for ProtocolVersionType *)
 open Error_handling
 
 type SCSVsuite =
@@ -16,6 +16,39 @@ type cipherSuite =
     | Unknown of bytes
 
 type cipherSuites = cipherSuite list
+
+type Compression =
+    | Null
+    | UnknownComp of byte
+
+let byte_of_compression comp =
+    match comp with
+    | Null -> 0uy
+    | UnknownComp _ -> unexpectedError "[byte_of_compression] Cannot convert the unknown compression type to a byte"
+
+let compression_of_byte b =
+    match b with
+    | 0uy -> Null
+    | _ -> UnknownComp b
+
+let rec compressions_of_bytes_int b list =
+    if length b = 0 then
+        list
+    else
+        let (cmB,rem) = split b 1 in
+        let cm = compression_of_byte cmB.[0] in
+        let list = [cm] @ list in
+        compressions_of_bytes_int rem list
+
+let compressions_of_bytes b = compressions_of_bytes_int b []
+
+type ProtocolVersionType =
+    | SSL_2p0 = 10
+    | SSL_3p0 = 20
+    | TLS_1p0 = 30
+    | TLS_1p1 = 40
+    | TLS_1p2 = 50
+    | UnknownPV = -1
 
 let nullCipherSuite = NullCipherSuite
 
@@ -146,6 +179,7 @@ let cipherSuiteRequiresKeyExchange cs =
 let canEncryptPMS cs =
     match cs with
     | CipherSuite ( RSA, _ )     -> true
+    | OnlyMACCipherSuite ( RSA, _ ) -> true
     | _ -> false
 
 let contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphlist =
@@ -183,6 +217,12 @@ let getKeyExtensionLength pv cs =
         | OnlyMACCipherSuite (_,hAlg) -> (0,0,macKeyLength hAlg)
         | _ -> unexpectedError "[getKeyExtensionLength] invoked on an invalid ciphersuite"
     2 * (keySize + hashSize + IVSize)
+
+let macAlg_of_ciphersuite cs =
+    match cs with
+    | CipherSuite (_, EncMAC(_,alg)) -> alg
+    | OnlyMACCipherSuite (_, alg) -> alg
+    | _ -> unexpectedError "[macAlg_of_ciphersuite] invoked on an invalid ciphersuite"
 
 (* Not for verification, just to run the implementation *)
 

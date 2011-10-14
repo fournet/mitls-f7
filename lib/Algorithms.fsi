@@ -1,7 +1,7 @@
 ﻿module Algorithms
 
 (* Not abstracts, but only meant to be used by
-   CryptoTLS and HS_Ciphersuites *)
+   crypto modules and HS_Ciphersuites *)
 type kexAlg =
     | RSA
     | DH_DSS

@@ -1,7 +1,6 @@
 ﻿module TLS
 
-open Data
-open Formats
+open Data (* replace with paylaod module *)
 open Error_handling
 open Dispatch
 open Sessions
@@ -56,6 +55,19 @@ open AppCommon
     | NewSessionInfo of Connection * bytes
     Where Connection is the new connection after re-handshake (and hence contains the
     new SessionInfo), and bytes are the bytes sent with the previous Connection
+*)
+
+(* Idealized computational-friendly interface *)
+(*
+type payload
+function val size: payload -> int
+(* we might need concat and split for the payload type *)
+(* In fact, payload is an array (of something, of a known length). We will split/concat etc, but we won't look at the single <something> (bytes) *)
+
+val write: Connection -> payload -> (payload Result) * Connection (* The returned payload is the amount of data *not* sent this time *)
+val writeFully: Connection -> payload -> (unit Result) * Connection
+
+val read: Connection -> int -> (payload Result) * Connection (* returns a payload which is up to "int" len *)
 *)
 
 val write: Connection -> bytes -> ((bytes * bytes) Result) * Connection
