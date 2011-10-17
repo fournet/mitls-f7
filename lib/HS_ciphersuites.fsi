@@ -20,6 +20,9 @@ type ProtocolVersionType =
     | TLS_1p2 = 50
     | UnknownPV = -1
 
+val bytes_of_protocolVersionType: ProtocolVersionType -> bytes
+val protocolVersionType_of_bytes: bytes -> ProtocolVersionType
+
 val nullCipherSuite: cipherSuite
 val isNullCipherSuite: cipherSuite -> bool
 

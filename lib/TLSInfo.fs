@@ -7,14 +7,7 @@ open HS_ciphersuites
 
 type sessionID = bytes
 
-type prerole =
-    | ClientRole
-    | ServerRole
-
-type role = prerole
-
 type SessionInfo = {
-    role: role
     clientID: pri_cert option
     serverID: pri_cert option
     sessionID: sessionID option
@@ -25,9 +18,8 @@ type SessionInfo = {
     init_srand: bytes
     }
 
-let init_sessionInfo role =
-    { role = role;
-      clientID = None;
+let init_sessionInfo =
+    { clientID = None;
       serverID = None;
       sessionID = None;
       protocol_version = ProtocolVersionType.UnknownPV;

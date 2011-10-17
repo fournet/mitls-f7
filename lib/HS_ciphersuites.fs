@@ -50,6 +50,24 @@ type ProtocolVersionType =
     | TLS_1p2 = 50
     | UnknownPV = -1
 
+let bytes_of_protocolVersionType pv =
+    match pv with
+    | ProtocolVersionType.SSL_2p0 -> [| 0uy; 2uy |]
+    | ProtocolVersionType.SSL_3p0 -> [| 3uy; 0uy |]
+    | ProtocolVersionType.TLS_1p0 -> [| 3uy; 1uy |]
+    | ProtocolVersionType.TLS_1p1 -> [| 3uy; 2uy |]
+    | ProtocolVersionType.TLS_1p2 -> [| 3uy; 3uy |]
+    | _ -> unexpectedError "Cannot convert the Unknown protocol version to bytes"
+
+let protocolVersionType_of_bytes value =
+    match value with
+    | [| 0uy; 2uy |] -> ProtocolVersionType.SSL_2p0
+    | [| 3uy; 0uy |] -> ProtocolVersionType.SSL_3p0
+    | [| 3uy; 1uy |] -> ProtocolVersionType.TLS_1p0
+    | [| 3uy; 2uy |] -> ProtocolVersionType.TLS_1p1
+    | [| 3uy; 3uy |] -> ProtocolVersionType.TLS_1p2
+    | _ -> ProtocolVersionType.UnknownPV
+
 let nullCipherSuite = NullCipherSuite
 
 let isNullCipherSuite cs =

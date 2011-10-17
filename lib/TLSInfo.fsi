@@ -4,12 +4,9 @@ open Data
 open Principal
 open HS_ciphersuites
 
-type prerole
-type role = prerole
 type sessionID = bytes
 
 type SessionInfo = {
-    role: role
     clientID: pri_cert option
     serverID: pri_cert option
     sessionID: sessionID option
