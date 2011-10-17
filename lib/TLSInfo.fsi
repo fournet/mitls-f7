@@ -6,6 +6,12 @@ open HS_ciphersuites
 
 type sessionID = bytes
 
+type preDirection =
+    | CtoS
+    | StoC
+
+type Direction = preDirection
+
 type SessionInfo = {
     clientID: pri_cert option
     serverID: pri_cert option
@@ -19,6 +25,7 @@ type SessionInfo = {
 
 type KeyInfo = {
     sinfo: SessionInfo
+    dir: Direction
     crand: bytes
     srand: bytes
  (* cVerifyData: bytes

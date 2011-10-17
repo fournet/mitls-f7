@@ -25,6 +25,7 @@ val protocolVersionType_of_bytes: bytes -> ProtocolVersionType
 
 val nullCipherSuite: cipherSuite
 val isNullCipherSuite: cipherSuite -> bool
+val isOnlyMACCipherSuite: cipherSuite -> bool
 
 val isAnonCipherSuite: cipherSuite -> bool
 val cipherSuiteRequiresKeyExchange: cipherSuite -> bool

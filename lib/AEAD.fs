@@ -7,7 +7,7 @@ open TLSInfo
 open Error_handling
 
 type AEADKey =
-    | MtE of MAC.macKey * ENC.symKey
+    | MtE of HMAC.macKey * ENC.symKey
  (* | GCM of GCM.GCMKey *)
 
 type data = bytes (* Additional data, includes seq_num *)
@@ -114,6 +114,11 @@ let AEAD_DEC ki key iv data cipher =
                 let macAlg = macAlg_of_ciphersuite ki.sinfo.cipher_suite in
                 let macLen = macLength macAlg in
                 let macStart = (safeLen compr_and_mac) - macLen in
+                let (mustFail,macStart) = 
+                    if macStart < 0 then
+                        (true,0)
+                    else
+                        (mustFail,macStart)
                 let (compr,mac) = safeSplit (compr_and_mac) macStart in
                 let toVerify = safeConcat data compr in
                 match MAC.VERIFY ki macKey toVerify mac with

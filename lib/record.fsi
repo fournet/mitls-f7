@@ -4,7 +4,7 @@ open Data
 open Tcp
 open Formats
 open Error_handling
-open Sessions
+open TLSInfo
 
 type CipherState = 
   | BlockCipherState of Crypto.key * bytes    // (key,iv)
@@ -13,12 +13,6 @@ type CipherState =
 (* Internal interface for individual record processing *)
 
 type fragment = bytes (* f:bytes { f.Length in 0..2^14-1 } *)
-
-type preDirection =
-    | CtoS
-    | StoC
-
-type Direction = preDirection
 
 type ConnectionState
 type sendState = ConnectionState (* both implemented as ConnectionState for now *)

@@ -7,8 +7,8 @@ open MAC
 open ENC
 
 type AEADKey =
-    | MtE of MAC.macKey * ENC.symKey
- (* | GCM of GCM.GCMKey *)
+    | MtE of HMAC.macKey * ENC.symKey
+ (* | GCM of GCM.GCMSalt * GCM.GCMKey *)
 
 type data = bytes (* Additional data, includes seq_num *)
 type plain = bytes

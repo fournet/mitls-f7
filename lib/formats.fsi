@@ -27,5 +27,8 @@ val contentType_of_byte: byte -> ContentType
 val vlenBytes_of_bytes: int -> bytes -> bytes
 val bytesAndRemainder_of_vlenBytesAndReminder: int -> bytes -> (bytes * bytes)
 
+(*
 val appendList: bytes list -> bytes
+*)
+val (@|): bytes -> bytes -> bytes
 val splitList: bytes -> int list -> bytes list

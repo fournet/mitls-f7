@@ -45,11 +45,14 @@ let split_at_most data len =
         split data len
 *)
 
+(*
 let rec appendList (xl:bytes list) : bytes =
     match xl with
     | [] -> empty_bstr
     | h::t -> append h (appendList t)
-  
+*)
+let (@|) a b = append a b
+
 let rec splitList (b:bytes) (il:int list) : bytes list = 
     match il with
     | [] -> [b]

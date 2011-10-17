@@ -73,6 +73,11 @@ let nullCipherSuite = NullCipherSuite
 let isNullCipherSuite cs =
     cs = NullCipherSuite
 
+let isOnlyMACCipherSuite cs =
+    match cs with
+    | OnlyMACCipherSuite (_) -> true
+    | _ -> false
+
 let cipherSuite_of_bytes b = 
     match b with
     | [| 0x00uy; 0x00uy |] -> NullCipherSuite

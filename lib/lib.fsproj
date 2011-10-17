@@ -52,6 +52,8 @@
     <Compile Include="TLSInfo.fs" />
     <Compile Include="HASH.fsi" />
     <Compile Include="HASH.fs" />
+    <Compile Include="HMAC.fsi" />
+    <Compile Include="HMAC.fs" />
     <Compile Include="MAC.fsi" />
     <Compile Include="MAC.fs" />
     <Compile Include="ENC.fsi" />
@@ -60,8 +62,8 @@
     <Compile Include="AEAD.fs" />
     <Compile Include="formats.fsi" />
     <Compile Include="formats.fs" />
-    <Compile Include="TLSCrypto.fsi" />
-    <Compile Include="TLSCrypto.fs" />
+    <Compile Include="PRFs.fsi" />
+    <Compile Include="PRFs.fs" />
     <Compile Include="Stream.fsi" />
     <Compile Include="Stream.fs" />
     <Compile Include="record.fsi" />
