@@ -54,10 +54,13 @@
     <Compile Include="HASH.fs" />
     <Compile Include="HMAC.fsi" />
     <Compile Include="HMAC.fs" />
+    <None Include="MAC.fs7" />
     <Compile Include="MAC.fsi" />
     <Compile Include="MAC.fs" />
+    <None Include="ENC.fs7" />
     <Compile Include="ENC.fsi" />
     <Compile Include="ENC.fs" />
+    <None Include="AEAD.fs7" />
     <Compile Include="AEAD.fsi" />
     <Compile Include="AEAD.fs" />
     <Compile Include="formats.fsi" />

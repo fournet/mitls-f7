@@ -1,0 +1,19 @@
+﻿module AEAD
+
+type (;ki:KeyInfo) AEADKey =
+    | MtE of MAC.macKey * ENC.symKey
+ (* | GCM of GCM.GCMSalt * GCM.GCMKey *)
+
+type (;ki:KeyInfo) data
+type (;ki:KeyInfo) plain
+type (;ki:KeyInfo) cipher
+
+
+(* TODOS: *)
+(* - Add explicit ciphertext length *)
+(* - Make all iv become ivOpt: Only TLS 1.0 will use iv, later versions don't. *)
+(*	 The ciphertext has different lengths, depending on the version: *)
+(*   In later versions it includes the fresh iv, in early versions it doensn't. *)
+
+val ENC: ki:KeyInfo -> (;ki) AEADKey -> ivOpt -> (;ki) data -> (;ki) plain -> ((;ki) iv * cipher) Result
+val DEC: ki:KeyInfo -> (;ki) AEADKey -> iv -> (;ki) data -> (;ki) cipher -> ((;ki) ivOpt * plain) Result
