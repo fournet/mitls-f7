@@ -1,21 +1,35 @@
 ﻿module AEAD
 
-
-type (;ki:KeyInfo) AEADKey
-type cipher = bytes
+function val KeySize: KeyInfo -> int
+definition !id. KeySize(id) = ENC.KeySize(id) + MAC.KeySize(id)
+val keysize: ki:KeyInfo -> n:int {n = KeySize(ki)}
+type (;ki:KeyInfo) keybytes = b:bytes {Length(b)=KeySize(ki)}
+private predicate type keypred = MtEKey of ki:KeyInfo * ((;ki) MAC.key * (;ki) ENC.key)
+private type (;ki:KeyInfo) key = 
+      MacThenEncrypt of ka:(;ki)MAC.key * ke:(;ki)ENC.key {MtEKey(ki,(ka,ke))}
+(*  |   GCM of ke:(;ki:AENC.key)  *)
 
 
 type Length (* some estimate of the plaintext length, as leaked by the ciphertext. *)
-type (;ki:KeyInfo,l:Length) secret 
+function val CipherSize: Length -> int  (* Expected to be ENC.CipherSize(ki,Length(plaintext) + MAC.MacSize(ki)) *)
+type (;l:Length) cipher = (;CipherSize(l)) ENC.cipher
+type (;n:int) repr = b:bytes{Length(b) = n}
+
+predicate type safepred = Safe of KeyInfo
+type (;ki:KeyInfo,l:Length) secret
 type (;ki:KeyInfo,l:Length) plain = 
-    AppData of (;ki,l) secret
+    AppData of (;ki,l) secret {Safe(ki)}
   | TLSData of bytes
 type (;ki:KeyInfo) lplain = (l:Length * (;ki,l) plain)
 type (;ki:KeyInfo) data (* = bytes? is data public? is its length fixed? *)
 
+private predicate type msgpred = Msg of ki:KeyInfo * k:(;ki) key * (;ki) data * (;ki) lplain
+definition !ki,ka,ke,l.
+   MtEKey(ki,(ka,ke)) =>
+   (!d,l,p. MAC.Msg(id,d @| p) <=> Msg(id,(ka,ke),d,(l,p)))
 
-val ENC: ki:KeyInfo -> (;ki) AEADKey -> ivOpt -> (;ki) data -> (;ki) lplain -> ((;ki) iv * cipher) Result
-val DEC: ki:KeyInfo -> (;ki) AEADKey -> iv -> (;ki) data -> cipher -> ((;ki) ivOpt * (;ki) lplain) Result
+val ENC: ki:KeyInfo -> (;ki) key -> (;ki) ENC.ivOpt -> (;ki) data -> (;ki) lplain -> ((;ki) ENC.iv * cipher) Result
+val DEC: ki:KeyInfo -> (;ki) key -> (;ki) ENC.iv -> (;ki) data -> cipher -> ((;ki) ENC.ivOpt * (;ki) lplain) Result
 
 
 (* TODOS: (KB: Done?) *)
