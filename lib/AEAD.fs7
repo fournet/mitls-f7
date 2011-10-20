@@ -1,19 +1,26 @@
 ﻿module AEAD
 
-type (;ki:KeyInfo) AEADKey =
-    | MtE of MAC.macKey * ENC.symKey
- (* | GCM of GCM.GCMSalt * GCM.GCMKey *)
 
-type (;ki:KeyInfo) data
-type (;ki:KeyInfo) plain
-type (;ki:KeyInfo) cipher
+type (;ki:KeyInfo) AEADKey
+type cipher = bytes
 
 
-(* TODOS: *)
+type Length (* some estimate of the plaintext length, as leaked by the ciphertext. *)
+type (;ki:KeyInfo,l:Length) secret 
+type (;ki:KeyInfo,l:Length) plain = 
+    AppData of (;ki,l) secret
+  | TLSData of bytes
+type (;ki:KeyInfo) lplain = (l:Length * (;ki,l) plain)
+type (;ki:KeyInfo) data (* = bytes? is data public? is its length fixed? *)
+
+
+val ENC: ki:KeyInfo -> (;ki) AEADKey -> ivOpt -> (;ki) data -> (;ki) lplain -> ((;ki) iv * cipher) Result
+val DEC: ki:KeyInfo -> (;ki) AEADKey -> iv -> (;ki) data -> cipher -> ((;ki) ivOpt * (;ki) lplain) Result
+
+
+(* TODOS: (KB: Done?) *)
 (* - Add explicit ciphertext length *)
 (* - Make all iv become ivOpt: Only TLS 1.0 will use iv, later versions don't. *)
 (*	 The ciphertext has different lengths, depending on the version: *)
 (*   In later versions it includes the fresh iv, in early versions it doensn't. *)
 
-val ENC: ki:KeyInfo -> (;ki) AEADKey -> ivOpt -> (;ki) data -> (;ki) plain -> ((;ki) iv * cipher) Result
-val DEC: ki:KeyInfo -> (;ki) AEADKey -> iv -> (;ki) data -> (;ki) cipher -> ((;ki) ivOpt * plain) Result
