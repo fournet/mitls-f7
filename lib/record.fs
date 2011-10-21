@@ -90,16 +90,15 @@ ask MACbytes(n0,ct0,v0,d0) = MACbytes(n1,ct1,v1,d1) => n0=n1 /\ ...
 [for now we use relations, KHashBytes and MACBytes, to be merged]
 *)
 
-let prepareAddData conn ct data =
+let prepareAddData conn ct =
     let version = conn.local_pv in
 
     let bseq_num = bytes_of_seq conn.seq_num in
     let bct = [| byte_of_contentType ct |] in
     let bver = bytes_of_protocolVersionType version in
-    let dlength = bytes_of_int 2 (length data) in
     match version with
-    | ProtocolVersionType.SSL_3p0 -> bseq_num @| bct @| dlength
-    | x when x >= ProtocolVersionType.TLS_1p0 -> bseq_num @| bct @| bver @| dlength
+    | ProtocolVersionType.SSL_3p0 -> bseq_num @| bct
+    | x when x >= ProtocolVersionType.TLS_1p0 -> bseq_num @| bct @| bver
     | _ -> unexpectedError "[prepareAddData] invoked on invalid protocol version"
 
 let verify_mac conn ct compr givenmac =
@@ -181,14 +180,15 @@ let recordPacketOut conn ct fragment =
         match conn.rec_ki.sinfo.cipher_suite with
         | x when isNullCipherSuite x -> correct (conn,compressed)
         | x when isOnlyMACCipherSuite x ->
-            let addData = prepareAddData conn ct compressed in
+            let addData = prepareAddData conn ct in
+            let fullAddData = addData @| (bytes_of_int 2 (length compressed)) in
             let key = getMACKey conn.key in
-            let data = addData @| compressed in
+            let data = fullAddData @| compressed in
             match MAC.MAC conn.rec_ki key data with
             | Error(x,y) -> Error(x,y)
             | Correct(payload) -> correct(conn,payload)
         | _ ->
-            let addData = prepareAddData conn ct compressed in
+            let addData = prepareAddData conn ct in
             let key = getAEADKey conn.key in
             match AEAD.AEAD_ENC conn.rec_ki key conn.ivOpt addData compressed with
             | Error(x,y) -> Error(x,y)
@@ -392,15 +392,16 @@ let recordPacketIn conn ct payload =
             match split_mac cs payload with
             | Error(x,y) -> Error(x,y)
             | Correct(msg,mac) ->
-                let addData = prepareAddData conn ct msg in
-                let toVerify = addData @| msg in
+                let addData = prepareAddData conn ct in
+                let fullAddData = addData @| (bytes_of_int 2 (length msg)) in
+                let toVerify = fullAddData @| msg in
                 let key = getMACKey conn.key in
                 match MAC.VERIFY conn.rec_ki key toVerify mac with
                 | Error(x,y) -> Error(x,y)
                 | Correct(_) ->
                     correct(conn,msg)
         | _ ->
-            let addData = prepareAddData conn ct msg in
+            let addData = prepareAddData conn ct in
             let key = getAEADKey conn.key in
             let (iv,payload) =
                 if PVRequiresExplicitIV conn.local_pv then

@@ -10,7 +10,7 @@ type AEADKey =
     | MtE of HMAC.macKey * ENC.symKey
  (* | GCM of GCM.GCMKey *)
 
-type data = bytes (* Additional data, includes seq_num *)
+type data = bytes (* Additional data, seq_num, content type, protocol version. No plaintext length is included. It is dealt internally *)
 type plain = bytes
 type cipher = bytes
 
@@ -45,7 +45,9 @@ let compute_pad ki data =
 let AEAD_ENC ki key ivOpt data plain =
     match key with
     | MtE (macKey,encKey) ->
-        let text = safeConcat data plain in
+        let plainLen = Bytearray.bytes_of_int 2 (safeLen plain) in
+        let fullData = safeConcat data plainLen in 
+        let text = safeConcat fullData plain in
         match MAC.MAC ki macKey text with
         | Error(x,y) -> Error(x,y)
         | Correct (mac) ->
@@ -120,7 +122,9 @@ let AEAD_DEC ki key iv data cipher =
                     else
                         (mustFail,macStart)
                 let (compr,mac) = safeSplit (compr_and_mac) macStart in
-                let toVerify = safeConcat data compr in
+                let comprLen = Bytearray.bytes_of_int 2 (safeLen compr) in
+                let fullData = safeConcat data comprLen in
+                let toVerify = safeConcat fullData compr in
                 match MAC.VERIFY ki macKey toVerify mac with
                 | Error(x,y) -> Error(x,y)
                 | Correct(_) ->
