@@ -1,9 +1,16 @@
 ﻿module MAC
 
-type (;ki:keyInfo) macKey
-type (;ki:keyInfo) text = bytes
-type (;ki:keyInfo) mac = bytes
+predicate type msg = Msg of ki:keyInfo * (;ki) ltext
 
-val MAC: ki:KeyInfo -> (;ki) macKey -> t:(;ki) text{Msg(ki,t)} -> ((;ki) mac) Result
-val VERIFY: ki:KeyInfo -> (;ki) macKey -> t:(;ki) text -> (;ki) mac -> 
+val macsize:int
+type (;ki:KeyInfo) macKey
+type (;ki:KeyInfo,l:Length) secret 
+type (;ki:KeyInfo,l:Length) text = 
+    AppData of (;ki,l) secret
+  | TLSData of bytes
+type (;ki:KeyInfo) ltext = (l:Length * (;ki,l) text)
+type (;ki:KeyInfo) mac = b:bytes{Length(b) = macsize}
+
+val MAC: ki:KeyInfo -> (;ki) macKey -> t:(;ki) ltext{Msg(ki,t)} -> ((;ki) mac) Result
+val VERIFY: ki:KeyInfo -> (;ki) macKey -> t:(;ki) ltext -> (;ki) mac -> 
             unit{CMA(ki) => Msg(ki,t)} Result
