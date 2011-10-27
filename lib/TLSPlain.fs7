@@ -5,19 +5,29 @@ open TLSInfo
 type Lengths (* abstractly, a list of desired ciphertext lengths *)
 predicate val Head: Lengths -> int
 predicate val Tail: Lengths -> Lengths
-predicate val Cons: int -> Lengths -> Lengths
+predicate val Cons: (int * Lengths) -> Lengths
+
+predicate val CompatibleLengths: (KeyInfo * int * Lengths) -> bool
+val estimateLengths: ki:KeyInfo -> n:int -> l:Lengths{CompatibleLengths(ki,n,l)}
+private val fragmentSize: ki:KeyInfo -> l:Length -> n:int{CompatibleLengths(ki,n,l)} -> 
+	                  f:int{CompatibleLengths(ki,n-f,Tail(l))}
 
 (* Secret App Data *)
 type (;ki:KeyInfo,l:Lengths) appdata
+val appdata: ki:KeyInfo -> l:Lengths -> b:bytes{CompatibleLengths(ki,Size(b),l)} -> 
+                (;ki:KeyInfo,l:Lengths) appdata
 
-type (;ki:KeyInfo,n:int) fragment
+type (;ki:KeyInfo,n:int) fragment =
+    AppDataFragment of (;ki,n) appdata
+  | KeyExchangeData of bytes
 
 val concat_fragment_appdata: ki:KeyInfo -> n:int -> (;ki,n) fragment -> l:Lengths -> (;ki,l) appdata -> (;ki,Cons(n,l)) appdata
 
 val app_fragment: ki:KeyInfo -> l:Lengths -> x:(;ki,l) appdata ->  ((n:int{n=Head(l)} * f:(;ki,n) fragment) * 
 								    (t:Length{t=Tail(l)} * (;ki,t) appdata))
 
-val pub_fragment: ki:KeyInfo -> b:bytes -> ((n:int * (;ki,n) fragment) * bytes) (* Note that n is *not* the length of the plaintext, it is the length of the target ciphertext *)
+val pub_fragment: ki:KeyInfo -> b:bytes -> ((n:int * (;ki,n) fragment) * bytes) 
+(* Note that n is *not* the length of the plaintext, it is the length of the target ciphertext *)
 
 type (;ki:KeyInfo) mac
 
