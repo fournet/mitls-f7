@@ -9,7 +9,7 @@ predicate val Cons: (int * Lengths) -> Lengths
 
 predicate val CompatibleLengths: (KeyInfo * int * Lengths) -> bool
 val estimateLengths: ki:KeyInfo -> n:int -> l:Lengths{CompatibleLengths(ki,n,l)}
-private val fragmentSize: ki:KeyInfo -> l:Length -> n:int{CompatibleLengths(ki,n,l)} -> 
+private val fragmentSize: ki:KeyInfo -> l:Lengths -> n:int{CompatibleLengths(ki,n,l)} -> 
 	                  f:int{CompatibleLengths(ki,n-f,Tail(l))}
 
 (* Secret App Data *)

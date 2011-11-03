@@ -15,6 +15,8 @@ type ivOpt =
     | NoneIV
 type cipher = bytes
 
+let safeConcat a b = append a b
+
 (* Raw symmetric enc/dec functions -- can throw exceptions *)
 let commonEnc enc data =
     let mems = new System.IO.MemoryStream() in
@@ -77,6 +79,11 @@ let get_next_iv alg data =
     let (_,res) = split data ((length data) - ivLen) in
     res
 
+(* Latest TLS IV handling *)
+let split_iv alg data =
+    let ivLen = ivSize alg in
+    split data ivLen
+
 (* Parametric ENC/DEC functions (implement interfaces) *)
 let ENC ki key ivopt data =
     (* Should never be invoked on a stream (right now) encryption algorithm *)
@@ -99,12 +106,18 @@ let ENC ki key ivopt data =
         match ivopt with
         | SomeIV (_) ->
             let nextIV = get_next_iv alg encr
-            correct (nextIV, encr)
-        | NoneIV -> correct(iv, encr)
+            correct (SomeIV (nextIV), encr)
+        | NoneIV ->
+            let res = safeConcat iv encr in
+            correct (NoneIV,res)
 
-let DEC ki key iv data =
+let DEC ki key ivopt data =
     (* Should never be invoked on a stream (right now) encryption algorithm *)
     let alg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
+    let (iv,data) =
+        match ivopt with
+        | NoneIV -> split_iv alg data
+        | SomeIV (b) -> (b,data)
     let res =
         match alg with
         | THREEDES_EDE_CBC -> threeDesDecrypt key iv data
@@ -114,8 +127,8 @@ let DEC ki key iv data =
     match res with
     | Error(x,y) -> Error(x,y)
     | Correct (decr) ->
-        if PVRequiresExplicitIV ki.sinfo.protocol_version then
-            correct (NoneIV, decr)
-        else
+        match ivopt with
+        | NoneIV -> correct (NoneIV, decr)
+        | SomeIV (_) ->
             let nextIV = get_next_iv alg data in
             correct (SomeIV(nextIV), decr)

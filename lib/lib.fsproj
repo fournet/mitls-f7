@@ -36,16 +36,20 @@
   <Import Project="$(MSBuildExtensionsPath32)\FSharp\1.0\Microsoft.FSharp.Targets" Condition="!Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
   <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft F#\v4.0\Microsoft.FSharp.Targets" Condition=" Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
   <ItemGroup>
+    <None Include="Error.fs7" />
     <Compile Include="Error.fsi" />
     <Compile Include="Error.fs" />
+    <None Include="tcp.fs7" />
     <Compile Include="tcp.fsi" />
     <Compile Include="tcp.fs" />
     <Compile Include="OtherCrypto.fsi" />
     <Compile Include="OtherCrypto.fs" />
+    <None Include="Principal.fs7" />
     <Compile Include="Principal.fsi" />
     <Compile Include="Principal.fs" />
     <Compile Include="Algorithms.fsi" />
     <Compile Include="Algorithms.fs" />
+    <None Include="HS_ciphersuites.fs7" />
     <Compile Include="HS_ciphersuites.fsi" />
     <Compile Include="HS_ciphersuites.fs" />
     <Compile Include="TLSInfo.fsi" />
@@ -63,12 +67,14 @@
     <None Include="AEAD.fs7" />
     <Compile Include="AEAD.fsi" />
     <Compile Include="AEAD.fs" />
+    <None Include="formats.fs7" />
     <Compile Include="formats.fsi" />
     <Compile Include="formats.fs" />
     <Compile Include="PRFs.fsi" />
     <Compile Include="PRFs.fs" />
     <Compile Include="Stream.fsi" />
     <Compile Include="Stream.fs" />
+    <None Include="record.fs7" />
     <Compile Include="record.fsi" />
     <Compile Include="record.fs" />
     <Compile Include="AppCommon.fsi" />

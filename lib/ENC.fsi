@@ -12,5 +12,5 @@ type ivOpt =
     | NoneIV
 type cipher = bytes
 
-val ENC: KeyInfo -> symKey -> ivOpt -> plain -> (iv * cipher) Result
-val DEC: KeyInfo -> symKey -> iv -> cipher -> (ivOpt * plain) Result
+val ENC: KeyInfo -> symKey -> ivOpt -> plain -> (ivOpt * cipher) Result
+val DEC: KeyInfo -> symKey -> ivOpt -> cipher -> (ivOpt * plain) Result

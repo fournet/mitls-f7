@@ -14,5 +14,5 @@ type data = bytes (* Additional data, includes seq_num *)
 type plain = bytes
 type cipher = bytes
 
-val AEAD_ENC: KeyInfo -> AEADKey -> ivOpt -> data -> plain -> (iv * cipher) Result
-val AEAD_DEC: KeyInfo -> AEADKey -> iv -> data -> cipher -> (ivOpt * plain) Result
+val AEAD_ENC: KeyInfo -> AEADKey -> ivOpt -> data -> plain -> (ivOpt * cipher) Result
+val AEAD_DEC: KeyInfo -> AEADKey -> ivOpt -> data -> cipher -> (ivOpt * plain) Result
