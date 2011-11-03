@@ -33,6 +33,3 @@ type protocolOptions = {
     }
 
 val defaultProtocolOptions: protocolOptions
-
-val max_TLSPlaintext_fragment_length: int
-val fragmentLength: int

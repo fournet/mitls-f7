@@ -54,6 +54,3 @@ let defaultProtocolOptions ={
     sessionDBFileName = "sessionDBFile.bin"
     sessionDBExpiry = new System.TimeSpan(2,0,0,0) (* two days *)
     }
-
-let max_TLSPlaintext_fragment_length = 1<<<14 (* just a reminder *)
-let fragmentLength = max_TLSPlaintext_fragment_length + 2048 (* 1 *)

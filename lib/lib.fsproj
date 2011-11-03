@@ -54,6 +54,9 @@
     <Compile Include="HS_ciphersuites.fs" />
     <Compile Include="TLSInfo.fsi" />
     <Compile Include="TLSInfo.fs" />
+    <None Include="TLSPlain.fs7" />
+    <Compile Include="TLSPlain.fsi" />
+    <Compile Include="TLSPlain.fs" />
     <Compile Include="HASH.fsi" />
     <Compile Include="HASH.fs" />
     <Compile Include="HMAC.fsi" />

@@ -24,7 +24,7 @@ type (;ki:KeyInfo,n:int) fragment =
 val concat_fragment_appdata: ki:KeyInfo -> n:int -> (;ki,n) fragment -> l:Lengths -> (;ki,l) appdata -> (;ki,Cons(n,l)) appdata
 
 val app_fragment: ki:KeyInfo -> l:Lengths -> x:(;ki,l) appdata ->  ((n:int{n=Head(l)} * f:(;ki,n) fragment) * 
-								    (t:Length{t=Tail(l)} * (;ki,t) appdata))
+								    (t:Lengths{t=Tail(l)} * (;ki,t) appdata))
 
 val pub_fragment: ki:KeyInfo -> b:bytes -> ((n:int * (;ki,n) fragment) * bytes) 
 (* Note that n is *not* the length of the plaintext, it is the length of the target ciphertext *)
@@ -33,6 +33,6 @@ type (;ki:KeyInfo) mac
 
 type (;ki:KeyInfo,n:int) plain
 
-val concat_fragment_mac: ki:KeyInfo -> n:int -> (;ki,n) fragment -> (;ki) mac -> (;ki,n) plain
+val concat_fragment_mac_pad: ki:KeyInfo -> n:int -> (;ki,n) fragment -> (;ki) mac -> (;ki,n) plain (* plain includes padding *)
 
-val split_mac: ki:KeyInfo -> n:int -> (;ki,n) plain -> ((;ki,n) fragment * (;ki) mac)
+val split_mac: ki:KeyInfo -> n:int -> (;ki,n) plain -> ((;ki,n) fragment * (;ki) mac) (* Returns a random fragment if pad checking fails *)
