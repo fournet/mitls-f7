@@ -52,6 +52,9 @@
     <None Include="HS_ciphersuites.fs7" />
     <Compile Include="HS_ciphersuites.fsi" />
     <Compile Include="HS_ciphersuites.fs" />
+    <None Include="formats.fs7" />
+    <Compile Include="formats.fsi" />
+    <Compile Include="formats.fs" />
     <Compile Include="TLSInfo.fsi" />
     <Compile Include="TLSInfo.fs" />
     <None Include="TLSPlain.fs7" />
@@ -70,9 +73,6 @@
     <None Include="AEAD.fs7" />
     <Compile Include="AEAD.fsi" />
     <Compile Include="AEAD.fs" />
-    <None Include="formats.fs7" />
-    <Compile Include="formats.fsi" />
-    <Compile Include="formats.fs" />
     <Compile Include="PRFs.fsi" />
     <Compile Include="PRFs.fs" />
     <Compile Include="Stream.fsi" />

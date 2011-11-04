@@ -3,16 +3,11 @@
 open Data
 open Error_handling
 open TLSInfo
-open MAC
-open ENC
+open TLSPlain
 
 type AEADKey =
     | MtE of HMAC.macKey * ENC.symKey
  (* | GCM of GCM.GCMSalt * GCM.GCMKey *)
 
-type data = bytes (* Additional data, includes seq_num *)
-type plain = bytes
-type cipher = bytes
-
-val AEAD_ENC: KeyInfo -> AEADKey -> ivOpt -> data -> plain -> (ivOpt * cipher) Result
-val AEAD_DEC: KeyInfo -> AEADKey -> ivOpt -> data -> cipher -> (ivOpt * plain) Result
+val AEAD_ENC: KeyInfo -> AEADKey -> ENC.ivOpt -> int -> add_data -> fragment -> (ENC.ivOpt * ENC.cipher) Result
+val AEAD_DEC: KeyInfo -> AEADKey -> ENC.ivOpt -> int -> add_data -> ENC.cipher -> (ENC.ivOpt * fragment) Result

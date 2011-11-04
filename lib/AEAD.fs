@@ -5,21 +5,15 @@ open HS_ciphersuites
 open Algorithms
 open TLSInfo
 open Error_handling
+open TLSPlain
 
 type AEADKey =
     | MtE of HMAC.macKey * ENC.symKey
  (* | GCM of GCM.GCMKey *)
 
-type data = bytes (* Additional data, seq_num, content type, protocol version. No plaintext length is included. It is dealt internally *)
-type plain = bytes
-type cipher = bytes
-
-(* These functions are likely to be defined in some plain module *)
-let safeConcat a b = Data.append a b
-let safeLen d = Bytearray.length d
-let safeSplit d n = Data.split d n
-
 (* No way the following will typecheck. I use native byte/int conversions *)
+(* Commented out, should be somewhere in plain.
+
 let compute_pad ki data =
     let alg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
     let bs = blockSize alg in
@@ -41,24 +35,24 @@ let compute_pad ki data =
         Array.create (len+1) (byte len)
     | _ -> unexpectedError "[compute_pad] invoked on wrong protocol version"
 
+*)
 
-let AEAD_ENC ki key ivOpt data plain =
+let AEAD_ENC ki key ivOpt tlen data plain =
     match key with
     | MtE (macKey,encKey) ->
-        let plainLen = Bytearray.bytes_of_int 2 (safeLen plain) in
-        let fullData = safeConcat data plainLen in 
-        let text = safeConcat fullData plain in
+        let text = ad_fragment ki data plain in
         match MAC.MAC ki macKey text with
         | Error(x,y) -> Error(x,y)
         | Correct (mac) ->
-            let content = safeConcat plain mac in
-            let pad = compute_pad ki content in
-            let toEncrypt = safeConcat content pad in
-            ENC.ENC ki encKey ivOpt toEncrypt
+            let toEncrypt = concat_fragment_mac_pad ki tlen plain mac in
+            ENC.ENC ki encKey ivOpt tlen toEncrypt
             
  (* | GCM (GCMKey) -> ... *)
 
 
+(* The following check_padding function must be somehow ported to TLSPlain *)
+
+(*
 let check_padding ki (data:bytes) =
     let dlen = safeLen data in
     let (tmpdata, padlenb) = safeSplit data (dlen - 1) in
@@ -104,12 +98,19 @@ let check_padding ki (data:bytes) =
                 correct(data_no_pad,false)
         | _ -> unexpectedError "[check_padding] wrong protocol version"
 
-let AEAD_DEC ki key iv data cipher =
+*)
+
+let AEAD_DEC ki key iv tlen data cipher =
     match key with
     | MtE (macKey, encKey) ->
-        match ENC.DEC ki encKey iv cipher with
+        match ENC.DEC ki encKey iv tlen cipher with
         | Error(x,y) -> Error(x,y)
         | Correct (ivOpt,compr_and_mac_and_pad) ->
+            let (compr,mac) = split_mac ki tlen compr_and_mac_and_pad in
+            (* Move part of the following code into TLSPlain, as the implementation of split_mac
+               Note we won't use MustFail anymore, rather a random fragment will be returned,
+               so MAC check will fail for sure. *)
+            (* 
             match check_padding ki compr_and_mac_and_pad with
             | Error(x,y) -> Error(x,y)
             | Correct(compr_and_mac,mustFail) ->
@@ -122,15 +123,17 @@ let AEAD_DEC ki key iv data cipher =
                     else
                         (mustFail,macStart)
                 let (compr,mac) = safeSplit (compr_and_mac) macStart in
-                let comprLen = Bytearray.bytes_of_int 2 (safeLen compr) in
-                let fullData = safeConcat data comprLen in
-                let toVerify = safeConcat fullData compr in
+            *)
+            let toVerify = ad_fragment ki data compr in
                 match MAC.VERIFY ki macKey toVerify mac with
                 | Error(x,y) -> Error(x,y)
                 | Correct(_) ->
+                    (* MAC will always fail if padding was wrong, because fragment is random *)
+                    (*
                     if mustFail then
                         Error(MAC,CheckFailed)
                     else
-                        correct (ivOpt,compr)
+                    *)
+                    correct (ivOpt,compr)
 
  (* | GCM (GCMKey) -> ... *)

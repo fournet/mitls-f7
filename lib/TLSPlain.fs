@@ -77,9 +77,16 @@ let concat_fragment_appdata (ki:KeyInfo) (tlen:int) data (lens:Lengths) (appdata
     let resData = data.bytes @| appdata.bytes in
     {bytes = resData}
 
+let fragmentSize (ki:KeyInfo) (lens:Lengths) (appdataLen:int) =
+    (* TODO: The following should be implemented here:
+       - Take the first item in lens (length of the next ciphertext)
+       - From this value, compute the (smaller) size of the next plaintext
+       - Return the latter *)
+    appdataLen
+
 let app_fragment (ki:KeyInfo) lens (appdata:appdata) : ((int * fragment) * (Lengths * appdata)) =
     (* FIXME: given the cipertext target length, we should get a *smaller* plaintext fragment
-       (so that MAC and padding can be added back).
+       (so that MAC and padding can be added back). In fact, we want to call "fragmentSize" inside this function.
        Right now, we *wrongly* return a fragment which is as big as the target lenght *)
     match lens.tlens with
     | thisLen::remLens ->
@@ -92,6 +99,15 @@ let pub_fragment (ki:KeyInfo) (data:bytes) : ((int * fragment) * bytes) = (* TOD
     unexpectedError "[TODO] not implemented yet"
 
 type mac = {bytes: bytes}
+
+type add_data = {bytes: bytes}
+type mac_plain = {bytes: bytes}
+
+let ad_fragment (ki:KeyInfo) (ad:add_data) (frag:fragment) =
+    let plainLen = Bytearray.bytes_of_int 2 (Bytearray.length frag.bytes) in
+    let fullData = ad.bytes @| plainLen in 
+    {bytes = fullData @| frag.bytes}
+
 type plain = {bytes: bytes}
 
 let concat_fragment_mac_pad (ki:KeyInfo) tlen (data:fragment) (mac:mac) =
@@ -103,3 +119,12 @@ let concat_fragment_mac_pad (ki:KeyInfo) tlen (data:fragment) (mac:mac) =
 let split_mac (ki:KeyInfo) (plainLen:int) (plain:plain) : (fragment * mac) =
     (* TODO: copy/paste code that parses plaintext immediately after decryption in MtE *)
     unexpectedError "[TODO] not implemented yet"
+
+(* Only to be used by trusted crypto libraries MAC, ENC *)
+let mac_plain_to_bytes (mplain:mac_plain) = mplain.bytes
+
+let mac_to_bytes (mac:mac) = mac.bytes
+let bytes_to_mac b : mac = {bytes = b}
+
+let plain_to_bytes (plain:plain) = plain.bytes
+let bytes_to_plain b :plain = {bytes = b}

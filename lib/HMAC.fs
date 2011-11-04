@@ -3,10 +3,9 @@
 open Data
 open Algorithms
 open Error_handling
+open TLSPlain
 
 type macKey = bytes
-type text  = bytes
-type mac = bytes
 
 (* Raw hmac algorithms, can throw exceptions *)
 let hmacmd5 key (data:bytes) =
@@ -27,19 +26,22 @@ let hmacsha384 key (data:bytes) =
 
 (* Parametric hmac wrapper *)
 let HMAC alg key data =
+    let data = mac_plain_to_bytes data in
     try
-        match alg with
-        | MD5    -> correct (hmacmd5 key data)
-        | SHA    -> correct (hmacsha1 key data)
-        | SHA256 -> correct (hmacsha256 key data)
-        | SHA384 -> correct (hmacsha384 key data)
+        let res = 
+            match alg with
+            | MD5    -> hmacmd5 key data
+            | SHA    -> hmacsha1 key data
+            | SHA256 -> hmacsha256 key data
+            | SHA384 -> hmacsha384 key data
+        correct (bytes_to_mac res)
     with
     | _ -> Error (MAC, Internal)
 
 let HMACVERIFY alg key data expected =
     match HMAC alg key data with
     | Correct (result) ->
-        if equalBytes result expected then
+        if equalBytes (mac_to_bytes result) (mac_to_bytes expected) then
             correct ()
         else
             Error (MAC, CheckFailed)

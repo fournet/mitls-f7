@@ -1,16 +1,9 @@
 ﻿module MAC
 
+open TLSPlain
+
 predicate type msg = Msg of ki:keyInfo * (;ki) ltext
 
-val macsize:int
-type (;ki:KeyInfo) macKey
-type (;ki:KeyInfo,l:Length) secret 
-type (;ki:KeyInfo,l:Length) text = 
-    AppData of (;ki,l) secret
-  | TLSData of bytes
-type (;ki:KeyInfo) ltext = (l:Length * (;ki,l) text)
-type (;ki:KeyInfo) mac = b:bytes{Length(b) = macsize}
-
-val MAC: ki:KeyInfo -> (;ki) macKey -> t:(;ki) ltext{Msg(ki,t)} -> ((;ki) mac) Result
-val VERIFY: ki:KeyInfo -> (;ki) macKey -> t:(;ki) ltext -> (;ki) mac -> 
+val MAC: ki:KeyInfo -> (;ki) macKey -> (;ki) mac_plain -> ((;ki) mac) Result
+val VERIFY: ki:KeyInfo -> (;ki) macKey -> (;ki) mac_plain -> (;ki) mac -> 
             unit{CMA(ki) => Msg(ki,t)} Result

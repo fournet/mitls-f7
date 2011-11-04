@@ -6,16 +6,15 @@ open Error_handling
 open Algorithms
 open HS_ciphersuites
 open TLSInfo
+open TLSPlain
+open Formats
 
 type symKey = bytes
-type plain = bytes
 type iv = bytes
 type ivOpt =
     | SomeIV of iv
     | NoneIV
 type cipher = bytes
-
-let safeConcat a b = append a b
 
 (* Raw symmetric enc/dec functions -- can throw exceptions *)
 let commonEnc enc data =
@@ -85,7 +84,7 @@ let split_iv alg data =
     split data ivLen
 
 (* Parametric ENC/DEC functions (implement interfaces) *)
-let ENC ki key ivopt data =
+let ENC ki key ivopt (tlen:int) data =
     (* Should never be invoked on a stream (right now) encryption algorithm *)
     let alg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
     let iv =
@@ -95,6 +94,7 @@ let ENC ki key ivopt data =
             let ivLen = ivSize alg in
             OtherCrypto.mkRandom ivLen
     let res =
+        let data = plain_to_bytes data in
         match alg with
         | THREEDES_EDE_CBC -> threeDesEncrypt key iv data
         | AES_128_CBC      -> aesEncrypt key iv data
@@ -108,10 +108,10 @@ let ENC ki key ivopt data =
             let nextIV = get_next_iv alg encr
             correct (SomeIV (nextIV), encr)
         | NoneIV ->
-            let res = safeConcat iv encr in
+            let res = iv @| encr in
             correct (NoneIV,res)
 
-let DEC ki key ivopt data =
+let DEC ki key ivopt (tlen:int) data =
     (* Should never be invoked on a stream (right now) encryption algorithm *)
     let alg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
     let (iv,data) =
@@ -127,6 +127,7 @@ let DEC ki key ivopt data =
     match res with
     | Error(x,y) -> Error(x,y)
     | Correct (decr) ->
+        let decr = bytes_to_plain decr in
         match ivopt with
         | NoneIV -> correct (NoneIV, decr)
         | SomeIV (_) ->

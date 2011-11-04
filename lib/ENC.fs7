@@ -1,14 +1,13 @@
 ﻿module ENC
 
 type (;ki:KeyInfo) symKey
-type (;ki:KeyInfo) plain
 
 type (;ki:KeyInfo) iv = IVSome of iv{ki.ver = } | IVNone of unit{ki.ver..}
 
 
-type (;ki:KeyInfo) cipher
+type (;ki:KeyInfo) cipher = bytes
 
-(* TODO: same as AEAD for ciphertext length and iv *)
 
-val ENC: ki:KeyInfo -> (;ki) symKey -> (;ki) ivOpt -> (;ki) plain -> ((;ki) iv * cipher) Result
-val DEC: ki:KeyInfo -> (;ki) symKey -> (;ki) iv -> (;ki) cipher -> ((;ki) ivOpt * plain) Result
+
+val ENC: ki:KeyInfo -> (;ki) symKey -> (;ki) ivOpt -> n:int -> (;ki) plain -> ((;ki) ivOpt * cipher) Result
+val DEC: ki:KeyInfo -> (;ki) symKey -> (;ki) ivOpt -> n:int -> (;ki) cipher -> ((;ki) ivOpt * plain) Result

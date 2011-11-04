@@ -3,10 +3,9 @@
 open Data
 open Algorithms
 open Error_handling
+open TLSPlain
 
 type macKey = bytes
-type text  = bytes
-type mac = bytes
 
-val HMAC: hashAlg -> macKey -> text -> mac Result
-val HMACVERIFY: hashAlg -> macKey -> text -> mac -> unit Result
+val HMAC: hashAlg -> macKey -> mac_plain -> mac Result
+val HMACVERIFY: hashAlg -> macKey -> mac_plain -> mac -> unit Result

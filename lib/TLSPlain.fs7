@@ -13,11 +13,11 @@ private val fragmentSize: ki:KeyInfo -> l:Lengths -> n:int{CompatibleLengths(ki,
 	                  f:int{CompatibleLengths(ki,n-f,Tail(l))}
 
 (* Secret App Data *)
-type (;ki:KeyInfo,l:Lengths) appdata
+type (;ki:KeyInfo,l:Lengths) appdata (* The full buffer blessed by the application *)
 val appdata: ki:KeyInfo -> l:Lengths -> b:bytes{CompatibleLengths(ki,Size(b),l)} -> 
                 (;ki:KeyInfo,l:Lengths) appdata
 
-type (;ki:KeyInfo,n:int) fragment =
+type (;ki:KeyInfo,n:int) fragment = (* A single app data fragment, taken form the full blessed buffer *)
   | AppDataFragment of (;ki,n) appdata
   | KeyExchangeData of bytes
 
@@ -29,9 +29,14 @@ val app_fragment: ki:KeyInfo -> l:Lengths -> x:(;ki,l) appdata ->  ((n:int{n=Hea
 val pub_fragment: ki:KeyInfo -> b:bytes -> ((n:int * (;ki,n) fragment) * bytes) 
 (* Note that n is *not* the length of the plaintext, it is the length of the target ciphertext *)
 
-type (;ki:KeyInfo) mac
+type (;ki:KeyInfo) mac (* The result of a MAC operation *)
 
-type (;ki:KeyInfo,n:int) plain
+type (;ki:KeyInfo) mac_plain (* The data to be MACed, typically fragment @| add_data *)
+type (;ki:KeyInfo) add_data (* Additional data to be included in MAC operations *)
+
+val ad_fragment: ki:KeyInfo -> (;ki) add_data -> (;ki) fragment -> (;ki) mac_plain
+
+type (;ki:KeyInfo,n:int) plain (* Content to be encrypted *)
 
 val concat_fragment_mac_pad: ki:KeyInfo -> n:int -> (;ki,n) fragment -> (;ki) mac -> (;ki,n) plain (* plain includes padding *)
 
