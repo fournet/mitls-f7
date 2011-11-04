@@ -3,10 +3,11 @@
 open Error_handling
 open Algorithms
 open HS_ciphersuites
+open Formats
 open TLSInfo
 open Data
 
-type Lengths = int list
+type Lengths = {tlens: int list}
 
 let max_TLSPlaintext_fragment_length = 1<<<14 (* just a reminder *)
 let fragmentLength = max_TLSPlaintext_fragment_length (* 1 *)
@@ -61,7 +62,44 @@ let estimateLengths ki len =
             List.empty
     let rem = len % fragmentLength in
     if rem = 0 then
-        res
+        {tlens = res}
     else
         let addedLen = computeAddedLen ki rem in
-        res @ [ rem + addedLen ]
+        {tlens = res @ [ rem + addedLen ] }
+
+type appdata = {bytes: bytes}
+
+let appdata (ki:KeyInfo) (lens:Lengths) data = {bytes = data}
+
+type fragment = {bytes: bytes}
+
+let concat_fragment_appdata (ki:KeyInfo) (tlen:int) data (lens:Lengths) (appdata:appdata) :appdata =
+    let resData = data.bytes @| appdata.bytes in
+    {bytes = resData}
+
+let app_fragment (ki:KeyInfo) lens (appdata:appdata) : ((int * fragment) * (Lengths * appdata)) =
+    (* FIXME: given the cipertext target length, we should get a *smaller* plaintext fragment
+       (so that MAC and padding can be added back).
+       Right now, we *wrongly* return a fragment which is as big as the target lenght *)
+    match lens.tlens with
+    | thisLen::remLens ->
+        (* The following split must be replace, fixed *)
+        let (thisData,remData) = split appdata.bytes thisLen in
+        ((thisLen,{bytes = thisData}), ({tlens = remLens},{bytes = remData}))
+    | [] -> ((0,{bytes = [||]}),(lens,appdata))
+
+let pub_fragment (ki:KeyInfo) (data:bytes) : ((int * fragment) * bytes) = (* TODO, which target size should we stick to? *)
+    unexpectedError "[TODO] not implemented yet"
+
+type mac = {bytes: bytes}
+type plain = {bytes: bytes}
+
+let concat_fragment_mac_pad (ki:KeyInfo) tlen (data:fragment) (mac:mac) =
+    let step1 = data.bytes @| mac.bytes in
+    let padlen = tlen - (Bytearray.length step1) - 1 in (* -1 for the byte containing pad len *)
+    let pad = Array.create (padlen + 1) (byte padlen) in
+    {bytes = step1 @| pad}
+
+let split_mac (ki:KeyInfo) (plainLen:int) (plain:plain) : (fragment * mac) =
+    (* TODO: copy/paste code that parses plaintext immediately after decryption in MtE *)
+    unexpectedError "[TODO] not implemented yet"

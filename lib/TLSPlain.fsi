@@ -11,9 +11,7 @@ val estimateLengths: KeyInfo -> int -> Lengths
 type appdata
 val appdata: KeyInfo -> Lengths -> bytes -> appdata
 
-type fragment =
-  | AppDataFragment of appdata
-  | KeyExchangeData of bytes
+type fragment
 
 val concat_fragment_appdata: KeyInfo -> int -> fragment -> Lengths -> appdata -> appdata
 

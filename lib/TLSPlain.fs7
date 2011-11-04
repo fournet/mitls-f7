@@ -18,7 +18,7 @@ val appdata: ki:KeyInfo -> l:Lengths -> b:bytes{CompatibleLengths(ki,Size(b),l)}
                 (;ki:KeyInfo,l:Lengths) appdata
 
 type (;ki:KeyInfo,n:int) fragment =
-    AppDataFragment of (;ki,n) appdata
+  | AppDataFragment of (;ki,n) appdata
   | KeyExchangeData of bytes
 
 val concat_fragment_appdata: ki:KeyInfo -> n:int -> (;ki,n) fragment -> l:Lengths -> (;ki,l) appdata -> (;ki,Cons(n,l)) appdata
