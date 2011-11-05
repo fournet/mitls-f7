@@ -16,7 +16,7 @@ open Principal
 type clientSpecificState =
     { resumed_session: bool
       must_send_cert: certificateRequest Option
-      client_certificate: (pri_cert list) Option
+      client_certificate: (cert list) Option
     }
 
 type serverSpecificState =
@@ -703,7 +703,7 @@ let parseCertReq ver data =
       signature_and_hash_algorithm = sigAlgs;
       certificate_authorities = distNamesList}
 
-let find_client_cert (certReqMsg:certificateRequest) : (pri_cert list) option =
+let find_client_cert (certReqMsg:certificateRequest) : (cert list) option =
     (* TODO *) None
 
 let parseClientKEX sinfo sSpecState pops data =

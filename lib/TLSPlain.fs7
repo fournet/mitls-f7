@@ -1,54 +1,111 @@
 module TLSPlain
 
-open TLSInfo
+// Abstract types for the secret payloads of the record layer. 
+
+// TODO:
+// - reconcile with streams, understand what the multi-message model is
+// - add support to carry authentication from appdata to fragment and back
+// - when do we deliver messages to receiving applications?
+// - compare with game-based definitions
+
+open TLSInfo 
+// nothing else??
+
+// No need for abstraction? This is public.
+// The head of the list is sent before the tail
+// We need to reorder: we split from the beginning but concat at the end of the buffer.
 
 type Lengths (* abstractly, a list of desired ciphertext lengths *)
 predicate val Head: Lengths -> int
 predicate val Tail: Lengths -> Lengths
 predicate val Cons: (int * Lengths) -> Lengths
 
+// the second parameter n is the net data size
 predicate val CompatibleLengths: (KeyInfo * int * Lengths) -> bool
 val estimateLengths: ki:KeyInfo -> n:int -> l:Lengths{CompatibleLengths(ki,n,l)}
-private val fragmentSize: ki:KeyInfo -> l:Lengths -> n:int{CompatibleLengths(ki,n,l)} -> 
-	                  f:int{CompatibleLengths(ki,n-f,Tail(l))}
+// We could also use something like:
+// val provisionLength: ki:KeyInfo -> min:int -> max:int -> 
+//   ls:Lengths{ !n. min <= n /\ n < max => CompatibleLengths(ki,n,ls) }   
+// ...and more generally let the application add data to the outgoing buffer. 
+
+// Don't we need a CompatibleLength for individual fragments as well?
+// or is this part of the type abstraction? 
+
+// Usage?  
+private val fragmentSize: ki:KeyInfo -> ls:Lengths -> 
+  n:int{CompatibleLengths(ki,n,ls)} -> f:int{CompatibleLengths(ki,n-f,Tail(ls))}
 
 (* Secret App Data *)
-type (;ki:KeyInfo,l:Lengths) appdata (* The full buffer blessed by the application *)
-val appdata: ki:KeyInfo -> l:Lengths -> b:bytes{CompatibleLengths(ki,Size(b),l)} -> 
-                (;ki:KeyInfo,l:Lengths) appdata
 
-type (;ki:KeyInfo,n:int) fragment = (* A single app data fragment, taken form the full blessed buffer *)
-  | AppDataFragment of (;ki,n) appdata
-  | KeyExchangeData of bytes
+// Application-level data, intuitively a whole message. 
+// how does this relates to streams? 
+type (;ki:KeyInfo,ls:Lengths) appdata (* The full buffer blessed by the application *)
+val appdata: ki:KeyInfo -> ls:Lengths -> 
+  b:bytes{CompatibleLengths(ki,Size(b),ls)} -> (;ki,ls) appdata
 
-val concat_fragment_appdata: ki:KeyInfo -> n:int -> (;ki,n) fragment -> l:Lengths -> (;ki,l) appdata -> (;ki,Cons(n,l)) appdata
+// Record-level fragment, with a constructor for each TLS subprotocol
+// The subprotocol (CT) is not considered secret
+// Two missing subprotocols? 
+type (;ki:KeyInfo,n:int) fragment = 
+  | AppDataFragment of (;ki,n) appdata // a fragment of some application data
+  | KeyExchangeData of bytes           // a fragment of some key-exchange message
 
-val app_fragment: ki:KeyInfo -> l:Lengths -> x:(;ki,l) appdata ->  ((n:int{n=Head(l)} * f:(;ki,n) fragment) * 
-								    (t:Lengths{t=Tail(l)} * (;ki,t) appdata))
+val concat_fragment_appdata: 
+  ki:KeyInfo -> n:int -> (;ki,n) fragment -> 
+  ls:Lengths -> (;ki,ls) appdata -> (;ki,Cons(n,ls)) appdata
+
+val app_fragment: ki:KeyInfo -> ls:Lengths -> 
+  x:(;ki,ls) appdata -> 
+  ((n:int{n=Head(ls)} * f:(;ki,n) fragment) * (t:Lengths{t=Tail(ls)} * (;ki,t) appdata))
+// could we write instead { ls = n::t } ?
+// could we omit n and t in the result, and use instead logical expressions? 
 
 val pub_fragment: ki:KeyInfo -> b:bytes -> ((n:int * (;ki,n) fragment) * bytes) 
 (* Note that n is *not* the length of the plaintext, it is the length of the target ciphertext *)
 
-type (;ki:KeyInfo) mac (* The result of a MAC operation *)
+type (;ki:KeyInfo) mac (* a fixed-length MAC tag for ki *)
+// We miss operations on MACs! 
 
 type (;ki:KeyInfo) mac_plain (* The data to be MACed, typically fragment @| add_data *)
 type (;ki:KeyInfo) add_data = bytes (* Additional public data to be included in MAC operations *)
 
 val ad_fragment: ki:KeyInfo -> (;ki) add_data -> (;ki) fragment -> (;ki) mac_plain
 
-type (;ki:KeyInfo,n:int) plain (* Content to be encrypted *)
 
-val concat_fragment_mac_pad: ki:KeyInfo -> n:int -> (;ki,n) fragment -> (;ki) mac -> (;ki,n) plain (* plain includes padding *)
+type (;ki:KeyInfo,n:int) plain // contents to be encrypted (exactly n bytes)
 
-val split_mac: ki:KeyInfo -> n:int -> (;ki,n) plain -> ((;ki,n) fragment * (;ki) mac) (* Returns a random fragment if pad checking fails *)
+/// Concatenating fragments, MACs, and padding when using MAC-then-Encrypt
 
-(* Only for MACOnlyCipherSuites *)
-val fragment_mac_to_cipher: ki:KeyInfo {IsMACOnlyCipherSuite(ki)} ->
-							n:int -> (;ki,n) fragment -> (;ki) mac -> b:bytes{Length(b) = n}
-val cipher_to_fragment_mac: ki:KeyInfo {IsMACOnlyCipherSuite(ki)} ->
-							n:int -> b:bytes{Length(b) = n} -> ((;ki,n) fragment * (;ki) mac)
-(* Only for NullCipherSuites *)
-val fragment_to_cipher: ki:KeyInfo {IsNullCipherSuite(ki)} ->
-						n:int -> (;ki,n) fragment -> b:bytes{Length(b) = n}
-val cipher_to_fragment: ki:KeyInfo {IsNullCipherSuite(ki)} ->
-						n:int -> b:bytes{Length(b) = n} -> (;ki,n) fragment
+val concat_fragment_mac_pad: 
+  ki:KeyInfo -> n:int -> 
+  (;ki,n) fragment -> (;ki) mac -> (;ki,n) plain (* plain includes padding *)
+
+val split_mac: 
+  ki:KeyInfo -> n:int -> 
+  (;ki,n) plain -> ((;ki,n) fragment * (;ki) mac)
+  (* Returns a random fragment if pad checking fails *)
+  // No! But we may instead return a random mac. 
+
+/// Concatenating fragments and MACs for MACOnlyCipherSuites 
+
+val fragment_mac_to_cipher: 
+  ki:KeyInfo {IsMACOnlyCipherSuite(ki)} -> n:int -> 
+  (;ki,n) fragment -> (;ki) mac -> b:bytes{Length(b)=n}
+val cipher_to_fragment_mac: 
+  ki:KeyInfo {IsMACOnlyCipherSuite(ki)} -> n:int -> 
+  b:bytes{Length(b)=n} -> ((;ki,n) fragment * (;ki) mac)
+
+/// Coercing the fragment for NullCipherSuites
+
+val fragment_to_cipher: 
+  ki:KeyInfo {IsNullCipherSuite(ki)} -> n:int -> 
+  (;ki,n) fragment -> b:bytes{Length(b)=n}
+val cipher_to_fragment: 
+  ki:KeyInfo {IsNullCipherSuite(ki)} -> n:int -> 
+  b:bytes{Length(b)=n} -> (;ki,n) fragment
+
+// When we do not encrypt, we may instead just rely
+// on coercions from fragments and macs to concrete bytes
+// (which we may use for corrupted connections too)
+
+

@@ -4,6 +4,9 @@ open TLSPlain
 
 predicate type msg = Msg of ki:keyInfo * (;ki) ltext
 
+// why using this subset of the interface for MACs? 
+// we'll probably need the rest soon.
+
 val MAC: ki:KeyInfo -> (;ki) macKey -> (;ki) mac_plain -> ((;ki) mac) Result
 val VERIFY: ki:KeyInfo -> (;ki) macKey -> (;ki) mac_plain -> (;ki) mac -> 
             unit{CMA(ki) => Msg(ki,t)} Result

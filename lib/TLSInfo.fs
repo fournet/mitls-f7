@@ -13,8 +13,8 @@ type preDirection =
 type Direction = preDirection
 
 type SessionInfo = {
-    clientID: pri_cert option
-    serverID: pri_cert option
+    clientID: cert option
+    serverID: cert option
     sessionID: sessionID option
     protocol_version: ProtocolVersionType
     cipher_suite: cipherSuite

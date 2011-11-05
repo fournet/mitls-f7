@@ -96,7 +96,7 @@ type serverHello = {
 
 (* (Server and Client) Certificate *)
 
-type certificate = { certificate_list: pri_cert list }
+type certificate = { certificate_list: cert list }
 
 (* Server Key Exchange *)
 (* TODO *)

@@ -6,7 +6,7 @@ open OtherCrypto
 open System.Security.Cryptography
 open System.Security.Cryptography.X509Certificates
 
-type pri_cert =
+type cert =
     | PriCert of X509Certificate2
 
 let certificate_of_bytes (cert_list:bytes) =

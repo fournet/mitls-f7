@@ -12,6 +12,7 @@ type Lengths = {tlens: int list}
 let max_TLSPlaintext_fragment_length = 1<<<14 (* just a reminder *)
 let fragmentLength = max_TLSPlaintext_fragment_length (* 1 *)
 
+// We need a typable version; not so hard (but we may need axioms on arrays)
 (* No way the following will typecheck. I use native byte/int conversions *)
 let compute_padlen ki len =
     let alg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
