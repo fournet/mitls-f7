@@ -215,7 +215,6 @@ let send_setVersion conn pv = {conn with local_pv = pv }
 let send_setCrypto ki key iv =
     initConnState ki key iv ki.sinfo.protocol_version
 
-(* To be moved into Dipsatch, or the layer handling the network channel *)  
 let parse_header conn header =
   let [x;y;z] = splitList header [1;2] in
   let ct = contentType_of_byte x.[0] in
@@ -229,7 +228,7 @@ let parse_header conn header =
     (* We commit to the received protocol version.
        In fact, this only changes the protcol version when receiving the first fragment *)
     let conn = {conn with local_pv = pv} in
-    correct (ct,pv,len)
+    correct (conn,ct,len)
 
 (* This should be moved somewhere in TLSPlain, when we split fragment and mac out of the decrypted plaintext, in MtE *)
 (*
@@ -333,7 +332,11 @@ let recv conn =
         correct (ct,msg,conn)
 *)
 
-let recordPacketIn conn tlen ct payload =
+let recordPacketIn conn packet =
+    let (header,payload) = split packet 5 in
+    match parse_header conn header with
+    | Error(x,y) -> Error(x,y)
+    | Correct (conn,ct,tlen) ->
     let cs = conn.rec_ki.sinfo.cipher_suite in
     let msgRes =
         match cs with
@@ -365,7 +368,7 @@ let recordPacketIn conn tlen ct payload =
     | Correct (msg) ->
     *)
     let conn = incSeqNum conn in
-    correct(conn,msg)
+    correct(conn,ct,msg)
 
 
 let recv_setVersion conn pv =

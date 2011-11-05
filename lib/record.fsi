@@ -25,7 +25,7 @@ val send_setVersion: sendState -> ProtocolVersionType -> sendState
 val send_setCrypto:  KeyInfo -> recordKey -> ENC.ivOpt -> sendState
 
 (* val dataAvailable: recvState -> bool Result *)
-val recordPacketIn: recvState -> int -> ContentType -> bytes -> (recvState * fragment) Result
+val recordPacketIn: recvState -> bytes -> (recvState * ContentType * fragment) Result
 val recv_setVersion: recvState -> ProtocolVersionType -> recvState (* server-side only *)
 val recv_checkVersion: recvState -> ProtocolVersionType -> unit Result    (* client-side only *)
 val recv_setCrypto:  KeyInfo -> recordKey -> ENC.ivOpt -> recvState
