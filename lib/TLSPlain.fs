@@ -87,7 +87,10 @@ let fragmentSize (ki:KeyInfo) (lens:Lengths) (appdataLen:int) =
 let app_fragment (ki:KeyInfo) lens (appdata:appdata) : ((int * fragment) * (Lengths * appdata)) =
     (* FIXME: given the cipertext target length, we should get a *smaller* plaintext fragment
        (so that MAC and padding can be added back). In fact, we want to call "fragmentSize" inside this function.
-       Right now, we *wrongly* return a fragment which is as big as the target lenght *)
+       Right now, we *wrongly* return a fragment which is as big as the target lenght.
+       Moreover, we should also perform compression *now*. After we extract the next fragment from appdata, we compress it
+       and only after we return it. The target length will be compatible with the compressed length, because the
+       estimateLengths function takes compression into account. *)
     match lens.tlens with
     | thisLen::remLens ->
         (* The following split must be replace, fixed *)
@@ -100,12 +103,12 @@ let pub_fragment (ki:KeyInfo) (data:bytes) : ((int * fragment) * bytes) = (* TOD
 
 type mac = {bytes: bytes}
 
-type add_data = {bytes: bytes}
+type add_data = bytes
 type mac_plain = {bytes: bytes}
 
 let ad_fragment (ki:KeyInfo) (ad:add_data) (frag:fragment) =
     let plainLen = Bytearray.bytes_of_int 2 (Bytearray.length frag.bytes) in
-    let fullData = ad.bytes @| plainLen in 
+    let fullData = ad @| plainLen in 
     {bytes = fullData @| frag.bytes}
 
 type plain = {bytes: bytes}
@@ -119,6 +122,27 @@ let concat_fragment_mac_pad (ki:KeyInfo) tlen (data:fragment) (mac:mac) =
 let split_mac (ki:KeyInfo) (plainLen:int) (plain:plain) : (fragment * mac) =
     (* TODO: copy/paste code that parses plaintext immediately after decryption in MtE *)
     unexpectedError "[TODO] not implemented yet"
+
+(* Only for MACOnlyCipherSuites *)
+let fragment_mac_to_cipher (ki:KeyInfo) (n:int) (f:fragment) (m:mac) = (* TODO: check lengths are ok *)
+    f.bytes @| m.bytes
+let cipher_to_fragment_mac (ki:KeyInfo) (n:int) (c:bytes) : fragment * mac = (* TODO: check lengths are ok *)
+    let cs = ki.sinfo.cipher_suite in
+    let maclen = Algorithms.macLength (macAlg_of_ciphersuite cs) in
+    let macStart = (Bytearray.length c) - maclen
+    if macStart < 0 then
+        (* FIXME: is this safe?
+           I (AP) think so because our locally computed mac will have some different length.
+           Also timing is not an issue, because the attacker can guess the check should fail anyway. *)
+        ({bytes = c},{bytes = [||]})
+    else
+        let (frag,mac) = split c macStart in
+        ({bytes = frag},{bytes = mac})
+(* Olny for NullCipherSuites *)
+let fragment_to_cipher (ki:KeyInfo) (n:int) (f:fragment) = (* TODO: check lengths are ok *)
+    f.bytes
+let cipher_to_fragment (ki:KeyInfo) (n:int) (c:bytes) : fragment = (* TODO: check lengths are ok *)
+    {bytes = c}
 
 (* Only to be used by trusted crypto libraries MAC, ENC *)
 let mac_plain_to_bytes (mplain:mac_plain) = mplain.bytes

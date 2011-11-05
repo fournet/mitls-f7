@@ -23,7 +23,7 @@ val pub_fragment: KeyInfo -> bytes -> ((int * fragment) * bytes)
 type mac
 
 type mac_plain
-type add_data
+type add_data = bytes
 
 val ad_fragment: KeyInfo -> add_data -> fragment -> mac_plain
 
@@ -32,6 +32,13 @@ type plain
 val concat_fragment_mac_pad: KeyInfo -> int -> fragment -> mac -> plain (* plain includes padding *)
 
 val split_mac: KeyInfo -> int -> plain -> (fragment * mac) (* Returns a random fragment if pad checking fails *)
+
+(* Only for MACOnlyCipherSuites *)
+val fragment_mac_to_cipher: KeyInfo -> int -> fragment -> mac -> bytes
+val cipher_to_fragment_mac: KeyInfo -> int -> bytes -> (fragment * mac)
+(* Only for NullCipherSuites *)
+val fragment_to_cipher: KeyInfo -> int -> fragment -> bytes
+val cipher_to_fragment: KeyInfo -> int -> bytes -> fragment
 
 (* Only to be used by trusted crypto libraries MAC, ENC *)
 val mac_plain_to_bytes: mac_plain -> bytes

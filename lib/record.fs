@@ -4,6 +4,7 @@ open Data
 open Bytearray
 open Error_handling
 open TLSInfo
+open TLSPlain
 open Formats
 open HS_ciphersuites
 open AEAD
@@ -22,8 +23,6 @@ type ConnectionState = {
   }
 type sendState = ConnectionState
 type recvState = ConnectionState
-
-type fragment = bytes
 
 type preds = FragmentSend of ConnectionState * ContentType * bytes
 
@@ -49,6 +48,8 @@ let max_TLSPlaintext_fragment_length  = 1<<<14
 let max_TLSCompressed_fragment_length = 1<<<15
 let max_TLSEncrypted_fragment_length  = 1<<<16
 
+(* check_length and make_(de)compression are now internally handled by TLSPlain *)
+(*
 let check_length (item: bytes) max_len result errorType =
     if length item < max_len then
         correct (result)
@@ -67,6 +68,7 @@ let make_decompression conn data =
     match conn.compression with
     | Null -> check_length data max_TLSPlaintext_fragment_length data RecordCompression
     | _ -> Error (RecordCompression, Unsupported)
+*)
 
 // MAC computations
 //Cedric: we should use some generic vlen marshaller for data, 
@@ -101,6 +103,8 @@ let prepareAddData conn ct =
     | x when x >= ProtocolVersionType.TLS_1p0 -> bseq_num @| bct @| bver
     | _ -> unexpectedError "[prepareAddData] invoked on invalid protocol version"
 
+(* Probably already moved into MAC module *)
+(* 
 let verify_mac conn ct compr givenmac =
     match conn.sparams.mac_algorithm with
     | MA_null -> 
@@ -128,8 +132,8 @@ let verify_mac conn ct compr givenmac =
             | _       -> Error (MAC, Unsupported)
         | ProtocolVersionType.SSL_2p0 -> Error (MAC, Unsupported)
         | _ -> unexpectedError "[verify_mac] only to be invoked after a version has been negotiated"
+*)
 
-// this will be outside of authenc 
 let generatePacket ct ver data =
   let l = length data in 
   let bct = [| byte_of_contentType ct |] in
@@ -172,33 +176,32 @@ let getAEADKey key =
 
 (* This will replace send. It's not called send, since it doesn't send anything on the
    network *)
-let recordPacketOut conn ct fragment =
+let recordPacketOut conn tlen ct (fragment:fragment) =
+    (* No need to deal with compression. It is handled internally by TLSPlain,
+       when returning us the next (already compressed!) fragment *)
+    (*
     match make_compression conn.rec_ki.sinfo fragment with
     | Error (x,y) -> Error (x,y)
     | Correct compressed ->
+    *)
     let payloadRes =
         match conn.rec_ki.sinfo.cipher_suite with
-        | x when isNullCipherSuite x -> correct (conn,compressed)
+        | x when isNullCipherSuite x -> correct (conn,fragment_to_cipher conn.rec_ki tlen fragment)
         | x when isOnlyMACCipherSuite x ->
-            let addData = prepareAddData conn ct in
-            let fullAddData = addData @| (bytes_of_int 2 (length compressed)) in
             let key = getMACKey conn.key in
-            let data = fullAddData @| compressed in
+            let addData = prepareAddData conn ct in
+            let data = ad_fragment conn.rec_ki addData fragment in
             match MAC.MAC conn.rec_ki key data with
             | Error(x,y) -> Error(x,y)
-            | Correct(payload) -> correct(conn,payload)
+            | Correct(mac) -> correct(conn,fragment_mac_to_cipher conn.rec_ki tlen fragment mac)
         | _ ->
             let addData = prepareAddData conn ct in
             let key = getAEADKey conn.key in
-            match AEAD.AEAD_ENC conn.rec_ki key conn.ivOpt addData compressed with
+            match AEAD.AEAD_ENC conn.rec_ki key conn.ivOpt tlen addData fragment with
             | Error(x,y) -> Error(x,y)
             | Correct(newIV,payload) ->
-                if PVRequiresExplicitIV conn.rec_ki.sinfo.protocol_version then
-                    let payload = newIV @| payload in
-                    correct(conn,payload)
-                else
-                    let conn = {conn with ivOpt = ENC.SomeIV (newIV)} in
-                    correct(conn,payload)
+                let conn = {conn with ivOpt = newIV} in
+                correct(conn,payload)
     match payloadRes with
     | Error(x,y) -> Error(x,y)
     | Correct(conn, payload) ->
@@ -211,7 +214,8 @@ let send_setVersion conn pv = {conn with local_pv = pv }
 
 let send_setCrypto ki key iv =
     initConnState ki key iv ki.sinfo.protocol_version
-      
+
+(* To be moved into Dipsatch, or the layer handling the network channel *)  
 let parse_header conn header =
   let [x;y;z] = splitList header [1;2] in
   let ct = contentType_of_byte x.[0] in
@@ -227,59 +231,8 @@ let parse_header conn header =
     let conn = {conn with local_pv = pv} in
     correct (ct,pv,len)
 
-let get_iv_ciphertext version bulk_cipher_algorithm iv ciphertext =
-    let bs = get_block_cipher_size bulk_cipher_algorithm in
-    match version with
-    | x when x = ProtocolVersionType.TLS_1p1 || x = ProtocolVersionType.TLS_1p2 -> (split ciphertext bs)
-    | x when x = ProtocolVersionType.SSL_3p0 || x = ProtocolVersionType.TLS_1p0 -> (iv,ciphertext)
-    | x when x = ProtocolVersionType.SSL_2p0 -> unexpectedError "[get_iv_ciphertext] Unsupported protocol version, but the caller should ensure we are not called."
-    | _ -> unexpectedError "[get_iv_ciphertext] Protocol version must be known when getting the IV"
-
-
-let decrypt_fun block_cipher_algorithm key iv data  =
-    match block_cipher_algorithm with
-    | BCA_des     -> des_decrypt_wiv_nopad key iv data
-    | BCA_aes_128 -> aes_decrypt_wiv_nopad key iv data
-    | BCA_aes_256 -> aes_decrypt_wiv_nopad key iv data
-    | _           -> Error (Encryption, Unsupported) (* FIXME: other block BCAs are truly unsupported, but other stream BCAs (e.g. null) are in fact "unexpectedErrors" *)
-
-let block_decrypt conn_state data = 
-    match conn_state.cipher_state with
-    | BlockCipherState (key,iv) ->
-        (let ver = conn_state.protocol_version in
-        match ver with
-        | ProtocolVersionType.SSL_2p0 -> Error(Encryption,Unsupported)
-        | _ ->
-        let (iv,data) = get_iv_ciphertext ver
-                                          conn_state.sparams.bulk_cipher_algorithm
-                                          iv data in
-        match decrypt_fun conn_state.sparams.bulk_cipher_algorithm key iv data with
-        | Error (x,y) -> Error (x,y)
-        | Correct plain ->
-        match check_length plain max_TLSCompressed_fragment_length plain Encryption with
-        | Error (x,y) -> Error (x,y) 
-        | Correct plain ->
-            let next_iv = compute_next_iv ver conn_state.sparams.bulk_cipher_algorithm data in
-            let conn_state = { conn_state with cipher_state = BlockCipherState(key,next_iv) } in
-            correct (conn_state, plain))
-    | _ -> unexpectedError "[block_decrypt] invoked with a non BlockCipherState" 
-
-
-let decrypt conn_state (payload:bytes) =
-    (* Assume payload has correct maximum length.
-       Check that the compressed fragment has the correct maximum length *)
-    let sp = conn_state.sparams in
-    match sp.cipher_type with
-    | CT_stream ->
-        match sp.bulk_cipher_algorithm with
-        | BCA_null -> check_length payload max_TLSCompressed_fragment_length (conn_state, payload) Encryption
-        | _ -> Error (Encryption, Unsupported) (* FIXME: other stream BCAs are truly unsupported, but other block BCAs (e.g. aes, des) are in fact "unexpectedErrors" *)
-    | CT_block -> block_decrypt conn_state payload 
-
-let check_padding_cont (data:bytes)  =
-   correct (data)
-//Cedric: ?
-
+(* This should be moved somewhere in TLSPlain, when we split fragment and mac out of the decrypted plaintext, in MtE *)
+(*
 let check_padding sp version (data:bytes) =
     let dlen = length data in
     let (tmpdata, padlenb) = split data (dlen - 1) in
@@ -291,7 +244,7 @@ let check_padding sp version (data:bytes) =
         match version with
         | v when v >= ProtocolVersionType.TLS_1p1 ->
             (* Pretend we have a valid padding of length zero *)
-            check_padding_cont data
+            correct (data)
         | v when v = ProtocolVersionType.SSL_3p0 || v = ProtocolVersionType.TLS_1p0 ->
             (* in TLS1.0/SSL we fail now, in more recent versions we fail later, see sec.6.2.3.2 Implementation Note *)
             Error (RecordPadding,CheckFailed)
@@ -303,14 +256,14 @@ let check_padding sp version (data:bytes) =
         | v when v = ProtocolVersionType.TLS_1p0 || v = ProtocolVersionType.TLS_1p1 || v = ProtocolVersionType.TLS_1p2 ->
             let expected = createBytes padlen padlen in
             if equalBytes expected pad then
-                check_padding_cont data_no_pad
+                correct (data_no_pad)
             else
                 (* in TLS1.0 we fail now, in more recent versions we fail later, see sec.6.2.3.2 Implementation Note *)
                 if  v = ProtocolVersionType.TLS_1p0 then
                     Error (RecordPadding,CheckFailed)
                 else
                     (* Pretend we have a valid padding of length zero *)
-                    check_padding_cont data
+                    correct (data)
         | ProtocolVersionType.SSL_3p0 ->
             (* Padding is random in SSL_3p0, no check to be done on its content.
                However, its length should be at most on bs
@@ -322,7 +275,7 @@ let check_padding sp version (data:bytes) =
                    be secure with this respect *)
                 Error (RecordPadding,CheckFailed)
             else
-                check_padding_cont data_no_pad
+                correct (data_no_pad)
         | ProtocolVersionType.SSL_2p0 -> Error(RecordPadding,Unsupported)
         | _ -> unexpectedError "[check_padding] Protocol version should be known when checking the padding."
 
@@ -337,7 +290,11 @@ let parse_plaintext conn_state data =
         let hash_size = get_hash_size conn_state.sparams.mac_algorithm in
         let mac_start = (length data_no_pad) - hash_size in
         correct (split data_no_pad mac_start)
- 
+*)
+
+
+(* Legacy implementation of recv. Now replaced by recordPacketIn, which does not deal with the network channel *)
+(* 
 let recv conn =
     let net = conn.net_conn in
 //Cedric: we need refinements to keep track of lengths, starting from TCP.read etc
@@ -374,45 +331,26 @@ let recv conn =
         | Correct (msg) ->
         let conn = incSeqNum conn in
         correct (ct,msg,conn)
+*)
 
-let split_mac cs data =
-    let maclen = Algorithms.macLength (macAlg_of_ciphersuite cs) in
-    let macStart = (length data) - maclen
-    if macStart < 0 then
-        Error(MAC,CheckFailed)
-    else
-        correct (split data macStart)
-
-let recordPacketIn conn ct payload =
+let recordPacketIn conn tlen ct payload =
     let cs = conn.rec_ki.sinfo.cipher_suite in
     let msgRes =
         match cs with
-        | x when isNullCipherSuite x -> correct(conn,payload)
+        | x when isNullCipherSuite x -> correct(conn,cipher_to_fragment conn.rec_ki tlen payload)
         | x when isOnlyMACCipherSuite x ->
-            match split_mac cs payload with
+            let (msg,mac) = cipher_to_fragment_mac conn.rec_ki tlen payload in
+            let addData = prepareAddData conn ct in
+            let toVerify = ad_fragment conn.rec_ki addData msg in
+            let key = getMACKey conn.key in
+            match MAC.VERIFY conn.rec_ki key toVerify mac with
             | Error(x,y) -> Error(x,y)
-            | Correct(msg,mac) ->
-                let addData = prepareAddData conn ct in
-                let fullAddData = addData @| (bytes_of_int 2 (length msg)) in
-                let toVerify = fullAddData @| msg in
-                let key = getMACKey conn.key in
-                match MAC.VERIFY conn.rec_ki key toVerify mac with
-                | Error(x,y) -> Error(x,y)
-                | Correct(_) ->
-                    correct(conn,msg)
+            | Correct(_) ->
+                correct(conn,msg)
         | _ ->
             let addData = prepareAddData conn ct in
             let key = getAEADKey conn.key in
-            let (iv,payload) =
-                if PVRequiresExplicitIV conn.local_pv then
-                    let encAlg = encAlg_of_ciphersuite cs in
-                    let ivLen = Algorithms.ivSize encAlg in
-                    split payload ivLen
-                else
-                    match conn.ivOpt with
-                    | ENC.SomeIV (iv) -> (iv,payload)
-                    | ENC.NoneIV -> unexpectedError "[recordPacketIn] An IV should always be in the state if the protocol version requries so."
-            match AEAD.AEAD_DEC conn.rec_ki key iv addData payload with
+            match AEAD.AEAD_DEC conn.rec_ki key conn.ivOpt tlen addData payload with
             | Error(x,y) -> Error(x,y)
             | Correct (newIV, plain) ->
                 let conn = {conn with ivOpt = newIV} in
@@ -420,9 +358,12 @@ let recordPacketIn conn ct payload =
     match msgRes with
     | Error(x,y) -> Error(x,y)
     | Correct (conn,msg) ->
+    (* We now always return the compressed fragment. Decompression is handled internally by TLSPlain *)
+    (*
     match make_decompression conn.rec_ki.sinfo msg with
     | Error(x,y) -> Error(x,y)
     | Correct (msg) ->
+    *)
     let conn = incSeqNum conn in
     correct(conn,msg)
 
