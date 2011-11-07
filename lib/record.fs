@@ -70,28 +70,6 @@ let make_decompression conn data =
     | _ -> Error (RecordCompression, Unsupported)
 *)
 
-// MAC computations
-//Cedric: we should use some generic vlen marshaller for data, 
-//        avoid appendList, marshall seq_num and ct later,
-//        and maybe pass a "ver option" to merge the two cases.
-
-(* I’d like to merge the two functions
-   compute_mac_ssl_blob bseq_num bct data
-   compute_mac_tls_blob bseq_num bct bver data
-into 
-  MACed 
-  (n:seqnum)
-  (ct:ContentType)
-  (version:ProtocolVersionType)
-  (data:bytes)
-so that (1) the marshalling is hidden, and (2) we can prove this function injective, with no special case for older SSLs
-
--> b:bytes { b = MACbytes(n,ct,version,data) }
-
-ask MACbytes(n0,ct0,v0,d0) = MACbytes(n1,ct1,v1,d1) => n0=n1 /\ ... 
-[for now we use relations, KHashBytes and MACBytes, to be merged]
-*)
-
 let prepareAddData conn ct =
     let version = conn.local_pv in
 
@@ -102,37 +80,6 @@ let prepareAddData conn ct =
     | ProtocolVersionType.SSL_3p0 -> bseq_num @| bct
     | x when x >= ProtocolVersionType.TLS_1p0 -> bseq_num @| bct @| bver
     | _ -> unexpectedError "[prepareAddData] invoked on invalid protocol version"
-
-(* Probably already moved into MAC module *)
-(* 
-let verify_mac conn ct compr givenmac =
-    match conn.sparams.mac_algorithm with
-    | MA_null -> 
-        if equalBytes givenmac empty_bstr 
-          then correct ()
-          else Error (MAC, CheckFailed)
-    | alg -> 
-        let version = conn.protocol_version in
-        let key = conn.mk in
-        let bseq_num = bytes_of_seq conn.seq_num in
-        let bct = bytes_of_contentType ct in
-        let bver = bytes_of_protocolVersionType version in
-        match version with
-        | ProtocolVersionType.SSL_3p0 ->
-            let mmsg = compute_mac_ssl_blob bseq_num bct compr in
-            match alg with
-            | MA_md5  -> keyedHashVerify md5  ssl_pad1_md5  ssl_pad2_md5  key mmsg givenmac
-            | MA_sha1 -> keyedHashVerify sha1 ssl_pad1_sha1 ssl_pad2_sha1 key mmsg givenmac
-            | _       -> Error (MAC, Unsupported)
-        | v when v = ProtocolVersionType.TLS_1p0 || v = ProtocolVersionType.TLS_1p1 || v = ProtocolVersionType.TLS_1p2 ->
-            let data = compute_mac_tls_blob bseq_num bct bver compr in
-            match alg with
-            | MA_md5  -> hmacmd5Verify  key data givenmac
-            | MA_sha1 -> hmacsha1Verify key data givenmac
-            | _       -> Error (MAC, Unsupported)
-        | ProtocolVersionType.SSL_2p0 -> Error (MAC, Unsupported)
-        | _ -> unexpectedError "[verify_mac] only to be invoked after a version has been negotiated"
-*)
 
 let generatePacket ct ver data =
   let l = length data in 
@@ -174,7 +121,7 @@ let getAEADKey key =
     | RecordAEADKey k -> k
     | _ -> unexpectedError "[getMACKey] invoked on invalid key"
 
-(* This will replace send. It's not called send, since it doesn't send anything on the
+(* This replaces send. It's not called send, since it doesn't send anything on the
    network *)
 let recordPacketOut conn tlen ct (fragment:fragment) =
     (* No need to deal with compression. It is handled internally by TLSPlain,
@@ -191,9 +138,9 @@ let recordPacketOut conn tlen ct (fragment:fragment) =
             let key = getMACKey conn.key in
             let addData = prepareAddData conn ct in
             let data = ad_fragment conn.rec_ki addData fragment in
-            match MAC.MAC conn.rec_ki key data with
+            match MAC.MAC conn.rec_ki key (mac_plain_to_bytes data) with
             | Error(x,y) -> Error(x,y)
-            | Correct(mac) -> correct(conn,fragment_mac_to_cipher conn.rec_ki tlen fragment mac)
+            | Correct(mac) -> correct(conn,fragment_mac_to_cipher conn.rec_ki tlen fragment (bytes_to_mac mac))
         | _ ->
             let addData = prepareAddData conn ct in
             let key = getAEADKey conn.key in
@@ -229,68 +176,6 @@ let parse_header conn header =
        In fact, this only changes the protcol version when receiving the first fragment *)
     let conn = {conn with local_pv = pv} in
     correct (conn,ct,len)
-
-(* This should be moved somewhere in TLSPlain, when we split fragment and mac out of the decrypted plaintext, in MtE *)
-(*
-let check_padding sp version (data:bytes) =
-    let dlen = length data in
-    let (tmpdata, padlenb) = split data (dlen - 1) in
-    let padlen = int_of_bytes 1 padlenb in
-    let padstart = dlen - padlen - 1 in
-    if padstart < 0 then
-        (* Evidently padding has been corrupted, or has been incorrectly generated *)
-        (* in TLS1.0 we fail now, in more recent versions we fail later, see sec.6.2.3.2 Implementation Note *)
-        match version with
-        | v when v >= ProtocolVersionType.TLS_1p1 ->
-            (* Pretend we have a valid padding of length zero *)
-            correct (data)
-        | v when v = ProtocolVersionType.SSL_3p0 || v = ProtocolVersionType.TLS_1p0 ->
-            (* in TLS1.0/SSL we fail now, in more recent versions we fail later, see sec.6.2.3.2 Implementation Note *)
-            Error (RecordPadding,CheckFailed)
-        | ProtocolVersionType.SSL_2p0 -> Error(RecordPadding,Unsupported)
-        | _ -> unexpectedError "[check_padding] Protocol version should be known when checking the padding."
-    else
-        let (data_no_pad,pad) = split tmpdata padstart in
-        match version with
-        | v when v = ProtocolVersionType.TLS_1p0 || v = ProtocolVersionType.TLS_1p1 || v = ProtocolVersionType.TLS_1p2 ->
-            let expected = createBytes padlen padlen in
-            if equalBytes expected pad then
-                correct (data_no_pad)
-            else
-                (* in TLS1.0 we fail now, in more recent versions we fail later, see sec.6.2.3.2 Implementation Note *)
-                if  v = ProtocolVersionType.TLS_1p0 then
-                    Error (RecordPadding,CheckFailed)
-                else
-                    (* Pretend we have a valid padding of length zero *)
-                    correct (data)
-        | ProtocolVersionType.SSL_3p0 ->
-            (* Padding is random in SSL_3p0, no check to be done on its content.
-               However, its length should be at most on bs
-               (See sec 5.2.3.2 of SSL 3 draft). Enforce this check (which
-               is performed by openssl, and not by wireshark for example). *)
-            let bs = get_block_cipher_size sp.bulk_cipher_algorithm in
-            if padlen >= bs then
-                (* Insecurely report the error. Only TLS 1.1 and above should
-                   be secure with this respect *)
-                Error (RecordPadding,CheckFailed)
-            else
-                correct (data_no_pad)
-        | ProtocolVersionType.SSL_2p0 -> Error(RecordPadding,Unsupported)
-        | _ -> unexpectedError "[check_padding] Protocol version should be known when checking the padding."
-
-let parse_plaintext conn_state data =
-    let result_depadding =
-        match conn_state.sparams.cipher_type with
-        | CT_block -> check_padding conn_state.sparams conn_state.protocol_version data
-        | CT_stream -> correct (data)
-    match result_depadding with
-    | Error (x,y) -> Error (x,y)
-    | Correct data_no_pad ->
-        let hash_size = get_hash_size conn_state.sparams.mac_algorithm in
-        let mac_start = (length data_no_pad) - hash_size in
-        correct (split data_no_pad mac_start)
-*)
-
 
 (* Legacy implementation of recv. Now replaced by recordPacketIn, which does not deal with the network channel *)
 (* 
@@ -346,7 +231,7 @@ let recordPacketIn conn packet =
             let addData = prepareAddData conn ct in
             let toVerify = ad_fragment conn.rec_ki addData msg in
             let key = getMACKey conn.key in
-            match MAC.VERIFY conn.rec_ki key toVerify mac with
+            match MAC.VERIFY conn.rec_ki key (mac_plain_to_bytes toVerify) (mac_to_bytes mac) with
             | Error(x,y) -> Error(x,y)
             | Correct(_) ->
                 correct(conn,msg)
