@@ -5,5 +5,7 @@ open Error_handling
 open TLSInfo
 open TLSPlain
 
-val MAC: KeyInfo -> HMAC.macKey -> mac_plain -> mac Result
-val VERIFY: KeyInfo -> HMAC.macKey -> mac_plain -> mac -> unit Result
+type macKey
+
+val MAC: KeyInfo -> macKey -> mac_plain -> mac Result
+val VERIFY: KeyInfo -> macKey -> mac_plain -> mac -> unit Result

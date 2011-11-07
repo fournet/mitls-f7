@@ -4,6 +4,8 @@ open TLSPlain
 
 predicate type msg = Msg of ki:keyInfo * (;ki) ltext
 
+type macKey
+
 // why using this subset of the interface for MACs? 
 // we'll probably need the rest soon.
 

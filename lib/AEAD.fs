@@ -8,7 +8,7 @@ open Error_handling
 open TLSPlain
 
 type AEADKey =
-    | MtE of HMAC.macKey * ENC.symKey
+    | MtE of MAC.macKey * ENC.symKey
  (* | GCM of GCM.GCMKey *)
 
 (* No way the following will typecheck. I use native byte/int conversions *)
