@@ -4,5 +4,9 @@ open Data
 open Algorithms
 open Error_handling
 
-val HMAC: hashAlg -> bytes -> bytes -> bytes Result
-val HMACVERIFY: hashAlg -> bytes -> bytes -> bytes -> unit Result
+type key = bytes
+type data = bytes
+type mac = bytes
+
+val HMAC: hashAlg -> key -> data -> mac Result
+val HMACVERIFY: hashAlg -> key -> data -> mac -> unit Result

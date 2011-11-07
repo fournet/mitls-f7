@@ -41,10 +41,10 @@ let AEAD_ENC ki key ivOpt tlen data plain =
     match key with
     | MtE (macKey,encKey) ->
         let text = ad_fragment ki data plain in
-        match MAC.MAC ki macKey text with
+        match MAC.MAC ki macKey (mac_plain_to_bytes text) with
         | Error(x,y) -> Error(x,y)
         | Correct (mac) ->
-            let toEncrypt = concat_fragment_mac_pad ki tlen plain mac in
+            let toEncrypt = concat_fragment_mac_pad ki tlen plain (bytes_to_mac mac) in
             ENC.ENC ki encKey ivOpt tlen toEncrypt
             
  (* | GCM (GCMKey) -> ... *)
@@ -106,34 +106,26 @@ let AEAD_DEC ki key iv tlen data cipher =
         match ENC.DEC ki encKey iv tlen cipher with
         | Error(x,y) -> Error(x,y)
         | Correct (ivOpt,compr_and_mac_and_pad) ->
-            let (compr,mac) = split_mac ki tlen compr_and_mac_and_pad in
-            (* Move part of the following code into TLSPlain, as the implementation of split_mac
-               Note we won't use MustFail anymore, rather a random fragment will be returned,
-               so MAC check will fail for sure. *)
-            (* 
-            match check_padding ki compr_and_mac_and_pad with
-            | Error(x,y) -> Error(x,y)
-            | Correct(compr_and_mac,mustFail) ->
-                let macAlg = macAlg_of_ciphersuite ki.sinfo.cipher_suite in
-                let macLen = macLength macAlg in
-                let macStart = (safeLen compr_and_mac) - macLen in
-                let (mustFail,macStart) = 
-                    if macStart < 0 then
-                        (true,0)
-                    else
-                        (mustFail,macStart)
-                let (compr,mac) = safeSplit (compr_and_mac) macStart in
-            *)
+            let (mustFail,(compr,mac)) = split_mac ki tlen compr_and_mac_and_pad in
             let toVerify = ad_fragment ki data compr in
-                match MAC.VERIFY ki macKey toVerify mac with
+            (* If mustFail is true, it means some padding error occurred.
+               If in early versions of TLS, insecurely report a padding error now *)
+            match ki.sinfo.protocol_version with
+            | ProtocolVersionType.SSL_3p0 | ProtocolVersionType.TLS_1p0 ->
+                if mustFail then
+                    Error(RecordPadding,CheckFailed)
+                else
+                    match MAC.VERIFY ki macKey (mac_plain_to_bytes toVerify) (mac_to_bytes mac) with
+                    | Error(x,y) -> Error(x,y)
+                    | Correct(_) -> correct(ivOpt,compr)
+            | x when x >= ProtocolVersionType.TLS_1p1 ->
+                match MAC.VERIFY ki macKey (mac_plain_to_bytes toVerify) (mac_to_bytes mac) with
                 | Error(x,y) -> Error(x,y)
                 | Correct(_) ->
-                    (* MAC will always fail if padding was wrong, because fragment is random *)
-                    (*
                     if mustFail then
                         Error(MAC,CheckFailed)
                     else
-                    *)
-                    correct (ivOpt,compr)
+                        correct (ivOpt,compr)
+            | _ -> unexpectedError "[AEAD_DEC] wrong protocol version"
 
  (* | GCM (GCMKey) -> ... *)

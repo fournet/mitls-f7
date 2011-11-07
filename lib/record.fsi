@@ -14,7 +14,7 @@ type recvState = ConnectionState
 
 type recordKey =
     | RecordAEADKey of AEAD.AEADKey
-    | RecordMACKey of HMAC.macKey
+    | RecordMACKey of MAC.macKey
     | NoneKey
 
 val create: KeyInfo -> KeyInfo -> ProtocolVersionType -> sendState * recvState

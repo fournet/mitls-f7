@@ -57,9 +57,6 @@
     <Compile Include="formats.fs" />
     <Compile Include="TLSInfo.fsi" />
     <Compile Include="TLSInfo.fs" />
-    <None Include="TLSPlain.fs7" />
-    <Compile Include="TLSPlain.fsi" />
-    <Compile Include="TLSPlain.fs" />
     <Compile Include="HASH.fsi" />
     <Compile Include="HASH.fs" />
     <Compile Include="HMAC.fsi" />
@@ -67,6 +64,9 @@
     <None Include="MAC.fs7" />
     <Compile Include="MAC.fsi" />
     <Compile Include="MAC.fs" />
+    <None Include="TLSPlain.fs7" />
+    <Compile Include="TLSPlain.fsi" />
+    <Compile Include="TLSPlain.fs" />
     <None Include="ENC.fs7" />
     <Compile Include="ENC.fsi" />
     <Compile Include="ENC.fs" />

@@ -3,7 +3,10 @@
 open Data
 open Algorithms
 open Error_handling
-open TLSPlain
+
+type key = bytes
+type data = bytes
+type mac = bytes
 
 (* Raw hmac algorithms, can throw exceptions *)
 let hmacmd5 key (data:bytes) =

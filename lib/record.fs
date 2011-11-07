@@ -11,7 +11,7 @@ open AEAD
 
 type recordKey =
     | RecordAEADKey of AEADKey
-    | RecordMACKey of HMAC.macKey
+    | RecordMACKey of MAC.macKey
     | NoneKey
 
 type ConnectionState = {

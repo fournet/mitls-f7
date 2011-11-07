@@ -31,7 +31,7 @@ type plain
 
 val concat_fragment_mac_pad: KeyInfo -> int -> fragment -> mac -> plain (* plain includes padding *)
 
-val split_mac: KeyInfo -> int -> plain -> (fragment * mac) (* Returns a random fragment if pad checking fails *)
+val split_mac: KeyInfo -> int -> plain -> (bool * (fragment * mac))
 
 (* Only for MACOnlyCipherSuites *)
 val fragment_mac_to_cipher: KeyInfo -> int -> fragment -> mac -> bytes

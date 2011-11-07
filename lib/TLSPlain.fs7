@@ -31,7 +31,8 @@ val estimateLengths: ki:KeyInfo -> n:int -> l:Lengths{CompatibleLengths(ki,n,l)}
 // Don't we need a CompatibleLength for individual fragments as well?
 // or is this part of the type abstraction? 
 
-// Usage?  
+// Usage?
+// FIXME: AP: we don't use 'n' in the fsi interface. Can we get rid of it here, that would simplify implementation
 private val fragmentSize: ki:KeyInfo -> ls:Lengths -> 
   n:int{CompatibleLengths(ki,n,ls)} -> f:int{CompatibleLengths(ki,n-f,Tail(ls))}
 
@@ -45,15 +46,19 @@ val appdata: ki:KeyInfo -> ls:Lengths ->
 
 // Record-level fragment, with a constructor for each TLS subprotocol
 // The subprotocol (CT) is not considered secret
-// Two missing subprotocols? 
+// Two missing subprotocols?
+// Each fragment is already compressed, if TLS-level compression is enabled. Compression is handled
+// transparently by the TLSPlain module, and nowhere else.
 type (;ki:KeyInfo,n:int) fragment = 
   | AppDataFragment of (;ki,n) appdata // a fragment of some application data
   | KeyExchangeData of bytes           // a fragment of some key-exchange message
 
+// also TLS-level decompress the fragment before appending
 val concat_fragment_appdata: 
   ki:KeyInfo -> n:int -> (;ki,n) fragment -> 
   ls:Lengths -> (;ki,ls) appdata -> (;ki,Cons(n,ls)) appdata
 
+// appdata is uncompressed, the returned fragment is TLS-level compressed
 val app_fragment: ki:KeyInfo -> ls:Lengths -> 
   x:(;ki,ls) appdata -> 
   ((n:int{n=Head(ls)} * f:(;ki,n) fragment) * (t:Lengths{t=Tail(ls)} * (;ki,t) appdata))
@@ -63,10 +68,10 @@ val app_fragment: ki:KeyInfo -> ls:Lengths ->
 val pub_fragment: ki:KeyInfo -> b:bytes -> ((n:int * (;ki,n) fragment) * bytes) 
 (* Note that n is *not* the length of the plaintext, it is the length of the target ciphertext *)
 
-type (;ki:KeyInfo) mac (* a fixed-length MAC tag for ki *)
+type (;ki:KeyInfo) mac = MAC.mac (* a fixed-length MAC tag for ki *)
 // We miss operations on MACs! 
 
-type (;ki:KeyInfo) mac_plain (* The data to be MACed, typically fragment @| add_data *)
+type (;ki:KeyInfo) mac_plain = MAC.mac_plain (* The data to be MACed, typically fragment @| add_data *)
 type (;ki:KeyInfo) add_data = bytes (* Additional public data to be included in MAC operations *)
 
 val ad_fragment: ki:KeyInfo -> (;ki) add_data -> (;ki) fragment -> (;ki) mac_plain
