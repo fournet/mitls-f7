@@ -6,7 +6,7 @@ open Tcp
 open Error_handling
 open Record
 open Handshake
-open Sessions
+open TLSInfo
 open AppCommon
 
 type preConnection

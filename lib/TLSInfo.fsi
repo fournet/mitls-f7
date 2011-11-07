@@ -23,6 +23,8 @@ type SessionInfo = {
     init_srand: bytes
     }
 
+val init_sessionInfo: SessionInfo
+
 type KeyInfo = {
     sinfo: SessionInfo
     dir: Direction
@@ -31,3 +33,5 @@ type KeyInfo = {
  (* cVerifyData: bytes
     sVerifyData: bytes *)
     }
+
+val init_KeyInfo: SessionInfo -> Direction -> KeyInfo

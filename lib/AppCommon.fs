@@ -4,6 +4,12 @@ open Formats
 open HS_ciphersuites
 open Principal
 
+type prerole =
+    | ClientRole
+    | ServerRole
+
+type role = prerole
+
 type helloReqPolicy =
     | HRPIgnore
     | HRPFull

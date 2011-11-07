@@ -8,7 +8,7 @@ open Error_handling
 open Handshake
 open AppData
 open Alert
-open Sessions
+open TLSInfo
 open AppCommon
 
 type predispatchState =
@@ -28,7 +28,7 @@ type dState = {
     }
 
 type preConnection = {
-  ds_info: SessionInfo;
+  ds_info : SessionInfo;
   poptions: protocolOptions;
   (* abstract protocol states for HS/CCS, AL, and AD *)
   handshake: Handshake.hs_state
@@ -38,6 +38,9 @@ type preConnection = {
   (* connection state for reading and writing *)
   read  : dState;
   write : dState;
+
+  (* The actual socket *)
+  ns: NetworkStream;
   }
 
 type Connection = preConnection
@@ -45,19 +48,27 @@ type Connection = preConnection
 type preds = DebugPred of Connection
 
 let init ns role poptions =
-    let (info,hs) = Handshake.init_handshake role poptions in
-    let (send,recv) = Record.create ns info poptions.minVer in
+    let hs = Handshake.init_handshake init_sessionInfo role poptions in
+    let (outDir,inDir) = 
+        match role with
+        | ClientRole ->
+            (CtoS,StoC)
+        | ServerRole ->
+            (StoC,CtoS)
+    let (outKI,inKI) = (init_KeyInfo init_sessionInfo outDir, init_KeyInfo init_sessionInfo inDir) in
+    let (send,recv) = Record.create outKI inKI poptions.minVer in
     let read_state = {disp = Init; conn = recv} in
     let write_state = {disp = Init; conn = send} in
-    let al = Alert.init info  in
-    let app = AppData.init info in
-    { ds_info = info;
+    let al = Alert.init init_sessionInfo  in
+    let app = AppData.init init_sessionInfo in
+    { ds_info = init_sessionInfo;
       poptions = poptions;
       handshake = hs;
       alert = al;
       appdata = app;
       read = read_state;
-      write = write_state}
+      write = write_state;
+      ns=ns;}
 
 let resume ns info ops =
     let hs = Handshake.resume_handshake info ops in

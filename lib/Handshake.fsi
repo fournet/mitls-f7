@@ -14,7 +14,7 @@ type protoState
 type pre_hs_state
 type hs_state = pre_hs_state
 
-val init_handshake: role -> protocolOptions -> SessionInfo * hs_state
+val init_handshake: SessionInfo -> role -> protocolOptions -> hs_state
 
 val resume_handshake: SessionInfo -> protocolOptions -> hs_state
 

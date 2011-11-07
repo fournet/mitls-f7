@@ -3,11 +3,6 @@ module Formats
 open Data
 open HS_ciphersuites
 
-type prerole =
-    | ClientRole
-    | ServerRole
-type role = prerole
-
 val bytes_of_seq: int -> bytes
 
 (* val split_at_most: bytes -> int -> (bytes * bytes) *)

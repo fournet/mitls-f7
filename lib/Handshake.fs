@@ -859,40 +859,37 @@ let prepare_client_output_resumption hs_state sinfo =
                                       hs_renegotiation_info_cVerifyData = cVerifyData} in
         correct (hs_state)
 
-let init_handshake role poptions =
-    let info = init_sessionInfo role in
+let init_handshake initInfo role poptions =
     match role with
     | ClientRole ->
         let (cHelloBytes,client_random) = makeCHelloBytes poptions empty_bstr empty_bstr in
-        let state = {hs_outgoing = cHelloBytes
-                     ccs_outgoing = None
-                     hs_outgoing_after_ccs = empty_bstr
-                     hs_incoming = empty_bstr
-                     ccs_incoming = None
-                     hs_info = info
-                     poptions = poptions
-                     pstate = Client (ServerHello(None))
-                     hs_msg_log = cHelloBytes
-                     hs_client_random = client_random
-                     hs_server_random = empty_bstr
-                     hs_renegotiation_info_cVerifyData = empty_bstr
-                     hs_renegotiation_info_sVerifyData = empty_bstr} in
-        (info,state)
+        {hs_outgoing = cHelloBytes
+         ccs_outgoing = None
+         hs_outgoing_after_ccs = empty_bstr
+         hs_incoming = empty_bstr
+         ccs_incoming = None
+         hs_info = initInfo
+         poptions = poptions
+         pstate = Client (ServerHello(None))
+         hs_msg_log = cHelloBytes
+         hs_client_random = client_random
+         hs_server_random = empty_bstr
+         hs_renegotiation_info_cVerifyData = empty_bstr
+         hs_renegotiation_info_sVerifyData = empty_bstr}
     | ServerRole ->
-        let state = {hs_outgoing = empty_bstr
-                     ccs_outgoing = None
-                     hs_outgoing_after_ccs = empty_bstr
-                     hs_incoming = empty_bstr
-                     ccs_incoming = None
-                     hs_info = info
-                     poptions = poptions
-                     pstate = Server (ClientHello)
-                     hs_msg_log = empty_bstr
-                     hs_client_random = empty_bstr
-                     hs_server_random = empty_bstr
-                     hs_renegotiation_info_cVerifyData = empty_bstr
-                     hs_renegotiation_info_sVerifyData = empty_bstr} in
-        (info,state)
+        {hs_outgoing = empty_bstr
+         ccs_outgoing = None
+         hs_outgoing_after_ccs = empty_bstr
+         hs_incoming = empty_bstr
+         ccs_incoming = None
+         hs_info = initInfo
+         poptions = poptions
+         pstate = Server (ClientHello)
+         hs_msg_log = empty_bstr
+         hs_client_random = empty_bstr
+         hs_server_random = empty_bstr
+         hs_renegotiation_info_cVerifyData = empty_bstr
+         hs_renegotiation_info_sVerifyData = empty_bstr}
 
 let resume_handshake info poptions =
     let sidOp = info.sessionID in

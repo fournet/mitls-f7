@@ -4,12 +4,6 @@ open Data
 open Bytearray
 open Error_handling
 
-type prerole =
-    | ClientRole
-    | ServerRole
-
-type role = prerole
-
 type preContentType =
     | Change_cipher_spec
     | Alert

@@ -38,9 +38,9 @@ let initConnState ki key iv pv =
     local_pv = pv;
   }
 
-let create in_ki out_ki minpv =
-    let sendState = initConnState out_ki NoneKey ENC.NoneIV minpv in
-    let recvState = initConnState in_ki NoneKey ENC.NoneIV ProtocolVersionType.UnknownPV in
+let create out_ki in_ki minpv =
+    let sendState = initConnState out_ki NoneKey (ENC.NoneIV ()) minpv in
+    let recvState = initConnState in_ki NoneKey (ENC.NoneIV ()) ProtocolVersionType.UnknownPV in
     (sendState, recvState)
 
 // to be enforced statically, inasmuch as possible

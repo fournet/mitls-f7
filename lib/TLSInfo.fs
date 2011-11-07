@@ -40,3 +40,10 @@ type KeyInfo = {
     crand: bytes
     srand: bytes
     }
+
+let init_KeyInfo sinfo dir =
+    {sinfo = sinfo;
+     dir = dir;
+     crand = empty_bstr;
+     srand = empty_bstr;
+    }

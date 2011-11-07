@@ -5,7 +5,7 @@ open Bytearray
 open AppCommon
 open Dispatch
 open Error_handling
-open Sessions
+open TLSInfo
 
 let write conn d =
     writeOneAppFragment conn d
