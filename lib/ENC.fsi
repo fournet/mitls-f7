@@ -9,7 +9,7 @@ type symKey
 type iv = bytes
 type ivOpt =
     | SomeIV of iv
-    | NoneIV
+    | NoneIV of unit
 type cipher = bytes
 
 val ENC: KeyInfo -> symKey -> ivOpt -> int -> plain -> (ivOpt * cipher) Result

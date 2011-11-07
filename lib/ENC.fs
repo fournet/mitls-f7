@@ -13,7 +13,7 @@ type symKey = {bytes:bytes}
 type iv = bytes
 type ivOpt =
     | SomeIV of iv
-    | NoneIV
+    | NoneIV of unit
 type cipher = bytes
 
 (* Raw symmetric enc/dec functions -- can throw exceptions *)
@@ -90,7 +90,7 @@ let ENC ki key ivopt (tlen:int) data =
     let iv =
         match ivopt with
         | SomeIV (b) -> b
-        | NoneIV ->
+        | NoneIV () ->
             let ivLen = ivSize alg in
             OtherCrypto.mkRandom ivLen
     let res =
@@ -107,16 +107,16 @@ let ENC ki key ivopt (tlen:int) data =
         | SomeIV (_) ->
             let nextIV = get_next_iv alg encr
             correct (SomeIV (nextIV), encr)
-        | NoneIV ->
+        | NoneIV () ->
             let res = iv @| encr in
-            correct (NoneIV,res)
+            correct (NoneIV (),res)
 
 let DEC ki key ivopt (tlen:int) data =
     (* Should never be invoked on a stream (right now) encryption algorithm *)
     let alg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
     let (iv,data) =
         match ivopt with
-        | NoneIV -> split_iv alg data
+        | NoneIV () -> split_iv alg data
         | SomeIV (b) -> (b,data)
     let res =
         match alg with
@@ -129,7 +129,7 @@ let DEC ki key ivopt (tlen:int) data =
     | Correct (decr) ->
         let decr = bytes_to_plain decr in
         match ivopt with
-        | NoneIV -> correct (NoneIV, decr)
+        | NoneIV () -> correct (NoneIV (), decr)
         | SomeIV (_) ->
             let nextIV = get_next_iv alg data in
             correct (SomeIV(nextIV), decr)

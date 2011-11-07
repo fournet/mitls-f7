@@ -1,13 +1,24 @@
 ﻿module ENC
 
+open TLSPlain
+
 type (;ki:KeyInfo) symKey
 
-type (;ki:KeyInfo) iv = IVSome of iv{ki.ver = } | IVNone of unit{ki.ver..}
+type iv = bytes
+type (;ki:KeyInfo) ivOpt =
+	| SomeIV of iv{ki.sinfo.protocol_version = ProtocolVersionType.SSL_3p0 \/
+				   ki.sinfo.protocol_version = ProtocolVersionType.TLS_1p0}
+	| NoneIV of unit{ki.sinfo.protocol_version >= ProtocolVersionType.TLS_1p1}
 
 
-type (;ki:KeyInfo) cipher = bytes
+type (;ki:KeyInfo,n:int) cipher = bytes
 
+predicate val ENCrypted:
+  (ki:KeyInfo * (;ki) symKey * n:int * (;ki,n) plain * (;ki,n) cipher) -> bool
 
+// Add the ENCed predicate?
 
-val ENC: ki:KeyInfo -> (;ki) symKey -> (;ki) ivOpt -> n:int -> (;ki) plain -> ((;ki) ivOpt * cipher) Result
-val DEC: ki:KeyInfo -> (;ki) symKey -> (;ki) ivOpt -> n:int -> (;ki) cipher -> ((;ki) ivOpt * plain) Result
+val ENC: ki:KeyInfo -> k:(;ki) symKey -> (;ki) ivOpt -> n:int -> p:(;ki,n) plain ->
+		((;ki) ivOpt * c:(;ki,n)cipher{ENCrypted(ki,k,n,p,c)}) Result
+val DEC: ki:KeyInfo -> k:(;ki) symKey -> (;ki) ivOpt -> n:int -> c:(;ki,n) cipher ->
+		((;ki) ivOpt * p:(;ki,n)plain{ENCrypted(ki,k,n,p,c)}) Result
