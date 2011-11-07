@@ -5,7 +5,7 @@ open TLSInfo
 open Error_handling
 open TLSPlain
 
-type symKey = bytes
+type symKey
 type iv = bytes
 type ivOpt =
     | SomeIV of iv

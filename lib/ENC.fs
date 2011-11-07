@@ -9,7 +9,7 @@ open TLSInfo
 open TLSPlain
 open Formats
 
-type symKey = bytes
+type symKey = {bytes:bytes}
 type iv = bytes
 type ivOpt =
     | SomeIV of iv
@@ -37,9 +37,9 @@ let commonDec dec (data:bytes) =
 let aesEncrypt (key:symKey) iv data =
     try
         let aesObj = new System.Security.Cryptography.AesManaged() in
-        aesObj.KeySize <- 8 * key.Length
+        aesObj.KeySize <- 8 * key.bytes.Length
         aesObj.Padding <- System.Security.Cryptography.PaddingMode.None
-        let enc = aesObj.CreateEncryptor(key,iv) in
+        let enc = aesObj.CreateEncryptor(key.bytes,iv) in
         commonEnc enc data
     with
     | _ -> Error(Encryption, Internal)
@@ -47,9 +47,9 @@ let aesEncrypt (key:symKey) iv data =
 let aesDecrypt (key:symKey) iv (data:bytes) =
     try
         let aesObj = new System.Security.Cryptography.AesManaged() in
-        aesObj.KeySize <- 8 * key.Length
+        aesObj.KeySize <- 8 * key.bytes.Length
         aesObj.Padding <- System.Security.Cryptography.PaddingMode.None;
-        let dec = aesObj.CreateDecryptor(key,iv) in
+        let dec = aesObj.CreateDecryptor(key.bytes,iv) in
         commonDec dec data
     with
     | _ -> Error(Encryption, Internal)
@@ -58,7 +58,7 @@ let threeDesEncrypt (key:symKey) iv data =
     try
         let tdesObj = new System.Security.Cryptography.TripleDESCryptoServiceProvider() in
         tdesObj.Padding <- System.Security.Cryptography.PaddingMode.None
-        let enc = tdesObj.CreateEncryptor(key,iv) in
+        let enc = tdesObj.CreateEncryptor(key.bytes,iv) in
         commonEnc enc data
     with
     | _ -> Error(Encryption, Internal)
@@ -67,7 +67,7 @@ let threeDesDecrypt (key:symKey) iv (data:bytes) =
     try
         let tdesObj = new System.Security.Cryptography.TripleDESCryptoServiceProvider() in
         tdesObj.Padding <- System.Security.Cryptography.PaddingMode.None;
-        let dec = tdesObj.CreateDecryptor(key,iv) in
+        let dec = tdesObj.CreateDecryptor(key.bytes,iv) in
         commonDec dec data
     with
     | _ -> Error(Encryption, Internal)
