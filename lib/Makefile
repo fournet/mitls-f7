@@ -6,13 +6,14 @@ all: record.dll Dispatch.dll TLS.dll
 lib7=../../../lib/fs7-interfaces/
 libperv = $(lib7)pervasives.fs7 $(lib7)tuples.fs7
 lperv = -pervasives $(lib7)pervasives.fs7 -tuples $(lib7)tuples.fs7
-libfs7 = $(lib7)formulas.fs7 $(lib7)pi.fs7 $(lib7)data.fs7 $(lib7)list.fs7 $(lib7)xml.fs7 $(lib7)crypto.fs7 $(lib7)db.fs7 $(lib7)bytearray.fs7
+libfs7 = $(lib7)formulas.fs7 $(lib7)pi.fs7 $(lib7)data.fs7 $(lib7)list.fs7 $(lib7)xml.fs7 $(lib7)db.fs7 $(lib7)bytearray.fs7
 
-recordfs7 = Error.fs7 tcp.fs7 Principal.fs7 formats.fs7 Stream.fs7 CryptoTLS.fs7 HS_ciphersuites.fs7 Sessions.fs7 record.fs7 
-recordfsi = Error.fsi tcp.fsi Principal.fsi formats.fsi Stream.fsi CryptoTLS.fsi HS_ciphersuites.fsi Sessions.fsi record.fsi 
-recordfs = Error.fs tcp.fs Principal.fs formats.fs Stream.fs CryptoTLS.fs HS_ciphersuites.fs Sessions.fs record.fs 
-recordfs-a = Error.fs  tcp-a.fs  Sessions.fs  formats.fs CryptoTLS.fs record.fs 
+recordfs7 = Error.fs7 tcp.fs7 OtherCrypto.fs7 Principal.fs7 Algorithms.fs7 HS_ciphersuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 MAC.fs7 TLSPlain.fs7 ENC.fs7 AEAD.fs7 Stream.fs7 record.fs7 
+recordfsi = Error.fsi tcp.fsi OtherCrypto.fsi Principal.fsi Algorithms.fsi HS_ciphersuites.fsi formats.fsi TLSInfo.fsi HASH.fsi HMAC.fsi MAC.fsi TLSPlain.fsi ENC.fsi AEAD.fsi Stream.fsi record.fsi
+recordfs = Error.fs tcp.fs OtherCrypto.fs Principal.fs Algorithms.fs HS_ciphersuites.fs formats.fs TLSInfo.fs HASH.fs HMAC.fs MAC.fs TLSPlain.fs ENC.fs AEAD.fs Stream.fs record.fs
+#recordfs-a = Error.fs  tcp-a.fs  Sessions.fs  formats.fs CryptoTLS.fs record.fs 
 
+# TODO: not yet up-to-date with the new code structure.
 dispatchfs7 = AppCommon.fs7 SessionDB.fs7 HS_msg.fs7 Handshake.fs7 AppData.fs7 Alert.fs7 Dispatch.fs7
 dispatchfsi = AppCommon.fsi SessionDB.fsi HS_msg.fsi Handshake.fsi AppData.fsi Alert.fsi Dispatch.fsi
 dispatchfs = AppCommon.fs SessionDB.fs HS_msg.fs Handshake.fs AppData.fs Alert.fs Dispatch.fs
