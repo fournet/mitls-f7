@@ -6,15 +6,16 @@ module Alert
 open Data
 open Error_handling
 open Record
-open Sessions
+open TLSPlain
+open TLSInfo
 
 type pre_al_state
 type al_state = pre_al_state
 
 type ALFragReply =
     | EmptyALFrag
-    | ALFrag of bytes
-    | LastALFrag of bytes
+    | ALFrag of (int * fragment)
+    | LastALFrag of (int * fragment)
 
 type alert_reply =
     | ALAck of al_state

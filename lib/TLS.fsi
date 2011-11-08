@@ -112,7 +112,7 @@ val connect: NetworkStream -> protocolOptions -> (unit Result) * Connection
     should be "compatible" with the resumed session, but we have no way to
     enforce this at the moment.
 *)
-val resume: NetworkStream -> SessionInfo -> protocolOptions -> (unit Result) * Connection
+val resume: NetworkStream -> sessionID -> protocolOptions -> (unit Result) * Connection
 
 (* Old Connection, new Session:
     Asks to start a new full handshake over the existing connection.

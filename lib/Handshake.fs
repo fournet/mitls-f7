@@ -891,37 +891,30 @@ let init_handshake initInfo role poptions =
          hs_renegotiation_info_cVerifyData = empty_bstr
          hs_renegotiation_info_sVerifyData = empty_bstr}
 
-let resume_handshake info poptions =
-    let sidOp = info.sessionID in
-    match sidOp with
-    | None -> unexpectedError "[resume_handshake] must be invoked on a resumable session (that is, with a non-null session ID)."
-    | Some (sid) ->
-        (* FIXME: Probably, the followin SessionDB interaction should be in dispatcher *)
-        (* Ensure the sid is in the SessionDB *)
-        match SessionDB.select poptions sid with
-        | None -> unexpectedError "[resume_handshake] requested session expired or never stored in DB"
-        | Some (retrievedSinfo) ->
-            if not (info = retrievedSinfo) then
-                unexpectedError "[resume_handshake] given session info and stored session info mismatch"
-            else
-                match info.role with
-                | ClientRole ->
-                    let (cHelloBytes,client_random) = makeCHelloBytes poptions sid empty_bstr in
-                    let state = {hs_outgoing = cHelloBytes
-                                 ccs_outgoing = None
-                                 hs_outgoing_after_ccs = empty_bstr
-                                 hs_incoming = empty_bstr
-                                 ccs_incoming = None
-                                 hs_info = info
-                                 poptions = poptions
-                                 pstate = Client (ServerHello(Some(info)))
-                                 hs_msg_log = cHelloBytes
-                                 hs_client_random = client_random
-                                 hs_server_random = empty_bstr
-                                 hs_renegotiation_info_cVerifyData = empty_bstr
-                                 hs_renegotiation_info_sVerifyData = empty_bstr} in
-                    state
-                | ServerRole -> unexpectedError "[resume_handshake] should only be invoked on clients."
+let resume_handshake sid poptions =
+    (* Ensure the sid is in the SessionDB *)
+    match SessionDB.select poptions sid with
+    | None -> unexpectedError "[resume_handshake] requested session expired or never stored in DB"
+    | Some (retrievedStoredSession) ->
+        (* Set up our state as a client. Servers cannot resume *)
+        let (cHelloBytes,client_random) = makeCHelloBytes poptions sid empty_bstr in
+        (* FIXME: we likely need to store the ms in the HS state. ms is available from retrievedStoredSession.ms, but
+           we don't use it right now (probably because in the code we use sinfo.ms, which should be replaced by
+           hs_state.ms *)
+        let state = {hs_outgoing = cHelloBytes
+                     ccs_outgoing = None
+                     hs_outgoing_after_ccs = empty_bstr
+                     hs_incoming = empty_bstr
+                     ccs_incoming = None
+                     hs_info = retrievedStoredSession.sinfo
+                     poptions = poptions
+                     pstate = Client (ServerHello(Some(retrievedStoredSession.sinfo)))
+                     hs_msg_log = cHelloBytes
+                     hs_client_random = client_random
+                     hs_server_random = empty_bstr
+                     hs_renegotiation_info_cVerifyData = empty_bstr
+                     hs_renegotiation_info_sVerifyData = empty_bstr} in
+        (retrievedStoredSession.sinfo, state)
 
 let start_rehandshake (state:hs_state) (ops:protocolOptions) =
     match state.pstate with

@@ -7,6 +7,7 @@ open Error_handling
 open Formats
 open HS_msg
 open TLSInfo
+open TLSPlain
 open AppCommon
 
 type protoState
@@ -16,7 +17,8 @@ type hs_state = pre_hs_state
 
 val init_handshake: SessionInfo -> role -> protocolOptions -> hs_state
 
-val resume_handshake: SessionInfo -> protocolOptions -> hs_state
+(* Only client side *)
+val resume_handshake: sessionID -> protocolOptions -> (SessionInfo * hs_state)
 
 val start_rehandshake: hs_state -> protocolOptions -> hs_state
 val start_rekey: hs_state -> protocolOptions -> hs_state
@@ -32,10 +34,10 @@ val resume: SessionInfo -> hs_state (* resume on different connection; only clie
 
 type HSFragReply =
   | EmptyHSFrag
-  | HSFrag of bytes
-  | HSWriteSideFinished of bytes
-  | HSFullyFinished_Write of bytes * SessionInfo
-  | CCSFrag of bytes * ccs_data
+  | HSFrag of (int * fragment)
+  | HSWriteSideFinished of (int * fragment)
+  | HSFullyFinished_Write of (int * fragment) * SessionInfo
+  | CCSFrag of (int * fragment) * ccs_data
 
 val next_fragment: hs_state -> int -> (HSFragReply * hs_state)
 

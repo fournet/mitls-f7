@@ -73,8 +73,6 @@
     <None Include="AEAD.fs7" />
     <Compile Include="AEAD.fsi" />
     <Compile Include="AEAD.fs" />
-    <Compile Include="PRFs.fsi" />
-    <Compile Include="PRFs.fs" />
     <Compile Include="Stream.fsi" />
     <Compile Include="Stream.fs" />
     <None Include="record.fs7" />
@@ -82,6 +80,8 @@
     <Compile Include="record.fs" />
     <Compile Include="AppCommon.fsi" />
     <Compile Include="AppCommon.fs" />
+    <Compile Include="PRFs.fsi" />
+    <Compile Include="PRFs.fs" />
     <Compile Include="SessionDB.fsi" />
     <Compile Include="SessionDB.fs" />
     <Compile Include="HS_msg.fsi" />

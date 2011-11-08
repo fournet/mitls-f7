@@ -50,8 +50,8 @@ let connect ns ops =
     let conn = Dispatch.init ns ClientRole ops in
     int_consume conn
 
-let resume ns info ops =
-    match Dispatch.resume ns info ops with
+let resume ns sid ops =
+    match Dispatch.resume ns sid ops with
     | (Error(x,y),conn) -> (Error(x,y),conn)
     | (Correct (_), conn) -> int_consume conn
 

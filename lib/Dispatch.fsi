@@ -14,7 +14,7 @@ type Connection = preConnection
 
 val init: NetworkStream -> role -> protocolOptions -> Connection
 
-val resume: NetworkStream -> SessionInfo -> protocolOptions -> unit Result * Connection
+val resume: NetworkStream -> sessionID -> protocolOptions -> unit Result * Connection
 
 val ask_rehandshake: Connection -> protocolOptions -> Connection
 val ask_rekey: Connection -> protocolOptions -> Connection

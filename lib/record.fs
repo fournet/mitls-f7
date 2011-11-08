@@ -14,6 +14,12 @@ type recordKey =
     | RecordMACKey of MAC.macKey
     | NoneKey
 
+type ccs_data =
+    { ki: KeyInfo;
+      key: recordKey;
+      ivOpt: ENC.ivOpt;
+    }
+
 type ConnectionState = {
   rec_ki: KeyInfo;
   key: recordKey;
@@ -159,8 +165,8 @@ let recordPacketOut conn tlen ct (fragment:fragment) =
 
 let send_setVersion conn pv = {conn with local_pv = pv }
 
-let send_setCrypto ki key iv =
-    initConnState ki key iv ki.sinfo.protocol_version
+let send_setCrypto ccs_data =
+    initConnState ccs_data.ki ccs_data.key ccs_data.ivOpt ccs_data.ki.sinfo.protocol_version
 
 let parse_header conn header =
   let [x;y;z] = splitList header [1;2] in
@@ -265,5 +271,5 @@ let recv_checkVersion conn pv =
     else
         Error(RecordVersion,CheckFailed)
 
-let recv_setCrypto ki key iv =
-    initConnState ki key iv ki.sinfo.protocol_version
+let recv_setCrypto ccs_data =
+    initConnState ccs_data.ki ccs_data.key ccs_data.ivOpt ccs_data.ki.sinfo.protocol_version

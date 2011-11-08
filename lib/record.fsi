@@ -17,18 +17,24 @@ type recordKey =
     | RecordMACKey of MAC.macKey
     | NoneKey
 
+type ccs_data =
+    { ki: KeyInfo;
+      key: recordKey;
+      ivOpt: ENC.ivOpt;
+    }
+
 val create: KeyInfo -> KeyInfo -> ProtocolVersionType -> sendState * recvState
 (* we do not explicitly close connection states *)
 
 val recordPacketOut: sendState -> int -> ContentType -> fragment -> (sendState * bytes) Result
 val send_setVersion: sendState -> ProtocolVersionType -> sendState
-val send_setCrypto:  KeyInfo -> recordKey -> ENC.ivOpt -> sendState
+val send_setCrypto:  ccs_data -> sendState
 
 (* val dataAvailable: recvState -> bool Result *)
 val recordPacketIn: recvState -> bytes -> (recvState * ContentType * fragment) Result
 val recv_setVersion: recvState -> ProtocolVersionType -> recvState (* server-side only *)
 val recv_checkVersion: recvState -> ProtocolVersionType -> unit Result    (* client-side only *)
-val recv_setCrypto:  KeyInfo -> recordKey -> ENC.ivOpt -> recvState
+val recv_setCrypto:  ccs_data -> recvState
 
 (* val coherentrw: SessionInfo -> recvState -> sendState -> bool *)
 

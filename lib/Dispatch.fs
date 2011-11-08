@@ -70,24 +70,25 @@ let init ns role poptions =
       write = write_state;
       ns=ns;}
 
-let resume ns info ops =
-    let hs = Handshake.resume_handshake info ops in
-    let (send,recv) = Record.create ns info ops.minVer in
+let resume ns sid ops =
+    (* Only client side, can never be server side *)
+    let (sinfo,hs) = Handshake.resume_handshake sid ops in
+    let (outKI,inKI) = (init_KeyInfo sinfo CtoS, init_KeyInfo sinfo StoC) in
+    let (send,recv) = Record.create outKI inKI ops.minVer in
     let read_state = {disp = Init; conn = recv} in
     let write_state = {disp = Init; conn = send} in
-    let al = Alert.init info  in
-    let app = AppData.init info in
-    let res = { ds_info = info;
+    let al = Alert.init sinfo  in
+    let app = AppData.init sinfo in
+    let res = { ds_info = sinfo;
                 poptions = ops;
                 handshake = hs;
                 alert = al;
                 appdata = app;
                 read = read_state;
-                write = write_state}
+                write = write_state;
+                ns = ns;}
     let unitVal = () in
-    match info.role with
-    | ClientRole -> (correct (unitVal), res)
-    | ServerRole -> (Error(Dispatcher,WrongInputParameters),res)
+    (correct (unitVal), res)
 
 let ask_rehandshake conn ops =
     let new_hs = Handshake.start_rehandshake conn.handshake ops in
@@ -151,6 +152,15 @@ let closeConnection c =
     let new_write = {c.write with disp = Closed} in
     {c with read = new_read; write = new_write}
 
+(* Dispatch dealing with network sockets *)
+let send ns conn tlen ct frag =
+    match Record.recordPacketOut conn tlen ct frag with
+    | Error(x,y) -> Error(x,y)
+    | Correct(conn,data) ->
+        match Tcp.write ns data with
+        | Error(x,y) -> Error(x,y)
+        | Correct(_) -> correct(conn)
+
 (* which fragment should we send next? *)
 (* we must send this fragment before restoring the connection invariant *)
 let next_fragment n (c:Connection) : (bool Result) * Connection =
@@ -168,26 +178,25 @@ let next_fragment n (c:Connection) : (bool Result) * Connection =
                 match AppData.next_fragment app_state n with
                 | None -> (* nothing to do (tell the caller) *)
                           (correct (false),c)
-                | Some x ->
-                          let (f,new_app_state) = x in
+                | Some ((tlen,f),new_app_state) ->
                           match c_write.disp with
                           | Open ->
                           (* we send some data fragment *)
-                            match Record.send c_write.conn Application_data f with
+                            match send c.ns c_write.conn tlen Application_data f with
                             | Correct(ss) ->
                                 let new_write = { c_write with conn = ss } in
                                 (correct (true), { c with appdata = new_app_state;
                                                           write = new_write } )
                             | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
                           | _ -> (Error(Dispatcher,InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
-          | (CCSFrag(ccs,cp),new_hs_state) ->
+          | (CCSFrag((tlen,ccs),ccs_data),new_hs_state) ->
                     (* we send a (complete) CCS fragment *)
                     match c_write.disp with
                     | x when x = FirstHandshake || x = Open ->
-                        match Record.send c_write.conn Change_cipher_spec ccs with
+                        match send c.ns c_write.conn tlen Change_cipher_spec ccs with
                         | Correct ss -> 
                             (* we change the CS immediately afterward *)
-                            let ss = Record.send_setCrypto ss cp in
+                            let ss = Record.send_setCrypto ccs_data in
                             let new_write = {disp = Finishing; conn = ss} in
                             let new_appdata = AppData.reset_outgoing c.appdata in
                             (correct (true), { c with handshake = new_hs_state;
@@ -195,24 +204,24 @@ let next_fragment n (c:Connection) : (bool Result) * Connection =
                                                       appdata = new_appdata } )
                         | Error (x,y) -> (Error (x,y), closeConnection c) (* Unrecoverable error *)
                     | _ -> (Error(Dispatcher, InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
-          | (HSFrag(f),new_hs_state) ->     
+          | (HSFrag((tlen,f)),new_hs_state) ->     
                       (* we send some handshake fragment *)
                       match c_write.disp with
                       | x when x = Init || x = FirstHandshake ||
                                x = Finishing || x = Open ->
-                          match Record.send c_write.conn Handshake f with 
+                          match send c.ns c_write.conn tlen Handshake f with 
                           | Correct(ss) ->
                             let new_write = {c_write with conn = ss} in
                             (correct (true), { c with handshake = new_hs_state;
                                                       write     = new_write } )
                           | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
                       | _ -> (Error(Dispatcher,InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
-          | (HSWriteSideFinished(lastFrag),new_hs_state) ->
+          | (HSWriteSideFinished((tlen,lastFrag)),new_hs_state) ->
                 (* check we are in finishing state *)
                 match c_write.disp with
                 | Finishing ->
                     (* Send the last fragment *)
-                    match Record.send c_write.conn Handshake lastFrag with 
+                    match send c.ns c_write.conn tlen Handshake lastFrag with 
                           | Correct(ss) ->
                             let c_write = {c_write with conn = ss} in
                             let c = { c with handshake = new_hs_state;
@@ -223,7 +232,7 @@ let next_fragment n (c:Connection) : (bool Result) * Connection =
                             (correct (false), c)
                           | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
                 | _ -> (Error(Dispatcher,InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
-          | (HSFullyFinished_Write(lastFrag,new_info),new_hs_state) ->
+          | (HSFullyFinished_Write((tlen,lastFrag),new_info),new_hs_state) ->
                 match c_write.disp with
                 | Finishing ->
                    (* according to the protocol logic and the dispatcher
@@ -235,7 +244,7 @@ let next_fragment n (c:Connection) : (bool Result) * Connection =
                        (Error(Dispatcher,Internal), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
                    else
                        (* Send the last fragment *)
-                       match Record.send c_write.conn Handshake lastFrag with 
+                       match send c.ns c_write.conn tlen Handshake lastFrag with 
                        | Correct(ss) ->
                          let new_write = {c_write with conn = ss} in
                          let c = { c with handshake = new_hs_state;
@@ -245,16 +254,16 @@ let next_fragment n (c:Connection) : (bool Result) * Connection =
                          (Error(NewSessionInfo,Notification),c)
                        | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
                 | _ -> (Error(Dispatcher,InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
-      | (ALFrag(f),new_al_state) ->        
-        match Record.send c_write.conn Alert f with 
+      | (ALFrag(tlen,f),new_al_state) ->        
+        match send c.ns c_write.conn tlen Alert f with 
         | Correct ss ->
             let new_write = {disp = Closing; conn = ss} in
             (correct (true), { c with alert = new_al_state;
                                       write   = new_write } )
         | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
-      | (LastALFrag(f),new_al_state) ->
+      | (LastALFrag(tlen,f),new_al_state) ->
         (* Same as above, but we set Closed dispatch state, instead of Closing *)
-        match Record.send c_write.conn Alert f with 
+        match send c.ns c_write.conn tlen Alert f with 
         | Correct ss ->
             let new_write = {disp = Closed; conn = ss} in
             (correct (false), { c with alert = new_al_state;
