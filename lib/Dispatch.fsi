@@ -35,3 +35,5 @@ val readOneAppFragment: Connection -> int -> ((bytes Result) * Connection)
 val appDataAvailable: Connection -> bool
 
 val getSessionInfo: Connection -> SessionInfo
+
+val commit: Connection -> bytes -> Connection

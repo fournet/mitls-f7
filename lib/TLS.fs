@@ -7,6 +7,8 @@ open Dispatch
 open Error_handling
 open TLSInfo
 
+(* OpenSSL style write functions. *)
+(*
 let write conn d =
     writeOneAppFragment conn d
     
@@ -23,6 +25,10 @@ let rec writeFully_int conn toSend sent =
 
 let writeFully conn d =
     writeFully_int conn d empty_bstr
+*)
+
+let commit conn b =
+    Dispatch.commit conn b
 
 let read conn len =
     readOneAppFragment conn len

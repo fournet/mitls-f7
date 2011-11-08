@@ -72,6 +72,9 @@ let estimateLengths ki len =
 type appdata = {bytes: bytes}
 
 let appdata (ki:KeyInfo) (lens:Lengths) data = {bytes = data}
+let empty_appdata = {bytes = [||]}
+let is_empty_appdata data =
+    data.bytes = [||]
 
 type fragment = {bytes: bytes}
 

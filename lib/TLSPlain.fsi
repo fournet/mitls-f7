@@ -10,6 +10,8 @@ val estimateLengths: KeyInfo -> int -> Lengths
 (* Secret App Data *)
 type appdata
 val appdata: KeyInfo -> Lengths -> bytes -> appdata
+val empty_appdata: appdata
+val is_empty_appdata: appdata -> bool
 
 type fragment
 

@@ -469,6 +469,11 @@ let writeOneAppFragment conn d =
     | (Correct (x), conn) -> (correct (frag, rem), conn)
     | (Error (x,y), conn) -> (Error(x,y), conn)
 
+let commit conn b =
+    let new_appdata = AppData.send_data conn.appdata b in
+    {conn with appdata = new_appdata}
+
+
 let readOneAppFragment conn n =
     (* Similar to the OpenSSL strategy *)
     let c_appdata = conn.appdata in
