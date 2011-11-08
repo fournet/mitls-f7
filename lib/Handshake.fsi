@@ -6,6 +6,7 @@ open Record
 open Error_handling
 open Formats
 open HS_msg
+open HS_ciphersuites
 open TLSInfo
 open TLSPlain
 open AppCommon

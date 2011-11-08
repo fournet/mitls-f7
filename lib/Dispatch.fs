@@ -361,7 +361,7 @@ let deliver ct f c =
   | Change_cipher_spec, x when x = FirstHandshake || x = Open -> 
     match Handshake.recv_ccs c.handshake f with 
     | (Correct(cryptoparams),hs) ->
-        let new_recv = Record.recv_setCrypto c_read.conn cryptoparams in
+        let new_recv = Record.recv_setCrypto cryptoparams in
         let new_read = {disp = Finishing; conn = new_recv} in
         (* Next statement should have no effect, since we should reach this
            code always with an empty input buffer *)
@@ -394,20 +394,42 @@ let deliver ct f c =
   | UnknownCT, _ -> (Error(Dispatcher,Unsupported),c)
   | _, _ -> (Error(Dispatcher,InvalidState),c)
 
+let parse_header header =
+  (* Mostly the same as Record.parse_header,
+     but here we don't perform any check on the protcol version *)
+  let [x;y;z] = splitList header [1;2] in
+  let ct = contentType_of_byte x.[0] in
+  let pv = HS_ciphersuites.protocolVersionType_of_bytes y in
+  let len = Bytearray.int_of_bytes 2 z in
+  (ct,pv,len)
+
+let recv ns readState =
+    match Tcp.read ns 5 with
+    | Error (x,y) -> Error (x,y)
+    | Correct header ->
+        let (ct,pv,len) = parse_header header in
+        (* No need to check len, since it's on 2 bytes and the max allowed value
+           is 2^16. So, here len is always safe *)
+        match Tcp.read ns len with 
+        | Error (x,y) -> Error (x,y) 
+        | Correct payload ->
+            let fullMsg = header @| payload in
+            Record.recordPacketIn readState fullMsg
+
 let rec readNextAppFragment conn =
     (* If available, read next data *)
     let c_read = conn.read in
     match c_read.disp with
     | Closed -> sendNextFragments conn
     | _ ->
-    match Record.dataAvailable c_read.conn with
+    match Tcp.dataAvailable conn.ns with
     | Error (x,y) -> (Error(x,y),conn)
     | Correct canRead ->
     if canRead then
-        match Record.recv c_read.conn with
+        match recv conn.ns c_read.conn with
         | Error (x,y) -> (Error (x,y),conn) (* TODO: if TCP error, return the error; if recoverable Record error, send Alert *)
         | Correct res ->
-        let (ct,f,recvSt) = res in
+        let (recvSt,ct,f) = res in
         let new_read = {c_read with conn = recvSt} in
         let conn = {conn with read = new_read} in (* update the connection *)
         match deliver ct f conn with
