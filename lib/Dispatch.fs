@@ -163,19 +163,19 @@ let send ns conn tlen ct frag =
 
 (* which fragment should we send next? *)
 (* we must send this fragment before restoring the connection invariant *)
-let next_fragment n (c:Connection) : (bool Result) * Connection =
+let next_fragment (c:Connection) : (bool Result) * Connection =
   let c_write = c.write in
   match c_write.disp with
   | Closed -> unexpectedError "[next_fragment] should never be invoked on a closed connection."
   | _ ->
       let al_state = c.alert in
-      match Alert.next_fragment al_state n with
+      match Alert.next_fragment al_state with
       | (EmptyALFrag,_) -> 
           let hs_state = c.handshake in
-          match Handshake.next_fragment hs_state n with 
+          match Handshake.next_fragment hs_state with 
           | (EmptyHSFrag, _) ->
             let app_state = c.appdata in
-                match AppData.next_fragment app_state n with
+                match AppData.next_fragment app_state with
                 | None -> (* nothing to do (tell the caller) *)
                           (correct (false),c)
                 | Some ((tlen,f),new_app_state) ->
@@ -276,14 +276,14 @@ let rec sendNextFragments c =
     match c_write.disp with
     | Closed -> (correct(unitVal),c)
     | _ ->
-        match next_fragment fragmentLength c with
+        match next_fragment c with
         | (Error (x,y),c) -> (Error(x,y),c)
         | (Correct (again),c) ->
         if again then
             (* be fair: don't do more sending now if we could read *)
             (* note: eventually all buffered data will be sent, they're are already committed
                         to be sent *)
-            match Record.dataAvailable c.read.conn with
+            match Tcp.dataAvailable c.ns with
             | Error (x,y) -> (correct (unitVal),c) (* There's an error with TCP, but we can ignore it right now, and just pretend there are data to send, so the error will show up next time *)
             | Correct dataAv ->
             if dataAv then

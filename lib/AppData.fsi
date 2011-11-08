@@ -31,6 +31,6 @@ val retrieve_data_available: app_state -> bool
 (* Application data to/from dispatcher (hence record) *)
 
 (* Dequeue app data from the output buffer *)
-val next_fragment: app_state -> int -> ((int * fragment) * app_state) option
+val next_fragment: app_state -> ((int * fragment) * app_state) option
 (* Enqueue app data in the input buffer, only called on an empty input buffer *)
 val recv_fragment: app_state -> fragment -> app_state

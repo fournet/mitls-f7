@@ -39,7 +39,7 @@ type HSFragReply =
   | HSFullyFinished_Write of (int * fragment) * SessionInfo
   | CCSFrag of (int * fragment) * ccs_data
 
-val next_fragment: hs_state -> int -> (HSFragReply * hs_state)
+val next_fragment: hs_state -> (HSFragReply * hs_state)
 
 type recv_reply = 
   | HSAck      (* fragment accepted, no visible effect so far *)
