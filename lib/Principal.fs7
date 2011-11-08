@@ -4,7 +4,7 @@
 
 open Data
 open Error_handling
-open Crypto
+open OtherCrypto
 
 type cert
 

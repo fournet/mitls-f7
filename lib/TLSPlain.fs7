@@ -61,7 +61,8 @@ val concat_fragment_appdata:
 // appdata is uncompressed, the returned fragment is TLS-level compressed
 val app_fragment: ki:KeyInfo -> ls:Lengths -> 
   x:(;ki,ls) appdata -> 
-  ((n:int{n=Head(ls)} * f:(;ki,n) fragment) * (t:Lengths{t=Tail(ls)} * (;ki,t) appdata))
+  ((n:(n:int{n=Head(ls)}) * f:(;ki,n) fragment) * 
+   (t:(t:Lengths{t=Tail(ls)}) * (;ki,t) appdata))
 // could we write instead { ls = n::t } ?
 // could we omit n and t in the result, and use instead logical expressions? 
 

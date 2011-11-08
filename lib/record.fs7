@@ -2,12 +2,12 @@ module Record
 
 open Pi
 open Data
-open Bytearray
-open Crypto
-open CryptoTLS
-open Formats 
+open Tcp
+open Formats
 open Error_handling
-open Sessions
+open TLSInfo
+open TLSPlain
+open HS_ciphersuites
 
 type CipherState =
   | BlockCipherState of Crypto.key * bytes
