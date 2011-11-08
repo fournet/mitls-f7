@@ -81,36 +81,26 @@ let concat_fragment_appdata (ki:KeyInfo) (tlen:int) data (lens:Lengths) (appdata
     let resData = data.bytes @| appdata.bytes in
     {bytes = resData}
 
-let fragmentSize (ki:KeyInfo) (tlen:int) =
-    (* Reverse of estimateLengths: return the size of the plaintext fragment to be extracted from appdata.
-       Right now we ignore compression. Shall we take it into account now or later? Probably later. *)
-    let cs = ki.sinfo.cipher_suite in
-    match cs with
-    | x when isNullCipherSuite x ->
-        (* No Padding, No MAC *)
-        tlen
-    | x when isOnlyMACCipherSuite x ->
-        (* Only MAC, subtract it *)
-        let macLen = macLength (macAlg_of_ciphersuite cs) in
-        tlen - macLen
-    | _ ->
-        (* Only valid for MtE; GCM is not taken into account yet *)
-        let macLen = macLength (macAlg_of_ciphersuite cs) in
-        let bs = blockSize (encAlg_of_ciphersuite cs) in
-        tlen - (macLen + 1 + bs) // probably not always working (especially with SSL 3.0, but mostly working
-
 let app_fragment (ki:KeyInfo) lens (appdata:appdata) : ((int * fragment) * (Lengths * appdata)) =
-    (* Given the cipertext target length, we get a *smaller* plaintext fragment
+    (* The idea is: Given the cipertext target length, we get a *smaller* plaintext fragment
        (so that MAC and padding can be added back).
+       In practice: since estimateLengths acts deterministically on the appdata length, we do the same here, and
+       we rely on the fact that the implementation here is the same in estimateLenghts, so that our fragment size is
+       always aligned with the estimated ones.
        TODO: we should also perform compression *now*. After we extract the next fragment from appdata, we compress it
        and only after we return it. The target length will be compatible with the compressed length, because the
        estimateLengths function takes compression into account. *)
     match lens.tlens with
     | thisLen::remLens ->
-        let flen = fragmentSize ki thisLen in
-        let (thisData,remData) = split appdata.bytes flen in
-        (* TODO: apply compression on thisData *)
-        ((thisLen,{bytes = thisData}), ({tlens = remLens},{bytes = remData}))
+        (* Same implementation as estimateLengths, but one fragment at a time *)
+        if Bytearray.length appdata.bytes > fragmentLength then
+            (* get one full fragment of appdata *)
+            (* TODO: apply compression on thisData *)
+            let (thisData,remData) = split appdata.bytes fragmentLength in
+            ((thisLen,{bytes = thisData}),({tlens = remLens},{bytes = remData}))
+        else
+            (* consume all the remaining appdata. assert remLens is the empty list *)
+            ((thisLen,{bytes = appdata.bytes}), ({tlens = remLens},{bytes = [||]}))
     | [] -> ((0,{bytes = [||]}),(lens,appdata))
 
 let pub_fragment (ki:KeyInfo) (data:bytes) : ((int * fragment) * bytes) = (* TODO, which target size should we stick to? *)
