@@ -259,7 +259,7 @@ let recordPacketIn conn packet =
     | Correct (msg) ->
     *)
     let conn = incSeqNum conn in
-    correct(conn,ct,msg)
+    correct(conn,ct,tlen,msg)
 
 
 let recv_setVersion conn pv =

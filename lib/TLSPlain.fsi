@@ -11,15 +11,21 @@ val estimateLengths: SessionInfo -> int -> Lengths
 type appdata
 val appdata: SessionInfo -> Lengths -> bytes -> appdata
 val empty_appdata: appdata
+val empty_lengths: Lengths
 val is_empty_appdata: appdata -> bool
 
 type fragment
 
-val concat_fragment_appdata: KeyInfo -> int -> fragment -> Lengths -> appdata -> appdata
+(* Append the given fragment at the *bottom* of the current appdata *)
+val concat_fragment_appdata: SessionInfo -> int -> fragment -> Lengths -> appdata -> (Lengths * appdata)
 
-val app_fragment: KeyInfo -> Lengths -> appdata ->  ((int * fragment) * (Lengths * appdata))
+(* Exctract the *first* fragment from the *beginning* of appdata *)
+val app_fragment: SessionInfo -> Lengths -> appdata ->  ((int * fragment) * (Lengths * appdata))
 
-val pub_fragment: KeyInfo -> bytes -> ((int * fragment) * bytes) 
+(* Only used by appdata module, to return the received concrete bytes to the application *)
+val get_bytes: appdata -> bytes 
+
+val pub_fragment: SessionInfo -> bytes -> ((int * fragment) * bytes) 
 (* Note that n is *not* the length of the plaintext, it is the length of the target ciphertext *)
 
 type mac

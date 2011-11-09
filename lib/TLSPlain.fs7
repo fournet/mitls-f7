@@ -49,24 +49,28 @@ val appdata: si:SessionInfo -> ls:Lengths ->
 // Two missing subprotocols?
 // Each fragment is already compressed, if TLS-level compression is enabled. Compression is handled
 // transparently by the TLSPlain module, and nowhere else.
-type (;ki:KeyInfo,n:int) fragment = 
-  | AppDataFragment of (;ki.sinfo,n) appdata // a fragment of some application data
+type (;si:SessionInfo,n:int) fragment = 
+  | AppDataFragment of (;si,n) appdata // a fragment of some application data
   | KeyExchangeData of bytes           // a fragment of some key-exchange message
 
 // also TLS-level decompress the fragment before appending
 val concat_fragment_appdata: 
-  ki:KeyInfo -> n:int -> (;ki,n) fragment -> 
-  ls:Lengths -> (;ki.sinfo,ls) appdata -> (;ki.sinfo,Cons(n,ls)) appdata
+  si:SessionInfo -> n:int -> (;si,n) fragment -> 
+  ls:Lengths -> (;si,ls) appdata -> (;si,Cons(n,ls)) appdata
 
 // appdata is uncompressed, the returned fragment is TLS-level compressed
-val app_fragment: ki:KeyInfo -> ls:Lengths -> 
-  x:(;ki.sinfo,ls) appdata -> 
-  ((n:(n:int{n=Head(ls)}) * f:(;ki,n) fragment) * 
-   (t:(t:Lengths{t=Tail(ls)}) * (;ki.sinfo,t) appdata))
+val app_fragment: si:SessionInfo -> ls:Lengths -> 
+  x:(;si,ls) appdata -> 
+  ((n:(n:int{n=Head(ls)}) * f:(;si,n) fragment) * 
+   (t:(t:Lengths{t=Tail(ls)}) * (;si,t) appdata))
 // could we write instead { ls = n::t } ?
 // could we omit n and t in the result, and use instead logical expressions? 
 
-val pub_fragment: ki:KeyInfo -> b:bytes -> ((n:int * (;ki,n) fragment) * bytes) 
+(* Only used by appdata module, to return the received concrete bytes to the application *)
+(* If needed, we can add some SessionInfo and Lengths as input parameters, to parameterize appdata. *)
+val get_bytes: appdata -> bytes
+
+val pub_fragment: si:SessionInfo -> b:bytes -> ((n:int * (;si,n) fragment) * bytes) 
 (* Note that n is *not* the length of the plaintext, it is the length of the target ciphertext *)
 
 type (;ki:KeyInfo) mac = MAC.mac (* a fixed-length MAC tag for ki *)
@@ -75,7 +79,7 @@ type (;ki:KeyInfo) mac = MAC.mac (* a fixed-length MAC tag for ki *)
 type (;ki:KeyInfo) mac_plain = MAC.mac_plain (* The data to be MACed, typically fragment @| add_data *)
 type (;ki:KeyInfo) add_data = bytes (* Additional public data to be included in MAC operations *)
 
-val ad_fragment: ki:KeyInfo -> (;ki) add_data -> (;ki) fragment -> (;ki) mac_plain
+val ad_fragment: ki:KeyInfo -> (;ki) add_data -> (;ki.sinfo) fragment -> (;ki) mac_plain
 
 
 type (;ki:KeyInfo,n:int) plain // contents to be encrypted (exactly n bytes)
@@ -84,11 +88,11 @@ type (;ki:KeyInfo,n:int) plain // contents to be encrypted (exactly n bytes)
 
 val concat_fragment_mac_pad: 
   ki:KeyInfo -> n:int -> 
-  (;ki,n) fragment -> (;ki) mac -> (;ki,n) plain (* plain includes padding *)
+  (;ki.sinfo,n) fragment -> (;ki) mac -> (;ki,n) plain (* plain includes padding *)
 
 val split_mac: 
   ki:KeyInfo -> n:int -> 
-  (;ki,n) plain -> ((;ki,n) fragment * (;ki) mac)
+  (;ki,n) plain -> ((;ki.sinfo,n) fragment * (;ki) mac)
   (* Returns a random fragment if pad checking fails *)
   // No! But we may instead return a random mac. 
 
@@ -96,19 +100,19 @@ val split_mac:
 
 val fragment_mac_to_cipher: 
   ki:KeyInfo {IsMACOnlyCipherSuite(ki)} -> n:int -> 
-  (;ki,n) fragment -> (;ki) mac -> b:bytes{Length(b)=n}
+  (;ki.sinfo,n) fragment -> (;ki) mac -> b:bytes{Length(b)=n}
 val cipher_to_fragment_mac: 
   ki:KeyInfo {IsMACOnlyCipherSuite(ki)} -> n:int -> 
-  b:bytes{Length(b)=n} -> ((;ki,n) fragment * (;ki) mac)
+  b:bytes{Length(b)=n} -> ((;ki.sinfo,n) fragment * (;ki) mac)
 
 /// Coercing the fragment for NullCipherSuites
 
 val fragment_to_cipher: 
   ki:KeyInfo {IsNullCipherSuite(ki)} -> n:int -> 
-  (;ki,n) fragment -> b:bytes{Length(b)=n}
+  (;ki.sinfo,n) fragment -> b:bytes{Length(b)=n}
 val cipher_to_fragment: 
   ki:KeyInfo {IsNullCipherSuite(ki)} -> n:int -> 
-  b:bytes{Length(b)=n} -> (;ki,n) fragment
+  b:bytes{Length(b)=n} -> (;ki.sinfo,n) fragment
 
 // When we do not encrypt, we may instead just rely
 // on coercions from fragments and macs to concrete bytes

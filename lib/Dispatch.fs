@@ -290,7 +290,7 @@ let rec sendNextFragments c =
             (correct (unitVal),c)
 
 (* we have received, decrypted, and verified a record (ct,f); what to do? *)
-let deliver ct f c = 
+let deliver ct tlen f c = 
   let c_read = c.read in
   match c_read.disp with
   | Closed -> unexpectedError "[deliver] should never be invoked on a closed connection state."
@@ -298,7 +298,7 @@ let deliver ct f c =
   match (ct,c_read.disp) with 
 
   | Handshake, x when x = Init || x = FirstHandshake || x = Finishing || x = Open ->
-    match Handshake.recv_fragment c.handshake f with
+    match Handshake.recv_fragment c.handshake tlen f with
     | (Correct(corr),hs) ->
         match corr with
         | HSAck ->
@@ -355,7 +355,7 @@ let deliver ct f c =
     | (Error(x,y),hs) -> (Error(x,y),{c with handshake = hs}) (* TODO: we might need to send some alerts *)
 
   | Change_cipher_spec, x when x = FirstHandshake || x = Open -> 
-    match Handshake.recv_ccs c.handshake f with 
+    match Handshake.recv_ccs c.handshake tlen f with 
     | (Correct(cryptoparams),hs) ->
         let new_recv = Record.recv_setCrypto cryptoparams in
         let new_read = {disp = Finishing; conn = new_recv} in
@@ -368,7 +368,7 @@ let deliver ct f c =
     | (Error (x,y),hs) -> (Error (x,y), {c with handshake = hs})
 
   | Alert, x ->
-    match Alert.recv_fragment c.alert f with
+    match Alert.recv_fragment c.alert tlen f with
     | Correct (ALAck(state)) ->
       (correct (true), { c with alert = state})
     | Correct (ALClose_notify (state)) ->
@@ -385,7 +385,7 @@ let deliver ct f c =
     | Error (x,y) -> (Error(x,y),c) (* Always fatal, so don't need to track the current alert state? *)
 
   | Application_data, Open -> 
-    let appstate = AppData.recv_fragment c.appdata f in
+    let appstate = AppData.recv_fragment c.appdata tlen f in
     (correct (false), { c with appdata = appstate })
   | UnknownCT, _ -> (Error(Dispatcher,Unsupported),c)
   | _, _ -> (Error(Dispatcher,InvalidState),c)
@@ -425,10 +425,10 @@ let rec readNextAppFragment conn =
         match recv conn.ns c_read.conn with
         | Error (x,y) -> (Error (x,y),conn) (* TODO: if TCP error, return the error; if recoverable Record error, send Alert *)
         | Correct res ->
-        let (recvSt,ct,f) = res in
+        let (recvSt,ct,tlen,f) = res in
         let new_read = {c_read with conn = recvSt} in
         let conn = {conn with read = new_read} in (* update the connection *)
-        match deliver ct f conn with
+        match deliver ct tlen f conn with
         | (Error (x,y),conn) -> (Error(x,y),conn)
         | (Correct (again),conn) ->
         if again then
@@ -469,6 +469,8 @@ let commit conn b =
     let new_appdata = AppData.send_data conn.appdata b in
     {conn with appdata = new_appdata}
 
+let is_commit_empty conn =
+    AppData.is_outgoing_empty conn.appdata
 
 let readOneAppFragment conn n =
     (* Similar to the OpenSSL strategy *)

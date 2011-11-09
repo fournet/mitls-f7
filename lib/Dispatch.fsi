@@ -27,13 +27,16 @@ val renegotiate: Connection -> protocolOptions -> Connection (* New session same
 *)
 
 (* FIXME: unsure we want still to expose those functions to the upper levels *)
+(*
 val sendNextFragments: Connection -> (unit Result) * Connection
 val readNextAppFragment: Connection -> (unit Result) * Connection
+*)
 
-val writeOneAppFragment: Connection -> bytes -> (((bytes * bytes) Result) * Connection)
+val writeOneAppFragment: Connection -> Connection Result
 val readOneAppFragment: Connection -> int -> ((bytes Result) * Connection)
 val appDataAvailable: Connection -> bool
 
 val getSessionInfo: Connection -> SessionInfo
 
 val commit: Connection -> bytes -> Connection
+val is_commit_empty: Connection -> bool

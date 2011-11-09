@@ -73,18 +73,21 @@ type appdata = {bytes: bytes}
 
 let appdata (si:SessionInfo) (lens:Lengths) data = {bytes = data}
 let empty_appdata = {bytes = [||]}
+let empty_lengths = {tlens = []}
 let is_empty_appdata data =
     data.bytes = [||]
 
 type fragment = {bytes: bytes}
 
-let concat_fragment_appdata (ki:KeyInfo) (tlen:int) data (lens:Lengths) (appdata:appdata) :appdata =
+let concat_fragment_appdata (si:SessionInfo) (tlen:int) data (lens:Lengths) (appdata:appdata) :(Lengths * appdata) =
     (* TODO: If ki says so, first decompress data, then append it *)
-    (* FIXME: should we append (decompressed) data at the bottom of appadata? *)
-    let resData = data.bytes @| appdata.bytes in
-    {bytes = resData}
+    let resData = appdata.bytes @| data.bytes in
+    let resData:appdata = {bytes = resData} in
+    let resLengths = lens.tlens @ [tlen] in
+    let resLengths = {tlens = resLengths} in
+    (resLengths,resData)
 
-let app_fragment (ki:KeyInfo) lens (appdata:appdata) : ((int * fragment) * (Lengths * appdata)) =
+let app_fragment (si:SessionInfo) lens (appdata:appdata) : ((int * fragment) * (Lengths * appdata)) =
     (* The idea is: Given the cipertext target length, we get a *smaller* plaintext fragment
        (so that MAC and padding can be added back).
        In practice: since estimateLengths acts deterministically on the appdata length, we do the same here, and
@@ -106,7 +109,9 @@ let app_fragment (ki:KeyInfo) lens (appdata:appdata) : ((int * fragment) * (Leng
             ((thisLen,{bytes = appdata.bytes}), ({tlens = remLens},{bytes = [||]}))
     | [] -> ((0,{bytes = [||]}),(lens,appdata))
 
-let pub_fragment (ki:KeyInfo) (data:bytes) : ((int * fragment) * bytes) = (* TODO, which target size should we stick to? *)
+let get_bytes (appdata:appdata) = appdata.bytes
+
+let pub_fragment (si:SessionInfo) (data:bytes) : ((int * fragment) * bytes) = (* TODO, which target size should we stick to? *)
     unexpectedError "[TODO] not implemented yet"
 
 type mac = MACt of MAC.mac

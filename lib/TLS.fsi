@@ -79,9 +79,10 @@ val writeFully: Connection -> bytes -> ((bytes * bytes) Result) * Connection
 (* Computationally-friendly interface. Ask the application to commit on certain data, that will
    be stored internally by the TLS library. The user can just ask to send the next fragment of committed data,
    or to block until all fragments are sent. *)
-val commit: Connection -> bytes -> Connection
-val write: Connection -> Connection Result
-val writeFully: Connection -> Connection Result
+val write: Connection -> bytes -> Connection
+val write_buffer_empty: Connection -> bool
+val sendOneFragment: Connection -> Connection Result
+val flush: Connection -> Connection Result
 
 val read: Connection -> int -> (bytes Result) * Connection
 (* Polls whether there are data available in the current input buffer

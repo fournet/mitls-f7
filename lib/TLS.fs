@@ -30,6 +30,20 @@ let writeFully conn d =
 let commit conn b =
     Dispatch.commit conn b
 
+let is_commit_empty conn =
+    Dispatch.is_commit_empty conn
+
+let write conn =
+    writeOneAppFragment conn
+
+let rec writeFully conn =
+    if is_commit_empty conn then
+        correct(conn)
+    else
+        match write conn with
+        | Error(x,y) -> Error(x,y)
+        | Correct(conn) -> writeFully conn
+
 let read conn len =
     readOneAppFragment conn len
 
@@ -53,7 +67,7 @@ let rec int_consume conn =
     | (Error(x,y),conn) -> (Error(x,y),conn)
 
 let connect ns ops =
-    let conn = Dispatch.init ns ClientRole ops in
+    let conn = Dispatch.init ns CtoS ops in
     int_consume conn
 
 let resume ns sid ops =
@@ -77,7 +91,7 @@ let rekey_now conn ops =
 
 let accept list ops =
     let ns = Tcp.accept list in
-    let conn = Dispatch.init ns ServerRole ops in
+    let conn = Dispatch.init ns StoC ops in
     int_consume conn
 
 let handshakeRequest conn ops =
