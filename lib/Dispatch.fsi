@@ -32,11 +32,13 @@ val sendNextFragments: Connection -> (unit Result) * Connection
 val readNextAppFragment: Connection -> (unit Result) * Connection
 *)
 
-val writeOneAppFragment: Connection -> Connection Result
-val readOneAppFragment: Connection -> int -> ((bytes Result) * Connection)
-val appDataAvailable: Connection -> bool
+val writeOneAppFragment: Connection -> (unit Result) * Connection
+val readOneAppFragment: Connection -> ((bytes Result) * Connection)
+(* val appDataAvailable: Connection -> bool *)
 
 val getSessionInfo: Connection -> SessionInfo
 
+(* Fills the output buffer with the given data.
+   Do not send anything on the network yet. *)
 val commit: Connection -> bytes -> Connection
-val is_commit_empty: Connection -> bool
+val write_buffer_empty: Connection -> bool

@@ -27,28 +27,30 @@ let writeFully conn d =
     writeFully_int conn d empty_bstr
 *)
 
-let commit conn b =
+let write conn b =
     Dispatch.commit conn b
 
-let is_commit_empty conn =
-    Dispatch.is_commit_empty conn
+let write_buffer_empty conn =
+    Dispatch.write_buffer_empty conn
 
-let write conn =
+let sendOneFragment conn =
     writeOneAppFragment conn
 
-let rec writeFully conn =
-    if is_commit_empty conn then
-        correct(conn)
+let rec flush conn =
+    if write_buffer_empty conn then
+        (correct(),conn)
     else
-        match write conn with
-        | Error(x,y) -> Error(x,y)
-        | Correct(conn) -> writeFully conn
+        match sendOneFragment conn with
+        | (Error(x,y),conn) -> (Error(x,y),conn)
+        | (Correct(),conn) -> flush conn
 
-let read conn len =
-    readOneAppFragment conn len
+let read conn =
+    readOneAppFragment conn
 
+(*
 let dataAvailable conn =
     appDataAvailable conn
+*)
 
 let shutdown (conn:Connection) = (* TODO *) ()
 
@@ -57,7 +59,7 @@ let getSessionInfo conn =
 
 let rec int_consume conn =
     let unitVal = () in
-    match read conn 1 with
+    match read conn with
     | (Correct b, conn) ->
         if length b = 0 then
             int_consume conn

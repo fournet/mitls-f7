@@ -101,8 +101,10 @@ let ask_hs_request conn ops =
     {conn with handshake = new_hs
                poptions = ops}
 
+(*
 let appDataAvailable conn =
     AppData.retrieve_data_available conn.appdata
+*)
 
 let getSessionInfo conn =
     conn.ds_info
@@ -266,7 +268,7 @@ let next_fragment (c:Connection) : (bool Result) * Connection =
                                        write   = new_write } )
         | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
 
-let rec sendNextFragments c =
+let rec writeOneAppFragment c =
     let unitVal = () in
     let c_write = c.write in
     match c_write.disp with
@@ -285,7 +287,7 @@ let rec sendNextFragments c =
             if dataAv then
                 (correct(unitVal),c)
             else
-                sendNextFragments c 
+                writeOneAppFragment c 
         else
             (correct (unitVal),c)
 
@@ -442,34 +444,11 @@ let rec readNextAppFragment conn =
         (* Nothing to read, possibly send buffered data *)
         sendNextFragments conn
 
-let writeOneAppFragment conn d =
-    (* FIXME: there's a bug on the writing side:
-       In this function, we assume that if sendNextFragments returns
-       a correct (_) value, then the app_data fragment has been sent.
-       However, sendNextFragments returns correct *without* sending
-       any app_data fragment at least in the following cases:
-       - An alert has been sent;
-       - The wirte-side part of a handshake has finised
-         (This used to be a MustRead error, but has been changed, because
-         it didn't make sense to return a MustRead error after a read invocation.
-         Anyway, all this logic need to be re-though about.)
-       We must fix this *)
-    let c_write = conn.write in
-    match c_write.disp with
-    | Finished -> (Error(MustRead,Notification),conn)
-    | _ ->
-    let (frag,rem) = split_at_most d fragmentLength in
-    let new_appdata = AppData.send_data conn.appdata frag in
-    let conn = {conn with appdata = new_appdata} in
-    match sendNextFragments conn with
-    | (Correct (x), conn) -> (correct (frag, rem), conn)
-    | (Error (x,y), conn) -> (Error(x,y), conn)
-
 let commit conn b =
     let new_appdata = AppData.send_data conn.appdata b in
     {conn with appdata = new_appdata}
 
-let is_commit_empty conn =
+let write_buffer_empty conn =
     AppData.is_outgoing_empty conn.appdata
 
 let readOneAppFragment conn n =

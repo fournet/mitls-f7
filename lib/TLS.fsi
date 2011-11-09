@@ -81,16 +81,17 @@ val writeFully: Connection -> bytes -> ((bytes * bytes) Result) * Connection
    or to block until all fragments are sent. *)
 val write: Connection -> bytes -> Connection
 val write_buffer_empty: Connection -> bool
-val sendOneFragment: Connection -> Connection Result
-val flush: Connection -> Connection Result
+(* In read and send/flush we return (x Result) * Connection, because an error could also be a notification, like MustRead or NewSessionInfo *)
+val sendOneFragment: Connection -> (unit Result) * Connection
+val flush: Connection -> (unit Result) * Connection
 
-val read: Connection -> int -> (bytes Result) * Connection
+val read: Connection -> (bytes Result) * Connection
 (* Polls whether there are data available in the current input buffer
    (a processed application data fragment not yet delivered to the user).
    Note that this function will not check whether data are available on the
    underlying socket, because it would not be useful in TLS (we might need
    to read more bytes than available to parse a full fragment anyway) *)
-val dataAvailable: Connection -> bool
+(* val dataAvailable: Connection -> bool *)
 
 (* Complete SSL shutdown, with bi-directional Close_notify alerts,
    but does not close the underlying NetworkStream *)
