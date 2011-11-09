@@ -16,7 +16,7 @@ type protoState
 type pre_hs_state
 type hs_state = pre_hs_state
 
-val init_handshake: SessionInfo -> role -> protocolOptions -> hs_state
+val init_handshake: SessionInfo -> Direction -> protocolOptions -> hs_state
 
 (* Only client side *)
 val resume_handshake: sessionID -> protocolOptions -> (SessionInfo * hs_state)
@@ -44,7 +44,7 @@ val next_fragment: hs_state -> (HSFragReply * hs_state)
 
 type recv_reply = 
   | HSAck      (* fragment accepted, no visible effect so far *)
-  | HSChangeVersion of role * ProtocolVersionType 
+  | HSChangeVersion of Direction * ProtocolVersionType 
                           (* ..., and we should use this new protocol version for sending *) 
   | HSReadSideFinished
   | HSFullyFinished_Read of SessionInfo (* ..., and we can start sending data on the connection *)

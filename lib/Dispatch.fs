@@ -47,20 +47,16 @@ type Connection = preConnection
 
 type preds = DebugPred of Connection
 
-let init ns role poptions =
-    let hs = Handshake.init_handshake init_sessionInfo role poptions in
-    let (outDir,inDir) = 
-        match role with
-        | ClientRole ->
-            (CtoS,StoC)
-        | ServerRole ->
-            (StoC,CtoS)
-    let (outKI,inKI) = (init_KeyInfo init_sessionInfo outDir, init_KeyInfo init_sessionInfo inDir) in
+let init ns dir poptions =
+    (* Direction "dir" is always the outgouing direction.
+       So, if we are a Client, it will be CtoS, if we're a Server: StoC *)
+    let hs = Handshake.init_handshake init_sessionInfo dir poptions in
+    let (outKI,inKI) = (init_KeyInfo init_sessionInfo dir, init_KeyInfo init_sessionInfo (dualDirection dir)) in
     let (send,recv) = Record.create outKI inKI poptions.minVer in
     let read_state = {disp = Init; conn = recv} in
     let write_state = {disp = Init; conn = send} in
     let al = Alert.init init_sessionInfo  in
-    let app = AppData.init init_sessionInfo in
+    let app = AppData.init init_sessionInfo dir in
     { ds_info = init_sessionInfo;
       poptions = poptions;
       handshake = hs;
@@ -78,7 +74,7 @@ let resume ns sid ops =
     let read_state = {disp = Init; conn = recv} in
     let write_state = {disp = Init; conn = send} in
     let al = Alert.init sinfo  in
-    let app = AppData.init sinfo in
+    let app = AppData.init sinfo CtoS in
     let res = { ds_info = sinfo;
                 poptions = ops;
                 handshake = hs;
@@ -314,7 +310,7 @@ let deliver ct f c =
                    and we just negotiated the version. Tell the record layer which version to use; and move to the
                    FirstHandshake state *)
                 match r with
-                | ClientRole ->
+                | CtoS ->
                     match Record.recv_checkVersion c_read.conn v with
                     | Correct (dummy) ->
                         let c_read = {c_read with disp = FirstHandshake} in
@@ -326,7 +322,7 @@ let deliver ct f c =
                                                   read = c_read;
                                                   write = new_write} )
                     | Error(x,y) -> (Error(x,y), {c with handshake = hs} )
-                | ServerRole ->
+                | StoC ->
                     let new_recv = Record.recv_setVersion c_read.conn v in
                     let new_read = {c_read with conn = new_recv
                                                 disp = FirstHandshake} in

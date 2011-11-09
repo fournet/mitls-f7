@@ -12,6 +12,8 @@ type preDirection =
 
 type Direction = preDirection
 
+val dualDirection: Direction -> Direction
+
 type SessionInfo = {
     clientID: cert option;
     serverID: cert option;

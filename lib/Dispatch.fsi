@@ -12,7 +12,7 @@ open AppCommon
 type preConnection
 type Connection = preConnection
 
-val init: NetworkStream -> role -> protocolOptions -> Connection
+val init: NetworkStream -> Direction -> protocolOptions -> Connection
 
 val resume: NetworkStream -> sessionID -> protocolOptions -> unit Result * Connection
 

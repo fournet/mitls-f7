@@ -12,6 +12,11 @@ type preDirection =
   | StoC
 type Direction = preDirection
 
+let dualDirection dir =
+    match dir with
+    | CtoS -> StoC
+    | StoC -> CtoS
+
 type SessionInfo = {
     clientID: cert option
     serverID: cert option

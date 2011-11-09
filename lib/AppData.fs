@@ -7,34 +7,29 @@ open TLSInfo
 open TLSPlain
 open Formats
 
-type comm =
-    {buffer: appdata;
-     info: KeyInfo
-    }
-
 type pre_app_state = {
-  app_incoming: comm (* unsolicited data *)
-  app_outgoing: comm
+  app_info: SessionInfo
+  role: Direction
+  app_incoming: appdata (* unsolicited data *)
+  app_outgoing: appdata
 }
 
 type app_state = pre_app_state
 
-let init outki inki =
-    {app_outgoing = {buffer = empty_appdata; info = outki}
-     app_incoming = {buffer = empty_appdata; info = inki}}
+let init sinfo role =
+    {app_info = sinfo;
+     role = role;
+     app_outgoing = empty_appdata;
+     app_incoming = empty_appdata;}
 
 let reset_incoming app_state =
-    let new_incoming = {app_state.app_incoming with buffer = empty_appdata}
-    {app_state with app_incoming = new_incoming}
+    {app_state with app_incoming = empty_appdata}
 
 let reset_outgoing app_state =
-    let new_outgoing = {app_state.app_outgoing with buffer = empty_appdata}
-    {app_state with app_outgoing = new_outgoing}
+    {app_state with app_outgoing = empty_appdata}
 
-let set_KeyInfo app_state outki inki =
-    let new_out = {app_state.app_outgoing with info = outki} in
-    let new_in = {app_state.app_incoming with info = inki} in
-    {app_state with app_outgoing = new_out; app_incoming = new_in}
+let set_SessionInfo app_state sinfo =
+    {app_state with app_info = sinfo}
 
 let send_data (state:app_state) (data:bytes) =
     (* TODO: different strategies are possible.

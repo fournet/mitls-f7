@@ -13,11 +13,11 @@ open TLSPlain
 type pre_app_state
 type app_state = pre_app_state
 
-val init: KeyInfo -> KeyInfo -> app_state
+val init: SessionInfo -> Direction -> app_state
 
 val reset_incoming: app_state -> app_state
 val reset_outgoing: app_state -> app_state
-val set_KeyInfo: app_state -> KeyInfo -> KeyInfo -> app_state
+val set_SessionInfo: app_state -> SessionInfo -> app_state
 
 (* Application data to/form application *)
 

@@ -122,7 +122,7 @@ let next_fragment state len =
 
 type recv_reply = 
   | HSAck      (* fragment accepted, no visible effect so far *)
-  | HSChangeVersion of role * ProtocolVersionType 
+  | HSChangeVersion of Direction * ProtocolVersionType 
                           (* ..., and we should use this new protocol version for sending *) 
   | HSReadSideFinished
   | HSFullyFinished_Read of SessionInfo (* ..., and we can start sending data on the connection *)
@@ -401,7 +401,7 @@ let split_key_block key_block hsize ksize ivsize =
   let siv = Array.sub key_block (2*hsize+2*ksize+ivsize) ivsize in
   (cmk,smk,cek,sek,civ,siv)
 
-let generateKeys role cr sr pv cs ms =
+let generateKeys dir cr sr pv cs ms =
   match securityParameters_of_ciphersuite cs with
   | Error (x,y) -> Error(x,y)
   | Correct (sp) ->
@@ -426,9 +426,9 @@ let generateKeys role cr sr pv cs ms =
               civ,siv
           in
           let rmk,rek,riv,wmk,wek,wiv = 
-            match role with 
-              | ClientRole -> smk,sek,siv,cmk,cek,civ
-              | ServerRole -> cmk,cek,civ,smk,sek,siv
+            match dir with 
+              | CtoS -> smk,sek,siv,cmk,cek,civ
+              | StoC -> cmk,cek,civ,smk,sek,siv
           in
           correct ((sp,rmk,rek,riv,wmk,wek,wiv))
 
@@ -439,8 +439,8 @@ let bldVerifyData ver cs ms entity hsmsgs =
   | ProtocolVersionType.SSL_3p0 ->
     let ssl_sender = 
         match entity with
-        | ClientRole -> ssl_sender_client 
-        | ServerRole -> ssl_sender_server
+        | CtoS -> ssl_sender_client 
+        | StoC -> ssl_sender_server
     let mm = append hsmsgs (append ssl_sender ms) in
     match md5 (append mm ssl_pad1_md5) with
     | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
@@ -458,8 +458,8 @@ let bldVerifyData ver cs ms entity hsmsgs =
   | x when x = ProtocolVersionType.TLS_1p0 || x = ProtocolVersionType.TLS_1p1 -> 
     let tls_label = 
         match entity with
-        | ClientRole -> "client finished"
-        | ServerRole -> "server finished"
+        | CtoS -> "client finished"
+        | StoC -> "server finished"
     match md5 hsmsgs with
     | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
     | Correct (md5hash) ->
@@ -472,8 +472,8 @@ let bldVerifyData ver cs ms entity hsmsgs =
   | ProtocolVersionType.TLS_1p2 ->
     let tls_label = 
         match entity with
-        | ClientRole -> "client finished"
-        | ServerRole -> "server finished"
+        | CtoS -> "client finished"
+        | StoC -> "server finished"
     let verifyDataHashAlg = verifyDataHashAlg_of_ciphersuite cs in
     match verifyDataHashFun hsmsgs with
     | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
@@ -859,9 +859,9 @@ let prepare_client_output_resumption hs_state sinfo =
                                       hs_renegotiation_info_cVerifyData = cVerifyData} in
         correct (hs_state)
 
-let init_handshake initInfo role poptions =
-    match role with
-    | ClientRole ->
+let init_handshake initInfo dir poptions =
+    match dir with
+    | CtoS ->
         let (cHelloBytes,client_random) = makeCHelloBytes poptions empty_bstr empty_bstr in
         {hs_outgoing = cHelloBytes
          ccs_outgoing = None
@@ -876,7 +876,7 @@ let init_handshake initInfo role poptions =
          hs_server_random = empty_bstr
          hs_renegotiation_info_cVerifyData = empty_bstr
          hs_renegotiation_info_sVerifyData = empty_bstr}
-    | ServerRole ->
+    | StoC ->
         {hs_outgoing = empty_bstr
          ccs_outgoing = None
          hs_outgoing_after_ccs = empty_bstr
@@ -1057,7 +1057,7 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
     | None ->
       match must_change_ver with
       | None -> (correct (HSAck), hs_state)
-      | Some (pv) -> (correct (HSChangeVersion(ClientRole,pv)),hs_state)
+      | Some (pv) -> (correct (HSChangeVersion(CtoS,pv)),hs_state)
     | Some (data) ->
       let (hstype,payload,to_log) = data in
       match hs_state.pstate with
@@ -1405,7 +1405,7 @@ let rec recv_fragment_server (hs_state:hs_state) (must_change_ver:ProtocolVersio
     | None ->
       match must_change_ver with
       | None -> (correct (HSAck), hs_state)
-      | Some (pv) -> (correct (HSChangeVersion(ServerRole,pv)),hs_state)
+      | Some (pv) -> (correct (HSChangeVersion(StoC,pv)),hs_state)
     | Some (data) ->
       let (hstype,payload,to_log) = data in
       match hs_state.pstate with
@@ -1453,6 +1453,9 @@ let rec recv_fragment_server (hs_state:hs_state) (must_change_ver:ProtocolVersio
                                 recv_fragment_server hs_state (Some(negPV))
                         | Some (sinfo) ->
                             (* Check client proposed algorithms match with our stored session *)
+                            (* FIXME: maybe we want to ignore this check and always start a session? but that screws up the
+                               client and server fields in session info. We probably must store the direction ("role")
+                               in the sessionDB as well *)
                             match sinfo.role with
                             | ClientRole -> (* This session is not for us, we're a server. Do full handshake *)
                                 match start_server_full hs_state cHello with
