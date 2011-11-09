@@ -13,8 +13,8 @@ let max_TLSPlaintext_fragment_length = 1<<<14 (* just a reminder *)
 let fragmentLength = max_TLSPlaintext_fragment_length (* 1 *)
 
 // We need a typable version; not so hard (but we may need axioms on arrays)
-let compute_padlen ki len =
-    let alg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
+let compute_padlen sinfo len =
+    let alg = encAlg_of_ciphersuite sinfo.cipher_suite in
     let bs = blockSize alg in
     let len_no_pad = len + 1 in (* 1 byte for the padlen byte *)
     let min_padlen =
@@ -36,8 +36,8 @@ let compute_padlen ki len =
     | _ -> unexpectedError "[compute_pad] invoked on wrong protocol version"
     *)
 
-let computeAddedLen ki len =
-    let cs = ki.sinfo.cipher_suite in
+let computeAddedLen sinfo len =
+    let cs = sinfo.cipher_suite in
     match cs with
     | x when isNullCipherSuite x ->
         0
@@ -46,10 +46,10 @@ let computeAddedLen ki len =
     | _ -> (* GCM or MtE
                 TODO: add support for GCM, now we only support MtE *)
         let macLen = macLength (macAlg_of_ciphersuite cs) in
-        let padLen = compute_padlen ki (len + macLen) in
+        let padLen = compute_padlen sinfo (len + macLen) in
         macLen + padLen + 1
 
-let estimateLengths ki len =
+let estimateLengths sinfo len =
     (* Basic implementation: split at fragment length, then add some constant amount for mac and pad; last fragment treated specially.
        Even if protocol version would allow, when chosing target ciphertext length we consider a constant fixed length for padding.
        Maybe when getting a fragment given a target chipher length, we might get a random shorter fragment so as to exploit padding.
@@ -58,7 +58,7 @@ let estimateLengths ki len =
     let nfrag = len / fragmentLength in
     let res =
         if nfrag > 0 then
-            let addedLen = computeAddedLen ki fragmentLength in          
+            let addedLen = computeAddedLen sinfo fragmentLength in          
             List.init nfrag (fun idx -> (fragmentLength + addedLen))
         else
             List.empty
@@ -66,12 +66,12 @@ let estimateLengths ki len =
     if rem = 0 then
         {tlens = res}
     else
-        let addedLen = computeAddedLen ki rem in
+        let addedLen = computeAddedLen sinfo rem in
         {tlens = res @ [ rem + addedLen ] }
 
 type appdata = {bytes: bytes}
 
-let appdata (ki:KeyInfo) (lens:Lengths) data = {bytes = data}
+let appdata (si:SessionInfo) (lens:Lengths) data = {bytes = data}
 let empty_appdata = {bytes = [||]}
 let is_empty_appdata data =
     data.bytes = [||]

@@ -5,11 +5,11 @@ open Data
 
 type Lengths (* abstractly, a list of desired ciphertext lengths *)
 
-val estimateLengths: KeyInfo -> int -> Lengths
+val estimateLengths: SessionInfo -> int -> Lengths
 
 (* Secret App Data *)
 type appdata
-val appdata: KeyInfo -> Lengths -> bytes -> appdata
+val appdata: SessionInfo -> Lengths -> bytes -> appdata
 val empty_appdata: appdata
 val is_empty_appdata: appdata -> bool
 

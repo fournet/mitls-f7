@@ -21,8 +21,8 @@ predicate val Tail: Lengths -> Lengths
 predicate val Cons: (int * Lengths) -> Lengths
 
 // the second parameter n is the net data size
-predicate val CompatibleLengths: (KeyInfo * int * Lengths) -> bool
-val estimateLengths: ki:KeyInfo -> n:int -> l:Lengths{CompatibleLengths(ki,n,l)}
+predicate val CompatibleLengths: (SessionInfo * int * Lengths) -> bool
+val estimateLengths: si:SessionInfo -> n:int -> l:Lengths{CompatibleLengths(si,n,l)}
 // We could also use something like:
 // val provisionLength: ki:KeyInfo -> min:int -> max:int -> 
 //   ls:Lengths{ !n. min <= n /\ n < max => CompatibleLengths(ki,n,ls) }   
@@ -33,16 +33,16 @@ val estimateLengths: ki:KeyInfo -> n:int -> l:Lengths{CompatibleLengths(ki,n,l)}
 
 // Usage?
 // FIXME: AP: we don't use 'n' in the fsi interface. Can we get rid of it here, that would simplify implementation
-private val fragmentSize: ki:KeyInfo -> ls:Lengths -> 
-  n:int{CompatibleLengths(ki,n,ls)} -> f:int{CompatibleLengths(ki,n-f,Tail(ls))}
+private val fragmentSize: si:SessionInfo -> ls:Lengths -> 
+  n:int{CompatibleLengths(si,n,ls)} -> f:int{CompatibleLengths(si,n-f,Tail(ls))}
 
 (* Secret App Data *)
 
 // Application-level data, intuitively a whole message. 
 // how does this relates to streams? 
-type (;ki:KeyInfo,ls:Lengths) appdata (* The full buffer blessed by the application *)
-val appdata: ki:KeyInfo -> ls:Lengths -> 
-  b:bytes{CompatibleLengths(ki,Size(b),ls)} -> (;ki,ls) appdata
+type (;si:SessionInfo,ls:Lengths) appdata (* The full buffer blessed by the application *)
+val appdata: si:SessionInfo -> ls:Lengths -> 
+  b:bytes{CompatibleLengths(si,Size(b),ls)} -> (;si,ls) appdata
 
 // Record-level fragment, with a constructor for each TLS subprotocol
 // The subprotocol (CT) is not considered secret
@@ -50,19 +50,19 @@ val appdata: ki:KeyInfo -> ls:Lengths ->
 // Each fragment is already compressed, if TLS-level compression is enabled. Compression is handled
 // transparently by the TLSPlain module, and nowhere else.
 type (;ki:KeyInfo,n:int) fragment = 
-  | AppDataFragment of (;ki,n) appdata // a fragment of some application data
+  | AppDataFragment of (;ki.sinfo,n) appdata // a fragment of some application data
   | KeyExchangeData of bytes           // a fragment of some key-exchange message
 
 // also TLS-level decompress the fragment before appending
 val concat_fragment_appdata: 
   ki:KeyInfo -> n:int -> (;ki,n) fragment -> 
-  ls:Lengths -> (;ki,ls) appdata -> (;ki,Cons(n,ls)) appdata
+  ls:Lengths -> (;ki.sinfo,ls) appdata -> (;ki.sinfo,Cons(n,ls)) appdata
 
 // appdata is uncompressed, the returned fragment is TLS-level compressed
 val app_fragment: ki:KeyInfo -> ls:Lengths -> 
-  x:(;ki,ls) appdata -> 
+  x:(;ki.sinfo,ls) appdata -> 
   ((n:(n:int{n=Head(ls)}) * f:(;ki,n) fragment) * 
-   (t:(t:Lengths{t=Tail(ls)}) * (;ki,t) appdata))
+   (t:(t:Lengths{t=Tail(ls)}) * (;ki.sinfo,t) appdata))
 // could we write instead { ls = n::t } ?
 // could we omit n and t in the result, and use instead logical expressions? 
 
