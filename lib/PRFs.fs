@@ -36,13 +36,13 @@ let ssl_prf secret seed nb =
   apply_prf (Array.zeroCreate 0) 0
     
 
-let ssl_verifyData ms role data =
+let ssl_verifyData ms dir data =
     let ssl_sender_client = [|0x43uy; 0x4Cuy; 0x4Euy; 0x54uy|] in
     let ssl_sender_server = [|0x53uy; 0x52uy; 0x56uy; 0x52uy|] in
     let ssl_sender = 
-        match role with
-        | ClientRole -> ssl_sender_client 
-        | ServerRole -> ssl_sender_server
+        match dir with
+        | CtoS -> ssl_sender_client 
+        | StoC -> ssl_sender_server
     let mm = append data (append ssl_sender ms) in
     match hash MD5 (append mm ssl_pad1_md5) with
     | Error (x,y) -> Error(x,y)
@@ -124,11 +124,11 @@ let tls12prf cs secret label seed len =
     let newseed = append (utf8 label) seed in
     p_hash prfHashAlg secret newseed len
 
-let tls12VerifyData cs ms role data =
+let tls12VerifyData cs ms dir data =
     let tls_label = 
-        match role with
-        | ClientRole -> "client finished"
-        | ServerRole -> "server finished"
+        match dir with
+        | CtoS -> "client finished"
+        | StoC -> "server finished"
     let verifyDataHashAlg = verifyDataHashAlg_of_ciphersuite cs in
     match hash verifyDataHashAlg data with
     | Error (x,y) -> Error(x,y)

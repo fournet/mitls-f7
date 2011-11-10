@@ -72,6 +72,7 @@ val get_bytes: appdata -> bytes
 
 val pub_fragment: si:SessionInfo -> b:bytes -> ((n:int * (;si,n) fragment) * bytes) 
 (* Note that n is *not* the length of the plaintext, it is the length of the target ciphertext *)
+val pub_fragment_to_bytes: si:SessionInfo -> n:int -> (;si,n)fragment -> bytes
 
 type (;ki:KeyInfo) mac = MAC.mac (* a fixed-length MAC tag for ki *)
 // We miss operations on MACs! 

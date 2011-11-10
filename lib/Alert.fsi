@@ -28,4 +28,4 @@ val send_alert: al_state -> alertDescription -> al_state Result
 
 val next_fragment: al_state -> (ALFragReply * al_state) 
 
-val recv_fragment: al_state -> fragment -> alert_reply Result
+val recv_fragment: al_state -> int -> fragment -> alert_reply Result

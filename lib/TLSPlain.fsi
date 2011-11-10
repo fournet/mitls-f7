@@ -25,8 +25,10 @@ val app_fragment: SessionInfo -> Lengths -> appdata ->  ((int * fragment) * (Len
 (* Only used by appdata module, to return the received concrete bytes to the application *)
 val get_bytes: appdata -> bytes 
 
+(* Fragmentation and de-fragmentation functions used by non-appdata protocols, that only exchange public data *)
 val pub_fragment: SessionInfo -> bytes -> ((int * fragment) * bytes) 
 (* Note that n is *not* the length of the plaintext, it is the length of the target ciphertext *)
+val pub_fragment_to_bytes: SessionInfo -> int -> fragment -> bytes
 
 type mac
 

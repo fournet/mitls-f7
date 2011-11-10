@@ -10,6 +10,7 @@ open HS_ciphersuites
 open TLSInfo
 open TLSPlain
 open AppCommon
+open SessionDB
 
 type protoState
 
@@ -19,13 +20,13 @@ type hs_state = pre_hs_state
 val init_handshake: SessionInfo -> Direction -> protocolOptions -> hs_state
 
 (* Only client side *)
-val resume_handshake: sessionID -> protocolOptions -> (SessionInfo * hs_state)
+val resume_handshake: SessionInfo -> bytes -> protocolOptions -> hs_state
 
 val start_rehandshake: hs_state -> protocolOptions -> hs_state
 val start_rekey: hs_state -> protocolOptions -> hs_state
 val start_hs_request: hs_state -> protocolOptions -> hs_state
 
-val new_session_idle: hs_state -> SessionInfo -> hs_state
+val new_session_idle: hs_state -> SessionInfo -> bytes -> hs_state
 
 (*
 val rehandshake: hs_state -> hs_state Result (* new handshake on same connection *)
@@ -37,7 +38,7 @@ type HSFragReply =
   | EmptyHSFrag
   | HSFrag of (int * fragment)
   | HSWriteSideFinished of (int * fragment)
-  | HSFullyFinished_Write of (int * fragment) * SessionInfo
+  | HSFullyFinished_Write of (int * fragment) * StorableSession
   | CCSFrag of (int * fragment) * ccs_data
 
 val next_fragment: hs_state -> (HSFragReply * hs_state)
@@ -47,12 +48,12 @@ type recv_reply =
   | HSChangeVersion of Direction * ProtocolVersionType 
                           (* ..., and we should use this new protocol version for sending *) 
   | HSReadSideFinished
-  | HSFullyFinished_Read of SessionInfo (* ..., and we can start sending data on the connection *)
+  | HSFullyFinished_Read of StorableSession (* ..., and we can start sending data on the connection *)
 
 (*type hs_output_reply = 
   | HS_Fragment of bytes
   | HS_CCS of ccs_data (* new ccs data *)
   | Idle*)
 
-val recv_fragment: hs_state -> fragment -> (recv_reply Result) * hs_state
-val recv_ccs: hs_state -> fragment -> (ccs_data Result) * hs_state
+val recv_fragment: hs_state -> int -> fragment -> (recv_reply Result) * hs_state
+val recv_ccs: hs_state -> int -> fragment -> (ccs_data Result) * hs_state

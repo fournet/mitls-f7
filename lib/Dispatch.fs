@@ -10,6 +10,7 @@ open AppData
 open Alert
 open TLSInfo
 open AppCommon
+open SessionDB
 
 type predispatchState =
   | Init (* of ProtocolVersionType * ProtocolVersionType *) (* min and max *)
@@ -68,7 +69,16 @@ let init ns dir poptions =
 
 let resume ns sid ops =
     (* Only client side, can never be server side *)
-    let (sinfo,hs) = Handshake.resume_handshake sid ops in
+
+    (* Ensure the sid is in the SessionDB, and it is for a client *)
+    match select ops sid with
+    | None -> unexpectedError "[resume] requested session expired or never stored in DB"
+    | Some (retrievedStoredSession) ->
+    match retrievedStoredSession.dir with
+    | StoC -> unexpectedError "[resume] requested session is for server side"
+    | CtoS ->
+    let sinfo = retrievedStoredSession.sinfo in
+    let hs = Handshake.resume_handshake sinfo retrievedStoredSession.ms ops in
     let (outKI,inKI) = (init_KeyInfo sinfo CtoS, init_KeyInfo sinfo StoC) in
     let (send,recv) = Record.create outKI inKI ops.minVer in
     let read_state = {disp = Init; conn = recv} in
@@ -109,8 +119,14 @@ let appDataAvailable conn =
 let getSessionInfo conn =
     conn.ds_info
    
-let moveToOpenState c new_info =
-    let new_hs = Handshake.new_session_idle c.handshake new_info in
+let moveToOpenState c new_storable_info =
+    (* If appropriate, store this session in the DB *)
+    match new_storable_info.sinfo.sessionID with
+    | None -> (* This session should not be stored *) ()
+    | Some (sid) -> (* SessionDB. *) insert c.poptions sid new_storable_info
+
+    let new_info = new_storable_info.sinfo in
+    let new_hs = Handshake.new_session_idle c.handshake new_info new_storable_info.ms in
     let new_alert = Alert.init new_info in
     let new_appdata = AppData.set_SessionInfo c.appdata new_info in (* buffers have already been reset when each record layer direction did the CCS *)
     (* Read and write state should already have the same SessionInfo
@@ -238,7 +254,7 @@ let next_fragment (c:Connection) : (bool Result) * Connection =
                       This means we can directly report a NewSessionInfo error
                       notification, and not a mustRead.
                       Check thus that we in fact have an empty input buffer *)
-                   if appDataAvailable c then (* this is a bug. *)
+                   if not (AppData.is_incoming_empty c.appdata) then (* this is a bug. *)
                        (Error(Dispatcher,Internal), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
                    else
                        (* Send the last fragment *)
@@ -269,6 +285,10 @@ let next_fragment (c:Connection) : (bool Result) * Connection =
         | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
 
 let rec writeOneAppFragment c =
+    (* Writes *at most* one application data fragment. This might send no appdata fragment if
+       - The handshake finishes (write side or fully)
+       - An alert has been sent
+     *)
     let unitVal = () in
     let c_write = c.write in
     match c_write.disp with
@@ -418,7 +438,7 @@ let rec readNextAppFragment conn =
     (* If available, read next data *)
     let c_read = conn.read in
     match c_read.disp with
-    | Closed -> sendNextFragments conn
+    | Closed -> writeOneAppFragment conn
     | _ ->
     match Tcp.dataAvailable conn.ns with
     | Error (x,y) -> (Error(x,y),conn)
@@ -439,10 +459,10 @@ let rec readNextAppFragment conn =
         else
             (* We either read app-data, or a complete fatal alert,
                send buffered data *)
-            sendNextFragments conn
+            writeOneAppFragment conn
     else
         (* Nothing to read, possibly send buffered data *)
-        sendNextFragments conn
+        writeOneAppFragment conn
 
 let commit conn b =
     let new_appdata = AppData.send_data conn.appdata b in
@@ -451,12 +471,12 @@ let commit conn b =
 let write_buffer_empty conn =
     AppData.is_outgoing_empty conn.appdata
 
-let readOneAppFragment conn n =
+let readOneAppFragment conn =
     (* Similar to the OpenSSL strategy *)
     let c_appdata = conn.appdata in
-    if AppData.retrieve_data_available c_appdata then
+    if not (AppData.is_incoming_empty c_appdata) then
         (* Read from the buffer *)
-        let (read, new_appdata) = AppData.retrieve_data c_appdata n in
+        let (read, new_appdata) = AppData.retrieve_data c_appdata in
         let conn = {conn with appdata = new_appdata} in
         (correct (read),conn)
     else
@@ -465,7 +485,7 @@ let readOneAppFragment conn n =
         | (Correct (x),conn) ->
             (* One fragment may have been put in the buffer *)
             let c_appdata = conn.appdata in
-            let (read, new_appdata) = AppData.retrieve_data c_appdata n in
+            let (read, new_appdata) = AppData.retrieve_data c_appdata in
             let conn = {conn with appdata = new_appdata} in
             (correct (read),conn)
         | (Error (x,y),c) -> (Error(x,y),c)

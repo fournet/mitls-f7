@@ -5,7 +5,8 @@ open Data
 open Bytearray
 open Error_handling
 open Record
-open Sessions
+open TLSInfo
+open TLSPlain
 
 type alertLevel = 
     | AL_warning
@@ -26,8 +27,8 @@ let init info = {al_info = info; al_incoming = empty_bstr; al_outgoing = empty_b
 
 type ALFragReply =
     | EmptyALFrag
-    | ALFrag of bytes
-    | LastALFrag of bytes
+    | ALFrag of (int * fragment)
+    | LastALFrag of (int *fragment)
 
 type alert_reply =
     | ALAck of al_state
@@ -132,16 +133,16 @@ let send_alert state alertDesc =
     | _ ->
         Error (AlertAlreadySent, Internal)
 
-let next_fragment state len =
+let next_fragment state =
     match state.al_outgoing with
     | x when equalBytes x empty_bstr ->
         (EmptyALFrag, state)
     | d ->
-        let (f,rem) = split state.al_outgoing len in
+        let (frag,rem) = pub_fragment state.al_info state.al_outgoing in
         let state = {state with al_outgoing = rem} in
         match rem with
-        | x when equalBytes x empty_bstr -> (LastALFrag(f),state)
-        | _ -> (ALFrag(f),state)
+        | x when equalBytes x empty_bstr -> (LastALFrag(frag),state)
+        | _ -> (ALFrag(frag),state)
 
 let handle_alert state al =
     match al.description with
@@ -163,7 +164,8 @@ let handle_alert state al =
         | AL_warning -> Correct (ALAck (state))
         | AL_unknown_level x -> Error (AlertProto,Unsupported)
 
-let recv_fragment state (fragment:fragment) =
+let recv_fragment state tlen (fragment:fragment) =
+    let fragment = pub_fragment_to_bytes state.al_info tlen fragment in
     match state.al_incoming with
     | x when x = empty_bstr ->
         (* Empty buffer *)

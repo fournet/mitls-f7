@@ -29,7 +29,7 @@ val is_outgoing_empty: app_state -> bool
 
 (* Dequeue app data from the input buffer *)
 val retrieve_data: app_state -> (bytes * app_state)
-(* val retrieve_data_available: app_state -> bool *)
+val is_incoming_empty: app_state -> bool
 
 (* Application data to/from dispatcher (hence record) *)
 

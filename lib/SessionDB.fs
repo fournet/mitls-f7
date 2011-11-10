@@ -6,9 +6,10 @@ open Data
 open System.IO
 open System.Runtime.Serialization.Formatters.Binary
 
-type StoredSession =
+type StorableSession =
     {sinfo: SessionInfo
-     ms: bytes}
+     ms: bytes
+     dir: Direction}
 
 let load filename =
     let bf = new BinaryFormatter() in
@@ -16,11 +17,11 @@ let load filename =
                                 FileMode.Open, (* Never overwrite, and fail if not exists *)
                                 FileAccess.Read,
                                 FileShare.ReadWrite) in
-    let map = bf.Deserialize(file) :?> Map<sessionID,(StoredSession * System.DateTime)> in
+    let map = bf.Deserialize(file) :?> Map<sessionID,(StorableSession * System.DateTime)> in
     file.Close()
     map
 
-let store filename (map:Map<sessionID,(StoredSession * System.DateTime)>) =
+let store filename (map:Map<sessionID,(StorableSession * System.DateTime)>) =
     let bf = new BinaryFormatter() in
     let file = new FileStream(  filename,
                                 FileMode.Create, (* Overwrite file, or create if it does not exists *)
@@ -30,7 +31,7 @@ let store filename (map:Map<sessionID,(StoredSession * System.DateTime)>) =
     file.Close()
 
 let create poptions =
-    let map = Map.empty<sessionID,(StoredSession * System.DateTime)> in
+    let map = Map.empty<sessionID,(StorableSession * System.DateTime)> in
     store poptions.sessionDBFileName map
 
 let remove poptions key = 

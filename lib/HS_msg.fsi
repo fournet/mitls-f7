@@ -71,7 +71,9 @@ type ClientCertType =
     | CLT_DSS_Sign = 2
     | CLT_RSA_Fixed_DH = 3
     | CLT_DSS_Fixed_DH = 4
-
+(* Obsolete. Use Algorithms.hashAlg and
+   following conversion functions instead *)
+(*
 type HashAlg =
     | HA_None = 0
     | HA_md5 = 1
@@ -80,6 +82,9 @@ type HashAlg =
     | HA_sha256 = 4
     | HA_sha384 = 5
     | HA_sha512 = 6
+*)
+val hashAlg_to_tls12enum: Algorithms.hashAlg -> int
+val tls12enum_to_hashAlg: int -> Algorithms.hashAlg option
 
 type SigAlg =
     | SA_anonymous = 0
@@ -88,7 +93,7 @@ type SigAlg =
     | SA_ecdsa = 3
 
 type SigAndHashAlg = {
-    SaHA_hash: HashAlg;
+    SaHA_hash: Algorithms.hashAlg;
     SaHA_signature: SigAlg;
     }
 

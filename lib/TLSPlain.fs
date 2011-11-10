@@ -111,8 +111,17 @@ let app_fragment (si:SessionInfo) lens (appdata:appdata) : ((int * fragment) * (
 
 let get_bytes (appdata:appdata) = appdata.bytes
 
-let pub_fragment (si:SessionInfo) (data:bytes) : ((int * fragment) * bytes) = (* TODO, which target size should we stick to? *)
-    unexpectedError "[TODO] not implemented yet"
+let pub_fragment (si:SessionInfo) (data:bytes) : ((int * fragment) * bytes) =
+    let (frag,rem) =
+        if Bytearray.length data > fragmentLength then
+            split data fragmentLength
+        else
+            (data,[||])
+    let addedLen = computeAddedLen si (Bytearray.length frag) in
+    let totlen = (Bytearray.length frag) + addedLen in
+    ((totlen,{bytes = frag}),rem)
+
+let pub_fragment_to_bytes (si:SessionInfo) (tlen:int) (fragment:fragment) = fragment.bytes
 
 type mac = MACt of MAC.mac
 

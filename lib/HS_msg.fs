@@ -108,6 +108,7 @@ type ClientCertType =
     | CLT_RSA_Fixed_DH = 3
     | CLT_DSS_Fixed_DH = 4
 
+(*
 type HashAlg =
     | HA_None = 0
     | HA_md5 = 1
@@ -116,6 +117,21 @@ type HashAlg =
     | HA_sha256 = 4
     | HA_sha384 = 5
     | HA_sha512 = 6
+*)
+let hashAlg_to_tls12enum ha =
+    match ha with
+    | Algorithms.hashAlg.MD5 -> 1
+    | Algorithms.hashAlg.SHA -> 2
+    | Algorithms.hashAlg.SHA256 -> 4
+    | Algorithms.hashAlg.SHA384 -> 5
+
+let tls12enum_to_hashAlg n =
+    match n with
+    | 1 -> Some Algorithms.hashAlg.MD5
+    | 2 -> Some Algorithms.hashAlg.SHA
+    | 4 -> Some Algorithms.hashAlg.SHA256
+    | 5 -> Some Algorithms.hashAlg.SHA384
+    | _ -> None
 
 type SigAlg =
     | SA_anonymous = 0
@@ -124,7 +140,7 @@ type SigAlg =
     | SA_ecdsa = 3
 
 type SigAndHashAlg = {
-    SaHA_hash: HashAlg;
+    SaHA_hash: Algorithms.hashAlg;
     SaHA_signature: SigAlg;
     }
 

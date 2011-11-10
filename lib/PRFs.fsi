@@ -8,7 +8,7 @@ open Error_handling
 (* Used when generating verifiData for the Finished message *)
 type masterSecret = bytes
 val prfVerifyData: KeyInfo -> masterSecret ->
-                   role (* From which a label is derived *) ->
+                   Direction (* From which a label is derived *) ->
                    bytes (* msgLog *) ->
                    bytes Result (* length depends on cs, 12 by default *)
 

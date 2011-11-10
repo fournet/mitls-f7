@@ -56,10 +56,8 @@ let retrieve_data (state:app_state) =
     let state = reset_incoming state in
     (res,state)
 
-(*
-let retrieve_data_available state =
-    not (is_empty_appdata state.app_incoming)
-*)
+let is_incoming_empty state =
+    is_empty_appdata state.app_incoming
 
 let next_fragment state =
     if is_outgoing_empty state then
