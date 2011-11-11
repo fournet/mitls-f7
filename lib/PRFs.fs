@@ -152,33 +152,38 @@ let generic_prf pv cs secret label data len =
 
 (* High-level prf functions -- implement interface *)
 
-let prfVerifyData ki ms role data =
+let prfVerifyData ki (ms:masterSecret) role data =
   let pv = ki.sinfo.protocol_version in
   match pv with 
-  | ProtocolVersionType.SSL_3p0 -> ssl_verifyData ms role data
+  | ProtocolVersionType.SSL_3p0 -> ssl_verifyData ms.bytes role data
   | x when x = ProtocolVersionType.TLS_1p0 || x = ProtocolVersionType.TLS_1p1 -> 
-    tls_verifyData ms role data
+    tls_verifyData ms.bytes role data
   | ProtocolVersionType.TLS_1p2 ->
     let cs = ki.sinfo.cipher_suite in
-    tls12VerifyData cs ms role data
+    tls12VerifyData cs ms.bytes role data
   | _ -> unexpectedError "[prfVerifyData] invoked on unsupported protocol version"
 
 type preMasterSecret = {bytes:bytes}
 
-let prfMS sinfo pms =
+let prfMS sinfo pms: masterSecret Result =
     let pv = sinfo.protocol_version in
     let cs = sinfo.cipher_suite in
     let data = append sinfo.init_crand sinfo.init_srand in
-    generic_prf pv cs pms "master secret" data 48
+    match generic_prf pv cs pms.bytes "master secret" data 48 with
+    | Error(x,y) -> Error(x,y)
+    | Correct(res) -> correct ({bytes = res})
 
 type keyBlob = {bytes:bytes}
 
-let prfKeyExp ki ms =
+let prfKeyExp ki (ms:masterSecret) =
     let pv = ki.sinfo.protocol_version in
     let cs = ki.sinfo.cipher_suite in
     let data = append ki.crand ki.srand in
     let len = getKeyExtensionLength pv cs in
-    generic_prf pv cs ms "key expansion" data len
+    match generic_prf pv cs ms.bytes "key expansion" data len with
+    | Error(x,y) -> Error(x,y)
+    | Correct(res) -> correct ({bytes = res})
+    
 
 let splitKeys outKi (inKi:KeyInfo) (blob:keyBlob) =
     let macKeySize = macKeyLength (macAlg_of_ciphersuite outKi.sinfo.cipher_suite) in
