@@ -18,6 +18,7 @@ type SessionInfo = {
     clientID: cert option;
     serverID: cert option;
     sessionID: sessionID option;
+    (* prev_sid: sessionID option; Pointer to the previous session over the same connection *)
     protocol_version: ProtocolVersionType;
     cipher_suite: cipherSuite;
     compression: Compression;
@@ -32,7 +33,7 @@ type KeyInfo = {
     dir: Direction;
     crand: bytes;
     srand: bytes;
- (* cVerifyData: bytes
+    (* cVerifyData: bytes
     sVerifyData: bytes *)
     }
 

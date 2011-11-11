@@ -8,6 +8,7 @@ open HASH (* Only for SSL 3 keyed hash *)
 open Error_handling
 
 type macKey = {bytes:bytes}
+let bytes_to_key b = {bytes = b}
 type mac_plain = bytes
 type mac = bytes
 

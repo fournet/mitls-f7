@@ -10,6 +10,7 @@ open TLSPlain
 open Formats
 
 type symKey = {bytes:bytes}
+let bytes_to_key b = {bytes = b}
 type iv = bytes
 type ivOpt =
     | SomeIV of iv

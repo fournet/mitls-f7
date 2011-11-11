@@ -6,6 +6,8 @@ open Error_handling
 open TLSPlain
 
 type symKey
+(* Only to be used by PRFs module, when generating keys from keyblob *)
+val bytes_to_key: bytes -> symKey
 type iv = bytes
 type ivOpt =
     | SomeIV of iv

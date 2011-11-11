@@ -10,7 +10,8 @@ open HASH
 open HMAC
 
 (* Low-level prf functions *)
-type masterSecret = bytes
+type masterSecret = {bytes:bytes}
+let empty_masterSecret : masterSecret = {bytes = [||]}
 
 (* SSL *)
 let ssl_prf_int secret label seed =
@@ -106,8 +107,8 @@ let tls_prf secret label seed len =
 let tls_verifyData ms role data =
     let tls_label = 
         match role with
-        | ClientRole -> "client finished"
-        | ServerRole -> "server finished"
+        | CtoS -> "client finished"
+        | StoC -> "server finished"
     match hash MD5 data with
     | Error (x,y) -> Error(x,y)
     | Correct (md5hash) ->
@@ -162,7 +163,7 @@ let prfVerifyData ki ms role data =
     tls12VerifyData cs ms role data
   | _ -> unexpectedError "[prfVerifyData] invoked on unsupported protocol version"
 
-type preMasterSecret = bytes
+type preMasterSecret = {bytes:bytes}
 
 let prfMS sinfo pms =
     let pv = sinfo.protocol_version in
@@ -170,9 +171,29 @@ let prfMS sinfo pms =
     let data = append sinfo.init_crand sinfo.init_srand in
     generic_prf pv cs pms "master secret" data 48
 
+type keyBlob = {bytes:bytes}
+
 let prfKeyExp ki ms =
     let pv = ki.sinfo.protocol_version in
     let cs = ki.sinfo.cipher_suite in
     let data = append ki.crand ki.srand in
     let len = getKeyExtensionLength pv cs in
     generic_prf pv cs ms "key expansion" data len
+
+let splitKeys outKi (inKi:KeyInfo) (blob:keyBlob) =
+    let macKeySize = macKeyLength (macAlg_of_ciphersuite outKi.sinfo.cipher_suite) in
+    (* TODO: add support for AEAD ciphers *)
+    let encKeySize = keyMaterialSize (encAlg_of_ciphersuite outKi.sinfo.cipher_suite) in
+    let ivsize = 
+        if PVRequiresExplicitIV outKi.sinfo.protocol_version then
+            0
+        else
+            ivSize (encAlg_of_ciphersuite outKi.sinfo.cipher_suite)
+    let key_block = blob.bytes in
+    let cmk = Array.sub key_block 0 macKeySize in
+    let smk = Array.sub key_block macKeySize macKeySize in
+    let cek = Array.sub key_block (2*macKeySize) encKeySize in
+    let sek = Array.sub key_block (2*macKeySize+encKeySize) encKeySize in
+    let civ = Array.sub key_block (2*macKeySize+2*encKeySize) ivsize in
+    let siv = Array.sub key_block (2*macKeySize+2*encKeySize+ivsize) ivsize in
+    (MAC.bytes_to_key cmk, MAC.bytes_to_key smk, ENC.bytes_to_key cek, ENC.bytes_to_key sek, civ, siv)

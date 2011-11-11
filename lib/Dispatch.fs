@@ -51,7 +51,7 @@ type preds = DebugPred of Connection
 let init ns dir poptions =
     (* Direction "dir" is always the outgouing direction.
        So, if we are a Client, it will be CtoS, if we're a Server: StoC *)
-    let hs = Handshake.init_handshake init_sessionInfo dir poptions in
+    let hs = Handshake.init_handshake dir poptions in
     let (outKI,inKI) = (init_KeyInfo init_sessionInfo dir, init_KeyInfo init_sessionInfo (dualDirection dir)) in
     let (send,recv) = Record.create outKI inKI poptions.minVer in
     let read_state = {disp = Init; conn = recv} in
@@ -79,13 +79,13 @@ let resume ns sid ops =
     | CtoS ->
     let sinfo = retrievedStoredSession.sinfo in
     let hs = Handshake.resume_handshake sinfo retrievedStoredSession.ms ops in
-    let (outKI,inKI) = (init_KeyInfo sinfo CtoS, init_KeyInfo sinfo StoC) in
+    let (outKI,inKI) = (init_KeyInfo init_sessionInfo CtoS, init_KeyInfo init_sessionInfo StoC) in
     let (send,recv) = Record.create outKI inKI ops.minVer in
     let read_state = {disp = Init; conn = recv} in
     let write_state = {disp = Init; conn = send} in
-    let al = Alert.init sinfo  in
-    let app = AppData.init sinfo CtoS in
-    let res = { ds_info = sinfo;
+    let al = Alert.init init_sessionInfo  in
+    let app = AppData.init init_sessionInfo CtoS in
+    let res = { ds_info = init_sessionInfo;
                 poptions = ops;
                 handshake = hs;
                 alert = al;
