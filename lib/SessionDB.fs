@@ -8,7 +8,7 @@ open System.Runtime.Serialization.Formatters.Binary
 
 type StorableSession =
     {sinfo: SessionInfo
-     ms: bytes
+     ms: PRFs.masterSecret
      dir: Direction}
 
 let load filename =

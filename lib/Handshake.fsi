@@ -20,13 +20,13 @@ type hs_state = pre_hs_state
 val init_handshake: Direction -> protocolOptions -> hs_state
 
 (* Only client side *)
-val resume_handshake: SessionInfo -> bytes -> protocolOptions -> hs_state
+val resume_handshake: SessionInfo -> PRFs.masterSecret -> protocolOptions -> hs_state
 
 val start_rehandshake: hs_state -> protocolOptions -> hs_state
 val start_rekey: hs_state -> protocolOptions -> hs_state
 val start_hs_request: hs_state -> protocolOptions -> hs_state
 
-val new_session_idle: hs_state -> SessionInfo -> bytes -> hs_state
+val new_session_idle: hs_state -> SessionInfo -> PRFs.masterSecret -> hs_state
 
 (*
 val rehandshake: hs_state -> hs_state Result (* new handshake on same connection *)

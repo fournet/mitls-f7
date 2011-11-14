@@ -9,12 +9,18 @@ open Error_handling
 type masterSecret
 val empty_masterSecret: masterSecret
 val prfVerifyData: KeyInfo -> masterSecret ->
-                   Direction (* From which a label is derived *) ->
                    bytes (* msgLog *) ->
                    bytes Result (* length depends on cs, 12 by default *)
 
 (* Used when generating the MS from the PMS *)
 type preMasterSecret
+(* TODO: this only works for RSA, when client arbitrarily chooses PMS. A different interface is required for DH *)
+(* Note: we need an external version type, and not the one contained in the session info. This is because
+   we need to use the highest client supported version type, and not the negotiated one, to avoid version rollback attacks. *)
+val genPMS: SessionInfo -> HS_ciphersuites.ProtocolVersionType -> preMasterSecret
+val rsaEncryptPMS: OtherCrypto.asymKey -> preMasterSecret -> bytes Result
+val empty_pms: preMasterSecret (* Used to implement a dummy DH key exchange *)
+
 val prfMS: SessionInfo -> preMasterSecret ->
            (* No label, it's hardcoded. Of course we can make it explicit -> *)
            (* No seed (crandom @| srandom), it can be retrieved from SessionInfo -> *)

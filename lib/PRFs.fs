@@ -152,18 +152,29 @@ let generic_prf pv cs secret label data len =
 
 (* High-level prf functions -- implement interface *)
 
-let prfVerifyData ki (ms:masterSecret) role data =
+let prfVerifyData ki (ms:masterSecret) data =
   let pv = ki.sinfo.protocol_version in
   match pv with 
-  | ProtocolVersionType.SSL_3p0 -> ssl_verifyData ms.bytes role data
+  | ProtocolVersionType.SSL_3p0 -> ssl_verifyData ms.bytes ki.dir data
   | x when x = ProtocolVersionType.TLS_1p0 || x = ProtocolVersionType.TLS_1p1 -> 
-    tls_verifyData ms.bytes role data
+    tls_verifyData ms.bytes ki.dir data
   | ProtocolVersionType.TLS_1p2 ->
     let cs = ki.sinfo.cipher_suite in
-    tls12VerifyData cs ms.bytes role data
+    tls12VerifyData cs ms.bytes ki.dir data
   | _ -> unexpectedError "[prfVerifyData] invoked on unsupported protocol version"
 
 type preMasterSecret = {bytes:bytes}
+
+let genPMS (sinfo:SessionInfo) ver =
+    let verBytes = bytes_of_protocolVersionType ver in
+    let rnd = OtherCrypto.mkRandom 46 in
+    let pms = append verBytes rnd in
+    {bytes = pms}
+
+let rsaEncryptPMS key pms =
+    OtherCrypto.rsaEncrypt key pms.bytes
+
+let empty_pms = {bytes = [||]}
 
 let prfMS sinfo pms: masterSecret Result =
     let pv = sinfo.protocol_version in

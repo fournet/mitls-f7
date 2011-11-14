@@ -6,7 +6,7 @@ open AppCommon
 
 type StorableSession =
     {sinfo: SessionInfo
-     ms: bytes
+     ms: PRFs.masterSecret
      dir: Direction}
 
 val create: protocolOptions -> unit
