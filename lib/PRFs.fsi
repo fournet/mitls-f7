@@ -17,8 +17,14 @@ type preMasterSecret
 (* TODO: this only works for RSA, when client arbitrarily chooses PMS. A different interface is required for DH *)
 (* Note: we need an external version type, and not the one contained in the session info. This is because
    we need to use the highest client supported version type, and not the negotiated one, to avoid version rollback attacks. *)
+(* Client side: use genPMS and rsaEncryptPMS separately, by now. No idea yet on how to do it computationally-friendly *)
 val genPMS: SessionInfo -> HS_ciphersuites.ProtocolVersionType -> preMasterSecret
 val rsaEncryptPMS: OtherCrypto.asymKey -> preMasterSecret -> bytes Result
+(* Server side: embed RSA decryiption and some sanity checks. Again, fully flexibility in making this computationally-friendly *)
+val getPMS: SessionInfo -> HS_ciphersuites.ProtocolVersionType -> bool -> (* Whether we should check protocol version in old TLS versions *)
+        Principal.cert -> bytes ->
+        preMasterSecret (* No Result type: in case of error, we return random value *)
+
 val empty_pms: preMasterSecret (* Used to implement a dummy DH key exchange *)
 
 val prfMS: SessionInfo -> preMasterSecret ->

@@ -174,6 +174,36 @@ let genPMS (sinfo:SessionInfo) ver =
 let rsaEncryptPMS key pms =
     OtherCrypto.rsaEncrypt key pms.bytes
 
+let getPMS sinfo ver check_client_version_in_pms_for_old_tls cert encPMS =
+    (* Security measures described in RFC 5246, sec 7.4.7.1 *)
+    (* 1. Generate random data, 46 bytes, for PMS except client version *)
+    let fakepms = OtherCrypto.mkRandom 46 in
+    (* 2. Decrypt the message to recover plaintext *)
+    let priK = Principal.priKey_of_certificate cert in
+    let verB = bytes_of_protocolVersionType ver in
+    match OtherCrypto.rsaDecrypt priK encPMS with
+    | Error(x,y) ->
+        (* 3. Decrypt error, continue with fake pms *)
+        {bytes = append verB fakepms}
+    | Correct(pms) ->
+        if not (Bytearray.length pms = 48) then (* FIXME: Is this to be ensured statically? *)
+            (* 3. Decrypt error, continue with fake pms *)
+            {bytes = append verB fakepms}
+        else
+            let (clVB,postPMS) = split pms 2 in
+            match sinfo.protocol_version with
+            | v when v >= ProtocolVersionType.TLS_1p1 ->
+                (* 3. If new TLS version, just go on with client version and true pms.
+                    This corresponds to a check of the client version number, but we'll fail later. *)
+                {bytes = append verB postPMS}
+            | v when v = ProtocolVersionType.SSL_3p0 || v = ProtocolVersionType.TLS_1p0 ->
+                (* 3. If check disabled, use client provided PMS, otherwise use our version number *)
+                if check_client_version_in_pms_for_old_tls then
+                    {bytes = append verB postPMS}
+                else
+                    {bytes = pms}
+            | _ -> unexpectedError "[parseClientKEX] Protocol version should have already been checked some lines above."
+
 let empty_pms = {bytes = [||]}
 
 let prfMS sinfo pms: masterSecret Result =

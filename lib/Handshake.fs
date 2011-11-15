@@ -499,6 +499,7 @@ let bldVerifyData ver cs ms entity hsmsgs =
   | _ -> Error(HSError(AD_internal_error),HSSendAlert)
 *)
 
+(* Probably we want to move the two following functions into PRFs *)
 let checkVerifyData ki ms hsmsgs orig =
     match prfVerifyData ki ms hsmsgs with
     | Error (x,y) -> Error (x,y)
@@ -755,35 +756,8 @@ let parseClientKEX sinfo sSpecState pops data =
             match parseRes with
             | Error(x,y) -> Error(x,y)
             | Correct(encPMS) ->
-                (* TODO: Port this to PRFs *)
-                (* Security measures described in RFC 5246, sec 7.4.7.1 *)
-                (* 1. Generate random data, 46 bytes, for PMS except client version *)
-                let fakepms = OtherCrypto.mkRandom 46 in
-                (* 2. Decrypt the message to recover plaintext *)
-                let priK = priKey_of_certificate cert in
-                let verB = bytes_of_protocolVersionType sSpecState.highest_client_ver in
-                match OtherCrypto.rsaDecrypt priK encPMS with
-                | Error(x,y) ->
-                    (* 3. Decrypt error, continue with fake pms *)
-                    correct (append verB fakepms)
-                | Correct(pms) ->
-                    if not (length pms = 48) then
-                        (* 3. Decrypt error, continue with fake pms *)
-                        correct (append verB fakepms)
-                    else
-                        let (clVB,postPMS) = split pms 2 in
-                        match sinfo.protocol_version with
-                        | v when v >= ProtocolVersionType.TLS_1p1 ->
-                            (* 3. If new TLS version, just go on with client version and true pms.
-                                This corresponds to a check of the client version number, but we'll fail later. *)
-                            correct (append verB postPMS)
-                        | v when v = ProtocolVersionType.SSL_3p0 || v = ProtocolVersionType.TLS_1p0 ->
-                            (* 3. If check disabled, use client provided PMS, otherwise use our version number *)
-                            if pops.check_client_version_in_pms_for_old_tls then
-                                correct (append verB postPMS)
-                            else
-                                correct (pms)
-                        | _ -> unexpectedError "[parseClientKEX] Protocol version should have already been checked some lines above."
+                let res = getPMS sinfo sSpecState.highest_client_ver pops.check_client_version_in_pms_for_old_tls cert encPMS in
+                correct(res)
     else
         (* TODO *)
         (* We should support the DH key exchanges *)
@@ -1621,33 +1595,34 @@ let rec recv_fragment_server (hs_state:hs_state) (must_change_ver:ProtocolVersio
                 | Correct(pms) ->
                     (* Log the received packet *)
                     let new_log = append hs_state.hs_msg_log to_log in
-                    let hs_state = {hs_state with hs_msg_log = new_log} in  
-                    match compute_master_secret pms sinfo.more_info.mi_protocol_version hs_state.hs_client_random hs_state.hs_server_random with
+                    let hs_state = {hs_state with hs_msg_log = new_log} in
+                    match prfMS hs_state.hs_next_info pms with
+                    (* assert: hs_state.hs_next_info.{c,s}rand = hs_state.ki_{c,s}rand *)
+                    (* match compute_master_secret pms sinfo.more_info.mi_protocol_version hs_state.hs_client_random hs_state.hs_server_random with *)
                     (* TODO: here we should shred pms *)
                     | Error(x,y) -> (Error(x,y),hs_state)
                     | Correct(ms) ->
-                        let new_mi = {sinfo.more_info with mi_ms = ms} in
-                        let sinfo = {sinfo with more_info = new_mi} in
-                        match compute_session_secrets_and_CCSs hs_state sinfo with
+                        let hs_state = {hs_state with next_ms = ms} in
+                        match compute_session_secrets_and_CCSs hs_state StoC with
                         | Error(x,y) -> (Error(x,y),hs_state)
                         | Correct(hs_state) ->
                             (* move to new state *)
-                            match sinfo.clientID with
+                            match hs_state.hs_next_info.clientID with
                             | None -> (* No client certificate, so there will be no CertificateVerify message *)
-                                let hs_state = {hs_state with pstate = Server(SCCS(sinfo,sSpecSt))} in
+                                let hs_state = {hs_state with pstate = Server(SCCS(sSpecSt))} in
                                 recv_fragment_server hs_state must_change_ver
                             | Some(cert) ->
                                 if certificate_has_signing_capability cert then
-                                    let hs_state = {hs_state with pstate = Server(CertificateVerify(sinfo,sSpecSt))} in
+                                    let hs_state = {hs_state with pstate = Server(CertificateVerify(sSpecSt))} in
                                     recv_fragment_server hs_state must_change_ver
                                 else
-                                    let hs_state = {hs_state with pstate = Server(SCCS(sinfo,sSpecSt))} in
+                                    let hs_state = {hs_state with pstate = Server(SCCS(sSpecSt))} in
                                     recv_fragment_server hs_state must_change_ver
             | _ -> (* Message arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
         | HT_certificate_verify ->
             match sState with
-            | CertificateVerify(sinfo,sSpecSt) ->
-                match sinfo.clientID with
+            | CertificateVerify(sSpecSt) ->
+                match hs_state.hs_next_info.clientID with
                 | None -> (* There should always be a client certificate in this state *)(Error(HSError(AD_internal_error),HSSendAlert),hs_state)
                 | Some(clCert) ->
                     match certificateVerifyCheck hs_state payload with
@@ -1658,15 +1633,20 @@ let rec recv_fragment_server (hs_state:hs_state) (must_change_ver:ProtocolVersio
                             let new_log = append hs_state.hs_msg_log to_log in
                             let hs_state = {hs_state with hs_msg_log = new_log} in   
                             (* move to next state *)
-                            let hs_state = {hs_state with pstate = Server(SCCS(sinfo,sSpecSt))} in
+                            let hs_state = {hs_state with pstate = Server(SCCS(sSpecSt))} in
                             recv_fragment_server hs_state must_change_ver
                         else
                             (Error(HSError(AD_decrypt_error),HSSendAlert),hs_state)
             | _ -> (* Message arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
         | HT_finished ->
             match sState with
-            | SFinished(sinfo,sSpecSt) ->
-                match checkVerifyData sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms CtoS hs_state.hs_msg_log payload with
+            | SFinished(sSpecSt) ->
+                let kiIn =
+                    match hs_state.ccs_incoming with
+                    | None -> unexpectedError "[recv_fragment_server] the incoming KeyInfo should be set now"
+                    | Some (ccs_data) -> ccs_data.ki
+                match checkVerifyData kiIn hs_state.next_ms hs_state.hs_msg_log payload with
+                (* match checkVerifyData sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms CtoS hs_state.hs_msg_log payload with *)
                 | Error (x,y) -> (Error(x,y),hs_state)
                 | Correct(verifyDataisOK) ->
                     if not verifyDataisOK then
@@ -1679,18 +1659,36 @@ let rec recv_fragment_server (hs_state:hs_state) (must_change_ver:ProtocolVersio
                                 it will take care of moving the handshake to the Idle state, updating the sinfo with the
                                 one we've been creating in this handshake. *)
                             (* Note: no need to log this message *)
-                            (correct (HSFullyFinished_Read (sinfo)),hs_state)
+                            let storableSession = { sinfo = hs_state.hs_next_info
+                                                    ms = hs_state.next_ms
+                                                    dir = StoC}
+                            (correct (HSFullyFinished_Read (storableSession)),hs_state)
                         else
                             (* Log the received message *)
                             let new_log = append hs_state.hs_msg_log to_log in
                             let hs_state = {hs_state with hs_msg_log = new_log} in
-                            match makeFinishedMsgBytes sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms StoC hs_state.hs_msg_log with
+                            let kiOut =
+                                match hs_state.ccs_outgoing with
+                                (* FIXME: There is at least one race condition where the following unexpected error will occur.
+                                   After the client sends its ClientKeyExchange message we compute the ougoing (and incoming) ccs_data,
+                                   and put it into our output buffer. Now, if the client hangs after the ClientKeyExchange (that is: it does
+                                   not send its CCS soon enough), the Dispatch module will stop reading and we will flush our output buffers,
+                                   thus clearing the outgoing KeyInfo. A subsequent read/write operation will trigger this code, which will
+                                   miserably fail.
+                                   Still, in the current implementation we must remove the ccs_data from the output buffer, in order to
+                                   send it only once. A better implementation keeps explicit track of the output message to be sent, and
+                                   do not rely on the content of the buffers, so we can store the outgoing ccs_data indefintely
+                                   (i.e. until we reset our state) exactly like we do for the incoming ccs_data *)
+                                | None -> unexpectedError "[recv_fragment_server] Outgoing KeyInfo should be set now"
+                                | Some(_,ccs_data) -> ccs_data.ki
+                            match makeFinishedMsgBytes kiOut hs_state.next_ms hs_state.hs_msg_log with
+                            (* match makeFinishedMsgBytes sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms StoC hs_state.hs_msg_log with *)
                             | Error(x,y) -> (Error(x,y),hs_state)
                             | Correct(packet,verifyData) ->
                                 let new_out = append hs_state.hs_outgoing_after_ccs packet in
                                 let hs_state = {hs_state with hs_outgoing_after_ccs = new_out
                                                               hs_renegotiation_info_sVerifyData = verifyData
-                                                              pstate = Server(SWaitingToWrite(sinfo))} in
+                                                              pstate = Server(SWaitingToWrite)} in
                                 (correct (HSReadSideFinished),hs_state)                                
             | _ -> (* Message arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
         | _ -> (* Unsupported/Wrong message *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
@@ -1698,7 +1696,8 @@ let rec recv_fragment_server (hs_state:hs_state) (must_change_ver:ProtocolVersio
       | Client(_) -> unexpectedError "[recv_fragment_server] should only be invoked when in server role."
 
 let recv_fragment (hs_state:hs_state) (tlen:int) (fragment:fragment) =
-    let fragment = pub_fragment_to_bytes hs_state.hs_info tlen fragment in
+    (* Note, we receive fragments in the current session, not the one we're establishing *)
+    let fragment = pub_fragment_to_bytes hs_state.hs_cur_info tlen fragment in
     let hs_state = enqueue_fragment hs_state fragment in
     match hs_state.pstate with
     | Client (_) -> recv_fragment_client hs_state None
@@ -1706,7 +1705,7 @@ let recv_fragment (hs_state:hs_state) (tlen:int) (fragment:fragment) =
 
 let recv_ccs (hs_state: hs_state) (tlen:int) (fragment:fragment): ((ccs_data Result) * hs_state) =
     (* Some parsing *)
-    let fragment = pub_fragment_to_bytes hs_state.hs_info tlen fragment in
+    let fragment = pub_fragment_to_bytes hs_state.hs_cur_info tlen fragment in
     if length fragment <> 1 then
         (Error(HSError(AD_decode_error),HSSendAlert),hs_state)
     else
@@ -1718,21 +1717,21 @@ let recv_ccs (hs_state: hs_state) (tlen:int) (fragment:fragment): ((ccs_data Res
             | Client (cstate) ->
                 (* Check we are in the right state (CCCS) *)
                 match cstate with
-                | CCCS (sinfo,clSpState) ->
+                | CCCS (clSpState) ->
                     match hs_state.ccs_incoming with
                     | None -> unexpectedError "[recv_ccs] when in CCCS state, ccs_incoming should have some value."
                     | Some (ccs_result) ->
                         let hs_state = {hs_state with (* ccs_incoming = None *) (* Don't reset its value now. We'll need it when computing the other side Finished message *)
-                                                      pstate = Client (CFinished (sinfo,clSpState))} in
+                                                      pstate = Client (CFinished (clSpState))} in
                         (correct(ccs_result),hs_state)
                 | _ -> (* CCS arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
             | Server (sState) ->
                 match sState with
-                | SCCS (sinfo,sSpecSt) ->
+                | SCCS (sSpecSt) ->
                     match hs_state.ccs_incoming with
                     | None -> unexpectedError "[recv_ccs] when in CCCS state, ccs_incoming should have some value."
                     | Some (ccs_result) ->
                         let hs_state = {hs_state with (* ccs_incoming = None *) (* Don't reset its value now. We'll need it when computing the other side Finished message *)
-                                                      pstate = Server(SFinished(sinfo,sSpecSt))} in
+                                                      pstate = Server(SFinished(sSpecSt))} in
                         (correct(ccs_result),hs_state)
                 | _ -> (* CCS arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
