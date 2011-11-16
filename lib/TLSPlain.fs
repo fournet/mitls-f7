@@ -135,16 +135,75 @@ let ad_fragment (ki:KeyInfo) (ad:add_data) (frag:fragment) =
 
 type plain = {bytes: bytes}
 
-let concat_fragment_mac_pad (ki:KeyInfo) tlen (data:fragment) (MACt(mac):mac) =
-    let step1 = data.bytes @| mac in
-    let padlen = tlen - (Bytearray.length step1) - 1 in (* -1 for the byte containing pad len *)
-    let pad = Array.create (padlen + 1) (byte padlen) in
-    {bytes = step1 @| pad}
+let length = Bytearray.length (* temporary *)
+
+let pad (p:int)  = Array.create p (byte (p-1))
+(* val pad (p:int) { 1 <= p /\ p <= 256 } -> b:bytes { b = Pad(p) } *)
+
+(* this is the Encode function of MAC-then-Encode-then-Encrypt;
+   in contrast with Paterson et al, typing prevents any runtime error. *)
+
+let concat_fragment_mac_pad (ki:KeyInfo) cipherlen (data:fragment) (MACt(mac):mac) =
+    let p = cipherlen - length data.bytes - length mac  
+    {bytes = data.bytes @| mac @| pad p}
+
+(* this is the Decode function of Mac-then-Encode-then-Encrypt,
+   somehow an inverse of the function above;
+   plainLen is just length plain, right? cloned & rewritten, to be discussed *)
+
+let split_fragment_mac_pad (ki:KeyInfo) (plain:plain) : fragment * mac * bool =
+(* 
+val split_flagment_mac_pad ki:KeyInfo -> plain:plain 
+  {    SupportedProtocolVersion(ki) 
+    /\ Length(plain) > MacLen(ki)
+    /\ Blocks(plain) } -> f:fragment * m:mac * b:bool 
+  {    ( b=true  /\ ?p. plain = fragment @| mac @| padding p )
+    \/ ( b=false /\ not ?fragment,mac,p. Length(mac)=... /\ plain = fragment @| mac @| padding p ) }
+// We need preconditions stating that: 
+// - the protocol version is supported.
+// - Length(plain) > maclen (or even maclen + bs with SSL3?) 
+// - Length(plain) consists of n blocks
+// We also need a precise postcondition to guarantee success on genuine decryptions & failure with modified padding.
+*)
+    let v = ki.sinfo.protocol_version
+    let l = length plain.bytes
+    let m = macLength (macAlg_of_ciphersuite ki.sinfo.cipher_suite) in
+
+    let fail() : fragment * mac * bool = 
+        (* Parse the message pretending we have a valid padding of minimal length.
+           in TLS1.0 we fail just after returning; in more recent versions we fail
+           later, after checking the MAC. See sec.6.2.3.2 Implementation Note. 
+           This is not perfect, as we may compute the MAC on more blocks than sent,
+           or fail after checking the MAC on fewer blocks for some pad-like fragments *)
+        let p = 1
+        let (fragment_mac,padding) = split plain.bytes  (l - p)
+        let (fragment,mac)         = split fragment_mac (l - p - m) 
+        {bytes=fragment},MACt(mac),false in
+
+    let p = int(plain.bytes.[l-1]) + 1 in
+    if l < m + p (* not enough bytes *) then fail()
+    else 
+        let (fragment_mac,padding) = split plain.bytes  (l - p) in
+        let (fragment,mac)         = split fragment_mac (l - p - m) in
+        if   (    v = ProtocolVersionType.SSL_3p0 
+               && p > blockSize(encAlg_of_ciphersuite ki.sinfo.cipher_suite) ) 
+               (* Padding is random in SSL_3p0, no check to be done on its content.
+                  However, its length should be at most one block [SSL3, 5.2.3.2]
+                  We enforce this check (performed by openssl, and not by wireshark for example)
+                  but we do not report any specific Padding error. *)
+
+          || (    (v = ProtocolVersionType.TLS_1p0 || v = ProtocolVersionType.TLS_1p1 || v = ProtocolVersionType.TLS_1p2)  
+               && equalBytes padding (pad p)) 
+          
+        then {bytes=fragment},MACt(mac),true
+        else fail()
 
 let split_mac (ki:KeyInfo) (plainLen:int) (plain:plain) : (bool * (fragment * mac)) =
     let macSize = macLength (macAlg_of_ciphersuite ki.sinfo.cipher_suite) in
     let (tmpdata, padlenb) = split plain.bytes (plainLen - 1) in
     let padlen = int padlenb.[0] in
+    // use instead, as this is untrusted anyway:
+    // let padlen = (int plain.[length plain - 1]) + 1
     let padstart = plainLen - padlen - 1 in
     if padstart < 0 then
         (* Pretend we have a valid padding of length zero, but set we must fail *)

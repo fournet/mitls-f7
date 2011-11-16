@@ -4,12 +4,12 @@ module TLSPlain
 
 // TODO:
 // - reconcile with streams, understand what the multi-message model is
-// - add support to carry authentication from appdata to fragment and back
 // - when do we deliver messages to receiving applications?
-// - compare with game-based definitions
+// - add support to carry authentication from appdata to fragment and back
+// - compare with game-based definitions [Ristenpart etc] 
 
 open TLSInfo 
-// nothing else??
+// nothing else? pls document dependencies at the beginning of files.
 
 // No need for abstraction? This is public.
 // The head of the list is sent before the tail
@@ -30,6 +30,9 @@ val estimateLengths: si:SessionInfo -> n:int -> l:Lengths{CompatibleLengths(si,n
 
 // Don't we need a CompatibleLength for individual fragments as well?
 // or is this part of the type abstraction? 
+
+// We should check that as a special case we can do minimal padding 
+// and reveal the length of every appdata message
 
 // Usage?
 // FIXME: AP: we don't use 'n' in the fsi interface. Can we get rid of it here, that would simplify implementation
