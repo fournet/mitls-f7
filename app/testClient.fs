@@ -2,7 +2,7 @@
 
 open Error_handling
 
-let serverIP = "193.55.250.100"
+let serverIP = "128.93.188.162"
 let serverPort = 4433
 let options = AppCommon.defaultProtocolOptions
 
@@ -19,13 +19,17 @@ let testCl options =
         ignore (System.Console.ReadLine())
         (unitVal,conn,ns)
 
+let test = 
+    SessionDB.create options
+    testCl options
+
 let testRes options sid =
     let ns = Tcp.connect serverIP serverPort in
     printf "Asking resumption with %A" sid
     match SessionDB.select options sid with
     | None -> printf "AYEEE, expecting to resume a session!"
     | Some (sinfo) ->
-        let conn = TLS.resume ns sinfo options in
+        let conn = TLS.resume ns sid options in
         match conn with
         | (Error(x,y),_) -> Printf.printf "AYEEE!!! %A %A" x y
         | Correct(_), conn ->
@@ -72,10 +76,11 @@ let testFullAndRehandshake () =
             printf "Full re-handshake OK"
             ignore (System.Console.ReadLine ())
 
+(*
 let testResumptionRollbackAttack () =
     (* Do a full new session in TLS 1.1 *)
-    let ops = {options with minVer = Formats.ProtocolVersionType.TLS_1p0
-                            maxVer = Formats.ProtocolVersionType.TLS_1p0
+    let ops = {options with minVer = HS_ciphersuites.ProtocolVersionType.TLS_1p1
+                            maxVer = HS_ciphersuites.ProtocolVersionType.TLS_1p1
                             safe_renegotiation = false} in
     match testCl ops with
     | (Error(x,y),_,_) -> ()
@@ -85,8 +90,7 @@ let testResumptionRollbackAttack () =
            but closure is still not handled in our implementation *)
         Tcp.close ns
         (* Cheat in our sinfo information, changing the protocol version to TLS 1.0 *)
-        let new_mi = {sinfo.more_info with mi_protocol_version = Formats.ProtocolVersionType.TLS_1p0 }
-        let sinfo = {sinfo with more_info = new_mi} in
+        let sinfo = {sinfo with protocol_version = HS_ciphersuites.ProtocolVersionType.TLS_1p0 }
         match sinfo.sessionID with
         | None -> printf "Impossible to resume session."
         | Some (sid) ->
@@ -94,5 +98,5 @@ let testResumptionRollbackAttack () =
             let ops = {options with minVer = Formats.ProtocolVersionType.TLS_1p0
                                     maxVer = Formats.ProtocolVersionType.TLS_1p0} in
             testRes ops sid
-
+*)
         

@@ -212,7 +212,18 @@ let next_fragment (c:Connection) : (bool Result) * Connection =
                             (* we change the CS immediately afterward *)
                             let ss = Record.send_setCrypto ccs_data in
                             let new_write = {disp = Finishing; conn = ss} in
+                            (* FIXME: What if the outgoing buffer was not empty? How do we notify the user that not all
+                               the committed data were sent? If we assume some sort of synch between protocol re-handshakes and
+                               app data, at least when re-keying we should not empty this buffer. *)
                             let new_appdata = AppData.reset_outgoing c.appdata in
+                            (* FIXME: we should update the ("outgoing" only) session info in alert protocol too, because
+                               from now on, outgoing alerts should be issued for the new session info, even if the latter is
+                               not confirmed to be safe yet.
+                               Note that the hansdhake is already doing this, by using its "next_info" to issue data after the CCS
+                               has been sent.
+                               Re AppData, from now on it just cannot send any message anymore, until the upcoming
+                               session info becomes valid (HSFullyFinished event).
+                               (This is what the Finishing dispatch state stands for.) *)
                             (correct (true), { c with handshake = new_hs_state;
                                                       write = new_write;
                                                       appdata = new_appdata } )
@@ -280,6 +291,9 @@ let next_fragment (c:Connection) : (bool Result) * Connection =
         match send c.ns c_write.conn tlen Alert f with 
         | Correct ss ->
             let new_write = {disp = Closed; conn = ss} in
+            (* FIXME: if also the reading state is closed, return an error to notify the user
+               that the communication is over. Otherwise we can enter infinte loops polling for data
+               that will never arrive *)
             (correct (false), { c with alert = new_al_state;
                                        write   = new_write } )
         | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
@@ -402,6 +416,7 @@ let deliver ct tlen f c =
         (* Other fatal alert, we close both sides of the connection *)
         let new_read = {c_read with disp = Closed} in
         let new_write = {c.write with disp = Closed} in
+        (* FIXME: this generates an infinite loop. We should report an error to the user instead *)
         (correct (false), { c with read = new_read;
                                    write = new_write} )
     | Error (x,y) -> (Error(x,y),c) (* Always fatal, so don't need to track the current alert state? *)

@@ -4,7 +4,7 @@ open Error_handling
 open System.IO
 
 let serverAddr = "0.0.0.0"
-let serverPort = 443
+let serverPort = 4433
 let options = {AppCommon.defaultProtocolOptions with request_client_certificate = false}
 
 open System.Security.Cryptography.X509Certificates
@@ -58,7 +58,7 @@ let prepareResponse () =
     printfn "%s" head
     resp
 
-let testHTTP =
+let testHTTP () =
     empty_sessionDB ()
     let options = {options with safe_renegotiation = false}
     //let options = {options with server_cert_file = "server_untrusted"} in
@@ -68,7 +68,7 @@ let testHTTP =
         printf "AYEEEE!!! %A %A" x y
         ignore (System.Console.ReadLine())
     | (Correct (_), conn) ->
-        match TLS.read conn 1000 with
+        match TLS.read conn with
         | (Error(x,y),_) ->
             printf "AYEEEE!!! %A %A" x y
             ignore (System.Console.ReadLine())
@@ -79,8 +79,9 @@ let testHTTP =
             printfn "%s" req
             if req.StartsWith("GET /") then
                 (* Send response *)
-                let resp = prepareResponse ()
-                match TLS.writeFully conn resp with
+                let resp = prepareResponse () in
+                let conn = TLS.write conn resp in
+                match TLS.flush conn with
                 | (Error(x,y),_) ->
                     printf "Renegotiation AYEEE!!! %A %A" x y
                     ignore (System.Console.ReadLine())

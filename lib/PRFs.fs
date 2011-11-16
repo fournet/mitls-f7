@@ -219,7 +219,7 @@ type keyBlob = {bytes:bytes}
 let prfKeyExp ki (ms:masterSecret) =
     let pv = ki.sinfo.protocol_version in
     let cs = ki.sinfo.cipher_suite in
-    let data = append ki.crand ki.srand in
+    let data = append ki.srand ki.crand in
     let len = getKeyExtensionLength pv cs in
     match generic_prf pv cs ms.bytes "key expansion" data len with
     | Error(x,y) -> Error(x,y)

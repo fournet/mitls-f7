@@ -93,8 +93,9 @@ let next_fragment state =
             match state.hs_outgoing_after_ccs with
             | x when equalBytes x empty_bstr -> (EmptyHSFrag,state)
             | d ->
-                (* The fragment must be issued for the current session we're in, not the one we're establishing *)
-                let (f,rem) = pub_fragment state.hs_cur_info d in
+                (* Exceptionally, these fragments must be issued for the upcoming session info. Indeed, after sending CCS, we're
+                   using the next_info, without knowing if it will be good or not *)
+                let (f,rem) = pub_fragment state.hs_next_info d in
                 let state = {state with hs_outgoing_after_ccs = rem} in
                 match rem with
                 | x when equalBytes x empty_bstr ->
@@ -137,6 +138,7 @@ let next_fragment state =
             let (frag,_) = pub_fragment state.hs_cur_info ccs in
             (CCSFrag (frag,ccs_data), state)
     | d ->
+        (* The fragment must be issued for the current session we're in, not the one we're establishing *)
         let (f,rem) = pub_fragment state.hs_cur_info d in
         let state = {state with hs_outgoing = rem} in
         (HSFrag(f),state)
@@ -1697,6 +1699,7 @@ let rec recv_fragment_server (hs_state:hs_state) (must_change_ver:ProtocolVersio
 
 let recv_fragment (hs_state:hs_state) (tlen:int) (fragment:fragment) =
     (* Note, we receive fragments in the current session, not the one we're establishing *)
+    (* FIXME: This session might be wrong, in the CCS/Finished/FullyFinished(Idle) transition. But we don't care now *)
     let fragment = pub_fragment_to_bytes hs_state.hs_cur_info tlen fragment in
     let hs_state = enqueue_fragment hs_state fragment in
     match hs_state.pstate with
