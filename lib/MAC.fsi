@@ -1,7 +1,7 @@
 ﻿module MAC
 
 open Data
-open Error_handling
+open Error
 open TLSInfo
 
 type macKey

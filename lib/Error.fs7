@@ -1,4 +1,4 @@
-module Error_handling
+module Error
 
 type ErrorCause =
     | Tcp
@@ -27,11 +27,13 @@ type ErrorKind =
     | InvalidState
     | Internal
     | Notification
+	| HSSendAlert
 
 type 'a Result =
     | Error of ErrorCause * ErrorKind
     | Correct of 'a
 
-val correct: x:'a -> y:'a Error_handling.Result{y = Error_handling.Correct(x)}
+val correct: x:'a -> y:'a Result{y = Correct(x)}
 
+//CF why this "false"? 
 val unexpectedError: string{false} -> 'a

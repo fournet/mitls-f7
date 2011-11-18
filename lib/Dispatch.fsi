@@ -3,7 +3,7 @@
 open Data
 open Formats
 open Tcp
-open Error_handling
+open Error
 open Record
 open Handshake
 open TLSInfo

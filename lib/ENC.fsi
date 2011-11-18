@@ -2,17 +2,17 @@
 
 open Data
 open TLSInfo
-open Error_handling
+open Error
 open TLSPlain
 
 type symKey
 (* Only to be used by PRFs module, when generating keys from keyblob *)
 val bytes_to_key: bytes -> symKey
 type iv = bytes
-type ivOpt =
+type iv3 =
     | SomeIV of iv
-    | NoneIV of unit
+    | NoIV of unit
 type cipher = bytes
 
-val ENC: KeyInfo -> symKey -> ivOpt -> int -> plain -> (ivOpt * cipher) Result
-val DEC: KeyInfo -> symKey -> ivOpt -> int -> cipher -> (ivOpt * plain) Result
+val ENC: KeyInfo -> symKey -> iv3 -> (*int ->*) plain -> (iv3 * cipher) Result
+val DEC: KeyInfo -> symKey -> iv3 -> (*int ->*) cipher -> (iv3 * plain) Result

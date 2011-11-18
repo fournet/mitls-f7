@@ -1,8 +1,8 @@
 ﻿module TLSPlain
 
-open Error_handling
+open Error
 open Algorithms
-open HS_ciphersuites
+open CipherSuites
 open Formats
 open TLSInfo
 open Data

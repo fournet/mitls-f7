@@ -1,10 +1,10 @@
 ﻿module PRFs
 
 open Data
-open Error_handling
+open Error
 open Algorithms
 open Formats
-open HS_ciphersuites
+open CipherSuites
 open TLSInfo
 open HASH
 open HMAC

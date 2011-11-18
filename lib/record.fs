@@ -2,11 +2,11 @@
 
 open Data
 open Bytearray
-open Error_handling
+open Error
 open TLSInfo
 open TLSPlain
 open Formats
-open HS_ciphersuites
+open CipherSuites
 open AEAD
 
 type recordKey =
@@ -17,13 +17,13 @@ type recordKey =
 type ccs_data =
     { ki: KeyInfo;
       key: recordKey;
-      ivOpt: ENC.ivOpt;
+      iv3: ENC.iv3;
     }
 
 type ConnectionState = {
   rec_ki: KeyInfo;
   key: recordKey;
-  ivOpt: ENC.ivOpt;
+  iv3: ENC.iv3;
   seq_num: int; (* uint64 actually *)
   local_pv: ProtocolVersionType;
   }
@@ -39,14 +39,14 @@ let incSeqNum (conn_state:ConnectionState) =
 let initConnState ki key iv pv =
   { rec_ki = ki;
     key = key;
-    ivOpt = iv;
+    iv3 = iv;
     seq_num = 0;
     local_pv = pv;
   }
 
 let create out_ki in_ki minpv =
-    let sendState = initConnState out_ki NoneKey (ENC.NoneIV ()) minpv in
-    let recvState = initConnState in_ki NoneKey (ENC.NoneIV ()) ProtocolVersionType.UnknownPV in
+    let sendState = initConnState out_ki NoneKey (ENC.NoIV ()) minpv in
+    let recvState = initConnState in_ki NoneKey (ENC.NoIV ()) ProtocolVersionType.UnknownPV in
     (sendState, recvState)
 
 // to be enforced statically, inasmuch as possible
@@ -76,22 +76,22 @@ let make_decompression conn data =
     | _ -> Error (RecordCompression, Unsupported)
 *)
 
-let prepareAddData conn ct =
+(* additional data, for MACing & verifying *)
+let makeAD conn ct =
     let version = conn.local_pv in
-
-    let bseq_num = bytes_of_seq conn.seq_num in
-    let bct = [| byte_of_contentType ct |] in
+    let bseq = bytes_of_seq conn.seq_num in
+    let bct  = [| byte_of_contentType ct |] in
     let bver = bytes_of_protocolVersionType version in
     match version with
-    | ProtocolVersionType.SSL_3p0 -> bseq_num @| bct
-    | x when x >= ProtocolVersionType.TLS_1p0 -> bseq_num @| bct @| bver
-    | _ -> unexpectedError "[prepareAddData] invoked on invalid protocol version"
+    | ProtocolVersionType.SSL_3p0 -> bseq @| bct
+    | x when x >= ProtocolVersionType.TLS_1p0 -> bseq @| bct @| bver
+    | _ -> unexpectedError "[makeAD] invoked on invalid protocol version"
 
-let generatePacket ct ver data =
+let makePacket ct ver data =
   let l = length data in 
-  let bct = [| byte_of_contentType ct |] in
+  let bct  = [| byte_of_contentType ct |] in
   let bver = bytes_of_protocolVersionType ver in
-  let bl = bytes_of_int 2 l in
+  let bl   = bytes_of_int 2 l in
   bct @| bver @| bl @| data
 
 (* 
@@ -111,7 +111,7 @@ let send conn ct fragment =
     | Correct c ->
         let (conn, payload) = c in
         let conn = incSeqNum conn in
-        let packet = generatePacket ct conn.protocol_version payload in
+        let packet = makePacket ct conn.protocol_version payload in
         match Tcp.write conn.net_conn packet with
         | Error (x,y) -> Error (x,y)
         | Correct _ -> correct (conn)
@@ -142,37 +142,39 @@ let recordPacketOut conn tlen ct (fragment:fragment) =
         | x when isNullCipherSuite x -> correct (conn,fragment_to_cipher conn.rec_ki tlen fragment)
         | x when isOnlyMACCipherSuite x ->
             let key = getMACKey conn.key in
-            let addData = prepareAddData conn ct in
+            let addData = makeAD conn ct in
             let data = ad_fragment conn.rec_ki addData fragment in
             match MAC.MAC conn.rec_ki key (mac_plain_to_bytes data) with
             | Error(x,y) -> Error(x,y)
             | Correct(mac) -> correct(conn,fragment_mac_to_cipher conn.rec_ki tlen fragment (bytes_to_mac mac))
         | _ ->
-            let addData = prepareAddData conn ct in
+            let addData = makeAD conn ct in
             let key = getAEADKey conn.key in
-            match AEAD.AEAD_ENC conn.rec_ki key conn.ivOpt tlen addData fragment with
+            match AEAD.encrypt conn.rec_ki key conn.iv3 tlen addData fragment with
             | Error(x,y) -> Error(x,y)
             | Correct(newIV,payload) ->
-                let conn = {conn with ivOpt = newIV} in
+                let conn = {conn with iv3 = newIV} in
                 correct(conn,payload)
     match payloadRes with
     | Error(x,y) -> Error(x,y)
     | Correct(conn, payload) ->
     let conn = incSeqNum conn in
-    let packet = generatePacket ct conn.local_pv payload in
+    let packet = makePacket ct conn.local_pv payload in
     correct(conn,packet)
 
 
 let send_setVersion conn pv = {conn with local_pv = pv }
 
 let send_setCrypto ccs_data =
-    initConnState ccs_data.ki ccs_data.key ccs_data.ivOpt ccs_data.ki.sinfo.protocol_version
+    initConnState ccs_data.ki ccs_data.key ccs_data.iv3 ccs_data.ki.sinfo.protocol_version
 
+//CF we'll need refinements to prevent parsing errors.
+//CF or do this only in Dispatch?
 let parse_header conn header =
-  let [x;y;z] = splitList header [1;2] in
-  let ct = contentType_of_byte x.[0] in
-  let pv = protocolVersionType_of_bytes y in
-  let len = int_of_bytes 2 z in
+  let [ct1;pv2;len2] = splitList header [1;2] in
+  let ct  = contentType_of_byte ct1.[0] in
+  let pv  = protocolVersionType_of_bytes pv2 in
+  let len = int_of_bytes 2 len2 in
   if   (  conn.local_pv <> ProtocolVersionType.UnknownPV 
          && pv <> conn.local_pv)
       || pv = ProtocolVersionType.UnknownPV 
@@ -182,6 +184,45 @@ let parse_header conn header =
        In fact, this only changes the protcol version when receiving the first fragment *)
     let conn = {conn with local_pv = pv} in
     correct (conn,ct,len)
+
+let recordPacketIn conn packet =
+    let (header,payload) = split packet 5 in
+    match parse_header conn header with
+    | Error(x,y) -> Error(x,y)
+    | Correct (conn,ct,tlen) ->
+    //CF tlen is not checked? can we write an inverse of makePacket instead?
+    let cs = conn.rec_ki.sinfo.cipher_suite in
+    let msgRes =
+        match cs with
+        | x when isNullCipherSuite x -> 
+            correct(conn,cipher_to_fragment conn.rec_ki tlen payload)
+        | x when isOnlyMACCipherSuite x ->
+            let (msg,mac) = cipher_to_fragment_mac conn.rec_ki tlen payload in
+            let data = makeAD conn ct in
+            let toVerify = ad_fragment conn.rec_ki data msg in
+            let key = getMACKey conn.key in
+            match MAC.VERIFY conn.rec_ki key (mac_plain_to_bytes toVerify) (mac_to_bytes mac) with
+            | Error(x,y) -> Error(x,y)
+            | Correct(_) -> correct(conn,msg)
+        | _ ->
+            let data = makeAD conn ct in
+            let key = getAEADKey conn.key in
+            match AEAD.decrypt conn.rec_ki key conn.iv3 tlen data payload with
+            | Error(x,y) -> Error(x,y)
+            | Correct (newIV, plain) ->
+                let conn = {conn with iv3 = newIV} in
+                correct (conn,plain)
+    match msgRes with
+    | Error(x,y) -> Error(x,y)
+    | Correct (conn,msg) ->
+    (* We now always return the compressed fragment. Decompression is handled internally by TLSPlain *)
+    (*
+    match make_decompression conn.rec_ki.sinfo msg with
+    | Error(x,y) -> Error(x,y)
+    | Correct (msg) ->
+    *)
+    let conn = incSeqNum conn in
+    correct(conn,ct,tlen,msg)
 
 (* Legacy implementation of recv. Now replaced by recordPacketIn, which does not deal with the network channel *)
 (* 
@@ -223,45 +264,6 @@ let recv conn =
         correct (ct,msg,conn)
 *)
 
-let recordPacketIn conn packet =
-    let (header,payload) = split packet 5 in
-    match parse_header conn header with
-    | Error(x,y) -> Error(x,y)
-    | Correct (conn,ct,tlen) ->
-    let cs = conn.rec_ki.sinfo.cipher_suite in
-    let msgRes =
-        match cs with
-        | x when isNullCipherSuite x -> correct(conn,cipher_to_fragment conn.rec_ki tlen payload)
-        | x when isOnlyMACCipherSuite x ->
-            let (msg,mac) = cipher_to_fragment_mac conn.rec_ki tlen payload in
-            let addData = prepareAddData conn ct in
-            let toVerify = ad_fragment conn.rec_ki addData msg in
-            let key = getMACKey conn.key in
-            match MAC.VERIFY conn.rec_ki key (mac_plain_to_bytes toVerify) (mac_to_bytes mac) with
-            | Error(x,y) -> Error(x,y)
-            | Correct(_) ->
-                correct(conn,msg)
-        | _ ->
-            let addData = prepareAddData conn ct in
-            let key = getAEADKey conn.key in
-            match AEAD.AEAD_DEC conn.rec_ki key conn.ivOpt tlen addData payload with
-            | Error(x,y) -> Error(x,y)
-            | Correct (newIV, plain) ->
-                let conn = {conn with ivOpt = newIV} in
-                correct (conn,plain)
-    match msgRes with
-    | Error(x,y) -> Error(x,y)
-    | Correct (conn,msg) ->
-    (* We now always return the compressed fragment. Decompression is handled internally by TLSPlain *)
-    (*
-    match make_decompression conn.rec_ki.sinfo msg with
-    | Error(x,y) -> Error(x,y)
-    | Correct (msg) ->
-    *)
-    let conn = incSeqNum conn in
-    correct(conn,ct,tlen,msg)
-
-
 let recv_setVersion conn pv =
     {conn with local_pv = pv}
 
@@ -272,4 +274,4 @@ let recv_checkVersion conn pv =
         Error(RecordVersion,CheckFailed)
 
 let recv_setCrypto ccs_data =
-    initConnState ccs_data.ki ccs_data.key ccs_data.ivOpt ccs_data.ki.sinfo.protocol_version
+    initConnState ccs_data.ki ccs_data.key ccs_data.iv3 ccs_data.ki.sinfo.protocol_version

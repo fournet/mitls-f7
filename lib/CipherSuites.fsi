@@ -1,8 +1,8 @@
-﻿module HS_ciphersuites
+﻿module CipherSuites
 
 open Data
 open Algorithms
-open Error_handling
+open Error
 
 type cipherSuite
 

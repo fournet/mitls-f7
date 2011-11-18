@@ -2,7 +2,7 @@
 
 open Data
 open Algorithms
-open Error_handling
+open Error
 
 type key = bytes
 type data = bytes

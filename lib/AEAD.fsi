@@ -1,7 +1,7 @@
 ﻿module AEAD
 
 open Data
-open Error_handling
+open Error
 open TLSInfo
 open TLSPlain
 
@@ -9,5 +9,5 @@ type AEADKey =
     | MtE of MAC.macKey * ENC.symKey
  (* | GCM of GCM.GCMSalt * GCM.GCMKey *)
 
-val AEAD_ENC: KeyInfo -> AEADKey -> ENC.ivOpt -> int -> add_data -> fragment -> (ENC.ivOpt * ENC.cipher) Result
-val AEAD_DEC: KeyInfo -> AEADKey -> ENC.ivOpt -> int -> add_data -> ENC.cipher -> (ENC.ivOpt * fragment) Result
+val encrypt: KeyInfo -> AEADKey -> ENC.iv3 -> int -> add_data -> fragment -> (ENC.iv3 * ENC.cipher) Result
+val decrypt: KeyInfo -> AEADKey -> ENC.iv3 -> int -> add_data -> ENC.cipher -> (ENC.iv3 * fragment) Result

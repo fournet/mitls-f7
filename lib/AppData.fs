@@ -2,7 +2,7 @@
 
 open Data
 open Record
-open Error_handling
+open Error
 open TLSInfo
 open TLSPlain
 open Formats

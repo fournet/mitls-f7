@@ -11,13 +11,13 @@ private type (;ki:KeyInfo) key =
       MacThenEncrypt of ka:(;ki)MAC.key * ke:(;ki)ENC.key {MtEKey(ki,(ka,ke))}
 (*  |   GCM of ke:(;ki:AENC.key)  *)
 
-val ENC: ki:KeyInfo -> (;ki) key -> (;ki) ENC.ivOpt -> (;ki) add_data -> n:int -> (;ki) fragment -> ((;ki) ENC.ivOpt * cipher) Result
-val DEC: ki:KeyInfo -> (;ki) key -> (;ki) ENC.ivOpt -> (;ki) add_data -> n:int -> cipher -> ((;ki) ENC.ivOpt * (;ki) fragment) Result
+val ENC: ki:KeyInfo -> (;ki) key -> (;ki) ENC.iv3 -> (;ki) add_data -> n:int -> (;ki) fragment -> ((;ki) ENC.iv3 * cipher) Result
+val DEC: ki:KeyInfo -> (;ki) key -> (;ki) ENC.iv3 -> (;ki) add_data -> n:int -> cipher -> ((;ki) ENC.iv3 * (;ki) fragment) Result
 
 
 (* TODOS: (KB: Done?) *)
 (* - Add explicit ciphertext length *)
-(* - Make all iv become ivOpt: Only TLS 1.0 will use iv, later versions don't. *)
+(* - Make all iv become iv3: Only TLS 1.0 will use iv, later versions don't. *)
 (*	 The ciphertext has different lengths, depending on the version: *)
 (*   In later versions it includes the fresh iv, in early versions it doensn't. *)
 

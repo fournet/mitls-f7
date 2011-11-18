@@ -1,7 +1,7 @@
 ﻿module AppCommon
 
 open Formats
-open HS_ciphersuites
+open CipherSuites
 open Principal
 
 type helloReqPolicy =

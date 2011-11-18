@@ -3,7 +3,7 @@
 open System.Net.Sockets
 open System.Net
 open Data
-open Error_handling
+open Error
 
 type NetworkStream = N of System.Net.Sockets.NetworkStream
 type TcpListener = T of System.Net.Sockets.TcpListener

@@ -4,11 +4,11 @@ module Handshake
 open Data
 open Bytearray
 open Record
-open Error_handling
+open Error
 open Formats
 open HS_msg
 open Algorithms
-open HS_ciphersuites
+open CipherSuites
 open TLSInfo
 open TLSPlain
 open AppCommon
@@ -787,15 +787,15 @@ let compute_session_secrets_and_CCSs hs_state dir =
         let (rmk,rek,riv,wmk,wek,wiv) = allKeys in
         (* TODO: Add support for AEAD ciphers *)
         let readKey = RecordAEADKey (AEAD.MtE (rmk,rek)) in
-        let readIV = if PVRequiresExplicitIV outKi.sinfo.protocol_version then ENC.ivOpt.NoneIV () else ENC.ivOpt.SomeIV (riv) in
+        let readIV = if PVRequiresExplicitIV outKi.sinfo.protocol_version then ENC.iv3.NoIV () else ENC.iv3.SomeIV (riv) in
         let read_ccs_data = { ki = inKi
                               key = readKey
-                              ivOpt = readIV}
+                              iv3 = readIV}
         let writeKey = RecordAEADKey (AEAD.MtE (wmk,wek)) in
-        let writeIV = if PVRequiresExplicitIV outKi.sinfo.protocol_version then ENC.ivOpt.NoneIV () else ENC.ivOpt.SomeIV (wiv) in
+        let writeIV = if PVRequiresExplicitIV outKi.sinfo.protocol_version then ENC.iv3.NoIV () else ENC.iv3.SomeIV (wiv) in
         let write_ccs_data = { ki = outKi
                                key = writeKey
-                               ivOpt = writeIV}
+                               iv3 = writeIV}
         (* Put the ccs_data in the appropriate buffers. *)
         let hs_state = {hs_state with ccs_outgoing = Some((makeCCSBytes(),write_ccs_data))
                                       ccs_incoming = Some(read_ccs_data)} in

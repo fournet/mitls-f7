@@ -4,7 +4,7 @@
 (* One day this module will disappear and all the code will only use
    computationally-friendly modules *)
 open Data
-open Error_handling
+open Error
 
 (* RSA asymmetric enc/dec and DH for key exchange. *)
 type asymKey

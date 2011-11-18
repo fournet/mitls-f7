@@ -3,10 +3,10 @@
 open Data
 open Tcp
 open Formats
-open Error_handling
+open Error
 open TLSInfo
 open TLSPlain
-open HS_ciphersuites
+open CipherSuites
 
 type ConnectionState
 type sendState = ConnectionState (* both implemented as ConnectionState for now *)
@@ -20,7 +20,7 @@ type recordKey =
 type ccs_data =
     { ki: KeyInfo;
       key: recordKey;
-      ivOpt: ENC.ivOpt;
+      iv3: ENC.iv3;
     }
 
 val create: KeyInfo -> KeyInfo -> ProtocolVersionType -> sendState * recvState

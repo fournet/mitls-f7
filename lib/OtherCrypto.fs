@@ -1,7 +1,7 @@
 ﻿module OtherCrypto
 
 open Data
-open Error_handling
+open Error
 
 (* RSA functions required by key exchange.
    This is a mess I won't fix right now. *)

@@ -10,7 +10,7 @@ type kexAlg =
 
 type cipherAlg =
     | RC4_128
-    | THREEDES_EDE_CBC
+    | TDES_EDE_CBC
     | AES_128_CBC
     | AES_256_CBC
 
@@ -31,21 +31,21 @@ type authencAlg =
 let keyMaterialSize ciph =
     match ciph with
     | RC4_128           -> 16
-    | THREEDES_EDE_CBC  -> 24
+    | TDES_EDE_CBC      -> 24
     | AES_128_CBC       -> 16
     | AES_256_CBC       -> 32
 
 let blockSize ciph =
     match ciph with
     | RC4_128           -> 0
-    | THREEDES_EDE_CBC  -> 8
+    | TDES_EDE_CBC      -> 8
     | AES_128_CBC       -> 16
     | AES_256_CBC       -> 16
 
 let ivSize ciph =
     match ciph with
     | RC4_128           -> 0
-    | THREEDES_EDE_CBC  -> 8
+    | TDES_EDE_CBC      -> 8
     | AES_128_CBC       -> 16
     | AES_256_CBC       -> 16
 

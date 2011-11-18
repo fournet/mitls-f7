@@ -3,10 +3,10 @@ module Handshake
 
 open Data
 open Record
-open Error_handling
+open Error
 open Formats
 open HS_msg
-open HS_ciphersuites
+open CipherSuites
 open TLSInfo
 open TLSPlain
 open AppCommon

@@ -4,7 +4,7 @@ open Data
 open Bytearray
 open AppCommon
 open Dispatch
-open Error_handling
+open Error
 open TLSInfo
 
 (* OpenSSL style write functions. *)

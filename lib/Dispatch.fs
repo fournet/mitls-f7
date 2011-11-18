@@ -4,7 +4,7 @@ open Data
 open Formats
 open Record
 open Tcp
-open Error_handling
+open Error
 open Handshake
 open AppData
 open Alert
@@ -173,7 +173,9 @@ let send ns conn tlen ct frag =
     | Correct(conn,data) ->
         match Tcp.write ns data with
         | Error(x,y) -> Error(x,y)
-        | Correct(_) -> correct(conn)
+        | Correct(_) -> 
+            printf "%s(%d) " (CTtoString ct) tlen 
+            correct(conn)
 
 (* which fragment should we send next? *)
 (* we must send this fragment before restoring the connection invariant *)
@@ -432,7 +434,7 @@ let parse_header header =
      but here we don't perform any check on the protcol version *)
   let [x;y;z] = splitList header [1;2] in
   let ct = contentType_of_byte x.[0] in
-  let pv = HS_ciphersuites.protocolVersionType_of_bytes y in
+  let pv = CipherSuites.protocolVersionType_of_bytes y in
   let len = Bytearray.int_of_bytes 2 z in
   (ct,pv,len)
 
@@ -447,7 +449,9 @@ let recv ns readState =
         | Error (x,y) -> Error (x,y) 
         | Correct payload ->
             let fullMsg = header @| payload in
+            printf "%s[%d] " (Formats.CTtoString ct) len;
             Record.recordPacketIn readState fullMsg
+            // Could we instead call record on ct,pv,payload?
 
 let rec readNextAppFragment conn =
     (* If available, read next data *)

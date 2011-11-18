@@ -1,10 +1,10 @@
 ﻿module AEAD
 
 open Data
-open HS_ciphersuites
+open CipherSuites
 open Algorithms
 open TLSInfo
-open Error_handling
+open Error
 open TLSPlain
 
 type AEADKey =
@@ -37,24 +37,57 @@ let compute_pad ki data =
 
 *)
 
-let AEAD_ENC ki key ivOpt tlen data plain =
+//CF TODO: add extra functions for gen, leak, corrupt.
+
+let encrypt ki key iv3 clen data plain =
     match key with
     | MtE (macKey,encKey) ->
+        //CF no, we need some TLSPlain.MAC. And encrypt cannot fail. 
         let text = ad_fragment ki data plain in
         match MAC.MAC ki macKey (mac_plain_to_bytes text) with
         | Error(x,y) -> Error(x,y)
         | Correct (mac) ->
-            let toEncrypt = concat_fragment_mac_pad ki tlen plain (bytes_to_mac mac) in
-            ENC.ENC ki encKey ivOpt tlen toEncrypt
-            
- (* | GCM (GCMKey) -> ... *)
+            let toEncrypt = concat_fragment_mac_pad ki clen plain (bytes_to_mac mac) in
+            ENC.ENC ki encKey iv3 toEncrypt
 
-let AEAD_DEC ki key iv tlen data cipher =
+(* CF: commenting out until we get a chance to discuss:            
+let CF_encrypt ki key iv3 cl data plain =
+    match key with
+    | MtE (macKey,encKey) ->
+        let mac     = TLSPlain.MAC ki macKey data plain in
+        let encoded = TLSPlain.concat_fragment_mac_pad ki cl plain mac
+        ENC.ENC ki encKey iv3 encoded (* this should NOT be a Result *)
+
+let CF_decrypt ki key iv3 data cipher =
     match key with
     | MtE (macKey, encKey) ->
-        match ENC.DEC ki encKey iv tlen cipher with
+        let (iv3,encoded) = ENC.DEC ki encKey iv3 cipher in
+        let (plain,mac,wrongpad) = TLSPlain.split_fragment_mac_pad ki encoded in
+        match ki.sinfo.protocol_version with
+        | ProtocolVersionType.SSL_3p0 
+        | ProtocolVersionType.TLS_1p0 ->
+            (* If mustFail is true, it means some padding error occurred.
+               If in early versions of TLS, insecurely report a padding error now *)
+            if wrongpad then Error(RecordPadding,CheckFailed)
+            else 
+                match TLSPlain.VERIFY ki macKey data compr mac with
+                | Correct(_)                   -> correct(iv3,plain)
+                | Error(x,y)                   -> Error(x,y)
+        | x when x >= ProtocolVersionType.TLS_1p1 ->
+                match TLSPlain.VERIFY ki macKey data compr mac with
+                | Correct(_) when not wrongpad -> correct (iv3,plain)
+                | _                            -> Error(MAC,CheckFailed)
+        | _ -> unexpectedError "[AEAD.decrypt] wrong protocol version"
+        //CF would prefer MAC.VERIFY to return a boolean, as usual
+//  | GCM (GCMKey) -> ... 
+*)
+
+let decrypt ki key iv tlen data cipher =
+    match key with
+    | MtE (macKey, encKey) ->
+        match ENC.DEC ki encKey iv cipher with
         | Error(x,y) -> Error(x,y)
-        | Correct (ivOpt,compr_and_mac_and_pad) ->
+        | Correct (iv3,compr_and_mac_and_pad) ->
             let (mustFail,(compr,mac)) = split_mac ki tlen compr_and_mac_and_pad in
             let toVerify = ad_fragment ki data compr in
             (* If mustFail is true, it means some padding error occurred.
@@ -66,7 +99,7 @@ let AEAD_DEC ki key iv tlen data cipher =
                 else
                     match MAC.VERIFY ki macKey (mac_plain_to_bytes toVerify) (mac_to_bytes mac) with
                     | Error(x,y) -> Error(x,y)
-                    | Correct(_) -> correct(ivOpt,compr)
+                    | Correct(_) -> correct(iv3,compr)
             | x when x >= ProtocolVersionType.TLS_1p1 ->
                 match MAC.VERIFY ki macKey (mac_plain_to_bytes toVerify) (mac_to_bytes mac) with
                 | Error(x,y) -> Error(x,y)
@@ -74,7 +107,7 @@ let AEAD_DEC ki key iv tlen data cipher =
                     if mustFail then
                         Error(MAC,CheckFailed)
                     else
-                        correct (ivOpt,compr)
-            | _ -> unexpectedError "[AEAD_DEC] wrong protocol version"
+                        correct (iv3,compr)
+            | _ -> unexpectedError "[decrypt] wrong protocol version"
 
  (* | GCM (GCMKey) -> ... *)

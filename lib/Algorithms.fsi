@@ -1,7 +1,7 @@
 ﻿module Algorithms
 
 (* Not abstracts, but only meant to be used by
-   crypto modules and HS_Ciphersuites *)
+   crypto modules and CipherSuites *)
 type kexAlg =
     | RSA
     | DH_DSS
@@ -12,7 +12,7 @@ type kexAlg =
 
 type cipherAlg =
     | RC4_128
-    | THREEDES_EDE_CBC
+    | TDES_EDE_CBC
     | AES_128_CBC
     | AES_256_CBC
 

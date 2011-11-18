@@ -36,6 +36,8 @@
   <Import Project="$(MSBuildExtensionsPath32)\FSharp\1.0\Microsoft.FSharp.Targets" Condition="!Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
   <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft F#\v4.0\Microsoft.FSharp.Targets" Condition=" Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
   <ItemGroup>
+    <Content Include="README.txt" />
+    <None Include="Makefile" />
     <None Include="Error.fs7" />
     <Compile Include="Error.fsi" />
     <Compile Include="Error.fs" />
@@ -49,9 +51,9 @@
     <Compile Include="Principal.fs" />
     <Compile Include="Algorithms.fsi" />
     <Compile Include="Algorithms.fs" />
-    <None Include="HS_ciphersuites.fs7" />
-    <Compile Include="HS_ciphersuites.fsi" />
-    <Compile Include="HS_ciphersuites.fs" />
+    <None Include="CipherSuites.fs7" />
+    <Compile Include="CipherSuites.fsi" />
+    <Compile Include="CipherSuites.fs" />
     <None Include="formats.fs7" />
     <Compile Include="formats.fsi" />
     <Compile Include="formats.fs" />
@@ -86,14 +88,19 @@
     <Compile Include="SessionDB.fs" />
     <Compile Include="HS_msg.fsi" />
     <Compile Include="HS_msg.fs" />
+    <None Include="Handshake.fs7" />
     <Compile Include="Handshake.fsi" />
     <Compile Include="Handshake.fs" />
+    <None Include="AppData.fs7" />
     <Compile Include="AppData.fsi" />
     <Compile Include="AppData.fs" />
+    <None Include="Alert.fs7" />
     <Compile Include="Alert.fsi" />
     <Compile Include="Alert.fs" />
+    <None Include="Dispatch.fs7" />
     <Compile Include="Dispatch.fsi" />
     <Compile Include="Dispatch.fs" />
+    <None Include="TLS.fs7" />
     <Compile Include="TLS.fsi" />
     <Compile Include="TLS.fs" />
   </ItemGroup>

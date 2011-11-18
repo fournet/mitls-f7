@@ -1,13 +1,15 @@
 module Record
 
+// 18/11/11 status? seems out of date.
+
 open Pi
 open Data
 open Tcp
 open Formats
-open Error_handling
+open Error
 open TLSInfo
 open TLSPlain
-open HS_ciphersuites
+open CipherSuites
 
 type CipherState =
   | BlockCipherState of Crypto.key * bytes
@@ -90,11 +92,11 @@ val max_TLSCompressed_fragment_length : int
 val max_TLSEncrypted_fragment_length : int
 val check_length :
   bytes ->
-    int -> i:'a -> e:Error_handling.ErrorCause -> r:'a Error_handling.Result{(!x. r = Correct(x) => x = i) /\ (!y,z. r = Error(y,z) => (y=e /\ z = CheckFailed))}
+    int -> i:'a -> e:ErrorCause -> r:'a Result{(!x. r = Correct(x) => x = i) /\ (!y,z. r = Error(y,z) => (y=e /\ z = CheckFailed))}
 val make_compression :
-  cs:sendState -> b:bytes -> c:bytes Error_handling.Result{(!x. c = Correct(x) => x = Compressed(cs.compression,b)) /\ (!y,z. c = Error(y,z) => y = RecordCompression)}
+  cs:sendState -> b:bytes -> c:bytes Result{(!x. c = Correct(x) => x = Compressed(cs.compression,b)) /\ (!y,z. c = Error(y,z) => y = RecordCompression)}
 val make_decompression :
-  cs:recvState -> c:bytes -> b:bytes Error_handling.Result{(!x. b = Correct(x) => c = Compressed(cs.compression,x)) /\ (!y,z. b = Error(y,z) => y = RecordCompression)}
+  cs:recvState -> c:bytes -> b:bytes Result{(!x. b = Correct(x) => c = Compressed(cs.compression,x)) /\ (!y,z. b = Error(y,z) => y = RecordCompression)}
 
 val compute_mac_ssl_blob: sn:bytes -> ct:bytes -> d:bytes ->
     mb:bytes{KHashBytes(mb,sn,ct,d)}
@@ -105,7 +107,7 @@ val compute_mac_ssl3 :
       sn:bytes ->
       ct:bytes ->
       d:bytes{!mb. KHashBytes(mb,sn,ct,d) => KHashSays(k,mb)} ->
-              res:bytes Error_handling.Result{
+              res:bytes Result{
                   (*(!x. res = Correct(x)) /\*)
                   (!y,z. res = Error(y,z) => (y = MAC /\ z = Internal) ) }
 
@@ -119,7 +121,7 @@ val compute_mac_tls:
   ct:bytes ->
   ver:bytes -> 
   d:bytes{!mb. MACBytes(mb,sn,ct,ver,d) => MACSays(k,mb)} -> 
-  r:bytes Error_handling.Result
+  r:bytes Result
   { !y,z. r = Error(y,z) => y = MAC /\ (z = Internal \/ z = Unsupported)}
 
 val compute_mac:
@@ -135,7 +137,7 @@ val prepare_enc : ConnectionState -> d:bytes -> r:bytes{Pub(d) => Pub(r)}
 val encrypt_stream :
     cs:sendState{cs.sparams.cipher_type = CT_stream} ->
       d:bytes{cs.sparams.bulk_cipher_algorithm = BCA_null => Pub(d)} -> 
-        r:(sendState * bytespub) Error_handling.Result{
+        r:(sendState * bytespub) Result{
 	(!cs',x. r = Correct((cs',x)) => (cs' = cs))
 	/\
 	(!y,z. r = Error(y,z) => (y = Encryption) /\ (z = Internal \/ z = Unsupported))
@@ -154,7 +156,7 @@ val encrypt_fun: Formats.BulkCipherAlgorithm ->  k:key -> iv:bytes ->
 val encrypt_block :
     cs:sendState{cs.sparams.cipher_type = CT_block} ->
       d:bytes{cs.sparams.bulk_cipher_algorithm = BCA_null => Pub(d)} -> 
-      r:(sendState * bytespub) Error_handling.Result{
+      r:(sendState * bytespub) Result{
       (!cs',x. r = Correct((cs',x)) => (?iv. cs' = UpdateIV(cs,iv)))
       /\
       (!y,z. r = Error(y,z) => ((y = Encryption) /\ (z = Internal \/ z = Unsupported)))
@@ -163,7 +165,7 @@ val encrypt_block :
 val encrypt :
   cs:sendState ->
     d:bytes{cs.sparams.bulk_cipher_algorithm = BCA_null => Pub(d)} -> 
-      r:(sendState * bytespub) Error_handling.Result{
+      r:(sendState * bytespub) Result{
       (!cs',x. r = Correct((cs',x)) => (?iv. cs' = UpdateIV(cs,iv)))
       /\
       (!y,z. r = Error(y,z) => ((y = Encryption) /\ (z = Internal \/ z = Unsupported)))
@@ -179,7 +181,7 @@ val send :
   cs:sendState ->
     ct:Formats.ContentType ->  
       f:bytes{FragmentSend(cs.rec_info,cs.seq_num,ct,f) /\ (cs.sparams.bulk_cipher_algorithm = BCA_null => Pub(f))} -> 
-        r:(sendState Error_handling.Result){           
+        r:(sendState Result){           
 	(!cs'. r = Correct(cs') => ((?iv. cs' = IncSeqNum(UpdateIV(cs,iv)))))
         /\
 	(!y,z. r = Error(y,z) => ((y = Tcp \/ y = MAC \/ y = Encryption \/ y = RecordCompression)))}
@@ -206,7 +208,7 @@ val decrypt_fun: Formats.BulkCipherAlgorithm ->
 val block_decrypt :
   cs:recvState{cs.sparams.cipher_type = CT_block} ->
     bytespub ->
-	r:((recvState * bytes) Error_handling.Result){
+	r:((recvState * bytes) Result){
 	(!cs',x. r = Correct((cs',x)) => ((?iv. cs' = UpdateIV(cs,iv))))
 	/\
 	(!y,z. r = Error(y,z) => ((y = Encryption) /\ (z = Internal \/ z = Unsupported \/ z = CheckFailed)))
@@ -215,20 +217,20 @@ val block_decrypt :
 val decrypt :
   cs:recvState ->
     bytespub -> 
-   r:((recvState * bytes) Error_handling.Result){
+   r:((recvState * bytes) Result){
    (!cs',x. r = Correct((cs',x)) => ((?iv. cs' = UpdateIV(cs,iv))))
    /\
    (!y,z. r = Error(y,z) => ((y = Encryption) /\ (z = Internal \/ z = Unsupported \/ z = CheckFailed)))
    }
 
-val check_padding_cont : b:bytes -> r:bytes Error_handling.Result{r = Correct(b)}
+val check_padding_cont : b:bytes -> r:bytes Result{r = Correct(b)}
 val check_padding :
-  pv:Formats.ProtocolVersionType{pv <> UnknownPV} -> bytes -> r:bytes Error_handling.Result{
+  pv:Formats.ProtocolVersionType{pv <> UnknownPV} -> bytes -> r:bytes Result{
   				!y,z. r = Error(y,z) =>
   				((pv = SSL_2p0 /\ y = RecordPadding /\ z = Unsupported) \/
 				(pv = TLS_1p0 /\ y = RecordPadding /\ z = CheckFailed))}
 val parse_plaintext :
-  cs:ConnectionState{cs.protocol_version <> UnknownPV} -> bytes -> r:((bytes * bytes) Error_handling.Result){
+  cs:ConnectionState{cs.protocol_version <> UnknownPV} -> bytes -> r:((bytes * bytes) Result){
   				!y,z. r = Error(y,z) =>
   				((cs.protocol_version = SSL_2p0 /\ y = RecordPadding /\ z = Unsupported) \/
 				(cs.protocol_version = TLS_1p0 /\ y = RecordPadding /\ z = CheckFailed))}
@@ -244,7 +246,7 @@ val verify_mac: cs:recvState{cs.protocol_version <> UnknownPV}
 
 val recv :
   cs:recvState ->
-    r:((Formats.ContentType * bytes * recvState) Error_handling.Result){
+    r:((Formats.ContentType * bytes * recvState) Result){
 	(!ct,f,cs'. r = Correct((ct,f,cs')) =>
 	       ((?pv,iv. cs' = IncSeqNum(UpdateIV(UpdatePV(cs,pv),iv))) /\
 	            (cs.sparams.mac_algorithm <> MA_null =>

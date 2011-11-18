@@ -1,7 +1,7 @@
 ﻿module Tcp
 
 open Data
-open Error_handling
+open Error
 
 type NetworkStream
 type TcpListener

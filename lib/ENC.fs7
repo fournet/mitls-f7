@@ -1,24 +1,28 @@
 ﻿module ENC
-
 open TLSPlain
+
+(* this interface is trusted *)
 
 type (;ki:KeyInfo) symKey
 
+// iv3 should be abstract too, and iv hidden 
+// we need a function for generating the initial iv3,
+// to be called by the the idealized PRF
 type iv = bytes
-type (;ki:KeyInfo) ivOpt =
+
+type (;ki:KeyInfo) iv3 =
 	| SomeIV of iv{ki.sinfo.protocol_version = ProtocolVersionType.SSL_3p0 \/
 				   ki.sinfo.protocol_version = ProtocolVersionType.TLS_1p0}
-	| NoneIV of unit{ki.sinfo.protocol_version >= ProtocolVersionType.TLS_1p1}
+	| NoIV of unit{ki.sinfo.protocol_version >= ProtocolVersionType.TLS_1p1}
 
-
-type (;ki:KeyInfo,n:int) cipher = bytes
+// ciphers consist of one or more blocks of bytes.
+type (;ki:KeyInfo) cipher = b:bytes
 
 predicate val ENCrypted:
-  (ki:KeyInfo * (;ki) symKey * n:int * (;ki,n) plain * (;ki,n) cipher) -> bool
+  (ki:KeyInfo * (;ki) symKey * (;ki) plain * (;ki) cipher) -> bool
 
-// Add the ENCed predicate?
+val ENC: ki:KeyInfo -> k:(;ki) symKey -> (;ki) iv3 -> n:int -> p:(;ki,n) plain -> 
+  ((;ki) iv3 * c:(;ki)cipher{ENCrypted(ki,k,p,c) /\ Length(c)=n}) Result
 
-val ENC: ki:KeyInfo -> k:(;ki) symKey -> (;ki) ivOpt -> n:int -> p:(;ki,n) plain ->
-		((;ki) ivOpt * c:(;ki,n)cipher{ENCrypted(ki,k,n,p,c)}) Result
-val DEC: ki:KeyInfo -> k:(;ki) symKey -> (;ki) ivOpt -> n:int -> c:(;ki,n) cipher ->
-		((;ki) ivOpt * p:(;ki,n)plain{ENCrypted(ki,k,n,p,c)}) Result
+val DEC: ki:KeyInfo -> k:(;ki) symKey -> (;ki) iv3 -> c:(;ki) cipher -> 
+  ((;ki) iv3 * p:(;ki,Length(c))plain{ENCrypted(ki,k,p,c)}) Result

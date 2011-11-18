@@ -1,7 +1,7 @@
 ﻿module TLS
 
 open Data (* replace with paylaod module *)
-open Error_handling
+open Error
 open Dispatch
 open TLSInfo
 open Tcp

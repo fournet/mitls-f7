@@ -1,4 +1,4 @@
-﻿module Error_handling
+﻿module Error
 
 type alertDescription = 
     | AD_close_notify

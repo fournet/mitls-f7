@@ -2,10 +2,10 @@
 
 open Data
 open Algorithms
-open HS_ciphersuites
+open CipherSuites
 open TLSInfo
 open HASH (* Only for SSL 3 keyed hash *)
-open Error_handling
+open Error
 
 type macKey = {bytes:bytes}
 let bytes_to_key b = {bytes = b}

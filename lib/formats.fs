@@ -2,7 +2,7 @@ module Formats
 
 open Data
 open Bytearray
-open Error_handling
+open Error
 
 type preContentType =
     | Change_cipher_spec
@@ -22,12 +22,20 @@ let byte_of_contentType ct =
     | UnknownCT -> unexpectedError "Cannot convert the Unknown content type to bytes"
 
 let contentType_of_byte b =
-  match b with 
-  | 20uy -> Change_cipher_spec
-  | 21uy -> Alert
-  | 22uy -> Handshake
-  | 23uy -> Application_data
-  | _    -> UnknownCT
+    match b with 
+    | 20uy -> Change_cipher_spec
+    | 21uy -> Alert
+    | 22uy -> Handshake
+    | 23uy -> Application_data
+    | _    -> UnknownCT
+
+let CTtoString = function
+    | Change_cipher_spec -> "CCS" 
+    | Alert              -> "Alert"
+    | Handshake          -> "Handshake"
+    | Application_data   -> "Data"
+    | UnknownCT          -> "???"
+
 
 let bytes_of_seq sn = bytes_of_int 8 sn
 

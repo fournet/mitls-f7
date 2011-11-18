@@ -1,7 +1,7 @@
 ﻿module HASH
 
 open Data
-open Error_handling
+open Error
 open Algorithms
 
 val hash: hashAlg -> bytes -> bytes Result

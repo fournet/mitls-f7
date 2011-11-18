@@ -4,7 +4,7 @@
 
 module Alert
 open Data
-open Error_handling
+open Error
 open Record
 open TLSPlain
 open TLSInfo

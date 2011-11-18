@@ -3,7 +3,7 @@
 open Data
 open Bytearray
 open Principal
-open HS_ciphersuites
+open CipherSuites
 
 type sessionID = bytes
 

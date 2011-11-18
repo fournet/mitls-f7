@@ -2,7 +2,7 @@
 
 open Data
 open Principal
-open HS_ciphersuites
+open CipherSuites
 
 type sessionID = bytes
 

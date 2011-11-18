@@ -1,7 +1,7 @@
 module Formats
 
 open Data
-open HS_ciphersuites
+open CipherSuites
 
 val bytes_of_seq: int -> bytes
 
@@ -18,6 +18,7 @@ type ContentType = preContentType
 
 val byte_of_contentType: ContentType -> byte
 val contentType_of_byte: byte -> ContentType
+val CTtoString: ContentType -> string
 
 val vlenBytes_of_bytes: int -> bytes -> bytes
 val bytesAndRemainder_of_vlenBytesAndReminder: int -> bytes -> (bytes * bytes)

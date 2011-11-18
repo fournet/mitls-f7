@@ -3,7 +3,7 @@
 open Data
 open Formats
 open Record
-open HS_ciphersuites
+open CipherSuites
 open TLSInfo
 open Principal
 

@@ -4,10 +4,10 @@ open Data
 open Bytearray
 open Formats
 open Record
-open HS_ciphersuites
+open CipherSuites
 open TLSInfo
 open Principal
-open Error_handling
+open Error
 
 type handshakeType =
     | HT_hello_request
