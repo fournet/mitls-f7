@@ -5,7 +5,6 @@
 module Alert
 open Data
 open Error
-open Record
 open TLSPlain
 open TLSInfo
 
