@@ -35,5 +35,6 @@ type 'a Result =
 
 val correct: x:'a -> y:'a Result{y = Correct(x)}
 
-//CF why this "false"? 
+// Indicates a bug, so code that should never be reached.
+// Use false in pre-condition, to ensure this is in fact unreachable code.
 val unexpectedError: string{false} -> 'a
