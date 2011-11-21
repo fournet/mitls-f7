@@ -81,7 +81,9 @@ type (;ki:KeyInfo) mac = MAC.mac (* a fixed-length MAC tag for ki *)
 // We miss operations on MACs! 
 
 type (;ki:KeyInfo) mac_plain = MAC.mac_plain (* The data to be MACed, typically fragment @| add_data *)
-type (;ki:KeyInfo) add_data = bytes (* Additional public data to be included in MAC operations *)
+
+// Additional *public* data to be MACed, excluding the fragment length
+type (;ki:KeyInfo) add_data = bytes 
 
 val ad_fragment: ki:KeyInfo -> (;ki) add_data -> (;ki.sinfo) fragment -> (;ki) mac_plain
 

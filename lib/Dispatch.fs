@@ -429,6 +429,7 @@ let deliver ct tlen f c =
   | UnknownCT, _ -> (Error(Dispatcher,Unsupported),c)
   | _, _ -> (Error(Dispatcher,InvalidState),c)
 
+//CF can we move header parsing/unparsing to Formats?
 let parse_header header =
   (* Mostly the same as Record.parse_header,
      but here we don't perform any check on the protcol version *)

@@ -132,7 +132,7 @@ val compute_mac:
   {   (!x. res = Correct(x) => (cs.sparams.mac_algorithm = MA_null => Pub(x)))
   /\  (!y,z. res = Error(y,z) => ( (y = MAC) /\ (z = Unsupported \/ z = Internal) )) }
 
-val compute_padlen : Formats.SecurityParameters -> bytes -> int
+// val padLength : Formats.SecurityParameters -> bytes -> int
 val prepare_enc : ConnectionState -> d:bytes -> r:bytes{Pub(d) => Pub(r)}
 val encrypt_stream :
     cs:sendState{cs.sparams.cipher_type = CT_stream} ->

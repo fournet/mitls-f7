@@ -76,14 +76,14 @@ let make_decompression conn data =
     | _ -> Error (RecordCompression, Unsupported)
 *)
 
-(* additional data, for MACing & verifying *)
+(* format the additional data bytes , for MACing & verifying *)
 let makeAD conn ct =
     let version = conn.local_pv in
     let bseq = bytes_of_seq conn.seq_num in
     let bct  = [| byte_of_contentType ct |] in
     let bver = bytes_of_protocolVersionType version in
     match version with
-    | ProtocolVersionType.SSL_3p0 -> bseq @| bct
+    | ProtocolVersionType.SSL_3p0             -> bseq @| bct
     | x when x >= ProtocolVersionType.TLS_1p0 -> bseq @| bct @| bver
     | _ -> unexpectedError "[makeAD] invoked on invalid protocol version"
 
@@ -139,7 +139,8 @@ let recordPacketOut conn tlen ct (fragment:fragment) =
     *)
     let payloadRes =
         match conn.rec_ki.sinfo.cipher_suite with
-        | x when isNullCipherSuite x -> correct (conn,fragment_to_cipher conn.rec_ki tlen fragment)
+        | x when isNullCipherSuite x -> 
+            correct (conn,fragment_to_cipher conn.rec_ki tlen fragment)
         | x when isOnlyMACCipherSuite x ->
             let key = getMACKey conn.key in
             let addData = makeAD conn ct in
@@ -169,7 +170,7 @@ let send_setCrypto ccs_data =
     initConnState ccs_data.ki ccs_data.key ccs_data.iv3 ccs_data.ki.sinfo.protocol_version
 
 //CF we'll need refinements to prevent parsing errors.
-//CF or do this only in Dispatch?
+//CF can we move the check to Dispatch?
 let parse_header conn header =
   let [ct1;pv2;len2] = splitList header [1;2] in
   let ct  = contentType_of_byte ct1.[0] in
