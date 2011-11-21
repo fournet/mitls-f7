@@ -149,7 +149,10 @@ let concat_fragment_mac_pad (ki:KeyInfo) cipherlen (data:fragment) (MACt(mac):ma
 
 (* this is the Decode function of Mac-then-Encode-then-Encrypt,
    somehow an inverse of the function above;
-   plainLen is just length plain, right? cloned & rewritten, to be discussed *)
+   plainLen is just length plain, right? cloned & rewritten, to be discussed
+   AP: Yes indeed, plainLen is length plain, but explicitly put as an argument,
+   to be able to easily index the returned fragment. This plainLen is the same
+   that you pass as input parameter to the AEAD decryption function. *)
 
 let split_fragment_mac_pad (ki:KeyInfo) (plain:plain) : fragment * mac * bool =
 (* 
@@ -178,7 +181,7 @@ val split_flagment_mac_pad ki:KeyInfo -> plain:plain
         let p = 1
         let (fragment_mac,padding) = split plain.bytes  (l - p)
         let (fragment,mac)         = split fragment_mac (l - p - m) 
-        {bytes=fragment},MACt(mac),false in
+        {bytes=fragment},MACt(mac),true in (* true: we MustFail *)
 
     let p = int(plain.bytes.[l-1]) + 1 in
     if l < m + p (* not enough bytes *) then fail()
@@ -186,7 +189,7 @@ val split_flagment_mac_pad ki:KeyInfo -> plain:plain
         let (fragment_mac,padding) = split plain.bytes  (l - p) in
         let (fragment,mac)         = split fragment_mac (l - p - m) in
         if   (    v = ProtocolVersionType.SSL_3p0 
-               && p > blockSize(encAlg_of_ciphersuite ki.sinfo.cipher_suite) ) 
+               && p <= blockSize(encAlg_of_ciphersuite ki.sinfo.cipher_suite) ) 
                (* Padding is random in SSL_3p0, no check to be done on its content.
                   However, its length should be at most one block [SSL3, 5.2.3.2]
                   We enforce this check (performed by openssl, and not by wireshark for example)
@@ -195,7 +198,7 @@ val split_flagment_mac_pad ki:KeyInfo -> plain:plain
           || (    (v = ProtocolVersionType.TLS_1p0 || v = ProtocolVersionType.TLS_1p1 || v = ProtocolVersionType.TLS_1p2)  
                && equalBytes padding (pad p)) 
           
-        then {bytes=fragment},MACt(mac),true
+        then {bytes=fragment},MACt(mac),false
         else fail()
 
 let split_mac (ki:KeyInfo) (plainLen:int) (plain:plain) : (bool * (fragment * mac)) =
