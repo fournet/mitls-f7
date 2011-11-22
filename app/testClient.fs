@@ -1,6 +1,6 @@
 ﻿module testClient
 
-open Error_handling
+open Error
 
 let serverIP = "128.93.188.162"
 let serverPort = 4433
