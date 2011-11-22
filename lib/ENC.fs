@@ -85,7 +85,7 @@ let ENC ki key iv3 data =
     let iv =
         match iv3 with
         | SomeIV(b) -> b
-        | NoIV()    -> OtherCrypto.mkRandom ivl in 
+        | NoIV()    -> mkRandom ivl in 
     match 
       ( let data = plain_to_bytes data in
         match alg with

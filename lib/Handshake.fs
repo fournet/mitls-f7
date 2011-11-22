@@ -183,7 +183,7 @@ let makeRenegExtBytes verifyData =
 
 let makeCHello poptions session prevCVerifyData =
     let random = { time = makeTimestamp ();
-                   rnd = OtherCrypto.mkRandom 28} in
+                   rnd = mkRandom 28} in
     let ext =
         if poptions.safe_renegotiation then
             makeExtBytes (makeRenegExtBytes prevCVerifyData)
@@ -253,7 +253,7 @@ let makeCHelloBytes poptions session cVerifyData =
 let makeSHelloBytes poptions sinfo prevVerifData =
     let verB = bytes_of_protocolVersionType sinfo.protocol_version in
     let tsB = bytes_of_int 4 (makeTimestamp ()) in
-    let randB = OtherCrypto.mkRandom 28 in
+    let randB = mkRandom 28 in
     let sRandom = tsB @| randB in
     let sidRaw =
         match sinfo.sessionID with
@@ -1422,7 +1422,7 @@ let start_server_full hs_state cHello =
             | None -> Error(HSError(AD_handshake_failure),HSSendAlert)
             | Some(negCM) ->
                 (* TODO: now we don't support safe_renegotiation, and we ignore any client proposed extension *)
-                let sid = OtherCrypto.mkRandom 32 in
+                let sid = mkRandom 32 in
                 (* Fill in the session info we're establishing *)
                 let next_info = { clientID = None
                                   serverID = None

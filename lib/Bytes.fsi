@@ -12,6 +12,8 @@ val length: bytes -> int
 
 val equalBytes: bytes -> bytes -> bool
 
+val mkRandom: int -> bytes
+
 (* append *)
 val (@|): bytes -> bytes -> bytes
 val split: bytes -> int -> (bytes * bytes)

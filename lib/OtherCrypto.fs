@@ -33,8 +33,3 @@ let rsa_pkey_bytes (key:byte[]) =
   let rsa = new System.Security.Cryptography.RSACryptoServiceProvider () in
     rsa.ImportParameters(rkey);
     AsymKey rsa
-
-let rng = new System.Security.Cryptography.RNGCryptoServiceProvider ()
-let mkRandom len =
-    let x = Array.zeroCreate len in
-    rng.GetBytes x; x

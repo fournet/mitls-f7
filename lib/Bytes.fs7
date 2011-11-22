@@ -23,6 +23,8 @@ val length: b:bytes -> l:int {Length(b) = l}
 
 val equalBytes: b1:bytes -> b2:bytes -> r:bool {(r = true /\ b1 = b2) \/ (r = false /\ b1 <> b2)}
 
+val mkRandom: l:int -> b:bytes{Length(b) = l (* /\ Random(b) *)}
+
 (* append *)
 val (@|): b1:bytes -> b2:bytes -> b:bytes{b = b1 | b2}
 

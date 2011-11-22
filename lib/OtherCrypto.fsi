@@ -14,6 +14,3 @@ val rsaDecrypt: asymKey -> bytes -> bytes Result
 
 val rsa_skey: string -> asymKey
 val rsa_pkey_bytes: bytes -> asymKey
-
-(* Other raw stuff for handshake *)
-val mkRandom: int -> bytes

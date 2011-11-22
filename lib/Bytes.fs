@@ -31,6 +31,11 @@ let equalBytes (b1:bytes) (b2:bytes) =
     else
         Array.forall2 (fun x y -> x = y) b1 b2 (* No ArgumentException can be thrown *)
 
+let rng = new System.Security.Cryptography.RNGCryptoServiceProvider ()
+let mkRandom len =
+    let x = Array.zeroCreate len in
+    rng.GetBytes x; x
+
 let (@|) (a:bytes) (b:bytes) = Array.append a b
 let split (b:bytes) i : bytes * bytes = (Array.sub b 0 i, Array.sub b i (b.Length-i))
 

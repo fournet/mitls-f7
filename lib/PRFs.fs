@@ -167,7 +167,7 @@ type preMasterSecret = {bytes:bytes}
 
 let genPMS (sinfo:SessionInfo) ver =
     let verBytes = bytes_of_protocolVersionType ver in
-    let rnd = OtherCrypto.mkRandom 46 in
+    let rnd = mkRandom 46 in
     let pms = verBytes @| rnd in
     {bytes = pms}
 
@@ -177,7 +177,7 @@ let rsaEncryptPMS key pms =
 let getPMS sinfo ver check_client_version_in_pms_for_old_tls cert encPMS =
     (* Security measures described in RFC 5246, sec 7.4.7.1 *)
     (* 1. Generate random data, 46 bytes, for PMS except client version *)
-    let fakepms = OtherCrypto.mkRandom 46 in
+    let fakepms = mkRandom 46 in
     (* 2. Decrypt the message to recover plaintext *)
     let priK = Principal.priKey_of_certificate cert in
     let verB = bytes_of_protocolVersionType ver in
