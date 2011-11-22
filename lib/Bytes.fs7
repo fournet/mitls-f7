@@ -26,7 +26,7 @@ val equalBytes: b1:bytes -> b2:bytes -> r:bool {(r = true /\ b1 = b2) \/ (r = fa
 (* append *)
 val (@|): b1:bytes -> b2:bytes -> b:bytes{b = b1 | b2}
 
-val split: b:bytes -> i:int ->
+val split: b:bytes -> i:int{Length(b) >= i} ->
 		   (b1:bytes * b2:bytes){Length(b1) = i /\ b = b1 | b2}
 
 (* strings *)
