@@ -2,7 +2,7 @@
 
 open Bytes
 open Error
-open OtherCrypto
+open RSA
 
 type cert
 

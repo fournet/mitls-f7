@@ -3,6 +3,7 @@
 open Bytes
 open Formats
 open TLSInfo
+open RSA
 open Error
 
 (* Used when generating verifiData for the Finished message *)
@@ -19,7 +20,7 @@ type preMasterSecret
    we need to use the highest client supported version type, and not the negotiated one, to avoid version rollback attacks. *)
 (* Client side: use genPMS and rsaEncryptPMS separately, by now. No idea yet on how to do it computationally-friendly *)
 val genPMS: SessionInfo -> CipherSuites.ProtocolVersionType -> preMasterSecret
-val rsaEncryptPMS: OtherCrypto.asymKey -> preMasterSecret -> bytes Result
+val rsaEncryptPMS: asymKey -> preMasterSecret -> bytes Result
 (* Server side: embed RSA decryiption and some sanity checks. Again, fully flexibility in making this computationally-friendly *)
 val getPMS: SessionInfo -> CipherSuites.ProtocolVersionType -> bool -> (* Whether we should check protocol version in old TLS versions *)
         Principal.cert -> bytes ->

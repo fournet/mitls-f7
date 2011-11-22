@@ -389,7 +389,7 @@ let makeCertificateVerifyBytes cert data pv certReqMsg=
             match HASH.hash hashAlg data with
             | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
             | Correct (hashed) ->
-                match OtherCrypto.rsaEncrypt priKey hashed with
+                match RSA.rsaEncrypt priKey hashed with
                 | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
                 | Correct (signed) ->
                     let signed = vlenBytes_of_bytes 2 signed in

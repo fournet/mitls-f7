@@ -6,6 +6,7 @@ open Algorithms
 open Formats
 open CipherSuites
 open TLSInfo
+open RSA
 open HASH
 open HMAC
 
@@ -172,7 +173,7 @@ let genPMS (sinfo:SessionInfo) ver =
     {bytes = pms}
 
 let rsaEncryptPMS key pms =
-    OtherCrypto.rsaEncrypt key pms.bytes
+    rsaEncrypt key pms.bytes
 
 let getPMS sinfo ver check_client_version_in_pms_for_old_tls cert encPMS =
     (* Security measures described in RFC 5246, sec 7.4.7.1 *)
@@ -181,7 +182,7 @@ let getPMS sinfo ver check_client_version_in_pms_for_old_tls cert encPMS =
     (* 2. Decrypt the message to recover plaintext *)
     let priK = Principal.priKey_of_certificate cert in
     let verB = bytes_of_protocolVersionType ver in
-    match OtherCrypto.rsaDecrypt priK encPMS with
+    match rsaDecrypt priK encPMS with
     | Error(x,y) ->
         (* 3. Decrypt error, continue with fake pms *)
         {bytes = verB @| fakepms}

@@ -1,4 +1,4 @@
-﻿module OtherCrypto
+﻿module RSA
 
 open Bytes
 open Error

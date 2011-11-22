@@ -1,4 +1,4 @@
-﻿module OtherCrypto
+﻿module RSA
 
 (* Contains crypto functions not yet ported to the computational model. *)
 (* One day this module will disappear and all the code will only use

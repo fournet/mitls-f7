@@ -47,8 +47,8 @@
     <None Include="tcp.fs7" />
     <Compile Include="tcp.fsi" />
     <Compile Include="tcp.fs" />
-    <Compile Include="OtherCrypto.fsi" />
-    <Compile Include="OtherCrypto.fs" />
+    <Compile Include="RSA.fsi" />
+    <Compile Include="RSA.fs" />
     <None Include="Principal.fs7" />
     <Compile Include="Principal.fsi" />
     <Compile Include="Principal.fs" />
