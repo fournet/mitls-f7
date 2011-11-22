@@ -3,7 +3,7 @@ module Record
 // 18/11/11 status? seems out of date.
 
 open Pi
-open Data
+open Bytes
 open Tcp
 open Formats
 open Error

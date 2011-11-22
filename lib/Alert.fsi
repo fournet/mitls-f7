@@ -3,7 +3,7 @@
 (* We do not support sending warnings, as there is no good reason to do so *)
 
 module Alert
-open Data
+open Bytes
 open Error
 open TLSPlain
 open TLSInfo

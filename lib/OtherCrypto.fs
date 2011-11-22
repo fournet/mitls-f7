@@ -1,6 +1,6 @@
 ﻿module OtherCrypto
 
-open Data
+open Bytes
 open Error
 
 (* RSA functions required by key exchange.
@@ -21,7 +21,7 @@ let rsaDecrypt (k:asymKey) (v:bytes) =
   with
   | _ -> Error (Encryption, Internal)
 
-let rsa_skey (key:str) = 
+let rsa_skey (key:string) = 
   let rsa = new System.Security.Cryptography.RSACryptoServiceProvider () in
     rsa.FromXmlString(key);
     AsymKey rsa

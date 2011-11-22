@@ -1,7 +1,6 @@
 ﻿module TLSInfo
 
-open Data
-open Bytearray
+open Bytes
 open Principal
 open CipherSuites
 
@@ -35,8 +34,8 @@ let init_sessionInfo =
       protocol_version = ProtocolVersionType.UnknownPV;
       cipher_suite = nullCipherSuite;
       compression = Null;
-      init_crand = empty_bstr
-      init_srand = empty_bstr
+      init_crand = [||]
+      init_srand = [||]
       }
 
 type KeyInfo = {
@@ -49,6 +48,6 @@ type KeyInfo = {
 let init_KeyInfo sinfo dir =
     {sinfo = sinfo;
      dir = dir;
-     crand = empty_bstr;
-     srand = empty_bstr;
+     crand = [||];
+     srand = [||];
     }

@@ -1,6 +1,6 @@
 ﻿module PRFs
 
-open Data
+open Bytes
 open Formats
 open TLSInfo
 open Error

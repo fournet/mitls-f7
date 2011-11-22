@@ -1,6 +1,6 @@
 ﻿module TLSInfo
 
-open Data
+open Bytes
 open Principal
 open CipherSuites
 

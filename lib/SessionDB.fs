@@ -2,7 +2,6 @@
 
 open TLSInfo
 open AppCommon
-open Data
 open System.IO
 open System.Runtime.Serialization.Formatters.Binary
 

@@ -1,6 +1,6 @@
 ﻿module CipherSuites
 
-open Data
+open Bytes
 open Algorithms
 open Error
 

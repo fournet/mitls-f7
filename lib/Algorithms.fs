@@ -1,5 +1,7 @@
 ﻿module Algorithms
 
+open Bytes
+
 type kexAlg =
     | RSA
     | DH_DSS
@@ -81,7 +83,7 @@ let hashSize alg =
     | SHA384        -> 48
 
 (* SSL constants *)
-let ssl_pad1_md5  = Bytearray.createBytes 48 0x36
-let ssl_pad2_md5  = Bytearray.createBytes 48 0x5c
-let ssl_pad1_sha1 = Bytearray.createBytes 40 0x36
-let ssl_pad2_sha1 = Bytearray.createBytes 40 0x5c
+let ssl_pad1_md5  = createBytes 48 0x36
+let ssl_pad2_md5  = createBytes 48 0x5c
+let ssl_pad1_sha1 = createBytes 40 0x36
+let ssl_pad2_sha1 = createBytes 40 0x5c

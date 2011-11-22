@@ -2,7 +2,7 @@
 
 open System.Net.Sockets
 open System.Net
-open Data
+open Bytes
 open Error
 
 type NetworkStream = N of System.Net.Sockets.NetworkStream

@@ -1,6 +1,6 @@
 ﻿module MAC
 
-open Data
+open Bytes
 open Error
 open TLSInfo
 

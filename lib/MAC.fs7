@@ -1,5 +1,7 @@
 ﻿module MAC
 
+open Bytes
+open Error
 open TLSInfo
 
 predicate type msg = Msg of ki:keyInfo * (;ki) ltext

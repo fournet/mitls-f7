@@ -1,6 +1,6 @@
 ﻿module Tcp
 
-open Data
+open Bytes
 open Error
 
 type NetworkStream 

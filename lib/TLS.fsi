@@ -1,6 +1,6 @@
 ﻿module TLS
 
-open Data (* replace with paylaod module *)
+open Bytes
 open Error
 open Dispatch
 open TLSInfo

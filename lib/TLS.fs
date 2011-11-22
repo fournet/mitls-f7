@@ -1,7 +1,6 @@
 ﻿module TLS
 
-open Data
-open Bytearray
+open Bytes
 open AppCommon
 open Dispatch
 open Error

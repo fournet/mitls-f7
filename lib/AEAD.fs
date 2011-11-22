@@ -1,6 +1,6 @@
 ﻿module AEAD
 
-open Data
+open Bytes
 open CipherSuites
 open Algorithms
 open TLSInfo

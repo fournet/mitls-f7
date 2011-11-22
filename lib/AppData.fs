@@ -1,6 +1,6 @@
 ﻿module AppData
 
-open Data
+open Bytes
 open Record
 open Error
 open TLSInfo
@@ -42,7 +42,7 @@ let send_data (state:app_state) (data:bytes) =
            otherwise unexpectedError (and refinement types ensure this never happens)
        Currently we implement the latter *)
     if is_empty_appdata state.app_outgoing then
-        let lengths = estimateLengths state.app_info (Bytearray.length data) in
+        let lengths = estimateLengths state.app_info (length data) in
         let new_out = appdata state.app_info lengths data in
         {state with app_outgoing = new_out; app_out_lengths = lengths}
     else

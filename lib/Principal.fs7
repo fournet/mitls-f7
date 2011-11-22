@@ -2,7 +2,7 @@
 
 // X.509 certificates (as used for TLS)
 
-open Data
+open Bytes
 open Error
 open OtherCrypto
 

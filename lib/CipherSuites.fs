@@ -1,7 +1,6 @@
 ﻿module CipherSuites
 
-open Data
-open Bytearray
+open Bytes
 open Algorithms
 open Error
 
@@ -176,7 +175,7 @@ let bytes_of_cipherSuite cs =
 
 
 let rec cipherSuites_of_bytes_int b list =
-    if Bytearray.length b = 0 then
+    if length b = 0 then
         list
     else
         let (csB,rem) = split b 2 in

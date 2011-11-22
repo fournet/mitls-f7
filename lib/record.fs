@@ -1,7 +1,6 @@
 ﻿module Record
 
-open Data
-open Bytearray
+open Bytes
 open Error
 open TLSInfo
 open TLSPlain
@@ -172,10 +171,11 @@ let send_setCrypto ccs_data =
 //CF we'll need refinements to prevent parsing errors.
 //CF can we move the check to Dispatch?
 let parse_header conn header =
-  let [ct1;pv2;len2] = splitList header [1;2] in
+  let (ct1,rem4) = split header 1 in
+  let (pv2,len2) = split rem4 2 in
   let ct  = contentType_of_byte ct1.[0] in
   let pv  = protocolVersionType_of_bytes pv2 in
-  let len = int_of_bytes 2 len2 in
+  let len = int_of_bytes len2 in
   if   (  conn.local_pv <> ProtocolVersionType.UnknownPV 
          && pv <> conn.local_pv)
       || pv = ProtocolVersionType.UnknownPV 

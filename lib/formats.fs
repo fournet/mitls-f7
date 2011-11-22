@@ -1,7 +1,6 @@
 module Formats
 
-open Data
-open Bytearray
+open Bytes
 open Error
 
 type preContentType =
@@ -53,21 +52,22 @@ let rec appendList (xl:bytes list) : bytes =
     | [] -> empty_bstr
     | h::t -> append h (appendList t)
 *)
-let (@|) a b = append a b
 
+(*
 let rec splitList (b:bytes) (il:int list) : bytes list = 
     match il with
     | [] -> [b]
     | h::t -> let (x,y) = split b h in x::(splitList y t)
+*)
 
 let vlenBytes_of_bytes (lenSize:int) data =
     let dlength = length data in
     let len = bytes_of_int lenSize dlength in
-    append len data
+    len @| data
 
 let bytesAndRemainder_of_vlenBytesAndReminder lenSize data =
     let (lenbytes,data) = split data lenSize in
-    let len = int_of_bytes lenSize lenbytes in
+    let len = int_of_bytes lenbytes in
     split data len
 
 

@@ -1,8 +1,7 @@
 ﻿module Alert
 
 open Formats
-open Data
-open Bytearray
+open Bytes
 open Error
 open TLSInfo
 open TLSPlain
@@ -22,7 +21,7 @@ type pre_al_state = {
 
 type al_state = pre_al_state
 
-let init info = {al_info = info; al_incoming = empty_bstr; al_outgoing = empty_bstr}
+let init info = {al_info = info; al_incoming = [||]; al_outgoing = [||]}
 
 type ALFragReply =
     | EmptyALFrag
@@ -126,7 +125,7 @@ let send_alert state alertDesc =
     If we want to be independent of this, we need to track the status more
     properly*)
     match out with
-    | x when x = empty_bstr ->
+    | x when equalBytes x [||] ->
         let out = bytes_of_alertDesc alertDesc in
         Correct { state with al_outgoing = out }
     | _ ->
@@ -134,13 +133,13 @@ let send_alert state alertDesc =
 
 let next_fragment state =
     match state.al_outgoing with
-    | x when equalBytes x empty_bstr ->
+    | x when equalBytes x [||] ->
         (EmptyALFrag, state)
     | d ->
         let (frag,rem) = pub_fragment state.al_info state.al_outgoing in
         let state = {state with al_outgoing = rem} in
         match rem with
-        | x when equalBytes x empty_bstr -> (LastALFrag(frag),state)
+        | x when equalBytes x [||] -> (LastALFrag(frag),state)
         | _ -> (ALFrag(frag),state)
 
 let handle_alert state al =
@@ -166,18 +165,18 @@ let handle_alert state al =
 let recv_fragment state tlen (fragment:fragment) =
     let fragment = pub_fragment_to_bytes state.al_info tlen fragment in
     match state.al_incoming with
-    | x when x = empty_bstr ->
+    | x when equalBytes x [||] ->
         (* Empty buffer *)
         if length fragment = 1 then
             Correct (ALAck ({state with al_incoming = fragment}))
         else
             let (al,_) = split fragment 2 in
             let alert = alert_of_bytes al in
-            let state = {state with al_incoming = empty_bstr} in (* empty the buffer *)
+            let state = {state with al_incoming = [||]} in (* empty the buffer *)
             handle_alert state alert
     | inc ->
         let (part2,_) = split fragment 1 in
-        let bmsg = append inc part2 in
+        let bmsg = inc @| part2 in
         let alert = alert_of_bytes bmsg in
-        let state = {state with al_incoming = empty_bstr } in
+        let state = {state with al_incoming = [||] } in
         handle_alert state alert

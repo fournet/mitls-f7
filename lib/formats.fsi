@@ -1,6 +1,6 @@
 module Formats
 
-open Data
+open Bytes
 open CipherSuites
 
 val bytes_of_seq: int -> bytes
@@ -23,8 +23,4 @@ val CTtoString: ContentType -> string
 val vlenBytes_of_bytes: int -> bytes -> bytes
 val bytesAndRemainder_of_vlenBytesAndReminder: int -> bytes -> (bytes * bytes)
 
-(*
-val appendList: bytes list -> bytes
-*)
-val (@|): bytes -> bytes -> bytes
-val splitList: bytes -> int list -> bytes list
+//val splitList: bytes -> int list -> bytes list

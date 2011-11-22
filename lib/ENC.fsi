@@ -1,6 +1,6 @@
 ﻿module ENC
 
-open Data
+open Bytes
 open TLSInfo
 open Error
 open TLSPlain

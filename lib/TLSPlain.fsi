@@ -1,7 +1,7 @@
 ﻿module TLSPlain
 
 open TLSInfo
-open Data
+open Bytes
 
 type Lengths (* abstractly, a list of desired ciphertext lengths *)
 

@@ -38,6 +38,9 @@
   <ItemGroup>
     <Content Include="README.txt" />
     <None Include="Makefile" />
+    <None Include="Bytes.fs7" />
+    <Compile Include="Bytes.fsi" />
+    <Compile Include="Bytes.fs" />
     <None Include="Error.fs7" />
     <Compile Include="Error.fsi" />
     <Compile Include="Error.fs" />

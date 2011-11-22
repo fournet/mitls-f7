@@ -1,7 +1,6 @@
 ﻿module SessionDB
 
 open TLSInfo
-open Data
 open AppCommon
 
 type StorableSession =

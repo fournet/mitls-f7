@@ -1,6 +1,6 @@
 ﻿module AEAD
 
-open Data
+open Bytes
 open Error
 open TLSInfo
 open TLSPlain

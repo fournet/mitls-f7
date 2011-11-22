@@ -1,7 +1,6 @@
 ﻿(* Handshake protocol *) 
 module Handshake
 
-open Data
 open Record
 open Error
 open Formats

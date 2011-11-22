@@ -1,0 +1,36 @@
+﻿module Bytes
+
+type bytes = byte[]
+
+function val Length: bytes -> int 
+assume !x:bytes, y:bytes. Length(x | y) = Length(x) + Length(y)
+
+(* How to keep consistency between different invocations of length, or between createBytes and length?
+   Maybe something like:
+   assume !l1:int,l2:int,b:bytes: ( Lenght(b) = l1 /\ Length(b) = l2 ) => l1 = l2
+*)
+
+val createBytes: l:int -> int -> b:bytes{Length(b) = l}
+
+(* FIXME: bytes_of_int and int_of_bytes are not a bijection, because we can have "infinite" 0-starting byte arrays.
+   Which kind of property do we want to express here? *)
+
+val bytes_of_int: l:int -> int -> b:bytes{Length(b) = l}
+
+val int_of_bytes: bytes -> int
+
+val length: b:bytes -> l:int {Length(b) = l}
+
+val equalBytes: b1:bytes -> b2:bytes -> r:bool {(r = true /\ b1 = b2) \/ (r = false /\ b1 <> b2)}
+
+(* append *)
+val (@|): b1:bytes -> b2:bytes -> b:bytes{b = b1 | b2}
+
+val split: b:bytes -> i:int ->
+		   (b1:bytes * b2:bytes){Length(b1) = i /\ b = b1 | b2}
+
+(* strings *)
+function val Utf8: string -> bytes 
+val utf8: s:string -> b:bytes  { b = Utf8(s) }
+val iutf8: b:bytes -> s:string { b = Utf8(s) }
+assume !x:string, y:string. (Utf8(x)=Utf8(y) => x = y )

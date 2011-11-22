@@ -1,4 +1,7 @@
 module CipherSuites
+
+open Bytes
+
 type CipherSuite =
   | TLS_NULL_WITH_NULL_NULL
   | TLS_RSA_WITH_NULL_MD5
@@ -78,5 +81,5 @@ type cipherSuites = CipherSuite list
 
 val cipherSuite_of_intpair : int * int -> CipherSuite
 val intpair_of_cipherSuite : CipherSuite -> int * int
-val bytes_of_cipherSuite : CipherSuite -> Data.bytes
-val cipherSuite_of_bytes : Data.bytes -> CipherSuite
+val bytes_of_cipherSuite : CipherSuite -> bytes
+val cipherSuite_of_bytes : bytes -> CipherSuite

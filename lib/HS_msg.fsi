@@ -1,6 +1,6 @@
 ﻿module HS_msg
 
-open Data
+open Bytes
 open Formats
 open Record
 open CipherSuites

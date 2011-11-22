@@ -1,6 +1,6 @@
 ﻿module TLS
 
-open Data
+open Bytes
 open Formats
 open Error_handling
 open Dispatch

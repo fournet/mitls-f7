@@ -1,7 +1,6 @@
 ﻿module HS_msg
 
-open Data
-open Bytearray
+open Bytes
 open Formats
 open Record
 open CipherSuites
@@ -39,7 +38,7 @@ let bytes_of_hs_type t =
       | HT_unknown x           -> unexpectedError "Unknown handshake type")
 
 let hs_type_of_bytes b = 
-  match int_of_bytes 1 b with
+  match int_of_bytes b with
     |  0 -> HT_hello_request
     |  1 -> HT_client_hello
     |  2 -> HT_server_hello

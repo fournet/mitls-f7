@@ -1,6 +1,6 @@
 module Alert
 
-open Data
+open Bytes
 open Sessions
 open Formats
 open AppCommon

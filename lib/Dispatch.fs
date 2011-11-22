@@ -1,6 +1,6 @@
 ﻿module Dispatch
 
-open Data
+open Bytes
 open Formats
 open Record
 open Tcp
@@ -433,10 +433,11 @@ let deliver ct tlen f c =
 let parse_header header =
   (* Mostly the same as Record.parse_header,
      but here we don't perform any check on the protcol version *)
-  let [x;y;z] = splitList header [1;2] in
-  let ct = contentType_of_byte x.[0] in
-  let pv = CipherSuites.protocolVersionType_of_bytes y in
-  let len = Bytearray.int_of_bytes 2 z in
+  let (ct1,rem4) = split header 1 in
+  let (pv2,len2) = split rem4 2 in
+  let ct = contentType_of_byte ct1.[0] in
+  let pv = CipherSuites.protocolVersionType_of_bytes pv2 in
+  let len = int_of_bytes len2 in
   (ct,pv,len)
 
 let recv ns readState =

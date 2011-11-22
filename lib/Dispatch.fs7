@@ -2,7 +2,7 @@ module Dispatch
 
 open AppData
 open Alert
-open Data
+open Bytes
 open Formats
 open Handshake
 open Record
@@ -10,7 +10,6 @@ open Sessions
 open Stream
 open AppCommon
 open Error_handling
-open Bytearray
 
 type predispatchState = (* internal state of the dispatcher *)
   | Init

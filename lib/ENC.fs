@@ -1,7 +1,6 @@
 ﻿module ENC
 
-open Data
-open Bytearray
+open Bytes
 open Error
 open Algorithms
 open CipherSuites

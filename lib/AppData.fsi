@@ -4,7 +4,7 @@
 
 module AppData
 
-open Data
+open Bytes
 open Record
 open Error
 open TLSInfo

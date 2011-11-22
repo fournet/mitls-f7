@@ -1,5 +1,9 @@
 ﻿module ENC
+
+open Bytes
 open TLSPlain
+open TLSInfo
+open Error
 
 (* this interface is trusted *)
 

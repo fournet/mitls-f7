@@ -1,6 +1,6 @@
 ﻿module Record
 
-open Data
+open Bytes
 open Tcp
 open Formats
 open Error

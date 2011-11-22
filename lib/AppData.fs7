@@ -1,13 +1,12 @@
 module AppData
 
-open Data
+open Bytes
 open Sessions
 open Formats
 open Record
 open Error_handling
 open Stream 
 open AppCommon
-open Bytearray
 
 type pre_app_state =
   {app_info: SessionInfo;

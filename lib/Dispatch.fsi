@@ -1,6 +1,6 @@
 ﻿module Dispatch
 
-open Data
+open Bytes
 open Formats
 open Tcp
 open Error

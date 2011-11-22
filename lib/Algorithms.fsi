@@ -1,5 +1,7 @@
 ﻿module Algorithms
 
+open Bytes
+
 (* Not abstracts, but only meant to be used by
    crypto modules and CipherSuites *)
 type kexAlg =
@@ -40,7 +42,6 @@ val macLength: hashAlg -> int
 val hashSize: hashAlg -> int
 
 (* SSL Constants *)
-open Data
 val ssl_pad1_md5: bytes
 val ssl_pad2_md5: bytes
 val ssl_pad1_sha1: bytes

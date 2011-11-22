@@ -5,7 +5,7 @@ open Algorithms
 open CipherSuites
 open Formats
 open TLSInfo
-open Data
+open Bytes
 
 /// Relating lengths of fragment plaintexts and ciphertexts
 
@@ -119,7 +119,7 @@ let app_fragment (si:SessionInfo) lens (appdata:appdata) : ((int * fragment) * (
     match lens.tlens with
     | thisLen::remLens ->
         (* Same implementation as estimateLengths, but one fragment at a time *)
-        if Bytearray.length appdata.bytes > fragmentLength then
+        if length appdata.bytes > fragmentLength then
             (* get one full fragment of appdata *)
             (* TODO: apply compression on thisData *)
             let (thisData,remData) = split appdata.bytes fragmentLength in
@@ -133,12 +133,12 @@ let get_bytes (appdata:appdata) = appdata.bytes
 
 let pub_fragment (si:SessionInfo) (data:bytes) : ((int * fragment) * bytes) =
     let (frag,rem) =
-        if Bytearray.length data > fragmentLength then
+        if length data > fragmentLength then
             split data fragmentLength
         else
             (data,[||])
-    let addedLen = extraLength si (Bytearray.length frag) in
-    let totlen = (Bytearray.length frag) + addedLen in
+    let addedLen = extraLength si (length frag) in
+    let totlen = (length frag) + addedLen in
     ((totlen,{bytes = frag}),rem)
 
 let pub_fragment_to_bytes (si:SessionInfo) (tlen:int) (fragment:fragment) = fragment.bytes
@@ -149,13 +149,11 @@ type add_data = bytes
 type mac_plain = MACPLAINt of MAC.mac_plain
 
 let ad_fragment (ki:KeyInfo) (ad:add_data) (frag:fragment) =
-    let plainLen = Bytearray.bytes_of_int 2 (Bytearray.length frag.bytes) in
+    let plainLen = bytes_of_int 2 (length frag.bytes) in
     let fullData = ad @| plainLen in 
     MACPLAINt (fullData @| frag.bytes)
 
 type plain = {bytes: bytes}
-
-let length = Bytearray.length (* temporary *)
 
 let pad (p:int)  = Array.create p (byte (p-1))
 (* val pad (p:int) { 1 <= p /\ p <= 256 } -> b:bytes { b = Pad(p) } *)

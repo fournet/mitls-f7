@@ -1,6 +1,6 @@
 ﻿module HASH
 
-open Data
+open Bytes
 open Error
 open Algorithms
 
