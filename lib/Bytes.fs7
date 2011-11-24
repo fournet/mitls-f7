@@ -5,8 +5,7 @@ type bytes = byte[]
 function val Length: bytes -> int 
 assume !x:bytes, y:bytes. Length(x | y) = Length(x) + Length(y)
 
-(* How to keep consistency between different invocations of length, or between createBytes and length?
-   Maybe something like:
+(* Length is a function, so this should not be necessary:
    assume !l1:int,l2:int,b:bytes: ( Lenght(b) = l1 /\ Length(b) = l2 ) => l1 = l2
 *)
 

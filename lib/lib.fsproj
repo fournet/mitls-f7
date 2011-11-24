@@ -52,6 +52,7 @@
     <None Include="Principal.fs7" />
     <Compile Include="Principal.fsi" />
     <Compile Include="Principal.fs" />
+    <None Include="Algorithms.fs7" />
     <Compile Include="Algorithms.fsi" />
     <Compile Include="Algorithms.fs" />
     <None Include="CipherSuites.fs7" />
