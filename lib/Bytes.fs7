@@ -32,7 +32,10 @@ val split: b:bytes -> i:int{Length(b) >= i} ->
 		   (b1:bytes * b2:bytes){Length(b1) = i /\ b = b1 | b2}
 
 (* strings *)
-function val Utf8: string -> bytes 
-val utf8: s:string -> b:bytes  { b = Utf8(s) }
-val iutf8: b:bytes -> s:string { b = Utf8(s) }
+function val Utf8: string -> bytes 
+
+val utf8: s:string -> b:bytes  { b = Utf8(s) }
+
+val iutf8: b:bytes -> s:string { b = Utf8(s) }
+
 assume !x:string, y:string. (Utf8(x)=Utf8(y) => x = y )
