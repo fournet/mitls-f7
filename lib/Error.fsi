@@ -32,6 +32,7 @@ type ErrorCause =
     | Tcp
     | MAC
     | Hash
+    | Parsing
     | Encryption
     | Protocol
     | Record

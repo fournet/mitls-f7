@@ -2,8 +2,7 @@ module Formats
 
 open Bytes
 open CipherSuites
-
-val bytes_of_seq: int -> bytes
+open Error
 
 (* val split_at_most: bytes -> int -> (bytes * bytes) *)
 
@@ -16,11 +15,13 @@ type preContentType =
 
 type ContentType = preContentType
 
+val bytes_of_seq: int -> bytes
+
 val byte_of_contentType: ContentType -> byte
 val contentType_of_byte: byte -> ContentType
 val CTtoString: ContentType -> string
 
 val vlenBytes_of_bytes: int -> bytes -> bytes
-val bytesAndRemainder_of_vlenBytesAndReminder: int -> bytes -> (bytes * bytes)
+val bytesAndRemainder_of_vlenBytesAndReminder: int -> bytes -> (bytes * bytes) Result
 
 //val splitList: bytes -> int list -> bytes list

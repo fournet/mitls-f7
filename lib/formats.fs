@@ -68,6 +68,9 @@ let vlenBytes_of_bytes (lenSize:int) data =
 let bytesAndRemainder_of_vlenBytesAndReminder lenSize data =
     let (lenbytes,data) = split data lenSize in
     let len = int_of_bytes lenbytes in
-    split data len
+    if len <= length data then
+        correct (split data len)
+    else
+        Error(Parsing,CheckFailed)
 
 

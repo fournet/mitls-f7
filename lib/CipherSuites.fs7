@@ -20,8 +20,9 @@ type ProtocolVersionType =
     | TLS_1p2 = 50
     | UnknownPV = -1
 
-val bytes_of_protocolVersionType: ProtocolVersionType -> b:bytes{Length(b)=2}
-val protocolVersionType_of_bytes: b:bytes{Length(b) = 2} -> ProtocolVersionType
+function val PVB: ProtocolVersionType -> bytes
+val bytes_of_protocolVersionType: pv:ProtocolVersionType -> b:bytes{Length(b) = 2 /\ b = PVB(pv)}
+val protocolVersionType_of_bytes: b:bytes{Length(b) = 2} -> pv:ProtocolVersionType{b=PBV(pv)}
 
 (* FIXME: same duplication between logical and concrete function definitions, already seen in Algorithms *)
 function val isNullCiphersuite: cipherSuite -> bool

@@ -11,13 +11,15 @@ assume !x:bytes, y:bytes. Length(x | y) = Length(x) + Length(y)
 
 val createBytes: l:int -> int -> b:bytes{Length(b) = l}
 
-(* FIXME: bytes_of_int and int_of_bytes are not a bijection, because we can have "infinite" 0-starting byte arrays.
-   Which kind of property do we want to express here? *)
+function val Int2Bytes: int -> int -> bytes
+assume !l:int, i:int. Length(Int2Bytes(l,i)) = l
+assume !l:int, i0:int, i1:int. Int2Bytes(l,i0)=Int2Bytes(l,i1) => i0=i1
+(* We want a notion of equivalent representation that does not include length. Where do we use this? *)
+function val EquivRepr: bytes -> bytes -> true
+assume !l1:int, l2:int, i:int. EquivRepr(Int2Bytes(l1,i),Int2Bytes(l2,i))
 
-val bytes_of_int: l:int -> int -> b:bytes{Length(b) = l}
-
-val int_of_bytes: bytes -> int
-
+val bytes_of_int: l:int -> i:int -> b:bytes{b = Int2Bytes(l,i)}
+val int_of_bytes: b:bytes -> i:int{b = Int2Bytes(Length(b),i)}
 val length: b:bytes -> l:int {Length(b) = l}
 
 val equalBytes: b1:bytes -> b2:bytes -> r:bool {(r = true /\ b1 = b2) \/ (r = false /\ b1 <> b2)}

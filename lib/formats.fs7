@@ -8,9 +8,27 @@ type preContentType =
   | Application_data
   | UnknownCT
 
+(* FIXME: new version of F7 should infer this refinement automatically.
+   In other places I'm assuming F7 is already updated, but here I don't delete this
+   refinement until I get acknowledge that F7 is in fact updated. *)
 type ContentType = ct:preContentType{ct = Change_cipher_spec \/ ct = Alert \/
                 ct = Handshake \/ ct = Application_data \/ ct = UnknownCT}
 
+function val SeqNumB: int -> bytes
+val bytes_of_seq: sn:int -> b:bytes{Length(b) = 8 /\ b = SeqNumB(sn)}
+
+function val CTB: ContentType -> byte
+val byte_of_contentType: ct:ContentType -> b:byte{b=CTB(ct)}
+val contentType_of_byte: b:byte -> ct:ContentType{b=CTB(ct)}
+val CTtoString: ContentType -> string
+
+val vlenBytes_of_bytes: vl:int -> b1:bytes ->
+	b:bytes{b = Int2Bytes(vl,Length(b1)) @| b1}
+(* FIXME: We cannot enforce good termination of this function statically in the pre-conditions.
+   This function should return a Result, because parsing might fail *)
+val bytesAndRemainder_of_vlenBytesAndReminder: vl:int -> b:bytes -> (b1:bytes * b2:bytes) Result
+
+--------- OLD ---------
 val Change_cipher_spec_val : int
 val Alert_val : int
 val Handshake_val : int
