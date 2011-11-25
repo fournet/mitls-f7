@@ -26,7 +26,7 @@ val vlenBytes_of_bytes: vl:int -> b1:bytes ->
 	b:bytes{b = Int2Bytes(vl,Length(b1)) @| b1}
 (* FIXME: We cannot enforce good termination of this function statically in the pre-conditions.
    This function should return a Result, because parsing might fail *)
-val bytesAndRemainder_of_vlenBytesAndReminder: vl:int -> b:bytes -> (b1:bytes * b2:bytes) Result
+val bytes_of_vlenBytes: vl:int -> b:bytes -> (b1:bytes * b2:bytes) Result
 
 --------- OLD ---------
 val Change_cipher_spec_val : int

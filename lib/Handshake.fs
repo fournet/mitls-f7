@@ -518,11 +518,6 @@ let ciphstate_of_ciphtype ct key iv =
     | CT_stream -> StreamCipherState
 *)
 
-let split_varLen data lenSize =
-    let (lenBytes,data) = split data lenSize in
-    let len = int_of_bytes lenBytes in
-    split data len
-
 let rec extensionList_of_bytes_int data list =
     match length data with
     | 0 -> correct (list)
@@ -532,15 +527,18 @@ let rec extensionList_of_bytes_int data list =
     | _ ->
         let (extTypeBytes,rem) = split data 2 in
         let extType = hExt_of_bytes extTypeBytes in
-        let (payload,rem) = split_varLen rem 2 in
-        extensionList_of_bytes_int rem ([(extType,payload)] @ list)
+        match bytes_of_vlenBytes 2 rem with
+        | Error(x,y) -> Error (HSError(AD_decode_error), HSSendAlert) (* Parsing error *)
+        | Correct (payload,rem) -> extensionList_of_bytes_int rem ([(extType,payload)] @ list)
 
 let extensionList_of_bytes data =
     match length data with
     | 0 -> correct ([])
     | 1 -> Error(HSError(AD_decode_error),HSSendAlert)
     | _ ->
-        let (exts,rem) = split_varLen data 2 in
+        match bytes_of_vlenBytes 2 data with
+        | Error(x,y) -> Error(HSError(AD_decode_error),HSSendAlert) (* Parsing error *)
+        | Correct (exts,rem) ->
         if not (equalBytes rem [||]) then
             Error(HSError(AD_decode_error),HSSendAlert)
         else
@@ -553,12 +551,19 @@ let parseCHello data =
     let clTs = int_of_bytes clTsBytes in
     let (clRdmBytes,data) = split data 28 in
     let clRdm = {time = clTs; rnd = clRdmBytes} in
-    let (sid,data) = split_varLen data 1 in
-    let (clCiphsuitesBytes,data) = split_varLen data 2 in
+    match bytes_of_vlenBytes 1 data with
+    | Error(x,y) -> Error(x,y)
+    | Correct (sid,data) ->
+    match bytes_of_vlenBytes 2 data with
+    | Error(x,y) -> Error(x,y)
+    | Correct (clCiphsuitesBytes,data) ->
     let clCiphsuites = cipherSuites_of_bytes clCiphsuitesBytes in
-    let (cmBytes,data) = split_varLen data 1 in
+    match bytes_of_vlenBytes 1 data with
+    | Error(x,y) -> Error(x,y)
+    | Correct (cmBytes,data) ->
     let cm = compressions_of_bytes cmBytes in
-    ({ client_version = clVer
+    correct(
+     { client_version = clVer
        ch_random = clRdm
        ch_session_id = sid
        cipher_suites = clCiphsuites
@@ -574,12 +579,15 @@ let parseSHello data =
     let serverTs = int_of_bytes serverTsBytes in
     let (serverRdmBytes,data) = split data 28 in
     let serverRdm = {time = serverTs; rnd = serverRdmBytes} in
-    let (sid,data) = split_varLen data 1 in
+    match bytes_of_vlenBytes 1 data with
+    | Error(x,y) -> Error (x,y)
+    | Correct (sid,data) ->
     let (csBytes,data) = split data 2 in
     let cs = cipherSuite_of_bytes csBytes in
     let (cmBytes,data) = split data 1 in
     let cm = compression_of_byte cmBytes.[0] in
-    ({ server_version = serverVer
+    correct(
+     { server_version = serverVer
        sh_random = serverRdm
        sh_session_id = sid
        cipher_suite = cs
@@ -588,7 +596,9 @@ let parseSHello data =
       serverTsBytes @| serverRdmBytes)
 
 let check_reneg_info payload expected =
-    let (recv,rem) = split_varLen payload 1 in
+    match bytes_of_vlenBytes 1 payload with
+    | Error(x,y) -> false
+    | Correct (recv,rem) ->
     if not (equalBytes recv expected) then
         false
     else
@@ -658,7 +668,9 @@ let rec parseCertificate_int toProcess list =
     if equalBytes toProcess [||] then
         correct(list)
     else
-        let (nextCertBytes,toProcess) = split_varLen toProcess 3 in
+        match bytes_of_vlenBytes 3 toProcess with
+        | Error(x,y) -> Error(HSError(AD_bad_certificate),HSSendAlert)
+        | Correct (nextCertBytes,toProcess) ->
         match certificate_of_bytes nextCertBytes with
         | Error(x,y) -> Error(HSError(AD_bad_certificate),HSSendAlert)
         | Correct(nextCert) ->
@@ -666,7 +678,9 @@ let rec parseCertificate_int toProcess list =
             parseCertificate_int toProcess list
 
 let parseCertificate data =
-    let (certList,_) = split_varLen data 3 in
+    match bytes_of_vlenBytes 3 data with
+    | Error(x,y) -> Error(HSError(AD_bad_certificate),HSSendAlert)
+    | Correct (certList,_) ->
     match parseCertificate_int certList [] with
     | Error(x,y) -> Error(x,y)
     | Correct(certList) -> correct({certificate_list = certList})
@@ -704,20 +718,29 @@ let rec sigAlgsList_of_bytes data res =
         | None -> Error(HSError(AD_illegal_parameter),HSSendAlert)
 
 let rec distNamesList_of_bytes data res =
-    if length data > 0 then
-        let (nameBytes,data) = split_varLen data 2 in
-        let name = iutf8 nameBytes in (* FIXME: I have no idea wat "X501 represented in DER-encoding format" (RFC 5246, page 54) is. I assume UTF8 will do. *)
-        let res = [name] @ res in
-        distNamesList_of_bytes data res
+    if length data = 0 then
+        correct (res)
     else
-        res
-
+        if length data < 2 then (* FIXME: maybe at least 3 bytes, because we don't want empty names... *)
+            Error(Parsing,CheckFailed)
+        else
+            match bytes_of_vlenBytes 2 data with
+            | Error(x,y) -> Error(x,y)
+            | Correct (nameBytes,data) ->
+            let name = iutf8 nameBytes in (* FIXME: I have no idea wat "X501 represented in DER-encoding format" (RFC 5246, page 54) is. I assume UTF8 will do. *)
+            let res = [name] @ res in
+            distNamesList_of_bytes data res
+    
 let parseCertReq ver data =
-    let (certTypeListBytes,data) = split_varLen data 1 in
+    match bytes_of_vlenBytes 1 data with
+    | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
+    | Correct (certTypeListBytes,data) ->
     let certTypeList = certTypeList_of_bytes certTypeListBytes [] in
     let sigAlgsAndData = (
         if ver = ProtocolVersionType.TLS_1p2 then
-            let (sigAlgsBytes,data) = split_varLen data 2 in
+            match bytes_of_vlenBytes 2 data with
+            | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
+            | Correct (sigAlgsBytes,data) ->
             match sigAlgsList_of_bytes sigAlgsBytes [] with
             | Error(x,y) -> Error(x,y)
             | Correct (sigAlgsList) ->
@@ -727,8 +750,12 @@ let parseCertReq ver data =
     match sigAlgsAndData with
     | Error(x,y) -> Error(x,y)
     | Correct ((sigAlgs,data)) ->
-    let (distNamesBytes,_) = split_varLen data 2 in
-    let distNamesList = distNamesList_of_bytes distNamesBytes [] in
+    match bytes_of_vlenBytes 2 data with
+    | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
+    | Correct  (distNamesBytes,_) ->
+    match distNamesList_of_bytes distNamesBytes [] with
+    | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
+    | Correct distNamesList ->
     let res = { client_certificate_type = certTypeList;
                 signature_and_hash_algorithm = sigAlgs;
                 certificate_authorities = distNamesList} in
@@ -748,11 +775,13 @@ let parseClientKEX sinfo sSpecState pops data =
                 | ProtocolVersionType.SSL_3p0 ->
                     correct (data)
                 | v when v >= ProtocolVersionType.TLS_1p0 ->
-                        let (encPMS,rem) = split_varLen data 2 in
-                        if length rem = 0 then
-                            correct (encPMS)
-                        else
-                            Error(HSError(AD_decode_error),HSSendAlert)
+                        match bytes_of_vlenBytes 2 data with
+                        | Error(x,y) -> Error(HSError(AD_decode_error),HSSendAlert)
+                        | Correct (encPMS,rem) ->
+                            if length rem = 0 then
+                                correct (encPMS)
+                            else
+                                Error(HSError(AD_decode_error),HSSendAlert)
                 | _ -> Error(HSError(AD_internal_error),HSSendAlert)
             match parseRes with
             | Error(x,y) -> Error(x,y)
@@ -1123,7 +1152,9 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
         | HT_server_hello ->
             match cState with
             | ServerHello ->
-                let (shello,server_random) = parseSHello payload in
+                match parseSHello payload with
+                | Error(x,y) -> (Error(HSError(AD_decode_error),HSSendAlert),hs_state)
+                | Correct (shello,server_random) ->
                 (* Sanity checks on the received message *)
                 (* FIXME: are they security-relevant here? Or only functionality-relevant? *)
                 
@@ -1483,7 +1514,9 @@ let rec recv_fragment_server (hs_state:hs_state) (must_change_ver:ProtocolVersio
         | HT_client_hello ->
             match sState with
             | x when x = ClientHello || x = SIdle ->
-                let (cHello,cRandom) = parseCHello payload in
+                match parseCHello payload with
+                | Error(x,y) -> (Error(HSError(AD_decode_error),HSSendAlert),hs_state)
+                | Correct (cHello,cRandom) ->
                 let hs_state = {hs_state with ki_crand = cRandom} in
                 (* Log the received message *)
                 let new_log = hs_state.hs_msg_log @| to_log in

@@ -22,6 +22,6 @@ val contentType_of_byte: byte -> ContentType
 val CTtoString: ContentType -> string
 
 val vlenBytes_of_bytes: int -> bytes -> bytes
-val bytesAndRemainder_of_vlenBytesAndReminder: int -> bytes -> (bytes * bytes) Result
+val bytes_of_vlenBytes: int -> bytes -> (bytes * bytes) Result
 
 //val splitList: bytes -> int list -> bytes list

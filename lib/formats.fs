@@ -65,7 +65,7 @@ let vlenBytes_of_bytes (lenSize:int) data =
     let len = bytes_of_int lenSize dlength in
     len @| data
 
-let bytesAndRemainder_of_vlenBytesAndReminder lenSize data =
+let bytes_of_vlenBytes lenSize data =
     let (lenbytes,data) = split data lenSize in
     let len = int_of_bytes lenbytes in
     if len <= length data then
