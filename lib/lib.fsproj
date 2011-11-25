@@ -61,6 +61,7 @@
     <None Include="formats.fs7" />
     <Compile Include="formats.fsi" />
     <Compile Include="formats.fs" />
+    <None Include="TLSInfo.fs7" />
     <Compile Include="TLSInfo.fsi" />
     <Compile Include="TLSInfo.fs" />
     <Compile Include="HASH.fsi" />
