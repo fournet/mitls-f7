@@ -70,6 +70,12 @@ Algorithms.tc7: $(libperv) $(libfs7) Algorithms.fs7 Algorithms.fs #$(recordfs7) 
 Error.tc7: $(libperv) $(libfs7) Error.fs7 Error.fs #$(recordfs7) record.fs
 	$(f7) -nokindcheck $(lperv) $(lib7)formulas.fs7 $(lib7)pi.fs7 Error.fs7 Error.fs
 
+Principal.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 Principal.fs7 Principal.fs 
+	$(f7) -nokindcheck $(lperv) $(lib7)formulas.fs7 $(lib7)pi.fs7 Bytes.fs7 Error.fs7 Principal.fs7 Principal.fs 
+
+formats.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 formats.fs7 formats.fs
+	$(f7) -nokindcheck $(lperv) $(lib7)formulas.fs7 $(lib7)pi.fs7 Bytes.fs7 Error.fs7 formats.fs7 formats.fs
+
 # FIXME does not verify because of enums.
 CipherSuites.tc7: $(libperv) $(libfs7) Algorithms.fs7 CipherSuites.fs7 Error.fs7 CipherSuites.fs
 	$(f7) -nokindcheck $(lperv) $(lib7)formulas.fs7 $(lib7)pi.fs7 Bytes.fs7 Algorithms.fs7 Error.fs7 CipherSuites.fs7 CipherSuites.fs -scripts CipherSuites
@@ -84,8 +90,8 @@ autogen.fsi: $(libperv) $(libfs7) $(recordfs7) record.fs
 Sessions.tc7: $(libperv) $(libfs7) $(recordfs7) Sessions.fs
 	time $(f7) -timeout 20 --define f7 -nokindcheck $(lperv) $(libfs7) $(recordfs7) Sessions.fs -scripts Sessions -genlst | tee  Sessions.tc7 | grep "Failure\|error\|ERROR\|Exception"; echo ""
 
-formats.tc7: $(libperv) $(libfs7) $(recordfs7) formats.fs
-	time $(f7) -timeout 20 --define f7 -nokindcheck $(lperv) $(libfs7) $(recordfs7) formats.fs -scripts formats -genlst | tee  formats.tc7 | grep "Failure\|error\|ERROR\|Exception"; echo ""
+#formats.tc7: $(libperv) $(libfs7) $(recordfs7) formats.fs
+#	time $(f7) -timeout 20 --define f7 -nokindcheck $(lperv) $(libfs7) $(recordfs7) formats.fs -scripts formats -genlst | tee  formats.tc7 | grep "Failure\|error\|ERROR\|Exception"; echo ""
 
 AppData.tc7: $(libperv) $(libfs7) $(recordfs7) AppData.fs7 AppData.fs 
 	time $(f7) -timeout 200 --define f7 -nokindcheck $(lperv) $(libfs7) $(recordfs7) AppData.fs7 AppData.fs -scripts AppData -genlst | tee AppData.tc7 | grep "Failure\|error\|ERROR\|Exception"; echo ""

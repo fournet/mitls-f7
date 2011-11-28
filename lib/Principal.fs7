@@ -4,7 +4,10 @@
 
 open Bytes
 open Error
-open OtherCrypto
+
+//CF ?? open OtherCrypto
+//temporary
+type key
 
 type cert
 

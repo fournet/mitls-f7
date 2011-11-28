@@ -60,16 +60,17 @@ let rec splitList (b:bytes) (il:int list) : bytes list =
     | h::t -> let (x,y) = split b h in x::(splitList y t)
 *)
 
-let vlenBytes_of_bytes (lenSize:int) data =
-    let dlength = length data in
-    let len = bytes_of_int lenSize dlength in
-    len @| data
+let vlenBytes_of_bytes (lSize:int) b =
+    let dlength = length b in
+    let vl = bytes_of_int lSize (length b) in
+    // append len data 
+    vl @| b
 
-let bytes_of_vlenBytes lenSize data =
-    let (lenbytes,data) = split data lenSize in
-    let len = int_of_bytes lenbytes in
-    if len <= length data then
-        correct (split data len)
+let bytes_of_vlenBytes lSize vlb =
+    let (vl,b) = split vlb lSize in
+    let l = int_of_bytes vl in
+    if l <= length b then
+        correct (split b l)
     else
         Error(Parsing,CheckFailed)
 

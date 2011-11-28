@@ -1,27 +1,36 @@
 module Formats
 open Bytes
+open Error
 
 type preContentType =
   | Change_cipher_spec
   | Alert
   | Handshake
   | Application_data
-  | UnknownCT
+  | UnknownCT //CF: why do we need it?? 
 
 (* FIXME: new version of F7 should infer this refinement automatically.
    In other places I'm assuming F7 is already updated, but here I don't delete this
    refinement until I get acknowledge that F7 is in fact updated. *)
-type ContentType = ct:preContentType{ct = Change_cipher_spec \/ ct = Alert \/
-                ct = Handshake \/ ct = Application_data \/ ct = UnknownCT}
+
+type ContentType = ct:preContentType
+  {ct = Change_cipher_spec \/ ct = Alert \/
+   ct = Handshake \/ ct = Application_data \/ ct = UnknownCT}
 
 function val SeqNumB: int -> bytes
 val bytes_of_seq: sn:int -> b:bytes{Length(b) = 8 /\ b = SeqNumB(sn)}
+
+//CF: let's pick better names, and maybe use length-1 arrays instead of single byte constants, e.g. 
+// CTBytes: ContentType -> bytes for the logical function 
+// ctBytes: ct:ContentType -> b:bytes{b=CTBytes(ct)} for the implementation
 
 function val CTB: ContentType -> byte
 val byte_of_contentType: ct:ContentType -> b:byte{b=CTB(ct)}
 val contentType_of_byte: b:byte -> ct:ContentType{b=CTB(ct)}
 val CTtoString: ContentType -> string
 
+
+//CF: TODO typecheck these functions; maybe rename to vlbytes and split_vlbytes
 val vlenBytes_of_bytes: vl:int -> b1:bytes ->
 	b:bytes{b = Int2Bytes(vl,Length(b1)) @| b1}
 (* FIXME: If needed, say that in case of error you get a parsing error. *)

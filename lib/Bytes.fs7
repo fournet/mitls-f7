@@ -23,7 +23,6 @@ val mkRandom: l:int -> b:bytes{Length(b) = l}
 
 (* array concatenation (append) *)
 
-// not accepted by F7:
 // val (@|): b1:bytes -> b2:bytes -> b:bytes{b = b1|b2}
 val append: b1:bytes -> b2:bytes -> b:bytes{b = b1|b2}
 
@@ -40,7 +39,12 @@ assume !b1,b2,c1,c2.
 
 (* integer multi-byte representations *)
 
-function val Int2Bytes: int *int -> bytes
+function val Int2Bytes: int * int -> bytes
+
+//CF: we need stronger preconditions, e.g.
+//    (l=1 /\ 0 <= l /\ l < 256)
+// \/ (l=2 /\ 0 <= l /\ l < 65536)
+// /\ (l=4 /\ 0 <= l) 
 val bytes_of_int: l:int -> i:int -> b:bytes{b = Int2Bytes(l,i)}
 val int_of_bytes: b:bytes -> i:int{b = Int2Bytes(Length(b),i)}
 
