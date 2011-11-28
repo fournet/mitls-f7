@@ -1,42 +1,63 @@
 ﻿module Bytes
 
-type bytes = byte[]
+(* Binary representations, using byte arrays *)
+
+type bytes = byte array
 
 function val Length: bytes -> int 
+val length: b:bytes -> l:int {Length(b) = l}
 assume !x:bytes, y:bytes. Length(x | y) = Length(x) + Length(y)
 
-(* Length is a function, so this should not be necessary:
-   assume !l1:int,l2:int,b:bytes: ( Lenght(b) = l1 /\ Length(b) = l2 ) => l1 = l2
-*)
-
 val createBytes: l:int -> int -> b:bytes{Length(b) = l}
+// val zeroCreate: l:int -> b:bytes {Length(b) = l}
 
-function val Int2Bytes: int -> int -> bytes
-assume !l:int, i:int. Length(Int2Bytes(l,i)) = l
-assume !l:int, i0:int, i1:int. Int2Bytes(l,i0)=Int2Bytes(l,i1) => i0=i1
-(* We want a notion of equivalent representation that does not include length. Where do we use this? *)
-function val EquivRepr: bytes -> bytes -> true
-assume !l1:int, l2:int, i:int. EquivRepr(Int2Bytes(l1,i),Int2Bytes(l2,i))
+val equalBytes: b0:bytes -> b1:bytes -> 
+  r:bool {(r = true /\ b0 = b1) \/ (r = false /\ b0 <> b1)}
 
-val bytes_of_int: l:int -> i:int -> b:bytes{b = Int2Bytes(l,i)}
-val int_of_bytes: b:bytes -> i:int{b = Int2Bytes(Length(b),i)}
-val length: b:bytes -> l:int {Length(b) = l}
+// assume !x. Length([|x|]) = 1  
+// assume !x,y. [|x|] = [|y|] => x=y
 
-val equalBytes: b1:bytes -> b2:bytes -> r:bool {(r = true /\ b1 = b2) \/ (r = false /\ b1 <> b2)}
+// cryptographically random bytes 
+val mkRandom: l:int -> b:bytes{Length(b) = l}
 
-val mkRandom: l:int -> b:bytes{Length(b) = l (* /\ Random(b) *)}
 
-(* append *)
-val (@|): b1:bytes -> b2:bytes -> b:bytes{b = b1 | b2}
+(* array concatenation (append) *)
+
+// not accepted by F7:
+// val (@|): b1:bytes -> b2:bytes -> b:bytes{b = b1|b2}
+val append: b1:bytes -> b2:bytes -> b:bytes{b = b1|b2}
 
 val split: b:bytes -> i:int{Length(b) >= i} ->
-		   (b1:bytes * b2:bytes){Length(b1) = i /\ b = b1 | b2}
+		   (b1:bytes * b2:bytes){Length(b1) = i /\ b = b1|b2}
 
-(* strings *)
+// append is injective when using fixed lengths.
+assume !b1,b2,c1,c2. 
+  (b1|b2 = c1|c2 /\ Length(b1)=Length(c1)) => (b1=c1 /\ b2=c2)   
+
+assume !b1,b2,c1,c2. 
+  (b1|b2 = c1|c2 /\ Length(b2)=Length(c2)) => (b1=c1 /\ b2=c2)   
+
+
+(* integer multi-byte representations *)
+
+function val Int2Bytes: int *int -> bytes
+val bytes_of_int: l:int -> i:int -> b:bytes{b = Int2Bytes(l,i)}
+val int_of_bytes: b:bytes -> i:int{b = Int2Bytes(Length(b),i)}
+
+assume !l:int, i:int. Length(Int2Bytes(l,i)) = l
+assume !l:int, i0:int, i1:int. Int2Bytes(l,i0) = Int2Bytes(l,i1) => i0=i1
+
+(* We want a notion of equivalent representation that does not include length. 
+   Where do we use this? *)
+//function val EquivRepr: bytes -> bytes -> true
+//assume !l1:int, l2:int, i:int. EquivRepr(Int2Bytes(l1,i),Int2Bytes(l2,i))
+
+
+(* string representations *)
+
 function val Utf8: string -> bytes 
-
-val utf8: s:string -> b:bytes  { b = Utf8(s) }
-
+val utf8:  s:string -> b:bytes { b = Utf8(s) }
 val iutf8: b:bytes -> s:string { b = Utf8(s) }
 
-assume !x:string, y:string. (Utf8(x)=Utf8(y) => x = y )
+// utf8 is injective
+assume !x:string, y:string. ( Utf8(x)=Utf8(y) => x = y )

@@ -62,6 +62,17 @@ record-a.dll: libsym-a.dll $(recordfsi) $(recordfs-a)
 Dispatch-a.dll: libsym-a.dll record-a.dll $(tlsfsi) $(tlsfs)
 	$(fsc) -r libsym-a.dll -r record-a.dll $(tlsfsi) $(tlsfs) -a -o Dispatch-a.dll
 
+# Algorithms.fs is not fully verifiable, but this entry is useful for fs7 syntax debugging.
+# TODO fix libfs7 to include less files!
+Algorithms.tc7: $(libperv) $(libfs7) Algorithms.fs7 Algorithms.fs #$(recordfs7) record.fs
+	$(f7) -nokindcheck $(lperv) $(lib7)formulas.fs7 $(lib7)pi.fs7 Bytes.fs7 Algorithms.fs7 Algorithms.fs -scripts Algorithms
+
+Error.tc7: $(libperv) $(libfs7) Error.fs7 Error.fs #$(recordfs7) record.fs
+	$(f7) -nokindcheck $(lperv) $(lib7)formulas.fs7 $(lib7)pi.fs7 Error.fs7 Error.fs
+
+# FIXME does not verify because of enums.
+CipherSuites.tc7: $(libperv) $(libfs7) Algorithms.fs7 CipherSuites.fs7 Error.fs7 CipherSuites.fs
+	$(f7) -nokindcheck $(lperv) $(lib7)formulas.fs7 $(lib7)pi.fs7 Bytes.fs7 Algorithms.fs7 Error.fs7 CipherSuites.fs7 CipherSuites.fs -scripts CipherSuites
 
 
 record.tc7: $(libperv) $(libfs7) $(recordfs7) record.fs

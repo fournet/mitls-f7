@@ -4,6 +4,7 @@ open Bytes
 open Algorithms
 open Error
 
+// No need for this!?
 type SCSVsuite =
     | TLS_EMPTY_RENEGOTIATION_INFO_SCSV
 
@@ -36,7 +37,7 @@ let rec compressions_of_bytes_int b list =
     else
         let (cmB,rem) = split b 1 in
         let cm = compression_of_byte cmB.[0] in
-        let list = [cm] @ list in
+        let list = cm :: list in
         compressions_of_bytes_int rem list
 
 let compressions_of_bytes b = compressions_of_bytes_int b []
@@ -58,8 +59,8 @@ let bytes_of_protocolVersionType pv =
     | ProtocolVersionType.TLS_1p2 -> [| 3uy; 3uy |]
     | _ -> unexpectedError "Cannot convert the Unknown protocol version to bytes"
 
-let protocolVersionType_of_bytes value =
-    match value with
+let protocolVersionType_of_bytes (v:bytes) =
+    match v with
     | [| 0uy; 2uy |] -> ProtocolVersionType.SSL_2p0
     | [| 3uy; 0uy |] -> ProtocolVersionType.SSL_3p0
     | [| 3uy; 1uy |] -> ProtocolVersionType.TLS_1p0
@@ -218,14 +219,18 @@ let prfHashAlg_of_ciphersuite (cs:cipherSuite) =
     match cs with
     | CipherSuite ( _ , EncMAC ( _ , SHA384 )) -> SHA384
     | CipherSuite ( _ , AEAD ( _ , SHA384 ))   -> SHA384
+//CF FIXME. Comment out for F7 testing
+// pls use a positive pattern for SHA256 instead
     | NullCipherSuite | SCSV (_) | cipherSuite.Unknown (_) -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
     | _ -> SHA256
 
+//CF why duplicating this function?
 let verifyDataHashAlg_of_ciphersuite (cs:cipherSuite) =
     (* Only to be invoked with TLS 1.2 (hardcoded in previous versions *)
     match cs with
     | CipherSuite ( _ , EncMAC ( _ , SHA384 )) -> SHA384
     | CipherSuite ( _ , AEAD ( _ , SHA384 ))   -> SHA384
+//CF FIXME
     | NullCipherSuite | SCSV (_) | cipherSuite.Unknown (_) -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
     | _ -> SHA256
 
@@ -243,7 +248,8 @@ let getKeyExtensionLength pv cs =
 
 let PVRequiresExplicitIV pv =
     match pv with
-    | ProtocolVersionType.SSL_3p0 | ProtocolVersionType.TLS_1p0 -> false
+    | ProtocolVersionType.SSL_3p0 -> false 
+    | ProtocolVersionType.TLS_1p0 -> false
     | x when x >= ProtocolVersionType.TLS_1p1 -> true
     | _ -> unexpectedError "[PVRequiresExplicitIV] invoked on an invalid protocol version"
 
@@ -259,6 +265,7 @@ let encAlg_of_ciphersuite cs =
     | _ -> unexpectedError "[encAlg_of_ciphersuite] inovked on an invalid ciphersuite"
 
 (* Not for verification, just to run the implementation *)
+//CF: why not getting rid of it then??
 
 type cipherSuiteName =
     | TLS_NULL_WITH_NULL_NULL              

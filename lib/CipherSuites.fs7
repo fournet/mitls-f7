@@ -5,28 +5,31 @@ open Algorithms
 open Error
 
 type cipherSuite
-
 type cipherSuites = cipherSuite list
 
 type Compression =
     | Null
     | UnknownComp of byte
 
+// CF fs7 does *NOT* support enums.
+// Why using them instead of ADTs, e.g. here? Can we get rid of UnknownPV? 
 type ProtocolVersionType =
-    | SSL_2p0 = 10
-    | SSL_3p0 = 20
-    | TLS_1p0 = 30
-    | TLS_1p1 = 40
-    | TLS_1p2 = 50
-    | UnknownPV = -1
+    | SSL_2p0 //= 10
+    | SSL_3p0 //= 20
+    | TLS_1p0 //= 30
+    | TLS_1p1 //= 40
+    | TLS_1p2 //= 50
+//    | UnknownPV //= -1
 
+//CF Bad name. We'll need PVB to be injective; we can verify it in principle.
 function val PVB: ProtocolVersionType -> bytes
 val bytes_of_protocolVersionType: pv:ProtocolVersionType -> b:bytes{Length(b) = 2 /\ b = PVB(pv)}
-val protocolVersionType_of_bytes: b:bytes{Length(b) = 2} -> pv:ProtocolVersionType{b=PBV(pv)}
+val protocolVersionType_of_bytes: b:bytes{Length(b) = 2} -> pv:ProtocolVersionType{ b= PVB(pv)}
 
-(* FIXME: same duplication between logical and concrete function definitions, already seen in Algorithms *)
-function val isNullCiphersuite: cipherSuite -> bool
-function val isOnlyMACCiphersuite: cipherSuite -> bool
+(* FIXME: same duplication between logical and concrete function definitions, 
+   already seen in Algorithms. *)
+function val IsNullCiphersuite: cipherSuite -> bool
+function val IsOnlyMACCiphersuite: cipherSuite -> bool
 val nullCipherSuite: c:cipherSuite{IsNullCiphersuite(c)}
 val isNullCipherSuite: c:cipherSuite -> r:bool{r=true => IsNullCiphersuite(c)}
 val isOnlyMACCipherSuite: c:cipherSuite -> r:bool{r=true => IsOnlyMACCiphersuite(c)}
@@ -48,11 +51,12 @@ val byte_of_compression: Compression -> byte
 (* FIXME: We can say that the length of the following byte array is the same of the length of the returned list.
    1) do we want/need to say this?
    2) how do we talk about lengths of lists in F7?
+   CF: we can even typecheck it, but this is low priority
 *)
 val compressions_of_bytes: bytes -> Compression list
 
-val bytes_of_cipherSuite: c:cipherSuite -> b:bytes{Lengths(b)=2}
-val cipherSuite_of_bytes: b:bytes{Lengths(b)=2} -> cipherSuite
+val bytes_of_cipherSuite: c:cipherSuite -> b:bytes{Length(b)=2}
+val cipherSuite_of_bytes: b:bytes{Length(b)=2} -> cipherSuite
 val cipherSuites_of_bytes: bytes -> cipherSuites
 
 val getKeyExtensionLength: ProtocolVersionType -> cipherSuite -> int

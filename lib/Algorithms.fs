@@ -44,12 +44,12 @@ let blockSize ciph =
     | AES_128_CBC       -> 16
     | AES_256_CBC       -> 16
 
-let ivSize ciph =
-    match ciph with
-    | RC4_128           -> 0
-    | TDES_EDE_CBC      -> 8
-    | AES_128_CBC       -> 16
-    | AES_256_CBC       -> 16
+let ivSize ciph = blockSize ciph
+//    match ciph with
+//    | RC4_128           -> 0
+//    | TDES_EDE_CBC      -> 8
+//    | AES_128_CBC       -> 16
+//    | AES_256_CBC       -> 16
 
 let aeadKeyMaterialSize ciph =
     match ciph with
@@ -68,13 +68,6 @@ let macKeyLength mac =
     | SHA256        -> 32
     | SHA384        -> 48
 
-let macLength mac =
-    match mac with
-    | MD5           -> 16
-    | SHA           -> 20
-    | SHA256        -> 32
-    | SHA384        -> 48
-
 let hashSize alg =
     match alg with
     | MD5           -> 16
@@ -82,7 +75,16 @@ let hashSize alg =
     | SHA256        -> 32
     | SHA384        -> 48
 
+let macLength alg = hashSize alg
+//    match alg with
+//    | MD5           -> 16
+//    | SHA           -> 20
+//    | SHA256        -> 32
+//    | SHA384        -> 48
+
+
 (* SSL constants *)
+
 let ssl_pad1_md5  = createBytes 48 0x36
 let ssl_pad2_md5  = createBytes 48 0x5c
 let ssl_pad1_sha1 = createBytes 40 0x36
