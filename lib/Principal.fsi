@@ -1,5 +1,7 @@
 ﻿module Principal
 
+// X.509 certificates (as used for TLS)
+
 open Bytes
 open Error
 open RSA
