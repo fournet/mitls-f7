@@ -47,6 +47,7 @@
     <None Include="tcp.fs7" />
     <Compile Include="tcp.fsi" />
     <Compile Include="tcp.fs" />
+    <None Include="RSA.fs7" />
     <Compile Include="RSA.fsi" />
     <Compile Include="RSA.fs" />
     <None Include="Principal.fs7" />
@@ -64,8 +65,10 @@
     <None Include="TLSInfo.fs7" />
     <Compile Include="TLSInfo.fsi" />
     <Compile Include="TLSInfo.fs" />
+    <None Include="HASH.fs7" />
     <Compile Include="HASH.fsi" />
     <Compile Include="HASH.fs" />
+    <None Include="HMAC.fs7" />
     <Compile Include="HMAC.fsi" />
     <Compile Include="HMAC.fs" />
     <None Include="MAC.fs7" />
@@ -87,6 +90,7 @@
     <Compile Include="record.fs" />
     <Compile Include="AppCommon.fsi" />
     <Compile Include="AppCommon.fs" />
+    <None Include="PRFs.fs7" />
     <Compile Include="PRFs.fsi" />
     <Compile Include="PRFs.fs" />
     <Compile Include="SessionDB.fsi" />

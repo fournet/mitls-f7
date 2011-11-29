@@ -8,12 +8,12 @@ libperv = $(lib7)pervasives.fs7 $(lib7)tuples.fs7
 lperv = -pervasives $(lib7)pervasives.fs7 -tuples $(lib7)tuples.fs7
 libfs7 = $(lib7)formulas.fs7 $(lib7)pi.fs7
 
-recordfs7 = Bytes.fs7 Error.fs7 tcp.fs7 RSA.fsi Principal.fs7 Algorithms.fsi CipherSuites.fs7 formats.fs7 TLSInfo.fsi HASH.fsi HMAC.fsi MAC.fs7 TLSPlain.fs7 ENC.fs7 AEAD.fs7 Stream.fs7 record.fsi
+recordfs7 = Bytes.fs7 Error.fs7 tcp.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 MAC.fs7 TLSPlain.fs7 ENC.fs7 AEAD.fs7 Stream.fs7 record.fs7
 recordfsi = Bytes.fsi Error.fsi tcp.fsi RSA.fsi Principal.fsi Algorithms.fsi CipherSuites.fsi formats.fsi TLSInfo.fsi HASH.fsi HMAC.fsi MAC.fsi TLSPlain.fsi ENC.fsi AEAD.fsi Stream.fsi record.fsi
 recordfs = Bytes.fs Error.fs tcp.fs RSA.fs Principal.fs Algorithms.fs CipherSuites.fs formats.fs TLSInfo.fs HASH.fs HMAC.fs MAC.fs TLSPlain.fs ENC.fs AEAD.fs Stream.fs record.fs
 #recordfs-a = Error.fs  tcp-a.fs  Sessions.fs  formats.fs CryptoTLS.fs record.fs 
 
-dispatchfs7 = AppCommon.fs7 PRFs.fsi SessionDB.fs7 HS_msg.fs7 Handshake.fs7 AppData.fs7 Alert.fs7 Dispatch.fs7
+dispatchfs7 = AppCommon.fs7 PRFs.fs7 SessionDB.fs7 HS_msg.fs7 Handshake.fs7 AppData.fs7 Alert.fs7 Dispatch.fs7
 dispatchfsi = AppCommon.fsi PRFs.fsi SessionDB.fsi HS_msg.fsi Handshake.fsi AppData.fsi Alert.fsi Dispatch.fsi
 dispatchfs = AppCommon.fs PRFs.fs SessionDB.fs HS_msg.fs Handshake.fs AppData.fs Alert.fs Dispatch.fs
 
@@ -62,21 +62,21 @@ Dispatch-a.dll: libsym-a.dll record-a.dll $(tlsfsi) $(tlsfs)
 	$(fsc) -r libsym-a.dll -r record-a.dll $(tlsfsi) $(tlsfs) -a -o Dispatch-a.dll
 
 # Algorithms.fs is not fully verifiable, but this entry is useful for fs7 syntax debugging.
-Algorithms.tc7: $(libperv) $(libfs7) Algorithms.fs7 Algorithms.fs #$(recordfs7) record.fs
-	$(f7) -nokindcheck $(lperv) $(lib7)formulas.fs7 $(lib7)pi.fs7 Bytes.fs7 Algorithms.fs7 Algorithms.fs -scripts Algorithms
+Algorithms.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Algorithms.fs
+	$(f7) -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Algorithms.fs -scripts Algorithms
 
-Error.tc7: $(libperv) $(libfs7) Error.fs7 Error.fs #$(recordfs7) record.fs
-	$(f7) -nokindcheck $(lperv) $(lib7)formulas.fs7 $(lib7)pi.fs7 Error.fs7 Error.fs
+Error.tc7: $(libperv) $(libfs7) Error.fs7 Error.fs
+	$(f7) -nokindcheck $(lperv) $(libfs7) Error.fs7 Error.fs
 
-Principal.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 Principal.fs7 Principal.fs 
-	$(f7) -nokindcheck $(lperv) $(lib7)formulas.fs7 $(lib7)pi.fs7 Bytes.fs7 Error.fs7 Principal.fs7 Principal.fs 
+Principal.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Principal.fs 
+	$(f7) -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Principal.fs 
 
 formats.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 formats.fs7 formats.fs
-	$(f7) -nokindcheck $(lperv) $(lib7)formulas.fs7 $(lib7)pi.fs7 Bytes.fs7 Error.fs7 formats.fs7 formats.fs
+	$(f7) -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Error.fs7 formats.fs7 formats.fs
 
 # FIXME does not verify because of enums.
-CipherSuites.tc7: $(libperv) $(libfs7) Algorithms.fs7 CipherSuites.fs7 Error.fs7 CipherSuites.fs
-	$(f7) -nokindcheck $(lperv) $(lib7)formulas.fs7 $(lib7)pi.fs7 Bytes.fs7 Algorithms.fs7 Error.fs7 CipherSuites.fs7 CipherSuites.fs -scripts CipherSuites
+CipherSuites.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 CipherSuites.fs7 CipherSuites.fs
+	$(f7) -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 CipherSuites.fs7 CipherSuites.fs -scripts CipherSuites
 
 
 record.tc7: $(libperv) $(libfs7) $(recordfs7) record.fs
