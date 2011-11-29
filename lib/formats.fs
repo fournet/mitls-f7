@@ -61,9 +61,7 @@ let rec splitList (b:bytes) (il:int list) : bytes list =
 *)
 
 let vlenBytes_of_bytes (lSize:int) b =
-    let dlength = length b in
     let vl = bytes_of_int lSize (length b) in
-    // append len data 
     vl @| b
 
 let bytes_of_vlenBytes lSize vlb =
