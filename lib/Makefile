@@ -6,17 +6,16 @@ all: record.dll Dispatch.dll TLS.dll
 lib7=../../../lib/fs7-interfaces/
 libperv = $(lib7)pervasives.fs7 $(lib7)tuples.fs7
 lperv = -pervasives $(lib7)pervasives.fs7 -tuples $(lib7)tuples.fs7
-libfs7 = $(lib7)formulas.fs7 $(lib7)pi.fs7 $(lib7)data.fs7 $(lib7)list.fs7 $(lib7)xml.fs7 $(lib7)db.fs7 $(lib7)bytearray.fs7
+libfs7 = $(lib7)formulas.fs7 $(lib7)pi.fs7
 
-recordfs7 = Error.fs7 tcp.fs7 OtherCrypto.fsi Principal.fs7 Algorithms.fsi CipherSuites.fs7 formats.fs7 TLSInfo.fsi HASH.fsi HMAC.fsi MAC.fs7 TLSPlain.fs7 ENC.fs7 AEAD.fs7 Stream.fs7 record.fsi
-recordfsi = Error.fsi tcp.fsi OtherCrypto.fsi Principal.fsi Algorithms.fsi CipherSuites.fsi formats.fsi TLSInfo.fsi HASH.fsi HMAC.fsi MAC.fsi TLSPlain.fsi ENC.fsi AEAD.fsi Stream.fsi record.fsi
-recordfs = Error.fs tcp.fs OtherCrypto.fs Principal.fs Algorithms.fs CipherSuites.fs formats.fs TLSInfo.fs HASH.fs HMAC.fs MAC.fs TLSPlain.fs ENC.fs AEAD.fs Stream.fs record.fs
+recordfs7 = Bytes.fs7 Error.fs7 tcp.fs7 RSA.fsi Principal.fs7 Algorithms.fsi CipherSuites.fs7 formats.fs7 TLSInfo.fsi HASH.fsi HMAC.fsi MAC.fs7 TLSPlain.fs7 ENC.fs7 AEAD.fs7 Stream.fs7 record.fsi
+recordfsi = Bytes.fsi Error.fsi tcp.fsi RSA.fsi Principal.fsi Algorithms.fsi CipherSuites.fsi formats.fsi TLSInfo.fsi HASH.fsi HMAC.fsi MAC.fsi TLSPlain.fsi ENC.fsi AEAD.fsi Stream.fsi record.fsi
+recordfs = Bytes.fs Error.fs tcp.fs RSA.fs Principal.fs Algorithms.fs CipherSuites.fs formats.fs TLSInfo.fs HASH.fs HMAC.fs MAC.fs TLSPlain.fs ENC.fs AEAD.fs Stream.fs record.fs
 #recordfs-a = Error.fs  tcp-a.fs  Sessions.fs  formats.fs CryptoTLS.fs record.fs 
 
-# TODO: not yet up-to-date with the new code structure.
-dispatchfs7 = AppCommon.fs7 SessionDB.fs7 HS_msg.fs7 Handshake.fs7 AppData.fs7 Alert.fs7 Dispatch.fs7
-dispatchfsi = AppCommon.fsi SessionDB.fsi HS_msg.fsi Handshake.fsi AppData.fsi Alert.fsi Dispatch.fsi
-dispatchfs = AppCommon.fs SessionDB.fs HS_msg.fs Handshake.fs AppData.fs Alert.fs Dispatch.fs
+dispatchfs7 = AppCommon.fs7 PRFs.fsi SessionDB.fs7 HS_msg.fs7 Handshake.fs7 AppData.fs7 Alert.fs7 Dispatch.fs7
+dispatchfsi = AppCommon.fsi PRFs.fsi SessionDB.fsi HS_msg.fsi Handshake.fsi AppData.fsi Alert.fsi Dispatch.fsi
+dispatchfs = AppCommon.fs PRFs.fs SessionDB.fs HS_msg.fs Handshake.fs AppData.fs Alert.fs Dispatch.fs
 
 tlsfs7 = TLS.fs7
 tlsfsi = TLS.fsi
@@ -27,13 +26,13 @@ slib=../../../lib/symbolic/
 ilib=../../../lib/interfaces/
 lpi= $(ilib)pi.mli $(slib)pi.ml
 
-intfs = $(ilib)formulas.mli $(ilib)data.mli $(ilib)db.mli $(ilib)crypto.mli $(ilib)xml.mli $(ilib)net.mli
+intfs = $(ilib)formulas.mli 
 
 
 #libs= $(clib)pi.fs $(intfs) $(clib)formulas.fs $(clib)db.fs $(clib)data.fs $(clib)crypto.fs $(clib)xml.fs $(clib)net.fs $(clib)bytearray.fs
-libs= $(clib)formulas.fs $(clib)pi.fs $(clib)db.fs $(clib)data.fs $(clib)crypto.fs $(clib)xml.fs $(clib)net.fs $(clib)bytearray.fs
-libs-a= $(intfs) $(slib)formulas.ml $(slib)db.ml $(slib)data.ml $(slib)crypto.ml $(slib)xml.ml $(slib)net.ml $(slib)bytearray.ml
-libs-a-pr= $(lpi) $(slib)formulas.ml $(slib)db.ml $(slib)data.ml $(slib)crypto.ml $(slib)xml.ml $(slib)net.ml $(slib)bytearray.ml
+libs= $(clib)formulas.fs $(clib)pi.fs
+libs-a= $(intfs) $(slib)formulas.ml
+libs-a-pr= $(lpi) $(slib)formulas.ml
 
 libsym-a.dll: $(lpi) $(libs-a) # building DLLs, e.g. for intellisense integration
 	$(fsc) $(lpi) $(libs-a) -a -o $@
@@ -63,7 +62,6 @@ Dispatch-a.dll: libsym-a.dll record-a.dll $(tlsfsi) $(tlsfs)
 	$(fsc) -r libsym-a.dll -r record-a.dll $(tlsfsi) $(tlsfs) -a -o Dispatch-a.dll
 
 # Algorithms.fs is not fully verifiable, but this entry is useful for fs7 syntax debugging.
-# TODO fix libfs7 to include less files!
 Algorithms.tc7: $(libperv) $(libfs7) Algorithms.fs7 Algorithms.fs #$(recordfs7) record.fs
 	$(f7) -nokindcheck $(lperv) $(lib7)formulas.fs7 $(lib7)pi.fs7 Bytes.fs7 Algorithms.fs7 Algorithms.fs -scripts Algorithms
 
