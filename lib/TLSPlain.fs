@@ -39,10 +39,10 @@ let extraLength sinfo len =
     let cs = sinfo.cipher_suite in
     match cs with
     | x when isNullCipherSuite x    -> 0
-    | x when isOnlyMACCipherSuite x -> macLength (macAlg_of_ciphersuite cs)
+    | x when isOnlyMACCipherSuite x -> macSize (macAlg_of_ciphersuite cs)
     | _ -> (* GCM or MtE
                 TODO: add support for GCM, now we only support MtE *)
-        let macLen = macLength (macAlg_of_ciphersuite cs) in
+        let macLen = macSize (macAlg_of_ciphersuite cs) in
         let padLen = padLength sinfo (len + macLen) in
         macLen + padLen
 
@@ -188,7 +188,7 @@ val split_flagment_mac_pad ki:KeyInfo -> plain:plain
 *)
     let v = ki.sinfo.protocol_version
     let l = length plain.bytes
-    let m = macLength (macAlg_of_ciphersuite ki.sinfo.cipher_suite) in
+    let m = macSize (macAlg_of_ciphersuite ki.sinfo.cipher_suite) in
 
     let fail() : fragment * mac * bool = 
         (* Parse the message pretending we have a valid padding of minimal length.
@@ -220,7 +220,7 @@ val split_flagment_mac_pad ki:KeyInfo -> plain:plain
         else fail()
 
 let split_mac (ki:KeyInfo) (plainLen:int) (plain:plain) : (bool * (fragment * mac)) =
-    let macSize = macLength (macAlg_of_ciphersuite ki.sinfo.cipher_suite) in
+    let macSize = macSize (macAlg_of_ciphersuite ki.sinfo.cipher_suite) in
     let (tmpdata, padlenb) = split plain.bytes (plainLen - 1) in
     let padlen = int padlenb.[0] in
     // use instead, as this is untrusted anyway:
@@ -295,7 +295,7 @@ let fragment_mac_to_cipher (ki:KeyInfo) (n:int) (f:fragment) (MACt(m):mac) = f.b
 let cipher_to_fragment_mac (ki:KeyInfo) (n:int) (c:bytes) : fragment * mac = 
     let maclen = 
         let cs = ki.sinfo.cipher_suite in
-        Algorithms.macLength (macAlg_of_ciphersuite cs) in
+        macSize (macAlg_of_ciphersuite cs) in
     let macStart = length c - maclen
     if macStart < 0 then
         (* FIXME: is this safe?

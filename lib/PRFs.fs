@@ -228,9 +228,9 @@ let prfKeyExp ki (ms:masterSecret) =
     
 
 let splitKeys outKi (inKi:KeyInfo) (blob:keyBlob) =
-    let macKeySize = macKeyLength (macAlg_of_ciphersuite outKi.sinfo.cipher_suite) in
+    let macKeySize = macKeySize (macAlg_of_ciphersuite outKi.sinfo.cipher_suite) in
     (* TODO: add support for AEAD ciphers *)
-    let encKeySize = keyMaterialSize (encAlg_of_ciphersuite outKi.sinfo.cipher_suite) in
+    let encKeySize = encKeySize (encAlg_of_ciphersuite outKi.sinfo.cipher_suite) in
     let ivsize = 
         if PVRequiresExplicitIV outKi.sinfo.protocol_version then
             0

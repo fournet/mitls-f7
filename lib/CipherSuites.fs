@@ -239,10 +239,10 @@ let getKeyExtensionLength pv cs =
         match cs with
         | CipherSuite (_, EncMAC(cAlg, hAlg)) ->
             match pv with
-            | x when x >= ProtocolVersionType.TLS_1p1 -> ((keyMaterialSize cAlg), 0, (macKeyLength hAlg)) (* TLS 1.1: no implicit IV *)
-            | _ -> ((keyMaterialSize cAlg), (ivSize cAlg), (macKeyLength hAlg))
-        | CipherSuite (_, AEAD(cAlg, hAlg)) -> ((aeadKeyMaterialSize cAlg), (aeadIVSize cAlg), (macKeyLength hAlg))
-        | OnlyMACCipherSuite (_,hAlg) -> (0,0,macKeyLength hAlg)
+            | x when x >= ProtocolVersionType.TLS_1p1 -> ((encKeySize cAlg), 0, (macKeySize hAlg)) (* TLS 1.1: no implicit IV *)
+            | _ -> ((encKeySize cAlg), (ivSize cAlg), (macKeySize hAlg))
+        | CipherSuite (_, AEAD(cAlg, hAlg)) -> ((aeadKeySize cAlg), (aeadIVSize cAlg), (macKeySize hAlg))
+        | OnlyMACCipherSuite (_,hAlg) -> (0,0,macKeySize hAlg)
         | _ -> unexpectedError "[getKeyExtensionLength] invoked on an invalid ciphersuite"
     2 * (keySize + hashSize + IVSize)
 

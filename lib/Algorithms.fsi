@@ -32,13 +32,13 @@ type authencAlg =
     | EncMAC of cipherAlg * hashAlg
     | AEAD of aeadAlg * hashAlg
 
-val keyMaterialSize: cipherAlg -> int
+val encKeySize: cipherAlg -> int
 val blockSize: cipherAlg -> int
 val ivSize: cipherAlg -> int
-val aeadKeyMaterialSize: aeadAlg -> int
+val aeadKeySize: aeadAlg -> int
 val aeadIVSize: aeadAlg -> int
-val macKeyLength: hashAlg -> int
-val macLength: hashAlg -> int
+val macKeySize: hashAlg -> int
+val macSize: hashAlg -> int
 val hashSize: hashAlg -> int
 
 (* SSL Constants *)

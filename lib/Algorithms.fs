@@ -30,7 +30,7 @@ type authencAlg =
     | EncMAC of cipherAlg * hashAlg
     | AEAD of aeadAlg * hashAlg
 
-let keyMaterialSize ciph =
+let encKeySize ciph =
     match ciph with
     | RC4_128           -> 16
     | TDES_EDE_CBC      -> 24
@@ -51,7 +51,7 @@ let ivSize ciph = blockSize ciph
 //    | AES_128_CBC       -> 16
 //    | AES_256_CBC       -> 16
 
-let aeadKeyMaterialSize ciph =
+let aeadKeySize ciph =
     match ciph with
     | AES_128_GCM -> 16
     | AES_256_GCM -> 16
@@ -61,13 +61,6 @@ let aeadIVSize ciph =
     | AES_128_GCM -> 16
     | AES_256_GCM -> 16
 
-let macKeyLength mac =
-    match mac with
-    | MD5           -> 16
-    | SHA           -> 20
-    | SHA256        -> 32
-    | SHA384        -> 48
-
 let hashSize alg =
     match alg with
     | MD5           -> 16
@@ -75,7 +68,14 @@ let hashSize alg =
     | SHA256        -> 32
     | SHA384        -> 48
 
-let macLength alg = hashSize alg
+let macKeySize mac = hashSize mac
+//    match mac with
+//    | MD5           -> 16
+//    | SHA           -> 20
+//    | SHA256        -> 32
+//    | SHA384        -> 48
+
+let macSize alg = hashSize alg
 //    match alg with
 //    | MD5           -> 16
 //    | SHA           -> 20
