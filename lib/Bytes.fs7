@@ -6,7 +6,7 @@ type bytes = byte array
 
 function val Length: bytes -> int 
 val length: b:bytes -> l:int {Length(b) = l}
-assume !x:bytes, y:bytes. Length(x | y) = Length(x) + Length(y)
+assume !x:bytes, y:bytes. Length(x @| y) = Length(x) + Length(y)
 
 val createBytes: l:int -> int -> b:bytes{Length(b) = l}
 // val zeroCreate: l:int -> b:bytes {Length(b) = l}
@@ -24,17 +24,17 @@ val mkRandom: l:int -> b:bytes{Length(b) = l}
 (* array concatenation (append) *)
 
 // val (@|): b1:bytes -> b2:bytes -> b:bytes{b = b1|b2}
-val append: b1:bytes -> b2:bytes -> b:bytes{b = b1|b2}
+val append: b1:bytes -> b2:bytes -> b:bytes{b = b1 @| b2}
 
 val split: b:bytes -> i:int{Length(b) >= i} ->
-		   (b1:bytes * b2:bytes){Length(b1) = i /\ b = b1|b2}
+		   (b1:bytes * b2:bytes){Length(b1) = i /\ b = b1 @| b2}
 
 // append is injective when using fixed lengths.
 assume !b1,b2,c1,c2. 
-  (b1|b2 = c1|c2 /\ Length(b1)=Length(c1)) => (b1=c1 /\ b2=c2)   
+  (b1 @| b2 = c1 @| c2 /\ Length(b1)=Length(c1)) => (b1=c1 /\ b2=c2)   
 
 assume !b1,b2,c1,c2. 
-  (b1|b2 = c1|c2 /\ Length(b2)=Length(c2)) => (b1=c1 /\ b2=c2)   
+  (b1 @| b2 = c1 @| c2 /\ Length(b2)=Length(c2)) => (b1=c1 /\ b2=c2)   
 
 
 (* integer multi-byte representations *)
