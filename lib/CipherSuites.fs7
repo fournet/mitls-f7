@@ -14,17 +14,19 @@ type Compression =
 // CF fs7 does *NOT* support enums.
 // Why using them instead of ADTs, e.g. here? Can we get rid of UnknownPV? 
 type ProtocolVersionType =
-    | SSL_2p0 //= 10
-    | SSL_3p0 //= 20
-    | TLS_1p0 //= 30
-    | TLS_1p1 //= 40
-    | TLS_1p2 //= 50
-//    | UnknownPV //= -1
+    | UnknownPV = -1
+    | SSL_3p0   = 10
+    | TLS_1p0   = 20
+    | TLS_1p1   = 30
+    | TLS_1p2   = 40
+
+type KnownPV = pv:ProtocolVersionType{pv = SSL_3p0 \/ pv = TLS_1p0 \/ pv = TLS_1p1 \/ pv = TLS_1p2}
 
 //CF Bad name. We'll need PVB to be injective; we can verify it in principle.
 function val PVB: ProtocolVersionType -> bytes
-val bytes_of_protocolVersionType: pv:ProtocolVersionType -> b:bytes{Length(b) = 2 /\ b = PVB(pv)}
+val bytes_of_protocolVersionType: pv:KnownPV -> b:bytes{Length(b) = 2 /\ b = PVB(pv)}
 val protocolVersionType_of_bytes: b:bytes{Length(b) = 2} -> pv:ProtocolVersionType{ b= PVB(pv)}
+val minPV: a:KnownPV -> b:KnownPV -> c:KnownPV{(a < b /\ c = a) \/ (a >= b /\ c = b)}
 
 (* FIXME: same duplication between logical and concrete function definitions, 
    already seen in Algorithms. *)

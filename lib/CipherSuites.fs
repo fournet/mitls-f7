@@ -43,16 +43,14 @@ let rec compressions_of_bytes_int b list =
 let compressions_of_bytes b = compressions_of_bytes_int b []
 
 type ProtocolVersionType =
-    | SSL_2p0 = 10
-    | SSL_3p0 = 20
-    | TLS_1p0 = 30
-    | TLS_1p1 = 40
-    | TLS_1p2 = 50
     | UnknownPV = -1
+    | SSL_3p0   = 10
+    | TLS_1p0   = 20
+    | TLS_1p1   = 30
+    | TLS_1p2   = 40
 
 let bytes_of_protocolVersionType pv =
     match pv with
-    | ProtocolVersionType.SSL_2p0 -> [| 0uy; 2uy |]
     | ProtocolVersionType.SSL_3p0 -> [| 3uy; 0uy |]
     | ProtocolVersionType.TLS_1p0 -> [| 3uy; 1uy |]
     | ProtocolVersionType.TLS_1p1 -> [| 3uy; 2uy |]
@@ -61,12 +59,14 @@ let bytes_of_protocolVersionType pv =
 
 let protocolVersionType_of_bytes (v:bytes) =
     match v with
-    | [| 0uy; 2uy |] -> ProtocolVersionType.SSL_2p0
     | [| 3uy; 0uy |] -> ProtocolVersionType.SSL_3p0
     | [| 3uy; 1uy |] -> ProtocolVersionType.TLS_1p0
     | [| 3uy; 2uy |] -> ProtocolVersionType.TLS_1p1
     | [| 3uy; 3uy |] -> ProtocolVersionType.TLS_1p2
     | _ -> ProtocolVersionType.UnknownPV
+
+let minPV (a:ProtocolVersionType) (b:ProtocolVersionType) =
+    if a < b then a else b
 
 let nullCipherSuite = NullCipherSuite
 

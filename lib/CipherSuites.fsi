@@ -13,15 +13,15 @@ type Compression =
     | UnknownComp of byte
 
 type ProtocolVersionType =
-    | SSL_2p0 = 10
-    | SSL_3p0 = 20
-    | TLS_1p0 = 30
-    | TLS_1p1 = 40
-    | TLS_1p2 = 50
     | UnknownPV = -1
+    | SSL_3p0   = 10
+    | TLS_1p0   = 20
+    | TLS_1p1   = 30
+    | TLS_1p2   = 40
 
 val bytes_of_protocolVersionType: ProtocolVersionType -> bytes
 val protocolVersionType_of_bytes: bytes -> ProtocolVersionType
+val minPV: ProtocolVersionType -> ProtocolVersionType -> ProtocolVersionType
 
 val nullCipherSuite: cipherSuite
 val isNullCipherSuite: cipherSuite -> bool

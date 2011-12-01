@@ -1444,7 +1444,7 @@ let prepare_server_output_full hs_state maxClVer =
 
 let start_server_full hs_state cHello =
     (* Negotiate the protocol parameters *)
-    match enum<ProtocolVersionType>(System.Math.Min (int cHello.client_version, int hs_state.poptions.maxVer)) with
+    match minPV cHello.client_version hs_state.poptions.maxVer with
     | negPV when negPV >= ProtocolVersionType.SSL_3p0 ->
         match negotiate cHello.cipher_suites hs_state.poptions.ciphersuites with
         | None -> Error(HSError(AD_handshake_failure),HSSendAlert)
