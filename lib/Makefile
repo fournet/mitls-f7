@@ -61,7 +61,6 @@ record-a.dll: libsym-a.dll $(recordfsi) $(recordfs-a)
 Dispatch-a.dll: libsym-a.dll record-a.dll $(tlsfsi) $(tlsfs)
 	$(fsc) -r libsym-a.dll -r record-a.dll $(tlsfsi) $(tlsfs) -a -o Dispatch-a.dll
 
-# Algorithms.fs is not fully verifiable, but this entry is useful for fs7 syntax debugging.
 Algorithms.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Algorithms.fs
 	$(f7) -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Algorithms.fs -scripts Algorithms
 

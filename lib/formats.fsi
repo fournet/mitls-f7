@@ -1,7 +1,6 @@
 module Formats
 
 open Bytes
-open CipherSuites
 open Error
 
 (* val split_at_most: bytes -> int -> (bytes * bytes) *)

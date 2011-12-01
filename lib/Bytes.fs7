@@ -23,7 +23,7 @@ val mkRandom: l:int -> b:bytes{Length(b) = l}
 
 (* array concatenation (append) *)
 
-// val (@|): b1:bytes -> b2:bytes -> b:bytes{b = b1|b2}
+// val (@|): b1:bytes -> b2:bytes -> b:bytes{b = b1 @| b2}
 val append: b1:bytes -> b2:bytes -> b:bytes{b = b1 @| b2}
 
 val split: b:bytes -> i:int{Length(b) >= i} ->
