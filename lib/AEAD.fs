@@ -51,17 +51,19 @@ let encrypt ki key iv3 clen data plain =
             ENC.ENC ki encKey iv3 toEncrypt
 
 (* CF: commenting out until we get a chance to discuss:            
-let CF_encrypt ki key iv3 cl data plain =
-    match key with
-    | MtE (macKey,encKey) ->
-        let mac     = TLSPlain.MAC ki macKey data plain in
-        let encoded = TLSPlain.concat_fragment_mac_pad ki cl plain mac
-        ENC.ENC ki encKey iv3 encoded (* this should NOT be a Result *)
 
-let CF_decrypt ki key iv3 data cipher =
-    match key with
-    | MtE (macKey, encKey) ->
-        let (iv3,encoded) = ENC.DEC ki encKey iv3 cipher in
+let CF_encrypt ki k state cl data plain =
+    match k with
+    | MtE (ka,ke) ->
+        let maced = ad_fragment ki data plain
+        let tag = TLSPlain.mac ka maced  
+        let encoded = TLSPlain.concat_fragment_mac_pad ki cl plain tag
+        ENC.ENC ki ke state encoded (* this should not be a Result *)
+
+let CF_decrypt ki k state data cipher =
+    match k with
+    | MtE (ka,ke) ->
+        let (state,encoded) = ENC.DEC ki ke state cipher in
         let (plain,mac,wrongpad) = TLSPlain.split_fragment_mac_pad ki encoded in
         match ki.sinfo.protocol_version with
         | ProtocolVersionType.SSL_3p0 
@@ -70,12 +72,12 @@ let CF_decrypt ki key iv3 data cipher =
                If in early versions of TLS, insecurely report a padding error now *)
             if wrongpad then Error(RecordPadding,CheckFailed)
             else 
-                match TLSPlain.VERIFY ki macKey data compr mac with
-                | Correct(_)                   -> correct(iv3,plain)
+                match TLSPlain.verify ki ka data compr mac with
+                | Correct(_)                   -> correct(state,plain)
                 | Error(x,y)                   -> Error(x,y)
         | x when x >= ProtocolVersionType.TLS_1p1 ->
-                match TLSPlain.VERIFY ki macKey data compr mac with
-                | Correct(_) when not wrongpad -> correct (iv3,plain)
+                match TLSPlain.verify ki ka data compr mac with
+                | Correct(_) when not wrongpad -> correct (state,plain)
                 | _                            -> Error(MAC,CheckFailed)
         | _ -> unexpectedError "[AEAD.decrypt] wrong protocol version"
         //CF would prefer MAC.VERIFY to return a boolean, as usual

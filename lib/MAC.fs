@@ -39,7 +39,7 @@ let sslKeyedHashVerify alg key data expected =
     | Error(x,y) -> Error(x,y)
 
 
-(* Top level functions, implemet interface *)
+(* Top level functions, implement interface *)
 let MAC ki key data =
     let pv = ki.sinfo.protocol_version in
     let alg = macAlg_of_ciphersuite ki.sinfo.cipher_suite in

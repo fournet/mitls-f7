@@ -23,7 +23,7 @@ type ConnectionState = {
   rec_ki: KeyInfo;
   key: recordKey;
   iv3: ENC.iv3;
-  seq_num: int; (* uint64 actually *)
+  seq_num: int; (* uint64 actually CF:TODO?*)
   local_pv: ProtocolVersionType;
   }
 type sendState = ConnectionState
@@ -75,7 +75,7 @@ let make_decompression conn data =
     | _ -> Error (RecordCompression, Unsupported)
 *)
 
-(* format the additional data bytes , for MACing & verifying *)
+(* format the (public) additional data bytes, for MACing & verifying *)
 let makeAD conn ct =
     let version = conn.local_pv in
     let bseq = bytes_of_seq conn.seq_num in
@@ -92,6 +92,25 @@ let makePacket ct ver data =
   let bver = bytes_of_protocolVersionType ver in
   let bl   = bytes_of_int 2 l in
   bct @| bver @| bl @| data
+
+//CF we'll need refinements to prevent parsing errors.
+//CF can we move the check to Dispatch?
+let parse_header conn header =
+  let (ct1,rem4) = split header 1 in
+  let (pv2,len2) = split rem4 2 in
+  let ct  = contentType_of_byte ct1.[0] in
+  let pv  = protocolVersionType_of_bytes pv2 in
+  let len = int_of_bytes len2 in
+  if   (  conn.local_pv <> ProtocolVersionType.UnknownPV 
+         && pv <> conn.local_pv)
+      || pv = ProtocolVersionType.UnknownPV 
+    then Error (RecordVersion,CheckFailed)
+  else
+    (* We commit to the received protocol version.
+       In fact, this only changes the protcol version when receiving the first fragment *)
+    let conn = {conn with local_pv = pv} in
+    correct (conn,ct,len)
+
 
 (* 
 // We'll need to qualify system errors,
@@ -124,7 +143,7 @@ let getMACKey key =
 let getAEADKey key =
     match key with
     | RecordAEADKey k -> k
-    | _ -> unexpectedError "[getMACKey] invoked on invalid key"
+    | _ -> unexpectedError "[getAEADKey] invoked on invalid key"
 
 (* This replaces send. It's not called send, since it doesn't send anything on the
    network *)
@@ -136,7 +155,7 @@ let recordPacketOut conn tlen ct (fragment:fragment) =
     | Error (x,y) -> Error (x,y)
     | Correct compressed ->
     *)
-    let payloadRes =
+    let payloadResult =
         match conn.rec_ki.sinfo.cipher_suite with
         | x when isNullCipherSuite x -> 
             correct (conn,fragment_to_cipher conn.rec_ki tlen fragment)
@@ -155,36 +174,41 @@ let recordPacketOut conn tlen ct (fragment:fragment) =
             | Correct(newIV,payload) ->
                 let conn = {conn with iv3 = newIV} in
                 correct(conn,payload)
-    match payloadRes with
+    match payloadResult with
     | Error(x,y) -> Error(x,y)
     | Correct(conn, payload) ->
-    let conn = incSeqNum conn in
-    let packet = makePacket ct conn.local_pv payload in
-    correct(conn,packet)
+        let conn = incSeqNum conn in
+        let packet = makePacket ct conn.local_pv payload in
+        correct(conn,packet)
 
+(* CF: an attempt to simplify for typechecking 
+let recordPacketOut2 conn clen ct fragment =
+    let suite = conn.rec_ki.sinfo.cipher_suite 
+    let conn, payload = 
+        if isNullCipherSuite suite then 
+            conn,
+            fragment_to_cipher conn.rec_ki clen fragment
+        else 
+            let ad = makeAD conn ct in
+            if isOnlyMACCipherSuite suite then           
+                let key = getMACKey conn.key in
+                let text = mac_plain_to_bytes (ad_fragment conn.rec_ki ad fragment)
+                let mac = MAC.MAC conn.rec_ki key text 
+                conn, 
+                fragment_mac_to_cipher conn.rec_ki clen fragment (bytes_to_mac mac)
+            else
+                let key = getAEADKey conn.key in
+                let newIV, payload = AEAD.encrypt conn.rec_ki key conn.iv3 clen ad fragment 
+                {conn with iv3 = newIV},
+                payload
+    incSeqNum conn,
+    makePacket ct conn.local_pv payload 
+*)
 
 let send_setVersion conn pv = {conn with local_pv = pv }
 
 let send_setCrypto ccs_data =
     initConnState ccs_data.ki ccs_data.key ccs_data.iv3 ccs_data.ki.sinfo.protocol_version
-
-//CF we'll need refinements to prevent parsing errors.
-//CF can we move the check to Dispatch?
-let parse_header conn header =
-  let (ct1,rem4) = split header 1 in
-  let (pv2,len2) = split rem4 2 in
-  let ct  = contentType_of_byte ct1.[0] in
-  let pv  = protocolVersionType_of_bytes pv2 in
-  let len = int_of_bytes len2 in
-  if   (  conn.local_pv <> ProtocolVersionType.UnknownPV 
-         && pv <> conn.local_pv)
-      || pv = ProtocolVersionType.UnknownPV 
-    then Error (RecordVersion,CheckFailed)
-  else
-    (* We commit to the received protocol version.
-       In fact, this only changes the protcol version when receiving the first fragment *)
-    let conn = {conn with local_pv = pv} in
-    correct (conn,ct,len)
 
 let recordPacketIn conn packet =
     let (header,payload) = split packet 5 in

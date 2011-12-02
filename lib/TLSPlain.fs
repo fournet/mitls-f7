@@ -1,21 +1,22 @@
 ﻿module TLSPlain
 
+open Bytes
 open Error
 open Algorithms
 open CipherSuites
 open Formats
 open TLSInfo
-open Bytes
 
 /// Relating lengths of fragment plaintexts and ciphertexts
 
 type Lengths = {tlens: int list}
 
 let max_TLSPlaintext_fragment_length = 1<<<14 (* just a reminder *)
-let fragmentLength = max_TLSPlaintext_fragment_length (* 1 *)
+let fragmentLength = max_TLSPlaintext_fragment_length (* use e.g. 1 for testing *)
 
+(* generate the minimal padding for payload len, in 1..blocksize *)
 // We need a typable version; not so hard (but we may need axioms on arrays)
-//CF patched so that padlen includes its length byte.
+// by convention, all paddings include their length byte. 
 // the spec is that 
 // len + padLength % bs = 0 /\ padLength in 1..256
 let padLength sinfo len =
@@ -24,7 +25,7 @@ let padLength sinfo len =
     let overflow = (len + 1) % bs // at least one extra byte of padding
     if overflow = 0 then 1 else 1 + bs - overflow 
     (* Always use fixed padding size *)
-    (*
+    (* earlier variants used random padding: 
     match ki.sinfo.protocol_version with
     | ProtocolVersionType.SSL_3p0 ->
         (* At most one bs. See sec 5.2.3.2 of SSL 3 draft *)
@@ -45,9 +46,8 @@ let extraLength sinfo len =
         let macLen = macSize (macAlg_of_ciphersuite cs) in
         let padLen = padLength sinfo (len + macLen) in
         macLen + padLen
-
 (*
-// as a total function
+// an alternative, as a total function
 let cipherLength sinfo len =
     len + 
     let cs = sinfo.cipher_suite in
@@ -77,7 +77,6 @@ let estimateLengths sinfo len =
     else
         let addedLen = extraLength sinfo rem in
         {tlens = res @ [ rem + addedLen ] }
-
 (*
 //CF idem but probably easier to typecheck 
 let rec Lengths sinfo len =
@@ -97,16 +96,33 @@ let empty_appdata = {bytes = [||]}
 let empty_lengths = {tlens = []}
 let is_empty_appdata data = data.bytes = [||]
 
+// a fragment of appdata
 type fragment = {bytes: bytes}
 
+// rename to append_appdata_fragment ? 
 let concat_fragment_appdata (si:SessionInfo) (tlen:int) data (lens:Lengths) (appdata:appdata) :(Lengths * appdata) =
     (* TODO: If ki says so, first decompress data, then append it *)
-    let resData = appdata.bytes @| data.bytes in
-    let resData:appdata = {bytes = resData} in
-    let resLengths = lens.tlens @ [tlen] in
-    let resLengths = {tlens = resLengths} in
+    let resData:appdata = { bytes = appdata.bytes @| data.bytes } in
+    // we may need a special @ for getting our precise refinement 
+    let resLengths = {tlens = lens.tlens @ [tlen] } in
     (resLengths,resData)
 
+(*
+We have total plainlengths, fragment plainlenghts, and fragment cipher lengths.
+
+SPEC compatibility relative to a si
+
+PLANNING: minlength..maxlength <---> cipher lengths  
+
+RUNTIME 
+  total plainlength * (cipher length :: cipher lengths) --->
+  min length 
+     such that lenght is compatible with cipher length 
+           and total - length compatible with cipher lengths   
+
+(called by a function that just does the splitting) *)
+
+// rename to split_fragment_appdata ? 
 let app_fragment (si:SessionInfo) lens (appdata:appdata) : ((int * fragment) * (Lengths * appdata)) =
     (* The idea is: Given the cipertext target length, we get a *smaller* plaintext fragment
        (so that MAC and padding can be added back).
@@ -314,7 +330,7 @@ let cipher_to_fragment (ki:KeyInfo) (n:int) (c:bytes) : fragment = {bytes = c}
 
 
 /// Only to be used by trusted crypto libraries MAC, ENC
-//CF no, to be discussed
+// these should probably disappear!
 let mac_plain_to_bytes (MACPLAINt(mplain):mac_plain) = mplain
 
 let mac_to_bytes (MACt(mac):mac) = mac
@@ -322,3 +338,12 @@ let bytes_to_mac b : mac = MACt(b)
 
 let plain_to_bytes (plain:plain) = plain.bytes
 let bytes_to_plain b :plain = {bytes = b}
+
+// instead: 
+// We need to compute and verify MAC over secret data.
+// the resulting tags are secret too.
+
+(*
+let mac    ki k (MACPLAINt(text)) = match MAC.MAC ki k text with Correct(tag) -> MACt(tag)
+let verify ki k (MACPLAINt(text)) (MACt(tag)) = MAC.VERIFY ki k text tag
+*)
