@@ -155,31 +155,25 @@ let recordPacketOut conn tlen ct (fragment:fragment) =
     | Error (x,y) -> Error (x,y)
     | Correct compressed ->
     *)
-    let payloadResult =
+    let (conn, payload) =
         match conn.rec_ki.sinfo.cipher_suite with
         | x when isNullCipherSuite x -> 
-            correct (conn,fragment_to_cipher conn.rec_ki tlen fragment)
+            (conn,fragment_to_cipher conn.rec_ki tlen fragment)
         | x when isOnlyMACCipherSuite x ->
             let key = getMACKey conn.key in
             let addData = makeAD conn ct in
             let data = ad_fragment conn.rec_ki addData fragment in
-            match MAC.MAC conn.rec_ki key (mac_plain_to_bytes data) with
-            | Error(x,y) -> Error(x,y)
-            | Correct(mac) -> correct(conn,fragment_mac_to_cipher conn.rec_ki tlen fragment (bytes_to_mac mac))
+            let mac = MAC.MAC conn.rec_ki key (mac_plain_to_bytes data) in
+            (conn,fragment_mac_to_cipher conn.rec_ki tlen fragment (bytes_to_mac mac))
         | _ ->
             let addData = makeAD conn ct in
             let key = getAEADKey conn.key in
-            match AEAD.encrypt conn.rec_ki key conn.iv3 tlen addData fragment with
-            | Error(x,y) -> Error(x,y)
-            | Correct(newIV,payload) ->
-                let conn = {conn with iv3 = newIV} in
-                correct(conn,payload)
-    match payloadResult with
-    | Error(x,y) -> Error(x,y)
-    | Correct(conn, payload) ->
-        let conn = incSeqNum conn in
-        let packet = makePacket ct conn.local_pv payload in
-        correct(conn,packet)
+            let (newIV,payload) = AEAD.encrypt conn.rec_ki key conn.iv3 tlen addData fragment in
+            let conn = {conn with iv3 = newIV} in
+            (conn,payload)
+    let conn = incSeqNum conn in
+    let packet = makePacket ct conn.local_pv payload in
+    (conn,packet)
 
 (* CF: an attempt to simplify for typechecking 
 let recordPacketOut2 conn clen ct fragment =
@@ -226,9 +220,10 @@ let recordPacketIn conn packet =
             let data = makeAD conn ct in
             let toVerify = ad_fragment conn.rec_ki data msg in
             let key = getMACKey conn.key in
-            match MAC.VERIFY conn.rec_ki key (mac_plain_to_bytes toVerify) (mac_to_bytes mac) with
-            | Error(x,y) -> Error(x,y)
-            | Correct(_) -> correct(conn,msg)
+            if MAC.VERIFY conn.rec_ki key (mac_plain_to_bytes toVerify) (mac_to_bytes mac) then
+                correct(conn,msg)
+            else
+            Error(MAC,CheckFailed)
         | _ ->
             let data = makeAD conn ct in
             let key = getAEADKey conn.key in

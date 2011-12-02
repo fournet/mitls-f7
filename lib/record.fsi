@@ -26,7 +26,7 @@ type ccs_data =
 val create: KeyInfo -> KeyInfo -> ProtocolVersionType -> sendState * recvState
 (* we do not explicitly close connection states *)
 
-val recordPacketOut: sendState -> int -> ContentType -> fragment -> (sendState * bytes) Result
+val recordPacketOut: sendState -> int -> ContentType -> fragment -> (sendState * bytes)
 val send_setVersion: sendState -> ProtocolVersionType -> sendState
 val send_setCrypto:  ccs_data -> sendState
 

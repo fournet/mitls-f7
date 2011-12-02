@@ -11,7 +11,7 @@ private type (;ki:KeyInfo) key =
       MacThenEncrypt of ka:(;ki)MAC.key * ke:(;ki)ENC.key {MtEKey(ki,(ka,ke))}
 (*  |   GCM of ke:(;ki:AENC.key)  *)
 
-val ENC: ki:KeyInfo -> (;ki) key -> (;ki) ENC.iv3 -> (;ki) add_data -> n:int -> (;ki) fragment -> ((;ki) ENC.iv3 * cipher) Result
+val ENC: ki:KeyInfo -> (;ki) key -> (;ki) ENC.iv3 -> (;ki) add_data -> n:int -> (;ki) fragment -> ((;ki) ENC.iv3 * cipher)
 val DEC: ki:KeyInfo -> (;ki) key -> (;ki) ENC.iv3 -> (;ki) add_data -> n:int -> cipher -> ((;ki) ENC.iv3 * (;ki) fragment) Result
 
 

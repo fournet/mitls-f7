@@ -168,14 +168,12 @@ let closeConnection c =
 
 (* Dispatch dealing with network sockets *)
 let send ns conn tlen ct frag =
-    match Record.recordPacketOut conn tlen ct frag with
+    let (conn,data) = Record.recordPacketOut conn tlen ct frag in
+    match Tcp.write ns data with
     | Error(x,y) -> Error(x,y)
-    | Correct(conn,data) ->
-        match Tcp.write ns data with
-        | Error(x,y) -> Error(x,y)
-        | Correct(_) -> 
-            printf "%s(%d) " (CTtoString ct) tlen 
-            correct(conn)
+    | Correct(_) -> 
+        printf "%s(%d) " (CTtoString ct) tlen 
+        correct(conn)
 
 (* which fragment should we send next? *)
 (* we must send this fragment before restoring the connection invariant *)

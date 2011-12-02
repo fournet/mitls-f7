@@ -1,10 +1,14 @@
 ﻿module HASH
 
 open Bytes
-open Error
 open Algorithms
 
-(* Raw hash algorithms -- can throw exceptions *)
+(* Raw hash algorithms --
+   Although in principle the libraries could throw exceptions, here
+   we claim that the following functions never throw their declared
+   exceptions:
+   ArgumentNullException: becuase there is no null value in F# (and the arguments comes from F#)
+   ObjectDisposedException: because each instance variable is always referenced *)
 let md5Instance = System.Security.Cryptography.MD5.Create ()
 let md5 (x:bytes) : bytes = md5Instance.ComputeHash x
 
@@ -19,11 +23,8 @@ let sha384 (x:bytes) : bytes = sha384Instance.ComputeHash x
 
 (* Parametric hash algorithm (implements interface) *)
 let hash alg data =
-    try
-        match alg with
-        | MD5    -> correct (md5 data)
-        | SHA    -> correct (sha1 data)
-        | SHA256 -> correct (sha256 data)
-        | SHA384 -> correct (sha384 data)
-    with
-    | _ -> Error (Hash, Internal)
+    match alg with
+    | MD5    -> md5 data
+    | SHA    -> sha1 data
+    | SHA256 -> sha256 data
+    | SHA384 -> sha384 data

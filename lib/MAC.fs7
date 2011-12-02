@@ -17,6 +17,6 @@ type (;ki:KeyInfo) mac = b:bytes{Length(b) = MacSize(KeyInfo)}
 // why using this subset of the interface for MACs? 
 // we'll probably need the rest soon.
 
-val MAC: ki:KeyInfo -> (;ki) macKey -> mp:(;ki)mac_plain{Msg(ki,mp)} -> ((;ki) mac) Result
+val MAC: ki:KeyInfo -> (;ki) macKey -> mp:(;ki)mac_plain{Msg(ki,mp)} -> (;ki) mac
 val VERIFY: ki:KeyInfo -> (;ki) macKey -> mp:(;ki)mac_plain -> 
-           (;ki) mac -> (unit{CMA(ki) => Msg(ki,mp)}) Result
+           (;ki) mac -> b:bool{b = true => (CMA(ki) => Msg(ki,mp))}

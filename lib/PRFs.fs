@@ -17,23 +17,19 @@ let empty_masterSecret : masterSecret = {bytes = [||]}
 (* SSL *)
 let ssl_prf_int secret label seed =
     let allData = (utf8 label) @| secret @| seed in
-    match hash SHA allData with
-    | Error(x,y) -> Error(x,y)
-    | Correct(step1) ->
-        let allData = secret @| step1 in
-        hash MD5 allData
+    let step1 = hash SHA allData in
+    let allData = secret @| step1 in
+    hash MD5 allData
 
 let ssl_prf secret seed nb = 
   let gen_label (i:int) =
         new System.String(char((int 'A')+i),i+1) in
   let rec apply_prf res n = 
     if n > nb then 
-      correct (Array.sub res 0 nb)
+      Array.sub res 0 nb
     else
-        match ssl_prf_int secret (gen_label (n/16)) seed with
-        | Error(x,y) -> Error(x,y)
-        | Correct(step1) ->
-            apply_prf (res @| step1) (n+16)
+        let step1 = ssl_prf_int secret (gen_label (n/16)) seed in
+        apply_prf (res @| step1) (n+16)
   in
   apply_prf (Array.zeroCreate 0) 0
     
@@ -46,19 +42,11 @@ let ssl_verifyData ms dir data =
         | CtoS -> ssl_sender_client 
         | StoC -> ssl_sender_server
     let mm = data @| ssl_sender @| ms in
-    match hash MD5 (mm @| ssl_pad1_md5) with
-    | Error (x,y) -> Error(x,y)
-    | Correct (inner_md5) ->
-        match hash MD5 (ms @| ssl_pad2_md5 @| inner_md5) with
-        | Error (x,y) -> Error(x,y)
-        | Correct (outer_md5) ->
-            match hash SHA (mm @| ssl_pad1_sha1) with
-            | Error (x,y) -> Error(x,y)
-            | Correct(inner_sha1) ->
-                match hash SHA (ms @| ssl_pad2_sha1 @| inner_sha1) with
-                | Error (x,y) -> Error(x,y)
-                | Correct (outer_sha1) ->
-                    correct (outer_md5 @| outer_sha1)
+    let inner_md5 = hash MD5 (mm @| ssl_pad1_md5) in
+    let outer_md5 = hash MD5 (ms @| ssl_pad2_md5 @| inner_md5) in
+    let inner_sha1 = hash SHA (mm @| ssl_pad1_sha1) in
+    let outer_sha1 = hash SHA (ms @| ssl_pad2_sha1 @| inner_sha1) in
+    outer_md5 @| outer_sha1
 
 (* TLS 1.0; 1.1 *)
 let xor s1 s2 nb =
@@ -72,19 +60,15 @@ let xor s1 s2 nb =
     res
 
 let rec p_hash_int alg secret seed len it aPrev acc =
-    match HMAC alg secret aPrev with
-    | Error (x,y) -> Error(x,y)
-    | Correct(aCur) ->
-        match HMAC alg secret (aCur @| seed) with
-        | Error(x,y) -> Error(x,y)
-        | Correct(pCur) ->
-            if it = 1 then
-                let hs = hashSize alg in
-                let r = len%hs in
-                let (pCur,_) = split pCur r in
-                correct (acc @| pCur)
-            else
-                p_hash_int alg secret seed len (it-1) aCur (acc @| pCur)
+    let aCur = HMAC alg secret aPrev in
+    let pCur = HMAC alg secret (aCur @| seed) in
+    if it = 1 then
+        let hs = hashSize alg in
+        let r = len%hs in
+        let (pCur,_) = split pCur r in
+        acc @| pCur
+    else
+        p_hash_int alg secret seed len (it-1) aCur (acc @| pCur)
 
 let p_hash alg secret seed len =
     let hs = hashSize alg in
@@ -92,33 +76,23 @@ let p_hash alg secret seed len =
     p_hash_int alg secret seed len it seed [||]
 
 let tls_prf secret label seed len =
-  let l_s = Array.length secret in
-  let l_s1 = (l_s+1)/2 in
-  let secret1 = Array.sub secret 0 l_s1 in
-  let secret2 = Array.sub secret (l_s-l_s1) l_s1 in
-  let newseed = (utf8 label) @| seed in
-  match p_hash MD5 secret1 newseed len with
-  | Error (x,y) -> Error(x,y)
-  | Correct (hmd5) ->
-    match p_hash SHA secret2 newseed len with
-    | Error(x,y) -> Error(x,y)
-    | Correct (hsha1) ->
-        correct (xor hmd5 hsha1 len)
+    let l_s = Array.length secret in
+    let l_s1 = (l_s+1)/2 in
+    let secret1 = Array.sub secret 0 l_s1 in
+    let secret2 = Array.sub secret (l_s-l_s1) l_s1 in
+    let newseed = (utf8 label) @| seed in
+    let hmd5 = p_hash MD5 secret1 newseed len in
+    let hsha1 = p_hash SHA secret2 newseed len in
+    xor hmd5 hsha1 len
 
 let tls_verifyData ms role data =
     let tls_label = 
         match role with
         | CtoS -> "client finished"
         | StoC -> "server finished"
-    match hash MD5 data with
-    | Error (x,y) -> Error(x,y)
-    | Correct (md5hash) ->
-        match hash SHA data with
-        | Error (x,y) -> Error(x,y)
-        | Correct (sha1hash) ->
-            match tls_prf ms tls_label (md5hash @| sha1hash) 12 with
-            | Error (x,y) -> Error(x,y)
-            | Correct (result) -> correct (result)
+    let md5hash = hash MD5 data in
+    let sha1hash = hash SHA data in
+    tls_prf ms tls_label (md5hash @| sha1hash) 12
 
 (* TLS 1.2 *)
 let tls12prf cs secret label seed len =
@@ -132,13 +106,9 @@ let tls12VerifyData cs ms dir data =
         | CtoS -> "client finished"
         | StoC -> "server finished"
     let verifyDataHashAlg = verifyDataHashAlg_of_ciphersuite cs in
-    match hash verifyDataHashAlg data with
-    | Error (x,y) -> Error(x,y)
-    | Correct(hashResult) ->
-        let verifyDataLen = verifyDataLen_of_ciphersuite cs in
-        match tls12prf cs ms tls_label hashResult verifyDataLen with
-        | Error (x,y) -> Error(x,y)
-        | Correct(result) -> correct (result)
+    let hashResult = hash verifyDataHashAlg data in
+    let verifyDataLen = verifyDataLen_of_ciphersuite cs in
+    tls12prf cs ms tls_label hashResult verifyDataLen
 
 (* Internal generic (SSL/TLS) implementation of PRF, used by
    purpose specific PRFs *)
@@ -207,13 +177,12 @@ let getPMS sinfo ver check_client_version_in_pms_for_old_tls cert encPMS =
 
 let empty_pms = {bytes = [||]}
 
-let prfMS sinfo pms: masterSecret Result =
+let prfMS sinfo pms: masterSecret =
     let pv = sinfo.protocol_version in
     let cs = sinfo.cipher_suite in
     let data = sinfo.init_crand @| sinfo.init_srand in
-    match generic_prf pv cs pms.bytes "master secret" data 48 with
-    | Error(x,y) -> Error(x,y)
-    | Correct(res) -> correct ({bytes = res})
+    let res = generic_prf pv cs pms.bytes "master secret" data 48 in
+    {bytes = res}
 
 type keyBlob = {bytes:bytes}
 
@@ -222,11 +191,9 @@ let prfKeyExp ki (ms:masterSecret) =
     let cs = ki.sinfo.cipher_suite in
     let data = ki.srand @| ki.crand in
     let len = getKeyExtensionLength pv cs in
-    match generic_prf pv cs ms.bytes "key expansion" data len with
-    | Error(x,y) -> Error(x,y)
-    | Correct(res) -> correct ({bytes = res})
+    let res = generic_prf pv cs ms.bytes "key expansion" data len in
+    {bytes = res}
     
-
 let splitKeys outKi (inKi:KeyInfo) (blob:keyBlob) =
     let macKeySize = macKeySize (macAlg_of_ciphersuite outKi.sinfo.cipher_suite) in
     (* TODO: add support for AEAD ciphers *)

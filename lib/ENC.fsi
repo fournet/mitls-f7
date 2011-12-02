@@ -14,5 +14,5 @@ type iv3 =
     | NoIV of unit
 type cipher = bytes
 
-val ENC: KeyInfo -> symKey -> iv3 -> (*int ->*) plain -> (iv3 * cipher) Result
-val DEC: KeyInfo -> symKey -> iv3 -> (*int ->*) cipher -> (iv3 * plain) Result
+val ENC: KeyInfo -> symKey -> iv3 -> (*int ->*) plain -> (iv3 * cipher)
+val DEC: KeyInfo -> symKey -> iv3 -> (*int ->*) cipher -> (iv3 * plain)

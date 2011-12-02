@@ -44,11 +44,9 @@ let encrypt ki key iv3 clen data plain =
     | MtE (macKey,encKey) ->
         //CF no, we need some TLSPlain.MAC. And encrypt cannot fail. 
         let text = ad_fragment ki data plain in
-        match MAC.MAC ki macKey (mac_plain_to_bytes text) with
-        | Error(x,y) -> Error(x,y)
-        | Correct (mac) ->
-            let toEncrypt = concat_fragment_mac_pad ki clen plain (bytes_to_mac mac) in
-            ENC.ENC ki encKey iv3 toEncrypt
+        let mac = MAC.MAC ki macKey (mac_plain_to_bytes text) in
+        let toEncrypt = concat_fragment_mac_pad ki clen plain (bytes_to_mac mac) in
+        ENC.ENC ki encKey iv3 toEncrypt
 
 (* CF: commenting out until we get a chance to discuss:            
 
@@ -87,29 +85,28 @@ let CF_decrypt ki k state data cipher =
 let decrypt ki key iv tlen data cipher =
     match key with
     | MtE (macKey, encKey) ->
-        match ENC.DEC ki encKey iv cipher with
-        | Error(x,y) -> Error(x,y)
-        | Correct (iv3,compr_and_mac_and_pad) ->
-            let (mustFail,(compr,mac)) = split_mac ki tlen compr_and_mac_and_pad in
-            let toVerify = ad_fragment ki data compr in
-            (* If mustFail is true, it means some padding error occurred.
-               If in early versions of TLS, insecurely report a padding error now *)
-            match ki.sinfo.protocol_version with
-            | ProtocolVersionType.SSL_3p0 | ProtocolVersionType.TLS_1p0 ->
-                if mustFail then
-                    Error(RecordPadding,CheckFailed)
+        let (iv3,compr_and_mac_and_pad) = ENC.DEC ki encKey iv cipher in
+        let (mustFail,(compr,mac)) = split_mac ki tlen compr_and_mac_and_pad in
+        let toVerify = ad_fragment ki data compr in
+        (* If mustFail is true, it means some padding error occurred.
+            If in early versions of TLS, insecurely report a padding error now *)
+        match ki.sinfo.protocol_version with
+        | ProtocolVersionType.SSL_3p0 | ProtocolVersionType.TLS_1p0 ->
+            if mustFail then
+                Error(RecordPadding,CheckFailed)
+            else
+                if MAC.VERIFY ki macKey (mac_plain_to_bytes toVerify) (mac_to_bytes mac) then
+                    correct(iv3,compr)
                 else
-                    match MAC.VERIFY ki macKey (mac_plain_to_bytes toVerify) (mac_to_bytes mac) with
-                    | Error(x,y) -> Error(x,y)
-                    | Correct(_) -> correct(iv3,compr)
-            | x when x >= ProtocolVersionType.TLS_1p1 ->
-                match MAC.VERIFY ki macKey (mac_plain_to_bytes toVerify) (mac_to_bytes mac) with
-                | Error(x,y) -> Error(x,y)
-                | Correct(_) ->
-                    if mustFail then
-                        Error(MAC,CheckFailed)
-                    else
-                        correct (iv3,compr)
-            | _ -> unexpectedError "[decrypt] wrong protocol version"
+                    Error(MAC,CheckFailed)
+        | x when x >= ProtocolVersionType.TLS_1p1 ->
+            if MAC.VERIFY ki macKey (mac_plain_to_bytes toVerify) (mac_to_bytes mac) then
+                if mustFail then
+                    Error(MAC,CheckFailed)
+                else
+                    correct (iv3,compr)
+            else
+                Error(MAC,CheckFailed)
+        | _ -> unexpectedError "[decrypt] wrong protocol version"
 
  (* | GCM (GCMKey) -> ... *)

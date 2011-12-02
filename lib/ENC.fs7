@@ -26,7 +26,7 @@ predicate val ENCrypted:
   (ki:KeyInfo * (;ki) symKey * (;ki) plain * (;ki) cipher) -> bool
 
 val ENC: ki:KeyInfo -> k:(;ki) symKey -> (;ki) iv3 -> n:int -> p:(;ki,n) plain -> 
-  ((;ki) iv3 * c:(;ki)cipher{ENCrypted(ki,k,p,c) /\ Length(c)=n}) Result
+  ((;ki) iv3 * c:(;ki)cipher{ENCrypted(ki,k,p,c) /\ Length(c)=n})
 
 val DEC: ki:KeyInfo -> k:(;ki) symKey -> (;ki) iv3 -> c:(;ki) cipher -> 
-  ((;ki) iv3 * p:(;ki,Length(c))plain{ENCrypted(ki,k,p,c)}) Result
+  ((;ki) iv3 * p:(;ki,Length(c))plain{ENCrypted(ki,k,p,c)})
