@@ -18,7 +18,8 @@ let byte_of_contentType ct =
     | Alert              -> 21uy
     | Handshake          -> 22uy
     | Application_data   -> 23uy
-    | UnknownCT -> unexpectedError "Cannot convert the Unknown content type to bytes"
+    // not an unexpected error with the current spec; what is UnknownCT for again? 
+    | UnknownCT -> failwith "Cannot convert the Unknown content type to bytes"
 
 let contentType_of_byte b =
     match b with 
@@ -26,7 +27,8 @@ let contentType_of_byte b =
     | 21uy -> Alert
     | 22uy -> Handshake
     | 23uy -> Application_data
-    | _    -> UnknownCT
+    // idem
+    // | _    -> UnknownCT
 
 let CTtoString = function
     | Change_cipher_spec -> "CCS" 
@@ -37,6 +39,17 @@ let CTtoString = function
 
 
 let bytes_of_seq sn = bytes_of_int 8 sn
+
+let vlenBytes_of_bytes (lSize:int) b =
+    let vl = bytes_of_int lSize (length b) in
+    vl @| b
+
+let bytes_of_vlenBytes lSize vlb =
+    let (vl,b) = split vlb lSize in
+    let l = int_of_bytes vl in
+    if l <= length b then correct (split b l)
+    else Error(Parsing,CheckFailed)
+
 
 (*
 let split_at_most data len =
@@ -59,17 +72,3 @@ let rec splitList (b:bytes) (il:int list) : bytes list =
     | [] -> [b]
     | h::t -> let (x,y) = split b h in x::(splitList y t)
 *)
-
-let vlenBytes_of_bytes (lSize:int) b =
-    let vl = bytes_of_int lSize (length b) in
-    vl @| b
-
-let bytes_of_vlenBytes lSize vlb =
-    let (vl,b) = split vlb lSize in
-    let l = int_of_bytes vl in
-    if l <= length b then
-        correct (split b l)
-    else
-        Error(Parsing,CheckFailed)
-
-
