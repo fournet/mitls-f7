@@ -27,8 +27,7 @@ let contentType_of_byte b =
     | 21uy -> Alert
     | 22uy -> Handshake
     | 23uy -> Application_data
-    // idem
-    // | _    -> UnknownCT
+    | _    -> UnknownCT
 
 let CTtoString = function
     | Change_cipher_spec -> "CCS" 

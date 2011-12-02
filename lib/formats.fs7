@@ -26,7 +26,7 @@ val bytes_of_seq: sn:int -> b:bytes{Length(b) = 8 /\ b = Int2Bytes(8,sn)}
 
 function val CTB: ContentType -> byte
 val byte_of_contentType: ct:ContentType -> b:byte{b=CTB(ct)}
-val contentType_of_byte: b:byte -> ct:ContentType{b=CTB(ct)}
+val contentType_of_byte: b:byte -> ct:ContentType{ct=UnknownCT \/ b=CTB(ct)}
 val CTtoString: ContentType -> string
 
 //CF: TODO maybe rename to vlbytes and split_vlbytes
