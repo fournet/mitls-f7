@@ -10,7 +10,7 @@ open AEAD
 
 type recordKey =
     | RecordAEADKey of AEADKey
-    | RecordMACKey of MAC.macKey
+    | RecordMACKey of Mac.key
     | NoneKey
 
 type ccs_data =
@@ -163,7 +163,7 @@ let recordPacketOut conn tlen ct (fragment:fragment) =
             let key = getMACKey conn.key in
             let addData = makeAD conn ct in
             let data = ad_fragment conn.rec_ki addData fragment in
-            let mac = MAC.MAC conn.rec_ki key (mac_plain_to_bytes data) in
+            let mac = Mac.MAC conn.rec_ki key (mac_plain_to_bytes data) in
             (conn,fragment_mac_to_cipher conn.rec_ki tlen fragment (bytes_to_mac mac))
         | _ ->
             let addData = makeAD conn ct in
@@ -187,7 +187,7 @@ let recordPacketOut2 conn clen ct fragment =
             if isOnlyMACCipherSuite suite then           
                 let key = getMACKey conn.key in
                 let text = mac_plain_to_bytes (ad_fragment conn.rec_ki ad fragment)
-                let mac = MAC.MAC conn.rec_ki key text 
+                let mac = Mac.MAC conn.rec_ki key text 
                 conn, 
                 fragment_mac_to_cipher conn.rec_ki clen fragment (bytes_to_mac mac)
             else
@@ -220,7 +220,7 @@ let recordPacketIn conn packet =
             let data = makeAD conn ct in
             let toVerify = ad_fragment conn.rec_ki data msg in
             let key = getMACKey conn.key in
-            if MAC.VERIFY conn.rec_ki key (mac_plain_to_bytes toVerify) (mac_to_bytes mac) then
+            if Mac.VERIFY conn.rec_ki key (mac_plain_to_bytes toVerify) (mac_to_bytes mac) then
                 correct(conn,msg)
             else
             Error(MAC,CheckFailed)

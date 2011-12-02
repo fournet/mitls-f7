@@ -65,8 +65,8 @@ definition MacKeySize(SHA)		= 20
 definition MacKeySize(SHA256)	= 32
 definition MacKeySize(SHA384)	= 48
 val macKeySize: a:hashAlg -> l:int{l=MacKeySize(a)}
-val macSize: a:hashAlg -> l:int{l=MacKeySize(a)}
-val hashSize: a:hashAlg -> l:int{l=MacKeySize(a)}
+val macSize:    a:hashAlg -> l:int{l=MacKeySize(a)}
+val hashSize:   a:hashAlg -> l:int{l=MacKeySize(a)}
 
 (* SSL Constants *)
 val ssl_pad1_md5:  bytes  

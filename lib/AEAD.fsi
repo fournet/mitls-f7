@@ -6,7 +6,7 @@ open TLSInfo
 open TLSPlain
 
 type AEADKey =
-    | MtE of MAC.macKey * ENC.symKey
+    | MtE of Mac.key * ENC.symKey
  (* | GCM of GCM.GCMSalt * GCM.GCMKey *)
 
 val encrypt: KeyInfo -> AEADKey -> ENC.iv3 -> int -> add_data -> fragment -> (ENC.iv3 * ENC.cipher)

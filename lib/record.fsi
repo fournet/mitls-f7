@@ -14,7 +14,7 @@ type recvState = ConnectionState
 
 type recordKey =
     | RecordAEADKey of AEAD.AEADKey
-    | RecordMACKey of MAC.macKey
+    | RecordMACKey of Mac.key
     | NoneKey
 
 type ccs_data =

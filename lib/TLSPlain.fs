@@ -159,10 +159,10 @@ let pub_fragment (si:SessionInfo) (data:bytes) : ((int * fragment) * bytes) =
 
 let pub_fragment_to_bytes (si:SessionInfo) (tlen:int) (fragment:fragment) = fragment.bytes
 
-type mac = MACt of MAC.mac
+type mac = MACt of Mac.tag
 
 type add_data = bytes
-type mac_plain = MACPLAINt of MAC.mac_plain
+type mac_plain = MACPLAINt of Mac.text
 
 let ad_fragment (ki:KeyInfo) (ad:add_data) (frag:fragment) =
     let plainLen = bytes_of_int 2 (length frag.bytes) in

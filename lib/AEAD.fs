@@ -8,7 +8,7 @@ open Error
 open TLSPlain
 
 type AEADKey =
-    | MtE of MAC.macKey * ENC.symKey
+    | MtE of Mac.key * ENC.symKey
  (* | GCM of GCM.GCMKey *)
 
 (* No way the following will typecheck. I use native byte/int conversions *)
@@ -44,7 +44,7 @@ let encrypt ki key iv3 clen data plain =
     | MtE (macKey,encKey) ->
         //CF no, we need some TLSPlain.MAC. And encrypt cannot fail. 
         let text = ad_fragment ki data plain in
-        let mac = MAC.MAC ki macKey (mac_plain_to_bytes text) in
+        let mac = Mac.MAC ki macKey (mac_plain_to_bytes text) in
         let toEncrypt = concat_fragment_mac_pad ki clen plain (bytes_to_mac mac) in
         ENC.ENC ki encKey iv3 toEncrypt
 
@@ -95,12 +95,12 @@ let decrypt ki key iv tlen data cipher =
             if mustFail then
                 Error(RecordPadding,CheckFailed)
             else
-                if MAC.VERIFY ki macKey (mac_plain_to_bytes toVerify) (mac_to_bytes mac) then
+                if Mac.VERIFY ki macKey (mac_plain_to_bytes toVerify) (mac_to_bytes mac) then
                     correct(iv3,compr)
                 else
                     Error(MAC,CheckFailed)
         | x when x >= ProtocolVersionType.TLS_1p1 ->
-            if MAC.VERIFY ki macKey (mac_plain_to_bytes toVerify) (mac_to_bytes mac) then
+            if Mac.VERIFY ki macKey (mac_plain_to_bytes toVerify) (mac_to_bytes mac) then
                 if mustFail then
                     Error(MAC,CheckFailed)
                 else

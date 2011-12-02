@@ -1,47 +1,41 @@
-﻿module MAC
+﻿module Mac
 
 open Bytes
 open Algorithms
 open CipherSuites
-open TLSInfo
+//open TLSInfo
 open HASH (* Only for SSL 3 keyed hash *)
 open Error
 
-type macKey = {bytes:bytes}
-let bytes_to_key b = {bytes = b}
-type mac_plain = bytes
-type mac = bytes
+type id = TLSInfo.KeyInfo
 
+let keysize (ki:id) = macKeySize (macAlg_of_ciphersuite ki.sinfo.cipher_suite)
+type keybytes = bytes
+type key = {bytes:keybytes}
 
-(* SSL 3 specific keyed hash *)
-let sslKeyedHash alg key data =
-    let (pad1, pad2) =
-        match alg with
-        | MD5 -> (ssl_pad1_md5, ssl_pad2_md5)
-        | SHA -> (ssl_pad1_sha1, ssl_pad2_sha1)
-        | _ -> unexpectedError "[sslKeyedHash] invoked on unsupported algorithm"
-    let dataStep1 = key @| pad1 @| data in
-    let step1 = hash alg dataStep1 in
-    let dataStep2 = key @| pad2 @| step1 in
-    hash alg dataStep2
+let tagsize (ki:id) = macSize (macAlg_of_ciphersuite ki.sinfo.cipher_suite)
+type tag = bytes
 
-let sslKeyedHashVerify alg key data expected =
-    let result = sslKeyedHash alg key data in
-    equalBytes result expected
+type text = bytes
 
-(* Top level functions, implement interface *)
-let MAC ki key data =
+(* generic algorithms *)
+
+let MAC (ki:id) key data =
     let pv = ki.sinfo.protocol_version in
-    let alg = macAlg_of_ciphersuite ki.sinfo.cipher_suite in
+    let a = macAlg_of_ciphersuite ki.sinfo.cipher_suite in
     match pv with
-    | ProtocolVersionType.SSL_3p0 -> sslKeyedHash alg key.bytes data
-    | x when x >= ProtocolVersionType.TLS_1p0 -> HMAC.HMAC alg key.bytes data
+    | ProtocolVersionType.SSL_3p0 ->     HMAC.sslKeyedHash a key.bytes data
+    | x when x >= ProtocolVersionType.TLS_1p0 -> HMAC.HMAC a key.bytes data
     | _ -> unexpectedError "[MAC] invoked on unsupported protocol version"
 
-let VERIFY ki key data expected =
+let VERIFY (ki:id) key data tag =
     let pv = ki.sinfo.protocol_version in
-    let alg = macAlg_of_ciphersuite ki.sinfo.cipher_suite in
+    let a = macAlg_of_ciphersuite ki.sinfo.cipher_suite in
     match pv with
-    | ProtocolVersionType.SSL_3p0 -> sslKeyedHashVerify alg key.bytes data expected
-    | x when x >= ProtocolVersionType.TLS_1p0 -> HMAC.HMACVERIFY alg key.bytes data expected
+    | ProtocolVersionType.SSL_3p0 ->     HMAC.sslKeyedHashVerify a key.bytes data tag
+    | x when x >= ProtocolVersionType.TLS_1p0 -> HMAC.HMACVERIFY a key.bytes data tag
     | _ -> unexpectedError "[VERIFY] invoked on unsupported protocol version"
+
+let GEN (id:id) = {bytes= Bytes.mkRandom (keysize id)}
+let COERCE (id:id) k = {bytes=k}
+let LEAK (id:id) {bytes=k} = k 

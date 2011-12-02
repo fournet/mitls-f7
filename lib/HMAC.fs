@@ -31,7 +31,25 @@ let hmacsha384 key (data:bytes) =
     let hmacobj = new System.Security.Cryptography.HMACSHA384 (key) in
     hmacobj.ComputeHash (data)
 
-(* Parametric hmac wrapper *)
+(* SSL3 keyed hash *)
+
+let sslKeyedHash alg key data =
+    let (pad1, pad2) =
+        match alg with
+        | MD5 -> (ssl_pad1_md5, ssl_pad2_md5)
+        | SHA -> (ssl_pad1_sha1, ssl_pad2_sha1)
+        | _   -> unexpectedError "[sslKeyedHash] invoked on unsupported algorithm"
+    let dataStep1 = key @| pad1 @| data in
+    let step1 = HASH.hash alg dataStep1 in
+    let dataStep2 = key @| pad2 @| step1 in
+    HASH.hash alg dataStep2
+
+let sslKeyedHashVerify alg key data expected =
+    let result = sslKeyedHash alg key data in
+    equalBytes result expected
+
+(* Parametric keyed hash *)
+
 let HMAC alg key data =
     match alg with
     | MD5    -> hmacmd5 key data

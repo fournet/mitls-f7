@@ -1,13 +1,23 @@
-﻿module MAC
+﻿module Mac
 
 open Bytes
-open TLSInfo
+open Algorithms
+// open TLSInfo
 
-type macKey
-(* Only to be used by PRFs module, when generating keys from keyblob *)
-val bytes_to_key: bytes -> macKey
-type mac_plain = bytes
-type mac = bytes
+type id = TLSInfo.KeyInfo
 
-val MAC: KeyInfo -> macKey -> mac_plain -> mac
-val VERIFY: KeyInfo -> macKey -> mac_plain -> mac -> bool
+val keysize: id -> int 
+type keybytes = bytes
+type key = {bytes:keybytes}
+
+val tagsize: id -> int
+type tag = bytes
+
+type text = bytes
+
+val GEN: id -> key
+val MAC:    id -> key -> text -> tag
+val VERIFY: id -> key -> text -> tag -> bool
+val LEAK:   id -> key -> keybytes
+val COERCE: id -> keybytes -> key
+

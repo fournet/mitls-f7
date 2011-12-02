@@ -11,8 +11,8 @@ type Compression =
     | Null
     | UnknownComp of byte
 
-// CF fs7 does *NOT* support enums.
-// Why using them instead of ADTs, e.g. here? Can we get rid of UnknownPV? 
+//CF fs7 does *NOT* support enums.
+//Why using them instead of ADTs, e.g. here? Can we get rid of UnknownPV? 
 type ProtocolVersionType =
     | UnknownPV = -1
     | SSL_3p0   = 10

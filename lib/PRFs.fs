@@ -199,10 +199,8 @@ let splitKeys outKi (inKi:KeyInfo) (blob:keyBlob) =
     (* TODO: add support for AEAD ciphers *)
     let encKeySize = encKeySize (encAlg_of_ciphersuite outKi.sinfo.cipher_suite) in
     let ivsize = 
-        if PVRequiresExplicitIV outKi.sinfo.protocol_version then
-            0
-        else
-            ivSize (encAlg_of_ciphersuite outKi.sinfo.cipher_suite)
+        if PVRequiresExplicitIV outKi.sinfo.protocol_version then 0
+        else ivSize (encAlg_of_ciphersuite outKi.sinfo.cipher_suite)
     let key_block = blob.bytes in
     let cmk = Array.sub key_block 0 macKeySize in
     let smk = Array.sub key_block macKeySize macKeySize in
@@ -210,4 +208,9 @@ let splitKeys outKi (inKi:KeyInfo) (blob:keyBlob) =
     let sek = Array.sub key_block (2*macKeySize+encKeySize) encKeySize in
     let civ = Array.sub key_block (2*macKeySize+2*encKeySize) ivsize in
     let siv = Array.sub key_block (2*macKeySize+2*encKeySize+ivsize) ivsize in
-    (MAC.bytes_to_key cmk, MAC.bytes_to_key smk, ENC.bytes_to_key cek, ENC.bytes_to_key sek, civ, siv)
+    ( Mac.COERCE outKi cmk, 
+      Mac.COERCE inKi smk, 
+      ENC.bytes_to_key cek, 
+      ENC.bytes_to_key sek, 
+      civ, 
+      siv)
