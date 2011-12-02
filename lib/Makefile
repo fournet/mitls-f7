@@ -67,6 +67,9 @@ Algorithms.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Algorithms.fs
 Error.tc7: $(libperv) $(libfs7) Error.fs7 Error.fs
 	$(f7) -nokindcheck $(lperv) $(libfs7) Error.fs7 Error.fs
 
+HMAC.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 HMAC.fs7 HMAC.fs
+	$(f7) --verbose -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 HMAC.fs7 Hash.fs7 HMAC.fs -scripts HMAC
+
 Principal.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Principal.fs 
 	$(f7) -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Principal.fs 
 

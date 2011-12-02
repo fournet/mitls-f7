@@ -3,4 +3,4 @@
 open Bytes
 open Algorithms
 
-val hash: hashAlg -> bytes -> bytes
+val hash: a:hashAlg -> bytes -> b:bytes{Length(b)=MacKeySize(a)}

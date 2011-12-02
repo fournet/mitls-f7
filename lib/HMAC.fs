@@ -15,22 +15,28 @@ type mac = bytes
    ArgumentNullException: becuase there is no null value in F# (and the arguments comes from F#)
    ObjectDisposedException: because each instance variable is always referenced *)
 
+#if fs
 let hmacmd5 key (data:bytes) =
     let hmacobj = new System.Security.Cryptography.HMACMD5 (key) in
-    hmacobj.ComputeHash (data)
+    hmacobj.ComputeHash data
 
 let hmacsha1 key (data:bytes) =
     let hmacobj = new System.Security.Cryptography.HMACSHA1 (key) in
-    hmacobj.ComputeHash (data)
+    hmacobj.ComputeHash data
 
 let hmacsha256 key (data:bytes) =
     let hmacobj = new System.Security.Cryptography.HMACSHA256 (key) in
-    hmacobj.ComputeHash (data)
+    hmacobj.ComputeHash data
 
 let hmacsha384 key (data:bytes) =
     let hmacobj = new System.Security.Cryptography.HMACSHA384 (key) in
-    hmacobj.ComputeHash (data)
-
+    hmacobj.ComputeHash data
+#else
+let hmacmd5   : key -> data -> mac = failwith "trusted" 
+let hmacsha1  : key -> data -> mac  = failwith "trusted"
+let hmacsha256: key -> data -> mac  = failwith "trusted" 
+let hmacsha384: key -> data -> mac  = failwith "trusted" 
+#endif
 (* SSL3 keyed hash *)
 
 let sslKeyedHash alg key data =
