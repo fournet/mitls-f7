@@ -20,7 +20,7 @@ type TLStream(s:System.Net.Sockets.NetworkStream,b) =
            | Client -> TLS.connect tcpStream AppCommon.defaultProtocolOptions
            | Server -> TLS.accept_connected tcpStream AppCommon.defaultProtocolOptions
        match err with
-       | Error(x,y) -> raise (IOException(x.ToString() + y.ToString()))
+       | Error(x,y) -> raise (IOException(sprintf "Constructor: %A %A" x y))
        | Correct () -> conn
 
     override this.get_CanRead()     = true
@@ -34,7 +34,7 @@ type TLStream(s:System.Net.Sockets.NetworkStream,b) =
 
     override this.Flush() =
         match TLS.flush conn with
-        | (Error(x,y),c) -> raise (IOException(x.ToString() + y.ToString()))
+        | (Error(x,y),c) -> raise (IOException(sprintf "Flush: %A %A" x y))
         | (Correct (),c) -> conn <- c
 
     override this.Read(buffer, offset, count) =
@@ -42,7 +42,8 @@ type TLStream(s:System.Net.Sockets.NetworkStream,b) =
             if equalBytes buf [||] then
                 (* Read from the socket, and possibly buffer some data *)
                 match TLS.read conn with
-                | (Error(x,y), c) -> raise (IOException(x.ToString() + y.ToString()))
+                | (Error(Tcp, Internal), _) -> [||] (* XXX: We should distinghuish between EOF and failures *)
+                | (Error(x,y), c) -> raise (IOException(sprintf "Read %A %A" x y))
                 | (Correct(data),c) ->
                     conn <- c
                     data

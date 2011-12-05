@@ -12,20 +12,20 @@ open HttpStreamReader
 open HttpData
 open Utils
 
+open TLStream
+
 exception HttpResponseExn of HttpResponse
 
 let HttpResponseExnWithCode = fun code ->
     HttpResponseExn (http_response_of_code code)
 
-type HttpClientHandler (server : HttpServer, peer : TcpClient) =
-    let stream = peer.GetStream ()
+type HttpClientHandler (server : HttpServer, peer : TcpClient, stream : Stream) =
     let reader = new HttpStreamReader(stream)
 
     interface IDisposable with
         member self.Dispose () =
             use reader = reader
             if stream <> null then stream.Dispose ()
-
 
     member private self.SendLine line =
         let bytes = Encoding.ASCII.GetBytes(sprintf "%s\r\n" line) in
@@ -127,10 +127,11 @@ type HttpClientHandler (server : HttpServer, peer : TcpClient) =
                             finally
                                 noexn (fun () -> f.Close ())
                 end;
-                not close
+                stream.Flush (); not close
 
         with InvalidHttpRequest ->
             self.SendResponse HTTPV_10 HttpCode.HTTP_400;
+            stream.Flush ();
             false
 
     member self.Start () =
@@ -138,7 +139,8 @@ type HttpClientHandler (server : HttpServer, peer : TcpClient) =
             try
                 while self.ReadAndServeRequest () do () done
             with
-            | :? System.IO.IOException -> ()
+            | :? System.IO.IOException as e ->
+                Console.WriteLine(e.Message)
         finally
             noexn (fun () -> peer.Close())
 
@@ -168,19 +170,25 @@ and HttpServer (localaddr : IPEndPoint, config : HttpServerConfig) =
         in
             Path.Combine(Array.ofList (List.rev path))
 
-    member private self.ClientHandler (peer : TcpClient) = fun () ->
+    member private self.ClientHandler peer stream = fun () ->
         use peer    = peer
-        use handler = new HttpClientHandler (self, peer)
+        use handler = new HttpClientHandler (self, peer, stream)
         handler.Start()
 
     member private self.AcceptAndServe () =
         while true do
-            let peer   = socket.AcceptTcpClient() in
-            let thread = Thread(ThreadStart(self.ClientHandler peer), IsBackground = true) in
-                try  thread.Start()
-                with e ->
+            let peer = socket.AcceptTcpClient() in
+                try
+                    try
+                        let stream = new TLStream(peer.GetStream(), Server) in
+                        let thread = Thread(ThreadStart(self.ClientHandler peer stream), IsBackground = true) in
+                            thread.Start()
+                    with
+                    | :? IOException as e ->
+                        Console.WriteLine(e.Message)
+                    | e -> raise e
+                finally
                     noexn (fun () -> peer.Close())
-                    raise e
 
     member self.Start () =
         if socket <> null then begin
@@ -199,5 +207,6 @@ and HttpServer (localaddr : IPEndPoint, config : HttpServerConfig) =
             socket <- null
 
 let run = fun config ->
-    use http = new HttpServer (IPEndPoint(IPAddress.Loopback, 8080), config)
+    SessionDB.create AppCommon.defaultProtocolOptions;
+    use http = new HttpServer (IPEndPoint(IPAddress.Any, 8080), config)
     http.Start ()
