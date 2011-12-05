@@ -232,8 +232,8 @@ let rec b_of_complist complist acc =
     match complist with
     | [] -> vlenBytes_of_bytes 1 acc
     | h::t ->
-        let compb = byte_of_compression h in
-        let acc = acc @| [|compb|] in
+        let compb = bytes_of_compression h in
+        let acc = acc @| compb in
         b_of_complist t acc
 
 let bytes_of_compressionMethods complist =
@@ -261,7 +261,7 @@ let makeSHelloBytes poptions sinfo prevVerifData =
         | Some(sid) -> sid
     let sidB = vlenBytes_of_bytes 1 sidRaw in
     let csB = bytes_of_cipherSuite sinfo.cipher_suite in
-    let cmB = [|byte_of_compression sinfo.compression|] in
+    let cmB = bytes_of_compression sinfo.compression in
     let ext =
         if poptions.safe_renegotiation then
             let ren_extB = makeRenegExtBytes prevVerifData in
@@ -579,7 +579,7 @@ let parseSHello data =
     let (csBytes,data) = split data 2 in
     let cs = cipherSuite_of_bytes csBytes in
     let (cmBytes,data) = split data 1 in
-    let cm = compression_of_byte cmBytes.[0] in
+    let cm = compression_of_bytes cmBytes in
     correct(
      { server_version = serverVer
        sh_random = serverRdm

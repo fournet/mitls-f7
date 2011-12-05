@@ -12,21 +12,20 @@ type preContentType =
 
 type ContentType = preContentType
 
-let byte_of_contentType ct =
+let bytes_of_contentType ct =
     match ct with
-    | Change_cipher_spec -> 20uy
-    | Alert              -> 21uy
-    | Handshake          -> 22uy
-    | Application_data   -> 23uy
-    // not an unexpected error with the current spec; what is UnknownCT for again? 
-    | UnknownCT -> failwith "Cannot convert the Unknown content type to bytes"
+    | Change_cipher_spec -> [|20uy|]
+    | Alert              -> [|21uy|]
+    | Handshake          -> [|22uy|]
+    | Application_data   -> [|23uy|]
+    | UnknownCT -> unexpectedError "[bytes_of_contentType] Cannot convert the Unknown content type to bytes"
 
-let contentType_of_byte b =
+let contentType_of_bytes b =
     match b with 
-    | 20uy -> Change_cipher_spec
-    | 21uy -> Alert
-    | 22uy -> Handshake
-    | 23uy -> Application_data
+    | [|20uy|] -> Change_cipher_spec
+    | [|21uy|] -> Alert
+    | [|22uy|] -> Handshake
+    | [|23uy|] -> Application_data
     | _    -> UnknownCT
 
 let CTtoString = function

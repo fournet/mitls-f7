@@ -19,24 +19,24 @@ type cipherSuites = cipherSuite list
 
 type Compression =
     | Null
-    | UnknownComp of byte
+    | UnknownComp
 
-let byte_of_compression comp =
+let bytes_of_compression comp =
     match comp with
-    | Null -> 0uy
-    | UnknownComp _ -> unexpectedError "[byte_of_compression] Cannot convert the unknown compression type to a byte"
+    | Null -> [|0uy|]
+    | UnknownComp -> unexpectedError "[byte_of_compression] Cannot convert the unknown compression type to a byte"
 
-let compression_of_byte b =
+let compression_of_bytes b =
     match b with
-    | 0uy -> Null
-    | _ -> UnknownComp b
+    | [|0uy|] -> Null
+    | _ -> UnknownComp
 
 let rec compressions_of_bytes_int b list =
     if length b = 0 then
         list
     else
         let (cmB,rem) = split b 1 in
-        let cm = compression_of_byte cmB.[0] in
+        let cm = compression_of_bytes cmB in
         let list = cm :: list in
         compressions_of_bytes_int rem list
 

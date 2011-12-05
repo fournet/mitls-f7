@@ -16,8 +16,8 @@ type ContentType = preContentType
 
 val bytes_of_seq: int -> bytes
 
-val byte_of_contentType: ContentType -> byte
-val contentType_of_byte: byte -> ContentType
+val bytes_of_contentType: ContentType -> bytes
+val contentType_of_bytes: bytes -> ContentType
 val CTtoString: ContentType -> string
 
 val vlenBytes_of_bytes: int -> bytes -> bytes

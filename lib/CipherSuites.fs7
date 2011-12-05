@@ -9,7 +9,7 @@ type cipherSuites = cipherSuite list
 
 type Compression =
     | Null
-    | UnknownComp of byte
+    | UnknownComp
 
 //CF fs7 does *NOT* support enums.
 //Why using them instead of ADTs, e.g. here? Can we get rid of UnknownPV? 
@@ -48,8 +48,8 @@ val verifyDataHashAlg_of_ciphersuite: cipherSuite -> hashAlg
 val macAlg_of_ciphersuite: cipherSuite -> hashAlg
 val encAlg_of_ciphersuite: cipherSuite -> cipherAlg
 
-val compression_of_byte: byte -> Compression
-val byte_of_compression: Compression -> byte
+val compression_of_bytes: b:bytes{Length(b)=1} -> Compression
+val bytes_of_compression: Compression -> b:bytes{Length(b)=1}
 (* FIXME: We can say that the length of the following byte array is the same of the length of the returned list.
    1) do we want/need to say this?
    2) how do we talk about lengths of lists in F7?

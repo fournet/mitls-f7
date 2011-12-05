@@ -10,7 +10,7 @@ type cipherSuites = cipherSuite list
 
 type Compression =
     | Null
-    | UnknownComp of byte
+    | UnknownComp
 
 type ProtocolVersionType =
     | UnknownPV = -1
@@ -38,8 +38,8 @@ val verifyDataHashAlg_of_ciphersuite: cipherSuite -> hashAlg
 val macAlg_of_ciphersuite: cipherSuite -> hashAlg
 val encAlg_of_ciphersuite: cipherSuite -> cipherAlg
 
-val compression_of_byte: byte -> Compression
-val byte_of_compression: Compression -> byte
+val compression_of_bytes: bytes -> Compression
+val bytes_of_compression: Compression -> bytes
 val compressions_of_bytes: bytes -> Compression list
 
 val bytes_of_cipherSuite: cipherSuite -> bytes
