@@ -90,10 +90,13 @@ let rekey_now conn ops =
     let conn = rekey conn ops in
     int_consume conn
 
-let accept list ops =
-    let ns = Tcp.accept list in
+let accept_connected ns ops =
     let conn = Dispatch.init ns StoC ops in
     int_consume conn
+
+let accept list ops =
+    let ns = Tcp.accept list in
+    accept_connected ns ops
 
 let handshakeRequest conn ops =
     Dispatch.ask_hs_request conn ops

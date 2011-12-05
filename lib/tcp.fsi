@@ -6,6 +6,12 @@ open Error
 type NetworkStream 
 type TcpListener 
 
+(* Create a network stream from a given stream.
+   Only used by the application interface TLSharp
+   Does not have an fs7 refinement, as it is not supposed to be used
+   by typechecked implementations *)
+val create: System.Net.Sockets.NetworkStream -> NetworkStream
+
 (* Server side *)
 
 val listen: string -> int -> TcpListener

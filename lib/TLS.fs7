@@ -132,6 +132,7 @@ val rekey_now: c:Connection -> protocolOptions -> res:(unit Result) * c':Connect
     in its cache), a short handshake will take place.
     Implementation note: same as connect. *)
 val accept: TcpListener -> protocolOptions -> (unit Result) * Connection
+val accept_connected: NetworkStream -> protocolOptions -> (unit Result) * Connection
 
 (* Old Connection, new/old Session:
     Sets an internal flag asking to send a Hello Request message on next

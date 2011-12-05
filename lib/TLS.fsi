@@ -182,8 +182,12 @@ val rekey_now: Connection -> protocolOptions -> (unit Result) * Connection (* Bl
     Waits (blocking call) for a new client to connect and start a handshake.
     If the client asks for session resumption (and server has that session
     in its cache), a short handshake will take place.
-    Implementation note: same as connect. *)
+    Implementation note: same as connect.
+    We have two variants:
+     - one takes a TcpListener: it waits until a client connects, and then runs an handshake
+     - one takes an already connected NetwrokStream, and directly runs an handshake *)
 val accept: TcpListener -> protocolOptions -> (unit Result) * Connection
+val accept_connected: NetworkStream -> protocolOptions -> (unit Result) * Connection
 
 (* Old Connection, new/old Session:
     Sets an internal flag asking to send a Hello Request message on next

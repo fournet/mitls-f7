@@ -7,6 +7,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "app", "app\app.fsproj", "{4
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "concrete-fs-vs2010", "..\..\lib\concrete-fs\concrete-fs-vs2010.fsproj", "{7D2902C6-8635-4B00-97C5-67C9C44CEA40}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "TLSharp", "TLSharp\TLSharp.fsproj", "{BDBA21EB-CB44-435B-BF9A-C9393AD2A613}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -47,6 +49,16 @@ Global
 		{7D2902C6-8635-4B00-97C5-67C9C44CEA40}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
 		{7D2902C6-8635-4B00-97C5-67C9C44CEA40}.Release|Mixed Platforms.Build.0 = Release|Any CPU
 		{7D2902C6-8635-4B00-97C5-67C9C44CEA40}.Release|x86.ActiveCfg = Release|Any CPU
+		{BDBA21EB-CB44-435B-BF9A-C9393AD2A613}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BDBA21EB-CB44-435B-BF9A-C9393AD2A613}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BDBA21EB-CB44-435B-BF9A-C9393AD2A613}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
+		{BDBA21EB-CB44-435B-BF9A-C9393AD2A613}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
+		{BDBA21EB-CB44-435B-BF9A-C9393AD2A613}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{BDBA21EB-CB44-435B-BF9A-C9393AD2A613}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BDBA21EB-CB44-435B-BF9A-C9393AD2A613}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BDBA21EB-CB44-435B-BF9A-C9393AD2A613}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{BDBA21EB-CB44-435B-BF9A-C9393AD2A613}.Release|Mixed Platforms.Build.0 = Release|Any CPU
+		{BDBA21EB-CB44-435B-BF9A-C9393AD2A613}.Release|x86.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

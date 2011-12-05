@@ -1,12 +1,15 @@
 ﻿module Tcp
 
-open System.Net.Sockets
 open System.Net
+open System.Net.Sockets
 open Bytes
 open Error
 
 type NetworkStream = N of System.Net.Sockets.NetworkStream
 type TcpListener = T of System.Net.Sockets.TcpListener
+
+(* Create a network stream from a given stream *)
+let create s = N(s)
 
 (* Server side *)
 
