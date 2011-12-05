@@ -45,7 +45,7 @@ let defaultProtocolOptions ={
 
     honourHelloReq = HRPResume
     allowAnonCipherSuite = false
-    request_client_certificate = true
+    request_client_certificate = false
     check_client_version_in_pms_for_old_tls = true
     server_cert_file = "server"
     certificateValidationPolicy = defaultCertificateValidationPolicy

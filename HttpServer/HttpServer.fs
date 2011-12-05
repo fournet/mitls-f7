@@ -29,6 +29,7 @@ type HttpClientHandler (server : HttpServer, peer : TcpClient, stream : Stream) 
 
     member private self.SendLine line =
         let bytes = Encoding.ASCII.GetBytes(sprintf "%s\r\n" line) in
+            Console.WriteLine("<-- " + line);
             stream.Write(bytes, 0, bytes.Length)
 
     member private self.SendStatus version code =
@@ -179,16 +180,16 @@ and HttpServer (localaddr : IPEndPoint, config : HttpServerConfig) =
         while true do
             let peer = socket.AcceptTcpClient() in
                 try
-                    try
-                        let stream = new TLStream(peer.GetStream(), Server) in
-                        let thread = Thread(ThreadStart(self.ClientHandler peer stream), IsBackground = true) in
-                            thread.Start()
-                    with
-                    | :? IOException as e ->
-                        Console.WriteLine(e.Message)
-                    | e -> raise e
-                finally
-                    noexn (fun () -> peer.Close())
+                    let stream = new TLStream(peer.GetStream(), Server) in
+                    let thread = Thread(ThreadStart(self.ClientHandler peer stream), IsBackground = true) in
+                        thread.Start()
+                with
+                | :? IOException as e ->
+                    noexn (fun () -> peer.Close())                    
+                    Console.WriteLine(e.Message)
+                | e ->
+                    noexn (fun () -> peer.Close())                    
+                    raise e
 
     member self.Start () =
         if socket <> null then begin
@@ -208,5 +209,5 @@ and HttpServer (localaddr : IPEndPoint, config : HttpServerConfig) =
 
 let run = fun config ->
     SessionDB.create AppCommon.defaultProtocolOptions;
-    use http = new HttpServer (IPEndPoint(IPAddress.Any, 8080), config)
+    use http = new HttpServer (IPEndPoint(IPAddress.Any, 4433), config)
     http.Start ()

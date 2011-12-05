@@ -59,6 +59,7 @@ type HttpStreamReader (stream : Stream) =
                 eol <- true
         done
 
+        Console.WriteLine("--> " + (output.ToString ()));
         if eof && (output.Length = 0)
         then null
         else output.ToString ()
