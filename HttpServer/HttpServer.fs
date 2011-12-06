@@ -10,6 +10,7 @@ open System.Threading
 open HttpHeaders
 open HttpStreamReader
 open HttpData
+open HttpLogger
 open Utils
 
 open TLStream
@@ -19,17 +20,30 @@ exception HttpResponseExn of HttpResponse
 let HttpResponseExnWithCode = fun code ->
     HttpResponseExn (http_response_of_code code)
 
-type HttpClientHandler (server : HttpServer, peer : TcpClient, stream : Stream) =
-    let reader = new HttpStreamReader(stream)
+type HttpClientHandler (server : HttpServer, peer : TcpClient) =
+    let mutable rawstream : NetworkStream    = null
+    let mutable stream    : Stream           = null
+    let mutable reader    : HttpStreamReader = Unchecked.defaultof<HttpStreamReader>
 
     interface IDisposable with
         member self.Dispose () =
-            use reader = reader
-            if stream <> null then stream.Dispose ()
+            begin
+                use reader    = reader
+                use stream    = stream
+                use rawstream = rawstream
+
+                ()
+            end
+
+            rawstream <- null
+            stream    <- null
+            reader    <- Unchecked.defaultof<HttpStreamReader>
+
+            noexn (fun () -> peer.Close ())
 
     member private self.SendLine line =
         let bytes = Encoding.ASCII.GetBytes(sprintf "%s\r\n" line) in
-            Console.WriteLine("<-- " + line);
+            HttpLogger.Debug ("--> " + line);
             stream.Write(bytes, 0, bytes.Length)
 
     member private self.SendStatus version code =
@@ -58,7 +72,7 @@ type HttpClientHandler (server : HttpServer, peer : TcpClient, stream : Stream) 
 
     member private self.ResponseOfStream (fi : FileInfo) (stream : Stream) =
         let ctype =
-            match server.Config.mimes.Lookup(Path.GetExtension(fi.FullName)) with
+            match server.Config.mimesmap.Lookup(Path.GetExtension(fi.FullName)) with
             | Some ctype -> ctype
             | None -> "text/plain"
         in
@@ -72,7 +86,7 @@ type HttpClientHandler (server : HttpServer, peer : TcpClient, stream : Stream) 
         end;
 
         let path = HttpServer.CanonicalPath request.path in
-        let path = Path.Combine(server.Config.root, path) in
+        let path = Path.Combine(server.Config.docroot, path) in
 
             try
                 let infos = FileInfo(path) in
@@ -130,20 +144,33 @@ type HttpClientHandler (server : HttpServer, peer : TcpClient, stream : Stream) 
                 end;
                 stream.Flush (); not close
 
-        with InvalidHttpRequest ->
-            self.SendResponse HTTPV_10 HttpCode.HTTP_400;
-            stream.Flush ();
+        with
+        | InvalidHttpRequest | NoHttpRequest as e->
+            if e <> NoHttpRequest then begin
+                self.SendResponse HTTPV_10 HttpCode.HTTP_400;
+                stream.Flush ();
+            end;
             false
 
     member self.Start () =
         try
             try
+                HttpLogger.Info
+                    (sprintf "new connection from [%A]" peer.Client.RemoteEndPoint);
+                rawstream <- peer.GetStream ();
+                match server.Config.tlsoptions with
+                | None ->
+                    stream <- rawstream
+                | Some tlsoptions ->
+                    stream <- new TLStream(rawstream, tlsoptions, TLSServer)
+                reader <- new HttpStreamReader(stream);
                 while self.ReadAndServeRequest () do () done
             with
             | :? System.IO.IOException as e ->
                 Console.WriteLine(e.Message)
         finally
-            noexn (fun () -> peer.Close())
+            HttpLogger.Info "closing connection";
+            noexn (fun () -> peer.Close ())
 
 and HttpServer (localaddr : IPEndPoint, config : HttpServerConfig) =
     let (*---*) config : HttpServerConfig = config
@@ -171,17 +198,17 @@ and HttpServer (localaddr : IPEndPoint, config : HttpServerConfig) =
         in
             Path.Combine(Array.ofList (List.rev path))
 
-    member private self.ClientHandler peer stream = fun () ->
+    member private self.ClientHandler peer = fun () ->
         use peer    = peer
-        use handler = new HttpClientHandler (self, peer, stream)
+        use handler = new HttpClientHandler (self, peer)
         handler.Start()
 
     member private self.AcceptAndServe () =
         while true do
             let peer = socket.AcceptTcpClient() in
                 try
-                    let stream = new TLStream(peer.GetStream(), Server) in
-                    let thread = Thread(ThreadStart(self.ClientHandler peer stream), IsBackground = true) in
+                    let thread = Thread(ThreadStart(self.ClientHandler peer)) in
+                        thread.IsBackground <- true;
                         thread.Start()
                 with
                 | :? IOException as e ->
@@ -196,6 +223,7 @@ and HttpServer (localaddr : IPEndPoint, config : HttpServerConfig) =
             raise (InvalidOperationException ())
         end;
 
+        HttpLogger.Info "Starting HTTP server";
         socket <- TcpListener localaddr;
         try
             socket.Start ();
@@ -208,6 +236,5 @@ and HttpServer (localaddr : IPEndPoint, config : HttpServerConfig) =
             socket <- null
 
 let run = fun config ->
-    SessionDB.create AppCommon.defaultProtocolOptions;
-    use http = new HttpServer (IPEndPoint(IPAddress.Any, 4433), config)
+    use http = new HttpServer (config.localaddr, config)
     http.Start ()

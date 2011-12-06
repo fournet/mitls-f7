@@ -7,20 +7,20 @@ open System
 open System.IO
 
 type TLSBehavior =
-    | Client
-    | Server
+    | TLSClient
+    | TLSServer
 
-type TLStream(s:System.Net.Sockets.NetworkStream,b) =
+type TLStream(s:System.Net.Sockets.NetworkStream, options, b) =
     inherit Stream()
     let mutable buf:bytes = [||]
     let mutable conn =
        let tcpStream = Tcp.create s
        let (err,conn) =
            match b with
-           | Client -> TLS.connect tcpStream AppCommon.defaultProtocolOptions
-           | Server -> TLS.accept_connected tcpStream AppCommon.defaultProtocolOptions
+           | TLSClient -> TLS.connect tcpStream options
+           | TLSServer -> TLS.accept_connected tcpStream options
        match err with
-       | Error(x,y) -> raise (IOException(sprintf "Constructor: %A %A" x y))
+       | Error(x,y) -> raise (IOException(sprintf "TLS-HS: %A %A" x y))
        | Correct () -> conn
 
     override this.get_CanRead()     = true
@@ -34,7 +34,7 @@ type TLStream(s:System.Net.Sockets.NetworkStream,b) =
 
     override this.Flush() =
         match TLS.flush conn with
-        | (Error(x,y),c) -> raise (IOException(sprintf "Flush: %A %A" x y))
+        | (Error(x,y),c) -> raise (IOException(sprintf "TLS-Write: %A %A" x y))
         | (Correct (),c) -> conn <- c
 
     override this.Read(buffer, offset, count) =
@@ -43,7 +43,7 @@ type TLStream(s:System.Net.Sockets.NetworkStream,b) =
                 (* Read from the socket, and possibly buffer some data *)
                 match TLS.read conn with
                 | (Error(Tcp, Internal), _) -> [||] (* XXX: We should distinghuish between EOF and failures *)
-                | (Error(x,y), c) -> raise (IOException(sprintf "Read %A %A" x y))
+                | (Error(x,y), c) -> raise (IOException(sprintf "TLS-Read: %A %A" x y))
                 | (Correct(data),c) ->
                     conn <- c
                     data

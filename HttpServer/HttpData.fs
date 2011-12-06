@@ -2,6 +2,7 @@
 
 open System
 open System.IO
+open System.Net
 open System.Text
 
 open HttpHeaders
@@ -22,8 +23,10 @@ let string_of_httpversion = function
 | HTTPV_Other v -> v
 
 type HttpServerConfig = {
-    root  : string;
-    mimes : Mime.MimeMap;
+    docroot    : string;
+    mimesmap   : Mime.MimeMap;
+    localaddr  : IPEndPoint;
+    tlsoptions : AppCommon.protocolOptions option;
 }
 
 type HttpBody =

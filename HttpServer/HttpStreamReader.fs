@@ -6,9 +6,11 @@ open System.Text
 
 open HttpHeaders
 open HttpData
+open HttpLogger
 open Utils
 
 exception InvalidHttpRequest
+exception NoHttpRequest
 
 type HttpStreamReader (stream : Stream) =
     let (*---*) buffer    : byte[] = Array.zeroCreate 65536
@@ -59,15 +61,21 @@ type HttpStreamReader (stream : Stream) =
                 eol <- true
         done
 
-        Console.WriteLine("--> " + (output.ToString ()));
         if eof && (output.Length = 0)
         then null
-        else output.ToString ()
+        else begin
+            HttpLogger.Debug ("<-- " + (output.ToString ()));
+            output.ToString ()
+        end
 
     member self.ReadRequest () =
         let mutable httpcmd = self.ReadLine () in
         let (*---*) headers = HttpHeadersBuilder () in
         let (*---*) isvalid = ref true in
+
+            if httpcmd = null then begin
+                raise NoHttpRequest
+            end;
 
             let rec readheaders = fun () ->
                 let line = self.ReadLine() in

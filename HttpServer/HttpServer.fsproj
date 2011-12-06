@@ -43,6 +43,7 @@
     </None>
     <Compile Include="Utils.fs" />
     <Compile Include="Mime.fs" />
+    <Compile Include="HttpLogger.fs" />
     <Compile Include="HttpCode.fs" />
     <Compile Include="HttpHeaders.fs" />
     <Compile Include="HttpData.fs" />
