@@ -9,17 +9,23 @@ open Algorithms
    exceptions:
    ArgumentNullException: becuase there is no null value in F# (and the arguments comes from F#)
    ObjectDisposedException: because each instance variable is always referenced *)
-let md5Instance = System.Security.Cryptography.MD5.Create ()
-let md5 (x:bytes) : bytes = md5Instance.ComputeHash x
+(* Note: we could use a singleton global hashInstance object. This would be a bit more efficient, but not
+   thread safe. So we create a local instance every time, which is thread safe *)
+let md5 (x:bytes) : bytes =
+    let md5Instance = System.Security.Cryptography.MD5.Create () in
+    md5Instance.ComputeHash x
 
-let sha1Instance = System.Security.Cryptography.SHA1.Create ()
-let sha1 (x:bytes) : bytes = sha1Instance.ComputeHash x
+let sha1 (x:bytes) : bytes =
+    let sha1Instance = System.Security.Cryptography.SHA1.Create () in
+    sha1Instance.ComputeHash x
 
-let sha256Instance = System.Security.Cryptography.SHA256.Create ()
-let sha256 (x:bytes) : bytes = sha256Instance.ComputeHash x
+let sha256 (x:bytes) : bytes =
+    let sha256Instance = System.Security.Cryptography.SHA256.Create () in
+    sha256Instance.ComputeHash x
 
-let sha384Instance = System.Security.Cryptography.SHA384.Create ()
-let sha384 (x:bytes) : bytes = sha384Instance.ComputeHash x
+let sha384 (x:bytes) : bytes =
+    let sha384Instance = System.Security.Cryptography.SHA384.Create () in
+    sha384Instance.ComputeHash x
 
 (* Parametric hash algorithm (implements interface) *)
 let hash alg data =
