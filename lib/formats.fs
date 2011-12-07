@@ -35,6 +35,7 @@ let CTtoString = function
     | Application_data   -> "Data"
     | UnknownCT          -> "???"
 
+type KnownCT = preContentType 
 
 let bytes_of_seq sn = bytes_of_int 8 sn
 

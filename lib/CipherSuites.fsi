@@ -43,8 +43,9 @@ val bytes_of_compression: Compression -> bytes
 val compressions_of_bytes: bytes -> Compression list
 
 val bytes_of_cipherSuite: cipherSuite -> bytes
-val cipherSuite_of_bytes: bytes -> cipherSuite
-val cipherSuites_of_bytes: bytes -> cipherSuites
+val cipherSuite_of_bytes: bytes -> cipherSuite 
+val cipherSuites_of_bytes: bytes -> cipherSuites Result
+val bytes_of_cipherSuites: cipherSuites -> bytes 
 
 val getKeyExtensionLength: ProtocolVersionType -> cipherSuite -> int
 

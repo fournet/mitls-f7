@@ -1,0 +1,6 @@
+module Foo
+type bytes = byte array
+
+val twobytes: (b0:byte) -> (b1:byte) -> b:bytes { b = [| b0; b1 |] }  
+
+val t: b: bytes { b = [| 0uy; 1uy |] } 

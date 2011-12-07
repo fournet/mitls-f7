@@ -13,7 +13,7 @@ type preContentType =
     | UnknownCT
 
 type ContentType = preContentType
-
+type KnownCT = preContentType 
 val bytes_of_seq: int -> bytes
 
 val bytes_of_contentType: ContentType -> bytes

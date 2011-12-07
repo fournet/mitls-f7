@@ -217,16 +217,6 @@ let compute_master_secret pms ver crandom srandom =
     | _ -> Error(HSError(AD_internal_error),HSSendAlert)
 *)
 
-let rec b_of_cslist cslist acc =
-    match cslist with
-    | [] -> vlenBytes_of_bytes 2 acc
-    | h::t ->
-        let csb = bytes_of_cipherSuite h in
-        let acc = acc @| csb in
-        b_of_cslist t acc
-
-let bytes_of_cipherSuites cslist =
-    b_of_cslist cslist [||]
 
 let rec b_of_complist complist acc =
     match complist with
@@ -245,7 +235,7 @@ let makeCHelloBytes poptions session cVerifyData =
     let tsbytes = bytes_of_int 4 cHello.ch_random.time in
     let random = tsbytes @| cHello.ch_random.rnd in
     let csessB = vlenBytes_of_bytes 1 cHello.ch_session_id in
-    let ccsuitesB = bytes_of_cipherSuites cHello.cipher_suites in
+    let ccsuitesB = vlenBytes_of_bytes 2 (bytes_of_cipherSuites cHello.cipher_suites)
     let ccompmethB = bytes_of_compressionMethods cHello.compression_methods in
     let data = cVerB @| random @| csessB @| ccsuitesB @| ccompmethB @| cHello.extensions in
     ((makeHSPacket HT_client_hello data),random)
@@ -551,7 +541,9 @@ let parseCHello data =
     match bytes_of_vlenBytes 2 data with
     | Error(x,y) -> Error(x,y)
     | Correct (clCiphsuitesBytes,data) ->
-    let clCiphsuites = cipherSuites_of_bytes clCiphsuitesBytes in
+    match cipherSuites_of_bytes clCiphsuitesBytes with
+    | Error(x,y) -> Error(x,y) 
+    | Correct(clientCipherSuites) ->
     match bytes_of_vlenBytes 1 data with
     | Error(x,y) -> Error(x,y)
     | Correct (cmBytes,data) ->
@@ -560,7 +552,7 @@ let parseCHello data =
      { client_version = clVer
        ch_random = clRdm
        ch_session_id = sid
-       cipher_suites = clCiphsuites
+       cipher_suites = clientCipherSuites
        compression_methods = cm
        extensions = data},
      clTsBytes @| clRdmBytes
@@ -578,6 +570,7 @@ let parseSHello data =
     | Correct (sid,data) ->
     let (csBytes,data) = split data 2 in
     let cs = cipherSuite_of_bytes csBytes in
+    //TODO we should fail here if cs is "unknown"
     let (cmBytes,data) = split data 1 in
     let cm = compression_of_bytes cmBytes in
     correct(

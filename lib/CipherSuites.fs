@@ -13,7 +13,7 @@ type cipherSuite =
     | CipherSuite of kexAlg * authencAlg
     | OnlyMACCipherSuite of kexAlg * hashAlg
     | SCSV of SCSVsuite
-    | Unknown of bytes
+    | Unknown of bytes  
 
 type cipherSuites = cipherSuite list
 
@@ -174,17 +174,34 @@ let bytes_of_cipherSuite cs =
     | cipherSuite.Unknown (b)                                                       -> b
     | _ -> unexpectedError "[bytearray_of_ciphersuite] invoked on an unknown ciphersuite"
 
+// called by the server handshake; 
+// ciphersuites that we do not understand are parsed,
+// but will be ignored by the server
+let rec cipherSuites_of_bytes b =
+    if length b > 1 then
+        let (b0,b1) = split b 2 
+        match cipherSuites_of_bytes b1 with 
+        | Correct(cs) -> Correct(cipherSuite_of_bytes b0 :: cs)
+        | x -> x 
+    else if length b = 0 then Correct([])
+    else Error(Parsing,CheckFailed)
 
-let rec cipherSuites_of_bytes_int b list =
-    if length b = 0 then
-        list
+let rec bytes_of_cipherSuites css =
+    match css with 
+    | [] -> [||] 
+    | cs::css -> bytes_of_cipherSuite cs @| 
+                 bytes_of_cipherSuites css
+    
+(* we could use sub instead, with proper refinements:
+let rec cipherSuites_of_bytes2 i b =
+    if i <= Length(b) + 2 then 
+        cipherSuite_of_bytes (sub b i 2) :: cipherSuites_of_bytes2 (i+2) b 
+    else if i = Length(b) then 
+        []
     else
-        let (csB,rem) = split b 2 in
-        let cs = cipherSuite_of_bytes csB in
-        let list = [cs] @ list in
-        cipherSuites_of_bytes_int rem list
+        Error // the cipherSuite had an odd length!
+*)
 
-let cipherSuites_of_bytes b = cipherSuites_of_bytes_int b []
 
 let isAnonCipherSuite cs =
     match cs with

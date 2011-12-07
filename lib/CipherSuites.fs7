@@ -4,7 +4,13 @@ open Bytes
 open Algorithms
 open Error
 
-type cipherSuite
+type cipherSuite = // internal; kept abstract in the .fsi
+    | NullCipherSuite
+    | CipherSuite of kexAlg * authencAlg
+    | OnlyMACCipherSuite of kexAlg * hashAlg
+    | SCSV of SCSVsuite
+    | Unknown of b:bytes{Length(b)=2}  
+
 type cipherSuites = cipherSuite list
 
 type Compression =
@@ -59,7 +65,12 @@ val compressions_of_bytes: bytes -> Compression list
 
 val bytes_of_cipherSuite: c:cipherSuite -> b:bytes{Length(b)=2}
 val cipherSuite_of_bytes: b:bytes{Length(b)=2} -> cipherSuite
-val cipherSuites_of_bytes: bytes -> cipherSuites
+
+function val CipherSuitesBytes: cipherSuites -> bytes 
+// this parsing function may fail if b has the wrong length,
+// or if we were strict on unknown ciphersuites
+val cipherSuites_of_bytes: b:bytes -> (css:cipherSuites {b=CipherSuitesBytes(css)}) Result
+val bytes_of_cipherSuites: css:cipherSuites -> b:bytes {b=CipherSuitesBytes(css)}
 
 val getKeyExtensionLength: ProtocolVersionType -> cipherSuite -> int
 
