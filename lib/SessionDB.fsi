@@ -3,6 +3,7 @@
 open TLSInfo
 open AppCommon
 
+// FIXME: in the DB a session must be identified by sessionID and host!
 type StorableSession =
     {sinfo: SessionInfo
      ms: PRFs.masterSecret
