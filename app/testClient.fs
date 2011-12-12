@@ -2,8 +2,8 @@
 
 open Error
 
-let serverIP = "128.93.188.162"
-let serverPort = 4433
+let serverIP = "google.com" // "rigoletto.polito.it" // 128.93.188.162
+let serverPort = 443
 let options = AppCommon.defaultProtocolOptions
 
 let testCl options =
@@ -79,8 +79,8 @@ let testFullAndRehandshake () =
 (*
 let testResumptionRollbackAttack () =
     (* Do a full new session in TLS 1.1 *)
-    let ops = {options with minVer = HS_ciphersuites.ProtocolVersionType.TLS_1p1
-                            maxVer = HS_ciphersuites.ProtocolVersionType.TLS_1p1
+    let ops = {options with minVer = CipherSuites.ProtocolVersionType.TLS_1p1
+                            maxVer = CipherSuites.ProtocolVersionType.TLS_1p1
                             safe_renegotiation = false} in
     match testCl ops with
     | (Error(x,y),_,_) -> ()
@@ -90,7 +90,7 @@ let testResumptionRollbackAttack () =
            but closure is still not handled in our implementation *)
         Tcp.close ns
         (* Cheat in our sinfo information, changing the protocol version to TLS 1.0 *)
-        let sinfo = {sinfo with protocol_version = HS_ciphersuites.ProtocolVersionType.TLS_1p0 }
+        let sinfo = {sinfo with protocol_version = CipherSuites.ProtocolVersionType.TLS_1p0 }
         match sinfo.sessionID with
         | None -> printf "Impossible to resume session."
         | Some (sid) ->

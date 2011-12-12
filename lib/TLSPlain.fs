@@ -9,9 +9,10 @@ open TLSInfo
 
 /// Relating lengths of fragment plaintexts and ciphertexts
 
-type Lengths = {tlens: int list}
+type cipherlength = nat
+type lengths = cipherlength list
 
-let max_TLSPlaintext_fragment_length = 1<<<14 (* just a reminder *)
+let max_TLSPlaintext_fragment_length = 16384 (* 2^14 *)
 let fragmentLength = max_TLSPlaintext_fragment_length (* use e.g. 1 for testing *)
 
 (* generate the minimal padding for payload len, in 1..blocksize *)
@@ -36,6 +37,28 @@ let padLength sinfo len =
     | _ -> unexpectedError "[compute_pad] invoked on wrong protocol version"
     *)
 
+type fact = CompatibleLength of SessionInfo * nat * cipherlength 
+let cipherLength sinfo plainLen =
+  let l = 
+    plainLen + 
+    let cs = sinfo.cipher_suite in
+    if isNullCipherSuite cs then 0 else 
+        let macLen = macSize (macAlg_of_ciphersuite cs) in
+        macLen + 
+        if isOnlyMACCipherSuite cs then 0 else padLength sinfo (plainLen + macLen) 
+        // TODO: add support for GCM, now we only support MtE
+  Pi.assume(CompatibleLength(sinfo,plainLen,l)) 
+  l
+
+let rec estimateLengths sinfo len =
+    if len > fragmentLength then 
+        cipherLength sinfo fragmentLength :: 
+        estimateLengths sinfo (len - fragmentLength) 
+    else 
+        [cipherLength sinfo len]
+
+(* older implementation:
+
 let extraLength sinfo len =
     let cs = sinfo.cipher_suite in
     match cs with
@@ -46,17 +69,6 @@ let extraLength sinfo len =
         let macLen = macSize (macAlg_of_ciphersuite cs) in
         let padLen = padLength sinfo (len + macLen) in
         macLen + padLen
-(*
-// an alternative, as a total function
-let cipherLength sinfo len =
-    len + 
-    let cs = sinfo.cipher_suite in
-    if isNullCipherSuite cs then 0 else 
-        let macLen = macLength (macAlg_of_ciphersuite cs) in
-        macLen + 
-        if isOnlyMACCipherSuite cs then 0 else padLength sinfo (len + macLen) 
-        // TODO: add support for GCM, now we only support MtE
-*)
 
 let estimateLengths sinfo len =
     (* Basic implementation: split at fragment length, then add some constant amount for mac and pad; last fragment treated specially.
@@ -77,35 +89,27 @@ let estimateLengths sinfo len =
     else
         let addedLen = extraLength sinfo rem in
         {tlens = res @ [ rem + addedLen ] }
-(*
-//CF idem but probably easier to typecheck 
-let rec Lengths sinfo len =
-    if len > fragmentLength then 
-      cipherLength sinfo fragmentLength :: 
-      Lengths sinfo (len - fragmentLength) 
-    else 
-      [cipherLength sinfo len]
 *)
 
-/// Application Data
+
+/// Secret Application Data
 
 type appdata = {bytes: bytes}
 
-let appdata (si:SessionInfo) (lens:Lengths) data = {bytes = data}
-let empty_appdata = {bytes = [||]}
-let empty_lengths = {tlens = []}
-let is_empty_appdata data = data.bytes = [||]
+let empty_appdata (si:SessionInfo) = {bytes = [||]}
+let appdata (si:SessionInfo) (lens:lengths) data = {bytes = data}
+let is_empty_appdata data = data.bytes = [||] //FIXME
 
 // a fragment of appdata
 type fragment = {bytes: bytes}
 
 // rename to append_appdata_fragment ? 
-let concat_fragment_appdata (si:SessionInfo) (tlen:int) data (lens:Lengths) (appdata:appdata) :(Lengths * appdata) =
+let concat_fragment_appdata (si:SessionInfo) (tlen:int) data (lens:lengths) (appdata:appdata) :(lengths * appdata) =
     (* TODO: If ki says so, first decompress data, then append it *)
     let resData:appdata = { bytes = appdata.bytes @| data.bytes } in
     // we may need a special @ for getting our precise refinement 
-    let resLengths = {tlens = lens.tlens @ [tlen] } in
-    (resLengths,resData)
+    let reslengths = lens @ [tlen] in
+    (reslengths,resData)
 
 (*
 We have total plainlengths, fragment plainlenghts, and fragment cipher lengths.
@@ -123,7 +127,7 @@ RUNTIME
 (called by a function that just does the splitting) *)
 
 // rename to split_fragment_appdata ? 
-let app_fragment (si:SessionInfo) lens (appdata:appdata) : ((int * fragment) * (Lengths * appdata)) =
+let app_fragment (si:SessionInfo) lens (appdata:appdata) : ((int * fragment) * (lengths * appdata)) =
     (* The idea is: Given the cipertext target length, we get a *smaller* plaintext fragment
        (so that MAC and padding can be added back).
        In practice: since estimateLengths acts deterministically on the appdata length, we do the same here, and
@@ -132,35 +136,36 @@ let app_fragment (si:SessionInfo) lens (appdata:appdata) : ((int * fragment) * (
        TODO: we should also perform compression *now*. After we extract the next fragment from appdata, we compress it
        and only after we return it. The target length will be compatible with the compressed length, because the
        estimateLengths function takes compression into account. *)
-    match lens.tlens with
+    match lens with
     | thisLen::remLens ->
         (* Same implementation as estimateLengths, but one fragment at a time *)
         if length appdata.bytes > fragmentLength then
             (* get one full fragment of appdata *)
             (* TODO: apply compression on thisData *)
             let (thisData,remData) = split appdata.bytes fragmentLength in
-            ((thisLen,{bytes = thisData}),({tlens = remLens},{bytes = remData}))
+            ((thisLen,{bytes = thisData}),(remLens,{bytes = remData}))
         else
             (* consume all the remaining appdata. assert remLens is the empty list *)
-            ((thisLen,{bytes = appdata.bytes}), ({tlens = remLens},{bytes = [||]}))
+            ((thisLen,{bytes = appdata.bytes}), (remLens,{bytes = [||]}))
     | [] -> ((0,{bytes = [||]}),(lens,appdata))
 
 let get_bytes (appdata:appdata) = appdata.bytes
 
+// variant of the code above, when the fragment is public 
 let pub_fragment (si:SessionInfo) (data:bytes) : ((int * fragment) * bytes) =
     let (frag,rem) =
         if length data > fragmentLength then
             split data fragmentLength
         else
             (data,[||])
-    let addedLen = extraLength si (length frag) in
-    let totlen = (length frag) + addedLen in
-    ((totlen,{bytes = frag}),rem)
+    ((cipherLength si (length frag),{bytes = frag}),rem)
 
 let pub_fragment_to_bytes (si:SessionInfo) (tlen:int) (fragment:fragment) = fragment.bytes
 
-type mac = MACt of Mac.tag
 
+/// MACs 
+
+type mac = MACt of Mac.tag
 type add_data = bytes
 type mac_plain = MACPLAINt of Mac.text
 
@@ -168,6 +173,11 @@ let ad_fragment (ki:KeyInfo) (ad:add_data) (frag:fragment) =
     let plainLen = bytes_of_int 2 (length frag.bytes) in
     let fullData = ad @| plainLen in 
     MACPLAINt (fullData @| frag.bytes)
+
+let mac    ki k (MACPLAINt(text)) = MACt(Mac.MAC ki k text)
+let verify ki k (MACPLAINt(text)) (MACt(tag)) = Mac.VERIFY ki k text tag
+
+/// Concatenating fragments, MACs, and padding when using MAC-then-Encrypt
 
 type plain = {bytes: bytes}
 
@@ -338,12 +348,3 @@ let bytes_to_mac b : mac = MACt(b)
 
 let plain_to_bytes (plain:plain) = plain.bytes
 let bytes_to_plain b :plain = {bytes = b}
-
-// instead: 
-// We need to compute and verify MAC over secret data.
-// the resulting tags are secret too.
-
-(*
-let mac    ki k (MACPLAINt(text)) = match MAC.MAC ki k text with Correct(tag) -> MACt(tag)
-let verify ki k (MACPLAINt(text)) (MACt(tag)) = MAC.VERIFY ki k text tag
-*)

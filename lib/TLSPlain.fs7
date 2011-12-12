@@ -1,31 +1,49 @@
 module TLSPlain
 
-// Abstract types for the secret payloads of the record layer. 
+open Bytes
+open Error
+open Algorithms
+open CipherSuites
+open Formats
+open TLSInfo
 
+// Abstract types for the secret payloads of the record layer. 
 // TODO:
 // - reconcile with streams, understand what the multi-message model is
 // - when do we deliver messages to receiving applications?
 // - add support to carry authentication from appdata to fragment and back
 // - compare with game-based definitions [Ristenpart etc] 
 
-open TLSInfo 
-// nothing else? pls document dependencies at the beginning of files.
+/// Relating lengths of fragment plaintexts and ciphertexts
 
-// No need for abstraction? This is public.
-// The head of the list is sent before the tail
-// We need to reorder: we split from the beginning but concat at the end of the buffer.
+// We use a list of target sizes after encoding & encryption.
+// The head of the list is sent and received before the tail.
 
-type Lengths (* abstractly, a list of desired ciphertext lengths *)
-predicate val Head: Lengths -> int
-predicate val Tail: Lengths -> Lengths
-predicate val Cons: (int * Lengths) -> Lengths
+val max_TLSPlaintext_fragment_length: n:nat { n = 16384 (* 2^14 *) } 
 
+type cipherlength = n:nat { n < max_TLSPlaintext_fragment_length + 2048 }
+type lengths = cipherlength list 
+// no need for abstraction, as this is public information
+
+//TODO write precise integer expressions for CompatibleLength
+
+// we provide functions to pre-compute cipherlengths
 // the second parameter n is the net data size
-predicate val CompatibleLengths: (SessionInfo * int * Lengths) -> bool
-val estimateLengths: si:SessionInfo -> n:int -> l:Lengths{CompatibleLengths(si,n,l)}
+predicate val CompatibleLength:  (SessionInfo * nat * cipherlength) -> bool
+predicate val CompatibleLengths: (SessionInfo * nat * lengths) -> bool
+
+definition !si. CompatibleLengths(si,0,[]) (* we can also decompose 0 + 0 etc *)
+definition !si,n,m,ls. 
+  CompatibleLengths(si,n+m,l::ls) <=> 
+  ( CompatibleLength(si,n,l) /\ CompatibleLengths(si,m,ls) ) 
+
+// returns the minimal cipherlength size
+val cipherLength: si:SessionInfo -> n:nat -> l:cipherLength {CompatibleLength(si,n,l)} 
+val estimateLengths: si:SessionInfo -> n:nat -> l:lengths{CompatibleLengths(si,n,l)}
+
 // We could also use something like:
 // val provisionLength: ki:KeyInfo -> min:int -> max:int -> 
-//   ls:Lengths{ !n. min <= n /\ n < max => CompatibleLengths(ki,n,ls) }   
+//   ls:lengths{ !n. min <= n /\ n < max => CompatibleLengths(ki,n,ls) }   
 // ...and more generally let the application add data to the outgoing buffer. 
 
 // Don't we need a CompatibleLength for individual fragments as well?
@@ -36,61 +54,81 @@ val estimateLengths: si:SessionInfo -> n:int -> l:Lengths{CompatibleLengths(si,n
 
 // Usage?
 // FIXME: AP: we don't use 'n' in the fsi interface. Can we get rid of it here, that would simplify implementation
-private val fragmentSize: si:SessionInfo -> ls:Lengths -> 
+private val fragmentSize: si:SessionInfo -> ls:lengths -> 
   n:int{CompatibleLengths(si,n,ls)} -> f:int{CompatibleLengths(si,n-f,Tail(ls))}
 
-(* Secret App Data *)
+
+/// Secret Application Data 
 
 // Application-level data, intuitively a whole message. 
-// how does this relates to streams? 
-type (;si:SessionInfo,ls:Lengths) appdata (* The full buffer blessed by the application *)
-val appdata: si:SessionInfo -> ls:Lengths -> 
-  b:bytes{CompatibleLengths(si,Size(b),ls)} -> (;si,ls) appdata
+type (;si:SessionInfo,ls:lengths) appdata 
+
+val empty_appdata: (;si,[]) appdata
+val appdata: si:SessionInfo -> ls:lengths -> 
+  b:bytes{CompatibleLengths(si,Length(b),ls)} -> (;si,ls) appdata
 
 // Record-level fragment, with a constructor for each TLS subprotocol
 // The subprotocol (CT) is not considered secret
 // Two missing subprotocols?
 // Each fragment is already compressed, if TLS-level compression is enabled. Compression is handled
 // transparently by the TLSPlain module, and nowhere else.
+
 type (;si:SessionInfo,n:int) fragment = 
   | AppDataFragment of (;si,n) appdata // a fragment of some application data
   | KeyExchangeData of bytes           // a fragment of some key-exchange message
+  // We'll probably add others, e.g. alerts 
 
 // also TLS-level decompress the fragment before appending
 val concat_fragment_appdata: 
   si:SessionInfo -> n:int -> (;si,n) fragment -> 
-  ls:Lengths -> (;si,ls) appdata -> (;si,Cons(n,ls)) appdata
+  ls:lengths -> (;si,ls) appdata -> (;si,Cons(n,ls)) appdata
 
 // appdata is uncompressed, the returned fragment is TLS-level compressed
-val app_fragment: si:SessionInfo -> ls:Lengths -> 
+val app_fragment: si:SessionInfo -> ls:lengths -> 
   x:(;si,ls) appdata -> 
   ((n:(n:int{n=Head(ls)}) * f:(;si,n) fragment) * 
-   (t:(t:Lengths{t=Tail(ls)}) * (;si,t) appdata))
+   (t:(t:lengths{t=Tail(ls)}) * (;si,t) appdata))
 // could we write instead { ls = n::t } ?
 // could we omit n and t in the result, and use instead logical expressions? 
 
 (* Only used by appdata module, to return the received concrete bytes to the application *)
-(* If needed, we can add some SessionInfo and Lengths as input parameters, to parameterize appdata. *)
+(* If needed, we can add some SessionInfo and lengths as input parameters, to parameterize appdata. *)
 val get_bytes: appdata -> bytes
 
 val pub_fragment: si:SessionInfo -> b:bytes -> ((n:int * (;si,n) fragment) * bytes) 
 (* Note that n is *not* the length of the plaintext, it is the length of the target ciphertext *)
 val pub_fragment_to_bytes: si:SessionInfo -> n:int -> (;si,n)fragment -> bytes
 
-type (;ki:KeyInfo) mac = MAC.mac (* a fixed-length MAC tag for ki *)
-// We miss operations on MACs! 
 
-type (;ki:KeyInfo) mac_plain = MAC.text (* The data to be MACed, typically fragment @| add_data *)
+/// MACs: their domain and range need to be secret too
+
+type (;ki:KeyInfo) mac = MACt of MAC.mac (* a fixed-length MAC tag for ki *)
 
 // Additional *public* data to be MACed, excluding the fragment length
 type (;ki:KeyInfo) add_data = bytes 
+type (;ki:KeyInfo) mac_plain = MACPLAINt of MAC.text (* The data to be MACed: fragment @| add_data *)
+
+// We miss operations on MACs! + logical authentication
 
 val ad_fragment: ki:KeyInfo -> (;ki) add_data -> (;ki.sinfo) fragment -> (;ki) mac_plain
 
+val mac:
+val verify:
 
-type (;ki:KeyInfo,n:int) plain // contents to be encrypted (exactly n bytes)
+predicate val Msg: (id * fragment * add_data) -> bool
+
+val mac: id:id -> k:(;id) MAC.key -> t:mac_plain {Msg(id,t)} -> (;id) tag
+val verify: id:id -> k:(;id) MAC.key -> t:mac_plain -> (;id) tag -> 
+  v:bool{(v=true /\ CMA(id)) => Msg(id,t)}
+
+//TODO write down the internal definition of Msg
+definition !id,f,ad. 
+  MAC.Msg(id, f.bytes @| ad @| Int2Bytes(2,Length(f.bytes))) 
+  <=> Msg(id,f,ad)
 
 /// Concatenating fragments, MACs, and padding when using MAC-then-Encrypt
+
+type (;ki:KeyInfo,n:int) plain // contents to be encrypted (exactly n bytes)
 
 val concat_fragment_mac_pad: 
   ki:KeyInfo -> n:int -> 

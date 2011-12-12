@@ -3,24 +3,23 @@
 open TLSInfo
 open Bytes
 
-type Lengths (* abstractly, a list of desired ciphertext lengths *)
+type lengths = int list (* a list of desired ciphertext lengths *)
 
-val estimateLengths: SessionInfo -> int -> Lengths
+val estimateLengths: SessionInfo -> int -> lengths
 
 (* Secret App Data *)
 type appdata
-val appdata: SessionInfo -> Lengths -> bytes -> appdata
-val empty_appdata: appdata
-val empty_lengths: Lengths
+val appdata: SessionInfo -> lengths -> bytes -> appdata
+val empty_appdata: SessionInfo -> appdata
 val is_empty_appdata: appdata -> bool
 
 type fragment
 
 (* Append the given fragment at the *bottom* of the current appdata *)
-val concat_fragment_appdata: SessionInfo -> int -> fragment -> Lengths -> appdata -> (Lengths * appdata)
+val concat_fragment_appdata: SessionInfo -> int -> fragment -> lengths -> appdata -> (lengths * appdata)
 
 (* Exctract the *first* fragment from the *beginning* of appdata *)
-val app_fragment: SessionInfo -> Lengths -> appdata ->  ((int * fragment) * (Lengths * appdata))
+val app_fragment: SessionInfo -> lengths -> appdata ->  ((int * fragment) * (lengths * appdata))
 
 (* Only used by appdata module, to return the received concrete bytes to the application *)
 val get_bytes: appdata -> bytes 

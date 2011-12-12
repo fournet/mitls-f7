@@ -2,6 +2,7 @@
 
 (* Binary representations, using byte arrays *)
 
+type nat = n:int {0 <= n} // a convenient abbreviation 
 type bytes = byte array
 
 function val Length: bytes -> int 

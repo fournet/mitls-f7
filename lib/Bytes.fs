@@ -1,5 +1,6 @@
 ﻿module Bytes
 
+type nat = int
 type bytes = byte[]
 
 let length (d:bytes) = d.Length

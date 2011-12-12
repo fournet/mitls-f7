@@ -1,5 +1,6 @@
 ﻿module Bytes
 
+type nat = int 
 type bytes = byte[]
 
 val createBytes: int -> int -> bytes

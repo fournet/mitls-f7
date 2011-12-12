@@ -10,9 +10,9 @@ open Formats
 type pre_app_state = {
   app_info: SessionInfo
   role: Direction
-  app_in_lengths: Lengths
+  app_in_lengths: lengths
   app_incoming: appdata (* unsolicited data *)
-  app_out_lengths: Lengths
+  app_out_lengths: lengths
   app_outgoing: appdata
 }
 
@@ -21,16 +21,18 @@ type app_state = pre_app_state
 let init sinfo role =
     {app_info = sinfo;
      role = role;
-     app_outgoing = empty_appdata;
-     app_out_lengths = empty_lengths;
-     app_incoming = empty_appdata;
-     app_in_lengths = empty_lengths;}
+     app_outgoing = empty_appdata sinfo;
+     app_out_lengths = [];
+     app_incoming = empty_appdata sinfo;
+     app_in_lengths = [];}
 
 let reset_incoming app_state =
-    {app_state with app_incoming = empty_appdata; app_in_lengths = empty_lengths}
+    let si = app_state.app_info
+    {app_state with app_incoming = empty_appdata si; app_in_lengths = []}
 
 let reset_outgoing app_state =
-    {app_state with app_outgoing = empty_appdata; app_out_lengths = empty_lengths}
+    let si = app_state.app_info
+    {app_state with app_outgoing = empty_appdata si; app_out_lengths = []}
 
 let set_SessionInfo app_state sinfo =
     {app_state with app_info = sinfo}
