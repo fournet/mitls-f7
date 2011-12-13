@@ -51,16 +51,19 @@ let dataAvailable (N ns) =
 
 let rec read_acc (N ns) nbytes prev =
     if nbytes = 0 then
-        prev
+        Correct (prev)
     else
         let buf = Array.zeroCreate nbytes in
         let read = ns.Read (buf, 0, nbytes) in
-        let rem = nbytes - read in
-        read_acc (N ns) rem (Array.append prev (Array.sub buf 0 read))
+        if read = 0 then
+            Error(Tcp,Internal)
+        else
+            let rem = nbytes - read in
+            read_acc (N ns) rem (Array.append prev (Array.sub buf 0 read))
 
 let read (N ns) nbytes =
     try
-        Correct (read_acc (N ns) nbytes (Array.zeroCreate 0))
+        read_acc (N ns) nbytes (Array.zeroCreate 0)
     with
         | _ -> Error (Tcp,Internal)
 
