@@ -74,6 +74,7 @@
     <None Include="MAC.fs7" />
     <Compile Include="MAC.fsi" />
     <Compile Include="MAC.fs" />
+    <None Include="RPCPlain.fs7" />
     <None Include="TLSPlain.fs7" />
     <Compile Include="TLSPlain.fsi" />
     <Compile Include="TLSPlain.fs" />
