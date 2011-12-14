@@ -1,5 +1,4 @@
-﻿(* Handshake protocol *) 
-module Handshake
+﻿module Handshake
 
 open Bytes
 open Record
@@ -14,7 +13,6 @@ open AppCommon
 open Principal
 open SessionDB
 open PRFs
-(* open OtherCrypto *)
 
 type clientSpecificState =
     { resumed_session: bool
