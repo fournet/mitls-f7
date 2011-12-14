@@ -199,7 +199,8 @@ let next_fragment (c:Connection) : (bool Result) * Connection =
                             match send c.ns c_write.conn tlen Application_data f with
                             | Correct(ss) ->
                                 let new_write = { c_write with conn = ss } in
-                                (correct (true), { c with appdata = new_app_state;
+                                (* We just sent one appData fragment, we don't want to write anymore for this round *)
+                                (correct (false), { c with appdata = new_app_state;
                                                           write = new_write } )
                             | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
                           | _ -> (Error(Dispatcher,InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
@@ -212,21 +213,22 @@ let next_fragment (c:Connection) : (bool Result) * Connection =
                             (* we change the CS immediately afterward *)
                             let ss = Record.send_setCrypto ccs_data in
                             let new_write = {disp = Finishing; conn = ss} in
-                            (* FIXME: What if the outgoing buffer was not empty? How do we notify the user that not all
-                               the committed data were sent? If we assume some sort of synch between protocol re-handshakes and
-                               app data, at least when re-keying we should not empty this buffer. *)
-                            let new_appdata = AppData.reset_outgoing c.appdata in
-                            (* FIXME: we should update the ("outgoing" only) session info in alert protocol too, because
-                               from now on, outgoing alerts should be issued for the new session info, even if the latter is
-                               not confirmed to be safe yet.
-                               Note that the hansdhake is already doing this, by using its "next_info" to issue data after the CCS
-                               has been sent.
-                               Re AppData, from now on it just cannot send any message anymore, until the upcoming
-                               session info becomes valid (HSFullyFinished event).
-                               (This is what the Finishing dispatch state stands for.) *)
-                            (correct (true), { c with handshake = new_hs_state;
-                                                      write = new_write;
-                                                      appdata = new_appdata } )
+                            if AppData.is_outgoing_empty c.appdata then
+                                (* FIXME: we should update the ("outgoing" only) session info in alert protocol too, because
+                                   from now on, outgoing alerts should be issued for the new session info, even if the latter is
+                                   not confirmed to be safe yet.
+                                   Note that the hansdhake is already doing this, by using its "next_info" to issue data after the CCS
+                                   has been sent.
+                                   Re AppData, from now on it just cannot send any message anymore, until the upcoming
+                                   session info becomes valid (HSFullyFinished event).
+                                   (This is what the Finishing dispatch state stands for.) *)
+                                (correct (true), { c with handshake = new_hs_state;
+                                                          write = new_write } )
+                            else
+                                (* FIXME: if the next_sinfo is the same as the current_sinfo (i.e. we're rekeying),
+                                   we can keep the buffer in appData and send
+                                   the next appData fragments after this handshake. *)
+                                (Error(Dispatcher, InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
                         | Error (x,y) -> (Error (x,y), closeConnection c) (* Unrecoverable error *)
                     | _ -> (Error(Dispatcher, InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
           | (HSFrag((tlen,f)),new_hs_state) ->     
@@ -302,6 +304,7 @@ let rec writeOneAppFragment c =
     (* Writes *at most* one application data fragment. This might send no appdata fragment if
        - The handshake finishes (write side or fully)
        - An alert has been sent
+       - We sent one (or more) other protocol messages and now we can read some data
      *)
     let unitVal = () in
     let c_write = c.write in

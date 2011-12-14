@@ -47,7 +47,6 @@ type ErrorCause =
     | Dispatcher
     | TLS
     | NewSessionInfo
-    | MustRead
     | Other of string
 
 type ErrorKind =

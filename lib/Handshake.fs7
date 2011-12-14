@@ -166,3 +166,26 @@ theorem !mk,info. TLSMKey(mk,info) /\ HSFinished(info) /\ Crypto.Pub_k(mk) => Co
 assume !sk,info. TLSSKey(sk,info) /\ HSFinished(info) /\ Compromised(info) => Crypto.Pub_k(sk)
 theorem !sk,info. TLSSKey(sk,info) /\ HSFinished(info) /\ Crypto.Pub_k(sk) => Compromised(info)
 
+(*
+Handshake verification hints:
+We have agreement on the exchanged messages (verifyData). From this, we want to infer
+that we agreement on sessionInfo. So, we want to express sessionInfo = F(verifyData).
+However, F will be different from client to server, and in general we cannot prove
+F = F' (where F is on the client and F' on the server).
+Instead we want to characterize F and F' with the minimum information that we need to prove
+that F'(verifyData) = SessionInfo' = SessionInfo = F(verifyData)
+(Again: verifying the Finished message gives agreement on verifyData, i.e. it tells us verifyData
+is indeed the same on both sides).
+So, we do this by binding each field of sessionInfo to specific messages: e.g.
+sessionInfo.init_crand = F(clientHello) and F'(clientHello), etc.
+
+(best is when we can use the same binding for F and F', so that we write it only once and
+we reuse it on both client and server sides)
+
+We end up with something like in Cedric's comment. To prove it locally, we have to reason
+step-by-step, increasing the invariant:
+- In the initial state, we don't know anything about sessionInfo
+- When we receive one message, we assume all previously set fields are ok, and we prove
+  the field we handle is set correctly
+- In the final state, all fields are set correctly, and we get agreement on sessionInfo
+*)
