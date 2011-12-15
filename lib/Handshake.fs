@@ -229,6 +229,8 @@ let parseClientHello data =
     // pre: Length(data) > 34
     // correct post: something like data = ClientHelloBytes(...) 
     let (clVerBytes,clRandomBytes,data) = split2 data 2 32 in
+    let cv = parseVersion clVerBytes
+    let cr = parseRandom clRandomBytes
     match vlsplit 1 data with
     | Error(x,y) -> Error(x,y)
     | Correct (sid,data) ->
@@ -241,12 +243,13 @@ let parseClientHello data =
     match vlsplit 1 data with
     | Error(x,y) -> Error(x,y)
     | Correct (cmBytes,extensions) ->
+    let cm = parseCompressions cmBytes
     correct(
-     { client_version      = parseVersion clVerBytes
-       ch_random           = parseRandom clRandomBytes
+     { client_version      = cv 
+       ch_random           = cr 
        ch_session_id       = sid
        cipher_suites       = clientCipherSuites
-       compression_methods = parseCompressions cmBytes
+       compression_methods = cm 
        extensions          = extensions},
      clRandomBytes
     )
@@ -271,17 +274,14 @@ let makeServerHelloBytes poptions sinfo prevVerifData =
     ((makeHSPacket HT_server_hello data),sRandom)
 
 let parseServerHello data =
-    let (serverVerBytes,data) = split data 2 in
-    let serverVer = parseVersion serverVerBytes in
-    let (serverRandomBytes,data) = split data 32 in
+    let (serverVerBytes,serverRandomBytes,data) = split2 data 2 32 
+    let serverVer = parseVersion serverVerBytes 
     match vlsplit 1 data with
     | Error(x,y) -> Error (x,y)
     | Correct (sid,data) ->
-    let (csBytes,data) = split data 2 in
-    let cs = cipherSuite_of_bytes csBytes in
-    //TODO we should fail here if cs is "unknown"
-    let (cmBytes,data) = split data 1 in
-    let cm = compression_of_bytes cmBytes in
+    let (csBytes,cmBytes,data) = split2 data 2 1 
+    let cs = cipherSuite_of_bytes csBytes //TODO we should fail here if cs is "unknown"
+    let cm = compression_of_bytes cmBytes 
     correct(
      { server_version = serverVer
        sh_random = parseRandom serverRandomBytes
