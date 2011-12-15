@@ -121,7 +121,7 @@ definition !cs,s,s',ss. not(Mem(s',cs) <=> Negotiate(cs,s':ss,s) = Negotiate(cs,
 val negotiate: cs: 'a list -> ss: 'a list -> (s: 'a { s = Negotiate(cs,ss) }) option  
 
 // Internal
-val makeHSPacket : HS_msg.handshakeType -> Data.bytes -> Data.bytes
+val makeFragment : HS_msg.handshakeType -> Data.bytes -> Data.bytes
 val makeHelloRequestBytes : unit -> Data.bytes
 val makeTimestamp : unit -> int
 val makeClientHello : protocolOptions -> Sessions.sessionID -> HS_msg.clientHello
@@ -143,7 +143,7 @@ val start_hs_request: hs_state -> protocolOptions -> hs_state
 
 val new_session_idle: hs_state -> i:SessionInfo -> s:hs_state{s.hs_info = i}
 
-val parse_fragment :
+val parseFragment :
   hs_state ->
     Data.bytes -> hs_state * (HS_msg.handshakeType * Data.bytes) option
 val recv_fragment: hs_state -> Record.fragment ->

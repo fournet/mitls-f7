@@ -9,7 +9,7 @@ open RSA
 type cert
 
 val certificate_of_bytes: bytes -> cert Result
-val bytes_of_certificate: cert -> bytes
+val certificateBytes: cert -> bytes
 val pubKey_of_certificate: cert -> asymKey
 val priKey_of_certificate: cert -> asymKey
 val set_priKey: cert -> string -> cert

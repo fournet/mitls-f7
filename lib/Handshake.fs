@@ -14,6 +14,8 @@ open Principal
 open SessionDB
 open PRFs
 
+/// Handshake state machines 
+
 type clientSpecificState =
     { resumed_session: bool
       must_send_cert: certificateRequest Option
@@ -146,20 +148,37 @@ type recv_reply =
   | HSReadSideFinished
   | HSFullyFinished_Read of StorableSession (* ..., and we can start sending data on the connection *)
 
-let negotiate cList sList =
-    List.tryFind (
-        fun cAlg -> (
-                    List.exists (fun sAlg -> sAlg = cAlg) sList
-        )
-    ) cList
 
-/// Handshake message format
+/// Handshake message format 
 
-let makeHSPacket ht data =
-    let htb = htbytes ht in
-    let len = length data in
-    let blen = bytes_of_int 3 len in
-    htb @| blen @| data
+// we need a precise spec, as verifyData is a sereis of such messages.
+// private definition !ht,data. FragmentBytes(ht,data) = HTBytes(ht) @| VLBytes(3,data)
+
+let makeFragment ht data = htbytes ht @| vlbytes 3 data 
+
+let parseFragment hs_state =
+    (* Inefficient but simple implementation:
+       every time we reparse the whole incoming buffer,
+       searching for a full packet. When a full packet is found,
+       it is removed from the buffer. *)
+    if length hs_state.hs_incoming < 4 then None (* not enough data to start parsing *)
+    else
+        let (hstypeb,rem) = split hs_state.hs_incoming 1 in
+        let (lenb,rem) = split rem 3 in
+        let len = int_of_bytes lenb in
+        if length rem < len then None (* not enough payload, try next time *)
+        else
+            let hstype = parseHT hstypeb in
+            let (payload,rem) = split rem len in
+            let hs_state = { hs_state with hs_incoming = rem } in
+            let to_log = hstypeb @| lenb @| payload in
+            Some(hs_state,hstype,payload,to_log)
+
+/// Hello Request 
+
+let makeHelloRequestBytes () = makeFragment HT_hello_request [||]
+
+/// Client and Server extensions [could inline from HS_msg] 
 
 let makeExtStructBytes extType data =
     let extBytes = bytes_of_HExt extType in
@@ -169,15 +188,15 @@ let makeExtStructBytes extType data =
 let makeExtBytes data =
     vlbytes 2 data
 
-let makeTimestamp () = (* FIXME: we may need to abstract this function *)
-    let t = (System.DateTime.UtcNow - new System.DateTime(1970, 1, 1))
-    (int) t.TotalSeconds
-
 let makeRenegExtBytes verifyData =
     let payload = vlbytes 1 verifyData in
     makeExtStructBytes HExt_renegotiation_info payload
 
 /// Client and Server random values
+
+let makeTimestamp () = (* FIXME: we may need to abstract this function *)
+    let t = (System.DateTime.UtcNow - new System.DateTime(1970, 1, 1))
+    (int) t.TotalSeconds
 
 let makeRandom() = { time = makeTimestamp (); rnd = mkRandom 28}
 let randomBytes r = bytes_of_int 4 r.time @| r.rnd
@@ -193,23 +212,7 @@ let rec compressionMethodsBytes cs =
    | c::cs -> compressionBytes c @| compressionMethodsBytes cs
    | []    -> [||] 
 
-/// Hello Request 
-
-let makeHelloRequestBytes () = makeHSPacket HT_hello_request [||]
-
 /// Client Hello 
-
-let makeClientHello poptions session prevCVerifyData =
-    let ext =
-        if poptions.safe_renegotiation 
-        then makeExtBytes (makeRenegExtBytes prevCVerifyData)
-        else [||]
-    { client_version = poptions.maxVer
-      ch_random = makeRandom()
-      ch_session_id = session
-      cipher_suites = poptions.ciphersuites
-      compression_methods = poptions.compressions
-      extensions = ext }
 
 // ClientHelloBytes(clVer,clRdm,sid,clientCipherSuites,cm,extensions) = 
 // VersionBytes clVer @| CRBytes clRdm @| SidBytes sid 
@@ -245,6 +248,19 @@ let parseClientHello data =
      clRandomBytes
     )
 
+// called only just below; inline? HS_msg.clientHello seem unhelpful
+let makeClientHello poptions session prevCVerifyData =
+    let ext =
+        if poptions.safe_renegotiation 
+        then makeExtBytes (makeRenegExtBytes prevCVerifyData)
+        else [||]
+    { client_version = poptions.maxVer
+      ch_random = makeRandom()
+      ch_session_id = session
+      cipher_suites = poptions.ciphersuites
+      compression_methods = poptions.compressions
+      extensions = ext }
+
 let makeClientHelloBytes poptions session cVerifyData =
     let cHello     = makeClientHello poptions session cVerifyData in
     let cVerB      = versionBytes cHello.client_version in
@@ -253,7 +269,7 @@ let makeClientHelloBytes poptions session cVerifyData =
     let ccsuitesB  = vlbytes 2 (bytes_of_cipherSuites cHello.cipher_suites)
     let ccompmethB = vlbytes 1 (compressionMethodsBytes cHello.compression_methods) 
     let data = cVerB @| random @| csessB @| ccsuitesB @| ccompmethB @| cHello.extensions in
-    (makeHSPacket HT_client_hello data,random)
+    (makeFragment HT_client_hello data,random)
 
 /// Server Hello 
 
@@ -272,7 +288,7 @@ let makeServerHelloBytes poptions sinfo prevVerifData =
         else
             [||]
     let data = verB @| sRandom @| sidB @| csB @| cmB @| ext in
-    ((makeHSPacket HT_server_hello data),sRandom)
+    (makeFragment HT_server_hello data,sRandom)
 
 let parseServerHello data =
     let (serverVerBytes,serverRandomBytes,data) = split2 data 2 32 
@@ -312,28 +328,37 @@ let compute_master_secret pms ver crandom srandom =
     | _ -> Error(HSError(AD_internal_error),HSSendAlert)
 *)
 
+/// Certificates and Certificate Requests
 
-let bytes_of_certificates certList =
-    List.map bytes_of_certificate certList
+let certificatesBytes certList =
+    vlbytes 3 (List.foldBack (fun c a -> vlbytes 3 (certificateBytes c) @| a) certList [||])
+    
+let makeCertificateBytes cso =
+    let cs = match cso with None -> [] | Some(cs) -> cs
+    makeFragment HT_certificate (certificatesBytes cs)
 
-let rec certList_to_bytes certList acc =
-    match certList with
-    | h::t ->
-        let acc = acc @| h in
-        certList_to_bytes t acc
-    | [] -> acc
+let rec parseCertificate_int toProcess list =
+    if equalBytes toProcess [||] then
+        correct(list)
+    else
+        match vlsplit 3 toProcess with
+        | Error(x,y) -> Error(HSError(AD_bad_certificate),HSSendAlert)
+        | Correct (nextCertBytes,toProcess) ->
+        match certificate_of_bytes nextCertBytes with
+        | Error(x,y) -> Error(HSError(AD_bad_certificate),HSSendAlert)
+        | Correct(nextCert) ->
+            let list = list @ [nextCert] in
+            parseCertificate_int toProcess list
 
-let makeCertificateBytes certOpt =
-    match certOpt with
-    | None ->
-        let data = vlbytes 3 [||] in
-        makeHSPacket HT_certificate data
-    | Some(certList) ->
-        let pre_data = bytes_of_certificates certList in
-        let pre_data = List.map (fun cer -> vlbytes 3 cer) pre_data in
-        let pre_data = certList_to_bytes pre_data [||] in
-        let data = vlbytes 3 pre_data in
-        makeHSPacket HT_certificate data
+let parseCertificate data =
+    match vlsplit 3 data with
+    | Error(x,y) -> Error(HSError(AD_bad_certificate),HSSendAlert)
+    | Correct (certList,_) ->
+    match parseCertificate_int certList [] with
+    | Error(x,y) -> Error(x,y)
+    | Correct(certList) -> correct({certificate_list = certList})
+
+
 
 let makeCertificateRequestBytes cs ver =
     (* TODO: now we send all possible choiches, including inconsistent ones, and we hope the client will pick the proper one. *)
@@ -349,20 +374,18 @@ let makeCertificateRequestBytes cs ver =
             (* For no particular reason, we will offer rsa-sha1 and dsa-sha1 *)
             let rsaSigB = bytes_of_int 1 (int SigAlg.SA_rsa) in
             let dsaSigB = bytes_of_int 1 (int SigAlg.SA_dsa) in
-            let sha1B = bytes_of_int 1 (hashAlg_to_tls12enum Algorithms.hashAlg.SHA) in
+            let sha1B   = bytes_of_int 1 (hashAlg_to_tls12enum Algorithms.hashAlg.SHA) in
             let sigAndAlg = sha1B @| rsaSigB @| sha1B @| dsaSigB in
             vlbytes 2 sigAndAlg
-        | v when v >= ProtocolVersionType.SSL_3p0 ->
-            [||]
+        | v when v >= ProtocolVersionType.SSL_3p0 -> [||]
         | _ -> unexpectedError "[makeCertificateRequestBytes] invoked on unknown protocol version."
     (* We specify no cert auth *)
     let distNames = vlbytes 2 [||] in
     let data = certTypes @| sigAndAlg @| distNames in
-    makeHSPacket HT_certificate_request data
-
+    makeFragment HT_certificate_request data
 
 let makeSHelloDoneBytes unitVal =
-    makeHSPacket HT_server_hello_done [||]
+    makeFragment HT_server_hello_done [||]
 
 let makeClientKEXBytes hs_state clSpecInfo =
     if canEncryptPMS hs_state.hs_next_info.cipher_suite then
@@ -375,10 +398,10 @@ let makeClientKEXBytes hs_state clSpecInfo =
             | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
             | Correct (encpms) ->
                 if hs_state.hs_next_info.protocol_version = ProtocolVersionType.SSL_3p0 then
-                    correct ((makeHSPacket HT_client_key_exchange encpms),pms)
+                    correct ((makeFragment HT_client_key_exchange encpms),pms)
                 else
                     let encpms = vlbytes 2 encpms in
-                    correct ((makeHSPacket HT_client_key_exchange encpms),pms)
+                    correct ((makeFragment HT_client_key_exchange encpms),pms)
     else
         match clSpecInfo.must_send_cert with
         | Some (_) ->
@@ -389,16 +412,16 @@ let makeClientKEXBytes hs_state clSpecInfo =
                 let ycBytes = [||] in
                 (* TODO: compute pms *)
                 let pms = empty_pms in
-                correct ((makeHSPacket HT_client_key_exchange ycBytes),pms)
+                correct ((makeFragment HT_client_key_exchange ycBytes),pms)
             | Some (cert) ->
                 (* TODO: check whether the certificate already contained suitable DH parameters *)
                 let pms = empty_pms in
-                correct ((makeHSPacket HT_client_key_exchange [||]),pms)
+                correct ((makeFragment HT_client_key_exchange [||]),pms)
         | None ->
             (* Use DH parameters *)
             let ycBytes = [||] in
             let pms = empty_pms in
-            correct ((makeHSPacket HT_client_key_exchange ycBytes),pms)
+            correct ((makeFragment HT_client_key_exchange ycBytes),pms)
 
 (* Obsolete *)
 (*
@@ -436,7 +459,7 @@ let makeCertificateVerifyBytes cert data pv certReqMsg=
                 let hashAlgBytes = bytes_of_int 1 (hashAlg_to_tls12enum hashAlg) in
                 let signAlgBytes = bytes_of_int 1 (int SigAlg.SA_rsa) in
                 let payload = hashAlgBytes @| signAlgBytes @| signed in
-                correct (makeHSPacket HT_certificate_verify payload)
+                correct (makeFragment HT_certificate_verify payload)
     | x when x = ProtocolVersionType.TLS_1p0 || x = ProtocolVersionType.TLS_1p1 ->
         (* TODO *) Error(HSError(AD_internal_error),HSSendAlert)
     | ProtocolVersionType.SSL_3p0 ->
@@ -544,7 +567,7 @@ let checkVerifyData ki ms hsmsgs orig =
 
 let makeFinishedMsgBytes ki ms hsmsgs =
     let payload = prfVerifyData ki ms hsmsgs in
-    ((makeHSPacket HT_finished payload), payload)
+    ((makeFragment HT_finished payload), payload)
 
 (*
 let ciphstate_of_ciphtype ct key iv =
@@ -644,26 +667,6 @@ let inspect_SHello_extensions recvExt expected =
                     Error(HSError(AD_handshake_failure),HSSendAlert)
             | _ -> Error(HSError(AD_unsupported_extension),HSSendAlert)
 
-let rec parseCertificate_int toProcess list =
-    if equalBytes toProcess [||] then
-        correct(list)
-    else
-        match vlsplit 3 toProcess with
-        | Error(x,y) -> Error(HSError(AD_bad_certificate),HSSendAlert)
-        | Correct (nextCertBytes,toProcess) ->
-        match certificate_of_bytes nextCertBytes with
-        | Error(x,y) -> Error(HSError(AD_bad_certificate),HSSendAlert)
-        | Correct(nextCert) ->
-            let list = list @ [nextCert] in
-            parseCertificate_int toProcess list
-
-let parseCertificate data =
-    match vlsplit 3 data with
-    | Error(x,y) -> Error(HSError(AD_bad_certificate),HSSendAlert)
-    | Correct (certList,_) ->
-    match parseCertificate_int certList [] with
-    | Error(x,y) -> Error(x,y)
-    | Correct(certList) -> correct({certificate_list = certList})
 
 let rec certTypeList_of_bytes data res =
     if length data > 1 then
@@ -1070,30 +1073,9 @@ let new_session_idle state new_info ms =
          hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
          hs_renegotiation_info_sVerifyData = state.hs_renegotiation_info_sVerifyData}
 
-let enqueue_fragment hs_state fragment =
-    let new_inc = hs_state.hs_incoming @| fragment in
-    {hs_state with hs_incoming = new_inc}
-
-let parse_fragment hs_state =
-    (* Inefficient but simple implementation:
-       every time we reparse the whole incoming buffer,
-       searching for a full packet. When a full packet is found,
-       it is removed from the buffer. *)
-    if length hs_state.hs_incoming < 4 then None (* not enough data to start parsing *)
-    else
-        let (hstypeb,rem) = split hs_state.hs_incoming 1 in
-        let (lenb,rem) = split rem 3 in
-        let len = int_of_bytes lenb in
-        if length rem < len then None (* not enough payload, try next time *)
-        else
-            let hstype = parseHT hstypeb in
-            let (payload,rem) = split rem len in
-            let hs_state = { hs_state with hs_incoming = rem } in
-            let to_log = hstypeb @| lenb @| payload in
-            Some(hs_state,hstype,payload,to_log)
         
 let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersionType Option) =
-    match parse_fragment hs_state with
+    match parseFragment hs_state with
     | None ->
       match must_change_ver with
       | None      -> (correct (HSAck), hs_state)
@@ -1394,6 +1376,11 @@ let prepare_server_output_full hs_state maxClVer =
                     {hs_state with pstate = Server(ClientKEX(sSpecSt))}
             correct (hs_state)
 
+
+// The server "negotiates" its first proposal included in the client's proposal
+let negotiate cList sList =
+    List.tryFind (fun s -> List.exists (fun c -> c = s) cList) sList
+
 let start_server_full hs_state cHello =
     (* Negotiate the protocol parameters *)
     match minPV cHello.client_version hs_state.poptions.maxVer with
@@ -1448,7 +1435,7 @@ let prepare_server_output_resumption hs_state =
     hs_state
 
 let rec recv_fragment_server (hs_state:hs_state) (must_change_ver:ProtocolVersionType Option) =
-    match parse_fragment hs_state with
+    match parseFragment hs_state with
     | None ->
       match must_change_ver with
       | None      -> (correct (HSAck), hs_state)
@@ -1649,6 +1636,10 @@ and start_server_full' hs_state cHello =
         let (hs_state,negPV) = res 
         recv_fragment_server hs_state (Some(negPV))
 
+
+let enqueue_fragment hs_state fragment =
+    let new_inc = hs_state.hs_incoming @| fragment in
+    {hs_state with hs_incoming = new_inc}
 
 let recv_fragment (hs_state:hs_state) (tlen:int) (fragment:fragment) =
     (* Note, we receive fragments in the current session, not the one we're establishing *)
