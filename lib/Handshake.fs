@@ -161,8 +161,6 @@ let makeHSPacket ht data =
     let blen = bytes_of_int 3 len in
     htb @| blen @| data
 
-
-
 let makeExtStructBytes extType data =
     let extBytes = bytes_of_HExt extType in
     let payload = vlbytes 2 data in
@@ -218,16 +216,6 @@ let makeClientHello poptions session prevCVerifyData =
 //     @| CipherSuitesBytes clientCipherSuites 
 //     @| CompressionsBytes cm @| extensions
 
-let makeClientHelloBytes poptions session cVerifyData =
-    let cHello     = makeClientHello poptions session cVerifyData in
-    let cVerB      = versionBytes cHello.client_version in
-    let random     = randomBytes cHello.ch_random in
-    let csessB     = vlbytes 1 cHello.ch_session_id in
-    let ccsuitesB  = vlbytes 2 (bytes_of_cipherSuites cHello.cipher_suites)
-    let ccompmethB = vlbytes 1 (compressionMethodsBytes cHello.compression_methods) 
-    let data = cVerB @| random @| csessB @| ccsuitesB @| ccompmethB @| cHello.extensions in
-    (makeHSPacket HT_client_hello data,random)
-
 let parseClientHello data =
     // pre: Length(data) > 34
     // correct post: something like data = ClientHelloBytes(...) 
@@ -257,6 +245,17 @@ let parseClientHello data =
      clRandomBytes
     )
 
+let makeClientHelloBytes poptions session cVerifyData =
+    let cHello     = makeClientHello poptions session cVerifyData in
+    let cVerB      = versionBytes cHello.client_version in
+    let random     = randomBytes cHello.ch_random in
+    let csessB     = vlbytes 1 cHello.ch_session_id in
+    let ccsuitesB  = vlbytes 2 (bytes_of_cipherSuites cHello.cipher_suites)
+    let ccompmethB = vlbytes 1 (compressionMethodsBytes cHello.compression_methods) 
+    let data = cVerB @| random @| csessB @| ccsuitesB @| ccompmethB @| cHello.extensions in
+    let sanity = parseClientHello data
+    (makeHSPacket HT_client_hello data,random)
+
 /// Server Hello 
 
 let makeServerHelloBytes poptions sinfo prevVerifData =
@@ -285,14 +284,14 @@ let parseServerHello data =
     let (csBytes,cmBytes,data) = split2 data 2 1 
     let cs = cipherSuite_of_bytes csBytes //TODO we should fail here if cs is "unknown"
     let cm = compression_of_bytes cmBytes 
-    correct(
+    let r = 
      { server_version = serverVer
        sh_random = parseRandom serverRandomBytes
        sh_session_id = sid
        cipher_suite = cs
        compression_method = cm
-       neg_extensions = data},
-      serverRandomBytes)
+       neg_extensions = data}
+    correct(r,serverRandomBytes)
 
 
 (* Obsolete. Use PRFs.prfMS instead *)
