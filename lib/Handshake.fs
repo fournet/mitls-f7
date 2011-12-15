@@ -153,11 +153,15 @@ let negotiate cList sList =
         )
     ) cList
 
+/// Handshake message format
+
 let makeHSPacket ht data =
     let htb = htbytes ht in
     let len = length data in
     let blen = bytes_of_int 3 len in
     htb @| blen @| data
+
+
 
 let makeExtStructBytes extType data =
     let extBytes = bytes_of_HExt extType in

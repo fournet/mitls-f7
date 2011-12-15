@@ -117,8 +117,8 @@ type HashAlg =
 *)
 let hashAlg_to_tls12enum ha =
     match ha with
-    | Algorithms.hashAlg.MD5 -> 1
-    | Algorithms.hashAlg.SHA -> 2
+    | Algorithms.hashAlg.MD5    -> 1
+    | Algorithms.hashAlg.SHA    -> 2
     | Algorithms.hashAlg.SHA256 -> 4
     | Algorithms.hashAlg.SHA384 -> 5
 
@@ -132,9 +132,9 @@ let tls12enum_to_hashAlg n =
 
 type SigAlg =
     | SA_anonymous = 0
-    | SA_rsa = 1
-    | SA_dsa = 2
-    | SA_ecdsa = 3
+    | SA_rsa       = 1
+    | SA_dsa       = 2
+    | SA_ecdsa     = 3
 
 type SigAndHashAlg = {
     SaHA_hash: Algorithms.hashAlg;
