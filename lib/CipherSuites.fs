@@ -40,7 +40,7 @@ let rec compressions_of_bytes_int b list =
         let list = cm :: list in
         compressions_of_bytes_int rem list
 
-let compressions_of_bytes b = compressions_of_bytes_int b []
+let parseCompressions b = compressions_of_bytes_int b []
 
 type ProtocolVersionType =
     | UnknownPV = -1
@@ -126,7 +126,7 @@ let cipherSuite_of_bytes b =
 
     | _ -> cipherSuite.Unknown (b)
 
-let bytes_of_cipherSuite cs = 
+let cipherSuiteBytes cs = 
     match cs with
     | NullCipherSuite                                     -> [| 0x00uy; 0x00uy |]
 
@@ -177,10 +177,10 @@ let bytes_of_cipherSuite cs =
 // called by the server handshake; 
 // ciphersuites that we do not understand are parsed,
 // but will be ignored by the server
-let rec cipherSuites_of_bytes b =
+let rec parseCipherSuites b =
     if length b > 1 then
         let (b0,b1) = split b 2 
-        match cipherSuites_of_bytes b1 with 
+        match parseCipherSuites b1 with 
         | Correct(cs) -> Correct(cipherSuite_of_bytes b0 :: cs)
         | x -> x 
     else if length b = 0 then Correct([])
@@ -189,7 +189,7 @@ let rec cipherSuites_of_bytes b =
 let rec bytes_of_cipherSuites css =
     match css with 
     | [] -> [||] 
-    | cs::css -> bytes_of_cipherSuite cs @| 
+    | cs::css -> cipherSuiteBytes cs @| 
                  bytes_of_cipherSuites css
     
 (* we could use sub instead, with proper refinements:

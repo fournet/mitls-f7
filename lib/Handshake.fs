@@ -228,30 +228,26 @@ let makeClientHelloBytes poptions session cVerifyData =
 let parseClientHello data =
     // pre: Length(data) > 34
     // correct post: something like data = ClientHelloBytes(...) 
-    let (clVerBytes,data) = split data 2 in
-    let clVer = parseVersion clVerBytes in
-    let (clRandomBytes,data) = split data 32 in
+    let (clVerBytes,clRandomBytes,data) = split2 data 2 32 in
     match vlsplit 1 data with
     | Error(x,y) -> Error(x,y)
     | Correct (sid,data) ->
     match vlsplit 2 data with
     | Error(x,y) -> Error(x,y)
     | Correct (clCiphsuitesBytes,data) ->
-    match cipherSuites_of_bytes clCiphsuitesBytes with
+    match parseCipherSuites clCiphsuitesBytes with
     | Error(x,y) -> Error(x,y) 
     | Correct(clientCipherSuites) ->
     match vlsplit 1 data with
     | Error(x,y) -> Error(x,y)
-    | Correct (cmBytes,data) ->
-    let cm = compressions_of_bytes cmBytes in
-    let extensions = data
+    | Correct (cmBytes,extensions) ->
     correct(
-     { client_version = clVer
-       ch_random = parseRandom clRandomBytes
-       ch_session_id = sid
-       cipher_suites = clientCipherSuites
-       compression_methods = cm
-       extensions = extensions},
+     { client_version      = parseVersion clVerBytes
+       ch_random           = parseRandom clRandomBytes
+       ch_session_id       = sid
+       cipher_suites       = clientCipherSuites
+       compression_methods = parseCompressions cmBytes
+       extensions          = extensions},
      clRandomBytes
     )
 
@@ -263,7 +259,7 @@ let makeServerHelloBytes poptions sinfo prevVerifData =
     let sidB = vlbytes 1 (match sinfo.sessionID with
                           | None -> [||]
                           | Some(sid) -> sid)
-    let csB = bytes_of_cipherSuite sinfo.cipher_suite in
+    let csB = cipherSuiteBytes sinfo.cipher_suite in
     let cmB = compressionBytes sinfo.compression in
     let ext =
         if poptions.safe_renegotiation then
