@@ -253,7 +253,6 @@ let makeClientHelloBytes poptions session cVerifyData =
     let ccsuitesB  = vlbytes 2 (bytes_of_cipherSuites cHello.cipher_suites)
     let ccompmethB = vlbytes 1 (compressionMethodsBytes cHello.compression_methods) 
     let data = cVerB @| random @| csessB @| ccsuitesB @| ccompmethB @| cHello.extensions in
-    let sanity = parseClientHello data
     (makeHSPacket HT_client_hello data,random)
 
 /// Server Hello 
