@@ -20,8 +20,8 @@ type handshakeType =
     | HT_finished
     | HT_unknown of int
 
-val bytes_of_hs_type: handshakeType -> bytes
-val hs_type_of_bytes: bytes -> handshakeType
+val htbytes: handshakeType -> bytes
+val parseHT: bytes -> handshakeType
 
 type helloExtension =
     | HExt_renegotiation_info

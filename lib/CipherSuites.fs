@@ -21,7 +21,7 @@ type Compression =
     | Null
     | UnknownComp
 
-let bytes_of_compression comp =
+let compressionBytes comp =
     match comp with
     | Null -> [|0uy|]
     | UnknownComp -> unexpectedError "[byte_of_compression] Cannot convert the unknown compression type to a byte"
@@ -49,7 +49,7 @@ type ProtocolVersionType =
     | TLS_1p1   = 30
     | TLS_1p2   = 40
 
-let bytes_of_protocolVersionType pv =
+let versionBytes pv =
     match pv with
     | ProtocolVersionType.SSL_3p0 -> [| 3uy; 0uy |]
     | ProtocolVersionType.TLS_1p0 -> [| 3uy; 1uy |]
@@ -57,7 +57,7 @@ let bytes_of_protocolVersionType pv =
     | ProtocolVersionType.TLS_1p2 -> [| 3uy; 3uy |]
     | _ -> unexpectedError "Cannot convert the Unknown protocol version to bytes"
 
-let protocolVersionType_of_bytes (v:bytes) =
+let parseVersion (v:bytes) =
     match v with
     | [| 3uy; 0uy |] -> ProtocolVersionType.SSL_3p0
     | [| 3uy; 1uy |] -> ProtocolVersionType.TLS_1p0

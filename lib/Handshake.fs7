@@ -124,12 +124,12 @@ val negotiate: cs: 'a list -> ss: 'a list -> (s: 'a { s = Negotiate(cs,ss) }) op
 val makeHSPacket : HS_msg.handshakeType -> Data.bytes -> Data.bytes
 val makeHelloRequestBytes : unit -> Data.bytes
 val makeTimestamp : unit -> int
-val makeCHello : protocolOptions -> Sessions.sessionID -> HS_msg.clientHello
+val makeClientHello : protocolOptions -> Sessions.sessionID -> HS_msg.clientHello
 val b_of_cslist : HS_ciphersuites.CipherSuite list -> Data.bytes -> Data.bytes
 val bytes_of_cipherSuites : HS_ciphersuites.CipherSuite list -> Data.bytes
 val b_of_complist : Formats.Compression list -> Data.bytes -> Data.bytes
-val bytes_of_compressionMethods : Formats.Compression list -> Data.bytes
-val makeCHelloBytes : protocolOptions -> Sessions.sessionID -> Data.bytes
+val compressionMethodsBytes : Formats.Compression list -> Data.bytes
+val makeClientHelloBytes : protocolOptions -> Sessions.sessionID -> Data.bytes
 
 val init_handshake: r:role -> protocolOptions -> (info:SessionInfo * s:hs_state){info = InitSessionInfo(r,None) /\ s.hs_info = info}
 

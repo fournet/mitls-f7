@@ -12,21 +12,21 @@ type preContentType =
 
 type ContentType = preContentType
 
-let bytes_of_contentType ct =
+let ctBytes ct =
     match ct with
     | Change_cipher_spec -> [|20uy|]
     | Alert              -> [|21uy|]
     | Handshake          -> [|22uy|]
     | Application_data   -> [|23uy|]
-    | UnknownCT -> unexpectedError "[bytes_of_contentType] Cannot convert the Unknown content type to bytes"
+    | UnknownCT -> unexpectedError "[ctBytes] Cannot convert the Unknown content type to bytes"
 
-let contentType_of_bytes b =
+let parseCT b =
     match b with 
     | [|20uy|] -> Change_cipher_spec
     | [|21uy|] -> Alert
     | [|22uy|] -> Handshake
     | [|23uy|] -> Application_data
-    | _    -> UnknownCT
+    | _        -> UnknownCT
 
 let CTtoString = function
     | Change_cipher_spec -> "CCS" 
@@ -39,33 +39,27 @@ type KnownCT = preContentType
 
 let bytes_of_seq sn = bytes_of_int 8 sn
 
-let vlenBytes_of_bytes (lSize:int) b =
+let vlbytes (lSize:int) b =
     let vl = bytes_of_int lSize (length b) in
     vl @| b
 
-let bytes_of_vlenBytes lSize vlb =
-    let (vl,b) = split vlb lSize in
-    let l = int_of_bytes vl in
-    if l <= length b then correct (split b l)
-    else Error(Parsing,CheckFailed)
-
-
+let vlsplit lSize vlb : (bytes * bytes) Result = 
+    let (vl,b) = split vlb lSize 
+    let l = int_of_bytes vl
+    if l <= length b then correct (split b l) else Error(Parsing,CheckFailed)
+    
 (*
 let split_at_most data len =
     if len >= length data then
         (data,empty_bstr)
     else
         split data len
-*)
 
-(*
 let rec appendList (xl:bytes list) : bytes =
     match xl with
     | [] -> empty_bstr
     | h::t -> append h (appendList t)
-*)
 
-(*
 let rec splitList (b:bytes) (il:int list) : bytes list = 
     match il with
     | [] -> [b]

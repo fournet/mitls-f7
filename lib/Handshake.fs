@@ -154,33 +154,50 @@ let negotiate cList sList =
     ) cList
 
 let makeHSPacket ht data =
-    let htb = bytes_of_hs_type ht in
+    let htb = htbytes ht in
     let len = length data in
     let blen = bytes_of_int 3 len in
     htb @| blen @| data
 
 let makeExtStructBytes extType data =
     let extBytes = bytes_of_HExt extType in
-    let payload = vlenBytes_of_bytes 2 data in
+    let payload = vlbytes 2 data in
     extBytes @| payload
 
 let makeExtBytes data =
-    vlenBytes_of_bytes 2 data
-
-let makeHelloRequestBytes () =
-    makeHSPacket HT_hello_request [||]
+    vlbytes 2 data
 
 let makeTimestamp () = (* FIXME: we may need to abstract this function *)
     let t = (System.DateTime.UtcNow - new System.DateTime(1970, 1, 1))
     (int) t.TotalSeconds
 
 let makeRenegExtBytes verifyData =
-    let payload = vlenBytes_of_bytes 1 verifyData in
+    let payload = vlbytes 1 verifyData in
     makeExtStructBytes HExt_renegotiation_info payload
 
-let makeRandom() = { time = makeTimestamp (); rnd = mkRandom 28}
+/// Client and Server random values
 
-let makeCHello poptions session prevCVerifyData =
+let makeRandom() = { time = makeTimestamp (); rnd = mkRandom 28}
+let randomBytes r = bytes_of_int 4 r.time @| r.rnd
+let parseRandom data = 
+    // Length(data)=32 
+    let (tb,b) = split data 4 
+    { time = int_of_bytes tb; rnd = b }
+
+/// Compression algorithms 
+
+let rec compressionMethodsBytes cs =
+   match cs with
+   | c::cs -> compressionBytes c @| compressionMethodsBytes cs
+   | []    -> [||] 
+
+/// Hello Request 
+
+let makeHelloRequestBytes () = makeHSPacket HT_hello_request [||]
+
+/// Client Hello 
+
+let makeClientHello poptions session prevCVerifyData =
     let ext =
         if poptions.safe_renegotiation 
         then makeExtBytes (makeRenegExtBytes prevCVerifyData)
@@ -191,6 +208,93 @@ let makeCHello poptions session prevCVerifyData =
       cipher_suites = poptions.ciphersuites
       compression_methods = poptions.compressions
       extensions = ext }
+
+// ClientHelloBytes(clVer,clRdm,sid,clientCipherSuites,cm,extensions) = 
+// VersionBytes clVer @| CRBytes clRdm @| SidBytes sid 
+//     @| CipherSuitesBytes clientCipherSuites 
+//     @| CompressionsBytes cm @| extensions
+
+let makeClientHelloBytes poptions session cVerifyData =
+    let cHello     = makeClientHello poptions session cVerifyData in
+    let cVerB      = versionBytes cHello.client_version in
+    let tsbytes    = randomBytes cHello.ch_random in
+    let random     = tsbytes @| cHello.ch_random.rnd in
+    let csessB     = vlbytes 1 cHello.ch_session_id in
+    let ccsuitesB  = vlbytes 2 (bytes_of_cipherSuites cHello.cipher_suites)
+    let ccompmethB = vlbytes 1 (compressionMethodsBytes cHello.compression_methods) 
+    let data = cVerB @| random @| csessB @| ccsuitesB @| ccompmethB @| cHello.extensions in
+    (makeHSPacket HT_client_hello data,random)
+
+let parseClientHello data =
+    // pre: Length(data) > 34
+    // correct post: something like data = ClientHelloBytes(...) 
+    let (clVerBytes,data) = split data 2 in
+    let clVer = parseVersion clVerBytes in
+    let (clRandomBytes,data) = split data 32 in
+    match vlsplit 1 data with
+    | Error(x,y) -> Error(x,y)
+    | Correct (sid,data) ->
+    match vlsplit 2 data with
+    | Error(x,y) -> Error(x,y)
+    | Correct (clCiphsuitesBytes,data) ->
+    match cipherSuites_of_bytes clCiphsuitesBytes with
+    | Error(x,y) -> Error(x,y) 
+    | Correct(clientCipherSuites) ->
+    match vlsplit 1 data with
+    | Error(x,y) -> Error(x,y)
+    | Correct (cmBytes,data) ->
+    let cm = compressions_of_bytes cmBytes in
+    let extensions = data
+    correct(
+     { client_version = clVer
+       ch_random = parseRandom clRandomBytes
+       ch_session_id = sid
+       cipher_suites = clientCipherSuites
+       compression_methods = cm
+       extensions = extensions},
+     clRandomBytes
+    )
+
+/// Server Hello 
+
+let makeServerHelloBytes poptions sinfo prevVerifData =
+    let verB = versionBytes sinfo.protocol_version in
+    let sRandom = randomBytes (makeRandom()) in
+    let sidB = vlbytes 1 (match sinfo.sessionID with
+                          | None -> [||]
+                          | Some(sid) -> sid)
+    let csB = bytes_of_cipherSuite sinfo.cipher_suite in
+    let cmB = compressionBytes sinfo.compression in
+    let ext =
+        if poptions.safe_renegotiation then
+            let ren_extB = makeRenegExtBytes prevVerifData in
+            makeExtBytes ren_extB
+        else
+            [||]
+    let data = verB @| sRandom @| sidB @| csB @| cmB @| ext in
+    ((makeHSPacket HT_server_hello data),sRandom)
+
+let parseServerHello data =
+    let (serverVerBytes,data) = split data 2 in
+    let serverVer = parseVersion serverVerBytes in
+    let (serverRandomBytes,data) = split data 32 in
+    match vlsplit 1 data with
+    | Error(x,y) -> Error (x,y)
+    | Correct (sid,data) ->
+    let (csBytes,data) = split data 2 in
+    let cs = cipherSuite_of_bytes csBytes in
+    //TODO we should fail here if cs is "unknown"
+    let (cmBytes,data) = split data 1 in
+    let cm = compression_of_bytes cmBytes in
+    correct(
+     { server_version = serverVer
+       sh_random = parseRandom serverRandomBytes
+       sh_session_id = sid
+       cipher_suite = cs
+       compression_method = cm
+       neg_extensions = data},
+      serverRandomBytes)
+
 
 (* Obsolete. Use PRFs.prfMS instead *)
 (*
@@ -212,56 +316,6 @@ let compute_master_secret pms ver crandom srandom =
 *)
 
 
-let rec b_of_complist complist acc =
-    match complist with
-    | [] -> vlenBytes_of_bytes 1 acc
-    | h::t ->
-        let compb = bytes_of_compression h in
-        let acc = acc @| compb in
-        b_of_complist t acc
-
-let bytes_of_compressionMethods complist =
-    b_of_complist complist [||]
-
-// use instead?? and let the vlen to the caller, as for others
-// let rec bytes_of_compressions cs =
-//  match cs with
-//  | c::cs -> bytes_of_compression c @| b_of_complist cs
-//  | []    -> [||] 
-
-
-let makeCHelloBytes poptions session cVerifyData =
-    let cHello = makeCHello poptions session cVerifyData in
-    let cVerB = bytes_of_protocolVersionType cHello.client_version in
-    let tsbytes = bytes_of_int 4 cHello.ch_random.time in
-    let random = tsbytes @| cHello.ch_random.rnd in
-    let csessB = vlenBytes_of_bytes 1 cHello.ch_session_id in
-    let ccsuitesB = vlenBytes_of_bytes 2 (bytes_of_cipherSuites cHello.cipher_suites)
-    let ccompmethB = bytes_of_compressionMethods cHello.compression_methods in
-    let data = cVerB @| random @| csessB @| ccsuitesB @| ccompmethB @| cHello.extensions in
-    ((makeHSPacket HT_client_hello data),random)
-
-let makeSHelloBytes poptions sinfo prevVerifData =
-    let verB = bytes_of_protocolVersionType sinfo.protocol_version in
-    let tsB = bytes_of_int 4 (makeTimestamp ()) in
-    let randB = mkRandom 28 in
-    let sRandom = tsB @| randB in
-    let sidRaw =
-        match sinfo.sessionID with
-        | None -> [||]
-        | Some(sid) -> sid
-    let sidB = vlenBytes_of_bytes 1 sidRaw in
-    let csB = bytes_of_cipherSuite sinfo.cipher_suite in
-    let cmB = bytes_of_compression sinfo.compression in
-    let ext =
-        if poptions.safe_renegotiation then
-            let ren_extB = makeRenegExtBytes prevVerifData in
-            makeExtBytes ren_extB
-        else
-            [||]
-    let data = verB @| sRandom @| sidB @| csB @| cmB @| ext in
-    ((makeHSPacket HT_server_hello data),sRandom)
-
 let bytes_of_certificates certList =
     List.map bytes_of_certificate certList
 
@@ -275,13 +329,13 @@ let rec certList_to_bytes certList acc =
 let makeCertificateBytes certOpt =
     match certOpt with
     | None ->
-        let data = vlenBytes_of_bytes 3 [||] in
+        let data = vlbytes 3 [||] in
         makeHSPacket HT_certificate data
     | Some(certList) ->
         let pre_data = bytes_of_certificates certList in
-        let pre_data = List.map (fun cer -> vlenBytes_of_bytes 3 cer) pre_data in
+        let pre_data = List.map (fun cer -> vlbytes 3 cer) pre_data in
         let pre_data = certList_to_bytes pre_data [||] in
-        let data = vlenBytes_of_bytes 3 pre_data in
+        let data = vlbytes 3 pre_data in
         makeHSPacket HT_certificate data
 
 let makeCertificateRequestBytes cs ver =
@@ -291,7 +345,7 @@ let makeCertificateRequestBytes cs ver =
     let rsafixedB = bytes_of_int 1 (int ClientCertType.CLT_RSA_Fixed_DH) in
     let dsafixedB = bytes_of_int 1 (int ClientCertType.CLT_DSS_Fixed_DH) in
     let certTypes = rsaB @| dsaB @| rsafixedB @| dsafixedB in
-    let certTypes = vlenBytes_of_bytes 1 certTypes in
+    let certTypes = vlbytes 1 certTypes in
     let sigAndAlg =
         match ver with
         | ProtocolVersionType.TLS_1p2 ->
@@ -300,12 +354,12 @@ let makeCertificateRequestBytes cs ver =
             let dsaSigB = bytes_of_int 1 (int SigAlg.SA_dsa) in
             let sha1B = bytes_of_int 1 (hashAlg_to_tls12enum Algorithms.hashAlg.SHA) in
             let sigAndAlg = sha1B @| rsaSigB @| sha1B @| dsaSigB in
-            vlenBytes_of_bytes 2 sigAndAlg
+            vlbytes 2 sigAndAlg
         | v when v >= ProtocolVersionType.SSL_3p0 ->
             [||]
         | _ -> unexpectedError "[makeCertificateRequestBytes] invoked on unknown protocol version."
     (* We specify no cert auth *)
-    let distNames = vlenBytes_of_bytes 2 [||] in
+    let distNames = vlbytes 2 [||] in
     let data = certTypes @| sigAndAlg @| distNames in
     makeHSPacket HT_certificate_request data
 
@@ -326,7 +380,7 @@ let makeClientKEXBytes hs_state clSpecInfo =
                 if hs_state.hs_next_info.protocol_version = ProtocolVersionType.SSL_3p0 then
                     correct ((makeHSPacket HT_client_key_exchange encpms),pms)
                 else
-                    let encpms = vlenBytes_of_bytes 2 encpms in
+                    let encpms = vlbytes 2 encpms in
                     correct ((makeHSPacket HT_client_key_exchange encpms),pms)
     else
         match clSpecInfo.must_send_cert with
@@ -381,7 +435,7 @@ let makeCertificateVerifyBytes cert data pv certReqMsg=
             match RSA.rsaEncrypt priKey hashed with
             | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
             | Correct (signed) ->
-                let signed = vlenBytes_of_bytes 2 signed in
+                let signed = vlbytes 2 signed in
                 let hashAlgBytes = bytes_of_int 1 (hashAlg_to_tls12enum hashAlg) in
                 let signAlgBytes = bytes_of_int 1 (int SigAlg.SA_rsa) in
                 let payload = hashAlgBytes @| signAlgBytes @| signed in
@@ -511,7 +565,7 @@ let rec extensionList_of_bytes_int data list =
     | _ ->
         let (extTypeBytes,rem) = split data 2 in
         let extType = hExt_of_bytes extTypeBytes in
-        match bytes_of_vlenBytes 2 rem with
+        match vlsplit 2 rem with
         | Error(x,y) -> Error (HSError(AD_decode_error), HSSendAlert) (* Parsing error *)
         | Correct (payload,rem) -> extensionList_of_bytes_int rem ([(extType,payload)] @ list)
 
@@ -520,7 +574,7 @@ let extensionList_of_bytes data =
     | 0 -> correct ([])
     | 1 -> Error(HSError(AD_decode_error),HSSendAlert)
     | _ ->
-        match bytes_of_vlenBytes 2 data with
+        match vlsplit 2 data with
         | Error(x,y) -> Error(HSError(AD_decode_error),HSSendAlert) (* Parsing error *)
         | Correct (exts,rem) ->
         if not (equalBytes rem [||]) then
@@ -528,67 +582,11 @@ let extensionList_of_bytes data =
         else
             extensionList_of_bytes_int exts []
 
-let parseRandom data = 
-    // Length(data)=32 
-    let (tb,b) = split data 4 
-    { time = int_of_bytes tb; rnd = b }
 
-let parseCHello data =
-    // pre: Length(data) > 34
-    // correct post: something like 
-    // data = PVB clVer @| CRBytes clRdm @| SidBytes sid 
-    //     @| CipherSuitesBytes clientCipherSuites 
-    //     @| CompressionsBytes cm @| extensions
-    let (clVerBytes,data) = split data 2 in
-    let clVer = protocolVersionType_of_bytes clVerBytes in
-    let (clRandomBytes,data) = split data 32 in
-    match bytes_of_vlenBytes 1 data with
-    | Error(x,y) -> Error(x,y)
-    | Correct (sid,data) ->
-    match bytes_of_vlenBytes 2 data with
-    | Error(x,y) -> Error(x,y)
-    | Correct (clCiphsuitesBytes,data) ->
-    match cipherSuites_of_bytes clCiphsuitesBytes with
-    | Error(x,y) -> Error(x,y) 
-    | Correct(clientCipherSuites) ->
-    match bytes_of_vlenBytes 1 data with
-    | Error(x,y) -> Error(x,y)
-    | Correct (cmBytes,data) ->
-    let cm = compressions_of_bytes cmBytes in
-    let extensions = data
-    correct(
-     { client_version = clVer
-       ch_random = parseRandom clRandomBytes
-       ch_session_id = sid
-       cipher_suites = clientCipherSuites
-       compression_methods = cm
-       extensions = extensions},
-     clRandomBytes
-    )
 
-let parseSHello data =
-    let (serverVerBytes,data) = split data 2 in
-    let serverVer = protocolVersionType_of_bytes serverVerBytes in
-    let (serverRandomBytes,data) = split data 32 in
-    match bytes_of_vlenBytes 1 data with
-    | Error(x,y) -> Error (x,y)
-    | Correct (sid,data) ->
-    let (csBytes,data) = split data 2 in
-    let cs = cipherSuite_of_bytes csBytes in
-    //TODO we should fail here if cs is "unknown"
-    let (cmBytes,data) = split data 1 in
-    let cm = compression_of_bytes cmBytes in
-    correct(
-     { server_version = serverVer
-       sh_random = parseRandom serverRandomBytes
-       sh_session_id = sid
-       cipher_suite = cs
-       compression_method = cm
-       neg_extensions = data},
-      serverRandomBytes)
 
 let check_reneg_info payload expected =
-    match bytes_of_vlenBytes 1 payload with
+    match vlsplit 1 payload with
     | Error(x,y) -> false
     | Correct (recv,rem) ->
         equalBytes recv expected && equalBytes rem [||]
@@ -653,7 +651,7 @@ let rec parseCertificate_int toProcess list =
     if equalBytes toProcess [||] then
         correct(list)
     else
-        match bytes_of_vlenBytes 3 toProcess with
+        match vlsplit 3 toProcess with
         | Error(x,y) -> Error(HSError(AD_bad_certificate),HSSendAlert)
         | Correct (nextCertBytes,toProcess) ->
         match certificate_of_bytes nextCertBytes with
@@ -663,7 +661,7 @@ let rec parseCertificate_int toProcess list =
             parseCertificate_int toProcess list
 
 let parseCertificate data =
-    match bytes_of_vlenBytes 3 data with
+    match vlsplit 3 data with
     | Error(x,y) -> Error(HSError(AD_bad_certificate),HSSendAlert)
     | Correct (certList,_) ->
     match parseCertificate_int certList [] with
@@ -709,7 +707,7 @@ let rec distNamesList_of_bytes data res =
         if length data < 2 then (* FIXME: maybe at least 3 bytes, because we don't want empty names... *)
             Error(Parsing,CheckFailed)
         else
-            match bytes_of_vlenBytes 2 data with
+            match vlsplit 2 data with
             | Error(x,y) -> Error(x,y)
             | Correct (nameBytes,data) ->
             let name = iutf8 nameBytes in (* FIXME: I have no idea wat "X501 represented in DER-encoding format" (RFC 5246, page 54) is. I assume UTF8 will do. *)
@@ -717,13 +715,13 @@ let rec distNamesList_of_bytes data res =
             distNamesList_of_bytes data res
     
 let parseCertReq ver data =
-    match bytes_of_vlenBytes 1 data with
+    match vlsplit 1 data with
     | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
     | Correct (certTypeListBytes,data) ->
     let certTypeList = certTypeList_of_bytes certTypeListBytes [] in
     let sigAlgsAndData = (
         if ver = ProtocolVersionType.TLS_1p2 then
-            match bytes_of_vlenBytes 2 data with
+            match vlsplit 2 data with
             | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
             | Correct (sigAlgsBytes,data) ->
             match sigAlgsList_of_bytes sigAlgsBytes [] with
@@ -735,7 +733,7 @@ let parseCertReq ver data =
     match sigAlgsAndData with
     | Error(x,y) -> Error(x,y)
     | Correct ((sigAlgs,data)) ->
-    match bytes_of_vlenBytes 2 data with
+    match vlsplit 2 data with
     | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
     | Correct  (distNamesBytes,_) ->
     match distNamesList_of_bytes distNamesBytes [] with
@@ -760,7 +758,7 @@ let parseClientKEX sinfo sSpecState pops data =
                 | ProtocolVersionType.SSL_3p0 ->
                     correct (data)
                 | v when v >= ProtocolVersionType.TLS_1p0 ->
-                        match bytes_of_vlenBytes 2 data with
+                        match vlsplit 2 data with
                         | Error(x,y) -> Error(HSError(AD_decode_error),HSSendAlert)
                         | Correct (encPMS,rem) ->
                             if length rem = 0 then
@@ -890,7 +888,7 @@ let init_handshake dir poptions =
     (* Start a new first session without resumption *)
     match dir with
     | CtoS ->
-        let (cHelloBytes,client_random) = makeCHelloBytes poptions [||] [||] in
+        let (cHelloBytes,client_random) = makeClientHelloBytes poptions [||] [||] in
         let next_sinfo = {init_sessionInfo with init_crand = client_random} in
         {hs_outgoing = cHelloBytes
          ccs_outgoing = None
@@ -932,7 +930,7 @@ let resume_handshake sinfo ms poptions =
     match sinfo.sessionID with
     | None -> unexpectedError "[resume_handshake] a resumed session should always have a valid sessionID"
     | Some(sid) ->
-    let (cHelloBytes,client_random) = makeCHelloBytes poptions sid [||] in
+    let (cHelloBytes,client_random) = makeClientHelloBytes poptions sid [||] in
     let state = {hs_outgoing = cHelloBytes
                  ccs_outgoing = None
                  hs_outgoing_after_ccs = [||]
@@ -958,7 +956,7 @@ let start_rehandshake (state:hs_state) (ops:protocolOptions) =
     | Client (cstate) ->
         match cstate with
         | CIdle ->
-            let (cHelloBytes,client_random) = makeCHelloBytes ops [||] state.hs_renegotiation_info_cVerifyData in
+            let (cHelloBytes,client_random) = makeClientHelloBytes ops [||] state.hs_renegotiation_info_cVerifyData in
             let next_sinfo = {init_sessionInfo with init_crand = client_random} in
             let state = {hs_outgoing = cHelloBytes
                          ccs_outgoing = None
@@ -1002,7 +1000,7 @@ let start_rekey (state:hs_state) (ops:protocolOptions) =
                 | Client (cstate) ->
                     match cstate with
                     | CIdle ->
-                        let (cHelloBytes,client_random) = makeCHelloBytes ops sid state.hs_renegotiation_info_cVerifyData in
+                        let (cHelloBytes,client_random) = makeClientHelloBytes ops sid state.hs_renegotiation_info_cVerifyData in
                         let state = {hs_outgoing = cHelloBytes
                                      ccs_outgoing = None
                                      hs_outgoing_after_ccs = [||]
@@ -1091,7 +1089,7 @@ let parse_fragment hs_state =
         let len = int_of_bytes lenb in
         if length rem < len then None (* not enough payload, try next time *)
         else
-            let hstype = hs_type_of_bytes hstypeb in
+            let hstype = parseHT hstypeb in
             let (payload,rem) = split rem len in
             let hs_state = { hs_state with hs_incoming = rem } in
             let to_log = hstypeb @| lenb @| payload in
@@ -1119,7 +1117,7 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
         | HT_server_hello ->
             match cState with
             | ServerHello ->
-                match parseSHello payload with
+                match parseServerHello payload with
                 | Error(x,y) -> (Error(HSError(AD_decode_error),HSSendAlert),hs_state)
                 | Correct (shello,server_random) ->
                   // Sanity checks on the received message; they are security relevant. 
@@ -1349,7 +1347,7 @@ let getServerCert cs ops =
 
 let prepare_server_output_full hs_state maxClVer =
     let ext_data = hs_state.hs_renegotiation_info_cVerifyData @| hs_state.hs_renegotiation_info_sVerifyData in
-    let (sHelloB,sRandom) = makeSHelloBytes hs_state.poptions hs_state.hs_next_info ext_data in
+    let (sHelloB,sRandom) = makeServerHelloBytes hs_state.poptions hs_state.hs_next_info ext_data in
     let next_info = {hs_state.hs_next_info with init_srand = sRandom} in
     let hs_state = {hs_state with hs_next_info = next_info
                                   ki_srand = sRandom} in
@@ -1429,7 +1427,7 @@ let start_server_full hs_state cHello =
 
 let prepare_server_output_resumption hs_state =
     let ext_data = hs_state.hs_renegotiation_info_cVerifyData @| hs_state.hs_renegotiation_info_sVerifyData in
-    let (sHelloB,sRandom) = makeSHelloBytes hs_state.poptions hs_state.hs_next_info ext_data in
+    let (sHelloB,sRandom) = makeServerHelloBytes hs_state.poptions hs_state.hs_next_info ext_data in
     let hs_state = {hs_state with ki_srand = sRandom} in
     let new_out = hs_state.hs_outgoing @| sHelloB in
     let new_log = hs_state.hs_msg_log @| sHelloB in
@@ -1465,7 +1463,7 @@ let rec recv_fragment_server (hs_state:hs_state) (must_change_ver:ProtocolVersio
         | HT_client_hello ->
             match sState with
             | x when x = ClientHello || x = SIdle ->
-                match parseCHello payload with
+                match parseClientHello payload with
                 | Error(x,y) -> (Error(HSError(AD_decode_error),HSSendAlert),hs_state)
                 | Correct (cHello,cRandom) ->
                 let hs_state = {hs_state with ki_crand = cRandom} in

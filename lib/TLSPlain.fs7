@@ -123,7 +123,7 @@ val verify: id:id -> k:(;id) MAC.key -> t:mac_plain -> (;id) tag ->
 
 //TODO write down the internal definition of Msg
 definition !id,f,ad. 
-  MAC.Msg(id, f.bytes @| ad @| Int2Bytes(2,Length(f.bytes))) 
+  MAC.Msg(id, f.bytes @| ad @| IntBytes(2,Length(f.bytes))) 
   <=> Msg(id,f,ad)
 
 /// Concatenating fragments, MACs, and padding when using MAC-then-Encrypt

@@ -18,28 +18,42 @@ type ContentType = ct:preContentType
    ct = Handshake \/ ct = Application_data \/ ct = UnknownCT}
 
 // unnecessary? function val SeqNumB: int -> bytes
-val bytes_of_seq: sn:int -> b:bytes{Length(b) = 8 /\ b = Int2Bytes(8,sn)}
+val bytes_of_seq: sn:int -> b:bytes{Length(b) = 8 /\ b = IntBytes(8,sn)}
 
 //CF: let's pick better names, and maybe use length-1 arrays instead of single byte constants, e.g. 
 // CTBytes: ContentType -> bytes for the logical function 
 // ctBytes: ct:ContentType -> b:bytes{b=CTBytes(ct)} for the implementation
 
-function val CTB: ContentType -> bytes
-//internal, boring:
-definition CTB(Change_cipher_spec) = [|20uy|]
-definition CTB(Alert) = [|21uy|]
-definition CTB(Handshake) = [|22uy|]
-definition CTB(Application_data) = [|23uy|]
+function val CTBytes: ContentType -> bytes
+
+private definition CTBytes(Change_cipher_spec) = [|20uy|]
+private definition CTBytes(Alert) = [|21uy|]
+private definition CTBytes(Handshake) = [|22uy|]
+private definition CTBytes(Application_data) = [|23uy|]
+
 type KnownCT = ct:preContentType
 	{ct = Change_cipher_spec \/ ct = Alert \/
      ct = Handshake \/ ct = Application_data}
-val bytes_of_contentType: ct:KnownCT -> b:bytes{b=CTB(ct)}
+
+val ctBytes: ct:KnownCT -> b:bytes{b=CTBytes(ct)}
 // FIXME: maybe too weak, we want an exclusive or.
-val contentType_of_bytes: b:bytes -> ct:ContentType{ct=UnknownCT \/ b=CTB(ct)}
+val parseCT: b:bytes {Length(b)=1} -> ct:ContentType{ct=UnknownCT \/ b=CTBytes(ct)}
 val CTtoString: ContentType -> string
 
-//CF: TODO maybe rename to vlbytes and split_vlbytes
-val vlenBytes_of_bytes: vl:int -> b1:bytes ->
-	b:bytes{b = Int2Bytes(vl,Length(b1)) @| b1}
-val bytes_of_vlenBytes: vl:int -> b:bytes{Length(b) >= vl} ->
-    ((b1:bytes * b2:bytes){b = Int2Bytes(vl,Length(b1)) @| b1 @| b2}) Result
+// binary format for length-prefixed bytes;
+// the integer is the length of the prefix (1,2, 3 or 4 for TLS)
+
+function val VLBytes: (int * bytes) -> bytes 
+private definition !i,b. VLBytes(i,b) = IntBytes(i,Length(b)) @| b
+val vlbytes: l:int -> b:bytes -> r:bytes {r=VLBytes(l,b)} 
+val vlsplit: 
+  vl:nat{vl<=8} -> b:bytes{Length(b)>=vl} ->
+  ( b1:bytes * b2:bytes {b = VLBytes(vl,b1) @| b2}) Result
+
+// nice to have, not used so far.
+ask !i,b. Length(VLBytes(i,b)) = i + Length(b)
+
+// not provable so far, relies on associativity
+//ask !i,b1,b2,c1,c2. 
+//  (VLBytes(i,b1) @| b2 = VLBytes(i,c1) @| c2) => (b1 = c1 /\ b2 = c2)
+ 

@@ -137,7 +137,7 @@ let prfVerifyData ki (ms:masterSecret) data =
 type preMasterSecret = {bytes:bytes}
 
 let genPMS (sinfo:SessionInfo) ver =
-    let verBytes = bytes_of_protocolVersionType ver in
+    let verBytes = versionBytes ver in
     let rnd = mkRandom 46 in
     let pms = verBytes @| rnd in
     {bytes = pms}
@@ -151,7 +151,7 @@ let getPMS sinfo ver check_client_version_in_pms_for_old_tls cert encPMS =
     let fakepms = mkRandom 46 in
     (* 2. Decrypt the message to recover plaintext *)
     let priK = Principal.priKey_of_certificate cert in
-    let verB = bytes_of_protocolVersionType ver in
+    let verB = versionBytes ver in
     match rsaDecrypt priK encPMS with
     | Error(x,y) ->
         (* 3. Decrypt error, continue with fake pms *)

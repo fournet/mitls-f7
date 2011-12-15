@@ -79,8 +79,8 @@ let make_decompression conn data =
 let makeAD conn ct =
     let version = conn.local_pv in
     let bseq = bytes_of_seq conn.seq_num in
-    let bct  = bytes_of_contentType ct in
-    let bver = bytes_of_protocolVersionType version in
+    let bct  = ctBytes ct in
+    let bver = versionBytes version in
     match version with
     | ProtocolVersionType.SSL_3p0             -> bseq @| bct
     | x when x >= ProtocolVersionType.TLS_1p0 -> bseq @| bct @| bver
@@ -88,8 +88,8 @@ let makeAD conn ct =
 
 let makePacket ct ver data =
   let l = length data in 
-  let bct  = bytes_of_contentType ct in
-  let bver = bytes_of_protocolVersionType ver in
+  let bct  = ctBytes ct in
+  let bver = versionBytes ver in
   let bl   = bytes_of_int 2 l in
   bct @| bver @| bl @| data
 
@@ -98,8 +98,8 @@ let makePacket ct ver data =
 let parse_header conn header =
   let (ct1,rem4) = split header 1 in
   let (pv2,len2) = split rem4 2 in
-  let ct  = contentType_of_bytes ct1 in
-  let pv  = protocolVersionType_of_bytes pv2 in
+  let ct  = parseCT ct1 in
+  let pv  = parseVersion pv2 in
   let len = int_of_bytes len2 in
   if   (  conn.local_pv <> ProtocolVersionType.UnknownPV 
          && pv <> conn.local_pv)

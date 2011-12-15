@@ -38,7 +38,13 @@ let mkRandom len =
     rng.GetBytes x; x
 
 let (@|) (a:bytes) (b:bytes) = Array.append a b
-let split (b:bytes) i : bytes * bytes = (Array.sub b 0 i, Array.sub b i (b.Length-i))
-
+let split (b:bytes) i : bytes * bytes = 
+  Array.sub b 0 i,
+  Array.sub b i (b.Length-i)
+let split2 (b:bytes) i j : bytes * bytes * bytes =
+  Array.sub b 0 i,
+  Array.sub b i (i+j),
+  Array.sub b (i+j) (b.Length-(i+j))
+   
 let utf8 (x:string) : bytes = System.Text.Encoding.UTF8.GetBytes x
 let iutf8 (x:bytes) : string = System.Text.Encoding.UTF8.GetString x

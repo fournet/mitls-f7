@@ -19,8 +19,8 @@ type ProtocolVersionType =
     | TLS_1p1   = 30
     | TLS_1p2   = 40
 
-val bytes_of_protocolVersionType: ProtocolVersionType -> bytes
-val protocolVersionType_of_bytes: bytes -> ProtocolVersionType
+val versionBytes: ProtocolVersionType -> bytes
+val parseVersion: bytes -> ProtocolVersionType
 val minPV: ProtocolVersionType -> ProtocolVersionType -> ProtocolVersionType
 
 val nullCipherSuite: cipherSuite
@@ -39,7 +39,7 @@ val macAlg_of_ciphersuite: cipherSuite -> hashAlg
 val encAlg_of_ciphersuite: cipherSuite -> cipherAlg
 
 val compression_of_bytes: bytes -> Compression
-val bytes_of_compression: Compression -> bytes
+val compressionBytes: Compression -> bytes
 val compressions_of_bytes: bytes -> Compression list
 
 val bytes_of_cipherSuite: cipherSuite -> bytes

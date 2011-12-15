@@ -16,11 +16,11 @@ type ContentType = preContentType
 type KnownCT = preContentType 
 val bytes_of_seq: int -> bytes
 
-val bytes_of_contentType: ContentType -> bytes
-val contentType_of_bytes: bytes -> ContentType
+val ctBytes: ContentType -> bytes
+val parseCT: bytes -> ContentType
 val CTtoString: ContentType -> string
 
-val vlenBytes_of_bytes: int -> bytes -> bytes
-val bytes_of_vlenBytes: int -> bytes -> (bytes * bytes) Result
+val vlbytes: int -> bytes -> bytes
+val vlsplit: int -> bytes -> (bytes * bytes) Result
 
 //val splitList: bytes -> int list -> bytes list
