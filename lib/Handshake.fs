@@ -17,12 +17,7 @@ open PRFs
 type clientSpecificState =
     { resumed_session: bool
       must_send_cert: certificateRequest Option
-      client_certificate: (cert list) Option
-    }
-
-type serverSpecificState =
-    { resumed_session: bool
-      highest_client_ver: ProtocolVersionType}
+      client_certificate: (cert list) Option }
 
 type clientState =
     | ServerHello
@@ -34,6 +29,10 @@ type clientState =
     | CFinished of clientSpecificState
     | CWatingToWrite
     | CIdle
+
+type serverSpecificState =
+    { resumed_session: bool
+      highest_client_ver: ProtocolVersionType}
 
 type serverState =
     | ClientHello
@@ -50,11 +49,11 @@ type protoState =
     | Server of serverState
 
 type pre_hs_state = {
-  hs_outgoing    : bytes (* outgiong data before a ccs *)
+  hs_outgoing    : bytes                  (* outgoing data before a ccs *)
   ccs_outgoing: (bytes * ccs_data) option (* marker telling there's a ccs ready *)
-  hs_outgoing_after_ccs: bytes (* data to be sent after the ccs has been sent *)
-  hs_incoming    : bytes (* partial incoming HS message *)
-  ccs_incoming: ccs_data option (* used to store the computed secrects for receving data. Not set when receiving CCS, but when we compute the session secrects *)
+  hs_outgoing_after_ccs: bytes            (* data to be sent after the ccs has been sent *)
+  hs_incoming    : bytes                  (* partial incoming HS message *)
+  ccs_incoming: ccs_data option (* used to store the computed secrets for receiving data. Not set when receiving CCS, but when we compute the session secrects *)
   poptions: protocolOptions;
   pstate : protoState
   hs_msg_log: bytes
@@ -78,7 +77,7 @@ type HSFragReply =
   | CCSFrag of (int * fragment) * ccs_data
 
 let next_fragment state =
-    (* Assumptions: The buffer are filled in the following order:
+    (* Assumptions: The buffers have been filled in the following order:
        1) hs_outgoing; 2) ccs_outgoing; 3) hs_outgoing_after_ccs
        hs_outgoing_after_ccs is filled all at once; so, when it's empty,
        we can conclude HS protocol is terminated, and no more data will be added to any buffer
@@ -179,22 +178,19 @@ let makeRenegExtBytes verifyData =
     let payload = vlenBytes_of_bytes 1 verifyData in
     makeExtStructBytes HExt_renegotiation_info payload
 
+let makeRandom() = { time = makeTimestamp (); rnd = mkRandom 28}
+
 let makeCHello poptions session prevCVerifyData =
-    let random = { time = makeTimestamp ();
-                   rnd = mkRandom 28} in
     let ext =
-        if poptions.safe_renegotiation then
-            makeExtBytes (makeRenegExtBytes prevCVerifyData)
-        else
-            [||]
-    {
-    client_version = poptions.maxVer
-    ch_random = random
-    ch_session_id = session
-    cipher_suites = poptions.ciphersuites
-    compression_methods = poptions.compressions
-    extensions = ext
-    }
+        if poptions.safe_renegotiation 
+        then makeExtBytes (makeRenegExtBytes prevCVerifyData)
+        else [||]
+    { client_version = poptions.maxVer
+      ch_random = makeRandom()
+      ch_session_id = session
+      cipher_suites = poptions.ciphersuites
+      compression_methods = poptions.compressions
+      extensions = ext }
 
 (* Obsolete. Use PRFs.prfMS instead *)
 (*
@@ -226,6 +222,13 @@ let rec b_of_complist complist acc =
 
 let bytes_of_compressionMethods complist =
     b_of_complist complist [||]
+
+// use instead?? and let the vlen to the caller, as for others
+// let rec bytes_of_compressions cs =
+//  match cs with
+//  | c::cs -> bytes_of_compression c @| b_of_complist cs
+//  | []    -> [||] 
+
 
 let makeCHelloBytes poptions session cVerifyData =
     let cHello = makeCHello poptions session cVerifyData in
@@ -389,8 +392,7 @@ let makeCertificateVerifyBytes cert data pv certReqMsg=
         (* TODO *) Error(HSError(AD_internal_error),HSSendAlert)
     | _ -> Error(HSError(AD_internal_error),HSSendAlert)
 
-let makeCCSBytes () =
-    bytes_of_int 1 1
+let CCSBytes = [| 1uy |] 
 
 (* Obsolete. Use PRFs.prfKeyExp instead *)
 (*
@@ -526,13 +528,20 @@ let extensionList_of_bytes data =
         else
             extensionList_of_bytes_int exts []
 
+let parseRandom data = 
+    // Length(data)=32 
+    let (tb,b) = split data 4 
+    { time = int_of_bytes tb; rnd = b }
+
 let parseCHello data =
+    // pre: Length(data) > 34
+    // correct post: something like 
+    // data = PVB clVer @| CRBytes clRdm @| SidBytes sid 
+    //     @| CipherSuitesBytes clientCipherSuites 
+    //     @| CompressionsBytes cm @| extensions
     let (clVerBytes,data) = split data 2 in
     let clVer = protocolVersionType_of_bytes clVerBytes in
-    let (clTsBytes,data) = split data 4 in
-    let clTs = int_of_bytes clTsBytes in
-    let (clRdmBytes,data) = split data 28 in
-    let clRdm = {time = clTs; rnd = clRdmBytes} in
+    let (clRandomBytes,data) = split data 32 in
     match bytes_of_vlenBytes 1 data with
     | Error(x,y) -> Error(x,y)
     | Correct (sid,data) ->
@@ -546,23 +555,21 @@ let parseCHello data =
     | Error(x,y) -> Error(x,y)
     | Correct (cmBytes,data) ->
     let cm = compressions_of_bytes cmBytes in
+    let extensions = data
     correct(
      { client_version = clVer
-       ch_random = clRdm
+       ch_random = parseRandom clRandomBytes
        ch_session_id = sid
        cipher_suites = clientCipherSuites
        compression_methods = cm
-       extensions = data},
-     clTsBytes @| clRdmBytes
+       extensions = extensions},
+     clRandomBytes
     )
 
 let parseSHello data =
     let (serverVerBytes,data) = split data 2 in
     let serverVer = protocolVersionType_of_bytes serverVerBytes in
-    let (serverTsBytes,data) = split data 4 in
-    let serverTs = int_of_bytes serverTsBytes in
-    let (serverRdmBytes,data) = split data 28 in
-    let serverRdm = {time = serverTs; rnd = serverRdmBytes} in
+    let (serverRandomBytes,data) = split data 32 in
     match bytes_of_vlenBytes 1 data with
     | Error(x,y) -> Error (x,y)
     | Correct (sid,data) ->
@@ -573,25 +580,19 @@ let parseSHello data =
     let cm = compression_of_bytes cmBytes in
     correct(
      { server_version = serverVer
-       sh_random = serverRdm
+       sh_random = parseRandom serverRandomBytes
        sh_session_id = sid
        cipher_suite = cs
        compression_method = cm
        neg_extensions = data},
-      serverTsBytes @| serverRdmBytes)
+      serverRandomBytes)
 
 let check_reneg_info payload expected =
     match bytes_of_vlenBytes 1 payload with
     | Error(x,y) -> false
     | Correct (recv,rem) ->
-    if not (equalBytes recv expected) then
-        false
-    else
-        (* Also check there were no more data in this extension! *)
-        if not (equalBytes rem [||]) then
-            false
-        else
-            true
+        equalBytes recv expected && equalBytes rem [||]
+        // We also check there were no more data in this extension.
 
 let check_client_renegotiation_info cHello expected =
     match extensionList_of_bytes cHello.extensions with
@@ -624,7 +625,6 @@ let check_client_renegotiation_info cHello expected =
                     let ren_ext = ren_ext_list.Head in
                     let (extType,payload) = ren_ext in
                     check_reneg_info payload expected
-                
                 
 
 let inspect_SHello_extensions recvExt expected =
@@ -808,7 +808,7 @@ let compute_session_secrets_and_CCSs hs_state dir =
                            key = writeKey
                            iv3 = writeIV}
     (* Put the ccs_data in the appropriate buffers. *)
-    let hs_state = {hs_state with ccs_outgoing = Some((makeCCSBytes(),write_ccs_data))
+    let hs_state = {hs_state with ccs_outgoing = Some((CCSBytes,write_ccs_data))
                                   ccs_incoming = Some(read_ccs_data)} in
     hs_state
 
@@ -1084,32 +1084,26 @@ let parse_fragment hs_state =
        every time we reparse the whole incoming buffer,
        searching for a full packet. When a full packet is found,
        it is removed from the buffer. *)
-    if length hs_state.hs_incoming < 4 then
-        (* Not enough data to even start parsing *)
-        (hs_state, None)
+    if length hs_state.hs_incoming < 4 then None (* not enough data to start parsing *)
     else
         let (hstypeb,rem) = split hs_state.hs_incoming 1 in
         let (lenb,rem) = split rem 3 in
         let len = int_of_bytes lenb in
-        if length rem < len then
-            (* not enough payload, try next time *)
-            (hs_state, None)
+        if length rem < len then None (* not enough payload, try next time *)
         else
             let hstype = hs_type_of_bytes hstypeb in
             let (payload,rem) = split rem len in
             let hs_state = { hs_state with hs_incoming = rem } in
             let to_log = hstypeb @| lenb @| payload in
-            (hs_state, Some(hstype,payload,to_log))
+            Some(hs_state,hstype,payload,to_log)
         
 let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersionType Option) =
-    let (hs_state,new_packet) = parse_fragment hs_state in
-    match new_packet with
+    match parse_fragment hs_state with
     | None ->
       match must_change_ver with
-      | None -> (correct (HSAck), hs_state)
+      | None      -> (correct (HSAck), hs_state)
       | Some (pv) -> (correct (HSChangeVersion(CtoS,pv)),hs_state)
-    | Some (data) ->
-      let (hstype,payload,to_log) = data in
+    | Some (hs_state,hstype,payload,to_log) ->
       match hs_state.pstate with
       | Client(cState) ->
         match hstype with
@@ -1128,49 +1122,82 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                 match parseSHello payload with
                 | Error(x,y) -> (Error(HSError(AD_decode_error),HSSendAlert),hs_state)
                 | Correct (shello,server_random) ->
-                (* Sanity checks on the received message *)
-                (* FIXME: are they security-relevant here? Or only functionality-relevant? *)
-                
-                (* Check that the server agreed version is between maxVer and minVer. *)
-                if not (shello.server_version >= hs_state.poptions.minVer && shello.server_version <= hs_state.poptions.maxVer) then
-                    (Error(HSError(AD_protocol_version),HSSendAlert),hs_state)
-                else
-                    (* Check that negotiated ciphersuite is in the allowed list. Note: if resuming a session, we still have
-                    to check that this ciphersuite is the expected one! *)
-                    if not (List.exists (fun x -> x = shello.cipher_suite) hs_state.poptions.ciphersuites) then
-                        (Error(HSError(AD_illegal_parameter),HSSendAlert),hs_state)
+                  // Sanity checks on the received message; they are security relevant. 
+                  // Check that the server agreed version is between maxVer and minVer. 
+                  if not (shello.server_version >= hs_state.poptions.minVer 
+                       && shello.server_version <= hs_state.poptions.maxVer) 
+                  then Error(HSError(AD_protocol_version),HSSendAlert),hs_state
+                  else
+                  // Check that the negotiated ciphersuite is in the proposed list.
+                  // Note: if resuming a session, we still have to check that this ciphersuite is the expected one!
+                  if not (List.exists (fun x -> x = shello.cipher_suite) hs_state.poptions.ciphersuites) 
+                  then Error(HSError(AD_illegal_parameter),HSSendAlert),hs_state
+                  else
+                  // Check that the compression method is in the proposed list.
+                  if not (List.exists (fun x -> x = shello.compression_method) hs_state.poptions.compressions) 
+                  then Error(HSError(AD_illegal_parameter),HSSendAlert),hs_state
+                  else
+                  // Handling of safe renegotiation
+                  let safe_reneg_result =
+                    if hs_state.poptions.safe_renegotiation then
+                        let expected = hs_state.hs_renegotiation_info_cVerifyData @| hs_state.hs_renegotiation_info_sVerifyData in
+                        inspect_SHello_extensions shello.neg_extensions expected
                     else
-                        (* Same for compression method *)
-                        if not (List.exists (fun x -> x = shello.compression_method) hs_state.poptions.compressions) then
-                            (Error(HSError(AD_illegal_parameter),HSSendAlert),hs_state)
+                        // RFC Sec 7.4.1.4: with no safe renegotiation, we never send extensions; if the server sent any extension
+                        // we MUST abort the handshake with unsupported_extension fatal alter (handled by the dispatcher)
+                        if not (equalBytes shello.neg_extensions [||])
+                        then Error(HSError(AD_unsupported_extension),HSSendAlert)
+                        else let unitVal = () in correct (unitVal)
+                  match safe_reneg_result with
+                    | Error (x,y) -> (Error (x,y), hs_state)
+                    | Correct _ ->
+                        // Log the received packet and store the server random.
+                        let new_log = hs_state.hs_msg_log @| to_log in
+                        let hs_state = {hs_state with hs_msg_log = new_log; ki_srand = server_random}
+                        (* Check whether we asked for resumption *)
+                        if isNullCipherSuite hs_state.hs_next_info.cipher_suite then
+                            (* we did not request resumption, do a full handshake *)
+                            (* define the sinfo we're going to establish *)
+                            let next_sinfo = { clientID = None
+                                               serverID = None
+                                               sessionID = (if equalBytes shello.sh_session_id [||] then None else Some(shello.sh_session_id))
+                                               protocol_version = shello.server_version
+                                               cipher_suite = shello.cipher_suite
+                                               compression = shello.compression_method
+                                               init_crand = hs_state.hs_next_info.init_crand (* or, alternatively, hs_state.ki_crand *)
+                                               init_srand = server_random
+                                             } in
+                            let hs_state = {hs_state with hs_next_info = next_sinfo} in
+                            (* If DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
+                            if isAnonCipherSuite shello.cipher_suite then
+                                let hs_state = {hs_state with pstate = Client(ServerKeyExchange)} in
+                                recv_fragment_client hs_state (Some(shello.server_version))
+                            else
+                                let hs_state = {hs_state with pstate = Client(Certificate)} in
+                                recv_fragment_client hs_state (Some(shello.server_version))
                         else
-                            (* Handling of safe renegotiation *)
-                            let safe_reneg_result =
-                                if hs_state.poptions.safe_renegotiation then
-                                    let expected = hs_state.hs_renegotiation_info_cVerifyData @| hs_state.hs_renegotiation_info_sVerifyData in
-                                    inspect_SHello_extensions shello.neg_extensions expected
-                                else
-                                    (* RFC Sec 7.4.1.4: with no safe renegotiation, we never send extensions; if the server sent any extension
-                                       we MUST abot the handshake with unsupported_extension fatal alter (handled by the dispatcher) *)
-                                    if not (equalBytes shello.neg_extensions [||]) then
-                                        Error(HSError(AD_unsupported_extension),HSSendAlert)
-                                    else
-                                        let unitVal = () in
-                                        correct (unitVal)
-                            match safe_reneg_result with
-                            | Error (x,y) -> (Error (x,y), hs_state)
-                            | Correct _ ->
-                                (* Log the received packet, and store the server random *)
-                                let new_log = hs_state.hs_msg_log @| to_log in
-                                let hs_state = {hs_state with hs_msg_log = new_log
-                                                              ki_srand = server_random}
-                                (* Check whether we asked for resumption *)
-                                if isNullCipherSuite hs_state.hs_next_info.cipher_suite then
-                                    (* we did not request resumption, do a full handshake *)
+                            match hs_state.hs_next_info.sessionID with
+                            | None -> unexpectedError "[recv_fragment] A resumed session should never have empty SID"
+                            | Some(sid) ->
+                                if sid = shello.sh_session_id then (* use resumption *)
+                                    (* Check that protocol version, ciph_suite and compression method are indeed the correct ones *)
+                                    if hs_state.hs_next_info.protocol_version = shello.server_version then
+                                        if hs_state.hs_next_info.cipher_suite = shello.cipher_suite then
+                                            if hs_state.hs_next_info.compression = shello.compression_method then
+                                                let hs_state = compute_session_secrets_and_CCSs hs_state CtoS in
+                                                let clSpecState = { resumed_session = true;
+                                                                    must_send_cert = None;
+                                                                    client_certificate = None} in
+                                                let hs_state = { hs_state with pstate = Client(CCCS(clSpecState))}
+                                                recv_fragment_client hs_state (Some(shello.server_version))
+                                            else (Error(HSError(AD_illegal_parameter),HSSendAlert),hs_state)
+                                        else (Error(HSError(AD_illegal_parameter),HSSendAlert),hs_state)
+                                    else (Error(HSError(AD_illegal_parameter),HSSendAlert),hs_state)
+                                else (* server did not agreed on resumption, do a full handshake *)
                                     (* define the sinfo we're going to establish *)
                                     let next_sinfo = { clientID = None
                                                        serverID = None
-                                                       sessionID = if equalBytes shello.sh_session_id [||] then None else Some(shello.sh_session_id)
+                                                       sessionID = (if equalBytes shello.sh_session_id [||] then None else Some(shello.sh_session_id))
                                                        protocol_version = shello.server_version
                                                        cipher_suite = shello.cipher_suite
                                                        compression = shello.compression_method
@@ -1185,43 +1212,6 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                                     else
                                         let hs_state = {hs_state with pstate = Client(Certificate)} in
                                         recv_fragment_client hs_state (Some(shello.server_version))
-                                else
-                                    match hs_state.hs_next_info.sessionID with
-                                    | None -> unexpectedError "[recv_fragment] A resumed session should never have empty SID"
-                                    | Some(sid) ->
-                                        if sid = shello.sh_session_id then (* use resumption *)
-                                            (* Check that protocol version, ciph_suite and compression method are indeed the correct ones *)
-                                            if hs_state.hs_next_info.protocol_version = shello.server_version then
-                                                if hs_state.hs_next_info.cipher_suite = shello.cipher_suite then
-                                                    if hs_state.hs_next_info.compression = shello.compression_method then
-                                                        let hs_state = compute_session_secrets_and_CCSs hs_state CtoS in
-                                                        let clSpecState = { resumed_session = true;
-                                                                            must_send_cert = None;
-                                                                            client_certificate = None} in
-                                                        let hs_state = { hs_state with pstate = Client(CCCS(clSpecState))}
-                                                        recv_fragment_client hs_state (Some(shello.server_version))
-                                                    else (Error(HSError(AD_illegal_parameter),HSSendAlert),hs_state)
-                                                else (Error(HSError(AD_illegal_parameter),HSSendAlert),hs_state)
-                                            else (Error(HSError(AD_illegal_parameter),HSSendAlert),hs_state)
-                                        else (* server did not agreed on resumption, do a full handshake *)
-                                            (* define the sinfo we're going to establish *)
-                                            let next_sinfo = { clientID = None
-                                                               serverID = None
-                                                               sessionID = if equalBytes shello.sh_session_id [||] then None else Some(shello.sh_session_id)
-                                                               protocol_version = shello.server_version
-                                                               cipher_suite = shello.cipher_suite
-                                                               compression = shello.compression_method
-                                                               init_crand = hs_state.hs_next_info.init_crand (* or, alternatively, hs_state.ki_crand *)
-                                                               init_srand = server_random
-                                                               } in
-                                            let hs_state = {hs_state with hs_next_info = next_sinfo} in
-                                            (* If DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
-                                            if isAnonCipherSuite shello.cipher_suite then
-                                                let hs_state = {hs_state with pstate = Client(ServerKeyExchange)} in
-                                                recv_fragment_client hs_state (Some(shello.server_version))
-                                            else
-                                                let hs_state = {hs_state with pstate = Client(Certificate)} in
-                                                recv_fragment_client hs_state (Some(shello.server_version))
             | _ -> (* ServerHello arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
         | HT_certificate ->
             match cState with
@@ -1463,14 +1453,12 @@ let prepare_server_output_resumption hs_state =
     hs_state
 
 let rec recv_fragment_server (hs_state:hs_state) (must_change_ver:ProtocolVersionType Option) =
-    let (hs_state,new_packet) = parse_fragment hs_state in
-    match new_packet with
+    match parse_fragment hs_state with
     | None ->
       match must_change_ver with
-      | None -> (correct (HSAck), hs_state)
+      | None      -> (correct (HSAck), hs_state)
       | Some (pv) -> (correct (HSChangeVersion(StoC,pv)),hs_state)
-    | Some (data) ->
-      let (hstype,payload,to_log) = data in
+    | Some (hs_state,hstype,payload,to_log) ->
       match hs_state.pstate with
       | Server(sState) ->
         match hstype with
@@ -1499,13 +1487,10 @@ let rec recv_fragment_server (hs_state:hs_state) (must_change_ver:ProtocolVersio
                 | Error(x,y) -> (Error(x,y),hs_state)
                 | Correct(hs_state) ->
                     (* Check whether the client asked for session resumption *)
-                    if equalBytes cHello.ch_session_id [||] then
-                        (* Client did not ask for resumption. Do a full Handshake *)
-                        match start_server_full hs_state cHello with
-                        | Error(x,y) -> (Error(x,y),hs_state)
-                        | Correct(res) ->
-                            let (hs_state,negPV) = res in
-                            recv_fragment_server hs_state (Some(negPV))
+                    if equalBytes cHello.ch_session_id [||] 
+                    then 
+                        (* Client asked for a full handshake *)
+                        start_server_full' hs_state cHello
                     else
                         (* Client asked for resumption, let's see if we can satisfy the request *)
                         (* FIXME: this SessionDB interaction seems right to be here, however, I'd like to move
@@ -1513,51 +1498,31 @@ let rec recv_fragment_server (hs_state:hs_state) (must_change_ver:ProtocolVersio
                         match select hs_state.poptions cHello.ch_session_id with
                         | None ->
                             (* We don't have the requested session stored, go for a full handshake *)
-                            match start_server_full hs_state cHello with
-                            | Error(x,y) -> (Error(x,y),hs_state)
-                            | Correct(res) ->
-                                let (hs_state,negPV) = res in
-                                recv_fragment_server hs_state (Some(negPV))
+                            start_server_full' hs_state cHello
                         | Some (storedSession) ->
-                            (* Check client proposed algorithms match with our stored session *)
+                            (* Check that the client proposed algorithms match those of our stored session *)
                             match storedSession.dir with
                             | CtoS -> (* This session is not for us, we're a server. Do full handshake *)
-                                match start_server_full hs_state cHello with
-                                | Error(x,y) -> (Error(x,y),hs_state)
-                                | Correct(res) ->
-                                    let (hs_state,negPV) = res in
-                                    recv_fragment_server hs_state (Some(negPV))
+                                start_server_full' hs_state cHello
                             | StoC ->
                                 if cHello.client_version >= storedSession.sinfo.protocol_version then
                                     (* We have a common version *)
                                     if not (List.exists (fun cs -> cs = storedSession.sinfo.cipher_suite) cHello.cipher_suites) then
                                         (* Do a full handshake *)
-                                        match start_server_full hs_state cHello with
-                                        | Error(x,y) -> (Error(x,y),hs_state)
-                                        | Correct(res) ->
-                                            let (hs_state,negPV) = res in
-                                            recv_fragment_server hs_state (Some(negPV))
+                                        start_server_full' hs_state cHello
+                                    else if not (List.exists (fun cm -> cm = storedSession.sinfo.compression) cHello.compression_methods) then
+                                        (* Do a full handshake *)
+                                        start_server_full' hs_state cHello
                                     else
-                                        if not (List.exists (fun cm -> cm = storedSession.sinfo.compression) cHello.compression_methods) then
-                                            (* Do a full handshake *)
-                                            match start_server_full hs_state cHello with
-                                            | Error(x,y) -> (Error(x,y),hs_state)
-                                            | Correct(res) ->
-                                                let (hs_state,negPV) = res in
-                                                recv_fragment_server hs_state (Some(negPV))
-                                        else
-                                            (* Everything is ok, proceed with resumption *)
-                                            let hs_state = {hs_state with hs_next_info = storedSession.sinfo
-                                                                          next_ms = storedSession.ms}
-                                            let hs_state = prepare_server_output_resumption hs_state in
-                                            recv_fragment_server hs_state (Some(storedSession.sinfo.protocol_version))
+                                        (* Everything is ok, proceed with resumption *)
+                                        let hs_state = {hs_state with hs_next_info = storedSession.sinfo
+                                                                      next_ms = storedSession.ms}
+                                        let hs_state = prepare_server_output_resumption hs_state 
+                                        recv_fragment_server hs_state (Some(storedSession.sinfo.protocol_version))
                                 else
                                     (* Do a full handshake *)
-                                    match start_server_full hs_state cHello with
-                                    | Error(x,y) -> (Error(x,y),hs_state)
-                                    | Correct(res) ->
-                                        let (hs_state,negPV) = res in
-                                        recv_fragment_server hs_state (Some(negPV))
+                                    start_server_full' hs_state cHello
+                                    
             | _ -> (* Message arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
         | HT_certificate ->
             match sState with
@@ -1681,6 +1646,14 @@ let rec recv_fragment_server (hs_state:hs_state) (must_change_ver:ProtocolVersio
         | _ -> (* Unsupported/Wrong message *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
       (* Should never happen *)
       | Client(_) -> unexpectedError "[recv_fragment_server] should only be invoked when in server role."
+
+and start_server_full' hs_state cHello =
+    match start_server_full hs_state cHello with
+    | Error(x,y) -> (Error(x,y),hs_state)
+    | Correct(res) ->
+        let (hs_state,negPV) = res 
+        recv_fragment_server hs_state (Some(negPV))
+
 
 let recv_fragment (hs_state:hs_state) (tlen:int) (fragment:fragment) =
     (* Note, we receive fragments in the current session, not the one we're establishing *)

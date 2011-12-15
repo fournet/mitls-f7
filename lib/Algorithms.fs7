@@ -69,7 +69,8 @@ val macSize:    a:hashAlg -> l:int{l=MacKeySize(a)}
 val hashSize:   a:hashAlg -> l:int{l=MacKeySize(a)}
 
 (* SSL Constants *)
-val ssl_pad1_md5:  bytes  
-val ssl_pad2_md5:  bytes
-val ssl_pad1_sha1: bytes
-val ssl_pad2_sha1: bytes
+
+  val ssl_pad1_md5:  bytes  
+  val ssl_pad2_md5:  bytes
+  val ssl_pad1_sha1: bytes
+  val ssl_pad2_sha1: bytes
