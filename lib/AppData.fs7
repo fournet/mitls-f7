@@ -28,7 +28,7 @@ function type funs =
 (* Application interface *)
 
 (* Add data to be sent to the other party *)
-val send_data: aps:app_state -> d:Data.bytes{AppDataNextChunk(aps.app_info,d)} -> app_state
+val send_data: aps:app_state -> d:bytes{AppDataNextChunk(aps.app_info,d)} -> app_state
 (* Retrieve data that we received from the other party *)
 val retrieve_data: app_state -> int -> (bytes * app_state)
 val retrieve_data_available: app_state -> bool

@@ -24,16 +24,16 @@ let MAC (ki:id) key data =
     let pv = ki.sinfo.protocol_version in
     let a = macAlg_of_ciphersuite ki.sinfo.cipher_suite in
     match pv with
-    | ProtocolVersionType.SSL_3p0 ->     HMAC.sslKeyedHash a key.bytes data
-    | x when x >= ProtocolVersionType.TLS_1p0 -> HMAC.HMAC a key.bytes data
+    | ProtocolVersion.SSL_3p0 ->     HMAC.sslKeyedHash a key.bytes data
+    | x when x >= ProtocolVersion.TLS_1p0 -> HMAC.HMAC a key.bytes data
     | _ -> unexpectedError "[MAC] invoked on unsupported protocol version"
 
 let VERIFY (ki:id) key data tag =
     let pv = ki.sinfo.protocol_version in
     let a = macAlg_of_ciphersuite ki.sinfo.cipher_suite in
     match pv with
-    | ProtocolVersionType.SSL_3p0 ->     HMAC.sslKeyedHashVerify a key.bytes data tag
-    | x when x >= ProtocolVersionType.TLS_1p0 -> HMAC.HMACVERIFY a key.bytes data tag
+    | ProtocolVersion.SSL_3p0 ->     HMAC.sslKeyedHashVerify a key.bytes data tag
+    | x when x >= ProtocolVersion.TLS_1p0 -> HMAC.HMACVERIFY a key.bytes data tag
     | _ -> unexpectedError "[VERIFY] invoked on unsupported protocol version"
 
 let GEN (id:id) = {bytes= Bytes.mkRandom (keysize id)}

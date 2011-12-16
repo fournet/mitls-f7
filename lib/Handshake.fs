@@ -34,7 +34,7 @@ type clientState =
 
 type serverSpecificState =
     { resumed_session: bool
-      highest_client_ver: ProtocolVersionType}
+      highest_client_ver: ProtocolVersion}
 
 type serverState =
     | ClientHello
@@ -143,7 +143,7 @@ let next_fragment state =
 
 type recv_reply = 
   | HSAck      (* fragment accepted, no visible effect so far *)
-  | HSChangeVersion of Direction * ProtocolVersionType 
+  | HSChangeVersion of Direction * ProtocolVersion 
                           (* ..., and we should use this new protocol version for sending *) 
   | HSReadSideFinished
   | HSFullyFinished_Read of StorableSession (* ..., and we can start sending data on the connection *)
@@ -185,8 +185,7 @@ let makeExtStructBytes extType data =
     let payload = vlbytes 2 data in
     extBytes @| payload
 
-let makeExtBytes data =
-    vlbytes 2 data
+let makeExtBytes data =  vlbytes 2 data
 
 let makeRenegExtBytes verifyData =
     let payload = vlbytes 1 verifyData in
@@ -393,15 +392,15 @@ let parseServerHello data =
 (*
 let compute_master_secret pms version crandom srandom = 
     match version with 
-    | ProtocolVersionType.SSL_3p0 ->
+    | ProtocolVersion.SSL_3p0 ->
         match ssl_prf pms (append crandom srandom) 48 with
         | Error(x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
         | Correct (res) -> correct (res)
-    | x when x = ProtocolVersionType.TLS_1p0 || x = ProtocolVersionType.TLS_1p1 ->
+    | x when x = ProtocolVersion.TLS_1p0 || x = ProtocolVersion.TLS_1p1 ->
         match prf pms "master secret" (append crandom srandom) 48 with
         | Error(x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
         | Correct (res) -> correct (res)
-    | ProtocolVersionType.TLS_1p2 ->
+    | ProtocolVersion.TLS_1p2 ->
         match tls12prf pms "master secret" (append crandom srandom) 48 with
         | Error(x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
         | Correct (res) -> correct (res)
@@ -514,14 +513,14 @@ let makeCertificateRequestBytes cs version =
     let certTypes = vlbytes 1 (CLT_RSA_Sign @| CLT_DSS_Sign @| CLT_RSA_Fixed_DH @| CLT_DSS_Fixed_DH) 
     let sigAndAlg =
         match version with
-        | ProtocolVersionType.TLS_1p2 ->
+        | ProtocolVersion.TLS_1p2 ->
             (* For no particular reason, we will offer rsa-sha1 and dsa-sha1 *)
             let rsaSigB = bytes_of_int 1 (int SigAlg.SA_rsa) in
             let dsaSigB = bytes_of_int 1 (int SigAlg.SA_dsa) in
             let sha1B   = bytes_of_int 1 (hashAlg_to_tls12enum Algorithms.hashAlg.SHA) in
             let sigAndAlg = sha1B @| rsaSigB @| sha1B @| dsaSigB in
             vlbytes 2 sigAndAlg
-        | v when v >= ProtocolVersionType.SSL_3p0 -> [||]
+        | v when v >= ProtocolVersion.SSL_3p0 -> [||]
         | _ -> unexpectedError "[makeCertificateRequestBytes] invoked on unknown protocol version."
     (* We specify no cert auth *)
     let distNames = vlbytes 2 [||] in
@@ -534,7 +533,7 @@ let parseCertificateRequest version data =
     | Correct (certTypeListBytes,data) ->
     let certTypeList = parseCertificateTypeList certTypeListBytes in
     let sigAlgsAndData = (
-        if version = ProtocolVersionType.TLS_1p2 then
+        if version = ProtocolVersion.TLS_1p2 then
             match vlsplit 2 data with
             | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
             | Correct (sigAlgsBytes,data) ->
@@ -573,7 +572,7 @@ let makeClientKEXBytes state clSpecInfo =
             match rsaEncryptPMS pubKey pms with
             | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
             | Correct (encpms) ->
-                if state.hs_next_info.protocol_version = ProtocolVersionType.SSL_3p0 then
+                if state.hs_next_info.protocol_version = ProtocolVersion.SSL_3p0 then
                     correct ((makeFragment HT_client_key_exchange encpms),pms)
                 else
                     let encpms = vlbytes 2 encpms in
@@ -615,7 +614,7 @@ let hashNametoFun hn =
 let makeCertificateVerifyBytes cert data pv certReqMsg=
     let priKey = priKey_of_certificate cert in
     match pv with
-    | ProtocolVersionType.TLS_1p2 ->
+    | ProtocolVersion.TLS_1p2 ->
         (* If DSA, use SHA-1 hash *)
         if certificate_is_dsa cert then (* TODO *)
             (*let hash = sha1 data in
@@ -636,9 +635,9 @@ let makeCertificateVerifyBytes cert data pv certReqMsg=
                 let signAlgBytes = bytes_of_int 1 (int SigAlg.SA_rsa) in
                 let payload = hashAlgBytes @| signAlgBytes @| signed in
                 correct (makeFragment HT_certificate_verify payload)
-    | x when x = ProtocolVersionType.TLS_1p0 || x = ProtocolVersionType.TLS_1p1 ->
+    | x when x = ProtocolVersion.TLS_1p0 || x = ProtocolVersion.TLS_1p1 ->
         (* TODO *) Error(HSError(AD_internal_error),HSSendAlert)
-    | ProtocolVersionType.SSL_3p0 ->
+    | ProtocolVersion.SSL_3p0 ->
         (* TODO *) Error(HSError(AD_internal_error),HSSendAlert)
     | _ -> Error(HSError(AD_internal_error),HSSendAlert)
 
@@ -648,15 +647,15 @@ let CCSBytes = [| 1uy |]
 (*
 let expand_master_secret version ms crandom srandom nb = 
   match version with 
-  | ProtocolVersionType.SSL_3p0 -> 
+  | ProtocolVersion.SSL_3p0 -> 
      match ssl_prf ms (append srandom crandom) nb with
      | Error(x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
      | Correct (res) -> correct (res)
-  | x when x = ProtocolVersionType.TLS_1p0 || x = ProtocolVersionType.TLS_1p1 ->
+  | x when x = ProtocolVersion.TLS_1p0 || x = ProtocolVersion.TLS_1p1 ->
      match prf ms "key expansion" (append srandom crandom) nb with
      | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
      | Correct (res) -> correct(res)
-  | ProtocolVersionType.TLS_1p2 ->
+  | ProtocolVersion.TLS_1p2 ->
      match tls12prf ms "key expansion" (append srandom crandom) nb with
      | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
      | Correct (res) -> correct (res)
@@ -687,7 +686,7 @@ let bldVerifyData version cs ms entity hsmsgs =
   (* FIXME: There should be only one (verifyData)prf function in CryptoTLS, that takes
      version and cs and performs the proper computation *)
   match version with 
-  | ProtocolVersionType.SSL_3p0 ->
+  | ProtocolVersion.SSL_3p0 ->
     let ssl_sender = 
         match entity with
         | CtoS -> ssl_sender_client 
@@ -706,7 +705,7 @@ let bldVerifyData version cs ms entity hsmsgs =
                 | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
                 | Correct (outer_sha1) ->
                     correct (append outer_md5 outer_sha1)
-  | x when x = ProtocolVersionType.TLS_1p0 || x = ProtocolVersionType.TLS_1p1 -> 
+  | x when x = ProtocolVersion.TLS_1p0 || x = ProtocolVersion.TLS_1p1 -> 
     let tls_label = 
         match entity with
         | CtoS -> "client finished"
@@ -720,7 +719,7 @@ let bldVerifyData version cs ms entity hsmsgs =
             match prf ms tls_label (append md5hash sha1hash) 12 with
             | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
             | Correct (result) -> correct (result)
-  | ProtocolVersionType.TLS_1p2 ->
+  | ProtocolVersion.TLS_1p2 ->
     let tls_label = 
         match entity with
         | CtoS -> "client finished"
@@ -763,8 +762,8 @@ let parseClientKEX sinfo sSpecState pops data =
         | Some(cert) ->
             let encrypted = (* parse the message *)
                 match sinfo.protocol_version with
-                | ProtocolVersionType.SSL_3p0 -> correct (data)
-                | v when v >= ProtocolVersionType.TLS_1p0 ->
+                | ProtocolVersion.SSL_3p0 -> correct (data)
+                | v when v >= ProtocolVersion.TLS_1p0 ->
                         match vlparse 2 data with
                         | Correct (encPMS) -> correct(encPMS)
                         | Error(x,y) -> Error(HSError(AD_decode_error),HSSendAlert)
@@ -1078,7 +1077,7 @@ let new_session_idle state new_info ms =
          hs_renegotiation_info_sVerifyData = state.hs_renegotiation_info_sVerifyData}
 
         
-let rec recv_fragment_client (state:hs_state) (must_change_ver:ProtocolVersionType Option) =
+let rec recv_fragment_client (state:hs_state) (must_change_ver:ProtocolVersion Option) =
     match parseFragment state with
     | None ->
       match must_change_ver with
@@ -1408,7 +1407,7 @@ let prepare_server_output_resumption state =
                             pstate = Server(SCCS(sSpecState))} in
     state
 
-let rec recv_fragment_server (state:hs_state) (must_change_ver:ProtocolVersionType Option) =
+let rec recv_fragment_server (state:hs_state) (must_change_ver:ProtocolVersion Option) =
     match parseFragment state with
     | None ->
       match must_change_ver with
@@ -1606,7 +1605,7 @@ let rec recv_fragment_server (state:hs_state) (must_change_ver:ProtocolVersionTy
 and startServerFull state cHello =  
     // Negotiate the protocol parameters
     match minPV cHello.client_version state.poptions.maxVer with
-    | version when version >= ProtocolVersionType.SSL_3p0 ->
+    | version when version >= ProtocolVersion.SSL_3p0 ->
         match negotiate cHello.cipher_suites state.poptions.ciphersuites with
         | Some(cs) ->
             match negotiate cHello.compression_methods state.poptions.compressions with

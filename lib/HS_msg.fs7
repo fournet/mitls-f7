@@ -1,7 +1,7 @@
 module HS_msg
 open HS_ciphersuites
 
-type handshakeType =
+type HandShakeType =
   | HT_hello_request
   | HT_client_hello
   | HT_server_hello
@@ -13,36 +13,36 @@ type handshakeType =
   | HT_client_key_exchange
   | HT_finished
   | HT_unknown of int
-val bytes_of_hs_type : handshakeType -> Data.bytes
-val hs_type_of_bytes : Data.bytes -> handshakeType
-type helloRequest = Data.bytes
-type hrandom =
+val bytes_of_hs_type : HandShakeType -> bytes
+val hs_type_of_bytes : bytes -> HandShakeType
+type helloRequest = bytes
+type Random =
   {time: int;
-   rnd: Data.bytes;}
+   rnd: bytes;}
 type clientHello =
-  {client_version: Formats.ProtocolVersionType;
-   ch_random: hrandom;
+  {client_version: Formats.ProtocolVersion;
+   ch_random: Random;
    ch_session_id: Sessions.sessionID;
    cipher_suites: cipherSuites;
    compression_methods: Formats.Compression list;
-   extensions: Data.bytes;}
+   extensions: bytes;}
 type serverHello =
-  {server_version: Formats.ProtocolVersionType;
-   sh_random: hrandom;
+  {server_version: Formats.ProtocolVersion;
+   sh_random: Random;
    sh_session_id: Sessions.sessionID;
    cipher_suite: HS_ciphersuites.CipherSuite;
    compression_method: Formats.Compression;
-   neg_extensions: Data.bytes;}
-type ASN1Cert = Data.bytes
+   neg_extensions: bytes;}
+type ASN1Cert = bytes
 type certificate =
   {certificate_list: ASN1Cert;}
-type serverHelloDone = Data.bytes
+type serverHelloDone = bytes
 type preMasterSecret =
-  {pms_client_version: Formats.ProtocolVersionType;
-   pms_random: Data.bytes;}
+  {pms_client_version: Formats.ProtocolVersion;
+   pms_random: bytes;}
 type clientKeyExchange =
-  | EncryptedPreMasterSecret of Data.bytes
+  | EncryptedPreMasterSecret of bytes
   | ClientDHPublic
-type certificateVerify = Data.bytes
-type finished = Data.bytes
+type certificateVerify = bytes
+type finished = bytes
 

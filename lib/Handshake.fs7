@@ -33,7 +33,7 @@ type clientState =
 
 type serverSpecificState =
     { resumed_session: bool;
-      highest_client_ver: ProtocolVersionType}
+      highest_client_ver: ProtocolVersion}
 
 type serverState =
     | ClientHello
@@ -111,7 +111,7 @@ val next_fragment: s:hs_state -> r:HSFragReply * s':hs_state
 
 type recv_reply = 
   | HSAck
-  | HSChangeVersion of Direction * ProtocolVersionType
+  | HSChangeVersion of Direction * ProtocolVersion
   | HSReadSideFinished // {(Client(state) /\ ClientFinished(si)) \/ (Server(state) /\ ServerFinished(si))}
   | HSFullyFinished_Read of ss:StorableSession {ClientFinished(ss.sinfo) /\ ServerFinished(ss.sinfo)} // Honest(..) /\ StrongSuite(..) =>
 
@@ -124,15 +124,15 @@ function val Negotiate: ('a list * 'a list) -> 'a
 val negotiate: cs: 'a list -> ss: 'a list -> (s: 'a { s = Negotiate(cs,ss) }) option  
 
 // Internal
-val makeFragment : HS_msg.handshakeType -> Data.bytes -> Data.bytes
-val makeHelloRequestBytes : unit -> Data.bytes
+val makeFragment : HS_msg.HandShakeType -> bytes -> bytes
+val makeHelloRequestBytes : unit -> bytes
 val makeTimestamp : unit -> int
 val makeClientHello : protocolOptions -> Sessions.sessionID -> HS_msg.clientHello
-val b_of_cslist : HS_ciphersuites.CipherSuite list -> Data.bytes -> Data.bytes
-val bytes_of_cipherSuites : HS_ciphersuites.CipherSuite list -> Data.bytes
-val b_of_complist : Formats.Compression list -> Data.bytes -> Data.bytes
-val compressionMethodsBytes : Formats.Compression list -> Data.bytes
-val makeClientHelloBytes : protocolOptions -> Sessions.sessionID -> Data.bytes
+val b_of_cslist : HS_ciphersuites.CipherSuite list -> bytes -> bytes
+val bytes_of_cipherSuites : HS_ciphersuites.CipherSuite list -> bytes
+val b_of_complist : Formats.Compression list -> bytes -> bytes
+val compressionMethodsBytes : Formats.Compression list -> bytes
+val makeClientHelloBytes : protocolOptions -> Sessions.sessionID -> bytes
 
 val init_handshake: r:role -> protocolOptions -> (info:SessionInfo * s:hs_state){info = InitSessionInfo(r,None) /\ s.hs_info = info}
 
@@ -148,7 +148,7 @@ val new_session_idle: hs_state -> i:SessionInfo -> s:hs_state{s.hs_info = i}
 
 val parseFragment :
   hs_state ->
-    Data.bytes -> hs_state * (HS_msg.handshakeType * Data.bytes) option
+    bytes -> hs_state * (HS_msg.HandShakeType * bytes) option
 val recv_fragment: hs_state -> Record.fragment ->
 	(r:(recv_reply Error_handling.Result) * hs_state){
 		(!rr. r = Correct(rr) => (!hs,r,pv. rr = HSChangeVersion(hs,r,pv) => pv <> UnknownPV))

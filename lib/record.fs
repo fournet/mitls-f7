@@ -24,7 +24,7 @@ type ConnectionState = {
   key: recordKey;
   iv3: ENC.iv3;
   seq_num: int; (* uint64 actually CF:TODO?*)
-  local_pv: ProtocolVersionType;
+  local_pv: ProtocolVersion;
   }
 type sendState = ConnectionState
 type recvState = ConnectionState
@@ -45,7 +45,7 @@ let initConnState ki key iv pv =
 
 let create out_ki in_ki minpv =
     let sendState = initConnState out_ki NoneKey (ENC.NoIV ()) minpv in
-    let recvState = initConnState in_ki NoneKey (ENC.NoIV ()) ProtocolVersionType.UnknownPV in
+    let recvState = initConnState in_ki NoneKey (ENC.NoIV ()) ProtocolVersion.UnknownPV in
     (sendState, recvState)
 
 // to be enforced statically, inasmuch as possible
@@ -82,8 +82,8 @@ let makeAD conn ct =
     let bct  = ctBytes ct in
     let bver = versionBytes version in
     match version with
-    | ProtocolVersionType.SSL_3p0             -> bseq @| bct
-    | x when x >= ProtocolVersionType.TLS_1p0 -> bseq @| bct @| bver
+    | ProtocolVersion.SSL_3p0             -> bseq @| bct
+    | x when x >= ProtocolVersion.TLS_1p0 -> bseq @| bct @| bver
     | _ -> unexpectedError "[makeAD] invoked on invalid protocol version"
 
 let makePacket ct ver data =
@@ -101,9 +101,9 @@ let parse_header conn header =
   let ct  = parseCT ct1 in
   let pv  = parseVersion pv2 in
   let len = int_of_bytes len2 in
-  if   (  conn.local_pv <> ProtocolVersionType.UnknownPV 
+  if   (  conn.local_pv <> ProtocolVersion.UnknownPV 
          && pv <> conn.local_pv)
-      || pv = ProtocolVersionType.UnknownPV 
+      || pv = ProtocolVersion.UnknownPV 
     then Error (RecordVersion,CheckFailed)
   else
     (* We commit to the received protocol version.
@@ -253,9 +253,9 @@ let recv conn =
     | Error (x,y) -> Error (x,y)
     | Correct header ->
     let (ct,pv,len) = parse_header header in
-    if   (  conn.protocol_version <> ProtocolVersionType.UnknownPV 
+    if   (  conn.protocol_version <> ProtocolVersion.UnknownPV 
          && pv <> conn.protocol_version)
-      || pv = ProtocolVersionType.UnknownPV 
+      || pv = ProtocolVersion.UnknownPV 
     then Error (RecordVersion,CheckFailed)
     else
         (* We commit to the received protocol version.

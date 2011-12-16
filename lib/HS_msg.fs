@@ -8,7 +8,9 @@ open TLSInfo
 open Principal
 open Error
 
-type handshakeType =
+(*** Following RFC5246 A.4 *)
+
+type HandShakeType =
     | HT_hello_request
     | HT_client_hello
     | HT_server_hello
@@ -49,49 +51,80 @@ let parseHT b =
     | 20 -> HT_finished
     |  x -> HT_unknown (x)
 
-type helloExtension =
+// missing Handshake and its generic formatting
+// := HandShakeType(ht) @| VLBytes(3,body) 
+
+
+(** A.4.1 Hello Messages *)
+
+type helloRequest = bytes  // empty bitstring 
+
+type Random = {time : int; rnd : bytes}
+
+// missing SessionID, defined in TLSInfo
+// missing CompressionMethod
+
+// missing some details, e.g. ExtensionType/Data
+type Extension =
     | HExt_renegotiation_info
-    | HEXT_unknown of bytes
+    | HExt_unknown of bytes
 
 let bytes_of_HExt hExt =
     match hExt with
     | HExt_renegotiation_info -> [|0xFFuy; 0x01uy|]
-    | HEXT_unknown (_) -> unexpectedError "Unknown extension type"
+    | HExt_unknown (_) -> unexpectedError "Unknown extension type"
 
 let hExt_of_bytes b =
     match b with
     | [|0xFFuy; 0x01uy|] -> HExt_renegotiation_info
-    | _ -> HEXT_unknown b
-
-(* Message bodies *)
-
-(* Hello Request *)
-type helloRequest = bytes (* empty bitstring *)
-
-(* Client Hello *)
-type hrandom = {time : int; rnd : bytes}
+    | _ -> HExt_unknown b
 
 type clientHello = {
-    client_version: ProtocolVersionType;
-    ch_random: hrandom;
+    client_version: ProtocolVersion;
+    ch_random: Random;
     ch_session_id: sessionID;
     cipher_suites: cipherSuites;
     compression_methods: Compression list;
     extensions: bytes;
   }
 
-(* Server Hello *)
-
 type serverHello = {
-    server_version: ProtocolVersionType;
-    sh_random: hrandom;
+    server_version: ProtocolVersion;
+    sh_random: Random;
     sh_session_id: sessionID;
     cipher_suite: cipherSuite;
     compression_method: Compression;
     neg_extensions: bytes;
   }
 
-(* (Server and Client) Certificate *)
+let hashAlg_to_tls12enum ha =
+    match ha with
+    | Algorithms.hashAlg.MD5    -> 1
+    | Algorithms.hashAlg.SHA    -> 2
+    | Algorithms.hashAlg.SHA256 -> 4
+    | Algorithms.hashAlg.SHA384 -> 5
+
+let tls12enum_to_hashAlg n =
+    match n with
+    | 1 -> Some Algorithms.hashAlg.MD5
+    | 2 -> Some Algorithms.hashAlg.SHA
+    | 4 -> Some Algorithms.hashAlg.SHA256
+    | 5 -> Some Algorithms.hashAlg.SHA384
+    | _ -> None
+
+type SigAlg =
+    | SA_anonymous = 0
+    | SA_rsa       = 1
+    | SA_dsa       = 2
+    | SA_ecdsa     = 3
+
+type SigAndHashAlg = {
+    SaHA_hash: Algorithms.hashAlg;
+    SaHA_signature: SigAlg;
+    }
+
+
+(** A.4.2 Server Authentication and Key Exchange Messages *)
 
 type certificate = { certificate_list: cert list }
 
@@ -122,31 +155,6 @@ type HashAlg =
     | HA_sha384 = 5
     | HA_sha512 = 6
 *)
-let hashAlg_to_tls12enum ha =
-    match ha with
-    | Algorithms.hashAlg.MD5    -> 1
-    | Algorithms.hashAlg.SHA    -> 2
-    | Algorithms.hashAlg.SHA256 -> 4
-    | Algorithms.hashAlg.SHA384 -> 5
-
-let tls12enum_to_hashAlg n =
-    match n with
-    | 1 -> Some Algorithms.hashAlg.MD5
-    | 2 -> Some Algorithms.hashAlg.SHA
-    | 4 -> Some Algorithms.hashAlg.SHA256
-    | 5 -> Some Algorithms.hashAlg.SHA384
-    | _ -> None
-
-type SigAlg =
-    | SA_anonymous = 0
-    | SA_rsa       = 1
-    | SA_dsa       = 2
-    | SA_ecdsa     = 3
-
-type SigAndHashAlg = {
-    SaHA_hash: Algorithms.hashAlg;
-    SaHA_signature: SigAlg;
-    }
 
 type certificateRequest = {
     client_certificate_type: ClientCertType list
@@ -154,12 +162,13 @@ type certificateRequest = {
     certificate_authorities: string list
     }
 
-(* Server Hello Done *)
-type serverHelloDone = bytes (* empty bitstring *)
+type serverHelloDone = bytes // empty bistring
 
-(* Client Key Exchange *)
+
+(** A.4.3 Client Authentication and Key Exchange Messages *) 
+
 type preMasterSecret =
-    { pms_client_version : ProtocolVersionType; (* Highest version supported by the client *)
+    { pms_client_version : ProtocolVersion; (* Highest version supported by the client *)
       pms_random: bytes }
 
 type clientKeyExchange =
@@ -170,5 +179,7 @@ type clientKeyExchange =
 
 type certificateVerify = bytes (* digital signature of all messages exchanged until now *)
 
-(* Finished *)
+
+(** A.4.4 Handshake Finalization Message *)
+
 type finished = bytes

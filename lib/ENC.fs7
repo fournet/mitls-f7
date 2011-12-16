@@ -15,9 +15,9 @@ type (;ki:KeyInfo) symKey
 type iv = bytes
 
 type (;ki:KeyInfo) iv3 =
-	| SomeIV of iv{ki.sinfo.protocol_version = ProtocolVersionType.SSL_3p0 \/
-				   ki.sinfo.protocol_version = ProtocolVersionType.TLS_1p0}
-	| NoIV of unit{ki.sinfo.protocol_version >= ProtocolVersionType.TLS_1p1}
+	| SomeIV of iv{ki.sinfo.protocol_version = ProtocolVersion.SSL_3p0 \/
+				   ki.sinfo.protocol_version = ProtocolVersion.TLS_1p0}
+	| NoIV of unit{ki.sinfo.protocol_version >= ProtocolVersion.TLS_1p1}
 
 // ciphers consist of one or more blocks of bytes.
 type (;ki:KeyInfo) cipher = b:bytes

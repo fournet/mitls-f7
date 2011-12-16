@@ -114,10 +114,10 @@ let tls12VerifyData cs ms dir data =
    purpose specific PRFs *)
 let generic_prf pv cs secret label data len =
     match pv with 
-    | ProtocolVersionType.SSL_3p0 -> ssl_prf secret data len
-    | ProtocolVersionType.TLS_1p0 | ProtocolVersionType.TLS_1p1 ->
+    | ProtocolVersion.SSL_3p0 -> ssl_prf secret data len
+    | ProtocolVersion.TLS_1p0 | ProtocolVersion.TLS_1p1 ->
         tls_prf secret label data len
-    | ProtocolVersionType.TLS_1p2 ->
+    | ProtocolVersion.TLS_1p2 ->
         tls12prf cs secret label data len
     | _ -> unexpectedError "[generic_prf] invoked on unsupported protocol version"
 
@@ -126,10 +126,10 @@ let generic_prf pv cs secret label data len =
 let prfVerifyData ki (ms:masterSecret) data =
   let pv = ki.sinfo.protocol_version in
   match pv with 
-  | ProtocolVersionType.SSL_3p0 -> ssl_verifyData ms.bytes ki.dir data
-  | x when x = ProtocolVersionType.TLS_1p0 || x = ProtocolVersionType.TLS_1p1 -> 
+  | ProtocolVersion.SSL_3p0 -> ssl_verifyData ms.bytes ki.dir data
+  | x when x = ProtocolVersion.TLS_1p0 || x = ProtocolVersion.TLS_1p1 -> 
     tls_verifyData ms.bytes ki.dir data
-  | ProtocolVersionType.TLS_1p2 ->
+  | ProtocolVersion.TLS_1p2 ->
     let cs = ki.sinfo.cipher_suite in
     tls12VerifyData cs ms.bytes ki.dir data
   | _ -> unexpectedError "[prfVerifyData] invoked on unsupported protocol version"
@@ -163,11 +163,11 @@ let getPMS sinfo ver check_client_version_in_pms_for_old_tls cert encPMS =
         else
             let (clVB,postPMS) = split pms 2 in
             match sinfo.protocol_version with
-            | v when v >= ProtocolVersionType.TLS_1p1 ->
+            | v when v >= ProtocolVersion.TLS_1p1 ->
                 (* 3. If new TLS version, just go on with client version and true pms.
                     This corresponds to a check of the client version number, but we'll fail later. *)
                 {bytes = verB @| postPMS}
-            | v when v = ProtocolVersionType.SSL_3p0 || v = ProtocolVersionType.TLS_1p0 ->
+            | v when v = ProtocolVersion.SSL_3p0 || v = ProtocolVersion.TLS_1p0 ->
                 (* 3. If check disabled, use client provided PMS, otherwise use our version number *)
                 if check_client_version_in_pms_for_old_tls then
                     {bytes = verB @| postPMS}

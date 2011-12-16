@@ -12,16 +12,16 @@ type Compression =
     | Null
     | UnknownComp
 
-type ProtocolVersionType =
+type ProtocolVersion =
     | UnknownPV = -1
     | SSL_3p0   = 10
     | TLS_1p0   = 20
     | TLS_1p1   = 30
     | TLS_1p2   = 40
 
-val versionBytes: ProtocolVersionType -> bytes
-val parseVersion: bytes -> ProtocolVersionType
-val minPV: ProtocolVersionType -> ProtocolVersionType -> ProtocolVersionType
+val versionBytes: ProtocolVersion -> bytes
+val parseVersion: bytes -> ProtocolVersion
+val minPV: ProtocolVersion -> ProtocolVersion -> ProtocolVersion
 
 val nullCipherSuite: cipherSuite
 val isNullCipherSuite: cipherSuite -> bool
@@ -47,9 +47,9 @@ val cipherSuite_of_bytes: bytes -> cipherSuite
 val parseCipherSuites: bytes -> cipherSuites Result
 val bytes_of_cipherSuites: cipherSuites -> bytes 
 
-val getKeyExtensionLength: ProtocolVersionType -> cipherSuite -> int
+val getKeyExtensionLength: ProtocolVersion -> cipherSuite -> int
 
-val PVRequiresExplicitIV: ProtocolVersionType -> bool
+val PVRequiresExplicitIV: ProtocolVersion -> bool
 
 (* Not for verification, just to run the implementation *)
 

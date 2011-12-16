@@ -10,8 +10,8 @@ type helloReqPolicy =
     | HRPResume
 
 type protocolOptions = {
-    minVer: ProtocolVersionType
-    maxVer: ProtocolVersionType
+    minVer: ProtocolVersion
+    maxVer: ProtocolVersion
     ciphersuites: cipherSuites
     compressions: Compression list
 
@@ -35,8 +35,8 @@ type protocolOptions = {
 let defaultCertificateValidationPolicy certList = true
 
 let defaultProtocolOptions ={
-    minVer = ProtocolVersionType.SSL_3p0
-    maxVer = ProtocolVersionType.TLS_1p2
+    minVer = ProtocolVersion.SSL_3p0
+    maxVer = ProtocolVersion.TLS_1p2
     ciphersuites = cipherSuites_of_nameList
                     [ TLS_RSA_WITH_AES_128_CBC_SHA;
                       TLS_RSA_WITH_3DES_EDE_CBC_SHA;

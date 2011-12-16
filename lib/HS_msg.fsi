@@ -7,7 +7,7 @@ open CipherSuites
 open TLSInfo
 open Principal
 
-type handshakeType =
+type HandShakeType =
     | HT_hello_request
     | HT_client_hello
     | HT_server_hello
@@ -20,15 +20,15 @@ type handshakeType =
     | HT_finished
     | HT_unknown of int
 
-val htbytes: handshakeType -> bytes
-val parseHT: bytes -> handshakeType
+val htbytes: HandShakeType -> bytes
+val parseHT: bytes -> HandShakeType
 
-type helloExtension =
+type Extension =
     | HExt_renegotiation_info
-    | HEXT_unknown of bytes
+    | HExt_unknown of bytes
 
-val bytes_of_HExt: helloExtension -> bytes
-val hExt_of_bytes: bytes -> helloExtension
+val bytes_of_HExt: Extension -> bytes
+val hExt_of_bytes: bytes -> Extension
 
 (* Message bodies *)
 
@@ -36,11 +36,11 @@ val hExt_of_bytes: bytes -> helloExtension
 type helloRequest = bytes (* empty bitstring *)
 
 (* Client Hello *)
-type hrandom = {time : int; rnd : bytes}
+type Random = {time : int; rnd : bytes}
 
 type clientHello = {
-    client_version: ProtocolVersionType;
-    ch_random: hrandom;
+    client_version: ProtocolVersion;
+    ch_random: Random;
     ch_session_id: sessionID;
     cipher_suites: cipherSuites;
     compression_methods: Compression list;
@@ -50,8 +50,8 @@ type clientHello = {
 (* Server Hello *)
 
 type serverHello = {
-    server_version: ProtocolVersionType;
-    sh_random: hrandom;
+    server_version: ProtocolVersion;
+    sh_random: Random;
     sh_session_id: sessionID;
     cipher_suite: cipherSuite;
     compression_method: Compression;
@@ -109,7 +109,7 @@ type serverHelloDone = bytes (* empty bitstring *)
 
 (* Client Key Exchange *)
 type preMasterSecret =
-    { pms_client_version : ProtocolVersionType; (* Highest version supported by the client *)
+    { pms_client_version : ProtocolVersion; (* Highest version supported by the client *)
       pms_random: bytes }
 
 type clientKeyExchange =

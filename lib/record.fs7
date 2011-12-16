@@ -25,7 +25,7 @@ type ConnectionState =
    dir: Direction;
    net_conn: Tcp.NetworkStream;
    compression: Compression;
-   protocol_version: Formats.ProtocolVersionType;
+   protocol_version: Formats.ProtocolVersion;
    cipher_state: CipherState;
    mk: key;
    seq_num: int;
@@ -33,7 +33,7 @@ type ConnectionState =
 type fragment = bytes
 type ccs_data = {
     ccs_info: SessionInfo;
-    ccs_pv: ProtocolVersionType;
+    ccs_pv: ProtocolVersion;
     ccs_comp: Compression;
     ccs_sparams: SecurityParameters;
     ccs_mkey: Crypto.key;
@@ -42,11 +42,11 @@ type ccs_data = {
 (* Predicates *)
 
 predicate type preds = 
-  | InitConnState of ConnectionState * Tcp.NetworkStream * SessionInfo * Direction * ProtocolVersionType
+  | InitConnState of ConnectionState * Tcp.NetworkStream * SessionInfo * Direction * ProtocolVersion
   | SendConnState of ConnectionState
   | RecvConnState of ConnectionState
   | FragmentSend of SessionInfo * seq_num:int * ContentType * fragment
-  | RecordSend of SessionInfo * ContentType * fragment * ProtocolVersionType * int * key
+  | RecordSend of SessionInfo * ContentType * fragment * ProtocolVersion * int * key
   | UpperProtoSend of SessionInfo * ContentType * bytes * fragment
   | MACBytes of bytes * bytes * bytes * bytes * bytes
   | KHashBytes of bytes * bytes * bytes * bytes
@@ -55,7 +55,7 @@ predicate type preds =
   | ValidStreamCipherSettings of ccs_data
   | ValidBlockCipherSettings of ccs_data
   | NonNullCipherSettings of ccs_data
-  | TLSVersion of Formats.ProtocolVersionType
+  | TLSVersion of Formats.ProtocolVersion
 
 type sendState = cs:ConnectionState{SendConnState(cs)}
 type recvState = cs:ConnectionState{RecvConnState(cs)}
@@ -68,7 +68,7 @@ function type funs =
   | Compressed of Compression * bytes
   | IncSeqNum of ConnectionState
   | UpdateIV of ConnectionState * bytes
-  | UpdatePV of ConnectionState * ProtocolVersionType
+  | UpdatePV of ConnectionState * ProtocolVersion
   | UpdateCS of ConnectionState * ccs_data * Direction
   | BlockKey of ConnectionState
   | BlockIV of ConnectionState
@@ -81,11 +81,11 @@ val initConnState :
   ns:Tcp.NetworkStream -> 
   si:SessionInfo{?r,s. si = InitSessionInfo(r,s)} -> 
   d:Direction -> 
-  pv:Formats.ProtocolVersionType -> 
+  pv:Formats.ProtocolVersion -> 
   cs:ConnectionState{InitConnState(cs,ns,si,d,pv)}
 val create :
   ns:Tcp.NetworkStream -> si:SessionInfo{?r,s. si = InitSessionInfo(r,s)} ->
-  minpv:Formats.ProtocolVersionType{minpv <> UnknownPV} ->
+  minpv:Formats.ProtocolVersion{minpv <> UnknownPV} ->
   scs:sendState * rcs:recvState{InitConnState(scs,ns,si,OutDir(si),minpv) /\ InitConnState(rcs,ns,si,InDir(si),UnknownPV)}
 val max_TLSPlaintext_fragment_length : int
 val max_TLSCompressed_fragment_length : int
@@ -145,7 +145,7 @@ val encrypt_stream :
 
 val get_last_block : int -> bytespub -> bytespub
 val compute_next_iv :
-  pv:Formats.ProtocolVersionType{pv <> UnknownPV /\ pv <> SSL_2p0} ->
+  pv:Formats.ProtocolVersion{pv <> UnknownPV /\ pv <> SSL_2p0} ->
     Formats.BulkCipherAlgorithm -> bytespub -> bytespub
 
 val encrypt_fun: Formats.BulkCipherAlgorithm ->  k:key -> iv:bytes ->
@@ -172,10 +172,10 @@ val encrypt :
       }
 
 val generatePacket :
-  Formats.ContentType -> Formats.ProtocolVersionType -> bytespub -> bytespub
+  Formats.ContentType -> Formats.ProtocolVersion -> bytespub -> bytespub
 
 val send_setVersion :
-  cs:ConnectionState -> pv:Formats.ProtocolVersionType -> cs':ConnectionState
+  cs:ConnectionState -> pv:Formats.ProtocolVersion -> cs':ConnectionState
 
 val send :
   cs:sendState ->
@@ -192,10 +192,10 @@ val send_setCrypto :
       cs':sendState{cs' = UpdateCS(cs,ccs,OutDir(ccs.ccs_info))}
 
 val parse_header :
-  bytes -> Formats.ContentType * Formats.ProtocolVersionType * int
+  bytes -> Formats.ContentType * Formats.ProtocolVersion * int
 
 val get_iv_ciphertext :
-  pv:Formats.ProtocolVersionType{pv <> UnknownPV /\ pv <> SSL_2p0} ->
+  pv:Formats.ProtocolVersion{pv <> UnknownPV /\ pv <> SSL_2p0} ->
   Formats.BulkCipherAlgorithm ->
   bytes ->
   bytespub -> (bytes * bytespub)
@@ -225,7 +225,7 @@ val decrypt :
 
 val check_padding_cont : b:bytes -> r:bytes Result{r = Correct(b)}
 val check_padding :
-  pv:Formats.ProtocolVersionType{pv <> UnknownPV} -> bytes -> r:bytes Result{
+  pv:Formats.ProtocolVersion{pv <> UnknownPV} -> bytes -> r:bytes Result{
   				!y,z. r = Error(y,z) =>
   				((pv = SSL_2p0 /\ y = RecordPadding /\ z = Unsupported) \/
 				(pv = TLS_1p0 /\ y = RecordPadding /\ z = CheckFailed))}
@@ -265,9 +265,9 @@ val recv :
 val dataAvailable: ConnectionState -> bool Result
 
 val recv_setVersion:
-  c:ConnectionState -> pv:Formats.ProtocolVersionType -> c':ConnectionState
+  c:ConnectionState -> pv:Formats.ProtocolVersion -> c':ConnectionState
 
-val recv_checkVersion : c:recvState -> pv:Formats.ProtocolVersionType ->
+val recv_checkVersion : c:recvState -> pv:Formats.ProtocolVersion ->
 	r:(unit Result){
 	(!dummy. r = Correct(dummy) => c.protocol_version = pv) /\
 	(!y,z. r = Error(y,z) => (c.protocol_version <> pv /\ y = RecordVersion /\ z = CheckFailed))

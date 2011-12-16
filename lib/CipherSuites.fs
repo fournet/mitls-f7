@@ -42,32 +42,32 @@ let rec compressions_of_bytes_int b list =
 
 let parseCompressions b = compressions_of_bytes_int b []
 
-type ProtocolVersionType =
+type ProtocolVersion =
     | UnknownPV = -1
     | SSL_3p0   = 10
     | TLS_1p0   = 20
     | TLS_1p1   = 30
     | TLS_1p2   = 40
 
-type KnownPV = ProtocolVersionType
+type KnownPV = ProtocolVersion
 
 let versionBytes pv =
     match pv with
-    | ProtocolVersionType.SSL_3p0 -> [| 3uy; 0uy |]
-    | ProtocolVersionType.TLS_1p0 -> [| 3uy; 1uy |]
-    | ProtocolVersionType.TLS_1p1 -> [| 3uy; 2uy |]
-    | ProtocolVersionType.TLS_1p2 -> [| 3uy; 3uy |]
+    | ProtocolVersion.SSL_3p0 -> [| 3uy; 0uy |]
+    | ProtocolVersion.TLS_1p0 -> [| 3uy; 1uy |]
+    | ProtocolVersion.TLS_1p1 -> [| 3uy; 2uy |]
+    | ProtocolVersion.TLS_1p2 -> [| 3uy; 3uy |]
     | _ -> unexpectedError "Cannot convert the Unknown protocol version to bytes"
 
 let parseVersion (v:bytes) =
     match v with
-    | [| 3uy; 0uy |] -> ProtocolVersionType.SSL_3p0
-    | [| 3uy; 1uy |] -> ProtocolVersionType.TLS_1p0
-    | [| 3uy; 2uy |] -> ProtocolVersionType.TLS_1p1
-    | [| 3uy; 3uy |] -> ProtocolVersionType.TLS_1p2
-    | _ -> ProtocolVersionType.UnknownPV
+    | [| 3uy; 0uy |] -> ProtocolVersion.SSL_3p0
+    | [| 3uy; 1uy |] -> ProtocolVersion.TLS_1p0
+    | [| 3uy; 2uy |] -> ProtocolVersion.TLS_1p1
+    | [| 3uy; 3uy |] -> ProtocolVersion.TLS_1p2
+    | _ -> ProtocolVersion.UnknownPV
 
-let minPV (a:ProtocolVersionType) (b:ProtocolVersionType) =
+let minPV (a:ProtocolVersion) (b:ProtocolVersion) =
     if a < b then a else b
 
 let nullCipherSuite = NullCipherSuite
@@ -262,7 +262,7 @@ let getKeyExtensionLength pv cs =
         match cs with
         | CipherSuite (_, EncMAC(cAlg, hAlg)) ->
             match pv with
-            | x when x >= ProtocolVersionType.TLS_1p1 -> ((encKeySize cAlg), 0, (macKeySize hAlg)) (* TLS 1.1: no implicit IV *)
+            | x when x >= ProtocolVersion.TLS_1p1 -> ((encKeySize cAlg), 0, (macKeySize hAlg)) (* TLS 1.1: no implicit IV *)
             | _ -> ((encKeySize cAlg), (ivSize cAlg), (macKeySize hAlg))
         | CipherSuite (_, AEAD(cAlg, hAlg)) -> ((aeadKeySize cAlg), (aeadIVSize cAlg), (macKeySize hAlg))
         | OnlyMACCipherSuite (_,hAlg) -> (0,0,macKeySize hAlg)
@@ -271,9 +271,9 @@ let getKeyExtensionLength pv cs =
 
 let PVRequiresExplicitIV pv =
     match pv with
-    | ProtocolVersionType.SSL_3p0 -> false 
-    | ProtocolVersionType.TLS_1p0 -> false
-    | x when x >= ProtocolVersionType.TLS_1p1 -> true
+    | ProtocolVersion.SSL_3p0 -> false 
+    | ProtocolVersion.TLS_1p0 -> false
+    | x when x >= ProtocolVersion.TLS_1p1 -> true
     | _ -> unexpectedError "[PVRequiresExplicitIV] invoked on an invalid protocol version"
 
 let macAlg_of_ciphersuite cs =

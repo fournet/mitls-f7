@@ -13,8 +13,8 @@ open AppCommon
 open SessionDB
 
 type predispatchState =
-  | Init (* of ProtocolVersionType * ProtocolVersionType *) (* min and max *)
-  | FirstHandshake (* of ProtocolVersionType *)             (* set by the ServerHello *) 
+  | Init (* of ProtocolVersion * ProtocolVersion *) (* min and max *)
+  | FirstHandshake (* of ProtocolVersion *)             (* set by the ServerHello *) 
   | Finishing
   | Finished (* Only for Writing side, used to avoid sending data on a partially completed handshake *)
   | Open

@@ -10,8 +10,8 @@ type helloReqPolicy =
     | HRPResume
 
 type protocolOptions = {
-    minVer: ProtocolVersionType
-    maxVer: ProtocolVersionType
+    minVer: ProtocolVersion
+    maxVer: ProtocolVersion
     ciphersuites: cipherSuites
     compressions: Compression list
 

@@ -4,6 +4,8 @@ open Bytes
 open Algorithms
 open Error
 
+(*** Following RFC5246 A.5 *)
+
 private type SCSVsuite =
     | TLS_EMPTY_RENEGOTIATION_INFO_SCSV
 
@@ -22,7 +24,7 @@ type Compression =
 
 //CF fs7 does *NOT* support enums.
 //Why using them instead of ADTs, e.g. here? Can we get rid of UnknownPV? 
-type ProtocolVersionType =
+type ProtocolVersion =
     | UnknownPV 
     | SSL_3p0   
     | TLS_1p0   
@@ -34,12 +36,12 @@ type ProtocolVersionType =
 //    | TLS_1p1   = 30
 //    | TLS_1p2   = 40
 
-type KnownPV = pv:ProtocolVersionType{pv = SSL_3p0 \/ pv = TLS_1p0 \/ pv = TLS_1p1 \/ pv = TLS_1p2}
+type KnownPV = pv:ProtocolVersion{pv = SSL_3p0 \/ pv = TLS_1p0 \/ pv = TLS_1p1 \/ pv = TLS_1p2}
 
 //CF Bad name. We'll need VersionBytes to be injective; we can verify it in principle.
-function val VersionBytes: ProtocolVersionType -> bytes
+function val VersionBytes: ProtocolVersion -> bytes
 val versionBytes: pv:KnownPV -> b:bytes{Length(b) = 2 /\ b = VersionBytes(pv)}
-val parseVersion: b:bytes{Length(b) = 2} -> pv:ProtocolVersionType{ b= VersionBytes(pv)}
+val parseVersion: b:bytes{Length(b) = 2} -> pv:ProtocolVersion{ b= VersionBytes(pv)}
 val minPV: a:KnownPV -> b:KnownPV -> c:KnownPV{(a < b /\ c = a) \/ (a >= b /\ c = b)}
 
 (* FIXME: same duplication between logical and concrete function definitions, 
@@ -80,9 +82,9 @@ function val CipherSuitesBytes: cipherSuites -> bytes
 val parseCipherSuites: b:bytes -> (css:cipherSuites {b=CipherSuitesBytes(css)}) Result
 val bytes_of_cipherSuites: css:cipherSuites -> b:bytes {b=CipherSuitesBytes(css)}
 
-val getKeyExtensionLength: ProtocolVersionType -> cipherSuite -> int
+val getKeyExtensionLength: ProtocolVersion -> cipherSuite -> int
 
-val PVRequiresExplicitIV: ProtocolVersionType -> bool
+val PVRequiresExplicitIV: ProtocolVersion -> bool
 
 (* Not for verification, just to run the implementation *)
 
