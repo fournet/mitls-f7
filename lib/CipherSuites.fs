@@ -49,6 +49,8 @@ type ProtocolVersionType =
     | TLS_1p1   = 30
     | TLS_1p2   = 40
 
+type KnownPV = ProtocolVersionType
+
 let versionBytes pv =
     match pv with
     | ProtocolVersionType.SSL_3p0 -> [| 3uy; 0uy |]
@@ -238,7 +240,9 @@ let prfHashAlg_of_ciphersuite (cs:cipherSuite) =
     | CipherSuite ( _ , AEAD ( _ , SHA384 ))   -> SHA384
 //CF FIXME. Comment out for F7 testing
 // pls use a positive pattern for SHA256 instead
-    | NullCipherSuite | SCSV (_) | cipherSuite.Unknown (_) -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
+    | NullCipherSuite         -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite" 
+    | SCSV (_)                -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite" 
+    | cipherSuite.Unknown (_) -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
     | _ -> SHA256
 
 //CF why duplicating this function?
@@ -248,7 +252,9 @@ let verifyDataHashAlg_of_ciphersuite (cs:cipherSuite) =
     | CipherSuite ( _ , EncMAC ( _ , SHA384 )) -> SHA384
     | CipherSuite ( _ , AEAD ( _ , SHA384 ))   -> SHA384
 //CF FIXME
-    | NullCipherSuite | SCSV (_) | cipherSuite.Unknown (_) -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
+    | NullCipherSuite         -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
+    | SCSV (_)                -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
+    | cipherSuite.Unknown (_) -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
     | _ -> SHA256
 
 let getKeyExtensionLength pv cs =

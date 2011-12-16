@@ -1,8 +1,8 @@
 ﻿module Alert
 
-open Formats
 open Bytes
 open Error
+open Formats
 open TLSInfo
 open TLSPlain
 
@@ -19,7 +19,7 @@ type pre_al_state = {
   al_outgoing: bytes (* emptybstr if nothing to be sent *) 
 }
 
-type al_state = pre_al_state
+type state = pre_al_state
 
 let init info = {al_info = info; al_incoming = [||]; al_outgoing = [||]}
 
@@ -29,9 +29,9 @@ type ALFragReply =
     | LastALFrag of (int *fragment)
 
 type alert_reply =
-    | ALAck of al_state
-    | ALClose of al_state
-    | ALClose_notify of al_state
+    | ALAck of state
+    | ALClose of state
+    | ALClose_notify of state
 
 (* Conversions *)
 

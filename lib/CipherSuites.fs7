@@ -4,7 +4,10 @@ open Bytes
 open Algorithms
 open Error
 
-type cipherSuite = // internal; kept abstract in the .fsi
+private type SCSVsuite =
+    | TLS_EMPTY_RENEGOTIATION_INFO_SCSV
+
+private type cipherSuite = // internal; kept abstract in the .fsi
     | NullCipherSuite
     | CipherSuite of kexAlg * authencAlg
     | OnlyMACCipherSuite of kexAlg * hashAlg
@@ -20,11 +23,16 @@ type Compression =
 //CF fs7 does *NOT* support enums.
 //Why using them instead of ADTs, e.g. here? Can we get rid of UnknownPV? 
 type ProtocolVersionType =
-    | UnknownPV = -1
-    | SSL_3p0   = 10
-    | TLS_1p0   = 20
-    | TLS_1p1   = 30
-    | TLS_1p2   = 40
+    | UnknownPV 
+    | SSL_3p0   
+    | TLS_1p0   
+    | TLS_1p1   
+    | TLS_1p2   
+//    | UnknownPV = -1
+//    | SSL_3p0   = 10
+//    | TLS_1p0   = 20
+//    | TLS_1p1   = 30
+//    | TLS_1p2   = 40
 
 type KnownPV = pv:ProtocolVersionType{pv = SSL_3p0 \/ pv = TLS_1p0 \/ pv = TLS_1p1 \/ pv = TLS_1p2}
 

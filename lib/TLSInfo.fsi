@@ -9,7 +9,6 @@ type sessionID = bytes
 type preDirection =
     | CtoS
     | StoC
-
 type Direction = preDirection
 
 val dualDirection: Direction -> Direction

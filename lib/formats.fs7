@@ -60,4 +60,3 @@ ask !i,b. Length(VLBytes(i,b)) = i + Length(b)
 // relies on associativity
 ask !i,b1,b2,c1,c2. 
   (VLBytes(i,b1) @| b2 = VLBytes(i,c1) @| c2) => (b1 = c1 /\ b2 = c2)
- 

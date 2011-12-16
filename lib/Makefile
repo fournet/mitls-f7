@@ -70,16 +70,22 @@ Error.tc7: $(libperv) $(libfs7) Error.fs7 Error.fs
 HMAC.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 HMAC.fs7 HMAC.fs
 	$(f7) --verbose -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 HMAC.fs7 Hash.fs7 HMAC.fs -scripts HMAC
 
-Principal.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Principal.fs 
-	$(f7) -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Principal.fs 
+# Bytes.fs7 is trusted
+
+# RSA.fs7 and Principal.fs7 is trusted
 
 formats.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 formats.fs7 formats.fs
 	$(f7) --verbose -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Error.fs7 formats.fs7 formats.fs -scripts formats
+
+TLSInfo.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 Principal.fs7 TLSInfo.fs7 TLSInfo.fs
+	$(f7) --verbose -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 TLSInfo.fs7 TLSInfo.fs
 
 # FIXME does not verify because of enums.
 CipherSuites.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 CipherSuites.fs7 CipherSuites.fs
 	$(f7) -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 CipherSuites.fs7 CipherSuites.fs -scripts CipherSuites
 
+Alert.tc7: $(libperv) $(libfs7) 
+	$(f7) --verbose -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 Alert.fs7 Alert.fs 
 
 record.tc7: $(libperv) $(libfs7) $(recordfs7) record.fs
 	time $(f7) -debug -nofstypecheck -timeout 30 --define f7 -nokindcheck $(lperv) $(libfs7) $(recordfs7) record.fs -scripts record -genlst | tee  record.tc7 | grep "Failure\|error\|ERROR\|Exception"; echo ""

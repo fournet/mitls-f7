@@ -1,15 +1,14 @@
 ﻿(* Alert protocol *)
 
-(* We do not support sending warnings, as there is no good reason to do so *)
-
 module Alert
+
 open Bytes
 open Error
 open TLSPlain
 open TLSInfo
 
 type pre_al_state
-type al_state = pre_al_state
+type state = pre_al_state
 
 type ALFragReply =
     | EmptyALFrag
@@ -17,14 +16,14 @@ type ALFragReply =
     | LastALFrag of (int * fragment)
 
 type alert_reply =
-    | ALAck of al_state
-    | ALClose of al_state
-    | ALClose_notify of al_state
+    | ALAck of state
+    | ALClose of state
+    | ALClose_notify of state
 
-val init: SessionInfo -> al_state
+val init: SessionInfo -> state
 
-val send_alert: al_state -> alertDescription -> al_state Result
+val send_alert: state -> alertDescription -> state Result
 
-val next_fragment: al_state -> (ALFragReply * al_state) 
+val next_fragment: state -> (ALFragReply * state) 
 
-val recv_fragment: al_state -> int -> fragment -> alert_reply Result
+val recv_fragment: state -> int -> fragment -> alert_reply Result

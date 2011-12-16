@@ -9,11 +9,11 @@ type sessionID = bytes
 type preDirection =
     | CtoS
     | StoC
-
-(* FIXME: Automatic inference by F7 *)
 type Direction = d:preDirection{d = CtoS \/ d = StoC}
+(* FIXME: Automatic inference by F7 *)
 
-val dualDirection: d1:Direction -> d2:Direction{(d1 = CtoS /\ d2 = StoC) \/ (d1 = StoC /\ d2 = CtoS) }
+val dualDirection: d1:Direction -> d2:Direction
+  {(d1 = CtoS /\ d2 = StoC) \/ (d1 = StoC /\ d2 = CtoS) }
 
 type SessionInfo = {
     clientID: cert option;

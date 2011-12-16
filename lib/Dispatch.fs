@@ -33,7 +33,7 @@ type preConnection = {
   poptions: protocolOptions;
   (* abstract protocol states for HS/CCS, AL, and AD *)
   handshake: Handshake.hs_state
-  alert    : Alert.al_state
+  alert    : Alert.state
   appdata  : AppData.app_state    
 
   (* connection state for reading and writing *)
@@ -182,8 +182,8 @@ let next_fragment (c:Connection) : (bool Result) * Connection =
   match c_write.disp with
   | Closed -> unexpectedError "[next_fragment] should never be invoked on a closed connection."
   | _ ->
-      let al_state = c.alert in
-      match Alert.next_fragment al_state with
+      let state = c.alert in
+      match Alert.next_fragment state with
       | (EmptyALFrag,_) -> 
           let hs_state = c.handshake in
           match Handshake.next_fragment hs_state with 

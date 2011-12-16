@@ -29,7 +29,7 @@ type dState = { disp: dispatchState; conn: ConnectionState; }
 type preConnection =
   {ds_info: SessionInfo;
    handshake: Handshake.hs_state;
-   alert: Alert.al_state;
+   alert: Alert.state;
    appdata: AppData.app_state;
    read: dState;
    write: dState}
