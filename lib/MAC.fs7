@@ -8,6 +8,8 @@ open TLSInfo
 /// this file is loosely synchronized with cma/mac2.fs7
 
 type id = TLSInfo.KeyInfo 
+predicate val CMA: id -> bool
+
 // id is an abstract index type managed by the protocol
 // id may e.g. determine the choice of algorithms, 
 // so in principle the sizes should also be indexed by id
@@ -29,13 +31,13 @@ val tagsize: id:id -> n:int{n=TagSize(id)}
 type (;id:id) tag = b:bytes{Length(b) = TagSize(id)}
 
 type text = bytes 
-predicate val Msg: ki:id * text -> bool
+predicate val Msg: (id * text) -> bool
 
 // removed internal stuff for now 
 
 val GEN:    id:id -> (;id) key
 val MAC:    id:id -> k:(;id) key -> t:text{Msg(id,t)} -> (;id) tag
 val VERIFY: id:id -> k:(;id) key -> t:text -> (;id) tag -> 
-  v:bool{(v=true /\ CMA(id)) => Msg(id,t)}
+  v:bool{ (v=true (*/\ CMA(id)*) ) => Msg(id,t) }
 val LEAK:   id:id {!t. Msg(id,t)} -> (;id) key -> (;id) keybytes
 val COERCE: id:id {!t. Msg(id,t)} -> (;id) keybytes -> (;id) key

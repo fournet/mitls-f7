@@ -109,7 +109,9 @@ type (;ki:KeyInfo) mac = MACt of MAC.mac (* a fixed-length MAC tag for ki *)
 type (;ki:KeyInfo) add_data = bytes 
 type (;ki:KeyInfo) mac_plain = MACPLAINt of MAC.text (* The data to be MACed: fragment @| add_data *)
 
-// We miss operations on MACs! + logical authentication
+(* temporary cut: 
+
+// We miss operations on MACs + logical authentication
 
 val ad_fragment: ki:KeyInfo -> (;ki) add_data -> (;ki.sinfo) fragment -> (;ki) mac_plain
 
@@ -130,12 +132,12 @@ type (;ki:KeyInfo,n:int) plain // contents to be encrypted (exactly n bytes)
 
 val concat_fragment_mac_pad: 
   ki:KeyInfo -> n:int -> 
-  (;ki.sinfo,n) fragment -> (;ki) mac -> (;ki,n) plain (* plain includes padding *)
+  (;ki.sinfo,n) fragment -> (;ki) mac -> (;ki,n) plain // plain includes padding
 
 val split_mac: 
   ki:KeyInfo -> n:int -> 
   (;ki,n) plain -> ((;ki.sinfo,n) fragment * (;ki) mac)
-  (* Returns a random fragment if pad checking fails *)
+  // Returns a random fragment if pad checking fails 
   // No! But we may instead return a random mac. 
 
 /// Concatenating fragments and MACs for MACOnlyCipherSuites 
@@ -160,4 +162,4 @@ val cipher_to_fragment:
 // on coercions from fragments and macs to concrete bytes
 // (which we may use for corrupted connections too)
 
-
+*)

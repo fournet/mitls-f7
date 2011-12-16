@@ -61,18 +61,22 @@ record-a.dll: libsym-a.dll $(recordfsi) $(recordfs-a)
 Dispatch-a.dll: libsym-a.dll record-a.dll $(tlsfsi) $(tlsfs)
 	$(fsc) -r libsym-a.dll -r record-a.dll $(tlsfsi) $(tlsfs) -a -o Dispatch-a.dll
 
-Algorithms.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Algorithms.fs
-	$(f7) -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Algorithms.fs -scripts Algorithms
+
+# trusting Bytes.fs7 (could be partly verified)
 
 Error.tc7: $(libperv) $(libfs7) Error.fs7 Error.fs
 	$(f7) -nokindcheck --verbose  $(lperv) $(libfs7) Error.fs7 Error.fs
 
-HMAC.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 HMAC.fs7 HMAC.fs
-	$(f7) --verbose -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 HMAC.fs7 Hash.fs7 HMAC.fs -scripts HMAC
+# trusting tpc.fs7 
+# trusting RSA.fs7
+# trusting Principal.fs7 
 
-# Bytes.fs7 is trusted
+Algorithms.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Algorithms.fs
+	$(f7) -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Algorithms.fs -scripts Algorithms
 
-# RSA.fs7 and Principal.fs7 is trusted
+# FIXME does not verify because of enums.
+CipherSuites.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 CipherSuites.fs7 CipherSuites.fs
+	$(f7) -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 CipherSuites.fs7 CipherSuites.fs -scripts CipherSuites
 
 formats.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 formats.fs7 formats.fs
 	$(f7) --verbose -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Error.fs7 formats.fs7 formats.fs -scripts formats
@@ -80,12 +84,14 @@ formats.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 formats.fs7 formats.fs
 TLSInfo.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 Principal.fs7 TLSInfo.fs7 TLSInfo.fs
 	$(f7) --verbose -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 TLSInfo.fs7 TLSInfo.fs
 
-# FIXME does not verify because of enums.
-CipherSuites.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 CipherSuites.fs7 CipherSuites.fs
-	$(f7) -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 CipherSuites.fs7 CipherSuites.fs -scripts CipherSuites
+HMAC.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 HMAC.fs7 HMAC.fs
+	$(f7) --verbose -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 HMAC.fs7 Hash.fs7 HMAC.fs -scripts HMAC
 
 Alert.tc7: $(libperv) $(libfs7) 
-	$(f7) --verbose -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 Alert.fs7 Alert.fs 
+	$(f7) --verbose -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 TLSPlain.fs7 Alert.fs7 Alert.fs 
+
+Handshake.tc7: $(libperv) $(libfs7) 
+	$(f7) --verbose -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 Handshake.fs7 Handshake.fs 
 
 record.tc7: $(libperv) $(libfs7) $(recordfs7) record.fs
 	time $(f7) -debug -nofstypecheck -timeout 30 --define f7 -nokindcheck $(lperv) $(libfs7) $(recordfs7) record.fs -scripts record -genlst | tee  record.tc7 | grep "Failure\|error\|ERROR\|Exception"; echo ""

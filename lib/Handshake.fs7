@@ -1,7 +1,6 @@
 module Handshake
 
 open Bytes
-open Record
 open Error
 open Formats
 open HS_msg
@@ -13,11 +12,12 @@ open AppCommon
 open Principal
 open SessionDB
 open PRFs
+//open Record
 
 type clientSpecificState =
-    { resumed_session: bool
-      must_send_cert: certificateRequest Option
-      client_certificate: (cert list) Option
+    { resumed_session    : bool;
+      must_send_cert     : certificateRequest Option;
+      client_certificate : (cert list) Option
     }
 
 type clientState =
@@ -32,7 +32,7 @@ type clientState =
     | CIdle
 
 type serverSpecificState =
-    { resumed_session: bool
+    { resumed_session: bool;
       highest_client_ver: ProtocolVersionType}
 
 type serverState =
@@ -50,21 +50,21 @@ type protoState =
   | Server of serverState
 
 type pre_hs_state = {
-  hs_outgoing    : bytes                  (* outgiong data before a ccs *)
-  ccs_outgoing: (bytes * ccs_data) option (* marker telling there's a ccs ready *)
-  hs_outgoing_after_ccs: bytes            (* data to be sent after the ccs has been sent *)
-  hs_incoming    : bytes                  (* partial incoming HS message *)
-  ccs_incoming: ccs_data option (* used to store the computed secrects for receving data. Not set when receiving CCS, but when we compute the session secrects *)
+  hs_outgoing    : bytes;                  (* outgiong data before a ccs *)
+  ccs_outgoing: (bytes * ccs_data) option; (* marker telling there's a ccs ready *)
+  hs_outgoing_after_ccs: bytes;            (* data to be sent after the ccs has been sent *)
+  hs_incoming    : bytes;                  (* partial incoming HS message *)
+  ccs_incoming: ccs_data option; (* used to store the computed secrects for receving data. Not set when receiving CCS, but when we compute the session secrects *)
   poptions: protocolOptions;
-  pstate : protoState
-  hs_msg_log: bytes
+  pstate : protoState;
+  hs_msg_log: bytes;
   hs_cur_info : SessionInfo; (* The session we're currrently running into *)
   cur_ms: masterSecret; (* The master secrect associated with the current session. *)
   hs_next_info: SessionInfo; (* The session we're establishing within the current HS *)
   next_ms: masterSecret; (* The ms we're establishing *)
   ki_crand: bytes; (* Client random for the session we're establishing (to be stored in KeyInfo) *)
   ki_srand: bytes; (* Current server random, as above *)
-  hs_renegotiation_info_cVerifyData: bytes (*Renegotiation info associated with the session we're establishing *)
+  hs_renegotiation_info_cVerifyData: bytes; (*Renegotiation info associated with the session we're establishing *)
   hs_renegotiation_info_sVerifyData: bytes
 }
 
@@ -85,26 +85,29 @@ type HSFragReply =
   | HSFullyFinished_Write of (int * fragment) * ss:StorableSession {ClientFinished(ss.sinfo) /\ ServerFinished(ss.sinfo)} // Honest(..) /\ StrongSuite(..) =>
   | CCSFrag of (int * fragment) * cd:ccs_data // {(Client(state) /\ Compatible(cd.ki,state.ki_crand,state.poptions)) \/ (Server(state) /\ Compatible(cd.ki,state.ki_srand,state.poptions))}
 
+(* CF out of date:
 // returns to the dispatcher the next fragment to be sent, if any 
 val next_fragment: s:hs_state -> r:HSFragReply * s':hs_state 
     {   (s'.hs_cur_info = s.hs_cur_info) 
 	/\  (r = EmptyHSFrag => s' = s) 
     /\  (!i,f. r = HSFrag((i,f)) => (UpperProtoSend(s.hs_info,Handshake,f) /\ Pub(f))) 
-        (* TODO: Pub(f) might not be true for the Finished message, in this case a different return value is needed *)
-        (* FIXME: The fragments returned after the CCS must be blessed for the next sessioninfo, not the current one!
-                  This will also be true for the alert protocol... and input/output session infos at the record layer
-                  might not be synchronized... *)
+        // TODO: Pub(f) might not be true for the Finished message, in this case a different return value is needed 
+        // FIXME: The fragments returned after the CCS must be blessed for the next sessioninfo, not the current one!
+        //          This will also be true for the alert protocol... and input/output session infos at the record layer
+        //          might not be synchronized... 
     /\  (!i,f,ccs. r = CCSFrag((i,f),ccs) =>
           (UpperProtoSend(s.hs_info,Change_cipher_spec,f) /\ Pub(f) /\ Compatible(ccs.ki,s.ki_Xrand,s.poptions))
-                    (* /\ ccs.ki.sinfo = s.ns_next_info *))
+                    // /\ ccs.ki.sinfo = s.ns_next_info 
+					)
                
     /\  (!i,f. r = HSWriteSideFinished((i,f)) => // FIXME: which sinfo to use? cur, next? We must be aligned, or don't care about this
-          (UpperProtoSend(s.hs_info, Handshake, f) /\ Pub(f) (* Pub? *) /\ Client/ServerFinished(s.hs_next_info)))
+          (UpperProtoSend(s.hs_info, Handshake, f) /\ Pub(f) /\ Client/ServerFinished(s.hs_next_info)))
                 
     /\  (!i,f,ss. r = HSFullyFinished_Write(((i,f),ss)) =>
           (UpperProtocoSend(s.hs_info, Handshake, f) /\ Pub(f) /\ ClientFinished(s.hs_next_info) /\ ServerFinished(s.hs_next_info)))
-                    (* /\ ss.sinfo = s.hs_next_info *)
+                    // /\ ss.sinfo = s.hs_next_info 
     }
+*)
 
 type recv_reply = 
   | HSAck
@@ -115,8 +118,8 @@ type recv_reply =
 // Negotiation
 
 function val Negotiate: ('a list * 'a list) -> 'a
-definition !cs,s,ss.    Mem(s,cs)      <=> s = Negotiate(cs,s:ss)  
-definition !cs,s,s',ss. not(Mem(s',cs) <=> Negotiate(cs,s':ss,s) = Negotiate(cs,ss,s) )
+//definition !cs,s,ss.    Mem(s,cs)      <=> s = Negotiate(cs,s:ss)  
+//definition !cs,s,s',ss. not(Mem(s',cs) <=> Negotiate(cs,s':ss,s) = Negotiate(cs,ss,s) )
 
 val negotiate: cs: 'a list -> ss: 'a list -> (s: 'a { s = Negotiate(cs,ss) }) option  
 
@@ -152,7 +155,7 @@ val recv_fragment: hs_state -> Record.fragment ->
 	}
 val recv_ccs: s:hs_state -> Record.fragment ->
 	(r:(Record.ccs_data Error_handling.Result) * hs_state){
-	(!ccs. r = Correct(ccs) => Compatible(ccs.ki,s.ki_Xrand,s.poptions) (* /\ ccs.ki.sinfo = s.hs_next_info *))
+//CF temp//	(!ccs. r = Correct(ccs) => Compatible(ccs.ki, s.ki_Xrand, s.poptions)) (* /\ ccs.ki.sinfo = s.hs_next_info *)
 	}
 
 (* A ccs such that Compatible(ccs,...) holds implies that there exist
@@ -162,12 +165,14 @@ val recv_ccs: s:hs_state -> Record.fragment ->
    However, when the HS protocol emits the HSFinished(info) event, then it means we're in
    an opened session, so the dispatcher can go to the open state, and we can lift Pub_K
    to the compromised session *)
-   
-(* If a confirmed key is public, then the session is compromised *)
-assume !mk,info. TLSMKey(mk,info) /\ HSFinished(info) /\ Compromised(info) => Crypto.Pub_k(mk)
+
+(*   
+// If a confirmed key is public, then the session is compromised 
+assume  !mk,info. TLSMKey(mk,info) /\ HSFinished(info) /\ Compromised(info) => Crypto.Pub_k(mk)
 theorem !mk,info. TLSMKey(mk,info) /\ HSFinished(info) /\ Crypto.Pub_k(mk) => Compromised(info)
-assume !sk,info. TLSSKey(sk,info) /\ HSFinished(info) /\ Compromised(info) => Crypto.Pub_k(sk)
+assume  !sk,info. TLSSKey(sk,info) /\ HSFinished(info) /\ Compromised(info) => Crypto.Pub_k(sk)
 theorem !sk,info. TLSSKey(sk,info) /\ HSFinished(info) /\ Crypto.Pub_k(sk) => Compromised(info)
+*)
 
 (* towards a ClientFinished logical specification
 
