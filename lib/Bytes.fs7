@@ -42,8 +42,7 @@ assume !b1,b2,c1,c2.
   (b1 @| b2 = c1 @| c2 /\ Length(b2)=Length(c2)) => (b1=c1 /\ b2=c2)   
 
 // append is associative
-// TODO: not parsing?!
-// assume !b1,b2,b3. (b1 @| b2) @| b3 = b1 @| (b2 @| b3)
+assume !b1,b2,b3. (b1 @| b2) @| b3 = b1 @| (b2 @| b3)
 
 (* integer multi-byte representations *)
 
@@ -54,7 +53,7 @@ function val IntBytes: int * int -> bytes
 // \/ (l=2 /\ 0 <= l /\ l < 65536)
 // /\ (l=4 /\ 0 <= l) 
 val bytes_of_int: l:int -> i:int -> b:bytes{b = IntBytes(l,i)}
-val int_of_bytes: b:bytes {Length(b)<=8} -> i:int{b = IntBytes(Length(b),i)}
+val int_of_bytes: b:bytes {Length(b)<=8} -> i:nat{b = IntBytes(Length(b),i)}
 
 assume !l:int, i:int. Length(IntBytes(l,i)) = l
 assume !l:int, i0:int, i1:int. IntBytes(l,i0) = IntBytes(l,i1) => i0=i1

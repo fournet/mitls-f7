@@ -29,7 +29,7 @@ type clientState =
     | CSHDone of clientSpecificState
     | CCCS of clientSpecificState
     | CFinished of clientSpecificState
-    | CWatingToWrite
+    | CWaitingToWrite
     | CIdle
 
 type serverSpecificState =
@@ -108,7 +108,7 @@ let next_fragment state =
                            we are doing full handshake or resumption. *)
                         match cstate with
                         | CCCS (_) -> (HSWriteSideFinished (f), state)
-                        | CWatingToWrite ->
+                        | CWaitingToWrite ->
                             let storable_session =
                                 { sinfo = state.hs_next_info;
                                   ms = state.next_ms;
@@ -156,29 +156,29 @@ type recv_reply =
 
 let makeFragment ht data = htbytes ht @| vlbytes 3 data 
 
-let parseFragment hs_state =
+let parseFragment state =
     (* Inefficient but simple implementation:
        every time we reparse the whole incoming buffer,
        searching for a full packet. When a full packet is found,
        it is removed from the buffer. *)
-    if length hs_state.hs_incoming < 4 then None (* not enough data to start parsing *)
+    if length state.hs_incoming < 4 then None (* not enough data to start parsing *)
     else
-        let (hstypeb,rem) = split hs_state.hs_incoming 1 in
+        let (hstypeb,rem) = split state.hs_incoming 1 in
         let (lenb,rem) = split rem 3 in
         let len = int_of_bytes lenb in
         if length rem < len then None (* not enough payload, try next time *)
         else
             let hstype = parseHT hstypeb in
             let (payload,rem) = split rem len in
-            let hs_state = { hs_state with hs_incoming = rem } in
+            let state = { state with hs_incoming = rem } in
             let to_log = hstypeb @| lenb @| payload in
-            Some(hs_state,hstype,payload,to_log)
+            Some(state,hstype,payload,to_log)
 
 /// Hello Request 
 
 let makeHelloRequestBytes () = makeFragment HT_hello_request [||]
 
-/// Client and Server extensions [could inline from HS_msg] 
+/// Extensions [could inline from HS_msg] 
 
 let makeExtStructBytes extType data =
     let extBytes = bytes_of_HExt extType in
@@ -191,6 +191,91 @@ let makeExtBytes data =
 let makeRenegExtBytes verifyData =
     let payload = vlbytes 1 verifyData in
     makeExtStructBytes HExt_renegotiation_info payload
+
+let rec extensionList_of_bytes_int data list =
+    match length data with
+    | 0 -> correct (list)
+    | x when x > 0 && x < 4 ->
+        (* This is a parsing error, or a malformed extension *)
+        Error (HSError(AD_decode_error), HSSendAlert)
+    | _ ->
+        let (extTypeBytes,rem) = split data 2 in
+        let extType = hExt_of_bytes extTypeBytes in
+        match vlsplit 2 rem with
+        | Error(x,y) -> Error (HSError(AD_decode_error), HSSendAlert) (* Parsing error *)
+        | Correct (payload,rem) -> extensionList_of_bytes_int rem ([(extType,payload)] @ list)
+
+let extensionList_of_bytes data =
+    match length data with
+    | 0 -> correct ([])
+    | 1 -> Error(HSError(AD_decode_error),HSSendAlert)
+    | _ ->
+        match vlsplit 2 data with
+        | Error(x,y) -> Error(HSError(AD_decode_error),HSSendAlert) (* Parsing error *)
+        | Correct (exts,rem) ->
+        if not (equalBytes rem [||]) then
+            Error(HSError(AD_decode_error),HSSendAlert)
+        else
+            extensionList_of_bytes_int exts []
+
+let check_reneg_info payload expected =
+    match vlsplit 1 payload with
+    | Error(x,y) -> false
+    | Correct (recv,rem) ->
+        equalBytes recv expected && equalBytes rem [||]
+        // We also check there were no more data in this extension.
+
+let check_client_renegotiation_info cHello expected =
+    match extensionList_of_bytes cHello.extensions with
+    | Error(x,y) -> false
+    | Correct(extList) ->
+        (* Check there is at most one renegotiation_info extension *)
+        let ren_ext_list = List.filter (fun (ext,_) -> ext = HExt_renegotiation_info) extList in
+        if ren_ext_list.Length > 1 then
+            false
+        else
+            let has_SCSV = contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV cHello.cipher_suites in
+            if equalBytes expected [||] 
+            then  
+                (* First handshake *)
+                if ren_ext_list.Length = 0 
+                then has_SCSV
+                    (* either client gave SCSV and no extension; this is OK for first handshake *)
+                    (* or the client doesn't support this extension and we fail *)
+                else
+                    let ren_ext = ren_ext_list.Head in
+                    let (extType,payload) = ren_ext in
+                    check_reneg_info payload expected
+            else
+                (* Not first handshake *)
+                if has_SCSV || (ren_ext_list.Length = 0) then false
+                else
+                    let ren_ext = ren_ext_list.Head in
+                    let (extType,payload) = ren_ext in
+                    check_reneg_info payload expected
+
+let inspect_ServerHello_extensions recvExt expected =
+    (* Code is ad-hoc for the only extension we support now: renegotiation_info *)
+    match extensionList_of_bytes recvExt with
+    | Error (x,y) -> Error (x,y)
+    | Correct (extList) ->
+        (* We expect to find exactly one extension *)
+        match extList.Length with
+        | 0 -> Error(HSError(AD_handshake_failure),HSSendAlert)
+        | x when not (x = 1) -> Error(HSError(AD_unsupported_extension),HSSendAlert)
+        | _ ->
+            let (extType,payload) = extList.Head in
+            match extType with
+            | HExt_renegotiation_info ->
+                (* Check its content *)
+                if check_reneg_info payload expected then
+                    let unitVal = () in
+                    correct (unitVal)
+                else
+                    (* RFC 5746, sec 3.4: send a handshake failure alert *)
+                    Error(HSError(AD_handshake_failure),HSSendAlert)
+            | _ -> Error(HSError(AD_unsupported_extension),HSSendAlert)
+
 
 /// Client and Server random values
 
@@ -330,12 +415,38 @@ let compute_master_secret pms ver crandom srandom =
 
 /// Certificates and Certificate Requests
 
+// CertificateListBytes([]) = [||] 
+// CertificateListBytes(c::cs) = CertificateBytes(c) @| CertificateListBytes(cs)
+// CertificatesBytes(cs) = VLBytes 3 (CertificateListBytes(cs))
+ 
 let certificatesBytes certList =
     vlbytes 3 (List.foldBack (fun c a -> vlbytes 3 (certificateBytes c) @| a) certList [||])
     
 let makeCertificateBytes cso =
     let cs = match cso with None -> [] | Some(cs) -> cs
     makeFragment HT_certificate (certificatesBytes cs)
+
+// we need something more general for parsing lists, e.g.
+let rec parseList parseOne b =
+    if length b = 0 then correct([])
+    else 
+    match parseOne b with
+    | Correct(x,b) -> 
+        match parseList parseOne b with 
+        | Correct(xs) -> correct(x::xs)
+        | Error(x,y)  -> Error(x,y)
+    | Error(x,y)      -> Error(x,y)
+
+let parseOneCertificate b = 
+    match vlsplit 3 b with 
+    | Correct (one,rest) ->
+        match certificate_of_bytes one with
+        | Correct(c) -> Correct(c,rest) 
+        | Error(x,y) -> Error(HSError(AD_bad_certificate),HSSendAlert)
+    | Error(x,y)     -> Error(HSError(AD_bad_certificate),HSSendAlert)
+// then call 
+// parseList parseOneCerticate b instead of 
+// parseCertificate_int b []
 
 let rec parseCertificate_int toProcess list =
     if equalBytes toProcess [||] then
@@ -354,14 +465,59 @@ let parseCertificate data =
     match vlsplit 3 data with
     | Error(x,y) -> Error(HSError(AD_bad_certificate),HSSendAlert)
     | Correct (certList,_) ->
+    //CF why ignoring the rest? This breaks VerifyData
     match parseCertificate_int certList [] with
     | Error(x,y) -> Error(x,y)
     | Correct(certList) -> correct({certificate_list = certList})
 
+let rec parseCertificateTypeList data res =
+    if length data > 1 then
+        let (thisByte,data) = split data 1 in
+        let thisInt = int_of_bytes thisByte in
+        let res = [enum<ClientCertType>thisInt] @ res in
+        parseCertificateTypeList data res
+    else
+        let thisInt = int_of_bytes data in
+        [enum<ClientCertType>thisInt] @ res
 
+let rec sigAlgsList_of_bytes data res =
+    if length data > 2 then
+        let (thisFieldBytes,data) = split data 2 in
+        let (thisHashB,thisSigB) = split thisFieldBytes 1 in
+        let thisHash = int_of_bytes thisHashB in
+        match tls12enum_to_hashAlg thisHash with
+        | Some (hash) ->
+            let thisSig = int_of_bytes thisSigB in
+            let thisField = {SaHA_hash = hash; SaHA_signature = enum<SigAlg>thisSig} in
+            let res = [thisField] @ res in
+            sigAlgsList_of_bytes data res
+        | None -> Error(HSError(AD_illegal_parameter),HSSendAlert)
+    else
+        let (thisHashB,thisSigB) = split data 1 in
+        let thisHash = int_of_bytes thisHashB in
+        match tls12enum_to_hashAlg thisHash with
+        | Some(hash) ->
+            let thisSig = int_of_bytes thisSigB in
+            let thisField = {SaHA_hash = hash; SaHA_signature = enum<SigAlg>thisSig} in
+            correct ([thisField] @ res)
+        | None -> Error(HSError(AD_illegal_parameter),HSSendAlert)
+
+let rec distNamesList_of_bytes data res =
+    if length data = 0 then
+        correct (res)
+    else
+        if length data < 2 then (* FIXME: maybe at least 3 bytes, because we don't want empty names... *)
+            Error(Parsing,CheckFailed)
+        else
+            match vlsplit 2 data with
+            | Error(x,y) -> Error(x,y)
+            | Correct (nameBytes,data) ->
+            let name = iutf8 nameBytes in (* FIXME: I have no idea wat "X501 represented in DER-encoding format" (RFC 5246, page 54) is. I assume UTF8 will do. *)
+            let res = [name] @ res in
+            distNamesList_of_bytes data res
 
 let makeCertificateRequestBytes cs ver =
-    (* TODO: now we send all possible choiches, including inconsistent ones, and we hope the client will pick the proper one. *)
+    (* TODO: now we send all possible choices, including inconsistent ones, and we hope the client will pick the proper one. *)
     let rsaB = bytes_of_int 1 (int ClientCertType.CLT_RSA_Sign) in
     let dsaB = bytes_of_int 1 (int ClientCertType.CLT_DSS_Sign) in
     let rsafixedB = bytes_of_int 1 (int ClientCertType.CLT_RSA_Fixed_DH) in
@@ -384,20 +540,52 @@ let makeCertificateRequestBytes cs ver =
     let data = certTypes @| sigAndAlg @| distNames in
     makeFragment HT_certificate_request data
 
-let makeSHelloDoneBytes unitVal =
+let parseCertificateRequest ver data =
+    match vlsplit 1 data with
+    | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
+    | Correct (certTypeListBytes,data) ->
+    let certTypeList = parseCertificateTypeList certTypeListBytes [] in
+    let sigAlgsAndData = (
+        if ver = ProtocolVersionType.TLS_1p2 then
+            match vlsplit 2 data with
+            | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
+            | Correct (sigAlgsBytes,data) ->
+            match sigAlgsList_of_bytes sigAlgsBytes [] with
+            | Error(x,y) -> Error(x,y)
+            | Correct (sigAlgsList) ->
+                correct (Some(sigAlgsList),data)
+        else
+            correct (None,data)) in
+    match sigAlgsAndData with
+    | Error(x,y) -> Error(x,y)
+    | Correct ((sigAlgs,data)) ->
+    match vlsplit 2 data with
+    | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
+    | Correct  (distNamesBytes,_) ->
+    match distNamesList_of_bytes distNamesBytes [] with
+    | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
+    | Correct distNamesList ->
+    let res = { client_certificate_type = certTypeList;
+                signature_and_hash_algorithm = sigAlgs;
+                certificate_authorities = distNamesList} in
+    correct (res)
+
+/// 
+
+let makeServerHelloDoneBytes unitVal =
     makeFragment HT_server_hello_done [||]
 
-let makeClientKEXBytes hs_state clSpecInfo =
-    if canEncryptPMS hs_state.hs_next_info.cipher_suite then
-        let pms = genPMS hs_state.hs_next_info hs_state.poptions.maxVer in
-        match hs_state.hs_next_info.serverID with
+let makeClientKEXBytes state clSpecInfo =
+    if canEncryptPMS state.hs_next_info.cipher_suite then
+        let pms = genPMS state.hs_next_info state.poptions.maxVer in
+        match state.hs_next_info.serverID with
         | None -> unexpectedError "[makeClientKEXBytes] Server certificate should always be present with a RSA signing cipher suite."
         | Some (serverCert) ->
             let pubKey = pubKey_of_certificate serverCert in
             match rsaEncryptPMS pubKey pms with
             | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
             | Correct (encpms) ->
-                if hs_state.hs_next_info.protocol_version = ProtocolVersionType.SSL_3p0 then
+                if state.hs_next_info.protocol_version = ProtocolVersionType.SSL_3p0 then
                     correct ((makeFragment HT_client_key_exchange encpms),pms)
                 else
                     let encpms = vlbytes 2 encpms in
@@ -405,7 +593,7 @@ let makeClientKEXBytes hs_state clSpecInfo =
     else
         match clSpecInfo.must_send_cert with
         | Some (_) ->
-            match hs_state.hs_next_info.clientID with
+            match state.hs_next_info.clientID with
             | None -> (* Client certificate not sent, (and not in RSA mode)
                          so we must use DH parameters *)
                 (* TODO: send public Yc value *)
@@ -576,173 +764,7 @@ let ciphstate_of_ciphtype ct key iv =
     | CT_stream -> StreamCipherState
 *)
 
-let rec extensionList_of_bytes_int data list =
-    match length data with
-    | 0 -> correct (list)
-    | x when x > 0 && x < 4 ->
-        (* This is a parsing error, or a malformed extension *)
-        Error (HSError(AD_decode_error), HSSendAlert)
-    | _ ->
-        let (extTypeBytes,rem) = split data 2 in
-        let extType = hExt_of_bytes extTypeBytes in
-        match vlsplit 2 rem with
-        | Error(x,y) -> Error (HSError(AD_decode_error), HSSendAlert) (* Parsing error *)
-        | Correct (payload,rem) -> extensionList_of_bytes_int rem ([(extType,payload)] @ list)
-
-let extensionList_of_bytes data =
-    match length data with
-    | 0 -> correct ([])
-    | 1 -> Error(HSError(AD_decode_error),HSSendAlert)
-    | _ ->
-        match vlsplit 2 data with
-        | Error(x,y) -> Error(HSError(AD_decode_error),HSSendAlert) (* Parsing error *)
-        | Correct (exts,rem) ->
-        if not (equalBytes rem [||]) then
-            Error(HSError(AD_decode_error),HSSendAlert)
-        else
-            extensionList_of_bytes_int exts []
-
-
-
-
-let check_reneg_info payload expected =
-    match vlsplit 1 payload with
-    | Error(x,y) -> false
-    | Correct (recv,rem) ->
-        equalBytes recv expected && equalBytes rem [||]
-        // We also check there were no more data in this extension.
-
-let check_client_renegotiation_info cHello expected =
-    match extensionList_of_bytes cHello.extensions with
-    | Error(x,y) -> false
-    | Correct(extList) ->
-        (* Check there's at most one renegotiation_info extension *)
-        let ren_ext_list = List.filter (fun (ext,_) -> ext = HExt_renegotiation_info) extList in
-        if ren_ext_list.Length > 1 then
-            false
-        else
-            let has_SCSV = contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV cHello.cipher_suites in
-            if equalBytes expected [||] then
-                (* First handshake *)
-                if ren_ext_list.Length = 0 then
-                    if has_SCSV then
-                        (* Client gave SCSV, and no extension. This is OK for first handshake *)
-                        true
-                    else
-                        (* Client doesn't support this extension, we fail *)
-                        false
-                else
-                    let ren_ext = ren_ext_list.Head in
-                    let (extType,payload) = ren_ext in
-                    check_reneg_info payload expected
-            else
-                (* Not first handshake *)
-                if has_SCSV || (ren_ext_list.Length = 0) then
-                    false
-                else
-                    let ren_ext = ren_ext_list.Head in
-                    let (extType,payload) = ren_ext in
-                    check_reneg_info payload expected
-                
-
-let inspect_SHello_extensions recvExt expected =
-    (* Code is ad-hoc for the only extension we support now: renegotiation_info *)
-    match extensionList_of_bytes recvExt with
-    | Error (x,y) -> Error (x,y)
-    | Correct (extList) ->
-        (* We expect to find exactly one extension *)
-        match extList.Length with
-        | 0 -> Error(HSError(AD_handshake_failure),HSSendAlert)
-        | x when not (x = 1) -> Error(HSError(AD_unsupported_extension),HSSendAlert)
-        | _ ->
-            let (extType,payload) = extList.Head in
-            match extType with
-            | HExt_renegotiation_info ->
-                (* Check its content *)
-                if check_reneg_info payload expected then
-                    let unitVal = () in
-                    correct (unitVal)
-                else
-                    (* RFC 5746, sec 3.4: send a handshake failure alert *)
-                    Error(HSError(AD_handshake_failure),HSSendAlert)
-            | _ -> Error(HSError(AD_unsupported_extension),HSSendAlert)
-
-
-let rec certTypeList_of_bytes data res =
-    if length data > 1 then
-        let (thisByte,data) = split data 1 in
-        let thisInt = int_of_bytes thisByte in
-        let res = [enum<ClientCertType>thisInt] @ res in
-        certTypeList_of_bytes data res
-    else
-        let thisInt = int_of_bytes data in
-        [enum<ClientCertType>thisInt] @ res
-
-let rec sigAlgsList_of_bytes data res =
-    if length data > 2 then
-        let (thisFieldBytes,data) = split data 2 in
-        let (thisHashB,thisSigB) = split thisFieldBytes 1 in
-        let thisHash = int_of_bytes thisHashB in
-        match tls12enum_to_hashAlg thisHash with
-        | Some (hash) ->
-            let thisSig = int_of_bytes thisSigB in
-            let thisField = {SaHA_hash = hash; SaHA_signature = enum<SigAlg>thisSig} in
-            let res = [thisField] @ res in
-            sigAlgsList_of_bytes data res
-        | None -> Error(HSError(AD_illegal_parameter),HSSendAlert)
-    else
-        let (thisHashB,thisSigB) = split data 1 in
-        let thisHash = int_of_bytes thisHashB in
-        match tls12enum_to_hashAlg thisHash with
-        | Some(hash) ->
-            let thisSig = int_of_bytes thisSigB in
-            let thisField = {SaHA_hash = hash; SaHA_signature = enum<SigAlg>thisSig} in
-            correct ([thisField] @ res)
-        | None -> Error(HSError(AD_illegal_parameter),HSSendAlert)
-
-let rec distNamesList_of_bytes data res =
-    if length data = 0 then
-        correct (res)
-    else
-        if length data < 2 then (* FIXME: maybe at least 3 bytes, because we don't want empty names... *)
-            Error(Parsing,CheckFailed)
-        else
-            match vlsplit 2 data with
-            | Error(x,y) -> Error(x,y)
-            | Correct (nameBytes,data) ->
-            let name = iutf8 nameBytes in (* FIXME: I have no idea wat "X501 represented in DER-encoding format" (RFC 5246, page 54) is. I assume UTF8 will do. *)
-            let res = [name] @ res in
-            distNamesList_of_bytes data res
     
-let parseCertReq ver data =
-    match vlsplit 1 data with
-    | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
-    | Correct (certTypeListBytes,data) ->
-    let certTypeList = certTypeList_of_bytes certTypeListBytes [] in
-    let sigAlgsAndData = (
-        if ver = ProtocolVersionType.TLS_1p2 then
-            match vlsplit 2 data with
-            | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
-            | Correct (sigAlgsBytes,data) ->
-            match sigAlgsList_of_bytes sigAlgsBytes [] with
-            | Error(x,y) -> Error(x,y)
-            | Correct (sigAlgsList) ->
-                correct (Some(sigAlgsList),data)
-        else
-            correct (None,data)) in
-    match sigAlgsAndData with
-    | Error(x,y) -> Error(x,y)
-    | Correct ((sigAlgs,data)) ->
-    match vlsplit 2 data with
-    | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
-    | Correct  (distNamesBytes,_) ->
-    match distNamesList_of_bytes distNamesBytes [] with
-    | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
-    | Correct distNamesList ->
-    let res = { client_certificate_type = certTypeList;
-                signature_and_hash_algorithm = sigAlgs;
-                certificate_authorities = distNamesList} in
-    correct (res)
 
 let find_client_cert (certReqMsg:certificateRequest) : (cert list) option =
     (* TODO *) None
@@ -776,23 +798,23 @@ let parseClientKEX sinfo sSpecState pops data =
         (* We should support the DH key exchanges *)
         Error(HSError(AD_internal_error),HSSendAlert)
 
-let certificateVerifyCheck (hs_state:hs_state) (payload:bytes) =
+let certificateVerifyCheck (state:hs_state) (payload:bytes) =
     (* TODO: pretend client sent valid verification data. We need to understand how to treat certificates and related algorithms properly *)
     correct(true)
 
-let compute_session_secrets_and_CCSs hs_state dir =
-    (* Create KeyInfos *)
-    let outKi = { sinfo = hs_state.hs_next_info;
+let compute_session_secrets_and_CCSs state dir =
+    (* Create KeyInfos for both directions *)
+    let outKi = { sinfo = state.hs_next_info;
                   dir = dir;
-                  crand = hs_state.ki_crand;
-                  srand = hs_state.ki_srand;
+                  crand = state.ki_crand;
+                  srand = state.ki_srand;
                 }
-    let inKi = { sinfo = hs_state.hs_next_info;
+    let inKi = { sinfo = state.hs_next_info;
                  dir = dualDirection dir;
-                 crand = hs_state.ki_crand;
-                 srand = hs_state.ki_srand;
+                 crand = state.ki_crand;
+                 srand = state.ki_srand;
                 }
-    let allKeys = generateKeys outKi inKi hs_state.next_ms in
+    let allKeys = generateKeys outKi inKi state.next_ms in
     let (rmk,rek,riv,wmk,wek,wiv) = allKeys in
     (* TODO: Add support for AEAD ciphers *)
     let readKey = RecordAEADKey (AEAD.MtE (rmk,rek)) in
@@ -806,11 +828,11 @@ let compute_session_secrets_and_CCSs hs_state dir =
                            key = writeKey
                            iv3 = writeIV}
     (* Put the ccs_data in the appropriate buffers. *)
-    let hs_state = {hs_state with ccs_outgoing = Some((CCSBytes,write_ccs_data))
-                                  ccs_incoming = Some(read_ccs_data)} in
-    hs_state
+    let state = {state with ccs_outgoing = Some((CCSBytes,write_ccs_data))
+                            ccs_incoming = Some(read_ccs_data)} in
+    state
 
-let prepare_client_output_full hs_state clSpecState =
+let prepare_client_output_full state clSpecState =
     let clientCertBytes =
         match clSpecState.must_send_cert with
         | Some (_) ->
@@ -818,31 +840,31 @@ let prepare_client_output_full hs_state clSpecState =
         | None ->
             [||]
 
-    match makeClientKEXBytes hs_state clSpecState with
+    match makeClientKEXBytes state clSpecState with
     | Error (x,y) -> Error (x,y)
     | Correct (result) ->
         let (clientKEXBytes,pms) = result in
-        let ms = prfMS hs_state.hs_next_info pms in
-        (* Assert: hs_state.hs_next_info.{c,s}rand = hs_state.ki_{c,s}rand
+        let ms = prfMS state.hs_next_info pms in
+        (* Assert: state.hs_next_info.{c,s}rand = state.ki_{c,s}rand
            In fact, we want to use the {c,s}rand just used in this session (and not the constant sinfo ones).
            And indeed, the PMS is computed only during the first session
            where the assertion must be true. *)
         (* Original code:
-        match compute_master_secret pms sinfo.more_info.mi_protocol_version hs_state.hs_client_random hs_state.hs_server_random with *)
+        match compute_master_secret pms sinfo.more_info.mi_protocol_version state.hs_client_random state.hs_server_random with *)
         (* TODO: here we should shred pms *)
-        let hs_state = {hs_state with next_ms = ms} in
+        let state = {state with next_ms = ms} in
         let certificateVerifyBytesResult =
-            match hs_state.hs_next_info.clientID with
+            match state.hs_next_info.clientID with
             | None ->
                 (* No client certificate ==> no certificateVerify message *)
                 correct ([||])
             | Some (cert) ->
                 if certificate_has_signing_capability cert then
-                    let to_sign = hs_state.hs_msg_log @| clientCertBytes @| clientKEXBytes in
+                    let to_sign = state.hs_msg_log @| clientCertBytes @| clientKEXBytes in
                     match clSpecState.must_send_cert with
                     | None -> unexpectedError "[prepare_output] If client sent a certificate, it must have been requested to."
                     | Some (certReqMsg) ->
-                        makeCertificateVerifyBytes cert to_sign hs_state.hs_next_info.protocol_version certReqMsg
+                        makeCertificateVerifyBytes cert to_sign state.hs_next_info.protocol_version certReqMsg
                 else
                     correct ([||])
         match certificateVerifyBytesResult with
@@ -850,39 +872,39 @@ let prepare_client_output_full hs_state clSpecState =
         | Correct (certificateVerifyBytes) ->
             (* Enqueue current messages *)
             let to_send = clientCertBytes @| clientKEXBytes @| certificateVerifyBytes in
-            let new_outgoing = hs_state.hs_outgoing @| to_send in
-            let new_log = hs_state.hs_msg_log @| to_send in
-            let hs_state = {hs_state with hs_outgoing = new_outgoing
-                                          hs_msg_log = new_log} in
+            let new_outgoing = state.hs_outgoing @| to_send in
+            let new_log = state.hs_msg_log @| to_send in
+            let state = {state with hs_outgoing = new_outgoing
+                                    hs_msg_log  = new_log} in
 
             (* Handle CCS and Finished, including computation of session secrets *)
-            let hs_state = compute_session_secrets_and_CCSs hs_state CtoS in
+            let state = compute_session_secrets_and_CCSs state CtoS in
             (* Now go for the creation of the Finished message *)
             let ki = 
-                match hs_state.ccs_outgoing with
+                match state.ccs_outgoing with
                 | None -> unexpectedError "[prepare_client_output_full] The current state should contain a valid outgoing KeyInfo"
                 | Some (_,ccs_data) -> ccs_data.ki
-            let (finishedBytes,cVerifyData) = makeFinishedMsgBytes ki hs_state.next_ms hs_state.hs_msg_log in
-            (* match makeFinishedMsgBytes sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms CtoS hs_state.hs_msg_log with *)
-            let new_out = hs_state.hs_outgoing_after_ccs @| finishedBytes in
-            let new_log = hs_state.hs_msg_log @| finishedBytes in
-            let hs_state = {hs_state with hs_outgoing_after_ccs = new_out
-                                          hs_msg_log = new_log
-                                          hs_renegotiation_info_cVerifyData = cVerifyData} in
-            correct (hs_state)
+            let (finishedBytes,cVerifyData) = makeFinishedMsgBytes ki state.next_ms state.hs_msg_log in
+            (* match makeFinishedMsgBytes sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms CtoS state.hs_msg_log with *)
+            let new_out = state.hs_outgoing_after_ccs @| finishedBytes in
+            let new_log = state.hs_msg_log @| finishedBytes in
+            let state = {state with hs_outgoing_after_ccs = new_out
+                                    hs_msg_log = new_log
+                                    hs_renegotiation_info_cVerifyData = cVerifyData} in
+            correct (state)
 
-let prepare_client_output_resumption hs_state =
+let prepare_client_output_resumption state =
     let ki = 
-        match hs_state.ccs_outgoing with
+        match state.ccs_outgoing with
         | None -> unexpectedError "[prepare_client_output_resumption] The current state should contain a valid outgoing KeyInfo"
         | Some (_,ccs_data) -> ccs_data.ki
-    let (finishedBytes,cVerifyData) = makeFinishedMsgBytes ki hs_state.next_ms hs_state.hs_msg_log in
-    (* match makeFinishedMsgBytes sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms CtoS hs_state.hs_msg_log with *)
-    let new_out = hs_state.hs_outgoing_after_ccs @| finishedBytes in
+    let (finishedBytes,cVerifyData) = makeFinishedMsgBytes ki state.next_ms state.hs_msg_log in
+    (* match makeFinishedMsgBytes sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms CtoS state.hs_msg_log with *)
+    let new_out = state.hs_outgoing_after_ccs @| finishedBytes in
     (* No need to log this message *)
-    let hs_state = {hs_state with hs_outgoing_after_ccs = new_out
-                                  hs_renegotiation_info_cVerifyData = cVerifyData} in
-    hs_state
+    let state = {state with hs_outgoing_after_ccs = new_out
+                            hs_renegotiation_info_cVerifyData = cVerifyData} in
+    state
 
 let init_handshake dir poptions =
     (* Start a new first session without resumption *)
@@ -1074,51 +1096,51 @@ let new_session_idle state new_info ms =
          hs_renegotiation_info_sVerifyData = state.hs_renegotiation_info_sVerifyData}
 
         
-let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersionType Option) =
-    match parseFragment hs_state with
+let rec recv_fragment_client (state:hs_state) (must_change_ver:ProtocolVersionType Option) =
+    match parseFragment state with
     | None ->
       match must_change_ver with
-      | None      -> (correct (HSAck), hs_state)
-      | Some (pv) -> (correct (HSChangeVersion(CtoS,pv)),hs_state)
-    | Some (hs_state,hstype,payload,to_log) ->
-      match hs_state.pstate with
+      | None      -> (correct (HSAck), state)
+      | Some (pv) -> (correct (HSChangeVersion(CtoS,pv)),state)
+    | Some (state,hstype,payload,to_log) ->
+      match state.pstate with
       | Client(cState) ->
         match hstype with
         | HT_hello_request ->
             match cState with
             | CIdle -> (* This is a legitimate hello request. Properly handle it *)
                 (* Do not log this message *)
-                match hs_state.poptions.honourHelloReq with
-                | HRPIgnore -> recv_fragment_client hs_state must_change_ver
-                | HRPResume -> let hs_state = start_rekey hs_state hs_state.poptions in (correct (HSAck), hs_state) (* Terminating case, we reset all buffers *)
-                | HRPFull -> let hs_state = start_rehandshake hs_state hs_state.poptions in (correct (HSAck), hs_state) (* Terminating case, we reset all buffers *)
-            | _ -> (* RFC 7.4.1.1: ignore this message *) recv_fragment_client hs_state must_change_ver
+                match state.poptions.honourHelloReq with
+                | HRPIgnore -> recv_fragment_client state must_change_ver
+                | HRPResume -> let state = start_rekey state state.poptions in (correct (HSAck), state) (* Terminating case, we reset all buffers *)
+                | HRPFull   -> let state = start_rehandshake state state.poptions in (correct (HSAck), state) (* Terminating case, we reset all buffers *)
+            | _ -> (* RFC 7.4.1.1: ignore this message *) recv_fragment_client state must_change_ver
         | HT_server_hello ->
             match cState with
             | ServerHello ->
                 match parseServerHello payload with
-                | Error(x,y) -> (Error(HSError(AD_decode_error),HSSendAlert),hs_state)
+                | Error(x,y) -> (Error(HSError(AD_decode_error),HSSendAlert),state)
                 | Correct (shello,server_random) ->
                   // Sanity checks on the received message; they are security relevant. 
                   // Check that the server agreed version is between maxVer and minVer. 
-                  if not (shello.server_version >= hs_state.poptions.minVer 
-                       && shello.server_version <= hs_state.poptions.maxVer) 
-                  then Error(HSError(AD_protocol_version),HSSendAlert),hs_state
+                  if not (shello.server_version >= state.poptions.minVer 
+                       && shello.server_version <= state.poptions.maxVer) 
+                  then Error(HSError(AD_protocol_version),HSSendAlert),state
                   else
                   // Check that the negotiated ciphersuite is in the proposed list.
                   // Note: if resuming a session, we still have to check that this ciphersuite is the expected one!
-                  if not (List.exists (fun x -> x = shello.cipher_suite) hs_state.poptions.ciphersuites) 
-                  then Error(HSError(AD_illegal_parameter),HSSendAlert),hs_state
+                  if not (List.exists (fun x -> x = shello.cipher_suite) state.poptions.ciphersuites) 
+                  then Error(HSError(AD_illegal_parameter),HSSendAlert),state
                   else
                   // Check that the compression method is in the proposed list.
-                  if not (List.exists (fun x -> x = shello.compression_method) hs_state.poptions.compressions) 
-                  then Error(HSError(AD_illegal_parameter),HSSendAlert),hs_state
+                  if not (List.exists (fun x -> x = shello.compression_method) state.poptions.compressions) 
+                  then Error(HSError(AD_illegal_parameter),HSSendAlert),state
                   else
                   // Handling of safe renegotiation
                   let safe_reneg_result =
-                    if hs_state.poptions.safe_renegotiation then
-                        let expected = hs_state.hs_renegotiation_info_cVerifyData @| hs_state.hs_renegotiation_info_sVerifyData in
-                        inspect_SHello_extensions shello.neg_extensions expected
+                    if state.poptions.safe_renegotiation then
+                        let expected = state.hs_renegotiation_info_cVerifyData @| state.hs_renegotiation_info_sVerifyData in
+                        inspect_ServerHello_extensions shello.neg_extensions expected
                     else
                         // RFC Sec 7.4.1.4: with no safe renegotiation, we never send extensions; if the server sent any extension
                         // we MUST abort the handshake with unsupported_extension fatal alter (handled by the dispatcher)
@@ -1126,13 +1148,13 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                         then Error(HSError(AD_unsupported_extension),HSSendAlert)
                         else let unitVal = () in correct (unitVal)
                   match safe_reneg_result with
-                    | Error (x,y) -> (Error (x,y), hs_state)
+                    | Error (x,y) -> (Error (x,y), state)
                     | Correct _ ->
                         // Log the received packet and store the server random.
-                        let new_log = hs_state.hs_msg_log @| to_log in
-                        let hs_state = {hs_state with hs_msg_log = new_log; ki_srand = server_random}
+                        let new_log = state.hs_msg_log @| to_log in
+                        let state = {state with hs_msg_log = new_log; ki_srand = server_random}
                         (* Check whether we asked for resumption *)
-                        if isNullCipherSuite hs_state.hs_next_info.cipher_suite then
+                        if isNullCipherSuite state.hs_next_info.cipher_suite then
                             (* we did not request resumption, do a full handshake *)
                             (* define the sinfo we're going to establish *)
                             let next_sinfo = { clientID = None
@@ -1141,35 +1163,35 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                                                protocol_version = shello.server_version
                                                cipher_suite = shello.cipher_suite
                                                compression = shello.compression_method
-                                               init_crand = hs_state.hs_next_info.init_crand (* or, alternatively, hs_state.ki_crand *)
+                                               init_crand = state.hs_next_info.init_crand (* or, alternatively, state.ki_crand *)
                                                init_srand = server_random
                                              } in
-                            let hs_state = {hs_state with hs_next_info = next_sinfo} in
+                            let state = {state with hs_next_info = next_sinfo} in
                             (* If DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
                             if isAnonCipherSuite shello.cipher_suite then
-                                let hs_state = {hs_state with pstate = Client(ServerKeyExchange)} in
-                                recv_fragment_client hs_state (Some(shello.server_version))
+                                let state = {state with pstate = Client(ServerKeyExchange)} in
+                                recv_fragment_client state (Some(shello.server_version))
                             else
-                                let hs_state = {hs_state with pstate = Client(Certificate)} in
-                                recv_fragment_client hs_state (Some(shello.server_version))
+                                let state = {state with pstate = Client(Certificate)} in
+                                recv_fragment_client state (Some(shello.server_version))
                         else
-                            match hs_state.hs_next_info.sessionID with
+                            match state.hs_next_info.sessionID with
                             | None -> unexpectedError "[recv_fragment] A resumed session should never have empty SID"
                             | Some(sid) ->
                                 if sid = shello.sh_session_id then (* use resumption *)
                                     (* Check that protocol version, ciph_suite and compression method are indeed the correct ones *)
-                                    if hs_state.hs_next_info.protocol_version = shello.server_version then
-                                        if hs_state.hs_next_info.cipher_suite = shello.cipher_suite then
-                                            if hs_state.hs_next_info.compression = shello.compression_method then
-                                                let hs_state = compute_session_secrets_and_CCSs hs_state CtoS in
+                                    if state.hs_next_info.protocol_version = shello.server_version then
+                                        if state.hs_next_info.cipher_suite = shello.cipher_suite then
+                                            if state.hs_next_info.compression = shello.compression_method then
+                                                let state = compute_session_secrets_and_CCSs state CtoS in
                                                 let clSpecState = { resumed_session = true;
                                                                     must_send_cert = None;
                                                                     client_certificate = None} in
-                                                let hs_state = { hs_state with pstate = Client(CCCS(clSpecState))}
-                                                recv_fragment_client hs_state (Some(shello.server_version))
-                                            else (Error(HSError(AD_illegal_parameter),HSSendAlert),hs_state)
-                                        else (Error(HSError(AD_illegal_parameter),HSSendAlert),hs_state)
-                                    else (Error(HSError(AD_illegal_parameter),HSSendAlert),hs_state)
+                                                let state = { state with pstate = Client(CCCS(clSpecState))}
+                                                recv_fragment_client state (Some(shello.server_version))
+                                            else (Error(HSError(AD_illegal_parameter),HSSendAlert),state)
+                                        else (Error(HSError(AD_illegal_parameter),HSSendAlert),state)
+                                    else (Error(HSError(AD_illegal_parameter),HSSendAlert),state)
                                 else (* server did not agreed on resumption, do a full handshake *)
                                     (* define the sinfo we're going to establish *)
                                     let next_sinfo = { clientID = None
@@ -1178,139 +1200,140 @@ let rec recv_fragment_client (hs_state:hs_state) (must_change_ver:ProtocolVersio
                                                        protocol_version = shello.server_version
                                                        cipher_suite = shello.cipher_suite
                                                        compression = shello.compression_method
-                                                       init_crand = hs_state.hs_next_info.init_crand (* or, alternatively, hs_state.ki_crand *)
+                                                       init_crand = state.hs_next_info.init_crand (* or, alternatively, state.ki_crand *)
                                                        init_srand = server_random
                                                      } in
-                                    let hs_state = {hs_state with hs_next_info = next_sinfo} in
+                                    let state = {state with hs_next_info = next_sinfo} in
                                     (* If DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
                                     if isAnonCipherSuite shello.cipher_suite then
-                                        let hs_state = {hs_state with pstate = Client(ServerKeyExchange)} in
-                                        recv_fragment_client hs_state (Some(shello.server_version))
+                                        let state = {state with pstate = Client(ServerKeyExchange)} in
+                                        recv_fragment_client state (Some(shello.server_version))
                                     else
-                                        let hs_state = {hs_state with pstate = Client(Certificate)} in
-                                        recv_fragment_client hs_state (Some(shello.server_version))
-            | _ -> (* ServerHello arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
+                                        let state = {state with pstate = Client(Certificate)} in
+                                        recv_fragment_client state (Some(shello.server_version))
+            | _ -> (* ServerHello arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
         | HT_certificate ->
             match cState with
             | Certificate ->
                 match parseCertificate payload with
-                | Error(x,y) -> (Error(x,y),hs_state)
-                | Correct(certMsg) ->
-                    if not (hs_state.poptions.certificateValidationPolicy certMsg.certificate_list) then
-                        (Error(HSError(AD_bad_certificate),HSSendAlert),hs_state)
+                | Error(x,y) -> (Error(x,y),state)
+                | Correct(certs) ->
+                    if not (state.poptions.certificateValidationPolicy certs.certificate_list) then
+                        (Error(HSError(AD_bad_certificate),HSSendAlert),state)
                     else (* We have validated server identity *)
                         (* Log the received packet *)
-                        let new_log = hs_state.hs_msg_log @| to_log in
-                        let hs_state = {hs_state with hs_msg_log = new_log} in           
+                        let new_log = state.hs_msg_log @| to_log in
+                        let state = {state with hs_msg_log = new_log} in           
                         (* update the sinfo we're establishing *)
-                        let next_sinfo = {hs_state.hs_next_info with serverID = Some(certMsg.certificate_list.Head)} in
-                        let hs_state = {hs_state with hs_next_info = next_sinfo} in
-                        if cipherSuiteRequiresKeyExchange hs_state.hs_next_info.cipher_suite then
-                            let hs_state = {hs_state with pstate = Client(ServerKeyExchange)} in
-                            recv_fragment_client hs_state must_change_ver
+                        let next_sinfo = {state.hs_next_info with serverID = Some(certs.certificate_list.Head)} in
+                        let state = {state with hs_next_info = next_sinfo} in
+                        if cipherSuiteRequiresKeyExchange state.hs_next_info.cipher_suite then
+                            let state = {state with pstate = Client(ServerKeyExchange)} in
+                            recv_fragment_client state must_change_ver
                         else
-                            let hs_state = {hs_state with pstate = Client(CertReqOrSHDone)} in
-                            recv_fragment_client hs_state must_change_ver
-            | _ -> (* Certificate arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
+                            let state = {state with pstate = Client(CertReqOrSHDone)} in
+                            recv_fragment_client state must_change_ver
+            | _ -> (* Certificate arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
         | HT_server_key_exchange ->
             match cState with
             | ServerKeyExchange ->
-                (* TODO *) (Error(HSError(AD_internal_error),HSSendAlert),hs_state)
-            | _ -> (* Server Key Exchange arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
+                (* TODO *) (Error(HSError(AD_internal_error),HSSendAlert),state)
+            | _ -> (* Server Key Exchange arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
         | HT_certificate_request ->
             match cState with
             | CertReqOrSHDone ->
                 (* Log the received packet *)
-                let new_log = hs_state.hs_msg_log @| to_log in
-                let hs_state = {hs_state with hs_msg_log = new_log} in
+                let new_log = state.hs_msg_log @| to_log in
+                let state = {state with hs_msg_log = new_log} in
 
                 (* Note: in next statement, use next_info, because the handshake runs according to the session we want to
                    establish, not the current one *)
-                match parseCertReq hs_state.hs_next_info.protocol_version payload with
-                | Error(x,y) -> (Error(x,y),hs_state)
+                match parseCertificateRequest state.hs_next_info.protocol_version payload with
+                | Error(x,y) -> (Error(x,y),state)
                 | Correct(certReqMsg) ->
                 let client_cert = find_client_cert certReqMsg in
                 (* Update the sinfo we're establishing *)
-                let next_info = {hs_state.hs_next_info with clientID =
+                let next_info = {state.hs_next_info with clientID =
                                                             match client_cert with
                                                             | None -> None
                                                             | Some(certList) -> Some(certList.Head)} in
-                let hs_state = {hs_state with hs_next_info = next_info} in
+                let state = {state with hs_next_info = next_info} in
                 let clSpecState = {resumed_session = false;
                                    must_send_cert = Some(certReqMsg);
                                    client_certificate = client_cert} in
-                let hs_state = {hs_state with pstate = Client(CSHDone(clSpecState))} in
-                recv_fragment_client hs_state must_change_ver
-            | _ -> (* Certificate Request arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
+                let state = {state with pstate = Client(CSHDone(clSpecState))} in
+                recv_fragment_client state must_change_ver
+            | _ -> (* Certificate Request arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
         | HT_server_hello_done ->
             match cState with
             | CertReqOrSHDone ->
                 if not (equalBytes payload [||]) then
-                    (Error(HSError(AD_decode_error),HSSendAlert),hs_state)
+                    (Error(HSError(AD_decode_error),HSSendAlert),state)
                 else
                     (* Log the received packet *)
-                    let new_log = hs_state.hs_msg_log @| to_log in
-                    let hs_state = {hs_state with hs_msg_log = new_log} in
+                    let new_log = state.hs_msg_log @| to_log in
+                    let state = {state with hs_msg_log = new_log} in
 
                     let clSpecState = {
                         resumed_session = false;
                         must_send_cert = None;
                         client_certificate = None} in
-                    match prepare_client_output_full hs_state clSpecState with
-                    | Error (x,y) -> (Error (x,y), hs_state)
-                    | Correct (hs_state) ->
-                        let hs_state = {hs_state with pstate = Client(CCCS(clSpecState))}
-                        recv_fragment_client hs_state must_change_ver
+                    match prepare_client_output_full state clSpecState with
+                    | Error (x,y) -> (Error (x,y), state)
+                    | Correct (state) ->
+                        let state = {state with pstate = Client(CCCS(clSpecState))}
+                        recv_fragment_client state must_change_ver
             | CSHDone(clSpecState) ->
                 if not (equalBytes payload [||]) then
-                    (Error(HSError(AD_decode_error),HSSendAlert),hs_state)
+                    (Error(HSError(AD_decode_error),HSSendAlert),state)
                 else
                     (* Log the received packet *)
-                    let new_log = hs_state.hs_msg_log @| to_log in
-                    let hs_state = {hs_state with hs_msg_log = new_log} in
+                    let new_log = state.hs_msg_log @| to_log in
+                    let state = {state with hs_msg_log = new_log} in
 
-                    match prepare_client_output_full hs_state clSpecState with
-                    | Error (x,y) -> (Error (x,y), hs_state)
-                    | Correct (hs_state) ->
-                        let hs_state = {hs_state with pstate = Client(CCCS(clSpecState))}
-                        recv_fragment_client hs_state must_change_ver
-            | _ -> (* Server Hello Done arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
+                    match prepare_client_output_full state clSpecState with
+                    | Error (x,y) -> (Error (x,y), state)
+                    | Correct (state) ->
+                        let state = {state with pstate = Client(CCCS(clSpecState))}
+                        recv_fragment_client state must_change_ver
+            | _ -> (* Server Hello Done arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
         | HT_finished ->
             match cState with
-            | CFinished (clSpState) ->
+            | CFinished(clSpState) ->
                 (* Check received content *)
                 let ki =
-                    match hs_state.ccs_incoming with
+                    match state.ccs_incoming with
                     | None -> unexpectedError "[recv_fragment_client] ccs_incoming should have some value when in CFinished state"
                     | Some (ccs_data) -> ccs_data.ki
-                let verifyDataisOK = checkVerifyData ki hs_state.next_ms hs_state.hs_msg_log payload in
+                let verifyDataisOK = checkVerifyData ki state.next_ms state.hs_msg_log payload in
                 if not verifyDataisOK then
-                    (Error(HSError(AD_decrypt_error),HSSendAlert),hs_state)
+                    (Error(HSError(AD_decrypt_error),HSSendAlert),state)
                 else
                     (* Store server verifyData, in case we use safe resumption *)
-                    let hs_state = {hs_state with hs_renegotiation_info_sVerifyData = payload} in
+                    let state = {state with hs_renegotiation_info_sVerifyData = payload} in
                     if clSpState.resumed_session then
                         (* Log the received message *)
-                        let new_log = hs_state.hs_msg_log @| to_log in
-                        let hs_state = {hs_state with hs_msg_log = new_log} in
-                        let hs_state = prepare_client_output_resumption hs_state in
-                        let hs_state = {hs_state with pstate = Client(CWatingToWrite)} in
-                        (correct (HSReadSideFinished),hs_state)
+                        let new_log = state.hs_msg_log @| to_log in
+                        let state = {state with hs_msg_log = new_log} in
+                        let state = prepare_client_output_resumption state in
+                        let state = {state with pstate = Client(CWaitingToWrite)} in
+                        (correct (HSReadSideFinished),state)
                     else    
                         (* Handshake fully completed successfully. Report this fact to the dispatcher:
                             it will take care of moving the handshake to the Idle state, updating the sinfo with the
                             one we've been creating in this handshake. *)
                         (* Note: no need to log this message *)
-                        let storableSession = { sinfo = hs_state.hs_next_info;
-                                                ms = hs_state.next_ms;
+                        let storableSession = { sinfo = state.hs_next_info;
+                                                ms = state.next_ms;
                                                 dir = CtoS}
-                        (correct (HSFullyFinished_Read (storableSession)),hs_state)
-            | _ -> (* Finished arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
-        | _ -> (* Unsupported/Wrong message *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
+                        (correct (HSFullyFinished_Read (storableSession)),state)
+            | _ -> (* Finished arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
+        | _ -> (* Unsupported/Wrong message *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
       
       (* Should never happen *)
       | Server(_) -> unexpectedError "[recv_fragment_client] should only be invoked when in client role."
 
+// Move to Principal? 
 let getServerCert cs ops =
     (* TODO: Properly get the server certificate. Note this should be a list of certificates...*)
     let data = System.IO.File.ReadAllBytes (ops.server_cert_file + ".cer") in
@@ -1324,29 +1347,28 @@ let getServerCert cs ops =
         printfn "%s" (get_CN cert)
         correct (cert)
 
-let prepare_server_output_full hs_state maxClVer =
-    let ext_data = hs_state.hs_renegotiation_info_cVerifyData @| hs_state.hs_renegotiation_info_sVerifyData in
-    let (sHelloB,sRandom) = makeServerHelloBytes hs_state.poptions hs_state.hs_next_info ext_data in
-    let next_info = {hs_state.hs_next_info with init_srand = sRandom} in
-    let hs_state = {hs_state with hs_next_info = next_info
-                                  ki_srand = sRandom} in
+let prepare_server_output_full state maxClVer =
+    let ext_data = state.hs_renegotiation_info_cVerifyData @| state.hs_renegotiation_info_sVerifyData in
+    let (sHelloB,sRandom) = makeServerHelloBytes state.poptions state.hs_next_info ext_data in
+    let next_info = {state.hs_next_info with init_srand = sRandom} in
+    let state = {state with hs_next_info = next_info; ki_srand = sRandom} in
     let res =
-        if isAnonCipherSuite hs_state.hs_next_info.cipher_suite then
-            correct ([||],hs_state)
+        if isAnonCipherSuite state.hs_next_info.cipher_suite then
+            correct ([||],state)
         else
-            match getServerCert hs_state.hs_next_info.cipher_suite hs_state.poptions with
+            match getServerCert state.hs_next_info.cipher_suite state.poptions with
             | Error(x,y) -> Error(x,y)
             | Correct(sCert) ->
                 (* update server identity in the sinfo *)
-                let next_info = {hs_state.hs_next_info with serverID = Some(sCert)} in
-                let hs_state = {hs_state with hs_next_info = next_info} in
-                correct (makeCertificateBytes (Some([sCert])), hs_state)
+                let next_info = {state.hs_next_info with serverID = Some(sCert)} in
+                let state = {state with hs_next_info = next_info} in
+                correct (makeCertificateBytes (Some([sCert])), state)
     match res with
     | Error(x,y) -> Error(x,y)
     | Correct (res) ->
-        let (certificateB,hs_state) = res in
+        let (certificateB,state) = res in
         let res =
-            if isAnonCipherSuite hs_state.hs_next_info.cipher_suite || cipherSuiteRequiresKeyExchange hs_state.hs_next_info.cipher_suite then
+            if isAnonCipherSuite state.hs_next_info.cipher_suite || cipherSuiteRequiresKeyExchange state.hs_next_info.cipher_suite then
                 (* TODO: DH key exchange *)
                 Error(HSError(AD_internal_error),HSSendAlert)
             else
@@ -1355,256 +1377,226 @@ let prepare_server_output_full hs_state maxClVer =
         | Error(x,y) -> Error(x,y)
         | Correct (serverKeyExchangeB) ->
             let certificateRequestB =
-                if hs_state.poptions.request_client_certificate then
-                    makeCertificateRequestBytes hs_state.hs_next_info.cipher_suite hs_state.hs_next_info.protocol_version
+                if state.poptions.request_client_certificate then
+                    makeCertificateRequestBytes state.hs_next_info.cipher_suite state.hs_next_info.protocol_version
                 else
                     [||]
-            let sHelloDoneB = makeSHelloDoneBytes () in
+            let sHelloDoneB = makeServerHelloDoneBytes () in
             let output = sHelloB @| certificateB @| serverKeyExchangeB @| certificateRequestB @| sHelloDoneB in
             (* Log the output and put it into the output buffer *)
-            let new_log = hs_state.hs_msg_log @| output in
-            let new_out = hs_state.hs_outgoing @| output in
-            let hs_state = {hs_state with hs_msg_log = new_log
-                                          hs_outgoing = new_out} in
+            let new_log = state.hs_msg_log @| output in
+            let new_out = state.hs_outgoing @| output in
+            let state = {state with hs_msg_log = new_log; hs_outgoing = new_out} in
             (* Compute the next state of the server *)
             let sSpecSt = { resumed_session = false
                             highest_client_ver = maxClVer} in
-            let hs_state =
-                if hs_state.poptions.request_client_certificate then
-                    {hs_state with pstate = Server(ClCert(sSpecSt))}
+            let state =
+                if state.poptions.request_client_certificate then
+                    {state with pstate = Server(ClCert(sSpecSt))}
                 else
-                    {hs_state with pstate = Server(ClientKEX(sSpecSt))}
-            correct (hs_state)
+                    {state with pstate = Server(ClientKEX(sSpecSt))}
+            correct (state)
 
 
 // The server "negotiates" its first proposal included in the client's proposal
 let negotiate cList sList =
     List.tryFind (fun s -> List.exists (fun c -> c = s) cList) sList
 
-let start_server_full hs_state cHello =
-    (* Negotiate the protocol parameters *)
-    match minPV cHello.client_version hs_state.poptions.maxVer with
-    | negPV when negPV >= ProtocolVersionType.SSL_3p0 ->
-        match negotiate cHello.cipher_suites hs_state.poptions.ciphersuites with
-        | None -> Error(HSError(AD_handshake_failure),HSSendAlert)
-        | Some(negCS) ->
-            match negotiate cHello.compression_methods hs_state.poptions.compressions with
-            | None -> Error(HSError(AD_handshake_failure),HSSendAlert)
-            | Some(negCM) ->
-                (* TODO: now we don't support safe_renegotiation, and we ignore any client proposed extension *)
-                let sid = mkRandom 32 in
-                (* Fill in the session info we're establishing *)
-                let next_info = { clientID = None
-                                  serverID = None
-                                  sessionID = Some(sid)
-                                  protocol_version = negPV
-                                  cipher_suite = negCS
-                                  compression = negCM
-                                  init_crand = hs_state.ki_crand
-                                  init_srand = [||]
-                                }
-                let hs_state = {hs_state with hs_next_info = next_info} in
-                match prepare_server_output_full hs_state cHello.client_version with
-                | Error(x,y) -> Error(x,y)
-                | Correct(hs_state) -> correct ((hs_state,negPV))
-    | _ -> Error(HSError(AD_handshake_failure),HSSendAlert)
-
-let prepare_server_output_resumption hs_state =
-    let ext_data = hs_state.hs_renegotiation_info_cVerifyData @| hs_state.hs_renegotiation_info_sVerifyData in
-    let (sHelloB,sRandom) = makeServerHelloBytes hs_state.poptions hs_state.hs_next_info ext_data in
-    let hs_state = {hs_state with ki_srand = sRandom} in
-    let new_out = hs_state.hs_outgoing @| sHelloB in
-    let new_log = hs_state.hs_msg_log @| sHelloB in
-    let hs_state = {hs_state with hs_outgoing = new_out
-                                  hs_msg_log = new_log} in
-    let hs_state = compute_session_secrets_and_CCSs hs_state StoC in
+let prepare_server_output_resumption state =
+    let ext_data = state.hs_renegotiation_info_cVerifyData @| state.hs_renegotiation_info_sVerifyData in
+    let (sHelloB,sRandom) = makeServerHelloBytes state.poptions state.hs_next_info ext_data in
+    let state = {state with ki_srand = sRandom} in
+    let new_out = state.hs_outgoing @| sHelloB in
+    let new_log = state.hs_msg_log  @| sHelloB in
+    let state = {state with hs_outgoing = new_out; hs_msg_log = new_log} in
+    let state = compute_session_secrets_and_CCSs state StoC in
     let ki =
-        match hs_state.ccs_outgoing with
+        match state.ccs_outgoing with
         | None -> unexpectedError "[prepare_server_output_resumption] The ccs_outgoing buffer should contain some value when computing the finished message"
         | Some (_,ccs_data) -> ccs_data.ki
-    let (finishedB,verifyData) = makeFinishedMsgBytes ki hs_state.next_ms hs_state.hs_msg_log in
-    (* match makeFinishedMsgBytes sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms StoC hs_state.hs_msg_log with *)
-    let new_out = hs_state.hs_outgoing_after_ccs @| finishedB in
-    let new_log = hs_state.hs_msg_log @| finishedB in
+    let (finishedB,verifyData) = makeFinishedMsgBytes ki state.next_ms state.hs_msg_log in
+    (* match makeFinishedMsgBytes sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms StoC state.hs_msg_log with *)
+    let new_out = state.hs_outgoing_after_ccs @| finishedB in
+    let new_log = state.hs_msg_log @| finishedB in
     let sSpecState = {resumed_session = true
-                      highest_client_ver = hs_state.hs_next_info.protocol_version} (* Highest version is useless with resumption. We already agree on the MS *)
-    let hs_state = {hs_state with hs_outgoing_after_ccs = new_out
-                                  hs_msg_log = new_log
-                                  hs_renegotiation_info_sVerifyData = verifyData
-                                  pstate = Server(SCCS(sSpecState))} in
-    hs_state
+                      highest_client_ver = state.hs_next_info.protocol_version} (* Highest version is useless with resumption. We already agree on the MS *)
+    let state = {state with hs_outgoing_after_ccs = new_out
+                            hs_msg_log = new_log
+                            hs_renegotiation_info_sVerifyData = verifyData
+                            pstate = Server(SCCS(sSpecState))} in
+    state
 
-let rec recv_fragment_server (hs_state:hs_state) (must_change_ver:ProtocolVersionType Option) =
-    match parseFragment hs_state with
+let rec recv_fragment_server (state:hs_state) (must_change_ver:ProtocolVersionType Option) =
+    match parseFragment state with
     | None ->
       match must_change_ver with
-      | None      -> (correct (HSAck), hs_state)
-      | Some (pv) -> (correct (HSChangeVersion(StoC,pv)),hs_state)
-    | Some (hs_state,hstype,payload,to_log) ->
-      match hs_state.pstate with
+      | None      -> (correct (HSAck), state)
+      | Some (pv) -> (correct (HSChangeVersion(StoC,pv)),state)
+    | Some (state,hstype,payload,to_log) ->
+      match state.pstate with
       | Server(sState) ->
         match hstype with
         | HT_client_hello ->
             match sState with
             | x when x = ClientHello || x = SIdle ->
                 match parseClientHello payload with
-                | Error(x,y) -> (Error(HSError(AD_decode_error),HSSendAlert),hs_state)
+                | Error(x,y) -> (Error(HSError(AD_decode_error),HSSendAlert),state)
                 | Correct (cHello,cRandom) ->
-                let hs_state = {hs_state with ki_crand = cRandom} in
+                let state = {state with ki_crand = cRandom} in
                 (* Log the received message *)
-                let new_log = hs_state.hs_msg_log @| to_log in
-                let hs_state = {hs_state with hs_msg_log = new_log} in
+                let new_log = state.hs_msg_log @| to_log in
+                let state = {state with hs_msg_log = new_log} in
                 (* Handling of renegotiation_info extenstion *)
                 let extRes =
-                    if hs_state.poptions.safe_renegotiation then
-                        if check_client_renegotiation_info cHello hs_state.hs_renegotiation_info_cVerifyData then
-                            correct(hs_state)
+                    if state.poptions.safe_renegotiation then
+                        if check_client_renegotiation_info cHello state.hs_renegotiation_info_cVerifyData then
+                            correct(state)
                         else
                             (* We don't accept an insecure client *)
                             Error(HSError(AD_handshake_failure),HSSendAlert)
                     else
                         (* We can ignore the extension, if any *)
-                        correct(hs_state)
+                        correct(state)
                 match extRes with
-                | Error(x,y) -> (Error(x,y),hs_state)
-                | Correct(hs_state) ->
+                | Error(x,y) -> (Error(x,y),state)
+                | Correct(state) ->
                     (* Check whether the client asked for session resumption *)
                     if equalBytes cHello.ch_session_id [||] 
                     then 
                         (* Client asked for a full handshake *)
-                        start_server_full' hs_state cHello
+                        startServerFull state cHello
                     else
                         (* Client asked for resumption, let's see if we can satisfy the request *)
                         (* FIXME: this SessionDB interaction seems right to be here, however, I'd like to move
                            all SessionDB in the Dispatch. (Why in the Dispatcher? Not sure) *)
-                        match select hs_state.poptions cHello.ch_session_id with
+                        match select state.poptions cHello.ch_session_id with
                         | None ->
                             (* We don't have the requested session stored, go for a full handshake *)
-                            start_server_full' hs_state cHello
+                            startServerFull state cHello
                         | Some (storedSession) ->
                             (* Check that the client proposed algorithms match those of our stored session *)
                             match storedSession.dir with
                             | CtoS -> (* This session is not for us, we're a server. Do full handshake *)
-                                start_server_full' hs_state cHello
+                                startServerFull state cHello
                             | StoC ->
                                 if cHello.client_version >= storedSession.sinfo.protocol_version then
                                     (* We have a common version *)
                                     if not (List.exists (fun cs -> cs = storedSession.sinfo.cipher_suite) cHello.cipher_suites) then
                                         (* Do a full handshake *)
-                                        start_server_full' hs_state cHello
+                                        startServerFull state cHello
                                     else if not (List.exists (fun cm -> cm = storedSession.sinfo.compression) cHello.compression_methods) then
                                         (* Do a full handshake *)
-                                        start_server_full' hs_state cHello
+                                        startServerFull state cHello
                                     else
                                         (* Everything is ok, proceed with resumption *)
-                                        let hs_state = {hs_state with hs_next_info = storedSession.sinfo
-                                                                      next_ms = storedSession.ms}
-                                        let hs_state = prepare_server_output_resumption hs_state 
-                                        recv_fragment_server hs_state (Some(storedSession.sinfo.protocol_version))
+                                        let state = {state with hs_next_info = storedSession.sinfo
+                                                                next_ms = storedSession.ms}
+                                        let state = prepare_server_output_resumption state 
+                                        recv_fragment_server state (Some(storedSession.sinfo.protocol_version))
                                 else
                                     (* Do a full handshake *)
-                                    start_server_full' hs_state cHello
+                                    startServerFull state cHello
                                     
-            | _ -> (* Message arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
+            | _ -> (* Message arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
         | HT_certificate ->
             match sState with
             | ClCert (sSpecSt) ->
                 match parseCertificate payload with
-                | Error(x,y) -> (Error(x,y),hs_state)
+                | Error(x,y) -> (Error(x,y),state)
                 | Correct(certMsg) ->
-                    if not (hs_state.poptions.certificateValidationPolicy certMsg.certificate_list) then
-                        (Error(HSError(AD_bad_certificate),HSSendAlert),hs_state)
+                    if not (state.poptions.certificateValidationPolicy certMsg.certificate_list) then
+                        (Error(HSError(AD_bad_certificate),HSSendAlert),state)
                     else (* We have validated client identity *)
                         (* Log the received packet *)
-                        let new_log = hs_state.hs_msg_log @| to_log in
-                        let hs_state = {hs_state with hs_msg_log = new_log} in           
+                        let new_log = state.hs_msg_log @| to_log in
+                        let state = {state with hs_msg_log = new_log} in           
                         (* update the sinfo we're establishing *)
                         let next_info =
                             if certMsg.certificate_list.IsEmpty then
-                                {hs_state.hs_next_info with clientID = None}
+                                {state.hs_next_info with clientID = None}
                             else
-                                {hs_state.hs_next_info with clientID = Some(certMsg.certificate_list.Head)}
-                        let hs_state = {hs_state with hs_next_info = next_info} in
+                                {state.hs_next_info with clientID = Some(certMsg.certificate_list.Head)}
+                        let state = {state with hs_next_info = next_info} in
                         (* move to the next state *)
-                        let hs_state = {hs_state with pstate = Server(ClientKEX(sSpecSt))} in
-                        recv_fragment_server hs_state must_change_ver
-            | _ -> (* Message arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
+                        let state = {state with pstate = Server(ClientKEX(sSpecSt))} in
+                        recv_fragment_server state must_change_ver
+            | _ -> (* Message arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
         | HT_client_key_exchange ->
             match sState with
             | ClientKEX(sSpecSt) ->
-                match parseClientKEX hs_state.hs_next_info sSpecSt hs_state.poptions payload with
-                | Error(x,y) -> (Error(x,y),hs_state)
+                match parseClientKEX state.hs_next_info sSpecSt state.poptions payload with
+                | Error(x,y) -> (Error(x,y),state)
                 | Correct(pms) ->
                     (* Log the received packet *)
-                    let new_log = hs_state.hs_msg_log @| to_log in
-                    let hs_state = {hs_state with hs_msg_log = new_log} in
-                    let ms = prfMS hs_state.hs_next_info pms in
-                    (* assert: hs_state.hs_next_info.{c,s}rand = hs_state.ki_{c,s}rand *)
-                    (* match compute_master_secret pms sinfo.more_info.mi_protocol_version hs_state.hs_client_random hs_state.hs_server_random with *)
+                    let new_log = state.hs_msg_log @| to_log in
+                    let state = {state with hs_msg_log = new_log} in
+                    let ms = prfMS state.hs_next_info pms in
+                    (* assert: state.hs_next_info.{c,s}rand = state.ki_{c,s}rand *)
+                    (* match compute_master_secret pms sinfo.more_info.mi_protocol_version state.hs_client_random state.hs_server_random with *)
                     (* TODO: here we should shred pms *)
-                    let hs_state = {hs_state with next_ms = ms} in
-                    let hs_state = compute_session_secrets_and_CCSs hs_state StoC in
+                    let state = {state with next_ms = ms} in
+                    let state = compute_session_secrets_and_CCSs state StoC in
                         (* move to new state *)
-                    match hs_state.hs_next_info.clientID with
+                    match state.hs_next_info.clientID with
                     | None -> (* No client certificate, so there will be no CertificateVerify message *)
-                        let hs_state = {hs_state with pstate = Server(SCCS(sSpecSt))} in
-                        recv_fragment_server hs_state must_change_ver
+                        let state = {state with pstate = Server(SCCS(sSpecSt))} in
+                        recv_fragment_server state must_change_ver
                     | Some(cert) ->
                         if certificate_has_signing_capability cert then
-                            let hs_state = {hs_state with pstate = Server(CertificateVerify(sSpecSt))} in
-                            recv_fragment_server hs_state must_change_ver
+                            let state = {state with pstate = Server(CertificateVerify(sSpecSt))} in
+                            recv_fragment_server state must_change_ver
                         else
-                            let hs_state = {hs_state with pstate = Server(SCCS(sSpecSt))} in
-                            recv_fragment_server hs_state must_change_ver
-            | _ -> (* Message arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
+                            let state = {state with pstate = Server(SCCS(sSpecSt))} in
+                            recv_fragment_server state must_change_ver
+            | _ -> (* Message arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
         | HT_certificate_verify ->
             match sState with
             | CertificateVerify(sSpecSt) ->
-                match hs_state.hs_next_info.clientID with
-                | None -> (* There should always be a client certificate in this state *)(Error(HSError(AD_internal_error),HSSendAlert),hs_state)
+                match state.hs_next_info.clientID with
+                | None -> (* There should always be a client certificate in this state *)(Error(HSError(AD_internal_error),HSSendAlert),state)
                 | Some(clCert) ->
-                    match certificateVerifyCheck hs_state payload with
-                    | Error(x,y) -> (Error(x,y),hs_state)
+                    match certificateVerifyCheck state payload with
+                    | Error(x,y) -> (Error(x,y),state)
                     | Correct(verifyOK) ->
                         if verifyOK then
                             (* Log the message *)
-                            let new_log = hs_state.hs_msg_log @| to_log in
-                            let hs_state = {hs_state with hs_msg_log = new_log} in   
+                            let new_log = state.hs_msg_log @| to_log in
+                            let state = {state with hs_msg_log = new_log} in   
                             (* move to next state *)
-                            let hs_state = {hs_state with pstate = Server(SCCS(sSpecSt))} in
-                            recv_fragment_server hs_state must_change_ver
+                            let state = {state with pstate = Server(SCCS(sSpecSt))} in
+                            recv_fragment_server state must_change_ver
                         else
-                            (Error(HSError(AD_decrypt_error),HSSendAlert),hs_state)
-            | _ -> (* Message arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
+                            (Error(HSError(AD_decrypt_error),HSSendAlert),state)
+            | _ -> (* Message arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
         | HT_finished ->
             match sState with
             | SFinished(sSpecSt) ->
                 let kiIn =
-                    match hs_state.ccs_incoming with
+                    match state.ccs_incoming with
                     | None -> unexpectedError "[recv_fragment_server] the incoming KeyInfo should be set now"
                     | Some (ccs_data) -> ccs_data.ki
-                let verifyDataisOK = checkVerifyData kiIn hs_state.next_ms hs_state.hs_msg_log payload in
-                (* match checkVerifyData sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms CtoS hs_state.hs_msg_log payload with *)
+                let verifyDataisOK = checkVerifyData kiIn state.next_ms state.hs_msg_log payload in
+                (* match checkVerifyData sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms CtoS state.hs_msg_log payload with *)
                 if not verifyDataisOK then
-                    (Error(HSError(AD_decrypt_error),HSSendAlert),hs_state)
+                    (Error(HSError(AD_decrypt_error),HSSendAlert),state)
                 else
                     (* Save client verify data to possibly use it in the renegotiation_info extension *)
-                    let hs_state = {hs_state with hs_renegotiation_info_cVerifyData = payload} in
+                    let state = {state with hs_renegotiation_info_cVerifyData = payload} in
                     if sSpecSt.resumed_session then
                         (* Handshake fully completed successfully. Report this fact to the dispatcher:
                             it will take care of moving the handshake to the Idle state, updating the sinfo with the
                             one we've been creating in this handshake. *)
                         (* Note: no need to log this message *)
-                        let storableSession = { sinfo = hs_state.hs_next_info
-                                                ms = hs_state.next_ms
+                        let storableSession = { sinfo = state.hs_next_info
+                                                ms = state.next_ms
                                                 dir = StoC}
-                        (correct (HSFullyFinished_Read (storableSession)),hs_state)
+                        (correct (HSFullyFinished_Read (storableSession)),state)
                     else
                         (* Log the received message *)
-                        let new_log = hs_state.hs_msg_log @| to_log in
-                        let hs_state = {hs_state with hs_msg_log = new_log} in
+                        let new_log = state.hs_msg_log @| to_log in
+                        let state = {state with hs_msg_log = new_log} in
                         let kiOut =
-                            match hs_state.ccs_outgoing with
+                            match state.ccs_outgoing with
                             (* FIXME: There is at least one race condition where the following unexpected error will occur.
                                 After the client sends its ClientKeyExchange message we compute the ougoing (and incoming) ccs_data,
                                 and put it into our output buffer. Now, if the client hangs after the ClientKeyExchange (that is: it does
@@ -1617,68 +1609,88 @@ let rec recv_fragment_server (hs_state:hs_state) (must_change_ver:ProtocolVersio
                                 (i.e. until we reset our state) exactly like we do for the incoming ccs_data *)
                             | None -> unexpectedError "[recv_fragment_server] Outgoing KeyInfo should be set now"
                             | Some(_,ccs_data) -> ccs_data.ki
-                        let (packet,verifyData) = makeFinishedMsgBytes kiOut hs_state.next_ms hs_state.hs_msg_log in
-                        (* match makeFinishedMsgBytes sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms StoC hs_state.hs_msg_log with *)
-                        let new_out = hs_state.hs_outgoing_after_ccs @| packet in
-                        let hs_state = {hs_state with hs_outgoing_after_ccs = new_out
-                                                      hs_renegotiation_info_sVerifyData = verifyData
-                                                      pstate = Server(SWaitingToWrite)} in
-                        (correct (HSReadSideFinished),hs_state)                                
-            | _ -> (* Message arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
-        | _ -> (* Unsupported/Wrong message *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
+                        let (packet,verifyData) = makeFinishedMsgBytes kiOut state.next_ms state.hs_msg_log in
+                        (* match makeFinishedMsgBytes sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms StoC state.hs_msg_log with *)
+                        let new_out = state.hs_outgoing_after_ccs @| packet in
+                        let state = {state with hs_outgoing_after_ccs = new_out
+                                                hs_renegotiation_info_sVerifyData = verifyData
+                                                pstate = Server(SWaitingToWrite)} in
+                        (correct (HSReadSideFinished),state)                                
+            | _ -> (* Message arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
+        | _ -> (* Unsupported/Wrong message *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
       (* Should never happen *)
       | Client(_) -> unexpectedError "[recv_fragment_server] should only be invoked when in server role."
 
-and start_server_full' hs_state cHello =
-    match start_server_full hs_state cHello with
-    | Error(x,y) -> (Error(x,y),hs_state)
-    | Correct(res) ->
-        let (hs_state,negPV) = res 
-        recv_fragment_server hs_state (Some(negPV))
+and startServerFull state cHello =  
+    // Negotiate the protocol parameters
+    match minPV cHello.client_version state.poptions.maxVer with
+    | version when version >= ProtocolVersionType.SSL_3p0 ->
+        match negotiate cHello.cipher_suites state.poptions.ciphersuites with
+        | Some(cs) ->
+            match negotiate cHello.compression_methods state.poptions.compressions with
+            | Some(cm) ->
+                (* TODO: now we don't support safe_renegotiation, and we ignore any client proposed extension *)
+                let sid = mkRandom 32 in
+                (* Fill in the session info we're establishing *)
+                let next_info = { clientID         = None
+                                  serverID         = None
+                                  sessionID        = Some(sid)
+                                  protocol_version = version
+                                  cipher_suite     = cs
+                                  compression      = cm
+                                  init_crand       = state.ki_crand
+                                  init_srand       = [||] }
+                let state = {state with hs_next_info = next_info} in
+                match prepare_server_output_full state cHello.client_version with
+                | Correct(state) -> recv_fragment_server state (Some(version)) 
+                | Error(x,y)     -> (Error(x,y),state)
+            | None -> (Error(HSError(AD_handshake_failure),HSSendAlert),state)
+        | None ->     (Error(HSError(AD_handshake_failure),HSSendAlert),state)
+    | _ ->            (Error(HSError(AD_handshake_failure),HSSendAlert),state) 
 
 
-let enqueue_fragment hs_state fragment =
-    let new_inc = hs_state.hs_incoming @| fragment in
-    {hs_state with hs_incoming = new_inc}
+let enqueue_fragment state fragment =
+    let new_inc = state.hs_incoming @| fragment in
+    {state with hs_incoming = new_inc}
 
-let recv_fragment (hs_state:hs_state) (tlen:int) (fragment:fragment) =
+let recv_fragment (state:hs_state) (tlen:int) (fragment:fragment) =
     (* Note, we receive fragments in the current session, not the one we're establishing *)
     (* FIXME: This session might be wrong, in the CCS/Finished/FullyFinished(Idle) transition. But we don't care now *)
-    let fragment = pub_fragment_to_bytes hs_state.hs_cur_info tlen fragment in
-    let hs_state = enqueue_fragment hs_state fragment in
-    match hs_state.pstate with
-    | Client (_) -> recv_fragment_client hs_state None
-    | Server (_) -> recv_fragment_server hs_state None
+    let fragment = pub_fragment_to_bytes state.hs_cur_info tlen fragment in
+    let state = enqueue_fragment state fragment in
+    match state.pstate with
+    | Client (_) -> recv_fragment_client state None
+    | Server (_) -> recv_fragment_server state None
 
-let recv_ccs (hs_state: hs_state) (tlen:int) (fragment:fragment): ((ccs_data Result) * hs_state) =
+let recv_ccs (state: hs_state) (tlen:int) (fragment:fragment): ((ccs_data Result) * hs_state) =
     (* Some parsing *)
-    let fragment = pub_fragment_to_bytes hs_state.hs_cur_info tlen fragment in
+    let fragment = pub_fragment_to_bytes state.hs_cur_info tlen fragment in
     if length fragment <> 1 then
-        (Error(HSError(AD_decode_error),HSSendAlert),hs_state)
+        (Error(HSError(AD_decode_error),HSSendAlert),state)
     else
         if (int_of_bytes fragment) <> 1 then
-            (Error(HSError(AD_decode_error),HSSendAlert),hs_state)
+            (Error(HSError(AD_decode_error),HSSendAlert),state)
         else
             (* CCS is good *)
-            match hs_state.pstate with
+            match state.pstate with
             | Client (cstate) ->
                 (* Check we are in the right state (CCCS) *)
                 match cstate with
                 | CCCS (clSpState) ->
-                    match hs_state.ccs_incoming with
+                    match state.ccs_incoming with
                     | None -> unexpectedError "[recv_ccs] when in CCCS state, ccs_incoming should have some value."
                     | Some (ccs_result) ->
-                        let hs_state = {hs_state with (* ccs_incoming = None *) (* Don't reset its value now. We'll need it when computing the other side Finished message *)
+                        let state = {state with (* ccs_incoming = None *) (* Don't reset its value now. We'll need it when computing the other side Finished message *)
                                                       pstate = Client (CFinished (clSpState))} in
-                        (correct(ccs_result),hs_state)
-                | _ -> (* CCS arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
+                        (correct(ccs_result),state)
+                | _ -> (* CCS arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
             | Server (sState) ->
                 match sState with
                 | SCCS (sSpecSt) ->
-                    match hs_state.ccs_incoming with
+                    match state.ccs_incoming with
                     | None -> unexpectedError "[recv_ccs] when in CCCS state, ccs_incoming should have some value."
                     | Some (ccs_result) ->
-                        let hs_state = {hs_state with (* ccs_incoming = None *) (* Don't reset its value now. We'll need it when computing the other side Finished message *)
+                        let state = {state with (* ccs_incoming = None *) (* Don't reset its value now. We'll need it when computing the other side Finished message *)
                                                       pstate = Server(SFinished(sSpecSt))} in
-                        (correct(ccs_result),hs_state)
-                | _ -> (* CCS arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),hs_state)
+                        (correct(ccs_result),state)
+                | _ -> (* CCS arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)

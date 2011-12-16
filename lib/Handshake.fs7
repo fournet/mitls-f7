@@ -25,10 +25,10 @@ type clientState =
     | Certificate
     | ServerKeyExchange
     | CertReqOrSHDone
-    | CSHDone of clientSpecificState
-    | CCCS of clientSpecificState
+    | CSHDone   of clientSpecificState
+    | CCCS      of clientSpecificState
     | CFinished of clientSpecificState
-    | CWatingToWrite
+    | CWaitingToWrite
     | CIdle
 
 type serverSpecificState =

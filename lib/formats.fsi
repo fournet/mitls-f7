@@ -22,5 +22,6 @@ val CTtoString: ContentType -> string
 
 val vlbytes: int -> bytes -> bytes
 val vlsplit: int -> bytes -> (bytes * bytes) Result
+val vlparse: int -> bytes -> bytes Result
 
 //val splitList: bytes -> int list -> bytes list

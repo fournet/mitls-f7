@@ -45,15 +45,19 @@ val CTtoString: ContentType -> string
 
 function val VLBytes: (int * bytes) -> bytes 
 private definition !i,b. VLBytes(i,b) = IntBytes(i,Length(b)) @| b
-val vlbytes: l:int -> b:bytes -> r:bytes {r=VLBytes(l,b)} 
+val vlbytes: l:nat -> b:bytes -> r:bytes {r=VLBytes(l,b)} 
 val vlsplit: 
-  vl:nat{vl<=8} -> b:bytes{Length(b)>=vl} ->
-  ( b1:bytes * b2:bytes {b = VLBytes(vl,b1) @| b2}) Result
+  l:nat{l<=8} -> b:bytes{Length(b)>=l} ->
+  ( b1:bytes * b2:bytes {b = VLBytes(l,b1) @| b2}) Result
+
+val vlparse: 
+  l:nat{l<=8} -> b:bytes{Length(b)>=l} -> 
+  ( r:bytes { b = VLBytes(l,r) }) Result
 
 // nice to have, not used so far.
 ask !i,b. Length(VLBytes(i,b)) = i + Length(b)
 
-// not provable so far, relies on associativity
-//ask !i,b1,b2,c1,c2. 
-//  (VLBytes(i,b1) @| b2 = VLBytes(i,c1) @| c2) => (b1 = c1 /\ b2 = c2)
+// relies on associativity
+ask !i,b1,b2,c1,c2. 
+  (VLBytes(i,b1) @| b2 = VLBytes(i,c1) @| c2) => (b1 = c1 /\ b2 = c2)
  

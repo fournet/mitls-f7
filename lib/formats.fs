@@ -46,8 +46,18 @@ let vlbytes (lSize:int) b =
 let vlsplit lSize vlb : (bytes * bytes) Result = 
     let (vl,b) = split vlb lSize 
     let l = int_of_bytes vl
-    if l <= length b then correct (split b l) else Error(Parsing,CheckFailed)
-    
+    if l <= length b 
+    then let (b1,b2) = split b l in correct(b1,b2)
+    else Error(Parsing,CheckFailed)
+ 
+// a variant when there can be no bytes left   
+let vlparse lSize vlb : bytes Result = 
+    let (vl,b) = split vlb lSize 
+    let l = int_of_bytes vl
+    if l = length b 
+    then correct b 
+    else Error(Parsing,CheckFailed)
+
 (*
 let split_at_most data len =
     if len >= length data then
