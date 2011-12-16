@@ -90,6 +90,9 @@ HMAC.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 HMAC.fs7 HMAC.
 Alert.tc7: $(libperv) $(libfs7) 
 	$(f7) --verbose -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 TLSPlain.fs7 Alert.fs7 Alert.fs 
 
+HS_msg.tc7: $(libperv) $(libfs7) 
+	$(f7) --verbose -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HS_msg.fsi HS_msg.fs 
+
 Handshake.tc7: $(libperv) $(libfs7) 
 	$(f7) --verbose -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 Handshake.fs7 Handshake.fs 
 

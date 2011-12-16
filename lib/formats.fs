@@ -39,18 +39,15 @@ type KnownCT = preContentType
 
 let bytes_of_seq sn = bytes_of_int 8 sn
 
-let vlbytes (lSize:int) b =
-    let vl = bytes_of_int lSize (length b) in
-    vl @| b
+let vlbytes (lSize:int) b = bytes_of_int lSize (length b) @| b 
 
 let vlsplit lSize vlb : (bytes * bytes) Result = 
     let (vl,b) = split vlb lSize 
     let l = int_of_bytes vl
     if l <= length b 
-    then let (b1,b2) = split b l in correct(b1,b2)
+    then correct(split b l) 
     else Error(Parsing,CheckFailed)
  
-// a variant when there can be no bytes left   
 let vlparse lSize vlb : bytes Result = 
     let (vl,b) = split vlb lSize 
     let l = int_of_bytes vl

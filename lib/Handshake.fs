@@ -210,20 +210,15 @@ let extensionList_of_bytes data =
     | 0 -> correct ([])
     | 1 -> Error(HSError(AD_decode_error),HSSendAlert)
     | _ ->
-        match vlsplit 2 data with
-        | Error(x,y) -> Error(HSError(AD_decode_error),HSSendAlert) (* Parsing error *)
-        | Correct (exts,rem) ->
-        if not (equalBytes rem [||]) then
-            Error(HSError(AD_decode_error),HSSendAlert)
-        else
-            extensionList_of_bytes_int exts []
+        match vlparse 2 data with
+        | Error(x,y)    -> Error(HSError(AD_decode_error),HSSendAlert)
+        | Correct(exts) -> extensionList_of_bytes_int exts []
 
 let check_reneg_info payload expected =
-    match vlsplit 1 payload with
-    | Error(x,y) -> false
-    | Correct (recv,rem) ->
-        equalBytes recv expected && equalBytes rem [||]
-        // We also check there were no more data in this extension.
+    // We also check there were no more data in this extension.
+    match vlparse 1 payload with
+    | Error(x,y)     -> false
+    | Correct (recv) -> equalBytes recv expected
 
 let check_client_renegotiation_info cHello expected =
     match extensionList_of_bytes cHello.extensions with
@@ -396,8 +391,8 @@ let parseServerHello data =
 
 (* Obsolete. Use PRFs.prfMS instead *)
 (*
-let compute_master_secret pms ver crandom srandom = 
-    match ver with 
+let compute_master_secret pms version crandom srandom = 
+    match version with 
     | ProtocolVersionType.SSL_3p0 ->
         match ssl_prf pms (append crandom srandom) 48 with
         | Error(x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
@@ -470,15 +465,13 @@ let parseCertificate data =
     | Error(x,y) -> Error(x,y)
     | Correct(certList) -> correct({certificate_list = certList})
 
-let rec parseCertificateTypeList data res =
-    if length data > 1 then
-        let (thisByte,data) = split data 1 in
-        let thisInt = int_of_bytes thisByte in
-        let res = [enum<ClientCertType>thisInt] @ res in
-        parseCertificateTypeList data res
+//CF This list used to be reversed; was it intented??
+//   Also, we do not currently enforce that the bytes are between 0 and 3.
+let rec parseCertificateTypeList data =
+    if length data = 0 then []
     else
-        let thisInt = int_of_bytes data in
-        [enum<ClientCertType>thisInt] @ res
+        let (thisByte,data) = split data 1 in
+        thisByte :: parseCertificateTypeList data 
 
 let rec sigAlgsList_of_bytes data res =
     if length data > 2 then
@@ -516,16 +509,11 @@ let rec distNamesList_of_bytes data res =
             let res = [name] @ res in
             distNamesList_of_bytes data res
 
-let makeCertificateRequestBytes cs ver =
+let makeCertificateRequestBytes cs version =
     (* TODO: now we send all possible choices, including inconsistent ones, and we hope the client will pick the proper one. *)
-    let rsaB = bytes_of_int 1 (int ClientCertType.CLT_RSA_Sign) in
-    let dsaB = bytes_of_int 1 (int ClientCertType.CLT_DSS_Sign) in
-    let rsafixedB = bytes_of_int 1 (int ClientCertType.CLT_RSA_Fixed_DH) in
-    let dsafixedB = bytes_of_int 1 (int ClientCertType.CLT_DSS_Fixed_DH) in
-    let certTypes = rsaB @| dsaB @| rsafixedB @| dsafixedB in
-    let certTypes = vlbytes 1 certTypes in
+    let certTypes = vlbytes 1 (CLT_RSA_Sign @| CLT_DSS_Sign @| CLT_RSA_Fixed_DH @| CLT_DSS_Fixed_DH) 
     let sigAndAlg =
-        match ver with
+        match version with
         | ProtocolVersionType.TLS_1p2 ->
             (* For no particular reason, we will offer rsa-sha1 and dsa-sha1 *)
             let rsaSigB = bytes_of_int 1 (int SigAlg.SA_rsa) in
@@ -540,13 +528,13 @@ let makeCertificateRequestBytes cs ver =
     let data = certTypes @| sigAndAlg @| distNames in
     makeFragment HT_certificate_request data
 
-let parseCertificateRequest ver data =
+let parseCertificateRequest version data =
     match vlsplit 1 data with
     | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
     | Correct (certTypeListBytes,data) ->
-    let certTypeList = parseCertificateTypeList certTypeListBytes [] in
+    let certTypeList = parseCertificateTypeList certTypeListBytes in
     let sigAlgsAndData = (
-        if ver = ProtocolVersionType.TLS_1p2 then
+        if version = ProtocolVersionType.TLS_1p2 then
             match vlsplit 2 data with
             | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
             | Correct (sigAlgsBytes,data) ->
@@ -658,8 +646,8 @@ let CCSBytes = [| 1uy |]
 
 (* Obsolete. Use PRFs.prfKeyExp instead *)
 (*
-let expand_master_secret ver ms crandom srandom nb = 
-  match ver with 
+let expand_master_secret version ms crandom srandom nb = 
+  match version with 
   | ProtocolVersionType.SSL_3p0 -> 
      match ssl_prf ms (append srandom crandom) nb with
      | Error(x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
@@ -695,10 +683,10 @@ let generateKeys (outKi:KeyInfo) (inKi:KeyInfo) (ms:masterSecret) =
 
 (* Obsolete. Use PRFs.prfVerifyData instead *)
 (*
-let bldVerifyData ver cs ms entity hsmsgs = 
+let bldVerifyData version cs ms entity hsmsgs = 
   (* FIXME: There should be only one (verifyData)prf function in CryptoTLS, that takes
-     ver and cs and performs the proper computation *)
-  match ver with 
+     version and cs and performs the proper computation *)
+  match version with 
   | ProtocolVersionType.SSL_3p0 ->
     let ssl_sender = 
         match entity with
@@ -772,27 +760,21 @@ let find_client_cert (certReqMsg:certificateRequest) : (cert list) option =
 let parseClientKEX sinfo sSpecState pops data =
     if canEncryptPMS sinfo.cipher_suite then
         match sinfo.serverID with
-        | None -> unexpectedError "[parseClientKEX] when the ciphersuite can encrypt the PMS, the server certificate should always be set"
         | Some(cert) ->
-            (* parse the message *)
-            let parseRes =
+            let encrypted = (* parse the message *)
                 match sinfo.protocol_version with
-                | ProtocolVersionType.SSL_3p0 ->
-                    correct (data)
+                | ProtocolVersionType.SSL_3p0 -> correct (data)
                 | v when v >= ProtocolVersionType.TLS_1p0 ->
-                        match vlsplit 2 data with
+                        match vlparse 2 data with
+                        | Correct (encPMS) -> correct(encPMS)
                         | Error(x,y) -> Error(HSError(AD_decode_error),HSSendAlert)
-                        | Correct (encPMS,rem) ->
-                            if length rem = 0 then
-                                correct (encPMS)
-                            else
-                                Error(HSError(AD_decode_error),HSSendAlert)
-                | _ -> Error(HSError(AD_internal_error),HSSendAlert)
-            match parseRes with
-            | Error(x,y) -> Error(x,y)
+                | _                  -> Error(HSError(AD_internal_error),HSSendAlert)
+            match encrypted with
             | Correct(encPMS) ->
                 let res = getPMS sinfo sSpecState.highest_client_ver pops.check_client_version_in_pms_for_old_tls cert encPMS in
                 correct(res)
+            | Error(x,y) -> Error(x,y)
+        | None -> unexpectedError "[parseClientKEX] when the ciphersuite can encrypt the PMS, the server certificate should always be set"
     else
         (* TODO *)
         (* We should support the DH key exchanges *)

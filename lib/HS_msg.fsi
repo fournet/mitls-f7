@@ -2,7 +2,7 @@
 
 open Bytes
 open Formats
-open Record
+//open Record
 open CipherSuites
 open TLSInfo
 open Principal
@@ -66,11 +66,12 @@ type certificate = { certificate_list: cert list }
 (* TODO *)
 
 (* Certificate Request *)
-type ClientCertType =
-    | CLT_RSA_Sign = 1
-    | CLT_DSS_Sign = 2
-    | CLT_RSA_Fixed_DH = 3
-    | CLT_DSS_Fixed_DH = 4
+type ClientCertType = bytes // of length 1, between 0 and 3
+val CLT_RSA_Sign     : ClientCertType 
+val CLT_DSS_Sign     : ClientCertType
+val CLT_RSA_Fixed_DH : ClientCertType
+val CLT_DSS_Fixed_DH : ClientCertType
+
 (* Obsolete. Use Algorithms.hashAlg and
    following conversion functions instead *)
 (*
@@ -98,8 +99,8 @@ type SigAndHashAlg = {
     }
 
 type certificateRequest = {
-    client_certificate_type: ClientCertType list
-    signature_and_hash_algorithm: (SigAndHashAlg list) Option (* Some(x) for TLS 1.2, None for previous versions *)
+    client_certificate_type: ClientCertType list;
+    signature_and_hash_algorithm: (SigAndHashAlg list) option; (* Some(x) for TLS 1.2, None for previous versions *)
     certificate_authorities: string list
     }
 

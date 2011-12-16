@@ -2,7 +2,7 @@
 
 open Bytes
 open Formats
-open Record
+//open Record
 open CipherSuites
 open TLSInfo
 open Principal
@@ -99,11 +99,18 @@ type certificate = { certificate_list: cert list }
 (* TODO *)
 
 (* Certificate Request *)
+type ClientCertType = bytes // of length 1, between 0 and 3
+let CLT_RSA_Sign     = [| 1uy |] 
+let CLT_DSS_Sign     = [| 2uy |]
+let CLT_RSA_Fixed_DH = [| 3uy |]
+let CLT_DSS_Fixed_DH = [| 4uy |]
+(* was:
 type ClientCertType =
     | CLT_RSA_Sign = 1
     | CLT_DSS_Sign = 2
     | CLT_RSA_Fixed_DH = 3
     | CLT_DSS_Fixed_DH = 4
+*)
 
 (*
 type HashAlg =
