@@ -78,12 +78,13 @@ predicate type preds =
 
 type hs_state = hs:pre_hs_state {HandshakeState(hs)}
 
+//CF: refine int * fragment
 type HSFragReply =
   | EmptyHSFrag
-  | HSFrag of (int * fragment)
-  | HSWriteSideFinished of (int * fragment) // {(Client(state) /\ ClientFinished(si)) \/ (Server(state) /\ ServerFinished(si))}
+  | HSFrag of                (int * fragment)
+  | HSWriteSideFinished of   (int * fragment) // {(Client(state) /\ ClientFinished(si)) \/ (Server(state) /\ ServerFinished(si))}
   | HSFullyFinished_Write of (int * fragment) * ss:StorableSession {ClientFinished(ss.sinfo) /\ ServerFinished(ss.sinfo)} // Honest(..) /\ StrongSuite(..) =>
-  | CCSFrag of (int * fragment) * cd:ccs_data // {(Client(state) /\ Compatible(cd.ki,state.ki_crand,state.poptions)) \/ (Server(state) /\ Compatible(cd.ki,state.ki_srand,state.poptions))}
+  | CCSFrag of               (int * fragment) * cd:ccs_data // {(Client(state) /\ Compatible(cd.ki,state.ki_crand,state.poptions)) \/ (Server(state) /\ Compatible(cd.ki,state.ki_srand,state.poptions))}
 
 (* CF out of date:
 // returns to the dispatcher the next fragment to be sent, if any 
@@ -124,31 +125,26 @@ function val Negotiate: ('a list * 'a list) -> 'a
 val negotiate: cs: 'a list -> ss: 'a list -> (s: 'a { s = Negotiate(cs,ss) }) option  
 
 // Internal
-val makeFragment : HS_msg.HandShakeType -> bytes -> bytes
-val makeHelloRequestBytes : unit -> bytes
-val makeTimestamp : unit -> int
-val makeClientHello : protocolOptions -> Sessions.sessionID -> HS_msg.clientHello
-val b_of_cslist : HS_ciphersuites.CipherSuite list -> bytes -> bytes
-val bytes_of_cipherSuites : HS_ciphersuites.CipherSuite list -> bytes
-val b_of_complist : Formats.Compression list -> bytes -> bytes
-val compressionMethodsBytes : Formats.Compression list -> bytes
-val makeClientHelloBytes : protocolOptions -> Sessions.sessionID -> bytes
+private val makeFragment : HS_msg.HandShakeType -> bytes -> bytes
+private val makeHelloRequestBytes : unit -> bytes
+private val makeTimestamp : unit -> int
+private val makeClientHello : protocolOptions -> Sessions.sessionID -> HS_msg.clientHello
+private val b_of_cslist : HS_ciphersuites.CipherSuite list -> bytes -> bytes
+private val bytes_of_cipherSuites : HS_ciphersuites.CipherSuite list -> bytes
+private val b_of_complist : Formats.Compression list -> bytes -> bytes
+private val compressionMethodsBytes : Formats.Compression list -> bytes
+private val makeClientHelloBytes : protocolOptions -> Sessions.sessionID -> bytes
 
 val init_handshake: r:role -> protocolOptions -> (info:SessionInfo * s:hs_state){info = InitSessionInfo(r,None) /\ s.hs_info = info}
-
 val resume_handshake: role -> SessionInfo -> protocolOptions -> hs_state
-
 val start_rehandshake: hs_state -> protocolOptions -> hs_state
-
 val start_rekey: hs_state -> protocolOptions -> hs_state
-
 val start_hs_request: hs_state -> protocolOptions -> hs_state
-
 val new_session_idle: hs_state -> i:SessionInfo -> s:hs_state{s.hs_info = i}
 
-val parseFragment :
-  hs_state ->
-    bytes -> hs_state * (HS_msg.HandShakeType * bytes) option
+private val parseFragment :
+  hs_state -> bytes -> hs_state * (HS_msg.HandShakeType * bytes) option
+
 val recv_fragment: hs_state -> Record.fragment ->
 	(r:(recv_reply Error_handling.Result) * hs_state){
 		(!rr. r = Correct(rr) => (!hs,r,pv. rr = HSChangeVersion(hs,r,pv) => pv <> UnknownPV))
@@ -178,27 +174,43 @@ theorem !sk,info. TLSSKey(sk,info) /\ HSFinished(info) /\ Crypto.Pub_k(sk) => Co
 
 [rest of] si, MS =
  
-si, ms, ClientVerifyMessages { 
-/\ ClientHelloMessage(ClientHello,si.CR,options)
-/\ ServerHelloMessage(ServerHello,si.SR,si.sessionID,
-                      si.protocolVersion,si.ciphersuite,si.compression,si.extensions)
-/\ CertificateMessage(Certificate, si.serverID)
-/\ ClientKEXMessage(ClientKEX,pms, si.serverID)
-/\ ms = PRF("...",pms,si.CR,si.SR...)
-/\ ClientVerifyMessages = ClientHello @| ServerHello @| Certificate @| ClientKEX }
+(si, ms, ClientVerifyMessages) { 
+? ClientHello, ServerHello, Certificate, ClientKEX. 
+  /\ ClientHelloMessage(ClientHello,si.CR,options)
+  /\ ServerHelloMessage(ServerHello,si.SR,si.sessionID,
+                        si.protocolVersion,si.ciphersuite,si.compression,si.extensions)
+  /\ CertificateMessage(Certificate, si.serverID)
+  /\ ClientKEXMessage(ClientKEX,pms, si.serverID)
+  /\ ms = PRF("...",pms,si.CR,si.SR...)
+  /\ ClientVerifyMessages = ClientHello @| ServerHello @| Certificate @| ClientKEX }
 
 // all those being injective; maybe use functions instead? 
 
   si.CR = ClientHello[CR]
 
+TAKE 2: assuming that we get a full spec after parsing every message.
+
+(si, ms, ClientVerifyMessages) { 
+     ms = PRF("...",pms,si.CR,si.SR...)
+  /\ ClientVerifyMessages = 
+         ClientHello(si.CR,options) 
+      @| ServerHello(si.SR,si.sessionID,si.protocolVersion,si.ciphersuite,si.compression,si.extensions 
+	  @| Certificate(si.serverID)
+	  @| ClientKEXMessage(pms, si.serverID) 						 
 }
 
-*)
+More abstractly, we have clientVerifyData = F(si)
+for some logical F such that F(si)=F(si') => si = si' [at least on exchanged fields]
 
-(*
+
 Handshake verification hints:
-We have agreement on the exchanged messages (verifyData). From this, we want to infer
-that we agreement on sessionInfo. So, we want to express sessionInfo = F(verifyData).
+
+After verifying the Finished message, 
+we have conditional agreement on the sequence of exchanged messages (verifyData).
+
+From this, we want to infer conditional agreement on sessionInfo.
+
+So, we want to express sessionInfo = F(verifyData).
 However, F will be different from client to server, and in general we cannot prove
 F = F' (where F is on the client and F' on the server).
 Instead we want to characterize F and F' with the minimum information that we need to prove
@@ -217,4 +229,86 @@ step-by-step, increasing the invariant:
 - When we receive one message, we assume all previously set fields are ok, and we prove
   the field we handle is set correctly
 - In the final state, all fields are set correctly, and we get agreement on sessionInfo
+*)
+
+(* 17/12/11 towards an ideal functionality for the handshake, 
+            and a discussion of the "Google hack", from whiteboards:
+
+- Our ideal functionality implements the Handshake interface, 
+  with the 4+ kinds of transitions to open new sessions and connections
+  and the dispatch interface to send and receive Handshake fragments. 
+
+  nodes are low-level connections, transitions are labelled with sessions.
+
+  ---(S)-> X  full initial handshake
+  ----S--> X  abbreviate resumption (reusing some existing session S)
+  X --S--> X  abbreviated rekeying (and more) over the current connection
+  X -(S)-> X  full renegotiation over the current connection
+
+  (not represented yet?)
+
+  X -fatal->  also removing the current session for the DB 
+  X -close->  keeping the current session live
+
+- The interface is reasonably abstract, e.g. it does not specify who gets
+  authenticated first, or any finishing mechanism. Binary messages are 
+  exchanged until, sometimes, some local events occur (notified to the dispatcher) 
+  
+  * first, local change cipher suite: (si, keys) {Finished(si,keys)}
+  * then, handshake completion: unit {Finished(dual(si),keys)}
+
+  (With TLS, the two events occur at the same time at the server for full handshakes,
+  and at the client for abbreviated handshakes.)
+ 
+  Between the two local events, if AcceptCCS(si,keys) => StrongSuite(si), 
+  we are "at most" talking with the right peer and 
+  we can immediately start pushing data (a la Google).
+
+  However, this does not enable (e.g.) the server to protect clients
+  with poor whitelists. For instance, if the client accepts a broken cipher 
+  rejected by the server, then any message sent before completion may be leaked.
+
+  Formally, if we wait for confirmation, then "AppData.repr" has a stronger precondition,
+  including "ClientAccept(si) /\ ServerAccept(si)" 
+
+  On the other hand, this seems entirely fine for authentication,
+  since the AppData Msg can condition its properties "ServerAccept(si) => ..."  
+
+- Each local instance is indexed by its state,
+  ideally associated with its locally-generated fresh "Random"
+
+- We have two predicates for tracking partial compromise:
+
+  StrongSuite(si) when the cryptosuite in si has the crypto properties
+  we rely on for key establishment (not necessarily those for the record layer)
+
+  Compliant(si) when the principals are honest, e.g. their certificates 
+  are correctly produced and used only for TLS KEX.
+
+- When StrongSuite(si) /\ Compliant(si), our ideal functionality...
+  * when deriving keys, calls the correct GEN(_)  instead of coercing the PRF. 
+  * when completing handshakes, fixes any false confirmation
+  
+Questions: 
+
+- when to index using the abstract state? using CR? using (CR,SR)? using si? 
+
+- write down the "Msg" predicate for the record layer, notably for Finished. 
+  something like
+
+    !si. ct=Handshake /\ fragment=VerifyData(si) => 
+         (StrongSuite(si) /\ Compliant(si) => ClientFinished(si)) 
+
+/\  !data. ct=AppDAta /\ fragment=d /\ ServerFinished(si) => 
+           (StrongSuite(si) /\ Compliant(si) => ClientFinished(si)) 
+
+- Should SessionDB be internal to Handshake? 
+  NB we need to fix the DB, to index sessions by host + sessionID.
+
+- How to deal uniformally with anonymous parties? 
+
+- How to deal with negotiation? 
+  * implicitly, si must be compatible with the options provided by the parties
+  * explicitly, si must be accepted e.g. when presenting certificates to the user. 
+
 *)

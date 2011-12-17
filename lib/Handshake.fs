@@ -887,6 +887,8 @@ let prepare_client_output_resumption state =
                             hs_renegotiation_info_cVerifyData = cVerifyData} in
     state
 
+/// Initiating Handshakes, mostly on the client side. 
+
 let init_handshake dir poptions =
     (* Start a new first session without resumption *)
     match dir with

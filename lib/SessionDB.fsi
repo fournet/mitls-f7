@@ -10,7 +10,7 @@ type StorableSession =
      dir: Direction}
 
 val create: protocolOptions -> unit
-val select: protocolOptions -> sessionID -> StorableSession Option
+val select: protocolOptions -> sessionID -> StorableSession option
 val insert: protocolOptions -> sessionID -> StorableSession -> unit
 val remove: protocolOptions -> sessionID -> unit
 val getAllStoredIDs: protocolOptions -> sessionID list

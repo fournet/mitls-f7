@@ -5,7 +5,7 @@ open Formats
 open Record
 open Tcp
 open Error
-open Handshake
+//open Handshake
 open AppData
 open Alert
 open TLSInfo
@@ -49,7 +49,7 @@ type Connection = preConnection
 type preds = DebugPred of Connection
 
 let init ns dir poptions =
-    (* Direction "dir" is always the outgouing direction.
+    (* Direction "dir" is always the outgoing direction.
        So, if we are a Client, it will be CtoS, if we're a Server: StoC *)
     let hs = Handshake.init_handshake dir poptions in
     let (outKI,inKI) = (init_KeyInfo init_sessionInfo dir, init_KeyInfo init_sessionInfo (dualDirection dir)) in
@@ -187,7 +187,7 @@ let next_fragment (c:Connection) : (bool Result) * Connection =
       | (EmptyALFrag,_) -> 
           let hs_state = c.handshake in
           match Handshake.next_fragment hs_state with 
-          | (EmptyHSFrag, _) ->
+          | (Handshake.EmptyHSFrag, _) ->
             let app_state = c.appdata in
                 match AppData.next_fragment app_state with
                 | None -> (* nothing to do (tell the caller) *)
@@ -204,7 +204,7 @@ let next_fragment (c:Connection) : (bool Result) * Connection =
                                                           write = new_write } )
                             | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
                           | _ -> (Error(Dispatcher,InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
-          | (CCSFrag((tlen,ccs),ccs_data),new_hs_state) ->
+          | (Handshake.CCSFrag((tlen,ccs),ccs_data),new_hs_state) ->
                     (* we send a (complete) CCS fragment *)
                     match c_write.disp with
                     | x when x = FirstHandshake || x = Open ->
@@ -231,7 +231,7 @@ let next_fragment (c:Connection) : (bool Result) * Connection =
                                 (Error(Dispatcher, InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
                         | Error (x,y) -> (Error (x,y), closeConnection c) (* Unrecoverable error *)
                     | _ -> (Error(Dispatcher, InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
-          | (HSFrag((tlen,f)),new_hs_state) ->     
+          | (Handshake.HSFrag((tlen,f)),new_hs_state) ->     
                       (* we send some handshake fragment *)
                       match c_write.disp with
                       | x when x = Init || x = FirstHandshake ||
@@ -243,7 +243,7 @@ let next_fragment (c:Connection) : (bool Result) * Connection =
                                                       write     = new_write } )
                           | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
                       | _ -> (Error(Dispatcher,InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
-          | (HSWriteSideFinished((tlen,lastFrag)),new_hs_state) ->
+          | (Handshake.HSWriteSideFinished((tlen,lastFrag)),new_hs_state) ->
                 (* check we are in finishing state *)
                 match c_write.disp with
                 | Finishing ->
@@ -259,7 +259,7 @@ let next_fragment (c:Connection) : (bool Result) * Connection =
                             (correct (false), c)
                           | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
                 | _ -> (Error(Dispatcher,InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
-          | (HSFullyFinished_Write((tlen,lastFrag),new_info),new_hs_state) ->
+          | (Handshake.HSFullyFinished_Write((tlen,lastFrag),new_info),new_hs_state) ->
                 match c_write.disp with
                 | Finishing ->
                    (* according to the protocol logic and the dispatcher
@@ -340,9 +340,9 @@ let deliver ct tlen f c =
     match Handshake.recv_fragment c.handshake tlen f with
     | (Correct(corr),hs) ->
         match corr with
-        | HSAck ->
-            ((correct (true), { c with handshake = hs} ))
-        | HSChangeVersion(r,v) ->
+        | Handshake.HSAck ->
+            (correct (true), { c with handshake = hs} )
+        | Handshake.HSChangeVersion(r,v) ->
             match c_read.disp with
             | Init ->
                 (* Then, also c_write must be in Init state. It means this is the very first, unprotected handshake,
@@ -374,7 +374,7 @@ let deliver ct tlen f c =
             | _ -> (* It means we are doing a re-negotiation. Don't alter the current version number at the record layer, because it
                      is perfectly valid. It will be updated after the next CCS, along with all other session parameters *)
                 ((correct (true), { c with handshake = hs} ))
-        | HSReadSideFinished ->
+        | Handshake.HSReadSideFinished ->
         (* Ensure we are in Finishing state *)
             match x with
             | Finishing ->
@@ -383,7 +383,7 @@ let deliver ct tlen f c =
                    the handshake will be fully completed *)
                 (correct (false),{c with handshake = hs})
             | _ -> (Error(Dispatcher,InvalidState), {c with handshake = hs} )
-        | HSFullyFinished_Read(new_info) ->
+        | Handshake.HSFullyFinished_Read(new_info) ->
             let c = {c with handshake = hs} in
             (* Ensure we are in Finishing state *)
             match x with

@@ -1,14 +1,22 @@
 ﻿module SessionDB
 
-open Sessions
+open TLSInfo
 open AppCommon
 
+(*
 val load: filename: string -> Map
-
 val store: filename:string -> map:Map -> unit
+*)
+
+// FIXME: in the DB a session must be indexed by sessionID and host!
+
+type StorableSession =
+  { sinfo: SessionInfo;
+    ms   : PRFs.masterSecret; // indexed by sinfo? 
+	dir  : Direction }
 
 val create: protocolOptions -> unit
-val select: protocolOptions -> sessionID -> SessionInfo Option
-val insert: protocolOptions -> sessionID -> SessionInfo -> unit
+val select: protocolOptions -> sessionID -> StorableSession option
+val insert: protocolOptions -> sessionID -> StorableSession -> unit
 val remove: protocolOptions -> sessionID -> unit
 val getAllStoredIDs: protocolOptions -> sessionID list

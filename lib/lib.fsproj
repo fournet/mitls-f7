@@ -94,6 +94,7 @@
     <None Include="PRFs.fs7" />
     <Compile Include="PRFs.fsi" />
     <Compile Include="PRFs.fs" />
+    <None Include="SessionDB.fs7" />
     <Compile Include="SessionDB.fsi" />
     <Compile Include="SessionDB.fs" />
     <Compile Include="HS_msg.fsi" />
