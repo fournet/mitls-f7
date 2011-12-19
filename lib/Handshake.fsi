@@ -57,7 +57,7 @@ val resume: SessionInfo -> hs_state (* resume on different connection; only clie
 //TODO systematically rename FullyFinished to Complete etc
 //TODO provide support for indexing fragments (probably by directed si, not ki)
 
-// the new one is
+// the new one will be:
 type (*(;ki)*) outgoing =
   | OutNone                  (* nothing to send *) 
   | OutSome of     int * (*(;ki,l)*) fragment
@@ -67,14 +67,13 @@ type (*(;ki)*) outgoing =
 val nextFragment: KeyInfo -> hs_state -> outgoing * hs_state
 
 type (*(;ki)*) incoming = (* the fragment is accepted, and... *)
-  | InAck  (* nothing happens *)
-  | InCheckVersion of ProtocolVersion (* as client, must check the negotiated version *)
-  | InPatchVersion of ProtocolVersion (* as server, must patch the negotiated version *)
-  | InFinished (* signalling that we just accepted the finished message *) 
-  | InComplete (* idem, but also stating the hanshake is complete *)  
+  | InAck (* nothing happens *)
+  | InCheck of ProtocolVersion (* as client, must now check the negotiated version *)
+  | InPatch of ProtocolVersion (* as server, must now patch the negotiated version *)
+  | InFinished                 (* signalling that we just accepted the finished message *) 
+  | InComplete                 (* idem, but also stating the hanshake is complete *)  
 val recvFragment: KeyInfo -> hs_state -> int -> fragment -> incoming Result * hs_state
 val recvCCS     : KeyInfo -> hs_state -> int -> fragment -> ccs_data Result * hs_state
-
 
 
 type HSFragReply =
