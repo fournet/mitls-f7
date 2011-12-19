@@ -20,6 +20,8 @@ type hs_state = pre_hs_state
 
 (* Locally controlling handshape protocols *) 
 
+//TODO better names, maybe: init/accept resume reshake rekey request
+
 // Create instance for a fresh connection (without resumption) 
 val init_handshake: Direction -> protocolOptions -> hs_state
 
@@ -44,23 +46,17 @@ val start_hs_request:  hs_state -> protocolOptions -> hs_state
 val new_session_idle:  hs_state -> SessionInfo -> PRFs.masterSecret -> hs_state
 
 
-(*
-val rehandshake: hs_state -> hs_state Result (* new handshake on same connection *)
-val rekey: hs_state -> hs_state Result (* resume on same connection *)
-val resume: SessionInfo -> hs_state (* resume on different connection; only client-side *)
-*)
-
-
 (* Sending Handshake and CCS fragments *)
 
 //TODO make SessionDB internal to handshake (or object!)
 //TODO systematically rename FullyFinished to Complete etc
 //TODO provide support for indexing fragments (probably by directed si, not ki)
 
+(*
 // the new one will be:
 type (*(;ki)*) outgoing =
-  | OutNone                  (* nothing to send *) 
-  | OutSome of     int * (*(;ki,l)*) fragment
+  | OutNone        (* nothing to send *) 
+  | OutSome of     int * (*(;ki,l)*) fragment            
   | OutCCS of      int * (*(;ki,l)*) fragment * ccs_data (* the unique one-byte CCS + writing params *)
   | OutFinished of int * (*(;ki,l)*) fragment (* signalling that this fragment ends the finished message *)
   | OutComplete of int * (*(;ki,l)*) fragment (* idem, but also stating the handshake is complete *)
@@ -74,7 +70,7 @@ type (*(;ki)*) incoming = (* the fragment is accepted, and... *)
   | InComplete                 (* idem, but also stating the hanshake is complete *)  
 val recvFragment: KeyInfo -> hs_state -> int -> fragment -> incoming Result * hs_state
 val recvCCS     : KeyInfo -> hs_state -> int -> fragment -> ccs_data Result * hs_state
-
+*)
 
 type HSFragReply =
   | EmptyHSFrag              (* nothing to send *) 
@@ -92,11 +88,4 @@ type recv_reply = (* the fragment is accepted, and... *)
   | HSReadSideFinished (* ? *) 
   | HSFullyFinished_Read of SessionDB.StorableSession (* we can start sending data on the connection *)  
 val recv_fragment: hs_state -> int -> fragment -> recv_reply Result * hs_state
-
 val recv_ccs     : hs_state -> int -> fragment -> ccs_data Result   * hs_state
-
-
-(*type hs_output_reply = 
-  | HS_Fragment of bytes
-  | HS_CCS of ccs_data // new ccs data 
-  | Idle*)
