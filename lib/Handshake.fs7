@@ -240,15 +240,15 @@ step-by-step, increasing the invariant:
 
   nodes are low-level connections, transitions are labelled with sessions.
 
-  ---(S)-> X  full initial handshake
-  ----S--> X  abbreviate resumption (reusing some existing session S)
-  X --S--> X  abbreviated rekeying (and more) over the current connection
-  X -(S)-> X  full renegotiation over the current connection
+      CLIENT       |     SERVER      NOTATION 
+  init_handshake   | init_handshake  ---(S)-> X  full initial handshake
+  resume_handshake | init_handshake  ----S--> X  abbreviate resumption (reusing some existing session S)
+  start_rekey      | (idle state)    X --S--> X  abbreviated rekeying (and more) over the current connection
+  start_rehandshake| (idle state)    X -(S)-> X  full renegotiation over the current connection
 
   (not represented yet?)
-
-  X -fatal->  also removing the current session for the DB 
-  X -close->  keeping the current session live
+                                     X -fatal->  also removing the current session for the DB 
+                                     X -close->  keeping the current session live
 
 - The interface is reasonably abstract, e.g. it does not specify who gets
   authenticated first, or any finishing mechanism. Binary messages are 

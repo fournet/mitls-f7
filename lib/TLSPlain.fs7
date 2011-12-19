@@ -33,10 +33,9 @@ predicate val CompatibleLength:  (SessionInfo * nat * cipherlength) -> bool
 predicate val CompatibleLengths: (SessionInfo * nat * lengths) -> bool
 
 definition !si. CompatibleLengths(si,0,[]) (* we can also decompose 0 + 0 etc *)
-//TODO not parsing
-// definition !si,n,m,ls. 
-//   CompatibleLengths(si,(n+m),(l::ls)) <=> 
-//   ( CompatibleLength(si,n,l) /\ CompatibleLengths(si,m,ls) ) 
+definition !si,n,m,ls. 
+    CompatibleLengths(si,(n+m),(l::ls)) <=> 
+    ( CompatibleLength(si,n,l) /\ CompatibleLengths(si,m,ls) ) 
 
 // returns the minimal cipherlength size
 val cipherLength: si:SessionInfo -> n:nat -> l:cipherLength {CompatibleLength(si,n,l)} 

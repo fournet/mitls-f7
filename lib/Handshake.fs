@@ -74,9 +74,9 @@ type hs_state = pre_hs_state
 type HSFragReply =
   | EmptyHSFrag
   | HSFrag of (int * fragment)
+  | CCSFrag of (int * fragment) * ccs_data
   | HSWriteSideFinished of (int * fragment)
   | HSFullyFinished_Write of (int * fragment) * StorableSession
-  | CCSFrag of (int * fragment) * ccs_data
 
 let next_fragment state =
     (* Assumptions: The buffers have been filled in the following order:
