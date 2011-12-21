@@ -14,35 +14,23 @@ private type cipherSuite = // internal; kept abstract in the .fsi
     | CipherSuite of kexAlg * authencAlg
     | OnlyMACCipherSuite of kexAlg * hashAlg
     | SCSV of SCSVsuite
-    | Unknown of b:bytes{Length(b)=2}  
 
 type cipherSuites = cipherSuite list
 
 type Compression =
     | Null
-    | UnknownComp
 
-//CF fs7 does *NOT* support enums.
-//Why using them instead of ADTs, e.g. here? Can we get rid of UnknownPV? 
 type ProtocolVersion =
-    | UnknownPV 
     | SSL_3p0   
     | TLS_1p0   
     | TLS_1p1   
     | TLS_1p2   
-//    | UnknownPV = -1
-//    | SSL_3p0   = 10
-//    | TLS_1p0   = 20
-//    | TLS_1p1   = 30
-//    | TLS_1p2   = 40
-
-type KnownPV = pv:ProtocolVersion{pv = SSL_3p0 \/ pv = TLS_1p0 \/ pv = TLS_1p1 \/ pv = TLS_1p2}
 
 //CF Bad name. We'll need VersionBytes to be injective; we can verify it in principle.
 function val VersionBytes: ProtocolVersion -> bytes
-val versionBytes: pv:KnownPV -> b:bytes{Length(b) = 2 /\ b = VersionBytes(pv)}
-val parseVersion: b:bytes{Length(b) = 2} -> pv:ProtocolVersion{ b= VersionBytes(pv)}
-val minPV: a:KnownPV -> b:KnownPV -> c:KnownPV{(a < b /\ c = a) \/ (a >= b /\ c = b)}
+val versionBytes: pv:ProtocolVersion -> b:bytes{Length(b) = 2 /\ b = VersionBytes(pv)}
+val parseVersion: b:bytes{Length(b) = 2} -> (pv:ProtocolVersion{ b= VersionBytes(pv)}) Result
+val minPV: a:ProtocolVersion -> b:ProtocolVersion -> c:ProtocolVersion{(a < b /\ c = a) \/ (a >= b /\ c = b)}
 
 (* FIXME: same duplication between logical and concrete function definitions, 
    already seen in Algorithms. *)
@@ -64,7 +52,7 @@ val verifyDataHashAlg_of_ciphersuite: cipherSuite -> hashAlg
 val macAlg_of_ciphersuite: cipherSuite -> hashAlg
 val encAlg_of_ciphersuite: cipherSuite -> cipherAlg
 
-val compression_of_bytes: b:bytes{Length(b)=1} -> Compression
+val compression_of_bytes: b:bytes{Length(b)=1} -> Compression Result
 val compressionBytes: Compression -> b:bytes{Length(b)=1}
 (* FIXME: We can say that the length of the following byte array is the same of the length of the returned list.
    1) do we want/need to say this?
@@ -74,7 +62,7 @@ val compressionBytes: Compression -> b:bytes{Length(b)=1}
 val parseCompressions: bytes -> Compression list
 
 val cipherSuiteBytes: c:cipherSuite -> b:bytes{Length(b)=2}
-val cipherSuite_of_bytes: b:bytes{Length(b)=2} -> cipherSuite
+val cipherSuite_of_bytes: b:bytes{Length(b)=2} -> cipherSuite Result
 
 function val CipherSuitesBytes: cipherSuites -> bytes 
 // this parsing function may fail if b has the wrong length,

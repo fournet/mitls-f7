@@ -272,7 +272,7 @@ let split_mac (ki:KeyInfo) (plainLen:int) (plain:plain) : (bool * (fragment * ma
     else
         let (data_no_pad,pad) = split tmpdata padstart in
         match ki.sinfo.protocol_version with
-        | v when v = ProtocolVersion.TLS_1p0 || v = ProtocolVersion.TLS_1p1 || v = ProtocolVersion.TLS_1p2 ->
+        | ProtocolVersion.TLS_1p0 | ProtocolVersion.TLS_1p1 | ProtocolVersion.TLS_1p2 ->
             let expected = Array.create padlen (byte padlen) in
             if equalBytes expected pad then
                 let macStart = plainLen - macSize - padlen - 1 in
@@ -312,8 +312,6 @@ let split_mac (ki:KeyInfo) (plainLen:int) (plain:plain) : (bool * (fragment * ma
                 let macStart = plainLen - macSize - padlen - 1 in
                 let (frag,mac) = split data_no_pad macStart in
                 (false,({bytes=frag},MACt(mac)))
-        | _ -> unexpectedError "[check_padding] wrong protocol version"
-
 
 /// MACOnlyCipherSuites
 // TODO: statically enforce that length f.bytes + maclen = n 

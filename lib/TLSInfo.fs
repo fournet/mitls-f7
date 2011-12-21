@@ -27,11 +27,11 @@ type SessionInfo = {
     init_srand: bytes
     }
 
-let init_sessionInfo =
+let null_sessionInfo minPV =
     { clientID = None;
       serverID = None;
       sessionID = None;
-      protocol_version = ProtocolVersion.UnknownPV;
+      protocol_version = minPV;
       cipher_suite = nullCipherSuite;
       compression = Null;
       init_crand = [||]

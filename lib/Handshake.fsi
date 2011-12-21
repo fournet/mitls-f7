@@ -84,7 +84,7 @@ val next_fragment: hs_state -> HSFragReply * hs_state
 
 type recv_reply = (* the fragment is accepted, and... *)
   | HSAck (* nothing happens *)
-  | HSChangeVersion of Direction * ProtocolVersion (* use this new protocol version for sending *)
+  | HSVersionAgreed of ProtocolVersion (* use this new protocol version for sending *)
   | HSReadSideFinished (* ? *) 
   | HSFullyFinished_Read of SessionDB.StorableSession (* we can start sending data on the connection *)  
 val recv_fragment: hs_state -> int -> fragment -> recv_reply Result * hs_state

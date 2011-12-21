@@ -10,14 +10,12 @@ type preContentType =
     | Alert
     | Handshake
     | Application_data
-    | UnknownCT
 
-type ContentType = preContentType
-type KnownCT = preContentType 
+type ContentType = preContentType 
 val bytes_of_seq: int -> bytes
 
 val ctBytes: ContentType -> bytes
-val parseCT: bytes -> ContentType
+val parseCT: bytes -> ContentType Result
 val CTtoString: ContentType -> string
 
 val vlbytes: int -> bytes -> bytes

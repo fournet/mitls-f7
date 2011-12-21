@@ -24,7 +24,6 @@ type ConnectionState = {
   key: recordKey;
   iv3: ENC.iv3;
   seq_num: int; (* uint64 actually CF:TODO?*)
-  local_pv: ProtocolVersion;
   }
 type sendState = ConnectionState
 type recvState = ConnectionState
@@ -35,17 +34,16 @@ let incSeqNum (conn_state:ConnectionState) =
     let new_seq_num = conn_state.seq_num + 1 in
     { conn_state with seq_num = new_seq_num }
 
-let initConnState ki key iv pv =
+let initConnState ki key iv =
   { rec_ki = ki;
     key = key;
     iv3 = iv;
     seq_num = 0;
-    local_pv = pv;
   }
 
-let create out_ki in_ki minpv =
-    let sendState = initConnState out_ki NoneKey (ENC.NoIV ()) minpv in
-    let recvState = initConnState in_ki NoneKey (ENC.NoIV ()) ProtocolVersion.UnknownPV in
+let create out_ki in_ki =
+    let sendState = initConnState out_ki NoneKey (ENC.NoIV ()) in
+    let recvState = initConnState in_ki NoneKey (ENC.NoIV ()) in
     (sendState, recvState)
 
 // to be enforced statically, inasmuch as possible
@@ -77,14 +75,13 @@ let make_decompression conn data =
 
 (* format the (public) additional data bytes, for MACing & verifying *)
 let makeAD conn ct =
-    let version = conn.local_pv in
+    let version = conn.rec_ki.sinfo.protocol_version in
     let bseq = bytes_of_seq conn.seq_num in
     let bct  = ctBytes ct in
     let bver = versionBytes version in
     match version with
     | ProtocolVersion.SSL_3p0             -> bseq @| bct
-    | x when x >= ProtocolVersion.TLS_1p0 -> bseq @| bct @| bver
-    | _ -> unexpectedError "[makeAD] invoked on invalid protocol version"
+    | ProtocolVersion.TLS_1p0 | ProtocolVersion.TLS_1p1 | ProtocolVersion.TLS_1p2 -> bseq @| bct @| bver
 
 let makePacket ct ver data =
   let l = length data in 
@@ -92,25 +89,6 @@ let makePacket ct ver data =
   let bver = versionBytes ver in
   let bl   = bytes_of_int 2 l in
   bct @| bver @| bl @| data
-
-//CF we'll need refinements to prevent parsing errors.
-//CF can we move the check to Dispatch?
-let parse_header conn header =
-  let (ct1,rem4) = split header 1 in
-  let (pv2,len2) = split rem4 2 in
-  let ct  = parseCT ct1 in
-  let pv  = parseVersion pv2 in
-  let len = int_of_bytes len2 in
-  if   (  conn.local_pv <> ProtocolVersion.UnknownPV 
-         && pv <> conn.local_pv)
-      || pv = ProtocolVersion.UnknownPV 
-    then Error (RecordVersion,CheckFailed)
-  else
-    (* We commit to the received protocol version.
-       In fact, this only changes the protcol version when receiving the first fragment *)
-    let conn = {conn with local_pv = pv} in
-    correct (conn,ct,len)
-
 
 (* 
 // We'll need to qualify system errors,
@@ -172,7 +150,7 @@ let recordPacketOut conn tlen ct (fragment:fragment) =
             let conn = {conn with iv3 = newIV} in
             (conn,payload)
     let conn = incSeqNum conn in
-    let packet = makePacket ct conn.local_pv payload in
+    let packet = makePacket ct conn.rec_ki.sinfo.protocol_version payload in
     (conn,packet)
 
 (* CF: an attempt to simplify for typechecking 
@@ -199,24 +177,19 @@ let recordPacketOut2 conn clen ct fragment =
     makePacket ct conn.local_pv payload 
 *)
 
-let send_setVersion conn pv = {conn with local_pv = pv }
-
+(* FIXME: Redundancy with initConnState (and create) *)
 let send_setCrypto ccs_data =
-    initConnState ccs_data.ki ccs_data.key ccs_data.iv3 ccs_data.ki.sinfo.protocol_version
+    initConnState ccs_data.ki ccs_data.key ccs_data.iv3
 
-let recordPacketIn conn packet =
-    let (header,payload) = split packet 5 in
-    match parse_header conn header with
-    | Error(x,y) -> Error(x,y)
-    | Correct (conn,ct,tlen) ->
+let recordPacketIn conn len ct payload =
     //CF tlen is not checked? can we write an inverse of makePacket instead?
     let cs = conn.rec_ki.sinfo.cipher_suite in
     let msgRes =
         match cs with
         | x when isNullCipherSuite x -> 
-            correct(conn,cipher_to_fragment conn.rec_ki tlen payload)
+            correct(conn,cipher_to_fragment conn.rec_ki len payload)
         | x when isOnlyMACCipherSuite x ->
-            let (msg,mac) = cipher_to_fragment_mac conn.rec_ki tlen payload in
+            let (msg,mac) = cipher_to_fragment_mac conn.rec_ki len payload in
             let data = makeAD conn ct in
             let toVerify = ad_fragment conn.rec_ki data msg in
             let key = getMACKey conn.key in
@@ -227,7 +200,7 @@ let recordPacketIn conn packet =
         | _ ->
             let data = makeAD conn ct in
             let key = getAEADKey conn.key in
-            match AEAD.decrypt conn.rec_ki key conn.iv3 tlen data payload with
+            match AEAD.decrypt conn.rec_ki key conn.iv3 len data payload with
             | Error(x,y) -> Error(x,y)
             | Correct (newIV, plain) ->
                 let conn = {conn with iv3 = newIV} in
@@ -242,7 +215,7 @@ let recordPacketIn conn packet =
     | Correct (msg) ->
     *)
     let conn = incSeqNum conn in
-    correct(conn,ct,tlen,msg)
+    correct(conn,ct,len,msg)
 
 (* Legacy implementation of recv. Now replaced by recordPacketIn, which does not deal with the network channel *)
 (* 
@@ -284,14 +257,6 @@ let recv conn =
         correct (ct,msg,conn)
 *)
 
-let recv_setVersion conn pv =
-    {conn with local_pv = pv}
-
-let recv_checkVersion conn pv =
-    if pv = conn.local_pv then
-        correct ()
-    else
-        Error(RecordVersion,CheckFailed)
-
+(* FIXME: Redundancy with initConnState (and create) *)
 let recv_setCrypto ccs_data =
-    initConnState ccs_data.ki ccs_data.key ccs_data.iv3 ccs_data.ki.sinfo.protocol_version
+    initConnState ccs_data.ki ccs_data.key ccs_data.iv3

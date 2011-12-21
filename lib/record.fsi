@@ -23,17 +23,14 @@ type ccs_data =
       iv3: ENC.iv3;
     }
 
-val create: KeyInfo -> KeyInfo -> ProtocolVersion -> sendState * recvState
+val create: KeyInfo -> KeyInfo -> sendState * recvState
 (* we do not explicitly close connection states *)
 
 val recordPacketOut: sendState -> int -> ContentType -> fragment -> (sendState * bytes)
-val send_setVersion: sendState -> ProtocolVersion -> sendState
 val send_setCrypto:  ccs_data -> sendState
 
 (* val dataAvailable: recvState -> bool Result *)
-val recordPacketIn: recvState -> bytes -> (recvState * ContentType * int * fragment) Result
-val recv_setVersion: recvState -> ProtocolVersion -> recvState (* server-side only *)
-val recv_checkVersion: recvState -> ProtocolVersion -> unit Result    (* client-side only *)
+val recordPacketIn: recvState -> int -> ContentType -> bytes -> (recvState * ContentType * int * fragment) Result
 val recv_setCrypto:  ccs_data -> recvState
 
 (* val coherentrw: SessionInfo -> recvState -> sendState -> bool *)

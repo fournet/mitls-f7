@@ -223,7 +223,7 @@ and HttpServer (localaddr : IPEndPoint, config : HttpServerConfig) =
             raise (InvalidOperationException ())
         end;
 
-        HttpLogger.Info "Starting HTTP server";
+        HttpLogger.Info (sprintf "Starting HTTP server on port %d" localaddr.Port);
         socket <- TcpListener localaddr;
         try
             socket.Start ();

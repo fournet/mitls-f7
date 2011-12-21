@@ -99,7 +99,7 @@ let decrypt ki key iv tlen data cipher =
                     correct(iv3,compr)
                 else
                     Error(MAC,CheckFailed)
-        | x when x >= ProtocolVersion.TLS_1p1 ->
+        | ProtocolVersion.TLS_1p1 | ProtocolVersion.TLS_1p2 ->
             if Mac.VERIFY ki macKey (mac_plain_to_bytes toVerify) (mac_to_bytes mac) then
                 if mustFail then
                     Error(MAC,CheckFailed)
@@ -107,6 +107,5 @@ let decrypt ki key iv tlen data cipher =
                     correct (iv3,compr)
             else
                 Error(MAC,CheckFailed)
-        | _ -> unexpectedError "[decrypt] wrong protocol version"
 
  (* | GCM (GCMKey) -> ... *)

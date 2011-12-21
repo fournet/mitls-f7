@@ -112,7 +112,7 @@ val next_fragment: s:hs_state -> r:HSFragReply * s':hs_state
 
 type recv_reply = 
   | HSAck
-  | HSChangeVersion of Direction * ProtocolVersion
+  | HSVersionAgreed * ProtocolVersion
   | HSReadSideFinished // {(Client(state) /\ ClientFinished(si)) \/ (Server(state) /\ ServerFinished(si))}
   | HSFullyFinished_Read of ss:StorableSession {ClientFinished(ss.sinfo) /\ ServerFinished(ss.sinfo)} // Honest(..) /\ StrongSuite(..) =>
 

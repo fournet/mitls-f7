@@ -25,7 +25,7 @@ type SessionInfo = {
     init_srand: bytes
     }
 
-val init_sessionInfo: SessionInfo
+val null_sessionInfo: ProtocolVersion -> SessionInfo
 
 type KeyInfo = {
     sinfo: SessionInfo;

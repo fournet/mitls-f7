@@ -8,7 +8,6 @@ type preContentType =
     | Alert
     | Handshake
     | Application_data
-    | UnknownCT
 
 type ContentType = preContentType
 
@@ -18,24 +17,20 @@ let ctBytes ct =
     | Alert              -> [|21uy|]
     | Handshake          -> [|22uy|]
     | Application_data   -> [|23uy|]
-    | UnknownCT -> unexpectedError "[ctBytes] Cannot convert the Unknown content type to bytes"
 
 let parseCT b =
     match b with 
-    | [|20uy|] -> Change_cipher_spec
-    | [|21uy|] -> Alert
-    | [|22uy|] -> Handshake
-    | [|23uy|] -> Application_data
-    | _        -> UnknownCT
+    | [|20uy|] -> correct(Change_cipher_spec)
+    | [|21uy|] -> correct(Alert)
+    | [|22uy|] -> correct(Handshake)
+    | [|23uy|] -> correct(Application_data)
+    | _        -> Error(Parsing,WrongInputParameters)
 
 let CTtoString = function
     | Change_cipher_spec -> "CCS" 
     | Alert              -> "Alert"
     | Handshake          -> "Handshake"
     | Application_data   -> "Data"
-    | UnknownCT          -> "???"
-
-type KnownCT = preContentType 
 
 let bytes_of_seq sn = bytes_of_int 8 sn
 

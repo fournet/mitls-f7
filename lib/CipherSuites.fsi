@@ -10,17 +10,15 @@ type cipherSuites = cipherSuite list
 
 type Compression =
     | Null
-    | UnknownComp
 
 type ProtocolVersion =
-    | UnknownPV = -1
-    | SSL_3p0   = 10
-    | TLS_1p0   = 20
-    | TLS_1p1   = 30
-    | TLS_1p2   = 40
+    | SSL_3p0
+    | TLS_1p0
+    | TLS_1p1
+    | TLS_1p2
 
 val versionBytes: ProtocolVersion -> bytes
-val parseVersion: bytes -> ProtocolVersion
+val parseVersion: bytes -> ProtocolVersion Result
 val minPV: ProtocolVersion -> ProtocolVersion -> ProtocolVersion
 
 val nullCipherSuite: cipherSuite
@@ -38,12 +36,12 @@ val verifyDataHashAlg_of_ciphersuite: cipherSuite -> hashAlg
 val macAlg_of_ciphersuite: cipherSuite -> hashAlg
 val encAlg_of_ciphersuite: cipherSuite -> cipherAlg
 
-val compression_of_bytes: bytes -> Compression
+val compression_of_bytes: bytes -> Compression Result
 val compressionBytes: Compression -> bytes
 val parseCompressions: bytes -> Compression list
 
 val cipherSuiteBytes: cipherSuite -> bytes
-val cipherSuite_of_bytes: bytes -> cipherSuite 
+val cipherSuite_of_bytes: bytes -> cipherSuite Result
 val parseCipherSuites: bytes -> cipherSuites Result
 val bytes_of_cipherSuites: cipherSuites -> bytes 
 

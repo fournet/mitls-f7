@@ -52,8 +52,9 @@ let init ns dir poptions =
     (* Direction "dir" is always the outgoing direction.
        So, if we are a Client, it will be CtoS, if we're a Server: StoC *)
     let hs = Handshake.init_handshake dir poptions in
+    let init_sessionInfo = null_sessionInfo poptions.minVer in
     let (outKI,inKI) = (init_KeyInfo init_sessionInfo dir, init_KeyInfo init_sessionInfo (dualDirection dir)) in
-    let (send,recv) = Record.create outKI inKI poptions.minVer in
+    let (send,recv) = Record.create outKI inKI in
     let read_state = {disp = Init; conn = recv} in
     let write_state = {disp = Init; conn = send} in
     let al = Alert.init init_sessionInfo  in
@@ -79,8 +80,9 @@ let resume ns sid ops =
     | CtoS ->
     let sinfo = retrievedStoredSession.sinfo in
     let hs = Handshake.resume_handshake sinfo retrievedStoredSession.ms ops in
+    let init_sessionInfo = null_sessionInfo ops.minVer in
     let (outKI,inKI) = (init_KeyInfo init_sessionInfo CtoS, init_KeyInfo init_sessionInfo StoC) in
-    let (send,recv) = Record.create outKI inKI ops.minVer in
+    let (send,recv) = Record.create outKI inKI in
     let read_state = {disp = Init; conn = recv} in
     let write_state = {disp = Init; conn = send} in
     let al = Alert.init init_sessionInfo  in
@@ -342,36 +344,20 @@ let deliver ct tlen f c =
         match corr with
         | Handshake.HSAck ->
             (correct (true), { c with handshake = hs} )
-        | Handshake.HSChangeVersion(r,v) ->
+        | Handshake.HSVersionAgreed pv ->
             match c_read.disp with
             | Init ->
                 (* Then, also c_write must be in Init state. It means this is the very first, unprotected handshake,
-                   and we just negotiated the version. Tell the record layer which version to use; and move to the
-                   FirstHandshake state *)
-                match r with
-                | CtoS ->
-                    match Record.recv_checkVersion c_read.conn v with
-                    | Correct (dummy) ->
-                        let c_read = {c_read with disp = FirstHandshake} in
-                        (* Also update the protocol version on the writing side of the record *)
-                        let new_write_conn = Record.send_setVersion c.write.conn v in
-                        let new_write = {c.write with conn = new_write_conn
-                                                      disp = FirstHandshake} in
-                        (correct (true), { c with handshake = hs;
-                                                  read = c_read;
-                                                  write = new_write} )
-                    | Error(x,y) -> (Error(x,y), {c with handshake = hs} )
-                | StoC ->
-                    let new_recv = Record.recv_setVersion c_read.conn v in
-                    let new_read = {c_read with conn = new_recv
-                                                disp = FirstHandshake} in
-                    let new_send = Record.send_setVersion c.write.conn v in
-                    let new_write = {c.write with conn = new_send
-                                                  disp = FirstHandshake} in
-                    (correct (true), { c with handshake = hs;
-                                              read = new_read;
-                                              write = new_write} )
-            | _ -> (* It means we are doing a re-negotiation. Don't alter the current version number at the record layer, because it
+                   and we just negotiated the version.
+                   Set the negotiated version in the current sinfo, 
+                   and move to the FirstHandshake state, so that
+                   protocol version will be properly checked *)
+                let new_read = {c_read with disp = FirstHandshake} in
+                let new_write = {c.write with disp = FirstHandshake} in
+                (correct (true), { c with handshake = hs;
+                                            read = new_read;
+                                            write = new_write} )
+            | _ -> (* It means we are doing a re-negotiation. Don't alter the current version number, because it
                      is perfectly valid. It will be updated after the next CCS, along with all other session parameters *)
                 ((correct (true), { c with handshake = hs} ))
         | Handshake.HSReadSideFinished ->
@@ -427,34 +413,45 @@ let deliver ct tlen f c =
   | Application_data, Open -> 
     let appstate = AppData.recv_fragment c.appdata tlen f in
     (correct (false), { c with appdata = appstate })
-  | UnknownCT, _ -> (Error(Dispatcher,Unsupported),c)
   | _, _ -> (Error(Dispatcher,InvalidState),c)
 
 //CF can we move header parsing/unparsing to Formats?
-let parse_header header =
-  (* Mostly the same as Record.parse_header,
-     but here we don't perform any check on the protcol version *)
+let parse_header header dState protocolVersion =
   let (ct1,rem4) = split header 1 in
   let (pv2,len2) = split rem4 2 in
-  let ct = parseCT ct1 in
-  let pv = CipherSuites.parseVersion pv2 in
+  match parseCT ct1 with
+  | Error(x,y) -> Error(x,y)
+  | Correct(ct) ->
+  match CipherSuites.parseVersion pv2 with
+  | Error(x,y) -> Error(x,y)
+  | Correct(pv) ->
   let len = int_of_bytes len2 in
-  (ct,pv,len)
+  match dState with
+  | Init -> // This is the first handshake,
+            // and we don't have agreed on protocol version yet.
+            // So, we don't check the received protocol version
+            correct (ct,pv,len)
+  | _ ->
+    if pv <> protocolVersion then
+        Error(RecordVersion,CheckFailed)
+    else
+        correct (ct,pv,len) 
 
-let recv ns readState =
+let recv ns readState sinfo =
     match Tcp.read ns 5 with
     | Error (x,y) -> Error (x,y)
     | Correct header ->
-        let (ct,pv,len) = parse_header header in
-        (* No need to check len, since it's on 2 bytes and the max allowed value
-           is 2^16. So, here len is always safe *)
-        match Tcp.read ns len with 
-        | Error (x,y) -> Error (x,y) 
-        | Correct payload ->
-            let fullMsg = header @| payload in
-            printf "%s[%d] " (Formats.CTtoString ct) len;
-            Record.recordPacketIn readState fullMsg
-            // Could we instead call record on ct,pv,payload?
+        match parse_header header readState.disp sinfo.protocol_version with
+        | Error(x,y) -> Error(x,y)
+        | Correct (res) ->
+            let (ct,pv,len) = res in
+            (* No need to check len, since it's on 2 bytes and the max allowed value
+               is 2^16. So, here len is always safe *)
+            match Tcp.read ns len with 
+            | Error (x,y) -> Error (x,y) 
+            | Correct payload ->
+                printf "%s[%d] " (Formats.CTtoString ct) len; // DEBUG
+                Record.recordPacketIn readState.conn len ct payload
 
 let rec readNextAppFragment conn =
     (* If available, read next data *)
@@ -466,7 +463,7 @@ let rec readNextAppFragment conn =
     | Error (x,y) -> (Error(x,y),conn)
     | Correct canRead ->
     if canRead then
-        match recv conn.ns c_read.conn with
+        match recv conn.ns c_read conn.ds_info with
         | Error (x,y) -> (Error (x,y),conn) (* TODO: if TCP error, return the error; if recoverable Record error, send Alert *)
         | Correct res ->
         let (recvSt,ct,tlen,f) = res in

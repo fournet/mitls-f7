@@ -119,7 +119,6 @@ let generic_prf pv cs secret label data len =
         tls_prf secret label data len
     | ProtocolVersion.TLS_1p2 ->
         tls12prf cs secret label data len
-    | _ -> unexpectedError "[generic_prf] invoked on unsupported protocol version"
 
 (* High-level prf functions -- implement interface *)
 
@@ -127,12 +126,11 @@ let prfVerifyData ki (ms:masterSecret) data =
   let pv = ki.sinfo.protocol_version in
   match pv with 
   | ProtocolVersion.SSL_3p0 -> ssl_verifyData ms.bytes ki.dir data
-  | x when x = ProtocolVersion.TLS_1p0 || x = ProtocolVersion.TLS_1p1 -> 
+  | ProtocolVersion.TLS_1p0 | ProtocolVersion.TLS_1p1 -> 
     tls_verifyData ms.bytes ki.dir data
   | ProtocolVersion.TLS_1p2 ->
     let cs = ki.sinfo.cipher_suite in
     tls12VerifyData cs ms.bytes ki.dir data
-  | _ -> unexpectedError "[prfVerifyData] invoked on unsupported protocol version"
 
 type preMasterSecret = {bytes:bytes}
 
@@ -163,17 +161,16 @@ let getPMS sinfo ver check_client_version_in_pms_for_old_tls cert encPMS =
         else
             let (clVB,postPMS) = split pms 2 in
             match sinfo.protocol_version with
-            | v when v >= ProtocolVersion.TLS_1p1 ->
+            | ProtocolVersion.TLS_1p1 | ProtocolVersion.TLS_1p2 ->
                 (* 3. If new TLS version, just go on with client version and true pms.
                     This corresponds to a check of the client version number, but we'll fail later. *)
                 {bytes = verB @| postPMS}
-            | v when v = ProtocolVersion.SSL_3p0 || v = ProtocolVersion.TLS_1p0 ->
+            | ProtocolVersion.SSL_3p0 | ProtocolVersion.TLS_1p0 ->
                 (* 3. If check disabled, use client provided PMS, otherwise use our version number *)
                 if check_client_version_in_pms_for_old_tls then
                     {bytes = verB @| postPMS}
                 else
                     {bytes = pms}
-            | _ -> unexpectedError "[parseClientKEX] Protocol version should have already been checked some lines above."
 
 let empty_pms = {bytes = [||]}
 
