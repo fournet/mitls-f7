@@ -13,8 +13,8 @@ let try_read_mimes path =
         Mime.MimeMap ()
 
 let tlsoptions = {
-    AppCommon.minVer = CipherSuites.ProtocolVersionType.SSL_3p0
-    AppCommon.maxVer = CipherSuites.ProtocolVersionType.TLS_1p2
+    AppCommon.minVer = CipherSuites.ProtocolVersion.SSL_3p0
+    AppCommon.maxVer = CipherSuites.ProtocolVersion.TLS_1p2
 
     AppCommon.ciphersuites =
         CipherSuites.cipherSuites_of_nameList [
