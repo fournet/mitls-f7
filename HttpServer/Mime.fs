@@ -1,4 +1,4 @@
-﻿ module Mime
+﻿module Mime
 
 open System
 open System.IO
