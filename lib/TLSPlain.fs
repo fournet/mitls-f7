@@ -28,10 +28,10 @@ let padLength sinfo len =
     (* Always use fixed padding size *)
     (* earlier variants used random padding: 
     match ki.sinfo.protocol_version with
-    | ProtocolVersion.SSL_3p0 ->
+    | SSL_3p0 ->
         (* At most one bs. See sec 5.2.3.2 of SSL 3 draft *)
         min_padlen
-    | v when v >= ProtocolVersion.TLS_1p0 ->
+    | v when v >= TLS_1p0 ->
         let rand = bs * (((int (OtherCrypto.mkRandom 1).[0]) - min_padlen) / bs) in 
         min_padlen + rand
     | _ -> unexpectedError "[compute_pad] invoked on wrong protocol version"
@@ -232,14 +232,14 @@ val split_flagment_mac_pad ki:KeyInfo -> plain:plain
     else 
         let (fragment_mac,padding) = split plain.bytes  (l - p) in
         let (fragment,mac)         = split fragment_mac (l - p - m) in
-        if   (    v = ProtocolVersion.SSL_3p0 
+        if   (    v = SSL_3p0 
                && p <= blockSize(encAlg_of_ciphersuite ki.sinfo.cipher_suite) ) 
                (* Padding is random in SSL_3p0, no check to be done on its content.
                   However, its length should be at most one block [SSL3, 5.2.3.2]
                   We enforce this check (performed by openssl, and not by wireshark for example)
                   but we do not report any specific Padding error. *)
 
-          || (    (v = ProtocolVersion.TLS_1p0 || v = ProtocolVersion.TLS_1p1 || v = ProtocolVersion.TLS_1p2)  
+          || (    (v = TLS_1p0 || v = TLS_1p1 || v = TLS_1p2)  
                && equalBytes padding (pad p)) 
           
         then {bytes=fragment},MACt(mac),false
@@ -261,10 +261,10 @@ let split_mac (ki:KeyInfo) (plainLen:int) (plain:plain) : (bool * (fragment * ma
         (* Evidently padding has been corrupted, or has been incorrectly generated *)
         (* in TLS1.0 we fail now, in more recent versions we fail later, see sec.6.2.3.2 Implementation Note *)
         match ki.sinfo.protocol_version with
-        | v when v >= ProtocolVersion.TLS_1p1 ->
+        | v when v >= TLS_1p1 ->
             (* Pretend we have a valid padding of length zero, but set we must fail *)
             correct(data,true)
-        | v when v = ProtocolVersion.SSL_3p0 || v = ProtocolVersion.TLS_1p0 ->
+        | v when v = SSL_3p0 || v = TLS_1p0 ->
             (* in TLS1.0/SSL we fail now, in more recent versions we fail later, see sec.6.2.3.2 Implementation Note *)
             Error (RecordPadding,CheckFailed)
         | _ -> unexpectedError "[check_padding] wrong protocol version"
@@ -272,7 +272,7 @@ let split_mac (ki:KeyInfo) (plainLen:int) (plain:plain) : (bool * (fragment * ma
     else
         let (data_no_pad,pad) = split tmpdata padstart in
         match ki.sinfo.protocol_version with
-        | ProtocolVersion.TLS_1p0 | ProtocolVersion.TLS_1p1 | ProtocolVersion.TLS_1p2 ->
+        | TLS_1p0 | TLS_1p1 | TLS_1p2 ->
             let expected = Array.create padlen (byte padlen) in
             if equalBytes expected pad then
                 let macStart = plainLen - macSize - padlen - 1 in
@@ -285,13 +285,13 @@ let split_mac (ki:KeyInfo) (plainLen:int) (plain:plain) : (bool * (fragment * ma
                 (true,({bytes=frag},MACt(mac)))
                 (*
                 (* in TLS1.0 we fail now, in more recent versions we fail later, see sec.6.2.3.2 Implementation Note *)
-                if  v = ProtocolVersion.TLS_1p0 then
+                if  v = TLS_1p0 then
                     Error (RecordPadding,CheckFailed)
                 else
                     (* Pretend we have a valid padding of length zero, but set we must fail *)
                     correct (data,true)
                 *)
-        | ProtocolVersion.SSL_3p0 ->
+        | SSL_3p0 ->
             (* Padding is random in SSL_3p0, no check to be done on its content.
                However, its length should be at most one bs
                (See sec 5.2.3.2 of SSL 3 draft). Enforce this check (which

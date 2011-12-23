@@ -24,15 +24,15 @@ let MAC (ki:id) key data =
     let pv = ki.sinfo.protocol_version in
     let a = macAlg_of_ciphersuite ki.sinfo.cipher_suite in
     match pv with
-    | ProtocolVersion.SSL_3p0 ->     HMAC.sslKeyedHash a key.bytes data
-    | ProtocolVersion.TLS_1p0 | ProtocolVersion.TLS_1p1 | ProtocolVersion.TLS_1p2 -> HMAC.HMAC a key.bytes data
+    | SSL_3p0 ->     HMAC.sslKeyedHash a key.bytes data
+    | TLS_1p0 | TLS_1p1 | TLS_1p2 -> HMAC.HMAC a key.bytes data
 
 let VERIFY (ki:id) key data tag =
     let pv = ki.sinfo.protocol_version in
     let a = macAlg_of_ciphersuite ki.sinfo.cipher_suite in
     match pv with
-    | ProtocolVersion.SSL_3p0 ->     HMAC.sslKeyedHashVerify a key.bytes data tag
-    | ProtocolVersion.TLS_1p0 | ProtocolVersion.TLS_1p1 | ProtocolVersion.TLS_1p2 -> HMAC.HMACVERIFY a key.bytes data tag
+    | SSL_3p0 ->     HMAC.sslKeyedHashVerify a key.bytes data tag
+    | TLS_1p0 | TLS_1p1 | TLS_1p2 -> HMAC.HMACVERIFY a key.bytes data tag
 
 let GEN (id:id) = {bytes= Bytes.mkRandom (keysize id)}
 let COERCE (id:id) k = {bytes=k}

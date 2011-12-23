@@ -23,24 +23,23 @@ let compressionBytes comp =
     match comp with
     | Null -> [|0uy|]
 
-let compression_of_bytes b =
+let parseCompression b =
     match b with
     | [|0uy|] -> correct(Null)
-    | _ -> Error(Parsing,WrongInputParameters)
+    | _       -> Error(Parsing,WrongInputParameters)
 
-let rec compressions_of_bytes_int b list =
-    if length b = 0 then
-        list
-    else
-        let (cmB,rem) = split b 1 in
-        match compression_of_bytes cmB with
+//CF unclear what we do there? why no Result? 
+//CF also not verifying on inequalities
+let rec parseCompressions b =
+    let l = length b
+    if l > 0 
+    then
+        let (cmB,b) = split b 1 in
+        match parseCompression cmB with
         | Error(x,y) -> // skip this one
-            compressions_of_bytes_int rem list
-        | Correct(cm) ->
-            let list = cm :: list in
-            compressions_of_bytes_int rem list
-
-let parseCompressions b = compressions_of_bytes_int b []
+            parseCompressions b
+        | Correct(cm) -> cm :: parseCompressions b
+    else []
 
 type ProtocolVersion =
     | SSL_3p0
@@ -50,23 +49,26 @@ type ProtocolVersion =
 
 let versionBytes pv =
     match pv with
-    | ProtocolVersion.SSL_3p0 -> [| 3uy; 0uy |]
-    | ProtocolVersion.TLS_1p0 -> [| 3uy; 1uy |]
-    | ProtocolVersion.TLS_1p1 -> [| 3uy; 2uy |]
-    | ProtocolVersion.TLS_1p2 -> [| 3uy; 3uy |]
+    | SSL_3p0 -> [| 3uy; 0uy |]
+    | TLS_1p0 -> [| 3uy; 1uy |]
+    | TLS_1p1 -> [| 3uy; 2uy |]
+    | TLS_1p2 -> [| 3uy; 3uy |]
 
 let parseVersion (v:bytes) =
     match v with
-    | [| 3uy; 0uy |] -> correct(ProtocolVersion.SSL_3p0)
-    | [| 3uy; 1uy |] -> correct(ProtocolVersion.TLS_1p0)
-    | [| 3uy; 2uy |] -> correct(ProtocolVersion.TLS_1p1)
-    | [| 3uy; 3uy |] -> correct(ProtocolVersion.TLS_1p2)
+    | [| 3uy; 0uy |] -> correct(SSL_3p0)
+    | [| 3uy; 1uy |] -> correct(TLS_1p0)
+    | [| 3uy; 2uy |] -> correct(TLS_1p1)
+    | [| 3uy; 3uy |] -> correct(TLS_1p2)
     | _ -> Error(Parsing,WrongInputParameters)
 
 let minPV (a:ProtocolVersion) (b:ProtocolVersion) =
-    (* FIXME: relying on some undocumented F# feature:
-       unions are enusm, too *)
-    if a < b then a else b
+  match (a,b) with
+  | SSL_3p0, _ -> SSL_3p0
+  | _, TLS_1p0 -> TLS_1p0
+  | TLS_1p1, _ -> TLS_1p1
+  | _, _       -> TLS_1p2
+// in F#, could use if a < b then a else b
 
 let nullCipherSuite = NullCipherSuite
 
@@ -226,8 +228,15 @@ let canEncryptPMS cs =
     | OnlyMACCipherSuite ( RSA, _ ) -> true
     | _ -> false
 
-let contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV ciphlist =
-    List.exists (fun cs -> cs = SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV) ) ciphlist
+
+// unused? 
+let contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV (css: cipherSuite list) =
+#if fs
+    List.exists (fun cs -> cs = SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV) ) css
+#else
+    failwith "TODO: fix list library": bool
+#endif
+
 
 let verifyDataLen_of_ciphersuite (cs:cipherSuite) =
     (* Only to be invoked with TLS 1.2 (hardcoded in previous versions *)
@@ -261,17 +270,18 @@ let getKeyExtensionLength pv cs =
         match cs with
         | CipherSuite (_, EncMAC(cAlg, hAlg)) ->
             match pv with
-            | ProtocolVersion.SSL_3p0 | ProtocolVersion.TLS_1p0 -> ((encKeySize cAlg), (ivSize cAlg), (macKeySize hAlg))
-            | ProtocolVersion.TLS_1p1 | ProtocolVersion.TLS_1p2 -> ((encKeySize cAlg), 0, (macKeySize hAlg)) (* TLS 1.1: no implicit IV *)
+            // expanded 'or' pattern for F7
+            | SSL_3p0 -> ((encKeySize cAlg), (ivSize cAlg), (macKeySize hAlg))
+            | TLS_1p0 -> ((encKeySize cAlg), (ivSize cAlg), (macKeySize hAlg))
+            | TLS_1p1 -> ((encKeySize cAlg),             0, (macKeySize hAlg)) (* TLS 1.1: no implicit IV *) 
+            | TLS_1p2 -> ((encKeySize cAlg),             0, (macKeySize hAlg)) (* TLS 1.1: no implicit IV *)
         | CipherSuite (_, AEAD(cAlg, hAlg)) -> ((aeadKeySize cAlg), (aeadIVSize cAlg), (macKeySize hAlg))
         | OnlyMACCipherSuite (_,hAlg) -> (0,0,macKeySize hAlg)
         | _ -> unexpectedError "[getKeyExtensionLength] invoked on an invalid ciphersuite"
     2 * (keySize + hashSize + IVSize)
 
-let PVRequiresExplicitIV pv =
-    match pv with
-    | ProtocolVersion.SSL_3p0 | ProtocolVersion.TLS_1p0 -> false
-    | ProtocolVersion.TLS_1p1 | ProtocolVersion.TLS_1p2 -> true
+let PVRequiresExplicitIV pv = 
+    pv = TLS_1p1 || pv = TLS_1p2
 
 let macAlg_of_ciphersuite cs =
     match cs with
@@ -285,7 +295,7 @@ let encAlg_of_ciphersuite cs =
     | _ -> unexpectedError "[encAlg_of_ciphersuite] inovked on an invalid ciphersuite"
 
 (* Not for verification, just to run the implementation *)
-//CF: why not getting rid of it then??
+//CF: why not getting rid of it then? TODO?
 
 type cipherSuiteName =
     | TLS_NULL_WITH_NULL_NULL              
@@ -329,7 +339,8 @@ type cipherSuiteName =
     | TLS_DH_anon_WITH_AES_128_CBC_SHA256
     | TLS_DH_anon_WITH_AES_256_CBC_SHA256
 
-let cipherSuites_of_nameList nameList =
+let cipherSuites_of_nameList (nameList: cipherSuiteName list) =
+#if fs
    List.map (
     fun name ->
         match name with
@@ -374,3 +385,6 @@ let cipherSuites_of_nameList nameList =
         | TLS_DH_anon_WITH_AES_128_CBC_SHA256    -> CipherSuite (DH_anon, EncMAC (AES_128_CBC, SHA256))
         | TLS_DH_anon_WITH_AES_256_CBC_SHA256    -> CipherSuite (DH_anon, EncMAC (AES_256_CBC, SHA256))
    ) nameList 
+#else
+    failwith "TODO: fix list library": cipherSuites
+#endif

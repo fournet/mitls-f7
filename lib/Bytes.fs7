@@ -6,7 +6,7 @@ type nat = n:int {0 <= n} // a convenient abbreviation
 type bytes = byte array
 
 function val Length: bytes -> int 
-val length: b:bytes -> l:int {Length(b) = l}
+val length: b:bytes -> l:nat {Length(b) = l}
 assume !x:bytes, y:bytes. Length(x @| y) = Length(x) + Length(y)
 
 val createBytes: l:int -> int -> b:bytes{Length(b) = l}
@@ -72,3 +72,9 @@ val iutf8: b:bytes -> s:string { b = Utf8(s) }
 
 // utf8 is injective
 assume !x:string, y:string. ( Utf8(x)=Utf8(y) => x = y )
+
+
+(* misc, to be relocated *)
+
+//assume !x. x <= x
+//assume 0 <= 1

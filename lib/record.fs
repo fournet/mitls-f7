@@ -80,8 +80,8 @@ let makeAD conn ct =
     let bct  = ctBytes ct in
     let bver = versionBytes version in
     match version with
-    | ProtocolVersion.SSL_3p0             -> bseq @| bct
-    | ProtocolVersion.TLS_1p0 | ProtocolVersion.TLS_1p1 | ProtocolVersion.TLS_1p2 -> bseq @| bct @| bver
+    | SSL_3p0             -> bseq @| bct
+    | TLS_1p0 | TLS_1p1 | TLS_1p2 -> bseq @| bct @| bver
 
 let makePacket ct ver data =
   let l = length data in 
@@ -226,9 +226,9 @@ let recv conn =
     | Error (x,y) -> Error (x,y)
     | Correct header ->
     let (ct,pv,len) = parse_header header in
-    if   (  conn.protocol_version <> ProtocolVersion.UnknownPV 
+    if   (  conn.protocol_version <> UnknownPV 
          && pv <> conn.protocol_version)
-      || pv = ProtocolVersion.UnknownPV 
+      || pv = UnknownPV 
     then Error (RecordVersion,CheckFailed)
     else
         (* We commit to the received protocol version.

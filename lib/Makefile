@@ -61,57 +61,64 @@ record-a.dll: libsym-a.dll $(recordfsi) $(recordfs-a)
 Dispatch-a.dll: libsym-a.dll record-a.dll $(tlsfsi) $(tlsfs)
 	$(fsc) -r libsym-a.dll -r record-a.dll $(tlsfsi) $(tlsfs) -a -o Dispatch-a.dll
 
+### f7 typechecking, in the same order as in VS 
 
+#CF not sure what the default rule was doing, now more bespoke
+
+tc7:: Algorithms.tc7 CipherSuites.tc7 formats.tc7 TLSInfo.tc7 HASH.tc7 HMAC.tc7 TLSPlain.tc7 ENC.tc7 AEAD.tc7 Stream.tc7 record.tc7 AppCommon.tc7 PRFs.tc7 SessionDB.tc7 Handshake.tc7 AppData.tc7 Alert.tc7 dispatch.tc7 TLS.tc7
 # trusting Bytes.fs7 (could be partly verified)
 
-Error.tc7: $(libperv) $(libfs7) Error.fs7 Error.fs
-	$(f7) -nokindcheck --verbose  $(lperv) $(libfs7) Error.fs7 Error.fs
+f7t= echo ; $(f7) -nokindcheck $(lperv) $(libfs7)
 
-# trusting tpc.fs7 
-# trusting RSA.fs7
+Error.tc7: $(libperv) $(libfs7) Error.fs7 Error.fs
+	$(f7t) Error.fs7 Error.fs
+
+# trusting tcp.fs7 
+# trusting RSA.tc7 (mostly calling System.Security.Cryptography)
 # trusting Principal.fs7 
 
 Algorithms.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Algorithms.fs
-	$(f7) -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Algorithms.fs -scripts Algorithms
+	$(f7t) Bytes.fs7 Algorithms.fs7 Algorithms.fs -scripts Algorithms
 
 # FIXME does not verify because of enums.
 CipherSuites.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 CipherSuites.fs7 CipherSuites.fs
-	$(f7) -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 CipherSuites.fs7 CipherSuites.fs -scripts CipherSuites
+	$(f7t) Bytes.fs7 Algorithms.fs7 Error.fs7 CipherSuites.fs7 CipherSuites.fs 
 
 formats.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 formats.fs7 formats.fs
-	$(f7) --verbose -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Error.fs7 formats.fs7 formats.fs -scripts formats
+	$(f7t) Bytes.fs7 Error.fs7 formats.fs7 formats.fs 
 
 TLSInfo.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 Principal.fs7 TLSInfo.fs7 TLSInfo.fs
-	$(f7) --verbose -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 TLSInfo.fs7 TLSInfo.fs
+	$(f7t) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 TLSInfo.fs7 TLSInfo.fs
 
 HMAC.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 HMAC.fs7 HMAC.fs
-	$(f7) --verbose -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 HMAC.fs7 Hash.fs7 HMAC.fs -scripts HMAC
+	$(f7t) --verbose Bytes.fs7 Algorithms.fs7 Error.fs7 HMAC.fs7 Hash.fs7 HMAC.fs
 
-Alert.tc7: $(libperv) $(libfs7) 
-	$(f7) --verbose -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 TLSPlain.fs7 Alert.fs7 Alert.fs 
+Alert.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 TLSPlain.fs7 Alert.fs7 Alert.fs 
+	$(f7t) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 TLSPlain.fs7 Alert.fs7 Alert.fs 
 
 # trusting SessionDB (unnecessarily?)
 
-HS_msg.tc7: $(libperv) $(libfs7) 
-	$(f7) --verbose -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HS_msg.fsi HS_msg.fs 
+HS_msg.tc7: $(libperv) $(libfs7)  Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HS_msg.fsi HS_msg.fs 
+	$(f7t) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HS_msg.fsi HS_msg.fs 
 
-Handshake.tc7: $(libperv) $(libfs7) 
-	$(f7) --verbose -nokindcheck $(lperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 Handshake.fs7 Handshake.fs 
+Handshake.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 Handshake.fs7 Handshake.fs 
+	$(f7t) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 Handshake.fs7 Handshake.fs 
 
 record.tc7: $(libperv) $(libfs7) $(recordfs7) record.fs
-	time $(f7) -debug -nofstypecheck -timeout 30 --define f7 -nokindcheck $(lperv) $(libfs7) $(recordfs7) record.fs -scripts record -genlst | tee  record.tc7 | grep "Failure\|error\|ERROR\|Exception"; echo ""
+	$(f7) -debug -nofstypecheck -timeout 30 --define f7 -nokindcheck $(lperv) $(libfs7) $(recordfs7) record.fs -scripts record 
 
+#CF ? 
 autogen.fsi: $(libperv) $(libfs7) $(recordfs7) record.fs
-	time $(f7) -nofstypecheck -timeout 300 --define f7 -genfsi -fsifile autogen.fsi -genprotofs -protofsfile autogen.fs -nokindcheck $(lperv) $(libfs7) $(recordfs7) record.fs 
+	$(f7) -nofstypecheck -timeout 300 --define f7 -genfsi -fsifile autogen.fsi -genprotofs -protofsfile autogen.fs -nokindcheck $(lperv) $(libfs7) $(recordfs7) record.fs 
 
 Sessions.tc7: $(libperv) $(libfs7) $(recordfs7) Sessions.fs
-	time $(f7) -timeout 20 --define f7 -nokindcheck $(lperv) $(libfs7) $(recordfs7) Sessions.fs -scripts Sessions -genlst | tee  Sessions.tc7 | grep "Failure\|error\|ERROR\|Exception"; echo ""
+	$(f7) -timeout 20 --define f7 -nokindcheck $(lperv) $(libfs7) $(recordfs7) Sessions.fs -scripts Sessions -genlst | tee  Sessions.tc7 | grep "Failure\|error\|ERROR\|Exception"; echo ""
 
 #formats.tc7: $(libperv) $(libfs7) $(recordfs7) formats.fs
 #	time $(f7) -timeout 20 --define f7 -nokindcheck $(lperv) $(libfs7) $(recordfs7) formats.fs -scripts formats -genlst | tee  formats.tc7 | grep "Failure\|error\|ERROR\|Exception"; echo ""
 
 AppData.tc7: $(libperv) $(libfs7) $(recordfs7) AppData.fs7 AppData.fs 
-	time $(f7) -timeout 200 --define f7 -nokindcheck $(lperv) $(libfs7) $(recordfs7) AppData.fs7 AppData.fs -scripts AppData -genlst | tee AppData.tc7 | grep "Failure\|error\|ERROR\|Exception"; echo ""
+	$(f7) -timeout 200 --define f7 -nokindcheck $(lperv) $(libfs7) $(recordfs7) AppData.fs7 AppData.fs -scripts AppData -genlst | tee AppData.tc7 | grep "Failure\|error\|ERROR\|Exception"; echo ""
 
 %.tc7: $(libperv) $(libfs7) $(recordfs7) $(tlsfs7) %.fs
 	time $(f7) -nofstypecheck -timeout 30 --define f7 -nokindcheck $(lperv) $(libfs7) $(recordfs7) $(tlsfs7) $*.fs -scripts $* -genlst | tee  $*.tc7 | grep "Failure\|error\|ERROR\|Exception"; echo ""

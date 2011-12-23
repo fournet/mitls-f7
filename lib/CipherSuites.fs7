@@ -4,6 +4,14 @@ open Bytes
 open Algorithms
 open Error
 
+//ask !x. x <= x
+ask 0 <= 1
+ask !l. (0 <= l /\ l <> 0) => l >= 1
+//ask !l,n. l > n => l >= (n+1)
+ask !l. l > 1 => l >= 2
+ask 0 <= 2
+
+
 (*** Following RFC5246 A.5 *)
 
 private type SCSVsuite =
@@ -30,14 +38,21 @@ type ProtocolVersion =
 function val VersionBytes: ProtocolVersion -> bytes
 val versionBytes: pv:ProtocolVersion -> b:bytes{Length(b) = 2 /\ b = VersionBytes(pv)}
 val parseVersion: b:bytes{Length(b) = 2} -> (pv:ProtocolVersion{ b= VersionBytes(pv)}) Result
-val minPV: a:ProtocolVersion -> b:ProtocolVersion -> c:ProtocolVersion{(a < b /\ c = a) \/ (a >= b /\ c = b)}
+val minPV: a:ProtocolVersion -> b:ProtocolVersion -> c:ProtocolVersion
+//CF what's this refinement?? adjust on demand
+//  {(a < b /\ c = a) \/ (a >= b /\ c = b)}
 
 (* FIXME: same duplication between logical and concrete function definitions, 
-   already seen in Algorithms. *)
-function val IsNullCiphersuite: cipherSuite -> bool
-function val IsOnlyMACCiphersuite: cipherSuite -> bool
+   already seen in Algorithms. 
+   CF: we could save a bit by not making cipherSuite abstract for F7.
+   *)
+predicate val IsNullCiphersuite: cipherSuite -> bool
+assume !x. IsNullCiphersuite(x) <=> x = NullCipherSuite
 val nullCipherSuite: c:cipherSuite{IsNullCiphersuite(c)}
 val isNullCipherSuite: c:cipherSuite -> r:bool{r=true => IsNullCiphersuite(c)}
+
+predicate val IsOnlyMACCiphersuite: cipherSuite -> bool
+assume !x. (IsOnlyMACCiphersuite(x) <=> ?z. x = OnlyMACCipherSuite(z))
 val isOnlyMACCipherSuite: c:cipherSuite -> r:bool{r=true => IsOnlyMACCiphersuite(c)}
 
 (* TODO: predicates similar to the ones above, to be done when handling handshake *)
@@ -52,13 +67,13 @@ val verifyDataHashAlg_of_ciphersuite: cipherSuite -> hashAlg
 val macAlg_of_ciphersuite: cipherSuite -> hashAlg
 val encAlg_of_ciphersuite: cipherSuite -> cipherAlg
 
-val compression_of_bytes: b:bytes{Length(b)=1} -> Compression Result
 val compressionBytes: Compression -> b:bytes{Length(b)=1}
 (* FIXME: We can say that the length of the following byte array is the same of the length of the returned list.
    1) do we want/need to say this?
    2) how do we talk about lengths of lists in F7?
    CF: we can even typecheck it, but this is low priority
 *)
+val parseCompression: b:bytes{Length(b)=1} -> Compression Result
 val parseCompressions: bytes -> Compression list
 
 val cipherSuiteBytes: c:cipherSuite -> b:bytes{Length(b)=2}

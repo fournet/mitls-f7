@@ -114,10 +114,10 @@ let tls12VerifyData cs ms dir data =
    purpose specific PRFs *)
 let generic_prf pv cs secret label data len =
     match pv with 
-    | ProtocolVersion.SSL_3p0 -> ssl_prf secret data len
-    | ProtocolVersion.TLS_1p0 | ProtocolVersion.TLS_1p1 ->
+    | SSL_3p0 -> ssl_prf secret data len
+    | TLS_1p0 | TLS_1p1 ->
         tls_prf secret label data len
-    | ProtocolVersion.TLS_1p2 ->
+    | TLS_1p2 ->
         tls12prf cs secret label data len
 
 (* High-level prf functions -- implement interface *)
@@ -125,10 +125,10 @@ let generic_prf pv cs secret label data len =
 let prfVerifyData ki (ms:masterSecret) data =
   let pv = ki.sinfo.protocol_version in
   match pv with 
-  | ProtocolVersion.SSL_3p0 -> ssl_verifyData ms.bytes ki.dir data
-  | ProtocolVersion.TLS_1p0 | ProtocolVersion.TLS_1p1 -> 
+  | SSL_3p0 -> ssl_verifyData ms.bytes ki.dir data
+  | TLS_1p0 | TLS_1p1 -> 
     tls_verifyData ms.bytes ki.dir data
-  | ProtocolVersion.TLS_1p2 ->
+  | TLS_1p2 ->
     let cs = ki.sinfo.cipher_suite in
     tls12VerifyData cs ms.bytes ki.dir data
 
@@ -161,11 +161,11 @@ let getPMS sinfo ver check_client_version_in_pms_for_old_tls cert encPMS =
         else
             let (clVB,postPMS) = split pms 2 in
             match sinfo.protocol_version with
-            | ProtocolVersion.TLS_1p1 | ProtocolVersion.TLS_1p2 ->
+            | TLS_1p1 | TLS_1p2 ->
                 (* 3. If new TLS version, just go on with client version and true pms.
                     This corresponds to a check of the client version number, but we'll fail later. *)
                 {bytes = verB @| postPMS}
-            | ProtocolVersion.SSL_3p0 | ProtocolVersion.TLS_1p0 ->
+            | SSL_3p0 | TLS_1p0 ->
                 (* 3. If check disabled, use client provided PMS, otherwise use our version number *)
                 if check_client_version_in_pms_for_old_tls then
                     {bytes = verB @| postPMS}

@@ -25,11 +25,11 @@ let compute_pad ki data =
         else
             bs - overflow
     match ki.sinfo.protocol_version with
-    | ProtocolVersion.SSL_3p0 ->
+    | SSL_3p0 ->
         (* At most one bs. See sec 5.2.3.2 of SSL 3 draft *)
         let pad = OtherCrypto.mkRandom min_padlen in
         safeConcat pad [| byte min_padlen|]
-    | v when v >= ProtocolVersion.TLS_1p0 ->
+    | v when v >= TLS_1p0 ->
         let rand = bs * (((int (OtherCrypto.mkRandom 1).[0]) - min_padlen) / bs) in 
         let len = min_padlen + rand in
         Array.create (len+1) (byte len)
@@ -64,8 +64,8 @@ let CF_decrypt ki k state data cipher =
         let (state,encoded) = ENC.DEC ki ke state cipher in
         let (plain,mac,wrongpad) = TLSPlain.split_fragment_mac_pad ki encoded in
         match ki.sinfo.protocol_version with
-        | ProtocolVersion.SSL_3p0 
-        | ProtocolVersion.TLS_1p0 ->
+        | SSL_3p0 
+        | TLS_1p0 ->
             (* If mustFail is true, it means some padding error occurred.
                If in early versions of TLS, insecurely report a padding error now *)
             if wrongpad then Error(RecordPadding,CheckFailed)
@@ -73,7 +73,7 @@ let CF_decrypt ki k state data cipher =
                 match TLSPlain.verify ki ka data compr mac with
                 | Correct(_)                   -> correct(state,plain)
                 | Error(x,y)                   -> Error(x,y)
-        | x when x >= ProtocolVersion.TLS_1p1 ->
+        | x when x >= TLS_1p1 ->
                 match TLSPlain.verify ki ka data compr mac with
                 | Correct(_) when not wrongpad -> correct (state,plain)
                 | _                            -> Error(MAC,CheckFailed)
@@ -91,7 +91,7 @@ let decrypt ki key iv tlen data cipher =
         (* If mustFail is true, it means some padding error occurred.
             If in early versions of TLS, insecurely report a padding error now *)
         match ki.sinfo.protocol_version with
-        | ProtocolVersion.SSL_3p0 | ProtocolVersion.TLS_1p0 ->
+        | SSL_3p0 | TLS_1p0 ->
             if mustFail then
                 Error(RecordPadding,CheckFailed)
             else
@@ -99,7 +99,7 @@ let decrypt ki key iv tlen data cipher =
                     correct(iv3,compr)
                 else
                     Error(MAC,CheckFailed)
-        | ProtocolVersion.TLS_1p1 | ProtocolVersion.TLS_1p2 ->
+        | TLS_1p1 | TLS_1p2 ->
             if Mac.VERIFY ki macKey (mac_plain_to_bytes toVerify) (mac_to_bytes mac) then
                 if mustFail then
                     Error(MAC,CheckFailed)

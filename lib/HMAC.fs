@@ -12,7 +12,7 @@ type mac = bytes
    Although in principle the libraries could throw exceptions, here
    we claim that the following functions never throw their declared
    exceptions:
-   ArgumentNullException: becuase there is no null value in F# (and the arguments comes from F#)
+   ArgumentNullException: because there is no null value in F# (and the arguments comes from F#)
    ObjectDisposedException: because each instance variable is always referenced *)
 
 #if fs

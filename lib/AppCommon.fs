@@ -35,8 +35,8 @@ type protocolOptions = {
 let defaultCertificateValidationPolicy certList = true
 
 let defaultProtocolOptions ={
-    minVer = ProtocolVersion.SSL_3p0
-    maxVer = ProtocolVersion.TLS_1p2
+    minVer = SSL_3p0
+    maxVer = TLS_1p2
     ciphersuites = cipherSuites_of_nameList
                     [ TLS_RSA_WITH_AES_128_CBC_SHA;
                       TLS_RSA_WITH_3DES_EDE_CBC_SHA;

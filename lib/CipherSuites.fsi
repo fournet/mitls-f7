@@ -36,8 +36,8 @@ val verifyDataHashAlg_of_ciphersuite: cipherSuite -> hashAlg
 val macAlg_of_ciphersuite: cipherSuite -> hashAlg
 val encAlg_of_ciphersuite: cipherSuite -> cipherAlg
 
-val compression_of_bytes: bytes -> Compression Result
 val compressionBytes: Compression -> bytes
+val parseCompression: bytes -> Compression Result
 val parseCompressions: bytes -> Compression list
 
 val cipherSuiteBytes: cipherSuite -> bytes
