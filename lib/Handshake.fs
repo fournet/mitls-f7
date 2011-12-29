@@ -384,7 +384,7 @@ let parseServerHello data =
     match cipherSuite_of_bytes csBytes with
     | Error(x,y) -> Error(x,y)
     | Correct(cs) ->
-    match compression_of_bytes cmBytes with
+    match parseCompression cmBytes with
     | Error(x,y) -> Error(x,y)
     | Correct(cm) ->
     let r = 
@@ -481,27 +481,23 @@ let rec parseCertificateTypeList data =
         let (thisByte,data) = split data 1 in
         thisByte :: parseCertificateTypeList data 
 
-let rec sigAlgsList_of_bytes data res =
-    if length data > 2 then
-        let (thisFieldBytes,data) = split data 2 in
-        let (thisHashB,thisSigB) = split thisFieldBytes 1 in
-        let thisHash = int_of_bytes thisHashB in
-        match tls12enum_to_hashAlg thisHash with
-        | Some (hash) ->
-            let thisSig = int_of_bytes thisSigB in
-            let thisField = {SaHA_hash = hash; SaHA_signature = enum<SigAlg>thisSig} in
-            let res = [thisField] @ res in
-            sigAlgsList_of_bytes data res
-        | None -> Error(HSError(AD_illegal_parameter),HSSendAlert)
-    else
-        let (thisHashB,thisSigB) = split data 1 in
-        let thisHash = int_of_bytes thisHashB in
-        match tls12enum_to_hashAlg thisHash with
-        | Some(hash) ->
-            let thisSig = int_of_bytes thisSigB in
-            let thisField = {SaHA_hash = hash; SaHA_signature = enum<SigAlg>thisSig} in
-            correct ([thisField] @ res)
-        | None -> Error(HSError(AD_illegal_parameter),HSSendAlert)
+let parseSigAlg b = 
+    let (hashb,sigb) = split b 1 
+    let hash = int_of_bytes hashb in
+    match tls12enum_to_hashAlg hash with
+    | Some (hash) when checkSigAlg sigb ->
+           Correct({SaHA_hash = hash; SaHA_signature = sigb })
+    | _ -> Error(HSError(AD_illegal_parameter),HSSendAlert)
+
+//CF idem, not sure re: ordering of the list and empty lists
+let rec parseSigAlgs b parsed =
+    match length b with 
+    | 0 -> Correct(parsed)
+    | 1 -> Error(HSError(AD_illegal_parameter),HSSendAlert)
+    | _ -> let (b0,b) = split b 2 
+           match parseSigAlg b with 
+           | Correct(sa) -> parseSigAlgs b (sa::parsed)
+           | Error(x,y)  -> Error(x,y)  
 
 let rec distNamesList_of_bytes data res =
     if length data = 0 then
@@ -524,12 +520,12 @@ let makeCertificateRequestBytes cs version =
         match version with
         | TLS_1p2 ->
             (* For no particular reason, we will offer rsa-sha1 and dsa-sha1 *)
-            let rsaSigB = bytes_of_int 1 (int SigAlg.SA_rsa) in
-            let dsaSigB = bytes_of_int 1 (int SigAlg.SA_dsa) in
+            let rsaSigB = SA_rsa
+            let dsaSigB = SA_dsa
             let sha1B   = bytes_of_int 1 (hashAlg_to_tls12enum Algorithms.hashAlg.SHA) in
             let sigAndAlg = sha1B @| rsaSigB @| sha1B @| dsaSigB in
             vlbytes 2 sigAndAlg
-        | SSL_3p0 | TLS_1p0 | TLS_1p1 -> [||]
+        | _ -> [||]
     (* We specify no cert auth *)
     let distNames = vlbytes 2 [||] in
     let data = certTypes @| sigAndAlg @| distNames in
@@ -545,10 +541,9 @@ let parseCertificateRequest version data =
             match vlsplit 2 data with
             | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
             | Correct (sigAlgsBytes,data) ->
-            match sigAlgsList_of_bytes sigAlgsBytes [] with
-            | Error(x,y) -> Error(x,y)
-            | Correct (sigAlgsList) ->
-                correct (Some(sigAlgsList),data)
+            match parseSigAlgs sigAlgsBytes [] with
+            | Error(x,y) -> Error(x,y)               
+            | Correct (sigAlgsList) -> correct (Some(sigAlgsList),data)
         else
             correct (None,data)) in
     match sigAlgsAndData with
@@ -564,8 +559,6 @@ let parseCertificateRequest version data =
                 signature_and_hash_algorithm = sigAlgs;
                 certificate_authorities = distNamesList} in
     correct (res)
-
-/// 
 
 let makeServerHelloDoneBytes unitVal =
     makeFragment HT_server_hello_done [||]
@@ -640,8 +633,7 @@ let makeCertificateVerifyBytes cert data pv certReqMsg=
             | Correct (signed) ->
                 let signed = vlbytes 2 signed in
                 let hashAlgBytes = bytes_of_int 1 (hashAlg_to_tls12enum hashAlg) in
-                let signAlgBytes = bytes_of_int 1 (int SigAlg.SA_rsa) in
-                let payload = hashAlgBytes @| signAlgBytes @| signed in
+                let payload = hashAlgBytes @| SA_rsa @| signed in
                 correct (makeFragment HT_certificate_verify payload)
     | TLS_1p0 | TLS_1p1 ->
         (* TODO *) Error(HSError(AD_internal_error),HSSendAlert)

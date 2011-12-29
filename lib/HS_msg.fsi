@@ -87,16 +87,18 @@ type HashAlg =
 val hashAlg_to_tls12enum: Algorithms.hashAlg -> int
 val tls12enum_to_hashAlg: int -> Algorithms.hashAlg option
 
-type SigAlg =
-    | SA_anonymous = 0
-    | SA_rsa = 1
-    | SA_dsa = 2
-    | SA_ecdsa = 3
+// was enum type SigAlg
+type sigAlg = bytes 
+val SA_anonymous: sigAlg
+val SA_rsa: sigAlg
+val SA_dsa: sigAlg 
+val SA_ecdsa: sigAlg 
+
+val checkSigAlg: bytes -> bool 
 
 type SigAndHashAlg = {
     SaHA_hash: Algorithms.hashAlg;
-    SaHA_signature: SigAlg;
-    }
+    SaHA_signature: sigAlg; }
 
 type certificateRequest = {
     client_certificate_type: ClientCertType list;

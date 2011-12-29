@@ -28,7 +28,7 @@ type ConnectionState =
    protocol_version: Formats.ProtocolVersion;
    cipher_state: CipherState;
    mk: key;
-   seq_num: int;
+   seqn: int;
    sparams: Formats.SecurityParameters;}
 type fragment = bytes
 type ccs_data = {
@@ -45,7 +45,7 @@ predicate type preds =
   | InitConnState of ConnectionState * Tcp.NetworkStream * SessionInfo * Direction * ProtocolVersion
   | SendConnState of ConnectionState
   | RecvConnState of ConnectionState
-  | FragmentSend of SessionInfo * seq_num:int * ContentType * fragment
+  | FragmentSend of SessionInfo * seqn:int * ContentType * fragment
   | RecordSend of SessionInfo * ContentType * fragment * ProtocolVersion * int * key
   | UpperProtoSend of SessionInfo * ContentType * bytes * fragment
   | MACBytes of bytes * bytes * bytes * bytes * bytes
@@ -76,7 +76,7 @@ function type funs =
 val indir: si:SessionInfo -> d:Direction{d = InDir(si)}
 val outdir: si:SessionInfo -> d:Direction{d = OutDir(si)}
 
-val incSeqNum : cs:ConnectionState -> cs':ConnectionState{cs' = IncSeqNum(cs)}
+val incN : cs:ConnectionState -> cs':ConnectionState{cs' = IncSeqNum(cs)}
 val initConnState :
   ns:Tcp.NetworkStream -> 
   si:SessionInfo{?r,s. si = InitSessionInfo(r,s)} -> 
@@ -127,7 +127,7 @@ val compute_mac_tls:
 val compute_mac:
   cs:sendState -> 
   ct:Formats.ContentType -> 
-  d:bytes{?f. RecordSend(cs.rec_info,ct,f,cs.protocol_version,cs.seq_num,cs.mk) /\ d = Compressed(cs.compression,f)} ->
+  d:bytes{?f. RecordSend(cs.rec_info,ct,f,cs.protocol_version,cs.seqn,cs.mk) /\ d = Compressed(cs.compression,f)} ->
   res:bytes Result
   {   (!x. res = Correct(x) => (cs.sparams.mac_algorithm = MA_null => Pub(x)))
   /\  (!y,z. res = Error(y,z) => ( (y = MAC) /\ (z = Unsupported \/ z = Internal) )) }
@@ -180,7 +180,7 @@ val send_setVersion :
 val send :
   cs:sendState ->
     ct:Formats.ContentType ->  
-      f:bytes{FragmentSend(cs.rec_info,cs.seq_num,ct,f) /\ (cs.sparams.bulk_cipher_algorithm = BCA_null => Pub(f))} -> 
+      f:bytes{FragmentSend(cs.rec_info,cs.seqn,ct,f) /\ (cs.sparams.bulk_cipher_algorithm = BCA_null => Pub(f))} -> 
         r:(sendState Result){           
 	(!cs'. r = Correct(cs') => ((?iv. cs' = IncSeqNum(UpdateIV(cs,iv)))))
         /\
@@ -191,8 +191,8 @@ val send_setCrypto :
     ccs: ccs_data{NonNullCipherSettings(ccs)} -> 
       cs':sendState{cs' = UpdateCS(cs,ccs,OutDir(ccs.ccs_info))}
 
-val parse_header :
-  bytes -> Formats.ContentType * Formats.ProtocolVersion * int
+val parseHeader :
+  bytes -> (Formats.ContentType * Formats.ProtocolVersion * int) Result
 
 val get_iv_ciphertext :
   pv:Formats.ProtocolVersion{pv <> UnknownPV /\ pv <> SSL_2p0} ->
@@ -239,7 +239,7 @@ val verify_mac: cs:recvState{cs.protocol_version <> UnknownPV}
                     -> ct:Formats.ContentType -> d:bytes -> bytes ->
 	r:unit Result{(!x. r = Correct (x) =>
 	               (cs.sparams.mac_algorithm <> MA_null => 
-		      ((?compr,f. d = Compressed(compr,f) /\ RecordSend(OtherRole(cs.rec_info),ct,f,cs.protocol_version,cs.seq_num,cs.mk))
+		      ((?compr,f. d = Compressed(compr,f) /\ RecordSend(OtherRole(cs.rec_info),ct,f,cs.protocol_version,cs.seqn,cs.mk))
                          \/ Pub_k(cs.mk))))
                   /\
                       (!y,z. r = Error(y,z) => (y = MAC /\ (z = Internal \/ z = Unsupported \/ z = CheckFailed)))}
@@ -250,10 +250,10 @@ val recv :
 	(!ct,f,cs'. r = Correct((ct,f,cs')) =>
 	       ((?pv,iv. cs' = IncSeqNum(UpdateIV(UpdatePV(cs,pv),iv))) /\
 	            (cs.sparams.mac_algorithm <> MA_null =>
-                       ((?cs''. SendConnState(cs'') /\ FragmentSend(cs''.rec_info,cs''.seq_num,ct,f) /\ 
+                       ((?cs''. SendConnState(cs'') /\ FragmentSend(cs''.rec_info,cs''.seqn,ct,f) /\ 
                                 cs''.rec_info = OtherRole(cs.rec_info) /\ 
                                 cs''.protocol_version = cs.protocol_version /\
-                                cs''.seq_num = cs.seq_num /\
+                                cs''.seqn = cs.seqn /\
 				cs''.mk = cs.mk)
                         \/ Pub_k(cs.mk)))))
 	/\
@@ -350,7 +350,7 @@ definition !cs,ns,info,dir,pv.
 		    cipher_state = StreamCipherState;
 		    (* cs.mk = FIXME: what goes here? *)
 		    mk = SymKey(empty_bstr);
-		    seq_num = 0;
+		    seqn = 0;
 		    sparams = { bulk_cipher_algorithm = BCA_null;
 		                cipher_type = CT_stream;
 			        mac_algorithm = MA_null}} /\
@@ -441,7 +441,7 @@ assume !info,ct,f,pv,sn,mk. RecordSend(info,ct,f,pv,sn,mk) <=>
                     FragmentSend(info,sn,ct,f) /\
                     cs.rec_info = info /\
 		    cs.protocol_version = pv /\
-		    cs.seq_num = sn /\
+		    cs.seqn = sn /\
 		    cs.mk = mk ) 
 
 
@@ -486,13 +486,13 @@ ask !cs. RecvConnState(cs) /\ cs.sparams.mac_algorithm <> MA_null => TLSMKey(cs.
 ask !cs,mb,ct,f.    TLSVersion(cs.protocol_version) /\
                     MACSays(cs.mk,mb) /\
                     RecvConnState(cs) /\ cs.sparams.mac_algorithm <> MA_null /\ 
-                    MACBytes(mb,SequenceNumberBytes(cs.seq_num),ContentTypeBytes(ct),
+                    MACBytes(mb,SequenceNumberBytes(cs.seqn),ContentTypeBytes(ct),
                              ProtocolVersionBytes(cs.protocol_version),Compressed(cs.compression,f)) => 
                     (?cs'. SendConnState(cs') /\ 
-                            FragmentSend(cs'.rec_info,cs'.seq_num,ct,f) /\
+                            FragmentSend(cs'.rec_info,cs'.seqn,ct,f) /\
                             cs'.rec_info = OtherRole(cs.rec_info) /\
 		            cs'.protocol_version = cs.protocol_version /\
-		            cs'.seq_num = cs.seq_num /\
+		            cs'.seqn = cs.seqn /\
 		            cs'.mk = cs.mk )
 
 (* Old definition of MACSays *)
@@ -501,7 +501,7 @@ assume !cs,ct,f,mb. SendConnState(cs) /\
                     (cs.protocol_version = TLS_1p0 \/ cs.protocol_version = TLS_1p1 \/
                      cs.protocol_version = TLS_1p2) /\
                     FragmentSend(cs,ct,f) /\ 
-                    MACBytes(mb,SequenceNumberBytes(cs.seq_num),ContentTypeBytes(ct),
+                    MACBytes(mb,SequenceNumberBytes(cs.seqn),ContentTypeBytes(ct),
                              ProtocolVersionBytes(cs.protocol_version),Compressed(cs.compression,f)) =>
                     MACSays(cs.mk,mb)
 *)
@@ -538,12 +538,12 @@ ask !info,ct,f,pv,sn,mk,compr,mb.
 ask !cs,mb,ct,f. RecvConnState(cs) /\ cs.sparams.mac_algorithm <> MA_null /\ 
                  KHashSays(cs.mk,mb) /\ 
                  cs.protocol_version = SSL_3p0 /\
-                 KHashBytes(mb,SequenceNumberBytes(cs.seq_num),ContentTypeBytes(ct),Compressed(cs.compression,f)) => 
+                 KHashBytes(mb,SequenceNumberBytes(cs.seqn),ContentTypeBytes(ct),Compressed(cs.compression,f)) => 
             (?cs'. SendConnState(cs') /\
-                    FragmentSend(cs'.rec_info,cs'.seq_num,ct,f) /\
+                    FragmentSend(cs'.rec_info,cs'.seqn,ct,f) /\
 		    cs'.rec_info = OtherRole(cs.rec_info) /\
                     cs'.protocol_version = cs.protocol_version /\
-                    cs'.seq_num = cs.seq_num /\
+                    cs'.seqn = cs.seqn /\
                     cs'.mk = cs.mk)
 
 (* Old definition of KHashSays *)
@@ -551,7 +551,7 @@ ask !cs,mb,ct,f. RecvConnState(cs) /\ cs.sparams.mac_algorithm <> MA_null /\
 assume !cs,ct,f,mb. SendConnState(cs) /\
                     cs.protocol_version = SSL_3p0 /\
                     FragmentSend(cs,ct,f) /\ 
-                    KHashBytes(mb,SequenceNumberBytes(cs.seq_num),ContentTypeBytes(ct),
+                    KHashBytes(mb,SequenceNumberBytes(cs.seqn),ContentTypeBytes(ct),
                                Compressed(cs.compression,f)) =>
                     KHashSays(cs.mk,mb) 
 *)
@@ -563,33 +563,33 @@ theorem !cs',mb. RecvConnState(cs') /\ MACSays(cs'.mk,mb) /\
                   cs'.protocol_version = TLS_1p2) =>
                  (?cs,ct,f. SendConnState(cs) /\ cs.dir = cs'.dir /\
 		  FragmentSend(cs,ct,f) /\
-                  MACBytes(mb,SequenceNumberBytes(cs.seq_num),ContentTypeBytes(ct),
+                  MACBytes(mb,SequenceNumberBytes(cs.seqn),ContentTypeBytes(ct),
                            ProtocolVersionBytes(cs.protocol_version),Compressed(cs.compression,f)))
 
 ask !cs,mb,ct,d. RecvConnState(cs) /\ MACSays(cs.mk,mb) /\
                 (cs.protocol_version = TLS_1p0 \/ cs.protocol_version = TLS_1p1 \/
                  cs.protocol_version = TLS_1p2)  /\
-                MACBytes(mb,SequenceNumberBytes(cs.seq_num),ContentTypeBytes(ct),
+                MACBytes(mb,SequenceNumberBytes(cs.seqn),ContentTypeBytes(ct),
                          ProtocolVersionBytes(cs.protocol_version),d) => 
             (?cs',f. SendConnState(cs') /\ cs'.dir = cs.dir /\
 	           FragmentSend(cs',ct,f) /\ d = Compressed(cs'.compression,f) /\
                    cs'.protocol_version = cs.protocol_version /\
-                   cs'.seq_num = cs.seq_num)
+                   cs'.seqn = cs.seqn)
 
 
 theorem !cs',mb. RecvConnState(cs') /\ cs'.protocol_version = SSL_3p0 /\ KHashSays(cs'.mk,mb) =>
               (?cs,ct,f. SendConnState(cs) /\ cs.dir = cs'.dir /\
 	                 FragmentSend(cs,ct,f) /\
                          cs.protocol_version = SSL_3p0 /\
-                         KHashBytes(mb,SequenceNumberBytes(cs.seq_num),ContentTypeBytes(ct),
+                         KHashBytes(mb,SequenceNumberBytes(cs.seqn),ContentTypeBytes(ct),
                                     Compressed(cs.compression,f)))
 
 ask !cs,mb,ct,d. RecvConnState(cs) /\ cs.protocol_version = SSL_3p0  /\ KHashSays(cs.mk,mb) /\
-                 KHashBytes(mb,SequenceNumberBytes(cs.seq_num),ContentTypeBytes(ct),d) =>
+                 KHashBytes(mb,SequenceNumberBytes(cs.seqn),ContentTypeBytes(ct),d) =>
             (?cs',f. SendConnState(cs') /\ cs'.dir = cs.dir /\
 	           FragmentSend(cs',ct,f) /\ d = Compressed(cs'.compression,f) /\
                    cs'.protocol_version = SSL_3p0 /\
-                   cs'.seq_num = cs.seq_num)
+                   cs'.seqn = cs.seqn)
 
 *)
 
@@ -603,7 +603,7 @@ definition !cs. IncSeqNum(cs) = {rec_info = cs.rec_info;
 			  protocol_version = cs.protocol_version;
 			  cipher_state = cs.cipher_state;
 			  mk = cs.mk;
-			  seq_num = cs.seq_num + 1;
+			  seqn = cs.seqn + 1;
 			  sparams = cs.sparams}
 
 ask !cs. SendConnState(cs) => SendConnState(IncSeqNum(cs))
@@ -617,7 +617,7 @@ definition !cs,iv'. (?k,iv. cs.cipher_state = BlockCipherState(k,iv) /\
 		                    protocol_version = cs.protocol_version;
 			            cipher_state = BlockCipherState(k,iv');
 			            mk = cs.mk;
-			            seq_num = cs.seq_num;
+			            seqn = cs.seqn;
 			            sparams = cs.sparams}) \/
                 ((!k,iv. cs.cipher_state <> BlockCipherState(k,iv)) /\
                     UpdateIV(cs,iv') = cs)
@@ -636,7 +636,7 @@ ask !cs,k,iv,iv'. cs.cipher_state = BlockCipherState(k,iv) =>
 		                    protocol_version = cs.protocol_version;
 			            cipher_state = BlockCipherState(k,iv');
 			            mk = cs.mk;
-			            seq_num = cs.seq_num;
+			            seqn = cs.seqn;
 			            sparams = cs.sparams}
 
 
@@ -666,7 +666,7 @@ definition !cs,pv. UpdatePV(cs,pv) = {
 			protocol_version = pv;
 			cipher_state = cs.cipher_state;
 			mk = cs.mk;
-			seq_num = cs.seq_num;
+			seqn = cs.seqn;
 			sparams = cs.sparams}
 
 (*
@@ -695,7 +695,7 @@ definition !cs,ccs,dir.
 		    protocol_version = ccs.ccs_pv;
 		    cipher_state = ccs.ccs_ciphstate;
 		    mk = ccs.ccs_mkey;
-		    seq_num = 0;
+		    seqn = 0;
 		    sparams = ccs.ccs_sparams
 		    }
 
@@ -723,8 +723,8 @@ ask !cs,ns,info,pv. InitConnState(cs,ns,info,OutDir(info),pv) /\ pv <> UnknownPV
 
 ask !cs,pv,cs'. not ((cs.protocol_version <> UnknownPV /\ pv <> cs.protocol_version) \/ pv = UnknownPV) /\
             cs' = UpdatePV(cs,pv) =>
-                (cs'.rec_info = cs.rec_info /\ cs'.dir = cs.dir /\ cs'.mk = cs.mk  /\ cs'.protocol_version = pv /\ cs'.seq_num = cs.seq_num /\ cs'.sparams = cs.sparams)
+                (cs'.rec_info = cs.rec_info /\ cs'.dir = cs.dir /\ cs'.mk = cs.mk  /\ cs'.protocol_version = pv /\ cs'.seqn = cs.seqn /\ cs'.sparams = cs.sparams)
 ask !cs. RecvConnState(cs) => (cs.cipher_state = StreamCipherState \/ (?k,iv. cs.cipher_state = BlockCipherState(k,iv)))
 
 ask !cs,iv,cs'. RecvConnState(cs)  /\ cs' = UpdateIV(cs,iv) => 
-                (cs'.rec_info = cs.rec_info /\ cs'.dir = cs.dir /\ cs'.mk = cs.mk  /\ cs'.protocol_version = cs.protocol_version /\ cs'.seq_num = cs.seq_num /\ cs'.sparams = cs.sparams)
+                (cs'.rec_info = cs.rec_info /\ cs'.dir = cs.dir /\ cs'.mk = cs.mk  /\ cs'.protocol_version = cs.protocol_version /\ cs'.seqn = cs.seqn /\ cs'.sparams = cs.sparams)

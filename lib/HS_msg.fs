@@ -112,15 +112,22 @@ let tls12enum_to_hashAlg n =
     | 5 -> Some Algorithms.hashAlg.SHA384
     | _ -> None
 
-type SigAlg =
-    | SA_anonymous = 0
-    | SA_rsa       = 1
-    | SA_dsa       = 2
-    | SA_ecdsa     = 3
+type sigAlg = bytes
+
+let SA_anonymous = [| 0uy |]
+let SA_rsa       = [| 1uy |]
+let SA_dsa       = [| 2uy |]
+let SA_ecdsa     = [| 3uy |] 
+
+let checkSigAlg v =  
+    v = SA_anonymous 
+ || v = SA_rsa 
+ || v = SA_dsa
+ || v = SA_ecdsa 
 
 type SigAndHashAlg = {
     SaHA_hash: Algorithms.hashAlg;
-    SaHA_signature: SigAlg;
+    SaHA_signature: sigAlg;
     }
 
 

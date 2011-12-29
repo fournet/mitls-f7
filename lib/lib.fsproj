@@ -38,12 +38,12 @@
   <ItemGroup>
     <Content Include="README.txt" />
     <None Include="Makefile" />
-    <None Include="Bytes.fs7" />
-    <Compile Include="Bytes.fsi" />
-    <Compile Include="Bytes.fs" />
     <None Include="Error.fs7" />
     <Compile Include="Error.fsi" />
     <Compile Include="Error.fs" />
+    <None Include="Bytes.fs7" />
+    <Compile Include="Bytes.fsi" />
+    <Compile Include="Bytes.fs" />
     <None Include="tcp.fs7" />
     <Compile Include="tcp.fsi" />
     <Compile Include="tcp.fs" />
@@ -84,6 +84,7 @@
     <None Include="AEAD.fs7" />
     <Compile Include="AEAD.fsi" />
     <Compile Include="AEAD.fs" />
+    <None Include="Stream.fs7" />
     <Compile Include="Stream.fsi" />
     <Compile Include="Stream.fs" />
     <None Include="record.fs7" />
@@ -97,6 +98,7 @@
     <None Include="SessionDB.fs7" />
     <Compile Include="SessionDB.fsi" />
     <Compile Include="SessionDB.fs" />
+    <None Include="HS_msg.fs7" />
     <Compile Include="HS_msg.fsi" />
     <Compile Include="HS_msg.fs" />
     <None Include="Handshake.fs7" />

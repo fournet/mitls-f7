@@ -8,6 +8,12 @@ open Formats
 open CipherSuites
 open AEAD
 
+//CF to be enforced statically, inasmuch as possible
+// but then we probably need them for TLSPlain too
+let max_TLSPlaintext_fragment_length  = 1<<<14
+let max_TLSCompressed_fragment_length = 1<<<15
+let max_TLSEncrypted_fragment_length  = 1<<<16
+
 type recordKey =
     | RecordAEADKey of AEADKey
     | RecordMACKey of Mac.key
@@ -23,22 +29,22 @@ type ConnectionState = {
   rec_ki: KeyInfo;
   key: recordKey;
   iv3: ENC.iv3;
-  seq_num: int; (* uint64 actually CF:TODO?*)
+  seqn: int; (* uint64 actually CF:TODO?*)
   }
 type sendState = ConnectionState
 type recvState = ConnectionState
 
 type preds = FragmentSend of ConnectionState * ContentType * bytes
 
-let incSeqNum (conn_state:ConnectionState) =
-    let new_seq_num = conn_state.seq_num + 1 in
-    { conn_state with seq_num = new_seq_num }
+let incN (s:ConnectionState) =
+    let new_seqn = s.seqn + 1 in
+    { s with seqn = new_seqn }
 
 let initConnState ki key iv =
   { rec_ki = ki;
     key = key;
     iv3 = iv;
-    seq_num = 0;
+    seqn = 0;
   }
 
 let create out_ki in_ki =
@@ -46,72 +52,47 @@ let create out_ki in_ki =
     let recvState = initConnState in_ki NoneKey (ENC.NoIV ()) in
     (sendState, recvState)
 
-// to be enforced statically, inasmuch as possible
-let max_TLSPlaintext_fragment_length  = 1<<<14
-let max_TLSCompressed_fragment_length = 1<<<15
-let max_TLSEncrypted_fragment_length  = 1<<<16
+(* FIXME: Redundancy with initConnState (and create) *)
+let send_setCrypto ccs_data =
+    initConnState ccs_data.ki ccs_data.key ccs_data.iv3
 
-(* check_length and make_(de)compression are now internally handled by TLSPlain *)
-(*
-let check_length (item: bytes) max_len result errorType =
-    if length item < max_len then
-        correct (result)
-    else
-        Error (errorType, CheckFailed)
+(* FIXME: Redundancy with initConnState (and create) *)
+let recv_setCrypto ccs_data =
+    initConnState ccs_data.ki ccs_data.key ccs_data.iv3
 
-let make_compression conn (data:bytes) =
-    (* Assume data is a fragment of correct length; 
-       Ensure the result is not longer than 2^15 bytes *)
-    match conn.compression with
-    | Null -> correct (data) (* Post-condition is always satisfied *)
-    | _ -> Error (RecordCompression, Unsupported)
 
-let make_decompression conn data =
-    (* Assume data is a compressed fragment of proper length *)
-    match conn.compression with
-    | Null -> check_length data max_TLSPlaintext_fragment_length data RecordCompression
-    | _ -> Error (RecordCompression, Unsupported)
-*)
+/// format the (public) additional data bytes, for MACing & verifying
 
-(* format the (public) additional data bytes, for MACing & verifying *)
 let makeAD conn ct =
     let version = conn.rec_ki.sinfo.protocol_version in
-    let bseq = bytes_of_seq conn.seq_num in
+    let bseq = bytes_of_seq conn.seqn in
     let bct  = ctBytes ct in
     let bver = versionBytes version in
-    match version with
-    | SSL_3p0             -> bseq @| bct
-    | TLS_1p0 | TLS_1p1 | TLS_1p2 -> bseq @| bct @| bver
+    if version = SSL_3p0 
+    then bseq @| bct
+    else bseq @| bct @| bver
+
+/// packet format
 
 let makePacket ct ver data =
-  let l = length data in 
-  let bct  = ctBytes ct in
-  let bver = versionBytes ver in
-  let bl   = bytes_of_int 2 l in
-  bct @| bver @| bl @| data
+    let l = length data in 
+    let bct  = ctBytes ct in
+    let bver = versionBytes ver in
+    let bl   = bytes_of_int 2 l in
+    bct @| bver @| bl @| data
 
-(* 
-// We'll need to qualify system errors,
-// as some of them break confidentiality 
-let send conn ct fragment =
-    match make_compression conn fragment with
-    | Error (x,y) -> Error (x,y)
-    | Correct compressed ->
-    match compute_mac conn ct compressed with
-    | Error (x,y) -> Error (x,y)
-    | Correct mac ->
-    let content = append compressed mac in
-    let toEncrypt = prepare_enc conn content in
-    match encrypt conn toEncrypt with
-    | Error (x,y) -> Error (x,y)
-    | Correct c ->
-        let (conn, payload) = c in
-        let conn = incSeqNum conn in
-        let packet = makePacket ct conn.protocol_version payload in
-        match Tcp.write conn.net_conn packet with
-        | Error (x,y) -> Error (x,y)
-        | Correct _ -> correct (conn)
-*)
+let parseHeader b = 
+    let (ct1,rem4) = split b 1 
+    let (pv2,len2) = split rem4 2 
+    match parseCT ct1 with
+    | Error(x,y) -> Error(x,y)
+    | Correct(ct) ->
+    match CipherSuites.parseVersion pv2 with
+    | Error(x,y) -> Error(x,y)
+    | Correct(pv) -> 
+    let len = int_of_bytes len2 
+    // No need to check len, since it's on 2 bytes and the max allowed value is 2^16.
+    correct(ct,pv,len)
 
 let getMACKey key =
     match key with
@@ -149,7 +130,7 @@ let recordPacketOut conn tlen ct (fragment:fragment) =
             let (newIV,payload) = AEAD.encrypt conn.rec_ki key conn.iv3 tlen addData fragment in
             let conn = {conn with iv3 = newIV} in
             (conn,payload)
-    let conn = incSeqNum conn in
+    let conn = incN conn in
     let packet = makePacket ct conn.rec_ki.sinfo.protocol_version payload in
     (conn,packet)
 
@@ -173,13 +154,9 @@ let recordPacketOut2 conn clen ct fragment =
                 let newIV, payload = AEAD.encrypt conn.rec_ki key conn.iv3 clen ad fragment 
                 {conn with iv3 = newIV},
                 payload
-    incSeqNum conn,
+    incN conn,
     makePacket ct conn.local_pv payload 
 *)
-
-(* FIXME: Redundancy with initConnState (and create) *)
-let send_setCrypto ccs_data =
-    initConnState ccs_data.ki ccs_data.key ccs_data.iv3
 
 let recordPacketIn conn len ct payload =
     //CF tlen is not checked? can we write an inverse of makePacket instead?
@@ -214,8 +191,35 @@ let recordPacketIn conn len ct payload =
     | Error(x,y) -> Error(x,y)
     | Correct (msg) ->
     *)
-    let conn = incSeqNum conn in
+    let conn = incN conn in
     correct(conn,ct,len,msg)
+
+
+
+/// old stuff, to be deleted?
+
+(* 
+// We'll need to qualify system errors,
+// as some of them break confidentiality 
+let send conn ct fragment =
+    match make_compression conn fragment with
+    | Error (x,y) -> Error (x,y)
+    | Correct compressed ->
+    match compute_mac conn ct compressed with
+    | Error (x,y) -> Error (x,y)
+    | Correct mac ->
+    let content = append compressed mac in
+    let toEncrypt = prepare_enc conn content in
+    match encrypt conn toEncrypt with
+    | Error (x,y) -> Error (x,y)
+    | Correct c ->
+        let (conn, payload) = c in
+        let conn = incN conn in
+        let packet = makePacket ct conn.protocol_version payload in
+        match Tcp.write conn.net_conn packet with
+        | Error (x,y) -> Error (x,y)
+        | Correct _ -> correct (conn)
+*)
 
 (* Legacy implementation of recv. Now replaced by recordPacketIn, which does not deal with the network channel *)
 (* 
@@ -225,7 +229,7 @@ let recv conn =
     match Tcp.read net 5 with
     | Error (x,y) -> Error (x,y)
     | Correct header ->
-    let (ct,pv,len) = parse_header header in
+    let (ct,pv,len) = parseHeader header in
     if   (  conn.protocol_version <> UnknownPV 
          && pv <> conn.protocol_version)
       || pv = UnknownPV 
@@ -253,10 +257,29 @@ let recv conn =
         match make_decompression conn compr with
         | Error (x,y) -> Error (x,y)
         | Correct (msg) ->
-        let conn = incSeqNum conn in
+        let conn = incN conn in
         correct (ct,msg,conn)
 *)
 
-(* FIXME: Redundancy with initConnState (and create) *)
-let recv_setCrypto ccs_data =
-    initConnState ccs_data.ki ccs_data.key ccs_data.iv3
+
+(* check_length and make_(de)compression are now internally handled by TLSPlain *)
+(*
+let check_length (item: bytes) max_len result errorType =
+    if length item < max_len then
+        correct (result)
+    else
+        Error (errorType, CheckFailed)
+
+let make_compression conn (data:bytes) =
+    (* Assume data is a fragment of correct length; 
+       Ensure the result is not longer than 2^15 bytes *)
+    match conn.compression with
+    | Null -> correct (data) (* Post-condition is always satisfied *)
+    | _ -> Error (RecordCompression, Unsupported)
+
+let make_decompression conn data =
+    (* Assume data is a compressed fragment of proper length *)
+    match conn.compression with
+    | Null -> check_length data max_TLSPlaintext_fragment_length data RecordCompression
+    | _ -> Error (RecordCompression, Unsupported)
+*)

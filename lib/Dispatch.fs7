@@ -96,8 +96,8 @@ assume !c. ValidConnection(c) <=>
    AlertState(c.alert) /\
    ApplicationState(c.appdata) /\
    CoherentSession(c.appdata.app_info,c.read,c.write) /\
-   ContentMap(c.write.conn.rec_info,c.write.conn.seq_num,Application_data,PreviouslyRead(c.appdata.app_outgoing)) /\
-   (ContentMap(OtherRole(c.read.conn.rec_info),c.read.conn.seq_num,Application_data,StreamBytes(c.appdata.app_incoming)) \/
+   ContentMap(c.write.conn.rec_info,c.write.conn.seqn,Application_data,PreviouslyRead(c.appdata.app_outgoing)) /\
+   (ContentMap(OtherRole(c.read.conn.rec_info),c.read.conn.seqn,Application_data,StreamBytes(c.appdata.app_incoming)) \/
 	 Crypto.Pub_k(c.read.conn.mk) )
   )
 
@@ -144,26 +144,26 @@ assume !c,info,protocol,f.
              ValidConnection(c) /\
              DispSend(c.write,protocol) /\
 	     UpperProtoSend(info,protocol,f) => 
-               FragmentSend(c.write.conn.rec_info,c.write.conn.seq_num,protocol,f)
+               FragmentSend(c.write.conn.rec_info,c.write.conn.seqn,protocol,f)
 
 assume !c,f.
         ValidConnection(c) /\
         c.write.disp = Open /\
         UpperProtoSend(c.write.conn.rec_info,Application_data,f) =>
-           FragmentSend(c.write.conn.rec_info,c.write.conn.seq_num,Application_data,f)
+           FragmentSend(c.write.conn.rec_info,c.write.conn.seqn,Application_data,f)
 
 theorem !i,n,p,f. FragmentSend(i,n,p,f) /\ p <> Application_data =>
                         (?c,info. ValidConnection(c) /\ DispSend(c.write,p) /\
                          UpperProtoSend(info,p,f) /\
-                         i = c.write.conn.rec_info /\ n = c.write.conn.seq_num)
+                         i = c.write.conn.rec_info /\ n = c.write.conn.seqn)
 
 theorem !i,n,p,f. FragmentSend(i,n,p,f) /\ p = Application_data =>
                         (?c. ValidConnection(c) /\ c.write.disp = Open /\
                          UpperProtoSend(c.write.conn.rec_info,p,f) /\
-                         i = c.write.conn.rec_info /\ n = c.write.conn.seq_num)
+                         i = c.write.conn.rec_info /\ n = c.write.conn.seqn)
 
 (* On the receive side, we need something:
-ask !c,p,f. ValidConnection(c) /\ FragmentSend(c.ds_info,c.read.conn.seq_num,p,f) =>
+ask !c,p,f. ValidConnection(c) /\ FragmentSend(c.ds_info,c.read.conn.seqn,p,f) =>
             (.....)
 *)
 
@@ -178,12 +178,12 @@ assume !i,n,ct,h,f. ContentMap(i,n,ct,h) /\ FragmentSend(i,n,ct,f) =>
 assume !i,n,ct,h,ct',f. ContentMap(i,n,ct,h) /\ FragmentSend(i,n,ct',f) /\ ct <> ct' =>
                    ContentMap(i,n+1,ct,h)
 (*
-ask !c,f,c'. ContentMap(c.write.conn.rec_info,c.write.conn.seq_num,Application_data,PreviouslyRead(c.appdata.app_outgoing)) /\
-             FragmentSend(c.write.conn.rec_info,c.write.conn.seq_num,Application_data,f) /\
-             c'.write.conn.rec_info = c.write.conn.rec_info /\ c'.write.conn.seq_num = c.write.conn.seq_num + 1 /\
+ask !c,f,c'. ContentMap(c.write.conn.rec_info,c.write.conn.seqn,Application_data,PreviouslyRead(c.appdata.app_outgoing)) /\
+             FragmentSend(c.write.conn.rec_info,c.write.conn.seqn,Application_data,f) /\
+             c'.write.conn.rec_info = c.write.conn.rec_info /\ c'.write.conn.seqn = c.write.conn.seqn + 1 /\
              PreviouslyRead(c'.appdata.app_outgoing) = AppendBytes(PreviouslyRead(c.appdata.app_outgoing),f) =>
-                ContentMap(c'.write.conn.rec_info,c'.write.conn.seq_num,Application_data,PreviouslyRead(c'.appdata.app_outgoing))
+                ContentMap(c'.write.conn.rec_info,c'.write.conn.seqn,Application_data,PreviouslyRead(c'.appdata.app_outgoing))
 *)
 
 ask !c,f. ValidConnection(c) /\ c.write.disp = Open /\ UpperProtoSend(c.appdata.app_info,Application_data,f) =>
-        FragmentSend(c.write.conn.rec_info,c.write.conn.seq_num,Application_data,f)
+        FragmentSend(c.write.conn.rec_info,c.write.conn.seqn,Application_data,f)

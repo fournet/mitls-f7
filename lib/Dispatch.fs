@@ -414,44 +414,21 @@ let deliver ct tlen f c =
     let appstate = AppData.recv_fragment c.appdata tlen f in
     (correct (false), { c with appdata = appstate })
   | _, _ -> (Error(Dispatcher,InvalidState),c)
-
-//CF can we move header parsing/unparsing to Formats?
-let parse_header header dState protocolVersion =
-  let (ct1,rem4) = split header 1 in
-  let (pv2,len2) = split rem4 2 in
-  match parseCT ct1 with
-  | Error(x,y) -> Error(x,y)
-  | Correct(ct) ->
-  match CipherSuites.parseVersion pv2 with
-  | Error(x,y) -> Error(x,y)
-  | Correct(pv) ->
-  let len = int_of_bytes len2 in
-  match dState with
-  | Init -> // This is the first handshake,
-            // and we don't have agreed on protocol version yet.
-            // So, we don't check the received protocol version
-            correct (ct,pv,len)
-  | _ ->
-    if pv <> protocolVersion then
-        Error(RecordVersion,CheckFailed)
-    else
-        correct (ct,pv,len) 
-
+  
 let recv ns readState sinfo =
-    match Tcp.read ns 5 with
-    | Error (x,y) -> Error (x,y)
+    match Tcp.read ns 5 with // read & parse the header
+    | Error (x,y)         -> Error(x,y)
     | Correct header ->
-        match parse_header header readState.disp sinfo.protocol_version with
-        | Error(x,y) -> Error(x,y)
-        | Correct (res) ->
-            let (ct,pv,len) = res in
-            (* No need to check len, since it's on 2 bytes and the max allowed value
-               is 2^16. So, here len is always safe *)
-            match Tcp.read ns len with 
-            | Error (x,y) -> Error (x,y) 
+        match parseHeader header with
+        | Error(x,y)      -> Error(x,y)
+        // enforce the protocol version (once established)
+        | Correct (ct,pv,len) when readState.disp = Init || pv = sinfo.protocol_version ->
+            match Tcp.read ns len with // read & process the payload
+            | Error (x,y) -> Error(x,y) 
             | Correct payload ->
-                printf "%s[%d] " (Formats.CTtoString ct) len; // DEBUG
+                // printf "%s[%d] " (Formats.CTtoString ct) len; 
                 Record.recordPacketIn readState.conn len ct payload
+        | _ -> Error(RecordVersion,CheckFailed)
 
 let rec readNextAppFragment conn =
     (* If available, read next data *)

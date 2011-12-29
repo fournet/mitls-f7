@@ -8,6 +8,9 @@ open TLSInfo
 open TLSPlain
 open CipherSuites
 
+/// Implements stateful AE on top of AEAD,
+/// managing sequence numbers and the binary record format  
+
 type ConnectionState
 type sendState = ConnectionState (* both implemented as ConnectionState for now *)
 type recvState = ConnectionState
@@ -22,17 +25,19 @@ type ccs_data =
       key: recordKey;
       iv3: ENC.iv3;
     }
+val send_setCrypto:  ccs_data -> sendState
+val recv_setCrypto:  ccs_data -> recvState
 
 val create: KeyInfo -> KeyInfo -> sendState * recvState
 (* we do not explicitly close connection states *)
 
+val parseHeader: bytes -> (ContentType * ProtocolVersion * int) Result
+
+// CF do some uniform renaming, e.g. s/Out/Send/
 val recordPacketOut: sendState -> int -> ContentType -> fragment -> (sendState * bytes)
-val send_setCrypto:  ccs_data -> sendState
+val recordPacketIn : recvState -> int -> ContentType -> bytes -> (recvState * ContentType * int * fragment) Result
 
 (* val dataAvailable: recvState -> bool Result *)
-val recordPacketIn: recvState -> int -> ContentType -> bytes -> (recvState * ContentType * int * fragment) Result
-val recv_setCrypto:  ccs_data -> recvState
-
 (* val coherentrw: SessionInfo -> recvState -> sendState -> bool *)
 
 (* ProtocolVersion: 
