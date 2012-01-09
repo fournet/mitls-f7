@@ -5,6 +5,8 @@ open Algorithms
 open Error
 
 // No need for this!?
+// AP: We need to deal with this signalling ciphersuite
+//     when handling the safe renegotiation extension
 type SCSVsuite =
     | TLS_EMPTY_RENEGOTIATION_INFO_SCSV
 
@@ -28,8 +30,11 @@ let parseCompression b =
     | [|0uy|] -> correct(Null)
     | _       -> Error(Parsing,WrongInputParameters)
 
-//CF unclear what we do there? why no Result? 
+//CF unclear what we do there? why no Result?
+// AP: In this case (and in parseCipherSuites) we ignore unknown ciphersuites,
+//     as required by the RFC
 //CF also not verifying on inequalities
+// AP ?
 let rec parseCompressions b =
     let l = length b
     if l > 0 
@@ -64,10 +69,10 @@ let parseVersion (v:bytes) =
 
 let minPV (a:ProtocolVersion) (b:ProtocolVersion) =
   match (a,b) with
-  | SSL_3p0, _ -> SSL_3p0
-  | _, TLS_1p0 -> TLS_1p0
-  | TLS_1p1, _ -> TLS_1p1
-  | _, _       -> TLS_1p2
+  | SSL_3p0, _ | _, SSL_3p0 -> SSL_3p0
+  | TLS_1p0, _ | _, TLS_1p0 -> TLS_1p0
+  | TLS_1p1, _ | _, TLS_1p1 -> TLS_1p1
+  | _, _                    -> TLS_1p2
 // in F#, could use if a < b then a else b
 
 let nullCipherSuite = NullCipherSuite
@@ -229,7 +234,8 @@ let canEncryptPMS cs =
     | _ -> false
 
 
-// unused? 
+// unused?
+// AP: used in Handshake.fs, in safe renegotiation
 let contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV (css: cipherSuite list) =
 #if fs
     List.exists (fun cs -> cs = SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV) ) css
@@ -271,6 +277,7 @@ let getKeyExtensionLength pv cs =
         | CipherSuite (_, EncMAC(cAlg, hAlg)) ->
             match pv with
             // expanded 'or' pattern for F7
+            // AP: We really want 'or' patterns for F7
             | SSL_3p0 -> ((encKeySize cAlg), (ivSize cAlg), (macKeySize hAlg))
             | TLS_1p0 -> ((encKeySize cAlg), (ivSize cAlg), (macKeySize hAlg))
             | TLS_1p1 -> ((encKeySize cAlg),             0, (macKeySize hAlg)) (* TLS 1.1: no implicit IV *) 
@@ -296,6 +303,8 @@ let encAlg_of_ciphersuite cs =
 
 (* Not for verification, just to run the implementation *)
 //CF: why not getting rid of it then? TODO?
+// AP: The user of TLS wants to enumerate the enabled ciphersuites by using
+//     one of the values of this type. See AppCommon.fs
 
 type cipherSuiteName =
     | TLS_NULL_WITH_NULL_NULL              

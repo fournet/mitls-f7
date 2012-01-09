@@ -520,10 +520,8 @@ let makeCertificateRequestBytes cs version =
         match version with
         | TLS_1p2 ->
             (* For no particular reason, we will offer rsa-sha1 and dsa-sha1 *)
-            let rsaSigB = SA_rsa
-            let dsaSigB = SA_dsa
             let sha1B   = bytes_of_int 1 (hashAlg_to_tls12enum Algorithms.hashAlg.SHA) in
-            let sigAndAlg = sha1B @| rsaSigB @| sha1B @| dsaSigB in
+            let sigAndAlg = sha1B @| SA_rsa @| sha1B @| SA_dsa in
             vlbytes 2 sigAndAlg
         | _ -> [||]
     (* We specify no cert auth *)
