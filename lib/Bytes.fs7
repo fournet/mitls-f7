@@ -5,9 +5,16 @@
 type nat = n:int {0 <= n} // a convenient abbreviation 
 type bytes = byte array
 
+
 function val Length: bytes -> int 
 val length: b:bytes -> l:nat {Length(b) = l}
 assume !x:bytes, y:bytes. Length(x @| y) = Length(x) + Length(y)
+
+function val ListLength: 'a list -> int
+assume ListLength(op_Nil()) = 0
+assume !x,y. ListLength(op_ColonColon(x,y)) = 1 + ListLength(y)
+assume !l. Length(array_of_list(l)) = ListLength(l)
+
 
 val createBytes: l:int -> int -> b:bytes{Length(b) = l}
 // val zeroCreate: l:int -> b:bytes {Length(b) = l}
