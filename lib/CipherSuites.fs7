@@ -28,6 +28,13 @@ type cipherSuites = cipherSuite list
 type Compression =
     | Null
 
+function val CompressionBytes: Compression -> bytes
+private definition CompressionBytes(Null) = [|0uy|]
+
+val compressionBytes: c:Compression -> b:bytes{b=CompressionBytes(c)}
+val parseCompression: b:bytes -> (c:Compression{b=CompressionBytes(c)}) Result
+val parseCompressions: bytes -> Compression list
+
 type ProtocolVersion =
     | SSL_3p0   
     | TLS_1p0   
@@ -72,15 +79,6 @@ val verifyDataHashAlg_of_ciphersuite: cipherSuite -> hashAlg
 
 val macAlg_of_ciphersuite: cipherSuite -> hashAlg
 val encAlg_of_ciphersuite: cipherSuite -> cipherAlg
-
-val compressionBytes: Compression -> b:bytes{Length(b)=1}
-(* FIXME: We can say that the length of the following byte array is the same of the length of the returned list.
-   1) do we want/need to say this?
-   2) how do we talk about lengths of lists in F7?
-   CF: we can even typecheck it, but this is low priority
-*)
-val parseCompression: b:bytes{Length(b)=1} -> Compression Result
-val parseCompressions: bytes -> Compression list
 
 val cipherSuiteBytes: c:cipherSuite -> b:bytes{Length(b)=2}
 val cipherSuite_of_bytes: b:bytes{Length(b)=2} -> cipherSuite Result
