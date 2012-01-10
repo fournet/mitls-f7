@@ -66,15 +66,15 @@ Dispatch-a.dll: libsym-a.dll record-a.dll $(tlsfsi) $(tlsfs)
 #CF not sure what the default rule was doing, now more bespoke
 
 tc7:: Algorithms.tc7 CipherSuites.tc7 formats.tc7 TLSInfo.tc7 HASH.tc7 HMAC.tc7 TLSPlain.tc7 ENC.tc7 AEAD.tc7 Stream.tc7 record.tc7 AppCommon.tc7 PRFs.tc7 SessionDB.tc7 Handshake.tc7 AppData.tc7 Alert.tc7 dispatch.tc7 TLS.tc7
-# trusting Bytes.fs7 (could be partly verified)
 
-f7t= echo ; $(f7) -nokindcheck $(lperv) $(libfs7)
+f7t= echo ; $(f7) -nokindcheck --verbose $(lperv) $(libfs7)
 
 Error.tc7: $(libperv) $(libfs7) Error.fs7 Error.fs
 	$(f7t) Error.fs7 Error.fs
 
+# trusting Bytes.fs7 (could be partly verified)
 # trusting tcp.fs7 
-# trusting RSA.tc7 (mostly calling System.Security.Cryptography)
+# trusting RSA.fs7 (mostly calling System.Security.Cryptography)
 # trusting Principal.fs7 
 
 Algorithms.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Algorithms.fs
@@ -90,8 +90,11 @@ formats.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 formats.fs7 formats.fs
 TLSInfo.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 Principal.fs7 TLSInfo.fs7 TLSInfo.fs
 	$(f7t) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 TLSInfo.fs7 TLSInfo.fs
 
-HMAC.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 HMAC.fs7 HMAC.fs
-	$(f7t) --verbose Bytes.fs7 Algorithms.fs7 Error.fs7 HMAC.fs7 Hash.fs7 HMAC.fs
+# trusting HASH.fs7 (mostly calling System.Security.Cryptography)
+# trusting HMAC.fs7 (mostly calling System.Security.Cryptography)
+	
+MAC.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Ciphersuites.fs7 Error.fs7 HASH.fs7 HMAC.fs7 MAC.fs7 MAC.fs
+	$(f7t) --verbose Bytes.fs7 Algorithms.fs7 Ciphersuites.fs7 Error.fs7 HASH.fs7 HMAC.fs7 MAC.fs7 MAC.fs
 
 Alert.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 TLSPlain.fs7 Alert.fs7 Alert.fs 
 	$(f7t) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 TLSPlain.fs7 Alert.fs7 Alert.fs 

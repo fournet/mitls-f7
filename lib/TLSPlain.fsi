@@ -3,7 +3,7 @@
 open TLSInfo
 open Bytes
 
-// AP: new: keep here and do not duplicate
+// AP: new: put in formats and do not duplicate
 type lengths = int list (* a list of desired ciphertext lengths *)
 
 val estimateLengths: SessionInfo -> int -> lengths
@@ -20,6 +20,7 @@ val is_empty_appdata: appdata -> bool
 
 type fragment
 
+// move to appdata
 (* Append the given fragment at the *bottom* of the current appdata *)
 val concat_fragment_appdata: SessionInfo -> int -> fragment -> lengths -> appdata -> (lengths * appdata)
 
@@ -36,7 +37,7 @@ val pub_fragment: SessionInfo -> bytes -> ((int * fragment) * bytes)
 (* Note that n is *not* the length of the plaintext, it is the length of the target ciphertext *)
 val pub_fragment_to_bytes: SessionInfo -> int -> fragment -> bytes
 
-// AP: new: this can stay here (and we rename this module).
+// AP: new: this can stay here (and we rename this module: RecordPlain).
 //     I'd prefer not to create one plain module for each crypto module,
 //     as this would bloat the number of modules, and, if we remove the things above, is
 //     not too much for a single file.

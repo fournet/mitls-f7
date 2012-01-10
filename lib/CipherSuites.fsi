@@ -8,8 +8,10 @@ type cipherSuite
 
 type cipherSuites = cipherSuite list
 
-type Compression =
+type preCompression =
     | Null
+
+type Compression = preCompression
 
 type ProtocolVersion =
     | SSL_3p0

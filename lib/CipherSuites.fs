@@ -4,9 +4,7 @@ open Bytes
 open Algorithms
 open Error
 
-// No need for this!?
-// AP: We need to deal with this signalling ciphersuite
-//     when handling the safe renegotiation extension
+// By now, we only support one SCSV, but there exist others.
 type SCSVsuite =
     | TLS_EMPTY_RENEGOTIATION_INFO_SCSV
 
@@ -18,8 +16,10 @@ type cipherSuite =
 
 type cipherSuites = cipherSuite list
 
-type Compression =
+type preCompression =
     | Null
+
+type Compression = preCompression
 
 let compressionBytes comp =
     match comp with
@@ -30,11 +30,9 @@ let parseCompression b =
     | [|0uy|] -> correct(Null)
     | _       -> Error(Parsing,WrongInputParameters)
 
-//CF unclear what we do there? why no Result?
-// AP: In this case (and in parseCipherSuites) we ignore unknown ciphersuites,
-//     as required by the RFC
-//CF also not verifying on inequalities
-// AP ?
+// Ignore compression methods we don't understand. This is a departure
+// from usual parsing, where we fail on unknown values, but that's how TLS
+// handle compression method lists.
 let rec parseCompressions b =
     let l = length b
     if l > 0 
@@ -233,9 +231,6 @@ let canEncryptPMS cs =
     | OnlyMACCipherSuite ( RSA, _ ) -> true
     | _ -> false
 
-
-// unused?
-// AP: used in Handshake.fs, in safe renegotiation
 let contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV (css: cipherSuite list) =
 #if fs
     List.exists (fun cs -> cs = SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV) ) css
@@ -254,34 +249,34 @@ let prfHashAlg_of_ciphersuite (cs:cipherSuite) =
     match cs with
     | CipherSuite ( _ , EncMAC ( _ , SHA384 )) -> SHA384
     | CipherSuite ( _ , AEAD ( _ , SHA384 ))   -> SHA384
-//CF FIXME. Comment out for F7 testing
-// pls use a positive pattern for SHA256 instead
+    | CipherSuite ( _ , EncMAC ( _ , SHA256 )) -> SHA256
+    | CipherSuite ( _ , AEAD ( _ , SHA256 ))   -> SHA256
     | NullCipherSuite         -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite" 
     | SCSV (_)                -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite" 
-    | _ -> SHA256
+    | _ -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
 
-//CF why duplicating this function?
+// PRF and verifyData hash algorithms are potentially independent in TLS 1.2,
+// so we use two distinct functions. However, all currently defined ciphersuites
+// use the same hash algorithm, so the current implementation of the two functions
+// is the same.
 let verifyDataHashAlg_of_ciphersuite (cs:cipherSuite) =
     (* Only to be invoked with TLS 1.2 (hardcoded in previous versions *)
     match cs with
     | CipherSuite ( _ , EncMAC ( _ , SHA384 )) -> SHA384
     | CipherSuite ( _ , AEAD ( _ , SHA384 ))   -> SHA384
-//CF FIXME
-    | NullCipherSuite         -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
-    | SCSV (_)                -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
-    | _ -> SHA256
+    | CipherSuite ( _ , EncMAC ( _ , SHA256 )) -> SHA256
+    | CipherSuite ( _ , AEAD ( _ , SHA256 ))   -> SHA256
+    | NullCipherSuite         -> unexpectedError "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
+    | SCSV (_)                -> unexpectedError "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
+    | _ -> unexpectedError "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
 
 let getKeyExtensionLength pv cs =
     let (keySize, hashSize, IVSize ) =
         match cs with
         | CipherSuite (_, EncMAC(cAlg, hAlg)) ->
             match pv with
-            // expanded 'or' pattern for F7
-            // AP: We really want 'or' patterns for F7
-            | SSL_3p0 -> ((encKeySize cAlg), (ivSize cAlg), (macKeySize hAlg))
-            | TLS_1p0 -> ((encKeySize cAlg), (ivSize cAlg), (macKeySize hAlg))
-            | TLS_1p1 -> ((encKeySize cAlg),             0, (macKeySize hAlg)) (* TLS 1.1: no implicit IV *) 
-            | TLS_1p2 -> ((encKeySize cAlg),             0, (macKeySize hAlg)) (* TLS 1.1: no implicit IV *)
+            | SSL_3p0 | TLS_1p0 -> ((encKeySize cAlg), (ivSize cAlg), (macKeySize hAlg))
+            | TLS_1p1 | TLS_1p2 -> ((encKeySize cAlg),             0, (macKeySize hAlg)) (* TLS 1.1: no implicit IV *)
         | CipherSuite (_, AEAD(cAlg, hAlg)) -> ((aeadKeySize cAlg), (aeadIVSize cAlg), (macKeySize hAlg))
         | OnlyMACCipherSuite (_,hAlg) -> (0,0,macKeySize hAlg)
         | _ -> unexpectedError "[getKeyExtensionLength] invoked on an invalid ciphersuite"
@@ -301,11 +296,7 @@ let encAlg_of_ciphersuite cs =
     | CipherSuite (_, EncMAC(alg,_)) -> alg
     | _ -> unexpectedError "[encAlg_of_ciphersuite] inovked on an invalid ciphersuite"
 
-(* Not for verification, just to run the implementation *)
-//CF: why not getting rid of it then? TODO?
-// AP: The user of TLS wants to enumerate the enabled ciphersuites by using
-//     one of the values of this type. See AppCommon.fs
-
+(* Not for verification, just to run the implementation. See AppCommon.fs *)
 type cipherSuiteName =
     | TLS_NULL_WITH_NULL_NULL              
 
