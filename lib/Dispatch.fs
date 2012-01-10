@@ -352,9 +352,11 @@ let deliver ct tlen f c =
                    Set the negotiated version in the current sinfo, 
                    and move to the FirstHandshake state, so that
                    protocol version will be properly checked *)
+                let new_sinfo = {c.ds_info with protocol_version = pv } in
                 let new_read = {c_read with disp = FirstHandshake} in
                 let new_write = {c.write with disp = FirstHandshake} in
-                (correct (true), { c with handshake = hs;
+                (correct (true), { c with   ds_info = new_sinfo;
+                                            handshake = hs;
                                             read = new_read;
                                             write = new_write} )
             | _ -> (* It means we are doing a re-negotiation. Don't alter the current version number, because it
