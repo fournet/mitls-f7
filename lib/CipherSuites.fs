@@ -78,7 +78,7 @@ let isNullCipherSuite cs =
 
 let isOnlyMACCipherSuite cs =
     match cs with
-    | OnlyMACCipherSuite (_) -> true
+    | OnlyMACCipherSuite (_,_) -> true
     | _ -> false
 
 let cipherSuite_of_bytes b = 

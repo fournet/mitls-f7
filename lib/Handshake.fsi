@@ -18,7 +18,7 @@ open AppCommon
 type pre_hs_state 
 type hs_state = pre_hs_state  
 
-(* Locally controlling handshape protocols *) 
+(* Locally controlling handshake protocols *) 
 
 //TODO better names, maybe: init/accept resume reshake rekey request
 
