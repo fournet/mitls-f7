@@ -21,7 +21,7 @@ type preCompression =
 
 type Compression = preCompression
 
-let compressionBytes comp =
+let compressionBytes (comp:Compression) = 
     match comp with
     | Null -> [|0uy|]
 
@@ -71,7 +71,7 @@ let minPV (a:ProtocolVersion) (b:ProtocolVersion) =
   | TLS_1p0, _ | _, TLS_1p0 -> TLS_1p0
   | TLS_1p1, _ | _, TLS_1p1 -> TLS_1p1
   | _, _                    -> TLS_1p2
-// in F#, could use if a < b then a else b
+  // in F#, could use if a < b then a else b
 
 let nullCipherSuite = NullCipherSuite
 

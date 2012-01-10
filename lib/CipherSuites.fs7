@@ -36,6 +36,11 @@ type ProtocolVersion =
 
 //CF Bad name. We'll need VersionBytes to be injective; we can verify it in principle.
 function val VersionBytes: ProtocolVersion -> bytes
+private assume VersionBytes(SSL_3p0) = [| 3uy; 0uy |]
+private assume VersionBytes(TLS_1p0) = [| 3uy; 1uy |]
+private assume VersionBytes(TLS_1p1) = [| 3uy; 2uy |]
+private assume VersionBytes(TLS_1p2) = [| 3uy; 3uy |]
+
 val versionBytes: pv:ProtocolVersion -> b:bytes{Length(b) = 2 /\ b = VersionBytes(pv)}
 val parseVersion: b:bytes{Length(b) = 2} -> (pv:ProtocolVersion{ b= VersionBytes(pv)}) Result
 val minPV: a:ProtocolVersion -> b:ProtocolVersion -> c:ProtocolVersion
