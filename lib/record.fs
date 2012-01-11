@@ -4,29 +4,18 @@ open Bytes
 open Error
 open TLSInfo
 open TLSPlain
+open TLSKey
 open Formats
 open CipherSuites
 open AEAD
 
 //CF to be enforced statically, inasmuch as possible
 // but then we probably need them for TLSPlain too
-let max_TLSPlaintext_fragment_length  = 1<<<14
-let max_TLSCompressed_fragment_length = 1<<<15
-let max_TLSEncrypted_fragment_length  = 1<<<16
-
-type recordKey =
-    | RecordAEADKey of AEADKey
-    | RecordMACKey of Mac.key
-    | NoneKey
-
-type ccs_data =
-    { ki: KeyInfo;
-      key: recordKey;
-      iv3: ENC.iv3;
-    }
+//let max_TLSPlaintext_fragment_length  = 1<<<14
+//let max_TLSCompressed_fragment_length = 1<<<15
+//let max_TLSEncrypted_fragment_length  = 1<<<16
 
 type ConnectionState = {
-  rec_ki: KeyInfo;
   key: recordKey;
   iv3: ENC.iv3;
   seqn: int; (* uint64 actually CF:TODO?*)
@@ -34,37 +23,20 @@ type ConnectionState = {
 type sendState = ConnectionState
 type recvState = ConnectionState
 
-type preds = FragmentSend of ConnectionState * ContentType * bytes
-
-let incN (s:ConnectionState) =
+let incN (ki:KeyInfo) (s:ConnectionState) =
     let new_seqn = s.seqn + 1 in
     { s with seqn = new_seqn }
 
-let initConnState ki key iv =
-  { rec_ki = ki;
-    key = key;
-    iv3 = iv;
+let initConnState (ki:KeyInfo) (ccsData:ccs_data) =
+  { key = ccsData.key;
+    iv3 = ccsData.iv3;
     seqn = 0;
   }
 
-let create out_ki in_ki =
-    let sendState = initConnState out_ki NoneKey (ENC.NoIV ()) in
-    let recvState = initConnState in_ki NoneKey (ENC.NoIV ()) in
-    (sendState, recvState)
-
-(* FIXME: Redundancy with initConnState (and create) *)
-let send_setCrypto ccs_data =
-    initConnState ccs_data.ki ccs_data.key ccs_data.iv3
-
-(* FIXME: Redundancy with initConnState (and create) *)
-let recv_setCrypto ccs_data =
-    initConnState ccs_data.ki ccs_data.key ccs_data.iv3
-
-
 /// format the (public) additional data bytes, for MACing & verifying
 
-let makeAD conn ct =
-    let version = conn.rec_ki.sinfo.protocol_version in
+let makeAD ki conn ct =
+    let version = ki.sinfo.protocol_version in
     let bseq = bytes_of_seq conn.seqn in
     let bct  = ctBytes ct in
     let bver = versionBytes version in
@@ -106,7 +78,7 @@ let getAEADKey key =
 
 (* This replaces send. It's not called send, since it doesn't send anything on the
    network *)
-let recordPacketOut conn tlen ct (fragment:fragment) =
+let recordPacketOut ki conn tlen ct (fragment:fragment) =
     (* No need to deal with compression. It is handled internally by TLSPlain,
        when returning us the next (already compressed!) fragment *)
     (*
@@ -115,23 +87,23 @@ let recordPacketOut conn tlen ct (fragment:fragment) =
     | Correct compressed ->
     *)
     let (conn, payload) =
-        match conn.rec_ki.sinfo.cipher_suite with
+        match ki.sinfo.cipher_suite with
         | x when isNullCipherSuite x -> 
-            (conn,fragment_to_cipher conn.rec_ki tlen fragment)
+            (conn,fragment_to_cipher ki tlen fragment)
         | x when isOnlyMACCipherSuite x ->
             let key = getMACKey conn.key in
-            let addData = makeAD conn ct in
-            let data = ad_fragment conn.rec_ki addData fragment in
-            let mac = Mac.MAC conn.rec_ki key (mac_plain_to_bytes data) in
-            (conn,fragment_mac_to_cipher conn.rec_ki tlen fragment (bytes_to_mac mac))
+            let addData = makeAD ki conn ct in
+            let data = ad_fragment ki addData fragment in
+            let mac = Mac.MAC ki key (mac_plain_to_bytes data) in
+            (conn,fragment_mac_to_cipher ki tlen fragment (bytes_to_mac mac))
         | _ ->
-            let addData = makeAD conn ct in
+            let addData = makeAD ki conn ct in
             let key = getAEADKey conn.key in
-            let (newIV,payload) = AEAD.encrypt conn.rec_ki key conn.iv3 tlen addData fragment in
+            let (newIV,payload) = AEAD.encrypt ki key conn.iv3 tlen addData fragment in
             let conn = {conn with iv3 = newIV} in
             (conn,payload)
-    let conn = incN conn in
-    let packet = makePacket ct conn.rec_ki.sinfo.protocol_version payload in
+    let conn = incN ki conn in
+    let packet = makePacket ct ki.sinfo.protocol_version payload in
     (conn,packet)
 
 (* CF: an attempt to simplify for typechecking 
@@ -158,26 +130,26 @@ let recordPacketOut2 conn clen ct fragment =
     makePacket ct conn.local_pv payload 
 *)
 
-let recordPacketIn conn len ct payload =
+let recordPacketIn ki conn len ct payload =
     //CF tlen is not checked? can we write an inverse of makePacket instead?
-    let cs = conn.rec_ki.sinfo.cipher_suite in
+    let cs = ki.sinfo.cipher_suite in
     let msgRes =
         match cs with
         | x when isNullCipherSuite x -> 
-            correct(conn,cipher_to_fragment conn.rec_ki len payload)
+            correct(conn,cipher_to_fragment ki len payload)
         | x when isOnlyMACCipherSuite x ->
-            let (msg,mac) = cipher_to_fragment_mac conn.rec_ki len payload in
-            let data = makeAD conn ct in
-            let toVerify = ad_fragment conn.rec_ki data msg in
+            let (msg,mac) = cipher_to_fragment_mac ki len payload in
+            let data = makeAD ki conn ct in
+            let toVerify = ad_fragment ki data msg in
             let key = getMACKey conn.key in
-            if Mac.VERIFY conn.rec_ki key (mac_plain_to_bytes toVerify) (mac_to_bytes mac) then
+            if Mac.VERIFY ki key (mac_plain_to_bytes toVerify) (mac_to_bytes mac) then
                 correct(conn,msg)
             else
             Error(MAC,CheckFailed)
         | _ ->
-            let data = makeAD conn ct in
+            let data = makeAD ki conn ct in
             let key = getAEADKey conn.key in
-            match AEAD.decrypt conn.rec_ki key conn.iv3 len data payload with
+            match AEAD.decrypt ki key conn.iv3 len data payload with
             | Error(x,y) -> Error(x,y)
             | Correct (newIV, plain) ->
                 let conn = {conn with iv3 = newIV} in
@@ -191,7 +163,7 @@ let recordPacketIn conn len ct payload =
     | Error(x,y) -> Error(x,y)
     | Correct (msg) ->
     *)
-    let conn = incN conn in
+    let conn = incN ki conn in
     correct(conn,ct,len,msg)
 
 

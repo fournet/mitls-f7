@@ -9,8 +9,7 @@ open Handshake
 open TLSInfo
 open AppCommon
 
-type preConnection
-type Connection = preConnection
+type Connection
 
 val init: NetworkStream -> Direction -> protocolOptions -> Connection
 

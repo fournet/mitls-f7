@@ -1,53 +1,57 @@
 module AppData
 
 open Bytes
-open Sessions
-open Formats
 open Record
-open Error_handling
-open Stream 
-open AppCommon
+open Error
+open TLSInfo
+open TLSPlain
+open Formats
 
-type pre_app_state =
-  {app_info: SessionInfo;
-   app_incoming: stream;
-   app_outgoing: stream}
+type (;si:SessionInfo) pre_app_state = {
+  app_in_lengths: lengths
+  app_incoming: (;si) appdata (* unsolicited data *)
+  app_out_lengths: lengths
+  app_outgoing: (;si) appdata
+}
 
 
 predicate type preds =
   | ApplicationState of pre_app_state 
   | AppDataNextChunk of SessionInfo * bytes
 
-type app_state = (aps:pre_app_state){ApplicationState(aps)}
+type (;si:SessionInfo) app_state = (aps:(;si)pre_app_state){ApplicationState(aps)}
 
 function type funs =
         | SetSessionInfo of app_state * SessionInfo
 
 (* type app_state // abstract type at the implementation level *)
 
-(* Application interface *)
+val init: si:SessionInfo -> r:Direction ->
+	      a:(;si)app_state{a.app_info = i /\ StreamBytes(a.app_incoming) = empty_bstr /\ PreviouslyRead(a.app_outgoing) = empty_bstr}
 
-(* Add data to be sent to the other party *)
-val send_data: aps:app_state -> d:bytes{AppDataNextChunk(aps.app_info,d)} -> app_state
-(* Retrieve data that we received from the other party *)
-val retrieve_data: app_state -> int -> (bytes * app_state)
-val retrieve_data_available: app_state -> bool
 
-(* Dispatcher interface *)
-val init : i:SessionInfo -> a:app_state{a.app_info = i /\ StreamBytes(a.app_incoming) = empty_bstr /\ PreviouslyRead(a.app_outgoing) = empty_bstr}
+val reset_incoming: si:SessionInfo -> a:(;si)app_state ->
+			a':(;si)app_state{a'.app_info = a.app_info /\ a'.app_outgoing = a.app_outgoing /\ IsEmptyStream(a.app_incoming) /\ PreviouslyRead(a.app_incoming) = empty_bstr}
 
-val reset_incoming: a:app_state -> a':app_state{a'.app_info = a.app_info /\ a'.app_outgoing = a.app_outgoing /\ IsEmptyStream(a.app_incoming) /\ PreviouslyRead(a.app_incoming) = empty_bstr}
-val reset_outgoing: a:app_state -> a':app_state{a'.app_info = a.app_info /\ a'.app_incoming = a.app_incoming /\ IsEmptyStream(a.app_outgoing) /\ PreviouslyRead(a.app_outgoing) = empty_bstr}
-val set_SessionInfo: a:app_state -> si:SessionInfo -> a':app_state{a' = SetSessionInfo(a,si)}
+val send_data: si:SessionInfo -> aps:(;si)app_state -> d:bytes{AppDataNextChunk(aps.app_info,d)} ->
+	(;si)app_state
 
-val next_fragment: aps:app_state -> int -> 
-  (d:Record.fragment * aps':app_state
+val is_outgoing_empty: si:SessionInfo -> (;si)app_state -> bool
+
+val retrieve_data: si:SessionInfo -> (;si)app_state -> (bytes * (;si)app_state)
+val is_incoming_empty: si:SessionInfo -> (;si)app_state -> bool
+
+//val reset_outgoing: a:app_state -> a':app_state{a'.app_info = a.app_info /\ a'.app_incoming = a.app_incoming /\ IsEmptyStream(a.app_outgoing) /\ PreviouslyRead(a.app_outgoing) = empty_bstr}
+//val set_SessionInfo: a:app_state -> si:SessionInfo -> a':app_state{a' = SetSessionInfo(a,si)}
+
+val next_fragment: ki:KeyInfo -> aps:(;ki.sinfo)app_state ->
+  ((i:int * (;ki,i)fragment) * aps':(;ki.sinfo)app_state
                 {UpperProtoSend(aps.app_info,Application_data,d) /\ aps'.app_info = aps.app_info /\ aps'.app_incoming = aps.app_incoming /\
                        PreviouslyRead(aps'.app_outgoing) = AppendBytes(PreviouslyRead(aps.app_outgoing),d)}) option
 
-val recv_fragment: aps:app_state ->
-          d:fragment{(?rs. UpperProtoSend(OtherRole(aps.app_info),Application_data,d)) \/ Compromised(OtherRole(aps.app_info))} ->
-	  app_state
+val recv_fragment: ki:KeyInfo -> aps:(;ki.sinfo)app_state -> i:int ->
+          d:(;ki,i)fragment{(?rs. UpperProtoSend(OtherRole(aps.app_info),Application_data,d)) \/ Compromised(OtherRole(aps.app_info))} ->
+	  (;ki.sinfo)app_state
 
 (* Functions in the logic *)
 assume !a,si. SetSessionInfo(a,si) = { app_info = si;

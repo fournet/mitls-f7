@@ -6,10 +6,7 @@ open Algorithms
 open TLSInfo
 open Error
 open TLSPlain
-
-type AEADKey =
-    | MtE of Mac.key * ENC.symKey
- (* | GCM of GCM.GCMKey *)
+open TLSKey
 
 (* No way the following will typecheck. I use native byte/int conversions *)
 (* Commented out, should be somewhere in plain.

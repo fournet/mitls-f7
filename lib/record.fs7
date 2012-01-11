@@ -2,42 +2,20 @@ module Record
 
 // 18/11/11 status? seems out of date.
 
-open Pi
 open Bytes
-open Tcp
-open Formats
 open Error
 open TLSInfo
 open TLSPlain
+open TLSKey
+open Formats
 open CipherSuites
+open AEAD
 
-type CipherState =
-  | BlockCipherState of Crypto.key * bytes
-  | StreamCipherState
-
-type preDirection =
-  | CtoS
-  | StoC
-type Direction = d:preDirection{d = CtoS \/ d = StoC}
-
-type ConnectionState =
-  {rec_info: SessionInfo;
-   dir: Direction;
-   net_conn: Tcp.NetworkStream;
-   compression: Compression;
-   protocol_version: Formats.ProtocolVersion;
-   cipher_state: CipherState;
-   mk: key;
-   seqn: int;
-   sparams: Formats.SecurityParameters;}
-type fragment = bytes
-type ccs_data = {
-    ccs_info: SessionInfo;
-    ccs_pv: ProtocolVersion;
-    ccs_comp: Compression;
-    ccs_sparams: SecurityParameters;
-    ccs_mkey: Crypto.key;
-    ccs_ciphstate: CipherState}
+type (;ki:KeyInfo) ConnectionState = {
+  key: (;ki) recordKey;
+  iv3: ENC.iv3;
+  seqn: int; (* uint64 actually CF:TODO?*)
+  }
 
 (* Predicates *)
 
@@ -57,8 +35,8 @@ predicate type preds =
   | NonNullCipherSettings of ccs_data
   | TLSVersion of Formats.ProtocolVersion
 
-type sendState = cs:ConnectionState{SendConnState(cs)}
-type recvState = cs:ConnectionState{RecvConnState(cs)}
+type (;ki:KeyInfo) sendState = (;ki) cs:ConnectionState{SendConnState(cs)} // TODO: say something on ki.dir rather than on cs?
+type (;ki:KeyInfo) recvState = (;ki) cs:ConnectionState{RecvConnState(cs)}
 
 function type funs = 
   | OutDir of SessionInfo
@@ -73,23 +51,12 @@ function type funs =
   | BlockKey of ConnectionState
   | BlockIV of ConnectionState
 
-val indir: si:SessionInfo -> d:Direction{d = InDir(si)}
-val outdir: si:SessionInfo -> d:Direction{d = OutDir(si)}
-
-val incN : cs:ConnectionState -> cs':ConnectionState{cs' = IncSeqNum(cs)}
+val incN : ki:KeyInfo -> cs:(;ki)ConnectionState -> cs':(;ki)ConnectionState{cs' = IncSeqNum(cs)}
 val initConnState :
-  ns:Tcp.NetworkStream -> 
-  si:SessionInfo{?r,s. si = InitSessionInfo(r,s)} -> 
-  d:Direction -> 
-  pv:Formats.ProtocolVersion -> 
-  cs:ConnectionState{InitConnState(cs,ns,si,d,pv)}
-val create :
-  ns:Tcp.NetworkStream -> si:SessionInfo{?r,s. si = InitSessionInfo(r,s)} ->
-  minpv:Formats.ProtocolVersion{minpv <> UnknownPV} ->
-  scs:sendState * rcs:recvState{InitConnState(scs,ns,si,OutDir(si),minpv) /\ InitConnState(rcs,ns,si,InDir(si),UnknownPV)}
-val max_TLSPlaintext_fragment_length : int
-val max_TLSCompressed_fragment_length : int
-val max_TLSEncrypted_fragment_length : int
+  ki:KeyInfo -> ccs:(;ki)ccs_data -> 
+  cs:(;ki)ConnectionState// TODO {InitConnState(cs,ns,si,d,pv)}
+
+
 val check_length :
   bytes ->
     int -> i:'a -> e:ErrorCause -> r:'a Result{(!x. r = Correct(x) => x = i) /\ (!y,z. r = Error(y,z) => (y=e /\ z = CheckFailed))}

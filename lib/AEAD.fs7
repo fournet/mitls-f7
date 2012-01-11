@@ -1,18 +1,10 @@
 ﻿module AEAD
 
 open TLSPlain
+open TLSKey
 
-function val KeySize: KeyInfo -> int
-definition !id. KeySize(id) = ENC.KeySize(id) + MAC.KeySize(id)
-val keysize: ki:KeyInfo -> n:int {n = KeySize(ki)}
-type (;ki:KeyInfo) keybytes = b:bytes {Length(b)=KeySize(ki)}
-private predicate type keypred = MtEKey of ki:KeyInfo * ((;ki) MAC.key * (;ki) ENC.key)
-private type (;ki:KeyInfo) key = 
-      MacThenEncrypt of ka:(;ki)MAC.key * ke:(;ki)ENC.key {MtEKey(ki,(ka,ke))}
-(*  |   GCM of ke:(;ki:AENC.key)  *)
-
-val ENC: ki:KeyInfo -> (;ki) key -> (;ki) ENC.iv3 -> (;ki) add_data -> n:int -> (;ki) fragment -> ((;ki) ENC.iv3 * cipher)
-val DEC: ki:KeyInfo -> (;ki) key -> (;ki) ENC.iv3 -> (;ki) add_data -> n:int -> cipher -> ((;ki) ENC.iv3 * (;ki) fragment) Result
+val ENC: ki:KeyInfo -> (;ki) AEADKey -> (;ki) ENC.iv3 -> (;ki) add_data -> n:int -> (;ki) fragment -> ((;ki) ENC.iv3 * cipher)
+val DEC: ki:KeyInfo -> (;ki) AEADKey -> (;ki) ENC.iv3 -> (;ki) add_data -> n:int -> cipher -> ((;ki) ENC.iv3 * (;ki) fragment) Result
 
 
 (* TODOS: (KB: Done?) *)

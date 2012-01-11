@@ -14,14 +14,13 @@ type alertLevel =
 type alert = {level: alertLevel; description: alertDescription}
 
 type pre_al_state = {
-  al_info: SessionInfo;
   al_incoming: bytes (* incomplete incoming message *)
   al_outgoing: bytes (* emptybstr if nothing to be sent *) 
 }
 
 type state = pre_al_state
 
-let init info = {al_info = info; al_incoming = [||]; al_outgoing = [||]}
+let init = {al_incoming = [||]; al_outgoing = [||]}
 
 type ALFragReply =
     | EmptyALFrag
@@ -131,12 +130,12 @@ let send_alert state alertDesc =
     | _ ->
         Error (AlertAlreadySent, Internal)
 
-let next_fragment state =
+let next_fragment ki state =
     match state.al_outgoing with
     | x when equalBytes x [||] ->
         (EmptyALFrag, state)
     | d ->
-        let (frag,rem) = pub_fragment state.al_info state.al_outgoing in
+        let (frag,rem) = pub_fragment ki state.al_outgoing in
         let state = {state with al_outgoing = rem} in
         match rem with
         | x when equalBytes x [||] -> (LastALFrag(frag),state)
@@ -162,8 +161,8 @@ let handle_alert state al =
         | AL_warning -> Correct (ALAck (state))
         | AL_unknown_level x -> Error (AlertProto,Unsupported)
 
-let recv_fragment state tlen (fragment:fragment) =
-    let fragment = pub_fragment_to_bytes state.al_info tlen fragment in
+let recv_fragment ki state tlen (fragment:fragment) =
+    let fragment = pub_fragment_to_bytes ki tlen fragment in
     match state.al_incoming with
     | x when equalBytes x [||] ->
         (* Empty buffer *)

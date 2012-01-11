@@ -6,50 +6,27 @@ open Bytes
 open Error
 open Formats
 open TLSInfo
-//open TLSPlain
+open TLSPlain
 
 type alertLevel =
   | AL_warning
   | AL_fatal
-  | AL_unknown_level of int
-type alertDescription =
-  | AD_close_notify
-  | AD_unexpected_message
-  | AD_bad_record_mac
-  | AD_decryption_failed
-  | AD_record_overflow
-  | AD_decompression_failure
-  | AD_handshake_failure
-  | AD_no_certificate
-  | AD_bad_certificate
-  | AD_unsupported_certificate
-  | AD_certificate_revoked
-  | AD_certificate_expired
-  | AD_certificate_unknown
-  | AD_illegal_parameter
-  | AD_unknown_ca
-  | AD_access_denied
-  | AD_decode_error
-  | AD_decrypt_error
-  | AD_export_restriction
-  | AD_protocol_version
-  | AD_insufficient_security
-  | AD_internal_error
-  | AD_user_cancelled
-  | AD_no_renegotiation
-  | AD_unknown_description of int
+  | AL_unknown_level of byte
+
 type alert =
   {level: alertLevel;
    description: alertDescription;}
-type pre_al_state =
-  {al_info: SessionInfo;
-   al_incoming: bytes;
-   al_outgoing: bytes;}
+
+type (;si:SessionInfo) messages = bytes
+
+type (;siIN:SessionInfo,siOUT:SessionInfo) pre_al_state =
+  {al_incoming: (;siIN)  messages;
+   al_outgoing: (;siOUT) messages;}
 
 predicate type preds =
     | AlertState of pre_al_state
 
-type state = (als:pre_al_state){AlertState(als)}
+type (;siIN:SessionInfo,siOUT:SessionInfo) state = (als:pre_al_state){AlertState(als)}
 
 val init: i:SessionInfo -> s:state{s.al_info = i}
 

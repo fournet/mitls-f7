@@ -13,6 +13,9 @@ type Direction = preDirection
 
 val dualDirection: Direction -> Direction
 
+(* SessionInfo and KeyInfo: Session and Connection level public immutable data.
+   Used for indexing *)
+
 type SessionInfo = {
     clientID: cert option;
     serverID: cert option;
@@ -25,8 +28,6 @@ type SessionInfo = {
     init_srand: bytes
     }
 
-val null_sessionInfo: ProtocolVersion -> SessionInfo
-
 type KeyInfo = {
     sinfo: SessionInfo;
     dir: Direction;
@@ -36,4 +37,4 @@ type KeyInfo = {
     sVerifyData: bytes *)
     }
 
-val init_KeyInfo: SessionInfo -> Direction -> KeyInfo
+val null_KeyInfo: Direction -> ProtocolVersion -> KeyInfo

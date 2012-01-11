@@ -104,7 +104,7 @@ let is_empty_appdata data = data.bytes = [||] //FIXME
 type fragment = {bytes: bytes}
 
 // rename to append_appdata_fragment ? 
-let concat_fragment_appdata (si:SessionInfo) (tlen:int) data (lens:lengths) (appdata:appdata) :(lengths * appdata) =
+let concat_fragment_appdata (ki:KeyInfo) (tlen:int) data (lens:lengths) (appdata:appdata) :(lengths * appdata) =
     (* TODO: If ki says so, first decompress data, then append it *)
     let resData:appdata = { bytes = appdata.bytes @| data.bytes } in
     // we may need a special @ for getting our precise refinement 
@@ -127,7 +127,7 @@ RUNTIME
 (called by a function that just does the splitting) *)
 
 // rename to split_fragment_appdata ? 
-let app_fragment (si:SessionInfo) lens (appdata:appdata) : ((int * fragment) * (lengths * appdata)) =
+let app_fragment (ki:KeyInfo) lens (appdata:appdata) : ((int * fragment) * (lengths * appdata)) =
     (* The idea is: Given the cipertext target length, we get a *smaller* plaintext fragment
        (so that MAC and padding can be added back).
        In practice: since estimateLengths acts deterministically on the appdata length, we do the same here, and
@@ -149,18 +149,18 @@ let app_fragment (si:SessionInfo) lens (appdata:appdata) : ((int * fragment) * (
             ((thisLen,{bytes = appdata.bytes}), (remLens,{bytes = [||]}))
     | [] -> ((0,{bytes = [||]}),(lens,appdata))
 
-let get_bytes (appdata:appdata) = appdata.bytes
+let get_bytes (si:SessionInfo) (appdata:appdata) = appdata.bytes
 
 // variant of the code above, when the fragment is public 
-let pub_fragment (si:SessionInfo) (data:bytes) : ((int * fragment) * bytes) =
+let pub_fragment (ki:KeyInfo) (data:bytes) : ((int * fragment) * bytes) =
     let (frag,rem) =
         if length data > fragmentLength then
             split data fragmentLength
         else
             (data,[||])
-    ((cipherLength si (length frag),{bytes = frag}),rem)
+    ((cipherLength ki.sinfo (length frag),{bytes = frag}),rem)
 
-let pub_fragment_to_bytes (si:SessionInfo) (tlen:int) (fragment:fragment) = fragment.bytes
+let pub_fragment_to_bytes (ki:KeyInfo) (tlen:int) (fragment:fragment) = fragment.bytes
 
 
 /// MACs 

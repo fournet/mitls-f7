@@ -31,6 +31,8 @@ type Compression =
 function val CompressionBytes: Compression -> bytes
 private definition CompressionBytes(Null) = [|0uy|]
 
+ask 1 = 1
+
 val compressionBytes: c:Compression -> b:bytes{b=CompressionBytes(c)}
 val parseCompression: b:bytes -> (c:Compression{b=CompressionBytes(c)}) Result
 val parseCompressions: bytes -> Compression list

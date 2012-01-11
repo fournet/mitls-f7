@@ -81,6 +81,9 @@
     <None Include="ENC.fs7" />
     <Compile Include="ENC.fsi" />
     <Compile Include="ENC.fs" />
+    <None Include="TLSKey.fs7" />
+    <Compile Include="TLSKey.fsi" />
+    <Compile Include="TLSKey.fs" />
     <None Include="AEAD.fs7" />
     <Compile Include="AEAD.fsi" />
     <Compile Include="AEAD.fs" />

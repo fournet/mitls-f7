@@ -22,20 +22,20 @@ type fragment
 
 // move to appdata
 (* Append the given fragment at the *bottom* of the current appdata *)
-val concat_fragment_appdata: SessionInfo -> int -> fragment -> lengths -> appdata -> (lengths * appdata)
+val concat_fragment_appdata: KeyInfo -> int -> fragment -> lengths -> appdata -> (lengths * appdata)
 
 (* Exctract the *first* fragment from the *beginning* of appdata *)
-val app_fragment: SessionInfo -> lengths -> appdata ->  ((int * fragment) * (lengths * appdata))
+val app_fragment: KeyInfo -> lengths -> appdata ->  ((int * fragment) * (lengths * appdata))
 
 // AP: new: move the following to the AppPlain module
 (* Only used by appdata module, to return the received concrete bytes to the application *)
-val get_bytes: appdata -> bytes 
+val get_bytes: SessionInfo -> appdata -> bytes 
 
 // AP: new: they should disappear, and get embedded into the representation in each subprotocol
 (* Fragmentation and de-fragmentation functions used by non-appdata protocols, that only exchange public data *)
-val pub_fragment: SessionInfo -> bytes -> ((int * fragment) * bytes) 
+val pub_fragment: KeyInfo -> bytes -> ((int * fragment) * bytes) 
 (* Note that n is *not* the length of the plaintext, it is the length of the target ciphertext *)
-val pub_fragment_to_bytes: SessionInfo -> int -> fragment -> bytes
+val pub_fragment_to_bytes: KeyInfo -> int -> fragment -> bytes
 
 // AP: new: this can stay here (and we rename this module: RecordPlain).
 //     I'd prefer not to create one plain module for each crypto module,

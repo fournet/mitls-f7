@@ -20,10 +20,10 @@ type alert_reply =
     | ALClose of state
     | ALClose_notify of state
 
-val init: SessionInfo -> state
+val init: state
 
 val send_alert: state -> alertDescription -> state Result
 
-val next_fragment: state -> (ALFragReply * state) 
+val next_fragment: KeyInfo -> state -> (ALFragReply * state) 
 
-val recv_fragment: state -> int -> fragment -> alert_reply Result
+val recv_fragment: KeyInfo -> state -> int -> fragment -> alert_reply Result

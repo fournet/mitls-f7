@@ -26,7 +26,9 @@ type SessionInfo = {
     init_srand: bytes
     }
 
-val null_sessionInfo: ProtocolVersion -> SessionInfo
+predicate val NullSessionInfo: SessionInfo -> bool
+
+val null_sessionInfo: si:SessionInfo{NullSessionInfo(si)}
 
 type KeyInfo = {
     sinfo: SessionInfo;
@@ -37,4 +39,9 @@ type KeyInfo = {
     sVerifyData: bytes *)
     }
 
-val init_KeyInfo: s:SessionInfo -> d:Direction -> k:KeyInfo{k.sinfo = s /\ k.dir = d}
+predicate val NullKeyInfo: KeyInfo -> bool
+
+val null_KeyInfo: d:Direction -> ki:KeyInfo{NullKeyInfo(ki)}
+
+// We might need something like this -- and possibly more
+// definition !ki. NullKeyInfo(ki) => NullSessionInfo(ki.sinfo)

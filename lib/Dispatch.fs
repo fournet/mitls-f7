@@ -9,6 +9,7 @@ open Error
 open AppData
 open Alert
 open TLSInfo
+open TLSKey
 open AppCommon
 open SessionDB
 
@@ -28,8 +29,12 @@ type dState = {
     conn: ConnectionState;
     }
 
+(* In every state, except Finishing or Finished, id_in.sinfo = id_out.sinfo must hold. *)
+type index =
+    { id_in:  KeyInfo;
+      id_out: KeyInfo}
+
 type preConnection = {
-  ds_info : SessionInfo;
   poptions: protocolOptions;
   (* abstract protocol states for HS/CCS, AL, and AD *)
   handshake: Handshake.hs_state
@@ -44,29 +49,27 @@ type preConnection = {
   ns: NetworkStream;
   }
 
-type Connection = preConnection
-
-type preds = DebugPred of Connection
+type Connection = Conn of (index * preConnection)
 
 let init ns dir poptions =
     (* Direction "dir" is always the outgoing direction.
        So, if we are a Client, it will be CtoS, if we're a Server: StoC *)
     let hs = Handshake.init_handshake dir poptions in
-    let init_sessionInfo = null_sessionInfo poptions.minVer in
-    let (outKI,inKI) = (init_KeyInfo init_sessionInfo dir, init_KeyInfo init_sessionInfo (dualDirection dir)) in
-    let (send,recv) = Record.create outKI inKI in
+    let (outKI,inKI) = (null_KeyInfo dir poptions.minVer, null_KeyInfo (dualDirection dir) poptions.minVer) in
+    let (outCCS,inCCS) = (nullCCSData outKI, nullCCSData inKI) in
+    let (send,recv) = (Record.initConnState outKI outCCS, Record.initConnState inKI inCCS) in
     let read_state = {disp = Init; conn = recv} in
     let write_state = {disp = Init; conn = send} in
-    let al = Alert.init init_sessionInfo  in
-    let app = AppData.init init_sessionInfo dir in
-    { ds_info = init_sessionInfo;
-      poptions = poptions;
-      handshake = hs;
-      alert = al;
-      appdata = app;
-      read = read_state;
-      write = write_state;
-      ns=ns;}
+    let al = Alert.init in
+    let app = AppData.init outKI.sinfo in // or equivalently inKI.sinfo
+    Conn ( {id_in = inKI; id_out = outKI},
+      { poptions = poptions;
+        handshake = hs;
+        alert = al;
+        appdata = app;
+        read = read_state;
+        write = write_state;
+        ns=ns;})
 
 let resume ns sid ops =
     (* Only client side, can never be server side *)
@@ -80,46 +83,46 @@ let resume ns sid ops =
     | CtoS ->
     let sinfo = retrievedStoredSession.sinfo in
     let hs = Handshake.resume_handshake sinfo retrievedStoredSession.ms ops in
-    let init_sessionInfo = null_sessionInfo ops.minVer in
-    let (outKI,inKI) = (init_KeyInfo init_sessionInfo CtoS, init_KeyInfo init_sessionInfo StoC) in
-    let (send,recv) = Record.create outKI inKI in
+    let (outKI,inKI) = (null_KeyInfo CtoS ops.minVer, null_KeyInfo (dualDirection CtoS) ops.minVer) in
+    let (outCCS,inCCS) = (nullCCSData outKI, nullCCSData inKI) in
+    let (send,recv) = (Record.initConnState outKI outCCS, Record.initConnState inKI inCCS) in
     let read_state = {disp = Init; conn = recv} in
     let write_state = {disp = Init; conn = send} in
-    let al = Alert.init init_sessionInfo  in
-    let app = AppData.init init_sessionInfo CtoS in
-    let res = { ds_info = init_sessionInfo;
-                poptions = ops;
-                handshake = hs;
-                alert = al;
-                appdata = app;
-                read = read_state;
-                write = write_state;
-                ns = ns;}
+    let al = Alert.init in
+    let app = AppData.init outKI.sinfo in // or equvalently inKI.sinfo
+    let res = Conn ( {id_in = inKI; id_out = outKI},
+                     { poptions = ops;
+                       handshake = hs;
+                       alert = al;
+                       appdata = app;
+                       read = read_state;
+                       write = write_state;
+                       ns = ns;}) in
     let unitVal = () in
     (correct (unitVal), res)
 
-let ask_rehandshake conn ops =
+let ask_rehandshake (Conn(id,conn)) ops =
     let new_hs = Handshake.start_rehandshake conn.handshake ops in
-    {conn with handshake = new_hs
-               poptions = ops}
+    Conn(id,{conn with handshake = new_hs;
+                       poptions = ops})
 
-let ask_rekey conn ops =
+let ask_rekey (Conn(id,conn)) ops =
     let new_hs = Handshake.start_rekey conn.handshake ops in
-    {conn with handshake = new_hs
-               poptions = ops}
+    Conn(id,{conn with handshake = new_hs;
+                       poptions = ops})
 
-let ask_hs_request conn ops =
+let ask_hs_request (Conn(id,conn)) ops =
     let new_hs = Handshake.start_hs_request conn.handshake ops in
-    {conn with handshake = new_hs
-               poptions = ops}
+    Conn(id,{conn with handshake = new_hs;
+                       poptions = ops})
 
 (*
 let appDataAvailable conn =
     AppData.retrieve_data_available conn.appdata
 *)
 
-let getSessionInfo conn =
-    conn.ds_info
+let getSessionInfo (Conn(id,conn)) =
+    id.id_out.sinfo // in Open and Closed state, this should be equivalent to id.id_in.sinfo
    
 let moveToOpenState c new_storable_info =
     (* If appropriate, store this session in the DB *)
@@ -129,35 +132,22 @@ let moveToOpenState c new_storable_info =
 
     let new_info = new_storable_info.sinfo in
     let new_hs = Handshake.new_session_idle c.handshake new_info new_storable_info.ms in
-    let new_alert = Alert.init new_info in
-    let new_appdata = AppData.set_SessionInfo c.appdata new_info in (* buffers have already been reset when each record layer direction did the CCS *)
+    let new_alert = Alert.init in
+    (* FIXME: here we silenty reset appdata buffers. However, if they are not empty now
+       we should at least report some error to the user. *)
+    let new_appdata = AppData.init new_info in
     (* Read and write state should already have the same SessionInfo
         set after CCS, check it *)
-    let c = {c with ds_info = new_info;
-                    handshake = new_hs;
+    let c = {c with handshake = new_hs;
                     alert = new_alert;
                     appdata = new_appdata} in
     let read = c.read in
     match read.disp with
-    | Finishing ->
+    | Finishing | Finished ->
         let new_read = {read with disp = Open} in
         let c_write = c.write in
         match c_write.disp with
-        | Finishing ->
-            let new_write = {c_write with disp = Open} in
-            {c with read = new_read; write = new_write}
-        | Finished ->
-            let new_write = {c_write with disp = Open} in
-            {c with read = new_read; write = new_write}
-        | _ -> unexpectedError "[moveToOpenState] should only work on Finishing or Finished write states"
-    | Finished ->
-        let new_read = {read with disp = Open} in
-        let c_write = c.write in
-        match c_write.disp with
-        | Finishing ->
-            let new_write = {c_write with disp = Open} in
-            {c with read = new_read; write = new_write}
-        | Finished ->
+        | Finishing | Finished ->
             let new_write = {c_write with disp = Open} in
             {c with read = new_read; write = new_write}
         | _ -> unexpectedError "[moveToOpenState] should only work on Finishing or Finished write states"

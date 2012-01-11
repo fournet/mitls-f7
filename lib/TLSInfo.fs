@@ -45,8 +45,8 @@ type KeyInfo = {
     srand: bytes
     }
 
-let init_KeyInfo sinfo dir =
-    {sinfo = sinfo;
+let null_KeyInfo dir minPV =
+    {sinfo = null_sessionInfo minPV;
      dir = dir;
      crand = [||];
      srand = [||];
