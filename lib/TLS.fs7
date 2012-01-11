@@ -14,12 +14,13 @@ predicate type preds =
 
 theorem !i,s,s'. AppDataStream(i,Append(s,s')) => AppDataStream(i,s)
 
+
 val write: c:Connection -> data:bytes{AppDataStream(c.ds_info,Append(StreamBytes(c.appdata.app_outgoing),data))} ->
                 res:((bytes * bytes) Result) * c':Connection{
                 (!sent,rem. res = Correct(sent,rem) => ( c'.ds_info = c.ds_info )) /\
                 (!cause,kind. res = Error(cause,kind) =>
-                        ( List.Mem (cause,kind) [(Tcp,Internal); (TLS,Internal); (TLS,InvalidState); 
-                                           (MustRead,Notification); (NewSessionInfo,Notification)] /\
+                        ( List.Mem ((cause,kind),[(Tcp,Internal); (TLS,Internal); (TLS,InvalidState); 
+                                           (MustRead,Notification); (NewSessionInfo,Notification)]) /\
                           ( ((cause,kind) = (NewSessionInfo,Notification) /\ c'.ds_info <> c.ds_info ) \/
                             ((cause,kind) <> (NewSessionInfo,Notification) /\ c'.ds_info = c.ds_info ) )
                 ))}
@@ -28,8 +29,8 @@ val writeFully: c:Connection -> data:bytes{AppDataStream(c.ds_info,Append(Stream
                 res:((bytes * bytes) Result) * c':Connection{
                 (!sent,rem. res = Correct(sent,rem) => ( c'.ds_info = c.ds_info )) /\
                 (!cause,kind. res = Error(cause,kind) =>
-                        ( List.Mem (cause,kind) [(Tcp,Internal); (TLS,Internal); (TLS,InvalidState); 
-                                           (MustRead,Notification); (NewSessionInfo,Notification)] /\
+                        ( List.Mem ((cause,kind),[(Tcp,Internal); (TLS,Internal); (TLS,InvalidState); 
+                                           (MustRead,Notification); (NewSessionInfo,Notification)]) /\
                           ( ((cause,kind) = (NewSessionInfo,Notification) /\ c'.ds_info <> c.ds_info ) \/
                             ((cause,kind) <> (NewSessionInfo,Notification) /\ c'.ds_info = c.ds_info ) )
                 ))}
@@ -41,8 +42,8 @@ val read: c:Connection -> len:int -> res:(bytes Result) * c':Connection{
 			      Append(PreviouslyRead(c.appdata.app_incoming),recv))
                 )) /\
         (!cause,kind. res = Error(cause,kind) => (
-                List.Mem (cause,kind) [(Tcp,Internal); (TLS,Internal); 
-                                       (TLS,InvalidState); (NewSessionInfo,Notification)] /\
+                List.Mem((cause,kind),[(Tcp,Internal); (TLS,Internal); 
+                                       (TLS,InvalidState); (NewSessionInfo,Notification)]) /\
                 ((cause,kind) = (NewSessionInfo,Notification) <=> 
 		    c'.ds_info <> c.ds_info)))}
         
