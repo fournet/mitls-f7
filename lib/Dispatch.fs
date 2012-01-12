@@ -130,6 +130,13 @@ let moveToOpenState c new_storable_info =
     | None -> (* This session should not be stored *) ()
     | Some (sid) -> (* SessionDB. *) insert c.poptions sid new_storable_info
 
+    (* FIXME: maybe we should not reset any state here...
+       - AppData is already ok, checked when we move from Open to Finishing/Finished
+       - Handshake should know when the handshake is done, so it should be in the right state already
+       - Alert... if we need to send some alert, why deleting them now?
+       Commenting next lines for now.
+        *)
+    (*
     let new_info = new_storable_info.sinfo in
     let new_hs = Handshake.new_session_idle c.handshake new_info new_storable_info.ms in
     let new_alert = Alert.init in
@@ -141,6 +148,7 @@ let moveToOpenState c new_storable_info =
     let c = {c with handshake = new_hs;
                     alert = new_alert;
                     appdata = new_appdata} in
+    *)
     let read = c.read in
     match read.disp with
     | Finishing | Finished ->
@@ -153,14 +161,15 @@ let moveToOpenState c new_storable_info =
         | _ -> unexpectedError "[moveToOpenState] should only work on Finishing or Finished write states"
     | _ -> unexpectedError "[moveToOpenState] should only work on Finishing read states"
 
-let closeConnection c =
+let closeConnection (Conn(id,c)) =
     let new_read = {c.read with disp = Closed} in
     let new_write = {c.write with disp = Closed} in
-    {c with read = new_read; write = new_write}
+    let c = {c with read = new_read; write = new_write} in
+    Conn(id,c)
 
 (* Dispatch dealing with network sockets *)
-let send ns conn tlen ct frag =
-    let (conn,data) = Record.recordPacketOut conn tlen ct frag in
+let send ki ns conn tlen ct frag =
+    let (conn,data) = Record.recordPacketOut ki conn tlen ct frag in
     match Tcp.write ns data with
     | Error(x,y) -> Error(x,y)
     | Correct(_) -> 
@@ -169,88 +178,91 @@ let send ns conn tlen ct frag =
 
 (* which fragment should we send next? *)
 (* we must send this fragment before restoring the connection invariant *)
-let next_fragment (c:Connection) : (bool Result) * Connection =
+let next_fragment (Conn(id,c)) : (bool Result) * Connection =
   let c_write = c.write in
   match c_write.disp with
   | Closed -> unexpectedError "[next_fragment] should never be invoked on a closed connection."
   | _ ->
       let state = c.alert in
-      match Alert.next_fragment state with
+      match Alert.next_fragment id.id_out state with
       | (EmptyALFrag,_) -> 
           let hs_state = c.handshake in
           match Handshake.next_fragment hs_state with 
           | (Handshake.EmptyHSFrag, _) ->
             let app_state = c.appdata in
-                match AppData.next_fragment app_state with
+                match AppData.next_fragment id.id_out app_state with
                 | None -> (* nothing to do (tell the caller) *)
-                          (correct (false),c)
+                          (correct (false),Conn(id,c))
                 | Some ((tlen,f),new_app_state) ->
                           match c_write.disp with
                           | Open ->
                           (* we send some data fragment *)
-                            match send c.ns c_write.conn tlen Application_data f with
+                            match send id.id_out c.ns c_write.conn tlen Application_data f with
                             | Correct(ss) ->
                                 let new_write = { c_write with conn = ss } in
+                                let c = { c with appdata = new_app_state;
+                                                 write = new_write }
                                 (* We just sent one appData fragment, we don't want to write anymore for this round *)
-                                (correct (false), { c with appdata = new_app_state;
-                                                          write = new_write } )
-                            | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
-                          | _ -> (Error(Dispatcher,InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
-          | (Handshake.CCSFrag((tlen,ccs),ccs_data),new_hs_state) ->
+                                (correct (false), Conn(id,c) )
+                            | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
+                          | _ -> (Error(Dispatcher,InvalidState), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
+          | (Handshake.CCSFrag((tlen,ccs),(newKiOUT,ccs_data)),new_hs_state) ->
                     (* we send a (complete) CCS fragment *)
                     match c_write.disp with
                     | x when x = FirstHandshake || x = Open ->
-                        match send c.ns c_write.conn tlen Change_cipher_spec ccs with
-                        | Correct ss -> 
-                            (* we change the CS immediately afterward *)
-                            let ss = Record.send_setCrypto ccs_data in
-                            let new_write = {disp = Finishing; conn = ss} in
-                            if AppData.is_outgoing_empty c.appdata then
-                                (* FIXME: we should update the ("outgoing" only) session info in alert protocol too, because
-                                   from now on, outgoing alerts should be issued for the new session info, even if the latter is
-                                   not confirmed to be safe yet.
-                                   Note that the hansdhake is already doing this, by using its "next_info" to issue data after the CCS
-                                   has been sent.
-                                   Re AppData, from now on it just cannot send any message anymore, until the upcoming
-                                   session info becomes valid (HSFullyFinished event).
-                                   (This is what the Finishing dispatch state stands for.) *)
-                                (correct (true), { c with handshake = new_hs_state;
-                                                          write = new_write } )
+                        match send id.id_out c.ns c_write.conn tlen Change_cipher_spec ccs with
+                        | Correct ss ->
+                            (* It is safe to swtich to the new session if
+                               the appData outgoing buffer is empty,
+                               or the next session is compatible with the old one.
+                            *)
+                            (* Implementation note: order of next OR is important:
+                               In the first handshake, AppData buffer will be empty, and it does not
+                               make sense to invoke isCompatibleSession. *)
+                            if AppData.is_outgoing_empty id.id_out.sinfo c.appdata
+                               || c.poptions.isCompatibleSession id.id_out.sinfo newKiOUT.sinfo then
+                                (* Now:
+                                    - update the outgoing index in Dispatch
+                                    - update the outgoing keys in Record
+                                    - move the outgoing state to Finishing, to signal we must not send appData now. *)
+                                let id = {id with id_out = newKiOUT } in
+                                let ss = Record.initConnState id.id_out ccs_data in
+                                let new_write = {disp = Finishing; conn = ss} in
+                                let c = { c with handshake = new_hs_state;
+                                                             write = new_write }
+                                (correct (true), Conn(id,c) )
                             else
-                                (* FIXME: if the next_sinfo is the same as the current_sinfo (i.e. we're rekeying),
-                                   we can keep the buffer in appData and send
-                                   the next appData fragments after this handshake. *)
-                                (Error(Dispatcher, InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
-                        | Error (x,y) -> (Error (x,y), closeConnection c) (* Unrecoverable error *)
-                    | _ -> (Error(Dispatcher, InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
+                                (Error(Dispatcher, InvalidState), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
+                        | Error (x,y) -> (Error (x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
+                    | _ -> (Error(Dispatcher, InvalidState), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
           | (Handshake.HSFrag((tlen,f)),new_hs_state) ->     
                       (* we send some handshake fragment *)
                       match c_write.disp with
                       | x when x = Init || x = FirstHandshake ||
                                x = Finishing || x = Open ->
-                          match send c.ns c_write.conn tlen Handshake f with 
+                          match send id.id_out c.ns c_write.conn tlen Handshake f with 
                           | Correct(ss) ->
                             let new_write = {c_write with conn = ss} in
-                            (correct (true), { c with handshake = new_hs_state;
-                                                      write     = new_write } )
-                          | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
-                      | _ -> (Error(Dispatcher,InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
+                            let c = { c with handshake = new_hs_state;
+                                             write     = new_write }
+                            (correct (true), Conn(id,c) )
+                          | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
+                      | _ -> (Error(Dispatcher,InvalidState), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
           | (Handshake.HSWriteSideFinished((tlen,lastFrag)),new_hs_state) ->
                 (* check we are in finishing state *)
                 match c_write.disp with
                 | Finishing ->
                     (* Send the last fragment *)
-                    match send c.ns c_write.conn tlen Handshake lastFrag with 
+                    match send id.id_out c.ns c_write.conn tlen Handshake lastFrag with 
                           | Correct(ss) ->
-                            let c_write = {c_write with conn = ss} in
+                           (* Also move to the Finished state *)
+                            let c_write = {c_write with conn = ss;
+                                                        disp = Finished} in
                             let c = { c with handshake = new_hs_state;
                                              write     = c_write }
-                            (* Move to the new state *)
-                            let c_write = {c_write with disp = Finished}
-                            let c = {c with write = c_write} in
-                            (correct (false), c)
-                          | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
-                | _ -> (Error(Dispatcher,InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
+                            (correct (false), Conn(id,c))
+                          | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
+                | _ -> (Error(Dispatcher,InvalidState), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
           | (Handshake.HSFullyFinished_Write((tlen,lastFrag),new_info),new_hs_state) ->
                 match c_write.disp with
                 | Finishing ->

@@ -3,6 +3,7 @@
 open Formats
 open CipherSuites
 open Principal
+open TLSInfo
 
 type helloReqPolicy =
     | HRPIgnore
@@ -26,6 +27,7 @@ type protocolOptions = {
     (* Common *)
     certificateValidationPolicy: cert list -> bool
     safe_renegotiation: bool
+    isCompatibleSession: SessionInfo -> SessionInfo -> bool
 
     (* Sessions database *)
     sessionDBFileName: string

@@ -7,7 +7,7 @@ open Error
 open CipherSuites
 open TLSInfo
 open TLSPlain
-open Record
+open TLSKey
 open AppCommon
 //open SessionDB
 
@@ -75,7 +75,7 @@ val recvCCS     : KeyInfo -> hs_state -> int -> fragment -> ccs_data Result * hs
 type HSFragReply =
   | EmptyHSFrag              (* nothing to send *) 
   | HSFrag of                (int * fragment)
-  | CCSFrag of               (int * fragment) (* the unique one-byte CCS *) * ccs_data
+  | CCSFrag of               (int * fragment) (* the unique one-byte CCS *) * (KeyInfo * ccs_data)
   | HSWriteSideFinished of   (int * fragment) (* signalling that this fragment ends the finished message *)
   | HSFullyFinished_Write of (int * fragment) * SessionDB.StorableSession
 val next_fragment: hs_state -> HSFragReply * hs_state
@@ -88,4 +88,4 @@ type recv_reply = (* the fragment is accepted, and... *)
   | HSReadSideFinished (* ? *) 
   | HSFullyFinished_Read of SessionDB.StorableSession (* we can start sending data on the connection *)  
 val recv_fragment: hs_state -> int -> fragment -> recv_reply Result * hs_state
-val recv_ccs     : hs_state -> int -> fragment -> ccs_data Result   * hs_state
+val recv_ccs     : hs_state -> int -> fragment -> ((KeyInfo * ccs_data) Result) * hs_state

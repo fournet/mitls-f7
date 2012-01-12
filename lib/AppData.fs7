@@ -7,6 +7,11 @@ open TLSInfo
 open TLSPlain
 open Formats
 
+// type (;si:SessionInfo) appdata =
+//   | SomeAppData of (;si) bytes
+//   | NoneAppData // not indexed! an empty buffer is safe in all sessions!
+// // so we can make the transition from one session to the other, when the buffer is empty
+
 type (;si:SessionInfo) pre_app_state = {
   app_in_lengths: lengths
   app_incoming: (;si) appdata (* unsolicited data *)
