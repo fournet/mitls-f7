@@ -51,6 +51,11 @@ type preConnection = {
 
 type Connection = Conn of (index * preConnection)
 
+type writeOutcome =
+    | Again
+    | HSStop
+    | ForceStop
+
 let init ns dir poptions =
     (* Direction "dir" is always the outgoing direction.
        So, if we are a Client, it will be CtoS, if we're a Server: StoC *)
@@ -178,7 +183,7 @@ let send ki ns conn tlen ct frag =
 
 (* which fragment should we send next? *)
 (* we must send this fragment before restoring the connection invariant *)
-let next_fragment (Conn(id,c)) : (bool Result) * Connection =
+let next_fragment (Conn(id,c)) : (dispatchOutcome Result) * Connection =
   let c_write = c.write in
   match c_write.disp with
   | Closed -> unexpectedError "[next_fragment] should never be invoked on a closed connection."
@@ -192,7 +197,7 @@ let next_fragment (Conn(id,c)) : (bool Result) * Connection =
             let app_state = c.appdata in
                 match AppData.next_fragment id.id_out app_state with
                 | None -> (* nothing to do (tell the caller) *)
-                          (correct (false),Conn(id,c))
+                          (correct (ForceStop),Conn(id,c))
                 | Some ((tlen,f),new_app_state) ->
                           match c_write.disp with
                           | Open ->
@@ -203,7 +208,7 @@ let next_fragment (Conn(id,c)) : (bool Result) * Connection =
                                 let c = { c with appdata = new_app_state;
                                                  write = new_write }
                                 (* We just sent one appData fragment, we don't want to write anymore for this round *)
-                                (correct (false), Conn(id,c) )
+                                (correct (ForceStop), Conn(id,c) )
                             | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
                           | _ -> (Error(Dispatcher,InvalidState), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
           | (Handshake.CCSFrag((tlen,ccs),(newKiOUT,ccs_data)),new_hs_state) ->
@@ -230,7 +235,7 @@ let next_fragment (Conn(id,c)) : (bool Result) * Connection =
                                 let new_write = {disp = Finishing; conn = ss} in
                                 let c = { c with handshake = new_hs_state;
                                                              write = new_write }
-                                (correct (true), Conn(id,c) )
+                                (correct (Again), Conn(id,c) )
                             else
                                 (Error(Dispatcher, InvalidState), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
                         | Error (x,y) -> (Error (x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
@@ -245,7 +250,7 @@ let next_fragment (Conn(id,c)) : (bool Result) * Connection =
                             let new_write = {c_write with conn = ss} in
                             let c = { c with handshake = new_hs_state;
                                              write     = new_write }
-                            (correct (true), Conn(id,c) )
+                            (correct (Again), Conn(id,c) )
                           | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
                       | _ -> (Error(Dispatcher,InvalidState), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
           | (Handshake.HSWriteSideFinished((tlen,lastFrag)),new_hs_state) ->
