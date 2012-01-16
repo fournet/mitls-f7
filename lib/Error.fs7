@@ -26,7 +26,6 @@ type alertDescription =
     | AD_user_cancelled
     | AD_no_renegotiation
     | AD_unsupported_extension
-    | AD_unknown_description of byte
 
 type ErrorCause =
     | Tcp
@@ -46,8 +45,6 @@ type ErrorCause =
     | CertificateParsing
     | Dispatcher
     | TLS
-    | NewSessionInfo
-    | Other of string
 
 type ErrorKind =
     | Unsupported
@@ -55,8 +52,9 @@ type ErrorKind =
     | WrongInputParameters
     | InvalidState
     | Internal
-    | Notification
+	| UserAborted
     | HSSendAlert
+    | ConnectionClosed
 
 type 'a Result =
     | Error of ErrorCause * ErrorKind

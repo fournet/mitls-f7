@@ -51,10 +51,20 @@ type preConnection = {
 
 type Connection = Conn of (index * preConnection)
 
+(* Writing and reading have asymmetric outcomes, because writing is easier, and requires less care.
+   We can always try to write "once more", and stop when we realize we have no data to send.
+   When reading, we must be careful and only read when we know there must be more data, or we'll block
+   in deadlock. *)
 type writeOutcome =
-    | Again
-    | HSStop
-    | ForceStop
+    | WriteAgain (* Possibly more data to send *)
+    | Done (* No more data to send in the current state *)
+    | MustRead (* Read until completion of Handshake *)
+
+type deliverOutcome =
+    | ReadAgain
+    | AppDataDone
+    | HSDone
+    | Abort
 
 let init ns dir poptions =
     (* Direction "dir" is always the outgoing direction.
@@ -129,7 +139,7 @@ let appDataAvailable conn =
 let getSessionInfo (Conn(id,conn)) =
     id.id_out.sinfo // in Open and Closed state, this should be equivalent to id.id_in.sinfo
    
-let moveToOpenState c new_storable_info =
+let moveToOpenState id c new_storable_info =
     (* If appropriate, store this session in the DB *)
     match new_storable_info.sinfo.sessionID with
     | None -> (* This session should not be stored *) ()
@@ -154,17 +164,20 @@ let moveToOpenState c new_storable_info =
                     alert = new_alert;
                     appdata = new_appdata} in
     *)
-    let read = c.read in
-    match read.disp with
-    | Finishing | Finished ->
-        let new_read = {read with disp = Open} in
-        let c_write = c.write in
-        match c_write.disp with
+    if c.poptions.isGoodSession new_storable_info.sinfo then
+        let read = c.read in
+        match read.disp with
         | Finishing | Finished ->
-            let new_write = {c_write with disp = Open} in
-            {c with read = new_read; write = new_write}
-        | _ -> unexpectedError "[moveToOpenState] should only work on Finishing or Finished write states"
-    | _ -> unexpectedError "[moveToOpenState] should only work on Finishing read states"
+            let new_read = {read with disp = Open} in
+            let c_write = c.write in
+            match c_write.disp with
+            | Finishing | Finished ->
+                let new_write = {c_write with disp = Open} in
+                correct({c with read = new_read; write = new_write})
+            | _ -> unexpectedError "[moveToOpenState] should only work on Finishing or Finished write states"
+        | _ -> unexpectedError "[moveToOpenState] should only work on Finishing read states"
+    else
+        Error(Dispatcher,UserAborted)
 
 let closeConnection (Conn(id,c)) =
     let new_read = {c.read with disp = Closed} in
@@ -183,10 +196,10 @@ let send ki ns conn tlen ct frag =
 
 (* which fragment should we send next? *)
 (* we must send this fragment before restoring the connection invariant *)
-let next_fragment (Conn(id,c)) : (dispatchOutcome Result) * Connection =
+let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
   let c_write = c.write in
   match c_write.disp with
-  | Closed -> unexpectedError "[next_fragment] should never be invoked on a closed connection."
+  | Closed -> (correct(Done), Conn(id,c))
   | _ ->
       let state = c.alert in
       match Alert.next_fragment id.id_out state with
@@ -197,7 +210,7 @@ let next_fragment (Conn(id,c)) : (dispatchOutcome Result) * Connection =
             let app_state = c.appdata in
                 match AppData.next_fragment id.id_out app_state with
                 | None -> (* nothing to do (tell the caller) *)
-                          (correct (ForceStop),Conn(id,c))
+                          (correct (Done),Conn(id,c))
                 | Some ((tlen,f),new_app_state) ->
                           match c_write.disp with
                           | Open ->
@@ -207,10 +220,20 @@ let next_fragment (Conn(id,c)) : (dispatchOutcome Result) * Connection =
                                 let new_write = { c_write with conn = ss } in
                                 let c = { c with appdata = new_app_state;
                                                  write = new_write }
-                                (* We just sent one appData fragment, we don't want to write anymore for this round *)
-                                (correct (ForceStop), Conn(id,c) )
+                                (* Eagerly write more appdata now, if available *)
+                                (correct (WriteAgain), Conn(id,c) )
                             | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
-                          | _ -> (Error(Dispatcher,InvalidState), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
+                          | _ ->
+                            (* We have data to send, but we cannot now. It means we're finishing a handshake.
+                               Force to read, so that we'll complete the handshake and we'll be able to send
+                               such data. *)
+                            (* NOTE: here we do not use the new_app_state! Instead, on purpose we use the old
+                                     app_state, where the fragment had not been consumed, so, next time we ask
+                                     for a fragment we get back the same one and we can send it on the network.
+                                     With linear types in mind, this means that "sending" a fragment consumes it,
+                                     not retrieving a fragment from its upper protocol (and so makes the state
+                                     of the protocol not completely linear...) *)
+                            (Correct(MustRead), Conn(id,c))   
           | (Handshake.CCSFrag((tlen,ccs),(newKiOUT,ccs_data)),new_hs_state) ->
                     (* we send a (complete) CCS fragment *)
                     match c_write.disp with
@@ -224,6 +247,9 @@ let next_fragment (Conn(id,c)) : (dispatchOutcome Result) * Connection =
                             (* Implementation note: order of next OR is important:
                                In the first handshake, AppData buffer will be empty, and it does not
                                make sense to invoke isCompatibleSession. *)
+                            (* FIXME: In a re-handshake, if AppData outgoing is empty, the user is not asked
+                               the isCompatibleSession question. So she has no clue a renegotiation happened.
+                               We ask explicitly when moving to the open state, anyway *) 
                             if AppData.is_outgoing_empty id.id_out.sinfo c.appdata
                                || c.poptions.isCompatibleSession id.id_out.sinfo newKiOUT.sinfo then
                                 (* Now:
@@ -235,9 +261,9 @@ let next_fragment (Conn(id,c)) : (dispatchOutcome Result) * Connection =
                                 let new_write = {disp = Finishing; conn = ss} in
                                 let c = { c with handshake = new_hs_state;
                                                              write = new_write }
-                                (correct (Again), Conn(id,c) )
+                                (correct (WriteAgain), Conn(id,c) )
                             else
-                                (Error(Dispatcher, InvalidState), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
+                                (Error(Dispatcher, UserAborted), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
                         | Error (x,y) -> (Error (x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
                     | _ -> (Error(Dispatcher, InvalidState), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
           | (Handshake.HSFrag((tlen,f)),new_hs_state) ->     
@@ -250,7 +276,7 @@ let next_fragment (Conn(id,c)) : (dispatchOutcome Result) * Connection =
                             let new_write = {c_write with conn = ss} in
                             let c = { c with handshake = new_hs_state;
                                              write     = new_write }
-                            (correct (Again), Conn(id,c) )
+                            (correct (WriteAgain), Conn(id,c) )
                           | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
                       | _ -> (Error(Dispatcher,InvalidState), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
           | (Handshake.HSWriteSideFinished((tlen,lastFrag)),new_hs_state) ->
@@ -265,83 +291,57 @@ let next_fragment (Conn(id,c)) : (dispatchOutcome Result) * Connection =
                                                         disp = Finished} in
                             let c = { c with handshake = new_hs_state;
                                              write     = c_write }
-                            (correct (false), Conn(id,c))
+                            (correct (WriteAgain), Conn(id,c))
                           | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
                 | _ -> (Error(Dispatcher,InvalidState), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
           | (Handshake.HSFullyFinished_Write((tlen,lastFrag),new_info),new_hs_state) ->
                 match c_write.disp with
                 | Finishing ->
-                   (* according to the protocol logic and the dispatcher
-                      implementation, we must now have an empty input buffer.
-                      This means we can directly report a NewSessionInfo error
-                      notification, and not a mustRead.
-                      Check thus that we in fact have an empty input buffer *)
-                   if not (AppData.is_incoming_empty c.appdata) then (* this is a bug. *)
-                       (Error(Dispatcher,Internal), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
-                   else
-                       (* Send the last fragment *)
-                       match send c.ns c_write.conn tlen Handshake lastFrag with 
-                       | Correct(ss) ->
-                         let new_write = {c_write with conn = ss} in
-                         let c = { c with handshake = new_hs_state;
-                                          write     = new_write }
-                         (* Move to the new state *)
-                         let c = moveToOpenState c new_info in
-                         (Error(NewSessionInfo,Notification),c)
-                       | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
-                | _ -> (Error(Dispatcher,InvalidState), closeConnection c) (* TODO: we might want to send an "internal error" fatal alert *)
+                    (* Send the last fragment *)
+                    match send id.id_out c.ns c_write.conn tlen Handshake lastFrag with 
+                    | Correct(ss) ->
+                        let new_write = {c_write with conn = ss} in
+                        let c = { c with handshake = new_hs_state;
+                                         write     = new_write }
+                        (* Move to the new state *)
+                        match moveToOpenState id c new_info with
+                        | Error(x,y) -> (Error(x,y),closeConnection (Conn(id,c))) // do not send alerts! We are on a new session, and the user does not like it. Just close everything!
+                        | Correct(c) -> (correct(WriteAgain),Conn(id,c))
+                    | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
+                | _ -> (Error(Dispatcher,InvalidState), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
       | (ALFrag(tlen,f),new_al_state) ->        
-        match send c.ns c_write.conn tlen Alert f with 
+        match send id.id_out c.ns c_write.conn tlen Alert f with 
         | Correct ss ->
             let new_write = {disp = Closing; conn = ss} in
-            (correct (true), { c with alert = new_al_state;
-                                      write   = new_write } )
-        | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
+            (correct (WriteAgain), Conn(id,{ c with alert = new_al_state;
+                                                    write   = new_write } ))
+        | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
       | (LastALFrag(tlen,f),new_al_state) ->
-        (* Same as above, but we set Closed dispatch state, instead of Closing *)
-        match send c.ns c_write.conn tlen Alert f with 
+        (* We're sending a fatal alert. Send it, then close both sending and receiving sides *)
+        match send id.id_out c.ns c_write.conn tlen Alert f with 
+        | Correct ss ->
+            let new_write = {c_write with conn = ss} in
+            let c = {c with alert = new_al_state;
+                            write = new_write}
+            (correct (Done), closeConnection (Conn(id,c)))
+        | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
+      | (LastALCloseFrag(tlen,f),new_al_state) ->
+        (* We're sending a close_notify alert. Send it, then only close our sending side.
+           If we already received the other close notify, then reading is already closed,
+           otherwise we wait to read it, then close. But do not close here. *)
+        match send id.id_out c.ns c_write.conn tlen Alert f with
         | Correct ss ->
             let new_write = {disp = Closed; conn = ss} in
-            (* FIXME: if also the reading state is closed, return an error to notify the user
-               that the communication is over. Otherwise we can enter infinte loops polling for data
-               that will never arrive *)
-            (correct (false), { c with alert = new_al_state;
-                                       write   = new_write } )
-        | Error (x,y) -> (Error(x,y), closeConnection c) (* Unrecoverable error *)
-
-let rec writeOneAppFragment c =
-    (* Writes *at most* one application data fragment. This might send no appdata fragment if
-       - The handshake finishes (write side or fully)
-       - An alert has been sent
-       - We sent one (or more) other protocol messages and now we can read some data
-     *)
-    let unitVal = () in
-    let c_write = c.write in
-    match c_write.disp with
-    | Closed -> (correct(unitVal),c)
-    | _ ->
-        match next_fragment c with
-        | (Error (x,y),c) -> (Error(x,y),c)
-        | (Correct (again),c) ->
-        if again then
-            (* be fair: don't do more sending now if we could read *)
-            (* note: eventually all buffered data will be sent, they're are already committed
-                        to be sent *)
-            match Tcp.dataAvailable c.ns with
-            | Error (x,y) -> (correct (unitVal),c) (* There's an error with TCP, but we can ignore it right now, and just pretend there are data to send, so the error will show up next time *)
-            | Correct dataAv ->
-            if dataAv then
-                (correct(unitVal),c)
-            else
-                writeOneAppFragment c 
-        else
-            (correct (unitVal),c)
+            let c = {c with alert = new_al_state;
+                            write = new_write}
+            (correct (Done), Conn(id,c))
+        | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
 
 (* we have received, decrypted, and verified a record (ct,f); what to do? *)
-let deliver ct tlen f c = 
+let deliver (Conn(id,c)) ct tlen f = 
   let c_read = c.read in
   match c_read.disp with
-  | Closed -> unexpectedError "[deliver] should never be invoked on a closed connection state."
+  | Closed -> (correct(Abort),Conn(id,c))
   | _ ->
   match (ct,c_read.disp) with 
 
@@ -350,97 +350,144 @@ let deliver ct tlen f c =
     | (Correct(corr),hs) ->
         match corr with
         | Handshake.HSAck ->
-            (correct (true), { c with handshake = hs} )
+            (correct (ReadAgain), Conn(id,{ c with handshake = hs}) )
         | Handshake.HSVersionAgreed pv ->
             match c_read.disp with
             | Init ->
                 (* Then, also c_write must be in Init state. It means this is the very first, unprotected handshake,
                    and we just negotiated the version.
-                   Set the negotiated version in the current sinfo, 
+                   Set the negotiated version in the current sinfo (read and write side), 
                    and move to the FirstHandshake state, so that
                    protocol version will be properly checked *)
-                let new_sinfo = {c.ds_info with protocol_version = pv } in
+                let new_sinfo = {id.id_out.sinfo with protocol_version = pv } in // equally with id.id_in.sinfo
+                let idIN = {id.id_in with sinfo = new_sinfo} in
+                let idOUT = {id.id_out with sinfo = new_sinfo} in
+                let id = {id_in = idIN; id_out = idOUT} in
                 let new_read = {c_read with disp = FirstHandshake} in
                 let new_write = {c.write with disp = FirstHandshake} in
-                (correct (true), { c with   ds_info = new_sinfo;
-                                            handshake = hs;
-                                            read = new_read;
-                                            write = new_write} )
+                (correct (ReadAgain), Conn(id, { c with handshake = hs;
+                                                        read = new_read;
+                                                        write = new_write}) )
             | _ -> (* It means we are doing a re-negotiation. Don't alter the current version number, because it
                      is perfectly valid. It will be updated after the next CCS, along with all other session parameters *)
-                ((correct (true), { c with handshake = hs} ))
+                ((correct (ReadAgain), Conn(id, { c with handshake = hs}) ))
         | Handshake.HSReadSideFinished ->
         (* Ensure we are in Finishing state *)
             match x with
             | Finishing ->
-                (* We stop reading now. The subsequent writes invoked after
-                   reading will send the appropriate handshake messages, and
-                   the handshake will be fully completed *)
-                (correct (false),{c with handshake = hs})
-            | _ -> (Error(Dispatcher,InvalidState), {c with handshake = hs} )
+                (correct (HSDone),Conn(id,{c with handshake = hs}))
+            | _ -> (Error(Dispatcher,InvalidState), closeConnection (Conn(id,{c with handshake = hs})) ) // TODO: We might want to send some alert here
         | Handshake.HSFullyFinished_Read(new_info) ->
             let c = {c with handshake = hs} in
             (* Ensure we are in Finishing state *)
             match x with
             | Finishing ->
-                let c = moveToOpenState c new_info in
-                (Error(NewSessionInfo,Notification),c)
-            | _ -> (Error(Dispatcher,InvalidState), c)
-    | (Error(x,y),hs) -> (Error(x,y),{c with handshake = hs}) (* TODO: we might need to send some alerts *)
+                match moveToOpenState id c new_info with
+                | Error(x,y) -> (Error(x,y), closeConnection (Conn(id,c))) // do not send alerts! We are on a new session, and the user does not like it. Just close everything!
+                | Correct(c) -> (correct(HSDone), Conn(id,c))
+            | _ -> (Error(Dispatcher,InvalidState), closeConnection (Conn(id,c))) // TODO: We might want to send some alert here.
+    | (Error(x,y),hs) -> (Error(x,y),Conn(id,{c with handshake = hs})) (* TODO: we might need to send some alerts *)
 
   | Change_cipher_spec, x when x = FirstHandshake || x = Open -> 
     match Handshake.recv_ccs c.handshake tlen f with 
-    | (Correct(cryptoparams),hs) ->
-        let new_recv = Record.recv_setCrypto cryptoparams in
-        let new_read = {disp = Finishing; conn = new_recv} in
-        (* Next statement should have no effect, since we should reach this
-           code always with an empty input buffer *)
-        let new_appdata = AppData.reset_incoming c.appdata in
-        (correct (true), { c with handshake = hs;
-                                  read = new_read;
-                                  appdata = new_appdata} )
-    | (Error (x,y),hs) -> (Error (x,y), {c with handshake = hs})
+    | (Correct(newKiIN,ccs_data),hs) ->
+        if AppData.is_incoming_empty id.id_in.sinfo c.appdata
+           || c.poptions.isCompatibleSession id.id_in.sinfo newKiIN.sinfo then
+            let id = {id with id_in = newKiIN} in
+            let new_recv = Record.initConnState id.id_in ccs_data in
+            let new_read = {disp = Finishing; conn = new_recv} in
+            let c = { c with handshake = hs;
+                             read = new_read}
+            (correct (ReadAgain), Conn(id,c))
+        else
+            (Error(Dispatcher, UserAborted), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
+    | (Error (x,y),hs) -> (Error (x,y), closeConnection (Conn(id,{c with handshake = hs}))) // TODO: We might want to send some alert here.
 
   | Alert, x ->
-    match Alert.recv_fragment c.alert tlen f with
+    match Alert.recv_fragment id.id_in c.alert tlen f with
     | Correct (ALAck(state)) ->
-      (correct (true), { c with alert = state})
+      let c_read = {c_read with disp = Closing} in
+      let c = {c with read = c_read; alert = state} in
+      (correct (ReadAgain), Conn(id,c))
     | Correct (ALClose_notify (state)) ->
         (* An outgoing close notify has already been buffered, if necessary *)
         (* Only close the reading side of the connection *)
         let new_read = {c_read with disp = Closed} in
-        (correct (false), { c with read = new_read})
+        (correct (Abort), Conn(id, { c with read = new_read}))
     | Correct (ALClose (state)) ->
         (* Other fatal alert, we close both sides of the connection *)
-        let new_read = {c_read with disp = Closed} in
-        let new_write = {c.write with disp = Closed} in
-        (* FIXME: this generates an infinite loop. We should report an error to the user instead *)
-        (correct (false), { c with read = new_read;
-                                   write = new_write} )
-    | Error (x,y) -> (Error(x,y),c) (* Always fatal, so don't need to track the current alert state? *)
+        let c = {c with alert = state}
+        (correct (Abort), closeConnection (Conn(id,c)))
+    | Error (x,y) -> (Error(x,y),closeConnection(Conn(id,c))) // TODO: We might want to send some alert here.
 
   | Application_data, Open -> 
-    let appstate = AppData.recv_fragment c.appdata tlen f in
-    (correct (false), { c with appdata = appstate })
-  | _, _ -> (Error(Dispatcher,InvalidState),c)
+    let appstate = AppData.recv_fragment id.id_in c.appdata tlen f in
+    (correct (AppDataDone), Conn(id, { c with appdata = appstate }))
+  | _, _ -> (Error(Dispatcher,InvalidState),closeConnection(Conn(id,c))) // TODO: We might want to send some alert here.
   
-let recv ns readState sinfo =
-    match Tcp.read ns 5 with // read & parse the header
+let recv (Conn(id,c)) =
+    match Tcp.read c.ns 5 with // read & parse the header
     | Error (x,y)         -> Error(x,y)
     | Correct header ->
         match parseHeader header with
         | Error(x,y)      -> Error(x,y)
         // enforce the protocol version (once established)
-        | Correct (ct,pv,len) when readState.disp = Init || pv = sinfo.protocol_version ->
-            match Tcp.read ns len with // read & process the payload
+        | Correct (ct,pv,len) when c.read.disp = Init || pv = id.id_in.sinfo.protocol_version ->
+            match Tcp.read c.ns len with // read & process the payload
             | Error (x,y) -> Error(x,y) 
             | Correct payload ->
                 // printf "%s[%d] " (Formats.CTtoString ct) len; 
-                Record.recordPacketIn readState.conn len ct payload
+                match Record.recordPacketIn id.id_in c.read.conn len ct payload with
+                | Error(x,y) -> Error(x,y)
+                | Correct(c_recv,ct,tl,f) ->
+                    let c_read = {c.read with conn = c_recv} in
+                    let c = {c with read = c_read} in
+                    correct(Conn(id,c),ct,tl,f)
         | _ -> Error(RecordVersion,CheckFailed)
 
-let rec readNextAppFragment conn =
+let readOne c =
+    match recv c with
+    | Error(x,y) -> (Error(x,y),c)
+    | Correct(c,ct,tl,f) -> deliver c ct tl f
+
+type writeInvocation =
+    | TopLevel
+    | FromRead
+
+type readInvocation =
+    | StopAtHS
+    | StopAtAppData
+
+let rec write c howInvoked =
+    let unitVal = () in
+    match (writeOne c, howInvoked) with
+    | ((Error (x,y),c),_) -> (Error(x,y),c)
+    | ((Correct (WriteAgain),c), _) -> write c howInvoked
+    | ((Correct (Done)      ,c), _) -> (correct(unitVal),c)
+    | ((Correct (MustRead)  ,c), TopLevel) -> read c StopAtHS
+    | ((Correct (MustRead)  ,c), FromRead) -> (correct(unitVal),c)
+
+and read c stopAt =
+    match write c FromRead with
+    | (Error(x,y),c) -> (Error(x,y),c)
+    | (Correct(),c) ->
+        match (readOne c, stopAt) with
+        | ((Error(x,y),c),_) ->
+            (Error(x,y),c)
+        | ((Correct (ReadAgain)  ,c), _)
+        | ((Correct (AppDataDone),c), StopAtHS)
+        | ((Correct (HSDone)     ,c), StopAtAppData) ->
+            read c stopAt
+        | ((Correct (AppDataDone),c), StopAtAppData)
+        | ((Correct (HSDone)     ,c), StopAtHS) ->
+            write c FromRead
+        | ((Correct (Abort)      ,c), _) ->
+            match write c FromRead with
+            | (Error(x,y),c) -> (Error(x,y),c)
+            | (Correct(),c) -> (Error(TLS,ConnectionClosed),c)
+
     (* If available, read next data *)
+    (* 
     let c_read = conn.read in
     match c_read.disp with
     | Closed -> writeOneAppFragment conn
@@ -468,16 +515,34 @@ let rec readNextAppFragment conn =
     else
         (* Nothing to read, possibly send buffered data *)
         writeOneAppFragment conn
+    *)
 
-let commit conn b =
-    let new_appdata = AppData.send_data conn.appdata b in
-    {conn with appdata = new_appdata}
+let writeAppData conn = write conn TopLevel
 
+let commit (Conn(id,c)) b =
+    let new_appdata = AppData.send_data id.id_out.sinfo c.appdata b in
+    Conn(id,{c with appdata = new_appdata})
+
+(*
 let write_buffer_empty conn =
     AppData.is_outgoing_empty conn.appdata
+*)
 
-let readOneAppFragment conn =
+let readAppData (Conn(id,c)) =
+    let newConnRes =
+        if AppData.is_incoming_empty id.id_in.sinfo c.appdata then
+            read (Conn(id,c)) StopAtAppData    
+        else
+            (Correct(),Conn(id,c))
+    match newConnRes with
+    | (Error(x,y),conn) -> (Error(x,y),conn)
+    | (Correct(),Conn(id,c)) ->
+        let (b,appState) = AppData.retrieve_data id.id_in.sinfo c.appdata in
+        let c = {c with appdata = appState} in
+        (correct (b),Conn(id,c))
+
     (* Similar to the OpenSSL strategy *)
+    (*
     let c_appdata = conn.appdata in
     if not (AppData.is_incoming_empty c_appdata) then
         (* Read from the buffer *)
@@ -494,3 +559,6 @@ let readOneAppFragment conn =
             let conn = {conn with appdata = new_appdata} in
             (correct (read),conn)
         | (Error (x,y),c) -> (Error(x,y),c)
+    *)
+
+let readHS conn = read conn StopAtHS

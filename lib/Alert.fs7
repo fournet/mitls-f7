@@ -11,7 +11,6 @@ open TLSPlain
 type alertLevel =
   | AL_warning
   | AL_fatal
-  | AL_unknown_level of byte
 
 type alert =
   {level: alertLevel;
@@ -46,13 +45,13 @@ type alert_reply =
   | ALAck of state
   | ALClose of state
   | ALClose_notify of state
-val intpair_of_alertDesc: alertDescription -> int * int
-val level_of_int: int -> alertLevel
-val desc_of_int: int -> alertDescription
-val alert_of_intpair: int * int -> alert
-val alert_of_bytes: bytes -> alert
-val bytes_of_alertDesc: alertDescription -> bytes
-val send_alert: state -> alertDescription -> state Result
+
+val alertBytes: alertDescription -> bytes
+val parseLevel: bytes -> alertLevel Result
+val parseAlertDescription: bytes -> alertDescription Result
+val parseAlert: bytes -> alert Result
+
+val send_alert: state -> alertDescription -> state
 val handle_alert: state -> alert -> alert_reply Result
 //CF temp: val recv_fragment:  state -> Record.fragment -> alert_reply Result
 

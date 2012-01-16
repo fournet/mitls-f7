@@ -9,7 +9,6 @@ open TLSPlain
 type alertLevel = 
     | AL_warning
     | AL_fatal
-    | AL_unknown_level of byte
 
 type alert = {level: alertLevel; description: alertDescription}
 
@@ -25,7 +24,8 @@ let init = {al_incoming = [||]; al_outgoing = [||]}
 type ALFragReply =
     | EmptyALFrag
     | ALFrag of (int * fragment)
-    | LastALFrag of (int *fragment)
+    | LastALFrag of (int * fragment)
+    | LastALCloseFrag of (int * fragment)
 
 type alert_reply =
     | ALAck of state
@@ -34,7 +34,7 @@ type alert_reply =
 
 (* Conversions *)
 
-let bytes_of_alertDesc ad =
+let alertBytes ad =
   (* Severity (warning or fatal) is hardcoded,
      as specified in sec. 7.2.2 *)
   match ad with
@@ -63,119 +63,130 @@ let bytes_of_alertDesc ad =
     | AD_user_cancelled ->          [|1uy;  90uy|]
     | AD_no_renegotiation ->        [|1uy; 100uy|]
     | AD_unsupported_extension ->   [|2uy; 110uy|]
-    | AD_unknown_description x ->   unexpectedError "Unknown alert description value"
 
-
-let level_of_byte l =
+let parseLevel l =
     match l with
-    | 1uy -> AL_warning
-    | 2uy -> AL_fatal
-    | x -> (AL_unknown_level x)
+    | [|1uy|] -> correct(AL_warning)
+    | [|2uy|] -> correct(AL_fatal)
+    | _ -> Error(Parsing,WrongInputParameters)
 
-let desc_of_byte d =
+let parseAlertDescription d =
     match d with
-    |   0uy -> AD_close_notify 
-    |  10uy -> AD_unexpected_message 
-    |  20uy -> AD_bad_record_mac 
-    |  21uy -> AD_decryption_failed 
-    |  22uy -> AD_record_overflow 
-    |  30uy -> AD_decompression_failure 
-    |  40uy -> AD_handshake_failure 
-    |  41uy -> AD_no_certificate 
-    |  42uy -> AD_bad_certificate 
-    |  43uy -> AD_unsupported_certificate 
-    |  44uy -> AD_certificate_revoked 
-    |  45uy -> AD_certificate_expired 
-    |  46uy -> AD_certificate_unknown 
-    |  47uy -> AD_illegal_parameter 
-    |  48uy -> AD_unknown_ca 
-    |  49uy -> AD_access_denied 
-    |  50uy -> AD_decode_error 
-    |  51uy -> AD_decrypt_error 
-    |  60uy -> AD_export_restriction 
-    |  70uy -> AD_protocol_version 
-    |  71uy -> AD_insufficient_security 
-    |  80uy -> AD_internal_error 
-    |  90uy -> AD_user_cancelled 
-    | 100uy -> AD_no_renegotiation
-    | 110uy -> AD_unsupported_extension
-    |   x   -> (AD_unknown_description x)
+    | [|  0uy|] -> correct(AD_close_notify             )
+    | [| 10uy|] -> correct(AD_unexpected_message       )
+    | [| 20uy|] -> correct(AD_bad_record_mac           )
+    | [| 21uy|] -> correct(AD_decryption_failed        )
+    | [| 22uy|] -> correct(AD_record_overflow          )
+    | [| 30uy|] -> correct(AD_decompression_failure    )
+    | [| 40uy|] -> correct(AD_handshake_failure        )
+    | [| 41uy|] -> correct(AD_no_certificate           )
+    | [| 42uy|] -> correct(AD_bad_certificate          )
+    | [| 43uy|] -> correct(AD_unsupported_certificate  )
+    | [| 44uy|] -> correct(AD_certificate_revoked      )
+    | [| 45uy|] -> correct(AD_certificate_expired      )
+    | [| 46uy|] -> correct(AD_certificate_unknown      )
+    | [| 47uy|] -> correct(AD_illegal_parameter        )
+    | [| 48uy|] -> correct(AD_unknown_ca               )
+    | [| 49uy|] -> correct(AD_access_denied            )
+    | [| 50uy|] -> correct(AD_decode_error             )
+    | [| 51uy|] -> correct(AD_decrypt_error            )
+    | [| 60uy|] -> correct(AD_export_restriction       )
+    | [| 70uy|] -> correct(AD_protocol_version         )
+    | [| 71uy|] -> correct(AD_insufficient_security    )
+    | [| 80uy|] -> correct(AD_internal_error           )
+    | [| 90uy|] -> correct(AD_user_cancelled           )
+    | [|100uy|] -> correct(AD_no_renegotiation         )
+    | [|110uy|] -> correct(AD_unsupported_extension    )
+    |     _     -> Error(Parsing,WrongInputParameters  )
 
-let alert_of_bytes (b:bytes) = 
-  let level = level_of_byte b.[0] in
-  let desc = desc_of_byte b.[1] in   
-  {level = level; description = desc }
-
-let alert_of_alertDesc a =
-    alert_of_bytes (bytes_of_alertDesc a)
+let parseAlert (b:bytes) =
+  let (levelB,descB) = split b 1 in
+  match parseLevel levelB with
+  | Error(x,y) -> Error(x,y)
+  | Correct(level) ->
+  match parseAlertDescription descB with
+  | Error(x,y) -> Error(x,y)
+  | Correct(desc) ->
+  correct({level = level; description = desc })
   
 let send_alert state alertDesc =
-    (* Check it's a fatal alert *)
-    let alert = alert_of_alertDesc alertDesc in
-    match alert.level with
-    | AL_unknown_level x -> Error (AlertProto,Unsupported)
-    | AL_warning -> Error(AlertProto,Unsupported)
-    | AL_fatal ->
-    let out = state.al_outgoing in
-    (* We only handle fatal alert, so at most one will be sent.
-       Check we are not sending another alert. *)
-    (* FIXME: The next check is not enough in isolation: it relies on the fact
-    that the dispacther will not send aything more after the first alert.
-    If we want to be independent of this, we need to track the status more
-    properly*)
-    match out with
-    | x when equalBytes x [||] ->
-        let out = bytes_of_alertDesc alertDesc in
-        Correct { state with al_outgoing = out }
-    | _ ->
-        Error (AlertAlreadySent, Internal)
+    (* FIXME: We should only send fatal alerts. Right now we'll interpret any sent alert
+       as fatal, and so will close the connection afterwards. *)
+    (* Note: we only support sending one alert in the whole protocol execution
+       (because we'll tell dispatch an alert has been sent when the buffer gets empty)
+       So we only add an alert on an empty buffer (we don't enqueue more alerts) *)
+    if equalBytes state.al_outgoing [||] then
+        {state with al_outgoing = alertBytes alertDesc}
+    else
+        state (* Just ignore the request *)
 
 let next_fragment ki state =
     match state.al_outgoing with
-    | x when equalBytes x [||] ->
+    | [||] ->
         (EmptyALFrag, state)
     | d ->
         let (frag,rem) = pub_fragment ki state.al_outgoing in
         let state = {state with al_outgoing = rem} in
         match rem with
-        | x when equalBytes x [||] -> (LastALFrag(frag),state)
+        | [||] ->
+            (* We now need to know which alert we're sending, in order to return the proper
+               constructor to Dispatch.
+               We're going to use many of the invariants on the output buffer,
+               and anyway, as it is implemented now, it looks like an hack... *)
+            let (adBytes,_) =
+                match length d with
+                | 1 -> split d 1
+                | _ -> let (b,_) = split d 2 in let (_,b) = split b 1 in (b,[||])
+            match parseAlertDescription adBytes with
+            | Error(x,y) -> unexpectedError "[next_fragment] This invocation of parseAlertDescription should never fail"
+            | Correct(ad) ->
+                match ad with
+                | AD_close_notify -> (LastALCloseFrag(frag),state)
+                | _ -> (LastALFrag(frag),state)
         | _ -> (ALFrag(frag),state)
 
 let handle_alert state al =
     match al.description with
-    | AD_unknown_description x -> Error (AlertProto,Unsupported)
     | AD_close_notify ->
         (* This must be fatal: check it *)
         if al.level <> AL_fatal then
             Error (AlertProto,Unsupported)
         else
             (* we possibly send a close_notify back *)
-            match send_alert state AD_close_notify with
-            | Correct (state) ->
-                Correct ( ALClose_notify (state) )
-            | Error (x,y) -> (* we don't care if we could not send the close_notify back. Close the connection anyway *)
-                Correct ( ALClose_notify (state) )
+            let state = send_alert state AD_close_notify in
+            correct ( ALClose_notify (state) )
     | _ ->
         match al.level with
-        | AL_fatal -> Correct (ALClose (state))
-        | AL_warning -> Correct (ALAck (state))
-        | AL_unknown_level x -> Error (AlertProto,Unsupported)
+        | AL_fatal ->   correct (ALClose (state))
+        | AL_warning -> correct (ALAck   (state))
 
 let recv_fragment ki state tlen (fragment:fragment) =
     let fragment = pub_fragment_to_bytes ki tlen fragment in
     match state.al_incoming with
-    | x when equalBytes x [||] ->
+    | [||] ->
         (* Empty buffer *)
-        if length fragment = 1 then
-            Correct (ALAck ({state with al_incoming = fragment}))
-        else
-            let (al,_) = split fragment 2 in
-            let alert = alert_of_bytes al in
-            let state = {state with al_incoming = [||]} in (* empty the buffer *)
-            handle_alert state alert
+        match length fragment with
+        | 0 -> Error(Parsing,WrongInputParameters) (* Empty alert fragments are invalid *)
+        | 1 -> Correct (ALAck ({state with al_incoming = fragment})) (* Buffer this partial alert *)
+        | _ -> (* Full alert received *)
+            let (al,rem) = split fragment 2 in
+            if length rem <> 0 then (* Check there are no more data *)
+                Error(Parsing,WrongInputParameters)
+            else
+                match parseAlert al with
+                | Error(x,y) -> Error(x,y)
+                | Correct(alert) -> handle_alert state alert
     | inc ->
-        let (part2,_) = split fragment 1 in
-        let bmsg = inc @| part2 in
-        let alert = alert_of_bytes bmsg in
-        let state = {state with al_incoming = [||] } in
-        handle_alert state alert
+        match length fragment with
+        | 0 -> Error(Parsing,WrongInputParameters) (* Empty alert fragments are invalid *)
+        | _ -> 
+            let (part2,rem) = split fragment 1 in
+            if length rem <> 0 then (* Check there are no more data *)
+                Error(Parsing,WrongInputParameters)
+            else
+                let bmsg = inc @| part2 in
+                match parseAlert bmsg with
+                | Error(x,y) -> Error(x,y)
+                | Correct(alert) ->
+                    let state = {state with al_incoming = [||] } in
+                    handle_alert state alert

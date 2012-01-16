@@ -14,6 +14,7 @@ type ALFragReply =
     | EmptyALFrag
     | ALFrag of (int * fragment)
     | LastALFrag of (int * fragment)
+    | LastALCloseFrag of (int * fragment)
 
 type alert_reply =
     | ALAck of state
@@ -22,7 +23,7 @@ type alert_reply =
 
 val init: state
 
-val send_alert: state -> alertDescription -> state Result
+val send_alert: state -> alertDescription -> state
 
 val next_fragment: KeyInfo -> state -> (ALFragReply * state) 
 

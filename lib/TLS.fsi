@@ -80,9 +80,9 @@ val writeFully: Connection -> bytes -> ((bytes * bytes) Result) * Connection
    be stored internally by the TLS library. The user can just ask to send the next fragment of committed data,
    or to block until all fragments are sent. *)
 val write: Connection -> bytes -> Connection
-val write_buffer_empty: Connection -> bool
+(* val write_buffer_empty: Connection -> bool *)
 (* In read and send/flush we return (x Result) * Connection, because an error could also be a notification, like MustRead or NewSessionInfo *)
-val sendOneFragment: Connection -> (unit Result) * Connection
+(* val sendOneFragment: Connection -> (unit Result) * Connection *)
 val flush: Connection -> (unit Result) * Connection
 
 val read: Connection -> (bytes Result) * Connection

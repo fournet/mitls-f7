@@ -29,22 +29,18 @@ let writeFully conn d =
 let write conn b =
     Dispatch.commit conn b
 
+(*
 let write_buffer_empty conn =
     Dispatch.write_buffer_empty conn
+*)
 
-let sendOneFragment conn =
-    writeOneAppFragment conn
-
-let rec flush conn =
-    if write_buffer_empty conn then
-        (correct(),conn)
-    else
-        match sendOneFragment conn with
+let flush conn =
+    match writeAppData conn with
         | (Error(x,y),conn) -> (Error(x,y),conn)
-        | (Correct(),conn) -> flush conn
+        | (Correct(),conn) -> (correct(), conn)
 
 let read conn =
-    readOneAppFragment conn
+    readAppData conn
 
 (*
 let dataAvailable conn =
@@ -56,6 +52,7 @@ let shutdown (conn:Connection) = (* TODO *) ()
 let getSessionInfo conn =
     Dispatch.getSessionInfo conn
 
+(*
 let rec int_consume conn =
     let unitVal = () in
     match read conn with
@@ -66,33 +63,34 @@ let rec int_consume conn =
             unexpectedError "[int_connect] No user data should be received during the first handshake, or a synchronous re-handshake."
     | (Error(NewSessionInfo,Notification),conn) -> (correct(unitVal),conn)
     | (Error(x,y),conn) -> (Error(x,y),conn)
+*)
 
 let connect ns ops =
     let conn = Dispatch.init ns CtoS ops in
-    int_consume conn
+    readHS conn
 
 let resume ns sid ops =
     match Dispatch.resume ns sid ops with
     | (Error(x,y),conn) -> (Error(x,y),conn)
-    | (Correct (_), conn) -> int_consume conn
+    | (Correct (_), conn) -> readHS conn
 
 let rehandshake conn ops =
     Dispatch.ask_rehandshake conn ops
 
 let rehandshake_now conn ops =
     let conn = rehandshake conn ops in
-    int_consume conn
+    readHS conn
 
 let rekey conn ops =
     Dispatch.ask_rekey conn ops
 
 let rekey_now conn ops =
     let conn = rekey conn ops in
-    int_consume conn
+    readHS conn
 
 let accept_connected ns ops =
     let conn = Dispatch.init ns StoC ops in
-    int_consume conn
+    readHS conn
 
 let accept list ops =
     let ns = Tcp.accept list in
@@ -103,4 +101,4 @@ let handshakeRequest conn ops =
 
 let handshakeRequest_now conn ops =
     let conn = handshakeRequest conn ops in
-    int_consume conn
+    readHS conn
