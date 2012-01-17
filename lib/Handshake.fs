@@ -9,6 +9,7 @@ open Algorithms
 open CipherSuites
 open TLSInfo
 open TLSPlain
+open TLSKey
 open AppCommon
 open Principal
 open SessionDB
@@ -29,7 +30,7 @@ type clientState =
     | CSHDone of clientSpecificState
     | CCCS of clientSpecificState
     | CFinished of clientSpecificState
-    | CWaitingToWrite
+    | CWaitingToWrite of clientSpecificState
     | CIdle
 
 type serverSpecificState =
@@ -43,24 +44,24 @@ type serverState =
     | CertificateVerify of serverSpecificState
     | SCCS of serverSpecificState
     | SFinished of serverSpecificState
-    | SWaitingToWrite
+    | SWaitingToWrite of serverSpecificState
     | SIdle
 
 type protoState =
     | Client of clientState
     | Server of serverState
 
+type KIAndCCS = (KeyInfo * ccs_data)
+
 type pre_hs_state = {
-  hs_outgoing    : bytes                  (* outgoing data before a ccs *)
-  ccs_outgoing: (bytes * ccs_data) option (* marker telling there's a ccs ready *)
-  hs_outgoing_after_ccs: bytes            (* data to be sent after the ccs has been sent *)
-  hs_incoming    : bytes                  (* partial incoming HS message *)
-  ccs_incoming: ccs_data option (* used to store the computed secrets for receiving data. Not set when receiving CCS, but when we compute the session secrects *)
+  hs_outgoing    : bytes;                  (* outgoing data before a ccs *)
+  ccs_outgoing: (bytes * KIAndCCS) option; (* marker telling there's a ccs ready *)
+  hs_outgoing_after_ccs: bytes;            (* data to be sent after the ccs has been sent *)
+  hs_incoming    : bytes;                  (* partial incoming HS message *)
+  ccs_incoming: KIAndCCS option; (* used to store the computed secrets for receiving data. Not set when receiving CCS, but when we compute the session secrects *)
   poptions: protocolOptions;
-  pstate : protoState
-  hs_msg_log: bytes
-  hs_cur_info : SessionInfo; (* The session we're currrently running into *)
-  cur_ms: masterSecret; (* The master secrect associated with the current session. *)
+  pstate : protoState;
+  hs_msg_log: bytes;
   hs_next_info: SessionInfo; (* The session we're establishing within the current HS *)
   next_ms: masterSecret; (* The ms we're establishing *)
   ki_crand: bytes; (* Client random for the session we're establishing (to be stored in KeyInfo) *)
@@ -71,73 +72,125 @@ type pre_hs_state = {
 
 type hs_state = pre_hs_state
 
+let goToIdle state =
+    let init_sessionInfo = null_sessionInfo state.poptions.minVer in
+    match state.pstate with
+    | Client (_) ->
+        {hs_outgoing = [||];
+         ccs_outgoing = None;
+         hs_outgoing_after_ccs = [||];
+         hs_incoming = [||];
+         ccs_incoming = None
+         poptions = state.poptions;
+         pstate = Client(CIdle);
+         hs_msg_log = [||]
+         hs_next_info = init_sessionInfo
+         next_ms = empty_masterSecret
+         ki_crand = [||]
+         ki_srand = [||]
+         hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
+         hs_renegotiation_info_sVerifyData = state.hs_renegotiation_info_sVerifyData}
+    | Server (_) ->
+        {hs_outgoing = [||];
+         ccs_outgoing = None;
+         hs_outgoing_after_ccs = [||];
+         hs_incoming = [||];
+         ccs_incoming = None
+         poptions = state.poptions;
+         pstate = Server(SIdle);
+         hs_msg_log = [||]
+         hs_next_info = init_sessionInfo
+         next_ms = empty_masterSecret
+         ki_crand = [||]
+         ki_srand = [||]
+         hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
+         hs_renegotiation_info_sVerifyData = state.hs_renegotiation_info_sVerifyData}
+
 type HSFragReply =
   | EmptyHSFrag
   | HSFrag of (int * fragment)
-  | CCSFrag of (int * fragment) * ccs_data
+  | CCSFrag of (int * fragment) * (KeyInfo * ccs_data)
   | HSWriteSideFinished of (int * fragment)
   | HSFullyFinished_Write of (int * fragment) * StorableSession
 
-let next_fragment state =
+let next_fragment ki state =
     (* Assumptions: The buffers have been filled in the following order:
        1) hs_outgoing; 2) ccs_outgoing; 3) hs_outgoing_after_ccs
+       We check 2) and 3) only if we are in a {C,S}WaitingToWrite state.
        hs_outgoing_after_ccs is filled all at once; so, when it's empty,
-       we can conclude HS protocol is terminated, and no more data will be added to any buffer
-       (until a re-handshake, which resets everything anyway) *)
+       we can conclude HS protocol is terminated (at least for our sending side),
+       and no more data will be added to any buffer
+       (until a re-handshake) *)
     match state.hs_outgoing with
-    | x when equalBytes x [||] ->
-        match state.ccs_outgoing with
-        | None ->
-            match state.hs_outgoing_after_ccs with
-            | x when equalBytes x [||] -> (EmptyHSFrag,state)
-            | d ->
-                (* Exceptionally, these fragments must be issued for the upcoming session info. Indeed, after sending CCS, we're
-                   using the next_info, without knowing if it will be good or not *)
-                let (f,rem) = pub_fragment state.hs_next_info d in
-                let state = {state with hs_outgoing_after_ccs = rem} in
-                match rem with
-                | x when equalBytes x [||] ->
-                    (* The logic of the next statement works like this:
-                        If we (be either client or server) are in CCS state, it means we finished writing, but we still have to read
-                        other side CCS and Finished messages, so issue a HSWriteSideFinished. If we're in Idle, it means the full
-                        protocol completed, and we issue a HSFullyFinished *)
-                    match state.pstate with
-                    | Client (cstate) ->
-                        (* Unfortunately, we cannot use the "resumed_session" flag of the client specific state, because there might
-                           be no such client specific state available. So, according to the handshake state machine, we infer whether
-                           we are doing full handshake or resumption. *)
-                        match cstate with
-                        | CCCS (_) -> (HSWriteSideFinished (f), state)
-                        | CWaitingToWrite ->
+    | [||] ->
+        (* FIXME: the following code should be heavily factorized out.
+           Essentially, we do the same two cases for client and server (dually), but
+           we duplicate code because client and server don't share state. *)
+        match state.pstate with
+        | Client(cstate) ->
+            match cstate with
+            | CWaitingToWrite (cSpecState) ->
+                match state.ccs_outgoing with
+                | None ->
+                    let (f,rem) = pub_fragment ki state.hs_outgoing_after_ccs in
+                    let state = {state with hs_outgoing_after_ccs = rem} in
+                    match rem with
+                    | [||] ->
+                        if cSpecState.resumed_session then
+                            (* Handshake fully finished *)
                             let storable_session =
                                 { sinfo = state.hs_next_info;
                                   ms = state.next_ms;
                                   dir = CtoS}
+                            let state = goToIdle state
                             (HSFullyFinished_Write (f,storable_session), state)
-                        | _ -> unexpectedError "[next_fragment] invoked in invalid state"
-                    | Server (sstate) ->
-                        match sstate with
-                        | SCCS (_)->
+                        else
+                            (* HS write side finished *)
+                            let state = {state with pstate = Client(CCCS(cSpecState))}
                             (HSWriteSideFinished (f), state)
-                        | SWaitingToWrite ->
+                    | _ -> (HSFrag(f),state)
+                | Some data ->
+                    (* Resetting the ccs_outgoing buffer here is necessary for the current "next_fragment" logic to work.
+                       It is ok to forget the associated KeyInfo, because it has already been used to generate
+                       the Finished message on our side *)
+                    let state = {state with ccs_outgoing = None}
+                    let (ccs,kiAndCCS) = data in
+                    let (frag,_) = pub_fragment ki ccs in
+                    (CCSFrag (frag,kiAndCCS), state)
+            | _ -> (EmptyHSFrag,state)
+        | Server(sstate) ->
+            match sstate with
+            | SWaitingToWrite (sSpecState) ->
+                match state.ccs_outgoing with
+                | None ->
+                    let (f,rem) = pub_fragment ki state.hs_outgoing_after_ccs in
+                    let state = {state with hs_outgoing_after_ccs = rem} in
+                    match rem with
+                    | [||] ->
+                        if sSpecState.resumed_session then
+                            (* HS Write side finished *)
+                            let state = {state with pstate = Server(SCCS(sSpecState))}
+                            (HSWriteSideFinished (f), state)
+                        else
+                            (* Handshake fully finished *)
                             let storable_session =
                                 { sinfo = state.hs_next_info;
                                   ms = state.next_ms;
-                                  dir = StoC}
+                                  dir = CtoS}
+                            let state = goToIdle state
                             (HSFullyFinished_Write (f,storable_session), state)
-                        | _ -> unexpectedError "[next_fragment] invoked in invalid state"
-                | _ -> (HSFrag(f),state)
-        | Some data ->
-            (* Resetting the ccs_outgoing buffer here is necessary for the current "next_fragment" logic to work.
-               It should also be safe to loose the associated KeyInfo, because it has already been used to generate
-               the Finished message on our side *)
-            let state = {state with ccs_outgoing = None}
-            let (ccs,ccs_data) = data in
-            let (frag,_) = pub_fragment state.hs_cur_info ccs in
-            (CCSFrag (frag,ccs_data), state)
+                    | _ -> (HSFrag(f), state)
+                | Some data ->
+                    (* Resetting the ccs_outgoing buffer here is necessary for the current "next_fragment" logic to work.
+                       It is ok to forget the associated KeyInfo, because it has already been used to generate
+                       the Finished message on our side *)
+                    let state = {state with ccs_outgoing = None}
+                    let (ccs,kiAndCCS) = data in
+                    let (frag,_) = pub_fragment ki ccs in
+                    (CCSFrag (frag,kiAndCCS), state)
+            | _ -> (EmptyHSFrag,state)
     | d ->
-        (* The fragment must be issued for the current session we're in, not the one we're establishing *)
-        let (f,rem) = pub_fragment state.hs_cur_info d in
+        let (f,rem) = pub_fragment ki d in
         let state = {state with hs_outgoing = rem} in
         (HSFrag(f),state)
 
@@ -794,19 +847,17 @@ let compute_session_secrets_and_CCSs state dir =
     let allKeys = generateKeys outKi inKi state.next_ms in
     let (rmk,rek,riv,wmk,wek,wiv) = allKeys in
     (* TODO: Add support for AEAD ciphers *)
-    let readKey = RecordAEADKey (AEAD.MtE (rmk,rek)) in
+    let readKey = RecordAEADKey (MtE (rmk,rek)) in
     let readIV = if PVRequiresExplicitIV outKi.sinfo.protocol_version then ENC.iv3.NoIV () else ENC.iv3.SomeIV (riv) in
-    let read_ccs_data = { ki = inKi
-                          key = readKey
+    let read_ccs_data = { key = readKey;
                           iv3 = readIV}
-    let writeKey = RecordAEADKey (AEAD.MtE (wmk,wek)) in
+    let writeKey = RecordAEADKey (MtE (wmk,wek)) in
     let writeIV = if PVRequiresExplicitIV outKi.sinfo.protocol_version then ENC.iv3.NoIV () else ENC.iv3.SomeIV (wiv) in
-    let write_ccs_data = { ki = outKi
-                           key = writeKey
+    let write_ccs_data = { key = writeKey
                            iv3 = writeIV}
     (* Put the ccs_data in the appropriate buffers. *)
-    let state = {state with ccs_outgoing = Some((CCSBytes,write_ccs_data))
-                            ccs_incoming = Some(read_ccs_data)} in
+    let state = {state with ccs_outgoing = Some((CCSBytes,(outKi,write_ccs_data)))
+                            ccs_incoming = Some(inKi,read_ccs_data)} in
     state
 
 let prepare_client_output_full state clSpecState =
@@ -860,7 +911,7 @@ let prepare_client_output_full state clSpecState =
             let ki = 
                 match state.ccs_outgoing with
                 | None -> unexpectedError "[prepare_client_output_full] The current state should contain a valid outgoing KeyInfo"
-                | Some (_,ccs_data) -> ccs_data.ki
+                | Some (_,(ki,ccs_data)) -> ki
             let (finishedBytes,cVerifyData) = makeFinishedMsgBytes ki state.next_ms state.hs_msg_log in
             (* match makeFinishedMsgBytes sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms CtoS state.hs_msg_log with *)
             let new_out = state.hs_outgoing_after_ccs @| finishedBytes in
@@ -874,7 +925,7 @@ let prepare_client_output_resumption state =
     let ki = 
         match state.ccs_outgoing with
         | None -> unexpectedError "[prepare_client_output_resumption] The current state should contain a valid outgoing KeyInfo"
-        | Some (_,ccs_data) -> ccs_data.ki
+        | Some (_,(ki,ccs_data)) -> ki
     let (finishedBytes,cVerifyData) = makeFinishedMsgBytes ki state.next_ms state.hs_msg_log in
     (* match makeFinishedMsgBytes sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms CtoS state.hs_msg_log with *)
     let new_out = state.hs_outgoing_after_ccs @| finishedBytes in
@@ -885,13 +936,13 @@ let prepare_client_output_resumption state =
 
 /// Initiating Handshakes, mostly on the client side. 
 
-let init_handshake dir poptions =
+let init_handshake (si:SessionInfo) dir poptions =
     (* Start a new first session without resumption *)
-    let init_sessionInfo = null_sessionInfo poptions.minVer in
+    let next_sinfo = null_sessionInfo poptions.minVer in
     match dir with
     | CtoS ->
         let (cHelloBytes,client_random) = makeClientHelloBytes poptions [||] [||] in
-        let next_sinfo = {init_sessionInfo with init_crand = client_random} in
+        let next_sinfo = {next_sinfo with init_crand = client_random} in
         {hs_outgoing = cHelloBytes
          ccs_outgoing = None
          hs_outgoing_after_ccs = [||]
@@ -900,8 +951,6 @@ let init_handshake dir poptions =
          poptions = poptions
          pstate = Client (ServerHello)
          hs_msg_log = cHelloBytes
-         hs_cur_info = init_sessionInfo
-         cur_ms = empty_masterSecret
          hs_next_info = next_sinfo
          next_ms = empty_masterSecret
          ki_crand = client_random
@@ -917,19 +966,17 @@ let init_handshake dir poptions =
          poptions = poptions
          pstate = Server (ClientHello)
          hs_msg_log = [||]
-         hs_cur_info = init_sessionInfo
-         cur_ms = empty_masterSecret
-         hs_next_info = init_sessionInfo
+         hs_next_info = next_sinfo
          next_ms = empty_masterSecret
          ki_crand = [||]
          ki_srand = [||]
          hs_renegotiation_info_cVerifyData = [||]
          hs_renegotiation_info_sVerifyData = [||]}
 
-let resume_handshake sinfo ms poptions =
+let resume_handshake (cur_sinfo:SessionInfo) next_sinfo ms poptions =
     (* Resume a session, for the first time in this connection.
        Set up our state as a client. Servers cannot resume *)
-    match sinfo.sessionID with
+    match next_sinfo.sessionID with
     | None -> unexpectedError "[resume_handshake] a resumed session should always have a valid sessionID"
     | Some(sid) ->
     let (cHelloBytes,client_random) = makeClientHelloBytes poptions sid [||] in
@@ -941,9 +988,7 @@ let resume_handshake sinfo ms poptions =
                  poptions = poptions
                  pstate = Client (ServerHello)
                  hs_msg_log = cHelloBytes
-                 hs_cur_info = null_sessionInfo poptions.minVer
-                 cur_ms = empty_masterSecret
-                 hs_next_info = sinfo
+                 hs_next_info = next_sinfo
                  next_ms = ms
                  ki_crand = client_random
                  ki_srand = [||]
@@ -951,7 +996,7 @@ let resume_handshake sinfo ms poptions =
                  hs_renegotiation_info_sVerifyData = [||]} in
     state
 
-let start_rehandshake (state:hs_state) (ops:protocolOptions) =
+let start_rehandshake (si:SessionInfo) (state:hs_state) (ops:protocolOptions) =
     (* Start a non-resuming handshake, over an existing connection.
        Only client side, since a server can only issue a HelloRequest *)
     match state.pstate with
@@ -969,8 +1014,6 @@ let start_rehandshake (state:hs_state) (ops:protocolOptions) =
                          poptions = ops
                          pstate = Client (ServerHello)
                          hs_msg_log = cHelloBytes
-                         hs_cur_info = state.hs_cur_info
-                         cur_ms = state.cur_ms
                          hs_next_info = next_sinfo
                          next_ms = empty_masterSecret
                          ki_crand = client_random
@@ -982,9 +1025,9 @@ let start_rehandshake (state:hs_state) (ops:protocolOptions) =
             state
     | Server (_) -> unexpectedError "[start_rehandshake] should only be invoked on client side connections."
 
-let start_rekey (state:hs_state) (ops:protocolOptions) =
+let start_rekey (si:SessionInfo) (state:hs_state) (ops:protocolOptions) =
     (* Start a (possibly) resuming handshake over an existing connection *)
-    let sidOp = state.hs_cur_info.sessionID in
+    let sidOp = si.sessionID in
     match sidOp with
     | None -> unexpectedError "[start_rekey] must be invoked on a resumable session (that is, with a non-null session ID)."
     | Some (sid) ->
@@ -995,92 +1038,58 @@ let start_rekey (state:hs_state) (ops:protocolOptions) =
         match select ops sid with
         | None -> unexpectedError "[start_rekey] requested session expired or never stored in DB"
         | Some (retrievedSinfo) ->
-            (* check the retrieved sinfo is compatible *)
-            if not (state.hs_cur_info = retrievedSinfo.sinfo) || not (state.cur_ms = retrievedSinfo.ms) || not (retrievedSinfo.dir = CtoS) then
-                unexpectedError "[start_rekey] Retrieved session is incompabitle"
-            else
-                match state.pstate with
-                | Client (cstate) ->
-                    match cstate with
-                    | CIdle ->
-                        let (cHelloBytes,client_random) = makeClientHelloBytes ops sid state.hs_renegotiation_info_cVerifyData in
-                        let state = {hs_outgoing = cHelloBytes
-                                     ccs_outgoing = None
-                                     hs_outgoing_after_ccs = [||]
-                                     hs_incoming = [||]
-                                     ccs_incoming = None
-                                     poptions = ops
-                                     pstate = Client (ServerHello)
-                                     hs_msg_log = cHelloBytes
-                                     hs_cur_info = state.hs_cur_info
-                                     cur_ms = state.cur_ms 
-                                     hs_next_info = state.hs_cur_info
-                                     next_ms = state.cur_ms                                   
-                                     ki_crand = client_random
-                                     ki_srand = [||]
-                                     hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
-                                     hs_renegotiation_info_sVerifyData = state.hs_renegotiation_info_sVerifyData} in
-                        state
-                    | _ -> (* Handshake already ongoing, ignore this request *)
-                        state
-                | Server (_) -> unexpectedError "[start_rekey] should only be invoked on client side connections."
+            match state.pstate with
+            | Client (cstate) ->
+                match cstate with
+                | CIdle ->
+                    let (cHelloBytes,client_random) = makeClientHelloBytes ops sid state.hs_renegotiation_info_cVerifyData in
+                    let state = {hs_outgoing = cHelloBytes
+                                 ccs_outgoing = None
+                                 hs_outgoing_after_ccs = [||]
+                                 hs_incoming = [||]
+                                 ccs_incoming = None
+                                 poptions = ops
+                                 pstate = Client (ServerHello)
+                                 hs_msg_log = cHelloBytes
+                                 hs_next_info = retrievedSinfo.sinfo
+                                 next_ms = retrievedSinfo.ms                      
+                                 ki_crand = client_random
+                                 ki_srand = [||]
+                                 hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
+                                 hs_renegotiation_info_sVerifyData = state.hs_renegotiation_info_sVerifyData} in
+                    state
+                | _ -> (* Handshake already ongoing, ignore this request *)
+                    state
+            | Server (_) -> unexpectedError "[start_rekey] should only be invoked on client side connections."
 
-let start_hs_request (state:hs_state) (ops:protocolOptions) =
+let start_hs_request (si:SessionInfo) (state:hs_state) (ops:protocolOptions) =
     match state.pstate with
     | Client _ -> unexpectedError "[start_hs_request] should only be invoked on server side connections."
     | Server (sstate) ->
         match sstate with
         | SIdle ->
             (* Put HelloRequest in outgoing buffer (and do not log it), and move to the ClientHello state (so that we don't send HelloRequest again) *)
-            let new_out = state.hs_outgoing @| (makeHelloRequestBytes ()) in
-            {state with hs_outgoing = new_out
-                        poptions = ops
-                        pstate = Server(ClientHello)}
+            { hs_outgoing = makeHelloRequestBytes ();
+              ccs_outgoing = None
+              hs_outgoing_after_ccs = [||]
+              hs_incoming = [||]
+              ccs_incoming = None
+              poptions = ops
+              pstate = Server(ClientHello)
+              hs_msg_log = [||]
+              hs_next_info = null_sessionInfo ops.minVer
+              next_ms = empty_masterSecret                      
+              ki_crand = [||]
+              ki_srand = [||]
+              hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
+              hs_renegotiation_info_sVerifyData = state.hs_renegotiation_info_sVerifyData}
         | _ -> (* Handshake already ongoing, ignore this request *)
             state
-
-let new_session_idle state new_info ms =
-    let init_sessionInfo = null_sessionInfo SSL_3p0 in // FIXME: this value is irrelevant and will be overwritten
-    match state.pstate with
-    | Client (_) ->
-        {hs_outgoing = [||];
-         ccs_outgoing = None;
-         hs_outgoing_after_ccs = [||];
-         hs_incoming = [||];
-         ccs_incoming = None
-         poptions = state.poptions;
-         pstate = Client(CIdle);
-         hs_msg_log = [||]
-         hs_cur_info = new_info; (* Assert: This is in fact the current state.hs_next_info; same for ms *)
-         cur_ms = ms;
-         hs_next_info = init_sessionInfo
-         next_ms = empty_masterSecret
-         ki_crand = [||]
-         ki_srand = [||]
-         hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
-         hs_renegotiation_info_sVerifyData = state.hs_renegotiation_info_sVerifyData}
-    | Server (_) ->
-        {hs_outgoing = [||];
-         ccs_outgoing = None;
-         hs_outgoing_after_ccs = [||];
-         hs_incoming = [||];
-         ccs_incoming = None
-         poptions = state.poptions;
-         pstate = Server(SIdle);
-         hs_msg_log = [||]
-         hs_cur_info = new_info;
-         cur_ms = ms;
-         hs_next_info = init_sessionInfo
-         next_ms = empty_masterSecret
-         ki_crand = [||]
-         ki_srand = [||]
-         hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
-         hs_renegotiation_info_sVerifyData = state.hs_renegotiation_info_sVerifyData}
 
 //TODO we could pass in the client state to avoid redundant match state.pstate
 //     and flatten the pattern matching. I tried to simplify this function on a clone below; I hope it is supported by F7
         
-let rec recv_fragment_client (state:hs_state) (agreedVersion:ProtocolVersion Option) =
+let rec recv_fragment_client (ki:KeyInfo) (state:hs_state) (agreedVersion:ProtocolVersion Option) =
     match parseFragment state with
     | None ->
       match agreedVersion with
@@ -1095,10 +1104,10 @@ let rec recv_fragment_client (state:hs_state) (agreedVersion:ProtocolVersion Opt
             | CIdle -> (* This is a legitimate hello request. Properly handle it *)
                 (* Do not log this message *)
                 match state.poptions.honourHelloReq with
-                | HRPIgnore -> recv_fragment_client state agreedVersion
-                | HRPResume -> let state = start_rekey state state.poptions in (correct (HSAck), state) (* Terminating case, we reset all buffers *)
-                | HRPFull   -> let state = start_rehandshake state state.poptions in (correct (HSAck), state) (* Terminating case, we reset all buffers *)
-            | _ -> (* RFC 7.4.1.1: ignore this message *) recv_fragment_client state agreedVersion
+                | HRPIgnore -> recv_fragment_client ki state agreedVersion
+                | HRPResume -> let state = start_rekey ki.sinfo state state.poptions in (correct (HSAck), state) (* Terminating case, we reset all buffers *)
+                | HRPFull   -> let state = start_rehandshake ki.sinfo state state.poptions in (correct (HSAck), state) (* Terminating case, we reset all buffers *)
+            | _ -> (* RFC 7.4.1.1: ignore this message *) recv_fragment_client ki state agreedVersion
         | HT_server_hello ->
             match cState with
             | ServerHello ->
@@ -1156,10 +1165,10 @@ let rec recv_fragment_client (state:hs_state) (agreedVersion:ProtocolVersion Opt
                             (* If DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
                             if isAnonCipherSuite shello.cipher_suite then
                                 let state = {state with pstate = Client(ServerKeyExchange)} in
-                                recv_fragment_client state (Some(shello.server_version))
+                                recv_fragment_client ki state (Some(shello.server_version))
                             else
                                 let state = {state with pstate = Client(Certificate)} in
-                                recv_fragment_client state (Some(shello.server_version))
+                                recv_fragment_client ki state (Some(shello.server_version))
                         else
                             match state.hs_next_info.sessionID with
                             | None -> unexpectedError "[recv_fragment] A resumed session should never have empty SID"
@@ -1174,7 +1183,7 @@ let rec recv_fragment_client (state:hs_state) (agreedVersion:ProtocolVersion Opt
                                                                     must_send_cert = None;
                                                                     client_certificate = None} in
                                                 let state = { state with pstate = Client(CCCS(clSpecState))}
-                                                recv_fragment_client state (Some(shello.server_version))
+                                                recv_fragment_client ki state (Some(shello.server_version))
                                             else (Error(HSError(AD_illegal_parameter),HSSendAlert),state)
                                         else (Error(HSError(AD_illegal_parameter),HSSendAlert),state)
                                     else (Error(HSError(AD_illegal_parameter),HSSendAlert),state)
@@ -1193,10 +1202,10 @@ let rec recv_fragment_client (state:hs_state) (agreedVersion:ProtocolVersion Opt
                                     (* If DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
                                     if isAnonCipherSuite shello.cipher_suite then
                                         let state = {state with pstate = Client(ServerKeyExchange)} in
-                                        recv_fragment_client state (Some(shello.server_version))
+                                        recv_fragment_client ki state (Some(shello.server_version))
                                     else
                                         let state = {state with pstate = Client(Certificate)} in
-                                        recv_fragment_client state (Some(shello.server_version))
+                                        recv_fragment_client ki state (Some(shello.server_version))
             | _ -> (* ServerHello arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
         | HT_certificate ->
             match cState with
@@ -1215,10 +1224,10 @@ let rec recv_fragment_client (state:hs_state) (agreedVersion:ProtocolVersion Opt
                         let state = {state with hs_next_info = next_sinfo} in
                         if cipherSuiteRequiresKeyExchange state.hs_next_info.cipher_suite then
                             let state = {state with pstate = Client(ServerKeyExchange)} in
-                            recv_fragment_client state agreedVersion
+                            recv_fragment_client ki state agreedVersion
                         else
                             let state = {state with pstate = Client(CertReqOrSHDone)} in
-                            recv_fragment_client state agreedVersion
+                            recv_fragment_client ki state agreedVersion
             | _ -> (* Certificate arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
         | HT_server_key_exchange ->
             match cState with
@@ -1248,7 +1257,7 @@ let rec recv_fragment_client (state:hs_state) (agreedVersion:ProtocolVersion Opt
                                    must_send_cert = Some(certReqMsg);
                                    client_certificate = client_cert} in
                 let state = {state with pstate = Client(CSHDone(clSpecState))} in
-                recv_fragment_client state agreedVersion
+                recv_fragment_client ki state agreedVersion
             | _ -> (* Certificate Request arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
         | HT_server_hello_done ->
             match cState with
@@ -1267,8 +1276,8 @@ let rec recv_fragment_client (state:hs_state) (agreedVersion:ProtocolVersion Opt
                     match prepare_client_output_full state clSpecState with
                     | Error (x,y) -> (Error (x,y), state)
                     | Correct (state) ->
-                        let state = {state with pstate = Client(CCCS(clSpecState))}
-                        recv_fragment_client state agreedVersion
+                        let state = {state with pstate = Client(CWaitingToWrite(clSpecState))}
+                        recv_fragment_client ki state agreedVersion
             | CSHDone(clSpecState) ->
                 if not (equalBytes payload [||]) then
                     (Error(HSError(AD_decode_error),HSSendAlert),state)
@@ -1280,17 +1289,19 @@ let rec recv_fragment_client (state:hs_state) (agreedVersion:ProtocolVersion Opt
                     match prepare_client_output_full state clSpecState with
                     | Error (x,y) -> (Error (x,y), state)
                     | Correct (state) ->
-                        let state = {state with pstate = Client(CCCS(clSpecState))}
-                        recv_fragment_client state agreedVersion
+                        let state = {state with pstate = Client(CWaitingToWrite(clSpecState))}
+                        recv_fragment_client ki state agreedVersion
             | _ -> (* Server Hello Done arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
         | HT_finished ->
             match cState with
             | CFinished(clSpState) ->
                 (* Check received content *)
+                (* Obsolete: the current ki should be the right one.
                 let ki =
                     match state.ccs_incoming with
                     | None -> unexpectedError "[recv_fragment_client] ccs_incoming should have some value when in CFinished state"
-                    | Some (ccs_data) -> ccs_data.ki
+                    | Some (ki,ccs_data) -> ki
+                *)
                 let verifyDataisOK = checkVerifyData ki state.next_ms state.hs_msg_log payload in
                 if not verifyDataisOK then
                     (Error(HSError(AD_decrypt_error),HSSendAlert),state)
@@ -1302,16 +1313,15 @@ let rec recv_fragment_client (state:hs_state) (agreedVersion:ProtocolVersion Opt
                         let new_log = state.hs_msg_log @| to_log in
                         let state = {state with hs_msg_log = new_log} in
                         let state = prepare_client_output_resumption state in
-                        let state = {state with pstate = Client(CWaitingToWrite)} in
+                        let state = {state with pstate = Client(CWaitingToWrite(clSpState))} in
                         (correct (HSReadSideFinished),state)
                     else    
-                        (* Handshake fully completed successfully. Report this fact to the dispatcher:
-                            it will take care of moving the handshake to the Idle state, updating the sinfo with the
-                            one we've been creating in this handshake. *)
+                        (* Handshake fully completed successfully. Report this fact to the dispatcher. *)
                         (* Note: no need to log this message *)
                         let storableSession = { sinfo = state.hs_next_info;
                                                 ms = state.next_ms;
                                                 dir = CtoS}
+                        let state = goToIdle state in
                         (correct (HSFullyFinished_Read (storableSession)),state)
             | _ -> (* Finished arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
         | _ -> (* Unsupported/Wrong message *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
@@ -1570,7 +1580,7 @@ let prepare_server_output_resumption state =
     let ki =
         match state.ccs_outgoing with
         | None -> unexpectedError "[prepare_server_output_resumption] The ccs_outgoing buffer should contain some value when computing the finished message"
-        | Some (_,ccs_data) -> ccs_data.ki
+        | Some (_,(ki,ccs_data)) -> ki
     let (finishedB,verifyData) = makeFinishedMsgBytes ki state.next_ms state.hs_msg_log in
     (* match makeFinishedMsgBytes sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms StoC state.hs_msg_log with *)
     let new_out = state.hs_outgoing_after_ccs @| finishedB in
@@ -1580,10 +1590,10 @@ let prepare_server_output_resumption state =
     let state = {state with hs_outgoing_after_ccs = new_out
                             hs_msg_log = new_log
                             hs_renegotiation_info_sVerifyData = verifyData
-                            pstate = Server(SCCS(sSpecState))} in
+                            pstate = Server(SWaitingToWrite(sSpecState))} in
     state
 
-let rec recv_fragment_server (state:hs_state) (agreedVersion:ProtocolVersion Option) =
+let rec recv_fragment_server (ki:KeyInfo) (state:hs_state) (agreedVersion:ProtocolVersion Option) =
     match parseFragment state with
     | None ->
       match agreedVersion with
@@ -1621,7 +1631,7 @@ let rec recv_fragment_server (state:hs_state) (agreedVersion:ProtocolVersion Opt
                     if equalBytes cHello.ch_session_id [||] 
                     then 
                         (* Client asked for a full handshake *)
-                        startServerFull state cHello
+                        startServerFull ki state cHello
                     else
                         (* Client asked for resumption, let's see if we can satisfy the request *)
                         (* FIXME: this SessionDB interaction seems right to be here, however, I'd like to move
@@ -1629,30 +1639,30 @@ let rec recv_fragment_server (state:hs_state) (agreedVersion:ProtocolVersion Opt
                         match select state.poptions cHello.ch_session_id with
                         | None ->
                             (* We don't have the requested session stored, go for a full handshake *)
-                            startServerFull state cHello
+                            startServerFull ki state cHello
                         | Some (storedSession) ->
                             (* Check that the client proposed algorithms match those of our stored session *)
                             match storedSession.dir with
                             | CtoS -> (* This session is not for us, we're a server. Do full handshake *)
-                                startServerFull state cHello
+                                startServerFull ki state cHello
                             | StoC ->
                                 if cHello.client_version >= storedSession.sinfo.protocol_version then
                                     (* We have a common version *)
                                     if not (List.exists (fun cs -> cs = storedSession.sinfo.cipher_suite) cHello.cipher_suites) then
                                         (* Do a full handshake *)
-                                        startServerFull state cHello
+                                        startServerFull ki state cHello
                                     else if not (List.exists (fun cm -> cm = storedSession.sinfo.compression) cHello.compression_methods) then
                                         (* Do a full handshake *)
-                                        startServerFull state cHello
+                                        startServerFull ki state cHello
                                     else
                                         (* Everything is ok, proceed with resumption *)
                                         let state = {state with hs_next_info = storedSession.sinfo
                                                                 next_ms = storedSession.ms}
                                         let state = prepare_server_output_resumption state 
-                                        recv_fragment_server state (Some(storedSession.sinfo.protocol_version))
+                                        recv_fragment_server ki state (Some(storedSession.sinfo.protocol_version))
                                 else
                                     (* Do a full handshake *)
-                                    startServerFull state cHello
+                                    startServerFull ki state cHello
                                     
             | _ -> (* Message arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
         | HT_certificate ->
@@ -1676,7 +1686,7 @@ let rec recv_fragment_server (state:hs_state) (agreedVersion:ProtocolVersion Opt
                         let state = {state with hs_next_info = next_info} in
                         (* move to the next state *)
                         let state = {state with pstate = Server(ClientKEX(sSpecSt))} in
-                        recv_fragment_server state agreedVersion
+                        recv_fragment_server ki state agreedVersion
             | _ -> (* Message arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
         | HT_client_key_exchange ->
             match sState with
@@ -1697,14 +1707,14 @@ let rec recv_fragment_server (state:hs_state) (agreedVersion:ProtocolVersion Opt
                     match state.hs_next_info.clientID with
                     | None -> (* No client certificate, so there will be no CertificateVerify message *)
                         let state = {state with pstate = Server(SCCS(sSpecSt))} in
-                        recv_fragment_server state agreedVersion
+                        recv_fragment_server ki state agreedVersion
                     | Some(cert) ->
                         if certificate_has_signing_capability cert then
                             let state = {state with pstate = Server(CertificateVerify(sSpecSt))} in
-                            recv_fragment_server state agreedVersion
+                            recv_fragment_server ki state agreedVersion
                         else
                             let state = {state with pstate = Server(SCCS(sSpecSt))} in
-                            recv_fragment_server state agreedVersion
+                            recv_fragment_server ki state agreedVersion
             | _ -> (* Message arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
         | HT_certificate_verify ->
             match sState with
@@ -1721,18 +1731,21 @@ let rec recv_fragment_server (state:hs_state) (agreedVersion:ProtocolVersion Opt
                             let state = {state with hs_msg_log = new_log} in   
                             (* move to next state *)
                             let state = {state with pstate = Server(SCCS(sSpecSt))} in
-                            recv_fragment_server state agreedVersion
+                            recv_fragment_server ki state agreedVersion
                         else
                             (Error(HSError(AD_decrypt_error),HSSendAlert),state)
             | _ -> (* Message arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
         | HT_finished ->
             match sState with
             | SFinished(sSpecSt) ->
-                let kiIn =
+                (* Obsolete: The current ki should be the right one *)
+                (*
+                let ki =
                     match state.ccs_incoming with
                     | None -> unexpectedError "[recv_fragment_server] the incoming KeyInfo should be set now"
-                    | Some (ccs_data) -> ccs_data.ki
-                let verifyDataisOK = checkVerifyData kiIn state.next_ms state.hs_msg_log payload in
+                    | Some (ki,ccs_data) -> ki
+                *)
+                let verifyDataisOK = checkVerifyData ki state.next_ms state.hs_msg_log payload in
                 (* match checkVerifyData sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms CtoS state.hs_msg_log payload with *)
                 if not verifyDataisOK then
                     (Error(HSError(AD_decrypt_error),HSSendAlert),state)
@@ -1740,13 +1753,12 @@ let rec recv_fragment_server (state:hs_state) (agreedVersion:ProtocolVersion Opt
                     (* Save client verify data to possibly use it in the renegotiation_info extension *)
                     let state = {state with hs_renegotiation_info_cVerifyData = payload} in
                     if sSpecSt.resumed_session then
-                        (* Handshake fully completed successfully. Report this fact to the dispatcher:
-                            it will take care of moving the handshake to the Idle state, updating the sinfo with the
-                            one we've been creating in this handshake. *)
-                        (* Note: no need to log this message *)
+                        (* Handshake fully completed successfully. Report this fact to the dispatcher. *)
+                        (* Note: no need to log this message (and we go to the idle state forgetting everything anyway) *)
                         let storableSession = { sinfo = state.hs_next_info
                                                 ms = state.next_ms
                                                 dir = StoC}
+                        let state = goToIdle state
                         (correct (HSFullyFinished_Read (storableSession)),state)
                     else
                         (* Log the received message *)
@@ -1754,31 +1766,21 @@ let rec recv_fragment_server (state:hs_state) (agreedVersion:ProtocolVersion Opt
                         let state = {state with hs_msg_log = new_log} in
                         let kiOut =
                             match state.ccs_outgoing with
-                            (* FIXME: There is at least one race condition where the following unexpected error will occur.
-                                After the client sends its ClientKeyExchange message we compute the ougoing (and incoming) ccs_data,
-                                and put it into our output buffer. Now, if the client hangs after the ClientKeyExchange (that is: it does
-                                not send its CCS soon enough), the Dispatch module will stop reading and we will flush our output buffers,
-                                thus clearing the outgoing KeyInfo. A subsequent read/write operation will trigger this code, which will
-                                miserably fail.
-                                Still, in the current implementation we must remove the ccs_data from the output buffer, in order to
-                                send it only once. A better implementation keeps explicit track of the output message to be sent, and
-                                do not rely on the content of the buffers, so we can store the outgoing ccs_data indefintely
-                                (i.e. until we reset our state) exactly like we do for the incoming ccs_data *)
                             | None -> unexpectedError "[recv_fragment_server] Outgoing KeyInfo should be set now"
-                            | Some(_,ccs_data) -> ccs_data.ki
+                            | Some(_,(kiOut,ccs_data)) -> kiOut
                         let (packet,verifyData) = makeFinishedMsgBytes kiOut state.next_ms state.hs_msg_log in
                         (* match makeFinishedMsgBytes sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms StoC state.hs_msg_log with *)
                         let new_out = state.hs_outgoing_after_ccs @| packet in
                         let state = {state with hs_outgoing_after_ccs = new_out
                                                 hs_renegotiation_info_sVerifyData = verifyData
-                                                pstate = Server(SWaitingToWrite)} in
+                                                pstate = Server(SWaitingToWrite(sSpecSt))} in
                         (correct (HSReadSideFinished),state)                                
             | _ -> (* Message arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
         | _ -> (* Unsupported/Wrong message *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
       (* Should never happen *)
       | Client(_) -> unexpectedError "[recv_fragment_server] should only be invoked when in server role."
 
-and startServerFull state cHello =  
+and startServerFull (ki:KeyInfo) state cHello =  
     // Negotiate the protocol parameters
     let version = minPV cHello.client_version state.poptions.maxVer in
         match negotiate cHello.cipher_suites state.poptions.ciphersuites with
@@ -1798,7 +1800,7 @@ and startServerFull state cHello =
                                   init_srand       = [||] }
                 let state = {state with hs_next_info = next_info} in
                 match prepare_server_output_full state cHello.client_version with
-                | Correct(state) -> recv_fragment_server state (Some(version)) 
+                | Correct(state) -> recv_fragment_server ki state (Some(version)) 
                 | Error(x,y)     -> (Error(x,y),state)
             | None -> (Error(HSError(AD_handshake_failure),HSSendAlert),state)
         | None ->     (Error(HSError(AD_handshake_failure),HSSendAlert),state)
@@ -1808,17 +1810,17 @@ let enqueue_fragment state fragment =
     let new_inc = state.hs_incoming @| fragment in
     {state with hs_incoming = new_inc}
 
-let recv_fragment (state:hs_state) (tlen:int) (fragment:fragment) =
+let recv_fragment ki (state:hs_state) (tlen:int) (fragment:fragment) =
     (* Note, we receive fragments in the current session, not the one we're establishing *)
     (* FIXME: This session might be wrong, in the CCS/Finished/FullyFinished(Idle) transition. But we don't care now *)
-    let fragment = pub_fragment_to_bytes state.hs_cur_info tlen fragment in
+    let fragment = pub_fragment_to_bytes ki tlen fragment in
     let state = enqueue_fragment state fragment in
     match state.pstate with
-    | Client (_) -> recv_fragment_client state None
-    | Server (_) -> recv_fragment_server state None
+    | Client (_) -> recv_fragment_client ki state None
+    | Server (_) -> recv_fragment_server ki state None
 
-let recv_ccs (state: hs_state) (tlen:int) (fragment:fragment): ((ccs_data Result) * hs_state) =
-    let fragment = pub_fragment_to_bytes state.hs_cur_info tlen fragment in
+let recv_ccs ki (state: hs_state) (tlen:int) (fragment:fragment): ((KIAndCCS Result) * hs_state) =
+    let fragment = pub_fragment_to_bytes ki tlen fragment in
     if equalBytes fragment CCSBytes then  
         match state.pstate with
         | Client (cstate) -> // Check we are in the right state (CCCS) 

@@ -29,11 +29,6 @@ type dState = {
     conn: ConnectionState;
     }
 
-(* In every state, except Finishing or Finished, id_in.sinfo = id_out.sinfo must hold. *)
-type index =
-    { id_in:  KeyInfo;
-      id_out: KeyInfo}
-
 type preConnection = {
   poptions: protocolOptions;
   (* abstract protocol states for HS/CCS, AL, and AD *)
@@ -48,6 +43,10 @@ type preConnection = {
   (* The actual socket *)
   ns: NetworkStream;
   }
+
+type index =
+    { id_in:  KeyInfo;
+      id_out: KeyInfo}
 
 type Connection = Conn of (index * preConnection)
 
@@ -69,8 +68,8 @@ type deliverOutcome =
 let init ns dir poptions =
     (* Direction "dir" is always the outgoing direction.
        So, if we are a Client, it will be CtoS, if we're a Server: StoC *)
-    let hs = Handshake.init_handshake dir poptions in
     let (outKI,inKI) = (null_KeyInfo dir poptions.minVer, null_KeyInfo (dualDirection dir) poptions.minVer) in
+    let hs = Handshake.init_handshake outKI.sinfo dir poptions in // Equivalently, inKI.sinfo
     let (outCCS,inCCS) = (nullCCSData outKI, nullCCSData inKI) in
     let (send,recv) = (Record.initConnState outKI outCCS, Record.initConnState inKI inCCS) in
     let read_state = {disp = Init; conn = recv} in
@@ -97,8 +96,8 @@ let resume ns sid ops =
     | StoC -> unexpectedError "[resume] requested session is for server side"
     | CtoS ->
     let sinfo = retrievedStoredSession.sinfo in
-    let hs = Handshake.resume_handshake sinfo retrievedStoredSession.ms ops in
     let (outKI,inKI) = (null_KeyInfo CtoS ops.minVer, null_KeyInfo (dualDirection CtoS) ops.minVer) in
+    let hs = Handshake.resume_handshake outKI.sinfo sinfo retrievedStoredSession.ms ops in // equivalently, inKI.sinfo
     let (outCCS,inCCS) = (nullCCSData outKI, nullCCSData inKI) in
     let (send,recv) = (Record.initConnState outKI outCCS, Record.initConnState inKI inCCS) in
     let read_state = {disp = Init; conn = recv} in
@@ -117,17 +116,17 @@ let resume ns sid ops =
     (correct (unitVal), res)
 
 let ask_rehandshake (Conn(id,conn)) ops =
-    let new_hs = Handshake.start_rehandshake conn.handshake ops in
+    let new_hs = Handshake.start_rehandshake id.id_out.sinfo conn.handshake ops in // Equivalently, id.id_in.sinfo
     Conn(id,{conn with handshake = new_hs;
                        poptions = ops})
 
 let ask_rekey (Conn(id,conn)) ops =
-    let new_hs = Handshake.start_rekey conn.handshake ops in
+    let new_hs = Handshake.start_rekey id.id_out.sinfo conn.handshake ops in // Equivalently, id.id_in.sinfo
     Conn(id,{conn with handshake = new_hs;
                        poptions = ops})
 
 let ask_hs_request (Conn(id,conn)) ops =
-    let new_hs = Handshake.start_hs_request conn.handshake ops in
+    let new_hs = Handshake.start_hs_request id.id_out.sinfo conn.handshake ops in // Equivalently, id.id_in.sinfo
     Conn(id,{conn with handshake = new_hs;
                        poptions = ops})
 
@@ -205,7 +204,7 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
       match Alert.next_fragment id.id_out state with
       | (EmptyALFrag,_) -> 
           let hs_state = c.handshake in
-          match Handshake.next_fragment hs_state with 
+          match Handshake.next_fragment id.id_out hs_state with 
           | (Handshake.EmptyHSFrag, _) ->
             let app_state = c.appdata in
                 match AppData.next_fragment id.id_out app_state with
@@ -346,7 +345,7 @@ let deliver (Conn(id,c)) ct tlen f =
   match (ct,c_read.disp) with 
 
   | Handshake, x when x = Init || x = FirstHandshake || x = Finishing || x = Open ->
-    match Handshake.recv_fragment c.handshake tlen f with
+    match Handshake.recv_fragment id.id_in c.handshake tlen f with
     | (Correct(corr),hs) ->
         match corr with
         | Handshake.HSAck ->
@@ -389,7 +388,7 @@ let deliver (Conn(id,c)) ct tlen f =
     | (Error(x,y),hs) -> (Error(x,y),Conn(id,{c with handshake = hs})) (* TODO: we might need to send some alerts *)
 
   | Change_cipher_spec, x when x = FirstHandshake || x = Open -> 
-    match Handshake.recv_ccs c.handshake tlen f with 
+    match Handshake.recv_ccs id.id_in c.handshake tlen f with 
     | (Correct(newKiIN,ccs_data),hs) ->
         if AppData.is_incoming_empty id.id_in.sinfo c.appdata
            || c.poptions.isCompatibleSession id.id_in.sinfo newKiIN.sinfo then
