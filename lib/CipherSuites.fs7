@@ -76,21 +76,24 @@ val cipherSuiteRequiresKeyExchange: cipherSuite -> bool
 val canEncryptPMS: cipherSuite -> bool
 val contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV: cipherSuites -> bool
 val verifyDataLen_of_ciphersuite: cipherSuite -> int
-val prfHashAlg_of_ciphersuite: cipherSuite -> hashAlg
-val verifyDataHashAlg_of_ciphersuite: cipherSuite -> hashAlg
+val prfHashAlg_of_ciphersuite: cipherSuite  -> hashAlg
+val verifyDataHashAlg_of_ciphersuite: cs:cipherSuite -> hashAlg
 
-val macAlg_of_ciphersuite: cipherSuite -> hashAlg
+val macAlg_of_ciphersuite: cs:cipherSuite -> hashAlg
 val encAlg_of_ciphersuite: cipherSuite -> cipherAlg
 
-val cipherSuiteBytes: c:cipherSuite -> b:bytes{Length(b)=2}
-val cipherSuite_of_bytes: b:bytes{Length(b)=2} -> cipherSuite Result
+function val CipherSuiteBytes: cipherSuite -> bytes 
+function val CipherSuitesBytes: cipherSuites -> bytes
+ 
+val cipherSuiteBytes: c:cipherSuite -> b:bytes{Length(b)=2 /\ b = CipherSuiteBytes(c)}
+val cipherSuite_of_bytes: b:bytes{Length(b)=2} -> (c:cipherSuite{b = CipherSuiteBytes(c)}) Result
 
-function val CipherSuitesBytes: cipherSuites -> bytes 
 // this parsing function may fail if b has the wrong length,
 // or if we were strict on unknown ciphersuites
 val parseCipherSuites: b:bytes -> (css:cipherSuites {b=CipherSuitesBytes(css)}) Result
 val bytes_of_cipherSuites: css:cipherSuites -> b:bytes {b=CipherSuitesBytes(css)}
 
+val mkIntTriple: (int * int * int) -> (int * int * int)
 val getKeyExtensionLength: ProtocolVersion -> cipherSuite -> int
 
 val PVRequiresExplicitIV: ProtocolVersion -> bool

@@ -174,6 +174,7 @@ let cipherSuiteBytes cs =
 
     | SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV)            -> [| 0x00uy; 0xFFuy |]
 
+(* KB: Must define known cipher suites as a predicate before typechecking the following: *)
     | _ -> unexpectedError "[bytearray_of_ciphersuite] invoked on an unknown ciphersuite"
 
 // called by the server handshake; 
@@ -268,12 +269,14 @@ let verifyDataHashAlg_of_ciphersuite (cs:cipherSuite) =
     | SCSV (_)                -> unexpectedError "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
     | _ -> unexpectedError "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
 
+let mkIntTriple x:(int*int*int) = x
+
 let getKeyExtensionLength pv cs =
     let (keySize, hashSize, IVSize ) =
         match cs with
         | CipherSuite (_, EncMAC(cAlg, hAlg)) ->
             match pv with
-            | SSL_3p0 | TLS_1p0 -> ((encKeySize cAlg), (ivSize cAlg), (macKeySize hAlg))
+            | SSL_3p0 | TLS_1p0 -> mkIntTriple ((encKeySize cAlg), (ivSize cAlg), (macKeySize hAlg)) 
             | TLS_1p1 | TLS_1p2 -> ((encKeySize cAlg),             0, (macKeySize hAlg)) (* TLS 1.1: no implicit IV *)
         | CipherSuite (_, AEAD(cAlg, hAlg)) -> ((aeadKeySize cAlg), (aeadIVSize cAlg), (macKeySize hAlg))
         | OnlyMACCipherSuite (_,hAlg) -> (0,0,macKeySize hAlg)

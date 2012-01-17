@@ -35,8 +35,8 @@ predicate type preds =
   | NonNullCipherSettings of ccs_data
   | TLSVersion of Formats.ProtocolVersion
 
-type (;ki:KeyInfo) sendState = (;ki) cs:ConnectionState{SendConnState(cs)} // TODO: say something on ki.dir rather than on cs?
-type (;ki:KeyInfo) recvState = (;ki) cs:ConnectionState{RecvConnState(cs)}
+type (;ki:KeyInfo) sendState = cs:((;ki) ConnectionState){SendConnState(cs)} // TODO: say something on ki.dir rather than on cs?
+type (;ki:KeyInfo) recvState = cs:((;ki) ConnectionState){RecvConnState(cs)}
 
 function type funs = 
   | OutDir of SessionInfo
