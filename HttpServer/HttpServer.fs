@@ -205,6 +205,7 @@ and HttpServer (localaddr : IPEndPoint, config : HttpServerConfig) =
 
     member private self.AcceptAndServe () =
         while true do
+            
             let peer = socket.AcceptTcpClient() in
                 try
                     let thread = Thread(ThreadStart(self.ClientHandler peer)) in

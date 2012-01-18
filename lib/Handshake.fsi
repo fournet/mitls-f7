@@ -6,7 +6,6 @@ open Error
 //open HS_msg
 open CipherSuites
 open TLSInfo
-open TLSPlain
 open TLSKey
 open AppCommon
 //open SessionDB
@@ -16,7 +15,16 @@ open AppCommon
 
 // protocol state  
 type pre_hs_state 
-type hs_state = pre_hs_state  
+type hs_state = pre_hs_state
+
+// protocol-specific abstract fragment,
+// and associated functions (never to be called with ideal functionality)
+type fragment
+val repr: KeyInfo -> int -> fragment -> Bytes.bytes
+val fragment: KeyInfo -> Bytes.bytes -> ((int * fragment) * Bytes.bytes)
+type ccsFragment
+val ccsRepr: KeyInfo -> int -> ccsFragment -> Bytes.bytes
+val ccsFragment: KeyInfo -> Bytes.bytes -> ((int * ccsFragment) * Bytes.bytes)
 
 (* Locally controlling handshake protocols *) 
 
@@ -75,7 +83,7 @@ val recvCCS     : KeyInfo -> hs_state -> int -> fragment -> ccs_data Result * hs
 type HSFragReply =
   | EmptyHSFrag              (* nothing to send *) 
   | HSFrag of                (int * fragment)
-  | CCSFrag of               (int * fragment) (* the unique one-byte CCS *) * (KeyInfo * ccs_data)
+  | CCSFrag of               (int * ccsFragment) (* the unique one-byte CCS *) * (KeyInfo * ccs_data)
   | HSWriteSideFinished of   (int * fragment) (* signalling that this fragment ends the finished message *)
   | HSFullyFinished_Write of (int * fragment) * SessionDB.StorableSession
 val next_fragment: KeyInfo -> hs_state -> HSFragReply * hs_state
@@ -88,4 +96,4 @@ type recv_reply = (* the fragment is accepted, and... *)
   | HSReadSideFinished (* ? *) 
   | HSFullyFinished_Read of SessionDB.StorableSession (* we can start sending data on the connection *)  
 val recv_fragment: KeyInfo -> hs_state -> int -> fragment -> recv_reply Result * hs_state
-val recv_ccs     : KeyInfo -> hs_state -> int -> fragment -> ((KeyInfo * ccs_data) Result) * hs_state
+val recv_ccs     : KeyInfo -> hs_state -> int -> ccsFragment -> ((KeyInfo * ccs_data) Result) * hs_state

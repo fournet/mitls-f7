@@ -4,7 +4,6 @@ open Bytes
 open Error
 open Formats
 open TLSInfo
-open TLSPlain
 
 type alertLevel = 
     | AL_warning
@@ -18,6 +17,12 @@ type pre_al_state = {
 }
 
 type state = pre_al_state
+
+type fragment = {b:bytes}
+let repr (ki:KeyInfo) (i:int) f = f.b
+let fragment (ki:KeyInfo) b =
+    let (tl,f,r) = FragCommon.splitInFrag ki b in
+    ((tl,{b=f}),r)
 
 let init = {al_incoming = [||]; al_outgoing = [||]}
 
@@ -125,7 +130,7 @@ let next_fragment ki state =
     | [||] ->
         (EmptyALFrag, state)
     | d ->
-        let (frag,rem) = pub_fragment ki state.al_outgoing in
+        let (frag,rem) = fragment ki state.al_outgoing in
         let state = {state with al_outgoing = rem} in
         match rem with
         | [||] ->
@@ -160,8 +165,8 @@ let handle_alert state al =
         | AL_fatal ->   correct (ALClose (state))
         | AL_warning -> correct (ALAck   (state))
 
-let recv_fragment ki state tlen (fragment:fragment) =
-    let fragment = pub_fragment_to_bytes ki tlen fragment in
+let recv_fragment ki state tlen (data:fragment) =
+    let fragment = repr ki tlen data in
     match state.al_incoming with
     | [||] ->
         (* Empty buffer *)

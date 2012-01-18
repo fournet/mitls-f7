@@ -6,7 +6,6 @@ open Bytes
 open Error
 open Formats
 open TLSInfo
-open TLSPlain
 
 type alertLevel =
   | AL_warning
@@ -24,6 +23,12 @@ type (;siIN:SessionInfo,siOUT:SessionInfo) pre_al_state =
 
 predicate type preds =
     | AlertState of pre_al_state
+
+// protocol-specific abstract fragment,
+// and associated functions (never to be called with ideal functionality)
+type fragment
+val repr: KeyInfo -> int -> fragment -> Bytes.bytes
+val fragment: KeyInfo -> Bytes.bytes -> ((int * fragment) * Bytes.bytes)
 
 type (;siIN:SessionInfo,siOUT:SessionInfo) state = (als:pre_al_state){AlertState(als)}
 

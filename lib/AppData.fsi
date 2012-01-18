@@ -4,11 +4,9 @@
 
 module AppData
 
-open Bytes
-open Record
 open Error
 open TLSInfo
-open TLSPlain
+open AppDataPlain
 
 type pre_app_state
 type app_state = pre_app_state
@@ -24,13 +22,13 @@ val set_SessionInfo: app_state -> SessionInfo -> app_state
 (* Application data to/form application *)
 
 (* Enqueue app data in the output buffer *)
-val send_data: SessionInfo -> app_state -> bytes -> app_state
+val send_data: app_state -> SessionInfo -> lengths -> appdata -> app_state
 
 (* Tells whether the output buffer is empty *)
 val is_outgoing_empty: SessionInfo -> app_state -> bool
 
 (* Dequeue app data from the input buffer *)
-val retrieve_data: SessionInfo -> app_state -> (bytes * app_state)
+val retrieve_data: SessionInfo -> app_state -> (appdata * app_state)
 val is_incoming_empty: SessionInfo -> app_state -> bool
 
 (* Application data to/from dispatcher (hence record) *)

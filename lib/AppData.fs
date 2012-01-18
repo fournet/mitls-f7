@@ -1,11 +1,9 @@
 ﻿module AppData
 
-open Bytes
-open Record
 open Error
 open TLSInfo
-open TLSPlain
 open Formats
+open AppDataPlain
 
 type pre_app_state = {
   app_in_lengths: lengths
@@ -35,29 +33,27 @@ let set_SessionInfo app_state sinfo =
     {app_state with app_info = sinfo}
 *)
 
-let send_data si (state:app_state) (data:bytes) =
+let send_data (state:app_state) si lens (data:appdata) =
     (* TODO: different strategies are possible.
         - Append given data to already committed appdata, and re-schedule lengths
         - Ensure the current appdata is empty before committing to the new one,
            otherwise unexpectedError (and refinement types ensure this never happens)
        Currently we implement the latter *)
-    if is_empty_appdata state.app_outgoing then
-        let lengths = estimateLengths si (length data) in
-        let new_out = appdata si lengths data in
-        {state with app_outgoing = new_out; app_out_lengths = lengths}
+    if is_empty_appdata si state.app_outgoing then
+        {state with app_outgoing = data; app_out_lengths = lens}
     else
         unexpectedError "[send_data] should be invoked only when previously committed data are over."
 
 let is_outgoing_empty (si:SessionInfo) state =
-    is_empty_appdata state.app_outgoing
+    is_empty_appdata si state.app_outgoing
 
 let retrieve_data (si:SessionInfo) (state:app_state) =
-    let res = get_bytes si state.app_incoming in
+    let res = state.app_incoming in
     let state = reset_incoming si state in
     (res,state)
 
 let is_incoming_empty (si:SessionInfo) state =
-    is_empty_appdata state.app_incoming
+    is_empty_appdata si state.app_incoming
 
 let next_fragment ki state =
     if is_outgoing_empty ki.sinfo state then

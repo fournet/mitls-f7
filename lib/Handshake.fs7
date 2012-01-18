@@ -7,7 +7,6 @@ open HS_msg
 open Algorithms
 open CipherSuites
 open TLSInfo
-open TLSPlain
 open AppCommon
 open Principal
 open SessionDB
@@ -77,6 +76,12 @@ predicate type preds =
   | Compatible of KeyInfo * bytes * protocolOptions
 
 type hs_state = hs:pre_hs_state {HandshakeState(hs)}
+
+// protocol-specific abstract fragment,
+// and associated functions (never to be called with ideal functionality)
+type fragment
+val repr: KeyInfo -> int -> fragment -> Bytes.bytes
+val fragment: KeyInfo -> Bytes.bytes -> ((int * fragment) * Bytes.bytes)
 
 //CF: refine int * fragment
 type HSFragReply =

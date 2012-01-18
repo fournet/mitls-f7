@@ -27,7 +27,13 @@ let writeFully conn d =
 *)
 
 let write conn b =
-    Dispatch.commit conn b
+    // FIXME:
+    // The next three lines should be in the top level app,
+    // and the write function should take appdata
+    let si = getSessionInfo conn
+    let lengths = AppDataPlain.estimateLengths si (length b) in
+    let appdata = AppDataPlain.appdata si lengths b in
+    Dispatch.commit conn lengths appdata
 
 (*
 let write_buffer_empty conn =
@@ -40,7 +46,13 @@ let flush conn =
         | (Correct(),conn) -> (correct(), conn)
 
 let read conn =
-    readAppData conn
+    match readAppData conn with
+    | (Error(x,y),conn) -> (Error(x,y),conn)
+    | (Correct(appdata),conn) ->
+        // FIXME: next two lines should be in the top level app,
+        // and the read function should return appdata
+        let si = getSessionInfo conn
+        (correct(AppDataPlain.appdataBytes si appdata),conn)
 
 (*
 let dataAvailable conn =

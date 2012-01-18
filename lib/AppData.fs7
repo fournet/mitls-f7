@@ -4,7 +4,6 @@ open Bytes
 open Record
 open Error
 open TLSInfo
-open TLSPlain
 open Formats
 
 // type (;si:SessionInfo) appdata =

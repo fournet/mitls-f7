@@ -1,14 +1,12 @@
 ﻿module Handshake
 
 open Bytes
-open Record
 open Error
 open Formats
 open HS_msg
 open Algorithms
 open CipherSuites
 open TLSInfo
-open TLSPlain
 open TLSKey
 open AppCommon
 open Principal
@@ -72,6 +70,18 @@ type pre_hs_state = {
 
 type hs_state = pre_hs_state
 
+type fragment = {b:bytes}
+let repr (ki:KeyInfo) (i:int) f = f.b
+let fragment (ki:KeyInfo) b =
+    let (tl,f,r) = FragCommon.splitInFrag ki b in
+    ((tl,{b=f}),r)
+
+type ccsFragment = {ccsB:bytes}
+let ccsRepr (ki:KeyInfo) (i:int) f = f.ccsB
+let ccsFragment (ki:KeyInfo) b =
+    let (tl,f,r) = FragCommon.splitInFrag ki b in
+    ((tl,{ccsB=f}),r)
+
 let goToIdle state =
     let init_sessionInfo = null_sessionInfo state.poptions.minVer in
     match state.pstate with
@@ -109,7 +119,7 @@ let goToIdle state =
 type HSFragReply =
   | EmptyHSFrag
   | HSFrag of (int * fragment)
-  | CCSFrag of (int * fragment) * (KeyInfo * ccs_data)
+  | CCSFrag of (int * ccsFragment) * (KeyInfo * ccs_data)
   | HSWriteSideFinished of (int * fragment)
   | HSFullyFinished_Write of (int * fragment) * StorableSession
 
@@ -132,7 +142,7 @@ let next_fragment ki state =
             | CWaitingToWrite (cSpecState) ->
                 match state.ccs_outgoing with
                 | None ->
-                    let (f,rem) = pub_fragment ki state.hs_outgoing_after_ccs in
+                    let (f,rem) = fragment ki state.hs_outgoing_after_ccs in
                     let state = {state with hs_outgoing_after_ccs = rem} in
                     match rem with
                     | [||] ->
@@ -155,7 +165,7 @@ let next_fragment ki state =
                        the Finished message on our side *)
                     let state = {state with ccs_outgoing = None}
                     let (ccs,kiAndCCS) = data in
-                    let (frag,_) = pub_fragment ki ccs in
+                    let (frag,_) = ccsFragment ki ccs in
                     (CCSFrag (frag,kiAndCCS), state)
             | _ -> (EmptyHSFrag,state)
         | Server(sstate) ->
@@ -163,7 +173,7 @@ let next_fragment ki state =
             | SWaitingToWrite (sSpecState) ->
                 match state.ccs_outgoing with
                 | None ->
-                    let (f,rem) = pub_fragment ki state.hs_outgoing_after_ccs in
+                    let (f,rem) = fragment ki state.hs_outgoing_after_ccs in
                     let state = {state with hs_outgoing_after_ccs = rem} in
                     match rem with
                     | [||] ->
@@ -186,11 +196,11 @@ let next_fragment ki state =
                        the Finished message on our side *)
                     let state = {state with ccs_outgoing = None}
                     let (ccs,kiAndCCS) = data in
-                    let (frag,_) = pub_fragment ki ccs in
+                    let (frag,_) = ccsFragment ki ccs in
                     (CCSFrag (frag,kiAndCCS), state)
             | _ -> (EmptyHSFrag,state)
     | d ->
-        let (f,rem) = pub_fragment ki d in
+        let (f,rem) = fragment ki d in
         let state = {state with hs_outgoing = rem} in
         (HSFrag(f),state)
 
@@ -1813,14 +1823,14 @@ let enqueue_fragment state fragment =
 let recv_fragment ki (state:hs_state) (tlen:int) (fragment:fragment) =
     (* Note, we receive fragments in the current session, not the one we're establishing *)
     (* FIXME: This session might be wrong, in the CCS/Finished/FullyFinished(Idle) transition. But we don't care now *)
-    let fragment = pub_fragment_to_bytes ki tlen fragment in
+    let fragment = repr ki tlen fragment in
     let state = enqueue_fragment state fragment in
     match state.pstate with
     | Client (_) -> recv_fragment_client ki state None
     | Server (_) -> recv_fragment_server ki state None
 
-let recv_ccs ki (state: hs_state) (tlen:int) (fragment:fragment): ((KIAndCCS Result) * hs_state) =
-    let fragment = pub_fragment_to_bytes ki tlen fragment in
+let recv_ccs ki (state: hs_state) (tlen:int) (fragment:ccsFragment): ((KIAndCCS Result) * hs_state) =
+    let fragment = ccsRepr ki tlen fragment in
     if equalBytes fragment CCSBytes then  
         match state.pstate with
         | Client (cstate) -> // Check we are in the right state (CCCS) 

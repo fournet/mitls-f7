@@ -2,12 +2,12 @@
 
 open Bytes
 open Formats
-open Record
+//open Record
 open Tcp
 open Error
 //open Handshake
-open AppData
-open Alert
+//open AppData
+//open Alert
 open TLSInfo
 open TLSKey
 open AppCommon
@@ -26,7 +26,7 @@ type dispatchState = predispatchState
 
 type dState = {
     disp: dispatchState;
-    conn: ConnectionState;
+    conn: Record.ConnectionState;
     }
 
 type preConnection = {
@@ -202,7 +202,7 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
   | _ ->
       let state = c.alert in
       match Alert.next_fragment id.id_out state with
-      | (EmptyALFrag,_) -> 
+      | (Alert.EmptyALFrag,_) -> 
           let hs_state = c.handshake in
           match Handshake.next_fragment id.id_out hs_state with 
           | (Handshake.EmptyHSFrag, _) ->
@@ -308,14 +308,14 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
                         | Correct(c) -> (correct(WriteAgain),Conn(id,c))
                     | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
                 | _ -> (Error(Dispatcher,InvalidState), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
-      | (ALFrag(tlen,f),new_al_state) ->        
+      | (Alert.ALFrag(tlen,f),new_al_state) ->        
         match send id.id_out c.ns c_write.conn tlen Alert f with 
         | Correct ss ->
             let new_write = {disp = Closing; conn = ss} in
             (correct (WriteAgain), Conn(id,{ c with alert = new_al_state;
                                                     write   = new_write } ))
         | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
-      | (LastALFrag(tlen,f),new_al_state) ->
+      | (Alert.LastALFrag(tlen,f),new_al_state) ->
         (* We're sending a fatal alert. Send it, then close both sending and receiving sides *)
         match send id.id_out c.ns c_write.conn tlen Alert f with 
         | Correct ss ->
@@ -324,7 +324,7 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
                             write = new_write}
             (correct (Done), closeConnection (Conn(id,c)))
         | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
-      | (LastALCloseFrag(tlen,f),new_al_state) ->
+      | (Alert.LastALCloseFrag(tlen,f),new_al_state) ->
         (* We're sending a close_notify alert. Send it, then only close our sending side.
            If we already received the other close notify, then reading is already closed,
            otherwise we wait to read it, then close. But do not close here. *)
@@ -404,16 +404,16 @@ let deliver (Conn(id,c)) ct tlen f =
 
   | Alert, x ->
     match Alert.recv_fragment id.id_in c.alert tlen f with
-    | Correct (ALAck(state)) ->
+    | Correct (Alert.ALAck(state)) ->
       let c_read = {c_read with disp = Closing} in
       let c = {c with read = c_read; alert = state} in
       (correct (ReadAgain), Conn(id,c))
-    | Correct (ALClose_notify (state)) ->
+    | Correct (Alert.ALClose_notify (state)) ->
         (* An outgoing close notify has already been buffered, if necessary *)
         (* Only close the reading side of the connection *)
         let new_read = {c_read with disp = Closed} in
         (correct (Abort), Conn(id, { c with read = new_read}))
-    | Correct (ALClose (state)) ->
+    | Correct (Alert.ALClose (state)) ->
         (* Other fatal alert, we close both sides of the connection *)
         let c = {c with alert = state}
         (correct (Abort), closeConnection (Conn(id,c)))
@@ -428,7 +428,7 @@ let recv (Conn(id,c)) =
     match Tcp.read c.ns 5 with // read & parse the header
     | Error (x,y)         -> Error(x,y)
     | Correct header ->
-        match parseHeader header with
+        match Record.parseHeader header with
         | Error(x,y)      -> Error(x,y)
         // enforce the protocol version (once established)
         | Correct (ct,pv,len) when c.read.disp = Init || pv = id.id_in.sinfo.protocol_version ->
@@ -518,8 +518,8 @@ and read c stopAt =
 
 let writeAppData conn = write conn TopLevel
 
-let commit (Conn(id,c)) b =
-    let new_appdata = AppData.send_data id.id_out.sinfo c.appdata b in
+let commit (Conn(id,c)) ls b =
+    let new_appdata = AppData.send_data c.appdata id.id_out.sinfo ls b in
     Conn(id,{c with appdata = new_appdata})
 
 (*
