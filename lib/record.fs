@@ -3,7 +3,6 @@
 open Bytes
 open Error
 open TLSInfo
-open TLSFragment
 open TLSKey
 open Formats
 open CipherSuites
@@ -17,7 +16,7 @@ open AEAD
 
 type ConnectionState = {
   key: recordKey;
-  iv3: ENC.iv3;
+  iv3: ENCKey.iv3;
   seqn: int; (* uint64 actually CF:TODO?*)
   }
 type sendState = ConnectionState
@@ -78,7 +77,7 @@ let getAEADKey key =
 
 (* This replaces send. It's not called send, since it doesn't send anything on the
    network *)
-let recordPacketOut ki conn tlen ct (fragment:fragment) =
+let recordPacketOut ki conn tlen ct fragment =
     (* No need to deal with compression. It is handled internally by TLSPlain,
        when returning us the next (already compressed!) fragment *)
     (*
@@ -89,13 +88,13 @@ let recordPacketOut ki conn tlen ct (fragment:fragment) =
     let (conn, payload) =
         match ki.sinfo.cipher_suite with
         | x when isNullCipherSuite x -> 
-            (conn,fragment_to_cipher ki tlen fragment)
+            (conn,TLSFragment.repr ki tlen fragment)
         | x when isOnlyMACCipherSuite x ->
             let key = getMACKey conn.key in
             let addData = makeAD ki conn ct in
-            let data = ad_fragment ki addData fragment in
-            let mac = Mac.MAC ki key (mac_plain_to_bytes data) in
-            (conn,fragment_mac_to_cipher ki tlen fragment (bytes_to_mac mac))
+            let data = MACPlain.MACPlain ki tlen addData fragment in
+            let mac = Mac.MAC {ki=ki;tlen=tlen} key data in
+            (conn, (TLSFragment.repr ki tlen fragment) @| (MACPlain.reprMACed ki mac))
         | _ ->
             let addData = makeAD ki conn ct in
             let key = getAEADKey conn.key in
@@ -136,7 +135,7 @@ let recordPacketIn ki conn len ct payload =
     let msgRes =
         match cs with
         | x when isNullCipherSuite x -> 
-            correct(conn,cipher_to_fragment ki len payload)
+            correct(conn, ki len payload)
         | x when isOnlyMACCipherSuite x ->
             let (msg,mac) = cipher_to_fragment_mac ki len payload in
             let data = makeAD ki conn ct in
