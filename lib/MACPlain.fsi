@@ -13,3 +13,5 @@ val reprMACPlain: KeyInfo -> MACPlain -> bytes
 type MACed
 val MACed: KeyInfo -> bytes -> MACed
 val reprMACed: KeyInfo -> MACed -> bytes
+
+// MAC-only ciphersuites

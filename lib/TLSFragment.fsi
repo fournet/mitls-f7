@@ -11,4 +11,4 @@ type fragment =
     | FAlert of Alert.fragment
     | FAppData of AppDataPlain.fragment
 val repr: KeyInfo -> int -> fragment -> bytes
-val fragment: KeyInfo -> bytes -> ContentType -> ((int * fragment) * bytes)
+val fragment: KeyInfo -> bytes -> ContentType -> (int * fragment)

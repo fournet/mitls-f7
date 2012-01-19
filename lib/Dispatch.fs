@@ -337,12 +337,12 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
         | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
 
 (* we have received, decrypted, and verified a record (ct,f); what to do? *)
-let deliver (Conn(id,c)) ct tlen f = 
+let deliver (Conn(id,c)) ct tlen frag = 
   let c_read = c.read in
   match c_read.disp with
   | Closed -> (correct(Abort),Conn(id,c))
   | _ ->
-  match (ct,f,c_read.disp) with 
+  match (ct,frag,c_read.disp) with 
 
   | Handshake, TLSFragment.FHandshake(f), x when x = Init || x = FirstHandshake || x = Finishing || x = Open ->
     match Handshake.recv_fragment id.id_in c.handshake tlen f with

@@ -19,7 +19,7 @@ let repr ki tlen frag =
 
 let fragment ki b ct =
     match ct with
-    | Handshake -> let ((tlen,f),b) = Handshake.fragment ki b in ((tlen,FHandshake(f)),b)
-    | Change_cipher_spec -> let ((tlen,f),b) = Handshake.ccsFragment ki b in ((tlen,FCCS(f)),b)
-    | Alert -> let ((tlen,f),b) = Alert.fragment ki b in ((tlen,FAlert(f)),b)
-    | Application_data -> let ((tlen,f),b) = AppDataPlain.fragment ki b in ((tlen,FAppData(f)),b)
+    | Handshake -> let ((tlen,f),b) = Handshake.fragment ki b in (tlen,FHandshake(f))
+    | Change_cipher_spec -> let ((tlen,f),b) = Handshake.ccsFragment ki b in (tlen,FCCS(f))
+    | Alert -> let ((tlen,f),b) = Alert.fragment ki b in (tlen,FAlert(f))
+    | Application_data -> let ((tlen,f),b) = AppDataPlain.fragment ki b in (tlen,FAppData(f))
