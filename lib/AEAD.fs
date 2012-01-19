@@ -40,9 +40,9 @@ let encrypt ki key iv3 clen data plain =
     match key with
     | MtE (macKey,encKey) ->
         //CF no, we need some TLSPlain.MAC. And encrypt cannot fail. 
-        let text = ad_fragment ki data plain in
-        let mac = Mac.MAC ki macKey (mac_plain_to_bytes text) in
-        let toEncrypt = concat_fragment_mac_pad ki clen plain (bytes_to_mac mac) in
+        let text = MACPlain.MACPlain ki clen data plain in
+        let mac = Mac.MAC {ki=ki;tlen=clen} macKey text in
+        let toEncrypt = Plain.prepare ki clen plain mac in
         ENC.ENC ki encKey iv3 toEncrypt
 
 (* CF: commenting out until we get a chance to discuss:            

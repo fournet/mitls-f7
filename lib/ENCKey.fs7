@@ -1,0 +1,11 @@
+﻿module ENCKey
+
+open Bytes
+
+type key
+(* Only to be used by PRFs module, when generating keys from keyblob *)
+val bytes_to_key: bytes -> key
+type iv = bytes
+type iv3 =
+    | SomeIV of iv
+    | NoIV of unit

@@ -3,16 +3,16 @@
 open TLSInfo
 
 type AEADKey =
-    | MtE of Mac.key * ENC.symKey
+    | MtE of MACKey.key * ENCKey.key
  (* | GCM of GCM.GCMSalt * GCM.GCMKey *)
 
 type recordKey =
     | RecordAEADKey of AEADKey
-    | RecordMACKey of Mac.key
+    | RecordMACKey of MACKey.key
     | NoneKey
 
 type ccs_data =
     { key: recordKey;
-      iv3: ENC.iv3;
+      iv3: ENCKey.iv3;
     }
 val nullCCSData: KeyInfo -> ccs_data

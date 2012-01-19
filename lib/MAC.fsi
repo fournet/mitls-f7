@@ -4,20 +4,9 @@ open Bytes
 open Algorithms
 // open TLSInfo
 
-type id = TLSInfo.KeyInfo
-
-val keysize: id -> int 
-type keybytes = bytes
-type key = {bytes:keybytes}
+type id = {ki:TLSInfo.KeyInfo; tlen:int}
 
 val tagsize: id -> int
-type tag = bytes
 
-type text = bytes
-
-val GEN: id -> key
-val MAC:    id -> key -> text -> tag
-val VERIFY: id -> key -> text -> tag -> bool
-val LEAK:   id -> key -> keybytes
-val COERCE: id -> keybytes -> key
-
+val MAC:    id -> MACKey.key -> MACPlain.MACPlain -> MACPlain.MACed
+val VERIFY: id -> MACKey.key -> MACPlain.MACPlain -> MACPlain.MACed -> bool

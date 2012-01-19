@@ -5,15 +5,8 @@ open Error
 open Algorithms
 open CipherSuites
 open TLSInfo
-open TLSPlain
 open Formats
 
-type symKey = {bytes:bytes}
-let bytes_to_key b = {bytes = b}
-type iv = bytes
-type iv3 =
-    | SomeIV of iv
-    | NoIV of unit
 type cipher = bytes
 
 (* Raw symmetric enc/dec functions -- 
@@ -43,30 +36,34 @@ let symDecrypt dec (data:bytes) =
     let _ =  crs.Read(plain,0,plain.Length) in
     plain
 
-let aesEncrypt (key:symKey) iv data =
+let aesEncrypt ki key iv data =
     let aes = new System.Security.Cryptography.AesManaged() in
-    aes.KeySize <- 8 * key.bytes.Length
+    let k = ENCKey.LEAK ki key
+    aes.KeySize <- 8 * length k
     aes.Padding <- System.Security.Cryptography.PaddingMode.None
-    let enc = aes.CreateEncryptor(key.bytes,iv) in
+    let enc = aes.CreateEncryptor(k,iv) in
     symEncrypt enc data
 
-let aesDecrypt (key:symKey) iv (data:bytes) =
+let aesDecrypt ki key iv (data:bytes) =
     let aes = new System.Security.Cryptography.AesManaged() in
-    aes.KeySize <- 8 * key.bytes.Length
+    let k = ENCKey.LEAK ki key
+    aes.KeySize <- 8 * length k
     aes.Padding <- System.Security.Cryptography.PaddingMode.None;
-    let dec = aes.CreateDecryptor(key.bytes,iv) in
+    let dec = aes.CreateDecryptor(k,iv) in
     symDecrypt dec data
        
-let tdesEncrypt (key:symKey) iv data =
+let tdesEncrypt ki key iv data =
     let tdes = new System.Security.Cryptography.TripleDESCryptoServiceProvider() in
     tdes.Padding <- System.Security.Cryptography.PaddingMode.None
-    let enc = tdes.CreateEncryptor(key.bytes,iv) in
+    let k = ENCKey.LEAK ki key
+    let enc = tdes.CreateEncryptor(k,iv) in
     symEncrypt enc data
 
-let tdesDecrypt (key:symKey) iv (data:bytes) =
+let tdesDecrypt ki key iv (data:bytes) =
     let tdes = new System.Security.Cryptography.TripleDESCryptoServiceProvider() in
     tdes.Padding <- System.Security.Cryptography.PaddingMode.None;
-    let dec = tdes.CreateDecryptor(key.bytes,iv) in
+    let k = ENCKey.LEAK ki key
+    let dec = tdes.CreateDecryptor(k,iv) in
     symDecrypt dec data
 
 (* Early TLS chains IVs but this is not secure against adaptive CPA *)
@@ -80,18 +77,18 @@ let ENC ki key iv3 data =
     let ivl = ivSize alg in
     let iv =
         match iv3 with
-        | SomeIV(b) -> b
-        | NoIV()    -> mkRandom ivl in
-    let data = plain_to_bytes data in
+        | ENCKey.SomeIV(b) -> b
+        | ENCKey.NoIV()    -> mkRandom ivl in
+    let d = Plain.repr ki data in
     let cipher =
         match alg with
-        | TDES_EDE_CBC -> tdesEncrypt key iv data
-        | AES_128_CBC  -> aesEncrypt  key iv data
-        | AES_256_CBC  -> aesEncrypt  key iv data
+        | TDES_EDE_CBC -> tdesEncrypt ki key iv d
+        | AES_128_CBC  -> aesEncrypt  ki key iv d
+        | AES_256_CBC  -> aesEncrypt  ki key iv d
         | RC4_128      -> unexpectedError "[ENC] invoked on stream cipher"
     match iv3 with
-    | SomeIV(_) -> (SomeIV(lastblock cipher ivl), cipher)
-    | NoIV()    -> (NoIV(), iv @| cipher)
+    | ENCKey.SomeIV(_) -> (ENCKey.SomeIV(lastblock cipher ivl), cipher)
+    | ENCKey.NoIV()    -> (ENCKey.NoIV(), iv @| cipher)
 
 let DEC ki key iv3 cipher =
     (* Should never be invoked on a stream (right now) encryption algorithm *)
@@ -99,15 +96,15 @@ let DEC ki key iv3 cipher =
     let ivl = ivSize alg 
     let (iv,cipher) =
         match iv3 with
-        | SomeIV (iv) -> (iv,cipher)
-        | NoIV ()     -> split cipher ivl
+        | ENCKey.SomeIV (iv) -> (iv,cipher)
+        | ENCKey.NoIV ()     -> split cipher ivl
     let data =
         match alg with
-        | TDES_EDE_CBC -> tdesDecrypt key iv cipher
-        | AES_128_CBC  -> aesDecrypt  key iv cipher
-        | AES_256_CBC  -> aesDecrypt  key iv cipher
+        | TDES_EDE_CBC -> tdesDecrypt ki key iv cipher
+        | AES_128_CBC  -> aesDecrypt  ki key iv cipher
+        | AES_256_CBC  -> aesDecrypt  ki key iv cipher
         | RC4_128      -> unexpectedError "[DEC] invoked on stream cipher"
-    let data = bytes_to_plain data in
+    let d = Plain.plain ki data in
     match iv3 with
-    | SomeIV(_) -> (SomeIV(lastblock cipher ivl), data)
-    | NoIV()    -> (NoIV(), data)
+    | ENCKey.SomeIV(_) -> (ENCKey.SomeIV(lastblock cipher ivl), d)
+    | ENCKey.NoIV()    -> (ENCKey.NoIV(), d)

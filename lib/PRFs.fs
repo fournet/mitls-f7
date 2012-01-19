@@ -205,9 +205,9 @@ let splitKeys outKi (inKi:KeyInfo) (blob:keyBlob) =
     let sek = Array.sub key_block (2*macKeySize+encKeySize) encKeySize in
     let civ = Array.sub key_block (2*macKeySize+2*encKeySize) ivsize in
     let siv = Array.sub key_block (2*macKeySize+2*encKeySize+ivsize) ivsize in
-    ( Mac.COERCE outKi cmk, 
-      Mac.COERCE inKi smk, 
-      ENC.bytes_to_key cek, 
-      ENC.bytes_to_key sek, 
+    ( MACKey.COERCE outKi cmk, 
+      MACKey.COERCE inKi  smk, 
+      ENCKey.COERCE outKi cek, 
+      ENCKey.COERCE inKi  sek, 
       civ, 
       siv)

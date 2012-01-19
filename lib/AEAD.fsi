@@ -6,5 +6,5 @@ open TLSInfo
 open TLSFragment
 open TLSKey
 
-val encrypt: KeyInfo -> AEADKey -> ENC.iv3 -> int -> add_data -> fragment -> (ENC.iv3 * ENC.cipher)
-val decrypt: KeyInfo -> AEADKey -> ENC.iv3 -> int -> add_data -> ENC.cipher -> (ENC.iv3 * fragment) Result
+val encrypt: KeyInfo -> AEADKey -> ENCKey.iv3 -> int -> MACPlain.addData -> fragment -> (ENCKey.iv3 * ENC.cipher)
+val decrypt: KeyInfo -> AEADKey -> ENCKey.iv3 -> int -> MACPlain.addData -> ENC.cipher -> (ENCKey.iv3 * fragment) Result
