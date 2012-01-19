@@ -5,7 +5,7 @@ open Tcp
 open Formats
 open Error
 open TLSInfo
-open TLSPlain
+open TLSFragment
 open TLSKey
 open CipherSuites
 

@@ -5,7 +5,7 @@ open CipherSuites
 open Algorithms
 open TLSInfo
 open Error
-open TLSPlain
+open TLSFragment
 open TLSKey
 
 (* No way the following will typecheck. I use native byte/int conversions *)

@@ -1,6 +1,6 @@
 ﻿module AEAD
 
-open TLSPlain
+open TLSFragment
 open TLSKey
 
 val ENC: ki:KeyInfo -> (;ki) AEADKey -> (;ki) ENC.iv3 -> (;ki) add_data -> n:int -> (;ki) fragment -> ((;ki) ENC.iv3 * cipher)
