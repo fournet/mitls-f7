@@ -72,13 +72,15 @@ type hs_state = pre_hs_state
 
 type fragment = {b:bytes}
 let repr (ki:KeyInfo) (i:int) f = f.b
-let fragment (ki:KeyInfo) b =
+let fragment (ki:KeyInfo) (tlen:int) b = {b=b}
+let makeFragment ki b =
     let (tl,f,r) = FragCommon.splitInFrag ki b in
     ((tl,{b=f}),r)
 
 type ccsFragment = {ccsB:bytes}
 let ccsRepr (ki:KeyInfo) (i:int) f = f.ccsB
-let ccsFragment (ki:KeyInfo) b =
+let ccsFragment (ki:KeyInfo) (i:int) b = {ccsB=b}
+let makeCCSFragment ki b =
     let (tl,f,r) = FragCommon.splitInFrag ki b in
     ((tl,{ccsB=f}),r)
 
@@ -142,7 +144,7 @@ let next_fragment ki state =
             | CWaitingToWrite (cSpecState) ->
                 match state.ccs_outgoing with
                 | None ->
-                    let (f,rem) = fragment ki state.hs_outgoing_after_ccs in
+                    let (f,rem) = makeFragment ki state.hs_outgoing_after_ccs in
                     let state = {state with hs_outgoing_after_ccs = rem} in
                     match rem with
                     | [||] ->
@@ -165,7 +167,7 @@ let next_fragment ki state =
                        the Finished message on our side *)
                     let state = {state with ccs_outgoing = None}
                     let (ccs,kiAndCCS) = data in
-                    let (frag,_) = ccsFragment ki ccs in
+                    let (frag,_) = makeCCSFragment ki ccs in
                     (CCSFrag (frag,kiAndCCS), state)
             | _ -> (EmptyHSFrag,state)
         | Server(sstate) ->
@@ -173,7 +175,7 @@ let next_fragment ki state =
             | SWaitingToWrite (sSpecState) ->
                 match state.ccs_outgoing with
                 | None ->
-                    let (f,rem) = fragment ki state.hs_outgoing_after_ccs in
+                    let (f,rem) = makeFragment ki state.hs_outgoing_after_ccs in
                     let state = {state with hs_outgoing_after_ccs = rem} in
                     match rem with
                     | [||] ->
@@ -196,11 +198,11 @@ let next_fragment ki state =
                        the Finished message on our side *)
                     let state = {state with ccs_outgoing = None}
                     let (ccs,kiAndCCS) = data in
-                    let (frag,_) = ccsFragment ki ccs in
+                    let (frag,_) = makeCCSFragment ki ccs in
                     (CCSFrag (frag,kiAndCCS), state)
             | _ -> (EmptyHSFrag,state)
     | d ->
-        let (f,rem) = fragment ki d in
+        let (f,rem) = makeFragment ki d in
         let state = {state with hs_outgoing = rem} in
         (HSFrag(f),state)
 
@@ -217,9 +219,9 @@ type recv_reply =
 // we need a precise spec, as verifyData is a sereis of such messages.
 // private definition !ht,data. FragmentBytes(ht,data) = HTBytes(ht) @| VLBytes(3,data)
 
-let makeFragment ht data = htbytes ht @| vlbytes 3 data 
+let makeMessage ht data = htbytes ht @| vlbytes 3 data 
 
-let parseFragment state =
+let parseMessage state =
     (* Inefficient but simple implementation:
        every time we reparse the whole incoming buffer,
        searching for a full packet. When a full packet is found,
@@ -239,7 +241,7 @@ let parseFragment state =
 
 /// Hello Request 
 
-let makeHelloRequestBytes () = makeFragment HT_hello_request [||]
+let makeHelloRequestBytes () = makeMessage HT_hello_request [||]
 
 /// Extensions [could inline from HS_msg] 
 
@@ -414,7 +416,7 @@ let makeClientHelloBytes poptions session cVerifyData =
     let ccsuitesB  = vlbytes 2 (bytes_of_cipherSuites cHello.cipher_suites)
     let ccompmethB = vlbytes 1 (compressionMethodsBytes cHello.compression_methods) 
     let data = cVerB @| random @| csessB @| ccsuitesB @| ccompmethB @| cHello.extensions in
-    (makeFragment HT_client_hello data,random)
+    (makeMessage HT_client_hello data,random)
 
 /// Server Hello 
 
@@ -433,7 +435,7 @@ let makeServerHelloBytes poptions sinfo prevVerifData =
         else
             [||]
     let data = verB @| sRandom @| sidB @| csB @| cmB @| ext in
-    (makeFragment HT_server_hello data,sRandom)
+    (makeMessage HT_server_hello data,sRandom)
 
 let parseServerHello data =
     let (serverVerBytes,serverRandomBytes,data) = split2 data 2 32 
@@ -490,7 +492,7 @@ let certificatesBytes certList =
     
 let makeCertificateBytes cso =
     let cs = match cso with None -> [] | Some(cs) -> cs
-    makeFragment HT_certificate (certificatesBytes cs)
+    makeMessage HT_certificate (certificatesBytes cs)
 
 // we need something more general for parsing lists, e.g.
 let rec parseList parseOne b =
@@ -590,7 +592,7 @@ let makeCertificateRequestBytes cs version =
     (* We specify no cert auth *)
     let distNames = vlbytes 2 [||] in
     let data = certTypes @| sigAndAlg @| distNames in
-    makeFragment HT_certificate_request data
+    makeMessage HT_certificate_request data
 
 let parseCertificateRequest version data =
     match vlsplit 1 data with
@@ -622,7 +624,7 @@ let parseCertificateRequest version data =
     correct (res)
 
 let makeServerHelloDoneBytes unitVal =
-    makeFragment HT_server_hello_done [||]
+    makeMessage HT_server_hello_done [||]
 
 let makeClientKEXBytes state clSpecInfo =
     if canEncryptPMS state.hs_next_info.cipher_suite then
@@ -635,10 +637,10 @@ let makeClientKEXBytes state clSpecInfo =
             | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
             | Correct (encpms) ->
                 if state.hs_next_info.protocol_version = SSL_3p0 then
-                    correct ((makeFragment HT_client_key_exchange encpms),pms)
+                    correct ((makeMessage HT_client_key_exchange encpms),pms)
                 else
                     let encpms = vlbytes 2 encpms in
-                    correct ((makeFragment HT_client_key_exchange encpms),pms)
+                    correct ((makeMessage HT_client_key_exchange encpms),pms)
     else
         match clSpecInfo.must_send_cert with
         | Some (_) ->
@@ -649,16 +651,16 @@ let makeClientKEXBytes state clSpecInfo =
                 let ycBytes = [||] in
                 (* TODO: compute pms *)
                 let pms = empty_pms in
-                correct ((makeFragment HT_client_key_exchange ycBytes),pms)
+                correct ((makeMessage HT_client_key_exchange ycBytes),pms)
             | Some (cert) ->
                 (* TODO: check whether the certificate already contained suitable DH parameters *)
                 let pms = empty_pms in
-                correct ((makeFragment HT_client_key_exchange [||]),pms)
+                correct ((makeMessage HT_client_key_exchange [||]),pms)
         | None ->
             (* Use DH parameters *)
             let ycBytes = [||] in
             let pms = empty_pms in
-            correct ((makeFragment HT_client_key_exchange ycBytes),pms)
+            correct ((makeMessage HT_client_key_exchange ycBytes),pms)
 
 (* Obsolete *)
 (*
@@ -695,7 +697,7 @@ let makeCertificateVerifyBytes cert data pv certReqMsg=
                 let signed = vlbytes 2 signed in
                 let hashAlgBytes = bytes_of_int 1 (hashAlg_to_tls12enum hashAlg) in
                 let payload = hashAlgBytes @| SA_rsa @| signed in
-                correct (makeFragment HT_certificate_verify payload)
+                correct (makeMessage HT_certificate_verify payload)
     | TLS_1p0 | TLS_1p1 ->
         (* TODO *) Error(HSError(AD_internal_error),HSSendAlert)
     | SSL_3p0 ->
@@ -802,7 +804,7 @@ let checkVerifyData ki ms hsmsgs orig =
 
 let makeFinishedMsgBytes ki ms hsmsgs =
     let payload = prfVerifyData ki ms hsmsgs in
-    ((makeFragment HT_finished payload), payload)
+    ((makeMessage HT_finished payload), payload)
 
 (*
 let ciphstate_of_ciphtype ct key iv =
@@ -1100,7 +1102,7 @@ let start_hs_request (si:SessionInfo) (state:hs_state) (ops:protocolOptions) =
 //     and flatten the pattern matching. I tried to simplify this function on a clone below; I hope it is supported by F7
         
 let rec recv_fragment_client (ki:KeyInfo) (state:hs_state) (agreedVersion:ProtocolVersion Option) =
-    match parseFragment state with
+    match parseMessage state with
     | None ->
       match agreedVersion with
       | None      -> (correct (HSAck), state)
@@ -1604,7 +1606,7 @@ let prepare_server_output_resumption state =
     state
 
 let rec recv_fragment_server (ki:KeyInfo) (state:hs_state) (agreedVersion:ProtocolVersion Option) =
-    match parseFragment state with
+    match parseMessage state with
     | None ->
       match agreedVersion with
       | None      -> (correct (HSAck), state)

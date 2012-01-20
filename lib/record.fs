@@ -92,13 +92,15 @@ let recordPacketOut ki conn tlen ct fragment =
         | x when isOnlyMACCipherSuite x ->
             let key = getMACKey conn.key in
             let addData = makeAD ki conn ct in
-            let data = MACPlain.MACPlain ki tlen addData fragment in
+            let aeadF = TLSFragment.DispatchToAEAD ki tlen addData ct fragment in
+            let data = MACPlain.MACPlain ki tlen addData aeadF in
             let mac = Mac.MAC {ki=ki;tlen=tlen} key data in
             (conn, (TLSFragment.repr ki tlen fragment) @| (MACPlain.reprMACed ki mac))
         | _ ->
             let addData = makeAD ki conn ct in
+            let aeadF = TLSFragment.DispatchToAEAD ki tlen addData ct fragment in
             let key = getAEADKey conn.key in
-            let (newIV,payload) = AEAD.encrypt ki key conn.iv3 tlen addData fragment in
+            let (newIV,payload) = AEAD.encrypt ki key conn.iv3 tlen addData aeadF in
             let conn = {conn with iv3 = newIV} in
             (conn,payload)
     let conn = incN ki conn in
@@ -134,25 +136,25 @@ let recordPacketIn ki conn len ct payload =
     let cs = ki.sinfo.cipher_suite in
     let msgRes =
         match cs with
-        | x when isNullCipherSuite x -> 
-            correct(conn, ki len payload)
+        | x when isNullCipherSuite x ->
+            correct(conn, TLSFragment.fragment ki len payload ct)
         | x when isOnlyMACCipherSuite x ->
-            let (msg,mac) = cipher_to_fragment_mac ki len payload in
-            let data = makeAD ki conn ct in
-            let toVerify = ad_fragment ki data msg in
+            let ad = makeAD ki conn ct in
+            let (msg,mac) = MACPlain.parseNoPad ki len ad payload in
+            let toVerify = MACPlain.MACPlain ki len ad msg in
             let key = getMACKey conn.key in
-            if Mac.VERIFY ki key (mac_plain_to_bytes toVerify) (mac_to_bytes mac) then
-                correct(conn,msg)
+            if Mac.VERIFY {ki=ki;tlen=len} key toVerify mac then
+                correct(conn,TLSFragment.AEADToDispatch ki len ad ct msg)
             else
             Error(MAC,CheckFailed)
         | _ ->
-            let data = makeAD ki conn ct in
+            let ad = makeAD ki conn ct in
             let key = getAEADKey conn.key in
-            match AEAD.decrypt ki key conn.iv3 len data payload with
+            match AEAD.decrypt ki key conn.iv3 len ad payload with
             | Error(x,y) -> Error(x,y)
             | Correct (newIV, plain) ->
                 let conn = {conn with iv3 = newIV} in
-                correct (conn,plain)
+                correct (conn,TLSFragment.AEADToDispatch ki len ad ct plain)
     match msgRes with
     | Error(x,y) -> Error(x,y)
     | Correct (conn,msg) ->

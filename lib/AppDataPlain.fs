@@ -58,6 +58,4 @@ let app_fragment (ki:KeyInfo) lens (appdata:appdata) : ((int * fragment) * (leng
     | [] -> ((0,{b = [||]}),(lens,appdata))
 
 let repr (ki:KeyInfo) (i:int) f = f.b
-let fragment (ki:KeyInfo) b =
-    let (tl,f,r) = FragCommon.splitInFrag ki b in
-    ((tl,{b=f}),r)
+let fragment (ki:KeyInfo) (i:int) b = {b=b}

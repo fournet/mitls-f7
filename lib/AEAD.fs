@@ -42,7 +42,7 @@ let encrypt ki key iv3 clen data plain =
         //CF no, we need some TLSPlain.MAC. And encrypt cannot fail. 
         let text = MACPlain.MACPlain ki clen data plain in
         let mac = Mac.MAC {ki=ki;tlen=clen} macKey text in
-        let toEncrypt = Plain.prepare ki clen plain mac in
+        let toEncrypt = Plain.prepare ki clen data plain mac in
         ENC.ENC ki encKey iv3 toEncrypt
 
 (* CF: commenting out until we get a chance to discuss:            
@@ -79,12 +79,12 @@ let CF_decrypt ki k state data cipher =
 //  | GCM (GCMKey) -> ... 
 *)
 
-let decrypt ki key iv tlen data cipher =
+let decrypt ki key iv tlen ad cipher =
     match key with
     | MtE (macKey, encKey) ->
         let (iv3,compr_and_mac_and_pad) = ENC.DEC ki encKey iv cipher in
-        let (mustFail,(compr,mac)) = split_mac ki tlen compr_and_mac_and_pad in
-        let toVerify = ad_fragment ki data compr in
+        let (mustFail,(compr,mac)) = Plain.parse ki tlen ad compr_and_mac_and_pad in
+        let toVerify = MACPlain.MACPlain ki tlen ad compr in
         (* If mustFail is true, it means some padding error occurred.
             If in early versions of TLS, insecurely report a padding error now *)
         match ki.sinfo.protocol_version with
@@ -92,12 +92,12 @@ let decrypt ki key iv tlen data cipher =
             if mustFail then
                 Error(RecordPadding,CheckFailed)
             else
-                if Mac.VERIFY ki macKey (mac_plain_to_bytes toVerify) (mac_to_bytes mac) then
+                if Mac.VERIFY {ki=ki;tlen=tlen} macKey toVerify mac then
                     correct(iv3,compr)
                 else
                     Error(MAC,CheckFailed)
         | TLS_1p1 | TLS_1p2 ->
-            if Mac.VERIFY ki macKey (mac_plain_to_bytes toVerify) (mac_to_bytes mac) then
+            if Mac.VERIFY {ki=ki;tlen=tlen} macKey toVerify mac then
                 if mustFail then
                     Error(MAC,CheckFailed)
                 else

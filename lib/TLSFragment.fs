@@ -17,9 +17,17 @@ let repr ki tlen frag =
     | FAlert(f) -> Alert.repr ki tlen f
     | FAppData(f) -> AppDataPlain.repr ki tlen f
 
-let fragment ki b ct =
+let fragment ki tlen b ct =
     match ct with
-    | Handshake -> let ((tlen,f),b) = Handshake.fragment ki b in (tlen,FHandshake(f))
-    | Change_cipher_spec -> let ((tlen,f),b) = Handshake.ccsFragment ki b in (tlen,FCCS(f))
-    | Alert -> let ((tlen,f),b) = Alert.fragment ki b in (tlen,FAlert(f))
-    | Application_data -> let ((tlen,f),b) = AppDataPlain.fragment ki b in (tlen,FAppData(f))
+    | Handshake ->          FHandshake(Handshake.fragment ki tlen b)
+    | Change_cipher_spec -> FCCS(Handshake.ccsFragment ki tlen b)
+    | Alert ->              FAlert(Alert.fragment ki tlen b)
+    | Application_data ->   FAppData(AppDataPlain.fragment ki tlen b)
+
+type addData = bytes
+type AEADFragment = {b:bytes}
+let AEADFragment (ki:KeyInfo) (i:int) (ad:addData) b = {b=b}
+let AEADRepr (ki:KeyInfo) (i:int) (ad:addData) f = f.b
+
+let AEADToDispatch (ki:KeyInfo) (i:int) (ad:addData) (ct:ContentType) aead = fragment ki i aead.b ct
+let DispatchToAEAD (ki:KeyInfo) (i:int) (ad:addData) (ct:ContentType) disp = {b = repr ki i disp}

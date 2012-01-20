@@ -12,7 +12,7 @@ type state = pre_al_state
 // and associated functions (never to be called with ideal functionality)
 type fragment
 val repr: KeyInfo -> int -> fragment -> Bytes.bytes
-val fragment: KeyInfo -> Bytes.bytes -> ((int * fragment) * Bytes.bytes)
+val fragment: KeyInfo -> int -> Bytes.bytes -> fragment
 
 type ALFragReply =
     | EmptyALFrag

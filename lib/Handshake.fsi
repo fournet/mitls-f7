@@ -21,10 +21,10 @@ type hs_state = pre_hs_state
 // and associated functions (never to be called with ideal functionality)
 type fragment
 val repr: KeyInfo -> int -> fragment -> Bytes.bytes
-val fragment: KeyInfo -> Bytes.bytes -> ((int * fragment) * Bytes.bytes)
+val fragment: KeyInfo -> int -> Bytes.bytes -> fragment
 type ccsFragment
 val ccsRepr: KeyInfo -> int -> ccsFragment -> Bytes.bytes
-val ccsFragment: KeyInfo -> Bytes.bytes -> ((int * ccsFragment) * Bytes.bytes)
+val ccsFragment: KeyInfo -> int -> Bytes.bytes -> ccsFragment
 
 (* Locally controlling handshake protocols *) 
 

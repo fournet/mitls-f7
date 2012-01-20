@@ -20,7 +20,8 @@ type state = pre_al_state
 
 type fragment = {b:bytes}
 let repr (ki:KeyInfo) (i:int) f = f.b
-let fragment (ki:KeyInfo) b =
+let fragment (ki:KeyInfo) (i:int) b = {b=b}
+let makeFragment ki b =
     let (tl,f,r) = FragCommon.splitInFrag ki b in
     ((tl,{b=f}),r)
 
@@ -130,7 +131,7 @@ let next_fragment ki state =
     | [||] ->
         (EmptyALFrag, state)
     | d ->
-        let (frag,rem) = fragment ki state.al_outgoing in
+        let (frag,rem) = makeFragment ki state.al_outgoing in
         let state = {state with al_outgoing = rem} in
         match rem with
         | [||] ->

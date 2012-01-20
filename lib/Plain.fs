@@ -12,18 +12,18 @@ let repr (ki:KeyInfo) p = p.p
 
 let pad (p:int)  = Array.create p (byte (p-1))
 
-let prepare (ki:KeyInfo) tlen data tag =
-    let d = TLSFragment.repr ki tlen data
+let prepare (ki:KeyInfo) tlen ad data tag =
+    let d = TLSFragment.AEADRepr ki tlen ad data
     let t = MACPlain.reprMACed ki tag
     let p = tlen - length d - length t  
     {p = d @| t @| pad p}
 
-let parse ki tlen ct plain =
+let parse ki tlen ad plain =
     let macSize = macSize (macAlg_of_ciphersuite ki.sinfo.cipher_suite) in
     let p = repr ki plain
-    // assert length d = tlen
+    // assert length p = tlen
     let (tmpdata, padlenb) = split p (tlen - 1) in
-    let padlen = int padlenb.[0] in
+    let padlen = int_of_bytes padlenb in
     // use instead, as this is untrusted anyway:
     // let padlen = (int plain.[length plain - 1]) + 1
     let padstart = tlen - padlen - 1 in
@@ -31,7 +31,9 @@ let parse ki tlen ct plain =
         (* Pretend we have a valid padding of length zero, but set we must fail *)
         let macStart = tlen - macSize - 1 in
         let (frag,mac) = split tmpdata macStart in
-        (true,(frag,MACt(mac)))
+        let aeadF = TLSFragment.AEADFragment ki tlen ad frag
+        let tag = MACPlain.MACed ki mac
+        (true,(aeadF,tag))
         (*
         (* Evidently padding has been corrupted, or has been incorrectly generated *)
         (* in TLS1.0 we fail now, in more recent versions we fail later, see sec.6.2.3.2 Implementation Note *)
@@ -50,14 +52,18 @@ let parse ki tlen ct plain =
         | TLS_1p0 | TLS_1p1 | TLS_1p2 ->
             let expected = Array.create padlen (byte padlen) in
             if equalBytes expected pad then
-                let macStart = plainLen - macSize - padlen - 1 in
+                let macStart = tlen - macSize - padlen - 1 in
                 let (frag,mac) = split data_no_pad macStart in
-                (false,({bytes=frag},MACt(mac)))
+                let aeadF = TLSFragment.AEADFragment ki tlen ad frag
+                let tag = MACPlain.MACed ki mac
+                (false,(aeadF,tag))
             else
                 (* Pretend we have a valid padding of length zero, but set we must fail *)
-                let macStart = plainLen - macSize - 1 in
+                let macStart = tlen - macSize - 1 in
                 let (frag,mac) = split tmpdata macStart in
-                (true,({bytes=frag},MACt(mac)))
+                let aeadF = TLSFragment.AEADFragment ki tlen ad frag
+                let tag = MACPlain.MACed ki mac
+                (true,(aeadF,tag))
                 (*
                 (* in TLS1.0 we fail now, in more recent versions we fail later, see sec.6.2.3.2 Implementation Note *)
                 if  v = TLS_1p0 then
@@ -75,15 +81,19 @@ let parse ki tlen ct plain =
             let bs = blockSize encAlg in
             if padlen >= bs then
                 (* Pretend we have a valid padding of length zero, but set we must fail *)
-                let macStart = plainLen - macSize - 1 in
+                let macStart = tlen - macSize - 1 in
                 let (frag,mac) = split tmpdata macStart in
-                (true,({bytes=frag},MACt(mac)))
+                let aeadF = TLSFragment.AEADFragment ki tlen ad frag
+                let tag = MACPlain.MACed ki mac
+                (true,(aeadF,tag))
                 (*
                 (* Insecurely report the error. Only TLS 1.1 and above should
                    be secure with this respect *)
                 Error (RecordPadding,CheckFailed)
                 *)
             else
-                let macStart = plainLen - macSize - padlen - 1 in
+                let macStart = tlen - macSize - padlen - 1 in
                 let (frag,mac) = split data_no_pad macStart in
-                (false,({bytes=frag},MACt(mac)))
+                let aeadF = TLSFragment.AEADFragment ki tlen ad frag
+                let tag = MACPlain.MACed ki mac
+                (false,(aeadF,tag))
