@@ -3,8 +3,8 @@
 open TLSFragment
 open TLSKey
 
-val ENC: ki:KeyInfo -> (;ki) AEADKey -> (;ki) ENC.iv3 -> (;ki) add_data -> n:int -> (;ki) fragment -> ((;ki) ENC.iv3 * cipher)
-val DEC: ki:KeyInfo -> (;ki) AEADKey -> (;ki) ENC.iv3 -> (;ki) add_data -> n:int -> cipher -> ((;ki) ENC.iv3 * (;ki) fragment) Result
+val encrypt: ki:KeyInfo -> (;ki) AEADKey -> (;ki) ENC.iv3 -> tlen:int -> ad:addData{?ct.ADofID(ki,tlen,ct,ad)} -> (;ad) AEADFragment -> ((;ki) ENC.iv3 * cipher)
+val decrypt: ki:KeyInfo -> (;ki) AEADKey -> (;ki) ENC.iv3 -> tlen:int -> ad:addData{?ct.ADofID(ki,tlen,ct,ad)} -> cipher -> ((;ki) ENC.iv3 * (;ad) fragment) Result
 
 
 (* TODOS: (KB: Done?) *)

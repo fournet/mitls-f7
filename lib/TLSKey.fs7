@@ -3,22 +3,23 @@
 open TLSInfo
 
 // not implemented in TLSKey, but in Algorithms
-function val KeySize: KeyInfo -> int
-definition !id. KeySize(id) = ENC.KeySize(id) + MAC.KeySize(id)
-val keysize: ki:KeyInfo -> n:int {n = KeySize(ki)}
-type (;ki:KeyInfo) keybytes = b:bytes {Length(b)=KeySize(ki)}
-private predicate type keypred = MtEKey of ki:KeyInfo * ((;ki) MAC.key * (;ki) ENC.key)
-private type (;ki:KeyInfo) AEADKey = 
-      MtE of ka:(;ki)MAC.key * ke:(;ki)ENC.symkey {MtEKey(ki,(ka,ke))}
+//function val KeySize: KeyInfo -> int
+//definition !id. KeySize(id) = ENC.KeySize(id) + MAC.KeySize(id)
+//val keysize: ki:KeyInfo -> n:int {n = KeySize(ki)}
+//type (;ki:KeyInfo) keybytes = b:bytes {Length(b)=KeySize(ki)}
+private predicate type keypred = MtEKey of ki:KeyInfo * ((;ki) MACKey.key * (;ki) ENCKey.key)
+
+type (;ki:KeyInfo) AEADKey = 
+      MtE of ka:(;ki)MACKey.key * ke:(;ki)ENCKey.key {MtEKey(ki,(ka,ke))}
 (*  |   GCM of ke:(;ki:AENC.key)  *)
 
 type (;ki:KeyInfo) recordKey =
     | RecordAEADKey of (;ki)AEADKey
-    | RecordMACKey of (;ki)Mac.key
+    | RecordMACKey of (;ki)MACKey.key
     | NoneKey
 
 type (;ki:KeyInfo) ccs_data =
     { key: (;ki) recordKey;
-      iv3: ENC.iv3;
+      iv3: (;ki) ENCKey.iv3;
     }
 val nullCCSData: ki:KeyInfo -> (;ki) ccs_data
