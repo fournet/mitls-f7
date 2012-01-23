@@ -87,7 +87,7 @@ formats.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 formats.fs7 formats.fs
 	$(f7t) -scripts formats Bytes.fs7 Error.fs7 formats.fs7 formats.fs 
 
 TLSInfo.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 Principal.fs7 TLSInfo.fs7 TLSInfo.fs
-	$(f7t) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 TLSInfo.fs7 TLSInfo.fs
+	$(f7t) -scripts TLSInfo Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 TLSInfo.fs7 TLSInfo.fs
 
 # trusting HASH.fs7 (mostly calling System.Security.Cryptography)
 # trusting HMAC.fs7 (mostly calling System.Security.Cryptography)

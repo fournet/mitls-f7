@@ -46,7 +46,8 @@ type KeyInfo = {
     }
 
 let null_KeyInfo dir minPV =
-    {sinfo = null_sessionInfo minPV;
+  let si = null_sessionInfo minPV in
+    {sinfo = si;
      dir = dir;
      crand = [||];
      srand = [||];
