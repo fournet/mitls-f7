@@ -9,7 +9,7 @@ type cipherSuite
 type cipherSuites = cipherSuite list
 
 type Compression =
-    | Null
+    | NullCompression
 
 type ProtocolVersion =
     | SSL_3p0

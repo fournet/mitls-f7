@@ -8,12 +8,6 @@ open Formats
 open CipherSuites
 open AEAD
 
-//CF to be enforced statically, inasmuch as possible
-// but then we probably need them for TLSPlain too
-//let max_TLSPlaintext_fragment_length  = 1<<<14
-//let max_TLSCompressed_fragment_length = 1<<<15
-//let max_TLSEncrypted_fragment_length  = 1<<<16
-
 type ConnectionState = {
   key: recordKey;
   iv3: ENCKey.iv3;

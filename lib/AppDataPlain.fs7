@@ -1,35 +1,50 @@
 ﻿module AppDataPlain
 
 open TLSInfo
+open Bytes
+open FragCommon
 
 // Application data (the full stream).
 // This abstract type must be implemented by the top level application using TLS.
 // Keeping it abstract allows us proving that our AppData module behavior
 // does not depend on the appdata
-type appdata
+type (;si:SessionInfo) appdata = {appD:bytes}
 
-// FIXME: appdata should embed lengths, and this should disappear from the AppData module
-type lengths = int list (* a list of desired ciphertext lengths *)
+type (;si:SessionInfo) lengths = int list (* a list of desired ciphertext lengths *)
+
+predicate CompatibleLengths of SessionInfo * nat * lengths
+//definition !si. CompatibleLengths(si,0,[]) (* we can also decompose 0 + 0 etc *)
+//definition !si,n,l,m,ls. //    ( CompatibleLengths(si,(n+m),(l::ls)) <=> //    (  CompatibleLength(si,n,l) /\ CompatibleLengths(si,m,ls) ) )
 
 // Interface to the AppData module
-val length: SessionInfo -> appdata -> int
-val estimateLengths: SessionInfo -> int -> lengths
-val empty_appdata: SessionInfo -> appdata
-val is_empty_appdata: SessionInfo -> appdata -> bool
+val length: si:SessionInfo -> (;si)appdata -> int
+val estimateLengths: si:SessionInfo -> n:nat -> l:lengths{CompatibleLengths(si,n,l)}
+
+val empty_appdata: si:SessionInfo -> d:(;si)appdata{Length(d.appD)=0}
+val is_empty_appdata: si:SessionInfo -> d:(;si)appdata -> r:bool{r=true => Length(d.appD)=0}
 
 // Constructors/Desctructors for appdata.
 // They should only be invoked by the top level application.
 // Right now, we invoke them from the top TLS module. But we could remove them from there,
 // make TLS use the appdata type, and for instance invoke them from TLStream, which is
 // already part of the top level application.
-val appdata: SessionInfo -> lengths -> Bytes.bytes -> appdata
-val appdataBytes: SessionInfo -> appdata -> Bytes.bytes
+val appdata: si:SessionInfo -> l:lengths -> b:bytes{CompatibleLength(si,Length(b),l)} -> (;si)appdata
+val appdataBytes: si:SessionInfo -> (;si)appdata -> bytes
 
 // A fragment of appdata
-type fragment
+type (;ki:KeyInfo,tlen:int) fragment = {b:bytes}
 
 (* Append the given fragment at the *bottom* of the current appdata *)
-val concat_fragment_appdata: KeyInfo -> int -> fragment -> lengths -> appdata -> (lengths * appdata)
+val concat_fragment_appdata: ki:KeyInfo -> l:int ->
+	f:(;ki,l)fragment{CompatibleLength(ki.sinfo,Length(f.b),l)} -> ls:lengths ->
+    d:(;ki.sinfo)appdata{CompatibleLengths(ki.sinfo,Length(d.appD),ls)} ->
+	(ls2:lengths * d2:appdata){CompatibleLengths(ki.sinfo,Length(d2.appD),ls2)}
 
 (* Exctract the *first* fragment from the *beginning* of appdata *)
-val app_fragment: KeyInfo -> lengths -> appdata ->  ((int * fragment) * (lengths * appdata))
+val app_fragment: ki:KeyInfo -> ls:lengths ->
+	d:(;si)appdata{CompatibleLengths(ki.sinfo,Length(d.appD),ls)} ->
+	((tlen:int * f:(;ki,tlen)fragment {CompatibleLength(ki.sinfo,tlen,Length(f.b))}) *
+	 (ls2:lengths * d2:appdata {CompatibleLengths(ki.sinfo,ls2,Length(d2.appD))}))
+
+val repr: ki:KeyInfo -> tlen:int -> (;ki,tlen)fragment -> bytes
+val fragment: ki:KeyInfo -> tlen:int -> bytes -> (;ki,tlen)fragment

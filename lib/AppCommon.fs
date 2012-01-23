@@ -10,6 +10,8 @@ type helloReqPolicy =
     | HRPFull
     | HRPResume
 
+type TimeSpan = System.TimeSpan
+
 type protocolOptions = {
     minVer: ProtocolVersion
     maxVer: ProtocolVersion
@@ -32,7 +34,7 @@ type protocolOptions = {
     
     (* Sessions database *)
     sessionDBFileName: string
-    sessionDBExpiry: System.TimeSpan
+    sessionDBExpiry: TimeSpan
     }
 
 let defaultCertificateValidationPolicy certList = true
@@ -48,7 +50,7 @@ let defaultProtocolOptions ={
                     [ TLS_RSA_WITH_AES_128_CBC_SHA;
                       TLS_RSA_WITH_3DES_EDE_CBC_SHA;
                     ]
-    compressions = [ Null ]
+    compressions = [ NullCompression ]
 
     honourHelloReq = HRPResume
     allowAnonCipherSuite = false

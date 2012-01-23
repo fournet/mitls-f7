@@ -8,6 +8,8 @@ open CipherSuites
 let max_TLSPlaintext_fragment_length = 16384 (* 2^14 *)
 let fragmentLength = max_TLSPlaintext_fragment_length (* use e.g. 1 for testing *)
 
+let max_TLSCipher_fragment_length = 16384 + 2048
+
 (* generate the minimal padding for payload len, in 1..blocksize *)
 // We need a typable version; not so hard (but we may need axioms on arrays)
 // by convention, all paddings include their length byte. 

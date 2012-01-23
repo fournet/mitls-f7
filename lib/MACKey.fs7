@@ -8,5 +8,3 @@ type (;ki:KeyInfo) key
 val GEN: ki:KeyInfo -> (;ki) key
 val LEAK:   ki:KeyInfo{Corrupt(ki)} -> (;ki)key -> bytes
 val COERCE: ki:KeyInfo{Corrupt(ki)} -> bytes -> (;ki)key
-
-assume !ki,t. Corrupt(ki) => Msg(ki,t)

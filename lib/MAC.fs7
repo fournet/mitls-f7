@@ -30,6 +30,9 @@ predicate val CMA: id -> bool
 
 // removed internal stuff for now 
 
+predicate Msg of KeyInfo * MACPlain.MACPlain
+assume !ki,t. Corrupt(ki) => Msg(ki,t)
+
 val MAC:    id:id -> k:(;id.ki) key -> t:(;id.ki,id.tlen)MACPlain.MACPlain{Msg(id.ki,id.tlen,t)} -> (;id.ki,id.tlen) tag
 val VERIFY: id:id -> k:(;id.ki) key -> t:(;id.ki,id.tlen)MACPlain.MACPlain -> (;id.ki,id.tlen) tag -> 
   v:bool{ (v=true (*/\ CMA(id)*) ) => Msg(id.ki,id.tlen,t) }

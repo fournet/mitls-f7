@@ -83,6 +83,7 @@
     <None Include="TLSKey.fs7" />
     <Compile Include="TLSKey.fsi" />
     <Compile Include="TLSKey.fs" />
+    <None Include="AppCommon.fs7" />
     <Compile Include="AppCommon.fsi" />
     <Compile Include="AppCommon.fs" />
     <None Include="SessionDB.fs7" />

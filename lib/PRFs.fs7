@@ -9,7 +9,7 @@ open Error
 (* Used when generating verifiData for the Finished message *)
 type (;si:SessionInfo) masterSecret
 val empty_masterSecret: si:SessionInfo ->  (;si) masterSecret
-val prfVerifyData: KeyInfo -> (;ki.sinfo) masterSecret ->
+val prfVerifyData: ki:KeyInfo -> (;ki.sinfo) masterSecret ->
                    bytes (* msgLog *) ->
                    bytes (* length depends on cs, 12 by default *)
 
@@ -40,4 +40,4 @@ val prfKeyExp: ki:KeyInfo -> (;ki.sinfo)masterSecret ->
                (* No seed (crandom @| srandom), it can be retrieved from KeyInfo (and not SessionInfo!) -> *)
                (;ki)keyBlob (* length depends on cs *)
 
-val splitKeys: out:KeyInfo -> (;out)keyBlob -> ((;out)MACKey.key * (;DualKeyInfo(out))MAC.macKey * (;out)ENCKey.key * (;DualKeyInfo(out))ENCKey.key * bytes * bytes)
+val splitKeys: out:KeyInfo -> (;out)keyBlob -> ((;out)MACKey.key * (;DualKeyInfo(out))MACKey.key * (;out)ENCKey.key * (;DualKeyInfo(out))ENCKey.key * bytes * bytes)

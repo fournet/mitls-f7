@@ -62,3 +62,5 @@ assume !k1. DualKeyInfo(k1) = {
 val dual_KeyInfo: k1:KeyInfo -> k2:KeyInfo{k2=DualKeyInfo(k1)}
 // We might need something like this -- and possibly more
 // definition !ki. NullKeyInfo(ki) => NullSessionInfo(ki.sinfo)
+
+predicate Corrupt of KeyInfo

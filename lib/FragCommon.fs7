@@ -3,6 +3,16 @@
 open Bytes
 open TLSInfo
 
-val fragmentLength: int
-val cipherLength: SessionInfo -> int -> int
-val splitInFrag: KeyInfo -> bytes -> (int * bytes * bytes)
+val max_TLSPlaintext_fragment_length: n:nat { n = 16384 (* 2^14 *) }
+val fragmentLength: n:nat{n <= max_TLSPlaintext_fragment_length}
+
+val max_TLSCipher_fragment_length: n:nat {n = max_TLSPlaintext_fragment_length + 2048}
+
+type tlen = n:nat{n <= max_TLSCipher_fragment_length}
+
+predicate CompatibleLength of SessionInfo * nat * tlen
+
+val cipherLength: si:SessionInfo -> n:int{n=fragmentLength} -> t:tlen{CompatibleLength(si,n,t)}
+val splitInFrag: ki:KeyInfo -> b:bytes ->
+		(n:int * b1:bytes * b2:bytes){CompatibleLength(ki.sinfo,Length(b1),n) /\
+				b = b1 @| b2 /\ Length(b1) = fragmentLength}

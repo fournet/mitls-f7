@@ -56,7 +56,7 @@ let select poptions key =
         DBLock.ExitUpgradeableReadLock()
         None
     | Some (sinfo,ts) ->
-        (* Check timestamp validity *)
+        (* Check timestamp validity *) 
         let expires = ts + poptions.sessionDBExpiry in
         let now = System.DateTime.Now in
         if expires > now then
