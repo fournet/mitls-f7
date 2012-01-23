@@ -28,8 +28,8 @@ type SessionInfo = {
 
 predicate NullSessionInfo of SessionInfo 
 
-private assume !si. NullSessionInfo(si) <=> (si.clientID = 0 /\ si.serverID = None /\ si.sessionID = None /\
-    si.cipher_suite = nullCipherSuite /\ si.compression = Null /\ si.init_crand = 0 /\ si.init_srand = 0 )
+private assume !si. NullSessionInfo(si) <=> (si.clientID = None /\ si.serverID = None /\ si.sessionID = None /\
+    si.cipher_suite = nullCipherSuite /\ si.compression = Null /\ si.init_crand = [||] /\ si.init_srand = [||] )
 
 val null_sessionInfo: pv:ProtocolVersion -> si:SessionInfo{NullSessionInfo(si)}
 
@@ -38,11 +38,13 @@ type KeyInfo = {
     dir: Direction;
     crand: bytes;
     srand: bytes;
-    (* cVerifyData: bytes
-    sVerifyData: bytes *)
+    // cVerifyData: bytes
+    // sVerifyData: bytes
     }
 
 predicate NullKeyInfo of KeyInfo
+
+private assume !ki. NullKeyInfo(ki) <=> (NullSessionInfo(ki.sinfo) /\ ki.crand = [||] /\ ki.srand = [||])
 
 val null_KeyInfo: d:Direction -> pv:ProtocolVersion -> ki:KeyInfo{NullKeyInfo(ki)}
 
