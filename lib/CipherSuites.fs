@@ -17,15 +17,15 @@ type cipherSuite =
 type cipherSuites = cipherSuite list
 
 type Compression =
-    | Null
+    | NullCompression
 
 let compressionBytes (comp:Compression) = 
     match comp with
-    | Null -> [|0uy|]
+    | NullCompression -> [|0uy|]
 
 let parseCompression b =
     match b with
-    | [|0uy|] -> correct(Null)
+    | [|0uy|] -> correct(NullCompression)
     | _       -> Error(Parsing,WrongInputParameters)
 
 // Ignore compression methods we don't understand. This is a departure
@@ -81,54 +81,6 @@ let isOnlyMACCipherSuite cs =
     | OnlyMACCipherSuite (_,_) -> true
     | _ -> false
 
-let cipherSuite_of_bytes b = 
-    match b with
-    | [| 0x00uy; 0x00uy |] -> correct(NullCipherSuite)
-   
-    | [| 0x00uy; 0x01uy |] -> correct(OnlyMACCipherSuite (RSA, MD5))
-    | [| 0x00uy; 0x02uy |] -> correct(OnlyMACCipherSuite (RSA, SHA))
-    | [| 0x00uy; 0x3Buy |] -> correct(OnlyMACCipherSuite (RSA, SHA256))
-
-    | [| 0x00uy; 0x04uy |] -> correct(CipherSuite (    RSA, EncMAC (     RC4_128, MD5)))
-    | [| 0x00uy; 0x05uy |] -> correct(CipherSuite (    RSA, EncMAC (     RC4_128, SHA)))
-    | [| 0x00uy; 0x0Auy |] -> correct(CipherSuite (    RSA, EncMAC (TDES_EDE_CBC, SHA)))
-    | [| 0x00uy; 0x2Fuy |] -> correct(CipherSuite (    RSA, EncMAC ( AES_128_CBC, SHA)))
-    | [| 0x00uy; 0x35uy |] -> correct(CipherSuite (    RSA, EncMAC ( AES_256_CBC, SHA)))
-    | [| 0x00uy; 0x3Cuy |] -> correct(CipherSuite (    RSA, EncMAC ( AES_128_CBC, SHA256)))
-    | [| 0x00uy; 0x3Duy |] -> correct(CipherSuite (    RSA, EncMAC ( AES_256_CBC, SHA256)))
-
-    | [| 0x00uy; 0x0Duy |] -> correct(CipherSuite ( DH_DSS, EncMAC (TDES_EDE_CBC, SHA)))
-    | [| 0x00uy; 0x10uy |] -> correct(CipherSuite ( DH_RSA, EncMAC (TDES_EDE_CBC, SHA)))
-    | [| 0x00uy; 0x13uy |] -> correct(CipherSuite (DHE_DSS, EncMAC (TDES_EDE_CBC, SHA)))
-    | [| 0x00uy; 0x16uy |] -> correct(CipherSuite (DHE_RSA, EncMAC (TDES_EDE_CBC, SHA)))
-    | [| 0x00uy; 0x30uy |] -> correct(CipherSuite ( DH_DSS, EncMAC ( AES_128_CBC, SHA)))
-    | [| 0x00uy; 0x31uy |] -> correct(CipherSuite ( DH_RSA, EncMAC ( AES_128_CBC, SHA)))
-    | [| 0x00uy; 0x32uy |] -> correct(CipherSuite (DHE_DSS, EncMAC ( AES_128_CBC, SHA)))
-    | [| 0x00uy; 0x33uy |] -> correct(CipherSuite (DHE_RSA, EncMAC ( AES_128_CBC, SHA)))
-    | [| 0x00uy; 0x36uy |] -> correct(CipherSuite ( DH_DSS, EncMAC ( AES_256_CBC, SHA)))
-    | [| 0x00uy; 0x37uy |] -> correct(CipherSuite ( DH_RSA, EncMAC ( AES_256_CBC, SHA)))
-    | [| 0x00uy; 0x38uy |] -> correct(CipherSuite (DHE_DSS, EncMAC ( AES_256_CBC, SHA)))
-    | [| 0x00uy; 0x39uy |] -> correct(CipherSuite (DHE_RSA, EncMAC ( AES_256_CBC, SHA)))
-    | [| 0x00uy; 0x3Euy |] -> correct(CipherSuite ( DH_DSS, EncMAC ( AES_128_CBC, SHA256)))
-    | [| 0x00uy; 0x3Fuy |] -> correct(CipherSuite ( DH_RSA, EncMAC ( AES_128_CBC, SHA256)))
-    | [| 0x00uy; 0x40uy |] -> correct(CipherSuite (DHE_DSS, EncMAC ( AES_128_CBC, SHA256)))
-    | [| 0x00uy; 0x67uy |] -> correct(CipherSuite (DHE_RSA, EncMAC ( AES_128_CBC, SHA256)))
-    | [| 0x00uy; 0x68uy |] -> correct(CipherSuite ( DH_DSS, EncMAC ( AES_256_CBC, SHA256)))
-    | [| 0x00uy; 0x69uy |] -> correct(CipherSuite ( DH_RSA, EncMAC ( AES_256_CBC, SHA256)))
-    | [| 0x00uy; 0x6Auy |] -> correct(CipherSuite (DHE_DSS, EncMAC ( AES_256_CBC, SHA256)))
-    | [| 0x00uy; 0x6Buy |] -> correct(CipherSuite (DHE_RSA, EncMAC ( AES_256_CBC, SHA256)))
-
-    | [| 0x00uy; 0x18uy |] -> correct(CipherSuite (DH_anon, EncMAC (     RC4_128, MD5)))
-    | [| 0x00uy; 0x1Buy |] -> correct(CipherSuite (DH_anon, EncMAC (TDES_EDE_CBC, SHA)))
-    | [| 0x00uy; 0x34uy |] -> correct(CipherSuite (DH_anon, EncMAC ( AES_128_CBC, SHA)))
-    | [| 0x00uy; 0x3Auy |] -> correct(CipherSuite (DH_anon, EncMAC ( AES_256_CBC, SHA)))
-    | [| 0x00uy; 0x6Cuy |] -> correct(CipherSuite (DH_anon, EncMAC ( AES_128_CBC, SHA256)))
-    | [| 0x00uy; 0x6Duy |] -> correct(CipherSuite (DH_anon, EncMAC ( AES_256_CBC, SHA256)))
-
-    | [| 0x00uy; 0xFFuy |] -> correct(SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV))
-
-    | _ -> Error(Parsing,WrongInputParameters)
-
 let cipherSuiteBytes cs = 
     match cs with
     | NullCipherSuite                                     -> [| 0x00uy; 0x00uy |]
@@ -177,6 +129,57 @@ let cipherSuiteBytes cs =
 (* KB: Must define known cipher suites as a predicate before typechecking the following: *)
     | _ -> unexpectedError "[bytearray_of_ciphersuite] invoked on an unknown ciphersuite"
 
+let cipherSuite_of_bytes b = 
+    match b with
+    | [| 0x00uy; 0x00uy |] -> correct(NullCipherSuite)
+   
+    | [| 0x00uy; 0x01uy |] -> correct(OnlyMACCipherSuite (RSA, MD5))
+    | [| 0x00uy; 0x02uy |] -> correct(OnlyMACCipherSuite (RSA, SHA))
+    | [| 0x00uy; 0x3Buy |] -> correct(OnlyMACCipherSuite (RSA, SHA256))
+
+    | [| 0x00uy; 0x04uy |] -> correct(CipherSuite (    RSA, EncMAC (     RC4_128, MD5)))
+    | [| 0x00uy; 0x05uy |] -> correct(CipherSuite (    RSA, EncMAC (     RC4_128, SHA)))
+    | [| 0x00uy; 0x0Auy |] -> correct(CipherSuite (    RSA, EncMAC (TDES_EDE_CBC, SHA)))
+    | [| 0x00uy; 0x2Fuy |] -> correct(CipherSuite (    RSA, EncMAC ( AES_128_CBC, SHA)))
+    | [| 0x00uy; 0x35uy |] -> correct(CipherSuite (    RSA, EncMAC ( AES_256_CBC, SHA)))
+    | [| 0x00uy; 0x3Cuy |] -> correct(CipherSuite (    RSA, EncMAC ( AES_128_CBC, SHA256)))
+    | [| 0x00uy; 0x3Duy |] -> correct(CipherSuite (    RSA, EncMAC ( AES_256_CBC, SHA256)))
+
+    | [| 0x00uy; 0x0Duy |] -> correct(CipherSuite ( DH_DSS, EncMAC (TDES_EDE_CBC, SHA)))
+    | [| 0x00uy; 0x10uy |] -> correct(CipherSuite ( DH_RSA, EncMAC (TDES_EDE_CBC, SHA)))
+    | [| 0x00uy; 0x13uy |] -> correct(CipherSuite (DHE_DSS, EncMAC (TDES_EDE_CBC, SHA)))
+    | [| 0x00uy; 0x16uy |] -> correct(CipherSuite (DHE_RSA, EncMAC (TDES_EDE_CBC, SHA)))
+    | [| 0x00uy; 0x30uy |] -> correct(CipherSuite ( DH_DSS, EncMAC ( AES_128_CBC, SHA)))
+    | [| 0x00uy; 0x31uy |] -> correct(CipherSuite ( DH_RSA, EncMAC ( AES_128_CBC, SHA)))
+    | [| 0x00uy; 0x32uy |] -> correct(CipherSuite (DHE_DSS, EncMAC ( AES_128_CBC, SHA)))
+    | [| 0x00uy; 0x33uy |] -> correct(CipherSuite (DHE_RSA, EncMAC ( AES_128_CBC, SHA)))
+    | [| 0x00uy; 0x36uy |] -> correct(CipherSuite ( DH_DSS, EncMAC ( AES_256_CBC, SHA)))
+    | [| 0x00uy; 0x37uy |] -> correct(CipherSuite ( DH_RSA, EncMAC ( AES_256_CBC, SHA)))
+    | [| 0x00uy; 0x38uy |] -> correct(CipherSuite (DHE_DSS, EncMAC ( AES_256_CBC, SHA)))
+    | [| 0x00uy; 0x39uy |] -> correct(CipherSuite (DHE_RSA, EncMAC ( AES_256_CBC, SHA)))
+    | [| 0x00uy; 0x3Euy |] -> correct(CipherSuite ( DH_DSS, EncMAC ( AES_128_CBC, SHA256)))
+    | [| 0x00uy; 0x3Fuy |] -> correct(CipherSuite ( DH_RSA, EncMAC ( AES_128_CBC, SHA256)))
+    | [| 0x00uy; 0x40uy |] -> correct(CipherSuite (DHE_DSS, EncMAC ( AES_128_CBC, SHA256)))
+    | [| 0x00uy; 0x67uy |] -> correct(CipherSuite (DHE_RSA, EncMAC ( AES_128_CBC, SHA256)))
+    | [| 0x00uy; 0x68uy |] -> correct(CipherSuite ( DH_DSS, EncMAC ( AES_256_CBC, SHA256)))
+    | [| 0x00uy; 0x69uy |] -> correct(CipherSuite ( DH_RSA, EncMAC ( AES_256_CBC, SHA256)))
+    | [| 0x00uy; 0x6Auy |] -> correct(CipherSuite (DHE_DSS, EncMAC ( AES_256_CBC, SHA256)))
+    | [| 0x00uy; 0x6Buy |] -> correct(CipherSuite (DHE_RSA, EncMAC ( AES_256_CBC, SHA256)))
+
+    | [| 0x00uy; 0x18uy |] -> correct(CipherSuite (DH_anon, EncMAC (     RC4_128, MD5)))
+    | [| 0x00uy; 0x1Buy |] -> correct(CipherSuite (DH_anon, EncMAC (TDES_EDE_CBC, SHA)))
+    | [| 0x00uy; 0x34uy |] -> correct(CipherSuite (DH_anon, EncMAC ( AES_128_CBC, SHA)))
+    | [| 0x00uy; 0x3Auy |] -> correct(CipherSuite (DH_anon, EncMAC ( AES_256_CBC, SHA)))
+    | [| 0x00uy; 0x6Cuy |] -> correct(CipherSuite (DH_anon, EncMAC ( AES_128_CBC, SHA256)))
+    | [| 0x00uy; 0x6Duy |] -> correct(CipherSuite (DH_anon, EncMAC ( AES_256_CBC, SHA256)))
+
+    | [| 0x00uy; 0xFFuy |] -> correct(SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV))
+
+    | _ -> Error(Parsing,WrongInputParameters)
+
+
+let consCipherSuites (cs:cipherSuite) (css:cipherSuites) = cs::css
+
 // called by the server handshake; 
 // ciphersuites that we do not understand are parsed,
 // but not added to the list, and thus will be ignored by the server
@@ -188,7 +191,7 @@ let rec parseCipherSuites b:cipherSuites Result =
             match cipherSuite_of_bytes b0 with
             | Error(x,y) -> // ignore this cs
                 correct(css)
-            | Correct(cs) -> correct(cs :: css)
+            | Correct(cs) -> let ncss = consCipherSuites cs css  in correct(ncss)
         | Error(x,y) -> Error(x,y) 
     else if length b = 0 then Correct([])
     else Error(Parsing,CheckFailed)

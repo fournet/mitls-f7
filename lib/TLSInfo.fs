@@ -33,7 +33,7 @@ let null_sessionInfo minPV =
       sessionID = None;
       protocol_version = minPV;
       cipher_suite = nullCipherSuite;
-      compression = Null;
+      compression = NullCompression;
       init_crand = [||]
       init_srand = [||]
       }
