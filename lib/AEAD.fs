@@ -36,14 +36,14 @@ let compute_pad ki data =
 
 //CF TODO: add extra functions for gen, leak, corrupt.
 
-let encrypt ki key iv3 clen data plain =
+let encrypt ki key iv3 tlen data plain =
     match key with
     | MtE (macKey,encKey) ->
         //CF no, we need some TLSPlain.MAC. And encrypt cannot fail. 
-        let text = MACPlain.MACPlain ki clen data plain in
-        let mac = Mac.MAC {ki=ki;tlen=clen} macKey text in
-        let toEncrypt = Plain.prepare ki clen data plain mac in
-        ENC.ENC ki encKey iv3 toEncrypt
+        let text = MACPlain.MACPlain ki tlen data plain in
+        let mac = Mac.MAC {ki=ki;tlen=tlen} macKey text in
+        let toEncrypt = Plain.prepare ki tlen data plain mac in
+        ENC.ENC ki encKey iv3 tlen toEncrypt
 
 (* CF: commenting out until we get a chance to discuss:            
 

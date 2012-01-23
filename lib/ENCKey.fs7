@@ -1,11 +1,17 @@
 ﻿module ENCKey
 
 open Bytes
+open TLSInfo
 
-type key
-(* Only to be used by PRFs module, when generating keys from keyblob *)
-val bytes_to_key: bytes -> key
+type (;ki:KeyInfo) key
+
 type iv = bytes
-type iv3 =
-    | SomeIV of iv
-    | NoIV of unit
+type (;ki:KeyInfo) iv3 =
+	| SomeIV of iv{ki.sinfo.protocol_version = SSL_3p0 \/
+				   ki.sinfo.protocol_version = TLS_1p0}
+	| NoIV of unit{ki.sinfo.protocol_version = TLS_1p1 \/
+				   ki.sinfo.protocol_version = TLS_1p2}
+
+val GEN: ki:KeyInfo -> (;ki)key
+val LEAK:   ki:KeyInfo{Corrupt(ki)} -> (;ki)key -> bytes
+val COERCE: ki:KeyInfo{Corrupt(ki)} -> bytes -> (;ki)key

@@ -5,8 +5,6 @@ open TLSInfo
 
 type key
 
-val keysize: KeyInfo -> int
-
 val GEN: KeyInfo -> key
 val LEAK:   KeyInfo -> key -> bytes
 val COERCE: KeyInfo -> bytes -> key

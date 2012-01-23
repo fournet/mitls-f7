@@ -1,14 +1,15 @@
 ﻿module ENC
 
 open Bytes
-open TLSPlain
+open Plain
 open TLSInfo
 open Error
 
 (* this interface is trusted *)
+// AP: Moved to ENCKey.fs7
+//type (;ki:KeyInfo) symKey
 
-type (;ki:KeyInfo) symKey
-
+(* AP: Moved to ENCKey.fs7
 // iv3 should be abstract too, and iv hidden 
 // we need a function for generating the initial iv3,
 // to be called by the the idealized PRF
@@ -19,6 +20,7 @@ type (;ki:KeyInfo) iv3 =
 				   ki.sinfo.protocol_version = TLS_1p0}
 	| NoIV of unit{ki.sinfo.protocol_version = TLS_1p1 \/
 				   ki.sinfo.protocol_version = TLS_1p2}
+*)
 
 // ciphers consist of one or more blocks of bytes.
 type (;ki:KeyInfo) cipher = b:bytes

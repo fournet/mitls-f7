@@ -71,7 +71,7 @@ let lastblock cipher ivl =
     let (_,b) = split cipher (length cipher - ivl) in b
 
 (* Parametric ENC/DEC functions *)
-let ENC ki key iv3 data =
+let ENC ki key iv3 (tlen:int) data =
     (* Should never be invoked on a stream (right now) encryption algorithm *)
     let alg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
     let ivl = ivSize alg in
@@ -79,7 +79,7 @@ let ENC ki key iv3 data =
         match iv3 with
         | ENCKey.SomeIV(b) -> b
         | ENCKey.NoIV()    -> mkRandom ivl in
-    let d = Plain.repr ki data in
+    let d = Plain.repr ki tlen data in
     let cipher =
         match alg with
         | TDES_EDE_CBC -> tdesEncrypt ki key iv d

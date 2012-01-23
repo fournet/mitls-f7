@@ -8,7 +8,7 @@ open CipherSuites
 type plain = {p:bytes}
 
 let plain (ki:KeyInfo) b = {p=b}
-let repr (ki:KeyInfo) p = p.p
+let repr (ki:KeyInfo) (tlen:int) p = p.p
 
 let pad (p:int)  = Array.create p (byte (p-1))
 
@@ -20,7 +20,7 @@ let prepare (ki:KeyInfo) tlen ad data tag =
 
 let parse ki tlen ad plain =
     let macSize = macSize (macAlg_of_ciphersuite ki.sinfo.cipher_suite) in
-    let p = repr ki plain
+    let p = repr ki tlen plain
     // assert length p = tlen
     let (tmpdata, padlenb) = split p (tlen - 1) in
     let padlen = int_of_bytes padlenb in

@@ -7,8 +7,6 @@ type key = bytes
 type data = bytes
 type mac = bytes
 
-val sslKeyedHashPads: 
-  a:hashAlg{a = MD5 \/ a = SHA} -> bytes * bytes
 val sslKeyedHash: 
   a:hashAlg{a = MD5 \/ a = SHA} -> k:key{Length(k)=MacKeySize(a)} -> data -> 
   t:mac {Length(t)=MacKeySize(a)} 
@@ -24,6 +22,8 @@ val HMACVERIFY:
   t:mac {Length(t)=MacKeySize(a)} -> bool
 
 (* internal; we may as well assume the signatures above. *)
+(*
+//AP: This is a trusted file, only the external interface should be enough.
 val hmacmd5: 
   k:key{Length(k)=MacKeySize(MD5)} -> data -> t:mac{Length(t)=MacKeySize(MD5)}
 val hmacsha1: 
@@ -32,4 +32,4 @@ val hmacsha256:
   k:key{Length(k)=MacKeySize(SHA256)} -> data -> t:mac{Length(t)=MacKeySize(SHA256)}
 val hmacsha384: 
   k:key{Length(k)=MacKeySize(SHA384)} -> data -> t:mac{Length(t)=MacKeySize(SHA384)}
-   
+*)
