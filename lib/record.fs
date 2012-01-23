@@ -88,17 +88,17 @@ let recordPacketOut ki conn tlen ct fragment =
     let (conn, payload) =
         match ki.sinfo.cipher_suite with
         | x when isNullCipherSuite x -> 
-            (conn,TLSFragment.repr ki tlen fragment)
+            (conn,TLSFragment.repr ki tlen ct fragment)
         | x when isOnlyMACCipherSuite x ->
             let key = getMACKey conn.key in
             let addData = makeAD ki conn ct in
-            let aeadF = TLSFragment.DispatchToAEAD ki tlen addData ct fragment in
-            let data = MACPlain.MACPlain ki tlen addData aeadF in
+            let aeadF = TLSFragment.DispatchToAEAD ki tlen ct addData fragment in
+            let data = MACPlain.MACPlain addData aeadF in
             let mac = Mac.MAC {ki=ki;tlen=tlen} key data in
-            (conn, (TLSFragment.repr ki tlen fragment) @| (MACPlain.reprMACed ki mac))
+            (conn, (TLSFragment.repr ki tlen ct fragment) @| (MACPlain.reprMACed ki tlen mac))
         | _ ->
             let addData = makeAD ki conn ct in
-            let aeadF = TLSFragment.DispatchToAEAD ki tlen addData ct fragment in
+            let aeadF = TLSFragment.DispatchToAEAD ki tlen ct addData fragment in
             let key = getAEADKey conn.key in
             let (newIV,payload) = AEAD.encrypt ki key conn.iv3 tlen addData aeadF in
             let conn = {conn with iv3 = newIV} in
@@ -131,30 +131,30 @@ let recordPacketOut2 conn clen ct fragment =
     makePacket ct conn.local_pv payload 
 *)
 
-let recordPacketIn ki conn len ct payload =
+let recordPacketIn ki conn tlen ct payload =
     //CF tlen is not checked? can we write an inverse of makePacket instead?
     let cs = ki.sinfo.cipher_suite in
     let msgRes =
         match cs with
         | x when isNullCipherSuite x ->
-            correct(conn, TLSFragment.fragment ki len payload ct)
+            correct(conn, TLSFragment.fragment ki tlen ct payload)
         | x when isOnlyMACCipherSuite x ->
             let ad = makeAD ki conn ct in
-            let (msg,mac) = MACPlain.parseNoPad ki len ad payload in
-            let toVerify = MACPlain.MACPlain ki len ad msg in
+            let (msg,mac) = MACPlain.parseNoPad ki tlen ad payload in
+            let toVerify = MACPlain.MACPlain ad msg in
             let key = getMACKey conn.key in
-            if Mac.VERIFY {ki=ki;tlen=len} key toVerify mac then
-                correct(conn,TLSFragment.AEADToDispatch ki len ad ct msg)
+            if Mac.VERIFY {ki=ki;tlen=tlen} key toVerify mac then
+                correct(conn,TLSFragment.AEADToDispatch ki tlen ct ad msg)
             else
             Error(MAC,CheckFailed)
         | _ ->
             let ad = makeAD ki conn ct in
             let key = getAEADKey conn.key in
-            match AEAD.decrypt ki key conn.iv3 len ad payload with
+            match AEAD.decrypt ki key conn.iv3 tlen ad payload with
             | Error(x,y) -> Error(x,y)
             | Correct (newIV, plain) ->
                 let conn = {conn with iv3 = newIV} in
-                correct (conn,TLSFragment.AEADToDispatch ki len ad ct plain)
+                correct (conn,TLSFragment.AEADToDispatch ki tlen ct ad plain)
     match msgRes with
     | Error(x,y) -> Error(x,y)
     | Correct (conn,msg) ->
@@ -165,7 +165,7 @@ let recordPacketIn ki conn len ct payload =
     | Correct (msg) ->
     *)
     let conn = incN ki conn in
-    correct(conn,ct,len,msg)
+    correct(conn,ct,tlen,msg)
 
 
 

@@ -10,14 +10,14 @@ type fragment =
     | FCCS of Handshake.ccsFragment
     | FAlert of Alert.fragment
     | FAppData of AppDataPlain.fragment
-val repr: KeyInfo -> int -> fragment -> bytes
-val fragment: KeyInfo -> int -> bytes -> ContentType -> fragment
+val repr: KeyInfo -> int -> ContentType -> fragment -> bytes
+val fragment: KeyInfo -> int -> ContentType -> bytes -> fragment
 
 // Plain type for AEAD
 type addData = bytes
 type AEADFragment
-val AEADFragment: KeyInfo -> int -> addData -> bytes -> AEADFragment
-val AEADRepr: KeyInfo -> int -> addData -> AEADFragment -> bytes
+val AEADFragment: addData -> bytes -> AEADFragment
+val AEADRepr: addData -> AEADFragment -> bytes
 
-val AEADToDispatch: KeyInfo -> int -> addData -> ContentType -> AEADFragment -> fragment
-val DispatchToAEAD: KeyInfo -> int -> addData -> ContentType -> fragment -> AEADFragment
+val AEADToDispatch: KeyInfo -> int -> ContentType -> addData -> AEADFragment -> fragment
+val DispatchToAEAD: KeyInfo -> int -> ContentType -> addData -> fragment -> AEADFragment

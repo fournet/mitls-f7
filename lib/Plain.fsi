@@ -2,6 +2,7 @@
 
 open Bytes
 open TLSInfo
+open Formats
 
 type plain
 val plain: KeyInfo -> bytes -> plain

@@ -1,2 +1,19 @@
 ﻿module MACPlain
 
+open Bytes
+open TLSInfo
+
+// Plaintext of MAC (addData + TLSFragment.fragment)
+type (;ki:KeyInfo,tlen:int) MACPlain
+val MACPlain: ad:TLSFragment.addData{?ki,tlen,ct. ADofID(ki,tlen,ct,ad)} -> (;ad)TLSFragment.AEADFragment) -> (;ki,tlen)MACPlain
+val reprMACPlain: ki:KeyInfo -> tlen:int -> (;ki,tlen)MACPlain -> bytes
+
+predicate val Msg: (ki:KeyInfo * tlen:int * (;ki,tlen)MACPlain) -> bool
+
+// Result of MAC
+type (;ki:KeyInfo,tlen:int) MACed
+val MACed: ki:KeyInfo -> tlen:int -> bytes -> (;ki,tlen)MACed
+val reprMACed: ki:KeyInfo -> tlen:int -> (;ki,tlen)MACed -> bytes
+
+// MAC-only ciphersuites
+val parseNoPad: ki:KeyInfo -> tlen:int -> ad:TLSFragment.addData{?ct. ADofID(ki,tlen,ct,ad)} -> bytes -> ((;ad)TLSFragment.AEADFragment * (;ki,tlen)MACed)

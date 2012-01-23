@@ -3,7 +3,6 @@
 open Bytes
 open TLSInfo
 
-val keysize: KeyInfo -> int 
 type key
 
 val GEN: KeyInfo -> key

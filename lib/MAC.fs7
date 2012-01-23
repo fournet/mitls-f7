@@ -7,7 +7,7 @@ open TLSInfo
 /// a refined, ideal interface for indexed MACs
 /// this file is loosely synchronized with cma/mac2.fs7
 
-type id = TLSInfo.KeyInfo 
+type id = {ki:TLSInfo.KeyInfo; tlen:int}
 predicate val CMA: id -> bool
 
 // id is an abstract index type managed by the protocol
@@ -21,23 +21,15 @@ predicate val CMA: id -> bool
 
 // this could also be imported; we had (;ki) ltext ? 
 
-function val KeySize: id -> int // to be removed? 
-val keysize: id:id -> n:int{n=KeySize(id)} 
-type (;id:id) keybytes = b:bytes{Length(b)=KeySize(id)}
-type (;id:id) key = {bytes: (;id) keybytes} 
+//type (;id:id) keybytes = b:bytes{Length(b)=KeySize(id)}
+//type (;id:id) key = {bytes: (;id) keybytes} 
 
-function val TagSize: id -> int // to be removed? 
-val tagsize: id:id -> n:int{n=TagSize(id)} 
-type (;id:id) tag = b:bytes{Length(b) = TagSize(id)}
-
-type text = bytes 
-predicate val Msg: (id * text) -> bool
+//function val TagSize: id -> int // to be removed? 
+//val tagsize: id:id -> n:int{n=TagSize(id)} 
+//type (;id:id) tag = b:bytes{Length(b) = TagSize(id)}
 
 // removed internal stuff for now 
 
-val GEN:    id:id -> (;id) key
-val MAC:    id:id -> k:(;id) key -> t:text{Msg(id,t)} -> (;id) tag
-val VERIFY: id:id -> k:(;id) key -> t:text -> (;id) tag -> 
-  v:bool{ (v=true (*/\ CMA(id)*) ) => Msg(id,t) }
-val LEAK:   id:id {!t. Msg(id,t)} -> (;id) key -> (;id) keybytes
-val COERCE: id:id {!t. Msg(id,t)} -> (;id) keybytes -> (;id) key
+val MAC:    id:id -> k:(;id.ki) key -> t:(;id.ki,id.tlen)MACPlain.MACPlain{Msg(id.ki,id.tlen,t)} -> (;id.ki,id.tlen) tag
+val VERIFY: id:id -> k:(;id.ki) key -> t:(;id.ki,id.tlen)MACPlain.MACPlain -> (;id.ki,id.tlen) tag -> 
+  v:bool{ (v=true (*/\ CMA(id)*) ) => Msg(id.ki,id.tlen,t) }
