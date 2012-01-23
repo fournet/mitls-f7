@@ -11,7 +11,7 @@ type preDirection =
     | StoC
 type Direction = preDirection
 
-val dualDirection: Direction -> Direction
+//val dualDirection: Direction -> Direction
 
 (* SessionInfo and KeyInfo: Session and Connection level public immutable data.
    Used for indexing *)
@@ -39,3 +39,4 @@ type KeyInfo = {
 
 val null_sessionInfo: ProtocolVersion -> SessionInfo
 val null_KeyInfo: Direction -> ProtocolVersion -> KeyInfo
+val dual_KeyInfo: KeyInfo -> KeyInfo

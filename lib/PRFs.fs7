@@ -7,47 +7,37 @@ open RSA
 open Error
 
 (* Used when generating verifiData for the Finished message *)
-type masterSecret
-val empty_masterSecret: masterSecret
-val prfVerifyData: KeyInfo -> masterSecret ->
+type (;si:SessionInfo) masterSecret
+val empty_masterSecret: si:SessionInfo ->  (;si) masterSecret
+val prfVerifyData: KeyInfo -> (;ki.sinfo) masterSecret ->
                    bytes (* msgLog *) ->
                    bytes (* length depends on cs, 12 by default *)
 
 (* Used when generating the MS from the PMS *)
-type preMasterSecret
+type (;si:SessionInfo) preMasterSecret
 (* TODO: this only works for RSA, when client arbitrarily chooses PMS. A different interface is required for DH *)
 (* Note: we need an external version type, and not the one contained in the session info. This is because
    we need to use the highest client supported version type, and not the negotiated one, to avoid version rollback attacks. *)
 (* Client side: use genPMS and rsaEncryptPMS separately, by now. No idea yet on how to do it computationally-friendly *)
-val genPMS: SessionInfo -> CipherSuites.ProtocolVersion -> preMasterSecret
-val rsaEncryptPMS: asymKey -> preMasterSecret -> bytes Result
+val genPMS: si:SessionInfo -> CipherSuites.ProtocolVersion -> (;si)preMasterSecret
+val rsaEncryptPMS: si:SessionInfo -> asymKey -> (;si)preMasterSecret -> bytes Result
 (* Server side: embed RSA decryiption and some sanity checks. Again, fully flexibility in making this computationally-friendly *)
-val getPMS: SessionInfo -> CipherSuites.ProtocolVersion -> bool -> (* Whether we should check protocol version in old TLS versions *)
+val getPMS: si:SessionInfo -> CipherSuites.ProtocolVersion -> bool -> (* Whether we should check protocol version in old TLS versions *)
         Principal.cert -> bytes ->
-        preMasterSecret (* No Result type: in case of error, we return random value *)
+        (;si)preMasterSecret (* No Result type: in case of error, we return random value *)
 
-val empty_pms: preMasterSecret (* Used to implement a dummy DH key exchange *)
+val empty_pms: si:SessionInfo -> (;si)preMasterSecret (* Used to implement a dummy DH key exchange *)
 
-val prfMS: SessionInfo -> preMasterSecret ->
+val prfMS: si:SessionInfo -> (;si) preMasterSecret ->
            (* No label, it's hardcoded. Of course we can make it explicit -> *)
            (* No seed (crandom @| srandom), it can be retrieved from SessionInfo -> *)
-           masterSecret (* of length 48 *)
+           (;si) masterSecret (* of length 48 *)
 
 (* Used when generating key material from the MS. The result must still be split into the various keys. Of course this method can do the splitting internally and return a record/pair *)
-type keyBlob
-val prfKeyExp: KeyInfo -> masterSecret ->
+type (;ki:KeyInfo) keyBlob
+val prfKeyExp: ki:KeyInfo -> (;ki.sinfo)masterSecret ->
                (* No label, it's hardcoded. Of course we can make it explicit -> *)
                (* No seed (crandom @| srandom), it can be retrieved from KeyInfo (and not SessionInfo!) -> *)
-               keyBlob (* length depends on cs *)
+               (;ki)keyBlob (* length depends on cs *)
 
-val splitKeys: KeyInfo -> KeyInfo -> keyBlob -> (MAC.macKey * MAC.macKey * ENC.symKey * ENC.symKey * bytes * bytes)
-
-#if f7
-type (;si:SessionInfo) masterSecret
-type (;ki:KeyInfo) msgLog
-
-val prfVerifyData: ki:KeyInfo ->
-                   (;ki.sinfo) masterSecret ->
-                   (;ki) msgLog ->
-                   bytes Result (* prfResult type? *)
-#endif
+val splitKeys: out:KeyInfo -> (;out)keyBlob -> ((;out)MACKey.key * (;DualKeyInfo(out))MAC.macKey * (;out)ENCKey.key * (;DualKeyInfo(out))ENCKey.key * bytes * bytes)

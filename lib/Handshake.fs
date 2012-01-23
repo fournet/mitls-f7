@@ -97,7 +97,7 @@ let goToIdle state =
          pstate = Client(CIdle);
          hs_msg_log = [||]
          hs_next_info = init_sessionInfo
-         next_ms = empty_masterSecret
+         next_ms = empty_masterSecret init_sessionInfo
          ki_crand = [||]
          ki_srand = [||]
          hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
@@ -112,7 +112,7 @@ let goToIdle state =
          pstate = Server(SIdle);
          hs_msg_log = [||]
          hs_next_info = init_sessionInfo
-         next_ms = empty_masterSecret
+         next_ms = empty_masterSecret init_sessionInfo
          ki_crand = [||]
          ki_srand = [||]
          hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
@@ -633,7 +633,7 @@ let makeClientKEXBytes state clSpecInfo =
         | None -> unexpectedError "[makeClientKEXBytes] Server certificate should always be present with a RSA signing cipher suite."
         | Some (serverCert) ->
             let pubKey = pubKey_of_certificate serverCert in
-            match rsaEncryptPMS pubKey pms with
+            match rsaEncryptPMS state.hs_next_info pubKey pms with
             | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
             | Correct (encpms) ->
                 if state.hs_next_info.protocol_version = SSL_3p0 then
@@ -650,16 +650,16 @@ let makeClientKEXBytes state clSpecInfo =
                 (* TODO: send public Yc value *)
                 let ycBytes = [||] in
                 (* TODO: compute pms *)
-                let pms = empty_pms in
+                let pms = empty_pms state.hs_next_info in
                 correct ((makeMessage HT_client_key_exchange ycBytes),pms)
             | Some (cert) ->
                 (* TODO: check whether the certificate already contained suitable DH parameters *)
-                let pms = empty_pms in
+                let pms = empty_pms state.hs_next_info in
                 correct ((makeMessage HT_client_key_exchange [||]),pms)
         | None ->
             (* Use DH parameters *)
             let ycBytes = [||] in
-            let pms = empty_pms in
+            let pms = empty_pms state.hs_next_info in
             correct ((makeMessage HT_client_key_exchange ycBytes),pms)
 
 (* Obsolete *)
@@ -735,9 +735,9 @@ let split_key_block key_block hsize ksize ivsize =
   (cmk,smk,cek,sek,civ,siv)
 *)
 
-let generateKeys (outKi:KeyInfo) (inKi:KeyInfo) (ms:masterSecret) =
+let generateKeys (outKi:KeyInfo) (ms:masterSecret) =
     let key_block = prfKeyExp outKi ms in
-    let (cmk,smk,cek,sek,civ,siv) = splitKeys outKi inKi key_block in
+    let (cmk,smk,cek,sek,civ,siv) = splitKeys outKi key_block in
     match outKi.dir with 
         | CtoS -> smk,sek,siv,cmk,cek,civ
         | StoC -> cmk,cek,civ,smk,sek,siv
@@ -851,12 +851,7 @@ let compute_session_secrets_and_CCSs state dir =
                   crand = state.ki_crand;
                   srand = state.ki_srand;
                 }
-    let inKi = { sinfo = state.hs_next_info;
-                 dir = dualDirection dir;
-                 crand = state.ki_crand;
-                 srand = state.ki_srand;
-                }
-    let allKeys = generateKeys outKi inKi state.next_ms in
+    let allKeys = generateKeys outKi state.next_ms in
     let (rmk,rek,riv,wmk,wek,wiv) = allKeys in
     (* TODO: Add support for AEAD ciphers *)
     let readKey = RecordAEADKey (MtE (rmk,rek)) in
@@ -869,7 +864,7 @@ let compute_session_secrets_and_CCSs state dir =
                            iv3 = writeIV}
     (* Put the ccs_data in the appropriate buffers. *)
     let state = {state with ccs_outgoing = Some((CCSBytes,(outKi,write_ccs_data)))
-                            ccs_incoming = Some(inKi,read_ccs_data)} in
+                            ccs_incoming = Some(dual_KeyInfo outKi,read_ccs_data)} in
     state
 
 let prepare_client_output_full state clSpecState =
@@ -964,7 +959,7 @@ let init_handshake (si:SessionInfo) dir poptions =
          pstate = Client (ServerHello)
          hs_msg_log = cHelloBytes
          hs_next_info = next_sinfo
-         next_ms = empty_masterSecret
+         next_ms = empty_masterSecret next_sinfo
          ki_crand = client_random
          ki_srand = [||]
          hs_renegotiation_info_cVerifyData = [||]
@@ -979,7 +974,7 @@ let init_handshake (si:SessionInfo) dir poptions =
          pstate = Server (ClientHello)
          hs_msg_log = [||]
          hs_next_info = next_sinfo
-         next_ms = empty_masterSecret
+         next_ms = empty_masterSecret next_sinfo
          ki_crand = [||]
          ki_srand = [||]
          hs_renegotiation_info_cVerifyData = [||]
@@ -1027,7 +1022,7 @@ let start_rehandshake (si:SessionInfo) (state:hs_state) (ops:protocolOptions) =
                          pstate = Client (ServerHello)
                          hs_msg_log = cHelloBytes
                          hs_next_info = next_sinfo
-                         next_ms = empty_masterSecret
+                         next_ms = empty_masterSecret next_sinfo
                          ki_crand = client_random
                          ki_srand = [||]
                          hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
@@ -1080,6 +1075,7 @@ let start_hs_request (si:SessionInfo) (state:hs_state) (ops:protocolOptions) =
     | Server (sstate) ->
         match sstate with
         | SIdle ->
+            let nullSI = null_sessionInfo ops.minVer in
             (* Put HelloRequest in outgoing buffer (and do not log it), and move to the ClientHello state (so that we don't send HelloRequest again) *)
             { hs_outgoing = makeHelloRequestBytes ();
               ccs_outgoing = None
@@ -1089,8 +1085,8 @@ let start_hs_request (si:SessionInfo) (state:hs_state) (ops:protocolOptions) =
               poptions = ops
               pstate = Server(ClientHello)
               hs_msg_log = [||]
-              hs_next_info = null_sessionInfo ops.minVer
-              next_ms = empty_masterSecret                      
+              hs_next_info = nullSI
+              next_ms = empty_masterSecret nullSI                 
               ki_crand = [||]
               ki_srand = [||]
               hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData

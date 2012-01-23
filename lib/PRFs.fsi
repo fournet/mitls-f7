@@ -8,7 +8,7 @@ open Error
 
 (* Used when generating verifiData for the Finished message *)
 type masterSecret
-val empty_masterSecret: masterSecret
+val empty_masterSecret: SessionInfo -> masterSecret
 val prfVerifyData: KeyInfo -> masterSecret ->
                    bytes (* msgLog *) ->
                    bytes (* length depends on cs, 12 by default *)
@@ -20,13 +20,13 @@ type preMasterSecret
    we need to use the highest client supported version type, and not the negotiated one, to avoid version rollback attacks. *)
 (* Client side: use genPMS and rsaEncryptPMS separately, by now. No idea yet on how to do it computationally-friendly *)
 val genPMS: SessionInfo -> CipherSuites.ProtocolVersion -> preMasterSecret
-val rsaEncryptPMS: asymKey -> preMasterSecret -> bytes Result
+val rsaEncryptPMS: SessionInfo -> asymKey -> preMasterSecret -> bytes Result
 (* Server side: embed RSA decryiption and some sanity checks. Again, fully flexibility in making this computationally-friendly *)
 val getPMS: SessionInfo -> CipherSuites.ProtocolVersion -> bool -> (* Whether we should check protocol version in old TLS versions *)
         Principal.cert -> bytes ->
         preMasterSecret (* No Result type: in case of error, we return random value *)
 
-val empty_pms: preMasterSecret (* Used to implement a dummy DH key exchange *)
+val empty_pms: SessionInfo -> preMasterSecret (* Used to implement a dummy DH key exchange *)
 
 val prfMS: SessionInfo -> preMasterSecret ->
            (* No label, it's hardcoded. Of course we can make it explicit -> *)
@@ -40,14 +40,4 @@ val prfKeyExp: KeyInfo -> masterSecret ->
                (* No seed (crandom @| srandom), it can be retrieved from KeyInfo (and not SessionInfo!) -> *)
                keyBlob (* length depends on cs *)
 
-val splitKeys: KeyInfo -> KeyInfo -> keyBlob -> (MACKey.key * MACKey.key * ENCKey.key * ENCKey.key * bytes * bytes)
-
-#if f7
-type (;si:SessionInfo) masterSecret
-type (;ki:KeyInfo) msgLog
-
-val prfVerifyData: ki:KeyInfo ->
-                   (;ki.sinfo) masterSecret ->
-                   (;ki) msgLog ->
-                   bytes Result (* prfResult type? *)
-#endif
+val splitKeys: KeyInfo -> keyBlob -> (MACKey.key * MACKey.key * ENCKey.key * ENCKey.key * bytes * bytes)

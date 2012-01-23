@@ -12,8 +12,12 @@ type preDirection =
 type Direction = d:preDirection{d = CtoS \/ d = StoC}
 (* FIXME: Automatic inference by F7 *)
 
+function val DualDirection: Direction -> Direction
+assume DualDirection(CtoS) = StoC
+assume DualDirection(StoC) = CtoS
+
 val dualDirection: d1:Direction -> d2:Direction
-  {(d1 = CtoS /\ d2 = StoC) \/ (d1 = StoC /\ d2 = CtoS) }
+  {d2=DualDirection(d1)}
 
 type SessionInfo = {
     clientID: cert option;
@@ -48,5 +52,13 @@ private assume !ki. NullKeyInfo(ki) <=> (NullSessionInfo(ki.sinfo) /\ ki.crand =
 
 val null_KeyInfo: d:Direction -> pv:ProtocolVersion -> ki:KeyInfo{NullKeyInfo(ki)}
 
+function val DualKeyInfo: KeyInfo -> KeyInfo
+assume !k1. DualKeyInfo(k1) = {
+	sinfo = k1.sinfo;
+	dir=DualDirection(k1.dir);
+	crand=k1.crand;
+	srand=k1.srand}
+
+val dual_KeyInfo: k1:KeyInfo -> k2:KeyInfo{k2=DualKeyInfo(k1)}
 // We might need something like this -- and possibly more
 // definition !ki. NullKeyInfo(ki) => NullSessionInfo(ki.sinfo)

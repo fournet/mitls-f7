@@ -68,7 +68,8 @@ type deliverOutcome =
 let init ns dir poptions =
     (* Direction "dir" is always the outgoing direction.
        So, if we are a Client, it will be CtoS, if we're a Server: StoC *)
-    let (outKI,inKI) = (null_KeyInfo dir poptions.minVer, null_KeyInfo (dualDirection dir) poptions.minVer) in
+    let outKI = null_KeyInfo dir poptions.minVer in
+    let inKI = dual_KeyInfo outKI in
     let hs = Handshake.init_handshake outKI.sinfo dir poptions in // Equivalently, inKI.sinfo
     let (outCCS,inCCS) = (nullCCSData outKI, nullCCSData inKI) in
     let (send,recv) = (Record.initConnState outKI outCCS, Record.initConnState inKI inCCS) in
@@ -96,7 +97,8 @@ let resume ns sid ops =
     | StoC -> unexpectedError "[resume] requested session is for server side"
     | CtoS ->
     let sinfo = retrievedStoredSession.sinfo in
-    let (outKI,inKI) = (null_KeyInfo CtoS ops.minVer, null_KeyInfo (dualDirection CtoS) ops.minVer) in
+    let outKI = null_KeyInfo CtoS ops.minVer in
+    let inKI = dual_KeyInfo outKI in
     let hs = Handshake.resume_handshake outKI.sinfo sinfo retrievedStoredSession.ms ops in // equivalently, inKI.sinfo
     let (outCCS,inCCS) = (nullCCSData outKI, nullCCSData inKI) in
     let (send,recv) = (Record.initConnState outKI outCCS, Record.initConnState inKI inCCS) in

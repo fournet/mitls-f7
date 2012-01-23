@@ -12,7 +12,7 @@ open HMAC
 
 (* Low-level prf functions *)
 type masterSecret = {bytes:bytes}
-let empty_masterSecret : masterSecret = {bytes = [||]}
+let empty_masterSecret (si:SessionInfo) : masterSecret = {bytes = [||]}
 
 (* SSL *)
 let ssl_prf_int secret label seed =
@@ -140,7 +140,7 @@ let genPMS (sinfo:SessionInfo) ver =
     let pms = verBytes @| rnd in
     {bytes = pms}
 
-let rsaEncryptPMS key pms =
+let rsaEncryptPMS (si:SessionInfo) key pms =
     rsaEncrypt key pms.bytes
 
 let getPMS sinfo ver check_client_version_in_pms_for_old_tls cert encPMS =
@@ -172,7 +172,7 @@ let getPMS sinfo ver check_client_version_in_pms_for_old_tls cert encPMS =
                 else
                     {bytes = pms}
 
-let empty_pms = {bytes = [||]}
+let empty_pms (si:SessionInfo) = {bytes = [||]}
 
 let prfMS sinfo pms: masterSecret =
     let pv = sinfo.protocol_version in
@@ -191,7 +191,7 @@ let prfKeyExp ki (ms:masterSecret) =
     let res = generic_prf pv cs ms.bytes "key expansion" data len in
     {bytes = res}
     
-let splitKeys outKi (inKi:KeyInfo) (blob:keyBlob) =
+let splitKeys outKi (blob:keyBlob) =
     let macKeySize = macKeySize (macAlg_of_ciphersuite outKi.sinfo.cipher_suite) in
     (* TODO: add support for AEAD ciphers *)
     let encKeySize = encKeySize (encAlg_of_ciphersuite outKi.sinfo.cipher_suite) in
@@ -206,8 +206,8 @@ let splitKeys outKi (inKi:KeyInfo) (blob:keyBlob) =
     let civ = Array.sub key_block (2*macKeySize+2*encKeySize) ivsize in
     let siv = Array.sub key_block (2*macKeySize+2*encKeySize+ivsize) ivsize in
     ( MACKey.COERCE outKi cmk, 
-      MACKey.COERCE inKi  smk, 
+      MACKey.COERCE (dual_KeyInfo outKi) smk, 
       ENCKey.COERCE outKi cek, 
-      ENCKey.COERCE inKi  sek, 
+      ENCKey.COERCE (dual_KeyInfo outKi) sek, 
       civ, 
       siv)
