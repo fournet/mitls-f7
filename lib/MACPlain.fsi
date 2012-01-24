@@ -6,7 +6,7 @@ open Formats
 
 // Plaintext of MAC (addData + TLSFragment.fragment)
 type MACPlain
-val MACPlain: TLSFragment.addData -> TLSFragment.AEADFragment -> MACPlain
+val MACPlain: KeyInfo -> int -> TLSFragment.addData -> TLSFragment.AEADFragment -> MACPlain
 val reprMACPlain: KeyInfo -> int -> MACPlain -> bytes
 
 // Result of MAC

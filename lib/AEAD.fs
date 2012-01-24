@@ -40,7 +40,7 @@ let encrypt ki key iv3 tlen data plain =
     match key with
     | MtE (macKey,encKey) ->
         //CF no, we need some TLSPlain.MAC. And encrypt cannot fail. 
-        let text = MACPlain.MACPlain data plain in
+        let text = MACPlain.MACPlain ki tlen data plain in
         let mac = Mac.MAC {ki=ki;tlen=tlen} macKey text in
         let toEncrypt = Plain.prepare ki tlen data plain mac in
         ENC.ENC ki encKey iv3 tlen toEncrypt
@@ -84,7 +84,7 @@ let decrypt ki key iv tlen ad cipher =
     | MtE (macKey, encKey) ->
         let (iv3,compr_and_mac_and_pad) = ENC.DEC ki encKey iv cipher in
         let (mustFail,(compr,mac)) = Plain.parse ki tlen ad compr_and_mac_and_pad in
-        let toVerify = MACPlain.MACPlain ad compr in
+        let toVerify = MACPlain.MACPlain ki tlen ad compr in
         (* If mustFail is true, it means some padding error occurred.
             If in early versions of TLS, insecurely report a padding error now *)
         match ki.sinfo.protocol_version with
