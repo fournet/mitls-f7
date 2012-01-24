@@ -66,7 +66,7 @@ Dispatch-a.dll: libsym-a.dll record-a.dll $(tlsfsi) $(tlsfs)
 
 tc7:: Algorithms.tc7 CipherSuites.tc7 formats.tc7 TLSInfo.tc7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppCommon.fs7 SessionDB.fs7 FragCommon.fs7 AppDataPlain.fs7 AppData.fs7 HS_msg.fs7 Handshake.fs7 Alert.fs7 TLSFragment.fs7 MACPlain.fs7 Plain.fs7 MAC.fs7 ENC.fs7 AEAD.fs7 record.fs7
 
-f7t= echo ; $(f7) -genprotofs -nokindcheck $(lperv) $(libfs7)
+f7t= echo ; $(f7) -nokindcheck $(lperv) $(libfs7)
 
 Error.tc7: $(libperv) $(libfs7) Error.fs7 Error.fs
 	$(f7t) Error.fs7 Error.fs
