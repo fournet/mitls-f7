@@ -28,7 +28,7 @@ let initConnState (ki:KeyInfo) (ccsData:ccs_data) =
 
 /// format the (public) additional data bytes, for MACing & verifying
 
-let makeAD ki conn ct =
+let makeAD ki (tlen:int) conn ct =
     let version = ki.sinfo.protocol_version in
     let bseq = bytes_of_seq conn.seqn in
     let bct  = ctBytes ct in
@@ -79,13 +79,13 @@ let recordPacketOut keyInfo conn tlen ct fragment =
         | (x,NoneKey) when isNullCipherSuite x -> 
             (conn,TLSFragment.repr keyInfo tlen ct fragment)
         | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
-            let addData = makeAD keyInfo conn ct in
+            let addData = makeAD keyInfo tlen conn ct in
             let aeadF = TLSFragment.DispatchToAEAD keyInfo tlen ct addData fragment in
             let data = MACPlain.MACPlain keyInfo tlen addData aeadF in
             let mac = MAC.MAC {MAC.ki=keyInfo;MAC.tlen=tlen} key data in
             (conn, (TLSFragment.repr keyInfo tlen ct fragment) @| (MACPlain.reprMACed keyInfo tlen mac))
         | (_,RecordAEADKey(key)) ->
-            let addData = makeAD keyInfo conn ct in
+            let addData = makeAD keyInfo tlen conn ct in
             let aeadF = TLSFragment.DispatchToAEAD keyInfo tlen ct addData fragment in
             let (newIV,payload) = AEAD.encrypt keyInfo key conn.iv3 tlen addData aeadF in
             let conn = {conn with iv3 = newIV} in
@@ -131,7 +131,7 @@ let recordPacketIn ki conn headPayload =
         | (x,NoneKey) when isNullCipherSuite x ->
             correct(conn, TLSFragment.fragment ki tlen ct payload)
         | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
-            let ad = makeAD ki conn ct in
+            let ad = makeAD ki tlen conn ct in
             let (msg,mac) = MACPlain.parseNoPad ki tlen ad payload in
             let toVerify = MACPlain.MACPlain ki tlen ad msg in
             if MAC.VERIFY {MAC.ki=ki;MAC.tlen=tlen} key toVerify mac then
@@ -139,7 +139,7 @@ let recordPacketIn ki conn headPayload =
             else
             Error(MAC,CheckFailed)
         | (_,RecordAEADKey(key)) ->
-            let ad = makeAD ki conn ct in
+            let ad = makeAD ki tlen conn ct in
             match AEAD.decrypt ki key conn.iv3 tlen ad payload with
             | Error(x,y) -> Error(x,y)
             | Correct (newIV, plain) ->

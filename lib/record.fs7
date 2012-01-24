@@ -1,24 +1,38 @@
 ﻿module Record
 
 open Bytes
-open Tcp
-open Formats
 open Error
 open TLSInfo
 open TLSKey
+open TLSFragment
+open Formats
 open CipherSuites
+open AEAD
 
 type (;ki:KeyInfo) ConnectionState = {
   key: (;ki) recordKey;
   iv3: (;ki) ENCKey.iv3;
   seqn: int; 
 }
-    
+
 type (;ki:KeyInfo) sendState = (;ki) ConnectionState 
 type (;ki:KeyInfo) recvState = (;ki) ConnectionState
 
+private val incN: ki:KeyInfo -> s:(;ki)ConnectionState ->
+	s':(;ki)ConnectionState{s'.seqn = s.seqn+1}
+
 val initConnState: ki:KeyInfo -> (;ki) ccs_data -> 
                    cs:(;ki) ConnectionState{cs.seqn = 0}
+
+private val makeAD: ki:KeyInfo -> tlen:int ->
+	(;ki)ConnectionState -> ct:ContentType ->
+	ad:addData{ADofID(ki,tlen,ct,ad)}
+
+private val makePacket: ContentType -> ProtocolVersion -> bytes -> bytes
+
+val headerLength: bytes -> int
+
+private val parseHeader: bytes -> (ContentType * ProtocolVersion * int) Result
 
 val recordPacketOut: ki:KeyInfo -> 
                      ss:(;ki) sendState -> 
@@ -30,14 +44,9 @@ val recordPacketOut: ki:KeyInfo ->
 val recordPacketIn : ki:KeyInfo -> 
                      rs:(;ki) recvState -> 
                      wire:bytes -> 
-                     (rs':recvState * 
+                     ((rs':recvState * 
 		      ct:ContentType * 
 		      pv:ProtocolVersion *
 		      tlen:int * 
-		      (;ki,tlen,ct) TLSFragment.fragment) Result
-
-
-(* auxiliary functions *)
-
-val parseHeader: bytes -> (ContentType * ProtocolVersion * int) Result
+		      (;ki,tlen,ct) TLSFragment.fragment){rs'.seqn=rs.seqn+1} ) Result
 
