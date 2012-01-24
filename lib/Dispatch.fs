@@ -430,21 +430,18 @@ let recv (Conn(id,c)) =
     match Tcp.read c.ns 5 with // read & parse the header
     | Error (x,y)         -> Error(x,y)
     | Correct header ->
-        match Record.parseHeader header with
-        | Error(x,y)      -> Error(x,y)
-        // enforce the protocol version (once established)
-        | Correct (ct,pv,len) when c.read.disp = Init || pv = id.id_in.sinfo.protocol_version ->
-            match Tcp.read c.ns len with // read & process the payload
+        let len = Record.headerLength header in
+        match Tcp.read c.ns len with // read & process the payload
             | Error (x,y) -> Error(x,y) 
             | Correct payload ->
                 // printf "%s[%d] " (Formats.CTtoString ct) len; 
-                match Record.recordPacketIn id.id_in c.read.conn len ct payload with
+                match Record.recordPacketIn id.id_in c.read.conn (header @| payload) with
                 | Error(x,y) -> Error(x,y)
-                | Correct(c_recv,ct,tl,f) ->
+                | Correct(c_recv,ct,pv,tl,f) when c.read.disp = Init || pv = id.id_in.sinfo.protocol_version -> 
                     let c_read = {c.read with conn = c_recv} in
                     let c = {c with read = c_read} in
                     correct(Conn(id,c),ct,tl,f)
-        | _ -> Error(RecordVersion,CheckFailed)
+                | _ -> Error(RecordVersion,CheckFailed)
 
 let readOne c =
     match recv c with

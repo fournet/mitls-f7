@@ -46,6 +46,11 @@ let makePacket ct ver data =
     let bl   = bytes_of_int 2 l in
     bct @| bver @| bl @| data
 
+let headerLength b =
+    let (ct1,rem4) = split b 1 
+    let (pv2,len2) = split rem4 2
+    int_of_bytes len2
+
 let parseHeader b = 
     let (ct1,rem4) = split b 1 
     let (pv2,len2) = split rem4 2 
@@ -125,7 +130,11 @@ let recordPacketOut2 conn clen ct fragment =
     makePacket ct conn.local_pv payload 
 *)
 
-let recordPacketIn ki conn tlen ct payload =
+let recordPacketIn ki conn headPayload =
+    let (header,payload) = split headPayload 5 in
+    match parseHeader header with
+    | Error(x,y) -> Error(x,y)
+    | Correct (ct,pv,tlen) -> 
     //CF tlen is not checked? can we write an inverse of makePacket instead?
     let cs = ki.sinfo.cipher_suite in
     let msgRes =
@@ -159,7 +168,7 @@ let recordPacketIn ki conn tlen ct payload =
     | Correct (msg) ->
     *)
     let conn = incN ki conn in
-    correct(conn,ct,tlen,msg)
+    correct(conn,ct,pv,tlen,msg)
 
 
 
