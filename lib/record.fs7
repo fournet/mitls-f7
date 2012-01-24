@@ -44,9 +44,9 @@ val recordPacketOut: ki:KeyInfo ->
 val recordPacketIn : ki:KeyInfo -> 
                      rs:(;ki) recvState -> 
                      wire:bytes -> 
-                     ((rs':recvState * 
-		      ct:ContentType * 
-		      pv:ProtocolVersion *
-		      tlen:int * 
-		      (;ki,tlen,ct) TLSFragment.fragment){rs'.seqn=rs.seqn+1} ) Result
+                     ((rs':(;ki)recvState * 
+					   ct:ContentType * 
+					   pv:ProtocolVersion *
+					   tlen:int * 
+					   (;ki,tlen,ct) TLSFragment.fragment){rs'.seqn=rs.seqn+1} ) Result
 

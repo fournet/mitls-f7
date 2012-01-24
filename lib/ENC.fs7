@@ -6,30 +6,15 @@ open TLSInfo
 open Error
 
 (* this interface is trusted *)
-// AP: Moved to ENCKey.fs7
-//type (;ki:KeyInfo) symKey
-
-(* AP: Moved to ENCKey.fs7
-// iv3 should be abstract too, and iv hidden 
-// we need a function for generating the initial iv3,
-// to be called by the the idealized PRF
-type iv = bytes
-
-type (;ki:KeyInfo) iv3 =
-	| SomeIV of iv{ki.sinfo.protocol_version = SSL_3p0 \/
-				   ki.sinfo.protocol_version = TLS_1p0}
-	| NoIV of unit{ki.sinfo.protocol_version = TLS_1p1 \/
-				   ki.sinfo.protocol_version = TLS_1p2}
-*)
 
 // ciphers consist of one or more blocks of bytes.
 type cipher = bytes
 
-predicate val ENCrypted:
-  (ki:KeyInfo * (;ki) ENCKey.key * (;ki) plain * cipher) -> bool
+predicate ENCrypted of
+  (ki:KeyInfo * tlen:int * (;ki) ENCKey.key * (;ki,tlen) plain * cipher)
 
-val ENC: ki:KeyInfo -> k:(;ki) ENCKey.key -> (;ki) ENCKey.iv3 -> n:int -> p:(;ki,n) plain -> 
-  ((;ki) ENCKey.iv3 * c:cipher{ENCrypted(ki,k,p,c) /\ Length(c)=n})
+val ENC: ki:KeyInfo -> k:(;ki) ENCKey.key -> (;ki) ENCKey.iv3 -> tlen:int -> p:(;ki,tlen) plain -> 
+  ((;ki) ENCKey.iv3 * c:cipher{ENCrypted(ki,tlen,k,p,c) /\ Length(c)=tlen})
 
 val DEC: ki:KeyInfo -> k:(;ki) ENCKey.key -> (;ki) ENCKey.iv3 -> c:cipher -> 
-  ((;ki) ENCKey.iv3 * p:(;ki,Length(c))plain{ENCrypted(ki,k,p,c)})
+  ((;ki) ENCKey.iv3 * p:(;ki,Length(c))plain{ENCrypted(ki,Length(c),k,p,c)})
