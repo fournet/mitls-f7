@@ -16,8 +16,8 @@ val fragment: KeyInfo -> int -> ContentType -> bytes -> fragment
 // Plain type for AEAD
 type addData = bytes
 type AEADFragment
-val AEADFragment: addData -> bytes -> AEADFragment
-val AEADRepr: addData -> AEADFragment -> bytes
+val AEADFragment: KeyInfo -> int -> addData -> bytes -> AEADFragment
+val AEADRepr: KeyInfo -> int -> addData -> AEADFragment -> bytes
 
 val AEADToDispatch: KeyInfo -> int -> ContentType -> addData -> AEADFragment -> fragment
 val DispatchToAEAD: KeyInfo -> int -> ContentType -> addData -> fragment -> AEADFragment

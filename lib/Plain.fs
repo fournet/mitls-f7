@@ -13,7 +13,7 @@ let repr (ki:KeyInfo) (tlen:int) p = p.p
 let pad (p:int)  = Array.create p (byte (p-1))
 
 let prepare (ki:KeyInfo) tlen ad data tag =
-    let d = TLSFragment.AEADRepr ad data
+    let d = TLSFragment.AEADRepr ki tlen ad data
     let t = MACPlain.reprMACed ki tlen tag
     let p = tlen - length d - length t  
     {p = d @| t @| pad p}
@@ -31,7 +31,7 @@ let parse ki tlen ad plain =
         (* Pretend we have a valid padding of length zero, but set we must fail *)
         let macStart = tlen - macSize - 1 in
         let (frag,mac) = split tmpdata macStart in
-        let aeadF = TLSFragment.AEADFragment ad frag
+        let aeadF = TLSFragment.AEADFragment ki tlen ad frag
         let tag = MACPlain.MACed ki tlen mac
         (true,(aeadF,tag))
         (*
@@ -54,14 +54,14 @@ let parse ki tlen ad plain =
             if equalBytes expected pad then
                 let macStart = tlen - macSize - padlen - 1 in
                 let (frag,mac) = split data_no_pad macStart in
-                let aeadF = TLSFragment.AEADFragment ad frag
+                let aeadF = TLSFragment.AEADFragment ki tlen ad frag
                 let tag = MACPlain.MACed ki tlen mac
                 (false,(aeadF,tag))
             else
                 (* Pretend we have a valid padding of length zero, but set we must fail *)
                 let macStart = tlen - macSize - 1 in
                 let (frag,mac) = split tmpdata macStart in
-                let aeadF = TLSFragment.AEADFragment ad frag
+                let aeadF = TLSFragment.AEADFragment ki tlen ad frag
                 let tag = MACPlain.MACed ki tlen mac
                 (true,(aeadF,tag))
                 (*
@@ -83,7 +83,7 @@ let parse ki tlen ad plain =
                 (* Pretend we have a valid padding of length zero, but set we must fail *)
                 let macStart = tlen - macSize - 1 in
                 let (frag,mac) = split tmpdata macStart in
-                let aeadF = TLSFragment.AEADFragment ad frag
+                let aeadF = TLSFragment.AEADFragment ki tlen ad frag
                 let tag = MACPlain.MACed ki tlen mac
                 (true,(aeadF,tag))
                 (*
@@ -94,6 +94,6 @@ let parse ki tlen ad plain =
             else
                 let macStart = tlen - macSize - padlen - 1 in
                 let (frag,mac) = split data_no_pad macStart in
-                let aeadF = TLSFragment.AEADFragment ad frag
+                let aeadF = TLSFragment.AEADFragment ki tlen ad frag
                 let tag = MACPlain.MACed ki tlen mac
                 (false,(aeadF,tag))

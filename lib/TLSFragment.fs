@@ -26,8 +26,8 @@ let fragment ki tlen (ct:ContentType) b =
 
 type addData = bytes
 type AEADFragment = {b:bytes}
-let AEADFragment (ad:addData) b = {b=b}
-let AEADRepr (ad:addData) f = f.b
+let AEADFragment (ki:KeyInfo) (tlen:int) (ad:addData) b = {b=b}
+let AEADRepr (ki:KeyInfo) (tlen:int) (ad:addData) f = f.b
 
 let AEADToDispatch (ki:KeyInfo) (i:int) (ct:ContentType) (ad:addData) aead = fragment ki i ct aead.b
 let DispatchToAEAD (ki:KeyInfo) (i:int) (ct:ContentType) (ad:addData) disp = {b = repr ki i ct disp}

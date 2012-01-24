@@ -19,9 +19,9 @@ type addData = bytes
 
 predicate ADofID: KeyInfo -> int -> ContenType -> addData
 
-type (;ad:addData) AEADFragment
-val AEADFragment: ad:addData{?ki,tlen,ct. ADofID(ki,tlen,ct,ad)} -> bytes -> (;ad)AEADFragment
-val AEADRepr: ad:addData{?ki,tlen,ct. ADofID(ki,tlen,ct,ad)} -> (;ad)AEADFragment -> bytes
+type (;ki:KeyInfo,tlen:int,ad:addData) AEADFragment
+val AEADFragment: ki:KeyInfo -> tlen:int -> ad:addData{?ct. ADofID(ki,tlen,ct,ad)} -> bytes -> (;ki,tlen,ad)AEADFragment
+val AEADRepr: ki:KeyInfo -> tlen:int -> ad:addData{?ct. ADofID(ki,tlen,ct,ad)} -> (;ki,tlen,ad)AEADFragment -> bytes
 
-val AEADToDispatch: ki:KeyInfo -> tlen:int -> ct:ContentType -> ad:addData{ADofID(ki,tlen,ct,ad)} -> (;ad)AEADFragment -> (;ki,tlen,ct)fragment
-val DispatchToAEAD: ki:KeyInfo -> tlen:int -> ct:ContentType -> ad:addData{ADofID(ki,tlen,ct,ad)} -> (;ki,tlen,ct)fragment -> (;ad)AEADFragment
+val AEADToDispatch: ki:KeyInfo -> tlen:int -> ct:ContentType -> ad:addData{ADofID(ki,tlen,ct,ad)} -> (;ki,tlen,ad)AEADFragment -> (;ki,tlen,ct)fragment
+val DispatchToAEAD: ki:KeyInfo -> tlen:int -> ct:ContentType -> ad:addData{ADofID(ki,tlen,ct,ad)} -> (;ki,tlen,ct)fragment -> (;ki,tlen,ad)AEADFragment
