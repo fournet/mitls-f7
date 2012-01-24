@@ -126,9 +126,6 @@
     <None Include="AEAD.fs7" />
     <Compile Include="AEAD.fsi" />
     <Compile Include="AEAD.fs" />
-    <None Include="Stream.fs7" />
-    <Compile Include="Stream.fsi" />
-    <Compile Include="Stream.fs" />
     <None Include="record.fs7" />
     <Compile Include="record.fsi" />
     <Compile Include="record.fs" />

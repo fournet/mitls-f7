@@ -8,9 +8,9 @@ libperv = $(lib7)pervasives.fs7 $(lib7)tuples.fs7
 lperv = -pervasives $(lib7)pervasives.fs7 -tuples $(lib7)tuples.fs7
 libfs7 = $(lib7)formulas.fs7 $(lib7)pi.fs7
 
-recordfs7 = Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppCommon.fs7 SessionDB.fs7 FragCommon.fs7 AppDataPlain.fs7 AppData.fs7 HS_msg.fs7 Handshake.fs7 Alert.fs7 TLSFragment.fs7 MACPlain.fs7 Plain.fs7 MAC.fs7 ENC.fs7 AEAD.fs7 Stream.fs7 record.fs7
-recordfsi = Error.fsi Bytes.fsi tcp.fsi RSA.fsi Principal.fsi Algorithms.fsi CipherSuites.fsi formats.fsi TLSInfo.fsi HASH.fsi HMAC.fsi ENCKey.fsi MACKey.fsi PRFs.fsi TLSKey.fsi AppCommon.fsi SessionDB.fsi FragCommon.fsi AppDataPlain.fsi AppData.fsi HS_msg.fsi Handshake.fsi Alert.fsi TLSFragment.fsi MACPlain.fsi Plain.fsi MAC.fsi ENC.fsi AEAD.fsi Stream.fsi record.fsi
-recordfs  = Error.fs  Bytes.fs  tcp.fs  RSA.fs  Principal.fs  Algorithms.fs  CipherSuites.fs  formats.fs  TLSInfo.fs  HASH.fs  HMAC.fs  ENCKey.fs  MACKey.fs  PRFs.fs  TLSKey.fs  AppCommon.fs  SessionDB.fs  FragCommon.fs  AppDataPlain.fs  AppData.fs  HS_msg.fs  Handshake.fs  Alert.fs  TLSFragment.fs  MACPlain.fs  Plain.fs  MAC.fs  ENC.fs  AEAD.fs  Stream.fs  record.fs
+recordfs7 = Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppCommon.fs7 SessionDB.fs7 FragCommon.fs7 AppDataPlain.fs7 AppData.fs7 HS_msg.fs7 Handshake.fs7 Alert.fs7 TLSFragment.fs7 MACPlain.fs7 Plain.fs7 MAC.fs7 ENC.fs7 AEAD.fs7 record.fs7
+recordfsi = Error.fsi Bytes.fsi tcp.fsi RSA.fsi Principal.fsi Algorithms.fsi CipherSuites.fsi formats.fsi TLSInfo.fsi HASH.fsi HMAC.fsi ENCKey.fsi MACKey.fsi PRFs.fsi TLSKey.fsi AppCommon.fsi SessionDB.fsi FragCommon.fsi AppDataPlain.fsi AppData.fsi HS_msg.fsi Handshake.fsi Alert.fsi TLSFragment.fsi MACPlain.fsi Plain.fsi MAC.fsi ENC.fsi AEAD.fsi record.fsi
+recordfs  = Error.fs  Bytes.fs  tcp.fs  RSA.fs  Principal.fs  Algorithms.fs  CipherSuites.fs  formats.fs  TLSInfo.fs  HASH.fs  HMAC.fs  ENCKey.fs  MACKey.fs  PRFs.fs  TLSKey.fs  AppCommon.fs  SessionDB.fs  FragCommon.fs  AppDataPlain.fs  AppData.fs  HS_msg.fs  Handshake.fs  Alert.fs  TLSFragment.fs  MACPlain.fs  Plain.fs  MAC.fs  ENC.fs  AEAD.fs  record.fs
 #recordfs-a = Error.fs  tcp-a.fs  Sessions.fs  formats.fs CryptoTLS.fs record.fs 
 
 dispatchfs7 = Dispatch.fs7
@@ -65,7 +65,7 @@ Dispatch-a.dll: libsym-a.dll record-a.dll $(tlsfsi) $(tlsfs)
 
 #CF not sure what the default rule was doing, now more bespoke
 
-tc7:: Algorithms.tc7 CipherSuites.tc7 formats.tc7 TLSInfo.tc7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppCommon.fs7 SessionDB.fs7 FragCommon.fs7 AppDataPlain.fs7 AppData.fs7 HS_msg.fs7 Handshake.fs7 Alert.fs7 TLSFragment.fs7 MACPlain.fs7 Plain.fs7 MAC.fs7 ENC.fs7 AEAD.fs7 Stream.fs7 record.fs7
+tc7:: Algorithms.tc7 CipherSuites.tc7 formats.tc7 TLSInfo.tc7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppCommon.fs7 SessionDB.fs7 FragCommon.fs7 AppDataPlain.fs7 AppData.fs7 HS_msg.fs7 Handshake.fs7 Alert.fs7 TLSFragment.fs7 MACPlain.fs7 Plain.fs7 MAC.fs7 ENC.fs7 AEAD.fs7 record.fs7
 
 f7t= echo ; $(f7) -genprotofs -nokindcheck $(lperv) $(libfs7)
 
