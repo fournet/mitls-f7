@@ -64,16 +64,6 @@ let parseHeader b =
     // No need to check len, since it's on 2 bytes and the max allowed value is 2^16.
     correct(ct,pv,len)
 
-let getMACKey key =
-    match key with
-    | RecordMACKey k -> k
-    | _ -> unexpectedError "[getMACKey] invoked on invalid key"
-
-let getAEADKey key =
-    match key with
-    | RecordAEADKey k -> k
-    | _ -> unexpectedError "[getAEADKey] invoked on invalid key"
-
 (* This replaces send. It's not called send, since it doesn't send anything on the
    network *)
 let recordPacketOut keyInfo conn tlen ct fragment =
@@ -85,23 +75,22 @@ let recordPacketOut keyInfo conn tlen ct fragment =
     | Correct compressed ->
     *)
     let (conn, payload) =
-        match keyInfo.sinfo.cipher_suite with
-        | x when isNullCipherSuite x -> 
+        match (keyInfo.sinfo.cipher_suite, conn.key) with
+        | (x,NoneKey) when isNullCipherSuite x -> 
             (conn,TLSFragment.repr keyInfo tlen ct fragment)
-        | x when isOnlyMACCipherSuite x ->
-            let key = getMACKey conn.key in
+        | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
             let addData = makeAD keyInfo conn ct in
             let aeadF = TLSFragment.DispatchToAEAD keyInfo tlen ct addData fragment in
             let data = MACPlain.MACPlain keyInfo tlen addData aeadF in
             let mac = MAC.MAC {MAC.ki=keyInfo;MAC.tlen=tlen} key data in
             (conn, (TLSFragment.repr keyInfo tlen ct fragment) @| (MACPlain.reprMACed keyInfo tlen mac))
-        | _ ->
+        | (_,RecordAEADKey(key)) ->
             let addData = makeAD keyInfo conn ct in
             let aeadF = TLSFragment.DispatchToAEAD keyInfo tlen ct addData fragment in
-            let key = getAEADKey conn.key in
             let (newIV,payload) = AEAD.encrypt keyInfo key conn.iv3 tlen addData aeadF in
             let conn = {conn with iv3 = newIV} in
             (conn,payload)
+        | _ -> unexpectedError "[recordPacketOut] Incompatible ciphersuite and key type"
     let conn = incN keyInfo conn in
     let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
     (conn,packet)
@@ -138,26 +127,25 @@ let recordPacketIn ki conn headPayload =
     //CF tlen is not checked? can we write an inverse of makePacket instead?
     let cs = ki.sinfo.cipher_suite in
     let msgRes =
-        match cs with
-        | x when isNullCipherSuite x ->
+        match (cs,conn.key) with
+        | (x,NoneKey) when isNullCipherSuite x ->
             correct(conn, TLSFragment.fragment ki tlen ct payload)
-        | x when isOnlyMACCipherSuite x ->
+        | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
             let ad = makeAD ki conn ct in
             let (msg,mac) = MACPlain.parseNoPad ki tlen ad payload in
             let toVerify = MACPlain.MACPlain ki tlen ad msg in
-            let key = getMACKey conn.key in
             if MAC.VERIFY {MAC.ki=ki;MAC.tlen=tlen} key toVerify mac then
                 correct(conn,TLSFragment.AEADToDispatch ki tlen ct ad msg)
             else
             Error(MAC,CheckFailed)
-        | _ ->
+        | (_,RecordAEADKey(key)) ->
             let ad = makeAD ki conn ct in
-            let key = getAEADKey conn.key in
             match AEAD.decrypt ki key conn.iv3 tlen ad payload with
             | Error(x,y) -> Error(x,y)
             | Correct (newIV, plain) ->
                 let conn = {conn with iv3 = newIV} in
                 correct (conn,TLSFragment.AEADToDispatch ki tlen ct ad plain)
+        | _ -> unexpectedError "[recordPacketIn] Incompatible ciphersuite and key type"
     match msgRes with
     | Error(x,y) -> Error(x,y)
     | Correct (conn,msg) ->
