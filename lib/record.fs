@@ -76,7 +76,7 @@ let getAEADKey key =
 
 (* This replaces send. It's not called send, since it doesn't send anything on the
    network *)
-let recordPacketOut ki conn tlen ct fragment =
+let recordPacketOut keyInfo conn tlen ct fragment =
     (* No need to deal with compression. It is handled internally by TLSPlain,
        when returning us the next (already compressed!) fragment *)
     (*
@@ -85,25 +85,25 @@ let recordPacketOut ki conn tlen ct fragment =
     | Correct compressed ->
     *)
     let (conn, payload) =
-        match ki.sinfo.cipher_suite with
+        match keyInfo.sinfo.cipher_suite with
         | x when isNullCipherSuite x -> 
-            (conn,TLSFragment.repr ki tlen ct fragment)
+            (conn,TLSFragment.repr keyInfo tlen ct fragment)
         | x when isOnlyMACCipherSuite x ->
             let key = getMACKey conn.key in
-            let addData = makeAD ki conn ct in
-            let aeadF = TLSFragment.DispatchToAEAD ki tlen ct addData fragment in
-            let data = MACPlain.MACPlain ki tlen addData aeadF in
-            let mac = Mac.MAC {ki=ki;tlen=tlen} key data in
-            (conn, (TLSFragment.repr ki tlen ct fragment) @| (MACPlain.reprMACed ki tlen mac))
+            let addData = makeAD keyInfo conn ct in
+            let aeadF = TLSFragment.DispatchToAEAD keyInfo tlen ct addData fragment in
+            let data = MACPlain.MACPlain keyInfo tlen addData aeadF in
+            let mac = Mac.MAC {ki=keyInfo;tlen=tlen} key data in
+            (conn, (TLSFragment.repr keyInfo tlen ct fragment) @| (MACPlain.reprMACed keyInfo tlen mac))
         | _ ->
-            let addData = makeAD ki conn ct in
-            let aeadF = TLSFragment.DispatchToAEAD ki tlen ct addData fragment in
+            let addData = makeAD keyInfo conn ct in
+            let aeadF = TLSFragment.DispatchToAEAD keyInfo tlen ct addData fragment in
             let key = getAEADKey conn.key in
-            let (newIV,payload) = AEAD.encrypt ki key conn.iv3 tlen addData aeadF in
+            let (newIV,payload) = AEAD.encrypt keyInfo key conn.iv3 tlen addData aeadF in
             let conn = {conn with iv3 = newIV} in
             (conn,payload)
-    let conn = incN ki conn in
-    let packet = makePacket ct ki.sinfo.protocol_version payload in
+    let conn = incN keyInfo conn in
+    let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
     (conn,packet)
 
 (* CF: an attempt to simplify for typechecking 
