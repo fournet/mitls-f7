@@ -6,7 +6,7 @@ open TLSFragment
 
 // Plaintext of MAC (addData + TLSFragment.fragment)
 type (;ki:KeyInfo,tlen:int) MACPlain
-val MACPlain: ki:KeyInfo -> tlen:int -> ad:TLSFragment.addData{?ct. ADofID(ki,tlen,ct,ad)} -> (;ad)TLSFragment.AEADFragment -> (;ki,tlen)MACPlain
+val MACPlain: ki:KeyInfo -> tlen:int -> ad:TLSFragment.addData{?ct. ADofID(ki,tlen,ct,ad)} -> (;ki,tlen,ad)TLSFragment.AEADFragment -> (;ki,tlen)MACPlain
 val reprMACPlain: ki:KeyInfo -> tlen:int -> (;ki,tlen)MACPlain -> bytes
 
 predicate val Msg: (ki:KeyInfo * tlen:int * (;ki,tlen)MACPlain) -> bool
@@ -17,4 +17,4 @@ val MACed: ki:KeyInfo -> tlen:int -> bytes -> (;ki,tlen)MACed
 val reprMACed: ki:KeyInfo -> tlen:int -> (;ki,tlen)MACed -> bytes
 
 // MAC-only ciphersuites
-val parseNoPad: ki:KeyInfo -> tlen:int -> ad:TLSFragment.addData{?ct. ADofID(ki,tlen,ct,ad)} -> bytes -> ((;ad)TLSFragment.AEADFragment * (;ki,tlen)MACed)
+val parseNoPad: ki:KeyInfo -> tlen:int -> ad:TLSFragment.addData{?ct. ADofID(ki,tlen,ct,ad)} -> bytes -> ((;ki,tlen,ad)TLSFragment.AEADFragment * (;ki,tlen)MACed)
