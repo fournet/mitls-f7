@@ -14,7 +14,9 @@ type (;si:SessionInfo) lengths = int list (* a list of desired ciphertext length
 
 predicate CompatibleLengths of SessionInfo * nat * lengths
 //definition !si. CompatibleLengths(si,0,[]) (* we can also decompose 0 + 0 etc *)
-//definition !si,n,l,m,ls. //    ( CompatibleLengths(si,(n+m),(l::ls)) <=> //    (  CompatibleLength(si,n,l) /\ CompatibleLengths(si,m,ls) ) )
+//definition !si,n,l,m,ls. 
+//    ( CompatibleLengths(si,(n+m),(l::ls)) <=> 
+//    (  CompatibleLength(si,n,l) /\ CompatibleLengths(si,m,ls) ) )
 
 // Interface to the AppData module
 val length: si:SessionInfo -> (;si)appdata -> int

@@ -33,7 +33,7 @@ let set_SessionInfo app_state sinfo =
     {app_state with app_info = sinfo}
 *)
 
-let send_data (state:app_state) si lens (data:appdata) =
+let send_data si (state:app_state) lens (data:appdata) =
     (* TODO: different strategies are possible.
         - Append given data to already committed appdata, and re-schedule lengths
         - Ensure the current appdata is empty before committing to the new one,

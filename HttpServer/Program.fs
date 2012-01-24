@@ -22,7 +22,7 @@ let tlsoptions = {
             CipherSuites.TLS_RSA_WITH_3DES_EDE_CBC_SHA;
         ]
 
-    AppCommon.compressions = [ CipherSuites.Null ]
+    AppCommon.compressions = [ CipherSuites.NullCompression ]
 
     AppCommon.honourHelloReq = AppCommon.HRPResume
     AppCommon.allowAnonCipherSuite = false

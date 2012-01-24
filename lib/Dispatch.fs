@@ -521,7 +521,7 @@ and read c stopAt =
 let writeAppData conn = write conn TopLevel
 
 let commit (Conn(id,c)) ls b =
-    let new_appdata = AppData.send_data c.appdata id.id_out.sinfo ls b in
+    let new_appdata = AppData.send_data id.id_out.sinfo c.appdata ls b in
     Conn(id,{c with appdata = new_appdata})
 
 (*

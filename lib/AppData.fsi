@@ -22,7 +22,7 @@ val set_SessionInfo: app_state -> SessionInfo -> app_state
 (* Application data to/form application *)
 
 (* Enqueue app data in the output buffer *)
-val send_data: app_state -> SessionInfo -> lengths -> appdata -> app_state
+val send_data: SessionInfo -> app_state -> lengths -> appdata -> app_state
 
 (* Tells whether the output buffer is empty *)
 val is_outgoing_empty: SessionInfo -> app_state -> bool
