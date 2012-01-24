@@ -4,14 +4,11 @@ open Bytes
 open Algorithms
 open Error
 
-//ask !x. x <= x
 ask 0 <= 1
 ask !l. (0 <= l /\ l <> 0) => l >= 1
-//ask !l,n. l > n => l >= (n+1)
 ask !l. l > 1 => l >= 2
 ask 0 <= 2
 
-ask Length([| 0; 1 |]) = 2
 
 (*** Following RFC5246 A.5 *)
 
@@ -172,8 +169,8 @@ private assume
     /\ CipherSuiteBytes(SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV))            = [| 0x00uy; 0xFFuy |]
 
 
-private predicate ContainsCipherSuite of bytes * cipherSuite
-assume !b,cs. ContainsCipherSuite(b,cs) <=> 
+predicate ContainsCipherSuite of bytes * cipherSuite
+private assume !b,cs. ContainsCipherSuite(b,cs) <=> 
                 (?b1,b2. b = b1 @| b2 /\ Length(b1) = 2 /\
 		         (b1 = CipherSuiteBytes(cs) \/ ContainsCipherSuite(b2,cs)))
 
