@@ -10,10 +10,7 @@ val store: filename:string -> map:Map -> unit
 
 // FIXME: in the DB a session must be indexed by sessionID and host!
 
-type StorableSession =
-  { sinfo: SessionInfo;
-    ms   : PRFs.masterSecret; // indexed by sinfo? 
-	dir  : Direction }
+type StorableSession = si:SessionInfo * (;si)PRFs.masterSecret * Direction
 
 val create: protocolOptions -> unit
 val select: protocolOptions -> sessionID -> StorableSession option

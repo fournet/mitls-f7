@@ -5,30 +5,30 @@ module Alert
 open Error
 open TLSInfo
 
-type pre_al_state
-type state = pre_al_state
+type (;si:SessionInfo)pre_al_state
+type (;si:SessionInfo)state = (;si)pre_al_state
 
 // protocol-specific abstract fragment,
 // and associated functions (never to be called with ideal functionality)
-type fragment
-val repr: KeyInfo -> int -> fragment -> Bytes.bytes
-val fragment: KeyInfo -> int -> Bytes.bytes -> fragment
+type (;ki:KeyInfo,tlne:int)fragment
+val repr: ki:KeyInfo -> tlen:int -> (;ki,tlen)fragment -> Bytes.bytes
+val fragment: ki:KeyInfo -> tlen:int -> Bytes.bytes -> (;ki,tlen)fragment
 
-type ALFragReply =
+type (;ki:KeyInfo)ALFragReply =
     | EmptyALFrag
-    | ALFrag of (int * fragment)
-    | LastALFrag of (int * fragment)
-    | LastALCloseFrag of (int * fragment)
+    | ALFrag of          (tlen:int * (;ki,tlen)fragment)
+    | LastALFrag of      (tlen:int * (;ki,tlen)fragment)
+    | LastALCloseFrag of (tlen:int * (;ki,tlen)fragment)
 
-type alert_reply =
-    | ALAck of state
-    | ALClose of state
-    | ALClose_notify of state
+type (;si:SessionInfo)alert_reply =
+    | ALAck of          (;si)state
+    | ALClose of        (;si)state
+    | ALClose_notify of (;si)state
 
-val init: state
+val init: si:SessionInfo -> (;si)state
 
-val send_alert: state -> alertDescription -> state
+val send_alert: si:SessionInfo -> (;si)state -> alertDescription -> (;si)state
 
-val next_fragment: KeyInfo -> state -> (ALFragReply * state) 
+val next_fragment: ki:KeyInfo -> (;ki.sinfo)state -> ((;ki)ALFragReply * (;ki.sinfo)state) 
 
-val recv_fragment: KeyInfo -> state -> int -> fragment -> alert_reply Result
+val recv_fragment: ki:KeyInfo -> (;ki.sinfo)state -> tlen:int -> (;ki,tlen)fragment -> ((;ki.sinfo)alert_reply) Result

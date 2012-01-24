@@ -11,9 +11,9 @@ open AppDataPlain
 // // so we can make the transition from one session to the other, when the buffer is empty
 
 type (;si:SessionInfo) pre_app_state = {
-  app_in_lengths: lengths;
+  app_in_lengths: (;si)lengths;
   app_incoming: (;si) appdata; (* unsolicited data *)
-  app_out_lengths: lengths;
+  app_out_lengths: (;si)lengths;
   app_outgoing: (;si) appdata;
 }
 
@@ -26,7 +26,7 @@ val init: si:SessionInfo -> (;si)app_state
 
 val reset_incoming: si:SessionInfo -> (;si)app_state -> (;si)app_state
 
-val send_data: si:SessionInfo -> (;si)app_state -> lengths -> appdata ->
+val send_data: si:SessionInfo -> (;si)app_state -> (;si)lengths -> (;si)appdata ->
 		(;si)app_state
 
 val is_outgoing_empty: si:SessionInfo -> (;si)app_state -> bool

@@ -7,10 +7,10 @@ open TLSInfo
 //definition !id. KeySize(id) = ENC.KeySize(id) + MAC.KeySize(id)
 //val keysize: ki:KeyInfo -> n:int {n = KeySize(ki)}
 //type (;ki:KeyInfo) keybytes = b:bytes {Length(b)=KeySize(ki)}
-private predicate type keypred = MtEKey of ki:KeyInfo * ((;ki) MACKey.key * (;ki) ENCKey.key)
+// private predicate MtEKey of ki:KeyInfo * ((;ki)MACKey.key * (;ki)ENCKey.key)
 
 type (;ki:KeyInfo) AEADKey = 
-      MtE of ka:(;ki)MACKey.key * ke:(;ki)ENCKey.key {MtEKey(ki,(ka,ke))}
+      MtE of ka:(;ki)MACKey.key * ke:(;ki)ENCKey.key // {MtEKey(ki,(ka,ke))}
 (*  |   GCM of ke:(;ki:AENC.key)  *)
 
 type (;ki:KeyInfo) recordKey =

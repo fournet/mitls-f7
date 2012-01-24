@@ -75,7 +75,7 @@ let init ns dir poptions =
     let (send,recv) = (Record.initConnState outKI outCCS, Record.initConnState inKI inCCS) in
     let read_state = {disp = Init; conn = recv} in
     let write_state = {disp = Init; conn = send} in
-    let al = Alert.init in
+    let al = Alert.init outKI.sinfo in
     let app = AppData.init outKI.sinfo in // or equivalently inKI.sinfo
     Conn ( {id_in = inKI; id_out = outKI},
       { poptions = poptions;
@@ -92,19 +92,18 @@ let resume ns sid ops =
     (* Ensure the sid is in the SessionDB, and it is for a client *)
     match select ops sid with
     | None -> unexpectedError "[resume] requested session expired or never stored in DB"
-    | Some (retrievedStoredSession) ->
-    match retrievedStoredSession.dir with
+    | Some (retrievedSinfo,retrievedMS,retrievedDir) ->
+    match retrievedDir with
     | StoC -> unexpectedError "[resume] requested session is for server side"
     | CtoS ->
-    let sinfo = retrievedStoredSession.sinfo in
     let outKI = null_KeyInfo CtoS ops.minVer in
     let inKI = dual_KeyInfo outKI in
-    let hs = Handshake.resume_handshake outKI.sinfo sinfo retrievedStoredSession.ms ops in // equivalently, inKI.sinfo
+    let hs = Handshake.resume_handshake outKI.sinfo retrievedSinfo retrievedMS ops in // equivalently, inKI.sinfo
     let (outCCS,inCCS) = (nullCCSData outKI, nullCCSData inKI) in
     let (send,recv) = (Record.initConnState outKI outCCS, Record.initConnState inKI inCCS) in
     let read_state = {disp = Init; conn = recv} in
     let write_state = {disp = Init; conn = send} in
-    let al = Alert.init in
+    let al = Alert.init outKI.sinfo in
     let app = AppData.init outKI.sinfo in // or equvalently inKI.sinfo
     let res = Conn ( {id_in = inKI; id_out = outKI},
                      { poptions = ops;
@@ -142,7 +141,8 @@ let getSessionInfo (Conn(id,conn)) =
    
 let moveToOpenState id c new_storable_info =
     (* If appropriate, store this session in the DB *)
-    match new_storable_info.sinfo.sessionID with
+    let (storableSinfo,storableMS,storableDir) = new_storable_info in
+    match storableSinfo.sessionID with
     | None -> (* This session should not be stored *) ()
     | Some (sid) -> (* SessionDB. *) insert c.poptions sid new_storable_info
 
@@ -165,7 +165,7 @@ let moveToOpenState id c new_storable_info =
                     alert = new_alert;
                     appdata = new_appdata} in
     *)
-    if c.poptions.isGoodSession new_storable_info.sinfo then
+    if c.poptions.isGoodSession storableSinfo then
         let read = c.read in
         match read.disp with
         | Finishing | Finished ->

@@ -151,9 +151,9 @@ let next_fragment ki state =
                         if cSpecState.resumed_session then
                             (* Handshake fully finished *)
                             let storable_session =
-                                { sinfo = state.hs_next_info;
-                                  ms = state.next_ms;
-                                  dir = CtoS}
+                                ( state.hs_next_info,
+                                  state.next_ms,
+                                  CtoS)
                             let state = goToIdle state
                             (HSFullyFinished_Write (f,storable_session), state)
                         else
@@ -186,9 +186,9 @@ let next_fragment ki state =
                         else
                             (* Handshake fully finished *)
                             let storable_session =
-                                { sinfo = state.hs_next_info;
-                                  ms = state.next_ms;
-                                  dir = CtoS}
+                                ( state.hs_next_info,
+                                  state.next_ms,
+                                  CtoS)
                             let state = goToIdle state
                             (HSFullyFinished_Write (f,storable_session), state)
                     | _ -> (HSFrag(f), state)
@@ -1044,7 +1044,7 @@ let start_rekey (si:SessionInfo) (state:hs_state) (ops:protocolOptions) =
         (* Ensure the sid is in the SessionDB *)
         match select ops sid with
         | None -> unexpectedError "[start_rekey] requested session expired or never stored in DB"
-        | Some (retrievedSinfo) ->
+        | Some (retrievedSinfo,retrievedMS,retrievedDir) ->
             match state.pstate with
             | Client (cstate) ->
                 match cstate with
@@ -1058,8 +1058,8 @@ let start_rekey (si:SessionInfo) (state:hs_state) (ops:protocolOptions) =
                                  poptions = ops
                                  pstate = Client (ServerHello)
                                  hs_msg_log = cHelloBytes
-                                 hs_next_info = retrievedSinfo.sinfo
-                                 next_ms = retrievedSinfo.ms                      
+                                 hs_next_info = retrievedSinfo
+                                 next_ms = retrievedMS                      
                                  ki_crand = client_random
                                  ki_srand = [||]
                                  hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
@@ -1326,9 +1326,9 @@ let rec recv_fragment_client (ki:KeyInfo) (state:hs_state) (agreedVersion:Protoc
                     else    
                         (* Handshake fully completed successfully. Report this fact to the dispatcher. *)
                         (* Note: no need to log this message *)
-                        let storableSession = { sinfo = state.hs_next_info;
-                                                ms = state.next_ms;
-                                                dir = CtoS}
+                        let storableSession = ( state.hs_next_info,
+                                                state.next_ms,
+                                                CtoS)
                         let state = goToIdle state in
                         (correct (HSFullyFinished_Read (storableSession)),state)
             | _ -> (* Finished arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
@@ -1648,26 +1648,26 @@ let rec recv_fragment_server (ki:KeyInfo) (state:hs_state) (agreedVersion:Protoc
                         | None ->
                             (* We don't have the requested session stored, go for a full handshake *)
                             startServerFull ki state cHello
-                        | Some (storedSession) ->
+                        | Some (storedSinfo,storedMS,storedDir) ->
                             (* Check that the client proposed algorithms match those of our stored session *)
-                            match storedSession.dir with
+                            match storedDir with
                             | CtoS -> (* This session is not for us, we're a server. Do full handshake *)
                                 startServerFull ki state cHello
                             | StoC ->
-                                if cHello.client_version >= storedSession.sinfo.protocol_version then
+                                if cHello.client_version >= storedSinfo.protocol_version then
                                     (* We have a common version *)
-                                    if not (List.exists (fun cs -> cs = storedSession.sinfo.cipher_suite) cHello.cipher_suites) then
+                                    if not (List.exists (fun cs -> cs = storedSinfo.cipher_suite) cHello.cipher_suites) then
                                         (* Do a full handshake *)
                                         startServerFull ki state cHello
-                                    else if not (List.exists (fun cm -> cm = storedSession.sinfo.compression) cHello.compression_methods) then
+                                    else if not (List.exists (fun cm -> cm = storedSinfo.compression) cHello.compression_methods) then
                                         (* Do a full handshake *)
                                         startServerFull ki state cHello
                                     else
                                         (* Everything is ok, proceed with resumption *)
-                                        let state = {state with hs_next_info = storedSession.sinfo
-                                                                next_ms = storedSession.ms}
+                                        let state = {state with hs_next_info = storedSinfo
+                                                                next_ms = storedMS}
                                         let state = prepare_server_output_resumption state 
-                                        recv_fragment_server ki state (Some(storedSession.sinfo.protocol_version))
+                                        recv_fragment_server ki state (Some(storedSinfo.protocol_version))
                                 else
                                     (* Do a full handshake *)
                                     startServerFull ki state cHello
@@ -1763,9 +1763,9 @@ let rec recv_fragment_server (ki:KeyInfo) (state:hs_state) (agreedVersion:Protoc
                     if sSpecSt.resumed_session then
                         (* Handshake fully completed successfully. Report this fact to the dispatcher. *)
                         (* Note: no need to log this message (and we go to the idle state forgetting everything anyway) *)
-                        let storableSession = { sinfo = state.hs_next_info
-                                                ms = state.next_ms
-                                                dir = StoC}
+                        let storableSession = ( state.hs_next_info,
+                                                state.next_ms,
+                                                StoC)
                         let state = goToIdle state
                         (correct (HSFullyFinished_Read (storableSession)),state)
                     else

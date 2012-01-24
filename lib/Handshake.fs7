@@ -14,39 +14,39 @@ open AppCommon
 // each performing a sequence of Handshakes for that connection.
 
 // protocol state  
-type pre_hs_state 
-type hs_state = pre_hs_state
+type (;si:SessionInfo)pre_hs_state 
+type (;si:SessionInfo)hs_state = (;si)pre_hs_state
 
 // protocol-specific abstract fragment,
 // and associated functions (never to be called with ideal functionality)
-type fragment
-val repr: KeyInfo -> int -> fragment -> Bytes.bytes
-val fragment: KeyInfo -> int -> Bytes.bytes -> fragment
-type ccsFragment
-val ccsRepr: KeyInfo -> int -> ccsFragment -> Bytes.bytes
-val ccsFragment: KeyInfo -> int -> Bytes.bytes -> ccsFragment
+type (;ki:KeyInfo,tlen:int) fragment
+val repr: ki:KeyInfo -> tlen:int -> (;ki,tlen)fragment -> Bytes.bytes
+val fragment: ki:KeyInfo -> tlen:int -> Bytes.bytes -> (;ki,tlen)fragment
+type (;ki:KeyInfo,tlen:int)ccsFragment
+val ccsRepr: ki:KeyInfo -> tlen:int -> (;ki,tlen)ccsFragment -> Bytes.bytes
+val ccsFragment: ki:KeyInfo -> tlen:int -> Bytes.bytes -> (;ki,tlen)ccsFragment
 
 (* Locally controlling handshake protocols *) 
 
 //TODO better names, maybe: init/accept resume reshake rekey request
 
 // Create instance for a fresh connection (without resumption) 
-val init_handshake: SessionInfo -> Direction -> protocolOptions -> hs_state
+val init_handshake: si:SessionInfo -> Direction -> protocolOptions -> (;si)hs_state
 
 // Create instance for a fresh connection (Client-only, resuming some other sessions)
-val resume_handshake: SessionInfo -> SessionInfo -> PRFs.masterSecret -> protocolOptions -> hs_state
+val resume_handshake: siCur:SessionInfo -> siNext:SessionInfo -> (;siNext)PRFs.masterSecret -> protocolOptions -> (;siCur)hs_state
 
 // All other calls are affine in the Handshake protocol state
 
 
 // Idle client starts a full handshake on the current connection
-val start_rehandshake: SessionInfo -> hs_state -> protocolOptions -> hs_state
+val start_rehandshake: si:SessionInfo -> (;si)hs_state -> protocolOptions -> (;si)hs_state
 
 // Idle client starts an abbreviated handshake resuming the current session 
-val start_rekey:       SessionInfo -> hs_state -> protocolOptions -> hs_state
+val start_rekey:       si:SessionInfo -> (;si)hs_state -> protocolOptions -> (;si)hs_state
 
 // (Idle) Server requests an handshake 
-val start_hs_request:  SessionInfo -> hs_state -> protocolOptions -> hs_state
+val start_hs_request:  si:SessionInfo -> (;si)hs_state -> protocolOptions -> (;si)hs_state
 
 
 // ? resetting; TODO we'll try to get rid of it, and ensure that 
@@ -61,13 +61,13 @@ val start_hs_request:  SessionInfo -> hs_state -> protocolOptions -> hs_state
 //TODO provide support for indexing fragments (probably by directed si, not ki)
 
 
-type HSFragReply =
+type (;ki:KeyInfo) HSFragReply =
   | EmptyHSFrag              (* nothing to send *) 
-  | HSFrag of                (int * fragment)
-  | CCSFrag of               (int * ccsFragment) (* the unique one-byte CCS *) * (KeyInfo * ccs_data)
-  | HSWriteSideFinished of   (int * fragment) (* signalling that this fragment ends the finished message *)
-  | HSFullyFinished_Write of (int * fragment) * SessionDB.StorableSession
-val next_fragment: KeyInfo -> hs_state -> HSFragReply * hs_state
+  | HSFrag of                (tlen:int * (;ki,tlen)fragment)
+  | CCSFrag of               (tlen:int * (;ki,tlen)ccsFragment) (* the unique one-byte CCS *) * (newKI:KeyInfo * (;newKI)ccs_data)
+  | HSWriteSideFinished of   (tlen:int * (;ki,tlen)fragment) (* signalling that this fragment ends the finished message *)
+  | HSFullyFinished_Write of (tlen:int * (;ki,tlen)fragment) * SessionDB.StorableSession
+val next_fragment: ki:KeyInfo -> (;ki.sinfo)hs_state -> (;ki)HSFragReply * (;ki.sinfo)hs_state
 
 (* Receiving Handshake and CCS fragments *) 
 
@@ -76,5 +76,5 @@ type recv_reply = (* the fragment is accepted, and... *)
   | HSVersionAgreed of ProtocolVersion (* use this new protocol version for sending *)
   | HSReadSideFinished (* ? *) 
   | HSFullyFinished_Read of SessionDB.StorableSession (* we can start sending data on the connection *)  
-val recv_fragment: KeyInfo -> hs_state -> int -> fragment -> recv_reply Result * hs_state
-val recv_ccs     : KeyInfo -> hs_state -> int -> ccsFragment -> ((KeyInfo * ccs_data) Result) * hs_state
+val recv_fragment: ki:KeyInfo -> (;ki.sinfo)hs_state -> tlen:int -> (;ki,tlen)fragment -> recv_reply Result * (;ki.sinfo)hs_state
+val recv_ccs     : ki:KeyInfo -> (;ki.sinfo)hs_state -> tlen:int -> (;ki,tlen)ccsFragment -> ((newKI:KeyInfo * (;newKI)ccs_data) Result) * (;ki)hs_state

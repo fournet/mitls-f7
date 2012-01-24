@@ -25,9 +25,9 @@ type alert_reply =
     | ALClose of state
     | ALClose_notify of state
 
-val init: state
+val init: SessionInfo -> state
 
-val send_alert: state -> alertDescription -> state
+val send_alert: SessionInfo -> state -> alertDescription -> state
 
 val next_fragment: KeyInfo -> state -> (ALFragReply * state) 
 

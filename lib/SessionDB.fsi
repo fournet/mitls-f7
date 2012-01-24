@@ -4,10 +4,7 @@ open TLSInfo
 open AppCommon
 
 // FIXME: in the DB a session must be identified by sessionID and host!
-type StorableSession =
-    {sinfo: SessionInfo
-     ms: PRFs.masterSecret
-     dir: Direction}
+type StorableSession = SessionInfo * PRFs.masterSecret * Direction
 
 val create: protocolOptions -> unit
 val select: protocolOptions -> sessionID -> StorableSession option

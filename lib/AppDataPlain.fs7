@@ -12,7 +12,7 @@ type (;si:SessionInfo) appdata = {appD:bytes}
 
 type (;si:SessionInfo) lengths = int list (* a list of desired ciphertext lengths *)
 
-predicate CompatibleLengths of SessionInfo * nat * lengths
+predicate CompatibleLengths of si:SessionInfo * nat * (;si)lengths
 //definition !si. CompatibleLengths(si,0,[]) (* we can also decompose 0 + 0 etc *)
 //definition !si,n,l,m,ls. 
 //    ( CompatibleLengths(si,(n+m),(l::ls)) <=> 
@@ -20,7 +20,7 @@ predicate CompatibleLengths of SessionInfo * nat * lengths
 
 // Interface to the AppData module
 val length: si:SessionInfo -> (;si)appdata -> int
-val estimateLengths: si:SessionInfo -> n:nat -> l:lengths{CompatibleLengths(si,n,l)}
+val estimateLengths: si:SessionInfo -> n:nat -> l:(;si)lengths{CompatibleLengths(si,n,l)}
 
 val empty_appdata: si:SessionInfo -> d:(;si)appdata{Length(d.appD)=0}
 val is_empty_appdata: si:SessionInfo -> d:(;si)appdata -> r:bool{r=true => Length(d.appD)=0}
@@ -30,7 +30,7 @@ val is_empty_appdata: si:SessionInfo -> d:(;si)appdata -> r:bool{r=true => Lengt
 // Right now, we invoke them from the top TLS module. But we could remove them from there,
 // make TLS use the appdata type, and for instance invoke them from TLStream, which is
 // already part of the top level application.
-val appdata: si:SessionInfo -> l:lengths -> b:bytes{CompatibleLength(si,Length(b),l)} -> (;si)appdata
+val appdata: si:SessionInfo -> l:(;si)lengths -> b:bytes{CompatibleLength(si,Length(b),l)} -> (;si)appdata
 val appdataBytes: si:SessionInfo -> (;si)appdata -> bytes
 
 // A fragment of appdata
@@ -38,15 +38,15 @@ type (;ki:KeyInfo,tlen:int) fragment = {b:bytes}
 
 (* Append the given fragment at the *bottom* of the current appdata *)
 val concat_fragment_appdata: ki:KeyInfo -> l:int ->
-	f:(;ki,l)fragment{CompatibleLength(ki.sinfo,Length(f.b),l)} -> ls:lengths ->
+	f:(;ki,l)fragment{CompatibleLength(ki.sinfo,Length(f.b),l)} -> ls:(;ki.sinfo)lengths ->
     d:(;ki.sinfo)appdata{CompatibleLengths(ki.sinfo,Length(d.appD),ls)} ->
-	(ls2:lengths * d2:appdata){CompatibleLengths(ki.sinfo,Length(d2.appD),ls2)}
+	(ls2:(;ki.sinfo)lengths * d2:(;ki.sinfo)appdata){CompatibleLengths(ki.sinfo,Length(d2.appD),ls2)}
 
 (* Exctract the *first* fragment from the *beginning* of appdata *)
-val app_fragment: ki:KeyInfo -> ls:lengths ->
+val app_fragment: ki:KeyInfo -> ls:(;ki.sinfo)lengths ->
 	d:(;ki.sinfo)appdata{CompatibleLengths(ki.sinfo,Length(d.appD),ls)} ->
 	((tlen:int * f:(;ki,tlen)fragment {CompatibleLength(ki.sinfo,Length(f.b),tlen)}) *
-	 (ls2:lengths * d2:appdata {CompatibleLengths(ki.sinfo,Length(d2.appD),ls2)}))
+	 (ls2:(;ki.sinfo)lengths * d2:(;ki.sinfo)appdata {CompatibleLengths(ki.sinfo,Length(d2.appD),ls2)}))
 
 val repr: ki:KeyInfo -> tlen:int -> (;ki,tlen)fragment -> bytes
 val fragment: ki:KeyInfo -> tlen:int -> bytes -> (;ki,tlen)fragment

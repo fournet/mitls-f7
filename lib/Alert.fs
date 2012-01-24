@@ -25,7 +25,7 @@ let makeFragment ki b =
     let (tl,f,r) = FragCommon.splitInFrag ki b in
     ((tl,{b=f}),r)
 
-let init = {al_incoming = [||]; al_outgoing = [||]}
+let init (si:SessionInfo) = {al_incoming = [||]; al_outgoing = [||]}
 
 type ALFragReply =
     | EmptyALFrag
@@ -115,7 +115,7 @@ let parseAlert (b:bytes) =
   | Correct(desc) ->
   correct({level = level; description = desc })
   
-let send_alert state alertDesc =
+let send_alert (si:SessionInfo) state alertDesc =
     (* FIXME: We should only send fatal alerts. Right now we'll interpret any sent alert
        as fatal, and so will close the connection afterwards. *)
     (* Note: we only support sending one alert in the whole protocol execution
@@ -151,7 +151,7 @@ let next_fragment ki state =
                 | _ -> (LastALFrag(frag),state)
         | _ -> (ALFrag(frag),state)
 
-let handle_alert state al =
+let handle_alert si state al =
     match al.description with
     | AD_close_notify ->
         (* This must be fatal: check it *)
@@ -159,7 +159,7 @@ let handle_alert state al =
             Error (AlertProto,Unsupported)
         else
             (* we possibly send a close_notify back *)
-            let state = send_alert state AD_close_notify in
+            let state = send_alert si state AD_close_notify in
             correct ( ALClose_notify (state) )
     | _ ->
         match al.level with
@@ -181,7 +181,7 @@ let recv_fragment ki state tlen (data:fragment) =
             else
                 match parseAlert al with
                 | Error(x,y) -> Error(x,y)
-                | Correct(alert) -> handle_alert state alert
+                | Correct(alert) -> handle_alert ki.sinfo state alert
     | inc ->
         match length fragment with
         | 0 -> Error(Parsing,WrongInputParameters) (* Empty alert fragments are invalid *)
@@ -195,4 +195,4 @@ let recv_fragment ki state tlen (data:fragment) =
                 | Error(x,y) -> Error(x,y)
                 | Correct(alert) ->
                     let state = {state with al_incoming = [||] } in
-                    handle_alert state alert
+                    handle_alert ki.sinfo state alert
