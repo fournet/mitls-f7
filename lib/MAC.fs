@@ -1,4 +1,4 @@
-﻿module Mac
+﻿module MAC
 
 open Bytes
 open Algorithms

@@ -93,7 +93,7 @@ let recordPacketOut keyInfo conn tlen ct fragment =
             let addData = makeAD keyInfo conn ct in
             let aeadF = TLSFragment.DispatchToAEAD keyInfo tlen ct addData fragment in
             let data = MACPlain.MACPlain keyInfo tlen addData aeadF in
-            let mac = Mac.MAC {ki=keyInfo;tlen=tlen} key data in
+            let mac = MAC.MAC {MAC.ki=keyInfo;MAC.tlen=tlen} key data in
             (conn, (TLSFragment.repr keyInfo tlen ct fragment) @| (MACPlain.reprMACed keyInfo tlen mac))
         | _ ->
             let addData = makeAD keyInfo conn ct in
@@ -146,7 +146,7 @@ let recordPacketIn ki conn headPayload =
             let (msg,mac) = MACPlain.parseNoPad ki tlen ad payload in
             let toVerify = MACPlain.MACPlain ki tlen ad msg in
             let key = getMACKey conn.key in
-            if Mac.VERIFY {ki=ki;tlen=tlen} key toVerify mac then
+            if MAC.VERIFY {MAC.ki=ki;MAC.tlen=tlen} key toVerify mac then
                 correct(conn,TLSFragment.AEADToDispatch ki tlen ct ad msg)
             else
             Error(MAC,CheckFailed)

@@ -41,7 +41,7 @@ let encrypt ki key iv3 tlen data plain =
     | MtE (macKey,encKey) ->
         //CF no, we need some TLSPlain.MAC. And encrypt cannot fail. 
         let text = MACPlain.MACPlain ki tlen data plain in
-        let mac = Mac.MAC {ki=ki;tlen=tlen} macKey text in
+        let mac = MAC.MAC {ki=ki;tlen=tlen} macKey text in
         let toEncrypt = Plain.prepare ki tlen data plain mac in
         ENC.ENC ki encKey iv3 tlen toEncrypt
 
@@ -92,12 +92,12 @@ let decrypt ki key iv tlen ad cipher =
             if mustFail then
                 Error(RecordPadding,CheckFailed)
             else
-                if Mac.VERIFY {ki=ki;tlen=tlen} macKey toVerify mac then
+                if MAC.VERIFY {ki=ki;tlen=tlen} macKey toVerify mac then
                     correct(iv3,compr)
                 else
                     Error(MAC,CheckFailed)
         | TLS_1p1 | TLS_1p2 ->
-            if Mac.VERIFY {ki=ki;tlen=tlen} macKey toVerify mac then
+            if MAC.VERIFY {ki=ki;tlen=tlen} macKey toVerify mac then
                 if mustFail then
                     Error(MAC,CheckFailed)
                 else
