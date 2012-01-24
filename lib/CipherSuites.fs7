@@ -174,9 +174,9 @@ private assume !b,cs. ContainsCipherSuite(b,cs) <=>
                 (?b1,b2. b = b1 @| b2 /\ Length(b1) = 2 /\
 		         (b1 = CipherSuiteBytes(cs) \/ ContainsCipherSuite(b2,cs)))
 
-private predicate ContainsCipherSuites of bytes * cipherSuites
-assume !b. ContainsCipherSuites(b,[]) 
-assume !b,h,t.  ContainsCipherSuites(b,h::t) <=> (ContainsCipherSuite(b,h) /\ ContainsCipherSuites(b,t))
+predicate ContainsCipherSuites of bytes * cipherSuites
+private assume !b. ContainsCipherSuites(b,[]) 
+private assume !b,h,t.  ContainsCipherSuites(b,h::t) <=> (ContainsCipherSuite(b,h) /\ ContainsCipherSuites(b,t))
 
 ask !b1,b2,css. (Length(b1) = 2 /\ ContainsCipherSuites(b2,css)) => ContainsCipherSuites(b1 @| b2, css)
 
