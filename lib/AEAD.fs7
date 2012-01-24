@@ -1,10 +1,26 @@
 ﻿module AEAD
 
+open TLSInfo
 open TLSFragment
 open TLSKey
+open Error
 
-val encrypt: ki:KeyInfo -> (;ki) AEADKey -> (;ki) ENC.iv3 -> tlen:int -> ad:addData{?ct.ADofID(ki,tlen,ct,ad)} -> (;ki,tlen,ad) AEADFragment -> ((;ki) ENC.iv3 * cipher)
-val decrypt: ki:KeyInfo -> (;ki) AEADKey -> (;ki) ENC.iv3 -> tlen:int -> ad:addData{?ct.ADofID(ki,tlen,ct,ad)} -> cipher -> ((;ki) ENC.iv3 * (;ki,tlen,ad) AEADfragment) Result
+val encrypt: ki:KeyInfo -> 
+  (;ki) AEADKey -> 
+  (;ki) ENCKey.iv3 -> 
+  tlen:int -> 
+  ad:addData{?ct. ADofID(ki,tlen,ct,ad)} -> 
+  (;ki,tlen,ad) AEADFragment -> 
+  ((;ki) ENCKey.iv3 * ENC.cipher)
+
+
+val decrypt: ki:KeyInfo -> 
+  (;ki) AEADKey -> 
+  (;ki) ENCKey.iv3 -> 
+  tlen:int -> 
+  ad:addData{?ct. ADofID(ki,tlen,ct,ad)} -> 
+  ENC.cipher ->
+  ((;ki) ENCKey.iv3 * (;ki,tlen,ad) AEADFragment) Result
 
 
 (* TODOS: (KB: Done?) *)

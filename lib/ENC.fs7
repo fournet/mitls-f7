@@ -23,13 +23,13 @@ type (;ki:KeyInfo) iv3 =
 *)
 
 // ciphers consist of one or more blocks of bytes.
-type (;ki:KeyInfo) cipher = b:bytes
+type cipher = bytes
 
 predicate val ENCrypted:
-  (ki:KeyInfo * (;ki) symKey * (;ki) plain * (;ki) cipher) -> bool
+  (ki:KeyInfo * (;ki) ENCKey.key * (;ki) plain * cipher) -> bool
 
-val ENC: ki:KeyInfo -> k:(;ki) symKey -> (;ki) iv3 -> n:int -> p:(;ki,n) plain -> 
-  ((;ki) iv3 * c:(;ki)cipher{ENCrypted(ki,k,p,c) /\ Length(c)=n})
+val ENC: ki:KeyInfo -> k:(;ki) ENCKey.key -> (;ki) ENCKey.iv3 -> n:int -> p:(;ki,n) plain -> 
+  ((;ki) ENCKey.iv3 * c:cipher{ENCrypted(ki,k,p,c) /\ Length(c)=n})
 
-val DEC: ki:KeyInfo -> k:(;ki) symKey -> (;ki) iv3 -> c:(;ki) cipher -> 
-  ((;ki) iv3 * p:(;ki,Length(c))plain{ENCrypted(ki,k,p,c)})
+val DEC: ki:KeyInfo -> k:(;ki) ENCKey.key -> (;ki) ENCKey.iv3 -> c:cipher -> 
+  ((;ki) ENCKey.iv3 * p:(;ki,Length(c))plain{ENCrypted(ki,k,p,c)})

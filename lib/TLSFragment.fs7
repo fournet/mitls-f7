@@ -5,7 +5,7 @@ open TLSInfo
 open Formats
 
 // Plain type for Dispatch
-type (ki:KeyInfo,tlen:int,ct:ContentType) fragment =
+type (;ki:KeyInfo,tlen:int,ct:ContentType) fragment =
     | FHandshake of (;ki,tlen)Handshake.fragment    {ct=Formats.Handshake}
     | FCCS       of (;ki,tlen)Handshake.ccsFragment {ct=Change_cipher_spec}
     | FAlert     of (;ki,tlen)Alert.fragment        {ct=Alert}
@@ -17,7 +17,7 @@ val fragment: ki:KeyInfo -> tlen:int -> ct:ContentType -> bytes -> (;ki,tlen,ct)
 // Plain type for AEAD
 type addData = bytes
 
-predicate ADofID: KeyInfo -> int -> ContenType -> addData
+predicate ADofID of (KeyInfo * int * ContentType * addData)
 
 type (;ki:KeyInfo,tlen:int,ad:addData) AEADFragment
 val AEADFragment: ki:KeyInfo -> tlen:int -> ad:addData{?ct. ADofID(ki,tlen,ct,ad)} -> bytes -> (;ki,tlen,ad)AEADFragment

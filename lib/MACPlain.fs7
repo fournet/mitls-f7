@@ -2,10 +2,11 @@
 
 open Bytes
 open TLSInfo
+open TLSFragment
 
 // Plaintext of MAC (addData + TLSFragment.fragment)
 type (;ki:KeyInfo,tlen:int) MACPlain
-val MACPlain: ki:KeyInfo -> tlen:int -> ad:TLSFragment.addData{?ct. ADofID(ki,tlen,ct,ad)} -> (;ad)TLSFragment.AEADFragment) -> (;ki,tlen)MACPlain
+val MACPlain: ki:KeyInfo -> tlen:int -> ad:TLSFragment.addData{?ct. ADofID(ki,tlen,ct,ad)} -> (;ad)TLSFragment.AEADFragment -> (;ki,tlen)MACPlain
 val reprMACPlain: ki:KeyInfo -> tlen:int -> (;ki,tlen)MACPlain -> bytes
 
 predicate val Msg: (ki:KeyInfo * tlen:int * (;ki,tlen)MACPlain) -> bool

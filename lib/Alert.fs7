@@ -1,62 +1,34 @@
+﻿(* Alert protocol *)
+
 module Alert
 
-(* We do not support sending warnings, as there is no good reason to do so *)
-
-open Bytes
 open Error
-open Formats
 open TLSInfo
 
-type alertLevel =
-  | AL_warning
-  | AL_fatal
-
-type alert =
-  {level: alertLevel;
-   description: alertDescription;}
-
-type (;si:SessionInfo) messages = bytes
-
-type (;siIN:SessionInfo,siOUT:SessionInfo) pre_al_state =
-  {al_incoming: (;siIN)  messages;
-   al_outgoing: (;siOUT) messages;}
-
-predicate type preds =
-    | AlertState of pre_al_state
+type pre_al_state
+type state = pre_al_state
 
 // protocol-specific abstract fragment,
 // and associated functions (never to be called with ideal functionality)
 type fragment
 val repr: KeyInfo -> int -> fragment -> Bytes.bytes
-val fragment: KeyInfo -> Bytes.bytes -> ((int * fragment) * Bytes.bytes)
-
-type (;siIN:SessionInfo,siOUT:SessionInfo) state = (als:pre_al_state){AlertState(als)}
-
-val init: i:SessionInfo -> s:state{s.al_info = i}
+val fragment: KeyInfo -> int -> Bytes.bytes -> fragment
 
 type ALFragReply =
     | EmptyALFrag
-    | ALFrag of bytes
-    | LastALFrag of bytes
-
-val next_fragment: als:state -> int -> (r:ALFragReply * als':state)
-  {   (als'.al_info = als.al_info) 
-  /\  (r = EmptyALFrag => als' = als) 
-//  /\  (!f. r = ALFrag(f)     => (UpperProtoSend(als.al_info,Alert,f) /\ Pub(f))
-//  /\  (!f. r = LastALFrag(f) => (UpperProtoSend(als.al_info,Alert,f) /\ Pub(f)) 
-  }
+    | ALFrag of (int * fragment)
+    | LastALFrag of (int * fragment)
+    | LastALCloseFrag of (int * fragment)
 
 type alert_reply =
-  | ALAck of state
-  | ALClose of state
-  | ALClose_notify of state
+    | ALAck of state
+    | ALClose of state
+    | ALClose_notify of state
 
-val alertBytes: alertDescription -> bytes
-val parseLevel: bytes -> alertLevel Result
-val parseAlertDescription: bytes -> alertDescription Result
-val parseAlert: bytes -> alert Result
+val init: state
 
 val send_alert: state -> alertDescription -> state
-val handle_alert: state -> alert -> alert_reply Result
-//CF temp: val recv_fragment:  state -> Record.fragment -> alert_reply Result
 
+val next_fragment: KeyInfo -> state -> (ALFragReply * state) 
+
+val recv_fragment: KeyInfo -> state -> int -> fragment -> alert_reply Result

@@ -44,9 +44,9 @@ val concat_fragment_appdata: ki:KeyInfo -> l:int ->
 
 (* Exctract the *first* fragment from the *beginning* of appdata *)
 val app_fragment: ki:KeyInfo -> ls:lengths ->
-	d:(;si)appdata{CompatibleLengths(ki.sinfo,Length(d.appD),ls)} ->
-	((tlen:int * f:(;ki,tlen)fragment {CompatibleLength(ki.sinfo,tlen,Length(f.b))}) *
-	 (ls2:lengths * d2:appdata {CompatibleLengths(ki.sinfo,ls2,Length(d2.appD))}))
+	d:(;ki.sinfo)appdata{CompatibleLengths(ki.sinfo,Length(d.appD),ls)} ->
+	((tlen:int * f:(;ki,tlen)fragment {CompatibleLength(ki.sinfo,Length(f.b),tlen)}) *
+	 (ls2:lengths * d2:appdata {CompatibleLengths(ki.sinfo,Length(d2.appD),ls2)}))
 
 val repr: ki:KeyInfo -> tlen:int -> (;ki,tlen)fragment -> bytes
 val fragment: ki:KeyInfo -> tlen:int -> bytes -> (;ki,tlen)fragment

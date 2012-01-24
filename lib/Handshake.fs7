@@ -1,319 +1,80 @@
+﻿(* Handshake protocol *) 
 module Handshake
 
-open Bytes
 open Error
-open Formats
-open HS_msg
-open Algorithms
+//open Formats
+//open HS_msg
 open CipherSuites
 open TLSInfo
+open TLSKey
 open AppCommon
-open Principal
-open SessionDB
-open PRFs
-//open Record
+//open SessionDB
 
-type clientSpecificState =
-    { resumed_session    : bool;
-      must_send_cert     : certificateRequest Option;
-      client_certificate : (cert list) Option
-    }
+// There is one instance of the protocol for each TCP connection,
+// each performing a sequence of Handshakes for that connection.
 
-type clientState =
-    | ServerHello
-    | Certificate
-    | ServerKeyExchange
-    | CertReqOrSHDone
-    | CSHDone   of clientSpecificState
-    | CCCS      of clientSpecificState
-    | CFinished of clientSpecificState
-    | CWaitingToWrite
-    | CIdle
-
-type serverSpecificState =
-    { resumed_session: bool;
-      highest_client_ver: ProtocolVersion}
-
-type serverState =
-    | ClientHello
-    | ClCert of serverSpecificState
-    | ClientKEX of serverSpecificState
-    | CertificateVerify of serverSpecificState
-    | SCCS of serverSpecificState
-    | SFinished of serverSpecificState
-    | SWaitingToWrite
-    | SIdle
-
-type protoState =
-  | Client of clientState
-  | Server of serverState
-
-type pre_hs_state = {
-  hs_outgoing    : bytes;                  (* outgiong data before a ccs *)
-  ccs_outgoing: (bytes * ccs_data) option; (* marker telling there's a ccs ready *)
-  hs_outgoing_after_ccs: bytes;            (* data to be sent after the ccs has been sent *)
-  hs_incoming    : bytes;                  (* partial incoming HS message *)
-  ccs_incoming: ccs_data option; (* used to store the computed secrects for receving data. Not set when receiving CCS, but when we compute the session secrects *)
-  poptions: protocolOptions;
-  pstate : protoState;
-  hs_msg_log: bytes;
-  hs_cur_info : SessionInfo; (* The session we're currrently running into *)
-  cur_ms: masterSecret; (* The master secrect associated with the current session. *)
-  hs_next_info: SessionInfo; (* The session we're establishing within the current HS *)
-  next_ms: masterSecret; (* The ms we're establishing *)
-  ki_crand: bytes; (* Client random for the session we're establishing (to be stored in KeyInfo) *)
-  ki_srand: bytes; (* Current server random, as above *)
-  hs_renegotiation_info_cVerifyData: bytes; (*Renegotiation info associated with the session we're establishing *)
-  hs_renegotiation_info_sVerifyData: bytes
-}
-
-predicate type preds =
-  | HandshakeState of pre_hs_state // Invariants on the hs state
-  | Client of pre_hs_state         // This HS is running in client mode
-  | Server of pre_hs_state         // This HS is running in server mode
-  | ClientFinished of SessionInfo  // Client sent the Finished message
-  | ServerFinished of SessionInfo  // Server sent the Finished message
-  | Compatible of KeyInfo * bytes * protocolOptions
-
-type hs_state = hs:pre_hs_state {HandshakeState(hs)}
+// protocol state  
+type pre_hs_state 
+type hs_state = pre_hs_state
 
 // protocol-specific abstract fragment,
 // and associated functions (never to be called with ideal functionality)
 type fragment
 val repr: KeyInfo -> int -> fragment -> Bytes.bytes
-val fragment: KeyInfo -> Bytes.bytes -> ((int * fragment) * Bytes.bytes)
+val fragment: KeyInfo -> int -> Bytes.bytes -> fragment
+type ccsFragment
+val ccsRepr: KeyInfo -> int -> ccsFragment -> Bytes.bytes
+val ccsFragment: KeyInfo -> int -> Bytes.bytes -> ccsFragment
 
-//CF: refine int * fragment
+(* Locally controlling handshake protocols *) 
+
+//TODO better names, maybe: init/accept resume reshake rekey request
+
+// Create instance for a fresh connection (without resumption) 
+val init_handshake: SessionInfo -> Direction -> protocolOptions -> hs_state
+
+// Create instance for a fresh connection (Client-only, resuming some other sessions)
+val resume_handshake: SessionInfo -> SessionInfo -> PRFs.masterSecret -> protocolOptions -> hs_state
+
+// All other calls are affine in the Handshake protocol state
+
+
+// Idle client starts a full handshake on the current connection
+val start_rehandshake: SessionInfo -> hs_state -> protocolOptions -> hs_state
+
+// Idle client starts an abbreviated handshake resuming the current session 
+val start_rekey:       SessionInfo -> hs_state -> protocolOptions -> hs_state
+
+// (Idle) Server requests an handshake 
+val start_hs_request:  SessionInfo -> hs_state -> protocolOptions -> hs_state
+
+
+// ? resetting; TODO we'll try to get rid of it, and ensure that 
+// handshake.fs leaves hs_state in the resulting state after completion
+// val new_session_idle:  hs_state -> SessionInfo -> PRFs.masterSecret -> hs_state
+
+
+(* Sending Handshake and CCS fragments *)
+
+//TODO make SessionDB internal to handshake (or object!)
+//TODO systematically rename FullyFinished to Complete etc
+//TODO provide support for indexing fragments (probably by directed si, not ki)
+
+
 type HSFragReply =
-  | EmptyHSFrag
+  | EmptyHSFrag              (* nothing to send *) 
   | HSFrag of                (int * fragment)
-  | HSWriteSideFinished of   (int * fragment) // {(Client(state) /\ ClientFinished(si)) \/ (Server(state) /\ ServerFinished(si))}
-  | HSFullyFinished_Write of (int * fragment) * ss:StorableSession {ClientFinished(ss.sinfo) /\ ServerFinished(ss.sinfo)} // Honest(..) /\ StrongSuite(..) =>
-  | CCSFrag of               (int * fragment) * cd:ccs_data // {(Client(state) /\ Compatible(cd.ki,state.ki_crand,state.poptions)) \/ (Server(state) /\ Compatible(cd.ki,state.ki_srand,state.poptions))}
+  | CCSFrag of               (int * ccsFragment) (* the unique one-byte CCS *) * (KeyInfo * ccs_data)
+  | HSWriteSideFinished of   (int * fragment) (* signalling that this fragment ends the finished message *)
+  | HSFullyFinished_Write of (int * fragment) * SessionDB.StorableSession
+val next_fragment: KeyInfo -> hs_state -> HSFragReply * hs_state
 
-(* CF out of date:
-// returns to the dispatcher the next fragment to be sent, if any 
-val next_fragment: s:hs_state -> r:HSFragReply * s':hs_state 
-    {   (s'.hs_cur_info = s.hs_cur_info) 
-	/\  (r = EmptyHSFrag => s' = s) 
-    /\  (!i,f. r = HSFrag((i,f)) => (UpperProtoSend(s.hs_info,Handshake,f) /\ Pub(f))) 
-        // TODO: Pub(f) might not be true for the Finished message, in this case a different return value is needed 
-        // FIXME: The fragments returned after the CCS must be blessed for the next sessioninfo, not the current one!
-        //          This will also be true for the alert protocol... and input/output session infos at the record layer
-        //          might not be synchronized... 
-    /\  (!i,f,ccs. r = CCSFrag((i,f),ccs) =>
-          (UpperProtoSend(s.hs_info,Change_cipher_spec,f) /\ Pub(f) /\ Compatible(ccs.ki,s.ki_Xrand,s.poptions))
-                    // /\ ccs.ki.sinfo = s.ns_next_info 
-					)
-               
-    /\  (!i,f. r = HSWriteSideFinished((i,f)) => // FIXME: which sinfo to use? cur, next? We must be aligned, or don't care about this
-          (UpperProtoSend(s.hs_info, Handshake, f) /\ Pub(f) /\ Client/ServerFinished(s.hs_next_info)))
-                
-    /\  (!i,f,ss. r = HSFullyFinished_Write(((i,f),ss)) =>
-          (UpperProtocoSend(s.hs_info, Handshake, f) /\ Pub(f) /\ ClientFinished(s.hs_next_info) /\ ServerFinished(s.hs_next_info)))
-                    // /\ ss.sinfo = s.hs_next_info 
-    }
-*)
+(* Receiving Handshake and CCS fragments *) 
 
-type recv_reply = 
-  | HSAck
-  | HSVersionAgreed of ProtocolVersion
-  | HSReadSideFinished // {(Client(state) /\ ClientFinished(si)) \/ (Server(state) /\ ServerFinished(si))}
-  | HSFullyFinished_Read of ss:StorableSession {ClientFinished(ss.sinfo) /\ ServerFinished(ss.sinfo)} // Honest(..) /\ StrongSuite(..) =>
-
-// Negotiation
-
-function val Negotiate: ('a list * 'a list) -> 'a
-//definition !cs,s,ss.    Mem(s,cs)      <=> s = Negotiate(cs,s:ss)  
-//definition !cs,s,s',ss. not(Mem(s',cs) <=> Negotiate(cs,s':ss,s) = Negotiate(cs,ss,s) )
-
-val negotiate: cs: 'a list -> ss: 'a list -> (s: 'a { s = Negotiate(cs,ss) }) option  
-
-// Internal
-private val makeFragment : HS_msg.HandShakeType -> bytes -> bytes
-private val makeHelloRequestBytes : unit -> bytes
-private val makeTimestamp : unit -> int
-private val makeClientHello : protocolOptions -> Sessions.sessionID -> HS_msg.clientHello
-private val b_of_cslist : HS_ciphersuites.CipherSuite list -> bytes -> bytes
-private val bytes_of_cipherSuites : HS_ciphersuites.CipherSuite list -> bytes
-private val b_of_complist : Formats.Compression list -> bytes -> bytes
-private val compressionMethodsBytes : Formats.Compression list -> bytes
-private val makeClientHelloBytes : protocolOptions -> Sessions.sessionID -> bytes
-
-val init_handshake: r:role -> protocolOptions -> (info:SessionInfo * s:hs_state){info = InitSessionInfo(r,None) /\ s.hs_info = info}
-val resume_handshake: role -> SessionInfo -> protocolOptions -> hs_state
-val start_rehandshake: hs_state -> protocolOptions -> hs_state
-val start_rekey: hs_state -> protocolOptions -> hs_state
-val start_hs_request: hs_state -> protocolOptions -> hs_state
-val new_session_idle: hs_state -> i:SessionInfo -> s:hs_state{s.hs_info = i}
-
-private val parseFragment :
-  hs_state -> bytes -> hs_state * (HS_msg.HandShakeType * bytes) option
-
-val recv_fragment: hs_state -> Record.fragment ->
-	(r:(recv_reply Error_handling.Result) * hs_state){
-		(!rr. r = Correct(rr) => (!hs,r,pv. rr = HSChangeVersion(hs,r,pv) => pv <> UnknownPV))
-	}
-val recv_ccs: s:hs_state -> Record.fragment ->
-	(r:(Record.ccs_data Error_handling.Result) * hs_state){
-//CF temp//	(!ccs. r = Correct(ccs) => Compatible(ccs.ki, s.ki_Xrand, s.poptions)) (* /\ ccs.ki.sinfo = s.hs_next_info *)
-	}
-
-(* A ccs such that Compatible(ccs,...) holds implies that there exist
-   TLSMKey(mk,info) and TLSSKey(sk,info) (where mk,sk,info are somehow bound to ccs).
-   This is enough for the keys to be used in the record layer, and for the dispatcher
-   to be in its Finishing/Finished states.
-   However, when the HS protocol emits the HSFinished(info) event, then it means we're in
-   an opened session, so the dispatcher can go to the open state, and we can lift Pub_K
-   to the compromised session *)
-
-(*   
-// If a confirmed key is public, then the session is compromised 
-assume  !mk,info. TLSMKey(mk,info) /\ HSFinished(info) /\ Compromised(info) => Crypto.Pub_k(mk)
-theorem !mk,info. TLSMKey(mk,info) /\ HSFinished(info) /\ Crypto.Pub_k(mk) => Compromised(info)
-assume  !sk,info. TLSSKey(sk,info) /\ HSFinished(info) /\ Compromised(info) => Crypto.Pub_k(sk)
-theorem !sk,info. TLSSKey(sk,info) /\ HSFinished(info) /\ Crypto.Pub_k(sk) => Compromised(info)
-*)
-
-(* towards a ClientFinished logical specification
-
-[rest of] si, MS =
- 
-(si, ms, ClientVerifyMessages) { 
-? ClientHello, ServerHello, Certificate, ClientKEX. 
-  /\ ClientHelloMessage(ClientHello,si.CR,options)
-  /\ ServerHelloMessage(ServerHello,si.SR,si.sessionID,
-                        si.protocolVersion,si.ciphersuite,si.compression,si.extensions)
-  /\ CertificateMessage(Certificate, si.serverID)
-  /\ ClientKEXMessage(ClientKEX,pms, si.serverID)
-  /\ ms = PRF("...",pms,si.CR,si.SR...)
-  /\ ClientVerifyMessages = ClientHello @| ServerHello @| Certificate @| ClientKEX }
-
-// all those being injective; maybe use functions instead? 
-
-  si.CR = ClientHello[CR]
-
-TAKE 2: assuming that we get a full spec after parsing every message.
-
-(si, ms, ClientVerifyMessages) { 
-     ms = PRF("...",pms,si.CR,si.SR...)
-  /\ ClientVerifyMessages = 
-         ClientHello(si.CR,options) 
-      @| ServerHello(si.SR,si.sessionID,si.protocolVersion,si.ciphersuite,si.compression,si.extensions 
-	  @| Certificate(si.serverID)
-	  @| ClientKEXMessage(pms, si.serverID) 						 
-}
-
-More abstractly, we have clientVerifyData = F(si)
-for some logical F such that F(si)=F(si') => si = si' [at least on exchanged fields]
-
-
-Handshake verification hints:
-
-After verifying the Finished message, 
-we have conditional agreement on the sequence of exchanged messages (verifyData).
-
-From this, we want to infer conditional agreement on sessionInfo.
-
-So, we want to express sessionInfo = F(verifyData).
-However, F will be different from client to server, and in general we cannot prove
-F = F' (where F is on the client and F' on the server).
-Instead we want to characterize F and F' with the minimum information that we need to prove
-that F'(verifyData) = SessionInfo' = SessionInfo = F(verifyData)
-(Again: verifying the Finished message gives agreement on verifyData, i.e. it tells us verifyData
-is indeed the same on both sides).
-So, we do this by binding each field of sessionInfo to specific messages: e.g.
-sessionInfo.init_crand = F(clientHello) and F'(clientHello), etc.
-
-(best is when we can use the same binding for F and F', so that we write it only once and
-we reuse it on both client and server sides)
-
-We end up with something like in Cedric's comment. To prove it locally, we have to reason
-step-by-step, increasing the invariant:
-- In the initial state, we don't know anything about sessionInfo
-- When we receive one message, we assume all previously set fields are ok, and we prove
-  the field we handle is set correctly
-- In the final state, all fields are set correctly, and we get agreement on sessionInfo
-*)
-
-(* 17/12/11 towards an ideal functionality for the handshake, 
-            and a discussion of the "Google hack", from whiteboards:
-
-- Our ideal functionality implements the Handshake interface, 
-  with the 4+ kinds of transitions to open new sessions and connections
-  and the dispatch interface to send and receive Handshake fragments. 
-
-  nodes are low-level connections, transitions are labelled with sessions.
-
-      CLIENT       |     SERVER      NOTATION 
-  init_handshake   | init_handshake  ---(S)-> X  full initial handshake
-  resume_handshake | init_handshake  ----S--> X  abbreviate resumption (reusing some existing session S)
-  start_rekey      | (idle state)    X --S--> X  abbreviated rekeying (and more) over the current connection
-  start_rehandshake| (idle state)    X -(S)-> X  full renegotiation over the current connection
-
-  (not represented yet?)
-                                     X -fatal->  also removing the current session for the DB 
-                                     X -close->  keeping the current session live
-
-- The interface is reasonably abstract, e.g. it does not specify who gets
-  authenticated first, or any finishing mechanism. Binary messages are 
-  exchanged until, sometimes, some local events occur (notified to the dispatcher) 
-  
-  * first, local change cipher suite: (si, keys) {Finished(si,keys)}
-  * then, handshake completion: unit {Finished(dual(si),keys)}
-
-  (With TLS, the two events occur at the same time at the server for full handshakes,
-  and at the client for abbreviated handshakes.)
- 
-  Between the two local events, if AcceptCCS(si,keys) => StrongSuite(si), 
-  we are "at most" talking with the right peer and 
-  we can immediately start pushing data (a la Google).
-
-  However, this does not enable (e.g.) the server to protect clients
-  with poor whitelists. For instance, if the client accepts a broken cipher 
-  rejected by the server, then any message sent before completion may be leaked.
-
-  Formally, if we wait for confirmation, then "AppData.repr" has a stronger precondition,
-  including "ClientAccept(si) /\ ServerAccept(si)" 
-
-  On the other hand, this seems entirely fine for authentication,
-  since the AppData Msg can condition its properties "ServerAccept(si) => ..."  
-
-- Each local instance is indexed by its state,
-  ideally associated with its locally-generated fresh "Random"
-
-- We have two predicates for tracking partial compromise:
-
-  StrongSuite(si) when the cryptosuite in si has the crypto properties
-  we rely on for key establishment (not necessarily those for the record layer)
-
-  Compliant(si) when the principals are honest, e.g. their certificates 
-  are correctly produced and used only for TLS KEX.
-
-- When StrongSuite(si) /\ Compliant(si), our ideal functionality...
-  * when deriving keys, calls the correct GEN(_)  instead of coercing the PRF. 
-  * when completing handshakes, fixes any false confirmation
-  
-Questions: 
-
-- when to index using the abstract state? using CR? using (CR,SR)? using si? 
-
-- write down the "Msg" predicate for the record layer, notably for Finished. 
-  something like
-
-    !si. ct=Handshake /\ fragment=VerifyData(si) => 
-         (StrongSuite(si) /\ Compliant(si) => ClientFinished(si)) 
-
-/\  !data. ct=AppDAta /\ fragment=d /\ ServerFinished(si) => 
-           (StrongSuite(si) /\ Compliant(si) => ClientFinished(si)) 
-
-- Should SessionDB be internal to Handshake? 
-  NB we need to fix the DB, to index sessions by host + sessionID.
-
-- How to deal uniformally with anonymous parties? 
-
-- How to deal with negotiation? 
-  * implicitly, si must be compatible with the options provided by the parties
-  * explicitly, si must be accepted e.g. when presenting certificates to the user. 
-
-*)
+type recv_reply = (* the fragment is accepted, and... *)
+  | HSAck (* nothing happens *)
+  | HSVersionAgreed of ProtocolVersion (* use this new protocol version for sending *)
+  | HSReadSideFinished (* ? *) 
+  | HSFullyFinished_Read of SessionDB.StorableSession (* we can start sending data on the connection *)  
+val recv_fragment: KeyInfo -> hs_state -> int -> fragment -> recv_reply Result * hs_state
+val recv_ccs     : KeyInfo -> hs_state -> int -> ccsFragment -> ((KeyInfo * ccs_data) Result) * hs_state
