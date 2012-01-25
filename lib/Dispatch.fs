@@ -457,9 +457,11 @@ let rec writeFromRead c =
     | (Correct (Done)      ,c) -> (correct(unitVal),c)
     | (Correct (MustRead)  ,c) -> (correct(unitVal),c)
 
-type readInvocation =
+type preReadInvocation =
     | StopAtHS
     | StopAtAppData
+
+type readInvocation = preReadInvocation
 
 let rec read c stopAt =
     match writeFromRead c with

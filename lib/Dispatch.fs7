@@ -67,42 +67,58 @@ val init: NetworkStream -> Direction -> protocolOptions -> Connection
 
 val resume: NetworkStream -> sessionID -> protocolOptions -> unit Result * Connection
 
-val ask_rehandshake: (id:index * (;id)globalState) -> protocolOptions -> id':index{id'=id} * (;id')globalState
-val ask_rekey:       (id:index * (;id)globalState) -> protocolOptions -> id':index{id'=id} * (;id')globalState
-val ask_hs_request:  (id:index * (;id)globalState) -> protocolOptions -> id':index{id'=id} * (;id')globalState
+val ask_rehandshake: (id:index * (;id)globalState) -> protocolOptions -> (id':index * (;id')globalState){id'=id}
+val ask_rekey:       (id:index * (;id)globalState) -> protocolOptions -> (id':index * (;id')globalState){id'=id}
+val ask_hs_request:  (id:index * (;id)globalState) -> protocolOptions -> (id':index * (;id')globalState){id'=id}
 
 val getSessionInfo: (id:index * (;id)globalState) -> si:SessionInfo{si=id.id_out.sinfo}
 
 val moveToOpenState: id:index * (;id)globalState -> StorableSession -> (;id)globalState Result
 
-val closeConnection: (id:index * (;id)globalState) -> (id':index{id'=id} * (;id')globalState)
+val closeConnection: (id:index * (;id)globalState) -> (id':index * (;id')globalState){id'=id}
 
 val send: ki:KeyInfo -> NetworkStream -> ss:(;ki)sendState -> tlen:int ->
 	ct:ContentType -> f:(;ki,tlen,ct)TLSFragment.fragment ->
 	ss':(;ki)sendState Result
 
 val writeOne: (id:index * (;id)globalState) ->
-	(writeOutcome Result) * (id':index{id'=id} * (;id')globalState)
+	(writeOutcome Result) * ((id':index * (;id')globalState){id'=id})
 
 val deliver: (id:index * (;id)globalState) -> ct:ContentType -> tlen:int ->
 	(;id.id_out,ct,tlen)TLSFragment.fragment ->
-	(deliverOutcome Result) * (id':index{id'=id} * (;id')globalState)
+	(deliverOutcome Result) * ((id':index * (;id')globalState){id'=id})
 
 val recv: (id:index * (;id)globalState) ->
 	((id:index * (;id)globalState) *
 	  ct:ContentType * tlen:int * (;id.id_in,tlen,ct)TLSFragment.fragment) Result
 
 val readOne: (id:index * (;id)globalState) ->
-	deliverOutcome Result * (id':index{id'=id} * (;id')globalState)
+	deliverOutcome Result * ((id':index * (;id')globalState){id'=id})
 
-val writeAppData: Connection -> (unit Result) * Connection
-val readAppData: Connection -> ((AppDataPlain.appdata Result) * Connection)
-val readHS: Connection -> (unit Result) * Connection
-// val appDataAvailable: Connection -> bool
+val writeFromRead: (id:index * (;id)globalState) ->
+	unit Result * ((id':index * (;id')globalState){id'=id})
 
-val getSessionInfo: Connection -> SessionInfo
+type preReadInvocation =
+    | StopAtHS
+    | StopAtAppData
 
-(* Fills the output buffer with the given data.
-   Do not send anything on the network yet. *)
-val commit: Connection -> AppDataPlain.lengths -> AppDataPlain.appdata -> Connection
-// val write_buffer_empty: Connection -> bool
+type readInvocation = r:preReadInvocation{
+	r = StopAtHS \/ r = StopAtAppData}
+
+val read: (id:index * (;id)globalState) -> readInvocation ->
+	unit Result * ((id':index * (;id')globalState){id'=id})
+
+val writeAppData: (id:index * (;id)globalState) ->
+	unit Result * ((id':index * (;id')globalState){id'=id})
+
+val commit: (id:index * (;id)globalState) ->
+	(;id.id_out.sinfo)AppDataPlain.lengths ->
+	(;id.id_out.sinfo)AppDataPlain.appdata ->
+	(id':index * (;id')globalState){id'=id}
+
+val readAppData: (id:index * (;id)globalState) ->
+	(((;id.id_in.sinfo)AppDataPlain.appdata Result) *
+		((id':index * (;id')globalState){id'=id}))
+
+val readHS: (id:index * (;id)globalState) ->
+	unit Result * ((id':index * (;id')globalState){id'=id})
