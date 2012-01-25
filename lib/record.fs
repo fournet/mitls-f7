@@ -21,8 +21,8 @@ let incN (ki:KeyInfo) (s:ConnectionState) =
     { s with seqn = new_seqn }
 
 let initConnState (ki:KeyInfo) (ccsData:ccs_data) =
-  { key = ccsData.key;
-    iv3 = ccsData.iv3;
+  { key = ccsData.ccsKey;
+    iv3 = ccsData.ccsIV3;
     seqn = 0;
   }
 

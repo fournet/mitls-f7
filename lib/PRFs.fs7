@@ -40,4 +40,4 @@ val prfKeyExp: ki:KeyInfo -> (;ki.sinfo)masterSecret ->
                (* No seed (crandom @| srandom), it can be retrieved from KeyInfo (and not SessionInfo!) -> *)
                (;ki)keyBlob (* length depends on cs *)
 
-val splitKeys: out:KeyInfo -> (;out)keyBlob -> ((;out)MACKey.key * (;DualKeyInfo(out))MACKey.key * (;out)ENCKey.key * (;DualKeyInfo(out))ENCKey.key * bytes * bytes)
+val splitKeys: out:KeyInfo -> (;out)keyBlob -> ((;out)MACKey.key * (;DualKeyInfo(out,()))MACKey.key * (;out)ENCKey.key * (;DualKeyInfo(out,()))ENCKey.key * bytes * bytes)

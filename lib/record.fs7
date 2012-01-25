@@ -24,15 +24,21 @@ private val incN: ki:KeyInfo -> s:(;ki)ConnectionState ->
 val initConnState: ki:KeyInfo -> (;ki) ccs_data -> 
                    cs:(;ki) ConnectionState{cs.seqn = 0}
 
+private assume !ki,tlen,ct,ad.
+	ADofID(ki,tlen,ct,ad) <=>
+		(?seqn. (ki.sinfo.protocol_version = SSL_3p0 /\
+		  ad = IntBytes(8,seqn) @| CTBytes(ct)) \/
+		  ad = IntBytes(8,seqn) @| CTBytes(ct) @| VersionBytes(ki.sinfo.protocol_version))
+
 private val makeAD: ki:KeyInfo -> tlen:int ->
 	(;ki)ConnectionState -> ct:ContentType ->
 	ad:addData{ADofID(ki,tlen,ct,ad)}
 
 private val makePacket: ContentType -> ProtocolVersion -> bytes -> bytes
 
-val headerLength: bytes -> int
+val headerLength: b:bytes{Length(b) = 5} -> int
 
-private val parseHeader: bytes -> (ContentType * ProtocolVersion * int) Result
+private val parseHeader: b:bytes{Length(b) = 5} -> (ContentType * ProtocolVersion * int) Result
 
 val recordPacketOut: ki:KeyInfo -> 
                      ss:(;ki) sendState -> 

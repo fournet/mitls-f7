@@ -12,10 +12,10 @@ type recordKey =
     | NoneKey
 
 type ccs_data =
-    { key: recordKey;
-      iv3: ENCKey.iv3;
+    { ccsKey: recordKey;
+      ccsIV3: ENCKey.iv3;
     }
 
 let nullCCSData (ki:KeyInfo) =
-    { key = NoneKey;
-      iv3 = ENCKey.NoIV ()}
+    { ccsKey = NoneKey;
+      ccsIV3 = ENCKey.NoIV ()}

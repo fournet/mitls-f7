@@ -52,14 +52,14 @@ private assume !ki. NullKeyInfo(ki) <=> (NullSessionInfo(ki.sinfo) /\ ki.crand =
 
 val null_KeyInfo: d:Direction -> pv:ProtocolVersion -> ki:KeyInfo{NullKeyInfo(ki)}
 
-function val DualKeyInfo: KeyInfo -> KeyInfo
-assume !k1. DualKeyInfo(k1) = {
+function val DualKeyInfo: (KeyInfo * unit) -> (KeyInfo * unit)
+assume !k1,dummy. DualKeyInfo(k1,dummy) = ({
 	sinfo = k1.sinfo;
 	dir=DualDirection(k1.dir);
 	crand=k1.crand;
-	srand=k1.srand}
+	srand=k1.srand}, () )
 
-val dual_KeyInfo: k1:KeyInfo -> k2:KeyInfo{k2=DualKeyInfo(k1)}
+val dual_KeyInfo: k1:KeyInfo -> k2:KeyInfo{k2=DualKeyInfo(k1,())}
 // We might need something like this -- and possibly more
 // definition !ki. NullKeyInfo(ki) => NullSessionInfo(ki.sinfo)
 

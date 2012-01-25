@@ -19,7 +19,7 @@ type (;ki:KeyInfo) recordKey =
     | NoneKey
 
 type (;ki:KeyInfo) ccs_data =
-    { key: (;ki) recordKey;
-      iv3: (;ki) ENCKey.iv3;
+    { ccsKey: (;ki) recordKey;
+      ccsIV3: (;ki) ENCKey.iv3;
     }
 val nullCCSData: ki:KeyInfo -> (;ki) ccs_data
