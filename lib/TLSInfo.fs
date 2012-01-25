@@ -53,4 +53,6 @@ let null_KeyInfo dir minPV =
      srand = [||];
     }
 
-let dual_KeyInfo ki = {ki with dir = dualDirection(ki.dir)}
+let dual_KeyInfo ki = 
+  let d = dualDirection(ki.dir) in
+  {ki with dir = d}

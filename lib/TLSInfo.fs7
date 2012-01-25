@@ -16,8 +16,7 @@ function val DualDirection: Direction -> Direction
 assume DualDirection(CtoS) = StoC
 assume DualDirection(StoC) = CtoS
 
-val dualDirection: d1:Direction -> d2:Direction
-  {d2=DualDirection(d1)}
+val dualDirection: d1:Direction -> d2:Direction{d2=DualDirection(d1)}
 
 type SessionInfo = {
     clientID: cert option;
