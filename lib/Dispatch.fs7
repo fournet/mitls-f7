@@ -35,7 +35,7 @@ type index =
     { id_in:  KeyInfo;
       id_out: KeyInfo}
 
-type (;id:index) preConnection = {
+type (;id:index) globalState = {
   poptions: protocolOptions;
   (* abstract protocol states for HS/CCS, AL, and AD *)
   handshake: (;id.id_out.sinfo) Handshake.hs_state;
@@ -50,7 +50,7 @@ type (;id:index) preConnection = {
   ns: NetworkStream
   }
 
-type Connection = Conn of (id:index * (;id)preConnection)
+type Connection = id:index * (;id)globalState
 
 type writeOutcome =
     | WriteAgain (* Possibly more data to send *)
@@ -67,25 +67,33 @@ val init: NetworkStream -> Direction -> protocolOptions -> Connection
 
 val resume: NetworkStream -> sessionID -> protocolOptions -> unit Result * Connection
 
-val ask_rehandshake: c1:Connection -> protocolOptions -> c2:Connection{?id,s,s'. c1=(id,s) /\ c2=(id,s')}
-val ask_rekey:       c1:Connection -> protocolOptions -> c2:Connection{?id,s,s'. c1=(id,s) /\ c2=(id,s')}
-val ask_hs_request:  c1:Connection -> protocolOptions -> c2:Connection{?id,s,s'. c1=(id,s) /\ c2=(id,s')}
+val ask_rehandshake: (id:index * (;id)globalState) -> protocolOptions -> id':index{id'=id} * (;id')globalState
+val ask_rekey:       (id:index * (;id)globalState) -> protocolOptions -> id':index{id'=id} * (;id')globalState
+val ask_hs_request:  (id:index * (;id)globalState) -> protocolOptions -> id':index{id'=id} * (;id')globalState
 
-val getSessionInfo: Connection -> SessionInfo
+val getSessionInfo: (id:index * (;id)globalState) -> si:SessionInfo{si=id.id_out.sinfo}
 
-val moveToOpenState: id:index -> c:(;id)preConnection -> StorableSession -> (;id)preConnection Result
+val moveToOpenState: id:index * (;id)globalState -> StorableSession -> (;id)globalState Result
 
-val closeConnection: c1:Connection -> c2:Connection{?id,s,s'. c1=(id,s) /\ c2=(id,s')}
+val closeConnection: (id:index * (;id)globalState) -> (id':index{id'=id} * (;id')globalState)
 
 val send: ki:KeyInfo -> NetworkStream -> ss:(;ki)sendState -> tlen:int ->
 	ct:ContentType -> f:(;ki,tlen,ct)TLSFragment.fragment ->
 	ss':(;ki)sendState Result
 
-val writeOne: c1:Connection -> (writeOutcome Result) * c2:Connection{?id,s,s'. c1=(id,s) /\ c2=(id,s')}
+val writeOne: (id:index * (;id)globalState) ->
+	(writeOutcome Result) * (id':index{id'=id} * (;id')globalState)
 
-val deliver: c1:Connection -> ct:ContentType -> tlen:int ->
-	(;id,ct,tlen)TLSFragment.fragment ->
-	(deliverOutcome Result) * c2:Connection{?s,s'. c1=(id,s) /\ c2=(id,s')}
+val deliver: (id:index * (;id)globalState) -> ct:ContentType -> tlen:int ->
+	(;id.id_out,ct,tlen)TLSFragment.fragment ->
+	(deliverOutcome Result) * (id':index{id'=id} * (;id')globalState)
+
+val recv: (id:index * (;id)globalState) ->
+	((id:index * (;id)globalState) *
+	  ct:ContentType * tlen:int * (;id.id_in,tlen,ct)TLSFragment.fragment) Result
+
+val readOne: (id:index * (;id)globalState) ->
+	deliverOutcome Result * (id':index{id'=id} * (;id')globalState)
 
 val writeAppData: Connection -> (unit Result) * Connection
 val readAppData: Connection -> ((AppDataPlain.appdata Result) * Connection)
