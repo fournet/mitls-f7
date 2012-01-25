@@ -134,7 +134,7 @@ let recordPacketIn ki conn headPayload =
     let cs = ki.sinfo.cipher_suite in
     match (cs,conn.key) with
     | (x,NoneKey) when isNullCipherSuite x ->
-        let msg = TLSFragment.fragment ki tlen ct payload in
+        let msg = TLSFragment.TLSfragment ki tlen ct payload in
         let conn = incN ki conn in
         correct(conn,ct,pv,tlen,msg)
     | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->

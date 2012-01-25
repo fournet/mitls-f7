@@ -17,7 +17,7 @@ let repr ki tlen (ct:ContentType) frag =
     | FAlert(f) -> Alert.repr ki tlen f
     | FAppData(f) -> AppDataPlain.repr ki tlen f
 
-let fragment ki tlen (ct:ContentType) b =
+let TLSfragment ki tlen (ct:ContentType) b =
     match ct with
     | Handshake ->          FHandshake(Handshake.fragment ki tlen b)
     | Change_cipher_spec -> FCCS(Handshake.ccsFragment ki tlen b)
@@ -29,5 +29,5 @@ type AEADFragment = {b:bytes}
 let AEADFragment (ki:KeyInfo) (tlen:int) (ad:addData) b = {b=b}
 let AEADRepr (ki:KeyInfo) (tlen:int) (ad:addData) f = f.b
 
-let AEADToDispatch (ki:KeyInfo) (i:int) (ct:ContentType) (ad:addData) aead = fragment ki i ct aead.b
+let AEADToDispatch (ki:KeyInfo) (i:int) (ct:ContentType) (ad:addData) aead = TLSfragment ki i ct aead.b
 let DispatchToAEAD (ki:KeyInfo) (i:int) (ct:ContentType) (ad:addData) disp = {b = repr ki i ct disp}

@@ -11,7 +11,7 @@ type fragment =
     | FAlert of Alert.fragment
     | FAppData of AppDataPlain.fragment
 val repr: KeyInfo -> int -> ContentType -> fragment -> bytes
-val fragment: KeyInfo -> int -> ContentType -> bytes -> fragment
+val TLSfragment: KeyInfo -> int -> ContentType -> bytes -> fragment
 
 // Plain type for AEAD
 type addData = bytes

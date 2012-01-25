@@ -1,6 +1,4 @@
-﻿(* Alert protocol *)
-
-module Alert
+﻿module Alert
 
 open Error
 open TLSInfo

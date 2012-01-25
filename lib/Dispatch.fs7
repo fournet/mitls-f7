@@ -1,189 +1,100 @@
-module Dispatch
+﻿module Dispatch
 
-open AppData
-open Alert
 open Bytes
 open Formats
-open Handshake
+open Tcp
+open Error
 open Record
-open Sessions
-open Stream
+open Handshake
+open Alert
+open AppData
+open TLSInfo
 open AppCommon
-open Error_handling
+open TLSFragment
+open SessionDB
 
-type predispatchState = (* internal state of the dispatcher *)
-  | Init
-  | FirstHandshake
+type predispatchState =
+  | Init (* of ProtocolVersion * ProtocolVersion *) (* min and max *)
+  | FirstHandshake (* of ProtocolVersion *)             (* set by the ServerHello *) 
   | Finishing
-  | Finished
+  | Finished (* Only for Writing side, used to avoid sending data on a partially completed handshake *)
   | Open
   | Closing
   | Closed
 
-type dispatchState = ds:predispatchState
-  { ds = Init \/ ds = FirstHandshake \/ ds = Finishing \/ 
-    ds = Finished \/ ds = Open \/ ds = Closing \/ ds = Closed }
+type dispatchState = d:predispatchState{
+	d = Init \/ d = FirstHandshake \/ d = Finishing \/ d = Finished \/
+	d = Open \/ d = Closing \/ d = Closed}
 
-type dState = { disp: dispatchState; conn: ConnectionState; }
+type (;ki:KeyInfo) dState = {
+    disp: dispatchState;
+    conn: (;ki)Record.ConnectionState;
+    }
 
-type preConnection =
-  {ds_info: SessionInfo;
-   handshake: Handshake.hs_state;
-   alert: Alert.state;
-   appdata: AppData.app_state;
-   read: dState;
-   write: dState}
+type index =
+    { id_in:  KeyInfo;
+      id_out: KeyInfo}
 
+type (;id:index) preConnection = {
+  poptions: protocolOptions;
+  (* abstract protocol states for HS/CCS, AL, and AD *)
+  handshake: (;id.id_out.sinfo) Handshake.hs_state;
+  alert    : (;id.id_out.sinfo) Alert.state;
+  appdata  : (;id.id_out.sinfo) AppData.app_state;    
 
-predicate type preds =
-  | DispSend of dState * ContentType
-  | ContentMap of SessionInfo * int * ContentType * bytes
-  | ValidConnection of preConnection
-  | CoherentSession of SessionInfo * ConnectionState * ConnectionState
-  | DispInv of dState
-  | DispRead of dState
-  | DispWrite of dState
-  | FinishingState of dispatchState
+  (* connection state for reading and writing *)
+  read  : (;id.id_in)  dState;
+  write : (;id.id_out) dState;
 
-type Connection = c:preConnection{ValidConnection(c)}
+  (* The actual socket *)
+  ns: NetworkStream
+  }
 
-val init :
-  Tcp.NetworkStream -> r:role -> 
-  po:protocolOptions{ po.minVer <> UnknownPV /\ po.maxVer <> UnknownPV} ->
-  c:Connection{c.read.disp = Init /\ c.write.disp = Init}
+type Connection = Conn of (id:index * (;id)preConnection)
 
-val resume: 
-  Tcp.NetworkStream -> r:role -> 
-  s:SessionInfo{?sid. s = InitSessionInfo(r,Some(sid))} ->
-  po:protocolOptions{ po.minVer <> UnknownPV /\ po.maxVer <> UnknownPV} ->
-  c:Connection{c.read.disp = Init /\ c.write.disp = Init}
+type writeOutcome =
+    | WriteAgain (* Possibly more data to send *)
+    | Done (* No more data to send in the current state *)
+    | MustRead (* Read until completion of Handshake *)
 
-val ask_rehandshake: Connection -> protocolOptions -> Connection
-val ask_rekey: Connection -> protocolOptions -> Connection
-val ask_hs_request: Connection -> protocolOptions -> Connection
-val appDataAvailable: Connection -> bool
+type deliverOutcome =
+    | ReadAgain
+    | AppDataDone
+    | HSDone
+    | Abort
+
+val init: NetworkStream -> Direction -> protocolOptions -> Connection
+
+val resume: NetworkStream -> sessionID -> protocolOptions -> unit Result * Connection
+
+val ask_rehandshake: c1:Connection -> protocolOptions -> c2:Connection{?id,s,s'. c1=(id,s) /\ c2=(id,s')}
+val ask_rekey:       c1:Connection -> protocolOptions -> c2:Connection{?id,s,s'. c1=(id,s) /\ c2=(id,s')}
+val ask_hs_request:  c1:Connection -> protocolOptions -> c2:Connection{?id,s,s'. c1=(id,s) /\ c2=(id,s')}
+
 val getSessionInfo: Connection -> SessionInfo
 
-val moveToOpenState: 
-  c:Connection{FinishingState(c.read.disp) /\ FinishingState(c.write.disp)} ->
-  s:SessionInfo{HSFinished(s) /\ s = c.read.conn.rec_info /\ s = c.write.conn.rec_info} ->
-  c':Connection{c'.write.disp = Open /\ c'.read.disp = Open}
+val moveToOpenState: id:index -> c:(;id)preConnection -> StorableSession -> (;id)preConnection Result
 
-val closeConnection: c:Connection -> c':Connection{c'.appdata.app_info = c.appdata.app_info /\ c'.read.disp = Closed /\ c'.write.disp = Closed}
+val closeConnection: c1:Connection -> c2:Connection{?id,s,s'. c1=(id,s) /\ c2=(id,s')}
 
-val next_fragment :
-  int ->  
-  c:Connection{c.write.disp <> Closed} -> 
-  ((bool Error_handling.Result) * c':Connection)
+val send: ki:KeyInfo -> NetworkStream -> ss:(;ki)sendState -> tlen:int ->
+	ct:ContentType -> f:(;ki,tlen,ct)TLSFragment.fragment ->
+	ss':(;ki)sendState Result
 
-val sendNextFragments : Connection -> (unit Error_handling.Result) * Connection
+val writeOne: c1:Connection -> (writeOutcome Result) * c2:Connection{?id,s,s'. c1=(id,s) /\ c2=(id,s')}
 
-val deliver :
-  Formats.ContentType ->
-  Record.fragment -> 
-  c:Connection{c.read.disp <> Closed} -> 
-  (bool Error_handling.Result) * Connection
+val deliver: c1:Connection -> ct:ContentType -> tlen:int ->
+	(;id,ct,tlen)TLSFragment.fragment ->
+	(deliverOutcome Result) * c2:Connection{?s,s'. c1=(id,s) /\ c2=(id,s')}
 
-val readNextAppFragment : Connection -> (unit Error_handling.Result) * Connection
-val writeOneAppFragment: Connection -> bytes -> ((bytes * bytes) Result) * Connection
-val readOneAppFragment: Connection -> int -> (bytes Result) * Connection
+val writeAppData: Connection -> (unit Result) * Connection
+val readAppData: Connection -> ((AppDataPlain.appdata Result) * Connection)
+val readHS: Connection -> (unit Result) * Connection
+// val appDataAvailable: Connection -> bool
 
-(* Definition of ValidConnection, implicitly expressing all the found invariants *)
-assume !c. ValidConnection(c) <=> 
-  (DispRead(c.read) /\
-   DispWrite(c.write) /\
-   HandshakeState(c.handshake) /\
-   AlertState(c.alert) /\
-   ApplicationState(c.appdata) /\
-   CoherentSession(c.appdata.app_info,c.read,c.write) /\
-   ContentMap(c.write.conn.rec_info,c.write.conn.seqn,Application_data,PreviouslyRead(c.appdata.app_outgoing)) /\
-   (ContentMap(OtherRole(c.read.conn.rec_info),c.read.conn.seqn,Application_data,StreamBytes(c.appdata.app_incoming)) \/
-	 Crypto.Pub_k(c.read.conn.mk) )
-  )
+val getSessionInfo: Connection -> SessionInfo
 
-assume !al_info,app_info,read,write.
-        CoherentSession(app_info,read,write) <=>
-                (( write.disp = Open =>
-                        app_info = write.conn.rec_info ) /\
-                 ( read.disp = Open =>
-                        app_info = read.conn.rec_info ))
-
-(* Invariants on the Dispatch automaton *)
-assume !dstate. DispInv(dstate) <=> (
-        dstate.disp = Closed (* A closed connectionState is always safe *) \/
-        (
-        (FinishingState(dstate.disp) =>
-                (dstate.conn.sparams.bulk_cipher_algorithm <> BCA_null /\
-	         dstate.conn.sparams.mac_algorithm <> MA_null) ) /\
-	(dstate.disp = Open =>
-                (dstate.conn.sparams.bulk_cipher_algorithm <> BCA_null /\
-	         dstate.conn.sparams.mac_algorithm <> MA_null /\
-	         HSFinished(dstate.conn.rec_info)) )
-	))
-assume !read. DispRead(read) <=> (
-                RecvConnState(read.conn) /\
-                DispInv(read) )
-
-assume !write. DispWrite(write) <=> (
-                SendConnState(write.conn) /\
-                DispInv(write) )
-
-(* Which protocols can be sent in which dispatch states *)
-assume !dstate,proto. DispSend(dstate,proto) <=> (
-	((dstate.disp = Init \/ dstate.disp = FirstHandshake) /\
-	        proto <> Application_data) \/
-	(dstate.disp = Finishing /\
-	        (proto = Handshake \/ proto = Alert)) \/
-	(dstate.disp = Open) \/
-	(dstate.disp = Closing /\ proto = Alert)
-	)
-
-
-assume !c,info,protocol,f.
-             protocol <> Application_data /\
-             ValidConnection(c) /\
-             DispSend(c.write,protocol) /\
-	     UpperProtoSend(info,protocol,f) => 
-               FragmentSend(c.write.conn.rec_info,c.write.conn.seqn,protocol,f)
-
-assume !c,f.
-        ValidConnection(c) /\
-        c.write.disp = Open /\
-        UpperProtoSend(c.write.conn.rec_info,Application_data,f) =>
-           FragmentSend(c.write.conn.rec_info,c.write.conn.seqn,Application_data,f)
-
-theorem !i,n,p,f. FragmentSend(i,n,p,f) /\ p <> Application_data =>
-                        (?c,info. ValidConnection(c) /\ DispSend(c.write,p) /\
-                         UpperProtoSend(info,p,f) /\
-                         i = c.write.conn.rec_info /\ n = c.write.conn.seqn)
-
-theorem !i,n,p,f. FragmentSend(i,n,p,f) /\ p = Application_data =>
-                        (?c. ValidConnection(c) /\ c.write.disp = Open /\
-                         UpperProtoSend(c.write.conn.rec_info,p,f) /\
-                         i = c.write.conn.rec_info /\ n = c.write.conn.seqn)
-
-(* On the receive side, we need something:
-ask !c,p,f. ValidConnection(c) /\ FragmentSend(c.ds_info,c.read.conn.seqn,p,f) =>
-            (.....)
-*)
-
-assume !state. FinishingState(state) <=> (state = Finishing \/ state = Finished)
-
-(* By linearity *)
-theorem !i,n,p,f,p',f'. FragmentSend(i,n,p,f) /\ FragmentSend(i,n,p',f') => (p = p' /\ f = f')
-
-assume !i,ct. ContentMap(i,0,ct,empty_bstr)
-assume !i,n,ct,h,f. ContentMap(i,n,ct,h) /\ FragmentSend(i,n,ct,f) =>
-                   ContentMap(i,n+1,ct,AppendBytes(h,f))
-assume !i,n,ct,h,ct',f. ContentMap(i,n,ct,h) /\ FragmentSend(i,n,ct',f) /\ ct <> ct' =>
-                   ContentMap(i,n+1,ct,h)
-(*
-ask !c,f,c'. ContentMap(c.write.conn.rec_info,c.write.conn.seqn,Application_data,PreviouslyRead(c.appdata.app_outgoing)) /\
-             FragmentSend(c.write.conn.rec_info,c.write.conn.seqn,Application_data,f) /\
-             c'.write.conn.rec_info = c.write.conn.rec_info /\ c'.write.conn.seqn = c.write.conn.seqn + 1 /\
-             PreviouslyRead(c'.appdata.app_outgoing) = AppendBytes(PreviouslyRead(c.appdata.app_outgoing),f) =>
-                ContentMap(c'.write.conn.rec_info,c'.write.conn.seqn,Application_data,PreviouslyRead(c'.appdata.app_outgoing))
-*)
-
-ask !c,f. ValidConnection(c) /\ c.write.disp = Open /\ UpperProtoSend(c.appdata.app_info,Application_data,f) =>
-        FragmentSend(c.write.conn.rec_info,c.write.conn.seqn,Application_data,f)
+(* Fills the output buffer with the given data.
+   Do not send anything on the network yet. *)
+val commit: Connection -> AppDataPlain.lengths -> AppDataPlain.appdata -> Connection
+// val write_buffer_empty: Connection -> bool

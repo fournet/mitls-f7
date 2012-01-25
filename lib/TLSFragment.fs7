@@ -12,7 +12,7 @@ type (;ki:KeyInfo,tlen:int,ct:ContentType) fragment =
     | FAppData   of (;ki,tlen)AppDataPlain.fragment {ct=Application_data}
 
 val repr: ki:KeyInfo -> tlen:int -> ct:ContentType -> (;ki,tlen,ct)fragment -> bytes
-val fragment: ki:KeyInfo -> tlen:int -> ct:ContentType -> bytes -> (;ki,tlen,ct)fragment
+val TLSfragment: ki:KeyInfo -> tlen:int -> ct:ContentType -> bytes -> (;ki,tlen,ct)fragment
 
 // Plain type for AEAD
 type addData = bytes
