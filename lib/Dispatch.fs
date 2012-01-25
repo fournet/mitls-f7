@@ -49,7 +49,7 @@ type globalState = {
   ns: NetworkStream;
   }
 
-type Connection = index * globalState
+type Connection = (index * globalState)
 
 (* Writing and reading have asymmetric outcomes, because writing is easier, and requires less care.
    We can always try to write "once more", and stop when we realize we have no data to send.
