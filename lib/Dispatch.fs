@@ -449,25 +449,20 @@ let readOne c =
     | Error(x,y) -> (Error(x,y),c)
     | Correct(c,ct,tl,f) -> deliver c ct tl f
 
-type writeInvocation =
-    | TopLevel
-    | FromRead
+let rec writeFromRead c =
+    let unitVal = () in
+    match writeOne c with
+    | (Error (x,y),c) -> (Error(x,y),c)
+    | (Correct (WriteAgain),c) -> writeFromRead c
+    | (Correct (Done)      ,c) -> (correct(unitVal),c)
+    | (Correct (MustRead)  ,c) -> (correct(unitVal),c)
 
 type readInvocation =
     | StopAtHS
     | StopAtAppData
 
-let rec write c howInvoked =
-    let unitVal = () in
-    match (writeOne c, howInvoked) with
-    | ((Error (x,y),c),_) -> (Error(x,y),c)
-    | ((Correct (WriteAgain),c), _) -> write c howInvoked
-    | ((Correct (Done)      ,c), _) -> (correct(unitVal),c)
-    | ((Correct (MustRead)  ,c), TopLevel) -> read c StopAtHS
-    | ((Correct (MustRead)  ,c), FromRead) -> (correct(unitVal),c)
-
-and read c stopAt =
-    match write c FromRead with
+let rec read c stopAt =
+    match writeFromRead c with
     | (Error(x,y),c) -> (Error(x,y),c)
     | (Correct(),c) ->
         match (readOne c, stopAt) with
@@ -479,11 +474,19 @@ and read c stopAt =
             read c stopAt
         | ((Correct (AppDataDone),c), StopAtAppData)
         | ((Correct (HSDone)     ,c), StopAtHS) ->
-            write c FromRead
+            writeFromRead c
         | ((Correct (Abort)      ,c), _) ->
-            match write c FromRead with
+            match writeFromRead c with
             | (Error(x,y),c) -> (Error(x,y),c)
             | (Correct(),c) -> (Error(TLS,ConnectionClosed),c)
+
+let rec writeAppData c =
+    let unitVal = () in
+    match writeOne c with
+    | (Error (x,y),c) -> (Error(x,y),c)
+    | (Correct (WriteAgain),c) -> writeAppData c
+    | (Correct (Done)      ,c) -> (correct(unitVal),c)
+    | (Correct (MustRead)  ,c) -> read c StopAtHS
 
     (* If available, read next data *)
     (* 
@@ -515,8 +518,6 @@ and read c stopAt =
         (* Nothing to read, possibly send buffered data *)
         writeOneAppFragment conn
     *)
-
-let writeAppData conn = write conn TopLevel
 
 let commit (id,c) ls b =
     let new_appdata = AppData.send_data id.id_out.sinfo c.appdata ls b in
