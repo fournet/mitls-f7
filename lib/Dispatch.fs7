@@ -68,7 +68,7 @@ val init: NetworkStream -> Direction -> protocolOptions -> Connection
 val resume: NetworkStream -> sessionID -> protocolOptions -> unit Result * Connection
 
 val ask_rehandshake: (id:index * (;id)globalState) -> protocolOptions -> (id1':index * (;id1')globalState)
-val ask_rekey:       (id:index * (;id)globalState) -> protocolOptions -> ((id2':index * (;id)globalState){id2'=id})
+val ask_rekey:       (id:index * (;id)globalState) -> protocolOptions -> ((id2':index * (;id2')globalState){id2'=id})
 val ask_hs_request:  (id:index * (;id)globalState) -> protocolOptions -> (id3':index * (;id)globalState{id3'=id})
 
 val getSessionInfo: (id:index * (;id)globalState) -> si:SessionInfo{si=id.id_out.sinfo}
