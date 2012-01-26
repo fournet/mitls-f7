@@ -15,12 +15,10 @@ val repr: ki:KeyInfo -> tlen:int -> ct:ContentType -> (;ki,tlen,ct)fragment -> b
 val TLSfragment: ki:KeyInfo -> tlen:int -> ct:ContentType -> bytes -> (;ki,tlen,ct)fragment
 
 // Plain type for AEAD
-type addData = bytes
-
+private type addData = bytes
 predicate ADofID of (KeyInfo * int * ContentType * addData)
 
-
-type (;ki:KeyInfo,tlen:int,ad:addData) AEADFragment
+private type (;ki:KeyInfo,tlen:int,ad:addData) AEADFragment = {b:bytes}
 
 function val fAEADRepr: (ki:KeyInfo * t:int * ad:addData * (;ki,t,ad) AEADFragment) -> bytes
 
