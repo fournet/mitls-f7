@@ -52,17 +52,17 @@ type (;id:index) globalState = {
 
 type Connection = (id:index * (;id)globalState)
 
-function val idKIout: Connection -> KeyInfo
-assume !c,id,s. c=(id,s) /\ idKIout(c)=id.id_out
+function val idKIout: index -> KeyInfo
+assume !id. idKIout(id)=id.id_out
 
-function val idKIin: Connection -> KeyInfo
-assume !c,id,s. c=(id,s) /\ idKIin(c)=id.id_in
+function val idKIin: index -> KeyInfo
+assume !id. idKIin(id)=id.id_in
 
-function val idSIout: Connection -> KeyInfo
-assume !c,id,s. c=(id,s) /\ idKIout(c)=id.id_out.sinfo
+function val idSIout: index -> SessionInfo
+assume !id. idSIout(id)=id.id_out.sinfo
 
-function val idSIin: Connection -> KeyInfo
-assume !c,id,s. c=(id,s) /\ idKIin(c)=id.id_in.sinfo
+function val idSIin: Connection -> SessionInfo
+assume !id. idSIin(id)=id.id_in.sinfo
 
 type writeOutcome =
     | WriteAgain (* Possibly more data to send *)
@@ -99,12 +99,12 @@ val writeOne: c:(id:index * (;id)globalState) ->
 	(writeOutcome Result) * ((id':index * (;id')globalState){fst(c)=id'})
 
 val deliver: c:(id:index * (;id)globalState) -> ct:ContentType -> tlen:int ->
-	(;idKIout(c),ct,tlen)TLSFragment.fragment ->
+	(;idKIout(fst(c)),ct,tlen)TLSFragment.fragment ->
 	(deliverOutcome Result) * ((id':index * (;id')globalState){fst(c)=id'})
 
 val recv: c:(id:index * (;id)globalState) ->
 	(((id':index * (;id')globalState){fst(c)=id'}) *
-	  ct:ContentType * tlen:int * (;idKIin(c),tlen,ct)TLSFragment.fragment) Result
+	  ct:ContentType * tlen:int * (;idKIin(fst(c)),tlen,ct)TLSFragment.fragment) Result
 
 val readOne: c:(id:index * (;id)globalState) ->
 	deliverOutcome Result * ((id':index * (;id')globalState){fst(c)=id'})
@@ -126,12 +126,12 @@ val writeAppData: c:(id:index * (;id)globalState) ->
 	unit Result * ((id':index * (;id')globalState){fst(c)=id'})
 
 val commit: c:(id:index * (;id)globalState) ->
-	(;idSIout(c))AppDataPlain.lengths ->
-	(;idSIout(c))AppDataPlain.appdata ->
+	(;idSIout(fst(c)))AppDataPlain.lengths ->
+	(;idSIout(fst(c)))AppDataPlain.appdata ->
 	(id':index * (;id')globalState){fst(c)=id'}
 
 val readAppData: c:(id:index * (;id)globalState) ->
-	((;idSIin(c))AppDataPlain.appdata Result) *
+	((;idSIin(fst(c)))AppDataPlain.appdata Result) *
 	((id':index * (;id')globalState){fst(c)=id'})
 
 val readHS: c:(id:index * (;id)globalState) ->
