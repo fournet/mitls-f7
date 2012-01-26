@@ -52,6 +52,18 @@ type (;id:index) globalState = {
 
 type Connection = (id:index * (;id)globalState)
 
+function val idKIout: Connection -> KeyInfo
+assume !c,id,s. c=(id,s) /\ idKIout(c)=id.id_out
+
+function val idKIin: Connection -> KeyInfo
+assume !c,id,s. c=(id,s) /\ idKIin(c)=id.id_in
+
+function val idSIout: Connection -> KeyInfo
+assume !c,id,s. c=(id,s) /\ idKIout(c)=id.id_out.sinfo
+
+function val idSIin: Connection -> KeyInfo
+assume !c,id,s. c=(id,s) /\ idKIin(c)=id.id_in.sinfo
+
 type writeOutcome =
     | WriteAgain (* Possibly more data to send *)
     | Done (* No more data to send in the current state *)
@@ -67,36 +79,38 @@ val init: NetworkStream -> Direction -> protocolOptions -> Connection
 
 val resume: NetworkStream -> sessionID -> protocolOptions -> unit Result * Connection
 
-val ask_rehandshake: (id:index * (;id)globalState) -> protocolOptions -> (id1':index * (;id1')globalState)
-val ask_rekey:       (id:index * (;id)globalState) -> protocolOptions -> ((id2':index * (;id2')globalState){id2'=id})
-val ask_hs_request:  (id:index * (;id)globalState) -> protocolOptions -> (id3':index * (;id)globalState{id3'=id})
+val ask_rehandshake: c:(id:index * (;id)globalState) -> protocolOptions -> (id':index * (;id')globalState){fst(c)=id'}
+val ask_rekey:       c:(id:index * (;id)globalState) -> protocolOptions -> (id':index * (;id')globalState){fst(c)=id'}
+val ask_hs_request:  c:(id:index * (;id)globalState) -> protocolOptions -> (id':index * (;id')globalState){fst(c)=id'}
 
-val getSessionInfo: (id:index * (;id)globalState) -> si:SessionInfo{si=id.id_out.sinfo}
+val getSessionInfo: c:(id:index * (;id)globalState) -> si:SessionInfo{?id. id = fst(c) /\ si = id.id_out.sinfo}
 
-val moveToOpenState: (id:index * (;id)globalState) -> StorableSession -> (;id)globalState Result
+val moveToOpenState: c:(id:index * (;id)globalState) ->
+	(si:SessionInfo * (;si)PRFs.masterSecret * Direction){?id. id=fst(c) /\ si = id.id_out.sinfo} ->
+	(;fst(c))globalState Result
 
-val closeConnection: (id:index * (;id)globalState) -> (id':index * (;id)globalState){id'=id}
+val closeConnection: c:(id:index * (;id)globalState) -> (id':index * (;id')globalState){fst(c)=id'}
 
 val send: ki:KeyInfo -> NetworkStream -> ss:(;ki)sendState -> tlen:int ->
 	ct:ContentType -> f:(;ki,tlen,ct)TLSFragment.fragment ->
 	ss':(;ki)sendState Result
 
-val writeOne: (id:index * (;id)globalState) ->
-	(writeOutcome Result) * ((id':index * (;id)globalState){id'=id})
+val writeOne: c:(id:index * (;id)globalState) ->
+	(writeOutcome Result) * ((id':index * (;id')globalState){fst(c)=id'})
 
-val deliver: (id:index * (;id)globalState) -> ct:ContentType -> tlen:int ->
-	(;id.id_out,ct,tlen)TLSFragment.fragment ->
-	(deliverOutcome Result) * ((id':index * (;id)globalState){id'=id})
+val deliver: c:(id:index * (;id)globalState) -> ct:ContentType -> tlen:int ->
+	(;idKIout(c),ct,tlen)TLSFragment.fragment ->
+	(deliverOutcome Result) * ((id':index * (;id')globalState){fst(c)=id'})
 
-val recv: (id:index * (;id)globalState) ->
-	((id:index * (;id)globalState) *
-	  ct:ContentType * tlen:int * (;id.id_in,tlen,ct)TLSFragment.fragment) Result
+val recv: c:(id:index * (;id)globalState) ->
+	(((id':index * (;id')globalState){fst(c)=id'}) *
+	  ct:ContentType * tlen:int * (;idKIin(c),tlen,ct)TLSFragment.fragment) Result
 
-val readOne: (id:index * (;id)globalState) ->
-	deliverOutcome Result * ((id':index * (;id)globalState){id'=id})
+val readOne: c:(id:index * (;id)globalState) ->
+	deliverOutcome Result * ((id':index * (;id')globalState){fst(c)=id'})
 
-val writeFromRead: (id:index * (;id)globalState) ->
-	unit Result * ((id':index * (;id)globalState){id'=id})
+val writeFromRead: c:(id:index * (;id)globalState) ->
+	unit Result * ((id':index * (;id')globalState){fst(c)=id'})
 
 type preReadInvocation =
     | StopAtHS
@@ -105,20 +119,20 @@ type preReadInvocation =
 type readInvocation = r:preReadInvocation{
 	r = StopAtHS \/ r = StopAtAppData}
 
-val read: (id:index * (;id)globalState) -> readInvocation ->
-	unit Result * ((id':index * (;id)globalState){id'=id})
+val read: c:(id:index * (;id)globalState) -> readInvocation ->
+	unit Result * ((id':index * (;id')globalState){fst(c)=id'})
 
-val writeAppData: (id:index * (;id)globalState) ->
-	unit Result * ((id':index * (;id)globalState){id'=id})
+val writeAppData: c:(id:index * (;id)globalState) ->
+	unit Result * ((id':index * (;id')globalState){fst(c)=id'})
 
-val commit: (id:index * (;id)globalState) ->
-	(;id.id_out.sinfo)AppDataPlain.lengths ->
-	(;id.id_out.sinfo)AppDataPlain.appdata ->
-	(id':index * (;id)globalState){id'=id}
+val commit: c:(id:index * (;id)globalState) ->
+	(;idSIout(c))AppDataPlain.lengths ->
+	(;idSIout(c))AppDataPlain.appdata ->
+	(id':index * (;id')globalState){fst(c)=id'}
 
-val readAppData: (id:index * (;id)globalState) ->
-	(((;id.id_in.sinfo)AppDataPlain.appdata Result) *
-		((id':index * (;id)globalState){id'=id}))
+val readAppData: c:(id:index * (;id)globalState) ->
+	((;idSIin(c))AppDataPlain.appdata Result) *
+	((id':index * (;id')globalState){fst(c)=id'})
 
-val readHS: (id:index * (;id)globalState) ->
-	unit Result * ((id':index * (;id)globalState){id'=id})
+val readHS: c:(id:index * (;id)globalState) ->
+	unit Result * ((id':index * (;id')globalState){fst(c)=id'})
