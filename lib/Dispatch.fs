@@ -93,7 +93,8 @@ let resume ns sid ops =
     (* Ensure the sid is in the SessionDB, and it is for a client *)
     match select ops sid with
     | None -> unexpectedError "[resume] requested session expired or never stored in DB"
-    | Some (retrievedSinfo,retrievedMS,retrievedDir) ->
+    | Some (retrieved) ->
+    let (retrievedSinfo,retrievedMS,retrievedDir) = retrieved in
     match retrievedDir with
     | StoC -> unexpectedError "[resume] requested session is for server side"
     | CtoS ->
@@ -213,7 +214,8 @@ let writeOne (id,c) : (writeOutcome Result) * Connection =
                 match AppData.next_fragment id.id_out app_state with
                 | None -> (* nothing to do (tell the caller) *)
                           (correct (Done),(id,c))
-                | Some ((tlen,f),new_app_state) ->
+                | Some (next) ->
+                          let ((tlen,f),new_app_state) = next in
                           match c_write.disp with
                           | Open ->
                           (* we send some data fragment *)
@@ -392,7 +394,8 @@ let deliver (id,c) ct tlen frag =
 
   | Change_cipher_spec, TLSFragment.fragment.FCCS(f), x when x = FirstHandshake || x = Open -> 
     match Handshake.recv_ccs id.id_in c.handshake tlen f with 
-    | (Correct(newKiIN,ccs_data),hs) ->
+    | (Correct(ccs),hs) ->
+        let (newKiIN,ccs_data) = ccs in
         if AppData.is_incoming_empty id.id_in.sinfo c.appdata
            || c.poptions.isCompatibleSession id.id_in.sinfo newKiIN.sinfo then
             let id = {id with id_in = newKiIN} in
@@ -438,16 +441,19 @@ let recv (id,c) =
                 // printf "%s[%d] " (Formats.CTtoString ct) len; 
                 match Record.recordPacketIn id.id_in c.read.conn (header @| payload) with
                 | Error(x,y) -> Error(x,y)
-                | Correct(c_recv,ct,pv,tl,f) when c.read.disp = Init || pv = id.id_in.sinfo.protocol_version -> 
-                    let c_read = {c.read with conn = c_recv} in
-                    let c = {c with read = c_read} in
-                    correct((id,c),ct,tl,f)
-                | _ -> Error(RecordVersion,CheckFailed)
+                | Correct(pack) -> 
+                    let (c_recv,ct,pv,tl,f) = pack in
+                    if c.read.disp = Init || pv = id.id_in.sinfo.protocol_version then
+                        let c_read = {c.read with conn = c_recv} in
+                        let c = {c with read = c_read} in
+                        correct((id,c),ct,tl,f)
+                    else
+                        Error(RecordVersion,CheckFailed)
 
 let readOne c =
     match recv c with
     | Error(x,y) -> (Error(x,y),c)
-    | Correct(c,ct,tl,f) -> deliver c ct tl f
+    | Correct(received) -> let (c,ct,tl,f) = received in deliver c ct tl f
 
 let rec writeFromRead c =
     let unitVal = () in
@@ -464,9 +470,10 @@ type preReadInvocation =
 type readInvocation = preReadInvocation
 
 let rec read c stopAt =
+    let unitVal = () in
     match writeFromRead c with
     | (Error(x,y),c) -> (Error(x,y),c)
-    | (Correct(),c) ->
+    | (Correct(unitVal),c) ->
         match (readOne c, stopAt) with
         | ((Error(x,y),c),_) ->
             (Error(x,y),c)
@@ -480,7 +487,7 @@ let rec read c stopAt =
         | ((Correct (Abort)      ,c), _) ->
             match writeFromRead c with
             | (Error(x,y),c) -> (Error(x,y),c)
-            | (Correct(),c) -> (Error(TLS,ConnectionClosed),c)
+            | (Correct(unitVal),c) -> (Error(TLS,ConnectionClosed),c)
 
 let rec writeAppData c =
     let unitVal = () in
@@ -531,14 +538,15 @@ let write_buffer_empty conn =
 *)
 
 let readAppData (id,c) =
+    let unitVal = () in
     let newConnRes =
         if AppData.is_incoming_empty id.id_in.sinfo c.appdata then
             read (id,c) StopAtAppData    
         else
-            (Correct(),(id,c))
+            (correct(unitVal),(id,c))
     match newConnRes with
     | (Error(x,y),conn) -> (Error(x,y),conn)
-    | (Correct(),(id,c)) ->
+    | (Correct(unitVal),(id,c)) ->
         let (b,appState) = AppData.retrieve_data id.id_in.sinfo c.appdata in
         let c = {c with appdata = appState} in
         (correct (b),(id,c))
