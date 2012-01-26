@@ -11,8 +11,8 @@ type state = pre_al_state
 // protocol-specific abstract fragment,
 // and associated functions (never to be called with ideal functionality)
 type fragment
-val repr: KeyInfo -> int -> fragment -> Bytes.bytes
-val fragment: KeyInfo -> int -> Bytes.bytes -> fragment
+val repr: KeyInfo -> int -> int -> fragment -> Bytes.bytes
+val fragment: KeyInfo -> int -> int -> Bytes.bytes -> fragment
 
 type ALFragReply =
     | EmptyALFrag
@@ -29,6 +29,6 @@ val init: SessionInfo -> state
 
 val send_alert: SessionInfo -> state -> alertDescription -> state
 
-val next_fragment: KeyInfo -> state -> (ALFragReply * state) 
+val next_fragment: KeyInfo -> int -> state -> (ALFragReply * state) 
 
-val recv_fragment: KeyInfo -> state -> int -> fragment -> alert_reply Result
+val recv_fragment: KeyInfo -> int -> state -> int -> fragment -> alert_reply Result

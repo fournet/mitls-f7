@@ -12,19 +12,19 @@ type fragment =
     | FAlert of Alert.fragment
     | FAppData of AppDataPlain.fragment
 
-let repr ki tlen (ct:ContentType) frag =
+let repr ki tlen seqn (ct:ContentType) frag =
     match frag with
-    | FHandshake(f) -> Handshake.repr ki tlen f
-    | FCCS(f) -> Handshake.ccsRepr ki tlen f
-    | FAlert(f) -> Alert.repr ki tlen f
-    | FAppData(f) -> AppDataPlain.repr ki tlen f
+    | FHandshake(f) -> Handshake.repr ki tlen seqn f
+    | FCCS(f) -> Handshake.ccsRepr ki tlen seqn f
+    | FAlert(f) -> Alert.repr ki tlen seqn f
+    | FAppData(f) -> AppDataPlain.repr ki tlen seqn f
 
-let TLSfragment ki tlen (ct:ContentType) b =
+let TLSfragment ki tlen seqn (ct:ContentType) b =
     match ct with
-    | Handshake ->          FHandshake(Handshake.fragment ki tlen b)
-    | Change_cipher_spec -> FCCS(Handshake.ccsFragment ki tlen b)
-    | Alert ->              FAlert(Alert.fragment ki tlen b)
-    | Application_data ->   FAppData(AppDataPlain.fragment ki tlen b)
+    | Handshake ->          FHandshake(Handshake.fragment ki tlen seqn b)
+    | Change_cipher_spec -> FCCS(Handshake.ccsFragment ki tlen seqn b)
+    | Alert ->              FAlert(Alert.fragment ki tlen seqn b)
+    | Application_data ->   FAppData(AppDataPlain.fragment ki tlen seqn b)
 
 type addData = bytes
 
@@ -53,12 +53,12 @@ let parseAD pv ad =
 
 type AEADFragment = fragment
 let AEADFragment (ki:KeyInfo) (tlen:int) (ad:addData) b =
-    let (seq,ct) = parseAD ki.sinfo.protocol_version ad in
-    TLSfragment ki tlen ct b
+    let (seqn,ct) = parseAD ki.sinfo.protocol_version ad in
+    TLSfragment ki tlen seqn ct b
 
 let AEADRepr (ki:KeyInfo) (tlen:int) (ad:addData) f =
-    let (seq,ct) = parseAD ki.sinfo.protocol_version ad in
-    repr ki tlen ct f
+    let (seqn,ct) = parseAD ki.sinfo.protocol_version ad in
+    repr ki tlen seqn ct f
 
-let AEADToDispatch (ki:KeyInfo) (i:int) (ct:ContentType) (ad:addData) (aead:AEADFragment) = aead
-let DispatchToAEAD (ki:KeyInfo) (i:int) (ct:ContentType) (ad:addData) (disp:fragment) = disp
+let AEADToDispatch (ki:KeyInfo) (i:int) (seqn:int) (ct:ContentType) (ad:addData) (aead:AEADFragment) = aead
+let DispatchToAEAD (ki:KeyInfo) (i:int) (seqn:int) (ct:ContentType) (ad:addData) (disp:fragment) = disp

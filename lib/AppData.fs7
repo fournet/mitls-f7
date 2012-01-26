@@ -35,10 +35,10 @@ val retrieve_data: si:SessionInfo -> (;si)app_state -> ((;si)appdata * (;si)app_
 
 val is_incoming_empty: si:SessionInfo -> (;si)app_state -> bool
 
-val next_fragment: ki:KeyInfo -> (;ki.sinfo)app_state ->
-	((tlen:int * (;ki,tlen)fragment) * (;ki.sinfo)app_state) option
+val next_fragment: ki:KeyInfo -> seqn:int -> (;ki.sinfo)app_state ->
+	((tlen:int * (;ki,tlen,seqn)fragment) * (;ki.sinfo)app_state) option
 
-val recv_fragment: ki:KeyInfo -> (;ki.sinfo)app_state -> tlen:int -> (;ki,tlen)fragment ->
+val recv_fragment: ki:KeyInfo -> seqn:int -> (;ki.sinfo)app_state -> tlen:int -> (;ki,tlen,seqn)fragment ->
 	(;ki.sinfo)app_state
 
 // /// OLD, legacy stuff

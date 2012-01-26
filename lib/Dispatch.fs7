@@ -29,6 +29,7 @@ type dispatchState = d:predispatchState{
 type (;ki:KeyInfo) dState = {
     disp: dispatchState;
     conn: (;ki)Record.ConnectionState;
+	seqn: int
     }
 
 type index =

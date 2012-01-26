@@ -27,11 +27,11 @@ val appdataBytes: SessionInfo -> appdata -> Bytes.bytes
 type fragment
 
 (* Append the given fragment at the *bottom* of the current appdata *)
-val concat_fragment_appdata: KeyInfo -> int -> fragment -> lengths -> appdata -> (lengths * appdata)
+val concat_fragment_appdata: KeyInfo -> int -> int -> fragment -> lengths -> appdata -> (lengths * appdata)
 
 (* Exctract the *first* fragment from the *beginning* of appdata *)
-val app_fragment: KeyInfo -> lengths -> appdata ->  ((int * fragment) * (lengths * appdata))
+val app_fragment: KeyInfo -> int -> lengths -> appdata ->  ((int * fragment) * (lengths * appdata))
 
 // The next should not be invoked when using ideal functionality
-val repr: KeyInfo -> int -> fragment -> Bytes.bytes
-val fragment: KeyInfo -> int -> Bytes.bytes -> fragment
+val repr: KeyInfo -> int -> int -> fragment -> Bytes.bytes
+val fragment: KeyInfo -> int -> int -> Bytes.bytes -> fragment

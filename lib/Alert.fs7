@@ -8,15 +8,15 @@ type (;si:SessionInfo)state = (;si)pre_al_state
 
 // protocol-specific abstract fragment,
 // and associated functions (never to be called with ideal functionality)
-type (;ki:KeyInfo,tlne:int)fragment
-val repr: ki:KeyInfo -> tlen:int -> (;ki,tlen)fragment -> Bytes.bytes
-val fragment: ki:KeyInfo -> tlen:int -> Bytes.bytes -> (;ki,tlen)fragment
+type (;ki:KeyInfo,tlen:int,seqn:int)fragment
+val repr: ki:KeyInfo -> tlen:int -> seqn:int -> (;ki,tlen,seqn)fragment -> Bytes.bytes
+val fragment: ki:KeyInfo -> tlen:int -> seqn:int -> Bytes.bytes -> (;ki,tlen,seqn)fragment
 
-type (;ki:KeyInfo)ALFragReply =
+type (;ki:KeyInfo,seqn:int)ALFragReply =
     | EmptyALFrag
-    | ALFrag of          (tlen:int * (;ki,tlen)fragment)
-    | LastALFrag of      (tlen:int * (;ki,tlen)fragment)
-    | LastALCloseFrag of (tlen:int * (;ki,tlen)fragment)
+    | ALFrag of          (tlen:int * (;ki,tlen,seqn)fragment)
+    | LastALFrag of      (tlen:int * (;ki,tlen,seqn)fragment)
+    | LastALCloseFrag of (tlen:int * (;ki,tlen,seqn)fragment)
 
 type (;si:SessionInfo)alert_reply =
     | ALAck of          (;si)state
@@ -27,6 +27,6 @@ val init: si:SessionInfo -> (;si)state
 
 val send_alert: si:SessionInfo -> (;si)state -> alertDescription -> (;si)state
 
-val next_fragment: ki:KeyInfo -> (;ki.sinfo)state -> ((;ki)ALFragReply * (;ki.sinfo)state) 
+val next_fragment: ki:KeyInfo -> seqn:int -> (;ki.sinfo)state -> ((;ki,seqn)ALFragReply * (;ki.sinfo)state) 
 
-val recv_fragment: ki:KeyInfo -> (;ki.sinfo)state -> tlen:int -> (;ki,tlen)fragment -> ((;ki.sinfo)alert_reply) Result
+val recv_fragment: ki:KeyInfo -> seqn:int -> (;ki.sinfo)state -> tlen:int -> (;ki,tlen,seqn)fragment -> ((;ki.sinfo)alert_reply) Result

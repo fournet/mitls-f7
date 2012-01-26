@@ -34,19 +34,19 @@ val appdata: si:SessionInfo -> l:(;si)lengths -> b:bytes{CompatibleLength(si,Len
 val appdataBytes: si:SessionInfo -> (;si)appdata -> bytes
 
 // A fragment of appdata
-private type (;ki:KeyInfo,tlen:int) fragment = {b:bytes}
+private type (;ki:KeyInfo,tlen:int,seqn:int) fragment = {b:bytes}
 
 (* Append the given fragment at the *bottom* of the current appdata *)
-val concat_fragment_appdata: ki:KeyInfo -> l:int ->
-	f:(;ki,l)fragment{CompatibleLength(ki.sinfo,Length(f.b),l)} -> ls:(;ki.sinfo)lengths ->
+val concat_fragment_appdata: ki:KeyInfo -> l:int -> seqn:int ->
+	f:(;ki,l,seqn)fragment{CompatibleLength(ki.sinfo,Length(f.b),l)} -> ls:(;ki.sinfo)lengths ->
     d:(;ki.sinfo)appdata{CompatibleLengths(ki.sinfo,Length(d.appD),ls)} ->
 	(ls2:(;ki.sinfo)lengths * d2:(;ki.sinfo)appdata){CompatibleLengths(ki.sinfo,Length(d2.appD),ls2)}
 
 (* Exctract the *first* fragment from the *beginning* of appdata *)
-val app_fragment: ki:KeyInfo -> ls:(;ki.sinfo)lengths ->
+val app_fragment: ki:KeyInfo -> seqn:int -> ls:(;ki.sinfo)lengths ->
 	d:(;ki.sinfo)appdata{CompatibleLengths(ki.sinfo,Length(d.appD),ls)} ->
-	((tlen:int * f:(;ki,tlen)fragment {CompatibleLength(ki.sinfo,Length(f.b),tlen)}) *
+	((tlen:int * f:(;ki,tlen,seqn)fragment {CompatibleLength(ki.sinfo,Length(f.b),tlen)}) *
 	 (ls2:(;ki.sinfo)lengths * d2:(;ki.sinfo)appdata {CompatibleLengths(ki.sinfo,Length(d2.appD),ls2)}))
 
-val repr: ki:KeyInfo -> tlen:int -> (;ki,tlen)fragment -> bytes
-val fragment: ki:KeyInfo -> tlen:int -> bytes -> (;ki,tlen)fragment
+val repr: ki:KeyInfo -> tlen:int -> seqn:int -> (;ki,tlen,seqn)fragment -> bytes
+val fragment: ki:KeyInfo -> tlen:int -> seqn:int -> bytes -> (;ki,tlen,seqn)fragment

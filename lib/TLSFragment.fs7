@@ -6,14 +6,14 @@ open Formats
 open CipherSuites
 
 // Plain type for Dispatch
-type (;ki:KeyInfo,tlen:int,ct:ContentType) fragment =
-    | FHandshake of (;ki,tlen)Handshake.fragment    {ct=Formats.Handshake}
-    | FCCS       of (;ki,tlen)Handshake.ccsFragment {ct=Change_cipher_spec}
-    | FAlert     of (;ki,tlen)Alert.fragment        {ct=Alert}
-    | FAppData   of (;ki,tlen)AppDataPlain.fragment {ct=Application_data}
+type (;ki:KeyInfo,tlen:int,seqn:int,ct:ContentType) fragment =
+    | FHandshake of (;ki,seqn,tlen)Handshake.fragment    {ct=Formats.Handshake}
+    | FCCS       of (;ki,seqn,tlen)Handshake.ccsFragment {ct=Change_cipher_spec}
+    | FAlert     of (;ki,seqn,tlen)Alert.fragment        {ct=Alert}
+    | FAppData   of (;ki,seqn,tlen)AppDataPlain.fragment {ct=Application_data}
 
-val repr: ki:KeyInfo -> tlen:int -> ct:ContentType -> (;ki,tlen,ct)fragment -> bytes
-val TLSfragment: ki:KeyInfo -> tlen:int -> ct:ContentType -> bytes -> (;ki,tlen,ct)fragment
+val repr: ki:KeyInfo -> tlen:int -> seqn:int -> ct:ContentType -> (;ki,tlen,seqn,ct)fragment -> bytes
+val TLSfragment: ki:KeyInfo -> tlen:int -> seqn:int -> ct:ContentType -> bytes -> (;ki,tlen,seqn,ct)fragment
 
 // Plain type for AEAD
 private type addData = bytes
@@ -40,7 +40,7 @@ private type (;ki:KeyInfo,tlen:int,ad:addData) AEADFragment = (;ki,tlen,ParseAD(
 
 
 val AEADFragment: ki:KeyInfo -> tlen:int -> ad:addData -> bytes -> (;ki,tlen,ad)AEADFragment{?seqn,ct. ad=ADBytes(ki.sinfo.protocol_version,seqn,ct)}
-val AEADRepr: ki:KeyInfo -> tlen:int -> ad:addData -> f:(;ki,tlen,ad)AEADFragment{?seqn,ct. ad=ADBytes(ki.sinfo.protocol_version,seqn,ct)} -> b:bytes
+val AEADRepr: ki:KeyInfo -> tlen:int -> ad:addData -> f:(;ki,tlen,ad)AEADFragment -> b:bytes{?seqn,ct. ad=ADBytes(ki.sinfo.protocol_version,seqn,ct)}
 
-val AEADToDispatch: ki:KeyInfo -> tlen:int -> ct:ContentType -> ad:addData{?seqn. ad=ADBytes(ki.sinfo.protocol_version,seqn,ct)} -> (;ki,tlen,ad)AEADFragment -> (;ki,tlen,ct)fragment
-val DispatchToAEAD: ki:KeyInfo -> tlen:int -> ct:ContentType -> ad:addData{?seqn. ad=ADBytes(ki.sinfo.protocol_version,seqn,ct)} -> (;ki,tlen,ct)fragment -> (;ki,tlen,ad)AEADFragment
+val AEADToDispatch: ki:KeyInfo -> tlen:int -> seqn:int -> ct:ContentType -> ad:addData{ad=ADBytes(ki.sinfo.protocol_version,seqn,ct)} -> (;ki,tlen,ad)AEADFragment -> (;ki,tlen,seqn,ct)fragment
+val DispatchToAEAD: ki:KeyInfo -> tlen:int -> seqn:int -> ct:ContentType -> ad:addData{ad=ADBytes(ki.sinfo.protocol_version,seqn,ct)} -> (;ki,tlen,seqn,ct)fragment -> (;ki,tlen,ad)AEADFragment

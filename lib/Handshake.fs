@@ -71,15 +71,15 @@ type pre_hs_state = {
 type hs_state = pre_hs_state
 
 type fragment = {b:bytes}
-let repr (ki:KeyInfo) (i:int) f = f.b
-let fragment (ki:KeyInfo) (tlen:int) b = {b=b}
+let repr (ki:KeyInfo) (tlen:int) (seqn:int) f = f.b
+let fragment (ki:KeyInfo) (tlen:int) (seqn:int) b = {b=b}
 let makeFragment ki b =
     let (tl,f,r) = FragCommon.splitInFrag ki b in
     ((tl,{b=f}),r)
 
 type ccsFragment = {ccsB:bytes}
-let ccsRepr (ki:KeyInfo) (i:int) f = f.ccsB
-let ccsFragment (ki:KeyInfo) (i:int) b = {ccsB=b}
+let ccsRepr (ki:KeyInfo) (i:int) (seqn:int) f = f.ccsB
+let ccsFragment (ki:KeyInfo) (i:int) (seqn:int) b = {ccsB=b}
 let makeCCSFragment ki b =
     let (tl,f,r) = FragCommon.splitInFrag ki b in
     ((tl,{ccsB=f}),r)
@@ -125,7 +125,7 @@ type HSFragReply =
   | HSWriteSideFinished of (int * fragment)
   | HSFullyFinished_Write of (int * fragment) * StorableSession
 
-let next_fragment ki state =
+let next_fragment ki (seqn:int) state =
     (* Assumptions: The buffers have been filled in the following order:
        1) hs_outgoing; 2) ccs_outgoing; 3) hs_outgoing_after_ccs
        We check 2) and 3) only if we are in a {C,S}WaitingToWrite state.
@@ -1818,17 +1818,17 @@ let enqueue_fragment state fragment =
     let new_inc = state.hs_incoming @| fragment in
     {state with hs_incoming = new_inc}
 
-let recv_fragment ki (state:hs_state) (tlen:int) (fragment:fragment) =
+let recv_fragment ki seqn (state:hs_state) (tlen:int) (fragment:fragment) =
     (* Note, we receive fragments in the current session, not the one we're establishing *)
     (* FIXME: This session might be wrong, in the CCS/Finished/FullyFinished(Idle) transition. But we don't care now *)
-    let fragment = repr ki tlen fragment in
+    let fragment = repr ki tlen seqn fragment in
     let state = enqueue_fragment state fragment in
     match state.pstate with
     | Client (_) -> recv_fragment_client ki state None
     | Server (_) -> recv_fragment_server ki state None
 
-let recv_ccs ki (state: hs_state) (tlen:int) (fragment:ccsFragment): ((KIAndCCS Result) * hs_state) =
-    let fragment = ccsRepr ki tlen fragment in
+let recv_ccs ki seqn (state: hs_state) (tlen:int) (fragment:ccsFragment): ((KIAndCCS Result) * hs_state) =
+    let fragment = ccsRepr ki tlen seqn fragment in
     if equalBytes fragment CCSBytes then  
         match state.pstate with
         | Client (cstate) -> // Check we are in the right state (CCCS) 

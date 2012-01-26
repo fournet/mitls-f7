@@ -12,17 +12,13 @@ open AEAD
 type (;ki:KeyInfo) ConnectionState = {
   key: (;ki) recordKey;
   iv3: (;ki) ENCKey.iv3;
-  seqn: int; 
 }
 
 type (;ki:KeyInfo) sendState = (;ki) ConnectionState 
 type (;ki:KeyInfo) recvState = (;ki) ConnectionState
 
-private val incN: ki:KeyInfo -> s:(;ki)ConnectionState ->
-	s':(;ki)ConnectionState{s'.seqn = s.seqn+1}
-
 val initConnState: ki:KeyInfo -> (;ki) ccs_data -> 
-                   cs:(;ki) ConnectionState{cs.seqn = 0}
+                   cs:(;ki) ConnectionState
 
 private val makePacket: ContentType -> ProtocolVersion -> bytes -> bytes
 
@@ -35,16 +31,16 @@ private val parseHeader: b:bytes{Length(b) = 5} -> (ContentType * ProtocolVersio
 
 val recordPacketOut: ki:KeyInfo -> 
                      ss:(;ki) sendState -> 
-                     tlen:int -> ct:ContentType -> 
-                     (;ki,tlen,ct) TLSFragment.fragment -> 
-                     (ss':(;ki) sendState *
-		      wire:bytes){ss'.seqn = ss.seqn+1}
+                     tlen:int -> seqn:int -> ct:ContentType -> 
+                     (;ki,tlen,seqn,ct) TLSFragment.fragment -> 
+                     (ss':(;ki) sendState * wire:bytes)
  
-val recordPacketIn : ki:KeyInfo -> 
+val recordPacketIn : ki:KeyInfo ->
+					 seqn:int -> 
                      rs:(;ki) recvState -> 
                      wire:bytes{Length(wire) >= 5} -> 
-                     ((rs':(;ki)recvState * 
+                     ((rs':(;ki)recvState *
                          ct:ContentType * pv:ProtocolVersion *
                          tlen:int * 
-                         (;ki,tlen,ct) TLSFragment.fragment){rs'.seqn=rs.seqn+1} ) Result
+                         (;ki,tlen,seqn,ct) TLSFragment.fragment)) Result
 

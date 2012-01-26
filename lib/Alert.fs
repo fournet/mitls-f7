@@ -19,8 +19,8 @@ type pre_al_state = {
 type state = pre_al_state
 
 type fragment = {b:bytes}
-let repr (ki:KeyInfo) (i:int) f = f.b
-let fragment (ki:KeyInfo) (i:int) b = {b=b}
+let repr (ki:KeyInfo) (i:int) (seqn:int) f = f.b
+let fragment (ki:KeyInfo) (i:int) (seqn:int) b = {b=b}
 let makeFragment ki b =
     let (tl,f,r) = FragCommon.splitInFrag ki b in
     ((tl,{b=f}),r)
@@ -126,7 +126,7 @@ let send_alert (si:SessionInfo) state alertDesc =
     else
         state (* Just ignore the request *)
 
-let next_fragment ki state =
+let next_fragment ki (seqn:int) state =
     match state.al_outgoing with
     | [||] ->
         (EmptyALFrag, state)
@@ -166,8 +166,8 @@ let handle_alert si state al =
         | AL_fatal ->   correct (ALClose (state))
         | AL_warning -> correct (ALAck   (state))
 
-let recv_fragment ki state tlen (data:fragment) =
-    let fragment = repr ki tlen data in
+let recv_fragment ki seqn state tlen (data:fragment) =
+    let fragment = repr ki tlen seqn data in
     match state.al_incoming with
     | [||] ->
         (* Empty buffer *)

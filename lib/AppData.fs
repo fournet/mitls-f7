@@ -55,15 +55,15 @@ let retrieve_data (si:SessionInfo) (state:app_state) =
 let is_incoming_empty (si:SessionInfo) state =
     is_empty_appdata si state.app_incoming
 
-let next_fragment ki state =
+let next_fragment ki seqn state =
     if is_outgoing_empty ki.sinfo state then
         None
     else
-        let (newFrag,newAppData) = app_fragment ki state.app_out_lengths state.app_outgoing in
+        let (newFrag,newAppData) = app_fragment ki seqn state.app_out_lengths state.app_outgoing in
         let (newLengths,newOutgoing) = newAppData in
         let state = {state with app_out_lengths = newLengths; app_outgoing = newOutgoing} in
         Some (newFrag,state)
 
-let recv_fragment ki (state:app_state) (tlen:int) (fragment:fragment) =
-    let (newLengths, newAppdata) = concat_fragment_appdata ki tlen fragment state.app_in_lengths state.app_incoming in
+let recv_fragment ki (seqn:int) (state:app_state) (tlen:int) (fragment:fragment) =
+    let (newLengths, newAppdata) = concat_fragment_appdata ki tlen seqn fragment state.app_in_lengths state.app_incoming in
     {state with app_in_lengths = newLengths; app_incoming = newAppdata}
