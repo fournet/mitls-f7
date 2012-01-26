@@ -67,6 +67,11 @@ assume !id,s. ConnectionOutSessionInfo(Conn(id,s))=id.id_out.sinfo
 function val ConnectionInSessionInfo: Connection -> SessionInfo
 assume !id,s. ConnectionInSessionInfo(Conn(id,s))=id.id_in.sinfo
 
+function val dStateSeqn: dState -> int
+assume !s. dStateSeqn(s)=s.seqn
+
+function val ConnectionReadSeqn: Connection -> int
+assume !id,s. ConnectionReadSeqn(id,s)=s.read.seqn
 
 type writeOutcome =
     | WriteAgain (* Possibly more data to send *)
@@ -95,21 +100,27 @@ val moveToOpenState: c:Connection ->
 
 val closeConnection: c:Connection-> (;c) SameConnection
 
-val send: ki:KeyInfo -> NetworkStream -> ss:(;ki)sendState -> tlen:int ->
-	ct:ContentType -> f:(;ki,tlen,ct)TLSFragment.fragment ->
-	ss':(;ki)sendState Result
+// This always returns the write-side seqn increased by one,
+// regardless of the content type
+val send: ki:KeyInfo -> NetworkStream -> ss:(;ki)dState -> tlen:int ->
+	ct:ContentType -> f:(;ki,tlen,dStateSeqn(ss),ct)TLSFragment.fragment ->
+	(ss':(;ki)dState{dStateSeqn(ss') = dStateSeqn(ss)+1}) Result
 
+// internally invokes send (which increases the write-side seqn),
+// however resets the write-side seqn is we just sent a CCS
 val writeOne: c:Connection ->
 	(writeOutcome Result) * (;c) SameConnection
 
+// Normally, the returned read-side seqn will be increased by one
+// expect if we delivered a CCS, in which case it is 0
 val deliver: c:Connection -> ct:ContentType -> tlen:int ->
-	(;ConnectionOutKeyInfo(c),ct,tlen)TLSFragment.fragment ->
+	(;ConnectionOutKeyInfo(c),ct,ConnectionReadSeqn(c),tlen)TLSFragment.fragment ->
 	(deliverOutcome Result * (;c) SameConnection)
 
 val recv: c:Connection ->
 	((;c) SameConnection *
 	 ct:ContentType * tlen:int * 
-         (;ConnectionInKeyInfo(c),tlen,ct)TLSFragment.fragment) Result
+         (;ConnectionInKeyInfo(c),tlen,ConnectionReadSeqn(c),ct)TLSFragment.fragment) Result
 
 val readOne: c:Connection ->
 	deliverOutcome Result * (;c) SameConnection
