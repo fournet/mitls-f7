@@ -18,6 +18,7 @@ type ContentType = ct:preContentType
 
 // unnecessary? function val SeqNumB: int -> bytes
 val bytes_of_seq: sn:int -> b:bytes{Length(b) = 8 /\ b = IntBytes(8,sn)}
+val seq_of_bytes: b:bytes{Length(b)=8} -> sn:int{b = IntBytes(8,sn)}
 
 //CF: let's pick better names, and maybe use length-1 arrays instead of single byte constants, e.g. 
 // CTBytes: ContentType -> bytes for the logical function 

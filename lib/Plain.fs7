@@ -8,5 +8,5 @@ type (;ki:KeyInfo,tlen:int) plain
 val plain: ki:KeyInfo -> b:bytes -> (;ki,Length(b)) plain
 val repr: ki:KeyInfo -> tlen:int -> (;ki,tlen) plain -> b:bytes{Length(b)=tlen}
 
-val prepare: ki:KeyInfo -> tlen:int -> ad:TLSFragment.addData{?ct. ADofID(ki,tlen,ct,ad)} -> (;ki,tlen,ad) TLSFragment.AEADFragment -> (;ki,tlen) MACPlain.MACed -> (;ki,tlen) plain
-val parse: ki:KeyInfo -> tlen:int -> ad:TLSFragment.addData{?ct. ADofID(ki,tlen,ct,ad)} -> (;ki,tlen) plain -> (bool * ((;ki,tlen,ad)TLSFragment.AEADFragment * (;ki,tlen)MACPlain.MACed))
+val prepare: ki:KeyInfo -> tlen:int -> ad:TLSFragment.addData{?seqn,ct. ad=ADBytes(ki.sinfo.protocol_version,seqn,ct)} -> (;ki,tlen,ad) TLSFragment.AEADFragment -> (;ki,tlen) MACPlain.MACed -> (;ki,tlen) plain
+val parse: ki:KeyInfo -> tlen:int -> ad:TLSFragment.addData{?seqn,ct. ad=ADBytes(ki.sinfo.protocol_version,seqn,ct)} -> (;ki,tlen) plain -> (bool * ((;ki,tlen,ad)TLSFragment.AEADFragment * (;ki,tlen)MACPlain.MACed))

@@ -13,6 +13,7 @@ type preContentType =
 
 type ContentType = preContentType 
 val bytes_of_seq: int -> bytes
+val seq_of_bytes: bytes -> int
 
 val ctBytes: ContentType -> bytes
 val parseCT: bytes -> ContentType Result

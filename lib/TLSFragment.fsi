@@ -3,6 +3,7 @@
 open Bytes
 open TLSInfo
 open Formats
+open CipherSuites
 
 // Plain type for Dispatch
 type fragment =
@@ -15,7 +16,9 @@ val TLSfragment: KeyInfo -> int -> ContentType -> bytes -> fragment
 
 // Plain type for AEAD
 type addData = bytes
-type AEADFragment
+val makeAD: ProtocolVersion -> int -> ContentType -> bytes
+
+type AEADFragment = fragment
 val AEADFragment: KeyInfo -> int -> addData -> bytes -> AEADFragment
 val AEADRepr: KeyInfo -> int -> addData -> AEADFragment -> bytes
 

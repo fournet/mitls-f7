@@ -148,7 +148,7 @@ AEAD.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Principal.fs7
 # FIXME: Stream.fs7 is currently unused. Remove from project? Indeed, AppDataPlain should inherit its refinements
 
 record.tc7: $(libperv) $(libfs7) $(recordfs7) record.fs
-	$(f7t) -scripts record $(recordfs7) record.fs -genlst
+	$(f7t) -scripts record $(recordfs7) record.fs
 
 Dispatch.tc7: $(libperv) $(libfs7) $(recordfs7) Dispatch.fs7 Dispatch.fs
 	$(f7t) -scripts Dispatch $(recordfs7) Dispatch.fs7 Dispatch.fs | tee Dispatch.tc7

@@ -33,6 +33,7 @@ let CTtoString = function
     | Application_data   -> "Data"
 
 let bytes_of_seq sn = bytes_of_int 8 sn
+let seq_of_bytes b = int_of_bytes b
 
 let vlbytes (lSize:int) b = bytes_of_int lSize (length b) @| b 
 

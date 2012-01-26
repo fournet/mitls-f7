@@ -26,17 +26,6 @@ let initConnState (ki:KeyInfo) (ccsData:ccs_data) =
     seqn = 0;
   }
 
-/// format the (public) additional data bytes, for MACing & verifying
-
-let makeAD ki (tlen:int) conn ct =
-    let version = ki.sinfo.protocol_version in
-    let bseq = bytes_of_seq conn.seqn in
-    let bct  = ctBytes ct in
-    let bver = versionBytes version in
-    if version = SSL_3p0 
-    then bseq @| bct
-    else bseq @| bct @| bver
-
 /// packet format
 
 let makePacket ct ver data =
@@ -81,7 +70,7 @@ let recordPacketOut keyInfo conn tlen ct fragment =
         let conn = incN keyInfo conn in
         (conn,packet)
     | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
-        let addData = makeAD keyInfo tlen conn ct in
+        let addData = TLSFragment.makeAD keyInfo.sinfo.protocol_version conn.seqn ct in
         let aeadF = TLSFragment.DispatchToAEAD keyInfo tlen ct addData fragment in
         let data = MACPlain.MACPlain keyInfo tlen addData aeadF in
         let mac = MAC.MAC {MAC.ki=keyInfo;MAC.tlen=tlen} key data in
@@ -90,7 +79,7 @@ let recordPacketOut keyInfo conn tlen ct fragment =
         let conn = incN keyInfo conn in
         (conn,packet)
     | (_,RecordAEADKey(key)) ->
-        let addData = makeAD keyInfo tlen conn ct in
+        let addData = TLSFragment.makeAD keyInfo.sinfo.protocol_version conn.seqn ct in
         let aeadF = TLSFragment.DispatchToAEAD keyInfo tlen ct addData fragment in
         let (newIV,payload) = AEAD.encrypt keyInfo key conn.iv3 tlen addData aeadF in
         let conn = {conn with iv3 = newIV} in
@@ -138,7 +127,7 @@ let recordPacketIn ki conn headPayload =
         let conn = incN ki conn in
         correct(conn,ct,pv,tlen,msg)
     | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
-        let ad = makeAD ki tlen conn ct in
+        let ad = TLSFragment.makeAD ki.sinfo.protocol_version conn.seqn ct in
         let (msg,mac) = MACPlain.parseNoPad ki tlen ad payload in
         let toVerify = MACPlain.MACPlain ki tlen ad msg in
         if MAC.VERIFY {MAC.ki=ki;MAC.tlen=tlen} key toVerify mac then
@@ -148,7 +137,7 @@ let recordPacketIn ki conn headPayload =
         else
             Error(MAC,CheckFailed)
     | (_,RecordAEADKey(key)) ->
-        let ad = makeAD ki tlen conn ct in
+        let ad = TLSFragment.makeAD ki.sinfo.protocol_version conn.seqn ct in
         match AEAD.decrypt ki key conn.iv3 tlen ad payload with
         | Error(x,y) -> Error(x,y)
         | Correct (decrRes) ->
