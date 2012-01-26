@@ -19,9 +19,13 @@ type addData = bytes
 
 predicate ADofID of (KeyInfo * int * ContentType * addData)
 
+
 type (;ki:KeyInfo,tlen:int,ad:addData) AEADFragment
+
+function val fAEADRepr: (ki:KeyInfo * t:int * ad:addData * (;ki,t,ad) AEADFragment) -> bytes
+
 val AEADFragment: ki:KeyInfo -> tlen:int -> ad:addData{?ct. ADofID(ki,tlen,ct,ad)} -> bytes -> (;ki,tlen,ad)AEADFragment
-val AEADRepr: ki:KeyInfo -> tlen:int -> ad:addData{?ct. ADofID(ki,tlen,ct,ad)} -> (;ki,tlen,ad)AEADFragment -> bytes
+val AEADRepr: ki:KeyInfo -> tlen:int -> ad:addData{?ct. ADofID(ki,tlen,ct,ad)} -> f:(;ki,tlen,ad)AEADFragment -> b:bytes{b=fAEADRepr(ki,tlen,ad,f)}
 
 val AEADToDispatch: ki:KeyInfo -> tlen:int -> ct:ContentType -> ad:addData{ADofID(ki,tlen,ct,ad)} -> (;ki,tlen,ad)AEADFragment -> (;ki,tlen,ct)fragment
 val DispatchToAEAD: ki:KeyInfo -> tlen:int -> ct:ContentType -> ad:addData{ADofID(ki,tlen,ct,ad)} -> (;ki,tlen,ct)fragment -> (;ki,tlen,ad)AEADFragment

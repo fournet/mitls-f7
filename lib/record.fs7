@@ -41,7 +41,7 @@ val headerLength: b:bytes{Length(b) = 5} -> int
 private val parseHeader: b:bytes{Length(b) = 5} -> (ContentType * ProtocolVersion * int) Result
 
 // FIXME: Remove next assume!
-private assume !ki,tlen,t. MAC.Msg(ki,tlen,t)
+// private assume !ki,tlen,t. MAC.Msg(ki,tlen,t)
 
 val recordPacketOut: ki:KeyInfo -> 
                      ss:(;ki) sendState -> 
@@ -54,8 +54,7 @@ val recordPacketIn : ki:KeyInfo ->
                      rs:(;ki) recvState -> 
                      wire:bytes{Length(wire) >= 5} -> 
                      ((rs':(;ki)recvState * 
-					   ct:ContentType * 
-					   pv:ProtocolVersion *
-					   tlen:int * 
-					   (;ki,tlen,ct) TLSFragment.fragment){rs'.seqn=rs.seqn+1} ) Result
+                         ct:ContentType * pv:ProtocolVersion *
+                         tlen:int * 
+                         (;ki,tlen,ct) TLSFragment.fragment){rs'.seqn=rs.seqn+1} ) Result
 

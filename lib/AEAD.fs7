@@ -9,7 +9,7 @@ val encrypt: ki:KeyInfo ->
   (;ki) AEADKey -> 
   (;ki) ENCKey.iv3 -> 
   tlen:int -> 
-  ad:addData{?ct. ADofID(ki,tlen,ct,ad)} -> 
+  ad:addData ->
   (;ki,tlen,ad) AEADFragment -> 
   ((;ki) ENCKey.iv3 * ENC.cipher)
 
@@ -18,7 +18,7 @@ val decrypt: ki:KeyInfo ->
   (;ki) AEADKey -> 
   (;ki) ENCKey.iv3 -> 
   tlen:int -> 
-  ad:addData{?ct. ADofID(ki,tlen,ct,ad)} -> 
+  ad:addData ->
   ENC.cipher ->
   ((;ki) ENCKey.iv3 * (;ki,tlen,ad) AEADFragment) Result
 

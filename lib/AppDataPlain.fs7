@@ -8,7 +8,7 @@ open FragCommon
 // This abstract type must be implemented by the top level application using TLS.
 // Keeping it abstract allows us proving that our AppData module behavior
 // does not depend on the appdata
-type (;si:SessionInfo) appdata = {appD:bytes}
+private type (;si:SessionInfo) appdata = {appD:bytes}
 
 type (;si:SessionInfo) lengths = int list (* a list of desired ciphertext lengths *)
 
@@ -34,7 +34,7 @@ val appdata: si:SessionInfo -> l:(;si)lengths -> b:bytes{CompatibleLength(si,Len
 val appdataBytes: si:SessionInfo -> (;si)appdata -> bytes
 
 // A fragment of appdata
-type (;ki:KeyInfo,tlen:int) fragment = {b:bytes}
+private type (;ki:KeyInfo,tlen:int) fragment = {b:bytes}
 
 (* Append the given fragment at the *bottom* of the current appdata *)
 val concat_fragment_appdata: ki:KeyInfo -> l:int ->

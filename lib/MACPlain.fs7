@@ -5,11 +5,19 @@ open TLSInfo
 open TLSFragment
 
 // Plaintext of MAC (addData + TLSFragment.fragment)
-type (;ki:KeyInfo,tlen:int) MACPlain
-val MACPlain: ki:KeyInfo -> tlen:int -> ad:TLSFragment.addData{?ct. ADofID(ki,tlen,ct,ad)} -> (;ki,tlen,ad)TLSFragment.AEADFragment -> (;ki,tlen)MACPlain
-val reprMACPlain: ki:KeyInfo -> tlen:int -> (;ki,tlen)MACPlain -> bytes
+private type (;ki:KeyInfo,tlen:int) MACPlain = {p:bytes}
 
-predicate val Msg: (ki:KeyInfo * tlen:int * (;ki,tlen)MACPlain) -> bool
+predicate Msg of ki:KeyInfo * tlen:int * (;ki,tlen)MACPlain.MACPlain
+assume !ki,tlen,t. Corrupt(ki) => Msg(ki,tlen,t)
+assume !ki,tlen,ad,f,x. x = fAEADRepr(ki,tlen,ad,f) => Msg(ki,tlen,{p = (ad @| IntBytes(2,Length(x))) @| x})
+
+assume !ki,tlen,pl. Msg(ki,tlen,pl) => (Corrupt(ki) \/
+                                      (?ad,f,x. x = fAEADRepr(ki,tlen,ad,f) /\
+                                          pl.p = (ad @| IntBytes(2,Length(x))) @| x))
+
+val MACPlain: ki:KeyInfo -> tlen:int -> ad:TLSFragment.addData{?ct. ADofID(ki,tlen,ct,ad)} -> (;ki,tlen,ad)TLSFragment.AEADFragment -> p:(;ki,tlen)MACPlain{Msg(ki,tlen,p)}
+
+val reprMACPlain: ki:KeyInfo -> tlen:int -> (;ki,tlen)MACPlain -> bytes
 
 // Result of MAC
 type (;ki:KeyInfo,tlen:int) MACed
