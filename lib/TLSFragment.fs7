@@ -32,11 +32,15 @@ private val makeAD: pv:ProtocolVersion ->
 
 private val parseAD: pv:ProtocolVersion -> ad:addData -> (seqn:int * ct:ContentType){ad=ADBytes(pv,seqn,ct)}
 
-function val ParseAD: ProtocolVersion * addData -> (int * ContentType)
+function val ADct: ProtocolVersion * addData -> ContentType
 private assume !pv,seqn,ct,ad.
-	ad=ADBytes(pv,seqn,ct) => (seqn,ct)=ParseAD(pv,ad)
+	ad=ADBytes(pv,seqn,ct) => ct=ADct(pv,ad)
 
-private type (;ki:KeyInfo,tlen:int,ad:addData) AEADFragment = (;ki,tlen,ParseAD(ki.sinfo.protocol_version,ad))fragment
+function val ADseqn: ProtocolVersion * addData -> int
+private assume !pv,seqn,ct,ad.
+	ad=ADBytes(pv,seqn,ct) => seqn=ADseqn(pv,ad)
+
+private type (;ki:KeyInfo,tlen:int,ad:addData) AEADFragment = (;ki,tlen,ADseqn(ki.sinfo.protocol_version,ad),ADct(ki.sinfo.protocol_version,ad))fragment
 
 
 val AEADFragment: ki:KeyInfo -> tlen:int -> ad:addData -> bytes -> (;ki,tlen,ad)AEADFragment{?seqn,ct. ad=ADBytes(ki.sinfo.protocol_version,seqn,ct)}
