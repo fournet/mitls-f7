@@ -9,10 +9,7 @@ open Handshake
 open TLSInfo
 open AppCommon
 
-type index
-type globalState
-
-type Connection = (index * globalState)
+type Connection
 
 val init: NetworkStream -> Direction -> protocolOptions -> Connection
 

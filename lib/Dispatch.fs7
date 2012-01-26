@@ -49,24 +49,23 @@ type (;id:index) globalState = {
   ns: NetworkStream;
   }
 
-type Connection = C of (id:index * (;id)globalState)
+type Connection = Conn of (id:index * (;id)globalState)
 function val ConnectionIndex: Connection -> index
-assume !id,s. ConnectionIndex(C(id,s)) = id
+assume !id,s. ConnectionIndex(Conn(id,s)) = id
 type (;c:Connection) SameConnection = c':Connection{ConnectionIndex(c) = ConnectionIndex(c')}
 
 
 function val ConnectionOutKeyInfo: Connection -> KeyInfo
-assume !id,s. ConnectionOutKeyInfo(C(id,s))= id.id_out
+assume !id,s. ConnectionOutKeyInfo(Conn(id,s))= id.id_out
 function val ConnectionInKeyInfo: Connection -> KeyInfo
-assume !id,s. ConnectionInKeyInfo(C(id,s)) = id.id_in
+assume !id,s. ConnectionInKeyInfo(Conn(id,s)) = id.id_in
 
-(*
-function val idSIout: (id:index * (;id)globalState) -> SessionInfo
-assume !id,s. idSIout(id,s)=id.id_out.sinfo
 
-function val idSIin: (id:index * (;id)globalState) -> SessionInfo
-assume !id,s. idSIin(id,s)=id.id_in.sinfo
-*)
+function val ConnectionOutSessionInfo: Connection -> SessionInfo
+assume !id,s. ConnectionOutSessionInfo(Conn(id,s))=id.id_out.sinfo
+function val ConnectionInSessionInfo: Connection -> SessionInfo
+assume !id,s. ConnectionInSessionInfo(Conn(id,s))=id.id_in.sinfo
+
 
 type writeOutcome =
     | WriteAgain (* Possibly more data to send *)
@@ -87,12 +86,10 @@ val ask_rehandshake: c:Connection -> protocolOptions -> (;c) SameConnection
 val ask_rekey:       c:Connection -> protocolOptions -> (;c) SameConnection
 val ask_hs_request:  c:Connection -> protocolOptions -> (;c) SameConnection
 
-val getSessionInfo: c:Connection -> si:SessionInfo{?id. id = ConnectionIndex(c) /\ 
-                                                    si = id.id_out.sinfo}
+val getSessionInfo: c:Connection -> si:SessionInfo{si=ConnectionOutSessionInfo(c)}
 
 val moveToOpenState: c:Connection ->
-	(si:SessionInfo * (;si)PRFs.masterSecret * Direction){?id. id=ConnectionIndex(c) /\ 
-                                                               si = id.id_out.sinfo} ->
+	(si:SessionInfo * (;si)PRFs.masterSecret * Direction){si=ConnectionOutSessionInfo(c)} ->
 	(;ConnectionIndex(c))globalState Result
 
 val closeConnection: c:Connection-> (;c) SameConnection
@@ -130,14 +127,14 @@ val read: c:Connection -> readInvocation -> unit Result * (;c) SameConnection
 
 val writeAppData: c:Connection -> unit Result * (;c) SameConnection
 
-(*
-val commit: c:(id:index * (;id)globalState) ->
-	(;idSIout(FIRST(c),SECND(c)))AppDataPlain.lengths ->
-	(;idSIout(FIRST(c),SECND(c)))AppDataPlain.appdata ->
-	(id':index * (;id')globalState){FIRST(c)=id'}
 
-val readAppData: c:(id:index * (;id)globalState) ->
-	((;idSIin(FIRST(c),SECND(c)))AppDataPlain.appdata Result) *
-	((id':index * (;id')globalState){FIRST(c)=id'})
-*)
+val commit: c:Connection ->
+	(;ConnectionOutSessionInfo(c))AppDataPlain.lengths ->
+	(;ConnectionOutSessionInfo(c))AppDataPlain.appdata ->
+	(;c)SameConnection
+
+val readAppData: c:Connection ->
+	((;ConnectionInSessionInfo(c))AppDataPlain.appdata Result) *
+	(;c)SameConnection
+
 val readHS: c:Connection -> unit Result * (;c) SameConnection
