@@ -86,6 +86,11 @@ let ENC ki key iv3 (tlen:int) data =
         | AES_128_CBC  -> aesEncrypt  ki key iv d
         | AES_256_CBC  -> aesEncrypt  ki key iv d
         | RC4_128      -> unexpectedError "[ENC] invoked on stream cipher"
+    if length cipher <> tlen || tlen > FragCommon.max_TLSCipher_fragment_length then
+        // unexpected, because it is enforced statically by the
+        // CompatibleLength predicate
+        unexpectedError "[ENC] Length of encrypted data do not match expected length"
+    else
     match iv3 with
     | ENCKey.SomeIV(_) -> (ENCKey.SomeIV(lastblock cipher ivl), cipher)
     | ENCKey.NoIV()    -> (ENCKey.NoIV(), iv @| cipher)
