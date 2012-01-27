@@ -151,7 +151,7 @@ record.tc7: $(libperv) $(libfs7) $(recordfs7) record.fs
 	$(f7t) -scripts record $(recordfs7) record.fs
 
 Dispatch.tc7: $(libperv) $(libfs7) $(recordfs7) Dispatch.fs7 Dispatch.fs
-	$(f7t) -scripts Dispatch --verbose $(recordfs7) Dispatch.fs7 Dispatch.fs | tee Dispatch.tc7
+	$(f7t) -scripts Dispatch -debug $(recordfs7) Dispatch.fs7 Dispatch.fs | tee Dispatch.tc7
 
 TLS.tc7: $(libperv) $(libfs7) $(recordfs7) Dispatch.fs7 TLS.fs7 TLS.fs
 	$(f7t) $(recordfs7) Dispatch.fs7 TLS.fs7 TLS.fs

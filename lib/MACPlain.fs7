@@ -15,7 +15,7 @@ assume !ki,tlen,pl. Msg(ki,tlen,pl) => (Corrupt(ki) \/
                                       (?ad,f,x.
                                           pl.p = (ad @| IntBytes(2,Length(x))) @| x))
 
-val MACPlain: ki:KeyInfo -> tlen:int -> ad:TLSFragment.addData{?seqn,ct. ad=ADBytes(ki.sinfo.protocol_version,seqn,ct)} -> (;ki,tlen,ad)TLSFragment.AEADFragment -> p:(;ki,tlen)MACPlain{Msg(ki,tlen,p)}
+val MACPlain: ki:KeyInfo -> tlen:int -> ad:TLSFragment.addData -> (;ki,tlen,ad)TLSFragment.AEADPlain -> p:(;ki,tlen)MACPlain{Msg(ki,tlen,p)}
 
 val reprMACPlain: ki:KeyInfo -> tlen:int -> (;ki,tlen)MACPlain -> bytes
 
@@ -25,4 +25,4 @@ val MACed: ki:KeyInfo -> tlen:int -> bytes -> (;ki,tlen)MACed
 val reprMACed: ki:KeyInfo -> tlen:int -> (;ki,tlen)MACed -> bytes
 
 // MAC-only ciphersuites
-val parseNoPad: ki:KeyInfo -> tlen:int -> ad:TLSFragment.addData{?seqn,ct. ad=ADBytes(ki.sinfo.protocol_version,seqn,ct)} -> bytes -> ((;ki,tlen,ad)TLSFragment.AEADFragment * (;ki,tlen)MACed)
+val parseNoPad: ki:KeyInfo -> tlen:int -> ad:TLSFragment.addData -> bytes -> ((;ki,tlen,ad)TLSFragment.AEADPlain * (;ki,tlen)MACed)

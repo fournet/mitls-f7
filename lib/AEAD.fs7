@@ -10,7 +10,7 @@ val encrypt: ki:KeyInfo ->
   (;ki) ENCKey.iv3 -> 
   tlen:int -> 
   ad:addData ->
-  (;ki,tlen,ad) AEADFragment -> 
+  (;ki,tlen,ad) AEADMsg -> 
   ((;ki) ENCKey.iv3 * ENC.cipher)
 
 
@@ -20,7 +20,7 @@ val decrypt: ki:KeyInfo ->
   tlen:int -> 
   ad:addData ->
   ENC.cipher ->
-  ((;ki) ENCKey.iv3 * (;ki,tlen,ad) AEADFragment) Result
+  ((;ki) ENCKey.iv3 * (;ki,tlen,ad) AEADMsg) Result
 
 
 (* TODOS: (KB: Done?) *)

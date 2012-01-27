@@ -64,20 +64,20 @@ let recordPacketOut keyInfo conn tlen seqn ct fragment =
     *)
     match (keyInfo.sinfo.cipher_suite, conn.key) with
     | (x,NoneKey) when isNullCipherSuite x ->
-        let payload = TLSFragment.repr keyInfo tlen seqn ct fragment in
+        let payload = TLSFragment.TLSFragmentRepr keyInfo tlen seqn ct fragment in
         let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
         (conn,packet)
     | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
         let addData = TLSFragment.makeAD keyInfo.sinfo.protocol_version seqn ct in
-        let aeadF = TLSFragment.DispatchToAEAD keyInfo tlen seqn ct addData fragment in
+        let aeadF = TLSFragment.TLSFragmentToAEADPlain keyInfo tlen seqn ct fragment in
         let data = MACPlain.MACPlain keyInfo tlen addData aeadF in
         let mac = MAC.MAC {MAC.ki=keyInfo;MAC.tlen=tlen} key data in
-        let payload = (TLSFragment.repr keyInfo tlen seqn ct fragment) @| (MACPlain.reprMACed keyInfo tlen mac) in
+        let payload = (TLSFragment.TLSFragmentRepr keyInfo tlen seqn ct fragment) @| (MACPlain.reprMACed keyInfo tlen mac) in
         let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
         (conn,packet)
     | (_,RecordAEADKey(key)) ->
         let addData = TLSFragment.makeAD keyInfo.sinfo.protocol_version seqn ct in
-        let aeadF = TLSFragment.DispatchToAEAD keyInfo tlen seqn ct addData fragment in
+        let aeadF = TLSFragment.TLSFragmentToAEADPlain keyInfo tlen seqn ct fragment in
         let (newIV,payload) = AEAD.encrypt keyInfo key conn.iv3 tlen addData aeadF in
         let conn = {conn with iv3 = newIV} in
         let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
@@ -119,14 +119,14 @@ let recordPacketIn ki conn seqn headPayload =
     let cs = ki.sinfo.cipher_suite in
     match (cs,conn.key) with
     | (x,NoneKey) when isNullCipherSuite x ->
-        let msg = TLSFragment.TLSfragment ki tlen seqn ct payload in
+        let msg = TLSFragment.TLSFragment ki tlen seqn ct payload in
         correct(conn,ct,pv,tlen,msg)
     | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
         let ad = TLSFragment.makeAD ki.sinfo.protocol_version seqn ct in
         let (msg,mac) = MACPlain.parseNoPad ki tlen ad payload in
         let toVerify = MACPlain.MACPlain ki tlen ad msg in
         if MAC.VERIFY {MAC.ki=ki;MAC.tlen=tlen} key toVerify mac then
-            let msg = TLSFragment.AEADToDispatch ki tlen seqn ct ad msg in
+            let msg = TLSFragment.AEADPlainToTLSFragment ki tlen ad msg in
             correct(conn,ct,pv,tlen,msg)
         else
             Error(MAC,CheckFailed)
@@ -137,7 +137,7 @@ let recordPacketIn ki conn seqn headPayload =
         | Correct (decrRes) ->
             let (newIV, plain) = decrRes in
             let conn = {conn with iv3 = newIV} in
-            let msg = TLSFragment.AEADToDispatch ki tlen seqn ct ad plain in
+            let msg = TLSFragment.AEADPlainToTLSFragment ki tlen ad plain in
             correct(conn,ct,pv,tlen,msg)
     | _ -> unexpectedError "[recordPacketIn] Incompatible ciphersuite and key type"
 
