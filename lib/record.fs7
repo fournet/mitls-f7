@@ -4,6 +4,7 @@ open Bytes
 open Error
 open TLSInfo
 open TLSKey
+open FragCommon
 open TLSFragment
 open Formats
 open CipherSuites
@@ -22,7 +23,7 @@ val initConnState: ki:KeyInfo -> (;ki) ccs_data ->
 
 private val makePacket: ContentType -> ProtocolVersion -> bytes -> bytes
 
-val headerLength: b:bytes{Length(b) = 5} -> int
+val headerLength: b:bytes{Length(b) = 5} -> (n:nat{n>0 /\ n <= max_TLSCipher_fragment_length}) Result
 
 private val parseHeader: b:bytes{Length(b) = 5} -> (ContentType * ProtocolVersion * int) Result
 

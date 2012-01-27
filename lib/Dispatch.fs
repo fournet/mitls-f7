@@ -5,9 +5,9 @@ open Formats
 //open Record
 open Tcp
 open Error
-//open Handshake
-//open AppData
-//open Alert
+open Handshake
+open AppData
+open Alert
 open TLSInfo
 open TLSKey
 open AppCommon
@@ -197,7 +197,7 @@ let send ki ns dState tlen ct frag =
     match Tcp.write ns data with
     | Error(x,y) -> Error(x,y)
     | Correct(_) -> 
-        printf "%s(%d) " (CTtoString ct) tlen // DEBUG
+        // printf "%s(%d) " (CTtoString ct) tlen // DEBUG
         correct(dState)
 
 (* which fragment should we send next? *)
@@ -209,10 +209,10 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
   | _ ->
       let state = c.alert in
       match Alert.next_fragment id.id_out c_write.seqn state with
-      | (Alert.ALFragReply.EmptyALFrag,_) -> 
+      | (Alert.EmptyALFrag,_) -> 
           let hs_state = c.handshake in
           match Handshake.next_fragment id.id_out c_write.seqn hs_state with 
-          | (Handshake.HSFragReply.EmptyHSFrag, _) ->
+          | (Handshake.EmptyHSFrag, _) ->
             let app_state = c.appdata in
                 match AppData.next_fragment id.id_out c_write.seqn app_state with
                 | None -> (* nothing to do (tell the caller) *)
@@ -240,7 +240,7 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
                                      not retrieving a fragment from its upper protocol (and so makes the state
                                      of the protocol not completely linear...) *)
                             (Correct(MustRead), Conn(id,c))   
-          | (Handshake.HSFragReply.CCSFrag((tlen,ccs),(newKiOUT,ccs_data)),new_hs_state) ->
+          | (Handshake.CCSFrag((tlen,ccs),(newKiOUT,ccs_data)),new_hs_state) ->
                     (* we send a (complete) CCS fragment *)
                     match c_write.disp with
                     | x when x = FirstHandshake || x = Open ->
@@ -272,7 +272,7 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
                                 (Error(Dispatcher, UserAborted), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
                         | Error (x,y) -> (Error (x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
                     | _ -> (Error(Dispatcher, InvalidState), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
-          | (Handshake.HSFragReply.HSFrag(tlen,f),new_hs_state) ->     
+          | (Handshake.HSFrag(tlen,f),new_hs_state) ->     
                       (* we send some handshake fragment *)
                       match c_write.disp with
                       | x when x = Init || x = FirstHandshake ||
@@ -284,7 +284,7 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
                             (correct (WriteAgain), Conn(id,c) )
                           | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
                       | _ -> (Error(Dispatcher,InvalidState), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
-          | (Handshake.HSFragReply.HSWriteSideFinished(tlen,lastFrag),new_hs_state) ->
+          | (Handshake.HSWriteSideFinished(tlen,lastFrag),new_hs_state) ->
                 (* check we are in finishing state *)
                 match c_write.disp with
                 | Finishing ->
@@ -298,7 +298,7 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
                             (correct (WriteAgain), Conn(id,c))
                           | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
                 | _ -> (Error(Dispatcher,InvalidState), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
-          | (Handshake.HSFragReply.HSFullyFinished_Write((tlen,lastFrag),new_info),new_hs_state) ->
+          | (Handshake.HSFullyFinished_Write((tlen,lastFrag),new_info),new_hs_state) ->
                 match c_write.disp with
                 | Finishing ->
                     (* Send the last fragment *)
@@ -312,14 +312,14 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
                         | Correct(c) -> (correct(WriteAgain),Conn(id,c))
                     | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
                 | _ -> (Error(Dispatcher,InvalidState), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
-      | (Alert.ALFragReply.ALFrag(tlen,f),new_al_state) ->        
+      | (Alert.ALFrag(tlen,f),new_al_state) ->        
         match send id.id_out c.ns c_write tlen Alert (TLSFragment.FAlert(f)) with 
         | Correct(new_write) ->
             let new_write = {new_write with disp = Closing} in
             (correct (WriteAgain), Conn(id,{ c with alert = new_al_state;
                                                     write   = new_write } ))
         | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
-      | (Alert.ALFragReply.LastALFrag(tlen,f),new_al_state) ->
+      | (Alert.LastALFrag(tlen,f),new_al_state) ->
         (* We're sending a fatal alert. Send it, then close both sending and receiving sides *)
         match send id.id_out c.ns c_write tlen Alert (TLSFragment.FAlert(f)) with 
         | Correct(new_write) ->
@@ -327,7 +327,7 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
                             write = new_write}
             (correct (Done), closeConnection (Conn(id,c)))
         | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
-      | (Alert.ALFragReply.LastALCloseFrag(tlen,f),new_al_state) ->
+      | (Alert.LastALCloseFrag(tlen,f),new_al_state) ->
         (* We're sending a close_notify alert. Send it, then only close our sending side.
            If we already received the other close notify, then reading is already closed,
            otherwise we wait to read it, then close. But do not close here. *)
@@ -347,15 +347,15 @@ let deliver (Conn(id,c)) ct tlen frag =
   | _ ->
   match (ct,frag,c_read.disp) with 
 
-  | Handshake, TLSFragment.fragment.FHandshake(f), x when x = Init || x = FirstHandshake || x = Finishing || x = Open ->
+  | Handshake, TLSFragment.FHandshake(f), x when x = Init || x = FirstHandshake || x = Finishing || x = Open ->
     match Handshake.recv_fragment id.id_in c_read.seqn c.handshake tlen f with
     | (Correct(corr),hs) ->
         let new_seqn = c_read.seqn+1 in
         let c_read = {c_read with seqn = new_seqn} in
         match corr with
-        | Handshake.recv_reply.HSAck ->
+        | Handshake.HSAck ->
             (correct (ReadAgain), Conn(id,{ c with read = c_read; handshake = hs}) )
-        | Handshake.recv_reply.HSVersionAgreed pv ->
+        | Handshake.HSVersionAgreed pv ->
             match c_read.disp with
             | Init ->
                 (* Then, also c_write must be in Init state. It means this is the very first, unprotected handshake,
@@ -375,13 +375,13 @@ let deliver (Conn(id,c)) ct tlen frag =
             | _ -> (* It means we are doing a re-negotiation. Don't alter the current version number, because it
                      is perfectly valid. It will be updated after the next CCS, along with all other session parameters *)
                 ((correct (ReadAgain), Conn(id, { c with read = c_read; handshake = hs}) ))
-        | Handshake.recv_reply.HSReadSideFinished ->
+        | Handshake.HSReadSideFinished ->
         (* Ensure we are in Finishing state *)
             match x with
             | Finishing ->
                 (correct (HSDone),Conn(id,{c with read = c_read; handshake = hs}))
             | _ -> (Error(Dispatcher,InvalidState), closeConnection (Conn(id,{c with handshake = hs})) ) // TODO: We might want to send some alert here
-        | Handshake.recv_reply.HSFullyFinished_Read(new_info) ->
+        | Handshake.HSFullyFinished_Read(new_info) ->
             let c = {c with read = c_read; handshake = hs} in
             (* Ensure we are in Finishing state *)
             match x with
@@ -392,7 +392,7 @@ let deliver (Conn(id,c)) ct tlen frag =
             | _ -> (Error(Dispatcher,InvalidState), closeConnection (Conn(id,c))) // TODO: We might want to send some alert here.
     | (Error(x,y),hs) -> (Error(x,y),Conn(id,{c with handshake = hs})) (* TODO: we might need to send some alerts *)
 
-  | Change_cipher_spec, TLSFragment.fragment.FCCS(f), x when x = FirstHandshake || x = Open -> 
+  | Change_cipher_spec, TLSFragment.FCCS(f), x when x = FirstHandshake || x = Open -> 
     match Handshake.recv_ccs id.id_in c_read.seqn c.handshake tlen f with 
     | (Correct(ccs),hs) ->
         let (newKiIN,ccs_data) = ccs in
@@ -408,20 +408,20 @@ let deliver (Conn(id,c)) ct tlen frag =
             (Error(Dispatcher, UserAborted), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
     | (Error (x,y),hs) -> (Error (x,y), closeConnection (Conn(id,{c with handshake = hs}))) // TODO: We might want to send some alert here.
 
-  | Alert, TLSFragment.fragment.FAlert(f), _ ->
+  | Alert, TLSFragment.FAlert(f), _ ->
     match Alert.recv_fragment id.id_in c_read.seqn c.alert tlen f with
-    | Correct (Alert.alert_reply.ALAck(state)) ->
+    | Correct (Alert.ALAck(state)) ->
       let new_seqn = c_read.seqn + 1 in
       let c_read = {c_read with seqn = new_seqn; disp = Closing} in
       let c = {c with read = c_read; alert = state} in
       (correct (ReadAgain), Conn(id,c))
-    | Correct (Alert.alert_reply.ALClose_notify (state)) ->
+    | Correct (Alert.ALClose_notify (state)) ->
         (* An outgoing close notify has already been buffered, if necessary *)
         (* Only close the reading side of the connection *)
         let new_seqn = c_read.seqn + 1 in
         let new_read = {c_read with seqn = new_seqn; disp = Closed} in
         (correct (Abort), Conn(id, { c with read = new_read}))
-    | Correct (Alert.alert_reply.ALClose (state)) ->
+    | Correct (Alert.ALClose (state)) ->
         (* Other fatal alert, we close both sides of the connection *)
         let new_seqn = c_read.seqn + 1 in
         let new_read = {c_read with seqn = new_seqn} in
@@ -429,7 +429,7 @@ let deliver (Conn(id,c)) ct tlen frag =
         (correct (Abort), closeConnection (Conn(id,c)))
     | Error (x,y) -> (Error(x,y),closeConnection(Conn(id,c))) // TODO: We might want to send some alert here.
 
-  | Application_data, TLSFragment.fragment.FAppData(f), Open -> 
+  | Application_data, TLSFragment.FAppData(f), Open -> 
     let appstate = AppData.recv_fragment id.id_in c_read.seqn c.appdata tlen f in
     let new_seqn = c_read.seqn + 1;
     let new_read = {c_read with seqn = new_seqn} in
@@ -441,7 +441,9 @@ let recv (Conn(id,c)) =
     match Tcp.read c.ns 5 with // read & parse the header
     | Error (x,y)         -> Error(x,y)
     | Correct header ->
-        let len = Record.headerLength header in
+        match Record.headerLength header with
+        | Error(x,y) -> Error(x,y)
+        | Correct(len) ->
         match Tcp.read c.ns len with // read & process the payload
             | Error (x,y) -> Error(x,y) 
             | Correct payload ->

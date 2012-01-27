@@ -33,7 +33,11 @@ let makePacket ct ver data =
 let headerLength b =
     let (ct1,rem4) = split b 1 
     let (pv2,len2) = split rem4 2
-    int_of_bytes len2
+    let len = int_of_bytes len2
+    if len <= 0 || len > FragCommon.max_TLSCipher_fragment_length then
+        Error(Parsing,CheckFailed)
+    else
+        correct(len)
 
 let parseHeader b = 
     let (ct1,rem4) = split b 1 

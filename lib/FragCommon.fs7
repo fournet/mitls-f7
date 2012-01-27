@@ -6,7 +6,8 @@ open TLSInfo
 val max_TLSPlaintext_fragment_length: n:nat { n = 16384 (* 2^14 *) }
 val fragmentLength: n:nat{n <= max_TLSPlaintext_fragment_length}
 
-val max_TLSCipher_fragment_length: n:nat {n = max_TLSPlaintext_fragment_length + 2048}
+val max_TLSCompressed_fragment_length: n:nat {n = max_TLSPlaintext_fragment_length + 1024}
+val max_TLSCipher_fragment_length: n:nat {n = max_TLSCompressed_fragment_length + 1024}
 
 type tlen = n:nat{n <= max_TLSCipher_fragment_length}
 
