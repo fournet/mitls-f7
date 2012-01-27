@@ -228,7 +228,7 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
                                                  write = new_write }
                                 (* Eagerly write more appdata now, if available *)
                                 (correct (WriteAgain), Conn(id,c) )
-                            | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
+                            | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (Error(x,y), closed) (* Unrecoverable error *)
                           | _ ->
                             (* We have data to send, but we cannot now. It means we're finishing a handshake.
                                Force to read, so that we'll complete the handshake and we'll be able to send
@@ -240,7 +240,9 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
                                      not retrieving a fragment from its upper protocol (and so makes the state
                                      of the protocol not completely linear...) *)
                             (Correct(MustRead), Conn(id,c))   
-          | (Handshake.CCSFrag((tlen,ccs),(newKiOUT,ccs_data)),new_hs_state) ->
+          | (Handshake.CCSFrag(frag,newKeys),new_hs_state) ->
+                    let (tlen,ccs) = frag in
+                    let (newKiOUT,ccs_data) = newKeys in
                     (* we send a (complete) CCS fragment *)
                     match c_write.disp with
                     | x when x = FirstHandshake || x = Open ->
