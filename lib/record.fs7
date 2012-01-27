@@ -25,7 +25,8 @@ private val makePacket: ContentType -> ProtocolVersion -> bytes -> bytes
 
 val headerLength: b:bytes{Length(b) = 5} -> (n:nat{n>0 /\ n <= max_TLSCipher_fragment_length}) Result
 
-private val parseHeader: b:bytes{Length(b) = 5} -> (ContentType * ProtocolVersion * int) Result
+private val parseHeader: b:bytes{Length(b) = 5} ->
+	((ContentType * ProtocolVersion * n:nat){n>0 /\ n <= max_TLSCipher_fragment_length}) Result
 
 // FIXME: Remove next assume!
 // private assume !ki,tlen,t. MAC.Msg(ki,tlen,t)

@@ -8,7 +8,7 @@ open Error
 (* this interface is trusted *)
 
 // ciphers consist of one or more blocks of bytes.
-type cipher = bytes
+type cipher = b:bytes{Length(b) <= FragCommon.max_TLSCipher_fragment_length}
 
 predicate ENCrypted of
   (ki:KeyInfo * tlen:int * (;ki) ENCKey.key * (;ki,tlen) plain * cipher)

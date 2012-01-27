@@ -59,4 +59,4 @@ val AEADPlainToTLSFragment: ki:KeyInfo -> tlen:int -> ad:addData ->
 
 val TLSFragmentToAEADPlain: ki:KeyInfo -> tlen:int -> seqn:int -> ct:ContentType -> 
                             (;ki,tlen,seqn,ct)fragment -> 
-                            (;ki,tlen,ADBytes(ki.sinfo.protocol_version,seqn,ct)) AEADPlain
+                            (;ki,tlen,ADBytes(ki.sinfo.protocol_version,seqn,ct)) AEADMsg

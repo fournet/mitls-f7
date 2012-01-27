@@ -34,6 +34,9 @@ let headerLength b =
     let (ct1,rem4) = split b 1 
     let (pv2,len2) = split rem4 2
     let len = int_of_bytes len2
+    // With a precise int/byte model,
+    // no need to check len, since it's on 2 bytes and the max allowed value is 2^16.
+    // Here we do a runtime check to get the same property statically
     if len <= 0 || len > FragCommon.max_TLSCipher_fragment_length then
         Error(Parsing,CheckFailed)
     else
@@ -49,8 +52,13 @@ let parseHeader b =
     | Error(x,y) -> Error(x,y)
     | Correct(pv) -> 
     let len = int_of_bytes len2 
-    // No need to check len, since it's on 2 bytes and the max allowed value is 2^16.
-    correct(ct,pv,len)
+    // With a precise int/byte model,
+    // no need to check len, since it's on 2 bytes and the max allowed value is 2^16.
+    // Here we do a runtime check to get the same property statically
+    if len <= 0 || len > FragCommon.max_TLSCipher_fragment_length then
+        Error(Parsing,CheckFailed)
+    else
+        correct(ct,pv,len)
 
 (* This replaces send. It's not called send, since it doesn't send anything on the
    network *)
@@ -115,7 +123,11 @@ let recordPacketIn ki conn seqn headPayload =
     | Error(x,y) -> Error(x,y)
     | Correct (parsed) -> 
     let (ct,pv,tlen) = parsed in
-    //CF tlen is not checked? can we write an inverse of makePacket instead?
+    // tlen is checked in headerLength, which is invoked by Dispatch
+    // before invoking this function
+    if length payload <> tlen then
+        Error(Record,CheckFailed)
+    else
     let cs = ki.sinfo.cipher_suite in
     match (cs,conn.key) with
     | (x,NoneKey) when isNullCipherSuite x ->
