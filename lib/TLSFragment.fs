@@ -34,7 +34,7 @@ let makeAD pv seqn ct =
     let bver = versionBytes pv in
     if pv = SSL_3p0 
     then bseq @| bct
-    else bseq @| bct @| bver
+    else bseq @| (bct @| bver)
 
 let parseAD pv ad =
     if pv = SSL_3p0 then
@@ -45,11 +45,14 @@ let parseAD pv ad =
         | Correct(ct) -> (seqn,ct)
     else
         let (seq8,rem) = split ad 8 in
-        let (ct1,_) = split rem 1 in
-        let seqn = seq_of_bytes seq8 in
-        match parseCT ct1 with
-        | Error(x,y) -> unexpectedError "[parseAD] should always be invoked on valid additional data"
-        | Correct(ct) -> (seqn,ct)
+        let (ct1,bver) = split rem 1 in
+        if bver <> versionBytes pv then
+          unexpectedError "[parseAD] should always be invoked on valid additional data"
+        else
+          let seqn = seq_of_bytes seq8 in
+            match parseCT ct1 with
+              | Error(x,y) -> unexpectedError "[parseAD] should always be invoked on valid additional data"
+              | Correct(ct) -> (seqn,ct)
 
 type AEADPlain = bytes
 type AEADMsg = bytes

@@ -12,35 +12,50 @@ type (;ki:KeyInfo,tlen:int,seqn:int,ct:ContentType) fragment =
     | FAlert     of (;ki,tlen,seqn)Alert.fragment        {ct=Alert}
     | FAppData   of (;ki,tlen,seqn)AppDataPlain.fragment {ct=Application_data}
 
+predicate Fragment of ki:KeyInfo * tlen:int * seq:int * ct:ContentType * bytes
+assume !ki,tlen,seq,ct,b.
+  Fragment(ki,tlen,seq,ct,b) <=> (
+   (ct = Application_data /\ AppDataPlain.AppDataFragment(ki,tlen,seq,b)) \/
+   (ct = Handshake /\ Handshake.HandshakeFragment(ki,tlen,seq,b)) \/
+   (ct = Alert /\ Alert.AlertFragment(ki,tlen,seq,b)) \/
+   (ct = Change_cipher_spec /\ Handshake.CCSFragment(ki,tlen,seq,b)))
+
 val TLSFragmentRepr: ki:KeyInfo -> tlen:int -> seqn:int -> 
-  ct:ContentType -> (;ki,tlen,seqn,ct)fragment -> bytes
+  ct:ContentType -> (;ki,tlen,seqn,ct)fragment -> 
+  x:bytes{Fragment(ki,tlen,seqn,ct,x)}
+
 val TLSFragment: ki:KeyInfo -> tlen:int -> seqn:int -> 
   ct:ContentType -> bytes -> (;ki,tlen,seqn,ct)fragment
 
 // Additional Data
 type addData = bytes
-function val ADBytes: ProtocolVersion * int * ContentType -> addData
+
+function val ADLength: ProtocolVersion -> int
+private assume !pv. (pv = SSL_3p0 /\ ADLength(pv) = 9) \/ (pv <> SSL_3p0 /\ ADLength(pv) = 11)
+
+function val ADBytes: (ProtocolVersion * int * ContentType) -> bytes
 private assume !pv,seqn,ct.
 	( pv = SSL_3p0 /\
 	  ADBytes(pv,seqn,ct) =
 		IntBytes(8,seqn) @| CTBytes(ct) ) \/
-	  ADBytes(pv,seqn,ct) =
-		IntBytes(8,seqn) @| CTBytes(ct) @| VersionBytes(pv)
+	( pv <> SSL_3p0 /\
+          ADBytes(pv,seqn,ct) =
+		IntBytes(8,seqn) @| (CTBytes(ct) @| VersionBytes(pv)))
 
 private val makeAD: pv:ProtocolVersion ->
 	seqn:int -> ct:ContentType ->
-	ad:addData{ad=ADBytes(pv,seqn,ct)}
+	ad: addData{ad=ADBytes(pv,seqn,ct)}
 
-private val parseAD: pv:ProtocolVersion -> ad:addData -> (seqn:int * ct:ContentType){ad=ADBytes(pv,seqn,ct)}
+private val parseAD: pv:ProtocolVersion -> 
+          ad: addData{Length(ad) = ADLength(pv)} -> 
+          (seqn:int * ct:ContentType){ad=ADBytes(pv,seqn,ct)}
 
-function val ADct: ProtocolVersion * addData -> ContentType
+function val ADct: pv:ProtocolVersion * addData -> ContentType
 assume !pv,seqn,ct. ADct(pv,ADBytes(pv,seqn,ct)) = ct
 
-function val ADseqn: ProtocolVersion * addData -> int
+function val ADseqn: pv:ProtocolVersion * addData -> int
 assume !pv,seqn,ct. ADseqn(pv,ADBytes(pv,seqn,ct)) = seqn
 
-// Plain type for AEAD
-predicate Fragment of ki:KeyInfo * tlen:int * seq:int * ct:ContentType * bytes
 
 private type (;ki:KeyInfo,tlen:int,ad:addData) AEADPlain = bytes
 private type (;ki:KeyInfo,tlen:int,ad:addData) AEADMsg = 
@@ -53,7 +68,7 @@ private type (;ki:KeyInfo,tlen:int,ad:addData) AEADMsg =
 val AEADPlain: ki:KeyInfo -> tlen:int -> ad:addData -> bytes -> (;ki,tlen,ad)AEADPlain
 val AEADRepr:  ki:KeyInfo -> tlen:int -> ad:addData -> f:(;ki,tlen,ad)AEADPlain -> b:bytes
 
-val AEADPlainToTLSFragment: ki:KeyInfo -> tlen:int -> ad:addData ->
+val AEADPlainToTLSFragment: ki:KeyInfo -> tlen:int -> ad:addData{Length(ad) = ADLength(ki.sinfo.protocol_version)} -> 
                             (;ki,tlen,ad)AEADPlain -> 
                             (;ki,tlen,ADseqn(ki.sinfo.protocol_version,ad),ADct(ki.sinfo.protocol_version,ad)) fragment
 

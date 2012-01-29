@@ -64,7 +64,14 @@ Dispatch-a.dll: libsym-a.dll record-a.dll $(tlsfsi) $(tlsfs)
 
 #CF not sure what the default rule was doing, now more bespoke
 
-tc7:: Algorithms.tc7 CipherSuites.tc7 formats.tc7 TLSInfo.tc7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppCommon.fs7 SessionDB.fs7 FragCommon.fs7 AppDataPlain.fs7 AppData.fs7 HS_msg.fs7 Handshake.fs7 Alert.fs7 TLSFragment.fs7 MACPlain.fs7 Plain.fs7 MAC.fs7 ENC.fs7 AEAD.fs7 record.fs7
+tc7:: Algorithms.tc7 CipherSuites.tc7 formats.tc7 TLSInfo.tc7 TLSFragment.tc7 
+# TODO for TLS Record: AppDataPlain.tc7 AppData.tc7 Dispatch.tc7 TLS.tc7 
+# TODO for TLS Full: HS_msg.tc7 Handshake.tc7 Alert.tc7 
+# TODO for CRYPTO: MACPlain.tc7 Plain.tc7 MAC.tc7 ENC.tc7 AEAD.tc7 
+
+# NOT VERIFIED LIBS: Error.fs Bytes.fs tcp.fs RSA.fs Principal.fs 
+# NOT VERIFIED CRYPTO: HASH.fs HMAC.fs ENCKey.fs MACKey.fs PRFs.fs TLSKey.fs 
+# NOT VERIFIED TLS: AppCommon.fs SessionDB.fs FragCommon.fs
 
 f7t= echo ; $(f7) -nokindcheck $(lperv) $(libfs7)
 
@@ -128,7 +135,7 @@ Alert.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Principal.fs
 	$(f7t) Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppCommon.fs7 SessionDB.fs7 FragCommon.fs7 Alert.fs7 Alert.fs
 
 TLSFragment.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppCommon.fs7 SessionDB.fs7 FragCommon.fs7 AppDataPlain.fs7 AppData.fs7 HS_msg.fs7 Handshake.fs7 Alert.fs7 TLSFragment.fs7 TLSFragment.fs
-	$(f7t) Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppCommon.fs7 SessionDB.fs7 FragCommon.fs7 AppDataPlain.fs7 AppData.fs7 HS_msg.fs7 Handshake.fs7 Alert.fs7 TLSFragment.fs7 TLSFragment.fs
+	$(f7t) Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppCommon.fs7 SessionDB.fs7 FragCommon.fs7 AppDataPlain.fs7 AppData.fs7 HS_msg.fs7 Handshake.fs7 Alert.fs7 TLSFragment.fs7 TLSFragment.fs -scripts TLSFragment
 
 MACPlain.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppCommon.fs7 SessionDB.fs7 FragCommon.fs7 AppDataPlain.fs7 AppData.fs7 HS_msg.fs7 Handshake.fs7 Alert.fs7 TLSFragment.fs7 MACPlain.fs7 MACPlain.fs
 	$(f7t) Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppCommon.fs7 SessionDB.fs7 FragCommon.fs7 AppDataPlain.fs7 AppData.fs7 HS_msg.fs7 Handshake.fs7 Alert.fs7 TLSFragment.fs7 MACPlain.fs7 MACPlain.fs

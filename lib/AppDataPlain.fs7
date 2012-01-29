@@ -48,5 +48,7 @@ val app_fragment: ki:KeyInfo -> seqn:int -> ls:(;ki.sinfo)lengths ->
 	((tlen:int * f:(;ki,tlen,seqn)fragment {CompatibleLength(ki.sinfo,Length(f.b),tlen)}) *
 	 (ls2:(;ki.sinfo)lengths * d2:(;ki.sinfo)appdata {CompatibleLengths(ki.sinfo,Length(d2.appD),ls2)}))
 
-val repr: ki:KeyInfo -> tlen:int -> seqn:int -> (;ki,tlen,seqn)fragment -> bytes
+predicate AppDataFragment of KeyInfo * int * int * bytes
+
+val repr: ki:KeyInfo -> tlen:int -> seqn:int -> (;ki,tlen,seqn)fragment -> b:bytes{AppDataFragment(ki,tlen,seqn,b)}
 val fragment: ki:KeyInfo -> tlen:int -> seqn:int -> bytes -> (;ki,tlen,seqn)fragment

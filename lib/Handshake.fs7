@@ -20,10 +20,13 @@ type (;si:SessionInfo)hs_state = (;si)pre_hs_state
 // protocol-specific abstract fragment,
 // and associated functions (never to be called with ideal functionality)
 type (;ki:KeyInfo,tlen:int,seqn:int) fragment
-val repr: ki:KeyInfo -> tlen:int -> seqn:int -> (;ki,tlen,seqn)fragment -> Bytes.bytes
+predicate HandshakeFragment of KeyInfo * int * int * Bytes.bytes
+predicate CCSFragment of KeyInfo * int * int * Bytes.bytes
+
+val repr: ki:KeyInfo -> tlen:int -> seqn:int -> (;ki,tlen,seqn)fragment -> b:Bytes.bytes{HandshakeFragment(ki,tlen,seqn,b)}
 val fragment: ki:KeyInfo -> tlen:int -> seqn:int -> Bytes.bytes -> (;ki,tlen,seqn)fragment
 type (;ki:KeyInfo,tlen:int,seqn:int)ccsFragment
-val ccsRepr: ki:KeyInfo -> tlen:int -> seqn:int -> (;ki,tlen,seqn)ccsFragment -> Bytes.bytes
+val ccsRepr: ki:KeyInfo -> tlen:int -> seqn:int -> (;ki,tlen,seqn)ccsFragment -> b:Bytes.bytes{CCSFragment(ki,tlen,seqn,b)}
 val ccsFragment: ki:KeyInfo -> tlen:int -> seqn:int -> Bytes.bytes -> (;ki,tlen,seqn)ccsFragment
 
 (* Locally controlling handshake protocols *) 
