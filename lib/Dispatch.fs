@@ -50,7 +50,8 @@ type globalState = {
   }
 
 type Connection = Conn of index * globalState
-type SameConnection = Connection
+//type SameConnection = Connection
+type CompatibleConnection = Connection
 
 (* Writing and reading have asymmetric outcomes, because writing is easier, and requires less care.
    We can always try to write "once more", and stop when we realize we have no data to send.
@@ -143,9 +144,14 @@ let getSessionInfo (Conn(id,conn)) =
     id.id_out.sinfo // in Open and Closed state, this should be equivalent to id.id_in.sinfo
 
 let checkCompatibleSessions s1 s2 poptions =
-    (isNullSessionInfo s1) || 
-    (s1 = s2) || 
-    (poptions.isCompatibleSession s1 s2)
+    // (isNullSessionInfo s1) || (s1 = s2) || (poptions.isCompatibleSession s1 s2)
+    if isNullSessionInfo s1 then
+        true
+    else if s1 = s2 then
+        true
+    else
+        let isComp = poptions.isCompatibleSession s1 s2 in
+        isComp
 
 let moveToOpenState (Conn(id,c)) new_storable_info =
     (* If appropriate, store this session in the DB *)

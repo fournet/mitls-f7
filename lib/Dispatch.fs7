@@ -53,7 +53,7 @@ type (;id:index) globalState = {
 type Connection = Conn of (id:index * (;id)globalState)
 function val ConnectionIndex: Connection -> index
 assume !id,s. ConnectionIndex(Conn(id,s)) = id
-type (;c:Connection) SameConnection = c':Connection{ConnectionIndex(c) = ConnectionIndex(c')}
+//type (;c:Connection) SameConnection = c':Connection{ConnectionIndex(c) = ConnectionIndex(c')}
 
 function val ConnectionOutKeyInfo: Connection -> KeyInfo
 assume !id,s. ConnectionOutKeyInfo(Conn(id,s))= id.id_out
@@ -75,9 +75,9 @@ assume !id,s. ConnectionReadSeqn(Conn(id,s))=s.read.seqn
 predicate CompatibleSessions of SessionInfo * SessionInfo
 assume !s. CompatibleSessions(s,s)
 assume !s1,s2. UserSaysCompatibleSessions(s1,s2) => CompatibleSessions(s1,s2)
-assume !s. CompatibleSessions(NullSessionInfo,s)
+assume !nulls,s. NullSessionInfo(nulls) => CompatibleSessions(nulls,s)
 
-val checkCompatibleSessions: s1:SessionInfo -> s2:SessionInfo -> 
+val checkCompatibleSessions: s1:SessionInfo -> s2:SessionInfo -> AppCommon.protocolOptions ->
                              b:bool{b = true => CompatibleSessions(s1,s2)}
 
 type (;c:Connection) CompatibleConnection = c':Connection{
@@ -99,9 +99,9 @@ val init: NetworkStream -> Direction -> protocolOptions -> Connection
 
 val resume: NetworkStream -> sessionID -> protocolOptions -> unit Result * Connection
 
-val ask_rehandshake: c:Connection -> protocolOptions -> (;c) SameConnection
-val ask_rekey:       c:Connection -> protocolOptions -> (;c) SameConnection
-val ask_hs_request:  c:Connection -> protocolOptions -> (;c) SameConnection
+val ask_rehandshake: c:Connection -> protocolOptions -> (;c) CompatibleConnection
+val ask_rekey:       c:Connection -> protocolOptions -> (;c) CompatibleConnection
+val ask_hs_request:  c:Connection -> protocolOptions -> (;c) CompatibleConnection
 
 val getSessionInfo: c:Connection -> si:SessionInfo{si=ConnectionOutSessionInfo(c)}
 
@@ -109,7 +109,7 @@ val moveToOpenState: c:Connection ->
 	(si:SessionInfo * (;si)PRFs.masterSecret * Direction){si=ConnectionOutSessionInfo(c)} ->
 	(;ConnectionIndex(c))globalState Result
 
-val closeConnection: c:Connection-> (;c) SameConnection
+val closeConnection: c:Connection-> (;c) CompatibleConnection
 
 // This always returns the write-side seqn increased by one,
 // regardless of the content type
@@ -126,18 +126,18 @@ val writeOne: c:Connection ->
 // expect if we delivered a CCS, in which case it is 0
 val deliver: c:Connection -> ct:ContentType -> tlen:int ->
 	(;ConnectionOutKeyInfo(c),tlen,ConnectionReadSeqn(c),ct)TLSFragment.fragment ->
-	(deliverOutcome Result * (;c) SameConnection)
+	(deliverOutcome Result * (;c) CompatibleConnection)
 
 val recv: c:Connection ->
-	((;c) SameConnection *
+	((;c) CompatibleConnection *
 	 ct:ContentType * tlen:int * 
          (;ConnectionInKeyInfo(c),tlen,ConnectionReadSeqn(c),ct)TLSFragment.fragment) Result
 
 val readOne: c:Connection ->
-	deliverOutcome Result * (;c) SameConnection
+	deliverOutcome Result * (;c) CompatibleConnection
 
 val writeFromRead: c:Connection ->
-	unit Result * (;c) SameConnection
+	unit Result * (;c) CompatibleConnection
 
 type preReadInvocation =
     | StopAtHS
@@ -146,18 +146,18 @@ type preReadInvocation =
 type readInvocation = r:preReadInvocation{
 	r = StopAtHS \/ r = StopAtAppData}
 
-val read: c:Connection -> readInvocation -> unit Result * (;c) SameConnection
+val read: c:Connection -> readInvocation -> unit Result * (;c) CompatibleConnection
 
-val writeAppData: c:Connection -> unit Result * (;c) SameConnection
+val writeAppData: c:Connection -> unit Result * (;c) CompatibleConnection
 
 
 val commit: c:Connection ->
 	(;ConnectionOutSessionInfo(c))AppDataPlain.lengths ->
 	(;ConnectionOutSessionInfo(c))AppDataPlain.appdata ->
-	(;c)SameConnection
+	(;c)CompatibleConnection
 
 val readAppData: c:Connection ->
 	((;ConnectionInSessionInfo(c))AppDataPlain.appdata Result) *
-	(;c)SameConnection
+	(;c)CompatibleConnection
 
-val readHS: c:Connection -> unit Result * (;c) SameConnection
+val readHS: c:Connection -> unit Result * (;c) CompatibleConnection
