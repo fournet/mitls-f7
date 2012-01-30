@@ -55,7 +55,6 @@ function val ConnectionIndex: Connection -> index
 assume !id,s. ConnectionIndex(Conn(id,s)) = id
 type (;c:Connection) SameConnection = c':Connection{ConnectionIndex(c) = ConnectionIndex(c')}
 
-
 function val ConnectionOutKeyInfo: Connection -> KeyInfo
 assume !id,s. ConnectionOutKeyInfo(Conn(id,s))= id.id_out
 function val ConnectionInKeyInfo: Connection -> KeyInfo
@@ -72,6 +71,10 @@ assume !ki,s. dStateSeqn(ki,s)=s.seqn
 
 function val ConnectionReadSeqn: Connection -> int
 assume !id,s. ConnectionReadSeqn(Conn(id,s))=s.read.seqn
+
+type (;c:Connection) CompatibleConnection = c':Connection{
+   CompatibleSessions(ConnectionOutSessionInfo(c),ConnectionOutSessionInfo(c')) /\
+   CompatibleSessions(ConnectionInSessionInfo(c),ConnectionInSessionInfo(c')) }
 
 type writeOutcome =
     | WriteAgain (* Possibly more data to send *)
@@ -109,7 +112,7 @@ val send: ki:KeyInfo -> NetworkStream -> ss:(;ki)dState -> tlen:int ->
 // internally invokes send (which increases the write-side seqn),
 // however resets the write-side seqn is we just sent a CCS
 val writeOne: c:Connection ->
-	(writeOutcome Result) * (;c) SameConnection
+	(writeOutcome Result) * (;c) CompatibleConnection
 
 // Normally, the returned read-side seqn will be increased by one
 // expect if we delivered a CCS, in which case it is 0
