@@ -72,6 +72,14 @@ assume !ki,s. dStateSeqn(ki,s)=s.seqn
 function val ConnectionReadSeqn: Connection -> int
 assume !id,s. ConnectionReadSeqn(Conn(id,s))=s.read.seqn
 
+predicate CompatibleSessions of SessionInfo * SessionInfo
+assume !s. CompatibleSessions(s,s)
+assume !s1,s2. UserSaysCompatibleSessions(s1,s2) => CompatibleSessions(s1,s2)
+assume !s. CompatibleSessions(NullSessionInfo,s)
+
+val checkCompatibleSessions: s1:SessionInfo -> s2:SessionInfo -> 
+                             b:bool{b = true => CompatibleSessions(s1,s2)}
+
 type (;c:Connection) CompatibleConnection = c':Connection{
    CompatibleSessions(ConnectionOutSessionInfo(c),ConnectionOutSessionInfo(c')) /\
    CompatibleSessions(ConnectionInSessionInfo(c),ConnectionInSessionInfo(c')) }

@@ -12,8 +12,7 @@ type helloReqPolicy =
 
 type TimeSpan
 
-predicate CompatibleSessions of SessionInfo * SessionInfo
-assume !s. CompatibleSessions(s,s)
+predicate UserSaysCompatibleSessions of SessionInfo * SessionInfo
 
 type protocolOptions = {
     minVer: ProtocolVersion;
@@ -32,7 +31,7 @@ type protocolOptions = {
     (* Common *)
     certificateValidationPolicy: cert list -> bool;
     safe_renegotiation: bool;
-    isCompatibleSession: s1:SessionInfo -> s2:SessionInfo -> b:bool{b = true => CompatibleSessions(s1,s2)};
+    isCompatibleSession: s1:SessionInfo -> s2:SessionInfo -> b:bool{b = true => UserSaysCompatibleSessions(s1,s2)};
     isGoodSession: SessionInfo -> bool;
 
     (* Sessions database *)
