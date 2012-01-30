@@ -64,14 +64,17 @@ Dispatch-a.dll: libsym-a.dll record-a.dll $(tlsfsi) $(tlsfs)
 
 #CF not sure what the default rule was doing, now more bespoke
 
-tc7:: Algorithms.tc7 CipherSuites.tc7 formats.tc7 TLSInfo.tc7 TLSFragment.tc7 
-# TODO for TLS Record: AppDataPlain.tc7 AppData.tc7 Dispatch.tc7 TLS.tc7 
-# TODO for TLS Full: HS_msg.tc7 Handshake.tc7 Alert.tc7 
-# TODO for CRYPTO: MACPlain.tc7 Plain.tc7 MAC.tc7 ENC.tc7 AEAD.tc7 
 
-# NOT VERIFIED LIBS: Error.fs Bytes.fs tcp.fs RSA.fs Principal.fs 
-# NOT VERIFIED CRYPTO: HASH.fs HMAC.fs ENCKey.fs MACKey.fs PRFs.fs TLSKey.fs 
-# NOT VERIFIED TLS: AppCommon.fs SessionDB.fs FragCommon.fs
+# Compilation Order: WRAPPERLIBS TLSCRYPTO CRYPTO TLSRECORD TLSCONFIG 
+
+tc7:: Algorithms.tc7 CipherSuites.tc7 formats.tc7 TLSInfo.tc7 TLSFragment.tc7 TLSKey.tc7
+# TODO for TLS Record: (KB:) AppDataPlain.tc7 AppData.tc7 (Alfredo:) Dispatch.tc7 TLS.tc7 
+# TODO for TLS Full: FragCommon.fs HS_msg.tc7 Handshake.tc7 Alert.tc7 
+# TODO for CRYPTO: ENCKey.fs MACKey.fs MACPlain.tc7 Plain.tc7 MAC.tc7 ENC.tc7 AEAD.tc7 
+
+# NOT VERIFIED LIBS: Error.fs Bytes.fs tcp.fs Principal.fs 
+# NOT VERIFIED CRYPTO LIBS: RSA.fs HASH.fs HMAC.fs PRFs.fs 
+# NOT VERIFIED TLS: AppCommon.fs SessionDB.fs 
 
 f7t= echo ; $(f7) -nokindcheck $(lperv) $(libfs7)
 
@@ -98,16 +101,16 @@ TLSInfo.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 Principal.fs7 TLSInfo.fs7 
 # trusting HASH.fs7 (mostly calling System.Security.Cryptography)
 # trusting HMAC.fs7 (mostly calling System.Security.Cryptography)
 
-ENCKey.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 Principal.fs7  Ciphersuites.fs7 TLSInfo.fs7 EncKey.fs
-	$(f7t) Bytes.fs7 Algorithms.fs7 Error.fs7 Principal.fs7 Ciphersuites.fs7 TLSInfo.fs7 EncKey.fs
+ENCKey.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 Principal.fs7  Ciphersuites.fs7 TLSInfo.fs7 EncKey.fs7 EncKey.fs
+	$(f7t) Bytes.fs7 Algorithms.fs7 Error.fs7 Principal.fs7 Ciphersuites.fs7 TLSInfo.fs7 EncKey.fs7 EncKey.fs
 
-MACKey.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Ciphersuites.fs7 TLSInfo.fs7 MACKey.fs
-	$(f7t) Bytes.fs7 Algorithms.fs7 Ciphersuites.fs7 TLSInfo.fs7 MACKey.fs
+MACKey.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 Ciphersuites.fs7 TLSInfo.fs7 MACKey.fs7 MACKey.fs
+	$(f7t) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 Ciphersuites.fs7 TLSInfo.fs7 MACKey.fs7 MACKey.fs
 
 # trusting PRFs.fs7 (mostly calling System.Security.Cryptography)
 
-TLSKey.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Ciphersuites.fs7 TLSInfo.fs7 ENCKey.fs7 MACKey.fs7 TLSKey.fs7 TLSKey.fs
-	$(f7t) Bytes.fs7 Algorithms.fs7 Ciphersuites.fs7 TLSInfo.fs7 ENCKey.fs7 MACKey.fs7 TLSKey.fs7 TLSKey.fs
+TLSKey.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 Principal.fs7 Ciphersuites.fs7 TLSInfo.fs7 ENCKey.fs7 MACKey.fs7 TLSKey.fs7 TLSKey.fs
+	$(f7t) Error.fs7 Bytes.fs7  RSA.fs7 Principal.fs7 Algorithms.fs7 Ciphersuites.fs7 TLSInfo.fs7 ENCKey.fs7 MACKey.fs7 TLSKey.fs7 TLSKey.fs
 
 # FIMXE: AppCommon uses System.TimeSpan. We might want to trust the implementation, but we need refinement types for the record fields!
 AppCommon.tc7: $(libperv) $(libfs7) Bytes.fs7 Principal.fs7 Algorithms.fs7 Ciphersuites.fs7 TLSInfo.fs7 AppCommon.fs7 AppCommon.fs
