@@ -67,10 +67,10 @@ Dispatch-a.dll: libsym-a.dll record-a.dll $(tlsfsi) $(tlsfs)
 
 # Compilation Order: WRAPPERLIBS TLSCRYPTO CRYPTO TLSRECORD TLSCONFIG 
 
-tc7:: Algorithms.tc7 CipherSuites.tc7 formats.tc7 TLSInfo.tc7 TLSFragment.tc7 TLSKey.tc7
+tc7:: Algorithms.tc7 CipherSuites.tc7 formats.tc7 TLSInfo.tc7 TLSFragment.tc7 MACKey.tc7 ENCKey.tc7 TLSKey.tc7
 # TODO for TLS Record: (KB:) AppDataPlain.tc7 AppData.tc7 (Alfredo:) Dispatch.tc7 TLS.tc7 
 # TODO for TLS Full: FragCommon.fs HS_msg.tc7 Handshake.tc7 Alert.tc7 
-# TODO for CRYPTO: ENCKey.fs MACKey.fs MACPlain.tc7 Plain.tc7 MAC.tc7 ENC.tc7 AEAD.tc7 
+# TODO for CRYPTO: MACPlain.tc7 Plain.tc7 MAC.tc7 ENC.tc7 AEAD.tc7 
 
 # NOT VERIFIED LIBS: Error.fs Bytes.fs tcp.fs Principal.fs 
 # NOT VERIFIED CRYPTO LIBS: RSA.fs HASH.fs HMAC.fs PRFs.fs 
@@ -101,8 +101,8 @@ TLSInfo.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 Principal.fs7 TLSInfo.fs7 
 # trusting HASH.fs7 (mostly calling System.Security.Cryptography)
 # trusting HMAC.fs7 (mostly calling System.Security.Cryptography)
 
-ENCKey.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 Principal.fs7  Ciphersuites.fs7 TLSInfo.fs7 EncKey.fs7 EncKey.fs
-	$(f7t) Bytes.fs7 Algorithms.fs7 Error.fs7 Principal.fs7 Ciphersuites.fs7 TLSInfo.fs7 EncKey.fs7 EncKey.fs
+ENCKey.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 RSA.fs7 Principal.fs7  Ciphersuites.fs7 TLSInfo.fs7 EncKey.fs7 EncKey.fs
+	$(f7t) Bytes.fs7 Algorithms.fs7 Error.fs7 RSA.fs7 Principal.fs7 Ciphersuites.fs7 TLSInfo.fs7 EncKey.fs7 EncKey.fs
 
 MACKey.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 Ciphersuites.fs7 TLSInfo.fs7 MACKey.fs7 MACKey.fs
 	$(f7t) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 Ciphersuites.fs7 TLSInfo.fs7 MACKey.fs7 MACKey.fs

@@ -3,7 +3,7 @@
 open Bytes
 open TLSInfo
 
-type (;ki:KeyInfo) key
+private type (;ki:KeyInfo) key = {k:bytes}
 
 val GEN: ki:KeyInfo -> (;ki) key
 val LEAK:   ki:KeyInfo{Corrupt(ki)} -> (;ki)key -> bytes
