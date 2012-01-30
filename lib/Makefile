@@ -1,7 +1,6 @@
 include ../../../../Makefile.inc
 
-#all: record.dll record-a.dll Dispatch.dll Dispatch-a.dll
-all: record.dll Dispatch.dll TLS.dll
+all: tls.dll tlsbase-tc7 # tlsapplication-tc7 crypto-tc7 tlsrecord-tc7
 
 lib7=../../../lib/fs7-interfaces/
 libperv = $(lib7)pervasives.fs7 $(lib7)tuples.fs7
@@ -10,7 +9,28 @@ libfs7 = $(lib7)formulas.fs7 $(lib7)pi.fs7
 
 recordfs7 = Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppCommon.fs7 SessionDB.fs7 FragCommon.fs7 AppDataPlain.fs7 AppData.fs7 HS_msg.fs7 Handshake.fs7 Alert.fs7 TLSFragment.fs7 MACPlain.fs7 Plain.fs7 MAC.fs7 ENC.fs7 AEAD.fs7 record.fs7
 recordfsi = Error.fsi Bytes.fsi tcp.fsi RSA.fsi Principal.fsi Algorithms.fsi CipherSuites.fsi formats.fsi TLSInfo.fsi HASH.fsi HMAC.fsi ENCKey.fsi MACKey.fsi PRFs.fsi TLSKey.fsi AppCommon.fsi SessionDB.fsi FragCommon.fsi AppDataPlain.fsi AppData.fsi HS_msg.fsi Handshake.fsi Alert.fsi TLSFragment.fsi MACPlain.fsi Plain.fsi MAC.fsi ENC.fsi AEAD.fsi record.fsi
-recordfs  = Error.fs  Bytes.fs  tcp.fs  RSA.fs  Principal.fs  Algorithms.fs  CipherSuites.fs  formats.fs  TLSInfo.fs  HASH.fs  HMAC.fs  ENCKey.fs  MACKey.fs  PRFs.fs  TLSKey.fs  AppCommon.fs  SessionDB.fs  FragCommon.fs  AppDataPlain.fs  AppData.fs  HS_msg.fs  Handshake.fs  Alert.fs  TLSFragment.fs  MACPlain.fs  Plain.fs  MAC.fs  ENC.fs  AEAD.fs  record.fs
+
+recordfs  = Error.fs  Bytes.fs  tcp.fs  RSA.fs  Principal.fs  Algorithms.fs  CipherSuites.fs  formats.fs  TLSInfo.fs  HASH.fs  HMAC.fs  ENCKey.fs  MACKey.fs  PRFs.fs  TLSKey.fs   TLSFragment.fs  MACPlain.fs  Plain.fs  MAC.fs  ENC.fs  AEAD.fs  record.fs
+
+wrapperlibs = Error.fs  Bytes.fs  tcp.fs Algorithms.fs RSA.fs  HASH.fs  HMAC.fs  Principal.fs  # not verified 
+tlsbase = CipherSuites.fs  formats.fs  TLSInfo.fs  ENCKey.fs  MACKey.fs TLSKey.fs # verified
+tlshandshake = AppCommon.fs PRFs.fs SessionDB.fs FragCommon.fs HS_msg.fs  Handshake.fs  Alert.fs  # todo
+tlsapplication = AppDataPlain.fs  AppData.fs  TLSFragment.fs MACPlain.fs Plain.fs # being verified (KB)
+crypto =  MAC.fs ENC.fs AEAD.fs # verified? (CF)
+tlsrecord = record.fs dispatch.fs tls.fs # being verified (AP)
+
+wrapperlibsi = Error.fsi  Bytes.fsi  tcp.fsi  Algorithms.fsi  RSA.fsi  HASH.fsi  HMAC.fsi  Principal.fsi  # not verified 
+tlsbasei = CipherSuites.fsi  formats.fsi  TLSInfo.fsi  ENCKey.fsi  MACKey.fsi TLSKey.fsi # verified
+tlshandshakei = AppCommon.fsi  PRFs.fsi SessionDB.fsi FragCommon.fsi HS_msg.fsi  Handshake.fsi  Alert.fsi  # todo
+tlsapplicationi = AppDataPlain.fsi  AppData.fsi  TLSFragment.fsi MACPlain.fsi Plain.fsi # being verified (KB)
+cryptoi =  MAC.fsi ENC.fsi AEAD.fsi # verified? (CF)
+tlsrecordi = record.fsi dispatch.fsi tls.fsi # being verified (AP)
+
+tlsbase-tc7: Error.tc7 Algorithms.tc7 CipherSuites.tc7  formats.tc7  TLSInfo.tc7  ENCKey.tc7  MACKey.tc7 TLSKey.tc7 # verified
+tlsapplication-tc7: AppDataPlain.tc7  AppData.tc7  TLSFragment.tc7 MACPlain.tc7 Plain.tc7 
+crypto-tc7: MAC.tc7 ENC.tc7 AEAD.tc7
+tlsrecord-tc7: record.tc7 dispatch.tc7 tls.tc7
+
 #recordfs-a = Error.fs  tcp-a.fs  Sessions.fs  formats.fs CryptoTLS.fs record.fs 
 
 dispatchfs7 = Dispatch.fs7
@@ -39,13 +59,31 @@ libsym-a.dll: $(lpi) $(libs-a) # building DLLs, e.g. for intellisense integratio
 libsym.dll: $(libs)
 	$(fsc) -d concrete $(libs) -a -o libsym.dll
 
+wrapperlibs.dll: libsym.dll $(wrapperlibsi) $(wrapperlibs)
+	$(fsc) -d concrete -r $^ -a -o $@
+
+tlsbase.dll: libsym.dll wrapperlibs.dll $(tlsbasei) $(tlsbase)
+	$(fsc) -d concrete -r libsym.dll -r wrapperlibs.dll $(tlsbasei) $(tlsbase) -a -o $@
+
+tlshandshake.dll: libsym.dll wrapperlibs.dll tlsbase.dll  $(tlshandshakei) $(tlshandshake)
+	$(fsc) -d concrete -r libsym.dll -r wrapperlibs.dll -r tlsbase.dll  $(tlshandshakei) $(tlshandshake) -a -o $@
+
+tlsapplication.dll: libsym.dll wrapperlibs.dll tlsbase.dll tlshandshake.dll $(tlsapplicationi) $(tlsapplication)
+	$(fsc) -d concrete -r libsym.dll -r wrapperlibs.dll -r tlsbase.dll -r tlshandshake.dll $(tlsapplicationi) $(tlsapplication) -a -o $@
+
+crypto.dll: libsym.dll wrapperlibs.dll tlsbase.dll  tlshandshake.dll tlsapplication.dll $(cryptoi) $(crypto)
+	$(fsc) -d concrete -r  libsym.dll -r wrapperlibs.dll -r tlsbase.dll -r tlshandshake.dll -r tlsapplication.dll $(cryptoi) $(crypto) -a -o $@
+
+tls.dll: libsym.dll wrapperlibs.dll tlsbase.dll  tlshandshake.dll tlsapplication.dll crypto.dll $(tlsrecordi) $(tlsrecord)
+	$(fsc) -d concrete -r libsym.dll -r wrapperlibs.dll -r tlsbase.dll -r tlshandshake.dll -r tlsapplication.dll -r crypto.dll $(tlsrecordi) $(tlsrecord) -a -o $@
+
 record.dll: libsym.dll $(recordfsi) $(recordfs)
 	$(fsc) -d concrete -r $^ -a -o record.dll
 
 Dispatch.dll: libsym.dll record.dll $(dispatchsi) $(dispatchfs)
 	$(fsc) -r libsym.dll -r record.dll $(dispatchfsi) $(dispatchfs) -a -o Dispatch.dll
 
-TLS.dll: libsym.dll record.dll Dispatch.dll $(tlsfsi) $(tlsfs)
+TLS-old.dll: libsym.dll record.dll Dispatch.dll $(tlsfsi) $(tlsfs)
 	$(fsc) -r libsym.dll -r record.dll -r Dispatch.dll $(tlsfsi) $(tlsfs) -a -o TLS.dll
 
 recordsig.fs7: libsym.dll $(recordfsi) $(recordfs-a)
@@ -158,7 +196,7 @@ AEAD.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Principal.fs7
 # FIXME: Stream.fs7 is currently unused. Remove from project? Indeed, AppDataPlain should inherit its refinements
 
 record.tc7: $(libperv) $(libfs7) $(recordfs7) record.fs
-	$(f7t) -scripts record $(recordfs7) record.fs
+	$(f7t) -genprotofs -scripts record $(recordfs7) record.fs
 
 Dispatch.tc7: $(libperv) $(libfs7) $(recordfs7) Dispatch.fs7 Dispatch.fs
 	$(f7t) -scripts Dispatch $(recordfs7) Dispatch.fs7 Dispatch.fs | tee Dispatch.tc7

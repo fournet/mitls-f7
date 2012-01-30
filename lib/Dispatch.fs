@@ -143,7 +143,7 @@ let getSessionInfo (Conn(id,conn)) =
     id.id_out.sinfo // in Open and Closed state, this should be equivalent to id.id_in.sinfo
 
 let checkCompatibleSessions s1 s2 poptions =
-    (isNullSession s1) || 
+    (isNullSessionInfo s1) || 
     (s1 = s2) || 
     (poptions.isCompatibleSession s1 s2)
 

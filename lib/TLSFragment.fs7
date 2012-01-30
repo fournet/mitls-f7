@@ -12,7 +12,8 @@ type (;ki:KeyInfo,tlen:int,seqn:int,ct:ContentType) fragment =
     | FAlert     of (;ki,tlen,seqn)Alert.fragment        {ct=Alert}
     | FAppData   of (;ki,tlen,seqn)AppDataPlain.fragment {ct=Application_data}
 
-predicate Fragment of ki:KeyInfo * tlen:int * seq:int * ct:ContentType * bytes
+public predicate type frag = Fragment of KeyInfo * int * int * ContentType * bytes
+
 assume !ki,tlen,seq,ct,b.
   Fragment(ki,tlen,seq,ct,b) <=> (
    (ct = Application_data /\ AppDataPlain.AppDataFragment(ki,tlen,seq,b)) \/

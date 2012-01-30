@@ -40,8 +40,8 @@ let null_sessionInfo minPV =
 
 let isNullSessionInfo s =
     s.clientID = None && s.serverID = None && s.sessionID = None &&
-	isNullCipherSuite s.cipher_suite && s.compression = NullCompression &&
-	s.init_crand = [||] && s.init_srand = [||]
+  isNullCipherSuite s.cipher_suite && s.compression = NullCompression &&
+  s.init_crand = [||] && s.init_srand = [||]
 
 type KeyInfo = {
     sinfo: SessionInfo
