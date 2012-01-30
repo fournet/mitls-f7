@@ -26,6 +26,8 @@ val seq_of_bytes: b:bytes{Length(b)=8} -> sn:int{b = IntBytes(8,sn)}
 
 function val CTBytes: ContentType -> bytes
 
+assume !c. Length(CTBytes(c)) = 1
+
 private definition CTBytes(Change_cipher_spec) = [|20uy|]
 private definition CTBytes(Alert)              = [|21uy|]
 private definition CTBytes(Handshake)          = [|22uy|]

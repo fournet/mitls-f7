@@ -11,7 +11,7 @@ predicate Msg of ki:KeyInfo * tlen:int * (;ki,tlen)MACPlain.MACPlain
 
 assume !ki,tlen,pl. Msg(ki,tlen,pl) <=>
   (Corrupt(ki) \/
-   (?ad,x. Fragment(ki,tlen,
+   (?ad,x. TLSFragment.Fragment(ki,tlen,
 		    ADseqn(ki.sinfo.protocol_version,ad),
                     ADct(ki.sinfo.protocol_version,ad),
                     x) /\ 
@@ -21,7 +21,7 @@ ask !ki,tlen,t. Corrupt(ki) => Msg(ki,tlen,t)
 
 val MACPlain: ki:KeyInfo -> tlen:int -> 
   ad:TLSFragment.addData -> 
-  (;ki,tlen,ad)TLSFragment.AEADMsg -> 
+  (;ki,tlen,ad)TLSFragment.AEADPlain -> 
   p:(;ki,tlen)MACPlain{Msg(ki,tlen,p)}
 
 val reprMACPlain: ki:KeyInfo -> tlen:int -> (;ki,tlen)MACPlain -> bytes

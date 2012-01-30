@@ -42,6 +42,8 @@ private assume !pv,seqn,ct.
           ADBytes(pv,seqn,ct) =
 		IntBytes(8,seqn) @| (CTBytes(ct) @| VersionBytes(pv)))
 
+ask !pv,seqn,ct. Length(ADBytes(pv,seqn,ct)) = ADLength(pv)
+
 private val makeAD: pv:ProtocolVersion ->
 	seqn:int -> ct:ContentType ->
 	ad: addData{ad=ADBytes(pv,seqn,ct)}
@@ -68,7 +70,8 @@ type (;ki:KeyInfo,tlen:int,ad:addData) AEADMsg =
 val AEADPlain: ki:KeyInfo -> tlen:int -> ad:addData -> bytes -> (;ki,tlen,ad)AEADPlain
 val AEADRepr:  ki:KeyInfo -> tlen:int -> ad:addData -> f:(;ki,tlen,ad)AEADPlain -> b:bytes{b=f}
 
-val AEADPlainToTLSFragment: ki:KeyInfo -> tlen:int -> ad:addData{Length(ad) = ADLength(ki.sinfo.protocol_version)} -> 
+val AEADPlainToTLSFragment: ki:KeyInfo -> tlen:int -> 
+  ad:addData{Length(ad) = ADLength(ki.sinfo.protocol_version)} -> 
                             (;ki,tlen,ad)AEADPlain -> 
                             (;ki,tlen,ADseqn(ki.sinfo.protocol_version,ad),ADct(ki.sinfo.protocol_version,ad)) fragment
 
