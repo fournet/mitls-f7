@@ -4,9 +4,14 @@ open Bytes
 open TLSInfo
 open TLSFragment
 
-type (;ki:KeyInfo,tlen:int) plain
-val plain: ki:KeyInfo -> b:bytes -> (;ki,Length(b)) plain
-val repr: ki:KeyInfo -> tlen:int -> (;ki,tlen) plain -> b:bytes{Length(b)=tlen}
+private type (;ki:KeyInfo,tlen:int) plain = {p: (x:bytes){Length(x) = tlen}}
+val plain: ki:KeyInfo -> tlen:int -> b:bytes{Length(b) = tlen} -> (;ki,tlen) plain
+val repr: ki:KeyInfo -> tlen:int -> (;ki,tlen) plain -> b:bytes{Length(b) = tlen}
+
+val pad: l:int -> b:bytes{Length(b) = l}
+val check_split: 
+  b:bytes -> i:int -> 
+  b1:bytes * b2:bytes { Length(b1) = i /\ b = b1 @| b2 }
 
 val prepare: ki:KeyInfo -> tlen:int -> ad:TLSFragment.addData -> (;ki,tlen,ad) TLSFragment.AEADPlain -> (;ki,tlen) MACPlain.MACed -> (;ki,tlen) plain
 val parse: ki:KeyInfo -> tlen:int -> ad:TLSFragment.addData -> (;ki,tlen) plain -> (bool * ((;ki,tlen,ad)TLSFragment.AEADPlain * (;ki,tlen)MACPlain.MACed))

@@ -2,7 +2,6 @@
 
 open Bytes
 open TLSInfo
-open TLSFragment
 
 // Plaintext of MAC (addData + TLSFragment.fragment)
 private type (;ki:KeyInfo,tlen:int) MACPlain = {p:bytes}
@@ -12,9 +11,9 @@ predicate Msg of ki:KeyInfo * tlen:int * (;ki,tlen)MACPlain.MACPlain
 assume !ki,tlen,pl. Msg(ki,tlen,pl) <=>
   (Corrupt(ki) \/
      (?ad,x. pl.p = (ad @| IntBytes(2,Length(x))) @| x /\
-	  Fragment(ki,tlen,
-		    ADseqn(ki.sinfo.protocol_version,ad),
-                    ADct(ki.sinfo.protocol_version,ad),
+	  TLSFragment.Fragment(ki,tlen,
+		    TLSFragment.ADseqn(ki.sinfo.protocol_version,ad),
+                    TLSFragment.ADct(ki.sinfo.protocol_version,ad),
                     x)))
 
 ask !ki,tlen,t. Corrupt(ki) => Msg(ki,tlen,t)

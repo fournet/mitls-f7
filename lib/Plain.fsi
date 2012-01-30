@@ -5,7 +5,7 @@ open TLSInfo
 open Formats
 
 type plain
-val plain: KeyInfo -> bytes -> plain
+val plain: KeyInfo -> int -> bytes -> plain
 val repr: KeyInfo -> int -> plain -> bytes
 
 val prepare: KeyInfo -> int -> TLSFragment.addData -> TLSFragment.AEADPlain -> MACPlain.MACed -> plain

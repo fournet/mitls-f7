@@ -109,7 +109,7 @@ let DEC ki key iv3 cipher =
         | AES_128_CBC  -> aesDecrypt  ki key iv cipher
         | AES_256_CBC  -> aesDecrypt  ki key iv cipher
         | RC4_128      -> unexpectedError "[DEC] invoked on stream cipher"
-    let d = Plain.plain ki data in
+    let d = Plain.plain ki cipher.Length data in
     match iv3 with
     | ENCKey.SomeIV(_) -> (ENCKey.SomeIV(lastblock cipher ivl), d)
     | ENCKey.NoIV(b)    -> (ENCKey.NoIV(b), d)
