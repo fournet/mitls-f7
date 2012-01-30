@@ -20,15 +20,16 @@ ask !ki,tlen,t. Corrupt(ki) => Msg(ki,tlen,t)
 
 val MACPlain: ki:KeyInfo -> tlen:int -> 
   ad:TLSFragment.addData -> 
-  (;ki,tlen,ad)TLSFragment.AEADPlain -> 
+  (;ki,tlen,ad)TLSFragment.AEADMsg -> 
   p:(;ki,tlen)MACPlain{Msg(ki,tlen,p)}
 
 val reprMACPlain: ki:KeyInfo -> tlen:int -> (;ki,tlen)MACPlain -> bytes
 
 // Result of MAC
-type (;ki:KeyInfo,tlen:int) MACed
+type (;ki:KeyInfo,tlen:int) MACed = {m:bytes}
 val MACed: ki:KeyInfo -> tlen:int -> bytes -> (;ki,tlen)MACed
 val reprMACed: ki:KeyInfo -> tlen:int -> (;ki,tlen)MACed -> bytes
 
 // MAC-only ciphersuites
-val parseNoPad: ki:KeyInfo -> tlen:int -> ad:TLSFragment.addData -> bytes -> ((;ki,tlen,ad)TLSFragment.AEADPlain * (;ki,tlen)MACed)
+val parseNoPad: ki:KeyInfo -> tlen:int -> ad:TLSFragment.addData -> b:bytes -> 
+  ((;ki,tlen,ad)TLSFragment.AEADPlain * (;ki,tlen)MACed)

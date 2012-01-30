@@ -22,11 +22,10 @@ let reprMACed (ki:KeyInfo) (tlen:int) m = m.m
 
 let parseNoPad ki tlen ad plain =
     // assert length plain = tlen
-    let maclen = 
-        let cs = ki.sinfo.cipher_suite in
-        macSize (macAlg_of_ciphersuite cs) in
+    let cs = ki.sinfo.cipher_suite in
+    let maclen = macSize (macAlg_of_ciphersuite cs) in
     let macStart = tlen - maclen
-    if macStart < 0 then
+    if macStart < 0 || length(plain) < macStart then
         (* FIXME: is this safe?
            I (AP) think so because our locally computed mac will have some different length.
            Also timing is not an issue, because the attacker can guess the check should fail anyway. *)
