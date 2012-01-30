@@ -58,7 +58,7 @@ assume !pv,seqn,ct. ADseqn(pv,ADBytes(pv,seqn,ct)) = seqn
 
 
 private type (;ki:KeyInfo,tlen:int,ad:addData) AEADPlain = bytes
-private type (;ki:KeyInfo,tlen:int,ad:addData) AEADMsg = 
+type (;ki:KeyInfo,tlen:int,ad:addData) AEADMsg = 
             (x:(;ki,tlen,ad) AEADPlain){Corrupt(ki) \/
                                         Fragment(ki,tlen,
                                                  ADseqn(ki.sinfo.protocol_version,ad),
@@ -66,7 +66,7 @@ private type (;ki:KeyInfo,tlen:int,ad:addData) AEADMsg =
                                                  x)}
 
 val AEADPlain: ki:KeyInfo -> tlen:int -> ad:addData -> bytes -> (;ki,tlen,ad)AEADPlain
-val AEADRepr:  ki:KeyInfo -> tlen:int -> ad:addData -> f:(;ki,tlen,ad)AEADPlain -> b:bytes
+val AEADRepr:  ki:KeyInfo -> tlen:int -> ad:addData -> f:(;ki,tlen,ad)AEADPlain -> b:bytes{b=f}
 
 val AEADPlainToTLSFragment: ki:KeyInfo -> tlen:int -> ad:addData{Length(ad) = ADLength(ki.sinfo.protocol_version)} -> 
                             (;ki,tlen,ad)AEADPlain -> 

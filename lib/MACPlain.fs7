@@ -8,14 +8,21 @@ open TLSFragment
 private type (;ki:KeyInfo,tlen:int) MACPlain = {p:bytes}
 
 predicate Msg of ki:KeyInfo * tlen:int * (;ki,tlen)MACPlain.MACPlain
-assume !ki,tlen,t. Corrupt(ki) => Msg(ki,tlen,t)
-assume !ki,tlen,ad,f,x. Msg(ki,tlen,{p = (ad @| IntBytes(2,Length(x))) @| x})
 
-assume !ki,tlen,pl. Msg(ki,tlen,pl) => (Corrupt(ki) \/
-                                      (?ad,f,x.
-                                          pl.p = (ad @| IntBytes(2,Length(x))) @| x))
+assume !ki,tlen,pl. Msg(ki,tlen,pl) <=>
+  (Corrupt(ki) \/
+   (?ad,x. Fragment(ki,tlen,
+		    ADseqn(ki.sinfo.protocol_version,ad),
+                    ADct(ki.sinfo.protocol_version,ad),
+                    x) /\ 
+           pl.p = (ad @| IntBytes(2,Length(x))) @| x))
 
-val MACPlain: ki:KeyInfo -> tlen:int -> ad:TLSFragment.addData -> (;ki,tlen,ad)TLSFragment.AEADPlain -> p:(;ki,tlen)MACPlain{Msg(ki,tlen,p)}
+ask !ki,tlen,t. Corrupt(ki) => Msg(ki,tlen,t)
+
+val MACPlain: ki:KeyInfo -> tlen:int -> 
+  ad:TLSFragment.addData -> 
+  (;ki,tlen,ad)TLSFragment.AEADMsg -> 
+  p:(;ki,tlen)MACPlain{Msg(ki,tlen,p)}
 
 val reprMACPlain: ki:KeyInfo -> tlen:int -> (;ki,tlen)MACPlain -> bytes
 
