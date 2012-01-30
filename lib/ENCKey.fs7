@@ -9,7 +9,7 @@ type (;ki:KeyInfo) key
 type iv = bytes
 type (;ki:KeyInfo) iv3 =
 	| SomeIV of iv // SSL_3p0 and TLS_1p0
-	| NoIV of unit // TLS_1p0 and TLS_1p2
+	| NoIV of bool // TLS_1p0 and TLS_1p2
 
 val GEN: ki:KeyInfo -> (;ki)key
 val LEAK:   ki:KeyInfo{Corrupt(ki)} -> (;ki)key -> bytes

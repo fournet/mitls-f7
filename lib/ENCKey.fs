@@ -14,4 +14,4 @@ let LEAK (ki:KeyInfo) k = k.k
 type iv = bytes
 type iv3 =
     | SomeIV of iv
-    | NoIV of unit
+    | NoIV of bool

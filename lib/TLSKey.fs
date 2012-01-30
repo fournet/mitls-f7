@@ -18,4 +18,4 @@ type ccs_data =
 
 let nullCCSData (ki:KeyInfo) =
     { ccsKey = NoneKey;
-      ccsIV3 = ENCKey.NoIV ()}
+      ccsIV3 = ENCKey.NoIV true}

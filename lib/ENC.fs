@@ -78,7 +78,7 @@ let ENC ki key iv3 (tlen:int) data =
     let iv =
         match iv3 with
         | ENCKey.SomeIV(b) -> b
-        | ENCKey.NoIV()    -> mkRandom ivl in
+        | ENCKey.NoIV _    -> mkRandom ivl in
     let d = Plain.repr ki tlen data in
     let cipher =
         match alg with
@@ -93,7 +93,7 @@ let ENC ki key iv3 (tlen:int) data =
     else
     match iv3 with
     | ENCKey.SomeIV(_) -> (ENCKey.SomeIV(lastblock cipher ivl), cipher)
-    | ENCKey.NoIV()    -> (ENCKey.NoIV(), iv @| cipher)
+    | ENCKey.NoIV(b)    -> (ENCKey.NoIV(b), iv @| cipher)
 
 let DEC ki key iv3 cipher =
     (* Should never be invoked on a stream (right now) encryption algorithm *)
@@ -102,7 +102,7 @@ let DEC ki key iv3 cipher =
     let (iv,cipher) =
         match iv3 with
         | ENCKey.SomeIV (iv) -> (iv,cipher)
-        | ENCKey.NoIV ()     -> split cipher ivl
+        | ENCKey.NoIV (b)     -> split cipher ivl
     let data =
         match alg with
         | TDES_EDE_CBC -> tdesDecrypt ki key iv cipher
@@ -112,4 +112,4 @@ let DEC ki key iv3 cipher =
     let d = Plain.plain ki data in
     match iv3 with
     | ENCKey.SomeIV(_) -> (ENCKey.SomeIV(lastblock cipher ivl), d)
-    | ENCKey.NoIV()    -> (ENCKey.NoIV(), d)
+    | ENCKey.NoIV(b)    -> (ENCKey.NoIV(b), d)

@@ -855,11 +855,11 @@ let compute_session_secrets_and_CCSs state dir =
     let (rmk,rek,riv,wmk,wek,wiv) = allKeys in
     (* TODO: Add support for AEAD ciphers *)
     let readKey = RecordAEADKey (MtE (rmk,rek)) in
-    let readIV = if PVRequiresExplicitIV outKi.sinfo.protocol_version then ENCKey.iv3.NoIV () else ENCKey.iv3.SomeIV (riv) in
+    let readIV = if PVRequiresExplicitIV outKi.sinfo.protocol_version then ENCKey.iv3.NoIV (true) else ENCKey.iv3.SomeIV (riv) in
     let read_ccs_data = { ccsKey = readKey;
                           ccsIV3 = readIV}
     let writeKey = RecordAEADKey (MtE (wmk,wek)) in
-    let writeIV = if PVRequiresExplicitIV outKi.sinfo.protocol_version then ENCKey.iv3.NoIV () else ENCKey.iv3.SomeIV (wiv) in
+    let writeIV = if PVRequiresExplicitIV outKi.sinfo.protocol_version then ENCKey.iv3.NoIV (true) else ENCKey.iv3.SomeIV (wiv) in
     let write_ccs_data = { ccsKey = writeKey
                            ccsIV3 = writeIV}
     (* Put the ccs_data in the appropriate buffers. *)
