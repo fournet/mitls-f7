@@ -251,11 +251,14 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
                                 let new_write = {disp = Finishing; conn = ss; seqn = 0} in
                                 let c = { c with handshake = new_hs_state;
                                                              write = new_write }
+                                // FIXME: We need to change the outgoing index everywhere! Alert, handshake, appdata...
+                                //failwith "FIXME: We need to change the outgoing index everywhere! Alert, handshake, appdata..."
                                 (correct (WriteAgain), Conn(id,c) )
                             else
-                                (Error(Dispatcher, UserAborted), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
-                        | Error (x,y) -> (Error (x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
-                    | _ -> (Error(Dispatcher, InvalidState), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
+                                let closed = closeConnection (Conn(id,c)) in
+                                (Error(Dispatcher, UserAborted), closed ) (* TODO: we might want to send an "internal error" fatal alert *)
+                        | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (Error (x,y), closed) (* Unrecoverable error *)
+                    | _ -> let closed = closeConnection (Conn(id,c)) in (Error(Dispatcher, InvalidState), closed) (* TODO: we might want to send an "internal error" fatal alert *)
           | (Handshake.HSFrag(tlen,f),new_hs_state) ->     
                       (* we send some handshake fragment *)
                       match c_write.disp with
@@ -266,8 +269,8 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
                             let c = { c with handshake = new_hs_state;
                                              write     = new_write }
                             (correct (WriteAgain), Conn(id,c) )
-                          | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
-                      | _ -> (Error(Dispatcher,InvalidState), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
+                          | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (Error(x,y), closed) (* Unrecoverable error *)
+                      | _ -> let closed = closeConnection (Conn(id,c)) in (Error(Dispatcher,InvalidState), closed) (* TODO: we might want to send an "internal error" fatal alert *)
           | (Handshake.HSWriteSideFinished(tlen,lastFrag),new_hs_state) ->
                 (* check we are in finishing state *)
                 match c_write.disp with
@@ -280,8 +283,8 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
                             let c = { c with handshake = new_hs_state;
                                              write     = c_write }
                             (correct (WriteAgain), Conn(id,c))
-                          | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
-                | _ -> (Error(Dispatcher,InvalidState), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
+                          | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (Error(x,y), closed) (* Unrecoverable error *)
+                | _ -> let closed = closeConnection (Conn(id,c)) in (Error(Dispatcher,InvalidState), closed) (* TODO: we might want to send an "internal error" fatal alert *)
           | (Handshake.HSFullyFinished_Write((tlen,lastFrag),new_info),new_hs_state) ->
                 match c_write.disp with
                 | Finishing ->
@@ -291,26 +294,32 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
                         let c = { c with handshake = new_hs_state;
                                          write     = new_write }
                         (* Move to the new state *)
+                        // FIXME: When handshake will be indexed by the full index (inKI, outKI), the
+                        // post-condition of HSFullyFinished_Write will be that the returned new_info refers to the SessionInfo
+                        // which is currently in use as the index (in and out directions)
+                        // So, we will be able to invoke moveToOpenState
+                        //failwith "FIXME: Improve post condition in HS"
                         match moveToOpenState (Conn(id,c)) new_info with
-                        | Error(x,y) -> (Error(x,y),closeConnection (Conn(id,c))) // do not send alerts! We are on a new session, and the user does not like it. Just close everything!
+                        | Error(x,y) -> let closed = closeConnection (Conn(id,c)) in (Error(x,y),closed) // do not send alerts! We are on a new session, and the user does not like it. Just close everything!
                         | Correct(c) -> (correct(WriteAgain),Conn(id,c))
-                    | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
-                | _ -> (Error(Dispatcher,InvalidState), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
+                    | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (Error(x,y), closed) (* Unrecoverable error *)
+                | _ -> let closed = closeConnection (Conn(id,c)) in (Error(Dispatcher,InvalidState), closed) (* TODO: we might want to send an "internal error" fatal alert *)
       | (Alert.ALFrag(tlen,f),new_al_state) ->        
         match send id.id_out c.ns c_write tlen Alert (TLSFragment.FAlert(f)) with 
         | Correct(new_write) ->
             let new_write = {new_write with disp = Closing} in
             (correct (WriteAgain), Conn(id,{ c with alert = new_al_state;
                                                     write   = new_write } ))
-        | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
+        | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (Error(x,y), closed) (* Unrecoverable error *)
       | (Alert.LastALFrag(tlen,f),new_al_state) ->
         (* We're sending a fatal alert. Send it, then close both sending and receiving sides *)
         match send id.id_out c.ns c_write tlen Alert (TLSFragment.FAlert(f)) with 
         | Correct(new_write) ->
             let c = {c with alert = new_al_state;
                             write = new_write}
-            (correct (Done), closeConnection (Conn(id,c)))
-        | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
+            let closed = closeConnection (Conn(id,c)) in
+            (correct (Done), closed)
+        | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (Error(x,y), closed) (* Unrecoverable error *)
       | (Alert.LastALCloseFrag(tlen,f),new_al_state) ->
         (* We're sending a close_notify alert. Send it, then only close our sending side.
            If we already received the other close notify, then reading is already closed,
@@ -321,7 +330,7 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
             let c = {c with alert = new_al_state;
                             write = new_write}
             (correct (Done), Conn(id,c))
-        | Error (x,y) -> (Error(x,y), closeConnection (Conn(id,c))) (* Unrecoverable error *)
+        | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (Error(x,y), closed) (* Unrecoverable error *)
 
 (* we have received, decrypted, and verified a record (ct,f); what to do? *)
 let deliver (Conn(id,c)) ct tlen frag = 
