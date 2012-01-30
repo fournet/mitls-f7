@@ -38,5 +38,6 @@ type KeyInfo = {
     }
 
 val null_sessionInfo: ProtocolVersion -> SessionInfo
+val isNullSessionInfo: SessionInfo -> bool
 val null_KeyInfo: Direction -> ProtocolVersion -> KeyInfo
 val dual_KeyInfo: KeyInfo -> KeyInfo

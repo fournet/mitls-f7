@@ -30,7 +30,6 @@ type protocolOptions = {
     certificateValidationPolicy: cert list -> bool
     safe_renegotiation: bool
     isCompatibleSession: SessionInfo -> SessionInfo -> bool
-    isGoodSession: SessionInfo -> bool
     
     (* Sessions database *)
     sessionDBFileName: string
@@ -60,7 +59,6 @@ let defaultProtocolOptions ={
     certificateValidationPolicy = defaultCertificateValidationPolicy
     safe_renegotiation = true
     isCompatibleSession = defaultSessionCompatibility
-    isGoodSession = defaultGoodSession
 
     sessionDBFileName = "sessionDBFile.bin"
     sessionDBExpiry = new System.TimeSpan(2,0,0,0) (* two days *)

@@ -32,7 +32,6 @@ type protocolOptions = {
     certificateValidationPolicy: cert list -> bool;
     safe_renegotiation: bool;
     isCompatibleSession: s1:SessionInfo -> s2:SessionInfo -> b:bool{b = true => UserSaysCompatibleSessions(s1,s2)};
-    isGoodSession: SessionInfo -> bool;
 
     (* Sessions database *)
     sessionDBFileName: string;

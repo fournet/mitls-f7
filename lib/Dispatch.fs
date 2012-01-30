@@ -141,7 +141,12 @@ let appDataAvailable conn =
 
 let getSessionInfo (Conn(id,conn)) =
     id.id_out.sinfo // in Open and Closed state, this should be equivalent to id.id_in.sinfo
-   
+
+let checkCompatibleSessions s1 s2 poptions =
+    (isNullSession s1) || 
+    (s1 = s2) || 
+    (poptions.isCompatibleSession s1 s2)
+
 let moveToOpenState (Conn(id,c)) new_storable_info =
     (* If appropriate, store this session in the DB *)
     let (storableSinfo,storableMS,storableDir) = new_storable_info in
@@ -149,26 +154,8 @@ let moveToOpenState (Conn(id,c)) new_storable_info =
     | None -> (* This session should not be stored *) ()
     | Some (sid) -> (* SessionDB. *) insert c.poptions sid new_storable_info
 
-    (* FIXME: maybe we should not reset any state here...
-       - AppData is already ok, checked when we move from Open to Finishing/Finished
-       - Handshake should know when the handshake is done, so it should be in the right state already
-       - Alert... if we need to send some alert, why deleting them now?
-       Commenting next lines for now.
-        *)
-    (*
-    let new_info = new_storable_info.sinfo in
-    let new_hs = Handshake.new_session_idle c.handshake new_info new_storable_info.ms in
-    let new_alert = Alert.init in
-    (* FIXME: here we silenty reset appdata buffers. However, if they are not empty now
-       we should at least report some error to the user. *)
-    let new_appdata = AppData.init new_info in
-    (* Read and write state should already have the same SessionInfo
-        set after CCS, check it *)
-    let c = {c with handshake = new_hs;
-                    alert = new_alert;
-                    appdata = new_appdata} in
-    *)
-    if c.poptions.isGoodSession storableSinfo then
+    // Sanity check: in and out session infos should be the same
+    if id.id_in.sinfo = id.id_out.sinfo then
         let read = c.read in
         match read.disp with
         | Finishing | Finished ->
@@ -181,7 +168,7 @@ let moveToOpenState (Conn(id,c)) new_storable_info =
             | _ -> unexpectedError "[moveToOpenState] should only work on Finishing or Finished write states"
         | _ -> unexpectedError "[moveToOpenState] should only work on Finishing read states"
     else
-        Error(Dispatcher,UserAborted)
+        Error(Dispatcher,CheckFailed)
 
 let closeConnection (Conn(id,c)) =
     let new_read = {c.read with disp = Closed} in
@@ -248,18 +235,7 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
                     | x when x = FirstHandshake || x = Open ->
                         match send id.id_out c.ns c_write tlen Change_cipher_spec (TLSFragment.FCCS(ccs)) with
                         | Correct _ -> (* We don't care about next write state, because we're going to reset everything after CCS *)
-                            (* It is safe to swtich to the new session if
-                               the appData outgoing buffer is empty,
-                               or the next session is compatible with the old one.
-                            *)
-                            (* Implementation note: order of next OR is important:
-                               In the first handshake, AppData buffer will be empty, and it does not
-                               make sense to invoke isCompatibleSession. *)
-                            (* FIXME: In a re-handshake, if AppData outgoing is empty, the user is not asked
-                               the isCompatibleSession question. So she has no clue a renegotiation happened.
-                               We ask explicitly when moving to the open state, anyway *) 
-                            if AppData.is_outgoing_empty id.id_out.sinfo c.appdata
-                               || c.poptions.isCompatibleSession id.id_out.sinfo newKiOUT.sinfo then
+                            if checkCompatibleSessions id.id_out.sinfo newKiOUT.sinfo c.poptions then
                                 (* Now:
                                     - update the outgoing index in Dispatch
                                     - update the outgoing keys in Record
@@ -398,8 +374,7 @@ let deliver (Conn(id,c)) ct tlen frag =
     match Handshake.recv_ccs id.id_in c_read.seqn c.handshake tlen f with 
     | (Correct(ccs),hs) ->
         let (newKiIN,ccs_data) = ccs in
-        if AppData.is_incoming_empty id.id_in.sinfo c.appdata
-           || c.poptions.isCompatibleSession id.id_in.sinfo newKiIN.sinfo then
+        if checkCompatibleSessions id.id_in.sinfo newKiIN.sinfo c.poptions then
             let id = {id with id_in = newKiIN} in
             let new_recv = Record.initConnState id.id_in ccs_data in
             let new_read = {disp = Finishing; conn = new_recv; seqn = 0} in

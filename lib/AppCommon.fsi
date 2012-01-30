@@ -30,7 +30,6 @@ type protocolOptions = {
     certificateValidationPolicy: cert list -> bool
     safe_renegotiation: bool
     isCompatibleSession: SessionInfo -> SessionInfo -> bool
-    isGoodSession: SessionInfo -> bool
 
     (* Sessions database *)
     sessionDBFileName: string

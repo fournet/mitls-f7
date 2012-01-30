@@ -32,9 +32,10 @@ type SessionInfo = {
 predicate NullSessionInfo of SessionInfo 
 
 private assume !si. NullSessionInfo(si) <=> (si.clientID = None /\ si.serverID = None /\ si.sessionID = None /\
-    si.cipher_suite = nullCipherSuite /\ si.compression = NullCompression /\ si.init_crand = [||] /\ si.init_srand = [||] )
+    IsNullCiphersuite(si.cipher_suite) /\ si.compression = NullCompression /\ si.init_crand = [||] /\ si.init_srand = [||] )
 
 val null_sessionInfo: pv:ProtocolVersion -> si:SessionInfo{NullSessionInfo(si)}
+val isNullSessionInfo: s:SessionInfo -> b:bool{b=true => NullSessionInfo(s)}
 
 type KeyInfo = {
     sinfo: SessionInfo;
