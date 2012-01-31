@@ -24,7 +24,7 @@ predicate HandshakeFragment of KeyInfo * int * int * Bytes.bytes
 predicate CCSFragment of KeyInfo * int * int * Bytes.bytes
 
 val repr: ki:KeyInfo -> tlen:int -> seqn:int -> (;ki,tlen,seqn)fragment -> b:Bytes.bytes{HandshakeFragment(ki,tlen,seqn,b)}
-val fragment: ki:KeyInfo -> tlen:int -> seqn:int -> Bytes.bytes -> (;ki,tlen,seqn)fragment
+val fragment: ki:KeyInfo -> tlen:int -> seqn:int -> b:Bytes.bytes{HandshakeFragment(ki,tlen,seqn,b) \/ Corrupt(ki)} -> (;ki,tlen,seqn)fragment
 type (;ki:KeyInfo,tlen:int,seqn:int)ccsFragment
 val ccsRepr: ki:KeyInfo -> tlen:int -> seqn:int -> (;ki,tlen,seqn)ccsFragment -> b:Bytes.bytes{CCSFragment(ki,tlen,seqn,b)}
 val ccsFragment: ki:KeyInfo -> tlen:int -> seqn:int -> Bytes.bytes -> (;ki,tlen,seqn)ccsFragment

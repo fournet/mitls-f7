@@ -50,5 +50,8 @@ val app_fragment: ki:KeyInfo -> seqn:int -> ls:(;ki.sinfo)lengths ->
 
 predicate AppDataFragment of KeyInfo * int * int * bytes
 
-val repr: ki:KeyInfo -> tlen:int -> seqn:int -> (;ki,tlen,seqn)fragment -> b:bytes{AppDataFragment(ki,tlen,seqn,b)}
-val fragment: ki:KeyInfo -> tlen:int -> seqn:int -> bytes -> (;ki,tlen,seqn)fragment
+val repr: ki:KeyInfo -> tlen:int -> seqn:int -> 
+          (;ki,tlen,seqn)fragment -> b:bytes{AppDataFragment(ki,tlen,seqn,b)}
+val fragment: ki:KeyInfo -> tlen:int -> seqn:int -> 
+              b:bytes{AppDataFragment(ki,tlen,seqn,b) \/ Corrupt(ki)} -> 
+              (;ki,tlen,seqn)fragment

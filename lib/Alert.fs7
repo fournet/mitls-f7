@@ -11,7 +11,7 @@ type (;ci:ConnectionInfo)state = (;ci)pre_al_state
 type (;ki:KeyInfo,tlen:int,seqn:int)fragment
 predicate AlertFragment of KeyInfo * int * int * Bytes.bytes
 val repr: ki:KeyInfo -> tlen:int -> seqn:int -> (;ki,tlen,seqn)fragment -> b:Bytes.bytes{AlertFragment(ki,tlen,seqn,b)}
-val fragment: ki:KeyInfo -> tlen:int -> seqn:int -> Bytes.bytes -> (;ki,tlen,seqn)fragment
+val fragment: ki:KeyInfo -> tlen:int -> seqn:int -> b:Bytes.bytes{AlertFragment(ki,tlen,seqn,b) \/ Corrupt(ki)} -> (;ki,tlen,seqn)fragment
 
 type (;ki:KeyInfo,seqn:int)ALFragReply =
     | EmptyALFrag
