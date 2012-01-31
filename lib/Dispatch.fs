@@ -375,7 +375,7 @@ let deliver (Conn(id,c)) ct tlen frag =
                 // FIXME: We are re-indexing, again. But this time because we update the protocol version
                 // in the null session info. It is ok to re-index within the null session, but we
                 // must explain f7 that this is safe.
-                // failwith "FIXME: Reindex on null session"
+                failwith "FIXME: Reindex on null session"
                 let new_sinfo = {id.id_out.sinfo with protocol_version = pv } in // equally with id.id_in.sinfo
                 let idIN = {id.id_in with sinfo = new_sinfo} in
                 let idOUT = {id.id_out with sinfo = new_sinfo} in
@@ -451,7 +451,7 @@ let deliver (Conn(id,c)) ct tlen frag =
     let new_read = {c_read with seqn = new_seqn} in
     let c = {c with read = new_read; appdata = appstate} in
     (correct (AppDataDone), Conn(id, c))
-  | _, _, _ -> (Error(Dispatcher,InvalidState),closeConnection(Conn(id,c))) // TODO: We might want to send some alert here.
+  | _, _, _ -> let closed = closeConnection(Conn(id,c)) in (Error(Dispatcher,InvalidState),closed) // TODO: We might want to send some alert here.
   
 let recv (Conn(id,c)) =
     match Tcp.read c.ns 5 with // read & parse the header
@@ -464,12 +464,15 @@ let recv (Conn(id,c)) =
             | Error (x,y) -> Error(x,y) 
             | Correct payload ->
                 // printf "%s[%d] " (Formats.CTtoString ct) len; 
-                match Record.recordPacketIn id.id_in c.read.conn c.read.seqn (header @| payload) with
+                let c_read = c.read in
+                let c_read_conn = c_read.conn in
+                let c_read_seqn = c_read.seqn in
+                match Record.recordPacketIn id.id_in c_read_conn c_read_seqn (header @| payload) with
                 | Error(x,y) -> Error(x,y)
                 | Correct(pack) -> 
                     let (c_recv,ct,pv,tl,f) = pack in
                     if c.read.disp = Init || pv = id.id_in.sinfo.protocol_version then
-                        let c_read = {c.read with conn = c_recv} in
+                        let c_read = {c_read with conn = c_recv} in
                         let c = {c with read = c_read} in
                         correct(Conn(id,c),ct,tl,f)
                     else

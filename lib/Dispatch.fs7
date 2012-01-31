@@ -136,9 +136,9 @@ val deliver: c:Connection -> ct:ContentType -> tlen:int ->
 	(deliverOutcome Result * (;c) CompatibleConnection)
 
 val recv: c:Connection ->
-	((;c) CompatibleConnection *
+	(c':(;c)CompatibleConnection *
 	 ct:ContentType * tlen:int * 
-         (;ConnectionInKeyInfo(c),tlen,ConnectionReadSeqn(c),ct)TLSFragment.fragment) Result
+         (;ConnectionInKeyInfo(c'),tlen,ConnectionReadSeqn(c'),ct)TLSFragment.fragment) Result
 
 val readOne: c:Connection ->
 	deliverOutcome Result * (;c) CompatibleConnection
