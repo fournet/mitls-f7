@@ -59,3 +59,6 @@ let app_fragment (ki:KeyInfo) (seqn:int) lens (appdata:appdata) : ((int * fragme
 
 let repr (ki:KeyInfo) (i:int) (seqn:int) f = f.b
 let fragment (ki:KeyInfo) (i:int) (seqn:int) b = {b=b}
+
+let reIndex (oldSI:SessionInfo) (newSI:SessionInfo) (appd:appdata) = appd
+let reIndexLengths (oldSI:SessionInfo) (newSI:SessionInfo) (l:lengths) = l

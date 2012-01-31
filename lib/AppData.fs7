@@ -11,10 +11,10 @@ open AppDataPlain
 // // so we can make the transition from one session to the other, when the buffer is empty
 
 type (;ci:ConnectionInfo) pre_app_state = {
-  app_in_lengths:  (;ci.id_in)  lengths;
-  app_incoming:    (;ci.id_in)  appdata; (* unsolicited data *)
-  app_out_lengths: (;ci.id_out) lengths;
-  app_outgoing:    (;ci.id_out) appdata;
+  app_in_lengths:  (;ci.id_in.sinfo)  lengths;
+  app_incoming:    (;ci.id_in.sinfo)  appdata; (* unsolicited data *)
+  app_out_lengths: (;ci.id_out.sinfo) lengths;
+  app_outgoing:    (;ci.id_out.sinfo) appdata;
 }
 
 
@@ -26,12 +26,12 @@ val init: ci:ConnectionInfo -> (;ci)app_state
 
 val reset_incoming: ci:ConnectionInfo -> (;ci)app_state -> (;ci)app_state
 
-val send_data: ci:ConnectionInfo -> (;ci)app_state -> (;ci.id_out)lengths -> (;ci.id_out)appdata ->
+val send_data: ci:ConnectionInfo -> (;ci)app_state -> (;ci.id_out.sinfo)lengths -> (;ci.id_out.sinfo)appdata ->
 		(;ci)app_state
 
 //val is_outgoing_empty: ci:ConnectionInfo -> (;ci)app_state -> bool
 
-val retrieve_data: ci:ConnectionInfo -> (;ci)app_state -> ((;ci.id_in)appdata * (;ci)app_state)
+val retrieve_data: ci:ConnectionInfo -> (;ci)app_state -> ((;ci.id_in.sinfo)appdata * (;ci)app_state)
 
 val is_incoming_empty: ci:ConnectionInfo -> (;ci)app_state -> bool
 

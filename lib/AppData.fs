@@ -68,4 +68,16 @@ let recv_fragment ci (seqn:int) (state:app_state) (tlen:int) (fragment:fragment)
     let (newLengths, newAppdata) = concat_fragment_appdata ci.id_in tlen seqn fragment state.app_in_lengths state.app_incoming in
     {state with app_in_lengths = newLengths; app_incoming = newAppdata}
 
-let reIndex (oldCI:ConnectionInfo) (newCI:ConnectionInfo) (state:app_state) = state
+let reIndex (oldCI:ConnectionInfo) (newCI:ConnectionInfo) (state:app_state) =
+    let oldInSI  = oldCI.id_in.sinfo in
+    let newInSI  = newCI.id_in.sinfo in
+    let oldOutSI = oldCI.id_out.sinfo in
+    let newOutSI = newCI.id_out.sinfo in
+    let newAppInL  = AppDataPlain.reIndexLengths oldInSI newInSI state.app_in_lengths in
+    let newAppIn   = AppDataPlain.reIndex oldInSI newInSI state.app_incoming in
+    let newAppOutL = AppDataPlain.reIndexLengths oldOutSI newOutSI state.app_out_lengths in
+    let newAppOut  = AppDataPlain.reIndex oldOutSI newOutSI state.app_outgoing in
+    { app_in_lengths  = newAppInL;
+      app_incoming    = newAppIn;
+      app_out_lengths = newAppOutL;
+      app_outgoing    = newAppOut}

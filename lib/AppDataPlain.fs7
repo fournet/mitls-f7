@@ -55,3 +55,6 @@ val repr: ki:KeyInfo -> tlen:int -> seqn:int ->
 val fragment: ki:KeyInfo -> tlen:int -> seqn:int -> 
               b:bytes{AppDataFragment(ki,tlen,seqn,b) \/ Corrupt(ki)} -> 
               (;ki,tlen,seqn)fragment
+
+val reIndex: oldSI:SessionInfo -> newSI:SessionInfo -> (;oldSI)appdata -> (;newSI)appdata
+val reIndexLengths: oldSI:SessionInfo -> newSI:SessionInfo -> (;oldSI)lengths -> (;newSI)lengths

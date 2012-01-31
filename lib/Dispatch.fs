@@ -174,21 +174,29 @@ let moveToOpenState (Conn(id,c)) new_storable_info =
     else
         Error(Dispatcher,CheckFailed)
 
-let reIndex_dState oldKI newKI dState =
-    let newConn = Record.reIndex oldKI newKI dState.conn in
+let reIndex_dState (oldKI:KeyInfo) newKI dState ccsD =
+    let newConn = Record.initConnState newKI ccsD in
     {dState with conn = newConn}
 
-let reIndex oldID newID c =
+let reIndex_out oldID newID c ccsD =
     let newHS =      Handshake.reIndex oldID newID c.handshake in
     let newAlert =   Alert.reIndex     oldID newID c.alert in
     let newAppData = AppData.reIndex   oldID newID c.appdata in
-    let newRead =    reIndex_dState oldID.id_in  newID.id_in  c.read in
-    let newWrite =   reIndex_dState oldID.id_out newID.id_out c.write in
+    let newWrite =   reIndex_dState oldID.id_out newID.id_out c.write ccsD in
     { c with handshake = newHS;
              alert =     newAlert;
              appdata =   newAppData;
-             read =      newRead;
              write =     newWrite}
+
+let reIndex_in oldID newID c ccsD =
+    let newHS =      Handshake.reIndex oldID newID c.handshake in
+    let newAlert =   Alert.reIndex     oldID newID c.alert in
+    let newAppData = AppData.reIndex   oldID newID c.appdata in
+    let newRead =   reIndex_dState oldID.id_in newID.id_in c.read ccsD in
+    { c with handshake = newHS;
+             alert =     newAlert;
+             appdata =   newAppData;
+             read =      newRead}
 
 let closeConnection (Conn(id,c)) =
     let new_read = {c.read with disp = Closed} in
@@ -256,16 +264,15 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
                         match send id.id_out c.ns c_write tlen Change_cipher_spec (TLSFragment.FCCS(ccs)) with
                         | Correct _ -> (* We don't care about next write state, because we're going to reset everything after CCS *)
                             if checkCompatibleSessions id.id_out.sinfo newKiOUT.sinfo c.poptions then
+                                let c = {c with handshake = new_hs_state} in
                                 (* Now:
-                                    - update the outgoing index in Dispatch
-                                    - update the outgoing keys in Record
+                                    - update the index
                                     - move the outgoing state to Finishing, to signal we must not send appData now. *)
-                                let id = {id with id_out = newKiOUT } in
-                                let ss = Record.initConnState id.id_out ccs_data in
-                                let new_write = {disp = Finishing; conn = ss; seqn = 0} in
-                                let c = { c with handshake = new_hs_state;
-                                                             write = new_write }
-                                (correct (WriteAgain), Conn(id,c) )
+                                let newID = {id with id_out = newKiOUT } in
+                                let c = reIndex_out id newID c ccs_data in
+                                let new_write = {c.write with disp = Finishing; seqn = 0} in
+                                let c = { c with write = new_write }
+                                (correct (WriteAgain), Conn(newID,c) )
                             else
                                 let closed = closeConnection (Conn(id,c)) in
                                 (Error(Dispatcher, UserAborted), closed ) (* TODO: we might want to send an "internal error" fatal alert *)
@@ -306,11 +313,6 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
                         let c = { c with handshake = new_hs_state;
                                          write     = new_write }
                         (* Move to the new state *)
-                        // FIXME: When handshake will be indexed by the full index (inKI, outKI), the
-                        // post-condition of HSFullyFinished_Write will be that the returned new_info refers to the SessionInfo
-                        // which is currently in use as the index (in and out directions)
-                        // So, we will be able to invoke moveToOpenState
-                        //failwith "FIXME: Improve post condition in HS"
                         match moveToOpenState (Conn(id,c)) new_info with
                         | Error(x,y) -> let closed = closeConnection (Conn(id,c)) in (Error(x,y),closed) // do not send alerts! We are on a new session, and the user does not like it. Just close everything!
                         | Correct(c) -> (correct(WriteAgain),Conn(id,c))

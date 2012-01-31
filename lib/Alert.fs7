@@ -1,9 +1,13 @@
 ﻿module Alert
 
+open Bytes
 open Error
 open TLSInfo
 
-type (;ci:ConnectionInfo)pre_al_state
+private type (;ci:ConnectionInfo)pre_al_state = {
+  al_incoming: bytes; (* incomplete incoming message *)
+  al_outgoing: bytes (* emptybstr if nothing to be sent *) 
+}
 type (;ci:ConnectionInfo)state = (;ci)pre_al_state
 
 // protocol-specific abstract fragment,

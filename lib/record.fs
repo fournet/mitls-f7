@@ -1,5 +1,4 @@
-﻿#light "off"
-module Record
+﻿module Record
 
 open Bytes
 open Error
@@ -139,14 +138,14 @@ let recordPacketIn ki conn seqn headPayload =
         let (msg,mac) = MACPlain.parseNoPad ki tlen ad payload in
         let toVerify = MACPlain.MACPlain ki tlen ad msg in
         let ver = MAC.VERIFY {MAC.ki=ki;MAC.tlen=tlen} key toVerify mac in
-	if ver then
+        if ver then
             let msg = TLSFragment.AEADPlainToTLSFragment ki tlen ad msg in
-	    correct(conn,ct,pv,tlen,msg)
+            correct(conn,ct,pv,tlen,msg)
         else
             Error(MAC,CheckFailed)
     | (_,RecordAEADKey(key)) ->
         let ad = TLSFragment.makeAD ki.sinfo.protocol_version seqn ct in
-	let decr = AEAD.decrypt ki key conn.iv3 tlen ad payload in
+        let decr = AEAD.decrypt ki key conn.iv3 tlen ad payload in
         match decr with
         | Error(x,y) -> Error(x,y)
         | Correct (decrRes) ->
@@ -155,8 +154,6 @@ let recordPacketIn ki conn seqn headPayload =
             let msg = TLSFragment.AEADPlainToTLSFragment ki tlen ad plain in
             correct(conn,ct,pv,tlen,msg)
     | _ -> unexpectedError "[recordPacketIn] Incompatible ciphersuite and key type"
-
-let reIndex (oldKI:KeyInfo) (newKI:KeyInfo) (state:ConnectionState) = state
 
 /// old stuff, to be deleted?
 

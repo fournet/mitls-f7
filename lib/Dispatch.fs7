@@ -9,6 +9,7 @@ open Handshake
 open Alert
 open AppData
 open TLSInfo
+open TLSKey
 open AppCommon
 open TLSFragment
 open SessionDB
@@ -100,10 +101,19 @@ val moveToOpenState: c:Connection ->
 	(;ConnectionIndex(c))globalState Result
 
 val reIndex_dState: oldKI:KeyInfo -> newKI:KeyInfo{CompatibleSessions(oldKI.sinfo,newKI.sinfo)} ->
-	(;oldKI)dState -> (;newKI)dState
+	(;oldKI)dState -> (;newKI)ccs_data -> (;newKI)dState
 
-val reIndex: oldID:ConnectionInfo -> newID:ConnectionInfo{CompatibleIndexes(oldID,newID)} ->
-	(;oldID)globalState -> (;newID)globalState
+val reIndex_out: oldID:ConnectionInfo ->
+	newID:ConnectionInfo{oldID.id_in = newID.id_in /\
+						 CompatibleSessions(oldID.id_out.sinfo,newID.id_out.sinfo)} ->
+	(;oldID)globalState -> (;newID.id_out)ccs_data ->
+	(;newID)globalState
+
+val reIndex_in: oldID:ConnectionInfo ->
+	newID:ConnectionInfo{oldID.id_out = newID.id_out /\
+						 CompatibleSessions(oldID.id_in.sinfo,newID.id_in.sinfo)} ->
+	(;oldID)globalState -> (;newID.id_in)ccs_data ->
+	(;newID)globalState
 
 val closeConnection: c:Connection-> (;c) CompatibleConnection
 

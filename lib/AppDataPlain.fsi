@@ -35,3 +35,6 @@ val app_fragment: KeyInfo -> int -> lengths -> appdata ->  ((int * fragment) * (
 // The next should not be invoked when using ideal functionality
 val repr: KeyInfo -> int -> int -> fragment -> Bytes.bytes
 val fragment: KeyInfo -> int -> int -> Bytes.bytes -> fragment
+
+val reIndex: SessionInfo -> SessionInfo -> appdata -> appdata
+val reIndexLengths: SessionInfo -> SessionInfo -> lengths -> lengths
