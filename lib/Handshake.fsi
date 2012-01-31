@@ -31,22 +31,22 @@ val ccsFragment: KeyInfo -> int -> int -> Bytes.bytes -> ccsFragment
 //TODO better names, maybe: init/accept resume reshake rekey request
 
 // Create instance for a fresh connection (without resumption) 
-val init_handshake: SessionInfo -> Direction -> protocolOptions -> hs_state
+val init_handshake: ConnectionInfo -> Direction -> protocolOptions -> hs_state
 
 // Create instance for a fresh connection (Client-only, resuming some other sessions)
-val resume_handshake: SessionInfo -> SessionInfo -> PRFs.masterSecret -> protocolOptions -> hs_state
+val resume_handshake: ConnectionInfo -> SessionInfo -> PRFs.masterSecret -> protocolOptions -> hs_state
 
 // All other calls are affine in the Handshake protocol state
 
 
 // Idle client starts a full handshake on the current connection
-val start_rehandshake: SessionInfo -> hs_state -> protocolOptions -> hs_state
+val start_rehandshake: ConnectionInfo -> hs_state -> protocolOptions -> hs_state
 
 // Idle client starts an abbreviated handshake resuming the current session 
-val start_rekey:       SessionInfo -> hs_state -> protocolOptions -> hs_state
+val start_rekey:       ConnectionInfo -> hs_state -> protocolOptions -> hs_state
 
 // (Idle) Server requests an handshake 
-val start_hs_request:  SessionInfo -> hs_state -> protocolOptions -> hs_state
+val start_hs_request:  ConnectionInfo -> hs_state -> protocolOptions -> hs_state
 
 
 // ? resetting; TODO we'll try to get rid of it, and ensure that 
@@ -86,7 +86,7 @@ type HSFragReply =
   | CCSFrag of               (int * ccsFragment) (* the unique one-byte CCS *) * (KeyInfo * ccs_data)
   | HSWriteSideFinished of   (int * fragment) (* signalling that this fragment ends the finished message *)
   | HSFullyFinished_Write of (int * fragment) * SessionDB.StorableSession
-val next_fragment: KeyInfo -> int -> hs_state -> HSFragReply * hs_state
+val next_fragment: ConnectionInfo -> int -> hs_state -> HSFragReply * hs_state
 
 (* Receiving Handshake and CCS fragments *) 
 
@@ -95,5 +95,5 @@ type recv_reply = (* the fragment is accepted, and... *)
   | HSVersionAgreed of ProtocolVersion (* use this new protocol version for sending *)
   | HSReadSideFinished (* ? *) 
   | HSFullyFinished_Read of SessionDB.StorableSession (* we can start sending data on the connection *)  
-val recv_fragment: KeyInfo -> int -> hs_state -> int -> fragment -> recv_reply Result * hs_state
-val recv_ccs     : KeyInfo -> int -> hs_state -> int -> ccsFragment -> ((KeyInfo * ccs_data) Result) * hs_state
+val recv_fragment: ConnectionInfo -> int -> hs_state -> int -> fragment -> recv_reply Result * hs_state
+val recv_ccs     : ConnectionInfo -> int -> hs_state -> int -> ccsFragment -> ((KeyInfo * ccs_data) Result) * hs_state

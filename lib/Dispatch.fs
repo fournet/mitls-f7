@@ -30,10 +30,6 @@ type dState = {
     seqn: int
     }
 
-type index = {
-    id_in: KeyInfo;
-    id_out: KeyInfo}
-
 type globalState = {
   poptions: protocolOptions;
   (* abstract protocol states for HS/CCS, AL, and AD *)
@@ -49,7 +45,7 @@ type globalState = {
   ns: NetworkStream;
   }
 
-type Connection = Conn of index * globalState
+type Connection = Conn of ConnectionInfo * globalState
 //type SameConnection = Connection
 type CompatibleConnection = Connection
 
@@ -73,14 +69,15 @@ let init ns dir poptions =
        So, if we are a Client, it will be CtoS, if we're a Server: StoC *)
     let outKI = null_KeyInfo dir poptions.minVer in
     let inKI = dual_KeyInfo outKI in
-    let hs = Handshake.init_handshake outKI.sinfo dir poptions in // Equivalently, inKI.sinfo
+    let index = {id_in = inKI; id_out = outKI} in
+    let hs = Handshake.init_handshake index dir poptions in // Equivalently, inKI.sinfo
     let (outCCS,inCCS) = (nullCCSData outKI, nullCCSData inKI) in
     let (send,recv) = (Record.initConnState outKI outCCS, Record.initConnState inKI inCCS) in
     let read_state = {disp = Init; conn = recv; seqn = 0} in
     let write_state = {disp = Init; conn = send; seqn = 0} in
-    let al = Alert.init outKI.sinfo in
-    let app = AppData.init outKI.sinfo in // or equivalently inKI.sinfo
-    Conn ( {id_in = inKI; id_out = outKI},
+    let al = Alert.init index in
+    let app = AppData.init index in
+    Conn ( index,
       { poptions = poptions;
         handshake = hs;
         alert = al;
@@ -102,14 +99,15 @@ let resume ns sid ops =
     | CtoS ->
     let outKI = null_KeyInfo CtoS ops.minVer in
     let inKI = dual_KeyInfo outKI in
-    let hs = Handshake.resume_handshake outKI.sinfo retrievedSinfo retrievedMS ops in // equivalently, inKI.sinfo
+    let index = {id_in = inKI; id_out = outKI} in
+    let hs = Handshake.resume_handshake index retrievedSinfo retrievedMS ops in // equivalently, inKI.sinfo
     let (outCCS,inCCS) = (nullCCSData outKI, nullCCSData inKI) in
     let (send,recv) = (Record.initConnState outKI outCCS, Record.initConnState inKI inCCS) in
     let read_state = {disp = Init; conn = recv; seqn = 0} in
     let write_state = {disp = Init; conn = send; seqn = 0} in
-    let al = Alert.init outKI.sinfo in
-    let app = AppData.init outKI.sinfo in // or equvalently inKI.sinfo
-    let res = Conn ( {id_in = inKI; id_out = outKI},
+    let al = Alert.init index in
+    let app = AppData.init index in
+    let res = Conn ( index,
                      { poptions = ops;
                        handshake = hs;
                        alert = al;
@@ -121,17 +119,17 @@ let resume ns sid ops =
     (correct (unitVal), res)
 
 let ask_rehandshake (Conn(id,conn)) ops =
-    let new_hs = Handshake.start_rehandshake id.id_out.sinfo conn.handshake ops in // Equivalently, id.id_in.sinfo
+    let new_hs = Handshake.start_rehandshake id conn.handshake ops in // Equivalently, id.id_in.sinfo
     Conn(id,{conn with handshake = new_hs;
                        poptions = ops})
 
 let ask_rekey (Conn(id,conn)) ops =
-    let new_hs = Handshake.start_rekey id.id_out.sinfo conn.handshake ops in // Equivalently, id.id_in.sinfo
+    let new_hs = Handshake.start_rekey id conn.handshake ops in // Equivalently, id.id_in.sinfo
     Conn(id,{conn with handshake = new_hs;
                        poptions = ops})
 
 let ask_hs_request (Conn(id,conn)) ops =
-    let new_hs = Handshake.start_hs_request id.id_out.sinfo conn.handshake ops in // Equivalently, id.id_in.sinfo
+    let new_hs = Handshake.start_hs_request id conn.handshake ops in // Equivalently, id.id_in.sinfo
     Conn(id,{conn with handshake = new_hs;
                        poptions = ops})
 
@@ -201,13 +199,13 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
   | Closed -> (correct(Done), Conn(id,c))
   | _ ->
       let state = c.alert in
-      match Alert.next_fragment id.id_out c_write.seqn state with
+      match Alert.next_fragment id c_write.seqn state with
       | (Alert.EmptyALFrag,_) -> 
           let hs_state = c.handshake in
-          match Handshake.next_fragment id.id_out c_write.seqn hs_state with 
+          match Handshake.next_fragment id c_write.seqn hs_state with 
           | (Handshake.EmptyHSFrag, _) ->
             let app_state = c.appdata in
-                match AppData.next_fragment id.id_out c_write.seqn app_state with
+                match AppData.next_fragment id c_write.seqn app_state with
                 | None -> (* nothing to do (tell the caller) *)
                           (correct (Done),Conn(id,c))
                 | Some (next) ->
@@ -341,7 +339,7 @@ let deliver (Conn(id,c)) ct tlen frag =
   match (ct,frag,c_read.disp) with 
 
   | Handshake, TLSFragment.FHandshake(f), x when x = Init || x = FirstHandshake || x = Finishing || x = Open ->
-    match Handshake.recv_fragment id.id_in c_read.seqn c.handshake tlen f with
+    match Handshake.recv_fragment id c_read.seqn c.handshake tlen f with
     | (Correct(corr),hs) ->
         let new_seqn = c_read.seqn+1 in
         let c_read = {c_read with seqn = new_seqn} in
@@ -386,7 +384,7 @@ let deliver (Conn(id,c)) ct tlen frag =
     | (Error(x,y),hs) -> (Error(x,y),Conn(id,{c with handshake = hs})) (* TODO: we might need to send some alerts *)
 
   | Change_cipher_spec, TLSFragment.FCCS(f), x when x = FirstHandshake || x = Open -> 
-    match Handshake.recv_ccs id.id_in c_read.seqn c.handshake tlen f with 
+    match Handshake.recv_ccs id c_read.seqn c.handshake tlen f with 
     | (Correct(ccs),hs) ->
         let (newKiIN,ccs_data) = ccs in
         if checkCompatibleSessions id.id_in.sinfo newKiIN.sinfo c.poptions then
@@ -401,7 +399,7 @@ let deliver (Conn(id,c)) ct tlen frag =
     | (Error (x,y),hs) -> (Error (x,y), closeConnection (Conn(id,{c with handshake = hs}))) // TODO: We might want to send some alert here.
 
   | Alert, TLSFragment.FAlert(f), _ ->
-    match Alert.recv_fragment id.id_in c_read.seqn c.alert tlen f with
+    match Alert.recv_fragment id c_read.seqn c.alert tlen f with
     | Correct (Alert.ALAck(state)) ->
       let new_seqn = c_read.seqn + 1 in
       let c_read = {c_read with seqn = new_seqn; disp = Closing} in
@@ -422,7 +420,7 @@ let deliver (Conn(id,c)) ct tlen frag =
     | Error (x,y) -> (Error(x,y),closeConnection(Conn(id,c))) // TODO: We might want to send some alert here.
 
   | Application_data, TLSFragment.FAppData(f), Open -> 
-    let appstate = AppData.recv_fragment id.id_in c_read.seqn c.appdata tlen f in
+    let appstate = AppData.recv_fragment id c_read.seqn c.appdata tlen f in
     let new_seqn = c_read.seqn + 1;
     let new_read = {c_read with seqn = new_seqn} in
     let c = {c with read = new_read; appdata = appstate} in
@@ -530,7 +528,7 @@ let rec writeAppData c =
     *)
 
 let commit (Conn(id,c)) ls b =
-    let new_appdata = AppData.send_data id.id_out.sinfo c.appdata ls b in
+    let new_appdata = AppData.send_data id c.appdata ls b in
     Conn(id,{c with appdata = new_appdata})
 
 (*
@@ -541,14 +539,14 @@ let write_buffer_empty conn =
 let readAppData (Conn(id,c)) =
     let unitVal = () in
     let newConnRes =
-        if AppData.is_incoming_empty id.id_in.sinfo c.appdata then
+        if AppData.is_incoming_empty id c.appdata then
             read (Conn(id,c)) StopAtAppData    
         else
             (correct(unitVal),Conn(id,c))
     match newConnRes with
     | (Error(x,y),conn) -> (Error(x,y),conn)
     | (Correct(unitVal),Conn(id,c)) ->
-        let (b,appState) = AppData.retrieve_data id.id_in.sinfo c.appdata in
+        let (b,appState) = AppData.retrieve_data id c.appdata in
         let c = {c with appdata = appState} in
         (correct (b),Conn(id,c))
 

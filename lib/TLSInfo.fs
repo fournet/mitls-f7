@@ -61,3 +61,7 @@ let null_KeyInfo dir minPV =
 let dual_KeyInfo ki = 
   let d = dualDirection(ki.dir) in
   {ki with dir = d}
+
+type ConnectionInfo = {
+    id_in: KeyInfo;
+    id_out: KeyInfo}

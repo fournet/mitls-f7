@@ -64,3 +64,7 @@ val dual_KeyInfo: k1:KeyInfo -> k2:KeyInfo{k2=DualKeyInfo(k1,())}
 // definition !ki. NullKeyInfo(ki) => NullSessionInfo(ki.sinfo)
 
 predicate Corrupt of KeyInfo
+
+type ConnectionInfo =
+    { id_in:  KeyInfo;
+      id_out: KeyInfo}

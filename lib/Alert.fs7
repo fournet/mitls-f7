@@ -3,8 +3,8 @@
 open Error
 open TLSInfo
 
-type (;si:SessionInfo)pre_al_state
-type (;si:SessionInfo)state = (;si)pre_al_state
+type (;ci:ConnectionInfo)pre_al_state
+type (;ci:ConnectionInfo)state = (;ci)pre_al_state
 
 // protocol-specific abstract fragment,
 // and associated functions (never to be called with ideal functionality)
@@ -19,15 +19,15 @@ type (;ki:KeyInfo,seqn:int)ALFragReply =
     | LastALFrag of      (tlen:int * (;ki,tlen,seqn)fragment)
     | LastALCloseFrag of (tlen:int * (;ki,tlen,seqn)fragment)
 
-type (;si:SessionInfo)alert_reply =
-    | ALAck of          (;si)state
-    | ALClose of        (;si)state
-    | ALClose_notify of (;si)state
+type (;ci:ConnectionInfo)alert_reply =
+    | ALAck of          (;ci)state
+    | ALClose of        (;ci)state
+    | ALClose_notify of (;ci)state
 
-val init: si:SessionInfo -> (;si)state
+val init: ci:ConnectionInfo -> (;ci)state
 
-val send_alert: si:SessionInfo -> (;si)state -> alertDescription -> (;si)state
+val send_alert: ci:ConnectionInfo -> (;ci)state -> alertDescription -> (;ci)state
 
-val next_fragment: ki:KeyInfo -> seqn:int -> (;ki.sinfo)state -> ((;ki,seqn)ALFragReply * (;ki.sinfo)state) 
+val next_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)state -> ((;ci.id_out,seqn)ALFragReply * (;ci)state) 
 
-val recv_fragment: ki:KeyInfo -> seqn:int -> (;ki.sinfo)state -> tlen:int -> (;ki,tlen,seqn)fragment -> ((;ki.sinfo)alert_reply) Result
+val recv_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)state -> tlen:int -> (;ci.id_in,tlen,seqn)fragment -> ((;ci)alert_reply) Result

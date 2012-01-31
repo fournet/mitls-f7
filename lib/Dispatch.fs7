@@ -32,16 +32,12 @@ type (;ki:KeyInfo) dState = {
 	seqn: int
     }
 
-type index =
-    { id_in:  KeyInfo;
-      id_out: KeyInfo}
-
-type (;id:index) globalState = {
+type (;id:ConnectionInfo) globalState = {
   poptions: protocolOptions;
   (* abstract protocol states for HS/CCS, AL, and AD *)
-  handshake: (;id.id_out.sinfo) Handshake.hs_state;
-  alert    : (;id.id_out.sinfo) Alert.state;
-  appdata  : (;id.id_out.sinfo) AppData.app_state;    
+  handshake: (;id) Handshake.hs_state;
+  alert    : (;id) Alert.state;
+  appdata  : (;id) AppData.app_state;    
 
   (* connection state for reading and writing *)
   read  : (;id.id_in)  dState;
@@ -50,7 +46,7 @@ type (;id:index) globalState = {
   ns: NetworkStream;
   }
 
-type Connection = Conn of (id:index * (;id)globalState)
+type Connection = Conn of (id:ConnectionInfo * (;id)globalState)
 function val ConnectionIndex: Connection -> index
 assume !id,s. ConnectionIndex(Conn(id,s)) = id
 //type (;c:Connection) SameConnection = c':Connection{ConnectionIndex(c) = ConnectionIndex(c')}

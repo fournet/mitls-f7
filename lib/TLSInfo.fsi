@@ -37,6 +37,10 @@ type KeyInfo = {
     sVerifyData: bytes *)
     }
 
+type ConnectionInfo =
+    { id_in:  KeyInfo;
+      id_out: KeyInfo}
+
 val null_sessionInfo: ProtocolVersion -> SessionInfo
 val isNullSessionInfo: SessionInfo -> bool
 val null_KeyInfo: Direction -> ProtocolVersion -> KeyInfo
