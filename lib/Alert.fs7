@@ -31,3 +31,6 @@ val send_alert: ci:ConnectionInfo -> (;ci)state -> alertDescription -> (;ci)stat
 val next_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)state -> ((;ci.id_out,seqn)ALFragReply * (;ci)state) 
 
 val recv_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)state -> tlen:int -> (;ci.id_in,tlen,seqn)fragment -> ((;ci)alert_reply) Result
+
+val reIndex: oldID:ConnectionInfo -> newID:ConnectionInfo{CompatibleIndexes(oldID,newID)} ->
+	(;oldID)state -> (;newID)state

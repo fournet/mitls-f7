@@ -1852,3 +1852,5 @@ let recv_ccs ci seqn (state: hs_state) (tlen:int) (fragment:ccsFragment): ((KIAn
                 | None -> unexpectedError "[recv_ccs] when in CCCS state, ccs_incoming should have some value."
             | _ -> (Error(HSError(AD_unexpected_message),HSSendAlert),state)
     else           (Error(HSError(AD_decode_error)      ,HSSendAlert),state)
+
+let reIndex (oldCI:ConnectionInfo) (newCI:ConnectionInfo) (state:hs_state) = state

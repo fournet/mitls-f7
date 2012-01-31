@@ -68,3 +68,15 @@ predicate Corrupt of KeyInfo
 type ConnectionInfo =
     { id_in:  KeyInfo;
       id_out: KeyInfo}
+
+predicate UserSaysCompatibleSessions of SessionInfo * SessionInfo
+
+predicate CompatibleSessions of SessionInfo * SessionInfo
+assume !s. CompatibleSessions(s,s)
+assume !s1,s2. UserSaysCompatibleSessions(s1,s2) => CompatibleSessions(s1,s2)
+assume !nulls,s. NullSessionInfo(nulls) => CompatibleSessions(nulls,s)
+
+predicate CompatibleIndexes of ConnectionInfo * ConnectionInfo
+assume !id1,id2. CompatibleIndexes(id1,id2) <=>
+				 ( CompatibleSessions(id1.id_in.sinfo, id2.id_in.sinfo ) /\
+                   CompatibleSessions(id1.id_out.sinfo,id2.id_out.sinfo) )

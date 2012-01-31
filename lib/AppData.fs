@@ -67,3 +67,5 @@ let next_fragment ci seqn state =
 let recv_fragment ci (seqn:int) (state:app_state) (tlen:int) (fragment:fragment) =
     let (newLengths, newAppdata) = concat_fragment_appdata ci.id_in tlen seqn fragment state.app_in_lengths state.app_incoming in
     {state with app_in_lengths = newLengths; app_incoming = newAppdata}
+
+let reIndex (oldCI:ConnectionInfo) (newCI:ConnectionInfo) (state:app_state) = state

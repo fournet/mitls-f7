@@ -46,3 +46,5 @@ val recordPacketIn : ki:KeyInfo ->
                          tlen:int * 
                          (;ki,tlen,seqn,ct) TLSFragment.fragment)) Result
 
+val reIndex: oldKI:KeyInfo -> newKI:KeyInfo{CompatibleSessions(oldKI.sinfo,newKI.sinfo)} ->
+	(;oldKI)ConnectionState -> (;newKI)ConnectionState

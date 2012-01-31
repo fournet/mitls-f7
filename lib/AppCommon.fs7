@@ -12,8 +12,6 @@ type helloReqPolicy =
 
 type TimeSpan
 
-predicate UserSaysCompatibleSessions of SessionInfo * SessionInfo
-
 type protocolOptions = {
     minVer: ProtocolVersion;
     maxVer: ProtocolVersion;

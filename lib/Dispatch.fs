@@ -174,6 +174,22 @@ let moveToOpenState (Conn(id,c)) new_storable_info =
     else
         Error(Dispatcher,CheckFailed)
 
+let reIndex_dState oldKI newKI dState =
+    let newConn = Record.reIndex oldKI newKI dState.conn in
+    {dState with conn = newConn}
+
+let reIndex oldID newID c =
+    let newHS =      Handshake.reIndex oldID newID c.handshake in
+    let newAlert =   Alert.reIndex     oldID newID c.alert in
+    let newAppData = AppData.reIndex   oldID newID c.appdata in
+    let newRead =    reIndex_dState oldID.id_in  newID.id_in  c.read in
+    let newWrite =   reIndex_dState oldID.id_out newID.id_out c.write in
+    { c with handshake = newHS;
+             alert =     newAlert;
+             appdata =   newAppData;
+             read =      newRead;
+             write =     newWrite}
+
 let closeConnection (Conn(id,c)) =
     let new_read = {c.read with disp = Closed} in
     let new_write = {c.write with disp = Closed} in
@@ -249,8 +265,6 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
                                 let new_write = {disp = Finishing; conn = ss; seqn = 0} in
                                 let c = { c with handshake = new_hs_state;
                                                              write = new_write }
-                                // FIXME: We need to change the outgoing index everywhere! Alert, handshake, appdata...
-                                //failwith "FIXME: We need to change the outgoing index everywhere! Alert, handshake, appdata..."
                                 (correct (WriteAgain), Conn(id,c) )
                             else
                                 let closed = closeConnection (Conn(id,c)) in

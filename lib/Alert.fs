@@ -196,3 +196,5 @@ let recv_fragment ci seqn state tlen (data:fragment) =
                 | Correct(alert) ->
                     let state = {state with al_incoming = [||] } in
                     handle_alert ci state alert
+
+let reIndex (oldCI:ConnectionInfo) (newCI:ConnectionInfo) (state:state) = state

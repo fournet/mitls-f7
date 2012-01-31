@@ -97,3 +97,5 @@ type recv_reply = (* the fragment is accepted, and... *)
   | HSFullyFinished_Read of SessionDB.StorableSession (* we can start sending data on the connection *)  
 val recv_fragment: ConnectionInfo -> int -> hs_state -> int -> fragment -> recv_reply Result * hs_state
 val recv_ccs     : ConnectionInfo -> int -> hs_state -> int -> ccsFragment -> ((KeyInfo * ccs_data) Result) * hs_state
+
+val reIndex: ConnectionInfo -> ConnectionInfo -> hs_state -> hs_state

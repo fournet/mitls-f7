@@ -68,17 +68,11 @@ assume !ki,s. dStateSeqn(ki,s)=s.seqn
 function val ConnectionReadSeqn: Connection -> int
 assume !id,s. ConnectionReadSeqn(Conn(id,s))=s.read.seqn
 
-predicate CompatibleSessions of SessionInfo * SessionInfo
-assume !s. CompatibleSessions(s,s)
-assume !s1,s2. UserSaysCompatibleSessions(s1,s2) => CompatibleSessions(s1,s2)
-assume !nulls,s. NullSessionInfo(nulls) => CompatibleSessions(nulls,s)
-
 val checkCompatibleSessions: s1:SessionInfo -> s2:SessionInfo -> AppCommon.protocolOptions ->
                              b:bool{b = true => CompatibleSessions(s1,s2)}
 
 type (;c:Connection) CompatibleConnection = c':Connection{
-   CompatibleSessions(ConnectionOutSessionInfo(c),ConnectionOutSessionInfo(c')) /\
-   CompatibleSessions(ConnectionInSessionInfo(c),ConnectionInSessionInfo(c')) }
+   CompatibleIndexes(ConnectionIndex(c),ConnectionIndex(c')) }
 
 type writeOutcome =
     | WriteAgain (* Possibly more data to send *)
@@ -104,6 +98,12 @@ val getSessionInfo: c:Connection -> si:SessionInfo{si=ConnectionOutSessionInfo(c
 val moveToOpenState: c:Connection ->
 	(si:SessionInfo * (;si)PRFs.masterSecret * Direction){si=ConnectionOutSessionInfo(c)} ->
 	(;ConnectionIndex(c))globalState Result
+
+val reIndex_dState: oldKI:KeyInfo -> newKI:KeyInfo{CompatibleSessions(oldKI.sinfo,newKI.sinfo)} ->
+	(;oldKI)dState -> (;newKI)dState
+
+val reIndex: oldID:ConnectionInfo -> newID:ConnectionInfo{CompatibleIndexes(oldID,newID)} ->
+	(;oldID)globalState -> (;newID)globalState
 
 val closeConnection: c:Connection-> (;c) CompatibleConnection
 

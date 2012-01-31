@@ -37,3 +37,5 @@ val is_incoming_empty: ConnectionInfo -> app_state -> bool
 val next_fragment: ConnectionInfo -> int -> app_state -> ((int * fragment) * app_state) option
 (* Enqueue app data in the input buffer, only called on an empty input buffer *)
 val recv_fragment: ConnectionInfo -> int -> app_state -> int -> fragment -> app_state
+
+val reIndex: ConnectionInfo -> ConnectionInfo -> app_state -> app_state

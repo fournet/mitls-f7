@@ -32,3 +32,5 @@ val send_alert: ConnectionInfo -> state -> alertDescription -> state
 val next_fragment: ConnectionInfo -> int -> state -> (ALFragReply * state) 
 
 val recv_fragment: ConnectionInfo -> int -> state -> int -> fragment -> alert_reply Result
+
+val reIndex: ConnectionInfo -> ConnectionInfo -> state -> state
