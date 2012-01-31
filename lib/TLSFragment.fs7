@@ -12,7 +12,7 @@ type (;ki:KeyInfo,tlen:int,seqn:int,ct:ContentType) fragment =
     | FAlert     of (;ki,tlen,seqn)Alert.fragment        {ct=Alert}
     | FAppData   of (;ki,tlen,seqn)AppDataPlain.fragment {ct=Application_data}
 
-public predicate type frag = Fragment of KeyInfo * int * int * ContentType * bytes
+predicate Fragment of KeyInfo * int * int * ContentType * bytes
 
 assume !ki,tlen,seq,ct,b.
   Fragment(ki,tlen,seq,ct,b) <=> (
@@ -26,16 +26,17 @@ val TLSFragmentRepr: ki:KeyInfo -> tlen:int -> seqn:int ->
   x:bytes{Fragment(ki,tlen,seqn,ct,x)}
 
 val TLSFragment: ki:KeyInfo -> tlen:int -> seqn:int -> 
-  ct:ContentType -> bytes -> (;ki,tlen,seqn,ct)fragment
+  ct:ContentType -> b:bytes{Corrupt(ki) \/ Fragment(ki,tlen,seqn,ct,b)} -> 
+  (;ki,tlen,seqn,ct)fragment
 
 // Additional Data
 type addData = bytes
 
 function val ADLength: ProtocolVersion -> int
-private assume !pv. (pv = SSL_3p0 /\ ADLength(pv) = 9) \/ (pv <> SSL_3p0 /\ ADLength(pv) = 11)
+assume !pv. (pv = SSL_3p0 /\ ADLength(pv) = 9) \/ (pv <> SSL_3p0 /\ ADLength(pv) = 11)
 
 function val ADBytes: (ProtocolVersion * int * ContentType) -> bytes
-private assume !pv,seqn,ct.
+assume !pv,seqn,ct.
 	( pv = SSL_3p0 /\
 	  ADBytes(pv,seqn,ct) =
 		IntBytes(8,seqn) @| CTBytes(ct) ) \/
@@ -45,37 +46,43 @@ private assume !pv,seqn,ct.
 
 ask !pv,seqn,ct. Length(ADBytes(pv,seqn,ct)) = ADLength(pv)
 
-private val makeAD: pv:ProtocolVersion ->
-	seqn:int -> ct:ContentType ->
-	ad: addData{ad=ADBytes(pv,seqn,ct)}
-
-private val parseAD: pv:ProtocolVersion -> 
-          ad: addData{Length(ad) = ADLength(pv)} -> 
-          (seqn:int * ct:ContentType){ad=ADBytes(pv,seqn,ct)}
-
 function val ADct: pv:ProtocolVersion * addData -> ContentType
 assume !pv,seqn,ct. ADct(pv,ADBytes(pv,seqn,ct)) = ct
 
 function val ADseqn: pv:ProtocolVersion * addData -> int
 assume !pv,seqn,ct. ADseqn(pv,ADBytes(pv,seqn,ct)) = seqn
 
+private val makeAD: pv:ProtocolVersion ->
+	seqn:int -> ct:ContentType ->
+	  ad: addData{ad=ADBytes(pv,seqn,ct)}
+
+private val parseAD: pv:ProtocolVersion -> 
+          ad: addData{Length(ad) = ADLength(pv)} -> 
+          (seqn:int * ct:ContentType){ad=ADBytes(pv,seqn,ct)}
+
 
 private type (;ki:KeyInfo,tlen:int,ad:addData) AEADPlain = bytes
-type (;ki:KeyInfo,tlen:int,ad:addData) AEADMsg = 
-            (x:(;ki,tlen,ad) AEADPlain){Corrupt(ki) \/
-                                        Fragment(ki,tlen,
-                                                 ADseqn(ki.sinfo.protocol_version,ad),
-                                                 ADct(ki.sinfo.protocol_version,ad),
-                                                 x)}
+
+predicate AEADMsg of KeyInfo * int * addData * bytes
+assume !ki,tlen,ad,x. AEADMsg(ki,tlen,ad,x) <=> 
+  (Corrupt(ki) \/
+     Fragment(ki,tlen,
+              ADseqn(ki.sinfo.protocol_version,ad),
+              ADct(ki.sinfo.protocol_version,ad),
+              x))
 
 val AEADPlain: ki:KeyInfo -> tlen:int -> ad:addData -> bytes -> (;ki,tlen,ad)AEADPlain
 val AEADRepr:  ki:KeyInfo -> tlen:int -> ad:addData -> f:(;ki,tlen,ad)AEADPlain -> b:bytes{b=f}
 
 val AEADPlainToTLSFragment: ki:KeyInfo -> tlen:int -> 
   ad:addData{Length(ad) = ADLength(ki.sinfo.protocol_version)} -> 
-                            (;ki,tlen,ad)AEADPlain -> 
-                            (;ki,tlen,ADseqn(ki.sinfo.protocol_version,ad),ADct(ki.sinfo.protocol_version,ad)) fragment
+                            p:(;ki,tlen,ad)AEADPlain{AEADMsg(ki,tlen,ad,p)} -> 
+                            f:(;ki,tlen,
+			       ADseqn(ki.sinfo.protocol_version,ad),
+			       ADct(ki.sinfo.protocol_version,ad)) fragment
+
 
 val TLSFragmentToAEADPlain: ki:KeyInfo -> tlen:int -> seqn:int -> ct:ContentType -> 
-                            (;ki,tlen,seqn,ct)fragment -> 
-                            (;ki,tlen,ADBytes(ki.sinfo.protocol_version,seqn,ct)) AEADMsg
+                            f:(;ki,tlen,seqn,ct)fragment -> 
+                            p:(;ki,tlen,ADBytes(ki.sinfo.protocol_version,seqn,ct)) AEADPlain{
+				AEADMsg(ki,tlen,ADBytes(ki.sinfo.protocol_version,seqn,ct),p)}

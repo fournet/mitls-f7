@@ -1,4 +1,5 @@
-﻿module Record
+﻿#light "off"
+module Record
 
 open Bytes
 open Error
@@ -31,9 +32,9 @@ let makePacket ct ver data =
     bct @| bver @| bl @| data
 
 let headerLength b =
-    let (ct1,rem4) = split b 1 
-    let (pv2,len2) = split rem4 2
-    let len = int_of_bytes len2
+    let (ct1,rem4) = split b 1  in
+    let (pv2,len2) = split rem4 2 in
+    let len = int_of_bytes len2 in
     // With a precise int/byte model,
     // no need to check len, since it's on 2 bytes and the max allowed value is 2^16.
     // Here we do a runtime check to get the same property statically
@@ -43,15 +44,15 @@ let headerLength b =
         correct(len)
 
 let parseHeader b = 
-    let (ct1,rem4) = split b 1 
-    let (pv2,len2) = split rem4 2 
+    let (ct1,rem4) = split b 1 in
+    let (pv2,len2) = split rem4 2 in 
     match parseCT ct1 with
     | Error(x,y) -> Error(x,y)
     | Correct(ct) ->
     match CipherSuites.parseVersion pv2 with
     | Error(x,y) -> Error(x,y)
     | Correct(pv) -> 
-    let len = int_of_bytes len2 
+    let len = int_of_bytes len2 in
     // With a precise int/byte model,
     // no need to check len, since it's on 2 bytes and the max allowed value is 2^16.
     // Here we do a runtime check to get the same property statically
@@ -137,14 +138,16 @@ let recordPacketIn ki conn seqn headPayload =
         let ad = TLSFragment.makeAD ki.sinfo.protocol_version seqn ct in
         let (msg,mac) = MACPlain.parseNoPad ki tlen ad payload in
         let toVerify = MACPlain.MACPlain ki tlen ad msg in
-        if MAC.VERIFY {MAC.ki=ki;MAC.tlen=tlen} key toVerify mac then
+        let ver = MAC.VERIFY {MAC.ki=ki;MAC.tlen=tlen} key toVerify mac in
+	if ver then
             let msg = TLSFragment.AEADPlainToTLSFragment ki tlen ad msg in
-            correct(conn,ct,pv,tlen,msg)
+	    correct(conn,ct,pv,tlen,msg)
         else
             Error(MAC,CheckFailed)
     | (_,RecordAEADKey(key)) ->
         let ad = TLSFragment.makeAD ki.sinfo.protocol_version seqn ct in
-        match AEAD.decrypt ki key conn.iv3 tlen ad payload with
+	let decr = AEAD.decrypt ki key conn.iv3 tlen ad payload in
+        match decr with
         | Error(x,y) -> Error(x,y)
         | Correct (decrRes) ->
             let (newIV, plain) = decrRes in

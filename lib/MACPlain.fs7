@@ -12,16 +12,15 @@ assume !ki,tlen,pl. Msg(ki,tlen,pl) <=>
   (Corrupt(ki) \/
      (?ad,x. pl.p = (ad @| IntBytes(2,Length(x))) @| x /\
 	  TLSFragment.Fragment(ki,tlen,
-		    TLSFragment.ADseqn(ki.sinfo.protocol_version,ad),
-                    TLSFragment.ADct(ki.sinfo.protocol_version,ad),
-                    x)))
+			       TLSFragment.ADseqn(ki.sinfo.protocol_version,ad),
+			       TLSFragment.ADct(ki.sinfo.protocol_version,ad),x)))
 
 ask !ki,tlen,t. Corrupt(ki) => Msg(ki,tlen,t)
 
 val MACPlain: ki:KeyInfo -> tlen:int -> 
   ad:TLSFragment.addData -> 
-  (;ki,tlen,ad)TLSFragment.AEADMsg -> 
-  p:(;ki,tlen)MACPlain{Msg(ki,tlen,p)}
+  f:(;ki,tlen,ad)TLSFragment.AEADPlain -> 
+  p:(;ki,tlen)MACPlain{TLSFragment.AEADMsg(ki,tlen,ad,f) <=> Msg(ki,tlen,p)}
 
 val reprMACPlain: ki:KeyInfo -> tlen:int -> (;ki,tlen)MACPlain -> bytes
 

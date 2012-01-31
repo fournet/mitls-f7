@@ -34,17 +34,17 @@ private val parseHeader: b:bytes{Length(b) = 5} ->
 val recordPacketOut: ki:KeyInfo -> 
                      ss:(;ki) sendState -> 
                      tlen:int -> seqn:int -> ct:ContentType -> 
-                     (;ki,tlen,seqn,ct) TLSFragment.fragment -> 
+                     f:(;ki,tlen,seqn,ct) TLSFragment.fragment{Corrupt(ki) \/ Fragment(ki,tlen,seqn,ct,f)} -> 
                      (ss':(;ki) sendState * wire:bytes)
  
 val recordPacketIn : ki:KeyInfo ->
                      rs:(;ki) recvState ->
 					 seqn:int -> 
                      wire:bytes{Length(wire) >= 5} -> 
-                     ((rs':(;ki)recvState *
-                         ct:ContentType * pv:ProtocolVersion *
-                         tlen:int * 
-                         (;ki,tlen,seqn,ct) TLSFragment.fragment)) Result
+                     (rs':(;ki)recvState *
+                        ct:ContentType * pv:ProtocolVersion *
+                        tlen:int * 
+                        f:(;ki,tlen,seqn,ct) TLSFragment.fragment{Corrupt(ki) \/ Fragment(ki,tlen,seqn,ct,f)}) Result
 
 val reIndex: oldKI:KeyInfo -> newKI:KeyInfo{CompatibleSessions(oldKI.sinfo,newKI.sinfo)} ->
 	(;oldKI)ConnectionState -> (;newKI)ConnectionState

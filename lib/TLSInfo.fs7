@@ -65,6 +65,8 @@ val dual_KeyInfo: k1:KeyInfo -> k2:KeyInfo{k2=DualKeyInfo(k1,())}
 
 predicate Corrupt of KeyInfo
 
+assume !ki. CipherSuites.IsNullCiphersuite(ki.sinfo.cipher_suite) => Corrupt(ki)
+
 type ConnectionInfo =
     { id_in:  KeyInfo;
       id_out: KeyInfo}

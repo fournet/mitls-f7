@@ -1,7 +1,6 @@
 ﻿module AEAD
 
 open TLSInfo
-open TLSFragment
 open TLSKey
 open Error
 
@@ -9,8 +8,8 @@ val encrypt: ki:KeyInfo ->
   (;ki) AEADKey -> 
   (;ki) ENCKey.iv3 -> 
   tlen:int -> 
-  ad:addData ->
-  (;ki,tlen,ad) AEADMsg -> 
+  ad:TLSFragment.addData ->
+  p:(;ki,tlen,ad) TLSFragment.AEADPlain{TLSFragment.AEADMsg(ki,tlen,ad,p)} -> 
   ((;ki) ENCKey.iv3 * ENC.cipher)
 
 
@@ -18,9 +17,9 @@ val decrypt: ki:KeyInfo ->
   (;ki) AEADKey -> 
   (;ki) ENCKey.iv3 -> 
   tlen:int -> 
-  ad:addData ->
+  ad:TLSFragment.addData ->
   ENC.cipher ->
-  ((;ki) ENCKey.iv3 * (;ki,tlen,ad) AEADMsg) Result
+  ((;ki) ENCKey.iv3 * p:(;ki,tlen,ad) TLSFragment.AEADPlain{TLSFragment.AEADMsg(ki,tlen,ad,p)}) Result
 
 
 (* TODOS: (KB: Done?) *)

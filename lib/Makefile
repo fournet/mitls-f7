@@ -1,6 +1,6 @@
 include ../../../../Makefile.inc
 
-all: tls.dll tlsbase-tc7 tls# tlsapplication-tc7 crypto-tc7 tlsrecord-tc7
+all: tls.dll tlsbase-tc7 tc7
 
 lib7=../../../lib/fs7-interfaces/
 libperv = $(lib7)pervasives.fs7 $(lib7)tuples.fs7
@@ -30,6 +30,8 @@ tlsbase-tc7: Error.tc7 Algorithms.tc7 CipherSuites.tc7  formats.tc7  TLSInfo.tc7
 tlsapplication-tc7: AppDataPlain.tc7  AppData.tc7  TLSFragment.tc7 MACPlain.tc7 Plain.tc7 
 crypto-tc7: MAC.tc7 ENC.tc7 AEAD.tc7
 tlsrecord-tc7: record.tc7 dispatch.tc7 tls.tc7
+
+tc7:: tlsbase-tc7 TLSFragment.tc7 Plain.tc7 MACPlain.tc7 record.tc7 
 
 #recordfs-a = Error.fs  tcp-a.fs  Sessions.fs  formats.fs CryptoTLS.fs record.fs 
 
@@ -104,8 +106,6 @@ Dispatch-a.dll: libsym-a.dll record-a.dll $(tlsfsi) $(tlsfs)
 
 
 # Compilation Order: WRAPPERLIBS TLSCRYPTO CRYPTO TLSRECORD TLSCONFIG 
-
-tc7:: Algorithms.tc7 CipherSuites.tc7 formats.tc7 TLSInfo.tc7 TLSFragment.tc7 MACKey.tc7 ENCKey.tc7 TLSKey.tc7
 # TODO for TLS Record: (KB:) AppDataPlain.tc7 AppData.tc7 (Alfredo:) Dispatch.tc7 TLS.tc7 
 # TODO for TLS Full: FragCommon.fs HS_msg.tc7 Handshake.tc7 Alert.tc7 
 # TODO for CRYPTO: MACPlain.tc7 Plain.tc7 MAC.tc7 ENC.tc7 AEAD.tc7 
