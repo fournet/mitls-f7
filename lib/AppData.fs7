@@ -38,7 +38,7 @@ val is_incoming_empty: ci:ConnectionInfo -> (;ci)app_state -> bool
 val next_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)app_state ->
 	((tlen:int * (;ci.id_out,tlen,seqn)fragment) * (;ci)app_state) option
 
-val recv_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)app_state -> tlen:int -> (;ki.id_in,tlen,seqn)fragment ->
+val recv_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)app_state -> tlen:int -> (;ci.id_in,tlen,seqn)fragment ->
 	(;ci)app_state
 
 // /// OLD, legacy stuff

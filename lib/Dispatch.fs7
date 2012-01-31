@@ -47,7 +47,7 @@ type (;id:ConnectionInfo) globalState = {
   }
 
 type Connection = Conn of (id:ConnectionInfo * (;id)globalState)
-function val ConnectionIndex: Connection -> index
+function val ConnectionIndex: Connection -> ConnectionInfo
 assume !id,s. ConnectionIndex(Conn(id,s)) = id
 //type (;c:Connection) SameConnection = c':Connection{ConnectionIndex(c) = ConnectionIndex(c')}
 
