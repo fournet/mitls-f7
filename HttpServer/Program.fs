@@ -33,7 +33,6 @@ let tlsoptions = {
     AppCommon.server_cert_file = "server"
     AppCommon.certificateValidationPolicy = (fun _ -> true)
     AppCommon.isCompatibleSession = (fun oldS newS -> oldS = newS)
-    AppCommon.isGoodSession = (fun _ -> true)
 
     AppCommon.sessionDBFileName = "sessionDBFile.bin"
     AppCommon.sessionDBExpiry = new System.TimeSpan(2,0,0,0) (* two days *)
