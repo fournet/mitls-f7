@@ -158,21 +158,17 @@ let moveToOpenState (Conn(id,c)) new_storable_info =
     | None -> (* This session should not be stored *) ()
     | Some (sid) -> (* SessionDB. *) insert c.poptions sid new_storable_info
 
-    // Sanity check: in and out session infos should be the same
-    if id.id_in.sinfo = id.id_out.sinfo then
-        let read = c.read in
-        match read.disp with
+    let read = c.read in
+    match read.disp with
+    | Finishing | Finished ->
+        let new_read = {read with disp = Open} in
+        let c_write = c.write in
+        match c_write.disp with
         | Finishing | Finished ->
-            let new_read = {read with disp = Open} in
-            let c_write = c.write in
-            match c_write.disp with
-            | Finishing | Finished ->
-                let new_write = {c_write with disp = Open} in
-                correct({c with read = new_read; write = new_write})
-            | _ -> unexpectedError "[moveToOpenState] should only work on Finishing or Finished write states"
-        | _ -> unexpectedError "[moveToOpenState] should only work on Finishing read states"
-    else
-        Error(Dispatcher,CheckFailed)
+            let new_write = {c_write with disp = Open} in
+            {c with read = new_read; write = new_write}
+        | _ -> unexpectedError "[moveToOpenState] should only work on Finishing or Finished write states"
+    | _ -> unexpectedError "[moveToOpenState] should only work on Finishing read states"
 
 let reIndex_dState (oldKI:KeyInfo) newKI dState ccsD =
     let newConn = Record.initConnState newKI ccsD in
@@ -313,9 +309,12 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
                         let c = { c with handshake = new_hs_state;
                                          write     = new_write }
                         (* Move to the new state *)
-                        match moveToOpenState (Conn(id,c)) new_info with
-                        | Error(x,y) -> let closed = closeConnection (Conn(id,c)) in (Error(x,y),closed) // do not send alerts! We are on a new session, and the user does not like it. Just close everything!
-                        | Correct(c) -> (correct(WriteAgain),Conn(id,c))
+                        // Sanity check: in and out session infos should be the same
+                        if id.id_in.sinfo = id.id_out.sinfo then
+                            let c = moveToOpenState (Conn(id,c)) new_info in
+                            (correct(WriteAgain),Conn(id,c))
+                        else
+                            let closed = closeConnection (Conn(id,c)) in (Error(Dispatcher,CheckFailed),closed)
                     | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (Error(x,y), closed) (* Unrecoverable error *)
                 | _ -> let closed = closeConnection (Conn(id,c)) in (Error(Dispatcher,InvalidState), closed) (* TODO: we might want to send an "internal error" fatal alert *)
       | (Alert.ALFrag(tlen,f),new_al_state) ->        
@@ -355,9 +354,11 @@ let deliver (Conn(id,c)) ct tlen frag =
   match (ct,frag,c_read.disp) with 
 
   | Handshake, TLSFragment.FHandshake(f), x when x = Init || x = FirstHandshake || x = Finishing || x = Open ->
-    match Handshake.recv_fragment id c_read.seqn c.handshake tlen f with
+    let readSeqN = c_read.seqn in
+    let c_hs = c.handshake in
+    match Handshake.recv_fragment id readSeqN c_hs tlen f with
     | (Correct(corr),hs) ->
-        let new_seqn = c_read.seqn+1 in
+        let new_seqn = readSeqN+1 in
         let c_read = {c_read with seqn = new_seqn} in
         match corr with
         | Handshake.HSAck ->
@@ -370,6 +371,11 @@ let deliver (Conn(id,c)) ct tlen frag =
                    Set the negotiated version in the current sinfo (read and write side), 
                    and move to the FirstHandshake state, so that
                    protocol version will be properly checked *)
+
+                // FIXME: We are re-indexing, again. But this time because we update the protocol version
+                // in the null session info. It is ok to re-index within the null session, but we
+                // must explain f7 that this is safe.
+                // failwith "FIXME: Reindex on null session"
                 let new_sinfo = {id.id_out.sinfo with protocol_version = pv } in // equally with id.id_in.sinfo
                 let idIN = {id.id_in with sinfo = new_sinfo} in
                 let idOUT = {id.id_out with sinfo = new_sinfo} in
@@ -387,16 +393,19 @@ let deliver (Conn(id,c)) ct tlen frag =
             match x with
             | Finishing ->
                 (correct (HSDone),Conn(id,{c with read = c_read; handshake = hs}))
-            | _ -> (Error(Dispatcher,InvalidState), closeConnection (Conn(id,{c with handshake = hs})) ) // TODO: We might want to send some alert here
-        | Handshake.HSFullyFinished_Read(new_info) ->
+            | _ -> let closed = closeConnection (Conn(id,{c with handshake = hs})) in (Error(Dispatcher,InvalidState), closed ) // TODO: We might want to send some alert here
+        | Handshake.HSFullyFinished_Read(newSI,newMS,newDIR) ->
+            let newInfo = (newSI,newMS,newDIR) in
             let c = {c with read = c_read; handshake = hs} in
             (* Ensure we are in Finishing state *)
             match x with
             | Finishing ->
-                match moveToOpenState (Conn(id,c)) new_info with
-                | Error(x,y) -> (Error(x,y), closeConnection (Conn(id,c))) // do not send alerts! We are on a new session, and the user does not like it. Just close everything!
-                | Correct(c) -> (correct(HSDone), Conn(id,c))
-            | _ -> (Error(Dispatcher,InvalidState), closeConnection (Conn(id,c))) // TODO: We might want to send some alert here.
+                // Sanity check: in and out session infos should be the same
+                if id.id_in.sinfo = id.id_out.sinfo then
+                    let c = moveToOpenState (Conn(id,c)) newInfo in
+                    (correct(HSDone), Conn(id,c))
+                else let closed = closeConnection (Conn(id,c)) in (Error(Dispatcher,CheckFailed),closed)
+            | _ -> let closed = closeConnection (Conn(id,c)) in (Error(Dispatcher,InvalidState), closed ) // TODO: We might want to send some alert here.
     | (Error(x,y),hs) -> (Error(x,y),Conn(id,{c with handshake = hs})) (* TODO: we might need to send some alerts *)
 
   | Change_cipher_spec, TLSFragment.FCCS(f), x when x = FirstHandshake || x = Open -> 
@@ -404,15 +413,15 @@ let deliver (Conn(id,c)) ct tlen frag =
     | (Correct(ccs),hs) ->
         let (newKiIN,ccs_data) = ccs in
         if checkCompatibleSessions id.id_in.sinfo newKiIN.sinfo c.poptions then
-            let id = {id with id_in = newKiIN} in
-            let new_recv = Record.initConnState id.id_in ccs_data in
-            let new_read = {disp = Finishing; conn = new_recv; seqn = 0} in
-            let c = { c with handshake = hs;
-                             read = new_read}
-            (correct (ReadAgain), Conn(id,c))
+            let c = {c with handshake = hs} in
+            let newID = {id with id_in = newKiIN} in
+            let c = reIndex_in id newID c ccs_data in
+            let new_read = {c.read with disp = Finishing; seqn = 0} in
+            let c = { c with read = new_read}
+            (correct (ReadAgain), Conn(newID,c))
         else
-            (Error(Dispatcher, UserAborted), closeConnection (Conn(id,c))) (* TODO: we might want to send an "internal error" fatal alert *)
-    | (Error (x,y),hs) -> (Error (x,y), closeConnection (Conn(id,{c with handshake = hs}))) // TODO: We might want to send some alert here.
+            let closed = closeConnection (Conn(id,c)) in (Error(Dispatcher, UserAborted), closed ) (* TODO: we might want to send an "internal error" fatal alert *)
+    | (Error (x,y),hs) -> let closed = closeConnection (Conn(id,{c with handshake = hs})) in (Error (x,y), closed) // TODO: We might want to send some alert here.
 
   | Alert, TLSFragment.FAlert(f), _ ->
     match Alert.recv_fragment id c_read.seqn c.alert tlen f with
@@ -432,8 +441,9 @@ let deliver (Conn(id,c)) ct tlen frag =
         let new_seqn = c_read.seqn + 1 in
         let new_read = {c_read with seqn = new_seqn} in
         let c = {c with read = new_read; alert = state}
-        (correct (Abort), closeConnection (Conn(id,c)))
-    | Error (x,y) -> (Error(x,y),closeConnection(Conn(id,c))) // TODO: We might want to send some alert here.
+        let closed = closeConnection (Conn(id,c)) in
+        (correct (Abort), closed )
+    | Error (x,y) -> let closed = closeConnection(Conn(id,c)) in (Error(x,y),closed) // TODO: We might want to send some alert here.
 
   | Application_data, TLSFragment.FAppData(f), Open -> 
     let appstate = AppData.recv_fragment id c_read.seqn c.appdata tlen f in

@@ -97,8 +97,9 @@ val ask_hs_request:  c:Connection -> protocolOptions -> (;c) CompatibleConnectio
 val getSessionInfo: c:Connection -> si:SessionInfo{si=ConnectionOutSessionInfo(c)}
 
 val moveToOpenState: c:Connection ->
-	(si:SessionInfo * (;si)PRFs.masterSecret * Direction){si=ConnectionOutSessionInfo(c)} ->
-	(;ConnectionIndex(c))globalState Result
+	(si:SessionInfo * (;si)PRFs.masterSecret * Direction)
+		{si=ConnectionOutSessionInfo(c) /\ si=ConnectionInSessionInfo(c)} ->
+	(;ConnectionIndex(c))globalState
 
 val reIndex_dState: oldKI:KeyInfo -> newKI:KeyInfo{CompatibleSessions(oldKI.sinfo,newKI.sinfo)} ->
 	(;oldKI)dState -> (;newKI)ccs_data -> (;newKI)dState
@@ -131,7 +132,7 @@ val writeOne: c:Connection ->
 // Normally, the returned read-side seqn will be increased by one
 // expect if we delivered a CCS, in which case it is 0
 val deliver: c:Connection -> ct:ContentType -> tlen:int ->
-	(;ConnectionOutKeyInfo(c),tlen,ConnectionReadSeqn(c),ct)TLSFragment.fragment ->
+	(;ConnectionInKeyInfo(c),tlen,ConnectionReadSeqn(c),ct)TLSFragment.fragment ->
 	(deliverOutcome Result * (;c) CompatibleConnection)
 
 val recv: c:Connection ->
