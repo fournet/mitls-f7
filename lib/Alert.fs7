@@ -33,7 +33,7 @@ type (;ci:ConnectionInfo)alert_reply =
 // Conversions
 function val AlertBytes: alertDescription -> bytes
 private assume
-	AlertBytes(AD_close_notify						) = [|2uy;   0uy|] /\
+	AlertBytes(AD_close_notify						) = [|1uy;   0uy|] /\
 	AlertBytes(AD_unexpected_message				) = [|2uy;  10uy|] /\
 	AlertBytes(AD_bad_record_mac					) = [|2uy;  20uy|] /\
 	AlertBytes(AD_decryption_failed					) = [|2uy;  21uy|] /\
@@ -70,7 +70,6 @@ val parseAlert: b:bytes -> (ad:alertDescription{b=AlertBytes(ad)}) Result
 
 predicate IsFatal of alertDescription
 private assume
-	IsFatal(AD_close_notify         		) /\
 	IsFatal(AD_unexpected_message   		) /\
 	IsFatal(AD_bad_record_mac       		) /\
 	IsFatal(AD_decryption_failed    		) /\

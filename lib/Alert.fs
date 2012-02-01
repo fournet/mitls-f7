@@ -38,7 +38,7 @@ let alertBytes ad =
   (* Severity (warning or fatal) is hardcoded,
      as specified in sec. 7.2.2 *)
   match ad with
-    | AD_close_notify ->                       [|2uy;   0uy|]
+    | AD_close_notify ->                       [|1uy;   0uy|]
     | AD_unexpected_message ->                 [|2uy;  10uy|]
     | AD_bad_record_mac ->                     [|2uy;  20uy|]
     | AD_decryption_failed ->                  [|2uy;  21uy|]
@@ -72,7 +72,7 @@ let alertBytes ad =
 
 let parseAlert b =
     match b with
-    | [|2uy;   0uy|] -> correct(AD_close_notify                         )
+    | [|1uy;   0uy|] -> correct(AD_close_notify                         )
     | [|2uy;  10uy|] -> correct(AD_unexpected_message                   )
     | [|2uy;  20uy|] -> correct(AD_bad_record_mac                       )
     | [|2uy;  21uy|] -> correct(AD_decryption_failed                    )
@@ -106,8 +106,7 @@ let parseAlert b =
     | _ -> Error(Parsing,WrongInputParameters)
 
 let isFatal ad =
-    match ad with
-    | AD_close_notify         
+    match ad with       
     | AD_unexpected_message   
     | AD_bad_record_mac       
     | AD_decryption_failed    
