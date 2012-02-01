@@ -13,29 +13,29 @@ let try_read_mimes path =
         Mime.MimeMap ()
 
 let tlsoptions = {
-    AppCommon.minVer = CipherSuites.ProtocolVersion.SSL_3p0
-    AppCommon.maxVer = CipherSuites.ProtocolVersion.TLS_1p2
+    AppConfig.minVer = CipherSuites.ProtocolVersion.SSL_3p0
+    AppConfig.maxVer = CipherSuites.ProtocolVersion.TLS_1p2
 
-    AppCommon.ciphersuites =
+    AppConfig.ciphersuites =
         CipherSuites.cipherSuites_of_nameList [
             CipherSuites.TLS_RSA_WITH_AES_128_CBC_SHA;
             CipherSuites.TLS_RSA_WITH_3DES_EDE_CBC_SHA;
         ]
 
-    AppCommon.compressions = [ CipherSuites.NullCompression ]
+    AppConfig.compressions = [ CipherSuites.NullCompression ]
 
-    AppCommon.honourHelloReq = AppCommon.HRPResume
-    AppCommon.allowAnonCipherSuite = false
-    AppCommon.request_client_certificate = false
-    AppCommon.check_client_version_in_pms_for_old_tls = true
-    AppCommon.safe_renegotiation = true
+    AppConfig.honourHelloReq = AppConfig.HRPResume
+    AppConfig.allowAnonCipherSuite = false
+    AppConfig.request_client_certificate = false
+    AppConfig.check_client_version_in_pms_for_old_tls = true
+    AppConfig.safe_renegotiation = true
 
-    AppCommon.server_cert_file = "server"
-    AppCommon.certificateValidationPolicy = (fun _ -> true)
-    AppCommon.isCompatibleSession = (fun oldS newS -> oldS = newS)
+    AppConfig.server_cert_file = "server"
+    AppConfig.certificateValidationPolicy = (fun _ -> true)
+    AppConfig.isCompatibleSession = (fun oldS newS -> oldS = newS)
 
-    AppCommon.sessionDBFileName = "sessionDBFile.bin"
-    AppCommon.sessionDBExpiry = new System.TimeSpan(2,0,0,0) (* two days *)
+    AppConfig.sessionDBFileName = "sessionDBFile.bin"
+    AppConfig.sessionDBExpiry = new System.TimeSpan(2,0,0,0) (* two days *)
 }
 
 let _ =

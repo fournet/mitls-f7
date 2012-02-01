@@ -4,7 +4,7 @@ open Error
 
 let serverIP = "google.com" // "rigoletto.polito.it" // 128.93.188.162
 let serverPort = 443
-let options = AppCommon.defaultProtocolOptions
+let options = AppConfig.defaultProtocolOptions
 
 let testCl options =
     let ns = Tcp.connect serverIP serverPort in

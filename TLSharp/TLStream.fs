@@ -42,9 +42,9 @@ type TLStream(s:System.Net.Sockets.NetworkStream, options, b) =
             if equalBytes buf [||] then
                 (* Read from the socket, and possibly buffer some data *)
                 match TLS.read conn with
-                | (Error(Tcp, Internal), _) -> [||] (* XXX: We should distinghuish between EOF and failures *)
-                | (Error(x,y), c) -> raise (IOException(sprintf "TLS-Read: %A %A" x y))
-                | (Correct(data),c) ->
+                // | (_,Error(Tcp, Internal)) -> [||] (* XXX: We should distinghuish between EOF and failures *)
+                | (_,Error(x,y)) -> raise (IOException(sprintf "TLS-Read: %A %A" x y))
+                | (c,Correct(data)) ->
                     conn <- c
                     data
             else (* Use the buffer *)

@@ -85,7 +85,7 @@ val write: Connection -> bytes -> Connection
 (* val sendOneFragment: Connection -> (unit Result) * Connection *)
 val flush: Connection -> (unit Result) * Connection
 
-val read: Connection -> (bytes Result) * Connection
+val read: Connection -> Connection * (bytes Result) // This order, because returned bytes depend on returned connection
 (* Polls whether there are data available in the current input buffer
    (a processed application data fragment not yet delivered to the user).
    Note that this function will not check whether data are available on the
