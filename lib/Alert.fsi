@@ -16,9 +16,9 @@ val fragment: KeyInfo -> int -> int -> Bytes.bytes -> fragment
 
 type ALFragReply =
     | EmptyALFrag
-    | ALFrag of (int * fragment)
-    | LastALFrag of (int * fragment)
-    | LastALCloseFrag of (int * fragment)
+    | ALFrag of int * fragment
+    | LastALFrag of int * fragment
+    | LastALCloseFrag of int * fragment
 
 type alert_reply =
     | ALAck of state

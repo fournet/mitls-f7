@@ -510,8 +510,8 @@ let parseOneCertificate b =
     | Correct (one,rest) ->
         match certificate_of_bytes one with
         | Correct(c) -> Correct(c,rest) 
-        | Error(x,y) -> Error(HSError(AD_bad_certificate),HSSendAlert)
-    | Error(x,y)     -> Error(HSError(AD_bad_certificate),HSSendAlert)
+        | Error(x,y) -> Error(HSError(AD_bad_certificate_fatal),HSSendAlert)
+    | Error(x,y)     -> Error(HSError(AD_bad_certificate_fatal),HSSendAlert)
 // then call 
 // parseList parseOneCerticate b instead of 
 // parseCertificate_int b []
@@ -521,17 +521,17 @@ let rec parseCertificate_int toProcess list =
         correct(list)
     else
         match vlsplit 3 toProcess with
-        | Error(x,y) -> Error(HSError(AD_bad_certificate),HSSendAlert)
+        | Error(x,y) -> Error(HSError(AD_bad_certificate_fatal),HSSendAlert)
         | Correct (nextCertBytes,toProcess) ->
         match certificate_of_bytes nextCertBytes with
-        | Error(x,y) -> Error(HSError(AD_bad_certificate),HSSendAlert)
+        | Error(x,y) -> Error(HSError(AD_bad_certificate_fatal),HSSendAlert)
         | Correct(nextCert) ->
             let list = list @ [nextCert] in
             parseCertificate_int toProcess list
 
 let parseCertificate data =
     match vlsplit 3 data with
-    | Error(x,y) -> Error(HSError(AD_bad_certificate),HSSendAlert)
+    | Error(x,y) -> Error(HSError(AD_bad_certificate_fatal),HSSendAlert)
     | Correct (certList,_) ->
     //CF why ignoring the rest? This breaks VerifyData
     match parseCertificate_int certList [] with
@@ -1222,7 +1222,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Error(x,y) -> (Error(x,y),state)
                 | Correct(certs) ->
                     if not (state.poptions.certificateValidationPolicy certs.certificate_list) then
-                        (Error(HSError(AD_bad_certificate),HSSendAlert),state)
+                        (Error(HSError(AD_bad_certificate_fatal),HSSendAlert),state)
                     else (* We have validated server identity *)
                         (* Log the received packet *)
                         let new_log = state.hs_msg_log @| to_log in
@@ -1680,7 +1680,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Error(x,y) -> (Error(x,y),state)
                 | Correct(certMsg) ->
                     if not (state.poptions.certificateValidationPolicy certMsg.certificate_list) then
-                        (Error(HSError(AD_bad_certificate),HSSendAlert),state)
+                        (Error(HSError(AD_bad_certificate_fatal),HSSendAlert),state)
                     else (* We have validated client identity *)
                         (* Log the received packet *)
                         let new_log = state.hs_msg_log @| to_log in

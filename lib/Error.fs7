@@ -9,11 +9,16 @@ type alertDescription =
     | AD_decompression_failure
     | AD_handshake_failure
     | AD_no_certificate
-    | AD_bad_certificate
-    | AD_unsupported_certificate
-    | AD_certificate_revoked
-    | AD_certificate_expired
-    | AD_certificate_unknown
+    | AD_bad_certificate_warning
+    | AD_bad_certificate_fatal
+    | AD_unsupported_certificate_warning
+    | AD_unsupported_certificate_fatal
+    | AD_certificate_revoked_warning
+    | AD_certificate_revoked_fatal
+    | AD_certificate_expired_warning
+    | AD_certificate_expired_fatal
+    | AD_certificate_unknown_warning
+    | AD_certificate_unknown_fatal
     | AD_illegal_parameter
     | AD_unknown_ca
     | AD_access_denied
@@ -23,7 +28,8 @@ type alertDescription =
     | AD_protocol_version
     | AD_insufficient_security
     | AD_internal_error
-    | AD_user_cancelled
+    | AD_user_cancelled_warning
+    | AD_user_cancelled_fatal
     | AD_no_renegotiation
     | AD_unsupported_extension
 
