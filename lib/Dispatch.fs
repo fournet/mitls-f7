@@ -174,7 +174,14 @@ let reIndex_dState (oldKI:KeyInfo) newKI dState ccsD =
     let newConn = Record.initConnState newKI ccsD in
     {dState with conn = newConn}
 
+let reIndex_dState_null oldKI newKI dState =
+    let newConn = Record.reIndex_null oldKI newKI dState.conn in
+    {dState with conn = newConn}
+
 let reIndex_out oldID newID c ccsD =
+    // Note: cannot factor out the next three lines in a single function,
+    // because the returned Connection would have inconsistent index.
+    // All indexes must be changed atomically inside one function
     let newHS =      Handshake.reIndex oldID newID c.handshake in
     let newAlert =   Alert.reIndex     oldID newID c.alert in
     let newAppData = AppData.reIndex   oldID newID c.appdata in
@@ -193,6 +200,18 @@ let reIndex_in oldID newID c ccsD =
              alert =     newAlert;
              appdata =   newAppData;
              read =      newRead}
+
+let reIndex_null oldID newID c =
+    let newHS =      Handshake.reIndex oldID newID c.handshake in
+    let newAlert =   Alert.reIndex     oldID newID c.alert in
+    let newAppData = AppData.reIndex   oldID newID c.appdata in
+    let newRead =    reIndex_dState_null oldID.id_in  newID.id_in  c.read in
+    let newWrite =   reIndex_dState_null oldID.id_out newID.id_out c.write in
+    { c with handshake = newHS;
+             alert =     newAlert;
+             appdata =   newAppData;
+             read =      newRead;
+             write =     newWrite}
 
 let closeConnection (Conn(id,c)) =
     let new_read = {c.read with disp = Closed} in
@@ -372,19 +391,33 @@ let deliver (Conn(id,c)) ct tlen frag =
                    and move to the FirstHandshake state, so that
                    protocol version will be properly checked *)
 
-                // FIXME: We are re-indexing, again. But this time because we update the protocol version
-                // in the null session info. It is ok to re-index within the null session, but we
-                // must explain f7 that this is safe.
-                failwith "FIXME: Reindex on null session"
-                let new_sinfo = {id.id_out.sinfo with protocol_version = pv } in // equally with id.id_in.sinfo
-                let idIN = {id.id_in with sinfo = new_sinfo} in
-                let idOUT = {id.id_out with sinfo = new_sinfo} in
-                let id = {id_in = idIN; id_out = idOUT} in
-                let new_read = {c_read with disp = FirstHandshake} in
-                let new_write = {c.write with disp = FirstHandshake} in
-                (correct (ReadAgain), Conn(id, { c with handshake = hs;
-                                                        read = new_read;
-                                                        write = new_write}) )
+                // Check we really are on a null session
+                let id_in = id.id_in in
+                let id_out = id.id_out in
+                let old_sinfo_in = id_in.sinfo in
+                let old_sinfo_out = id_out.sinfo in
+                let c_write = c.write in
+                let si1 = isNullSessionInfo old_sinfo_out in
+                let si2 = isNullSessionInfo old_sinfo_in in
+                if si1 && si2 then
+                    // update the state
+                    let new_read = {c_read with disp = FirstHandshake} in
+                    let new_write = {c_write with disp = FirstHandshake} in
+                    let c = {c with handshake = hs;
+                                    read = new_read;
+                                    write = new_write} in
+                    // reIndex everything
+                    let new_sinfo = {old_sinfo_out with protocol_version = pv } in // equally with id.id_in.sinfo
+                    let idIN = {id_in with sinfo = new_sinfo} in
+                    let idOUT = {id_out with sinfo = new_sinfo} in
+                    let newID = {id_in = idIN; id_out = idOUT} in
+                    // FIXME: not typechecking
+                    failwith "FIXME: imrpove typechecking for reIndex_null"
+                    let c = reIndex_null id newID c in
+                    (correct (ReadAgain), Conn(newID,c) )
+                else
+                    let closed = closeConnection (Conn(id,c)) in
+                    (Error(Dispatcher,InvalidState),closed)
             | _ -> (* It means we are doing a re-negotiation. Don't alter the current version number, because it
                      is perfectly valid. It will be updated after the next CCS, along with all other session parameters *)
                 ((correct (ReadAgain), Conn(id, { c with read = c_read; handshake = hs}) ))

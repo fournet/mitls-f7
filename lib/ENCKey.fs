@@ -15,3 +15,6 @@ type iv = bytes
 type iv3 =
     | SomeIV of iv
     | NoIV of bool
+
+let reIndexKey (oldID:KeyInfo) (newID:KeyInfo) key = {k = key.k}
+let reIndexIV  (oldID:KeyInfo) (newID:KeyInfo) (iv3:iv3) = iv3

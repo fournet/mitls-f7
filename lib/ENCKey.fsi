@@ -13,3 +13,6 @@ type iv = bytes
 type iv3 =
     | SomeIV of iv
     | NoIV of bool
+
+val reIndexKey: KeyInfo -> KeyInfo -> key -> key
+val reIndexIV:  KeyInfo -> KeyInfo -> iv3 -> iv3

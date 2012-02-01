@@ -14,3 +14,11 @@ type (;ki:KeyInfo) iv3 =
 val GEN: ki:KeyInfo -> (;ki)key
 val LEAK:   ki:KeyInfo{Corrupt(ki)} -> (;ki)key -> bytes
 val COERCE: ki:KeyInfo{Corrupt(ki)} -> bytes -> (;ki)key
+
+val reIndexKey: oldKI:KeyInfo{NullSessionInfo(oldKI.sinfo)} ->
+	newKI:KeyInfo{NullSessionInfo(newKI.sinfo)} ->
+	(;oldKI)key -> (;newKI)key
+
+val reIndexIV: oldKI:KeyInfo{NullSessionInfo(oldKI.sinfo)} ->
+	newKI:KeyInfo{NullSessionInfo(newKI.sinfo)} ->
+	(;oldKI)iv3 -> (;newKI)iv3

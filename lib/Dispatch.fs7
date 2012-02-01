@@ -104,6 +104,10 @@ val moveToOpenState: c:Connection ->
 val reIndex_dState: oldKI:KeyInfo -> newKI:KeyInfo{CompatibleSessions(oldKI.sinfo,newKI.sinfo)} ->
 	(;oldKI)dState -> (;newKI)ccs_data -> (;newKI)dState
 
+val reIndex_dState_null: oldKI:KeyInfo{NullSessionInfo(oldKI.sinfo)} ->
+	newKI:KeyInfo{NullSessionInfo(newKI.sinfo)} ->
+	(;oldKI)dState -> (;newKI)dState
+
 val reIndex_out: oldID:ConnectionInfo ->
 	newID:ConnectionInfo{oldID.id_in = newID.id_in /\
 						 CompatibleSessions(oldID.id_out.sinfo,newID.id_out.sinfo)} ->
@@ -115,6 +119,15 @@ val reIndex_in: oldID:ConnectionInfo ->
 						 CompatibleSessions(oldID.id_in.sinfo,newID.id_in.sinfo)} ->
 	(;oldID)globalState -> (;newID.id_in)ccs_data ->
 	(;newID)globalState
+
+val reIndex_null: oldID:ConnectionInfo{
+	NullSessionInfo(oldID.id_out.sinfo) /\
+	NullSessionInfo(oldID.id_in.sinfo)} ->
+	newID:ConnectionInfo{
+	NullSessionInfo(newID.id_out.sinfo) /\
+	NullSessionInfo(newID.id_in.sinfo)} ->
+	(;oldID)globalState -> (;newID)globalState
+
 
 val closeConnection: c:Connection-> (;c) CompatibleConnection
 

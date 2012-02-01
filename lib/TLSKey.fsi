@@ -16,3 +16,4 @@ type ccs_data =
       ccsIV3: ENCKey.iv3;
     }
 val nullCCSData: KeyInfo -> ccs_data
+val reIndex: KeyInfo -> KeyInfo -> recordKey -> recordKey

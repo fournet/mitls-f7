@@ -24,3 +24,7 @@ type (;ki:KeyInfo) ccs_data =
     }
 
 val nullCCSData: ki:KeyInfo -> (;ki) ccs_data
+
+val reIndex: oldKI:KeyInfo{NullSessionInfo(oldKI.sinfo)} ->
+	newKI:KeyInfo{NullSessionInfo(newKI.sinfo)} ->
+	(;oldKI)recordKey -> (;newKI)recordKey
