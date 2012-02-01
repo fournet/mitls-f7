@@ -2,6 +2,8 @@
 
 open Bytes
 open TLSInfo
+open CipherSuites
+open Algorithms
 
 val max_TLSPlaintext_fragment_length: n:nat { n = 16384 (* 2^14 *) }
 val fragmentLength: n:nat{n <= max_TLSPlaintext_fragment_length}
@@ -13,7 +15,16 @@ type tlen = n:nat{n <= max_TLSCipher_fragment_length}
 
 predicate CompatibleLength of SessionInfo * nat * tlen
 
-val cipherLength: si:SessionInfo -> n:int{n=fragmentLength} -> t:tlen{CompatibleLength(si,n,t)}
+private assume !si,n,t.
+	IsNullCiphersuite(si.cipher_suite) /\ t = n => CompatibleLength(si,n,t)
+private assume !si,n,t.
+	IsOnlyMACCiphersuite(si.cipher_suite) /\ 
+	t = n + MacKeySize(CipherSuiteMACAlg(si.cipher_suite)) =>
+		CompatibleLength(si,n,t)
+
+val padLength: SessionInfo -> int -> int
+
+val cipherLength: si:SessionInfo -> n:nat{n<=max_TLSPlaintext_fragment_length} -> t:tlen{CompatibleLength(si,n,t)}
 val splitInFrag: ki:KeyInfo -> b:bytes ->
-		(n:int * b1:bytes * b2:bytes){CompatibleLength(ki.sinfo,Length(b1),n) /\
-				b = b1 @| b2 /\ Length(b1) = fragmentLength}
+		(n:nat * b1:bytes * b2:bytes){CompatibleLength(ki.sinfo,Length(b1),n) /\
+				b = b1 @| b2 /\ Length(b1) <= max_TLSPlaintext_fragment_length}

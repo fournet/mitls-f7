@@ -76,7 +76,12 @@ val verifyDataLen_of_ciphersuite: cipherSuite -> int
 val prfHashAlg_of_ciphersuite: cipherSuite  -> hashAlg
 val verifyDataHashAlg_of_ciphersuite: cs:cipherSuite -> hashAlg
 
-val macAlg_of_ciphersuite: cs:cipherSuite -> hashAlg
+function val CipherSuiteMACAlg: cipherSuite -> hashAlg
+private assume !kex,enc,mac.
+	CipherSuiteMACAlg(CipherSuite(kex,EncMAC(enc,mac))) = mac
+private assume !enc,mac.
+	CipherSuiteMACAlg(OnlyMACCipherSuite(enc,mac)) = mac
+val macAlg_of_ciphersuite: cs:cipherSuite -> h:hashAlg{h = CipherSuiteMACAlg(cs)}
 val encAlg_of_ciphersuite: cipherSuite -> cipherAlg
 
 predicate KnownCipherSuite of cipherSuite 

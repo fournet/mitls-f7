@@ -157,8 +157,8 @@ AppConfig.tc7: $(libperv) $(libfs7) Bytes.fs7 Principal.fs7 Algorithms.fs7 Ciphe
 # trusting SessionDB.fs7
 
 # trusting FragCommon.fs7 (where we assume the CompatibleLength predicate)
-#FragCommon.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Ciphersuites.fs7 TLSInfo.fs7 FragCommon.fs7 FragCommon.fs
-#	$(f7t) Bytes.fs7 Algorithms.fs7 Ciphersuites.fs7 TLSInfo.fs7 FragCommon.fs7 FragCommon.fs
+FragCommon.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 FragCommon.fs7 FragCommon.fs
+	$(f7t) -scripts FragCommon Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 FragCommon.fs7 FragCommon.fs
 
 AppDataPlain.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppConfig.fs7 SessionDB.fs7 FragCommon.fs7 AppDataPlain.fs7 AppDataPlain.fs
 	$(f7t) Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppConfig.fs7 SessionDB.fs7 FragCommon.fs7 AppDataPlain.fs7 AppDataPlain.fs

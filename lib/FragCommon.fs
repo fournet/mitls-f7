@@ -11,6 +11,8 @@ let fragmentLength = max_TLSPlaintext_fragment_length (* use e.g. 1 for testing 
 let max_TLSCompressed_fragment_length = max_TLSPlaintext_fragment_length + 1024
 let max_TLSCipher_fragment_length = max_TLSCompressed_fragment_length + 1024
 
+type tlen = int
+
 (* generate the minimal padding for payload len, in 1..blocksize *)
 // We need a typable version; not so hard (but we may need axioms on arrays)
 // by convention, all paddings include their length byte. 
@@ -33,16 +35,30 @@ let padLength sinfo len =
     | _ -> unexpectedError "[compute_pad] invoked on wrong protocol version"
     *)
 
+// let cipherLength sinfo plainLen =
+//   let l = 
+//     plainLen + 
+//     let cs = sinfo.cipher_suite in
+//     if isNullCipherSuite cs then 0 else 
+//         let macLen = macSize (macAlg_of_ciphersuite cs) in
+//         macLen + 
+//         if isOnlyMACCipherSuite cs then 0 else padLength sinfo (plainLen + macLen) 
+//         // TODO: add support for GCM, now we only support MtE
+//   l
+
 let cipherLength sinfo plainLen =
-  let l = 
-    plainLen + 
     let cs = sinfo.cipher_suite in
-    if isNullCipherSuite cs then 0 else 
+    if isNullCipherSuite cs then
+        plainLen
+    else if isOnlyMACCipherSuite cs then
         let macLen = macSize (macAlg_of_ciphersuite cs) in
-        macLen + 
-        if isOnlyMACCipherSuite cs then 0 else padLength sinfo (plainLen + macLen) 
-        // TODO: add support for GCM, now we only support MtE
-  l
+        let res = plainLen + macLen in
+        res
+    else
+        let macLen = macSize (macAlg_of_ciphersuite cs) in
+        let prePad = plainLen + macLen in
+        let padLen = padLength sinfo prePad in
+        prePad + padLen
 
 let splitInFrag ki b =
     let (frag,rem) =
