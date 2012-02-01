@@ -394,12 +394,10 @@ let deliver (Conn(id,c)) ct tlen frag =
                 // Check we really are on a null session
                 let id_in = id.id_in in
                 let id_out = id.id_out in
-                let old_sinfo_in = id_in.sinfo in
-                let old_sinfo_out = id_out.sinfo in
+                let old_in_sinfo = id_in.sinfo in
+                let old_out_sinfo = id_out.sinfo in
                 let c_write = c.write in
-                let si1 = isNullSessionInfo old_sinfo_out in
-                let si2 = isNullSessionInfo old_sinfo_in in
-                if si1 && si2 then
+                if isNullSessionInfo old_out_sinfo && isNullSessionInfo old_in_sinfo then
                     // update the state
                     let new_read = {c_read with disp = FirstHandshake} in
                     let new_write = {c_write with disp = FirstHandshake} in
@@ -407,12 +405,10 @@ let deliver (Conn(id,c)) ct tlen frag =
                                     read = new_read;
                                     write = new_write} in
                     // reIndex everything
-                    let new_sinfo = {old_sinfo_out with protocol_version = pv } in // equally with id.id_in.sinfo
+                    let new_sinfo = {old_out_sinfo with protocol_version = pv } in // equally with id.id_in.sinfo
                     let idIN = {id_in with sinfo = new_sinfo} in
                     let idOUT = {id_out with sinfo = new_sinfo} in
                     let newID = {id_in = idIN; id_out = idOUT} in
-                    // FIXME: not typechecking
-                    failwith "FIXME: imrpove typechecking for reIndex_null"
                     let c = reIndex_null id newID c in
                     (correct (ReadAgain), Conn(newID,c) )
                 else

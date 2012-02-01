@@ -199,7 +199,7 @@ record.tc7: $(libperv) $(libfs7) $(recordfs7) record.fs
 	$(f7t) -genprotofs -protofsfile proto.ml -scripts record $(recordfs7) record.fs
 
 Dispatch.tc7: $(libperv) $(libfs7) $(recordfs7) Dispatch.fs7 Dispatch.fs
-	$(f7t) -timeout 1 -scripts Dispatch $(recordfs7) Dispatch.fs7 Dispatch.fs | tee Dispatch.tc7
+	$(f7t) -timeout 50 --verbose -scripts Dispatch $(recordfs7) Dispatch.fs7 Dispatch.fs | tee Dispatch.tc7
 
 TLS.tc7: $(libperv) $(libfs7) $(recordfs7) Dispatch.fs7 TLS.fs7 TLS.fs
 	$(f7t) $(recordfs7) Dispatch.fs7 TLS.fs7 TLS.fs

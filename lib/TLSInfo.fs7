@@ -31,7 +31,7 @@ type SessionInfo = {
 
 predicate NullSessionInfo of SessionInfo 
 
-private assume !si. NullSessionInfo(si) <=> (si.clientID = None /\ si.serverID = None /\ si.sessionID = None /\
+assume !si. NullSessionInfo(si) <=> (si.clientID = None /\ si.serverID = None /\ si.sessionID = None /\
     IsNullCiphersuite(si.cipher_suite) /\ si.compression = NullCompression /\ si.init_crand = [||] /\ si.init_srand = [||] )
 
 val null_sessionInfo: pv:ProtocolVersion -> si:SessionInfo{NullSessionInfo(si)}
@@ -75,6 +75,7 @@ predicate UserSaysCompatibleSessions of SessionInfo * SessionInfo
 
 predicate CompatibleSessions of SessionInfo * SessionInfo
 assume !s. CompatibleSessions(s,s)
+assume !s1,s2,s3. CompatibleSessions(s1,s2) /\ CompatibleSessions(s2,s3) => CompatibleSessions(s1,s3)
 assume !s1,s2. UserSaysCompatibleSessions(s1,s2) => CompatibleSessions(s1,s2)
 assume !nulls,s. NullSessionInfo(nulls) => CompatibleSessions(nulls,s)
 
