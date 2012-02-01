@@ -602,11 +602,11 @@ let readAppData (Conn(id,c)) =
         else
             (correct(unitVal),Conn(id,c))
     match newConnRes with
-    | (Error(x,y),conn) -> (Error(x,y),conn)
+    | (Error(x,y),conn) -> (conn,Error(x,y))
     | (Correct(unitVal),Conn(id,c)) ->
         let (b,appState) = AppData.retrieve_data id c.appdata in
         let c = {c with appdata = appState} in
-        (correct (b),Conn(id,c))
+        (Conn(id,c),correct (b))
 
     (* Similar to the OpenSSL strategy *)
     (*

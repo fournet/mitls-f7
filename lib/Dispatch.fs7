@@ -177,7 +177,8 @@ val commit: c:Connection ->
 	(;c)CompatibleConnection
 
 val readAppData: c:Connection ->
-	((;ConnectionInSessionInfo(c))AppDataPlain.appdata Result) *
-	(;c)CompatibleConnection
+	c':(;c)CompatibleConnection *
+	((;ConnectionInSessionInfo(c'))AppDataPlain.appdata Result)
+	
 
 val readHS: c:Connection -> unit Result * (;c) CompatibleConnection

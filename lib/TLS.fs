@@ -47,8 +47,8 @@ let flush conn =
 
 let read conn =
     match readAppData conn with
-    | (Error(x,y),conn) -> (Error(x,y),conn)
-    | (Correct(appdata),conn) ->
+    | (conn,Error(x,y)) -> (Error(x,y),conn)
+    | (conn,Correct(appdata)) ->
         // FIXME: next two lines should be in the top level app,
         // and the read function should return appdata
         let si = getSessionInfo conn

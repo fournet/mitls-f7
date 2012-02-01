@@ -32,7 +32,7 @@ val readNextAppFragment: Connection -> (unit Result) * Connection
 *)
 
 val writeAppData: Connection -> (unit Result) * Connection
-val readAppData: Connection -> ((AppDataPlain.appdata Result) * Connection)
+val readAppData: Connection -> (Connection * (AppDataPlain.appdata Result))
 val readHS: Connection -> (unit Result) * Connection
 (* val appDataAvailable: Connection -> bool *)
 

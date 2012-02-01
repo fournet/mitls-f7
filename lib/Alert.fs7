@@ -4,6 +4,12 @@ open Bytes
 open Error
 open TLSInfo
 
+private type alertLevel = 
+    | AL_warning
+    | AL_fatal
+
+private type alert = {level: alertLevel; description: alertDescription}
+
 private type (;ci:ConnectionInfo)pre_al_state = {
   al_incoming: bytes; (* incomplete incoming message *)
   al_outgoing: bytes (* emptybstr if nothing to be sent *) 
