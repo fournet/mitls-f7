@@ -1,7 +1,7 @@
 ﻿module TLS
 
 open Bytes
-open AppCommon
+open AppConfig
 open Dispatch
 open Error
 open TLSInfo

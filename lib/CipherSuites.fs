@@ -300,7 +300,7 @@ let encAlg_of_ciphersuite cs =
     | CipherSuite (_, EncMAC(alg,_)) -> alg
     | _ -> unexpectedError "[encAlg_of_ciphersuite] inovked on an invalid ciphersuite"
 
-(* Not for verification, just to run the implementation. See AppCommon.fs *)
+(* Not for verification, just to run the implementation. See AppConfig.fs *)
 type cipherSuiteName =
     | TLS_NULL_WITH_NULL_NULL              
 

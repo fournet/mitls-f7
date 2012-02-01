@@ -5,7 +5,7 @@ open Error
 open Dispatch
 open TLSInfo
 open Tcp
-open AppCommon
+open AppConfig
 
 
 (* We can't buffer application data internally. They are blessed by the application

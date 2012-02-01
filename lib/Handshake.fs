@@ -8,7 +8,7 @@ open Algorithms
 open CipherSuites
 open TLSInfo
 open TLSKey
-open AppCommon
+open AppConfig
 open Principal
 open SessionDB
 open PRFs

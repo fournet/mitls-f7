@@ -1,7 +1,7 @@
 ﻿module SessionDB
 
 open TLSInfo
-open AppCommon
+open AppConfig
 
 // FIXME: in the DB a session must be identified by sessionID and host!
 type StorableSession = SessionInfo * PRFs.masterSecret * Direction

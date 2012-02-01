@@ -7,7 +7,7 @@ open Error
 open Record
 open Handshake
 open TLSInfo
-open AppCommon
+open AppConfig
 
 type Connection
 

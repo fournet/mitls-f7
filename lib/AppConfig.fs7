@@ -1,4 +1,4 @@
-﻿module AppCommon
+﻿module AppConfig
 
 open Formats
 open CipherSuites

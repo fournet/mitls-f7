@@ -6,7 +6,7 @@ open Error_handling
 open Dispatch
 open Sessions
 open Tcp
-open AppCommon
+open AppConfig
 
 
 predicate type preds =

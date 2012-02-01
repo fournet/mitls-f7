@@ -10,7 +10,7 @@ open AppData
 open Alert
 open TLSInfo
 open TLSKey
-open AppCommon
+open AppConfig
 open SessionDB
 
 type predispatchState =

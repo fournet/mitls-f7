@@ -1,7 +1,7 @@
 ﻿module SessionDB
 
 open TLSInfo
-open AppCommon
+open AppConfig
 
 (*
 val load: filename: string -> Map

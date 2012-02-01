@@ -1,7 +1,7 @@
 ﻿module SessionDB
 
 open TLSInfo
-open AppCommon
+open AppConfig
 open System.IO
 open System.Runtime.Serialization.Formatters.Binary
 open System.Threading
