@@ -139,8 +139,8 @@ TLSInfo.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 Principal.fs7 TLSInfo.fs7 
 # trusting HASH.fs7 (mostly calling System.Security.Cryptography)
 # trusting HMAC.fs7 (mostly calling System.Security.Cryptography)
 
-ENCKey.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 RSA.fs7 Principal.fs7  Ciphersuites.fs7 TLSInfo.fs7 EncKey.fs7 EncKey.fs
-	$(f7t) Bytes.fs7 Algorithms.fs7 Error.fs7 RSA.fs7 Principal.fs7 Ciphersuites.fs7 TLSInfo.fs7 EncKey.fs7 EncKey.fs
+ENCKey.tc7: $(libperv) $(libfs7) Bytes.fs7 Algorithms.fs7 Error.fs7 RSA.fs7 Principal.fs7  Ciphersuites.fs7 TLSInfo.fs7 ENCKey.fs7 ENCKey.fs
+	$(f7t) Bytes.fs7 Algorithms.fs7 Error.fs7 RSA.fs7 Principal.fs7 Ciphersuites.fs7 TLSInfo.fs7 ENCKey.fs7 ENCKey.fs
 
 MACKey.tc7: $(libperv) $(libfs7) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 Ciphersuites.fs7 TLSInfo.fs7 MACKey.fs7 MACKey.fs
 	$(f7t) Bytes.fs7 Error.fs7 RSA.fs7 Principal.fs7 Algorithms.fs7 Ciphersuites.fs7 TLSInfo.fs7 MACKey.fs7 MACKey.fs
