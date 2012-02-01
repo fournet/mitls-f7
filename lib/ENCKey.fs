@@ -17,4 +17,7 @@ type iv3 =
     | NoIV of bool
 
 let reIndexKey (oldID:KeyInfo) (newID:KeyInfo) key = {k = key.k}
-let reIndexIV  (oldID:KeyInfo) (newID:KeyInfo) (iv3:iv3) = iv3
+let reIndexIV  (oldID:KeyInfo) (newID:KeyInfo) (iv3:iv3) =
+    match iv3 with
+    | SomeIV(iv) -> SomeIV(iv)
+    | NoIV(x) -> NoIV(x)
