@@ -17,6 +17,8 @@ predicate AlertFragment of KeyInfo * int * int * Bytes.bytes
 val repr: ki:KeyInfo -> tlen:int -> seqn:int -> (;ki,tlen,seqn)fragment -> b:Bytes.bytes{AlertFragment(ki,tlen,seqn,b)}
 val fragment: ki:KeyInfo -> tlen:int -> seqn:int -> b:Bytes.bytes{AlertFragment(ki,tlen,seqn,b) \/ Corrupt(ki)} -> (;ki,tlen,seqn)fragment
 
+val makeFragment: ki:KeyInfo -> seqn:int -> b:bytes -> (tlen:int * (;ki,tlen,seqn)fragment) * b2:bytes
+
 type (;ki:KeyInfo,seqn:int)ALFragReply =
     | EmptyALFrag
     | ALFrag of          (tlen:int * (;ki,tlen,seqn)fragment)
