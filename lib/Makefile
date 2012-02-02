@@ -199,7 +199,7 @@ Dispatch.tc7: $(libperv) $(libfs7) $(recordfs7) Dispatch.fs7 Dispatch.fs
 	$(f7t) -timeout 50 --verbose -scripts Dispatch $(recordfs7) Dispatch.fs7 Dispatch.fs | tee Dispatch.tc7
 
 TLS.tc7: $(libperv) $(libfs7) $(recordfs7) Dispatch.fs7 TLS.fs7 TLS.fs
-	$(f7t) $(recordfs7) Dispatch.fs7 TLS.fs7 TLS.fs
+	$(f7t) -scripts TLS $(recordfs7) Dispatch.fs7 TLS.fs7 TLS.fs
 #CF ? 
 autogen.fsi: $(libperv) $(libfs7) $(recordfs7) record.fs
 	$(f7) -nofstypecheck -timeout 300 --define f7 -genfsi -fsifile autogen.fsi -genprotofs -protofsfile autogen.fs -nokindcheck $(lperv) $(libfs7) $(recordfs7) record.fs 
