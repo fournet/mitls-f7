@@ -8,7 +8,7 @@ val encrypt: ki:KeyInfo ->
   (;ki) AEADKey -> 
   (;ki) ENCKey.iv3 -> 
   tlen:int -> 
-  ad:TLSFragment.addData ->
+  ad:(;ki.sinfo.protocol_version) TLSFragment.addData ->
   p:(;ki,tlen,ad) TLSFragment.AEADPlain{TLSFragment.AEADMsg(ki,tlen,ad,p)} -> 
   ((;ki) ENCKey.iv3 * ENC.cipher)
 
@@ -17,7 +17,7 @@ val decrypt: ki:KeyInfo ->
   (;ki) AEADKey -> 
   (;ki) ENCKey.iv3 -> 
   tlen:int -> 
-  ad:TLSFragment.addData ->
+  ad:(;ki.sinfo.protocol_version) TLSFragment.addData ->
   ENC.cipher ->
   ((;ki) ENCKey.iv3 * p:(;ki,tlen,ad) TLSFragment.AEADPlain{TLSFragment.AEADMsg(ki,tlen,ad,p)}) Result
 

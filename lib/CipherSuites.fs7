@@ -4,12 +4,6 @@ open Bytes
 open Algorithms
 open Error
 
-ask 0 <= 1
-ask !l. (0 <= l /\ l <> 0) => l >= 1
-ask !l. l > 1 => l >= 2
-ask 0 <= 2
-
-
 (*** Following RFC5246 A.5 *)
 
 private type SCSVsuite =
@@ -181,10 +175,15 @@ private assume !b,cs. ContainsCipherSuite(b,cs) <=>
 		         (b1 = CipherSuiteBytes(cs) \/ ContainsCipherSuite(b2,cs)))
 
 predicate ContainsCipherSuites of bytes * cipherSuites
-private assume !b. ContainsCipherSuites(b,[]) 
-private assume !b,h,t.  ContainsCipherSuites(b,h::t) <=> (ContainsCipherSuite(b,h) /\ ContainsCipherSuites(b,t))
+private assume !b,l. ContainsCipherSuites(b,l) <=>
+  (l = [] \/
+   (?h,t. l = h::t /\ ContainsCipherSuite(b,h) /\ ContainsCipherSuites(b,t)))
 
-ask !b1,b2,css. (Length(b1) = 2 /\ ContainsCipherSuites(b2,css)) => ContainsCipherSuites(b1 @| b2, css)
+ask !b1,b2,cs. (Length(b1) = 2 /\ ContainsCipherSuite(b2,cs)) => ContainsCipherSuite(b1 @| b2, cs)
+
+//requires induction
+assume !b1,b2,l. (Length(b1) = 2 /\ ContainsCipherSuites(b2,l)) => ContainsCipherSuites(b1 @| b2, l)
+
 
 private val consCipherSuites: cs:cipherSuite -> css:cipherSuites -> css':cipherSuites{css' = cs::css}
 

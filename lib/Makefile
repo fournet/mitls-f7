@@ -1,6 +1,6 @@
 include ../../../../Makefile.inc
 
-all: tls.dll tlsbase-tc7 tc7
+all: tls.dll tc7
 
 lib7=../../../lib/fs7-interfaces/
 libperv = $(lib7)pervasives.fs7 $(lib7)tuples.fs7
@@ -29,9 +29,9 @@ tlsrecordi = record.fsi dispatch.fsi tls.fsi # being verified (AP)
 tlsbase-tc7: Error.tc7 Algorithms.tc7 CipherSuites.tc7  formats.tc7  TLSInfo.tc7  ENCKey.tc7  MACKey.tc7 TLSKey.tc7 # verified
 tlsapplication-tc7: AppDataPlain.tc7  AppData.tc7  TLSFragment.tc7 MACPlain.tc7 Plain.tc7 
 crypto-tc7: MAC.tc7 ENC.tc7 AEAD.tc7
-tlsrecord-tc7: record.tc7 dispatch.tc7 tls.tc7
+tlsrecord-tc7: record.tc7 Dispatch.tc7 TLS.tc7
 
-tc7:: tlsbase-tc7 TLSFragment.tc7 Plain.tc7 MACPlain.tc7 record.tc7 
+tc7:: tlsbase-tc7 TLSFragment.tc7 Plain.tc7 MACPlain.tc7 record.tc7 Dispatch.tc7
 
 #recordfs-a = Error.fs  tcp-a.fs  Sessions.fs  formats.fs CryptoTLS.fs record.fs 
 

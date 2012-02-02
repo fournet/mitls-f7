@@ -13,5 +13,5 @@ val check_split:
   b:bytes -> i:int -> 
   b1:bytes * b2:bytes { Length(b1) = i /\ b = b1 @| b2 }
 
-val prepare: ki:KeyInfo -> tlen:int -> ad:TLSFragment.addData -> (;ki,tlen,ad) TLSFragment.AEADPlain -> (;ki,tlen) MACPlain.MACed -> (;ki,tlen) plain
-val parse: ki:KeyInfo -> tlen:int -> ad:TLSFragment.addData -> (;ki,tlen) plain -> (bool * ((;ki,tlen,ad)TLSFragment.AEADPlain * (;ki,tlen)MACPlain.MACed))
+val prepare: ki:KeyInfo -> tlen:int -> ad:(;ki.sinfo.protocol_version) TLSFragment.addData -> (;ki,tlen,ad) TLSFragment.AEADPlain -> (;ki,tlen) MACPlain.MACed -> (;ki,tlen) plain
+val parse: ki:KeyInfo -> tlen:int -> ad:(;ki.sinfo.protocol_version) TLSFragment.addData -> (;ki,tlen) plain -> (bool * ((;ki,tlen,ad)TLSFragment.AEADPlain * (;ki,tlen)MACPlain.MACed))
