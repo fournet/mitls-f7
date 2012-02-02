@@ -99,9 +99,6 @@
     <None Include="AppData.fs7" />
     <Compile Include="AppData.fsi" />
     <Compile Include="AppData.fs" />
-    <None Include="HS_msg.fs7" />
-    <Compile Include="HS_msg.fsi" />
-    <Compile Include="HS_msg.fs" />
     <None Include="Handshake.fs7" />
     <Compile Include="Handshake.fsi" />
     <Compile Include="Handshake.fs" />

@@ -3,7 +3,6 @@ module Handshake
 
 open Error
 //open Formats
-//open HS_msg
 open CipherSuites
 open TLSInfo
 open TLSKey

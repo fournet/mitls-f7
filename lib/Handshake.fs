@@ -3,7 +3,6 @@
 open Bytes
 open Error
 open Formats
-open HS_msg
 open Algorithms
 open CipherSuites
 open TLSInfo
@@ -13,7 +12,200 @@ open Principal
 open SessionDB
 open PRFs
 
-/// Handshake state machines 
+// BEGIN HS_msg
+
+// This section is currently copied/pasted from the legacy HS_msg module, now
+// syntactically merged with Handshake. Still, there are some redundancies that should
+// be eliminated, by semantically merge the two.
+
+(*** Following RFC5246 A.4 *)
+
+type HandShakeType =
+    | HT_hello_request
+    | HT_client_hello
+    | HT_server_hello
+    | HT_certificate
+    | HT_server_key_exchange
+    | HT_certificate_request
+    | HT_server_hello_done
+    | HT_certificate_verify
+    | HT_client_key_exchange
+    | HT_finished
+    | HT_unknown of int
+
+let htbytes t =
+    match t with
+    | HT_hello_request       -> [|  0uy |] 
+    | HT_client_hello        -> [|  1uy |]
+    | HT_server_hello        -> [|  2uy |]
+    | HT_certificate         -> [| 11uy |]
+    | HT_server_key_exchange -> [| 12uy |]
+    | HT_certificate_request -> [| 13uy |]
+    | HT_server_hello_done   -> [| 14uy |]
+    | HT_certificate_verify  -> [| 15uy |]
+    | HT_client_key_exchange -> [| 16uy |]
+    | HT_finished            -> [| 20uy |]
+    | HT_unknown x           -> unexpectedError "Unknown handshake type"
+
+let parseHT b = 
+    match int_of_bytes b with
+    |  0 -> HT_hello_request
+    |  1 -> HT_client_hello
+    |  2 -> HT_server_hello
+    | 11 -> HT_certificate
+    | 12 -> HT_server_key_exchange
+    | 13 -> HT_certificate_request
+    | 14 -> HT_server_hello_done
+    | 15 -> HT_certificate_verify
+    | 16 -> HT_client_key_exchange
+    | 20 -> HT_finished
+    |  x -> HT_unknown (x)
+
+// missing Handshake and its generic formatting
+// := HandShakeType(ht) @| VLBytes(3,body) 
+
+
+(** A.4.1 Hello Messages *)
+
+type helloRequest = bytes  // empty bitstring 
+
+type Random = {time : int; rnd : bytes}
+
+// missing SessionID, defined in TLSInfo
+// missing CompressionMethod
+
+// missing some details, e.g. ExtensionType/Data
+type Extension =
+    | HExt_renegotiation_info
+    | HExt_unknown of bytes
+
+let bytes_of_HExt hExt =
+    match hExt with
+    | HExt_renegotiation_info -> [|0xFFuy; 0x01uy|]
+    | HExt_unknown (_) -> unexpectedError "Unknown extension type"
+
+let hExt_of_bytes b =
+    match b with
+    | [|0xFFuy; 0x01uy|] -> HExt_renegotiation_info
+    | _ -> HExt_unknown b
+
+type clientHello = {
+    ch_client_version: ProtocolVersion;
+    ch_random: Random;
+    ch_session_id: sessionID;
+    ch_cipher_suites: cipherSuites;
+    ch_compression_methods: Compression list;
+    ch_extensions: bytes;
+  }
+
+type serverHello = {
+    sh_server_version: ProtocolVersion;
+    sh_random: Random;
+    sh_session_id: sessionID;
+    sh_cipher_suite: cipherSuite;
+    sh_compression_method: Compression;
+    sh_neg_extensions: bytes;
+  }
+
+let hashAlg_to_tls12enum ha =
+    match ha with
+    | Algorithms.hashAlg.MD5    -> 1
+    | Algorithms.hashAlg.SHA    -> 2
+    | Algorithms.hashAlg.SHA256 -> 4
+    | Algorithms.hashAlg.SHA384 -> 5
+
+let tls12enum_to_hashAlg n =
+    match n with
+    | 1 -> Some Algorithms.hashAlg.MD5
+    | 2 -> Some Algorithms.hashAlg.SHA
+    | 4 -> Some Algorithms.hashAlg.SHA256
+    | 5 -> Some Algorithms.hashAlg.SHA384
+    | _ -> None
+
+type sigAlg = bytes
+
+let SA_anonymous = [| 0uy |]
+let SA_rsa       = [| 1uy |]
+let SA_dsa       = [| 2uy |]
+let SA_ecdsa     = [| 3uy |] 
+
+let checkSigAlg v =  
+    v = SA_anonymous 
+ || v = SA_rsa 
+ || v = SA_dsa
+ || v = SA_ecdsa 
+
+type SigAndHashAlg = {
+    SaHA_hash: Algorithms.hashAlg;
+    SaHA_signature: sigAlg;
+    }
+
+
+(** A.4.2 Server Authentication and Key Exchange Messages *)
+
+type certificate = { certificate_list: cert list }
+
+(* Server Key Exchange *)
+(* TODO *)
+
+(* Certificate Request *)
+type ClientCertType = bytes // of length 1, between 0 and 3
+let CLT_RSA_Sign     = [| 1uy |] 
+let CLT_DSS_Sign     = [| 2uy |]
+let CLT_RSA_Fixed_DH = [| 3uy |]
+let CLT_DSS_Fixed_DH = [| 4uy |]
+(* was:
+type ClientCertType =
+    | CLT_RSA_Sign = 1
+    | CLT_DSS_Sign = 2
+    | CLT_RSA_Fixed_DH = 3
+    | CLT_DSS_Fixed_DH = 4
+*)
+
+(*
+type HashAlg =
+    | HA_None = 0
+    | HA_md5 = 1
+    | HA_sha1 = 2
+    | HA_sha224 = 3
+    | HA_sha256 = 4
+    | HA_sha384 = 5
+    | HA_sha512 = 6
+*)
+
+type certificateRequest = {
+    client_certificate_type: ClientCertType list
+    signature_and_hash_algorithm: (SigAndHashAlg list) Option (* Some(x) for TLS 1.2, None for previous versions *)
+    certificate_authorities: string list
+    }
+
+type serverHelloDone = bytes // empty bistring
+
+
+(** A.4.3 Client Authentication and Key Exchange Messages *) 
+
+type preMasterSecret =
+    { pms_client_version : ProtocolVersion; (* Highest version supported by the client *)
+      pms_random: bytes }
+
+type clientKeyExchange =
+    | EncryptedPreMasterSecret of bytes (* encryption of PMS *)
+    | ClientDHPublic (* TODO *)
+
+(* Certificate Verify *)
+
+type certificateVerify = bytes (* digital signature of all messages exchanged until now *)
+
+
+(** A.4.4 Handshake Finalization Message *)
+
+type finished = bytes
+
+// END HS_msg
+
+// Handshake module
+
+// Handshake state machines 
 
 type clientSpecificState =
     { resumed_session: bool
@@ -243,7 +435,7 @@ let parseMessage state =
 
 let makeHelloRequestBytes () = makeMessage HT_hello_request [||]
 
-/// Extensions [could inline from HS_msg] 
+/// Extensions
 
 let makeExtStructBytes extType data =
     let extBytes = bytes_of_HExt extType in
@@ -285,7 +477,7 @@ let check_reneg_info payload expected =
     | Correct (recv) -> equalBytes recv expected
 
 let check_client_renegotiation_info cHello expected =
-    match extensionList_of_bytes cHello.extensions with
+    match extensionList_of_bytes cHello.ch_extensions with
     | Error(x,y) -> false
     | Correct(extList) ->
         (* Check there is at most one renegotiation_info extension *)
@@ -293,7 +485,7 @@ let check_client_renegotiation_info cHello expected =
         if ren_ext_list.Length > 1 then
             false
         else
-            let has_SCSV = contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV cHello.cipher_suites in
+            let has_SCSV = contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV cHello.ch_cipher_suites in
             if equalBytes expected [||] 
             then  
                 (* First handshake *)
@@ -385,37 +577,37 @@ let parseClientHello data =
     | Correct (cmBytes,extensions) ->
     let cm = parseCompressions cmBytes
     correct(
-     { client_version      = cv 
+     { ch_client_version      = cv 
        ch_random           = cr 
        ch_session_id       = sid
-       cipher_suites       = clientCipherSuites
-       compression_methods = cm 
-       extensions          = extensions},
+       ch_cipher_suites       = clientCipherSuites
+       ch_compression_methods = cm 
+       ch_extensions          = extensions},
      clRandomBytes
     )
 
-// called only just below; inline? HS_msg.clientHello seem unhelpful
+// called only just below; inline? clientHello record seem unhelpful
 // AP: Two (useless) indirection levels. We should get rid of the struct here.
 let makeClientHello poptions session prevCVerifyData =
     let ext =
         if poptions.safe_renegotiation 
         then makeExtBytes (makeRenegExtBytes prevCVerifyData)
         else [||]
-    { client_version = poptions.maxVer
+    { ch_client_version = poptions.maxVer
       ch_random = makeRandom()
       ch_session_id = session
-      cipher_suites = poptions.ciphersuites
-      compression_methods = poptions.compressions
-      extensions = ext }
+      ch_cipher_suites = poptions.ciphersuites
+      ch_compression_methods = poptions.compressions
+      ch_extensions = ext }
 
 let makeClientHelloBytes poptions session cVerifyData =
     let cHello     = makeClientHello poptions session cVerifyData in
-    let cVerB      = versionBytes cHello.client_version in
+    let cVerB      = versionBytes cHello.ch_client_version in
     let random     = randomBytes cHello.ch_random in
     let csessB     = vlbytes 1 cHello.ch_session_id in
-    let ccsuitesB  = vlbytes 2 (bytes_of_cipherSuites cHello.cipher_suites)
-    let ccompmethB = vlbytes 1 (compressionMethodsBytes cHello.compression_methods) 
-    let data = cVerB @| random @| csessB @| ccsuitesB @| ccompmethB @| cHello.extensions in
+    let ccsuitesB  = vlbytes 2 (bytes_of_cipherSuites cHello.ch_cipher_suites)
+    let ccompmethB = vlbytes 1 (compressionMethodsBytes cHello.ch_compression_methods) 
+    let data = cVerB @| random @| csessB @| ccsuitesB @| ccompmethB @| cHello.ch_extensions in
     (makeMessage HT_client_hello data,random)
 
 /// Server Hello 
@@ -453,12 +645,12 @@ let parseServerHello data =
     | Error(x,y) -> Error(x,y)
     | Correct(cm) ->
     let r = 
-     { server_version = serverVer
+     { sh_server_version = serverVer
        sh_random = parseRandom serverRandomBytes
        sh_session_id = sid
-       cipher_suite = cs
-       compression_method = cm
-       neg_extensions = data}
+       sh_cipher_suite = cs
+       sh_compression_method = cm
+       sh_neg_extensions = data}
     correct(r,serverRandomBytes)
 
 
@@ -1126,28 +1318,28 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                   // Check that the server agreed version is between maxVer and minVer.
                   // FIXME: Using <= and >= should not work. Using and undocumented F# feature
                   // where unions are enums 
-                  if not (shello.server_version >= state.poptions.minVer 
-                       && shello.server_version <= state.poptions.maxVer) 
+                  if not (shello.sh_server_version >= state.poptions.minVer 
+                       && shello.sh_server_version <= state.poptions.maxVer) 
                   then Error(HSError(AD_protocol_version),HSSendAlert),state
                   else
                   // Check that the negotiated ciphersuite is in the proposed list.
                   // Note: if resuming a session, we still have to check that this ciphersuite is the expected one!
-                  if not (List.exists (fun x -> x = shello.cipher_suite) state.poptions.ciphersuites) 
+                  if not (List.exists (fun x -> x = shello.sh_cipher_suite) state.poptions.ciphersuites) 
                   then Error(HSError(AD_illegal_parameter),HSSendAlert),state
                   else
                   // Check that the compression method is in the proposed list.
-                  if not (List.exists (fun x -> x = shello.compression_method) state.poptions.compressions) 
+                  if not (List.exists (fun x -> x = shello.sh_compression_method) state.poptions.compressions) 
                   then Error(HSError(AD_illegal_parameter),HSSendAlert),state
                   else
                   // Handling of safe renegotiation
                   let safe_reneg_result =
                     if state.poptions.safe_renegotiation then
                         let expected = state.hs_renegotiation_info_cVerifyData @| state.hs_renegotiation_info_sVerifyData in
-                        inspect_ServerHello_extensions shello.neg_extensions expected
+                        inspect_ServerHello_extensions shello.sh_neg_extensions expected
                     else
                         // RFC Sec 7.4.1.4: with no safe renegotiation, we never send extensions; if the server sent any extension
                         // we MUST abort the handshake with unsupported_extension fatal alter (handled by the dispatcher)
-                        if not (equalBytes shello.neg_extensions [||])
+                        if not (equalBytes shello.sh_neg_extensions [||])
                         then Error(HSError(AD_unsupported_extension),HSSendAlert)
                         else let unitVal = () in correct (unitVal)
                   match safe_reneg_result with
@@ -1163,35 +1355,35 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                             let next_sinfo = { clientID = None
                                                serverID = None
                                                sessionID = (if equalBytes shello.sh_session_id [||] then None else Some(shello.sh_session_id))
-                                               protocol_version = shello.server_version
-                                               cipher_suite = shello.cipher_suite
-                                               compression = shello.compression_method
+                                               protocol_version = shello.sh_server_version
+                                               cipher_suite = shello.sh_cipher_suite
+                                               compression = shello.sh_compression_method
                                                init_crand = state.hs_next_info.init_crand (* or, alternatively, state.ki_crand *)
                                                init_srand = server_random
                                              } in
                             let state = {state with hs_next_info = next_sinfo} in
                             (* If DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
-                            if isAnonCipherSuite shello.cipher_suite then
+                            if isAnonCipherSuite shello.sh_cipher_suite then
                                 let state = {state with pstate = Client(ServerKeyExchange)} in
-                                recv_fragment_client ci state (Some(shello.server_version))
+                                recv_fragment_client ci state (Some(shello.sh_server_version))
                             else
                                 let state = {state with pstate = Client(Certificate)} in
-                                recv_fragment_client ci state (Some(shello.server_version))
+                                recv_fragment_client ci state (Some(shello.sh_server_version))
                         else
                             match state.hs_next_info.sessionID with
                             | None -> unexpectedError "[recv_fragment] A resumed session should never have empty SID"
                             | Some(sid) ->
                                 if sid = shello.sh_session_id then (* use resumption *)
                                     (* Check that protocol version, ciph_suite and compression method are indeed the correct ones *)
-                                    if state.hs_next_info.protocol_version = shello.server_version then
-                                        if state.hs_next_info.cipher_suite = shello.cipher_suite then
-                                            if state.hs_next_info.compression = shello.compression_method then
+                                    if state.hs_next_info.protocol_version = shello.sh_server_version then
+                                        if state.hs_next_info.cipher_suite = shello.sh_cipher_suite then
+                                            if state.hs_next_info.compression = shello.sh_compression_method then
                                                 let state = compute_session_secrets_and_CCSs state CtoS in
                                                 let clSpecState = { resumed_session = true;
                                                                     must_send_cert = None;
                                                                     client_certificate = None} in
                                                 let state = { state with pstate = Client(CCCS(clSpecState))}
-                                                recv_fragment_client ci state (Some(shello.server_version))
+                                                recv_fragment_client ci state (Some(shello.sh_server_version))
                                             else (Error(HSError(AD_illegal_parameter),HSSendAlert),state)
                                         else (Error(HSError(AD_illegal_parameter),HSSendAlert),state)
                                     else (Error(HSError(AD_illegal_parameter),HSSendAlert),state)
@@ -1200,20 +1392,20 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                     let next_sinfo = { clientID = None
                                                        serverID = None
                                                        sessionID = (if equalBytes shello.sh_session_id [||] then None else Some(shello.sh_session_id))
-                                                       protocol_version = shello.server_version
-                                                       cipher_suite = shello.cipher_suite
-                                                       compression = shello.compression_method
+                                                       protocol_version = shello.sh_server_version
+                                                       cipher_suite = shello.sh_cipher_suite
+                                                       compression = shello.sh_compression_method
                                                        init_crand = state.hs_next_info.init_crand (* or, alternatively, state.ki_crand *)
                                                        init_srand = server_random
                                                      } in
                                     let state = {state with hs_next_info = next_sinfo} in
                                     (* If DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
-                                    if isAnonCipherSuite shello.cipher_suite then
+                                    if isAnonCipherSuite shello.sh_cipher_suite then
                                         let state = {state with pstate = Client(ServerKeyExchange)} in
-                                        recv_fragment_client ci state (Some(shello.server_version))
+                                        recv_fragment_client ci state (Some(shello.sh_server_version))
                                     else
                                         let state = {state with pstate = Client(Certificate)} in
-                                        recv_fragment_client ci state (Some(shello.server_version))
+                                        recv_fragment_client ci state (Some(shello.sh_server_version))
             | _ -> (* ServerHello arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
         | HT_certificate ->
             match cState with
@@ -1654,12 +1846,12 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                             | CtoS -> (* This session is not for us, we're a server. Do full handshake *)
                                 startServerFull ci state cHello
                             | StoC ->
-                                if cHello.client_version >= storedSinfo.protocol_version then
+                                if cHello.ch_client_version >= storedSinfo.protocol_version then
                                     (* We have a common version *)
-                                    if not (List.exists (fun cs -> cs = storedSinfo.cipher_suite) cHello.cipher_suites) then
+                                    if not (List.exists (fun cs -> cs = storedSinfo.cipher_suite) cHello.ch_cipher_suites) then
                                         (* Do a full handshake *)
                                         startServerFull ci state cHello
-                                    else if not (List.exists (fun cm -> cm = storedSinfo.compression) cHello.compression_methods) then
+                                    else if not (List.exists (fun cm -> cm = storedSinfo.compression) cHello.ch_compression_methods) then
                                         (* Do a full handshake *)
                                         startServerFull ci state cHello
                                     else
@@ -1790,10 +1982,10 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
       
 and startServerFull (ci:ConnectionInfo) state cHello =  
     // Negotiate the protocol parameters
-    let version = minPV cHello.client_version state.poptions.maxVer in
-        match negotiate cHello.cipher_suites state.poptions.ciphersuites with
+    let version = minPV cHello.ch_client_version state.poptions.maxVer in
+        match negotiate cHello.ch_cipher_suites state.poptions.ciphersuites with
         | Some(cs) ->
-            match negotiate cHello.compression_methods state.poptions.compressions with
+            match negotiate cHello.ch_compression_methods state.poptions.compressions with
             | Some(cm) ->
                 (* TODO: now we don't support safe_renegotiation, and we ignore any client proposed extension *)
                 let sid = mkRandom 32 in
@@ -1807,7 +1999,7 @@ and startServerFull (ci:ConnectionInfo) state cHello =
                                   init_crand       = state.ki_crand
                                   init_srand       = [||] }
                 let state = {state with hs_next_info = next_info} in
-                match prepare_server_output_full state cHello.client_version with
+                match prepare_server_output_full state cHello.ch_client_version with
                 | Correct(state) -> recv_fragment_server ci state (Some(version)) 
                 | Error(x,y)     -> (Error(x,y),state)
             | None -> (Error(HSError(AD_handshake_failure),HSSendAlert),state)
