@@ -3,13 +3,12 @@
 (* We do not support warnings, as there is no good reason to do so *)
 
 module AppData
-
+open Bytes
 open Error
 open TLSInfo
-open AppDataPlain
+open AppDataStream
 
-type pre_app_state
-type app_state = pre_app_state
+type app_state
 
 val init: ConnectionInfo -> app_state
 
@@ -22,13 +21,13 @@ val set_SessionInfo: app_state -> SessionInfo -> app_state
 (* Application data to/form application *)
 
 (* Enqueue app data in the output buffer *)
-val send_data: ConnectionInfo -> app_state -> lengths -> appdata -> app_state
+val send_data: ConnectionInfo -> app_state -> lengths -> bytes -> app_state
 
 (* Tells whether the output buffer is empty *)
 //val is_outgoing_empty: ConnectionInfo -> app_state -> bool
 
 (* Dequeue app data from the input buffer *)
-val retrieve_data: ConnectionInfo -> app_state -> (appdata * app_state)
+val retrieve_data: ConnectionInfo -> app_state -> (bytes * app_state)
 val is_incoming_empty: ConnectionInfo -> app_state -> bool
 
 (* Application data to/from dispatcher (hence record) *)

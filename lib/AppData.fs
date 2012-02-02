@@ -1,29 +1,27 @@
 ﻿module AppData
 
+open Bytes
 open Error
 open TLSInfo
 open Formats
-open AppDataPlain
+open AppDataStream
 
-type pre_app_state = {
-  app_in_lengths: lengths
-  app_incoming: appdata (* unsolicited data *)
-  app_out_lengths: lengths
-  app_outgoing: appdata
+type buffer = int * lengths * AppDataStream
+type app_state = {
+  app_incoming: buffer (* unsolicited data *);
+  app_outgoing: buffer;
 }
 
-type app_state = pre_app_state
-
 let init ci =
-    {app_outgoing = empty_appdata ci.id_out.sinfo;
-     app_out_lengths = [];
-     app_incoming = empty_appdata ci.id_in.sinfo;
-     app_in_lengths = [];}
-
+    {app_outgoing = (0,[],emptyAppDataStream ci.id_out.sinfo);
+     app_incoming = (0,[],emptyAppDataStream ci.id_in.sinfo);
+    }
 
 // internal; only used when the user retrieves data, and so we flush this buffer.
 let reset_incoming ci app_state =
-    {app_state with app_incoming = empty_appdata ci.id_in.sinfo; app_in_lengths = []}
+    {app_state with 
+       app_incoming = (0,[],emptyAppDataStream ci.id_in.sinfo);
+    }
 (*
 let reset_outgoing app_state =
     let si = app_state.app_info
@@ -33,51 +31,57 @@ let set_SessionInfo app_state sinfo =
     {app_state with app_info = sinfo}
 *)
 
-let send_data ci (state:app_state) lens (data:appdata) =
+let send_data ci (state:app_state) lens (data:bytes) =
     (* TODO: different strategies are possible.
         - Append given data to already committed appdata, and re-schedule lengths
         - Ensure the current appdata is empty before committing to the new one,
            otherwise unexpectedError (and refinement types ensure this never happens)
        Currently we implement the latter *)
-    if is_empty_appdata ci.id_out.sinfo state.app_outgoing then
-        {state with app_outgoing = data; app_out_lengths = lens}
+  let si = ci.id_out.sinfo in
+  let (seqn,ls,ads) = state.app_outgoing in
+    if isEmptyAppDataStream si seqn ls ads then
+      let (nls,nads) = writeAppDataBytes si seqn ls ads data lens  in
+        {state with app_outgoing = (seqn,nls,nads)}
     else
         unexpectedError "[send_data] should be invoked only when previously committed data are over."
 
 let is_outgoing_empty (ci:ConnectionInfo) state =
-    is_empty_appdata ci.id_out.sinfo state.app_outgoing
+  let (seqn,ls,ads) = state.app_outgoing in 
+    isEmptyAppDataStream ci.id_out.sinfo seqn ls ads
 
 let retrieve_data (ci:ConnectionInfo) (state:app_state) =
-    let res = state.app_incoming in
-    let state = reset_incoming ci state in
-    (res,state)
+  let (seqn,ls,ads) = state.app_incoming in
+  let (d,nads) = readAppDataBytes ci.id_in.sinfo seqn ls ads in
+  let ns = {state with app_incoming = (seqn,ls,nads)} in
+    (d,ns)
 
 let is_incoming_empty (ci:ConnectionInfo) state =
-    is_empty_appdata ci.id_in.sinfo state.app_incoming
+  let (seqn,ls,ads) = state.app_incoming in 
+    isEmptyAppDataStream ci.id_in.sinfo seqn ls ads
 
-let next_fragment ci seqn state =
+let next_fragment ci nseqn state =
     if is_outgoing_empty ci state then
         None
     else
-        let (newFrag,newAppData) = app_fragment ci.id_out seqn state.app_out_lengths state.app_outgoing in
-        let (newLengths,newOutgoing) = newAppData in
-        let state = {state with app_out_lengths = newLengths; app_outgoing = newOutgoing} in
-        Some (newFrag,state)
+      let (seqn,ls,ads) = state.app_outgoing in
+      let (tlen,frag,nads) = readAppDataFragment ci.id_out seqn ls ads nseqn in
+      let state = {state with app_outgoing = (nseqn,ls,nads)} in
+        Some ((tlen,frag),state)
 
-let recv_fragment ci (seqn:int) (state:app_state) (tlen:int) (fragment:fragment) =
-    let (newLengths, newAppdata) = concat_fragment_appdata ci.id_in tlen seqn fragment state.app_in_lengths state.app_incoming in
-    {state with app_in_lengths = newLengths; app_incoming = newAppdata}
+let recv_fragment ci (nseqn:int) (state:app_state) (tlen:int) (fragment:fragment) =
+  let (seqn,ls,ads) = state.app_incoming in
+  let (nls,nads) = writeAppDataFragment ci.id_in seqn ls ads nseqn tlen fragment in
+    {state with app_incoming = (nseqn,nls,nads)}
 
 let reIndex (oldCI:ConnectionInfo) (newCI:ConnectionInfo) (state:app_state) =
     let oldInSI  = oldCI.id_in.sinfo in
     let newInSI  = newCI.id_in.sinfo in
     let oldOutSI = oldCI.id_out.sinfo in
     let newOutSI = newCI.id_out.sinfo in
-    let newAppInL  = AppDataPlain.reIndexLengths oldInSI newInSI state.app_in_lengths in
-    let newAppIn   = AppDataPlain.reIndex oldInSI newInSI state.app_incoming in
-    let newAppOutL = AppDataPlain.reIndexLengths oldOutSI newOutSI state.app_out_lengths in
-    let newAppOut  = AppDataPlain.reIndex oldOutSI newOutSI state.app_outgoing in
-    { app_in_lengths  = newAppInL;
-      app_incoming    = newAppIn;
-      app_out_lengths = newAppOutL;
-      app_outgoing    = newAppOut}
+    let (seqn_in,ls_in,ads_in) = state.app_incoming in
+    let (seqn_out,ls_out,ads_out) = state.app_outgoing in
+    let nads_in = AppDataStream.reIndex oldInSI newInSI seqn_in ls_in ads_in in
+    let nads_out = AppDataStream.reIndex oldOutSI newOutSI seqn_out ls_out ads_out in
+
+    { app_incoming    = (seqn_in,ls_in,nads_in);
+      app_outgoing    = (seqn_out,ls_out,nads_out);}

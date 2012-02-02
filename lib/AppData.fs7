@@ -1,37 +1,27 @@
 module AppData
 
+open Bytes
 open Error
 open TLSInfo
 open Formats
-open AppDataPlain
+open AppDataStream
 
-// type (;si:SessionInfo) appdata =
-//   | SomeAppData of (;si) bytes
-//   | NoneAppData // not indexed! an empty buffer is safe in all sessions!
-// // so we can make the transition from one session to the other, when the buffer is empty
-
-type (;ci:ConnectionInfo) pre_app_state = {
-  app_in_lengths:  (;ci.id_in.sinfo)  lengths;
-  app_incoming:    (;ci.id_in.sinfo)  appdata; (* unsolicited data *)
-  app_out_lengths: (;ci.id_out.sinfo) lengths;
-  app_outgoing:    (;ci.id_out.sinfo) appdata;
+type (;si:SessionInfo) buffer = (seqn:int * ls:lengths * (;si,seqn,ls)AppDataStream)
+type (;ci:ConnectionInfo) app_state = {
+  app_incoming:    (;ci.id_in.sinfo)  buffer; (* unsolicited data *)
+  app_outgoing:    (;ci.id_out.sinfo) buffer;
 }
-
-
-//predicate ApplicationState of pre_app_state
-
-type (;ci:ConnectionInfo) app_state = (aps:(;ci)pre_app_state) //{ApplicationState(aps)}
-
 val init: ci:ConnectionInfo -> (;ci)app_state
 
 val reset_incoming: ci:ConnectionInfo -> (;ci)app_state -> (;ci)app_state
 
-val send_data: ci:ConnectionInfo -> (;ci)app_state -> (;ci.id_out.sinfo)lengths -> (;ci.id_out.sinfo)appdata ->
+val send_data: ci:ConnectionInfo -> (;ci)app_state -> lengths -> bytes ->
 		(;ci)app_state
 
 //val is_outgoing_empty: ci:ConnectionInfo -> (;ci)app_state -> bool
 
-val retrieve_data: ci:ConnectionInfo -> (;ci)app_state -> ((;ci.id_in.sinfo)appdata * (;ci)app_state)
+val retrieve_data: ci:ConnectionInfo -> (;ci)app_state -> 
+  (bytes * (;ci)app_state)
 
 val is_incoming_empty: ci:ConnectionInfo -> (;ci)app_state -> bool
 

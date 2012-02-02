@@ -10,7 +10,7 @@ type fragment =
     | FHandshake of Handshake.fragment
     | FCCS of Handshake.ccsFragment
     | FAlert of Alert.fragment
-    | FAppData of AppDataPlain.fragment
+    | FAppData of AppDataStream.fragment
 val TLSFragmentRepr: KeyInfo -> int -> int -> ContentType -> fragment -> bytes
 val TLSFragment: KeyInfo -> int -> int -> ContentType -> bytes -> fragment
 

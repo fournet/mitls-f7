@@ -10,21 +10,21 @@ type fragment =
     | FHandshake of Handshake.fragment
     | FCCS of Handshake.ccsFragment
     | FAlert of Alert.fragment
-    | FAppData of AppDataPlain.fragment
+    | FAppData of AppDataStream.fragment
 
 let TLSFragmentRepr ki tlen seqn (ct:ContentType) frag =
     match frag with
     | FHandshake(f) -> Handshake.repr ki tlen seqn f
     | FCCS(f) -> Handshake.ccsRepr ki tlen seqn f
     | FAlert(f) -> Alert.repr ki tlen seqn f
-    | FAppData(f) -> AppDataPlain.repr ki tlen seqn f
+    | FAppData(f) -> AppDataStream.repr ki tlen seqn f
 
 let TLSFragment ki tlen seqn (ct:ContentType) b =
     match ct with
     | Handshake ->          FHandshake(Handshake.fragment ki tlen seqn b)
     | Change_cipher_spec -> FCCS(Handshake.ccsFragment ki tlen seqn b)
     | Alert ->              FAlert(Alert.fragment ki tlen seqn b)
-    | Application_data ->   FAppData(AppDataPlain.fragment ki tlen seqn b)
+    | Application_data ->   FAppData(AppDataStream.fragment ki tlen seqn b)
 
 type addData = bytes
 

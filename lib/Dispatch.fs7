@@ -172,13 +172,12 @@ val writeAppData: c:Connection -> unit Result * (;c) CompatibleConnection
 
 
 val commit: c:Connection ->
-	(;ConnectionOutSessionInfo(c))AppDataPlain.lengths ->
-	(;ConnectionOutSessionInfo(c))AppDataPlain.appdata ->
+        AppDataStream.lengths -> bytes ->
 	(;c)CompatibleConnection
 
 val readAppData: c:Connection ->
 	c':(;c)CompatibleConnection *
-	((;ConnectionInSessionInfo(c'))AppDataPlain.appdata Result)
+	  bytes Result
 	
 
 val readHS: c:Connection -> unit Result * (;c) CompatibleConnection

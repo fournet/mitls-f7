@@ -31,8 +31,8 @@ let write conn b =
     // The next three lines should be in the top level app,
     // and the write function should take appdata
     let si = getSessionInfo conn
-    let lengths = AppDataPlain.estimateLengths si (length b) in
-    let appdata = AppDataPlain.appdata si lengths b in
+    let lengths = AppDataStream.estimateLengths si (length b) in
+    let appdata = b in
     Dispatch.commit conn lengths appdata
 
 (*
@@ -52,7 +52,7 @@ let read conn =
         // FIXME: next two lines should be in the top level app,
         // and the read function should return appdata
         let si = getSessionInfo conn
-        (conn,correct(AppDataPlain.appdataBytes si appdata))
+        (conn,correct(appdata))
 
 (*
 let dataAvailable conn =

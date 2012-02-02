@@ -22,8 +22,6 @@ val createBytes: l:int -> int -> b:bytes{Length(b) = l}
 val equalBytes: b0:bytes -> b1:bytes -> 
   r:bool {(r = true /\ b0 = b1) \/ (r = false /\ b0 <> b1)}
 
-// assume !x. Length([|x|]) = 1  
-// assume !x,y. [|x|] = [|y|] => x=y
 
 // cryptographically random bytes 
 val mkRandom: l:int -> b:bytes{Length(b) = l}
@@ -40,6 +38,10 @@ val split:
 
 val split2: b:bytes -> i:nat -> j:nat  {Length(b) >= i+j} ->
   b1:bytes * b2:bytes * b3:bytes { Length(b1)=i /\ Length(b2)=j /\ b = b1 @| b2 @| b3}
+
+// empty array is an identity for append
+// assume !x. [||] @| x = x
+assume !x. x @| [||] = x
 
 // append is injective when using fixed lengths.
 assume !b1,b2,c1,c2. 
