@@ -12,7 +12,7 @@ type (;ci:ConnectionInfo)state = (;ci)pre_al_state
 
 // protocol-specific abstract fragment,
 // and associated functions (never to be called with ideal functionality)
-type (;ki:KeyInfo,tlen:int,seqn:int)fragment
+private type (;ki:KeyInfo,tlen:int,seqn:int)fragment = {b:bytes}
 predicate AlertFragment of KeyInfo * int * int * Bytes.bytes
 val repr: ki:KeyInfo -> tlen:int -> seqn:int -> (;ki,tlen,seqn)fragment -> b:Bytes.bytes{AlertFragment(ki,tlen,seqn,b)}
 val fragment: ki:KeyInfo -> tlen:int -> seqn:int -> b:Bytes.bytes{AlertFragment(ki,tlen,seqn,b) \/ Corrupt(ki)} -> (;ki,tlen,seqn)fragment
