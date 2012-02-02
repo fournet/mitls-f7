@@ -1,154 +1,182 @@
 ﻿module TLS
 
 open Bytes
-open Formats
-open Error
-open Dispatch
-open TLSInfo
-open SessionDB
-open Tcp
 open AppConfig
+open Dispatch
+open Error
+open TLSInfo
 
+val write: c:Connection -> bytes -> (;c)CompatibleConnection
 
-predicate type preds =
-        | AppDataStream of SessionInfo * stream
+val flush: c:Connection -> (unit Result) * (;c)CompatibleConnection
 
-theorem !i,s,s'. AppDataStream(i,Append(s,s')) => AppDataStream(i,s)
+val read: c:Connection -> c':(;c)CompatibleConnection * (bytes Result)
 
+val shutdown: c:Connection -> unit
 
-val write: c:Connection -> data:bytes{AppDataStream(c.ds_info,Append(StreamBytes(c.appdata.app_outgoing),data))} ->
-                res:((bytes * bytes) Result) * c':Connection{
-                (!sent,rem. res = Correct(sent,rem) => ( c'.ds_info = c.ds_info )) /\
-                (!cause,kind. res = Error(cause,kind) =>
-                        ( List.Mem ((cause,kind),[(Tcp,Internal); (TLS,Internal); (TLS,InvalidState); 
-                                           (MustRead,Notification); (NewSessionInfo,Notification)]) /\
-                          ( ((cause,kind) = (NewSessionInfo,Notification) /\ c'.ds_info <> c.ds_info ) \/
-                            ((cause,kind) <> (NewSessionInfo,Notification) /\ c'.ds_info = c.ds_info ) )
-                ))}
+val getSessionInfo: c:Connection -> si:SessionInfo{si=ConnectionOutSessionInfo(c)}
 
-val writeFully: c:Connection -> data:bytes{AppDataStream(c.ds_info,Append(StreamBytes(c.appdata.app_outgoing),data))} ->
-                res:((bytes * bytes) Result) * c':Connection{
-                (!sent,rem. res = Correct(sent,rem) => ( c'.ds_info = c.ds_info )) /\
-                (!cause,kind. res = Error(cause,kind) =>
-                        ( List.Mem ((cause,kind),[(Tcp,Internal); (TLS,Internal); (TLS,InvalidState); 
-                                           (MustRead,Notification); (NewSessionInfo,Notification)]) /\
-                          ( ((cause,kind) = (NewSessionInfo,Notification) /\ c'.ds_info <> c.ds_info ) \/
-                            ((cause,kind) <> (NewSessionInfo,Notification) /\ c'.ds_info = c.ds_info ) )
-                ))}
-                
-val read: c:Connection -> len:int -> res:(bytes Result) * c':Connection{
-        (!recv. res = Correct(recv) => (
-                c'.ds_info = c.ds_info /\
-                AppDataStream(OtherRole(c.ds_info),
-			      Append(PreviouslyRead(c.appdata.app_incoming),recv))
-                )) /\
-        (!cause,kind. res = Error(cause,kind) => (
-                List.Mem((cause,kind),[(Tcp,Internal); (TLS,Internal); 
-                                       (TLS,InvalidState); (NewSessionInfo,Notification)]) /\
-                ((cause,kind) = (NewSessionInfo,Notification) <=> 
-		    c'.ds_info <> c.ds_info)))}
-        
-(* Polls whether there are data available in the current input buffer
-   (a processed application data fragment not yet delivered to the user).
-   Note that this function will not check whether data are available on the
-   underlying socket, because it would not be useful in TLS (we might need
-   to read more bytes than available to parse a full fragment anyway) *)
-val dataAvailable: Connection -> bool
+val connect: Tcp.NetworkStream -> protocolOptions -> (unit Result) * Connection
 
-(* Complete SSL shutdown, with bi-directional Close_notify alerts,
-   but does not close the underlying NetworkStream *)
-val shutdown: Connection -> unit
+val resume: Tcp.NetworkStream -> sessionID -> protocolOptions -> (unit Result) * Connection
 
-(* Get SessionInfo from the current Connection. More functions operating
-   on SessionInfo, like getClientID or getServerID may be added *)
-val getSessionInfo: c:Connection -> s:SessionInfo{s = c.ds_info}
+val rehandshake: c:Connection -> protocolOptions -> (;c)CompatibleConnection
 
-(* CLIENT SIDE *)
+val rehandshake_now: c:Connection -> protocolOptions -> (unit Result) * (;c)CompatibleConnection
 
-(* New Connection, new Session:
-    Performs the first full handshake, and
-    returns the new Connection (which will hold the new SessionInfo).
-   We might allow some callback for server certificate chain validation,
-   and for possible client certificate retrieval.
-   Implementation note: in practice, we'll create a connection with null
-   parameters, and will inovke read enough times to get the NewSessionInfo
-   error. We will then forward the new, non-null connection to the user.
-   Typechecking will ensure that if the connection is with null parameters,
-   the read function always returns the empty_bstr.
-*)
-val connect: NetworkStream -> protocolOptions -> (unit Result) * Connection
+val rekey: c:Connection -> protocolOptions -> (;c)CompatibleConnection
 
-(* New Connection, old(/new) Session:
-    Tries to perform a resumption handshake. If the server accepts
-    resumption, the SessionInfo in the returned Connection will match
-    the given SessionInfo. If the server did not accept resumption,
-    a full handshake will be performed, and a new SessionInfo returned.
-    Implementation note: same as connect. Also note that protocolOptions
-    should be "compatible" with the resumed session, but we have no way to
-    enforce this at the moment.
-*)
-val resume: NetworkStream -> SessionInfo -> protocolOptions -> (unit Result) * Connection
+val rekey_now: c:Connection -> protocolOptions -> (unit Result) * (;c)CompatibleConnection
 
-(* Old Connection, new Session:
-    Asks to start a new full handshake over the existing connection.
-    Note that no data are sent or received when this function is invoked.
-    Only an internal flag will be set (and possibly some output buffers of the
-    hanshake protocol filled, but the user shall not be concerned about this),
-    asking to re-handshake upon next read or write operation.
-    In particular, the returned Connection will have the same SessionInfo of the
-    given Connection, only the internal flags (and buffers) will be changed.
-    Rationale: user data secured by the previous SessionInfo might still be
-      recevied while performing the re-handshake. A safe and reliable way
-      is to let the user read/write data normally, until a NewSessionInfo error
-      will be returned by the read operation, notifying that a new session
-      has been established. If the user wants to "block" until the handshake is
-      finished, it has to keep reading until the NewSessionInfo error is received.
-      All those reads are expected to return 0 bytes read, but nothing can prevent
-      the other side to send application data during the rehandshake. Whether those
-      data are acceptable is application specific, and must be handled in the
-      application. Note that OpenSSL seems to differ, allowing the user to set
-      a special flag:
-        ssl->state = SSL_ST_ACCEPT;
-      which will let the library issue an error if application data are received
-      during the handshake. This feature is poorly documented, violates encapsulation,
-      and if one forgets to set the flag then there is no way to know which data
-      are sent/received before the handshake and which data are sent/received after.
-*)
-val rehandshake: c:Connection -> protocolOptions -> c':Connection{c.ds_info = c'.ds_info}
-val rehandshake_now: c:Connection -> protocolOptions -> res:(unit Result) * c':Connection{!x. res = Correct(x) => c.ds_info <> c'.ds_info}
+val accept_connected: Tcp.NetworkStream -> protocolOptions -> (unit Result) * Connection
 
-(* Old Connection, old(/new) Session:
-    Asks to start a resumption handshake over the existing connection,
-    which is in fact re-keying.
-    A full handshake will be performed if the server does not accept resumption.
-    Like for the rehandshake function, no data will be sent/received, but only
-    internal flags/buffers will be set. *)
-val rekey: c:Connection -> protocolOptions -> c':Connection{c.ds_info = c'.ds_info}
-val rekey_now: c:Connection -> protocolOptions -> res:(unit Result) * c':Connection{!x. res = Correct(x) => c.ds_info <> c'.ds_info}
+val accept: Tcp.TcpListener -> protocolOptions -> (unit Result) * Connection
 
-(* SERVER SIDE *)
+val handshakeRequest: c:Connection -> protocolOptions -> (;c)CompatibleConnection
 
-(* New Connection, new/old Session:
-    Waits (blocking call) for a new client to connect and start a handshake.
-    If the client asks for session resumption (and server has that session
-    in its cache), a short handshake will take place.
-    Implementation note: same as connect. *)
-val accept: TcpListener -> protocolOptions -> (unit Result) * Connection
-val accept_connected: NetworkStream -> protocolOptions -> (unit Result) * Connection
+val handshakeRequest_now: c:Connection -> protocolOptions -> (unit Result) * (;c)CompatibleConnection
 
-(* Old Connection, new/old Session:
-    Sets an internal flag asking to send a Hello Request message on next
-    read/write operation. If client will ask for resumption and the session
-    to be resumed is cached, a resumption handshake will take place.
-    Rationale: same as rehandshake.
-*)
-val handshakeRequest: c:Connection -> protocolOptions -> c':Connection{c.ds_info = c'.ds_info}
-val handshakeRequest_now: c:Connection -> protocolOptions -> res:(unit Result) * c':Connection{!x. res = Correct(x) => c.ds_info <> c'.ds_info}
-
-(* Note: for all re-handshake functions (rehandshake, rekey, handshakeRequest),
-    it is easy to implement the blocking version (similar to accept/connect)
-    that sets the flags and internally invokes read enough to get the NewSessionInfo
-    error. In this case, if user data are received, the connection is closed.
-    Note that all read that happen between a re-handshake function is invoked
-    and the NewSessionInfo error is reported are not blocking, assuming the other
-    side sends appropriate handshake packets. *)
+// OLD, legacy stuff
+// predicate type preds =
+//         | AppDataStream of SessionInfo * stream
+// 
+// theorem !i,s,s'. AppDataStream(i,Append(s,s')) => AppDataStream(i,s)
+// 
+// 
+// val write: c:Connection -> data:bytes{AppDataStream(c.ds_info,Append(StreamBytes(c.appdata.app_outgoing),data))} ->
+//                 res:((bytes * bytes) Result) * c':Connection{
+//                 (!sent,rem. res = Correct(sent,rem) => ( c'.ds_info = c.ds_info )) /\
+//                 (!cause,kind. res = Error(cause,kind) =>
+//                         ( List.Mem ((cause,kind),[(Tcp,Internal); (TLS,Internal); (TLS,InvalidState); 
+//                                            (MustRead,Notification); (NewSessionInfo,Notification)]) /\
+//                           ( ((cause,kind) = (NewSessionInfo,Notification) /\ c'.ds_info <> c.ds_info ) \/
+//                             ((cause,kind) <> (NewSessionInfo,Notification) /\ c'.ds_info = c.ds_info ) )
+//                 ))}
+// 
+// val writeFully: c:Connection -> data:bytes{AppDataStream(c.ds_info,Append(StreamBytes(c.appdata.app_outgoing),data))} ->
+//                 res:((bytes * bytes) Result) * c':Connection{
+//                 (!sent,rem. res = Correct(sent,rem) => ( c'.ds_info = c.ds_info )) /\
+//                 (!cause,kind. res = Error(cause,kind) =>
+//                         ( List.Mem ((cause,kind),[(Tcp,Internal); (TLS,Internal); (TLS,InvalidState); 
+//                                            (MustRead,Notification); (NewSessionInfo,Notification)]) /\
+//                           ( ((cause,kind) = (NewSessionInfo,Notification) /\ c'.ds_info <> c.ds_info ) \/
+//                             ((cause,kind) <> (NewSessionInfo,Notification) /\ c'.ds_info = c.ds_info ) )
+//                 ))}
+//                 
+// val read: c:Connection -> len:int -> res:(bytes Result) * c':Connection{
+//         (!recv. res = Correct(recv) => (
+//                 c'.ds_info = c.ds_info /\
+//                 AppDataStream(OtherRole(c.ds_info),
+// 			      Append(PreviouslyRead(c.appdata.app_incoming),recv))
+//                 )) /\
+//         (!cause,kind. res = Error(cause,kind) => (
+//                 List.Mem((cause,kind),[(Tcp,Internal); (TLS,Internal); 
+//                                        (TLS,InvalidState); (NewSessionInfo,Notification)]) /\
+//                 ((cause,kind) = (NewSessionInfo,Notification) <=> 
+// 		    c'.ds_info <> c.ds_info)))}
+//         
+// (* Polls whether there are data available in the current input buffer
+//    (a processed application data fragment not yet delivered to the user).
+//    Note that this function will not check whether data are available on the
+//    underlying socket, because it would not be useful in TLS (we might need
+//    to read more bytes than available to parse a full fragment anyway) *)
+// val dataAvailable: Connection -> bool
+// 
+// (* Complete SSL shutdown, with bi-directional Close_notify alerts,
+//    but does not close the underlying NetworkStream *)
+// val shutdown: Connection -> unit
+// 
+// (* Get SessionInfo from the current Connection. More functions operating
+//    on SessionInfo, like getClientID or getServerID may be added *)
+// val getSessionInfo: c:Connection -> s:SessionInfo{s = c.ds_info}
+// 
+// (* CLIENT SIDE *)
+// 
+// (* New Connection, new Session:
+//     Performs the first full handshake, and
+//     returns the new Connection (which will hold the new SessionInfo).
+//    We might allow some callback for server certificate chain validation,
+//    and for possible client certificate retrieval.
+//    Implementation note: in practice, we'll create a connection with null
+//    parameters, and will inovke read enough times to get the NewSessionInfo
+//    error. We will then forward the new, non-null connection to the user.
+//    Typechecking will ensure that if the connection is with null parameters,
+//    the read function always returns the empty_bstr.
+// *)
+// val connect: NetworkStream -> protocolOptions -> (unit Result) * Connection
+// 
+// (* New Connection, old(/new) Session:
+//     Tries to perform a resumption handshake. If the server accepts
+//     resumption, the SessionInfo in the returned Connection will match
+//     the given SessionInfo. If the server did not accept resumption,
+//     a full handshake will be performed, and a new SessionInfo returned.
+//     Implementation note: same as connect. Also note that protocolOptions
+//     should be "compatible" with the resumed session, but we have no way to
+//     enforce this at the moment.
+// *)
+// val resume: NetworkStream -> SessionInfo -> protocolOptions -> (unit Result) * Connection
+// 
+// (* Old Connection, new Session:
+//     Asks to start a new full handshake over the existing connection.
+//     Note that no data are sent or received when this function is invoked.
+//     Only an internal flag will be set (and possibly some output buffers of the
+//     hanshake protocol filled, but the user shall not be concerned about this),
+//     asking to re-handshake upon next read or write operation.
+//     In particular, the returned Connection will have the same SessionInfo of the
+//     given Connection, only the internal flags (and buffers) will be changed.
+//     Rationale: user data secured by the previous SessionInfo might still be
+//       recevied while performing the re-handshake. A safe and reliable way
+//       is to let the user read/write data normally, until a NewSessionInfo error
+//       will be returned by the read operation, notifying that a new session
+//       has been established. If the user wants to "block" until the handshake is
+//       finished, it has to keep reading until the NewSessionInfo error is received.
+//       All those reads are expected to return 0 bytes read, but nothing can prevent
+//       the other side to send application data during the rehandshake. Whether those
+//       data are acceptable is application specific, and must be handled in the
+//       application. Note that OpenSSL seems to differ, allowing the user to set
+//       a special flag:
+//         ssl->state = SSL_ST_ACCEPT;
+//       which will let the library issue an error if application data are received
+//       during the handshake. This feature is poorly documented, violates encapsulation,
+//       and if one forgets to set the flag then there is no way to know which data
+//       are sent/received before the handshake and which data are sent/received after.
+// *)
+// val rehandshake: c:Connection -> protocolOptions -> c':Connection{c.ds_info = c'.ds_info}
+// val rehandshake_now: c:Connection -> protocolOptions -> res:(unit Result) * c':Connection{!x. res = Correct(x) => c.ds_info <> c'.ds_info}
+// 
+// (* Old Connection, old(/new) Session:
+//     Asks to start a resumption handshake over the existing connection,
+//     which is in fact re-keying.
+//     A full handshake will be performed if the server does not accept resumption.
+//     Like for the rehandshake function, no data will be sent/received, but only
+//     internal flags/buffers will be set. *)
+// val rekey: c:Connection -> protocolOptions -> c':Connection{c.ds_info = c'.ds_info}
+// val rekey_now: c:Connection -> protocolOptions -> res:(unit Result) * c':Connection{!x. res = Correct(x) => c.ds_info <> c'.ds_info}
+// 
+// (* SERVER SIDE *)
+// 
+// (* New Connection, new/old Session:
+//     Waits (blocking call) for a new client to connect and start a handshake.
+//     If the client asks for session resumption (and server has that session
+//     in its cache), a short handshake will take place.
+//     Implementation note: same as connect. *)
+// val accept: TcpListener -> protocolOptions -> (unit Result) * Connection
+// val accept_connected: NetworkStream -> protocolOptions -> (unit Result) * Connection
+// 
+// (* Old Connection, new/old Session:
+//     Sets an internal flag asking to send a Hello Request message on next
+//     read/write operation. If client will ask for resumption and the session
+//     to be resumed is cached, a resumption handshake will take place.
+//     Rationale: same as rehandshake.
+// *)
+// val handshakeRequest: c:Connection -> protocolOptions -> c':Connection{c.ds_info = c'.ds_info}
+// val handshakeRequest_now: c:Connection -> protocolOptions -> res:(unit Result) * c':Connection{!x. res = Correct(x) => c.ds_info <> c'.ds_info}
+// 
+// (* Note: for all re-handshake functions (rehandshake, rekey, handshakeRequest),
+//     it is easy to implement the blocking version (similar to accept/connect)
+//     that sets the flags and internally invokes read enough to get the NewSessionInfo
+//     error. In this case, if user data are received, the connection is closed.
+//     Note that all read that happen between a re-handshake function is invoked
+//     and the NewSessionInfo error is reported are not blocking, assuming the other
+//     side sends appropriate handshake packets. *)
+// 

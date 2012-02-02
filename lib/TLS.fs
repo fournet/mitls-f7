@@ -43,7 +43,7 @@ let write_buffer_empty conn =
 let flush conn =
     match writeAppData conn with
         | (Error(x,y),conn) -> (Error(x,y),conn)
-        | (Correct(),conn) -> (correct(), conn)
+        | (Correct(_),conn) -> (correct(), conn)
 
 let read conn =
     match readAppData conn with
