@@ -23,7 +23,7 @@ val genPMS: SessionInfo -> CipherSuites.ProtocolVersion -> preMasterSecret
 val rsaEncryptPMS: SessionInfo -> asymKey -> preMasterSecret -> bytes Result
 (* Server side: embed RSA decryiption and some sanity checks. Again, fully flexibility in making this computationally-friendly *)
 val getPMS: SessionInfo -> CipherSuites.ProtocolVersion -> bool -> (* Whether we should check protocol version in old TLS versions *)
-        Principal.cert -> bytes ->
+        Certificate.cert -> bytes ->
         preMasterSecret (* No Result type: in case of error, we return random value *)
 
 val empty_pms: SessionInfo -> preMasterSecret (* Used to implement a dummy DH key exchange *)

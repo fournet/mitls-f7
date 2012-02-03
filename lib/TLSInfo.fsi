@@ -1,7 +1,7 @@
 ﻿module TLSInfo
 
 open Bytes
-open Principal
+open Certificate
 open CipherSuites
 
 type sessionID = bytes

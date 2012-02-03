@@ -8,7 +8,7 @@ open CipherSuites
 open TLSInfo
 open TLSKey
 open AppConfig
-open Principal
+open Certificate
 open SessionDB
 open PRFs
 
@@ -1700,7 +1700,7 @@ and full_handshake state server_random shello =
 
 *)
 
-// Move to Principal? 
+// Move to Certificate? 
 let getServerCert cs ops =
     (* TODO: Properly get the server certificate. Note this should be a list of certificates...*)
     let data = System.IO.File.ReadAllBytes (ops.server_cert_file + ".cer") in

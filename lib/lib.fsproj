@@ -59,9 +59,9 @@
     <None Include="HMAC.fs7" />
     <Compile Include="HMAC.fsi" />
     <Compile Include="HMAC.fs" />
-    <None Include="Principal.fs7" />
-    <Compile Include="Principal.fsi" />
-    <Compile Include="Principal.fs" />
+    <None Include="Certificate.fs7" />
+    <Compile Include="Certificate.fsi" />
+    <Compile Include="Certificate.fs" />
     <None Include="CipherSuites.fs7" />
     <Compile Include="CipherSuites.fsi" />
     <Compile Include="CipherSuites.fs" />

@@ -2,7 +2,7 @@
 
 open Formats
 open CipherSuites
-open Principal
+open Certificate
 open TLSInfo
 
 type helloReqPolicy =

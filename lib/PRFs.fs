@@ -148,7 +148,7 @@ let getPMS sinfo ver check_client_version_in_pms_for_old_tls cert encPMS =
     (* 1. Generate random data, 46 bytes, for PMS except client version *)
     let fakepms = mkRandom 46 in
     (* 2. Decrypt the message to recover plaintext *)
-    let priK = Principal.priKey_of_certificate cert in
+    let priK = Certificate.priKey_of_certificate cert in
     let verB = versionBytes ver in
     match rsaDecrypt priK encPMS with
     | Error(x,y) ->
