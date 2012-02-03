@@ -28,3 +28,7 @@ val cipherLength: si:SessionInfo -> n:nat{n<=max_TLSPlaintext_fragment_length} -
 val splitInFrag: ki:KeyInfo -> b:bytes ->
 		(n:nat * b1:bytes * b2:bytes){CompatibleLength(ki.sinfo,Length(b1),n) /\
 				b = b1 @| b2 /\ Length(b1) <= max_TLSPlaintext_fragment_length}
+
+predicate CompatibleLengths of SessionInfo * int * int list
+val estimateLengths: si:SessionInfo -> n:int -> l:int list{CompatibleLengths(si,n,l)}
+val getFragment: si:SessionInfo -> tlen:int -> b:bytes -> (b1:bytes * b2:bytes){CompatibleLength(si,Length(b1),tlen) /\ b = b1 @| b2}

@@ -67,3 +67,21 @@ let splitInFrag ki b =
         else
             (b,[||])
     (cipherLength ki.sinfo (length frag),frag,rem)
+
+type lengthPreds =
+   CompatibleLengths of SessionInfo * int * int list
+
+let rec estimateLengths sinfo len =
+  let ls = 
+    if len > fragmentLength then 
+        cipherLength sinfo fragmentLength :: 
+        estimateLengths sinfo (len - fragmentLength)  
+    else 
+        [cipherLength sinfo len] in
+  Pi.assume (CompatibleLengths(sinfo,len,ls));
+  ls
+
+let getFragment (sinfo:SessionInfo) (len:int) b = 
+  if length(b) > fragmentLength then
+    split b fragmentLength
+  else b,[||]

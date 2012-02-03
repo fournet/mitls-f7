@@ -31,7 +31,7 @@ let write conn b =
     // The next three lines should be in the top level app,
     // and the write function should take appdata
     let si = getSessionInfo conn
-    let lengths = AppDataStream.estimateLengths si (length b) in
+    let lengths = FragCommon.estimateLengths si (length b) in
     let appdata = b in
     Dispatch.commit conn lengths appdata
 

@@ -3,13 +3,12 @@ module AppDataStream
 open TLSInfo
 open Bytes
 open Error
+open FragCommon
 
 type lengths = int list
 
-predicate type lengthPreds =
-  CompatibleLengths of SessionInfo * int * lengths
-
-assume !si. CompatibleLengths(si,0,[])
+(* assume !si. CompatibleLengths(si,0,[]) *)
+assume !si,n,l. CompatibleLengths(si,n,l) 
 (*
 assume !si,n1,ls1,n2,ls2. CompatibleLengths(si,n1,ls1) /\
                    CompatibleLengths(si,n2,ls2) => 
@@ -27,13 +26,13 @@ assume !si. ValidAppDataStream(si, [| |])
 assume !si,nsi,b. ValidAppDataStream(si,b) /\ 
                   CompatibleSessions(si,nsi) => ValidAppDataStream(nsi,b)
 
-type (;si:SessionInfo,seqn:int,ls:lengths) AppDataStream = 
-    ads:(;si,seqn,ls) preAppDataStream{CompatibleLengths(si,Length(ads.data),ads.lengths) /\
-				       ls = ads.lengths_history @ ads.lengths /\  
+assume !ls1,ls2,ls3. (ls1 @ls2) @ ls3 = ls1 @ (ls2 @ ls3)
+private type (;si:SessionInfo,seqn:int,ls:lengths) AppDataStream = 
+    ads:(;si,seqn,ls) preAppDataStream{CompatibleLengths(si,Length(ads.data),ads.lengths)  /\
+				       ls = ads.lengths_history @ ads.lengths /\    
 	                               ValidAppDataStream(si,ads.history @| ads.data) }
 
 
-val estimateLengths: si:SessionInfo -> n:int -> l:lengths{CompatibleLengths(si,n,l)}
 
 
 val emptyAppDataStream: si:SessionInfo -> (;si,0,[]) AppDataStream
@@ -42,8 +41,9 @@ val isEmptyAppDataStream: si:SessionInfo -> seqn:int ->
   b:bool{b = true => ads.data = [| |]}
 
 val writeAppDataBytes: si:SessionInfo -> seqn:int -> ls:lengths -> 
-                (;si,seqn,ls) AppDataStream ->
-                b:bytes -> lens:lengths{CompatibleLengths(si,Length(b),lens)} ->
+                ads: (;si,seqn,ls) AppDataStream ->
+                b:bytes{ValidAppDataStream(si,ads.history @| (ads.data @| b))} -> 
+                lens:lengths{CompatibleLengths(si,Length(b),lens)} ->
                 (nls:lengths * (;si,seqn,nls) AppDataStream)
 
 val readAppDataBytes: si:SessionInfo -> seqn:int -> ls:lengths -> (;si,seqn,ls) AppDataStream ->
@@ -52,11 +52,13 @@ val readAppDataBytes: si:SessionInfo -> seqn:int -> ls:lengths -> (;si,seqn,ls) 
 // Definition of AppDataFragment should include compatiblelength
 predicate AppDataFragment of KeyInfo * int * int * bytes
 
-assume !ki,tlen,seqn,x. AppDataFragment(ki,tlen,seqn,x) => CompatibleLengths(ki.sinfo,Length(x),[tlen])
+assume !ki,tlen,seqn,x. AppDataFragment(ki,tlen,seqn,x) => 
+                        CompatibleLengths(ki.sinfo,Length(x),[tlen])
 
 private type (;ki:KeyInfo,tlen:int,seqn:int) fragment = 
 	    {b:(x:bytes){Corrupt(ki) \/
            		 AppDataFragment(ki,tlen,seqn,x)}}
+
 
 val fragment: ki:KeyInfo -> tlen:int -> seqn:int -> b:bytes -> (;ki,tlen,seqn) fragment
 val repr: ki:KeyInfo -> tlen:int -> seqn:int -> (;ki,tlen,seqn) fragment -> b:bytes{AppDataFragment(ki,tlen,seqn,b)} 

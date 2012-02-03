@@ -1,6 +1,7 @@
 ﻿#light "off"
 module AppDataStream
 
+open Error
 open Bytes
 open TLSInfo
 open FragCommon
@@ -15,18 +16,6 @@ type preAppDataStream = {
 }
 type AppDataStream = preAppDataStream
 
-type lengthPreds =
-   CompatibleLengths of SessionInfo * int * lengths
-
-let rec estimateLengths sinfo len =
-  let ls = 
-    if len > fragmentLength then 
-        cipherLength sinfo fragmentLength :: 
-        estimateLengths sinfo (len - fragmentLength)  
-    else 
-        [cipherLength sinfo len] in
-  Pi.assume (CompatibleLengths(sinfo,len,ls));
-  ls
 
 let emptyAppDataStream (si:SessionInfo) = 
   {
@@ -56,19 +45,6 @@ let readAppDataBytes (si:SessionInfo) (seqn:int) (ls:lengths) (ads:AppDataStream
     lengths = []})
 
 type fragment = {b:bytes}
-let repr (ki:KeyInfo) (i:int) (seqn:int) f = f.b
-let fragment (ki:KeyInfo) (i:int) (seqn:int) b = {b=b}
-
-
-let writeAppDataFragment (ki:KeyInfo) (seqn:int) (ls:lengths) 
-    (ads:AppDataStream) (nseqn:int) (tlen:int) (f:fragment) =
-  let ndata = ads.data @| f.b in
-  let nlens = ads.lengths @ [tlen] in
-  let nls = ls @ [tlen] in
-    nls,{ads with
-	   data = ndata;
-	   lengths = nlens;
-	}
 
 (* The idea is: Given the cipertext target length, we get a *smaller* plaintext fragment
    (so that MAC and padding can be added back).
@@ -83,25 +59,29 @@ let readAppDataFragment (ki:KeyInfo) (seqn:int) (ls:lengths) (ads:AppDataStream)
     (nseqn:int) = 
   match ads.lengths with 
     | thisLen::remLens ->
-	let dlen = Bytes.length(ads.data) in
-        (* Same implementation as estimateLengths, but one fragment at a time *)
-        if dlen > fragmentLength then
-            (* get one full fragment of appdata *)
-            (* TODO: apply compression on thisData *)
-            let (thisData,remData) = split ads.data fragmentLength in
-	      (thisLen,{b = thisData},
-	       {history = ads.history @| thisData;
-		lengths_history = ads.lengths_history @ [thisLen];
-		data = remData;
-		lengths = remLens;})
-        else
-	      (thisLen,{b = ads.data},
-	       {history = ads.history @| ads.data;
-		lengths_history = ads.lengths_history @ [thisLen];
-		data = [| |];
-		lengths = remLens;}) // KB:there should be no remaining lengths?
-    | [] -> (0,{b = [||]},ads)
+	let (thisData,remData) = getFragment ki.sinfo thisLen ads.data in
+	  (thisLen,{b = thisData},
+	   {history = ads.history @| thisData;
+	    lengths_history = ads.lengths_history @ [thisLen];
+	    data = remData;
+	    lengths = remLens;})
+    | [] -> unexpectedError "readAppDataFragment expects a non-empty stream" 
+	    //(0,{b = [||]},ads)
 
 
 let reIndex (oldSI:SessionInfo) (newSI:SessionInfo) (seqn:int) (ls:lengths) 
     (ads:AppDataStream) = ads
+
+
+let writeAppDataFragment (ki:KeyInfo) (seqn:int) (ls:lengths) 
+    (ads:AppDataStream) (nseqn:int) (tlen:int) (f:fragment) =
+  let ndata = ads.data @| f.b in
+  let nlens = ads.lengths @ [tlen] in
+  let nls = ls @ [tlen] in
+    nls,{ads with
+	   data = ndata;
+	   lengths = nlens;
+	}
+
+let repr (ki:KeyInfo) (i:int) (seqn:int) f = f.b
+let fragment (ki:KeyInfo) (i:int) (seqn:int) b = {b=b}

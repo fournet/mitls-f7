@@ -6,9 +6,6 @@ open Error
 
 type lengths = int list
 
-type lengthPreds =
-  CompatibleLengths of SessionInfo * int * lengths
-
 type preAppDataStream = {
   history: bytes;
   lengths_history: lengths;
@@ -16,9 +13,6 @@ type preAppDataStream = {
   lengths: lengths; 
 }
 type AppDataStream = preAppDataStream
-
-
-val estimateLengths: SessionInfo -> int -> lengths
 
 
 val emptyAppDataStream: SessionInfo -> AppDataStream
