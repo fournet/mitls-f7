@@ -113,3 +113,45 @@ let DEC ki key iv3 cipher =
     match iv3 with
     | ENCKey.SomeIV(_) -> (ENCKey.SomeIV(lastblock cipher ivl), d)
     | ENCKey.NoIV(b)    -> (ENCKey.NoIV(b), d)
+
+(* the SPRP game in F#, without indexing so far.
+   the adversary gets 
+   enc: block -> block
+   dec: block -> block 
+
+// two copies of assoc 
+let rec findp pcs c = 
+  match pcs with 
+  | (p,c')::pcs -> if c = c' then Some(p) else findp pcs c
+  | [] -> None
+let rec findc pcs p = 
+  match pcs with 
+  | (p',c)::pcs -> if p = p' then Some(c) else findc pcs p
+  | [] -> None
+   
+let k = mkRandom blocksize
+let qe = ref 0
+let qd = ref 0
+#if aes
+let F = AES k
+let G = AESminus k 
+#else
+let log = ref ([] : (block * block) list)
+let F p = 
+  match findc !pcs p with 
+  | Some(c) -> c // non-parametric; 
+                 // after CBC-collision avoidance,
+                 // we will always use the "None" case
+  | None    -> let c = mkfreshc !log blocksize 
+               log := (p,c)::!log
+               c
+let G c = 
+  match findp !log c with 
+  | Some(p) -> p 
+  | None    -> let p = mkfreshp !log blocksize 
+               log := (p,c)::!log
+               p
+#endif
+let enc p = incr qe; F p
+let dec c = incr qd; G c
+*)
