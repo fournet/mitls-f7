@@ -347,16 +347,18 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
         match send id.id_out c.ns c_write tlen Alert (TLSFragment.FAlert(f)) with 
         | Correct(new_write) ->
             let new_write = {new_write with disp = Closing} in
+            let ad = readNonAppDataFragment id c.appdata in
             (correct (WriteAgain), Conn(id,{ c with alert = new_al_state;
-                                                    appdata = readNonAppDataFragment id c.appdata;
+                                                    appdata = ad;
                                                     write   = new_write } ))
         | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (Error(x,y), closed) (* Unrecoverable error *)
       | (Alert.LastALFrag(tlen,f),new_al_state) ->
         (* We're sending a fatal alert. Send it, then close both sending and receiving sides *)
         match send id.id_out c.ns c_write tlen Alert (TLSFragment.FAlert(f)) with 
         | Correct(new_write) ->
+            let ad = readNonAppDataFragment id c.appdata in
             let c = {c with alert = new_al_state;
-                            appdata = readNonAppDataFragment id c.appdata;
+                            appdata = ad;
                             write = new_write}
             let closed = closeConnection (Conn(id,c)) in
             (correct (Done), closed)
@@ -368,8 +370,9 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
         match send id.id_out c.ns c_write tlen Alert (TLSFragment.FAlert(f)) with
         | Correct(new_write) ->
             let new_write = {new_write with disp = Closed} in
+            let ad = readNonAppDataFragment id c.appdata in
             let c = {c with alert = new_al_state;
-                            appdata = readNonAppDataFragment id c.appdata;
+                            appdata = ad;
                             write = new_write}
             (correct (Done), Conn(id,c))
         | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (Error(x,y), closed) (* Unrecoverable error *)
@@ -435,7 +438,7 @@ let deliver (Conn(id,c)) ct tlen frag =
             match x with
             | Finishing ->
                 (correct (HSDone),Conn(id,{c with read = c_read; appdata = ad; handshake = hs}))
-            | _ -> let closed = closeConnection (Conn(id,{c with appdata = ad; handshake = hs})) in (Error(Dispatcher,InvalidState), closed ) // TODO: We might want to send some alert here
+            | _ -> let closed = closeConnection (Conn(id,{c with handshake = hs})) in (Error(Dispatcher,InvalidState), closed ) // TODO: We might want to send some alert here
         | Handshake.HSFullyFinished_Read(newSI,newMS,newDIR) ->
             let newInfo = (newSI,newMS,newDIR) in
             let c = {c with read = c_read; appdata = ad; handshake = hs} in
