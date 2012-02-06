@@ -61,3 +61,6 @@ val reIndex: ConnectionInfo ->  ConnectionInfo -> app_state -> app_state
 
 val is_incoming_empty: ConnectionInfo ->  app_state -> bool
 val is_outgoing_empty: ConnectionInfo ->  app_state -> bool
+
+val reset_incoming:  ConnectionInfo ->  app_state -> app_state
+val reset_outgoing:  ConnectionInfo ->  app_state -> app_state

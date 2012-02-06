@@ -148,3 +148,17 @@ val reIndex: oldC:ConnectionInfo ->
 val init: c:ConnectionInfo -> aps:(;c) app_state{InSequenceNo(c,aps) = 0 /\ OutSequenceNo(c,aps) = 0}
 val is_incoming_empty: c:ConnectionInfo -> 
   (;c) app_state -> bool
+
+val reset_incoming: c:ConnectionInfo -> 
+  aps:(;c) app_state ->
+  aps':(;c) app_state{
+    (InSequenceNo(c,aps'),OutSequenceNo(c,aps')) =
+    (0,OutSequenceNo(c,aps))
+  }
+
+val reset_outgoing: c:ConnectionInfo -> 
+  aps:(;c) app_state ->
+  aps':(;c) app_state{
+    (InSequenceNo(c,aps'),OutSequenceNo(c,aps')) =
+    (InSequenceNo(c,aps),0)
+  }

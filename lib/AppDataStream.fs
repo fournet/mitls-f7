@@ -63,9 +63,16 @@ let init ci =
      app_incoming = (0,[],emptyAppDataStream ci.id_in);
     }
 
-let reset_incoming ci  app_state =
+let reset_incoming (ci:ConnectionInfo) app_state =
+  let (seqn,ls,b) = app_state.app_incoming in
     {app_state with 
-       app_incoming = (0,[],emptyAppDataStream ci.id_in);
+       app_incoming = (0,ls,b);
+    }
+
+let reset_outgoing (ci:ConnectionInfo) app_state =
+  let (seqn,ls,b) = app_state.app_outgoing in
+    {app_state with 
+       app_outgoing = (0,ls,b);
     }
 
 let is_incoming_empty (ci:ConnectionInfo) app_state = 

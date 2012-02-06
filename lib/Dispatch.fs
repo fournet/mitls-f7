@@ -289,7 +289,8 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
                                 let newID = {id with id_out = newKiOUT } in
                                 let c = reIndex_out id newID c ccs_data in
                                 let new_write = {c.write with disp = Finishing; seqn = 0} in
-                                let c = { c with write = new_write; appdata = readNonAppDataFragment id c.appdata} in
+                                let ad = reset_outgoing newID c.appdata in
+                                let c = { c with write = new_write; appdata = ad} in
                                 (correct (WriteAgain), Conn(newID,c) )
                             else
                                 let closed = closeConnection (Conn(id,c)) in
@@ -453,12 +454,12 @@ let deliver (Conn(id,c)) ct tlen frag =
     match Handshake.recv_ccs id c_read.seqn c.handshake tlen f with 
     | (Correct(ccs),hs) ->
         let (newKiIN,ccs_data) = ccs in
-        let ad = writeNonAppDataFragment id c.appdata in
         if checkCompatibleSessions id.id_in.sinfo newKiIN.sinfo c.poptions then
             let c = {c with handshake = hs} in
             let newID = {id with id_in = newKiIN} in
             let c = reIndex_in id newID c ccs_data in
             let new_read = {c.read with disp = Finishing; seqn = 0} in
+            let ad = reset_incoming newID c.appdata in
             let c = { c with appdata = ad; read = new_read}
             (correct (ReadAgain), Conn(newID,c))
         else
