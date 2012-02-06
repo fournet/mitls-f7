@@ -79,7 +79,7 @@ assume !s1,s2,s3. CompatibleSessions(s1,s2) /\ CompatibleSessions(s2,s3) => Comp
 assume !s1,s2. UserSaysCompatibleSessions(s1,s2) => CompatibleSessions(s1,s2)
 assume !nulls,s. NullSessionInfo(nulls) => CompatibleSessions(nulls,s)
 
-predicate CompatibleIndexes of ConnectionInfo * ConnectionInfo
-assume !id1,id2. CompatibleIndexes(id1,id2) <=>
+predicate CompatibleConnections of ConnectionInfo * ConnectionInfo
+assume !id1,id2. CompatibleConnections(id1,id2) <=>
 				 ( CompatibleSessions(id1.id_in.sinfo, id2.id_in.sinfo ) /\
                    CompatibleSessions(id1.id_out.sinfo,id2.id_out.sinfo) )

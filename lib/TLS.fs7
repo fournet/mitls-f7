@@ -6,11 +6,23 @@ open Dispatch
 open Error
 open TLSInfo
 
-val write: c:Connection -> bytes -> (;c)CompatibleConnection
+function OutgoingDataStream: Connection -> bytes
+function IncomingDataStream: Connection -> bytes
+assume !ci,gs. OutgoingDataStream((ci,gs)) = AppDataStream.OutStream(gs.appdata)
+assume !ci,gs. IncomingDataStream((ci,gs)) = AppDataStream.InStream(gs.appdata)
+
+predicate Sent of ConnectionInfo * bytes
+assume !c,b. Sent(c,b) <=> ValidAppDataStream(c.id_out,b)
+
+predicate Received of ConnectionInfo * bytes
+assume !c,b. Received(c,b) <=> (Corrupt(c.id_in) \/ ValidAppDataStream(Dual(c.id_in),b))
+
+
+val write: c:Connection -> b:bytes -> (;c)CompatibleConnection
 
 val flush: c:Connection -> (unit Result) * (;c)CompatibleConnection
 
-val read: c:Connection -> c':(;c)CompatibleConnection * (bytes Result)
+val read: c:Connection -> c':(;c)CompatibleConnection * (b:bytes) Result
 
 val shutdown: c:Connection -> unit
 

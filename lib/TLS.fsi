@@ -84,7 +84,6 @@ val write: Connection -> bytes -> Connection
 (* In read and send/flush we return (x Result) * Connection, because an error could also be a notification, like MustRead or NewSessionInfo *)
 (* val sendOneFragment: Connection -> (unit Result) * Connection *)
 val flush: Connection -> (unit Result) * Connection
-
 val read: Connection -> Connection * (bytes Result) // This order, because returned bytes depend on returned connection
 (* Polls whether there are data available in the current input buffer
    (a processed application data fragment not yet delivered to the user).

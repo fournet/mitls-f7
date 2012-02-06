@@ -31,7 +31,7 @@ val next_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)app_state ->
 val recv_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)app_state -> tlen:int -> (;ci.id_in,tlen,seqn)fragment ->
 	(;ci)app_state
 
-val reIndex: oldID:ConnectionInfo -> newID:ConnectionInfo{CompatibleIndexes(oldID,newID)} ->
+val reIndex: oldID:ConnectionInfo -> newID:ConnectionInfo{CompatibleConnections(oldID,newID)} ->
 	(;oldID)app_state -> (;newID)app_state
 
 // /// OLD, legacy stuff

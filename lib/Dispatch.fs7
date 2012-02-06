@@ -7,7 +7,7 @@ open Error
 open Record
 open Handshake
 open Alert
-open AppData
+open AppDataStream
 open TLSInfo
 open TLSKey
 open AppConfig
@@ -30,15 +30,15 @@ type dispatchState = d:predispatchState{
 type (;ki:KeyInfo) dState = {
     disp: dispatchState;
     conn: (;ki)Record.ConnectionState;
-	seqn: int
+    seqn: int
     }
 
-type (;id:ConnectionInfo) globalState = {
+type (;id:ConnectionInfo) preGlobalState = {
   poptions: protocolOptions;
   (* abstract protocol states for HS/CCS, AL, and AD *)
   handshake: (;id) Handshake.hs_state;
   alert    : (;id) Alert.state;
-  appdata  : (;id) AppData.app_state;    
+  appdata  : (;id) AppDataStream.app_state;    
 
   (* connection state for reading and writing *)
   read  : (;id.id_in)  dState;
@@ -46,6 +46,11 @@ type (;id:ConnectionInfo) globalState = {
   (* The actual socket *)
   ns: NetworkStream;
   }
+
+type (;id:ConnectionInfo) globalState = (gs:(;id) preGlobalState){
+  InSequenceNo(id,gs.appdata) = gs.read.seqn /\ 
+  OutSequenceNo(id,gs.appdata) = gs.write.seqn
+}
 
 type Connection = Conn of (id:ConnectionInfo * (;id)globalState)
 function val ConnectionIndex: Connection -> ConnectionInfo
@@ -73,7 +78,7 @@ val checkCompatibleSessions: s1:SessionInfo -> s2:SessionInfo -> AppConfig.proto
                              b:bool{b = true => CompatibleSessions(s1,s2)}
 
 type (;c:Connection) CompatibleConnection = c':Connection{
-   CompatibleIndexes(ConnectionIndex(c),ConnectionIndex(c')) }
+   CompatibleConnections(ConnectionIndex(c),ConnectionIndex(c')) }
 
 type writeOutcome =
     | WriteAgain (* Possibly more data to send *)
@@ -102,15 +107,17 @@ val moveToOpenState: c:Connection ->
 	(;ConnectionIndex(c))globalState
 
 val reIndex_dState: oldKI:KeyInfo -> newKI:KeyInfo{CompatibleSessions(oldKI.sinfo,newKI.sinfo)} ->
-	(;oldKI)dState -> (;newKI)ccs_data -> (;newKI)dState
+	ods:(;oldKI)dState -> (;newKI)ccs_data -> 
+  nds:(;newKI)dState{nds.disp = ods.disp /\ nds.seqn = ods.seqn}
 
 val reIndex_dState_null: oldKI:KeyInfo{NullSessionInfo(oldKI.sinfo)} ->
-	newKI:KeyInfo{NullSessionInfo(newKI.sinfo)} ->
-	(;oldKI)dState -> (;newKI)dState
+  newKI:KeyInfo{NullSessionInfo(newKI.sinfo)} ->
+  ods:(;oldKI)dState -> 
+  nds:(;newKI)dState{nds.disp = ods.disp /\ nds.seqn = ods.seqn}
 
 val reIndex_out: oldID:ConnectionInfo ->
 	newID:ConnectionInfo{oldID.id_in = newID.id_in /\
-						 CompatibleSessions(oldID.id_out.sinfo,newID.id_out.sinfo)} ->
+			     CompatibleSessions(oldID.id_out.sinfo,newID.id_out.sinfo)} ->
 	(;oldID)globalState -> (;newID.id_out)ccs_data ->
 	(;newID)globalState
 
