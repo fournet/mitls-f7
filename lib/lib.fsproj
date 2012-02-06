@@ -102,9 +102,6 @@
     <None Include="AppDataStream.fs7" />
     <Compile Include="AppDataStream.fsi" />
     <Compile Include="AppDataStream.fs" />
-    <None Include="AppData.fs7" />
-    <Compile Include="AppData.fsi" />
-    <Compile Include="AppData.fs" />
     <None Include="TLSFragment.fs7" />
     <Compile Include="TLSFragment.fsi" />
     <Compile Include="TLSFragment.fs" />
