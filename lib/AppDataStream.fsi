@@ -6,13 +6,9 @@ open Error
 
 type lengths = int list
 
-type preAppDataStream = {
-  history: bytes;
-  lengths_history: lengths;
-  data: bytes;
-  lengths: lengths; 
-}
+type preAppDataStream
 type AppDataStream = preAppDataStream
+
 val emptyAppDataStream: KeyInfo -> AppDataStream
 val isEmptyAppDataStream: KeyInfo -> lengths -> AppDataStream -> bool
 
@@ -25,10 +21,11 @@ val readAppDataStreamBytes: KeyInfo -> lengths -> AppDataStream ->
 type output_buffer = int * lengths * AppDataStream
 type input_buffer = int * lengths * AppDataStream
 
-type app_state = {
+type app_state
+(* = {
   app_incoming: input_buffer;
   app_outgoing: output_buffer;
-}
+}*)
 
 val init: ConnectionInfo -> app_state
 
@@ -59,8 +56,10 @@ val writeNonAppDataFragment: ConnectionInfo ->  app_state ->  app_state
 
 val reIndex: ConnectionInfo ->  ConnectionInfo -> app_state -> app_state
 
+val reset_incoming:  ConnectionInfo -> app_state -> app_state
+
+val reset_outgoing:  ConnectionInfo -> app_state -> app_state
+
 val is_incoming_empty: ConnectionInfo ->  app_state -> bool
 val is_outgoing_empty: ConnectionInfo ->  app_state -> bool
 
-val reset_incoming:  ConnectionInfo ->  app_state -> app_state
-val reset_outgoing:  ConnectionInfo ->  app_state -> app_state

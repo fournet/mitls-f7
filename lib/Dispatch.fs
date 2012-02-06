@@ -186,7 +186,7 @@ let reIndex_out oldID newID c ccsD =
     // All indexes must be changed atomically inside one function
     let newHS =      Handshake.reIndex oldID newID c.handshake in
     let newAlert =   Alert.reIndex     oldID newID c.alert in
-    let newAppData = AppDataStream.reIndex   oldID newID c.appdata in
+    let newAppData = AppDataStream.reIndex  oldID newID c.appdata in
     let newWrite =   reIndex_dState oldID.id_out newID.id_out c.write ccsD in
     { c with handshake = newHS;
              alert =     newAlert;
@@ -196,7 +196,7 @@ let reIndex_out oldID newID c ccsD =
 let reIndex_in oldID newID c ccsD =
     let newHS =      Handshake.reIndex oldID newID c.handshake in
     let newAlert =   Alert.reIndex     oldID newID c.alert in
-    let newAppData = AppDataStream.reIndex   oldID newID c.appdata in
+    let newAppData = AppDataStream.reIndex oldID newID c.appdata in
     let newRead =   reIndex_dState oldID.id_in newID.id_in c.read ccsD in
     { c with handshake = newHS;
              alert =     newAlert;
@@ -206,7 +206,7 @@ let reIndex_in oldID newID c ccsD =
 let reIndex_null oldID newID c =
     let newHS =      Handshake.reIndex oldID newID c.handshake in
     let newAlert =   Alert.reIndex     oldID newID c.alert in
-    let newAppData = AppDataStream.reIndex   oldID newID c.appdata in
+    let newAppData = AppDataStream.reIndex  oldID newID c.appdata in
     let newRead =    reIndex_dState_null oldID.id_in  newID.id_in  c.read in
     let newWrite =   reIndex_dState_null oldID.id_out newID.id_out c.write in
     { c with handshake = newHS;
@@ -289,8 +289,8 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
                                 let newID = {id with id_out = newKiOUT } in
                                 let c = reIndex_out id newID c ccs_data in
                                 let new_write = {c.write with disp = Finishing; seqn = 0} in
-                                let ad = reset_outgoing newID c.appdata in
-                                let c = { c with write = new_write; appdata = ad} in
+                                let newad = AppDataStream.reset_outgoing newID c.appdata in
+                                let c = { c with write = new_write; appdata = newad} in
                                 (correct (WriteAgain), Conn(newID,c) )
                             else
                                 let closed = closeConnection (Conn(id,c)) in
@@ -462,8 +462,8 @@ let deliver (Conn(id,c)) ct tlen frag =
             let newID = {id with id_in = newKiIN} in
             let c = reIndex_in id newID c ccs_data in
             let new_read = {c.read with disp = Finishing; seqn = 0} in
-            let ad = reset_incoming newID c.appdata in
-            let c = { c with appdata = ad; read = new_read}
+            let newad = AppDataStream.reset_incoming newID c.appdata in
+            let c = { c with read = new_read; appdata = newad}
             (correct (ReadAgain), Conn(newID,c))
         else
             let closed = closeConnection (Conn(id,c)) in (Error(Dispatcher, UserAborted), closed ) (* TODO: we might want to send an "internal error" fatal alert *)

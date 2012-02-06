@@ -5,17 +5,18 @@ open AppConfig
 open Dispatch
 open Error
 open TLSInfo
+open AppDataStream
 
-function OutgoingDataStream: Connection -> bytes
-function IncomingDataStream: Connection -> bytes
-assume !ci,gs. OutgoingDataStream((ci,gs)) = AppDataStream.OutStream(gs.appdata)
-assume !ci,gs. IncomingDataStream((ci,gs)) = AppDataStream.InStream(gs.appdata)
+function val OutgoingDataStream: Connection -> bytes
+function val IncomingDataStream: Connection -> bytes
+assume !c,ci,gs. c = (ci,gs) => OutgoingDataStream(c) = OutStream(ci,gs.appdata)
+assume !c,ci,gs. c = (ci,gs)=> IncomingDataStream(c) = InStream(ci,gs.appdata)
 
 predicate Sent of ConnectionInfo * bytes
 assume !c,b. Sent(c,b) <=> ValidAppDataStream(c.id_out,b)
 
 predicate Received of ConnectionInfo * bytes
-assume !c,b. Received(c,b) <=> (Corrupt(c.id_in) \/ ValidAppDataStream(Dual(c.id_in),b))
+assume !c,b. Received(c,b) <=> (Corrupt(c.id_in) \/ ValidAppDataStream(c.id_in,b))
 
 
 val write: c:Connection -> b:bytes -> (;c)CompatibleConnection

@@ -23,7 +23,7 @@ assume !ki,tlen,seq,ct,b.
 
 val TLSFragmentRepr: ki:KeyInfo -> tlen:int -> seqn:int -> 
   ct:ContentType -> (;ki,tlen,seqn,ct)fragment -> 
-  x:bytes{Fragment(ki,tlen,seqn,ct,x)}
+  x:bytes{Corrupt(ki) \/ Fragment(ki,tlen,seqn,ct,x)}
 
 val TLSFragment: ki:KeyInfo -> tlen:int -> seqn:int -> 
   ct:ContentType -> b:bytes{Corrupt(ki) \/ Fragment(ki,tlen,seqn,ct,b)} -> 

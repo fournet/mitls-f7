@@ -33,13 +33,16 @@ private type (;si:SessionInfo,ls:lengths) preAppDataStream = {
 assume !ki. ValidAppDataStream(ki, [| |])
 assume !ki,nki,b. ValidAppDataStream(ki,b) /\ 
                   CompatibleSessions(ki.sinfo,nki.sinfo) => 
-	          ValidAppDataStream(ki,b)
+	          ValidAppDataStream(nki,b)
+assume !ki,b1,b2,b3. ValidAppDataStream(ki,b1 @| (b2 @| b3)) =>
+            ValidAppDataStream(ki,b1 @| b2)
+
 private type (;ki:KeyInfo,ls:lengths) AppDataStream = 
     ads:(;ki,ls) preAppDataStream{CompatibleLengths(ki.sinfo,Length(ads.data),ads.lengths)  /\
-				       ls = ads.lengths_history @ ads.lengths /\    
+				      (* ls = ads.lengths_history @ ads.lengths /\    *)
 	                               ValidAppDataStream(ki,ads.history @| ads.data) }
 
-val emptyAppDataStream: si:KeyInfo -> (;si,[]) AppDataStream
+val emptyAppDataStream: si:KeyInfo -> ads:(;si,[]) AppDataStream{ads.data = [| |] /\ ads.history = [| |]}
 val isEmptyAppDataStream: si:KeyInfo -> ls:lengths -> ads:(;si,ls) AppDataStream -> 
   b:bool{b = true => ads.data = [| |]}
 
@@ -47,36 +50,30 @@ val writeAppDataStreamBytes: ki:KeyInfo -> ls:lengths ->
                 ads: (;ki,ls) AppDataStream ->
                 b:bytes{ValidAppDataStream(ki,ads.history @| (ads.data @| b))} -> 
                 lens:lengths{CompatibleLengths(ki.sinfo,Length(b),lens)} ->
-                (nls:lengths * (;ki,nls) AppDataStream)
+                (nls:lengths * ads':(;ki,nls) AppDataStream){ads'.history = ads.history}
 
-val readAppDataStreamBytes: ki:KeyInfo -> ls:lengths -> (;ki,ls) AppDataStream ->
-                 (b:bytes * (;ki,ls) AppDataStream)
+val readAppDataStreamBytes: ki:KeyInfo -> ls:lengths -> ads:(;ki,ls) AppDataStream ->
+                 (b:bytes * ads':(;ki,ls) AppDataStream){ads'.history = ads.history @| ads.data /\ ads'.data = [| |]}
 
-
-theorem !ki,tlen,seqn,b. AppDataFragment(ki,tlen,seqn,b) =>
-  (seqn >= 0 /\ CompatibleLengths(ki.sinfo,Length(b),[tlen]) /\ AppDataSequenceNo(ki,seqn) /\
-     (?d. ValidAppDataStream(ki,d @| b) /\
-	  AppDataFragmentSequence(ki,seqn - 1,d)))
-
-theorem !ki,seqn. AppDataSequenceNo(ki,seqn) => (not NonAppDataSequenceNo(ki,seqn))
-
-assume !ki,seqn,b. AppDataFragmentSequence(ki,seqn,b) <=>
-  (Corrupt(ki) \/ 
-     (seqn < 0 /\ b = [| |]) \/
-     (seqn >= 0 /\ 
-	(?d. AppDataFragmentSequence(ki,seqn - 1,d) /\ 
-	   ((?tlen,f. b = d @| f /\ AppDataFragment(ki,tlen,seqn,f)) \/
-	    (b = d /\ NonAppDataSequenceNo(ki,seqn))))))
-	
 type (;ki:KeyInfo) output_buffer = 
     (seqn:int * ls:lengths * ads:(;ki,ls)AppDataStream){
-      Corrupt(ki) \/ AppDataFragmentSequence(ki,seqn,ads.history)
+      seqn >= 0 /\ (Corrupt(ki) \/ AppDataFragmentSequence(ki,seqn-1,ads.history))
     }
 
 type (;ki:KeyInfo) input_buffer = 
     (seqn:int * ls:lengths * ads:(;ki,ls)AppDataStream){
-      Corrupt(ki) \/ AppDataFragmentSequence(ki,seqn,ads.history @| ads.data)
+      seqn >= 0 /\ (Corrupt(ki) \/ AppDataFragmentSequence(ki,seqn-1,ads.history @| ads.data))
     }
+
+assume !ki,seqn,b. AppDataFragmentSequence(ki,seqn,b) <=>
+  (  (seqn < 0 /\ b = [| |]) \/
+     (seqn >= 0 /\ 
+	(?d. AppDataFragmentSequence(ki,seqn - 1,d) /\ 
+	   ((?tlen,f. b = d @| f /\ AppDataSequenceNo(ki,seqn) /\ 
+                 AppDataFragment(ki,tlen,seqn,f)) \/
+	    (b = d /\ NonAppDataSequenceNo(ki,seqn))))))
+
+ask !ki,seqn,b. AppDataFragmentSequence(ki,seqn - 1,b) /\ NonAppDataSequenceNo(ki,seqn) => AppDataFragmentSequence(ki,seqn,b)
 
 type (;ci:ConnectionInfo) app_state = {
     app_incoming: (;ci.id_in) input_buffer;
@@ -94,22 +91,45 @@ assume !c,a,b. OutStream(c,a) = b <=> (?s,ls,ads. a.app_outgoing = (s,ls,ads) /\
 function val InSequenceNo: c:ConnectionInfo * (;c) app_state -> int
 function val OutSequenceNo: c:ConnectionInfo * (;c) app_state -> int
 
-assume !c,a,s. InSequenceNo(c,a) = s <=> (?ls,ads. a.app_incoming = (s,ls,ads))
-assume !c,a,s. OutSequenceNo(c,a) = s <=> (?ls,ads. a.app_outgoing = (s,ls,ads))
+assume !c,s,ls,ads,a. a.app_incoming = (s,ls,ads) => InSequenceNo(c,a) = s 
+assume !c,s,ls,ads,a. a.app_outgoing = (s,ls,ads) => OutSequenceNo(c,a) = s 
+assume !c,a,s. InSequenceNo(c,a) = s => (?ls,ads. a.app_incoming = (s,ls,ads))
+assume !c,a,s. OutSequenceNo(c,a) = s => (?ls,ads. a.app_outgoing = (s,ls,ads))
+
+assume !c,a,a'. a.app_incoming = a'.app_incoming => InSequenceNo(c,a) = InSequenceNo(c,a')
+assume !c,a,a'. a.app_outgoing = a'.app_outgoing => OutSequenceNo(c,a) = OutSequenceNo(c,a')
  
+
 private type (;ki:KeyInfo,tlen:int,seqn:int) fragment = 
 	    {b:(x:bytes){Corrupt(ki) \/
            		 AppDataFragment(ki,tlen,seqn,x)}}
 
+(* We justify the following 'linearity' theorems by appealing to the types of the functions:
+   mkFragment, readAppDataFragment, and readNonAppDataFragment which are the only locations where
+   AppFragment, AppDataSequenceNo, and NonAppDataSequenceNo are assumed *)
+
+theorem !ki,tlen,seqn,b. AppDataFragment(ki,tlen,seqn,b) =>
+  (seqn >= 0 /\ CompatibleLengths(ki.sinfo,Length(b),[tlen]) /\ AppDataSequenceNo(ki,seqn) /\
+     (?d. ValidAppDataStream(ki,d @| b) /\
+	  AppDataFragmentSequence(ki,seqn - 1,d)))
+theorem !ki,seqn. AppDataSequenceNo(ki,seqn) => (not NonAppDataSequenceNo(ki,seqn))
+theorem !ki,tlen,seqn,b,tlen',b'. AppDataFragment(ki,tlen,seqn,b) /\ AppDataFragment(ki,tlen',seqn,b') => (b = b' /\ tlen = tlen')
+
+// A biggish theorem, to prove by induction
+//theorem !ki,seqn,d,d'. AppDataFragmentSequence(ki,seqn,d) /\ AppDataFragmentSequence(ki,seqn,d') => d = d'
+
+	
 
 val fragment: ki:KeyInfo -> tlen:int -> seqn:int -> 
-  b:bytes{AppDataFragment(ki,tlen,seqn,b) \/ Corrupt(ki) \/
-	    (seqn >= 0 /\ AppDataSequenceNo(ki,seqn) /\ 
+  b:bytes{AppDataFragment(ki,tlen,seqn,b) \/ Corrupt(ki)} -> (;ki,tlen,seqn) fragment
+
+private val mkFragment: ki:KeyInfo -> tlen:int -> seqn:int ->
+  b:bytes{Corrupt(ki) \/ (seqn >= 0 /\ AppDataSequenceNo(ki,seqn) /\ 
 	    (?d. ValidAppDataStream(ki,d @| b) /\ AppDataFragmentSequence(ki,seqn-1,d)))} ->
-    (;ki,tlen,seqn) fragment
+          (;ki,tlen,seqn) fragment{AppDataFragment(ki,tlen,seqn,b)}
 
 val repr: ki:KeyInfo -> tlen:int -> seqn:int -> (;ki,tlen,seqn) fragment -> 
-          b:bytes{AppDataFragment(ki,tlen,seqn,b)} 
+          b:bytes{Corrupt(ki) \/ AppDataFragment(ki,tlen,seqn,b)}
 
 val writeAppDataBytes: c:ConnectionInfo -> 
                        aps:(;c) app_state -> 
@@ -131,7 +151,7 @@ val readNonAppDataFragment: c:ConnectionInfo ->
 
 val writeAppDataFragment: c:ConnectionInfo -> 
                        aps:(;c) app_state -> 
-                       tlen:int -> (;c.id_out,tlen,InSequenceNo(c,aps)) fragment ->
+                       tlen:int -> (;c.id_in,tlen,InSequenceNo(c,aps)) fragment ->
                        aps':(;c) app_state{(InSequenceNo(c,aps'),OutSequenceNo(c,aps')) = (InSequenceNo(c,aps)+1,OutSequenceNo(c,aps))}
 
 val writeNonAppDataFragment: c:ConnectionInfo -> 
@@ -139,15 +159,19 @@ val writeNonAppDataFragment: c:ConnectionInfo ->
                        aps':(;c) app_state{(InSequenceNo(c,aps'),OutSequenceNo(c,aps')) = (InSequenceNo(c,aps)+1,OutSequenceNo(c,aps))}
    
 val reIndex: oldC:ConnectionInfo -> 
-             newC:ConnectionInfo -> 
+             newC:ConnectionInfo{CompatibleConnections(oldC,newC)} -> 
              aps: (;oldC) app_state ->
              aps':(;newC) app_state{
 	       (InSequenceNo(newC,aps'),OutSequenceNo(newC,aps')) = 
 	       (InSequenceNo(oldC,aps),OutSequenceNo(oldC,aps))}
 
+
+val is_incoming_empty: ci:ConnectionInfo -> aps:(;ci) app_state -> b:bool {b = true => (?s,ls,ads. aps.app_incoming = (s,ls,ads) /\ ads.data = [| |])}
+
+val is_outgoing_empty: ci:ConnectionInfo -> aps:(;ci) app_state -> b:bool {b = true => (?s,ls,ads. aps.app_outgoing = (s,ls,ads) /\ ads.data = [| |])}
+
+
 val init: c:ConnectionInfo -> aps:(;c) app_state{InSequenceNo(c,aps) = 0 /\ OutSequenceNo(c,aps) = 0}
-val is_incoming_empty: c:ConnectionInfo -> 
-  (;c) app_state -> bool
 
 val reset_incoming: c:ConnectionInfo -> 
   aps:(;c) app_state ->

@@ -59,20 +59,10 @@ type app_state = {
 }
 
 let init ci =
-    {app_outgoing = (0,[],emptyAppDataStream ci.id_out);
-     app_incoming = (0,[],emptyAppDataStream ci.id_in);
-    }
-
-let reset_incoming (ci:ConnectionInfo) app_state =
-  let (seqn,ls,b) = app_state.app_incoming in
-    {app_state with 
-       app_incoming = (0,ls,b);
-    }
-
-let reset_outgoing (ci:ConnectionInfo) app_state =
-  let (seqn,ls,b) = app_state.app_outgoing in
-    {app_state with 
-       app_outgoing = (0,ls,b);
+  let in_ads = emptyAppDataStream ci.id_in in
+  let out_ads = emptyAppDataStream ci.id_out in
+    {app_outgoing = (0,[],out_ads);
+     app_incoming = (0,[],in_ads);
     }
 
 let is_incoming_empty (ci:ConnectionInfo) app_state = 
@@ -87,14 +77,17 @@ let is_outgoing_empty (ci:ConnectionInfo)  app_state =
 type fragment = {b:bytes}
 
 let repr (ki:KeyInfo) (i:int) (seqn:int) f = f.b
-let fragment (ki:KeyInfo) (i:int) (seqn:int) b = 
-  Pi.assume(AppDataFragment(ki,i,seqn,b));
-  {b=b}
+let fragment (ki:KeyInfo) (i:int) (seqn:int) b = {b=b}
+
+let mkFragment (ki:KeyInfo) (tlen:int) (seqn:int) f = 
+  Pi.assume(AppDataFragment(ki,tlen,seqn,f));
+  {b = f}
 
 let writeAppDataBytes (c:ConnectionInfo)  (a:app_state) (b:bytes) (lens:lengths) = 
   let (seqn,ls,ads) = a.app_outgoing in
   let ki = c.id_out in 
-  Pi.assume(ValidAppDataStream(ki,ads.history @| ads.data @| b));
+  let stream = ads.history @| ads.data @| b in
+  Pi.assume(ValidAppDataStream(ki,stream));
     let (nls,nads) = writeAppDataStreamBytes ki ls ads b lens in
     {a with app_outgoing = (seqn,nls,nads);}
 
@@ -118,44 +111,59 @@ let readAppDataFragment (c:ConnectionInfo)  (a:app_state) =
   let nout_seqn = out_seqn + 1 in
   match out_ads.lengths with 
     | thisLen::remLens ->
-	Pi.assume(AppDataSequenceNo(c.id_out,nout_seqn));
+	Pi.assume(AppDataSequenceNo(c.id_out,out_seqn));
 	let (thisData,remData) = getFragment c.id_out.sinfo thisLen out_ads.data in
+        let f = mkFragment c.id_out thisLen out_seqn thisData in
 	let nout_ads = 
 	   {history = out_ads.history @| thisData;
 	    lengths_history = out_ads.lengths_history @ [thisLen];
 	    data = remData;
 	    lengths = remLens;} in
-	let na = {a with app_outgoing = (nout_seqn,out_ls,nout_ads)} in
-	  Some (thisLen,{b = thisData}, na)
+	  Some (thisLen,f, {a with app_outgoing = (nout_seqn,out_ls,nout_ads)})
     | [] -> None
 
 
 let readNonAppDataFragment (c:ConnectionInfo) (a:app_state) = 
   let (out_seqn,out_ls,out_ads) = a.app_outgoing in
   let nout_seqn = out_seqn + 1 in
-    Pi.assume(NonAppDataSequenceNo(c.id_out,nout_seqn));
+    Pi.assume(NonAppDataSequenceNo(c.id_out,out_seqn));
     {a with app_outgoing = (nout_seqn,out_ls,out_ads)}
+
+
+let writeNonAppDataFragment (c:ConnectionInfo)  (a:app_state) = 
+  let (seqn,ls,ads) = a.app_incoming in
+  let nseqn = seqn + 1 in
+    Pi.assume(NonAppDataSequenceNo(c.id_in,seqn));
+    {a with app_incoming = (nseqn,ls,ads)}
+
+    
+
 
 let writeAppDataFragment (c:ConnectionInfo)  (a:app_state)  (tlen:int) (f:fragment) =
   let (seqn,ls,ads) = a.app_incoming in
+  Pi.assume(AppDataSequenceNo(c.id_in,seqn));
   let nseqn = seqn + 1 in
-  let ndata = ads.data @| f.b in
+  let fb = f.b in
+  let ndata = ads.data @| fb in
   let nlens = ads.lengths @ [tlen] in
   let nls = ls @ [tlen] in
   let nads = {ads with
 		data = ndata;
 		lengths = nlens;
 	     } in
-    Pi.assume(AppDataSequenceNo(c.id_in,nseqn));
     {a with app_incoming = (nseqn,nls,nads)}
-
-let writeNonAppDataFragment (c:ConnectionInfo)  (a:app_state) = 
-  let (seqn,ls,ads) = a.app_incoming in
-  let nseqn = seqn + 1 in
-    Pi.assume(NonAppDataSequenceNo(c.id_in,nseqn));
-    {a with app_incoming = (nseqn,ls,ads)}
-
-    
 
 let reIndex (oldC:ConnectionInfo)  (newC:ConnectionInfo) (a:app_state) = a
 
+
+let reset_incoming (newC:ConnectionInfo) (a:app_state) = 
+  let (seqn,ls,b) = a.app_incoming in
+    {a with 
+       app_incoming = (0,ls,b);
+    }
+
+let reset_outgoing (newC:ConnectionInfo) (a:app_state) = 
+  let (seqn,ls,b) = a.app_outgoing in
+    {a with 
+       app_outgoing = (0,ls,b);
+    }
