@@ -752,7 +752,7 @@ let rec parseSigAlgs b parsed =
     | 0 -> Correct(parsed)
     | 1 -> Error(HSError(AD_illegal_parameter),HSSendAlert)
     | _ -> let (b0,b) = split b 2 
-           match parseSigAlg b with 
+           match parseSigAlg b0 with 
            | Correct(sa) -> parseSigAlgs b (sa::parsed)
            | Error(x,y)  -> Error(x,y)  
 
