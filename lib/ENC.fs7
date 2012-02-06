@@ -13,6 +13,9 @@ type cipher = b:bytes{Length(b) <= FragCommon.max_TLSCipher_fragment_length}
 predicate ENCrypted of
   (ki:KeyInfo * tlen:int * (;ki) ENCKey.key * (;ki,tlen) plain * cipher)
 
+// AP: Post condition is wrong! In TLS 1.1+, cipher is long tlen+ivLen bytes, because we
+// chose to concatenate the (unencrypted!) iv and cipher, and tlen only talk about cipher
+// Same for DEC.
 val ENC: ki:KeyInfo -> k:(;ki) ENCKey.key -> (;ki) ENCKey.iv3 -> tlen:int -> p:(;ki,tlen) plain -> 
   ((;ki) ENCKey.iv3 * c:cipher{ENCrypted(ki,tlen,k,p,c) /\ Length(c)=tlen})
 
