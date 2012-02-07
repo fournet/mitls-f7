@@ -1,5 +1,4 @@
-﻿#light "off"
-module AppDataStream
+﻿module AppDataStream
 
 open Error
 open Bytes
@@ -111,15 +110,15 @@ let readAppDataFragment (c:ConnectionInfo)  (a:app_state) =
   let nout_seqn = out_seqn + 1 in
   match out_ads.lengths with 
     | thisLen::remLens ->
-	Pi.assume(AppDataSequenceNo(c.id_out,out_seqn));
-	let (thisData,remData) = getFragment c.id_out.sinfo thisLen out_ads.data in
+    Pi.assume(AppDataSequenceNo(c.id_out,out_seqn));
+    let (thisData,remData) = getFragment c.id_out.sinfo thisLen out_ads.data in
         let f = mkFragment c.id_out thisLen out_seqn thisData in
-	let nout_ads = 
-	   {history = out_ads.history @| thisData;
-	    lengths_history = out_ads.lengths_history @ [thisLen];
-	    data = remData;
-	    lengths = remLens;} in
-	  Some (thisLen,f, {a with app_outgoing = (nout_seqn,out_ls,nout_ads)})
+    let nout_ads = 
+       {history = out_ads.history @| thisData;
+        lengths_history = out_ads.lengths_history @ [thisLen];
+        data = remData;
+        lengths = remLens;} in
+    Some (thisLen,f, {a with app_outgoing = (nout_seqn,out_ls,nout_ads)})
     | [] -> None
 
 
@@ -147,11 +146,9 @@ let writeAppDataFragment (c:ConnectionInfo)  (a:app_state)  (tlen:int) (f:fragme
   let ndata = ads.data @| fb in
   let nlens = ads.lengths @ [tlen] in
   let nls = ls @ [tlen] in
-  let nads = {ads with
-		data = ndata;
-		lengths = nlens;
-	     } in
-    {a with app_incoming = (nseqn,nls,nads)}
+  let nads = {ads with data = ndata;
+                       lengths = nlens;} in
+  {a with app_incoming = (nseqn,nls,nads)}
 
 let reIndex (oldC:ConnectionInfo)  (newC:ConnectionInfo) (a:app_state) = a
 
