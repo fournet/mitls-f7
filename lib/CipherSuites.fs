@@ -71,6 +71,16 @@ let minPV (a:ProtocolVersion) (b:ProtocolVersion) =
   | _, _                    -> TLS_1p2
   // in F#, could use if a < b then a else b
 
+let geqPV (a:ProtocolVersion) (b:ProtocolVersion) =
+    match (a,b) with
+    | _,SSL_3p0 -> true
+    | SSL_3p0,_ -> false
+    | _,TLS_1p0 -> true
+    | TLS_1p0,_ -> false
+    | _,TLS_1p1 -> true
+    | TLS_1p1,_ -> false
+    | _,_       -> true
+
 let nullCipherSuite = NullCipherSuite
 
 let isNullCipherSuite cs =

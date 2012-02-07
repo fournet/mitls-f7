@@ -1318,8 +1318,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                   // Check that the server agreed version is between maxVer and minVer.
                   // FIXME: Using <= and >= should not work. Using and undocumented F# feature
                   // where unions are enums 
-                  if not (shello.sh_server_version >= state.poptions.minVer 
-                       && shello.sh_server_version <= state.poptions.maxVer) 
+                  if not (geqPV shello.sh_server_version state.poptions.minVer 
+                       && geqPV state.poptions.maxVer shello.sh_server_version) 
                   then Error(HSError(AD_protocol_version),HSSendAlert),state
                   else
                   // Check that the negotiated ciphersuite is in the proposed list.
@@ -1983,6 +1983,9 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
 and startServerFull (ci:ConnectionInfo) state cHello =  
     // Negotiate the protocol parameters
     let version = minPV cHello.ch_client_version state.poptions.maxVer in
+    if not (geqPV version state.poptions.minVer) then
+        (Error(HSError(AD_handshake_failure),HSSendAlert),state)
+    else
         match negotiate cHello.ch_cipher_suites state.poptions.ciphersuites with
         | Some(cs) ->
             match negotiate cHello.ch_compression_methods state.poptions.compressions with

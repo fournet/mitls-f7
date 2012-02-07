@@ -46,6 +46,8 @@ val parseVersion: b:bytes{Length(b) = 2} -> (pv:ProtocolVersion{ b= VersionBytes
 val minPV: a:ProtocolVersion -> b:ProtocolVersion -> c:ProtocolVersion
 //CF what's this refinement?? adjust on demand
 //  {(a < b /\ c = a) \/ (a >= b /\ c = b)}
+val geqPV: a:ProtocolVersion -> b:ProtocolVersion -> r:bool
+// AP same as minPV
 
 (* FIXME: same duplication between logical and concrete function definitions, 
    already seen in Algorithms. 

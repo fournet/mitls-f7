@@ -20,6 +20,7 @@ type ProtocolVersion =
 val versionBytes: ProtocolVersion -> bytes
 val parseVersion: bytes -> ProtocolVersion Result
 val minPV: ProtocolVersion -> ProtocolVersion -> ProtocolVersion
+val geqPV: ProtocolVersion -> ProtocolVersion -> bool
 
 val nullCipherSuite: cipherSuite
 val isNullCipherSuite: cipherSuite -> bool
