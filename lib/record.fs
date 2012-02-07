@@ -117,33 +117,23 @@ let recordPacketOut2 conn clen ct fragment =
     makePacket ct conn.local_pv payload 
 *)
 
-let TLenOfPayloadLength ki pLen =
-    match ki.sinfo.protocol_version with
-    | SSL_3p0 | TLS_1p0 -> pLen
-    | TLS_1p1 | TLS_1p2 ->
-        let alg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
-        let ivl = Algorithms.ivSize alg in
-        pLen - ivl
-
 let recordPacketIn ki conn seqn headPayload =
     let (header,payload) = split headPayload 5 in
     match parseHeader header with
     | Error(x,y) -> Error(x,y)
     | Correct (parsed) -> 
-    let (ct,pv,payloadLength) = parsed in
+    let (ct,pv,tlen) = parsed in
     // tlen is checked in headerLength, which is invoked by Dispatch
     // before invoking this function
-    if length payload <> payloadLength then
+    if length payload <> tlen then
         Error(Record,CheckFailed)
     else
     let cs = ki.sinfo.cipher_suite in
     match (cs,conn.key) with
     | (x,NoneKey) when isNullCipherSuite x ->
-        let tlen = payloadLength in
         let msg = TLSFragment.TLSFragment ki tlen seqn ct payload in
         correct(conn,ct,pv,tlen,msg)
     | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
-        let tlen = payloadLength in
         let ad = TLSFragment.makeAD ki.sinfo.protocol_version seqn ct in
         let (msg,mac) = MACPlain.parseNoPad ki tlen ad payload in
         let toVerify = MACPlain.MACPlain ki tlen ad msg in
@@ -154,7 +144,6 @@ let recordPacketIn ki conn seqn headPayload =
         else
             Error(MAC,CheckFailed)
     | (_,RecordAEADKey(key)) ->
-        let tlen = TLenOfPayloadLength ki payloadLength in
         let ad = TLSFragment.makeAD ki.sinfo.protocol_version seqn ct in
         let decr = AEAD.decrypt ki key conn.iv3 tlen ad payload in
         match decr with

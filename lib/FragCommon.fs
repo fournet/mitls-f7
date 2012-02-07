@@ -55,10 +55,16 @@ let cipherLength sinfo plainLen =
         let res = plainLen + macLen in
         res
     else
+        let ivL =
+            match sinfo.protocol_version with
+            | SSL_3p0 | TLS_1p0 -> 0
+            | TLS_1p1 | TLS_1p2 ->
+                let encAlg = encAlg_of_ciphersuite cs in
+                ivSize encAlg
         let macLen = macSize (macAlg_of_ciphersuite cs) in
         let prePad = plainLen + macLen in
         let padLen = padLength sinfo prePad in
-        prePad + padLen
+        ivL + prePad + padLen
 
 let splitInFrag ki b =
     let (frag,rem) =

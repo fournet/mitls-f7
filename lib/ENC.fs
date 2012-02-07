@@ -86,33 +86,41 @@ let ENC ki key iv3 (tlen:int) data =
         | AES_128_CBC  -> aesEncrypt  ki key iv d
         | AES_256_CBC  -> aesEncrypt  ki key iv d
         | RC4_128      -> unexpectedError "[ENC] invoked on stream cipher"
-    if length cipher <> tlen || tlen > FragCommon.max_TLSCipher_fragment_length then
-        // unexpected, because it is enforced statically by the
-        // CompatibleLength predicate
-        unexpectedError "[ENC] Length of encrypted data do not match expected length"
-    else
     match iv3 with
-    | ENCKey.SomeIV(_) -> (ENCKey.SomeIV(lastblock cipher ivl), cipher)
-    | ENCKey.NoIV(b)    -> (ENCKey.NoIV(b), iv @| cipher)
+    | ENCKey.SomeIV(_) ->
+        if length cipher <> tlen || tlen > FragCommon.max_TLSCipher_fragment_length then
+            // unexpected, because it is enforced statically by the
+            // CompatibleLength predicate
+            unexpectedError "[ENC] Length of encrypted data do not match expected length"
+        else
+            (ENCKey.SomeIV(lastblock cipher ivl), cipher)
+    | ENCKey.NoIV(b) ->
+        let res = iv @| cipher in
+        if length res <> tlen || tlen > FragCommon.max_TLSCipher_fragment_length then
+            // unexpected, because it is enforced statically by the
+            // CompatibleLength predicate
+            unexpectedError "[ENC] Length of encrypted data do not match expected length"
+        else
+            (ENCKey.NoIV(b), res)
 
 let DEC ki key iv3 cipher =
     (* Should never be invoked on a stream (right now) encryption algorithm *)
     let alg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
     let ivl = ivSize alg 
-    let (iv,cipher) =
+    let (iv,encrypted) =
         match iv3 with
         | ENCKey.SomeIV (iv) -> (iv,cipher)
-        | ENCKey.NoIV (b)     -> split cipher ivl
+        | ENCKey.NoIV (b)    -> split cipher ivl
     let data =
         match alg with
-        | TDES_EDE_CBC -> tdesDecrypt ki key iv cipher
-        | AES_128_CBC  -> aesDecrypt  ki key iv cipher
-        | AES_256_CBC  -> aesDecrypt  ki key iv cipher
+        | TDES_EDE_CBC -> tdesDecrypt ki key iv encrypted
+        | AES_128_CBC  -> aesDecrypt  ki key iv encrypted
+        | AES_256_CBC  -> aesDecrypt  ki key iv encrypted
         | RC4_128      -> unexpectedError "[DEC] invoked on stream cipher"
-    let d = Plain.plain ki cipher.Length data in
+    let d = Plain.plain ki (length cipher) data in
     match iv3 with
     | ENCKey.SomeIV(_) -> (ENCKey.SomeIV(lastblock cipher ivl), d)
-    | ENCKey.NoIV(b)    -> (ENCKey.NoIV(b), d)
+    | ENCKey.NoIV(b)   -> (ENCKey.NoIV(b), d)
 
 (* the SPRP game in F#, without indexing so far.
    the adversary gets 
