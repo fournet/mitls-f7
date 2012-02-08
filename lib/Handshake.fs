@@ -2014,13 +2014,15 @@ let enqueue_fragment (ci:ConnectionInfo) state fragment =
     {state with hs_incoming = new_inc}
 
 let recv_fragment ci seqn (state:hs_state) (tlen:int) (fragment:fragment) =
-    (* Note, we receive fragments in the current session, not the one we're establishing *)
-    (* FIXME: This session might be wrong, in the CCS/Finished/FullyFinished(Idle) transition. But we don't care now *)
     let fragment = repr ci.id_in tlen seqn fragment in
-    let state = enqueue_fragment ci state fragment in
-    match state.pstate with
-    | Client (_) -> recv_fragment_client ci state None
-    | Server (_) -> recv_fragment_server ci state None
+    if length fragment = 0 then
+        // Empty HS fragment are not allowed
+        (Error(HSError(AD_decode_error),HSSendAlert),state)
+    else
+        let state = enqueue_fragment ci state fragment in
+        match state.pstate with
+        | Client (_) -> recv_fragment_client ci state None
+        | Server (_) -> recv_fragment_server ci state None
 
 let recv_ccs ci seqn (state: hs_state) (tlen:int) (fragment:ccsFragment): ((KIAndCCS Result) * hs_state) =
     let fragment = ccsRepr ci.id_in tlen seqn fragment in
