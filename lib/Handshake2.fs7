@@ -1,7 +1,5 @@
 ﻿module Handshake
-
-// An abstract interface to the Handshake protocol, 
-// including PKIs and the session database
+// An abstract interface to the Handshake protocol, including PKIs and the session database
 
 open Bytes
 open Error
@@ -10,55 +8,37 @@ open TLSInfo
 open TLSKey
 open AppConfig
 
-// There is one instance of the protocol for each TCP connection
-// run by an honest principal, each able to perform as sequence 
-// of handshakes for that connection 
+(* There is one instance of the protocol for each TCP connection
+   run by an honest principal, each able to perform as sequence 
+   of handshakes for that connection *)
 
-// Handle for local instances of the protocol 
-type (;ci:ConnectionInfo) state
+type (;ci:ConnectionInfo) state (* for each local instance of the protocol *)
 
-// Abstract type for the fragments that carry handshake messages
-// abstraction here is for modularity, as in fact the handshake fragments 
-// need not be trusted or secret. 
+(* Control Interface *) 
 
-type (;ki:KeyInfo,tlen:int) fragment
-predicate HandshakeFragment of KeyInfo * int * int * bytes
-predicate CCSFragment of KeyInfo * int * int * bytes
-
-val repr:     ki:KeyInfo -> tlen:int -> (;ki,tlen) fragment -> b:bytes{HandshakeFragment(ki,tlen,b)}
-val fragment: ki:KeyInfo -> tlen:in -> b:bytes{HandshakeFragment(ki,tlen,seqn,b)} -> (;ki,tlen) fragment
-
-type (;ki:KeyInfo,tlen:int) ccsFragment
-val ccsRepr:     ki:KeyInfo -> tlen:int -> (;ki,tlen)ccsFragment -> b:bytes{CCSFragment(ki,tlen,b)}
-val ccsFragment: ki:KeyInfo -> tlen:int -> bytes -> (;ki,tlen,seqn)ccsFragment
-
-(* Locally controlling handshake protocols *) 
-
-// Create instance for a fresh connection (without resumption) 
 val init: ci:ConnectionInfo -> Direction -> protocolOptions -> (;ci)state
-
-// Create instance for a fresh connection (Client-only, resuming some other sessions)
 val resume: ci:ConnectionInfo -> si:SessionInfo -> protocolOptions -> (;ci)state
-
-// All other calls are affine in the Handshake protocol state
-// Idle client starts a full handshake on the current connection
 val rehandshake: ci:ConnectionInfo -> (;ci) state -> protocolOptions -> (;ci) state
-
-// Idle client starts an abbreviated handshake resuming the current session 
 val rekey: ci:ConnectionInfo -> (;ci) state -> protocolOptions -> (;ci) state
-
-// (Idle) Server requests that the client starts an handshake 
 val request: ci:ConnectionInfo -> (;ci) state -> protocolOptions -> (;ci) state
 
-(* Sending Handshake and CCS fragments *)
+(* Network Interface *)
+
+type (;ki:KeyInfo,l:nat) fragment
+val repr:     ki:KeyInfo -> l:nat -> (;ki,l) fragment -> b:bytes{Length(b)=l}
+val fragment: ki:KeyInfo -> l:nat -> b:bytes{Length(b)=l} -> (;ki,l) fragment
+
+type (;ki:KeyInfo,l:nat) ccsFragment
+val ccsRepr:     ki:KeyInfo -> (;ki,1) ccsFragment -> b:bytes{Length(b)=1}
+val ccsFragment: ki:KeyInfo -> b:bytes{Length(b)=1} -> (;ki,1) ccsFragment
 
 type (;ki:KeyInfo) outgoing = (* handshakes wants to send... *)
   | OutIdle                                 (* nothing  *) 
-  | OutSome of     l:int * (;ki,l) fragment (* a fragment *)            
-  | OutCCS of      (;ki,1) fragment * newk:KeyInfo * (;newki) ccs_data
-                                            (* the CCS, then use these writing params *)
+  | OutSome of l:int * (;ki,l) fragment (* a fragment *)            
+  | OutCCS of (;ki,1) fragment * newk:KeyInfo * (;newki) ccs_data
+                          (* the CCS, then use these writing params *)
   | OutFinished of l:int * (;ki,l) fragment (* a fragment that ends the finished message *)
-  | OutComplete of l:int * (;ki,l) fragment (* idem, but also stating the handshake is complete *)
+  | OutComplete of l:int * (;ki,l) fragment (* idem + stating the handshake is complete *)
 val nextFragment: ci:ConnectionInfo -> (;ci) state -> (;ci.id_out) outgoing * (;ci) state
 
 type (;ki:KeyInfo) incoming = (* the fragment is accepted, and... *)
@@ -66,7 +46,7 @@ type (;ki:KeyInfo) incoming = (* the fragment is accepted, and... *)
   | InCheck of ProtocolVersion (* as client, must now check the negotiated version *)
   | InPatch of ProtocolVersion (* as server, must now patch the negotiated version *)
   | InFinished                 (* we just accepted the finished message *) 
-  | InComplete                 (* idem, but also stating the hanshake is complete *)  
+  | InComplete                 (* idem + stating the hanshake is complete *)  
 val recvFragment: 
   ci:ConnectionInfo -> (;ci) state -> l:nat -> (;ci.id_in,l) fragment -> 
   (;ci.id_in.sinfo) incoming Result * (;ci) state
