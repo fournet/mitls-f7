@@ -1,5 +1,5 @@
-﻿module Handshake
-// An abstract interface to the Handshake protocol, including PKIs and the session database
+module Handshake
+(* An abstract interface to the Handshake protocol, including PKIs and the session database *)
 
 open Bytes
 open Error
@@ -8,19 +8,14 @@ open TLSInfo
 open TLSKey
 open AppConfig
 
-(* There is one instance of the protocol for each TCP connection
-   run by an honest principal, each able to perform as sequence 
-   of handshakes for that connection *)
-
-type (;ci:ConnectionInfo) state (* for each local instance of the protocol *)
-
 (* Control Interface *) 
 
-val init: ci:ConnectionInfo -> Direction -> protocolOptions -> (;ci)state
-val resume: ci:ConnectionInfo -> si:SessionInfo -> protocolOptions -> (;ci)state
+type (;ci:ConnectionInfo) state (* for each local instance of the protocol *)
+val init:        ci:ConnectionInfo -> Direction -> protocolOptions -> (;ci)state
+val resume:      ci:ConnectionInfo -> si:SessionInfo -> protocolOptions -> (;ci)state
 val rehandshake: ci:ConnectionInfo -> (;ci) state -> protocolOptions -> (;ci) state
-val rekey: ci:ConnectionInfo -> (;ci) state -> protocolOptions -> (;ci) state
-val request: ci:ConnectionInfo -> (;ci) state -> protocolOptions -> (;ci) state
+val rekey:       ci:ConnectionInfo -> (;ci) state -> protocolOptions -> (;ci) state
+val request:     ci:ConnectionInfo -> (;ci) state -> protocolOptions -> (;ci) state
 
 (* Network Interface *)
 
@@ -35,8 +30,7 @@ val ccsFragment: ki:KeyInfo -> b:bytes{Length(b)=1} -> (;ki,1) ccsFragment
 type (;ki:KeyInfo) outgoing = (* handshakes wants to send... *)
   | OutIdle                                 (* nothing  *) 
   | OutSome of l:int * (;ki,l) fragment (* a fragment *)            
-  | OutCCS of (;ki,1) fragment * newk:KeyInfo * (;newki) ccs_data
-                          (* the CCS, then use these writing params *)
+  | OutCCS of (;ki,1) fragment * newk:KeyInfo * (;newki) ccs_data (* the CCS, then use these writing params *)
   | OutFinished of l:int * (;ki,l) fragment (* a fragment that ends the finished message *)
   | OutComplete of l:int * (;ki,l) fragment (* idem + stating the handshake is complete *)
 val nextFragment: ci:ConnectionInfo -> (;ci) state -> (;ci.id_out) outgoing * (;ci) state
@@ -48,8 +42,6 @@ type (;ki:KeyInfo) incoming = (* the fragment is accepted, and... *)
   | InFinished                 (* we just accepted the finished message *) 
   | InComplete                 (* idem + stating the hanshake is complete *)  
 val recvFragment: 
-  ci:ConnectionInfo -> (;ci) state -> l:nat -> (;ci.id_in,l) fragment -> 
-  (;ci.id_in.sinfo) incoming Result * (;ci) state
+  ci:ConnectionInfo -> (;ci) state -> l:nat -> (;ci.id_in,l) fragment -> (;ci.id_in.sinfo) incoming Result * (;ci) state
 val recvCCS:
-  ci:ConnectionInfo -> (;ci) state -> (;ci.id_in,1) ccsFragment ->
-  (ki:KeyInfo * (;ki) ccs_data) Result * (;ci) state
+  ci:ConnectionInfo -> (;ci) state -> (;ci.id_in,1) ccsFragment -> (ki:KeyInfo * (;ki) ccs_data) Result * (;ci) state
