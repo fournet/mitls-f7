@@ -79,8 +79,8 @@ let testFullAndRehandshake () =
 (*
 let testResumptionRollbackAttack () =
     (* Do a full new session in TLS 1.1 *)
-    let ops = {options with minVer = CipherSuites.ProtocolVersionType.TLS_1p1
-                            maxVer = CipherSuites.ProtocolVersionType.TLS_1p1
+    let ops = {options with minVer = CipherSuites.TLS_1p1
+                            maxVer = CipherSuites.TLS_1p1
                             safe_renegotiation = false} in
     match testCl ops with
     | (Error(x,y),_,_) -> ()
@@ -90,13 +90,13 @@ let testResumptionRollbackAttack () =
            but closure is still not handled in our implementation *)
         Tcp.close ns
         (* Cheat in our sinfo information, changing the protocol version to TLS 1.0 *)
-        let sinfo = {sinfo with protocol_version = CipherSuites.ProtocolVersionType.TLS_1p0 }
+        let sinfo = {sinfo with protocol_version = CipherSuites.TLS_1p0 }
         match sinfo.sessionID with
         | None -> printf "Impossible to resume session."
         | Some (sid) ->
             SessionDB.insert ops sid sinfo
-            let ops = {options with minVer = Formats.ProtocolVersionType.TLS_1p0
-                                    maxVer = Formats.ProtocolVersionType.TLS_1p0} in
+            let ops = {options with minVer = Formats.TLS_1p0
+                                    maxVer = Formats.TLS_1p0} in
             testRes ops sid
 *)
         

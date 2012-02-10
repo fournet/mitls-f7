@@ -19,6 +19,7 @@ type hs_state = pre_hs_state
 // protocol-specific abstract fragment,
 // and associated functions (never to be called with ideal functionality)
 type fragment
+
 val repr: KeyInfo -> int -> int -> fragment -> Bytes.bytes
 val fragment: KeyInfo -> int -> int -> Bytes.bytes -> fragment
 type ccsFragment

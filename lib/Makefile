@@ -163,6 +163,10 @@ FragCommon.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Certifi
 AppDataStream.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Certificate.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppConfig.fs7 SessionDB.fs7 FragCommon.fs7 AppDataStream.fs7 AppDataStream.fs
 	$(f7t) --verbose Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Certificate.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppConfig.fs7 SessionDB.fs7 FragCommon.fs7 AppDataStream.fs7 AppDataStream.fs -scripts AppDataStream | tee AppDataStream.tc7
 
+# just checking the syntax for now
+Handshake2.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 RSA.fs7 Certificate.fs7 Algorithms.fs7 Ciphersuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppConfig.fs7 FragCommon.fs7 Handshake2.fs7 Handshake.fs
+	$(f7t) Error.fs7 Bytes.fs7 RSA.fs7 Certificate.fs7 Algorithms.fs7 Ciphersuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppConfig.fs7 SessionDB.fs7 FragCommon.fs7 Handshake2.fs7 Handshake.fs
+
 Handshake.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 RSA.fs7 Certificate.fs7 Algorithms.fs7 Ciphersuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppConfig.fs7 SessionDB.fs7 FragCommon.fs7 Handshake.fs7 Handshake.fs
 	$(f7t) Error.fs7 Bytes.fs7 RSA.fs7 Certificate.fs7 Algorithms.fs7 Ciphersuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppConfig.fs7 SessionDB.fs7 FragCommon.fs7 Handshake.fs7 Handshake.fs | tee Handshake.tc7
 

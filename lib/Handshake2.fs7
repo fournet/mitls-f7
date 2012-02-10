@@ -1,4 +1,5 @@
 module Handshake
+
 (* An abstract interface to the Handshake protocol, including PKIs and the session database *)
 
 open Bytes
@@ -8,18 +9,34 @@ open TLSInfo
 open TLSKey
 open AppConfig
 
+type role = Client | Server 
 type config = protocolOptions option
+val idle: config (* client-only *)
+function val Idle: role * config -> config
+definition !o. Idle(Client,o) = idle
+definition !o. Idle(Server,o) = o
+//TODO: rename ccs_data
+//TODO: consider getting rid of KeyInfo-indexed fragments.
+//TODO: change Direction to role
 
 (* Control Interface *) 
 
-type (;r:Direction,o:config) state (* for each local instance of the protocol *)
+type (;r:role,o:config) state (* for each local instance of the protocol *)
+val init:                               r:role -> o:config -> (;r     ,o) state 
+val resume:                     si:SessionInfo -> o:config -> (;Client,o) state
+val rehandshake:          (;Client,idle) state -> o:config -> (;Client,o) state
+val rekey:                (;Client,idle) state -> o:config -> (;Client,o) state
+val request: old:config -> (;Server,old) state -> o:config -> (;Server,o) state
 
-val init: d:Direction -> o:protocolOptions -> (;d,Some(o)) state 
-val resume: si:SessionInfo -> o:protocolOptions -> (;Role(si),Some(o)) state
-val rehandshake: (;Client,None) state -> o:protocolOptions -> (;Client,Some(o)) state
-val rekey:       (;Client,None) state -> o:protocolOptions -> (;Client,Some(o)) state
-val request:     (;Server,None) state -> o:protocolOptions -> (;Server,Some(o)) state
-//CF later, understand how the server can pick options for unrequested rehandshakes
+(* the two new KeyInfos can be read off the handshake state *)
+function val  InKi: r:role * o:config * (;r,o) state -> KeyInfo 
+function val OutKi: r:role * o:config * (;r,o) state -> KeyInfo 
+val  inKi: r:role -> o:config -> s:(;r,o) state -> ki:KeyInfo {ki = InKi(r,o,s)}
+val outKi: r:role -> o:config -> s:(;r,o) state -> ki:KeyInfo {ki = OutKi(r,o,s)}
+
+predicate val  InputReady: r:role * o:config * (;r,o) state -> bool (* Ready to input with new keys*)
+predicate val OutputReady: r:role * o:config * (;r,o) state -> bool (* Ready to output with new keys *)
+predicate val    Complete: r:role * o:config * (;r,o) state -> bool (* Completed Handshake *)
 
 (* Network Interface *)
 
@@ -29,29 +46,31 @@ val repr:     ki:KeyInfo -> l:nat -> (;ki,l) hsFragment -> b:bytes{Length(b)=l}
 val fragment: ki:KeyInfo -> l:nat -> b:bytes{Length(b)=l} -> (;ki,l) hsFragment
 
 type (;ki:KeyInfo,l:nat) ccsFragment
-val ccsRepr:     ki:KeyInfo -> (;ki,1) ccsfragment -> b:bytes{Length(b)=1}
+val ccsRepr:     ki:KeyInfo -> (;ki,1) ccsFragment -> b:bytes{Length(b)=1}
 val ccsFragment: ki:KeyInfo -> b:bytes{Length(b)=1} -> (;ki,1) ccsFragment
 
-type (;r:Direction,o:config,ki:KeyInfo) outgoing = 
-  | OutIdle of       (;r,o) state
-  | OutSome of       (;r,o) state * (;ki) fragment             
-  | OutCCS of      s:(;r,o) state * (;ki,1) ccsFragment * (;OutKi(s)) ccsData {OutReady(s)} 
-  | OutFinished of   (;r,o) state * (;ki) fragment
-  | OutComplete of s:(;r,o) state * (;ki) fragment {Complete(r,o,s)} 
-val nextFragment: r:Direction -> o:config -> (;r,o) state -> ki:keyInfo -> (;r,o,ki) outgoing 
+type (;r:role,o:config,ki:KeyInfo) outgoing = 
+  | OutIdle of               (;r,o) state
+  | OutSome of               (;r,o) state * (;ki) fragment             
+  | OutCCS of              s:(;r,o) state * (;ki,1) ccsFragment * (;OutKi(r,o,s)) ccs_data {OutReady(r,o,s)} 
+  | OutFinished of           (;r,o) state * (;ki) fragment
+  | OutComplete of s:(;r,Idle(r,o)) state * (;ki) fragment {Complete(r,o,s)} 
+val nextFragment: r:role -> o:config -> (;r,o) state -> ki:KeyInfo -> (;r,o,ki) outgoing 
 
-type (;r:Direction,o:config) incoming = 
-  | InAck of     (;r,o) state 
-  | InVersion of (;r,o) state * ProtocolVersion 
-  | InFinished   (;r,o) state  
-  | InComplete s:(;r,o) state {Complete(s)}  
-  | InError of   (;r,o) state * ErrorCause * ErrorKind
+type (;r:role,o:config) incoming = 
+  | InAck of                (;r,o) state 
+  | InVersion of            (;r,o) state * ProtocolVersion
+  | InFinished of           (;r,o) state  
+  | InComplete of s:(;r,Idle(r,o)) state {Complete(r,o,s)}  
+  | InError of              (;r,o) state * ErrorCause * ErrorKind
+val recvFragment: r:role -> o:config -> (;r,o) state -> 
+  ki:KeyInfo -> (;ki) fragment -> (;r,o) incoming
+val recvCCS: r:role -> o:config -> (;r,o) state ->
+  ki:KeyInfo -> (;ki,1) ccsFragment -> 
+  s:(;r,o) state * (((;InKi(r,o,s)) ccs_data {InReady(r,o,s)}) Result) 
 
-val recvFragment: r:Direction -> o:config -> (;r,o) state -> 
-  ki:keyInfo -> (;ki) fragment -> (;r,o) incoming
-
-val recvCCS: r:Direction -> o:config -> (;r,o) state -> 
-  ki:keyInfo -> (;r,o) state -> (;ki,1) ccsFragment -> 
-  s:(;r,o) state * (((;InKi(s)) ccsData {InReady(s)}) Result) 
-  
-theorem !s, Complete(r,o,s) => (*...*) Safe(Outki(s)) /\ Safe(Inki(s)) 
+(*   
+!s, Complete(r,o,s) =>
+  InReady(r,o,s) /\ OutReady(r,o,s) /\
+  Confirmed(OutKi(s)) /\ Confirmed(InKi(s)) 
+*)

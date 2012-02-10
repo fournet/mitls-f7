@@ -13,8 +13,8 @@ open AppConfig
 // each performing a sequence of Handshakes for that connection.
 
 // protocol state  
-type (;ci:ConnectionInfo)pre_hs_state 
-type (;ci:ConnectionInfo)hs_state = (;ci)pre_hs_state
+type (;ci:ConnectionInfo) pre_hs_state 
+type (;ci:ConnectionInfo) hs_state = (;ci)pre_hs_state
 
 // protocol-specific abstract fragment,
 // and associated functions (never to be called with ideal functionality)
