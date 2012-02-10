@@ -129,6 +129,8 @@
     <None Include="TLS.fs7" />
     <Compile Include="TLS.fsi" />
     <Compile Include="TLS.fs" />
+    <Compile Include="TLS2.fsi" />
+    <Compile Include="TLS2.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />
