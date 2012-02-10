@@ -8,7 +8,7 @@ open TLSInfo
 open TLSKey
 open AppConfig
 
-type config = protocoOptions option
+type config = protocolOptions option
 
 (* Control Interface *) 
 
