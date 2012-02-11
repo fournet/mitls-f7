@@ -94,6 +94,7 @@
     <Compile Include="FragCommon.fsi" />
     <Compile Include="FragCommon.fs" />
     <None Include="Handshake.fs7" />
+    <None Include="Handshake2.fs7" />
     <Compile Include="Handshake.fsi" />
     <Compile Include="Handshake.fs" />
     <None Include="Alert.fs7" />

@@ -52,7 +52,7 @@ val ccsFragment: ki:KeyInfo -> b:bytes{Length(b)=1} -> (;ki,1) ccsFragment
 type (;r:role,o:config,ki:KeyInfo) outgoing = 
   | OutIdle of               (;r,o) state
   | OutSome of               (;r,o) state * (;ki) fragment             
-  | OutCCS of              s:(;r,o) state * (;ki,1) ccsFragment * (;OutKi(r,o,s)) ccs_data {OutReady(r,o,s)} 
+  | OutCCS of              s:(;r,o) state * (;ki,1) ccsFragment * (;OutKi(r,o,s)) ccs_data {OutputReady(r,o,s)} 
   | OutFinished of           (;r,o) state * (;ki) fragment
   | OutComplete of s:(;r,Idle(r,o)) state * (;ki) fragment {Complete(r,o,s)} 
 val nextFragment: r:role -> o:config -> (;r,o) state -> ki:KeyInfo -> (;r,o,ki) outgoing 
@@ -67,7 +67,7 @@ val recvFragment: r:role -> o:config -> (;r,o) state ->
   ki:KeyInfo -> (;ki) fragment -> (;r,o) incoming
 val recvCCS: r:role -> o:config -> (;r,o) state ->
   ki:KeyInfo -> (;ki,1) ccsFragment -> 
-  s:(;r,o) state * (((;InKi(r,o,s)) ccs_data {InReady(r,o,s)}) Result) 
+  s:(;r,o) state * (((;InKi(r,o,s)) ccs_data {InputReady(r,o,s)}) Result) 
 
 (*   
 !s, Complete(r,o,s) =>
