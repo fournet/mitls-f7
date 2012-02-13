@@ -7,27 +7,27 @@ libperv = $(lib7)pervasives.fs7 $(lib7)tuples.fs7
 lperv = -pervasives $(lib7)pervasives.fs7 -tuples $(lib7)tuples.fs7
 libfs7 = $(lib7)formulas.fs7 $(lib7)pi.fs7
 
-recordfs7 = Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Certificate.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppConfig.fs7 SessionDB.fs7 FragCommon.fs7 AppDataStream.fs7 Handshake.fs7 Alert.fs7 TLSFragment.fs7 MACPlain.fs7 Plain.fs7 MAC.fs7 ENC.fs7 AEAD.fs7 record.fs7
-recordfsi = Error.fsi Bytes.fsi tcp.fsi RSA.fsi Certificate.fsi Algorithms.fsi CipherSuites.fsi formats.fsi TLSInfo.fsi HASH.fsi HMAC.fsi ENCKey.fsi MACKey.fsi PRFs.fsi TLSKey.fsi AppConfig.fsi SessionDB.fsi FragCommon.fsi AppDataStream.fsi Handshake.fsi Alert.fsi TLSFragment.fsi MACPlain.fsi Plain.fsi MAC.fsi ENC.fsi AEAD.fsi record.fsi
+recordfs7 = Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Certificate.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppConfig.fs7 SessionDB.fs7 FragCommon.fs7 DataStream.fs7 AppDataStream.fs7 Handshake.fs7 Alert.fs7 TLSFragment.fs7 MACPlain.fs7 Plain.fs7 MAC.fs7 ENC.fs7 AEAD.fs7 record.fs7
+recordfsi = Error.fsi Bytes.fsi tcp.fsi RSA.fsi Certificate.fsi Algorithms.fsi CipherSuites.fsi formats.fsi TLSInfo.fsi HASH.fsi HMAC.fsi ENCKey.fsi MACKey.fsi PRFs.fsi TLSKey.fsi AppConfig.fsi SessionDB.fsi FragCommon.fsi DataStream.fsi AppDataStream.fsi Handshake.fsi Alert.fsi TLSFragment.fsi MACPlain.fsi Plain.fsi MAC.fsi ENC.fsi AEAD.fsi record.fsi
 
 recordfs  = Error.fs  Bytes.fs  tcp.fs  RSA.fs  Certificate.fs  Algorithms.fs  CipherSuites.fs  formats.fs  TLSInfo.fs  HASH.fs  HMAC.fs  ENCKey.fs  MACKey.fs  PRFs.fs  TLSKey.fs   TLSFragment.fs  MACPlain.fs  Plain.fs  MAC.fs  ENC.fs  AEAD.fs  record.fs
 
 wrapperlibs = Error.fs  Bytes.fs  tcp.fs Algorithms.fs RSA.fs  HASH.fs  HMAC.fs  Certificate.fs  # not verified 
 tlsbase = CipherSuites.fs  formats.fs  TLSInfo.fs  ENCKey.fs  MACKey.fs TLSKey.fs # verified
 tlshandshake = AppConfig.fs PRFs.fs SessionDB.fs FragCommon.fs Handshake.fs  Alert.fs  # todo
-tlsapplication = AppDataStream.fs TLSFragment.fs MACPlain.fs Plain.fs # being verified (KB) 
+tlsapplication = DataStream.fs AppDataStream.fs TLSFragment.fs MACPlain.fs Plain.fs # being verified (KB) 
 crypto =  MAC.fs ENC.fs AEAD.fs # verified? (CF)
 tlsrecord = record.fs dispatch.fs tls.fs # being verified (AP)
 
 wrapperlibsi = Error.fsi  Bytes.fsi  tcp.fsi  Algorithms.fsi  RSA.fsi  HASH.fsi  HMAC.fsi  Certificate.fsi  # not verified 
 tlsbasei = CipherSuites.fsi  formats.fsi  TLSInfo.fsi  ENCKey.fsi  MACKey.fsi TLSKey.fsi # verified
 tlshandshakei = AppConfig.fsi  PRFs.fsi SessionDB.fsi FragCommon.fsi  Handshake.fsi  Alert.fsi  # todo
-tlsapplicationi = AppDataStream.fsi TLSFragment.fsi MACPlain.fsi Plain.fsi # being verified (KB)
+tlsapplicationi = DataStream.fsi AppDataStream.fsi TLSFragment.fsi MACPlain.fsi Plain.fsi # being verified (KB)
 cryptoi =  MAC.fsi ENC.fsi AEAD.fsi # verified? (CF)
 tlsrecordi = record.fsi dispatch.fsi tls.fsi # being verified (AP)
 
 tlsbase-tc7: Error.tc7 Algorithms.tc7 CipherSuites.tc7  formats.tc7  TLSInfo.tc7  ENCKey.tc7  MACKey.tc7 TLSKey.tc7 # verified
-tlsapplication-tc7: AppDataStream.tc7  TLSFragment.tc7 MACPlain.tc7 Plain.tc7 
+tlsapplication-tc7: DataStream.tc7 AppDataStream.tc7  TLSFragment.tc7 MACPlain.tc7 Plain.tc7 
 crypto-tc7: MAC.tc7 ENC.tc7 AEAD.tc7
 tlsrecord-tc7: record.tc7 Dispatch.tc7 TLS.tc7
 
@@ -159,6 +159,9 @@ AppConfig.tc7: $(libperv) $(libfs7) Bytes.fs7 Certificate.fs7 Algorithms.fs7 Cip
 # trusting FragCommon.fs7 (where we assume the CompatibleLength predicate)
 FragCommon.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Certificate.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 FragCommon.fs7 FragCommon.fs
 	$(f7t) -scripts FragCommon Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Certificate.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 FragCommon.fs7 FragCommon.fs | tee FragCommon.tc7
+
+DataStream.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Certificate.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppConfig.fs7 SessionDB.fs7 FragCommon.fs7 DataStream.fs7 DataStream.fs
+	$(f7t) --verbose Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Certificate.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppConfig.fs7 SessionDB.fs7 FragCommon.fs7 DataStream.fs7 DataStream.fs -scripts DataStream | tee DataStream.tc7
 
 AppDataStream.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Certificate.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppConfig.fs7 SessionDB.fs7 FragCommon.fs7 AppDataStream.fs7 AppDataStream.fs
 	$(f7t) --verbose Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Certificate.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppConfig.fs7 SessionDB.fs7 FragCommon.fs7 AppDataStream.fs7 AppDataStream.fs -scripts AppDataStream | tee AppDataStream.tc7

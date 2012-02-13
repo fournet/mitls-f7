@@ -3,23 +3,7 @@ module AppDataStream
 open TLSInfo
 open Bytes
 open Error
-
-type lengths = int list
-
-type preAppDataStream
-type AppDataStream = preAppDataStream
-
-val emptyAppDataStream: KeyInfo -> AppDataStream
-val isEmptyAppDataStream: KeyInfo -> lengths -> AppDataStream -> bool
-
-val writeAppDataStreamBytes: KeyInfo -> lengths -> AppDataStream ->
-                bytes -> lengths -> (lengths * AppDataStream)
-
-val readAppDataStreamBytes: KeyInfo -> lengths -> AppDataStream ->
-                 (bytes * AppDataStream)
-
-type output_buffer = int * lengths * AppDataStream
-type input_buffer = int * lengths * AppDataStream
+open DataStream
 
 type app_state
 (* = {
@@ -29,7 +13,7 @@ type app_state
 
 val init: ConnectionInfo -> app_state
 
-type fragment = {b:bytes}
+type fragment = delta
 
 type preds = 
     AppDataFragmentSequence of KeyInfo * int * bytes
@@ -38,19 +22,14 @@ type preds =
   | AppDataSequenceNo of KeyInfo * int
   | ValidAppDataStream of KeyInfo * bytes
 
+val writeAppData: ConnectionInfo -> app_state -> range -> delta -> app_state
+val readAppData: ConnectionInfo -> app_state -> ((range * delta) option * app_state)
 
-val fragment: KeyInfo -> int -> int -> bytes -> fragment
-val repr: KeyInfo -> int -> int -> fragment -> bytes
-
-val writeAppDataBytes: ConnectionInfo -> app_state -> bytes -> lengths -> app_state
-
-val readAppDataBytes: ConnectionInfo -> app_state -> (bytes * app_state)
-
-val readAppDataFragment: ConnectionInfo ->  app_state -> (int * fragment * app_state) option
+val readAppDataFragment: ConnectionInfo ->  app_state -> (range * fragment * app_state) option
 
 val readNonAppDataFragment: ConnectionInfo ->  app_state ->  app_state
 
-val writeAppDataFragment: ConnectionInfo ->  app_state -> int -> fragment -> app_state
+val writeAppDataFragment: ConnectionInfo ->  app_state -> range -> fragment -> app_state
 
 val writeNonAppDataFragment: ConnectionInfo ->  app_state ->  app_state
 
@@ -63,3 +42,5 @@ val reset_outgoing:  ConnectionInfo -> app_state -> app_state
 val is_incoming_empty: ConnectionInfo ->  app_state -> bool
 val is_outgoing_empty: ConnectionInfo ->  app_state -> bool
 
+val repr: KeyInfo -> int -> int -> fragment -> bytes
+val fragment: KeyInfo -> int -> int -> bytes -> fragment 

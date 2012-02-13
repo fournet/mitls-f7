@@ -66,6 +66,9 @@ type deliverOutcome =
     | HSDone
     | Abort
 
+let rangeToInt (x:int,y:int) = x
+let intToRange (x:int) = (x,x)
+
 let init ns dir poptions =
     (* Direction "dir" is always the outgoing direction.
        So, if we are a Client, it will be CtoS, if we're a Server: StoC *)
@@ -255,7 +258,7 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
                           match c_write.disp with
                           | Open ->
                           (* we send some data fragment *)
-                            match send id.id_out c.ns c_write tlen Application_data (TLSFragment.FAppData(f)) with
+                            match send id.id_out c.ns c_write (rangeToInt tlen) Application_data (TLSFragment.FAppData(f)) with
                             | Correct(new_write) ->
                                 let c = { c with appdata = new_app_state;
                                                  write = new_write }
@@ -495,7 +498,7 @@ let deliver (Conn(id,c)) ct tlen frag =
     | Error (x,y) -> let closed = closeConnection(Conn(id,c)) in (Error(x,y),closed) // TODO: We might want to send some alert here.
 
   | Application_data, TLSFragment.FAppData(f), Open -> 
-    let appstate = AppDataStream.writeAppDataFragment id c.appdata tlen f in
+    let appstate = AppDataStream.writeAppDataFragment id c.appdata (intToRange tlen) f in
     let new_seqn = c_read.seqn + 1;
     let new_read = {c_read with seqn = new_seqn} in
     let c = {c with read = new_read; appdata = appstate} in
@@ -606,7 +609,7 @@ let rec writeAppData c =
     *)
 
 let commit (Conn(id,c)) ls b =
-    let new_appdata = AppDataStream.writeAppDataBytes id c.appdata b ls in
+    let new_appdata = AppDataStream.writeAppData id c.appdata ls b in
     Conn(id,{c with appdata = new_appdata})
 
 (*
@@ -624,7 +627,7 @@ let readAppData (Conn(id,c)) =
     match newConnRes with
     | (Error(x,y),conn) -> (conn,Error(x,y))
     | (Correct(unitVal),Conn(id,c)) ->
-        let (b,appState) = AppDataStream.readAppDataBytes id c.appdata in
+        let (Some(b),appState) = AppDataStream.readAppData id c.appdata in
         let c = {c with appdata = appState} in
         (Conn(id,c),correct (b))
 

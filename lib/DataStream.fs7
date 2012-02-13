@@ -4,12 +4,13 @@ open Bytes
 open Error
 
 type range = int * int (* length range *)
+function val RangeSum: range * range -> range
+assume !x1,y1,x2,y2. RangeSum((x1,y1),(x2,y2)) = (x1+x2,y1+y2)
+val rangeSum: r1:range -> r2:range -> r:range{r = RangeSum(r1,r2)}
 
 private type (;ki:KeyInfo) stream = {sb:bytes}
 private type (;ki:KeyInfo, before: (;ki) stream,r:range) delta = {db:bytes}
 
-function val RangeSum: range * range -> range
-assume !x1,y1,x2,y2. RangeSum((x1,y1),(x2,y2)) = (x1+x2,y1+y2)
 
 val init: ki:KeyInfo -> s:(;ki) stream{s.sb = [| |]}
 val append: ki:KeyInfo -> s: (;ki) stream -> r:range ->
@@ -18,6 +19,10 @@ val append: ki:KeyInfo -> s: (;ki) stream -> r:range ->
 val split: ki:KeyInfo -> s:(;ki) stream -> r:range -> r':range ->
             d:(;ki,s,RangeSum(r,r')) delta -> 
             (d':(;ki,s,r) delta * d'':(;ki,{sb = s.sb @| d'.sb},r') delta)
+
+val join: ki:KeyInfo -> s:(;ki) stream -> r:range -> d:(;ki,s,r) delta -> 
+          r':range -> d':(;ki,{sb = s.sb @| d.sb},r') delta -> 
+          (;ki,s,RangeSum(r,r')) delta
 
 val delta: ki:KeyInfo -> s:(;ki) stream -> r:range -> b:bytes{Corrupt(ki)} -> c: (;ki,s,r) delta  
 

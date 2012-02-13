@@ -6,7 +6,7 @@ open Dispatch
 open TLSInfo
 open Tcp
 open AppConfig
-
+open DataStream
 
 (* We can't buffer application data internally. They are blessed by the application
    using a specific SessionInfo i, and if we buffer them, we might send them
@@ -79,12 +79,12 @@ val writeFully: Connection -> bytes -> ((bytes * bytes) Result) * Connection
 (* Computationally-friendly interface. Ask the application to commit on certain data, that will
    be stored internally by the TLS library. The user can just ask to send the next fragment of committed data,
    or to block until all fragments are sent. *)
-val write: Connection -> bytes -> Connection
+val write: Connection -> delta -> Connection
 (* val write_buffer_empty: Connection -> bool *)
 (* In read and send/flush we return (x Result) * Connection, because an error could also be a notification, like MustRead or NewSessionInfo *)
 (* val sendOneFragment: Connection -> (unit Result) * Connection *)
 val flush: Connection -> (unit Result) * Connection
-val read: Connection -> Connection * (bytes Result) // This order, because returned bytes depend on returned connection
+val read: Connection -> Connection * ((range * delta) Result) // This order, because returned bytes depend on returned connection
 (* Polls whether there are data available in the current input buffer
    (a processed application data fragment not yet delivered to the user).
    Note that this function will not check whether data are available on the
