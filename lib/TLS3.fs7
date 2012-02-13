@@ -1,0 +1,52 @@
+module TLS
+
+definition WriteExtend(c,c',d) <=> WriteBytes(c') = WriteBytes(c) @| DeltaBytes(d) 
+                     /\  ReadBytes(c') =  ReadBytes(c)
+                     /\  Parameters(c') = Parameters(c)
+
+definition ReadExtend(c,c',d) <=>  ReadBytes(c') =  ReadBytes(c) @| DeltaBytes(d) 
+                     /\ WriteBytes(c') = WriteBytes(c)
+                     /\  Parameters(c') = Parameters(c)
+
+val null: id // with the NULL_NULL ciphersuite, if anyone asks
+
+val connect: p:parameters -> c:(;null) t { Parameters(c) = p }
+  // client-only; as is, must be followed by a read until Handshaken
+
+val accept: p:parameters -> c:(;null) t { Parameters(c) = p } 
+  // server-only; as is, must be followed by a read until Handshaken
+
+val write: id:index -> c:(;id) t -> rg:range -> d:(;id,c,rg) delta -> 
+  | MustRead of c':(;id) t { NoExtend(c,c') }
+  | WriteComplete of c':(;id) t { WriteExtend(c,c',d)  }
+  | WritePartial of  c':(;id) t * rg1 * d1:(;id,c',rg1) delta 
+    { ?d0,rg0. Split(rg0,rg1,rg,d0,d1,d) /\ WriteExtend(c,c',d0) }
+
+  // On the write side, we are authorized to generate
+  // one of the events below:  
+  // Write(ki,WrittenBytes(c')) 
+  // Close(ki,WrittenBytes(c)).
+
+val rekey: 
+val shutdown:
+  id:index -> c:(;id) t -> c':(;id) t { NoExtend(c,c') }
+  // will internally generate a Close(ki,WrittenBytes(c)) 
+  // cannot write afterwards (dynamically enforced)
+
+val authorize: id:index -> c:(;id) t -> (;c) query -> c':(;id) { NoExtend(c,c') } 
+val refuse: id:index -> c:(;id) t -> (;c) query -> unit
+
+  // we echo the query so that we have an explicit user decision to blame.
+ 
+val read: id:index -> c:(;id) t ->  
+  | Read of c':(;id) t * rg:range * d:(;ki,c,rg) delta 
+    { id <> null_id /\ ReadExtend(c,c',d) /\ TXT(id) => Write(Dual(id),ReadBytes(c')) } 
+
+  | CertCheck of c':(;id) t { NoExtend(c,c') } * (;c') query
+  | HandShaken of id' * (;id') t 
+    { TXT(id) => Close(Dual(id),ReadBytes(c)) /\ 
+      WrittenBytes(c') = [||] /\ ReadBytes(c') = [||] }   
+
+  | Warning of a:alert * c'(;id) t { NoExtend(c,c') /\ TXT(id) => Warn(dual(id),a) }
+  | Close of  unit { TXT(id) => Close(Dual(ki),ReadBytes(c)) }
+  | Fatal of alert { TXT(id) => Fatal(Dual(id),ReadBytes(c)) }
