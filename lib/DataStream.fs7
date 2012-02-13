@@ -1,0 +1,25 @@
+module DataStream
+open TLSInfo
+open Bytes
+open Error
+
+type range = int * int (* length range *)
+
+private type (;ki:KeyInfo) stream = {sb:bytes}
+private type (;ki:KeyInfo, before: (;ki) stream,r:range) delta = {db:bytes}
+
+function val RangeSum: range * range -> range
+assume !x1,y1,x2,y2. RangeSum((x1,y1),(x2,y2)) = (x1+x2,y1+y2)
+
+val init: ki:KeyInfo -> s:(;ki) stream{s.sb = [| |]}
+val append: ki:KeyInfo -> s: (;ki) stream -> r:range ->
+            d:(;ki,s,r) delta -> s':(;ki) stream{s'.sb = s.sb @| d.sb}
+
+val split: ki:KeyInfo -> s:(;ki) stream -> r:range -> r':range ->
+            d:(;ki,s,RangeSum(r,r')) delta -> 
+            (d':(;ki,s,r) delta * d'':(;ki,{sb = s.sb @| d'.sb},r') delta)
+
+val delta: ki:KeyInfo -> s:(;ki) stream -> r:range -> b:bytes{Corrupt(ki)} -> c: (;ki,s,r) delta  
+
+val deltaRepr: ki:KeyInfo -> s:(;ki) stream -> r:range -> c: (;ki,s,r) delta{Corrupt(ki)} -> bytes
+
