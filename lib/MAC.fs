@@ -6,8 +6,9 @@ open CipherSuites
 //open TLSInfo
 open HASH (* Only for SSL 3 keyed hash *)
 open Error
+open DataStream
 
-type id = {ki:TLSInfo.KeyInfo; tlen:int}
+type id = {ki:TLSInfo.KeyInfo; tlen:range}
 
 (* generic algorithms *)
 

@@ -4,7 +4,7 @@ open Bytes
 open TLSInfo
 
 // Plaintext of MAC (addData + TLSFragment.fragment)
-private type (;ki:KeyInfo,tlen:int) MACPlain = {p:bytes}
+private type (;ki:KeyInfo,tlen:DataStream.range) MACPlain = {p:bytes}
 
 function val MsgBytes: pv:CipherSuites.ProtocolVersion * (;pv) TLSFragment.addData * bytes  -> bytes
 assume !pv,ad,x. MsgBytes(pv,ad,x) = (ad @| IntBytes(2,Length(x))) @| x 
@@ -12,7 +12,7 @@ assume !pv,ad1,x1,ad2,x2. (Length(ad1) = Length(ad2) /\
                         MsgBytes(pv,ad1,x1) = MsgBytes(pv,ad2,x2)) => 
                        (ad1 = ad2 /\ x1=x2)
 
-predicate Msg of ki:KeyInfo * tlen:int * (;ki,tlen)MACPlain.MACPlain
+predicate Msg of ki:KeyInfo * tlen:DataStream.range * (;ki,tlen)MACPlain.MACPlain
 
 assume !ki,tlen,pl. Msg(ki,tlen,pl) <=>
   (Corrupt(ki) \/
@@ -24,19 +24,19 @@ assume !ki,tlen,pl. Msg(ki,tlen,pl) <=>
 
 ask !ki,tlen,t. Corrupt(ki) => Msg(ki,tlen,t)
 
-val MACPlain: ki:KeyInfo -> tlen:int -> 
+val MACPlain: ki:KeyInfo -> tlen:DataStream.range -> 
   ad:(;ki.sinfo.protocol_version) TLSFragment.addData ->
   f:(;ki,tlen,ad)TLSFragment.AEADPlain -> 
   p:(;ki,tlen)MACPlain{TLSFragment.AEADMsg(ki,tlen,ad,f) <=> Msg(ki,tlen,p)}
 
-val reprMACPlain: ki:KeyInfo -> tlen:int -> (;ki,tlen)MACPlain -> bytes
+val reprMACPlain: ki:KeyInfo -> tlen:DataStream.range -> (;ki,tlen)MACPlain -> bytes
 
 // Result of MAC
-type (;ki:KeyInfo,tlen:int) MACed = {m:bytes}
-val MACed: ki:KeyInfo -> tlen:int -> bytes -> (;ki,tlen)MACed
-val reprMACed: ki:KeyInfo -> tlen:int -> (;ki,tlen)MACed -> bytes
+type (;ki:KeyInfo,tlen:DataStream.range) MACed = {m:bytes}
+val MACed: ki:KeyInfo -> tlen:DataStream.range -> bytes -> (;ki,tlen)MACed
+val reprMACed: ki:KeyInfo -> tlen:DataStream.range -> (;ki,tlen)MACed -> bytes
 
 // MAC-only ciphersuites
-val parseNoPad: ki:KeyInfo -> tlen:int -> 
+val parseNoPad: ki:KeyInfo -> tlen:DataStream.range -> 
   ad:(;ki.sinfo.protocol_version) TLSFragment.addData -> b:bytes -> 
   ((;ki,tlen,ad)TLSFragment.AEADPlain * (;ki,tlen)MACed)

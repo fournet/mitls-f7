@@ -7,8 +7,8 @@ open CipherSuites
 
 type plain = {p:bytes}
 
-let plain (ki:KeyInfo) (tlen:int)  b = {p=b}
-let repr (ki:KeyInfo) (tlen:int) pl = pl.p
+let plain (ki:KeyInfo) (tlen:DataStream.range)  b = {p=b}
+let repr (ki:KeyInfo) (tlen:DataStream.range) pl = pl.p
 
 let pad (p:int)  = createBytes p (p-1)
 
@@ -20,8 +20,9 @@ let prepare (ki:KeyInfo) tlen ad data tag =
         | SSL_3p0 | TLS_1p0 -> 0
         | TLS_1p1 | TLS_1p2 ->
             let encAlg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
-            ivSize encAlg
-    let p = tlen - length d - length t - ivL
+            ivSize encAlg 
+    let min,max = tlen in
+    let p = max - length d - length t - ivL
     {p = d @| t @| pad p}
 
 let check_split b l = 
@@ -32,12 +33,13 @@ let check_split b l =
 let parse ki tlen ad plain =
     let macSize = macSize (macAlg_of_ciphersuite ki.sinfo.cipher_suite) in
     let p = repr ki tlen plain
+    let min,max = tlen 
     let pLen =
         match ki.sinfo.protocol_version with
-        | SSL_3p0 | TLS_1p0 -> tlen
+        | SSL_3p0 | TLS_1p0 -> max
         | TLS_1p1 | TLS_1p2 ->
             let encAlg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
-            tlen - (ivSize encAlg)
+            max - (ivSize encAlg)
     if pLen <> length p then
         Error.unexpectedError "[parse] tlen should be compatible with the given plaintext"
     else

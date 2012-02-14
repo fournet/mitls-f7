@@ -22,8 +22,8 @@ val initConnState: KeyInfo -> ccs_data -> ConnectionState
 val headerLength: bytes -> int Result
 
 // CF do some uniform renaming, e.g. s/Out/Send/
-val recordPacketOut: KeyInfo -> sendState -> int -> int -> ContentType -> TLSFragment.fragment -> (sendState * bytes)
-val recordPacketIn : KeyInfo -> recvState -> int -> bytes -> (recvState * ContentType * ProtocolVersion * int * TLSFragment.fragment) Result
+val recordPacketOut: KeyInfo -> sendState -> DataStream.range -> int -> ContentType -> TLSFragment.fragment -> (sendState * bytes)
+val recordPacketIn : KeyInfo -> recvState -> int -> bytes -> (recvState * ContentType * ProtocolVersion * DataStream.range * TLSFragment.fragment) Result
 
 val reIndex_null: KeyInfo -> KeyInfo -> ConnectionState -> ConnectionState
 

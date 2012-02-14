@@ -122,12 +122,13 @@ let recordPacketIn ki conn seqn headPayload =
     match parseHeader header with
     | Error(x,y) -> Error(x,y)
     | Correct (parsed) -> 
-    let (ct,pv,tlen) = parsed in
+    let (ct,pv,plen) = parsed in
     // tlen is checked in headerLength, which is invoked by Dispatch
     // before invoking this function
-    if length payload <> tlen then
+    if length payload <> plen then
         Error(Record,CheckFailed)
     else
+    let tlen = (plen,plen) in
     let cs = ki.sinfo.cipher_suite in
     match (cs,conn.key) with
     | (x,NoneKey) when isNullCipherSuite x ->

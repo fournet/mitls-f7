@@ -12,19 +12,19 @@ type fragment =
     | FAlert of Alert.fragment
     | FAppData of AppDataStream.fragment
 
-let TLSFragmentRepr ki tlen seqn (ct:ContentType) frag =
+let TLSFragmentRepr ki (tlen:DataStream.range) seqn (ct:ContentType) frag =
     match frag with
-    | FHandshake(f) -> Handshake.repr ki tlen seqn f
-    | FCCS(f) -> Handshake.ccsRepr ki tlen seqn f
-    | FAlert(f) -> Alert.repr ki tlen seqn f
-    | FAppData(f) -> AppDataStream.repr ki tlen seqn f
+    | FHandshake(f) -> Handshake.repr ki 0 seqn f
+    | FCCS(f) -> Handshake.ccsRepr ki 0 seqn f
+    | FAlert(f) -> Alert.repr ki 0 seqn f
+    | FAppData(f) -> AppDataStream.repr ki 0 seqn f
 
-let TLSFragment ki tlen seqn (ct:ContentType) b =
+let TLSFragment ki (tlen:DataStream.range) seqn (ct:ContentType) b =
     match ct with
-    | Handshake ->          FHandshake(Handshake.fragment ki tlen seqn b)
-    | Change_cipher_spec -> FCCS(Handshake.ccsFragment ki tlen seqn b)
-    | Alert ->              FAlert(Alert.fragment ki tlen seqn b)
-    | Application_data ->   FAppData(AppDataStream.fragment ki tlen seqn b)
+    | Handshake ->          FHandshake(Handshake.fragment ki 0 seqn b)
+    | Change_cipher_spec -> FCCS(Handshake.ccsFragment ki 0 seqn b)
+    | Alert ->              FAlert(Alert.fragment ki 0 seqn b)
+    | Application_data ->   FAppData(AppDataStream.fragment ki 0 seqn b)
 
 type addData = bytes
 
@@ -54,16 +54,18 @@ let parseAD pv ad =
               | Error(x,y) -> unexpectedError "[parseAD] should always be invoked on valid additional data"
               | Correct(ct) -> (seqn,ct)
 
-type AEADPlain = bytes
-type AEADMsg = bytes
-let AEADPlain (ki:KeyInfo) (tlen:int) (ad:addData) (b:bytes) = b
-let AEADRepr (ki:KeyInfo) (tlen:int) (ad:addData) (f:bytes) = f
-
-let AEADPlainToTLSFragment (ki:KeyInfo) (i:int) (ad:addData) (aead:AEADPlain) = 
+type AEADPlain = fragment
+type AEADMsg = fragment
+let AEADPlain (ki:KeyInfo) (tlen:DataStream.range) (ad:addData) (b:bytes) = 
   let (seq,ct) = parseAD ki.sinfo.protocol_version ad in
-    TLSFragment ki i seq ct aead
+  TLSFragment ki tlen seq ct b
 
-let TLSFragmentToAEADPlain (ki:KeyInfo) (i:int) (seqn:int) (ct:ContentType) (disp:fragment) = 
-  let ad = makeAD ki.sinfo.protocol_version seqn ct in
-    TLSFragmentRepr ki i seqn ct disp
+let AEADRepr (ki:KeyInfo) (tlen:DataStream.range) (ad:addData) (f:fragment) = 
+  let (seq,ct) = parseAD ki.sinfo.protocol_version ad in
+    TLSFragmentRepr ki tlen seq ct f
+
+
+let AEADPlainToTLSFragment (ki:KeyInfo) (i:DataStream.range) (ad:addData) (aead:AEADPlain) = aead
+
+let TLSFragmentToAEADPlain (ki:KeyInfo) (i:DataStream.range) (seqn:int) (ct:ContentType) (disp:fragment) = disp
 

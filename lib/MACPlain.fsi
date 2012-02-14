@@ -3,16 +3,16 @@
 open Bytes
 open TLSInfo
 open Formats
-
+open DataStream
 // Plaintext of MAC (addData + TLSFragment.fragment)
 type MACPlain
-val MACPlain: KeyInfo -> int -> TLSFragment.addData -> TLSFragment.AEADPlain -> MACPlain
-val reprMACPlain: KeyInfo -> int -> MACPlain -> bytes
+val MACPlain: KeyInfo -> range -> TLSFragment.addData -> TLSFragment.AEADPlain -> MACPlain
+val reprMACPlain: KeyInfo -> range -> MACPlain -> bytes
 
 // Result of MAC
 type MACed
-val MACed: KeyInfo -> int -> bytes -> MACed
-val reprMACed: KeyInfo -> int -> MACed -> bytes
+val MACed: KeyInfo -> range -> bytes -> MACed
+val reprMACed: KeyInfo -> range -> MACed -> bytes
 
 // MAC-only ciphersuites
-val parseNoPad: KeyInfo -> int -> TLSFragment.addData -> bytes -> (TLSFragment.AEADPlain * MACed)
+val parseNoPad: KeyInfo -> range -> TLSFragment.addData -> bytes -> (TLSFragment.AEADPlain * MACed)

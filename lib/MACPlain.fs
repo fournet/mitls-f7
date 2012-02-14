@@ -7,24 +7,25 @@ open TLSInfo
 
 type MACPlain = {p:bytes}
 
-let MACPlain (ki:KeyInfo) (tlen:int) ad f =
+let MACPlain (ki:KeyInfo) (tlen:DataStream.range) ad f =
     let fB = TLSFragment.AEADRepr ki tlen ad f
     let fLen = bytes_of_int 2 (length fB) in
     let fullData = ad @| fLen in 
     {p = fullData @| fB}
 
-let reprMACPlain (ki:KeyInfo) (tlen:int) p = p.p
+let reprMACPlain (ki:KeyInfo) (tlen:DataStream.range) p = p.p
 
 type MACed = {m:bytes}
-let MACed (ki:KeyInfo) (tlen:int) b = {m=b}
-let reprMACed (ki:KeyInfo) (tlen:int) m = m.m
+let MACed (ki:KeyInfo) (tlen:DataStream.range) b = {m=b}
+let reprMACed (ki:KeyInfo) (tlen:DataStream.range) m = m.m
 
 
 let parseNoPad ki tlen ad plain =
+  let min,max = tlen in
     // assert length plain = tlen
     let cs = ki.sinfo.cipher_suite in
     let maclen = macSize (macAlg_of_ciphersuite cs) in
-    let macStart = tlen - maclen
+    let macStart = min - maclen
     if macStart < 0 || length(plain) < macStart then
         (* FIXME: is this safe?
            I (AP) think so because our locally computed mac will have some different length.
