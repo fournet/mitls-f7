@@ -1,0 +1,84 @@
+module TLS
+
+open Error
+open AppConfig
+
+definition WriteExtend(c, c', d) <=>
+       WriteBytes(c') = WriteBytes(c) @| DeltaBytes(d) 
+    /\  ReadBytes(c') =  ReadBytes(c)
+    /\ Parameters(c') = Parameters(c)
+
+definition ReadExtend(c, c', d) <=>
+        ReadBytes(c') =  ReadBytes(c) @| DeltaBytes(d) 
+    /\ WriteBytes(c') = WriteBytes(c)
+    /\ Parameters(c') = Parameters(c)
+
+definition NoExtend(c, c') <=>
+        ReadBytes(c) =  ReadBytes(c')
+    /\ WriteBytes(c) = WriteBytes(c')
+    /\ Parameters(c) = Parameters(c')
+
+type parameters = protocolOptions
+
+type index
+type (;id:index) conn
+
+type (;id) ioresult_o =
+| IO_O_Error         of ErrorKind * ErrorCause
+| IO_O_MustRead      of (;id) conn
+| IO_O_WriteComplete of (;id) conn
+| IO_O_WritePartial  of c:(;id) conn * rg:range * d:(;id,c,rg) delta
+
+type (;id) ioresult_i =
+| IO_O_Error         of ErrorKind * ErrorCause
+| IO_I_Warning       of alertDescription
+| IO_I_Fatal         of alertDescription
+| IO_I_Read          of c:(;id) conn * rg:range * d:(;id, c, rg) delta
+| IO_I_CertQuery     of c:(;id) conn * (;c) query
+| IO_I_HandshakeDone of newid:index * c:(;newid) conn
+| IO_I_Close
+
+val null: index // NULL_NULL ciphersuite
+
+// client-only; as is, must be followed by a read until Handshaken
+val connect: NetworkStream -> p:parameters -> (c:(;null) conn { Parameters(c) = p }) Result
+// server-only; as is, must be followed by a read until Handshaken
+val accept:  NetworkStream -> p:parameters -> (c:(;null) conn { Parameters(c) = p }) Result
+
+// On the write side, the following events may be generated:
+// - Write(ki,WrittenBytes(c')) 
+// - Close(ki,WrittenBytes(c))
+val write: id:index -> c:(;id) conn -> rg:range -> d:(;id, c, rg) delta ->
+  obb:(;id) ioresult_o {
+       !newc   . obb = IO_O_MustRead(newc) => NoExtend(c, newc)
+    /\ !newc, a. obb = IO_O_Warning(newc, e) => NoExtend(c, newc)
+	/\ !newc   . obb = IO_I_WriteComplete(newc) => WriteExtend(c, newc, d)
+	/\ !newc, newrg, newd.
+	     obb = IO_I_WritePartial (newc, newrg, newd) =>
+	       ?d0, rg0.    WriteExtend(c, newc, d0)
+	                 /\ Split(rg0, newrg, rg, d0, newd, d)
+  }
+
+val read: id:index -> c:(;id) t ->
+   obb:(;id) ioresult_i {
+        !newc, a    . obb = IO_O_Warning(newc, e)  => TXT(id) => NoExtend(c, newc)
+        !e          . obb = IO_I_Fatal(e)          => TXT(id) => Fatal(Dual(id), ReadBytes(c))
+     /\               obb = IO_I_Close             => TXT(id) => Close(Dual(id), ReadBytes(c))
+     /\ !newc, rg, d. obb = IO_I_Read(newc, rg, d) =>
+	          id <> null_id
+		   /\ ReadExtend(c, newc, d)
+		   /\ TXT(id) => Write(Dual(id), ReadBytes(newc))
+     /\ !newid, newc. obb = IO_I_HandshakeDone(newid, newc) =>
+	       WrittenBytes(c') = [||] /\ ReadBytes(c') = [||]
+   }
+
+// ?non-blocking?
+val rekey   : id:index -> c:(;id) t -> c':(;id) t { NoExtend(c, c') } Result
+val shutdown: id:index -> c:(;id) t -> c':(;id) t { NoExtend(c, c') } Result
+  
+// [shutdown] will internally generate a Close(ki, WrittenBytes(c)) 
+// Cannot write afterwards (dynamically enforced)
+
+// we echo the query so that we have an explicit user decision to blame.
+val authorize: id:index -> c:(;id) t -> (;c) query -> c':(;id) { NoExtend(c, c') }  Result
+val refuse:    id:index -> c:(;id) t -> (;c) query -> unit
