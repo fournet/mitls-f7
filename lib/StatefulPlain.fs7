@@ -1,0 +1,12 @@
+module StatefulPlain
+open TLSInfo
+open TLSFragment
+open DataStream
+
+private type (;ki:KeyInfo) fragmentSequence = (ad:bytes * (;ki,r,0,ContentType(ad)) TLSFragment.fragment) list
+private type (;ki:KeyInfo,s:(;ki) fragmentSequence,ad:bytes,r:range) fragment = (;ki,r,0,ContentType(ad)) TLSFragment.fragment
+
+function val SequenceLength: fragmentSequence -> int
+val sequenceLength: ki:KeyInfo -> s:(;ki) fragmentSequence -> l:int{l = SequenceLength(s)}
+val emptySequence: ki:KeyInfo -> (;ki) fragmentSequence
+
