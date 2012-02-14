@@ -121,6 +121,11 @@
     <None Include="AEAD.fs7" />
     <Compile Include="AEAD.fsi" />
     <Compile Include="AEAD.fs" />
+    <None Include="StatefulPlain.fs7" />
+    <Compile Include="StatefulPlain.fsi" />
+    <Compile Include="StatefulPlain.fs" />
+    <None Include="StatefulAEAD.fs7" />
+    <Compile Include="StatefulAEAD.fsi" />
     <None Include="record.fs7" />
     <Compile Include="record.fsi" />
     <Compile Include="record.fs" />
