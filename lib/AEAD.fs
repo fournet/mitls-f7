@@ -6,36 +6,45 @@ open Algorithms
 open TLSInfo
 open Error
 // open TLSFragment
-open TLSKey
+open AEADKey // the first part of this module (to break recursion)
 
-(* No way the following will typecheck. I use native byte/int conversions *)
-(* Commented out, should be somewhere in plain.
+// the first part of this module is AEADKey
 
-let compute_pad ki data =
-    let alg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
-    let bs = blockSize alg in
-    let len_no_pad = (safeLen data) + 1 in (* 1 byte for the padlen byte *)
-    let min_padlen =
-        let overflow = len_no_pad % bs in
-        if overflow = 0 then
-            overflow
-        else
-            bs - overflow
-    match ki.sinfo.protocol_version with
-    | SSL_3p0 ->
-        (* At most one bs. See sec 5.2.3.2 of SSL 3 draft *)
-        let pad = OtherCrypto.mkRandom min_padlen in
-        safeConcat pad [| byte min_padlen|]
-    | v when v >= TLS_1p0 ->
-        let rand = bs * (((int (OtherCrypto.mkRandom 1).[0]) - min_padlen) / bs) in 
-        let len = min_padlen + rand in
-        Array.create (len+1) (byte len)
-    | _ -> unexpectedError "[compute_pad] invoked on wrong protocol version"
+let CF_encrypt id k state data rg plain =
+    match k with
+    | MtE (ka,ke) ->
+        let maced   = MeePlain.concat id data rg plain
+        let tag     = MeePlain.mac    ki id ka maced  
+        let encoded = MeePlain.encode ki rg plain tag
+        ENC.ENC id ke state encoded
+//  | auth only -> ...
+//  | GCM (GCMKey) -> ... 
+        
+let CF_decrypt ki k state data cipher =
+    match k with
+    | MtE (ka,ke) ->
+        let (state,encoded)         = ENC.DEC ki ke state cipher in
+        let (rg,plain,tag,decodeOk) = MeePlain.decode ki encoded in
+        let maced                   = MeePlain.concat id data rg plain 
+        match ki.sinfo.protocol_version with
+        | SSL_3p0 | TLS_1p0 ->
+            if decodeOk
+            then 
+                if MeePlain.verify ki ka maced tag (* padding time oracle *) 
+                then correct(state,rg,plain)
+                else Error(MAC,CheckFailed)
+            else     Error(RecordPadding,CheckFailed) (* padding error oracle *)
+        | TLS_1p1 | TLS_1p2 ->
+            if MeePlain.verify ki ka maced tag 
+            then 
+                if decodeOk then correct (state,rg,plain)                
+                else Error(MAC,CheckFailed)
+            else     Error(MAC,CheckFailed)
+        | _ -> unexpectedError "[AEAD.decrypt] wrong protocol version"
+//  | auth only -> ...
+//  | GCM (GCMKey) -> ... 
 
-*)
-
-//CF TODO: add extra functions for gen, leak, corrupt.
-
+(*
 let encrypt ki key iv3 tlen data plain =
     match key with
     | MtE (macKey,encKey) ->
@@ -44,40 +53,6 @@ let encrypt ki key iv3 tlen data plain =
         let mac = MAC.MAC {ki=ki;tlen=tlen} macKey text in
         let toEncrypt = Plain.prepare ki tlen data plain mac in
         ENC.ENC ki encKey iv3 tlen toEncrypt
-
-(* CF: commenting out until we get a chance to discuss:            
-
-let CF_encrypt ki k state cl data plain =
-    match k with
-    | MtE (ka,ke) ->
-        let maced = ad_fragment ki data plain
-        let tag = TLSPlain.mac ka maced  
-        let encoded = TLSPlain.concat_fragment_mac_pad ki cl plain tag
-        ENC.ENC ki ke state encoded (* this should not be a Result *)
-
-let CF_decrypt ki k state data cipher =
-    match k with
-    | MtE (ka,ke) ->
-        let (state,encoded) = ENC.DEC ki ke state cipher in
-        let (plain,mac,wrongpad) = TLSPlain.split_fragment_mac_pad ki encoded in
-        match ki.sinfo.protocol_version with
-        | SSL_3p0 
-        | TLS_1p0 ->
-            (* If mustFail is true, it means some padding error occurred.
-               If in early versions of TLS, insecurely report a padding error now *)
-            if wrongpad then Error(RecordPadding,CheckFailed)
-            else 
-                match TLSPlain.verify ki ka data compr mac with
-                | Correct(_)                   -> correct(state,plain)
-                | Error(x,y)                   -> Error(x,y)
-        | x when x >= TLS_1p1 ->
-                match TLSPlain.verify ki ka data compr mac with
-                | Correct(_) when not wrongpad -> correct (state,plain)
-                | _                            -> Error(MAC,CheckFailed)
-        | _ -> unexpectedError "[AEAD.decrypt] wrong protocol version"
-        //CF would prefer MAC.VERIFY to return a boolean, as usual
-//  | GCM (GCMKey) -> ... 
-*)
 
 let decrypt ki key iv tlen ad cipher =
     match key with
@@ -104,5 +79,4 @@ let decrypt ki key iv tlen ad cipher =
                     correct (iv3,compr)
             else
                 Error(MAC,CheckFailed)
-
- (* | GCM (GCMKey) -> ... *)
+*)

@@ -7,8 +7,8 @@ open TLSInfo
 
 type MACPlain = {p:bytes}
 
-let MACPlain (ki:KeyInfo) (tlen:DataStream.range) ad f =
-    let fB = TLSFragment.AEADRepr ki tlen ad f
+let concat (ki:KeyInfo) (rg:DataStream.range) ad rg f =
+    let fB = TLSFragment.AEADRepr ki ad rg f
     let fLen = bytes_of_int 2 (length fB) in
     let fullData = ad @| fLen in 
     {p = fullData @| fB}

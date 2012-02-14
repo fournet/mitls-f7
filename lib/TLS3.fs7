@@ -8,7 +8,10 @@ definition ReadExtend(c,c',d) <=>  ReadBytes(c') =  ReadBytes(c) @| DeltaBytes(d
                      /\ WriteBytes(c') = WriteBytes(c)
                      /\  Parameters(c') = Parameters(c)
 
+			
 val null: id // with the NULL_NULL ciphersuite, if anyone asks
+
+type (;id:index) t 
 
 val connect: p:parameters -> c:(;null) t { Parameters(c) = p }
   // client-only; as is, must be followed by a read until Handshaken
@@ -34,7 +37,7 @@ val shutdown:
   // cannot write afterwards (dynamically enforced)
 
 val authorize: id:index -> c:(;id) t -> (;c) query -> c':(;id) { NoExtend(c,c') } 
-val refuse: id:index -> c:(;id) t -> (;c) query -> unit
+val refuse:    id:index -> c:(;id) t -> (;c) query -> unit
 
   // we echo the query so that we have an explicit user decision to blame.
  
