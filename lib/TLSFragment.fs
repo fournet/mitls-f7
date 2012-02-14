@@ -14,17 +14,17 @@ type fragment =
 
 let TLSFragmentRepr ki (tlen:DataStream.range) seqn (ct:ContentType) frag =
     match frag with
-    | FHandshake(f) -> Handshake.repr ki 0 seqn f
-    | FCCS(f) -> Handshake.ccsRepr ki 0 seqn f
-    | FAlert(f) -> Alert.repr ki 0 seqn f
-    | FAppData(f) -> AppDataStream.repr ki 0 seqn f
+    | FHandshake(f) -> Handshake.repr ki tlen seqn f
+    | FCCS(f) -> Handshake.ccsRepr ki tlen seqn f
+    | FAlert(f) -> Alert.repr ki tlen seqn f
+    | FAppData(f) -> AppDataStream.repr ki tlen seqn f
 
 let TLSFragment ki (tlen:DataStream.range) seqn (ct:ContentType) b =
     match ct with
-    | Handshake ->          FHandshake(Handshake.fragment ki 0 seqn b)
-    | Change_cipher_spec -> FCCS(Handshake.ccsFragment ki 0 seqn b)
-    | Alert ->              FAlert(Alert.fragment ki 0 seqn b)
-    | Application_data ->   FAppData(AppDataStream.fragment ki 0 seqn b)
+    | Handshake ->          FHandshake(Handshake.fragment ki tlen seqn b)
+    | Change_cipher_spec -> FCCS(Handshake.ccsFragment ki tlen seqn b)
+    | Alert ->              FAlert(Alert.fragment ki tlen seqn b)
+    | Application_data ->   FAppData(AppDataStream.fragment ki tlen seqn b)
 
 type addData = bytes
 

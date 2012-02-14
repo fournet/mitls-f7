@@ -13,16 +13,16 @@ recordfsi = Error.fsi Bytes.fsi tcp.fsi RSA.fsi Certificate.fsi Algorithms.fsi C
 recordfs  = Error.fs  Bytes.fs  tcp.fs  RSA.fs  Certificate.fs  Algorithms.fs  CipherSuites.fs  formats.fs  TLSInfo.fs  HASH.fs  HMAC.fs  ENCKey.fs  MACKey.fs  PRFs.fs  TLSKey.fs   TLSFragment.fs  MACPlain.fs  Plain.fs  MAC.fs  ENC.fs  AEAD.fs  record.fs
 
 wrapperlibs = Error.fs  Bytes.fs  tcp.fs Algorithms.fs RSA.fs  HASH.fs  HMAC.fs  Certificate.fs  # not verified 
-tlsbase = CipherSuites.fs  formats.fs  TLSInfo.fs  ENCKey.fs  MACKey.fs TLSKey.fs # verified
+tlsbase = CipherSuites.fs  formats.fs  TLSInfo.fs  ENCKey.fs  MACKey.fs TLSKey.fs DataStream.fs # verified
 tlshandshake = AppConfig.fs PRFs.fs SessionDB.fs FragCommon.fs Handshake.fs  Alert.fs  # todo
-tlsapplication = DataStream.fs AppDataStream.fs TLSFragment.fs MACPlain.fs Plain.fs # being verified (KB) 
+tlsapplication = AppDataStream.fs TLSFragment.fs MACPlain.fs Plain.fs # being verified (KB) 
 crypto =  MAC.fs ENC.fs AEAD.fs # verified? (CF)
 tlsrecord = record.fs dispatch.fs tls.fs # being verified (AP)
 
 wrapperlibsi = Error.fsi  Bytes.fsi  tcp.fsi  Algorithms.fsi  RSA.fsi  HASH.fsi  HMAC.fsi  Certificate.fsi  # not verified 
-tlsbasei = CipherSuites.fsi  formats.fsi  TLSInfo.fsi  ENCKey.fsi  MACKey.fsi TLSKey.fsi # verified
+tlsbasei = CipherSuites.fsi  formats.fsi  TLSInfo.fsi  ENCKey.fsi  MACKey.fsi TLSKey.fsi DataStream.fsi # verified
 tlshandshakei = AppConfig.fsi  PRFs.fsi SessionDB.fsi FragCommon.fsi  Handshake.fsi  Alert.fsi  # todo
-tlsapplicationi = DataStream.fsi AppDataStream.fsi TLSFragment.fsi MACPlain.fsi Plain.fsi # being verified (KB)
+tlsapplicationi = AppDataStream.fsi TLSFragment.fsi MACPlain.fsi Plain.fsi # being verified (KB)
 cryptoi =  MAC.fsi ENC.fsi AEAD.fsi # verified? (CF)
 tlsrecordi = record.fsi dispatch.fsi tls.fsi # being verified (AP)
 

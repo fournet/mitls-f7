@@ -13,19 +13,19 @@ type pre_al_state = {
 type state = pre_al_state
 
 type fragment = {b:bytes}
-let repr (ki:KeyInfo) (i:int) (seqn:int) f = f.b
-let fragment (ki:KeyInfo) (i:int) (seqn:int) b = {b=b}
+let repr (ki:KeyInfo) (i:DataStream.range) (seqn:int) f = f.b
+let fragment (ki:KeyInfo) (i:DataStream.range) (seqn:int) b = {b=b}
 let makeFragment ki (seqn:int) b =
     let (tl,f,r) = FragCommon.splitInFrag ki b in
-    ((tl,{b=f}),r)
+    (((tl,tl),{b=f}),r)
 
 let init (ci:ConnectionInfo) = {al_incoming = [||]; al_outgoing = [||]}
 
 type ALFragReply =
     | EmptyALFrag
-    | ALFrag of int * fragment
-    | LastALFrag of int * fragment
-    | LastALCloseFrag of int * fragment
+    | ALFrag of DataStream.range * fragment
+    | LastALFrag of DataStream.range * fragment
+    | LastALCloseFrag of DataStream.range * fragment
 
 type alert_reply =
     | ALAck of state

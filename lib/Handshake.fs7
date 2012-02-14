@@ -18,15 +18,15 @@ type (;ci:ConnectionInfo) hs_state = (;ci)pre_hs_state
 
 // protocol-specific abstract fragment,
 // and associated functions (never to be called with ideal functionality)
-type (;ki:KeyInfo,tlen:int,seqn:int) fragment
-predicate HandshakeFragment of KeyInfo * int * int * Bytes.bytes
-predicate CCSFragment of KeyInfo * int * int * Bytes.bytes
+type (;ki:KeyInfo,tlen:DataStream.range,seqn:int) fragment
+predicate HandshakeFragment of KeyInfo * DataStream.range * int * Bytes.bytes
+predicate CCSFragment of KeyInfo * DataStream.range * int * Bytes.bytes
 
-val repr: ki:KeyInfo -> tlen:int -> seqn:int -> (;ki,tlen,seqn)fragment -> b:Bytes.bytes{HandshakeFragment(ki,tlen,seqn,b)}
-val fragment: ki:KeyInfo -> tlen:int -> seqn:int -> b:Bytes.bytes{HandshakeFragment(ki,tlen,seqn,b) \/ Corrupt(ki)} -> (;ki,tlen,seqn)fragment
-type (;ki:KeyInfo,tlen:int,seqn:int)ccsFragment
-val ccsRepr: ki:KeyInfo -> tlen:int -> seqn:int -> (;ki,tlen,seqn)ccsFragment -> b:Bytes.bytes{CCSFragment(ki,tlen,seqn,b)}
-val ccsFragment: ki:KeyInfo -> tlen:int -> seqn:int -> Bytes.bytes -> (;ki,tlen,seqn)ccsFragment
+val repr: ki:KeyInfo -> tlen:DataStream.range -> seqn:int -> (;ki,tlen,seqn)fragment -> b:Bytes.bytes{HandshakeFragment(ki,tlen,seqn,b)}
+val fragment: ki:KeyInfo -> tlen:DataStream.range -> seqn:int -> b:Bytes.bytes{HandshakeFragment(ki,tlen,seqn,b) \/ Corrupt(ki)} -> (;ki,tlen,seqn)fragment
+type (;ki:KeyInfo,tlen:DataStream.range,seqn:int)ccsFragment
+val ccsRepr: ki:KeyInfo -> tlen:DataStream.range -> seqn:int -> (;ki,tlen,seqn)ccsFragment -> b:Bytes.bytes{CCSFragment(ki,tlen,seqn,b)}
+val ccsFragment: ki:KeyInfo -> tlen:DataStream.range -> seqn:int -> Bytes.bytes -> (;ki,tlen,seqn)ccsFragment
 
 (* Locally controlling handshake protocols *) 
 
@@ -65,10 +65,10 @@ val start_hs_request:  ci:ConnectionInfo -> (;ci)hs_state -> protocolOptions -> 
 
 type (;ki:KeyInfo,seqn:int) HSFragReply =
   | EmptyHSFrag              (* nothing to send *) 
-  | HSFrag of                (tlen:int * (;ki,tlen,seqn)fragment)
-  | CCSFrag of               (tlen:int * (;ki,tlen,seqn)ccsFragment) (* the unique one-byte CCS *) * (newKI:KeyInfo * (;newKI)ccs_data)
-  | HSWriteSideFinished of   (tlen:int * (;ki,tlen,seqn)fragment) (* signalling that this fragment ends the finished message *)
-  | HSFullyFinished_Write of (tlen:int * (;ki,tlen,seqn)fragment) * ((si:SessionInfo * (;si)PRFs.masterSecret * Direction){si=ki.sinfo})
+  | HSFrag of                (tlen:DataStream.range * (;ki,tlen,seqn)fragment)
+  | CCSFrag of               (tlen:DataStream.range * (;ki,tlen,seqn)ccsFragment) (* the unique one-byte CCS *) * (newKI:KeyInfo * (;newKI)ccs_data)
+  | HSWriteSideFinished of   (tlen:DataStream.range * (;ki,tlen,seqn)fragment) (* signalling that this fragment ends the finished message *)
+  | HSFullyFinished_Write of (tlen:DataStream.range * (;ki,tlen,seqn)fragment) * ((si:SessionInfo * (;si)PRFs.masterSecret * Direction){si=ki.sinfo})
 val next_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)hs_state -> (;ci.id_out,seqn)HSFragReply * (;ci)hs_state
 
 (* Receiving Handshake and CCS fragments *) 
@@ -78,8 +78,8 @@ type (;si:SessionInfo)recv_reply = (* the fragment is accepted, and... *)
   | HSVersionAgreed of ProtocolVersion (* use this new protocol version for sending *)
   | HSReadSideFinished (* ? *) 
   | HSFullyFinished_Read of ((si':SessionInfo * (;si')PRFs.masterSecret * Direction){si=si'}) (* we can start sending data on the connection *)  
-val recv_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)hs_state -> tlen:int -> (;ci.id_in,tlen,seqn)fragment -> (;ci.id_in.sinfo)recv_reply Result * (;ci)hs_state
-val recv_ccs     : ci:ConnectionInfo -> seqn:int -> (;ci)hs_state -> tlen:int -> (;ci.id_in,tlen,seqn)ccsFragment -> ((newKI:KeyInfo * (;newKI)ccs_data) Result) * (;ci)hs_state
+val recv_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)hs_state -> tlen:DataStream.range -> (;ci.id_in,tlen,seqn)fragment -> (;ci.id_in.sinfo)recv_reply Result * (;ci)hs_state
+val recv_ccs     : ci:ConnectionInfo -> seqn:int -> (;ci)hs_state -> tlen:DataStream.range -> (;ci.id_in,tlen,seqn)ccsFragment -> ((newKI:KeyInfo * (;newKI)ccs_data) Result) * (;ci)hs_state
 
 val reIndex: oldID:ConnectionInfo -> newID:ConnectionInfo{CompatibleConnections(oldID,newID)} ->
 	(;oldID)hs_state -> (;newID)hs_state

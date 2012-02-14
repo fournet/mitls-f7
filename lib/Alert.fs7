@@ -12,18 +12,18 @@ type (;ci:ConnectionInfo)state = (;ci)pre_al_state
 
 // protocol-specific abstract fragment,
 // and associated functions (never to be called with ideal functionality)
-private type (;ki:KeyInfo,tlen:int,seqn:int)fragment = {b:bytes}
+private type (;ki:KeyInfo,tlen:DataStream.range,seqn:int)fragment = {b:bytes}
 predicate AlertFragment of KeyInfo * int * int * Bytes.bytes
-val repr: ki:KeyInfo -> tlen:int -> seqn:int -> (;ki,tlen,seqn)fragment -> b:Bytes.bytes{AlertFragment(ki,tlen,seqn,b)}
-val fragment: ki:KeyInfo -> tlen:int -> seqn:int -> b:Bytes.bytes{AlertFragment(ki,tlen,seqn,b) \/ Corrupt(ki)} -> (;ki,tlen,seqn)fragment
+val repr: ki:KeyInfo -> tlen:DataStream.range -> seqn:int -> (;ki,tlen,seqn)fragment -> b:Bytes.bytes{AlertFragment(ki,tlen,seqn,b)}
+val fragment: ki:KeyInfo -> tlen:DataStream.range -> seqn:int -> b:Bytes.bytes{AlertFragment(ki,tlen,seqn,b) \/ Corrupt(ki)} -> (;ki,tlen,seqn)fragment
 
-val makeFragment: ki:KeyInfo -> seqn:int -> b:bytes -> (tlen:int * (;ki,tlen,seqn)fragment) * b2:bytes
+val makeFragment: ki:KeyInfo -> seqn:int -> b:bytes -> (tlen:DataStream.range * (;ki,tlen,seqn)fragment) * b2:bytes
 
 type (;ki:KeyInfo,seqn:int)ALFragReply =
     | EmptyALFrag
-    | ALFrag of          (tlen:int * (;ki,tlen,seqn)fragment)
-    | LastALFrag of      (tlen:int * (;ki,tlen,seqn)fragment)
-    | LastALCloseFrag of (tlen:int * (;ki,tlen,seqn)fragment)
+    | ALFrag of          (tlen:DataStream.range * (;ki,tlen,seqn)fragment)
+    | LastALFrag of      (tlen:DataStream.range * (;ki,tlen,seqn)fragment)
+    | LastALCloseFrag of (tlen:DataStream.range * (;ki,tlen,seqn)fragment)
 
 type (;ci:ConnectionInfo)alert_reply =
     | ALAck of          (;ci)state
@@ -102,7 +102,7 @@ val next_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)state -> ((;ci.id_out,s
 
 val handle_alert: ci:ConnectionInfo -> (;ci)state -> alertDescription -> (;ci)alert_reply
 
-val recv_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)state -> tlen:int -> (;ci.id_in,tlen,seqn)fragment -> ((;ci)alert_reply) Result
+val recv_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)state -> tlen:DataStream.range -> (;ci.id_in,tlen,seqn)fragment -> ((;ci)alert_reply) Result
 
 val reIndex: oldID:ConnectionInfo -> newID:ConnectionInfo{CompatibleConnections(oldID,newID)} ->
 	(;oldID)state -> (;newID)state

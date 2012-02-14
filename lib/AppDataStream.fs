@@ -50,13 +50,13 @@ let is_outgoing_empty (ci:ConnectionInfo)  app_state =
     
 type fragment = delta
 
-let repr (ki:KeyInfo) (seqn:int) (r:int) (d:fragment) = 
+let repr (ki:KeyInfo) (r:DataStream.range) (seqn:int) (d:fragment) = 
   let s = DataStream.init ki in
-  deltaRepr ki s (r,r) d
+  deltaRepr ki s r d
 
-let fragment (ki:KeyInfo) (seqn:int) (r:int) (b:bytes) = 
+let fragment (ki:KeyInfo)  (r:DataStream.range) (seqn:int) (b:bytes) = 
   let s = DataStream.init ki in
-  delta ki s (r,r) b
+  delta ki s r b
 
 let writeAppData (c:ConnectionInfo)  (a:app_state) (r:range) (d:delta) =
   let f = a.app_outgoing.full in

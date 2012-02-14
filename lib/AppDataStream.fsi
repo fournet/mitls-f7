@@ -42,5 +42,5 @@ val reset_outgoing:  ConnectionInfo -> app_state -> app_state
 val is_incoming_empty: ConnectionInfo ->  app_state -> bool
 val is_outgoing_empty: ConnectionInfo ->  app_state -> bool
 
-val repr: KeyInfo -> int -> int -> fragment -> bytes
-val fragment: KeyInfo -> int -> int -> bytes -> fragment 
+val repr: KeyInfo -> DataStream.range -> int -> fragment -> bytes
+val fragment: KeyInfo -> DataStream.range -> int -> bytes -> fragment 
