@@ -1,0 +1,34 @@
+﻿module StatefulAEAD
+
+open TLSInfo
+open TLSKey
+open Error
+open StatefulPlain
+open DataStream 
+
+val encrypt: ki:KeyInfo -> 
+  (;ki) AEADKey -> 
+  (;ki) ENCKey.iv3 -> 
+  r:range ->
+  ad:bytes ->
+  fs:(;ki) fragmentSequence ->
+  f: (;ki,fs,ad,r) fragment ->
+  ((;ki) ENCKey.iv3 * ENC.cipher * fs':(;ki) fragmentSequence{SequenceLength(fs') = SequenceLength(fs) + 1})
+
+val decrypt: ki:KeyInfo -> 
+  (;ki) AEADKey -> 
+  (;ki) ENCKey.iv3 -> 
+  r:range ->
+  ad:bytes ->
+  fs:(;ki) fragmentSequence ->
+  ENC.cipher ->
+  ((;ki) ENCKey.iv3 * f:(;ki,fs,ad,r) fragment * 
+     fs':(;ki) fragmentSequence{SequenceLength(fs')}) Result
+
+
+(* TODOS: (KB: Done?) *)
+(* - Add explicit ciphertext length *)
+(* - Make all iv become iv3: Only TLS 1.0 will use iv, later versions don't. *)
+(*	 The ciphertext has different lengths, depending on the version: *)
+(*   In later versions it includes the fresh iv, in early versions it doensn't. *)
+
