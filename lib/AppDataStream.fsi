@@ -24,6 +24,7 @@ type preds =
 
 val writeAppData: ConnectionInfo -> app_state -> range -> delta -> app_state
 val readAppData: ConnectionInfo -> app_state -> ((range * delta) option * app_state)
+val emptyOutgoingAppData: ConnectionInfo -> app_state -> ((range * delta) option * app_state)
 
 val readAppDataFragment: ConnectionInfo ->  app_state -> (range * fragment * app_state) option
 

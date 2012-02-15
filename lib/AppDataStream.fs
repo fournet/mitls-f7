@@ -79,6 +79,15 @@ let readAppData (c:ConnectionInfo)  (a:app_state) =
           let nh = DataStream.append c.id_in h r d in
           Some(r,d),{a with app_incoming = {a.app_incoming with history = nh;data = None}}
 
+(* Breaks invariants, but we shouldn't be relying on histories over here anymore *)
+let emptyOutgoingAppData (c:ConnectionInfo)  (a:app_state) = 
+  let b = a.app_outgoing.data in
+    match b with
+      | None -> None,a
+      | Some(r,d) -> 
+          Some(r,d),{a with app_outgoing = 
+               {a.app_outgoing with data = None}}
+
 let readAppDataFragment (c:ConnectionInfo)  (a:app_state) =
   let h = a.app_outgoing.history in
     Pi.assume(AppDataSequenceNo(c.id_out,a.app_outgoing.seqn));

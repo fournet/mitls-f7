@@ -26,14 +26,8 @@ let writeFully conn d =
     writeFully_int conn d empty_bstr
 *)
 
-let write conn b =
-    // FIXME:
-    // The next three lines should be in the top level app,
-    // and the write function should take appdata
-    let si = getSessionInfo conn
-    let lengths = (0,1) in
-    let appdata = b in
-    Dispatch.commit conn lengths appdata
+let write conn r b = Dispatch.writeDelta conn r b
+
 
 (*
 let write_buffer_empty conn =
@@ -45,6 +39,10 @@ let flush conn =
         | (Error(x,y),conn) -> (Error(x,y),conn)
         | (Correct(_),conn) -> (correct(), conn)
 
+let read conn = Dispatch.readDelta conn
+(*
+
+
 let read conn =
     match readAppData conn with
     | (conn,Error(x,y)) -> (conn,Error(x,y))
@@ -54,7 +52,6 @@ let read conn =
         let si = getSessionInfo conn
         (conn,correct(appdata))
 
-(*
 let dataAvailable conn =
     appDataAvailable conn
 *)

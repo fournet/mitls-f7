@@ -566,7 +566,7 @@ let rec read c stopAt =
             | (Error(x,y),c) -> (Error(x,y),c)
             | (Correct(unitVal),c) -> (Error(TLS,ConnectionClosed),c)
 
-let rec writeAppData c =
+let rec writeAppData c = 
     let unitVal = () in
     match writeOne c with
     | (Error (x,y),c) -> (Error(x,y),c)
@@ -604,6 +604,18 @@ let rec writeAppData c =
         (* Nothing to read, possibly send buffered data *)
         writeOneAppFragment conn
     *)
+
+let writeDelta (Conn(id,c)) r d = 
+  let new_appdata = AppDataStream.writeAppData id c.appdata r d in
+  let c = {c with appdata = new_appdata} in 
+  match  writeAppData (Conn(id,c))with
+    | (Correct(_),(Conn(id,c))) ->
+         let (rd,new_appdata) = AppDataStream.emptyOutgoingAppData id c.appdata in
+         let c = {c with appdata = new_appdata} in 
+           (Conn(id,c),correct (rd))
+    | (Error(x,y),c) -> c,Error(x,y)
+
+  
 
 let commit (Conn(id,c)) ls b =
     let new_appdata = AppDataStream.writeAppData id c.appdata ls b in
@@ -647,5 +659,8 @@ let readAppData (Conn(id,c)) =
             (correct (read),conn)
         | (Error (x,y),c) -> (Error(x,y),c)
     *)
+
+let readDelta c = readAppData c
+
 
 let readHS conn = read conn StopAtHS

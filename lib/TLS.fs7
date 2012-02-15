@@ -21,7 +21,7 @@ assume !c,b. Received(c,b) <=> (Corrupt(c.id_in) \/ ValidAppDataStream(c.id_in,b
 
 val write: c:Connection -> b:bytes -> (;c)CompatibleConnection
 
-val flush: c:Connection -> (unit Result) * (;c)CompatibleConnection
+(* val flush: c:Connection -> (unit Result) * (;c)CompatibleConnection*)
 
 val read: c:Connection -> c':(;c)CompatibleConnection * (b:bytes) Result
 

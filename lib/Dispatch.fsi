@@ -43,3 +43,6 @@ val getSessionInfo: Connection -> SessionInfo
    Do not send anything on the network yet. *)
 val commit: Connection -> range -> delta -> Connection
 (* val write_buffer_empty: Connection -> bool *)
+
+val writeDelta: Connection -> range -> delta -> Connection * ((range * delta) option Result)
+val readDelta: Connection -> Connection * ((range * delta) Result)
