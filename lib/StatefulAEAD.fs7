@@ -6,6 +6,13 @@ open Error
 open StatefulPlain
 open DataStream 
 
+// TODO 12-02: 
+// - align with paper interface:
+// -- group & reorder iv,key, and state into one state (hiding eg iv3)
+// -- add refinements!
+// -- why returning ENC.cipher? 
+// - Do we need to control the cipherlength?  
+
 val encrypt: ki:KeyInfo -> 
   (;ki) AEADKey -> 
   (;ki) ENCKey.iv3 -> 
@@ -25,11 +32,3 @@ val decrypt: ki:KeyInfo ->
   ENC.cipher ->
   ((;ki) ENCKey.iv3 * f:(;ki,fs,ad,r) fragment * 
      fs':(;ki) state) Result
-
-
-(* TODOS: (KB: Done?) *)
-(* - Add explicit ciphertext length *)
-(* - Make all iv become iv3: Only TLS 1.0 will use iv, later versions don't. *)
-(*	 The ciphertext has different lengths, depending on the version: *)
-(*   In later versions it includes the fresh iv, in early versions it doensn't. *)
-
