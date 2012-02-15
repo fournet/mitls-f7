@@ -7,6 +7,8 @@ open TLSInfo
 /// a refined, ideal interface for indexed MACs
 /// this file is loosely synchronized with cma/mac2.fs7
 
+private type (;ki:KeyInfo) key = {k:bytes}
+
 predicate val CMA: id -> bool
 type text = bytes
 predicate val Msg: KeyInfo * text -> bool
