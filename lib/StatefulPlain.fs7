@@ -5,6 +5,7 @@ open DataStream
 
 type addData = bytes
 
+(*
 private type (;ki:KeyInfo) state = {
   history: (ad:bytes * (;ki,r,0,ContentType(ad)) TLSFragment.fragment) list
 }
@@ -27,3 +28,4 @@ val TLSFragmentToFragment: ki:KeyInfo -> rg:range -> seqn:int -> ct:ContentType 
 val FragmentToTLSFragment: ki:KeyInfo -> s:(;ki) state -> ad:bytes -> rg:range  -> (;ki,s,ad,rg) fragment -> (;ki,rg,0,ADct) TLSFragment.fragment 
 
 
+*)

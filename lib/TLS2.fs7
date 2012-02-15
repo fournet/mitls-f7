@@ -2,6 +2,7 @@ module TLS
 
 open Error
 open AppConfig
+open Dispatch
 
 predicate val Parameters: (id * (;id) conn) -> parameters 
 
@@ -27,13 +28,13 @@ type parameters = protocolOptions
 type index
 type (;id:index) conn
 
-type (;id) ioresult_o =
+type (;id:index) ioresult_o =
 | IO_O_Error         of ErrorKind * ErrorCause
 | IO_O_MustRead      of (;id) conn
 | IO_O_WriteComplete of (;id) conn
 | IO_O_WritePartial  of c:(;id) conn * rg:range * d:(;id,c,rg) delta
 
-type (;id) ioresult_i =
+type (;id:index) ioresult_i =
 | IO_O_Error         of ErrorKind * ErrorCause
 | IO_I_Warning       of alertDescription
 | IO_I_Fatal         of alertDescription
@@ -66,7 +67,7 @@ val write: id:index -> c:(;id) conn -> rg:range -> d:(;id, c, rg) delta ->
 val read: id:index -> c:(;id) t ->
    obb:(;id) ioresult_i {
         !newc, a    . obb = IO_O_Warning(newc, e)  => TXT(id) => NoExtend(c, newc)
-        !e          . obb = IO_I_Fatal(e)          => TXT(id) => Fatal(Dual(id), ReadBytes(c))
+     /\ !e          . obb = IO_I_Fatal(e)          => TXT(id) => Fatal(Dual(id), ReadBytes(c))
      /\               obb = IO_I_Close             => TXT(id) => Close(Dual(id), ReadBytes(c))
      /\ !newc, rg, d. obb = IO_I_Read(newc, rg, d) =>
 	          id <> null_id
@@ -77,12 +78,12 @@ val read: id:index -> c:(;id) t ->
    }
 
 // ?non-blocking?
-val rekey   : id:index -> c:(;id) t -> c':(;id) t { NoExtend(c, c') } Result
-val shutdown: id:index -> c:(;id) t -> c':(;id) t { NoExtend(c, c') } Result
+val rekey   : id:index -> c:(;id) t -> (c':(;id) conn { NoExtend(c, c') }) Result
+val shutdown: id:index -> c:(;id) t -> (c':(;id) conn { NoExtend(c, c') }) Result
   
 // [shutdown] will internally generate a Close(ki, WrittenBytes(c)) 
 // Cannot write afterwards (dynamically enforced)
 
 // we echo the query so that we have an explicit user decision to blame.
-val authorize: id:index -> c:(;id) t -> (;c) query -> c':(;id) { NoExtend(c, c') }  Result
+val authorize: id:index -> c:(;id) t -> (;c) query -> (c':(;id) conn { NoExtend(c, c') }) Result
 val refuse:    id:index -> c:(;id) t -> (;c) query -> unit

@@ -49,8 +49,8 @@ val check_split:
   b1:bytes * b2:bytes { Length(b1) = i /\ b = b1 @| b2 }
 
 
-function val CipherRange: KeyInfo -> (;ki
-val cipherRange: ki:KeyInfo -> p:plain -> r = DataStream.range{r = CipherRange(ki,p)}
+(*function val CipherRange: KeyInfo -> (;ki*)
+val cipherRange: ki:KeyInfo -> p:plain -> r:DataStream.range{r = CipherRange(ki,p)}
 
 val encode: ki:KeyInfo -> tlen:DataStream.range -> ad:(;ki.sinfo.protocol_version) TLSFragment.addData -> (;ki,tlen,ad) TLSFragment.AEADPlain -> (;ki) tag -> (;ki,tlen) plain
 val decode: ki:KeyInfo -> ad:(;ki.sinfo.protocol_version) TLSFragment.addData -> (;ki,tlen) plain -> (rg:DataStream.range * (;ki,rg,ad)TLSFragment.AEADPlain * (;ki)tag * bool)

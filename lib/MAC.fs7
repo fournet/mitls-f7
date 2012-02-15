@@ -9,7 +9,7 @@ open TLSInfo
 
 private type (;ki:KeyInfo) key = {k:bytes}
 
-predicate val CMA: id -> bool
+(*predicate val CMA: id -> bool*)
 type text = bytes
 predicate val Msg: KeyInfo * text -> bool
 type mac = bytes

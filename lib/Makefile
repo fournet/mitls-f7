@@ -201,6 +201,10 @@ Dispatch.tc7: $(libperv) $(libfs7) $(recordfs7) Dispatch.fs7 Dispatch.fs
 
 TLS.tc7: $(libperv) $(libfs7) $(recordfs7) Dispatch.fs7 TLS.fs7 TLS.fs
 	$(f7t) -genprotofs -scripts TLS $(recordfs7) Dispatch.fs7 TLS.fs7 TLS.fs | tee TLS.tc7
+
+TLS2.tc7: $(libperv) $(libfs7) $(recordfs7) Dispatch.fs7 TLS2.fs7 TLS2.fs
+	$(f7t) -genprotofs -scripts TLS2 $(recordfs7) Dispatch.fs7 TLS2.fs7 TLS2.fs
+
 #CF ? 
 autogen.fsi: $(libperv) $(libfs7) $(recordfs7) record.fs
 	$(f7) -nofstypecheck -timeout 300 --define f7 -genfsi -fsifile autogen.fsi -genprotofs -protofsfile autogen.fs -nokindcheck $(lperv) $(libfs7) $(recordfs7) record.fs 
