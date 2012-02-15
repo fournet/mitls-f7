@@ -1,16 +1,26 @@
 module StatefulPlain
+open Error
+open Bytes
 open TLSInfo
 open DataStream
+open Formats
+open CipherSuites
 
-type fragmentSequence
-type fragment 
+type addData = bytes
+type state 
+type fragment = TLSFragment.fragment
 
-val emptySequence: KeyInfo -> fragmentSequence
-val sequenceLength:KeyInfo -> fragmentSequence -> int
+val emptyState: KeyInfo -> state
+val stateLength:KeyInfo -> state -> int
 
-val addFragment: KeyInfo -> fragmentSequence -> bytes -> range -> 
-                 fragment -> fragmentSequence
+val addFragment: KeyInfo -> state -> bytes -> range -> 
+                 fragment -> state
 
-val TLSFragmentToFragment: KeyInfo -> range -> int -> TLSFragment.fragment -> fragment
-val FragmentToTLSFragment: KeyInfo -> range -> int -> fragment -> TLSFragment.fragment
+val TLSFragmentToFragment: KeyInfo -> range -> int -> ContentType -> TLSFragment.fragment -> fragment
+val fragmentToTLSFragment: KeyInfo -> state -> bytes -> range -> fragment -> TLSFragment.fragment
 
+val fragment: KeyInfo -> state -> bytes -> range -> bytes -> fragment
+val repr: KeyInfo -> state -> bytes -> range -> fragment -> bytes
+
+val makeAD: int -> bytes -> bytes
+val parseAD: bytes -> int * bytes

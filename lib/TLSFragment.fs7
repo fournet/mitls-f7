@@ -74,7 +74,7 @@ assume !ki,tlen,ad,x. AEADMsg(ki,tlen,ad,x) <=>
               x))
 
 val AEADPlain: ki:KeyInfo -> tlen:range -> ad:(;ki.sinfo.protocol_version) addData -> bytes -> (;ki,tlen,ad)AEADPlain
-val AEADRepr:  ki:KeyInfo -> tlen:range -> ad:(;ki.sinfo.protocol_version) addData -> f:(;ki,tlen,ad)AEADPlain -> b:bytes{b=f}
+val AEADRepr:  ki:KeyInfo -> tlen:range -> ad:(;ki.sinfo.protocol_version) addData -> f:(;ki,tlen,ad)AEADPlain -> b:bytes
 
 val AEADPlainToTLSFragment: ki:KeyInfo -> tlen:range -> 
   ad:(;ki.sinfo.protocol_version) addData -> 

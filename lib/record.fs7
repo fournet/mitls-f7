@@ -13,6 +13,7 @@ open AEAD
 type (;ki:KeyInfo) ConnectionState = {
   key: (;ki) recordKey;
   iv3: (;ki) ENCKey.iv3;
+  state: (;ki) StatefulPlain.state
 }
 
 type (;ki:KeyInfo) sendState = (;ki) ConnectionState 

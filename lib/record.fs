@@ -11,6 +11,7 @@ open AEAD
 type ConnectionState = {
   key: recordKey;
   iv3: ENCKey.iv3;
+  state: StatefulPlain.state;
   }
 type sendState = ConnectionState
 type recvState = ConnectionState
@@ -19,6 +20,7 @@ type recvState = ConnectionState
 let initConnState (ki:KeyInfo) (ccsData:ccs_data) =
   { key = ccsData.ccsKey;
     iv3 = ccsData.ccsIV3;
+    state = StatefulPlain.emptyState ki;
   }
 
 /// packet format
@@ -76,18 +78,21 @@ let recordPacketOut keyInfo conn tlen seqn ct fragment =
         let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
         (conn,packet)
     | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
-        let addData = TLSFragment.makeAD keyInfo.sinfo.protocol_version seqn ct in
-        let aeadF = TLSFragment.TLSFragmentToAEADPlain keyInfo tlen seqn ct fragment in
+        let ad0 = TLSFragment.makeAD keyInfo.sinfo.protocol_version ct in
+        let addData = StatefulPlain.makeAD seqn ad0 in
+        let aeadSF = StatefulPlain.TLSFragmentToFragment keyInfo tlen seqn ct fragment in
+        let aeadF = AEADPlain.fragmentToPlain keyInfo conn.state addData tlen aeadSF in
         let data = MACPlain.MACPlain keyInfo tlen addData aeadF in
         let mac = MAC.MAC {MAC.ki=keyInfo;MAC.tlen=tlen} key data in
         let payload = (TLSFragment.TLSFragmentRepr keyInfo tlen seqn ct fragment) @| (MACPlain.reprMACed keyInfo tlen mac) in
         let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
         (conn,packet)
     | (_,RecordAEADKey(key)) ->
-        let addData = TLSFragment.makeAD keyInfo.sinfo.protocol_version seqn ct in
-        let aeadF = TLSFragment.TLSFragmentToAEADPlain keyInfo tlen seqn ct fragment in
-        let (newIV,payload) = AEAD.encrypt keyInfo key conn.iv3 tlen addData aeadF in
-        let conn = {conn with iv3 = newIV} in
+        let ad0 = TLSFragment.makeAD keyInfo.sinfo.protocol_version ct in
+        let addData = StatefulPlain.makeAD seqn ad0 in
+        let aeadF = StatefulPlain.TLSFragmentToFragment keyInfo tlen seqn ct fragment in
+        let (newIV,payload,ns) = StatefulAEAD.encrypt keyInfo key conn.iv3 tlen addData conn.state aeadF in
+        let conn = {conn with iv3 = newIV; state = ns} in
         let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
         (conn,packet)
     | _ -> unexpectedError "[recordPacketOut] Incompatible ciphersuite and key type"
@@ -135,31 +140,34 @@ let recordPacketIn ki conn seqn headPayload =
         let msg = TLSFragment.TLSFragment ki tlen seqn ct payload in
         correct(conn,ct,pv,tlen,msg)
     | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
-        let ad = TLSFragment.makeAD ki.sinfo.protocol_version seqn ct in
+        let ad0 = TLSFragment.makeAD ki.sinfo.protocol_version ct in
+        let ad = StatefulPlain.makeAD seqn ad0 in
         let (msg,mac) = MACPlain.parseNoPad ki tlen ad payload in
         let toVerify = MACPlain.MACPlain ki tlen ad msg in
         let ver = MAC.VERIFY {MAC.ki=ki;MAC.tlen=tlen} key toVerify mac in
         if ver then
-            let msg = TLSFragment.AEADPlainToTLSFragment ki tlen ad msg in
+          let msg0 = AEADPlain.plainToFragment ki conn.state ad tlen msg in
+          let msg = StatefulPlain.fragmentToTLSFragment ki conn.state ad tlen msg0 in
             correct(conn,ct,pv,tlen,msg)
         else
             Error(MAC,CheckFailed)
     | (_,RecordAEADKey(key)) ->
-        let ad = TLSFragment.makeAD ki.sinfo.protocol_version seqn ct in
-        let decr = AEAD.decrypt ki key conn.iv3 tlen ad payload in
+        let ad0 = TLSFragment.makeAD ki.sinfo.protocol_version ct in
+        let ad = StatefulPlain.makeAD seqn ad0 in
+        let decr = StatefulAEAD.decrypt ki key conn.iv3 tlen ad conn.state payload in
         match decr with
         | Error(x,y) -> Error(x,y)
         | Correct (decrRes) ->
-            let (newIV, plain) = decrRes in
-            let conn = {conn with iv3 = newIV} in
-            let msg = TLSFragment.AEADPlainToTLSFragment ki tlen ad plain in
+            let (newIV, plain,ns) = decrRes in
+            let msg = StatefulPlain.fragmentToTLSFragment ki conn.state ad tlen plain in
+            let conn = {conn with iv3 = newIV; state = ns} in
             correct(conn,ct,pv,tlen,msg)
     | _ -> unexpectedError "[recordPacketIn] Incompatible ciphersuite and key type"
 
 let reIndex_null oldKI newKI state =
     let newKey = TLSKey.reIndex   oldKI newKI state.key
     let newIV  = ENCKey.reIndexIV oldKI newKI state.iv3
-    {key = newKey; iv3 = newIV}
+    {key = newKey; iv3 = newIV; state = StatefulPlain.emptyState newKI}
 
 /// old stuff, to be deleted?
 

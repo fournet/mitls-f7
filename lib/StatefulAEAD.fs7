@@ -11,19 +11,20 @@ val encrypt: ki:KeyInfo ->
   (;ki) ENCKey.iv3 -> 
   r:range ->
   ad:bytes ->
-  fs:(;ki) fragmentSequence ->
+  fs:(;ki) state ->
   f: (;ki,fs,ad,r) fragment ->
-  ((;ki) ENCKey.iv3 * ENC.cipher * fs':(;ki) fragmentSequence{SequenceLength(fs') = SequenceLength(fs) + 1})
+  ((;ki) ENCKey.iv3 * ENC.cipher * 
+   fs':(;ki) state)
 
 val decrypt: ki:KeyInfo -> 
   (;ki) AEADKey -> 
   (;ki) ENCKey.iv3 -> 
   r:range ->
   ad:bytes ->
-  fs:(;ki) fragmentSequence ->
+  fs:(;ki) state ->
   ENC.cipher ->
   ((;ki) ENCKey.iv3 * f:(;ki,fs,ad,r) fragment * 
-     fs':(;ki) fragmentSequence{SequenceLength(fs')}) Result
+     fs':(;ki) state) Result
 
 
 (* TODOS: (KB: Done?) *)

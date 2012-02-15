@@ -6,6 +6,8 @@ open Algorithms
 open TLSInfo
 open Error
 // open TLSFragment
+
+(*
 open AEADKey // the first part of this module (to break recursion)
 
 // the first part of this module is AEADKey
@@ -43,8 +45,9 @@ let CF_decrypt ki k state data cipher =
         | _ -> unexpectedError "[AEAD.decrypt] wrong protocol version"
 //  | auth only -> ...
 //  | GCM (GCMKey) -> ... 
+*)
 
-(*
+open TLSKey
 let encrypt ki key iv3 tlen data plain =
     match key with
     | MtE (macKey,encKey) ->
@@ -79,4 +82,4 @@ let decrypt ki key iv tlen ad cipher =
                     correct (iv3,compr)
             else
                 Error(MAC,CheckFailed)
-*)
+

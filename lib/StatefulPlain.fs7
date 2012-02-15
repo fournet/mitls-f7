@@ -3,10 +3,27 @@ open TLSInfo
 open TLSFragment
 open DataStream
 
-private type (;ki:KeyInfo) fragmentSequence = (ad:bytes * (;ki,r,0,ContentType(ad)) TLSFragment.fragment) list
-private type (;ki:KeyInfo,s:(;ki) fragmentSequence,ad:bytes,r:range) fragment = (;ki,r,0,ContentType(ad)) TLSFragment.fragment
+type addData = bytes
 
-function val SequenceLength: fragmentSequence -> int
-val sequenceLength: ki:KeyInfo -> s:(;ki) fragmentSequence -> l:int{l = SequenceLength(s)}
-val emptySequence: ki:KeyInfo -> (;ki) fragmentSequence
+private type (;ki:KeyInfo) state = {
+  history: (ad:bytes * (;ki,r,0,ContentType(ad)) TLSFragment.fragment) list
+}
+
+private type (;ki:KeyInfo,s:(;ki) state,ad:bytes,r:range) fragment = 
+	    (;ki,r,0,ContentType(ad)) TLSFragment.fragment
+
+val emptyState: ki:KeyInfo -> (;ki) state
+
+function val StateLength: state -> int
+val stateLength: ki:KeyInfo -> s:(;ki) state -> l:int{l = stateLength(s)}
+val addFragment: ki:KeyInfo -> s:(;ki) state -> ad:bytes -> r:range ->
+  (;ki,s,ad,r) fragment -> s':(;ki) state
+
+val fragment: ki:KeyInfo -> s:(;ki) state -> ad:bytes -> r:range -> bytes -> (;ki,s,ad,r) fragment
+val repr: ki:KeyInfo -> s:(;ki) state -> ad:bytes -> r:range -> (;ki,s,ad,r) fragment -> bytes
+
+val TLSFragmentToFragment: ki:KeyInfo -> rg:range -> seqn:int -> ct:ContentType -> (;ki,rg,seqn,ct) TLSFragment.fragment -> (;ki,s,ADBytes(ki.sinfo.protocol_version,ct),r) fragment
+
+val FragmentToTLSFragment: ki:KeyInfo -> s:(;ki) state -> ad:bytes -> rg:range  -> (;ki,s,ad,rg) fragment -> (;ki,rg,0,ADct) TLSFragment.fragment 
+
 

@@ -7,28 +7,28 @@ libperv = $(lib7)pervasives.fs7 $(lib7)tuples.fs7
 lperv = -pervasives $(lib7)pervasives.fs7 -tuples $(lib7)tuples.fs7
 libfs7 = $(lib7)formulas.fs7 $(lib7)pi.fs7
 
-recordfs7 = Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Certificate.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppConfig.fs7 SessionDB.fs7 FragCommon.fs7 DataStream.fs7 AppDataStream.fs7 Handshake.fs7 Alert.fs7 TLSFragment.fs7 MACPlain.fs7 Plain.fs7 MAC.fs7 ENC.fs7 AEAD.fs7 record.fs7
-recordfsi = Error.fsi Bytes.fsi tcp.fsi RSA.fsi Certificate.fsi Algorithms.fsi CipherSuites.fsi formats.fsi TLSInfo.fsi HASH.fsi HMAC.fsi ENCKey.fsi MACKey.fsi PRFs.fsi TLSKey.fsi AppConfig.fsi SessionDB.fsi FragCommon.fsi DataStream.fsi AppDataStream.fsi Handshake.fsi Alert.fsi TLSFragment.fsi MACPlain.fsi Plain.fsi MAC.fsi ENC.fsi AEAD.fsi record.fsi
+recordfs7 = Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Certificate.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 AppConfig.fs7 SessionDB.fs7 FragCommon.fs7 DataStream.fs7 AppDataStream.fs7 Handshake.fs7 Alert.fs7 TLSFragment.fs7 StatefulPlain.fs7 AEADPlain.fs7 MACPlain.fs7 Plain.fs7 MAC.fs7 ENC.fs7 AEAD.fs7 StatefulAEAD.fs7 record.fs7
+recordfsi = Error.fsi Bytes.fsi tcp.fsi RSA.fsi Certificate.fsi Algorithms.fsi CipherSuites.fsi formats.fsi TLSInfo.fsi HASH.fsi HMAC.fsi ENCKey.fsi MACKey.fsi PRFs.fsi TLSKey.fsi AppConfig.fsi SessionDB.fsi FragCommon.fsi DataStream.fsi AppDataStream.fsi Handshake.fsi Alert.fsi TLSFragment.fsi StatefulPlain.fsi AEADPlain.fsi MACPlain.fsi Plain.fsi MAC.fsi ENC.fsi AEAD.fsi StatefulAEAD.fsi  record.fsi
 
-recordfs  = Error.fs  Bytes.fs  tcp.fs  RSA.fs  Certificate.fs  Algorithms.fs  CipherSuites.fs  formats.fs  TLSInfo.fs  HASH.fs  HMAC.fs  ENCKey.fs  MACKey.fs  PRFs.fs  TLSKey.fs   TLSFragment.fs  MACPlain.fs  Plain.fs  MAC.fs  ENC.fs  AEAD.fs  record.fs
+recordfs  = Error.fs  Bytes.fs  tcp.fs  RSA.fs  Certificate.fs  Algorithms.fs  CipherSuites.fs  formats.fs  TLSInfo.fs  HASH.fs  HMAC.fs  ENCKey.fs  MACKey.fs  PRFs.fs  TLSKey.fs   TLSFragment.fs  StatefulPlain.fs AEADPlain.fs MACPlain.fs  Plain.fs  MAC.fs  ENC.fs  AEAD.fs StatefulAEAD.fs record.fs
 
 wrapperlibs = Error.fs  Bytes.fs  tcp.fs Algorithms.fs RSA.fs  HASH.fs  HMAC.fs  Certificate.fs  # not verified 
 tlsbase = CipherSuites.fs  formats.fs  TLSInfo.fs  ENCKey.fs  MACKey.fs TLSKey.fs DataStream.fs # verified
 tlshandshake = AppConfig.fs PRFs.fs SessionDB.fs FragCommon.fs Handshake.fs  Alert.fs  # todo
-tlsapplication = AppDataStream.fs TLSFragment.fs MACPlain.fs Plain.fs # being verified (KB) 
-crypto =  MAC.fs ENC.fs AEAD.fs # verified? (CF)
+tlsapplication = AppDataStream.fs TLSFragment.fs StatefulPlain.fs AEADPlain.fs MACPlain.fs Plain.fs # being verified (KB) 
+crypto =  MAC.fs ENC.fs AEAD.fs StatefulAEAD.fs # verified? (CF)
 tlsrecord = record.fs dispatch.fs tls.fs # being verified (AP)
 
 wrapperlibsi = Error.fsi  Bytes.fsi  tcp.fsi  Algorithms.fsi  RSA.fsi  HASH.fsi  HMAC.fsi  Certificate.fsi  # not verified 
 tlsbasei = CipherSuites.fsi  formats.fsi  TLSInfo.fsi  ENCKey.fsi  MACKey.fsi TLSKey.fsi DataStream.fsi # verified
 tlshandshakei = AppConfig.fsi  PRFs.fsi SessionDB.fsi FragCommon.fsi  Handshake.fsi  Alert.fsi  # todo
-tlsapplicationi = AppDataStream.fsi TLSFragment.fsi MACPlain.fsi Plain.fsi # being verified (KB)
-cryptoi =  MAC.fsi ENC.fsi AEAD.fsi # verified? (CF)
+tlsapplicationi = AppDataStream.fsi TLSFragment.fsi StatefulPlain.fsi AEADPlain.fsi MACPlain.fsi Plain.fsi # being verified (KB)
+cryptoi =  MAC.fsi ENC.fsi AEAD.fsi StatefulAEAD.fsi # verified? (CF)
 tlsrecordi = record.fsi dispatch.fsi tls.fsi # being verified (AP)
 
 tlsbase-tc7: Error.tc7 Algorithms.tc7 CipherSuites.tc7  formats.tc7  TLSInfo.tc7  ENCKey.tc7  MACKey.tc7 TLSKey.tc7 # verified
 tlsapplication-tc7: DataStream.tc7 AppDataStream.tc7  TLSFragment.tc7 MACPlain.tc7 Plain.tc7 
-crypto-tc7: MAC.tc7 ENC.tc7 AEAD.tc7
+crypto-tc7: MAC.tc7 ENC.tc7 AEAD.tc7 StatefulAEAD.tc7
 tlsrecord-tc7: record.tc7 Dispatch.tc7 TLS.tc7
 
 tc7:: tlsbase-tc7 tlsapplication-tc7 tlsrecord-tc7
