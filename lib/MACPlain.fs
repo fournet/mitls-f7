@@ -7,8 +7,8 @@ open TLSInfo
 
 type MACPlain = {p:bytes}
 
-let concat (ki:KeyInfo) (rg:DataStream.range) ad rg f =
-    let fB = TLSFragment.AEADRepr ki ad rg f
+let MACPlain (ki:KeyInfo) (rg:DataStream.range) ad f =
+    let fB = AEADPlain.repr ki rg ad f
     let fLen = bytes_of_int 2 (length fB) in
     let fullData = ad @| fLen in 
     {p = fullData @| fB}
@@ -31,11 +31,11 @@ let parseNoPad ki tlen ad plain =
            I (AP) think so because our locally computed mac will have some different length.
            Also timing is not an issue, because the attacker can guess the check should fail anyway. *)
     //CF: no, the MAC has the wrong size; I'd rather have a static precondition on the length of c.
-        let aeadF = TLSFragment.AEADPlain ki tlen ad plain
+        let aeadF = AEADPlain.plain ki tlen ad plain
         let tag = MACed ki tlen [||]
         (aeadF,tag)
     else
         let (frag,mac) = split plain macStart in
-        let aeadF = TLSFragment.AEADPlain ki tlen ad frag
+        let aeadF = AEADPlain.plain ki tlen ad frag
         let tag = MACed ki tlen mac
         (aeadF,tag)
