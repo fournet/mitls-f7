@@ -3,6 +3,10 @@ module TLS
 open Error
 open AppConfig
 
+predicate val Parameters: (id * (;id) conn) -> parameters 
+
+val parameters: c:(;id) conn -> p:parameters {p = Parameters(id,c)}
+
 definition WriteExtend(c, c', d) <=>
        WriteBytes(c') = WriteBytes(c) @| DeltaBytes(d) 
     /\  ReadBytes(c') =  ReadBytes(c)
