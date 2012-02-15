@@ -6,48 +6,44 @@ open Algorithms
 open TLSInfo
 open Error
 // open TLSFragment
-
-(*
-open AEADKey // the first part of this module (to break recursion)
+open TLSKey // the first part of this module (to break recursion)
 
 // the first part of this module is AEADKey
 
-let CF_encrypt id k state data rg plain =
+let encrypt ki k state rg data plain =
     match k with
     | MtE (ka,ke) ->
-        let maced   = MeePlain.concat id data rg plain
-        let tag     = MeePlain.mac    ki id ka maced  
-        let encoded = MeePlain.encode ki rg plain tag
-        ENC.ENC id ke state encoded
+        let maced   = AEPlain.concat ki rg data plain
+        let tag     = AEPlain.mac    ki ka maced  
+        let encoded = AEPlain.encode ki rg data plain tag
+        ENC.ENC ki ke state rg encoded
 //  | auth only -> ...
 //  | GCM (GCMKey) -> ... 
         
-let CF_decrypt ki k state data cipher =
+let decrypt ki k state data cipher =
     match k with
     | MtE (ka,ke) ->
         let (state,encoded)         = ENC.DEC ki ke state cipher in
-        let (rg,plain,tag,decodeOk) = MeePlain.decode ki encoded in
-        let maced                   = MeePlain.concat id data rg plain 
+        let (rg,plain,tag,decodeOk) = AEPlain.decode ki data encoded in
+        let maced                   = AEPlain.concat ki rg data plain 
         match ki.sinfo.protocol_version with
         | SSL_3p0 | TLS_1p0 ->
             if decodeOk
             then 
-                if MeePlain.verify ki ka maced tag (* padding time oracle *) 
+                if AEPlain.verify ki ka maced tag (* padding time oracle *) 
                 then correct(state,rg,plain)
                 else Error(MAC,CheckFailed)
             else     Error(RecordPadding,CheckFailed) (* padding error oracle *)
         | TLS_1p1 | TLS_1p2 ->
-            if MeePlain.verify ki ka maced tag 
+            if AEPlain.verify ki ka maced tag 
             then 
                 if decodeOk then correct (state,rg,plain)                
                 else Error(MAC,CheckFailed)
             else     Error(MAC,CheckFailed)
-        | _ -> unexpectedError "[AEAD.decrypt] wrong protocol version"
 //  | auth only -> ...
 //  | GCM (GCMKey) -> ... 
-*)
 
-open TLSKey
+(*
 let encrypt ki key iv3 tlen data plain =
     match key with
     | MtE (macKey,encKey) ->
@@ -82,4 +78,4 @@ let decrypt ki key iv tlen ad cipher =
                     correct (iv3,compr)
             else
                 Error(MAC,CheckFailed)
-
+*)

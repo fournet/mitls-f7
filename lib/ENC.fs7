@@ -1,7 +1,7 @@
 ﻿module ENC
 
 open Bytes
-open Plain
+open AEPlain
 open TLSInfo
 open Error
 

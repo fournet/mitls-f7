@@ -3,12 +3,12 @@
 open TLSInfo
 
 type AEADKey =
-    | MtE of MACKey.key * ENCKey.key
+    | MtE of MAC.key * ENCKey.key
  (* | GCM of GCM.GCMKey *)
 
 type recordKey =
     | RecordAEADKey of AEADKey
-    | RecordMACKey of MACKey.key
+    | RecordMACKey of MAC.key
     | NoneKey
 
 type ccs_data =
@@ -24,11 +24,11 @@ let reIndex oldKI newKI recKey =
     match recKey with
     | NoneKey -> NoneKey
     | RecordMACKey(mk) ->
-        let newMACKey = MACKey.reIndex oldKI newKI mk in
+        let newMACKey = MAC.reIndex oldKI newKI mk in
         RecordMACKey(newMACKey)
     | RecordAEADKey(aeadK) ->
         match aeadK with
         | MtE(mk,ek) ->
-            let newMK = MACKey.reIndex oldKI newKI mk in
+            let newMK = MAC.reIndex oldKI newKI mk in
             let newEK = ENCKey.reIndexKey oldKI newKI ek in
             RecordAEADKey(MtE(newMK,newEK))

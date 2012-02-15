@@ -10,12 +10,12 @@ open TLSInfo
 // private predicate MtEKey of ki:KeyInfo * ((;ki)MACKey.key * (;ki)ENCKey.key)
 
 type (;ki:KeyInfo) AEADKey = 
-      MtE of ka:(;ki)MACKey.key * ke:(;ki)ENCKey.key // {MtEKey(ki,(ka,ke))}
+      MtE of ka:(;ki)MAC.key * ke:(;ki)ENCKey.key // {MtEKey(ki,(ka,ke))}
 (*  |   GCM of ke:(;ki:AENC.key)  *)
 
 type (;ki:KeyInfo) recordKey =
     | RecordAEADKey of (;ki)AEADKey
-    | RecordMACKey of (;ki)MACKey.key
+    | RecordMACKey of (;ki)MAC.key
     | NoneKey
 
 type (;ki:KeyInfo) ccs_data =

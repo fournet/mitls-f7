@@ -1,4 +1,4 @@
-﻿module Plain
+﻿module AEPlain
 
 open Bytes
 open TLSInfo
@@ -10,40 +10,92 @@ type plain = {p:bytes}
 let plain (ki:KeyInfo) (tlen:DataStream.range)  b = {p=b}
 let repr (ki:KeyInfo) (tlen:DataStream.range) pl = pl.p
 
+type MACPlain = {macP: bytes}
+type tag = {macT: bytes}
+
+// only for MACOnly ciphersuites, until MACOnly becomes part of AEAD
+let tagRepr (ki:KeyInfo) t = t.macT
+let decodeNoPad ki ad plain =
+  let min,max = (length plain.p,length plain.p) in
+    // assert length plain = tlen
+    let cs = ki.sinfo.cipher_suite in
+    let maclen = macSize (macAlg_of_ciphersuite cs) in
+    let macStart = min - maclen
+    if macStart < 0 || length(plain.p) < macStart then
+        (* FIXME: is this safe?
+           I (AP) think so because our locally computed mac will have some different length.
+           Also timing is not an issue, because the attacker can guess the check should fail anyway. *)
+    //CF: no, the MAC has the wrong size; I'd rather have a static precondition on the length of c.
+        let aeadF = AEADPlain.plain ki (min,max) ad plain.p
+        let tag = {macT = [||]}
+        ((min,max),aeadF,tag)
+    else
+        let (frag,mac) = split plain.p macStart in
+        let aeadF = AEADPlain.plain ki (min,max) ad frag
+        let tag = {macT = mac}
+        ((min,max),aeadF,tag)
+
+// constructor for MACPlain
+let concat (ki:KeyInfo) rg ad f =
+    let fB = AEADPlain.repr ki rg ad f
+    let fLen = bytes_of_int 2 (length fB) in
+    let fullData = ad @| fLen in 
+    {macP = fullData @| fB} 
+
+// constructor for tag
+let mac ki k t =
+    {macT = MAC.MAC ki k t.macP}
+
+let verify ki k text tag =
+    MAC.VERIFY ki k text.macP tag.macT
+
 let pad (p:int)  = createBytes p (p-1)
 
-let prepare (ki:KeyInfo) tlen ad data tag =
-    let d = AEADPlain.repr ki tlen ad data
-    let t = MACPlain.reprMACed ki tlen tag
+let encode (ki:KeyInfo) rg ad data tag =
+    let d = AEADPlain.repr ki rg ad data
     let ivL =
         match ki.sinfo.protocol_version with
         | SSL_3p0 | TLS_1p0 -> 0
         | TLS_1p1 | TLS_1p2 ->
             let encAlg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
             ivSize encAlg 
-    let min,max = tlen in
-    let p = max - length d - length t - ivL
-    {p = d @| t @| pad p}
+    let min,max = rg in
+    let p = max - length d - length tag.macT - ivL
+    {p = d @| tag.macT @| pad p}
 
 let check_split b l = 
   if length(b) < l then failwith "split failed: FIX THIS to return BOOL + ..."
   if l < 0 then failwith "split failed: FIX THIS to return BOOL + ..."
   else split b l
 
-let parse ki tlen ad plain =
+let cipherRange ki plain =
     let macSize = macSize (macAlg_of_ciphersuite ki.sinfo.cipher_suite) in
-    let p = repr ki tlen plain
-    let min,max = tlen 
+    let l = length plain.p in
+    let max = l - macSize - 1 in
+    if max < 0 then
+        // Error. Will be handled later on
+        (0,0)
+    else
+        let min = max - 255 in
+        if min < 0 then
+            (0,max)
+        else
+            (min,max)
+
+let decode ki ad plain =
+    let macSize = macSize (macAlg_of_ciphersuite ki.sinfo.cipher_suite) in
+    let rg = cipherRange ki plain in
+    let (min,max) = rg in
     let pLen =
         match ki.sinfo.protocol_version with
         | SSL_3p0 | TLS_1p0 -> max
         | TLS_1p1 | TLS_1p2 ->
             let encAlg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
             max - (ivSize encAlg)
-    if pLen <> length p then
+    if pLen <> length plain.p then
         Error.unexpectedError "[parse] tlen should be compatible with the given plaintext"
     else
-    let (tmpdata, padlenb) = split p (pLen - 1) in
+    let (tmpdata, padlenb) = split plain.p (pLen - 1) in
     let padlen = int_of_bytes padlenb in
     // use instead, as this is untrusted anyway:
     // let padlen = (int plain.[length plain - 1]) + 1
@@ -52,9 +104,9 @@ let parse ki tlen ad plain =
         (* Pretend we have a valid padding of length zero, but set we must fail *)
         let macStart = pLen - macSize - 1 in
         let (frag,mac) = check_split tmpdata macStart in
-        let aeadF = AEADPlain.plain ki tlen ad frag
-        let tag = MACPlain.MACed ki tlen mac
-        (true,(aeadF,tag))
+        let aeadF = AEADPlain.plain ki rg ad frag
+        let tag = {macT = mac} in
+        (rg,aeadF,tag,true)
         (*
         (* Evidently padding has been corrupted, or has been incorrectly generated *)
         (* in TLS1.0 we fail now, in more recent versions we fail later, see sec.6.2.3.2 Implementation Note *)
@@ -75,16 +127,16 @@ let parse ki tlen ad plain =
             if equalBytes expected pad then
                 let macStart = pLen - macSize - padlen - 1 in
                 let (frag,mac) = check_split data_no_pad macStart in
-                let aeadF = AEADPlain.plain ki tlen ad frag
-                let tag = MACPlain.MACed ki tlen mac
-                (false,(aeadF,tag))
+                let aeadF = AEADPlain.plain ki rg ad frag
+                let tag = {macT = mac} in
+                (rg,aeadF,tag,false)
             else
                 (* Pretend we have a valid padding of length zero, but set we must fail *)
                 let macStart = pLen - macSize - 1 in
                 let (frag,mac) = check_split tmpdata macStart in
-                let aeadF = AEADPlain.plain ki tlen ad frag
-                let tag = MACPlain.MACed ki tlen mac
-                (true,(aeadF,tag))
+                let aeadF = AEADPlain.plain ki rg ad frag
+                let tag = {macT = mac} in
+                (rg,aeadF,tag,true)
                 (*
                 (* in TLS1.0 we fail now, in more recent versions we fail later, see sec.6.2.3.2 Implementation Note *)
                 if  v = TLS_1p0 then
@@ -104,9 +156,9 @@ let parse ki tlen ad plain =
                 (* Pretend we have a valid padding of length zero, but set we must fail *)
                 let macStart = pLen - macSize - 1 in
                 let (frag,mac) = check_split tmpdata macStart in
-                let aeadF = AEADPlain.plain ki tlen ad frag
-                let tag = MACPlain.MACed ki tlen mac
-                (true,(aeadF,tag))
+                let aeadF = AEADPlain.plain ki rg ad frag
+                let tag = {macT = mac} in
+                (rg,aeadF,tag,true)
                 (*
                 (* Insecurely report the error. Only TLS 1.1 and above should
                    be secure with this respect *)
@@ -115,6 +167,6 @@ let parse ki tlen ad plain =
             else
                 let macStart = pLen - macSize - padlen - 1 in
                 let (frag,mac) = check_split data_no_pad macStart in
-                let aeadF = AEADPlain.plain ki tlen ad frag
-                let tag = MACPlain.MACed ki tlen mac
-                (false,(aeadF,tag))
+                let aeadF = AEADPlain.plain ki rg ad frag
+                let tag = {macT = mac} in
+                (rg,aeadF,tag,false)

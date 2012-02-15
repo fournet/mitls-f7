@@ -3,12 +3,12 @@
 open TLSInfo
 
 type AEADKey =
-    | MtE of MACKey.key * ENCKey.key
+    | MtE of MAC.key * ENCKey.key
  (* | GCM of GCM.GCMSalt * GCM.GCMKey *)
 
 type recordKey =
     | RecordAEADKey of AEADKey
-    | RecordMACKey of MACKey.key
+    | RecordMACKey of MAC.key
     | NoneKey
 
 type ccs_data =

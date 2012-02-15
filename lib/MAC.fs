@@ -3,30 +3,33 @@
 open Bytes
 open Algorithms
 open CipherSuites
-//open TLSInfo
+open TLSInfo
 open HASH (* Only for SSL 3 keyed hash *)
 open Error
-open DataStream
 
-type id = {ki:TLSInfo.KeyInfo; tlen:range}
+type text = bytes
+type mac = bytes
+
+type key = {k:bytes}
 
 (* generic algorithms *)
 
-let MAC (id:id) key data =
-    let pv = id.ki.sinfo.protocol_version in
-    let a = macAlg_of_ciphersuite id.ki.sinfo.cipher_suite in
-    let k = MACKey.LEAK id.ki key
-    let b = MACPlain.reprMACPlain id.ki id.tlen data
+let MAC ki key data =
+    let pv = ki.sinfo.protocol_version in
+    let a = macAlg_of_ciphersuite ki.sinfo.cipher_suite in
     match pv with
-    | SSL_3p0 ->     MACPlain.MACed id.ki id.tlen (HMAC.sslKeyedHash a k b)
-    | TLS_1p0 | TLS_1p1 | TLS_1p2 -> MACPlain.MACed id.ki id.tlen (HMAC.HMAC a k b)
+    | SSL_3p0 ->     HMAC.sslKeyedHash a key.k data
+    | TLS_1p0 | TLS_1p1 | TLS_1p2 -> HMAC.HMAC a key.k data
 
-let VERIFY (id:id) key data tag =
-    let pv = id.ki.sinfo.protocol_version in
-    let a = macAlg_of_ciphersuite id.ki.sinfo.cipher_suite in
-    let k = MACKey.LEAK id.ki key
-    let d = MACPlain.reprMACPlain id.ki id.tlen data
-    let t = MACPlain.reprMACed id.ki id.tlen tag
+let VERIFY ki key data tag =
+    let pv = ki.sinfo.protocol_version in
+    let a = macAlg_of_ciphersuite ki.sinfo.cipher_suite in
     match pv with
-    | SSL_3p0 ->     HMAC.sslKeyedHashVerify a k d t
-    | TLS_1p0 | TLS_1p1 | TLS_1p2 -> HMAC.HMACVERIFY a k d t
+    | SSL_3p0 ->     HMAC.sslKeyedHashVerify a key.k data tag
+    | TLS_1p0 | TLS_1p1 | TLS_1p2 -> HMAC.HMACVERIFY a key.k data tag
+
+let GEN (ki) = {k= mkRandom (macKeySize (macAlg_of_ciphersuite ki.sinfo.cipher_suite))}
+let COERCE (ki:KeyInfo) k = {k=k}
+let LEAK (ki:KeyInfo) {k=k} = k
+
+let reIndex (oldKI:KeyInfo) (newKI:KeyInfo) key = {k = key.k}

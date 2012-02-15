@@ -82,9 +82,10 @@ let recordPacketOut keyInfo conn tlen seqn ct fragment =
         let addData = StatefulPlain.makeAD seqn ad0 in
         let aeadSF = StatefulPlain.TLSFragmentToFragment keyInfo tlen seqn ct fragment in
         let aeadF = AEADPlain.fragmentToPlain keyInfo conn.state addData tlen aeadSF in
-        let data = MACPlain.MACPlain keyInfo tlen addData aeadF in
-        let mac = MAC.MAC {MAC.ki=keyInfo;MAC.tlen=tlen} key data in
-        let payload = (TLSFragment.TLSFragmentRepr keyInfo tlen seqn ct fragment) @| (MACPlain.reprMACed keyInfo tlen mac) in
+        let data = AEPlain.concat keyInfo tlen addData aeadF in
+        let mac = AEPlain.mac keyInfo key data in
+        // FIXME: next line should be: ley payload = AEPlain.encodeNoPad ..., to match decodeNoPad, and remove dependency on tagRepr
+        let payload = (TLSFragment.TLSFragmentRepr keyInfo tlen seqn ct fragment) @| (AEPlain.tagRepr keyInfo mac) in
         let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
         (conn,packet)
     | (_,RecordAEADKey(key)) ->
@@ -142,13 +143,14 @@ let recordPacketIn ki conn seqn headPayload =
     | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
         let ad0 = TLSFragment.makeAD ki.sinfo.protocol_version ct in
         let ad = StatefulPlain.makeAD seqn ad0 in
-        let (msg,mac) = MACPlain.parseNoPad ki tlen ad payload in
-        let toVerify = MACPlain.MACPlain ki tlen ad msg in
-        let ver = MAC.VERIFY {MAC.ki=ki;MAC.tlen=tlen} key toVerify mac in
+        let plain = AEPlain.plain ki tlen payload in
+        let (rg,msg,mac) = AEPlain.decodeNoPad ki ad plain in
+        let toVerify = AEPlain.concat ki rg ad msg in
+        let ver = AEPlain.verify ki key toVerify mac in
         if ver then
-          let msg0 = AEADPlain.plainToFragment ki conn.state ad tlen msg in
-          let msg = StatefulPlain.fragmentToTLSFragment ki conn.state ad tlen msg0 in
-            correct(conn,ct,pv,tlen,msg)
+          let msg0 = AEADPlain.plainToFragment ki conn.state ad rg msg in
+          let msg = StatefulPlain.fragmentToTLSFragment ki conn.state ad rg msg0 in
+            correct(conn,ct,pv,rg,msg)
         else
             Error(MAC,CheckFailed)
     | (_,RecordAEADKey(key)) ->

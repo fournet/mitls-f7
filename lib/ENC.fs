@@ -79,7 +79,7 @@ let ENC ki key iv3 (tlen:DataStream.range) data =
         match iv3 with
         | ENCKey.SomeIV(b) -> b
         | ENCKey.NoIV _    -> mkRandom ivl in
-    let d = Plain.repr ki tlen data in
+    let d = AEPlain.repr ki tlen data in
     let min,max = tlen in
     let cipher =
         match alg with
@@ -118,7 +118,7 @@ let DEC ki key iv3 cipher =
         | AES_128_CBC  -> aesDecrypt  ki key iv encrypted
         | AES_256_CBC  -> aesDecrypt  ki key iv encrypted
         | RC4_128      -> unexpectedError "[DEC] invoked on stream cipher"
-    let d = Plain.plain ki (length cipher,length cipher) data in
+    let d = AEPlain.plain ki (length cipher,length cipher) data in
     match iv3 with
     | ENCKey.SomeIV(_) -> (ENCKey.SomeIV(lastblock cipher ivl), d)
     | ENCKey.NoIV(b)   -> (ENCKey.NoIV(b), d)

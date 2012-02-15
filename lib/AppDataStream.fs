@@ -85,8 +85,7 @@ let emptyOutgoingAppData (c:ConnectionInfo)  (a:app_state) =
     match b with
       | None -> None,a
       | Some(r,d) -> 
-          Some(r,d),{a with app_outgoing = 
-               {a.app_outgoing with data = None}}
+          Some(r,d),{a with app_outgoing = {a.app_outgoing with data = None}}
 
 let readAppDataFragment (c:ConnectionInfo)  (a:app_state) =
   let h = a.app_outgoing.history in

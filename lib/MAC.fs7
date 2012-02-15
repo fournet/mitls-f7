@@ -7,29 +7,19 @@ open TLSInfo
 /// a refined, ideal interface for indexed MACs
 /// this file is loosely synchronized with cma/mac2.fs7
 
-type id = {ki:TLSInfo.KeyInfo; tlen:int}
 predicate val CMA: id -> bool
+type text = bytes
+predicate val Msg: KeyInfo * text -> bool
+type mac = bytes
 
-// id is an abstract index type managed by the protocol
-// id may e.g. determine the choice of algorithms, 
-// so in principle the sizes should also be indexed by id
+private type (;ki:KeyInfo) key = {k:bytes}
 
-//TLS: algorithms and sizes for keys and tags are in algorithms. 
-//TLS: how to logically go from id to Algorithms.hashAlg ?
-//     this is *some* ki.sinfo.cipher_suite
-//     also confusing hash and mac algorithms for now. 
+val MAC:    ki:KeyInfo -> k:(;ki) key -> t:text{Msg(ki,t)} -> mac
+val VERIFY: ki:KeyInfo -> k:(;ki) key -> t:text -> mac -> 
+  v:bool{ (v=true (*/\ CMA(id)*) ) => Msg(ki,t) }
 
-// this could also be imported; we had (;ki) ltext ? 
+val GEN: ki:KeyInfo -> (;ki) key
+val LEAK:   ki:KeyInfo{!t. Msg(ki,t)} -> (;ki)key -> bytes
+val COERCE: ki:KeyInfo{!t. Msg(ki,t)} -> bytes -> (;ki)key
 
-//type (;id:id) keybytes = b:bytes{Length(b)=KeySize(id)}
-//type (;id:id) key = {bytes: (;id) keybytes} 
-
-//function val TagSize: id -> int // to be removed? 
-//val tagsize: id:id -> n:int{n=TagSize(id)} 
-//type (;id:id) tag = b:bytes{Length(b) = TagSize(id)}
-
-// removed internal stuff for now 
-
-val MAC:    id:id -> k:(;id.ki) MACKey.key -> t:(;id.ki,id.tlen)MACPlain.MACPlain{MACPlain.Msg(id.ki,id.tlen,t)} -> (;id.ki,id.tlen) MACPlain.MACed
-val VERIFY: id:id -> k:(;id.ki) MACKey.key -> t:(;id.ki,id.tlen)MACPlain.MACPlain -> (;id.ki,id.tlen) MACPlain.MACed -> 
-  v:bool{ (v=true (*/\ CMA(id)*) ) => MACPlain.Msg(id.ki,id.tlen,t) }
+val reIndex: oldKI:KeyInfo{NullSessionInfo(oldKI.sinfo)} -> newKI:KeyInfo{NullSessionInfo(newKI.sinfo)} -> (;oldKI)key -> (;newKI)key
