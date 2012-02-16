@@ -12,31 +12,20 @@ type (;ki:KeyInfo) history = {
   alert: (;ki) Alert.stream;
   ccs: (;ki) Handshake.stream;
   appdata: (;ki) AppDataStream.stream;
-  log: (ct:ContentType * h:(;ki) history * rg:range * (;ki,ct,h,rg) fragment) list
+  log: (;ki) fragmentSequence;
 }
-
 and (;ki:KeyInfo,ct:ContentType,h:(;ki) history,rg:range) fragment =
     | FHandshake of (;ki,h.handshake,rg)Handshake.fragment    {ct=Formats.Handshake}
     | FCCS       of (;ki,h.ccs,rg)Handshake.ccsFragment {ct=Change_cipher_spec}
     | FAlert     of (;ki,h.alert,rg)Alert.fragment        {ct=Alert}
     | FAppData   of (;ki,h.appdata,rg)AppDataStream.fragment {ct=Application_data}
+and (;ki:KeyInfo) fragmentSequence = (ct:ContentType * h:(;ki) history * rg:range * (;ki,ct,h,rg) fragment) list
 
-predicate Fragment of KeyInfo * range * int * ContentType * bytes
+val TLSFragmentRepr: ki:KeyInfo -> ct:ContentType -> h: (;ki) history -> rg:range ->
+  (;ki,ct,h,rg)fragment -> bytes
 
-assume !ki,tlen,seq,ct,b.
-  Fragment(ki,tlen,seq,ct,b) <=> (
-   (ct = Application_data /\ AppDataStream.AppDataFragment(ki,tlen,seq,b)) \/
-   (ct = Handshake /\ Handshake.HandshakeFragment(ki,tlen,seq,b)) \/
-   (ct = Alert /\ Alert.AlertFragment(ki,tlen,seq,b)) \/
-   (ct = Change_cipher_spec /\ Handshake.CCSFragment(ki,tlen,seq,b)))
-
-val TLSFragmentRepr: ki:KeyInfo -> tlen:range -> seqn:int -> 
-  ct:ContentType -> (;ki,tlen,seqn,ct)fragment -> 
-  x:bytes{Corrupt(ki) \/ Fragment(ki,tlen,seqn,ct,x)}
-
-val TLSFragment: ki:KeyInfo -> tlen:range -> seqn:int -> 
-  ct:ContentType -> b:bytes{Corrupt(ki) \/ Fragment(ki,tlen,seqn,ct,b)} -> 
-  (;ki,tlen,seqn,ct)fragment
+val TLSFragment: ki:KeyInfo -> ct:ContentType -> h: (;ki) history -> rg:range ->
+  bytes -> (;ki,ct,h,rg)fragment 
 
 function val ADLength: ProtocolVersion -> int
 assume !pv. (pv = SSL_3p0 /\ ADLength(pv) = 9) \/ (pv <> SSL_3p0 /\ ADLength(pv) = 11)
@@ -70,29 +59,5 @@ private val parseAD: pv:ProtocolVersion ->
           (seqn:int * ct:ContentType){ad=ADBytes(pv,seqn,ct)}
 
 
-private type (;ki:KeyInfo,tlen:range,ad:(;ki.sinfo.protocol_version)addData) AEADPlain = 
-	     (;ki,tlen,ADseqn(ki.sinfo.protocol_version,ad),ADct(ki.sinfo.protocol_version,ad)) fragment
-
-predicate AEADMsg of ki:KeyInfo * range * (;ki.sinfo.protocol_version)addData * bytes
-assume !ki,tlen,ad,x. AEADMsg(ki,tlen,ad,x) <=> 
-  (Corrupt(ki) \/
-     Fragment(ki,tlen,
-              ADseqn(ki.sinfo.protocol_version,ad),
-              ADct(ki.sinfo.protocol_version,ad),
-              x))
-
-val AEADPlain: ki:KeyInfo -> tlen:range -> ad:(;ki.sinfo.protocol_version) addData -> bytes -> (;ki,tlen,ad)AEADPlain
-val AEADRepr:  ki:KeyInfo -> tlen:range -> ad:(;ki.sinfo.protocol_version) addData -> f:(;ki,tlen,ad)AEADPlain -> b:bytes
-
-val AEADPlainToTLSFragment: ki:KeyInfo -> tlen:range -> 
-  ad:(;ki.sinfo.protocol_version) addData -> 
-                            p:(;ki,tlen,ad)AEADPlain{AEADMsg(ki,tlen,ad,p)} -> 
-                            f:(;ki,tlen,
-			       ADseqn(ki.sinfo.protocol_version,ad),
-			       ADct(ki.sinfo.protocol_version,ad)) fragment
 
 
-val TLSFragmentToAEADPlain: ki:KeyInfo -> tlen:range -> seqn:int -> ct:ContentType -> 
-                            f:(;ki,tlen,seqn,ct)fragment -> 
-                            p:(;ki,tlen,ADBytes(ki.sinfo.protocol_version,seqn,ct)) AEADPlain{
-				AEADMsg(ki,tlen,ADBytes(ki.sinfo.protocol_version,seqn,ct),p)}

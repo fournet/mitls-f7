@@ -240,10 +240,10 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
   | Closed -> (correct(Done), Conn(id,c))
   | _ ->
       let state = c.alert in
-      match Alert.next_fragment id c_write.seqn state with
+      match Alert.next_fragment id state with
       | (Alert.EmptyALFrag,_) -> 
           let hs_state = c.handshake in
-          match Handshake.next_fragment id c_write.seqn hs_state with 
+          match Handshake.next_fragment id hs_state with 
           | (Handshake.EmptyHSFrag, _) ->
             let app_state = c.appdata in
                 match AppDataStream.readAppDataFragment id app_state with
@@ -389,7 +389,7 @@ let deliver (Conn(id,c)) ct tl frag =
   | Handshake, TLSFragment.FHandshake(f), x when x = Init || x = FirstHandshake || x = Finishing || x = Open ->
     let readSeqN = c_read.seqn in
     let c_hs = c.handshake in
-    match Handshake.recv_fragment id readSeqN c_hs tlen f with
+    match Handshake.recv_fragment id c_hs tlen f with
     | (Correct(corr),hs) ->
         let ad = AppDataStream.writeNonAppDataFragment id c.appdata in
         let new_seqn = readSeqN+1 in
@@ -454,7 +454,7 @@ let deliver (Conn(id,c)) ct tl frag =
     | (Error(x,y),hs) -> (Error(x,y),Conn(id,{c with handshake = hs})) (* TODO: we might need to send some alerts *)
 
   | Change_cipher_spec, TLSFragment.FCCS(f), x when x = FirstHandshake || x = Open -> 
-    match Handshake.recv_ccs id c_read.seqn c.handshake tlen f with 
+    match Handshake.recv_ccs id c.handshake tlen f with 
     | (Correct(ccs),hs) ->
         let (newKiIN,ccs_data) = ccs in
         if checkCompatibleSessions id.id_in.sinfo newKiIN.sinfo c.poptions then
@@ -470,7 +470,7 @@ let deliver (Conn(id,c)) ct tl frag =
     | (Error (x,y),hs) -> let closed = closeConnection (Conn(id,{c with handshake = hs})) in (Error (x,y), closed) // TODO: We might want to send some alert here.
 
   | Alert, TLSFragment.FAlert(f), _ ->
-    match Alert.recv_fragment id c_read.seqn c.alert tlen f with
+    match Alert.recv_fragment id c.alert tlen f with
     | Correct (Alert.ALAck(state)) ->
       let ad = AppDataStream.writeNonAppDataFragment id c.appdata in
       let new_seqn = c_read.seqn + 1 in

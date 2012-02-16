@@ -14,8 +14,8 @@ type fragment
 type stream
 val addFragment: KeyInfo -> stream -> DataStream.range -> fragment -> stream
 
-val repr: KeyInfo -> DataStream.range -> int -> fragment -> Bytes.bytes
-val fragment: KeyInfo -> DataStream.range -> int -> Bytes.bytes -> fragment
+val repr: KeyInfo -> stream -> DataStream.range  -> fragment -> Bytes.bytes
+val fragment: KeyInfo -> stream -> DataStream.range  -> Bytes.bytes -> fragment
 
 type ALFragReply =
     | EmptyALFrag
@@ -32,8 +32,10 @@ val init: ConnectionInfo -> state
 
 val send_alert: ConnectionInfo -> state -> alertDescription -> state
 
-val next_fragment: ConnectionInfo -> int -> state -> (ALFragReply * state) 
+val next_fragment: ConnectionInfo -> state -> (ALFragReply * state) 
 
-val recv_fragment: ConnectionInfo -> int -> state -> DataStream.range -> fragment -> alert_reply Result
+val recv_fragment: ConnectionInfo -> state -> DataStream.range -> fragment -> alert_reply Result
 
 val reIndex: ConnectionInfo -> ConnectionInfo -> state -> state
+
+val emptyStream: KeyInfo -> stream

@@ -12,7 +12,7 @@ type prestate = {
   key: AEADKey;
   iv: ENCKey.iv3;
   seqn: int;
-  history: (data * range * TLSFragment.fragment) list;
+  history: TLSFragment.history;
 }
 
 type state = prestate

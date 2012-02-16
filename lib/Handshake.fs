@@ -267,18 +267,20 @@ type hs_state = pre_hs_state
 
 type fragment = {b:bytes}
 type stream = {s:bytes}
+let emptyStream (ki:KeyInfo) = {s = [| |]}
 let addFragment (ki:KeyInfo) (s:stream) (r:DataStream.range) (f:fragment) =  {s = s.s @| f.b}
 
 
-let repr (ki:KeyInfo) (tlen:DataStream.range) (seqn:int) f = f.b
-let fragment (ki:KeyInfo) (tlen:DataStream.range) (seqn:int) b = {b=b}
+let repr (ki:KeyInfo) (s:stream) (tlen:DataStream.range) f = f.b
+let fragment (ki:KeyInfo) (s:stream) (tlen:DataStream.range) b = {b=b}
 let makeFragment ki b =
     let (tl,f,r) = FragCommon.splitInFrag ki b in
     ((intToRange tl,{b=f}),r)
 
 type ccsFragment = {ccsB:bytes}
-let ccsRepr (ki:KeyInfo) (i:DataStream.range) (seqn:int) f = f.ccsB
-let ccsFragment (ki:KeyInfo) (i:DataStream.range) (seqn:int) b = {ccsB=b}
+let ccsRepr (ki:KeyInfo) (s:stream) (i:DataStream.range) f = f.ccsB
+let ccsFragment (ki:KeyInfo) (s:stream) (i:DataStream.range)  b = {ccsB=b}
+let addCCSFragment (ki:KeyInfo) (s:stream) (r:DataStream.range) (f:ccsFragment) =  {s = s.s @| f.ccsB}
 let makeCCSFragment ki b =
     let (tl,f,r) = FragCommon.splitInFrag ki b in
     ((intToRange tl,{ccsB=f}),r)
@@ -324,7 +326,7 @@ type HSFragReply =
   | HSWriteSideFinished of (DataStream.range * fragment)
   | HSFullyFinished_Write of (DataStream.range * fragment) * StorableSession
 
-let next_fragment ci (seqn:int) state =
+let next_fragment ci state =
     (* Assumptions: The buffers have been filled in the following order:
        1) hs_outgoing; 2) ccs_outgoing; 3) hs_outgoing_after_ccs
        We check 2) and 3) only if we are in a {C,S}WaitingToWrite state.
@@ -2020,8 +2022,8 @@ let enqueue_fragment (ci:ConnectionInfo) state fragment =
     let new_inc = state.hs_incoming @| fragment in
     {state with hs_incoming = new_inc}
 
-let recv_fragment ci seqn (state:hs_state) (tlen:DataStream.range) (fragment:fragment) =
-    let fragment = repr ci.id_in tlen seqn fragment in
+let recv_fragment ci (state:hs_state) (tlen:DataStream.range) (fragment:fragment) =
+    let fragment = fragment.b in 
     if length fragment = 0 then
         // Empty HS fragment are not allowed
         (Error(HSError(AD_decode_error),HSSendAlert),state)
@@ -2031,8 +2033,8 @@ let recv_fragment ci seqn (state:hs_state) (tlen:DataStream.range) (fragment:fra
         | Client (_) -> recv_fragment_client ci state None
         | Server (_) -> recv_fragment_server ci state None
 
-let recv_ccs ci seqn (state: hs_state) (tlen:DataStream.range) (fragment:ccsFragment): ((KIAndCCS Result) * hs_state) =
-    let fragment = ccsRepr ci.id_in tlen seqn fragment in
+let recv_ccs (ci:ConnectionInfo) (state: hs_state) (tlen:DataStream.range) (fragment:ccsFragment): ((KIAndCCS Result) * hs_state) =
+    let fragment = fragment.ccsB in
     if equalBytes fragment CCSBytes then  
         match state.pstate with
         | Client (cstate) -> // Check we are in the right state (CCCS) 
@@ -2058,3 +2060,4 @@ let recv_ccs ci seqn (state: hs_state) (tlen:DataStream.range) (fragment:ccsFrag
     else           (Error(HSError(AD_decode_error)      ,HSSendAlert),state)
 
 let reIndex (oldCI:ConnectionInfo) (newCI:ConnectionInfo) (state:hs_state) = state
+

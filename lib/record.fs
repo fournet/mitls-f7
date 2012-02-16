@@ -1,4 +1,5 @@
-﻿module Record
+﻿#light "off"
+module Record
 
 open Bytes
 open Error
@@ -78,18 +79,19 @@ let recordPacketOut keyInfo conn tlen seqn ct fragment =
     *)
     match (keyInfo.sinfo.cipher_suite, conn.key) with
     | (x,NoneKey) when isNullCipherSuite x ->
-        let payload = TLSFragment.TLSFragmentRepr keyInfo tlen seqn ct fragment in
+        let payload = TLSFragment.TLSFragmentRepr keyInfo ct (TLSFragment.emptyHistory keyInfo)  tlen fragment in
         let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
         (conn,packet)
     | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
         let ad0 = TLSFragment.makeAD keyInfo.sinfo.protocol_version ct in
         let addData = StatefulPlain.makeAD seqn ad0 in
         let aeadSF = StatefulPlain.TLSFragmentToFragment keyInfo tlen seqn ct fragment in
-        let aeadF = AEADPlain.fragmentToPlain keyInfo (connState keyInfo conn) addData tlen aeadSF in
+	let st = connState keyInfo conn in
+        let aeadF = AEADPlain.fragmentToPlain keyInfo st addData tlen aeadSF in
         let data = AEPlain.concat keyInfo tlen addData aeadF in
         let mac = AEPlain.mac keyInfo key data in
         // FIXME: next line should be: ley payload = AEPlain.encodeNoPad ..., to match decodeNoPad, and remove dependency on tagRepr
-        let payload = (TLSFragment.TLSFragmentRepr keyInfo tlen seqn ct fragment) @| (AEPlain.tagRepr keyInfo mac) in
+        let payload = (TLSFragment.TLSFragmentRepr keyInfo ct st.history tlen fragment) @| (AEPlain.tagRepr keyInfo mac) in
         let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
         (conn,packet)
     | (_,RecordAEADKey(key)) ->
@@ -142,7 +144,7 @@ let recordPacketIn ki conn seqn headPayload =
     let cs = ki.sinfo.cipher_suite in
     match (cs,conn.key) with
     | (x,NoneKey) when isNullCipherSuite x ->
-        let msg = TLSFragment.TLSFragment ki tlen seqn ct payload in
+        let msg = TLSFragment.TLSFragment ki ct (TLSFragment.emptyHistory ki) tlen payload in
         correct(conn,ct,pv,tlen,msg)
     | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
         let ad0 = TLSFragment.makeAD ki.sinfo.protocol_version ct in

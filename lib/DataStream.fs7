@@ -3,7 +3,7 @@ open TLSInfo
 open Bytes
 open Error
 
-type range = int * int (* length range *)
+type range = nat * nat (* length range *)
 function val RangeSum: range * range -> range
 assume !x1,y1,x2,y2. RangeSum((x1,y1),(x2,y2)) = (x1+x2,y1+y2)
 val rangeSum: r1:range -> r2:range -> r:range{r = RangeSum(r1,r2)}

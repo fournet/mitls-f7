@@ -8,7 +8,7 @@ open DataStream
 
 type (;ki:KeyInfo) buffer = {
   seqn: int;
-  full: (;ki) stream;
+  stream: (;ki) stream;
   data: h:(;ki) stream * (r:range * (;ki,s,r) delta) option;
 }
 

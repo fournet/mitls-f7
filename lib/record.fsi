@@ -12,10 +12,7 @@ open StatefulPlain
 /// Implements stateful AE on top of AEAD,
 /// managing sequence numbers and the binary record format  
 
-type ConnectionState = {
-  key: recordKey;
-  state: state option;
-}
+type ConnectionState
 type sendState = ConnectionState
 type recvState = ConnectionState
 

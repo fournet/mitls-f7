@@ -17,13 +17,17 @@ and history = {
   alert: Alert.stream;
   ccs: Handshake.stream;
   appdata: AppDataStream.stream;
-  log: (ContentType * history * range * fragment) list;
+  log: fragmentSequence;
 }
+and fragmentSequence = (ContentType * history * range * fragment) list
 
-val TLSFragmentRepr: KeyInfo -> range -> int -> ContentType -> fragment -> bytes
-val TLSFragment: KeyInfo -> range -> int -> ContentType -> bytes -> fragment
+
+val TLSFragmentRepr: KeyInfo -> ContentType -> history -> range -> fragment -> bytes
+val TLSFragment: KeyInfo -> ContentType -> history -> range -> bytes -> fragment
 
 type addData = bytes
 val makeAD: ProtocolVersion -> ContentType -> addData
 val parseAD: ProtocolVersion -> addData -> ContentType 
 
+val emptyHistory: KeyInfo -> history
+val addFragment: KeyInfo -> ContentType -> history -> range -> fragment -> history

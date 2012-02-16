@@ -14,10 +14,13 @@ type state = pre_al_state
 
 type fragment = {b:bytes}
 type stream = {s:bytes}
+let emptyStream (ki:KeyInfo) = {s = [| |]}
+
 let addFragment (ki:KeyInfo) (s:stream) (r:DataStream.range) (f:fragment) =  {s = s.s @| f.b}
-let repr (ki:KeyInfo) (i:DataStream.range) (seqn:int) f = f.b
-let fragment (ki:KeyInfo) (i:DataStream.range) (seqn:int) b = {b=b}
-let makeFragment ki (seqn:int) b =
+let repr (ki:KeyInfo) (s:stream) (tlen:DataStream.range) f = f.b
+let fragment (ki:KeyInfo) (s:stream) (tlen:DataStream.range) b = {b=b}
+
+let makeFragment ki b =
     let (tl,f,r) = FragCommon.splitInFrag ki b in
     (((tl,tl),{b=f}),r)
 
@@ -143,12 +146,12 @@ let send_alert (ci:ConnectionInfo) state alertDesc =
     else
         state (* Just ignore the request *)
 
-let next_fragment ci (seqn:int) state =
+let next_fragment ci state =
     match state.al_outgoing with
     | [||] ->
         (EmptyALFrag, state)
     | d ->
-        let (frag,rem) = makeFragment ci.id_out seqn d in
+        let (frag,rem) = makeFragment ci.id_out d in
         let state = {state with al_outgoing = rem} in
         match rem with
         | [||] ->
@@ -174,8 +177,8 @@ let handle_alert ci state alDesc =
         else
             ALAck   (state)
 
-let recv_fragment ci seqn state tlen (data:fragment) =
-    let fragment = repr ci.id_in tlen seqn data in
+let recv_fragment (ci:ConnectionInfo) state (tlen:DataStream.range) (data:fragment) =
+    let fragment = data.b in
     match state.al_incoming with
     | [||] ->
         (* Empty buffer *)

@@ -16,7 +16,16 @@ and history = {
   alert: Alert.stream;
   ccs: Handshake.stream;
   appdata: AppDataStream.stream;
-  log: (ContentType * history * DataStream.range * fragment) list;
+  log: fragmentSequence
+}
+and fragmentSequence = (ContentType * history * DataStream.range * fragment) list
+
+let emptyHistory ki = {
+  handshake = Handshake.emptyStream ki;
+  alert = Alert.emptyStream ki;
+  ccs = Handshake.emptyStream ki;
+  appdata = AppDataStream.emptyStream ki;
+  log = []
 }
 
 type addData = bytes
@@ -43,17 +52,28 @@ let parseAD pv ad =
             | Correct(ct) -> ct
 
 
-let TLSFragmentRepr ki (tlen:DataStream.range) (seqn:int) (ct:ContentType) frag =
+let TLSFragmentRepr ki (ct:ContentType) (h:history) (rg:DataStream.range) frag =
     match frag with
-    | FHandshake(f) -> Handshake.repr ki tlen 0 f
-    | FCCS(f) -> Handshake.ccsRepr ki tlen 0 f
-    | FAlert(f) -> Alert.repr ki tlen 0 f
-    | FAppData(f) -> AppDataStream.repr ki tlen 0 f
+    | FHandshake(f) -> Handshake.repr ki h.handshake rg f
+    | FCCS(f) -> Handshake.ccsRepr ki h.ccs rg f
+    | FAlert(f) -> Alert.repr ki h.alert rg f
+    | FAppData(f) -> AppDataStream.repr ki h.appdata rg f
 
-let TLSFragment ki (tlen:DataStream.range) seqn (ct:ContentType) b =
+let TLSFragment ki (ct:ContentType) (h:history) (rg:DataStream.range) b = 
     match ct with
-    | Handshake ->          FHandshake(Handshake.fragment ki tlen seqn b)
-    | Change_cipher_spec -> FCCS(Handshake.ccsFragment ki tlen seqn b)
-    | Alert ->              FAlert(Alert.fragment ki tlen seqn b)
-    | Application_data ->   FAppData(AppDataStream.fragment ki tlen seqn b)
+    | Handshake ->          FHandshake(Handshake.fragment ki h.handshake rg b)
+    | Change_cipher_spec -> FCCS(Handshake.ccsFragment ki h.ccs rg b)
+    | Alert ->              FAlert(Alert.fragment ki h.alert rg b)
+    | Application_data ->   FAppData(AppDataStream.fragment ki h.appdata rg b)
 
+let addFragment ki ct h r f = 
+  let nfs = (ct,h,r,f)::h.log in
+  match ct,f with
+    | Handshake,FHandshake f -> {h with log = nfs; 
+                                        handshake = Handshake.addFragment ki h.handshake r f}
+    | Change_cipher_spec,FCCS f -> {h with log = nfs; 
+                                           ccs = Handshake.addCCSFragment ki h.ccs r f}
+    | Alert,FAlert f -> {h with log = nfs; 
+                                alert = Alert.addFragment ki h.alert r f}
+    | Application_data,FAppData f -> {h with log = nfs; 
+                                             appdata = AppDataStream.addFragment ki h.appdata r f}
