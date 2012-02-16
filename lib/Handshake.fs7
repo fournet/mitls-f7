@@ -18,8 +18,8 @@ type (;ci:ConnectionInfo) hs_state = (;ci)pre_hs_state
 
 // protocol-specific abstract fragment,
 // and associated functions (never to be called with ideal functionality)
-type (;ki) stream
-type (;ki:KeyInfo,(;ki) stream, rg:DataStream.range) fragment
+type (;ki:KeyInfo) stream
+type (;ki:KeyInfo,s:(;ki) stream, rg:DataStream.range) fragment
 
 predicate HandshakeFragment of KeyInfo * DataStream.range * int * Bytes.bytes
 predicate CCSFragment of KeyInfo * DataStream.range * int * Bytes.bytes

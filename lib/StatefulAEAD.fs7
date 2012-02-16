@@ -5,6 +5,8 @@ open TLSKey
 open Error
 open StatefulPlain
 open DataStream 
+open Bytes
+open AEADPlain
 
 // TODO 12-02: 
 // - align with paper interface: (KB: Done?)
@@ -16,7 +18,7 @@ open DataStream
 type cipher = ENC.cipher
 predicate STXT of KeyInfo * state * data * fragment * cipher
 assume !ki,s,d,f,c. STXT(ki,s,d,f,c) <=>
-                    CTXT(ki,IntBytes(8,SequenceNo(s)) @| d,
+                    CTXT(ki,IntBytes(8,s.seqn) @| d,
 			 {p = (s,f)},c)
 
 val encrypt: ki:KeyInfo -> 
@@ -31,9 +33,9 @@ val decrypt: ki:KeyInfo ->
   r:(;ki) reader -> 
   ad:data ->
   c:ENC.cipher ->
-  res:((;ki) reader * rg:range{rg=CipherRange(ki,c)} * 
+  res:((;ki) reader * rg:(rg:range{rg=CipherRange(ki,c)}) * 
 	 (;ki,r,ad,rg) fragment) Result{
-    (Safe(ki) => (!rd,rg,f. (res = Correct(rd,rg,p) <=> 
+    (Safe(ki) => (!rd,rg,f. (res = Correct(rd,rg,f) <=> 
 		            (?wr. Log(wr) = Log(r) /\ STXT(ki,wr,ad,f,c)))) /\
-    (Auth(ki) => (!rd,rg,f. (res = Correct(rd,rg,p) =>  
+    (Auth(ki) => (!rd,rg,f. (res = Correct(rd,rg,f) =>  
 		            (?wr,c. Log(wr) = Log(r) /\ STXT(ki,wr,ad,f,c))))))}

@@ -24,7 +24,7 @@ assume !pv,ad1,x1,ad2,x2. (Length(ad1) = Length(ad2) /\
 // Now defined in MAC
 // predicate Msg of ki:KeyInfo * tlen:DataStream.range * (;ki,tlen)MACPlain.MACPlain
 
-assume !ki,tlen,pl. Msg(ki,pl) <=>
+assume !ki,tlen,pl. MAC.Msg(ki,pl) <=>
   (Corrupt(ki) \/
      (?ad,x. Length(ad) = TLSFragment.ADLength(ki.sinfo.protocol_version) /\
 	  pl.macP = MsgBytes(ki.sinfo.protocol_version,ad,x) /\
@@ -32,16 +32,16 @@ assume !ki,tlen,pl. Msg(ki,pl) <=>
 			       TLSFragment.ADseqn(ki.sinfo.protocol_version,ad),
 			       TLSFragment.ADct(ki.sinfo.protocol_version,ad),x)))
 
-ask !ki,t. Corrupt(ki) => Msg(ki,t)
+ask !ki,t. Corrupt(ki) => MAC.Msg(ki,t)
 
 val concat: ki:KeyInfo -> rg:DataStream.range -> 
   ad:(;ki.sinfo.protocol_version) TLSFragment.addData ->
-  f:(;ki,rg,ad)TLSFragment.AEADPlain -> 
-  p:(;ki)MACPlain{TLSFragment.AEADMsg(ki,tlen,ad,f) <=> Msg(ki,p)}
+  f:(;ki,rg,ad)AEADPlain.plain ->
+  p:(;ki)MACPlain
 
-val mac: ki:KeyInfo -> (;ki) MAC.key -> t:(;ki) MACPlain{Msg(ki,t.macP)} -> (;ki) tag
+val mac: ki:KeyInfo -> (;ki) MAC.key -> t:(;ki) MACPlain{MAC.Msg(ki,t.macP)} -> (;ki) tag
 val verify: ki:KeyInfo -> (;ki) MAC.key -> text:(;ki) MACPlain -> tag:(;ki) tag ->
-	v:bool{v = true => Msg(ki,text.macP)}
+	v:bool{v = true => MAC.Msg(ki,text.macP)}
 
 val pad: l:int -> b:bytes{Length(b) = l}
 val check_split: 
@@ -50,7 +50,7 @@ val check_split:
 
 
 (*function val CipherRange: KeyInfo -> (;ki*)
-val cipherRange: ki:KeyInfo -> p:plain -> r:DataStream.range{r = CipherRange(ki,p)}
+val cipherRange: ki:KeyInfo -> p:plain -> r:DataStream.range{r = AEADPlain.CipherRange(ki,p)}
 
-val encode: ki:KeyInfo -> tlen:DataStream.range -> ad:(;ki.sinfo.protocol_version) TLSFragment.addData -> (;ki,tlen,ad) TLSFragment.AEADPlain -> (;ki) tag -> (;ki,tlen) plain
-val decode: ki:KeyInfo -> ad:(;ki.sinfo.protocol_version) TLSFragment.addData -> (;ki,tlen) plain -> (rg:DataStream.range * (;ki,rg,ad)TLSFragment.AEADPlain * (;ki)tag * bool)
+val encode: ki:KeyInfo -> tlen:DataStream.range -> ad:(;ki.sinfo.protocol_version) TLSFragment.addData -> (;ki,tlen,ad) AEADPlain.plain -> (;ki) tag -> (;ki,tlen) plain
+val decode: ki:KeyInfo -> ad:(;ki.sinfo.protocol_version) TLSFragment.addData -> (;ki,tlen) plain -> (rg:DataStream.range * (;ki,rg,ad)AEADPlain.plain * (;ki)tag * bool)

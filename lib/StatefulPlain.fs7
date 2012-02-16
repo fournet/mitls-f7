@@ -6,32 +6,31 @@ open Error
 open Bytes
 open Formats
 open CipherSuites
+open TLSKey
 
 type (;ki:KeyInfo) data = (b:bytes){Length(b) = TLSFragment.ADLength(ki) - 8}
-private type (;ki:KeyInfo) preState = {
+private type (;ki:KeyInfo) prestate = {
   key: (;ki) AEADKey;
   iv3: (;ki) ENCKey.iv3;
   seqn: int;
-  history: (ad:data * r:range * (;ki,r,0,TLSFragment.ADct(ad)) TLSFragment.fragment) list
+  history: TLSFragment.history
 }
-type (;ki:history) = (ad:data * h:(;ki) history * rg:range * (;ki,h,ad,r) TLSFragment.fragment) list
 
 predicate State of KeyInfo * prestate
-predicate Next of KeyInfo * state * data * range * fragment
 private type (;ki:KeyInfo) state = (s:prestate) {State(s)}
+predicate Next of KeyInfo * state * data * range * fragment
 
 function val Log: state -> (data * TLSFragment.fragment) list
-function val LogH: (data * range * TLSfragment) list -> (data * TLSFragment.fragment) list
+function val LogH: (data * range * TLSFragment.fragment) list -> (data * TLSFragment.fragment) list
 assume !s. Log(s) = LogH(s.history)
-assume !h. (h = [] => LogH(s) = []) /\
+assume !h. (h = [] => LogH(h) = []) /\
 	   (!ad,r,f,t. h = (ad,r,f)::t => LogH(h) = (ad,f)::LogH(t))
 
 
-type (;ki) reader = r:(;ki) state
-type (;ki) writer = w:(;ki) state
+type (;ki:KeyInfo) reader = r:(;ki) state
+type (;ki:KeyInfo) writer = w:(;ki) state
 
-private type (;ki:KeyInfo,s:(;ki) state,ad:data,r:range) fragment = 
-	    {f: (;ki,r,0,TLSFragment.ADct(ad)) TLSFragment.fragment}
+private type (;ki:KeyInfo,s:(;ki) state,ad:data,r:range) fragment = {f: (;ki,TLSFragment.ADct(ad),s.history,r) TLSFragment.fragment}
 
 
 val initState: ki:KeyInfo -> (;ki) AEADKey -> (;ki) ENCKey.iv3 -> (;ki) state

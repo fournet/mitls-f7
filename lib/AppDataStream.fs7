@@ -9,39 +9,11 @@ open DataStream
 type (;ki:KeyInfo) buffer = {
   seqn: int;
   stream: (;ki) stream;
-  data: h:(;ki) stream * (r:range * (;ki,s,r) delta) option;
+  data: h:(;ki) stream * (r:range * (;ki,h,r) delta) option;
 }
 
-type input_buffer = buffer
-type output_buffer = buffer
-
-type app_state = {
-  app_incoming: input_buffer;
-  app_outgoing: output_buffer;
-}
-
-val readAppDataStreamBytes: ki:KeyInfo -> ls:lengths -> ads:(;ki,ls) AppDataStream ->
-                 (b:bytes * ads':(;ki,ls) AppDataStream){ads'.history = ads.history @| ads.data /\ ads'.data = [| |]}
-
-type (;ki:KeyInfo) output_buffer = 
-    (seqn:int * ls:lengths * ads:(;ki,ls)AppDataStream){
-      seqn >= 0 /\ (Corrupt(ki) \/ AppDataFragmentSequence(ki,seqn-1,ads.history))
-    }
-
-type (;ki:KeyInfo) input_buffer = 
-    (seqn:int * ls:lengths * ads:(;ki,ls)AppDataStream){
-      seqn >= 0 /\ (Corrupt(ki) \/ AppDataFragmentSequence(ki,seqn-1,ads.history @| ads.data))
-    }
-
-assume !ki,seqn,b. AppDataFragmentSequence(ki,seqn,b) <=>
-  (  (seqn < 0 /\ b = [| |]) \/
-     (seqn >= 0 /\ 
-	(?d. AppDataFragmentSequence(ki,seqn - 1,d) /\ 
-	   ((?tlen,f. b = d @| f /\ AppDataSequenceNo(ki,seqn) /\ 
-                 AppDataFragment(ki,tlen,seqn,f)) \/
-	    (b = d /\ NonAppDataSequenceNo(ki,seqn))))))
-
-ask !ki,seqn,b. AppDataFragmentSequence(ki,seqn - 1,b) /\ NonAppDataSequenceNo(ki,seqn) => AppDataFragmentSequence(ki,seqn,b)
+type (;ki:KeyInfo) input_buffer = (;ki) buffer
+type (;ki:KeyInfo) output_buffer = (;ki) buffer
 
 type (;ci:ConnectionInfo) app_state = {
     app_incoming: (;ci.id_in) input_buffer;
@@ -51,29 +23,15 @@ type (;ci:ConnectionInfo) app_state = {
 function val OutStream: c:ConnectionInfo * (;c) app_state -> bytes
 function val InStream: c:ConnectionInfo * (;c) app_state -> bytes
 
-assume !c,a,b. InStream(c,a) = b <=> (?s,ls,ads. a.app_incoming = (s,ls,ads) /\
-				      b = ads.history @| ads.data)
-assume !c,a,b. OutStream(c,a) = b <=> (?s,ls,ads. a.app_outgoing = (s,ls,ads) /\
-				      b = ads.history @| ads.data)
-
 function val InSequenceNo: c:ConnectionInfo * (;c) app_state -> int
 function val OutSequenceNo: c:ConnectionInfo * (;c) app_state -> int
 
-assume !c,s,ls,ads,a. a.app_incoming = (s,ls,ads) => InSequenceNo(c,a) = s 
-assume !c,s,ls,ads,a. a.app_outgoing = (s,ls,ads) => OutSequenceNo(c,a) = s 
-assume !c,a,s. InSequenceNo(c,a) = s => (?ls,ads. a.app_incoming = (s,ls,ads))
-assume !c,a,s. OutSequenceNo(c,a) = s => (?ls,ads. a.app_outgoing = (s,ls,ads))
-
-assume !c,a,a'. a.app_incoming = a'.app_incoming => InSequenceNo(c,a) = InSequenceNo(c,a')
-assume !c,a,a'. a.app_outgoing = a'.app_outgoing => OutSequenceNo(c,a) = OutSequenceNo(c,a')
- 
-
 private type (;ki:KeyInfo,s:stream,r:range) fragment = (;ki,s,r) delta
-type (;ki) stream = (;ki) DataStream.stream
+type (;ki:KeyInfo) stream = (;ki) DataStream.stream
 
 (* We justify the following 'linearity' theorems by appealing to the types of the functions:
    mkFragment, readAppDataFragment, and readNonAppDataFragment which are the only locations where
-   AppFragment, AppDataSequenceNo, and NonAppDataSequenceNo are assumed *)
+   AppFragment, AppDataSequenceNo, and NonAppDataSequenceNo are assumed 
 
 theorem !ki,tlen,seqn,b. AppDataFragment(ki,tlen,seqn,b) =>
   (seqn >= 0 /\ CompatibleLengths(ki.sinfo,Length(b),[tlen]) /\ AppDataSequenceNo(ki,seqn) /\
@@ -81,12 +39,11 @@ theorem !ki,tlen,seqn,b. AppDataFragment(ki,tlen,seqn,b) =>
 	  AppDataFragmentSequence(ki,seqn - 1,d)))
 theorem !ki,seqn. AppDataSequenceNo(ki,seqn) => (not NonAppDataSequenceNo(ki,seqn))
 theorem !ki,tlen,seqn,b,tlen',b'. AppDataFragment(ki,tlen,seqn,b) /\ AppDataFragment(ki,tlen',seqn,b') => (b = b' /\ tlen = tlen')
-
+*)
 // A biggish theorem, to prove by induction
 //theorem !ki,seqn,d,d'. AppDataFragmentSequence(ki,seqn,d) /\ AppDataFragmentSequence(ki,seqn,d') => d = d'
 
-	
-
+(*
 val fragment: ki:KeyInfo -> tlen:int -> seqn:int -> 
   b:bytes{AppDataFragment(ki,tlen,seqn,b) \/ Corrupt(ki)} -> (;ki,tlen,seqn) fragment
 
@@ -153,3 +110,4 @@ val reset_outgoing: c:ConnectionInfo ->
     (InSequenceNo(c,aps'),OutSequenceNo(c,aps')) =
     (InSequenceNo(c,aps),0)
   }
+*)

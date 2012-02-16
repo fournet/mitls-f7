@@ -4,26 +4,25 @@ open TLSInfo
 open TLSKey
 open Error
 open DataStream
-predicate Safe of KeyInfo
-predicate Auth of KeyInfo
-predicate CTXT of KeyInfo * AEADPlain.data * AEADPlain.plain * ENC.cipher
-function val CipherRange: KeyInfo * ENC.cipher -> range
+open AEADPlain
+
 
 val encrypt: ki:KeyInfo -> 
   (;ki) AEADKey -> 
   (;ki) ENCKey.iv3 -> 
-  ad:(;ki) AEADPlain.data ->
+  ad:(;ki) data ->
   rg:DataStream.range -> 
-  p:(;ki,rg,ad) AEADPlain.plain ->
+  p:(;ki,rg,ad) plain ->
   ((;ki) ENCKey.iv3 * c:ENC.cipher){CTXT(ki,ad,p,c)}
 
 val decrypt: ki:KeyInfo -> 
   (;ki) AEADKey -> 
   (;ki) ENCKey.iv3 -> 
-  ad:(;ki) AEADPlain.data ->
+  ad:(;ki) data ->
   c:ENC.cipher ->
-  res: ((;ki) ENCKey.iv3 * rg:range{rg = CipherRange(ki,c)} * 
-	  (;ki,rg,ad) AEADPlain.plain) Result{
+  res: ((;ki) ENCKey.iv3 * 
+	rg:(rg:range{rg = CipherRange(ki,c)}) * 
+	(;ki,rg,ad) plain) Result{
     (Safe(ki) => (!rg,p. (res = Correct(rg,p) <=> CTXT(ki,ad,p,c)))) /\
     (Auth(ki) => (!rg,p. (res = Correct(rg,p) =>  (?c. CTXT(ki,ad,p,c)))))}
       

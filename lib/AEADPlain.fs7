@@ -5,6 +5,14 @@ open Error
 open Bytes
 open TLSInfo
 
+
+function val Seqn: data -> int
+function val Rest: data -> bytes
+function val CipherRange: KeyInfo * bytes -> range
+
+assume !n,rest. Seqn(IntBytes(8,n) @| rest) = n
+assume !n,rest. Rest(IntBytes(8,n) @| rest) = rest
+
 type (;ki:KeyInfo) data = (b:bytes){Length(b) = TLSFragment.ADLength(ki)}
 private type (;ki:KeyInfo,r:range,ad:data) plain = 
 	    {p : (s:(;ki)state * (;ki,s,Rest(ad),r) fragment)}
@@ -16,8 +24,9 @@ val repr:  ki:KeyInfo -> r:range -> ad:data -> (;ki,ad,r) plain -> bytes
 val fragmentToPlain: ki:KeyInfo ->  s:(;ki) state -> ad:data -> r:range -> d:(;ki,s,ad,r) fragment -> (;ki,r,ad) plain
 val plainToFragment: ki:KeyInfo ->  s:(;ki) state -> ad:data -> r:range -> (;ki,r,ad) plain -> d:(;ki,s,ad,r) fragment
 (*
-function val Seqn: data -> int
-function val Rest: data -> bytes
-assume !n,rest. Seqn(IntBytes(8,n) @| rest) = n
-assume !n,rest. Rest(IntBytes(8,n) @| rest) = rest
+
 *)
+
+predicate Safe of KeyInfo
+predicate Auth of KeyInfo
+predicate CTXT of KeyInfo * data * plain * bytes

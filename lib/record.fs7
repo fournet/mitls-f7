@@ -10,7 +10,7 @@ open Formats
 open CipherSuites
 open AEAD
 
-type (;ki:KeyInfo) ConnectionState
+type (;ki:KeyInfo) ConnectionState = {
   key: (;ki) recordKey;
   iv3: (;ki) ENCKey.iv3;
   state: (;ki) StatefulPlain.state

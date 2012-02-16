@@ -21,6 +21,8 @@ and (;ki:KeyInfo,ct:ContentType,h:(;ki) history,rg:range) fragment =
     | FAppData   of (;ki,h.appdata,rg)AppDataStream.fragment {ct=Application_data}
 and (;ki:KeyInfo) fragmentSequence = (ct:ContentType * h:(;ki) history * rg:range * (;ki,ct,h,rg) fragment) list
 
+predicate Fragment of KeyInfo * range * int * ContentType * bytes
+
 val TLSFragmentRepr: ki:KeyInfo -> ct:ContentType -> h: (;ki) history -> rg:range ->
   (;ki,ct,h,rg)fragment -> bytes
 

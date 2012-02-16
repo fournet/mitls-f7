@@ -178,8 +178,7 @@ val read: c:Connection -> readInvocation -> unit Result * (;c) CompatibleConnect
 val writeAppData: c:Connection -> unit Result * (;c) CompatibleConnection
 
 
-val commit: c:Connection ->
-        AppDataStream.lengths -> bytes ->
+val commit: c:Connection -> DataStream.range -> bytes ->
 	(;c)CompatibleConnection
 
 val readAppData: c:Connection ->
