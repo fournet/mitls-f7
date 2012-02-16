@@ -203,8 +203,8 @@ Dispatch.tc7: $(libperv) $(libfs7) $(recordfs7) Dispatch.fs7 Dispatch.fs
 TLS.tc7: $(libperv) $(libfs7) $(recordfs7) Dispatch.fs7 TLS.fs7 TLS.fs
 	$(f7t) -genprotofs -scripts TLS $(recordfs7) Dispatch.fs7 TLS.fs7 TLS.fs | tee TLS.tc7
 
-TLS2.tc7: $(libperv) Error.fs7 Bytes.fs7 RSA.fs7 Certificate.fs7 Algorithms.fs7 CipherSuites.fs7 Formats.fs7 TLSInfo.fs7 AppConfig.fs7 TLS2.fs7 TLS2.fs
-	$(f7t) -genprotofs -scripts TLS2 $(filter %.fs7,$^) 
+TLS2.tc7: $(libperv) $(libfs7) $(recordfs7) Dispatch.fs7 TLS2.fs7 TLS2.fs
+	$(f7t) -genprotofs -scripts TLS2 $(recordfs7) Dispatch.fs7 TLS2.fs7 TLS2.fs
 
 #CF ? 
 autogen.fsi: $(libperv) $(libfs7) $(recordfs7) record.fs

@@ -3,6 +3,8 @@ module TLS
 open Error
 open Bytes
 open AppConfig
+open DataStream
+open Dispatch
 
 // Remove the following types ASAP (i.e. when Dispatch.fs7 compiles)
 type NetworkStream
@@ -25,9 +27,6 @@ predicate val Read : (index * bytes) -> bool
 
 function val WrittenBytes: conn -> bytes
 function val    ReadBytes: conn -> bytes
-
-function val CID: conn -> index
-assume !id, s. CID(Conn(id, s)) = id
 
 function val Parameters: conn -> parameters 
 
@@ -66,20 +65,38 @@ definition !c, c'. NoExtend(c, c') <=>
     /\ WriteBytes(c) = WriteBytes(c')
     /\ Parameters(c) = Parameters(c')
 
-type ioresult_o =
-| IO_O_Error         of ErrorKind * ErrorCause
-| IO_O_MustRead      of conn
-| IO_O_WriteComplete of conn
-| IO_O_WritePartial  of c:conn * rg:range * d:(;c, rg) delta
+type (;c:conn, rg:range, d:(;c, rg) delta) ioresult_o =
+| Out_Error         of ErrorKind * ErrorCause
+| Out_MustRead      of c':(;c) SameConnection { NoExtend(c, c') }
+| Out_WriteComplete of c':(;c) SameConnection { WriteExtend(c, c', rg, d) }
 
-type ioresult_i =
-| IO_I_Error         of ErrorKind * ErrorCause
-| IO_I_Warning       of alertDescription
-| IO_I_Fatal         of alertDescription
-| IO_I_Read          of c:conn * rg:range * d:(;c, rg) delta
-| IO_I_CertQuery     of c:conn * (;c) query
-| IO_I_HandshakeDone of c:conn
-| IO_I_Close
+| Out_WritePartial  of c':(;c) SameConnection * rg':range * d':(;c', rg') delta {
+     ?d0, rg0.    WriteExtend(c, c', rg0, d0)
+               /\ Split(rg0, rg', rg, c, c', d0, d', d)
+  }
+
+type (;c:conn) ioresult_i =
+| In_Error of ErrorKind * ErrorCause
+
+| In_Warning of c':(;c) SameCommection * alertDescription { NoExtend(c, c') }
+| In_Fatal   of c':(;c) SameConnection { TXT(CID(c)) => Fatal(Dual(CID(c)), ReadBytes(c)) }
+
+| In_CertQuery of c':conn * (;c') query
+
+| In_HandshakeDone of c':conn {
+    WrittenBytes(c') = [||] /\ ReadBytes(c') = [||]
+  }
+
+| In_Close of unit {
+    TXT(CID(c)) => Close(Dual(CID(c)), ReadBytes(c))
+  }
+
+| In_Read of c':(;c) SameConnection * rg:range * d:(;c, rg) delta {
+       CID(c) <> null
+    /\ SameConnection(c, c')
+    /\ ReadExtend(c, c', rg, d)
+    /\ TXT(CID(c)) => Write(Dual(CID(c)), ReadBytes(newc))
+  }
 
 val null: index // NULL_NULL ciphersuite
 
@@ -91,35 +108,8 @@ val accept:  NetworkStream -> p:parameters -> (c:conn { CID(c) = null /\ Paramet
 // On the write side, the following events may be generated:
 // - Write(ki,WrittenBytes(c')) 
 // - Close(ki,WrittenBytes(c))
-val write: c:conn -> rg:range -> d:(;c, rg) delta ->
-  obb:ioresult_o {
-       !newc   . obb = IO_O_MustRead(newc) => (CID(c) = CID(newc) /\ NoExtend(c, newc))
-    /\ !newc   . obb = IO_O_WriteComplete(newc) => (CID(c) = CID(newc) /\ WriteExtend(c, newc, rg, d))
-    /\ !newc, newrg, newd.
-	     obb = IO_O_WritePartial (newc, newrg, newd) => CID(c) = CID(newc) /\
-	       ?d0, rg0.    WriteExtend(c, newc, rg0, d0)
-	                 /\ Split(rg0, newrg, rg, c, newc, d0, newd, d)
-    }
-
-val read: c:conn ->
-   obb:ioresult_i {
-        !newc, a. obb = IO_I_Warning(newc, a)  =>
-           TXT(CID(c)) => (CID(c) = CID(newc) /\ NoExtend(c, newc))
-
-     /\ !e. obb = IO_I_Fatal(e) =>
-           TXT(CID(c)) => (CID(c) = CID(newc) /\ Fatal(Dual(CID(c)), ReadBytes(c)))
-
-     /\ obb = IO_I_Close => TXT(CID(c)) => Close(Dual(CID(c)), ReadBytes(c))
-
-     /\ !newc, rg, d. obb = IO_I_Read(newc, rg, d) =>
-	     CID(c) <> null
-          /\ CID(c) = CID(newc)
-          /\ ReadExtend(c, newc, rg, d)
-          /\ TXT(CID(c)) => Write(Dual(CID(c)), ReadBytes(newc))
-
-     /\ !newid, newc. obb = IO_I_HandshakeDone(newid, newc) =>
-	       WrittenBytes(newc) = [||] /\ ReadBytes(newc) = [||]
-   }
+val write: c:conn -> rg:range -> d:(;c, rg) delta -> (;c, rg, d) ioresult
+val read : c:conn -> (;c) ioresult_i
 
 // ?non-blocking?
 val rekey   : c:conn -> (c':conn { CID(c) = CID(c') /\ NoExtend(c, c') }) Result
