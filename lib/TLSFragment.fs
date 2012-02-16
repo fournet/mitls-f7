@@ -11,6 +11,13 @@ type fragment =
     | FCCS of Handshake.ccsFragment
     | FAlert of Alert.fragment
     | FAppData of AppDataStream.fragment
+and history = {
+  handshake: Handshake.stream;
+  alert: Alert.stream;
+  ccs: Handshake.stream;
+  appdata: AppDataStream.stream;
+  log: (ContentType * history * DataStream.range * fragment) list;
+}
 
 type addData = bytes
 

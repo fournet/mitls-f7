@@ -7,28 +7,33 @@ open StatefulPlain
 open DataStream 
 
 // TODO 12-02: 
-// - align with paper interface:
-// -- group & reorder iv,key, and state into one state (hiding eg iv3)
+// - align with paper interface: (KB: Done?)
+// -- group & reorder iv,key, and state into one state (hiding eg iv3) 
 // -- add refinements!
 // -- why returning ENC.cipher? 
 // - Do we need to control the cipherlength?  
 
+type cipher = ENC.cipher
+predicate STXT of KeyInfo * state * data * fragment * cipher
+assume !ki,s,d,f,c. STXT(ki,s,d,f,c) <=>
+                    CTXT(ki,IntBytes(8,SequenceNo(s)) @| d,
+			 {p = (s,f)},c)
+
 val encrypt: ki:KeyInfo -> 
-  (;ki) AEADKey -> 
-  (;ki) ENCKey.iv3 -> 
+  w:(;ki) writer -> 
+  ad:data ->
   r:range ->
-  ad:bytes ->
-  fs:(;ki) state ->
-  f: (;ki,fs,ad,r) fragment ->
-  ((;ki) ENCKey.iv3 * ENC.cipher * 
-   fs':(;ki) state)
+  f: (;ki,w,ad,r) fragment{Next(ki,w,ad,r,f)} ->
+  (w':(;ki) writer * c:cipher){
+    STXT(ki,w,ad,f,c) /\ Log(w') = (ad,f)::Log(w)}
 
 val decrypt: ki:KeyInfo -> 
-  (;ki) AEADKey -> 
-  (;ki) ENCKey.iv3 -> 
-  r:range ->
-  ad:bytes ->
-  fs:(;ki) state ->
-  ENC.cipher ->
-  ((;ki) ENCKey.iv3 * f:(;ki,fs,ad,r) fragment * 
-     fs':(;ki) state) Result
+  r:(;ki) reader -> 
+  ad:data ->
+  c:ENC.cipher ->
+  res:((;ki) reader * rg:range{rg=CipherRange(ki,c)} * 
+	 (;ki,r,ad,rg) fragment) Result{
+    (Safe(ki) => (!rd,rg,f. (res = Correct(rd,rg,p) <=> 
+		            (?wr. Log(wr) = Log(r) /\ STXT(ki,wr,ad,f,c)))) /\
+    (Auth(ki) => (!rd,rg,f. (res = Correct(rd,rg,p) =>  
+		            (?wr,c. Log(wr) = Log(r) /\ STXT(ki,wr,ad,f,c))))))}

@@ -13,6 +13,8 @@ type pre_al_state = {
 type state = pre_al_state
 
 type fragment = {b:bytes}
+type stream = {s:bytes}
+let addFragment (ki:KeyInfo) (s:stream) (r:DataStream.range) (f:fragment) =  {s = s.s @| f.b}
 let repr (ki:KeyInfo) (i:DataStream.range) (seqn:int) f = f.b
 let fragment (ki:KeyInfo) (i:DataStream.range) (seqn:int) b = {b=b}
 let makeFragment ki (seqn:int) b =

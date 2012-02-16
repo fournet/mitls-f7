@@ -266,6 +266,10 @@ type pre_hs_state = {
 type hs_state = pre_hs_state
 
 type fragment = {b:bytes}
+type stream = {s:bytes}
+let addFragment (ki:KeyInfo) (s:stream) (r:DataStream.range) (f:fragment) =  {s = s.s @| f.b}
+
+
 let repr (ki:KeyInfo) (tlen:DataStream.range) (seqn:int) f = f.b
 let fragment (ki:KeyInfo) (tlen:DataStream.range) (seqn:int) b = {b=b}
 let makeFragment ki b =

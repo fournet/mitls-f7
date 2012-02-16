@@ -19,6 +19,8 @@ type hs_state = pre_hs_state
 // protocol-specific abstract fragment,
 // and associated functions (never to be called with ideal functionality)
 type fragment
+type stream
+val addFragment: KeyInfo -> stream -> DataStream.range -> fragment -> stream
 
 val repr: KeyInfo -> DataStream.range -> int -> fragment -> Bytes.bytes
 val fragment: KeyInfo -> DataStream.range -> int -> Bytes.bytes -> fragment

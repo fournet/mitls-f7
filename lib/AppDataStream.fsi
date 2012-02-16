@@ -14,6 +14,8 @@ type app_state
 val init: ConnectionInfo -> app_state
 
 type fragment = delta
+type stream = DataStream.stream
+val addFragment: KeyInfo -> stream -> range -> fragment -> stream
 
 type preds = 
     AppDataFragmentSequence of KeyInfo * int * bytes

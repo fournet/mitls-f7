@@ -3,23 +3,30 @@
 open TLSInfo
 open TLSKey
 open Error
+open DataStream
+predicate Safe of KeyInfo
+predicate Auth of KeyInfo
+predicate CTXT of KeyInfo * AEADPlain.data * AEADPlain.plain * ENC.cipher
+function val CipherRange: KeyInfo * ENC.cipher -> range
 
 val encrypt: ki:KeyInfo -> 
   (;ki) AEADKey -> 
   (;ki) ENCKey.iv3 -> 
-  tlen:int -> 
-  ad:(;ki.sinfo.protocol_version) TLSFragment.addData ->
-  p:(;ki,tlen,ad) TLSFragment.AEADPlain{TLSFragment.AEADMsg(ki,tlen,ad,p)} -> 
-  ((;ki) ENCKey.iv3 * ENC.cipher)
-
+  ad:(;ki) AEADPlain.data ->
+  rg:DataStream.range -> 
+  p:(;ki,rg,ad) AEADPlain.plain ->
+  ((;ki) ENCKey.iv3 * c:ENC.cipher){CTXT(ki,ad,p,c)}
 
 val decrypt: ki:KeyInfo -> 
   (;ki) AEADKey -> 
   (;ki) ENCKey.iv3 -> 
-  tlen:int -> 
-  ad:(;ki.sinfo.protocol_version) TLSFragment.addData ->
-  ENC.cipher ->
-  ((;ki) ENCKey.iv3 * p:(;ki,tlen,ad) TLSFragment.AEADPlain{TLSFragment.AEADMsg(ki,tlen,ad,p)}) Result
+  ad:(;ki) AEADPlain.data ->
+  c:ENC.cipher ->
+  res: ((;ki) ENCKey.iv3 * rg:range{rg = CipherRange(ki,c)} * 
+	  (;ki,rg,ad) AEADPlain.plain) Result{
+    (Safe(ki) => (!rg,p. (res = Correct(rg,p) <=> CTXT(ki,ad,p,c)))) /\
+    (Auth(ki) => (!rg,p. (res = Correct(rg,p) =>  (?c. CTXT(ki,ad,p,c)))))}
+      
 
 
 (* TODOS: (KB: Done?) *)

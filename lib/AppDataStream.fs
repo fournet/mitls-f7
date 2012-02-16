@@ -14,9 +14,8 @@ type preds =
 
 type buffer = {
   seqn: int;
-  history: stream;
-  full: stream;
-  data: (range * delta) option;
+  full:stream;
+  data: stream * (range * delta) option;
 }
 
 type input_buffer = buffer
@@ -32,23 +31,23 @@ let init ci =
   let out_s = DataStream.init ci.id_out in
     {app_outgoing = 
         {seqn = 0;
-         history = out_s;
          full = out_s;
-         data = None};
+         data = (out_s,None)};
      app_incoming = 
         {seqn = 0;
-         history = in_s;
          full = in_s;
-         data = None};
+         data = (in_s,None)};
     }
 
 let is_incoming_empty (ci:ConnectionInfo) app_state = 
-  app_state.app_incoming.data = None
+  snd app_state.app_incoming.data = None
 
 let is_outgoing_empty (ci:ConnectionInfo)  app_state = 
-  app_state.app_outgoing.data = None
+  snd app_state.app_outgoing.data = None
     
 type fragment = delta
+type stream = DataStream.stream
+let addFragment ki s r f = append ki s r f
 
 let repr (ki:KeyInfo) (r:DataStream.range) (seqn:int) (d:fragment) = 
   let s = DataStream.init ki in
@@ -60,44 +59,41 @@ let fragment (ki:KeyInfo)  (r:DataStream.range) (seqn:int) (b:bytes) =
 
 let writeAppData (c:ConnectionInfo)  (a:app_state) (r:range) (d:delta) =
   let f = a.app_outgoing.full in
-  let h = a.app_outgoing.history in
   let b = a.app_outgoing.data in
   let nf = append c.id_out f r d in
   let ndata = 
     match b with  
-        None -> Some(r,d) 
-      | Some (rr,dd) -> Some (rangeSum rr r, 
-                              join c.id_out h rr d r d) in
+        h,None -> h,Some(r,d) 
+      | h,Some (rr,dd) -> h,Some (rangeSum rr r, 
+                              join c.id_out h rr dd r d) in
   {a with app_outgoing = {a.app_outgoing with full = nf; data = ndata}}
 
 let readAppData (c:ConnectionInfo)  (a:app_state) = 
-  let h = a.app_incoming.history in
   let b = a.app_incoming.data in
     match b with
-        None -> None,{a with app_incoming = {a.app_incoming with data = None}}
-      | Some(r,d) -> 
+        h,None -> None,{a with app_incoming = {a.app_incoming with data = h,None}}
+      | h,Some(r,d) -> 
           let nh = DataStream.append c.id_in h r d in
-          Some(r,d),{a with app_incoming = {a.app_incoming with history = nh;data = None}}
+          Some(r,d),{a with app_incoming = {a.app_incoming with data = nh,None}}
 
 (* Breaks invariants, but we shouldn't be relying on histories over here anymore *)
 let emptyOutgoingAppData (c:ConnectionInfo)  (a:app_state) = 
   let b = a.app_outgoing.data in
     match b with
-      | None -> None,a
-      | Some(r,d) -> 
-          Some(r,d),{a with app_outgoing = {a.app_outgoing with data = None}}
+      | h,None -> None,a
+      | h,Some(r,d) -> 
+          Some(r,d),{a with app_outgoing = {a.app_outgoing with data = h,None}}
 
 let readAppDataFragment (c:ConnectionInfo)  (a:app_state) =
-  let h = a.app_outgoing.history in
     Pi.assume(AppDataSequenceNo(c.id_out,a.app_outgoing.seqn));
     match a.app_outgoing.data with
-        None -> None
-      | Some (r,d) -> 
+        h,None -> None
+      | h,Some (r,d) -> 
           let r1 = (0,1) in
           let r2 = r in
           let (d1,d2) = DataStream.split c.id_out h r1 r2 d in
           let stream = DataStream.append c.id_out h r1 d1 in
-            Some(r1,d1,{a with app_incoming = {a.app_incoming with history = stream; data = Some(r2,d2)}})
+            Some(r1,d1,{a with app_incoming = {a.app_incoming with data = stream,Some(r2,d2)}})
 
 let readNonAppDataFragment (c:ConnectionInfo) (a:app_state) = 
   let nout_seqn = a.app_outgoing.seqn + 1 in
@@ -115,15 +111,14 @@ let writeAppDataFragment (ci:ConnectionInfo)  (a:app_state)  (r:range) (d:fragme
   Pi.assume(AppDataSequenceNo(ci.id_in,seqn));
   let nseqn = seqn + 1 in
   let f = a.app_incoming.full in
-  let h = a.app_incoming.history in
   let nf = append ci.id_in f r d in
   match a.app_incoming.data with
-      None -> 
-        {a with app_incoming = {a.app_incoming with data = Some(r,d); full = nf}}
-    | Some(rr,dd) ->
+      h,None -> 
+        {a with app_incoming = {a.app_incoming with data = h,Some(r,d); full = nf}}
+    | h,Some(rr,dd) ->
         let nd = join ci.id_in h rr dd r d in
         let nr = rangeSum rr r in
-        {a with app_incoming = {a.app_incoming with data = Some(nr,nd); full = nf}}
+        {a with app_incoming = {a.app_incoming with data = h,Some(nr,nd); full = nf}}
 
 let reIndex (oldC:ConnectionInfo)  (newC:ConnectionInfo) (a:app_state) = a
 
@@ -132,9 +127,8 @@ let reset_outgoing (ci:ConnectionInfo) (a:app_state) =
     {a with 
        app_outgoing = 
         {seqn = 0;
-         history = out_s;
          full = out_s;
-         data = None};
+         data = out_s,None};
     }
 
 let reset_incoming (ci:ConnectionInfo) (a:app_state) = 
@@ -142,7 +136,6 @@ let reset_incoming (ci:ConnectionInfo) (a:app_state) =
     {a with 
        app_incoming = 
         {seqn = 0;
-         history = in_s;
          full = in_s;
-         data = None};
+         data = in_s,None};
     }

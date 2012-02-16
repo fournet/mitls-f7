@@ -10,7 +10,7 @@ open TLSKey // the first part of this module (to break recursion)
 
 // the first part of this module is AEADKey
 
-let encrypt ki k state rg data plain =
+let encrypt ki k state data rg plain =
     match k with
     | MtE (ka,ke) ->
         let maced   = AEPlain.concat ki rg data plain

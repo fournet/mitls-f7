@@ -7,12 +7,16 @@ open Error
 open TLSInfo
 open TLSKey
 open CipherSuites
+open StatefulPlain
 
 /// Implements stateful AE on top of AEAD,
 /// managing sequence numbers and the binary record format  
 
-type ConnectionState
-type sendState = ConnectionState (* both implemented as ConnectionState for now *)
+type ConnectionState = {
+  key: recordKey;
+  state: state option;
+}
+type sendState = ConnectionState
 type recvState = ConnectionState
 
 val initConnState: KeyInfo -> ccs_data -> ConnectionState

@@ -1,16 +1,23 @@
 module AEADPlain
 open DataStream
 open StatefulPlain
-type additionalData = b:bytes{Length(b) >= 8}
-function val Seqn: additionalData -> int
-function val Rest: additionalData -> bytes
+open Error
+open Bytes
+open TLSInfo
+
+type (;ki:KeyInfo) data = (b:bytes){Length(b) = TLSFragment.ADLength(ki)}
+private type (;ki:KeyInfo,r:range,ad:data) plain = 
+	    {p : (s:(;ki)state * (;ki,s,Rest(ad),r) fragment)}
+
+val plain: ki:KeyInfo -> r:range  -> ad:data -> bytes -> (;ki,ad,r) plain
+val repr:  ki:KeyInfo -> r:range -> ad:data -> (;ki,ad,r) plain -> bytes
+
+
+val fragmentToPlain: ki:KeyInfo ->  s:(;ki) state -> ad:data -> r:range -> d:(;ki,s,ad,r) fragment -> (;ki,r,ad) plain
+val plainToFragment: ki:KeyInfo ->  s:(;ki) state -> ad:data -> r:range -> (;ki,r,ad) plain -> d:(;ki,s,ad,r) fragment
+(*
+function val Seqn: data -> int
+function val Rest: data -> bytes
 assume !n,rest. Seqn(IntBytes(8,n) @| rest) = n
 assume !n,rest. Rest(IntBytes(8,n) @| rest) = rest
-
-type (;ki:KeyInfo,r:range,ad:additionalData) plain = 
-    {p : (s:(;ki)state * (;ki,s,Rest(ad),r) fragment)}
-
-val plain: ki:KeyInfo -> r:range  -> ad:additionalData -> bytes -> (;ki,ad,r) plain
-val repr:  ki:KeyInfo -> r:range -> ad:additionalData -> (;ki,ad,r) plain -> bytes
-val fragmentToPlain: ki:KeyInfo ->  s:(;ki) state -> ad:additionalData -> r:range -> d:(;ki,s,ad,r) fragment -> (;ki,r,ad) plain
-val plainToFragment: ki:KeyInfo ->  s:(;ki) state -> ad:additionalData -> r:range -> (;ki,r,ad) plain -> d:(;ki,s,ad,r) fragment
+*)

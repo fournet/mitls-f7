@@ -7,11 +7,19 @@ open CipherSuites
 open DataStream
 
 // Plain type for Dispatch
-type (;ki:KeyInfo,tlen:range,seqn:int,ct:ContentType) fragment =
-    | FHandshake of (;ki,tlen,seqn)Handshake.fragment    {ct=Formats.Handshake}
-    | FCCS       of (;ki,tlen,seqn)Handshake.ccsFragment {ct=Change_cipher_spec}
-    | FAlert     of (;ki,tlen,seqn)Alert.fragment        {ct=Alert}
-    | FAppData   of (;ki,tlen,seqn)AppDataStream.fragment {ct=Application_data}
+type (;ki:KeyInfo) history = {
+  handshake: (;ki) Handshake.stream;
+  alert: (;ki) Alert.stream;
+  ccs: (;ki) Handshake.stream;
+  appdata: (;ki) AppDataStream.stream;
+  log: (ct:ContentType * h:(;ki) history * rg:range * (;ki,ct,h,rg) fragment) list
+}
+
+and (;ki:KeyInfo,ct:ContentType,h:(;ki) history,rg:range) fragment =
+    | FHandshake of (;ki,h.handshake,rg)Handshake.fragment    {ct=Formats.Handshake}
+    | FCCS       of (;ki,h.ccs,rg)Handshake.ccsFragment {ct=Change_cipher_spec}
+    | FAlert     of (;ki,h.alert,rg)Alert.fragment        {ct=Alert}
+    | FAppData   of (;ki,h.appdata,rg)AppDataStream.fragment {ct=Application_data}
 
 predicate Fragment of KeyInfo * range * int * ContentType * bytes
 

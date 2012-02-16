@@ -4,11 +4,13 @@ open Bytes
 open Error
 open TLSInfo
 open TLSKey
+open DataStream
+open StatefulPlain 
 
-val encrypt: KeyInfo -> AEADKey -> ENCKey.iv3 -> DataStream.range -> 
-  StatefulPlain.addData -> StatefulPlain.state -> StatefulPlain.fragment -> 
-  (ENCKey.iv3 * ENC.cipher * StatefulPlain.state)
+type cipher = ENC.cipher
 
-val decrypt: KeyInfo -> AEADKey -> ENCKey.iv3 -> DataStream.range -> 
-  StatefulPlain.addData -> StatefulPlain.state -> ENC.cipher -> 
-  (ENCKey.iv3 * StatefulPlain.fragment * StatefulPlain.state) Result
+val encrypt: KeyInfo -> writer ->  data -> DataStream.range -> fragment -> 
+  (reader * cipher)
+
+val decrypt: KeyInfo -> reader ->  data -> cipher -> 
+  (reader * range * fragment) Result

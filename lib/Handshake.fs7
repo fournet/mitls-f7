@@ -18,9 +18,12 @@ type (;ci:ConnectionInfo) hs_state = (;ci)pre_hs_state
 
 // protocol-specific abstract fragment,
 // and associated functions (never to be called with ideal functionality)
-type (;ki:KeyInfo,tlen:DataStream.range,seqn:int) fragment
+type (;ki) stream
+type (;ki:KeyInfo,(;ki) stream, rg:DataStream.range) fragment
+
 predicate HandshakeFragment of KeyInfo * DataStream.range * int * Bytes.bytes
 predicate CCSFragment of KeyInfo * DataStream.range * int * Bytes.bytes
+
 
 val repr: ki:KeyInfo -> tlen:DataStream.range -> seqn:int -> (;ki,tlen,seqn)fragment -> b:Bytes.bytes{HandshakeFragment(ki,tlen,seqn,b)}
 val fragment: ki:KeyInfo -> tlen:DataStream.range -> seqn:int -> b:Bytes.bytes{HandshakeFragment(ki,tlen,seqn,b) \/ Corrupt(ki)} -> (;ki,tlen,seqn)fragment
@@ -83,3 +86,4 @@ val recv_ccs     : ci:ConnectionInfo -> seqn:int -> (;ci)hs_state -> tlen:DataSt
 
 val reIndex: oldID:ConnectionInfo -> newID:ConnectionInfo{CompatibleConnections(oldID,newID)} ->
 	(;oldID)hs_state -> (;newID)hs_state
+

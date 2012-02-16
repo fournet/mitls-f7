@@ -4,53 +4,21 @@ open TLSInfo
 open Bytes
 open Error
 open FragCommon
+open DataStream
 
-type lengths = int list
-
-type preds = 
-    AppDataFragmentSequence of KeyInfo * int * bytes
-  | AppDataFragment of KeyInfo * int * int * bytes
-  | NonAppDataSequenceNo of KeyInfo * int
-  | AppDataSequenceNo of KeyInfo * int
-  | ValidAppDataStream of KeyInfo * bytes
-
-
-(* assume !si. CompatibleLengths(si,0,[]) *)
-assume !si,n,l. CompatibleLengths(si,n,l) 
-(*
-assume !si,n1,ls1,n2,ls2. CompatibleLengths(si,n1,ls1) /\
-                   CompatibleLengths(si,n2,ls2) => 
-	           CompatibleLengths(si,n1+n2,ls1@ls2)
-*)
-
-private type (;si:SessionInfo,ls:lengths) preAppDataStream = {
-  history: bytes;
-  lengths_history: lengths;
-  data: bytes;
-  lengths: lengths; 
+type (;ki:KeyInfo) buffer = {
+  seqn: int;
+  full: (;ki) stream;
+  data: h:(;ki) stream * (r:range * (;ki,s,r) delta) option;
 }
 
-assume !ki. ValidAppDataStream(ki, [| |])
-assume !ki,nki,b. ValidAppDataStream(ki,b) /\ 
-                  CompatibleSessions(ki.sinfo,nki.sinfo) => 
-	          ValidAppDataStream(nki,b)
-assume !ki,b1,b2,b3. ValidAppDataStream(ki,b1 @| (b2 @| b3)) =>
-            ValidAppDataStream(ki,b1 @| b2)
+type input_buffer = buffer
+type output_buffer = buffer
 
-private type (;ki:KeyInfo,ls:lengths) AppDataStream = 
-    ads:(;ki,ls) preAppDataStream{CompatibleLengths(ki.sinfo,Length(ads.data),ads.lengths)  /\
-				      (* ls = ads.lengths_history @ ads.lengths /\    *)
-	                               ValidAppDataStream(ki,ads.history @| ads.data) }
-
-val emptyAppDataStream: si:KeyInfo -> ads:(;si,[]) AppDataStream{ads.data = [| |] /\ ads.history = [| |]}
-val isEmptyAppDataStream: si:KeyInfo -> ls:lengths -> ads:(;si,ls) AppDataStream -> 
-  b:bool{b = true => ads.data = [| |]}
-
-val writeAppDataStreamBytes: ki:KeyInfo -> ls:lengths -> 
-                ads: (;ki,ls) AppDataStream ->
-                b:bytes{ValidAppDataStream(ki,ads.history @| (ads.data @| b))} -> 
-                lens:lengths{CompatibleLengths(ki.sinfo,Length(b),lens)} ->
-                (nls:lengths * ads':(;ki,nls) AppDataStream){ads'.history = ads.history}
+type app_state = {
+  app_incoming: input_buffer;
+  app_outgoing: output_buffer;
+}
 
 val readAppDataStreamBytes: ki:KeyInfo -> ls:lengths -> ads:(;ki,ls) AppDataStream ->
                  (b:bytes * ads':(;ki,ls) AppDataStream){ads'.history = ads.history @| ads.data /\ ads'.data = [| |]}
@@ -100,9 +68,8 @@ assume !c,a,a'. a.app_incoming = a'.app_incoming => InSequenceNo(c,a) = InSequen
 assume !c,a,a'. a.app_outgoing = a'.app_outgoing => OutSequenceNo(c,a) = OutSequenceNo(c,a')
  
 
-private type (;ki:KeyInfo,tlen:int,seqn:int) fragment = 
-	    {b:(x:bytes){Corrupt(ki) \/
-           		 AppDataFragment(ki,tlen,seqn,x)}}
+private type (;ki:KeyInfo,s:stream,r:range) fragment = (;ki,s,r) delta
+type (;ki) stream = (;ki) DataStream.stream
 
 (* We justify the following 'linearity' theorems by appealing to the types of the functions:
    mkFragment, readAppDataFragment, and readNonAppDataFragment which are the only locations where

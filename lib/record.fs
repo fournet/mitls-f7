@@ -6,22 +6,26 @@ open TLSInfo
 open TLSKey
 open Formats
 open CipherSuites
-open AEAD
+open StatefulPlain
 
 type ConnectionState = {
   key: recordKey;
-  iv3: ENCKey.iv3;
-  state: StatefulPlain.state;
-  }
+  state: state option;
+}
 type sendState = ConnectionState
 type recvState = ConnectionState
 
+let connState (ki:KeyInfo) (cs:ConnectionState) = 
+  match cs.state with 
+      Some s -> s
+    | None -> failwith "expected a valid AEAD state"
 
 let initConnState (ki:KeyInfo) (ccsData:ccs_data) =
-  { key = ccsData.ccsKey;
-    iv3 = ccsData.ccsIV3;
-    state = StatefulPlain.emptyState ki;
-  }
+  let rk = ccsData.ccsKey in 
+  match rk with 
+      RecordAEADKey k -> {key = rk; state = Some (initState ki k ccsData.ccsIV3)}
+    | RecordMACKey _
+    | NoneKey -> {key = rk; state = None}
 
 /// packet format
 
@@ -81,7 +85,7 @@ let recordPacketOut keyInfo conn tlen seqn ct fragment =
         let ad0 = TLSFragment.makeAD keyInfo.sinfo.protocol_version ct in
         let addData = StatefulPlain.makeAD seqn ad0 in
         let aeadSF = StatefulPlain.TLSFragmentToFragment keyInfo tlen seqn ct fragment in
-        let aeadF = AEADPlain.fragmentToPlain keyInfo conn.state addData tlen aeadSF in
+        let aeadF = AEADPlain.fragmentToPlain keyInfo (connState keyInfo conn) addData tlen aeadSF in
         let data = AEPlain.concat keyInfo tlen addData aeadF in
         let mac = AEPlain.mac keyInfo key data in
         // FIXME: next line should be: ley payload = AEPlain.encodeNoPad ..., to match decodeNoPad, and remove dependency on tagRepr
@@ -92,8 +96,8 @@ let recordPacketOut keyInfo conn tlen seqn ct fragment =
         let ad0 = TLSFragment.makeAD keyInfo.sinfo.protocol_version ct in
         let addData = StatefulPlain.makeAD seqn ad0 in
         let aeadF = StatefulPlain.TLSFragmentToFragment keyInfo tlen seqn ct fragment in
-        let (newIV,payload,ns) = StatefulAEAD.encrypt keyInfo key conn.iv3 tlen addData conn.state aeadF in
-        let conn = {conn with iv3 = newIV; state = ns} in
+        let (nr,payload) = StatefulAEAD.encrypt keyInfo (connState keyInfo conn)addData tlen aeadF in
+        let conn = {conn with state = Some nr} in
         let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
         (conn,packet)
     | _ -> unexpectedError "[recordPacketOut] Incompatible ciphersuite and key type"
@@ -148,28 +152,27 @@ let recordPacketIn ki conn seqn headPayload =
         let toVerify = AEPlain.concat ki rg ad msg in
         let ver = AEPlain.verify ki key toVerify mac in
         if ver then
-          let msg0 = AEADPlain.plainToFragment ki conn.state ad rg msg in
-          let msg = StatefulPlain.fragmentToTLSFragment ki conn.state ad rg msg0 in
+          let msg0 = AEADPlain.plainToFragment ki (connState ki conn) ad rg msg in
+          let msg = StatefulPlain.fragmentToTLSFragment ki (connState ki conn) ad rg msg0 in
             correct(conn,ct,pv,rg,msg)
         else
             Error(MAC,CheckFailed)
     | (_,RecordAEADKey(key)) ->
         let ad0 = TLSFragment.makeAD ki.sinfo.protocol_version ct in
         let ad = StatefulPlain.makeAD seqn ad0 in
-        let decr = StatefulAEAD.decrypt ki key conn.iv3 tlen ad conn.state payload in
+        let decr = StatefulAEAD.decrypt ki (connState ki conn) ad payload in
         match decr with
         | Error(x,y) -> Error(x,y)
         | Correct (decrRes) ->
-            let (newIV, plain,ns) = decrRes in
-            let msg = StatefulPlain.fragmentToTLSFragment ki conn.state ad tlen plain in
-            let conn = {conn with iv3 = newIV; state = ns} in
+            let (ns, tlen, plain) = decrRes in
+            let msg = StatefulPlain.fragmentToTLSFragment ki (connState ki conn) ad tlen plain in
+            let conn = {conn with state = Some ns} in
             correct(conn,ct,pv,tlen,msg)
     | _ -> unexpectedError "[recordPacketIn] Incompatible ciphersuite and key type"
 
 let reIndex_null oldKI newKI state =
-    let newKey = TLSKey.reIndex   oldKI newKI state.key
-    let newIV  = ENCKey.reIndexIV oldKI newKI state.iv3
-    {key = newKey; iv3 = newIV; state = StatefulPlain.emptyState newKI}
+  let newKey = TLSKey.reIndex   oldKI newKI state.key in
+    {key = newKey; state = Some (StatefulPlain.emptyState newKI)}
 
 /// old stuff, to be deleted?
 
