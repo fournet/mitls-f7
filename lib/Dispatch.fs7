@@ -55,7 +55,6 @@ type (;id:ConnectionInfo) globalState = (gs:(;id) preGlobalState){
 type Connection = Conn of (id:ConnectionInfo * (;id)globalState)
 function val ConnectionIndex: Connection -> ConnectionInfo
 assume !id,s. ConnectionIndex(Conn(id,s)) = id
-type (;c:Connection) SameConnection = c':Connection{ConnectionIndex(c) = ConnectionIndex(c')}
 
 function val ConnectionOutKeyInfo: Connection -> KeyInfo
 assume !id,s. ConnectionOutKeyInfo(Conn(id,s))= id.id_out
@@ -67,6 +66,9 @@ function val ConnectionOutSessionInfo: Connection -> SessionInfo
 assume !id,s. ConnectionOutSessionInfo(Conn(id,s))=id.id_out.sinfo
 function val ConnectionInSessionInfo: Connection -> SessionInfo
 assume !id,s. ConnectionInSessionInfo(Conn(id,s))=id.id_in.sinfo
+
+function val Params: Connection -> protocolOptions
+assume !id,s. Params(Conn(id,s))=s.poptions
 
 function val dStateSeqn: ki:KeyInfo * (;ki)dState -> int
 assume !ki,s. dStateSeqn(ki,s)=s.seqn
