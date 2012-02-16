@@ -72,10 +72,12 @@ definition !c, c'. NoExtend(c, c') <=>
 
 type (;c:cn) ioresult_i =
 | ReadError of ErrorKind * ErrorCause
-| Warning   of c':(;c) sameCn * alertDescription { NoExtend(c, c') }
-| Fatal     of c':(;c) sameCn {TXT(CnId(c)) => Fatal(Dual(CnId(c)), ReadBytes(c))}
-| Close of unit { TXT(CnId(c)) => Close(Dual(CnId(c)), ReadBytes(c))}
-| CertQuery of c':(;c) sameCn * (;c') query
+| Warning   of c':(;c) sameCn NoExtend(c, c') * a:alertDescription 
+  {TXT(CnId(c)) => Warning(Dual(CnId(c)), a, ReadBytes(c))}
+| Fatal of a:alertDescription 
+  {TXT(CnId(c)) =>   Fatal(Dual(CnId(c)), a, ReadBytes(c))}
+| Close of unit {TXT(CnId(c)) => Close(Dual(CnId(c)), ReadBytes(c))}
+| CertQuery of c':(;c) sameCn {NoExtend(c, c')} * (;c') query
 | Handshake of c':cn { Role(c) = Role(c') /\ WrittenBytes(c') = [||] /\ ReadBytes(c') = [||]}
 | Read      of c':(;c) sameCn * rg:range * d:(;c, rg) indelta
   {    CnId(c) <> null /\ ReadExtend(c, c', rg, d)
@@ -92,6 +94,16 @@ type (;c:cn, rg:range, d:(;c, rg) outdelta) ioresult_o =
   { c':cn{Role(c) = Role(c') /\ ConnectionOutKeyInfo(c) = ConnectionOutKeyInfo(c') /\
     ReadBytes(c) = ReadBytes(c') /\ Params(c) = Params(c') }
 
+// TODO: 
+// document that MustRead means that we won't be able to write on that connection anymore
+// in SameConnection, enforce the chaining for all HS-specific data, in particular to chain successive handshakes.
+// fix ConnectionOutKeyInfo above (?) ideally removing it 
+// fix alertDescription, so that it only represents the second byte. 
+// check that we are not too restrictive for the ongoing connection once we start negotiating.
+// regroup the bits of the TLS library that are needed in the API.
+// write the "toplevel" automata, from the user viewpoint; consider enforcement by typing, session-style.
+// consider hiding ranges within deltas: (';c) delta' = (rg:range * (;c', rg') outdelta), especially if they are explained elsewhere.
+
 val write: c:cn -> rg:range -> d:(;c, rg) delta -> (;c, rg, d) ioresult_o
 // On the write side, the following events may be generated:
 // - Write(ki,WrittenBytes(c')) 
@@ -104,10 +116,10 @@ val accept:  Tcp.NetworkStream -> p:params                  -> (;Server,p) nullC
 
 // even if the server declines, we authenticate the client's intent to resume from the sid.
 
-val rekey      : c:cn {Role(c)=Client} -> (c':(;c) sameCn {NoExtend(c, c')}) Result
+val rekey:       c:cn {Role(c)=Client} -> (c':(;c) sameCn {NoExtend(c, c')}) Result
 val rehandshake: c:cn {Role(c)=Client} -> (c':(;c) sameCn {NoExtend(c, c')}) Result
-val request    : c:cn {Role(c)=Server} -> (c':(;c) sameCn {NoExtend(c, c')}) Result
-val shutdown   : c:cn                  -> (c':(;c) sameCn {NoExtend(c, c')}) Result
+val request:     c:cn {Role(c)=Server} -> (c':(;c) sameCn {NoExtend(c, c')}) Result
+val shutdown:    c:cn                  -> (c':(;c) sameCn {NoExtend(c, c')}) Result
 // [shutdown] will internally generate a Close(ki, WrittenBytes(c)) 
 // Cannot write afterwards (dynamically enforced)
 

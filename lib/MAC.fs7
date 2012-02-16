@@ -7,19 +7,20 @@ open TLSInfo
 /// a refined, ideal interface for indexed MACs
 /// this file is loosely synchronized with cma/mac2.fs7
 
-(*predicate val CMA: id -> bool*)
-type text = bytes
-predicate val Msg: KeyInfo * text -> bool
-type mac = bytes
+//CF 12-02: we need to support agility here, 
+//          guaranteeing that ki has a MAC, and 
+//          providing exact lengths for keys and tags.
 
 private type (;ki:KeyInfo) key = {k:bytes}
+type keyrepr
+predicate val Msg: KeyInfo * text -> bool
+type text = bytes
+type tag = b:bytes
 
 val MAC:    ki:KeyInfo -> k:(;ki) key -> t:text{Msg(ki,t)} -> mac
 val VERIFY: ki:KeyInfo -> k:(;ki) key -> t:text -> mac -> 
-  v:bool{ (v=true (*/\ CMA(id)*) ) => Msg(ki,t) }
+  v:bool{ (v=true /\ Auth(id)) => Msg(ki,t) }
 
-val GEN: ki:KeyInfo -> (;ki) key
-val LEAK:   ki:KeyInfo{!t. Msg(ki,t)} -> (;ki)key -> bytes
-val COERCE: ki:KeyInfo{!t. Msg(ki,t)} -> bytes -> (;ki)key
-
-val reIndex: oldKI:KeyInfo{NullSessionInfo(oldKI.sinfo)} -> newKI:KeyInfo{NullSessionInfo(newKI.sinfo)} -> (;oldKI)key -> (;newKI)key
+val GEN:    ki:KeyInfo -> (;ki) key
+val LEAK:   ki:KeyInfo{not(Auth(id))} -> (;ki)key -> bytes
+val COERCE: ki:KeyInfo{not(Auth(id))} -> bytes -> (;ki)key
