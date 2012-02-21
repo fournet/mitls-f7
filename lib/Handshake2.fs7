@@ -45,7 +45,7 @@ type (;ki:KeyInfo) fragment = l:nat * (;ki,l) hsFragment
 val repr:     ki:KeyInfo -> l:nat -> (;ki,l) hsFragment -> b:bytes{Length(b)=l}
 val fragment: ki:KeyInfo -> l:nat -> b:bytes{Length(b)=l} -> (;ki,l) hsFragment
 
-type (;ki:KeyInfo,l:nat) ccsFragment
+type (;ki:KeyInfo,l:nat) ccsFragment+
 val ccsRepr:     ki:KeyInfo -> (;ki,1) ccsFragment -> b:bytes{Length(b)=1}
 val ccsFragment: ki:KeyInfo -> b:bytes{Length(b)=1} -> (;ki,1) ccsFragment
 
