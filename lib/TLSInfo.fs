@@ -7,14 +7,14 @@ open CipherSuites
 type sessionID = bytes
 
 type preDirection =
-  | CtoS
-  | StoC
+  | Client
+  | Server
 type Direction = preDirection
 
 let dualDirection dir =
     match dir with
-    | CtoS -> StoC
-    | StoC -> CtoS
+    | Client -> Server
+    | Server -> Client
 
 type SessionInfo = {
     clientID: cert option

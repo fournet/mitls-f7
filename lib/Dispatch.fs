@@ -67,7 +67,7 @@ type deliverOutcome =
 
 let init ns dir poptions =
     (* Direction "dir" is always the outgoing direction.
-       So, if we are a Client, it will be CtoS, if we're a Server: StoC *)
+       So, if we are a Client, it will be Client, if we're a Server: Server *)
     let outKI = null_KeyInfo dir poptions.minVer in
     let inKI = dual_KeyInfo outKI in
     let index = {id_in = inKI; id_out = outKI} in
@@ -96,9 +96,9 @@ let resume ns sid ops =
     | Some (retrieved) ->
     let (retrievedSinfo,retrievedMS,retrievedDir) = retrieved in
     match retrievedDir with
-    | StoC -> unexpectedError "[resume] requested session is for server side"
-    | CtoS ->
-    let outKI = null_KeyInfo CtoS ops.minVer in
+    | Server -> unexpectedError "[resume] requested session is for server side"
+    | Client ->
+    let outKI = null_KeyInfo Client ops.minVer in
     let inKI = dual_KeyInfo outKI in
     let index = {id_in = inKI; id_out = outKI} in
     let hs = Handshake.resume_handshake index retrievedSinfo retrievedMS ops in // equivalently, inKI.sinfo

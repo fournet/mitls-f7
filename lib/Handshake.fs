@@ -354,7 +354,7 @@ let next_fragment ci state =
                             let storable_session =
                                 ( state.hs_next_info,
                                   state.next_ms,
-                                  CtoS)
+                                  Client)
                             let state = goToIdle state
                             (HSFullyFinished_Write (f,storable_session), state)
                         else
@@ -389,7 +389,7 @@ let next_fragment ci state =
                             let storable_session =
                                 ( state.hs_next_info,
                                   state.next_ms,
-                                  CtoS)
+                                  Client)
                             let state = goToIdle state
                             (HSFullyFinished_Write (f,storable_session), state)
                     | _ -> (HSFrag(f), state)
@@ -940,8 +940,8 @@ let generateKeys (outKi:KeyInfo) (ms:masterSecret) =
     let key_block = prfKeyExp outKi ms in
     let (cmk,smk,cek,sek,civ,siv) = splitKeys outKi key_block in
     match outKi.dir with 
-        | CtoS -> smk,sek,siv,cmk,cek,civ
-        | StoC -> cmk,cek,civ,smk,sek,siv
+        | Client -> smk,sek,siv,cmk,cek,civ
+        | Server -> cmk,cek,civ,smk,sek,siv
 
 (* Obsolete. Use PRFs.prfVerifyData instead *)
 (*
@@ -952,8 +952,8 @@ let bldVerifyData version cs ms entity hsmsgs =
   | SSL_3p0 ->
     let ssl_sender = 
         match entity with
-        | CtoS -> ssl_sender_client 
-        | StoC -> ssl_sender_server
+        | Client -> ssl_sender_client 
+        | Server -> ssl_sender_server
     let mm = append hsmsgs (append ssl_sender ms) in
     match md5 (append mm ssl_pad1_md5) with
     | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
@@ -971,8 +971,8 @@ let bldVerifyData version cs ms entity hsmsgs =
   | x when x = TLS_1p0 || x = TLS_1p1 -> 
     let tls_label = 
         match entity with
-        | CtoS -> "client finished"
-        | StoC -> "server finished"
+        | Client -> "client finished"
+        | Server -> "server finished"
     match md5 hsmsgs with
     | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
     | Correct (md5hash) ->
@@ -985,8 +985,8 @@ let bldVerifyData version cs ms entity hsmsgs =
   | TLS_1p2 ->
     let tls_label = 
         match entity with
-        | CtoS -> "client finished"
-        | StoC -> "server finished"
+        | Client -> "client finished"
+        | Server -> "server finished"
     let verifyDataHashAlg = verifyDataHashAlg_of_ciphersuite cs in
     match verifyDataHashFun hsmsgs with
     | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
@@ -1114,14 +1114,14 @@ let prepare_client_output_full state clSpecState =
                                     hs_msg_log  = new_log} in
 
             (* Handle CCS and Finished, including computation of session secrets *)
-            let state = compute_session_secrets_and_CCSs state CtoS in
+            let state = compute_session_secrets_and_CCSs state Client in
             (* Now go for the creation of the Finished message *)
             let ki = 
                 match state.ccs_outgoing with
                 | None -> unexpectedError "[prepare_client_output_full] The current state should contain a valid outgoing KeyInfo"
                 | Some (_,(ki,ccs_data)) -> ki
             let (finishedBytes,cVerifyData) = makeFinishedMsgBytes ki state.next_ms state.hs_msg_log in
-            (* match makeFinishedMsgBytes sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms CtoS state.hs_msg_log with *)
+            (* match makeFinishedMsgBytes sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms Client state.hs_msg_log with *)
             let new_out = state.hs_outgoing_after_ccs @| finishedBytes in
             let new_log = state.hs_msg_log @| finishedBytes in
             let state = {state with hs_outgoing_after_ccs = new_out
@@ -1135,7 +1135,7 @@ let prepare_client_output_resumption state =
         | None -> unexpectedError "[prepare_client_output_resumption] The current state should contain a valid outgoing KeyInfo"
         | Some (_,(ki,ccs_data)) -> ki
     let (finishedBytes,cVerifyData) = makeFinishedMsgBytes ki state.next_ms state.hs_msg_log in
-    (* match makeFinishedMsgBytes sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms CtoS state.hs_msg_log with *)
+    (* match makeFinishedMsgBytes sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms Client state.hs_msg_log with *)
     let new_out = state.hs_outgoing_after_ccs @| finishedBytes in
     (* No need to log this message *)
     let state = {state with hs_outgoing_after_ccs = new_out
@@ -1148,7 +1148,7 @@ let init_handshake (ci:ConnectionInfo) dir poptions =
     (* Start a new first session without resumption *)
     let next_sinfo = null_sessionInfo poptions.minVer in
     match dir with
-    | CtoS ->
+    | Client ->
         let (cHelloBytes,client_random) = makeClientHelloBytes poptions [||] [||] in
         let next_sinfo = {next_sinfo with init_crand = client_random} in
         {hs_outgoing = cHelloBytes
@@ -1165,7 +1165,7 @@ let init_handshake (ci:ConnectionInfo) dir poptions =
          ki_srand = [||]
          hs_renegotiation_info_cVerifyData = [||]
          hs_renegotiation_info_sVerifyData = [||]}
-    | StoC ->
+    | Server ->
         {hs_outgoing = [||]
          ccs_outgoing = None
          hs_outgoing_after_ccs = [||]
@@ -1387,7 +1387,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                     if state.hs_next_info.protocol_version = shello.sh_server_version then
                                         if state.hs_next_info.cipher_suite = shello.sh_cipher_suite then
                                             if state.hs_next_info.compression = shello.sh_compression_method then
-                                                let state = compute_session_secrets_and_CCSs state CtoS in
+                                                let state = compute_session_secrets_and_CCSs state Client in
                                                 let clSpecState = { resumed_session = true;
                                                                     must_send_cert = None;
                                                                     client_certificate = None} in
@@ -1529,7 +1529,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         (* Note: no need to log this message *)
                         let storableSession = ( state.hs_next_info,
                                                 state.next_ms,
-                                                CtoS)
+                                                Client)
                         let state = goToIdle state in
                         (correct (HSFullyFinished_Read (storableSession)),state)
             | _ -> (* Finished arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
@@ -1544,7 +1544,7 @@ let rec recv_fragment_client' (state:hs_state) (s:clientState) (must_change_ver:
     | None ->
         match must_change_ver with
         | None      -> (correct (HSAck), state)
-        | Some (pv) -> (correct (HSChangeVersion(CtoS,pv)),state)
+        | Some (pv) -> (correct (HSChangeVersion(Client,pv)),state)
 
     | Some (state,hstype,payload,message) ->
         match hstype, s with
@@ -1595,7 +1595,7 @@ let rec recv_fragment_client' (state:hs_state) (s:clientState) (must_change_ver:
                                     if   state.hs_next_info.protocol_version = shello.server_version 
                                       && state.hs_next_info.cipher_suite     = shello.cipher_suite 
                                       && state.hs_next_info.compression      = shello.compression_method then
-                                        let state = compute_session_secrets_and_CCSs state CtoS in
+                                        let state = compute_session_secrets_and_CCSs state Client in
                                         let s' = { resumed_session = true;
                                                    must_send_cert = None;
                                                    client_certificate = None} in
@@ -1682,7 +1682,7 @@ let rec recv_fragment_client' (state:hs_state) (s:clientState) (must_change_ver:
                     // no need to log this message
                     let storableSession = { sinfo = state.hs_next_info;
                                             ms = state.next_ms;
-                                            dir = CtoS}
+                                            dir = Client}
                     (correct (HSFullyFinished_Read (storableSession)),state)
             else (Error(HSError(AD_decrypt_error),HSSendAlert),state)
         
@@ -1785,13 +1785,13 @@ let prepare_server_output_resumption state =
     let new_out = state.hs_outgoing @| sHelloB in
     let new_log = state.hs_msg_log  @| sHelloB in
     let state = {state with hs_outgoing = new_out; hs_msg_log = new_log} in
-    let state = compute_session_secrets_and_CCSs state StoC in
+    let state = compute_session_secrets_and_CCSs state Server in
     let ki =
         match state.ccs_outgoing with
         | None -> unexpectedError "[prepare_server_output_resumption] The ccs_outgoing buffer should contain some value when computing the finished message"
         | Some (_,(ki,ccs_data)) -> ki
     let (finishedB,verifyData) = makeFinishedMsgBytes ki state.next_ms state.hs_msg_log in
-    (* match makeFinishedMsgBytes sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms StoC state.hs_msg_log with *)
+    (* match makeFinishedMsgBytes sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms Server state.hs_msg_log with *)
     let new_out = state.hs_outgoing_after_ccs @| finishedB in
     let new_log = state.hs_msg_log @| finishedB in
     let sSpecState = {resumed_session = true
@@ -1852,9 +1852,9 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         | Some (storedSinfo,storedMS,storedDir) ->
                             (* Check that the client proposed algorithms match those of our stored session *)
                             match storedDir with
-                            | CtoS -> (* This session is not for us, we're a server. Do full handshake *)
+                            | Client -> (* This session is not for us, we're a server. Do full handshake *)
                                 startServerFull ci state cHello
-                            | StoC ->
+                            | Server ->
                                 if cHello.ch_client_version >= storedSinfo.protocol_version then
                                     (* We have a common version *)
                                     if not (List.exists (fun cs -> cs = storedSinfo.cipher_suite) cHello.ch_cipher_suites) then
@@ -1911,7 +1911,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     (* match compute_master_secret pms sinfo.more_info.mi_protocol_version state.hs_client_random state.hs_server_random with *)
                     (* TODO: here we should shred pms *)
                     let state = {state with next_ms = ms} in
-                    let state = compute_session_secrets_and_CCSs state StoC in
+                    let state = compute_session_secrets_and_CCSs state Server in
                         (* move to new state *)
                     match state.hs_next_info.clientID with
                     | None -> (* No client certificate, so there will be no CertificateVerify message *)
@@ -1955,7 +1955,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     | Some (ki,ccs_data) -> ki
                 *)
                 let verifyDataisOK = checkVerifyData ci.id_in state.next_ms state.hs_msg_log payload in
-                (* match checkVerifyData sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms CtoS state.hs_msg_log payload with *)
+                (* match checkVerifyData sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms Client state.hs_msg_log payload with *)
                 if not verifyDataisOK then
                     (Error(HSError(AD_decrypt_error),HSSendAlert),state)
                 else
@@ -1966,7 +1966,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         (* Note: no need to log this message (and we go to the idle state forgetting everything anyway) *)
                         let storableSession = ( state.hs_next_info,
                                                 state.next_ms,
-                                                StoC)
+                                                Server)
                         let state = goToIdle state
                         (correct (HSFullyFinished_Read (storableSession)),state)
                     else
@@ -1978,7 +1978,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                             | None -> unexpectedError "[recv_fragment_server] Outgoing KeyInfo should be set now"
                             | Some(_,(kiOut,ccs_data)) -> kiOut
                         let (packet,verifyData) = makeFinishedMsgBytes kiOut state.next_ms state.hs_msg_log in
-                        (* match makeFinishedMsgBytes sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms StoC state.hs_msg_log with *)
+                        (* match makeFinishedMsgBytes sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms Server state.hs_msg_log with *)
                         let new_out = state.hs_outgoing_after_ccs @| packet in
                         let state = {state with hs_outgoing_after_ccs = new_out
                                                 hs_renegotiation_info_sVerifyData = verifyData

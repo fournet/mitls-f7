@@ -7,8 +7,8 @@ open CipherSuites
 type sessionID = bytes
 
 type preDirection =
-    | CtoS
-    | StoC
+    | Client
+    | Server
 type Direction = preDirection
 
 //val dualDirection: Direction -> Direction

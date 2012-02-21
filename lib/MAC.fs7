@@ -11,16 +11,19 @@ open TLSInfo
 //          guaranteeing that ki has a MAC, and 
 //          providing exact lengths for keys and tags.
 
+//CF relocate:
+predicate val Auth: KeyInfo -> bool 
+
 private type (;ki:KeyInfo) key = {k:bytes}
 type keyrepr
-predicate val Msg: KeyInfo * text -> bool
 type text = bytes
 type tag = b:bytes
+predicate val Msg: KeyInfo * text -> bool
 
-val MAC:    ki:KeyInfo -> k:(;ki) key -> t:text{Msg(ki,t)} -> mac
-val VERIFY: ki:KeyInfo -> k:(;ki) key -> t:text -> mac -> 
-  v:bool{ (v=true /\ Auth(id)) => Msg(ki,t) }
+val MAC:    ki:KeyInfo -> k:(;ki) key -> t:text{Msg(ki,t)} -> tag
+val VERIFY: ki:KeyInfo -> k:(;ki) key -> t:text -> tag -> 
+  v:bool{ (v=true /\ Auth(ki)) => Msg(ki,t) }
 
 val GEN:    ki:KeyInfo -> (;ki) key
-val LEAK:   ki:KeyInfo{not(Auth(id))} -> (;ki)key -> bytes
-val COERCE: ki:KeyInfo{not(Auth(id))} -> bytes -> (;ki)key
+val LEAK:   ki:KeyInfo{not(Auth(ki))} -> (;ki)key -> bytes
+val COERCE: ki:KeyInfo{not(Auth(ki))} -> bytes -> (;ki)key

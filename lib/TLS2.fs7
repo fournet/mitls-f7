@@ -6,56 +6,65 @@ open AppConfig
 open DataStream
 open AppDataStream
 open Dispatch
-open TLSInfo
+open TLSInfo // for ConnectionInfo, Client, Server, ... 
 
-type index  = ConnectionInfo
-type cn   = Dispatch.Connection
+//TODO: change Direction to role
+type role = Direction
+
+type index = ConnectionInfo
 type params = protocolOptions
+type cn //= Dispatch.Connection
 
 function val Role: cn -> Direction
 assume !c. Role(c) = ConnectionOutKeyInfo(c).dir
 
-function val Dual: ConnectionInfo -> ConnectionInfo
-assume !ki. Dual(ki) = { id_in = ki.id_out; id_out = ki.id_in }
+// Peer(i) ghostly refers to the remote peer's index 
+function val Peer: index -> index 
+assume !ki. Peer(ki) = { id_in = ki.id_out; id_out = ki.id_in }
 
+// main security predicates and events; may be defined elsewhere
 predicate val TXT: index -> bool
 predicate val SEC: index -> bool
-predicate val Fatal: (index * bytes) -> bool
-predicate val Close: (index * bytes) -> bool
-predicate val Write: (index * bytes) -> bool
-predicate val Read : (index * bytes) -> bool
+predicate val Fatal:   (index * bytes) -> bool
+predicate val Warning: (index * bytes) -> bool
+predicate val Close:   (index * bytes) -> bool
+predicate val Write:   (index * bytes) -> bool
+predicate val Read :   (index * bytes) -> bool
 
-function val ConnStream_i: c:cn -> (;ConnectionInKeyInfo(c)) stream
-function val ConnStream_o: c:cn -> (;ConnectionOutKeyInfo(c)) stream
-
-assume !id, s. ConnStream_i(Conn(id, s)) =  InStream(id, s.appdata)
-assume !id, s. ConnStream_o(Conn(id, s)) = OutStream(id, s.appdata)
-
+function val CnId: c:cn -> index
+function val CnStream_i: c:cn -> (;ConnectionInKeyInfo(c)) stream
+function val CnStream_o: c:cn -> (;ConnectionOutKeyInfo(c)) stream
+assume !id, s. CnId(Conn(id, s)) = id
+assume !id, s. CnStream_i(Conn(id, s)) =  InStream(id, s.appdata)
+assume !id, s. CnStream_o(Conn(id, s)) = OutStream(id, s.appdata)
+//CF redundant?
 function val Bytes_o: cn -> bytes
 function val Bytes_i: cn -> bytes
-assume !c. Bytes_o(c) =  ConnStream_i(c)
-assume !c. Bytes_i(c) = ConnStream_o(c)
+assume !c. Bytes_o(c) = CnStream_i(c)
+assume !c. Bytes_i(c) = CnStream_o(c)
 
-type (;c:cn) msg_i = r:range * (;ConnectionInKeyInfo(c),  ConnStream_i(c), r) delta
-type (;c:cn) msg_o = r:range * (;ConnectionOutKeyInfo(c), ConnStream_o(c), r) delta
-type (;c:cn) query
+// These types hide the precise of a range in messages
+type (;c:cn) msg_i = r:range * (;ConnectionInKeyInfo(c),  CnStream_i(c), r) delta
+type (;c:cn) msg_o = r:range * (;ConnectionOutKeyInfo(c), CnStream_o(c), r) delta
 
-predicate val Split_o:  (c:cn * c':cn * (;c) msg_o * (;c) msg_o * (c') msg_o)  -> bool
+predicate val Split_o: (cn * msg_o * msg_o * cn * msg_o)  -> bool
+
+// Abbreviations for specifying connection invariants 
+predicate val Extend:   (c:cn * c':cn) -> bool
 predicate val Extend_o: (c:cn * c':cn * (;c) msg_o) -> bool
 predicate val Extend_i: (c:cn * c':cn * (;c) msg_i) -> bool
-predicate val Extend:   (c:cn * c':cn) -> bool
 
-type (;c:cn) sameCn = c':cn {  Role(c')    = Role(c) 
+type (;c:cn) nextCn = c':cn {  Role(c')    = Role(c) 
                             /\ CnId(c')    = CnId(c)
                             /\ Params(c')  = Params(c) }
-definition !c, c', msg. 
-  Extend_o(c, c', rg, d) <=>   Bytes_i(c') = Bytes_i(c)
-                            /\ Bytes_o(c') = Bytes_o(c) @| msg
-definition !c, c', msg. 
-  Extend_i(c, c', rg, d) <=>   Bytes_i(c') = Bytes_i(c) @| msg
-                            /\ Bytes_o(c') = Bytes_o(c)
 definition !c, c'. 
   Extend(c, c') <=>            Bytes_i(c') = Bytes_i(c)
+                            /\ Bytes_o(c') = Bytes_o(c)
+definition !c, c', msg. 
+  Extend_o(c, c', msg) <=>   Bytes_i(c') = Bytes_i(c)
+                            /\ Bytes_o(c') = Bytes_o(c) @| msg
+definition !c, c', msg. 
+  Extend_i(c, c', msg) <=>   Bytes_i(c') = Bytes_i(c) @| msg
                             /\ Bytes_o(c') = Bytes_o(c)
 
 //TODO: in SameConnection, enforce the chaining for all HS-specific data, in particular to chain successive handshakes.
@@ -64,24 +73,27 @@ definition !c, c'.
 //TODO: regroup the bits of the TLS library that are needed in the API.
 //TODO: write the "toplevel" automata, from the user viewpoint; consider enforcement by typing, session-style.
 
+// authorization query; TBD with principals
+type (;c:cn) query
+
 type (;c:cn) ioresult_i =
 | ReadError of ErrorKind * ErrorCause
-| Close     of unit               {TXT(CnId(c)) => Close(Dual(CnId(c)), Bytes_i(c))}
-| Fatal     of a:alertDescription {TXT(CnId(c)) => Fatal(Dual(CnId(c)), a, Bytes_i(c))}
-| Warning   of c':(;c) sameCn * a:alertDescription 
-                {NoExtend(c,c') /\ TXT(CnId(c)) => Warning(Dual(CnId(c)), a, Bytes_i(c))}
-| CertQuery of c':(;c) sameCn {NoExtend(c, c')} * (;c') query
+| Close     of Tcp.NetworkStream  {TXT(CnId(c)) => Close(Peer(CnId(c)), Bytes_i(c))}
+| Fatal     of a:alertDescription {TXT(CnId(c)) => Fatal(Peer(CnId(c)), a, Bytes_i(c))}
+| Warning   of c':(;c) nextCn * a:alertDescription 
+  {Extend(c,c') /\ TXT(CnId(c)) => Warning(Peer(CnId(c)), a, Bytes_i(c))}
+| CertQuery of c':(;c) nextCn * (;c') query {Extend(c, c')} 
 | Handshake of c':cn {Role(c') = Role(c) /\ Bytes_o(c') = [||] /\ Bytes_i(c') = [||]}
-| Read      of c':(;c) sameCn * rg:range * d:(;c, rg) indelta
-  {Extend_i(c,c',d) /\ TXT(CnId(c)) => Write(Dual(CnId(c)), Bytes_i(c')) }
+| Read      of c':(;c) nextCn * d:(;c) msg_i
+  {Extend_i(c,c',d) /\ TXT(CnId(c)) => Write(Peer(CnId(c)), Bytes_i(c')) }
 
 val read : c:cn -> (;c) ioresult_i
 
 type (;c:cn,d:(;c) msg_o) ioresult_o =
 | WriteError    of ErrorKind * ErrorCause
-| WriteComplete of c':(;c) sameCn {Extend_o(c,c',d)}
-| WritePartial  of c':(;c) sameCn * d':(;c') msg_o 
-  { ?d0. Extend_o(c,c',d0) /\ Split_o(c, c', d0, d', d) }
+| WriteComplete of c':(;c) nextCn {Extend_o(c,c',d)}
+| WritePartial  of c':(;c) nextCn * d':(;c') msg_o 
+  { ?d0. Extend_o(c,c',d0) /\ Split_o(c, d, d0, c', d') }
 | MustRead      of c':(;c) cn 
     {   Role(c')                = Role(c) 
      /\ Params(c')              = Params(c)
@@ -101,20 +113,20 @@ val write: c:cn -> rg:range -> d:(;c) msg_o -> (;c,d) ioresult_o
 // special NULL_NULL initial connection index
 // cannot be used for data writing (by typing)
 val null: i:index{NullKeyInfo(i.id_in) /\ NullKeyInfo(i.id_out)}
+type (;r:role,p:params) nullCn = c:cn {CnId(c) = null /\ Params(c) = p /\ Role(c) = r}
 
-type (;r:role,p:parameters) nullCn = c:cn { CnId(c) = null /\ Params(c) = p /\ Role(c) = r }
 val connect: Tcp.NetworkStream -> p:params                  -> (;Client,p) nullCn Result
 val resume:  Tcp.NetworkStream -> p:params -> sid:sessionID -> (;Client,p) nullCn Result 
 // even if the server declines, we authenticate the client's intent to resume from the sid.
 val accept:  Tcp.NetworkStream -> p:params                  -> (;Server,p) nullCn Result
+val shutdown: c:cn -> Tcp.NetworkStream Result
+//was: (c':(;c) nextCn {Extend(c,c')}) Result
+// [shutdown] will internally generate a Close(ki, Bytes_o(c)); releases the TCP socket after shutdown
 
-val rekey:       c:cn {Role(c)=Client} -> (c':(;c) sameCn {NoExtend(c,c')}) Result
-val rehandshake: c:cn {Role(c)=Client} -> (c':(;c) sameCn {NoExtend(c,c')}) Result
-val request:     c:cn {Role(c)=Server} -> (c':(;c) sameCn {NoExtend(c,c')}) Result
-val shutdown:    c:cn                  -> (c':(;c) sameCn {NoExtend(c,c')}) Result
-// [shutdown] will internally generate a Close(ki, Bytes_o(c)) 
-// Cannot write afterwards (dynamically enforced)
+val rekey:       c:cn {Role(c)=Client} -> (c':(;c) nextCn {Extend(c,c')}) Result
+val rehandshake: c:cn {Role(c)=Client} -> (c':(;c) nextCn {Extend(c,c')}) Result
+val request:     c:cn {Role(c)=Server} -> (c':(;c) nextCn {Extend(c,c')}) Result
 
 // we echo the query so that we have an explicit user decision to blame.
-val authorize: c:cn -> (;c) query -> (c': (;c) sameCn {NoExtend(c,c')}) Result
+val authorize: c:cn -> (;c) query -> (c': (;c) nextCn {Extend(c,c')}) Result
 val refuse:    c:cn -> (;c) query -> unit

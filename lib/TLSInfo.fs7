@@ -7,14 +7,14 @@ open CipherSuites
 type sessionID = bytes
 
 type preDirection =
-    | CtoS
-    | StoC
-type Direction = d:preDirection{d = CtoS \/ d = StoC}
+    | Client
+    | Server
+type Direction = d:preDirection{d = Client \/ d = Server}
 (* FIXME: Automatic inference by F7 *)
 
 function val DualDirection: Direction -> Direction
-assume DualDirection(CtoS) = StoC
-assume DualDirection(StoC) = CtoS
+assume DualDirection(Client) = Server
+assume DualDirection(Server) = Client
 
 val dualDirection: d1:Direction -> d2:Direction{d2=DualDirection(d1)}
 
