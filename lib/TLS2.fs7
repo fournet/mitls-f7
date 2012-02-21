@@ -12,10 +12,8 @@ type index  = ConnectionInfo
 type cn   = Dispatch.Connection
 type params = protocolOptions
 
-
 function val Role: cn -> Direction
 assume !c. Role(c) = ConnectionOutKeyInfo(c).dir
-
 
 function val Dual: ConnectionInfo -> ConnectionInfo
 assume !ki. Dual(ki) = { id_in = ki.id_out; id_out = ki.id_in }
@@ -60,10 +58,7 @@ definition !c, c'.
   Extend(c, c') <=>            Bytes_i(c') = Bytes_i(c)
                             /\ Bytes_o(c') = Bytes_o(c)
 
-// TODO: 
-// document that MustRead means that we won't be able to write on that connection anymore
-// in SameConnection, enforce the chaining for all HS-specific data, in particular to chain successive handshakes.
-
+//TODO: in SameConnection, enforce the chaining for all HS-specific data, in particular to chain successive handshakes.
 //TODO: fix alertDescription, so that it only represents the second byte. 
 //TODO: check that we are not too restrictive for the ongoing connection once we start negotiating.
 //TODO: regroup the bits of the TLS library that are needed in the API.
@@ -101,6 +96,7 @@ val write: c:cn -> rg:range -> d:(;c) msg_o -> (;c,d) ioresult_o
 // WriteComplete reports write completion
 // WritePartial reports partial write completion, and returns the rest
 // MustRead signals that the connection cannot be used anymore for writing until a new handshake completes. 
+// (it may be a bit too restrictive) 
 
 // special NULL_NULL initial connection index
 // cannot be used for data writing (by typing)
