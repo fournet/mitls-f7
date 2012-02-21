@@ -3,28 +3,31 @@ open TLSInfo
 open Bytes
 open Error
 
-type range = nat * nat (* length range *)
-function val RangeSum: range * range -> range
-assume !x1,y1,x2,y2. RangeSum((x1,y1),(x2,y2)) = (x1+x2,y1+y2)
-val rangeSum: r1:range -> r2:range -> r:range{r = RangeSum(r1,r2)}
+type range = l:nat * h:nat { l <= h } (* length range *)
+type (;r:range) rbytes = b:bytes { ?l,h. r = (l,h) /\ l <= Length(b) /\ Length(b) <= h }   
+
+function val Sum: range * range -> range
+assume !l0,h0,l1,h1. Sum((l0,h0),(l1,h1)) = (l0+l1,h0+h1)
+val rangeSum: r0:range -> r1:range -> r:range{r = Sum(r0,r1)}
 
 private type (;ki:KeyInfo) stream = {sb:bytes}
-private type (;ki:KeyInfo, before: (;ki) stream,r:range) delta = {db:bytes}
-
+private type (;ki:KeyInfo, before: (;ki) stream, r:range) delta = {db:(;r) rbytes}
 
 val init: ki:KeyInfo -> s:(;ki) stream{s.sb = [| |]}
-val append: ki:KeyInfo -> s: (;ki) stream -> r:range ->
-            d:(;ki,s,r) delta -> s':(;ki) stream{s'.sb = s.sb @| d.sb}
+val append: 
+  ki:KeyInfo -> s: (;ki) stream -> r:range ->
+  d:(;ki,s,r) delta -> s':(;ki) stream{s'.sb = s.sb @| d.db}
 
-val split: ki:KeyInfo -> s:(;ki) stream -> r:range -> r':range ->
-            d:(;ki,s,RangeSum(r,r')) delta -> 
-            (d':(;ki,s,r) delta * d'':(;ki,{sb = s.sb @| d'.sb},r') delta)
+val split: ki:KeyInfo -> s:(;ki) stream -> 
+  r0:range -> r1:range -> d:(;ki,s,Sum(r0,r1)) delta -> 
+  (d0:(;ki,s,r0) delta * d1:(;ki,{sb = s.sb @| d0.db},r1) delta)
 
-val join: ki:KeyInfo -> s:(;ki) stream -> r:range -> d:(;ki,s,r) delta -> 
-          r':range -> d':(;ki,{sb = s.sb @| d.sb},r') delta -> 
-          (;ki,s,RangeSum(r,r')) delta
+val join: ki:KeyInfo -> s:(;ki) stream -> 
+  r0:range -> d0:(;ki,s,r0) delta -> 
+  r1:range -> d1:(;ki,{sb = s.sb @| d0.db},r1) delta -> (;ki,s,Sum(r0,r1)) delta
 
-val delta: ki:KeyInfo -> s:(;ki) stream -> r:range -> b:bytes{Corrupt(ki)} -> c: (;ki,s,r) delta  
-
-val deltaRepr: ki:KeyInfo -> s:(;ki) stream -> r:range -> c: (;ki,s,r) delta{Corrupt(ki)} -> bytes
+val delta: 
+  ki:KeyInfo -> s:(;ki) stream -> r:range -> b:(;r) rbytes{Corrupt(ki)} -> c: (;ki,s,r) delta  
+val deltaRepr: 
+  ki:KeyInfo -> s:(;ki) stream -> r:range -> c: (;ki,s,r) delta{Corrupt(ki)} -> (;r) rbytes
 

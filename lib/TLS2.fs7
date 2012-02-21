@@ -6,7 +6,8 @@ open AppConfig
 open DataStream
 open AppDataStream
 open Dispatch
-open TLSInfo // for ConnectionInfo, Client, Server, ... 
+open TLSInfo 
+// for ConnectionInfo, Client, Server, ... 
 
 //TODO: change Direction to role
 type role = Direction
