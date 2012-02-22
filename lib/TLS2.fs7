@@ -30,7 +30,7 @@ predicate val Fatal:   (index * bytes) -> bool
 predicate val Warning: (index * bytes) -> bool
 predicate val Close:   (index * bytes) -> bool
 predicate val Write:   (index * bytes) -> bool
-predicate val Read :   (index * bytes) -> bool
+predicate val Read :   (index * bytes) -> bool //AP: Unused. Everything is defined as a correspondence on Write
 
 function val CnId: c:cn -> index
 function val CnStream_i: c:cn -> (;ConnectionInKeyInfo(c)) stream
@@ -78,21 +78,24 @@ definition !c, c', msg.
 type (;c:cn) query
 
 type (;c:cn) ioresult_i =
-| ReadError of ErrorKind * ErrorCause
+| ReadError of ErrorKind * ErrorCause //AP: Here we could generate the Fatal event. But who generates the Warning event?
 | Close     of Tcp.NetworkStream  {TXT(CnId(c)) => Close(Peer(CnId(c)), Bytes_i(c))}
 | Fatal     of a:alertDescription {TXT(CnId(c)) => Fatal(Peer(CnId(c)), a, Bytes_i(c))}
 | Warning   of c':(;c) nextCn * a:alertDescription 
   {Extend(c,c') /\ TXT(CnId(c)) => Warning(Peer(CnId(c)), a, Bytes_i(c))}
 | CertQuery of c':(;c) nextCn * (;c') query {Extend(c, c')} 
 | Handshake of c':cn {Role(c') = Role(c) /\ Bytes_o(c') = [||] /\ Bytes_i(c') = [||]}
+	//AP: /\ Close(CnId(c),Bytes_o(c)) /\ Close(Peer(CnId(c)),Bytes_i(c)) -- and same for Alert protocol, and hanshake.
+	// We need to show agreement on the content of all protocols in previous and current connectio to express the Alert attack (and therefore authentication)
 | Read      of c':(;c) nextCn * d:(;c) msg_i
-  {Extend_i(c,c',d) /\ TXT(CnId(c)) => Write(Peer(CnId(c)), Bytes_i(c')) }
+  {Extend_i(c,c',d) /\ TXT(CnId(c)) => Write(Peer(CnId(c)), Bytes_i(c')) } // AP: Sure? both c and c' in Write predicate?
 
 val read : c:cn -> (;c) ioresult_i
 
 type (;c:cn,d:(;c) msg_o) ioresult_o =
 | WriteError    of ErrorKind * ErrorCause
 | WriteComplete of c':(;c) nextCn {Extend_o(c,c',d)}
+	//AP: /\ Write(CnId(c'),Bytes_o(c')) -- we need to generate the Write event somewhere, and this (and WritePartial) looks like a good place.
 | WritePartial  of c':(;c) nextCn * d':(;c') msg_o 
   { ?d0. Extend_o(c,c',d0) /\ Split_o(c, d, d0, c', d') }
 | MustRead      of c':(;c) cn 
