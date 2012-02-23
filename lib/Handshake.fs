@@ -280,7 +280,9 @@ let makeFragment ki b =
 type ccsFragment = {ccsB:bytes}
 let ccsRepr (ki:KeyInfo) (s:stream) (i:DataStream.range) f = f.ccsB
 let ccsFragment (ki:KeyInfo) (s:stream) (i:DataStream.range)  b = {ccsB=b}
+
 let addCCSFragment (ki:KeyInfo) (s:stream) (r:DataStream.range) (f:ccsFragment) =  {s = s.s @| f.ccsB}
+
 let makeCCSFragment ki b =
     let (tl,f,r) = FragCommon.splitInFrag ki b in
     ((intToRange tl,{ccsB=f}),r)

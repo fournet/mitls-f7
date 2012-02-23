@@ -21,6 +21,30 @@ and (;ki:KeyInfo,ct:ContentType,h:(;ki) history,rg:range) fragment =
     | FAppData   of (;ki,h.appdata,rg)AppDataStream.fragment {ct=Application_data}
 and (;ki:KeyInfo) fragmentSequence = (ct:ContentType * h:(;ki) history * rg:range * (;ki,ct,h,rg) fragment) list
 
+predicate Multiplexed of KeyInfo * fragmentSequence * Handshake.stream * Handshake.stream * Alert.stream * AppDataStream.stream 
+assume !ki,fs,hs,ccs,al,ad. Multiplexed(ki,fs,hs,ccs,al,ad) <=>
+  ((fs = [] /\ 
+   Handshake.EmptyStream(ki,hs) /\
+   Handshake.EmptyStream(ki,ccs) /\
+   Alert.EmptyStream(ki,al) /\
+   AppDataStream.EmptyStream(ki,ad)) \/
+  (?ct,h0,rg,f,t. fs = (ct,h0,rg,f)::t /\
+      (?hs'. ct = Formats.Handshake /\
+	  Handshake.ConcatStream(ki,hs',f,hs) /\
+	  Multiplexed(ki,t,hs',ccs,al,ad)) \/
+      (?ccs'. ct = Formats.Change_cipher_spec /\
+	  Handshake.ConcatStream(ki,ccs',f,ccs) /\
+	  Multiplexed(ki,t,hs,ccs',al,ad)) \/
+      (?al'. ct = Formats.Alert /\
+	  Alert.ConcatStream(ki,al',f,al) /\
+	  Multiplexed(ki,t,hs,ccs,al',ad)) \/
+      (?ad'. ct = Formats.Application_data /\
+	  AppDataStream.ConcatStream(ki,ad',f,ad) /\
+	  Multiplexed(ki,t,hs,ccs,al,ad'))))
+
+type (;ki:KeyInfo) shistory = (h:(;ki) history){Multiplexed(ki,h.log,h.handshake,h.ccs,h.alert,h.appdata)}
+
+
 predicate Fragment of KeyInfo * range * int * ContentType * bytes
 
 val TLSFragmentRepr: ki:KeyInfo -> ct:ContentType -> h: (;ki) history -> rg:range ->

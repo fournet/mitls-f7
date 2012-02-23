@@ -29,6 +29,13 @@ function val OutSequenceNo: c:ConnectionInfo * (;c) app_state -> int
 private type (;ki:KeyInfo,s:stream,r:range) fragment = (;ki,s,r) delta
 type (;ki:KeyInfo) stream = (;ki) DataStream.stream
 
+predicate EmptyStream of KeyInfo * stream
+predicate ConcatStream of KeyInfo * stream * fragment * stream
+val emptyStream: ki:KeyInfo -> s:(;ki)stream{EmptyStream(ki,s)}
+val addFragment: ki:KeyInfo -> s:(;ki)stream -> 
+                 r:DataStream.range -> f:(;ki,s,r) fragment -> 
+                 s':(;ki)stream{ConcatStream(ki,s,f,s')}
+
 (* We justify the following 'linearity' theorems by appealing to the types of the functions:
    mkFragment, readAppDataFragment, and readNonAppDataFragment which are the only locations where
    AppFragment, AppDataSequenceNo, and NonAppDataSequenceNo are assumed 

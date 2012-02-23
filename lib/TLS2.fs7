@@ -9,7 +9,10 @@ open Dispatch
 open TLSInfo 
 // for ConnectionInfo, Client, Server, ... 
 
-//TODO: change Direction to role
+//TODO: change Direction to role 
+//KB: I disagree. Directions are the right abstraction for KeyInfo. 
+//    If need be, it would be better to define a role in ConnectionInfo.
+
 type role = Direction
 
 type index = ConnectionInfo
@@ -88,7 +91,7 @@ type (;c:cn) ioresult_i =
 	//AP: /\ Close(CnId(c),Bytes_o(c)) /\ Close(Peer(CnId(c)),Bytes_i(c)) -- and same for Alert protocol, and hanshake.
 	// We need to show agreement on the content of all protocols in previous and current connectio to express the Alert attack (and therefore authentication)
 | Read      of c':(;c) nextCn * d:(;c) msg_i
-  {Extend_i(c,c',d) /\ TXT(CnId(c)) => Write(Peer(CnId(c)), Bytes_i(c')) } // AP: Sure? both c and c' in Write predicate?
+  {Extend_i(c,c',d) /\ TXT(CnId(c)) => Write(Peer(CnId(c)), Bytes_i(c')) } // AP: Sure? both c and c' in Write predicate? KB: Looks good to me
 
 val read : c:cn -> (;c) ioresult_i
 
