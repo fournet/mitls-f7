@@ -355,7 +355,7 @@ let next_fragment ci state =
                             let storable_session =
                                 ( state.hs_next_info,
                                   state.next_ms,
-                                  CtoS)
+                                  Client)
                             let state = goToIdle state
                             (HSFullyFinished_Write (f,storable_session), state)
                         else
@@ -390,7 +390,7 @@ let next_fragment ci state =
                             let storable_session =
                                 ( state.hs_next_info,
                                   state.next_ms,
-                                  CtoS)
+                                  Client)
                             let state = goToIdle state
                             (HSFullyFinished_Write (f,storable_session), state)
                     | _ -> (HSFrag(f), state)
@@ -1530,7 +1530,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         (* Note: no need to log this message *)
                         let storableSession = ( state.hs_next_info,
                                                 state.next_ms,
-                                                CtoS)
+                                                Client)
                         let state = goToIdle state in
                         (correct (HSFullyFinished_Read (storableSession)),state)
             | _ -> (* Finished arrived in the wrong state *) (Error(HSError(AD_unexpected_message),HSSendAlert),state)
@@ -1853,9 +1853,9 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         | Some (storedSinfo,storedMS,storedDir) ->
                             (* Check that the client proposed algorithms match those of our stored session *)
                             match storedDir with
-                            | CtoS -> (* This session is not for us, we're a server. Do full handshake *)
+                            | Client -> (* This session is not for us, we're a server. Do full handshake *)
                                 startServerFull ci state cHello
-                            | StoC ->
+                            | Server ->
                                 if cHello.ch_client_version >= storedSinfo.protocol_version then
                                     (* We have a common version *)
                                     if not (List.exists (fun cs -> cs = storedSinfo.cipher_suite) cHello.ch_cipher_suites) then
@@ -1967,7 +1967,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         (* Note: no need to log this message (and we go to the idle state forgetting everything anyway) *)
                         let storableSession = ( state.hs_next_info,
                                                 state.next_ms,
-                                                StoC)
+                                                Server)
                         let state = goToIdle state
                         (correct (HSFullyFinished_Read (storableSession)),state)
                     else

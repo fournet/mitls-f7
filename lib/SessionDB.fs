@@ -10,7 +10,7 @@ open System.Threading
    - Upper level functions acquire read/upgradeable read/write lock as appropriate *)
 let DBLock = new ReaderWriterLockSlim()
 
-type StorableSession = SessionInfo * PRFs.masterSecret * Direction
+type StorableSession = SessionInfo * PRFs.masterSecret * Role
 
 let load filename =
     let bf = new BinaryFormatter() in

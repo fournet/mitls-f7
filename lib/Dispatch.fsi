@@ -10,14 +10,18 @@ open TLSInfo
 open DataStream
 
 type Connection
+type nextCn = Connection
+type query = Certificate.cert
+type msg_i = (range * delta)
+type msg_o = (range * delta)
 
 val init: NetworkStream -> Role -> protocolOptions -> Connection
 
 val resume: NetworkStream -> sessionID -> protocolOptions -> unit Result * Connection
 
-val ask_rehandshake: Connection -> protocolOptions -> Connection
-val ask_rekey: Connection -> protocolOptions -> Connection
-val ask_hs_request: Connection -> protocolOptions -> Connection
+val rehandshake: Connection -> protocolOptions -> nextCn
+val rekey: Connection -> protocolOptions -> nextCn
+val request: Connection -> protocolOptions -> nextCn
 
 (*
 val resume_session: NetworkStream -> SessionInfo -> Connection (* New connection same session *)
@@ -31,17 +35,23 @@ val sendNextFragments: Connection -> (unit Result) * Connection
 val readNextAppFragment: Connection -> (unit Result) * Connection
 *)
 
-val writeAppData: Connection -> (unit Result) * Connection
-val readAppData: Connection -> (Connection * ((range * delta) Result))
-val readHS: Connection -> (unit Result) * Connection
+type ioresult_i =
+| ReadError of ErrorCause * ErrorKind
+| Close     of Tcp.NetworkStream
+| Fatal     of alertDescription
+| Warning   of nextCn * alertDescription 
+| CertQuery of nextCn * query
+| Handshake of Connection
+| Read      of nextCn * msg_i
+
+type ioresult_o =
+| WriteError    of ErrorCause * ErrorKind
+| WriteComplete of nextCn
+| WritePartial  of nextCn * msg_o
+| MustRead      of Connection
+
+val write: Connection -> msg_o -> ioresult_o
+val read: Connection -> ioresult_i
 (* val appDataAvailable: Connection -> bool *)
 
 val getSessionInfo: Connection -> SessionInfo
-
-(* Fills the output buffer with the given data.
-   Do not send anything on the network yet. *)
-val commit: Connection -> range -> delta -> Connection
-(* val write_buffer_empty: Connection -> bool *)
-
-val writeDelta: Connection -> range -> delta -> Connection * ((range * delta) option Result)
-val readDelta: Connection -> Connection * ((range * delta) Result)

@@ -6,6 +6,11 @@ open CipherSuites
 
 type sessionID = bytes
 
+// We only store direction, which is either
+// Client --> Server (CtoS for short) or
+// Server --> Client (StoC for short).
+// We store the direction along with the KeyInfo.
+// We finally compute the role from the direction associated to the outgoing KeyInfo
 type preDirection =
     | CtoS
     | StoC
@@ -15,7 +20,7 @@ type Direction = d:preDirection{d = CtoS \/ d = StoC}
 type preRole =
 	| Client
 	| Server
-type Role = r:preRole {r = Client \/ r = Server}
+type Role = preRole
 
 function val DualDirection: Direction -> Direction
 assume DualDirection(CtoS) = StoC

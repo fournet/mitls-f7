@@ -12,10 +12,10 @@ open TLSKey
 open SessionDB
 
 type predispatchState =
-  | Init (* of ProtocolVersion * ProtocolVersion *) (* min and max *)
-  | FirstHandshake (* of ProtocolVersion *)             (* set by the ServerHello *) 
+  | Init
+  | FirstHandshake
   | Finishing
-  | Finished (* Only for Writing side, used to avoid sending data on a partially completed handshake *)
+  | Finished (* Only for Writing side, used to implement TLS False Start *)
   | Open
   | Closing
   | Closed
@@ -47,12 +47,29 @@ type globalState = preGlobalState
 
 type Connection = Conn of ConnectionInfo * globalState
 //type SameConnection = Connection
-type CompatibleConnection = Connection
+type nextCn = Connection
+type query = Certificate.cert
+// FIXME: Put the following definitions close to range and delta, and use them
+type msg_i = (DataStream.range * DataStream.delta)
+type msg_o = (DataStream.range * DataStream.delta)
 
-(* Writing and reading have asymmetric outcomes, because writing is easier, and requires less care.
-   We can always try to write "once more", and stop when we realize we have no data to send.
-   When reading, we must be careful and only read when we know there must be more data, or we'll block
-   in deadlock. *)
+// Outcomes for top-level functions
+type ioresult_i =
+| ReadError of ErrorCause * ErrorKind
+| Close     of Tcp.NetworkStream
+| Fatal     of alertDescription
+| Warning   of nextCn * alertDescription 
+| CertQuery of nextCn * query
+| Handshake of Connection
+| Read      of nextCn * msg_i
+
+type ioresult_o =
+| WriteError    of ErrorCause * ErrorKind
+| WriteComplete of nextCn
+| WritePartial  of nextCn * msg_o
+| MustRead      of Connection
+
+// Outcomes for internal, one-message-at-a-time functions
 type writeOutcome =
     | WriteAgain (* Possibly more data to send *)
     | Done (* No more data to send in the current state *)
@@ -64,6 +81,7 @@ type deliverOutcome =
     | HSDone
     | Abort
 
+
 let init ns role poptions =
     let outDir =
         match role with
@@ -71,7 +89,7 @@ let init ns role poptions =
         | Server -> StoC
     let outKI = null_KeyInfo outDir poptions.minVer in
     let inKI = dual_KeyInfo outKI in
-    let index = {role = role; id_in = inKI; id_out = outKI} in
+    let index = {id_in = inKI; id_out = outKI} in
     let hs = Handshake.init_handshake index role poptions in // Equivalently, inKI.sinfo
     let (outCCS,inCCS) = (nullCCSData outKI, nullCCSData inKI) in
     let (send,recv) = (Record.initConnState outKI outCCS, Record.initConnState inKI inCCS) in
@@ -95,13 +113,13 @@ let resume ns sid ops =
     match select ops sid with
     | None -> unexpectedError "[resume] requested session expired or never stored in DB"
     | Some (retrieved) ->
-    let (retrievedSinfo,retrievedMS,retrievedDir) = retrieved in
-    match retrievedDir with
-    | StoC -> unexpectedError "[resume] requested session is for server side"
-    | CtoS ->
+    let (retrievedSinfo,retrievedMS,retrievedRole) = retrieved in
+    match retrievedRole with
+    | Server -> unexpectedError "[resume] requested session is for server side"
+    | Client ->
     let outKI = null_KeyInfo CtoS ops.minVer in
     let inKI = dual_KeyInfo outKI in
-    let index = {role = Client; id_in = inKI; id_out = outKI} in
+    let index = {id_in = inKI; id_out = outKI} in
     let hs = Handshake.resume_handshake index retrievedSinfo retrievedMS ops in // equivalently, inKI.sinfo
     let (outCCS,inCCS) = (nullCCSData outKI, nullCCSData inKI) in
     let (send,recv) = (Record.initConnState outKI outCCS, Record.initConnState inKI inCCS) in
@@ -120,17 +138,17 @@ let resume ns sid ops =
     let unitVal = () in
     (correct (unitVal), res)
 
-let ask_rehandshake (Conn(id,conn)) ops =
+let rehandshake (Conn(id,conn)) ops =
     let new_hs = Handshake.start_rehandshake id conn.handshake ops in // Equivalently, id.id_in.sinfo
     Conn(id,{conn with handshake = new_hs;
                        poptions = ops})
 
-let ask_rekey (Conn(id,conn)) ops =
+let rekey (Conn(id,conn)) ops =
     let new_hs = Handshake.start_rekey id conn.handshake ops in // Equivalently, id.id_in.sinfo
     Conn(id,{conn with handshake = new_hs;
                        poptions = ops})
 
-let ask_hs_request (Conn(id,conn)) ops =
+let request (Conn(id,conn)) ops =
     let new_hs = Handshake.start_hs_request id conn.handshake ops in // Equivalently, id.id_in.sinfo
     Conn(id,{conn with handshake = new_hs;
                        poptions = ops})
@@ -234,11 +252,11 @@ let send ki ns dState tlen ct frag =
 
 (* which fragment should we send next? *)
 (* we must send this fragment before restoring the connection invariant *)
-let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
+let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
   let c_read = c.read in
   let c_write = c.write in
   match c_write.disp with
-  | Closed -> (correct(Done), Conn(id,c))
+  | Closed -> Error (Dispatcher,InvalidState)
   | _ ->
       let state = c.alert in
       match Alert.next_fragment id state with
@@ -248,8 +266,7 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
           | (Handshake.EmptyHSFrag, _) ->
             let app_state = c.appdata in
                 match AppDataStream.readAppDataFragment id app_state with
-                | None -> (* nothing to do (tell the caller) *)
-                          (correct (Done),Conn(id,c))
+                | None -> (correct (Done,Conn(id,c)))
                 | Some (next) ->
                           let (tlen,f,new_app_state) = next in
                           match c_write.disp with
@@ -259,9 +276,9 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
                             | Correct(new_write) ->
                                 let c = { c with appdata = new_app_state;
                                                  write = new_write }
-                                (* Eagerly write more appdata now, if available *)
-                                (correct (WriteAgain), Conn(id,c) )
-                            | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (Error(x,y), closed) (* Unrecoverable error *)
+                                (* Fairly, tell we're done, and we won't write more data *)
+                                (correct (Done, Conn(id,c)) )
+                            | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
                           | _ ->
                             (* We have data to send, but we cannot now. It means we're finishing a handshake.
                                Force to read, so that we'll complete the handshake and we'll be able to send
@@ -272,7 +289,7 @@ let writeOne (Conn(id,c)) : (writeOutcome Result) * Connection =
                                      With linear types in mind, this means that "sending" a fragment consumes it,
                                      not retrieving a fragment from its upper protocol (and so makes the state
                                      of the protocol not completely linear...) *)
-                            (Correct(MustRead), Conn(id,c))   
+                            (correct(MustRead, Conn(id,c)))   
           | (Handshake.CCSFrag(frag,newKeys),new_hs_state) ->
                     let (tlen,ccs) = frag in
                     let (newKiOUT,ccs_data) = newKeys in

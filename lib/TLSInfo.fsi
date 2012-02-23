@@ -14,7 +14,6 @@ type Direction = preDirection
 type preRole =
     | Client
     | Server
-
 type Role = preRole
 
 //val dualDirection: Direction -> Direction
@@ -44,8 +43,7 @@ type KeyInfo = {
     }
 
 type ConnectionInfo =
-    { role: Role;
-      id_in:  KeyInfo;
+    { id_in:  KeyInfo;
       id_out: KeyInfo}
 
 val null_sessionInfo: ProtocolVersion -> SessionInfo
