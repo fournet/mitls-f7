@@ -27,6 +27,3 @@ val plainToFragment: ki:KeyInfo ->  s:(;ki) state -> ad:data -> r:range -> (;ki,
 
 *)
 
-predicate Safe of KeyInfo
-predicate Auth of KeyInfo
-predicate CTXT of KeyInfo * data * plain * bytes

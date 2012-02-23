@@ -124,3 +124,8 @@ type protocolOptions = {
     }
 
 val defaultProtocolOptions: protocolOptions
+
+predicate type cryptopreds = 
+    Safe of KeyInfo
+  | Auth of KeyInfo
+  | CTXT of KeyInfo * bytes * bytes * bytes

@@ -11,8 +11,6 @@ open TLSInfo
 //          guaranteeing that ki has a MAC, and 
 //          providing exact lengths for keys and tags.
 
-//CF relocate:
-predicate val Auth: KeyInfo -> bool 
 
 private type (;ki:KeyInfo) key = {k:bytes}
 type keyrepr
