@@ -9,7 +9,6 @@ open Handshake
 open Alert
 open TLSInfo
 open TLSKey
-open AppConfig
 open SessionDB
 
 type predispatchState =
@@ -96,9 +95,9 @@ let resume ns sid ops =
     | Some (retrieved) ->
     let (retrievedSinfo,retrievedMS,retrievedDir) = retrieved in
     match retrievedDir with
-    | Server -> unexpectedError "[resume] requested session is for server side"
-    | Client ->
-    let outKI = null_KeyInfo Client ops.minVer in
+    | StoC -> unexpectedError "[resume] requested session is for server side"
+    | CtoS ->
+    let outKI = null_KeyInfo CtoS ops.minVer in
     let inKI = dual_KeyInfo outKI in
     let index = {id_in = inKI; id_out = outKI} in
     let hs = Handshake.resume_handshake index retrievedSinfo retrievedMS ops in // equivalently, inKI.sinfo

@@ -1,5 +1,4 @@
-﻿#light "off"
-module Record
+﻿module Record
 
 open Bytes
 open Error
@@ -18,7 +17,7 @@ type recvState = ConnectionState
 
 let connState (ki:KeyInfo) (cs:ConnectionState) = 
   match cs.state with 
-      Some s -> s
+    | Some s -> s
     | None -> failwith "expected a valid AEAD state"
 
 let initConnState (ki:KeyInfo) (ccsData:ccs_data) =
@@ -86,7 +85,7 @@ let recordPacketOut keyInfo conn tlen seqn ct fragment =
         let ad0 = TLSFragment.makeAD keyInfo.sinfo.protocol_version ct in
         let addData = StatefulPlain.makeAD seqn ad0 in
         let aeadSF = StatefulPlain.TLSFragmentToFragment keyInfo tlen seqn ct fragment in
-	let st = connState keyInfo conn in
+        let st = connState keyInfo conn in
         let aeadF = AEADPlain.fragmentToPlain keyInfo st addData tlen aeadSF in
         let data = AEPlain.concat keyInfo tlen addData aeadF in
         let mac = AEPlain.mac keyInfo key data in

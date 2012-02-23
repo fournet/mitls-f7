@@ -7,7 +7,6 @@ open Error
 open Record
 open Handshake
 open TLSInfo
-open AppConfig
 open DataStream
 
 type Connection

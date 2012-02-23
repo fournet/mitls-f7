@@ -7,14 +7,14 @@ open CipherSuites
 type sessionID = bytes
 
 type preDirection =
-    | Client
-    | Server
-type Direction = d:preDirection{d = Client \/ d = Server}
+    | CtoS
+    | StoC
+type Direction = d:preDirection{d = CtoS \/ d = StoC}
 (* FIXME: Automatic inference by F7 *)
 
 function val DualDirection: Direction -> Direction
-assume DualDirection(Client) = Server
-assume DualDirection(Server) = Client
+assume DualDirection(CtoS) = StoC
+assume DualDirection(StoC) = CtoS
 
 val dualDirection: d1:Direction -> d2:Direction{d2=DualDirection(d1)}
 
@@ -83,3 +83,38 @@ predicate CompatibleConnections of ConnectionInfo * ConnectionInfo
 assume !id1,id2. CompatibleConnections(id1,id2) <=>
 		 ( CompatibleSessions(id1.id_in.sinfo, id2.id_in.sinfo ) /\
                    CompatibleSessions(id1.id_out.sinfo,id2.id_out.sinfo) )
+
+
+// Application configuration options
+type helloReqPolicy =
+    | HRPIgnore
+    | HRPFull
+    | HRPResume
+
+type TimeSpan
+
+type protocolOptions = {
+    minVer: ProtocolVersion;
+    maxVer: ProtocolVersion;
+    ciphersuites: cipherSuites;
+    compressions: Compression list;
+
+    (* Handshake specific options *)
+    (* Client side *)
+    honourHelloReq: helloReqPolicy;
+    allowAnonCipherSuite: bool;
+    (* Server side *)
+    request_client_certificate: bool;
+    check_client_version_in_pms_for_old_tls: bool;
+    server_cert_file: string; (* FIXME: certificates should be found in a better way. To be fixed *)
+    (* Common *)
+    certificateValidationPolicy: cert list -> bool;
+    safe_renegotiation: bool;
+    isCompatibleSession: s1:SessionInfo -> s2:SessionInfo -> b:bool{b = true => UserSaysCompatibleSessions(s1,s2)};
+
+    (* Sessions database *)
+    sessionDBFileName: string;
+    sessionDBExpiry: TimeSpan
+    }
+
+val defaultProtocolOptions: protocolOptions

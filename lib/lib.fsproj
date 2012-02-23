@@ -80,9 +80,6 @@
     <None Include="TLSKey.fs7" />
     <Compile Include="TLSKey.fsi" />
     <Compile Include="TLSKey.fs" />
-    <None Include="AppConfig.fs7" />
-    <Compile Include="AppConfig.fsi" />
-    <Compile Include="AppConfig.fs" />
     <None Include="PRFs.fs7" />
     <Compile Include="PRFs.fsi" />
     <Compile Include="PRFs.fs" />

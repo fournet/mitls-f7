@@ -5,7 +5,6 @@ open Error
 open Dispatch
 open TLSInfo
 open Tcp
-open AppConfig
 
 type ioerror = ErrorCause * ErrorKind
 

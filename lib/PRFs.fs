@@ -39,8 +39,8 @@ let ssl_verifyData ms dir data =
     let ssl_sender_server = [|0x53uy; 0x52uy; 0x56uy; 0x52uy|] in
     let ssl_sender = 
         match dir with
-        | Client -> ssl_sender_client 
-        | Server -> ssl_sender_server
+        | CtoS -> ssl_sender_client 
+        | StoC -> ssl_sender_server
     let mm = data @| ssl_sender @| ms in
     let inner_md5 = hash MD5 (mm @| ssl_pad1_md5) in
     let outer_md5 = hash MD5 (ms @| ssl_pad2_md5 @| inner_md5) in
@@ -88,8 +88,8 @@ let tls_prf secret label seed len =
 let tls_verifyData ms role data =
     let tls_label = 
         match role with
-        | Client -> "client finished"
-        | Server -> "server finished"
+        | CtoS -> "client finished"
+        | StoC -> "server finished"
     let md5hash = hash MD5 data in
     let sha1hash = hash SHA data in
     tls_prf ms tls_label (md5hash @| sha1hash) 12
@@ -103,8 +103,8 @@ let tls12prf cs secret label seed len =
 let tls12VerifyData cs ms dir data =
     let tls_label = 
         match dir with
-        | Client -> "client finished"
-        | Server -> "server finished"
+        | CtoS -> "client finished"
+        | StoC -> "server finished"
     let verifyDataHashAlg = verifyDataHashAlg_of_ciphersuite cs in
     let hashResult = hash verifyDataHashAlg data in
     let verifyDataLen = verifyDataLen_of_ciphersuite cs in

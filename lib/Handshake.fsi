@@ -6,7 +6,6 @@ open Error
 open CipherSuites
 open TLSInfo
 open TLSKey
-open AppConfig
 //open SessionDB
 
 // There is one instance of the protocol for each TCP connection,

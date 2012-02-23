@@ -7,8 +7,8 @@ open CipherSuites
 type sessionID = bytes
 
 type preDirection =
-    | Client
-    | Server
+    | CtoS
+    | StoC
 type Direction = preDirection
 
 //val dualDirection: Direction -> Direction
@@ -45,3 +45,37 @@ val null_sessionInfo: ProtocolVersion -> SessionInfo
 val isNullSessionInfo: SessionInfo -> bool
 val null_KeyInfo: Direction -> ProtocolVersion -> KeyInfo
 val dual_KeyInfo: KeyInfo -> KeyInfo
+
+// Application configuration options
+type helloReqPolicy =
+    | HRPIgnore
+    | HRPFull
+    | HRPResume
+
+type TimeSpan = System.TimeSpan
+
+type protocolOptions = {
+    minVer: ProtocolVersion
+    maxVer: ProtocolVersion
+    ciphersuites: cipherSuites
+    compressions: Compression list
+
+    (* Handshake specific options *)
+    (* Client side *)
+    honourHelloReq: helloReqPolicy
+    allowAnonCipherSuite: bool
+    (* Server side *)
+    request_client_certificate: bool
+    check_client_version_in_pms_for_old_tls: bool
+    server_cert_file: string (* FIXME: certificates should be found in a better way. To be fixed *)
+    (* Common *)
+    certificateValidationPolicy: cert list -> bool
+    safe_renegotiation: bool
+    isCompatibleSession: SessionInfo -> SessionInfo -> bool
+
+    (* Sessions database *)
+    sessionDBFileName: string
+    sessionDBExpiry: TimeSpan
+    }
+
+val defaultProtocolOptions: protocolOptions

@@ -1,7 +1,6 @@
 ﻿module TLS
 
 open Bytes
-open AppConfig
 open Dispatch
 open Error
 open TLSInfo
@@ -75,7 +74,7 @@ let rec int_consume conn =
 *)
 
 let connect ns ops =
-    let conn = Dispatch.init ns Client ops in
+    let conn = Dispatch.init ns CtoS ops in
     readHS conn
 
 let resume ns sid ops =
@@ -98,7 +97,7 @@ let rekey_now conn ops =
     readHS conn
 
 let accept_connected ns ops =
-    let conn = Dispatch.init ns Server ops in
+    let conn = Dispatch.init ns StoC ops in
     readHS conn
 
 let accept list ops =

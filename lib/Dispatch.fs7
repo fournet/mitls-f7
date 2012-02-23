@@ -10,7 +10,6 @@ open Alert
 open AppDataStream
 open TLSInfo
 open TLSKey
-open AppConfig
 open TLSFragment
 open SessionDB
 
@@ -76,7 +75,7 @@ assume !ki,s. dStateSeqn(ki,s)=s.seqn
 function val ConnectionReadSeqn: Connection -> int
 assume !id,s. ConnectionReadSeqn(Conn(id,s))=s.read.seqn
 
-val checkCompatibleSessions: s1:SessionInfo -> s2:SessionInfo -> AppConfig.protocolOptions ->
+val checkCompatibleSessions: s1:SessionInfo -> s2:SessionInfo -> TLSInfo.protocolOptions ->
                              b:bool{b = true => CompatibleSessions(s1,s2)}
 
 type (;c:Connection) CompatibleConnection = c':Connection{

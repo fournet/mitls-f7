@@ -7,7 +7,6 @@ open Error
 open CipherSuites
 open TLSInfo
 open TLSKey
-open AppConfig
 
 type role = Client | Server 
 type config = protocolOptions option
