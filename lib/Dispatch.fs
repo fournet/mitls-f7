@@ -64,13 +64,15 @@ type deliverOutcome =
     | HSDone
     | Abort
 
-let init ns dir poptions =
-    (* Direction "dir" is always the outgoing direction.
-       So, if we are a Client, it will be Client, if we're a Server: Server *)
-    let outKI = null_KeyInfo dir poptions.minVer in
+let init ns role poptions =
+    let outDir =
+        match role with
+        | Client -> CtoS
+        | Server -> StoC
+    let outKI = null_KeyInfo outDir poptions.minVer in
     let inKI = dual_KeyInfo outKI in
-    let index = {id_in = inKI; id_out = outKI} in
-    let hs = Handshake.init_handshake index dir poptions in // Equivalently, inKI.sinfo
+    let index = {role = role; id_in = inKI; id_out = outKI} in
+    let hs = Handshake.init_handshake index role poptions in // Equivalently, inKI.sinfo
     let (outCCS,inCCS) = (nullCCSData outKI, nullCCSData inKI) in
     let (send,recv) = (Record.initConnState outKI outCCS, Record.initConnState inKI inCCS) in
     let read_state = {disp = Init; conn = recv; seqn = 0} in
@@ -99,7 +101,7 @@ let resume ns sid ops =
     | CtoS ->
     let outKI = null_KeyInfo CtoS ops.minVer in
     let inKI = dual_KeyInfo outKI in
-    let index = {id_in = inKI; id_out = outKI} in
+    let index = {role = Client; id_in = inKI; id_out = outKI} in
     let hs = Handshake.resume_handshake index retrievedSinfo retrievedMS ops in // equivalently, inKI.sinfo
     let (outCCS,inCCS) = (nullCCSData outKI, nullCCSData inKI) in
     let (send,recv) = (Record.initConnState outKI outCCS, Record.initConnState inKI inCCS) in
@@ -423,7 +425,7 @@ let deliver (Conn(id,c)) ct tl frag =
                     let new_sinfo = {old_out_sinfo with protocol_version = pv } in // equally with id.id_in.sinfo
                     let idIN = {id_in with sinfo = new_sinfo} in
                     let idOUT = {id_out with sinfo = new_sinfo} in
-                    let newID = {id_in = idIN; id_out = idOUT} in
+                    let newID = {role = id.role; id_in = idIN; id_out = idOUT} in
                     let c = reIndex_null id newID c in
                     (correct (ReadAgain), Conn(newID,c) )
                 else

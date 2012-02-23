@@ -11,6 +11,11 @@ type preDirection =
   | StoC
 type Direction = preDirection
 
+type preRole =
+  | Client
+  | Server
+type Role = preRole
+
 let dualDirection dir =
     match dir with
     | CtoS -> StoC
@@ -63,6 +68,7 @@ let dual_KeyInfo ki =
   {ki with dir = d}
 
 type ConnectionInfo = {
+    role: Role;
     id_in: KeyInfo;
     id_out: KeyInfo}
 

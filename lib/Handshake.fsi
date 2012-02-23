@@ -35,7 +35,7 @@ val addCCSFragment: KeyInfo -> stream -> DataStream.range -> ccsFragment -> stre
 //TODO better names, maybe: init/accept resume reshake rekey request
 
 // Create instance for a fresh connection (without resumption) 
-val init_handshake: ConnectionInfo -> Direction -> protocolOptions -> hs_state
+val init_handshake: ConnectionInfo -> Role -> protocolOptions -> hs_state
 
 // Create instance for a fresh connection (Client-only, resuming some other sessions)
 val resume_handshake: ConnectionInfo -> SessionInfo -> PRFs.masterSecret -> protocolOptions -> hs_state

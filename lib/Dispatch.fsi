@@ -11,7 +11,7 @@ open DataStream
 
 type Connection
 
-val init: NetworkStream -> Direction -> protocolOptions -> Connection
+val init: NetworkStream -> Role -> protocolOptions -> Connection
 
 val resume: NetworkStream -> sessionID -> protocolOptions -> unit Result * Connection
 

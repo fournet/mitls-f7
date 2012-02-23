@@ -74,7 +74,7 @@ let rec int_consume conn =
 *)
 
 let connect ns ops =
-    let conn = Dispatch.init ns CtoS ops in
+    let conn = Dispatch.init ns Client ops in
     readHS conn
 
 let resume ns sid ops =
@@ -97,7 +97,7 @@ let rekey_now conn ops =
     readHS conn
 
 let accept_connected ns ops =
-    let conn = Dispatch.init ns StoC ops in
+    let conn = Dispatch.init ns Server ops in
     readHS conn
 
 let accept list ops =

@@ -12,6 +12,11 @@ type preDirection =
 type Direction = d:preDirection{d = CtoS \/ d = StoC}
 (* FIXME: Automatic inference by F7 *)
 
+type preRole =
+	| Client
+	| Server
+type Role = r:preRole {r = Client \/ r = Server}
+
 function val DualDirection: Direction -> Direction
 assume DualDirection(CtoS) = StoC
 assume DualDirection(StoC) = CtoS
@@ -68,7 +73,8 @@ predicate Corrupt of KeyInfo
 assume !ki. CipherSuites.IsNullCiphersuite(ki.sinfo.cipher_suite) => Corrupt(ki)
 
 type ConnectionInfo =
-    { id_in:  KeyInfo;
+    { role: Role;
+	  id_in:  KeyInfo;
       id_out: KeyInfo}
 
 predicate UserSaysCompatibleSessions of SessionInfo * SessionInfo

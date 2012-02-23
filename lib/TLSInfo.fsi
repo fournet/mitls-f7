@@ -11,6 +11,12 @@ type preDirection =
     | StoC
 type Direction = preDirection
 
+type preRole =
+    | Client
+    | Server
+
+type Role = preRole
+
 //val dualDirection: Direction -> Direction
 
 (* SessionInfo and KeyInfo: Session and Connection level public immutable data.
@@ -38,7 +44,8 @@ type KeyInfo = {
     }
 
 type ConnectionInfo =
-    { id_in:  KeyInfo;
+    { role: Role;
+      id_in:  KeyInfo;
       id_out: KeyInfo}
 
 val null_sessionInfo: ProtocolVersion -> SessionInfo
