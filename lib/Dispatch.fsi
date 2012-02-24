@@ -23,6 +23,8 @@ val rehandshake: Connection -> protocolOptions -> nextCn
 val rekey: Connection -> protocolOptions -> nextCn
 val request: Connection -> protocolOptions -> nextCn
 
+val shutdown: Connection -> Connection
+
 (*
 val resume_session: NetworkStream -> SessionInfo -> Connection (* New connection same session *)
 val resume_connection: Connection -> Connection (* New crypto same TCP stream same session *)
@@ -41,7 +43,7 @@ type ioresult_i =
 | Fatal     of alertDescription
 | Warning   of nextCn * alertDescription 
 | CertQuery of nextCn * query
-| Handshake of Connection
+| Handshaken of Connection
 | Read      of nextCn * msg_i
 
 type ioresult_o =
