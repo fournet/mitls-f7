@@ -80,7 +80,7 @@ definition !c, c', msg.
 type (;c:cn) query
 
 type (;c:cn) ioresult_i =
-| ReadError of ErrorKind * ErrorCause //AP: Here we could generate the Fatal event. But who generates the Warning event?
+| ReadError of alertDescription option //AP: There was an error reading, and so we may have sent a fatal alert on the other side. We tell the user which fatal alert has been sent, if any (otherwise it's an internal error, and right now we don't tell what to the user)
 | Close     of Tcp.NetworkStream  {TXT(CnId(c)) => Close(Peer(CnId(c)), Bytes_i(c))}
 | Fatal     of a:alertDescription {TXT(CnId(c)) => Fatal(Peer(CnId(c)), a, Bytes_i(c))}
 | Warning   of c':(;c) nextCn * a:alertDescription 
@@ -90,17 +90,25 @@ type (;c:cn) ioresult_i =
 	//AP: /\ Close(CnId(c),Bytes_o(c)) /\ Close(Peer(CnId(c)),Bytes_i(c)) -- and same for Alert protocol, and hanshake.
 	// We need to show agreement on the content of all protocols in previous and current connectio to express the Alert attack (and therefore authentication)
 | Read      of c':(;c) nextCn * d:(;c) msg_i
-  {Extend_i(c,c',d) /\ TXT(CnId(c)) => Write(Peer(CnId(c)), Bytes_i(c')) } // AP: Sure? both c and c' in Write predicate? KB: Looks good to me
+  {Extend_i(c,c',d) /\ TXT(CnId(c)) => Write(Peer(CnId(c)), Bytes_i(c')) }
+| ReadMustRead of c':cn * d:(;c) msg_i
+	// Mashup of ioresult_i.Read and ioresult_o.MustRead
+	{	   Role(c') = Role(c)
+		/\ Params(c') = Params(c)
+		/\ ConnectionInKeyInfo(c') = ConnectionInKeyInfo(c)
+		/\ Extend_i(c,c',d)
+		/\ TXT(CnId(c)) => Write(Peer(CnId(c)),Bytes_i(c')) } // AP: TXT(index) is not precise enough here:
+			// in/out directions are not the same, and we want to only refer to the incoming direction
 
 val read : c:cn -> (;c) ioresult_i
 
 type (;c:cn,d:(;c) msg_o) ioresult_o =
-| WriteError    of ErrorKind * ErrorCause
+| WriteError    of alertDescription option // The alert we have sent
 | WriteComplete of c':(;c) nextCn {Extend_o(c,c',d)}
 	//AP: /\ Write(CnId(c'),Bytes_o(c')) -- we need to generate the Write event somewhere, and this (and WritePartial) looks like a good place.
 | WritePartial  of c':(;c) nextCn * d':(;c') msg_o 
   { ?d0. Extend_o(c,c',d0) /\ Split_o(c, d, d0, c', d') }
-| MustRead      of c':(;c) cn 
+| MustRead      of c':cn 
     {   Role(c')                = Role(c) 
      /\ Params(c')              = Params(c)
 	 /\ ConnectionInKeyInfo(c') = ConnectionInKeyInfo(c) 
