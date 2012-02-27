@@ -38,21 +38,21 @@ val readNextAppFragment: Connection -> (unit Result) * Connection
 *)
 
 type ioresult_i =
-| ReadError of alertDescription option
-| Close     of Tcp.NetworkStream
-| Fatal     of alertDescription
-| Warning   of nextCn * alertDescription 
-| CertQuery of nextCn * query
-| Handshaken of Connection
-| Read      of nextCn * msg_i
-| ReadMustRead of Connection * msg_i
-
+    | ReadError of alertDescription option
+    | Close     of Tcp.NetworkStream
+    | Fatal     of alertDescription
+    | Warning   of nextCn * alertDescription 
+    | CertQuery of nextCn * query
+    | Handshaken of Connection
+    | Read      of nextCn * msg_i
+    | ReadMustRead of Connection * msg_i
+    
 type ioresult_o =
-| WriteError    of alertDescription option
-| WriteComplete of nextCn
-| WritePartial  of nextCn * msg_o
-| MustRead      of Connection
-
+    | WriteError    of alertDescription option
+    | WriteComplete of nextCn
+    | WritePartial  of nextCn * msg_o
+    | MustRead      of Connection
+    
 val write: Connection -> msg_o -> ioresult_o
 val read: Connection -> ioresult_i
 (* val appDataAvailable: Connection -> bool *)

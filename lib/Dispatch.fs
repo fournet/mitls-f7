@@ -55,27 +55,27 @@ type msg_o = (DataStream.range * DataStream.delta)
 
 // Outcomes for top-level functions
 type ioresult_i =
-| ReadError of alertDescription option
-| Close     of Tcp.NetworkStream
-| Fatal     of alertDescription
-| Warning   of nextCn * alertDescription 
-| CertQuery of nextCn * query
-| Handshaken of Connection
-| Read      of nextCn * msg_i
-| ReadMustRead of Connection * msg_i
+    | ReadError of alertDescription option
+    | Close     of Tcp.NetworkStream
+    | Fatal     of alertDescription
+    | Warning   of nextCn * alertDescription 
+    | CertQuery of nextCn * query
+    | Handshaken of Connection
+    | Read      of nextCn * msg_i
+    | ReadMustRead of Connection * msg_i
 
 type ioresult_o =
-| WriteError    of alertDescription option
-| WriteComplete of nextCn
-| WritePartial  of nextCn * msg_o
-| MustRead      of Connection
+    | WriteError    of alertDescription option
+    | WriteComplete of nextCn
+    | WritePartial  of nextCn * msg_o
+    | MustRead      of Connection
 
 // Outcomes for internal, one-message-at-a-time functions
 type writeOutcome =
     | WriteAgain (* Possibly more data to send *)
     | WAppDataDone (* No more data to send in the current state *)
     | WHSDone
-    | MustRead (* Read until completion of Handshake *)
+    | WMustRead (* Read until completion of Handshake *)
     | SentFatal of alertDescription
     | SentClose
 
@@ -298,7 +298,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                                because we'll return MustRead to the app, which indeed means that no data
                                have been sent (It doesn't really matter at this point how we internally messed up
                                with the buffer, as long as we did not send anything on the network. *)
-                            (correct(MustRead, Conn(id,c)))   
+                            (correct(WMustRead, Conn(id,c)))   
           | (Handshake.CCSFrag(frag,newKeys),new_hs_state) ->
                     let (tlen,ccs) = frag in
                     let (newKiOUT,ccs_data) = newKeys in
@@ -348,7 +348,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                             let c = { c with handshake = new_hs_state;
                                              appdata = AppDataStream.readNonAppDataFragment id c.appdata;
                                              write     = c_write }
-                            (correct (MustRead, Conn(id,c)))
+                            (correct (WMustRead, Conn(id,c)))
                           | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
                 | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) (* TODO: we might want to send an "internal error" fatal alert *)
           | (Handshake.HSFullyFinished_Write((tlen,lastFrag),new_info),new_hs_state) ->
@@ -585,6 +585,7 @@ let rec writeAll c =
     | other -> other
 
 let rec readOnly c =
+    // like read, but does not invoke write (except on closure...)
     match readOne c with
     | Correct(RAgain,c) ->
         readOnly c
@@ -671,7 +672,7 @@ let rec read c =
             Warning(c,ad)
         | Error(x,y) ->
             ReadError(None) // internal error
-    | Correct(MustRead,c) ->
+    | Correct(WMustRead,c) ->
         readOnly c
     | Correct(WHSDone,c) ->
         Handshaken (c)
@@ -688,6 +689,34 @@ let rec read c =
             readOnly c
     | Correct(WriteAgain,c) -> unexpectedError "[read] writeAll should never return WriteAgain"
 
+let write (Conn(id,c)) msg =
+  let (r,d) = msg in
+  let new_appdata = AppDataStream.writeAppData id c.appdata r d in
+  let c = {c with appdata = new_appdata} in 
+  match writeAll (Conn(id,c)) with
+    | Correct(WAppDataDone,Conn(id,c)) ->
+        let (rdOpt,new_appdata) = AppDataStream.emptyOutgoingAppData id c.appdata in
+        let c = {c with appdata = new_appdata} in
+        match rdOpt with
+        | None -> WriteComplete (Conn(id,c))
+        | Some(rd) -> WritePartial (Conn(id,c),rd)
+    | Correct(WHSDone,c) ->
+        // A top-level write should never lead to HS completion.
+        // Currently, we report this as an internal error.
+        // Being more precise about the Dispatch state machine, we should be
+        // able to prove that this case should never happen, and so use the
+        // unexpectedError function.
+        WriteError(None)
+    | Correct(WMustRead,c) | Correct(SentClose,c) ->
+        MustRead(c)
+    | Correct(SentFatal(ad),c) ->
+        WriteError(Some(ad))
+    | Correct(WriteAgain,c) ->
+        unexpectedError "[write] writeAll should never return WriteAgain"
+    | Error(x,y) ->
+        WriteError(None) // internal
+
+(*
 let rec writeAppData c = 
     let unitVal = () in
     match writeOne c with
@@ -697,7 +726,7 @@ let rec writeAppData c =
     | (Correct (MustRead)  ,c) -> read c StopAtHS
 
     (* If available, read next data *)
-    (* 
+
     let c_read = conn.read in
     match c_read.disp with
     | Closed -> writeOneAppFragment conn
@@ -726,63 +755,3 @@ let rec writeAppData c =
         (* Nothing to read, possibly send buffered data *)
         writeOneAppFragment conn
     *)
-
-let writeDelta (Conn(id,c)) r d = 
-  let new_appdata = AppDataStream.writeAppData id c.appdata r d in
-  let c = {c with appdata = new_appdata} in 
-  match  writeAppData (Conn(id,c))with
-    | (Correct(_),(Conn(id,c))) ->
-         let (rd,new_appdata) = AppDataStream.emptyOutgoingAppData id c.appdata in
-         let c = {c with appdata = new_appdata} in 
-           (Conn(id,c),correct (rd))
-    | (Error(x,y),c) -> c,Error(x,y)
-
-  
-
-let commit (Conn(id,c)) ls b =
-    let new_appdata = AppDataStream.writeAppData id c.appdata ls b in
-    Conn(id,{c with appdata = new_appdata})
-
-(*
-let write_buffer_empty conn =
-    AppDataStream.is_outgoing_empty conn.appdata
-*)
-
-let readAppData (Conn(id,c)) =
-    let unitVal = () in
-    let newConnRes =
-        if AppDataStream.is_incoming_empty id c.appdata then
-            read (Conn(id,c)) StopAtAppData    
-        else
-            (correct(unitVal),Conn(id,c))
-    match newConnRes with
-    | (Error(x,y),conn) -> (conn,Error(x,y))
-    | (Correct(unitVal),Conn(id,c)) ->
-        let (Some(b),appState) = AppDataStream.readAppData id c.appdata in
-        let c = {c with appdata = appState} in
-        (Conn(id,c),correct (b))
-
-    (* Similar to the OpenSSL strategy *)
-    (*
-    let c_appdata = conn.appdata in
-    if not (AppDataStream.is_incoming_empty c_appdata) then
-        (* Read from the buffer *)
-        let (read, new_appdata) = AppDataStream.retrieve_data c_appdata in
-        let conn = {conn with appdata = new_appdata} in
-        (correct (read),conn)
-    else
-        (* Read from the TCP socket *)
-        match readNextAppFragment conn with
-        | (Correct (x),conn) ->
-            (* One fragment may have been put in the buffer *)
-            let c_appdata = conn.appdata in
-            let (read, new_appdata) = AppDataStream.retrieve_data c_appdata in
-            let conn = {conn with appdata = new_appdata} in
-            (correct (read),conn)
-        | (Error (x,y),c) -> (Error(x,y),c)
-    *)
-
-let readDelta c = readAppData c
-
-
-let readHS conn = read conn StopAtHS
