@@ -97,8 +97,11 @@ val next_fragment: ConnectionInfo  -> hs_state -> HSFragReply * hs_state
 type recv_reply = (* the fragment is accepted, and... *)
   | HSAck (* nothing happens *)
   | HSVersionAgreed of ProtocolVersion (* use this new protocol version for sending *)
+  | HSQuery of Certificate.cert
   | HSReadSideFinished (* ? *) 
   | HSFullyFinished_Read of SessionDB.StorableSession (* we can start sending data on the connection *)  
 val recv_fragment: ConnectionInfo -> hs_state -> DataStream.range -> fragment -> recv_reply Result * hs_state
 val recv_ccs     : ConnectionInfo -> hs_state -> DataStream.range -> ccsFragment -> ((KeyInfo * ccs_data) Result) * hs_state
 
+// misses indexes, which are going to change anyway
+val authorize: hs_state -> Certificate.cert -> hs_state

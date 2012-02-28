@@ -23,3 +23,6 @@ val request     : Connection -> protocolOptions -> nextCn
 
 val accept           : TcpListener   -> protocolOptions -> Connection
 val accept_connected : NetworkStream -> protocolOptions -> Connection
+
+val authorize: Connection -> query -> Connection
+val refuse:    Connection -> query -> unit

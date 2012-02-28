@@ -86,6 +86,7 @@ type writeOutcome =
 type deliverOutcome =
     | RAgain
     | RAppDataDone
+    | RQuery of query
     | RHSDone
     | RClose
     | RFatal of alertDescription
@@ -445,6 +446,9 @@ let deliver (Conn(id,c)) ct tl frag: (deliverOutcome * Connection) Result =
                      is perfectly valid. It will be updated after the next CCS, along with all other session parameters *)
                 let c = { c with read = c_read; appdata = ad; handshake = hs} in
                 (correct (RAgain, Conn(id, c) ))
+        | Handshake.HSQuery(query) ->
+            let c = {c with read = c_read; appdata = ad; handshake = hs} in
+            correct(RQuery(query),Conn(id,c))
         | Handshake.HSReadSideFinished ->
         (* Ensure we are in Finishing state *)
             match x with
@@ -576,6 +580,8 @@ let rec readOnly c =
             let conn = {conn with appdata = appState} in
             Read(Conn(id,conn),b)
         | (None,_) -> unexpectedError "[read] When RAppDataDone, some data should have been read."
+    | Correct(RQuery(q),c) ->
+        CertQuery(c,q)
     | Correct(RHSDone,c) ->
         Handshaken(c)
     | Correct(RClose,c) ->
@@ -627,6 +633,8 @@ let rec read c =
                 let conn = {conn with appdata = appState} in
                 Read(Conn(id,conn),b)
             | (None,_) -> unexpectedError "[read] When RAppDataDone, some data should have been read."
+        | Correct(RQuery(q),c) ->
+            CertQuery(c,q)
         | Correct(RHSDone,c) ->
             Handshaken(c)
         | Correct(RClose,c) ->
@@ -695,6 +703,16 @@ let write (Conn(id,c)) msg =
         unexpectedError "[write] writeAll should never return WriteAgain"
     | Error(x,y) ->
         WriteError(EInternal(x,y)) // internal
+
+let authorize (Conn(id,c)) q =
+    let hs = Handshake.authorize c.handshake q in
+    let c = {c with handshake = hs} in
+    Conn(id,c)
+
+let refuse (Conn(id,c)) (q:query) =
+    let al = Alert.send_alert id c.alert AD_unknown_ca in
+    let c = {c with alert = al} in
+    ignore (writeAll (Conn(id,c))) // we might want to tell the user something about this
 
 (*
 let rec writeAppData c = 

@@ -136,6 +136,11 @@ val accept:  Tcp.NetworkStream -> p:params                  -> (;StoC,p) nullCn 
 val shutdown: c:cn -> Tcp.NetworkStream Result
 //was: (c':(;c) nextCn {Extend(c,c')}) Result
 // [shutdown] will internally generate a Close(ki, Bytes_o(c)); releases the TCP socket after shutdown
+// AP: I don't agree with current shutdown. With the current interface we cannot have a one-way shutdown.
+// Not even if shutdown just sets some flag, and then we have to read. I propose two different
+// specialized functions for each behavior:
+// - full_shutdown, which returns immediately, and then the user must read until she gets a Close event
+// - half_shutdown, where we internally send (write) our close notify, and then we drop the connection.
 
 val rekey:       c:cn {Role(c)=CtoS} -> (c':(;c) nextCn {Extend(c,c')}) Result
 val rehandshake: c:cn {Role(c)=CtoS} -> (c':(;c) nextCn {Extend(c,c')}) Result
@@ -143,4 +148,5 @@ val request:     c:cn {Role(c)=StoC} -> (c':(;c) nextCn {Extend(c,c')}) Result
 
 // we echo the query so that we have an explicit user decision to blame.
 val authorize: c:cn -> (;c) query -> (c': (;c) nextCn {Extend(c,c')}) Result
-val refuse:    c:cn -> (;c) query -> unit
+val refuse:    c:cn -> (;c) query -> unit //AP: we will have to internally send a fatal alert,
+	// and this might fail. We might want to give some feedback to the user. Same as half_shutdown

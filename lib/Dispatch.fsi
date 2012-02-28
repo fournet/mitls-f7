@@ -62,4 +62,7 @@ val write: Connection -> msg_o -> ioresult_o
 val read: Connection -> ioresult_i
 (* val appDataAvailable: Connection -> bool *)
 
+val authorize: Connection -> query -> Connection
+val refuse:    Connection -> query -> unit
+
 val getSessionInfo: Connection -> SessionInfo

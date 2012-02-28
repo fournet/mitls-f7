@@ -411,7 +411,8 @@ let next_fragment ci state =
 type recv_reply = 
   | HSAck      (* fragment accepted, no visible effect so far *)
   | HSVersionAgreed of ProtocolVersion 
-                          (* ..., and we should use this new protocol version for sending *) 
+                          (* ..., and we should use this new protocol version for sending *)
+  | HSQuery of cert 
   | HSReadSideFinished
   | HSFullyFinished_Read of StorableSession (* ..., and we can start sending data on the connection *)
 
@@ -2060,3 +2061,4 @@ let recv_ccs (ci:ConnectionInfo) (state: hs_state) (tlen:DataStream.range) (frag
             | _ -> (Error(HSError(AD_unexpected_message),HSSendAlert),state)
     else           (Error(HSError(AD_decode_error)      ,HSSendAlert),state)
 
+let authorize (s:hs_state) (q:cert) = s // TODO

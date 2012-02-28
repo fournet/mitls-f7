@@ -23,3 +23,6 @@ let write c msg = Dispatch.write c msg
 let shutdown c = Dispatch.shutdown c
 
 let getSessionInfo c = Dispatch.getSessionInfo c
+
+let authorize c q = Dispatch.authorize c q
+let refuse c q = Dispatch.refuse c q
