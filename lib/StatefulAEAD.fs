@@ -28,7 +28,7 @@ let decrypt (ki:KeyInfo) (r:reader) (ad:data) (e:cipher) =
   let iv = getIV ki r in
   let res = AEAD.decrypt ki k iv ad e in
     match res with
-        Correct ((iv,rg,pl)) -> 
+      | Correct ((iv,rg,pl)) -> 
           let f = AEADPlain.plainToFragment ki r ad rg pl in
           let r = addFragment ki r ad rg f in
           let r = updateIV ki r iv in
