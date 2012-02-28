@@ -9,6 +9,7 @@ open Handshake
 open TLSInfo
 open DataStream
 
+[<NoEquality;NoComparison>]
 type Connection
 type nextCn = Connection
 type query = Certificate.cert
