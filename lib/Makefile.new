@@ -1,6 +1,6 @@
 # -*- makefile -*-
 
-.PHONY: all clean tc7
+.PHONY: all clean tc7 __always__
 
 include ../../../../Makefile.inc
 
@@ -105,10 +105,13 @@ Dispatch-a.dll: libsym-a.dll record-a.dll $(tlsfsi) $(tlsfs)
 	$(fsc) -r libsym-a.dll -r record-a.dll $(tlsfsi) $(tlsfs) -a -o Dispatch-a.dll
 
 ### f7 typechecking
-f7t= echo ; $(f7) -nokindcheck $(lperv) $(libfs7)
+f7t = $(f7) -nokindcheck $(lperv) $(libfs7)
+map = $(foreach a,$(2),$(call $(1),$(a)))
 
 %.tc7: $(libperv) $(libfs7) %.fs7 %.fs
-	$(f7t) $(@:%.tc7=%.fs7) $(filter %.fs7,$^) -scripts $(@:%.tc7=) %.fs7 %.fs | tee $@.log
+	@echo
+	$(f7t) $($(@:%.tc7=%_FS7)) \
+	    -scripts $(@:%.tc7=) $(@:%.tc7=%.fs7) $(@:%.tc7=%.fs)
 	@touch $@
 
 %.d: %.fs7
@@ -116,4 +119,13 @@ f7t= echo ; $(f7) -nokindcheck $(lperv) $(libfs7)
 
 clean:
 	rm -f .tmp *.exe *.pdb *.dll *.obj *.cm* *.pv *.res *\~
-	rm -f *.html *.smp *.tc7 *.vo *.glob libcoq.v
+	rm -f *.html *.smp *.tc7 *.tc7.log
+	rm -f *.vo *.glob libcoq.v
+
+locfs7 = $(recordfs7) $(dispatch.fs7) TLS.fs7 TLS2.fs7
+
+Makefile.depend:
+	../../../../scripts/f7dep.py $(locfs7) > Makefile.depend || \
+	    (rm -f Makefile.depend; false)
+
+-include Makefile.depend
