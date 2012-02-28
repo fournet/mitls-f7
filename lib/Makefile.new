@@ -1,0 +1,119 @@
+# -*- makefile -*-
+
+.PHONY: all clean tc7
+
+include ../../../../Makefile.inc
+
+all: tls.dll tc7
+
+lib7=../../../lib/fs7-interfaces/
+libperv = $(lib7)pervasives.fs7 $(lib7)tuples.fs7
+lperv = -pervasives $(lib7)pervasives.fs7 -tuples $(lib7)tuples.fs7
+libfs7 = $(lib7)formulas.fs7 $(lib7)pi.fs7
+
+recordfs7 = Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Certificate.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MAC.fs7 PRFs.fs7 TLSKey.fs7 SessionDB.fs7 FragCommon.fs7 DataStream.fs7 AppDataStream.fs7 Handshake.fs7 Alert.fs7 TLSFragment.fs7 StatefulPlain.fs7 AEADPlain.fs7 AEPlain.fs7 ENC.fs7 AEAD.fs7 StatefulAEAD.fs7 record.fs7
+recordfsi = Error.fsi Bytes.fsi tcp.fsi RSA.fsi Certificate.fsi Algorithms.fsi CipherSuites.fsi formats.fsi TLSInfo.fsi HASH.fsi HMAC.fsi ENCKey.fsi MAC.fsi PRFs.fsi TLSKey.fsi SessionDB.fsi FragCommon.fsi DataStream.fsi AppDataStream.fsi Handshake.fsi Alert.fsi TLSFragment.fsi StatefulPlain.fsi AEADPlain.fsi AEPlain.fsi ENC.fsi AEAD.fsi StatefulAEAD.fsi record.fsi
+
+recordfs  = Error.fs  Bytes.fs  tcp.fs  RSA.fs  Certificate.fs  Algorithms.fs  CipherSuites.fs  formats.fs  TLSInfo.fs  HASH.fs  HMAC.fs  ENCKey.fs  MAC.fs  PRFs.fs  TLSKey.fs   TLSFragment.fs  StatefulPlain.fs AEADPlain.fs AEPlain.fs  ENC.fs  AEAD.fs StatefulAEAD.fs record.fs
+
+wrapperlibs = Error.fs  Bytes.fs  tcp.fs Algorithms.fs RSA.fs  HASH.fs  HMAC.fs  Certificate.fs  # not verified 
+tlsbase = CipherSuites.fs  formats.fs  TLSInfo.fs  ENCKey.fs  MAC.fs TLSKey.fs DataStream.fs # verified
+tlshandshake = PRFs.fs SessionDB.fs FragCommon.fs Handshake.fs  Alert.fs  # todo
+tlsapplication = AppDataStream.fs TLSFragment.fs StatefulPlain.fs AEADPlain.fs AEPlain.fs # being verified (KB) 
+crypto =  ENC.fs AEAD.fs StatefulAEAD.fs # verified? (CF)
+tlsrecord = record.fs dispatch.fs tls.fs # being verified (AP)
+
+wrapperlibsi = Error.fsi  Bytes.fsi  tcp.fsi  Algorithms.fsi  RSA.fsi  HASH.fsi  HMAC.fsi  Certificate.fsi  # not verified 
+tlsbasei = CipherSuites.fsi  formats.fsi  TLSInfo.fsi  ENCKey.fsi  MAC.fsi TLSKey.fsi DataStream.fsi # verified
+tlshandshakei = PRFs.fsi SessionDB.fsi FragCommon.fsi  Handshake.fsi  Alert.fsi  # todo
+tlsapplicationi = AppDataStream.fsi TLSFragment.fsi StatefulPlain.fsi AEADPlain.fsi AEPlain.fsi # being verified (KB)
+cryptoi =  ENC.fsi AEAD.fsi StatefulAEAD.fsi # verified? (CF)
+tlsrecordi = record.fsi dispatch.fsi tls.fsi # being verified (AP)
+
+tlsbase-tc7: Error.tc7 Algorithms.tc7 CipherSuites.tc7  formats.tc7  TLSInfo.tc7  ENCKey.tc7  TLSKey.tc7 # verified
+tlsapplication-tc7: DataStream.tc7 AppDataStream.tc7  TLSFragment.tc7 AEPlain.tc7 
+crypto-tc7: ENC.tc7 AEAD.tc7 StatefulAEAD.tc7
+tlsrecord-tc7: record.tc7 Dispatch.tc7 TLS.tc7
+
+tc7:: tlsbase-tc7 tlsapplication-tc7 tlsrecord-tc7
+
+#recordfs-a = Error.fs  tcp-a.fs  Sessions.fs  formats.fs CryptoTLS.fs record.fs 
+
+dispatchfs7 = Dispatch.fs7
+dispatchfsi = Dispatch.fsi
+dispatchfs  = Dispatch.fs
+
+tlsfs7 = TLS.fs7
+tlsfsi = TLS.fsi
+tlsfs = TLS.fs
+
+clib=../../../lib/concrete-fs/
+slib=../../../lib/symbolic/
+ilib=../../../lib/interfaces/
+lpi= $(ilib)pi.mli $(slib)pi.ml
+
+intfs = $(ilib)formulas.mli 
+
+#libs= $(clib)pi.fs $(intfs) $(clib)formulas.fs $(clib)db.fs $(clib)data.fs $(clib)crypto.fs $(clib)xml.fs $(clib)net.fs $(clib)bytearray.fs
+libs= $(clib)formulas.fs $(clib)pi.fs
+libs-a= $(intfs) $(slib)formulas.ml
+libs-a-pr= $(lpi) $(slib)formulas.ml
+
+libsym-a.dll: $(lpi) $(libs-a) # building DLLs, e.g. for intellisense integration
+	$(fsc) $(lpi) $(libs-a) -a -o $@
+
+libsym.dll: $(libs)
+	$(fsc) -d concrete $(libs) -a -o libsym.dll
+
+wrapperlibs.dll: libsym.dll $(wrapperlibsi) $(wrapperlibs)
+	$(fsc) -d concrete -r $^ -a -o $@
+
+tlsbase.dll: libsym.dll wrapperlibs.dll $(tlsbasei) $(tlsbase)
+	$(fsc) -d concrete -r libsym.dll -r wrapperlibs.dll $(tlsbasei) $(tlsbase) -a -o $@
+
+tlshandshake.dll: libsym.dll wrapperlibs.dll tlsbase.dll  $(tlshandshakei) $(tlshandshake)
+	$(fsc) -d concrete -r libsym.dll -r wrapperlibs.dll -r tlsbase.dll  $(tlshandshakei) $(tlshandshake) -a -o $@
+
+tlsapplication.dll: libsym.dll wrapperlibs.dll tlsbase.dll tlshandshake.dll $(tlsapplicationi) $(tlsapplication)
+	$(fsc) -d concrete -r libsym.dll -r wrapperlibs.dll -r tlsbase.dll -r tlshandshake.dll $(tlsapplicationi) $(tlsapplication) -a -o $@
+
+crypto.dll: libsym.dll wrapperlibs.dll tlsbase.dll  tlshandshake.dll tlsapplication.dll $(cryptoi) $(crypto)
+	$(fsc) -d concrete -r  libsym.dll -r wrapperlibs.dll -r tlsbase.dll -r tlshandshake.dll -r tlsapplication.dll $(cryptoi) $(crypto) -a -o $@
+
+tls.dll: libsym.dll wrapperlibs.dll tlsbase.dll  tlshandshake.dll tlsapplication.dll crypto.dll $(tlsrecordi) $(tlsrecord)
+	$(fsc) -d concrete -r libsym.dll -r wrapperlibs.dll -r tlsbase.dll -r tlshandshake.dll -r tlsapplication.dll -r crypto.dll $(tlsrecordi) $(tlsrecord) -a -o $@
+
+record.dll: libsym.dll $(recordfsi) $(recordfs)
+	$(fsc) -d concrete -r $^ -a -o record.dll
+
+Dispatch.dll: libsym.dll record.dll $(dispatchsi) $(dispatchfs)
+	$(fsc) -r libsym.dll -r record.dll $(dispatchfsi) $(dispatchfs) -a -o Dispatch.dll
+
+TLS-old.dll: libsym.dll record.dll Dispatch.dll $(tlsfsi) $(tlsfs)
+	$(fsc) -r libsym.dll -r record.dll -r Dispatch.dll $(tlsfsi) $(tlsfs) -a -o TLS.dll
+
+recordsig.fs7: libsym.dll $(recordfsi) $(recordfs-a)
+	$(fsc) -r $^ -a --sig:recordsig.fs7 -o recordsig.dll
+
+Dispatchsig.fs7: libsym.dll record-a.dll $(dispatchfsi) $(dispatchfs)
+	$(fsc) -r libsym.dll -r record-a.dll $(dispatchfsi) $(dispatchfs) -a --sig:Dispatchsig.fs7 -o Dispatchsig.dll
+
+record-a.dll: libsym-a.dll $(recordfsi) $(recordfs-a)
+	$(fsc) -r $^ -a -o record-a.dll
+
+Dispatch-a.dll: libsym-a.dll record-a.dll $(tlsfsi) $(tlsfs)
+	$(fsc) -r libsym-a.dll -r record-a.dll $(tlsfsi) $(tlsfs) -a -o Dispatch-a.dll
+
+### f7 typechecking
+f7t= echo ; $(f7) -nokindcheck $(lperv) $(libfs7)
+
+%.tc7: $(libperv) $(libfs7) %.fs7 %.fs
+	$(f7t) $(@:%.tc7=%.fs7) $(filter %.fs7,$^) -scripts $(@:%.tc7=) %.fs7 %.fs | tee $@.log
+	@touch $@
+
+%.d: %.fs7
+	../../../../scripts/f7dep.py $< > $@
+
+clean:
+	rm -f .tmp *.exe *.pdb *.dll *.obj *.cm* *.pv *.res *\~
+	rm -f *.html *.smp *.tc7 *.vo *.glob libcoq.v
