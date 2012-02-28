@@ -26,8 +26,6 @@ val headerLength: bytes -> int Result
 val recordPacketOut: KeyInfo -> sendState -> DataStream.range -> int -> ContentType -> TLSFragment.fragment -> (sendState * bytes)
 val recordPacketIn : KeyInfo -> recvState -> int -> bytes -> (recvState * ContentType * ProtocolVersion * DataStream.range * TLSFragment.fragment) Result
 
-val reIndex_null: KeyInfo -> KeyInfo -> ConnectionState -> ConnectionState
-
 (* val dataAvailable: recvState -> bool Result *)
 (* val coherentrw: SessionInfo -> recvState -> sendState -> bool *)
 

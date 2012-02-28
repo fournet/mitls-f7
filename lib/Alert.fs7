@@ -114,5 +114,5 @@ val handle_alert: ci:ConnectionInfo -> (;ci)state -> alertDescription -> (;ci)al
 
 val recv_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)state -> tlen:DataStream.range -> (;ci.id_in,tlen,seqn)fragment -> ((;ci)alert_reply) Result
 
-val reIndex: oldID:ConnectionInfo -> newID:ConnectionInfo{CompatibleConnections(oldID,newID)} ->
-	(;oldID)state -> (;newID)state
+// broken, we miss indexes, that are going to change anyway
+val incomingEmpty: state -> bool

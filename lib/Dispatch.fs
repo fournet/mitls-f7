@@ -175,16 +175,6 @@ let appDataAvailable conn =
 let getSessionInfo (Conn(id,conn)) =
     id.id_out.sinfo // in Open and Closed state, this should be equivalent to id.id_in.sinfo
 
-let checkCompatibleSessions s1 s2 poptions =
-    // (isNullSessionInfo s1) || (s1 = s2) || (poptions.isCompatibleSession s1 s2)
-    if isNullSessionInfo s1 then
-        true
-    else if s1 = s2 then
-        true
-    else
-        let isComp = poptions.isCompatibleSession s1 s2 in
-        isComp
-
 let moveToOpenState (Conn(id,c)) new_storable_info =
     (* If appropriate, store this session in the DB *)
     let (storableSinfo,storableMS,storableDir) = new_storable_info in
@@ -192,60 +182,40 @@ let moveToOpenState (Conn(id,c)) new_storable_info =
     | None -> (* This session should not be stored *) ()
     | Some (sid) -> (* SessionDB. *) insert c.poptions sid new_storable_info
 
-    let read = c.read in
-    match read.disp with
-    | Finishing | Finished ->
-        let new_read = {read with disp = Open} in
-        let c_write = c.write in
-        match c_write.disp with
+    // Agreement should be on all protocols.
+    // - As a pre-condition to invoke this function, we have agreement on HS protocol
+    // - We have implicit agreement on appData, because the input/output buffer is empty
+    //   (This can either be a pre-condition, or we can add a dynamic check here)
+    // - We need to enforce agreement on the alert protocol.
+    //   We do it here, by checking that our input buffer is empty. Maybe, we should have done
+    //   it before, when we sent/received the CCS
+    if Alert.incomingEmpty c.alert then
+        let read = c.read in
+        match read.disp with
         | Finishing | Finished ->
-            let new_write = {c_write with disp = Open} in
-            {c with read = new_read; write = new_write}
-        | _ -> unexpectedError "[moveToOpenState] should only work on Finishing or Finished write states"
-    | _ -> unexpectedError "[moveToOpenState] should only work on Finishing read states"
+            let new_read = {read with disp = Open} in
+            let c_write = c.write in
+            match c_write.disp with
+            | Finishing | Finished ->
+                let new_write = {c_write with disp = Open} in
+                let c = {c with read = new_read; write = new_write} in
+                correct c
+            | _ -> Error(Dispatcher,CheckFailed)
+        | _ -> Error(Dispatcher,CheckFailed)
+    else
+        Error(Dispatcher,CheckFailed)
 
-let reIndex_dState (oldKI:KeyInfo) newKI dState ccsD =
+let newDState (ki:KeyInfo) newKI dState ccsD =
     let newConn = Record.initConnState newKI ccsD in
     {dState with conn = newConn}
 
-let reIndex_dState_null oldKI newKI dState =
-    let newConn = Record.reIndex_null oldKI newKI dState.conn in
-    {dState with conn = newConn}
+let newKeysOut id newID c ccsD =
+    let newWrite = newDState id.id_out newID.id_out c.write ccsD in
+    { c with write = newWrite}
 
-let reIndex_out oldID newID c ccsD =
-    // Note: cannot factor out the next three lines in a single function,
-    // because the returned Connection would have inconsistent index.
-    // All indexes must be changed atomically inside one function
-    let newHS =      Handshake.reIndex oldID newID c.handshake in
-    let newAlert =   Alert.reIndex     oldID newID c.alert in
-    let newAppData = AppDataStream.reIndex  oldID newID c.appdata in
-    let newWrite =   reIndex_dState oldID.id_out newID.id_out c.write ccsD in
-    { c with handshake = newHS;
-             alert =     newAlert;
-             appdata =   newAppData;
-             write =     newWrite}
-
-let reIndex_in oldID newID c ccsD =
-    let newHS =      Handshake.reIndex oldID newID c.handshake in
-    let newAlert =   Alert.reIndex     oldID newID c.alert in
-    let newAppData = AppDataStream.reIndex oldID newID c.appdata in
-    let newRead =   reIndex_dState oldID.id_in newID.id_in c.read ccsD in
-    { c with handshake = newHS;
-             alert =     newAlert;
-             appdata =   newAppData;
-             read =      newRead}
-
-let reIndex_null oldID newID c =
-    let newHS =      Handshake.reIndex oldID newID c.handshake in
-    let newAlert =   Alert.reIndex     oldID newID c.alert in
-    let newAppData = AppDataStream.reIndex  oldID newID c.appdata in
-    let newRead =    reIndex_dState_null oldID.id_in  newID.id_in  c.read in
-    let newWrite =   reIndex_dState_null oldID.id_out newID.id_out c.write in
-    { c with handshake = newHS;
-             alert =     newAlert;
-             appdata =   newAppData;
-             read =      newRead;
-             write =     newWrite}
+let newKeysIn id newID c ccsD =
+    let newRead = newDState id.id_in newID.id_in c.read ccsD in
+    { c with read = newRead}
 
 let closeConnection (Conn(id,c)) =
     let new_read = {c.read with disp = Closed} in
@@ -310,20 +280,19 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                     | x when x = FirstHandshake || x = Open ->
                         match send id.id_out c.ns c_write (tlen) Change_cipher_spec (TLSFragment.FCCS(ccs)) with
                         | Correct _ -> (* We don't care about next write state, because we're going to reset everything after CCS *)
-                            if checkCompatibleSessions id.id_out.sinfo newKiOUT.sinfo c.poptions then
-                                let c = {c with handshake = new_hs_state} in
-                                (* Now:
-                                    - update the index
-                                    - move the outgoing state to Finishing, to signal we must not send appData now. *)
-                                let newID = {id with id_out = newKiOUT } in
-                                let c = reIndex_out id newID c ccs_data in
-                                let new_write = {c.write with disp = Finishing; seqn = 0} in
-                                let newad = AppDataStream.reset_outgoing newID c.appdata in
-                                let c = { c with write = new_write; appdata = newad} in
-                                (correct (WriteAgain, Conn(newID,c)) )
-                            else
-                                let closed = closeConnection (Conn(id,c)) in
-                                Error(Dispatcher, UserAborted) (* TODO: we might want to send an "internal error" fatal alert *)
+                            let c = {c with handshake = new_hs_state} in
+                            (* Now:
+                                - update the index and install the new keys
+                                - move the outgoing state to Finishing, to signal we must not send appData now. *)
+                            let newID = {id with id_out = newKiOUT } in
+                            let c = newKeysOut id newID c ccs_data in
+                            let new_write = {c.write with disp = Finishing; seqn = 0} in
+                            // FIXME: Should we check/reset here the alert buffer,
+                            // and/or we should do it when moving to the open state?
+                            
+                            // let newad = AppDataStream.reset_outgoing id c.appdata in
+                            let c = { c with write = new_write} in //; appdata = newad} in
+                            (correct (WriteAgain, Conn(newID,c)) )
                         | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error (x,y) (* Unrecoverable error *)
                     | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher, InvalidState) (* TODO: we might want to send an "internal error" fatal alert *)
           | (Handshake.HSFrag(tlen,f),new_hs_state) ->     
@@ -366,8 +335,9 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                         (* Move to the new state *)
                         // Sanity check: in and out session infos should be the same
                         if id.id_in.sinfo = id.id_out.sinfo then
-                            let c = moveToOpenState (Conn(id,c)) new_info in
-                            (correct(WHSDone,Conn(id,c)))
+                            match moveToOpenState (Conn(id,c)) new_info with
+                            | Correct(c) -> (correct(WHSDone,Conn(id,c)))
+                            | Error(x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) // TODO: we might want to send an alert here
                         else
                             let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,CheckFailed)
                     | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
@@ -455,12 +425,18 @@ let deliver (Conn(id,c)) ct tl frag: (deliverOutcome * Connection) Result =
                                     appdata = ad;
                                     read = new_read;
                                     write = new_write} in
-                    // reIndex everything
+                    // update the index
                     let new_sinfo = {old_out_sinfo with protocol_version = pv } in // equally with id.id_in.sinfo
                     let idIN = {id_in with sinfo = new_sinfo} in
                     let idOUT = {id_out with sinfo = new_sinfo} in
                     let newID = {id_in = idIN; id_out = idOUT} in
-                    let c = reIndex_null id newID c in
+                    // Keys, even null ones as in this case, are indexed
+                    // So, we must re-init the record layer so that we use the new index.
+                    // The following will apply when the sequence number will be handled by record:
+                    // Badly, we reset the sequence number as well. However, it's not that bad
+                    // beacuse we're not using authentication right now
+                    let c = newKeysIn  id newID c (nullCCSData newID.id_in)  in
+                    let c = newKeysOut id newID c (nullCCSData newID.id_out) in
                     correct (RAgain, Conn(newID,c) )
                 else
                     let closed = closeConnection (Conn(id,c)) in
@@ -492,8 +468,9 @@ let deliver (Conn(id,c)) ct tl frag: (deliverOutcome * Connection) Result =
             | Finishing ->
                 // Sanity check: in and out session infos should be the same
                 if id.id_in.sinfo = id.id_out.sinfo then
-                    let c = moveToOpenState (Conn(id,c)) newInfo in
-                    correct(RHSDone, Conn(id,c))
+                    match moveToOpenState (Conn(id,c)) newInfo with
+                    | Correct(c) -> correct(RHSDone, Conn(id,c))
+                    | Error(x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) // TODO: we might want to send an alert here
                 else let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,CheckFailed) // TODO: we might want to send an internal_error fatal alert here.
             | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) // TODO: We might want to send some alert here.
     | (Error(x,y),hs) -> let c = {c with handshake = hs} in Error(x,y) (* TODO: we might need to send some alerts *)
@@ -502,16 +479,16 @@ let deliver (Conn(id,c)) ct tl frag: (deliverOutcome * Connection) Result =
     match Handshake.recv_ccs id c.handshake tlen f with 
     | (Correct(ccs),hs) ->
         let (newKiIN,ccs_data) = ccs in
-        if checkCompatibleSessions id.id_in.sinfo newKiIN.sinfo c.poptions then
-            let c = {c with handshake = hs} in
-            let newID = {id with id_in = newKiIN} in
-            let c = reIndex_in id newID c ccs_data in
-            let new_read = {c.read with disp = Finishing; seqn = 0} in
-            let newad = AppDataStream.reset_incoming newID c.appdata in
-            let c = { c with read = new_read; appdata = newad}
-            correct (RAgain, Conn(newID,c))
-        else
-            let closed = closeConnection (Conn(id,c)) in Error(Dispatcher, UserAborted) (* TODO: we might want to send an "internal error" fatal alert *)
+        let c = {c with handshake = hs} in
+        let newID = {id with id_in = newKiIN} in
+        let c = newKeysIn id newID c ccs_data in
+        let new_read = {c.read with disp = Finishing; seqn = 0} in
+        // FIXME: Should we check/reset here the alert buffer,
+        // and/or we should do it when moving to the open state?
+
+        // let newad = AppDataStream.reset_incoming newID c.appdata in
+        let c = { c with read = new_read} //; appdata = newad}
+        correct (RAgain, Conn(newID,c))
     | (Error (x,y),hs) ->
         let c = {c with handshake = hs} in
         let closed = closeConnection (Conn(id,c)) in

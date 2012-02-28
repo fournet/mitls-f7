@@ -94,6 +94,3 @@ type (;si:SessionInfo)recv_reply = (* the fragment is accepted, and... *)
 val recv_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)hs_state -> tlen:DataStream.range -> (;ci.id_in,tlen,seqn)fragment -> (;ci.id_in.sinfo)recv_reply Result * (;ci)hs_state
 val recv_ccs     : ci:ConnectionInfo -> seqn:int -> (;ci)hs_state -> tlen:DataStream.range -> (;ci.id_in,tlen,seqn)ccsFragment -> ((newKI:KeyInfo * (;newKI)ccs_data) Result) * (;ci)hs_state
 
-val reIndex: oldID:ConnectionInfo -> newID:ConnectionInfo{CompatibleConnections(oldID,newID)} ->
-	(;oldID)hs_state -> (;newID)hs_state
-

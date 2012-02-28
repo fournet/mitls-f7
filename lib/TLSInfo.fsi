@@ -76,7 +76,6 @@ type protocolOptions = {
     (* Common *)
     certificateValidationPolicy: cert list -> bool
     safe_renegotiation: bool
-    isCompatibleSession: SessionInfo -> SessionInfo -> bool
 
     (* Sessions database *)
     sessionDBFileName: string

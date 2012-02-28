@@ -25,6 +25,8 @@ let makeFragment ki b =
 
 let init (ci:ConnectionInfo) = {al_incoming = [||]; al_outgoing = [||]}
 
+let incomingEmpty s = equalBytes s.al_incoming [||]
+
 type ALFragReply =
     | EmptyALFrag
     | ALFrag of DataStream.range * fragment
@@ -207,5 +209,3 @@ let recv_fragment (ci:ConnectionInfo) state (tlen:DataStream.range) (data:fragme
                     let state = {state with al_incoming = [||] } in
                     let res = handle_alert ci state alert in
                     correct(res)
-
-let reIndex (oldCI:ConnectionInfo) (newCI:ConnectionInfo) (state:state) = state

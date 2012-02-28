@@ -96,7 +96,6 @@ type protocolOptions = {
     (* Common *)
     certificateValidationPolicy: cert list -> bool
     safe_renegotiation: bool
-    isCompatibleSession: SessionInfo -> SessionInfo -> bool
     
     (* Sessions database *)
     sessionDBFileName: string
@@ -104,9 +103,6 @@ type protocolOptions = {
     }
 
 let defaultCertificateValidationPolicy certList = true
-// By default, a the new session is compatible only if it's the same as the old session.
-// This means that AppData will remain valid with re-keying.
-let defaultSessionCompatibility oldSi newSi = (oldSi = newSi)
 let defaultGoodSession (si:SessionInfo) = true
 
 let defaultProtocolOptions ={
@@ -125,7 +121,6 @@ let defaultProtocolOptions ={
     server_cert_file = "server"
     certificateValidationPolicy = defaultCertificateValidationPolicy
     safe_renegotiation = true
-    isCompatibleSession = defaultSessionCompatibility
 
     sessionDBFileName = "sessionDBFile.bin"
     sessionDBExpiry = new System.TimeSpan(2,0,0,0) (* two days *)

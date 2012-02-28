@@ -36,8 +36,6 @@ val writeAppDataFragment: ConnectionInfo ->  app_state -> range -> fragment -> a
 
 val writeNonAppDataFragment: ConnectionInfo ->  app_state ->  app_state
 
-val reIndex: ConnectionInfo ->  ConnectionInfo -> app_state -> app_state
-
 val reset_incoming:  ConnectionInfo -> app_state -> app_state
 
 val reset_outgoing:  ConnectionInfo -> app_state -> app_state

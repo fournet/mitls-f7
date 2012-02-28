@@ -128,15 +128,6 @@ val reIndex_in: oldID:ConnectionInfo ->
 	(;oldID)globalState -> (;newID.id_in)ccs_data ->
 	(;newID)globalState
 
-val reIndex_null: oldID:ConnectionInfo{
-	NullSessionInfo(oldID.id_out.sinfo) /\
-	NullSessionInfo(oldID.id_in.sinfo)} ->
-	newID:ConnectionInfo{
-	NullSessionInfo(newID.id_out.sinfo) /\
-	NullSessionInfo(newID.id_in.sinfo)} ->
-	(;oldID)globalState -> (;newID)globalState
-
-
 val closeConnection: c:Connection-> (;c) CompatibleConnection
 
 // This always returns the write-side seqn increased by one,

@@ -102,4 +102,3 @@ type recv_reply = (* the fragment is accepted, and... *)
 val recv_fragment: ConnectionInfo -> hs_state -> DataStream.range -> fragment -> recv_reply Result * hs_state
 val recv_ccs     : ConnectionInfo -> hs_state -> DataStream.range -> ccsFragment -> ((KeyInfo * ccs_data) Result) * hs_state
 
-val reIndex: ConnectionInfo -> ConnectionInfo -> hs_state -> hs_state

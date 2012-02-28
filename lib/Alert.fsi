@@ -36,6 +36,6 @@ val next_fragment: ConnectionInfo -> state -> (ALFragReply * state)
 
 val recv_fragment: ConnectionInfo -> state -> DataStream.range -> fragment -> alert_reply Result
 
-val reIndex: ConnectionInfo -> ConnectionInfo -> state -> state
-
 val emptyStream: KeyInfo -> stream
+
+val incomingEmpty: state -> bool

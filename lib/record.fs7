@@ -47,6 +47,3 @@ val recordPacketIn : ki:KeyInfo ->
                         tlen:int * 
                         f:(;ki,tlen,seqn,ct) TLSFragment.fragment) Result
 
-val reIndex_null: oldKI:KeyInfo{NullSessionInfo(oldKI.sinfo)} ->
-	newKI:KeyInfo{NullSessionInfo(newKI.sinfo)} ->
-	(;oldKI)ConnectionState -> (;newKI)ConnectionState

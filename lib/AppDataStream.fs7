@@ -88,13 +88,6 @@ val writeAppDataFragment: c:ConnectionInfo ->
 val writeNonAppDataFragment: c:ConnectionInfo -> 
                        aps:(;c) app_state -> 
                        aps':(;c) app_state{(InSequenceNo(c,aps'),OutSequenceNo(c,aps')) = (InSequenceNo(c,aps)+1,OutSequenceNo(c,aps))}
-   
-val reIndex: oldC:ConnectionInfo -> 
-             newC:ConnectionInfo{CompatibleConnections(oldC,newC)} -> 
-             aps: (;oldC) app_state ->
-             aps':(;newC) app_state{
-	       (InSequenceNo(newC,aps'),OutSequenceNo(newC,aps')) = 
-	       (InSequenceNo(oldC,aps),OutSequenceNo(oldC,aps))}
 
 
 val is_incoming_empty: ci:ConnectionInfo -> aps:(;ci) app_state -> b:bool {b = true => (?s,ls,ads. aps.app_incoming = (s,ls,ads) /\ ads.data = [| |])}

@@ -2060,5 +2060,3 @@ let recv_ccs (ci:ConnectionInfo) (state: hs_state) (tlen:DataStream.range) (frag
             | _ -> (Error(HSError(AD_unexpected_message),HSSendAlert),state)
     else           (Error(HSError(AD_decode_error)      ,HSSendAlert),state)
 
-let reIndex (oldCI:ConnectionInfo) (newCI:ConnectionInfo) (state:hs_state) = state
-

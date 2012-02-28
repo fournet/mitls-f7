@@ -171,10 +171,6 @@ let recordPacketIn ki conn seqn headPayload =
             correct(conn,ct,pv,tlen,msg)
     | _ -> unexpectedError "[recordPacketIn] Incompatible ciphersuite and key type"
 
-let reIndex_null oldKI newKI state =
-  let newKey = TLSKey.reIndex   oldKI newKI state.key in
-    {key = newKey; state = Some (StatefulPlain.emptyState newKI)}
-
 /// old stuff, to be deleted?
 
 (* 

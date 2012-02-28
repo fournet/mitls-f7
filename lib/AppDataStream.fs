@@ -131,8 +131,6 @@ let writeAppDataFragment (ci:ConnectionInfo)  (a:app_state)  (r:range) (d:fragme
         let nr = rangeSum rr r in
         {a with app_incoming = {a.app_incoming with data = h,Some(nr,nd); stream = nf}}
 
-let reIndex (oldC:ConnectionInfo)  (newC:ConnectionInfo) (a:app_state) = a
-
 let reset_outgoing (ci:ConnectionInfo) (a:app_state) = 
   let out_s = DataStream.init ci.id_out in
     {a with 
