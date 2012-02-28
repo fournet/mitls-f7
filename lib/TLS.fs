@@ -1,45 +1,25 @@
-﻿module TLS2
+﻿module TLS
 
 open Bytes
 open Error
-open Dispatch
 open TLSInfo
 open Tcp
 
-type ioerror = ErrorCause * ErrorKind
+let connect ns po = Dispatch.init ns Client po
+let resume ns sid po = Dispatch.resume ns sid po
 
-type iointerrupt =
-| IOIWarning     of alertDescription
-| IOIAuthRequest of Certificate.cert list
-| IOIAgain
+let rehandshake c po = Dispatch.rehandshake c po
+let rekey c po = Dispatch.rekey c po
 
-type 'a ioresult =
-| IOSuccess     of 'a
-| IOInterrupted of iointerrupt
-| IOError       of ioerror
+let accept list po =
+    let ns = Tcp.accept list in
+    Dispatch.init ns Server po
+let accept_connected ns po = Dispatch.init ns Server po
 
-type ioresult_o = unit  ioresult
-type ioresult_i = bytes ioresult
+let request c po = Dispatch.request c po
 
-let getSessionInfo conn =
-    Dispatch.getSessionInfo conn
+let read c = Dispatch.read c
+let write c msg = Dispatch.write c msg
+let shutdown c = Dispatch.shutdown c
 
-let read     (c : Connection)             : _ * ioresult_i = (c, IOInterrupted IOIAgain)
-let write    (c : Connection) (b : bytes) : _ * ioresult_o = (c, IOInterrupted IOIAgain)
-let flush    (c : Connection)             : _ * ioresult_o = (c, IOInterrupted IOIAgain)
-let shutdown (c : Connection)             : _ * ioresult_o = (c, IOInterrupted IOIAgain)
-
-let connect (s : NetworkStream) (opt : protocolOptions) : Connection ioresult = IOInterrupted IOIAgain
-let resume  (s : NetworkStream) (opt : protocolOptions) : Connection ioresult = IOInterrupted IOIAgain
-
-let rehandshake     = fun (c : Connection) (opt : protocolOptions) -> c
-let rehandshake_now = fun (c : Connection) (opt : protocolOptions) -> (c, (IOInterrupted IOIAgain : ioresult_o))
-
-let rekey     = fun (c : Connection) (opt : protocolOptions) -> c
-let rekey_now = fun (c : Connection) (opt : protocolOptions) -> (c, (IOInterrupted IOIAgain : ioresult_o))
-
-let handshakeRequest     = fun (c : Connection) (opt : protocolOptions) -> c
-let handshakeRequest_now = fun (c : Connection) (opt : protocolOptions) -> (c, (IOInterrupted IOIAgain : ioresult_o))
-
-let accept            (s : TcpListener  ) (opt : protocolOptions) : Connection ioresult = IOInterrupted IOIAgain
-let accept_connected  (s : NetworkStream) (opt : protocolOptions) : Connection ioresult = IOInterrupted IOIAgain
+let getSessionInfo c = Dispatch.getSessionInfo c

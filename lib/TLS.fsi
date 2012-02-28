@@ -1,4 +1,4 @@
-﻿module TLS2
+﻿module TLS
 
 open Bytes
 open Error
@@ -8,39 +8,18 @@ open Tcp
 
 (* Event-driven interface *)
 
-type ioerror = ErrorCause * ErrorKind
-
-type iointerrupt =
-| IOIWarning     of alertDescription
-| IOIAuthRequest of Certificate.cert list
-| IOIAgain
-
-type 'a ioresult =
-| IOSuccess     of 'a
-| IOInterrupted of iointerrupt
-| IOError       of ioerror
-
-type ioresult_o = unit  ioresult
-type ioresult_i = bytes ioresult
-
 val getSessionInfo: Connection -> SessionInfo
 
-val read     : Connection -> Connection * ioresult_i
-val write    : Connection -> bytes -> Connection * ioresult_o
-val flush    : Connection -> Connection * ioresult_o
-val shutdown : Connection -> Connection * ioresult_o
+val read     : Connection -> ioresult_i
+val write    : Connection -> msg_o -> ioresult_o
+val shutdown : Connection -> Connection
 
-val connect : NetworkStream -> protocolOptions -> Connection ioresult
-val resume  : NetworkStream -> protocolOptions -> Connection ioresult
+val connect : NetworkStream -> protocolOptions -> Connection
+val resume  : NetworkStream -> sessionID -> protocolOptions -> Connection Result
 
-val rehandshake     : Connection -> protocolOptions -> Connection
-val rehandshake_now : Connection -> protocolOptions -> Connection * ioresult_o
+val rehandshake : Connection -> protocolOptions -> nextCn
+val rekey       : Connection -> protocolOptions -> nextCn
+val request     : Connection -> protocolOptions -> nextCn
 
-val rekey     : Connection -> protocolOptions -> Connection
-val rekey_now : Connection -> protocolOptions -> Connection * ioresult_o
-
-val handshakeRequest     : Connection -> protocolOptions -> Connection
-val handshakeRequest_now : Connection -> protocolOptions -> Connection * ioresult_o
-
-val accept           : TcpListener   -> protocolOptions -> Connection ioresult
-val accept_connected : NetworkStream -> protocolOptions -> Connection ioresult
+val accept           : TcpListener   -> protocolOptions -> Connection
+val accept_connected : NetworkStream -> protocolOptions -> Connection

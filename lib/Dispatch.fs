@@ -53,9 +53,13 @@ type query = Certificate.cert
 type msg_i = (DataStream.range * DataStream.delta)
 type msg_o = (DataStream.range * DataStream.delta)
 
+type ioerror =
+    | EInternal of ErrorCause * ErrorKind
+    | EFatal of alertDescription
+
 // Outcomes for top-level functions
 type ioresult_i =
-    | ReadError of alertDescription option
+    | ReadError of ioerror
     | Close     of Tcp.NetworkStream
     | Fatal     of alertDescription
     | Warning   of nextCn * alertDescription 
@@ -65,7 +69,7 @@ type ioresult_i =
     | ReadMustRead of Connection * msg_i
 
 type ioresult_o =
-    | WriteError    of alertDescription option
+    | WriteError    of ioerror
     | WriteComplete of nextCn
     | WritePartial  of nextCn * msg_o
     | MustRead      of Connection
@@ -117,11 +121,11 @@ let resume ns sid ops =
 
     (* Ensure the sid is in the SessionDB, and it is for a client *)
     match select ops sid with
-    | None -> unexpectedError "[resume] requested session expired or never stored in DB"
+    | None -> Error(Dispatcher,CheckFailed)
     | Some (retrieved) ->
     let (retrievedSinfo,retrievedMS,retrievedRole) = retrieved in
     match retrievedRole with
-    | Server -> unexpectedError "[resume] requested session is for server side"
+    | Server -> Error(Dispatcher,CheckFailed)
     | Client ->
     let outKI = null_KeyInfo CtoS ops.minVer in
     let inKI = dual_KeyInfo outKI in
@@ -141,8 +145,7 @@ let resume ns sid ops =
                        read = read_state;
                        write = write_state;
                        ns = ns;}) in
-    let unitVal = () in
-    (correct (unitVal), res)
+    correct (res)
 
 let rehandshake (Conn(id,conn)) ops =
     let new_hs = Handshake.start_rehandshake id conn.handshake ops in // Equivalently, id.id_in.sinfo
@@ -617,22 +620,22 @@ let rec readOnly c =
                 // clean shoutdown
                 Close conn.ns
             | Correct(SentFatal(ad),c) ->
-                ReadError(Some(ad))
+                ReadError(EFatal(ad))
             | Correct(_,c) ->
-                ReadError(None) // internal error
+                ReadError(EInternal(Dispatcher,Internal)) // internal error
             | Error(x,y) ->
-                ReadError(None) // internal error
+                ReadError(EInternal(x,y)) // internal error
     | Correct(RFatal(ad),c) ->
         Fatal(ad)
     | Correct(RWarning(ad),c) ->
         Warning(c,ad)
     | Error(x,y) ->
-        ReadError(None) // internal error
+        ReadError(EInternal(x,y)) // internal error
 
 let rec read c =
     let unitVal = () in
     match writeAll c with
-    | Error(x,y) -> ReadError(None) // Internal error, right now we don't say anything to the user
+    | Error(x,y) -> ReadError(EInternal(x,y)) // Internal error
     | Correct(WAppDataDone,c) ->
         // Nothing more to write. We can try to read now.
         // (Note: In fact, WAppDataDone here means "nothing sent",
@@ -661,23 +664,23 @@ let rec read c =
                     // clean shoutdown
                     Close conn.ns
                 | Correct(SentFatal(ad),c) ->
-                    ReadError(Some(ad))
+                    ReadError(EFatal(ad))
                 | Correct(_,c) ->
-                    ReadError(None) // internal error
+                    ReadError(EInternal(Dispatcher,Internal)) // internal error
                 | Error(x,y) ->
-                    ReadError(None) // internal error
+                    ReadError(EInternal(x,y)) // internal error
         | Correct(RFatal(ad),c) ->
             Fatal(ad)
         | Correct(RWarning(ad),c) ->
             Warning(c,ad)
         | Error(x,y) ->
-            ReadError(None) // internal error
+            ReadError(EInternal(x,y)) // internal error
     | Correct(WMustRead,c) ->
         readOnly c
     | Correct(WHSDone,c) ->
         Handshaken (c)
     | Correct(SentFatal(ad),c) ->
-        ReadError(Some(ad))
+        ReadError(EFatal(ad))
     | Correct(SentClose,c) ->
         let (Conn(id,conn)) = c in
         match conn.read.disp with
@@ -706,15 +709,15 @@ let write (Conn(id,c)) msg =
         // Being more precise about the Dispatch state machine, we should be
         // able to prove that this case should never happen, and so use the
         // unexpectedError function.
-        WriteError(None)
+        WriteError(EInternal(Dispatcher,Internal))
     | Correct(WMustRead,c) | Correct(SentClose,c) ->
         MustRead(c)
     | Correct(SentFatal(ad),c) ->
-        WriteError(Some(ad))
+        WriteError(EFatal(ad))
     | Correct(WriteAgain,c) ->
         unexpectedError "[write] writeAll should never return WriteAgain"
     | Error(x,y) ->
-        WriteError(None) // internal
+        WriteError(EInternal(x,y)) // internal
 
 (*
 let rec writeAppData c = 

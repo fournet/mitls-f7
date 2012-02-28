@@ -18,7 +18,7 @@ type msg_o = (range * delta)
 
 val init: NetworkStream -> Role -> protocolOptions -> Connection
 
-val resume: NetworkStream -> sessionID -> protocolOptions -> unit Result * Connection
+val resume: NetworkStream -> sessionID -> protocolOptions -> Connection Result
 
 val rehandshake: Connection -> protocolOptions -> nextCn
 val rekey: Connection -> protocolOptions -> nextCn
@@ -38,8 +38,12 @@ val sendNextFragments: Connection -> (unit Result) * Connection
 val readNextAppFragment: Connection -> (unit Result) * Connection
 *)
 
+type ioerror =
+    | EInternal of ErrorCause * ErrorKind
+    | EFatal of alertDescription
+
 type ioresult_i =
-    | ReadError of alertDescription option
+    | ReadError of ioerror
     | Close     of Tcp.NetworkStream
     | Fatal     of alertDescription
     | Warning   of nextCn * alertDescription 
@@ -49,7 +53,7 @@ type ioresult_i =
     | ReadMustRead of Connection * msg_i
     
 type ioresult_o =
-    | WriteError    of alertDescription option
+    | WriteError    of ioerror
     | WriteComplete of nextCn
     | WritePartial  of nextCn * msg_o
     | MustRead      of Connection
