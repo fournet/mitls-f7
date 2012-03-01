@@ -63,6 +63,17 @@ let encode (ki:KeyInfo) rg ad data tag =
     let p = max - length d - length tag.macT - ivL
     {p = d @| tag.macT @| pad p}
 
+let encodeNoPad (ki:KeyInfo) rg ad data tag =
+    let d = AEADPlain.repr ki rg ad data
+    let ivL =
+        match ki.sinfo.protocol_version with
+        | SSL_3p0 | TLS_1p0 -> 0
+        | TLS_1p1 | TLS_1p2 ->
+            let encAlg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
+            ivSize encAlg 
+    let min,max = rg in
+    {p = d @| tag.macT}
+
 let check_split b l = 
   if length(b) < l then failwith "split failed: FIX THIS to return BOOL + ..."
   if l < 0 then failwith "split failed: FIX THIS to return BOOL + ..."

@@ -4,6 +4,7 @@ open TLSInfo
 
 type AEADKey =
     | MtE of MAC.key * ENCKey.key
+    | MACOnly of MAC.key
  (* | GCM of GCM.GCMKey *)
 
 type recordKey =

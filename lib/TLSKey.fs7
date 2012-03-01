@@ -11,6 +11,7 @@ open TLSInfo
 
 type (;ki:KeyInfo) AEADKey = 
       MtE of ka:(;ki)MAC.key * ke:(;ki)ENCKey.key // {MtEKey(ki,(ka,ke))}
+    | MACOnly of (;ki) MAC.key
 (*  |   GCM of ke:(;ki:AENC.key)  *)
 
 type (;ki:KeyInfo) recordKey =

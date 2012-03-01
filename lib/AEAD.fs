@@ -17,6 +17,12 @@ let encrypt ki k state data rg plain =
         let tag     = AEPlain.mac    ki ka maced  
         let encoded = AEPlain.encode ki rg data plain tag
         ENC.ENC ki ke state rg encoded
+    | MACOnly (ka) ->
+        let maced   = AEPlain.concat ki rg data plain
+        let tag     = AEPlain.mac    ki ka maced  
+        let encoded = AEPlain.encodeNoPad ki rg data plain tag
+        state,AEPlain.repr ki rg encoded
+
 //  | auth only -> ...
 //  | GCM (GCMKey) -> ... 
         

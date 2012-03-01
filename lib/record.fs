@@ -97,7 +97,9 @@ let recordPacketOut keyInfo conn tlen seqn ct fragment =
         let ad0 = TLSFragment.makeAD keyInfo.sinfo.protocol_version ct in
         let addData = StatefulPlain.makeAD seqn ad0 in
         let aeadF = StatefulPlain.TLSFragmentToFragment keyInfo tlen seqn ct fragment in
-        let (nr,payload) = StatefulAEAD.encrypt keyInfo (connState keyInfo conn)addData tlen aeadF in
+
+        let (nr,payload) = StatefulAEAD.encrypt keyInfo (connState keyInfo conn) addData tlen aeadF in
+
         let conn = {conn with state = Some nr} in
         let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
         (conn,packet)
