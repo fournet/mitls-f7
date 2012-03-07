@@ -16,7 +16,6 @@ type (;ki:KeyInfo) AEADKey =
 
 type (;ki:KeyInfo) recordKey =
     | RecordAEADKey of (;ki)AEADKey
-    | RecordMACKey of (;ki)MAC.key
     | NoneKey
 
 type (;ki:KeyInfo) ccs_data =

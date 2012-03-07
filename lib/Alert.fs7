@@ -108,7 +108,7 @@ val init: ci:ConnectionInfo -> (;ci)state
 
 val send_alert: ci:ConnectionInfo -> (;ci)state -> alertDescription -> (;ci)state
 
-val next_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)state -> ((;ci.id_out,seqn)ALFragReply * (;ci)state) 
+val next_fragment: ci:ConnectionInfo -> seqn:int -> state -> ((;ci.id_out,seqn)ALFragReply * state) 
 
 val handle_alert: ci:ConnectionInfo -> (;ci)state -> alertDescription -> (;ci)alert_reply
 

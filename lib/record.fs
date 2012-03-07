@@ -23,8 +23,7 @@ let connState (ki:KeyInfo) (cs:ConnectionState) =
 let initConnState (ki:KeyInfo) (ccsData:ccs_data) =
   let rk = ccsData.ccsKey in 
   match rk with 
-      RecordAEADKey k -> {key = rk; state = Some (initState ki k ccsData.ccsIV3)}
-    | RecordMACKey _
+    | RecordAEADKey k -> {key = rk; state = Some (initState ki k ccsData.ccsIV3)}
     | NoneKey -> {key = rk; state = None}
 
 /// packet format
@@ -81,24 +80,25 @@ let recordPacketOut keyInfo conn tlen seqn ct fragment =
         let payload = TLSFragment.TLSFragmentRepr keyInfo ct (TLSFragment.emptyHistory keyInfo)  tlen fragment in
         let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
         (conn,packet)
-    | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
-        let ad0 = TLSFragment.makeAD keyInfo.sinfo.protocol_version ct in
-        let addData = StatefulPlain.makeAD seqn ad0 in
-        let aeadSF = StatefulPlain.TLSFragmentToFragment keyInfo tlen seqn ct fragment in
-        let st = connState keyInfo conn in
-        let aeadF = AEADPlain.fragmentToPlain keyInfo st addData tlen aeadSF in
-        let data = AEPlain.concat keyInfo tlen addData aeadF in
-        let mac = AEPlain.mac keyInfo key data in
-        // FIXME: next line should be: ley payload = AEPlain.encodeNoPad ..., to match decodeNoPad, and remove dependency on tagRepr
-        let payload = (TLSFragment.TLSFragmentRepr keyInfo ct st.history tlen fragment) @| (AEPlain.tagRepr keyInfo mac) in
-        let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
-        (conn,packet)
+// MACOnly is now handled within AEAD
+//    | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
+//        let ad0 = TLSFragment.makeAD keyInfo.sinfo.protocol_version ct in
+//        let addData = StatefulPlain.makeAD seqn ad0 in
+//        let aeadSF = StatefulPlain.TLSFragmentToFragment keyInfo tlen seqn ct fragment in
+//        let st = connState keyInfo conn in
+//        let aeadF = AEADPlain.fragmentToPlain keyInfo st addData tlen aeadSF in
+//        let data = AEPlain.concat keyInfo tlen addData aeadF in
+//        let mac = AEPlain.mac keyInfo key data in
+//        // FIXME: next line should be: ley payload = AEPlain.encodeNoPad ..., to match decodeNoPad, and remove dependency on tagRepr
+//        let payload = (TLSFragment.TLSFragmentRepr keyInfo ct st.history tlen fragment) @| (AEPlain.tagRepr keyInfo mac) in
+//        let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
+//        (conn,packet)
     | (_,RecordAEADKey(key)) ->
         let ad0 = TLSFragment.makeAD keyInfo.sinfo.protocol_version ct in
-        let addData = StatefulPlain.makeAD seqn ad0 in
+        // let addData = StatefulPlain.makeAD seqn ad0 in // AP: it is invoked within StatefulAEAD
         let aeadF = StatefulPlain.TLSFragmentToFragment keyInfo tlen seqn ct fragment in
 
-        let (nr,payload) = StatefulAEAD.encrypt keyInfo (connState keyInfo conn) addData tlen aeadF in
+        let (nr,payload) = StatefulAEAD.encrypt keyInfo (connState keyInfo conn) ad0 tlen aeadF in
 
         let conn = {conn with state = Some nr} in
         let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
@@ -130,7 +130,7 @@ let recordPacketOut2 conn clen ct fragment =
     makePacket ct conn.local_pv payload 
 *)
 
-let recordPacketIn ki conn seqn headPayload =
+let recordPacketIn ki conn (seqn:int) headPayload =
     let (header,payload) = split headPayload 5 in
     match parseHeader header with
     | Error(x,y) -> Error(x,y)
@@ -147,116 +147,29 @@ let recordPacketIn ki conn seqn headPayload =
     | (x,NoneKey) when isNullCipherSuite x ->
         let msg = TLSFragment.TLSFragment ki ct (TLSFragment.emptyHistory ki) tlen payload in
         correct(conn,ct,pv,tlen,msg)
-    | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
+// MACOnly is now handled within AEAD
+//    | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
+//        let ad0 = TLSFragment.makeAD ki.sinfo.protocol_version ct in
+//        let ad = StatefulPlain.makeAD seqn ad0 in
+//        let plain = AEPlain.plain ki tlen payload in
+//        let (rg,msg,mac) = AEPlain.decodeNoPad ki ad plain in
+//        let toVerify = AEPlain.concat ki rg ad msg in
+//        let ver = AEPlain.verify ki key toVerify mac in
+//        if ver then
+//          let msg0 = AEADPlain.plainToFragment ki (connState ki conn) ad rg msg in
+//          let msg = StatefulPlain.fragmentToTLSFragment ki (connState ki conn) ad rg msg0 in
+//            correct(conn,ct,pv,rg,msg)
+//        else
+//            Error(MAC,CheckFailed)
+    | (x,RecordAEADKey(key)) ->
         let ad0 = TLSFragment.makeAD ki.sinfo.protocol_version ct in
-        let ad = StatefulPlain.makeAD seqn ad0 in
-        let plain = AEPlain.plain ki tlen payload in
-        let (rg,msg,mac) = AEPlain.decodeNoPad ki ad plain in
-        let toVerify = AEPlain.concat ki rg ad msg in
-        let ver = AEPlain.verify ki key toVerify mac in
-        if ver then
-          let msg0 = AEADPlain.plainToFragment ki (connState ki conn) ad rg msg in
-          let msg = StatefulPlain.fragmentToTLSFragment ki (connState ki conn) ad rg msg0 in
-            correct(conn,ct,pv,rg,msg)
-        else
-            Error(MAC,CheckFailed)
-    | (_,RecordAEADKey(key)) ->
-        let ad0 = TLSFragment.makeAD ki.sinfo.protocol_version ct in
-        let ad = StatefulPlain.makeAD seqn ad0 in
-        let decr = StatefulAEAD.decrypt ki (connState ki conn) ad payload in
+        // let ad = StatefulPlain.makeAD seqn ad0 in // AP: it is invoked within StatefulAEAD
+        let decr = StatefulAEAD.decrypt ki (connState ki conn) ad0 payload in
         match decr with
         | Error(x,y) -> Error(x,y)
         | Correct (decrRes) ->
             let (ns, tlen, plain) = decrRes in
-            let msg = StatefulPlain.fragmentToTLSFragment ki (connState ki conn) ad tlen plain in
+            let msg = StatefulPlain.fragmentToTLSFragment ki (connState ki conn) ad0 tlen plain in
             let conn = {conn with state = Some ns} in
             correct(conn,ct,pv,tlen,msg)
     | _ -> unexpectedError "[recordPacketIn] Incompatible ciphersuite and key type"
-
-/// old stuff, to be deleted?
-
-(* 
-// We'll need to qualify system errors,
-// as some of them break confidentiality 
-let send conn ct fragment =
-    match make_compression conn fragment with
-    | Error (x,y) -> Error (x,y)
-    | Correct compressed ->
-    match compute_mac conn ct compressed with
-    | Error (x,y) -> Error (x,y)
-    | Correct mac ->
-    let content = append compressed mac in
-    let toEncrypt = prepare_enc conn content in
-    match encrypt conn toEncrypt with
-    | Error (x,y) -> Error (x,y)
-    | Correct c ->
-        let (conn, payload) = c in
-        let conn = incN conn in
-        let packet = makePacket ct conn.protocol_version payload in
-        match Tcp.write conn.net_conn packet with
-        | Error (x,y) -> Error (x,y)
-        | Correct _ -> correct (conn)
-*)
-
-(* Legacy implementation of recv. Now replaced by recordPacketIn, which does not deal with the network channel *)
-(* 
-let recv conn =
-    let net = conn.net_conn in
-//Cedric: we need refinements to keep track of lengths, starting from TCP.read etc
-    match Tcp.read net 5 with
-    | Error (x,y) -> Error (x,y)
-    | Correct header ->
-    let (ct,pv,len) = parseHeader header in
-    if   (  conn.protocol_version <> UnknownPV 
-         && pv <> conn.protocol_version)
-      || pv = UnknownPV 
-    then Error (RecordVersion,CheckFailed)
-    else
-        (* We commit to the received protocol version.
-           In fact, this only changes the protcol version when receiving the first fragment *)
-        let conn = {conn with protocol_version = pv} in
-        (* No need to check len, since it's on 2 bytes and the max allowed value
-           is 2^16. So, here len is always safe *)
-        match Tcp.read net len with 
-        | Error (x,y) -> Error (x,y) 
-        | Correct payload ->
-        match decrypt conn payload with
-        | Error (x,y) -> Error (x,y)
-        | Correct c ->
-        let (conn,compr_and_mac_and_pad) = c in
-        match parse_plaintext conn compr_and_mac_and_pad with
-        | Error (x,y) -> Error (x,y)
-        | Correct c ->
-        let (compr,mac) = c in
-        match verify_mac conn ct compr mac with
-        | Error (x,y) -> Error (x,y)
-        | Correct c ->
-        match make_decompression conn compr with
-        | Error (x,y) -> Error (x,y)
-        | Correct (msg) ->
-        let conn = incN conn in
-        correct (ct,msg,conn)
-*)
-
-
-(* check_length and make_(de)compression are now internally handled by TLSPlain *)
-(*
-let check_length (item: bytes) max_len result errorType =
-    if length item < max_len then
-        correct (result)
-    else
-        Error (errorType, CheckFailed)
-
-let make_compression conn (data:bytes) =
-    (* Assume data is a fragment of correct length; 
-       Ensure the result is not longer than 2^15 bytes *)
-    match conn.compression with
-    | Null -> correct (data) (* Post-condition is always satisfied *)
-    | _ -> Error (RecordCompression, Unsupported)
-
-let make_decompression conn data =
-    (* Assume data is a compressed fragment of proper length *)
-    match conn.compression with
-    | Null -> check_length data max_TLSPlaintext_fragment_length data RecordCompression
-    | _ -> Error (RecordCompression, Unsupported)
-*)

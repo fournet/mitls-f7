@@ -5,9 +5,19 @@ open TLSInfo
 open TLSFragment
 open DataStream
 
-private type (;ki:KeyInfo,tlen:DataStream.range) plain = {p: (x:bytes){Length(x) = tlen}}
-val plain: ki:KeyInfo -> tlen:DataStream.range -> b:bytes{Length(b) = tlen} -> (;ki,tlen) plain
-val repr: ki:KeyInfo -> tlen:DataStream.range -> (;ki,tlen) plain -> b:bytes{Length(b) = tlen}
+// AP and CF agree: AEPlain is indexed by (ki and) its public length, after encoding (and not by range).
+// We define function from:
+// - public length of ciphertext to public length of encoded plaintext (either identity, or minus iv length)
+// - from tlen to public range of decoded authenticated fragment
+// - (and the inverse functions)
+
+function val PlainLength: ki:KeyInfo -> l1:nat ->
+	l2:nat //{ki.sinfo.protocol_version == (SSL3p0 || TLS1p0) => l1 = l2 /\
+		   // ki.sinfo.protocol_version == (TLS1p1 || TLS1p2) => l1 = l2 + IVSize(ki))}
+
+private type (;ki:KeyInfo,tlen:nat) plain = {p: (x:bytes){Length(x) = PlainLength(ki,tlen)}}
+val plain: ki:KeyInfo -> tlen:nat -> b:bytes{Length(b) = PlainLength(ki,tlen)} -> (;ki,tlen) plain
+val repr: ki:KeyInfo -> tlen:nat -> (;ki,tlen) plain -> b:bytes{Length(b) = PlainLength(ki,tlen)}
 
 // Plaintext of MAC (addData + TLSFragment.fragment)
 private type (;ki:KeyInfo) MACPlain = {macP:bytes}
@@ -48,9 +58,10 @@ val check_split:
   b:bytes -> i:int -> 
   b1:bytes * b2:bytes { Length(b1) = i /\ b = b1 @| b2 }
 
+// The following should rather be internal to AEAD, as it only operates on public data.
+// However, we put it here to avoid circular dependencies
+function val RangeCipher: KeyInfo -> range -> nat
+val rangeCipher: ki:KeyInfo -> r:range -> tlen:nat{tlen=RangeCipher(ki,r)}
 
-(*function val CipherRange: KeyInfo -> (;ki*)
-val cipherRange: ki:KeyInfo -> p:plain -> r:DataStream.range{r = AEADPlain.CipherRange(ki,p)}
-
-val encode: ki:KeyInfo -> tlen:DataStream.range -> ad:(;ki.sinfo.protocol_version) TLSFragment.addData -> (;ki,tlen,ad) AEADPlain.plain -> (;ki) tag -> (;ki,tlen) plain
-val decode: ki:KeyInfo -> ad:(;ki.sinfo.protocol_version) TLSFragment.addData -> (;ki,tlen) plain -> (rg:DataStream.range * (;ki,rg,ad)AEADPlain.plain * (;ki)tag * bool)
+val encode: ki:KeyInfo -> rg:range -> ad:(;ki.sinfo.protocol_version) TLSFragment.addData -> (;ki,rg,ad) AEADPlain.plain -> (;ki) tag -> (tlen:nat * (;ki,tlen) plain){tlen=RangeCipher(ki,rg)}
+val decode: ki:KeyInfo -> ad:(;ki.sinfo.protocol_version) TLSFragment.addData -> tlen:nat -> (;ki,tlen) plain -> (rg:range * (;ki,rg,ad)AEADPlain.plain * (;ki)tag * bool){tlen=RangeCipher(ki,rg)}

@@ -114,7 +114,7 @@ type (;c:cn,d:(;c) msg_o) ioresult_o =
 	 /\ ConnectionInKeyInfo(c') = ConnectionInKeyInfo(c) 
      /\ Bytes_i(c')             = Bytes_i(c) }
 
-val write: c:cn -> rg:range -> d:(;c) msg_o -> (;c,d) ioresult_o
+val write: c:cn -> rg:range -> d:(;c,rg) msg_o -> (;c,d) ioresult_o
 // On the write side, the following events may be generated:
 // - Write(ki,Bytes_o(c')) 
 // - Close(ki,Bytes_o(c))
@@ -129,10 +129,10 @@ val write: c:cn -> rg:range -> d:(;c) msg_o -> (;c,d) ioresult_o
 val null: i:index{NullKeyInfo(i.id_in) /\ NullKeyInfo(i.id_out)}
 type (;r:role,p:params) nullCn = c:cn {CnId(c) = null /\ Params(c) = p /\ Role(c) = r}
 
-val connect: Tcp.NetworkStream -> p:params                  -> (;CtoS,p) nullCn Result
-val resume:  Tcp.NetworkStream -> p:params -> sid:sessionID -> (;CtoS,p) nullCn Result 
+val connect: Tcp.NetworkStream -> p:params                  -> (;Client,p) nullCn Result
+val resume:  Tcp.NetworkStream -> p:params -> sid:sessionID -> (;Client,p) nullCn Result 
 // even if the server declines, we authenticate the client's intent to resume from the sid.
-val accept:  Tcp.NetworkStream -> p:params                  -> (;StoC,p) nullCn Result
+val accept:  Tcp.NetworkStream -> p:params                  -> (;Server,p) nullCn Result
 val shutdown: c:cn -> Tcp.NetworkStream Result
 //was: (c':(;c) nextCn {Extend(c,c')}) Result
 // [shutdown] will internally generate a Close(ki, Bytes_o(c)); releases the TCP socket after shutdown

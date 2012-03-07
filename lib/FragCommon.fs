@@ -1,5 +1,8 @@
 ﻿module FragCommon
 
+// This module is obsolete. It should be replaced by DataStream,
+// and DataStream used by all upper protocols
+
 open Bytes
 open TLSInfo
 open Algorithms

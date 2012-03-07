@@ -21,4 +21,3 @@ val join: KeyInfo -> stream -> range -> delta ->
 val delta: KeyInfo -> stream -> range -> bytes -> delta  
 
 val deltaRepr: KeyInfo -> stream -> range -> delta -> bytes
-

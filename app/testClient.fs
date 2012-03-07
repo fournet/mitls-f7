@@ -1,23 +1,37 @@
 ﻿module testClient
 
 open Error
+open Dispatch
 
-let serverIP = "google.com" // "rigoletto.polito.it" // 128.93.188.162
+let serverIP = "rigoletto.polito.it" // "google.com" // 128.93.188.162
 let serverPort = 443
 let options = TLSInfo.defaultProtocolOptions
+
+let consume conn =
+    match TLS.read conn with
+    | ReadError e ->
+        match e with
+        | EInternal (x,y) ->
+            Printf.printf "AYEEE!!! %A %A" x y
+            ignore (System.Console.ReadLine())
+            None
+        | EFatal x ->
+            Printf.printf "AYEEE!!! %A" x
+            ignore (System.Console.ReadLine())
+            None
+    | Handshaken (conn) ->
+        Printf.printf "Full OK"
+        ignore (System.Console.ReadLine())
+        Some(conn)
+    | x ->
+        Printf.printf "AYEEE!!! %A" x
+        ignore (System.Console.ReadLine())
+        None
 
 let testCl options =
     let ns = Tcp.connect serverIP serverPort in
     let conn = TLS.connect ns options in
-    match conn with
-    | (Error(x,y),conn) ->
-        Printf.printf "AYEEE!!! %A %A" x y
-        ignore (System.Console.ReadLine())
-        (Error(x,y),conn,ns)
-    | (unitVal,conn) ->
-        Printf.printf "Full OK"
-        ignore (System.Console.ReadLine())
-        (unitVal,conn,ns)
+    ignore (consume conn)
 
 let test = 
     SessionDB.create options
@@ -31,18 +45,22 @@ let testRes options sid =
     | Some (sinfo) ->
         let conn = TLS.resume ns sid options in
         match conn with
-        | (Error(x,y),_) -> Printf.printf "AYEEE!!! %A %A" x y
-        | Correct(_), conn ->
-            let sinfo = TLS.getSessionInfo conn in
-            match sinfo.sessionID with
-            | None -> printf "Full handshake, and got new, non-resumable session."
-            | Some (newSid) ->
-                if sid = newSid then
-                    Printf.printf "Resumption OK"
-                else
-                    printf "Gotta Full handshake"
+        | Error(x,y) -> Printf.printf "AYEEE!!! %A %A" x y
+        | Correct(conn) ->
+            match consume conn with
+            | None -> ()
+            | Some(conn) ->
+                let sinfo = TLS.getSessionInfo conn in
+                match sinfo.sessionID with
+                | None -> printf "Full handshake, and got new, non-resumable session."
+                | Some (newSid) ->
+                    if sid = newSid then
+                        Printf.printf "Resumption OK"
+                    else
+                        printf "Gotta Full handshake"
         ignore (System.Console.ReadLine ())
 
+(*
 let testFullAndReKey () =
     match testCl options with
     | (Error(x,y),_,_) -> ()
@@ -64,7 +82,9 @@ let testFullAndReKey () =
                 else
                     printf "Gotta Full handshake"
         ignore (System.Console.ReadLine ())
+*)
 
+(*
 let testFullAndRehandshake () =
     match testCl options with
     | (Error(x,y),_,_) -> ()
@@ -75,6 +95,7 @@ let testFullAndRehandshake () =
         | Correct(_), conn ->
             printf "Full re-handshake OK"
             ignore (System.Console.ReadLine ())
+*)
 
 (*
 let testResumptionRollbackAttack () =

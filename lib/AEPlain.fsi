@@ -5,8 +5,8 @@ open TLSInfo
 open Formats
 
 type plain
-val plain: KeyInfo -> DataStream.range -> bytes -> plain
-val repr: KeyInfo -> DataStream.range -> plain -> bytes
+val plain: KeyInfo -> nat -> bytes -> plain
+val repr: KeyInfo -> nat -> plain -> bytes
 
 type MACPlain
 type tag
@@ -18,8 +18,9 @@ val verify: KeyInfo -> MAC.key -> MACPlain -> tag -> bool
 val tagRepr: KeyInfo -> tag -> bytes
 
 
-val encode: KeyInfo -> DataStream.range -> AEADPlain.data -> AEADPlain.plain -> tag -> plain
-val encodeNoPad: KeyInfo -> DataStream.range -> AEADPlain.data -> AEADPlain.plain -> tag -> plain
+val encode: KeyInfo -> DataStream.range -> AEADPlain.data -> AEADPlain.plain -> tag -> nat * plain
+val encodeNoPad: KeyInfo -> DataStream.range -> AEADPlain.data -> AEADPlain.plain -> tag -> nat * plain
 
-val decode: KeyInfo -> AEADPlain.data -> plain -> (DataStream.range * AEADPlain.plain * tag * bool)
-val decodeNoPad: KeyInfo -> AEADPlain.data -> plain -> (DataStream.range * AEADPlain.plain * tag)
+val decode: KeyInfo -> AEADPlain.data -> nat -> plain -> (DataStream.range * AEADPlain.plain * tag * bool)
+val decodeNoPad: KeyInfo -> AEADPlain.data -> nat -> plain -> (DataStream.range * AEADPlain.plain * tag)
+

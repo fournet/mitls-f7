@@ -29,7 +29,7 @@ let rec loop sa sb a b l =
         printf "(%d,%d)" sa sb
         loop sa sb a b l
 
-let _ =
+let rec main () =
     printf "Give Range\n"
     let mutable a = Int32.Parse(Console.ReadLine())
     let mutable b = Int32.Parse(Console.ReadLine())
@@ -39,3 +39,6 @@ let _ =
     printf "(%d,%d)" sa sb
     loop sa sb a b l
     printf " %d\n" l
+    main ()
+
+let _ = main ()

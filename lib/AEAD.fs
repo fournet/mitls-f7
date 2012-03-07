@@ -15,13 +15,13 @@ let encrypt ki k state data rg plain =
     | MtE (ka,ke) ->
         let maced   = AEPlain.concat ki rg data plain
         let tag     = AEPlain.mac    ki ka maced  
-        let encoded = AEPlain.encode ki rg data plain tag
-        ENC.ENC ki ke state rg encoded
+        let (tlen,encoded) = AEPlain.encode ki rg data plain tag
+        ENC.ENC ki ke state tlen encoded
     | MACOnly (ka) ->
         let maced   = AEPlain.concat ki rg data plain
         let tag     = AEPlain.mac    ki ka maced  
-        let encoded = AEPlain.encodeNoPad ki rg data plain tag
-        state,AEPlain.repr ki rg encoded
+        let (tlen,encoded) = AEPlain.encodeNoPad ki rg data plain tag
+        state,AEPlain.repr ki tlen encoded
 
 //  | auth only -> ...
 //  | GCM (GCMKey) -> ... 
@@ -30,7 +30,7 @@ let decrypt ki k state data cipher =
     match k with
     | MtE (ka,ke) ->
         let (state,encoded)         = ENC.DEC ki ke state cipher in
-        let (rg,plain,tag,decodeOk) = AEPlain.decode ki data encoded in
+        let (rg,plain,tag,decodeOk) = AEPlain.decode ki data (length cipher) encoded in
         let maced                   = AEPlain.concat ki rg data plain 
         match ki.sinfo.protocol_version with
         | SSL_3p0 | TLS_1p0 ->
@@ -46,7 +46,14 @@ let decrypt ki k state data cipher =
                 if decodeOk then correct (state,rg,plain)                
                 else Error(MAC,CheckFailed)
             else     Error(MAC,CheckFailed)
-//  | auth only -> ...
+    | MACOnly (ka) ->
+        let encoded = AEPlain.plain ki (length cipher) cipher in
+        let (rg,plain,tag) = AEPlain.decodeNoPad ki data (length cipher) encoded in
+        let maced          = AEPlain.concat ki rg data plain
+        if AEPlain.verify ki ka maced tag then
+            correct (state,rg,plain)
+        else
+            Error(MAC,CheckFailed)
 //  | GCM (GCMKey) -> ... 
 
 (*

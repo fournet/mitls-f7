@@ -9,7 +9,6 @@ type AEADKey =
 
 type recordKey =
     | RecordAEADKey of AEADKey
-    | RecordMACKey of MAC.key
     | NoneKey
 
 type ccs_data =
