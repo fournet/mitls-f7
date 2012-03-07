@@ -1,28 +1,41 @@
-﻿open System
+﻿module Ranges
+
+open System
 
 let FS = 10000
 let PS = 200
 
-let rec ranges a b =
+let ranges a b =
     let minpack = (b-a) / PS
     let minfrag = (b-1) / FS
     let savebytes = Math.Max(minpack,minfrag)
-    //printf "minpack = %d\n" minpack
     let smalla = Math.Max (Math.Min (a-savebytes,FS), 0)
     let smallb = Math.Min (Math.Min (PS+smalla, FS), b)
-    printf "(%d,%d); " smalla smallb
-    let a = a-smalla
-    let b = b-smallb
+    ((smalla,smallb),(a-smalla,b-smallb))
+
+let content (sa,sb) (a,b) l =
+    if l > b then
+        let sl = Math.Min(l-a,FS)
+        (sl,l-sl)
+    else
+        (0,l)
+
+let rec loop sa sb a b l =
     if b > 0 then
-        ranges a b
+        printf " [%d,%d]" a b
+        let (sl,l) = content (sa,sb) (a,b) l
+        printf " %d\n" sl
+        let ((sa,sb),(a,b)) = ranges a b
+        printf "(%d,%d)" sa sb
+        loop sa sb a b l
 
-let rec main () =
+let _ =
     printf "Give Range\n"
-    let a = Int32.Parse(Console.ReadLine())
-    let b = Int32.Parse(Console.ReadLine())
-    //printf "a = %d; b = %d\n" a b
-    ranges a b
-    printf "\n"
-    main ()
-
-let _ = main ()
+    let mutable a = Int32.Parse(Console.ReadLine())
+    let mutable b = Int32.Parse(Console.ReadLine())
+    printf "Give Length\n"
+    let mutable l = Int32.Parse(Console.ReadLine())
+    let ((sa,sb),(a,b)) = ranges a b
+    printf "(%d,%d)" sa sb
+    loop sa sb a b l
+    printf " %d\n" l
