@@ -10,14 +10,14 @@ open DataStream
 type cipher = ENC.cipher
 
 
-let encrypt (ki:KeyInfo) (w:writer) (ad:data) (r:range) (f:fragment) = 
+let encrypt (ki:KeyInfo) (w:writer) (ad:data) (r:range) (f:fragment) =
+  let w = addFragment ki w ad r f in
   let k = getKey ki w in
   let iv = getIV ki w in
   let seq = sequenceNo ki w in
   let ad = makeAD seq ad in
   let pl = AEADPlain.fragmentToPlain ki w ad r f in
   let iv',c = AEAD.encrypt ki k iv ad r pl in
-  let w = addFragment ki w ad r f in
   let w = updateIV ki w iv' in
     w,c
 

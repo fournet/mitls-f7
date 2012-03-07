@@ -8,12 +8,12 @@ open Formats
 open CipherSuites
 
 type data = bytes
-type prestate = {
-  key: AEADKey;
-  iv: ENCKey.iv3;
-  seqn: int;
-  history: TLSFragment.history;
-}
+type prestate // = {
+//  key: AEADKey;
+//  iv: ENCKey.iv3;
+//  seqn: int;
+//  history: TLSFragment.history;
+//}
 
 type state = prestate
 type reader = state
