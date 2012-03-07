@@ -71,7 +71,7 @@ let lastblock cipher ivl =
     let (_,b) = split cipher (length cipher - ivl) in b
 
 (* Parametric ENC/DEC functions *)
-let ENC ki key iv3 (tlen:DataStream.range) data =
+let ENC ki key iv3 tlen data =
     (* Should never be invoked on a stream (right now) encryption algorithm *)
     let alg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
     let ivl = ivSize alg in
@@ -80,7 +80,6 @@ let ENC ki key iv3 (tlen:DataStream.range) data =
         | ENCKey.SomeIV(b) -> b
         | ENCKey.NoIV _    -> mkRandom ivl in
     let d = AEPlain.repr ki tlen data in
-    let min,max = tlen in
     let cipher =
         match alg with
         | TDES_EDE_CBC -> tdesEncrypt ki key iv d
@@ -89,7 +88,7 @@ let ENC ki key iv3 (tlen:DataStream.range) data =
         | RC4_128      -> unexpectedError "[ENC] invoked on stream cipher"
     match iv3 with
     | ENCKey.SomeIV(_) ->
-        if length cipher <> max || max > FragCommon.max_TLSCipher_fragment_length then
+        if length cipher <> tlen || tlen > FragCommon.max_TLSCipher_fragment_length then
             // unexpected, because it is enforced statically by the
             // CompatibleLength predicate
             unexpectedError "[ENC] Length of encrypted data do not match expected length"
@@ -97,7 +96,7 @@ let ENC ki key iv3 (tlen:DataStream.range) data =
             (ENCKey.SomeIV(lastblock cipher ivl), cipher)
     | ENCKey.NoIV(b) ->
         let res = iv @| cipher in
-        if length res <> max || max > FragCommon.max_TLSCipher_fragment_length then
+        if length res <> tlen || tlen > FragCommon.max_TLSCipher_fragment_length then
             // unexpected, because it is enforced statically by the
             // CompatibleLength predicate
             unexpectedError "[ENC] Length of encrypted data do not match expected length"
@@ -118,7 +117,7 @@ let DEC ki key iv3 cipher =
         | AES_128_CBC  -> aesDecrypt  ki key iv encrypted
         | AES_256_CBC  -> aesDecrypt  ki key iv encrypted
         | RC4_128      -> unexpectedError "[DEC] invoked on stream cipher"
-    let d = AEPlain.plain ki (length cipher,length cipher) data in
+    let d = AEPlain.plain ki (length cipher) data in
     match iv3 with
     | ENCKey.SomeIV(_) -> (ENCKey.SomeIV(lastblock cipher ivl), d)
     | ENCKey.NoIV(b)   -> (ENCKey.NoIV(b), d)
