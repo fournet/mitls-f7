@@ -1,4 +1,4 @@
- qmodule AppDataStream
+module AppDataStream
 
 open TLSInfo
 open Bytes
