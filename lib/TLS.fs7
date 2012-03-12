@@ -18,6 +18,10 @@ type index = ConnectionInfo
 type params = protocolOptions
 type cn //= Dispatch.Connection
 
+type epoch =
+| Init of role * UID (* the locally-generated nonce *)
+| Succ of 
+
 function val Role: cn -> Direction
 assume !c. Role(c) = ConnectionOutKeyInfo(c).dir
 
@@ -39,12 +43,16 @@ function val CnStream_i: c:cn -> (;ConnectionInKeyInfo(c)) stream
 function val CnStream_o: c:cn -> (;ConnectionOutKeyInfo(c)) stream
 assume !id, s. CnId(Conn(id, s)) = id
 assume !id, s. CnStream_i(Conn(id, s)) =  InStream(id, s.appdata)
-assume !id, s. CnStream_o(Conn(id, s)) = OutStream(id, s.appdata)
+assume !id, s. CnStream_o(Conn(id, s)) = OutStream(id, s.appdata)  //TODO: should we index appdata with id??
 //CF redundant?
 function val Bytes_o: cn -> bytes
 function val Bytes_i: cn -> bytes
 assume !c. Bytes_o(c) = CnStream_i(c)
 assume !c. Bytes_i(c) = CnStream_o(c)
+
+//TODO define Bytes_o from Pending.
+// !ci,s. ci.pending      => Bytes_o(Conn(ci,s)) = OutStream(ci.next,    s.appdata)
+// !ci,s. not(ci.pending) => Bytes_o(Conn(ci,s)) = OutStream(ci.current, s.appdata)
 
 // These types hide the precise of a range in messages
 type (;c:cn) msg_i = r:range * (;ConnectionInKeyInfo(c),  CnStream_i(c), r) delta
@@ -86,19 +94,31 @@ type (;c:cn) ioresult_i =
 | Warning   of c':(;c) nextCn * a:alertDescription 
   {Extend(c,c') /\ TXT(CnId(c)) => Warning(Peer(CnId(c)), a, Bytes_i(c))}
 | CertQuery of c':(;c) nextCn * (;c') query {Extend(c, c')} 
-| Handshake of c':cn {Role(c') = Role(c) /\ Bytes_o(c') = [||] /\ Bytes_i(c') = [||]}
-	//AP: /\ Close(CnId(c),Bytes_o(c)) /\ Close(Peer(CnId(c)),Bytes_i(c)) -- and same for Alert protocol, and hanshake.
-	// We need to show agreement on the content of all protocols in previous and current connectio to express the Alert attack (and therefore authentication)
+| Handshake of c':cn {
+    Role(c') = Role(c) /\ 
+	Bytes_i(c') = [||] /\ 
+	((Pending(c) /\ Bytes_o(c') = Bytes_o(c)) \/ Bytes_o(c') = [||]) /\ 
+	Pred(Current(c')) = Current(c) /\
+	(Next(c) = None \/ Next(c) = Some(Current(c'))) /\
+	// Epoch(c') = ci::Epoch(c) /\ ci is the next connection info of c, if any
+	Close(Peer(CnId(c)),Bytes_i(c))
+	// informally: !b. Close(c,b) => CloseAck(Peer(CnId(c),b)
+	}
+	//AP: /\ Close(CnId(c),Bytes_o(c)) /\  -- and same for Alert protocol, and hanshake.
+	// We need to show agreement on the content of all protocols in previous and current connection to express the Alert attack (and therefore authentication)
 | Read      of c':(;c) nextCn * d:(;c) msg_i
   {Extend_i(c,c',d) /\ TXT(CnId(c)) => Write(Peer(CnId(c)), Bytes_i(c')) }
-| ReadMustRead of c':cn * d:(;c) msg_i
+| NoWrite of c':cn 
 	// Mashup of ioresult_i.Read and ioresult_o.MustRead
 	{	   Role(c') = Role(c)
 		/\ Params(c') = Params(c)
 		/\ ConnectionInKeyInfo(c') = ConnectionInKeyInfo(c)
-		/\ Extend_i(c,c',d)
-		/\ TXT(CnId(c)) => Write(Peer(CnId(c)),Bytes_i(c')) } // AP: TXT(index) is not precise enough here:
-			// in/out directions are not the same, and we want to only refer to the incoming direction
+		/\ Bytes_i(c') = Bytes_i(c)
+		/\ Bytes_o(Next(c')) = [||] //?
+    } // AP: TXT(index) is not precise enough here:
+	  // in/out directions are not the same, and we want to only refer to the incoming direction
+
+// Without false start, we have the global invariant that Pending(c) => Bytes_o(c) = [||]
 
 val read : c:cn -> (;c) ioresult_i
 
@@ -109,10 +129,17 @@ type (;c:cn,d:(;c) msg_o) ioresult_o =
 | WritePartial  of c':(;c) nextCn * d':(;c') msg_o 
   { ?d0. Extend_o(c,c',d0) /\ Split_o(c, d, d0, c', d') }
 | MustRead      of c':cn 
-    {   Role(c')                = Role(c) 
-     /\ Params(c')              = Params(c)
-	 /\ ConnectionInKeyInfo(c') = ConnectionInKeyInfo(c) 
-     /\ Bytes_i(c')             = Bytes_i(c) }
+    {   Role(c')    = Role(c) 
+     /\ Params(c')  = Params(c)
+	 /\ Current(c') = Current(c)
+	 /\ (Next(c) = None \/ Next(c') = Next(c))  
+     /\ Bytes_i(c') = Bytes_i(c)
+	 /\ not(Pendinc(c)) /\ Pending(c') 
+	 /\ Bytes_o(c') = [||]
+	 // and we assumed write completion on Bytes_o(c)
+	  }
+// this assumes that Bytes_o(c') does a test on Pending.
+// we can still access the bytes written in c using Current(c)
 
 val write: c:cn -> rg:range -> d:(;c,rg) msg_o -> (;c,d) ioresult_o
 // On the write side, the following events may be generated:

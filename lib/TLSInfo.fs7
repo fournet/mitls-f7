@@ -5,98 +5,53 @@ open Certificate
 open CipherSuites
 
 type sessionID = bytes
-
-// We only store direction, which is either
-// Client --> Server (CtoS for short) or
-// Server --> Client (StoC for short).
-// We store the direction along with the KeyInfo.
-// We finally compute the role from the direction associated to the outgoing KeyInfo
-type preDirection =
-    | CtoS
-    | StoC
-type Direction = d:preDirection{d = CtoS \/ d = StoC}
-(* FIXME: Automatic inference by F7 *)
-
 type preRole =
 	| Client
 	| Server
 type Role = preRole
 
-function val DualDirection: Direction -> Direction
-assume DualDirection(CtoS) = StoC
-assume DualDirection(StoC) = CtoS
-
-val dualDirection: d1:Direction -> d2:Direction{d2=DualDirection(d1)}
-
 type SessionInfo = {
-    clientID: cert option;
-    serverID: cert option;
-    sessionID: sessionID option;
+    init_crand: bytes;
+    init_srand: bytes
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;
     compression: Compression;
-    init_crand: bytes;
-    init_srand: bytes
-    }
+    clientID: cert option;
+    serverID: cert option;
+    sessionID: sessionID option; }
 
-predicate NullSessionInfo of SessionInfo 
+type epoch = 
+  | Init of role * bytes 
+  | Succ of crand:bytes * srand:bytes * si:SessionInfo * pred:epoch 
+    { !r. pred = Init(Client,r) => r = crand /\ 
+	      pred = Init(Server,r) => r = srand }  
 
-assume !si. NullSessionInfo(si) <=> (si.clientID = None /\ si.serverID = None /\ si.sessionID = None /\
-    IsNullCiphersuite(si.cipher_suite) /\ si.compression = NullCompression /\ si.init_crand = [||] /\ si.init_srand = [||] )
+type preCI =
+  current: epoch 
+  next   : epoch option
+  pending: bool
 
-val null_sessionInfo: pv:ProtocolVersion -> si:SessionInfo{NullSessionInfo(si)}
-val isNullSessionInfo: s:SessionInfo -> b:bool{b=true => NullSessionInfo(s)}
+type CI = c:preCI  
+  { c.next = None => c.pending = false /\
+	!e. c.next = Some(e) => (* properly negotiated & *) c.current = Pred(e) }
 
-type KeyInfo = {
-    sinfo: SessionInfo;
-    dir: Direction;
-    crand: bytes;
-    srand: bytes;
-    // cVerifyData: bytes
-    // sVerifyData: bytes
-    }
+//TODO: enforce as an invariant that the new epoch is compatible with our local parameters
+//      (that the the peer certificates (if any) have been authorized is not a public invariant) 
 
-predicate NullKeyInfo of KeyInfo
+predicate function SameEpoch: CI * CI -> bool
+definition !c,c'. SameEpoch(c,c') <=> 
+  c'.current = c.current /\ 
+  (c.next = None \/ c'.next = c.next) /\ // we may need something more general, like Finer(c'.next,c.next) 
+  c'.pending = c.pending
 
-private assume !ki. NullKeyInfo(ki) <=> (NullSessionInfo(ki.sinfo) /\ ki.crand = [||] /\ ki.srand = [||])
+// WAS:
+//type ConnectionInfo =
+//    { role: Role;
+//	  id_in:  KeyInfo;
+//    id_out: KeyInfo}
 
-val null_KeyInfo: d:Direction -> pv:ProtocolVersion -> ki:KeyInfo{NullKeyInfo(ki)}
+/// Application configuration options
 
-function val DualKeyInfo: (KeyInfo * unit) -> KeyInfo
-assume !k1,dummy. DualKeyInfo(k1,dummy) = {
-	sinfo = k1.sinfo;
-	dir=DualDirection(k1.dir);
-	crand=k1.crand;
-	srand=k1.srand}
-
-val dual_KeyInfo: k1:KeyInfo -> k2:KeyInfo{k2=DualKeyInfo(k1,())}
-// We might need something like this -- and possibly more
-// definition !ki. NullKeyInfo(ki) => NullSessionInfo(ki.sinfo)
-
-predicate Corrupt of KeyInfo
-
-assume !ki. CipherSuites.IsNullCiphersuite(ki.sinfo.cipher_suite) => Corrupt(ki)
-
-type ConnectionInfo =
-    { role: Role;
-	  id_in:  KeyInfo;
-      id_out: KeyInfo}
-
-predicate UserSaysCompatibleSessions of SessionInfo * SessionInfo
-
-predicate CompatibleSessions of SessionInfo * SessionInfo
-assume !s. CompatibleSessions(s,s)
-assume !s1,s2,s3. CompatibleSessions(s1,s2) /\ CompatibleSessions(s2,s3) => CompatibleSessions(s1,s3)
-assume !s1,s2. UserSaysCompatibleSessions(s1,s2) => CompatibleSessions(s1,s2)
-assume !nulls,s. NullSessionInfo(nulls) => CompatibleSessions(nulls,s)
-
-predicate CompatibleConnections of ConnectionInfo * ConnectionInfo
-assume !id1,id2. CompatibleConnections(id1,id2) <=>
-		 ( CompatibleSessions(id1.id_in.sinfo, id2.id_in.sinfo ) /\
-                   CompatibleSessions(id1.id_out.sinfo,id2.id_out.sinfo) )
-
-
-// Application configuration options
 type helloReqPolicy =
     | HRPIgnore
     | HRPFull
@@ -129,7 +84,88 @@ type protocolOptions = {
 
 val defaultProtocolOptions: protocolOptions
 
+
+/// Cryptographic assumptions [how to make them toplevel?]
+
 predicate type cryptopreds = 
     Safe of KeyInfo
   | Auth of KeyInfo
   | CTXT of KeyInfo * bytes * bytes * bytes
+
+
+///////////////////// the rest is deprecated //////////////////////////
+
+
+// We only store direction, which is either
+// Client --> Server (CtoS for short) or
+// Server --> Client (StoC for short).
+// We store the direction along with the KeyInfo.
+// We finally compute the role from the direction associated to the outgoing KeyInfo
+type preDirection =
+    | CtoS
+    | StoC
+type Direction = d:preDirection{d = CtoS \/ d = StoC}
+(* FIXME: Automatic inference by F7 *)
+
+function val DualDirection: Direction -> Direction
+assume DualDirection(CtoS) = StoC
+assume DualDirection(StoC) = CtoS
+
+val dualDirection: d1:Direction -> d2:Direction{d2=DualDirection(d1)}
+
+
+predicate UserSaysCompatibleSessions of SessionInfo * SessionInfo
+
+predicate CompatibleSessions of SessionInfo * SessionInfo
+assume !s. CompatibleSessions(s,s)
+assume !s1,s2,s3. CompatibleSessions(s1,s2) /\ CompatibleSessions(s2,s3) => CompatibleSessions(s1,s3)
+assume !s1,s2. UserSaysCompatibleSessions(s1,s2) => CompatibleSessions(s1,s2)
+assume !nulls,s. NullSessionInfo(nulls) => CompatibleSessions(nulls,s)
+
+predicate CompatibleConnections of ConnectionInfo * ConnectionInfo
+assume !id1,id2. CompatibleConnections(id1,id2) <=>
+		 ( CompatibleSessions(id1.id_in.sinfo, id2.id_in.sinfo ) /\
+                   CompatibleSessions(id1.id_out.sinfo,id2.id_out.sinfo) )
+
+
+
+
+// not in the API
+predicate NullSessionInfo of SessionInfo 
+
+assume !si. NullSessionInfo(si) <=> (si.clientID = None /\ si.serverID = None /\ si.sessionID = None /\
+    IsNullCiphersuite(si.cipher_suite) /\ si.compression = NullCompression /\ si.init_crand = [||] /\ si.init_srand = [||] )
+
+val null_sessionInfo: pv:ProtocolVersion -> si:SessionInfo{NullSessionInfo(si)}
+val isNullSessionInfo: s:SessionInfo -> b:bool{b=true => NullSessionInfo(s)}
+
+// not in the API
+type KeyInfo = {
+    sinfo: SessionInfo;
+    dir: Direction;
+    crand: bytes;
+    srand: bytes
+    // cVerifyData: bytes
+    // sVerifyData: bytes
+    }
+
+predicate NullKeyInfo of KeyInfo
+
+private assume !ki. NullKeyInfo(ki) <=> (NullSessionInfo(ki.sinfo) /\ ki.crand = [||] /\ ki.srand = [||])
+
+val null_KeyInfo: d:Direction -> pv:ProtocolVersion -> ki:KeyInfo{NullKeyInfo(ki)}
+
+function val DualKeyInfo: (KeyInfo * unit) -> KeyInfo
+assume !k1,dummy. DualKeyInfo(k1,dummy) = {
+	sinfo = k1.sinfo;
+	dir=DualDirection(k1.dir);
+	crand=k1.crand;
+	srand=k1.srand}
+
+val dual_KeyInfo: k1:KeyInfo -> k2:KeyInfo{k2=DualKeyInfo(k1,())}
+// We might need something like this -- and possibly more
+// definition !ki. NullKeyInfo(ki) => NullSessionInfo(ki.sinfo)
+
+predicate Corrupt of KeyInfo
+
+assume !ki. CipherSuites.IsNullCiphersuite(ki.sinfo.cipher_suite) => Corrupt(ki)

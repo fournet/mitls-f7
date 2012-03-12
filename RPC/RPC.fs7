@@ -32,8 +32,8 @@ val service:
 // We may need a single indexed type for all TLS traffic for this app.
 // actually, we need some minimal formatting, e.g. length prefixing.
 type (;i) plain 
-val request_msg: i:index {CtoS(i)} -> (;Client(i),Server(i)) request -> (;i) plain 
-val msg_request: i:index {CtoS(i)} -> (;i) plain -> (;Client(i),Server(i)) request
+val request_msg: i:index {Client(i)} -> (;Client(i),Server(i)) request -> (;i) plain 
+val msg_request: i:index {Client(i)} -> (;i) plain -> (;Client(i),Server(i)) request
 
 // in RPC, we abstract Connections to
 // a fresh abstract ID, a pair (a,b) of optional principals, and a polarity (C or S) 
