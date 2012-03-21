@@ -25,11 +25,11 @@ let history (ki:KeyInfo) s = s.history
 
 type cipher = ENC.cipher
 
-let encrypt (ki:KeyInfo) (w:writer) (ad:data) (r:range) (f:fragment) =
-  let h = addFragment ki w.history ad r f in
+let encrypt (ki:KeyInfo) (w:writer) (ad0:data) (r:range) (f:fragment) =
+  let h = addFragment ki w.history ad0 r f in
   let w = {w with history = h} in
-  let ad = makeAD w.seqn ad in
-  let pl = AEADPlain.fragmentToPlain ki (history ki w) ad r f in
+  let pl = AEADPlain.fragmentToPlain ki (history ki w) ad0 r f in
+  let ad = makeAD w.seqn ad0 in
   let key,c = AEAD.encrypt ki w.key ad r pl in
   let w = {w with key = key
                   seqn = w.seqn+1} in
@@ -40,8 +40,8 @@ let decrypt (ki:KeyInfo) (r:reader) (ad0:data) (e:cipher) =
   let res = AEAD.decrypt ki r.key ad e in
     match res with
       | Correct ((key,rg,pl)) ->
-          let f = AEADPlain.plainToFragment ki (history ki r) ad rg pl in
-          let h = addFragment ki r.history ad rg f in
+          let f = AEADPlain.plainToFragment ki (history ki r) ad0 rg pl in
+          let h = addFragment ki r.history ad0 rg f in
           let r = {r with history = h
                           key = key
                           seqn = r.seqn+1}

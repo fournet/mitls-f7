@@ -144,7 +144,7 @@ let decode ki ad tlen plain =
         let (frag,mac) = check_split tmpdata macStart in
         let aeadF = AEADPlain.plain ki rg ad frag
         let tag = {macT = mac} in
-        (rg,aeadF,tag,true)
+        (rg,aeadF,tag,false)
         (*
         (* Evidently padding has been corrupted, or has been incorrectly generated *)
         (* in TLS1.0 we fail now, in more recent versions we fail later, see sec.6.2.3.2 Implementation Note *)
@@ -167,14 +167,14 @@ let decode ki ad tlen plain =
                 let (frag,mac) = check_split data_no_pad macStart in
                 let aeadF = AEADPlain.plain ki rg ad frag
                 let tag = {macT = mac} in
-                (rg,aeadF,tag,false)
+                (rg,aeadF,tag,true)
             else
                 (* Pretend we have a valid padding of length zero, but set we must fail *)
                 let macStart = pLen - macSize - 1 in
                 let (frag,mac) = check_split tmpdata macStart in
                 let aeadF = AEADPlain.plain ki rg ad frag
                 let tag = {macT = mac} in
-                (rg,aeadF,tag,true)
+                (rg,aeadF,tag,false)
                 (*
                 (* in TLS1.0 we fail now, in more recent versions we fail later, see sec.6.2.3.2 Implementation Note *)
                 if  v = TLS_1p0 then
@@ -196,7 +196,7 @@ let decode ki ad tlen plain =
                 let (frag,mac) = check_split tmpdata macStart in
                 let aeadF = AEADPlain.plain ki rg ad frag
                 let tag = {macT = mac} in
-                (rg,aeadF,tag,true)
+                (rg,aeadF,tag,false)
                 (*
                 (* Insecurely report the error. Only TLS 1.1 and above should
                    be secure with this respect *)
@@ -207,4 +207,4 @@ let decode ki ad tlen plain =
                 let (frag,mac) = check_split data_no_pad macStart in
                 let aeadF = AEADPlain.plain ki rg ad frag
                 let tag = {macT = mac} in
-                (rg,aeadF,tag,false)
+                (rg,aeadF,tag,true)
