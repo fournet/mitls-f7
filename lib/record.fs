@@ -3,28 +3,22 @@
 open Bytes
 open Error
 open TLSInfo
-open TLSKey
 open Formats
 open CipherSuites
 open StatefulPlain
 
-type ConnectionState = {
-  key: recordKey;
-  state: state option;
-}
+type ConnectionState =
+    | NullState
+    | SomeState of StatefulAEAD.state
+
 type sendState = ConnectionState
 type recvState = ConnectionState
 
-let connState (ki:KeyInfo) (cs:ConnectionState) = 
-  match cs.state with 
-    | Some s -> s
-    | None -> failwith "expected a valid AEAD state"
+let initConnState (ki:KeyInfo) key = 
+  let s = StatefulAEAD.initState ki key in
+  SomeState(s)
 
-let initConnState (ki:KeyInfo) (ccsData:ccs_data) =
-  let rk = ccsData.ccsKey in 
-  match rk with 
-    | RecordAEADKey k -> {key = rk; state = Some (initState ki k ccsData.ccsIV3)}
-    | NoneKey -> {key = rk; state = None}
+let nullConnState (ki:KeyInfo) = NullState
 
 /// packet format
 
@@ -67,7 +61,7 @@ let parseHeader b =
 
 (* This replaces send. It's not called send, since it doesn't send anything on the
    network *)
-let recordPacketOut keyInfo conn tlen seqn ct fragment =
+let recordPacketOut ki conn rg ct fragment =
     (* No need to deal with compression. It is handled internally by TLSPlain,
        when returning us the next (already compressed!) fragment *)
     (*
@@ -75,10 +69,10 @@ let recordPacketOut keyInfo conn tlen seqn ct fragment =
     | Error (x,y) -> Error (x,y)
     | Correct compressed ->
     *)
-    match (keyInfo.sinfo.cipher_suite, conn.key) with
-    | (x,NoneKey) when isNullCipherSuite x ->
-        let payload = TLSFragment.TLSFragmentRepr keyInfo ct (TLSFragment.emptyHistory keyInfo)  tlen fragment in
-        let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
+    match (ki.sinfo.cipher_suite, conn) with
+    | (x,NullState) when isNullCipherSuite x ->
+        let payload = TLSFragment.TLSFragmentRepr ki ct (TLSFragment.emptyHistory ki) rg fragment in
+        let packet = makePacket ct ki.sinfo.protocol_version payload in
         (conn,packet)
 // MACOnly is now handled within AEAD
 //    | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
@@ -93,15 +87,14 @@ let recordPacketOut keyInfo conn tlen seqn ct fragment =
 //        let payload = (TLSFragment.TLSFragmentRepr keyInfo ct st.history tlen fragment) @| (AEPlain.tagRepr keyInfo mac) in
 //        let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
 //        (conn,packet)
-    | (_,RecordAEADKey(key)) ->
-        let ad0 = TLSFragment.makeAD keyInfo.sinfo.protocol_version ct in
-        // let addData = StatefulPlain.makeAD seqn ad0 in // AP: it is invoked within StatefulAEAD
-        let aeadF = StatefulPlain.TLSFragmentToFragment keyInfo tlen seqn ct fragment in
+    | (_,SomeState(state)) ->
+        let ad = TLSFragment.makeAD ki.sinfo.protocol_version ct in
+        let aeadF = StatefulPlain.TLSFragmentToFragment ki ct (StatefulAEAD.history ki state) rg fragment in
 
-        let (nr,payload) = StatefulAEAD.encrypt keyInfo (connState keyInfo conn) ad0 tlen aeadF in
+        let (state,payload) = StatefulAEAD.encrypt ki state ad rg aeadF in
 
-        let conn = {conn with state = Some nr} in
-        let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
+        let conn = SomeState(state) in
+        let packet = makePacket ct ki.sinfo.protocol_version payload in
         (conn,packet)
     | _ -> unexpectedError "[recordPacketOut] Incompatible ciphersuite and key type"
     
@@ -130,7 +123,7 @@ let recordPacketOut2 conn clen ct fragment =
     makePacket ct conn.local_pv payload 
 *)
 
-let recordPacketIn ki conn (seqn:int) headPayload =
+let recordPacketIn ki conn headPayload =
     let (header,payload) = split headPayload 5 in
     match parseHeader header with
     | Error(x,y) -> Error(x,y)
@@ -141,12 +134,12 @@ let recordPacketIn ki conn (seqn:int) headPayload =
     if length payload <> plen then
         Error(Record,CheckFailed)
     else
-    let tlen = (plen,plen) in
     let cs = ki.sinfo.cipher_suite in
-    match (cs,conn.key) with
-    | (x,NoneKey) when isNullCipherSuite x ->
-        let msg = TLSFragment.TLSFragment ki ct (TLSFragment.emptyHistory ki) tlen payload in
-        correct(conn,ct,pv,tlen,msg)
+    match (cs,conn) with
+    | (x,NullState) when isNullCipherSuite x ->
+        let rg = (plen,plen) in
+        let msg = TLSFragment.TLSFragment ki ct (TLSFragment.emptyHistory ki) rg payload in
+        correct(conn,ct,pv,rg,msg)
 // MACOnly is now handled within AEAD
 //    | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
 //        let ad0 = TLSFragment.makeAD ki.sinfo.protocol_version ct in
@@ -161,15 +154,14 @@ let recordPacketIn ki conn (seqn:int) headPayload =
 //            correct(conn,ct,pv,rg,msg)
 //        else
 //            Error(MAC,CheckFailed)
-    | (x,RecordAEADKey(key)) ->
-        let ad0 = TLSFragment.makeAD ki.sinfo.protocol_version ct in
-        // let ad = StatefulPlain.makeAD seqn ad0 in // AP: it is invoked within StatefulAEAD
-        let decr = StatefulAEAD.decrypt ki (connState ki conn) ad0 payload in
+    | (x,SomeState(state)) ->
+        let ad = TLSFragment.makeAD ki.sinfo.protocol_version ct in
+        let decr = StatefulAEAD.decrypt ki state ad payload in
         match decr with
         | Error(x,y) -> Error(x,y)
         | Correct (decrRes) ->
-            let (ns, tlen, plain) = decrRes in
-            let msg = StatefulPlain.fragmentToTLSFragment ki (connState ki conn) ad0 tlen plain in
-            let conn = {conn with state = Some ns} in
-            correct(conn,ct,pv,tlen,msg)
+            let (newState, rg, plain) = decrRes in
+            let msg = StatefulPlain.fragmentToTLSFragment ki ct (StatefulAEAD.history ki state) rg plain in
+            let conn = SomeState(newState) in
+            correct(conn,ct,pv,rg,msg)
     | _ -> unexpectedError "[recordPacketIn] Incompatible ciphersuite and key type"

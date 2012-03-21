@@ -285,7 +285,7 @@ let verifyDataHashAlg_of_ciphersuite (cs:cipherSuite) =
 let mkIntTriple x:(int*int*int) = x
 
 let getKeyExtensionLength pv cs =
-    let (keySize, hashSize, IVSize ) =
+    let (keySize, IVSize, hashSize ) =
         match cs with
         | CipherSuite (_, EncMAC(cAlg, hAlg)) ->
             match pv with
@@ -294,7 +294,7 @@ let getKeyExtensionLength pv cs =
         | CipherSuite (_, AEAD(cAlg, hAlg)) -> ((aeadKeySize cAlg), (aeadIVSize cAlg), (macKeySize hAlg))
         | OnlyMACCipherSuite (_,hAlg) -> (0,0,macKeySize hAlg)
         | _ -> unexpectedError "[getKeyExtensionLength] invoked on an invalid ciphersuite"
-    2 * (keySize + hashSize + IVSize)
+    2 * (keySize + IVSize + hashSize)
 
 let PVRequiresExplicitIV pv = 
     pv = TLS_1p1 || pv = TLS_1p2

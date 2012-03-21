@@ -1,0 +1,30 @@
+﻿module HandshakePlain
+
+open Bytes
+open TLSInfo
+
+// protocol-specific abstract fragment,
+// and associated functions (never to be called with ideal functionality)
+type (;ki:KeyInfo) stream
+type (;ki:KeyInfo,s:(;ki) stream, rg:DataStream.range) fragment
+type (;ki:KeyInfo,s:(;ki) stream, rg:DataStream.range) ccsFragment
+predicate EmptyStream of KeyInfo * stream
+predicate ConcatStream of KeyInfo * stream * fragment * stream
+predicate ConcatCCSStream of KeyInfo * stream * ccsFragment * stream
+val emptyStream: ki:KeyInfo -> s:(;ki)stream{EmptyStream(ki,s)}
+val addFragment: ki:KeyInfo -> s:(;ki)stream -> 
+                 r:DataStream.range -> f:(;ki,s,r) fragment -> 
+                 s':(;ki)stream{ConcatStream(ki,s,f,s')}
+val addCCSFragment: ki:KeyInfo -> s:(;ki)stream -> 
+                 r:DataStream.range -> f:(;ki,s,r) ccsFragment -> 
+                 s':(;ki)stream{ConcatCCSStream(ki,s,f,s')}
+
+predicate HandshakeFragment of KeyInfo * DataStream.range * int * Bytes.bytes
+predicate CCSFragment of KeyInfo * DataStream.range * int * Bytes.bytes
+
+
+val repr: ki:KeyInfo -> tlen:DataStream.range -> seqn:int -> (;ki,tlen,seqn)fragment -> b:Bytes.bytes{HandshakeFragment(ki,tlen,seqn,b)}
+val fragment: ki:KeyInfo -> tlen:DataStream.range -> seqn:int -> b:Bytes.bytes{HandshakeFragment(ki,tlen,seqn,b) \/ Corrupt(ki)} -> (;ki,tlen,seqn)fragment
+type (;ki:KeyInfo,tlen:DataStream.range,seqn:int)ccsFragment
+val ccsRepr: ki:KeyInfo -> tlen:DataStream.range -> seqn:int -> (;ki,tlen,seqn)ccsFragment -> b:Bytes.bytes{CCSFragment(ki,tlen,seqn,b)}
+val ccsFragment: ki:KeyInfo -> tlen:DataStream.range -> seqn:int -> Bytes.bytes -> (;ki,tlen,seqn)ccsFragment

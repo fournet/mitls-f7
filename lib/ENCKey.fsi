@@ -14,5 +14,7 @@ type iv3 =
     | SomeIV of iv
     | NoIV of bool
 
+type state
+
 val reIndexKey: KeyInfo -> KeyInfo -> key -> key
 val reIndexIV:  KeyInfo -> KeyInfo -> iv3 -> iv3

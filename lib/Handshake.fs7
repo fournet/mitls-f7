@@ -5,7 +5,6 @@ open Error
 //open Formats
 open CipherSuites
 open TLSInfo
-open TLSKey
 //open SessionDB
 
 // There is one instance of the protocol for each TCP connection,
@@ -14,32 +13,6 @@ open TLSKey
 // protocol state  
 type (;ci:ConnectionInfo) pre_hs_state 
 type (;ci:ConnectionInfo) hs_state = (;ci)pre_hs_state
-
-// protocol-specific abstract fragment,
-// and associated functions (never to be called with ideal functionality)
-type (;ki:KeyInfo) stream
-type (;ki:KeyInfo,s:(;ki) stream, rg:DataStream.range) fragment
-type (;ki:KeyInfo,s:(;ki) stream, rg:DataStream.range) ccsFragment
-predicate EmptyStream of KeyInfo * stream
-predicate ConcatStream of KeyInfo * stream * fragment * stream
-predicate ConcatCCSStream of KeyInfo * stream * ccsFragment * stream
-val emptyStream: ki:KeyInfo -> s:(;ki)stream{EmptyStream(ki,s)}
-val addFragment: ki:KeyInfo -> s:(;ki)stream -> 
-                 r:DataStream.range -> f:(;ki,s,r) fragment -> 
-                 s':(;ki)stream{ConcatStream(ki,s,f,s')}
-val addCCSFragment: ki:KeyInfo -> s:(;ki)stream -> 
-                 r:DataStream.range -> f:(;ki,s,r) ccsFragment -> 
-                 s':(;ki)stream{ConcatCCSStream(ki,s,f,s')}
-
-predicate HandshakeFragment of KeyInfo * DataStream.range * int * Bytes.bytes
-predicate CCSFragment of KeyInfo * DataStream.range * int * Bytes.bytes
-
-
-val repr: ki:KeyInfo -> tlen:DataStream.range -> seqn:int -> (;ki,tlen,seqn)fragment -> b:Bytes.bytes{HandshakeFragment(ki,tlen,seqn,b)}
-val fragment: ki:KeyInfo -> tlen:DataStream.range -> seqn:int -> b:Bytes.bytes{HandshakeFragment(ki,tlen,seqn,b) \/ Corrupt(ki)} -> (;ki,tlen,seqn)fragment
-type (;ki:KeyInfo,tlen:DataStream.range,seqn:int)ccsFragment
-val ccsRepr: ki:KeyInfo -> tlen:DataStream.range -> seqn:int -> (;ki,tlen,seqn)ccsFragment -> b:Bytes.bytes{CCSFragment(ki,tlen,seqn,b)}
-val ccsFragment: ki:KeyInfo -> tlen:DataStream.range -> seqn:int -> Bytes.bytes -> (;ki,tlen,seqn)ccsFragment
 
 (* Locally controlling handshake protocols *) 
 
@@ -79,7 +52,7 @@ val start_hs_request:  ci:ConnectionInfo -> (;ci)hs_state -> protocolOptions -> 
 type (;ki:KeyInfo,seqn:int) HSFragReply =
   | EmptyHSFrag              (* nothing to send *) 
   | HSFrag of                (tlen:DataStream.range * (;ki,tlen,seqn)fragment)
-  | CCSFrag of               (tlen:DataStream.range * (;ki,tlen,seqn)ccsFragment) (* the unique one-byte CCS *) * (newKI:KeyInfo * (;newKI)ccs_data)
+  | CCSFrag of               (tlen:DataStream.range * (;ki,tlen,seqn)ccsFragment) (* the unique one-byte CCS *) * (newKI:KeyInfo * (;newKI)Record.ConnectionState)
   | HSWriteSideFinished of   (tlen:DataStream.range * (;ki,tlen,seqn)fragment) (* signalling that this fragment ends the finished message *)
   | HSFullyFinished_Write of (tlen:DataStream.range * (;ki,tlen,seqn)fragment) * ((si:SessionInfo * (;si)PRFs.masterSecret * Direction){si=ki.sinfo})
 val next_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)hs_state -> (;ci.id_out,seqn)HSFragReply * (;ci)hs_state
@@ -92,5 +65,5 @@ type (;si:SessionInfo)recv_reply = (* the fragment is accepted, and... *)
   | HSReadSideFinished (* ? *) 
   | HSFullyFinished_Read of ((si':SessionInfo * (;si')PRFs.masterSecret * Direction){si=si'}) (* we can start sending data on the connection *)  
 val recv_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)hs_state -> tlen:DataStream.range -> (;ci.id_in,tlen,seqn)fragment -> (;ci.id_in.sinfo)recv_reply Result * (;ci)hs_state
-val recv_ccs     : ci:ConnectionInfo -> seqn:int -> (;ci)hs_state -> tlen:DataStream.range -> (;ci.id_in,tlen,seqn)ccsFragment -> ((newKI:KeyInfo * (;newKI)ccs_data) Result) * (;ci)hs_state
+val recv_ccs     : ci:ConnectionInfo -> seqn:int -> (;ci)hs_state -> tlen:DataStream.range -> (;ci.id_in,tlen,seqn)ccsFragment -> ((newKI:KeyInfo * (;newKI)Record.ConnectionState) Result) * (;ci)hs_state
 

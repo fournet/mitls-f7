@@ -8,8 +8,8 @@ open StatefulPlain
 type data = bytes
 type plain 
 
-val plain: KeyInfo ->  range -> data -> bytes -> plain
+val plain: KeyInfo -> range -> data -> bytes -> plain
 val repr:  KeyInfo -> range -> data -> plain -> bytes
 
-val fragmentToPlain: KeyInfo -> state -> data -> range -> fragment -> plain
-val plainToFragment: KeyInfo -> state -> data -> range -> plain -> fragment
+val fragmentToPlain: KeyInfo -> TLSFragment.history -> data -> range -> fragment -> plain
+val plainToFragment: KeyInfo -> TLSFragment.history -> data -> range -> plain -> fragment

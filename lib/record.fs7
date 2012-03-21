@@ -3,24 +3,22 @@
 open Bytes
 open Error
 open TLSInfo
-open TLSKey
 open FragCommon
 open TLSFragment
 open Formats
 open CipherSuites
 open AEAD
 
-type (;ki:KeyInfo) ConnectionState = {
-  key: (;ki) recordKey;
-  iv3: (;ki) ENCKey.iv3;
-  state: (;ki) StatefulPlain.state
-}
+type (;ki:KeyInfo) ConnectionState =
+	| NullState
+	| SomeState of (;ki)StatefulAEAD.state
 
 type (;ki:KeyInfo) sendState = (;ki) ConnectionState 
 type (;ki:KeyInfo) recvState = (;ki) ConnectionState
 
-val initConnState: ki:KeyInfo -> (;ki) ccs_data -> 
-                   cs:(;ki) ConnectionState
+val initConnState: ki:KeyInfo -> key:(;ki) AEADKey -> 
+                   cs:(;ki) ConnectionState //{?ss. cs = SomeSate(ss) /\ ss.key = key}
+val nullConnState: ki:KeyInfo -> cs:(;ki) ConnectionState //{cs = NullState}
 
 private val makePacket: ContentType -> ProtocolVersion -> bytes -> bytes
 
@@ -34,16 +32,15 @@ private val parseHeader: b:bytes{Length(b) = 5} ->
 
 val recordPacketOut: ki:KeyInfo -> 
                      ss:(;ki) sendState -> 
-                     tlen:int -> seqn:int -> ct:ContentType -> 
-                     f:(;ki,tlen,seqn,ct) TLSFragment.fragment ->
+                     rg:DataStream.range -> ct:ContentType -> 
+                     f:(;ki,ct,h,rg) TLSFragment.fragment -> //FIXME: history 'h' is only valid in ss if ss is not null!
                      (ss':(;ki) sendState * wire:bytes)
  
 val recordPacketIn : ki:KeyInfo ->
                      rs:(;ki) recvState ->
-					 seqn:int -> 
                      wire:bytes{Length(wire) >= 5} -> 
                      (rs':(;ki)recvState *
                         ct:ContentType * pv:ProtocolVersion *
-                        tlen:int * 
-                        f:(;ki,tlen,seqn,ct) TLSFragment.fragment) Result
+                        rg:range * 
+                        f:(;ki,ct,h,rg) TLSFragment.fragment) Result //FIXME: history 'h' is only valid in ss if ss is not null!
 

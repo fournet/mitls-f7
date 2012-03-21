@@ -13,13 +13,13 @@ assume !n,rest. Seqn(IntBytes(8,n) @| rest) = n
 assume !n,rest. Rest(IntBytes(8,n) @| rest) = rest
 
 type (;ki:KeyInfo) data = (b:bytes){Length(b) = TLSFragment.ADLength(ki)}
-private type (;ki:KeyInfo,r:range,ad:data) plain = 
-	    {p : (s:(;ki)state * (;ki,s,Rest(ad),r) fragment)}
+private type (;ki:KeyInfo,r:range,ad:data) plain = {p : bytes}
 
 val plain: ki:KeyInfo -> r:range -> ad:data -> bytes -> (;ki,ad,r) plain
 val repr:  ki:KeyInfo -> r:range -> ad:data -> (;ki,ad,r) plain -> bytes
 
+function val FullAD: TLSFragment.history -> bytes -> bytes //essentially, add seqn to given ad. There's an invariant between history and current seqn that we'll need to exploit
 
-val fragmentToPlain: ki:KeyInfo ->  s:(;ki) state -> ad:data -> r:range -> d:(;ki,s,ad,r) fragment -> (;ki,r,ad) plain
-val plainToFragment: ki:KeyInfo ->  s:(;ki) state -> ad:data -> r:range -> (;ki,r,ad) plain -> d:(;ki,s,ad,r) fragment
+val fragmentToPlain: ki:KeyInfo ->  h:TLSFragment.history -> ad:StatefulPlain.data -> r:range -> d:(;ki,h,ad,r) fragment -> (;ki,r,FullAD(h,ad)) plain
+val plainToFragment: ki:KeyInfo ->  h:TLSFragmnet.history -> ad:StatefulPlain.data -> r:range -> (;ki,r,FullAD(h,ad)) plain -> d:(;ki,h,ad,r) fragment
 

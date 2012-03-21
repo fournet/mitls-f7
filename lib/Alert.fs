@@ -4,6 +4,7 @@ open Bytes
 open Error
 open Formats
 open TLSInfo
+open AlertPlain
 
 type pre_al_state = {
   al_incoming: bytes (* incomplete incoming message *)
@@ -11,17 +12,6 @@ type pre_al_state = {
 }
 
 type state = pre_al_state
-
-type fragment = {b:bytes}
-type stream = {s:bytes}
-let emptyStream (ki:KeyInfo) = {s = [| |]}
-let addFragment (ki:KeyInfo) (s:stream) (r:DataStream.range) (f:fragment) =  {s = s.s @| f.b}
-let repr (ki:KeyInfo) (s:stream) (tlen:DataStream.range) f = f.b
-let fragment (ki:KeyInfo) (s:stream) (tlen:DataStream.range) b = {b=b}
-
-let makeFragment ki b =
-    let (tl,f,r) = FragCommon.splitInFrag ki b in
-    (((tl,tl),{b=f}),r)
 
 let init (ci:ConnectionInfo) = {al_incoming = [||]; al_outgoing = [||]}
 
@@ -179,7 +169,7 @@ let handle_alert ci state alDesc =
             ALAck   (state)
 
 let recv_fragment (ci:ConnectionInfo) state (tlen:DataStream.range) (data:fragment) =
-    let fragment = data.b in
+    let fragment = repr ci.id_in data in
     match state.al_incoming with
     | [||] ->
         (* Empty buffer *)

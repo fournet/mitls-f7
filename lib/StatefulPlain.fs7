@@ -9,55 +9,19 @@ open CipherSuites
 open TLSKey
 
 type (;ki:KeyInfo) data = (b:bytes){Length(b) = TLSFragment.ADLength(ki) - 8}
-private type (;ki:KeyInfo) prestate = {
-  key: (;ki) AEADKey;
-  iv3: (;ki) ENCKey.iv3;
-  seqn: int;
-  history: TLSFragment.history
-}
 
-predicate State of KeyInfo * prestate
-private type (;ki:KeyInfo) state = (s:prestate) {State(s)}
-predicate Next of KeyInfo * state * data * range * fragment
+function val Log: (data * range * TLSFragment.fragment) list -> (data * TLSFragment.fragment) list
+assume !h. (h = [] => Log(h) = []) /\
+	   (!ad,r,f,t. h = (ad,r,f)::t => Log(h) = (ad,f)::Log(t))
 
-function val Log: state -> (data * TLSFragment.fragment) list
-function val LogH: (data * range * TLSFragment.fragment) list -> (data * TLSFragment.fragment) list
-assume !s. Log(s) = LogH(s.history)
-assume !h. (h = [] => LogH(h) = []) /\
-	   (!ad,r,f,t. h = (ad,r,f)::t => LogH(h) = (ad,f)::LogH(t))
+private type (;ki:KeyInfo,h:TLSFragment.history,ad:data,r:range) fragment = {f: bytes}
 
+val addFragment: ki:KeyInfo -> h:TLSFragment.history -> ad:data -> r:range -> f:(;ki,h,ad,r) fragment -> h': TLSFragment.history{Log(h') = (ad,f)::Log(h)}
 
-type (;ki:KeyInfo) reader = r:(;ki) state
-type (;ki:KeyInfo) writer = w:(;ki) state
+val fragment: ki:KeyInfo -> h:TLSFragment.history -> ad:data -> r:range -> bytes -> (;ki,h,ad,r) fragment
+val repr: ki:KeyInfo -> h:TLSFragment.history -> ad:data -> r:range -> (;ki,h,ad,r) fragment -> bytes
 
-private type (;ki:KeyInfo,s:(;ki) state,ad:data,r:range) fragment = {f: (;ki,TLSFragment.ADct(ad),s.history,r) TLSFragment.fragment}
+function val ADCT: KeyInfo -> ContentType -> bytes //creates the ad bytes only from PV and CT
 
-
-val initState: ki:KeyInfo -> (;ki) AEADKey -> (;ki) ENCKey.iv3 -> (;ki) state
-val getKey: ki:KeyInfo -> (;ki) state -> (;ki) AEADKey
-val getIV: ki:KeyInfo -> (;ki) state -> (;ki) ENCKey.iv3
-val updateIV: ki:KeyInfo -> (;ki) state -> (;ki) ENCKey.iv3 -> (;ki) state
-val addFragment: ki:KeyInfo -> s:(;ki) state -> ad:data -> r:range -> f:(;ki,s,ad,r) fragment -> s':(;ki) state{Log(s') = (ad,f)::Log(s)}
-val sequenceNo: ki:KeyInfo -> s:(;ki) state -> n:int{n = s.seqn}
-
-val fragment: ki:KeyInfo -> s:(;ki) state -> ad:data -> r:range -> bytes -> (;ki,s,ad,r) fragment
-val repr: ki:KeyInfo -> s:(;ki) state -> ad:data -> r:range -> (;ki,s,ad,r) fragment -> bytes
-
-(*
-val TLSFragmentToFragment: ki:KeyInfo -> rg:range -> seqn:int -> ct:ContentType -> (;ki,rg,seqn,ct) TLSFragment.fragment -> (;ki,s,ADBytes(ki.sinfo.protocol_version,ct),r) fragment
-
-val FragmentToTLSFragment: ki:KeyInfo -> s:(;ki) state -> ad:bytes -> rg:range  -> (;ki,s,ad,rg) fragment -> (;ki,rg,0,ADct) TLSFragment.fragment 
-*)
-
-val emptyState: ki:KeyInfo -> (;ki) state
-
-(* Invariants: definitions and theorems *)
-assume !k,r. r.seqn = 0 /\ r.history = [] => State(k,r)
-assume !k,r,r',ad,rg,f. State(k,r) /\ (r.key = r'.key) /\ Next(k,r,ad,rg,f) /\ (r'.seqn = r.seqn + 1) /\ (r'.history = (ad,rg,f)::r.history) => State(k,r')
-theorem !k,r'. State(k,r') => ((r'.seqn = 0 /\ r'.history = []) \/
-  			        (?r,ad,rg,f. State(k,r) /\ (r.key = r'.key) /\ Next(k,r,ad,rg,f) /\ (r'.seqn = r.seqn + 1) /\ (r'.history = (ad,rg,f)::r.history)))
-
-(* linearity assumption *)
-assume !k,r,ad,rg,f,ad',rg',f'. Next(k,r,ad,rg,f) /\ Next(k,r,ad',rg',f') => (ad = ad' /\ f = f')
-(* to prove by induction *)
-theorem !k,r,r'. State(k,r) /\ State(k,r') /\ r.seqn = r'.seqn => r.history = r'.history
+val TLSFragmentToFragment: ki:KeyInfo -> ct:ContentType -> h:TLSFragment.history -> rg:range -> (;ki,ct,h,rg) TLSFragment.fragment -> (;ki,h,ADCT(ki,ct),r) fragment
+val FragmentToTLSFragment: ki:KeyInfo -> ct:ContentType -> h:TLSFragment.history -> rg:range -> (;ki,h,ADCT(ki,ct),rg) fragment -> (;ki,ct,h,rg) TLSFragment.fragment

@@ -15,6 +15,10 @@ val GEN: ki:KeyInfo -> (;ki)key
 val LEAK:   ki:KeyInfo{Corrupt(ki)} -> (;ki)key -> bytes
 val COERCE: ki:KeyInfo{Corrupt(ki)} -> bytes -> (;ki)key
 
+private type (;ki:KeyInfo)state =
+	{key: (;ki)ENCKey.key;
+     iv: (;ki)ENCKey.iv3}
+
 val reIndexKey: oldKI:KeyInfo{NullSessionInfo(oldKI.sinfo)} ->
 	newKI:KeyInfo{NullSessionInfo(newKI.sinfo)} ->
 	(;oldKI)key -> (;newKI)key

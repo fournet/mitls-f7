@@ -1,26 +1,27 @@
 ﻿module AEAD
 
 open TLSInfo
-open TLSKey
 open Error
 open DataStream
 open AEADPlain
 
+type (;ki:KeyInfo) AEADKey =
+    | MtE of ka:(;ki)MAC.key * ke:(;ki)ENC.state // {MtEKey(ki,(ka,ke))}
+    | MACOnly of (;ki) MAC.key
+(*  |   GCM of ke:(;ki:AENC.state)  *)
 
 val encrypt: ki:KeyInfo -> 
-  (;ki) AEADKey -> 
-  (;ki) ENCKey.iv3 -> 
+  (;ki) AEADKey ->  
   ad:(;ki) data ->
   rg:DataStream.range -> 
   p:(;ki,rg,ad) plain ->
-  ((;ki) ENCKey.iv3 * c:ENC.cipher){CTXT(ki,ad,p,c)}
+  ((;ki) AEADKey * c:ENC.cipher){CTXT(ki,ad,p,c)}
 
 val decrypt: ki:KeyInfo -> 
   (;ki) AEADKey -> 
-  (;ki) ENCKey.iv3 -> 
   ad:(;ki) data ->
   c:ENC.cipher ->
-  res: ((;ki) ENCKey.iv3 * 
+  res: ((;ki) AEADKey * 
 	rg:(rg:range{rg = CipherRange(ki,c)}) * 
 	(;ki,rg,ad) plain) Result{
     (Safe(ki) => (!rg,p. (res = Correct(rg,p) <=> CTXT(ki,ad,p,c)))) /\

@@ -8,14 +8,14 @@ open DataStream
 
 // Plain type for Dispatch
 type fragment =
-    | FHandshake of Handshake.fragment
-    | FCCS of Handshake.ccsFragment
-    | FAlert of Alert.fragment
+    | FHandshake of HandshakePlain.fragment
+    | FCCS of HandshakePlain.ccsFragment
+    | FAlert of AlertPlain.fragment
     | FAppData of AppDataStream.fragment
 and history = {
-  handshake: Handshake.stream;
-  alert: Alert.stream;
-  ccs: Handshake.stream;
+  handshake: HandshakePlain.stream;
+  alert: AlertPlain.stream;
+  ccs: HandshakePlain.stream;
   appdata: AppDataStream.stream;
   log: fragmentSequence;
 }

@@ -6,10 +6,10 @@ open Formats
 open Algorithms
 open CipherSuites
 open TLSInfo
-open TLSKey
 open Certificate
 open SessionDB
 open PRFs
+open HandshakePlain
 
 // BEGIN HS_msg
 
@@ -18,9 +18,6 @@ open PRFs
 // be eliminated, by semantically merge the two.
 
 (*** Following RFC5246 A.4 *)
-
-let intToRange (i:int) = (i,i)
-let rangeToInt (x:int,y:int) = y
 
 type HandShakeType =
     | HT_hello_request
@@ -243,7 +240,7 @@ type protoState = // Cannot use Client and Server, otherwise clashes with Role
     | PSClient of clientState
     | PSServer of serverState
 
-type KIAndCCS = (KeyInfo * ccs_data)
+type KIAndCCS = (KeyInfo * Record.ConnectionState)
 
 type pre_hs_state = {
   hs_outgoing    : bytes;                  (* outgoing data before a ccs *)
@@ -263,28 +260,6 @@ type pre_hs_state = {
 }
 
 type hs_state = pre_hs_state
-
-type fragment = {b:bytes}
-type stream = {s:bytes}
-let emptyStream (ki:KeyInfo) = {s = [| |]}
-let addFragment (ki:KeyInfo) (s:stream) (r:DataStream.range) (f:fragment) =  {s = s.s @| f.b}
-
-
-let repr (ki:KeyInfo) (s:stream) (tlen:DataStream.range) f = f.b
-let fragment (ki:KeyInfo) (s:stream) (tlen:DataStream.range) b = {b=b}
-let makeFragment ki b =
-    let (tl,f,r) = FragCommon.splitInFrag ki b in
-    ((intToRange tl,{b=f}),r)
-
-type ccsFragment = {ccsB:bytes}
-let ccsRepr (ki:KeyInfo) (s:stream) (i:DataStream.range) f = f.ccsB
-let ccsFragment (ki:KeyInfo) (s:stream) (i:DataStream.range)  b = {ccsB=b}
-
-let addCCSFragment (ki:KeyInfo) (s:stream) (r:DataStream.range) (f:ccsFragment) =  {s = s.s @| f.ccsB}
-
-let makeCCSFragment ki b =
-    let (tl,f,r) = FragCommon.splitInFrag ki b in
-    ((intToRange tl,{ccsB=f}),r)
 
 let goToIdle state =
     let init_sessionInfo = null_sessionInfo state.poptions.minVer in
@@ -323,7 +298,7 @@ let goToIdle state =
 type HSFragReply =
   | EmptyHSFrag
   | HSFrag of (DataStream.range * fragment)
-  | CCSFrag of (DataStream.range * ccsFragment) * (KeyInfo * ccs_data)
+  | CCSFrag of (DataStream.range * ccsFragment) * (KeyInfo * Record.ConnectionState)
   | HSWriteSideFinished of (DataStream.range * fragment)
   | HSFullyFinished_Write of (DataStream.range * fragment) * StorableSession
 
@@ -940,10 +915,10 @@ let split_key_block key_block hsize ksize ivsize =
 
 let generateKeys (outKi:KeyInfo) (ms:masterSecret) =
     let key_block = prfKeyExp outKi ms in
-    let (cmk,smk,cek,sek,civ,siv) = splitKeys outKi key_block in
+    let (cWrite,sWrite) = splitKeys outKi key_block in
     match outKi.dir with 
-        | CtoS -> smk,sek,siv,cmk,cek,civ
-        | StoC -> cmk,cek,civ,smk,sek,siv
+        | CtoS -> cWrite,sWrite
+        | StoC -> sWrite,cWrite
 
 (* Obsolete. Use PRFs.prfVerifyData instead *)
 (*
@@ -1055,19 +1030,12 @@ let compute_session_secrets_and_CCSs state dir =
                   srand = state.ki_srand;
                 }
     let allKeys = generateKeys outKi state.next_ms in
-    let (rmk,rek,riv,wmk,wek,wiv) = allKeys in
-    (* TODO: Add support for AEAD ciphers *)
-    let readKey = RecordAEADKey (MtE (rmk,rek)) in
-    let readIV = if PVRequiresExplicitIV outKi.sinfo.protocol_version then ENCKey.iv3.NoIV (true) else ENCKey.iv3.SomeIV (riv) in
-    let read_ccs_data = { ccsKey = readKey;
-                          ccsIV3 = readIV}
-    let writeKey = RecordAEADKey (MtE (wmk,wek)) in
-    let writeIV = if PVRequiresExplicitIV outKi.sinfo.protocol_version then ENCKey.iv3.NoIV (true) else ENCKey.iv3.SomeIV (wiv) in
-    let write_ccs_data = { ccsKey = writeKey
-                           ccsIV3 = writeIV}
-    (* Put the ccs_data in the appropriate buffers. *)
-    let state = {state with ccs_outgoing = Some((CCSBytes,(outKi,write_ccs_data)))
-                            ccs_incoming = Some(dual_KeyInfo outKi,read_ccs_data)} in
+    let (writer,reader) = allKeys in
+    let writerCS = Record.initConnState outKi writer in
+    let readerCS = Record.initConnState (dual_KeyInfo outKi) reader in
+    (* Put the connection states in the appropriate buffers. *)
+    let state = {state with ccs_outgoing = Some((CCSBytes,(outKi,writerCS)))
+                            ccs_incoming = Some(dual_KeyInfo outKi,readerCS)} in
     state
 
 let prepare_client_output_full state clSpecState =
@@ -2025,19 +1993,19 @@ let enqueue_fragment (ci:ConnectionInfo) state fragment =
     {state with hs_incoming = new_inc}
 
 let recv_fragment ci (state:hs_state) (tlen:DataStream.range) (fragment:fragment) =
-    let fragment = fragment.b in 
-    if length fragment = 0 then
+    let b = repr ci.id_in fragment in 
+    if length b = 0 then
         // Empty HS fragment are not allowed
         (Error(HSError(AD_decode_error),HSSendAlert),state)
     else
-        let state = enqueue_fragment ci state fragment in
+        let state = enqueue_fragment ci state b in
         match state.pstate with
         | PSClient (_) -> recv_fragment_client ci state None
         | PSServer (_) -> recv_fragment_server ci state None
 
 let recv_ccs (ci:ConnectionInfo) (state: hs_state) (tlen:DataStream.range) (fragment:ccsFragment): ((KIAndCCS Result) * hs_state) =
-    let fragment = fragment.ccsB in
-    if equalBytes fragment CCSBytes then  
+    let b = ccsRepr ci.id_in fragment in
+    if equalBytes b CCSBytes then  
         match state.pstate with
         | PSClient (cstate) -> // Check we are in the right state (CCCS) 
             match cstate with

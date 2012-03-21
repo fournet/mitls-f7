@@ -38,89 +38,134 @@ let symDecrypt dec (data:bytes) =
 
 let aesEncrypt ki key iv data =
     let aes = new System.Security.Cryptography.AesManaged() in
-    let k = ENCKey.LEAK ki key
-    aes.KeySize <- 8 * length k
+    aes.KeySize <- 8 * length key
     aes.Padding <- System.Security.Cryptography.PaddingMode.None
-    let enc = aes.CreateEncryptor(k,iv) in
+    let enc = aes.CreateEncryptor(key,iv) in
     symEncrypt enc data
 
 let aesDecrypt ki key iv (data:bytes) =
     let aes = new System.Security.Cryptography.AesManaged() in
-    let k = ENCKey.LEAK ki key
-    aes.KeySize <- 8 * length k
+    aes.KeySize <- 8 * length key
     aes.Padding <- System.Security.Cryptography.PaddingMode.None;
-    let dec = aes.CreateDecryptor(k,iv) in
+    let dec = aes.CreateDecryptor(key,iv) in
     symDecrypt dec data
        
 let tdesEncrypt ki key iv data =
     let tdes = new System.Security.Cryptography.TripleDESCryptoServiceProvider() in
     tdes.Padding <- System.Security.Cryptography.PaddingMode.None
-    let k = ENCKey.LEAK ki key
-    let enc = tdes.CreateEncryptor(k,iv) in
+    let enc = tdes.CreateEncryptor(key,iv) in
     symEncrypt enc data
 
 let tdesDecrypt ki key iv (data:bytes) =
     let tdes = new System.Security.Cryptography.TripleDESCryptoServiceProvider() in
     tdes.Padding <- System.Security.Cryptography.PaddingMode.None;
-    let k = ENCKey.LEAK ki key
-    let dec = tdes.CreateDecryptor(k,iv) in
+    let dec = tdes.CreateDecryptor(key,iv) in
     symDecrypt dec data
 
 (* Early TLS chains IVs but this is not secure against adaptive CPA *)
 let lastblock cipher ivl =
     let (_,b) = split cipher (length cipher - ivl) in b
 
+type key = {k:bytes}
+
+type iv = bytes
+type iv3 =
+    | SomeIV of iv
+    | NoIV of bool
+
+type state =
+    {key: key;
+     iv: iv3}
+type encryptor = state
+type decryptor = state
+
+let GENOne ki =
+    let alg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
+    let key =
+        {k = mkRandom (encKeySize alg)}
+    let iv =
+        match ki.sinfo.protocol_version with
+        | SSL_3p0 | TLS_1p0 ->
+            SomeIV(mkRandom (ivSize alg))
+        | TLS_1p1 | TLS_1p2 ->
+            NoIV(true)
+    {key = key; iv = iv}
+
+let GEN (ki) = (GENOne ki, GENOne ki)
+    
+let COERCE (ki:KeyInfo) k iv =
+    let ivOpt =
+        match ki.sinfo.protocol_version with
+        | SSL_3p0 | TLS_1p0 ->
+            SomeIV(iv)
+        | TLS_1p1 | TLS_1p2 ->
+            NoIV(true)
+    {key = {k=k}; iv = ivOpt}
+
+let LEAK (ki:KeyInfo) s =
+    let iv =
+        match s.iv with
+        | NoIV(_) -> [||]
+        | SomeIV(iv) -> iv
+    (s.key.k,iv)
+
 (* Parametric ENC/DEC functions *)
-let ENC ki key iv3 tlen data =
+let ENC ki s tlen data =
     (* Should never be invoked on a stream (right now) encryption algorithm *)
     let alg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
     let ivl = ivSize alg in
     let iv =
-        match iv3 with
-        | ENCKey.SomeIV(b) -> b
-        | ENCKey.NoIV _    -> mkRandom ivl in
+        match s.iv with
+        | SomeIV(b) -> b
+        | NoIV _    -> mkRandom ivl in
     let d = AEPlain.repr ki tlen data in
     let cipher =
         match alg with
-        | TDES_EDE_CBC -> tdesEncrypt ki key iv d
-        | AES_128_CBC  -> aesEncrypt  ki key iv d
-        | AES_256_CBC  -> aesEncrypt  ki key iv d
+        | TDES_EDE_CBC -> tdesEncrypt ki s.key.k iv d
+        | AES_128_CBC  -> aesEncrypt  ki s.key.k iv d
+        | AES_256_CBC  -> aesEncrypt  ki s.key.k iv d
         | RC4_128      -> unexpectedError "[ENC] invoked on stream cipher"
-    match iv3 with
-    | ENCKey.SomeIV(_) ->
+    match s.iv with
+    | SomeIV(_) ->
         if length cipher <> tlen || tlen > FragCommon.max_TLSCipher_fragment_length then
             // unexpected, because it is enforced statically by the
             // CompatibleLength predicate
             unexpectedError "[ENC] Length of encrypted data do not match expected length"
         else
-            (ENCKey.SomeIV(lastblock cipher ivl), cipher)
-    | ENCKey.NoIV(b) ->
+            let s = {s with iv = SomeIV(lastblock cipher ivl) } in
+            (s, cipher)
+    | NoIV(b) ->
         let res = iv @| cipher in
         if length res <> tlen || tlen > FragCommon.max_TLSCipher_fragment_length then
             // unexpected, because it is enforced statically by the
             // CompatibleLength predicate
             unexpectedError "[ENC] Length of encrypted data do not match expected length"
         else
-            (ENCKey.NoIV(b), res)
+            let s = {s with iv = NoIV(b)} in
+            (s, res)
 
-let DEC ki key iv3 cipher =
+let DEC ki s cipher =
     (* Should never be invoked on a stream (right now) encryption algorithm *)
     let alg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
     let ivl = ivSize alg 
     let (iv,encrypted) =
-        match iv3 with
-        | ENCKey.SomeIV (iv) -> (iv,cipher)
-        | ENCKey.NoIV (b)    -> split cipher ivl
+        match s.iv with
+        | SomeIV (iv) -> (iv,cipher)
+        | NoIV (b)    -> split cipher ivl
     let data =
         match alg with
-        | TDES_EDE_CBC -> tdesDecrypt ki key iv encrypted
-        | AES_128_CBC  -> aesDecrypt  ki key iv encrypted
-        | AES_256_CBC  -> aesDecrypt  ki key iv encrypted
+        | TDES_EDE_CBC -> tdesDecrypt ki s.key.k iv encrypted
+        | AES_128_CBC  -> aesDecrypt  ki s.key.k iv encrypted
+        | AES_256_CBC  -> aesDecrypt  ki s.key.k iv encrypted
         | RC4_128      -> unexpectedError "[DEC] invoked on stream cipher"
     let d = AEPlain.plain ki (length cipher) data in
-    match iv3 with
-    | ENCKey.SomeIV(_) -> (ENCKey.SomeIV(lastblock cipher ivl), d)
-    | ENCKey.NoIV(b)   -> (ENCKey.NoIV(b), d)
+    match s.iv with
+    | SomeIV(_) ->
+        let s = {s with iv = SomeIV(lastblock cipher ivl)} in
+        (s, d)
+    | NoIV(b)   ->
+        let s = {s with iv = NoIV(b)} in
+        (s, d)
 
 (* the SPRP game in F#, without indexing so far.
    the adversary gets 

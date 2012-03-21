@@ -1,7 +1,6 @@
 ﻿module StatefulAEAD
 
 open TLSInfo
-open TLSKey
 open Error
 open StatefulPlain
 open DataStream 
@@ -9,11 +8,36 @@ open Bytes
 open AEADPlain
 
 // TODO 12-02: 
-// - align with paper interface: (KB: Done?)
-// -- group & reorder iv,key, and state into one state (hiding eg iv3) 
-// -- add refinements!
-// -- why returning ENC.cipher? 
 // - Do we need to control the cipherlength?  
+
+private type (;ki:KeyInfo) prestate = {
+  key: (;ki) AEADKey;
+  seqn: int;
+  history: TLSFragment.history
+}
+
+predicate State of KeyInfo * prestate
+predicate Next of KeyInfo * state * data * range * fragment
+
+private type (;ki:KeyInfo) state = (s:prestate) {State(s)}
+
+(* Invariants: definitions and theorems *)
+assume !k,r. r.seqn = 0 /\ r.history = [] => State(k,r)
+assume !k,r,r',ad,rg,f. State(k,r) /\ (r.key = r'.key) /\ Next(k,r,ad,rg,f) /\ (r'.seqn = r.seqn + 1) /\ (r'.history = (ad,rg,f)::r.history) => State(k,r')
+theorem !k,r'. State(k,r') => ((r'.seqn = 0 /\ r'.history = []) \/
+  			        (?r,ad,rg,f. State(k,r) /\ (r.key = r'.key) /\ Next(k,r,ad,rg,f) /\ (r'.seqn = r.seqn + 1) /\ (r'.history = (ad,rg,f)::r.history)))
+
+(* linearity assumption *)
+assume !k,r,ad,rg,f,ad',rg',f'. Next(k,r,ad,rg,f) /\ Next(k,r,ad',rg',f') => (ad = ad' /\ f = f')
+(* to prove by induction *)
+theorem !k,r,r'. State(k,r) /\ State(k,r') /\ r.seqn = r'.seqn => r.history = r'.history
+
+type (;ki:KeyInfo) reader = r:(;ki) state
+type (;ki:KeyInfo) writer = w:(;ki) state
+
+val initState: ki:KeyInfo -> (;ki) AEADKey -> (;ki) state
+
+val history: ki:KeyInfo -> (;ki) state -> h:TLSFragment.history{h=s.history}
 
 type cipher = ENC.cipher
 predicate STXT of KeyInfo * state * data * fragment * cipher
@@ -25,17 +49,17 @@ val encrypt: ki:KeyInfo ->
   w:(;ki) writer -> 
   ad:data ->
   r:range ->
-  f: (;ki,w,ad,r) fragment{Next(ki,w,ad,r,f)} ->
+  f: (;ki,w.history,ad,r) fragment{Next(ki,w,ad,r,f)} ->
   (w':(;ki) writer * c:cipher){
-    STXT(ki,w,ad,f,c) /\ Log(w') = (ad,f)::Log(w)}
+    STXT(ki,w,ad,f,c) /\ Log(w'.history) = (ad,f)::Log(w.history)}
 
 val decrypt: ki:KeyInfo -> 
   r:(;ki) reader -> 
   ad:data ->
   c:ENC.cipher ->
   res:((;ki) reader * rg:(rg:range{rg=CipherRange(ki,c)}) * 
-	 (;ki,r,ad,rg) fragment) Result{
+	 (;ki,r.history,ad,rg) fragment) Result{
     (Safe(ki) => (!rd,rg,f. (res = Correct(rd,rg,f) <=> 
-		            (?wr. Log(wr) = Log(r) /\ STXT(ki,wr,ad,f,c)))) /\
+		            (?wr. Log(wr.history) = Log(r.history) /\ STXT(ki,wr,ad,f,c)))) /\
     (Auth(ki) => (!rd,rg,f. (res = Correct(rd,rg,f) =>  
-		            (?wr,c. Log(wr) = Log(r) /\ STXT(ki,wr,ad,f,c))))))}
+		            (?wr,c. Log(wr.history) = Log(r.history) /\ STXT(ki,wr,ad,f,c))))))}

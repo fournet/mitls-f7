@@ -192,22 +192,33 @@ let prfKeyExp ki (ms:masterSecret) =
     {bytes = res}
     
 let splitKeys outKi (blob:keyBlob) =
-    let macKeySize = macKeySize (macAlg_of_ciphersuite outKi.sinfo.cipher_suite) in
-    (* TODO: add support for AEAD ciphers *)
-    let encKeySize = encKeySize (encAlg_of_ciphersuite outKi.sinfo.cipher_suite) in
-    let ivsize = 
-        if PVRequiresExplicitIV outKi.sinfo.protocol_version then 0
-        else ivSize (encAlg_of_ciphersuite outKi.sinfo.cipher_suite)
-    let key_block = blob.bytes in
-    let cmk = Array.sub key_block 0 macKeySize in
-    let smk = Array.sub key_block macKeySize macKeySize in
-    let cek = Array.sub key_block (2*macKeySize) encKeySize in
-    let sek = Array.sub key_block (2*macKeySize+encKeySize) encKeySize in
-    let civ = Array.sub key_block (2*macKeySize+2*encKeySize) ivsize in
-    let siv = Array.sub key_block (2*macKeySize+2*encKeySize+ivsize) ivsize in
-    ( MAC.COERCE outKi cmk, 
-      MAC.COERCE (dual_KeyInfo outKi) smk, 
-      ENCKey.COERCE outKi cek, 
-      ENCKey.COERCE (dual_KeyInfo outKi) sek, 
-      civ, 
-      siv)
+    let cs = outKi.sinfo.cipher_suite in
+    match cs with
+    | x when isOnlyMACCipherSuite x ->
+        let macKeySize = macKeySize (macAlg_of_ciphersuite cs) in
+        let key_block = blob.bytes in
+        let cmkb = Array.sub key_block 0 macKeySize in
+        let smkb = Array.sub key_block macKeySize macKeySize in
+        let cmk = MAC.COERCE outKi cmkb in
+        let smk = MAC.COERCE (dual_KeyInfo outKi) smkb in
+        (AEAD.MACOnly(cmk),AEAD.MACOnly(smk))
+    | _ ->
+        let macKeySize = macKeySize (macAlg_of_ciphersuite cs) in
+        let encKeySize = encKeySize (encAlg_of_ciphersuite cs) in
+        let ivsize = 
+            if PVRequiresExplicitIV outKi.sinfo.protocol_version then 0
+            else ivSize (encAlg_of_ciphersuite outKi.sinfo.cipher_suite)
+        let key_block = blob.bytes in
+        let cmkb = Array.sub key_block 0 macKeySize in
+        let smkb = Array.sub key_block macKeySize macKeySize in
+        let cekb = Array.sub key_block (2*macKeySize) encKeySize in
+        let sekb = Array.sub key_block (2*macKeySize+encKeySize) encKeySize in
+        let civb = Array.sub key_block (2*macKeySize+2*encKeySize) ivsize in
+        let sivb = Array.sub key_block (2*macKeySize+2*encKeySize+ivsize) ivsize in
+        let cmk = MAC.COERCE outKi cmkb in
+        let smk = MAC.COERCE (dual_KeyInfo outKi) smkb in
+        let cek = ENC.COERCE outKi cekb civb in
+        let sek = ENC.COERCE (dual_KeyInfo outKi) sekb sivb in
+        (AEAD.MtE(cmk,cek),AEAD.MtE(smk,sek))
+
+(*  | x when IsGCM x -> ... *)

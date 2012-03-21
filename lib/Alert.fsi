@@ -4,18 +4,10 @@ module Alert
 
 open Error
 open TLSInfo
+open AlertPlain
 
 type pre_al_state
 type state = pre_al_state
-
-// protocol-specific abstract fragment,
-// and associated functions (never to be called with ideal functionality)
-type fragment
-type stream
-val addFragment: KeyInfo -> stream -> DataStream.range -> fragment -> stream
-
-val repr: KeyInfo -> stream -> DataStream.range  -> fragment -> Bytes.bytes
-val fragment: KeyInfo -> stream -> DataStream.range  -> Bytes.bytes -> fragment
 
 type ALFragReply =
     | EmptyALFrag
@@ -35,7 +27,5 @@ val send_alert: ConnectionInfo -> state -> alertDescription -> state
 val next_fragment: ConnectionInfo -> state -> (ALFragReply * state) 
 
 val recv_fragment: ConnectionInfo -> state -> DataStream.range -> fragment -> alert_reply Result
-
-val emptyStream: KeyInfo -> stream
 
 val incomingEmpty: state -> bool

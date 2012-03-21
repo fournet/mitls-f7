@@ -5,8 +5,8 @@ open Error
 //open Formats
 open CipherSuites
 open TLSInfo
-open TLSKey
 //open SessionDB
+open HandshakePlain
 
 // There is one instance of the protocol for each TCP connection,
 // each performing a sequence of Handshakes for that connection.
@@ -14,21 +14,6 @@ open TLSKey
 // protocol state  
 type pre_hs_state 
 type hs_state = pre_hs_state
-
-// protocol-specific abstract fragment,
-// and associated functions (never to be called with ideal functionality)
-type fragment
-type stream
-
-val repr: KeyInfo -> stream -> DataStream.range -> fragment -> Bytes.bytes
-val fragment: KeyInfo -> stream -> DataStream.range -> Bytes.bytes -> fragment
-type ccsFragment
-val ccsRepr: KeyInfo -> stream -> DataStream.range -> ccsFragment -> Bytes.bytes
-val ccsFragment: KeyInfo -> stream -> DataStream.range -> Bytes.bytes -> ccsFragment
-
-val emptyStream: KeyInfo -> stream
-val addFragment: KeyInfo -> stream -> DataStream.range -> fragment -> stream
-val addCCSFragment: KeyInfo -> stream -> DataStream.range -> ccsFragment -> stream
 
 (* Locally controlling handshake protocols *) 
 
@@ -87,7 +72,7 @@ val recvCCS     : KeyInfo -> hs_state -> int -> fragment -> ccs_data Result * hs
 type HSFragReply =
   | EmptyHSFrag              (* nothing to send *) 
   | HSFrag of                (DataStream.range * fragment)
-  | CCSFrag of               (DataStream.range * ccsFragment) (* the unique one-byte CCS *) * (KeyInfo * ccs_data)
+  | CCSFrag of               (DataStream.range * ccsFragment) (* the unique one-byte CCS *) * (KeyInfo * Record.ConnectionState)
   | HSWriteSideFinished of   (DataStream.range * fragment) (* signalling that this fragment ends the finished message *)
   | HSFullyFinished_Write of (DataStream.range * fragment) * SessionDB.StorableSession
 val next_fragment: ConnectionInfo  -> hs_state -> HSFragReply * hs_state
@@ -101,7 +86,7 @@ type recv_reply = (* the fragment is accepted, and... *)
   | HSReadSideFinished (* ? *) 
   | HSFullyFinished_Read of SessionDB.StorableSession (* we can start sending data on the connection *)  
 val recv_fragment: ConnectionInfo -> hs_state -> DataStream.range -> fragment -> recv_reply Result * hs_state
-val recv_ccs     : ConnectionInfo -> hs_state -> DataStream.range -> ccsFragment -> ((KeyInfo * ccs_data) Result) * hs_state
+val recv_ccs     : ConnectionInfo -> hs_state -> DataStream.range -> ccsFragment -> ((KeyInfo * Record.ConnectionState) Result) * hs_state
 
 // misses indexes, which are going to change anyway
 val authorize: hs_state -> Certificate.cert -> hs_state

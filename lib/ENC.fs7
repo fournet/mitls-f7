@@ -7,14 +7,38 @@ open Error
 
 (* this interface is trusted *)
 
+private type (;ki:KeyInfo) key = {k:bytes}
+
+type iv = bytes
+type (;ki:KeyInfo) iv3 =
+	| SomeIV of iv // SSL_3p0 and TLS_1p0
+	| NoIV of bool // TLS_1p0 and TLS_1p2
+
+private type (;ki:KeyInfo)state =
+	{key: (;ki)ENCKey.key;
+     iv: (;ki)ENCKey.iv3}
+
+type (;ki:KeyInfo)encryptor = (;ki)state
+type (;ki:KeyInfo)decryptor = (;ki)state
+
+// We do not use the state, but an abstract ID over it, so that we can link
+// encryptor and decryptor states
+private function StateID: state -> int
+
+val GEN: ki:KeyInfo -> e:(;ki)encryptor{StateID(e)=0} * d:(;ki)decryptor{StateID(d)=0}
+val LEAK:   ki:KeyInfo{Corrupt(ki)} -> (;ki)state -> key:bytes * iv:bytes
+val COERCE: ki:KeyInfo{Corrupt(ki)} -> key:bytes -> iv:bytes -> (;ki)state
+
 // ciphers consist of one or more blocks of bytes.
 type cipher = b:bytes{Length(b) <= FragCommon.max_TLSCipher_fragment_length}
 
+
 predicate ENCrypted of
-  (ki:KeyInfo * tlen:int * (;ki) ENCKey.key * (;ki,tlen) plain * cipher)
+  (ki:KeyInfo * tlen:int * stateID * (;ki,tlen) plain * cipher)
 
-val ENC: ki:KeyInfo -> k:(;ki) ENCKey.key -> (;ki) ENCKey.iv3 -> tlen:int -> p:(;ki,tlen) plain -> 
-  ((;ki) ENCKey.iv3 * c:cipher{ENCrypted(ki,tlen,k,p,c) /\ Length(c)=tlen})
+val ENC: ki:KeyInfo -> s:(;ki) encryptor -> tlen:int -> p:(;ki,tlen) plain -> 
+  (s':(;ki) encryptor{StateID(s') = StateID(s)+1} *
+   c:cipher{ENCrypted(ki,tlen,StateID(s),p,c) /\ Length(c)=tlen})
 
-val DEC: ki:KeyInfo -> k:(;ki) ENCKey.key -> (;ki) ENCKey.iv3 -> c:cipher -> 
-  ((;ki) ENCKey.iv3 * p:(;ki,Length(c))plain{ENCrypted(ki,Length(c),k,p,c)})
+val DEC: ki:KeyInfo -> s:(;ki) decryptor -> c:cipher -> 
+  (s':(;ki) decryptor * p:(;ki,Length(c))plain{ENCrypted(ki,Length(c),StateID(s),p,c)})

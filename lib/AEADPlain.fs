@@ -6,23 +6,14 @@ open DataStream
 open StatefulPlain
 
 type data = bytes
-type plain = {p : (state * fragment)}
+type plain = {p : bytes}
 
-let plain: KeyInfo -> range -> data -> bytes -> plain = 
-  fun ki r ad b -> 
-    let s = emptyState ki in
-    {p = (s, fragment ki s ad r b)}
+let plain (ki:KeyInfo) (rg:range) (ad:data) b = {p=b}
 
-let repr:  KeyInfo -> range -> data -> plain -> bytes = 
-  fun ki r ad pl ->
-    let (s,f) = pl.p in 
-    StatefulPlain.repr ki s ad r f
+let repr  (ki:KeyInfo) (rg:range) (ad:data) p = p.p
 
-let fragmentToPlain: KeyInfo -> state -> data -> range -> fragment -> plain = 
-  fun ki s ad r f -> {p = (s,f)}
+let fragmentToPlain (ki:KeyInfo) (h:TLSFragment.history) (ad:data) (rg:range) (f:fragment) =
+    {p = StatefulPlain.repr ki h ad rg f}
 
-let plainToFragment: KeyInfo -> state -> data -> range -> plain -> fragment = 
-  fun ki s ad r p -> 
-    let (s',f') = p.p in
-      if s = s' then f' 
-      else failwith "expected a compatible fragment State"
+let plainToFragment (ki:KeyInfo) (h:TLSFragment.history) (ad:data) (rg:range) (p:plain) =
+    StatefulPlain.fragment ki h ad rg p.p

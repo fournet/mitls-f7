@@ -8,35 +8,35 @@ open DataStream
 
 // Plain type for Dispatch
 type (;ki:KeyInfo) history = {
-  handshake: (;ki) Handshake.stream;
-  alert: (;ki) Alert.stream;
-  ccs: (;ki) Handshake.stream;
+  handshake: (;ki) HandshakePlain.stream;
+  alert: (;ki) AlertPlain.stream;
+  ccs: (;ki) HandshakePlain.stream;
   appdata: (;ki) AppDataStream.stream;
   log: (;ki) fragmentSequence;
 }
 and (;ki:KeyInfo,ct:ContentType,h:(;ki) history,rg:range) fragment =
-    | FHandshake of (;ki,h.handshake,rg)Handshake.fragment    {ct=Formats.Handshake}
-    | FCCS       of (;ki,h.ccs,rg)Handshake.ccsFragment {ct=Change_cipher_spec}
-    | FAlert     of (;ki,h.alert,rg)Alert.fragment        {ct=Alert}
+    | FHandshake of (;ki,h.handshake,rg)HandshakePlain.fragment    {ct=Formats.Handshake}
+    | FCCS       of (;ki,h.ccs,rg)HandshakePlain.ccsFragment {ct=Change_cipher_spec}
+    | FAlert     of (;ki,h.alert,rg)AlertPlain.fragment        {ct=Alert}
     | FAppData   of (;ki,h.appdata,rg)AppDataStream.fragment {ct=Application_data}
 and (;ki:KeyInfo) fragmentSequence = (ct:ContentType * h:(;ki) history * rg:range * (;ki,ct,h,rg) fragment) list
 
-predicate Multiplexed of KeyInfo * fragmentSequence * Handshake.stream * Handshake.stream * Alert.stream * AppDataStream.stream 
+predicate Multiplexed of KeyInfo * fragmentSequence * HandshakePlain.stream * HandshakePlain.stream * AlertPlain.stream * AppDataStream.stream 
 assume !ki,fs,hs,ccs,al,ad. Multiplexed(ki,fs,hs,ccs,al,ad) <=>
   ((fs = [] /\ 
-   Handshake.EmptyStream(ki,hs) /\
-   Handshake.EmptyStream(ki,ccs) /\
-   Alert.EmptyStream(ki,al) /\
+   HandshakePlain.EmptyStream(ki,hs) /\
+   HandshakePlain.EmptyStream(ki,ccs) /\
+   AlertPlain.EmptyStream(ki,al) /\
    AppDataStream.EmptyStream(ki,ad)) \/
   (?ct,h0,rg,f,t. fs = (ct,h0,rg,f)::t /\
       (?hs'. ct = Formats.Handshake /\
-	  Handshake.ConcatStream(ki,hs',f,hs) /\
+	  HandshakePlain.ConcatStream(ki,hs',f,hs) /\
 	  Multiplexed(ki,t,hs',ccs,al,ad)) \/
       (?ccs'. ct = Formats.Change_cipher_spec /\
-	  Handshake.ConcatStream(ki,ccs',f,ccs) /\
+	  HandshakePlain.ConcatStream(ki,ccs',f,ccs) /\
 	  Multiplexed(ki,t,hs,ccs',al,ad)) \/
       (?al'. ct = Formats.Alert /\
-	  Alert.ConcatStream(ki,al',f,al) /\
+	  AlertPlain.ConcatStream(ki,al',f,al) /\
 	  Multiplexed(ki,t,hs,ccs,al',ad)) \/
       (?ad'. ct = Formats.Application_data /\
 	  AppDataStream.ConcatStream(ki,ad',f,ad) /\

@@ -3,10 +3,13 @@
 open Bytes
 open Error
 open TLSInfo
-open TLSKey
 
+type AEADKey =
+    | MtE of MAC.key * ENC.state
+    | MACOnly of MAC.key
+(*  |   GCM of AENC.state  *)
 
-val encrypt: KeyInfo -> AEADKey -> ENCKey.iv3 -> AEADPlain.data -> 
-             DataStream.range -> AEADPlain.plain -> (ENCKey.iv3 * bytes)
-val decrypt: KeyInfo -> AEADKey -> ENCKey.iv3 -> AEADPlain.data -> 
-             bytes -> (ENCKey.iv3 * DataStream.range * AEADPlain.plain) Result
+val encrypt: KeyInfo -> AEADKey -> AEADPlain.data -> 
+             DataStream.range -> AEADPlain.plain -> (AEADKey * bytes)
+val decrypt: KeyInfo -> AEADKey -> AEADPlain.data -> 
+             bytes -> (AEADKey * DataStream.range * AEADPlain.plain) Result

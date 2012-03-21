@@ -9,18 +9,8 @@ open TLSInfo
 //type (;ki:KeyInfo) keybytes = b:bytes {Length(b)=KeySize(ki)}
 // private predicate MtEKey of ki:KeyInfo * ((;ki)MACKey.key * (;ki)ENCKey.key)
 
-type (;ki:KeyInfo) AEADKey = 
-      MtE of ka:(;ki)MAC.key * ke:(;ki)ENCKey.key // {MtEKey(ki,(ka,ke))}
+type (;ki:KeyInfo) AEADKey =
+	| NoneKey
+    | MtE of ka:(;ki)MAC.key * ke:(;ki)ENC.state // {MtEKey(ki,(ka,ke))}
     | MACOnly of (;ki) MAC.key
-(*  |   GCM of ke:(;ki:AENC.key)  *)
-
-type (;ki:KeyInfo) recordKey =
-    | RecordAEADKey of (;ki)AEADKey
-    | NoneKey
-
-type (;ki:KeyInfo) ccs_data =
-    { ccsKey: (;ki) recordKey;
-      ccsIV3: (;ki) ENCKey.iv3;
-    }
-
-val nullCCSData: ki:KeyInfo -> (;ki) ccs_data
+(*  |   GCM of ke:(;ki:AENC.state)  *)

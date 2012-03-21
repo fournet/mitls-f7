@@ -10,25 +10,6 @@ private type (;ci:ConnectionInfo)pre_al_state = {
 }
 type (;ci:ConnectionInfo)state = (;ci)pre_al_state
 
-// protocol-specific abstract fragment,
-// and associated functions (never to be called with ideal functionality)
-private type (;ki:KeyInfo,tlen:DataStream.range,seqn:int)fragment = {b:bytes}
-
-type (;ki:KeyInfo) stream = {s:bytes}
-predicate EmptyStream of KeyInfo * stream
-predicate ConcatStream of KeyInfo * stream * fragment * stream
-val emptyStream: ki:KeyInfo -> s:(;ki)stream{EmptyStream(ki,s)}
-val addFragment: ki:KeyInfo -> s:(;ki)stream -> 
-                 r:DataStream.range -> f:(;ki,s,r) fragment -> 
-                 s':(;ki)stream{ConcatStream(ki,s,f,s')}
-
-
-predicate AlertFragment of KeyInfo * int * int * Bytes.bytes
-val repr: ki:KeyInfo -> tlen:DataStream.range -> seqn:int -> (;ki,tlen,seqn)fragment -> b:Bytes.bytes{AlertFragment(ki,tlen,seqn,b)}
-val fragment: ki:KeyInfo -> tlen:DataStream.range -> seqn:int -> b:Bytes.bytes{AlertFragment(ki,tlen,seqn,b) \/ Corrupt(ki)} -> (;ki,tlen,seqn)fragment
-
-val makeFragment: ki:KeyInfo -> seqn:int -> b:bytes -> (tlen:DataStream.range * (;ki,tlen,seqn)fragment) * b2:bytes
-
 type (;ki:KeyInfo,seqn:int)ALFragReply =
     | EmptyALFrag
     | ALFrag of          (tlen:DataStream.range * (;ki,tlen,seqn)fragment)

@@ -16,6 +16,10 @@ type iv3 =
     | SomeIV of iv
     | NoIV of bool
 
+type state =
+    {key: key;
+     iv: iv3}
+
 let reIndexKey (oldID:KeyInfo) (newID:KeyInfo) key = {k = key.k}
 let reIndexIV  (oldID:KeyInfo) (newID:KeyInfo) (iv3:iv3) =
     match iv3 with

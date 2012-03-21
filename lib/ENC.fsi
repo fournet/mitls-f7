@@ -4,7 +4,15 @@ open Bytes
 open TLSInfo
 open Error
 
+type state
+type encryptor = state
+type decryptor = state
+
+val GEN: KeyInfo -> encryptor * decryptor
+val LEAK:   KeyInfo -> state -> bytes * bytes
+val COERCE: KeyInfo -> bytes -> bytes-> state
+
 type cipher = bytes
 
-val ENC: KeyInfo -> ENCKey.key -> ENCKey.iv3 -> int -> AEPlain.plain -> (ENCKey.iv3 * cipher)
-val DEC: KeyInfo -> ENCKey.key -> ENCKey.iv3 -> cipher -> (ENCKey.iv3 * AEPlain.plain)
+val ENC: KeyInfo -> encryptor -> int -> AEPlain.plain -> (encryptor * cipher)
+val DEC: KeyInfo -> decryptor -> cipher -> (decryptor * AEPlain.plain)
