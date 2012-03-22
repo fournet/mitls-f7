@@ -36,9 +36,12 @@ type cipher = b:bytes{Length(b) <= FragCommon.max_TLSCipher_fragment_length}
 predicate ENCrypted of
   (ki:KeyInfo * tlen:int * stateID * (;ki,tlen) plain * cipher)
 
+// TODO: We need to refine cipher before applying CPA
+
 val ENC: ki:KeyInfo -> s:(;ki) encryptor -> tlen:int -> p:(;ki,tlen) plain -> 
   (s':(;ki) encryptor{StateID(s') = StateID(s)+1} *
    c:cipher{ENCrypted(ki,tlen,StateID(s),p,c) /\ Length(c)=tlen})
 
 val DEC: ki:KeyInfo -> s:(;ki) decryptor -> c:cipher -> 
-  (s':(;ki) decryptor * p:(;ki,Length(c))plain{ENCrypted(ki,Length(c),StateID(s),p,c)})
+  (s':(;ki) decryptor{StateID(s') = StateID(s)+1} *
+   p:(;ki,Length(c))plain{!p'. ENCrypted(ki,Length(c),StateID(s),p',c) => p=p'})

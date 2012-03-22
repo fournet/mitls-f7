@@ -15,7 +15,7 @@ val encrypt: ki:KeyInfo ->
   ad:(;ki) data ->
   rg:DataStream.range -> 
   p:(;ki,rg,ad) plain ->
-  ((;ki) AEADKey * c:ENC.cipher){CTXT(ki,ad,p,c)}
+  ((;ki) AEADKey * c:ENC.cipher){Length(c)=RangeCipher(ki,rg) /\ CTXT(ki,ad,p,c)}
 
 val decrypt: ki:KeyInfo -> 
   (;ki) AEADKey -> 

@@ -63,5 +63,6 @@ val check_split:
 function val RangeCipher: KeyInfo -> range -> nat
 val rangeCipher: ki:KeyInfo -> r:range -> tlen:nat{tlen=RangeCipher(ki,r)}
 
+// TODO: Say that the result of encode is "block-aligned" (more generally: compatible with the current enc algorithm)
 val encode: ki:KeyInfo -> rg:range -> ad:(;ki.sinfo.protocol_version) TLSFragment.addData -> (;ki,rg,ad) AEADPlain.plain -> (;ki) tag -> (tlen:nat * (;ki,tlen) plain){tlen=RangeCipher(ki,rg)}
 val decode: ki:KeyInfo -> ad:(;ki.sinfo.protocol_version) TLSFragment.addData -> tlen:nat -> (;ki,tlen) plain -> (rg:range * (;ki,rg,ad)AEADPlain.plain * (;ki)tag * bool){tlen=RangeCipher(ki,rg)}
