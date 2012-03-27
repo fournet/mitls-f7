@@ -6,10 +6,50 @@ open Algorithms
 open TLSInfo
 open Error
 
+type cipher = bytes
+
 type AEADKey =
     | MtE of MAC.key * ENC.state
     | MACOnly of MAC.key
 (*  |   GCM of AENC.state  *)
+
+let GEN ki =
+    let cs = ki.sinfo.cipher_suite in
+    match cs with
+    | x when isOnlyMACCipherSuite x ->
+        let mk = MAC.GEN ki
+        (MACOnly(mk), MACOnly(mk))
+    | _ ->
+        let mk = MAC.GEN ki in
+        let (ek,dk) = ENC.GEN ki in
+        (MtE(mk,ek),MtE(mk,dk))
+
+let COERCE ki b =
+    // precondition: b is of the right length. No runtime checks here.
+    let cs = ki.sinfo.cipher_suite in
+    match cs with
+    | x when isOnlyMACCipherSuite x ->
+        let mk = MAC.COERCE ki b in
+        MACOnly(mk)
+    | _ ->
+        let macKeySize = macKeySize (macAlg_of_ciphersuite cs) in
+        let encKeySize = encKeySize (encAlg_of_ciphersuite cs) in
+        let ivsize = 
+            if PVRequiresExplicitIV ki.sinfo.protocol_version then 0
+            else ivSize (encAlg_of_ciphersuite ki.sinfo.cipher_suite)
+        let mkb = Array.sub b 0 macKeySize in
+        let ekb = Array.sub b macKeySize encKeySize in
+        let ivb = Array.sub b (macKeySize+encKeySize) ivsize in
+        let mk = MAC.COERCE ki mkb in
+        let ek = ENC.COERCE ki ekb ivb in
+        MtE(mk,ek)
+
+let LEAK ki k =
+    match k with
+    | MACOnly(mk) -> MAC.LEAK ki mk
+    | MtE(mk,ek) ->
+        let (k,iv) = ENC.LEAK ki ek in
+        MAC.LEAK ki mk @| k @| iv
 
 let encrypt ki key data rg plain =
     match key with

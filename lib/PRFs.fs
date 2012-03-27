@@ -199,9 +199,9 @@ let splitKeys outKi (blob:keyBlob) =
         let key_block = blob.bytes in
         let cmkb = Array.sub key_block 0 macKeySize in
         let smkb = Array.sub key_block macKeySize macKeySize in
-        let cmk = MAC.COERCE outKi cmkb in
-        let smk = MAC.COERCE (dual_KeyInfo outKi) smkb in
-        (AEAD.MACOnly(cmk),AEAD.MACOnly(smk))
+        let ck = AEAD.COERCE outKi cmkb in
+        let sk = AEAD.COERCE (dual_KeyInfo outKi) smkb in
+        (ck,sk)
     | _ ->
         let macKeySize = macKeySize (macAlg_of_ciphersuite cs) in
         let encKeySize = encKeySize (encAlg_of_ciphersuite cs) in
@@ -215,10 +215,8 @@ let splitKeys outKi (blob:keyBlob) =
         let sekb = Array.sub key_block (2*macKeySize+encKeySize) encKeySize in
         let civb = Array.sub key_block (2*macKeySize+2*encKeySize) ivsize in
         let sivb = Array.sub key_block (2*macKeySize+2*encKeySize+ivsize) ivsize in
-        let cmk = MAC.COERCE outKi cmkb in
-        let smk = MAC.COERCE (dual_KeyInfo outKi) smkb in
-        let cek = ENC.COERCE outKi cekb civb in
-        let sek = ENC.COERCE (dual_KeyInfo outKi) sekb sivb in
-        (AEAD.MtE(cmk,cek),AEAD.MtE(smk,sek))
+        let ck = AEAD.COERCE outKi (cmkb @| cekb @| civb) in
+        let sk = AEAD.COERCE (dual_KeyInfo outKi) (smkb @| sekb @| sivb) in
+        (ck,sk)
 
 (*  | x when IsGCM x -> ... *)

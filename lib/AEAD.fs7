@@ -5,22 +5,29 @@ open Error
 open DataStream
 open AEADPlain
 
-type (;ki:KeyInfo) AEADKey =
+private type (;ki:KeyInfo) AEADKey =
     | MtE of ka:(;ki)MAC.key * ke:(;ki)ENC.state // {MtEKey(ki,(ka,ke))}
     | MACOnly of (;ki) MAC.key
 (*  |   GCM of ke:(;ki:AENC.state)  *)
+
+type cipher = bytes
+
+// TODO: Define AEADSize. In the code, (AEADSize * 2) is computed in CipherSuites.getKeyExtensionLength
+val GEN: ki:KeyInfo{Safe(ki)} -> encryptor:(;ki)AEADKey * decryptor:(;ki)AEADKey
+val COERCE: ki:KeyInfo -> b:bytes{Length(b) = AEADSize(ki)} -> (;ki)AEADKey
+val LEAK: ki:KeyInfo -> (;ki)AEADKey -> b:bytes{Length(b) = AEADSize(ki)}
 
 val encrypt: ki:KeyInfo -> 
   (;ki) AEADKey ->  
   ad:(;ki) data ->
   rg:DataStream.range -> 
   p:(;ki,rg,ad) plain ->
-  ((;ki) AEADKey * c:ENC.cipher){Length(c)=RangeCipher(ki,rg) /\ CTXT(ki,ad,p,c)}
+  ((;ki) AEADKey * c:cipher){Length(c)=RangeCipher(ki,rg) /\ CTXT(ki,ad,p,c)}
 
 val decrypt: ki:KeyInfo -> 
   (;ki) AEADKey -> 
   ad:(;ki) data ->
-  c:ENC.cipher ->
+  c:cipher ->
   res: ((;ki) AEADKey * 
 	rg:(rg:range{rg = CipherRange(ki,c)}) * 
 	(;ki,rg,ad) plain) Result{

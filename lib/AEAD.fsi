@@ -4,12 +4,15 @@ open Bytes
 open Error
 open TLSInfo
 
-type AEADKey =
-    | MtE of MAC.key * ENC.state
-    | MACOnly of MAC.key
-(*  |   GCM of AENC.state  *)
+type AEADKey
+
+type cipher = bytes
+
+val GEN: KeyInfo -> AEADKey * AEADKey
+val COERCE: KeyInfo -> bytes -> AEADKey
+val LEAK: KeyInfo -> AEADKey -> bytes
 
 val encrypt: KeyInfo -> AEADKey -> AEADPlain.data -> 
-             DataStream.range -> AEADPlain.plain -> (AEADKey * bytes)
+             DataStream.range -> AEADPlain.plain -> (AEADKey * cipher)
 val decrypt: KeyInfo -> AEADKey -> AEADPlain.data -> 
-             bytes -> (AEADKey * DataStream.range * AEADPlain.plain) Result
+             cipher -> (AEADKey * DataStream.range * AEADPlain.plain) Result
