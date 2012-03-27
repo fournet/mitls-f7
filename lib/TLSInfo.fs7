@@ -12,7 +12,7 @@ type Role = preRole
 
 type SessionInfo = {
     init_crand: bytes;
-    init_srand: bytes
+    init_srand: bytes;
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;
     compression: Compression;
@@ -20,16 +20,20 @@ type SessionInfo = {
     serverID: cert option;
     sessionID: sessionID option; }
 
-type epoch = 
-  | Init of role * bytes 
-  | Succ of crand:bytes * srand:bytes * si:SessionInfo * pred:epoch 
-    { !r. pred = Init(Client,r) => r = crand /\ 
-	      pred = Init(Server,r) => r = srand }  
+type preEpoch =
+	| Init of Role * bytes 
+	| Succ of crand:bytes * srand:bytes * si:SessionInfo * pred:preEpoch 
 
-type preCI =
-  current: epoch 
-  next   : epoch option
-  pending: bool
+type epoch = p:preEpoch
+    { !crand,srand,si,pred,r. p=Succ(crand,srand,si,pred) => (pred = Init(Client,r) => r = crand /\ 
+	   pred = Init(Server,r) => r = srand) }  
+
+type preCI = {
+  current: epoch; 
+  next   : epoch option;
+  pending: bool; }
+
+function val Pred: epoch -> epoch
 
 type CI = c:preCI  
   { c.next = None => c.pending = false /\
@@ -38,7 +42,8 @@ type CI = c:preCI
 //TODO: enforce as an invariant that the new epoch is compatible with our local parameters
 //      (that the the peer certificates (if any) have been authorized is not a public invariant) 
 
-predicate function SameEpoch: CI * CI -> bool
+//predicate function SameEpoch: CI * CI -> bool
+function val SameEpoch: CI * CI -> bool
 definition !c,c'. SameEpoch(c,c') <=> 
   c'.current = c.current /\ 
   (c.next = None \/ c'.next = c.next) /\ // we may need something more general, like Finer(c'.next,c.next) 
@@ -85,12 +90,7 @@ type protocolOptions = {
 val defaultProtocolOptions: protocolOptions
 
 
-/// Cryptographic assumptions [how to make them toplevel?]
 
-predicate type cryptopreds = 
-    Safe of KeyInfo
-  | Auth of KeyInfo
-  | CTXT of KeyInfo * bytes * bytes * bytes
 
 
 ///////////////////// the rest is deprecated //////////////////////////
@@ -120,18 +120,24 @@ predicate CompatibleSessions of SessionInfo * SessionInfo
 assume !s. CompatibleSessions(s,s)
 assume !s1,s2,s3. CompatibleSessions(s1,s2) /\ CompatibleSessions(s2,s3) => CompatibleSessions(s1,s3)
 assume !s1,s2. UserSaysCompatibleSessions(s1,s2) => CompatibleSessions(s1,s2)
-assume !nulls,s. NullSessionInfo(nulls) => CompatibleSessions(nulls,s)
-
-predicate CompatibleConnections of ConnectionInfo * ConnectionInfo
-assume !id1,id2. CompatibleConnections(id1,id2) <=>
-		 ( CompatibleSessions(id1.id_in.sinfo, id2.id_in.sinfo ) /\
-                   CompatibleSessions(id1.id_out.sinfo,id2.id_out.sinfo) )
-
-
-
 
 // not in the API
 predicate NullSessionInfo of SessionInfo 
+assume !nulls,s. NullSessionInfo(nulls) => CompatibleSessions(nulls,s)
+
+//predicate CompatibleConnections of ConnectionInfo * ConnectionInfo
+predicate CompatibleConnections of CI * CI
+
+//assume !id1,id2. CompatibleConnections(id1,id2) <=>
+//assume !id1,id2. CompatibleConnections(id1,id2) <=> CompatibleSessions(id1.id_in.sinfo, id2.id_in.sinfo ) /\
+//                   CompatibleSessions(id1.id_out.sinfo,id2.id_out.sinfo) )
+
+//MK does this make sense?
+assume !id1,id2. CompatibleConnections(id1,id2) <=>
+		 ?crand1,srand1,si1,pred1,crand2,srand2,si2,pred2. id1.current=Succ(crand1,srand1,si1,pred1) 
+		 /\ id2.current=Succ(crand2,srand2,si2,pred2) /\ CompatibleSessions(si1, si2)
+
+
 
 assume !si. NullSessionInfo(si) <=> (si.clientID = None /\ si.serverID = None /\ si.sessionID = None /\
     IsNullCiphersuite(si.cipher_suite) /\ si.compression = NullCompression /\ si.init_crand = [||] /\ si.init_srand = [||] )
@@ -169,3 +175,10 @@ val dual_KeyInfo: k1:KeyInfo -> k2:KeyInfo{k2=DualKeyInfo(k1,())}
 predicate Corrupt of KeyInfo
 
 assume !ki. CipherSuites.IsNullCiphersuite(ki.sinfo.cipher_suite) => Corrupt(ki)
+
+/// Cryptographic assumptions [how to make them toplevel?]
+
+predicate type cryptopreds = 
+    Safe of KeyInfo
+  | Auth of KeyInfo
+  | CTXT of KeyInfo * bytes * bytes * bytes

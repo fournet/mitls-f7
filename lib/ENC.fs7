@@ -23,11 +23,13 @@ type (;ki:KeyInfo)decryptor = (;ki)state
 
 // We do not use the state, but an abstract ID over it, so that we can link
 // encryptor and decryptor states
-private function StateID: state -> int
+private function val StateID: state -> int
 
-val GEN: ki:KeyInfo -> e:(;ki)encryptor{StateID(e)=0} * d:(;ki)decryptor{StateID(d)=0}
+//val GEN: ki:KeyInfo -> e:(;ki)encryptor * d:(;ki)decryptor{StateID(e)=0 /\ StateID(d)=0}
+val GEN: ki:KeyInfo -> (e:(;ki)encryptor{StateID(e)=0}) * (d:(;ki)decryptor{StateID(d)=0}) //syntax error
 val LEAK:   ki:KeyInfo{Corrupt(ki)} -> (;ki)state -> key:bytes * iv:bytes
 val COERCE: ki:KeyInfo{Corrupt(ki)} -> key:bytes -> iv:bytes -> (;ki)state
+
 
 // ciphers consist of one or more blocks of bytes.
 type cipher = b:bytes{Length(b) <= FragCommon.max_TLSCipher_fragment_length}
@@ -38,10 +40,21 @@ predicate ENCrypted of
 
 // TODO: We need to refine cipher before applying CPA
 
+ syntax error
 val ENC: ki:KeyInfo -> s:(;ki) encryptor -> tlen:int -> p:(;ki,tlen) plain -> 
-  (s':(;ki) encryptor{StateID(s') = StateID(s)+1} *
-   c:cipher{ENCrypted(ki,tlen,StateID(s),p,c) /\ Length(c)=tlen})
+  ( (s':(;ki) encryptor{StateID(s') = StateID(s)+1}) *
+   (c:cipher{ENCrypted(ki,tlen,StateID(s),p,c) /\ Length(c)=tlen}) )
 
 val DEC: ki:KeyInfo -> s:(;ki) decryptor -> c:cipher -> 
-  (s':(;ki) decryptor{StateID(s') = StateID(s)+1} *
-   p:(;ki,Length(c))plain{!p'. ENCrypted(ki,Length(c),StateID(s),p',c) => p=p'})
+  ( (s':(;ki) decryptor{StateID(s') = StateID(s)+1}) *
+   (p:(;ki,Length(c))plain{!p'. ENCrypted(ki,Length(c),StateID(s),p',c) => p=p'}) )
+
+
+(*val ENC: ki:KeyInfo -> s:(;ki) encryptor -> tlen:int -> p:(;ki,tlen) plain -> 
+  ( s':(;ki)encryptor *
+   c:cipher{StateID(s') = StateID(s)+1 /\ ENCrypted(ki,tlen,StateID(s),p,c) /\ Length(c)=tlen})
+
+val DEC: ki:KeyInfo -> s:(;ki) decryptor -> c:cipher -> 
+  (s':(;ki)decryptor *
+   p:(;ki,Length(c))plain{StateID(s') = StateID(s)+1 /\ !p'. ENCrypted(ki,Length(c),StateID(s),p',c) => p=p'})
+*)

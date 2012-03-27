@@ -185,8 +185,8 @@ ENC.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Certificate.fs
 	$(f7t) Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Certificate.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MAC.fs7 PRFs.fs7 TLSKey.fs7 SessionDB.fs7 FragCommon.fs7 AppDataStream.fs7 Handshake.fs7 Alert.fs7 TLSFragment.fs7 MACPlain.fs7 Plain.fs7 MAC.fs7 ENC.fs7 ENC.fs | tee ENC.tc7
 
 
-AEAD.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Certificate.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 SessionDB.fs7 FragCommon.fs7 DataStream.fs7 AppDataStream.fs7 Handshake.fs7 Alert.fs7 TLSFragment.fs7 MACPlain.fs7 Plain.fs7 MAC.fs7 ENC.fs7 AEAD.fs7 AEAD.fs
-	$(f7t) Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Certificate.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 ENCKey.fs7 MACKey.fs7 PRFs.fs7 TLSKey.fs7 SessionDB.fs7 FragCommon.fs7 DataStream.fs7 AppDataStream.fs7 Handshake.fs7 Alert.fs7 TLSFragment.fs7 MACPlain.fs7 Plain.fs7 MAC.fs7 ENC.fs7 StatefulPlain.fs7 AEADPlain.fs7 AEAD.fs7 AEAD.fs | tee AEAD.tc7
+AEAD.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Certificate.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 FragCommon.fs7 DataStream.fs7 AppDataStream.fs7 Alert.fs7 TLSFragment.fs7 MACPlain.fs7 AEPlain.fs7 MAC.fs7 ENC.fs7 AEAD.fs7 AEAD.fs
+	$(f7t) Error.fs7 Bytes.fs7 tcp.fs7 RSA.fs7 Certificate.fs7 Algorithms.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 HASH.fs7 HMAC.fs7 FragCommon.fs7 DataStream.fs7 AppDataStream.fs7 Alert.fs7 TLSFragment.fs7 MACPlain.fs7 AEPlain.fs7 MAC.fs7 ENC.fs7 StatefulPlain.fs7 AEADPlain.fs7 AEAD.fs7 AEAD.fs | tee AEAD.tc7
 
 # FIXME: Stream.fs7 is currently unused. Remove from project? Indeed, AppDataStream should inherit its refinements
 
