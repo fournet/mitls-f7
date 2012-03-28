@@ -50,7 +50,7 @@ type ioresult_i =
     | CertQuery of nextCn * query
     | Handshaken of Connection
     | Read      of nextCn * msg_i
-    | ReadMustRead of Connection * msg_i
+    | DontWrite of Connection
     
 type ioresult_o =
     | WriteError    of ioerror

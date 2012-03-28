@@ -64,7 +64,7 @@ type ioresult_i =
     | CertQuery of nextCn * query
     | Handshaken of Connection
     | Read      of nextCn * msg_i
-    | ReadMustRead of Connection * msg_i
+    | DontWrite of Connection
 
 type ioresult_o =
     | WriteError    of ioerror
@@ -532,53 +532,6 @@ let rec writeAll c =
     | Correct (WriteAgain,c) -> writeAll c
     | other -> other
 
-let rec readOnly c =
-    // like read, but does not invoke write (except on closure...)
-    match readOne c with
-    | Correct(RAgain,c) ->
-        readOnly c
-    | Correct(RAppDataDone,Conn(id,conn)) ->    
-        // empty the appData internal buffer, and return its content to the user
-        match AppDataStream.readAppData id conn.appdata with
-        | (Some(b),appState) ->
-            let conn = {conn with appdata = appState} in
-            Read(Conn(id,conn),b)
-        | (None,_) -> unexpectedError "[read] When RAppDataDone, some data should have been read."
-    | Correct(RQuery(q),c) ->
-        CertQuery(c,q)
-    | Correct(RHSDone,c) ->
-        Handshaken(c)
-    | Correct(RClose,c) ->
-        let (Conn(id,conn)) = c in
-        match conn.write.disp with
-        | Closed ->
-            // we alreadt send a close_notify, tell the user it's over
-            Close conn.ns
-        | _ ->
-            // OK, we're cheating here. We said "readOnly", but indeed
-            // we will write in case we expect only a close_notify to be sent.
-            // Anyway, this close_notify is there for interop purposes, but it's
-            // logically useless: since we are in readOnly, it means
-            // we already closed the previous connection
-            // by sending our CCS; closing the current connection (which is not open yet!)
-            // is useless.
-            match writeAll c with
-            | Correct(SentClose,c) ->
-                // clean shoutdown
-                Close conn.ns
-            | Correct(SentFatal(ad),c) ->
-                ReadError(EFatal(ad))
-            | Correct(_,c) ->
-                ReadError(EInternal(Dispatcher,Internal)) // internal error
-            | Error(x,y) ->
-                ReadError(EInternal(x,y)) // internal error
-    | Correct(RFatal(ad),c) ->
-        Fatal(ad)
-    | Correct(RWarning(ad),c) ->
-        Warning(c,ad)
-    | Error(x,y) ->
-        ReadError(EInternal(x,y)) // internal error
-
 let rec read c =
     let unitVal = () in
     match writeAll c with
@@ -586,7 +539,7 @@ let rec read c =
     | Correct(WAppDataDone,c) ->
         // Nothing more to write. We can try to read now.
         // (Note: In fact, WAppDataDone here means "nothing sent",
-        // because the output buffer is always empty
+        // because the output buffer is always empty)
         match readOne c with
         | Correct(RAgain,c) ->
             read c
@@ -625,7 +578,7 @@ let rec read c =
         | Error(x,y) ->
             ReadError(EInternal(x,y)) // internal error
     | Correct(WMustRead,c) ->
-        readOnly c
+        DontWrite(c)
     | Correct(WHSDone,c) ->
         Handshaken (c)
     | Correct(SentFatal(ad),c) ->
@@ -637,8 +590,8 @@ let rec read c =
             // we already received a close_notify, tell the user it's over
             Close conn.ns
         | _ ->
-            // same as we got a MustRead: we must readOnly from now on, and return a ReadMustRead
-            readOnly c
+            // same as we got a MustRead
+            DontWrite c
     | Correct(WriteAgain,c) -> unexpectedError "[read] writeAll should never return WriteAgain"
 
 let write (Conn(id,c)) msg =
