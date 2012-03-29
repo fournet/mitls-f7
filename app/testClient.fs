@@ -7,7 +7,7 @@ let serverIP = "rigoletto.polito.it" // "google.com" // 128.93.188.162
 let serverPort = 443
 let options = TLSInfo.defaultProtocolOptions
 
-let consume conn =
+let rec consume conn =
     match TLS.read conn with
     | ReadError e ->
         match e with
@@ -23,6 +23,8 @@ let consume conn =
         Printf.printf "Full OK"
         ignore (System.Console.ReadLine())
         Some(conn)
+    | DontWrite (conn) ->
+        consume conn
     | x ->
         Printf.printf "AYEEE!!! %A" x
         ignore (System.Console.ReadLine())

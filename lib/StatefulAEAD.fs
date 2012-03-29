@@ -16,10 +16,17 @@ type state = prestate
 type reader = state
 type writer = state
 
-let initState (ki:KeyInfo) key =
+let GEN ki =
+    let r,w = AEAD.GEN ki in
+    ( { key = r; seqn = 0; history = TLSFragment.emptyHistory ki},
+      { key = w; seqn = 0; history = TLSFragment.emptyHistory ki})  
+let COERCE ki b =
+    let key = AEAD.COERCE ki b in
     { key = key
       seqn = 0
       history = TLSFragment.emptyHistory ki}
+let LEAK ki s =
+    AEAD.LEAK ki s.key
 
 let history (ki:KeyInfo) s = s.history
 

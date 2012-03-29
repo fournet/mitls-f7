@@ -15,7 +15,7 @@ type ConnectionState
 type sendState = ConnectionState
 type recvState = ConnectionState
 
-val initConnState: KeyInfo -> AEAD.AEADKey -> ConnectionState
+val initConnState: KeyInfo -> StatefulAEAD.state -> ConnectionState
 val nullConnState: KeyInfo -> ConnectionState
 
 //val parseHeader: bytes -> (ContentType * ProtocolVersion * int) Result

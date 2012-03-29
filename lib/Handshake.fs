@@ -913,9 +913,9 @@ let split_key_block key_block hsize ksize ivsize =
   (cmk,smk,cek,sek,civ,siv)
 *)
 
-let generateKeys (outKi:KeyInfo) (ms:masterSecret) =
+let generateStates (outKi:KeyInfo) (ms:masterSecret) =
     let key_block = prfKeyExp outKi ms in
-    let (cWrite,sWrite) = splitKeys outKi key_block in
+    let (cWrite,sWrite) = splitStates outKi key_block in
     match outKi.dir with 
         | CtoS -> cWrite,sWrite
         | StoC -> sWrite,cWrite
@@ -1029,8 +1029,8 @@ let compute_session_secrets_and_CCSs state dir =
                   crand = state.ki_crand;
                   srand = state.ki_srand;
                 }
-    let allKeys = generateKeys outKi state.next_ms in
-    let (writer,reader) = allKeys in
+    let allStates = generateStates outKi state.next_ms in
+    let (writer,reader) = allStates in
     let writerCS = Record.initConnState outKi writer in
     let readerCS = Record.initConnState (dual_KeyInfo outKi) reader in
     (* Put the connection states in the appropriate buffers. *)

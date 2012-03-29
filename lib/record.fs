@@ -14,8 +14,7 @@ type ConnectionState =
 type sendState = ConnectionState
 type recvState = ConnectionState
 
-let initConnState (ki:KeyInfo) key = 
-  let s = StatefulAEAD.initState ki key in
+let initConnState (ki:KeyInfo) s =
   SomeState(s)
 
 let nullConnState (ki:KeyInfo) = NullState

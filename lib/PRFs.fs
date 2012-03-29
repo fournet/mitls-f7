@@ -191,7 +191,7 @@ let prfKeyExp ki (ms:masterSecret) =
     let res = generic_prf pv cs ms.bytes "key expansion" data len in
     {bytes = res}
     
-let splitKeys outKi (blob:keyBlob) =
+let splitStates outKi (blob:keyBlob) =
     let cs = outKi.sinfo.cipher_suite in
     match cs with
     | x when isOnlyMACCipherSuite x ->
@@ -199,8 +199,8 @@ let splitKeys outKi (blob:keyBlob) =
         let key_block = blob.bytes in
         let cmkb = Array.sub key_block 0 macKeySize in
         let smkb = Array.sub key_block macKeySize macKeySize in
-        let ck = AEAD.COERCE outKi cmkb in
-        let sk = AEAD.COERCE (dual_KeyInfo outKi) smkb in
+        let ck = StatefulAEAD.COERCE outKi cmkb in
+        let sk = StatefulAEAD.COERCE (dual_KeyInfo outKi) smkb in
         (ck,sk)
     | _ ->
         let macKeySize = macKeySize (macAlg_of_ciphersuite cs) in
@@ -215,8 +215,8 @@ let splitKeys outKi (blob:keyBlob) =
         let sekb = Array.sub key_block (2*macKeySize+encKeySize) encKeySize in
         let civb = Array.sub key_block (2*macKeySize+2*encKeySize) ivsize in
         let sivb = Array.sub key_block (2*macKeySize+2*encKeySize+ivsize) ivsize in
-        let ck = AEAD.COERCE outKi (cmkb @| cekb @| civb) in
-        let sk = AEAD.COERCE (dual_KeyInfo outKi) (smkb @| sekb @| sivb) in
+        let ck = StatefulAEAD.COERCE outKi (cmkb @| cekb @| civb) in
+        let sk = StatefulAEAD.COERCE (dual_KeyInfo outKi) (smkb @| sekb @| sivb) in
         (ck,sk)
 
 (*  | x when IsGCM x -> ... *)

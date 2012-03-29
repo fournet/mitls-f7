@@ -16,8 +16,8 @@ type (;ki:KeyInfo) ConnectionState =
 type (;ki:KeyInfo) sendState = (;ki) ConnectionState 
 type (;ki:KeyInfo) recvState = (;ki) ConnectionState
 
-val initConnState: ki:KeyInfo -> key:(;ki) AEADKey -> 
-                   cs:(;ki) ConnectionState //{?ss. cs = SomeSate(ss) /\ ss.key = key}
+val initConnState: ki:KeyInfo -> state:(;ki) StatefulAEAD.state -> 
+                   cs:(;ki) ConnectionState //{cs = SomeSate(state)}
 val nullConnState: ki:KeyInfo -> cs:(;ki) ConnectionState //{cs = NullState}
 
 private val makePacket: ContentType -> ProtocolVersion -> bytes -> bytes
