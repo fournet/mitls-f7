@@ -8,7 +8,7 @@ open Bytes
 open AEADPlain
 
 // TODO 12-02: 
-// - Do we need to control the cipherlength?  
+// - Do we need to control the cipherlength?
 
 private type (;ki:KeyInfo) prestate = {
   key: (;ki) AEADKey;

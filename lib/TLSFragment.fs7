@@ -6,22 +6,21 @@ open Formats
 open CipherSuites
 open DataStream
 
-// Plain type for Dispatch
+// Plain type for Dispatch and Record
 type (;ki:KeyInfo) history = {
   handshake: (;ki) HandshakePlain.stream;
   alert: (;ki) AlertPlain.stream;
   ccs: (;ki) HandshakePlain.stream;
   appdata: (;ki) AppDataStream.stream;
-  log: (;ki) fragmentSequence;
-}
+  }
 and (;ki:KeyInfo,ct:ContentType,h:(;ki) history,rg:range) fragment =
     | FHandshake of (;ki,h.handshake,rg)HandshakePlain.fragment    {ct=Formats.Handshake}
     | FCCS       of (;ki,h.ccs,rg)HandshakePlain.ccsFragment {ct=Change_cipher_spec}
     | FAlert     of (;ki,h.alert,rg)AlertPlain.fragment        {ct=Alert}
     | FAppData   of (;ki,h.appdata,rg)AppDataStream.fragment {ct=Application_data}
-and (;ki:KeyInfo) fragmentSequence = (ct:ContentType * h:(;ki) history * rg:range * (;ki,ct,h,rg) fragment) list
 
-predicate Multiplexed of KeyInfo * fragmentSequence * HandshakePlain.stream * HandshakePlain.stream * AlertPlain.stream * AppDataStream.stream 
+// FIXME: Circular dependency!
+predicate Multiplexed of KeyInfo * StatefulPlain.history * HandshakePlain.stream * HandshakePlain.stream * AlertPlain.stream * AppDataStream.stream 
 assume !ki,fs,hs,ccs,al,ad. Multiplexed(ki,fs,hs,ccs,al,ad) <=>
   ((fs = [] /\ 
    HandshakePlain.EmptyStream(ki,hs) /\
@@ -53,11 +52,14 @@ val TLSFragmentRepr: ki:KeyInfo -> ct:ContentType -> h: (;ki) history -> rg:rang
 val TLSFragment: ki:KeyInfo -> ct:ContentType -> h: (;ki) history -> rg:range ->
   bytes -> (;ki,ct,h,rg)fragment 
 
-function val ADLength: ProtocolVersion -> int
-assume !pv. (pv = SSL_3p0 /\ ADLength(pv) = 9) \/ (pv <> SSL_3p0 /\ ADLength(pv) = 11)
+function val ADLength: KeyInfo -> int
+assume !ki. (ki.sinfo.protocol_version = SSL_3p0 /\ ADLength(pv) = 9) \/
+	(ki.sinfo.protocol_version <> SSL_3p0 /\ ADLength(pv) = 11)
 
 // Additional Data
-type (;pv:ProtocolVersion) addData = (b:bytes){Length(b) = ADLength(pv)}
+type (;ki:KeyInfo) addData = (b:bytes){Length(b) = ADLength(ki) - 8}
+
+function val ADCT: KeyInfo -> ContentType -> bytes //creates the ad bytes only from PV and CT
 
 function val ADBytes: (ProtocolVersion * int * ContentType) -> bytes
 assume !pv,seqn,ct.

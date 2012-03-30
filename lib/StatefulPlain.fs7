@@ -10,18 +10,23 @@ open TLSKey
 
 type (;ki:KeyInfo) data = (b:bytes){Length(b) = TLSFragment.ADLength(ki) - 8}
 
-function val Log: (data * range * TLSFragment.fragment) list -> (data * TLSFragment.fragment) list
-assume !h. (h = [] => Log(h) = []) /\
-	   (!ad,r,f,t. h = (ad,r,f)::t => Log(h) = (ad,f)::Log(t))
+function ADSeqn: nat -> bytes -> bytes
 
-private type (;ki:KeyInfo,h:TLSFragment.history,ad:data,r:range) fragment = {f: bytes}
+type (;ki:KeyInfo)history =
+	| Empty
+	| History of h:(;ki)history * ad:data * r:range * (;ki,h,ad,r)fragment
+and (;ki:KeyInfo,h:history,ad:data,r:range) fragment = {f: bytes}
 
-val addFragment: ki:KeyInfo -> h:TLSFragment.history -> ad:data -> r:range -> f:(;ki,h,ad,r) fragment -> h': TLSFragment.history{Log(h') = (ad,f)::Log(h)}
+function val History: KeyInfo -> nat -> history -> bool
+// assume !ki. History(ki,0,Empty) // To get uniform style, this will be assumed by the function creating the initial state (GEN/COERCE)
 
-val fragment: ki:KeyInfo -> h:TLSFragment.history -> ad:data -> r:range -> bytes -> (;ki,h,ad,r) fragment
-val repr: ki:KeyInfo -> h:TLSFragment.history -> ad:data -> r:range -> (;ki,h,ad,r) fragment -> bytes
+val addFragment: ki:KeyInfo -> seqn:nat -> h:(;ki)history{History(ki,seqn,h)} -> ad:data -> r:range -> f:(;ki,h,ad,r) fragment ->
+			     seqn':nat * h': (;ki)history{History(ki,seqn',h')} // History(ki,seqn',h') will be assumed by this function
+// AP still has the feeling we don't really all these assumes in the code. We can define (assume) what is the right way of building a history.
+// Still, we'll have to prove OOB that we only append one next fragment to any current history (by linearity)
 
-function val ADCT: KeyInfo -> ContentType -> bytes //creates the ad bytes only from PV and CT
+val fragment: ki:KeyInfo -> h:(;ki)history -> ad:data -> r:range -> bytes -> (;ki,h,ad,r) fragment
+val repr: ki:KeyInfo -> h:(;ki)history -> ad:data -> r:range -> (;ki,h,ad,r) fragment -> bytes
 
-val TLSFragmentToFragment: ki:KeyInfo -> ct:ContentType -> h:TLSFragment.history -> rg:range -> (;ki,ct,h,rg) TLSFragment.fragment -> (;ki,h,ADCT(ki,ct),r) fragment
-val FragmentToTLSFragment: ki:KeyInfo -> ct:ContentType -> h:TLSFragment.history -> rg:range -> (;ki,h,ADCT(ki,ct),rg) fragment -> (;ki,ct,h,rg) TLSFragment.fragment
+val TLSFragmentToFragment: ki:KeyInfo -> ct:ContentType -> h:(;ki)history -> rg:range -> (;ki,ct,h,rg) TLSFragment.fragment -> (;ki,h,TLSFragment.ADCT(ki,ct),r) fragment
+val FragmentToTLSFragment: ki:KeyInfo -> ct:ContentType -> h:(;ki)history -> rg:range -> (;ki,h,TLSFragment.ADCT(ki,ct),rg) fragment -> (;ki,ct,h,rg) TLSFragment.fragment
