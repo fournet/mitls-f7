@@ -1,0 +1,18 @@
+#!/bin/bash
+
+acc=""
+
+for file in $@ ; do
+	echo -n "$file.tc7: \$(libperv) \$(libfs7) "
+	for dep in $acc ; do
+		echo -n "$dep.fs7 "
+	done
+	echo "$file.fs7 $file.fs"
+	echo -n -e "\t \$(f7t) -scripts $file "
+	for dep in $acc ; do
+		echo -n "$dep.fs7 "
+	done
+	echo "$file.fs7 $file.fs | tee $file.tc7"
+	echo ""
+	acc="$acc $file"
+done
