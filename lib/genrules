@@ -12,7 +12,8 @@ for file in $@ ; do
 	for dep in $acc ; do
 		echo -n "$dep.fs7 "
 	done
-	echo "$file.fs7 $file.fs | tee $file.tc7"
-	echo ""
+	echo -n "$file.fs7 $file.fs"
+	# echo -n " | tee $file.tc7" # Currently disabled, as tee is suppressing output on some platforms
+	echo "" ; echo ""
 	acc="$acc $file"
 done
