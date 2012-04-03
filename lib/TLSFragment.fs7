@@ -20,28 +20,28 @@ and (;ki:KeyInfo,ct:ContentType,h:(;ki) history,rg:range) fragment =
     | FAppData   of (;ki,h.appdata,rg)AppDataStream.fragment {ct=Application_data}
 
 // FIXME: Circular dependency!
-predicate Multiplexed of KeyInfo * StatefulPlain.history * HandshakePlain.stream * HandshakePlain.stream * AlertPlain.stream * AppDataStream.stream 
-assume !ki,fs,hs,ccs,al,ad. Multiplexed(ki,fs,hs,ccs,al,ad) <=>
-  ((fs = [] /\ 
-   HandshakePlain.EmptyStream(ki,hs) /\
-   HandshakePlain.EmptyStream(ki,ccs) /\
-   AlertPlain.EmptyStream(ki,al) /\
-   AppDataStream.EmptyStream(ki,ad)) \/
-  (?ct,h0,rg,f,t. fs = (ct,h0,rg,f)::t /\
-      (?hs'. ct = Formats.Handshake /\
-	  HandshakePlain.ConcatStream(ki,hs',f,hs) /\
-	  Multiplexed(ki,t,hs',ccs,al,ad)) \/
-      (?ccs'. ct = Formats.Change_cipher_spec /\
-	  HandshakePlain.ConcatStream(ki,ccs',f,ccs) /\
-	  Multiplexed(ki,t,hs,ccs',al,ad)) \/
-      (?al'. ct = Formats.Alert /\
-	  AlertPlain.ConcatStream(ki,al',f,al) /\
-	  Multiplexed(ki,t,hs,ccs,al',ad)) \/
-      (?ad'. ct = Formats.Application_data /\
-	  AppDataStream.ConcatStream(ki,ad',f,ad) /\
-	  Multiplexed(ki,t,hs,ccs,al,ad'))))
-
-type (;ki:KeyInfo) shistory = (h:(;ki) history){Multiplexed(ki,h.log,h.handshake,h.ccs,h.alert,h.appdata)}
+// predicate Multiplexed of KeyInfo * StatefulPlain.history * HandshakePlain.stream * HandshakePlain.stream * AlertPlain.stream * AppDataStream.stream 
+// assume !ki,fs,hs,ccs,al,ad. Multiplexed(ki,fs,hs,ccs,al,ad) <=>
+//   ((fs = [] /\ 
+//    HandshakePlain.EmptyStream(ki,hs) /\
+//    HandshakePlain.EmptyStream(ki,ccs) /\
+//    AlertPlain.EmptyStream(ki,al) /\
+//    AppDataStream.EmptyStream(ki,ad)) \/
+//   (?ct,h0,rg,f,t. fs = (ct,h0,rg,f)::t /\
+//       (?hs'. ct = Formats.Handshake /\
+// 	  HandshakePlain.ConcatStream(ki,hs',f,hs) /\
+// 	  Multiplexed(ki,t,hs',ccs,al,ad)) \/
+//       (?ccs'. ct = Formats.Change_cipher_spec /\
+// 	  HandshakePlain.ConcatStream(ki,ccs',f,ccs) /\
+// 	  Multiplexed(ki,t,hs,ccs',al,ad)) \/
+//       (?al'. ct = Formats.Alert /\
+// 	  AlertPlain.ConcatStream(ki,al',f,al) /\
+// 	  Multiplexed(ki,t,hs,ccs,al',ad)) \/
+//       (?ad'. ct = Formats.Application_data /\
+// 	  AppDataStream.ConcatStream(ki,ad',f,ad) /\
+// 	  Multiplexed(ki,t,hs,ccs,al,ad'))))
+// 
+// type (;ki:KeyInfo) shistory = (h:(;ki) history){Multiplexed(ki,h.log,h.handshake,h.ccs,h.alert,h.appdata)}
 
 
 predicate Fragment of KeyInfo * range * int * ContentType * bytes
@@ -53,38 +53,29 @@ val TLSFragment: ki:KeyInfo -> ct:ContentType -> h: (;ki) history -> rg:range ->
   bytes -> (;ki,ct,h,rg)fragment 
 
 function val ADLength: KeyInfo -> int
-assume !ki. (ki.sinfo.protocol_version = SSL_3p0 /\ ADLength(pv) = 9) \/
-	(ki.sinfo.protocol_version <> SSL_3p0 /\ ADLength(pv) = 11)
+assume !ki. (ki.sinfo.protocol_version = SSL_3p0 /\ ADLength(ki) = 9) \/
+	(ki.sinfo.protocol_version <> SSL_3p0 /\ ADLength(ki) = 11)
 
 // Additional Data
 type (;ki:KeyInfo) addData = (b:bytes){Length(b) = ADLength(ki) - 8}
 
-function val ADCT: KeyInfo -> ContentType -> bytes //creates the ad bytes only from PV and CT
+function val ADBytes: (KeyInfo * ContentType) -> bytes
+assume !ki,ct.
+	( ki.sinfo.protocol_version = SSL_3p0 /\
+	  ADBytes(ki,ct) =
+		CTBytes(ct) ) \/
+	( ki.sinfo.protocol_version <> SSL_3p0 /\
+          ADBytes(ki,ct) =
+		(CTBytes(ct) @| VersionBytes(ki.sinfo.protocol_version)))
 
-function val ADBytes: (ProtocolVersion * int * ContentType) -> bytes
-assume !pv,seqn,ct.
-	( pv = SSL_3p0 /\
-	  ADBytes(pv,seqn,ct) =
-		IntBytes(8,seqn) @| CTBytes(ct) ) \/
-	( pv <> SSL_3p0 /\
-          ADBytes(pv,seqn,ct) =
-		IntBytes(8,seqn) @| (CTBytes(ct) @| VersionBytes(pv)))
+ask !ki,ct. Length(ADBytes(ki,ct)) = (ADLength(ki) - 8)
 
-ask !pv,seqn,ct. Length(ADBytes(pv,seqn,ct)) = ADLength(pv)
+private val makeAD: ki:KeyInfo -> ct:ContentType ->
+	  ad: (;ki)addData{ad=ADBytes(ki,ct)}
 
-function val ADct: pv:ProtocolVersion * (;pv)addData -> ContentType
-assume !pv,seqn,ct. ADct(pv,ADBytes(pv,seqn,ct)) = ct
-
-function val ADseqn: pv:ProtocolVersion * (;pv)addData -> int
-assume !pv,seqn,ct. ADseqn(pv,ADBytes(pv,seqn,ct)) = seqn
-
-private val makeAD: pv:ProtocolVersion ->
-	seqn:int -> ct:ContentType ->
-	  ad: (;pv)addData{ad=ADBytes(pv,seqn,ct)}
-
-private val parseAD: pv:ProtocolVersion -> 
-          ad: (;pv)addData -> 
-          (seqn:int * ct:ContentType){ad=ADBytes(pv,seqn,ct)}
+private val parseAD: ki:KeyInfo -> 
+          ad: (;ki)addData -> 
+          ct:ContentType{ad=ADBytes(ki,ct)}
 
 
 

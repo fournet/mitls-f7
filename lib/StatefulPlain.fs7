@@ -6,27 +6,33 @@ open Error
 open Bytes
 open Formats
 open CipherSuites
-open TLSKey
 
 type (;ki:KeyInfo) data = (b:bytes){Length(b) = TLSFragment.ADLength(ki) - 8}
 
-function ADSeqn: nat -> bytes -> bytes
-
 type (;ki:KeyInfo)history =
 	| Empty
-	| History of h:(;ki)history * ad:data * r:range * (;ki,h,ad,r)fragment
-and (;ki:KeyInfo,h:history,ad:data,r:range) fragment = {f: bytes}
+	| ConsHistory of h:(;ki)history * ad:data * r:range * (;ki,r)sbytes
 
-function val History: KeyInfo -> nat -> history -> bool
-// assume !ki. History(ki,0,Empty) // To get uniform style, this will be assumed by the function creating the initial state (GEN/COERCE)
+function val History: KeyInfo * nat * history -> bool
+assume !ki. History(ki,0,Empty)
 
-val addFragment: ki:KeyInfo -> seqn:nat -> h:(;ki)history{History(ki,seqn,h)} -> ad:data -> r:range -> f:(;ki,h,ad,r) fragment ->
-			     seqn':nat * h': (;ki)history{History(ki,seqn',h')} // History(ki,seqn',h') will be assumed by this function
-// AP still has the feeling we don't really all these assumes in the code. We can define (assume) what is the right way of building a history.
-// Still, we'll have to prove OOB that we only append one next fragment to any current history (by linearity)
+function val SeqN: history -> nat
+assume SeqN(Empty) = 0
+assume !ki,h,ad,r,x. SeqN(ConsHistory(h,ad,r,x)) = SeqN(h)+1
 
-val fragment: ki:KeyInfo -> h:(;ki)history -> ad:data -> r:range -> bytes -> (;ki,h,ad,r) fragment
-val repr: ki:KeyInfo -> h:(;ki)history -> ad:data -> r:range -> (;ki,h,ad,r) fragment -> bytes
+type (;ki:KeyInfo,h:history,ad:data,r:range)fragment =
+	x:(;ki,r)sbytes {Safe(ki) => History(ki,SeqN(h)+1,ConsHistory(h,ad,r,x))}
 
-val TLSFragmentToFragment: ki:KeyInfo -> ct:ContentType -> h:(;ki)history -> rg:range -> (;ki,ct,h,rg) TLSFragment.fragment -> (;ki,h,TLSFragment.ADCT(ki,ct),r) fragment
-val FragmentToTLSFragment: ki:KeyInfo -> ct:ContentType -> h:(;ki)history -> rg:range -> (;ki,h,TLSFragment.ADCT(ki,ct),rg) fragment -> (;ki,ct,h,rg) TLSFragment.fragment
+//val addFragment: ki:KeyInfo -> seqn:nat -> h:(;ki)history{History(ki,seqn,h)} -> ad:data -> r:range -> f:(;ki,h,ad,r) fragment ->
+//			     seqn':nat * h': (;ki)history{History(ki,seqn',h')} // History(ki,seqn',h') will be assumed by this function
+
+val fragment: ki:KeyInfo{not Safe(ki)} -> h:(;ki)history -> ad:data -> r:range -> bytes -> (;ki,h,ad,r) fragment
+val repr: ki:KeyInfo{not Safe(ki)} -> h:(;ki)history -> ad:data -> r:range -> (;ki,h,ad,r) fragment -> bytes
+
+function val MakeAD:  nat * data -> bytes
+assume !sn,ad. MakeAD(sn,ad) = IntBytes(8,sn) @| ad
+
+val makeAD:  ki:KeyInfo -> sn:nat -> ad:(;ki)data ->
+	b:bytes{b=MakeAD(sn,ad) /\ Length(b) = TLSFragment.ADLength(ki)}
+val parseAD: ki:KeyInfo -> b:bytes{Length(b) = TLSFragment.ADLength(ki)} ->
+	(sn:nat * ad:(;ki)data){b=MakeAD(sn,ad)}

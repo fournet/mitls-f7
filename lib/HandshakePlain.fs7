@@ -25,6 +25,5 @@ predicate CCSFragment of KeyInfo * DataStream.range * int * Bytes.bytes
 
 val repr: ki:KeyInfo -> tlen:DataStream.range -> seqn:int -> (;ki,tlen,seqn)fragment -> b:Bytes.bytes{HandshakeFragment(ki,tlen,seqn,b)}
 val fragment: ki:KeyInfo -> tlen:DataStream.range -> seqn:int -> b:Bytes.bytes{HandshakeFragment(ki,tlen,seqn,b) \/ Corrupt(ki)} -> (;ki,tlen,seqn)fragment
-type (;ki:KeyInfo,tlen:DataStream.range,seqn:int)ccsFragment
 val ccsRepr: ki:KeyInfo -> tlen:DataStream.range -> seqn:int -> (;ki,tlen,seqn)ccsFragment -> b:Bytes.bytes{CCSFragment(ki,tlen,seqn,b)}
 val ccsFragment: ki:KeyInfo -> tlen:DataStream.range -> seqn:int -> Bytes.bytes -> (;ki,tlen,seqn)ccsFragment

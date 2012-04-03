@@ -13,7 +13,7 @@ open AEADPlain
 private type (;ki:KeyInfo) prestate = {
   key: (;ki) AEADKey;
   seqn: int;
-  history: TLSFragment.history
+  history: (;ki)history
 }
 
 predicate State of KeyInfo * prestate
@@ -22,10 +22,10 @@ predicate Next of KeyInfo * state * data * range * fragment
 private type (;ki:KeyInfo) state = (s:prestate) {State(s)}
 
 (* Invariants: definitions and theorems *)
-assume !k,r. r.seqn = 0 /\ r.history = [] => State(k,r)
-assume !k,r,r',ad,rg,f. State(k,r) /\ (r.key = r'.key) /\ Next(k,r,ad,rg,f) /\ (r'.seqn = r.seqn + 1) /\ (r'.history = (ad,rg,f)::r.history) => State(k,r')
-theorem !k,r'. State(k,r') => ((r'.seqn = 0 /\ r'.history = []) \/
-  			        (?r,ad,rg,f. State(k,r) /\ (r.key = r'.key) /\ Next(k,r,ad,rg,f) /\ (r'.seqn = r.seqn + 1) /\ (r'.history = (ad,rg,f)::r.history)))
+assume !k,r. r.seqn = 0 /\ r.history = Empty => State(k,r)
+assume !k,r,r',ad,rg,f. State(k,r) /\ (r.key = r'.key) /\ Next(k,r,ad,rg,f) /\ (r'.seqn = r.seqn + 1) /\ (r'.history = ConsHistory(r.history,ad,rg,f)) => State(k,r')
+theorem !k,r'. State(k,r') => ((r'.seqn = 0 /\ r'.history = Empty) \/
+  			        (?r,ad,rg,f. State(k,r) /\ (r.key = r'.key) /\ Next(k,r,ad,rg,f) /\ (r'.seqn = r.seqn + 1) /\ (r'.history = ConsHistory(r.history,ad,rg,f))))
 
 (* linearity assumption *)
 assume !k,r,ad,rg,f,ad',rg',f'. Next(k,r,ad,rg,f) /\ Next(k,r,ad',rg',f') => (ad = ad' /\ f = f')
@@ -44,8 +44,7 @@ val history: ki:KeyInfo -> (;ki) state -> h:TLSFragment.history{h=s.history}
 type cipher = ENC.cipher
 predicate STXT of KeyInfo * state * data * fragment * cipher
 assume !ki,s,d,f,c. STXT(ki,s,d,f,c) <=>
-                    CTXT(ki,IntBytes(8,s.seqn) @| d,
-			 {p = (s,f)},c)
+                    CTXT(ki,StatefulPlain.MakeAD(s.seqn,d),f,c)
 
 val encrypt: ki:KeyInfo -> 
   w:(;ki) writer -> 
@@ -53,7 +52,7 @@ val encrypt: ki:KeyInfo ->
   r:range ->
   f: (;ki,w.history,ad,r) fragment{Next(ki,w,ad,r,f)} ->
   (w':(;ki) writer * c:cipher){
-    STXT(ki,w,ad,f,c) /\ Log(w'.history) = (ad,f)::Log(w.history)}
+    STXT(ki,w,ad,f,c)}// /\ Log(w'.history) = (ad,f)::Log(w.history)}
 
 val decrypt: ki:KeyInfo -> 
   r:(;ki) reader -> 

@@ -5,21 +5,27 @@ open Error
 open Bytes
 open TLSInfo
 
-
-function val Seqn: data -> int
-function val Rest: data -> bytes
-
-assume !n,rest. Seqn(IntBytes(8,n) @| rest) = n
-assume !n,rest. Rest(IntBytes(8,n) @| rest) = rest
-
 type (;ki:KeyInfo) data = (b:bytes){Length(b) = TLSFragment.ADLength(ki)}
-private type (;ki:KeyInfo,r:range,ad:data) plain = {p : bytes}
 
-val plain: ki:KeyInfo -> r:range -> ad:data -> bytes -> (;ki,ad,r) plain
-val repr:  ki:KeyInfo -> r:range -> ad:data -> (;ki,ad,r) plain -> bytes
+function val AEADSays: KeyInfo -> data -> range -> sbytes -> bool
 
-function val FullAD: TLSFragment.history -> bytes -> bytes //essentially, add seqn to given ad. There's an invariant between history and current seqn that we'll need to exploit
+private type (;ki:KeyInfo,r:range,ad:data) plain = x:(;ki,r)sbytes{Safe(ki) => AEADSays(ki,ad,r,x)}
 
-val fragmentToPlain: ki:KeyInfo ->  h:TLSFragment.history -> ad:StatefulPlain.data -> r:range -> d:(;ki,h,ad,r) fragment -> (;ki,r,FullAD(h,ad)) plain
-val plainToFragment: ki:KeyInfo ->  h:TLSFragmnet.history -> ad:StatefulPlain.data -> r:range -> (;ki,r,FullAD(h,ad)) plain -> d:(;ki,h,ad,r) fragment
+val plain: ki:KeyInfo{not Safe(ki)} -> r:range -> ad:data -> bytes -> (;ki,ad,r) plain
+val repr:  ki:KeyInfo{not Safe(ki)} -> r:range -> ad:data -> (;ki,ad,r) plain -> bytes
 
+
+
+
+
+
+val fragmentToPlain: ki:KeyInfo -> h:history -> ad:StatefulPlain.data -> r:range -> (;ki,h,ad,r)fragment ->
+	(;ki,r,MakeAD(SeqN(h),ad))plain
+
+val plainToFragment: ki:KeyInfo -> h:history -> ad:StatefulPlain.data -> r:range ->
+	(;ki,r,MakeAD(SeqN(h),ad))plain -> (;ki,h,ad,r)fragment
+
+assume !ki,ad,r,x. History(ki,0,Empty) <=> AEADSays(ki,MakeAD(0,ad),r,x)
+
+assume !ki,sn,ad,r,x.
+	?h. History(ki,sn,ConsHistory(h,ad,r,x)) <=> AEADSays(ki,MakeAD(sn,ad),r,x)

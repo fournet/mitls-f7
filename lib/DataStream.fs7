@@ -6,12 +6,18 @@ open Error
 type range = l:nat * h:nat { l <= h } (* length range *)
 type (;r:range) rbytes = b:bytes { ?l,h. r = (l,h) /\ l <= Length(b) /\ Length(b) <= h }   
 
+// The global plain used everywhere
+private type (;ki:KeyInfo,r:range) sbytes = {sb:(;r)rbytes}
+
 function val Sum: range * range -> range
 assume !l0,h0,l1,h1. Sum((l0,h0),(l1,h1)) = (l0+l1,h0+h1)
 val rangeSum: r0:range -> r1:range -> r:range{r = Sum(r0,r1)}
 
 private type (;ki:KeyInfo) stream = {sb:bytes}
-private type (;ki:KeyInfo, before: (;ki) stream, r:range) delta = {db:(;r) rbytes}
+
+function val Before: KeyInfo * stream * range * sbytes -> bool
+
+private type (;ki:KeyInfo, before: (;ki) stream, r:range) delta = x:(;ki,r) sbytes{Before(ki,before,r,x)}
 
 val init: ki:KeyInfo -> s:(;ki) stream{s.sb = [| |]}
 val append: 

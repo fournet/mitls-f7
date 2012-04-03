@@ -26,7 +26,7 @@ type preEpoch =
 
 type epoch = p:preEpoch
     { !crand,srand,si,pred,r. p=Succ(crand,srand,si,pred) => (pred = Init(Client,r) => r = crand /\ 
-	   pred = Init(Server,r) => r = srand) }  
+	   pred = Init(Server,r) => r = srand) }
 
 type preCI = {
   current: epoch; 
@@ -154,6 +154,10 @@ type KeyInfo = {
     // cVerifyData: bytes
     // sVerifyData: bytes
     }
+
+type ConnectionInfo =
+	{ id_in:  KeyInfo;
+      id_out: KeyInfo}
 
 predicate NullKeyInfo of KeyInfo
 
