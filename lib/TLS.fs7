@@ -27,7 +27,7 @@ assume !c. Role(c) = ConnectionOutKeyInfo(c).dir
 function val Peer: index -> index 
 assume !ki. Peer(ki) = { id_in = ki.id_out; id_out = ki.id_in }
 
-// main security predicates and events; may be defined elsewhere
+// Security predicates and events; may be defined elsewhere
 predicate val TXT: index -> bool
 predicate val SEC: index -> bool
 predicate val Fatal:   (index * bytes) -> bool
@@ -52,7 +52,7 @@ assume !c. Bytes_i(c) = CnStream_o(c)
 // !ci,s. ci.pending      => Bytes_o(Conn(ci,s)) = OutStream(ci.next,    s.appdata)
 // !ci,s. not(ci.pending) => Bytes_o(Conn(ci,s)) = OutStream(ci.current, s.appdata)
 
-// These types hide the precise of a range in messages
+// These types embed the a precise range for message lengths
 type (;c:cn) msg_i = r:range * (;ConnectionInKeyInfo(c),  CnStream_i(c), r) delta
 type (;c:cn) msg_o = r:range * (;ConnectionOutKeyInfo(c), CnStream_o(c), r) delta
 
@@ -86,12 +86,31 @@ definition !c, c', msg.
 type (;c:cn) query
 
 type (;c:cn) ioresult_i =
-| ReadError of alertDescription option //AP: There was an error reading, and so we may have sent a fatal alert on the other side. We tell the user which fatal alert has been sent, if any (otherwise it's an internal error, and right now we don't tell what to the user)
+| Read      of c':(;c) nextCn * d:(;c) msg_i
+  {Extend_i(c,c',d) /\ TXT(CnId(c)) => Write(Peer(CnId(c)), Bytes_i(c')) }
+  // We received a data fragment, appended to the input stream)
+
 | Close     of Tcp.NetworkStream  {TXT(CnId(c)) => Close(Peer(CnId(c)), Bytes_i(c))}
+  // We received an alert notifying the normal closure of the connection; 
+  // we learn that we have read everything sent by our peer,
+  // and we get back the underlying TCP connection. 
+
+| ReadError of alertDescription option 
+  // We encountered an error while reading; 
+  // we return the fatal alert we may have sent, if any,
+  // or None in case of an internal error.
+
 | Fatal     of a:alertDescription {TXT(CnId(c)) => Fatal(Peer(CnId(c)), a, Bytes_i(c))}
+  // We received an alert notifying the abnornal closure of the connection
+  // We learn that we have read everyting sent by our peer.
+  
 | Warning   of c':(;c) nextCn * a:alertDescription 
   {Extend(c,c') /\ TXT(CnId(c)) => Warning(Peer(CnId(c)), a, Bytes_i(c))}
+  // We received a warning (at this point in the input stream)
+
 | CertQuery of c':(;c) nextCn * (;c') query {Extend(c, c')} 
+  // We received the peer certificates for the next epoch, to be authorized before proceeding.
+
 | Handshake of c':cn {
     Role(c') = Role(c) /\ 
 	Bytes_i(c') = [||] /\ 
@@ -102,10 +121,14 @@ type (;c:cn) ioresult_i =
 	Close(Peer(CnId(c)),Bytes_i(c))
 	// informally: !b. Close(c,b) => CloseAck(Peer(CnId(c),b)
 	}
+  // We completed a run of the Handshake, moving to the next epoch.
+  // we learn that we have read everything sent by our peer in the closing epoch
+  // TODO: we could learn that our peer has read everything we sent in the closing epoch
+	
+	//Cedric: ?? 
 	//AP: /\ Close(CnId(c),Bytes_o(c)) /\  -- and same for Alert protocol, and hanshake.
 	// We need to show agreement on the content of all protocols in previous and current connection to express the Alert attack (and therefore authentication)
-| Read      of c':(;c) nextCn * d:(;c) msg_i
-  {Extend_i(c,c',d) /\ TXT(CnId(c)) => Write(Peer(CnId(c)), Bytes_i(c')) }
+
 | NoWrite of c':cn 
 	// Mashup of ioresult_i.Read and ioresult_o.MustRead
 	{	   Role(c') = Role(c)
@@ -115,17 +138,27 @@ type (;c:cn) ioresult_i =
 		/\ Bytes_o(Next(c')) = [||] //?
     } // AP: TXT(index) is not precise enough here:
 	  // in/out directions are not the same, and we want to only refer to the incoming direction
-
-// Without false start, we have the global invariant that Pending(c) => Bytes_o(c) = [||]
+  // We must wait till the next epoch before writing again.  
+  // Without false start, we have the global invariant that Pending(c) => Bytes_o(c) = [||]
 
 val read : c:cn -> (;c) ioresult_i
 
+
 type (;c:cn,d:(;c) msg_o) ioresult_o =
-| WriteError    of alertDescription option // The alert we have sent
+| WriteError    of alertDescription option 
+  // We encountered an error while writing; 
+  // we return the fatal alert we may have sent, if any,
+  // or None in case of an internal error.
+
 | WriteComplete of c':(;c) nextCn {Extend_o(c,c',d)}
+  // We wrote the message in full. appended to the output stream
+
 	//AP: /\ Write(CnId(c'),Bytes_o(c')) -- we need to generate the Write event somewhere, and this (and WritePartial) looks like a good place.
+
 | WritePartial  of c':(;c) nextCn * d':(;c') msg_o 
   { ?d0. Extend_o(c,c',d0) /\ Split_o(c, d, d0, c', d') }
+  // We wrote a fragment of the message, appended to the output stream, and return the rest
+
 | MustRead      of c':cn 
     {   Role(c')    = Role(c) 
      /\ Params(c')  = Params(c)
@@ -136,8 +169,12 @@ type (;c:cn,d:(;c) msg_o) ioresult_o =
 	 /\ Bytes_o(c') = [||]
 	 // and we assumed write completion on Bytes_o(c)
 	  }
+  // We need to read towards the next epoch 
+
+// ? 
 // this assumes that Bytes_o(c') does a test on Pending.
 // we can still access the bytes written in c using Current(c)
+
 
 val write: c:cn -> rg:range -> d:(;c,rg) msg_o -> (;c,d) ioresult_o
 // On the write side, the following events may be generated:
