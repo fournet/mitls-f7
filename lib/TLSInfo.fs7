@@ -28,10 +28,30 @@ type epoch = p:preEpoch
     { !crand,srand,si,pred,r. p=Succ(crand,srand,si,pred) => (pred = Init(Client,r) => r = crand /\ 
 	   pred = Init(Server,r) => r = srand) }
 
+
+// AP: Not enough if we want to implement TLS using this index.
+// We need 5 states:
+// 1) None next epoch
+// 2) Some next epoch, but don't use it
+// 3) Some next epoch, use it for read only
+// 4) Some next epoch, use it for write only
+// 5) Some next epoch, use it for read/write
 type preCI = {
   current: epoch; 
   next   : epoch option;
   pending: bool; }
+// AP: I propose
+//type preCI = {
+//  current: epoch;
+//  next   : epoch option;
+//  pending_read:  bool;
+//  pending_write: bool;
+//}
+// If the user writes in state 4 (or 5), then she's using false start
+// If any pending is true, then next must be Some.
+// val epochIn : CI -> epoch
+// val epochOut: CI -> epoch
+
 
 function val Pred: epoch -> epoch
 
@@ -45,9 +65,9 @@ type CI = c:preCI
 //predicate function SameEpoch: CI * CI -> bool
 function val SameEpoch: CI * CI -> bool
 definition !c,c'. SameEpoch(c,c') <=> 
-  c'.current = c.current /\ 
+  (c'.current = c.current /\ 
   (c.next = None \/ c'.next = c.next) /\ // we may need something more general, like Finer(c'.next,c.next) 
-  c'.pending = c.pending
+  c'.pending = c.pending)
 
 // WAS:
 //type ConnectionInfo =

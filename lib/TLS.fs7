@@ -18,9 +18,7 @@ type index = ConnectionInfo
 type params = protocolOptions
 type cn //= Dispatch.Connection
 
-type epoch =
-| Init of role * UID (* the locally-generated nonce *)
-| Succ of 
+// type epoch, as defined in TLSInfo
 
 function val Role: cn -> Direction
 assume !c. Role(c) = ConnectionOutKeyInfo(c).dir
@@ -36,10 +34,10 @@ predicate val Fatal:   (index * bytes) -> bool
 predicate val Warning: (index * bytes) -> bool
 predicate val Close:   (index * bytes) -> bool
 predicate val Write:   (index * bytes) -> bool
-predicate val Read :   (index * bytes) -> bool //AP: Unused. Everything is defined as a correspondence on Write
+// predicate val Read :   (index * bytes) -> bool //AP: Unused. Everything is defined as a correspondence on Write
 
 function val CnId: c:cn -> index
-function val CnStream_i: c:cn -> (;ConnectionInKeyInfo(c)) stream
+function val CnStream_i: c:cn -> (;ConnectionInKeyInfo(c)) stream // FIXME move to epoch
 function val CnStream_o: c:cn -> (;ConnectionOutKeyInfo(c)) stream
 assume !id, s. CnId(Conn(id, s)) = id
 assume !id, s. CnStream_i(Conn(id, s)) =  InStream(id, s.appdata)
