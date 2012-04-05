@@ -286,7 +286,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                           match send id.id_out c.ns c_write ( tlen) Handshake (TLSFragment.FHandshake(f)) with 
                           | Correct(new_write) ->
                             let c = { c with handshake = new_hs_state;
-                                             appdata = AppDataStream.readNonAppDataFragment id c.appdata;
+                                             //appdata = AppDataStream.readNonAppDataFragment id c.appdata;
                                              write     = new_write }
                             (correct (WriteAgain, Conn(id,c)) )
                           | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
@@ -301,7 +301,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                             (* Also move to the Finished state *)
                             let c_write = {new_write with disp = Finished} in
                             let c = { c with handshake = new_hs_state;
-                                             appdata = AppDataStream.readNonAppDataFragment id c.appdata;
+                                             //appdata = AppDataStream.readNonAppDataFragment id c.appdata;
                                              write     = c_write }
                             (correct (WMustRead, Conn(id,c)))
                           | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
@@ -313,7 +313,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                     match send id.id_out c.ns c_write (tlen) Handshake (TLSFragment.FHandshake(lastFrag)) with 
                     | Correct(new_write) ->
                         let c = { c with handshake = new_hs_state;
-                                         appdata = AppDataStream.readNonAppDataFragment id c.appdata;
+                                         //appdata = AppDataStream.readNonAppDataFragment id c.appdata;
                                          write     = new_write }
                         (* Move to the new state *)
                         // Sanity check: in and out session infos should be the same
@@ -329,9 +329,9 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
         match send id.id_out c.ns c_write (tlen) Alert (TLSFragment.FAlert(f)) with 
         | Correct(new_write) ->
             let new_write = {new_write with disp = Closing} in
-            let ad = AppDataStream.readNonAppDataFragment id c.appdata in
+            //let ad = AppDataStream.readNonAppDataFragment id c.appdata in
             let c = { c with alert   = new_al_state;
-                             appdata = ad;
+                             //appdata = ad;
                              write   = new_write }
             (correct (WriteAgain, Conn(id,c )))
         | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
@@ -339,9 +339,9 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
         (* We're sending a fatal alert. Send it, then close both sending and receiving sides *)
         match send id.id_out c.ns c_write (tlen) Alert (TLSFragment.FAlert(f)) with 
         | Correct(new_write) ->
-            let ad = AppDataStream.readNonAppDataFragment id c.appdata in
+            //let ad = AppDataStream.readNonAppDataFragment id c.appdata in
             let c = {c with alert = new_al_state;
-                            appdata = ad;
+                            //appdata = ad;
                             write = new_write}
             let closed = closeConnection (Conn(id,c)) in
             // FIXME: we need to know here which alert has been sent!
@@ -356,9 +356,9 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
         match send id.id_out c.ns c_write (tlen) Alert (TLSFragment.FAlert(f)) with
         | Correct(new_write) ->
             let new_write = {new_write with disp = Closed} in
-            let ad = AppDataStream.readNonAppDataFragment id c.appdata in
+            //let ad = AppDataStream.readNonAppDataFragment id c.appdata in
             let c = {c with alert = new_al_state;
-                            appdata = ad;
+                            //appdata = ad;
                             write = new_write}
             correct (SentClose, Conn(id,c))
         | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
@@ -377,10 +377,12 @@ let deliver (Conn(id,c)) ct tl frag: (deliverOutcome * Connection) Result =
     let c_hs = c.handshake in
     match Handshake.recv_fragment id c_hs tlen f with
     | (Correct(corr),hs) ->
-        let ad = AppDataStream.writeNonAppDataFragment id c.appdata in
+        //let ad = AppDataStream.writeNonAppDataFragment id c.appdata in
         match corr with
         | Handshake.HSAck ->
-            let c = { c with read = c_read; appdata = ad; handshake = hs} in
+            let c = { c with read = c_read;
+                             //appdata = ad;
+                             handshake = hs} in
             correct (RAgain, Conn(id,c))
         | Handshake.HSVersionAgreed pv ->
             match c_read.disp with
@@ -407,7 +409,7 @@ let deliver (Conn(id,c)) ct tl frag: (deliverOutcome * Connection) Result =
                     let new_read = {c_read with disp = FirstHandshake; conn = Record.nullConnState idIN} in
                     let new_write = {c_write with disp = FirstHandshake; conn = Record.nullConnState idOUT} in
                     let c = {c with handshake = hs;
-                                    appdata = ad;
+                                    //appdata = ad;
                                     read = new_read;
                                     write = new_write} in
                     correct (RAgain, Conn(newID,c) )
@@ -416,16 +418,22 @@ let deliver (Conn(id,c)) ct tl frag: (deliverOutcome * Connection) Result =
                     Error(Dispatcher,InvalidState)
             | _ -> (* It means we are doing a re-negotiation. Don't alter the current version number, because it
                      is perfectly valid. It will be updated after the next CCS, along with all other session parameters *)
-                let c = { c with read = c_read; appdata = ad; handshake = hs} in
+                let c = { c with read = c_read;
+                                 //appdata = ad;
+                                 handshake = hs} in
                 (correct (RAgain, Conn(id, c) ))
         | Handshake.HSQuery(query) ->
-            let c = {c with read = c_read; appdata = ad; handshake = hs} in
+            let c = {c with read = c_read;
+                            //appdata = ad;
+                            handshake = hs} in
             correct(RQuery(query),Conn(id,c))
         | Handshake.HSReadSideFinished ->
         (* Ensure we are in Finishing state *)
             match x with
             | Finishing ->
-                let c = {c with read = c_read; appdata = ad; handshake = hs} in
+                let c = {c with read = c_read;
+                                //appdata = ad;
+                                handshake = hs} in
                 // Indeed, we should stop reading now!
                 // (Because, except for false start implementations, the other side is now
                 //  waiting for us to send our finished message)
@@ -438,7 +446,9 @@ let deliver (Conn(id,c)) ct tl frag: (deliverOutcome * Connection) Result =
             | _ -> let closed = closeConnection (Conn(id,{c with handshake = hs})) in Error(Dispatcher,InvalidState) // TODO: We might want to send some alert here
         | Handshake.HSFullyFinished_Read(newSI,newMS,newDIR) ->
             let newInfo = (newSI,newMS,newDIR) in
-            let c = {c with read = c_read; appdata = ad; handshake = hs} in
+            let c = {c with read = c_read;
+                            //appdata = ad;
+                            handshake = hs} in
             (* Ensure we are in Finishing state *)
             match x with
             | Finishing ->
@@ -472,20 +482,26 @@ let deliver (Conn(id,c)) ct tl frag: (deliverOutcome * Connection) Result =
   | Alert, TLSFragment.FAlert(f), _ ->
     match Alert.recv_fragment id c.alert tlen f with
     | Correct (Alert.ALAck(state)) ->
-      let ad = AppDataStream.writeNonAppDataFragment id c.appdata in
+      //let ad = AppDataStream.writeNonAppDataFragment id c.appdata in
       let c_read = {c_read with disp = Closing} in
-      let c = {c with read = c_read; appdata = ad; alert = state} in
+      let c = {c with read = c_read;
+                      //appdata = ad;
+                      alert = state} in
       correct (RAgain, Conn(id,c))
     | Correct (Alert.ALClose_notify (state)) ->
         (* An outgoing close notify has already been buffered, if necessary *)
         (* Only close the reading side of the connection *)
-        let ad = AppDataStream.writeNonAppDataFragment id c.appdata in
+        //let ad = AppDataStream.writeNonAppDataFragment id c.appdata in
         let new_read = {c_read with disp = Closed} in
-        correct (RClose, Conn(id, { c with appdata = ad; read = new_read}))
+        correct (RClose, Conn(id, { c with read = new_read;
+                                           //appdata = ad;
+                                           }))
     | Correct (Alert.ALClose (state)) ->
         (* Other fatal alert, we close both sides of the connection *)
-        let ad = AppDataStream.writeNonAppDataFragment id c.appdata in
-        let c = {c with appdata = ad; alert = state}
+        //let ad = AppDataStream.writeNonAppDataFragment id c.appdata in
+        let c = {c with alert = state;
+                        //appdata = ad;
+                        }
         let closed = closeConnection (Conn(id,c)) in
         // FIXME: We need to get some info about the alert we just received!
         let inventedAlert = AD_internal_error in

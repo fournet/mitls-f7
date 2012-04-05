@@ -5,17 +5,12 @@ open Bytes
 open TLSInfo
 open DataStream
 
-type preds = 
-    AppDataFragmentSequence of KeyInfo * int * bytes
-  | AppDataFragment of KeyInfo * int * int * bytes
-  | NonAppDataSequenceNo of KeyInfo * int
-  | AppDataSequenceNo of KeyInfo * int
-  | ValidAppDataStream of KeyInfo * bytes
+type stream = DataStream.stream
+type fragment = delta
 
 type buffer = {
-  seqn: int;
   stream:stream;
-  data: stream * (range * delta) option;
+  data: stream * (range * fragment) option;
 }
 
 type input_buffer = buffer
@@ -26,17 +21,14 @@ type app_state = {
   app_outgoing: output_buffer;
 }
 
-
 let init ci =
   let in_s = DataStream.init ci.id_in in
   let out_s = DataStream.init ci.id_out in
     {app_outgoing = 
-        {seqn = 0;
-         stream = out_s;
+        {stream = out_s;
          data = (out_s,None)};
      app_incoming = 
-        {seqn = 0;
-         stream = in_s;
+        {stream = in_s;
          data = (in_s,None)};
     }
 
@@ -45,18 +37,13 @@ let is_incoming_empty (ci:ConnectionInfo) app_state =
 
 let is_outgoing_empty (ci:ConnectionInfo)  app_state = 
   snd app_state.app_outgoing.data = None
-    
-type fragment = delta
-type stream = DataStream.stream
-let emptyStream (ki:KeyInfo) = DataStream.init ki
-let addFragment ki s r f = append ki s r f
 
 let repr (ki:KeyInfo) (s:stream) (r:DataStream.range) (d:fragment) = 
-  let s = DataStream.init ki in
+  //let s = DataStream.init ki in // AP: why?
   deltaRepr ki s r d
 
 let fragment (ki:KeyInfo) (s:stream)  (r:DataStream.range) (b:bytes) = 
-  let s = DataStream.init ki in
+  //let s = DataStream.init ki in // AP: why?
   delta ki s r b
 
 let writeAppData (c:ConnectionInfo)  (a:app_state) (r:range) (d:delta) =
@@ -87,10 +74,11 @@ let emptyOutgoingAppData (c:ConnectionInfo)  (a:app_state) =
           Some(r,d),{a with app_outgoing = {a.app_outgoing with data = h,None}}
 
 
+// AP: FIXME!!!!!
 let maxFragmentLength (ki:KeyInfo) = 255 (* We need to put in the right computation here *)
     
 let readAppDataFragment (c:ConnectionInfo)  (a:app_state) =
-    Pi.assume(AppDataSequenceNo(c.id_out,a.app_outgoing.seqn));
+    // Pi.assume(AppDataSequenceNo(c.id_out,a.app_outgoing.seqn));
     match a.app_outgoing.data with
         hs,None -> None
       | hs,Some (r,d) -> 
@@ -106,21 +94,21 @@ let readAppDataFragment (c:ConnectionInfo)  (a:app_state) =
             let stream = DataStream.append c.id_out hs r1 d1 in
             Some(r1,d1,{a with app_incoming = {a.app_incoming with data = stream,Some(r2,d2)}})
 
-let readNonAppDataFragment (c:ConnectionInfo) (a:app_state) = 
-  let nout_seqn = a.app_outgoing.seqn + 1 in
-    Pi.assume(NonAppDataSequenceNo(c.id_out,a.app_outgoing.seqn));
-    {a with app_outgoing = {a.app_outgoing with seqn = nout_seqn}}
+// let readNonAppDataFragment (c:ConnectionInfo) (a:app_state) = 
+//   let nout_seqn = a.app_outgoing.seqn + 1 in
+//     Pi.assume(NonAppDataSequenceNo(c.id_out,a.app_outgoing.seqn));
+//     {a with app_outgoing = {a.app_outgoing with seqn = nout_seqn}}
 
-let writeNonAppDataFragment (c:ConnectionInfo)  (a:app_state) = 
-  let seqn = a.app_incoming.seqn in
-  let nseqn = seqn + 1 in
-    Pi.assume(NonAppDataSequenceNo(c.id_in,seqn));
-    {a with app_incoming = {a.app_incoming with seqn = nseqn}}
+// let writeNonAppDataFragment (c:ConnectionInfo)  (a:app_state) = 
+//   let seqn = a.app_incoming.seqn in
+//   let nseqn = seqn + 1 in
+//     Pi.assume(NonAppDataSequenceNo(c.id_in,seqn));
+//     {a with app_incoming = {a.app_incoming with seqn = nseqn}}
     
 let writeAppDataFragment (ci:ConnectionInfo)  (a:app_state)  (r:range) (d:fragment) =
-  let seqn = a.app_incoming.seqn in
-  Pi.assume(AppDataSequenceNo(ci.id_in,seqn));
-  let nseqn = seqn + 1 in
+  // let seqn = a.app_incoming.seqn in
+  // Pi.assume(AppDataSequenceNo(ci.id_in,seqn));
+  // let nseqn = seqn + 1 in
   let f = a.app_incoming.stream in
   let nf = append ci.id_in f r d in
   match a.app_incoming.data with
@@ -135,8 +123,7 @@ let reset_outgoing (ci:ConnectionInfo) (a:app_state) =
   let out_s = DataStream.init ci.id_out in
     {a with 
        app_outgoing = 
-        {seqn = 0;
-         stream = out_s;
+        {stream = out_s;
          data = out_s,None};
     }
 
@@ -144,7 +131,6 @@ let reset_incoming (ci:ConnectionInfo) (a:app_state) =
   let in_s = DataStream.init ci.id_in in
     {a with 
        app_incoming = 
-        {seqn = 0;
-         stream = in_s;
+        {stream = in_s;
          data = in_s,None};
     }

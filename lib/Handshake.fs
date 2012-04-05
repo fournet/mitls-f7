@@ -1992,8 +1992,9 @@ let enqueue_fragment (ci:ConnectionInfo) state fragment =
     let new_inc = state.hs_incoming @| fragment in
     {state with hs_incoming = new_inc}
 
-let recv_fragment ci (state:hs_state) (tlen:DataStream.range) (fragment:fragment) =
-    let b = repr ci.id_in fragment in 
+let recv_fragment ci (state:hs_state) (r:DataStream.range) (fragment:fragment) =
+    // FIXME: We should biuld a fragment here (having our own stream), and not sbytes
+    let b = DataStream.repr ci.id_in r fragment in 
     if length b = 0 then
         // Empty HS fragment are not allowed
         (Error(HSError(AD_decode_error),HSSendAlert),state)
@@ -2003,8 +2004,9 @@ let recv_fragment ci (state:hs_state) (tlen:DataStream.range) (fragment:fragment
         | PSClient (_) -> recv_fragment_client ci state None
         | PSServer (_) -> recv_fragment_server ci state None
 
-let recv_ccs (ci:ConnectionInfo) (state: hs_state) (tlen:DataStream.range) (fragment:ccsFragment): ((KIAndCCS Result) * hs_state) =
-    let b = ccsRepr ci.id_in fragment in
+let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:DataStream.range) (fragment:ccsFragment): ((KIAndCCS Result) * hs_state) =
+    // FIXME: We should biuld a fragment here (having our own stream), and not sbytes
+    let b = DataStream.repr ci.id_in r fragment in
     if equalBytes b CCSBytes then  
         match state.pstate with
         | PSClient (cstate) -> // Check we are in the right state (CCCS) 

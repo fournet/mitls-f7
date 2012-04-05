@@ -9,7 +9,7 @@ open DataStream
 type prestate =
     { key: AEAD.AEADKey;
       seqn: nat;
-      history: TLSFragment.history // ghost
+      history: history // ghost
     }
 
 type state = prestate
@@ -18,13 +18,13 @@ type writer = state
 
 let GEN ki =
     let r,w = AEAD.GEN ki in
-    ( { key = r; seqn = 0; history = TLSFragment.emptyHistory ki},
-      { key = w; seqn = 0; history = TLSFragment.emptyHistory ki})  
+    ( { key = r; seqn = 0; history = emptyHistory ki},
+      { key = w; seqn = 0; history = emptyHistory ki})  
 let COERCE ki b =
     let key = AEAD.COERCE ki b in
     { key = key
       seqn = 0
-      history = TLSFragment.emptyHistory ki}
+      history = emptyHistory ki}
 let LEAK ki s =
     AEAD.LEAK ki s.key
 
@@ -33,7 +33,7 @@ let history (ki:KeyInfo) s = s.history
 type cipher = ENC.cipher
 
 let encrypt (ki:KeyInfo) (w:writer) (ad0:data) (r:range) (f:fragment) =
-  let h = addFragment ki w.history ad0 r f in
+  let h = addToHistory ki w.history ad0 r f in
   let w = {w with history = h} in
   let pl = AEADPlain.fragmentToPlain ki (history ki w) ad0 r f in
   let ad = makeAD w.seqn ad0 in
@@ -48,7 +48,7 @@ let decrypt (ki:KeyInfo) (r:reader) (ad0:data) (e:cipher) =
     match res with
       | Correct ((key,rg,pl)) ->
           let f = AEADPlain.plainToFragment ki (history ki r) ad0 rg pl in
-          let h = addFragment ki r.history ad0 rg f in
+          let h = addToHistory ki r.history ad0 rg f in
           let r = {r with history = h
                           key = key
                           seqn = r.seqn+1}

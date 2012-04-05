@@ -5,6 +5,9 @@ open Bytes
 open Error
 open DataStream
 
+type stream = DataStream.stream
+type fragment = delta
+
 type app_state
 (* = {
   app_incoming: input_buffer;
@@ -13,28 +16,25 @@ type app_state
 
 val init: ConnectionInfo -> app_state
 
-type fragment = delta
-type stream = DataStream.stream
-val addFragment: KeyInfo -> stream -> range -> fragment -> stream
+// Used by top level application
+// AP: The delta and range given here might not fit in one fragment.
+// It's a bit confusing to use delta for things that might not fit in
+// one fragment (here), and things that do fit (read/writeAppDataFragment)
 
-type preds = 
-    AppDataFragmentSequence of KeyInfo * int * bytes
-  | AppDataFragment of KeyInfo * int * int * bytes
-  | NonAppDataSequenceNo of KeyInfo * int
-  | AppDataSequenceNo of KeyInfo * int
-  | ValidAppDataStream of KeyInfo * bytes
-
+// After all, we're sort of buffering user data here (and we unbuffer them before returning in Dispatch).
+// We should not buffer any data, and ask the user one fragment at a time. That would help, wouldn't it?
 val writeAppData: ConnectionInfo -> app_state -> range -> delta -> app_state
 val readAppData: ConnectionInfo -> app_state -> ((range * delta) option * app_state)
 val emptyOutgoingAppData: ConnectionInfo -> app_state -> ((range * delta) option * app_state)
 
+// Used internally
 val readAppDataFragment: ConnectionInfo ->  app_state -> (range * fragment * app_state) option
 
-val readNonAppDataFragment: ConnectionInfo ->  app_state ->  app_state
+//val readNonAppDataFragment: ConnectionInfo ->  app_state ->  app_state
 
 val writeAppDataFragment: ConnectionInfo ->  app_state -> range -> fragment -> app_state
 
-val writeNonAppDataFragment: ConnectionInfo ->  app_state ->  app_state
+//val writeNonAppDataFragment: ConnectionInfo ->  app_state ->  app_state
 
 val reset_incoming:  ConnectionInfo -> app_state -> app_state
 
@@ -43,7 +43,5 @@ val reset_outgoing:  ConnectionInfo -> app_state -> app_state
 val is_incoming_empty: ConnectionInfo ->  app_state -> bool
 val is_outgoing_empty: ConnectionInfo ->  app_state -> bool
 
-val repr: KeyInfo -> stream ->  DataStream.range -> fragment -> bytes
-val fragment: KeyInfo -> stream -> DataStream.range -> bytes -> fragment 
-
-val emptyStream: KeyInfo -> stream
+val repr: KeyInfo -> stream ->  range -> fragment -> bytes
+val fragment: KeyInfo -> stream -> range -> bytes -> fragment 

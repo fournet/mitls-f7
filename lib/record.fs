@@ -9,13 +9,13 @@ open StatefulPlain
 
 type ConnectionState =
     | NullState
-    | SomeState of StatefulAEAD.state
+    | SomeState of TLSFragment.history * StatefulAEAD.state
 
 type sendState = ConnectionState
 type recvState = ConnectionState
 
 let initConnState (ki:KeyInfo) s =
-  SomeState(s)
+  SomeState(TLSFragment.emptyHistory ki,s)
 
 let nullConnState (ki:KeyInfo) = NullState
 
@@ -86,13 +86,14 @@ let recordPacketOut ki conn rg ct fragment =
 //        let payload = (TLSFragment.TLSFragmentRepr keyInfo ct st.history tlen fragment) @| (AEPlain.tagRepr keyInfo mac) in
 //        let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
 //        (conn,packet)
-    | (_,SomeState(state)) ->
+    | (_,SomeState(history,state)) ->
+        let history = TLSFragment.addToStreams ki ct history rg fragment in
         let ad = TLSFragment.makeAD ki.sinfo.protocol_version ct in
-        let aeadF = StatefulPlain.TLSFragmentToFragment ki ct (StatefulAEAD.history ki state) rg fragment in
+        let aeadF = StatefulPlain.TLSFragmentToFragment ki ct (StatefulAEAD.history ki state) history rg fragment in
 
         let (state,payload) = StatefulAEAD.encrypt ki state ad rg aeadF in
 
-        let conn = SomeState(state) in
+        let conn = SomeState(history,state) in
         let packet = makePacket ct ki.sinfo.protocol_version payload in
         (conn,packet)
     | _ -> unexpectedError "[recordPacketOut] Incompatible ciphersuite and key type"
@@ -153,14 +154,15 @@ let recordPacketIn ki conn headPayload =
 //            correct(conn,ct,pv,rg,msg)
 //        else
 //            Error(MAC,CheckFailed)
-    | (x,SomeState(state)) ->
+    | (x,SomeState(history,state)) ->
         let ad = TLSFragment.makeAD ki.sinfo.protocol_version ct in
         let decr = StatefulAEAD.decrypt ki state ad payload in
         match decr with
         | Error(x,y) -> Error(x,y)
         | Correct (decrRes) ->
             let (newState, rg, plain) = decrRes in
-            let msg = StatefulPlain.fragmentToTLSFragment ki ct (StatefulAEAD.history ki state) rg plain in
-            let conn = SomeState(newState) in
+            let msg = StatefulPlain.fragmentToTLSFragment ki ct (StatefulAEAD.history ki state) history rg plain in
+            let history = TLSFragment.addToStreams ki ct history rg msg in
+            let conn = SomeState(history,newState) in
             correct(conn,ct,pv,rg,msg)
     | _ -> unexpectedError "[recordPacketIn] Incompatible ciphersuite and key type"

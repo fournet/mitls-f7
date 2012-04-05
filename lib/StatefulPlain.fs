@@ -4,10 +4,18 @@ open Bytes
 open TLSInfo
 open DataStream
 open Formats
+open TLSFragment
 
 type data = bytes
 
-type fragment = {f:bytes}
+type history =
+    | Empty
+    | ConsHistory of history * data * range * sbytes
+
+let emptyHistory (ki:KeyInfo) = Empty
+let addToHistory (ki:KeyInfo) h d r x = ConsHistory(h,d,r,x)
+
+type fragment = sbytes
 
 let parseAD ad = 
   let bs,ad' = Bytes.split ad 8 in
@@ -18,18 +26,22 @@ let makeAD n ad =
   let bn = bytes_of_seq n in
     bn @| ad
 
-let fragment (ki:KeyInfo) (h:TLSFragment.history) (ad:bytes) (r:range) (b:bytes) = {f=b}
+let fragment (ki:KeyInfo) (h:TLSFragment.history) (ad:bytes) (r:range) (b:bytes) = plain ki r b
 
-let repr (ki:KeyInfo) (h:TLSFragment.history) (ad:bytes) (r:range) (f:fragment) = f.f
+let repr (ki:KeyInfo) (h:TLSFragment.history) (ad:bytes) (r:range) (f:fragment) = repr ki r f
 
-let TLSFragmentToFragment (ki:KeyInfo) (ct:ContentType) (h:TLSFragment.history) (rg:DataStream.range) (f:TLSFragment.fragment) =
-    {f = TLSFragment.TLSFragmentRepr ki ct h rg f}
-let fragmentToTLSFragment (ki:KeyInfo) (ct:ContentType) (h:TLSFragment.history) (rg:range) (f:fragment) =
-    TLSFragment.TLSFragment ki ct h rg f.f
+let TLSFragmentToFragment (ki:KeyInfo) (ct:ContentType) (h:history) (ss:TLSFragment.history) (rg:DataStream.range) (f:TLSFragment.fragment) =
+    match f with
+    | FHandshake(f) -> f
+    | FAlert(f) -> f
+    | FCCS(f) -> f
+    | FAppData(f) -> f
 
-let addFragment (ki:KeyInfo) h d r f =
- // FIXME: This function looks like an hack that breaks abstraction.
- // It should only be present in TLSFragment, not in StatefulPlain
- let ct = TLSFragment.parseAD ki.sinfo.protocol_version d in
- let fr = fragmentToTLSFragment ki ct h r f in
- TLSFragment.addFragment ki ct h r fr
+let fragmentToTLSFragment (ki:KeyInfo) (ct:ContentType) (h:history) (ss:TLSFragment.history) (rg:range) (f:fragment) =
+    match ct with
+    | Handshake -> FHandshake(f)
+    | Alert -> FAlert(f)
+    | Change_cipher_spec -> FCCS(f)
+    | Application_data -> FAppData(f)
+
+

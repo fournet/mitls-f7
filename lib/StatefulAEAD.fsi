@@ -15,7 +15,7 @@ val GEN: KeyInfo -> state * state
 val COERCE: KeyInfo -> bytes -> state
 val LEAK: KeyInfo -> state -> bytes
 
-val history: KeyInfo -> state -> TLSFragment.history
+val history: KeyInfo -> state -> history
 
 type cipher = ENC.cipher
 

@@ -6,7 +6,8 @@ open Error
 type range = int * int (* length range *)
 val rangeSum: range -> range -> range
 type stream
-type delta
+type sbytes
+type delta = sbytes
 
 
 val init: KeyInfo -> stream
@@ -17,6 +18,9 @@ val split: KeyInfo -> stream -> range -> range ->
            delta -> delta * delta
 val join: KeyInfo -> stream -> range -> delta -> 
           range -> delta -> delta
+
+val plain: KeyInfo -> range -> bytes -> sbytes
+val repr:  KeyInfo -> range -> sbytes -> bytes
 
 val delta: KeyInfo -> stream -> range -> bytes -> delta  
 

@@ -9,7 +9,7 @@ type (;ki:KeyInfo) data = (b:bytes){Length(b) = TLSFragment.ADLength(ki)}
 
 function val AEADSays: KeyInfo -> data -> range -> sbytes -> bool
 
-private type (;ki:KeyInfo,r:range,ad:data) plain = x:(;ki,r)sbytes{Safe(ki) => AEADSays(ki,ad,r,x)}
+type (;ki:KeyInfo,r:range,ad:data) plain = x:(;ki,r)sbytes{Safe(ki) => AEADSays(ki,ad,r,x)}
 
 val plain: ki:KeyInfo{not Safe(ki)} -> r:range -> ad:data -> bytes -> (;ki,ad,r) plain
 val repr:  ki:KeyInfo{not Safe(ki)} -> r:range -> ad:data -> (;ki,ad,r) plain -> bytes

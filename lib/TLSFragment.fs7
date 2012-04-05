@@ -13,12 +13,45 @@ type (;ki:KeyInfo) history = {
   ccs: (;ki) HandshakePlain.stream;
   appdata: (;ki) AppDataStream.stream;
   }
-and (;ki:KeyInfo,ct:ContentType,h:(;ki) history,rg:range) fragment =
-    | FHandshake of (;ki,h.handshake,rg)HandshakePlain.fragment    {ct=Formats.Handshake}
-    | FCCS       of (;ki,h.ccs,rg)HandshakePlain.ccsFragment {ct=Change_cipher_spec}
-    | FAlert     of (;ki,h.alert,rg)AlertPlain.fragment        {ct=Alert}
-    | FAppData   of (;ki,h.appdata,rg)AppDataStream.fragment {ct=Application_data}
 
+function val EmptyStreams: history -> bool
+val emptyHistory: ki:KeyInfo -> h:(;ki)history{EmptyStreams(h)}
+
+function val Multiplexed: KeyInfo * history -> bool
+
+function val ConsStream: KeyInfo * ContentType * history * delta -> history
+assume !ki,h,d. ConsStream(ki,Formats.Handshake,h,d) =
+	 { handshake = ConcatStream(ki,h.handshake,d);
+	   alert = h.alert;
+	   ccs = h.ccs;
+	   appdata = h.appdata}
+assume !ki,h,d. ConsStream(ki,Formats.Alert,h,d) =
+	 { handshake = h.handshake;
+	   alert = ConcatStream(ki,h.alert,d);
+	   ccs = h.ccs;
+	   appdata = h.appdata}
+assume !ki,h,d. ConsStream(ki,Formats.Handshake,h,d) =
+	 { handshake = h.handshake;
+	   alert = h.alert;
+	   ccs = ConcatStream(ki,h.ccs,d);
+	   appdata = h.appdata}
+assume !ki,h,d. ConsStream(ki,Formats.Handshake,h,d) =
+	 { handshake = h.handshake;
+	   alert = h.alert;
+	   ccs = h.ccs;
+	   appdata = ConcatStream(ki,h.appdata,d)}
+
+type (;ki:KeyInfo,ct:ContentType,h:(;ki) history,rg:range) fragment =
+    | FHandshake of f:(;ki,h.handshake,rg)HandshakePlain.fragment    {ct=Formats.Handshake /\ Multiplexed(ki,(ConsStream(ki,ct,h,f)))}
+    | FCCS       of f:(;ki,h.ccs,rg)HandshakePlain.ccsFragment {ct=Change_cipher_spec /\ Multiplexed(ki,(ConsStream(ki,ct,h,f)))}
+    | FAlert     of f:(;ki,h.alert,rg)AlertPlain.fragment        {ct=Alert /\ Multiplexed(ki,(ConsStream(ki,ct,h,f)))}
+    | FAppData   of f:(;ki,h.appdata,rg)AppDataStream.fragment {ct=Application_data /\ Multiplexed(ki,(ConsStream(ki,ct,h,f)))}
+
+val addToStreams: ki:KeyInfo -> ct:ContentType -> ss:(;ki)history{Multiplexed(ki,ss)} -> r:range ->
+	(;ki,ct,ss,r)fragment -> ss':(;ki)history{Multiplexed(ki,ss')}
+
+
+// Deprecated
 // FIXME: Circular dependency!
 // predicate Multiplexed of KeyInfo * StatefulPlain.history * HandshakePlain.stream * HandshakePlain.stream * AlertPlain.stream * AppDataStream.stream 
 // assume !ki,fs,hs,ccs,al,ad. Multiplexed(ki,fs,hs,ccs,al,ad) <=>

@@ -39,7 +39,7 @@ val GEN: ki:KeyInfo -> (;ki) reader * (;ki)writer
 val COERCE: ki:KeyInfo -> b:bytes{Length(b)=AEADSize(ki)} -> (;ki)state
 val LEAK: ki:KeyInfo -> (;ki)state -> b:bytes{Length(b)=AEADSize(ki)}
 
-val history: ki:KeyInfo -> (;ki) state -> h:TLSFragment.history{h=s.history}
+val history: ki:KeyInfo -> (;ki) state -> h:history{h=s.history}
 
 type cipher = ENC.cipher
 predicate STXT of KeyInfo * state * data * fragment * cipher

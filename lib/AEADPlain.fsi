@@ -6,10 +6,10 @@ open DataStream
 open StatefulPlain
 
 type data = bytes
-type plain 
+type plain = sbytes
 
 val plain: KeyInfo -> range -> data -> bytes -> plain
 val repr:  KeyInfo -> range -> data -> plain -> bytes
 
-val fragmentToPlain: KeyInfo -> TLSFragment.history -> data -> range -> fragment -> plain
-val plainToFragment: KeyInfo -> TLSFragment.history -> data -> range -> plain -> fragment
+val fragmentToPlain: KeyInfo -> history -> data -> range -> fragment -> plain
+val plainToFragment: KeyInfo -> history -> data -> range -> plain -> fragment

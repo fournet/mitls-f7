@@ -13,8 +13,20 @@ type (;ki:KeyInfo)history =
 	| Empty
 	| ConsHistory of h:(;ki)history * ad:data * r:range * (;ki,r)sbytes
 
+val emptyHistory: ki:KeyInfo -> h:(;ki)history{h = Empty}
+// This function will assume History, or it might avoid if we have some
+// Multiplexed predicate coming from above...
+val addToHistory: ki:KeyInfo -> h:(;ki)history -> ad:data -> r:range -> x:(;ki,r)sbytes ->
+	h':(;ki)history{h' = ConsHistory(h,ad,r,x)}
+
+// Let's make a predicate of these definitions: ValidMultiplexing(h,ss),
+// where h is history, and ss is TLSFragment.history (should we call it "streams" to avoid confusion?)
+function val ValidMultiplexing: history * TLSFragment.history -> bool
 function val History: KeyInfo * nat * history -> bool
-assume !ki. History(ki,0,Empty)
+assume !ki. History(ki,0,Empty) <=> ?ss. (Multiplexed(ki,ss) /\ EmptyStreams(ss))
+assume !ki,sn,ct,f.
+	?h,r. History(ki,sn,ConsHistory(h,ADBytes(ki,ct),r,f)) <=>
+	?ss. Multiplexed(ki,ConsStream(ki,ct,ss,f)) // FIXME: glitch on ranges: should be !r
 
 function val SeqN: history -> nat
 assume SeqN(Empty) = 0
@@ -28,6 +40,14 @@ type (;ki:KeyInfo,h:history,ad:data,r:range)fragment =
 
 val fragment: ki:KeyInfo{not Safe(ki)} -> h:(;ki)history -> ad:data -> r:range -> bytes -> (;ki,h,ad,r) fragment
 val repr: ki:KeyInfo{not Safe(ki)} -> h:(;ki)history -> ad:data -> r:range -> (;ki,h,ad,r) fragment -> bytes
+
+val TLSFragmentToFragment: ki:KeyInfo -> ct:ContentType ->
+	h:(;ki)history -> ss:(;ki)TLSFragment.history{ValidMultiplexing(h,ss)} -> r:range ->
+	(;ki,ct,ss,r)TLSFragment.fragment -> (;ki,h,ADBytes(ki,ct),r)fragment
+
+val fragmentToTLSFragment: ki:KeyInfo -> ct:ContentType ->
+	h:(;ki)history -> ss:(;ki)TLSFragment.history{ValidMultiplexing(h,ss)} -> r:range ->
+	(;ki,h,ADBytes(ki,ct),r)fragment -> (;ki,ct,ss,r)TLSFragment.fragment
 
 function val MakeAD:  nat * data -> bytes
 assume !sn,ad. MakeAD(sn,ad) = IntBytes(8,sn) @| ad

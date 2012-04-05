@@ -11,7 +11,7 @@ open AEAD
 
 type (;ki:KeyInfo) ConnectionState =
 	| NullState
-	| SomeState of (;ki)StatefulAEAD.state
+	| SomeState of (;ki)TLSFragment.history * (;ki)StatefulAEAD.state
 
 type (;ki:KeyInfo) sendState = (;ki) ConnectionState 
 type (;ki:KeyInfo) recvState = (;ki) ConnectionState

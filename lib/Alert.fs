@@ -5,6 +5,7 @@ open Error
 open Formats
 open TLSInfo
 open AlertPlain
+open DataStream
 
 type pre_al_state = {
   al_incoming: bytes (* incomplete incoming message *)
@@ -168,8 +169,9 @@ let handle_alert ci state alDesc =
         else
             ALAck   (state)
 
-let recv_fragment (ci:ConnectionInfo) state (tlen:DataStream.range) (data:fragment) =
-    let fragment = repr ci.id_in data in
+let recv_fragment (ci:ConnectionInfo) state (r:range) (data:fragment) =
+    // FIXME: we should have a stream, and we should build a fragment, not sbytes
+    let fragment = repr ci.id_in r data in
     match state.al_incoming with
     | [||] ->
         (* Empty buffer *)
@@ -177,7 +179,7 @@ let recv_fragment (ci:ConnectionInfo) state (tlen:DataStream.range) (data:fragme
         | 0 -> Error(Parsing,WrongInputParameters) (* Empty alert fragments are invalid *)
         | 1 -> Correct (ALAck ({state with al_incoming = fragment})) (* Buffer this partial alert *)
         | _ -> (* Full alert received *)
-            let (al,rem) = split fragment 2 in
+            let (al,rem) = Bytes.split fragment 2 in
             if length rem <> 0 then (* Check there are no more data *)
                 Error(Parsing,WrongInputParameters)
             else
@@ -188,7 +190,7 @@ let recv_fragment (ci:ConnectionInfo) state (tlen:DataStream.range) (data:fragme
         match length fragment with
         | 0 -> Error(Parsing,WrongInputParameters) (* Empty alert fragments are invalid *)
         | _ -> 
-            let (part2,rem) = split fragment 1 in
+            let (part2,rem) = Bytes.split fragment 1 in
             if length rem <> 0 then (* Check there are no more data *)
                 Error(Parsing,WrongInputParameters)
             else
