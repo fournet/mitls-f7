@@ -27,6 +27,37 @@ definition !ki,ad,r,x. AEADSays(ki,ad,r,x) <=>
 		History(ki,sn,ConsHistory(h,ad',r,x)) /\ ad = MakeAD(sn,ad')
 	)
 
-definition !ki,ad,r,x,. AEADSays(ki,ad,r,x) <=>
-	(?Before(ki,h,ad',r,x)
-	)
+////////////////////////////////////////////////////////////
+// How I would like the stack to look like:
+
+// Top level protocol:
+assume Before(ki,s,r,f) // when creating a delta
+
+// TLSFragment
+definition !ki,h,ct,r,f. HBefore(ki,h,ct,r,f) <=>
+	?s. Before(ki,s,r,f) /\ s = Select(ki,h,ct)
+
+// StatefulAEAD
+definition !ki,h,ad,r,f. SBefore(ki,h,ad,r,f) <=>
+	?H,ct. HBefore(ki,H,ct,r,f) /\ H = Project(ki,h) /\ ad = ADBytes(ki,ct)
+
+// AEAD
+definition !ki,ad,r,f. AEADSays(ki,ad,r,f) <=> ?h,ad'. SBefore(ki,h,ad',r,f) /\ ad = MakeAD(ki,h,ad')
+
+// Fragments at each level are defined as
+type (;id:ID,rest:REST)fragment = (;id)sbytes{XBefore(id,rest,f)}
+
+// Invariants on histories: NOT CLEAR YET. However, the idea looks like:
+
+H = Project(ki,h) // and
+s = Select(ki,h,ct)
+// are the proper invariants.
+// E.g.: in Record (whose plain is TLSFragment), when decrypting:
+// Before decryption, I know
+H = Project(ki,StatefulAEAD.GetHistory(StatefulAEAD.state))
+// Then we invoke StatefulAEAD.decrypt, and we get back
+state'{SExtend(state.history,state'.history)} // and
+plain
+// Then we cast plain to fragment, and we add fragment to our history
+H' = HExtend(H,fragment)
+// It looks like we need to define HExtend in terms of SExtend. (Right?)

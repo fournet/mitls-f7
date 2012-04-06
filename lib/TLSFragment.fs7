@@ -7,19 +7,19 @@ open CipherSuites
 open DataStream
 
 // Plain type for Dispatch and Record
-type (;ki:KeyInfo) history = {
+private type (;ki:KeyInfo) history = {
   handshake: (;ki) HandshakePlain.stream;
   alert: (;ki) AlertPlain.stream;
   ccs: (;ki) HandshakePlain.stream;
   appdata: (;ki) AppDataStream.stream;
   }
 
-function val EmptyStreams: history -> bool
-val emptyHistory: ki:KeyInfo -> h:(;ki)history{EmptyStreams(h)}
+function val EmptyStreams: ki:KeyInfo -> (;ki)history -> bool
+val emptyHistory: ki:KeyInfo -> h:(;ki)history{EmptyStreams(ki,h)}
 
 function val Multiplexed: KeyInfo * history -> bool
 
-function val ConsStream: KeyInfo * ContentType * history * delta -> history
+function val ConsStream: ki:KeyInfo * ContentType * (;ki)history * 'a -> history
 assume !ki,h,d. ConsStream(ki,Formats.Handshake,h,d) =
 	 { handshake = ConcatStream(ki,h.handshake,d);
 	   alert = h.alert;
@@ -39,17 +39,17 @@ assume !ki,h,d. ConsStream(ki,Formats.Handshake,h,d) =
 	 { handshake = h.handshake;
 	   alert = h.alert;
 	   ccs = h.ccs;
-	   appdata = ConcatStream(ki,h.appdata,d)}
+	   appdata = ExtendStream(ki,h.appdata,d)}
+
 
 type (;ki:KeyInfo,ct:ContentType,h:(;ki) history,rg:range) fragment =
-    | FHandshake of f:(;ki,h.handshake,rg)HandshakePlain.fragment    {ct=Formats.Handshake /\ Multiplexed(ki,(ConsStream(ki,ct,h,f)))}
-    | FCCS       of f:(;ki,h.ccs,rg)HandshakePlain.ccsFragment {ct=Change_cipher_spec /\ Multiplexed(ki,(ConsStream(ki,ct,h,f)))}
-    | FAlert     of f:(;ki,h.alert,rg)AlertPlain.fragment        {ct=Alert /\ Multiplexed(ki,(ConsStream(ki,ct,h,f)))}
-    | FAppData   of f:(;ki,h.appdata,rg)AppDataStream.fragment {ct=Application_data /\ Multiplexed(ki,(ConsStream(ki,ct,h,f)))}
+    | FHandshake of f:(;ki,h.handshake,rg)HandshakePlain.fragment    {ct=Formats.Handshake}
+    | FCCS       of f:(;ki,h.ccs,rg)HandshakePlain.ccsFragment {ct=Change_cipher_spec}
+    | FAlert     of f:(;ki,h.alert,rg)AlertPlain.fragment        {ct=Alert}
+    | FAppData   of f:(;ki,h.appdata,rg)AppDataStream.fragment {ct=Application_data}
 
-val addToStreams: ki:KeyInfo -> ct:ContentType -> ss:(;ki)history{Multiplexed(ki,ss)} -> r:range ->
-	(;ki,ct,ss,r)fragment -> ss':(;ki)history{Multiplexed(ki,ss')}
-
+val addToStreams: ki:KeyInfo -> ct:ContentType -> ss:(;ki)history -> r:range ->
+	f:(;ki,ct,ss,r)fragment -> ss':(;ki)history{ss' = ConsStream(ki,ct,ss,f)}
 
 // Deprecated
 // FIXME: Circular dependency!
