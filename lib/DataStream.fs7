@@ -3,49 +3,51 @@ open TLSInfo
 open Bytes
 open Error
 
+// Secret bytes arrays indexed by ranges.
+
 type range = l:nat * h:nat { l <= h } (* length range *)
 type (;r:range) rbytes = b:bytes { ?l,h. r = (l,h) /\ l <= Length(b) /\ Length(b) <= h }   
 
-// The global plain used everywhere
-// AP Maybe this is useless, and we could just keep all plains as bytes, and make them abstract
 private type (;ki:KeyInfo,r:range) sbytes = {secb:(;r)rbytes}
+
+// Plain and repr for the sbytes type.
+val plain: ki:KeyInfo{not Safe(ki)} -> r:range -> (;r)rbytes -> x:(;ki,r)sbytes
+val repr:  ki:KeyInfo{not Safe(ki)} -> r:range -> x:(;ki,r)sbytes -> (;r)rbytes
 
 function val Sum: range * range -> range
 assume !l0,h0,l1,h1. Sum((l0,h0),(l1,h1)) = (l0+l1,h0+h1)
 val rangeSum: r0:range -> r1:range -> r:range{r = Sum(r0,r1)}
 
+// User-provided code
+
 private type (;ki:KeyInfo) stream = {sb:bytes}
 
-function val Before: KeyInfo * stream * range * sbytes -> bool
+predicate Before of ki:KeyInfo * (;ki)stream * r:range * (;ki,r)sbytes
 
 private type (;ki:KeyInfo, before: (;ki) stream, r:range) delta = x:(;ki,r) sbytes{Before(ki,before,r,x)}
 
-val init: ki:KeyInfo -> s:(;ki) stream{s.sb = [| |]}
+function type es = EmptyStream of KeyInfo
+private assume !ki. EmptyStream(ki) = {sb = [| |]}
+val init: ki:KeyInfo -> s:(;ki) stream{s = EmptyStream(ki)}
 
-function val ConcatStream: KeyInfo * stream * delta -> stream
-assume !ki,s,d. ConcatStream(ki,s,d) = {sb = s.sb @| d.secb}
+function val ExtendStream: ki:KeyInfo * s:(;ki)stream * (;ki,s,(0,0))delta -> (;ki)stream
+private assume !ki,s,d. ExtendStream(ki,s,d) = {sb = s.sb @| d.secb}
+
 
 val append: 
   ki:KeyInfo -> s: (;ki) stream -> r:range ->
-  d:(;ki,s,r) delta -> s':(;ki) stream{s'.sb = s.sb @| d.secb}
+  d:(;ki,s,r) delta -> s':(;ki) stream{s' = ExtendStream(ki,s,d)}
 
 val split: ki:KeyInfo -> s:(;ki) stream -> 
   r0:range -> r1:range -> d:(;ki,s,Sum(r0,r1)) delta -> 
-  (d0:(;ki,s,r0) delta * d1:(;ki,{sb = s.sb @| d0.secb},r1) delta)
+  (d0:(;ki,s,r0) delta * d1:(;ki,ExtendStream(ki,s,d0),r1) delta)
 
 val join: ki:KeyInfo -> s:(;ki) stream -> 
   r0:range -> d0:(;ki,s,r0) delta -> 
-  r1:range -> d1:(;ki,{sb = s.sb @| d0.secb},r1) delta -> (;ki,s,Sum(r0,r1)) delta
-
-// Plain and repr for the sbytes type.
-// These are the "base" plain/repr functions used by all other plains,
-// which build on top of sbytes
-val plain: ki:KeyInfo{not Safe(ki)} -> r:range -> (;r)rbytes -> x:(;ki,r)sbytes
-val repr:  ki:KeyInfo{not Safe(ki)} -> r:range -> x:(;ki,r)sbytes -> (;r)rbytes
+  r1:range -> d1:(;ki,ExtendStream(ki,s,d0),r1) delta -> (;ki,s,Sum(r0,r1)) delta
 
 // Plain/repr for "delta" (built on top of the base ones)
 val delta: 
-  ki:KeyInfo{not Safe(ki)} -> s:(;ki) stream -> r:range -> b:(;r) rbytes -> c: (;ki,s,r) delta  
+  ki:KeyInfo -> s:(;ki) stream -> r:range -> b:(;r) rbytes -> c: (;ki,s,r) delta  
 val deltaRepr: 
-  ki:KeyInfo{not Safe(ki)} -> s:(;ki) stream -> r:range -> c: (;ki,s,r) delta -> (;r) rbytes
-
+  ki:KeyInfo -> s:(;ki) stream -> r:range -> c: (;ki,s,r) delta -> (;r) rbytes

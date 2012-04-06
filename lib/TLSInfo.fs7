@@ -63,7 +63,7 @@ type CI = c:preCI
 //      (that the the peer certificates (if any) have been authorized is not a public invariant) 
 
 //predicate function SameEpoch: CI * CI -> bool
-function val SameEpoch: CI * CI -> bool
+predicate SameEpoch of CI * CI
 definition !c,c'. SameEpoch(c,c') <=> 
   (c'.current = c.current /\ 
   (c.next = None \/ c'.next = c.next) /\ // we may need something more general, like Finer(c'.next,c.next) 
