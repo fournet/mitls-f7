@@ -44,19 +44,19 @@ let makeAD pv ct =
     then bct
     else bct @| bver
 
-let parseAD pv ad =
-    if pv = SSL_3p0 then
-      match parseCT ad with
-        | Error(x,y) -> unexpectedError "[parseAD] should always be invoked on valid additional data"
-        | Correct(ct) -> ct
-    else
-      let (ct1,bver) = Bytes.split ad 1 in
-        if bver <> versionBytes pv then
-          unexpectedError "[parseAD] should always be invoked on valid additional data"
-        else
-          match parseCT ct1 with
-            | Error(x,y) -> unexpectedError "[parseAD] should always be invoked on valid additional data"
-            | Correct(ct) -> ct
+//let parseAD pv ad =
+//    if pv = SSL_3p0 then
+//      match parseCT ad with
+//        | Error(x,y) -> unexpectedError "[parseAD] should always be invoked on valid additional data"
+//        | Correct(ct) -> ct
+//    else
+//      let (ct1,bver) = Bytes.split ad 1 in
+//        if bver <> versionBytes pv then
+//          unexpectedError "[parseAD] should always be invoked on valid additional data"
+//        else
+//          match parseCT ct1 with
+//            | Error(x,y) -> unexpectedError "[parseAD] should always be invoked on valid additional data"
+//            | Correct(ct) -> ct
 
 
 let TLSFragmentRepr ki (ct:ContentType) (h:history) (rg:DataStream.range) frag =

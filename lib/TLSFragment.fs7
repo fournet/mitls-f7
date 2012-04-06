@@ -106,9 +106,9 @@ ask !ki,ct. Length(ADBytes(ki,ct)) = (ADLength(ki) - 8)
 private val makeAD: ki:KeyInfo -> ct:ContentType ->
 	  ad: (;ki)addData{ad=ADBytes(ki,ct)}
 
-private val parseAD: ki:KeyInfo -> 
-          ad: (;ki)addData -> 
-          ct:ContentType{ad=ADBytes(ki,ct)}
+//private val parseAD: ki:KeyInfo -> 
+//          ad: (;ki)addData -> 
+//          ct:ContentType{ad=ADBytes(ki,ct)}
 
 
 

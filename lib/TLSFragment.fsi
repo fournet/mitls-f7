@@ -29,7 +29,7 @@ val TLSFragment: KeyInfo -> ContentType -> history -> range -> bytes -> fragment
 
 type addData = bytes
 val makeAD: ProtocolVersion -> ContentType -> addData
-val parseAD: ProtocolVersion -> addData -> ContentType 
+//val parseAD: ProtocolVersion -> addData -> ContentType 
 
 //val emptyHistory: KeyInfo -> history
 //val addFragment: KeyInfo -> ContentType -> history -> range -> fragment -> history

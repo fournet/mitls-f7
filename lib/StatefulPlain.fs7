@@ -9,35 +9,39 @@ open CipherSuites
 
 type (;ki:KeyInfo) data = (b:bytes){Length(b) = TLSFragment.ADLength(ki) - 8}
 
-type (;ki:KeyInfo)history =
+private type (;ki:KeyInfo)prehistory =
 	| Empty
-	| ConsHistory of h:(;ki)history * ad:data * r:range * (;ki,r)sbytes
+	| ConsHistory of h:(;ki)prehistory * ad:data * r:range * (;ki,r)sbytes
 
-val emptyHistory: ki:KeyInfo -> h:(;ki)history{h = Empty}
-// This function will assume History, or it might avoid if we have some
-// Multiplexed predicate coming from above...
-val addToHistory: ki:KeyInfo -> h:(;ki)history -> ad:data -> r:range -> x:(;ki,r)sbytes ->
-	h':(;ki)history{h' = ConsHistory(h,ad,r,x)}
+function val HLength: prehistory -> nat
+private assume HLength(Empty) = 0
+private assume !ki,h,ad,r,x. HLength(ConsHistory(h,ad,r,x)) = HLength(h)+1
 
-// Let's make a predicate of these definitions: ValidMultiplexing(h,ss),
-// where h is history, and ss is TLSFragment.history (should we call it "streams" to avoid confusion?)
-function val ValidMultiplexing: history * TLSFragment.history -> bool
-function val History: KeyInfo * nat * history -> bool
-assume !ki. History(ki,0,Empty) <=> ?ss. (Multiplexed(ki,ss) /\ EmptyStreams(ss))
-assume !ki,sn,ct,f.
-	?h,r. History(ki,sn,ConsHistory(h,ADBytes(ki,ct),r,f)) <=>
-	?ss. Multiplexed(ki,ConsStream(ki,ct,ss,f)) // FIXME: glitch on ranges: should be !r
+// FIXME: Not sure about the usefulness of the History predicate anymore
+predicate type hist = History of KeyInfo * nat * prehistory
 
-function val SeqN: history -> nat
-assume SeqN(Empty) = 0
-assume !ki,h,ad,r,x. SeqN(ConsHistory(h,ad,r,x)) = SeqN(h)+1
+// History and seqn are bijective
+assume !ki,h,h',sn. History(ki,sn,h) /\ History(ki,sn,h') => h = h'
+// Possibly replaced by
+//assume !h,h'. HLength(h) = HLength(h') => h = h'
+//ask !ki,sn,h,h'. SeqN(ki,(sn,h)) = SeqN(ki,(sn,h')) => h = h'
+
+private type (;ki:KeyInfo)history = (sn:nat * h:(;ki)prehistory){History(ki,sn,h) /\ sn = HLength(h)}
+
+function val SeqN: ki:KeyInfo * (;ki)history -> nat
+private assume !ki,sn,h. SeqN(ki,(sn,h)) = sn
+
+predicate type hbef = HBefore of KeyInfo * history * data * range * sbytes
+
+val emptyHistory: ki:KeyInfo -> h:(;ki)history{SeqN(ki,h) = 0}
+// This function will assume HBefore (was: History)
+val addToHistory: ki:KeyInfo -> h:(;ki)history ->
+	ad:data -> r:range -> x:(;ki,r)sbytes ->
+	h':(;ki)history{SeqN(ki,h') = SeqN(ki,h)+1 /\ Extends(ki,h,ad,r,x)}
 
 type (;ki:KeyInfo,h:history,ad:data,r:range)fragment =
-	x:(;ki,r)sbytes {Safe(ki) => History(ki,SeqN(h)+1,ConsHistory(h,ad,r,x))}
-
-//val addFragment: ki:KeyInfo -> seqn:nat -> h:(;ki)history{History(ki,seqn,h)} -> ad:data -> r:range -> f:(;ki,h,ad,r) fragment ->
-//			     seqn':nat * h': (;ki)history{History(ki,seqn',h')} // History(ki,seqn',h') will be assumed by this function
-
+	x:(;ki,r)sbytes// {Safe(ki) => History(ki,SeqN(h)+1,ConsHistory(h,ad,r,x))}
+					{Safe(ki) => Extends(ki,h,ad,r,x)}
 val fragment: ki:KeyInfo{not Safe(ki)} -> h:(;ki)history -> ad:data -> r:range -> bytes -> (;ki,h,ad,r) fragment
 val repr: ki:KeyInfo{not Safe(ki)} -> h:(;ki)history -> ad:data -> r:range -> (;ki,h,ad,r) fragment -> bytes
 
@@ -49,10 +53,10 @@ val fragmentToTLSFragment: ki:KeyInfo -> ct:ContentType ->
 	h:(;ki)history -> ss:(;ki)TLSFragment.history{ValidMultiplexing(h,ss)} -> r:range ->
 	(;ki,h,ADBytes(ki,ct),r)fragment -> (;ki,ct,ss,r)TLSFragment.fragment
 
-function val MakeAD:  nat * data -> bytes
-assume !sn,ad. MakeAD(sn,ad) = IntBytes(8,sn) @| ad
+function val MakeAD:  ki:KeyInfo * (;ki)history * (;ki)data -> bytes
+assume !ki,h,ad. MakeAD(ki,h,ad) = IntBytes(8,SeqN(ki,h)) @| ad
 
-val makeAD:  ki:KeyInfo -> sn:nat -> ad:(;ki)data ->
-	b:bytes{b=MakeAD(sn,ad) /\ Length(b) = TLSFragment.ADLength(ki)}
-val parseAD: ki:KeyInfo -> b:bytes{Length(b) = TLSFragment.ADLength(ki)} ->
-	(sn:nat * ad:(;ki)data){b=MakeAD(sn,ad)}
+val makeAD:  ki:KeyInfo -> h:(;ki)history -> ad:(;ki)data ->
+	b:bytes{b=MakeAD(ki,h,ad) /\ Length(b) = TLSFragment.ADLength(ki)}
+// val parseAD: ki:KeyInfo -> b:bytes{Length(b) = TLSFragment.ADLength(ki)} ->
+//	(sn:nat * ad:(;ki)data){b=MakeAD(sn,ad)}

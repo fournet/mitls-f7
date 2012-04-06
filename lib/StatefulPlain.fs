@@ -17,10 +17,10 @@ let addToHistory (ki:KeyInfo) h d r x = ConsHistory(h,d,r,x)
 
 type fragment = sbytes
 
-let parseAD ad = 
-  let bs,ad' = Bytes.split ad 8 in
-  let n = seq_of_bytes bs in 
-    (n,ad')
+// let parseAD ad = 
+//   let bs,ad' = Bytes.split ad 8 in
+//   let n = seq_of_bytes bs in 
+//     (n,ad')
 
 let makeAD n ad =
   let bn = bytes_of_seq n in

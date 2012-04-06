@@ -9,23 +9,24 @@ type (;ki:KeyInfo) data = (b:bytes){Length(b) = TLSFragment.ADLength(ki)}
 
 function val AEADSays: KeyInfo -> data -> range -> sbytes -> bool
 
-type (;ki:KeyInfo,r:range,ad:data) plain = x:(;ki,r)sbytes{Safe(ki) => AEADSays(ki,ad,r,x)}
+private type (;ki:KeyInfo,r:range,ad:data) plain = x:(;ki,r)sbytes{Safe(ki) => AEADSays(ki,ad,r,x)}
 
 val plain: ki:KeyInfo{not Safe(ki)} -> r:range -> ad:data -> bytes -> (;ki,ad,r) plain
 val repr:  ki:KeyInfo{not Safe(ki)} -> r:range -> ad:data -> (;ki,ad,r) plain -> bytes
 
 
 
-
-
-
 val fragmentToPlain: ki:KeyInfo -> h:history -> ad:StatefulPlain.data -> r:range -> (;ki,h,ad,r)fragment ->
-	(;ki,r,MakeAD(SeqN(h),ad))plain
+	(;ki,r,MakeAD(ki,h,ad))plain
 
 val plainToFragment: ki:KeyInfo -> h:history -> ad:StatefulPlain.data -> r:range ->
-	(;ki,r,MakeAD(SeqN(h),ad))plain -> (;ki,h,ad,r)fragment
+	(;ki,r,MakeAD(ki,h,ad))plain -> (;ki,h,ad,r)fragment
 
-assume !ki,ad,r,x. History(ki,0,Empty) <=> AEADSays(ki,MakeAD(0,ad),r,x)
+definition !ki,ad,r,x. AEADSays(ki,ad,r,x) <=>
+	(?h,sn,ad'.
+		History(ki,sn,ConsHistory(h,ad',r,x)) /\ ad = MakeAD(sn,ad')
+	)
 
-assume !ki,sn,ad,r,x.
-	?h. History(ki,sn,ConsHistory(h,ad,r,x)) <=> AEADSays(ki,MakeAD(sn,ad),r,x)
+definition !ki,ad,r,x,. AEADSays(ki,ad,r,x) <=>
+	(?Before(ki,h,ad',r,x)
+	)

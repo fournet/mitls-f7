@@ -23,4 +23,4 @@ val TLSFragmentToFragment: KeyInfo -> ContentType -> history -> TLSFragment.hist
 val fragmentToTLSFragment: KeyInfo -> ContentType -> history -> TLSFragment.history -> range -> fragment -> TLSFragment.fragment
 
 val makeAD: nat -> bytes -> bytes
-val parseAD: bytes -> nat * bytes
+// val parseAD: bytes -> nat * bytes
