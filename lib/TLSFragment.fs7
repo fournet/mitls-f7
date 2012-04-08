@@ -39,7 +39,7 @@ assume !ki,h,d. ConsStream(ki,Formats.Application_data,h,d) =
 	 { handshake = h.handshake;
 	   alert = h.alert;
 	   ccs = h.ccs;
-	   appdata = ExtendStream(ki,h.appdata,d)}
+	   appdata = ExtendStream(ki,h.appdata,d)} //MK: TODO why ExtendStream instead of ConcatStream? ExtendStream defined in DataStream.fs7
 
 
 type (;ki:KeyInfo,ct:ContentType,h:(;ki) history,rg:range) fragment =
