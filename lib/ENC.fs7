@@ -40,7 +40,6 @@ predicate ENCrypted of
 
 // TODO: We need to refine cipher before applying CPA
 
- syntax error
 val ENC: ki:KeyInfo -> s:(;ki) encryptor -> tlen:int -> p:(;ki,tlen) plain -> 
   ( (s':(;ki) encryptor{StateID(s') = StateID(s)+1}) *
    (c:cipher{ENCrypted(ki,tlen,StateID(s),p,c) /\ Length(c)=tlen}) )

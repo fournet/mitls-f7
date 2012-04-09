@@ -9,14 +9,14 @@ open Formats
 
 type cipher = bytes
 
-(* Raw symmetric enc/dec functions -- 
-   Although in principle these functions could throw exceptions,
+(* Raw symmetric functions for encryption and decryption.
+   Although in principle their concrete implementations may throw exceptions,
    we claim they can never do that:
-   ArgumentException: we always pass a readable/writable and valid stream
-   NotSupportedException: we always give a writable (readable) stream to write (read)
+   ArgumentException:           we always pass a readable/writable and valid stream
+   NotSupportedException:       we always give a writable (readable) stream to write (read)
    ArgumentOutOfRangeException: data.Length is always greater than zero
-   ArgumentException: 0+data.Length is never longer than data.Length
-   CryptographicException: The key is never corrupt
+   ArgumentException:           0+data.Length is never longer than data.Length
+   CryptographicException:      The key is never corrupt
 *)
 
 let symEncrypt enc data =

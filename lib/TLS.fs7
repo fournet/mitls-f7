@@ -11,6 +11,7 @@ open TLSInfo
 //TODO: change Direction to role 
 //KB: I disagree. Directions are the right abstraction for KeyInfo. 
 //    If need be, it would be better to define a role in ConnectionInfo.
+//CF: ?? Client is more natural than CtoS here. For now we have a painful mix of the two. 
 
 type role = Direction
 
@@ -30,10 +31,15 @@ assume !ki. Peer(ki) = { id_in = ki.id_out; id_out = ki.id_in }
 // Security predicates and events; may be defined elsewhere
 predicate val TXT: index -> bool
 predicate val SEC: index -> bool
-predicate val Fatal:   (index * bytes) -> bool
-predicate val Warning: (index * bytes) -> bool
-predicate val Close:   (index * bytes) -> bool
+
 predicate val Write:   (index * bytes) -> bool
+predicate val Warning: (index * bytes) -> bool // missing argument
+predicate val Close:   (index * bytes) -> bool
+predicate val Fatal:   (index * bytes) -> bool // missing argument
+// Write records increasing prefixes of the stream, for each written data fragment, 
+// interleaved with warnings, ended by Fatal or Close [we may distinguish between two kinds of close too]
+// Write(i,p0), ..., Write(i,p0 @| ... @| pi), Warning(i,p0 @| ... @| pi), ..., Close(i, p0 @| ... @| pn)
+
 // predicate val Read :   (index * bytes) -> bool //AP: Unused. Everything is defined as a correspondence on Write
 
 function val CnId: c:cn -> index
@@ -52,7 +58,7 @@ assume !c. Bytes_i(c) = CnStream_o(c)
 // !ci,s. ci.pending      => Bytes_o(Conn(ci,s)) = OutStream(ci.next,    s.appdata)
 // !ci,s. not(ci.pending) => Bytes_o(Conn(ci,s)) = OutStream(ci.current, s.appdata)
 
-// These types embed the a precise range for message lengths
+// These types embed a precise range for message lengths
 type (;c:cn) msg_i = r:range * (;ConnectionInKeyInfo(c),  CnStream_i(c), r) delta
 type (;c:cn) msg_o = r:range * (;ConnectionOutKeyInfo(c), CnStream_o(c), r) delta
 
@@ -63,6 +69,7 @@ predicate val Extend:   (c:cn * c':cn) -> bool
 predicate val Extend_o: (c:cn * c':cn * (;c) msg_o) -> bool
 predicate val Extend_i: (c:cn * c':cn * (;c) msg_i) -> bool
 
+// updating c within the same epoch
 type (;c:cn) nextCn = c':cn {  Role(c')    = Role(c) 
                             /\ CnId(c')    = CnId(c)
                             /\ Params(c')  = Params(c) }
@@ -87,7 +94,7 @@ type (;c:cn) query
 
 type (;c:cn) ioresult_i =
 | Read      of c':(;c) nextCn * d:(;c) msg_i
-  {Extend_i(c,c',d) /\ TXT(CnId(c)) => Write(Peer(CnId(c)), Bytes_i(c')) }
+  {Extend_i(c,c',d) /\ (TXT(CnId(c)) => Write(Peer(CnId(c)), Bytes_i(c'))) }
   // We received a data fragment, appended to the input stream)
 
 | Close     of Tcp.NetworkStream  {TXT(CnId(c)) => Close(Peer(CnId(c)), Bytes_i(c))}
@@ -96,13 +103,13 @@ type (;c:cn) ioresult_i =
   // and we get back the underlying TCP connection. 
 
 | ReadError of alertDescription option 
-  // We encountered an error while reading; 
+  // We encountered an error while reading, so the connection dies. 
   // we return the fatal alert we may have sent, if any,
   // or None in case of an internal error.
 
 | Fatal     of a:alertDescription {TXT(CnId(c)) => Fatal(Peer(CnId(c)), a, Bytes_i(c))}
-  // We received an alert notifying the abnornal closure of the connection
-  // We learn that we have read everyting sent by our peer.
+  // We received an alert notifying the abnornal closure of the connection by our peer
+  // We learn that we have read everything sent by our peer.
   
 | Warning   of c':(;c) nextCn * a:alertDescription 
   {Extend(c,c') /\ TXT(CnId(c)) => Warning(Peer(CnId(c)), a, Bytes_i(c))}
@@ -123,7 +130,7 @@ type (;c:cn) ioresult_i =
 	}
   // We completed a run of the Handshake, moving to the next epoch.
   // we learn that we have read everything sent by our peer in the closing epoch
-  // TODO: we could learn that our peer has read everything we sent in the closing epoch
+  // LATER: with additional "Read" events, we could also learn that our peer has read everything we sent in the closing epoch
 	
 	//Cedric: ?? 
 	//AP: /\ Close(CnId(c),Bytes_o(c)) /\  -- and same for Alert protocol, and hanshake.
@@ -138,18 +145,13 @@ type (;c:cn) ioresult_i =
 		/\ Bytes_o(Next(c')) = [||] //?
     } // AP: TXT(index) is not precise enough here:
 	  // in/out directions are not the same, and we want to only refer to the incoming direction
-  // We must wait till the next epoch before writing again.  
+  // We must wait till the next epoch before writing application data again.  
   // Without false start, we have the global invariant that Pending(c) => Bytes_o(c) = [||]
 
 val read : c:cn -> (;c) ioresult_i
-
+// TODO: document the events possibly recorded by calls to read
 
 type (;c:cn,d:(;c) msg_o) ioresult_o =
-| WriteError    of alertDescription option 
-  // We encountered an error while writing; 
-  // we return the fatal alert we may have sent, if any,
-  // or None in case of an internal error.
-
 | WriteComplete of c':(;c) nextCn {Extend_o(c,c',d)}
   // We wrote the message in full. appended to the output stream
 
@@ -158,6 +160,11 @@ type (;c:cn,d:(;c) msg_o) ioresult_o =
 | WritePartial  of c':(;c) nextCn * d':(;c') msg_o 
   { ?d0. Extend_o(c,c',d0) /\ Split_o(c, d, d0, c', d') }
   // We wrote a fragment of the message, appended to the output stream, and return the rest
+
+| WriteError    of alertDescription option 
+  // We encountered an error while writing; 
+  // we return the fatal alert we may have sent, if any,
+  // or None in case of an internal error.
 
 | MustRead      of c':cn 
     {   Role(c')    = Role(c) 
@@ -175,8 +182,7 @@ type (;c:cn,d:(;c) msg_o) ioresult_o =
 // this assumes that Bytes_o(c') does a test on Pending.
 // we can still access the bytes written in c using Current(c)
 
-
-val write: c:cn -> rg:range -> d:(;c,rg) msg_o -> (;c,d) ioresult_o
+val write: c:cn -> d:(;c,rg) msg_o -> (;c,d) ioresult_o
 // On the write side, the following events may be generated:
 // - Write(ki,Bytes_o(c')) 
 // - Close(ki,Bytes_o(c))
@@ -186,6 +192,7 @@ val write: c:cn -> rg:range -> d:(;c,rg) msg_o -> (;c,d) ioresult_o
 // MustRead signals that the connection cannot be used anymore for writing until a new handshake completes. 
 // (it may be a bit too restrictive) 
 
+
 // special NULL_NULL initial connection index
 // cannot be used for data writing (by typing)
 val null: i:index{NullKeyInfo(i.id_in) /\ NullKeyInfo(i.id_out)}
@@ -193,8 +200,10 @@ type (;r:role,p:params) nullCn = c:cn {CnId(c) = null /\ Params(c) = p /\ Role(c
 
 val connect: Tcp.NetworkStream -> p:params                  -> (;Client,p) nullCn Result
 val resume:  Tcp.NetworkStream -> p:params -> sid:sessionID -> (;Client,p) nullCn Result 
-// even if the server declines, we authenticate the client's intent to resume from the sid.
+// even if the server declines, we authenticate the client's intent to resume from this sid.
+
 val accept:  Tcp.NetworkStream -> p:params                  -> (;Server,p) nullCn Result
+
 val shutdown: c:cn -> Tcp.NetworkStream Result
 //was: (c':(;c) nextCn {Extend(c,c')}) Result
 // [shutdown] will internally generate a Close(ki, Bytes_o(c)); releases the TCP socket after shutdown
@@ -203,6 +212,7 @@ val shutdown: c:cn -> Tcp.NetworkStream Result
 // specialized functions for each behavior:
 // - full_shutdown, which returns immediately, and then the user must read until she gets a Close event
 // - half_shutdown, where we internally send (write) our close notify, and then we drop the connection.
+// Cedric: is it a live comment? do we really need both? 
 
 val rekey:       c:cn {Role(c)=CtoS} -> (c':(;c) nextCn {Extend(c,c')}) Result
 val rehandshake: c:cn {Role(c)=CtoS} -> (c':(;c) nextCn {Extend(c,c')}) Result

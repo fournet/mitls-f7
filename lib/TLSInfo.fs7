@@ -10,8 +10,11 @@ type preRole =
 	| Server
 type Role = preRole
 
+//CF 04-09
+// the randoms are not just bytes.
+
 type SessionInfo = {
-    init_crand: bytes;
+    init_crand: bytes; 
     init_srand: bytes;
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;
@@ -36,6 +39,8 @@ type epoch = p:preEpoch
 // 3) Some next epoch, use it for read only
 // 4) Some next epoch, use it for write only
 // 5) Some next epoch, use it for read/write
+// CF: 04-09 This seems to duplicate some logic in dispatch and handshake. To be discussed.
+
 type preCI = {
   current: epoch; 
   next   : epoch option;

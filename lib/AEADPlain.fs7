@@ -9,23 +9,22 @@ type (;ki:KeyInfo) data = (b:bytes){Length(b) = TLSFragment.ADLength(ki)}
 
 function val AEADSays: KeyInfo -> data -> range -> sbytes -> bool
 
-private type (;ki:KeyInfo,r:range,ad:data) plain = x:(;ki,r)sbytes{Safe(ki) => AEADSays(ki,ad,r,x)}
+private type (;ki:KeyInfo,r:range,ad:data) plain = 
+  x:(;ki,r)sbytes{ Safe(ki) => AEADSays(ki,ad,r,x) }
 
+
+// CF 04-09: TODO: add length constraints for those bytes
 val plain: ki:KeyInfo{not Safe(ki)} -> r:range -> ad:data -> bytes -> (;ki,ad,r) plain
 val repr:  ki:KeyInfo{not Safe(ki)} -> r:range -> ad:data -> (;ki,ad,r) plain -> bytes
 
-
-
-val fragmentToPlain: ki:KeyInfo -> h:history -> ad:StatefulPlain.data -> r:range -> (;ki,h,ad,r)fragment ->
-	(;ki,r,MakeAD(ki,h,ad))plain
+val fragmentToPlain: ki:KeyInfo -> h:history -> ad:StatefulPlain.data -> r:range -> 
+  (;ki,h,ad,r)fragment -> (;ki,r,MakeAD(ki,h,ad))plain
 
 val plainToFragment: ki:KeyInfo -> h:history -> ad:StatefulPlain.data -> r:range ->
-	(;ki,r,MakeAD(ki,h,ad))plain -> (;ki,h,ad,r)fragment
+  (;ki,r,MakeAD(ki,h,ad))plain -> (;ki,h,ad,r)fragment
 
 definition !ki,ad,r,x. AEADSays(ki,ad,r,x) <=>
-	(?h,sn,ad'.
-		History(ki,sn,ConsHistory(h,ad',r,x)) /\ ad = MakeAD(sn,ad')
-	)
+  (?h,sn,ad'. History(ki,sn,ConsHistory(h,ad',r,x)) /\ ad = MakeAD(sn,ad'))
 
 ////////////////////////////////////////////////////////////
 // How I would like the stack to look like:

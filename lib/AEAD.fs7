@@ -3,42 +3,56 @@
 open TLSInfo
 open Error
 open DataStream
-open AEADPlain
+open AEADPlain (* parameter *)
 
 private type (;ki:KeyInfo) AEADKey =
     | MtE of ka:(;ki)MAC.key * ke:(;ki)ENC.state // {MtEKey(ki,(ka,ke))}
     | MACOnly of (;ki) MAC.key
-(*  |   GCM of ke:(;ki:AENC.state)  *)
+(*  | GCM of ke:(;ki:AENC.state)  *)
 
 type cipher = bytes
 
-// TODO: Define AEADSize. In the code, (AEADSize * 2) is computed in CipherSuites.getKeyExtensionLength
-val GEN: ki:KeyInfo{Safe(ki)} -> encryptor:(;ki)AEADKey * decryptor:(;ki)AEADKey
-val COERCE: ki:KeyInfo -> b:bytes{Length(b) = AEADSize(ki)} -> (;ki)AEADKey
-val LEAK: ki:KeyInfo -> (;ki)AEADKey -> b:bytes{Length(b) = AEADSize(ki)}
+// TODO: Define AEADSize. 
+// In the code, (AEADSize * 2) is computed in CipherSuites.getKeyExtensionLength
 
-val encrypt: ki:KeyInfo -> 
-  (;ki) AEADKey ->  
-  ad:(;ki) data ->
-  rg:DataStream.range -> 
-  p:(;ki,rg,ad) plain ->
+val GEN:    ki:KeyInfo{Safe(ki)} -> encryptor:(;ki)AEADKey * decryptor:(;ki)AEADKey
+val COERCE: ki:KeyInfo -> b:bytes{Length(b) = AEADSize(ki)} -> (;ki)AEADKey
+val LEAK:   ki:KeyInfo -> (;ki)AEADKey -> b:bytes{Length(b) = AEADSize(ki)}
+
+val encrypt: ki:KeyInfo -> (;ki) AEADKey -> ad:(;ki) data ->
+  rg:range -> p:(;ki,rg,ad) plain ->
   ((;ki) AEADKey * c:cipher){Length(c)=RangeCipher(ki,rg) /\ CTXT(ki,ad,p,c)}
 
-val decrypt: ki:KeyInfo -> 
-  (;ki) AEADKey -> 
-  ad:(;ki) data ->
-  c:cipher ->
-  res: ((;ki) AEADKey * 
-	rg:(rg:range{rg = CipherRange(ki,c)}) * 
-	(;ki,rg,ad) plain) Result{
-    (Safe(ki) => (!rg,p. (res = Correct(rg,p) <=> CTXT(ki,ad,p,c)))) /\
-    (Auth(ki) => (!rg,p. (res = Correct(rg,p) =>  (?c. CTXT(ki,ad,p,c)))))}
+val decrypt: ki:KeyInfo -> (;ki) AEADKey -> ad:(;ki) data ->
+  c:cipher -> r: 
+  ( (;ki) AEADKey * rg:(rg:range{rg = CipherRange(ki,c)}) * (;ki,rg,ad) plain) Result
+  { (Safe(ki) => (!rg,p. (res = Correct(rg,p) <=> CTXT(ki,ad,p,c)))) /\
+    (Auth(ki) => (!rg,p. (res = Correct(rg,p) =>  (?c. CTXT(ki,ad,p,c))))) }
       
-
-
-(* TODOS: (KB: Done?) *)
-(* - Add explicit ciphertext length *)
-(* - Make all iv become iv3: Only TLS 1.0 will use iv, later versions don't. *)
-(*	 The ciphertext has different lengths, depending on the version: *)
-(*   In later versions it includes the fresh iv, in early versions it doensn't. *)
-
+// CF 04-09 discussion points: 
+//
+// plaintext integrity follows from abstraction:
+// - a precondition for coercing to  (;ki,rg,ad) plain is that ki is un-Auth
+// - a precondition for leaking from (;ki,rg,ad) plain is that ki is un-Safe
+//
+// additionally, the decryption refinement guarantees 
+// functional correctness & ciphertext integrity
+// 
+// CTXT(ki,ad,p,c) is a runtime event recorded by encrypt, stating
+// "c is a correct encryption for ki, ad, some rg, and p 
+//
+// the range for encryption is not recorded in CTXT,
+// (as indeed only the secret length is authenticated, not the range).
+//
+// our interface is compatible with state for the underlying encryption
+// (but does not rely on it); this is convenient for RC4, for IVs in old TLS
+//
+// how do we deal with corrupted peers? 
+// why do we have two cases? I propose instead:
+//
+// Auth(ki) => 
+// ( !p. res = Correct(CipherRange(ki,c),p) <=> CTXT(ki,ad,p,c) )
+//
+// We are still in-between encryptor/decryptor and keys, why? 
+// Are TLS 1.0 IVs now part of the mutable key? 
+// Note that RangeCipher depends on the TLS version too.

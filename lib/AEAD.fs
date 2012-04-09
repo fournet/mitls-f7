@@ -54,48 +54,45 @@ let LEAK ki k =
 let encrypt ki key data rg plain =
     match key with
     | MtE (ka,ke) ->
-        let maced   = AEPlain.concat ki rg data plain
-        let tag     = AEPlain.mac    ki ka maced  
+        let maced          = AEPlain.concat ki rg data plain
+        let tag            = AEPlain.mac    ki ka maced  
         let (tlen,encoded) = AEPlain.encode ki rg data plain tag
-        let (ke,res) = ENC.ENC ki ke tlen encoded in
+        let (ke,res)       = ENC.ENC ki ke tlen encoded 
         (MtE(ka,ke),res)
     | MACOnly (ka) ->
-        let maced   = AEPlain.concat ki rg data plain
-        let tag     = AEPlain.mac    ki ka maced  
+        let maced          = AEPlain.concat ki rg data plain
+        let tag            = AEPlain.mac    ki ka maced  
         let (tlen,encoded) = AEPlain.encodeNoPad ki rg data plain tag
         (key,AEPlain.repr ki tlen encoded)
-
-//  | auth only -> ...
-//  | GCM (GCMKey) -> ... 
+//  | GCM (k) -> ... 
         
 let decrypt ki key data cipher =
     match key with
     | MtE (ka,ke) ->
-        let (ke,encoded)         = ENC.DEC ki ke cipher in
-        let (rg,plain,tag,decodeOk) = AEPlain.decode ki data (length cipher) encoded in
-        let maced                   = AEPlain.concat ki rg data plain 
+        let (ke,encoded)      = ENC.DEC ki ke cipher in
+        let (rg,plain,tag,ok) = AEPlain.decode ki data (length cipher) encoded in
+        let maced             = AEPlain.concat ki rg data plain 
         match ki.sinfo.protocol_version with
         | SSL_3p0 | TLS_1p0 ->
-            if decodeOk
-            then 
-                if AEPlain.verify ki ka maced tag (* padding time oracle *) 
+            if ok then 
+              if AEPlain.verify ki ka maced tag (* padding time oracle *) 
                 then correct(MtE(ka,ke),rg,plain)
                 else Error(MAC,CheckFailed)
             else     Error(RecordPadding,CheckFailed) (* padding error oracle *)
         | TLS_1p1 | TLS_1p2 ->
             if AEPlain.verify ki ka maced tag 
             then 
-                if decodeOk then correct (MtE(ka,ke),rg,plain)                
+              if ok 
+                then correct (MtE(ka,ke),rg,plain)                
                 else Error(MAC,CheckFailed)
             else     Error(MAC,CheckFailed)
     | MACOnly (ka) ->
-        let encoded = AEPlain.plain ki (length cipher) cipher in
+        let encoded        = AEPlain.plain ki (length cipher) cipher in
         let (rg,plain,tag) = AEPlain.decodeNoPad ki data (length cipher) encoded in
         let maced          = AEPlain.concat ki rg data plain
-        if AEPlain.verify ki ka maced tag then
-            correct (key,rg,plain)
-        else
-            Error(MAC,CheckFailed)
+        if AEPlain.verify ki ka maced tag 
+          then correct (key,rg,plain)
+          else Error(MAC,CheckFailed)
 //  | GCM (GCMKey) -> ... 
 
 (*
