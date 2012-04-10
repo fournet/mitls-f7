@@ -44,7 +44,9 @@ val parseCompressions: bytes -> Compression list
 val cipherSuiteBytes: cipherSuite -> bytes
 val cipherSuite_of_bytes: bytes -> cipherSuite Result
 val parseCipherSuites: bytes -> cipherSuites Result
-val bytes_of_cipherSuites: cipherSuites -> bytes 
+val bytes_of_cipherSuites: cipherSuites -> bytes
+
+val maxPadSize: ProtocolVersion -> cipherSuite -> nat
 
 val getKeyExtensionLength: ProtocolVersion -> cipherSuite -> int
 

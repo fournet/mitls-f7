@@ -4,9 +4,6 @@ open TLSInfo
 open Bytes
 open DataStream
 
-// protocol-specific abstract fragment,
-// and associated functions (never to be called with ideal functionality)
-// pretend this is abstract
 type stream = DataStream.stream
 type fragment = delta
 

@@ -19,7 +19,7 @@ val history: KeyInfo -> state -> history
 
 type cipher = ENC.cipher
 
-val encrypt: KeyInfo -> writer ->  data -> DataStream.range -> fragment -> 
+val encrypt: KeyInfo -> writer ->  data -> range -> fragment -> 
   (writer * cipher)
 
 val decrypt: KeyInfo -> reader ->  data -> cipher -> 

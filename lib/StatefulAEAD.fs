@@ -8,8 +8,7 @@ open DataStream
 
 type prestate =
     { key: AEAD.AEADKey;
-      seqn: nat;
-      history: history // ghost
+      history: history // Sequence number + ghost refinement
     }
 
 type state = prestate
@@ -18,12 +17,11 @@ type writer = state
 
 let GEN ki =
     let r,w = AEAD.GEN ki in
-    ( { key = r; seqn = 0; history = emptyHistory ki},
-      { key = w; seqn = 0; history = emptyHistory ki})  
+    ( { key = r; history = emptyHistory ki},
+      { key = w; history = emptyHistory ki})  
 let COERCE ki b =
     let key = AEAD.COERCE ki b in
-    { key = key
-      seqn = 0
+    { key = key;
       history = emptyHistory ki}
 let LEAK ki s =
     AEAD.LEAK ki s.key
@@ -33,24 +31,24 @@ let history (ki:KeyInfo) s = s.history
 type cipher = ENC.cipher
 
 let encrypt (ki:KeyInfo) (w:writer) (ad0:data) (r:range) (f:fragment) =
-  let h = addToHistory ki w.history ad0 r f in
-  let w = {w with history = h} in
-  let pl = AEADPlain.fragmentToPlain ki (history ki w) ad0 r f in
-  let ad = makeAD w.seqn ad0 in
+  let h = w.history in
+  let pl = FragmentToAEADPlain ki h ad0 r f in
+  let ad = makeAD ki h ad0 in
   let key,c = AEAD.encrypt ki w.key ad r pl in
+  let h = addToHistory ki h ad0 r f in
   let w = {w with key = key
-                  seqn = w.seqn+1} in
+                  history = h} in
   (w,c)
 
-let decrypt (ki:KeyInfo) (r:reader) (ad0:data) (e:cipher) = 
-  let ad = makeAD r.seqn ad0 in
+let decrypt (ki:KeyInfo) (r:reader) (ad0:data) (e:cipher) =
+  let h = r.history in
+  let ad = makeAD ki h ad0 in
   let res = AEAD.decrypt ki r.key ad e in
     match res with
       | Correct ((key,rg,pl)) ->
-          let f = AEADPlain.plainToFragment ki (history ki r) ad0 rg pl in
-          let h = addToHistory ki r.history ad0 rg f in
-          let r = {r with history = h
-                          key = key
-                          seqn = r.seqn+1}
+          let f = AEADPlainToFragment ki h ad0 rg pl in
+          let h = addToHistory ki h ad0 rg f in
+          let r = {r with history = h;
+                          key = key}
           Correct ((r,rg,f))
       | Error (x,y) -> Error (x,y)

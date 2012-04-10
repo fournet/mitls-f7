@@ -4,15 +4,18 @@ open Bytes
 open Error
 open Formats
 open TLSInfo
-open AlertPlain
 open DataStream
 
+// FIXME: Port to deltas and streams!
 type pre_al_state = {
   al_incoming: bytes (* incomplete incoming message *)
   al_outgoing: bytes (* emptybstr if nothing to be sent *) 
 }
 
 type state = pre_al_state
+
+type stream = DataStream.stream
+type fragment = delta
 
 let init (ci:ConnectionInfo) = {al_incoming = [||]; al_outgoing = [||]}
 
@@ -143,19 +146,26 @@ let next_fragment ci state =
     | [||] ->
         (EmptyALFrag, state)
     | d ->
-        let (frag,rem) = makeFragment ci.id_out d in
+        // FIXME: cleanup when alert is ported to streams
+        let stream = DataStream.init ci.id_out in
+        let rg = (length d,length d) in
+        let dFull = delta ci.id_out stream rg d in
+        let (r0,r1) = splitRange ci.id_out rg in
+        let (d,dRem) = DataStream.split ci.id_out stream r0 r1 dFull in
+        let frag = deltaRepr ci.id_out stream r0 d in
+        let rem = deltaRepr ci.id_out stream r1 dRem in
         let state = {state with al_outgoing = rem} in
         match rem with
         | [||] ->
             (* We now need to know which alert we're sending, in order to return the proper
                constructor to Dispatch. *)
-            match parseAlert d with
+            match parseAlert frag with
             | Error(x,y) -> unexpectedError "[next_fragment] This invocation of parseAlertDescription should never fail"
             | Correct(ad) ->
                 match ad with
-                | AD_close_notify -> (LastALCloseFrag(frag),state)
-                | _ -> (LastALFrag(frag),state)
-        | _ -> (ALFrag(frag),state)
+                | AD_close_notify -> (LastALCloseFrag(r0,d),state)
+                | _ -> (LastALFrag(r0,d),state)
+        | _ -> (ALFrag(r0,d),state)
 
 let handle_alert ci state alDesc =
     match alDesc with
@@ -170,8 +180,8 @@ let handle_alert ci state alDesc =
             ALAck   (state)
 
 let recv_fragment (ci:ConnectionInfo) state (r:range) (data:fragment) =
-    // FIXME: we should have a stream, and we should build a fragment, not sbytes
-    let fragment = repr ci.id_in r data in
+    // FIXME: cleanup when alert is ported to streams and deltas
+    let fragment = deltaRepr ci.id_in (DataStream.init ci.id_in) r data in
     match state.al_incoming with
     | [||] ->
         (* Empty buffer *)

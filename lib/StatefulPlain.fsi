@@ -1,26 +1,30 @@
 module StatefulPlain
-open Error
 open Bytes
+open Formats
 open TLSInfo
 open DataStream
-open Formats
-open CipherSuites
+open AEADPlain
 
 type data = bytes
 
-type history
-type fragment = sbytes
+type prehistory
+type prefragment
+type history  = (nat * prehistory)
+type fragment = prefragment
 
 val emptyHistory: KeyInfo -> history
-val addToHistory: KeyInfo -> history -> data -> range -> sbytes -> history
+val addToHistory: KeyInfo -> history -> data -> range -> fragment -> history
 
-//val addFragment: KeyInfo -> TLSFragment.history -> data -> range -> fragment -> TLSFragment.history
+val makeAD: KeyInfo -> history -> data -> AEADPlain.data
 
-val fragment: KeyInfo -> TLSFragment.history -> bytes -> range -> bytes -> fragment
-val repr: KeyInfo -> TLSFragment.history -> bytes -> range -> fragment -> bytes
+val fragment: KeyInfo -> history -> data -> range -> bytes -> fragment
+val repr:     KeyInfo -> history -> data -> range -> fragment -> bytes
 
-val TLSFragmentToFragment: KeyInfo -> ContentType -> history -> TLSFragment.history -> range -> TLSFragment.fragment -> fragment
-val fragmentToTLSFragment: KeyInfo -> ContentType -> history -> TLSFragment.history -> range -> fragment -> TLSFragment.fragment
+val contents:  KeyInfo -> history -> data -> range -> fragment -> sbytes
+val construct: KeyInfo -> history -> data -> range -> sbytes -> fragment
 
-val makeAD: nat -> bytes -> bytes
-// val parseAD: bytes -> nat * bytes
+val FragmentToAEADPlain: KeyInfo -> history -> data -> range -> fragment -> AEADPlain
+val AEADPlainToFragment: KeyInfo -> history -> data -> range -> AEADPlain -> fragment
+
+//val TLSFragmentToFragment: KeyInfo -> ContentType -> history -> TLSFragment.history -> range -> TLSFragment.fragment -> fragment
+//val fragmentToTLSFragment: KeyInfo -> ContentType -> history -> TLSFragment.history -> range -> fragment -> TLSFragment.fragment

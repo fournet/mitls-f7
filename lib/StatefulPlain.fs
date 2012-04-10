@@ -1,47 +1,38 @@
 module StatefulPlain
-open Error
 open Bytes
+open Formats
 open TLSInfo
 open DataStream
-open Formats
-open TLSFragment
 
 type data = bytes
 
-type history =
+type prehistory =
     | Empty
-    | ConsHistory of history * data * range * sbytes
+    | ConsHistory of prehistory * data * range * prefragment
+and prefragment = {contents: sbytes}
 
-let emptyHistory (ki:KeyInfo) = Empty
-let addToHistory (ki:KeyInfo) h d r x = ConsHistory(h,d,r,x)
+type history = (nat * prehistory)
+type fragment = prefragment
 
-type fragment = sbytes
+let emptyHistory (ki:KeyInfo) = (0,Empty)
+let addToHistory (ki:KeyInfo) (seqn,h) d r x = (seqn+1,ConsHistory(h,d,r,x))
 
-// let parseAD ad = 
-//   let bs,ad' = Bytes.split ad 8 in
-//   let n = seq_of_bytes bs in 
-//     (n,ad')
-
-let makeAD n ad =
-  let bn = bytes_of_seq n in
+let makeAD (ki:KeyInfo) ((seqn,h):history) ad =
+  let bn = bytes_of_seq seqn in
     bn @| ad
 
-let fragment (ki:KeyInfo) (h:TLSFragment.history) (ad:bytes) (r:range) (b:bytes) = plain ki r b
+let fragment (ki:KeyInfo) (h:history) (ad:data) (r:range) (b:bytes) = {contents = plain ki r b}
 
-let repr (ki:KeyInfo) (h:TLSFragment.history) (ad:bytes) (r:range) (f:fragment) = repr ki r f
+let repr (ki:KeyInfo) (h:history) (ad:data) (r:range) (f:fragment) = repr ki r f.contents
 
-let TLSFragmentToFragment (ki:KeyInfo) (ct:ContentType) (h:history) (ss:TLSFragment.history) (rg:DataStream.range) (f:TLSFragment.fragment) =
-    match f with
-    | FHandshake(f) -> f
-    | FAlert(f) -> f
-    | FCCS(f) -> f
-    | FAppData(f) -> f
+let contents  (ki:KeyInfo) (h:history) (ad:data) (rg:range) f = f.contents
+let construct (ki:KeyInfo) (h:history) (ad:data) (rg:range) c = {contents = c}
 
-let fragmentToTLSFragment (ki:KeyInfo) (ct:ContentType) (h:history) (ss:TLSFragment.history) (rg:range) (f:fragment) =
-    match ct with
-    | Handshake -> FHandshake(f)
-    | Alert -> FAlert(f)
-    | Change_cipher_spec -> FCCS(f)
-    | Application_data -> FAppData(f)
+let FragmentToAEADPlain ki h ad r f =
+    AEADPlain.construct ki r (makeAD ki h ad) f.contents
+
+let AEADPlainToFragment ki h ad r p =
+    let f = AEADPlain.contents ki r (makeAD ki h ad) p in
+    {contents = f}
 
 

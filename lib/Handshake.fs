@@ -9,7 +9,7 @@ open TLSInfo
 open Certificate
 open SessionDB
 open PRFs
-open HandshakePlain
+open DataStream
 
 // BEGIN HS_msg
 
@@ -204,6 +204,10 @@ type finished = bytes
 
 // Handshake module
 
+type stream = DataStream.stream
+type fragment = delta
+type ccsFragment = delta
+
 // Handshake state machines 
 
 type clientSpecificState =
@@ -302,6 +306,19 @@ type HSFragReply =
   | HSWriteSideFinished of (DataStream.range * fragment)
   | HSFullyFinished_Write of (DataStream.range * fragment) * StorableSession
 
+// FIXME: cleanup when handshake is ported to streams and deltas
+let makeFragment ki b =
+    let stream = DataStream.init ki in
+    let rg = (length b,length b) in
+    let dFull = delta ki stream rg b in
+    let (r0,r1) = splitRange ki rg in
+    let (d,dRem) = DataStream.split ki stream r0 r1 dFull in
+    let frag = deltaRepr ki stream r0 d in
+    let rem = deltaRepr ki stream r1 dRem in
+    (((r0,d),(r1,dRem)),(frag,rem))
+
+let makeCCSFragment ki b = makeFragment ki b
+
 let next_fragment ci state =
     (* Assumptions: The buffers have been filled in the following order:
        1) hs_outgoing; 2) ccs_outgoing; 3) hs_outgoing_after_ccs
@@ -321,7 +338,7 @@ let next_fragment ci state =
             | CWaitingToWrite (cSpecState) ->
                 match state.ccs_outgoing with
                 | None ->
-                    let (f,rem) = makeFragment ci.id_out state.hs_outgoing_after_ccs in
+                    let ((d,dRem),(f,rem)) = makeFragment ci.id_out state.hs_outgoing_after_ccs in
                     let state = {state with hs_outgoing_after_ccs = rem} in
                     match rem with
                     | [||] ->
@@ -332,34 +349,34 @@ let next_fragment ci state =
                                   state.next_ms,
                                   Client)
                             let state = goToIdle state
-                            (HSFullyFinished_Write (f,storable_session), state)
+                            (HSFullyFinished_Write (d,storable_session), state)
                         else
                             (* HS write side finished *)
                             let state = {state with pstate = PSClient(CCCS(cSpecState))}
-                            (HSWriteSideFinished (f), state)
-                    | _ -> (HSFrag(f),state)
+                            (HSWriteSideFinished (d), state)
+                    | _ -> (HSFrag(d),state)
                 | Some data ->
                     (* Resetting the ccs_outgoing buffer here is necessary for the current "next_fragment" logic to work.
                        It is ok to forget the associated KeyInfo, because it has already been used to generate
                        the Finished message on our side *)
                     let state = {state with ccs_outgoing = None}
                     let (ccs,kiAndCCS) = data in
-                    let (frag,_) = makeCCSFragment ci.id_out ccs in
-                    (CCSFrag (frag,kiAndCCS), state)
+                    let (d,dRem),(frag,_) = makeCCSFragment ci.id_out ccs in
+                    (CCSFrag (d,kiAndCCS), state)
             | _ -> (EmptyHSFrag,state)
         | PSServer(sstate) ->
             match sstate with
             | SWaitingToWrite (sSpecState) ->
                 match state.ccs_outgoing with
                 | None ->
-                    let (f,rem) = makeFragment ci.id_out state.hs_outgoing_after_ccs in
+                    let (d,dRem),(f,rem) = makeFragment ci.id_out state.hs_outgoing_after_ccs in
                     let state = {state with hs_outgoing_after_ccs = rem} in
                     match rem with
                     | [||] ->
                         if sSpecState.resumed_session then
                             (* HS Write side finished *)
                             let state = {state with pstate = PSServer(SCCS(sSpecState))}
-                            (HSWriteSideFinished (f), state)
+                            (HSWriteSideFinished (d), state)
                         else
                             (* Handshake fully finished *)
                             let storable_session =
@@ -367,21 +384,21 @@ let next_fragment ci state =
                                   state.next_ms,
                                   Client)
                             let state = goToIdle state
-                            (HSFullyFinished_Write (f,storable_session), state)
-                    | _ -> (HSFrag(f), state)
+                            (HSFullyFinished_Write (d,storable_session), state)
+                    | _ -> (HSFrag(d), state)
                 | Some data ->
                     (* Resetting the ccs_outgoing buffer here is necessary for the current "next_fragment" logic to work.
                        It is ok to forget the associated KeyInfo, because it has already been used to generate
                        the Finished message on our side *)
                     let state = {state with ccs_outgoing = None}
                     let (ccs,kiAndCCS) = data in
-                    let (frag,_) = makeCCSFragment ci.id_out ccs in
-                    (CCSFrag (frag,kiAndCCS), state)
+                    let (d,dRem),(frag,_) = makeCCSFragment ci.id_out ccs in
+                    (CCSFrag (d,kiAndCCS), state)
             | _ -> (EmptyHSFrag,state)
     | d ->
-        let (f,rem) = makeFragment ci.id_out d in
+        let (d,dRem),(f,rem) = makeFragment ci.id_out d in
         let state = {state with hs_outgoing = rem} in
-        (HSFrag(f),state)
+        (HSFrag(d),state)
 
 type recv_reply = 
   | HSAck      (* fragment accepted, no visible effect so far *)
@@ -406,13 +423,13 @@ let parseMessage state =
        it is removed from the buffer. *)
     if length state.hs_incoming < 4 then None (* not enough data to start parsing *)
     else
-        let (hstypeb,rem) = split state.hs_incoming 1 in
-        let (lenb,rem) = split rem 3 in
+        let (hstypeb,rem) = Bytes.split state.hs_incoming 1 in
+        let (lenb,rem) = Bytes.split rem 3 in
         let len = int_of_bytes lenb in
         if length rem < len then None (* not enough payload, try next time *)
         else
             let hstype = parseHT hstypeb in
-            let (payload,rem) = split rem len in
+            let (payload,rem) = Bytes.split rem len in
             let state = { state with hs_incoming = rem } in
             let to_log = hstypeb @| lenb @| payload in
             Some(state,hstype,payload,to_log)
@@ -441,7 +458,7 @@ let rec extensionList_of_bytes_int data list =
         (* This is a parsing error, or a malformed extension *)
         Error (HSError(AD_decode_error), HSSendAlert)
     | _ ->
-        let (extTypeBytes,rem) = split data 2 in
+        let (extTypeBytes,rem) = Bytes.split data 2 in
         let extType = hExt_of_bytes extTypeBytes in
         match vlsplit 2 rem with
         | Error(x,y) -> Error (HSError(AD_decode_error), HSSendAlert) (* Parsing error *)
@@ -524,7 +541,7 @@ let makeRandom() = { time = makeTimestamp (); rnd = mkRandom 28}
 let randomBytes r = bytes_of_int 4 r.time @| r.rnd
 let parseRandom data = 
     // Length(data)=32 
-    let (tb,b) = split data 4 
+    let (tb,b) = Bytes.split data 4 
     { time = int_of_bytes tb; rnd = b }
 
 /// Compression algorithms 
@@ -721,11 +738,11 @@ let parseCertificate data =
 let rec parseCertificateTypeList data =
     if length data = 0 then []
     else
-        let (thisByte,data) = split data 1 in
+        let (thisByte,data) = Bytes.split data 1 in
         thisByte :: parseCertificateTypeList data 
 
 let parseSigAlg b = 
-    let (hashb,sigb) = split b 1 
+    let (hashb,sigb) = Bytes.split b 1 
     let hash = int_of_bytes hashb in
     match tls12enum_to_hashAlg hash with
     | Some (hash) when checkSigAlg sigb ->
@@ -737,7 +754,7 @@ let rec parseSigAlgs b parsed =
     match length b with 
     | 0 -> Correct(parsed)
     | 1 -> Error(HSError(AD_illegal_parameter),HSSendAlert)
-    | _ -> let (b0,b) = split b 2 
+    | _ -> let (b0,b) = Bytes.split b 2 
            match parseSigAlg b0 with 
            | Correct(sa) -> parseSigAlgs b (sa::parsed)
            | Error(x,y)  -> Error(x,y)  
@@ -1993,8 +2010,8 @@ let enqueue_fragment (ci:ConnectionInfo) state fragment =
     {state with hs_incoming = new_inc}
 
 let recv_fragment ci (state:hs_state) (r:DataStream.range) (fragment:fragment) =
-    // FIXME: We should biuld a fragment here (having our own stream), and not sbytes
-    let b = DataStream.repr ci.id_in r fragment in 
+    // FIXME: cleanup when Hs is ported to streams and deltas
+    let b = deltaRepr ci.id_in (DataStream.init ci.id_in) r fragment in 
     if length b = 0 then
         // Empty HS fragment are not allowed
         (Error(HSError(AD_decode_error),HSSendAlert),state)
@@ -2005,8 +2022,8 @@ let recv_fragment ci (state:hs_state) (r:DataStream.range) (fragment:fragment) =
         | PSServer (_) -> recv_fragment_server ci state None
 
 let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:DataStream.range) (fragment:ccsFragment): ((KIAndCCS Result) * hs_state) =
-    // FIXME: We should biuld a fragment here (having our own stream), and not sbytes
-    let b = DataStream.repr ci.id_in r fragment in
+    // FIXME: cleanup when Hs is ported to streams and deltas
+    let b = deltaRepr ci.id_in (DataStream.init ci.id_in) r fragment in 
     if equalBytes b CCSBytes then  
         match state.pstate with
         | PSClient (cstate) -> // Check we are in the right state (CCCS) 

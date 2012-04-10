@@ -282,6 +282,24 @@ let verifyDataHashAlg_of_ciphersuite (cs:cipherSuite) =
     | SCSV (_)                -> unexpectedError "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
     | _ -> unexpectedError "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
 
+let maxPadSize pv cs =
+    match cs with
+    | NullCipherSuite
+    | OnlyMACCipherSuite _ -> 0
+    | CipherSuite(_,aead) ->
+        match aead with
+        | AEAD _ -> 0
+        | EncMAC (encAlg,_) ->
+            match encAlg with
+            | RC4_128 -> 0
+            | TDES_EDE_CBC
+            | AES_128_CBC
+            | AES_256_CBC ->
+                match pv with
+                | SSL_3p0 | TLS_1p0 -> blockSize encAlg
+                | TLS_1p1 | TLS_1p2 -> 255
+    | SCSV _ -> unexpectedError "[maxPadSize] invoked on an invalid ciphersuite"
+
 let mkIntTriple x:(int*int*int) = x
 
 let getKeyExtensionLength pv cs =

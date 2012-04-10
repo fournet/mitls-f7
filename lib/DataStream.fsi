@@ -10,10 +10,18 @@ val fragmentLength: int
 
 type range = int * int (* length range *)
 val rangeSum: range -> range -> range
-type stream
-type sbytes
-type delta = sbytes
+val splitRange: KeyInfo -> range -> range * range
 
+type sbytes
+
+val plain: KeyInfo -> range -> bytes -> sbytes
+val repr:  KeyInfo -> range -> sbytes -> bytes
+
+type stream
+type delta
+
+val delta:     KeyInfo -> stream -> range -> bytes -> delta
+val deltaRepr: KeyInfo -> stream -> range -> delta -> bytes
 
 val init: KeyInfo -> stream
 val append: KeyInfo -> stream -> range ->
@@ -24,9 +32,5 @@ val split: KeyInfo -> stream -> range -> range ->
 val join: KeyInfo -> stream -> range -> delta -> 
           range -> delta -> delta
 
-val plain: KeyInfo -> range -> bytes -> sbytes
-val repr:  KeyInfo -> range -> sbytes -> bytes
-
-val delta: KeyInfo -> stream -> range -> bytes -> delta  
-
-val deltaRepr: KeyInfo -> stream -> range -> delta -> bytes
+val contents:  KeyInfo -> stream -> range -> delta -> sbytes  
+val construct: KeyInfo -> stream -> range -> sbytes -> delta

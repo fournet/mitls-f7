@@ -15,33 +15,47 @@ let rangeSum (l0,h0) (l1,h1) =
   let l = l0 + l1
   let h = h0 + h1
   (l,h)
-  
-type stream = {sb: bytes}
+
+let splitRange ki (l,h) =
+    let padSize = CipherSuites.maxPadSize ki.sinfo.protocol_version ki.sinfo.cipher_suite in
+    let minpack = (h-l) / padSize
+    let minfrag = (h-1) / fragmentLength
+    let savebytes = System.Math.Max(minpack,minfrag)
+    let smallL = System.Math.Max (System.Math.Min (l-savebytes,fragmentLength), 0)
+    let smallH = System.Math.Min (System.Math.Min (padSize+smallL, fragmentLength), h)
+    ((smallL,smallH),(l-smallL,h-smallH))
 
 type sbytes = {secb: bytes}
-type delta = sbytes
+
+let plain (ki:KeyInfo) (r:range) b = {secb = b}
+let repr  (ki:KeyInfo) (r:range) sb = sb.secb
+
+type stream = {sb: bytes}
+type delta = {contents: sbytes}
+
+let delta (ki:KeyInfo) (s:stream) (r:range) (b:bytes) = {contents = plain ki r b}
+let deltaRepr (ki:KeyInfo) (s:stream) (r:range) (d:delta) = repr ki r d.contents
 
 let init (ki:KeyInfo) = {sb = [| |]}
 
 let append (ki:KeyInfo) (s:stream) (r:range) (d:delta) = 
-  {sb = s.sb @| d.secb}
+  {sb = s.sb @| d.contents.secb}
 
 let split (ki:KeyInfo) (s:stream)  (r0:range) (r1:range) (d:delta) = 
   // we put as few bytes as we can in b0, 
   // to prevent early processing of split fragments
   let (l0,_) = r0
   let (_,h1) = r1
-  let n = length d.secb
+  let n = length d.contents.secb
   let n0 = if n <= l0 + h1 then l0 else n - h1 
-  let (b0,b1) = Bytes.split d.secb n0
-  ({secb = b0},{secb = b1})
+  let (b0,b1) = Bytes.split d.contents.secb n0
+  let (sb0,sb1) = ({secb = b0},{secb = b1}) in
+  ({contents = sb0},{contents = sb1})
 
 let join (ki:KeyInfo) (s:stream)  (r0:range) (d0:delta) (r1:range) (d1:delta) = 
   let r = rangeSum r0 r1 //CF: ghost computation to help Z3 
-  {secb = d0.secb @| d1.secb}
+  let sb = {secb = d0.contents.secb @| d1.contents.secb} in
+  {contents = sb}
 
-let plain (ki:KeyInfo) (r:range) b = {secb = b}
-let repr  (ki:KeyInfo) (r:range) s = s.secb
- 
-let delta (ki:KeyInfo) (s:stream) (r:range) (b:bytes) = plain ki r b
-let deltaRepr (ki:KeyInfo) (s:stream) (r:range) (d:delta) = repr ki r d
+let contents  (ki:KeyInfo) (s:stream) (r:range) d = d.contents
+let construct (ki:KeyInfo) (s:stream) (r:range) sb = {contents = sb}

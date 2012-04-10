@@ -5,31 +5,26 @@ open TLSInfo
 open Formats
 open CipherSuites
 open DataStream
+open StatefulPlain
 
-// Plain type for Dispatch
-type history = {
-  handshake: HandshakePlain.stream;
-  alert: AlertPlain.stream;
-  ccs: HandshakePlain.stream;
-  appdata: AppDataStream.stream;
-}
-
-val emptyHistory: KeyInfo -> history
+type history
 
 type fragment =
-    | FHandshake of HandshakePlain.fragment
-    | FCCS of HandshakePlain.ccsFragment
-    | FAlert of AlertPlain.fragment
+    | FHandshake of Handshake.fragment
+    | FCCS of Handshake.ccsFragment
+    | FAlert of Alert.fragment
     | FAppData of AppDataStream.fragment
 
+val emptyHistory: KeyInfo -> history
 val addToStreams: KeyInfo -> ContentType -> history -> range -> fragment -> history
 
-val TLSFragmentRepr: KeyInfo -> ContentType -> history -> range -> fragment -> bytes
-val TLSFragment: KeyInfo -> ContentType -> history -> range -> bytes -> fragment
+val makeAD: KeyInfo -> ContentType -> data
 
-type addData = bytes
-val makeAD: ProtocolVersion -> ContentType -> addData
-//val parseAD: ProtocolVersion -> addData -> ContentType 
+val fragment: KeyInfo -> ContentType -> history -> range -> bytes -> fragment
+val repr:     KeyInfo -> ContentType -> history -> range -> fragment -> bytes
 
-//val emptyHistory: KeyInfo -> history
-//val addFragment: KeyInfo -> ContentType -> history -> range -> fragment -> history
+val contents:  KeyInfo -> ContentType -> history -> range -> fragment -> sbytes
+val construct: KeyInfo -> ContentType -> history -> range -> sbytes -> fragment
+
+val TLSFragmentToFragment: KeyInfo -> ContentType -> history -> StatefulPlain.history -> range -> fragment -> StatefulPlain.fragment
+val fragmentToTLSFragment: KeyInfo -> ContentType -> history -> StatefulPlain.history -> range -> StatefulPlain.fragment -> fragment

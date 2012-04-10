@@ -6,25 +6,26 @@ open TLSInfo
 open Formats
 open CipherSuites
 open DataStream
+open StatefulPlain
 
 type history = {
-  handshake: HandshakePlain.stream;
-  alert: AlertPlain.stream;
-  ccs: HandshakePlain.stream;
+  handshake: Handshake.stream;
+  alert: Alert.stream;
+  ccs: Handshake.stream;
   appdata: AppDataStream.stream;
 }
 
 type fragment =
-    | FHandshake of HandshakePlain.fragment
-    | FCCS of HandshakePlain.ccsFragment
-    | FAlert of AlertPlain.fragment
+    | FHandshake of Handshake.fragment
+    | FCCS of Handshake.ccsFragment
+    | FAlert of Alert.fragment
     | FAppData of AppDataStream.fragment
 
 let emptyHistory ki = {
-  handshake = init ki; // HandshakePlain.emptyStream ki;
-  alert = init ki; // AlertPlain.emptyStream ki;
-  ccs = init ki; // HandshakePlain.emptyStream ki;
-  appdata = init ki; // AppDataStream.emptyStream ki;
+  handshake = init ki // HandshakePlain.emptyStream ki;
+  alert = init ki // AlertPlain.emptyStream ki;
+  ccs = init ki // HandshakePlain.emptyStream ki;
+  appdata = init ki // AppDataStream.emptyStream ki;
 }
 
 let addToStreams (ki:KeyInfo) ct ss r f =
@@ -35,53 +36,47 @@ let addToStreams (ki:KeyInfo) ct ss r f =
     | Application_data,FAppData(d) -> {ss with appdata = append ki ss.appdata r d}
     | _,_ -> unexpectedError "[addToStreams] Incompatible content and fragment types"
 
-type addData = bytes
-
-let makeAD pv ct =
+let makeAD ki ct =
+    let pv = ki.sinfo.protocol_version in
     let bct  = ctBytes ct in
     let bver = versionBytes pv in
     if pv = SSL_3p0 
     then bct
     else bct @| bver
 
-//let parseAD pv ad =
-//    if pv = SSL_3p0 then
-//      match parseCT ad with
-//        | Error(x,y) -> unexpectedError "[parseAD] should always be invoked on valid additional data"
-//        | Correct(ct) -> ct
-//    else
-//      let (ct1,bver) = Bytes.split ad 1 in
-//        if bver <> versionBytes pv then
-//          unexpectedError "[parseAD] should always be invoked on valid additional data"
-//        else
-//          match parseCT ct1 with
-//            | Error(x,y) -> unexpectedError "[parseAD] should always be invoked on valid additional data"
-//            | Correct(ct) -> ct
-
-
-let TLSFragmentRepr ki (ct:ContentType) (h:history) (rg:DataStream.range) frag =
-    match frag with
-    | FHandshake(f) -> HandshakePlain.repr ki h.handshake rg f
-    | FCCS(f) -> HandshakePlain.ccsRepr ki h.ccs rg f
-    | FAlert(f) -> AlertPlain.repr ki h.alert rg f
-    | FAppData(f) -> AppDataStream.repr ki h.appdata rg f
-
-let TLSFragment ki (ct:ContentType) (h:history) (rg:DataStream.range) b = 
+let fragment ki (ct:ContentType) (h:history) (rg:DataStream.range) b = 
     match ct with
-    | Handshake ->          FHandshake(HandshakePlain.fragment ki h.handshake rg b)
-    | Change_cipher_spec -> FCCS(HandshakePlain.ccsFragment ki h.ccs rg b)
-    | Alert ->              FAlert(AlertPlain.fragment ki h.alert rg b)
-    | Application_data ->   FAppData(AppDataStream.fragment ki h.appdata rg b)
+    | Handshake ->          FHandshake(delta ki h.handshake rg b)
+    | Change_cipher_spec -> FCCS(delta ki h.ccs rg b)
+    | Alert ->              FAlert(delta ki h.alert rg b)
+    | Application_data ->   FAppData(delta ki h.appdata rg b)
 
-let addFragment ki ct h r f = 
-  //let nfs = (ct,h,r,f)::h.log in
-  match ct,f with
-    | Handshake,FHandshake f -> {h with //log = nfs; 
-                                        handshake = append (* HandshakePlain.addFragment *) ki h.handshake r f}
-    | Change_cipher_spec,FCCS f -> {h with // log = nfs; 
-                                           ccs = append (* HandshakePlain.addCCSFragment *) ki h.ccs r f}
-    | Alert,FAlert f -> {h with // log = nfs; 
-                                alert = append (* AlertPlain.addFragment *) ki h.alert r f}
-    | Application_data,FAppData f -> {h with // log = nfs; 
-                                             appdata = append (* AppDataStream.addFragment *) ki h.appdata r f}
-    | _,_ -> unexpectedError "[addFragment] Inconsistent fragment and content types"
+
+let repr ki (ct:ContentType) (h:history) (rg:DataStream.range) frag =
+    match frag with
+    | FHandshake(f) -> deltaRepr ki h.handshake rg f
+    | FCCS(f) -> deltaRepr ki h.ccs rg f
+    | FAlert(f) -> deltaRepr ki h.alert rg f
+    | FAppData(f) -> deltaRepr ki h.appdata rg f
+
+let contents (ki:KeyInfo) (ct:ContentType) (h:history) (rg:range) f =
+    match f with
+        | FHandshake(f) -> DataStream.contents ki h.handshake rg f
+        | FCCS(f) -> DataStream.contents ki h.ccs rg f
+        | FAlert(f) -> DataStream.contents ki h.alert rg f
+        | FAppData(f) -> DataStream.contents ki h.appdata rg f
+
+let construct (ki:KeyInfo) (ct:ContentType) (h:history) (rg:range) sb =
+    match ct with
+        | Handshake -> FHandshake(DataStream.construct ki h.handshake rg sb)     
+        | Change_cipher_spec -> FCCS(DataStream.construct ki h.ccs rg sb)
+        | Alert -> FAlert(DataStream.construct ki h.alert rg sb)
+        | Application_data -> FAppData(DataStream.construct ki h.appdata rg sb)  
+
+let TLSFragmentToFragment ki ct ss h rg f =
+    let sb = contents ki ct ss rg f in
+    StatefulPlain.construct ki h (makeAD ki ct) rg sb
+
+let fragmentToTLSFragment ki ct ss h rg f =
+    let sb = StatefulPlain.contents ki h (makeAD ki ct) rg f in
+    construct ki ct ss rg sb

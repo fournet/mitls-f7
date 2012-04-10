@@ -6,10 +6,14 @@ open Error
 open CipherSuites
 open TLSInfo
 //open SessionDB
-open HandshakePlain
+open DataStream
 
 // There is one instance of the protocol for each TCP connection,
 // each performing a sequence of Handshakes for that connection.
+
+type stream = DataStream.stream
+type fragment = delta
+type ccsFragment = delta
 
 // protocol state  
 type pre_hs_state 
