@@ -1,15 +1,17 @@
 module AEADPlain
 open Bytes
-open Error
 open TLSInfo
 open DataStream
-open StatefulPlain
+open AEPlain
 
 type data = bytes
-type plain = sbytes
+type AEADPlain
 
-val plain: KeyInfo -> range -> data -> bytes -> plain
-val repr:  KeyInfo -> range -> data -> plain -> bytes
+val AEADPlain: KeyInfo -> range -> data -> bytes -> AEADPlain
+val AEADRepr:  KeyInfo -> range -> data -> AEADPlain -> bytes
 
-val fragmentToPlain: KeyInfo -> history -> data -> range -> fragment -> plain
-val plainToFragment: KeyInfo -> history -> data -> range -> plain -> fragment
+val contents:  KeyInfo -> range -> data -> AEADPlain -> sbytes
+val construct: KeyInfo -> range -> data -> sbytes -> AEADPlain
+
+val AEADPlainToAEPlain: KeyInfo -> range -> data -> AEADPlain -> AEPlain
+val AEPlainToAEADPlain: KeyInfo -> range -> data -> AEPlain -> AEADPlain

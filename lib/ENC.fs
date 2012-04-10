@@ -127,7 +127,7 @@ let ENC ki s tlen data =
         | RC4_128      -> unexpectedError "[ENC] invoked on stream cipher"
     match s.iv with
     | SomeIV(_) ->
-        if length cipher <> tlen || tlen > FragCommon.max_TLSCipher_fragment_length then
+        if length cipher <> tlen || tlen > DataStream.max_TLSCipher_fragment_length then
             // unexpected, because it is enforced statically by the
             // CompatibleLength predicate
             unexpectedError "[ENC] Length of encrypted data do not match expected length"
@@ -136,7 +136,7 @@ let ENC ki s tlen data =
             (s, cipher)
     | NoIV(b) ->
         let res = iv @| cipher in
-        if length res <> tlen || tlen > FragCommon.max_TLSCipher_fragment_length then
+        if length res <> tlen || tlen > DataStream.max_TLSCipher_fragment_length then
             // unexpected, because it is enforced statically by the
             // CompatibleLength predicate
             unexpectedError "[ENC] Length of encrypted data do not match expected length"

@@ -3,6 +3,11 @@ open TLSInfo
 open Bytes
 open Error
 
+let max_TLSPlaintext_fragment_length = 16384 (* 2^14 *)
+let max_TLSCompressed_fragment_length = max_TLSPlaintext_fragment_length + 1024
+let max_TLSCipher_fragment_length = max_TLSCompressed_fragment_length + 1024
+let fragmentLength = max_TLSPlaintext_fragment_length (* use e.g. 1 for testing *)
+
 type range = int * int (* length range *)
 type rbytes = bytes 
 

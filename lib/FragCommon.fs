@@ -8,12 +8,6 @@ open TLSInfo
 open Algorithms
 open CipherSuites
 
-let max_TLSPlaintext_fragment_length = 16384 (* 2^14 *)
-let fragmentLength = max_TLSPlaintext_fragment_length (* use e.g. 1 for testing *)
-
-let max_TLSCompressed_fragment_length = max_TLSPlaintext_fragment_length + 1024
-let max_TLSCipher_fragment_length = max_TLSCompressed_fragment_length + 1024
-
 type tlen = int
 
 (* generate the minimal padding for payload len, in 1..blocksize *)
@@ -71,8 +65,8 @@ let cipherLength sinfo plainLen =
 
 let splitInFrag ki b =
     let (frag,rem) =
-        if length b > fragmentLength then
-            split b fragmentLength
+        if length b > DataStream.fragmentLength then
+            split b DataStream.fragmentLength
         else
             (b,[||])
     (cipherLength ki.sinfo (length frag),frag,rem)
@@ -82,15 +76,15 @@ type lengthPreds =
 
 let rec estimateLengths sinfo len =
   let ls = 
-    if len > fragmentLength then 
-        cipherLength sinfo fragmentLength :: 
-        estimateLengths sinfo (len - fragmentLength)  
+    if len > DataStream.fragmentLength then 
+        cipherLength sinfo DataStream.fragmentLength :: 
+        estimateLengths sinfo (len - DataStream.fragmentLength)  
     else 
         [cipherLength sinfo len] in
   Pi.assume (CompatibleLengths(sinfo,len,ls));
   ls
 
 let getFragment (sinfo:SessionInfo) (len:int) b = 
-  if length(b) > fragmentLength then
-    split b fragmentLength
+  if length(b) > DataStream.fragmentLength then
+    split b DataStream.fragmentLength
   else b,[||]

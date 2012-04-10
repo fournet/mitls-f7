@@ -3,6 +3,11 @@ open TLSInfo
 open Bytes
 open Error
 
+val max_TLSPlaintext_fragment_length: int
+val max_TLSCompressed_fragment_length: int
+val max_TLSCipher_fragment_length: int
+val fragmentLength: int
+
 type range = int * int (* length range *)
 val rangeSum: range -> range -> range
 type stream

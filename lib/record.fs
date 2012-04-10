@@ -35,7 +35,7 @@ let headerLength b =
     // With a precise int/byte model,
     // no need to check len, since it's on 2 bytes and the max allowed value is 2^16.
     // Here we do a runtime check to get the same property statically
-    if len <= 0 || len > FragCommon.max_TLSCipher_fragment_length then
+    if len <= 0 || len > DataStream.max_TLSCipher_fragment_length then
         Error(Parsing,CheckFailed)
     else
         correct(len)
@@ -53,7 +53,7 @@ let parseHeader b =
     // With a precise int/byte model,
     // no need to check len, since it's on 2 bytes and the max allowed value is 2^16.
     // Here we do a runtime check to get the same property statically
-    if len <= 0 || len > FragCommon.max_TLSCipher_fragment_length then
+    if len <= 0 || len > DataStream.max_TLSCipher_fragment_length then
         Error(Parsing,CheckFailed)
     else
         correct(ct,pv,len)

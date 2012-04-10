@@ -4,14 +4,33 @@ open Bytes
 open TLSInfo
 open Algorithms
 open CipherSuites
+open DataStream
 
-type plain = {p:bytes}
+type data = bytes
 
-let plain (ki:KeyInfo) (tlen:nat)  b = {p=b}
-let repr (ki:KeyInfo) (tlen:nat) pl = pl.p
+type AEPlain = {aep: bytes}
+
+let AEPlain (ki:KeyInfo) (r:range) (ad:data) (b:bytes) = {aep = b}
+let AERepr  (ki:KeyInfo) (r:range) (ad:data) (p:AEPlain) = p.aep
+
+let AEConstruct (ki:KeyInfo) (r:range) (ad:data) (sb:sbytes) =
+    let b = DataStream.repr ki r sb in
+    {aep = b}
+let AEContents  (ki:KeyInfo) (r:range) (ad:data) (p:AEPlain) = DataStream.plain ki r p.aep
 
 type MACPlain = {macP: bytes}
 type tag = {macT: bytes}
+
+let concat (ki:KeyInfo) (rg:range) ad f =
+    let fLen = bytes_of_int 2 (length f.aep) in
+    let fullData = ad @| fLen in 
+    {macP = fullData @| f.aep} 
+
+let mac ki k t =
+    {macT = MAC.MAC ki k t.macP}
+
+let verify ki k text tag =
+    MAC.VERIFY ki k text.macP tag.macT
 
 // only for MACOnly ciphersuites, until MACOnly becomes part of AEAD
 let tagRepr (ki:KeyInfo) t = t.macT
@@ -61,48 +80,14 @@ let cipherRange ki tlen =
         else
             (min,max)
 
-let decodeNoPad ki ad tlen plain =
-    // assert length plain.d = tlen
-    let cs = ki.sinfo.cipher_suite in
-    let maclen = macSize (macAlg_of_ciphersuite cs) in
-    let plainLen = tlen - maclen in
-// Next code is commented out, assuming we have
-// - length plain.d = tlen
-// - tlen >= macLen
+type plain = {p:bytes}
 
-//    if macStart < 0 || length(plain.p) < macStart then
-//        (* FIXME: is this safe?
-//           I (AP) think so because our locally computed mac will have some different length.
-//           Also timing is not an issue, because the attacker can guess the check should fail anyway. *)
-//    //CF: no, the MAC has the wrong size; I'd rather have a static precondition on the length of c.
-//        let aeadF = AEADPlain.plain ki (min,max) ad plain.p
-//        let tag = {macT = [||]}
-//        ((min,max),aeadF,tag)
-//    else
-    let (frag,mac) = split plain.p plainLen in
-    let rg = (plainLen,plainLen) in
-    let aeadF = AEADPlain.plain ki rg ad frag
-    let tag = {macT = mac}
-    (rg,aeadF,tag)
-
-// constructor for MACPlain
-let concat (ki:KeyInfo) rg ad f =
-    let fB = AEADPlain.repr ki rg ad f
-    let fLen = bytes_of_int 2 (length fB) in
-    let fullData = ad @| fLen in 
-    {macP = fullData @| fB} 
-
-// constructor for tag
-let mac ki k t =
-    {macT = MAC.MAC ki k t.macP}
-
-let verify ki k text tag =
-    MAC.VERIFY ki k text.macP tag.macT
+let plain (ki:KeyInfo) (tlen:nat)  b = {p=b}
+let repr (ki:KeyInfo) (tlen:nat) pl = pl.p
 
 let pad (p:int)  = createBytes p (p-1)
 
-let encode (ki:KeyInfo) rg ad data tag =
-    let d = AEADPlain.repr ki rg ad data
+let encode (ki:KeyInfo) rg (ad:data) data tag =
     let ivL =
         match ki.sinfo.protocol_version with
         | SSL_3p0 | TLS_1p0 -> 0
@@ -110,20 +95,19 @@ let encode (ki:KeyInfo) rg ad data tag =
             let encAlg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
             ivSize encAlg 
     let tlen = rangeCipher ki rg in
-    let p = tlen - length d - length tag.macT - ivL
-    (tlen, {p = d @| tag.macT @| pad p})
+    let p = tlen - length data.aep - length tag.macT - ivL
+    (tlen, {p = data.aep @| tag.macT @| pad p})
 
-let encodeNoPad (ki:KeyInfo) rg ad data tag =
-    let d = AEADPlain.repr ki rg ad data
+let encodeNoPad (ki:KeyInfo) rg (ad:data) data tag =
     let tlen = rangeCipher ki rg in
-    (tlen, {p = d @| tag.macT})
+    (tlen, {p = data.aep @| tag.macT})
 
 let check_split b l = 
   if length(b) < l then failwith "split failed: FIX THIS to return BOOL + ..."
   if l < 0 then failwith "split failed: FIX THIS to return BOOL + ..."
-  else split b l
+  else Bytes.split b l
 
-let decode ki ad tlen plain =
+let decode ki (ad:data) tlen plain =
     let macSize = macSize (macAlg_of_ciphersuite ki.sinfo.cipher_suite) in
     let rg = cipherRange ki tlen in
     let pLen =
@@ -135,14 +119,14 @@ let decode ki ad tlen plain =
     if pLen <> length plain.p then
         Error.unexpectedError "[parse] tlen should be compatible with the given plaintext"
     else
-    let (tmpdata, padlenb) = split plain.p (pLen - 1) in
+    let (tmpdata, padlenb) = Bytes.split plain.p (pLen - 1) in
     let padlen = int_of_bytes padlenb in
     let padstart = pLen - padlen - 1 in
     if padstart < 0 then
         (* Pretend we have a valid padding of length zero, but set we must fail *)
         let macStart = pLen - macSize - 1 in
         let (frag,mac) = check_split tmpdata macStart in
-        let aeadF = AEADPlain.plain ki rg ad frag
+        let aeadF = {aep = frag} in
         let tag = {macT = mac} in
         (rg,aeadF,tag,false)
         (*
@@ -165,14 +149,14 @@ let decode ki ad tlen plain =
             if equalBytes expected pad then
                 let macStart = pLen - macSize - padlen - 1 in
                 let (frag,mac) = check_split data_no_pad macStart in
-                let aeadF = AEADPlain.plain ki rg ad frag
+                let aeadF = {aep = frag} in
                 let tag = {macT = mac} in
                 (rg,aeadF,tag,true)
             else
                 (* Pretend we have a valid padding of length zero, but set we must fail *)
                 let macStart = pLen - macSize - 1 in
                 let (frag,mac) = check_split tmpdata macStart in
-                let aeadF = AEADPlain.plain ki rg ad frag
+                let aeadF = {aep = frag} in
                 let tag = {macT = mac} in
                 (rg,aeadF,tag,false)
                 (*
@@ -194,7 +178,7 @@ let decode ki ad tlen plain =
                 (* Pretend we have a valid padding of length zero, but set we must fail *)
                 let macStart = pLen - macSize - 1 in
                 let (frag,mac) = check_split tmpdata macStart in
-                let aeadF = AEADPlain.plain ki rg ad frag
+                let aeadF = {aep = frag} in
                 let tag = {macT = mac} in
                 (rg,aeadF,tag,false)
                 (*
@@ -205,6 +189,31 @@ let decode ki ad tlen plain =
             else
                 let macStart = pLen - macSize - padlen - 1 in
                 let (frag,mac) = check_split data_no_pad macStart in
-                let aeadF = AEADPlain.plain ki rg ad frag
+                let aeadF = {aep = frag} in
                 let tag = {macT = mac} in
                 (rg,aeadF,tag,true)
+
+
+let decodeNoPad ki (ad:data) tlen plain =
+    // assert length plain.d = tlen
+    let cs = ki.sinfo.cipher_suite in
+    let maclen = macSize (macAlg_of_ciphersuite cs) in
+    let plainLen = tlen - maclen in
+// Next code is commented out, assuming we have
+// - length plain.d = tlen
+// - tlen >= macLen
+
+//    if macStart < 0 || length(plain.p) < macStart then
+//        (* FIXME: is this safe?
+//           I (AP) think so because our locally computed mac will have some different length.
+//           Also timing is not an issue, because the attacker can guess the check should fail anyway. *)
+//    //CF: no, the MAC has the wrong size; I'd rather have a static precondition on the length of c.
+//        let aeadF = AEADPlain.plain ki (min,max) ad plain.p
+//        let tag = {macT = [||]}
+//        ((min,max),aeadF,tag)
+//    else
+    let (frag,mac) = Bytes.split plain.p plainLen in
+    let rg = (plainLen,plainLen) in
+    let aeadF = {aep = frag} in
+    let tag = {macT = mac} in
+    (rg,aeadF,tag)
