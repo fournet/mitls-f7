@@ -25,6 +25,7 @@ val repr:  ki:KeyInfo{not Safe(ki)} -> r:range -> x:(;ki,r)sbytes -> (;r)rbytes
 
 private type (;ki:KeyInfo) stream = {sb:bytes}
 predicate Before of ki:KeyInfo * (;ki)stream * r:range * (;ki,r)sbytes
+
 private type (;ki:KeyInfo, h:(;ki)stream, r:range) predelta = {contents:(;ki,r)sbytes}
 private type (;ki:KeyInfo, h:(;ki)stream, r:range) delta = x:(;ki,h,r)predelta{Safe(ki) => Before(ki,h,r,x.contents)}
 
@@ -37,21 +38,24 @@ function type es = EmptyStream of KeyInfo
 private assume !ki. EmptyStream(ki) = {sb = [| |]}
 val init: ki:KeyInfo -> s:(;ki) stream{s = EmptyStream(ki)}
 
-function val ExtendStream: ki:KeyInfo * s:(;ki)stream * (;ki,s,(0,0))delta -> (;ki)stream
-private assume !ki,s,d. ExtendStream(ki,s,d) = {sb = s.sb @| d.contents.secb}
+function val ExtendStream: ki:KeyInfo * s:(;ki)stream * r:range * (;ki,s,r)delta -> (;ki)stream
+private assume !ki,s,r,d. ExtendStream(ki,s,r,d) = {sb = s.sb @| d.contents.secb}
+private assume !ki,s,r1,r2,sb1,sb2. Before(ki,s,Sum(r1,r2),sb1.secb @| sb2.secb) <=> 
+	                    (Before(ki,s,r1,sb1) /\ Before(ki,ExtendStream(ki,s,r1,sb1),r2,sb2))
+
 
 
 val append: 
   ki:KeyInfo -> s: (;ki) stream -> r:range ->
-  d:(;ki,s,r) delta -> s':(;ki) stream{s' = ExtendStream(ki,s,d)}
+  d:(;ki,s,r) delta -> s':(;ki) stream{s' = ExtendStream(ki,s,r,d)}
 
 val split: ki:KeyInfo -> s:(;ki) stream -> 
   r0:range -> r1:range -> d:(;ki,s,Sum(r0,r1)) delta -> 
-  (d0:(;ki,s,r0) delta * d1:(;ki,ExtendStream(ki,s,d0),r1) delta)
+  (d0:(;ki,s,r0) delta * d1:(;ki,ExtendStream(ki,s,r0,d0),r1) delta)
 
 val join: ki:KeyInfo -> s:(;ki) stream -> 
   r0:range -> d0:(;ki,s,r0) delta -> 
-  r1:range -> d1:(;ki,ExtendStream(ki,s,d0),r1) delta -> (;ki,s,Sum(r0,r1)) delta
+  r1:range -> d1:(;ki,ExtendStream(ki,s,r0,d0),r1) delta -> (;ki,s,Sum(r0,r1)) delta
 
 val contents:  ki:KeyInfo -> s:(;ki)stream -> r:range -> (;ki,s,r)delta ->
 	sb:(;ki,r)sbytes{Safe(ki) => Before(ki,s,r,sb)}

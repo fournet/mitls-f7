@@ -77,5 +77,9 @@ let join (ki:KeyInfo) (s:stream)  (r0:range) (d0:delta) (r1:range) (d1:delta) =
   let sb = {secb = d0.contents.secb @| d1.contents.secb} in
   {contents = sb}
 
+type preds = Before of KeyInfo * stream * range * sbytes
+
 let contents  (ki:KeyInfo) (s:stream) (r:range) d = d.contents
-let construct (ki:KeyInfo) (s:stream) (r:range) sb = {contents = sb}
+let construct (ki:KeyInfo) (s:stream) (r:range) sb = 
+  Pi.assume (Before(ki,s,r,sb));
+  {contents = sb}
