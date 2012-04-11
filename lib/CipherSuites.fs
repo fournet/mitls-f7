@@ -285,10 +285,10 @@ let verifyDataHashAlg_of_ciphersuite (cs:cipherSuite) =
 let maxPadSize pv cs =
     match cs with
     | NullCipherSuite
-    | OnlyMACCipherSuite _ -> 0
+    | OnlyMACCipherSuite (_,_) -> 0
     | CipherSuite(_,aead) ->
         match aead with
-        | AEAD _ -> 0
+        | AEAD (_,_) -> 0
         | EncMAC (encAlg,_) ->
             match encAlg with
             | RC4_128 -> 0
