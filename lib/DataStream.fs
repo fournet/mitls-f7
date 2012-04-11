@@ -16,14 +16,24 @@ let rangeSum (l0,h0) (l1,h1) =
   let h = h0 + h1
   (l,h)
 
+let min (a:nat) (b:nat) =
+    if a <= b then a else b
+let max (a:nat) (b:nat) =
+    if a >= b then a else b
+
 let splitRange ki (l,h) =
     let padSize = CipherSuites.maxPadSize ki.sinfo.protocol_version ki.sinfo.cipher_suite in
-    let minpack = (h-l) / padSize
-    let minfrag = (h-1) / fragmentLength
-    let savebytes = System.Math.Max(minpack,minfrag)
-    let smallL = System.Math.Max (System.Math.Min (l-savebytes,fragmentLength), 0)
-    let smallH = System.Math.Min (System.Math.Min (padSize+smallL, fragmentLength), h)
-    ((smallL,smallH),(l-smallL,h-smallH))
+    if padSize = 0 then
+        // assert l = h
+        let length = min l fragmentLength in
+        ((length,length),(l-length,l-length))
+    else
+        let minpack = (h-l) / padSize
+        let minfrag = (h-1) / fragmentLength
+        let savebytes = max minpack minfrag
+        let smallL = max (min (l-savebytes) fragmentLength) 0
+        let smallH = min (min (padSize+smallL) fragmentLength) h
+        ((smallL,smallH),(l-smallL,h-smallH))
 
 type sbytes = {secb: bytes}
 

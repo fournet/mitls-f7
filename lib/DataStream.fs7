@@ -18,6 +18,11 @@ function val Sum: range * range -> range
 assume !l0,h0,l1,h1. Sum((l0,h0),(l1,h1)) = (l0+l1,h0+h1)
 val rangeSum: r0:range -> r1:range -> r:range{r = Sum(r0,r1)}
 
+val min: a:nat -> b:nat -> c:nat{(a<=b /\ c=a) \/ (a>b /\ c=b)}
+val max: a:nat -> b:nat -> c:nat{(a>=b /\ c=a) \/ (a<b /\ c=b)}
+
+val splitRange: ki:KeyInfo -> r:range -> (r0:range * r1:range){r = Sum(r0,r1)} // /\ FitsInFrag(r0)
+
 // User-provided code
 
 private type (;ki:KeyInfo) stream = {sb:bytes}
