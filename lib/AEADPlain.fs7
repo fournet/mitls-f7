@@ -6,7 +6,7 @@ open AEPlain
 
 type (;ki:KeyInfo) data = (b:bytes){Length(b) = ADLength(ki)}
 
-function val AEADSays: ki:KeyInfo -> r:range -> (;ki)data -> (;ki,r)sbytes -> bool
+function val AEADSays: ki:KeyInfo * r:range * (;ki)data * (;ki,r)sbytes -> bool
 // TODO: define AEADSays in terms of some AESays predicate defined in AEPlain (if/when ready)
 // Otherwise, we cannot typecheck the implementation of AEAD to/from AE functions
 
