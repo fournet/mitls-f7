@@ -14,18 +14,15 @@ type pre_al_state = {
 
 type state = pre_al_state
 
-type stream = DataStream.stream
-type fragment = delta
-
 let init (ci:ConnectionInfo) = {al_incoming = [||]; al_outgoing = [||]}
 
 let incomingEmpty s = equalBytes s.al_incoming [||]
 
 type ALFragReply =
     | EmptyALFrag
-    | ALFrag of DataStream.range * fragment
-    | LastALFrag of DataStream.range * fragment
-    | LastALCloseFrag of DataStream.range * fragment
+    | ALFrag of DataStream.range * delta
+    | LastALFrag of DataStream.range * delta
+    | LastALCloseFrag of DataStream.range * delta
 
 type alert_reply =
     | ALAck of state
@@ -179,7 +176,7 @@ let handle_alert ci state alDesc =
         else
             ALAck   (state)
 
-let recv_fragment (ci:ConnectionInfo) state (r:range) (data:fragment) =
+let recv_fragment (ci:ConnectionInfo) state (r:range) (data:delta) =
     // FIXME: cleanup when alert is ported to streams and deltas
     let fragment = deltaRepr ci.id_in (DataStream.init ci.id_in) r data in
     match state.al_incoming with

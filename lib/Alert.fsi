@@ -7,14 +7,11 @@ open DataStream
 type pre_al_state
 type state = pre_al_state
 
-type stream = DataStream.stream
-type fragment = delta
-
 type ALFragReply =
     | EmptyALFrag
-    | ALFrag of range * fragment
-    | LastALFrag of range * fragment
-    | LastALCloseFrag of range * fragment
+    | ALFrag of range * delta
+    | LastALFrag of range * delta
+    | LastALCloseFrag of range * delta
 
 type alert_reply =
     | ALAck of state
@@ -27,6 +24,6 @@ val send_alert: ConnectionInfo -> state -> alertDescription -> state
 
 val next_fragment: ConnectionInfo -> state -> (ALFragReply * state) 
 
-val recv_fragment: ConnectionInfo -> state -> range -> fragment -> alert_reply Result
+val recv_fragment: ConnectionInfo -> state -> range -> delta -> alert_reply Result
 
 val incomingEmpty: state -> bool

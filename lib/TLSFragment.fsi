@@ -10,10 +10,10 @@ open StatefulPlain
 type history
 
 type fragment =
-    | FHandshake of Handshake.fragment
-    | FCCS of Handshake.ccsFragment
-    | FAlert of Alert.fragment
-    | FAppData of AppDataStream.fragment
+    | FHandshake of delta // Handshake.fragment
+    | FCCS of delta // Handshake.ccsFragment
+    | FAlert of delta // Alert.fragment
+    | FAppData of delta // AppDataStream.fragment
 
 val emptyHistory: KeyInfo -> history
 val addToStreams: KeyInfo -> ContentType -> history -> range -> fragment -> history

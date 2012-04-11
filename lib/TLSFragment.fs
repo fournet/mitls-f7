@@ -9,17 +9,17 @@ open DataStream
 open StatefulPlain
 
 type history = {
-  handshake: Handshake.stream;
-  alert: Alert.stream;
-  ccs: Handshake.stream;
-  appdata: AppDataStream.stream;
+  handshake: stream // Handshake.stream;
+  alert: stream // Alert.stream;
+  ccs: stream // Handshake.stream;
+  appdata: stream // AppDataStream.stream;
 }
 
 type fragment =
-    | FHandshake of Handshake.fragment
-    | FCCS of Handshake.ccsFragment
-    | FAlert of Alert.fragment
-    | FAppData of AppDataStream.fragment
+    | FHandshake of delta // Handshake.fragment
+    | FCCS of delta // Handshake.ccsFragment
+    | FAlert of delta // Alert.fragment
+    | FAppData of delta // AppDataStream.fragment
 
 let emptyHistory ki = {
   handshake = init ki // HandshakePlain.emptyStream ki;

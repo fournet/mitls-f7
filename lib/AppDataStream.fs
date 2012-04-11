@@ -5,12 +5,9 @@ open Bytes
 open TLSInfo
 open DataStream
 
-type stream = DataStream.stream
-type fragment = delta
-
 type buffer = {
   stream:stream;
-  data: stream * (range * fragment) option;
+  data: stream * (range * delta) option;
 }
 
 type input_buffer = buffer
@@ -38,7 +35,7 @@ let is_incoming_empty (ci:ConnectionInfo) app_state =
 let is_outgoing_empty (ci:ConnectionInfo)  app_state = 
   snd app_state.app_outgoing.data = None
 
-let repr (ki:KeyInfo) (s:stream) (r:DataStream.range) (d:fragment) = 
+let repr (ki:KeyInfo) (s:stream) (r:DataStream.range) (d:delta) = 
   //let s = DataStream.init ki in // AP: why?
   deltaRepr ki s r d
 
@@ -105,7 +102,7 @@ let readAppDataFragment (c:ConnectionInfo)  (a:app_state) =
 //     Pi.assume(NonAppDataSequenceNo(c.id_in,seqn));
 //     {a with app_incoming = {a.app_incoming with seqn = nseqn}}
     
-let writeAppDataFragment (ci:ConnectionInfo)  (a:app_state)  (r:range) (d:fragment) =
+let writeAppDataFragment (ci:ConnectionInfo)  (a:app_state)  (r:range) (d:delta) =
   // let seqn = a.app_incoming.seqn in
   // Pi.assume(AppDataSequenceNo(ci.id_in,seqn));
   // let nseqn = seqn + 1 in

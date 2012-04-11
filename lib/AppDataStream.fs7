@@ -5,14 +5,11 @@ open Bytes
 open Error
 open DataStream
 
-type (;ki:KeyInfo) stream = (;ki)DataStream.stream
-private type (;ki:KeyInfo,s:stream,r:range) fragment = (;ki,s,r) delta
-
 type (;ki:KeyInfo) buffer = {
 	// AP: I don't understand the duplication of stream, and data: stream * ...
 	// Maybe it's not useful anymore
   stream: (;ki) stream;
-  data: h:(;ki) stream * (r:range * (;ki,h,r) fragment) option;
+  data: h:(;ki) stream * (r:range * (;ki,h,r) delta) option;
 }
 
 type (;ki:KeyInfo) input_buffer = (;ki) buffer
@@ -27,10 +24,10 @@ function val OutStream: c:ConnectionInfo * (;c) app_state -> bytes
 function val InStream: c:ConnectionInfo * (;c) app_state -> bytes
 
 // The top level predicate, to be defined or assumed by the application
-function val AppData: KeyInfo * stream * range * fragment * bytes
+function val AppData: KeyInfo * stream * range * delta * bytes
 
-val repr: ki:KeyInfo{not Safe(ki)} -> s:stream -> r:range -> (;ki,s,r)fragment -> bytes
-val fragment: ki:KeyInfo{not Safe(ki)} -> s:stream -> r:range -> bytes -> (;ki,s,r)fragment
+val repr: ki:KeyInfo{not Safe(ki)} -> s:stream -> r:range -> (;ki,s,r)delta -> bytes
+val fragment: ki:KeyInfo{not Safe(ki)} -> s:stream -> r:range -> bytes -> (;ki,s,r)delta
 
 
 

@@ -5,9 +5,6 @@ open Bytes
 open Error
 open DataStream
 
-type stream = DataStream.stream
-type fragment = delta
-
 type app_state
 (* = {
   app_incoming: input_buffer;
@@ -28,11 +25,11 @@ val readAppData: ConnectionInfo -> app_state -> ((range * delta) option * app_st
 val emptyOutgoingAppData: ConnectionInfo -> app_state -> ((range * delta) option * app_state)
 
 // Used internally
-val readAppDataFragment: ConnectionInfo ->  app_state -> (range * fragment * app_state) option
+val readAppDataFragment: ConnectionInfo ->  app_state -> (range * delta * app_state) option
 
 //val readNonAppDataFragment: ConnectionInfo ->  app_state ->  app_state
 
-val writeAppDataFragment: ConnectionInfo ->  app_state -> range -> fragment -> app_state
+val writeAppDataFragment: ConnectionInfo ->  app_state -> range -> delta -> app_state
 
 //val writeNonAppDataFragment: ConnectionInfo ->  app_state ->  app_state
 
@@ -43,5 +40,5 @@ val reset_outgoing:  ConnectionInfo -> app_state -> app_state
 val is_incoming_empty: ConnectionInfo ->  app_state -> bool
 val is_outgoing_empty: ConnectionInfo ->  app_state -> bool
 
-val repr: KeyInfo -> stream ->  range -> fragment -> bytes
-val fragment: KeyInfo -> stream -> range -> bytes -> fragment 
+val repr: KeyInfo -> stream ->  range -> delta -> bytes
+val fragment: KeyInfo -> stream -> range -> bytes -> delta

@@ -11,10 +11,6 @@ open DataStream
 // There is one instance of the protocol for each TCP connection,
 // each performing a sequence of Handshakes for that connection.
 
-type stream = DataStream.stream
-type fragment = delta
-type ccsFragment = delta
-
 // protocol state  
 type pre_hs_state 
 type hs_state = pre_hs_state
@@ -75,10 +71,10 @@ val recvCCS     : KeyInfo -> hs_state -> int -> fragment -> ccs_data Result * hs
 
 type HSFragReply =
   | EmptyHSFrag              (* nothing to send *) 
-  | HSFrag of                (DataStream.range * fragment)
-  | CCSFrag of               (DataStream.range * ccsFragment) (* the unique one-byte CCS *) * (KeyInfo * Record.ConnectionState)
-  | HSWriteSideFinished of   (DataStream.range * fragment) (* signalling that this fragment ends the finished message *)
-  | HSFullyFinished_Write of (DataStream.range * fragment) * SessionDB.StorableSession
+  | HSFrag of                (DataStream.range * delta)
+  | CCSFrag of               (DataStream.range * delta) (* the unique one-byte CCS *) * (KeyInfo * Record.ConnectionState)
+  | HSWriteSideFinished of   (DataStream.range * delta) (* signalling that this fragment ends the finished message *)
+  | HSFullyFinished_Write of (DataStream.range * delta) * SessionDB.StorableSession
 val next_fragment: ConnectionInfo  -> hs_state -> HSFragReply * hs_state
 
 (* Receiving Handshake and CCS fragments *) 
@@ -89,8 +85,8 @@ type recv_reply = (* the fragment is accepted, and... *)
   | HSQuery of Certificate.cert
   | HSReadSideFinished (* ? *) 
   | HSFullyFinished_Read of SessionDB.StorableSession (* we can start sending data on the connection *)  
-val recv_fragment: ConnectionInfo -> hs_state -> DataStream.range -> fragment -> recv_reply Result * hs_state
-val recv_ccs     : ConnectionInfo -> hs_state -> DataStream.range -> ccsFragment -> ((KeyInfo * Record.ConnectionState) Result) * hs_state
+val recv_fragment: ConnectionInfo -> hs_state -> DataStream.range -> delta -> recv_reply Result * hs_state
+val recv_ccs     : ConnectionInfo -> hs_state -> DataStream.range -> delta -> ((KeyInfo * Record.ConnectionState) Result) * hs_state
 
 // misses indexes, which are going to change anyway
 val authorize: hs_state -> Certificate.cert -> hs_state

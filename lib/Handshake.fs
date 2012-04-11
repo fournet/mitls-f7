@@ -204,10 +204,6 @@ type finished = bytes
 
 // Handshake module
 
-type stream = DataStream.stream
-type fragment = delta
-type ccsFragment = delta
-
 // Handshake state machines 
 
 type clientSpecificState =
@@ -301,10 +297,10 @@ let goToIdle state =
 
 type HSFragReply =
   | EmptyHSFrag
-  | HSFrag of (DataStream.range * fragment)
-  | CCSFrag of (DataStream.range * ccsFragment) * (KeyInfo * Record.ConnectionState)
-  | HSWriteSideFinished of (DataStream.range * fragment)
-  | HSFullyFinished_Write of (DataStream.range * fragment) * StorableSession
+  | HSFrag of (DataStream.range * delta)
+  | CCSFrag of (DataStream.range * delta) * (KeyInfo * Record.ConnectionState)
+  | HSWriteSideFinished of (DataStream.range * delta)
+  | HSFullyFinished_Write of (DataStream.range * delta) * StorableSession
 
 // FIXME: cleanup when handshake is ported to streams and deltas
 let makeFragment ki b =
@@ -2009,7 +2005,7 @@ let enqueue_fragment (ci:ConnectionInfo) state fragment =
     let new_inc = state.hs_incoming @| fragment in
     {state with hs_incoming = new_inc}
 
-let recv_fragment ci (state:hs_state) (r:DataStream.range) (fragment:fragment) =
+let recv_fragment ci (state:hs_state) (r:DataStream.range) (fragment:delta) =
     // FIXME: cleanup when Hs is ported to streams and deltas
     let b = deltaRepr ci.id_in (DataStream.init ci.id_in) r fragment in 
     if length b = 0 then
@@ -2021,7 +2017,7 @@ let recv_fragment ci (state:hs_state) (r:DataStream.range) (fragment:fragment) =
         | PSClient (_) -> recv_fragment_client ci state None
         | PSServer (_) -> recv_fragment_server ci state None
 
-let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:DataStream.range) (fragment:ccsFragment): ((KIAndCCS Result) * hs_state) =
+let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:DataStream.range) (fragment:delta): ((KIAndCCS Result) * hs_state) =
     // FIXME: cleanup when Hs is ported to streams and deltas
     let b = deltaRepr ci.id_in (DataStream.init ci.id_in) r fragment in 
     if equalBytes b CCSBytes then  

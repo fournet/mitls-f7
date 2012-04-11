@@ -96,9 +96,12 @@
     <None Include="StatefulAEAD.fs7" />
     <Compile Include="StatefulAEAD.fsi" />
     <Compile Include="StatefulAEAD.fs" />
-    <None Include="FragCommon.fs7" />
-    <Compile Include="FragCommon.fsi" />
-    <Compile Include="FragCommon.fs" />
+    <None Include="TLSFragment.fs7" />
+    <Compile Include="TLSFragment.fsi" />
+    <Compile Include="TLSFragment.fs" />
+    <None Include="record.fs7" />
+    <Compile Include="record.fsi" />
+    <Compile Include="record.fs" />
     <None Include="Alert.fs7" />
     <Compile Include="Alert.fsi" />
     <Compile Include="Alert.fs" />
@@ -108,9 +111,6 @@
     <None Include="SessionDB.fs7" />
     <Compile Include="SessionDB.fsi" />
     <Compile Include="SessionDB.fs" />
-    <None Include="record.fs7" />
-    <Compile Include="record.fsi" />
-    <Compile Include="record.fs" />
     <None Include="Handshake.fs7" />
     <None Include="Handshake2.fs7" />
     <Compile Include="Handshake.fsi" />
@@ -118,9 +118,6 @@
     <None Include="AppDataStream.fs7" />
     <Compile Include="AppDataStream.fsi" />
     <Compile Include="AppDataStream.fs" />
-    <None Include="TLSFragment.fs7" />
-    <Compile Include="TLSFragment.fsi" />
-    <Compile Include="TLSFragment.fs" />
     <None Include="Dispatch.fs7" />
     <Compile Include="Dispatch.fsi" />
     <Compile Include="Dispatch.fs" />
