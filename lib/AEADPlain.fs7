@@ -1,62 +1,63 @@
 module AEADPlain
-open DataStream
-open StatefulPlain
-open Error
 open Bytes
 open TLSInfo
+open DataStream
+open AEPlain
 
-type (;ki:KeyInfo) data = (b:bytes){Length(b) = TLSFragment.ADLength(ki)}
+type (;ki:KeyInfo) data = (b:bytes){Length(b) = ADLength(ki)}
 
-function val AEADSays: KeyInfo -> data -> range -> sbytes -> bool
+function val AEADSays: ki:KeyInfo -> r:range -> (;ki)data -> (;ki,r)sbytes -> bool
+// TODO: define AEADSays in terms of some AESays predicate defined in AEPlain (if/when ready)
+// Otherwise, we cannot typecheck the implementation of AEAD to/from AE functions
 
-private type (;ki:KeyInfo,r:range,ad:data) plain = 
-  x:(;ki,r)sbytes{ Safe(ki) => AEADSays(ki,ad,r,x) }
+private type (;ki:KeyInfo,r:range,ad:(;ki)data) preAEADPlain = {contents: (;ki,r)sbytes}
+private type (;ki:KeyInfo,r:range,ad:(;ki)data) AEADPlain =
+	x:(;ki,r,ad)preAEADPlain { Safe(ki) => AEADSays(ki,r,ad,x.contents) }
 
 
 // CF 04-09: TODO: add length constraints for those bytes
-val plain: ki:KeyInfo{not Safe(ki)} -> r:range -> ad:data -> bytes -> (;ki,ad,r) plain
-val repr:  ki:KeyInfo{not Safe(ki)} -> r:range -> ad:data -> (;ki,ad,r) plain -> bytes
+val AEADPlain: ki:KeyInfo{not Safe(ki)} -> r:range -> ad:(;ki)data -> bytes -> (;ki,ad,r) AEADPlain
+val AEADRepr:  ki:KeyInfo{not Safe(ki)} -> r:range -> ad:(;ki)data -> (;ki,ad,r) AEADPlain -> bytes
 
-val fragmentToPlain: ki:KeyInfo -> h:history -> ad:StatefulPlain.data -> r:range -> 
-  (;ki,h,ad,r)fragment -> (;ki,r,MakeAD(ki,h,ad))plain
+val contents:  ki:KeyInfo -> r:range -> ad:(;ki)data -> (;ki,r,ad)AEADPlain ->
+	sb:(;ki,r)sbytes{Safe(ki) => AEADSays(ki,r,ad,sb)}
+val construct: ki:KeyInfo -> r:range -> ad:(;ki)data ->
+	sb:(;ki,r)sbytes{Safe(ki) => AEADSays(ki,r,ad,sb)} -> (;ki,r,ad)AEADPlain
 
-val plainToFragment: ki:KeyInfo -> h:history -> ad:StatefulPlain.data -> r:range ->
-  (;ki,r,MakeAD(ki,h,ad))plain -> (;ki,h,ad,r)fragment
+val AEADPlainToAEPlain: ki:KeyInfo -> r:range -> ad:(;ki)data -> (;ki,r,ad) AEADPlain -> (;ki,r,ad) AEPlain
+val AEPlainToAEADPlain: ki:KeyInfo -> r:range -> ad:(;ki)data -> (;ki,r,ad) AEPlain -> (;ki,r,ad) AEADPlain
 
-definition !ki,ad,r,x. AEADSays(ki,ad,r,x) <=>
-  (?h,sn,ad'. History(ki,sn,ConsHistory(h,ad',r,x)) /\ ad = MakeAD(sn,ad'))
-
-////////////////////////////////////////////////////////////
-// How I would like the stack to look like:
-
-// Top level protocol:
-assume Before(ki,s,r,f) // when creating a delta
-
-// TLSFragment
-definition !ki,h,ct,r,f. HBefore(ki,h,ct,r,f) <=>
-	?s. Before(ki,s,r,f) /\ s = Select(ki,h,ct)
-
-// StatefulAEAD
-definition !ki,h,ad,r,f. SBefore(ki,h,ad,r,f) <=>
-	?H,ct. HBefore(ki,H,ct,r,f) /\ H = Project(ki,h) /\ ad = ADBytes(ki,ct)
-
-// AEAD
-definition !ki,ad,r,f. AEADSays(ki,ad,r,f) <=> ?h,ad'. SBefore(ki,h,ad',r,f) /\ ad = MakeAD(ki,h,ad')
-
-// Fragments at each level are defined as
-type (;id:ID,rest:REST)fragment = (;id)sbytes{XBefore(id,rest,f)}
-
-// Invariants on histories: NOT CLEAR YET. However, the idea looks like:
-
-H = Project(ki,h) // and
-s = Select(ki,h,ct)
-// are the proper invariants.
-// E.g.: in Record (whose plain is TLSFragment), when decrypting:
-// Before decryption, I know
-H = Project(ki,StatefulAEAD.GetHistory(StatefulAEAD.state))
-// Then we invoke StatefulAEAD.decrypt, and we get back
-state'{SExtend(state.history,state'.history)} // and
-plain
-// Then we cast plain to fragment, and we add fragment to our history
-H' = HExtend(H,fragment)
-// It looks like we need to define HExtend in terms of SExtend. (Right?)
+// ////////////////////////////////////////////////////////////
+// // How I would like the stack to look like:
+// 
+// // Top level protocol:
+// assume Before(ki,s,r,f) // when creating a delta
+// 
+// // TLSFragment
+// definition !ki,h,ct,r,f. HBefore(ki,h,ct,r,f) <=>
+// 	?s. Before(ki,s,r,f) /\ s = Select(ki,h,ct)
+// 
+// // StatefulAEAD
+// definition !ki,h,ad,r,f. SBefore(ki,h,ad,r,f) <=>
+// 	?H,ct. HBefore(ki,H,ct,r,f) /\ H = Project(ki,h) /\ ad = ADBytes(ki,ct)
+// 
+// // AEAD
+// definition !ki,ad,r,f. AEADSays(ki,ad,r,f) <=> ?h,ad'. SBefore(ki,h,ad',r,f) /\ ad = MakeAD(ki,h,ad')
+// 
+// // Fragments at each level are defined as
+// type (;id:ID,rest:REST)fragment = (;id)sbytes{XBefore(id,rest,f)}
+// 
+// // Invariants on histories: NOT CLEAR YET. However, the idea looks like:
+// 
+// H = Project(ki,h) // and
+// s = Select(ki,h,ct)
+// // are the proper invariants.
+// // E.g.: in Record (whose plain is TLSFragment), when decrypting:
+// // Before decryption, I know
+// H = Project(ki,StatefulAEAD.GetHistory(StatefulAEAD.state))
+// // Then we invoke StatefulAEAD.decrypt, and we get back
+// state'{SExtend(state.history,state'.history)} // and
+// plain
+// // Then we cast plain to fragment, and we add fragment to our history
+// H' = HExtend(H,fragment)
+// // It looks like we need to define HExtend in terms of SExtend. (Right?)

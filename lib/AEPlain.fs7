@@ -2,8 +2,38 @@
 
 open Bytes
 open TLSInfo
-open TLSFragment
+open CipherSuites
 open DataStream
+
+function val ADLength: KeyInfo -> int
+assume !ki. (ki.sinfo.protocol_version = SSL_3p0 /\ ADLength(ki) = 9) \/
+	(ki.sinfo.protocol_version <> SSL_3p0 /\ ADLength(ki) = 11)
+
+type (;ki:KeyInfo) data = (b:bytes){Length(b) = ADLength(ki)}
+
+private type (;ki:KeyInfo,r:range,ad:(;ki)data)AEPlain = {aep: bytes} // FIXME: we miss some predicate here.
+
+val AEPlain: ki:KeyInfo{not Safe(ki)} -> r:range -> ad:(;ki)data -> b:bytes -> (;ki,r,ad)AEPlain
+val AERepr:  ki:KeyInfo{not Safe(ki)} -> r:range -> ad:(;ki)data -> (;ki,r,ad)AEPlain -> b:bytes
+
+val AEConstruct: ki:KeyInfo -> r:range -> ad:(;ki)data -> (;ki,r)sbytes -> (;ki,r,ad)AEPlain
+val AEContents:  ki:KeyInfo -> r:range -> ad:(;ki)data -> (;ki,r,ad)AEPlain -> (;ki,r)sbytes
+
+
+// Plaintext of MAC (addData + TLSFragment.fragment)
+private type (;ki:KeyInfo) MACPlain = {macP:bytes}
+private type (;ki:KeyInfo) tag = {macT:bytes}
+
+val concat: ki:KeyInfo -> r:range -> 
+  ad:(;ki)data ->
+  f:(;ki,r,ad)AEPlain ->
+  p:(;ki)MACPlain
+
+val mac: ki:KeyInfo -> (;ki) MAC.key -> t:(;ki) MACPlain{MAC.Msg(ki,t.macP)} -> (;ki) tag
+val verify: ki:KeyInfo -> (;ki) MAC.key -> text:(;ki) MACPlain -> tag:(;ki) tag ->
+	v:bool{v = true => MAC.Msg(ki,text.macP)}
+
+/////////////// Rest is todo, possibly not up to date /////////////
 
 // AP and CF agree: AEPlain is indexed by (ki and) its public length, after encoding (and not by range).
 // We define function from:
@@ -11,7 +41,7 @@ open DataStream
 // - from tlen to public range of decoded authenticated fragment
 // - (and the inverse functions)
 
-function val PlainLength: ki:KeyInfo -> l1:nat ->
+function val PlainLength: ki:KeyInfo * l1:nat ->
 	l2:nat //{ki.sinfo.protocol_version == (SSL3p0 || TLS1p0) => l1 = l2 /\
 		   // ki.sinfo.protocol_version == (TLS1p1 || TLS1p2) => l1 = l2 + IVSize(ki))}
 
@@ -19,16 +49,11 @@ private type (;ki:KeyInfo,tlen:nat) plain = {p: (x:bytes){Length(x) = PlainLengt
 val plain: ki:KeyInfo -> tlen:nat -> b:bytes{Length(b) = PlainLength(ki,tlen)} -> (;ki,tlen) plain
 val repr: ki:KeyInfo -> tlen:nat -> (;ki,tlen) plain -> b:bytes{Length(b) = PlainLength(ki,tlen)}
 
-// Plaintext of MAC (addData + TLSFragment.fragment)
-private type (;ki:KeyInfo) MACPlain = {macP:bytes}
-private type (;ki:KeyInfo) tag = {macT:bytes}
 
-val tagRepr: ki:KeyInfo -> (;ki)tag -> bytes
-
-function val MsgBytes: pv:CipherSuites.ProtocolVersion * (;pv) TLSFragment.addData * bytes  -> bytes
-assume !pv,ad,x. MsgBytes(pv,ad,x) = (ad @| IntBytes(2,Length(x))) @| x 
-assume !pv,ad1,x1,ad2,x2. (Length(ad1) = Length(ad2) /\
-                        MsgBytes(pv,ad1,x1) = MsgBytes(pv,ad2,x2)) => 
+function val MsgBytes: ki:KeyInfo * (;ki) data * bytes  -> bytes
+assume !ki,ad,x. MsgBytes(ki,ad,x) = (ad @| IntBytes(2,Length(x))) @| x 
+assume !ki,ad1,x1,ad2,x2. (Length(ad1) = Length(ad2) /\
+                        MsgBytes(ki,ad1,x1) = MsgBytes(ki,ad2,x2)) => 
                        (ad1 = ad2 /\ x1=x2)
 
 // Now defined in MAC
@@ -36,22 +61,16 @@ assume !pv,ad1,x1,ad2,x2. (Length(ad1) = Length(ad2) /\
 
 assume !ki,tlen,pl. MAC.Msg(ki,pl) <=>
   (Corrupt(ki) \/
-     (?ad,x. Length(ad) = TLSFragment.ADLength(ki.sinfo.protocol_version) /\
-	  pl.macP = MsgBytes(ki.sinfo.protocol_version,ad,x) /\
-	  TLSFragment.Fragment(ki,tlen,
-			       TLSFragment.ADseqn(ki.sinfo.protocol_version,ad),
-			       TLSFragment.ADct(ki.sinfo.protocol_version,ad),x)))
+     (?ad,x. Length(ad) = ADLength(ki) /\
+	  pl = MsgBytes(ki,ad,x)// /\ ??
+	// TLSFragment.Fragment(ki,tlen,
+	// 	       TLSFragment.ADseqn(ki.sinfo.protocol_version,ad),
+	// 	       TLSFragment.ADct(ki.sinfo.protocol_version,ad),x)))
+	))
 
 ask !ki,t. Corrupt(ki) => MAC.Msg(ki,t)
 
-val concat: ki:KeyInfo -> rg:DataStream.range -> 
-  ad:(;ki.sinfo.protocol_version) TLSFragment.addData ->
-  f:(;ki,rg,ad)AEADPlain.plain ->
-  p:(;ki)MACPlain
 
-val mac: ki:KeyInfo -> (;ki) MAC.key -> t:(;ki) MACPlain{MAC.Msg(ki,t.macP)} -> (;ki) tag
-val verify: ki:KeyInfo -> (;ki) MAC.key -> text:(;ki) MACPlain -> tag:(;ki) tag ->
-	v:bool{v = true => MAC.Msg(ki,text.macP)}
 
 val pad: l:int -> b:bytes{Length(b) = l}
 val check_split: 
@@ -60,9 +79,9 @@ val check_split:
 
 // The following should rather be internal to AEAD, as it only operates on public data.
 // However, we put it here to avoid circular dependencies
-function val RangeCipher: KeyInfo -> range -> nat
+function val RangeCipher: KeyInfo * range -> nat
 val rangeCipher: ki:KeyInfo -> r:range -> tlen:nat{tlen=RangeCipher(ki,r)}
 
 // TODO: Say that the result of encode is "block-aligned" (more generally: compatible with the current enc algorithm)
-val encode: ki:KeyInfo -> rg:range -> ad:(;ki.sinfo.protocol_version) TLSFragment.addData -> (;ki,rg,ad) AEADPlain.plain -> (;ki) tag -> (tlen:nat * (;ki,tlen) plain){tlen=RangeCipher(ki,rg)}
-val decode: ki:KeyInfo -> ad:(;ki.sinfo.protocol_version) TLSFragment.addData -> tlen:nat -> (;ki,tlen) plain -> (rg:range * (;ki,rg,ad)AEADPlain.plain * (;ki)tag * bool){tlen=RangeCipher(ki,rg)}
+val encode: ki:KeyInfo -> rg:range -> ad:(;ki) data -> (;ki,rg,ad) AEPlain -> (;ki) tag -> (tlen:nat * (;ki,tlen) plain){tlen=RangeCipher(ki,rg)}
+val decode: ki:KeyInfo -> ad:(;ki) data -> tlen:nat -> (;ki,tlen) plain -> (rg:range * (;ki,rg,ad)AEPlain * (;ki)tag * bool){tlen=RangeCipher(ki,rg)}

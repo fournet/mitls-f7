@@ -85,10 +85,6 @@ val TLSFragmentRepr: ki:KeyInfo -> ct:ContentType -> h: (;ki) history -> rg:rang
 val TLSFragment: ki:KeyInfo -> ct:ContentType -> h: (;ki) history -> rg:range ->
   bytes -> (;ki,ct,h,rg)fragment 
 
-function val ADLength: KeyInfo -> int
-assume !ki. (ki.sinfo.protocol_version = SSL_3p0 /\ ADLength(ki) = 9) \/
-	(ki.sinfo.protocol_version <> SSL_3p0 /\ ADLength(ki) = 11)
-
 // Additional Data
 type (;ki:KeyInfo) addData = (b:bytes){Length(b) = ADLength(ki) - 8}
 

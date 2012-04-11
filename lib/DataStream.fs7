@@ -3,40 +3,42 @@ open TLSInfo
 open Bytes
 open Error
 
-// Secret bytes arrays indexed by ranges.
+val max_TLSPlaintext_fragment_length: nat
+val max_TLSCompressed_fragment_length: nat
+val max_TLSCipher_fragment_length: nat
+val fragmentLength: nat
 
 type range = l:nat * h:nat { l <= h } (* length range *)
 type (;r:range) rbytes = b:bytes { ?l,h. r = (l,h) /\ l <= Length(b) /\ Length(b) <= h }   
 
-private type (;ki:KeyInfo,r:range) sbytes = {secb:(;r)rbytes}
-
-// Plain and repr for the sbytes type.
-val plain: ki:KeyInfo{not Safe(ki)} -> r:range -> (;r)rbytes -> x:(;ki,r)sbytes
-val repr:  ki:KeyInfo{not Safe(ki)} -> r:range -> x:(;ki,r)sbytes -> (;r)rbytes
-
 function val Sum: range * range -> range
 assume !l0,h0,l1,h1. Sum((l0,h0),(l1,h1)) = (l0+l1,h0+h1)
 val rangeSum: r0:range -> r1:range -> r:range{r = Sum(r0,r1)}
-
 val min: a:nat -> b:nat -> c:nat{(a<=b /\ c=a) \/ (a>b /\ c=b)}
 val max: a:nat -> b:nat -> c:nat{(a>=b /\ c=a) \/ (a<b /\ c=b)}
+val splitRange: ki:KeyInfo -> r:range -> (r0:range * r1:range){r = Sum(r0,r1)} // /\ FitsInFrag(ki,fragmentLength,r0)
 
-val splitRange: ki:KeyInfo -> r:range -> (r0:range * r1:range){r = Sum(r0,r1)} // /\ FitsInFrag(r0)
+private type (;ki:KeyInfo,r:range) sbytes = {secb:(;r)rbytes}
 
-// User-provided code
+val plain: ki:KeyInfo{not Safe(ki)} -> r:range -> (;r)rbytes -> x:(;ki,r)sbytes
+val repr:  ki:KeyInfo{not Safe(ki)} -> r:range -> x:(;ki,r)sbytes -> (;r)rbytes
 
 private type (;ki:KeyInfo) stream = {sb:bytes}
-
 predicate Before of ki:KeyInfo * (;ki)stream * r:range * (;ki,r)sbytes
+private type (;ki:KeyInfo, h:(;ki)stream, r:range) predelta = {contents:(;ki,r)sbytes}
+private type (;ki:KeyInfo, h:(;ki)stream, r:range) delta = x:(;ki,h,r)predelta{Safe(ki) => Before(ki,h,r,x.contents)}
 
-private type (;ki:KeyInfo, before: (;ki) stream, r:range) delta = x:(;ki,r) sbytes{Before(ki,before,r,x)}
+val delta: 
+  ki:KeyInfo{not Safe(ki)} -> s:(;ki) stream -> r:range -> b:(;r) rbytes -> c: (;ki,s,r) delta  
+val deltaRepr: 
+  ki:KeyInfo{not Safe(ki)} -> s:(;ki) stream -> r:range -> c: (;ki,s,r) delta -> (;r) rbytes
 
 function type es = EmptyStream of KeyInfo
 private assume !ki. EmptyStream(ki) = {sb = [| |]}
 val init: ki:KeyInfo -> s:(;ki) stream{s = EmptyStream(ki)}
 
 function val ExtendStream: ki:KeyInfo * s:(;ki)stream * (;ki,s,(0,0))delta -> (;ki)stream
-private assume !ki,s,d. ExtendStream(ki,s,d) = {sb = s.sb @| d.secb}
+private assume !ki,s,d. ExtendStream(ki,s,d) = {sb = s.sb @| d.contents.secb}
 
 
 val append: 
@@ -51,8 +53,7 @@ val join: ki:KeyInfo -> s:(;ki) stream ->
   r0:range -> d0:(;ki,s,r0) delta -> 
   r1:range -> d1:(;ki,ExtendStream(ki,s,d0),r1) delta -> (;ki,s,Sum(r0,r1)) delta
 
-// Plain/repr for "delta" (built on top of the base ones)
-val delta: 
-  ki:KeyInfo -> s:(;ki) stream -> r:range -> b:(;r) rbytes -> c: (;ki,s,r) delta  
-val deltaRepr: 
-  ki:KeyInfo -> s:(;ki) stream -> r:range -> c: (;ki,s,r) delta -> (;r) rbytes
+val contents:  ki:KeyInfo -> s:(;ki)stream -> r:range -> (;ki,s,r)delta ->
+	sb:(;ki,r)sbytes{Safe(ki) => Before(ki,s,r,sb)}
+val construct: ki:KeyInfo -> s:(;ki)stream -> r:range ->
+	sb:(;ki,r)sbytes{Safe(ki) => Before(ki,s,r,sb)} -> (;ki,s,r)delta

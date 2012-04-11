@@ -7,6 +7,9 @@ open Error
 
 (* this interface is trusted *)
 
+// ciphers consist of one or more blocks of bytes.
+type cipher = b:bytes{Length(b) <= DataStream.max_TLSCipher_fragment_length}
+
 private type (;ki:KeyInfo) key = {k:bytes}
 
 type iv = bytes
@@ -15,38 +18,33 @@ type (;ki:KeyInfo) iv3 =
 	| NoIV of bool // TLS_1p0 and TLS_1p2
 
 private type (;ki:KeyInfo)state =
-	{key: (;ki)ENCKey.key;
-     iv: (;ki)ENCKey.iv3}
+	{key: (;ki)key;
+     iv: (;ki)iv3}
 
 type (;ki:KeyInfo)encryptor = (;ki)state
 type (;ki:KeyInfo)decryptor = (;ki)state
 
 // We do not use the state, but an abstract ID over it, so that we can link
 // encryptor and decryptor states
-private function val StateID: state -> int
+private function val StateID: ki:KeyInfo * (;ki)state -> int
 
 //val GEN: ki:KeyInfo -> e:(;ki)encryptor * d:(;ki)decryptor{StateID(e)=0 /\ StateID(d)=0}
-val GEN: ki:KeyInfo -> (e:(;ki)encryptor{StateID(e)=0}) * (d:(;ki)decryptor{StateID(d)=0}) //syntax error
-val LEAK:   ki:KeyInfo{Corrupt(ki)} -> (;ki)state -> key:bytes * iv:bytes
-val COERCE: ki:KeyInfo{Corrupt(ki)} -> key:bytes -> iv:bytes -> (;ki)state
-
-
-// ciphers consist of one or more blocks of bytes.
-type cipher = b:bytes{Length(b) <= FragCommon.max_TLSCipher_fragment_length}
-
+val GEN: ki:KeyInfo{Safe(ki)} -> (e:(;ki)encryptor{StateID(ki,e)=0}) * (d:(;ki)decryptor{StateID(ki,d)=0}) //syntax error
+val LEAK:   ki:KeyInfo{not Safe(ki)} -> (;ki)state -> key:bytes * iv:bytes
+val COERCE: ki:KeyInfo{not Safe(ki)} -> key:bytes -> iv:bytes -> (;ki)state
 
 predicate ENCrypted of
-  (ki:KeyInfo * tlen:int * stateID * (;ki,tlen) plain * cipher)
+  (ki:KeyInfo * tlen:int * int * (;ki,tlen) plain * cipher)
 
 // TODO: We need to refine cipher before applying CPA
 
 val ENC: ki:KeyInfo -> s:(;ki) encryptor -> tlen:int -> p:(;ki,tlen) plain -> 
-  ( (s':(;ki) encryptor{StateID(s') = StateID(s)+1}) *
-   (c:cipher{ENCrypted(ki,tlen,StateID(s),p,c) /\ Length(c)=tlen}) )
+  ( (s':(;ki) encryptor{StateID(ki,s') = StateID(ki,s)+1}) *
+   (c:cipher{ENCrypted(ki,tlen,StateID(ki,s),p,c) /\ Length(c)=tlen}) )
 
 val DEC: ki:KeyInfo -> s:(;ki) decryptor -> c:cipher -> 
-  ( (s':(;ki) decryptor{StateID(s') = StateID(s)+1}) *
-   (p:(;ki,Length(c))plain{!p'. ENCrypted(ki,Length(c),StateID(s),p',c) => p=p'}) )
+  ( (s':(;ki) decryptor{StateID(ki,s') = StateID(ki,s)+1}) *
+   (p:(;ki,Length(c))plain{!p'. ENCrypted(ki,Length(c),StateID(ki,s),p',c) => p=p'}) )
 
 
 (*val ENC: ki:KeyInfo -> s:(;ki) encryptor -> tlen:int -> p:(;ki,tlen) plain -> 

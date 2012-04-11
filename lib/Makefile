@@ -135,7 +135,7 @@ TLSInfo.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 Algorithms.fs7 RSA
 	 $(f7t) -scripts TLSInfo Error.fs7 Bytes.fs7 tcp.fs7 Algorithms.fs7 RSA.fs7 HASH.fs7 HMAC.fs7 Certificate.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 TLSInfo.fs
 
 DataStream.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 Algorithms.fs7 RSA.fs7 HASH.fs7 HMAC.fs7 Certificate.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 DataStream.fs7 DataStream.fs
-	 $(f7t) -scripts DataStream Error.fs7 Bytes.fs7 tcp.fs7 Algorithms.fs7 RSA.fs7 HASH.fs7 HMAC.fs7 Certificate.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 DataStream.fs7 DataStream.fs
+	 $(f7t) -timeout 100 -scripts DataStream Error.fs7 Bytes.fs7 tcp.fs7 Algorithms.fs7 RSA.fs7 HASH.fs7 HMAC.fs7 Certificate.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 DataStream.fs7 DataStream.fs
 
 MAC.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 Algorithms.fs7 RSA.fs7 HASH.fs7 HMAC.fs7 Certificate.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 DataStream.fs7 MAC.fs7 MAC.fs
 	 $(f7t) -scripts MAC Error.fs7 Bytes.fs7 tcp.fs7 Algorithms.fs7 RSA.fs7 HASH.fs7 HMAC.fs7 Certificate.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 DataStream.fs7 MAC.fs7 MAC.fs

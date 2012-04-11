@@ -21,9 +21,6 @@ val concat: KeyInfo -> range -> data -> AEPlain -> MACPlain
 val mac: KeyInfo -> MAC.key -> MACPlain -> tag
 val verify: KeyInfo -> MAC.key -> MACPlain -> tag -> bool
 
-// only for MACOnly ciphersuites, untile they get integrated into AEAD
-val tagRepr: KeyInfo -> tag -> bytes
-
 type plain
 
 val plain: KeyInfo -> nat -> bytes -> plain

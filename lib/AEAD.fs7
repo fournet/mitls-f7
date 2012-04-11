@@ -5,27 +5,27 @@ open Error
 open DataStream
 open AEADPlain (* parameter *)
 
+type cipher = bytes
+
 private type (;ki:KeyInfo) AEADKey =
     | MtE of ka:(;ki)MAC.key * ke:(;ki)ENC.state // {MtEKey(ki,(ka,ke))}
     | MACOnly of (;ki) MAC.key
 (*  | GCM of ke:(;ki:AENC.state)  *)
 
-type cipher = bytes
-
 // TODO: Define AEADSize. 
 // In the code, (AEADSize * 2) is computed in CipherSuites.getKeyExtensionLength
 
 val GEN:    ki:KeyInfo{Safe(ki)} -> encryptor:(;ki)AEADKey * decryptor:(;ki)AEADKey
-val COERCE: ki:KeyInfo -> b:bytes{Length(b) = AEADSize(ki)} -> (;ki)AEADKey
-val LEAK:   ki:KeyInfo -> (;ki)AEADKey -> b:bytes{Length(b) = AEADSize(ki)}
+val COERCE: ki:KeyInfo -> b:bytes (* {Length(b) = AEADSize(ki)} *) -> (;ki)AEADKey
+val LEAK:   ki:KeyInfo -> (;ki)AEADKey -> b:bytes (* {Length(b) = AEADSize(ki)} *)
 
 val encrypt: ki:KeyInfo -> (;ki) AEADKey -> ad:(;ki) data ->
-  rg:range -> p:(;ki,rg,ad) plain ->
+  rg:range -> p:(;ki,rg,ad) AEADPlain ->
   ((;ki) AEADKey * c:cipher){Length(c)=RangeCipher(ki,rg) /\ CTXT(ki,ad,p,c)}
 
 val decrypt: ki:KeyInfo -> (;ki) AEADKey -> ad:(;ki) data ->
   c:cipher -> r: 
-  ( (;ki) AEADKey * rg:(rg:range{rg = CipherRange(ki,c)}) * (;ki,rg,ad) plain) Result
+  ( (;ki) AEADKey * rg:(rg:range{rg = CipherRange(ki,c)}) * (;ki,rg,ad) AEADPlain) Result
   { (Safe(ki) => (!rg,p. (res = Correct(rg,p) <=> CTXT(ki,ad,p,c)))) /\
     (Auth(ki) => (!rg,p. (res = Correct(rg,p) =>  (?c. CTXT(ki,ad,p,c))))) }
       

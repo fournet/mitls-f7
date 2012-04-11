@@ -8,7 +8,7 @@ let max_TLSCompressed_fragment_length = max_TLSPlaintext_fragment_length + 1024
 let max_TLSCipher_fragment_length = max_TLSCompressed_fragment_length + 1024
 let fragmentLength = max_TLSPlaintext_fragment_length (* use e.g. 1 for testing *)
 
-type range = int * int (* length range *)
+type range = nat * nat (* length range *)
 type rbytes = bytes 
 
 let rangeSum (l0,h0) (l1,h1) =
@@ -21,12 +21,18 @@ let min (a:nat) (b:nat) =
 let max (a:nat) (b:nat) =
     if a >= b then a else b
 
-let splitRange ki (l,h) =
+let splitRange ki r =
+    let (l,h) = r in
     let padSize = CipherSuites.maxPadSize ki.sinfo.protocol_version ki.sinfo.cipher_suite in
     if padSize = 0 then
-        // assert l = h
-        let length = min l fragmentLength in
-        ((length,length),(l-length,l-length))
+        if l <> h then
+            unexpectedError "[splitRange] invalid argument"
+        else
+            let length = min l fragmentLength in
+            let rem = l-length in
+            let r0 = (length,length) in
+            let r1 = (rem,rem)
+            (r0,r1)
     else
         let minpack = (h-l) / padSize
         let minfrag = (h-1) / fragmentLength
@@ -41,10 +47,14 @@ let plain (ki:KeyInfo) (r:range) b = {secb = b}
 let repr  (ki:KeyInfo) (r:range) sb = sb.secb
 
 type stream = {sb: bytes}
-type delta = {contents: sbytes}
+type predelta = {contents: sbytes}
+type delta = predelta
 
 let delta (ki:KeyInfo) (s:stream) (r:range) (b:bytes) = {contents = plain ki r b}
 let deltaRepr (ki:KeyInfo) (s:stream) (r:range) (d:delta) = repr ki r d.contents
+
+// ghost
+type es = EmptyStream of KeyInfo
 
 let init (ki:KeyInfo) = {sb = [| |]}
 

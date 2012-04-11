@@ -3,25 +3,27 @@ open TLSInfo
 open Bytes
 open Error
 
-val max_TLSPlaintext_fragment_length: int
-val max_TLSCompressed_fragment_length: int
-val max_TLSCipher_fragment_length: int
-val fragmentLength: int
+val max_TLSPlaintext_fragment_length: nat
+val max_TLSCompressed_fragment_length: nat
+val max_TLSCipher_fragment_length: nat
+val fragmentLength: nat
 
-type range = int * int (* length range *)
+type range = nat * nat (* length range *)
+type rbytes = bytes
 val rangeSum: range -> range -> range
 val splitRange: KeyInfo -> range -> range * range
 
 type sbytes
 
-val plain: KeyInfo -> range -> bytes -> sbytes
-val repr:  KeyInfo -> range -> sbytes -> bytes
+val plain: KeyInfo -> range -> rbytes -> sbytes
+val repr:  KeyInfo -> range -> sbytes -> rbytes
 
 type stream
-type delta
+type predelta
+type delta = predelta
 
-val delta:     KeyInfo -> stream -> range -> bytes -> delta
-val deltaRepr: KeyInfo -> stream -> range -> delta -> bytes
+val delta:     KeyInfo -> stream -> range -> rbytes -> delta
+val deltaRepr: KeyInfo -> stream -> range -> delta -> rbytes
 
 val init: KeyInfo -> stream
 val append: KeyInfo -> stream -> range ->

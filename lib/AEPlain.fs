@@ -32,9 +32,6 @@ let mac ki k t =
 let verify ki k text tag =
     MAC.VERIFY ki k text.macP tag.macT
 
-// only for MACOnly ciphersuites, until MACOnly becomes part of AEAD
-let tagRepr (ki:KeyInfo) t = t.macT
-
 // From Ranges to Target Length
 let padLength ki len =
     // Always compute minimal padding.
