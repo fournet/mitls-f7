@@ -26,7 +26,8 @@ type ALFragReply =
 
 type alert_reply =
     | ALAck of state
-    | ALClose of state
+    | ALFatal of alertDescription * state
+    | ALWarning of alertDescription * state
     | ALClose_notify of state
 
 (* Conversions *)
@@ -172,9 +173,9 @@ let handle_alert ci state alDesc =
         ALClose_notify (state)
     | _ ->
         if isFatal alDesc then
-            ALClose (state)
+            ALFatal (alDesc,state)
         else
-            ALAck   (state)
+            ALWarning (alDesc,state)
 
 let recv_fragment (ci:ConnectionInfo) state (r:range) (data:delta) =
     // FIXME: cleanup when alert is ported to streams and deltas

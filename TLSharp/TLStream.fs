@@ -32,10 +32,10 @@ type TLStream(s:System.Net.Sockets.NetworkStream, options, b) =
         | Dispatch.ReadError (err) ->
             match err with
             | Dispatch.EInternal(x,y) -> raise (IOException(sprintf "TLS-HS: Internal error: %A %A" x y))
-            | Dispatch.EFatal ad -> raise (IOException(sprintf "TLS-HS: Sent alert: %A" ad))
+            | Dispatch.EFatal ad -> raise (IOException(sprintf "TLS-HS: Sent fatal alert: %A" ad))
         | Dispatch.Close ns -> raise (IOException(sprintf "TLS-HS: Connection closed during HS"))
-        | Dispatch.Fatal ad -> raise (IOException(sprintf "TLS-HS: Received alert: %A" ad))
-        | Dispatch.Warning (conn,ad) -> raise (IOException(sprintf "TLS-HS: Received alert: %A" ad))
+        | Dispatch.Fatal ad -> raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
+        | Dispatch.Warning (conn,ad) -> raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
         | Dispatch.CertQuery (conn,q) -> raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate"))
         | Dispatch.Handshaken conn -> closed <- false; conn
         | Dispatch.Read (conn,msg) ->
@@ -49,10 +49,10 @@ type TLStream(s:System.Net.Sockets.NetworkStream, options, b) =
         | Dispatch.ReadError (err) ->
             match err with
             | Dispatch.EInternal(x,y) -> raise (IOException(sprintf "TLS-HS: Internal error: %A %A" x y))
-            | Dispatch.EFatal ad -> raise (IOException(sprintf "TLS-HS: Sent alert: %A" ad))
+            | Dispatch.EFatal ad -> raise (IOException(sprintf "TLS-HS: Sent fatal alert: %A" ad))
         | Dispatch.Close ns -> closed <- true; (conn,[||]) // FIXME: this is an old connection, should not be used!
-        | Dispatch.Fatal ad -> raise (IOException(sprintf "TLS-HS: Received alert: %A" ad))
-        | Dispatch.Warning (conn,ad) -> raise (IOException(sprintf "TLS-HS: Received alert: %A" ad))
+        | Dispatch.Fatal ad -> raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
+        | Dispatch.Warning (conn,ad) -> raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
         | Dispatch.CertQuery (conn,q) -> raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate"))
         | Dispatch.Handshaken conn -> wrapRead conn
         | Dispatch.Read (conn,msg) -> (conn,undoMsg_i conn msg)
@@ -125,5 +125,7 @@ type TLStream(s:System.Net.Sockets.NetworkStream, options, b) =
         this.Flush()
         if not closed then
             let conn = TLS.shutdown conn
-            while not closed do
-                ignore (wrapRead conn)
+            try 
+                while not closed do
+                    ignore (wrapRead conn)
+            with :? IOException -> ()

@@ -486,18 +486,24 @@ let deliver (Conn(id,c)) ct tl frag: (deliverOutcome * Connection) Result =
         //let ad = AppDataStream.writeNonAppDataFragment id c.appdata in
         let new_read = {c_read with disp = Closed} in
         correct (RClose, Conn(id, { c with read = new_read;
+                                           alert = state;
                                            //appdata = ad;
                                            }))
-    | Correct (Alert.ALClose (state)) ->
+    | Correct (Alert.ALFatal (ad,state)) ->
         (* Other fatal alert, we close both sides of the connection *)
         //let ad = AppDataStream.writeNonAppDataFragment id c.appdata in
         let c = {c with alert = state;
                         //appdata = ad;
                         }
         let closed = closeConnection (Conn(id,c)) in
-        // FIXME: We need to get some info about the alert we just received!
-        let inventedAlert = AD_internal_error in
-        correct (RFatal(inventedAlert), closed )
+        correct (RFatal(ad), closed )
+    | Correct (Alert.ALWarning (ad,state)) ->
+        (* A warning alert, we carry on. The user will decide what to do *)
+        //let ad = AppDataStream.writeNonAppDataFragment id c.appdata in
+        let c = {c with alert = state;
+                        //appdata = ad;
+                        }
+        correct (RWarning(ad), Conn(id,c) )
     | Error (x,y) -> let closed = closeConnection(Conn(id,c)) in Error(x,y) // TODO: We might want to send some alert here.
 
   | Application_data, TLSFragment.FAppData(f), Open -> 
@@ -566,7 +572,7 @@ let rec read c =
             let (Conn(id,conn)) = c in
             match conn.write.disp with
             | Closed ->
-                // we alreadt send a close_notify, tell the user it's over
+                // we already sent a close_notify, tell the user it's over
                 Close conn.ns
             | _ ->
                 match writeAll c with

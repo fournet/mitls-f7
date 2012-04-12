@@ -15,7 +15,8 @@ type ALFragReply =
 
 type alert_reply =
     | ALAck of state
-    | ALClose of state
+    | ALFatal of alertDescription * state
+    | ALWarning of alertDescription * state
     | ALClose_notify of state
 
 val init: ConnectionInfo -> state

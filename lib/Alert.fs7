@@ -18,7 +18,8 @@ type (;ki:KeyInfo,seqn:int)ALFragReply =
 
 type (;ci:ConnectionInfo)alert_reply =
     | ALAck of          (;ci)state
-    | ALClose of        (;ci)state
+    | ALFatal of        alertDescription * (;ci)state
+	| ALWarning of alertDescription * (;ci)state
     | ALClose_notify of (;ci)state
 
 // Conversions
