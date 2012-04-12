@@ -22,8 +22,9 @@ type stream
 type predelta
 type delta = predelta
 
-val delta:     KeyInfo -> stream -> range -> rbytes -> delta
-val deltaRepr: KeyInfo -> stream -> range -> delta -> rbytes
+val createDelta: KeyInfo -> stream -> range -> rbytes -> delta
+val delta:       KeyInfo -> stream -> range -> rbytes -> delta
+val deltaRepr:   KeyInfo -> stream -> range -> delta -> rbytes
 
 val init: KeyInfo -> stream
 val append: KeyInfo -> stream -> range ->
