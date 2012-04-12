@@ -72,27 +72,20 @@ let emptyOutgoingAppData (c:ConnectionInfo)  (a:app_state) =
       | h,None -> None,a
       | h,Some(r,d) -> 
           Some(r,d),{a with app_outgoing = {a.app_outgoing with data = h,None}}
-
-
-// AP: FIXME!!!!!
-let maxFragmentLength (ki:KeyInfo) = 255 (* We need to put in the right computation here *)
     
 let readAppDataFragment (c:ConnectionInfo)  (a:app_state) =
     // Pi.assume(AppDataSequenceNo(c.id_out,a.app_outgoing.seqn));
     match a.app_outgoing.data with
         hs,None -> None
-      | hs,Some (r,d) -> 
-          let (l,h) = r in
-          let max = maxFragmentLength c.id_out in
-          if h <= max then
+      | hs,Some (r,d) ->
+          let (r0,r1) = splitRange c.id_out r in
+          if r = r0 then
             let stream = DataStream.append c.id_out hs r d in
-            Some(r,d,{a with app_incoming = {a.app_incoming with data = stream,None}})
+            Some(r,d,{a with app_outgoing = {a.app_outgoing with data = stream,None}})
           else 
-            let r1 = (0,max) in
-            let r2 = (l,h - max) in
-            let (d1,d2) = DataStream.split c.id_out hs r1 r2 d in
-            let stream = DataStream.append c.id_out hs r1 d1 in
-            Some(r1,d1,{a with app_incoming = {a.app_incoming with data = stream,Some(r2,d2)}})
+            let (d0,d1) = DataStream.split c.id_out hs r0 r1 d in
+            let stream = DataStream.append c.id_out hs r0 d0 in
+            Some(r0,d0,{a with app_outgoing = {a.app_outgoing with data = stream,Some(r1,d1)}})
 
 // let readNonAppDataFragment (c:ConnectionInfo) (a:app_state) = 
 //   let nout_seqn = a.app_outgoing.seqn + 1 in

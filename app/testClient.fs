@@ -3,7 +3,7 @@
 open Error
 open Dispatch
 
-let serverIP = "rigoletto.polito.it" // "google.com" // 128.93.188.162
+let serverIP = "google.com" // "rigoletto.polito.it" //  // 128.93.188.162
 let serverPort = 443
 let options = TLSInfo.defaultProtocolOptions
 
@@ -52,7 +52,7 @@ let testRes options sid =
             match consume conn with
             | None -> ()
             | Some(conn) ->
-                let sinfo = TLS.getSessionInfo conn in
+                let sinfo = TLS.getSessionInfo (TLS.getInKI conn) in
                 match sinfo.sessionID with
                 | None -> printf "Full handshake, and got new, non-resumable session."
                 | Some (newSid) ->
