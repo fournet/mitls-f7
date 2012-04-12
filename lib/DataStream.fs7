@@ -29,6 +29,10 @@ predicate Before of ki:KeyInfo * (;ki)stream * r:range * (;ki,r)sbytes
 private type (;ki:KeyInfo, h:(;ki)stream, r:range) predelta = {contents:(;ki,r)sbytes}
 private type (;ki:KeyInfo, h:(;ki)stream, r:range) delta = x:(;ki,h,r)predelta{Safe(ki) => Before(ki,h,r,x.contents)}
 
+val createDelta: 
+  ki:KeyInfo -> s:(;ki) stream -> r:range -> b:(;r) rbytes -> c: (;ki,s,r) delta  
+val destructDelta: 
+  ki:KeyInfo -> s:(;ki) stream -> r:range -> c: (;ki,s,r) delta -> (;r) rbytes
 val delta: 
   ki:KeyInfo{not Safe(ki)} -> s:(;ki) stream -> r:range -> b:(;r) rbytes -> c: (;ki,s,r) delta  
 val deltaRepr: 

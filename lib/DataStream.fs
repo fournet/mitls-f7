@@ -57,6 +57,7 @@ let createDelta (ki:KeyInfo) (s:stream) (r:range) (b:bytes) =
     let sb = plain ki r b in
     Pi.assume (Before(ki,s,r,sb));
     {contents = sb}
+let destructDelta (ki:KeyInfo) (s:stream) (r:range) (d:delta) = repr ki r d.contents
 let delta (ki:KeyInfo) (s:stream) (r:range) (b:bytes) = {contents = plain ki r b}
 let deltaRepr (ki:KeyInfo) (s:stream) (r:range) (d:delta) = repr ki r d.contents
 
