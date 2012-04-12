@@ -35,6 +35,7 @@ let splitRange ki r =
             (r0,r1)
     else
         let minpack = (h-l) / padSize
+(* KB: Apr 12: We need to prove that minfrag is >= 0. Is it? *)
         let minfrag = (h-1) / fragmentLength
         let savebytes = max minpack minfrag
         let smallL = max (min (l-savebytes) fragmentLength) 0
