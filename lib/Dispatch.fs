@@ -164,14 +164,6 @@ let shutdown (Conn(id,conn)) =
     let conn = {conn with alert = new_al} in
     Conn(id,conn)
 
-(*
-let appDataAvailable conn =
-    AppDataStream.retrieve_data_available conn.appdata
-*)
-
-let getSessionInfo (Conn(id,conn)) =
-    id.id_out.sinfo // in Open and Closed state, this should be equivalent to id.id_in.sinfo
-
 let moveToOpenState (Conn(id,c)) new_storable_info =
     (* If appropriate, store this session in the DB *)
     let (storableSinfo,storableMS,storableDir) = new_storable_info in
@@ -646,6 +638,11 @@ let refuse (Conn(id,c)) (q:query) =
     let al = Alert.send_alert id c.alert AD_unknown_ca in
     let c = {c with alert = al} in
     ignore (writeAll (Conn(id,c))) // we might want to tell the user something about this
+
+let getInKI  (Conn(id,state)) = id.id_in
+let getOutKI (Conn(id,state)) = id.id_out
+let getInStream  (Conn(id,state)) = AppDataStream.inStream  id state.appdata
+let getOutStream (Conn(id,state)) = AppDataStream.outStream id state.appdata 
 
 (*
 let rec writeAppData c = 

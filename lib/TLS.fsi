@@ -5,10 +5,9 @@ open Error
 open Dispatch
 open TLSInfo
 open Tcp
+open DataStream
 
 (* Event-driven interface *)
-
-val getSessionInfo: Connection -> SessionInfo
 
 val read     : Connection -> ioresult_i
 val write    : Connection -> msg_o -> ioresult_o
@@ -26,3 +25,9 @@ val accept_connected : NetworkStream -> protocolOptions -> Connection
 
 val authorize: Connection -> query -> Connection
 val refuse:    Connection -> query -> unit
+
+val getInKI:  Connection -> KeyInfo
+val getOutKI: Connection -> KeyInfo
+val getSessionInfo: KeyInfo -> SessionInfo
+val getInStream:  Connection -> stream
+val getOutStream: Connection -> stream

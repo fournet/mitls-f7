@@ -65,4 +65,7 @@ val read: Connection -> ioresult_i
 val authorize: Connection -> query -> Connection
 val refuse:    Connection -> query -> unit
 
-val getSessionInfo: Connection -> SessionInfo
+val getInKI:  Connection -> KeyInfo
+val getOutKI: Connection -> KeyInfo
+val getInStream:  Connection -> stream
+val getOutStream: Connection -> stream

@@ -18,6 +18,9 @@ type app_state = {
   app_outgoing: output_buffer;
 }
 
+let inStream  (c:ConnectionInfo) state = state.app_incoming.stream
+let outStream (c:ConnectionInfo) state = state.app_outgoing.stream
+
 let init ci =
   let in_s = DataStream.init ci.id_in in
   let out_s = DataStream.init ci.id_out in

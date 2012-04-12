@@ -54,6 +54,12 @@ function val Bytes_i: cn -> bytes
 assume !c. Bytes_o(c) = CnStream_i(c)
 assume !c. Bytes_i(c) = CnStream_o(c)
 
+val getInKI:  c:Connection -> k:KeyInfo{k=ConnectionInKeyInfo(c)}
+val getOutKI: c:Connection -> k:KeyInfo{k=ConnectionOutKeyInfo(c)}
+val getSessionInfo: k:KeyInfo -> s:SessionInfo{s=k.sinfo}
+val getInStream:  c:Connection -> s:(;ConnectionInKeyInfo(c)) stream{s=CnStream_i(c)}
+val getOutStream: c:Connection -> s:(;ConnectionOutKeyInfo(c))stream{s=CnStream_o(c)}
+
 //TODO define Bytes_o from Pending.
 // !ci,s. ci.pending      => Bytes_o(Conn(ci,s)) = OutStream(ci.next,    s.appdata)
 // !ci,s. not(ci.pending) => Bytes_o(Conn(ci,s)) = OutStream(ci.current, s.appdata)

@@ -11,6 +11,9 @@ type app_state
   app_outgoing: output_buffer;
 }*)
 
+val inStream:  ConnectionInfo -> app_state -> stream
+val outStream: ConnectionInfo -> app_state -> stream
+
 val init: ConnectionInfo -> app_state
 
 // Used by top level application
