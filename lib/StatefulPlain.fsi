@@ -8,9 +8,8 @@ open AEADPlain
 type data = bytes
 
 type prehistory
-type prefragment
 type history  = (nat * prehistory)
-type fragment = prefragment
+type fragment
 
 val emptyHistory: KeyInfo -> history
 val addToHistory: KeyInfo -> history -> data -> range -> fragment -> history

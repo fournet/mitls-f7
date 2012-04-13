@@ -22,11 +22,11 @@ val LEAK:   ki:KeyInfo -> (;ki)AEADKey -> b:bytes (* {Length(b) = AEADSize(ki)} 
 
 val encrypt: ki:KeyInfo -> (;ki) AEADKey -> ad:(;ki) data ->
   rg:range -> p:(;ki,rg,ad) AEADPlain ->
-  ((;ki) AEADKey * c:cipher){Length(c)=RangeCipher(ki,rg) /\ CTXT(ki,ad,p,c)}
+  ((;ki) AEADKey * c:cipher){Length(c)=AEPlain.RangeCipher(ki,rg) /\ CTXT(ki,ad,p,c)}
 
 val decrypt: ki:KeyInfo -> (;ki) AEADKey -> ad:(;ki) data ->
-  c:cipher -> r: 
-  ( (;ki) AEADKey * rg:(rg:range{rg = CipherRange(ki,c)}) * (;ki,rg,ad) AEADPlain) Result
+  c:cipher -> res: 
+  ( (;ki) AEADKey * rg:(rg:range{Length(c) = AEPlain.RangeCipher(ki,rg)}) * (;ki,rg,ad) AEADPlain) Result
   { (Safe(ki) => (!rg,p. (res = Correct(rg,p) <=> CTXT(ki,ad,p,c)))) /\
     (Auth(ki) => (!rg,p. (res = Correct(rg,p) =>  (?c. CTXT(ki,ad,p,c))))) }
       

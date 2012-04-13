@@ -8,14 +8,14 @@ type data = bytes
 
 type prehistory =
     | Empty
-    | ConsHistory of prehistory * data * range * prefragment
-and prefragment = {contents: sbytes}
-
+    | ConsHistory of prehistory * data * range * sbytes
 type history = (nat * prehistory)
-type fragment = prefragment
+
+type prefragment = sbytes
+type fragment = {contents: prefragment}
 
 let emptyHistory (ki:KeyInfo) = (0,Empty)
-let addToHistory (ki:KeyInfo) (seqn,h) d r x = (seqn+1,ConsHistory(h,d,r,x))
+let addToHistory (ki:KeyInfo) (seqn,h) d r x = (seqn+1,ConsHistory(h,d,r,x.contents))
 
 let makeAD (ki:KeyInfo) ((seqn,h):history) ad =
   let bn = bytes_of_seq seqn in
