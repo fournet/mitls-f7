@@ -1,8 +1,9 @@
 ﻿module AEAD
 
-open TLSInfo
+open Bytes
 open Error
 open DataStream
+open TLSInfo
 open AEADPlain (* parameter *)
 
 type cipher = bytes

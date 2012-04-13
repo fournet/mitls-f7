@@ -38,14 +38,14 @@ val delta:
 val deltaRepr: 
   ki:KeyInfo{not Safe(ki)} -> s:(;ki) stream -> r:range -> c: (;ki,s,r) delta -> (;r) rbytes
 
-function type es = EmptyStream of KeyInfo
-private assume !ki. EmptyStream(ki) = {sb = [| |]}
-val init: ki:KeyInfo -> s:(;ki) stream{s = EmptyStream(ki)}
+predicate EmptyStream of ki:KeyInfo * (;ki)stream
+private assume !s. ?ki. EmptyStream(ki,s) <=> s.sb = [||]
+val init: ki:KeyInfo -> s:(;ki) stream{EmptyStream(ki,s)}
 
 function val ExtendStream: ki:KeyInfo * s:(;ki)stream * r:range * (;ki,s,r)delta -> (;ki)stream
 private assume !ki,s,r,d. ExtendStream(ki,s,r,d) = {sb = s.sb @| d.contents.secb}
-private assume !ki,s,r1,r2,sb1,sb2. Before(ki,s,Sum(r1,r2),sb1.secb @| sb2.secb) <=> 
-	                    (Before(ki,s,r1,sb1) /\ Before(ki,ExtendStream(ki,s,r1,sb1),r2,sb2))
+private assume !ki,s,r1,r2,d1,d2. Before(ki,s,Sum(r1,r2),{secb = d1.contents.secb @| d2.contents.secb}) <=> 
+	                    (Before(ki,s,r1,d1.contents) /\ Before(ki,ExtendStream(ki,s,r1,d1),r2,d2.contents))
 
 
 
