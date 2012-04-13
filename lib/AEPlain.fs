@@ -27,10 +27,10 @@ let concat (ki:KeyInfo) (rg:range) ad f =
     {macP = fullData @| f.aep} 
 
 let mac ki k t =
-    {macT = MAC.MAC ki k t.macP}
+    {macT = MAC.Mac ki k t.macP}
 
 let verify ki k text tag =
-    MAC.VERIFY ki k text.macP tag.macT
+    MAC.Verify ki k text.macP tag.macT
 
 // From Ranges to Target Length
 let padLength ki len =

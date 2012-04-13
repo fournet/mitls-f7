@@ -13,13 +13,12 @@ open TLSInfo
 
 
 private type (;ki:KeyInfo) key = {k:bytes}
-type keyrepr
 type text = bytes
-type tag = b:bytes
+type tag = bytes
 predicate val Msg: KeyInfo * text -> bool
 
-val MAC:    ki:KeyInfo -> k:(;ki) key -> t:text{Msg(ki,t)} -> tag
-val VERIFY: ki:KeyInfo -> k:(;ki) key -> t:text -> tag -> 
+val Mac:    ki:KeyInfo -> k:(;ki) key -> t:text{Msg(ki,t)} -> tag
+val Verify: ki:KeyInfo -> k:(;ki) key -> t:text -> tag -> 
   v:bool{ (v=true /\ Auth(ki)) => Msg(ki,t) }
 
 val GEN:    ki:KeyInfo -> (;ki) key

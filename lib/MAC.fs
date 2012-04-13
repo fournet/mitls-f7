@@ -8,20 +8,20 @@ open HASH (* Only for SSL 3 keyed hash *)
 open Error
 
 type text = bytes
-type mac = bytes
+type tag = bytes
 
 type key = {k:bytes}
 
 (* generic algorithms *)
 
-let MAC ki key data =
+let Mac ki key data =
     let pv = ki.sinfo.protocol_version in
     let a = macAlg_of_ciphersuite ki.sinfo.cipher_suite in
     match pv with
     | SSL_3p0 ->     HMAC.sslKeyedHash a key.k data
     | TLS_1p0 | TLS_1p1 | TLS_1p2 -> HMAC.HMAC a key.k data
 
-let VERIFY ki key data tag =
+let Verify ki key data tag =
     let pv = ki.sinfo.protocol_version in
     let a = macAlg_of_ciphersuite ki.sinfo.cipher_suite in
     match pv with

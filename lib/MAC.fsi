@@ -5,12 +5,12 @@ open Algorithms
 open TLSInfo
 
 type text = bytes
-type mac = bytes
+type tag = bytes
 
 type key
 
-val MAC:    KeyInfo -> key -> text -> mac
-val VERIFY: KeyInfo -> key -> text -> mac -> bool
+val Mac:    KeyInfo -> key -> text -> tag
+val Verify: KeyInfo -> key -> text -> tag -> bool
 
 val GEN: KeyInfo -> key
 val LEAK:   KeyInfo -> key -> bytes

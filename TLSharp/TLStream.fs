@@ -25,7 +25,7 @@ type TLStream(s:System.Net.Sockets.NetworkStream, options, b) =
     let undoMsg_i conn (r,d) =
         let ki = TLS.getInKI conn
         let s = TLS.getInStream conn
-        DataStream.destructDelta ki s r d
+        DataStream.deltaRepr ki s r d
 
     let rec doHS conn =
         match TLS.read conn with
