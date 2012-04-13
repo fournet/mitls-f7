@@ -5,8 +5,8 @@ open DataStream
 open AEPlain
 
 type data = bytes
-type preAEADPlain = {contents: sbytes}
-type AEADPlain = preAEADPlain
+type preAEADPlain = sbytes
+type AEADPlain = {contents:preAEADPlain}
 
 let AEADPlain (ki:KeyInfo) (rg:range) (ad:data) b = {contents = DataStream.plain ki rg b}
 let AEADRepr  (ki:KeyInfo) (rg:range) (ad:data) p = DataStream.repr ki rg p.contents

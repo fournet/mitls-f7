@@ -10,9 +10,9 @@ function val AEADSays: ki:KeyInfo * r:range * (;ki)data * (;ki,r)sbytes -> bool
 // TODO: define AEADSays in terms of some AESays predicate defined in AEPlain (if/when ready)
 // Otherwise, we cannot typecheck the implementation of AEAD to/from AE functions
 
-private type (;ki:KeyInfo,r:range,ad:(;ki)data) preAEADPlain = {contents: (;ki,r)sbytes}
-private type (;ki:KeyInfo,r:range,ad:(;ki)data) AEADPlain =
-	x:(;ki,r,ad)preAEADPlain { Safe(ki) => AEADSays(ki,r,ad,x.contents) }
+private type (;ki:KeyInfo,r:range,ad:(;ki)data) preAEADPlain =
+	x:(;ki,r)sbytes{ Safe(ki) => AEADSays(ki,r,ad,x) }
+private type (;ki:KeyInfo,r:range,ad:(;ki)data) AEADPlain = {contents: (;ki,r,ad)preAEADPlain}
 
 
 // CF 04-09: TODO: add length constraints for those bytes

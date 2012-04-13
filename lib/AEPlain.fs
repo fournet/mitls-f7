@@ -6,6 +6,11 @@ open Algorithms
 open CipherSuites
 open DataStream
 
+// ghost
+type funs =
+    | ADLength of KeyInfo
+    | IVSize of KeyInfo
+
 type data = bytes
 
 type AEPlain = {aep: bytes}

@@ -5,8 +5,7 @@ open DataStream
 open AEPlain
 
 type data = bytes
-type preAEADPlain
-type AEADPlain = preAEADPlain
+type AEADPlain
 
 val AEADPlain: KeyInfo -> range -> data -> bytes -> AEADPlain
 val AEADRepr:  KeyInfo -> range -> data -> AEADPlain -> bytes
