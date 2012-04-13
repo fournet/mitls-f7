@@ -35,12 +35,19 @@ let splitRange ki r =
             (r0,r1)
     else
         let minpack = (h-l) / padSize
-(* KB: Apr 12: We need to prove that minfrag is >= 0. Is it? *)
         let minfrag = (h-1) / fragmentLength
         let savebytes = max minpack minfrag
         let smallL = max (min (l-savebytes) fragmentLength) 0
         let smallH = min (min (padSize+smallL) fragmentLength) h
-        ((smallL,smallH),(l-smallL,h-smallH))
+        if ((l - smallL > h - smallH) ||
+            (l - smallL < 0) || (h - smallH < 0) ||
+            (smallL < 0) || (smallH < 0) ||
+            (smallL > smallH)
+           )
+        then failwith "Should not be possible, ask Alfredo" 
+        else
+          ((smallL,smallH),
+           (l-smallL,h-smallH))
 
 type sbytes = {secb: bytes}
 
@@ -48,16 +55,16 @@ let plain (ki:KeyInfo) (r:range) b = {secb = b}
 let repr  (ki:KeyInfo) (r:range) sb = sb.secb
 
 type stream = {sb: bytes}
-type predelta = {contents: sbytes}
-type delta = predelta
+type predelta = sbytes
+type delta = {contents: predelta}
 
-type preds = Before of KeyInfo * stream * range * sbytes
+type preds = Delta of KeyInfo * stream * range * sbytes
 
 let createDelta (ki:KeyInfo) (s:stream) (r:range) (b:bytes) =
-    let sb = plain ki r b in
-    Pi.assume (Before(ki,s,r,sb));
+    let sb = {secb = b} in 
+    Pi.assume (Delta(ki,s,r,sb));
     {contents = sb}
-let destructDelta (ki:KeyInfo) (s:stream) (r:range) (d:delta) = repr ki r d.contents
+
 let delta (ki:KeyInfo) (s:stream) (r:range) (b:bytes) = {contents = plain ki r b}
 let deltaRepr (ki:KeyInfo) (s:stream) (r:range) (d:delta) = repr ki r d.contents
 
