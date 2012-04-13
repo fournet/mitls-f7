@@ -12,5 +12,5 @@ private assume !ki,s,r1,r2,f1,f2. FragmentDelta(ki,s,r1,f1) /\ FragmentDelta(ki,
 
 private assume !ki,s,r,f. FragmentDelta(ki,s,r,f) => (?d. f.frag = (s,d))
 
-
  
+

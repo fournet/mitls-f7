@@ -10,9 +10,16 @@ let fragment ki s r d =
     let s' = append ki s r d in
     f,s'
 
+#if concrete
+let delta ki s r f = 
+  let (s',d) = f.frag in
+  let s'' = append ki s r d in 
+    d,s''
+#else
 let delta ki s r f = 
   let (s',d) = f.frag in
   if s = s' then 
     let s'' = append ki s r d in 
       d,s''
   else unexpectedError "expected a correct fragment delta for this stream"
+#endif
