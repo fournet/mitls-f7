@@ -1,0 +1,16 @@
+module Fragment
+open TLSInfo
+open DataStream
+private type (;ki:KeyInfo,r:range) fragment = {frag: s:(;ki)stream * (;ki,s,r) delta}
+predicate FragmentDelta of ki:KeyInfo * (;ki) stream * r:range * (;ki,r) fragment
+val fragment: ki:KeyInfo -> s:(;ki) stream -> r:range -> (;ki,s,r) delta -> (f:(;ki,r) fragment{FragmentDelta(ki,s,r,f)}) * s':(;ki) stream
+
+val delta: ki:KeyInfo -> s:(;ki) stream -> r:range -> f:(;ki,r) fragment{FragmentDelta(ki,s,r,f)} -> (;ki,s,r) delta * s':(;ki) stream
+
+private assume !ki,s,r1,r2,f1,f2. FragmentDelta(ki,s,r1,f1) /\ FragmentDelta(ki,s,r2,f2) => 
+    (r1 = r2 /\ f1 = f2)
+
+private assume !ki,s,r,f. FragmentDelta(ki,s,r,f) => (?d. f.frag = (s,d))
+
+
+ 
