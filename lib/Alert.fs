@@ -20,9 +20,9 @@ let incomingEmpty s = equalBytes s.al_incoming [||]
 
 type ALFragReply =
     | EmptyALFrag
-    | ALFrag of DataStream.range * delta
-    | LastALFrag of DataStream.range * delta
-    | LastALCloseFrag of DataStream.range * delta
+    | ALFrag of DataStream.range * Fragment.fragment
+    | LastALFrag of DataStream.range * Fragment.fragment
+    | LastALCloseFrag of DataStream.range * Fragment.fragment
 
 type alert_reply =
     | ALAck of state
@@ -147,9 +147,10 @@ let next_fragment ci state =
         // FIXME: cleanup when alert is ported to streams
         let stream = DataStream.init ci.id_out in
         let rg = (length d,length d) in
-        let dFull = delta ci.id_out stream rg d in
+        let dFull = deltaPlain ci.id_out stream rg d in
         let (r0,r1) = splitRange ci.id_out rg in
         let (d,dRem) = DataStream.split ci.id_out stream r0 r1 dFull in
+        let df,_ = Fragment.fragment ci.id_out stream r0 d in
         let frag = deltaRepr ci.id_out stream r0 d in
         let rem = deltaRepr ci.id_out stream r1 dRem in
         let state = {state with al_outgoing = rem} in
@@ -161,9 +162,9 @@ let next_fragment ci state =
             | Error(x,y) -> unexpectedError "[next_fragment] This invocation of parseAlertDescription should never fail"
             | Correct(ad) ->
                 match ad with
-                | AD_close_notify -> (LastALCloseFrag(r0,d),state)
-                | _ -> (LastALFrag(r0,d),state)
-        | _ -> (ALFrag(r0,d),state)
+                | AD_close_notify -> (LastALCloseFrag(r0,df),state)
+                | _ -> (LastALFrag(r0,df),state)
+        | _ -> (ALFrag(r0,df),state)
 
 let handle_alert ci state alDesc =
     match alDesc with
@@ -177,9 +178,9 @@ let handle_alert ci state alDesc =
         else
             ALWarning (alDesc,state)
 
-let recv_fragment (ci:ConnectionInfo) state (r:range) (data:delta) =
+let recv_fragment (ci:ConnectionInfo) state (r:range) (f:Fragment.fragment) =
     // FIXME: cleanup when alert is ported to streams and deltas
-    let fragment = deltaRepr ci.id_in (DataStream.init ci.id_in) r data in
+    let fragment = Fragment.fragmentRepr ci.id_in r f in
     match state.al_incoming with
     | [||] ->
         (* Empty buffer *)

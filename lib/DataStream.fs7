@@ -17,32 +17,22 @@ val min: a:int -> b:int -> c:int{(a<=b /\ c=a) \/ (a>b /\ c=b)}
 val max: a:int -> b:int -> c:int{(a>=b /\ c=a) \/ (a<b /\ c=b)}
 val splitRange: ki:KeyInfo -> r:range{?l,h. r = (l,h) /\ h > 0} -> (r0:range * r1:range){r = Sum(r0,r1)} (* first range should fit in a fragment: FitsInFrag(ki,fragmentLength,r0)? *)
 
-private type (;ki:KeyInfo,r:range) sbytes = {secb:(;r)rbytes}
-val plain: ki:KeyInfo{not Safe(ki)} -> r:range -> (;r)rbytes -> x:(;ki,r)sbytes
-val repr:  ki:KeyInfo{not Safe(ki)} -> r:range -> x:(;ki,r)sbytes -> (;r)rbytes
-
 private type (;ki:KeyInfo) stream = {sb:bytes}
 predicate EmptyStream of ki:KeyInfo * (;ki) stream
-predicate Delta of ki:KeyInfo * (;ki)stream * r:range * (;ki,r)sbytes
-private type (;ki:KeyInfo, h:(;ki)stream, r:range) predelta = x:(;ki,r)sbytes{Safe(ki) => Delta(ki,h,r,x)}
-private type (;ki:KeyInfo, h:(;ki)stream, r:range) delta = {contents: (;ki,h,r) predelta}
+private type (;ki:KeyInfo, h:(;ki)stream, r:range) delta = {contents: (;r) rbytes}
 
 val init: ki:KeyInfo -> s:(;ki) stream{EmptyStream(ki,s)}
 val createDelta: 
   ki:KeyInfo -> s:(;ki) stream -> r:range -> b:(;r) rbytes -> c: (;ki,s,r) delta  
-val delta: 
+val deltaPlain: 
   ki:KeyInfo{not Safe(ki)} -> s:(;ki) stream -> r:range -> b:(;r) rbytes -> c: (;ki,s,r) delta  
 val deltaRepr: 
   ki:KeyInfo{not Safe(ki)} -> s:(;ki) stream -> r:range -> c: (;ki,s,r) delta -> (;r) rbytes
 
-function val project_4_1: ('a * 'b * 'c * 'd) -> 'a
-function val ExtendStream: args:(ki:KeyInfo * s:(;ki)stream * r:range * (;ki,s,r)delta) -> (;project_4_1(args))stream
+function val ExtendStream: 'a * 'b * 'c * 'd -> 'e
 
 private assume !ki,s. EmptyStream(ki,s) <=> s = {sb = [| |]}
-private assume !x,y,z,w. project_4_1(x,y,z,w) = x
-private assume !ki,s,r,d. ExtendStream(ki,s,r,d) = {sb = s.sb @| d.contents.secb}
-private assume !ki,s,r1,r2,d1,d2. Delta(ki,s,Sum(r1,r2),{secb = d1.contents.secb @| d2.contents.secb}) <=> 
-	                    (Delta(ki,s,r1,d1.contents) /\ Delta(ki,ExtendStream(ki,s,r1,d1),r2,d2.contents))
+private assume !ki,s,r,d. ExtendStream(ki,s,r,d) = {sb = s.sb @| d.contents}
 
 
 val append: 
@@ -57,7 +47,3 @@ val join: ki:KeyInfo -> s:(;ki) stream ->
   r0:range -> d0:(;ki,s,r0) delta -> 
   r1:range -> d1:(;ki,ExtendStream(ki,s,r0,d0),r1) delta -> (;ki,s,Sum(r0,r1)) delta
 
-val contents:  ki:KeyInfo -> s:(;ki)stream -> r:range -> (;ki,s,r)delta ->
-	sb:(;ki,r)sbytes{Safe(ki) => Delta(ki,s,r,sb)}
-val construct: ki:KeyInfo -> s:(;ki)stream -> r:range ->
-	sb:(;ki,r)sbytes{Safe(ki) => Delta(ki,s,r,sb)} -> (;ki,s,r)delta

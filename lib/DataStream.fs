@@ -49,24 +49,14 @@ let splitRange ki r =
           ((smallL,smallH),
            (l-smallL,h-smallH))
 
-type sbytes = {secb: bytes}
-
-let plain (ki:KeyInfo) (r:range) b = {secb = b}
-let repr  (ki:KeyInfo) (r:range) sb = sb.secb
-
 type stream = {sb: bytes}
-type predelta = sbytes
-type delta = {contents: predelta}
-
-type preds = Delta of KeyInfo * stream * range * sbytes
+type delta = {contents: rbytes}
 
 let createDelta (ki:KeyInfo) (s:stream) (r:range) (b:bytes) =
-    let sb = {secb = b} in 
-    Pi.assume (Delta(ki,s,r,sb));
-    {contents = sb}
+    {contents = b}
 
-let delta (ki:KeyInfo) (s:stream) (r:range) (b:bytes) = {contents = plain ki r b}
-let deltaRepr (ki:KeyInfo) (s:stream) (r:range) (d:delta) = repr ki r d.contents
+let deltaPlain (ki:KeyInfo) (s:stream) (r:range) (b:rbytes) = {contents = b}
+let deltaRepr (ki:KeyInfo) (s:stream) (r:range) (d:delta) = d.contents
 
 // ghost
 type es = EmptyStream of KeyInfo
@@ -74,23 +64,20 @@ type es = EmptyStream of KeyInfo
 let init (ki:KeyInfo) = {sb = [| |]}
 
 let append (ki:KeyInfo) (s:stream) (r:range) (d:delta) = 
-  {sb = s.sb @| d.contents.secb}
+  {sb = s.sb @| d.contents}
 
 let split (ki:KeyInfo) (s:stream)  (r0:range) (r1:range) (d:delta) = 
   // we put as few bytes as we can in b0, 
   // to prevent early processing of split fragments
   let (l0,_) = r0
   let (_,h1) = r1
-  let n = length d.contents.secb
+  let n = length d.contents
   let n0 = if n <= l0 + h1 then l0 else n - h1 
-  let (b0,b1) = Bytes.split d.contents.secb n0
-  let (sb0,sb1) = ({secb = b0},{secb = b1}) in
+  let (sb0,sb1) = Bytes.split d.contents n0
   ({contents = sb0},{contents = sb1})
 
 let join (ki:KeyInfo) (s:stream)  (r0:range) (d0:delta) (r1:range) (d1:delta) = 
   let r = rangeSum r0 r1 //CF: ghost computation to help Z3 
-  let sb = {secb = d0.contents.secb @| d1.contents.secb} in
+  let sb = d0.contents @| d1.contents in
   {contents = sb}
 
-let contents  (ki:KeyInfo) (s:stream) (r:range) d = d.contents
-let construct (ki:KeyInfo) (s:stream) (r:range) sb = {contents = sb}

@@ -297,21 +297,22 @@ let goToIdle state =
 
 type HSFragReply =
   | EmptyHSFrag
-  | HSFrag of (DataStream.range * delta)
-  | CCSFrag of (DataStream.range * delta) * (KeyInfo * Record.ConnectionState)
-  | HSWriteSideFinished of (DataStream.range * delta)
-  | HSFullyFinished_Write of (DataStream.range * delta) * StorableSession
+  | HSFrag of (DataStream.range * Fragment.fragment)
+  | CCSFrag of (DataStream.range * Fragment.fragment) * (KeyInfo * Record.ConnectionState)
+  | HSWriteSideFinished of (DataStream.range * Fragment.fragment)
+  | HSFullyFinished_Write of (DataStream.range * Fragment.fragment) * StorableSession
 
 // FIXME: cleanup when handshake is ported to streams and deltas
 let makeFragment ki b =
     let stream = DataStream.init ki in
     let rg = (length b,length b) in
-    let dFull = delta ki stream rg b in
+    let dFull = deltaPlain ki stream rg b in
     let (r0,r1) = splitRange ki rg in
     let (d,dRem) = DataStream.split ki stream r0 r1 dFull in
     let frag = deltaRepr ki stream r0 d in
     let rem = deltaRepr ki stream r1 dRem in
-    (((r0,d),(r1,dRem)),(frag,rem))
+    let f,_ = Fragment.fragment ki stream r0 d in
+    (((r0,f),(r1,dRem)),(frag,rem))
 
 let makeCCSFragment ki b = makeFragment ki b
 
@@ -2005,9 +2006,9 @@ let enqueue_fragment (ci:ConnectionInfo) state fragment =
     let new_inc = state.hs_incoming @| fragment in
     {state with hs_incoming = new_inc}
 
-let recv_fragment ci (state:hs_state) (r:DataStream.range) (fragment:delta) =
+let recv_fragment ci (state:hs_state) (r:DataStream.range) (fragment:Fragment.fragment) =
     // FIXME: cleanup when Hs is ported to streams and deltas
-    let b = deltaRepr ci.id_in (DataStream.init ci.id_in) r fragment in 
+    let b = Fragment.fragmentRepr ci.id_in r fragment in 
     if length b = 0 then
         // Empty HS fragment are not allowed
         (Error(HSError(AD_decode_error),HSSendAlert),state)
@@ -2017,9 +2018,9 @@ let recv_fragment ci (state:hs_state) (r:DataStream.range) (fragment:delta) =
         | PSClient (_) -> recv_fragment_client ci state None
         | PSServer (_) -> recv_fragment_server ci state None
 
-let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:DataStream.range) (fragment:delta): ((KIAndCCS Result) * hs_state) =
+let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:DataStream.range) (fragment:Fragment.fragment): ((KIAndCCS Result) * hs_state) =
     // FIXME: cleanup when Hs is ported to streams and deltas
-    let b = deltaRepr ci.id_in (DataStream.init ci.id_in) r fragment in 
+    let b = Fragment.fragmentRepr ci.id_in r fragment in 
     if equalBytes b CCSBytes then  
         match state.pstate with
         | PSClient (cstate) -> // Check we are in the right state (CCCS) 

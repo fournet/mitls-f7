@@ -2,16 +2,17 @@ module AEADPlain
 open Bytes
 open TLSInfo
 open DataStream
+open Fragment
 open AEPlain
 
 type (;ki:KeyInfo) data = (b:bytes){Length(b) = ADLength(ki)}
 
-function val AEADSays: ki:KeyInfo * r:range * (;ki)data * (;ki,r)sbytes -> bool
+function val AEADSays: ki:KeyInfo * r:range * (;ki)data * (;ki,r)fragment -> bool
 // TODO: define AEADSays in terms of some AESays predicate defined in AEPlain (if/when ready)
 // Otherwise, we cannot typecheck the implementation of AEAD to/from AE functions
 
 private type (;ki:KeyInfo,r:range,ad:(;ki)data) preAEADPlain =
-	x:(;ki,r)sbytes{ Safe(ki) => AEADSays(ki,r,ad,x) }
+	x:(;ki,r)fragment{ Safe(ki) => AEADSays(ki,r,ad,x) }
 private type (;ki:KeyInfo,r:range,ad:(;ki)data) AEADPlain = {contents: (;ki,r,ad)preAEADPlain}
 
 
@@ -20,9 +21,9 @@ val AEADPlain: ki:KeyInfo{not Safe(ki)} -> r:range -> ad:(;ki)data -> bytes -> (
 val AEADRepr:  ki:KeyInfo{not Safe(ki)} -> r:range -> ad:(;ki)data -> (;ki,ad,r) AEADPlain -> bytes
 
 val contents:  ki:KeyInfo -> r:range -> ad:(;ki)data -> (;ki,r,ad)AEADPlain ->
-	sb:(;ki,r)sbytes{Safe(ki) => AEADSays(ki,r,ad,sb)}
+	sb:(;ki,r)fragment{Safe(ki) => AEADSays(ki,r,ad,sb)}
 val construct: ki:KeyInfo -> r:range -> ad:(;ki)data ->
-	sb:(;ki,r)sbytes{Safe(ki) => AEADSays(ki,r,ad,sb)} -> (;ki,r,ad)AEADPlain
+	sb:(;ki,r)fragment{Safe(ki) => AEADSays(ki,r,ad,sb)} -> (;ki,r,ad)AEADPlain
 
 val AEADPlainToAEPlain: ki:KeyInfo -> r:range -> ad:(;ki)data -> (;ki,r,ad) AEADPlain -> (;ki,r,ad) AEPlain
 val AEPlainToAEADPlain: ki:KeyInfo -> r:range -> ad:(;ki)data -> (;ki,r,ad) AEPlain -> (;ki,r,ad) AEADPlain
@@ -45,7 +46,7 @@ val AEPlainToAEADPlain: ki:KeyInfo -> r:range -> ad:(;ki)data -> (;ki,r,ad) AEPl
 // definition !ki,ad,r,f. AEADSays(ki,ad,r,f) <=> ?h,ad'. SBefore(ki,h,ad',r,f) /\ ad = MakeAD(ki,h,ad')
 // 
 // // Fragments at each level are defined as
-// type (;id:ID,rest:REST)fragment = (;id)sbytes{XBefore(id,rest,f)}
+// type (;id:ID,rest:REST)fragment = (;id)fragment{XBefore(id,rest,f)}
 // 
 // // Invariants on histories: NOT CLEAR YET. However, the idea looks like:
 // 

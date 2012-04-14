@@ -3,15 +3,16 @@ open Bytes
 open Formats
 open TLSInfo
 open DataStream
+open Fragment
 
 type data = bytes
 
 type prehistory =
     | Empty
-    | ConsHistory of prehistory * data * range * sbytes
+    | ConsHistory of prehistory * data * range * Fragment.fragment
 type history = (nat * prehistory)
 
-type prefragment = sbytes
+type prefragment = Fragment.fragment
 type fragment = {contents: prefragment}
 
 let emptyHistory (ki:KeyInfo) = (0,Empty)
@@ -21,9 +22,8 @@ let makeAD (ki:KeyInfo) ((seqn,h):history) ad =
   let bn = bytes_of_seq seqn in
     bn @| ad
 
-let fragment (ki:KeyInfo) (h:history) (ad:data) (r:range) (b:bytes) = {contents = plain ki r b}
-
-let repr (ki:KeyInfo) (h:history) (ad:data) (r:range) (f:fragment) = repr ki r f.contents
+let fragment (ki:KeyInfo) (h:history) (ad:data) (r:range) (b:bytes) = {contents = fragmentPlain ki r b}
+let repr (ki:KeyInfo) (h:history) (ad:data) (r:range) (f:fragment) = fragmentRepr ki r f.contents
 
 let contents  (ki:KeyInfo) (h:history) (ad:data) (rg:range) f = f.contents
 let construct (ki:KeyInfo) (h:history) (ad:data) (rg:range) c = {contents = c}

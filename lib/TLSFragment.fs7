@@ -17,9 +17,47 @@ private type (;ki:KeyInfo) history = {
 function val EmptyStreams: ki:KeyInfo -> (;ki)history -> bool
 val emptyHistory: ki:KeyInfo -> h:(;ki)history{EmptyStreams(ki,h)}
 
-function val Multiplexed: KeyInfo * history -> bool
+type (;ki:KeyInfo,ct:ContentType,h:(;ki) history,rg:range) fragment =
+    | FHandshake of f:(;ki,rg)Fragment.fragment{ct=Formats.Handshake  /\ DeltaFragment(ki,h.handshake,rg,f)}
+    | FCCS       of f:(;ki,rg)Fragment.fragment{ct=Formats.Change_cipher_spec  /\ DeltaFragment(ki,h.ccs,rg,f)}
+    | FAlert     of f:(;ki,rg)Fragment.fragment{ct=Formats.Alert  /\ DeltaFragment(ki,h.alert,rg,f)}
+    | FAppData   of f:(;ki,rg)Fragment.fragment{ct=Formats.Application_data  /\ DeltaFragment(ki,h.appdata,rg,f)}
 
 function val ConsStream: ki:KeyInfo * ContentType * (;ki)history * 'a -> history
+val addToStreams: ki:KeyInfo -> ct:ContentType -> ss:(;ki)history -> r:range ->
+	f:(;ki,ct,ss,r)fragment -> ss':(;ki)history{ss' = ConsStream(ki,ct,ss,f)}
+
+
+val fragmentRepr: ki:KeyInfo -> ct:ContentType -> h: (;ki) history -> rg:range ->
+  (;ki,ct,h,rg)fragment -> bytes
+
+val fragmentPlain: ki:KeyInfo -> ct:ContentType -> h: (;ki) history -> rg:range ->
+  bytes -> (;ki,ct,h,rg)fragment 
+
+// Additional Data
+type (;ki:KeyInfo) addData = (b:bytes){Length(b) = ADLength(ki) - 8}
+
+function val ADBytes: (KeyInfo * ContentType) -> bytes
+assume !ki,ct.
+	( ki.sinfo.protocol_version = SSL_3p0 /\
+	  ADBytes(ki,ct) =
+		CTBytes(ct) ) \/
+	( ki.sinfo.protocol_version <> SSL_3p0 /\
+          ADBytes(ki,ct) =
+		(CTBytes(ct) @| VersionBytes(ki.sinfo.protocol_version)))
+
+ask !ki,ct. Length(ADBytes(ki,ct)) = (ADLength(ki) - 8)
+
+private val makeAD: ki:KeyInfo -> ct:ContentType ->
+	  ad: (;ki)addData{ad=ADBytes(ki,ct)}
+
+//private val parseAD: ki:KeyInfo -> 
+//          ad: (;ki)addData -> 
+//          ct:ContentType{ad=ADBytes(ki,ct)}
+
+
+function val Multiplexed: KeyInfo * history -> bool
+
 assume !ki,h,d. ConsStream(ki,Formats.Handshake,h,d) =
 	 { handshake = ExtendStream(ki,h.handshake,d);
 	   alert = h.alert;
@@ -42,14 +80,18 @@ assume !ki,h,d. ConsStream(ki,Formats.Application_data,h,d) =
 	   appdata = ExtendStream(ki,h.appdata,d)}
 
 
+predicate Fragment of KeyInfo * range * int * ContentType * bytes
+
+
+
+
+(* Old:
 type (;ki:KeyInfo,ct:ContentType,h:(;ki) history,rg:range) fragment =
     | FHandshake of f:(;ki,h.handshake,rg)delta (* HandshakePlain.fragment *) {ct=Formats.Handshake}
     | FCCS       of f:(;ki,h.ccs,rg)delta (* HandshakePlain.ccsFragment *)    {ct=Formats.Change_cipher_spec}
     | FAlert     of f:(;ki,h.alert,rg)delta (* AlertPlain.fragment *)         {ct=Formats.Alert}
     | FAppData   of f:(;ki,h.appdata,rg)delta (* AppDataStream.fragment *)    {ct=Formats.Application_data}
-
-val addToStreams: ki:KeyInfo -> ct:ContentType -> ss:(;ki)history -> r:range ->
-	f:(;ki,ct,ss,r)fragment -> ss':(;ki)history{ss' = ConsStream(ki,ct,ss,f)}
+*)
 
 // Deprecated
 // FIXME: Circular dependency!
@@ -75,37 +117,5 @@ val addToStreams: ki:KeyInfo -> ct:ContentType -> ss:(;ki)history -> r:range ->
 // 	  Multiplexed(ki,t,hs,ccs,al,ad'))))
 // 
 // type (;ki:KeyInfo) shistory = (h:(;ki) history){Multiplexed(ki,h.log,h.handshake,h.ccs,h.alert,h.appdata)}
-
-
-predicate Fragment of KeyInfo * range * int * ContentType * bytes
-
-val TLSFragmentRepr: ki:KeyInfo -> ct:ContentType -> h: (;ki) history -> rg:range ->
-  (;ki,ct,h,rg)fragment -> bytes
-
-val TLSFragment: ki:KeyInfo -> ct:ContentType -> h: (;ki) history -> rg:range ->
-  bytes -> (;ki,ct,h,rg)fragment 
-
-// Additional Data
-type (;ki:KeyInfo) addData = (b:bytes){Length(b) = ADLength(ki) - 8}
-
-function val ADBytes: (KeyInfo * ContentType) -> bytes
-assume !ki,ct.
-	( ki.sinfo.protocol_version = SSL_3p0 /\
-	  ADBytes(ki,ct) =
-		CTBytes(ct) ) \/
-	( ki.sinfo.protocol_version <> SSL_3p0 /\
-          ADBytes(ki,ct) =
-		(CTBytes(ct) @| VersionBytes(ki.sinfo.protocol_version)))
-
-ask !ki,ct. Length(ADBytes(ki,ct)) = (ADLength(ki) - 8)
-
-private val makeAD: ki:KeyInfo -> ct:ContentType ->
-	  ad: (;ki)addData{ad=ADBytes(ki,ct)}
-
-//private val parseAD: ki:KeyInfo -> 
-//          ad: (;ki)addData -> 
-//          ct:ContentType{ad=ADBytes(ki,ct)}
-
-
 
 

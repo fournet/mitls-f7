@@ -5,7 +5,7 @@ all: tls.dll tc7
 lib7=../../../lib/fs7-interfaces/
 libperv = $(lib7)pervasives.fs7 $(lib7)tuples.fs7
 lperv = -pervasives $(lib7)pervasives.fs7 -tuples $(lib7)tuples.fs7
-libfs7 = $(lib7)formulas.fs7 $(lib7)pi.fs7
+libfs7 = $(lib7)pi.fs7 $(lib7)formulas.fs7 
 
 wrapperlibs  = Error.fs  Bytes.fs  tcp.fs  Algorithms.fs  RSA.fs  HASH.fs  HMAC.fs  Certificate.fs
 wrapperlibsi = Error.fsi Bytes.fsi tcp.fsi Algorithms.fsi RSA.fsi HASH.fsi HMAC.fsi Certificate.fsi

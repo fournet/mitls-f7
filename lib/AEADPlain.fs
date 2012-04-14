@@ -2,14 +2,15 @@ module AEADPlain
 open Bytes
 open TLSInfo
 open DataStream
+open Fragment
 open AEPlain
 
 type data = bytes
-type preAEADPlain = sbytes
+type preAEADPlain = fragment
 type AEADPlain = {contents:preAEADPlain}
 
-let AEADPlain (ki:KeyInfo) (rg:range) (ad:data) b = {contents = DataStream.plain ki rg b}
-let AEADRepr  (ki:KeyInfo) (rg:range) (ad:data) p = DataStream.repr ki rg p.contents
+let AEADPlain (ki:KeyInfo) (rg:range) (ad:data) b = {contents = fragmentPlain ki rg b}
+let AEADRepr  (ki:KeyInfo) (rg:range) (ad:data) p = fragmentRepr ki rg p.contents
 
 let contents  (ki:KeyInfo) (rg:range) (ad:data) p = p.contents
 let construct (ki:KeyInfo) (rg:range) (ad:data) b = {contents = b}

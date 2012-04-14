@@ -28,11 +28,11 @@ val readAppData: ConnectionInfo -> app_state -> ((range * delta) option * app_st
 val emptyOutgoingAppData: ConnectionInfo -> app_state -> ((range * delta) option * app_state)
 
 // Used internally
-val readAppDataFragment: ConnectionInfo ->  app_state -> (range * delta * app_state) option
+val readAppDataFragment: ConnectionInfo ->  app_state -> (range * Fragment.fragment * app_state) option
 
 //val readNonAppDataFragment: ConnectionInfo ->  app_state ->  app_state
 
-val writeAppDataFragment: ConnectionInfo ->  app_state -> range -> delta -> app_state
+val writeAppDataFragment: ConnectionInfo ->  app_state -> range -> Fragment.fragment -> app_state
 
 //val writeNonAppDataFragment: ConnectionInfo ->  app_state ->  app_state
 

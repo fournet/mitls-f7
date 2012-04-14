@@ -44,7 +44,7 @@ let repr (ki:KeyInfo) (s:stream) (r:DataStream.range) (d:delta) =
 
 let fragment (ki:KeyInfo) (s:stream)  (r:DataStream.range) (b:bytes) = 
   //let s = DataStream.init ki in // AP: why?
-  delta ki s r b
+  deltaPlain ki s r b
 
 let writeAppData (c:ConnectionInfo)  (a:app_state) (r:range) (d:delta) =
   let f = a.app_outgoing.stream in
@@ -80,12 +80,12 @@ let readAppDataFragment (c:ConnectionInfo)  (a:app_state) =
       | hs,Some (r,d) ->
           let (r0,r1) = splitRange c.id_out r in
           if r = r0 then
-            let stream = DataStream.append c.id_out hs r d in
-            Some(r,d,{a with app_outgoing = {a.app_outgoing with data = stream,None}})
+            let f0,stream = Fragment.fragment c.id_out hs r d in
+            Some(r,f0,{a with app_outgoing = {a.app_outgoing with data = stream,None}})
           else 
             let (d0,d1) = DataStream.split c.id_out hs r0 r1 d in
-            let stream = DataStream.append c.id_out hs r0 d0 in
-            Some(r0,d0,{a with app_outgoing = {a.app_outgoing with data = stream,Some(r1,d1)}})
+            let f0,stream = Fragment.fragment c.id_out hs r0 d0 in
+            Some(r0,f0,{a with app_outgoing = {a.app_outgoing with data = stream,Some(r1,d1)}})
 
 // let readNonAppDataFragment (c:ConnectionInfo) (a:app_state) = 
 //   let nout_seqn = a.app_outgoing.seqn + 1 in
@@ -98,12 +98,12 @@ let readAppDataFragment (c:ConnectionInfo)  (a:app_state) =
 //     Pi.assume(NonAppDataSequenceNo(c.id_in,seqn));
 //     {a with app_incoming = {a.app_incoming with seqn = nseqn}}
     
-let writeAppDataFragment (ci:ConnectionInfo)  (a:app_state)  (r:range) (d:delta) =
+let writeAppDataFragment (ci:ConnectionInfo)  (a:app_state)  (r:range) (df:Fragment.fragment) =
   // let seqn = a.app_incoming.seqn in
   // Pi.assume(AppDataSequenceNo(ci.id_in,seqn));
   // let nseqn = seqn + 1 in
   let f = a.app_incoming.stream in
-  let nf = append ci.id_in f r d in
+  let d,nf = Fragment.delta ci.id_in f r df in
   match a.app_incoming.data with
       h,None -> 
         {a with app_incoming = {a.app_incoming with data = h,Some(r,d); stream = nf}}

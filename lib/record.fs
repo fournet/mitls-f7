@@ -70,7 +70,7 @@ let recordPacketOut ki conn rg ct fragment =
     *)
     match (ki.sinfo.cipher_suite, conn) with
     | (x,NullState) when isNullCipherSuite x ->
-        let payload = repr ki ct (emptyHistory ki) rg fragment in
+        let payload = fragmentRepr ki ct (emptyHistory ki) rg fragment in
         let packet = makePacket ct ki.sinfo.protocol_version payload in
         (conn,packet)
 // MACOnly is now handled within AEAD
@@ -138,7 +138,7 @@ let recordPacketIn ki conn headPayload =
     match (cs,conn) with
     | (x,NullState) when isNullCipherSuite x ->
         let rg = (plen,plen) in
-        let msg = fragment ki ct (emptyHistory ki) rg payload in
+        let msg = fragmentPlain ki ct (emptyHistory ki) rg payload in
         correct(conn,ct,pv,rg,msg)
 // MACOnly is now handled within AEAD
 //    | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->

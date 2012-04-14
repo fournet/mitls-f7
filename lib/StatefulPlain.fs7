@@ -3,13 +3,14 @@ open Bytes
 open Formats
 open TLSInfo
 open DataStream
+open Fragment
 open AEADPlain
 
 type (;ki:KeyInfo) data = (b:bytes){Length(b) = AEPlain.ADLength(ki) - 8}
 
 private type (;ki:KeyInfo)prehistory =
 	| Empty
-	| ConsHistory of h:(;ki)prehistory * ad:(;ki)data * r:range * x:(;ki,r)sbytes //{Fragment(ki,h,ad,r,x)}
+	| ConsHistory of h:(;ki)prehistory * ad:(;ki)data * r:range * x:(;ki,r)Fragment.fragment //{Fragment(ki,h,ad,r,x)}
 
 function val HLength: ki:KeyInfo * (;ki)prehistory -> nat
 private assume !ki. HLength(ki,Empty) = 0
@@ -25,10 +26,10 @@ private type (;ki:KeyInfo)history = (sn:nat * h:(;ki)prehistory){History(ki,sn,h
 function val SeqN: ki:KeyInfo * (;ki)history -> nat
 private assume !ki,sn,h. SeqN(ki,(sn,h)) = sn
 
-predicate Fragment of ki:KeyInfo * (;ki)history * (;ki)data * r:range * (;ki,r)sbytes
+predicate Fragment of ki:KeyInfo * (;ki)history * (;ki)data * r:range * (;ki,r)Fragment.fragment
 
 private type (;ki:KeyInfo,h:(;ki)history,ad:(;ki)data,r:range) prefragment =
-	x:(;ki,r)sbytes{Fragment(ki,h,ad,r,x)}
+	x:(;ki,r)Fragment.fragment{Fragment(ki,h,ad,r,x)}
 
 private type (;ki:KeyInfo,h:(;ki)history,ad:(;ki)data,r:range) fragment =
 	{contents: (;ki,h,ad,r)prefragment}
@@ -49,9 +50,9 @@ val fragment: ki:KeyInfo{not Safe(ki)} -> h:(;ki)history -> ad:(;ki)data -> r:ra
 val repr: ki:KeyInfo{not Safe(ki)} -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;ki,h,ad,r) fragment -> bytes
 
 val contents:  ki:KeyInfo -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;ki,h,ad,r)fragment ->
-	x:(;ki,r)sbytes{Fragment(ki,h,ad,r,x)}
+	x:(;ki,r)Fragment.fragment{Fragment(ki,h,ad,r,x)}
 val construct: ki:KeyInfo -> h:(;ki)history -> ad:(;ki)data -> r:range ->
-	x:(;ki,r)sbytes{Fragment(ki,h,ad,r,x)} -> (;ki,h,ad,r)fragment
+	x:(;ki,r)Fragment.fragment{Fragment(ki,h,ad,r,x)} -> (;ki,h,ad,r)fragment
 
 val FragmentToAEADPlain: ki:KeyInfo -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;ki,h,ad,r)fragment ->
 	(;ki,r,MakeAD(ki,h,ad))AEADPlain

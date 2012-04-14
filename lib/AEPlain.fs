@@ -5,6 +5,7 @@ open TLSInfo
 open Algorithms
 open CipherSuites
 open DataStream
+open Fragment
 
 // ghost
 type funs =
@@ -18,10 +19,10 @@ type AEPlain = {aep: bytes}
 let AEPlain (ki:KeyInfo) (r:range) (ad:data) (b:bytes) = {aep = b}
 let AERepr  (ki:KeyInfo) (r:range) (ad:data) (p:AEPlain) = p.aep
 
-let AEConstruct (ki:KeyInfo) (r:range) (ad:data) (sb:sbytes) =
-    let b = DataStream.repr ki r sb in
+let AEConstruct (ki:KeyInfo) (r:range) (ad:data) (sb:fragment) =
+    let b = fragmentRepr ki r sb in
     {aep = b}
-let AEContents  (ki:KeyInfo) (r:range) (ad:data) (p:AEPlain) = DataStream.plain ki r p.aep
+let AEContents  (ki:KeyInfo) (r:range) (ad:data) (p:AEPlain) = fragmentPlain ki r p.aep
 
 type MACPlain = {macP: bytes}
 type tag = {macT: bytes}
