@@ -259,10 +259,9 @@ let verifyDataLen_of_ciphersuite (cs:cipherSuite) =
 let prfHashAlg_of_ciphersuite (cs:cipherSuite) =
     (* Only to be invoked with TLS 1.2 (hardcoded in previous versions *)
     match cs with
-    | CipherSuite ( _ , EncMAC ( _ , SHA384 )) -> SHA384
-    | CipherSuite ( _ , AEAD ( _ , SHA384 ))   -> SHA384
-    | CipherSuite ( _ , EncMAC ( _ , SHA256 )) -> SHA256
-    | CipherSuite ( _ , AEAD ( _ , SHA256 ))   -> SHA256
+   // | CipherSuite ( ECDH*, EncMAC (_,SHA384)) -> SHA384
+    | CipherSuite ( _ , EncMAC ( _ , _ )) -> SHA256
+    | CipherSuite ( _ , AEAD ( _ , hAlg ))   -> hAlg
     | NullCipherSuite         -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite" 
     | SCSV (_)                -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite" 
     | _ -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
@@ -274,10 +273,9 @@ let prfHashAlg_of_ciphersuite (cs:cipherSuite) =
 let verifyDataHashAlg_of_ciphersuite (cs:cipherSuite) =
     (* Only to be invoked with TLS 1.2 (hardcoded in previous versions *)
     match cs with
-    | CipherSuite ( _ , EncMAC ( _ , SHA384 )) -> SHA384
-    | CipherSuite ( _ , AEAD ( _ , SHA384 ))   -> SHA384
-    | CipherSuite ( _ , EncMAC ( _ , SHA256 )) -> SHA256
-    | CipherSuite ( _ , AEAD ( _ , SHA256 ))   -> SHA256
+   // | CipherSuite ( ECDH*, EncMAC (_,SHA384)) -> SHA384
+    | CipherSuite ( _ , EncMAC ( _ , _ )) -> SHA256
+    | CipherSuite ( _ , AEAD ( _ , hAlg ))   -> hAlg
     | NullCipherSuite         -> unexpectedError "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
     | SCSV (_)                -> unexpectedError "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
     | _ -> unexpectedError "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
