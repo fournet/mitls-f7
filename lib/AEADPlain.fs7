@@ -5,7 +5,7 @@ open DataStream
 open Fragment
 open AEPlain
 
-type (;ki:KeyInfo) data = (b:bytes){Length(b) = ADLength(ki)}
+type (;ki:KeyInfo) data = (b:bytes){Length(b) = ADLength(ki,ki)}
 
 predicate AEADSays of ki:KeyInfo * r:range * (;ki)data * (;ki,r)fragment
 // TODO: define AEADSays in terms of some AESays predicate defined in AEPlain (if/when ready)

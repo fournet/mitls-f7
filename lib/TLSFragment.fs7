@@ -35,7 +35,7 @@ val fragmentPlain: ki:KeyInfo -> ct:ContentType -> h: (;ki) history -> rg:range 
   bytes -> (;ki,ct,h,rg)fragment 
 
 // Additional Data
-type (;ki:KeyInfo) addData = (b:bytes){Length(b) = ADLength(ki) - 8}
+type (;ki:KeyInfo) addData = (b:bytes){Length(b) = ADLength(ki,ki) - 8}
 
 function val ADBytes: (KeyInfo * ContentType) -> bytes
 assume !ki,ct.
@@ -46,7 +46,7 @@ assume !ki,ct.
           ADBytes(ki,ct) =
 		(CTBytes(ct) @| VersionBytes(ki.sinfo.protocol_version)))
 
-ask !ki,ct. Length(ADBytes(ki,ct)) = (ADLength(ki) - 8)
+ask !ki,ct. Length(ADBytes(ki,ct)) = (ADLength(ki,ki) - 8)
 
 private val makeAD: ki:KeyInfo -> ct:ContentType ->
 	  ad: (;ki)addData{ad=ADBytes(ki,ct)}

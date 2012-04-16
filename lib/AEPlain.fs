@@ -7,11 +7,6 @@ open CipherSuites
 open DataStream
 open Fragment
 
-// ghost
-type funs =
-    | ADLength of KeyInfo
-    | IVSize of KeyInfo
-
 type data = bytes
 
 type AEPlain = {aep: bytes}

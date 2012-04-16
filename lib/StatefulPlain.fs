@@ -29,10 +29,12 @@ let contents  (ki:KeyInfo) (h:history) (ad:data) (rg:range) f = f.contents
 let construct (ki:KeyInfo) (h:history) (ad:data) (rg:range) c = {contents = c}
 
 let FragmentToAEADPlain ki h ad r f =
-    AEADPlain.construct ki r (makeAD ki h ad) f.contents
+    let ad' = makeAD ki h ad in
+    AEADPlain.construct ki r ad' f.contents
 
 let AEADPlainToFragment ki h ad r p =
-    let f = AEADPlain.contents ki r (makeAD ki h ad) p in
+    let ad' = makeAD ki h ad in
+    let f = AEADPlain.contents ki r ad' p in
     {contents = f}
 
 

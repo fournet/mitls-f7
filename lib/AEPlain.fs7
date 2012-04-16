@@ -8,13 +8,12 @@ open Fragment
 open Algorithms
 open CipherSuites
 
-function type funs =
-	| ADLength of KeyInfo
-	| IVSize of KeyInfo
-assume !ki. (ki.sinfo.protocol_version = SSL_3p0 /\ ADLength(ki) = 9) \/
-	(ki.sinfo.protocol_version <> SSL_3p0 /\ ADLength(ki) = 11)
+function val ADLength: KeyInfo * KeyInfo -> nat
+function val IVSize: KeyInfo * KeyInfo -> nat
+assume !ki. (ki.sinfo.protocol_version = SSL_3p0 /\ ADLength(ki,ki) = 9) \/
+	(ki.sinfo.protocol_version <> SSL_3p0 /\ ADLength(ki,ki) = 11)
 
-type (;ki:KeyInfo) data = (b:bytes){Length(b) = ADLength(ki)}
+type (;ki:KeyInfo) data = (b:bytes){Length(b) = ADLength(ki,ki)}
 
 private type (;ki:KeyInfo,r:range,ad:(;ki)data)AEPlain = {aep: bytes} // FIXME: we miss some predicate here.
 
@@ -52,12 +51,12 @@ val cipherRange: ki:KeyInfo -> tlen:nat -> r:range{tlen = RangeCipher(ki,r)}
 // - (and the inverse functions)
 
 function val PlainLength: ki:KeyInfo * tlen:nat -> plen:nat
-private assume !ki. IVSize(ki) = BlockSize(CipherSuiteENCAlg(ki.sinfo.cipher_suite))
+private assume !ki. IVSize(ki,ki) = BlockSize(CipherSuiteENCAlg(ki.sinfo.cipher_suite))
 private assume !ki,tlen.
 	( ki.sinfo.protocol_version = SSL_3p0 \/ ki.sinfo.protocol_version = TLS_1p0
 		=> PlainLength(ki,tlen) = tlen ) /\
 	( ki.sinfo.protocol_version = TLS_1p1 \/ ki.sinfo.protocol_version = TLS_1p2
-		=> PlainLength(ki,tlen) + IVSize(ki) = tlen )
+		=> PlainLength(ki,tlen) + IVSize(ki,ki) = tlen )
 
 private type (;ki:KeyInfo,tlen:nat) plain = {p: (x:bytes){Length(x) = PlainLength(ki,tlen)}}
 val plain: ki:KeyInfo{not Safe(ki)} -> tlen:nat -> b:bytes{Length(b) = PlainLength(ki,tlen)} -> (;ki,tlen) plain
@@ -75,7 +74,7 @@ assume !ki,ad1,x1,ad2,x2. (Length(ad1) = Length(ad2) /\
 
 assume !ki,tlen,pl. MAC.Msg(ki,pl) <=>
   (Corrupt(ki) \/
-     (?ad,x. Length(ad) = ADLength(ki) /\
+     (?ad,x. Length(ad) = ADLength(ki,ki) /\
 	  pl = MsgBytes(ki,ad,x)// /\ ??
 	// TLSFragment.Fragment(ki,tlen,
 	// 	       TLSFragment.ADseqn(ki.sinfo.protocol_version,ad),
