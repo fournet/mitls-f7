@@ -74,6 +74,9 @@
     <None Include="DataStream.fs7" />
     <Compile Include="DataStream.fsi" />
     <Compile Include="DataStream.fs" />
+    <None Include="Fragment.fs7" />
+    <Compile Include="Fragment.fsi" />
+    <Compile Include="Fragment.fs" />
     <None Include="MAC.fs7" />
     <Compile Include="MAC.fsi" />
     <Compile Include="MAC.fs" />
