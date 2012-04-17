@@ -91,6 +91,11 @@ let isOnlyMACCipherSuite cs =
     | OnlyMACCipherSuite (_,_) -> true
     | _ -> false
 
+let isAEADCipherSuite cs =
+    match cs with
+    | CipherSuite (_,_) -> true
+    | _ -> false
+
 let cipherSuiteBytes cs = 
     match cs with
     | NullCipherSuite                                     -> [| 0x00uy; 0x00uy |]

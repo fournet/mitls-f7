@@ -25,6 +25,7 @@ val geqPV: ProtocolVersion -> ProtocolVersion -> bool
 val nullCipherSuite: cipherSuite
 val isNullCipherSuite: cipherSuite -> bool
 val isOnlyMACCipherSuite: cipherSuite -> bool
+val isAEADCipherSuite: cipherSuite -> bool
 
 val isAnonCipherSuite: cipherSuite -> bool
 val cipherSuiteRequiresKeyExchange: cipherSuite -> bool

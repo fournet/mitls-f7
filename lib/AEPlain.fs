@@ -8,7 +8,7 @@ open DataStream
 open Fragment
 
 type data = bytes
-type uns = Unsafe of KeyInfo
+type preds = Unsafe of KeyInfo
 
 type AEPlain = {contents: fragment}
 
@@ -24,6 +24,7 @@ type MACPlain = {macP: bytes}
 type tag = {macT: bytes}
 
 let macPlain (ki:KeyInfo) (rg:range) ad f =
+    Pi.assume(Unsafe(ki));
     let b = AERepr ki rg ad f in
     let fLen = bytes_of_int 2 (length b) in
     let fullData = ad @| fLen in 
@@ -43,27 +44,29 @@ let padLength ki len =
     let bs = blockSize alg in
     let overflow = (len + 1) % bs // at least one extra byte of padding
     if overflow = 0 then 1 else 1 + bs - overflow 
+
+let ivLength ki = 
+  match ki.sinfo.protocol_version with
+    | SSL_3p0 | TLS_1p0 -> 0
+    | TLS_1p1 | TLS_1p2 ->
+        let encAlg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
+          ivSize encAlg 
     
 let rangeCipher ki (rg:DataStream.range) =
     let (_,h) = rg in
     let cs = ki.sinfo.cipher_suite in
-    if isNullCipherSuite cs then
-        h
-    else if isOnlyMACCipherSuite cs then
+    match cs with
+    | x when isOnlyMACCipherSuite x ->
         let macLen = macSize (macAlg_of_ciphersuite cs) in
         let res = h + macLen in
         res
-    else
-        let ivL =
-            match ki.sinfo.protocol_version with
-            | SSL_3p0 | TLS_1p0 -> 0
-            | TLS_1p1 | TLS_1p2 ->
-                let encAlg = encAlg_of_ciphersuite cs in
-                ivSize encAlg
+    | x when isAEADCipherSuite x ->
+        let ivL = ivLength ki in
         let macLen = macSize (macAlg_of_ciphersuite cs) in
         let prePad = h + macLen in
         let padLen = padLength ki prePad in
         ivL + prePad + padLen
+    | _ -> Error.unexpectedError "[rangeCipher] invoked on invalid ciphersuite."
 
 // And from Target Length to Ranges
 let cipherRange ki tlen =
@@ -87,14 +90,8 @@ let repr (ki:KeyInfo) (tlen:nat) pl = pl.p
 
 let pad (p:int)  = createBytes p (p-1)
 
-let ivLength ki = 
-  match ki.sinfo.protocol_version with
-    | SSL_3p0 | TLS_1p0 -> 0
-    | TLS_1p1 | TLS_1p2 ->
-        let encAlg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
-          ivSize encAlg 
-
 let encode (ki:KeyInfo) rg (ad:data) data tag =
+    Pi.assume(Unsafe(ki));
     let b = AERepr ki rg ad data in
     let ivL = ivLength ki in
     let tlen = rangeCipher ki rg in
@@ -102,7 +99,13 @@ let encode (ki:KeyInfo) rg (ad:data) data tag =
     (tlen, {p = b @| tag.macT @| pad p})
 
 let encodeNoPad (ki:KeyInfo) rg (ad:data) data tag =
+    Pi.assume(Unsafe(ki));
     let b = AERepr ki rg ad data in
+    // assert
+    let (l,h) = rg in
+    if l <> h || h <> length b then
+        Error.unexpectedError "[encodeNoPad] invoked on an invalid range."
+    else
     let tlen = rangeCipher ki rg in
     (tlen, {p = b @| tag.macT})
 
@@ -114,22 +117,22 @@ let check_split b l =
 let decode ki (ad:data) tlen plain =
     let macSize = macSize (macAlg_of_ciphersuite ki.sinfo.cipher_suite) in
     let rg = cipherRange ki tlen in
-    let pLen =
-        match ki.sinfo.protocol_version with
-        | SSL_3p0 | TLS_1p0 -> tlen
-        | TLS_1p1 | TLS_1p2 ->
-            let encAlg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
-            tlen - (ivSize encAlg)
-    if pLen <> length plain.p then
-        Error.unexpectedError "[parse] tlen should be compatible with the given plaintext"
+    let ivL = ivLength ki in
+    let expected = tlen - ivL
+    let pl = plain.p in
+    let pLen = length pl in
+    if pLen <> expected || pLen < 1 then
+        Error.unexpectedError "[parse] tlen should be a valid target lentgth"
     else
-    let (tmpdata, padlenb) = Bytes.split plain.p (pLen - 1) in
+    let padLenStart = pLen - 1 in
+    let (tmpdata, padlenb) = Bytes.split pl padLenStart in
     let padlen = int_of_bytes padlenb in
     let padstart = pLen - padlen - 1 in
     if padstart < 0 then
         (* Pretend we have a valid padding of length zero, but set we must fail *)
         let macStart = pLen - macSize - 1 in
         let (frag,mac) = check_split tmpdata macStart in
+        Pi.assume(Unsafe(ki));
         let aeadF = AEPlain ki rg ad frag in
         let tag = {macT = mac} in
         (rg,aeadF,tag,false)
@@ -153,6 +156,7 @@ let decode ki (ad:data) tlen plain =
             if equalBytes expected pad then
                 let macStart = pLen - macSize - padlen - 1 in
                 let (frag,mac) = check_split data_no_pad macStart in
+                Pi.assume(Unsafe(ki));
                 let aeadF = AEPlain ki rg ad frag in
                 let tag = {macT = mac} in
                 (rg,aeadF,tag,true)
@@ -160,6 +164,7 @@ let decode ki (ad:data) tlen plain =
                 (* Pretend we have a valid padding of length zero, but set we must fail *)
                 let macStart = pLen - macSize - 1 in
                 let (frag,mac) = check_split tmpdata macStart in
+                Pi.assume(Unsafe(ki));
                 let aeadF = AEPlain ki rg ad frag in
                 let tag = {macT = mac} in
                 (rg,aeadF,tag,false)
@@ -182,6 +187,7 @@ let decode ki (ad:data) tlen plain =
                 (* Pretend we have a valid padding of length zero, but set we must fail *)
                 let macStart = pLen - macSize - 1 in
                 let (frag,mac) = check_split tmpdata macStart in
+                Pi.assume(Unsafe(ki));
                 let aeadF = AEPlain ki rg ad frag in
                 let tag = {macT = mac} in
                 (rg,aeadF,tag,false)
@@ -193,6 +199,7 @@ let decode ki (ad:data) tlen plain =
             else
                 let macStart = pLen - macSize - padlen - 1 in
                 let (frag,mac) = check_split data_no_pad macStart in
+                Pi.assume(Unsafe(ki));
                 let aeadF = AEPlain ki rg ad frag in
                 let tag = {macT = mac} in
                 (rg,aeadF,tag,true)
@@ -202,22 +209,15 @@ let decodeNoPad ki (ad:data) tlen plain =
     // assert length plain.d = tlen
     let cs = ki.sinfo.cipher_suite in
     let maclen = macSize (macAlg_of_ciphersuite cs) in
-    let plainLen = tlen - maclen in
-// Next code is commented out, assuming we have
-// - length plain.d = tlen
-// - tlen >= macLen
-
-//    if macStart < 0 || length(plain.p) < macStart then
-//        (* FIXME: is this safe?
-//           I (AP) think so because our locally computed mac will have some different length.
-//           Also timing is not an issue, because the attacker can guess the check should fail anyway. *)
-//    //CF: no, the MAC has the wrong size; I'd rather have a static precondition on the length of c.
-//        let aeadF = AEADPlain.plain ki (min,max) ad plain.p
-//        let tag = {macT = [||]}
-//        ((min,max),aeadF,tag)
-//    else
-    let (frag,mac) = Bytes.split plain.p plainLen in
-    let rg = (plainLen,plainLen) in
+    let pl = plain.p in
+    let plainLen = length pl in
+    if plainLen <> tlen || tlen < maclen then
+        Error.unexpectedError "[decodeNoPad] wrong target length given as input argument."
+    else
+    let payloadLen = plainLen - maclen in
+    let (frag,mac) = Bytes.split pl payloadLen in
+    let rg = (payloadLen,payloadLen) in
+    Pi.assume(Unsafe(ki));
     let aeadF = AEPlain ki rg ad frag in
     let tag = {macT = mac} in
     (rg,aeadF,tag)

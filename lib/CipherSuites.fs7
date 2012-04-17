@@ -62,6 +62,12 @@ predicate val IsOnlyMACCiphersuite: cipherSuite -> bool
 assume !x. (IsOnlyMACCiphersuite(x) <=> ?z,t. x = OnlyMACCipherSuite(z,t))
 val isOnlyMACCipherSuite: c:cipherSuite -> r:bool{r=true => IsOnlyMACCiphersuite(c)}
 
+predicate val IsSCSVCiphersuite: cipherSuite -> bool
+assume !x. IsSCSVCiphersuite(x) <=> ?z. x = SCSV(z)
+
+predicate val IsAEADCiphersuite: cipherSuite -> bool
+assume !x. IsAEADCiphersuite(x) <=> ?z,t. x = CipherSuite(z,t)
+val isAEADCipherSuite: c:cipherSuite -> r:bool{r=true => IsAEADCiphersuite(c)}
 
 (* TODO: predicates similar to the ones above, to be done when handling handshake *)
 val isAnonCipherSuite: cipherSuite -> bool

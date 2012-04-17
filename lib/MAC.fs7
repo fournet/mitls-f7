@@ -17,7 +17,7 @@ type text = bytes
 type tag = bytes
 predicate val Msg: KeyInfo * text -> bool
 
-val Mac:    ki:KeyInfo -> k:(;ki) key -> t:text{Msg(ki,t)} -> tag
+val Mac:    ki:KeyInfo -> k:(;ki) key -> t:text{Msg(ki,t)} -> t:tag{Length(t) = MacKeySize(CipherSuites.CipherSuiteMACAlg(ki.sinfo.cipher_suite))}
 val Verify: ki:KeyInfo -> k:(;ki) key -> t:text -> tag -> 
   v:bool{ (v=true /\ Auth(ki)) => Msg(ki,t) }
 
