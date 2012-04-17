@@ -3,12 +3,12 @@ open Bytes
 open TLSInfo
 open DataStream
 open Fragment
-open AEPlain
+//open AEPlain // Do not open, or AEPlain "module" and AEPlain "function" will clash. We should stop using the same name for modules, types and functions, as this creates names clashes everywhere!
 
-type (;ki:KeyInfo) data = (b:bytes){Length(b) = ADLength(ki,ki)}
+type (;ki:KeyInfo) data = (b:bytes){Length(b) = AEPlain.ADLength(ki,ki)}
 
 predicate AEADSays of ki:KeyInfo * r:range * (;ki)data * (;ki,r)fragment
-assume !ki,r,d,f. AESays(ki,r,d,f) <=> AEADSays(ki,r,d,f)
+assume !ki,r,d,f. AEPlain.AESays(ki,r,d,f) <=> AEADSays(ki,r,d,f)
 
 private type (;ki:KeyInfo,r:range,ad:(;ki)data) preAEADPlain =
 	x:(;ki,r)fragment{ Auth(ki) => AEADSays(ki,r,ad,x) }
@@ -25,8 +25,8 @@ val construct: ki:KeyInfo -> r:range -> ad:(;ki)data ->
 	sb:(;ki,r)fragment{Auth(ki) => AEADSays(ki,r,ad,sb)}
 	-> (;ki,r,ad)AEADPlain
 
-val AEADPlainToAEPlain: ki:KeyInfo -> r:range -> ad:(;ki)data -> (;ki,r,ad) AEADPlain -> (;ki,r,ad) AEPlain
-val AEPlainToAEADPlain: ki:KeyInfo -> r:range -> ad:(;ki)data -> (;ki,r,ad) AEPlain -> (;ki,r,ad) AEADPlain
+val AEADPlainToAEPlain: ki:KeyInfo -> r:range -> ad:(;ki)data -> (;ki,r,ad) AEADPlain -> (;ki,r,ad) AEPlain.AEPlain
+val AEPlainToAEADPlain: ki:KeyInfo -> r:range -> ad:(;ki)data -> (;ki,r,ad) AEPlain.AEPlain -> (;ki,r,ad) AEADPlain
 
 // ////////////////////////////////////////////////////////////
 // // How I would like the stack to look like:

@@ -31,7 +31,7 @@ let COERCE ki b =
     | x when isOnlyMACCipherSuite x ->
         let mk = MAC.COERCE ki b in
         MACOnly(mk)
-    | _ ->
+    | x when isAEADCipherSuite x ->
         let macKeySize = macKeySize (macAlg_of_ciphersuite cs) in
         let encKeySize = encKeySize (encAlg_of_ciphersuite cs) in
         // let ivsize = 
@@ -42,6 +42,7 @@ let COERCE ki b =
         let mk = MAC.COERCE ki mkb in
         let ek = ENC.COERCE ki ekb ivb in
         MtE(mk,ek)
+    | _ -> unexpectedError "[COERCE] invoked on wrong ciphersuite"
 
 let LEAK ki k =
     match k with
@@ -52,23 +53,26 @@ let LEAK ki k =
 
 let encrypt ki key data rg plain =
     let aep = AEADPlain.AEADPlainToAEPlain ki rg data plain in
-    match key with
-    | MtE (ka,ke) ->
+    let cs = ki.sinfo.cipher_suite in
+    match (cs,key) with
+    | (x, MtE (ka,ke)) when isAEADCipherSuite x ->
         let maced          = AEPlain.macPlain ki rg data aep
         let tag            = AEPlain.mac    ki ka maced  
         let (tlen,encoded) = AEPlain.encode ki rg data aep tag
         let (ke,res)       = ENC.ENC ki ke tlen encoded 
         (MtE(ka,ke),res)
-    | MACOnly (ka) ->
+    | (x,MACOnly (ka)) when isOnlyMACCipherSuite x ->
         let maced          = AEPlain.macPlain ki rg data aep
         let tag            = AEPlain.mac    ki ka maced  
         let (tlen,encoded) = AEPlain.encodeNoPad ki rg data aep tag
         (key,AEPlain.repr ki tlen encoded)
 //  | GCM (k) -> ... 
+    | (_,_) -> unexpectedError "[encrypt] incompatible ciphersuite-key given."
         
 let decrypt ki key data cipher =
-    match key with
-    | MtE (ka,ke) ->
+    let cs = ki.sinfo.cipher_suite in
+    match (cs,key) with
+    | (x, MtE (ka,ke)) when isAEADCipherSuite x ->
         let (ke,encoded)      = ENC.DEC ki ke cipher in
         let (rg,aep,tag,ok) = AEPlain.decode ki data (length cipher) encoded in
         let plain = AEADPlain.AEPlainToAEADPlain ki rg data aep in
@@ -77,25 +81,34 @@ let decrypt ki key data cipher =
         | SSL_3p0 | TLS_1p0 ->
             if ok then 
               if AEPlain.verify ki ka maced tag (* padding time oracle *) 
-                then correct(MtE(ka,ke),rg,plain)
+                then
+                     let key = MtE(ka,ke) in
+                     let res = (key,rg,plain) in
+                     correct(res)
                 else Error(MAC,CheckFailed)
             else     Error(RecordPadding,CheckFailed) (* padding error oracle *)
         | TLS_1p1 | TLS_1p2 ->
             if AEPlain.verify ki ka maced tag 
             then 
               if ok 
-                then correct (MtE(ka,ke),rg,plain)                
+                then
+                     let key = MtE(ka,ke) in
+                     let res = (key,rg,plain) in
+                     correct(res)              
                 else Error(MAC,CheckFailed)
             else     Error(MAC,CheckFailed)
-    | MACOnly (ka) ->
+    | (x,MACOnly (ka)) when isOnlyMACCipherSuite x ->
         let encoded        = AEPlain.plain ki (length cipher) cipher in
         let (rg,aep,tag) = AEPlain.decodeNoPad ki data (length cipher) encoded in
         let plain = AEADPlain.AEPlainToAEADPlain ki rg data aep in
         let maced          = AEPlain.macPlain ki rg data aep
         if AEPlain.verify ki ka maced tag 
-          then correct (key,rg,plain)
+          then
+               let res = (key,rg,plain) in
+               correct (res)
           else Error(MAC,CheckFailed)
 //  | GCM (GCMKey) -> ... 
+    | (_,_) -> unexpectedError "[decrypt] incompatible ciphersuite-key given."
 
 (*
 let encrypt ki key iv3 tlen data plain =
