@@ -15,7 +15,11 @@ type prefragment = Fragment.fragment
 type fragment = {contents: prefragment}
 
 let emptyHistory (ki:KeyInfo) = (0,Empty)
-let addToHistory (ki:KeyInfo) (seqn,h) d r x = (seqn+1,ConsHistory(h,d,r,x.contents))
+let addToHistory (ki:KeyInfo) sh d r x = 
+  let (seqn,h) = sh in
+  let f = x.contents in
+  let s' = seqn+1 in 
+    (s',ConsHistory(h,d,r,f))
 
 let makeAD (ki:KeyInfo) ((seqn,h):history) ad =
   let bn = bytes_of_seq seqn in

@@ -15,13 +15,9 @@ assume !ki. (ki.sinfo.protocol_version = SSL_3p0 /\ ADLength(ki,ki) = 9) \/
 	(ki.sinfo.protocol_version <> SSL_3p0 /\ ADLength(ki,ki) = 11)
 
 type (;ki:KeyInfo) data = (b:bytes){Length(b) = ADLength(ki,ki)}
+predicate type xxx = AESays of ki:KeyInfo * r:range * ad:(;ki) data * (;ki,r)fragment 
 
-private type (;ki:KeyInfo,r:range,ad:(;ki)data)preAEPlain = (;ki,r)fragment
-private type (;ki:KeyInfo,r:range,ad:(;ki)data)AEPlain = {contents: (;ki,r,ad)preAEPlain} 
-predicate type uns = Unsafe of KeyInfo 
-predicate AESays of ki:KeyInfo * r:range * ad:(;ki) data * (;ki,r)fragment 
-
-private assume !ki. Unsafe(ki) <=> not (Safe(ki))
+private type (;ki:KeyInfo,r:range,ad:(;ki)data)AEPlain = {contents: (x:(;ki,r)fragment{Auth(ki) => AESays(ki,r,ad,x)})}
 
 val AEPlain: ki:KeyInfo{not Safe(ki)} -> r:range -> ad:(;ki)data -> b:bytes -> (;ki,r,ad)AEPlain
 val AERepr:  ki:KeyInfo{not Safe(ki)} -> r:range -> ad:(;ki)data -> (;ki,r,ad)AEPlain -> b:bytes
@@ -41,10 +37,10 @@ val macPlain: ki:KeyInfo -> r:range ->
   p:(;ki)MACPlain{p = MACPlain(ki,r,ad,f)}
 
 
-val mac: ki:KeyInfo -> (;ki) MAC.key -> t:(;ki) MACPlain{?r,ad,f. t = MACPlain(ki,r,ad,f) /\ (Auth(ki) => AESays(ki,r,ad,f))}  
+val mac: ki:KeyInfo -> (;ki) MAC.key -> t:(;ki) MACPlain{?r,ad,f. t = MACPlain(ki,r,ad,f) /\ (Auth(ki) => AESays(ki,r,ad,f.contents))}
   -> (;ki) tag
 val verify: ki:KeyInfo -> (;ki) MAC.key -> text:(;ki) MACPlain -> tag:(;ki) tag ->
-  v:bool{v = true => (?r,ad,f. text = MACPlain(ki,r,ad,f) /\ (Auth(ki) => AESays(ki,r,ad,f)))}
+  v:bool{v = true => (?r,ad,f. text = MACPlain(ki,r,ad,f) /\ (Auth(ki) => AESays(ki,r,ad,f.contents)))}
 
 
 val padLength: ki:KeyInfo -> nat -> nat

@@ -7,7 +7,6 @@ open AEADPlain
 
 type (;ki:KeyInfo) data = (b:bytes){Length(b) = AEPlain.ADLength(ki,ki) - 8}
 
-ask !ki. AEPlain.ADLength(ki,ki) - 8 > 0
 
 private type (;ki:KeyInfo)prehistory =
 	| Empty
@@ -41,7 +40,7 @@ val emptyHistory: ki:KeyInfo -> h:(;ki)history{SeqN(ki,h) = 0}
 // FIXME: typechecking when it should not: I can prove false as a post condition. We have inconsistent pre-conditions.
 val addToHistory: ki:KeyInfo -> h:(;ki)history ->
 	ad:(;ki)data -> r:range -> x:(;ki,h,ad,r)fragment ->
-	h':(;ki)history{ (* SeqN(ki,h') = SeqN(ki,h)+1 /\ *) false}
+	h':(;ki)history
 
 function val MakeAD:  ki:KeyInfo * (;ki)history * (;ki)data -> bytes//(;ki)AEADPlain.data
 assume !ki,h,ad. MakeAD(ki,h,ad) = IntBytes(8,SeqN(ki,h)) @| ad
@@ -65,8 +64,11 @@ val AEADPlainToFragment: ki:KeyInfo -> h:(;ki)history -> ad:(;ki)data -> r:range
 
 assume !ki,ad,r,x. AEADSays(ki,r,ad,x) <=> ?sn,h,ad'. ad = MakeAD(ki,(sn,h),ad') /\ History(ki,sn,h) /\ Fragment(ki,(sn,h),ad',r,x)
 
+(*
+ask !ki. AEPlain.ADLength(ki,ki) - 8 > 0
 ask !ki,sn,h,ad,ad',r,x. ad = MakeAD(ki,(sn,h),ad') /\ History(ki,sn,h) /\ Fragment(ki,(sn,h),ad',r,x) => AEADSays(ki,r,ad,x)
 ask !ki,ad,r,x. ?sn,h,ad'. ad = MakeAD(ki,(sn,h),ad') /\ History(ki,sn,h) /\ AEADSays(ki,r,ad,x) => Fragment(ki,(sn,h),ad',r,x)
 ask !ki,sn,sn',h,h'. SeqN(ki,(sn,h)) = SeqN(ki,(sn',h')) /\ History(ki,sn,h) /\ History(ki,sn',h') => sn = sn' /\ h = h'
 ask !ki,sn,h,ad,sn',h',ad'. MakeAD(ki,(sn,h),ad) = MakeAD(ki,(sn',h'),ad') /\ History(ki,sn,h) /\ History(ki,sn',h') => sn = sn' /\ h = h' /\ ad = ad' 
 ask !ki,sn,h,ad,r,x. AEADSays(ki,r,MakeAD(ki,(sn,h),ad),x) /\ History(ki,sn,h) => Fragment(ki,(sn,h),ad,r,x)
+*)

@@ -10,8 +10,7 @@ open Fragment
 type data = bytes
 type uns = Unsafe of KeyInfo
 
-type preAEPlain = fragment
-type AEPlain = {contents: preAEPlain}
+type AEPlain = {contents: fragment}
 
 let AEPlain (ki:KeyInfo) (r:range) (ad:data) (b:bytes) = {contents = fragmentPlain ki r b}
 let AERepr  (ki:KeyInfo) (r:range) (ad:data) (p:AEPlain) = fragmentRepr ki r p.contents

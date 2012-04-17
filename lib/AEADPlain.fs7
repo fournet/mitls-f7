@@ -8,7 +8,7 @@ open AEPlain
 type (;ki:KeyInfo) data = (b:bytes){Length(b) = ADLength(ki,ki)}
 
 predicate AEADSays of ki:KeyInfo * r:range * (;ki)data * (;ki,r)fragment
-private assume !ki,r,d,p,f. AEPlain.AESays(ki,r,d,p) <=> AEADSays(ki,r,d,p)
+assume !ki,r,d,f. AEPlain.AESays(ki,r,d,f) <=> AEADSays(ki,r,d,f)
 
 private type (;ki:KeyInfo,r:range,ad:(;ki)data) preAEADPlain =
 	x:(;ki,r)fragment{ Auth(ki) => AEADSays(ki,r,ad,x) }
