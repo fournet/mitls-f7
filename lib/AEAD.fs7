@@ -17,8 +17,8 @@ private type (;ki:KeyInfo) AEADKey =
 // In the code, (AEADSize * 2) is computed in CipherSuites.getKeyExtensionLength
 
 val GEN:    ki:KeyInfo{Safe(ki)} -> encryptor:(;ki)AEADKey * decryptor:(;ki)AEADKey
-val COERCE: ki:KeyInfo -> b:bytes (* {Length(b) = AEADSize(ki)} *) -> (;ki)AEADKey
-val LEAK:   ki:KeyInfo -> (;ki)AEADKey -> b:bytes (* {Length(b) = AEADSize(ki)} *)
+val COERCE: ki:KeyInfo{not Auth(ki)} -> b:bytes (* {Length(b) = AEADSize(ki)} *) -> (;ki)AEADKey
+val LEAK:   ki:KeyInfo{not Auth(ki)} -> (;ki)AEADKey -> b:bytes (* {Length(b) = AEADSize(ki)} *)
 
 val encrypt: ki:KeyInfo -> (;ki) AEADKey -> ad:(;ki) data ->
   rg:range -> p:(;ki,rg,ad) AEADPlain ->

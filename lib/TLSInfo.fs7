@@ -211,3 +211,5 @@ predicate type cryptopreds =
     Safe of KeyInfo
   | Auth of KeyInfo
   | CTXT of KeyInfo * bytes * bytes * bytes
+
+assume !ki. Safe(ki) => Auth(ki)

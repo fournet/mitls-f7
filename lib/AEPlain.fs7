@@ -16,9 +16,9 @@ assume !ki. (ki.sinfo.protocol_version = SSL_3p0 /\ ADLength(ki,ki) = 9) \/
 
 type (;ki:KeyInfo) data = (b:bytes){Length(b) = ADLength(ki,ki)}
 
-private type (;ki:KeyInfo,r:range,ad:(;ki)data)AEPlain = {aep: bytes} // FIXME: we miss some predicate here.
+private type (;ki:KeyInfo,r:range,ad:(;ki)data)AEPlain = {aep: bytes} 
 predicate type uns = Unsafe of KeyInfo 
-predicate AESays of ki:KeyInfo * r:range * ad:(;ki) data * (;ki,r,ad)AEPlain 
+predicate AESays of ki:KeyInfo * r:range * ad:(;ki) data * (;ki,r)fragment 
 
 private assume !ki. Unsafe(ki) <=> not (Safe(ki))
 
@@ -36,7 +36,7 @@ function val MACPlain : 'a * 'b * 'c * 'd -> 'e
 
 val macPlain: ki:KeyInfo -> r:range -> 
   ad:(;ki)data ->
-  f:(;ki,r,ad)AEPlain{Auth(ki) => AESays(ki,r,ad,f)} ->
+  f:(;ki,r,ad)AEPlain ->
   p:(;ki)MACPlain{p = MACPlain(ki,r,ad,f)}
 
 
