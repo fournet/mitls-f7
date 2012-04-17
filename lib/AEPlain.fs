@@ -26,7 +26,7 @@ let AEContents  (ki:KeyInfo) (r:range) (ad:data) (p:AEPlain) =
 type MACPlain = {macP: bytes}
 type tag = {macT: bytes}
 
-let concat (ki:KeyInfo) (rg:range) ad f =
+let macPlain (ki:KeyInfo) (rg:range) ad f =
     let fLen = bytes_of_int 2 (length f.aep) in
     let fullData = ad @| fLen in 
     {macP = fullData @| f.aep} 

@@ -18,7 +18,7 @@ val AEContents:  KeyInfo -> range -> data -> AEPlain -> fragment
 
 type MACPlain
 type tag
-val concat: KeyInfo -> range -> data -> AEPlain -> MACPlain
+val macPlain: KeyInfo -> range -> data -> AEPlain -> MACPlain
 val mac: KeyInfo -> MAC.key -> MACPlain -> tag
 val verify: KeyInfo -> MAC.key -> MACPlain -> tag -> bool
 

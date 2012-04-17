@@ -55,13 +55,13 @@ let encrypt ki key data rg plain =
     let aep = AEADPlain.AEADPlainToAEPlain ki rg data plain in
     match key with
     | MtE (ka,ke) ->
-        let maced          = AEPlain.concat ki rg data aep
+        let maced          = AEPlain.macPlain ki rg data aep
         let tag            = AEPlain.mac    ki ka maced  
         let (tlen,encoded) = AEPlain.encode ki rg data aep tag
         let (ke,res)       = ENC.ENC ki ke tlen encoded 
         (MtE(ka,ke),res)
     | MACOnly (ka) ->
-        let maced          = AEPlain.concat ki rg data aep
+        let maced          = AEPlain.macPlain ki rg data aep
         let tag            = AEPlain.mac    ki ka maced  
         let (tlen,encoded) = AEPlain.encodeNoPad ki rg data aep tag
         (key,AEPlain.repr ki tlen encoded)
@@ -73,7 +73,7 @@ let decrypt ki key data cipher =
         let (ke,encoded)      = ENC.DEC ki ke cipher in
         let (rg,aep,tag,ok) = AEPlain.decode ki data (length cipher) encoded in
         let plain = AEADPlain.AEPlainToAEADPlain ki rg data aep in
-        let maced             = AEPlain.concat ki rg data aep
+        let maced             = AEPlain.macPlain ki rg data aep
         match ki.sinfo.protocol_version with
         | SSL_3p0 | TLS_1p0 ->
             if ok then 
@@ -92,7 +92,7 @@ let decrypt ki key data cipher =
         let encoded        = AEPlain.plain ki (length cipher) cipher in
         let (rg,aep,tag) = AEPlain.decodeNoPad ki data (length cipher) encoded in
         let plain = AEADPlain.AEPlainToAEADPlain ki rg data aep in
-        let maced          = AEPlain.concat ki rg data aep
+        let maced          = AEPlain.macPlain ki rg data aep
         if AEPlain.verify ki ka maced tag 
           then correct (key,rg,plain)
           else Error(MAC,CheckFailed)
