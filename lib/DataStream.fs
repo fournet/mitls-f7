@@ -39,15 +39,16 @@ let splitRange ki r =
         let savebytes = max minpack minfrag
         let smallL = max (min (l-savebytes) fragmentLength) 0
         let smallH = min (min (padSize+smallL) fragmentLength) h
-        if ((l - smallL > h - smallH) ||
-            (l - smallL < 0) || (h - smallH < 0) ||
+        let lsub = l - smallL in
+        let hsub = h - smallH in
+        if ((lsub > hsub) ||
+            (lsub < 0) || (hsub < 0) ||
             (smallL < 0) || (smallH < 0) ||
-            (smallL > smallH)
-           )
+            (smallL > smallH))
         then failwith "Should not be possible, ask Alfredo" 
         else
           ((smallL,smallH),
-           (l-smallL,h-smallH))
+           (lsub,hsub))
 
 type stream = {sb: bytes}
 type delta = {contents: rbytes}

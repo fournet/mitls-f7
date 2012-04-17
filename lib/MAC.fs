@@ -18,14 +18,15 @@ let Mac ki key data =
     let pv = ki.sinfo.protocol_version in
     let a = macAlg_of_ciphersuite ki.sinfo.cipher_suite in
     match pv with
-    | SSL_3p0 ->     HMAC.sslKeyedHash a key.k data
+    | SSL_3p0 when a = SHA || a = MD5 ->     HMAC.sslKeyedHash a key.k data 
+        (* KB: added a when clause above. Remove it when KeyInfo guarantees the condition as an invariant. *)
     | TLS_1p0 | TLS_1p1 | TLS_1p2 -> HMAC.HMAC a key.k data
 
 let Verify ki key data tag =
     let pv = ki.sinfo.protocol_version in
     let a = macAlg_of_ciphersuite ki.sinfo.cipher_suite in
     match pv with
-    | SSL_3p0 ->     HMAC.sslKeyedHashVerify a key.k data tag
+    | SSL_3p0 when a = SHA || a = MD5 ->     HMAC.sslKeyedHashVerify a key.k data tag
     | TLS_1p0 | TLS_1p1 | TLS_1p2 -> HMAC.HMACVERIFY a key.k data tag
 
 let GEN (ki) = {k= mkRandom (macKeySize (macAlg_of_ciphersuite ki.sinfo.cipher_suite))}

@@ -12,14 +12,14 @@ val sslKeyedHash:
   t:mac {Length(t)=MacKeySize(a)} 
 val sslKeyedHashVerify:
   a:hashAlg{a = MD5 \/ a = SHA} -> k:key{Length(k)=MacKeySize(a)} -> data -> 
-  t:mac {Length(t)=MacKeySize(a)} -> bool
+  t:mac -> bool
 
 val HMAC:       
-  a:hashAlg{a=MD5 \/ a=SHA} -> k:key{Length(k)=MacKeySize(a)} -> data -> 
+  a:hashAlg -> k:key{Length(k)=MacKeySize(a)} -> data -> 
   t:mac {Length(t)=MacKeySize(a)} 
 val HMACVERIFY: 
-  a:hashAlg{a=MD5 \/ a=SHA} -> k:key{Length(k)=MacKeySize(a)} -> data -> 
-  t:mac {Length(t)=MacKeySize(a)} -> bool
+  a:hashAlg -> k:key{Length(k)=MacKeySize(a)} -> data -> 
+  t:mac -> bool
 
 (* internal; we may as well assume the signatures above. *)
 (*

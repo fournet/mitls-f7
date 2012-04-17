@@ -28,7 +28,7 @@ type hashAlg =
 
 type aeadAlg =
     | AES_128_GCM
-	| AES_256_GCM
+    | AES_256_GCM
 
 type authencAlg =
     | EncMAC of cipherAlg * hashAlg

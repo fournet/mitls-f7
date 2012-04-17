@@ -8,6 +8,7 @@ open DataStream
 open Fragment
 
 type data = bytes
+type uns = Unsafe of KeyInfo
 
 type AEPlain = {aep: bytes}
 
@@ -15,9 +16,12 @@ let AEPlain (ki:KeyInfo) (r:range) (ad:data) (b:bytes) = {aep = b}
 let AERepr  (ki:KeyInfo) (r:range) (ad:data) (p:AEPlain) = p.aep
 
 let AEConstruct (ki:KeyInfo) (r:range) (ad:data) (sb:fragment) =
-    let b = fragmentRepr ki r sb in
+  Pi.assume(Unsafe(ki));
+  let b = fragmentRepr ki r sb in
     {aep = b}
-let AEContents  (ki:KeyInfo) (r:range) (ad:data) (p:AEPlain) = fragmentPlain ki r p.aep
+let AEContents  (ki:KeyInfo) (r:range) (ad:data) (p:AEPlain) = 
+  Pi.assume(Unsafe(ki));
+  fragmentPlain ki r p.aep
 
 type MACPlain = {macP: bytes}
 type tag = {macT: bytes}
@@ -85,13 +89,15 @@ let repr (ki:KeyInfo) (tlen:nat) pl = pl.p
 
 let pad (p:int)  = createBytes p (p-1)
 
+let ivLength ki = 
+  match ki.sinfo.protocol_version with
+    | SSL_3p0 | TLS_1p0 -> 0
+    | TLS_1p1 | TLS_1p2 ->
+        let encAlg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
+          ivSize encAlg 
+
 let encode (ki:KeyInfo) rg (ad:data) data tag =
-    let ivL =
-        match ki.sinfo.protocol_version with
-        | SSL_3p0 | TLS_1p0 -> 0
-        | TLS_1p1 | TLS_1p2 ->
-            let encAlg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
-            ivSize encAlg 
+    let ivL = ivLength ki in
     let tlen = rangeCipher ki rg in
     let p = tlen - length data.aep - length tag.macT - ivL
     (tlen, {p = data.aep @| tag.macT @| pad p})
