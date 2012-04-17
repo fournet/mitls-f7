@@ -41,11 +41,8 @@ let splitRange ki r =
         let smallH = min (min (padSize+smallL) fragmentLength) h
         let lsub = l - smallL in
         let hsub = h - smallH in
-        if ((lsub > hsub) ||
-            (lsub < 0) || (hsub < 0) ||
-            (smallL < 0) || (smallH < 0) ||
-            (smallL > smallH))
-        then failwith "Should not be possible, ask Alfredo" 
+        if ((lsub > hsub)) then
+            unexpectedError "Should not be possible, ask Alfredo" 
         else
           ((smallL,smallH),
            (lsub,hsub))

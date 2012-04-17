@@ -156,7 +156,7 @@ AEAD.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 Algorithms.fs7 RSA.fs
 	 $(f7t) -scripts AEAD Error.fs7 Bytes.fs7 tcp.fs7 Algorithms.fs7 RSA.fs7 HASH.fs7 HMAC.fs7 Certificate.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 DataStream.fs7 Fragment.fs7 MAC.fs7 AEPlain.fs7 ENC.fs7 AEADPlain.fs7 AEAD.fs7 AEAD.fs
 
 StatefulPlain.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 Algorithms.fs7 RSA.fs7 HASH.fs7 HMAC.fs7 Certificate.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 DataStream.fs7 Fragment.fs7 MAC.fs7 AEPlain.fs7 ENC.fs7 AEADPlain.fs7 AEAD.fs7 StatefulPlain.fs7 StatefulPlain.fs
-	 $(f7t) -scripts StatefulPlain Error.fs7 Bytes.fs7 tcp.fs7 Algorithms.fs7 RSA.fs7 HASH.fs7 HMAC.fs7 Certificate.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 DataStream.fs7 Fragment.fs7 MAC.fs7 AEPlain.fs7 ENC.fs7 AEADPlain.fs7 AEAD.fs7 StatefulPlain.fs7 StatefulPlain.fs
+	 $(f7t) -scripts StatefulPlain -timeout 100 Error.fs7 Bytes.fs7 tcp.fs7 Algorithms.fs7 RSA.fs7 HASH.fs7 HMAC.fs7 Certificate.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 DataStream.fs7 Fragment.fs7 MAC.fs7 AEPlain.fs7 ENC.fs7 AEADPlain.fs7 AEAD.fs7 StatefulPlain.fs7 StatefulPlain.fs
 
 StatefulAEAD.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 Algorithms.fs7 RSA.fs7 HASH.fs7 HMAC.fs7 Certificate.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 DataStream.fs7 Fragment.fs7 MAC.fs7 AEPlain.fs7 ENC.fs7 AEADPlain.fs7 AEAD.fs7 StatefulPlain.fs7 StatefulAEAD.fs7 StatefulAEAD.fs
 	 $(f7t) -scripts StatefulAEAD Error.fs7 Bytes.fs7 tcp.fs7 Algorithms.fs7 RSA.fs7 HASH.fs7 HMAC.fs7 Certificate.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 DataStream.fs7 Fragment.fs7 MAC.fs7 AEPlain.fs7 ENC.fs7 AEADPlain.fs7 AEAD.fs7 StatefulPlain.fs7 StatefulAEAD.fs7 StatefulAEAD.fs

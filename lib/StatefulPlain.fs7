@@ -8,6 +8,8 @@ open AEADPlain
 
 type (;ki:KeyInfo) data = (b:bytes){Length(b) = AEPlain.ADLength(ki,ki) - 8}
 
+ask !ki. AEPlain.ADLength(ki,ki) - 8 > 0
+
 private type (;ki:KeyInfo)prehistory =
 	| Empty
 	| ConsHistory of h:(;ki)prehistory * ad:(;ki)data * r:range * x:(;ki,r)Fragment.fragment //{Fragment(ki,h,ad,r,x)}
