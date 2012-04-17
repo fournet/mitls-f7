@@ -10,26 +10,25 @@ open Fragment
 type data = bytes
 type uns = Unsafe of KeyInfo
 
-type AEPlain = {aep: bytes}
+type preAEPlain = fragment
+type AEPlain = {contents: preAEPlain}
 
-let AEPlain (ki:KeyInfo) (r:range) (ad:data) (b:bytes) = {aep = b}
-let AERepr  (ki:KeyInfo) (r:range) (ad:data) (p:AEPlain) = p.aep
+let AEPlain (ki:KeyInfo) (r:range) (ad:data) (b:bytes) = {contents = fragmentPlain ki r b}
+let AERepr  (ki:KeyInfo) (r:range) (ad:data) (p:AEPlain) = fragmentRepr ki r p.contents
 
 let AEConstruct (ki:KeyInfo) (r:range) (ad:data) (sb:fragment) =
-  Pi.assume(Unsafe(ki));
-  let b = fragmentRepr ki r sb in
-    {aep = b}
+  {contents = sb}
 let AEContents  (ki:KeyInfo) (r:range) (ad:data) (p:AEPlain) = 
-  Pi.assume(Unsafe(ki));
-  fragmentPlain ki r p.aep
+  p.contents
 
 type MACPlain = {macP: bytes}
 type tag = {macT: bytes}
 
 let macPlain (ki:KeyInfo) (rg:range) ad f =
-    let fLen = bytes_of_int 2 (length f.aep) in
+    let b = AERepr ki rg ad f in
+    let fLen = bytes_of_int 2 (length b) in
     let fullData = ad @| fLen in 
-    {macP = fullData @| f.aep} 
+    {macP = fullData @| b} 
 
 let mac ki k t =
     {macT = MAC.Mac ki k t.macP}
@@ -97,14 +96,16 @@ let ivLength ki =
           ivSize encAlg 
 
 let encode (ki:KeyInfo) rg (ad:data) data tag =
+    let b = AERepr ki rg ad data in
     let ivL = ivLength ki in
     let tlen = rangeCipher ki rg in
-    let p = tlen - length data.aep - length tag.macT - ivL
-    (tlen, {p = data.aep @| tag.macT @| pad p})
+    let p = tlen - length b - length tag.macT - ivL
+    (tlen, {p = b @| tag.macT @| pad p})
 
 let encodeNoPad (ki:KeyInfo) rg (ad:data) data tag =
+    let b = AERepr ki rg ad data in
     let tlen = rangeCipher ki rg in
-    (tlen, {p = data.aep @| tag.macT})
+    (tlen, {p = b @| tag.macT})
 
 let check_split b l = 
   if length(b) < l then failwith "split failed: FIX THIS to return BOOL + ..."
@@ -130,7 +131,7 @@ let decode ki (ad:data) tlen plain =
         (* Pretend we have a valid padding of length zero, but set we must fail *)
         let macStart = pLen - macSize - 1 in
         let (frag,mac) = check_split tmpdata macStart in
-        let aeadF = {aep = frag} in
+        let aeadF = AEPlain ki rg ad frag in
         let tag = {macT = mac} in
         (rg,aeadF,tag,false)
         (*
@@ -153,14 +154,14 @@ let decode ki (ad:data) tlen plain =
             if equalBytes expected pad then
                 let macStart = pLen - macSize - padlen - 1 in
                 let (frag,mac) = check_split data_no_pad macStart in
-                let aeadF = {aep = frag} in
+                let aeadF = AEPlain ki rg ad frag in
                 let tag = {macT = mac} in
                 (rg,aeadF,tag,true)
             else
                 (* Pretend we have a valid padding of length zero, but set we must fail *)
                 let macStart = pLen - macSize - 1 in
                 let (frag,mac) = check_split tmpdata macStart in
-                let aeadF = {aep = frag} in
+                let aeadF = AEPlain ki rg ad frag in
                 let tag = {macT = mac} in
                 (rg,aeadF,tag,false)
                 (*
@@ -182,7 +183,7 @@ let decode ki (ad:data) tlen plain =
                 (* Pretend we have a valid padding of length zero, but set we must fail *)
                 let macStart = pLen - macSize - 1 in
                 let (frag,mac) = check_split tmpdata macStart in
-                let aeadF = {aep = frag} in
+                let aeadF = AEPlain ki rg ad frag in
                 let tag = {macT = mac} in
                 (rg,aeadF,tag,false)
                 (*
@@ -193,7 +194,7 @@ let decode ki (ad:data) tlen plain =
             else
                 let macStart = pLen - macSize - padlen - 1 in
                 let (frag,mac) = check_split data_no_pad macStart in
-                let aeadF = {aep = frag} in
+                let aeadF = AEPlain ki rg ad frag in
                 let tag = {macT = mac} in
                 (rg,aeadF,tag,true)
 
@@ -218,6 +219,6 @@ let decodeNoPad ki (ad:data) tlen plain =
 //    else
     let (frag,mac) = Bytes.split plain.p plainLen in
     let rg = (plainLen,plainLen) in
-    let aeadF = {aep = frag} in
+    let aeadF = AEPlain ki rg ad frag in
     let tag = {macT = mac} in
     (rg,aeadF,tag)

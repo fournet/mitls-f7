@@ -16,7 +16,8 @@ assume !ki. (ki.sinfo.protocol_version = SSL_3p0 /\ ADLength(ki,ki) = 9) \/
 
 type (;ki:KeyInfo) data = (b:bytes){Length(b) = ADLength(ki,ki)}
 
-private type (;ki:KeyInfo,r:range,ad:(;ki)data)AEPlain = {aep: bytes} 
+private type (;ki:KeyInfo,r:range,ad:(;ki)data)preAEPlain = (;ki,r)fragment
+private type (;ki:KeyInfo,r:range,ad:(;ki)data)AEPlain = {contents: (;ki,r,ad)preAEPlain} 
 predicate type uns = Unsafe of KeyInfo 
 predicate AESays of ki:KeyInfo * r:range * ad:(;ki) data * (;ki,r)fragment 
 
