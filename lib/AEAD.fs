@@ -34,12 +34,11 @@ let COERCE ki b =
     | _ ->
         let macKeySize = macKeySize (macAlg_of_ciphersuite cs) in
         let encKeySize = encKeySize (encAlg_of_ciphersuite cs) in
-        let ivsize = 
-            if PVRequiresExplicitIV ki.sinfo.protocol_version then 0
-            else ivSize (encAlg_of_ciphersuite ki.sinfo.cipher_suite)
-        let mkb = Array.sub b 0 macKeySize in
-        let ekb = Array.sub b macKeySize encKeySize in
-        let ivb = Array.sub b (macKeySize+encKeySize) ivsize in
+        // let ivsize = 
+        //     if PVRequiresExplicitIV ki.sinfo.protocol_version then 0
+        //     else ivSize (encAlg_of_ciphersuite ki.sinfo.cipher_suite)
+        let (mkb,rest) = split b macKeySize in
+        let (ekb,ivb) = split rest encKeySize in
         let mk = MAC.COERCE ki mkb in
         let ek = ENC.COERCE ki ekb ivb in
         MtE(mk,ek)
