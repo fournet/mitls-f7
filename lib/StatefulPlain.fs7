@@ -3,7 +3,6 @@ open Bytes
 open Formats
 open TLSInfo
 open DataStream
-open Fragment
 open AEADPlain
 
 type (;ki:KeyInfo) data = (b:bytes){Length(b) = AEPlain.ADLength(ki,ki) - 8}

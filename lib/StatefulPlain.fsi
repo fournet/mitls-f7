@@ -3,7 +3,6 @@ open Bytes
 open Formats
 open TLSInfo
 open DataStream
-open Fragment
 open AEADPlain
 
 type data = bytes
