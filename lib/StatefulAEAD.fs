@@ -17,12 +17,14 @@ type writer = state
 
 let GEN ki =
     let r,w = AEAD.GEN ki in
-    ( { key = r; history = emptyHistory ki},
-      { key = w; history = emptyHistory ki})  
+    let eh = emptyHistory ki in
+    ( { key = r; history = eh},
+      { key = w; history = eh})  
 let COERCE ki b =
     let key = AEAD.COERCE ki b in
+    let eh = emptyHistory ki in
     { key = key;
-      history = emptyHistory ki}
+      history = eh}
 let LEAK ki s =
     AEAD.LEAK ki s.key
 

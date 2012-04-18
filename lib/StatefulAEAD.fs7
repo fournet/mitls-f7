@@ -14,12 +14,12 @@ private type (;ki:KeyInfo) prestate = {
   history: (;ki)history
 }
 
-predicate State of KeyInfo * prestate
-//predicate Next of KeyInfo * state * data * range * fragment
+predicate State of ki:KeyInfo * (;ki)prestate
 
-private type (;ki:KeyInfo) state = (s:prestate) {State(ki,s)}
+private type (;ki:KeyInfo) state = s:(;ki)prestate {State(ki,s)}
 
-definition !ki,s. State(ki,s) <=>
+
+private definition !ki,s. State(ki,s) <=>
 	( SeqN(ki,s.history) = 0 \/
 	  (?s'. State(ki,s') /\ 
 	        // s.key = s'.key /\ // NO! s.key = NextAEADState(s'.key); the AEAD key changes over time!
@@ -40,13 +40,14 @@ predicate STXT of ki:KeyInfo * (;ki)state * ad:(;ki)data * r:range * (;ki,r)Frag
 assume !ki,s,ad,r,f,c. STXT(ki,s,ad,r,f,c)
 	<=> AEAD.CTXT(ki,MakeAD(ki,s.history,ad),r,f,c)
 
+// AP 18/4: Cannot prove STXT until we don't get precise with {S}AEADContents, which breaks abstraction
+
 val encrypt: ki:KeyInfo -> 
   w:(;ki) writer -> 
   ad:(;ki)data ->
   r:range ->
   f: (;ki,w.history,ad,r) fragment ->
-  (w':(;ki) writer * c:cipher){
-    STXT(ki,w,ad,r,SAEADContents(f),c)}
+  (w':(;ki) writer * c:cipher){STXT(ki,w,ad,r,SAEADContents(f),c)}
 
 val decrypt: ki:KeyInfo -> 
   r:(;ki) reader -> 
@@ -55,5 +56,5 @@ val decrypt: ki:KeyInfo ->
   res:((;ki) reader * rg:(rg:range{Length(c)=AEPlain.RangeCipher(ki,rg)}) * 
 	 (;ki,r.history,ad,rg) fragment) Result{
 	 !rd,rg,f. res = Correct(rd,rg,f) => 
-		(Safe(ki) => STXT(ki,rd,ad,SAEADContents(f),c)) /\
-        (Auth(ki) => STXT(ki,rd,ad,SAEADContents(f),c)) }
+		(Safe(ki) => STXT(ki,rd,ad,rg,SAEADContents(f),c)) /\
+        (Auth(ki) => STXT(ki,rd,ad,rg,SAEADContents(f),c)) }

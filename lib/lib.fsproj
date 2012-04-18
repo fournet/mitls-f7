@@ -89,7 +89,6 @@
     <Compile Include="ENC.fs" />
     <None Include="AEADPlain.fs7" />
     <Compile Include="AEADPlain.fsi" />
-    <Compile Include="AEADPlain-proto.fs" />
     <Compile Include="AEADPlain.fs" />
     <None Include="AEAD.fs7" />
     <Compile Include="AEAD.fsi" />
