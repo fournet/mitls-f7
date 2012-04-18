@@ -36,8 +36,8 @@ let encrypt (ki:KeyInfo) (w:writer) (ad0:data) (r:range) (f:fragment) =
   let ad = makeAD ki h ad0 in
   let key,c = AEAD.encrypt ki w.key ad r pl in
   let h = addToHistory ki h ad0 r f in
-  let w = {w with key = key
-                  history = h} in
+  let w = {key = key;
+           history = h} in
   (w,c)
 
 let decrypt (ki:KeyInfo) (r:reader) (ad0:data) (e:cipher) =
@@ -48,7 +48,7 @@ let decrypt (ki:KeyInfo) (r:reader) (ad0:data) (e:cipher) =
       | Correct ((key,rg,pl)) ->
           let f = AEADPlainToFragment ki h ad0 rg pl in
           let h = addToHistory ki h ad0 rg f in
-          let r = {r with history = h;
-                          key = key}
+          let r = {history = h;
+                   key = key}
           Correct ((r,rg,f))
       | Error (x,y) -> Error (x,y)

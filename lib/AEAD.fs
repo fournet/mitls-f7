@@ -6,8 +6,6 @@ open Algorithms
 open TLSInfo
 open Error
 
-type pred = Unreachable of KeyInfo
-
 type cipher = bytes
 
 type AEADKey =

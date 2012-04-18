@@ -6,9 +6,7 @@ open DataStream
 open TLSInfo
 open CipherSuites
 open Algorithms
-open AEADPlain (* parameter *)
-
-predicate type pred = Unreachable of KeyInfo
+// open AEADPlain (* parameter *) // Do not open, or AEADPlain "module" and AEADPlain "function" will clash. We should stop using the same name for modules, types and functions, as this creates names clashes everywhere!
 
 type cipher = b:bytes{Length(b) <= DataStream.max_TLSCipher_fragment_length}
 
@@ -37,21 +35,22 @@ val COERCE: ki:KeyInfo{not Auth(ki)} -> b:bytes{Length(b) = AEADSize(ki,())} -> 
 val LEAK:   ki:KeyInfo{not Auth(ki)} -> (;ki)AEADKey -> b:bytes
 
 (* KB: 18/4. Define CTXT or assume in code? The following assume is a stop-gap *)
-private assume !ki,ad,p,c. CTXT(ki,ad,p,c)
+predicate CTXT of ki:KeyInfo * (;ki)AEADPlain.data * r:range * (;ki,r)Fragment.fragment * cipher
+private assume !ki,ad,r,f,c. CTXT(ki,ad,r,f,c)
 
-val mteKey: ki:KeyInfo -> (;ki) MAC.key -> (;ki) ENC.state -> (;ki) AEADKey
+private val mteKey: ki:KeyInfo -> (;ki) MAC.key -> (;ki) ENC.state -> (;ki) AEADKey
 
-val encrypt: ki:KeyInfo -> (;ki) AEADKey -> ad:(;ki) data ->
-  rg:range -> p:(;ki,rg,ad) AEADPlain ->
-  ((;ki) AEADKey * c:cipher){Length(c)=AEPlain.RangeCipher(ki,rg) /\ CTXT(ki,ad,p,c)}
+val encrypt: ki:KeyInfo -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
+  rg:range -> p:(;ki,rg,ad) AEADPlain.AEADPlain ->
+  ((;ki) AEADKey * c:cipher){Length(c)=AEPlain.RangeCipher(ki,rg) /\ CTXT(ki,ad,rg,AEADPlain.AEADContents(p),c)}
 
-val decrypt: ki:KeyInfo -> (;ki) AEADKey -> ad:(;ki) data ->
+val decrypt: ki:KeyInfo -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
   c:cipher -> res: 
-  ( ((;ki) AEADKey * rg:range * (;ki,rg,ad) AEADPlain){Length(c) = AEPlain.RangeCipher(ki,rg)}) Result{
+  ( ((;ki) AEADKey * rg:range * (;ki,rg,ad) AEADPlain.AEADPlain){Length(c) = AEPlain.RangeCipher(ki,rg)}) Result{
     !k,r,p. res = Correct((k,r,p)) =>
-          (Safe(ki) => CTXT(ki,ad,p,c)) /\
-          (Auth(ki) => CTXT(ki,ad,p,c))}
-      
+          (Safe(ki) => CTXT(ki,ad,r,AEADPlain.AEADContents(p),c)) /\
+          (Auth(ki) => CTXT(ki,ad,r,AEADPlain.AEADContents(p),c))}
+ 
 // CF 04-09 discussion points: 
 //
 // plaintext integrity follows from abstraction:

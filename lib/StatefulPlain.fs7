@@ -3,7 +3,7 @@ open Bytes
 open Formats
 open TLSInfo
 open DataStream
-open AEADPlain
+// open AEADPlain // Do not open, or AEADPlain "module" and AEADPlain "function" will clash. We should stop using the same name for modules, types and functions, as this creates names clashes everywhere!
 
 type (;ki:KeyInfo) data = (b:bytes){Length(b) = AEPlain.ADLength(ki,ki) - 8}
 
@@ -31,6 +31,9 @@ private type (;ki:KeyInfo,h:(;ki)history,ad:(;ki)data,r:range) prefragment =
 private type (;ki:KeyInfo,h:(;ki)history,ad:(;ki)data,r:range) fragment =
 	{contents: (;ki,h,ad,r)prefragment}
 
+function val SAEADContents: 'a -> 'b
+assume !f. SAEADContents(f) = f.contents
+
 val emptyHistory: ki:KeyInfo -> h:(;ki)history{SeqN(ki,h) = 0}
 private val consHistory: ki:KeyInfo -> h:(;ki)prehistory ->
 	ad:(;ki)data -> r:range -> x:(;ki,r)Fragment.fragment -> 
@@ -55,14 +58,14 @@ val construct: ki:KeyInfo -> h:(;ki)history -> ad:(;ki)data -> r:range ->
 	x:(;ki,r)Fragment.fragment{Auth(ki) => Fragment(ki,h,ad,r,x)} -> (;ki,h,ad,r)fragment
 
 val FragmentToAEADPlain: ki:KeyInfo -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;ki,h,ad,r)fragment ->
-	(;ki,r,MakeAD(ki,h,ad))AEADPlain
+	(;ki,r,MakeAD(ki,h,ad))AEADPlain.AEADPlain
 
 val AEADPlainToFragment: ki:KeyInfo -> h:(;ki)history -> ad:(;ki)data -> r:range ->
-	(;ki,r,MakeAD(ki,h,ad))AEADPlain -> (;ki,h,ad,r)fragment
+	(;ki,r,MakeAD(ki,h,ad))AEADPlain.AEADPlain -> (;ki,h,ad,r)fragment
 
-assume !ki,ad,r,x. AEADSays(ki,r,ad,x) <=> ?h,ad'. ad = MakeAD(ki,h,ad') /\ History(ki,h) /\ Fragment(ki,h,ad',r,x)
+assume !ki,ad,r,x. AEADPlain.AEADSays(ki,r,ad,x) <=> ?h,ad'. ad = MakeAD(ki,h,ad') /\ History(ki,h) /\ Fragment(ki,h,ad',r,x)
 
-ask !ki,ad,h,ad',r,x. (ad = MakeAD(ki,h,ad') /\ History(ki,h) /\ Fragment(ki,h,ad',r,x)) => AEADSays(ki,r,ad,x)
+ask !ki,ad,h,ad',r,x. (ad = MakeAD(ki,h,ad') /\ History(ki,h) /\ Fragment(ki,h,ad',r,x)) => AEADPlain.AEADSays(ki,r,ad,x)
 
 ask !ki,ad,h,h',ad',ad''. ad = MakeAD(ki,h,ad') /\ ad = MakeAD(ki,h',ad'') => 
     (SeqN(ki,h) = SeqN(ki,h') /\ ad' = ad'')
@@ -71,7 +74,7 @@ ask !ki,ad,h,h',ad',ad''. ad = MakeAD(ki,h,ad') /\ ad = MakeAD(ki,h',ad'') =>
 assume !ki,h,h'. History(ki,h) /\ History(ki,h') /\ SeqN(ki,h) = SeqN(ki,h') => h = h'
 assume !ki. History(ki,(0,Empty))
 
-ask !ki,ad,h,ad',r,x. (ad = MakeAD(ki,h,ad') /\ History(ki,h) /\ AEADSays(ki,r,ad,x)) => Fragment(ki,h,ad',r,x)
+ask !ki,ad,h,ad',r,x. (ad = MakeAD(ki,h,ad') /\ History(ki,h) /\ AEADPlain.AEADSays(ki,r,ad,x)) => Fragment(ki,h,ad',r,x)
 
     
 

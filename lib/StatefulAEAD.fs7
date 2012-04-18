@@ -5,62 +5,55 @@ open Error
 open StatefulPlain
 open DataStream 
 open Bytes
-open AEADPlain
 
 // TODO 12-02: 
 // - Do we need to control the cipherlength?
 
 private type (;ki:KeyInfo) prestate = {
-  key: (;ki) AEADKey;
-  seqn: int;
+  key: (;ki) AEAD.AEADKey;
   history: (;ki)history
 }
 
 predicate State of KeyInfo * prestate
-predicate Next of KeyInfo * state * data * range * fragment
+//predicate Next of KeyInfo * state * data * range * fragment
 
-private type (;ki:KeyInfo) state = (s:prestate) {State(s)}
+private type (;ki:KeyInfo) state = (s:prestate) {State(ki,s)}
 
-(* Invariants: definitions and theorems *)
-assume !k,r. r.seqn = 0 /\ r.history = Empty => State(k,r)
-assume !k,r,r',ad,rg,f. State(k,r) /\ (r.key = r'.key) /\ Next(k,r,ad,rg,f) /\ (r'.seqn = r.seqn + 1) /\ (r'.history = ConsHistory(r.history,ad,rg,f)) => State(k,r')
-theorem !k,r'. State(k,r') => ((r'.seqn = 0 /\ r'.history = Empty) \/
-  			        (?r,ad,rg,f. State(k,r) /\ (r.key = r'.key) /\ Next(k,r,ad,rg,f) /\ (r'.seqn = r.seqn + 1) /\ (r'.history = ConsHistory(r.history,ad,rg,f))))
-
-(* linearity assumption *)
-assume !k,r,ad,rg,f,ad',rg',f'. Next(k,r,ad,rg,f) /\ Next(k,r,ad',rg',f') => (ad = ad' /\ f = f')
-(* to prove by induction *)
-theorem !k,r,r'. State(k,r) /\ State(k,r') /\ r.seqn = r'.seqn => r.history = r'.history
+definition !ki,s. State(ki,s) <=>
+	( SeqN(ki,s.history) = 0 \/
+	  (?s'. State(ki,s') /\ 
+	        // s.key = s'.key /\ // NO! s.key = NextAEADState(s'.key); the AEAD key changes over time!
+			SeqN(ki,s.history) = SeqN(ki,s'.history)+1)
+	)
 
 type (;ki:KeyInfo) reader = r:(;ki) state
 type (;ki:KeyInfo) writer = w:(;ki) state
 
-val GEN: ki:KeyInfo -> (;ki) reader * (;ki)writer
-val COERCE: ki:KeyInfo -> b:bytes{Length(b)=AEADSize(ki)} -> (;ki)state
-val LEAK: ki:KeyInfo -> (;ki)state -> b:bytes{Length(b)=AEADSize(ki)}
+val GEN: ki:KeyInfo{Safe(ki)} -> (;ki) reader * (;ki)writer
+val COERCE: ki:KeyInfo{not Auth(ki)} -> b:bytes{Length(b)=AEAD.AEADSize(ki,())} -> (;ki)state
+val LEAK: ki:KeyInfo{not Auth(ki)} -> (;ki)state -> b:bytes
 
-val history: ki:KeyInfo -> (;ki) state -> h:history{h=s.history}
+val history: ki:KeyInfo -> s:(;ki) state -> h:(;ki)history{h=s.history}
 
 type cipher = ENC.cipher
-predicate STXT of KeyInfo * state * data * fragment * cipher
-assume !ki,s,d,f,c. STXT(ki,s,d,f,c) <=>
-                    CTXT(ki,StatefulPlain.MakeAD(s.seqn,d),f,c)
+predicate STXT of ki:KeyInfo * (;ki)state * ad:(;ki)data * r:range * (;ki,r)Fragment.fragment * cipher
+assume !ki,s,ad,r,f,c. STXT(ki,s,ad,r,f,c)
+	<=> AEAD.CTXT(ki,MakeAD(ki,s.history,ad),r,f,c)
 
 val encrypt: ki:KeyInfo -> 
   w:(;ki) writer -> 
-  ad:data ->
+  ad:(;ki)data ->
   r:range ->
-  f: (;ki,w.history,ad,r) fragment{Next(ki,w,ad,r,f)} ->
+  f: (;ki,w.history,ad,r) fragment ->
   (w':(;ki) writer * c:cipher){
-    STXT(ki,w,ad,f,c)}// /\ Log(w'.history) = (ad,f)::Log(w.history)}
+    STXT(ki,w,ad,r,SAEADContents(f),c)}
 
 val decrypt: ki:KeyInfo -> 
   r:(;ki) reader -> 
-  ad:data ->
+  ad:(;ki)data ->
   c:ENC.cipher ->
-  res:((;ki) reader * rg:(rg:range{rg=CipherRange(ki,c)}) * 
+  res:((;ki) reader * rg:(rg:range{Length(c)=AEPlain.RangeCipher(ki,rg)}) * 
 	 (;ki,r.history,ad,rg) fragment) Result{
-    (Safe(ki) => (!rd,rg,f. (res = Correct(rd,rg,f) <=> 
-		            (?wr. Log(wr.history) = Log(r.history) /\ STXT(ki,wr,ad,f,c)))) /\
-    (Auth(ki) => (!rd,rg,f. (res = Correct(rd,rg,f) =>  
-		            (?wr,c. Log(wr.history) = Log(r.history) /\ STXT(ki,wr,ad,f,c))))))}
+	 !rd,rg,f. res = Correct(rd,rg,f) => 
+		(Safe(ki) => STXT(ki,rd,ad,SAEADContents(f),c)) /\
+        (Auth(ki) => STXT(ki,rd,ad,SAEADContents(f),c)) }
