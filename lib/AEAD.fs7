@@ -18,12 +18,12 @@ private type (;ki:KeyInfo) AEADKey =
 // TODO: Define AEADSize. 
 // In the code, (AEADSize * 2) is computed in CipherSuites.getKeyExtensionLength
 
-function val AEADSize: ki:KeyInfo * ki:KeyInfo -> nat
+function val AEADSize: ki:KeyInfo * unit -> nat
 private assume !ki.
-	( IsOnlyMACCiphersuite(ki.sinfo.cipher_suite) /\
-	  AEADSize(ki,ki) = MacKeySize(CipherSuites.CipherSuiteMACAlg(ki.sinfo.cipher_suite)) ) \/
-	( IsAEADCiphersuite(ki.sinfo.cipher_suite) /\
-	  AEADSize(ki,ki) = MacKeySize(CipherSuites.CipherSuiteMACAlg(ki.sinfo.cipher_suite)) +
+	( IsOnlyMACCiphersuite(ki.sinfo.cipher_suite) =>
+	  AEADSize(ki,()) = MacKeySize(CipherSuites.CipherSuiteMACAlg(ki.sinfo.cipher_suite)) ) /\
+	( IsAEADCiphersuite(ki.sinfo.cipher_suite) =>
+	  AEADSize(ki,()) = MacKeySize(CipherSuites.CipherSuiteMACAlg(ki.sinfo.cipher_suite)) +
 					    EncKeySize(CipherSuites.CipherSuiteENCAlg(ki.sinfo.cipher_suite)) +
 					    AEPlain.IVSize(ki,ki) )
 
@@ -31,8 +31,11 @@ private assume !ki.
 //ask !ki. IsOnlyMACCiphersuite(ki.sinfo.cipher_suite) => AEADSize(ki,ki) = MacKeySize(CipherSuites.CipherSuiteMACAlg(ki.sinfo.cipher_suite))
 
 val GEN:    ki:KeyInfo{Safe(ki)} -> encryptor:(;ki)AEADKey * decryptor:(;ki)AEADKey
-val COERCE: ki:KeyInfo{not Auth(ki)} -> b:bytes{Length(b) = AEADSize(ki,ki)} -> (;ki)AEADKey
+val COERCE: ki:KeyInfo{not Auth(ki)} -> b:bytes{Length(b) = AEADSize(ki,())} -> (;ki)AEADKey
 val LEAK:   ki:KeyInfo{not Auth(ki)} -> (;ki)AEADKey -> b:bytes
+
+(* KB: 18/4. Define CTXT or assume in code? The following assume is a stop-gap *)
+private assume !ki,ad,p,c. CTXT(ki,ad,p,c)
 
 val encrypt: ki:KeyInfo -> (;ki) AEADKey -> ad:(;ki) data ->
   rg:range -> p:(;ki,rg,ad) AEADPlain ->

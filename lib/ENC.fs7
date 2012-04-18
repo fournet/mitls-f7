@@ -18,8 +18,7 @@ type (;ki:KeyInfo) iv3 =
 	| NoIV of bool // TLS_1p0 and TLS_1p2
 
 private type (;ki:KeyInfo)state =
-	{key: (;ki)key;
-     iv: (;ki)iv3}
+	{key: (;ki)key;  iv: (;ki)iv3}
 
 type (;ki:KeyInfo)encryptor = (;ki)state
 type (;ki:KeyInfo)decryptor = (;ki)state

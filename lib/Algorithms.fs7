@@ -40,15 +40,17 @@ type authencAlg =
    a nicer F7 could enable homonymous concrete implementations of logical functions *) 
 
 function val EncKeySize: cipherAlg -> int
+assume !x. EncKeySize(x) >= 0
 // providing an explicit spec at least once; this should be internal
 definition EncKeySize(RC4_128)      = 16
 definition EncKeySize(TDES_EDE_CBC) = 24
 definition EncKeySize(AES_128_CBC)  = 16
 definition EncKeySize(AES_256_CBC)  = 32
 
-val encKeySize: a:cipherAlg -> l:int{l=EncKeySize(a)}
+val encKeySize: a:cipherAlg -> l:nat{l=EncKeySize(a)}
 
 function val BlockSize: cipherAlg -> nat
+assume !x. BlockSize(x) >= 0
 definition BlockSize(RC4_128)		=  0
 definition BlockSize(TDES_EDE_CBC)	=  8
 definition BlockSize(AES_128_CBC)	= 16
@@ -60,6 +62,7 @@ val aeadKeySize: aeadAlg -> int
 val aeadIVSize: aeadAlg -> int
 
 function val MacKeySize: hashAlg -> nat
+assume !x. MacKeySize(x) >= 0
 definition MacKeySize(MD5)		= 16
 definition MacKeySize(SHA)		= 20
 definition MacKeySize(SHA256)	= 32

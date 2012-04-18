@@ -59,6 +59,7 @@ val cipherRange: ki:KeyInfo -> tlen:nat -> r:range{tlen = RangeCipher(ki,r)}
 // - (and the inverse functions)
 
 function val PlainLength: ki:KeyInfo * tlen:nat -> plen:nat
+assume !ki. IVSize(ki,ki) >= 0
 private assume !ki.
 	( ki.sinfo.protocol_version = SSL_3p0 \/ ki.sinfo.protocol_version = TLS_1p0
 		=> IVSize(ki,ki) = 0 ) /\

@@ -27,22 +27,26 @@ let GEN ki =
 let COERCE ki b =
     // precondition: b is of the right length. No runtime checks here.
     let cs = ki.sinfo.cipher_suite in
-    match cs with
-    | x when isOnlyMACCipherSuite x ->
+    let onlymac = isOnlyMACCipherSuite cs in
+    let aeadcs = isAEADCipherSuite cs in
+      if onlymac then 
         let mk = MAC.COERCE ki b in
         MACOnly(mk)
-    | x when isAEADCipherSuite x ->
-        let macKeySize = macKeySize (macAlg_of_ciphersuite cs) in
-        let encKeySize = encKeySize (encAlg_of_ciphersuite cs) in
-        // let ivsize = 
-        //     if PVRequiresExplicitIV ki.sinfo.protocol_version then 0
-        //     else ivSize (encAlg_of_ciphersuite ki.sinfo.cipher_suite)
-        let (mkb,rest) = split b macKeySize in
-        let (ekb,ivb) = split rest encKeySize in
-        let mk = MAC.COERCE ki mkb in
-        let ek = ENC.COERCE ki ekb ivb in
-        MtE(mk,ek)
-    | _ -> unexpectedError "[COERCE] invoked on wrong ciphersuite"
+      else 
+        if aeadcs then
+          let macalg = macAlg_of_ciphersuite cs in
+          let encalg = encAlg_of_ciphersuite cs in
+          let macKeySize = macKeySize macalg in
+          let encKeySize = encKeySize encalg in
+          // let ivsize = 
+          //     if PVRequiresExplicitIV ki.sinfo.protocol_version then 0
+          //     else ivSize (encAlg_of_ciphersuite ki.sinfo.cipher_suite)
+          let (mkb,rest) = split b macKeySize in
+          let (ekb,ivb) = split rest encKeySize in
+          let mk = MAC.COERCE ki mkb in
+          let ek = ENC.COERCE ki ekb ivb in
+            MtE(mk,ek)
+        else unexpectedError "[COERCE] invoked on wrong ciphersuite"
 
 let LEAK ki k =
     match k with
@@ -65,7 +69,8 @@ let encrypt ki key data rg plain =
         let maced          = AEPlain.macPlain ki rg data aep
         let tag            = AEPlain.mac    ki ka maced  
         let (tlen,encoded) = AEPlain.encodeNoPad ki rg data aep tag
-        (key,AEPlain.repr ki tlen encoded)
+        let r = AEPlain.repr ki tlen encoded in
+        (key,r)
 //  | GCM (k) -> ... 
     | (_,_) -> unexpectedError "[encrypt] incompatible ciphersuite-key given."
         
