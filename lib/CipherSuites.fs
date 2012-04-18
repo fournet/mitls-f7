@@ -267,6 +267,8 @@ let prfHashAlg_of_ciphersuite (cs:cipherSuite) =
    // | CipherSuite ( ECDH*, EncMAC (_,SHA384)) -> SHA384
     | CipherSuite ( _ , EncMAC ( _ , _ )) -> SHA256
     | CipherSuite ( _ , AEAD ( _ , hAlg ))   -> hAlg
+    | CipherSuite ( _ , EncMAC ( _ , SHA )) -> SHA256
+    | CipherSuite ( _ , AEAD ( _ , SHA ))   -> SHA256
     | NullCipherSuite         -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite" 
     | SCSV (_)                -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite" 
     | _ -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
@@ -281,6 +283,8 @@ let verifyDataHashAlg_of_ciphersuite (cs:cipherSuite) =
    // | CipherSuite ( ECDH*, EncMAC (_,SHA384)) -> SHA384
     | CipherSuite ( _ , EncMAC ( _ , _ )) -> SHA256
     | CipherSuite ( _ , AEAD ( _ , hAlg ))   -> hAlg
+    | CipherSuite ( _ , EncMAC ( _ , SHA )) -> SHA256
+    | CipherSuite ( _ , AEAD ( _ , SHA ))   -> SHA256
     | NullCipherSuite         -> unexpectedError "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
     | SCSV (_)                -> unexpectedError "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
     | _ -> unexpectedError "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"

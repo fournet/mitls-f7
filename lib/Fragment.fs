@@ -1,10 +1,12 @@
 module Fragment
 open Bytes
-open Error
 open TLSInfo
 open DataStream
+
 type fragment = {frag: stream * delta}
 type fpred = DeltaFragment of KeyInfo * stream * range * fragment
+
+
 let fragment ki s r d = 
   let f = {frag = s,d} in
     Pi.assume (DeltaFragment(ki,s,r,f));

@@ -40,7 +40,7 @@ let tlsoptions = {
 let _ =
     HttpLogger.HttpLogger.Level <- HttpLogger.DEBUG;
 
-    let docroot    = "../../" //"C:\htdocs" in
+    let docroot    = "C:\htdocs" in
     let localaddr  = IPEndPoint(IPAddress.Loopback, 2443) in
     let mimesmap   = try_read_mimes (Path.Combine(docroot, "mime.types")) in
         
