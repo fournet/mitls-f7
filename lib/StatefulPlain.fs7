@@ -18,11 +18,7 @@ private assume !ki,h,ad,r,x. HLength(ki,ConsHistory(h,ad,r,x)) = HLength(ki,h)+1
 
 predicate type preds = History of ki:KeyInfo * ( nat * (;ki)prehistory )
 
-// History and seqn are bijective
-assume !ki,h,h',sn. History(ki,(sn,h)) /\ History(ki,(sn,h')) => h = h'
-assume !ki. History(ki,(0,Empty))
-
-private type (;ki:KeyInfo)history = (sn:nat * h:(;ki)prehistory){History(ki,(sn,h)) /\ sn = HLength(ki,h)}
+private type (;ki:KeyInfo)history = (sn:nat * ph:(;ki)prehistory){History(ki,(sn,ph)) /\ sn = HLength(ki,ph)}
 
 function val SeqN: ki:KeyInfo * (;ki)history -> nat
 private assume !ki,sn,h. SeqN(ki,(sn,h)) = sn
@@ -50,7 +46,7 @@ assume !ki,h,ad. MakeAD(ki,h,ad) = IntBytes(8,SeqN(ki,h)) @| ad
 val makeAD:  ki:KeyInfo -> h:(;ki)history -> ad:(;ki)data ->
 	b:(;ki)AEADPlain.data{b=MakeAD(ki,h,ad)}
 
-val fragment: ki:KeyInfo{not Auth(ki)} -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;r)rbytes -> (;ki,h,ad,r) fragment
+val fragment: ki:KeyInfo{not Auth(ki)} -> hh:(;ki)history -> ad:(;ki)data -> r:range -> (;r)rbytes -> (;ki,hh,ad,r) fragment
 val repr: ki:KeyInfo{not Auth(ki)} -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;ki,h,ad,r) fragment -> (;r)rbytes
 
 val contents:  ki:KeyInfo -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;ki,h,ad,r)fragment ->
@@ -66,4 +62,16 @@ val AEADPlainToFragment: ki:KeyInfo -> h:(;ki)history -> ad:(;ki)data -> r:range
 
 assume !ki,ad,r,x. AEADSays(ki,r,ad,x) <=> ?h,ad'. ad = MakeAD(ki,h,ad') /\ History(ki,h) /\ Fragment(ki,h,ad',r,x)
 
-ask !ki,ad,h,ad',r,x. ad = MakeAD(ki,h,ad') /\ History(ki,h) /\ Fragment(ki,h,ad',r,x) => AEADSays(ki,r,ad,x)
+ask !ki,ad,h,ad',r,x. (ad = MakeAD(ki,h,ad') /\ History(ki,h) /\ Fragment(ki,h,ad',r,x)) => AEADSays(ki,r,ad,x)
+
+ask !ki,ad,h,h',ad',ad''. ad = MakeAD(ki,h,ad') /\ ad = MakeAD(ki,h',ad'') => 
+    (SeqN(ki,h) = SeqN(ki,h') /\ ad' = ad'')
+
+// History and seqn are bijective
+assume !ki,h,h'. History(ki,h) /\ History(ki,h') /\ SeqN(ki,h) = SeqN(ki,h') => h = h'
+assume !ki. History(ki,(0,Empty))
+
+ask !ki,ad,h,ad',r,x. (ad = MakeAD(ki,h,ad') /\ History(ki,h) /\ AEADSays(ki,r,ad,x)) => Fragment(ki,h,ad',r,x)
+
+    
+

@@ -42,7 +42,8 @@ let construct (ki:KeyInfo) (h:history) (ad:data) (rg:range) c = {contents = c}
 
 let FragmentToAEADPlain ki h ad r f =
     let ad' = makeAD ki h ad in
-    AEADPlain.construct ki r ad' f.contents
+    let fr = f.contents in
+    AEADPlain.construct ki r ad' fr
 
 let AEADPlainToFragment ki h ad r p =
     let ad' = makeAD ki h ad in
