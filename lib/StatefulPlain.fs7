@@ -36,6 +36,9 @@ private type (;ki:KeyInfo,h:(;ki)history,ad:(;ki)data,r:range) fragment =
 	{contents: (;ki,h,ad,r)prefragment}
 
 val emptyHistory: ki:KeyInfo -> h:(;ki)history{SeqN(ki,h) = 0}
+private val consHistory: ki:KeyInfo -> h:(;ki)prehistory ->
+	ad:(;ki)data -> r:range -> x:(;ki,r)Fragment.fragment -> 
+        h':(;ki)prehistory{h' = ConsHistory(h,ad,r,x)}
 // This function will assume History
 val addToHistory: ki:KeyInfo -> h:(;ki)history ->
 	ad:(;ki)data -> r:range -> x:(;ki,h,ad,r)fragment ->

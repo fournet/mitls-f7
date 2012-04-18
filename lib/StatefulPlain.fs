@@ -17,14 +17,18 @@ type preds =
 type prefragment = Fragment.fragment
 type fragment = {contents: prefragment}
 
+let consHistory (ki:KeyInfo) h d r f = ConsHistory(h,d,r,f)
+
 let emptyHistory (ki:KeyInfo) = (0,Empty)
 let addToHistory (ki:KeyInfo) sh d r x = 
   let (seqn,h) = sh in
   let f = x.contents in
   let s' = seqn+1 in
-  let nh = (s',ConsHistory(h,d,r,f)) in
-  //Pi.assume(History(ki,nh));
-  nh
+  let nh = consHistory ki h d r f in
+  let res = (s',nh) in
+    Pi.assume(History(ki,res));
+    res
+
 
 let makeAD (ki:KeyInfo) ((seqn,h):history) ad =
   let bn = bytes_of_seq seqn in
