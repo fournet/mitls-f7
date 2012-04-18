@@ -11,6 +11,9 @@ type prehistory =
     | ConsHistory of prehistory * data * range * Fragment.fragment
 type history = (nat * prehistory)
 
+type preds =
+    | History of KeyInfo * (nat * prehistory)
+
 type prefragment = Fragment.fragment
 type fragment = {contents: prefragment}
 
@@ -18,8 +21,10 @@ let emptyHistory (ki:KeyInfo) = (0,Empty)
 let addToHistory (ki:KeyInfo) sh d r x = 
   let (seqn,h) = sh in
   let f = x.contents in
-  let s' = seqn+1 in 
-    (s',ConsHistory(h,d,r,f))
+  let s' = seqn+1 in
+  let nh = (s',ConsHistory(h,d,r,f)) in
+  //Pi.assume(History(ki,nh));
+  nh
 
 let makeAD (ki:KeyInfo) ((seqn,h):history) ad =
   let bn = bytes_of_seq seqn in

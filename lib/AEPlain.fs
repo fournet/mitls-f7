@@ -59,13 +59,20 @@ let rangeCipher ki (rg:DataStream.range) =
     | x when isOnlyMACCipherSuite x ->
         let macLen = macSize (macAlg_of_ciphersuite cs) in
         let res = h + macLen in
-        res
+        if res > DataStream.max_TLSCipher_fragment_length then
+            Error.unexpectedError "[rangeCipher] given an invalid input range."
+        else
+            res
     | x when isAEADCipherSuite x ->
         let ivL = ivLength ki in
         let macLen = macSize (macAlg_of_ciphersuite cs) in
         let prePad = h + macLen in
         let padLen = padLength ki prePad in
-        ivL + prePad + padLen
+        let res = ivL + prePad + padLen in
+        if res > DataStream.max_TLSCipher_fragment_length then
+            Error.unexpectedError "[rangeCipher] given an invalid input range."
+        else
+            res
     | _ -> Error.unexpectedError "[rangeCipher] invoked on invalid ciphersuite."
 
 // And from Target Length to Ranges
@@ -95,8 +102,14 @@ let encode (ki:KeyInfo) rg (ad:data) data tag =
     let b = AERepr ki rg ad data in
     let ivL = ivLength ki in
     let tlen = rangeCipher ki rg in
-    let p = tlen - length b - length tag.macT - ivL
-    (tlen, {p = b @| tag.macT @| pad p})
+    let lb = length b in
+    let lm = length tag.macT in
+    let pl = tlen - lb - lm - ivL
+    let payload = b @| tag.macT @| pad pl
+    if length payload <> tlen - ivL then
+        Error.unexpectedError "[encode] Internal error."
+    else
+        (tlen, {p = payload})
 
 let encodeNoPad (ki:KeyInfo) rg (ad:data) data tag =
     Pi.assume(Unsafe(ki));
@@ -107,7 +120,11 @@ let encodeNoPad (ki:KeyInfo) rg (ad:data) data tag =
         Error.unexpectedError "[encodeNoPad] invoked on an invalid range."
     else
     let tlen = rangeCipher ki rg in
-    (tlen, {p = b @| tag.macT})
+    let payload = b @| tag.macT
+    if length payload <> tlen then
+        Error.unexpectedError "[encodeNoPad] Internal error."
+    else
+        (tlen, {p = payload})
 
 let check_split b l = 
   if length(b) < l then failwith "split failed: FIX THIS to return BOOL + ..."

@@ -48,8 +48,8 @@ val verify: ki:KeyInfo -> (;ki) MAC.key -> text:(;ki) MACPlain -> tag:(;ki) tag 
 
 val padLength: ki:KeyInfo -> nat -> nat
 function val RangeCipher: KeyInfo * range -> nat // not injective
-val rangeCipher: ki:KeyInfo -> r:range -> tlen:nat{tlen = RangeCipher(ki,r)}
-val cipherRange: ki:KeyInfo -> tlen:nat -> r:range{tlen = RangeCipher(ki,r)}
+val rangeCipher: ki:KeyInfo -> r:range -> tlen:nat{tlen = RangeCipher(ki,r) /\ tlen <= DataStream.max_TLSCipher_fragment_length}
+val cipherRange: ki:KeyInfo -> tlen:nat{tlen <= DataStream.max_TLSCipher_fragment_length} -> r:range{tlen = RangeCipher(ki,r)}
 
 
 // AP and CF agree: AEPlain is indexed by (ki and) its public length, after encoding (and not by range).
@@ -70,8 +70,8 @@ private assume !ki,tlen.
     ( IsAEADCiphersuite(ki.sinfo.cipher_suite) /\ tlen >= IVSize(ki,ki) /\
 	  PlainLength(ki,tlen) = tlen - IVSize(ki,ki) )
 
-private type (;ki:KeyInfo,tlen:nat) plain = {p: (x:bytes){Length(x) = PlainLength(ki,tlen)}}
-val plain: ki:KeyInfo{not Safe(ki)} -> tlen:nat -> b:bytes{Length(b) = PlainLength(ki,tlen)} -> (;ki,tlen) plain
+private type (;ki:KeyInfo,tlen:nat) plain = {p: (x:bytes){Length(x) = PlainLength(ki,tlen) /\ tlen <= DataStream.max_TLSCipher_fragment_length}}
+val plain: ki:KeyInfo{not Safe(ki)} -> tlen:nat{tlen <= DataStream.max_TLSCipher_fragment_length} -> b:bytes{Length(b) = PlainLength(ki,tlen)} -> (;ki,tlen) plain
 val repr:  ki:KeyInfo{not Safe(ki)} -> tlen:nat -> (;ki,tlen) plain -> b:bytes{Length(b) = PlainLength(ki,tlen)}
 
 
@@ -105,14 +105,14 @@ val check_split:
 val ivLength: ki:KeyInfo -> l:nat{l=IVSize(ki,ki)}
 val encode: ki:KeyInfo{IsAEADCiphersuite(ki.sinfo.cipher_suite)} ->
 	rg:range -> ad:(;ki) data -> (;ki,rg,ad) AEPlain -> (;ki) tag ->
-	(tlen:nat * (;ki,tlen) plain){tlen=RangeCipher(ki,rg)}
+	(tlen:nat * (;ki,tlen) plain){tlen=RangeCipher(ki,rg) /\ tlen <= DataStream.max_TLSCipher_fragment_length}
 val decode: ki:KeyInfo{IsAEADCiphersuite(ki.sinfo.cipher_suite)} ->
 	ad:(;ki) data -> tlen:nat -> (;ki,tlen) plain ->
 	(rg:range * (;ki,rg,ad)AEPlain * (;ki)tag * bool){tlen=RangeCipher(ki,rg)}
 
 val encodeNoPad: ki:KeyInfo{IsOnlyMACCiphersuite(ki.sinfo.cipher_suite)} ->
 	rg:range -> ad:(;ki) data -> (;ki,rg,ad) AEPlain -> (;ki) tag ->
-	(tlen:nat * (;ki,tlen) plain){tlen=RangeCipher(ki,rg)}
+	(tlen:nat * (;ki,tlen) plain){tlen=RangeCipher(ki,rg) /\ tlen <= DataStream.max_TLSCipher_fragment_length}
 val decodeNoPad: ki:KeyInfo{IsOnlyMACCiphersuite(ki.sinfo.cipher_suite)} ->
 	ad:(;ki) data -> tlen:nat -> (;ki,tlen) plain ->
 	(rg:range * (;ki,rg,ad)AEPlain * (;ki)tag){tlen=RangeCipher(ki,rg)}

@@ -37,7 +37,7 @@ predicate ENCrypted of
 
 // TODO: We need to refine cipher before applying CPA
 
-val ENC: ki:KeyInfo -> s:(;ki) encryptor -> tlen:int -> p:(;ki,tlen) plain -> 
+val ENC: ki:KeyInfo -> s:(;ki) encryptor -> tlen:nat{tlen <= DataStream.max_TLSCipher_fragment_length} -> p:(;ki,tlen) plain -> 
   ( (s':(;ki) encryptor{StateID(ki,s') = StateID(ki,s)+1}) *
    (c:cipher{ENCrypted(ki,tlen,StateID(ki,s),p,c) /\ Length(c)=tlen}) )
 
