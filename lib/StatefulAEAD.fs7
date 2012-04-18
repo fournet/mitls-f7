@@ -38,7 +38,7 @@ val history: ki:KeyInfo -> s:(;ki) state -> h:(;ki)history{h=s.history}
 type cipher = ENC.cipher
 predicate STXT of ki:KeyInfo * (;ki)state * ad:(;ki)data * r:range * (;ki,r)Fragment.fragment * cipher
 assume !ki,s,ad,r,f,c. STXT(ki,s,ad,r,f,c)
-	<=> AEAD.CTXT(ki,MakeAD(ki,s.history,ad),r,f,c)
+//	<=> AEAD.CTXT(ki,MakeAD(ki,s.history,ad),r,f,c)
 
 // AP 18/4: Cannot prove STXT until we don't get precise with {S}AEADContents, which breaks abstraction
 
@@ -50,11 +50,11 @@ val encrypt: ki:KeyInfo ->
   (w':(;ki) writer * c:cipher){STXT(ki,w,ad,r,SAEADContents(f),c)}
 
 val decrypt: ki:KeyInfo -> 
-  r:(;ki) reader -> 
+  rd:(;ki) reader -> 
   ad:(;ki)data ->
   c:ENC.cipher ->
-  res:((;ki) reader * rg:(rg:range{Length(c)=AEPlain.RangeCipher(ki,rg)}) * 
-	 (;ki,r.history,ad,rg) fragment) Result{
-	 !rd,rg,f. res = Correct(rd,rg,f) => 
+  res:((;ki) reader * rg:range * (;ki,rd.history,ad,rg) fragment) Result{
+	 !nrd,rg,f. res = Correct((nrd,rg,f)) => 
+                (Length(c)=AEPlain.RangeCipher(ki,rg) /\
 		(Safe(ki) => STXT(ki,rd,ad,rg,SAEADContents(f),c)) /\
-        (Auth(ki) => STXT(ki,rd,ad,rg,SAEADContents(f),c)) }
+                (Auth(ki) => STXT(ki,rd,ad,rg,SAEADContents(f),c))) }

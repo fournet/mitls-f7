@@ -47,10 +47,11 @@ let decrypt (ki:KeyInfo) (r:reader) (ad0:data) (e:cipher) =
   let ad = makeAD ki h ad0 in
   let res = AEAD.decrypt ki r.key ad e in
     match res with
-      | Correct ((key,rg,pl)) ->
-          let f = AEADPlainToFragment ki h ad0 rg pl in
-          let h = addToHistory ki h ad0 rg f in
+      | Correct res ->
+          let (key,yy,pl) = res in
+          let f = AEADPlainToFragment ki h ad0 yy pl in
+          let h = addToHistory ki h ad0 yy f in
           let r = {history = h;
-                   key = key}
-          Correct ((r,rg,f))
+                   key = key} in
+          correct (r,yy,f) 
       | Error (x,y) -> Error (x,y)

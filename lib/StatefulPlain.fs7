@@ -25,11 +25,11 @@ private assume !ki,sn,h. SeqN(ki,(sn,h)) = sn
 
 predicate Fragment of ki:KeyInfo * (;ki)history * (;ki)data * r:range * (;ki,r)Fragment.fragment
 
-private type (;ki:KeyInfo,h:(;ki)history,ad:(;ki)data,r:range) prefragment =
-	x:(;ki,r)Fragment.fragment{Auth(ki) => Fragment(ki,h,ad,r,x)}
+private type (;ki:KeyInfo,h:(;ki)history,ad:(;ki)data,range:range) prefragment =
+	x:(;ki,range)Fragment.fragment{Auth(ki) => Fragment(ki,h,ad,range,x)}
 
-private type (;ki:KeyInfo,h:(;ki)history,ad:(;ki)data,r:range) fragment =
-	{contents: (;ki,h,ad,r)prefragment}
+private type (;ki:KeyInfo,h:(;ki)history,ad:(;ki)data,range:range) fragment =
+	{contents: (;ki,h,ad,range)prefragment}
 
 function val SAEADContents: 'a -> 'b
 assume !f. SAEADContents(f) = f.contents
