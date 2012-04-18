@@ -8,6 +8,8 @@ open CipherSuites
 open Algorithms
 open AEADPlain (* parameter *)
 
+predicate type pred = Unreachable of KeyInfo
+
 type cipher = b:bytes{Length(b) <= DataStream.max_TLSCipher_fragment_length}
 
 private type (;ki:KeyInfo) AEADKey =
@@ -37,15 +39,18 @@ val LEAK:   ki:KeyInfo{not Auth(ki)} -> (;ki)AEADKey -> b:bytes
 (* KB: 18/4. Define CTXT or assume in code? The following assume is a stop-gap *)
 private assume !ki,ad,p,c. CTXT(ki,ad,p,c)
 
+val mteKey: ki:KeyInfo -> (;ki) MAC.key -> (;ki) ENC.state -> (;ki) AEADKey
+
 val encrypt: ki:KeyInfo -> (;ki) AEADKey -> ad:(;ki) data ->
   rg:range -> p:(;ki,rg,ad) AEADPlain ->
   ((;ki) AEADKey * c:cipher){Length(c)=AEPlain.RangeCipher(ki,rg) /\ CTXT(ki,ad,p,c)}
 
 val decrypt: ki:KeyInfo -> (;ki) AEADKey -> ad:(;ki) data ->
   c:cipher -> res: 
-  ( (;ki) AEADKey * rg:(rg:range{Length(c) = AEPlain.RangeCipher(ki,rg)}) * (;ki,rg,ad) AEADPlain) Result
-  { (Safe(ki) => (!rg,p. (res = Correct(rg,p) <=> CTXT(ki,ad,p,c)))) /\
-    (Auth(ki) => (!rg,p. (res = Correct(rg,p) =>  (?c. CTXT(ki,ad,p,c))))) }
+  ( ((;ki) AEADKey * rg:range * (;ki,rg,ad) AEADPlain){Length(c) = AEPlain.RangeCipher(ki,rg)}) Result{
+    !k,r,p. res = Correct((k,r,p)) =>
+          (Safe(ki) => CTXT(ki,ad,p,c)) /\
+          (Auth(ki) => CTXT(ki,ad,p,c))}
       
 // CF 04-09 discussion points: 
 //

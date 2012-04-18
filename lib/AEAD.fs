@@ -6,6 +6,8 @@ open Algorithms
 open TLSInfo
 open Error
 
+type pred = Unreachable of KeyInfo
+
 type cipher = bytes
 
 type AEADKey =
@@ -74,22 +76,26 @@ let encrypt ki key data rg plain =
 //  | GCM (k) -> ... 
     | (_,_) -> unexpectedError "[encrypt] incompatible ciphersuite-key given."
         
+let mteKey (ki:KeyInfo) ka ke = MtE(ka,ke)
+
+
 let decrypt ki key data cipher =
     let cs = ki.sinfo.cipher_suite in
     match (cs,key) with
     | (x, MtE (ka,ke)) when isAEADCipherSuite x ->
         let (ke,encoded)      = ENC.DEC ki ke cipher in
-        let (rg,aep,tag,ok) = AEPlain.decode ki data (length cipher) encoded in
+        let nk = mteKey ki ka ke in
+        let cl = length cipher in
+        let (rg,aep,tag,ok) = AEPlain.decode ki data cl encoded in
         let plain = AEADPlain.AEPlainToAEADPlain ki rg data aep in
         let maced             = AEPlain.macPlain ki rg data aep
         match ki.sinfo.protocol_version with
         | SSL_3p0 | TLS_1p0 ->
             if ok then 
               if AEPlain.verify ki ka maced tag (* padding time oracle *) 
-                then
-                     let key = MtE(ka,ke) in
-                     let res = (key,rg,plain) in
-                     correct(res)
+                then 
+                  let res = (nk,rg,plain) in
+                  correct res
                 else Error(MAC,CheckFailed)
             else     Error(RecordPadding,CheckFailed) (* padding error oracle *)
         | TLS_1p1 | TLS_1p2 ->
@@ -97,9 +103,8 @@ let decrypt ki key data cipher =
             then 
               if ok 
                 then
-                     let key = MtE(ka,ke) in
-                     let res = (key,rg,plain) in
-                     correct(res)              
+                  let res = (nk,rg,plain) in
+                    correct res
                 else Error(MAC,CheckFailed)
             else     Error(MAC,CheckFailed)
     | (x,MACOnly (ka)) when isOnlyMACCipherSuite x ->
@@ -109,8 +114,7 @@ let decrypt ki key data cipher =
         let maced          = AEPlain.macPlain ki rg data aep
         if AEPlain.verify ki ka maced tag 
           then
-               let res = (key,rg,plain) in
-               correct (res)
+               correct (key,rg,plain)
           else Error(MAC,CheckFailed)
 //  | GCM (GCMKey) -> ... 
     | (_,_) -> unexpectedError "[decrypt] incompatible ciphersuite-key given."
