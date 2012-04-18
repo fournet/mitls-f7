@@ -60,14 +60,14 @@ val cipherRange: ki:KeyInfo -> tlen:nat{tlen <= DataStream.max_TLSCipher_fragmen
 
 function val PlainLength: ki:KeyInfo * tlen:nat -> plen:nat
 assume !ki. IVSize(ki,ki) >= 0
-private assume !ki.
+assume !ki.
 	( ki.sinfo.protocol_version = SSL_3p0 \/ ki.sinfo.protocol_version = TLS_1p0
 		=> IVSize(ki,ki) = 0 ) /\
 	( ki.sinfo.protocol_version = TLS_1p1 \/ ki.sinfo.protocol_version = TLS_1p2
 		=> IVSize(ki,ki) = BlockSize(CipherSuiteENCAlg(ki.sinfo.cipher_suite)) )
-private assume !ki,tlen.
-	( IsOnlyMACCiphersuite(ki.sinfo.cipher_suite) /\ PlainLength(ki,tlen) = tlen ) \/
-    ( IsAEADCiphersuite(ki.sinfo.cipher_suite) /\ tlen >= IVSize(ki,ki) /\
+assume !ki,tlen.
+	( IsOnlyMACCiphersuite(ki.sinfo.cipher_suite) => PlainLength(ki,tlen) = tlen ) /\
+    ( IsAEADCiphersuite(ki.sinfo.cipher_suite) /\ tlen >= IVSize(ki,ki) =>
 	  PlainLength(ki,tlen) = tlen - IVSize(ki,ki) )
 
 private type (;ki:KeyInfo,tlen:nat) plain = {p: (x:bytes){Length(x) = PlainLength(ki,tlen) /\ tlen <= DataStream.max_TLSCipher_fragment_length}}
