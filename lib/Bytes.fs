@@ -48,3 +48,11 @@ let split2 (b:bytes) i j : bytes * bytes * bytes =
    
 let utf8 (x:string) : bytes = System.Text.Encoding.UTF8.GetBytes x
 let iutf8 (x:bytes) : string = System.Text.Encoding.UTF8.GetString x
+
+(* Time spans *)
+type DateTime = DT of System.DateTime
+type TimeSpan = TS of System.TimeSpan
+let now () = DT (System.DateTime.Now)
+let newTimeSpan h d m s = TS (new System.TimeSpan(h,d,m,s))
+let addTimeSpan (DT(a)) (TS(b)) = DT (a + b)
+let greaterDateTime (DT(a)) (DT(b)) = a > b

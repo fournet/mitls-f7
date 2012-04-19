@@ -87,8 +87,6 @@ type helloReqPolicy =
     | HRPFull
     | HRPResume
 
-type TimeSpan
-
 type protocolOptions = {
     minVer: ProtocolVersion;
     maxVer: ProtocolVersion;

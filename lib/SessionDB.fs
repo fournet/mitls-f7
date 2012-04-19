@@ -18,11 +18,11 @@ let load filename =
                                 FileMode.Open, (* Never overwrite, and fail if not exists *)
                                 FileAccess.Read,
                                 FileShare.ReadWrite) in
-    let map = bf.Deserialize(file) :?> Map<sessionID,(StorableSession * System.DateTime)> in
+    let map = bf.Deserialize(file) :?> Map<sessionID,(StorableSession * Bytes.DateTime)> in
     file.Close()
     map
 
-let store filename (map:Map<sessionID,(StorableSession * System.DateTime)>) =
+let store filename (map:Map<sessionID,(StorableSession * Bytes.DateTime)>) =
     let bf = new BinaryFormatter() in
     let file = new FileStream(  filename,
                                 FileMode.Create, (* Overwrite file, or create if it does not exists *)
@@ -33,7 +33,7 @@ let store filename (map:Map<sessionID,(StorableSession * System.DateTime)>) =
 
 let create poptions =
     DBLock.EnterWriteLock()
-    let map = Map.empty<sessionID,(StorableSession * System.DateTime)> in
+    let map = Map.empty<sessionID,(StorableSession * Bytes.DateTime)> in
     store poptions.sessionDBFileName map
     DBLock.ExitWriteLock()
 
@@ -53,9 +53,8 @@ let select poptions key =
         None
     | Some (sinfo,ts) ->
         (* Check timestamp validity *) 
-        let expires = ts + poptions.sessionDBExpiry in
-        let now = System.DateTime.Now in
-        if expires > now then
+        let expires = Bytes.addTimeSpan ts poptions.sessionDBExpiry in
+        if Bytes.greaterDateTime expires (Bytes.now()) then
             DBLock.ExitUpgradeableReadLock()
             Some (sinfo)
         else
@@ -77,7 +76,7 @@ let insert poptions key value =
         ()
     | None ->
         DBLock.EnterWriteLock()
-        let map = Map.add key (value,System.DateTime.Now) map in
+        let map = Map.add key (value,Bytes.now()) map in
         store poptions.sessionDBFileName map
         DBLock.ExitWriteLock()
         DBLock.ExitUpgradeableReadLock()

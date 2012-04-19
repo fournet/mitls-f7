@@ -77,8 +77,6 @@ type helloReqPolicy =
     | HRPFull
     | HRPResume
 
-type TimeSpan = System.TimeSpan
-
 type protocolOptions = {
     minVer: ProtocolVersion
     maxVer: ProtocolVersion
@@ -123,5 +121,5 @@ let defaultProtocolOptions ={
     safe_renegotiation = true
 
     sessionDBFileName = "sessionDBFile.bin"
-    sessionDBExpiry = new System.TimeSpan(2,0,0,0) (* two days *)
+    sessionDBExpiry = newTimeSpan 2 0 0 0 (* two days *)
     }

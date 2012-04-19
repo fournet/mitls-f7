@@ -87,3 +87,11 @@ assume !x:string, y:string. ( Utf8(x)=Utf8(y) => x = y )
 
 //assume !x. x <= x
 //assume 0 <= 1
+
+(* Time spans *)
+type DateTime
+type TimeSpan
+val now: unit -> DateTime
+val newTimeSpan: nat -> nat -> nat -> nat -> TimeSpan
+val addTimeSpan: DateTime -> TimeSpan -> DateTime
+val greaterDateTime: DateTime -> DateTime -> bool

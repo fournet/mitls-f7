@@ -22,3 +22,11 @@ val split2: bytes -> int -> int -> (bytes * bytes * bytes)
 (* strings *)
 val utf8: string -> bytes
 val iutf8: bytes -> string
+
+(* Time spans *)
+type DateTime
+type TimeSpan
+val now: unit -> DateTime
+val newTimeSpan: nat -> nat -> nat -> nat -> TimeSpan
+val addTimeSpan: DateTime -> TimeSpan -> DateTime
+val greaterDateTime: DateTime -> DateTime -> bool
