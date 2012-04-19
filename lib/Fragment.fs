@@ -4,12 +4,12 @@ open TLSInfo
 open DataStream
 
 type fragment = {frag: stream * delta}
-type fpred = DeltaFragment of KeyInfo * stream * range * fragment
+type fpred = DeltaFragment of KeyInfo * stream * range * delta
 
 
 let fragment ki s r d = 
   let f = {frag = s,d} in
-    Pi.assume (DeltaFragment(ki,s,r,f));
+    Pi.assume (DeltaFragment(ki,s,r,d));
     let s' = append ki s r d in
     f,s'
 

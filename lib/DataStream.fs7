@@ -30,7 +30,7 @@ val splitRange: ki:KeyInfo -> r:range{?l,h. r = (l,h) /\ h > 0} -> (r0:range * r
 // used only as a ghost index:
 // streams have are no destructors, so they do not leak secrets
 // their logical definition is needed for authentication in application code.
-private type (;ki:KeyInfo) stream = {sb:bytes}
+private type (;ki:KeyInfo) stream = {sb:bytes list}
 
 // the implementation of this type is application-specific 
 // but it must provide the following functions to TLS
@@ -39,9 +39,8 @@ private type (;ki:KeyInfo, h:(;ki)stream, r:range) delta = {contents: (;r) rbyte
 predicate EmptyStream of ki:KeyInfo * (;ki) stream 
 // function val EmptyStream:  ki:KeyInfo -> (;ki) stream // AP: F7 issue with records as single argument of a function. Do not use this function, use the predicate instead.
 function val ExtendStream: 'a * 'b * 'c * 'd -> 'e
-private assume !ki,s. EmptyStream(ki,s) <=> s = {sb = [||] }
-private assume !ki,s,r,d. ExtendStream(ki,s,r,d) = {sb = s.sb @| d.contents } 
-//CF: so far no need to track the size of d in streams. 
+private assume !ki,s. EmptyStream(ki,s) <=> s = {sb = [] }
+private assume !ki,s,r,d. ExtendStream(ki,s,r,d) = {sb = d.contents :: s.sb } 
 
 val init: ki:KeyInfo -> s:(;ki) stream{EmptyStream(ki,s)}
 

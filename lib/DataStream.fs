@@ -47,7 +47,7 @@ let splitRange ki r =
           ((smallL,smallH),
            (lsub,hsub))
 
-type stream = {sb: bytes}
+type stream = {sb: bytes list}
 type delta = {contents: rbytes}
 
 let createDelta (ki:KeyInfo) (s:stream) (r:range) (b:bytes) =
@@ -59,10 +59,10 @@ let deltaRepr (ki:KeyInfo) (s:stream) (r:range) (d:delta) = d.contents
 // ghost
 type es = EmptyStream of KeyInfo
 
-let init (ki:KeyInfo) = {sb = [| |]}
+let init (ki:KeyInfo) = {sb = []}
 
 let append (ki:KeyInfo) (s:stream) (r:range) (d:delta) = 
-  {sb = s.sb @| d.contents}
+  {sb = d.contents :: s.sb}
 
 let split (ki:KeyInfo) (s:stream)  (r0:range) (r1:range) (d:delta) = 
   // we put as few bytes as we can in b0, 
