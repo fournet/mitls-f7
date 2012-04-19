@@ -27,6 +27,6 @@ let refuse c q = Dispatch.refuse c q
 
 let getInKI c = Dispatch.getInKI c
 let getOutKI c = Dispatch.getOutKI c
-let getSessionInfo ki = ki.sinfo
+let getSessionInfo ki = epochSI(ki)
 let getInStream  c = Dispatch.getInStream c
 let getOutStream c = Dispatch.getOutStream c

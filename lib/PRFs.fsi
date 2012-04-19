@@ -9,7 +9,7 @@ open Error
 (* Used when generating verifiData for the Finished message *)
 type masterSecret
 val empty_masterSecret: SessionInfo -> masterSecret
-val prfVerifyData: KeyInfo -> masterSecret ->
+val prfVerifyData: SessionInfo -> Role -> masterSecret ->
                    bytes (* msgLog *) ->
                    bytes (* length depends on cs, 12 by default *)
 
@@ -35,9 +35,9 @@ val prfMS: SessionInfo -> preMasterSecret ->
 
 (* Used when generating key material from the MS. The result must still be split into the various keys. Of course this method can do the splitting internally and return a record/pair *)
 type keyBlob
-val prfKeyExp: KeyInfo -> masterSecret ->
+val prfKeyExp: ConnectionInfo -> masterSecret ->
                (* No label, it's hardcoded. Of course we can make it explicit -> *)
-               (* No seed (crandom @| srandom), it can be retrieved from KeyInfo (and not SessionInfo!) -> *)
+               (* No seed (crandom @| srandom), it can be retrieved from epoch (and not SessionInfo!) -> *)
                keyBlob (* length depends on cs *)
 
-val splitStates: KeyInfo -> keyBlob -> (StatefulAEAD.state * StatefulAEAD.state)
+val splitStates: ConnectionInfo -> keyBlob -> (StatefulAEAD.state * StatefulAEAD.state)

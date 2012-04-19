@@ -20,10 +20,10 @@ type hs_state = pre_hs_state
 //TODO better names, maybe: init/accept resume reshake rekey request
 
 // Create instance for a fresh connection (without resumption) 
-val init_handshake: ConnectionInfo -> Role -> protocolOptions -> hs_state
+val init_handshake: Role -> protocolOptions -> (ConnectionInfo * hs_state)
 
 // Create instance for a fresh connection (Client-only, resuming some other sessions)
-val resume_handshake: ConnectionInfo -> SessionInfo -> PRFs.masterSecret -> protocolOptions -> hs_state
+val resume_handshake: SessionInfo -> PRFs.masterSecret -> protocolOptions -> (ConnectionInfo * hs_state)
 
 // All other calls are affine in the Handshake protocol state
 
@@ -57,7 +57,7 @@ type (*(;ki)*) outgoing =
   | OutCCS of      int * (*(;ki,l)*) fragment * ccs_data (* the unique one-byte CCS + writing params *)
   | OutFinished of int * (*(;ki,l)*) fragment (* signalling that this fragment ends the finished message *)
   | OutComplete of int * (*(;ki,l)*) fragment (* idem, but also stating the handshake is complete *)
-val nextFragment: KeyInfo -> hs_state -> outgoing * hs_state
+val nextFragment: epoch -> hs_state -> outgoing * hs_state
 
 type (*(;ki)*) incoming = (* the fragment is accepted, and... *)
   | InAck (* nothing happens *)
@@ -65,14 +65,14 @@ type (*(;ki)*) incoming = (* the fragment is accepted, and... *)
   | InPatch of ProtocolVersion (* as server, must now patch the negotiated version *)
   | InFinished                 (* signalling that we just accepted the finished message *) 
   | InComplete                 (* idem, but also stating the hanshake is complete *)  
-val recvFragment: KeyInfo -> hs_state -> int -> fragment -> incoming Result * hs_state
-val recvCCS     : KeyInfo -> hs_state -> int -> fragment -> ccs_data Result * hs_state
+val recvFragment: epoch -> hs_state -> int -> fragment -> incoming Result * hs_state
+val recvCCS     : epoch -> hs_state -> int -> fragment -> ccs_data Result * hs_state
 *)
 
 type HSFragReply =
   | EmptyHSFrag              (* nothing to send *) 
   | HSFrag of                (DataStream.range * Fragment.fragment)
-  | CCSFrag of               (DataStream.range * Fragment.fragment) (* the unique one-byte CCS *) * (KeyInfo * Record.ConnectionState)
+  | CCSFrag of               (DataStream.range * Fragment.fragment) (* the unique one-byte CCS *) * (epoch * Record.ConnectionState)
   | HSWriteSideFinished of   (DataStream.range * Fragment.fragment) (* signalling that this fragment ends the finished message *)
   | HSFullyFinished_Write of (DataStream.range * Fragment.fragment) * SessionDB.StorableSession
 val next_fragment: ConnectionInfo  -> hs_state -> HSFragReply * hs_state
@@ -81,12 +81,15 @@ val next_fragment: ConnectionInfo  -> hs_state -> HSFragReply * hs_state
 
 type recv_reply = (* the fragment is accepted, and... *)
   | HSAck (* nothing happens *)
-  | HSVersionAgreed of ProtocolVersion (* use this new protocol version for sending *)
+  | HSVersionAgreed (* If in first handhsake, ask HS for which protocol version to check and send data *)
   | HSQuery of Certificate.cert
   | HSReadSideFinished (* ? *) 
   | HSFullyFinished_Read of SessionDB.StorableSession (* we can start sending data on the connection *)  
 val recv_fragment: ConnectionInfo -> hs_state -> DataStream.range -> Fragment.fragment -> recv_reply Result * hs_state
-val recv_ccs     : ConnectionInfo -> hs_state -> DataStream.range -> Fragment.fragment -> ((KeyInfo * Record.ConnectionState) Result) * hs_state
+val recv_ccs     : ConnectionInfo -> hs_state -> DataStream.range -> Fragment.fragment -> ((epoch * Record.ConnectionState) Result) * hs_state
+
+// Which protocol version dispatch should use to check during the first handshake
+val getNegotiatedVersion: hs_state -> ProtocolVersion
 
 // misses indexes, which are going to change anyway
 val authorize: hs_state -> Certificate.cert -> hs_state

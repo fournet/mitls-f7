@@ -28,7 +28,7 @@ let emptyHistory ki =
       ccs = eh;
       appdata = eh}
 
-let addToStreams (ki:KeyInfo) ct ss r f =
+let addToStreams (ki:epoch) ct ss r f =
     match (ct,f) with
     | Handshake,FHandshake(ff) -> 
         let d,s' = Fragment.delta ki ss.handshake r ff in
@@ -45,7 +45,8 @@ let addToStreams (ki:KeyInfo) ct ss r f =
     | _,_ -> unexpectedError "[addToStreams] Incompatible content and fragment types"
 
 let makeAD ki ct =
-    let pv = ki.sinfo.protocol_version in
+    let si = epochSI(ki) in
+    let pv = si.protocol_version in
     let bct  = ctBytes ct in
     let bver = versionBytes pv in
     if pv = SSL_3p0 
@@ -67,7 +68,7 @@ let fragmentRepr ki (ct:ContentType) (h:history) (rg:DataStream.range) frag =
     | FAlert(f) -> Fragment.fragmentRepr ki rg f
     | FAppData(f) -> Fragment.fragmentRepr ki rg f
 
-let contents (ki:KeyInfo) (ct:ContentType) (h:history) (rg:range) f =
+let contents (ki:epoch) (ct:ContentType) (h:history) (rg:range) f =
     match f with
         | FHandshake(f) -> f
         | FCCS(f) -> f
@@ -75,7 +76,7 @@ let contents (ki:KeyInfo) (ct:ContentType) (h:history) (rg:range) f =
         | FAppData(f) -> f
             
 
-let construct (ki:KeyInfo) (ct:ContentType) (h:history) (rg:range) sb =
+let construct (ki:epoch) (ct:ContentType) (h:history) (rg:range) sb =
     match ct with
         | Handshake -> FHandshake(sb)
         | Change_cipher_spec -> FCCS(sb)

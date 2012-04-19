@@ -8,22 +8,22 @@ open DataStream
 open Fragment
 
 type data = bytes
-type preds = Unsafe of KeyInfo
+type preds = Unsafe of epoch
 
 type AEPlain = {contents: fragment}
 
-let AEPlain (ki:KeyInfo) (r:range) (ad:data) (b:bytes) = {contents = fragmentPlain ki r b}
-let AERepr  (ki:KeyInfo) (r:range) (ad:data) (p:AEPlain) = fragmentRepr ki r p.contents
+let AEPlain (ki:epoch) (r:range) (ad:data) (b:bytes) = {contents = fragmentPlain ki r b}
+let AERepr  (ki:epoch) (r:range) (ad:data) (p:AEPlain) = fragmentRepr ki r p.contents
 
-let AEConstruct (ki:KeyInfo) (r:range) (ad:data) (sb:fragment) =
+let AEConstruct (ki:epoch) (r:range) (ad:data) (sb:fragment) =
   {contents = sb}
-let AEContents  (ki:KeyInfo) (r:range) (ad:data) (p:AEPlain) = 
+let AEContents  (ki:epoch) (r:range) (ad:data) (p:AEPlain) = 
   p.contents
 
 type MACPlain = {macP: bytes}
 type tag = {macT: bytes}
 
-let macPlain (ki:KeyInfo) (rg:range) ad f =
+let macPlain (ki:epoch) (rg:range) ad f =
     Pi.assume(Unsafe(ki));
     let b = AERepr ki rg ad f in
     let fLen = bytes_of_int 2 (length b) in
@@ -40,21 +40,24 @@ let verify ki k text tag =
 let padLength ki len =
     // Always compute minimal padding.
     // Ranges are taking care of requiring more pad, where appropriate.
-    let alg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
+    let si = epochSI(ki) in
+    let alg = encAlg_of_ciphersuite si.cipher_suite in
     let bs = blockSize alg in
     let overflow = (len + 1) % bs // at least one extra byte of padding
     if overflow = 0 then 1 else 1 + bs - overflow 
 
-let ivLength ki = 
-  match ki.sinfo.protocol_version with
+let ivLength ki =
+    let si = epochSI(ki) in
+    match si.protocol_version with
     | SSL_3p0 | TLS_1p0 -> 0
     | TLS_1p1 | TLS_1p2 ->
-        let encAlg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
+        let encAlg = encAlg_of_ciphersuite si.cipher_suite in
           ivSize encAlg 
     
 let rangeCipher ki (rg:DataStream.range) =
+    let si = epochSI(ki) in
     let (_,h) = rg in
-    let cs = ki.sinfo.cipher_suite in
+    let cs = si.cipher_suite in
     match cs with
     | x when isOnlyMACCipherSuite x ->
         let macLen = macSize (macAlg_of_ciphersuite cs) in
@@ -78,7 +81,8 @@ let rangeCipher ki (rg:DataStream.range) =
 // And from Target Length to Ranges
 let cipherRange ki tlen =
     // we could be more precise, taking into account block alignement
-    let macSize = macSize (macAlg_of_ciphersuite ki.sinfo.cipher_suite) in
+    let si = epochSI(ki) in
+    let macSize = macSize (macAlg_of_ciphersuite si.cipher_suite) in
     let max = tlen - macSize - 1 in
     if max < 0 then
         Error.unexpectedError "[cipherRange] the given tlen should be of a valid ciphertext"
@@ -92,12 +96,12 @@ let cipherRange ki tlen =
 
 type plain = {p:bytes}
 
-let plain (ki:KeyInfo) (tlen:nat)  b = {p=b}
-let repr (ki:KeyInfo) (tlen:nat) pl = pl.p
+let plain (ki:epoch) (tlen:nat)  b = {p=b}
+let repr (ki:epoch) (tlen:nat) pl = pl.p
 
 let pad (p:int)  = createBytes p (p-1)
 
-let encode (ki:KeyInfo) rg (ad:data) data tag =
+let encode (ki:epoch) rg (ad:data) data tag =
     Pi.assume(Unsafe(ki));
     let b = AERepr ki rg ad data in
     let ivL = ivLength ki in
@@ -111,7 +115,7 @@ let encode (ki:KeyInfo) rg (ad:data) data tag =
     else
         (tlen, {p = payload})
 
-let encodeNoPad (ki:KeyInfo) rg (ad:data) data tag =
+let encodeNoPad (ki:epoch) rg (ad:data) data tag =
     Pi.assume(Unsafe(ki));
     let b = AERepr ki rg ad data in
     // assert
@@ -132,7 +136,8 @@ let check_split b l =
   else Bytes.split b l
 
 let decode ki (ad:data) tlen plain =
-    let macSize = macSize (macAlg_of_ciphersuite ki.sinfo.cipher_suite) in
+    let si = epochSI(ki) in
+    let macSize = macSize (macAlg_of_ciphersuite si.cipher_suite) in
     let rg = cipherRange ki tlen in
     let ivL = ivLength ki in
     let expected = tlen - ivL
@@ -156,7 +161,7 @@ let decode ki (ad:data) tlen plain =
         (*
         (* Evidently padding has been corrupted, or has been incorrectly generated *)
         (* in TLS1.0 we fail now, in more recent versions we fail later, see sec.6.2.3.2 Implementation Note *)
-        match ki.sinfo.protocol_version with
+        match epochSI(ki).protocol_version with
         | v when v >= TLS_1p1 ->
             (* Pretend we have a valid padding of length zero, but set we must fail *)
             correct(data,true)
@@ -167,7 +172,7 @@ let decode ki (ad:data) tlen plain =
         *)
     else
         let (data_no_pad,pad) = check_split tmpdata padstart in
-        match ki.sinfo.protocol_version with
+        match si.protocol_version with
         | TLS_1p0 | TLS_1p1 | TLS_1p2 ->
             let expected = createBytes padlen padlen in
             if equalBytes expected pad then
@@ -198,7 +203,7 @@ let decode ki (ad:data) tlen plain =
                However, its length should be at most one bs
                (See sec 5.2.3.2 of SSL 3 draft). Enforce this check (which
                is performed by openssl, and not by wireshark for example). *)
-            let encAlg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
+            let encAlg = encAlg_of_ciphersuite si.cipher_suite in
             let bs = blockSize encAlg in
             if padlen >= bs then
                 (* Pretend we have a valid padding of length zero, but set we must fail *)
@@ -224,7 +229,8 @@ let decode ki (ad:data) tlen plain =
 
 let decodeNoPad ki (ad:data) tlen plain =
     // assert length plain.d = tlen
-    let cs = ki.sinfo.cipher_suite in
+    let si = epochSI(ki) in
+    let cs = si.cipher_suite in
     let maclen = macSize (macAlg_of_ciphersuite cs) in
     let pl = plain.p in
     let plainLen = length pl in

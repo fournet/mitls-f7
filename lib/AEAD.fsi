@@ -10,11 +10,11 @@ type AEADKey
 
 type cipher = bytes
 
-val GEN: KeyInfo -> AEADKey * AEADKey
-val COERCE: KeyInfo -> bytes -> AEADKey
-val LEAK: KeyInfo -> AEADKey -> bytes
+val GEN: epoch -> AEADKey * AEADKey
+val COERCE: epoch -> bytes -> AEADKey
+val LEAK: epoch -> AEADKey -> bytes
 
-val encrypt: KeyInfo -> AEADKey -> data -> 
+val encrypt: epoch -> AEADKey -> data -> 
              range -> AEADPlain -> (AEADKey * cipher)
-val decrypt: KeyInfo -> AEADKey -> data -> 
+val decrypt: epoch -> AEADKey -> data -> 
              cipher -> (AEADKey * range * AEADPlain) Result

@@ -9,9 +9,9 @@ type tag = bytes
 
 type key
 
-val Mac:    KeyInfo -> key -> text -> tag
-val Verify: KeyInfo -> key -> text -> tag -> bool
+val Mac:    epoch -> key -> text -> tag
+val Verify: epoch -> key -> text -> tag -> bool
 
-val GEN: KeyInfo -> key
-val LEAK:   KeyInfo -> key -> bytes
-val COERCE: KeyInfo -> bytes -> key
+val GEN: epoch -> key
+val LEAK:   epoch -> key -> bytes
+val COERCE: epoch -> bytes -> key

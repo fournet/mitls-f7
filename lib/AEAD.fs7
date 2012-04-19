@@ -10,7 +10,7 @@ open Algorithms
 
 type cipher = b:bytes{Length(b) <= DataStream.max_TLSCipher_fragment_length}
 
-private type (;ki:KeyInfo) AEADKey =
+private type (;ki:epoch) AEADKey =
     | MtE of ka:(;ki)MAC.key * ke:(;ki)ENC.state // {MtEKey(ki,(ka,ke))}
     | MACOnly of (;ki) MAC.key
 (*  | GCM of ke:(;ki:AENC.state)  *)
@@ -18,33 +18,33 @@ private type (;ki:KeyInfo) AEADKey =
 // TODO: Define AEADSize. 
 // In the code, (AEADSize * 2) is computed in CipherSuites.getKeyExtensionLength
 
-function val AEADSize: ki:KeyInfo * unit -> nat
+function val AEADSize: ki:epoch * unit -> nat
 private assume !ki.
-	( IsOnlyMACCiphersuite(ki.sinfo.cipher_suite) =>
-	  AEADSize(ki,()) = MacKeySize(CipherSuites.CipherSuiteMACAlg(ki.sinfo.cipher_suite)) ) /\
-	( IsAEADCiphersuite(ki.sinfo.cipher_suite) =>
-	  AEADSize(ki,()) = MacKeySize(CipherSuites.CipherSuiteMACAlg(ki.sinfo.cipher_suite)) +
-					    EncKeySize(CipherSuites.CipherSuiteENCAlg(ki.sinfo.cipher_suite)) +
+	( IsOnlyMACCiphersuite(epochSI(ki).cipher_suite) =>
+	  AEADSize(ki,()) = MacKeySize(CipherSuites.CipherSuiteMACAlg(epochSI(ki).cipher_suite)) ) /\
+	( IsAEADCiphersuite(epochSI(ki).cipher_suite) =>
+	  AEADSize(ki,()) = MacKeySize(CipherSuites.CipherSuiteMACAlg(epochSI(ki).cipher_suite)) +
+					    EncKeySize(CipherSuites.CipherSuiteENCAlg(epochSI(ki).cipher_suite)) +
 					    AEPlain.IVSize(ki,ki) )
 
 // Why is this failing? Because of AEADSize not being what I want, I cannot typecheck COERCE.
-//ask !ki. IsOnlyMACCiphersuite(ki.sinfo.cipher_suite) => AEADSize(ki,ki) = MacKeySize(CipherSuites.CipherSuiteMACAlg(ki.sinfo.cipher_suite))
+//ask !ki. IsOnlyMACCiphersuite(epochSI(ki).cipher_suite) => AEADSize(ki,ki) = MacKeySize(CipherSuites.CipherSuiteMACAlg(epochSI(ki).cipher_suite))
 
-val GEN:    ki:KeyInfo{Safe(ki)} -> encryptor:(;ki)AEADKey * decryptor:(;ki)AEADKey
-val COERCE: ki:KeyInfo{not Auth(ki)} -> b:bytes{Length(b) = AEADSize(ki,())} -> (;ki)AEADKey
-val LEAK:   ki:KeyInfo{not Auth(ki)} -> (;ki)AEADKey -> b:bytes
+val GEN:    ki:epoch{Safe(ki)} -> encryptor:(;ki)AEADKey * decryptor:(;ki)AEADKey
+val COERCE: ki:epoch{not Auth(ki)} -> b:bytes{Length(b) = AEADSize(ki,())} -> (;ki)AEADKey
+val LEAK:   ki:epoch{not Auth(ki)} -> (;ki)AEADKey -> b:bytes
 
 (* KB: 18/4. Define CTXT or assume in code? The following assume is a stop-gap *)
-predicate CTXT of ki:KeyInfo * (;ki)AEADPlain.data * r:range * (;ki,r)Fragment.fragment * cipher
+predicate CTXT of ki:epoch * (;ki)AEADPlain.data * r:range * (;ki,r)Fragment.fragment * cipher
 private assume !ki,ad,r,f,c. CTXT(ki,ad,r,f,c)
 
-private val mteKey: ki:KeyInfo -> (;ki) MAC.key -> (;ki) ENC.state -> (;ki) AEADKey
+private val mteKey: ki:epoch -> (;ki) MAC.key -> (;ki) ENC.state -> (;ki) AEADKey
 
-val encrypt: ki:KeyInfo -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
+val encrypt: ki:epoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
   rg:range -> p:(;ki,rg,ad) AEADPlain.AEADPlain ->
   ((;ki) AEADKey * c:cipher){Length(c)=AEPlain.RangeCipher(ki,rg) /\ CTXT(ki,ad,rg,AEADPlain.AEADContents(p),c)}
 
-val decrypt: ki:KeyInfo -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
+val decrypt: ki:epoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
   c:cipher -> res: 
   ( ((;ki) AEADKey * rg:range * (;ki,rg,ad) AEADPlain.AEADPlain){Length(c) = AEPlain.RangeCipher(ki,rg)}) Result{
     !k,r,p. res = Correct((k,r,p)) =>

@@ -7,49 +7,49 @@ open CipherSuites
 open DataStream
 
 // Plain type for Dispatch and Record
-private type (;ki:KeyInfo) history = {
+private type (;ki:epoch) history = {
   handshake: (;ki) stream; // HandshakePlain.stream;
   alert: (;ki) stream; // AlertPlain.stream;
   ccs: (;ki) stream; // HandshakePlain.stream;
   appdata: (;ki) stream // AppDataStream.stream;
   }
 
-predicate EmptyStreams of ki:KeyInfo * (;ki)history
+predicate EmptyStreams of ki:epoch * (;ki)history
 private assume !ki,h. EmptyStreams(ki,h) <=>
 	( EmptyStream(ki,h.handshake) /\ EmptyStream(ki,h.alert) /\
 	  EmptyStream(ki,h.ccs)       /\ EmptyStream(ki,h.appdata) )
 
-val emptyHistory: ki:KeyInfo -> h:(;ki)history{EmptyStreams(ki,h)}
+val emptyHistory: ki:epoch -> h:(;ki)history{EmptyStreams(ki,h)}
 
-type (;ki:KeyInfo,ct:ContentType,h:(;ki) history,rg:range) fragment =
+type (;ki:epoch,ct:ContentType,h:(;ki) history,rg:range) fragment =
     | FHandshake of f:(;ki,rg)Fragment.fragment{ct=Formats.Handshake  /\ Fragment.Fragment(ki,h.handshake,rg,f)}
     | FCCS       of f:(;ki,rg)Fragment.fragment{ct=Formats.Change_cipher_spec  /\ Fragment.Fragment(ki,h.ccs,rg,f)}
     | FAlert     of f:(;ki,rg)Fragment.fragment{ct=Formats.Alert  /\ Fragment.Fragment(ki,h.alert,rg,f)}
     | FAppData   of f:(;ki,rg)Fragment.fragment{ct=Formats.Application_data  /\ Fragment.Fragment(ki,h.appdata,rg,f)}
 
-function val ConsStream: ki:KeyInfo * ct:ContentType * ss:(;ki)history * r:range * (;ki,ct,ss,r)fragment -> 'a //(;ki)history
-val addToStreams: ki:KeyInfo -> ct:ContentType -> ss:(;ki)history -> r:range ->
+function val ConsStream: ki:epoch * ct:ContentType * ss:(;ki)history * r:range * (;ki,ct,ss,r)fragment -> 'a //(;ki)history
+val addToStreams: ki:epoch -> ct:ContentType -> ss:(;ki)history -> r:range ->
 	f:(;ki,ct,ss,r)fragment -> ss':(;ki)history{ss' = ConsStream(ki,ct,ss,r,f)}
 
 
-val fragmentRepr: ki:KeyInfo{not Auth(ki)} -> ct:ContentType -> h: (;ki) history -> rg:range ->
+val fragmentRepr: ki:epoch{not Auth(ki)} -> ct:ContentType -> h: (;ki) history -> rg:range ->
   (;ki,ct,h,rg)fragment -> bytes
 
-val fragmentPlain: ki:KeyInfo{not Auth(ki)} -> ct:ContentType -> h: (;ki) history -> rg:range ->
+val fragmentPlain: ki:epoch{not Auth(ki)} -> ct:ContentType -> h: (;ki) history -> rg:range ->
   (;rg)rbytes -> (;ki,ct,h,rg)fragment 
 
-function val ADBytes: (KeyInfo * ContentType) -> bytes //(;ki)StatefulPlain.data
+function val ADBytes: (epoch * ContentType) -> bytes //(;ki)StatefulPlain.data
 assume !ki,ct.
-	( ki.sinfo.protocol_version = SSL_3p0 /\
+	( epochSI(ki).protocol_version = SSL_3p0 /\
 	  ADBytes(ki,ct) =
 		CTBytes(ct) ) \/
-	( ki.sinfo.protocol_version <> SSL_3p0 /\
+	( epochSI(ki).protocol_version <> SSL_3p0 /\
           ADBytes(ki,ct) =
-		(CTBytes(ct) @| VersionBytes(ki.sinfo.protocol_version)))
+		(CTBytes(ct) @| VersionBytes(epochSI(ki).protocol_version)))
 
 ask !ki,ct. Length(ADBytes(ki,ct)) = (AEPlain.ADLength(ki,ki) - 8)
 
-private val makeAD: ki:KeyInfo -> ct:ContentType ->
+private val makeAD: ki:epoch -> ct:ContentType ->
 	  ad: (;ki)StatefulPlain.data{ad=ADBytes(ki,ct)}
 
 private assume !ki,h,r,d. ConsStream(ki,Formats.Handshake,h,r,d) =

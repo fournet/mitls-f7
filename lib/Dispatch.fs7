@@ -26,7 +26,7 @@ type dispatchState = d:predispatchState{
 	d = Init \/ d = FirstHandshake \/ d = Finishing \/ d = Finished \/
 	d = Open \/ d = Closing \/ d = Closed}
 
-type (;ki:KeyInfo) dState = {
+type (;ki:epoch) dState = {
     disp: dispatchState;
     conn: (;ki)Record.ConnectionState;
     }
@@ -54,9 +54,9 @@ type Connection = Conn of (id:ConnectionInfo * (;id)globalState)
 function val ConnectionIndex: Connection -> ConnectionInfo
 assume !id,s. ConnectionIndex(Conn(id,s)) = id
 
-function val ConnectionOutKeyInfo: Connection -> KeyInfo
+function val ConnectionOutKeyInfo: Connection -> epoch
 assume !id,s. ConnectionOutKeyInfo(Conn(id,s))= id.id_out
-function val ConnectionInKeyInfo: Connection -> KeyInfo
+function val ConnectionInKeyInfo: Connection -> epoch
 assume !id,s. ConnectionInKeyInfo(Conn(id,s)) = id.id_in
 
 
@@ -68,7 +68,7 @@ assume !id,s. ConnectionInSessionInfo(Conn(id,s))=id.id_in.sinfo
 function val Params: Connection -> protocolOptions
 assume !id,s. Params(Conn(id,s))=s.poptions
 
-function val dStateSeqn: ki:KeyInfo * (;ki)dState -> int
+function val dStateSeqn: ki:epoch * (;ki)dState -> int
 assume !ki,s. dStateSeqn(ki,s)=s.seqn
 
 function val ConnectionReadSeqn: Connection -> int
@@ -106,12 +106,12 @@ val moveToOpenState: c:Connection ->
 		{si=ConnectionOutSessionInfo(c) /\ si=ConnectionInSessionInfo(c)} ->
 	(;ConnectionIndex(c))globalState
 
-val reIndex_dState: oldKI:KeyInfo -> newKI:KeyInfo{CompatibleSessions(oldKI.sinfo,newKI.sinfo)} ->
+val reIndex_dState: oldKI:epoch -> newKI:epoch{CompatibleSessions(oldKI.sinfo,newKI.sinfo)} ->
 	ods:(;oldKI)dState -> (;newKI)ccs_data -> 
   nds:(;newKI)dState{nds.disp = ods.disp /\ nds.seqn = ods.seqn}
 
-val reIndex_dState_null: oldKI:KeyInfo{NullSessionInfo(oldKI.sinfo)} ->
-  newKI:KeyInfo{NullSessionInfo(newKI.sinfo)} ->
+val reIndex_dState_null: oldKI:epoch{NullSessionInfo(oldKI.sinfo)} ->
+  newKI:epoch{NullSessionInfo(newKI.sinfo)} ->
   ods:(;oldKI)dState -> 
   nds:(;newKI)dState{nds.disp = ods.disp /\ nds.seqn = ods.seqn}
 
@@ -131,7 +131,7 @@ val closeConnection: c:Connection-> (;c) CompatibleConnection
 
 // This always returns the write-side seqn increased by one,
 // regardless of the content type
-val send: ki:KeyInfo -> NetworkStream -> ss:(;ki)dState -> tlen:int ->
+val send: ki:epoch -> NetworkStream -> ss:(;ki)dState -> tlen:int ->
 	ct:ContentType -> f:(;ki,tlen,dStateSeqn(ki,ss),ct)TLSFragment.fragment ->
 	(ss':(;ki)dState{dStateSeqn(ki,ss') = dStateSeqn(ki,ss)+1}) Result
 

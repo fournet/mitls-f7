@@ -38,11 +38,11 @@ let is_incoming_empty (ci:ConnectionInfo) app_state =
 let is_outgoing_empty (ci:ConnectionInfo)  app_state = 
   snd app_state.app_outgoing.data = None
 
-let repr (ki:KeyInfo) (s:stream) (r:DataStream.range) (d:delta) = 
+let repr (ki:epoch) (s:stream) (r:DataStream.range) (d:delta) = 
   //let s = DataStream.init ki in // AP: why?
   deltaRepr ki s r d
 
-let fragment (ki:KeyInfo) (s:stream)  (r:DataStream.range) (b:bytes) = 
+let fragment (ki:epoch) (s:stream)  (r:DataStream.range) (b:bytes) = 
   //let s = DataStream.init ki in // AP: why?
   deltaPlain ki s r b
 

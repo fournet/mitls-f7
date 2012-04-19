@@ -9,16 +9,16 @@ open Formats
 open CipherSuites
 open AEAD
 
-type (;ki:KeyInfo) ConnectionState =
+type (;ki:epoch) ConnectionState =
 	| NullState
 	| SomeState of (;ki)TLSFragment.history * (;ki)StatefulAEAD.state
 
-type (;ki:KeyInfo) sendState = (;ki) ConnectionState 
-type (;ki:KeyInfo) recvState = (;ki) ConnectionState
+type (;ki:epoch) sendState = (;ki) ConnectionState 
+type (;ki:epoch) recvState = (;ki) ConnectionState
 
-val initConnState: ki:KeyInfo -> state:(;ki) StatefulAEAD.state -> 
+val initConnState: ki:epoch -> state:(;ki) StatefulAEAD.state -> 
                    cs:(;ki) ConnectionState //{cs = SomeSate(state)}
-val nullConnState: ki:KeyInfo -> cs:(;ki) ConnectionState //{cs = NullState}
+val nullConnState: ki:epoch -> cs:(;ki) ConnectionState //{cs = NullState}
 
 private val makePacket: ContentType -> ProtocolVersion -> bytes -> bytes
 
@@ -30,13 +30,13 @@ private val parseHeader: b:bytes{Length(b) = 5} ->
 // FIXME: Remove next assume!
 // private assume !ki,tlen,t. MAC.Msg(ki,tlen,t)
 
-val recordPacketOut: ki:KeyInfo -> 
+val recordPacketOut: ki:epoch -> 
                      ss:(;ki) sendState -> 
                      rg:DataStream.range -> ct:ContentType -> 
                      f:(;ki,ct,h,rg) TLSFragment.fragment -> //FIXME: history 'h' is only valid in ss if ss is not null!
                      (ss':(;ki) sendState * wire:bytes)
  
-val recordPacketIn : ki:KeyInfo ->
+val recordPacketIn : ki:epoch ->
                      rs:(;ki) recvState ->
                      wire:bytes{Length(wire) >= 5} -> 
                      (rs':(;ki)recvState *

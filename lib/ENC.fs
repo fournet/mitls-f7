@@ -80,11 +80,12 @@ type encryptor = state
 type decryptor = state
 
 let GENOne ki =
-    let alg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
+    let si = epochSI(ki) in
+    let alg = encAlg_of_ciphersuite si.cipher_suite in
     let key =
         {k = mkRandom (encKeySize alg)}
     let iv =
-        match ki.sinfo.protocol_version with
+        match si.protocol_version with
         | SSL_3p0 | TLS_1p0 ->
             SomeIV(mkRandom (ivSize alg))
         | TLS_1p1 | TLS_1p2 ->
@@ -93,16 +94,17 @@ let GENOne ki =
 
 let GEN (ki) = (GENOne ki, GENOne ki)
     
-let COERCE (ki:KeyInfo) k iv =
+let COERCE (ki:epoch) k iv =
+    let si = epochSI(ki) in
     let ivOpt =
-        match ki.sinfo.protocol_version with
+        match si.protocol_version with
         | SSL_3p0 | TLS_1p0 ->
             SomeIV(iv)
         | TLS_1p1 | TLS_1p2 ->
             NoIV(true)
     {key = {k=k}; iv = ivOpt}
 
-let LEAK (ki:KeyInfo) s =
+let LEAK (ki:epoch) s =
     let iv =
         match s.iv with
         | NoIV(_) -> [||]
@@ -112,7 +114,8 @@ let LEAK (ki:KeyInfo) s =
 (* Parametric ENC/DEC functions *)
 let ENC ki s tlen data =
     (* Should never be invoked on a stream (right now) encryption algorithm *)
-    let alg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
+    let si = epochSI(ki) in
+    let alg = encAlg_of_ciphersuite si.cipher_suite in
     let ivl = ivSize alg in
     let iv =
         match s.iv with
@@ -146,7 +149,8 @@ let ENC ki s tlen data =
 
 let DEC ki s cipher =
     (* Should never be invoked on a stream (right now) encryption algorithm *)
-    let alg = encAlg_of_ciphersuite ki.sinfo.cipher_suite in
+    let si = epochSI(ki) in
+    let alg = encAlg_of_ciphersuite si.cipher_suite in
     let ivl = ivSize alg 
     let (iv,encrypted) =
         match s.iv with

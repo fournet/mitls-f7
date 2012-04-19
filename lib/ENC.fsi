@@ -8,11 +8,11 @@ type state
 type encryptor = state
 type decryptor = state
 
-val GEN: KeyInfo -> encryptor * decryptor
-val LEAK:   KeyInfo -> state -> bytes * bytes
-val COERCE: KeyInfo -> bytes -> bytes-> state
+val GEN: epoch -> encryptor * decryptor
+val LEAK:   epoch -> state -> bytes * bytes
+val COERCE: epoch -> bytes -> bytes-> state
 
 type cipher = bytes
 
-val ENC: KeyInfo -> encryptor -> int -> AEPlain.plain -> (encryptor * cipher)
-val DEC: KeyInfo -> decryptor -> cipher -> (decryptor * AEPlain.plain)
+val ENC: epoch -> encryptor -> int -> AEPlain.plain -> (encryptor * cipher)
+val DEC: epoch -> decryptor -> cipher -> (decryptor * AEPlain.plain)

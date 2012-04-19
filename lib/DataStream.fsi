@@ -7,16 +7,16 @@ val max_TLSCipher_fragment_length: nat
 type range = nat * nat (* length range *)
 type rbytes = bytes
 val rangeSum: range -> range -> range
-val splitRange: KeyInfo -> range -> range * range
+val splitRange: epoch -> range -> range * range
 
 type stream
 type delta
-val init: KeyInfo -> stream
-val createDelta:   KeyInfo -> stream -> range -> rbytes -> delta
-val append: KeyInfo -> stream -> range -> delta -> stream
-val split: KeyInfo -> stream -> range -> range -> delta -> delta * delta
-val join: KeyInfo -> stream -> range -> delta -> range -> delta -> delta
+val init: epoch -> stream
+val createDelta:   epoch -> stream -> range -> rbytes -> delta
+val append: epoch -> stream -> range -> delta -> stream
+val split: epoch -> stream -> range -> range -> delta -> delta * delta
+val join: epoch -> stream -> range -> delta -> range -> delta -> delta
 
-val deltaPlain:         KeyInfo -> stream -> range -> rbytes -> delta
-val deltaRepr:     KeyInfo -> stream -> range -> delta -> rbytes
+val deltaPlain:         epoch -> stream -> range -> rbytes -> delta
+val deltaRepr:     epoch -> stream -> range -> delta -> rbytes
 

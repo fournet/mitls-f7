@@ -15,7 +15,7 @@ function val Idle: role * config -> config
 definition !o. Idle(Client,o) = idle
 definition !o. Idle(Server,o) = o
 //TODO: rename ccs_data
-//TODO: consider getting rid of KeyInfo-indexed fragments.
+//TODO: consider getting rid of epoch-indexed fragments.
 //TODO: change Direction to role
 
 (* Control Interface *) 
@@ -28,10 +28,10 @@ val rekey:                (;Client,idle) state -> o:config -> (;Client,o) state
 val request: old:config -> (;Server,old) state -> o:config -> (;Server,o) state
 
 (* the two new KeyInfos can be read off the handshake state *)
-function val  InKi: r:role * o:config * (;r,o) state -> KeyInfo 
-function val OutKi: r:role * o:config * (;r,o) state -> KeyInfo 
-val  inKi: r:role -> o:config -> s:(;r,o) state -> ki:KeyInfo {ki = InKi(r,o,s)}
-val outKi: r:role -> o:config -> s:(;r,o) state -> ki:KeyInfo {ki = OutKi(r,o,s)}
+function val  InKi: r:role * o:config * (;r,o) state -> epoch 
+function val OutKi: r:role * o:config * (;r,o) state -> epoch 
+val  inKi: r:role -> o:config -> s:(;r,o) state -> ki:epoch {ki = InKi(r,o,s)}
+val outKi: r:role -> o:config -> s:(;r,o) state -> ki:epoch {ki = OutKi(r,o,s)}
 
 predicate val  InputReady: r:role * o:config * (;r,o) state -> bool (* Ready to input with new keys*)
 predicate val OutputReady: r:role * o:config * (;r,o) state -> bool (* Ready to output with new keys *)
@@ -39,22 +39,22 @@ predicate val    Complete: r:role * o:config * (;r,o) state -> bool (* Completed
 
 (* Network Interface *)
 
-type (;ki:KeyInfo,l:nat) hsFragment
-type (;ki:KeyInfo) fragment = l:nat * (;ki,l) hsFragment
-val repr:     ki:KeyInfo -> l:nat -> (;ki,l) hsFragment -> b:bytes{Length(b)=l}
-val fragment: ki:KeyInfo -> l:nat -> b:bytes{Length(b)=l} -> (;ki,l) hsFragment
+type (;ki:epoch,l:nat) hsFragment
+type (;ki:epoch) fragment = l:nat * (;ki,l) hsFragment
+val repr:     ki:epoch -> l:nat -> (;ki,l) hsFragment -> b:bytes{Length(b)=l}
+val fragment: ki:epoch -> l:nat -> b:bytes{Length(b)=l} -> (;ki,l) hsFragment
 
-type (;ki:KeyInfo,l:nat) ccsFragment
-val ccsRepr:     ki:KeyInfo -> (;ki,1) ccsFragment -> b:bytes{Length(b)=1}
-val ccsFragment: ki:KeyInfo -> b:bytes{Length(b)=1} -> (;ki,1) ccsFragment
+type (;ki:epoch,l:nat) ccsFragment
+val ccsRepr:     ki:epoch -> (;ki,1) ccsFragment -> b:bytes{Length(b)=1}
+val ccsFragment: ki:epoch -> b:bytes{Length(b)=1} -> (;ki,1) ccsFragment
 
-type (;r:role,o:config,ki:KeyInfo) outgoing = 
+type (;r:role,o:config,ki:epoch) outgoing = 
   | OutIdle of               (;r,o) state
   | OutSome of               (;r,o) state * (;ki) fragment             
   | OutCCS of              s:(;r,o) state * (;ki,1) ccsFragment * (;OutKi(r,o,s)) ccs_data {OutputReady(r,o,s)} 
   | OutFinished of           (;r,o) state * (;ki) fragment
   | OutComplete of s:(;r,Idle(r,o)) state * (;ki) fragment {Complete(r,o,s)} 
-val nextFragment: r:role -> o:config -> (;r,o) state -> ki:KeyInfo -> (;r,o,ki) outgoing 
+val nextFragment: r:role -> o:config -> (;r,o) state -> ki:epoch -> (;r,o,ki) outgoing 
 
 type (;r:role,o:config) incoming = 
   | InAck of                (;r,o) state 
@@ -63,9 +63,9 @@ type (;r:role,o:config) incoming =
   | InComplete of s:(;r,Idle(r,o)) state {Complete(r,o,s)}  
   | InError of              (;r,o) state * ErrorCause * ErrorKind
 val recvFragment: r:role -> o:config -> (;r,o) state -> 
-  ki:KeyInfo -> (;ki) fragment -> (;r,o) incoming
+  ki:epoch -> (;ki) fragment -> (;r,o) incoming
 val recvCCS: r:role -> o:config -> (;r,o) state ->
-  ki:KeyInfo -> (;ki,1) ccsFragment -> 
+  ki:epoch -> (;ki,1) ccsFragment -> 
   s:(;r,o) state * (((;InKi(r,o,s)) ccs_data {InputReady(r,o,s)}) Result) 
 
 (*   

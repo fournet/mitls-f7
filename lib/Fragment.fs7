@@ -3,30 +3,30 @@ open Bytes
 open TLSInfo
 open DataStream
 
-predicate DeltaFragment of ki:KeyInfo * s:(;ki) stream * r:range * (;ki,s,r)delta
-private type (;ki:KeyInfo,r:range) fragment = {frag: (s:(;ki)stream * d:(;ki,s,r) delta{Auth(ki) => DeltaFragment(ki,s,r,d)})}
+predicate DeltaFragment of ki:epoch * s:(;ki) stream * r:range * (;ki,s,r)delta
+private type (;ki:epoch,r:range) fragment = {frag: (s:(;ki)stream * d:(;ki,s,r) delta{Auth(ki) => DeltaFragment(ki,s,r,d)})}
 function val Extend: 'a * 'b * 'c * 'd -> 'e
 
-predicate Fragment of ki:KeyInfo * (;ki) stream * r:range * (;ki,r)fragment
+predicate Fragment of ki:epoch * (;ki) stream * r:range * (;ki,r)fragment
 private assume !ki,s,r,f. Fragment(ki,s,r,f) <=> 
   (?d. f.frag = (s,d) /\ DeltaFragment(ki,s,r,d))
 
 // range-based fragmentation 
 
-val fragment: ki:KeyInfo -> s:(;ki) stream -> r:range ->
+val fragment: ki:epoch -> s:(;ki) stream -> r:range ->
   (;ki,s,r) delta -> 
   (f:(;ki,r) fragment * s':(;ki) stream){Fragment(ki,s,r,f) /\ s' = Extend(ki,s,r,f)}
 
-val delta: ki:KeyInfo -> s:(;ki) stream -> r:range -> 
+val delta: ki:epoch -> s:(;ki) stream -> r:range -> 
   f:(;ki,r) fragment{Auth(ki) => Fragment(ki,s,r,f)} -> 
   d:(;ki,s,r) delta * s':(;ki) stream{s' = Extend(ki,s,r,f)}
 
-val delta': ki:KeyInfo -> s:(;ki) stream -> r:range -> 
+val delta': ki:epoch -> s:(;ki) stream -> r:range -> 
   f:(;ki,r) fragment{not Auth(ki)} -> 
   d:(;ki,s,r) delta * s':(;ki) stream{s' = ExtendStream(ki,s,r,d)}
 
-val fragmentPlain: ki:KeyInfo{not Auth(ki)} -> r:range -> (;r) rbytes -> (;ki,r) fragment
-val fragmentRepr:  ki:KeyInfo{not Auth(ki)} -> r:range -> (;ki,r) fragment -> (;r) rbytes
+val fragmentPlain: ki:epoch{not Auth(ki)} -> r:range -> (;r) rbytes -> (;ki,r) fragment
+val fragmentRepr:  ki:epoch{not Auth(ki)} -> r:range -> (;ki,r) fragment -> (;r) rbytes
 
 //CF: This is *not* valid because of empty fragments; 
 // instead we may have to record in stream a sequence of bytes, rather than their concatenation.

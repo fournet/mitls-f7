@@ -28,11 +28,11 @@ let COERCE ki b =
 let LEAK ki s =
     AEAD.LEAK ki s.key
 
-let history (ki:KeyInfo) s = s.history
+let history (ki:epoch) s = s.history
 
 type cipher = ENC.cipher
 
-let encrypt (ki:KeyInfo) (w:writer) (ad0:data) (r:range) (f:fragment) =
+let encrypt (ki:epoch) (w:writer) (ad0:data) (r:range) (f:fragment) =
   let h = w.history in
   let pl = FragmentToAEADPlain ki h ad0 r f in
   let ad = makeAD ki h ad0 in
@@ -42,7 +42,7 @@ let encrypt (ki:KeyInfo) (w:writer) (ad0:data) (r:range) (f:fragment) =
            history = h} in
   (w,c)
 
-let decrypt (ki:KeyInfo) (r:reader) (ad0:data) (e:cipher) =
+let decrypt (ki:epoch) (r:reader) (ad0:data) (e:cipher) =
   let h = r.history in
   let ad = makeAD ki h ad0 in
   let res = AEAD.decrypt ki r.key ad e in

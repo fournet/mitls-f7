@@ -10,7 +10,7 @@ private type (;ci:ConnectionInfo)pre_al_state = {
 }
 type (;ci:ConnectionInfo)state = (;ci)pre_al_state
 
-type (;ki:KeyInfo,seqn:int)ALFragReply =
+type (;ki:epoch,seqn:int)ALFragReply =
     | EmptyALFrag
     | ALFrag of          (tlen:DataStream.range * (;ki,tlen,seqn)fragment)
     | LastALFrag of      (tlen:DataStream.range * (;ki,tlen,seqn)fragment)

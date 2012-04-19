@@ -14,7 +14,8 @@ type AEADKey =
 (*  |   GCM of AENC.state  *)
 
 let GEN ki =
-    let cs = ki.sinfo.cipher_suite in
+    let si = epochSI(ki) in
+    let cs = si.cipher_suite in
     match cs with
     | x when isOnlyMACCipherSuite x ->
         let mk = MAC.GEN ki
@@ -26,7 +27,8 @@ let GEN ki =
 
 let COERCE ki b =
     // precondition: b is of the right length. No runtime checks here.
-    let cs = ki.sinfo.cipher_suite in
+    let si = epochSI(ki) in
+    let cs = si.cipher_suite in
     let onlymac = isOnlyMACCipherSuite cs in
     let aeadcs = isAEADCipherSuite cs in
       if onlymac then 
@@ -39,8 +41,8 @@ let COERCE ki b =
           let macKeySize = macKeySize macalg in
           let encKeySize = encKeySize encalg in
           // let ivsize = 
-          //     if PVRequiresExplicitIV ki.sinfo.protocol_version then 0
-          //     else ivSize (encAlg_of_ciphersuite ki.sinfo.cipher_suite)
+          //     if PVRequiresExplicitIV epochSI(ki).protocol_version then 0
+          //     else ivSize (encAlg_of_ciphersuite epochSI(ki).cipher_suite)
           let (mkb,rest) = split b macKeySize in
           let (ekb,ivb) = split rest encKeySize in
           let mk = MAC.COERCE ki mkb in
@@ -56,8 +58,9 @@ let LEAK ki k =
         MAC.LEAK ki mk @| k @| iv
 
 let encrypt ki key data rg plain =
+    let si = epochSI(ki) in
     let aep = AEADPlain.AEADPlainToAEPlain ki rg data plain in
-    let cs = ki.sinfo.cipher_suite in
+    let cs = si.cipher_suite in
     match (cs,key) with
     | (x, MtE (ka,ke)) when isAEADCipherSuite x ->
         let maced          = AEPlain.macPlain ki rg data aep
@@ -74,11 +77,12 @@ let encrypt ki key data rg plain =
 //  | GCM (k) -> ... 
     | (_,_) -> unexpectedError "[encrypt] incompatible ciphersuite-key given."
         
-let mteKey (ki:KeyInfo) ka ke = MtE(ka,ke)
+let mteKey (ki:epoch) ka ke = MtE(ka,ke)
 
 
 let decrypt ki key data cipher =
-    let cs = ki.sinfo.cipher_suite in
+    let si = epochSI(ki) in
+    let cs = si.cipher_suite in
     match (cs,key) with
     | (x, MtE (ka,ke)) when isAEADCipherSuite x ->
         let (ke,encoded)      = ENC.DEC ki ke cipher in
@@ -87,7 +91,7 @@ let decrypt ki key data cipher =
         let (rg,aep,tag,ok) = AEPlain.decode ki data cl encoded in
         let plain = AEADPlain.AEPlainToAEADPlain ki rg data aep in
         let maced             = AEPlain.macPlain ki rg data aep
-        match ki.sinfo.protocol_version with
+        match si.protocol_version with
         | SSL_3p0 | TLS_1p0 ->
             if ok then 
               if AEPlain.verify ki ka maced tag (* padding time oracle *) 
@@ -135,7 +139,7 @@ let decrypt ki key iv tlen ad cipher =
         let toVerify = MACPlain.MACPlain ki tlen ad compr in
         (* If mustFail is true, it means some padding error occurred.
             If in early versions of TLS, insecurely report a padding error now *)
-        match ki.sinfo.protocol_version with
+        match epochSI(ki).protocol_version with
         | SSL_3p0 | TLS_1p0 ->
             if mustFail then
                 Error(RecordPadding,CheckFailed)

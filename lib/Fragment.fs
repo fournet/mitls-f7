@@ -4,7 +4,7 @@ open TLSInfo
 open DataStream
 
 type fragment = {frag: stream * delta}
-type fpred = DeltaFragment of KeyInfo * stream * range * delta
+type fpred = DeltaFragment of epoch * stream * range * delta
 
 
 let fragment ki s r d = 

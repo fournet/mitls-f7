@@ -12,15 +12,15 @@ open TLSInfo
 //          providing exact lengths for keys and tags.
 
 
-private type (;ki:KeyInfo) key = {k:(x:bytes{Length(x) = MacKeySize(CipherSuites.CipherSuiteMACAlg(ki.sinfo.cipher_suite))})}
+private type (;ki:epoch) key = {k:(x:bytes{Length(x) = MacKeySize(CipherSuites.CipherSuiteMACAlg(epochSI(ki).cipher_suite))})}
 type text = bytes
 type tag = bytes
-predicate val Msg: KeyInfo * text -> bool
+predicate val Msg: epoch * text -> bool
 
-val Mac:    ki:KeyInfo -> k:(;ki) key -> t:text{Msg(ki,t)} -> t:tag{Length(t) = MacKeySize(CipherSuites.CipherSuiteMACAlg(ki.sinfo.cipher_suite))}
-val Verify: ki:KeyInfo -> k:(;ki) key -> t:text -> tag -> 
+val Mac:    ki:epoch -> k:(;ki) key -> t:text{Msg(ki,t)} -> t:tag{Length(t) = MacKeySize(CipherSuites.CipherSuiteMACAlg(epochSI(ki).cipher_suite))}
+val Verify: ki:epoch -> k:(;ki) key -> t:text -> tag -> 
   v:bool{ (v=true /\ Auth(ki)) => Msg(ki,t) }
 
-val GEN:    ki:KeyInfo -> (;ki) key
-val LEAK:   ki:KeyInfo{not(Auth(ki))} -> (;ki)key -> bytes
-val COERCE: ki:KeyInfo{not(Auth(ki))} -> x:bytes{Length(x) = MacKeySize(CipherSuites.CipherSuiteMACAlg(ki.sinfo.cipher_suite))} -> (;ki)key
+val GEN:    ki:epoch -> (;ki) key
+val LEAK:   ki:epoch{not(Auth(ki))} -> (;ki)key -> bytes
+val COERCE: ki:epoch{not(Auth(ki))} -> x:bytes{Length(x) = MacKeySize(CipherSuites.CipherSuiteMACAlg(epochSI(ki).cipher_suite))} -> (;ki)key

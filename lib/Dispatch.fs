@@ -92,20 +92,13 @@ type deliverOutcome =
 
 
 let init ns role poptions =
-    let outDir =
-        match role with
-        | Client -> CtoS
-        | Server -> StoC
-    let outKI = null_KeyInfo outDir poptions.minVer in
-    let inKI = dual_KeyInfo outKI in
-    let index = {id_in = inKI; id_out = outKI} in
-    let hs = Handshake.init_handshake index role poptions in // Equivalently, inKI.sinfo
-    let (send,recv) = (Record.nullConnState outKI, Record.nullConnState inKI) in
+    let (ci,hs) = Handshake.init_handshake role poptions in
+    let (send,recv) = (Record.nullConnState ci.id_out, Record.nullConnState ci.id_in) in
     let read_state = {disp = Init; conn = recv} in
     let write_state = {disp = Init; conn = send} in
-    let al = Alert.init index in
-    let app = AppDataStream.init index in
-    Conn ( index,
+    let al = Alert.init ci in
+    let app = AppDataStream.init ci in
+    Conn ( ci,
       { poptions = poptions;
         handshake = hs;
         alert = al;
@@ -125,16 +118,13 @@ let resume ns sid ops =
     match retrievedRole with
     | Server -> Error(Dispatcher,CheckFailed)
     | Client ->
-    let outKI = null_KeyInfo CtoS ops.minVer in
-    let inKI = dual_KeyInfo outKI in
-    let index = {id_in = inKI; id_out = outKI} in
-    let hs = Handshake.resume_handshake index retrievedSinfo retrievedMS ops in // equivalently, inKI.sinfo
-    let (send,recv) = (Record.nullConnState outKI, Record.nullConnState inKI) in
+    let (ci,hs) = Handshake.resume_handshake retrievedSinfo retrievedMS ops in
+    let (send,recv) = (Record.nullConnState ci.id_out, Record.nullConnState ci.id_in) in
     let read_state = {disp = Init; conn = recv} in
     let write_state = {disp = Init; conn = send} in
-    let al = Alert.init index in
-    let app = AppDataStream.init index in
-    let res = Conn ( index,
+    let al = Alert.init ci in
+    let app = AppDataStream.init ci in
+    let res = Conn ( ci,
                      { poptions = ops;
                        handshake = hs;
                        alert = al;
@@ -201,10 +191,17 @@ let closeConnection (Conn(id,c)) =
     Conn(id,c)
 
 (* Dispatch dealing with network sockets *)
-let send ki ns dState rg ct frag =
-    let (conn,data) = Record.recordPacketOut ki dState.conn rg ct frag in
-    let dState = {dState with conn = conn} in
-    match Tcp.write ns data with
+let pickSendPV (Conn(id,c)) =
+    match c.write.disp with
+    | Init -> c.poptions.minVer
+    | FirstHandshake -> getNegotiatedVersion c.handshake
+    | _ -> let si = epochSI(id.id_out) in si.protocol_version
+
+let send (Conn(id,c)) rg ct frag =
+    let pv = pickSendPV (Conn(id,c)) in
+    let (conn,data) = Record.recordPacketOut id.id_out c.write.conn pv rg ct frag in
+    let dState = {c.write with conn = conn} in
+    match Tcp.write c.ns data with
     | Error(x,y) -> Error(x,y)
     | Correct(_) -> 
         // printf "%s(%d) " (CTtoString ct) tlen // DEBUG
@@ -233,7 +230,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                           match c_write.disp with
                           | Open ->
                           (* we send some data fragment *)
-                            match send id.id_out c.ns c_write (tlen) Application_data (TLSFragment.FAppData(f)) with
+                            match send (Conn(id,c)) (tlen) Application_data (TLSFragment.FAppData(f)) with
                             | Correct(new_write) ->
                                 let c = { c with write = new_write }
                                 (* Fairly, tell we're done, and we won't write more data *)
@@ -254,7 +251,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                     (* we send a (complete) CCS fragment *)
                     match c_write.disp with
                     | x when x = FirstHandshake || x = Open ->
-                        match send id.id_out c.ns c_write rg Change_cipher_spec (TLSFragment.FCCS(ccs)) with
+                        match send (Conn(id,c)) rg Change_cipher_spec (TLSFragment.FCCS(ccs)) with
                         | Correct _ -> (* We don't care about next write state, because we're going to reset everything after CCS *)
                             let c = {c with handshake = new_hs_state} in
                             (* Now:
@@ -275,7 +272,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                       match c_write.disp with
                       | x when x = Init || x = FirstHandshake ||
                                x = Finishing || x = Open ->
-                          match send id.id_out c.ns c_write ( tlen) Handshake (TLSFragment.FHandshake(f)) with 
+                          match send (Conn(id,c)) ( tlen) Handshake (TLSFragment.FHandshake(f)) with 
                           | Correct(new_write) ->
                             let c = { c with handshake = new_hs_state;
                                              //appdata = AppDataStream.readNonAppDataFragment id c.appdata;
@@ -288,7 +285,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                 match c_write.disp with
                 | Finishing ->
                     (* Send the last fragment *)
-                    match send id.id_out c.ns c_write (tlen) Handshake (TLSFragment.FHandshake(lastFrag)) with 
+                    match send (Conn(id,c)) (tlen) Handshake (TLSFragment.FHandshake(lastFrag)) with 
                           | Correct(new_write) ->
                             (* Also move to the Finished state *)
                             let c_write = {new_write with disp = Finished} in
@@ -302,14 +299,14 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                 match c_write.disp with
                 | Finishing ->
                     (* Send the last fragment *)
-                    match send id.id_out c.ns c_write (tlen) Handshake (TLSFragment.FHandshake(lastFrag)) with 
+                    match send (Conn(id,c)) (tlen) Handshake (TLSFragment.FHandshake(lastFrag)) with 
                     | Correct(new_write) ->
                         let c = { c with handshake = new_hs_state;
                                          //appdata = AppDataStream.readNonAppDataFragment id c.appdata;
                                          write     = new_write }
                         (* Move to the new state *)
                         // Sanity check: in and out session infos should be the same
-                        if id.id_in.sinfo = id.id_out.sinfo then
+                        if epochSI(id.id_in) = epochSI(id.id_out) then
                             match moveToOpenState (Conn(id,c)) new_info with
                             | Correct(c) -> (correct(WHSDone,Conn(id,c)))
                             | Error(x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) // TODO: we might want to send an alert here
@@ -318,7 +315,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                     | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
                 | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) (* TODO: we might want to send an "internal error" fatal alert *)
       | (Alert.ALFrag(tlen,f),new_al_state) ->        
-        match send id.id_out c.ns c_write (tlen) Alert (TLSFragment.FAlert(f)) with 
+        match send (Conn(id,c)) (tlen) Alert (TLSFragment.FAlert(f)) with 
         | Correct(new_write) ->
             let new_write = {new_write with disp = Closing} in
             //let ad = AppDataStream.readNonAppDataFragment id c.appdata in
@@ -329,7 +326,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
         | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
       | (Alert.LastALFrag(tlen,f),new_al_state) ->
         (* We're sending a fatal alert. Send it, then close both sending and receiving sides *)
-        match send id.id_out c.ns c_write (tlen) Alert (TLSFragment.FAlert(f)) with 
+        match send (Conn(id,c)) (tlen) Alert (TLSFragment.FAlert(f)) with 
         | Correct(new_write) ->
             //let ad = AppDataStream.readNonAppDataFragment id c.appdata in
             let c = {c with alert = new_al_state;
@@ -345,7 +342,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
         (* We're sending a close_notify alert. Send it, then only close our sending side.
            If we already received the other close notify, then reading is already closed,
            otherwise we wait to read it, then close. But do not close here. *)
-        match send id.id_out c.ns c_write (tlen) Alert (TLSFragment.FAlert(f)) with
+        match send (Conn(id,c)) (tlen) Alert (TLSFragment.FAlert(f)) with
         | Correct(new_write) ->
             let new_write = {new_write with disp = Closed} in
             //let ad = AppDataStream.readNonAppDataFragment id c.appdata in
@@ -376,7 +373,7 @@ let deliver (Conn(id,c)) ct tl frag: (deliverOutcome * Connection) Result =
                              //appdata = ad;
                              handshake = hs} in
             correct (RAgain, Conn(id,c))
-        | Handshake.HSVersionAgreed pv ->
+        | Handshake.HSVersionAgreed ->
             match c_read.disp with
             | Init ->
                 (* Then, also c_write must be in Init state. It means this is the very first, unprotected handshake,
@@ -384,39 +381,20 @@ let deliver (Conn(id,c)) ct tl frag: (deliverOutcome * Connection) Result =
                    Set the negotiated version in the current sinfo (read and write side), 
                    and move to the FirstHandshake state, so that
                    protocol version will be properly checked *)
-
-                // Check we really are on a null session
-                let id_in = id.id_in in
-                let id_out = id.id_out in
-                let old_in_sinfo = id_in.sinfo in
-                let old_out_sinfo = id_out.sinfo in
-                let c_write = c.write in
-                if isNullSessionInfo old_out_sinfo && isNullSessionInfo old_in_sinfo then
-                    // update the index
-                    let new_sinfo = {old_out_sinfo with protocol_version = pv } in // equally with id.id_in.sinfo
-                    let idIN = {id_in with sinfo = new_sinfo} in
-                    let idOUT = {id_out with sinfo = new_sinfo} in
-                    let newID = {id_in = idIN; id_out = idOUT} in
                     // update the state
-                    let new_read = {c_read with disp = FirstHandshake; conn = Record.nullConnState idIN} in
-                    let new_write = {c_write with disp = FirstHandshake; conn = Record.nullConnState idOUT} in
+                    let new_read = {c_read with disp = FirstHandshake} in
+                    let new_write = {c_write with disp = FirstHandshake} in
                     let c = {c with handshake = hs;
-                                    //appdata = ad;
                                     read = new_read;
                                     write = new_write} in
-                    correct (RAgain, Conn(newID,c) )
-                else
-                    let closed = closeConnection (Conn(id,c)) in
-                    Error(Dispatcher,InvalidState)
+                    correct (RAgain, Conn(id,c) )
             | _ -> (* It means we are doing a re-negotiation. Don't alter the current version number, because it
                      is perfectly valid. It will be updated after the next CCS, along with all other session parameters *)
                 let c = { c with read = c_read;
-                                 //appdata = ad;
                                  handshake = hs} in
                 (correct (RAgain, Conn(id, c) ))
         | Handshake.HSQuery(query) ->
             let c = {c with read = c_read;
-                            //appdata = ad;
                             handshake = hs} in
             correct(RQuery(query),Conn(id,c))
         | Handshake.HSReadSideFinished ->
@@ -424,7 +402,6 @@ let deliver (Conn(id,c)) ct tl frag: (deliverOutcome * Connection) Result =
             match x with
             | Finishing ->
                 let c = {c with read = c_read;
-                                //appdata = ad;
                                 handshake = hs} in
                 // Indeed, we should stop reading now!
                 // (Because, except for false start implementations, the other side is now
@@ -439,13 +416,12 @@ let deliver (Conn(id,c)) ct tl frag: (deliverOutcome * Connection) Result =
         | Handshake.HSFullyFinished_Read(newSI,newMS,newDIR) ->
             let newInfo = (newSI,newMS,newDIR) in
             let c = {c with read = c_read;
-                            //appdata = ad;
                             handshake = hs} in
             (* Ensure we are in Finishing state *)
             match x with
             | Finishing ->
                 // Sanity check: in and out session infos should be the same
-                if id.id_in.sinfo = id.id_out.sinfo then
+                if epochSI(id.id_in) = epochSI(id.id_out) then
                     match moveToOpenState (Conn(id,c)) newInfo with
                     | Correct(c) -> correct(RHSDone, Conn(id,c))
                     | Error(x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) // TODO: we might want to send an alert here
@@ -529,7 +505,10 @@ let recv (Conn(id,c)) =
                 | Error(x,y) -> Error(x,y)
                 | Correct(pack) -> 
                     let (c_recv,ct,pv,tl,f) = pack in
-                    if c.read.disp = Init || pv = id.id_in.sinfo.protocol_version then
+                    let si = epochSI(id.id_in) in
+                    if c.read.disp = Init ||
+                       (c.read.disp = FirstHandshake && pv = getNegotiatedVersion c.handshake) ||
+                       pv = si.protocol_version then
                         let c_read = {c_read with conn = c_recv} in
                         let c = {c with read = c_read} in
                         correct(Conn(id,c),ct,tl,f)

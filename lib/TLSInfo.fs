@@ -5,21 +5,10 @@ open Certificate
 open CipherSuites
 
 type sessionID = bytes
-
-type preDirection =
-  | CtoS
-  | StoC
-type Direction = preDirection
-
 type preRole =
     | Client
     | Server
 type Role = preRole
-
-let dualDirection dir =
-    match dir with
-    | CtoS -> StoC
-    | StoC -> CtoS
 
 type SessionInfo = {
     clientID: cert option
@@ -32,11 +21,11 @@ type SessionInfo = {
     init_srand: bytes
     }
 
-let null_sessionInfo minPV =
+let null_sessionInfo pv =
     { clientID = None;
       serverID = None;
       sessionID = None;
-      protocol_version = minPV;
+      protocol_version = pv;
       cipher_suite = nullCipherSuite;
       compression = NullCompression;
       init_crand = [||]
@@ -48,28 +37,46 @@ let isNullSessionInfo s =
   isNullCipherSuite s.cipher_suite && s.compression = NullCompression &&
   s.init_crand = [||] && s.init_srand = [||]
 
-type KeyInfo = {
-    sinfo: SessionInfo
-    dir: Direction
-    crand: bytes
-    srand: bytes
-    }
+type preEpoch =
+    | InitEpoch of Role * (* ourRand *) bytes
+    | SuccEpoch of (* crand *) bytes * (* srand *) bytes * SessionInfo * preEpoch // * cVerifyData:bytes * sVerifyData:bytes
+type epoch = preEpoch
 
-let null_KeyInfo dir minPV =
-  let si = null_sessionInfo minPV in
-    {sinfo = si;
-     dir = dir;
-     crand = [||];
-     srand = [||];
-    }
+let epochSI e =
+    match e with
+    | InitEpoch (d,b) -> null_sessionInfo SSL_3p0 //FIXME: fake value
+    | SuccEpoch (b1,b2,si,pe) -> si
 
-let dual_KeyInfo ki = 
-  let d = dualDirection(ki.dir) in
-  {ki with dir = d}
+let epochSRand e =
+    match e with
+    | InitEpoch (d,b) -> Error.unexpectedError "[epochSRand] invoked on initial epoch."
+    | SuccEpoch (b1,b2,si,pe) -> b2
+
+let epochCRand e =
+    match e with
+    | InitEpoch (d,b) -> Error.unexpectedError "[epochSRand] invoked on initial epoch."
+    | SuccEpoch (b1,b2,si,pe) -> b1
 
 type ConnectionInfo = {
-    id_in: KeyInfo;
-    id_out: KeyInfo}
+    role: Role;
+    id_in: epoch;
+    id_out: epoch}
+
+let connectionRole ci = ci.role
+
+let initConnection role rand =
+    let ctos = InitEpoch (Client,rand) in
+    let stoc = InitEpoch (Server,rand) in
+    match role with
+    | Client -> {role = Client; id_in = stoc; id_out = ctos}
+    | Server -> {role = Server; id_in = ctos; id_out = stoc}
+
+let nextConnection ci crand srand si =
+    let incoming = SuccEpoch (crand, srand, si, ci.id_in ) in
+    let outgoing = SuccEpoch (crand, srand, si, ci.id_out) in
+    { role = ci.role;
+      id_in = incoming;
+      id_out = outgoing}
 
 // Application configuration
 type helloReqPolicy =

@@ -10,26 +10,26 @@ type data = bytes
 
 type AEPlain
 
-val AEPlain: KeyInfo -> range -> data -> bytes -> AEPlain
-val AERepr:  KeyInfo -> range -> data -> AEPlain -> bytes
+val AEPlain: epoch -> range -> data -> bytes -> AEPlain
+val AERepr:  epoch -> range -> data -> AEPlain -> bytes
 
-val AEConstruct: KeyInfo -> range -> data -> fragment -> AEPlain
-val AEContents:  KeyInfo -> range -> data -> AEPlain -> fragment
+val AEConstruct: epoch -> range -> data -> fragment -> AEPlain
+val AEContents:  epoch -> range -> data -> AEPlain -> fragment
 
 type MACPlain
 type tag
-val macPlain: KeyInfo -> range -> data -> AEPlain -> MACPlain
-val mac: KeyInfo -> MAC.key -> MACPlain -> tag
-val verify: KeyInfo -> MAC.key -> MACPlain -> tag -> bool
+val macPlain: epoch -> range -> data -> AEPlain -> MACPlain
+val mac: epoch -> MAC.key -> MACPlain -> tag
+val verify: epoch -> MAC.key -> MACPlain -> tag -> bool
 
 type plain
 
-val plain: KeyInfo -> nat -> bytes -> plain
-val repr: KeyInfo -> nat -> plain -> bytes
+val plain: epoch -> nat -> bytes -> plain
+val repr: epoch -> nat -> plain -> bytes
 
-val encode: KeyInfo -> range -> data -> AEPlain -> tag -> nat * plain
-val encodeNoPad: KeyInfo -> range -> data -> AEPlain -> tag -> nat * plain
+val encode: epoch -> range -> data -> AEPlain -> tag -> nat * plain
+val encodeNoPad: epoch -> range -> data -> AEPlain -> tag -> nat * plain
 
-val decode: KeyInfo -> data -> nat -> plain -> (range * AEPlain * tag * bool)
-val decodeNoPad: KeyInfo -> data -> nat -> plain -> (range * AEPlain * tag)
+val decode: epoch -> data -> nat -> plain -> (range * AEPlain * tag * bool)
+val decodeNoPad: epoch -> data -> nat -> plain -> (range * AEPlain * tag)
 

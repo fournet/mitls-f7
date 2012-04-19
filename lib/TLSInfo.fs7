@@ -77,8 +77,8 @@ definition !c,c'. SameEpoch(c,c') <=>
 // WAS:
 //type ConnectionInfo =
 //    { role: Role;
-//	  id_in:  KeyInfo;
-//    id_out: KeyInfo}
+//	  id_in:  epoch;
+//    id_out: epoch}
 
 /// Application configuration options
 
@@ -122,8 +122,8 @@ val defaultProtocolOptions: protocolOptions
 // We only store direction, which is either
 // Client --> Server (CtoS for short) or
 // Server --> Client (StoC for short).
-// We store the direction along with the KeyInfo.
-// We finally compute the role from the direction associated to the outgoing KeyInfo
+// We store the direction along with the epoch.
+// We finally compute the role from the direction associated to the outgoing epoch
 type preDirection =
     | CtoS
     | StoC
@@ -169,7 +169,7 @@ val null_sessionInfo: pv:ProtocolVersion -> si:SessionInfo{NullSessionInfo(si)}
 val isNullSessionInfo: s:SessionInfo -> b:bool{b=true => NullSessionInfo(s)}
 
 // not in the API
-type KeyInfo = {
+type epoch = {
     sinfo: SessionInfo;
     dir: Direction;
     crand: bytes;
@@ -179,36 +179,36 @@ type KeyInfo = {
     }
 
 type ConnectionInfo =
-	{ id_in:  KeyInfo;
-      id_out: KeyInfo}
+	{ id_in:  epoch;
+      id_out: epoch}
 
-predicate NullKeyInfo of KeyInfo
+predicate NullKeyInfo of epoch
 
-private assume !ki. NullKeyInfo(ki) <=> (NullSessionInfo(ki.sinfo) /\ ki.crand = [||] /\ ki.srand = [||])
+private assume !ki. NullKeyInfo(ki) <=> (NullSessionInfo(epochSI(ki)) /\ ki.crand = [||] /\ ki.srand = [||])
 
-val null_KeyInfo: d:Direction -> pv:ProtocolVersion -> ki:KeyInfo{NullKeyInfo(ki)}
+val null_KeyInfo: d:Direction -> pv:ProtocolVersion -> ki:epoch{NullKeyInfo(ki)}
 
-function val DualKeyInfo: (KeyInfo * unit) -> KeyInfo
+function val DualKeyInfo: (epoch * unit) -> epoch
 assume !k1,dummy. DualKeyInfo(k1,dummy) = {
 	sinfo = k1.sinfo;
 	dir=DualDirection(k1.dir);
 	crand=k1.crand;
 	srand=k1.srand}
 
-val dual_KeyInfo: k1:KeyInfo -> k2:KeyInfo{k2=DualKeyInfo(k1,())}
+val dual_KeyInfo: k1:epoch -> k2:epoch{k2=DualKeyInfo(k1,())}
 // We might need something like this -- and possibly more
-// definition !ki. NullKeyInfo(ki) => NullSessionInfo(ki.sinfo)
+// definition !ki. NullKeyInfo(ki) => NullSessionInfo(epochSI(ki))
 
-predicate Corrupt of KeyInfo
+predicate Corrupt of epoch
 
-assume !ki. CipherSuites.IsNullCiphersuite(ki.sinfo.cipher_suite) => Corrupt(ki)
+assume !ki. CipherSuites.IsNullCiphersuite(epochSI(ki).cipher_suite) => Corrupt(ki)
 
 /// Cryptographic assumptions [how to make them toplevel?]
 
 predicate type cryptopreds = 
-  | Safe of KeyInfo
-  | Auth of KeyInfo
+  | Safe of epoch
+  | Auth of epoch
 
 assume !ki. Safe(ki) => Auth(ki)
-assume !ki. IsOnlyMACCiphersuite(ki.sinfo.cipher_suite) => not Safe(ki)
-assume !ki. IsNullCiphersuite(ki.sinfo.cipher_suite) => not Auth(ki)
+assume !ki. IsOnlyMACCiphersuite(epochSI(ki).cipher_suite) => not Safe(ki)
+assume !ki. IsNullCiphersuite(epochSI(ki).cipher_suite) => not Auth(ki)

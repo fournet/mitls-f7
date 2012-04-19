@@ -14,10 +14,10 @@ type ConnectionState =
 type sendState = ConnectionState
 type recvState = ConnectionState
 
-let initConnState (ki:KeyInfo) s =
+let initConnState (ki:epoch) s =
   SomeState(emptyHistory ki,s)
 
-let nullConnState (ki:KeyInfo) = NullState
+let nullConnState (ki:epoch) = NullState
 
 /// packet format
 
@@ -60,7 +60,7 @@ let parseHeader b =
 
 (* This replaces send. It's not called send, since it doesn't send anything on the
    network *)
-let recordPacketOut ki conn rg ct fragment =
+let recordPacketOut ki conn pv rg ct fragment =
     (* No need to deal with compression. It is handled internally by TLSPlain,
        when returning us the next (already compressed!) fragment *)
     (*
@@ -68,10 +68,11 @@ let recordPacketOut ki conn rg ct fragment =
     | Error (x,y) -> Error (x,y)
     | Correct compressed ->
     *)
-    match (ki.sinfo.cipher_suite, conn) with
+    let si = epochSI(ki) in
+    match (si.cipher_suite, conn) with
     | (x,NullState) when isNullCipherSuite x ->
         let payload = fragmentRepr ki ct (emptyHistory ki) rg fragment in
-        let packet = makePacket ct ki.sinfo.protocol_version payload in
+        let packet = makePacket ct pv payload in
         (conn,packet)
 // MACOnly is now handled within AEAD
 //    | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
@@ -94,7 +95,7 @@ let recordPacketOut ki conn rg ct fragment =
 
         let history = addToStreams ki ct history rg fragment in
         let conn = SomeState(history,state) in
-        let packet = makePacket ct ki.sinfo.protocol_version payload in
+        let packet = makePacket ct pv payload in
         (conn,packet)
     | _ -> unexpectedError "[recordPacketOut] Incompatible ciphersuite and key type"
     
@@ -134,7 +135,8 @@ let recordPacketIn ki conn headPayload =
     if length payload <> plen then
         Error(Record,CheckFailed)
     else
-    let cs = ki.sinfo.cipher_suite in
+    let si = epochSI(ki) in
+    let cs = si.cipher_suite in
     match (cs,conn) with
     | (x,NullState) when isNullCipherSuite x ->
         let rg = (plen,plen) in
@@ -142,7 +144,7 @@ let recordPacketIn ki conn headPayload =
         correct(conn,ct,pv,rg,msg)
 // MACOnly is now handled within AEAD
 //    | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
-//        let ad0 = TLSFragment.makeAD ki.sinfo.protocol_version ct in
+//        let ad0 = TLSFragment.makeAD epochSI(ki).protocol_version ct in
 //        let ad = StatefulPlain.makeAD seqn ad0 in
 //        let plain = AEPlain.plain ki tlen payload in
 //        let (rg,msg,mac) = AEPlain.decodeNoPad ki ad plain in

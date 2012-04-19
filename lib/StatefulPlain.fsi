@@ -11,16 +11,16 @@ type prehistory
 type history  = (nat * prehistory)
 type fragment
 
-val emptyHistory: KeyInfo -> history
-val addToHistory: KeyInfo -> history -> data -> range -> fragment -> history
+val emptyHistory: epoch -> history
+val addToHistory: epoch -> history -> data -> range -> fragment -> history
 
-val makeAD: KeyInfo -> history -> data -> AEADPlain.data
+val makeAD: epoch -> history -> data -> AEADPlain.data
 
-val fragment: KeyInfo -> history -> data -> range -> bytes -> fragment
-val repr:     KeyInfo -> history -> data -> range -> fragment -> bytes
+val fragment: epoch -> history -> data -> range -> bytes -> fragment
+val repr:     epoch -> history -> data -> range -> fragment -> bytes
 
-val contents:  KeyInfo -> history -> data -> range -> fragment -> Fragment.fragment
-val construct: KeyInfo -> history -> data -> range -> Fragment.fragment -> fragment
+val contents:  epoch -> history -> data -> range -> fragment -> Fragment.fragment
+val construct: epoch -> history -> data -> range -> Fragment.fragment -> fragment
 
-val FragmentToAEADPlain: KeyInfo -> history -> data -> range -> fragment -> AEADPlain
-val AEADPlainToFragment: KeyInfo -> history -> data -> range -> AEADPlain -> fragment
+val FragmentToAEADPlain: epoch -> history -> data -> range -> fragment -> AEADPlain
+val AEADPlainToFragment: epoch -> history -> data -> range -> AEADPlain -> fragment

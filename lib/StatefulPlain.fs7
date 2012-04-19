@@ -5,62 +5,62 @@ open TLSInfo
 open DataStream
 // open AEADPlain // Do not open, or AEADPlain "module" and AEADPlain "function" will clash. We should stop using the same name for modules, types and functions, as this creates names clashes everywhere!
 
-type (;ki:KeyInfo) data = (b:bytes){Length(b) = AEPlain.ADLength(ki,ki) - 8}
+type (;ki:epoch) data = (b:bytes){Length(b) = AEPlain.ADLength(ki,ki) - 8}
 
 
-private type (;ki:KeyInfo)prehistory =
+private type (;ki:epoch)prehistory =
 	| Empty
 	| ConsHistory of h:(;ki)prehistory * ad:(;ki)data * r:range * x:(;ki,r)Fragment.fragment //{Fragment(ki,h,ad,r,x)}
 
-function val HLength: ki:KeyInfo * (;ki)prehistory -> nat
+function val HLength: ki:epoch * (;ki)prehistory -> nat
 private assume !ki. HLength(ki,Empty) = 0
 private assume !ki,h,ad,r,x. HLength(ki,ConsHistory(h,ad,r,x)) = HLength(ki,h)+1
 
-predicate type preds = History of ki:KeyInfo * ( nat * (;ki)prehistory )
+predicate type preds = History of ki:epoch * ( nat * (;ki)prehistory )
 
-private type (;ki:KeyInfo)history = (sn:nat * ph:(;ki)prehistory){History(ki,(sn,ph)) /\ sn = HLength(ki,ph)}
+private type (;ki:epoch)history = (sn:nat * ph:(;ki)prehistory){History(ki,(sn,ph)) /\ sn = HLength(ki,ph)}
 
-function val SeqN: ki:KeyInfo * (;ki)history -> nat
+function val SeqN: ki:epoch * (;ki)history -> nat
 private assume !ki,sn,h. SeqN(ki,(sn,h)) = sn
 
-predicate Fragment of ki:KeyInfo * (;ki)history * (;ki)data * r:range * (;ki,r)Fragment.fragment
+predicate Fragment of ki:epoch * (;ki)history * (;ki)data * r:range * (;ki,r)Fragment.fragment
 
-private type (;ki:KeyInfo,h:(;ki)history,ad:(;ki)data,range:range) prefragment =
+private type (;ki:epoch,h:(;ki)history,ad:(;ki)data,range:range) prefragment =
 	x:(;ki,range)Fragment.fragment{Auth(ki) => Fragment(ki,h,ad,range,x)}
 
-private type (;ki:KeyInfo,h:(;ki)history,ad:(;ki)data,range:range) fragment =
+private type (;ki:epoch,h:(;ki)history,ad:(;ki)data,range:range) fragment =
 	{contents: (;ki,h,ad,range)prefragment}
 
 function val SAEADContents: 'a -> 'b
 assume !f. SAEADContents(f) = f.contents
 
-val emptyHistory: ki:KeyInfo -> h:(;ki)history{SeqN(ki,h) = 0}
-private val consHistory: ki:KeyInfo -> h:(;ki)prehistory ->
+val emptyHistory: ki:epoch -> h:(;ki)history{SeqN(ki,h) = 0}
+private val consHistory: ki:epoch -> h:(;ki)prehistory ->
 	ad:(;ki)data -> r:range -> x:(;ki,r)Fragment.fragment -> 
         h':(;ki)prehistory{h' = ConsHistory(h,ad,r,x)}
 // This function will assume History
-val addToHistory: ki:KeyInfo -> h:(;ki)history ->
+val addToHistory: ki:epoch -> h:(;ki)history ->
 	ad:(;ki)data -> r:range -> x:(;ki,h,ad,r)fragment ->
 	h':(;ki)history{SeqN(ki,h') = SeqN(ki,h)+1}
 
-function val MakeAD:  ki:KeyInfo * (;ki)history * (;ki)data -> bytes//(;ki)AEADPlain.data
+function val MakeAD:  ki:epoch * (;ki)history * (;ki)data -> bytes//(;ki)AEADPlain.data
 assume !ki,h,ad. MakeAD(ki,h,ad) = IntBytes(8,SeqN(ki,h)) @| ad
 
-val makeAD:  ki:KeyInfo -> h:(;ki)history -> ad:(;ki)data ->
+val makeAD:  ki:epoch -> h:(;ki)history -> ad:(;ki)data ->
 	b:(;ki)AEADPlain.data{b=MakeAD(ki,h,ad)}
 
-val fragment: ki:KeyInfo{not Auth(ki)} -> hh:(;ki)history -> ad:(;ki)data -> r:range -> (;r)rbytes -> (;ki,hh,ad,r) fragment
-val repr: ki:KeyInfo{not Auth(ki)} -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;ki,h,ad,r) fragment -> (;r)rbytes
+val fragment: ki:epoch{not Auth(ki)} -> hh:(;ki)history -> ad:(;ki)data -> r:range -> (;r)rbytes -> (;ki,hh,ad,r) fragment
+val repr: ki:epoch{not Auth(ki)} -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;ki,h,ad,r) fragment -> (;r)rbytes
 
-val contents:  ki:KeyInfo -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;ki,h,ad,r)fragment ->
+val contents:  ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;ki,h,ad,r)fragment ->
 	x:(;ki,r)Fragment.fragment{Auth(ki) => Fragment(ki,h,ad,r,x)}
-val construct: ki:KeyInfo -> h:(;ki)history -> ad:(;ki)data -> r:range ->
+val construct: ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range ->
 	x:(;ki,r)Fragment.fragment{Auth(ki) => Fragment(ki,h,ad,r,x)} -> (;ki,h,ad,r)fragment
 
-val FragmentToAEADPlain: ki:KeyInfo -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;ki,h,ad,r)fragment ->
+val FragmentToAEADPlain: ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;ki,h,ad,r)fragment ->
 	(;ki,r,MakeAD(ki,h,ad))AEADPlain.AEADPlain
 
-val AEADPlainToFragment: ki:KeyInfo -> h:(;ki)history -> ad:(;ki)data -> r:range ->
+val AEADPlainToFragment: ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range ->
 	(;ki,r,MakeAD(ki,h,ad))AEADPlain.AEADPlain -> (;ki,h,ad,r)fragment
 
 assume !ki,ad,r,x. AEADPlain.AEADSays(ki,r,ad,x) <=> ?h,ad'. ad = MakeAD(ki,h,ad') /\ History(ki,h) /\ Fragment(ki,h,ad',r,x)

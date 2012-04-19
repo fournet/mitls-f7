@@ -5,27 +5,18 @@ open Certificate
 open CipherSuites
 
 type sessionID = bytes
-
-type preDirection =
-    | CtoS
-    | StoC
-type Direction = preDirection
-
 type preRole =
     | Client
     | Server
 type Role = preRole
 
-//val dualDirection: Direction -> Direction
-
-(* SessionInfo and KeyInfo: Session and Connection level public immutable data.
+(* SessionInfo and epoch: Session and Connection level public immutable data.
    Used for indexing *)
 
 type SessionInfo = {
     clientID: cert option;
     serverID: cert option;
     sessionID: sessionID option;
-    (* prev_sid: sessionID option; Pointer to the previous session over the same connection *)
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;
     compression: Compression;
@@ -33,23 +24,34 @@ type SessionInfo = {
     init_srand: bytes
     }
 
-type KeyInfo = {
-    sinfo: SessionInfo;
-    dir: Direction;
-    crand: bytes;
-    srand: bytes;
-    (* cVerifyData: bytes
-    sVerifyData: bytes *)
-    }
+type preEpoch
+type epoch = preEpoch
 
+val epochSI: epoch -> SessionInfo
+val epochSRand: epoch -> bytes
+val epochCRand: epoch -> bytes
+
+//type epoch = {
+//    sinfo: SessionInfo;
+//    dir: Direction;
+//    crand: bytes;
+//    srand: bytes;
+//    (* cVerifyData: bytes
+//    sVerifyData: bytes *)
+//    }
+
+// Role is of the writer
 type ConnectionInfo =
-    { id_in:  KeyInfo;
-      id_out: KeyInfo}
+    { role: Role;
+      id_in:  epoch;
+      id_out: epoch}
+val connectionRole: ConnectionInfo -> Role
 
 val null_sessionInfo: ProtocolVersion -> SessionInfo
 val isNullSessionInfo: SessionInfo -> bool
-val null_KeyInfo: Direction -> ProtocolVersion -> KeyInfo
-val dual_KeyInfo: KeyInfo -> KeyInfo
+val initConnection: Role -> bytes -> ConnectionInfo
+val nextConnection: ConnectionInfo -> bytes -> bytes -> SessionInfo -> ConnectionInfo
+//val dual_KeyInfo: epoch -> epoch
 
 // Application configuration options
 type helloReqPolicy =

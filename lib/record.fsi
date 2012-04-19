@@ -15,16 +15,16 @@ type ConnectionState
 type sendState = ConnectionState
 type recvState = ConnectionState
 
-val initConnState: KeyInfo -> StatefulAEAD.state -> ConnectionState
-val nullConnState: KeyInfo -> ConnectionState
+val initConnState: epoch -> StatefulAEAD.state -> ConnectionState
+val nullConnState: epoch -> ConnectionState
 
 //val parseHeader: bytes -> (ContentType * ProtocolVersion * int) Result
 
 val headerLength: bytes -> int Result
 
 // CF do some uniform renaming, e.g. s/Out/Send/
-val recordPacketOut: KeyInfo -> sendState -> DataStream.range -> ContentType -> TLSFragment.fragment -> (sendState * bytes)
-val recordPacketIn : KeyInfo -> recvState -> bytes -> (recvState * ContentType * ProtocolVersion * DataStream.range * TLSFragment.fragment) Result
+val recordPacketOut: epoch -> sendState -> ProtocolVersion -> DataStream.range -> ContentType -> TLSFragment.fragment -> (sendState * bytes)
+val recordPacketIn : epoch -> recvState -> bytes -> (recvState * ContentType * ProtocolVersion * DataStream.range * TLSFragment.fragment) Result
 
 (* val dataAvailable: recvState -> bool Result *)
 (* val coherentrw: SessionInfo -> recvState -> sendState -> bool *)

@@ -34,13 +34,13 @@ let ssl_prf secret seed nb =
   apply_prf (Array.zeroCreate 0) 0
     
 
-let ssl_verifyData ms dir data =
+let ssl_verifyData ms role data =
     let ssl_sender_client = [|0x43uy; 0x4Cuy; 0x4Euy; 0x54uy|] in
     let ssl_sender_server = [|0x53uy; 0x52uy; 0x56uy; 0x52uy|] in
     let ssl_sender = 
-        match dir with
-        | CtoS -> ssl_sender_client 
-        | StoC -> ssl_sender_server
+        match role with
+        | Client -> ssl_sender_client 
+        | Server -> ssl_sender_server
     let mm = data @| ssl_sender @| ms in
     let inner_md5 = hash MD5 (mm @| ssl_pad1_md5) in
     let outer_md5 = hash MD5 (ms @| ssl_pad2_md5 @| inner_md5) in
@@ -88,8 +88,8 @@ let tls_prf secret label seed len =
 let tls_verifyData ms role data =
     let tls_label = 
         match role with
-        | CtoS -> "client finished"
-        | StoC -> "server finished"
+        | Client -> "client finished"
+        | Server -> "server finished"
     let md5hash = hash MD5 data in
     let sha1hash = hash SHA data in
     tls_prf ms tls_label (md5hash @| sha1hash) 12
@@ -100,11 +100,11 @@ let tls12prf cs secret label seed len =
     let newseed = (utf8 label) @| seed in
     p_hash prfHashAlg secret newseed len
 
-let tls12VerifyData cs ms dir data =
+let tls12VerifyData cs ms role data =
     let tls_label = 
-        match dir with
-        | CtoS -> "client finished"
-        | StoC -> "server finished"
+        match role with
+        | Client -> "client finished"
+        | Server -> "server finished"
     let verifyDataHashAlg = verifyDataHashAlg_of_ciphersuite cs in
     let hashResult = hash verifyDataHashAlg data in
     let verifyDataLen = verifyDataLen_of_ciphersuite cs in
@@ -122,15 +122,15 @@ let generic_prf pv cs secret label data len =
 
 (* High-level prf functions -- implement interface *)
 
-let prfVerifyData ki (ms:masterSecret) data =
-  let pv = ki.sinfo.protocol_version in
+let prfVerifyData si role (ms:masterSecret) data =
+  let pv = si.protocol_version in
   match pv with 
-  | SSL_3p0 -> ssl_verifyData ms.bytes ki.dir data
+  | SSL_3p0 -> ssl_verifyData ms.bytes role data
   | TLS_1p0 | TLS_1p1 -> 
-    tls_verifyData ms.bytes ki.dir data
+    tls_verifyData ms.bytes role data
   | TLS_1p2 ->
-    let cs = ki.sinfo.cipher_suite in
-    tls12VerifyData cs ms.bytes ki.dir data
+    let cs = si.cipher_suite in
+    tls12VerifyData cs ms.bytes role data
 
 type preMasterSecret = {bytes:bytes}
 
@@ -183,31 +183,35 @@ let prfMS sinfo pms: masterSecret =
 
 type keyBlob = {bytes:bytes}
 
-let prfKeyExp ki (ms:masterSecret) =
-    let pv = ki.sinfo.protocol_version in
-    let cs = ki.sinfo.cipher_suite in
-    let data = ki.srand @| ki.crand in
+let prfKeyExp ci (ms:masterSecret) =
+    let si = epochSI(ci.id_in) in
+    let pv = si.protocol_version in
+    let cs = si.cipher_suite in
+    let srand = epochSRand ci.id_in in
+    let crand = epochCRand ci.id_in in
+    let data = srand @| crand in
     let len = getKeyExtensionLength pv cs in
     let res = generic_prf pv cs ms.bytes "key expansion" data len in
     {bytes = res}
     
-let splitStates outKi (blob:keyBlob) =
-    let cs = outKi.sinfo.cipher_suite in
+let splitStates ci (blob:keyBlob) =
+    let si = epochSI(ci.id_in) in
+    let cs = si.cipher_suite in
     match cs with
     | x when isOnlyMACCipherSuite x ->
         let macKeySize = macKeySize (macAlg_of_ciphersuite cs) in
         let key_block = blob.bytes in
         let cmkb = Array.sub key_block 0 macKeySize in
         let smkb = Array.sub key_block macKeySize macKeySize in
-        let ck = StatefulAEAD.COERCE outKi cmkb in
-        let sk = StatefulAEAD.COERCE (dual_KeyInfo outKi) smkb in
+        let ck = StatefulAEAD.COERCE ci.id_out cmkb in
+        let sk = StatefulAEAD.COERCE ci.id_in smkb in
         (ck,sk)
     | _ ->
         let macKeySize = macKeySize (macAlg_of_ciphersuite cs) in
         let encKeySize = encKeySize (encAlg_of_ciphersuite cs) in
         let ivsize = 
-            if PVRequiresExplicitIV outKi.sinfo.protocol_version then 0
-            else ivSize (encAlg_of_ciphersuite outKi.sinfo.cipher_suite)
+            if PVRequiresExplicitIV si.protocol_version then 0
+            else ivSize (encAlg_of_ciphersuite si.cipher_suite)
         let key_block = blob.bytes in
         let cmkb = Array.sub key_block 0 macKeySize in
         let smkb = Array.sub key_block macKeySize macKeySize in
@@ -215,8 +219,8 @@ let splitStates outKi (blob:keyBlob) =
         let sekb = Array.sub key_block (2*macKeySize+encKeySize) encKeySize in
         let civb = Array.sub key_block (2*macKeySize+2*encKeySize) ivsize in
         let sivb = Array.sub key_block (2*macKeySize+2*encKeySize+ivsize) ivsize in
-        let ck = StatefulAEAD.COERCE outKi (cmkb @| cekb @| civb) in
-        let sk = StatefulAEAD.COERCE (dual_KeyInfo outKi) (smkb @| sekb @| sivb) in
+        let ck = StatefulAEAD.COERCE ci.id_out (cmkb @| cekb @| civb) in
+        let sk = StatefulAEAD.COERCE ci.id_in (smkb @| sekb @| sivb) in
         (ck,sk)
 
 (*  | x when IsGCM x -> ... *)

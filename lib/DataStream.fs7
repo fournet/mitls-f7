@@ -19,7 +19,7 @@ private assume !l0,h0,l1,h1. Sum((l0,h0),(l1,h1)) = (l0+l1,h0+h1)
 val rangeSum: r0:range -> r1:range -> r:range{r = Sum(r0,r1)}
 val min: a:int -> b:int -> c:int{(a<=b /\ c=a) \/ (a>b /\ c=b)}
 val max: a:int -> b:int -> c:int{(a>=b /\ c=a) \/ (a<b /\ c=b)}
-val splitRange: ki:KeyInfo -> r:range{?l,h. r = (l,h) /\ h > 0} -> (r0:range * r1:range){r = Sum(r0,r1)} 
+val splitRange: ki:epoch -> r:range{?l,h. r = (l,h) /\ h > 0} -> (r0:range * r1:range){r = Sum(r0,r1)} 
 (* first range should fit in a fragment: FitsInFrag(ki,fragmentLength,r0)? *)
 
 // Bytestreams:
@@ -30,39 +30,39 @@ val splitRange: ki:KeyInfo -> r:range{?l,h. r = (l,h) /\ h > 0} -> (r0:range * r
 // used only as a ghost index:
 // streams have are no destructors, so they do not leak secrets
 // their logical definition is needed for authentication in application code.
-private type (;ki:KeyInfo) stream = {sb:bytes list}
+private type (;ki:epoch) stream = {sb:bytes list}
 
 // the implementation of this type is application-specific 
 // but it must provide the following functions to TLS
-private type (;ki:KeyInfo, h:(;ki)stream, r:range) delta = {contents: (;r) rbytes}
+private type (;ki:epoch, h:(;ki)stream, r:range) delta = {contents: (;r) rbytes}
 
-predicate EmptyStream of ki:KeyInfo * (;ki) stream 
-// function val EmptyStream:  ki:KeyInfo -> (;ki) stream // AP: F7 issue with records as single argument of a function. Do not use this function, use the predicate instead.
+predicate EmptyStream of ki:epoch * (;ki) stream 
+// function val EmptyStream:  ki:epoch -> (;ki) stream // AP: F7 issue with records as single argument of a function. Do not use this function, use the predicate instead.
 function val ExtendStream: 'a * 'b * 'c * 'd -> 'e
 private assume !ki,s. EmptyStream(ki,s) <=> s = {sb = [] }
 private assume !ki,s,r,d. ExtendStream(ki,s,r,d) = {sb = d.contents :: s.sb } 
 
-val init: ki:KeyInfo -> s:(;ki) stream{EmptyStream(ki,s)}
+val init: ki:epoch -> s:(;ki) stream{EmptyStream(ki,s)}
 
 private val createDelta: 
-  ki:KeyInfo -> s:(;ki) stream -> r:range -> 
+  ki:epoch -> s:(;ki) stream -> r:range -> 
   b:(;r) rbytes -> c: (;ki,s,r) delta  
 
 val deltaPlain: 
-  ki:KeyInfo{not Auth(ki)} -> s:(;ki) stream -> r:range -> 
+  ki:epoch{not Auth(ki)} -> s:(;ki) stream -> r:range -> 
   b:(;r) rbytes -> c: (;ki,s,r) delta  
 val deltaRepr: 
-  ki:KeyInfo{not Auth(ki)} -> s:(;ki) stream -> r:range -> 
+  ki:epoch{not Auth(ki)} -> s:(;ki) stream -> r:range -> 
   c: (;ki,s,r) delta -> (;r) rbytes
 
 val append: 
-  ki:KeyInfo -> s: (;ki) stream -> r:range ->
+  ki:epoch -> s: (;ki) stream -> r:range ->
   d:(;ki,s,r) delta -> s':(;ki) stream{s' = ExtendStream(ki,s,r,d)}
-val split: ki:KeyInfo -> s:(;ki) stream -> 
+val split: ki:epoch -> s:(;ki) stream -> 
   r0:range -> r1:range -> d:(;ki,s,Sum(r0,r1)) delta -> 
   (d0:(;ki,s,r0) delta * d1:(;ki,ExtendStream(ki,s,r0,d0),r1) delta)
 
 //CF no need for join for now (as we do not buffer incoming fragments)
-val join: ki:KeyInfo -> s:(;ki) stream -> 
+val join: ki:epoch -> s:(;ki) stream -> 
   r0:range -> d0:(;ki,s,r0) delta -> 
   r1:range -> d1:(;ki,ExtendStream(ki,s,r0,d0),r1) delta -> (;ki,s,Sum(r0,r1)) delta

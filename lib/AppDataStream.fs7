@@ -5,15 +5,15 @@ open Bytes
 open Error
 open DataStream
 
-type (;ki:KeyInfo) buffer = {
+type (;ki:epoch) buffer = {
 	// AP: I don't understand the duplication of stream, and data: stream * ...
 	// Maybe it's not useful anymore
   stream: (;ki) stream;
   data: h:(;ki) stream * (r:range * (;ki,h,r) delta) option;
 }
 
-type (;ki:KeyInfo) input_buffer = (;ki) buffer
-type (;ki:KeyInfo) output_buffer = (;ki) buffer
+type (;ki:epoch) input_buffer = (;ki) buffer
+type (;ki:epoch) output_buffer = (;ki) buffer
 
 type (;ci:ConnectionInfo) app_state = {
     app_incoming: (;ci.id_in) input_buffer;
@@ -24,20 +24,20 @@ function val OutStream: c:ConnectionInfo * (;c) app_state -> bytes
 function val InStream: c:ConnectionInfo * (;c) app_state -> bytes
 
 // The top level predicate, to be defined or assumed by the application
-function val AppData: KeyInfo * stream * range * delta * bytes
+function val AppData: epoch * stream * range * delta * bytes
 
-val repr: ki:KeyInfo{not Safe(ki)} -> s:stream -> r:range -> (;ki,s,r)delta -> bytes
-val fragment: ki:KeyInfo{not Safe(ki)} -> s:stream -> r:range -> bytes -> (;ki,s,r)delta
+val repr: ki:epoch{not Safe(ki)} -> s:stream -> r:range -> (;ki,s,r)delta -> bytes
+val fragment: ki:epoch{not Safe(ki)} -> s:stream -> r:range -> bytes -> (;ki,s,r)delta
 
 
 
 // AP: Begin old implementation
 
 // Maybe deprecated, anyway, implemented by functions in DataStream
-// predicate EmptyStream of KeyInfo * stream
-// predicate ConcatStream of KeyInfo * stream * fragment * stream
-// val emptyStream: ki:KeyInfo -> s:(;ki)stream{EmptyStream(ki,s)}
-// val addFragment: ki:KeyInfo -> s:(;ki)stream -> 
+// predicate EmptyStream of epoch * stream
+// predicate ConcatStream of epoch * stream * fragment * stream
+// val emptyStream: ki:epoch -> s:(;ki)stream{EmptyStream(ki,s)}
+// val addFragment: ki:epoch -> s:(;ki)stream -> 
 //                  r:DataStream.range -> f:(;ki,s,r) fragment -> 
 //                  s':(;ki)stream{ConcatStream(ki,s,f,s')}
 
@@ -46,7 +46,7 @@ val fragment: ki:KeyInfo{not Safe(ki)} -> s:stream -> r:range -> bytes -> (;ki,s
    AppFragment, AppDataSequenceNo, and NonAppDataSequenceNo are assumed 
 
 theorem !ki,tlen,seqn,b. AppDataFragment(ki,tlen,seqn,b) =>
-  (seqn >= 0 /\ CompatibleLengths(ki.sinfo,Length(b),[tlen]) /\ AppDataSequenceNo(ki,seqn) /\
+  (seqn >= 0 /\ CompatibleLengths(epochSI(ki),Length(b),[tlen]) /\ AppDataSequenceNo(ki,seqn) /\
      (?d. ValidAppDataStream(ki,d @| b) /\
 	  AppDataFragmentSequence(ki,seqn - 1,d)))
 theorem !ki,seqn. AppDataSequenceNo(ki,seqn) => (not NonAppDataSequenceNo(ki,seqn))
@@ -56,15 +56,15 @@ theorem !ki,tlen,seqn,b,tlen',b'. AppDataFragment(ki,tlen,seqn,b) /\ AppDataFrag
 //theorem !ki,seqn,d,d'. AppDataFragmentSequence(ki,seqn,d) /\ AppDataFragmentSequence(ki,seqn,d') => d = d'
 
 (*
-val fragment: ki:KeyInfo -> tlen:int -> seqn:int -> 
+val fragment: ki:epoch -> tlen:int -> seqn:int -> 
   b:bytes{AppDataFragment(ki,tlen,seqn,b) \/ Corrupt(ki)} -> (;ki,tlen,seqn) fragment
 
-private val mkFragment: ki:KeyInfo -> tlen:int -> seqn:int ->
+private val mkFragment: ki:epoch -> tlen:int -> seqn:int ->
   b:bytes{Corrupt(ki) \/ (seqn >= 0 /\ AppDataSequenceNo(ki,seqn) /\ 
 	    (?d. ValidAppDataStream(ki,d @| b) /\ AppDataFragmentSequence(ki,seqn-1,d)))} ->
           (;ki,tlen,seqn) fragment{AppDataFragment(ki,tlen,seqn,b)}
 
-val repr: ki:KeyInfo -> tlen:int -> seqn:int -> (;ki,tlen,seqn) fragment -> 
+val repr: ki:epoch -> tlen:int -> seqn:int -> (;ki,tlen,seqn) fragment -> 
           b:bytes{Corrupt(ki) \/ AppDataFragment(ki,tlen,seqn,b)}
 
 val writeAppDataBytes: c:ConnectionInfo -> 

@@ -49,12 +49,12 @@ val start_hs_request:  ci:ConnectionInfo -> (;ci)hs_state -> protocolOptions -> 
 //TODO provide support for indexing fragments (probably by directed si, not ki)
 
 
-type (;ki:KeyInfo,seqn:int) HSFragReply =
+type (;ki:epoch,seqn:int) HSFragReply =
   | EmptyHSFrag              (* nothing to send *) 
   | HSFrag of                (tlen:DataStream.range * (;ki,tlen,seqn)fragment)
-  | CCSFrag of               (tlen:DataStream.range * (;ki,tlen,seqn)ccsFragment) (* the unique one-byte CCS *) * (newKI:KeyInfo * (;newKI)Record.ConnectionState)
+  | CCSFrag of               (tlen:DataStream.range * (;ki,tlen,seqn)ccsFragment) (* the unique one-byte CCS *) * (newKI:epoch * (;newKI)Record.ConnectionState)
   | HSWriteSideFinished of   (tlen:DataStream.range * (;ki,tlen,seqn)fragment) (* signalling that this fragment ends the finished message *)
-  | HSFullyFinished_Write of (tlen:DataStream.range * (;ki,tlen,seqn)fragment) * ((si:SessionInfo * (;si)PRFs.masterSecret * Direction){si=ki.sinfo})
+  | HSFullyFinished_Write of (tlen:DataStream.range * (;ki,tlen,seqn)fragment) * ((si:SessionInfo * (;si)PRFs.masterSecret * Direction){si=epochSI(ki)})
 val next_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)hs_state -> (;ci.id_out,seqn)HSFragReply * (;ci)hs_state
 
 (* Receiving Handshake and CCS fragments *) 
@@ -65,5 +65,5 @@ type (;si:SessionInfo)recv_reply = (* the fragment is accepted, and... *)
   | HSReadSideFinished (* ? *) 
   | HSFullyFinished_Read of ((si':SessionInfo * (;si')PRFs.masterSecret * Direction){si=si'}) (* we can start sending data on the connection *)  
 val recv_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)hs_state -> tlen:DataStream.range -> (;ci.id_in,tlen,seqn)fragment -> (;ci.id_in.sinfo)recv_reply Result * (;ci)hs_state
-val recv_ccs     : ci:ConnectionInfo -> seqn:int -> (;ci)hs_state -> tlen:DataStream.range -> (;ci.id_in,tlen,seqn)ccsFragment -> ((newKI:KeyInfo * (;newKI)Record.ConnectionState) Result) * (;ci)hs_state
+val recv_ccs     : ci:ConnectionInfo -> seqn:int -> (;ci)hs_state -> tlen:DataStream.range -> (;ci.id_in,tlen,seqn)ccsFragment -> ((newKI:epoch * (;newKI)Record.ConnectionState) Result) * (;ci)hs_state
 

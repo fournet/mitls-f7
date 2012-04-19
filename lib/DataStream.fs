@@ -23,7 +23,8 @@ let max (a:nat) (b:nat) =
 
 let splitRange ki r =
     let (l,h) = r in
-    let padSize = CipherSuites.maxPadSize ki.sinfo.protocol_version ki.sinfo.cipher_suite in
+    let si = epochSI(ki) in
+    let padSize = CipherSuites.maxPadSize si.protocol_version si.cipher_suite in
     if padSize = 0 then
         if l <> h then
             unexpectedError "[splitRange] invalid argument"
@@ -50,21 +51,21 @@ let splitRange ki r =
 type stream = {sb: bytes list}
 type delta = {contents: rbytes}
 
-let createDelta (ki:KeyInfo) (s:stream) (r:range) (b:bytes) =
+let createDelta (ki:epoch) (s:stream) (r:range) (b:bytes) =
     {contents = b}
 
-let deltaPlain (ki:KeyInfo) (s:stream) (r:range) (b:rbytes) = {contents = b}
-let deltaRepr (ki:KeyInfo) (s:stream) (r:range) (d:delta) = d.contents
+let deltaPlain (ki:epoch) (s:stream) (r:range) (b:rbytes) = {contents = b}
+let deltaRepr (ki:epoch) (s:stream) (r:range) (d:delta) = d.contents
 
 // ghost
-type es = EmptyStream of KeyInfo
+type es = EmptyStream of epoch
 
-let init (ki:KeyInfo) = {sb = []}
+let init (ki:epoch) = {sb = []}
 
-let append (ki:KeyInfo) (s:stream) (r:range) (d:delta) = 
+let append (ki:epoch) (s:stream) (r:range) (d:delta) = 
   {sb = d.contents :: s.sb}
 
-let split (ki:KeyInfo) (s:stream)  (r0:range) (r1:range) (d:delta) = 
+let split (ki:epoch) (s:stream)  (r0:range) (r1:range) (d:delta) = 
   // we put as few bytes as we can in b0, 
   // to prevent early processing of split fragments
   let (l0,_) = r0
@@ -74,7 +75,7 @@ let split (ki:KeyInfo) (s:stream)  (r0:range) (r1:range) (d:delta) =
   let (sb0,sb1) = Bytes.split d.contents n0
   ({contents = sb0},{contents = sb1})
 
-let join (ki:KeyInfo) (s:stream)  (r0:range) (d0:delta) (r1:range) (d1:delta) = 
+let join (ki:epoch) (s:stream)  (r0:range) (d0:delta) (r1:range) (d1:delta) = 
   let r = rangeSum r0 r1 //CF: ghost computation to help Z3 
   let sb = d0.contents @| d1.contents in
   {contents = sb}

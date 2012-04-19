@@ -4,8 +4,8 @@ open TLSInfo
 open DataStream
 
 type fragment
-val fragment: KeyInfo -> stream -> range -> delta -> fragment * stream
-val delta: KeyInfo -> stream -> range -> fragment -> delta * stream
+val fragment: epoch -> stream -> range -> delta -> fragment * stream
+val delta: epoch -> stream -> range -> fragment -> delta * stream
 
-val fragmentRepr: KeyInfo -> range -> fragment -> bytes
-val fragmentPlain: KeyInfo -> range -> bytes -> fragment
+val fragmentRepr: epoch -> range -> fragment -> bytes
+val fragmentPlain: epoch -> range -> bytes -> fragment
