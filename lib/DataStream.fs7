@@ -32,18 +32,19 @@ val splitRange: ki:KeyInfo -> r:range{?l,h. r = (l,h) /\ h > 0} -> (r0:range * r
 // their logical definition is needed for authentication in application code.
 private type (;ki:KeyInfo) stream = {sb:bytes}
 
-//CF: was: predicate EmptyStream of ki:KeyInfo * (;ki) stream 
-function val EmptyStream:  ki:KeyInfo -> (;ki) stream 
+// the implementation of this type is application-specific 
+// but it must provide the following functions to TLS
+private type (;ki:KeyInfo, h:(;ki)stream, r:range) delta = {contents: (;r) rbytes}
+
+predicate EmptyStream of ki:KeyInfo * (;ki) stream 
+// function val EmptyStream:  ki:KeyInfo -> (;ki) stream // AP: F7 issue with records as single argument of a function. Do not use this function, use the predicate instead.
 function val ExtendStream: 'a * 'b * 'c * 'd -> 'e
-private assume !ki,s.            EmptyStream(ki) = {sb = [||] }
+private assume !ki,s. EmptyStream(ki,s) <=> s = {sb = [||] }
 private assume !ki,s,r,d. ExtendStream(ki,s,r,d) = {sb = s.sb @| d.contents } 
 //CF: so far no need to track the size of d in streams. 
 
 val init: ki:KeyInfo -> s:(;ki) stream{EmptyStream(ki,s)}
 
-// the implementation of this type is application-specific 
-// but it must provide the following functions to TLS
-private type (;ki:KeyInfo, h:(;ki)stream, r:range) delta = {contents: (;r) rbytes}
 private val createDelta: 
   ki:KeyInfo -> s:(;ki) stream -> r:range -> 
   b:(;r) rbytes -> c: (;ki,s,r) delta  
