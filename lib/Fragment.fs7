@@ -26,7 +26,7 @@ val delta': ki:KeyInfo -> s:(;ki) stream -> r:range ->
   d:(;ki,s,r) delta * s':(;ki) stream{s' = ExtendStream(ki,s,r,d)}
 
 val fragmentPlain: ki:KeyInfo{not Auth(ki)} -> r:range -> (;r) rbytes -> (;ki,r) fragment
-val fragmentRepr:  ki:KeyInfo{not Safe(ki)} -> r:range -> (;ki,r) fragment -> (;r) rbytes
+val fragmentRepr:  ki:KeyInfo{not Auth(ki)} -> r:range -> (;ki,r) fragment -> (;r) rbytes
 
 //CF: This is *not* valid because of empty fragments; 
 // instead we may have to record in stream a sequence of bytes, rather than their concatenation.

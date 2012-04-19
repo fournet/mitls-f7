@@ -49,10 +49,10 @@ private val createDelta:
   b:(;r) rbytes -> c: (;ki,s,r) delta  
 
 val deltaPlain: 
-  ki:KeyInfo{not Safe(ki)} -> s:(;ki) stream -> r:range -> 
+  ki:KeyInfo{not Auth(ki)} -> s:(;ki) stream -> r:range -> 
   b:(;r) rbytes -> c: (;ki,s,r) delta  
 val deltaRepr: 
-  ki:KeyInfo{not Safe(ki)} -> s:(;ki) stream -> r:range -> 
+  ki:KeyInfo{not Auth(ki)} -> s:(;ki) stream -> r:range -> 
   c: (;ki,s,r) delta -> (;r) rbytes
 
 val append: 

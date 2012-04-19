@@ -24,6 +24,3 @@ val construct: KeyInfo -> history -> data -> range -> Fragment.fragment -> fragm
 
 val FragmentToAEADPlain: KeyInfo -> history -> data -> range -> fragment -> AEADPlain
 val AEADPlainToFragment: KeyInfo -> history -> data -> range -> AEADPlain -> fragment
-
-//val TLSFragmentToFragment: KeyInfo -> ContentType -> history -> TLSFragment.history -> range -> TLSFragment.fragment -> fragment
-//val fragmentToTLSFragment: KeyInfo -> ContentType -> history -> TLSFragment.history -> range -> fragment -> TLSFragment.fragment

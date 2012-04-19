@@ -21,12 +21,12 @@ type fragment =
     | FAlert of Fragment.fragment // Alert.fragment
     | FAppData of Fragment.fragment // AppDataStream.fragment
 
-let emptyHistory ki = {
-  handshake = init ki // HandshakePlain.emptyStream ki;
-  alert = init ki // AlertPlain.emptyStream ki;
-  ccs = init ki // HandshakePlain.emptyStream ki;
-  appdata = init ki // AppDataStream.emptyStream ki;
-}
+let emptyHistory ki =
+    let eh = init ki in
+    { handshake = eh;
+      alert = eh;
+      ccs = eh;
+      appdata = eh}
 
 let addToStreams (ki:KeyInfo) ct ss r f =
     match (ct,f) with

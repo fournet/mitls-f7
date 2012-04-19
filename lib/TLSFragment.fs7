@@ -8,36 +8,37 @@ open DataStream
 
 // Plain type for Dispatch and Record
 private type (;ki:KeyInfo) history = {
-  handshake: (;ki) stream // HandshakePlain.stream;
-  alert: (;ki) stream // AlertPlain.stream;
-  ccs: (;ki) stream // HandshakePlain.stream;
+  handshake: (;ki) stream; // HandshakePlain.stream;
+  alert: (;ki) stream; // AlertPlain.stream;
+  ccs: (;ki) stream; // HandshakePlain.stream;
   appdata: (;ki) stream // AppDataStream.stream;
   }
 
-function val EmptyStreams: ki:KeyInfo -> (;ki)history -> bool
+predicate EmptyStreams of ki:KeyInfo * (;ki)history
+private assume !ki,h. EmptyStreams(ki,h) <=>
+	( EmptyStream(ki,h.handshake) /\ EmptyStream(ki,h.alert) /\
+	  EmptyStream(ki,h.ccs)       /\ EmptyStream(ki,h.appdata) )
+
 val emptyHistory: ki:KeyInfo -> h:(;ki)history{EmptyStreams(ki,h)}
 
 type (;ki:KeyInfo,ct:ContentType,h:(;ki) history,rg:range) fragment =
-    | FHandshake of f:(;ki,rg)Fragment.fragment{ct=Formats.Handshake  /\ DeltaFragment(ki,h.handshake,rg,f)}
-    | FCCS       of f:(;ki,rg)Fragment.fragment{ct=Formats.Change_cipher_spec  /\ DeltaFragment(ki,h.ccs,rg,f)}
-    | FAlert     of f:(;ki,rg)Fragment.fragment{ct=Formats.Alert  /\ DeltaFragment(ki,h.alert,rg,f)}
-    | FAppData   of f:(;ki,rg)Fragment.fragment{ct=Formats.Application_data  /\ DeltaFragment(ki,h.appdata,rg,f)}
+    | FHandshake of f:(;ki,rg)Fragment.fragment{ct=Formats.Handshake  /\ Fragment.Fragment(ki,h.handshake,rg,f)}
+    | FCCS       of f:(;ki,rg)Fragment.fragment{ct=Formats.Change_cipher_spec  /\ Fragment.Fragment(ki,h.ccs,rg,f)}
+    | FAlert     of f:(;ki,rg)Fragment.fragment{ct=Formats.Alert  /\ Fragment.Fragment(ki,h.alert,rg,f)}
+    | FAppData   of f:(;ki,rg)Fragment.fragment{ct=Formats.Application_data  /\ Fragment.Fragment(ki,h.appdata,rg,f)}
 
-function val ConsStream: ki:KeyInfo * ContentType * (;ki)history * 'a -> history
+function val ConsStream: ki:KeyInfo * ct:ContentType * ss:(;ki)history * r:range * (;ki,ct,ss,r)fragment -> 'a //(;ki)history
 val addToStreams: ki:KeyInfo -> ct:ContentType -> ss:(;ki)history -> r:range ->
-	f:(;ki,ct,ss,r)fragment -> ss':(;ki)history{ss' = ConsStream(ki,ct,ss,f)}
+	f:(;ki,ct,ss,r)fragment -> ss':(;ki)history{ss' = ConsStream(ki,ct,ss,r,f)}
 
 
-val fragmentRepr: ki:KeyInfo -> ct:ContentType -> h: (;ki) history -> rg:range ->
+val fragmentRepr: ki:KeyInfo{not Auth(ki)} -> ct:ContentType -> h: (;ki) history -> rg:range ->
   (;ki,ct,h,rg)fragment -> bytes
 
-val fragmentPlain: ki:KeyInfo -> ct:ContentType -> h: (;ki) history -> rg:range ->
-  bytes -> (;ki,ct,h,rg)fragment 
+val fragmentPlain: ki:KeyInfo{not Auth(ki)} -> ct:ContentType -> h: (;ki) history -> rg:range ->
+  (;rg)rbytes -> (;ki,ct,h,rg)fragment 
 
-// Additional Data
-type (;ki:KeyInfo) addData = (b:bytes){Length(b) = ADLength(ki,ki) - 8}
-
-function val ADBytes: (KeyInfo * ContentType) -> bytes
+function val ADBytes: (KeyInfo * ContentType) -> bytes //(;ki)StatefulPlain.data
 assume !ki,ct.
 	( ki.sinfo.protocol_version = SSL_3p0 /\
 	  ADBytes(ki,ct) =
@@ -46,76 +47,28 @@ assume !ki,ct.
           ADBytes(ki,ct) =
 		(CTBytes(ct) @| VersionBytes(ki.sinfo.protocol_version)))
 
-ask !ki,ct. Length(ADBytes(ki,ct)) = (ADLength(ki,ki) - 8)
+ask !ki,ct. Length(ADBytes(ki,ct)) = (AEPlain.ADLength(ki,ki) - 8)
 
 private val makeAD: ki:KeyInfo -> ct:ContentType ->
-	  ad: (;ki)addData{ad=ADBytes(ki,ct)}
+	  ad: (;ki)StatefulPlain.data{ad=ADBytes(ki,ct)}
 
-//private val parseAD: ki:KeyInfo -> 
-//          ad: (;ki)addData -> 
-//          ct:ContentType{ad=ADBytes(ki,ct)}
-
-
-function val Multiplexed: KeyInfo * history -> bool
-
-assume !ki,h,d. ConsStream(ki,Formats.Handshake,h,d) =
-	 { handshake = ExtendStream(ki,h.handshake,d);
+private assume !ki,h,r,d. ConsStream(ki,Formats.Handshake,h,r,d) =
+	 { handshake = ExtendStream(ki,h.handshake,r,d);
 	   alert = h.alert;
 	   ccs = h.ccs;
 	   appdata = h.appdata}
-assume !ki,h,d. ConsStream(ki,Formats.Alert,h,d) =
+private assume !ki,h,r,d. ConsStream(ki,Formats.Alert,h,r,d) =
 	 { handshake = h.handshake;
-	   alert = ExtendStream(ki,h.alert,d);
+	   alert = ExtendStream(ki,h.alert,r,d);
 	   ccs = h.ccs;
 	   appdata = h.appdata}
-assume !ki,h,d. ConsStream(ki,Formats.Change_cipher_spec,h,d) =  
+private assume !ki,h,r,d. ConsStream(ki,Formats.Change_cipher_spec,h,r,d) =  
 	 { handshake = h.handshake;
 	   alert = h.alert;
-	   ccs = ExtendStream(ki,h.ccs,d);
+	   ccs = ExtendStream(ki,h.ccs,r,d);
 	   appdata = h.appdata}
-assume !ki,h,d. ConsStream(ki,Formats.Application_data,h,d) = 
+private assume !ki,h,r,d. ConsStream(ki,Formats.Application_data,h,r,d) = 
 	 { handshake = h.handshake;
 	   alert = h.alert;
 	   ccs = h.ccs;
-	   appdata = ExtendStream(ki,h.appdata,d)}
-
-
-predicate Fragment of KeyInfo * range * int * ContentType * bytes
-
-
-
-
-(* Old:
-type (;ki:KeyInfo,ct:ContentType,h:(;ki) history,rg:range) fragment =
-    | FHandshake of f:(;ki,h.handshake,rg)delta (* HandshakePlain.fragment *) {ct=Formats.Handshake}
-    | FCCS       of f:(;ki,h.ccs,rg)delta (* HandshakePlain.ccsFragment *)    {ct=Formats.Change_cipher_spec}
-    | FAlert     of f:(;ki,h.alert,rg)delta (* AlertPlain.fragment *)         {ct=Formats.Alert}
-    | FAppData   of f:(;ki,h.appdata,rg)delta (* AppDataStream.fragment *)    {ct=Formats.Application_data}
-*)
-
-// Deprecated
-// FIXME: Circular dependency!
-// predicate Multiplexed of KeyInfo * StatefulPlain.history * HandshakePlain.stream * HandshakePlain.stream * AlertPlain.stream * AppDataStream.stream 
-// assume !ki,fs,hs,ccs,al,ad. Multiplexed(ki,fs,hs,ccs,al,ad) <=>
-//   ((fs = [] /\ 
-//    HandshakePlain.EmptyStream(ki,hs) /\
-//    HandshakePlain.EmptyStream(ki,ccs) /\
-//    AlertPlain.EmptyStream(ki,al) /\
-//    AppDataStream.EmptyStream(ki,ad)) \/
-//   (?ct,h0,rg,f,t. fs = (ct,h0,rg,f)::t /\
-//       (?hs'. ct = Formats.Handshake /\
-// 	  HandshakePlain.ConcatStream(ki,hs',f,hs) /\
-// 	  Multiplexed(ki,t,hs',ccs,al,ad)) \/
-//       (?ccs'. ct = Formats.Change_cipher_spec /\
-// 	  HandshakePlain.ConcatStream(ki,ccs',f,ccs) /\
-// 	  Multiplexed(ki,t,hs,ccs',al,ad)) \/
-//       (?al'. ct = Formats.Alert /\
-// 	  AlertPlain.ConcatStream(ki,al',f,al) /\
-// 	  Multiplexed(ki,t,hs,ccs,al',ad)) \/
-//       (?ad'. ct = Formats.Application_data /\
-// 	  AppDataStream.ConcatStream(ki,ad',f,ad) /\
-// 	  Multiplexed(ki,t,hs,ccs,al,ad'))))
-// 
-// type (;ki:KeyInfo) shistory = (h:(;ki) history){Multiplexed(ki,h.log,h.handshake,h.ccs,h.alert,h.appdata)}
-
-
+	   appdata = ExtendStream(ki,h.appdata,r,d)}
