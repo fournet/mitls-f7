@@ -1,0 +1,51 @@
+﻿module HSK 
+
+// long-term key repository (part of the handshake implementation)
+// ---------------------------------------------------------------
+// an abstract interface for creating and storing long-term keypairs:
+// the handshake may lookup the private key associated with any stored keypair
+// when running a session parameterized by the corresponding public key
+
+val pk = bytes       // any bytes defines some principal identity 
+val template = bytes // some unspecified parameters for keys
+
+// our interface hides the co-existence of keypairs for different algorithms 
+// as controlled by the first part of the ciphersuite; for instance template
+// may specify which algorithm & keylength to use; internal lookups may
+// fail when the stored algorithm does not match the one requested by the 
+// ciphersuite; and secret keys may be implemented as 
+//
+// type sk = DHSecret of DH.s | RSAPrivateKey of RSA.s | ... 
+
+predicate val Honest: pk -> bool
+// events tracking correct key generations
+
+val create: template -> (pk:pk {Honest(pk)}) option 
+// correctly produces and stores a fresh keypair
+
+val coerce: template -> bytes -> pk option
+// stores a chosen keypair, thereby modelling static compromise
+// no need to guarantee {not(Honest(pk))} ? 
+
+// ideally, both calls above return None in case the public key
+// is already stored, so that created and coerced keys never clash.
+
+// certificate chains (user-defined)
+// ---------------------------------
+// HS carries certificate chains indicating which key to use 
+// it is up to the user to produce certificates from public keys,
+// and conversely to validate certificate chains upon request
+
+type certs = bytes
+
+// parsing function extracting the endorsed public key
+// from any certificate chain (user-defined, no validity checks) 
+function val CertKey: certs -> pk option
+val certkey: c:certs -> o:pk option {o = CertKey(c)}
+
+//CF: note on the current implementation:
+// - [RSA] implements long-term keys
+// - we probably do not support DH yet
+// - [Certificate] implements X509 certificate processing
+// - [Handshake] implements parsing of certificate chains into Certificate.cert list
+// - we do not provide concrete long-term key & cert generation 

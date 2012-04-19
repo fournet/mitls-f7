@@ -59,6 +59,7 @@
     <None Include="HMAC.fs7" />
     <Compile Include="HMAC.fsi" />
     <Compile Include="HMAC.fs" />
+    <None Include="HSK.fs7" />
     <None Include="Certificate.fs7" />
     <Compile Include="Certificate.fsi" />
     <Compile Include="Certificate.fs" />
