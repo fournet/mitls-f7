@@ -8,7 +8,8 @@ private type (;ki:KeyInfo,r:range) fragment = {frag: (s:(;ki)stream * d:(;ki,s,r
 function val Extend: 'a * 'b * 'c * 'd -> 'e
 
 predicate Fragment of ki:KeyInfo * (;ki) stream * r:range * (;ki,r)fragment
-private assume !ki,s,r,f. Fragment(ki,s,r,f) <=> (?s',d. f.frag = (s',d) /\ DeltaFragment(ki,s,r,d))
+private assume !ki,s,r,f. Fragment(ki,s,r,f) <=> 
+  (?d. f.frag = (s,d) /\ DeltaFragment(ki,s,r,d))
 
 // range-based fragmentation 
 
@@ -18,7 +19,11 @@ val fragment: ki:KeyInfo -> s:(;ki) stream -> r:range ->
 
 val delta: ki:KeyInfo -> s:(;ki) stream -> r:range -> 
   f:(;ki,r) fragment{Auth(ki) => Fragment(ki,s,r,f)} -> 
-  (;ki,s,r) delta * s':(;ki) stream{s' = Extend(ki,s,r,f)}
+  d:(;ki,s,r) delta * s':(;ki) stream{s' = Extend(ki,s,r,f)}
+
+val delta': ki:KeyInfo -> s:(;ki) stream -> r:range -> 
+  f:(;ki,r) fragment{not Auth(ki)} -> 
+  d:(;ki,s,r) delta * s':(;ki) stream{s' = ExtendStream(ki,s,r,d)}
 
 val fragmentPlain: ki:KeyInfo{not Auth(ki)} -> r:range -> (;r) rbytes -> (;ki,r) fragment
 val fragmentRepr:  ki:KeyInfo{not Safe(ki)} -> r:range -> (;ki,r) fragment -> (;r) rbytes
@@ -28,8 +33,8 @@ val fragmentRepr:  ki:KeyInfo{not Safe(ki)} -> r:range -> (;ki,r) fragment -> (;
 
 private theorem !ki,s,r1,r2,f1,f2. 
   DeltaFragment(ki,s,r1,f1) /\ DeltaFragment(ki,s,r2,f2) => (r1 = r2 /\ f1 = f2)
-private definition !ki,s,r,s,d. 
-  Extend(ki,s,r,{frag = (s,d)}) = ExtendStream(ki,s,r,d)
+private definition !ki,s,r,s',d. 
+  Extend(ki,s,r,{frag = (s',d)}) = ExtendStream(ki,s,r,d)
 
 
  

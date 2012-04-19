@@ -14,8 +14,15 @@ let fragment ki s r d =
     f,s'
 
 let delta ki s r f = 
+  Pi.assume (Auth(ki));
   let (s',d) = f.frag in
-  Pi.expect (F7.Equals(s,s'));
+  let s'' = append ki s r d in 
+    d,s''
+
+let delta' ki s r f = 
+  let (s',d) = f.frag in
+  let b = DataStream.deltaRepr ki s' r d in
+  let d = DataStream.deltaPlain ki s r b in
   let s'' = append ki s r d in 
     d,s''
 
