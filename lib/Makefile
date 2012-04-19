@@ -12,19 +12,19 @@ wrapperlibsi = Error.fsi Bytes.fsi tcp.fsi Algorithms.fsi RSA.fsi HASH.fsi HMAC.
 wrapperlibs7 = Error.fs7 Bytes.fs7 tcp.fs7 Algorithms.fs7 RSA.fs7 HASH.fs7 HMAC.fs7 Certificate.fs7
 wrapperlibs-tc: Error.tc7 Bytes.tc7 tcp.tc7 Algorithms.tc7 RSA.tc7 HASH.tc7 HMAC.tc7 Certificate.tc7
 
-tlsbase  = CipherSuites.fs  formats.fs  TLSInfo.fs
-tlsbasei = CipherSuites.fsi formats.fsi TLSInfo.fsi
-tlsbase7 = CipherSuites.fs7 formats.fs7 TLSInfo.fs7
-tlsbase-tc7: CipherSuites.tc7 formats.tc7 TLSInfo.tc7 DataStream.tc7 # to be verified
+tlsbase  = CipherSuites.fs  formats.fs  TLSInfo.fs DataStream.fs  Fragment.fs  
+tlsbasei = CipherSuites.fsi formats.fsi TLSInfo.fsi DataStream.fsi Fragment.fsi 
+tlsbase7 = CipherSuites.fs7 formats.fs7 TLSInfo.fs7 DataStream.fs7 Fragment.fs7 
+tlsbase-tc7: CipherSuites.tc7 formats.tc7 TLSInfo.tc7 DataStream.tc7 Fragment.tc7 # to be verified
 
-crypto  = DataStream.fs  Fragment.fs  MAC.fs  AEPlain.fs  ENC.fs  AEADPlain.fs  AEAD.fs  StatefulPlain.fs  StatefulAEAD.fs  TLSFragment.fs
-cryptoi = DataStream.fsi Fragment.fsi MAC.fsi AEPlain.fsi ENC.fsi AEADPlain.fsi AEAD.fsi StatefulPlain.fsi StatefulAEAD.fsi TLSFragment.fsi
-crypto7 = DataStream.fs7 Fragment.fs7 MAC.fs7 AEPlain.fs7 ENC.fs7 AEADPlain.fs7 AEAD.fs7 StatefulPlain.fs7 StatefulAEAD.fs7 TLSFragment.fs7
+crypto  = MAC.fs  AEPlain.fs  ENC.fs  
+cryptoi = MAC.fsi AEPlain.fsi ENC.fsi 
+crypto7 = MAC.fs7 AEPlain.fs7 ENC.fs7 
 crypto-tc7: MAC.tc7 AEPlain.tc7 ENC.tc7 # trusted, uses .NET, plain, ...
 
-record  = record.fs
-recordi = record.fsi
-record7 = record.fs7
+record  = AEADPlain.fs  AEAD.fs  StatefulPlain.fs  StatefulAEAD.fs  TLSFragment.fs record.fs
+recordi = AEADPlain.fsi AEAD.fsi StatefulPlain.fsi StatefulAEAD.fsi TLSFragment.fsi record.fsi
+record7 = AEADPlain.fs7 AEAD.fs7 StatefulPlain.fs7 StatefulAEAD.fs7 TLSFragment.fs7 record.fs7
 record-tc7: AEADPlain.tc7 AEAD.tc7 StatefulPlain.tc7 StatefulAEAD.tc7 TLSFragment.tc7 record.tc7 # to be verified
 
 tlsproto  = Alert.fs  PRFs.fs  SessionDB.fs  Handshake.fs  AppDataStream.fs

@@ -14,7 +14,6 @@ let fragment ki s r d =
     f,s'
 
 let delta ki s r f = 
-  Pi.assume (Auth(ki));
   let (s',d) = f.frag in
   let s'' = append ki s r d in 
     d,s''
