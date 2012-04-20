@@ -47,7 +47,7 @@ assume !ki,ct.
           ADBytes(ki,ct) =
 		(CTBytes(ct) @| VersionBytes(EpochSI(ki).protocol_version)))
 
-ask !ki,ct. Length(ADBytes(ki,ct)) = (AEPlain.ADLength(ki,ki) - 8)
+ask !ki,ct. Length(ADBytes(ki,ct)) = (AEPlain.ADLength(ki) - 8)
 
 private val makeAD: ki:epoch -> ct:ContentType ->
 	  ad: (;ki)StatefulPlain.data{ad=ADBytes(ki,ct)}

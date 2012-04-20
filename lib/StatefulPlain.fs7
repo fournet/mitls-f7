@@ -5,7 +5,7 @@ open TLSInfo
 open DataStream
 // open AEADPlain // Do not open, or AEADPlain "module" and AEADPlain "function" will clash. We should stop using the same name for modules, types and functions, as this creates names clashes everywhere!
 
-type (;ki:epoch) data = (b:bytes){Length(b) = AEPlain.ADLength(ki,ki) - 8}
+type (;ki:epoch) data = (b:bytes){Length(b) = AEPlain.ADLength(ki) - 8}
 
 
 private type (;ki:epoch)prehistory =

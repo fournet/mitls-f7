@@ -30,7 +30,7 @@ type (;ki:epoch) reader = r:(;ki) state
 type (;ki:epoch) writer = w:(;ki) state
 
 val GEN: ki:epoch{Safe(ki)} -> (;ki) reader * (;ki)writer
-val COERCE: ki:epoch{not Auth(ki)} -> b:bytes{Length(b)=AEAD.AEADSize(ki,())} -> (;ki)state
+val COERCE: ki:epoch{not Auth(ki)} -> b:bytes{Length(b)=AEAD.AEADSize(ki)} -> (;ki)state
 val LEAK: ki:epoch{not Auth(ki)} -> (;ki)state -> b:bytes
 
 val history: ki:epoch -> s:(;ki) state -> h:(;ki)history{h=s.history}
