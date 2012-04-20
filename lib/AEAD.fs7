@@ -18,20 +18,20 @@ private type (;ki:epoch) AEADKey =
 // TODO: Define AEADSize. 
 // In the code, (AEADSize * 2) is computed in CipherSuites.getKeyExtensionLength
 
-function val AEADSize: ki:epoch * unit -> nat
-private assume !ki.
-	( IsOnlyMACCiphersuite(epochSI(ki).cipher_suite) =>
-	  AEADSize(ki,()) = MacKeySize(CipherSuites.CipherSuiteMACAlg(epochSI(ki).cipher_suite)) ) /\
-	( IsAEADCiphersuite(epochSI(ki).cipher_suite) =>
-	  AEADSize(ki,()) = MacKeySize(CipherSuites.CipherSuiteMACAlg(epochSI(ki).cipher_suite)) +
-					    EncKeySize(CipherSuites.CipherSuiteENCAlg(epochSI(ki).cipher_suite)) +
-					    AEPlain.IVSize(ki,ki) )
+function val AEADSize: ki:epoch -> nat
+private assume !ki,si. si = EpochSI(ki) =>
+	( IsOnlyMACCiphersuite(si.cipher_suite) =>
+	  AEADSize(ki) = MacKeySize(CipherSuites.CipherSuiteMACAlg(si.cipher_suite)) ) /\
+	( IsAEADCiphersuite(si.cipher_suite) =>
+	  AEADSize(ki) = MacKeySize(CipherSuites.CipherSuiteMACAlg(si.cipher_suite)) +
+					    EncKeySize(CipherSuites.CipherSuiteENCAlg(si.cipher_suite)) +
+					    AEPlain.IVSize(ki) )
 
 // Why is this failing? Because of AEADSize not being what I want, I cannot typecheck COERCE.
-//ask !ki. IsOnlyMACCiphersuite(epochSI(ki).cipher_suite) => AEADSize(ki,ki) = MacKeySize(CipherSuites.CipherSuiteMACAlg(epochSI(ki).cipher_suite))
+//ask !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) => AEADSize(ki,ki) = MacKeySize(CipherSuites.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))
 
 val GEN:    ki:epoch{Safe(ki)} -> encryptor:(;ki)AEADKey * decryptor:(;ki)AEADKey
-val COERCE: ki:epoch{not Auth(ki)} -> b:bytes{Length(b) = AEADSize(ki,())} -> (;ki)AEADKey
+val COERCE: ki:epoch{not Auth(ki)} -> b:bytes{Length(b) = AEADSize(ki)} -> (;ki)AEADKey
 val LEAK:   ki:epoch{not Auth(ki)} -> (;ki)AEADKey -> b:bytes
 
 (* KB: 18/4. Define CTXT or assume in code? The following assume is a stop-gap *)

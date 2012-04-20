@@ -8,77 +8,62 @@ type sessionID = bytes
 type preRole =
 	| Client
 	| Server
-type Role = preRole
+type Role = r:preRole{r = Client \/ r = Server}
 
 //CF 04-09
 // the randoms are not just bytes.
 
 type SessionInfo = {
-    init_crand: bytes; 
-    init_srand: bytes;
+    clientID: cert option;
+    serverID: cert option;
+    sessionID: sessionID option;
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;
     compression: Compression;
-    clientID: cert option;
-    serverID: cert option;
-    sessionID: sessionID option; }
+    init_crand: bytes;
+    init_srand: bytes}
 
-type preEpoch =
-	| Init of Role * bytes 
-	| Succ of crand:bytes * srand:bytes * si:SessionInfo * pred:preEpoch 
+private type preEpoch =
+	| InitEpoch of Role * ourRand:bytes 
+	| SuccEpoch of crand:bytes * srand:bytes * si:SessionInfo * pred:preEpoch 
 
 type epoch = p:preEpoch
-    { !crand,srand,si,pred,r. p=Succ(crand,srand,si,pred) => (pred = Init(Client,r) => r = crand /\ 
-	   pred = Init(Server,r) => r = srand) }
 
+predicate NullSessionInfo of SessionInfo
+assume !si. NullSessionInfo(si) <=> (si.clientID = None /\ si.serverID = None /\ si.sessionID = None /\
+    IsNullCiphersuite(si.cipher_suite) /\ si.compression = NullCompression /\ si.init_crand = [||] /\ si.init_srand = [||] )
 
-// AP: Not enough if we want to implement TLS using this index.
-// We need 5 states:
-// 1) None next epoch
-// 2) Some next epoch, but don't use it
-// 3) Some next epoch, use it for read only
-// 4) Some next epoch, use it for write only
-// 5) Some next epoch, use it for read/write
-// CF: 04-09 This seems to duplicate some logic in dispatch and handshake. To be discussed.
+val null_sessionInfo: pv:ProtocolVersion -> si:SessionInfo{NullSessionInfo(si)}
+val isNullSessionInfo: s:SessionInfo -> b:bool{b=true => NullSessionInfo(s)}
 
-type preCI = {
-  current: epoch; 
-  next   : epoch option;
-  pending: bool; }
-// AP: I propose
-//type preCI = {
-//  current: epoch;
-//  next   : epoch option;
-//  pending_read:  bool;
-//  pending_write: bool;
-//}
-// If the user writes in state 4 (or 5), then she's using false start
-// If any pending is true, then next must be Some.
-// val epochIn : CI -> epoch
-// val epochOut: CI -> epoch
+function val EpochSI: epoch -> SessionInfo
+val epochSI: e:epoch -> si:SessionInfo{si = EpochSI(e)}
 
+val epochSRand: e:epoch -> b:bytes{!b1,b2,si,pe. e = SuccEpoch(b1,b2,si,pe) => b = b2}
+val epochCRand: e:epoch -> b:bytes{!b1,b2,si,pe. e = SuccEpoch(b1,b2,si,pe) => b = b1}
 
-function val Pred: epoch -> epoch
+type ConnectionInfo =
+	{ role: Role;
+	  id_in:  epoch;
+      id_out: epoch}
 
-type CI = c:preCI  
-  { c.next = None => c.pending = false /\
-	!e. c.next = Some(e) => (* properly negotiated & *) c.current = Pred(e) }
+val connectionRole: ci:ConnectionInfo -> r:Role{r = ci.role}
 
-//TODO: enforce as an invariant that the new epoch is compatible with our local parameters
-//      (that the the peer certificates (if any) have been authorized is not a public invariant) 
+val initConnection: r:Role -> b:bytes ->
+	ci:ConnectionInfo
+val nextConnection: ci:ConnectionInfo -> b1:bytes -> b2:bytes -> si:SessionInfo ->
+	ci':ConnectionInfo
 
-//predicate function SameEpoch: CI * CI -> bool
-predicate SameEpoch of CI * CI
-definition !c,c'. SameEpoch(c,c') <=> 
-  (c'.current = c.current /\ 
-  (c.next = None \/ c'.next = c.next) /\ // we may need something more general, like Finer(c'.next,c.next) 
-  c'.pending = c.pending)
+/// Cryptographic assumptions [how to make them toplevel?]
 
-// WAS:
-//type ConnectionInfo =
-//    { role: Role;
-//	  id_in:  epoch;
-//    id_out: epoch}
+predicate type cryptopreds = 
+  | Safe of epoch
+  | Auth of epoch
+
+assume !ki. Safe(ki) => Auth(ki)
+assume !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) => not Safe(ki)
+assume !ki. IsNullCiphersuite(EpochSI(ki).cipher_suite) => not Auth(ki)
+
 
 /// Application configuration options
 
@@ -112,103 +97,4 @@ type protocolOptions = {
 
 val defaultProtocolOptions: protocolOptions
 
-
-
-
-
-///////////////////// the rest is deprecated //////////////////////////
-
-
-// We only store direction, which is either
-// Client --> Server (CtoS for short) or
-// Server --> Client (StoC for short).
-// We store the direction along with the epoch.
-// We finally compute the role from the direction associated to the outgoing epoch
-type preDirection =
-    | CtoS
-    | StoC
-type Direction = d:preDirection{d = CtoS \/ d = StoC}
-(* FIXME: Automatic inference by F7 *)
-
-function val DualDirection: Direction -> Direction
-assume DualDirection(CtoS) = StoC
-assume DualDirection(StoC) = CtoS
-
-val dualDirection: d1:Direction -> d2:Direction{d2=DualDirection(d1)}
-
-
-predicate UserSaysCompatibleSessions of SessionInfo * SessionInfo
-
-predicate CompatibleSessions of SessionInfo * SessionInfo
-assume !s. CompatibleSessions(s,s)
-assume !s1,s2,s3. CompatibleSessions(s1,s2) /\ CompatibleSessions(s2,s3) => CompatibleSessions(s1,s3)
-assume !s1,s2. UserSaysCompatibleSessions(s1,s2) => CompatibleSessions(s1,s2)
-
-// not in the API
-predicate NullSessionInfo of SessionInfo 
-assume !nulls,s. NullSessionInfo(nulls) => CompatibleSessions(nulls,s)
-
-//predicate CompatibleConnections of ConnectionInfo * ConnectionInfo
-predicate CompatibleConnections of CI * CI
-
-//assume !id1,id2. CompatibleConnections(id1,id2) <=>
-//assume !id1,id2. CompatibleConnections(id1,id2) <=> CompatibleSessions(id1.id_in.sinfo, id2.id_in.sinfo ) /\
-//                   CompatibleSessions(id1.id_out.sinfo,id2.id_out.sinfo) )
-
-//MK does this make sense?
-assume !id1,id2. CompatibleConnections(id1,id2) <=>
-		 ?crand1,srand1,si1,pred1,crand2,srand2,si2,pred2. id1.current=Succ(crand1,srand1,si1,pred1) 
-		 /\ id2.current=Succ(crand2,srand2,si2,pred2) /\ CompatibleSessions(si1, si2)
-
-
-
-assume !si. NullSessionInfo(si) <=> (si.clientID = None /\ si.serverID = None /\ si.sessionID = None /\
-    IsNullCiphersuite(si.cipher_suite) /\ si.compression = NullCompression /\ si.init_crand = [||] /\ si.init_srand = [||] )
-
-val null_sessionInfo: pv:ProtocolVersion -> si:SessionInfo{NullSessionInfo(si)}
-val isNullSessionInfo: s:SessionInfo -> b:bool{b=true => NullSessionInfo(s)}
-
-// not in the API
-type epoch = {
-    sinfo: SessionInfo;
-    dir: Direction;
-    crand: bytes;
-    srand: bytes
-    // cVerifyData: bytes
-    // sVerifyData: bytes
-    }
-
-type ConnectionInfo =
-	{ id_in:  epoch;
-      id_out: epoch}
-
-predicate NullKeyInfo of epoch
-
-private assume !ki. NullKeyInfo(ki) <=> (NullSessionInfo(epochSI(ki)) /\ ki.crand = [||] /\ ki.srand = [||])
-
-val null_KeyInfo: d:Direction -> pv:ProtocolVersion -> ki:epoch{NullKeyInfo(ki)}
-
-function val DualKeyInfo: (epoch * unit) -> epoch
-assume !k1,dummy. DualKeyInfo(k1,dummy) = {
-	sinfo = k1.sinfo;
-	dir=DualDirection(k1.dir);
-	crand=k1.crand;
-	srand=k1.srand}
-
-val dual_KeyInfo: k1:epoch -> k2:epoch{k2=DualKeyInfo(k1,())}
-// We might need something like this -- and possibly more
-// definition !ki. NullKeyInfo(ki) => NullSessionInfo(epochSI(ki))
-
-predicate Corrupt of epoch
-
-assume !ki. CipherSuites.IsNullCiphersuite(epochSI(ki).cipher_suite) => Corrupt(ki)
-
-/// Cryptographic assumptions [how to make them toplevel?]
-
-predicate type cryptopreds = 
-  | Safe of epoch
-  | Auth of epoch
-
-assume !ki. Safe(ki) => Auth(ki)
-assume !ki. IsOnlyMACCiphersuite(epochSI(ki).cipher_suite) => not Safe(ki)
-assume !ki. IsNullCiphersuite(epochSI(ki).cipher_suite) => not Auth(ki)
+private val defaultCertificateValidationPolicy: cert list -> bool

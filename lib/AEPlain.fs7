@@ -9,21 +9,21 @@ open Algorithms
 open CipherSuites
 
 
-function val ADLength: epoch * epoch -> nat
-function val IVSize: epoch * epoch -> nat
-assume !ki. (epochSI(ki).protocol_version = SSL_3p0 /\ ADLength(ki,ki) = 9) \/
-	(epochSI(ki).protocol_version <> SSL_3p0 /\ ADLength(ki,ki) = 11)
+function val ADLength: epoch -> nat
+function val IVSize: epoch -> nat
+assume !ki. (EpochSI(ki).protocol_version = SSL_3p0 /\ ADLength(ki) = 9) \/
+	(EpochSI(ki).protocol_version <> SSL_3p0 /\ ADLength(ki) = 11)
 
-type (;ki:epoch) data = (b:bytes){Length(b) = ADLength(ki,ki)}
+type (;ki:epoch) data = (b:bytes){Length(b) = ADLength(ki)}
 predicate AESays of ki:epoch * r:range * ad:(;ki) data * (;ki,r)fragment 
 
 predicate type preds = Unsafe of epoch
-private assume !ki. Unsafe(ki) <=> not Safe(ki)
+private assume !ki. Unsafe(ki) <=> not Auth(ki)
 
 private type (;ki:epoch,r:range,ad:(;ki)data)AEPlain = {contents: (x:(;ki,r)fragment{Auth(ki) => AESays(ki,r,ad,x)})}
 
-val AEPlain: ki:epoch{not Safe(ki)} -> r:range -> ad:(;ki)data -> (;r)rbytes -> (;ki,r,ad)AEPlain
-val AERepr:  ki:epoch{not Safe(ki)} -> r:range -> ad:(;ki)data -> (;ki,r,ad)AEPlain -> (;r)rbytes
+val AEPlain: ki:epoch{not Auth(ki)} -> r:range -> ad:(;ki)data -> (;r)rbytes -> (;ki,r,ad)AEPlain
+val AERepr:  ki:epoch{not Auth(ki)} -> r:range -> ad:(;ki)data -> (;ki,r,ad)AEPlain -> (;r)rbytes
 
 val AEConstruct: ki:epoch -> r:range -> ad:(;ki)data -> f:(;ki,r)fragment{Auth(ki) => AESays(ki,r,ad,f)} -> (;ki,r,ad)AEPlain
 val AEContents:  ki:epoch -> r:range -> ad:(;ki)data -> (;ki,r,ad)AEPlain -> f:(;ki,r)fragment{Auth(ki) => AESays(ki,r,ad,f)}
@@ -41,7 +41,7 @@ val macPlain: ki:epoch -> r:range ->
 
 
 val mac: ki:epoch -> (;ki) MAC.key -> t:(;ki) MACPlain{?r,ad,f. t = MACPlain(ki,r,ad,f) /\ (Auth(ki) => AESays(ki,r,ad,f.contents))}
-  -> tag:(;ki) tag{Length(tag.macT) = MacKeySize(CipherSuiteMACAlg(epochSI(ki).cipher_suite))}
+  -> tag:(;ki) tag{Length(tag.macT) = MacKeySize(CipherSuiteMACAlg(EpochSI(ki).cipher_suite))}
 val verify: ki:epoch -> (;ki) MAC.key -> text:(;ki) MACPlain -> tag:(;ki) tag ->
   v:bool{v = true => (?r,ad,f. text = MACPlain(ki,r,ad,f) /\ (Auth(ki) => AESays(ki,r,ad,f.contents)))}
 
@@ -59,16 +59,16 @@ val cipherRange: ki:epoch -> tlen:nat{tlen <= DataStream.max_TLSCipher_fragment_
 // - (and the inverse functions)
 
 function val PlainLength: ki:epoch * tlen:nat -> plen:nat
-assume !ki. IVSize(ki,ki) >= 0
-assume !ki.
-	( epochSI(ki).protocol_version = SSL_3p0 \/ epochSI(ki).protocol_version = TLS_1p0
-		=> IVSize(ki,ki) = 0 ) /\
-	( epochSI(ki).protocol_version = TLS_1p1 \/ epochSI(ki).protocol_version = TLS_1p2
-		=> IVSize(ki,ki) = BlockSize(CipherSuiteENCAlg(epochSI(ki).cipher_suite)) )
-assume !ki,tlen.
-	( IsOnlyMACCiphersuite(epochSI(ki).cipher_suite) => PlainLength(ki,tlen) = tlen ) /\
-    ( IsAEADCiphersuite(epochSI(ki).cipher_suite) /\ tlen >= IVSize(ki,ki) =>
-	  PlainLength(ki,tlen) = tlen - IVSize(ki,ki) )
+assume !ki. IVSize(ki) >= 0
+assume !ki,si. si = EpochSI(ki) =>
+	( si.protocol_version = SSL_3p0 \/ si.protocol_version = TLS_1p0
+		=> IVSize(ki) = 0 ) /\
+	( si.protocol_version = TLS_1p1 \/ si.protocol_version = TLS_1p2
+		=> IVSize(ki) = BlockSize(CipherSuiteENCAlg(si.cipher_suite)) )
+assume !ki,si,tlen. si = EpochSI(ki) =>
+	( IsOnlyMACCiphersuite(si.cipher_suite) => PlainLength(ki,tlen) = tlen ) /\
+    ( IsAEADCiphersuite(si.cipher_suite) /\ tlen >= IVSize(ki) =>
+	  PlainLength(ki,tlen) = tlen - IVSize(ki) )
 
 private type (;ki:epoch,tlen:nat) plain = {p: (x:bytes){Length(x) = PlainLength(ki,tlen) /\ tlen <= DataStream.max_TLSCipher_fragment_length}}
 val plain: ki:epoch{not Safe(ki)} -> tlen:nat{tlen <= DataStream.max_TLSCipher_fragment_length} -> b:bytes{Length(b) = PlainLength(ki,tlen)} -> (;ki,tlen) plain
@@ -85,15 +85,15 @@ assume !ki,ad1,x1,ad2,x2. (Length(ad1) = Length(ad2) /\
 // predicate Msg of ki:epoch * tlen:DataStream.range * (;ki,tlen)MACPlain.MACPlain
 
 assume !ki,tlen,pl. MAC.Msg(ki,pl) <=>
-  (Corrupt(ki) \/
-     (?ad,x. Length(ad) = ADLength(ki,ki) /\
+  (not Auth(ki) \/
+     (?ad,x. Length(ad) = ADLength(ki) /\
 	  pl = MsgBytes(ki,ad,x)// /\ ??
 	// TLSFragment.Fragment(ki,tlen,
-	// 	       TLSFragment.ADseqn(epochSI(ki).protocol_version,ad),
-	// 	       TLSFragment.ADct(epochSI(ki).protocol_version,ad),x)))
+	// 	       TLSFragment.ADseqn(EpochSI(ki).protocol_version,ad),
+	// 	       TLSFragment.ADct(EpochSI(ki).protocol_version,ad),x)))
 	))
 
-ask !ki,t. Corrupt(ki) => MAC.Msg(ki,t)
+ask !ki,t. not Auth(ki) => MAC.Msg(ki,t)
 
 val pad: l:int -> b:bytes{Length(b) = l}
 
@@ -102,18 +102,18 @@ val check_split:
   b1:bytes * b2:bytes { Length(b1) = i /\ b = b1 @| b2 }
 
 // TODO: Say that the result of encode is "block-aligned" (more generally: compatible with the current enc algorithm)
-val ivLength: ki:epoch -> l:nat{l=IVSize(ki,ki)}
-val encode: ki:epoch{IsAEADCiphersuite(epochSI(ki).cipher_suite)} ->
+val ivLength: ki:epoch -> l:nat{l=IVSize(ki)}
+val encode: ki:epoch{IsAEADCiphersuite(EpochSI(ki).cipher_suite)} ->
 	rg:range -> ad:(;ki) data -> (;ki,rg,ad) AEPlain -> (;ki) tag ->
 	(tlen:nat * (;ki,tlen) plain){tlen=RangeCipher(ki,rg) /\ tlen <= DataStream.max_TLSCipher_fragment_length}
-val decode: ki:epoch{IsAEADCiphersuite(epochSI(ki).cipher_suite)} ->
+val decode: ki:epoch{IsAEADCiphersuite(EpochSI(ki).cipher_suite)} ->
 	ad:(;ki) data -> tlen:nat -> (;ki,tlen) plain ->
 	(rg:range * (;ki,rg,ad)AEPlain * (;ki)tag * bool){tlen=RangeCipher(ki,rg)}
 
-val encodeNoPad: ki:epoch{IsOnlyMACCiphersuite(epochSI(ki).cipher_suite)} ->
+val encodeNoPad: ki:epoch{IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite)} ->
 	rg:range -> ad:(;ki) data -> (;ki,rg,ad) AEPlain -> (;ki) tag ->
 	(tlen:nat * (;ki,tlen) plain){tlen=RangeCipher(ki,rg) /\ tlen <= DataStream.max_TLSCipher_fragment_length}
-val decodeNoPad: ki:epoch{IsOnlyMACCiphersuite(epochSI(ki).cipher_suite)} ->
+val decodeNoPad: ki:epoch{IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite)} ->
 	ad:(;ki) data -> tlen:nat -> (;ki,tlen) plain ->
 	(rg:range * (;ki,rg,ad)AEPlain * (;ki)tag){tlen=RangeCipher(ki,rg)}
 

@@ -9,7 +9,7 @@ open Error
 (* Used when generating verifiData for the Finished message *)
 type (;si:SessionInfo) masterSecret
 val empty_masterSecret: si:SessionInfo ->  (;si) masterSecret
-val prfVerifyData: ki:epoch -> (;epochSI(ki)) masterSecret ->
+val prfVerifyData: ki:epoch -> (;EpochSI(ki)) masterSecret ->
                    bytes (* msgLog *) ->
                    bytes (* length depends on cs, 12 by default *)
 
@@ -35,7 +35,7 @@ val prfMS: si:SessionInfo -> (;si) preMasterSecret ->
 
 (* Used when generating key material from the MS. The result must still be split into the various keys. Of course this method can do the splitting internally and return a record/pair *)
 type (;ki:epoch) keyBlob
-val prfKeyExp: ki:epoch -> (;epochSI(ki))masterSecret ->
+val prfKeyExp: ki:epoch -> (;EpochSI(ki))masterSecret ->
                (* No label, it's hardcoded. Of course we can make it explicit -> *)
                (* No seed (crandom @| srandom), it can be retrieved from epoch (and not SessionInfo!) -> *)
                (;ki)keyBlob (* length depends on cs *)

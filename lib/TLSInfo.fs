@@ -11,13 +11,13 @@ type preRole =
 type Role = preRole
 
 type SessionInfo = {
-    clientID: cert option
-    serverID: cert option
-    sessionID: sessionID option
-    protocol_version: ProtocolVersion
-    cipher_suite: cipherSuite
-    compression: Compression
-    init_crand: bytes
+    clientID: cert option;
+    serverID: cert option;
+    sessionID: sessionID option;
+    protocol_version: ProtocolVersion;
+    cipher_suite: cipherSuite;
+    compression: Compression;
+    init_crand: bytes;
     init_srand: bytes
     }
 
@@ -44,7 +44,7 @@ type epoch = preEpoch
 
 let epochSI e =
     match e with
-    | InitEpoch (d,b) -> null_sessionInfo SSL_3p0 //FIXME: fake value
+    | InitEpoch (d,b) -> let si = null_sessionInfo SSL_3p0 in si //FIXME: fake value
     | SuccEpoch (b1,b2,si,pe) -> si
 
 let epochSRand e =
@@ -107,8 +107,7 @@ type protocolOptions = {
     sessionDBExpiry: TimeSpan
     }
 
-let defaultCertificateValidationPolicy certList = true
-let defaultGoodSession (si:SessionInfo) = true
+let defaultCertificateValidationPolicy (certList:cert list) = true
 
 let defaultProtocolOptions ={
     minVer = SSL_3p0

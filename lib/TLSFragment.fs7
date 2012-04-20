@@ -40,12 +40,12 @@ val fragmentPlain: ki:epoch{not Auth(ki)} -> ct:ContentType -> h: (;ki) history 
 
 function val ADBytes: (epoch * ContentType) -> bytes //(;ki)StatefulPlain.data
 assume !ki,ct.
-	( epochSI(ki).protocol_version = SSL_3p0 /\
+	( EpochSI(ki).protocol_version = SSL_3p0 /\
 	  ADBytes(ki,ct) =
 		CTBytes(ct) ) \/
-	( epochSI(ki).protocol_version <> SSL_3p0 /\
+	( EpochSI(ki).protocol_version <> SSL_3p0 /\
           ADBytes(ki,ct) =
-		(CTBytes(ct) @| VersionBytes(epochSI(ki).protocol_version)))
+		(CTBytes(ct) @| VersionBytes(EpochSI(ki).protocol_version)))
 
 ask !ki,ct. Length(ADBytes(ki,ct)) = (AEPlain.ADLength(ki,ki) - 8)
 

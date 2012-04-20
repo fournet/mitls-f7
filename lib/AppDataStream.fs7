@@ -46,7 +46,7 @@ val fragment: ki:epoch{not Safe(ki)} -> s:stream -> r:range -> bytes -> (;ki,s,r
    AppFragment, AppDataSequenceNo, and NonAppDataSequenceNo are assumed 
 
 theorem !ki,tlen,seqn,b. AppDataFragment(ki,tlen,seqn,b) =>
-  (seqn >= 0 /\ CompatibleLengths(epochSI(ki),Length(b),[tlen]) /\ AppDataSequenceNo(ki,seqn) /\
+  (seqn >= 0 /\ CompatibleLengths(EpochSI(ki),Length(b),[tlen]) /\ AppDataSequenceNo(ki,seqn) /\
      (?d. ValidAppDataStream(ki,d @| b) /\
 	  AppDataFragmentSequence(ki,seqn - 1,d)))
 theorem !ki,seqn. AppDataSequenceNo(ki,seqn) => (not NonAppDataSequenceNo(ki,seqn))

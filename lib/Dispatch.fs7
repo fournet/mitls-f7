@@ -61,9 +61,9 @@ assume !id,s. ConnectionInKeyInfo(Conn(id,s)) = id.id_in
 
 
 function val ConnectionOutSessionInfo: Connection -> SessionInfo
-assume !id,s. ConnectionOutSessionInfo(Conn(id,s))=id.id_out.sinfo
+assume !id,s. ConnectionOutSessionInfo(Conn(id,s))=EpochSI(id.id_out)
 function val ConnectionInSessionInfo: Connection -> SessionInfo
-assume !id,s. ConnectionInSessionInfo(Conn(id,s))=id.id_in.sinfo
+assume !id,s. ConnectionInSessionInfo(Conn(id,s))=EpochSI(id.id_in)
 
 function val Params: Connection -> protocolOptions
 assume !id,s. Params(Conn(id,s))=s.poptions
@@ -106,24 +106,24 @@ val moveToOpenState: c:Connection ->
 		{si=ConnectionOutSessionInfo(c) /\ si=ConnectionInSessionInfo(c)} ->
 	(;ConnectionIndex(c))globalState
 
-val reIndex_dState: oldKI:epoch -> newKI:epoch{CompatibleSessions(oldKI.sinfo,newKI.sinfo)} ->
+val reIndex_dState: oldKI:epoch -> newKI:epoch{CompatibleSessions(EpochSI(oldKI),EpochSI(newKI)} ->
 	ods:(;oldKI)dState -> (;newKI)ccs_data -> 
   nds:(;newKI)dState{nds.disp = ods.disp /\ nds.seqn = ods.seqn}
 
-val reIndex_dState_null: oldKI:epoch{NullSessionInfo(oldKI.sinfo)} ->
-  newKI:epoch{NullSessionInfo(newKI.sinfo)} ->
+val reIndex_dState_null: oldKI:epoch{NullSessionInfo(EpochSI(oldKI))} ->
+  newKI:epoch{NullSessionInfo(EpochSI(newKI))} ->
   ods:(;oldKI)dState -> 
   nds:(;newKI)dState{nds.disp = ods.disp /\ nds.seqn = ods.seqn}
 
 val reIndex_out: oldID:ConnectionInfo ->
 	newID:ConnectionInfo{oldID.id_in = newID.id_in /\
-			     CompatibleSessions(oldID.id_out.sinfo,newID.id_out.sinfo)} ->
+			     CompatibleSessions(EpochsI(oldID.id_out),EpochSI(newID.id_out))} ->
 	(;oldID)globalState -> (;newID.id_out)ccs_data ->
 	(;newID)globalState
 
 val reIndex_in: oldID:ConnectionInfo ->
 	newID:ConnectionInfo{oldID.id_out = newID.id_out /\
-						 CompatibleSessions(oldID.id_in.sinfo,newID.id_in.sinfo)} ->
+						 CompatibleSessions(EpochSI(oldID.id_in),EpochSI(newID.id_in))} ->
 	(;oldID)globalState -> (;newID.id_in)ccs_data ->
 	(;newID)globalState
 
