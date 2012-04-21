@@ -8,12 +8,18 @@ open CipherSuites
 open DataStream
 open StatefulPlain
 
-type history = {
+type datastreams = {
   handshake: stream // Handshake.stream;
   alert: stream // Alert.stream;
   ccs: stream // Handshake.stream;
   appdata: stream // AppDataStream.stream;
 }
+
+type prehistory = {
+  state : StatefulPlain.history;
+  streams: datastreams}
+
+type history = prehistory
 
 type fragment =
     | FHandshake of Fragment.fragment // Handshake.fragment
@@ -23,25 +29,33 @@ type fragment =
 
 let emptyHistory ki =
     let eh = init ki in
-    { handshake = eh;
-      alert = eh;
-      ccs = eh;
-      appdata = eh}
+    let sh = StatefulPlain.emptyHistory ki in
+    let str = 
+      { handshake = eh;
+        alert = eh;
+        ccs = eh;
+        appdata = eh} in
+      {state = sh; streams = str}
 
-let addToStreams (ki:epoch) ct ss r f =
-    match (ct,f) with
+let addToHistory (ki:epoch) ct ss r f =
+  match (ct,f) with
     | Handshake,FHandshake(ff) -> 
-        let d,s' = Fragment.delta ki ss.handshake r ff in
-          {ss with handshake = s'}
+        let d,s' = Fragment.delta ki ss.streams.handshake r ff in
+        let str' = {ss.streams with handshake = s'} in
+          {ss with streams = str'}
     | Alert,FAlert(ff) -> 
-        let d,s' = Fragment.delta ki ss.alert r ff in
-          {ss with alert = s'}
+        let d,s' = Fragment.delta ki ss.streams.alert r ff in
+        let str' = {ss.streams with alert = s'} in
+          {ss with streams = str'}
+          
     | Change_cipher_spec,FCCS(ff) -> 
-        let d,s' = Fragment.delta ki ss.ccs r ff in
-          {ss with ccs = s'}
+        let d,s' = Fragment.delta ki ss.streams.ccs r ff in
+        let str' = {ss.streams  with ccs = s'} in
+          {ss with streams = str'}
     | Application_data,FAppData(ff) -> 
-        let d,s' = Fragment.delta ki ss.appdata r ff in
-          {ss with appdata = s'}
+        let d,s' = Fragment.delta ki ss.streams.appdata r ff in
+        let str' = {ss.streams with appdata = s'} in
+          {ss with streams = str'}
     | _,_ -> unexpectedError "[addToStreams] Incompatible content and fragment types"
 
 let makeAD ki ct =
@@ -67,6 +81,7 @@ let fragmentRepr ki (ct:ContentType) (h:history) (rg:DataStream.range) frag =
     | FCCS(f) -> Fragment.fragmentRepr ki rg f
     | FAlert(f) -> Fragment.fragmentRepr ki rg f
     | FAppData(f) -> Fragment.fragmentRepr ki rg f
+
 
 let contents (ki:epoch) (ct:ContentType) (h:history) (rg:range) f =
     match f with

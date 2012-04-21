@@ -7,7 +7,9 @@ open CipherSuites
 open DataStream
 open StatefulPlain
 
-type history
+type datastreams
+type prehistory
+type history = prehistory
 
 type fragment =
     | FHandshake of Fragment.fragment
@@ -16,11 +18,12 @@ type fragment =
     | FAppData of Fragment.fragment
 
 val emptyHistory: epoch -> history
-val addToStreams: epoch -> ContentType -> history -> range -> fragment -> history
+val addToHistory: epoch -> ContentType -> history -> range -> fragment -> history
 
 val makeAD: epoch -> ContentType -> data 
 val fragmentPlain: epoch -> ContentType -> history -> range -> bytes -> fragment
 val fragmentRepr:     epoch -> ContentType -> history -> range -> fragment -> bytes
+
 
 val contents:  epoch -> ContentType -> history -> range -> fragment -> Fragment.fragment
 val construct: epoch -> ContentType -> history -> range -> Fragment.fragment -> fragment

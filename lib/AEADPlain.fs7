@@ -19,7 +19,7 @@ assume !f. AEADContents(f) = f.contents
 
 // CF 04-09: TODO: add length constraints for those bytes
 val AEADPlain: ki:epoch{not Auth(ki)} -> r:range -> ad:(;ki)data -> (;r)rbytes -> (;ki,ad,r) AEADPlain
-val AEADRepr:  ki:epoch{not Auth(ki)} -> r:range -> ad:(;ki)data -> (;ki,ad,r) AEADPlain -> (;r)rbytes
+val AEADRepr:  ki:epoch{not Safe(ki)} -> r:range -> ad:(;ki)data -> (;ki,ad,r) AEADPlain -> (;r)rbytes
 
 val contents:  ki:epoch -> r:range -> ad:(;ki)data -> (;ki,r,ad)AEADPlain ->
 	sb:(;ki,r)fragment{Auth(ki) => AEADSays(ki,r,ad,sb)}

@@ -34,14 +34,18 @@ private type (;ki:epoch,h:(;ki)history,ad:(;ki)data,range:range) fragment =
 function val SAEADContents: 'a -> 'b
 assume !f. SAEADContents(f) = f.contents
 
-val emptyHistory: ki:epoch -> h:(;ki)history{SeqN(ki,h) = 0}
+predicate EmptyHistory of ki:epoch * (;ki) history
+function val ExtendHistory: ki:epoch * h:(;ki) history * (;ki) data * r:range * (;ki,r) Fragment.fragment -> 'a
+private assume !ki. EmptyHistory(ki,(0,Empty))
+private assume !ki,n,h,d,r,f. ExtendHistory(ki,(n,h),d,r,f) = (n+1,ConsHistory(h,d,r,f))
+
+val emptyHistory: ki:epoch -> h:(;ki)history{EmptyHistory(ki,h)}
 private val consHistory: ki:epoch -> h:(;ki)prehistory ->
-	ad:(;ki)data -> r:range -> x:(;ki,r)Fragment.fragment -> 
-        h':(;ki)prehistory{h' = ConsHistory(h,ad,r,x)}
-// This function will assume History
+	ad:(;ki)data -> r:range -> x:(;ki,r)Fragment.fragment ->
+	h':(;ki)prehistory{h' = ConsHistory(h,ad,r,x)}
 val addToHistory: ki:epoch -> h:(;ki)history ->
 	ad:(;ki)data -> r:range -> x:(;ki,h,ad,r)fragment ->
-	h':(;ki)history{SeqN(ki,h') = SeqN(ki,h)+1}
+	h':(;ki)history{h' = ExtendHistory(ki,h,ad,r,x)}
 
 function val MakeAD:  ki:epoch * (;ki)history * (;ki)data -> bytes//(;ki)AEADPlain.data
 assume !ki,h,ad. MakeAD(ki,h,ad) = IntBytes(8,SeqN(ki,h)) @| ad
@@ -50,7 +54,7 @@ val makeAD:  ki:epoch -> h:(;ki)history -> ad:(;ki)data ->
 	b:(;ki)AEADPlain.data{b=MakeAD(ki,h,ad)}
 
 val fragment: ki:epoch{not Auth(ki)} -> hh:(;ki)history -> ad:(;ki)data -> r:range -> (;r)rbytes -> (;ki,hh,ad,r) fragment
-val repr: ki:epoch{not Auth(ki)} -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;ki,h,ad,r) fragment -> (;r)rbytes
+val repr: ki:epoch{not Safe(ki)} -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;ki,h,ad,r) fragment -> (;r)rbytes
 
 val contents:  ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;ki,h,ad,r)fragment ->
 	x:(;ki,r)Fragment.fragment{Auth(ki) => Fragment(ki,h,ad,r,x)}
@@ -76,5 +80,4 @@ assume !ki. History(ki,(0,Empty))
 
 ask !ki,ad,h,ad',r,x. (ad = MakeAD(ki,h,ad') /\ History(ki,h) /\ AEADPlain.AEADSays(ki,r,ad,x)) => Fragment(ki,h,ad',r,x)
 
-    
 

@@ -6,33 +6,51 @@ open Formats
 open CipherSuites
 open DataStream
 
-// Plain type for Dispatch and Record
-private type (;ki:epoch) history = {
-  handshake: (;ki) stream; // HandshakePlain.stream;
-  alert: (;ki) stream; // AlertPlain.stream;
-  ccs: (;ki) stream; // HandshakePlain.stream;
-  appdata: (;ki) stream // AppDataStream.stream;
-  }
+private type (;ki:epoch) datastreams = {
+  handshake: (;ki) stream;
+  alert: (;ki) stream; 
+  ccs: (;ki) stream; 
+  appdata: (;ki) stream
+}
 
-predicate EmptyStreams of ki:epoch * (;ki)history
-private assume !ki,h. EmptyStreams(ki,h) <=>
-	( EmptyStream(ki,h.handshake) /\ EmptyStream(ki,h.alert) /\
-	  EmptyStream(ki,h.ccs)       /\ EmptyStream(ki,h.appdata) )
+private type (;ki:epoch) prehistory = {
+  state: (;ki) StatefulPlain.history;
+  streams: (;ki) datastreams
+}
 
-val emptyHistory: ki:epoch -> h:(;ki)history{EmptyStreams(ki,h)}
+function val Multiplexed: ki:epoch * (;ki) StatefulPlain.history -> 'b
+predicate TLSHistory of ki:epoch * (;ki) prehistory
 
+private assume !ki,h. TLSHistory(ki,h) <=> 
+  (StatefulPlain.History(ki,h.state) /\  h.streams = Multiplexed(h.state))
+
+type (;ki:epoch) history = p:(;ki) prehistory{TLSHistory(ki,p)}
+
+predicate EmptyHistory of ki:epoch * (;ki)history
+val emptyHistory: ki:epoch -> h:(;ki)history{EmptyHistory(ki,h)}
+
+predicate TLSFragment of ki:epoch * ct:ContentType * h:(;ki) history * rg:range * d:(;ki,rg) Fragment.fragment
+private assume !ki,ct,h,rg,d.
+  TLSFragment(ki,ct,h,rg,d) <=> (
+    (ct = Formats.Handshake /\ Fragment.Fragment(ki,h.handshake,rg,d)) \/
+    (ct = Formats.Change_cipher_spec /\ Fragment.Fragment(ki,h.ccs,rg,d)) \/
+    (ct = Formats.Alert /\ Fragment.Fragment(ki,h.alert,rg,d)) \/
+    (ct = Formats.Application_data /\ Fragment.Fragment(ki,h.appdata,rg,d))
+  )
+ 
 type (;ki:epoch,ct:ContentType,h:(;ki) history,rg:range) fragment =
-    | FHandshake of f:(;ki,rg)Fragment.fragment{ct=Formats.Handshake  /\ Fragment.Fragment(ki,h.handshake,rg,f)}
-    | FCCS       of f:(;ki,rg)Fragment.fragment{ct=Formats.Change_cipher_spec  /\ Fragment.Fragment(ki,h.ccs,rg,f)}
-    | FAlert     of f:(;ki,rg)Fragment.fragment{ct=Formats.Alert  /\ Fragment.Fragment(ki,h.alert,rg,f)}
-    | FAppData   of f:(;ki,rg)Fragment.fragment{ct=Formats.Application_data  /\ Fragment.Fragment(ki,h.appdata,rg,f)}
+    | FHandshake of f:(;ki,rg)Fragment.fragment{ct=Formats.Handshake  /\ (Auth(ki) => TLSFragment(ki,ct,h,rg,f))}
+    | FCCS       of f:(;ki,rg)Fragment.fragment{ct=Formats.Change_cipher_spec  /\ (Auth(ki) => TLSFragment(ki,ct,h,rg,f))}
+    | FAlert     of f:(;ki,rg)Fragment.fragment{ct=Formats.Alert  /\ (Auth(ki) => TLSFragment(ki,ct,h,rg,f))}
+    | FAppData   of f:(;ki,rg)Fragment.fragment{ct=Formats.Application_data  /\ (Auth(ki) => TLSFragment(ki,ct,h,rg,f))}
 
-function val ConsStream: ki:epoch * ct:ContentType * ss:(;ki)history * r:range * (;ki,ct,ss,r)fragment -> 'a //(;ki)history
-val addToStreams: ki:epoch -> ct:ContentType -> ss:(;ki)history -> r:range ->
-	f:(;ki,ct,ss,r)fragment -> ss':(;ki)history{ss' = ConsStream(ki,ct,ss,r,f)}
+function val ExtendHistory: ki:epoch * ct:ContentType * ss:(;ki)history * r:range * (;ki,ct,ss,r)fragment -> 'a 
+
+val addToSteams: ki:epoch -> ct:ContentType -> ss:(;ki)datastreams -> r:range ->
+	f:(;ki,ct,ss,r)fragment -> ss':(;ki)datastreams{ss' = ExtendHistory(ki,ct,ss,r,f)}
 
 
-val fragmentRepr: ki:epoch{not Auth(ki)} -> ct:ContentType -> h: (;ki) history -> rg:range ->
+val fragmentRepr: ki:epoch{not Safe(ki)} -> ct:ContentType -> h: (;ki) history -> rg:range ->
   (;ki,ct,h,rg)fragment -> bytes
 
 val fragmentPlain: ki:epoch{not Auth(ki)} -> ct:ContentType -> h: (;ki) history -> rg:range ->
@@ -52,23 +70,56 @@ ask !ki,ct. Length(ADBytes(ki,ct)) = (AEPlain.ADLength(ki) - 8)
 private val makeAD: ki:epoch -> ct:ContentType ->
 	  ad: (;ki)StatefulPlain.data{ad=ADBytes(ki,ct)}
 
-private assume !ki,h,r,d. ConsStream(ki,Formats.Handshake,h,r,d) =
-	 { handshake = ExtendStream(ki,h.handshake,r,d);
+predicate EmptyStreams of ki:epoch * (;ki)datastreams
+private assume !ki,h. EmptyStreams(ki,h) <=>
+	( EmptyStream(ki,h.handshake) /\ EmptyStream(ki,h.alert) /\
+	  EmptyStream(ki,h.ccs)       /\ EmptyStream(ki,h.appdata) )
+
+function val ExtendStreams: ki:epoch * ct:ContentType * ss:(;ki)datastreams * r:range * (;ki,ct,ss,r)fragment -> 'a 
+
+private assume !ki,h,r,d. ExtendStreams(ki,Formats.Handshake,h,r,d) =
+	 { handshake = Fragment.Extend(ki,h.handshake,r,d);
 	   alert = h.alert;
 	   ccs = h.ccs;
 	   appdata = h.appdata}
-private assume !ki,h,r,d. ConsStream(ki,Formats.Alert,h,r,d) =
+private assume !ki,h,r,d. ExtendStreams(ki,Formats.Alert,h,r,d) =
 	 { handshake = h.handshake;
-	   alert = ExtendStream(ki,h.alert,r,d);
+	   alert = Fragment.Extend(ki,h.alert,r,d);
 	   ccs = h.ccs;
 	   appdata = h.appdata}
-private assume !ki,h,r,d. ConsStream(ki,Formats.Change_cipher_spec,h,r,d) =  
+private assume !ki,h,r,d. ExtendStreams(ki,Formats.Change_cipher_spec,h,r,d) =  
 	 { handshake = h.handshake;
 	   alert = h.alert;
-	   ccs = ExtendStream(ki,h.ccs,r,d);
+	   ccs = Fragment.Extend(ki,h.ccs,r,d);
 	   appdata = h.appdata}
-private assume !ki,h,r,d. ConsStream(ki,Formats.Application_data,h,r,d) = 
+private assume !ki,h,r,d. ExtendStreams(ki,Formats.Application_data,h,r,d) = 
 	 { handshake = h.handshake;
 	   alert = h.alert;
 	   ccs = h.ccs;
-	   appdata = ExtendStream(ki,h.appdata,r,d)}
+	   appdata = Fragment.Extend(ki,h.appdata,r,d)}
+
+
+private assume !ki,sh. 
+  StatefulPlain.EmptyHistory(ki,sh) => EmptyStreams(ki,Multiplexed(ki,sh)) 
+private assume !ki,sh,sh',h,ct,r,x. 
+  sh' = StatefulPlain.ExtendHistory(ki,sh,ADBytes(ki,ct),r,x) /\
+  h = Multiplexed(ki,sh) => 
+  (Multiplexed(ki,sh') = ExtendStreams(ki,ct,h,r,x))
+
+
+val contents: ki:epoch -> ct:ContentType -> h:(;ki) history -> rg:range -> 
+  f:(;ki,ct,h,rg) fragment -> d:(;ki,rg) Fragment.fragment {Auth(ki) => TLSFragment(ki,ct,h,rg,d)}
+
+val construct: ki:epoch -> ct:ContentType -> h:(;ki) history -> rg:range -> 
+  d:(;ki,rg) Fragment.fragment {Auth(ki) => TLSFragment(ki,ct,h,rg,d)} -> f:(;ki,ct,h,rg) fragment
+    
+  
+assume !ki,sh,ct,r,x.  StatefulPlain.Fragment(ki,sh,ADBytes(ki,ct),r,x) <=> 
+  TLSFragment(ki,ct,Multiplexed(ki,sh),r,x)
+
+val TLSFragmentToFragment: ki:epoch -> ct:ContentType -> h:(;ki) history -> sh:(;ki) StatefulPlain.history{h = TLSHistory(ki,sh)} ->
+  rg:range -> f:(;ki,ct,h,rg) fragment -> d:(;ki,sh,ADBytes(ki,ct),rg) StatefulPlain.fragment
+
+
+val fragmentToTLSFragment: ki:epoch -> ct:ContentType -> h:(;ki) history -> sh:(;ki) StatefulPlain.history{h = TLSHistory(ki,sh)} ->
+  rg:range -> d:(;ki,sh,ADBytes(ki,ct),rg) StatefulPlain.fragment -> f:(;ki,ct,h,rg) fragment

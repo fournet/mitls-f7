@@ -93,7 +93,7 @@ let recordPacketOut ki conn pv rg ct fragment =
 
         let (state,payload) = StatefulAEAD.encrypt ki state ad rg aeadF in
 
-        let history = addToStreams ki ct history rg fragment in
+        let history = addToHistory ki ct history rg fragment in
         let conn = SomeState(history,state) in
         let packet = makePacket ct pv payload in
         (conn,packet)
@@ -164,7 +164,7 @@ let recordPacketIn ki conn headPayload =
         | Correct (decrRes) ->
             let (newState, rg, plain) = decrRes in
             let msg = fragmentToTLSFragment ki ct history (StatefulAEAD.history ki state) rg plain in
-            let history = addToStreams ki ct history rg msg in
+            let history = addToHistory ki ct history rg msg in
             let conn = SomeState(history,newState) in
             correct(conn,ct,pv,rg,msg)
     | _ -> unexpectedError "[recordPacketIn] Incompatible ciphersuite and key type"

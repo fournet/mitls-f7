@@ -19,12 +19,7 @@ predicate State of ki:epoch * (;ki)prestate
 private type (;ki:epoch) state = s:(;ki)prestate {State(ki,s)}
 
 
-private definition !ki,s. State(ki,s) <=>
-	( SeqN(ki,s.history) = 0 \/
-	  (?s'. State(ki,s') /\ 
-	        // s.key = s'.key /\ // NO! s.key = NextAEADState(s'.key); the AEAD key changes over time!
-			SeqN(ki,s.history) = SeqN(ki,s'.history)+1)
-	)
+private definition !ki,s. State(ki,s) // KB: 21/4 Why do we need this?
 
 type (;ki:epoch) reader = r:(;ki) state
 type (;ki:epoch) writer = w:(;ki) state

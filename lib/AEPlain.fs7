@@ -23,7 +23,7 @@ private assume !ki. Unsafe(ki) <=> not Auth(ki)
 private type (;ki:epoch,r:range,ad:(;ki)data)AEPlain = {contents: (x:(;ki,r)fragment{Auth(ki) => AESays(ki,r,ad,x)})}
 
 val AEPlain: ki:epoch{not Auth(ki)} -> r:range -> ad:(;ki)data -> (;r)rbytes -> (;ki,r,ad)AEPlain
-val AERepr:  ki:epoch{not Auth(ki)} -> r:range -> ad:(;ki)data -> (;ki,r,ad)AEPlain -> (;r)rbytes
+val AERepr:  ki:epoch{not Safe(ki)} -> r:range -> ad:(;ki)data -> (;ki,r,ad)AEPlain -> (;r)rbytes
 
 val AEConstruct: ki:epoch -> r:range -> ad:(;ki)data -> f:(;ki,r)fragment{Auth(ki) => AESays(ki,r,ad,f)} -> (;ki,r,ad)AEPlain
 val AEContents:  ki:epoch -> r:range -> ad:(;ki)data -> (;ki,r,ad)AEPlain -> f:(;ki,r)fragment{Auth(ki) => AESays(ki,r,ad,f)}
