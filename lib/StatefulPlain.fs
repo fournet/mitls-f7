@@ -7,12 +7,12 @@ open DataStream
 type data = bytes
 
 type prehistory =
-    | Empty
-    | ConsHistory of prehistory * data * range * Fragment.fragment
+  | Empty
+  | ConsHistory of prehistory * data * range * Fragment.fragment
 type history = (nat * prehistory)
 
 type preds =
-    | History of epoch * (nat * prehistory)
+  | History of epoch * (nat * prehistory)
 
 type prefragment = Fragment.fragment
 type fragment = {contents: prefragment}
@@ -29,10 +29,9 @@ let addToHistory (ki:epoch) sh d r x =
     Pi.assume(History(ki,res));
     res
 
-
 let makeAD (ki:epoch) ((seqn,h):history) ad =
   let bn = bytes_of_seq seqn in
-    bn @| ad
+  bn @| ad
 
 let fragment (ki:epoch) (h:history) (ad:data) (r:range) (b:bytes) = {contents = Fragment.fragmentPlain ki r b}
 let repr (ki:epoch) (h:history) (ad:data) (r:range) (f:fragment) = Fragment.fragmentRepr ki r f.contents
@@ -41,13 +40,13 @@ let contents  (ki:epoch) (h:history) (ad:data) (rg:range) f = f.contents
 let construct (ki:epoch) (h:history) (ad:data) (rg:range) c = {contents = c}
 
 let FragmentToAEADPlain ki h ad r f =
-    let ad' = makeAD ki h ad in
-    let fr = f.contents in
-    AEADPlain.construct ki r ad' fr
+  let ad' = makeAD ki h ad in
+  let fr = f.contents in
+  AEADPlain.construct ki r ad' fr
 
 let AEADPlainToFragment ki h ad r p =
-    let ad' = makeAD ki h ad in
-    let f = AEADPlain.contents ki r ad' p in
-    {contents = f}
+  let ad' = makeAD ki h ad in
+  let f = AEADPlain.contents ki r ad' p in
+  {contents = f}
 
 

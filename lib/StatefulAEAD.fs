@@ -1,5 +1,7 @@
 module StatefulAEAD
 
+// implemented using AEAD with a sequence number 
+
 open Bytes
 open Error
 open TLSInfo
@@ -7,8 +9,8 @@ open StatefulPlain
 open DataStream
 
 type prestate =
-    { key: AEAD.AEADKey;
-      history: history // Sequence number + ghost refinement
+    { key: AEAD.AEADKey; 
+      history: history   
     }
 
 type state = prestate
@@ -17,41 +19,37 @@ type writer = state
 
 let GEN ki =
     let r,w = AEAD.GEN ki in
-    let eh = emptyHistory ki in
-    ( { key = r; history = eh},
-      { key = w; history = eh})  
+    let h = emptyHistory ki in
+    ( { key = r; history = h},
+      { key = w; history = h})  
 let COERCE ki b =
-    let key = AEAD.COERCE ki b in
-    let eh = emptyHistory ki in
-    { key = key;
-      history = eh}
-let LEAK ki s =
-    AEAD.LEAK ki s.key
+    let k  = AEAD.COERCE ki b in
+    let h = emptyHistory ki in
+    { key = k; history = h}
+let LEAK ki s = AEAD.LEAK ki s.key
 
 let history (ki:epoch) s = s.history
 
-type cipher = ENC.cipher
+type cipher = AEAD.cipher
 
 let encrypt (ki:epoch) (w:writer) (ad0:data) (r:range) (f:fragment) =
   let h = w.history in
-  let pl = FragmentToAEADPlain ki h ad0 r f in
+  let p = FragmentToAEADPlain ki h ad0 r f in
   let ad = makeAD ki h ad0 in
-  let key,c = AEAD.encrypt ki w.key ad r pl in
+  let k,c = AEAD.encrypt ki w.key ad r p in
   let h = addToHistory ki h ad0 r f in
-  let w = {key = key;
-           history = h} in
+  let w = {key = k; history = h} in
   (w,c)
 
 let decrypt (ki:epoch) (r:reader) (ad0:data) (e:cipher) =
   let h = r.history in
   let ad = makeAD ki h ad0 in
   let res = AEAD.decrypt ki r.key ad e in
-    match res with
-      | Correct res ->
-          let (key,yy,pl) = res in
-          let f = AEADPlainToFragment ki h ad0 yy pl in
-          let h = addToHistory ki h ad0 yy f in
-          let r = {history = h;
-                   key = key} in
-          correct (r,yy,f) 
-      | Error (x,y) -> Error (x,y)
+  match res with
+    | Correct x ->
+          let (k,rg,p) = x in
+          let f = AEADPlainToFragment ki h ad0 rg p in
+          let h = addToHistory ki h ad0 rg f in
+          let r = {history = h; key = k} in
+          correct (r,rg,f) 
+    | Error (x,y) -> Error (x,y)

@@ -5,16 +5,19 @@ open TLSInfo
 open DataStream
 // open AEADPlain // Do not open, or AEADPlain "module" and AEADPlain "function" will clash. We should stop using the same name for modules, types and functions, as this creates names clashes everywhere!
 
-type (;ki:epoch) data = (b:bytes){Length(b) = AEPlain.ADLength(ki) - 8}
+type (;ki:epoch) data = 
+  (b:bytes){Length(b) = AEPlain.ADLength(ki) - 8} // without the 8-byte sequence number
 
+//CF 21/4: why is this so complicated? Can we remove "History" ? avoid recording seqn *and* the list? 
+//CF 21/4: pls document e.g. what is just an instance of list, and use the resulting conventions.
 
 private type (;ki:epoch)prehistory =
 	| Empty
 	| ConsHistory of h:(;ki)prehistory * ad:(;ki)data * r:range * x:(;ki,r)Fragment.fragment //{Fragment(ki,h,ad,r,x)}
 
 function val HLength: ki:epoch * (;ki)prehistory -> nat
-private assume !ki. HLength(ki,Empty) = 0
-private assume !ki,h,ad,r,x. HLength(ki,ConsHistory(h,ad,r,x)) = HLength(ki,h)+1
+private definition !ki.          HLength(ki,Empty) = 0
+private definition !ki,h,ad,r,x. HLength(ki,ConsHistory(h,ad,r,x)) = HLength(ki,h)+1
 
 predicate type preds = History of ki:epoch * ( nat * (;ki)prehistory )
 
@@ -23,21 +26,25 @@ private type (;ki:epoch)history = (sn:nat * ph:(;ki)prehistory){History(ki,(sn,p
 function val SeqN: ki:epoch * (;ki)history -> nat
 private assume !ki,sn,h. SeqN(ki,(sn,h)) = sn
 
+// event recording each fragment send; where is it assumed?
+
 predicate Fragment of ki:epoch * (;ki)history * (;ki)data * r:range * (;ki,r)Fragment.fragment
 
 private type (;ki:epoch,h:(;ki)history,ad:(;ki)data,range:range) prefragment =
 	x:(;ki,range)Fragment.fragment{Auth(ki) => Fragment(ki,h,ad,range,x)}
 
+//CF 21/4 why this nesting? 
 private type (;ki:epoch,h:(;ki)history,ad:(;ki)data,range:range) fragment =
 	{contents: (;ki,h,ad,range)prefragment}
 
 function val SAEADContents: 'a -> 'b
 assume !f. SAEADContents(f) = f.contents
 
+//CF 21/4 use a function instead? just inline? 
 predicate EmptyHistory of ki:epoch * (;ki) history
 function val ExtendHistory: ki:epoch * h:(;ki) history * (;ki) data * r:range * (;ki,r) Fragment.fragment -> 'a
-private assume !ki. EmptyHistory(ki,(0,Empty))
-private assume !ki,n,h,d,r,f. ExtendHistory(ki,(n,h),d,r,f) = (n+1,ConsHistory(h,d,r,f))
+private definition !ki. EmptyHistory(ki,(0,Empty))
+private definition !ki,n,h,d,r,f. ExtendHistory(ki,(n,h),d,r,f) = (n+1,ConsHistory(h,d,r,f))
 
 val emptyHistory: ki:epoch -> h:(;ki)history{EmptyHistory(ki,h)}
 private val consHistory: ki:epoch -> h:(;ki)prehistory ->
@@ -47,25 +54,24 @@ val addToHistory: ki:epoch -> h:(;ki)history ->
 	ad:(;ki)data -> r:range -> x:(;ki,h,ad,r)fragment ->
 	h':(;ki)history{h' = ExtendHistory(ki,h,ad,r,x)}
 
+// adding the 8-byte sequence number to AD (internal to AEAD) 
 function val MakeAD:  ki:epoch * (;ki)history * (;ki)data -> bytes//(;ki)AEADPlain.data
 assume !ki,h,ad. MakeAD(ki,h,ad) = IntBytes(8,SeqN(ki,h)) @| ad
+val makeAD:  ki:epoch -> h:(;ki)history -> ad:(;ki)data -> b:(;ki) AEADPlain.data{b=MakeAD(ki,h,ad)}
 
-val makeAD:  ki:epoch -> h:(;ki)history -> ad:(;ki)data ->
-	b:(;ki)AEADPlain.data{b=MakeAD(ki,h,ad)}
+val fragment: ki:epoch{not Auth(ki)} -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;r)rbytes -> (;ki,h,ad,r) fragment
+val repr:     ki:epoch{not Safe(ki)} -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;ki,h,ad,r) fragment -> (;r)rbytes
 
-val fragment: ki:epoch{not Auth(ki)} -> hh:(;ki)history -> ad:(;ki)data -> r:range -> (;r)rbytes -> (;ki,hh,ad,r) fragment
-val repr: ki:epoch{not Safe(ki)} -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;ki,h,ad,r) fragment -> (;r)rbytes
-
-val contents:  ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;ki,h,ad,r)fragment ->
-	x:(;ki,r)Fragment.fragment{Auth(ki) => Fragment(ki,h,ad,r,x)}
+val contents:  ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range -> 
+    (;ki,h,ad,r)fragment -> x:(;ki,r)Fragment.fragment{Auth(ki) => Fragment(ki,h,ad,r,x)}
 val construct: ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range ->
 	x:(;ki,r)Fragment.fragment{Auth(ki) => Fragment(ki,h,ad,r,x)} -> (;ki,h,ad,r)fragment
 
-val FragmentToAEADPlain: ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;ki,h,ad,r)fragment ->
-	(;ki,r,MakeAD(ki,h,ad))AEADPlain.AEADPlain
+val FragmentToAEADPlain: ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range -> 
+  (;ki,h,ad,r)fragment -> (;ki,r,MakeAD(ki,h,ad))AEADPlain.AEADPlain
 
 val AEADPlainToFragment: ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range ->
-	(;ki,r,MakeAD(ki,h,ad))AEADPlain.AEADPlain -> (;ki,h,ad,r)fragment
+  (;ki,r,MakeAD(ki,h,ad))AEADPlain.AEADPlain -> (;ki,h,ad,r)fragment
 
 assume !ki,ad,r,x. AEADPlain.AEADSays(ki,r,ad,x) <=> ?h,ad'. 
   ad = MakeAD(ki,h,ad') /\ 
@@ -77,6 +83,7 @@ ask !ki,ad,h,h',ad',ad''. ad = MakeAD(ki,h,ad') /\ ad = MakeAD(ki,h',ad'') =>
     (SeqN(ki,h) = SeqN(ki,h') /\ ad' = ad'')
 
 // History and seqn are bijective
+//CF 21/4 where is it used? This holds only for local histories.
 assume !ki,h,h'. History(ki,h) /\ History(ki,h') /\ SeqN(ki,h) = SeqN(ki,h') => h = h'
 assume !ki. History(ki,(0,Empty))
 

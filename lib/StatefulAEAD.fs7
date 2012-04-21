@@ -10,23 +10,25 @@ open Bytes
 //CF 21/4: cut prestate and State? 
 
 private type (;ki:epoch) prestate = {
-  key: (;ki) AEAD.AEADKey;
-  history: (;ki)history
+  key: (;ki) AEAD.AEADKey; // possibly stateful
+  history: (;ki)history    // ghost state, except for the derived sequence number
 }
 
 predicate State of ki:epoch * (;ki)prestate
 
 private type (;ki:epoch) state = s:(;ki)prestate {State(ki,s)}
 
-
 private definition !ki,s. State(ki,s) // KB: 21/4 Why do we need this?
 
+//CF 21/4 typing should prevent mixing read/write states! 
+//        can we keep state a public datatype and make reader/writer abstract? 
 type (;ki:epoch) reader = r:(;ki) state
 type (;ki:epoch) writer = w:(;ki) state
 
-val GEN: ki:epoch{Safe(ki)} -> (;ki) reader * (;ki)writer
-val COERCE: ki:epoch{not Auth(ki)} -> b:bytes{Length(b)=AEAD.AEADSize(ki)} -> (;ki)state
-val LEAK: ki:epoch{not Auth(ki)} -> (;ki)state -> b:bytes
+//CF 21/4 patched, pls check; rediscuss COERCE/LEAK 
+val GEN:    ki:epoch -> (;ki) reader * (;ki)writer
+val COERCE: ki:epoch{not Auth(ki)}  -> b:bytes{Length(b)=AEAD.AEADSize(ki)} -> (;ki)state
+val LEAK:   ki:epoch{not Auth(ki)}  -> (;ki)state -> b:bytes
 
 val history: ki:epoch -> s:(;ki) state -> h:(;ki)history{h=s.history}
 
@@ -40,7 +42,8 @@ val history: ki:epoch -> s:(;ki) state -> h:(;ki)history{h=s.history}
 // e.g.    * the decrypted rg is NOT authenticated
 //         * the states are not necessarily synchronized; only the histories are when AUTH
 
-type cipher = ENC.cipher
+type cipher = AEAD.cipher
+
 predicate STXT of ki:epoch * (;ki)state * ad:(;ki)data * r:range * (;ki,r)Fragment.fragment * cipher
 assume !ki,s,ad,r,f,c. STXT(ki,s,ad,r,f,c)
 //	<=> AEAD.CTXT(ki,MakeAD(ki,s.history,ad),r,f,c)
@@ -59,11 +62,12 @@ val decrypt: ki:epoch ->
   rd:(;ki) reader -> 
   ad:(;ki)data ->
   c:ENC.cipher ->
-  res:((;ki) reader * rg:range * (;ki,rd.history,ad,rg) fragment) Result{
-	 !nrd,rg,f. res = Correct((nrd,rg,f)) => 
-                (Length(c)=AEPlain.RangeCipher(ki,rg) /\
-		(Safe(ki) => STXT(ki,rd,ad,rg,SAEADContents(f),c)) /\
-                (Auth(ki) => STXT(ki,rd,ad,rg,SAEADContents(f),c))) }
+  res:((;ki) reader * rg:range * (;ki,rd.history,ad,rg) fragment) Result
+  { !nrd,rg,f. res = Correct((nrd,rg,f)) => 
+               ( Length(c)=AEPlain.RangeCipher(ki,rg) /\
+		         (Safe(ki) => STXT(ki,rd,ad,rg,SAEADContents(f),c)) /\
+                 (Auth(ki) => STXT(ki,rd,ad,rg,SAEADContents(f),c))) }
 
 //CF 21/4: as stated, we need the resulting readers and writers to have explicitly-updated histories (irrespective of AUTH)
 //CF 21/4: can we return an option instead? Otherwise we may have to specify which errors can be returned.
+
