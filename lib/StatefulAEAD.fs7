@@ -6,8 +6,8 @@ open StatefulPlain
 open DataStream 
 open Bytes
 
-// TODO 12-02: 
-// - Do we need to control the cipherlength?
+//CF 12/2: do we need pre/post on the ciphertext lengths?
+//CF 21/4: cut prestate and State? 
 
 private type (;ki:epoch) prestate = {
   key: (;ki) AEAD.AEADKey;
@@ -30,12 +30,23 @@ val LEAK: ki:epoch{not Auth(ki)} -> (;ki)state -> b:bytes
 
 val history: ki:epoch -> s:(;ki) state -> h:(;ki)history{h=s.history}
 
+// Ideally,
+// the writer maintains a table (ki, h, ad, range, fragment, cipher) {...} [details?]
+// when SAFE(ki), the writer uses 0s instead of the actual fragment
+// when AUTH(ki), the reader decrypts by table lookup
+// turning forgeries into errors; retrieving the "right" history index; returning the concrete decrypted range
+
+//CF 21/4: STXT is an event tracking written fragments; not sure about details and contents ?!
+// e.g.    * the decrypted rg is NOT authenticated
+//         * the states are not necessarily synchronized; only the histories are when AUTH
+
 type cipher = ENC.cipher
 predicate STXT of ki:epoch * (;ki)state * ad:(;ki)data * r:range * (;ki,r)Fragment.fragment * cipher
 assume !ki,s,ad,r,f,c. STXT(ki,s,ad,r,f,c)
 //	<=> AEAD.CTXT(ki,MakeAD(ki,s.history,ad),r,f,c)
 
-// AP 18/4: Cannot prove STXT until we don't get precise with {S}AEADContents, which breaks abstraction
+//AP 18/4: Cannot prove STXT until we don't get precise with {S}AEADContents, which breaks abstraction
+//CF ??
 
 val encrypt: ki:epoch -> 
   w:(;ki) writer -> 
@@ -53,3 +64,6 @@ val decrypt: ki:epoch ->
                 (Length(c)=AEPlain.RangeCipher(ki,rg) /\
 		(Safe(ki) => STXT(ki,rd,ad,rg,SAEADContents(f),c)) /\
                 (Auth(ki) => STXT(ki,rd,ad,rg,SAEADContents(f),c))) }
+
+//CF 21/4: as stated, we need the resulting readers and writers to have explicitly-updated histories (irrespective of AUTH)
+//CF 21/4: can we return an option instead? Otherwise we may have to specify which errors can be returned.

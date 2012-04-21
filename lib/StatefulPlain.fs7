@@ -67,7 +67,9 @@ val FragmentToAEADPlain: ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range -
 val AEADPlainToFragment: ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range ->
 	(;ki,r,MakeAD(ki,h,ad))AEADPlain.AEADPlain -> (;ki,h,ad,r)fragment
 
-assume !ki,ad,r,x. AEADPlain.AEADSays(ki,r,ad,x) <=> ?h,ad'. ad = MakeAD(ki,h,ad') /\ History(ki,h) /\ Fragment(ki,h,ad',r,x)
+assume !ki,ad,r,x. AEADPlain.AEADSays(ki,r,ad,x) <=> ?h,ad'. 
+  ad = MakeAD(ki,h,ad') /\ 
+  History(ki,h) /\ Fragment(ki,h,ad',r,x)
 
 ask !ki,ad,h,ad',r,x. (ad = MakeAD(ki,h,ad') /\ History(ki,h) /\ Fragment(ki,h,ad',r,x)) => AEADPlain.AEADSays(ki,r,ad,x)
 
