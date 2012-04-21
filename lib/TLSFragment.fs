@@ -37,27 +37,6 @@ let emptyHistory ki =
         appdata = eh} in
       {state = sh; streams = str}
 
-let addToHistory (ki:epoch) ct ss r f =
-  match (ct,f) with
-    | Handshake,FHandshake(ff) -> 
-        let d,s' = Fragment.delta ki ss.streams.handshake r ff in
-        let str' = {ss.streams with handshake = s'} in
-          {ss with streams = str'}
-    | Alert,FAlert(ff) -> 
-        let d,s' = Fragment.delta ki ss.streams.alert r ff in
-        let str' = {ss.streams with alert = s'} in
-          {ss with streams = str'}
-          
-    | Change_cipher_spec,FCCS(ff) -> 
-        let d,s' = Fragment.delta ki ss.streams.ccs r ff in
-        let str' = {ss.streams  with ccs = s'} in
-          {ss with streams = str'}
-    | Application_data,FAppData(ff) -> 
-        let d,s' = Fragment.delta ki ss.streams.appdata r ff in
-        let str' = {ss.streams with appdata = s'} in
-          {ss with streams = str'}
-    | _,_ -> unexpectedError "[addToStreams] Incompatible content and fragment types"
-
 let makeAD ki ct =
     let si = epochSI(ki) in
     let pv = si.protocol_version in
@@ -66,6 +45,31 @@ let makeAD ki ct =
     if pv = SSL_3p0 
     then bct
     else bct @| bver
+
+let addToHistory (ki:epoch) ct ss r sf =
+  let ad = makeAD ki ct in 
+  let st' = StatefulPlain.addToHistory ki ss.state ad r sf in
+  let ff = StatefulPlain.contents ki ss.state ad r sf in
+  let ss = {ss with state = st'} in
+  match ct with
+    | Handshake -> 
+        let d,s' = Fragment.delta ki ss.streams.handshake r ff in
+        let str' = {ss.streams with handshake = s'} in
+          {ss with streams = str'}
+    | Alert -> 
+        let d,s' = Fragment.delta ki ss.streams.alert r ff in
+        let str' = {ss.streams with alert = s'} in
+          {ss with streams = str'}
+    | Change_cipher_spec -> 
+        let d,s' = Fragment.delta ki ss.streams.ccs r ff in
+        let str' = {ss.streams  with ccs = s'} in
+          {ss with streams = str'}
+    | Application_data -> 
+        let d,s' = Fragment.delta ki ss.streams.appdata r ff in
+        let str' = {ss.streams with appdata = s'} in
+          {ss with streams = str'}
+    | _ -> unexpectedError "[addToStreams] Incompatible content and fragment types"
+
 
 let fragmentPlain ki (ct:ContentType) (h:history) (rg:DataStream.range) b = 
     match ct with
@@ -98,10 +102,12 @@ let construct (ki:epoch) (ct:ContentType) (h:history) (rg:range) sb =
         | Alert -> FAlert(sb)
         | Application_data -> FAppData(sb)
 
-let TLSFragmentToFragment ki ct ss h rg f =
-    let sb = contents ki ct ss rg f in
-    StatefulPlain.construct ki h (makeAD ki ct) rg sb
+let TLSFragmentToFragment ki ct ss rg f =
+  let sb = contents ki ct ss rg f in
+  let ad = makeAD ki ct in
+    StatefulPlain.construct ki ss.state ad rg sb
 
-let fragmentToTLSFragment ki ct ss h rg f =
-    let sb = StatefulPlain.contents ki h (makeAD ki ct) rg f in
+let fragmentToTLSFragment ki ct ss rg f =
+  let ad = makeAD ki ct in
+  let sb = StatefulPlain.contents ki ss.state ad rg f in
     construct ki ct ss rg sb
