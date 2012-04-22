@@ -10,10 +10,8 @@ type (;ki:epoch) data = (b:bytes){Length(b) = AEPlain.ADLength(ki)}
 predicate AEADSays of ki:epoch * r:range * (;ki)data * (;ki,r)fragment
 assume !ki,r,d,f. AEPlain.AESays(ki,r,d,f) <=> AEADSays(ki,r,d,f)
 
-private type (;ki:epoch,r:range,ad:(;ki)data) preAEADPlain =
-	x:(;ki,r)fragment{ Auth(ki) => AEADSays(ki,r,ad,x) }
-private type (;ki:epoch,r:range,ad:(;ki)data) AEADPlain = {contents: (;ki,r,ad)preAEADPlain}
-
+private type (;ki:epoch,r:range,ad:(;ki)data) preAEADPlain = x:(;ki,r)fragment{ Auth(ki) => AEADSays(ki,r,ad,x) }
+private type (;ki:epoch,r:range,ad:(;ki)data) AEADPlain    = {contents: (;ki,r,ad)preAEADPlain}
 function val AEADContents: 'a -> 'b
 assume !f. AEADContents(f) = f.contents
 

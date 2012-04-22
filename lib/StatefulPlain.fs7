@@ -67,11 +67,17 @@ val contents:  ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range ->
 val construct: ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range ->
 	x:(;ki,r)Fragment.fragment{Auth(ki) => Fragment(ki,h,ad,r,x)} -> (;ki,h,ad,r)fragment
 
+
+//CF 22/4: these coercions are used only in StatefulAEAD.fs; they are not part of the "plain" interface to AEAD.
+
 val FragmentToAEADPlain: ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range -> 
   (;ki,h,ad,r)fragment -> (;ki,r,MakeAD(ki,h,ad))AEADPlain.AEADPlain
 
 val AEADPlainToFragment: ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range ->
   (;ki,r,MakeAD(ki,h,ad))AEADPlain.AEADPlain -> (;ki,h,ad,r)fragment
+
+
+//CF 22/4: needs discussion
 
 assume !ki,ad,r,x. AEADPlain.AEADSays(ki,r,ad,x) <=> ?h,ad'. 
   ad = MakeAD(ki,h,ad') /\ 
