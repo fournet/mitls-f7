@@ -10,9 +10,6 @@ type app_state
 val inStream:  ConnectionInfo -> app_state -> stream
 val outStream: ConnectionInfo -> app_state -> stream
 
-val is_incoming_empty: ConnectionInfo ->  app_state -> bool
-val is_outgoing_empty: ConnectionInfo ->  app_state -> bool
-
 val init: ConnectionInfo -> app_state
 
 val writeAppData: ConnectionInfo -> app_state -> range -> delta -> app_state

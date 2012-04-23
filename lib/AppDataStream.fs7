@@ -5,12 +5,7 @@ open Bytes
 open Error
 open DataStream
 
-type (;ki:epoch) buffer = {
-	// AP: I don't understand the duplication of stream, and data: stream * ...
-	// Maybe it's not useful anymore
-  stream: (;ki) stream;
-  data: h:(;ki) stream * (r:range * (;ki,h,r) delta) option;
-}
+type (;ki:epoch) buffer = h:(;ki) stream * ((r:range * (;ki,h,r) delta) option)
 
 type (;ki:epoch) input_buffer = (;ki) buffer
 type (;ki:epoch) output_buffer = (;ki) buffer
@@ -20,99 +15,25 @@ type (;ci:ConnectionInfo) app_state = {
     app_outgoing: (;ci.id_out) output_buffer;
 }
 
-function val OutStream: c:ConnectionInfo * (;c) app_state -> bytes
-function val InStream: c:ConnectionInfo * (;c) app_state -> bytes
+function val AppInStream:  ci:ConnectionInfo * (;ci)app_state -> 'a //(;ci.id_in) stream
+function val AppOutStream: ci:ConnectionInfo * (;ci)app_state -> 'a //(;ci.id_out)stream
+definition !ci,s,st,d. s.app_incoming = (st,d) => AppInStream(ci,s)  = st
+definition !ci,s,st,d. s.app_outgoing = (st,d) => AppOutStream(ci,s) = st
 
-// The top level predicate, to be defined or assumed by the application
-function val AppData: epoch * stream * range * delta * bytes
+function val AppInBuf:  ci:ConnectionInfo * (;ci)app_state -> 'a //(range * delta) option
+function val AppOutBuf: ci:ConnectionInfo * (;ci)app_state -> 'a //(range * delta) option
+definition !ci,s,st,d. s.app_incoming = (st,d) => AppInBuf(ci,s)  = d
+definition !ci,s,st,d. s.app_outgoing = (st,d) => AppOutBuf(ci,s) = d
 
-val repr: ki:epoch{not Safe(ki)} -> s:stream -> r:range -> (;ki,s,r)delta -> bytes
-val fragment: ki:epoch{not Safe(ki)} -> s:stream -> r:range -> bytes -> (;ki,s,r)delta
+val inStream:  ci:ConnectionInfo -> s:(;ci)app_state -> st:(;ci.id_in) stream{st = AppInStream(ci,s) }
+val outStream: ci:ConnectionInfo -> s:(;ci)app_state -> st:(;ci.id_out)stream{st = AppOutStream(ci,s)}
 
+val init: ci:ConnectionInfo -> s:(;ci)app_state{AppInBuf(ci,s) = None /\ AppOutBuf(ci,s) = None}
 
+val writeAppData: ci:ConnectionInfo -> s:(;ci)app_state{AppOutBuf(ci,s) = None} ->
+	r:range -> d:(;ci.id_out,AppOutStream(ci,s),r)delta ->
+	s':(;ci)app_state{AppOutBuf(ci,s') = Some((r,d))}
 
-// AP: Begin old implementation
-
-// Maybe deprecated, anyway, implemented by functions in DataStream
-// predicate EmptyStream of epoch * stream
-// predicate ConcatStream of epoch * stream * fragment * stream
-// val emptyStream: ki:epoch -> s:(;ki)stream{EmptyStream(ki,s)}
-// val addFragment: ki:epoch -> s:(;ki)stream -> 
-//                  r:DataStream.range -> f:(;ki,s,r) fragment -> 
-//                  s':(;ki)stream{ConcatStream(ki,s,f,s')}
-
-(* We justify the following 'linearity' theorems by appealing to the types of the functions:
-   mkFragment, readAppDataFragment, and readNonAppDataFragment which are the only locations where
-   AppFragment, AppDataSequenceNo, and NonAppDataSequenceNo are assumed 
-
-theorem !ki,tlen,seqn,b. AppDataFragment(ki,tlen,seqn,b) =>
-  (seqn >= 0 /\ CompatibleLengths(EpochSI(ki),Length(b),[tlen]) /\ AppDataSequenceNo(ki,seqn) /\
-     (?d. ValidAppDataStream(ki,d @| b) /\
-	  AppDataFragmentSequence(ki,seqn - 1,d)))
-theorem !ki,seqn. AppDataSequenceNo(ki,seqn) => (not NonAppDataSequenceNo(ki,seqn))
-theorem !ki,tlen,seqn,b,tlen',b'. AppDataFragment(ki,tlen,seqn,b) /\ AppDataFragment(ki,tlen',seqn,b') => (b = b' /\ tlen = tlen')
-*)
-// A biggish theorem, to prove by induction
-//theorem !ki,seqn,d,d'. AppDataFragmentSequence(ki,seqn,d) /\ AppDataFragmentSequence(ki,seqn,d') => d = d'
-
-(*
-val fragment: ki:epoch -> tlen:int -> seqn:int -> 
-  b:bytes{AppDataFragment(ki,tlen,seqn,b) \/ Corrupt(ki)} -> (;ki,tlen,seqn) fragment
-
-private val mkFragment: ki:epoch -> tlen:int -> seqn:int ->
-  b:bytes{Corrupt(ki) \/ (seqn >= 0 /\ AppDataSequenceNo(ki,seqn) /\ 
-	    (?d. ValidAppDataStream(ki,d @| b) /\ AppDataFragmentSequence(ki,seqn-1,d)))} ->
-          (;ki,tlen,seqn) fragment{AppDataFragment(ki,tlen,seqn,b)}
-
-val repr: ki:epoch -> tlen:int -> seqn:int -> (;ki,tlen,seqn) fragment -> 
-          b:bytes{Corrupt(ki) \/ AppDataFragment(ki,tlen,seqn,b)}
-
-val writeAppDataBytes: c:ConnectionInfo -> 
-                       aps:(;c) app_state -> 
-                       b:bytes -> ls:lengths -> 
-                       aps':(;c) app_state{(InSequenceNo(c,aps),OutSequenceNo(c,aps)) = (InSequenceNo(c,aps'),OutSequenceNo(c,aps'))}
-
-val readAppDataBytes:  c:ConnectionInfo -> 
-                       aps:(;c) app_state -> 
-                       (b:bytes * aps':(;c) app_state){(InSequenceNo(c,aps),OutSequenceNo(c,aps)) = (InSequenceNo(c,aps'),OutSequenceNo(c,aps'))}
-
-val readAppDataFragment: c:ConnectionInfo -> 
-                       aps:(;c) app_state -> 
-                       ((tlen:int * (;c.id_out,tlen,OutSequenceNo(c,aps)) fragment * 
-			   aps':(;c) app_state){(InSequenceNo(c,aps'),OutSequenceNo(c,aps')) = (InSequenceNo(c,aps),OutSequenceNo(c,aps)+1)}) option
-
-val readNonAppDataFragment: c:ConnectionInfo -> 
-                       aps:(;c) app_state -> 
-                       aps':(;c) app_state{(InSequenceNo(c,aps'),OutSequenceNo(c,aps')) = (InSequenceNo(c,aps),OutSequenceNo(c,aps)+1)}
-
-val writeAppDataFragment: c:ConnectionInfo -> 
-                       aps:(;c) app_state -> 
-                       tlen:int -> (;c.id_in,tlen,InSequenceNo(c,aps)) fragment ->
-                       aps':(;c) app_state{(InSequenceNo(c,aps'),OutSequenceNo(c,aps')) = (InSequenceNo(c,aps)+1,OutSequenceNo(c,aps))}
-
-val writeNonAppDataFragment: c:ConnectionInfo -> 
-                       aps:(;c) app_state -> 
-                       aps':(;c) app_state{(InSequenceNo(c,aps'),OutSequenceNo(c,aps')) = (InSequenceNo(c,aps)+1,OutSequenceNo(c,aps))}
-
-
-val is_incoming_empty: ci:ConnectionInfo -> aps:(;ci) app_state -> b:bool {b = true => (?s,ls,ads. aps.app_incoming = (s,ls,ads) /\ ads.data = [| |])}
-
-val is_outgoing_empty: ci:ConnectionInfo -> aps:(;ci) app_state -> b:bool {b = true => (?s,ls,ads. aps.app_outgoing = (s,ls,ads) /\ ads.data = [| |])}
-
-
-val init: c:ConnectionInfo -> aps:(;c) app_state{InSequenceNo(c,aps) = 0 /\ OutSequenceNo(c,aps) = 0}
-
-val reset_incoming: c:ConnectionInfo -> 
-  aps:(;c) app_state ->
-  aps':(;c) app_state{
-    (InSequenceNo(c,aps'),OutSequenceNo(c,aps')) =
-    (0,OutSequenceNo(c,aps))
-  }
-
-val reset_outgoing: c:ConnectionInfo -> 
-  aps:(;c) app_state ->
-  aps':(;c) app_state{
-    (InSequenceNo(c,aps'),OutSequenceNo(c,aps')) =
-    (InSequenceNo(c,aps),0)
-  }
-*)
+val emptyOutgoingAppData: ci:ConnectionInfo -> s:(;ci)app_state ->
+	((r:range * d:(;ci.id_out, AppOutStream(ci,s), r)delta) option) *
+		s':(;ci)app_state{AppOutBuf(ci,s') = None}
