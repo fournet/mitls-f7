@@ -5,7 +5,7 @@ open Bytes
 open Error
 open DataStream
 
-type (;ki:epoch) buffer = h:(;ki) stream * ((r:range * (;ki,h,r) delta) option)
+type (;ki:epoch) buffer = h:(;ki) stream * (r:range * (;ki,h,r) delta) option
 
 type (;ki:epoch) input_buffer = (;ki) buffer
 type (;ki:epoch) output_buffer = (;ki) buffer
@@ -37,3 +37,17 @@ val writeAppData: ci:ConnectionInfo -> s:(;ci)app_state{AppOutBuf(ci,s) = None} 
 val emptyOutgoingAppData: ci:ConnectionInfo -> s:(;ci)app_state ->
 	((r:range * d:(;ci.id_out, AppOutStream(ci,s), r)delta) option) *
 		s':(;ci)app_state{AppOutBuf(ci,s') = None}
+
+val next_fragment: ci:ConnectionInfo -> s:(;ci)app_state ->
+	(r:range * (;ci.id_out,r)Fragment.fragment * (;ci)app_state) option
+
+val recv_fragment: ci:ConnectionInfo -> s:(;ci)app_state -> r:range -> (;ci.id_in,r)Fragment.fragment ->
+	(;ci)app_state
+
+val readAppData: ci:ConnectionInfo -> s:(;ci)app_state ->
+	(r:range * (;ci.id_in,AppInStream(ci,s),r)delta) option * (;ci)app_state
+
+val reset_outgoing: ci:ConnectionInfo -> (;ci)app_state ->
+	ci':ConnectionInfo{ci'.role = ci.role /\ ci'.id_in = ci.id_in} -> (;ci')app_state
+val reset_incoming: ci:ConnectionInfo -> (;ci)app_state ->
+	ci':ConnectionInfo{ci'.role = ci.role /\ ci'.id_out = ci.id_out} -> (;ci')app_state

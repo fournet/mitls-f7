@@ -5,7 +5,7 @@ open Bytes
 open TLSInfo
 open DataStream
 
-type buffer = stream * ((range * delta) option)
+type buffer = stream * (range * delta) option
 
 type input_buffer = buffer
 type output_buffer = buffer
