@@ -168,7 +168,7 @@ let moveToOpenState (Conn(id,c)) new_storable_info =
     // - We need to enforce agreement on the alert protocol.
     //   We do it here, by checking that our input buffer is empty. Maybe, we should have done
     //   it before, when we sent/received the CCS
-    if Alert.incomingEmpty c.alert then
+    if Alert.incomingEmpty id c.alert then
         let read = c.read in
         match read.disp with
         | Finishing | Finished ->
@@ -194,7 +194,7 @@ let closeConnection (Conn(id,c)) =
 let pickSendPV (Conn(id,c)) =
     match c.write.disp with
     | Init -> c.poptions.minVer
-    | FirstHandshake -> getNegotiatedVersion c.handshake
+    | FirstHandshake -> getNegotiatedVersion id c.handshake
     | _ -> let si = epochSI(id.id_out) in si.protocol_version
 
 let send (Conn(id,c)) rg ct frag =
@@ -222,7 +222,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
           match Handshake.next_fragment id hs_state with 
           | (Handshake.EmptyHSFrag, _) ->
             let app_state = c.appdata in
-                match AppDataStream.readAppDataFragment id app_state with
+                match AppDataStream.next_fragment id app_state with
                 | None -> (correct (WAppDataDone,Conn(id,c)))
                 | Some (next) ->
                           let (tlen,f,new_app_state) = next in
@@ -483,7 +483,7 @@ let deliver (Conn(id,c)) ct tl frag: (deliverOutcome * Connection) Result =
     | Error (x,y) -> let closed = closeConnection(Conn(id,c)) in Error(x,y) // TODO: We might want to send some alert here.
 
   | Application_data, TLSFragment.FAppData(f), Open -> 
-    let appstate = AppDataStream.writeAppDataFragment id c.appdata (tlen) f in
+    let appstate = AppDataStream.recv_fragment id c.appdata (tlen) f in
     let c = {c with appdata = appstate} in
     correct (RAppDataDone, Conn(id, c))
   | _, _, _ -> let closed = closeConnection(Conn(id,c)) in Error(Dispatcher,InvalidState) // TODO: We might want to send some alert here.
@@ -507,7 +507,7 @@ let recv (Conn(id,c)) =
                     let (c_recv,ct,pv,tl,f) = pack in
                     let si = epochSI(id.id_in) in
                     if c.read.disp = Init ||
-                       (c.read.disp = FirstHandshake && pv = getNegotiatedVersion c.handshake) ||
+                       (c.read.disp = FirstHandshake && pv = getNegotiatedVersion id c.handshake) ||
                        pv = si.protocol_version then
                         let c_read = {c_read with conn = c_recv} in
                         let c = {c with read = c_read} in
@@ -615,7 +615,7 @@ let write (Conn(id,c)) msg =
         WriteError(EInternal(x,y)) // internal
 
 let authorize (Conn(id,c)) q =
-    let hs = Handshake.authorize c.handshake q in
+    let hs = Handshake.authorize id c.handshake q in
     let c = {c with handshake = hs} in
     Conn(id,c)
 

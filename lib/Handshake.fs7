@@ -2,10 +2,10 @@
 module Handshake
 
 open Error
-//open Formats
 open CipherSuites
 open TLSInfo
-//open SessionDB
+open DataStream
+
 
 // There is one instance of the protocol for each TCP connection,
 // each performing a sequence of Handshakes for that connection.
@@ -19,10 +19,10 @@ type (;ci:ConnectionInfo) hs_state = (;ci)pre_hs_state
 //TODO better names, maybe: init/accept resume reshake rekey request
 
 // Create instance for a fresh connection (without resumption) 
-val init_handshake: ci:ConnectionInfo -> Role -> protocolOptions -> (;ci)hs_state
+val init_handshake: Role -> protocolOptions -> (ci:ConnectionInfo * (;ci)hs_state)
 
 // Create instance for a fresh connection (Client-only, resuming some other sessions)
-val resume_handshake: ci:ConnectionInfo -> nextSI:SessionInfo -> (;nextSI)PRFs.masterSecret -> protocolOptions -> (;ci)hs_state
+val resume_handshake: nextSI:SessionInfo -> (;nextSI)PRFs.masterSecret -> protocolOptions -> (ci:ConnectionInfo * (;ci)hs_state)
 
 // All other calls are affine in the Handshake protocol state
 
@@ -49,21 +49,24 @@ val start_hs_request:  ci:ConnectionInfo -> (;ci)hs_state -> protocolOptions -> 
 //TODO provide support for indexing fragments (probably by directed si, not ki)
 
 
-type (;ki:epoch,seqn:int) HSFragReply =
+type (;ki:epoch) HSFragReply =
   | EmptyHSFrag              (* nothing to send *) 
-  | HSFrag of                (tlen:DataStream.range * (;ki,tlen,seqn)fragment)
-  | CCSFrag of               (tlen:DataStream.range * (;ki,tlen,seqn)ccsFragment) (* the unique one-byte CCS *) * (newKI:epoch * (;newKI)Record.ConnectionState)
-  | HSWriteSideFinished of   (tlen:DataStream.range * (;ki,tlen,seqn)fragment) (* signalling that this fragment ends the finished message *)
-  | HSFullyFinished_Write of (tlen:DataStream.range * (;ki,tlen,seqn)fragment) * ((si:SessionInfo * (;si)PRFs.masterSecret * Direction){si=EpochSI(ki)})
-val next_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)hs_state -> (;ci.id_out,seqn)HSFragReply * (;ci)hs_state
+  | HSFrag of                (rg:range * (;ki,rg)Fragment.fragment)
+  | CCSFrag of               (rg:range * (;ki,rg)Fragment.fragment) (* the unique one-byte CCS *) * (newKI:epoch * (;newKI)Record.ConnectionState)
+  | HSWriteSideFinished of   (rg:range * (;ki,rg)Fragment.fragment) (* signalling that this fragment ends the finished message *)
+  | HSFullyFinished_Write of (rg:range * (;ki,rg)Fragment.fragment) * ((si:SessionInfo * (;si)PRFs.masterSecret * Role){si=EpochSI(ki)})
+val next_fragment: ci:ConnectionInfo -> (;ci)hs_state -> (;ci.id_out)HSFragReply * (;ci)hs_state
 
 (* Receiving Handshake and CCS fragments *) 
 
 type (;si:SessionInfo)recv_reply = (* the fragment is accepted, and... *)
   | HSAck (* nothing happens *)
-  | HSVersionAgreed of ProtocolVersion (* use this new protocol version for sending *)
-  | HSReadSideFinished (* ? *) 
-  | HSFullyFinished_Read of ((si':SessionInfo * (;si')PRFs.masterSecret * Direction){si=si'}) (* we can start sending data on the connection *)  
-val recv_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)hs_state -> tlen:DataStream.range -> (;ci.id_in,tlen,seqn)fragment -> (;EpochSI(ci.id_in))recv_reply Result * (;ci)hs_state
-val recv_ccs     : ci:ConnectionInfo -> seqn:int -> (;ci)hs_state -> tlen:DataStream.range -> (;ci.id_in,tlen,seqn)ccsFragment -> ((newKI:epoch * (;newKI)Record.ConnectionState) Result) * (;ci)hs_state
+  | HSVersionAgreed (* use this new protocol version for sending *)
+  | HSQuert of Certificate.cert
+  | HSReadSideFinished
+  | HSFullyFinished_Read of ((si':SessionInfo * (;si')PRFs.masterSecret * Role){si=si'}) (* we can start sending data on the connection *)  
+val recv_fragment: ci:ConnectionInfo -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> (;EpochSI(ci.id_in))recv_reply Result * (;ci)hs_state
+val recv_ccs     : ci:ConnectionInfo -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> ((newKI:epoch * (;newKI)Record.ConnectionState) Result) * (;ci)hs_state
 
+val getNegotiatedVersion: ci:ConnectionInfo -> (;ci)hs_state -> ProtocolVersion
+val authorize: ci:ConnectionInfo -> (;ci)hs_state -> Certificate.cert -> (;ci)hs_state

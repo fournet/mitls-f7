@@ -5,10 +5,7 @@ open Bytes
 open TLSInfo
 open DataStream
 
-type buffer = {
-  stream:stream;
-  data: stream * (range * delta) option;
-}
+type buffer = stream * (range * delta) option
 
 type input_buffer = buffer
 type output_buffer = buffer
@@ -18,112 +15,81 @@ type app_state = {
   app_outgoing: output_buffer;
 }
 
-let inStream  (c:ConnectionInfo) state = state.app_incoming.stream
-let outStream (c:ConnectionInfo) state = state.app_outgoing.stream
+let inStream  (c:ConnectionInfo) state = 
+    let s = fst state.app_incoming in s
+let outStream (c:ConnectionInfo) state =
+    let s = fst state.app_outgoing in s
+
+let is_incoming_empty (ci:ConnectionInfo) app_state = 
+  snd app_state.app_incoming = None
+
+let is_outgoing_empty (ci:ConnectionInfo)  app_state = 
+  snd app_state.app_outgoing = None
 
 let init ci =
   let in_s = DataStream.init ci.id_in in
   let out_s = DataStream.init ci.id_out in
-    {app_outgoing = 
-        {stream = out_s;
-         data = (out_s,None)};
-     app_incoming = 
-        {stream = in_s;
-         data = (in_s,None)};
+    {app_outgoing = (out_s,None);
+     app_incoming = (in_s,None)
     }
 
-let is_incoming_empty (ci:ConnectionInfo) app_state = 
-  snd app_state.app_incoming.data = None
+// Stores appdata in the output buffer, so that it will possibly sent on the network
+let writeAppData (c:ConnectionInfo) (a:app_state) (r:range) (d:delta) =
+    // pre: snd a.app_outgoing = None
+    let s = fst a.app_outgoing in
+    {a with app_outgoing = (s,Some(r,d))}
 
-let is_outgoing_empty (ci:ConnectionInfo)  app_state = 
-  snd app_state.app_outgoing.data = None
-
-let repr (ki:epoch) (s:stream) (r:DataStream.range) (d:delta) = 
-  //let s = DataStream.init ki in // AP: why?
-  deltaRepr ki s r d
-
-let fragment (ki:epoch) (s:stream)  (r:DataStream.range) (b:bytes) = 
-  //let s = DataStream.init ki in // AP: why?
-  deltaPlain ki s r b
-
-let writeAppData (c:ConnectionInfo)  (a:app_state) (r:range) (d:delta) =
-  let f = a.app_outgoing.stream in
-  let b = a.app_outgoing.data in
-  let nf = append c.id_out f r d in
-  let ndata = 
-    match b with  
-        h,None -> h,Some(r,d) 
-      | h,Some (rr,dd) -> h,Some (rangeSum rr r, 
-                              join c.id_out h rr dd r d) in
-  {a with app_outgoing = {a.app_outgoing with stream = nf; data = ndata}}
-
-let readAppData (c:ConnectionInfo)  (a:app_state) = 
-  let b = a.app_incoming.data in
+// Returns the unsent data to the user, and resets the output buffer
+let emptyOutgoingAppData (c:ConnectionInfo) (a:app_state) = 
+  let (s,b) = a.app_outgoing in
     match b with
-        h,None -> None,{a with app_incoming = {a.app_incoming with data = h,None}}
-      | h,Some(r,d) -> 
-          let nh = DataStream.append c.id_in h r d in
-          Some(r,d),{a with app_incoming = {a.app_incoming with data = nh,None}}
+      | None -> None,a
+      | Some(r,d) -> 
+          Some(r,d),{a with app_outgoing = (s,None)}
 
-(* Breaks invariants, but we shouldn't be relying on histories over here anymore *)
-let emptyOutgoingAppData (c:ConnectionInfo)  (a:app_state) = 
-  let b = a.app_outgoing.data in
-    match b with
-      | h,None -> None,a
-      | h,Some(r,d) -> 
-          Some(r,d),{a with app_outgoing = {a.app_outgoing with data = h,None}}
-    
-let readAppDataFragment (c:ConnectionInfo)  (a:app_state) =
-    // Pi.assume(AppDataSequenceNo(c.id_out,a.app_outgoing.seqn));
-    match a.app_outgoing.data with
-        hs,None -> None
-      | hs,Some (r,d) ->
+// When polled, gives the Dispatch the next fragment to be delivered,
+// and commits to it (adds it to the output stream)
+let next_fragment (c:ConnectionInfo) (a:app_state) =
+    let (s,data) = a.app_outgoing in
+    match data with
+      | None -> None
+      | Some (r,d) ->
           let (r0,r1) = splitRange c.id_out r in
           if r = r0 then
-            let f0,stream = Fragment.fragment c.id_out hs r d in
-            Some(r,f0,{a with app_outgoing = {a.app_outgoing with data = stream,None}})
+            let f0,ns = Fragment.fragment c.id_out s r d in
+            let state = {a with app_outgoing = (ns,None)} in
+            Some(r,f0,state)
           else 
-            let (d0,d1) = DataStream.split c.id_out hs r0 r1 d in
-            let f0,stream = Fragment.fragment c.id_out hs r0 d0 in
-            Some(r0,f0,{a with app_outgoing = {a.app_outgoing with data = stream,Some(r1,d1)}})
+            let (d0,d1) = DataStream.split c.id_out s r0 r1 d in
+            let f0,ns = Fragment.fragment c.id_out s r0 d0 in
+            Some(r0,f0,{a with app_outgoing = (ns,Some(r1,d1))})
 
-// let readNonAppDataFragment (c:ConnectionInfo) (a:app_state) = 
-//   let nout_seqn = a.app_outgoing.seqn + 1 in
-//     Pi.assume(NonAppDataSequenceNo(c.id_out,a.app_outgoing.seqn));
-//     {a with app_outgoing = {a.app_outgoing with seqn = nout_seqn}}
+// Gets a fragment from Dispatch, adds it to the incoming buffer, but not yet to
+// the stream of data delivered to the user
+let recv_fragment (ci:ConnectionInfo)  (a:app_state)  (r:range) (f:Fragment.fragment) =
+    // pre: snd a.app_incoming = None
+    let s = fst a.app_incoming in
+    let (d,_) = Fragment.delta ci.id_in s r f in
+    {a with app_incoming = (s,Some(r,d))}
 
-// let writeNonAppDataFragment (c:ConnectionInfo)  (a:app_state) = 
-//   let seqn = a.app_incoming.seqn in
-//   let nseqn = seqn + 1 in
-//     Pi.assume(NonAppDataSequenceNo(c.id_in,seqn));
-//     {a with app_incoming = {a.app_incoming with seqn = nseqn}}
-    
-let writeAppDataFragment (ci:ConnectionInfo)  (a:app_state)  (r:range) (df:Fragment.fragment) =
-  // let seqn = a.app_incoming.seqn in
-  // Pi.assume(AppDataSequenceNo(ci.id_in,seqn));
-  // let nseqn = seqn + 1 in
-  let f = a.app_incoming.stream in
-  let d,nf = Fragment.delta ci.id_in f r df in
-  match a.app_incoming.data with
-      h,None -> 
-        {a with app_incoming = {a.app_incoming with data = h,Some(r,d); stream = nf}}
-    | h,Some(rr,dd) ->
-        let nd = join ci.id_in h rr dd r d in
-        let nr = rangeSum rr r in
-        {a with app_incoming = {a.app_incoming with data = h,Some(nr,nd); stream = nf}}
+// Returns the buffered data to the user, and stores them in the stream
+let readAppData (c:ConnectionInfo) (a:app_state) =
+  let (s,data) = a.app_incoming in
+    match data with
+      | None -> None,a
+      | Some(r,d) -> 
+          let ns = DataStream.append c.id_in s r d in
+          Some(r,d),{a with app_incoming = (ns,None)}
 
-let reset_outgoing (ci:ConnectionInfo) (a:app_state) = 
-  let out_s = DataStream.init ci.id_out in
+
+let reset_outgoing (ci:ConnectionInfo) (a:app_state) (nci:ConnectionInfo) = 
+  let out_s = DataStream.init nci.id_out in
     {a with 
-       app_outgoing = 
-        {stream = out_s;
-         data = out_s,None};
+       app_outgoing = (out_s,None)
     }
 
-let reset_incoming (ci:ConnectionInfo) (a:app_state) = 
-  let in_s = DataStream.init ci.id_in in
+let reset_incoming (ci:ConnectionInfo) (a:app_state) (nci:ConnectionInfo) = 
+  let in_s = DataStream.init nci.id_in in
     {a with 
-       app_incoming = 
-        {stream = in_s;
-         data = in_s,None};
+       app_incoming =  (in_s,None)
     }

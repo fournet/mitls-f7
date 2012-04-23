@@ -2,10 +2,8 @@
 module Handshake
 
 open Error
-//open Formats
 open CipherSuites
 open TLSInfo
-//open SessionDB
 open DataStream
 
 // There is one instance of the protocol for each TCP connection,
@@ -83,13 +81,12 @@ type recv_reply = (* the fragment is accepted, and... *)
   | HSAck (* nothing happens *)
   | HSVersionAgreed (* If in first handhsake, ask HS for which protocol version to check and send data *)
   | HSQuery of Certificate.cert
-  | HSReadSideFinished (* ? *) 
+  | HSReadSideFinished
   | HSFullyFinished_Read of SessionDB.StorableSession (* we can start sending data on the connection *)  
 val recv_fragment: ConnectionInfo -> hs_state -> DataStream.range -> Fragment.fragment -> recv_reply Result * hs_state
 val recv_ccs     : ConnectionInfo -> hs_state -> DataStream.range -> Fragment.fragment -> ((epoch * Record.ConnectionState) Result) * hs_state
 
 // Which protocol version dispatch should use to check during the first handshake
-val getNegotiatedVersion: hs_state -> ProtocolVersion
+val getNegotiatedVersion: ConnectionInfo -> hs_state -> ProtocolVersion
 
-// misses indexes, which are going to change anyway
-val authorize: hs_state -> Certificate.cert -> hs_state
+val authorize: ConnectionInfo -> hs_state -> Certificate.cert -> hs_state

@@ -16,7 +16,7 @@ type state = pre_al_state
 
 let init (ci:ConnectionInfo) = {al_incoming = [||]; al_outgoing = [||]}
 
-let incomingEmpty s = equalBytes s.al_incoming [||]
+let incomingEmpty (ci:ConnectionInfo) s = equalBytes s.al_incoming [||]
 
 type ALFragReply =
     | EmptyALFrag

@@ -3,6 +3,7 @@
 open Bytes
 open Error
 open TLSInfo
+open DataStream
 
 private type (;ci:ConnectionInfo)pre_al_state = {
   al_incoming: bytes; (* incomplete incoming message *)
@@ -10,11 +11,11 @@ private type (;ci:ConnectionInfo)pre_al_state = {
 }
 type (;ci:ConnectionInfo)state = (;ci)pre_al_state
 
-type (;ki:epoch,seqn:int)ALFragReply =
+type (;ki:epoch)ALFragReply =
     | EmptyALFrag
-    | ALFrag of          (tlen:DataStream.range * (;ki,tlen,seqn)fragment)
-    | LastALFrag of      (tlen:DataStream.range * (;ki,tlen,seqn)fragment)
-    | LastALCloseFrag of (tlen:DataStream.range * (;ki,tlen,seqn)fragment)
+    | ALFrag of          (rg:range * (;ki,rg)Fragment.fragment)
+    | LastALFrag of      (rg:range * (;ki,rg)Fragment.fragment)
+    | LastALCloseFrag of (rg:range * (;ki,rg)Fragment.fragment)
 
 type (;ci:ConnectionInfo)alert_reply =
     | ALAck of          (;ci)state
@@ -90,11 +91,10 @@ val init: ci:ConnectionInfo -> (;ci)state
 
 val send_alert: ci:ConnectionInfo -> (;ci)state -> alertDescription -> (;ci)state
 
-val next_fragment: ci:ConnectionInfo -> seqn:int -> state -> ((;ci.id_out,seqn)ALFragReply * state) 
+val next_fragment: ci:ConnectionInfo -> (;ci)state -> ((;ci.id_out)ALFragReply * (;ci)state) 
 
 val handle_alert: ci:ConnectionInfo -> (;ci)state -> alertDescription -> (;ci)alert_reply
 
-val recv_fragment: ci:ConnectionInfo -> seqn:int -> (;ci)state -> tlen:DataStream.range -> (;ci.id_in,tlen,seqn)fragment -> ((;ci)alert_reply) Result
+val recv_fragment: ci:ConnectionInfo -> (;ci)state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> ((;ci)alert_reply) Result
 
-// broken, we miss indexes, that are going to change anyway
-val incomingEmpty: state -> bool
+val incomingEmpty: ci:ConnectionInfo -> (;ci)state -> bool

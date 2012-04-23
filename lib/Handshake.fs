@@ -2053,6 +2053,6 @@ let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:DataStream.range) (fragmen
             | _ -> (Error(HSError(AD_unexpected_message),HSSendAlert),state)
     else           (Error(HSError(AD_decode_error)      ,HSSendAlert),state)
 
-let getNegotiatedVersion state = state.hs_next_info.protocol_version
+let getNegotiatedVersion (ci:ConnectionInfo) state = state.hs_next_info.protocol_version
 
-let authorize (s:hs_state) (q:cert) = s // TODO
+let authorize (ci:ConnectionInfo) (s:hs_state) (q:cert) = s // TODO

@@ -34,10 +34,10 @@ val prfMS: si:SessionInfo -> (;si) preMasterSecret ->
            (;si) masterSecret (* of length 48 *)
 
 (* Used when generating key material from the MS. The result must still be split into the various keys. Of course this method can do the splitting internally and return a record/pair *)
-type (;ki:epoch) keyBlob
-val prfKeyExp: ki:epoch -> (;EpochSI(ki))masterSecret ->
+type (;ci:ConnectionInfo) keyBlob
+val prfKeyExp: ci:ConnectionInfo -> (;EpochSI(ci.id_out))masterSecret ->
                (* No label, it's hardcoded. Of course we can make it explicit -> *)
                (* No seed (crandom @| srandom), it can be retrieved from epoch (and not SessionInfo!) -> *)
-               (;ki)keyBlob (* length depends on cs *)
+               (;ci)keyBlob (* length depends on cs *)
 
-val splitStates: out:epoch -> (;out)keyBlob -> ((;out)StatefulAEAD.state * (;DualKeyInfo(out,()))StatefulAEAD.state)
+val splitStates: ci:ConnectionInfo -> (;ci)keyBlob -> ((;ci.id_out)StatefulAEAD.state * (;ci.id_in)StatefulAEAD.state)
