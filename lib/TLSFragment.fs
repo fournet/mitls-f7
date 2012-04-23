@@ -68,7 +68,6 @@ let addToHistory (ki:epoch) ct ss r sf =
         let d,s' = Fragment.delta ki ss.streams.appdata r ff in
         let str' = {ss.streams with appdata = s'} in
           {ss with streams = str'}
-    | _ -> unexpectedError "[addToStreams] Incompatible content and fragment types"
 
 
 let fragmentPlain ki (ct:ContentType) (h:history) (rg:DataStream.range) b = 

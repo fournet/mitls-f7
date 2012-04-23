@@ -19,7 +19,7 @@ type fragment =
 val emptyHistory: epoch -> history
 val addToHistory: epoch -> ContentType -> history -> range -> StatefulPlain.fragment -> history
 
-val makeAD: epoch -> ContentType -> data 
+val makeAD: epoch -> ContentType -> StatefulPlain.data 
 val fragmentPlain: epoch -> ContentType -> history -> range -> bytes -> fragment
 val fragmentRepr:     epoch -> ContentType -> history -> range -> fragment -> bytes
 
