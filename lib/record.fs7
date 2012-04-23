@@ -3,7 +3,7 @@
 open Bytes
 open Error
 open TLSInfo
-open FragCommon
+open DataStream
 open TLSFragment
 open Formats
 open CipherSuites
@@ -13,34 +13,33 @@ type (;ki:epoch) ConnectionState =
 	| NullState
 	| SomeState of (;ki)TLSFragment.history * (;ki)StatefulAEAD.state
 
+function val History: ki:epoch * (;ki) ConnectionState -> 'a
+private assume !ki,h,s. History(ki,SomeState(h,s)) = h
+
 type (;ki:epoch) sendState = (;ki) ConnectionState 
 type (;ki:epoch) recvState = (;ki) ConnectionState
 
-val initConnState: ki:epoch -> state:(;ki) StatefulAEAD.state -> 
-                   cs:(;ki) ConnectionState //{cs = SomeSate(state)}
+val initConnState: ki:epoch -> state:(;ki) StatefulAEAD.state -> cs:(;ki) ConnectionState //{cs = SomeSate(state)}
 val nullConnState: ki:epoch -> cs:(;ki) ConnectionState //{cs = NullState}
 
 private val makePacket: ContentType -> ProtocolVersion -> bytes -> bytes
 
-val headerLength: b:bytes{Length(b) = 5} -> (n:nat{n>0 /\ n <= max_TLSCipher_fragment_length}) Result
+val headerLength: b:bytes{Length(b) = 5} -> (n:nat{n>0 /\ n <= DataStream.max_TLSCipher_fragment_length}) Result
 
 private val parseHeader: b:bytes{Length(b) = 5} ->
-	((ContentType * ProtocolVersion * n:nat){n>0 /\ n <= max_TLSCipher_fragment_length}) Result
-
-// FIXME: Remove next assume!
-// private assume !ki,tlen,t. MAC.Msg(ki,tlen,t)
+	((ContentType * ProtocolVersion * n:nat){n>0 /\ n <= DataStream.max_TLSCipher_fragment_length}) Result
 
 val recordPacketOut: ki:epoch -> 
-                     ss:(;ki) sendState -> 
+                     ss:(;ki) sendState -> pv:ProtocolVersion ->
                      rg:DataStream.range -> ct:ContentType -> 
-                     f:(;ki,ct,h,rg) TLSFragment.fragment -> //FIXME: history 'h' is only valid in ss if ss is not null!
+                     f:(;ki,ct,History(ki,ss),rg) TLSFragment.fragment ->
                      (ss':(;ki) sendState * wire:bytes)
  
 val recordPacketIn : ki:epoch ->
-                     rs:(;ki) recvState ->
+                     rs:(;ki) recvState -> 
                      wire:bytes{Length(wire) >= 5} -> 
                      (rs':(;ki)recvState *
                         ct:ContentType * pv:ProtocolVersion *
                         rg:range * 
-                        f:(;ki,ct,h,rg) TLSFragment.fragment) Result //FIXME: history 'h' is only valid in ss if ss is not null!
+                        f:(;ki,ct,History(ki,rs),rg) TLSFragment.fragment) Result 
 

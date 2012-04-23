@@ -8,16 +8,12 @@ open CipherSuites
 open DataStream
 open StatefulPlain
 
-type datastreams = {
+type prehistory = {
   handshake: stream // Handshake.stream;
   alert: stream // Alert.stream;
   ccs: stream // Handshake.stream;
   appdata: stream // AppDataStream.stream;
 }
-
-type prehistory = {
-  state : StatefulPlain.history;
-  streams: datastreams}
 
 type history = prehistory
 
@@ -29,13 +25,10 @@ type fragment =
 
 let emptyHistory ki =
     let eh = init ki in
-    let sh = StatefulPlain.emptyHistory ki in
-    let str = 
       { handshake = eh;
         alert = eh;
         ccs = eh;
         appdata = eh} in
-      {state = sh; streams = str}
 
 let makeAD ki ct =
     let si = epochSI(ki) in
@@ -46,28 +39,21 @@ let makeAD ki ct =
     then bct
     else bct @| bver
 
-let addToHistory (ki:epoch) ct ss r sf =
+let addToHistory (ki:epoch) ct ss r ff =
   let ad = makeAD ki ct in 
-  let st' = StatefulPlain.addToHistory ki ss.state ad r sf in
-  let ff = StatefulPlain.contents ki ss.state ad r sf in
-  let ss = {ss with state = st'} in
   match ct with
     | Handshake -> 
-        let d,s' = Fragment.delta ki ss.streams.handshake r ff in
-        let str' = {ss.streams with handshake = s'} in
-          {ss with streams = str'}
+        let d,s' = Fragment.delta ki ss.handshake r ff in
+          {ss with handshake = s'} 
     | Alert -> 
-        let d,s' = Fragment.delta ki ss.streams.alert r ff in
-        let str' = {ss.streams with alert = s'} in
-          {ss with streams = str'}
+        let d,s' = Fragment.delta ki ss.alert r ff in
+          {ss with alert = s'} 
     | Change_cipher_spec -> 
-        let d,s' = Fragment.delta ki ss.streams.ccs r ff in
-        let str' = {ss.streams  with ccs = s'} in
-          {ss with streams = str'}
+        let d,s' = Fragment.delta ki ss.ccs r ff in
+          {ss  with ccs = s'} 
     | Application_data -> 
-        let d,s' = Fragment.delta ki ss.streams.appdata r ff in
-        let str' = {ss.streams with appdata = s'} in
-          {ss with streams = str'}
+        let d,s' = Fragment.delta ki ss.appdata r ff in
+          {ss with appdata = s'} 
 
 
 let fragmentPlain ki (ct:ContentType) (h:history) (rg:DataStream.range) b = 
@@ -101,12 +87,12 @@ let construct (ki:epoch) (ct:ContentType) (h:history) (rg:range) sb =
         | Alert -> FAlert(sb)
         | Application_data -> FAppData(sb)
 
-let TLSFragmentToFragment ki ct ss rg f =
+let TLSFragmentToFragment ki ct ss st rg f =
   let sb = contents ki ct ss rg f in
   let ad = makeAD ki ct in
-    StatefulPlain.construct ki ss.state ad rg sb
+    StatefulPlain.construct ki st ad rg sb
 
-let fragmentToTLSFragment ki ct ss rg f =
+let fragmentToTLSFragment ki ct ss st rg f =
   let ad = makeAD ki ct in
-  let sb = StatefulPlain.contents ki ss.state ad rg f in
+  let sb = StatefulPlain.contents ki st ad rg f in
     construct ki ct ss rg sb
