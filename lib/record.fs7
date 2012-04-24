@@ -7,19 +7,22 @@ open DataStream
 open TLSFragment
 open Formats
 open CipherSuites
-open AEAD
+open StatefulAEAD
 
 type (;ki:epoch) ConnectionState =
 	| NullState
-	| SomeState of (;ki)TLSFragment.history * (;ki)StatefulAEAD.state
+	| SomeState of h:(;ki)TLSFragment.history * st:(;ki)StatefulAEAD.state{h = Multiplexed(ki,st.history)}
+                                                                             
 
 function val History: ki:epoch * (;ki) ConnectionState -> 'a
 private assume !ki,h,s. History(ki,SomeState(h,s)) = h
+private assume !ki. EmptyHistory(ki,History(ki,NullState))
+private assume !ki,ki',h,h'. EmptyHistory(ki,h) /\ EmptyHistory(ki',h') => h = h'
 
 type (;ki:epoch) sendState = (;ki) ConnectionState 
 type (;ki:epoch) recvState = (;ki) ConnectionState
 
-val initConnState: ki:epoch -> state:(;ki) StatefulAEAD.state -> cs:(;ki) ConnectionState //{cs = SomeSate(state)}
+val initConnState: ki:epoch -> state:(;ki) StatefulAEAD.state{StatefulPlain.EmptyHistory(ki,state.history)} -> cs:(;ki) ConnectionState //{cs = SomeSate(state)}
 val nullConnState: ki:epoch -> cs:(;ki) ConnectionState //{cs = NullState}
 
 private val makePacket: ContentType -> ProtocolVersion -> bytes -> bytes

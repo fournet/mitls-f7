@@ -66,6 +66,7 @@ private val makeAD: ki:epoch -> ct:ContentType ->
 private assume !ki,h. EmptyHistory(ki,h) <=>
 	( EmptyStream(ki,h.handshake) /\ EmptyStream(ki,h.alert) /\
 	  EmptyStream(ki,h.ccs)       /\ EmptyStream(ki,h.appdata) )
+private assume !ki,h,h'. EmptyHistory(ki,h) /\ EmptyHistory(ki,h') => h = h'
 
 private assume !ki,h,r,d. ExtendHistory(ki,Formats.Handshake,h,r,d) =
 	 { handshake = Fragment.Extend(ki,h.handshake,r,d);
@@ -89,10 +90,11 @@ private assume !ki,h,r,d. ExtendHistory(ki,Formats.Application_data,h,r,d) =
 	   appdata = Fragment.Extend(ki,h.appdata,r,d)}
 
 
-private assume !ki,sh. StatefulPlain.EmptyHistory(ki,sh) => EmptyHistory(ki,Multiplexed(ki,sh)) 
-private assume !ki,sh,sh',h,ct,r,x. 
-  sh' = StatefulPlain.ExtendHistory(ki,sh,ADBytes(ki,ct),r,x) /\
-  h = Multiplexed(ki,sh) => 
+assume !ki,sh,h. StatefulPlain.EmptyHistory(ki,sh) /\
+   EmptyHistory(ki,h) => h = Multiplexed(ki,sh)
+assume !ki,sh,sh',h,ct,r,x. 
+  (sh' = StatefulPlain.ExtendHistory(ki,sh,ADBytes(ki,ct),r,x) /\
+   h = Multiplexed(ki,sh)) => 
   (Multiplexed(ki,sh') = ExtendHistory(ki,ct,h,r,x))
 
 private assume !ki,h. TLSHistory(ki,h)

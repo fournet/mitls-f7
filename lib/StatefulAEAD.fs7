@@ -56,7 +56,9 @@ val encrypt: ki:epoch ->
   ad:(;ki)data ->
   r:range ->
   f: (;ki,w.history,ad,r) fragment ->
-  (w':(;ki) writer * c:cipher){STXT(ki,w,ad,r,SAEADContents(f),c)}
+  (w':(;ki) writer * c:cipher){
+    w'.history = StatefulPlain.ExtendHistory(ki,w.history,ad,r,SAEADContents(f)) /\
+    STXT(ki,w,ad,r,SAEADContents(f),c)}
 
 val decrypt: ki:epoch -> 
   rd:(;ki) reader -> 
@@ -64,8 +66,9 @@ val decrypt: ki:epoch ->
   c:ENC.cipher ->
   res:((;ki) reader * rg:range * (;ki,rd.history,ad,rg) fragment) Result
   { !nrd,rg,f. res = Correct((nrd,rg,f)) => 
-               ( Length(c)=AEPlain.RangeCipher(ki,rg) /\
-		         (Safe(ki) => STXT(ki,rd,ad,rg,SAEADContents(f),c)) /\
+               (   nrd.history = StatefulPlain.ExtendHistory(ki,rd,ad,rg,SAEADContents(f)) /\
+                   Length(c)=AEPlain.RangeCipher(ki,rg) /\
+ 	         (Safe(ki) => STXT(ki,rd,ad,rg,SAEADContents(f),c)) /\
                  (Auth(ki) => STXT(ki,rd,ad,rg,SAEADContents(f),c))) }
 
 //CF 21/4: as stated, we need the resulting readers and writers to have explicitly-updated histories (irrespective of AUTH)

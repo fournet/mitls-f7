@@ -14,8 +14,9 @@ type ConnectionState =
 type sendState = ConnectionState
 type recvState = ConnectionState
 
-let initConnState (ki:epoch) s =
-  SomeState(emptyHistory ki,s)
+let initConnState (ki:epoch) s = 
+  let eh = emptyHistory ki in
+    SomeState(eh,s)
 
 let nullConnState (ki:epoch) = NullState
 
@@ -71,7 +72,8 @@ let recordPacketOut ki conn pv rg ct fragment =
     let si = epochSI(ki) in
     match (si.cipher_suite, conn) with
     | (x,NullState) when isNullCipherSuite x ->
-        let payload = fragmentRepr ki ct (emptyHistory ki) rg fragment in
+        let eh = emptyHistory ki in
+        let payload = fragmentRepr ki ct eh rg fragment in
         let packet = makePacket ct pv payload in
         (conn,packet)
 // MACOnly is now handled within AEAD
@@ -95,9 +97,8 @@ let recordPacketOut ki conn pv rg ct fragment =
         let (state,payload) = StatefulAEAD.encrypt ki state ad rg aeadF in
         let ff = StatefulPlain.contents ki sh ad rg aeadF in
         let history = addToHistory ki ct history rg ff in
-        let conn = SomeState(history,state) in
         let packet = makePacket ct pv payload in
-        (conn,packet)
+        (SomeState(history,state),packet)
     | _ -> unexpectedError "[recordPacketOut] Incompatible ciphersuite and key type"
     
 
@@ -141,7 +142,8 @@ let recordPacketIn ki conn headPayload =
     match (cs,conn) with
     | (x,NullState) when isNullCipherSuite x ->
         let rg = (plen,plen) in
-        let msg = fragmentPlain ki ct (emptyHistory ki) rg payload in
+        let eh = emptyHistory ki in
+        let msg = fragmentPlain ki ct eh rg payload in
         correct(conn,ct,pv,rg,msg)
 // MACOnly is now handled within AEAD
 //    | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
@@ -168,6 +170,5 @@ let recordPacketIn ki conn headPayload =
             let ff = StatefulPlain.contents ki nh ad rg plain in
             let msg = fragmentToTLSFragment ki ct history nh rg plain in
             let history = addToHistory ki ct history rg ff in
-            let conn = SomeState(history,newState) in
-            correct(conn,ct,pv,rg,msg)
+            Correct(SomeState(history,newState),ct,pv,rg,msg)
     | _ -> unexpectedError "[recordPacketIn] Incompatible ciphersuite and key type"
