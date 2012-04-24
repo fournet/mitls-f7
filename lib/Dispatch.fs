@@ -10,6 +10,8 @@ open Alert
 open TLSInfo
 open SessionDB
 
+open TLSFragment // Required by F7, or deliver won't parse.
+
 type predispatchState =
   | Init
   | FirstHandshake
@@ -622,7 +624,9 @@ let authorize (Conn(id,c)) q =
 let refuse (Conn(id,c)) (q:query) =
     let al = Alert.send_alert id c.alert AD_unknown_ca in
     let c = {c with alert = al} in
-    ignore (writeAll (Conn(id,c))) // we might want to tell the user something about this
+    //ignore (writeAll (Conn(id,c))) // we might want to tell the user something about this
+    let _ = writeAll (Conn(id,c)) in
+    ()
 
 let getEpochIn  (Conn(id,state)) = id.id_in
 let getEpochOut (Conn(id,state)) = id.id_out

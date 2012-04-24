@@ -62,7 +62,7 @@ val next_fragment: ci:ConnectionInfo -> (;ci)hs_state -> (;ci.id_out)HSFragReply
 type (;si:SessionInfo)recv_reply = (* the fragment is accepted, and... *)
   | HSAck (* nothing happens *)
   | HSVersionAgreed (* use this new protocol version for sending *)
-  | HSQuert of Certificate.cert
+  | HSQuery of Certificate.cert
   | HSReadSideFinished
   | HSFullyFinished_Read of ((si':SessionInfo * (;si')PRFs.masterSecret * Role){si=si'}) (* we can start sending data on the connection *)  
 val recv_fragment: ci:ConnectionInfo -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> (;EpochSI(ci.id_in))recv_reply Result * (;ci)hs_state

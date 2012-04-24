@@ -34,7 +34,7 @@ type (;id:ConnectionInfo) preGlobalState = {
   read  : (;id.id_in)  dState;
   write : (;id.id_out) dState;
   (* The actual socket *)
-  ns: NetworkStream;
+  ns: Tcp.NetworkStream;
   }
 
 type (;id:ConnectionInfo) globalState = (gs:(;id) preGlobalState)
@@ -61,7 +61,7 @@ assume !id,s. ConnectionOutStream(Conn(id,s)) = AppDataStream.AppOutStream(id,s.
 
 function val ConnectionInHistory: c:Connection -> (;ConnectionEpochIn(c))TLSFragment.history
 assume !id,s. ConnectionInHistory(Conn(id,s)) = Record.History(id.id_in,s.read.conn)
-function val ConnectionInHistory: c:Connection -> (;ConnectionEpochIn(c))TLSFragment.history
+function val ConnectionOutHistory: c:Connection -> (;ConnectionEpochOut(c))TLSFragment.history
 assume !id,s. ConnectionOutHistory(Conn(id,s)) = Record.History(id.id_out,s.write.conn)
 
 function val Params: Connection -> protocolOptions
@@ -70,8 +70,8 @@ assume !id,s. Params(Conn(id,s)) = s.poptions
 type (;c:Connection)nextCn = c':Connection{ConnectionIndex(c) = ConnectionIndex(c')}
 type query = Certificate.cert
 
-type (e:epoch,s:(;e)stream)msg_i = r:range * (;e,s,r)delta
-type (e:epoch,s:(;e)stream)msg_o = r:range * (;e,s,r)delta
+type (;e:epoch,s:(;e)stream)msg_i = r:range * (;e,s,r)delta
+type (;e:epoch,s:(;e)stream)msg_o = r:range * (;e,s,r)delta
 
 type ioerror =
     | EInternal of ErrorCause * ErrorKind
@@ -111,18 +111,18 @@ type deliverOutcome =
     | RFatal of alertDescription
     | RWarning of alertDescription
 
-val init: NetworkStream -> Role -> protocolOptions -> Connection
+val init: Tcp.NetworkStream -> Role -> protocolOptions -> Connection
 
-val resume: NetworkStream -> sessionID -> protocolOptions -> Connection Result
+val resume: Tcp.NetworkStream -> sessionID -> protocolOptions -> Connection Result
 
 val rehandshake: c:Connection -> protocolOptions -> (;c) nextCn
 val rekey:       c:Connection -> protocolOptions -> (;c) nextCn
 val request:     c:Connection -> protocolOptions -> (;c) nextCn
 
-val shutdown:    c:Connection -> protocolOptions -> (;c) nextCn
+val shutdown:    c:Connection -> (;c) nextCn
 
 val moveToOpenState: c:Connection ->
-	(si:SessionInfo * (;si)PRFs.masterSecret * Direction)
+	(si:SessionInfo * (;si)PRFs.masterSecret * Role)
 		{si=ConnectionSIOut(c) /\ si=ConnectionSIIn(c)} ->
 	(;ConnectionIndex(c))globalState Result
 
@@ -130,20 +130,20 @@ val closeConnection: c:Connection-> (;c) nextCn
 
 val pickSendPV: c:Connection -> CipherSuites.ProtocolVersion
 
-val send: c:Connection -> r:range -> ct:ContentType ->
+val send: c:Connection -> r:range -> ct:Formats.ContentType ->
 	f:(;ConnectionEpochOut(c),ct,ConnectionOutHistory(c),r)TLSFragment.fragment ->
 	(;ConnectionEpochOut(c))dState Result
 
 val writeOne: c:Connection ->
 	(writeOutcome * Connection) Result
 
-val deliver: c:Connection -> ct:ContentType -> r:range->
+val deliver: c:Connection -> ct:Formats.ContentType -> r:range->
 	(;ConnectionEpochIn(c),ct,ConnectionInHistory(c),r)TLSFragment.fragment ->
 	(deliverOutcome * Connection) Result
 
 val recv: c:Connection ->
 	(c':Connection *
-	 ct:ContentType * r:range * 
+	 ct:Formats.ContentType * r:range * 
          (;ConnectionEpochIn(c'),ct,ConnectionInHistory(c'),r)TLSFragment.fragment) Result
 
 val readOne: c:Connection ->
@@ -163,5 +163,5 @@ val refuse: Connection -> query -> unit
 
 val getEpochIn:   c:Connection -> e:epoch{e=ConnectionEpochIn(c) }
 val getEpochOut:  c:Connection -> e:epoch{e=ConnectionEpochOut(c)}
-val getInStream:  c:Connection -> s:(;ConnectionEpochIn(c))stream {s = ConnectionInStream(c) }
+val getInStream:  c:Connection -> s:(;ConnectionEpochIn(c))stream {s = ConnectionInStream(c)}
 val getOutStream: c:Connection -> s:(;ConnectionEpochOut(c))stream{s = ConnectionOutStream(c)}
