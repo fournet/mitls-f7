@@ -44,7 +44,7 @@ type preGlobalState = {
 type globalState = preGlobalState
 
 type Connection = Conn of ConnectionInfo * globalState
-//type SameConnection = Connection
+
 type nextCn = Connection
 type query = Certificate.cert
 // FIXME: Put the following definitions close to range and delta, and use them
@@ -624,47 +624,7 @@ let refuse (Conn(id,c)) (q:query) =
     let c = {c with alert = al} in
     ignore (writeAll (Conn(id,c))) // we might want to tell the user something about this
 
-let getInKI  (Conn(id,state)) = id.id_in
-let getOutKI (Conn(id,state)) = id.id_out
+let getEpochIn  (Conn(id,state)) = id.id_in
+let getEpochOut (Conn(id,state)) = id.id_out
 let getInStream  (Conn(id,state)) = AppDataStream.inStream  id state.appdata
 let getOutStream (Conn(id,state)) = AppDataStream.outStream id state.appdata 
-
-(*
-let rec writeAppData c = 
-    let unitVal = () in
-    match writeOne c with
-    | (Error (x,y),c) -> (Error(x,y),c)
-    | (Correct (WriteAgain),c) -> writeAppData c
-    | (Correct (Done)      ,c) -> (correct(unitVal),c)
-    | (Correct (MustRead)  ,c) -> read c StopAtHS
-
-    (* If available, read next data *)
-
-    let c_read = conn.read in
-    match c_read.disp with
-    | Closed -> writeOneAppFragment conn
-    | _ ->
-    match Tcp.dataAvailable conn.ns with
-    | Error (x,y) -> (Error(x,y),conn)
-    | Correct canRead ->
-    if canRead then
-        match recv conn.ns c_read conn.ds_info with
-        | Error (x,y) -> (Error (x,y),conn) (* TODO: if TCP error, return the error; if recoverable Record error, send Alert *)
-        | Correct res ->
-        let (recvSt,ct,tlen,f) = res in
-        let new_read = {c_read with conn = recvSt} in
-        let conn = {conn with read = new_read} in (* update the connection *)
-        match deliver ct tlen f conn with
-        | (Error (x,y),conn) -> (Error(x,y),conn)
-        | (Correct (again),conn) ->
-        if again then
-            (* we just read non app-data, let's read more *)
-            readNextAppFragment conn
-        else
-            (* We either read app-data, or a complete fatal alert,
-               send buffered data *)
-            writeOneAppFragment conn
-    else
-        (* Nothing to read, possibly send buffered data *)
-        writeOneAppFragment conn
-    *)

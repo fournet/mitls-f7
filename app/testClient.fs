@@ -52,7 +52,7 @@ let testRes options sid =
             match consume conn with
             | None -> ()
             | Some(conn) ->
-                let sinfo = TLS.getSessionInfo (TLS.getInKI conn) in
+                let sinfo = TLS.getSessionInfo (TLS.getEpochIn conn) in
                 match sinfo.sessionID with
                 | None -> printf "Full handshake, and got new, non-resumable session."
                 | Some (newSid) ->

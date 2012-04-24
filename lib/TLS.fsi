@@ -26,8 +26,8 @@ val accept_connected : NetworkStream -> protocolOptions -> Connection
 val authorize: Connection -> query -> Connection
 val refuse:    Connection -> query -> unit
 
-val getInKI:  Connection -> epoch
-val getOutKI: Connection -> epoch
+val getEpochIn:  Connection -> epoch
+val getEpochOut: Connection -> epoch
 val getSessionInfo: epoch -> SessionInfo
 val getInStream:  Connection -> stream
 val getOutStream: Connection -> stream

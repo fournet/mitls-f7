@@ -17,13 +17,13 @@ type TLStream(s:System.Net.Sockets.NetworkStream, options, b) =
     let mutable closed:bool = true
 
     let doMsg_o conn b =
-        let ki = TLS.getOutKI conn
+        let ki = TLS.getEpochOut conn
         let s = TLS.getOutStream conn
         let l = length b
         (l,l),DataStream.createDelta ki s (l,l) b
 
     let undoMsg_i conn (r,d) =
-        let ki = TLS.getInKI conn
+        let ki = TLS.getEpochIn conn
         let s = TLS.getInStream conn
         DataStream.deltaRepr ki s r d
 

@@ -25,8 +25,8 @@ let shutdown c = Dispatch.shutdown c
 let authorize c q = Dispatch.authorize c q
 let refuse c q = Dispatch.refuse c q
 
-let getInKI c = Dispatch.getInKI c
-let getOutKI c = Dispatch.getOutKI c
+let getEpochIn c = Dispatch.getEpochIn c
+let getEpochOut c = Dispatch.getEpochOut c
 let getSessionInfo ki = epochSI(ki)
 let getInStream  c = Dispatch.getInStream c
 let getOutStream c = Dispatch.getOutStream c

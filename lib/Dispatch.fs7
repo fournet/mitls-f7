@@ -1,17 +1,9 @@
 ﻿module Dispatch
 
 open Bytes
-open Formats
-open Tcp
 open Error
-open Record
-open Handshake
-open Alert
-open AppDataStream
+open DataStream
 open TLSInfo
-open TLSKey
-open TLSFragment
-open SessionDB
 
 type predispatchState =
   | Init (* of ProtocolVersion * ProtocolVersion *) (* min and max *)
@@ -45,136 +37,131 @@ type (;id:ConnectionInfo) preGlobalState = {
   ns: NetworkStream;
   }
 
-type (;id:ConnectionInfo) globalState = (gs:(;id) preGlobalState){
-  InSequenceNo(id,gs.appdata) = gs.read.seqn /\ 
-  OutSequenceNo(id,gs.appdata) = gs.write.seqn
-}
+type (;id:ConnectionInfo) globalState = (gs:(;id) preGlobalState)
 
 type Connection = Conn of (id:ConnectionInfo * (;id)globalState)
 function val ConnectionIndex: Connection -> ConnectionInfo
 assume !id,s. ConnectionIndex(Conn(id,s)) = id
 
-function val ConnectionOutKeyInfo: Connection -> epoch
-assume !id,s. ConnectionOutKeyInfo(Conn(id,s))= id.id_out
-function val ConnectionInKeyInfo: Connection -> epoch
-assume !id,s. ConnectionInKeyInfo(Conn(id,s)) = id.id_in
+function val ConnectionEpochOut: Connection -> epoch
+assume !id,s. ConnectionEpochOut(Conn(id,s)) = id.id_out
+function val ConnectionEpochIn:  Connection -> epoch
+assume !id,s. ConnectionEpochIn(Conn(id,s))  = id.id_in
 
 
-function val ConnectionOutSessionInfo: Connection -> SessionInfo
-assume !id,s. ConnectionOutSessionInfo(Conn(id,s))=EpochSI(id.id_out)
-function val ConnectionInSessionInfo: Connection -> SessionInfo
-assume !id,s. ConnectionInSessionInfo(Conn(id,s))=EpochSI(id.id_in)
+function val ConnectionSIOut: Connection -> SessionInfo
+assume !id,s. ConnectionSIOut(Conn(id,s)) = EpochSI(id.id_out)
+function val ConnectionSIIn: Connection -> SessionInfo
+assume !id,s. ConnectionSIIn(Conn(id,s)) = EpochSI(id.id_in)
+
+function val ConnectionInStream: c:Connection -> (;ConnectionEpochIn(c))stream
+assume !id,s. ConnectionInStream(Conn(id,s)) = AppDataStream.AppInStream(id,s.appdata)
+function val ConnectionOutStream: c:Connection -> (;ConnectionEpochIn(c))stream
+assume !id,s. ConnectionOutStream(Conn(id,s)) = AppDataStream.AppOutStream(id,s.appdata)
+
+function val ConnectionInHistory: c:Connection -> (;ConnectionEpochIn(c))TLSFragment.history
+assume !id,s. ConnectionInHistory(Conn(id,s)) = Record.History(id.id_in,s.read.conn)
+function val ConnectionInHistory: c:Connection -> (;ConnectionEpochIn(c))TLSFragment.history
+assume !id,s. ConnectionOutHistory(Conn(id,s)) = Record.History(id.id_out,s.write.conn)
 
 function val Params: Connection -> protocolOptions
-assume !id,s. Params(Conn(id,s))=s.poptions
+assume !id,s. Params(Conn(id,s)) = s.poptions
 
-function val dStateSeqn: ki:epoch * (;ki)dState -> int
-assume !ki,s. dStateSeqn(ki,s)=s.seqn
+type (;c:Connection)nextCn = c':Connection{ConnectionIndex(c) = ConnectionIndex(c')}
+type query = Certificate.cert
 
-function val ConnectionReadSeqn: Connection -> int
-assume !id,s. ConnectionReadSeqn(Conn(id,s))=s.read.seqn
+type (e:epoch,s:(;e)stream)msg_i = r:range * (;e,s,r)delta
+type (e:epoch,s:(;e)stream)msg_o = r:range * (;e,s,r)delta
 
-val checkCompatibleSessions: s1:SessionInfo -> s2:SessionInfo -> TLSInfo.protocolOptions ->
-                             b:bool{b = true => CompatibleSessions(s1,s2)}
+type ioerror =
+    | EInternal of ErrorCause * ErrorKind
+    | EFatal of alertDescription
 
-type (;c:Connection) CompatibleConnection = c':Connection{
-   CompatibleConnections(ConnectionIndex(c),ConnectionIndex(c')) }
+// Outcomes for top-level functions
+type (;c:Connection)ioresult_i =
+    | ReadError of ioerror
+    | Close     of Tcp.NetworkStream
+    | Fatal     of alertDescription
+    | Warning   of (;c)nextCn * alertDescription 
+    | CertQuery of (;c)nextCn * query
+    | Handshaken of Connection
+    | Read      of (;c)nextCn * (;ConnectionEpochIn(c),ConnectionInStream(c))msg_i
+    | DontWrite of Connection
+
+type (;c:Connection)ioresult_o =
+    | WriteError    of ioerror
+    | WriteComplete of (;c)nextCn
+    | WritePartial  of (;c)nextCn * (;ConnectionEpochOut(c),ConnectionOutStream(c))msg_o
+    | MustRead      of Connection
 
 type writeOutcome =
     | WriteAgain (* Possibly more data to send *)
-    | Done (* No more data to send in the current state *)
-    | MustRead (* Read until completion of Handshake *)
+    | WAppDataDone (* No more data to send in the current state *)
+    | WHSDone
+    | WMustRead (* Read until completion of Handshake *)
+    | SentFatal of alertDescription
+    | SentClose
 
 type deliverOutcome =
-    | ReadAgain
-    | AppDataDone
-    | HSDone
-    | Abort
+    | RAgain
+    | RAppDataDone
+    | RQuery of query
+    | RHSDone
+    | RClose
+    | RFatal of alertDescription
+    | RWarning of alertDescription
 
 val init: NetworkStream -> Role -> protocolOptions -> Connection
 
-val resume: NetworkStream -> sessionID -> protocolOptions -> unit Result * Connection
+val resume: NetworkStream -> sessionID -> protocolOptions -> Connection Result
 
-val ask_rehandshake: c:Connection -> protocolOptions -> (;c) CompatibleConnection
-val ask_rekey:       c:Connection -> protocolOptions -> (;c) CompatibleConnection
-val ask_hs_request:  c:Connection -> protocolOptions -> (;c) CompatibleConnection
+val rehandshake: c:Connection -> protocolOptions -> (;c) nextCn
+val rekey:       c:Connection -> protocolOptions -> (;c) nextCn
+val request:     c:Connection -> protocolOptions -> (;c) nextCn
 
-val getSessionInfo: c:Connection -> si:SessionInfo{si=ConnectionOutSessionInfo(c)}
+val shutdown:    c:Connection -> protocolOptions -> (;c) nextCn
 
 val moveToOpenState: c:Connection ->
 	(si:SessionInfo * (;si)PRFs.masterSecret * Direction)
-		{si=ConnectionOutSessionInfo(c) /\ si=ConnectionInSessionInfo(c)} ->
-	(;ConnectionIndex(c))globalState
+		{si=ConnectionSIOut(c) /\ si=ConnectionSIIn(c)} ->
+	(;ConnectionIndex(c))globalState Result
 
-val reIndex_dState: oldKI:epoch -> newKI:epoch{CompatibleSessions(EpochSI(oldKI),EpochSI(newKI)} ->
-	ods:(;oldKI)dState -> (;newKI)ccs_data -> 
-  nds:(;newKI)dState{nds.disp = ods.disp /\ nds.seqn = ods.seqn}
+val closeConnection: c:Connection-> (;c) nextCn
 
-val reIndex_dState_null: oldKI:epoch{NullSessionInfo(EpochSI(oldKI))} ->
-  newKI:epoch{NullSessionInfo(EpochSI(newKI))} ->
-  ods:(;oldKI)dState -> 
-  nds:(;newKI)dState{nds.disp = ods.disp /\ nds.seqn = ods.seqn}
+val pickSendPV: c:Connection -> CipherSuites.ProtocolVersion
 
-val reIndex_out: oldID:ConnectionInfo ->
-	newID:ConnectionInfo{oldID.id_in = newID.id_in /\
-			     CompatibleSessions(EpochsI(oldID.id_out),EpochSI(newID.id_out))} ->
-	(;oldID)globalState -> (;newID.id_out)ccs_data ->
-	(;newID)globalState
+val send: c:Connection -> r:range -> ct:ContentType ->
+	f:(;ConnectionEpochOut(c),ct,ConnectionOutHistory(c),r)TLSFragment.fragment ->
+	(;ConnectionEpochOut(c))dState Result
 
-val reIndex_in: oldID:ConnectionInfo ->
-	newID:ConnectionInfo{oldID.id_out = newID.id_out /\
-						 CompatibleSessions(EpochSI(oldID.id_in),EpochSI(newID.id_in))} ->
-	(;oldID)globalState -> (;newID.id_in)ccs_data ->
-	(;newID)globalState
-
-val closeConnection: c:Connection-> (;c) CompatibleConnection
-
-// This always returns the write-side seqn increased by one,
-// regardless of the content type
-val send: ki:epoch -> NetworkStream -> ss:(;ki)dState -> tlen:int ->
-	ct:ContentType -> f:(;ki,tlen,dStateSeqn(ki,ss),ct)TLSFragment.fragment ->
-	(ss':(;ki)dState{dStateSeqn(ki,ss') = dStateSeqn(ki,ss)+1}) Result
-
-// internally invokes send (which increases the write-side seqn),
-// however resets the write-side seqn is we just sent a CCS
 val writeOne: c:Connection ->
-	(writeOutcome Result) * (;c) CompatibleConnection
+	(writeOutcome * Connection) Result
 
-// Normally, the returned read-side seqn will be increased by one
-// expect if we delivered a CCS, in which case it is 0
-val deliver: c:Connection -> ct:ContentType -> tlen:int ->
-	(;ConnectionInKeyInfo(c),tlen,ConnectionReadSeqn(c),ct)TLSFragment.fragment ->
-	(deliverOutcome Result * (;c) CompatibleConnection)
+val deliver: c:Connection -> ct:ContentType -> r:range->
+	(;ConnectionEpochIn(c),ct,ConnectionInHistory(c),r)TLSFragment.fragment ->
+	(deliverOutcome * Connection) Result
 
 val recv: c:Connection ->
-	(c':(;c)CompatibleConnection *
-	 ct:ContentType * tlen:int * 
-         (;ConnectionInKeyInfo(c'),tlen,ConnectionReadSeqn(c'),ct)TLSFragment.fragment) Result
+	(c':Connection *
+	 ct:ContentType * r:range * 
+         (;ConnectionEpochIn(c'),ct,ConnectionInHistory(c'),r)TLSFragment.fragment) Result
 
 val readOne: c:Connection ->
-	deliverOutcome Result * (;c) CompatibleConnection
+	(deliverOutcome * Connection) Result
 
-val writeFromRead: c:Connection ->
-	unit Result * (;c) CompatibleConnection
+val writeAll: c:Connection ->
+	(writeOutcome * Connection) Result
 
-type preReadInvocation =
-    | StopAtHS
-    | StopAtAppData
+val read: c:Connection -> (;c)ioresult_i
 
-type readInvocation = r:preReadInvocation{
-	r = StopAtHS \/ r = StopAtAppData}
+val write: c:Connection ->
+	(;ConnectionEpochOut(c),ConnectionOutStream(c))msg_o ->
+	(;c)ioresult_o
 
-val read: c:Connection -> readInvocation -> unit Result * (;c) CompatibleConnection
+val authorize: Connection -> query -> Connection
+val refuse: Connection -> query -> unit
 
-val writeAppData: c:Connection -> unit Result * (;c) CompatibleConnection
-
-
-val commit: c:Connection -> DataStream.range -> bytes ->
-	(;c)CompatibleConnection
-
-val readAppData: c:Connection ->
-	c':(;c)CompatibleConnection *
-	  bytes Result
-	
-
-val readHS: c:Connection -> unit Result * (;c) CompatibleConnection
+val getEpochIn:   c:Connection -> e:epoch{e=ConnectionEpochIn(c) }
+val getEpochOut:  c:Connection -> e:epoch{e=ConnectionEpochOut(c)}
+val getInStream:  c:Connection -> s:(;ConnectionEpochIn(c))stream {s = ConnectionInStream(c) }
+val getOutStream: c:Connection -> s:(;ConnectionEpochOut(c))stream{s = ConnectionOutStream(c)}
