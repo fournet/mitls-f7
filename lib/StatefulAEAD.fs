@@ -50,6 +50,5 @@ let decrypt (ki:epoch) (r:reader) (ad0:data) (e:cipher) =
           let (k,rg,p) = x in
           let f = AEADPlainToFragment ki h ad0 rg p in
           let h = addToHistory ki h ad0 rg f in
-          let r = {history = h; key = k} in
-          correct (r,rg,f) 
+          correct (({history = h; key = k},rg,f))
     | Error (x,y) -> Error (x,y)

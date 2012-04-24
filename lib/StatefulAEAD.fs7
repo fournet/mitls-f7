@@ -26,7 +26,7 @@ type (;ki:epoch) reader = r:(;ki) state
 type (;ki:epoch) writer = w:(;ki) state
 
 //CF 21/4 patched, pls check; rediscuss COERCE/LEAK 
-val GEN:    ki:epoch -> (;ki) reader * (;ki)writer
+val GEN:    ki:epoch{Safe(ki)} -> (;ki) reader * (;ki)writer
 val COERCE: ki:epoch{not Auth(ki)}  -> b:bytes{Length(b)=AEAD.AEADSize(ki)} -> (;ki)state
 val LEAK:   ki:epoch{not Auth(ki)}  -> (;ki)state -> b:bytes
 
