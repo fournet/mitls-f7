@@ -6,7 +6,6 @@ open Formats
 open Error
 open TLSInfo
 open CipherSuites
-open StatefulPlain
 
 /// Implements stateful AE on top of AEAD,
 /// managing sequence numbers and the binary record format
@@ -25,6 +24,8 @@ val headerLength: bytes -> int Result
 // CF do some uniform renaming, e.g. s/Out/Send/
 val recordPacketOut: epoch -> sendState -> ProtocolVersion -> DataStream.range -> ContentType -> TLSFragment.fragment -> (sendState * bytes)
 val recordPacketIn : epoch -> recvState -> bytes -> (recvState * ContentType * ProtocolVersion * DataStream.range * TLSFragment.fragment) Result
+
+val history: epoch -> ConnectionState -> TLSFragment.history
 
 (* val dataAvailable: recvState -> bool Result *)
 (* val coherentrw: SessionInfo -> recvState -> sendState -> bool *)

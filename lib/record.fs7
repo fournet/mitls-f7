@@ -46,3 +46,5 @@ val recordPacketIn : ki:epoch ->
                         rg:range * 
                         f:(;ki,ct,History(ki,rs),rg) TLSFragment.fragment) Result 
 
+val history: ki:epoch -> s:(;ki) ConnectionState ->
+	h:(;ki)TLSFragment.history{h=History(ki,s)}

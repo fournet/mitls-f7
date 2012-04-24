@@ -10,7 +10,7 @@ type state = pre_al_state
 type ALFragReply =
     | EmptyALFrag
     | ALFrag of range * Fragment.fragment
-    | LastALFrag of range * Fragment.fragment
+    | LastALFrag of range * Fragment.fragment * alertDescription
     | LastALCloseFrag of range * Fragment.fragment
 
 type alert_reply =

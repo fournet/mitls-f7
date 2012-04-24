@@ -172,3 +172,8 @@ let recordPacketIn ki conn headPayload =
             let history = addToHistory ki ct history rg ff in
             Correct(SomeState(history,newState),ct,pv,rg,msg)
     | _ -> unexpectedError "[recordPacketIn] Incompatible ciphersuite and key type"
+
+let history (e:epoch) s =
+    match s with
+    | NullState -> TLSFragment.emptyHistory e
+    | SomeState(h,_) -> h

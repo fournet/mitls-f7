@@ -21,7 +21,7 @@ let incomingEmpty (ci:ConnectionInfo) s = equalBytes s.al_incoming [||]
 type ALFragReply =
     | EmptyALFrag
     | ALFrag of DataStream.range * Fragment.fragment
-    | LastALFrag of DataStream.range * Fragment.fragment
+    | LastALFrag of DataStream.range * Fragment.fragment * alertDescription
     | LastALCloseFrag of DataStream.range * Fragment.fragment
 
 type alert_reply =
@@ -163,7 +163,7 @@ let next_fragment ci state =
             | Correct(ad) ->
                 match ad with
                 | AD_close_notify -> (LastALCloseFrag(r0,df),state)
-                | _ -> (LastALFrag(r0,df),state)
+                | _ -> (LastALFrag(r0,df,ad),state)
         | _ -> (ALFrag(r0,df),state)
 
 let handle_alert ci state alDesc =

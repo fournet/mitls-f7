@@ -14,7 +14,7 @@ type (;ci:ConnectionInfo)state = (;ci)pre_al_state
 type (;ki:epoch)ALFragReply =
     | EmptyALFrag
     | ALFrag of          (rg:range * (;ki,rg)Fragment.fragment)
-    | LastALFrag of      (rg:range * (;ki,rg)Fragment.fragment)
+    | LastALFrag of      (rg:range * (;ki,rg)Fragment.fragment * alertDescription)
     | LastALCloseFrag of (rg:range * (;ki,rg)Fragment.fragment)
 
 type (;ci:ConnectionInfo)alert_reply =
