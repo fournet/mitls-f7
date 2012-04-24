@@ -35,18 +35,21 @@ let splitRange ki r =
             let r1 = (rem,rem)
             (r0,r1)
     else
-        let minpack = (h-l) / padSize
-        let minfrag = (h-1) / fragmentLength
-        let savebytes = max minpack minfrag
-        let smallL = max (min (l-savebytes) fragmentLength) 0
-        let smallH = min (min (padSize+smallL) fragmentLength) h
-        let lsub = l - smallL in
-        let hsub = h - smallH in
-        if ((lsub > hsub)) then
-            unexpectedError "Should not be possible, ask Alfredo" 
+        if h = 0 then
+            ((l,h),(0,0))
         else
-          ((smallL,smallH),
-           (lsub,hsub))
+            let minpack = (h-l) / padSize
+            let minfrag = (h-1) / fragmentLength
+            let savebytes = max minpack minfrag
+            let smallL = max (min (l-savebytes) fragmentLength) 0
+            let smallH = min (min (padSize+smallL) fragmentLength) h
+            let lsub = l - smallL in
+            let hsub = h - smallH in
+            if ((lsub > hsub)) then
+                unexpectedError "Should not be possible, ask Alfredo" 
+            else
+              ((smallL,smallH),
+               (lsub,hsub))
 
 type stream = {sb: bytes list}
 type delta = {contents: rbytes}
