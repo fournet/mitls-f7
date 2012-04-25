@@ -95,19 +95,22 @@ type deliverOutcome =
 
 let init ns role poptions =
     let (ci,hs) = Handshake.init_handshake role poptions in
-    let (send,recv) = (Record.nullConnState ci.id_out, Record.nullConnState ci.id_in) in
+    let id_in = ci.id_in in
+    let id_out = ci.id_out in
+    let recv = Record.nullConnState id_in in
+    let send = Record.nullConnState id_out in
     let read_state = {disp = Init; conn = recv} in
     let write_state = {disp = Init; conn = send} in
     let al = Alert.init ci in
     let app = AppDataStream.init ci in
-    Conn ( ci,
-      { poptions = poptions;
-        handshake = hs;
-        alert = al;
-        appdata = app;
-        read = read_state;
-        write = write_state;
-        ns=ns;})
+    let state = { poptions = poptions;
+                  handshake = hs;
+                  alert = al;
+                  appdata = app;
+                  read = read_state;
+                  write = write_state;
+                  ns=ns;}
+    Conn ( ci, state)
 
 let resume ns sid ops =
     (* Only client side, can never be server side *)
@@ -202,7 +205,8 @@ let pickSendPV (Conn(id,c)) =
 let send (Conn(id,c)) rg ct frag =
     let pv = pickSendPV (Conn(id,c)) in
     let (conn,data) = Record.recordPacketOut id.id_out c.write.conn pv rg ct frag in
-    let dState = {c.write with conn = conn} in
+    let c_write = c.write in
+    let dState = {c_write with conn = conn} in
     match Tcp.write c.ns data with
     | Error(x,y) -> Error(x,y)
     | Correct(_) -> 

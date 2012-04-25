@@ -55,6 +55,12 @@ let addToHistory (ki:epoch) ct ss r ff =
         let d,s' = Fragment.delta ki ss.appdata r ff in
           {ss with appdata = s'} 
 
+let historyStream (ki:epoch) ct ss =
+    match ct with
+    | Handshake -> ss.handshake
+    | Alert -> ss.alert
+    | Change_cipher_spec -> ss.ccs
+    | Application_data -> ss.appdata
 
 let fragmentPlain ki (ct:ContentType) (h:history) (rg:DataStream.range) b = 
     match ct with

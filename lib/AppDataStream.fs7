@@ -28,7 +28,9 @@ definition !ci,s,st,d. s.app_outgoing = (st,d) => AppOutBuf(ci,s) = d
 val inStream:  ci:ConnectionInfo -> s:(;ci)app_state -> st:(;ci.id_in) stream{st = AppInStream(ci,s) }
 val outStream: ci:ConnectionInfo -> s:(;ci)app_state -> st:(;ci.id_out)stream{st = AppOutStream(ci,s)}
 
-val init: ci:ConnectionInfo -> s:(;ci)app_state{AppInBuf(ci,s) = None /\ AppOutBuf(ci,s) = None}
+val init: ci:ConnectionInfo ->
+	s:(;ci)app_state{AppInBuf(ci,s) = None /\ AppOutBuf(ci,s) = None /\
+		EmptyStream(ci.id_in,AppInStream(ci,s)) /\ EmptyStream(ci.id_out,AppOutStream(ci,s))}
 
 val writeAppData: ci:ConnectionInfo -> s:(;ci)app_state{AppOutBuf(ci,s) = None} ->
 	r:range -> d:(;ci.id_out,AppOutStream(ci,s),r)delta ->

@@ -27,6 +27,8 @@ val recordPacketIn : epoch -> recvState -> bytes -> (recvState * ContentType * P
 
 val history: epoch -> ConnectionState -> TLSFragment.history
 
+val historyStream: epoch -> ConnectionState -> ContentType -> DataStream.stream
+
 (* val dataAvailable: recvState -> bool Result *)
 (* val coherentrw: SessionInfo -> recvState -> sendState -> bool *)
 

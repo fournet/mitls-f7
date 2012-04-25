@@ -89,6 +89,19 @@ private assume !ki,h,r,d. ExtendHistory(ki,Formats.Application_data,h,r,d) =
 	   ccs = h.ccs;
 	   appdata = Fragment.Extend(ki,h.appdata,r,d)}
 
+function val HistoryStream: e:epoch * Formats.ContentType * (;e)history -> 'a //(;e)stream
+private definition !e,h. HistoryStream(e,Formats.Handshake,h) = h.handshake
+private definition !e,h. HistoryStream(e,Formats.Alert,h) = h.alert
+private definition !e,h. HistoryStream(e,Formats.Change_cipher_spec,h) = h.ccs
+private definition !e,h. HistoryStream(e,Formats.Application_data,h) = h.appdata
+
+val historyStream: e:epoch -> ct:Formats.ContentType -> h:(;e)history ->
+	s:(;e)stream{s=HistoryStream(e,ct,h)}
+
+ask !e,h. EmptyHistory(e,h) => EmptyStream(e,HistoryStream(e,Formats.Handshake,h))
+ask !e,h. EmptyHistory(e,h) => EmptyStream(e,HistoryStream(e,Formats.Alert,h))
+ask !e,h. EmptyHistory(e,h) => EmptyStream(e,HistoryStream(e,Formats.Change_cipher_spec,h))
+ask !e,h. EmptyHistory(e,h) => EmptyStream(e,HistoryStream(e,Formats.Application_data,h))
 
 assume !ki,sh,h. StatefulPlain.EmptyHistory(ki,sh) /\
    EmptyHistory(ki,h) => h = Multiplexed(ki,sh)

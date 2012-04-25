@@ -177,3 +177,7 @@ let history (e:epoch) s =
     match s with
     | NullState -> TLSFragment.emptyHistory e
     | SomeState(h,_) -> h
+
+let historyStream (e:epoch) st ct =
+    let h = history e st in
+    TLSFragment.historyStream e ct h

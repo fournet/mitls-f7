@@ -42,6 +42,8 @@ function val ExtendStream: 'a * 'b * 'c * 'd -> 'e
 private assume !ki,s. EmptyStream(ki,s) <=> s = {sb = [] }
 private assume !ki,s,r,d. ExtendStream(ki,s,r,d) = {sb = d.contents :: s.sb } 
 
+ask !ki,s,s'. EmptyStream(ki,s) /\ EmptyStream(ki,s') => s = s'
+
 val init: ki:epoch -> s:(;ki) stream{EmptyStream(ki,s)}
 
 private val createDelta: 

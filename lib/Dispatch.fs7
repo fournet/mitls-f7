@@ -37,7 +37,14 @@ type (;id:ConnectionInfo) preGlobalState = {
   ns: Tcp.NetworkStream;
   }
 
-type (;id:ConnectionInfo) globalState = (gs:(;id) preGlobalState)
+predicate GState of ci:ConnectionInfo * (;ci)preGlobalState
+type (;id:ConnectionInfo) globalState = gs:(;id) preGlobalState{GState(id,gs)}
+
+definition !ci,gs. GState(ci,gs) <=>
+	( AppDataStream.AppOutStream(ci,gs.appdata) =
+		TLSFragment.HistoryStream(ci.id_out,Formats.Application_data,Record.History(ci.id_out,gs.write.conn)) /\
+	  AppDataStream.AppInStream( ci,gs.appdata) =
+		TLSFragment.HistoryStream(ci.id_in, Formats.Application_data,Record.History(ci.id_in, gs.read.conn)) )
 
 type Connection = Conn of (id:ConnectionInfo * (;id)globalState)
 function val ConnectionIndex: Connection -> ConnectionInfo
