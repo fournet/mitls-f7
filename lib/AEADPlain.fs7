@@ -3,21 +3,30 @@ open Bytes
 open TLSInfo
 open DataStream
 open Fragment
-//open AEPlain // Do not open, or AEPlain "module" and AEPlain "function" will clash. We should stop using the same name for modules, types and functions, as this creates names clashes everywhere!
+// Do not open AEPlain, or else AEPlain "module" and AEPlain "function" will clash. 
+
+
+//------------------------------------------------------------------------------------------------------
+// Interface towards AEAD
+//------------------------------------------------------------------------------------------------------
 
 type (;ki:epoch) data = (b:bytes){Length(b) = AEPlain.ADLength(ki)}
-
 predicate AEADSays of ki:epoch * r:range * (;ki)data * (;ki,r)fragment
-assume !ki,r,d,f. AEPlain.AESays(ki,r,d,f) <=> AEADSays(ki,r,d,f)
-
 private type (;ki:epoch,r:range,ad:(;ki)data) preAEADPlain = x:(;ki,r)fragment{ Auth(ki) => AEADSays(ki,r,ad,x) }
 private type (;ki:epoch,r:range,ad:(;ki)data) AEADPlain    = {contents: (;ki,r,ad)preAEADPlain}
-function val AEADContents: 'a -> 'b
-assume !f. AEADContents(f) = f.contents
 
 // CF 04-09: TODO: add length constraints for those bytes
 val AEADPlain: ki:epoch{not Auth(ki)} -> r:range -> ad:(;ki)data -> (;r)rbytes -> (;ki,ad,r) AEADPlain
 val AEADRepr:  ki:epoch{not Safe(ki)} -> r:range -> ad:(;ki)data -> (;ki,ad,r) AEADPlain -> (;r)rbytes
+
+// The following conversions embed AEADPlains into AEPlains 
+val AEADPlainToAEPlain: ki:epoch -> r:range -> ad:(;ki)data -> (;ki,r,ad) AEADPlain -> (;ki,r,ad) AEPlain.AEPlain
+val AEPlainToAEADPlain: ki:epoch -> r:range -> ad:(;ki)data -> (;ki,r,ad) AEPlain.AEPlain -> (;ki,r,ad) AEADPlain
+assume !ki,r,d,f. AEPlain.AESays(ki,r,d,f) <=> AEADSays(ki,r,d,f)
+
+//------------------------------------------------------------------------------------------------------
+// Interface towards StatefulPlain
+//------------------------------------------------------------------------------------------------------
 
 val contents:  ki:epoch -> r:range -> ad:(;ki)data -> (;ki,r,ad)AEADPlain ->
 	sb:(;ki,r)fragment{Auth(ki) => AEADSays(ki,r,ad,sb)}
@@ -25,40 +34,6 @@ val construct: ki:epoch -> r:range -> ad:(;ki)data ->
 	sb:(;ki,r)fragment{Auth(ki) => AEADSays(ki,r,ad,sb)}
 	-> (;ki,r,ad)AEADPlain
 
-val AEADPlainToAEPlain: ki:epoch -> r:range -> ad:(;ki)data -> (;ki,r,ad) AEADPlain -> (;ki,r,ad) AEPlain.AEPlain
-val AEPlainToAEADPlain: ki:epoch -> r:range -> ad:(;ki)data -> (;ki,r,ad) AEPlain.AEPlain -> (;ki,r,ad) AEADPlain
+function val AEADContents: 'a -> 'b
+assume !f. AEADContents(f) = f.contents
 
-// ////////////////////////////////////////////////////////////
-// // How I would like the stack to look like:
-// 
-// // Top level protocol:
-// assume Before(ki,s,r,f) // when creating a delta
-// 
-// // TLSFragment
-// definition !ki,h,ct,r,f. HBefore(ki,h,ct,r,f) <=>
-// 	?s. Before(ki,s,r,f) /\ s = Select(ki,h,ct)
-// 
-// // StatefulAEAD
-// definition !ki,h,ad,r,f. SBefore(ki,h,ad,r,f) <=>
-// 	?H,ct. HBefore(ki,H,ct,r,f) /\ H = Project(ki,h) /\ ad = ADBytes(ki,ct)
-// 
-// // AEAD
-// definition !ki,ad,r,f. AEADSays(ki,ad,r,f) <=> ?h,ad'. SBefore(ki,h,ad',r,f) /\ ad = MakeAD(ki,h,ad')
-// 
-// // Fragments at each level are defined as
-// type (;id:ID,rest:REST)fragment = (;id)fragment{XBefore(id,rest,f)}
-// 
-// // Invariants on histories: NOT CLEAR YET. However, the idea looks like:
-// 
-// H = Project(ki,h) // and
-// s = Select(ki,h,ct)
-// // are the proper invariants.
-// // E.g.: in Record (whose plain is TLSFragment), when decrypting:
-// // Before decryption, I know
-// H = Project(ki,StatefulAEAD.GetHistory(StatefulAEAD.state))
-// // Then we invoke StatefulAEAD.decrypt, and we get back
-// state'{SExtend(state.history,state'.history)} // and
-// plain
-// // Then we cast plain to fragment, and we add fragment to our history
-// H' = HExtend(H,fragment)
-// // It looks like we need to define HExtend in terms of SExtend. (Right?)
