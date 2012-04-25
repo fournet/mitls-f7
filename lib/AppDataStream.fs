@@ -5,10 +5,8 @@ open Bytes
 open TLSInfo
 open DataStream
 
-type buffer = stream * (range * delta) option
-
-type input_buffer = buffer
-type output_buffer = buffer
+type input_buffer =  stream * (range * Fragment.fragment) option
+type output_buffer = stream * (range * delta) option
 
 type app_state = {
   app_incoming: input_buffer;
@@ -69,18 +67,18 @@ let next_fragment (c:ConnectionInfo) (a:app_state) =
 let recv_fragment (ci:ConnectionInfo)  (a:app_state)  (r:range) (f:Fragment.fragment) =
     // pre: snd a.app_incoming = None
     let (s,_) = a.app_incoming in
-    let (d,_) = Fragment.delta ci.id_in s r f in
-    let nd = (r,d) in
-    {a with app_incoming = (s,Some(nd))}
+    let rf = (r,f) in
+    {a with app_incoming = (s,Some(rf))}
 
 // Returns the buffered data to the user, and stores them in the stream
 let readAppData (c:ConnectionInfo) (a:app_state) =
   let (s,data) = a.app_incoming in
     match data with
       | None -> None,a
-      | Some(rd) ->
-          let (r,d) = rd in
-          let ns = DataStream.append c.id_in s r d in
+      | Some(rf) ->
+          let (r,f) = rf in
+          let (d,ns) = Fragment.delta c.id_in s r f in
+          let rd = (r,d) in
           Some(rd),{a with app_incoming = (ns,None)}
 
 

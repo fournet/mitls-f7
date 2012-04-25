@@ -5,25 +5,23 @@ open Bytes
 open Error
 open DataStream
 
-type (;ki:epoch) buffer = h:(;ki) stream * (r:range * (;ki,h,r) delta) option
+private type (;ki:epoch) input_buffer =  h:(;ki) stream * (r:range * (;ki,r)Fragment.fragment) option
+private type (;ki:epoch) output_buffer = h:(;ki) stream * (r:range * (;ki,h,r) delta) option
 
-type (;ki:epoch) input_buffer = (;ki) buffer
-type (;ki:epoch) output_buffer = (;ki) buffer
-
-type (;ci:ConnectionInfo) app_state = {
+private type (;ci:ConnectionInfo) app_state = {
     app_incoming: (;ci.id_in) input_buffer;
     app_outgoing: (;ci.id_out) output_buffer;
 }
 
 function val AppInStream:  ci:ConnectionInfo * (;ci)app_state -> 'a //(;ci.id_in) stream
 function val AppOutStream: ci:ConnectionInfo * (;ci)app_state -> 'a //(;ci.id_out)stream
-definition !ci,s,st,d. s.app_incoming = (st,d) => AppInStream(ci,s)  = st
-definition !ci,s,st,d. s.app_outgoing = (st,d) => AppOutStream(ci,s) = st
+definition !ci,s,st,d. AppInStream(ci,s)  = st <=> s.app_incoming = (st,d)
+definition !ci,s,st,d. AppOutStream(ci,s) = st <=> s.app_outgoing = (st,d)
 
-function val AppInBuf:  ci:ConnectionInfo * (;ci)app_state -> 'a //(range * delta) option
+function val AppInBuf:  ci:ConnectionInfo * (;ci)app_state -> 'a //(range * Fragment.fragment) option
 function val AppOutBuf: ci:ConnectionInfo * (;ci)app_state -> 'a //(range * delta) option
-definition !ci,s,st,d. s.app_incoming = (st,d) => AppInBuf(ci,s)  = d
-definition !ci,s,st,d. s.app_outgoing = (st,d) => AppOutBuf(ci,s) = d
+definition !ci,s,st,d. AppInBuf(ci,s)  = d <=> s.app_incoming = (st,d)
+definition !ci,s,st,d. AppOutBuf(ci,s) = d <=> s.app_outgoing = (st,d)
 
 val inStream:  ci:ConnectionInfo -> s:(;ci)app_state -> st:(;ci.id_in) stream{st = AppInStream(ci,s) }
 val outStream: ci:ConnectionInfo -> s:(;ci)app_state -> st:(;ci.id_out)stream{st = AppOutStream(ci,s)}
@@ -34,23 +32,35 @@ val init: ci:ConnectionInfo ->
 
 val writeAppData: ci:ConnectionInfo -> s:(;ci)app_state{AppOutBuf(ci,s) = None} ->
 	r:range -> d:(;ci.id_out,AppOutStream(ci,s),r)delta ->
-	s':(;ci)app_state{AppOutBuf(ci,s') = Some((r,d))}
-
+	s':(;ci)app_state{AppOutBuf(ci,s') = Some((r,d)) /\
+		AppOutStream(ci,s') = AppOutStream(ci,s) /\
+		AppInStream (ci,s') = AppInStream (ci,s)}
+		
 val emptyOutgoingAppData: ci:ConnectionInfo -> s:(;ci)app_state ->
 	((r:range * d:(;ci.id_out, AppOutStream(ci,s), r)delta) option) *
-		s':(;ci)app_state{AppOutBuf(ci,s') = None}
+		s':(;ci)app_state{AppOutBuf(ci,s') = None /\
+		AppOutStream(ci,s') = AppOutStream(ci,s) /\
+		AppInStream (ci,s') = AppInStream (ci,s)}
 
 val next_fragment: ci:ConnectionInfo -> s:(;ci)app_state ->
-	((r:range * f:(;ci.id_out,r)Fragment.fragment * (;ci)app_state)
-	{Auth(ci.id_out) => Fragment.Fragment(ci.id_out,AppOutStream(ci,s),r,f)}) option
+	((r:range * f:(;ci.id_out,r)Fragment.fragment * s':(;ci)app_state)
+	{Auth(ci.id_out) => Fragment.Fragment(ci.id_out,AppOutStream(ci,s),r,f) /\
+	 AppOutStream(ci,s') = Fragment.Extend(ci.id_out,AppOutStream(ci,s),r,f) /\
+	 AppInStream (ci,s') = AppInStream (ci,s)}) option
 
 val recv_fragment: ci:ConnectionInfo -> s:(;ci)app_state -> r:range ->
 	f:(;ci.id_in,r)Fragment.fragment{Auth(ci.id_in) =>
 		Fragment.Fragment(ci.id_in,AppInStream(ci,s),r,f)} ->
-	(;ci)app_state
+	s':(;ci)app_state{AppOutBuf(ci,s') = Some((r,f)) /\
+		AppOutStream(ci,s') = AppOutStream(ci,s) /\
+		AppInStream (ci,s') = AppInStream (ci,s)}
 
 val readAppData: ci:ConnectionInfo -> s:(;ci)app_state ->
-	((r:range * (;ci.id_in,AppInStream(ci,s),r)delta) option * s':(;ci)app_state){AppInBuf(ci,s') = None}
+	((r:range * (;ci.id_in,AppInStream(ci,s),r)delta) option * s':(;ci)app_state){AppInBuf(ci,s') = None /\
+		AppOutStream(ci,s') = AppOutStream(ci,s) /\
+		( (AppInBuf(ci,s) = None /\ AppInStream(ci,s') = AppInStream(ci,s)) \/
+		  (?r,f. AppInBuf(ci,s) = Some((r,f)) /\ AppInStream(ci,s') = Fragment.Extend(ci.id_in,AppInStream(ci,s),r,f))
+		)}
 
 val reset_outgoing: ci:ConnectionInfo -> (;ci)app_state ->
 	ci':ConnectionInfo{ci'.role = ci.role /\ ci'.id_in = ci.id_in} -> s':(;ci')app_state{AppOutBuf(ci',s') = None}
