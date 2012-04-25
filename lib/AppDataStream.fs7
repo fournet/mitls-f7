@@ -5,7 +5,9 @@ open Bytes
 open Error
 open DataStream
 
-private type (;ki:epoch) input_buffer =  h:(;ki) stream * (r:range * (;ki,r)Fragment.fragment) option
+private type (;ki:epoch) input_buffer =
+	h:(;ki) stream * (r:range * f:(;ki,r)Fragment.fragment
+	{Auth(ki) => Fragment.Fragment(ki,h,r,f)}) option
 private type (;ki:epoch) output_buffer = h:(;ki) stream * (r:range * (;ki,h,r) delta) option
 
 private type (;ci:ConnectionInfo) app_state = {
@@ -33,12 +35,14 @@ val init: ci:ConnectionInfo ->
 val writeAppData: ci:ConnectionInfo -> s:(;ci)app_state{AppOutBuf(ci,s) = None} ->
 	r:range -> d:(;ci.id_out,AppOutStream(ci,s),r)delta ->
 	s':(;ci)app_state{AppOutBuf(ci,s') = Some((r,d)) /\
+		AppInBuf(ci,s') = AppInBuf(ci,s) /\
 		AppOutStream(ci,s') = AppOutStream(ci,s) /\
 		AppInStream (ci,s') = AppInStream (ci,s)}
 		
 val emptyOutgoingAppData: ci:ConnectionInfo -> s:(;ci)app_state ->
 	((r:range * d:(;ci.id_out, AppOutStream(ci,s), r)delta) option) *
 		s':(;ci)app_state{AppOutBuf(ci,s') = None /\
+		AppInBuf(ci,s') = AppInBuf(ci,s) /\
 		AppOutStream(ci,s') = AppOutStream(ci,s) /\
 		AppInStream (ci,s') = AppInStream (ci,s)}
 
@@ -46,6 +50,7 @@ val next_fragment: ci:ConnectionInfo -> s:(;ci)app_state ->
 	((r:range * f:(;ci.id_out,r)Fragment.fragment * s':(;ci)app_state)
 	{Auth(ci.id_out) => Fragment.Fragment(ci.id_out,AppOutStream(ci,s),r,f) /\
 	 AppOutStream(ci,s') = Fragment.Extend(ci.id_out,AppOutStream(ci,s),r,f) /\
+	 AppInBuf(ci,s') = AppInBuf(ci,s) /\
 	 AppInStream (ci,s') = AppInStream (ci,s)}) option
 
 val recv_fragment: ci:ConnectionInfo -> s:(;ci)app_state -> r:range ->
