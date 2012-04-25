@@ -16,6 +16,7 @@ type (;ki:epoch) ConnectionState =
 
 function val History: ki:epoch * (;ki) ConnectionState -> 'a
 private assume !ki,h,s. History(ki,SomeState(h,s)) = h
+private assume !ki,h,s. History(ki,NullState) = h <=> EmptyHistory(ki,h)
 private assume !ki. EmptyHistory(ki,History(ki,NullState))
 private assume !ki,ki',h,h'. EmptyHistory(ki,h) /\ EmptyHistory(ki',h') => h = h'
 

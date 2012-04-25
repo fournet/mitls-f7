@@ -37,6 +37,9 @@ val null_sessionInfo: pv:ProtocolVersion -> si:SessionInfo{NullSessionInfo(si)}
 val isNullSessionInfo: s:SessionInfo -> b:bool{b=true => NullSessionInfo(s)}
 
 function val EpochSI: epoch -> SessionInfo
+assume !r,o,si. si = EpochSI(InitEpoch(r,o)) <=> NullSessionInfo(si)
+assume !c,s,si,p. EpochSI(SuccEpoch(c,s,si,p)) = si
+
 val epochSI: e:epoch -> si:SessionInfo{si = EpochSI(e)}
 
 val epochSRand: e:epoch -> b:bytes{!b1,b2,si,pe. e = SuccEpoch(b1,b2,si,pe) => b = b2}
