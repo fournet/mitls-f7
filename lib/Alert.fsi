@@ -27,4 +27,5 @@ val next_fragment: ConnectionInfo -> state -> (ALFragReply * state)
 
 val recv_fragment: ConnectionInfo -> state -> range -> Fragment.fragment -> alert_reply Result
 
-val incomingEmpty: ConnectionInfo -> state -> bool
+val reset_incoming: ConnectionInfo -> state -> ConnectionInfo -> state
+val reset_outgoing: ConnectionInfo -> state -> ConnectionInfo -> state

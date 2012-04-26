@@ -16,7 +16,7 @@ type fragment =
     | FAppData of Fragment.fragment
 
 val emptyHistory: epoch -> history
-val addToHistory: epoch -> ContentType -> history -> range -> Fragment.fragment -> history
+val addToHistory: epoch -> ContentType -> history -> range -> fragment -> history
 
 val historyStream: epoch -> ContentType -> history -> stream
 

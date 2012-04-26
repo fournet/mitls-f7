@@ -173,21 +173,21 @@ let moveToOpenState (Conn(id,c)) new_storable_info =
     // - We need to enforce agreement on the alert protocol.
     //   We do it here, by checking that our input buffer is empty. Maybe, we should have done
     //   it before, when we sent/received the CCS
-    if Alert.incomingEmpty id c.alert then
-        let read = c.read in
-        match read.disp with
+    //if Alert.incomingEmpty id c.alert then
+    let read = c.read in
+    match read.disp with
+    | Finishing | Finished ->
+        let new_read = {read with disp = Open} in
+        let c_write = c.write in
+        match c_write.disp with
         | Finishing | Finished ->
-            let new_read = {read with disp = Open} in
-            let c_write = c.write in
-            match c_write.disp with
-            | Finishing | Finished ->
-                let new_write = {c_write with disp = Open} in
-                let c = {c with read = new_read; write = new_write} in
-                correct c
-            | _ -> Error(Dispatcher,CheckFailed)
+            let new_write = {c_write with disp = Open} in
+            let c = {c with read = new_read; write = new_write} in
+            correct c
         | _ -> Error(Dispatcher,CheckFailed)
-    else
-        Error(Dispatcher,CheckFailed)
+    | _ -> Error(Dispatcher,CheckFailed)
+    //else
+    //    Error(Dispatcher,CheckFailed)
 
 let closeConnection (Conn(id,c)) =
     let new_read = {c.read with disp = Closed} in
@@ -202,16 +202,12 @@ let pickSendPV (Conn(id,c)) =
     | FirstHandshake -> getNegotiatedVersion id c.handshake
     | _ -> let si = epochSI(id.id_out) in si.protocol_version
 
-let send (Conn(id,c)) rg ct frag =
-    let pv = pickSendPV (Conn(id,c)) in
-    let (conn,data) = Record.recordPacketOut id.id_out c.write.conn pv rg ct frag in
-    let c_write = c.write in
-    let dState = {c_write with conn = conn} in
-    match Tcp.write c.ns data with
+let send ns e write pv rg ct frag =
+    let (conn,data) = Record.recordPacketOut e write.conn pv rg ct frag in
+    let dState = {write with conn = conn} in
+    match Tcp.write ns data with
     | Error(x,y) -> Error(x,y)
-    | Correct(_) -> 
-        // printf "%s(%d) " (CTtoString ct) tlen // DEBUG
-        correct(dState)
+    | Correct(_) -> correct(dState)
 
 (* which fragment should we send next? *)
 (* we must send this fragment before restoring the connection invariant *)
@@ -232,15 +228,16 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                 | None -> (correct (WAppDataDone,Conn(id,c)))
                 | Some (next) ->
                           let (tlen,f,new_app_state) = next in
-                          let c = {c with appdata = new_app_state} in
                           match c_write.disp with
                           | Open ->
                           (* we send some data fragment *)
                             let history = Record.history id.id_out c_write.conn in
                             let frag = TLSFragment.construct id.id_out Application_data history tlen f
-                            match send (Conn(id,c)) (tlen) Application_data frag with
+                            let pv = pickSendPV (Conn(id,c)) in
+                            match send c.ns id.id_out c.write pv tlen Application_data frag with
                             | Correct(new_write) ->
-                                let c = { c with write = new_write }
+                                let c = { c with appdata = new_app_state;
+                                                 write = new_write }
                                 (* Fairly, tell we're done, and we won't write more data *)
                                 (correct (WAppDataDone, Conn(id,c)) )
                             | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
@@ -261,19 +258,20 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                     | x when x = FirstHandshake || x = Open ->
                         let history = Record.history id.id_out c_write.conn in
                         let frag = TLSFragment.construct id.id_out Change_cipher_spec history rg ccs in
-                        match send (Conn(id,c)) rg Change_cipher_spec frag with
+                        let pv = pickSendPV (Conn(id,c)) in
+                        match send c.ns id.id_out c.write pv rg Change_cipher_spec frag with
                         | Correct _ -> (* We don't care about next write state, because we're going to reset everything after CCS *)
-                            let c = {c with handshake = new_hs_state} in
                             (* Now:
-                                - update the index and install the new keys
+                                - update the index and the state of other protocols
                                 - move the outgoing state to Finishing, to signal we must not send appData now. *)
                             let newID = {id with id_out = newKiOUT } in
                             let new_write = {c.write with disp = Finishing; conn = newCS} in
-                            // FIXME: Should we check/reset here the alert buffer,
-                            // and/or we should do it when moving to the open state?
-                            
-                            // let newad = AppDataStream.reset_outgoing id c.appdata in
-                            let c = { c with write = new_write} in //; appdata = newad} in
+                            let new_ad = AppDataStream.reset_outgoing id c.appdata newID in
+                            let new_al = Alert.reset_outgoing id c.alert newID in
+                            let c = { c with write = new_write;
+                                             handshake = new_hs_state;
+                                             alert = new_al;
+                                             appdata = new_ad} in 
                             (correct (WriteAgain, Conn(newID,c)) )
                         | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error (x,y) (* Unrecoverable error *)
                     | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher, InvalidState) (* TODO: we might want to send an "internal error" fatal alert *)
@@ -284,10 +282,10 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                                x = Finishing || x = Open ->
                           let history = Record.history id.id_out c_write.conn in
                           let frag = TLSFragment.construct id.id_out Handshake history tlen f in
-                          match send (Conn(id,c)) tlen Handshake frag with 
+                          let pv = pickSendPV (Conn(id,c)) in
+                          match send c.ns id.id_out c.write pv tlen Handshake frag with 
                           | Correct(new_write) ->
                             let c = { c with handshake = new_hs_state;
-                                             //appdata = AppDataStream.readNonAppDataFragment id c.appdata;
                                              write     = new_write }
                             (correct (WriteAgain, Conn(id,c)) )
                           | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
@@ -299,12 +297,12 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                     (* Send the last fragment *)
                     let history = Record.history id.id_out c_write.conn in
                     let frag = TLSFragment.construct id.id_out Handshake history tlen lastFrag in
-                    match send (Conn(id,c)) (tlen) Handshake frag with 
+                    let pv = pickSendPV (Conn(id,c)) in
+                    match send c.ns id.id_out c.write pv tlen Handshake frag with 
                           | Correct(new_write) ->
                             (* Also move to the Finished state *)
                             let c_write = {new_write with disp = Finished} in
                             let c = { c with handshake = new_hs_state;
-                                             //appdata = AppDataStream.readNonAppDataFragment id c.appdata;
                                              write     = c_write }
                             (correct (WMustRead, Conn(id,c)))
                           | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
@@ -315,10 +313,10 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                     (* Send the last fragment *)
                     let history = Record.history id.id_out c_write.conn in
                     let frag = TLSFragment.construct id.id_out Handshake history tlen lastFrag in
-                    match send (Conn(id,c)) (tlen) Handshake frag with 
+                    let pv = pickSendPV (Conn(id,c)) in
+                    match send c.ns id.id_out c.write pv tlen Handshake frag with 
                     | Correct(new_write) ->
                         let c = { c with handshake = new_hs_state;
-                                         //appdata = AppDataStream.readNonAppDataFragment id c.appdata;
                                          write     = new_write }
                         (* Move to the new state *)
                         // Sanity check: in and out session infos should be the same
@@ -332,13 +330,12 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                 | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) (* TODO: we might want to send an "internal error" fatal alert *)
       | (Alert.ALFrag(tlen,f),new_al_state) ->
         let history = Record.history id.id_out c_write.conn in
-        let frag = TLSFragment.construct id.id_out Alert history tlen f in    
-        match send (Conn(id,c)) (tlen) Alert frag with 
+        let frag = TLSFragment.construct id.id_out Alert history tlen f in
+        let pv = pickSendPV (Conn(id,c)) in
+        match send c.ns id.id_out c.write pv tlen Alert frag with 
         | Correct(new_write) ->
             let new_write = {new_write with disp = Closing} in
-            //let ad = AppDataStream.readNonAppDataFragment id c.appdata in
             let c = { c with alert   = new_al_state;
-                             //appdata = ad;
                              write   = new_write }
             (correct (WriteAgain, Conn(id,c )))
         | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
@@ -346,11 +343,10 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
         (* We're sending a fatal alert. Send it, then close both sending and receiving sides *)
         let history = Record.history id.id_out c_write.conn in
         let frag = TLSFragment.construct id.id_out Alert history tlen f in
-        match send (Conn(id,c)) tlen Alert frag with 
+        let pv = pickSendPV (Conn(id,c)) in
+        match send c.ns id.id_out c.write pv tlen Alert frag with 
         | Correct(new_write) ->
-            //let ad = AppDataStream.readNonAppDataFragment id c.appdata in
             let c = {c with alert = new_al_state;
-                            //appdata = ad;
                             write = new_write}
             let closed = closeConnection (Conn(id,c)) in
             correct (SentFatal(ad), closed)
@@ -361,12 +357,11 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
            otherwise we wait to read it, then close. But do not close here. *)
         let history = Record.history id.id_out c_write.conn in
         let frag = TLSFragment.construct id.id_out Alert history tlen f in
-        match send (Conn(id,c)) (tlen) Alert frag with
+        let pv = pickSendPV (Conn(id,c)) in
+        match send c.ns id.id_out c.write pv tlen Alert frag with
         | Correct(new_write) ->
             let new_write = {new_write with disp = Closed} in
-            //let ad = AppDataStream.readNonAppDataFragment id c.appdata in
             let c = {c with alert = new_al_state;
-                            //appdata = ad;
                             write = new_write}
             correct (SentClose, Conn(id,c))
         | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)

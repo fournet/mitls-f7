@@ -210,3 +210,9 @@ let recv_fragment (ci:ConnectionInfo) state (r:range) (f:Fragment.fragment) =
                     let state = {state with al_incoming = [||] } in
                     let res = handle_alert ci state alert in
                     correct(res)
+
+let reset_incoming (c:ConnectionInfo) s (nc:ConnectionInfo) =
+    {s with al_incoming = [||]}
+
+let reset_outgoing (c:ConnectionInfo) s (nc:ConnectionInfo) =
+    {s with al_outgoing = [||]}

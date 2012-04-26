@@ -143,9 +143,12 @@ val closeConnection: c:Connection-> (;c) nextCn
 
 val pickSendPV: c:Connection -> CipherSuites.ProtocolVersion
 
-val send: c:Connection -> r:range -> ct:Formats.ContentType ->
-	f:(;ConnectionEpochOut(c),ct,ConnectionOutHistory(c),r)TLSFragment.fragment ->
-	(;ConnectionEpochOut(c))dState Result
+val send: Tcp.NetworkStream -> e:epoch -> w:(;e)dState ->
+	CipherSuites.ProtocolVersion -> r:range -> ct:Formats.ContentType ->
+	f:(;e,ct,Record.History(e,w.conn),r)TLSFragment.fragment ->
+	(w':(;e)dSRecord.History(e,w'.conn) =
+			TLSFragment.ExtendHistory(e,ct,Record.History(e,w.conn),r,f)
+		}) Result
 
 val writeOne: c:Connection ->
 	(writeOutcome * Connection) Result

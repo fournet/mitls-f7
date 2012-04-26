@@ -39,22 +39,6 @@ let makeAD ki ct =
     then bct
     else bct @| bver
 
-let addToHistory (ki:epoch) ct ss r ff =
-  let ad = makeAD ki ct in 
-  match ct with
-    | Handshake -> 
-        let d,s' = Fragment.delta ki ss.handshake r ff in
-          {ss with handshake = s'} 
-    | Alert -> 
-        let d,s' = Fragment.delta ki ss.alert r ff in
-          {ss with alert = s'} 
-    | Change_cipher_spec -> 
-        let d,s' = Fragment.delta ki ss.ccs r ff in
-          {ss  with ccs = s'} 
-    | Application_data -> 
-        let d,s' = Fragment.delta ki ss.appdata r ff in
-          {ss with appdata = s'} 
-
 let historyStream (ki:epoch) ct ss =
     match ct with
     | Handshake -> ss.handshake
@@ -92,6 +76,22 @@ let construct (ki:epoch) (ct:ContentType) (h:history) (rg:range) sb =
         | Change_cipher_spec -> FCCS(sb)
         | Alert -> FAlert(sb)
         | Application_data -> FAppData(sb)
+
+let addToHistory (ki:epoch) ct ss r frag =
+  let ff = contents ki ct ss r frag in
+  match ct with
+    | Handshake -> 
+        let d,s' = Fragment.delta ki ss.handshake r ff in
+          {ss with handshake = s'} 
+    | Alert -> 
+        let d,s' = Fragment.delta ki ss.alert r ff in
+          {ss with alert = s'} 
+    | Change_cipher_spec -> 
+        let d,s' = Fragment.delta ki ss.ccs r ff in
+          {ss  with ccs = s'} 
+    | Application_data -> 
+        let d,s' = Fragment.delta ki ss.appdata r ff in
+          {ss with appdata = s'} 
 
 let TLSFragmentToFragment ki ct ss st rg f =
   let sb = contents ki ct ss rg f in

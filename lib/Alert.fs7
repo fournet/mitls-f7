@@ -98,3 +98,9 @@ val handle_alert: ci:ConnectionInfo -> (;ci)state -> alertDescription -> (;ci)al
 val recv_fragment: ci:ConnectionInfo -> (;ci)state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> ((;ci)alert_reply) Result
 
 val incomingEmpty: ci:ConnectionInfo -> (;ci)state -> bool
+
+val reset_incoming: ci:ConnectionInfo -> (;ci)state ->
+	ci':ConnectionInfo{ci'.role = ci.role /\ ci'.id_out = ci.id_out} -> (;ci')state
+
+val reset_outgoing: ci:ConnectionInfo -> (;ci)state ->
+	ci':ConnectionInfo{ci'.role = ci.role /\ ci'.id_in = ci.id_in} -> (;ci')state

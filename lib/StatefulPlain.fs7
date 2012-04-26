@@ -56,24 +56,25 @@ function val ExtendHistory: ki:epoch * h:(;ki) history * (;ki) data * r:range * 
 private definition !ki. EmptyHistory(ki,(0,Empty))
 private definition !ki,n,h,d,r,f. ExtendHistory(ki,(n,h),d,r,f) = (n+1,ConsHistory(h,d,r,f))
 
+function val SAEADContents: 'a -> 'b
+assume !f. SAEADContents(f) = f.contents
+
 val emptyHistory: ki:epoch -> h:(;ki)history{EmptyHistory(ki,h)}
 private val consHistory: ki:epoch -> h:(;ki)prehistory ->
 	ad:(;ki)data -> r:range -> x:(;ki,r)Fragment.fragment ->
 	h':(;ki)prehistory{h' = ConsHistory(h,ad,r,x)}
 val addToHistory: ki:epoch -> h:(;ki)history ->
 	ad:(;ki)data -> r:range -> x:(;ki,h,ad,r)fragment ->
-	h':(;ki)history{h' = ExtendHistory(ki,h,ad,r,x)}
+	h':(;ki)history{h' = ExtendHistory(ki,h,ad,r,SAEADContents(x))}
 
 // adding the 8-byte sequence number to AD (internal to AEAD) 
-
-function val SAEADContents: 'a -> 'b
-assume !f. SAEADContents(f) = f.contents
 
 val contents:  ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range -> 
    sf:(;ki,h,ad,r)fragment -> x:(;ki,r)Fragment.fragment{x = SAEADContents(sf) /\ 
        (Auth(ki) => Fragment(ki,h,ad,r,x))}
 val construct: ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range ->
-	x:(;ki,r)Fragment.fragment{Auth(ki) => Fragment(ki,h,ad,r,x)} -> (;ki,h,ad,r)fragment
+	x:(;ki,r)Fragment.fragment{Auth(ki) => Fragment(ki,h,ad,r,x)} ->
+	sf:(;ki,h,ad,r)fragment{x = SAEADContents(sf)}
 
 
 //------------------------------------------------------------------------------------------------------
