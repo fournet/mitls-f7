@@ -2056,3 +2056,7 @@ let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:DataStream.range) (fragmen
 let getNegotiatedVersion (ci:ConnectionInfo) state = state.hs_next_info.protocol_version
 
 let authorize (ci:ConnectionInfo) (s:hs_state) (q:cert) = s // TODO
+
+let reset_incoming (c:ConnectionInfo) (s:hs_state) (nc:ConnectionInfo) = s // FIXME: we don't really want such a function, do we?
+
+let reset_outgoing (c:ConnectionInfo) (s:hs_state) (nc:ConnectionInfo) = s // FIXME: we don't really want such a function, do we?

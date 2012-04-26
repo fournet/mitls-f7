@@ -231,10 +231,12 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                           match c_write.disp with
                           | Open ->
                           (* we send some data fragment *)
-                            let history = Record.history id.id_out c_write.conn in
-                            let frag = TLSFragment.construct id.id_out Application_data history tlen f
+                            let id_out = id.id_out in
+                            let c_write_conn = c_write.conn
+                            let history = Record.history id_out c_write_conn in
+                            let frag = TLSFragment.construct id_out Application_data history tlen f
                             let pv = pickSendPV (Conn(id,c)) in
-                            let resSend = send c.ns id.id_out c.write pv tlen Application_data frag in
+                            let resSend = send c.ns id_out c_write pv tlen Application_data frag in
                             match resSend with
                             | Correct(new_write) ->
                                 let c = { c with appdata = new_app_state;
@@ -260,7 +262,8 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                         let history = Record.history id.id_out c_write.conn in
                         let frag = TLSFragment.construct id.id_out Change_cipher_spec history rg ccs in
                         let pv = pickSendPV (Conn(id,c)) in
-                        match send c.ns id.id_out c.write pv rg Change_cipher_spec frag with
+                        let resSend = send c.ns id.id_out c.write pv rg Change_cipher_spec frag in
+                        match resSend with
                         | Correct _ -> (* We don't care about next write state, because we're going to reset everything after CCS *)
                             (* Now:
                                 - update the index and the state of other protocols
@@ -269,8 +272,11 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                             let new_write = {c.write with disp = Finishing; conn = newCS} in
                             let new_ad = AppDataStream.reset_outgoing id c.appdata newID in
                             let new_al = Alert.reset_outgoing id c.alert newID in
+                            // FIXME: we don't really want next line. HS should know when it's time
+                            // to change index anyway.
+                            let new_hs = Handshake.reset_outgoing id new_hs_state newID in
                             let c = { c with write = new_write;
-                                             handshake = new_hs_state;
+                                             handshake = new_hs;
                                              alert = new_al;
                                              appdata = new_ad} in 
                             (correct (WriteAgain, Conn(newID,c)) )
@@ -284,7 +290,8 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                           let history = Record.history id.id_out c_write.conn in
                           let frag = TLSFragment.construct id.id_out Handshake history tlen f in
                           let pv = pickSendPV (Conn(id,c)) in
-                          match send c.ns id.id_out c.write pv tlen Handshake frag with 
+                          let resSend = send c.ns id.id_out c.write pv tlen Handshake frag in
+                          match resSend with 
                           | Correct(new_write) ->
                             let c = { c with handshake = new_hs_state;
                                              write     = new_write }
@@ -299,7 +306,8 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                     let history = Record.history id.id_out c_write.conn in
                     let frag = TLSFragment.construct id.id_out Handshake history tlen lastFrag in
                     let pv = pickSendPV (Conn(id,c)) in
-                    match send c.ns id.id_out c.write pv tlen Handshake frag with 
+                    let resSend = send c.ns id.id_out c.write pv tlen Handshake frag in
+                    match resSend with 
                           | Correct(new_write) ->
                             (* Also move to the Finished state *)
                             let c_write = {new_write with disp = Finished} in
@@ -315,7 +323,8 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                     let history = Record.history id.id_out c_write.conn in
                     let frag = TLSFragment.construct id.id_out Handshake history tlen lastFrag in
                     let pv = pickSendPV (Conn(id,c)) in
-                    match send c.ns id.id_out c.write pv tlen Handshake frag with 
+                    let resSend = send c.ns id.id_out c.write pv tlen Handshake frag in
+                    match resSend with 
                     | Correct(new_write) ->
                         let c = { c with handshake = new_hs_state;
                                          write     = new_write }
@@ -333,7 +342,8 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
         let history = Record.history id.id_out c_write.conn in
         let frag = TLSFragment.construct id.id_out Alert history tlen f in
         let pv = pickSendPV (Conn(id,c)) in
-        match send c.ns id.id_out c.write pv tlen Alert frag with 
+        let resSend = send c.ns id.id_out c.write pv tlen Alert frag in
+        match resSend with 
         | Correct(new_write) ->
             let new_write = {new_write with disp = Closing} in
             let c = { c with alert   = new_al_state;
@@ -345,7 +355,8 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
         let history = Record.history id.id_out c_write.conn in
         let frag = TLSFragment.construct id.id_out Alert history tlen f in
         let pv = pickSendPV (Conn(id,c)) in
-        match send c.ns id.id_out c.write pv tlen Alert frag with 
+        let resSend = send c.ns id.id_out c.write pv tlen Alert frag in
+        match resSend with 
         | Correct(new_write) ->
             let c = {c with alert = new_al_state;
                             write = new_write}
@@ -359,7 +370,8 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
         let history = Record.history id.id_out c_write.conn in
         let frag = TLSFragment.construct id.id_out Alert history tlen f in
         let pv = pickSendPV (Conn(id,c)) in
-        match send c.ns id.id_out c.write pv tlen Alert frag with
+        let resSend = send c.ns id.id_out c.write pv tlen Alert frag in
+        match resSend with
         | Correct(new_write) ->
             let new_write = {new_write with disp = Closed} in
             let c = {c with alert = new_al_state;

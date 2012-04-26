@@ -46,7 +46,7 @@ definition !ci,gs. GState(ci,gs) <=>
 	  ( AppDataStream.AppInBuf(ci,gs.appdata) = None /\
 	    AppDataStream.AppInStream( ci,gs.appdata) =
 		TLSFragment.HistoryStream(ci.id_in, Formats.Application_data,Record.History(ci.id_in, gs.read.conn)) \/
-		?r,f. AppDataStream.AppInBuf(ci,gs.appdata) = Some((r,f)) /\
+		!r,f. AppDataStream.AppInBuf(ci,gs.appdata) = Some((r,f)) /\
 		Fragment.Extend(ci.id_in,AppDataStream.AppInStream(ci,gs.appdata),r,f) = 
 		TLSFragment.HistoryStream(ci.id_in, Formats.Application_data,Record.History(ci.id_in, gs.read.conn))
 	  )

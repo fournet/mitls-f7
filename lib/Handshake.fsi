@@ -90,3 +90,6 @@ val recv_ccs     : ConnectionInfo -> hs_state -> DataStream.range -> Fragment.fr
 val getNegotiatedVersion: ConnectionInfo -> hs_state -> ProtocolVersion
 
 val authorize: ConnectionInfo -> hs_state -> Certificate.cert -> hs_state
+
+val reset_incoming: ConnectionInfo -> hs_state -> ConnectionInfo -> hs_state
+val reset_outgoing: ConnectionInfo -> hs_state -> ConnectionInfo -> hs_state

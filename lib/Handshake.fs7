@@ -52,7 +52,7 @@ val start_hs_request:  ci:ConnectionInfo -> (;ci)hs_state -> protocolOptions -> 
 type (;ki:epoch) HSFragReply =
   | EmptyHSFrag              (* nothing to send *) 
   | HSFrag of                (rg:range * (;ki,rg)Fragment.fragment)
-  | CCSFrag of               (rg:range * (;ki,rg)Fragment.fragment) (* the unique one-byte CCS *) * (newKI:epoch * (;newKI)Record.ConnectionState)
+  | CCSFrag of               (rg:range * (;ki,rg)Fragment.fragment) (* the unique one-byte CCS *) * ((newKI:epoch * cs:(;newKI)Record.ConnectionState){TLSFragment.EmptyHistory(newKI,Record.History(newKI,cs))})
   | HSWriteSideFinished of   (rg:range * (;ki,rg)Fragment.fragment) (* signalling that this fragment ends the finished message *)
   | HSFullyFinished_Write of (rg:range * (;ki,rg)Fragment.fragment) * ((si:SessionInfo * (;si)PRFs.masterSecret * Role){si=EpochSI(ki)})
 val next_fragment: ci:ConnectionInfo -> (;ci)hs_state -> (;ci.id_out)HSFragReply * (;ci)hs_state
@@ -66,7 +66,19 @@ type (;si:SessionInfo)recv_reply = (* the fragment is accepted, and... *)
   | HSReadSideFinished
   | HSFullyFinished_Read of ((si':SessionInfo * (;si')PRFs.masterSecret * Role){si=si'}) (* we can start sending data on the connection *)  
 val recv_fragment: ci:ConnectionInfo -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> (;EpochSI(ci.id_in))recv_reply Result * (;ci)hs_state
-val recv_ccs     : ci:ConnectionInfo -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> ((newKI:epoch * (;newKI)Record.ConnectionState) Result) * (;ci)hs_state
+val recv_ccs     : ci:ConnectionInfo -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> (((newKI:epoch * cs:(;newKI)Record.ConnectionState){TLSFragment.EmptyHistory(newKI,Record.History(newKI,cs))}) Result) * (;ci)hs_state
 
 val getNegotiatedVersion: ci:ConnectionInfo -> (;ci)hs_state -> ProtocolVersion
 val authorize: ci:ConnectionInfo -> (;ci)hs_state -> Certificate.cert -> (;ci)hs_state
+
+
+// AP: Not sure they should exists.
+// Either HS returns the full CI back to the user, with the next state already indexed by the new CI
+// (This requires a patch on the interface, but seems doable)
+// Or the HS state is not indexed by CI, and so the problem does not exists (but can we still prove
+// secrecy in the latter case?)
+val reset_incoming: ci:ConnectionInfo -> (;ci)hs_state ->
+	ci':ConnectionInfo{ci'.role = ci.role /\ ci'.id_out = ci.id_out} -> (;ci')hs_state
+
+val reset_outgoing: ci:ConnectionInfo -> (;ci)hs_state ->
+	ci':ConnectionInfo{ci'.role = ci.role /\ ci'.id_in = ci.id_in} -> (;ci')hs_state
