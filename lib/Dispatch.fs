@@ -203,7 +203,8 @@ let pickSendPV (Conn(id,c)) =
     | _ -> let si = epochSI(id.id_out) in si.protocol_version
 
 let send ns e write pv rg ct frag =
-    let (conn,data) = Record.recordPacketOut e write.conn pv rg ct frag in
+    let res = Record.recordPacketOut e write.conn pv rg ct frag in
+    let (conn,data) = res in
     let dState = {write with conn = conn} in
     match Tcp.write ns data with
     | Error(x,y) -> Error(x,y)
@@ -212,7 +213,6 @@ let send ns e write pv rg ct frag =
 (* which fragment should we send next? *)
 (* we must send this fragment before restoring the connection invariant *)
 let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
-  let c_read = c.read in
   let c_write = c.write in
   match c_write.disp with
   | Closed -> Error (Dispatcher,InvalidState)
@@ -234,7 +234,8 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                             let history = Record.history id.id_out c_write.conn in
                             let frag = TLSFragment.construct id.id_out Application_data history tlen f
                             let pv = pickSendPV (Conn(id,c)) in
-                            match send c.ns id.id_out c.write pv tlen Application_data frag with
+                            let resSend = send c.ns id.id_out c.write pv tlen Application_data frag in
+                            match resSend with
                             | Correct(new_write) ->
                                 let c = { c with appdata = new_app_state;
                                                  write = new_write }

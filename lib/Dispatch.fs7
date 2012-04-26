@@ -146,7 +146,7 @@ val pickSendPV: c:Connection -> CipherSuites.ProtocolVersion
 val send: Tcp.NetworkStream -> e:epoch -> w:(;e)dState ->
 	CipherSuites.ProtocolVersion -> r:range -> ct:Formats.ContentType ->
 	f:(;e,ct,Record.History(e,w.conn),r)TLSFragment.fragment ->
-	(w':(;e)dSRecord.History(e,w'.conn) =
+	(w':(;e)dState{Auth(e) => Record.History(e,w'.conn) =
 			TLSFragment.ExtendHistory(e,ct,Record.History(e,w.conn),r,f)
 		}) Result
 
