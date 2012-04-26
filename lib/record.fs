@@ -93,7 +93,6 @@ let recordPacketOut ki conn pv rg ct fragment =
         let ad = makeAD ki ct in
         let sh = StatefulAEAD.history ki state in
         let aeadF = TLSFragmentToFragment ki ct history sh rg fragment in
-
         let (state,payload) = StatefulAEAD.encrypt ki state ad rg aeadF in
         let ff = StatefulPlain.contents ki sh ad rg aeadF in
         let history = addToHistory ki ct history rg ff in

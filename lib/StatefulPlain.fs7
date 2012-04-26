@@ -71,7 +71,7 @@ assume !f. SAEADContents(f) = f.contents
 
 val contents:  ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range -> 
    sf:(;ki,h,ad,r)fragment -> x:(;ki,r)Fragment.fragment{x = SAEADContents(sf) /\ 
-       Auth(ki) => Fragment(ki,h,ad,r,x)}
+       (Auth(ki) => Fragment(ki,h,ad,r,x))}
 val construct: ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range ->
 	x:(;ki,r)Fragment.fragment{Auth(ki) => Fragment(ki,h,ad,r,x)} -> (;ki,h,ad,r)fragment
 
