@@ -69,9 +69,9 @@ val recvCCS     : epoch -> hs_state -> int -> fragment -> ccs_data Result * hs_s
 
 type HSFragReply =
   | EmptyHSFrag              (* nothing to send *) 
-  | HSFrag of                (DataStream.range * Fragment.fragment)
+  | HSFrag of                DataStream.range * Fragment.fragment
   | CCSFrag of               (DataStream.range * Fragment.fragment) (* the unique one-byte CCS *) * (epoch * Record.ConnectionState)
-  | HSWriteSideFinished of   (DataStream.range * Fragment.fragment) (* signalling that this fragment ends the finished message *)
+  | HSWriteSideFinished of   DataStream.range * Fragment.fragment (* signalling that this fragment ends the finished message *)
   | HSFullyFinished_Write of (DataStream.range * Fragment.fragment) * SessionDB.StorableSession
 val next_fragment: ConnectionInfo  -> hs_state -> HSFragReply * hs_state
 

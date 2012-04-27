@@ -9,7 +9,7 @@ open Error
 (* Used when generating verifiData for the Finished message *)
 type (;si:SessionInfo) masterSecret
 val empty_masterSecret: si:SessionInfo ->  (;si) masterSecret
-val prfVerifyData: ki:epoch -> (;EpochSI(ki)) masterSecret ->
+val prfVerifyData: si:SessionInfo -> r:Role -> (;si) masterSecret ->
                    bytes (* msgLog *) ->
                    bytes (* length depends on cs, 12 by default *)
 
@@ -41,3 +41,5 @@ val prfKeyExp: ci:ConnectionInfo -> (;EpochSI(ci.id_out))masterSecret ->
                (;ci)keyBlob (* length depends on cs *)
 
 val splitStates: ci:ConnectionInfo -> (;ci)keyBlob -> ((;ci.id_out)StatefulAEAD.state * (;ci.id_in)StatefulAEAD.state)
+
+val makeTimestamp: unit -> int

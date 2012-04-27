@@ -224,3 +224,8 @@ let splitStates ci (blob:keyBlob) =
         (ck,sk)
 
 (*  | x when IsGCM x -> ... *)
+
+let makeTimestamp () = (* FIXME: we may need to abstract this function *)
+    let t = (System.DateTime.UtcNow - new System.DateTime(1970, 1, 1))
+    (int) t.TotalSeconds
+

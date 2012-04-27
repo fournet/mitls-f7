@@ -64,13 +64,12 @@ type (;si:SessionInfo)recv_reply = (* the fragment is accepted, and... *)
   | HSVersionAgreed (* use this new protocol version for sending *)
   | HSQuery of Certificate.cert
   | HSReadSideFinished
-  | HSFullyFinished_Read of ((si':SessionInfo * (;si')PRFs.masterSecret * Role){si=si'}) (* we can start sending data on the connection *)  
+  | HSFullyFinished_Read of x:SessionDB.StorableSession{?m,r. x = (si,m,r)} (* we can start sending data on the connection *)  
 val recv_fragment: ci:ConnectionInfo -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> (;EpochSI(ci.id_in))recv_reply Result * (;ci)hs_state
 val recv_ccs     : ci:ConnectionInfo -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> (((newKI:epoch * cs:(;newKI)Record.ConnectionState){TLSFragment.EmptyHistory(newKI,Record.History(newKI,cs))}) Result) * (;ci)hs_state
 
 val getNegotiatedVersion: ci:ConnectionInfo -> (;ci)hs_state -> ProtocolVersion
 val authorize: ci:ConnectionInfo -> (;ci)hs_state -> Certificate.cert -> (;ci)hs_state
-
 
 // AP: Not sure they should exists.
 // Either HS returns the full CI back to the user, with the next state already indexed by the new CI
@@ -82,3 +81,4 @@ val reset_incoming: ci:ConnectionInfo -> (;ci)hs_state ->
 
 val reset_outgoing: ci:ConnectionInfo -> (;ci)hs_state ->
 	ci':ConnectionInfo{ci'.role = ci.role /\ ci'.id_in = ci.id_in} -> (;ci')hs_state
+

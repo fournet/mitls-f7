@@ -41,3 +41,5 @@ val prfKeyExp: ConnectionInfo -> masterSecret ->
                keyBlob (* length depends on cs *)
 
 val splitStates: ConnectionInfo -> keyBlob -> (StatefulAEAD.state * StatefulAEAD.state)
+
+val makeTimestamp: unit -> int

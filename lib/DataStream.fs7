@@ -42,7 +42,6 @@ predicate EmptyStream of ki:epoch * (;ki) stream
 function val ExtendStream: 'a * 'b * 'c * 'd -> 'e
 private assume !ki,s. EmptyStream(ki,s) <=> s = {sb = [] }
 private assume !ki,s,r,d. ExtendStream(ki,s,r,d) = {sb = d.contents :: s.sb } 
-
 ask !ki,s,s'. EmptyStream(ki,s) /\ EmptyStream(ki,s') => s = s'
 
 
@@ -52,6 +51,10 @@ private val createDelta:
   b:(;r) rbytes -> c: (;ki,s,r) delta  
 
 val init: ki:epoch -> s:(;ki) stream{EmptyStream(ki,s)}
+val append: 
+  ki:epoch -> s: (;ki) stream -> r:range ->
+  d:(;ki,s,r) delta -> s':(;ki) stream{s' = ExtendStream(ki,s,r,d)}
+
 
 //CF: We need lineary on the stream! 
 
@@ -70,7 +73,4 @@ val split: ki:epoch -> s:(;ki) stream ->
 //  r0:range -> d0:(;ki,s,r0) delta -> 
 //  r1:range -> d1:(;ki,ExtendStream(ki,s,r0,d0),r1) delta -> (;ki,s,Sum(r0,r1)) delta
 // TLS does not automatically de-fragment
-//val append: 
-//  ki:epoch -> s: (;ki) stream -> r:range ->
-//  d:(;ki,s,r) delta -> s':(;ki) stream{s' = ExtendStream(ki,s,r,d)}
 

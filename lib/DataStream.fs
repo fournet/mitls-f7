@@ -78,8 +78,9 @@ let split (ki:epoch) (s:stream)  (r0:range) (r1:range) (d:delta) =
   let (sb0,sb1) = Bytes.split d.contents n0
   ({contents = sb0},{contents = sb1})
 
+(* No need anymore, since we do not buffer
 let join (ki:epoch) (s:stream)  (r0:range) (d0:delta) (r1:range) (d1:delta) = 
   let r = rangeSum r0 r1 //CF: ghost computation to help Z3 
   let sb = d0.contents @| d1.contents in
   {contents = sb}
-
+*)

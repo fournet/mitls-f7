@@ -104,6 +104,7 @@ type serverHello = {
     sh_neg_extensions: bytes;
   }
 
+(*
 let hashAlg_to_tls12enum ha =
     match ha with
     | Algorithms.hashAlg.MD5    -> 1
@@ -117,6 +118,22 @@ let tls12enum_to_hashAlg n =
     | 2 -> Some Algorithms.hashAlg.SHA
     | 4 -> Some Algorithms.hashAlg.SHA256
     | 5 -> Some Algorithms.hashAlg.SHA384
+    | _ -> None
+*)
+
+let hashAlg_to_tls12enum ha =
+    match ha with
+    | Algorithms.MD5    -> 1
+    | Algorithms.SHA    -> 2
+    | Algorithms.SHA256 -> 4
+    | Algorithms.SHA384 -> 5
+
+let tls12enum_to_hashAlg n =
+    match n with
+    | 1 -> Some Algorithms.MD5
+    | 2 -> Some Algorithms.SHA
+    | 4 -> Some Algorithms.SHA256
+    | 5 -> Some Algorithms.SHA384
     | _ -> None
 
 type sigAlg = bytes
@@ -172,7 +189,7 @@ type HashAlg =
 
 type certificateRequest = {
     client_certificate_type: ClientCertType list
-    signature_and_hash_algorithm: (SigAndHashAlg list) Option (* Some(x) for TLS 1.2, None for previous versions *)
+    signature_and_hash_algorithm: (SigAndHashAlg list) option (* Some(x) for TLS 1.2, None for previous versions *)
     certificate_authorities: string list
     }
 
@@ -206,8 +223,8 @@ type finished = bytes
 
 type clientSpecificState =
     { resumed_session: bool
-      must_send_cert: certificateRequest Option
-      client_certificate: (cert list) Option }
+      must_send_cert: certificateRequest option
+      client_certificate: (cert list) option }
 
 type clientState =
     | ServerHello
@@ -382,10 +399,6 @@ let inspect_ServerHello_extensions recvExt expected =
 
 
 /// Client and Server random values
-
-let makeTimestamp () = (* FIXME: we may need to abstract this function *)
-    let t = (System.DateTime.UtcNow - new System.DateTime(1970, 1, 1))
-    (int) t.TotalSeconds
 
 let makeRandom() = 
     let time = makeTimestamp () in
@@ -705,9 +718,9 @@ let goToIdle state =
 
 type HSFragReply =
   | EmptyHSFrag
-  | HSFrag of (DataStream.range * Fragment.fragment)
+  | HSFrag of DataStream.range * Fragment.fragment
   | CCSFrag of (DataStream.range * Fragment.fragment) * (epoch * Record.ConnectionState)
-  | HSWriteSideFinished of (DataStream.range * Fragment.fragment)
+  | HSWriteSideFinished of DataStream.range * Fragment.fragment
   | HSFullyFinished_Write of (DataStream.range * Fragment.fragment) * StorableSession
 
 // FIXME: cleanup when handshake is ported to streams and deltas
@@ -1287,7 +1300,7 @@ let prepare_client_output_resumption state =
 //TODO we could pass in the client state to avoid redundant match state.pstate
 //     and flatten the pattern matching. I tried to simplify this function on a clone below; I hope it is supported by F7
         
-let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion:ProtocolVersion Option) =
+let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion:ProtocolVersion option) =
     match parseMessage state with
     | None ->
       match agreedVersion with
@@ -1529,7 +1542,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
       | PSServer(_) -> unexpectedError "[recv_fragment_client] should only be invoked when in client role."
 
 (* 
-let rec recv_fragment_client' (state:hs_state) (s:clientState) (must_change_ver:ProtocolVersion Option) =
+let rec recv_fragment_client' (state:hs_state) (s:clientState) (must_change_ver:ProtocolVersion option) =
     match parseFragment state with
     | None ->
         match must_change_ver with
@@ -1792,7 +1805,7 @@ let prepare_server_output_resumption ci state =
                             pstate = PSServer(SWaitingToWrite(sSpecState))} in
     state
 
-let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion:ProtocolVersion Option) =
+let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion:ProtocolVersion option) =
     match parseMessage state with
     | None ->
       match agreedVersion with
