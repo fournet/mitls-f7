@@ -29,6 +29,7 @@ val splitRange: ki:epoch -> r:range -> (r0:range * r1:range){r = Sum(r0,r1)}
 
 // used only as a ghost index:
 // streams have are no destructors, so they do not leak secrets
+// they are used abstractly by TLS, except that
 // their logical definition is needed for authentication in application code.
 private type (;ki:epoch) stream = {sb:bytes list}
 
@@ -44,11 +45,15 @@ private assume !ki,s,r,d. ExtendStream(ki,s,r,d) = {sb = d.contents :: s.sb }
 
 ask !ki,s,s'. EmptyStream(ki,s) /\ EmptyStream(ki,s') => s = s'
 
-val init: ki:epoch -> s:(;ki) stream{EmptyStream(ki,s)}
 
+// used only by the application; could be omitted for TLS
 private val createDelta: 
   ki:epoch -> s:(;ki) stream -> r:range -> 
   b:(;r) rbytes -> c: (;ki,s,r) delta  
+
+val init: ki:epoch -> s:(;ki) stream{EmptyStream(ki,s)}
+
+//CF: We need lineary on the stream! 
 
 val deltaPlain: 
   ki:epoch{not Auth(ki)} -> s:(;ki) stream -> r:range -> 
@@ -56,15 +61,16 @@ val deltaPlain:
 val deltaRepr: 
   ki:epoch{not Safe(ki)} -> s:(;ki) stream -> r:range -> 
   c: (;ki,s,r) delta -> (;r) rbytes
-
-val append: 
-  ki:epoch -> s: (;ki) stream -> r:range ->
-  d:(;ki,s,r) delta -> s':(;ki) stream{s' = ExtendStream(ki,s,r,d)}
 val split: ki:epoch -> s:(;ki) stream -> 
   r0:range -> r1:range -> d:(;ki,s,Sum(r0,r1)) delta -> 
   (d0:(;ki,s,r0) delta * d1:(;ki,ExtendStream(ki,s,r0,d0),r1) delta)
 
 //CF no need for join for now (as we do not buffer incoming fragments)
-val join: ki:epoch -> s:(;ki) stream -> 
-  r0:range -> d0:(;ki,s,r0) delta -> 
-  r1:range -> d1:(;ki,ExtendStream(ki,s,r0,d0),r1) delta -> (;ki,s,Sum(r0,r1)) delta
+//val join: ki:epoch -> s:(;ki) stream -> 
+//  r0:range -> d0:(;ki,s,r0) delta -> 
+//  r1:range -> d1:(;ki,ExtendStream(ki,s,r0,d0),r1) delta -> (;ki,s,Sum(r0,r1)) delta
+// TLS does not automatically de-fragment
+//val append: 
+//  ki:epoch -> s: (;ki) stream -> r:range ->
+//  d:(;ki,s,r) delta -> s':(;ki) stream{s' = ExtendStream(ki,s,r,d)}
+
