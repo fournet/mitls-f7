@@ -1,6 +1,7 @@
-module Handshake
+module Handshake 
 
-(* An abstract interface to the Handshake protocol, including PKIs and the session database *)
+// An abstract interface to the Handshake protocol, including PKIs and the session database 
+// [quoted by line in tls12.tex]
 
 open Bytes
 open Error

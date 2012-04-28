@@ -1,7 +1,7 @@
 ﻿module HSK 
 
-// long-term key repository (part of the handshake implementation)
-// ---------------------------------------------------------------
+// long-term key repository (part of the handshake implementation):
+//
 // an abstract interface for creating and storing long-term keypairs:
 // the handshake may lookup the private key associated with any stored keypair
 // when running a session parameterized by the corresponding public key
@@ -31,7 +31,7 @@ val coerce: template -> bytes -> pk option
 // is already stored, so that created and coerced keys never clash.
 
 // certificate chains (user-defined)
-// ---------------------------------
+//
 // HS carries certificate chains indicating which key to use 
 // it is up to the user to produce certificates from public keys,
 // and conversely to validate certificate chains upon request
