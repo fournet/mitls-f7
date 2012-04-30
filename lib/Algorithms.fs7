@@ -31,7 +31,7 @@ type aeadAlg =
     | AES_256_GCM
 
 type authencAlg =
-    | EncMAC of cipherAlg * hashAlg
+    | MtE of cipherAlg * hashAlg
     | AEAD of aeadAlg * hashAlg
 
 (* With F7, we need to declare both logical length functions

@@ -1,6 +1,7 @@
 ﻿module TLSInfo
 
 open Bytes
+open Algorithms
 open Certificate
 open CipherSuites
 
@@ -9,6 +10,9 @@ type preRole =
 	| Client
 	| Server
 type Role = r:preRole{r = Client \/ r = Server}
+
+// SessionInfo and epoch: Session and Connection level public immutable data.
+// Used for indexing
 
 //CF 04-09
 // the randoms are not just bytes.
@@ -57,15 +61,48 @@ val initConnection: r:Role -> b:bytes ->
 val nextConnection: ci:ConnectionInfo -> b1:bytes -> b2:bytes -> si:SessionInfo ->
 	ci':ConnectionInfo
 
-/// Cryptographic assumptions [how to make them toplevel?]
+
+/// Predicates specifying cryptographic assumptions on algorithms 
+
+// relocate to Algorithms?
+predicate CPA of cipherAlg
+// some reasonable assumptions:
+// assume(CPA(AES_128_CBC))
+// assume(CPA(AES_256_CBC))
+
+predicate CMA of hashAlg
+// some reasonable assumptions:
+// assume(CMA(SHA))
+// assume(CMA(SHA256))
+// assume(CMA(SHA384))
+
+predicate CTXT of cipherAlg * hashAlg
+// some reasonable assumptions:
+// assume !e. PRF(m) => CTXT(AES_128_CBC,m)
+// assume !e. PRF(m) => CTXT(AES_256_CBC,m)
+
+predicate StrongAE of authencAlg
+predicate StrongAuth of authencAlg
+
+definition !s. StrongAE(s)   <=> ?e,m. s = MtE(e,m) /\ CPA(e) /\ CTXT(e,m)
+definition !s. StrongAuth(s) <=> ?e,m. s = MtE(e,m) /\ CMA(m)
+
+// Predicates specifying the security of TLS connections 
 
 predicate type cryptopreds = 
-  | Safe of epoch
-  | Auth of epoch
+  | SafeHS of epoch // specified by the Handshake
+  | Safe of epoch // The epoch parameters yield privacy & integrity
+  | Auth of epoch // The epoch parameters yield integrity (not necesarily privacy)
+  
+definition !i. Safe(i) <=> SafeHS(i) /\ StrongAE(AEAlg(EpochSI(i).cipher_suite)) 
+definition !i. Auth(i) <=> SafeHS(i) /\ StrongAuth(AEAlg(EpochSI(i).cipher_suite))
 
-assume !ki. Safe(ki) => Auth(ki)
-assume !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) => not Safe(ki)
-assume !ki. IsNullCiphersuite(EpochSI(ki).cipher_suite) => not Auth(ki)
+ask !ki. Safe(ki) => Auth(ki)
+ask !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) => not Safe(ki)
+
+// so that TLS can exchange any traffic on the initial null connection
+ask !ki. IsNullCiphersuite(EpochSI(ki).cipher_suite)    => not Auth(ki)
+
 
 
 /// Application configuration options

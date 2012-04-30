@@ -103,41 +103,41 @@ let cipherSuiteBytes cs =
     | OnlyMACCipherSuite (RSA, MD5)                       -> [| 0x00uy; 0x01uy |]
     | OnlyMACCipherSuite (RSA, SHA)                       -> [| 0x00uy; 0x02uy |]
     | OnlyMACCipherSuite (RSA, SHA256)                    -> [| 0x00uy; 0x3Buy |]
-    | CipherSuite (RSA, EncMAC (RC4_128, MD5))            -> [| 0x00uy; 0x04uy |]
-    | CipherSuite (RSA, EncMAC (RC4_128, SHA))            -> [| 0x00uy; 0x05uy |]
-    | CipherSuite (RSA, EncMAC (TDES_EDE_CBC, SHA))       -> [| 0x00uy; 0x0Auy |]
-    | CipherSuite (RSA, EncMAC (AES_128_CBC, SHA))        -> [| 0x00uy; 0x2Fuy |]
-    | CipherSuite (RSA, EncMAC (AES_256_CBC, SHA))        -> [| 0x00uy; 0x35uy |]
-    | CipherSuite (RSA, EncMAC (AES_128_CBC, SHA256))     -> [| 0x00uy; 0x3Cuy |]
-    | CipherSuite (RSA, EncMAC (AES_256_CBC, SHA256))     -> [| 0x00uy; 0x3Duy |]
+    | CipherSuite (RSA, MtE (RC4_128, MD5))            -> [| 0x00uy; 0x04uy |]
+    | CipherSuite (RSA, MtE (RC4_128, SHA))            -> [| 0x00uy; 0x05uy |]
+    | CipherSuite (RSA, MtE (TDES_EDE_CBC, SHA))       -> [| 0x00uy; 0x0Auy |]
+    | CipherSuite (RSA, MtE (AES_128_CBC, SHA))        -> [| 0x00uy; 0x2Fuy |]
+    | CipherSuite (RSA, MtE (AES_256_CBC, SHA))        -> [| 0x00uy; 0x35uy |]
+    | CipherSuite (RSA, MtE (AES_128_CBC, SHA256))     -> [| 0x00uy; 0x3Cuy |]
+    | CipherSuite (RSA, MtE (AES_256_CBC, SHA256))     -> [| 0x00uy; 0x3Duy |]
 
-    | CipherSuite (DH_DSS,  EncMAC (TDES_EDE_CBC, SHA))   -> [| 0x00uy; 0x0Duy |]
-    | CipherSuite (DH_RSA,  EncMAC (TDES_EDE_CBC, SHA))   -> [| 0x00uy; 0x10uy |]
-    | CipherSuite (DHE_DSS, EncMAC (TDES_EDE_CBC, SHA))   -> [| 0x00uy; 0x13uy |]
-    | CipherSuite (DHE_RSA, EncMAC (TDES_EDE_CBC, SHA))   -> [| 0x00uy; 0x16uy |]
-    | CipherSuite (DH_DSS,  EncMAC (AES_128_CBC, SHA))    -> [| 0x00uy; 0x30uy |]
-    | CipherSuite (DH_RSA,  EncMAC (AES_128_CBC, SHA))    -> [| 0x00uy; 0x31uy |]
-    | CipherSuite (DHE_DSS, EncMAC (AES_128_CBC, SHA))    -> [| 0x00uy; 0x32uy |]
-    | CipherSuite (DHE_RSA, EncMAC (AES_128_CBC, SHA))    -> [| 0x00uy; 0x33uy |]
-    | CipherSuite (DH_DSS,  EncMAC (AES_256_CBC, SHA))    -> [| 0x00uy; 0x36uy |]
-    | CipherSuite (DH_RSA,  EncMAC (AES_256_CBC, SHA))    -> [| 0x00uy; 0x37uy |]
-    | CipherSuite (DHE_DSS, EncMAC (AES_256_CBC, SHA))    -> [| 0x00uy; 0x38uy |]
-    | CipherSuite (DHE_RSA, EncMAC (AES_256_CBC, SHA))    -> [| 0x00uy; 0x39uy |]
-    | CipherSuite (DH_DSS,  EncMAC (AES_128_CBC, SHA256)) -> [| 0x00uy; 0x3Euy |]
-    | CipherSuite (DH_RSA,  EncMAC (AES_128_CBC, SHA256)) -> [| 0x00uy; 0x3Fuy |]
-    | CipherSuite (DHE_DSS, EncMAC (AES_128_CBC, SHA256)) -> [| 0x00uy; 0x40uy |]
-    | CipherSuite (DHE_RSA, EncMAC (AES_128_CBC, SHA256)) -> [| 0x00uy; 0x67uy |]
-    | CipherSuite (DH_DSS,  EncMAC (AES_256_CBC, SHA256)) -> [| 0x00uy; 0x68uy |]
-    | CipherSuite (DH_RSA,  EncMAC (AES_256_CBC, SHA256)) -> [| 0x00uy; 0x69uy |]
-    | CipherSuite (DHE_DSS, EncMAC (AES_256_CBC, SHA256)) -> [| 0x00uy; 0x6Auy |]
-    | CipherSuite (DHE_RSA, EncMAC (AES_256_CBC, SHA256)) -> [| 0x00uy; 0x6Buy |]
+    | CipherSuite (DH_DSS,  MtE (TDES_EDE_CBC, SHA))   -> [| 0x00uy; 0x0Duy |]
+    | CipherSuite (DH_RSA,  MtE (TDES_EDE_CBC, SHA))   -> [| 0x00uy; 0x10uy |]
+    | CipherSuite (DHE_DSS, MtE (TDES_EDE_CBC, SHA))   -> [| 0x00uy; 0x13uy |]
+    | CipherSuite (DHE_RSA, MtE (TDES_EDE_CBC, SHA))   -> [| 0x00uy; 0x16uy |]
+    | CipherSuite (DH_DSS,  MtE (AES_128_CBC, SHA))    -> [| 0x00uy; 0x30uy |]
+    | CipherSuite (DH_RSA,  MtE (AES_128_CBC, SHA))    -> [| 0x00uy; 0x31uy |]
+    | CipherSuite (DHE_DSS, MtE (AES_128_CBC, SHA))    -> [| 0x00uy; 0x32uy |]
+    | CipherSuite (DHE_RSA, MtE (AES_128_CBC, SHA))    -> [| 0x00uy; 0x33uy |]
+    | CipherSuite (DH_DSS,  MtE (AES_256_CBC, SHA))    -> [| 0x00uy; 0x36uy |]
+    | CipherSuite (DH_RSA,  MtE (AES_256_CBC, SHA))    -> [| 0x00uy; 0x37uy |]
+    | CipherSuite (DHE_DSS, MtE (AES_256_CBC, SHA))    -> [| 0x00uy; 0x38uy |]
+    | CipherSuite (DHE_RSA, MtE (AES_256_CBC, SHA))    -> [| 0x00uy; 0x39uy |]
+    | CipherSuite (DH_DSS,  MtE (AES_128_CBC, SHA256)) -> [| 0x00uy; 0x3Euy |]
+    | CipherSuite (DH_RSA,  MtE (AES_128_CBC, SHA256)) -> [| 0x00uy; 0x3Fuy |]
+    | CipherSuite (DHE_DSS, MtE (AES_128_CBC, SHA256)) -> [| 0x00uy; 0x40uy |]
+    | CipherSuite (DHE_RSA, MtE (AES_128_CBC, SHA256)) -> [| 0x00uy; 0x67uy |]
+    | CipherSuite (DH_DSS,  MtE (AES_256_CBC, SHA256)) -> [| 0x00uy; 0x68uy |]
+    | CipherSuite (DH_RSA,  MtE (AES_256_CBC, SHA256)) -> [| 0x00uy; 0x69uy |]
+    | CipherSuite (DHE_DSS, MtE (AES_256_CBC, SHA256)) -> [| 0x00uy; 0x6Auy |]
+    | CipherSuite (DHE_RSA, MtE (AES_256_CBC, SHA256)) -> [| 0x00uy; 0x6Buy |]
 
-    | CipherSuite (DH_anon, EncMAC (RC4_128, MD5))        -> [| 0x00uy; 0x18uy |]
-    | CipherSuite (DH_anon, EncMAC (TDES_EDE_CBC, SHA))   -> [| 0x00uy; 0x1Buy |]
-    | CipherSuite (DH_anon, EncMAC (AES_128_CBC, SHA))    -> [| 0x00uy; 0x34uy |]
-    | CipherSuite (DH_anon, EncMAC (AES_256_CBC, SHA))    -> [| 0x00uy; 0x3Auy |]
-    | CipherSuite (DH_anon, EncMAC (AES_128_CBC, SHA256)) -> [| 0x00uy; 0x6Cuy |]
-    | CipherSuite (DH_anon, EncMAC (AES_256_CBC, SHA256)) -> [| 0x00uy; 0x6Duy |]
+    | CipherSuite (DH_anon, MtE (RC4_128, MD5))        -> [| 0x00uy; 0x18uy |]
+    | CipherSuite (DH_anon, MtE (TDES_EDE_CBC, SHA))   -> [| 0x00uy; 0x1Buy |]
+    | CipherSuite (DH_anon, MtE (AES_128_CBC, SHA))    -> [| 0x00uy; 0x34uy |]
+    | CipherSuite (DH_anon, MtE (AES_256_CBC, SHA))    -> [| 0x00uy; 0x3Auy |]
+    | CipherSuite (DH_anon, MtE (AES_128_CBC, SHA256)) -> [| 0x00uy; 0x6Cuy |]
+    | CipherSuite (DH_anon, MtE (AES_256_CBC, SHA256)) -> [| 0x00uy; 0x6Duy |]
 
     | SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV)            -> [| 0x00uy; 0xFFuy |]
 
@@ -152,41 +152,41 @@ let cipherSuite_of_bytes b =
     | [| 0x00uy; 0x02uy |] -> correct(OnlyMACCipherSuite (RSA, SHA))
     | [| 0x00uy; 0x3Buy |] -> correct(OnlyMACCipherSuite (RSA, SHA256))
 
-    | [| 0x00uy; 0x04uy |] -> correct(CipherSuite (    RSA, EncMAC (     RC4_128, MD5)))
-    | [| 0x00uy; 0x05uy |] -> correct(CipherSuite (    RSA, EncMAC (     RC4_128, SHA)))
-    | [| 0x00uy; 0x0Auy |] -> correct(CipherSuite (    RSA, EncMAC (TDES_EDE_CBC, SHA)))
-    | [| 0x00uy; 0x2Fuy |] -> correct(CipherSuite (    RSA, EncMAC ( AES_128_CBC, SHA)))
-    | [| 0x00uy; 0x35uy |] -> correct(CipherSuite (    RSA, EncMAC ( AES_256_CBC, SHA)))
-    | [| 0x00uy; 0x3Cuy |] -> correct(CipherSuite (    RSA, EncMAC ( AES_128_CBC, SHA256)))
-    | [| 0x00uy; 0x3Duy |] -> correct(CipherSuite (    RSA, EncMAC ( AES_256_CBC, SHA256)))
+    | [| 0x00uy; 0x04uy |] -> correct(CipherSuite (    RSA, MtE (     RC4_128, MD5)))
+    | [| 0x00uy; 0x05uy |] -> correct(CipherSuite (    RSA, MtE (     RC4_128, SHA)))
+    | [| 0x00uy; 0x0Auy |] -> correct(CipherSuite (    RSA, MtE (TDES_EDE_CBC, SHA)))
+    | [| 0x00uy; 0x2Fuy |] -> correct(CipherSuite (    RSA, MtE ( AES_128_CBC, SHA)))
+    | [| 0x00uy; 0x35uy |] -> correct(CipherSuite (    RSA, MtE ( AES_256_CBC, SHA)))
+    | [| 0x00uy; 0x3Cuy |] -> correct(CipherSuite (    RSA, MtE ( AES_128_CBC, SHA256)))
+    | [| 0x00uy; 0x3Duy |] -> correct(CipherSuite (    RSA, MtE ( AES_256_CBC, SHA256)))
 
-    | [| 0x00uy; 0x0Duy |] -> correct(CipherSuite ( DH_DSS, EncMAC (TDES_EDE_CBC, SHA)))
-    | [| 0x00uy; 0x10uy |] -> correct(CipherSuite ( DH_RSA, EncMAC (TDES_EDE_CBC, SHA)))
-    | [| 0x00uy; 0x13uy |] -> correct(CipherSuite (DHE_DSS, EncMAC (TDES_EDE_CBC, SHA)))
-    | [| 0x00uy; 0x16uy |] -> correct(CipherSuite (DHE_RSA, EncMAC (TDES_EDE_CBC, SHA)))
-    | [| 0x00uy; 0x30uy |] -> correct(CipherSuite ( DH_DSS, EncMAC ( AES_128_CBC, SHA)))
-    | [| 0x00uy; 0x31uy |] -> correct(CipherSuite ( DH_RSA, EncMAC ( AES_128_CBC, SHA)))
-    | [| 0x00uy; 0x32uy |] -> correct(CipherSuite (DHE_DSS, EncMAC ( AES_128_CBC, SHA)))
-    | [| 0x00uy; 0x33uy |] -> correct(CipherSuite (DHE_RSA, EncMAC ( AES_128_CBC, SHA)))
-    | [| 0x00uy; 0x36uy |] -> correct(CipherSuite ( DH_DSS, EncMAC ( AES_256_CBC, SHA)))
-    | [| 0x00uy; 0x37uy |] -> correct(CipherSuite ( DH_RSA, EncMAC ( AES_256_CBC, SHA)))
-    | [| 0x00uy; 0x38uy |] -> correct(CipherSuite (DHE_DSS, EncMAC ( AES_256_CBC, SHA)))
-    | [| 0x00uy; 0x39uy |] -> correct(CipherSuite (DHE_RSA, EncMAC ( AES_256_CBC, SHA)))
-    | [| 0x00uy; 0x3Euy |] -> correct(CipherSuite ( DH_DSS, EncMAC ( AES_128_CBC, SHA256)))
-    | [| 0x00uy; 0x3Fuy |] -> correct(CipherSuite ( DH_RSA, EncMAC ( AES_128_CBC, SHA256)))
-    | [| 0x00uy; 0x40uy |] -> correct(CipherSuite (DHE_DSS, EncMAC ( AES_128_CBC, SHA256)))
-    | [| 0x00uy; 0x67uy |] -> correct(CipherSuite (DHE_RSA, EncMAC ( AES_128_CBC, SHA256)))
-    | [| 0x00uy; 0x68uy |] -> correct(CipherSuite ( DH_DSS, EncMAC ( AES_256_CBC, SHA256)))
-    | [| 0x00uy; 0x69uy |] -> correct(CipherSuite ( DH_RSA, EncMAC ( AES_256_CBC, SHA256)))
-    | [| 0x00uy; 0x6Auy |] -> correct(CipherSuite (DHE_DSS, EncMAC ( AES_256_CBC, SHA256)))
-    | [| 0x00uy; 0x6Buy |] -> correct(CipherSuite (DHE_RSA, EncMAC ( AES_256_CBC, SHA256)))
+    | [| 0x00uy; 0x0Duy |] -> correct(CipherSuite ( DH_DSS, MtE (TDES_EDE_CBC, SHA)))
+    | [| 0x00uy; 0x10uy |] -> correct(CipherSuite ( DH_RSA, MtE (TDES_EDE_CBC, SHA)))
+    | [| 0x00uy; 0x13uy |] -> correct(CipherSuite (DHE_DSS, MtE (TDES_EDE_CBC, SHA)))
+    | [| 0x00uy; 0x16uy |] -> correct(CipherSuite (DHE_RSA, MtE (TDES_EDE_CBC, SHA)))
+    | [| 0x00uy; 0x30uy |] -> correct(CipherSuite ( DH_DSS, MtE ( AES_128_CBC, SHA)))
+    | [| 0x00uy; 0x31uy |] -> correct(CipherSuite ( DH_RSA, MtE ( AES_128_CBC, SHA)))
+    | [| 0x00uy; 0x32uy |] -> correct(CipherSuite (DHE_DSS, MtE ( AES_128_CBC, SHA)))
+    | [| 0x00uy; 0x33uy |] -> correct(CipherSuite (DHE_RSA, MtE ( AES_128_CBC, SHA)))
+    | [| 0x00uy; 0x36uy |] -> correct(CipherSuite ( DH_DSS, MtE ( AES_256_CBC, SHA)))
+    | [| 0x00uy; 0x37uy |] -> correct(CipherSuite ( DH_RSA, MtE ( AES_256_CBC, SHA)))
+    | [| 0x00uy; 0x38uy |] -> correct(CipherSuite (DHE_DSS, MtE ( AES_256_CBC, SHA)))
+    | [| 0x00uy; 0x39uy |] -> correct(CipherSuite (DHE_RSA, MtE ( AES_256_CBC, SHA)))
+    | [| 0x00uy; 0x3Euy |] -> correct(CipherSuite ( DH_DSS, MtE ( AES_128_CBC, SHA256)))
+    | [| 0x00uy; 0x3Fuy |] -> correct(CipherSuite ( DH_RSA, MtE ( AES_128_CBC, SHA256)))
+    | [| 0x00uy; 0x40uy |] -> correct(CipherSuite (DHE_DSS, MtE ( AES_128_CBC, SHA256)))
+    | [| 0x00uy; 0x67uy |] -> correct(CipherSuite (DHE_RSA, MtE ( AES_128_CBC, SHA256)))
+    | [| 0x00uy; 0x68uy |] -> correct(CipherSuite ( DH_DSS, MtE ( AES_256_CBC, SHA256)))
+    | [| 0x00uy; 0x69uy |] -> correct(CipherSuite ( DH_RSA, MtE ( AES_256_CBC, SHA256)))
+    | [| 0x00uy; 0x6Auy |] -> correct(CipherSuite (DHE_DSS, MtE ( AES_256_CBC, SHA256)))
+    | [| 0x00uy; 0x6Buy |] -> correct(CipherSuite (DHE_RSA, MtE ( AES_256_CBC, SHA256)))
 
-    | [| 0x00uy; 0x18uy |] -> correct(CipherSuite (DH_anon, EncMAC (     RC4_128, MD5)))
-    | [| 0x00uy; 0x1Buy |] -> correct(CipherSuite (DH_anon, EncMAC (TDES_EDE_CBC, SHA)))
-    | [| 0x00uy; 0x34uy |] -> correct(CipherSuite (DH_anon, EncMAC ( AES_128_CBC, SHA)))
-    | [| 0x00uy; 0x3Auy |] -> correct(CipherSuite (DH_anon, EncMAC ( AES_256_CBC, SHA)))
-    | [| 0x00uy; 0x6Cuy |] -> correct(CipherSuite (DH_anon, EncMAC ( AES_128_CBC, SHA256)))
-    | [| 0x00uy; 0x6Duy |] -> correct(CipherSuite (DH_anon, EncMAC ( AES_256_CBC, SHA256)))
+    | [| 0x00uy; 0x18uy |] -> correct(CipherSuite (DH_anon, MtE (     RC4_128, MD5)))
+    | [| 0x00uy; 0x1Buy |] -> correct(CipherSuite (DH_anon, MtE (TDES_EDE_CBC, SHA)))
+    | [| 0x00uy; 0x34uy |] -> correct(CipherSuite (DH_anon, MtE ( AES_128_CBC, SHA)))
+    | [| 0x00uy; 0x3Auy |] -> correct(CipherSuite (DH_anon, MtE ( AES_256_CBC, SHA)))
+    | [| 0x00uy; 0x6Cuy |] -> correct(CipherSuite (DH_anon, MtE ( AES_128_CBC, SHA256)))
+    | [| 0x00uy; 0x6Duy |] -> correct(CipherSuite (DH_anon, MtE ( AES_256_CBC, SHA256)))
 
     | [| 0x00uy; 0xFFuy |] -> correct(SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV))
 
@@ -264,8 +264,8 @@ let verifyDataLen_of_ciphersuite (cs:cipherSuite) =
 let prfHashAlg_of_ciphersuite (cs:cipherSuite) =
     (* Only to be invoked with TLS 1.2 (hardcoded in previous versions *)
     match cs with
-   // | CipherSuite ( ECDH*, EncMAC (_,SHA384)) -> SHA384
-    | CipherSuite ( _ , EncMAC ( _ , _ )) -> SHA256
+   // | CipherSuite ( ECDH*, MtE (_,SHA384)) -> SHA384
+    | CipherSuite ( _ , MtE ( _ , _ )) -> SHA256
     | CipherSuite ( _ , AEAD ( _ , hAlg ))   -> hAlg
     | NullCipherSuite         -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite" 
     | SCSV (_)                -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite" 
@@ -278,8 +278,8 @@ let prfHashAlg_of_ciphersuite (cs:cipherSuite) =
 let verifyDataHashAlg_of_ciphersuite (cs:cipherSuite) =
     (* Only to be invoked with TLS 1.2 (hardcoded in previous versions *)
     match cs with
-   // | CipherSuite ( ECDH*, EncMAC (_,SHA384)) -> SHA384
-    | CipherSuite ( _ , EncMAC ( _ , _ )) -> SHA256
+   // | CipherSuite ( ECDH*, MtE (_,SHA384)) -> SHA384
+    | CipherSuite ( _ , MtE ( _ , _ )) -> SHA256
     | CipherSuite ( _ , AEAD ( _ , hAlg ))   -> hAlg
     | NullCipherSuite         -> unexpectedError "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
     | SCSV (_)                -> unexpectedError "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
@@ -292,7 +292,7 @@ let maxPadSize pv cs =
     | CipherSuite(_,aead) ->
         match aead with
         | AEAD (_,_) -> 0
-        | EncMAC (encAlg,_) ->
+        | MtE (encAlg,_) ->
             match encAlg with
             | RC4_128 -> 0
             | TDES_EDE_CBC
@@ -308,7 +308,7 @@ let mkIntTriple x:(int*int*int) = x
 let getKeyExtensionLength pv cs =
     let (keySize, IVSize, hashSize ) =
         match cs with
-        | CipherSuite (_, EncMAC(cAlg, hAlg)) ->
+        | CipherSuite (_, MtE(cAlg, hAlg)) ->
             match pv with
             | SSL_3p0 | TLS_1p0 -> mkIntTriple ((encKeySize cAlg), (ivSize cAlg), (macKeySize hAlg)) 
             | TLS_1p1 | TLS_1p2 -> ((encKeySize cAlg),             0, (macKeySize hAlg)) (* TLS 1.1: no implicit IV *)
@@ -322,13 +322,13 @@ let PVRequiresExplicitIV pv =
 
 let macAlg_of_ciphersuite cs =
     match cs with
-    | CipherSuite (_, EncMAC(_,alg)) -> alg
+    | CipherSuite (_, MtE(_,alg)) -> alg
     | OnlyMACCipherSuite (_, alg) -> alg
     | _ -> unexpectedError "[macAlg_of_ciphersuite] invoked on an invalid ciphersuite"
 
 let encAlg_of_ciphersuite cs =
     match cs with
-    | CipherSuite (_, EncMAC(alg,_)) -> alg
+    | CipherSuite (_, MtE(alg,_)) -> alg
     | _ -> unexpectedError "[encAlg_of_ciphersuite] inovked on an invalid ciphersuite"
 
 (* Not for verification, just to run the implementation. See TLSInfo.fs *)
@@ -384,41 +384,41 @@ let cipherSuites_of_nameList (nameList: cipherSuiteName list) =
         | TLS_RSA_WITH_NULL_MD5                  -> OnlyMACCipherSuite (RSA, MD5)
         | TLS_RSA_WITH_NULL_SHA                  -> OnlyMACCipherSuite (RSA, SHA)
         | TLS_RSA_WITH_NULL_SHA256               -> OnlyMACCipherSuite (RSA, SHA256)
-        | TLS_RSA_WITH_RC4_128_MD5               -> CipherSuite (RSA, EncMAC (RC4_128, MD5))
-        | TLS_RSA_WITH_RC4_128_SHA               -> CipherSuite (RSA, EncMAC (RC4_128, SHA))
-        | TLS_RSA_WITH_3DES_EDE_CBC_SHA          -> CipherSuite (RSA, EncMAC (TDES_EDE_CBC, SHA))
-        | TLS_RSA_WITH_AES_128_CBC_SHA           -> CipherSuite (RSA, EncMAC (AES_128_CBC, SHA))
-        | TLS_RSA_WITH_AES_256_CBC_SHA           -> CipherSuite (RSA, EncMAC (AES_256_CBC, SHA))
-        | TLS_RSA_WITH_AES_128_CBC_SHA256        -> CipherSuite (RSA, EncMAC (AES_128_CBC, SHA256))
-        | TLS_RSA_WITH_AES_256_CBC_SHA256        -> CipherSuite (RSA, EncMAC (AES_256_CBC, SHA256))
+        | TLS_RSA_WITH_RC4_128_MD5               -> CipherSuite (RSA, MtE (RC4_128, MD5))
+        | TLS_RSA_WITH_RC4_128_SHA               -> CipherSuite (RSA, MtE (RC4_128, SHA))
+        | TLS_RSA_WITH_3DES_EDE_CBC_SHA          -> CipherSuite (RSA, MtE (TDES_EDE_CBC, SHA))
+        | TLS_RSA_WITH_AES_128_CBC_SHA           -> CipherSuite (RSA, MtE (AES_128_CBC, SHA))
+        | TLS_RSA_WITH_AES_256_CBC_SHA           -> CipherSuite (RSA, MtE (AES_256_CBC, SHA))
+        | TLS_RSA_WITH_AES_128_CBC_SHA256        -> CipherSuite (RSA, MtE (AES_128_CBC, SHA256))
+        | TLS_RSA_WITH_AES_256_CBC_SHA256        -> CipherSuite (RSA, MtE (AES_256_CBC, SHA256))
        
-        | TLS_DH_DSS_WITH_3DES_EDE_CBC_SHA       -> CipherSuite (DH_DSS,  EncMAC (TDES_EDE_CBC, SHA))
-        | TLS_DH_RSA_WITH_3DES_EDE_CBC_SHA       -> CipherSuite (DH_RSA,  EncMAC (TDES_EDE_CBC, SHA))
-        | TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA      -> CipherSuite (DHE_DSS, EncMAC (TDES_EDE_CBC, SHA))
-        | TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA      -> CipherSuite (DHE_RSA, EncMAC (TDES_EDE_CBC, SHA))
-        | TLS_DH_DSS_WITH_AES_128_CBC_SHA        -> CipherSuite (DH_DSS,  EncMAC (AES_128_CBC, SHA))
-        | TLS_DH_RSA_WITH_AES_128_CBC_SHA        -> CipherSuite (DH_RSA,  EncMAC (AES_128_CBC, SHA))
-        | TLS_DHE_DSS_WITH_AES_128_CBC_SHA       -> CipherSuite (DHE_DSS, EncMAC (AES_128_CBC, SHA))
-        | TLS_DHE_RSA_WITH_AES_128_CBC_SHA       -> CipherSuite (DHE_RSA, EncMAC (AES_128_CBC, SHA))
-        | TLS_DH_DSS_WITH_AES_256_CBC_SHA        -> CipherSuite (DH_DSS,  EncMAC (AES_256_CBC, SHA))
-        | TLS_DH_RSA_WITH_AES_256_CBC_SHA        -> CipherSuite (DH_RSA,  EncMAC (AES_256_CBC, SHA))
-        | TLS_DHE_DSS_WITH_AES_256_CBC_SHA       -> CipherSuite (DHE_DSS, EncMAC (AES_256_CBC, SHA))
-        | TLS_DHE_RSA_WITH_AES_256_CBC_SHA       -> CipherSuite (DHE_RSA, EncMAC (AES_256_CBC, SHA))
-        | TLS_DH_DSS_WITH_AES_128_CBC_SHA256     -> CipherSuite (DH_DSS,  EncMAC (AES_128_CBC, SHA256))
-        | TLS_DH_RSA_WITH_AES_128_CBC_SHA256     -> CipherSuite (DH_RSA,  EncMAC (AES_128_CBC, SHA256))
-        | TLS_DHE_DSS_WITH_AES_128_CBC_SHA256    -> CipherSuite (DHE_DSS, EncMAC (AES_128_CBC, SHA256))
-        | TLS_DHE_RSA_WITH_AES_128_CBC_SHA256    -> CipherSuite (DHE_RSA, EncMAC (AES_128_CBC, SHA256))
-        | TLS_DH_DSS_WITH_AES_256_CBC_SHA256     -> CipherSuite (DH_DSS,  EncMAC (AES_256_CBC, SHA256))
-        | TLS_DH_RSA_WITH_AES_256_CBC_SHA256     -> CipherSuite (DH_RSA,  EncMAC (AES_256_CBC, SHA256))
-        | TLS_DHE_DSS_WITH_AES_256_CBC_SHA256    -> CipherSuite (DHE_DSS, EncMAC (AES_256_CBC, SHA256))
-        | TLS_DHE_RSA_WITH_AES_256_CBC_SHA256    -> CipherSuite (DHE_RSA, EncMAC (AES_256_CBC, SHA256))
+        | TLS_DH_DSS_WITH_3DES_EDE_CBC_SHA       -> CipherSuite (DH_DSS,  MtE (TDES_EDE_CBC, SHA))
+        | TLS_DH_RSA_WITH_3DES_EDE_CBC_SHA       -> CipherSuite (DH_RSA,  MtE (TDES_EDE_CBC, SHA))
+        | TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA      -> CipherSuite (DHE_DSS, MtE (TDES_EDE_CBC, SHA))
+        | TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA      -> CipherSuite (DHE_RSA, MtE (TDES_EDE_CBC, SHA))
+        | TLS_DH_DSS_WITH_AES_128_CBC_SHA        -> CipherSuite (DH_DSS,  MtE (AES_128_CBC, SHA))
+        | TLS_DH_RSA_WITH_AES_128_CBC_SHA        -> CipherSuite (DH_RSA,  MtE (AES_128_CBC, SHA))
+        | TLS_DHE_DSS_WITH_AES_128_CBC_SHA       -> CipherSuite (DHE_DSS, MtE (AES_128_CBC, SHA))
+        | TLS_DHE_RSA_WITH_AES_128_CBC_SHA       -> CipherSuite (DHE_RSA, MtE (AES_128_CBC, SHA))
+        | TLS_DH_DSS_WITH_AES_256_CBC_SHA        -> CipherSuite (DH_DSS,  MtE (AES_256_CBC, SHA))
+        | TLS_DH_RSA_WITH_AES_256_CBC_SHA        -> CipherSuite (DH_RSA,  MtE (AES_256_CBC, SHA))
+        | TLS_DHE_DSS_WITH_AES_256_CBC_SHA       -> CipherSuite (DHE_DSS, MtE (AES_256_CBC, SHA))
+        | TLS_DHE_RSA_WITH_AES_256_CBC_SHA       -> CipherSuite (DHE_RSA, MtE (AES_256_CBC, SHA))
+        | TLS_DH_DSS_WITH_AES_128_CBC_SHA256     -> CipherSuite (DH_DSS,  MtE (AES_128_CBC, SHA256))
+        | TLS_DH_RSA_WITH_AES_128_CBC_SHA256     -> CipherSuite (DH_RSA,  MtE (AES_128_CBC, SHA256))
+        | TLS_DHE_DSS_WITH_AES_128_CBC_SHA256    -> CipherSuite (DHE_DSS, MtE (AES_128_CBC, SHA256))
+        | TLS_DHE_RSA_WITH_AES_128_CBC_SHA256    -> CipherSuite (DHE_RSA, MtE (AES_128_CBC, SHA256))
+        | TLS_DH_DSS_WITH_AES_256_CBC_SHA256     -> CipherSuite (DH_DSS,  MtE (AES_256_CBC, SHA256))
+        | TLS_DH_RSA_WITH_AES_256_CBC_SHA256     -> CipherSuite (DH_RSA,  MtE (AES_256_CBC, SHA256))
+        | TLS_DHE_DSS_WITH_AES_256_CBC_SHA256    -> CipherSuite (DHE_DSS, MtE (AES_256_CBC, SHA256))
+        | TLS_DHE_RSA_WITH_AES_256_CBC_SHA256    -> CipherSuite (DHE_RSA, MtE (AES_256_CBC, SHA256))
 
-        | TLS_DH_anon_WITH_RC4_128_MD5           -> CipherSuite (DH_anon, EncMAC (RC4_128, MD5))
-        | TLS_DH_anon_WITH_3DES_EDE_CBC_SHA      -> CipherSuite (DH_anon, EncMAC (TDES_EDE_CBC, SHA))
-        | TLS_DH_anon_WITH_AES_128_CBC_SHA       -> CipherSuite (DH_anon, EncMAC (AES_128_CBC, SHA))
-        | TLS_DH_anon_WITH_AES_256_CBC_SHA       -> CipherSuite (DH_anon, EncMAC (AES_256_CBC, SHA))
-        | TLS_DH_anon_WITH_AES_128_CBC_SHA256    -> CipherSuite (DH_anon, EncMAC (AES_128_CBC, SHA256))
-        | TLS_DH_anon_WITH_AES_256_CBC_SHA256    -> CipherSuite (DH_anon, EncMAC (AES_256_CBC, SHA256))
+        | TLS_DH_anon_WITH_RC4_128_MD5           -> CipherSuite (DH_anon, MtE (RC4_128, MD5))
+        | TLS_DH_anon_WITH_3DES_EDE_CBC_SHA      -> CipherSuite (DH_anon, MtE (TDES_EDE_CBC, SHA))
+        | TLS_DH_anon_WITH_AES_128_CBC_SHA       -> CipherSuite (DH_anon, MtE (AES_128_CBC, SHA))
+        | TLS_DH_anon_WITH_AES_256_CBC_SHA       -> CipherSuite (DH_anon, MtE (AES_256_CBC, SHA))
+        | TLS_DH_anon_WITH_AES_128_CBC_SHA256    -> CipherSuite (DH_anon, MtE (AES_128_CBC, SHA256))
+        | TLS_DH_anon_WITH_AES_256_CBC_SHA256    -> CipherSuite (DH_anon, MtE (AES_256_CBC, SHA256))
    ) nameList 
 #else
     failwith "TODO: fix list library": cipherSuites

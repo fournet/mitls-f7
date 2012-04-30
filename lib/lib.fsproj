@@ -72,8 +72,10 @@
     <None Include="TLSInfo.fs7" />
     <Compile Include="TLSInfo.fsi" />
     <Compile Include="TLSInfo.fs" />
+    <None Include="DataStream2.fs7" />
     <None Include="DataStream.fs7" />
     <Compile Include="DataStream.fsi" />
+    <None Include="IdealDataStream.fs" />
     <Compile Include="DataStream.fs" />
     <None Include="Fragment.fs7" />
     <Compile Include="Fragment.fsi" />
@@ -125,6 +127,7 @@
     <None Include="Dispatch.fs7" />
     <Compile Include="Dispatch.fsi" />
     <Compile Include="Dispatch.fs" />
+    <None Include="TLS2.fs7" />
     <None Include="TLS.fs7" />
     <Compile Include="TLS.fsi" />
     <Compile Include="TLS.fs" />

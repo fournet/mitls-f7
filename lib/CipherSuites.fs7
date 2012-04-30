@@ -82,13 +82,16 @@ function val CipherSuiteMACAlg: cipherSuite -> hashAlg
 function val CipherSuiteENCAlg: cipherSuite -> cipherAlg
 
 private assume !kex,enc,mac.
-	CipherSuiteMACAlg(CipherSuite(kex,EncMAC(enc,mac))) = mac
+	CipherSuiteMACAlg(CipherSuite(kex,MtE(enc,mac))) = mac
 private assume !enc,mac.
 	CipherSuiteMACAlg(OnlyMACCipherSuite(enc,mac)) = mac
 private assume !kex,enc,mac.
-	CipherSuiteENCAlg(CipherSuite(kex,EncMAC(enc,mac))) = enc
+	CipherSuiteENCAlg(CipherSuite(kex,MtE(enc,mac))) = enc
 val macAlg_of_ciphersuite: cs:cipherSuite -> h:hashAlg{h = CipherSuiteMACAlg(cs)}
 val encAlg_of_ciphersuite: cs:cipherSuite -> c:cipherAlg{c = CipherSuiteENCAlg(cs)}
+
+function val AEAlg: cipherSuite -> authencAlg
+private assume !kex,a. AEAlg(CipherSuite(kex,a)) = a
 
 predicate KnownCipherSuite of cipherSuite 
 function val CipherSuiteBytes: cipherSuite -> bytes 
@@ -99,41 +102,41 @@ private assume !cs. KnownCipherSuite(cs) <=>
     \/ (cs = OnlyMACCipherSuite (RSA, MD5))                       
     \/ (cs = OnlyMACCipherSuite (RSA, SHA))                       
     \/ (cs = OnlyMACCipherSuite (RSA, SHA256))                    
-    \/ (cs = CipherSuite (RSA, EncMAC (RC4_128, MD5)))            
-    \/ (cs = CipherSuite (RSA, EncMAC (RC4_128, SHA)))            
-    \/ (cs = CipherSuite (RSA, EncMAC (TDES_EDE_CBC, SHA)))       
-    \/ (cs = CipherSuite (RSA, EncMAC (AES_128_CBC, SHA)))        
-    \/ (cs = CipherSuite (RSA, EncMAC (AES_256_CBC, SHA)))        
-    \/ (cs = CipherSuite (RSA, EncMAC (AES_128_CBC, SHA256)))     
-    \/ (cs = CipherSuite (RSA, EncMAC (AES_256_CBC, SHA256)))     
+    \/ (cs = CipherSuite (RSA, MtE (RC4_128, MD5)))            
+    \/ (cs = CipherSuite (RSA, MtE (RC4_128, SHA)))            
+    \/ (cs = CipherSuite (RSA, MtE (TDES_EDE_CBC, SHA)))       
+    \/ (cs = CipherSuite (RSA, MtE (AES_128_CBC, SHA)))        
+    \/ (cs = CipherSuite (RSA, MtE (AES_256_CBC, SHA)))        
+    \/ (cs = CipherSuite (RSA, MtE (AES_128_CBC, SHA256)))     
+    \/ (cs = CipherSuite (RSA, MtE (AES_256_CBC, SHA256)))     
 
-    \/ (cs = CipherSuite (DH_DSS,  EncMAC (TDES_EDE_CBC, SHA)))   
-    \/ (cs = CipherSuite (DH_RSA,  EncMAC (TDES_EDE_CBC, SHA)))   
-    \/ (cs = CipherSuite (DHE_DSS, EncMAC (TDES_EDE_CBC, SHA)))   
-    \/ (cs = CipherSuite (DHE_RSA, EncMAC (TDES_EDE_CBC, SHA)))   
-    \/ (cs = CipherSuite (DH_DSS,  EncMAC (AES_128_CBC, SHA)))    
-    \/ (cs = CipherSuite (DH_RSA,  EncMAC (AES_128_CBC, SHA)))    
-    \/ (cs = CipherSuite (DHE_DSS, EncMAC (AES_128_CBC, SHA)))    
-    \/ (cs = CipherSuite (DHE_RSA, EncMAC (AES_128_CBC, SHA)))    
-    \/ (cs = CipherSuite (DH_DSS,  EncMAC (AES_256_CBC, SHA)))    
-    \/ (cs = CipherSuite (DH_RSA,  EncMAC (AES_256_CBC, SHA)))    
-    \/ (cs = CipherSuite (DHE_DSS, EncMAC (AES_256_CBC, SHA)))    
-    \/ (cs = CipherSuite (DHE_RSA, EncMAC (AES_256_CBC, SHA)))    
-    \/ (cs = CipherSuite (DH_DSS,  EncMAC (AES_128_CBC, SHA256))) 
-    \/ (cs = CipherSuite (DH_RSA,  EncMAC (AES_128_CBC, SHA256))) 
-    \/ (cs = CipherSuite (DHE_DSS, EncMAC (AES_128_CBC, SHA256))) 
-    \/ (cs = CipherSuite (DHE_RSA, EncMAC (AES_128_CBC, SHA256))) 
-    \/ (cs = CipherSuite (DH_DSS,  EncMAC (AES_256_CBC, SHA256))) 
-    \/ (cs = CipherSuite (DH_RSA,  EncMAC (AES_256_CBC, SHA256))) 
-    \/ (cs = CipherSuite (DHE_DSS, EncMAC (AES_256_CBC, SHA256))) 
-    \/ (cs = CipherSuite (DHE_RSA, EncMAC (AES_256_CBC, SHA256))) 
+    \/ (cs = CipherSuite (DH_DSS,  MtE (TDES_EDE_CBC, SHA)))   
+    \/ (cs = CipherSuite (DH_RSA,  MtE (TDES_EDE_CBC, SHA)))   
+    \/ (cs = CipherSuite (DHE_DSS, MtE (TDES_EDE_CBC, SHA)))   
+    \/ (cs = CipherSuite (DHE_RSA, MtE (TDES_EDE_CBC, SHA)))   
+    \/ (cs = CipherSuite (DH_DSS,  MtE (AES_128_CBC, SHA)))    
+    \/ (cs = CipherSuite (DH_RSA,  MtE (AES_128_CBC, SHA)))    
+    \/ (cs = CipherSuite (DHE_DSS, MtE (AES_128_CBC, SHA)))    
+    \/ (cs = CipherSuite (DHE_RSA, MtE (AES_128_CBC, SHA)))    
+    \/ (cs = CipherSuite (DH_DSS,  MtE (AES_256_CBC, SHA)))    
+    \/ (cs = CipherSuite (DH_RSA,  MtE (AES_256_CBC, SHA)))    
+    \/ (cs = CipherSuite (DHE_DSS, MtE (AES_256_CBC, SHA)))    
+    \/ (cs = CipherSuite (DHE_RSA, MtE (AES_256_CBC, SHA)))    
+    \/ (cs = CipherSuite (DH_DSS,  MtE (AES_128_CBC, SHA256))) 
+    \/ (cs = CipherSuite (DH_RSA,  MtE (AES_128_CBC, SHA256))) 
+    \/ (cs = CipherSuite (DHE_DSS, MtE (AES_128_CBC, SHA256))) 
+    \/ (cs = CipherSuite (DHE_RSA, MtE (AES_128_CBC, SHA256))) 
+    \/ (cs = CipherSuite (DH_DSS,  MtE (AES_256_CBC, SHA256))) 
+    \/ (cs = CipherSuite (DH_RSA,  MtE (AES_256_CBC, SHA256))) 
+    \/ (cs = CipherSuite (DHE_DSS, MtE (AES_256_CBC, SHA256))) 
+    \/ (cs = CipherSuite (DHE_RSA, MtE (AES_256_CBC, SHA256))) 
 
-    \/ (cs = CipherSuite (DH_anon, EncMAC (RC4_128, MD5)))        
-    \/ (cs = CipherSuite (DH_anon, EncMAC (TDES_EDE_CBC, SHA)))   
-    \/ (cs = CipherSuite (DH_anon, EncMAC (AES_128_CBC, SHA)))    
-    \/ (cs = CipherSuite (DH_anon, EncMAC (AES_256_CBC, SHA)))    
-    \/ (cs = CipherSuite (DH_anon, EncMAC (AES_128_CBC, SHA256))) 
-    \/ (cs = CipherSuite (DH_anon, EncMAC (AES_256_CBC, SHA256))) 
+    \/ (cs = CipherSuite (DH_anon, MtE (RC4_128, MD5)))        
+    \/ (cs = CipherSuite (DH_anon, MtE (TDES_EDE_CBC, SHA)))   
+    \/ (cs = CipherSuite (DH_anon, MtE (AES_128_CBC, SHA)))    
+    \/ (cs = CipherSuite (DH_anon, MtE (AES_256_CBC, SHA)))    
+    \/ (cs = CipherSuite (DH_anon, MtE (AES_128_CBC, SHA256))) 
+    \/ (cs = CipherSuite (DH_anon, MtE (AES_256_CBC, SHA256))) 
 
     \/ (cs = SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV))            
 
@@ -142,41 +145,41 @@ private assume
     /\ CipherSuiteBytes(OnlyMACCipherSuite (RSA, MD5))                       = [| 0x00uy; 0x01uy |]
     /\ CipherSuiteBytes(OnlyMACCipherSuite (RSA, SHA))                       = [| 0x00uy; 0x02uy |]
     /\ CipherSuiteBytes(OnlyMACCipherSuite (RSA, SHA256))                    = [| 0x00uy; 0x3Buy |]
-    /\ CipherSuiteBytes(CipherSuite (RSA, EncMAC (RC4_128, MD5)))            = [| 0x00uy; 0x04uy |]
-    /\ CipherSuiteBytes(CipherSuite (RSA, EncMAC (RC4_128, SHA)))            = [| 0x00uy; 0x05uy |]
-    /\ CipherSuiteBytes(CipherSuite (RSA, EncMAC (TDES_EDE_CBC, SHA)))       = [| 0x00uy; 0x0Auy |]
-    /\ CipherSuiteBytes(CipherSuite (RSA, EncMAC (AES_128_CBC, SHA)))        = [| 0x00uy; 0x2Fuy |]
-    /\ CipherSuiteBytes(CipherSuite (RSA, EncMAC (AES_256_CBC, SHA)))        = [| 0x00uy; 0x35uy |]
-    /\ CipherSuiteBytes(CipherSuite (RSA, EncMAC (AES_128_CBC, SHA256)))     = [| 0x00uy; 0x3Cuy |]
-    /\ CipherSuiteBytes(CipherSuite (RSA, EncMAC (AES_256_CBC, SHA256)))     = [| 0x00uy; 0x3Duy |]
+    /\ CipherSuiteBytes(CipherSuite (RSA, MtE (RC4_128, MD5)))            = [| 0x00uy; 0x04uy |]
+    /\ CipherSuiteBytes(CipherSuite (RSA, MtE (RC4_128, SHA)))            = [| 0x00uy; 0x05uy |]
+    /\ CipherSuiteBytes(CipherSuite (RSA, MtE (TDES_EDE_CBC, SHA)))       = [| 0x00uy; 0x0Auy |]
+    /\ CipherSuiteBytes(CipherSuite (RSA, MtE (AES_128_CBC, SHA)))        = [| 0x00uy; 0x2Fuy |]
+    /\ CipherSuiteBytes(CipherSuite (RSA, MtE (AES_256_CBC, SHA)))        = [| 0x00uy; 0x35uy |]
+    /\ CipherSuiteBytes(CipherSuite (RSA, MtE (AES_128_CBC, SHA256)))     = [| 0x00uy; 0x3Cuy |]
+    /\ CipherSuiteBytes(CipherSuite (RSA, MtE (AES_256_CBC, SHA256)))     = [| 0x00uy; 0x3Duy |]
 
-    /\ CipherSuiteBytes(CipherSuite (DH_DSS,  EncMAC (TDES_EDE_CBC, SHA)))   = [| 0x00uy; 0x0Duy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_RSA,  EncMAC (TDES_EDE_CBC, SHA)))   = [| 0x00uy; 0x10uy |]
-    /\ CipherSuiteBytes(CipherSuite (DHE_DSS, EncMAC (TDES_EDE_CBC, SHA)))   = [| 0x00uy; 0x13uy |]
-    /\ CipherSuiteBytes(CipherSuite (DHE_RSA, EncMAC (TDES_EDE_CBC, SHA)))   = [| 0x00uy; 0x16uy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_DSS,  EncMAC (AES_128_CBC, SHA)))    = [| 0x00uy; 0x30uy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_RSA,  EncMAC (AES_128_CBC, SHA)))    = [| 0x00uy; 0x31uy |]
-    /\ CipherSuiteBytes(CipherSuite (DHE_DSS, EncMAC (AES_128_CBC, SHA)))    = [| 0x00uy; 0x32uy |]
-    /\ CipherSuiteBytes(CipherSuite (DHE_RSA, EncMAC (AES_128_CBC, SHA)))    = [| 0x00uy; 0x33uy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_DSS,  EncMAC (AES_256_CBC, SHA)))    = [| 0x00uy; 0x36uy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_RSA,  EncMAC (AES_256_CBC, SHA)))    = [| 0x00uy; 0x37uy |]
-    /\ CipherSuiteBytes(CipherSuite (DHE_DSS, EncMAC (AES_256_CBC, SHA)))    = [| 0x00uy; 0x38uy |]
-    /\ CipherSuiteBytes(CipherSuite (DHE_RSA, EncMAC (AES_256_CBC, SHA)))    = [| 0x00uy; 0x39uy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_DSS,  EncMAC (AES_128_CBC, SHA256))) = [| 0x00uy; 0x3Euy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_RSA,  EncMAC (AES_128_CBC, SHA256))) = [| 0x00uy; 0x3Fuy |]
-    /\ CipherSuiteBytes(CipherSuite (DHE_DSS, EncMAC (AES_128_CBC, SHA256))) = [| 0x00uy; 0x40uy |]
-    /\ CipherSuiteBytes(CipherSuite (DHE_RSA, EncMAC (AES_128_CBC, SHA256))) = [| 0x00uy; 0x67uy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_DSS,  EncMAC (AES_256_CBC, SHA256))) = [| 0x00uy; 0x68uy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_RSA,  EncMAC (AES_256_CBC, SHA256))) = [| 0x00uy; 0x69uy |]
-    /\ CipherSuiteBytes(CipherSuite (DHE_DSS, EncMAC (AES_256_CBC, SHA256))) = [| 0x00uy; 0x6Auy |]
-    /\ CipherSuiteBytes(CipherSuite (DHE_RSA, EncMAC (AES_256_CBC, SHA256))) = [| 0x00uy; 0x6Buy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_DSS,  MtE (TDES_EDE_CBC, SHA)))   = [| 0x00uy; 0x0Duy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_RSA,  MtE (TDES_EDE_CBC, SHA)))   = [| 0x00uy; 0x10uy |]
+    /\ CipherSuiteBytes(CipherSuite (DHE_DSS, MtE (TDES_EDE_CBC, SHA)))   = [| 0x00uy; 0x13uy |]
+    /\ CipherSuiteBytes(CipherSuite (DHE_RSA, MtE (TDES_EDE_CBC, SHA)))   = [| 0x00uy; 0x16uy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_DSS,  MtE (AES_128_CBC, SHA)))    = [| 0x00uy; 0x30uy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_RSA,  MtE (AES_128_CBC, SHA)))    = [| 0x00uy; 0x31uy |]
+    /\ CipherSuiteBytes(CipherSuite (DHE_DSS, MtE (AES_128_CBC, SHA)))    = [| 0x00uy; 0x32uy |]
+    /\ CipherSuiteBytes(CipherSuite (DHE_RSA, MtE (AES_128_CBC, SHA)))    = [| 0x00uy; 0x33uy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_DSS,  MtE (AES_256_CBC, SHA)))    = [| 0x00uy; 0x36uy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_RSA,  MtE (AES_256_CBC, SHA)))    = [| 0x00uy; 0x37uy |]
+    /\ CipherSuiteBytes(CipherSuite (DHE_DSS, MtE (AES_256_CBC, SHA)))    = [| 0x00uy; 0x38uy |]
+    /\ CipherSuiteBytes(CipherSuite (DHE_RSA, MtE (AES_256_CBC, SHA)))    = [| 0x00uy; 0x39uy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_DSS,  MtE (AES_128_CBC, SHA256))) = [| 0x00uy; 0x3Euy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_RSA,  MtE (AES_128_CBC, SHA256))) = [| 0x00uy; 0x3Fuy |]
+    /\ CipherSuiteBytes(CipherSuite (DHE_DSS, MtE (AES_128_CBC, SHA256))) = [| 0x00uy; 0x40uy |]
+    /\ CipherSuiteBytes(CipherSuite (DHE_RSA, MtE (AES_128_CBC, SHA256))) = [| 0x00uy; 0x67uy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_DSS,  MtE (AES_256_CBC, SHA256))) = [| 0x00uy; 0x68uy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_RSA,  MtE (AES_256_CBC, SHA256))) = [| 0x00uy; 0x69uy |]
+    /\ CipherSuiteBytes(CipherSuite (DHE_DSS, MtE (AES_256_CBC, SHA256))) = [| 0x00uy; 0x6Auy |]
+    /\ CipherSuiteBytes(CipherSuite (DHE_RSA, MtE (AES_256_CBC, SHA256))) = [| 0x00uy; 0x6Buy |]
 
-    /\ CipherSuiteBytes(CipherSuite (DH_anon, EncMAC (RC4_128, MD5)))        = [| 0x00uy; 0x18uy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_anon, EncMAC (TDES_EDE_CBC, SHA)))   = [| 0x00uy; 0x1Buy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_anon, EncMAC (AES_128_CBC, SHA)))    = [| 0x00uy; 0x34uy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_anon, EncMAC (AES_256_CBC, SHA)))    = [| 0x00uy; 0x3Auy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_anon, EncMAC (AES_128_CBC, SHA256))) = [| 0x00uy; 0x6Cuy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_anon, EncMAC (AES_256_CBC, SHA256))) = [| 0x00uy; 0x6Duy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_anon, MtE (RC4_128, MD5)))        = [| 0x00uy; 0x18uy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_anon, MtE (TDES_EDE_CBC, SHA)))   = [| 0x00uy; 0x1Buy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_anon, MtE (AES_128_CBC, SHA)))    = [| 0x00uy; 0x34uy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_anon, MtE (AES_256_CBC, SHA)))    = [| 0x00uy; 0x3Auy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_anon, MtE (AES_128_CBC, SHA256))) = [| 0x00uy; 0x6Cuy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_anon, MtE (AES_256_CBC, SHA256))) = [| 0x00uy; 0x6Duy |]
 
     /\ CipherSuiteBytes(SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV))            = [| 0x00uy; 0xFFuy |]
 

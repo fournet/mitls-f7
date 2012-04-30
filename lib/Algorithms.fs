@@ -27,7 +27,7 @@ type aeadAlg =
     | AES_256_GCM
 
 type authencAlg =
-    | EncMAC of cipherAlg * hashAlg
+    | MtE of cipherAlg * hashAlg
     | AEAD of aeadAlg * hashAlg
 
 let encKeySize ciph =

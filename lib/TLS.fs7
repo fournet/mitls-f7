@@ -2,25 +2,19 @@ module TLS
 
 open Error
 open Bytes
-open DataStream
-open AppDataStream
-open Dispatch
 open TLSInfo 
-// for ConnectionInfo, Client, Server, ... 
+open DataStream (* application-specific module *) 
 
-//TODO: change Direction to role 
-//KB: I disagree. Directions are the right abstraction for epoch. 
-//    If need be, it would be better to define a role in ConnectionInfo.
-//CF: ?? Client is more natural than CtoS here. For now we have a painful mix of the two. 
+// these modules are used only for typechecking TLS.fs
+open AppDataStream
+open Dispatch // for ConnectionInfo, Client, Server, ... 
 
 type role = Direction
-
 type index = ConnectionInfo
 type params = protocolOptions
 type cn //= Dispatch.Connection
 
 // type epoch, as defined in TLSInfo
-
 function val Role: cn -> Direction
 assume !c. Role(c) = ConnectionOutKeyInfo(c).dir
 

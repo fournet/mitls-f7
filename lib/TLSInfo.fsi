@@ -1,6 +1,7 @@
 ﻿module TLSInfo
 
 open Bytes
+open Algorithms
 open Certificate
 open CipherSuites
 
@@ -9,9 +10,6 @@ type preRole =
     | Client
     | Server
 type Role = preRole
-
-(* SessionInfo and epoch: Session and Connection level public immutable data.
-   Used for indexing *)
 
 type SessionInfo = {
     clientID: cert option;
