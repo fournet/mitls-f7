@@ -110,30 +110,36 @@ let doclient (request : string) =
 
     let ns      = Tcp.connect "127.0.0.1" 5000 in
     let conn    = TLS.connect ns options in
-    let nonce   = Bytes.mkRandom 2 in
-    let request = request_bytes nonce (Bytes.utf8 request) in
 
-    let msg =
-        DataStream.createDelta
-            (TLS.getEpochOut conn) (TLS.getOutStream conn)
-            (0, Bytes.length request) request in
+    match drainMeta conn with
+    | DRError  _ -> None
+    | DRClosed _ -> None
 
-    match sendMsg conn (0, Bytes.length request) msg with
-    | Some conn ->
-        match recvMsg conn with
+    | DRContinue conn ->
+        let nonce   = Bytes.mkRandom 2 in
+        let request = request_bytes nonce (Bytes.utf8 request) in
+
+        let msg =
+            DataStream.createDelta
+                (TLS.getEpochOut conn) (TLS.getOutStream conn)
+                (Bytes.length request, Bytes.length request) request in
+
+        match sendMsg conn (Bytes.length request, Bytes.length request) msg with
+        | Some conn ->
+            match recvMsg conn with
+            | None -> None
+            | Some (conn, response) ->
+                ignore (TLS.shutdown conn);
+
+                if Bytes.length response <> 2+msglen then
+                    None
+                else
+                    let rnonce, response = Bytes.split response 2 in
+                        if Bytes.equalBytes nonce rnonce then
+                            Some (Bytes.iutf8 response)
+                        else
+                            None
         | None -> None
-        | Some (conn, response) ->
-            ignore (TLS.shutdown conn);
-
-            if Bytes.length response <> 2+msglen then
-                None
-            else
-                let rnonce, response = Bytes.split response 2 in
-                    if Bytes.equalBytes nonce rnonce then
-                        Some (Bytes.iutf8 response)
-                    else
-                        None
-    | None -> None
 
 let doserver () =
     let options = config "server" in
@@ -148,24 +154,28 @@ let doserver () =
         let result =
             let conn = TLS.accept_connected client options in
 
-            match recvMsg conn with
-            | None -> false
-            | Some (conn, request) ->
-                if Bytes.length request < 2 then
-                    false
-                else
-                    let nonce, request = Bytes.split request 2 in
-                    let response = service (Bytes.iutf8 request) in
-                    let response = response_bytes nonce (Bytes.utf8 response) in
+            match drainMeta conn with
+            | DRError  _ -> false
+            | DRClosed _ -> false
+            | DRContinue conn ->
+                match recvMsg conn with
+                | None -> false
+                | Some (conn, request) ->
+                    if Bytes.length request < 2 then
+                        false
+                    else
+                        let nonce, request = Bytes.split request 2 in
+                        let response = service (Bytes.iutf8 request) in
+                        let response = response_bytes nonce (Bytes.utf8 response) in
 
-                    let msg =
-                        DataStream.createDelta
-                            (TLS.getEpochOut conn) (TLS.getOutStream conn)
-                            (0, Bytes.length response) response in
+                        let msg =
+                            DataStream.createDelta
+                                (TLS.getEpochOut conn) (TLS.getOutStream conn)
+                                (Bytes.length response, Bytes.length response) response in
 
-                    match sendMsg conn (0, Bytes.length response) msg with
-                    | Some conn -> ignore (TLS.shutdown conn); true
-                    | None -> false
+                        match sendMsg conn (Bytes.length response, Bytes.length response) msg with
+                        | Some conn -> ignore (TLS.shutdown conn); true
+                        | None -> false
         in
             Tcp.close client; result
     in
