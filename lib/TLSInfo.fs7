@@ -97,7 +97,9 @@ predicate type cryptopreds =
 definition !i. Safe(i) <=> SafeHS(i) /\ StrongAE(AEAlg(EpochSI(i).cipher_suite)) 
 definition !i. Auth(i) <=> SafeHS(i) /\ StrongAuth(AEAlg(EpochSI(i).cipher_suite))
 
-ask !ki. Safe(ki) => Auth(ki)
+// not quite derivable unless we add CTXT => CMA
+assume !ki. Safe(ki) => Auth(ki) 
+
 ask !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) => not Safe(ki)
 
 // so that TLS can exchange any traffic on the initial null connection
