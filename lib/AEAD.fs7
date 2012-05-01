@@ -35,8 +35,7 @@ val COERCE: ki:epoch{not Auth(ki)} -> b:bytes{Length(b) = AEADSize(ki)} -> (;ki)
 val LEAK:   ki:epoch{not Auth(ki)} -> (;ki)AEADKey -> b:bytes
 
 (* KB: 18/4. Define CTXT or assume in code? The following assume is a stop-gap *)
-predicate CTXT of ki:epoch * (;ki)AEADPlain.data * r:range * (;ki,r)Fragment.fragment * cipher
-private assume !ki,ad,r,f,c. CTXT(ki,ad,r,f,c)
+predicate CTXT of ki:epoch * (;ki)AEADPlain.data * 'a * cipher
 
 private val mteKey: ki:epoch -> (;ki) MAC.key -> (;ki) ENC.state -> (;ki) AEADKey
 
@@ -46,11 +45,11 @@ val encrypt: ki:epoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
 
 val decrypt: ki:epoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
   c:cipher -> res: 
-  ( ((;ki) AEADKey * rg:range * (;ki,rg,ad) AEADPlain.AEADPlain){Length(c) = AEPlain.RangeCipher(ki,rg)}) Result{
-    !k,r,p. res = Correct((k,r,p)) =>
-          (Safe(ki) => CTXT(ki,ad,r,AEADPlain.AEADContents(p),c)) /\
-          (Auth(ki) => CTXT(ki,ad,r,AEADPlain.AEADContents(p),c))}
- 
+  ( ((;ki) AEADKey * 
+    rg:range {rg=CipherRange(ki,c)} * (* hence Length(c) = AEPlain.RangeCipher(ki,rg) *) 
+	(;ki,rg,ad) AEADPlain.AEADPlain)) Result
+	{ Auth(ki) => !k,r,p. ( res = Correct((k,r,p)) <=> CTXT(ki,ad,p,c)) ) }
+
 // CF 04-09 discussion points: 
 //
 // plaintext integrity follows from abstraction:
