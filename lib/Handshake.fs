@@ -2073,3 +2073,17 @@ let authorize (ci:ConnectionInfo) (s:hs_state) (q:cert) = s // TODO
 let reset_incoming (c:ConnectionInfo) (s:hs_state) (nc:ConnectionInfo) = s // FIXME: we don't really want such a function, do we?
 
 let reset_outgoing (c:ConnectionInfo) (s:hs_state) (nc:ConnectionInfo) = s // FIXME: we don't really want such a function, do we?
+
+
+(* function used by an ideal handshake implementation to decide whether to idealize keys
+let safe ki = 
+    match (CS(ki), Honest(LTKey(ki, Server)), Honest(LTKey(ki,Client))) with
+    | (CipherSuite (RSA, MtE (AES_256_CBC, SHA256)), true, _) -> pmsGenerated ki            
+    | (CipherSuite (DHE_DSS, MtE (AES_256_CBC, SHA)), _, _) -> 
+        if (TcGenerated ki) && (TsGenerated ki) then 
+            true 
+        else 
+            false
+    | _ -> false
+
+ *)
