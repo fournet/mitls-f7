@@ -55,6 +55,6 @@ val recordPacketIn : ki:epoch ->
 val history: ki:epoch -> s:(;ki) ConnectionState ->
 	h:(;ki)TLSFragment.history{h=History(ki,s)}
 
-val historyStream: e:epoch -> st:(;e) ConnectionState -> ct:Formats.ContentType ->
-	s:(;e)stream{s=HistoryStream(e,ct,History(e,st))}
+val historyStream: e:epoch -> st:(;e) ConnectionState -> 
+  ct:Formats.ContentType -> s:(;e)stream{s=HistoryStream(e,ct,History(e,st))}
 	
