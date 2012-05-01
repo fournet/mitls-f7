@@ -40,18 +40,19 @@ type (;id:ConnectionInfo) preGlobalState = {
 predicate GState of ci:ConnectionInfo * (;ci)preGlobalState
 type (;id:ConnectionInfo) globalState = gs:(;id) preGlobalState{GState(id,gs)}
 
-definition !ci,gs. GState(ci,gs) <=>
-	( AppDataStream.AppOutStream(ci,gs.appdata) =
-		TLSFragment.HistoryStream(ci.id_out,Formats.Application_data,Record.History(ci.id_out,gs.write.conn)) /\
-	  ( AppDataStream.AppInBuf(ci,gs.appdata) = None /\
+definition !ci,gs. GState(ci,gs)  <=>
+  (( Auth(ci.id_out) => (AppDataStream.AppOutStream(ci,gs.appdata) = TLSFragment.HistoryStream(ci.id_out,Formats.Application_data,Record.History(ci.id_out,gs.write.conn)))) /\
+   ( Auth(ci.id_in) => (AppDataStream.AppInStream(ci,gs.appdata) = TLSFragment.HistoryStream(ci.id_in,Formats.Application_data,Record.History(ci.id_in,gs.read.conn))))) (*/\
+(*/\
+	(( AppDataStream.AppInBuf(ci,gs.appdata) = None /\
 	    AppDataStream.AppInStream( ci,gs.appdata) =
-		TLSFragment.HistoryStream(ci.id_in, Formats.Application_data,Record.History(ci.id_in, gs.read.conn)) \/
-		!r,f. AppDataStream.AppInBuf(ci,gs.appdata) = Some((r,f)) /\
-		Fragment.Extend(ci.id_in,AppDataStream.AppInStream(ci,gs.appdata),r,f) = 
-		TLSFragment.HistoryStream(ci.id_in, Formats.Application_data,Record.History(ci.id_in, gs.read.conn))
+		TLSFragment.HistoryStream(ci.id_in, Formats.Application_data,Record.History(ci.id_in, gs.read.conn))) \/
+	  (?r,f. AppDataStream.AppInBuf(ci,gs.appdata) = Some((r,f)) /\
+	    Fragment.Extend(ci.id_in,AppDataStream.AppInStream(ci,gs.appdata),r,f) = 
+	    TLSFragment.HistoryStream(ci.id_in, Formats.Application_data,Record.History(ci.id_in, gs.read.conn))
 	  )
-	)
-
+	))
+                                 *)
 type Connection = Conn of (id:ConnectionInfo * (;id)globalState)
 function val ConnectionIndex: Connection -> ConnectionInfo
 assume !id,s. ConnectionIndex(Conn(id,s)) = id
@@ -144,23 +145,22 @@ val closeConnection: c:Connection-> (;c) nextCn
 val pickSendPV: c:Connection -> CipherSuites.ProtocolVersion
 
 val send: Tcp.NetworkStream -> e:epoch -> w:(;e)dState ->
-	CipherSuites.ProtocolVersion -> r:range -> ct:Formats.ContentType ->
-	f:(;e,ct,Record.History(e,w.conn),r)TLSFragment.fragment ->
-	(w':(;e)dState{Auth(e) => Record.History(e,w'.conn) =
-			TLSFragment.ExtendHistory(e,ct,Record.History(e,w.conn),r,f)
-		}) Result
+	CipherSuites.ProtocolVersion -> rg:range -> ct:Formats.ContentType ->
+	f:(;e,ct,Record.History(e,w.conn),rg)TLSFragment.fragment -> res: (;e) dState Result{
+          !w'. (res = Correct(w') /\ Auth(e)) =>
+            (Record.History(e,w'.conn) = TLSFragment.ExtendHistory(e,ct,Record.History(e,w.conn),rg,TLSFragment.TLSContents(f)))}
 
 val writeOne: c:Connection ->
 	(writeOutcome * Connection) Result
-
+(*
 val deliver: c:Connection -> ct:Formats.ContentType -> r:range->
 	(;ConnectionEpochIn(c),ct,ConnectionInHistory(c),r)TLSFragment.fragment ->
 	(deliverOutcome * Connection) Result
-
+                                                                                                                                                                         *)
 val recv: c:Connection ->
-	(c':Connection *
+	((;ConnectionEpochIn(c)) Record.ConnectionState *
 	 ct:Formats.ContentType * r:range * 
-         (;ConnectionEpochIn(c'),ct,ConnectionInHistory(c'),r)TLSFragment.fragment) Result
+         (;ConnectionEpochIn(c),ct,ConnectionInHistory(c),r)TLSFragment.fragment) Result
 
 val readOne: c:Connection ->
 	(deliverOutcome * Connection) Result

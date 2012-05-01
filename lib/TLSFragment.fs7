@@ -34,7 +34,8 @@ assume !ki,ct,h,rg,d.
     (ct = Formats.Alert /\ Fragment.Fragment(ki,HistoryStream(ki,ct,h),rg,d)) \/
     (ct = Formats.Application_data /\ Fragment.Fragment(ki,HistoryStream(ki,ct,h),rg,d))
   )
- 
+
+
 type (;ki:epoch,ct:ContentType,h:(;ki) history,rg:range) fragment =
     | FHandshake of f:(;ki,rg)Fragment.fragment{ct=Formats.Handshake  /\ (Auth(ki) => TLSFragment(ki,ct,h,rg,f))}
     | FCCS       of f:(;ki,rg)Fragment.fragment{ct=Formats.Change_cipher_spec  /\ (Auth(ki) => TLSFragment(ki,ct,h,rg,f))}
@@ -80,41 +81,43 @@ private assume !ki,h. EmptyHistory(ki,h) <=>
 	  EmptyStream(ki,h.ccs)       /\ EmptyStream(ki,h.appdata) )
 private assume !ki,h,h'. EmptyHistory(ki,h) /\ EmptyHistory(ki,h') => h = h'
 
-private assume !ki,h,r,d. ExtendHistory(ki,Formats.Handshake,h,r,d) =
+private assume !ki,ct,h,r,d,h'. ExtendHistory(ki,ct,h,r,d) = h' <=>
+    ((ct = Formats.Handshake /\ h' = 
 	 { handshake = Fragment.Extend(ki,h.handshake,r,d);
 	   alert = h.alert;
 	   ccs = h.ccs;
-	   appdata = h.appdata}
+	   appdata = h.appdata}) \/
+     (ct = Formats.Alert /\ h' = 
+	 { handshake = h.handshake;
+	   alert = Fragment.Extend(ki,h.alert,r,d);
+	   ccs = h.ccs;
+	   appdata = h.appdata}) \/
+     (ct = Formats.Change_cipher_spec /\ h' = 
+	 { handshake = h.handshake;
+	   alert = h.alert;
+	   ccs = Fragment.Extend(ki,h.ccs,r,d);
+	   appdata = h.appdata}) \/
+     (ct = Formats.Application_data /\ h' = 
+	 { handshake = h.handshake;
+	   alert = h.alert;
+	   ccs = h.ccs;
+	   appdata = Fragment.Extend(ki,h.appdata,r,d)}))
+
 ask !ki,h,h',r,d. h' = ExtendHistory(ki,Formats.Handshake,h,r,d) =>
 	( HistoryStream(ki,Formats.Handshake,h') = Fragment.Extend(ki,HistoryStream(ki,Formats.Handshake,h),r,d) /\
 	  HistoryStream(ki,Formats.Alert,h') = HistoryStream(ki,Formats.Alert,h) /\
 	  HistoryStream(ki,Formats.Change_cipher_spec,h') = HistoryStream(ki,Formats.Change_cipher_spec,h) /\
 	  HistoryStream(ki,Formats.Application_data,h') = HistoryStream(ki,Formats.Application_data,h))
-private assume !ki,h,r,d. ExtendHistory(ki,Formats.Alert,h,r,d) =
-	 { handshake = h.handshake;
-	   alert = Fragment.Extend(ki,h.alert,r,d);
-	   ccs = h.ccs;
-	   appdata = h.appdata}
 ask !ki,h,h',r,d. h' = ExtendHistory(ki,Formats.Alert,h,r,d) =>
 	( HistoryStream(ki,Formats.Alert,h') = Fragment.Extend(ki,HistoryStream(ki,Formats.Alert,h),r,d) /\
 	  HistoryStream(ki,Formats.Handshake,h') = HistoryStream(ki,Formats.Handshake,h) /\
 	  HistoryStream(ki,Formats.Change_cipher_spec,h') = HistoryStream(ki,Formats.Change_cipher_spec,h) /\
 	  HistoryStream(ki,Formats.Application_data,h') = HistoryStream(ki,Formats.Application_data,h))
-private assume !ki,h,r,d. ExtendHistory(ki,Formats.Change_cipher_spec,h,r,d) =  
-	 { handshake = h.handshake;
-	   alert = h.alert;
-	   ccs = Fragment.Extend(ki,h.ccs,r,d);
-	   appdata = h.appdata}
 ask !ki,h,h',r,d. h' = ExtendHistory(ki,Formats.Change_cipher_spec,h,r,d) =>
 	( HistoryStream(ki,Formats.Change_cipher_spec,h') = Fragment.Extend(ki,HistoryStream(ki,Formats.Change_cipher_spec,h),r,d) /\
 	  HistoryStream(ki,Formats.Alert,h') = HistoryStream(ki,Formats.Alert,h) /\
 	  HistoryStream(ki,Formats.Handshake,h') = HistoryStream(ki,Formats.Handshake,h) /\
 	  HistoryStream(ki,Formats.Application_data,h') = HistoryStream(ki,Formats.Application_data,h))
-private assume !ki,h,r,d. ExtendHistory(ki,Formats.Application_data,h,r,d) = 
-	 { handshake = h.handshake;
-	   alert = h.alert;
-	   ccs = h.ccs;
-	   appdata = Fragment.Extend(ki,h.appdata,r,d)}
 ask !ki,h,h',r,d. h' = ExtendHistory(ki,Formats.Application_data,h,r,d) =>
 	( HistoryStream(ki,Formats.Application_data,h') = Fragment.Extend(ki,HistoryStream(ki,Formats.Application_data,h),r,d) /\
 	  HistoryStream(ki,Formats.Alert,h') = HistoryStream(ki,Formats.Alert,h) /\

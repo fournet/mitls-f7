@@ -48,10 +48,10 @@ val emptyOutgoingAppData: ci:ConnectionInfo -> s:(;ci)app_state ->
 
 val next_fragment: ci:ConnectionInfo -> s:(;ci)app_state ->
 	((r:range * f:(;ci.id_out,r)Fragment.fragment * s':(;ci)app_state)
-	{Auth(ci.id_out) => Fragment.Fragment(ci.id_out,AppOutStream(ci,s),r,f) /\
+	{Auth(ci.id_out) => (Fragment.Fragment(ci.id_out,AppOutStream(ci,s),r,f) /\
 	 AppOutStream(ci,s') = Fragment.Extend(ci.id_out,AppOutStream(ci,s),r,f) /\
 	 AppInBuf(ci,s') = AppInBuf(ci,s) /\
-	 AppInStream (ci,s') = AppInStream (ci,s)}) option
+	 AppInStream (ci,s') = AppInStream (ci,s))}) option
 
 val recv_fragment: ci:ConnectionInfo -> s:(;ci)app_state -> r:range ->
 	f:(;ci.id_in,r)Fragment.fragment{Auth(ci.id_in) =>
@@ -67,9 +67,13 @@ val readAppData: ci:ConnectionInfo -> s:(;ci)app_state ->
 		  (?r,f. AppInBuf(ci,s) = Some((r,f)) /\ AppInStream(ci,s') = Fragment.Extend(ci.id_in,AppInStream(ci,s),r,f))
 		)}
 
-val reset_outgoing: ci:ConnectionInfo -> (;ci)app_state ->
+val reset_outgoing: ci:ConnectionInfo -> s:(;ci)app_state ->
 	ci':ConnectionInfo{ci'.role = ci.role /\ ci'.id_in = ci.id_in} ->
-	s':(;ci')app_state{AppOutBuf(ci',s') = None /\ EmptyStream(ci'.id_out,AppOutStream(ci',s'))}
-val reset_incoming: ci:ConnectionInfo -> (;ci)app_state ->
+	s':(;ci')app_state{AppOutBuf(ci',s') = None /\ 
+            EmptyStream(ci'.id_out,AppOutStream(ci',s')) /\
+            AppInStream(ci',s') = AppInStream(ci,s)}
+val reset_incoming: ci:ConnectionInfo -> s:(;ci)app_state ->
 	ci':ConnectionInfo{ci'.role = ci.role /\ ci'.id_out = ci.id_out} ->
-	s':(;ci')app_state{AppInBuf(ci',s') = None /\ EmptyStream(ci'.id_in,AppInStream(ci',s'))}
+	s':(;ci')app_state{AppInBuf(ci',s') = None /\ 
+            EmptyStream(ci'.id_in,AppInStream(ci',s')) /\
+            AppOutStream(ci',s') = AppOutStream(ci,s)}

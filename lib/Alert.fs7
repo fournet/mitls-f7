@@ -11,16 +11,17 @@ private type (;ci:ConnectionInfo)pre_al_state = {
 }
 type (;ci:ConnectionInfo)state = (;ci)pre_al_state
 
+type (;ki:epoch,rg:range) unauth_fragment = f:(;ki,rg) Fragment.fragment{!s. Fragment.Fragment(ki,s,rg,f)}
 type (;ki:epoch)ALFragReply =
     | EmptyALFrag
-    | ALFrag of          (rg:range * (;ki,rg)Fragment.fragment)
-    | LastALFrag of      (rg:range * (;ki,rg)Fragment.fragment * alertDescription)
-    | LastALCloseFrag of (rg:range * (;ki,rg)Fragment.fragment)
+    | ALFrag of          (rg:range * (;ki,rg)unauth_fragment)
+    | LastALFrag of      (rg:range * (;ki,rg)unauth_fragment * alertDescription)
+    | LastALCloseFrag of (rg:range * (;ki,rg)unauth_fragment)
 
 type (;ci:ConnectionInfo)alert_reply =
     | ALAck of          (;ci)state
     | ALFatal of        alertDescription * (;ci)state
-	| ALWarning of alertDescription * (;ci)state
+    | ALWarning of alertDescription * (;ci)state
     | ALClose_notify of (;ci)state
 
 // Conversions

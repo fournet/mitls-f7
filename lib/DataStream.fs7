@@ -40,8 +40,8 @@ private type (;ki:epoch, h:(;ki)stream, r:range) delta = {contents: (;r) rbytes}
 predicate EmptyStream of ki:epoch * (;ki) stream 
 // function val EmptyStream:  ki:epoch -> (;ki) stream // AP: F7 issue with records as single argument of a function. Do not use this function, use the predicate instead.
 function val ExtendStream: 'a * 'b * 'c * 'd -> 'e
-private assume !ki,s. EmptyStream(ki,s) <=> s = {sb = [] }
-private assume !ki,s,r,d. ExtendStream(ki,s,r,d) = {sb = d.contents :: s.sb } 
+assume !ki,s. EmptyStream(ki,s) <=> s = {sb = [] }
+assume !ki,s,r,d. ExtendStream(ki,s,r,d) = {sb = d.contents :: s.sb } 
 ask !ki,s,s'. EmptyStream(ki,s) /\ EmptyStream(ki,s') => s = s'
 
 

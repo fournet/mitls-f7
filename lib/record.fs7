@@ -38,15 +38,19 @@ val recordPacketOut: ki:epoch ->
                      rg:DataStream.range -> ct:ContentType -> 
                      f:(;ki,ct,History(ki,ss),rg) TLSFragment.fragment ->
                      (ss':(;ki) sendState * wire:bytes){
-						Auth(ki) => History(ki,ss') = TLSFragment.ExtendHistory(ki,ct,History(ki,ss),rg,TLSFragment.TLSContents(f))}
+						Auth(ki) => (History(ki,ss') = TLSFragment.ExtendHistory(ki,ct,History(ki,ss),rg,TLSFragment.TLSContents(f)))}
  
 val recordPacketIn : ki:epoch ->
                      rs:(;ki) recvState -> 
                      wire:bytes{Length(wire) >= 5} -> 
-                     (rs':(;ki)recvState *
+                     res:(rs':(;ki)recvState *
                         ct:ContentType * pv:ProtocolVersion *
                         rg:range * 
-                        f:(;ki,ct,History(ki,rs),rg) TLSFragment.fragment) Result 
+                        f:(;ki,ct,History(ki,rs),rg) TLSFragment.fragment) Result{
+                       !rs',ct,rg,f. (res = Correct ((rs',ct,rg,f)) /\ Auth(ki)) => 
+                         (History(ki,rs') = TLSFragment.ExtendHistory(ki,ct,History(ki,rs),rg,TLSFragment.TLSContents(f)))}
+
+
 
 val history: ki:epoch -> s:(;ki) ConnectionState ->
 	h:(;ki)TLSFragment.history{h=History(ki,s)}
