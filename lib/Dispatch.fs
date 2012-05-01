@@ -74,6 +74,9 @@ type ioresult_o =
     | WritePartial  of nextCn * msg_o
     | MustRead      of Connection
 
+let coerce_i (c:Connection) (c':Connection) (res:ioresult_i) = res
+let coerce_o (c:Connection) (c':Connection) (res:ioresult_o) = res
+
 // Outcomes for internal, one-message-at-a-time functions
 type writeOutcome =
     | WriteAgain (* Possibly more data to send *)
@@ -600,6 +603,7 @@ let rec writeAll c =
     | other -> other
 
 let rec read c =
+    let orig = c in
     let unitVal = () in
     match writeAll c with
     | Error(x,y) -> ReadError(EInternal(x,y)) // Internal error
@@ -617,7 +621,8 @@ let rec read c =
                 let (outcome,c) = res in
                 match outcome with
                 | RAgain ->
-                    read c
+                    let res = read c in
+                      coerce_i c orig res 
                 | RAppDataDone ->    
                     // empty the appData internal buffer, and return its content to the user
                     let (Conn(id,conn)) = c in

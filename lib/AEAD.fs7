@@ -35,20 +35,23 @@ val COERCE: ki:epoch{not Auth(ki)} -> b:bytes{Length(b) = AEADSize(ki)} -> (;ki)
 val LEAK:   ki:epoch{not Auth(ki)} -> (;ki)AEADKey -> b:bytes
 
 (* KB: 18/4. Define CTXT or assume in code? The following assume is a stop-gap *)
-predicate CTXT of ki:epoch * (;ki)AEADPlain.data * 'a * cipher
+predicate val CTXT: 'a * 'b * 'c * 'd -> bool
 
 private val mteKey: ki:epoch -> (;ki) MAC.key -> (;ki) ENC.state -> (;ki) AEADKey
 
+function val CipherRange: epoch * bytes -> range
+assume !e,c,rg. rg = CipherRange(e,c) <=> Length(c) = AEPlain.RangeCipher(e,rg)
 val encrypt: ki:epoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
   rg:range -> p:(;ki,rg,ad) AEADPlain.AEADPlain ->
-  ((;ki) AEADKey * c:cipher){Length(c)=AEPlain.RangeCipher(ki,rg) /\ CTXT(ki,ad,rg,AEADPlain.AEADContents(p),c)}
+  ((;ki) AEADKey * c:cipher){rg = CipherRange(ki,c)
+      /\ CTXT(ki,ad,AEADPlain.AEADContents(p),c)}
 
 val decrypt: ki:epoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
   c:cipher -> res: 
-  ( ((;ki) AEADKey * 
-    rg:range {rg=CipherRange(ki,c)} * (* hence Length(c) = AEPlain.RangeCipher(ki,rg) *) 
-	(;ki,rg,ad) AEADPlain.AEADPlain)) Result
-	{ Auth(ki) => !k,r,p. ( res = Correct((k,r,p)) <=> CTXT(ki,ad,p,c)) ) }
+  ( ((;ki) AEADKey *  
+    rg:(rg:range {rg=CipherRange(ki,c)}) * 
+    (;ki,rg,ad) AEADPlain.AEADPlain)) Result
+  { Auth(ki) => (!k,r,p.  res = Correct((k,r,p)) <=> CTXT(ki,ad,p,c))}
 
 // CF 04-09 discussion points: 
 //

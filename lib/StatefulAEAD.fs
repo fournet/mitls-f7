@@ -32,9 +32,9 @@ let history (ki:epoch) s = s.history
 
 type cipher = AEAD.cipher
 
-let encrypt (ki:epoch) (w:writer) (ad0:data) (r:range) (f:fragment) =
+let encrypt (ki:epoch) (w:writer) (ad0:data) (r:range) (f:statefulPlain) =
   let h = w.history in
-  let p = FragmentToAEADPlain ki h ad0 r f in
+  let p = StatefulToAEADPlain ki h ad0 r f in
   let ad = makeAD ki h ad0 in
   let k,c = AEAD.encrypt ki w.key ad r p in
   let h = addToHistory ki h ad0 r f in
@@ -48,7 +48,7 @@ let decrypt (ki:epoch) (r:reader) (ad0:data) (e:cipher) =
   match res with
     | Correct x ->
           let (k,rg,p) = x in
-          let f = AEADPlainToFragment ki h ad0 rg p in
+          let f = AEADPlainToStateful ki h ad0 rg p in
           let h = addToHistory ki h ad0 rg f in
           correct (({history = h; key = k},rg,f))
     | Error (x,y) -> Error (x,y)

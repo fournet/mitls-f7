@@ -55,7 +55,7 @@ val encrypt: ki:epoch ->
   w:(;ki) writer -> 
   ad:(;ki)data ->
   r:range ->
-  f: (;ki,w.history,ad,r) fragment ->
+  f: (;ki,w.history,ad,r) statefulPlain ->
   (w':(;ki) writer * c:cipher){
     w'.history = StatefulPlain.ExtendHistory(ki,w.history,ad,r,SAEADContents(f)) /\
     STXT(ki,w,ad,r,SAEADContents(f),c)}
@@ -64,7 +64,7 @@ val decrypt: ki:epoch ->
   rd:(;ki) reader -> 
   ad:(;ki)data ->
   c:cipher ->
-  res:((;ki) reader * rg:range * (;ki,rd.history,ad,rg) fragment) Result
+  res:((;ki) reader * rg:range * (;ki,rd.history,ad,rg) statefulPlain) Result
   { !nrd,rg,f. res = Correct((nrd,rg,f)) => 
                (   nrd.history = StatefulPlain.ExtendHistory(ki,rd.history,ad,rg,SAEADContents(f)) /\
                    Length(c)=AEPlain.RangeCipher(ki,rg) /\

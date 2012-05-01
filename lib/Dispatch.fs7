@@ -108,6 +108,10 @@ type (;c:Connection)ioresult_o =
     | WritePartial  of (;c)nextCn * (;ConnectionEpochOut(c),ConnectionOutStream(c))msg_o
     | MustRead      of Connection
 
+//KB to fix:
+val coerce_i: c:Connection -> c':Connection -> (;c) ioresult_i -> (;c') ioresult_i
+val coerce_o: c:Connection -> c':Connection -> (;c) ioresult_o -> (;c') ioresult_o
+
 type writeOutcome =
     | WriteAgain (* Possibly more data to send *)
     | WAppDataDone (* No more data to send in the current state *)
@@ -150,8 +154,7 @@ val send: Tcp.NetworkStream -> e:epoch -> w:(;e)dState ->
           !w'. (res = Correct(w') /\ Auth(e)) =>
             (Record.History(e,w'.conn) = TLSFragment.ExtendHistory(e,ct,Record.History(e,w.conn),rg,TLSFragment.TLSContents(f)))}
 
-val writeOne: c:Connection ->
-	(writeOutcome * Connection) Result
+
 (*
 val deliver: c:Connection -> ct:Formats.ContentType -> r:range->
 	(;ConnectionEpochIn(c),ct,ConnectionInHistory(c),r)TLSFragment.fragment ->
@@ -164,6 +167,9 @@ val recv: c:Connection ->
 
 val readOne: c:Connection ->
 	(deliverOutcome * Connection) Result
+
+val writeOne: c:Connection ->
+	(writeOutcome * Connection) Result
 
 val writeAll: c:Connection ->
 	(writeOutcome * Connection) Result

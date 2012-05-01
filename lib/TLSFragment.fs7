@@ -151,17 +151,17 @@ val construct: ki:epoch -> ct:ContentType -> h:(;ki) history -> rg:range ->
     
   
 assume !ki,sh,ct,r,x.  
-  StatefulPlain.Fragment(ki,sh,ADBytes(ki,ct),r,x) <=> 
+  StatefulPlain.Sent(ki,StatefulPlain.ExtendHistory(ki,sh,ADBytes(ki,ct),r,x)) <=> 
   TLSFragment(ki,ct,Multiplexed(ki,sh),r,x)
 
 val TLSFragmentToFragment: ki:epoch -> ct:ContentType -> h:(;ki) history ->
 	st:(;ki) StatefulPlain.history{h = Multiplexed(ki,st)} -> rg:range -> f:(;ki,ct,h,rg) fragment -> 
-	sf:(;ki,st,ADBytes(ki,ct),rg) StatefulPlain.fragment
+	sf:(;ki,st,ADBytes(ki,ct),rg) StatefulPlain.statefulPlain
 		{TLSContents(f) = StatefulPlain.SAEADContents(sf) /\
 		 (Auth(ki) => TLSFragment(ki,ct,h,rg,StatefulPlain.SAEADContents(sf)))}
 
 
 val fragmentToTLSFragment: ki:epoch -> ct:ContentType -> h:(;ki) history ->
 	st:(;ki) StatefulPlain.history{h = Multiplexed(ki,st)} -> rg:range -> 
-    d:(;ki,st,ADBytes(ki,ct),rg) StatefulPlain.fragment ->
+    d:(;ki,st,ADBytes(ki,ct),rg) StatefulPlain.statefulPlain ->
 	f:(;ki,ct,h,rg) fragment{TLSContents(f) = StatefulPlain.SAEADContents(d)}
