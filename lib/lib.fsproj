@@ -75,8 +75,10 @@
     <None Include="DataStream2.fs7" />
     <None Include="DataStream.fs7" />
     <Compile Include="DataStream.fsi" />
-    <None Include="IdealDataStream.fs" />
     <Compile Include="DataStream.fs" />
+    <Compile Include="RPCDataStream.fs" />
+    <Compile Include="IdealDataStream.fsi" />
+    <Compile Include="IdealDataStream.fs" />
     <None Include="Fragment.fs7" />
     <Compile Include="Fragment.fsi" />
     <Compile Include="Fragment.fs" />
