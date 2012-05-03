@@ -52,23 +52,29 @@ val macPlain: ki:epoch -> r:range ->
   f:(;ki,r,ad)AEPlain ->
   p:(;ki)MACPlain{p = MACPlain(ki,r,ad,f)}
 
-val mac: ki:epoch -> (;ki) MAC.key -> t:(;ki) MACPlain{?r,ad,f. t = MACPlain(ki,r,ad,f) /\ 
+predicate MACed of ki:epoch * (;ki) MAC.key * (;ki) MACPlain * (;ki) tag
+
+val mac: ki:epoch -> k:(;ki) MAC.key -> t:(;ki) MACPlain{?r,ad,f. t = MACPlain(ki,r,ad,f) /\ 
                                                          (Auth(ki) => AESays(ki,r,ad,f.contents))}
-  -> tag:(;ki) tag{Length(tag.macT) = MacKeySize(CipherSuiteMACAlg(EpochSI(ki).cipher_suite))}
-val verify: ki:epoch -> (;ki) MAC.key -> text:(;ki) MACPlain -> tag:(;ki) tag ->
-  v:bool{v = true => (?r,ad,f. text = MACPlain(ki,r,ad,f) /\ (Auth(ki) => AESays(ki,r,ad,f.contents)))}
+  -> tag:(;ki) tag{Length(tag.macT) = MacKeySize(CipherSuiteMACAlg(EpochSI(ki).cipher_suite)) /\ MACed(ki,k,t,tag)}
+val verify: ki:epoch -> k:(;ki) MAC.key -> text:(;ki) MACPlain -> tag:(;ki) tag ->
+  v:bool{v = true => (?r,ad,f. text = MACPlain(ki,r,ad,f) /\ (Auth(ki) => AESays(ki,r,ad,f.contents))) /\ (MACed(ki,k,text,tag) => v = true)}
 
 // Padding computations
 val padLength: ki:epoch -> nat -> nat
 function val RangeCipher: epoch * range -> nat // not injective
 val rangeCipher: ki:epoch -> r:range -> tlen:nat{tlen = RangeCipher(ki,r) /\ tlen <= DataStream.max_TLSCipher_fragment_length}
 val cipherRange: ki:epoch -> tlen:nat{tlen <= DataStream.max_TLSCipher_fragment_length} -> r:range{tlen = RangeCipher(ki,r)}
+
+predicate val Encoded: 'e * 'a * 'b * 'c * 'd -> bool
 val encode: ki:epoch{IsAEADCiphersuite(EpochSI(ki).cipher_suite)} ->
-	rg:range -> ad:(;ki) data -> (;ki,rg,ad) AEPlain -> (;ki) tag ->
-	(tlen:nat * (;ki,tlen) plain){tlen=RangeCipher(ki,rg) /\ tlen <= DataStream.max_TLSCipher_fragment_length}
+	rg:range -> ad:(;ki) data -> pl:(;ki,rg,ad) AEPlain -> tag:(;ki) tag ->
+	(tlen:nat * p:(;ki,tlen) plain){tlen=RangeCipher(ki,rg) /\ tlen <= DataStream.max_TLSCipher_fragment_length /\ Encoded(ki,ad,pl,tag,p)}
 val decode: ki:epoch{IsAEADCiphersuite(EpochSI(ki).cipher_suite)} ->
-	ad:(;ki) data -> tlen:nat -> (;ki,tlen) plain ->
-	(rg:range * (;ki,rg,ad)AEPlain * (;ki)tag * bool){tlen=RangeCipher(ki,rg)}
+	ad:(;ki) data -> tlen:nat -> p:(;ki,tlen) plain ->
+	(rg:range * pl:(;ki,rg,ad)AEPlain * tag:(;ki)tag * ok:bool){
+          tlen=RangeCipher(ki,rg) /\
+          (Encoded(ki,ad,pl,tag,p) => ok = true)}
 val encodeNoPad: ki:epoch{IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite)} ->
 	rg:range -> ad:(;ki) data -> (;ki,rg,ad) AEPlain -> (;ki) tag ->
 	(tlen:nat * (;ki,tlen) plain){tlen=RangeCipher(ki,rg) /\ tlen <= DataStream.max_TLSCipher_fragment_length}

@@ -174,7 +174,7 @@ val writeOne: c:Connection ->
 val writeAll: c:Connection ->
 	(writeOutcome * Connection) Result
 
-val read: c:Connection -> (;c)ioresult_i
+val read: c:Connection -> (c':Connection*(;c')ioresult_i)
 
 val write: c:Connection ->
 	(;ConnectionEpochOut(c),ConnectionOutStream(c))msg_o ->

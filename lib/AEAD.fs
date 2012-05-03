@@ -8,6 +8,10 @@ open Error
 
 type cipher = bytes
 
+type preds = 
+    CTXT of epoch * bytes * AEADPlain.AEADPlain * cipher
+  | NotCTXT of epoch * bytes * cipher
+
 type AEADKey =
     | MtE of MAC.key * ENC.state
     | MACOnly of MAC.key
@@ -57,7 +61,7 @@ let LEAK ki k =
         let (k,iv) = ENC.LEAK ki ek in
         MAC.LEAK ki mk @| k @| iv
 
-let encrypt ki key data rg plain =
+let encrypt' ki key data rg plain =
     let si = epochSI(ki) in
     let aep = AEADPlain.AEADPlainToAEPlain ki rg data plain in
     let cs = si.cipher_suite in
@@ -80,7 +84,7 @@ let encrypt ki key data rg plain =
 let mteKey (ki:epoch) ka ke = MtE(ka,ke)
 
 
-let decrypt ki key data cipher =
+let decrypt' ki key data cipher =
     let si = epochSI(ki) in
     let cs = si.cipher_suite in
     match (cs,key) with
@@ -94,33 +98,42 @@ let decrypt ki key data cipher =
         match si.protocol_version with
         | SSL_3p0 | TLS_1p0 ->
             if ok then 
-              if AEPlain.verify ki ka maced tag (* padding time oracle *) 
-                then 
-                  let res = (nk,rg,plain) in
-                  correct res
+              if AEPlain.verify ki ka maced tag (* padding time oracle *) then 
+                  correct (nk,rg,plain)
                 else Error(MAC,CheckFailed)
             else     Error(RecordPadding,CheckFailed) (* padding error oracle *)
         | TLS_1p1 | TLS_1p2 ->
-            if AEPlain.verify ki ka maced tag 
-            then 
-              if ok 
-                then
-                  let res = (nk,rg,plain) in
-                    correct res
-                else Error(MAC,CheckFailed)
-            else     Error(MAC,CheckFailed)
+            if ok then
+               if AEPlain.verify ki ka maced tag then 
+                  correct (nk,rg,plain)
+               else Error(MAC,CheckFailed)
+            else    Error(MAC,CheckFailed)
     | (x,MACOnly (ka)) when isOnlyMACCipherSuite x ->
         let encoded        = AEPlain.plain ki (length cipher) cipher in
         let (rg,aep,tag) = AEPlain.decodeNoPad ki data (length cipher) encoded in
         let plain = AEADPlain.AEPlainToAEADPlain ki rg data aep in
         let maced          = AEPlain.macPlain ki rg data aep
         if AEPlain.verify ki ka maced tag 
-          then
-               correct (key,rg,plain)
+        then   correct (key,rg,plain)
           else Error(MAC,CheckFailed)
 //  | GCM (GCMKey) -> ... 
     | (_,_) -> unexpectedError "[decrypt] incompatible ciphersuite-key given."
 
+let encrypt ki key data rg plain = 
+  let (key,cipher) = encrypt' ki key data rg plain in
+    Pi.assume (CTXT(ki,data,plain,cipher));
+    (key,cipher)
+
+let decrypt ki key data cipher = 
+  let res = decrypt' ki key data cipher in
+    match res with
+        Correct r ->
+          let (key,rg,plain) = r in
+          Pi.assume (CTXT(ki,data,plain,cipher));
+          Correct r
+      | Error(x,y) ->
+          Pi.assume (NotCTXT(ki,data,cipher));
+          Error(x,y)
 (*
 let encrypt ki key iv3 tlen data plain =
     match key with

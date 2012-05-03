@@ -81,11 +81,12 @@ predicate CTXT of cipherAlg * hashAlg
 // assume !e. PRF(m) => CTXT(AES_128_CBC,m)
 // assume !e. PRF(m) => CTXT(AES_256_CBC,m)
 
-predicate StrongAE of authencAlg
-predicate StrongAuth of authencAlg
+predicate StrongAE of cipherSuite
+predicate StrongAuth of cipherSuite
 
-definition !s. StrongAE(s)   <=> ?e,m. s = MtE(e,m) /\ CPA(e) /\ CTXT(e,m)
-definition !s. StrongAuth(s) <=> ?e,m. s = MtE(e,m) /\ CMA(m)
+definition !s. StrongAE(s)   <=> (?e,m. IsAEADCiphersuite(s) /\ AEAlg(s) = MtE(e,m) /\ CPA(e) /\ CTXT(e,m))
+definition !s. StrongAuth(s) <=> (?e,m. IsAEADCiphersuite(s) /\ AEAlg(s) = MtE(e,m) /\ CMA(m))
+
 
 // Predicates specifying the security of TLS connections 
 
@@ -94,13 +95,15 @@ predicate type cryptopreds =
   | Safe of epoch // The epoch parameters yield privacy & integrity
   | Auth of epoch // The epoch parameters yield integrity (not necesarily privacy)
   
-definition !i. Safe(i) <=> SafeHS(i) /\ StrongAE(AEAlg(EpochSI(i).cipher_suite)) 
-definition !i. Auth(i) <=> SafeHS(i) /\ StrongAuth(AEAlg(EpochSI(i).cipher_suite))
+definition !i. Safe(i) <=> (SafeHS(i) /\ StrongAE(EpochSI(i).cipher_suite))
+definition !i. Auth(i) <=> (SafeHS(i) /\ StrongAuth(EpochSI(i).cipher_suite))
 
 // not quite derivable unless we add CTXT => CMA
 assume !ki. Safe(ki) => Auth(ki) 
 
 ask !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) => not Safe(ki)
+ask !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) => 
+    not (?kex,s. EpochSI(ki).cipher_suite = CipherSuite(kex,s))
 
 // so that TLS can exchange any traffic on the initial null connection
 ask !ki. IsNullCiphersuite(EpochSI(ki).cipher_suite)    => not Auth(ki)

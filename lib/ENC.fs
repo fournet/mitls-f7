@@ -62,6 +62,17 @@ let tdesDecrypt ki key iv (data:bytes) =
     let dec = tdes.CreateDecryptor(key,iv) in
     symDecrypt dec data
 
+let rc4Encrypt ki key iv data =
+    let tdes = new System.Security.Cryptography.TripleDESCryptoServiceProvider() in
+    tdes.Padding <- System.Security.Cryptography.PaddingMode.None
+    let enc = tdes.CreateEncryptor(key,iv) in
+    symEncrypt enc data
+
+let rc4Decrypt ki key iv (data:bytes) =
+    let tdes = new System.Security.Cryptography.TripleDESCryptoServiceProvider() in
+    tdes.Padding <- System.Security.Cryptography.PaddingMode.None;
+    let dec = tdes.CreateDecryptor(key,iv) in
+    symDecrypt dec data
 (* Early TLS chains IVs but this is not secure against adaptive CPA *)
 let lastblock cipher ivl =
     let (_,b) = split cipher (length cipher - ivl) in b

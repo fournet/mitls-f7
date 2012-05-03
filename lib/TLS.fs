@@ -18,7 +18,8 @@ let accept_connected ns po = Dispatch.init ns Server po
 
 let request c po = Dispatch.request c po
 
-let read c = Dispatch.read c
+
+let read c = let c',res = Dispatch.read c in res
 let write c msg = Dispatch.write c msg
 let shutdown c = Dispatch.shutdown c
 

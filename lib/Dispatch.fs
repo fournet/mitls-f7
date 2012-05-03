@@ -74,8 +74,6 @@ type ioresult_o =
     | WritePartial  of nextCn * msg_o
     | MustRead      of Connection
 
-let coerce_i (c:Connection) (c':Connection) (res:ioresult_i) = res
-let coerce_o (c:Connection) (c':Connection) (res:ioresult_o) = res
 
 // Outcomes for internal, one-message-at-a-time functions
 type writeOutcome =
@@ -606,7 +604,7 @@ let rec read c =
     let orig = c in
     let unitVal = () in
     match writeAll c with
-    | Error(x,y) -> ReadError(EInternal(x,y)) // Internal error
+    | Error(x,y) -> c,ReadError(EInternal(x,y)) // Internal error
     | Correct(res) ->
         let (outcome,c) = res in
         match outcome with
@@ -616,61 +614,62 @@ let rec read c =
             // because the output buffer is always empty)
             match readOne c with
             | Error(x,y) ->
-                ReadError(EInternal(x,y)) // internal error
+                c,ReadError(EInternal(x,y)) // internal error
             | Correct(res) ->
                 let (outcome,c) = res in
                 match outcome with
                 | RAgain ->
-                    let res = read c in
-                      coerce_i c orig res 
+                    read c 
                 | RAppDataDone ->    
                     // empty the appData internal buffer, and return its content to the user
                     let (Conn(id,conn)) = c in
                     match AppDataStream.readAppData id conn.appdata with
                     | (Some(b),appState) ->
                         let conn = {conn with appdata = appState} in
-                        Read(Conn(id,conn),b)
+                        let c = Conn(id,conn) in
+                        Pi.assume (GState(id,conn));
+                        c,Read(c,b)
                     | (None,_) -> unexpectedError "[read] When RAppDataDone, some data should have been read."
                 | RQuery(q) ->
-                    CertQuery(c,q)
+                    c,CertQuery(c,q)
                 | RHSDone ->
-                    Handshaken(c)
+                    c,Handshaken(c)
                 | RClose ->
                     let (Conn(id,conn)) = c in
                     match conn.write.disp with
                     | Closed ->
                         // we already sent a close_notify, tell the user it's over
-                        Close conn.ns
+                        c,Close conn.ns
                     | _ ->
                         match writeAll c with
                         | Correct(SentClose,c) ->
                             // clean shoutdown
-                            Close conn.ns
+                            c,Close conn.ns
                         | Correct(SentFatal(ad),c) ->
-                            ReadError(EFatal(ad))
+                            c,ReadError(EFatal(ad))
                         | Correct(_,c) ->
-                            ReadError(EInternal(Dispatcher,Internal)) // internal error
+                            c,ReadError(EInternal(Dispatcher,Internal)) // internal error
                         | Error(x,y) ->
-                            ReadError(EInternal(x,y)) // internal error
+                            c,ReadError(EInternal(x,y)) // internal error
                 | RFatal(ad) ->
-                    Fatal(ad)
+                    c,Fatal(ad)
                 | RWarning(ad) ->
-                    Warning(c,ad)
+                    c,Warning(c,ad)
         | WMustRead ->
-            DontWrite(c)
+            c,DontWrite(c)
         | WHSDone ->
-            Handshaken (c)
+            c,Handshaken (c)
         | SentFatal(ad) ->
-            ReadError(EFatal(ad))
+            c,ReadError(EFatal(ad))
         | SentClose ->
             let (Conn(id,conn)) = c in
             match conn.read.disp with
             | Closed ->
                 // we already received a close_notify, tell the user it's over
-                Close conn.ns
+                c,Close conn.ns
             | _ ->
                 // same as we got a MustRead
-                DontWrite c
+                c,DontWrite c
         | WriteAgain -> unexpectedError "[read] writeAll should never return WriteAgain"
 
 let write (Conn(id,c)) msg =

@@ -34,24 +34,36 @@ val GEN:    ki:epoch{Safe(ki)} -> encryptor:(;ki)AEADKey * decryptor:(;ki)AEADKe
 val COERCE: ki:epoch{not Auth(ki)} -> b:bytes{Length(b) = AEADSize(ki)} -> (;ki)AEADKey
 val LEAK:   ki:epoch{not Auth(ki)} -> (;ki)AEADKey -> b:bytes
 
-(* KB: 18/4. Define CTXT or assume in code? The following assume is a stop-gap *)
+(* KB: 2/5. Partial implementation of CTXT in the code. *)
 predicate val CTXT: 'a * 'b * 'c * 'd -> bool
-
+predicate val NotCTXT: 'a * 'b * 'd -> bool
+assume !ki,d,p,c. NotCTXT(ki,d,c) => not CTXT(ki,d,p,c)
+assume !ki,d,p,p',c. (CTXT(ki,d,p,c) /\ CTXT(ki,d,p',c)) => p = p'
 private val mteKey: ki:epoch -> (;ki) MAC.key -> (;ki) ENC.state -> (;ki) AEADKey
 
 function val CipherRange: epoch * bytes -> range
 assume !e,c,rg. rg = CipherRange(e,c) <=> Length(c) = AEPlain.RangeCipher(e,rg)
+val encrypt': ki:epoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
+  rg:range -> p:(;ki,rg,ad) AEADPlain.AEADPlain ->
+  ((;ki) AEADKey * c:cipher){rg = CipherRange(ki,c)}
+
+val decrypt': ki:epoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
+  c:cipher -> res: 
+  ( ((;ki) AEADKey *  rg:range * (;ki,rg,ad) AEADPlain.AEADPlain)) Result
+   {!k,r,p. res = Correct((k,r,p)) => r = CipherRange(ki,c)}
+
 val encrypt: ki:epoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
   rg:range -> p:(;ki,rg,ad) AEADPlain.AEADPlain ->
-  ((;ki) AEADKey * c:cipher){rg = CipherRange(ki,c)
-      /\ CTXT(ki,ad,AEADPlain.AEADContents(p),c)}
+  ((;ki) AEADKey * c:cipher){rg = CipherRange(ki,c) /\
+                             (Safe(ki) => CTXT(ki,ad,p,c))}
 
 val decrypt: ki:epoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
   c:cipher -> res: 
-  ( ((;ki) AEADKey *  
-    rg:(rg:range {rg=CipherRange(ki,c)}) * 
-    (;ki,rg,ad) AEADPlain.AEADPlain)) Result
-  { Auth(ki) => (!k,r,p.  res = Correct((k,r,p)) <=> CTXT(ki,ad,p,c))}
+  ( ((;ki) AEADKey *  rg:range * (;ki,rg,ad) AEADPlain.AEADPlain)) Result
+   {(!k,r,p. res = Correct((k,r,p)) => r = CipherRange(ki,c)) /\
+    (Safe(ki) => 
+        ((!k,r,p. res = Correct((k,r,p)) => CTXT(ki,ad,p,c)) /\
+         (!p. CTXT(ki,ad,p,c) => (?k,r. res = Correct((k,r,p))))))}
 
 // CF 04-09 discussion points: 
 //

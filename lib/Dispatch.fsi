@@ -59,7 +59,7 @@ type ioresult_o =
     | MustRead      of Connection
     
 val write: Connection -> msg_o -> ioresult_o
-val read: Connection -> ioresult_i
+val read: Connection -> Connection * ioresult_i
 (* val appDataAvailable: Connection -> bool *)
 
 val authorize: Connection -> query -> Connection
