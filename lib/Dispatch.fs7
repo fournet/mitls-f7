@@ -37,6 +37,7 @@ type (;id:ConnectionInfo) preGlobalState = {
   ns: Tcp.NetworkStream;
   }
 
+
 predicate GState of ci:ConnectionInfo * (;ci)preGlobalState
 type (;id:ConnectionInfo) globalState = gs:(;id) preGlobalState{GState(id,gs)}
 
@@ -78,6 +79,8 @@ assume !id,s. ConnectionInHistory(Conn(id,s)) = Record.History(id.id_in,s.read.c
 function val ConnectionOutHistory: c:Connection -> (;ConnectionEpochOut(c))TLSFragment.history
 assume !id,s. ConnectionOutHistory(Conn(id,s)) = Record.History(id.id_out,s.write.conn)
 
+val networkStream: Connection -> Tcp.NetworkStream
+
 function val Params: Connection -> protocolOptions
 assume !id,s. Params(Conn(id,s)) = s.poptions
 
@@ -87,32 +90,13 @@ type query = Certificate.cert
 type (;e:epoch,s:(;e)stream)msg_i = r:range * (;e,s,r)delta
 type (;e:epoch,s:(;e)stream)msg_o = r:range * (;e,s,r)delta
 
+
 type ioerror =
     | EInternal of ErrorCause * ErrorKind
     | EFatal of alertDescription
 
-// Outcomes for top-level functions
-type (;c:Connection)ioresult_i =
-    | ReadError of ioerror
-    | Close     of Tcp.NetworkStream
-    | Fatal     of alertDescription
-    | Warning   of (;c)nextCn * alertDescription 
-    | CertQuery of (;c)nextCn * query
-    | Handshaken of Connection
-    | Read      of (;c)nextCn * (;ConnectionEpochIn(c),ConnectionInStream(c))msg_i
-    | DontWrite of Connection
-
-type (;c:Connection)ioresult_o =
-    | WriteError    of ioerror
-    | WriteComplete of (;c)nextCn
-    | WritePartial  of (;c)nextCn * (;ConnectionEpochOut(c),ConnectionOutStream(c))msg_o
-    | MustRead      of Connection
-
-//KB to fix:
-val coerce_i: c:Connection -> c':Connection -> (;c) ioresult_i -> (;c') ioresult_i
-val coerce_o: c:Connection -> c':Connection -> (;c) ioresult_o -> (;c') ioresult_o
-
 type writeOutcome =
+    | WError of ioerror 
     | WriteAgain (* Possibly more data to send *)
     | WAppDataDone (* No more data to send in the current state *)
     | WHSDone
@@ -120,9 +104,11 @@ type writeOutcome =
     | SentFatal of alertDescription
     | SentClose
 
-type deliverOutcome =
+type readOutcome =
+    | WriteOutcome of writeOutcome
+    | RError of ioerror 
     | RAgain
-    | RAppDataDone
+    | RAppDataDone 
     | RQuery of query
     | RHSDone
     | RClose
@@ -155,18 +141,13 @@ val send: Tcp.NetworkStream -> e:epoch -> w:(;e)dState ->
             (Record.History(e,w'.conn) = TLSFragment.ExtendHistory(e,ct,Record.History(e,w.conn),rg,TLSFragment.TLSContents(f)))}
 
 
-(*
-val deliver: c:Connection -> ct:Formats.ContentType -> r:range->
-	(;ConnectionEpochIn(c),ct,ConnectionInHistory(c),r)TLSFragment.fragment ->
-	(deliverOutcome * Connection) Result
-                                                                                                                                                                         *)
 val recv: c:Connection ->
 	((;ConnectionEpochIn(c)) Record.ConnectionState *
 	 ct:Formats.ContentType * r:range * 
          (;ConnectionEpochIn(c),ct,ConnectionInHistory(c),r)TLSFragment.fragment) Result
 
 val readOne: c:Connection ->
-	(deliverOutcome * Connection) Result
+	(readOutcome * Connection) Result
 
 val writeOne: c:Connection ->
 	(writeOutcome * Connection) Result
@@ -174,11 +155,11 @@ val writeOne: c:Connection ->
 val writeAll: c:Connection ->
 	(writeOutcome * Connection) Result
 
-val read: c:Connection -> (c':Connection*(;c')ioresult_i)
+val read: c:Connection -> (c':Connection*readOutcome*(;ConnectionEpochIn(c'),ConnectionInStream(c'))msg_i option)
 
 val write: c:Connection ->
 	(;ConnectionEpochOut(c),ConnectionOutStream(c))msg_o ->
-	(;c)ioresult_o
+	(c':Connection*writeOutcome*(;ConnectionEpochOut(c'),ConnectionOutStream(c'))msg_o option)
 
 val authorize: Connection -> query -> Connection
 val refuse: Connection -> query -> unit

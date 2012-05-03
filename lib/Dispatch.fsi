@@ -16,6 +16,8 @@ type query = Certificate.cert
 type msg_i = (range * delta)
 type msg_o = (range * delta)
 
+val networkStream: Connection -> NetworkStream
+
 val init: NetworkStream -> Role -> protocolOptions -> Connection
 
 val resume: NetworkStream -> sessionID -> protocolOptions -> Connection Result
@@ -41,25 +43,29 @@ val readNextAppFragment: Connection -> (unit Result) * Connection
 type ioerror =
     | EInternal of ErrorCause * ErrorKind
     | EFatal of alertDescription
+type writeOutcome =
+    | WError of ioerror
+    | WriteAgain (* Possibly more data to send *)
+    | WAppDataDone (* No more data to send in the current state *)
+    | WHSDone
+    | WMustRead (* Read until completion of Handshake *)
+    | SentFatal of alertDescription
+    | SentClose
 
-type ioresult_i =
-    | ReadError of ioerror
-    | Close     of Tcp.NetworkStream
-    | Fatal     of alertDescription
-    | Warning   of nextCn * alertDescription 
-    | CertQuery of nextCn * query
-    | Handshaken of Connection
-    | Read      of nextCn * msg_i
-    | DontWrite of Connection
+type readOutcome =
+    | WriteOutcome of writeOutcome 
+    | RError of ioerror
+    | RAgain
+    | RAppDataDone
+    | RQuery of query
+    | RHSDone
+    | RClose
+    | RFatal of alertDescription
+    | RWarning of alertDescription
+
     
-type ioresult_o =
-    | WriteError    of ioerror
-    | WriteComplete of nextCn
-    | WritePartial  of nextCn * msg_o
-    | MustRead      of Connection
-    
-val write: Connection -> msg_o -> ioresult_o
-val read: Connection -> Connection * ioresult_i
+val write: Connection -> msg_o -> Connection * writeOutcome * msg_o option
+val read: Connection -> Connection * readOutcome * msg_i option
 (* val appDataAvailable: Connection -> bool *)
 
 val authorize: Connection -> query -> Connection

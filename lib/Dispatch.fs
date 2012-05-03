@@ -46,6 +46,7 @@ type preGlobalState = {
 type globalState = preGlobalState
 
 type Connection = Conn of ConnectionInfo * globalState
+let networkStream (Conn(id,g)) = g.ns
 
 type nextCn = Connection
 type query = Certificate.cert
@@ -57,26 +58,9 @@ type ioerror =
     | EInternal of ErrorCause * ErrorKind
     | EFatal of alertDescription
 
-// Outcomes for top-level functions
-type ioresult_i =
-    | ReadError of ioerror
-    | Close     of Tcp.NetworkStream
-    | Fatal     of alertDescription
-    | Warning   of nextCn * alertDescription 
-    | CertQuery of nextCn * query
-    | Handshaken of Connection
-    | Read      of nextCn * msg_i
-    | DontWrite of Connection
-
-type ioresult_o =
-    | WriteError    of ioerror
-    | WriteComplete of nextCn
-    | WritePartial  of nextCn * msg_o
-    | MustRead      of Connection
-
-
 // Outcomes for internal, one-message-at-a-time functions
 type writeOutcome =
+    | WError of ioerror
     | WriteAgain (* Possibly more data to send *)
     | WAppDataDone (* No more data to send in the current state *)
     | WHSDone
@@ -84,7 +68,9 @@ type writeOutcome =
     | SentFatal of alertDescription
     | SentClose
 
-type deliverOutcome =
+type readOutcome =
+    | WriteOutcome of writeOutcome 
+    | RError of ioerror
     | RAgain
     | RAppDataDone
     | RQuery of query
@@ -599,7 +585,7 @@ let rec writeAll c =
     match writeOne c with
     | Correct (WriteAgain,c) -> writeAll c
     | other -> other
-
+(*
 let rec read c =
     let orig = c in
     let unitVal = () in
@@ -671,14 +657,86 @@ let rec read c =
                 // same as we got a MustRead
                 c,DontWrite c
         | WriteAgain -> unexpectedError "[read] writeAll should never return WriteAgain"
+*)
+let rec read c =
+    let orig = c in
+    let unitVal = () in
+    match writeAll c with
+    | Error(x,y) -> c,WriteOutcome(WError(EInternal(x,y))),None
+    | Correct(res) ->
+        let (outcome,c) = res in
+        match outcome with
+        | WAppDataDone ->
+            match readOne c with
+            | Error(x,y) -> c,RError(EInternal(x,y)),None
+            | Correct(res) ->
+                let (outcome,c) = res in
+                match outcome with
+                | RAgain ->
+                    read c 
+                | RAppDataDone ->    
+                    // empty the appData internal buffer, and return its content to the user
+                    let (Conn(id,conn)) = c in
+                    match AppDataStream.readAppData id conn.appdata with
+                    | (Some(b),appState) ->
+                        let conn = {conn with appdata = appState} in
+                        let c = Conn(id,conn) in
+                        Pi.assume (GState(id,conn));
+                        c,RAppDataDone,Some(b)
+                    | (None,_) -> unexpectedError "[read] When RAppDataDone, some data should have been read."
+                | RQuery(q) ->
+                    c,RQuery(q),None
+                | RHSDone ->
+                    c,RHSDone,None
+                | RClose ->
+                    let (Conn(id,conn)) = c in
+                    match conn.write.disp with
+                    | Closed ->
+                        // we already sent a close_notify, tell the user it's over
+                        c,RClose, None
+                    | _ ->
+                        match writeAll c with
+                        | Correct(SentClose,c) ->
+                            // clean shoutdown
+                            c,RClose,None
+                        | Correct(SentFatal(ad),c) ->
+                            c,RError(EFatal(ad)),None
+                        | Correct(_,c) ->
+                            c,RError(EInternal(Dispatcher,Internal)),None // internal error
+                        | Error(x,y) ->
+                            c,RError(EInternal(x,y)),None // internal error
+                | RFatal(ad) ->
+                    c,RFatal(ad),None
+                | RWarning(ad) ->
+                    c,RWarning(ad),None
+        | SentClose -> c,WriteOutcome(SentClose),None
+        | WMustRead -> c,WriteOutcome(WMustRead),None
+        | WHSDone -> c,WriteOutcome(WHSDone),None
+        | SentFatal(ad) -> c,WriteOutcome(SentFatal(ad)),None
+        | WriteAgain -> unexpectedError "[read] writeAll should never return WriteAgain"
 
 let write (Conn(id,c)) msg =
   let (r,d) = msg in
   let new_appdata = AppDataStream.writeAppData id c.appdata r d in
   let c = {c with appdata = new_appdata} in 
   match writeAll (Conn(id,c)) with
-    | Error(x,y) ->
-        WriteError(EInternal(x,y)) // internal
+    | Error(x,y) -> Conn(id,c),WError(EInternal(x,y)),None // internal
+    | Correct(res) ->
+        let (outcome,c) = res in
+          match outcome with
+            | WAppDataDone ->
+                let (Conn(id,g)) = c in
+                let (rdOpt,new_appdata) = AppDataStream.emptyOutgoingAppData id g.appdata in
+                let g = {g with appdata = new_appdata} in
+                  Conn(id,g),WAppDataDone,rdOpt
+            | _ -> c,outcome,None
+(*
+let write (Conn(id,c)) msg =
+  let (r,d) = msg in
+  let new_appdata = AppDataStream.writeAppData id c.appdata r d in
+  let c = {c with appdata = new_appdata} in 
+  match writeAll (Conn(id,c)) with
+    | Error(x,y) -> WError(EInternal(x,y)) // internal
     | Correct(res) ->
         let (outcome,c) = res in
         match outcome with
@@ -702,7 +760,7 @@ let write (Conn(id,c)) msg =
             WriteError(EFatal(ad))
         | WriteAgain ->
             unexpectedError "[write] writeAll should never return WriteAgain"
-
+*)
 let authorize (Conn(id,c)) q =
     let hs = Handshake.authorize id c.handshake q in
     let c = {c with handshake = hs} in
