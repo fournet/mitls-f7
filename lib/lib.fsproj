@@ -120,6 +120,7 @@
     <Compile Include="SessionDB.fs" />
     <None Include="Handshake.fs7" />
     <None Include="Handshake2.fs7" />
+    <None Include="Handshake3.fs7" />
     <Compile Include="Handshake.fsi" />
     <Compile Include="Handshake.fs" />
     <None Include="AppDataStream.fs7" />
