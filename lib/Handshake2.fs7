@@ -9,18 +9,40 @@ open CipherSuites
 open TLSInfo
 open TLSKey
 
-type role = Client | Server 
+type role = Client | Server // Already defined in TLSInfo
 type config = protocolOptions option
+
+// What's the purpose of special idle handling?
 val idle: config (* client-only *)
 function val Idle: role * config -> config
-definition !o. Idle(Client,o) = idle
+definition !o. Idle(Client,o) = o // was idle, but we don't want to lose user-provided options, in case of unsolicited HS requests from the server
 definition !o. Idle(Server,o) = o
 //TODO: rename ccs_data
 //TODO: consider getting rid of epoch-indexed fragments.
 //TODO: change Direction to role
 
+// For simplicity, let's assume that we can prove the current epoch safe, only
+// if previous epochs were also safe (i.e.: no broken epochs in the middle)
+// SafeHS(id) <=> StongHS(EpochSI(id).cipher_suite) /\ ( SafeHS(id.prev) \/ id.prev = InitEpoch ) /\
+//				  Honest(LTKey(id)) /\ Honest(LTKey(Peer(id)))
+
+// About indexing:
+// Epochs loose the randomness indexing in the Init case: so epoch looks like
+// epoch = | Init of Role
+// | Succ of ...
+// ConnectionInfo should become:
+// { id_in: epoch; id_out: epoch; our_random: bytes}
+// where our_random is the random value generated for the first HS on our side.
+// Rationale: Now epochs are exactly the same on both sides (we don't have a
+// special case for the init epoch which differs by randomness)
+// Still, the user cannot confuse connection states, because they're indexed
+// by our randomness.
+
 (* Control Interface *) 
 
+
+// No need for such special indexing. HS state can be indexed by CI, as any
+// other upper protocol state.
 type (;r:role,o:config) state (* for each local instance of the protocol *)
 val init:                               r:role -> o:config -> (;r     ,o) state 
 val resume:                     si:SessionInfo -> o:config -> (;Client,o) state
@@ -28,12 +50,14 @@ val rehandshake:          (;Client,idle) state -> o:config -> (;Client,o) state
 val rekey:                (;Client,idle) state -> o:config -> (;Client,o) state
 val request: old:config -> (;Server,old) state -> o:config -> (;Server,o) state
 
+// Not needed, the HS will return the new CI/Epoch when ready.
 (* the two new KeyInfos can be read off the handshake state *)
-function val  InKi: r:role * o:config * (;r,o) state -> epoch 
-function val OutKi: r:role * o:config * (;r,o) state -> epoch 
+function val  InKi: r:role * o:config * (;r,o) state -> epoch // ci.id_in
+function val OutKi: r:role * o:config * (;r,o) state -> epoch // ci.id_out
 val  inKi: r:role -> o:config -> s:(;r,o) state -> ki:epoch {ki = InKi(r,o,s)}
 val outKi: r:role -> o:config -> s:(;r,o) state -> ki:epoch {ki = OutKi(r,o,s)}
 
+// Input/OutputReady superseeded by CCSSent
 predicate val  InputReady: r:role * o:config * (;r,o) state -> bool (* Ready to input with new keys*)
 predicate val OutputReady: r:role * o:config * (;r,o) state -> bool (* Ready to output with new keys *)
 predicate val    Complete: r:role * o:config * (;r,o) state -> bool (* Completed Handshake *)
@@ -49,14 +73,19 @@ type (;ki:epoch,l:nat) ccsFragment
 val ccsRepr:     ki:epoch -> (;ki,1) ccsFragment -> b:bytes{Length(b)=1}
 val ccsFragment: ki:epoch -> b:bytes{Length(b)=1} -> (;ki,1) ccsFragment
 
+// Merge with Hansdshake.fs7:
+// In Handshake.fs7, put state in HSFragReply, so that we can index the returned state
+// with the new epochs possibly returned by OutCCS event.
 type (;r:role,o:config,ki:epoch) outgoing = 
   | OutIdle of               (;r,o) state
-  | OutSome of               (;r,o) state * (;ki) fragment             
+  | OutSome of               (;r,o) state * (;ki) fragment   
+  //| OutQuery of (;r,o)state * Certificate.cert         
   | OutCCS of              s:(;r,o) state * (;ki,1) ccsFragment * (;OutKi(r,o,s)) ccs_data {SentCCS(ki) /\ OutputReady(r,o,s)} 
   | OutFinished of           (;r,o) state * (;ki) fragment
   | OutComplete of s:(;r,Idle(r,o)) state * (;ki) fragment {Complete(r,o,s)} 
 val nextFragment: r:role -> o:config -> (;r,o) state -> ki:epoch -> (;r,o,ki) outgoing 
 
+// Same merging as above
 type (;r:role,o:config) incoming = 
   | InAck of                (;r,o) state 
   | InVersion of            (;r,o) state * ProtocolVersion
@@ -68,6 +97,10 @@ val recvFragment: r:role -> o:config -> (;r,o) state ->
 val recvCCS: r:role -> o:config -> (;r,o) state ->
   ki:epoch -> (;ki,1) ccsFragment -> 
   s:(;r,o) state * (((;InKi(r,o,s)) ccs_data {InputReady(r,o,s)}) Result) 
+
+// from current HS.fs7
+val authorize: ci:ConnectionInfo -> (;ci)hs_state -> Certificate.cert -> (;ci)hs_state
+
 
 (*   
 !s, Complete(r,o,s) =>
