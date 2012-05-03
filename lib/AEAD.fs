@@ -103,8 +103,8 @@ let decrypt' ki key data cipher =
                 else Error(MAC,CheckFailed)
             else     Error(RecordPadding,CheckFailed) (* padding error oracle *)
         | TLS_1p1 | TLS_1p2 ->
-            if ok then
-               if AEPlain.verify ki ka maced tag then 
+            if AEPlain.verify ki ka maced tag then 
+               if ok then
                   correct (nk,rg,plain)
                else Error(MAC,CheckFailed)
             else    Error(MAC,CheckFailed)
