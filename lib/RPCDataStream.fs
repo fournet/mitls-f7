@@ -67,3 +67,10 @@ let split (ki:epoch) (s:stream) (r0:range) (r1:range) (d:delta) =
   let (sb0, sb1) = Bytes.split d.contents n0
   ({contents = sb0}, {contents = sb1})
 
+let rec byteslst_to_bytes = fun ls ->
+    match ls with
+    | [] -> [||]
+    | hd::tl -> (byteslst_to_bytes tl) @| hd
+
+let stream_to_bytes = fun (ki:epoch) h ->
+    byteslst_to_bytes h.sb

@@ -22,7 +22,7 @@ val splitRange: ki:epoch -> r:range -> (r0:range * r1:range){r = Sum(r0,r1)}
 /// Messages
 (*
 val msglen : i:int{i > 0}
-type msg = b:bytes{length(b) = msglen}
+private type msg = b:bytes{length(b) = msglen}
 *)
 
 private type (;ki:epoch) stream = {sb:bytes list}
@@ -30,16 +30,40 @@ private type (;ki:epoch) stream = {sb:bytes list}
 predicate Request  of epoch * bytes
 predicate Response of epoch * bytes * bytes
 
+(*
 private type (;ki:epoch, h:(;ki)stream, r:range) delta = {
-  contents: b:(;r) rbytes{
+  contents: b:(;r) rbytes(*{
        (?rq     . Request(ki, rq) /\ (?s . rq = h @| b @| s))
 	\/ (?rq, rp . Request(ki, rq) /\ Response(ki, rq, rp) /\ (?s . rp = h @| b @| s))
-	\/ (not Auth(ki))	
+	\/ (not Auth(ki))
+  }
+}
+*)
+
+private function val BytesLstToBytes: (bytes list) -> bytes
+
+private assume BytesLstToBytes([]) = [||]
+private assume !hd, tl . BytesLstToBytes(hd :: tl) = BytesLstToBytes(tl) @| hd
+
+function val StreamToBytes: ki:epoch * (;ki) stream -> bytes
+
+assume !ki, h. StreamToBytes(ki, h) = BytesLstToBytes(h.sb)
+
+val byteslst_to_bytes: bs:(bytes list) -> b:bytes{BytesLstToBytes(bs) = b}
+
+val stream_to_bytes: ki:epoch -> h:(;ki) stream -> b:bytes{StreamToBytes(ki, h) = b}
+
+private type (;ki:epoch, h:(;ki)stream, r:range) delta = {
+  contents: b:(;r) rbytes{
+       (?rq . Request(ki, rq) /\ (?s . rq = StreamToBytes(ki, h) @| b @| s))
+	\/ (?rq, rp . Request(ki, rq) /\ Response(ki, rq, rp) /\ (?s . rp = StreamToBytes(ki, h) @| b @| s))
+	\/ not Auth(ki)
   }
 }
 
 predicate EmptyStream of ki:epoch * (;ki) stream 
-// function val EmptyStream:  ki:epoch -> (;ki) stream // AP: F7 issue with records as single argument of a function. Do not use this function, use the predicate instead.
+// function val EmptyStream:  ki:epoch -> (;ki) stream
+// AP: F7 issue with records as single argument of a function. Do not use this function, use the predicate instead.
 function val ExtendStream: 'a * 'b * 'c * 'd -> 'e
 assume !ki,s. EmptyStream(ki,s) <=> s = {sb = [] }
 assume !ki,s,r,d. ExtendStream(ki,s,r,d) = {sb = d.contents :: s.sb } 

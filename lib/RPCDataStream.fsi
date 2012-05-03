@@ -11,6 +11,9 @@ val splitRange: epoch -> range -> range * range
 
 type stream
 type delta
+
+val stream_to_bytes: epoch -> stream -> bytes
+
 val split: epoch -> stream -> range -> range -> delta -> delta * delta
 val deltaPlain:         epoch -> stream -> range -> rbytes -> delta
 val deltaRepr:     epoch -> stream -> range -> delta -> rbytes
