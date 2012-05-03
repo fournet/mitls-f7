@@ -90,11 +90,6 @@ type query = Certificate.cert
 type (;e:epoch,s:(;e)stream)msg_i = r:range * (;e,s,r)delta
 type (;e:epoch,s:(;e)stream)msg_o = r:range * (;e,s,r)delta
 
-
-type ioerror =
-    | EInternal of ErrorCause * ErrorKind
-    | EFatal of alertDescription
-
 type writeOutcome =
     | WError of ioerror 
     | WriteAgain (* Possibly more data to send *)

@@ -54,10 +54,6 @@ type query = Certificate.cert
 type msg_i = (DataStream.range * DataStream.delta)
 type msg_o = (DataStream.range * DataStream.delta)
 
-type ioerror =
-    | EInternal of ErrorCause * ErrorKind
-    | EFatal of alertDescription
-
 // Outcomes for internal, one-message-at-a-time functions
 type writeOutcome =
     | WError of ioerror

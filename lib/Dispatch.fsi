@@ -40,9 +40,6 @@ val sendNextFragments: Connection -> (unit Result) * Connection
 val readNextAppFragment: Connection -> (unit Result) * Connection
 *)
 
-type ioerror =
-    | EInternal of ErrorCause * ErrorKind
-    | EFatal of alertDescription
 type writeOutcome =
     | WError of ioerror
     | WriteAgain (* Possibly more data to send *)

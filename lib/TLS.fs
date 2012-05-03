@@ -14,7 +14,7 @@ type msg_o = (DataStream.range * DataStream.delta)
 
 // Outcomes for top-level functions
 type ioresult_i =
-    | ReadError of alertDescription option
+    | ReadError of ioerror
     | Close     of Tcp.NetworkStream
     | Fatal     of alertDescription
     | Warning   of nextCn * alertDescription 
@@ -24,7 +24,7 @@ type ioresult_i =
     | DontWrite of Connection
 
 type ioresult_o =
-    | WriteError    of alertDescription option
+    | WriteError    of ioerror
     | WriteComplete of nextCn
     | WritePartial  of nextCn * msg_o
     | MustRead      of Connection
@@ -46,10 +46,8 @@ let request c po = Dispatch.request c po
 let read c = 
   let c,outcome,m = Dispatch.read c in 
     match outcome,m with
-      | WriteOutcome(WError(EInternal(x,y))),_ -> ReadError(None)
-      | WriteOutcome(WError(EFatal(ad))),_ -> ReadError(Some(ad))
-      | RError(EInternal(x,y)),_ -> ReadError(None)
-      | RError(EFatal(ad)),_ -> ReadError(Some(ad))
+      | WriteOutcome(WError(err)),_ -> ReadError(err)
+      | RError(err),_ -> ReadError(err)
       | RAppDataDone,Some(b) -> Read(c,b)
       | RQuery(q),_ -> CertQuery(c,q)
       | RHSDone,_ -> Handshaken(c)
@@ -58,15 +56,15 @@ let read c =
       | RWarning(ad),_ -> Warning(c,ad)
       | WriteOutcome(WMustRead),_ -> DontWrite(c)
       | WriteOutcome(WHSDone),_ -> Handshaken (c)
-      | WriteOutcome(SentFatal(ad)),_ -> ReadError(Some ad)
+      | WriteOutcome(SentFatal(ad)),_ -> ReadError(EFatal(ad))
       | WriteOutcome(SentClose),_ -> Close (networkStream c)
       | WriteOutcome(WriteAgain),_ -> unexpectedError "[read] Dispatch.read should never return WriteAgain"
+      | _,_ -> ReadError(EInternal(Dispatcher,InvalidState))
 
 let write c msg = 
   let c,outcome,rdOpt = Dispatch.write c msg in
     match outcome with
-        WError(EInternal(x,y)) -> WriteError(None)
-      | WError(EFatal(ad)) -> WriteError(Some ad)
+      | WError(err) -> WriteError(err)
       | WAppDataDone ->
             match rdOpt with
               | None -> WriteComplete c
@@ -77,11 +75,11 @@ let write c msg =
              Being more precise about the Dispatch state machine, we should be
              able to prove that this case should never happen, and so use the
              unexpectedError function. *)
-          WriteError(None)
+          WriteError(EInternal(Dispatcher,InvalidState))
       | WMustRead | SentClose ->
           MustRead(c)
       | SentFatal(ad) ->
-          WriteError(Some(ad))
+          WriteError(EFatal(ad))
       | WriteAgain ->
           unexpectedError "[write] writeAll should never return WriteAgain"
 

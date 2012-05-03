@@ -8,7 +8,7 @@ open Tcp
 open DataStream
 
 type ioresult_i =
-    | ReadError of alertDescription option
+    | ReadError of ioerror
     | Close     of Tcp.NetworkStream
     | Fatal     of alertDescription
     | Warning   of nextCn * alertDescription 
@@ -18,7 +18,7 @@ type ioresult_i =
     | DontWrite of Connection
     
 type ioresult_o =
-    | WriteError    of alertDescription option
+    | WriteError    of ioerror
     | WriteComplete of nextCn
     | WritePartial  of nextCn * msg_o
     | MustRead      of Connection

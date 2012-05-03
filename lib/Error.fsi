@@ -66,5 +66,9 @@ type 'a Result =
     | Error of ErrorCause * ErrorKind
     | Correct of 'a
 
+type ioerror =
+    | EInternal of ErrorCause * ErrorKind
+    | EFatal of alertDescription
+
 val correct: 'a -> 'a Result
 val unexpectedError: string -> 'a

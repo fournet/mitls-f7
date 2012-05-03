@@ -29,34 +29,34 @@ type TLStream(s:System.Net.Sockets.NetworkStream, options, b) =
 
     let rec doHS conn =
         match TLS.read conn with
-        | Dispatch.ReadError (err) ->
+        | TLS.ReadError (err) ->
             match err with
-            | Dispatch.EInternal(x,y) -> raise (IOException(sprintf "TLS-HS: Internal error: %A %A" x y))
-            | Dispatch.EFatal ad -> raise (IOException(sprintf "TLS-HS: Sent fatal alert: %A" ad))
-        | Dispatch.Close ns -> raise (IOException(sprintf "TLS-HS: Connection closed during HS"))
-        | Dispatch.Fatal ad -> raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
-        | Dispatch.Warning (conn,ad) -> raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
-        | Dispatch.CertQuery (conn,q) -> raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate"))
-        | Dispatch.Handshaken conn -> closed <- false; conn
-        | Dispatch.Read (conn,msg) ->
+            | EInternal(x,y) -> raise (IOException(sprintf "TLS-HS: Internal error: %A %A" x y))
+            | EFatal ad -> raise (IOException(sprintf "TLS-HS: Sent fatal alert: %A" ad))
+        | TLS.Close ns -> raise (IOException(sprintf "TLS-HS: Connection closed during HS"))
+        | TLS.Fatal ad -> raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
+        | TLS.Warning (conn,ad) -> raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
+        | TLS.CertQuery (conn,q) -> raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate"))
+        | TLS.Handshaken conn -> closed <- false; conn
+        | TLS.Read (conn,msg) ->
             let b = undoMsg_i conn msg
             inbuf <- inbuf @| b
             doHS conn
-        | Dispatch.DontWrite conn -> doHS conn
+        | TLS.DontWrite conn -> doHS conn
 
     let rec wrapRead conn =
         match TLS.read conn with
-        | Dispatch.ReadError (err) ->
+        | TLS.ReadError (err) ->
             match err with
-            | Dispatch.EInternal(x,y) -> raise (IOException(sprintf "TLS-HS: Internal error: %A %A" x y))
-            | Dispatch.EFatal ad -> raise (IOException(sprintf "TLS-HS: Sent fatal alert: %A" ad))
-        | Dispatch.Close ns -> closed <- true; (conn,[||]) // FIXME: this is an old connection, should not be used!
-        | Dispatch.Fatal ad -> raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
-        | Dispatch.Warning (conn,ad) -> raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
-        | Dispatch.CertQuery (conn,q) -> raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate"))
-        | Dispatch.Handshaken conn -> wrapRead conn
-        | Dispatch.Read (conn,msg) -> (conn,undoMsg_i conn msg)
-        | Dispatch.DontWrite conn -> wrapRead conn
+            | EInternal(x,y) -> raise (IOException(sprintf "TLS-HS: Internal error: %A %A" x y))
+            | EFatal ad -> raise (IOException(sprintf "TLS-HS: Sent fatal alert: %A" ad))
+        | TLS.Close ns -> closed <- true; (conn,[||]) // FIXME: this is an old connection, should not be used!
+        | TLS.Fatal ad -> raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
+        | TLS.Warning (conn,ad) -> raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
+        | TLS.CertQuery (conn,q) -> raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate"))
+        | TLS.Handshaken conn -> wrapRead conn
+        | TLS.Read (conn,msg) -> (conn,undoMsg_i conn msg)
+        | TLS.DontWrite conn -> wrapRead conn
 
     let mutable conn =
         let tcpStream = Tcp.create s
@@ -68,13 +68,13 @@ type TLStream(s:System.Net.Sockets.NetworkStream, options, b) =
 
     let rec wrapWrite conn msg =
         match TLS.write conn msg with
-        | Dispatch.WriteError err ->
+        | TLS.WriteError err ->
             match err with
-            | Dispatch.EInternal(x,y) -> raise (IOException(sprintf "TLS-HS: Internal error: %A %A" x y))
-            | Dispatch.EFatal ad -> raise (IOException(sprintf "TLS-HS: Sent alert: %A" ad))
-        | Dispatch.WriteComplete conn -> conn
-        | Dispatch.WritePartial (conn,msg) -> wrapWrite conn msg
-        | Dispatch.MustRead conn ->
+            | EInternal(x,y) -> raise (IOException(sprintf "TLS-HS: Internal error: %A %A" x y))
+            | EFatal ad -> raise (IOException(sprintf "TLS-HS: Sent alert: %A" ad))
+        | TLS.WriteComplete conn -> conn
+        | TLS.WritePartial (conn,msg) -> wrapWrite conn msg
+        | TLS.MustRead conn ->
             let conn = doHS conn
             wrapWrite conn msg
 

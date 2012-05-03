@@ -102,7 +102,7 @@ type (;c:cn) ioresult_i =
   // we learn that we have read everything sent by our peer,
   // and we get back the underlying TCP connection. 
 
-| ReadError of alertDescription option 
+| ReadError of ioerror
   // We encountered an error while reading, so the connection dies. 
   // we return the fatal alert we may have sent, if any,
   // or None in case of an internal error.
@@ -161,7 +161,7 @@ type (;c:cn,d:(;c) msg_o) ioresult_o =
   { ?d0. Extend_o(c,c',d0) /\ Split_o(c, d, d0, c', d') }
   // We wrote a fragment of the message, appended to the output stream, and return the rest
 
-| WriteError    of alertDescription option 
+| WriteError    of ioerror
   // We encountered an error while writing; 
   // we return the fatal alert we may have sent, if any,
   // or None in case of an internal error.

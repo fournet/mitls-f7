@@ -66,6 +66,10 @@ type 'a Result =
     | Error of ErrorCause * ErrorKind
     | Correct of 'a
 
+type ioerror =
+    | EInternal of ErrorCause * ErrorKind
+    | EFatal of alertDescription
+
 let correct x = Correct x
 
 let unexpectedError info = failwith info
