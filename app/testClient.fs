@@ -1,11 +1,13 @@
 ﻿module testClient
 
+open System.IO
+
 open Error
 open TLSInfo
 open CipherSuites
 
 let serverIP = "localhost" // "rigoletto.polito.it" //  // 128.93.188.162
-let serverPort = 443
+let serverPort = 2443
 let options = {
     minVer = TLS_1p0
     maxVer = TLS_1p0
@@ -46,7 +48,7 @@ let rec consume conn =
     | TLS.DontWrite (conn) ->
         consume conn
     | TLS.Close(tcp) ->
-        Printf.printf "Close OK"
+        Printf.printf " Close OK"
         // ignore (System.Console.ReadLine())
         None
     | x ->
@@ -55,21 +57,27 @@ let rec consume conn =
         None
 
 let testCl options =
+    let startTime = System.DateTime.Now in
     let ns = Tcp.connect serverIP serverPort in
     let conn = TLS.connect ns options in
-    match consume conn with
-    | None -> ()
-    | Some(conn) ->
-    let conn = TLS.shutdown conn in
     ignore (consume conn)
+    let endTime = System.DateTime.Now in
+    let f = File.AppendText("RESULT.txt")
+    f.WriteLine (Printf.sprintf "\n%A\n" (endTime - startTime))
+    f.Close()
+    Printf.printf "\n%A\n" (endTime - startTime)
+    // match consume conn with
+    // | None -> ()
+    // | Some(conn) ->
+    // let conn = TLS.shutdown conn in
+    // ignore (consume conn)
 
 let test = 
     SessionDB.create options
-    for i = 1 to 1000 do
-        let startTime = System.DateTime.Now in
+    for i = 1 to 101 do
+        System.Threading.Thread.Sleep(300);
         testCl options
-        let endTime = System.DateTime.Now in
-        Printf.printf "%A" (endTime - startTime)
+        Printf.printf "%d\n" i
     done
 
 let testRes options sid =
