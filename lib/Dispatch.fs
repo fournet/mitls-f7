@@ -388,7 +388,6 @@ let recv (Conn(id,c)) =
         match Tcp.read c.ns len with // read & process the payload
             | Error (x,y) -> Error(x,y) 
             | Correct payload ->
-                // printf "%s[%d] " (Formats.CTtoString ct) len; 
                 let c_read = c.read in
                 let c_read_conn = c_read.conn in
                 let hp = header @| payload in 
@@ -397,6 +396,7 @@ let recv (Conn(id,c)) =
                 | Error(x,y) -> Error(x,y)
                 | Correct(pack) -> 
                     let (c_recv,ct,pv,tl,f) = pack in
+                    //printf "%s[%d] " (Formats.CTtoString ct) len; 
                     let si = epochSI(id.id_in) in
                     if c.read.disp = Init ||
                        (c.read.disp = FirstHandshake && pv = getNegotiatedVersion id c.handshake) ||
@@ -414,7 +414,7 @@ let readOne (Conn(id,c)) =
         let c_read = c.read in
         let history = Record.history id.id_in c_read.conn in
         let f = TLSFragment.contents id.id_in ct history rg frag in
-        let c_read = {c.read with conn = c_recv} in
+        let c_read = {c_read with conn = c_recv} in
           match c_read.disp with
             | Closed -> Error(Dispatcher,InvalidState)
             | _ ->
@@ -506,10 +506,10 @@ let readOne (Conn(id,c)) =
                           | (Correct(ccs),hs) ->
                               let (newKiIN,newCS) = ccs in
                               let newID = {id with id_in = newKiIN} in
-                              let new_read = {c.read with disp = Finishing; conn = newCS} in
+                              let new_read = {c_read with disp = Finishing; conn = newCS} in
                               let new_ad = AppDataStream.reset_incoming id c.appdata newID in
                               let new_al = Alert.reset_incoming id c.alert newID in
-                              let new_hs = Handshake.reset_incoming id c.handshake newID in
+                              let new_hs = Handshake.reset_incoming id hs newID in
                               let c = { c with read = new_read;
                                                appdata = new_ad;
                                                alert = new_al;

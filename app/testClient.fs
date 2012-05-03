@@ -1,10 +1,31 @@
 ﻿module testClient
 
 open Error
+open TLSInfo
+open CipherSuites
 
-let serverIP = "google.com" // "rigoletto.polito.it" //  // 128.93.188.162
+let serverIP = "localhost" // "rigoletto.polito.it" //  // 128.93.188.162
 let serverPort = 443
-let options = TLSInfo.defaultProtocolOptions
+let options = {
+    minVer = TLS_1p0
+    maxVer = TLS_1p0
+    ciphersuites = cipherSuites_of_nameList
+                    [
+                      TLS_RSA_WITH_3DES_EDE_CBC_SHA;
+                    ]
+    compressions = [ NullCompression ]
+
+    honourHelloReq = HRPResume
+    allowAnonCipherSuite = false
+    request_client_certificate = false
+    check_client_version_in_pms_for_old_tls = true
+    server_cert_file = "server"
+    certificateValidationPolicy = fun x -> true
+    safe_renegotiation = true
+
+    sessionDBFileName = "sessionDBFile.bin"
+    sessionDBExpiry = Bytes.newTimeSpan 2 0 0 0 (* two days *)
+    }
 
 let rec consume conn =
     match TLS.read conn with
@@ -20,10 +41,14 @@ let rec consume conn =
             None
     | TLS.Handshaken (conn) ->
         Printf.printf "Full OK"
-        ignore (System.Console.ReadLine())
+        // ignore (System.Console.ReadLine())
         Some(conn)
     | TLS.DontWrite (conn) ->
         consume conn
+    | TLS.Close(tcp) ->
+        Printf.printf "Close OK"
+        // ignore (System.Console.ReadLine())
+        None
     | x ->
         Printf.printf "AYEEE!!! %A" x
         ignore (System.Console.ReadLine())
@@ -32,11 +57,20 @@ let rec consume conn =
 let testCl options =
     let ns = Tcp.connect serverIP serverPort in
     let conn = TLS.connect ns options in
+    match consume conn with
+    | None -> ()
+    | Some(conn) ->
+    let conn = TLS.shutdown conn in
     ignore (consume conn)
 
 let test = 
     SessionDB.create options
-    testCl options
+    for i = 1 to 1000 do
+        let startTime = System.DateTime.Now in
+        testCl options
+        let endTime = System.DateTime.Now in
+        Printf.printf "%A" (endTime - startTime)
+    done
 
 let testRes options sid =
     let ns = Tcp.connect serverIP serverPort in
