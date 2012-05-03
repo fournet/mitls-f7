@@ -14,6 +14,8 @@ private type (;ki:epoch) ConnectionState =
 	| SomeState of h:(;ki)TLSFragment.history * st:(;ki)StatefulAEAD.state{h = Multiplexed(ki,st.history)}
                                                                              
 
+val someState: ki:epoch -> h:(;ki) TLSFragment.history -> st: (;ki) StatefulAEAD.state{h = Multiplexed(ki,st.history)} -> cs:(;ki) ConnectionState{cs = SomeState (h,st)}
+
 function val History: ki:epoch * (;ki) ConnectionState -> 'a
 private assume !ki,h,s. History(ki,SomeState(h,s)) = h
 private assume !ki,h,s. History(ki,NullState) = h <=> EmptyHistory(ki,h)
@@ -47,7 +49,7 @@ val recordPacketIn : ki:epoch ->
                         ct:ContentType * pv:ProtocolVersion *
                         rg:range * 
                         f:(;ki,ct,History(ki,rs),rg) TLSFragment.fragment) Result{
-                       !rs',ct,rg,f. (res = Correct ((rs',ct,rg,f)) /\ Auth(ki)) => 
+                       !rs',ct,pv,rg,f. (res = Correct ((rs',ct,pv,rg,f)) /\ Auth(ki)) => 
                          (History(ki,rs') = TLSFragment.ExtendHistory(ki,ct,History(ki,rs),rg,TLSFragment.TLSContents(f)))}
 
 

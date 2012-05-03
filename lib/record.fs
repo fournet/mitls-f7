@@ -11,6 +11,8 @@ type ConnectionState =
     | NullState
     | SomeState of history * StatefulAEAD.state
 
+let someState (ki:epoch) h s = SomeState(h,s)
+
 type sendState = ConnectionState
 type recvState = ConnectionState
 
@@ -167,7 +169,8 @@ let recordPacketIn ki conn headPayload =
             let nh = StatefulAEAD.history ki state in
             let msg = fragmentToTLSFragment ki ct history nh rg plain in
             let history = addToHistory ki ct history rg msg in
-            Correct(SomeState(history,newState),ct,pv,rg,msg)
+            let st' = someState ki history newState in
+            correct(st',ct,pv,rg,msg)
     | _ -> unexpectedError "[recordPacketIn] Incompatible ciphersuite and key type"
 
 let history (e:epoch) s =

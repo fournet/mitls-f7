@@ -103,6 +103,27 @@ private assume !ki,ct,h,r,d,h'. ExtendHistory(ki,ct,h,r,d) = h' <=>
 	   ccs = h.ccs;
 	   appdata = Fragment.Extend(ki,h.appdata,r,d)}))
 
+private assume !ki,h,r,d. ExtendHistory(ki,Formats.Handshake,h,r,d) = 
+	 { handshake = Fragment.Extend(ki,h.handshake,r,d);
+	   alert = h.alert;
+	   ccs = h.ccs;
+	   appdata = h.appdata}
+private assume !ki,h,r,d. ExtendHistory(ki,Formats.Alert,h,r,d) = 
+	 { handshake = h.handshake;
+	   alert = Fragment.Extend(ki,h.alert,r,d);
+	   ccs = h.ccs;
+	   appdata = h.appdata}
+private assume !ki,h,r,d. ExtendHistory(ki,Formats.Change_cipher_spec,h,r,d) = 
+	 { handshake = h.handshake;
+	   alert = h.alert;
+	   ccs = Fragment.Extend(ki,h.ccs,r,d);
+	   appdata = h.appdata}
+private assume !ki,h,r,d. ExtendHistory(ki,Formats.Application_data,h,r,d) = 
+	 { handshake = h.handshake;
+	   alert = h.alert;
+	   ccs = h.ccs;
+	   appdata = Fragment.Extend(ki,h.appdata,r,d)}
+
 ask !ki,h,h',r,d. h' = ExtendHistory(ki,Formats.Handshake,h,r,d) =>
 	( HistoryStream(ki,Formats.Handshake,h') = Fragment.Extend(ki,HistoryStream(ki,Formats.Handshake,h),r,d) /\
 	  HistoryStream(ki,Formats.Alert,h') = HistoryStream(ki,Formats.Alert,h) /\
