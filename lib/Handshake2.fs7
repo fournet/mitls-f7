@@ -33,7 +33,7 @@ type (;ci:CI)incoming =
   | InVersionAgreed  of (;ci)state
   | InQuery of Certificate.cert * (;ci)state
   | InFinished of (;ci)state
-  | InComplete of (;ci)state
+  | InComplete of (;ci)state {Complete(ci)}
   | InError of ErrorCause * ErrorKind * (;ci)state
 val recv_fragment: ci:CI -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> (;ci)recv_reply
 val recv_ccs     : ci:CI -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> (((ci':CI * cs:(;ci'.id_in)RS * (;ci')state){EmptyHistory(ci'.id_in,cs) /\ ci.id_out = ci'.id_out})
