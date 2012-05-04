@@ -13,7 +13,7 @@ type cipher = b:bytes{Length(b) <= DataStream.max_TLSCipher_fragment_length}
 private type (;ki:epoch) key = {k:bytes}
 
 type iv = bytes
-type (;ki:epoch) iv3 =
+private type (;ki:epoch) iv3 =
 	| SomeIV of iv // SSL_3p0 and TLS_1p0
 	| NoIV of bool // TLS_1p0 and TLS_1p2
 

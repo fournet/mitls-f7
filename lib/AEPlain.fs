@@ -43,8 +43,12 @@ let padLength ki len =
     let si = epochSI(ki) in
     let alg = encAlg_of_ciphersuite si.cipher_suite in
     let bs = blockSize alg in
-    let overflow = (len + 1) % bs // at least one extra byte of padding
-    if overflow = 0 then 1 else 1 + bs - overflow 
+    if bs = 0 then
+        // No Padding at all
+        0
+    else
+        let overflow = (len + 1) % bs // at least one extra byte of padding
+        if overflow = 0 then 1 else 1 + bs - overflow 
 
 let ivLength ki =
     let si = epochSI(ki) in
@@ -99,22 +103,6 @@ type plain = {p:bytes}
 let plain (ki:epoch) (tlen:nat)  b = {p=b}
 let repr (ki:epoch) (tlen:nat) pl = pl.p
 
-let pad (p:int)  = createBytes p (p-1)
-
-let encode (ki:epoch) rg (ad:data) data tag =
-    Pi.assume(Unsafe(ki));
-    let b = AERepr ki rg ad data in
-    let ivL = ivLength ki in
-    let tlen = rangeCipher ki rg in
-    let lb = length b in
-    let lm = length tag.macT in
-    let pl = tlen - lb - lm - ivL
-    let payload = b @| tag.macT @| pad pl
-    if length payload <> tlen - ivL then
-        Error.unexpectedError "[encode] Internal error."
-    else
-        (tlen, {p = payload})
-
 let encodeNoPad (ki:epoch) rg (ad:data) data tag =
     Pi.assume(Unsafe(ki));
     let b = AERepr ki rg ad data in
@@ -130,13 +118,63 @@ let encodeNoPad (ki:epoch) rg (ad:data) data tag =
     else
         (tlen, {p = payload})
 
+let pad (p:int)  = createBytes p (p-1)
+
+let encode (ki:epoch) rg (ad:data) data tag =
+    // FIXME: A bit too special for stream cipher. Would be nicer if we had a more
+    // robust encoding with or without padding. (So also working for MACOnly ciphersuites)
+    let si = epochSI(ki) in
+    let alg = encAlg_of_ciphersuite si.cipher_suite in
+    match alg with
+    | RC4_128 ->
+        encodeNoPad ki rg ad data tag
+    | _ ->
+    Pi.assume(Unsafe(ki));
+    let b = AERepr ki rg ad data in
+    let ivL = ivLength ki in
+    let tlen = rangeCipher ki rg in
+    let lb = length b in
+    let lm = length tag.macT in
+    let pl = tlen - lb - lm - ivL
+    let payload = b @| tag.macT @| pad pl
+    if length payload <> tlen - ivL then
+        Error.unexpectedError "[encode] Internal error."
+    else
+        (tlen, {p = payload})
+
 let check_split b l = 
   if length(b) < l then failwith "split failed: FIX THIS to return BOOL + ..."
   if l < 0 then failwith "split failed: FIX THIS to return BOOL + ..."
   else Bytes.split b l
 
-let decode ki (ad:data) tlen plain =
+let decodeNoPad ki (ad:data) tlen plain =
+    // assert length plain.d = tlen
     let si = epochSI(ki) in
+    let cs = si.cipher_suite in
+    let maclen = macSize (macAlg_of_ciphersuite cs) in
+    let pl = plain.p in
+    let plainLen = length pl in
+    if plainLen <> tlen || tlen < maclen then
+        Error.unexpectedError "[decodeNoPad] wrong target length given as input argument."
+    else
+    let payloadLen = plainLen - maclen in
+    let (frag,mac) = Bytes.split pl payloadLen in
+    let rg = (payloadLen,payloadLen) in
+    Pi.assume(Unsafe(ki));
+    let aeadF = AEPlain ki rg ad frag in
+    let tag = {macT = mac} in
+    (rg,aeadF,tag)
+
+let decode ki (ad:data) tlen plain =
+    // FIXME: A bit too special for stream cipher. Would be nicer if we had a more
+    // robust encoding with or without padding. (So also working for MACOnly ciphersuites)
+    let si = epochSI(ki) in
+    let alg = encAlg_of_ciphersuite si.cipher_suite in
+    match alg with
+    | RC4_128 ->
+        let (rg,aeadF,tag) = decodeNoPad ki ad tlen plain in
+        (rg,aeadF,tag,true)
+    | _ ->
     let macSize = macSize (macAlg_of_ciphersuite si.cipher_suite) in
     let rg = cipherRange ki tlen in
     let ivL = ivLength ki in
@@ -226,21 +264,3 @@ let decode ki (ad:data) tlen plain =
                 let tag = {macT = mac} in
                 (rg,aeadF,tag,true)
 
-
-let decodeNoPad ki (ad:data) tlen plain =
-    // assert length plain.d = tlen
-    let si = epochSI(ki) in
-    let cs = si.cipher_suite in
-    let maclen = macSize (macAlg_of_ciphersuite cs) in
-    let pl = plain.p in
-    let plainLen = length pl in
-    if plainLen <> tlen || tlen < maclen then
-        Error.unexpectedError "[decodeNoPad] wrong target length given as input argument."
-    else
-    let payloadLen = plainLen - maclen in
-    let (frag,mac) = Bytes.split pl payloadLen in
-    let rg = (payloadLen,payloadLen) in
-    Pi.assume(Unsafe(ki));
-    let aeadF = AEPlain ki rg ad frag in
-    let tag = {macT = mac} in
-    (rg,aeadF,tag)

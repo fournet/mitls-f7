@@ -9,7 +9,7 @@ type encryptor = state
 type decryptor = state
 
 val GEN: epoch -> encryptor * decryptor
-val LEAK:   epoch -> state -> bytes * bytes
+val LEAK: epoch -> state -> bytes * bytes
 val COERCE: epoch -> bytes -> bytes-> state
 
 type cipher = bytes

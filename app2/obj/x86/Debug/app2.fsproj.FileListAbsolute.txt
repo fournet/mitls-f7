@@ -12,3 +12,5 @@ C:\Users\alfredo\PhD\msr-inria\lang-sec\msrc\cvk\samples\protocols\tls\app2\bin\
 C:\Users\alfredo\PhD\msr-inria\lang-sec\msrc\cvk\samples\protocols\tls\app2\bin\Debug\concrete-fs.pdb
 C:\Users\alfredo\PhD\msr-inria\lang-sec\msrc\cvk\samples\protocols\tls\app2\obj\x86\Debug\app2.exe
 C:\Users\alfredo\PhD\msr-inria\lang-sec\msrc\cvk\samples\protocols\tls\app2\obj\x86\Debug\app2.pdb
+C:\Users\alfredo\PhD\msr-inria\lang-sec\msrc\cvk\samples\protocols\tls\app2\bin\Debug\WindowsRC4.dll
+C:\Users\alfredo\PhD\msr-inria\lang-sec\msrc\cvk\samples\protocols\tls\app2\bin\Debug\WindowsRC4.pdb

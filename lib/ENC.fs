@@ -62,17 +62,16 @@ let tdesDecrypt ki key iv (data:bytes) =
     let dec = tdes.CreateDecryptor(key,iv) in
     symDecrypt dec data
 
-let rc4Encrypt ki key iv data =
-    let tdes = new System.Security.Cryptography.TripleDESCryptoServiceProvider() in
-    tdes.Padding <- System.Security.Cryptography.PaddingMode.None
-    let enc = tdes.CreateEncryptor(key,iv) in
-    symEncrypt enc data
+let rc4Encrypt (ki:epoch) (state:ManagedRC4.RC4) data =
+    let res = Array.copy data in
+    state.Encrypt(res,uint32 (length res));
+    res
 
-let rc4Decrypt ki key iv (data:bytes) =
-    let tdes = new System.Security.Cryptography.TripleDESCryptoServiceProvider() in
-    tdes.Padding <- System.Security.Cryptography.PaddingMode.None;
-    let dec = tdes.CreateDecryptor(key,iv) in
-    symDecrypt dec data
+let rc4Decrypt (ki:epoch) (state:ManagedRC4.RC4) data =
+    let res = Array.copy data in
+    state.Decrypt(res,uint32 (length res));
+    res
+
 (* Early TLS chains IVs but this is not secure against adaptive CPA *)
 let lastblock cipher ivl =
     let (_,b) = split cipher (length cipher - ivl) in b
@@ -84,15 +83,30 @@ type iv3 =
     | SomeIV of iv
     | NoIV of bool
 
-type state =
+type blockState =
     {key: key;
      iv: iv3}
+type streamState = 
+    {skey: key; // Ghost: Only stored so that we can LEAK it
+     sstate: ManagedRC4.RC4}
+
+type state =
+    | BlockCipher of blockState
+    | StreamCipher of streamState
 type encryptor = state
 type decryptor = state
 
 let GENOne ki =
     let si = epochSI(ki) in
     let alg = encAlg_of_ciphersuite si.cipher_suite in
+    match alg with
+    | RC4_128 ->
+        let k = mkRandom (encKeySize alg) in
+        let rc4 = new ManagedRC4.RC4() in
+        rc4.Init(k,uint32 (length k));
+        let key = {k = k} in
+        StreamCipher({skey = key; sstate = rc4})
+    | _ ->
     let key =
         {k = mkRandom (encKeySize alg)}
     let iv =
@@ -101,86 +115,118 @@ let GENOne ki =
             SomeIV(mkRandom (ivSize alg))
         | TLS_1p1 | TLS_1p2 ->
             NoIV(true)
-    {key = key; iv = iv}
+    BlockCipher ({key = key; iv = iv})
 
 let GEN (ki) = (GENOne ki, GENOne ki)
     
 let COERCE (ki:epoch) k iv =
     let si = epochSI(ki) in
+    let alg = encAlg_of_ciphersuite si.cipher_suite in
+    match alg with
+    | RC4_128 ->
+        let rc4 = new ManagedRC4.RC4() in
+        rc4.Init(k,uint32 (length k));
+        let key = {k = k} in
+        StreamCipher({skey = key; sstate = rc4})
+    | _ ->
     let ivOpt =
         match si.protocol_version with
         | SSL_3p0 | TLS_1p0 ->
             SomeIV(iv)
         | TLS_1p1 | TLS_1p2 ->
             NoIV(true)
-    {key = {k=k}; iv = ivOpt}
+    BlockCipher ({key = {k=k}; iv = ivOpt})
 
 let LEAK (ki:epoch) s =
-    let iv =
-        match s.iv with
-        | NoIV(_) -> [||]
-        | SomeIV(iv) -> iv
-    (s.key.k,iv)
+    match s with
+    | BlockCipher (bs) ->
+        let iv =
+            match bs.iv with
+            | NoIV(_) -> [||]
+            | SomeIV(iv) -> iv
+        (bs.key.k,iv)
+    | StreamCipher (ss) ->
+        ss.skey.k,[||]
 
 (* Parametric ENC/DEC functions *)
 let ENC ki s tlen data =
-    (* Should never be invoked on a stream (right now) encryption algorithm *)
     let si = epochSI(ki) in
     let alg = encAlg_of_ciphersuite si.cipher_suite in
-    let ivl = ivSize alg in
-    let iv =
-        match s.iv with
-        | SomeIV(b) -> b
-        | NoIV _    -> mkRandom ivl in
     let d = AEPlain.repr ki tlen data in
-    let cipher =
-        match alg with
-        | TDES_EDE_CBC -> tdesEncrypt ki s.key.k iv d
-        | AES_128_CBC  -> aesEncrypt  ki s.key.k iv d
-        | AES_256_CBC  -> aesEncrypt  ki s.key.k iv d
-        | RC4_128      -> unexpectedError "[ENC] invoked on stream cipher"
-    match s.iv with
-    | SomeIV(_) ->
+    match s with
+    | BlockCipher(s) ->
+        let ivl = ivSize alg in
+        let iv =
+            match s.iv with
+            | SomeIV(b) -> b
+            | NoIV _    -> mkRandom ivl in
+        let cipher =
+            match alg with
+            | TDES_EDE_CBC -> tdesEncrypt ki s.key.k iv d
+            | AES_128_CBC  -> aesEncrypt  ki s.key.k iv d
+            | AES_256_CBC  -> aesEncrypt  ki s.key.k iv d
+            | RC4_128      -> unexpectedError "[ENC] Wrong combination of cipher algorithm and state"
+        match s.iv with
+        | SomeIV(_) ->
+            if length cipher <> tlen || tlen > DataStream.max_TLSCipher_fragment_length then
+                // unexpected, because it is enforced statically by the
+                // CompatibleLength predicate
+                unexpectedError "[ENC] Length of encrypted data do not match expected length"
+            else
+                let s = {s with iv = SomeIV(lastblock cipher ivl) } in
+                (BlockCipher(s), cipher)
+        | NoIV(b) ->
+            let res = iv @| cipher in
+            if length res <> tlen || tlen > DataStream.max_TLSCipher_fragment_length then
+                // unexpected, because it is enforced statically by the
+                // CompatibleLength predicate
+                unexpectedError "[ENC] Length of encrypted data do not match expected length"
+            else
+                let s = {s with iv = NoIV(b)} in
+                (BlockCipher(s), res)
+    | StreamCipher(s) ->
+        let cipher = 
+            match alg with
+            | RC4_128 -> rc4Encrypt ki s.sstate d
+            | _ -> unexpectedError "[ENC] Wrong combination of cipher algorithm and state"
         if length cipher <> tlen || tlen > DataStream.max_TLSCipher_fragment_length then
-            // unexpected, because it is enforced statically by the
-            // CompatibleLength predicate
-            unexpectedError "[ENC] Length of encrypted data do not match expected length"
+                // unexpected, because it is enforced statically by the
+                // CompatibleLength predicate
+                unexpectedError "[ENC] Length of encrypted data do not match expected length"
         else
-            let s = {s with iv = SomeIV(lastblock cipher ivl) } in
-            (s, cipher)
-    | NoIV(b) ->
-        let res = iv @| cipher in
-        if length res <> tlen || tlen > DataStream.max_TLSCipher_fragment_length then
-            // unexpected, because it is enforced statically by the
-            // CompatibleLength predicate
-            unexpectedError "[ENC] Length of encrypted data do not match expected length"
-        else
-            let s = {s with iv = NoIV(b)} in
-            (s, res)
+            (StreamCipher(s),cipher)
 
 let DEC ki s cipher =
-    (* Should never be invoked on a stream (right now) encryption algorithm *)
     let si = epochSI(ki) in
     let alg = encAlg_of_ciphersuite si.cipher_suite in
-    let ivl = ivSize alg 
-    let (iv,encrypted) =
+    match s with
+    | BlockCipher(s) ->
+        let ivl = ivSize alg 
+        let (iv,encrypted) =
+            match s.iv with
+            | SomeIV (iv) -> (iv,cipher)
+            | NoIV (b)    -> split cipher ivl
+        let data =
+            match alg with
+            | TDES_EDE_CBC -> tdesDecrypt ki s.key.k iv encrypted
+            | AES_128_CBC  -> aesDecrypt  ki s.key.k iv encrypted
+            | AES_256_CBC  -> aesDecrypt  ki s.key.k iv encrypted
+            | RC4_128      -> unexpectedError "[DEC] Wrong combination of cipher algorithm and state"
+        let d = AEPlain.plain ki (length cipher) data in
         match s.iv with
-        | SomeIV (iv) -> (iv,cipher)
-        | NoIV (b)    -> split cipher ivl
-    let data =
-        match alg with
-        | TDES_EDE_CBC -> tdesDecrypt ki s.key.k iv encrypted
-        | AES_128_CBC  -> aesDecrypt  ki s.key.k iv encrypted
-        | AES_256_CBC  -> aesDecrypt  ki s.key.k iv encrypted
-        | RC4_128      -> unexpectedError "[DEC] invoked on stream cipher"
-    let d = AEPlain.plain ki (length cipher) data in
-    match s.iv with
-    | SomeIV(_) ->
-        let s = {s with iv = SomeIV(lastblock cipher ivl)} in
-        (s, d)
-    | NoIV(b)   ->
-        let s = {s with iv = NoIV(b)} in
-        (s, d)
+        | SomeIV(_) ->
+            let s = {s with iv = SomeIV(lastblock cipher ivl)} in
+            (BlockCipher(s), d)
+        | NoIV(b)   ->
+            let s = {s with iv = NoIV(b)} in
+            (BlockCipher(s), d)
+    | StreamCipher(s) ->
+        let data = 
+            match alg with
+            | RC4_128 -> rc4Decrypt ki s.sstate cipher
+            | _ -> unexpectedError "[DEC] Wrong combination of cipher algorithm and state"
+        let d = AEPlain.plain ki (length cipher) data in
+        (StreamCipher(s),d)
 
 (* the SPRP game in F#, without indexing so far.
    the adversary gets 
