@@ -21,19 +21,19 @@ val authorize:   ci:CI -> (;ci)hs_state -> cert    -> (;ci)hs_state
 (* Network Interface*)
 
 type (;ci:CI) outgoing =
-  | OutIdle of (;ci)state
+  | OutIdle of (;ci)hs_state
   | OutSome of                (rg:range * (;id.id_out,rg)fragment)
-  | OutCCS of               (rg:range * (;id.id_out,rg)fragment) * ((ci':CI * cs:(;ci'.id_out)RS * (;ci')state){ SentCCS(ki) /\ EmptyHistory(ci'.id_out,cs) /\ ci.id_in = ci'.id_in})
-  | OutFinished of   (rg:range * (;id.id_out,rg)fragment) * (;ci)state
-  | OutComplete of (rg:range * (;id.id_out,rg)fragment) * (;ci)state {Complete(ci)}
+  | OutCCS of               (rg:range * (;id.id_out,rg)fragment) * ((ci':CI * cs:(;ci'.id_out)RS * (;ci')hs_state){ SentCCS(ki) /\ EmptyHistory(ci'.id_out,cs) /\ ci.id_in = ci'.id_in})
+  | OutFinished of   (rg:range * (;id.id_out,rg)fragment) * (;ci)hs_state
+  | OutComplete of (rg:range * (;id.id_out,rg)fragment) * (;ci)hs_state {Complete(ci)}
 val next_fragment: ci:CI -> (;ci)hs_state -> (;ci)outgoing
 
 type (;ci:CI)incoming =
-  | HInAck of (;ci)state
-  | InVersionAgreed  of (;ci)state
-  | InQuery of Certificate.cert * (;ci)state
-  | InFinished of (;ci)state
-  | InComplete of (;ci)state {Complete(ci)}
-  | InError of ErrorCause * ErrorKind * (;ci)state
+  | HInAck of (;ci)hs_state
+  | InVersionAgreed  of (;ci)hs_state
+  | InQuery of Certificate.cert * (;ci)hs_state
+  | InFinished of (;ci)hs_state
+  | InComplete of (;ci)hs_state {Complete(ci)}
+  | InError of ErrorCause * ErrorKind * (;ci)hs_state
 val recv_fragment: ci:CI -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> (;ci)recv_reply
-val recv_ccs     : ci:CI -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> (((ci':CI * cs:(;ci'.id_in)RS * (;ci')state){EmptyHistory(ci'.id_in,cs) /\ ci.id_out = ci'.id_out})
+val recv_ccs     : ci:CI -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> (((ci':CI * cs:(;ci'.id_in)RS * (;ci')hs_state){EmptyHistory(ci'.id_in,cs) /\ ci.id_out = ci'.id_out})
