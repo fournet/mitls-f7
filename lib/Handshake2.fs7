@@ -23,9 +23,9 @@ val authorize:   ci:CI -> (;ci)hs_state -> cert    -> (;ci)hs_state
 type (;ci:CI) outgoing =
   | OutIdle of (;ci)state
   | OutSome of                (rg:range * (;id.id_out,rg)fragment)
-  | OutCCS of               (rg:range * (;id.id_out,rg)fragment) * ((ci':CI * cs:(;ci'.id_out)RS * (;ci')state){EmptyHistory(ci'.id_out,cs) /\ ci.id_in = ci'.id_in})
+  | OutCCS of               (rg:range * (;id.id_out,rg)fragment) * ((ci':CI * cs:(;ci'.id_out)RS * (;ci')state){ SentCCS(ki) /\ EmptyHistory(ci'.id_out,cs) /\ ci.id_in = ci'.id_in})
   | OutFinished of   (rg:range * (;id.id_out,rg)fragment) * (;ci)state
-  | OutComplete of (rg:range * (;id.id_out,rg)fragment) * (;ci)state
+  | OutComplete of (rg:range * (;id.id_out,rg)fragment) * (;ci)state {Complete(ci)}
 val next_fragment: ci:CI -> (;ci)hs_state -> (;ci)outgoing
 
 type (;ci:CI)incoming =
