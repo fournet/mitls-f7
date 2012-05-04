@@ -48,7 +48,3 @@ val msg_request: i:index {Client(i)} -> (;i) plain -> (;Client(i),Server(i)) req
 // If we treat naive principals as corrupt, we may 
 assume !i. WeakCrypto(i) => Corrupt(ClientID(i)) \/ Corrupt(ServerID(i)) 
 // and then the precondition above just reflects application-level corrupted principals.
-
-
-
-let _ = System.Console.ReadLine()

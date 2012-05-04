@@ -8,8 +8,8 @@ open Dispatch
 open TLS
 
 let config certname = {
-    TLSInfo.minVer = CipherSuites.ProtocolVersion.SSL_3p0
-    TLSInfo.maxVer = CipherSuites.ProtocolVersion.TLS_1p2
+    TLSInfo.minVer = CipherSuites.SSL_3p0
+    TLSInfo.maxVer = CipherSuites.TLS_1p2
 
     TLSInfo.ciphersuites =
         CipherSuites.cipherSuites_of_nameList [
@@ -89,7 +89,7 @@ let recvMsg = fun conn ->
           | Handshaken conn           -> doit conn buffer
           | DontWrite  conn           -> doit conn buffer
           | Read       (conn, (r, d)) ->
-                let ki     = TLS.getEpochIn  conn in
+                let ki     = Dispatch.getEpochIn  conn in
                 let s      = TLS.getInStream conn in
                 let buffer = buffer @| (DataStream.deltaRepr ki s r d) in
 
@@ -121,7 +121,7 @@ let doclient (request : string) =
 
         let msg =
             DataStream.createDelta
-                (TLS.getEpochOut conn) (TLS.getOutStream conn)
+                (Dispatch.getEpochOut conn) (TLS.getOutStream conn)
                 (Bytes.length request, Bytes.length request) request in
 
         match sendMsg conn (Bytes.length request, Bytes.length request) msg with
@@ -170,7 +170,7 @@ let doserver () =
 
                         let msg =
                             DataStream.createDelta
-                                (TLS.getEpochOut conn) (TLS.getOutStream conn)
+                                (Dispatch.getEpochOut conn) (TLS.getOutStream conn)
                                 (Bytes.length response, Bytes.length response) response in
 
                         match sendMsg conn (Bytes.length response, Bytes.length response) msg with
