@@ -20,25 +20,16 @@ val max: a:int -> b:int -> c:int{(a>=b /\ c=a) \/ (a<b /\ c=b)}
 val splitRange: ki:epoch -> r:range -> (r0:range * r1:range){r = Sum(r0,r1)} 
 
 /// Messages
-(*
-val msglen : i:int{i > 0}
-private type msg = b:bytes{length(b) = msglen}
-*)
+val msglen : i:int{i = 130}
+
+type (;r:range) msg = b:bytes{
+  ?l,h. r = (l,h) /\ l <= Length(b) /\ Length(b) <= h /\ Length(b) = msglen
+}
 
 private type (;ki:epoch) stream = {sb:bytes list}
 
 predicate Request  of epoch * bytes
 predicate Response of epoch * bytes * bytes
-
-(*
-private type (;ki:epoch, h:(;ki)stream, r:range) delta = {
-  contents: b:(;r) rbytes(*{
-       (?rq     . Request(ki, rq) /\ (?s . rq = h @| b @| s))
-	\/ (?rq, rp . Request(ki, rq) /\ Response(ki, rq, rp) /\ (?s . rp = h @| b @| s))
-	\/ (not Auth(ki))
-  }
-}
-*)
 
 private function val BytesLstToBytes: (bytes list) -> bytes
 
@@ -55,8 +46,8 @@ val stream_to_bytes: ki:epoch -> h:(;ki) stream -> b:bytes{StreamToBytes(ki, h) 
 
 private type (;ki:epoch, h:(;ki)stream, r:range) delta = {
   contents: b:(;r) rbytes{
-       (?rq . Request(ki, rq) /\ (?s . rq = StreamToBytes(ki, h) @| b @| s))
-	\/ (?rq, rp . Request(ki, rq) /\ Response(ki, rq, rp) /\ (?s . rp = StreamToBytes(ki, h) @| b @| s))
+       (?rq . Request(ki, rq) /\ (?s . rq = StreamToBytes(ki, h) @| (b @| s)))
+	\/ (?rq, rp . Request(ki, rq) /\ Response(ki, rq, rp) /\ (?s . rp = StreamToBytes(ki, h) @| (b @| s)))
 	\/ not Auth(ki)
   }
 }
@@ -80,3 +71,11 @@ val deltaRepr:
 val split: ki:epoch -> s:(;ki) stream -> 
   r0:range -> r1:range -> d:(;ki,s,Sum(r0,r1)) delta -> 
   (d0:(;ki,s,r0) delta * d1:(;ki,ExtendStream(ki,s,r0,d0),r1) delta)
+
+predicate val P : 'a * 'b * 'c * 'd * 'e -> bool
+
+private assume !s, rq, ki, h, b. P(s, rq, ki, h, b) <=> (rq = StreamToBytes(ki, h) @| (b @| s))
+
+val createRequest:
+  ki:epoch -> s:(;ki) stream{EmptyStream(ki,s)} -> r:range ->
+  b:(;r) msg{Request(ki, b)} -> (;ki,s,r) delta

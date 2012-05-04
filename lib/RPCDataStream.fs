@@ -3,6 +3,10 @@ open TLSInfo
 open Bytes
 open Error
 
+let msglen = 2+128
+
+type msg = bytes
+
 let max_TLSPlaintext_fragment_length = 16384 (* 2^14 *)
 let max_TLSCompressed_fragment_length = max_TLSPlaintext_fragment_length + 1024
 let max_TLSCipher_fragment_length = max_TLSCompressed_fragment_length + 1024
@@ -74,3 +78,9 @@ let rec byteslst_to_bytes = fun ls ->
 
 let stream_to_bytes = fun (ki:epoch) h ->
     byteslst_to_bytes h.sb
+
+type pred = P of bytes * bytes * epoch * stream * bytes
+
+let createRequest (ki:epoch) (s:stream) (r:range) (b:bytes) =
+    Pi.expect (P([||], b, ki, s, b))
+    {contents = b}
