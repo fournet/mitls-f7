@@ -9,27 +9,28 @@ open TLSInfo
 open DataStream
 
 (* Control Interface *)
-type id=epoch
+type id=Epoch
 type CI=ConnectionInfo
 type (;id:id) RS= (;id) Record.ConnectionState
 type (;ci:CI) hs_state
-val init:        r:Role                 -> c:config  -> (ci:CI * (;ci)hs_state){ Init(ci,r,c) }
+val init:        r:Role                 -> c:config  -> (ci:CI * (;ci)hs_state){ Init(ci,c) }
 val resume:      nextSI:SessionInfo     -> config    -> (ci:CI * (;ci)hs_state)
 val rehandshake: ci:CI -> (;ci)hs_state -> config  -> (;ci)hs_state
 val rekey:       ci:CI -> (;ci)hs_state -> config  -> (;ci)hs_state
 val request:     ci:CI -> (;ci)hs_state -> config  -> (;ci)hs_state
-val authorize:   ci:CI -> (;ci)hs_state -> cert    -> (;ci)hs_state
+val authorize:   ci:CI -> (;ci)hs_state -> c:cert  -> (;ci)hs_state { Authorize(ci,c) }
 
 (* Network Interface*)
 type (;ci:CI) outgoing =
   | OutIdle of (;ci)hs_state
   | OutSome of (rg:range * (;ci.id_out,rg)fragment)
   | OutCCS of  (rg:range * (;ci.id_out,rg)fragment) * 
-               ((ci':CI * cs:(;ci'.id_out)RS * (;ci')hs_state){ SentCCS(ci'.id_out) /\ 
-                                                                ci.id_out = Pred(ci'.id_out) /\
-                                                                ci.id_in = ci'.id_in})
+               ((ci':CI * cs:(;ci'.id_out)RS * (;ci')hs_state)
+               { SentCCS(ci'.id_out) /\ ci.id_out = Pred(ci'.id_out) /\
+                 ci.id_in = ci'.id_in})
   | OutFinished of (rg:range * (;ci.id_out,rg)fragment) * (;ci)hs_state
-  | OutComplete of (rg:range * (;ci.id_out,rg)fragment) * (;ci)hs_state {Complete(ci)}
+  | OutComplete of (rg:range * (;ci.id_out,rg)fragment) * (;ci)hs_state 
+                   {Complete(ci)}
 val next_fragment: ci:CI -> (;ci)hs_state -> (;ci)outgoing
 
 type (;ci:CI)incoming =
@@ -41,5 +42,5 @@ type (;ci:CI)incoming =
   | InError of ErrorCause * ErrorKind * (;ci)hs_state
 val recv_fragment: ci:CI -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> (;ci)incoming
 val recv_ccs     : ci:CI -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> 
-                   (ci':CI * cs:(;ci'.id_in)RS * (;ci')hs_state){ci.id_out = ci'.id_out /\ 
-                                                                 ci.id_in = Pred(ci.id_in)}
+                   (ci':CI * cs:(;ci'.id_in)RS * (;ci')hs_state)
+                   {ci.id_out = ci'.id_out /\ ci.id_in = Pred(ci.id_in)}
