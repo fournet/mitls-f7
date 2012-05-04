@@ -8,32 +8,32 @@ open CipherSuites
 open TLSInfo
 open DataStream
 
-type (;ci:ConnectionInfo) hs_state
+(* Control Interface )*
+type CI=ConnectionInfo; type RS=Record.ConnectionState
+type (;ci:CI) hs_state
+val init:        Role                   -> config  -> (ci:CI * (;ci)hs_state)
+val resume:      nextSI:SessionInfo     -> config  -> (ci:CI * (;ci)hs_state)
+val rehandshake: ci:CI -> (;ci)hs_state -> config  -> (;ci)hs_state
+val rekey:       ci:CI -> (;ci)hs_state -> config  -> (;ci)hs_state
+val request:     ci:CI -> (;ci)hs_state -> config  -> (;ci)hs_state
+val authorize:   ci:CI -> (;ci)hs_state -> cert    -> (;ci)hs_state
 
-val init: Role -> protocolOptions -> (ci:ConnectionInfo * (;ci)hs_state)
-val resume: nextSI:SessionInfo -> protocolOptions -> (ci:ConnectionInfo * (;ci)hs_state)
+(* Network Interface*)
 
-val rehandshake: ci:ConnectionInfo -> (;ci)hs_state -> protocolOptions -> (;ci)hs_state
-val rekey:       ci:ConnectionInfo -> (;ci)hs_state -> protocolOptions -> (;ci)hs_state
-val request:  ci:ConnectionInfo -> (;ci)hs_state -> protocolOptions -> (;ci)hs_state
-
-
-type (;ci:ConnectionInfo) outgoing =
+type (;ci:CI) outgoing =
   | OutIdle of (;ci)state
   | OutSome of                (rg:range * (;id.id_out,rg)fragment)
-  | OutCCS of               (rg:range * (;id.id_out,rg)fragment) * ((ci':ConnectionInfo * cs:(;ci'.id_out)Record.ConnectionState * (;ci')state){EmptyHistory(ci'.id_out,cs) /\ ci.id_in = ci'.id_in})
+  | OutCCS of               (rg:range * (;id.id_out,rg)fragment) * ((ci':CI * cs:(;ci'.id_out)RS * (;ci')state){EmptyHistory(ci'.id_out,cs) /\ ci.id_in = ci'.id_in})
   | OutFinished of   (rg:range * (;id.id_out,rg)fragment) * (;ci)state
   | OutComplete of (rg:range * (;id.id_out,rg)fragment) * (;ci)state
-val next_fragment: ci:ConnectionInfo -> (;ci)hs_state -> (;ci)outgoing
+val next_fragment: ci:CI -> (;ci)hs_state -> (;ci)outgoing
 
-type (;ci:ConnectionInfo)incoming =
+type (;ci:CI)incoming =
   | HInAck of (;ci)state
   | InVersionAgreed  of (;ci)state
   | InQuery of Certificate.cert * (;ci)state
   | InFinished of (;ci)state
   | InComplete of (;ci)state
   | InError of ErrorCause * ErrorKind * (;ci)state
-val recv_fragment: ci:ConnectionInfo -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> (;ci)recv_reply
-val recv_ccs     : ci:ConnectionInfo -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> (((ci':ConnectionInfo * cs:(;ci'.id_in)Record.ConnectionState * (;ci')state){EmptyHistory(ci'.id_in,cs) /\ ci.id_out = ci'.id_out})
-
-val authorize: ci:ConnectionInfo -> (;ci)hs_state -> Certificate.cert -> (;ci)hs_state
+val recv_fragment: ci:CI -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> (;ci)recv_reply
+val recv_ccs     : ci:CI -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> (((ci':CI * cs:(;ci'.id_in)RS * (;ci')state){EmptyHistory(ci'.id_in,cs) /\ ci.id_out = ci'.id_out})
