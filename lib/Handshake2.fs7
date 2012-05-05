@@ -1,4 +1,4 @@
-﻿// Merge of Handshake.fs7 and Handshake3.fs7.
+// Merge of Handshake.fs7 and Handshake3.fs7.
 // Not fully detailed, to fit in the paper.
 // Agreed to be implemented, once refined.
 module Handshake
@@ -14,15 +14,15 @@ type (;id:id) RS= (;id) Record.ConnectionState
 type (;ci:CI) hs_state
 val init:        r:Role                 -> c:config  -> (ci:CI * (;ci)hs_state){ Config(ci,c) }
 val resume:      nextSI:SessionInfo     -> c:config  -> (ci:CI * (;ci)hs_state){ Config(ci,c) }
-val rehandshake: ci:CI -> (;ci)hs_state -> c:config  -> (;ci)hs_state{ Config(ci,c) }
-val rekey:       ci:CI -> (;ci)hs_state -> c:config  -> (;ci)hs_state{ Config(ci,c) }
-val request:     ci:CI -> (;ci)hs_state -> c:config  -> (;ci)hs_state{ Config(ci,c) }
+val rehandshake: ci:CI -> (;ci)hs_state -> c:config  -> (;ci)hs_state
+val rekey:       ci:CI -> (;ci)hs_state -> c:config  -> (;ci)hs_state
+val request:     ci:CI -> (;ci)hs_state -> c:config  -> (;ci)hs_state
 val authorize:   ci:CI -> (;ci)hs_state -> c:cert  -> (;ci)hs_state { Authorize(ci,c) }
 
 (* Network Interface*)
 type (;ci:CI) outgoing =
   | OutIdle of (;ci)hs_state
-  | OutSome of (rg:range * (;ci.id_out,rg)fragment)
+  | OutSome of (rg:range * (;ci.id_out,rg)fragment) * (;ci)hs_state
   | OutCCS of  (rg:range * (;ci.id_out,rg)fragment) * 
                ((ci':CI * cs:(;ci'.id_out)RS * (;ci')hs_state)
                { SentCCS(ci'.id_out) /\ ci.id_out = Pred(ci'.id_out) /\
@@ -43,4 +43,4 @@ val recv_fragment: ci:CI -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)fragment 
                    (;ci)incoming
 val recv_ccs     : ci:CI -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)fragment -> 
                    (ci':CI * cs:(;ci'.id_in)RS * (;ci')hs_state)
-                   {ci.id_out = ci'.id_out /\ ci.id_in = Pred(ci.id_in)}
+                   {ci.id_out = ci'.id_out /\ ci.id_in = Pred(ci'.id_in)}
