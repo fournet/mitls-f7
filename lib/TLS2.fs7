@@ -14,7 +14,7 @@ type (;c:cn) msg_o = r:range * (;ConnectionOutKeyInfo(c), CnStream_o(c), r) delt
 type (;c:cn) ioresult_i =
 | Read      of c':(;c) nextCn * d:(;c) msg_i
   {Extend_i(c,c',d) /\ (TXT(CnId(c)) => Write(Peer(CnId(c)), Bytes_i(c'))) }
-| Close of Tcp.NetworkStream  {TXT(CnId(c)) => Close(Peer(CnId(c)), Bytes_i(c))}
+| Close of TCP.NetworkStream  {TXT(CnId(c)) => Close(Peer(CnId(c)), Bytes_i(c))}
 | Fatal     of a:alertDescription {TXT(CnId(c)) => Fatal(Peer(CnId(c)), a, Bytes_i(c))}
 | Warning   of c':(;c) nextCn * a:alertDescription 
   {Extend(c,c') /\ TXT(CnId(c)) => Warning(Peer(CnId(c)), a, Bytes_i(c))}
@@ -31,10 +31,10 @@ type (;c:cn,d:(;c) msg_o) ioresult_o =
 | MustRead      of c':cn {...}
 val write: c:cn -> d:(;c,rg) msg_o -> (;c,d) ioresult_o
 
-val connect: Tcp.Stream -> p:params                  -> (;Client,p) nullCn Result
-val resume:  Tcp.Stream -> p:params -> sid:sessionID -> (;Client,p) nullCn Result 
-val accept:  Tcp.Stream -> p:params                  -> (;Server,p) nullCn Result
-val shutdown: c:cn -> Tcp.Stream Result
+val connect: TCP.Stream -> p:params                  -> (;Client,p) nullCn Result
+val resume:  TCP.Stream -> p:params -> sid:sessionID -> (;Client,p) nullCn Result 
+val accept:  TCP.Stream -> p:params                  -> (;Server,p) nullCn Result
+val shutdown: c:cn -> TCP.Stream Result
 val rekey:       c:cn {Role(c)=CtoS} -> (c':(;c) nextCn {Extend(c,c')}) Result
 val rehandshake: c:cn {Role(c)=CtoS} -> (c':(;c) nextCn {Extend(c,c')}) Result
 val request:     c:cn {Role(c)=StoC} -> (c':(;c) nextCn {Extend(c,c')}) Result
