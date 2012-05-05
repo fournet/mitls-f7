@@ -13,11 +13,11 @@ type (;c:CI) msg_o = r:range * (;c.id_out, CnStream_o(c), r) delta
 
 type (;c:CI) ioresult_i =
 | Read      of c':(;c) nextCn * d:(;c) msg_i
-  {Extend_i(c,c',d) /\ (TXT(c.id_in) => Write(Peer(c.id_in), Bytes_i(c'))) }
-| Close of TCP.NetworkStream  {TXT(c.id_in) => Close(Peer(c.id_in), Bytes_i(c))}
-| Fatal     of a:alertDescription {TXT(c.id_in) => Fatal(Peer(c.id_in), a, Bytes_i(c))}
+  {Extend_i(c,c',d) /\ (Auth(c.id_in) => Write(Peer(c.id_in), Bytes_i(c'))) }
+| Close of TCP.NetworkStream  {Auth(c.id_in) => Close(Peer(c.id_in), Bytes_i(c))}
+| Fatal     of a:alertDescription {Auth(c.id_in) => Fatal(Peer(c.id_in), a, Bytes_i(c))}
 | Warning   of c':(;c) nextCn * a:alertDescription 
-  {Extend(c,c') /\ TXT(c.id_in) => Warning(Peer(c.id_in), a, Bytes_i(c))}
+  {Extend(c,c') /\ Auth(c.id_in) => Warning(Peer(c.id_in), a, Bytes_i(c))}
 | CertQuery of c':(;c) nextCn * (;c') query {Extend(c, c')} 
 | Handshake of c':cn {...}
 | ...
