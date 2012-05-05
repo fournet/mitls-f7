@@ -21,7 +21,7 @@ type (;c:CI) ioresult_i =
 | CertQuery of c':(;c) nextCn * (;c') query {Extend(c, c')} 
 | Handshake of c':cn {...}
 | ...
-val read : c:cCI -> (;c) ioresult_i
+val read : c:CI -> (;c) ioresult_i
 
 type (;c:CI,d:(;c) msg_o) ioresult_o =
 | WriteComplete of c':(;c) nextCn {Extend_o(c,c',d)}
