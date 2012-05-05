@@ -8,8 +8,8 @@ open TLSInfo
 
 
 type (;c:CI) query
-type (;c:CI) msg_i = r:range * (;c.id_in,  CnStream_i(c), r) delta
-type (;c:CI) msg_o = r:range * (;c.id_out, CnStream_o(c), r) delta
+type (;c:CI) msg_i = r:range * (;c.id_in,  CnStream_i(c), r) data
+type (;c:CI) msg_o = r:range * (;c.id_out, CnStream_o(c), r) data
 
 type (;c:CI) ioresult_i =
 | Read      of c':(;c) nextCn * d:(;c) msg_i
