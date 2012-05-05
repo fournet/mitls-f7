@@ -13,9 +13,9 @@ type id=Epoch; type CI=ConnectionInfo
 type (;ci:CI) hs_state
 val init:        r:Role                 -> c:config  -> (ci:CI * (;ci)hs_state){ Config(ci,c) }
 val resume:      nextSI:SessionInfo     -> c:config  -> (ci:CI * (;ci)hs_state){ Config(ci,c) }
-val rehandshake: ci:CI -> (;ci)hs_state -> c:config  -> (;ci)hs_state
-val rekey:       ci:CI -> (;ci)hs_state -> c:config  -> (;ci)hs_state
-val request:     ci:CI -> (;ci)hs_state -> c:config  -> (;ci)hs_state
+val rehandshake: ci:CI -> (;ci)hs_state -> c:config  -> (;ci)hs_state{...}
+val rekey:       ci:CI -> (;ci)hs_state -> c:config  -> (;ci)hs_state{...}
+val request:     ci:CI -> (;ci)hs_state -> c:config  -> (;ci)hs_state{...}
 val authorize:   ci:CI -> (;ci)hs_state -> c:cert  -> (;ci)hs_state { Authorize(ci,c) }
 
 (* Network Interface*)
