@@ -9,8 +9,7 @@ open TLSInfo
 open DataStream
 
 (* Control Interface *)
-type id=Epoch
-type CI=ConnectionInfo
+type id=Epoch; type CI=ConnectionInfo
 type (;id:id) RS= (;id) Record.ConnectionState
 type (;ci:CI) hs_state
 val init:        r:Role                 -> c:config  -> (ci:CI * (;ci)hs_state){ Config(ci,c) }
@@ -40,7 +39,8 @@ type (;ci:CI)incoming =
   | InFinished of (;ci)hs_state
   | InComplete of (;ci)hs_state {Complete(ci)}
   | InError of ErrorCause * ErrorKind * (;ci)hs_state
-val recv_fragment: ci:CI -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> (;ci)incoming
-val recv_ccs     : ci:CI -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> 
+val recv_fragment: ci:CI -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)fragment -> 
+                   (;ci)incoming
+val recv_ccs     : ci:CI -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)fragment -> 
                    (ci':CI * cs:(;ci'.id_in)RS * (;ci')hs_state)
                    {ci.id_out = ci'.id_out /\ ci.id_in = Pred(ci.id_in)}
