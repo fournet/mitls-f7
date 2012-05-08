@@ -50,6 +50,7 @@
     <None Include="Algorithms.fs7" />
     <Compile Include="Algorithms.fsi" />
     <Compile Include="Algorithms.fs" />
+    <Compile Include="DH.fs" />
     <None Include="RSA.fs7" />
     <Compile Include="RSA.fsi" />
     <Compile Include="RSA.fs" />
