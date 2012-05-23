@@ -1,19 +1,17 @@
 ﻿module testClient
 
-open System.IO
-
-open Error
+open TLStream
 open TLSInfo
 open CipherSuites
 
-let serverIP = "localhost" // "rigoletto.polito.it" //  // 128.93.188.162
-let serverPort = 2443
+let serverIP =  "rigoletto.polito.it" // "localhost" // 128.93.188.162
+let serverPort = 443
 let options = {
     minVer = TLS_1p0
     maxVer = TLS_1p0
     ciphersuites = cipherSuites_of_nameList
                     [
-                      TLS_RSA_WITH_3DES_EDE_CBC_SHA;
+                      TLS_RSA_WITH_AES_128_CBC_SHA
                     ]
     compressions = [ NullCompression ]
 
@@ -29,16 +27,34 @@ let options = {
     sessionDBExpiry = Bytes.newTimeSpan 2 0 0 0 (* two days *)
     }
 
+let testCl options =
+    let ns = new System.Net.Sockets.TcpClient(serverIP,serverPort) in
+    let TLSs = new TLStream(ns.GetStream(),options,TLSClient) in
+    let req = System.Text.Encoding.ASCII.GetBytes("GET /index.html HTTP/1.0\r\n\r\n") in
+    TLSs.Write(req,0,req.Length);
+    let buf = Array.zeroCreate 65535 in
+    let mutable i = TLSs.Read(buf,0,buf.Length) in
+    while i > 0 do
+        Printf.printf "%s" (System.Text.Encoding.ASCII.GetString(buf,0,i))
+        i <- TLSs.Read(buf,0,buf.Length)
+    done
+    ignore (System.Console.ReadLine())
+
+let test = 
+    SessionDB.create options
+    testCl options
+
+(*
 let rec consume conn =
     match TLS.read conn with
     | TLS.ReadError e ->
         match e with
         | EInternal (x,y) ->
-            Printf.printf "AYEEE!!! %A %A" x y
+            Printf.printf "AYEEE!!! Internal: %A %A" x y
             ignore (System.Console.ReadLine())
             None
         | EFatal x ->
-            Printf.printf "AYEEE!!! %A" x
+            Printf.printf "AYEEE!!! Fatal: %A" x
             ignore (System.Console.ReadLine())
             None
     | TLS.Handshaken (conn) ->
@@ -55,31 +71,9 @@ let rec consume conn =
         Printf.printf "AYEEE!!! %A" x
         ignore (System.Console.ReadLine())
         None
+*)
 
-let testCl options =
-    let startTime = System.DateTime.Now in
-    let ns = Tcp.connect serverIP serverPort in
-    let conn = TLS.connect ns options in
-    ignore (consume conn)
-    let endTime = System.DateTime.Now in
-    let f = File.AppendText("RESULT.txt")
-    f.WriteLine (Printf.sprintf "\n%A\n" (endTime - startTime))
-    f.Close()
-    Printf.printf "\n%A\n" (endTime - startTime)
-    // match consume conn with
-    // | None -> ()
-    // | Some(conn) ->
-    // let conn = TLS.shutdown conn in
-    // ignore (consume conn)
-
-let test = 
-    SessionDB.create options
-    for i = 1 to 101 do
-        System.Threading.Thread.Sleep(300);
-        testCl options
-        Printf.printf "%d\n" i
-    done
-
+(*
 let testRes options sid =
     let ns = Tcp.connect serverIP serverPort in
     printf "Asking resumption with %A" sid
@@ -102,6 +96,7 @@ let testRes options sid =
                     else
                         printf "Gotta Full handshake"
         ignore (System.Console.ReadLine ())
+*)
 
 (*
 let testFullAndReKey () =

@@ -166,8 +166,8 @@ let recordPacketIn ki conn headPayload =
         | Error(x,y) -> Error(x,y)
         | Correct (decrRes) ->
             let (newState, rg, plain) = decrRes in
-            let nh = StatefulAEAD.history ki state in
-            let msg = fragmentToTLSFragment ki ct history nh rg plain in
+            let oldH = StatefulAEAD.history ki state in
+            let msg = fragmentToTLSFragment ki ct history oldH rg plain in
             let history = addToHistory ki ct history rg msg in
             let st' = someState ki history newState in
             correct(st',ct,pv,rg,msg)

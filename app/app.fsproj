@@ -52,6 +52,11 @@
       <Project>{7283c0ef-3c40-495d-9969-79cb71b3aacc}</Project>
       <Private>True</Private>
     </ProjectReference>
+    <ProjectReference Include="..\TLSharp\TLSharp.fsproj">
+      <Name>TLSharp</Name>
+      <Project>{bdba21eb-cb44-435b-bf9a-c9393ad2a613}</Project>
+      <Private>True</Private>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="testClient.fs" />

@@ -550,7 +550,7 @@ let readOne (Conn(id,c)) =
                                (* Other fatal alert, we close both sides of the connection *)
                                //let ad = AppDataStream.writeNonAppDataFragment id c.appdata in
                              let c = {c with alert = state;
-                                            //appdata = ad;
+                                             read = c_read
                                         }
                            // KB: To Fix                                 
                              Pi.assume (GState(id,c));  
@@ -560,7 +560,7 @@ let readOne (Conn(id,c)) =
                                 (* A warning alert, we carry on. The user will decide what to do *)
                              //let ad = AppDataStream.writeNonAppDataFragment id c.appdata in
                              let c = {c with alert = state;
-                                             //appdata = ad;
+                                             read = c_read;
                                      }
                              // KB: To Fix                                 
                              Pi.assume (GState(id,c));  
@@ -569,7 +569,8 @@ let readOne (Conn(id,c)) =
 
                   | Application_data, Open ->
                       let appstate = AppDataStream.recv_fragment id c.appdata rg f in
-                      let c = {c with appdata = appstate} in
+                      let c = {c with appdata = appstate
+                                      read = c_read} in
                       // KB: To Fix                                 
                       Pi.assume (GState(id,c));  
                       correct (RAppDataDone, Conn(id, c))
