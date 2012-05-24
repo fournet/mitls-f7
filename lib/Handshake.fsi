@@ -18,22 +18,22 @@ type hs_state = pre_hs_state
 //TODO better names, maybe: init/accept resume reshake rekey request
 
 // Create instance for a fresh connection (without resumption) 
-val init_handshake: Role -> protocolOptions -> (ConnectionInfo * hs_state)
+val init_handshake: Role -> config -> (ConnectionInfo * hs_state)
 
 // Create instance for a fresh connection (Client-only, resuming some other sessions)
-val resume_handshake: SessionInfo -> PRFs.masterSecret -> protocolOptions -> (ConnectionInfo * hs_state)
+val resume_handshake: SessionInfo -> PRFs.masterSecret -> config -> (ConnectionInfo * hs_state)
 
 // All other calls are affine in the Handshake protocol state
 
 
 // Idle client starts a full handshake on the current connection
-val start_rehandshake: ConnectionInfo -> hs_state -> protocolOptions -> hs_state
+val start_rehandshake: ConnectionInfo -> hs_state -> config -> hs_state
 
 // Idle client starts an abbreviated handshake resuming the current session 
-val start_rekey:       ConnectionInfo -> hs_state -> protocolOptions -> hs_state
+val start_rekey:       ConnectionInfo -> hs_state -> config -> hs_state
 
 // (Idle) Server requests an handshake 
-val start_hs_request:  ConnectionInfo -> hs_state -> protocolOptions -> hs_state
+val start_hs_request:  ConnectionInfo -> hs_state -> config -> hs_state
 
 
 // ? resetting; TODO we'll try to get rid of it, and ensure that 

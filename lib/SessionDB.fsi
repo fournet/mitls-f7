@@ -5,8 +5,8 @@ open TLSInfo
 // FIXME: in the DB a session must be identified by sessionID and host!
 type StorableSession = SessionInfo * PRFs.masterSecret * Role
 
-val create: protocolOptions -> unit
-val select: protocolOptions -> sessionID -> StorableSession option
-val insert: protocolOptions -> sessionID -> StorableSession -> unit
-val remove: protocolOptions -> sessionID -> unit
-val getAllStoredIDs: protocolOptions -> sessionID list
+val create: config -> unit
+val select: config -> sessionID -> StorableSession option
+val insert: config -> sessionID -> StorableSession -> unit
+val remove: config -> sessionID -> unit
+val getAllStoredIDs: config -> sessionID list

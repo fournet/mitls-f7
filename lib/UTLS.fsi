@@ -29,14 +29,14 @@ val shutdown : fd -> unit
 
 (*
 val write    : fd -> bytes -> ioresult_o
-val connect : rawfd -> protocolOptions -> fd
-val resume  : rawfd -> sessionID -> protocolOptions -> unit Result
+val connect : rawfd -> config -> fd
+val resume  : rawfd -> sessionID -> config -> unit Result
 
-val rehandshake : fd -> protocolOptions -> unit
-val rekey       : fd -> protocolOptions -> unit
-val request     : fd -> protocolOptions -> unit
+val rehandshake : fd -> config -> unit
+val rekey       : fd -> config -> unit
+val request     : fd -> config -> unit
 
-val accept_connected : rawfd -> protocolOptions -> Connection
+val accept_connected : rawfd -> config -> Connection
 
 val authorize: fd -> query -> unit
 val refuse:    fd -> query -> unit

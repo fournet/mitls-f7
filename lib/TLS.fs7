@@ -11,7 +11,7 @@ open Dispatch // for ConnectionInfo, Client, Server, ...
 
 type role = Role
 type index = ConnectionInfo
-type params = protocolOptions
+type params = config
 type cn		= Dispatch.Connection
 
 // type epoch, as defined in TLSInfo

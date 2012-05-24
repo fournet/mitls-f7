@@ -84,7 +84,7 @@ type helloReqPolicy =
     | HRPFull
     | HRPResume
 
-type protocolOptions = {
+type config = {
     minVer: ProtocolVersion
     maxVer: ProtocolVersion
     ciphersuites: cipherSuites
@@ -109,7 +109,7 @@ type protocolOptions = {
 
 let defaultCertificateValidationPolicy (certList:cert list) = true
 
-let defaultProtocolOptions ={
+let defaultConfig ={
     minVer = SSL_3p0
     maxVer = TLS_1p2
     ciphersuites = cipherSuites_of_nameList

@@ -18,20 +18,20 @@ type msg_o = (range * delta)
 
 val networkStream: Connection -> NetworkStream
 
-val init: NetworkStream -> Role -> protocolOptions -> Connection
+val init: NetworkStream -> Role -> config -> Connection
 
-val resume: NetworkStream -> sessionID -> protocolOptions -> Connection Result
+val resume: NetworkStream -> sessionID -> config -> Connection Result
 
-val rehandshake: Connection -> protocolOptions -> nextCn
-val rekey: Connection -> protocolOptions -> nextCn
-val request: Connection -> protocolOptions -> nextCn
+val rehandshake: Connection -> config -> nextCn
+val rekey: Connection -> config -> nextCn
+val request: Connection -> config -> nextCn
 
 val shutdown: Connection -> Connection
 
 (*
 val resume_session: NetworkStream -> SessionInfo -> Connection (* New connection same session *)
 val resume_connection: Connection -> Connection (* New crypto same TCP stream same session *)
-val renegotiate: Connection -> protocolOptions -> Connection (* New session same TCP stream *)
+val renegotiate: Connection -> config -> Connection (* New session same TCP stream *)
 *)
 
 (* FIXME: unsure we want still to expose those functions to the upper levels *)

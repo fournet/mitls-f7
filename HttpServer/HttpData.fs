@@ -26,7 +26,7 @@ type HttpServerConfig = {
     docroot    : string;
     mimesmap   : Mime.MimeMap;
     localaddr  : IPEndPoint;
-    tlsoptions : TLSInfo.protocolOptions option;
+    tlsoptions : TLSInfo.config option;
 }
 
 type HttpBody =

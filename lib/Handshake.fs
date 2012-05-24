@@ -263,7 +263,7 @@ type pre_hs_state = {
   hs_outgoing_after_ccs: bytes;            (* data to be sent after the ccs has been sent *)
   hs_incoming    : bytes;                  (* partial incoming HS message *)
   ccs_incoming: KIAndCCS option; (* used to store the computed secrets for receiving data. Not set when receiving CCS, but when we compute the session secrects *)
-  poptions: protocolOptions;
+  poptions: config;
   pstate : protoState;
   hs_msg_log: bytes;
   hs_next_info: SessionInfo; (* The session we're establishing within the current HS *)
@@ -585,7 +585,7 @@ let resume_handshake next_sinfo ms poptions =
     let ci = initConnection Client rand in
     (ci,state)
 
-let start_rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:protocolOptions) =
+let start_rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     (* Start a non-resuming handshake, over an existing connection.
        Only client side, since a server can only issue a HelloRequest *)
     match state.pstate with
@@ -615,7 +615,7 @@ let start_rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:protocolOptions)
             state
     | PSServer (_) -> unexpectedError "[start_rehandshake] should only be invoked on client side connections."
 
-let start_rekey (ci:ConnectionInfo) (state:hs_state) (ops:protocolOptions) =
+let start_rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     (* Start a (possibly) resuming handshake over an existing connection *)
     let si = epochSI(ci.id_out) in // or equivalently ci.id_in
     let sidOp = si.sessionID in
@@ -654,7 +654,7 @@ let start_rekey (ci:ConnectionInfo) (state:hs_state) (ops:protocolOptions) =
                     state
             | PSServer (_) -> unexpectedError "[start_rekey] should only be invoked on client side connections."
 
-let start_hs_request (ci:ConnectionInfo) (state:hs_state) (ops:protocolOptions) =
+let start_hs_request (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     match state.pstate with
     | PSClient _ -> unexpectedError "[start_hs_request] should only be invoked on server side connections."
     | PSServer (sstate) ->

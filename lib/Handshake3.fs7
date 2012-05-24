@@ -10,7 +10,7 @@ open TLSInfo
 open TLSKey
 
 type role = Client | Server // Already defined in TLSInfo
-type config = protocolOptions option
+type config = config option
 
 // What's the purpose of special idle handling?
 val idle: config (* client-only *)

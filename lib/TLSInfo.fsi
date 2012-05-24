@@ -57,7 +57,7 @@ type helloReqPolicy =
     | HRPFull
     | HRPResume
 
-type protocolOptions = {
+type config = {
     minVer: ProtocolVersion
     maxVer: ProtocolVersion
     ciphersuites: cipherSuites
@@ -80,4 +80,4 @@ type protocolOptions = {
     sessionDBExpiry: TimeSpan
     }
 
-val defaultProtocolOptions: protocolOptions
+val defaultConfig: config

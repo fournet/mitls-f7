@@ -19,22 +19,22 @@ type (;ci:ConnectionInfo) hs_state = (;ci)pre_hs_state
 //TODO better names, maybe: init/accept resume reshake rekey request
 
 // Create instance for a fresh connection (without resumption) 
-val init_handshake: Role -> protocolOptions -> (ci:ConnectionInfo * (;ci)hs_state)
+val init_handshake: Role -> config -> (ci:ConnectionInfo * (;ci)hs_state)
 
 // Create instance for a fresh connection (Client-only, resuming some other sessions)
-val resume_handshake: nextSI:SessionInfo -> (;nextSI)PRFs.masterSecret -> protocolOptions -> (ci:ConnectionInfo * (;ci)hs_state)
+val resume_handshake: nextSI:SessionInfo -> (;nextSI)PRFs.masterSecret -> config -> (ci:ConnectionInfo * (;ci)hs_state)
 
 // All other calls are affine in the Handshake protocol state
 
 
 // Idle client starts a full handshake on the current connection
-val start_rehandshake: ci:ConnectionInfo -> (;ci)hs_state -> protocolOptions -> (;ci)hs_state
+val start_rehandshake: ci:ConnectionInfo -> (;ci)hs_state -> config -> (;ci)hs_state
 
 // Idle client starts an abbreviated handshake resuming the current session 
-val start_rekey:       ci:ConnectionInfo -> (;ci)hs_state -> protocolOptions -> (;ci)hs_state
+val start_rekey:       ci:ConnectionInfo -> (;ci)hs_state -> config -> (;ci)hs_state
 
 // (Idle) Server requests an handshake 
-val start_hs_request:  ci:ConnectionInfo -> (;ci)hs_state -> protocolOptions -> (;ci)hs_state
+val start_hs_request:  ci:ConnectionInfo -> (;ci)hs_state -> config -> (;ci)hs_state
 
 
 // ? resetting; TODO we'll try to get rid of it, and ensure that 

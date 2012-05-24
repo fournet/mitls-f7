@@ -29,7 +29,7 @@ type dState = {
     }
 
 type preGlobalState = {
-  poptions: protocolOptions;
+  poptions: config;
   (* abstract protocol states for HS/CCS, AL, and AD *)
   handshake: Handshake.hs_state;
   alert    : Alert.state;
