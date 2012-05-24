@@ -1,4 +1,6 @@
-﻿(* Handshake protocol *) 
+// Merge of Handshake.fs7 and Handshake3.fs7.
+// Not fully detailed, to fit in the paper.
+// Agreed to be implemented, once refined.
 module Handshake
 
 open Error
@@ -6,79 +8,44 @@ open CipherSuites
 open TLSInfo
 open DataStream
 
+(* Control Interface *)
+type id=Epoch; type CI=ConnectionInfo
+type (;ci:CI) hs_state
+val init:        r:Role                 -> c:config  -> (ci:CI * (;ci)hs_state){ Config(ci,c) }
+val resume:      nextSI:SessionInfo     -> c:config  -> (ci:CI * (;ci)hs_state){ Config(ci,c) }
+val rehandshake: ci:CI -> (;ci)hs_state -> c:config  -> (;ci)hs_state{...}
+val rekey:       ci:CI -> (;ci)hs_state -> c:config  -> (;ci)hs_state{...}
+val request:     ci:CI -> (;ci)hs_state -> c:config  -> (;ci)hs_state{...}
+val authorize:   ci:CI -> (;ci)hs_state -> c:cert  -> (;ci)hs_state { Authorize(ci,c) }
 
-// There is one instance of the protocol for each TCP connection,
-// each performing a sequence of Handshakes for that connection.
+(* Network Interface*)
+type (;ci:CI) outgoing =
+  | OutIdle of (;ci)hs_state
+  | OutSome of (rg:range * (;ci.id_out,rg)fragment) * (;ci)hs_state
+  | OutCCS of  (rg:range * (;ci.id_out,rg)fragment) * 
+               ((ci':CI * cs:(;ci'.id_out)StAE.state * (;ci')hs_state)
+               { SentCCS(ci'.id_out) /\ ci.id_out = Pred(ci'.id_out) /\
+                 ci.id_in = ci'.id_in})
+  | OutFinished of (rg:range * (;ci.id_out,rg)fragment) * (;ci)hs_state
+  | OutComplete of (rg:range * (;ci.id_out,rg)fragment) * (;ci)hs_state 
+                   {Complete(ci)}
+val next_fragment: ci:CI -> (;ci)hs_state -> (;ci)outgoing
 
-// protocol state  
-type (;ci:ConnectionInfo) pre_hs_state 
-type (;ci:ConnectionInfo) hs_state = (;ci)pre_hs_state
+type (;ci:CI)incoming =
+  | InAck of (;ci)hs_state
+  | InVersionAgreed  of (;ci)hs_state
+  | InQuery of Certificate.cert * (;ci)hs_state
+  | InFinished of (;ci)hs_state
+  | InComplete of (;ci)hs_state {Complete(ci)}
+  | InError of ErrorCause * ErrorKind * (;ci)hs_state
+val recv_fragment: ci:CI -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)fragment -> 
+                   (;ci)incoming
 
-(* Locally controlling handshake protocols *) 
+type (;ci:CI)incomingCCS =
+  | InCCSAck of ci':CI * (;ci'.id_in)StAE.state * (;ci')hs_state
+				{ci.id_out = ci'.id_out /\ ci.id_in = Pred(ci'.id_in)}
+  | InCCSError of ErrorCause * ErrorKind * (;ci)hs_state
+val recv_ccs     : ci:CI -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)fragment -> 
+                   (;ci)incomingCCS
 
-//TODO better names, maybe: init/accept resume reshake rekey request
-
-// Create instance for a fresh connection (without resumption) 
-val init_handshake: Role -> config -> (ci:ConnectionInfo * (;ci)hs_state)
-
-// Create instance for a fresh connection (Client-only, resuming some other sessions)
-val resume_handshake: nextSI:SessionInfo -> (;nextSI)PRFs.masterSecret -> config -> (ci:ConnectionInfo * (;ci)hs_state)
-
-// All other calls are affine in the Handshake protocol state
-
-
-// Idle client starts a full handshake on the current connection
-val start_rehandshake: ci:ConnectionInfo -> (;ci)hs_state -> config -> (;ci)hs_state
-
-// Idle client starts an abbreviated handshake resuming the current session 
-val start_rekey:       ci:ConnectionInfo -> (;ci)hs_state -> config -> (;ci)hs_state
-
-// (Idle) Server requests an handshake 
-val start_hs_request:  ci:ConnectionInfo -> (;ci)hs_state -> config -> (;ci)hs_state
-
-
-// ? resetting; TODO we'll try to get rid of it, and ensure that 
-// handshake.fs leaves hs_state in the resulting state after completion
-// val new_session_idle:  hs_state -> SessionInfo -> PRFs.masterSecret -> hs_state
-
-
-(* Sending Handshake and CCS fragments *)
-
-//TODO make SessionDB internal to handshake (or object!)
-//TODO systematically rename FullyFinished to Complete etc
-//TODO provide support for indexing fragments (probably by directed si, not ki)
-
-type (;ki:epoch,rg:range) unauth_fragment = f:(;ki,rg) Fragment.fragment{!s. Fragment.Fragment(ki,s,rg,f)}
-type (;ki:epoch) HSFragReply =
-  | EmptyHSFrag              (* nothing to send *) 
-  | HSFrag of                (rg:range * (;ki,rg)unauth_fragment)
-  | CCSFrag of               (rg:range * (;ki,rg)unauth_fragment) (* the unique one-byte CCS *) * ((newKI:epoch * cs:(;newKI)Record.ConnectionState){TLSFragment.EmptyHistory(newKI,Record.History(newKI,cs))})
-  | HSWriteSideFinished of   (rg:range * (;ki,rg)unauth_fragment) (* signalling that this fragment ends the finished message *)
-  | HSFullyFinished_Write of (rg:range * (;ki,rg)unauth_fragment) * ((si:SessionInfo * (;si)PRFs.masterSecret * Role){si=EpochSI(ki)})
-val next_fragment: ci:ConnectionInfo -> (;ci)hs_state -> (;ci.id_out)HSFragReply * (;ci)hs_state
-
-(* Receiving Handshake and CCS fragments *) 
-
-type (;si:SessionInfo)recv_reply = (* the fragment is accepted, and... *)
-  | HSAck (* nothing happens *)
-  | HSVersionAgreed (* use this new protocol version for sending *)
-  | HSQuery of Certificate.cert
-  | HSReadSideFinished
-  | HSFullyFinished_Read of x:SessionDB.StorableSession{?m,r. x = (si,m,r)} (* we can start sending data on the connection *)  
-val recv_fragment: ci:ConnectionInfo -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> (;EpochSI(ci.id_in))recv_reply Result * (;ci)hs_state
-val recv_ccs     : ci:ConnectionInfo -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> (((newKI:epoch * cs:(;newKI)Record.ConnectionState){TLSFragment.EmptyHistory(newKI,Record.History(newKI,cs))}) Result) * (;ci)hs_state
-
-val getNegotiatedVersion: ci:ConnectionInfo -> (;ci)hs_state -> ProtocolVersion
-val authorize: ci:ConnectionInfo -> (;ci)hs_state -> Certificate.cert -> (;ci)hs_state
-
-// AP: Not sure they should exists.
-// Either HS returns the full CI back to the user, with the next state already indexed by the new CI
-// (This requires a patch on the interface, but seems doable)
-// Or the HS state is not indexed by CI, and so the problem does not exists (but can we still prove
-// secrecy in the latter case?)
-val reset_incoming: ci:ConnectionInfo -> (;ci)hs_state ->
-	ci':ConnectionInfo{ci'.role = ci.role /\ ci'.id_out = ci.id_out} -> (;ci')hs_state
-
-val reset_outgoing: ci:ConnectionInfo -> (;ci)hs_state ->
-	ci':ConnectionInfo{ci'.role = ci.role /\ ci'.id_in = ci.id_in} -> (;ci')hs_state
-
+val getNegotiatedVersion: ci:CI -> (;ci)hs_state -> ProtocolVersion

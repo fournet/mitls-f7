@@ -31,27 +31,35 @@ val authorize: ConnectionInfo -> hs_state -> Certificate.cert -> hs_state
 
 (* Network Interface *)
 
-type HSFragReply =
-  | EmptyHSFrag              (* nothing to send *) 
-  | HSFrag of                DataStream.range * Fragment.fragment
-  | CCSFrag of               (DataStream.range * Fragment.fragment) (* the unique one-byte CCS *) * (epoch * Record.ConnectionState)
-  | HSWriteSideFinished of   DataStream.range * Fragment.fragment (* signalling that this fragment ends the finished message *)
-  | HSFullyFinished_Write of (DataStream.range * Fragment.fragment) * SessionDB.StorableSession
-val next_fragment: ConnectionInfo  -> hs_state -> HSFragReply * hs_state
+[<NoEquality;NoComparison>]
+type outgoing =
+  | OutIdle of hs_state
+  | OutSome of (DataStream.range * Fragment.fragment) * hs_state
+  | OutCCS of  (DataStream.range * Fragment.fragment) (* the unique one-byte CCS *) *
+               (ConnectionInfo * StatefulAEAD.state * hs_state)
+  | OutFinished of (DataStream.range * Fragment.fragment) * hs_state
+    // FIXME: StorableSession should not be returned
+  | OutComplete of (DataStream.range * Fragment.fragment) * SessionDB.StorableSession * hs_state
+val next_fragment: ConnectionInfo  -> hs_state -> outgoing
 
 (* Receiving Handshake and CCS fragments *) 
 
-type recv_reply = (* the fragment is accepted, and... *)
-  | HSAck (* nothing happens *)
-  | HSVersionAgreed (* If in first handhsake, ask HS for which protocol version to check and send data *)
-  | HSQuery of Certificate.cert
-  | HSReadSideFinished
-  | HSFullyFinished_Read of SessionDB.StorableSession (* we can start sending data on the connection *)  
-val recv_fragment: ConnectionInfo -> hs_state -> DataStream.range -> Fragment.fragment -> recv_reply Result * hs_state
-val recv_ccs     : ConnectionInfo -> hs_state -> DataStream.range -> Fragment.fragment -> ((epoch * Record.ConnectionState) Result) * hs_state
+[<NoEquality;NoComparison>]
+type incoming = (* the fragment is accepted, and... *)
+  | InAck of hs_state
+  | InVersionAgreed of hs_state
+  | InQuery of Certificate.cert * hs_state
+  | InFinished of hs_state
+    // FIXME: StorableSession
+  | InComplete of SessionDB.StorableSession * hs_state
+  | InError of ErrorCause * ErrorKind * hs_state
+val recv_fragment: ConnectionInfo -> hs_state -> DataStream.range -> Fragment.fragment -> incoming
+
+[<NoEquality;NoComparison>]
+type incomingCCS =
+  | InCCSAck of ConnectionInfo * StatefulAEAD.state * hs_state
+  | InCCSError of ErrorCause * ErrorKind * hs_state
+val recv_ccs     : ConnectionInfo -> hs_state -> DataStream.range -> Fragment.fragment -> incomingCCS
 
 // Which protocol version dispatch should use to check during the first handshake
 val getNegotiatedVersion: ConnectionInfo -> hs_state -> ProtocolVersion
-
-val reset_incoming: ConnectionInfo -> hs_state -> ConnectionInfo -> hs_state
-val reset_outgoing: ConnectionInfo -> hs_state -> ConnectionInfo -> hs_state

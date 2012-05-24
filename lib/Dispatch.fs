@@ -206,7 +206,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
       | (Alert.EmptyALFrag,_) -> 
           let hs_state = c.handshake in
           match Handshake.next_fragment id hs_state with 
-          | (Handshake.EmptyHSFrag, _) ->
+          | Handshake.OutIdle(_) ->
             let app_state = c.appdata in
                 match AppDataStream.next_fragment id app_state with
                 | None -> (correct (WAppDataDone,Conn(id,c)))
@@ -241,9 +241,10 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                                have been sent (It doesn't really matter at this point how we internally messed up
                                with the buffer, as long as we did not send anything on the network. *)
                               (correct(WMustRead, Conn(id,c)))   
-          | (Handshake.CCSFrag(frag,newKeys),new_hs_state) ->
+          | Handshake.OutCCS(frag,newKeys) ->
                     let (rg,ccs) = frag in
-                    let (newKiOUT,newCS) = newKeys in
+                    let (nextID,nextWrite,new_hs_state) = newKeys in
+                    let nextWCS = Record.initConnState nextID.id_out nextWrite in
                     (* we send a (complete) CCS fragment *)
                     match c_write.disp with
                     | x when x = FirstHandshake || x = Open ->
@@ -256,29 +257,25 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                             (* Now:
                                 - update the index and the state of other protocols
                                 - move the outgoing state to Finishing, to signal we must not send appData now. *)
-                            let newID = {id with id_out = newKiOUT } in
-                            let new_write = {c.write with disp = Finishing; conn = newCS} in 
-                            let new_ad = AppDataStream.reset_outgoing id c.appdata newID in
-                            let new_al = Alert.reset_outgoing id c.alert newID in
-                           // FIXME: we don't really want next line. HS should know when it's time
-                            // to change index anyway.
-                            let new_hs = Handshake.reset_outgoing id new_hs_state newID in
+                            let new_write = {c.write with disp = Finishing; conn = nextWCS} in 
+                            let new_ad = AppDataStream.reset_outgoing id c.appdata nextID in
+                            let new_al = Alert.reset_outgoing id c.alert nextID in
                             let c = { c with write = new_write;
-                                             handshake = new_hs;
+                                             handshake = new_hs_state;
                                              alert = new_al;
                                              appdata = new_ad} in 
-                            (correct (WriteAgain, Conn(newID,c)) )
+                            (correct (WriteAgain, Conn(nextID,c)) )
                         | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error (x,y) (* Unrecoverable error *)
                     | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher, InvalidState) (* TODO: we might want to send an "internal error" fatal alert *)
-          | (Handshake.HSFrag(tlen,f),new_hs_state) ->     
+          | (Handshake.OutSome((rg,f),new_hs_state)) ->     
                       (* we send some handshake fragment *)
                       match c_write.disp with
                       | x when x = Init || x = FirstHandshake ||
                                x = Finishing || x = Open ->
                           let history = Record.history id.id_out c_write.conn in
-                          let frag = TLSFragment.construct id.id_out Handshake history tlen f in
+                          let frag = TLSFragment.construct id.id_out Handshake history rg f in
                           let pv = pickSendPV (Conn(id,c)) in
-                          let resSend = send c.ns id.id_out c.write pv tlen Handshake frag in
+                          let resSend = send c.ns id.id_out c.write pv rg Handshake frag in
                           match resSend with 
                           | Correct(new_write) ->
                             let c = { c with handshake = new_hs_state;
@@ -288,15 +285,15 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                             (correct (WriteAgain, Conn(id,c)) )
                           | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
                       | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) (* TODO: we might want to send an "internal error" fatal alert *)
-          | (Handshake.HSWriteSideFinished(tlen,lastFrag),new_hs_state) ->
+          | (Handshake.OutFinished((rg,lastFrag),new_hs_state)) ->
                 (* check we are in finishing state *)
                 match c_write.disp with
                 | Finishing ->
                     (* Send the last fragment *)
                     let history = Record.history id.id_out c_write.conn in
-                    let frag = TLSFragment.construct id.id_out Handshake history tlen lastFrag in
+                    let frag = TLSFragment.construct id.id_out Handshake history rg lastFrag in
                     let pv = pickSendPV (Conn(id,c)) in
-                    let resSend = send c.ns id.id_out c.write pv tlen Handshake frag in
+                    let resSend = send c.ns id.id_out c.write pv rg Handshake frag in
                     match resSend with 
                           | Correct(new_write) ->
                             (* Also move to the Finished state *)
@@ -308,14 +305,14 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                             (Correct (WMustRead, Conn(id,c)))
                           | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
                 | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) (* TODO: we might want to send an "internal error" fatal alert *)
-          | (Handshake.HSFullyFinished_Write((tlen,lastFrag),new_info),new_hs_state) ->
+          | (Handshake.OutComplete((rg,lastFrag),new_info,new_hs_state)) ->
                 match c_write.disp with
                 | Finishing ->
                     (* Send the last fragment *)
                     let history = Record.history id.id_out c_write.conn in
-                    let frag = TLSFragment.construct id.id_out Handshake history tlen lastFrag in
+                    let frag = TLSFragment.construct id.id_out Handshake history rg lastFrag in
                     let pv = pickSendPV (Conn(id,c)) in
-                    let resSend = send c.ns id.id_out c.write pv tlen Handshake frag in
+                    let resSend = send c.ns id.id_out c.write pv rg Handshake frag in
                     match resSend with 
                     | Correct(new_write) ->
                         let c = { c with handshake = new_hs_state;
@@ -422,103 +419,98 @@ let readOne (Conn(id,c)) =
                   | Handshake, x when x = Init || x = FirstHandshake || x = Finishing || x = Open ->
                       let c_hs = c.handshake in
                         match Handshake.recv_fragment id c_hs rg f with
-                          | (Correct(corr),hs) ->
-                              //let ad = AppDataStream.writeNonAppDataFragment id c.appdata in
-                                match corr with
-                                  | Handshake.HSAck ->
-                                      let c = { c with read = c_read;
-                                                       //appdata = ad;
-                                                       handshake = hs} in
-                                      // KB: To Fix                                 
-                                      Pi.assume (GState(id,c));  
-                                      correct (RAgain, Conn(id,c))
-                                  | Handshake.HSVersionAgreed ->
-                                      match c_read.disp with
-                                        | Init ->
-                                            (* Then, also c_write must be in Init state. It means this is the very first, unprotected handshake,
-                                               and we just negotiated the version.
-                                               Set the negotiated version in the current sinfo (read and write side), 
-                                               and move to the FirstHandshake state, so that
-                                               protocol version will be properly checked *)
-                                            let new_read = {c_read with disp = FirstHandshake} in
-                                            let c_write = c.write in
-                                            let new_write = {c_write with disp = FirstHandshake} in
-                                            let c = {c with handshake = hs;
-                                                            read = new_read;
-                                                            write = new_write} in
-                                              // KB: To Fix                                 
-                                              Pi.assume (GState(id,c));  
-                                              correct (RAgain, Conn(id,c) )
-                                        | _ -> (* It means we are doing a re-negotiation. Don't alter the current version number, because it
-                                                  is perfectly valid. It will be updated after the next CCS, along with all other session parameters *)
-                                            let c = { c with read = c_read;
-                                                             handshake = hs} in
-                                              // KB: To Fix                           
-                                               Pi.assume (GState(id,c));  
-                                              (correct (RAgain, Conn(id, c) ))
-                                  | Handshake.HSQuery(query) ->
-                                            let c = {c with read = c_read;
-                                                            handshake = hs} in
-                                              // KB: To Fix                           
-                                              Pi.assume (GState(id,c));  
-                                              correct(RQuery(query),Conn(id,c))
-                                  | Handshake.HSReadSideFinished ->
-                                            (* Ensure we are in Finishing state *)
-                                            match x with
-                                              | Finishing ->
-                                                  let c = {c with read = c_read;
-                                                                  handshake = hs} in
-                                                    (* Indeed, we should stop reading now!
-                                                      (Because, except for false start implementations, the other side is now
-                                                       waiting for us to send our finished message)
-                                                       However, if we say RHSDone, the library will report an early completion of HS
-                                                       (we still have to send our finished message).
-                                                       So, here we say ReadAgain, which will anyway first flush our output buffers,
-                                                       this sending our finished message, and thus letting us get the WHSDone event.
-                                                       I know, it's tricky and it sounds fishy, but that's the way it is now.*)
-                                                    // KB: To Fix                           
-                                                   Pi.assume (GState(id,c));  
-                                                   correct (RAgain,Conn(id,c))
-                                              | _ -> let closed = closeConnection (Conn(id,{c with handshake = hs})) in Error(Dispatcher,InvalidState) // TODO: We might want to send some alert here
-                                  | Handshake.HSFullyFinished_Read newSess ->
-                                            let (newSI,newMS,newDIR) = newSess in
-                                            let newInfo = (newSI,newMS,newDIR) in
-                                            let c = {c with read = c_read;
-                                                            handshake = hs} in
-                                            // KB: To Fix                        
-                                            Pi.assume (GState(id,c));  
-                                           (* Ensure we are in Finishing state *)
-                                              match x with
-                                                | Finishing ->
-                                                       (* Sanity check: in and out session infos should be the same *)
-                                                    if epochSI(id.id_in) = epochSI(id.id_out) then
-                                                      match moveToOpenState (Conn(id,c)) newInfo with
-                                                        | Correct(c) -> 
-                                                            correct(RHSDone, Conn(id,c))
-                                                        | Error(x,y) -> 
-                                                            let closed = closeConnection (Conn(id,c)) in Error(x,y) (* TODO: we might want to send an alert here *)
-                                                    else let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,CheckFailed) (* TODO: we might want to send an internal_error fatal alert here. *)
-                                                | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) (* TODO: We might want to send some alert here. *)
-                          | (Error(x,y),hs) -> let c = {c with handshake = hs} in Error(x,y) (* TODO: we might need to send some alerts *)
+                        | Handshake.InAck(hs) ->
+                            let c = { c with read = c_read;
+                                            //appdata = ad;
+                                            handshake = hs} in
+                            // KB: To Fix                                 
+                            Pi.assume (GState(id,c));  
+                            correct (RAgain, Conn(id,c))
+                        | Handshake.InVersionAgreed(hs) ->
+                            match c_read.disp with
+                            | Init ->
+                                (* Then, also c_write must be in Init state. It means this is the very first, unprotected handshake,
+                                    and we just negotiated the version.
+                                    Set the negotiated version in the current sinfo (read and write side), 
+                                    and move to the FirstHandshake state, so that
+                                    protocol version will be properly checked *)
+                                let new_read = {c_read with disp = FirstHandshake} in
+                                let c_write = c.write in
+                                let new_write = {c_write with disp = FirstHandshake} in
+                                let c = {c with handshake = hs;
+                                                read = new_read;
+                                                write = new_write} in
+                                    // KB: To Fix                                 
+                                    Pi.assume (GState(id,c));  
+                                    correct (RAgain, Conn(id,c) )
+                            | _ -> (* It means we are doing a re-negotiation. Don't alter the current version number, because it
+                                        is perfectly valid. It will be updated after the next CCS, along with all other session parameters *)
+                                let c = { c with read = c_read;
+                                                    handshake = hs} in
+                                    // KB: To Fix                           
+                                    Pi.assume (GState(id,c));  
+                                    (correct (RAgain, Conn(id, c) ))
+                        | Handshake.InQuery(query,hs) ->
+                                let c = {c with read = c_read;
+                                                handshake = hs} in
+                                    // KB: To Fix                           
+                                    Pi.assume (GState(id,c));  
+                                    correct(RQuery(query),Conn(id,c))
+                        | Handshake.InFinished(hs) ->
+                                (* Ensure we are in Finishing state *)
+                                match x with
+                                    | Finishing ->
+                                        let c = {c with read = c_read;
+                                                        handshake = hs} in
+                                        (* Indeed, we should stop reading now!
+                                            (Because, except for false start implementations, the other side is now
+                                            waiting for us to send our finished message)
+                                            However, if we say RHSDone, the library will report an early completion of HS
+                                            (we still have to send our finished message).
+                                            So, here we say ReadAgain, which will anyway first flush our output buffers,
+                                            this sending our finished message, and thus letting us get the WHSDone event.
+                                            I know, it's tricky and it sounds fishy, but that's the way it is now.*)
+                                        // KB: To Fix                           
+                                        Pi.assume (GState(id,c));  
+                                        correct (RAgain,Conn(id,c))
+                                    | _ -> let closed = closeConnection (Conn(id,{c with handshake = hs})) in Error(Dispatcher,InvalidState) // TODO: We might want to send some alert here
+                        | Handshake.InComplete(newSess,hs) ->
+                                let (newSI,newMS,newDIR) = newSess in
+                                let newInfo = (newSI,newMS,newDIR) in
+                                let c = {c with read = c_read;
+                                                handshake = hs} in
+                                // KB: To Fix                        
+                                Pi.assume (GState(id,c));  
+                                (* Ensure we are in Finishing state *)
+                                    match x with
+                                    | Finishing ->
+                                            (* Sanity check: in and out session infos should be the same *)
+                                        if epochSI(id.id_in) = epochSI(id.id_out) then
+                                            match moveToOpenState (Conn(id,c)) newInfo with
+                                            | Correct(c) -> 
+                                                correct(RHSDone, Conn(id,c))
+                                            | Error(x,y) -> 
+                                                let closed = closeConnection (Conn(id,c)) in Error(x,y) (* TODO: we might want to send an alert here *)
+                                        else let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,CheckFailed) (* TODO: we might want to send an internal_error fatal alert here. *)
+                                    | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) (* TODO: We might want to send some alert here. *)
+                          | InError(x,y,hs) -> let c = {c with handshake = hs} in Error(x,y) (* TODO: we might need to send some alerts *)
 
                   | Change_cipher_spec, x when x = FirstHandshake || x = Open ->
                         match Handshake.recv_ccs id c.handshake rg f with 
-                          | (Correct(ccs),hs) ->
-                              let (newKiIN,newCS) = ccs in
-                              let newID = {id with id_in = newKiIN} in
-                              let new_read = {c_read with disp = Finishing; conn = newCS} in
-                              let new_ad = AppDataStream.reset_incoming id c.appdata newID in
-                              let new_al = Alert.reset_incoming id c.alert newID in
-                              let new_hs = Handshake.reset_incoming id hs newID in
+                          | InCCSAck(nextID,nextR,hs) ->
+                              let nextRCS = Record.initConnState nextID.id_in nextR in
+                              let new_read = {c_read with disp = Finishing; conn = nextRCS} in
+                              let new_ad = AppDataStream.reset_incoming id c.appdata nextID in
+                              let new_al = Alert.reset_incoming id c.alert nextID in
                               let c = { c with read = new_read;
                                                appdata = new_ad;
                                                alert = new_al;
-                                               handshake = new_hs;
+                                               handshake = hs;
                                       }
                                 // KB: To Fix                                 
-                              Pi.assume (GState(newID,c));  
-                              correct (RAgain, Conn(newID,c))
-                          | (Error (x,y),hs) ->
+                              Pi.assume (GState(nextID,c));  
+                              correct (RAgain, Conn(nextID,c))
+                          | InCCSError (x,y,hs) ->
                               let c = {c with handshake = hs} in
                               let closed = closeConnection (Conn(id,c)) in
                               Error (x,y) // TODO: We might want to send some alert here.
