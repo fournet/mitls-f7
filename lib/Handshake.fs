@@ -517,7 +517,7 @@ let parseServerHello data =
 
 /// Initiating Handshakes, mostly on the client side. 
 
-let init_handshake (role:Role) poptions =
+let init (role:Role) poptions =
     (* Start a new first session without resumption *)
     let next_sinfo = null_sessionInfo poptions.minVer in
     let rand = makeRandom() in
@@ -560,7 +560,7 @@ let init_handshake (role:Role) poptions =
         let ci = initConnection Server rand in
         (ci,state)
 
-let resume_handshake next_sinfo ms poptions =
+let resume next_sinfo ms poptions =
     (* Resume a session, for the first time in this connection.
        Set up our state as a client. Servers cannot resume *)
     match next_sinfo.sessionID with
@@ -585,7 +585,7 @@ let resume_handshake next_sinfo ms poptions =
     let ci = initConnection Client rand in
     (ci,state)
 
-let start_rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
+let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     (* Start a non-resuming handshake, over an existing connection.
        Only client side, since a server can only issue a HelloRequest *)
     match state.pstate with
@@ -615,7 +615,7 @@ let start_rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
             state
     | PSServer (_) -> unexpectedError "[start_rehandshake] should only be invoked on client side connections."
 
-let start_rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
+let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     (* Start a (possibly) resuming handshake over an existing connection *)
     let si = epochSI(ci.id_out) in // or equivalently ci.id_in
     let sidOp = si.sessionID in
@@ -654,7 +654,7 @@ let start_rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
                     state
             | PSServer (_) -> unexpectedError "[start_rekey] should only be invoked on client side connections."
 
-let start_hs_request (ci:ConnectionInfo) (state:hs_state) (ops:config) =
+let request (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     match state.pstate with
     | PSClient _ -> unexpectedError "[start_hs_request] should only be invoked on server side connections."
     | PSServer (sstate) ->
@@ -1316,8 +1316,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 (* Do not log this message *)
                 match state.poptions.honourHelloReq with
                 | HRPIgnore -> recv_fragment_client ci state agreedVersion
-                | HRPResume -> let state = start_rekey ci state state.poptions in (correct (HSAck), state) (* Terminating case, we reset all buffers *)
-                | HRPFull   -> let state = start_rehandshake ci state state.poptions in (correct (HSAck), state) (* Terminating case, we reset all buffers *)
+                | HRPResume -> let state = rekey ci state state.poptions in (correct (HSAck), state) (* Terminating case, we reset all buffers *)
+                | HRPFull   -> let state = rehandshake ci state state.poptions in (correct (HSAck), state) (* Terminating case, we reset all buffers *)
             | _ -> (* RFC 7.4.1.1: ignore this message *) recv_fragment_client ci state agreedVersion
         | HT_server_hello ->
             match cState with

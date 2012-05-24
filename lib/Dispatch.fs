@@ -77,7 +77,7 @@ type readOutcome =
 
 
 let init ns role poptions =
-    let (ci,hs) = Handshake.init_handshake role poptions in
+    let (ci,hs) = Handshake.init role poptions in
     let id_in = ci.id_in in
     let id_out = ci.id_out in
     let recv = Record.nullConnState id_in in
@@ -106,7 +106,7 @@ let resume ns sid ops =
     match retrievedRole with
     | Server -> Error(Dispatcher,CheckFailed)
     | Client ->
-    let (ci,hs) = Handshake.resume_handshake retrievedSinfo retrievedMS ops in
+    let (ci,hs) = Handshake.resume retrievedSinfo retrievedMS ops in
     let (send,recv) = (Record.nullConnState ci.id_out, Record.nullConnState ci.id_in) in
     let read_state = {disp = Init; conn = recv} in
     let write_state = {disp = Init; conn = send} in
@@ -123,17 +123,17 @@ let resume ns sid ops =
     correct (res)
 
 let rehandshake (Conn(id,conn)) ops =
-    let new_hs = Handshake.start_rehandshake id conn.handshake ops in // Equivalently, id.id_in.sinfo
+    let new_hs = Handshake.rehandshake id conn.handshake ops in // Equivalently, id.id_in.sinfo
     Conn(id,{conn with handshake = new_hs;
                        poptions = ops})
 
 let rekey (Conn(id,conn)) ops =
-    let new_hs = Handshake.start_rekey id conn.handshake ops in // Equivalently, id.id_in.sinfo
+    let new_hs = Handshake.rekey id conn.handshake ops in // Equivalently, id.id_in.sinfo
     Conn(id,{conn with handshake = new_hs;
                        poptions = ops})
 
 let request (Conn(id,conn)) ops =
-    let new_hs = Handshake.start_hs_request id conn.handshake ops in // Equivalently, id.id_in.sinfo
+    let new_hs = Handshake.request id conn.handshake ops in // Equivalently, id.id_in.sinfo
     Conn(id,{conn with handshake = new_hs;
                        poptions = ops})
 
