@@ -15,8 +15,7 @@ type hs_state = pre_hs_state
 val init: Role -> config -> (ConnectionInfo * hs_state)
 
 // Create instance for a fresh connection (Client-only, resuming some other sessions)
-// FIXME: Mismatch: handle masterSecret
-val resume: SessionInfo -> PRFs.masterSecret -> config -> (ConnectionInfo * hs_state)
+val resume: sessionID -> config -> (ConnectionInfo * hs_state)
 
 // Idle client starts a full handshake on the current connection
 val rehandshake: ConnectionInfo -> hs_state -> config -> hs_state
@@ -29,6 +28,8 @@ val request:  ConnectionInfo -> hs_state -> config -> hs_state
 
 val authorize: ConnectionInfo -> hs_state -> Certificate.cert -> hs_state
 
+val invalidateSession: ConnectionInfo -> hs_state -> hs_state
+
 (* Network Interface *)
 
 [<NoEquality;NoComparison>]
@@ -38,8 +39,7 @@ type outgoing =
   | OutCCS of  (DataStream.range * Fragment.fragment) (* the unique one-byte CCS *) *
                (ConnectionInfo * StatefulAEAD.state * hs_state)
   | OutFinished of (DataStream.range * Fragment.fragment) * hs_state
-    // FIXME: StorableSession should not be returned
-  | OutComplete of (DataStream.range * Fragment.fragment) * SessionDB.StorableSession * hs_state
+  | OutComplete of (DataStream.range * Fragment.fragment) * hs_state
 val next_fragment: ConnectionInfo  -> hs_state -> outgoing
 
 (* Receiving Handshake and CCS fragments *) 
@@ -50,8 +50,7 @@ type incoming = (* the fragment is accepted, and... *)
   | InVersionAgreed of hs_state
   | InQuery of Certificate.cert * hs_state
   | InFinished of hs_state
-    // FIXME: StorableSession
-  | InComplete of SessionDB.StorableSession * hs_state
+  | InComplete of hs_state
   | InError of ErrorCause * ErrorKind * hs_state
 val recv_fragment: ConnectionInfo -> hs_state -> DataStream.range -> Fragment.fragment -> incoming
 

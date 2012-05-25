@@ -106,8 +106,6 @@ let recvMsg = fun conn ->
 let doclient (request : string) =
     let options = config "client" in
 
-    SessionDB.create options;
-
     let ns      = Tcp.connect "127.0.0.1" 5000 in
     let conn    = TLS.connect ns options in
 
@@ -143,8 +141,6 @@ let doclient (request : string) =
 
 let doserver () =
     let options = config "server" in
-
-    SessionDB.create options;
 
     let ns = Tcp.listen "127.0.0.1" 5000 in
 

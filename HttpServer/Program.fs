@@ -43,8 +43,6 @@ let _ =
     let docroot    = "../../" //"C:\htdocs" in
     let localaddr  = IPEndPoint(IPAddress.Loopback, 2443) in
     let mimesmap   = try_read_mimes (Path.Combine(docroot, "mime.types")) in
-        
-        SessionDB.create tlsoptions;
 
         HttpServer.run {
             docroot    = docroot        ;

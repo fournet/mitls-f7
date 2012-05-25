@@ -8,7 +8,6 @@ open Error
 open Handshake
 open Alert
 open TLSInfo
-open SessionDB
 
 open TLSFragment // Required by F7, or deliver won't parse.
 
@@ -97,16 +96,7 @@ let init ns role poptions =
 
 let resume ns sid ops =
     (* Only client side, can never be server side *)
-
-    (* Ensure the sid is in the SessionDB, and it is for a client *)
-    match select ops sid with
-    | None -> Error(Dispatcher,CheckFailed)
-    | Some (retrieved) ->
-    let (retrievedSinfo,retrievedMS,retrievedRole) = retrieved in
-    match retrievedRole with
-    | Server -> Error(Dispatcher,CheckFailed)
-    | Client ->
-    let (ci,hs) = Handshake.resume retrievedSinfo retrievedMS ops in
+    let (ci,hs) = Handshake.resume sid ops in
     let (send,recv) = (Record.nullConnState ci.id_out, Record.nullConnState ci.id_in) in
     let read_state = {disp = Init; conn = recv} in
     let write_state = {disp = Init; conn = send} in
@@ -142,13 +132,7 @@ let shutdown (Conn(id,conn)) =
     let conn = {conn with alert = new_al} in
     Conn(id,conn)
 
-let moveToOpenState (Conn(id,c)) new_storable_info =
-    (* If appropriate, store this session in the DB *)
-    let (storableSinfo,storableMS,storableDir) = new_storable_info in
-    match storableSinfo.sessionID with
-    | None -> (* This session should not be stored *) ()
-    | Some (sid) -> (* SessionDB. *) insert c.poptions sid new_storable_info
-
+let moveToOpenState (Conn(id,c)) =
     // Agreement should be on all protocols.
     // - As a pre-condition to invoke this function, we have agreement on HS protocol
     // - We have implicit agreement on appData, because the input/output buffer is empty
@@ -175,7 +159,10 @@ let moveToOpenState (Conn(id,c)) new_storable_info =
 let closeConnection (Conn(id,c)) =
     let new_read = {c.read with disp = Closed} in
     let new_write = {c.write with disp = Closed} in
-    let c = {c with read = new_read; write = new_write} in
+    let new_hs = Handshake.invalidateSession id c.handshake in
+    let c = {c with read = new_read;
+                    write = new_write;
+                    handshake = new_hs} in
     Conn(id,c)
 
 (* Dispatch dealing with network sockets *)
@@ -305,7 +292,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                             (Correct (WMustRead, Conn(id,c)))
                           | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
                 | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) (* TODO: we might want to send an "internal error" fatal alert *)
-          | (Handshake.OutComplete((rg,lastFrag),new_info,new_hs_state)) ->
+          | (Handshake.OutComplete((rg,lastFrag),new_hs_state)) ->
                 match c_write.disp with
                 | Finishing ->
                     (* Send the last fragment *)
@@ -321,7 +308,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                         (* Move to the new state *)
                         // Sanity check: in and out session infos should be the same
                         if epochSI(id.id_in) = epochSI(id.id_out) then
-                            match moveToOpenState (Conn(id,c)) new_info with
+                            match moveToOpenState (Conn(id,c)) with
                             | Correct(c) -> (correct(WHSDone,Conn(id,c)))
                             | Error(x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) // TODO: we might want to send an alert here
                         else
@@ -474,9 +461,7 @@ let readOne (Conn(id,c)) =
                                         Pi.assume (GState(id,c));  
                                         correct (RAgain,Conn(id,c))
                                     | _ -> let closed = closeConnection (Conn(id,{c with handshake = hs})) in Error(Dispatcher,InvalidState) // TODO: We might want to send some alert here
-                        | Handshake.InComplete(newSess,hs) ->
-                                let (newSI,newMS,newDIR) = newSess in
-                                let newInfo = (newSI,newMS,newDIR) in
+                        | Handshake.InComplete(hs) ->
                                 let c = {c with read = c_read;
                                                 handshake = hs} in
                                 // KB: To Fix                        
@@ -486,14 +471,14 @@ let readOne (Conn(id,c)) =
                                     | Finishing ->
                                             (* Sanity check: in and out session infos should be the same *)
                                         if epochSI(id.id_in) = epochSI(id.id_out) then
-                                            match moveToOpenState (Conn(id,c)) newInfo with
+                                            match moveToOpenState (Conn(id,c)) with
                                             | Correct(c) -> 
                                                 correct(RHSDone, Conn(id,c))
                                             | Error(x,y) -> 
                                                 let closed = closeConnection (Conn(id,c)) in Error(x,y) (* TODO: we might want to send an alert here *)
                                         else let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,CheckFailed) (* TODO: we might want to send an internal_error fatal alert here. *)
                                     | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) (* TODO: We might want to send some alert here. *)
-                          | InError(x,y,hs) -> let c = {c with handshake = hs} in Error(x,y) (* TODO: we might need to send some alerts *)
+                        | Handshake.InError(x,y,hs) -> let c = {c with handshake = hs} in Error(x,y) (* TODO: we might need to send some alerts *)
 
                   | Change_cipher_spec, x when x = FirstHandshake || x = Open ->
                         match Handshake.recv_ccs id c.handshake rg f with 

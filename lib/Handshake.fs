@@ -264,6 +264,7 @@ type pre_hs_state = {
   hs_incoming    : bytes;                  (* partial incoming HS message *)
   ccs_incoming: KIAndCCS option; (* used to store the computed secrets for receiving data. Not set when receiving CCS, but when we compute the session secrects *)
   poptions: config;
+  sDB: SessionDB;
   pstate : protoState;
   hs_msg_log: bytes;
   hs_next_info: SessionInfo; (* The session we're establishing within the current HS *)
@@ -531,6 +532,7 @@ let init (role:Role) poptions =
                      hs_incoming = [||]
                      ccs_incoming = None
                      poptions = poptions
+                     sDB = SessionDB.create poptions
                      pstate = PSClient (ServerHello)
                      hs_msg_log = cHelloBytes
                      hs_next_info = next_sinfo
@@ -549,6 +551,7 @@ let init (role:Role) poptions =
                      hs_incoming = [||]
                      ccs_incoming = None
                      poptions = poptions
+                     sDB = SessionDB.create poptions
                      pstate = PSServer (ClientHello)
                      hs_msg_log = [||]
                      hs_next_info = next_sinfo
@@ -560,10 +563,20 @@ let init (role:Role) poptions =
         let ci = initConnection Server rand in
         (ci,state)
 
-let resume next_sinfo ms poptions =
+let resume next_sid poptions =
     (* Resume a session, for the first time in this connection.
        Set up our state as a client. Servers cannot resume *)
-    match next_sinfo.sessionID with
+
+    (* Search a client sid in the DB *)
+    let sDB = SessionDB.create poptions in
+    match select sDB next_sid with
+    | None -> init Client poptions
+    | Some (retrieved) ->
+    let (retrievedSinfo,retrievedMS,retrievedRole) = retrieved in
+    match retrievedRole with
+    | Server -> init Client poptions
+    | Client ->
+    match retrievedSinfo.sessionID with
     | None -> unexpectedError "[resume_handshake] a resumed session should always have a valid sessionID"
     | Some(sid) ->
     let rand = makeRandom () in
@@ -574,10 +587,11 @@ let resume next_sinfo ms poptions =
                  hs_incoming = [||]
                  ccs_incoming = None
                  poptions = poptions
+                 sDB = SessionDB.create poptions
                  pstate = PSClient (ServerHello)
                  hs_msg_log = cHelloBytes
-                 hs_next_info = next_sinfo
-                 next_ms = ms
+                 hs_next_info = retrievedSinfo
+                 next_ms = retrievedMS
                  ki_crand = rand
                  ki_srand = [||]
                  hs_renegotiation_info_cVerifyData = [||]
@@ -602,6 +616,7 @@ let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
                          hs_incoming = [||]
                          ccs_incoming = None
                          poptions = ops
+                         sDB = SessionDB.create ops
                          pstate = PSClient (ServerHello)
                          hs_msg_log = cHelloBytes
                          hs_next_info = next_sinfo
@@ -620,39 +635,45 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     let si = epochSI(ci.id_out) in // or equivalently ci.id_in
     let sidOp = si.sessionID in
     match sidOp with
-    | None -> unexpectedError "[start_rekey] must be invoked on a resumable session (that is, with a non-null session ID)."
+    | None -> (* Non resumable session, let's do a full handshake *)
+        rehandshake ci state ops
     | Some (sid) ->
-        (* FIXME: the following SessionDB interaction should be in dispatcher.
-           But it cannot, because we can start re-keying from inside the HS, when we receive a
-           ServerHelloRequest and a re-key policy. *)
         (* Ensure the sid is in the SessionDB *)
-        match select ops sid with
-        | None -> unexpectedError "[start_rekey] requested session expired or never stored in DB"
+        // FIXME: which SessionDB to use? The one in state, or create a new one from ops?
+        match select state.sDB sid with
+        | None -> (* Maybe session expired, or was never stored. Let's not resume *)
+            rehandshake ci state ops
         | Some (retrievedSinfo,retrievedMS,retrievedDir) ->
-            match state.pstate with
-            | PSClient (cstate) ->
-                match cstate with
-                | CIdle ->
-                    let rand = makeRandom () in
-                    let cHelloBytes = makeClientHelloBytes ops rand sid state.hs_renegotiation_info_cVerifyData in
-                    let state = {hs_outgoing = cHelloBytes
-                                 ccs_outgoing = None
-                                 hs_outgoing_after_ccs = [||]
-                                 hs_incoming = [||]
-                                 ccs_incoming = None
-                                 poptions = ops
-                                 pstate = PSClient (ServerHello)
-                                 hs_msg_log = cHelloBytes
-                                 hs_next_info = retrievedSinfo
-                                 next_ms = retrievedMS                      
-                                 ki_crand = rand
-                                 ki_srand = [||]
-                                 hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
-                                 hs_renegotiation_info_sVerifyData = state.hs_renegotiation_info_sVerifyData} in
-                    state
-                | _ -> (* Handshake already ongoing, ignore this request *)
-                    state
-            | PSServer (_) -> unexpectedError "[start_rekey] should only be invoked on client side connections."
+            match retrievedDir with
+            | Client ->
+                match state.pstate with
+                | PSClient (cstate) ->
+                    match cstate with
+                    | CIdle ->
+                        let rand = makeRandom () in
+                        let cHelloBytes = makeClientHelloBytes ops rand sid state.hs_renegotiation_info_cVerifyData in
+                        let state = {hs_outgoing = cHelloBytes
+                                     ccs_outgoing = None
+                                     hs_outgoing_after_ccs = [||]
+                                     hs_incoming = [||]
+                                     ccs_incoming = None
+                                     poptions = ops
+                                     sDB = SessionDB.create ops
+                                     pstate = PSClient (ServerHello)
+                                     hs_msg_log = cHelloBytes
+                                     hs_next_info = retrievedSinfo
+                                     next_ms = retrievedMS                      
+                                     ki_crand = rand
+                                     ki_srand = [||]
+                                     hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
+                                     hs_renegotiation_info_sVerifyData = state.hs_renegotiation_info_sVerifyData} in
+                        state
+                    | _ -> (* Handshake already ongoing, ignore this request *)
+                        state
+                | PSServer (_) -> unexpectedError "[start_rekey] should only be invoked on client side connections."
+            | Server ->
+                (* We should not resume this session, it's for a server, we're a client *)
+                rehandshake ci state ops
 
 let request (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     match state.pstate with
@@ -668,6 +689,7 @@ let request (ci:ConnectionInfo) (state:hs_state) (ops:config) =
               hs_incoming = [||]
               ccs_incoming = None
               poptions = ops
+              sDB = SessionDB.create ops
               pstate = PSServer(ClientHello)
               hs_msg_log = [||]
               hs_next_info = nullSI
@@ -679,16 +701,27 @@ let request (ci:ConnectionInfo) (state:hs_state) (ops:config) =
         | _ -> (* Handshake already ongoing, ignore this request *)
             state
 
+let storeSession role state =
+    match state.hs_next_info.sessionID with
+    | None -> (* Non-resumable session *)
+        state.sDB
+    | Some(sid) ->
+        let storable = (state.hs_next_info, state.next_ms, role) in
+        let sDB = SessionDB.insert state.sDB sid storable in
+        sDB
+
 let goToIdle state =
     let init_sessionInfo = null_sessionInfo state.poptions.minVer in
     match state.pstate with
     | PSClient (_) ->
+        let sDB = storeSession Client state in
         {hs_outgoing = [||];
          ccs_outgoing = None;
          hs_outgoing_after_ccs = [||];
          hs_incoming = [||];
          ccs_incoming = None
          poptions = state.poptions;
+         sDB = sDB;
          pstate = PSClient(CIdle);
          hs_msg_log = [||]
          hs_next_info = init_sessionInfo
@@ -700,12 +733,14 @@ let goToIdle state =
     | PSServer (_) ->
         let rand = makeRandom () in
         let init_sessionInfo = {init_sessionInfo with init_srand = rand} in
+        let sDB = storeSession Server state in
         {hs_outgoing = [||];
          ccs_outgoing = None;
          hs_outgoing_after_ccs = [||];
          hs_incoming = [||];
          ccs_incoming = None
          poptions = state.poptions;
+         sDB = sDB;
          pstate = PSServer(SIdle);
          hs_msg_log = [||]
          hs_next_info = init_sessionInfo
@@ -715,6 +750,13 @@ let goToIdle state =
          hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
          hs_renegotiation_info_sVerifyData = state.hs_renegotiation_info_sVerifyData}
 
+let invalidateSession ci state =
+    let si = epochSI(ci.id_in) in //FIXME: which to choose? It is relevant because they might be misaligned, and we must chose the right one
+    match si.sessionID with
+    | None -> state
+    | Some(sid) ->
+        let sDB = SessionDB.remove state.sDB sid in
+        {state with sDB = sDB}
 
 type outgoing =
   | OutIdle of hs_state
@@ -723,7 +765,7 @@ type outgoing =
                (ConnectionInfo * StatefulAEAD.state * hs_state)
   | OutFinished of (DataStream.range * Fragment.fragment) * hs_state
     // FIXME: StorableSession should not be returned
-  | OutComplete of (DataStream.range * Fragment.fragment) * SessionDB.StorableSession * hs_state
+  | OutComplete of (DataStream.range * Fragment.fragment) * hs_state
 
 // FIXME: cleanup when handshake is ported to streams and deltas
 let makeFragment ki b =
@@ -764,12 +806,8 @@ let next_fragment ci state =
                     | [||] ->
                         if cSpecState.resumed_session then
                             (* Handshake complete *)
-                            let storable_session =
-                                ( state.hs_next_info,
-                                  state.next_ms,
-                                  Client)
                             let state = goToIdle state
-                            (OutComplete (d,storable_session, state))
+                            (OutComplete (d,state))
                         else
                             (* HS write side finished *)
                             let state = {state with pstate = PSClient(CCCS(cSpecState))}
@@ -800,12 +838,8 @@ let next_fragment ci state =
                             (OutFinished (d, state))
                         else
                             (* Handshake fully finished *)
-                            let storable_session =
-                                ( state.hs_next_info,
-                                  state.next_ms,
-                                  Client)
                             let state = goToIdle state
-                            (OutComplete (d,storable_session, state))
+                            (OutComplete (d, state))
                     | _ -> (OutSome(d, state))
                 | Some data ->
                     (* Resetting the ccs_outgoing buffer here is necessary for the current "next_fragment" logic to work.
@@ -828,7 +862,7 @@ type incoming = (* the fragment is accepted, and... *)
   | InQuery of Certificate.cert * hs_state
   | InFinished of hs_state
     // FIXME: StorableSession
-  | InComplete of SessionDB.StorableSession * hs_state
+  | InComplete of hs_state
   | InError of ErrorCause * ErrorKind * hs_state
 
 type incomingCCS =
@@ -1537,11 +1571,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     else    
                         (* Handshake fully completed successfully. Report this fact to the dispatcher. *)
                         (* Note: no need to log this message *)
-                        let storableSession = ( state.hs_next_info,
-                                                state.next_ms,
-                                                Client)
                         let state = goToIdle state in
-                        InComplete (storableSession,state)
+                        InComplete (state)
             | _ -> (* Finished arrived in the wrong state *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
         | _ -> (* Unsupported/Wrong message *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
       
@@ -1853,9 +1884,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         startServerFull ci state cHello
                     else
                         (* Client asked for resumption, let's see if we can satisfy the request *)
-                        (* FIXME: this SessionDB interaction seems right to be here, however, I'd like to move
-                           all SessionDB in the Dispatch. (Why in the Dispatcher? Not sure) *)
-                        match select state.poptions cHello.ch_session_id with
+                        match select state.sDB cHello.ch_session_id with
                         | None ->
                             (* We don't have the requested session stored, go for a full handshake *)
                             startServerFull ci state cHello
@@ -1975,11 +2004,8 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     if sSpecSt.resumed_session then
                         (* Handshake fully completed successfully. Report this fact to the dispatcher. *)
                         (* Note: no need to log this message (and we go to the idle state forgetting everything anyway) *)
-                        let storableSession = ( state.hs_next_info,
-                                                state.next_ms,
-                                                Server)
                         let state = goToIdle state
-                        InComplete(storableSession,state)
+                        InComplete(state)
                     else
                         (* Log the received message *)
                         let new_log = state.hs_msg_log @| to_log in

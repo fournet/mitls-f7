@@ -11,8 +11,10 @@ val store: filename:string -> map:Map -> unit
 
 type StorableSession = si:SessionInfo * (;si)PRFs.masterSecret * Role
 
-val create: config -> unit
-val select: config -> sessionID -> StorableSession option
-val insert: config -> sessionID -> StorableSession -> unit
-val remove: config -> sessionID -> unit
-val getAllStoredIDs: config -> sessionID list
+type SessionDB
+
+val create: config -> SessionDB
+val select: SessionDB -> sessionID -> StorableSession option
+val insert: SessionDB -> sessionID -> StorableSession -> SessionDB
+val remove: SessionDB -> sessionID -> SessionDB
+val getAllStoredIDs: SessionDB -> sessionID list

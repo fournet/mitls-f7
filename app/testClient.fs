@@ -41,7 +41,6 @@ let testCl options =
     ignore (System.Console.ReadLine())
 
 let test = 
-    SessionDB.create options
     testCl options
 
 (*
