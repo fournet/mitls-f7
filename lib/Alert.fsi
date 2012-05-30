@@ -19,6 +19,8 @@ type alert_reply =
     | ALWarning of alertDescription * state
     | ALClose_notify of state
 
+val alertBytes: alertDescription -> Bytes.bytes
+
 val init: ConnectionInfo -> state
 
 val send_alert: ConnectionInfo -> state -> alertDescription -> state
@@ -29,3 +31,4 @@ val recv_fragment: ConnectionInfo -> state -> range -> Fragment.fragment -> aler
 
 val reset_incoming: ConnectionInfo -> state -> ConnectionInfo -> state
 val reset_outgoing: ConnectionInfo -> state -> ConnectionInfo -> state
+

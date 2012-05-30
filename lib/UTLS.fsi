@@ -5,39 +5,49 @@ open Bytes
 open TLSInfo
 open Dispatch
 
-type rawfd = int
-type fd = int
+type rawfd   = Tcp.NetworkStream
+type fd      = int
+type queryhd = int
 
-type ioresult_i =
-    | ReadError  of ioerror
-    | Close
-    | Fatal      of alertDescription
-    | Warning    of alertDescription 
-    | CertQuery  of query
-    | Handshaken
-    | Read       of int * int
-    | DontWrite
-    
-type ioresult_o =
-    | WriteError    of ioerror
-    | WriteComplete
-    | WritePartial  of int * int
-    | MustRead
+val EI_BADHANDLE  : int
+val EI_BADCERTIDX : int
 
-val read     : fd -> ioresult_i option
+type read_t =
+| E_BADHANDLE
+| E_READERROR
+| E_CLOSE
+| E_FATAL      of bytes
+| E_WARNING    of bytes
+| E_CERTQUERY  of queryhd
+| E_HANDSHAKEN
+| E_DONTWRITE
+| E_READ
+
+type write_t =
+| EW_BADHANDLE
+| EW_WRITEERROR
+| EW_MUSTREAD
+| EW_WRITTEN of int
+
+type query_t =
+| EQ_BADHANDLE
+| EQ_BADCERTIDX
+| EQ_QUERY of bytes
+
+val read     : fd -> read_t
+val write    : fd -> bytes -> write_t
 val shutdown : fd -> unit
 
-(*
-val write    : fd -> bytes -> ioresult_o
-val connect : rawfd -> config -> fd
-val resume  : rawfd -> sessionID -> config -> unit Result
+val get_query : fd -> queryhd -> query_t
 
-val rehandshake : fd -> config -> unit
-val rekey       : fd -> config -> unit
-val request     : fd -> config -> unit
+val authorize : fd -> queryhd -> int
+val refuse    : fd -> queryhd -> int
 
-val accept_connected : rawfd -> config -> Connection
+val rehandshake : fd -> config -> int
+val rekey       : fd -> config -> int
+val request     : fd -> config -> int
 
-val authorize: fd -> query -> unit
-val refuse:    fd -> query -> unit
-*)
+val connect          : rawfd -> config -> fd
+val accept_connected : rawfd -> config -> fd
+
+val resume : rawfd -> bytes -> config -> int
