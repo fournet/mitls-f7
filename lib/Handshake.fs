@@ -276,6 +276,7 @@ type pre_hs_state = {
 }
 
 type hs_state = pre_hs_state
+type nextState = hs_state
 
 /// Handshake message format 
 
@@ -625,9 +626,9 @@ let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
                          ki_srand = [||]
                          hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
                          hs_renegotiation_info_sVerifyData = state.hs_renegotiation_info_sVerifyData} in
-            state
+            (true,state)
         | _ -> (* handshake already happening, ignore this request *)
-            state
+            (false,state)
     | PSServer (_) -> unexpectedError "[start_rehandshake] should only be invoked on client side connections."
 
 let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
@@ -667,9 +668,9 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
                                      ki_srand = [||]
                                      hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
                                      hs_renegotiation_info_sVerifyData = state.hs_renegotiation_info_sVerifyData} in
-                        state
+                        (true,state)
                     | _ -> (* Handshake already ongoing, ignore this request *)
-                        state
+                        (false,state)
                 | PSServer (_) -> unexpectedError "[start_rekey] should only be invoked on client side connections."
             | Server ->
                 (* We should not resume this session, it's for a server, we're a client *)
@@ -683,23 +684,23 @@ let request (ci:ConnectionInfo) (state:hs_state) (ops:config) =
         | SIdle ->
             let nullSI = null_sessionInfo ops.minVer in
             (* Put HelloRequest in outgoing buffer (and do not log it), and move to the ClientHello state (so that we don't send HelloRequest again) *)
-            { hs_outgoing = makeHelloRequestBytes ();
-              ccs_outgoing = None
-              hs_outgoing_after_ccs = [||]
-              hs_incoming = [||]
-              ccs_incoming = None
-              poptions = ops
-              sDB = SessionDB.create ops
-              pstate = PSServer(ClientHello)
-              hs_msg_log = [||]
-              hs_next_info = nullSI
-              next_ms = empty_masterSecret nullSI                 
-              ki_crand = [||]
-              ki_srand = [||]
-              hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
-              hs_renegotiation_info_sVerifyData = state.hs_renegotiation_info_sVerifyData}
+            (true, { hs_outgoing = makeHelloRequestBytes ();
+                     ccs_outgoing = None
+                     hs_outgoing_after_ccs = [||]
+                     hs_incoming = [||]
+                     ccs_incoming = None
+                     poptions = ops
+                     sDB = SessionDB.create ops
+                     pstate = PSServer(ClientHello)
+                     hs_msg_log = [||]
+                     hs_next_info = nullSI
+                     next_ms = empty_masterSecret nullSI                 
+                     ki_crand = [||]
+                     ki_srand = [||]
+                     hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
+                     hs_renegotiation_info_sVerifyData = state.hs_renegotiation_info_sVerifyData})
         | _ -> (* Handshake already ongoing, ignore this request *)
-            state
+            (false,state)
 
 let storeSession role state =
     match state.hs_next_info.sessionID with
@@ -1357,8 +1358,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 (* Do not log this message *)
                 match state.poptions.honourHelloReq with
                 | HRPIgnore -> recv_fragment_client ci state agreedVersion
-                | HRPResume -> let state = rekey ci state state.poptions in InAck(state) (* Terminating case, we reset all buffers *)
-                | HRPFull   -> let state = rehandshake ci state state.poptions in InAck(state) (* Terminating case, we reset all buffers *)
+                | HRPResume -> let (_,state) = rekey ci state state.poptions in InAck(state) (* Terminating case, we reset all buffers *)
+                | HRPFull   -> let (_,state) = rehandshake ci state state.poptions in InAck(state) (* Terminating case, we reset all buffers *)
             | _ -> (* RFC 7.4.1.1: ignore this message *) recv_fragment_client ci state agreedVersion
         | HT_server_hello ->
             match cState with
@@ -2104,6 +2105,7 @@ let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:DataStream.range) (fragmen
     else           InCCSError(HSError(AD_decode_error)      ,HSSendAlert,state)
 
 let getNegotiatedVersion (ci:ConnectionInfo) state = state.hs_next_info.protocol_version
+let getMinVersion (ci:ConnectionInfo) state = state.poptions.minVer
 
 let authorize (ci:ConnectionInfo) (s:hs_state) (q:cert) = s // TODO
 

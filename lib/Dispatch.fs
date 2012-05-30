@@ -28,7 +28,6 @@ type dState = {
     }
 
 type preGlobalState = {
-  poptions: config;
   (* abstract protocol states for HS/CCS, AL, and AD *)
   handshake: Handshake.hs_state;
   alert    : Alert.state;
@@ -85,8 +84,7 @@ let init ns role poptions =
     let write_state = {disp = Init; conn = send} in
     let al = Alert.init ci in
     let app = AppDataStream.init ci in
-    let state = { poptions = poptions;
-                  handshake = hs;
+    let state = { handshake = hs;
                   alert = al;
                   appdata = app;
                   read = read_state;
@@ -103,8 +101,7 @@ let resume ns sid ops =
     let al = Alert.init ci in
     let app = AppDataStream.init ci in
     let res = Conn ( ci,
-                     { poptions = ops;
-                       handshake = hs;
+                     { handshake = hs;
                        alert = al;
                        appdata = app;
                        read = read_state;
@@ -113,19 +110,16 @@ let resume ns sid ops =
     correct (res)
 
 let rehandshake (Conn(id,conn)) ops =
-    let new_hs = Handshake.rehandshake id conn.handshake ops in // Equivalently, id.id_in.sinfo
-    Conn(id,{conn with handshake = new_hs;
-                       poptions = ops})
+    let (accepted,new_hs) = Handshake.rehandshake id conn.handshake ops in // Equivalently, id.id_in.sinfo
+    (accepted,Conn(id,{conn with handshake = new_hs}))
 
 let rekey (Conn(id,conn)) ops =
-    let new_hs = Handshake.rekey id conn.handshake ops in // Equivalently, id.id_in.sinfo
-    Conn(id,{conn with handshake = new_hs;
-                       poptions = ops})
+    let (accepted,new_hs) = Handshake.rekey id conn.handshake ops in // Equivalently, id.id_in.sinfo
+    (accepted,Conn(id,{conn with handshake = new_hs}))
 
 let request (Conn(id,conn)) ops =
-    let new_hs = Handshake.request id conn.handshake ops in // Equivalently, id.id_in.sinfo
-    Conn(id,{conn with handshake = new_hs;
-                       poptions = ops})
+    let (accepted,new_hs) = Handshake.request id conn.handshake ops in // Equivalently, id.id_in.sinfo
+    (accepted,Conn(id,{conn with handshake = new_hs}))
 
 let shutdown (Conn(id,conn)) =
     let new_al = Alert.send_alert id conn.alert AD_close_notify in
@@ -168,7 +162,7 @@ let closeConnection (Conn(id,c)) =
 (* Dispatch dealing with network sockets *)
 let pickSendPV (Conn(id,c)) =
     match c.write.disp with
-    | Init -> c.poptions.minVer
+    | Init -> getMinVersion id c.handshake
     | FirstHandshake -> getNegotiatedVersion id c.handshake
     | _ -> let si = epochSI(id.id_out) in si.protocol_version
 

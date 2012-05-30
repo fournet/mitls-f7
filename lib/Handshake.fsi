@@ -9,6 +9,7 @@ open DataStream
 // protocol state  
 type pre_hs_state 
 type hs_state = pre_hs_state
+type nextState = hs_state
 
 (* Control Interface *)
 // Create instance for a fresh connection (without resumption) 
@@ -18,13 +19,13 @@ val init: Role -> config -> (ConnectionInfo * hs_state)
 val resume: sessionID -> config -> (ConnectionInfo * hs_state)
 
 // Idle client starts a full handshake on the current connection
-val rehandshake: ConnectionInfo -> hs_state -> config -> hs_state
+val rehandshake: ConnectionInfo -> hs_state -> config -> bool * hs_state
 
 // Idle client starts an abbreviated handshake resuming the current session 
-val rekey:       ConnectionInfo -> hs_state -> config -> hs_state
+val rekey:       ConnectionInfo -> hs_state -> config -> bool * hs_state
 
 // (Idle) Server requests an handshake 
-val request:  ConnectionInfo -> hs_state -> config -> hs_state
+val request:  ConnectionInfo -> hs_state -> config -> bool * hs_state
 
 val authorize: ConnectionInfo -> hs_state -> Certificate.cert -> hs_state
 
@@ -62,3 +63,4 @@ val recv_ccs     : ConnectionInfo -> hs_state -> DataStream.range -> Fragment.fr
 
 // Which protocol version dispatch should use to check during the first handshake
 val getNegotiatedVersion: ConnectionInfo -> hs_state -> ProtocolVersion
+val getMinVersion: ConnectionInfo -> hs_state -> ProtocolVersion

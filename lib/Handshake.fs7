@@ -7,46 +7,59 @@ open Error
 open CipherSuites
 open TLSInfo
 open DataStream
+open Certificate
 
 (* Control Interface *)
-type id=Epoch; type CI=ConnectionInfo
-type (;ci:CI) hs_state
-val init:        r:Role                 -> c:config  -> (ci:CI * (;ci)hs_state){ Config(ci,c) }
-val resume:      nextSID:sessionID      -> c:config  -> (ci:CI * (;ci)hs_state){ Config(ci,c) }
-val rehandshake: ci:CI -> (;ci)hs_state -> c:config  -> (;ci)hs_state{...}
-val rekey:       ci:CI -> (;ci)hs_state -> c:config  -> (;ci)hs_state{...}
-val request:     ci:CI -> (;ci)hs_state -> c:config  -> (;ci)hs_state{...}
-val authorize:   ci:CI -> (;ci)hs_state -> c:cert  -> (;ci)hs_state { Authorize(ci,c) }
-val invalidateSession: ci:CI -> (;ci)hs_state -> (;ci)hs_state
+type (;ci:ConnectionInfo) hs_state
+function val Config: ci:ConnectionInfo * s:(;ci)hs_state -> config
+predicate val Authorize: config * cert -> bool
+predicate val Complete: ConnectionInfo * config -> bool
+// AP: Not sure the SentCCS event is useful;
+// rather I'd welome a SentFinished event, to model False Start
+predicate val SentCCS: epoch -> bool
+type (;ci:ConnectionInfo,c:config) nextState = s:(;ci)hs_state {Config(ci,s) = c}
+
+val init:        r:Role            -> c:config  -> (ci:ConnectionInfo * s:(;ci)hs_state){ Config(ci,s) = c }
+val resume:      nextSID:sessionID -> c:config  -> (ci:ConnectionInfo * s:(;ci)hs_state){ Config(ci,s) = c }
+val rehandshake: ci:ConnectionInfo -> s:(;ci)hs_state -> c:config  ->
+	b:bool * s':(;ci)hs_state{ (b = true /\ Config(ci,s') = c) \/ (b = false /\ Config(ci,s') = Config(ci,s))}
+val rekey:       ci:ConnectionInfo -> s:(;ci)hs_state -> c:config  ->
+	b:bool * s':(;ci)hs_state{ (b = true /\ Config(ci,s') = c) \/ (b = false /\ Config(ci,s') = Config(ci,s))}
+val request:     ci:ConnectionInfo -> s:(;ci)hs_state -> c:config  ->
+	b:bool * s':(;ci)hs_state{ (b = true /\ Config(ci,s') = c) \/ (b = false /\ Config(ci,s') = Config(ci,s))}
+val authorize:   ci:ConnectionInfo -> s:(;ci)hs_state -> c:cert  ->
+	(;ci,Config(ci,s))nextState { Authorize(Config(ci,s),c) }
+val invalidateSession: ci:ConnectionInfo -> s:(;ci)hs_state -> (;ci,Config(ci,s))nextState
 
 (* Network Interface*)
-type (;ci:CI) outgoing =
-  | OutIdle of (;ci)hs_state
-  | OutSome of (rg:range * (;ci.id_out,rg)fragment) * (;ci)hs_state
-  | OutCCS of  (rg:range * (;ci.id_out,rg)fragment) * 
-               ((ci':CI * cs:(;ci'.id_out)StAE.state * (;ci')hs_state)
+type (;ci:ConnectionInfo,c:config) outgoing =
+  | OutIdle of (;ci,c)nextState
+  | OutSome of (rg:range * (;ci.id_out,rg)Fragment.fragment) * (;ci,c)nextState
+  | OutCCS of  (rg:range * (;ci.id_out,rg)Fragment.fragment) * 
+               ((ci':ConnectionInfo * cs:(;ci'.id_out)StatefulAEAD.state * (;ci',c)nextState)
                { SentCCS(ci'.id_out) /\ ci.id_out = Pred(ci'.id_out) /\
                  ci.id_in = ci'.id_in})
-  | OutFinished of (rg:range * (;ci.id_out,rg)fragment) * (;ci)hs_state
-  | OutComplete of (rg:range * (;ci.id_out,rg)fragment) * (;ci)hs_state 
-                   {Complete(ci)}
-val next_fragment: ci:CI -> (;ci)hs_state -> (;ci)outgoing
+  | OutFinished of (rg:range * (;ci.id_out,rg)Fragment.fragment) * (;ci,c)nextState
+  | OutComplete of (rg:range * (;ci.id_out,rg)Fragment.fragment) * (;ci,c)nextState 
+                   {Complete(ci,c)}
+val next_fragment: ci:ConnectionInfo -> s:(;ci)hs_state -> (;ci,Config(ci,s))outgoing
 
-type (;ci:CI)incoming =
-  | InAck of (;ci)hs_state
-  | InVersionAgreed  of (;ci)hs_state
-  | InQuery of Certificate.cert * (;ci)hs_state
-  | InFinished of (;ci)hs_state
-  | InComplete of (;ci)hs_state {Complete(ci)}
-  | InError of ErrorCause * ErrorKind * (;ci)hs_state
-val recv_fragment: ci:CI -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)fragment -> 
-                   (;ci)incoming
+type (;ci:ConnectionInfo,c:config)incoming =
+  | InAck of (;ci,c)nextState
+  | InVersionAgreed  of (;ci,c)nextState
+  | InQuery of Certificate.cert * (;ci,c)nextState
+  | InFinished of (;ci,c)nextState
+  | InComplete of (;ci,c)nextState {Complete(ci,c)}
+  | InError of ErrorCause * ErrorKind * (;ci,c)nextState
+val recv_fragment: ci:ConnectionInfo -> s:(;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> 
+                   (;ci,Config(ci,s))incoming
 
-type (;ci:CI)incomingCCS =
-  | InCCSAck of ci':CI * (;ci'.id_in)StAE.state * (;ci')hs_state
+type (;ci:ConnectionInfo,c:config)incomingCCS =
+  | InCCSAck of ci':ConnectionInfo * (;ci'.id_in)StatefulAEAD.state * (;ci',c)nextState
 				{ci.id_out = ci'.id_out /\ ci.id_in = Pred(ci'.id_in)}
-  | InCCSError of ErrorCause * ErrorKind * (;ci)hs_state
-val recv_ccs     : ci:CI -> (;ci)hs_state -> rg:range -> (;ci.id_in,rg)fragment -> 
-                   (;ci)incomingCCS
+  | InCCSError of ErrorCause * ErrorKind * (;ci,c)nextState
+val recv_ccs     : ci:ConnectionInfo -> s:(;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> 
+                   (;ci,Config(ci,s))incomingCCS
 
-val getNegotiatedVersion: ci:CI -> (;ci)hs_state -> ProtocolVersion
+val getNegotiatedVersion: ci:ConnectionInfo -> (;ci)hs_state -> ProtocolVersion
+val getMinVersion: ci:ConnectionInfo -> (;ci)hs_state -> ProtocolVersion

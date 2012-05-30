@@ -19,6 +19,7 @@ let EI_HANDSHAKEN = -8
 let EI_DONTWRITE  = -9
 let EI_WRITEERROR = -10
 let EI_MUSTREAD   = -11
+let EI_HSONGOING  = -12
 
 type handleinfo = {
     conn     : Connection;
@@ -195,25 +196,28 @@ let rehandshake = fun fd config ->
     match connection_of_fd fd with
     | None -> EI_BADHANDLE
     | Some conn ->
-        let conn = TLS.rehandshake conn config in
+        let (accepted,conn) = TLS.rehandshake conn config in
             ignore (update_fd_connection fd conn);
-            0
+            if accepted then 0
+            else EI_HSONGOING
 
 let rekey = fun fd config ->
     match connection_of_fd fd with
     | None -> EI_BADHANDLE
     | Some conn ->
-        let conn = TLS.rekey conn config in
+        let (accepted,conn) = TLS.rekey conn config in
             ignore (update_fd_connection fd conn);
-            0
+            if accepted then 0
+            else EI_HSONGOING
 
 let request = fun fd config ->
     match connection_of_fd fd with
     | None -> EI_BADHANDLE
     | Some conn ->
-        let conn = TLS.request conn config in
+        let (accepted,conn) = TLS.request conn config in
             ignore (update_fd_connection fd conn);
-            0
+            if accepted then 0
+            else EI_HSONGOING
 
 let connect = fun rawfd config ->
     let conn = TLS.connect rawfd config in

@@ -20,6 +20,7 @@ val EI_HANDSHAKEN : int
 val EI_DONTWRITE  : int
 val EI_WRITEERROR : int
 val EI_MUSTREAD   : int
+val EI_HSONGOING  : int
 
 val read     : fd -> int * bytes
 val write    : fd -> bytes -> int

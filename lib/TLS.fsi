@@ -32,9 +32,9 @@ val shutdown : Connection -> Connection
 val connect : NetworkStream -> config -> Connection
 val resume  : NetworkStream -> sessionID -> config -> Connection Result
 
-val rehandshake : Connection -> config -> nextCn
-val rekey       : Connection -> config -> nextCn
-val request     : Connection -> config -> nextCn
+val rehandshake : Connection -> config -> bool * nextCn
+val rekey       : Connection -> config -> bool * nextCn
+val request     : Connection -> config -> bool * nextCn
 
 val accept           : TcpListener   -> config -> Connection
 val accept_connected : NetworkStream -> config -> Connection

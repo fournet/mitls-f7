@@ -24,7 +24,6 @@ type (;ki:epoch) dState = {
     }
 
 type (;id:ConnectionInfo) preGlobalState = {
-  poptions: config;
   (* abstract protocol states for HS/CCS, AL, and AD *)
   handshake: (;id) Handshake.hs_state;
   alert    : (;id) Alert.state;
@@ -82,7 +81,7 @@ assume !id,s. ConnectionOutHistory(Conn(id,s)) = Record.History(id.id_out,s.writ
 val networkStream: Connection -> Tcp.NetworkStream
 
 function val Params: Connection -> config
-assume !id,s. Params(Conn(id,s)) = s.poptions
+assume !id,s. Params(Conn(id,s)) = Config(id,s.handshake)
 
 type (;c:Connection)nextCn = c':Connection{ConnectionIndex(c) = ConnectionIndex(c')}
 type query = Certificate.cert
@@ -114,9 +113,9 @@ val init: Tcp.NetworkStream -> Role -> config -> Connection
 
 val resume: Tcp.NetworkStream -> sessionID -> config -> Connection Result
 
-val rehandshake: c:Connection -> config -> (;c) nextCn
-val rekey:       c:Connection -> config -> (;c) nextCn
-val request:     c:Connection -> config -> (;c) nextCn
+val rehandshake: c:Connection -> config -> bool * (;c) nextCn
+val rekey:       c:Connection -> config -> bool * (;c) nextCn
+val request:     c:Connection -> config -> bool * (;c) nextCn
 
 val shutdown:    c:Connection -> (;c) nextCn
 

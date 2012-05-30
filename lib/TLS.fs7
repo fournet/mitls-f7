@@ -228,9 +228,9 @@ val shutdown: c:cn -> Tcp.NetworkStream Result
 // - half_shutdown, where we internally send (write) our close notify, and then we drop the connection.
 // Cedric: is it a live comment? do we really need both? 
 
-val rekey:       c:cn {Role(c)=Client} -> (c':(;c) nextCn {Extend(c,c')}) Result
-val rehandshake: c:cn {Role(c)=Client} -> (c':(;c) nextCn {Extend(c,c')}) Result
-val request:     c:cn {Role(c)=Server} -> (c':(;c) nextCn {Extend(c,c')}) Result
+val rekey:       c:cn {Role(c)=Client} -> bool * (c':(;c) nextCn {Extend(c,c')}) Result
+val rehandshake: c:cn {Role(c)=Client} -> bool * (c':(;c) nextCn {Extend(c,c')}) Result
+val request:     c:cn {Role(c)=Server} -> bool * (c':(;c) nextCn {Extend(c,c')}) Result
 
 // we echo the query so that we have an explicit user decision to blame.
 val authorize: c:cn -> (;c) query -> (c': (;c) nextCn {Extend(c,c')})

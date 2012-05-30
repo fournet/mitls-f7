@@ -36,6 +36,9 @@ private type preEpoch =
 
 type epoch = p:preEpoch
 
+function val Pred: epoch -> epoch
+assume !cr,sr,si,pred. Pred(SuccEpoch(cr,sr,si,pred)) = pred
+
 predicate NullSessionInfo of SessionInfo
 assume !si. NullSessionInfo(si) <=> (si.clientID = None /\ si.serverID = None /\ si.sessionID = None /\
     IsNullCiphersuite(si.cipher_suite) /\ si.compression = NullCompression /\ si.init_crand = [||] /\ si.init_srand = [||] )

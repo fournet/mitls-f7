@@ -22,9 +22,9 @@ val init: NetworkStream -> Role -> config -> Connection
 
 val resume: NetworkStream -> sessionID -> config -> Connection Result
 
-val rehandshake: Connection -> config -> nextCn
-val rekey: Connection -> config -> nextCn
-val request: Connection -> config -> nextCn
+val rehandshake: Connection -> config -> bool * nextCn
+val rekey: Connection -> config -> bool * nextCn
+val request: Connection -> config -> bool * nextCn
 
 val shutdown: Connection -> Connection
 
