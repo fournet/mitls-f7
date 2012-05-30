@@ -122,8 +122,12 @@ let read = fun fd ->
             (EI_HANDSHAKEN, [||])
 
         | TLS.Read (conn, (rg, m)) ->
-            ignore (update_fd_connection fd conn)
-            (0, [||])
+            let plain =
+                DataStream.deltaRepr
+                    (Dispatch.getEpochIn conn) (TLS.getInStream conn) rg m
+            in
+                ignore (update_fd_connection fd conn);
+                (Bytes.length plain, plain)
 
         | TLS.DontWrite conn ->
             ignore (update_fd_connection fd conn)
