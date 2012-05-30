@@ -310,51 +310,60 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                     | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
                 | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) (* TODO: we might want to send an "internal error" fatal alert *)
       | (Alert.ALFrag(tlen,f),new_al_state) ->
-        let history = Record.history id.id_out c_write.conn in
-        let frag = TLSFragment.construct id.id_out Alert history tlen f in
-        let pv = pickSendPV (Conn(id,c)) in
-        let resSend = send c.ns id.id_out c.write pv tlen Alert frag in
-        match resSend with 
-        | Correct(new_write) ->
-            let new_write = {new_write with disp = Closing} in
-            let c = { c with alert   = new_al_state;
-                             write   = new_write }
-            // KB: To Fix                                 
-            Pi.assume (GState(id,c));  
-            (correct (WriteAgain, Conn(id,c )))
-        | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
+        match c_write.disp with
+        | Init | FirstHandshake | Open | Closing ->
+            let history = Record.history id.id_out c_write.conn in
+            let frag = TLSFragment.construct id.id_out Alert history tlen f in
+            let pv = pickSendPV (Conn(id,c)) in
+            let resSend = send c.ns id.id_out c.write pv tlen Alert frag in
+            match resSend with 
+            | Correct(new_write) ->
+                let new_write = {new_write with disp = Closing} in
+                let c = { c with alert   = new_al_state;
+                                 write   = new_write }
+                // KB: To Fix                                 
+                Pi.assume (GState(id,c));  
+                (correct (WriteAgain, Conn(id,c )))
+            | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
+        | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) (* Unrecoverable error *)
       | (Alert.LastALFrag(tlen,f,ad),new_al_state) ->
-        (* We're sending a fatal alert. Send it, then close both sending and receiving sides *)
-        let history = Record.history id.id_out c_write.conn in
-        let frag = TLSFragment.construct id.id_out Alert history tlen f in
-        let pv = pickSendPV (Conn(id,c)) in
-        let resSend = send c.ns id.id_out c.write pv tlen Alert frag in
-        match resSend with 
-        | Correct(new_write) ->
-            let c = {c with alert = new_al_state;
-                            write = new_write}
-            // KB: To Fix                                 
-            Pi.assume (GState(id,c));  
-            let closed = closeConnection (Conn(id,c)) in
-            correct (SentFatal(ad), closed)
-        | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
+        match c_write.disp with
+        | Init | FirstHandshake | Open | Closing ->
+            (* We're sending a fatal alert. Send it, then close both sending and receiving sides *)
+            let history = Record.history id.id_out c_write.conn in
+            let frag = TLSFragment.construct id.id_out Alert history tlen f in
+            let pv = pickSendPV (Conn(id,c)) in
+            let resSend = send c.ns id.id_out c.write pv tlen Alert frag in
+            match resSend with 
+            | Correct(new_write) ->
+                let c = {c with alert = new_al_state;
+                                write = new_write}
+                // KB: To Fix                                 
+                Pi.assume (GState(id,c));  
+                let closed = closeConnection (Conn(id,c)) in
+                correct (SentFatal(ad), closed)
+            | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
+        | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) (* Unrecoverable error *)
       | (Alert.LastALCloseFrag(tlen,f),new_al_state) ->
-        (* We're sending a close_notify alert. Send it, then only close our sending side.
-           If we already received the other close notify, then reading is already closed,
-           otherwise we wait to read it, then close. But do not close here. *)
-        let history = Record.history id.id_out c_write.conn in
-        let frag = TLSFragment.construct id.id_out Alert history tlen f in
-        let pv = pickSendPV (Conn(id,c)) in
-        let resSend = send c.ns id.id_out c.write pv tlen Alert frag in
-        match resSend with
-        | Correct(new_write) ->
-            let new_write = {new_write with disp = Closed} in
-            let c = {c with alert = new_al_state;
-                            write = new_write}
-            // KB: To Fix                                 
-            Pi.assume (GState(id,c));  
-            correct (SentClose, Conn(id,c))
-        | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
+        match c_write.disp with
+        | Init | FirstHandshake | Open | Closing ->
+            (* We're sending a close_notify alert. Send it, then only close our sending side.
+               If we already received the other close notify, then reading is already closed,
+               otherwise we wait to read it, then close. But do not close here. *)
+            let history = Record.history id.id_out c_write.conn in
+            let frag = TLSFragment.construct id.id_out Alert history tlen f in
+            let pv = pickSendPV (Conn(id,c)) in
+            let resSend = send c.ns id.id_out c.write pv tlen Alert frag in
+            match resSend with
+            | Correct(new_write) ->
+                let new_write = {new_write with disp = Closed} in
+                let c = {c with alert = new_al_state;
+                                write = new_write}
+                // KB: To Fix                                 
+                Pi.assume (GState(id,c));  
+                correct (SentClose, Conn(id,c))
+            | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
+        | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) (* Unrecoverable error *)
 
 let recv (Conn(id,c)) =
     match Tcp.read c.ns 5 with // read & parse the header
@@ -494,7 +503,7 @@ let readOne (Conn(id,c)) =
                               let closed = closeConnection (Conn(id,c)) in
                               Error (x,y) // TODO: We might want to send some alert here.
 
-                  | Alert, _ ->
+                  | Alert, x when x = Init || x = FirstHandshake || x = Open || x = Closing ->
                         match Alert.recv_fragment id c.alert rg f with
                           | Correct (Alert.ALAck(state)) ->
                              //let ad = AppDataStream.writeNonAppDataFragment id c.appdata in
@@ -530,6 +539,8 @@ let readOne (Conn(id,c)) =
                           | Correct (Alert.ALWarning (ad,state)) ->
                                 (* A warning alert, we carry on. The user will decide what to do *)
                              //let ad = AppDataStream.writeNonAppDataFragment id c.appdata in
+                             // FIXME: it this warning was fragmented, we temporarily switched to the
+                             // Closing state, we must now restore the previous state, and we're not doing it!
                              let c = {c with alert = state;
                                              read = c_read;
                                      }
