@@ -8,30 +8,17 @@ type rawfd   = Tcp.NetworkStream
 type fd      = int
 type queryhd = int
 
-type read_t =
-| E_BADHANDLE
-| E_READERROR
-| E_CLOSE
-| E_FATAL      of bytes
-| E_WARNING    of bytes
-| E_CERTQUERY  of queryhd
-| E_HANDSHAKEN
-| E_DONTWRITE
-| E_READ
-
-type write_t =
-| EW_BADHANDLE
-| EW_WRITEERROR
-| EW_MUSTREAD
-| EW_WRITTEN of int
-
-type query_t =
-| EQ_BADHANDLE
-| EQ_BADCERTIDX
-| EQ_QUERY of bytes
-
 let EI_BADHANDLE  = -1
 let EI_BADCERTIDX = -2
+let EI_READERROR  = -3
+let EI_CLOSE      = -4
+let EI_FATAL      = -5
+let EI_WARNING    = -6
+let EI_CERTQUERY  = -7
+let EI_HANDSHAKEN = -8
+let EI_DONTWRITE  = -9
+let EI_WRITEERROR = -10
+let EI_MUSTREAD   = -11
 
 type handleinfo = {
     conn     : Connection;
@@ -98,53 +85,53 @@ let pop_query_cert = fun fd idx ->
 (* ------------------------------------------------------------------------ *)
 let get_query = fun fd idx ->
     match get_query_cert fd idx with
-    | None          -> EQ_BADHANDLE
-    | Some None     -> EQ_BADCERTIDX
-    | Some (Some q) -> EQ_QUERY (Certificate.certificateBytes q)
+    | None          -> (EI_BADHANDLE , [||])
+    | Some None     -> (EI_BADCERTIDX, [||])
+    | Some (Some q) -> (0, Certificate.certificateBytes q)
 
 let read = fun fd ->
     match connection_of_fd fd with
-    | None -> E_BADHANDLE
+    | None -> (EI_BADHANDLE, [||])
 
     | Some c ->
         match TLS.read c with
         | TLS.ReadError e ->
-            E_READERROR
+            (EI_READERROR, [||])
 
         | TLS.Close _ ->
             unbind_fd fd
-            E_CLOSE
+            (EI_CLOSE, [||])
 
         | TLS.Fatal e ->
             unbind_fd fd
-            E_FATAL (Alert.alertBytes e)
+            (EI_FATAL, Alert.alertBytes e)
 
         | TLS.Warning (conn, e) ->
             ignore (update_fd_connection fd conn)
-            E_WARNING (Alert.alertBytes e)
+            (EI_WARNING, Alert.alertBytes e)
 
         | TLS.CertQuery (conn, q) ->
             match add_query_cert fd q with
-            | None -> E_BADHANDLE
+            | None -> (EI_BADHANDLE, [||])
             | Some idx ->
                 ignore (update_fd_connection fd conn);
-                E_CERTQUERY idx
+                (EI_CERTQUERY, Bytes.bytes_of_int 4 idx)
 
         | TLS.Handshaken conn ->
             ignore (update_fd_connection fd conn)
-            E_HANDSHAKEN
+            (EI_HANDSHAKEN, [||])
 
         | TLS.Read (conn, (rg, m)) ->
             ignore (update_fd_connection fd conn)
-            E_READ
+            (0, [||])
 
         | TLS.DontWrite conn ->
             ignore (update_fd_connection fd conn)
-            E_DONTWRITE
+            (EI_DONTWRITE, [||])
 
 let write = fun fd bytes ->
     match connection_of_fd fd with
-    | None      -> EW_BADHANDLE
+    | None      -> EI_BADHANDLE
     | Some conn -> 
         let length = Bytes.length bytes in
         let delta  =
@@ -154,20 +141,20 @@ let write = fun fd bytes ->
         in
             match TLS.write conn ((length, length), delta) with
             | TLS.WriteError e ->
-                unbind_fd fd; EW_WRITEERROR
+                unbind_fd fd; EI_WRITEERROR
             | TLS.WriteComplete conn ->
                 ignore (update_fd_connection fd conn);
-                EW_WRITTEN length
+                length
             | TLS.WritePartial (conn, (r, m)) ->
                 ignore (update_fd_connection fd conn);
                 let rem =
                     DataStream.deltaRepr
                         (Dispatch.getEpochOut conn) (TLS.getOutStream conn) r m
                 in
-                    EW_WRITTEN (length - (Bytes.length rem))
+                    (length - (Bytes.length rem))
             | TLS.MustRead conn ->
                 ignore (update_fd_connection fd conn);
-                EW_MUSTREAD
+                EI_MUSTREAD
 
 let shutdown = fun fd ->
     match connection_of_fd fd with
