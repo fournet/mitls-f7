@@ -132,7 +132,6 @@
     <None Include="Dispatch.fs7" />
     <Compile Include="Dispatch.fsi" />
     <Compile Include="Dispatch.fs" />
-    <None Include="TLS2.fs7" />
     <None Include="TLS.fs7" />
     <Compile Include="TLS.fsi" />
     <Compile Include="TLS.fs" />
