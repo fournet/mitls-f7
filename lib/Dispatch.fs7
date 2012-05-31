@@ -79,8 +79,8 @@ assume !id,s. ConnectionOutHistory(Conn(id,s)) = Record.History(id.id_out,s.writ
 
 val networkStream: Connection -> Tcp.NetworkStream
 
-function val Params: Connection -> config
-assume !id,s. Params(Conn(id,s)) = Config(id,s.handshake)
+function val Config: Connection -> config
+assume !id,s. Config(Conn(id,s)) = Handshake.Config(id,s.handshake)
 
 type (;c:Connection)nextCn = c':Connection{ConnectionIndex(c) = ConnectionIndex(c')}
 type query = Certificate.cert
@@ -119,8 +119,6 @@ val request:     c:Connection -> config -> bool * (;c) nextCn
 val shutdown:    c:Connection -> (;c) nextCn
 
 val moveToOpenState: c:Connection ->
-	(si:SessionInfo * (;si)PRFs.masterSecret * Role)
-		{si=ConnectionSIOut(c) /\ si=ConnectionSIIn(c)} ->
 	(;ConnectionIndex(c))globalState Result
 
 val closeConnection: c:Connection-> (;c) nextCn
