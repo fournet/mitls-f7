@@ -106,7 +106,7 @@ let resume ns sid ops =
                        read = read_state;
                        write = write_state;
                        ns = ns;}) in
-    correct (res)
+    res
 
 let rehandshake (Conn(id,conn)) ops =
     let (accepted,new_hs) = Handshake.rehandshake id conn.handshake ops in // Equivalently, id.id_in.sinfo

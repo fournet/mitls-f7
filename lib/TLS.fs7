@@ -106,19 +106,15 @@ definition !c, c', msg.
 type (;c:cn) query
 
 type (;c:cn) ioresult_i =
-| Read      of c':(;c) nextCn * d:(;c) msg_i
-  {Extend_i(c,c',d) /\ (TXT(CnId(c)) => Write(Peer(CnId(c)), Bytes_i(c'))) }
-  // We received a data fragment, appended to the input stream)
+| ReadError of ioerror
+  // We encountered an error while reading, so the connection dies. 
+  // we return the fatal alert we may have sent, if any,
+  // or None in case of an internal error.
 
 | Close     of Tcp.NetworkStream  {TXT(CnId(c)) => Close(Peer(CnId(c)), Bytes_i(c))}
   // We received an alert notifying the normal closure of the connection; 
   // we learn that we have read everything sent by our peer,
   // and we get back the underlying TCP connection. 
-
-| ReadError of ioerror
-  // We encountered an error while reading, so the connection dies. 
-  // we return the fatal alert we may have sent, if any,
-  // or None in case of an internal error.
 
 | Fatal     of a:alertDescription {TXT(CnId(c)) => Fatal(Peer(CnId(c)), a, Bytes_i(c))}
   // We received an alert notifying the abnornal closure of the connection by our peer
@@ -150,6 +146,10 @@ type (;c:cn) ioresult_i =
 	//AP: /\ Close(CnId(c),Bytes_o(c)) /\  -- and same for Alert protocol, and hanshake.
 	// We need to show agreement on the content of all protocols in previous and current connection to express the Alert attack (and therefore authentication)
 
+| Read      of c':(;c) nextCn * d:(;c) msg_i
+  {Extend_i(c,c',d) /\ (TXT(CnId(c)) => Write(Peer(CnId(c)), Bytes_i(c'))) }
+  // We received a data fragment, appended to the input stream)
+
 | DontWrite of c':cn 
 	// Mashup of ioresult_i.Read and ioresult_o.MustRead
 	{	   Role(c') = Role(c)
@@ -166,6 +166,11 @@ val read : c:cn -> (;c) ioresult_i
 // TODO: document the events possibly recorded by calls to read
 
 type (;c:cn,d:(;c) msg_o) ioresult_o =
+| WriteError    of ioerror
+  // We encountered an error while writing; 
+  // we return the fatal alert we may have sent, if any,
+  // or None in case of an internal error.
+
 | WriteComplete of c':(;c) nextCn {Extend_o(c,c',d)}
   // We wrote the message in full. appended to the output stream
 
@@ -174,11 +179,6 @@ type (;c:cn,d:(;c) msg_o) ioresult_o =
 | WritePartial  of c':(;c) nextCn * d':(;c') msg_o 
   { ?d0. Extend_o(c,c',d0) /\ Split_o(c, d, d0, c', d') }
   // We wrote a fragment of the message, appended to the output stream, and return the rest
-
-| WriteError    of ioerror
-  // We encountered an error while writing; 
-  // we return the fatal alert we may have sent, if any,
-  // or None in case of an internal error.
 
 | MustRead      of c':cn 
     {   Role(c')    = Role(c) 
@@ -213,7 +213,7 @@ val write: c:cn -> d:(;c) msg_o -> (;c,d) ioresult_o
 type (;r:role,p:params) nullCn = c:cn {(* CnId(c) = null /\ *) Params(c) = p /\ Role(c) = r}
 
 val connect: Tcp.NetworkStream -> p:params                  -> (;Client,p) nullCn
-val resume:  Tcp.NetworkStream -> p:params -> sid:sessionID -> (;Client,p) nullCn Result
+val resume:  Tcp.NetworkStream -> sid:sessionID ->  p:params -> (;Client,p) nullCn
 // even if the server declines, we authenticate the client's intent to resume from this sid.
 
 val accept_connected:  Tcp.NetworkStream -> p:params                  -> (;Server,p) nullCn

@@ -110,7 +110,7 @@ type readOutcome =
 
 val init: Tcp.NetworkStream -> Role -> config -> Connection
 
-val resume: Tcp.NetworkStream -> sessionID -> config -> Connection Result
+val resume: Tcp.NetworkStream -> sessionID -> config -> Connection
 
 val rehandshake: c:Connection -> config -> bool * (;c) nextCn
 val rekey:       c:Connection -> config -> bool * (;c) nextCn

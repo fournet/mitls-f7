@@ -20,7 +20,7 @@ val networkStream: Connection -> NetworkStream
 
 val init: NetworkStream -> Role -> config -> Connection
 
-val resume: NetworkStream -> sessionID -> config -> Connection Result
+val resume: NetworkStream -> sessionID -> config -> Connection
 
 val rehandshake: Connection -> config -> bool * nextCn
 val rekey: Connection -> config -> bool * nextCn

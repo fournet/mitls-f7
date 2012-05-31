@@ -30,7 +30,7 @@ val write    : Connection -> msg_o -> ioresult_o
 val shutdown : Connection -> Connection
 
 val connect : NetworkStream -> config -> Connection
-val resume  : NetworkStream -> sessionID -> config -> Connection Result
+val resume  : NetworkStream -> sessionID -> config -> Connection
 
 val rehandshake : Connection -> config -> bool * nextCn
 val rekey       : Connection -> config -> bool * nextCn
