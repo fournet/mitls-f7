@@ -11,12 +11,11 @@ type predispatchState =
   | Finishing
   | Finished (* Only for Writing side, used to avoid sending data on a partially completed handshake *)
   | Open
-  | Closing
   | Closed
 
 type dispatchState = d:predispatchState{
 	d = Init \/ d = FirstHandshake \/ d = Finishing \/ d = Finished \/
-	d = Open \/ d = Closing \/ d = Closed}
+	d = Open \/ d = Closed}
 
 type (;ki:epoch) dState = {
     disp: dispatchState;
