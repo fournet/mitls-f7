@@ -228,6 +228,5 @@ let accept_connected = fun rawfd config ->
         new_fd conn
 
 let resume = fun rawfd sid config ->
-    match TLS.resume rawfd sid config with
-    | Error   _    -> -1
-    | Correct conn ->  new_fd conn
+    let conn = TLS.resume rawfd sid config in
+        new_fd conn
