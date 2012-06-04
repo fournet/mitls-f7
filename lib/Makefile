@@ -1,6 +1,6 @@
-include ../../../../Makefile.inc
+include ../Makefile.inc
 
-all: tls.dll tc7
+all: toplevel.dll tc7
 
 lib7=../../../lib/fs7-interfaces/
 libperv = $(lib7)pervasives.fs7 $(lib7)tuples.fs7

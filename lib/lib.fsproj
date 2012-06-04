@@ -142,11 +142,6 @@
     <Compile Include="RPC.fs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="RC4\ManagedRC4.vcxproj">
-      <Name>WindowsRC4</Name>
-      <Project>{eb382e07-589b-4894-aafa-754978c99ce3}</Project>
-      <Private>True</Private>
-    </ProjectReference>
     <Reference Include="mscorlib" />
     <Reference Include="FSharp.Core" />
     <Reference Include="System" />
