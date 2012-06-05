@@ -22,6 +22,12 @@ dist:
 	done
 	$(MAKE) dist-this
 	tar cfz $(distname).tar.gz $(distname)
+	rm -rf $(distname)
+
+dist-check: dist
+	tar xfz $(distname).tar.gz
+	$(MAKE) -C $(distname) build
+	rm -rf $(distname)
  	
 build:
 	rm -rf bin
