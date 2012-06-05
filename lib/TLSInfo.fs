@@ -99,15 +99,13 @@ type config = {
     check_client_version_in_pms_for_old_tls: bool
     server_cert_file: string (* FIXME: certificates should be found in a better way. To be fixed *)
     (* Common *)
-    certificateValidationPolicy: cert list -> bool
+    trustedRootCertificates: cert list
     safe_renegotiation: bool
     
     (* Sessions database *)
     sessionDBFileName: string
     sessionDBExpiry: TimeSpan
     }
-
-let defaultCertificateValidationPolicy (certList:cert list) = true
 
 let defaultConfig ={
     minVer = SSL_3p0
@@ -123,7 +121,7 @@ let defaultConfig ={
     request_client_certificate = false
     check_client_version_in_pms_for_old_tls = true
     server_cert_file = "server"
-    certificateValidationPolicy = defaultCertificateValidationPolicy
+    trustedRootCertificates = []
     safe_renegotiation = true
 
     sessionDBFileName = "sessionDBFile.bin"

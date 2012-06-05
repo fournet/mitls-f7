@@ -72,7 +72,7 @@ type config = {
     check_client_version_in_pms_for_old_tls: bool
     server_cert_file: string (* FIXME: certificates should be found in a better way. To be fixed *)
     (* Common *)
-    certificateValidationPolicy: cert list -> bool
+    trustedRootCertificates: cert list
     safe_renegotiation: bool
 
     (* Sessions database *)

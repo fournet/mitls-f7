@@ -1466,7 +1466,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 match parseCertificate payload with
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(certs) ->
-                    if not (state.poptions.certificateValidationPolicy certs.certificate_list) then
+                    if false then // FIXME: not (certs.certificate_list trusted by state.poptions.trustedRootCertificates)
                         InError(HSError(AD_bad_certificate_fatal),HSSendAlert,state)
                     else (* We have validated server identity *)
                         (* Log the received packet *)
@@ -1920,7 +1920,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 match parseCertificate payload with
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(certMsg) ->
-                    if not (state.poptions.certificateValidationPolicy certMsg.certificate_list) then
+                    if false then // FIXME: not (certs.certificate_list trusted by state.poptions.trustedRootCertificates)
                         InError(HSError(AD_bad_certificate_fatal),HSSendAlert,state)
                     else (* We have validated client identity *)
                         (* Log the received packet *)
