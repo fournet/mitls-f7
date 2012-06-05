@@ -19,7 +19,7 @@ open DataStream
 
 (*** Following RFC5246 A.4 *)
 
-type HandShakeType =
+type HandshakeType =
     | HT_hello_request
     | HT_client_hello
     | HT_server_hello
@@ -30,7 +30,7 @@ type HandShakeType =
     | HT_certificate_verify
     | HT_client_key_exchange
     | HT_finished
-    | HT_unknown of int
+    | HT_unknown of byte
 
 let htbytes t =
     match t with
@@ -46,22 +46,22 @@ let htbytes t =
     | HT_finished            -> [| 20uy |]
     | HT_unknown x           -> unexpectedError "Unknown handshake type"
 
-let parseHT b = 
-    match int_of_bytes b with
-    |  0 -> HT_hello_request
-    |  1 -> HT_client_hello
-    |  2 -> HT_server_hello
-    | 11 -> HT_certificate
-    | 12 -> HT_server_key_exchange
-    | 13 -> HT_certificate_request
-    | 14 -> HT_server_hello_done
-    | 15 -> HT_certificate_verify
-    | 16 -> HT_client_key_exchange
-    | 20 -> HT_finished
-    |  x -> HT_unknown (x)
+let parseHT (b:bytes) = 
+    match b.[0] with
+    |  0uy -> HT_hello_request
+    |  1uy -> HT_client_hello
+    |  2uy -> HT_server_hello
+    | 11uy -> HT_certificate
+    | 12uy -> HT_server_key_exchange
+    | 13uy -> HT_certificate_request
+    | 14uy -> HT_server_hello_done
+    | 15uy -> HT_certificate_verify
+    | 16uy -> HT_client_key_exchange
+    | 20uy -> HT_finished
+    |  x   -> HT_unknown (x)
 
 // missing Handshake and its generic formatting
-// := HandShakeType(ht) @| VLBytes(3,body) 
+// := HandshakeType(ht) @| VLBytes(3,body) 
 
 
 (** A.4.1 Hello Messages *)
@@ -79,62 +79,45 @@ type Extension =
 let bytes_of_HExt hExt =
     match hExt with
     | HExt_renegotiation_info -> [|0xFFuy; 0x01uy|]
-    | HExt_unknown (_) -> unexpectedError "Unknown extension type"
+    | HExt_unknown (_)        -> unexpectedError "Unknown extension type"
 
 let hExt_of_bytes b =
     match b with
     | [|0xFFuy; 0x01uy|] -> HExt_renegotiation_info
-    | _ -> HExt_unknown b
+    | _                  -> HExt_unknown b
 
 type clientHello = {
-    ch_client_version: ProtocolVersion;
-    ch_random: bytes;
-    ch_session_id: sessionID;
-    ch_cipher_suites: cipherSuites;
+    ch_client_version     : ProtocolVersion;
+    ch_random             : bytes;
+    ch_session_id         : sessionID;
+    ch_cipher_suites      : cipherSuites;
     ch_compression_methods: Compression list;
-    ch_extensions: bytes;
+    ch_extensions         : bytes;
   }
 
 type serverHello = {
-    sh_server_version: ProtocolVersion;
-    sh_random: bytes;
-    sh_session_id: sessionID;
-    sh_cipher_suite: cipherSuite;
-    sh_compression_method: Compression;
-    sh_neg_extensions: bytes;
+    sh_server_version     : ProtocolVersion;
+    sh_random             : bytes;
+    sh_session_id         : sessionID;
+    sh_cipher_suite       : cipherSuite;
+    sh_compression_method : Compression;
+    sh_neg_extensions     : bytes;
   }
 
-(*
 let hashAlg_to_tls12enum ha =
     match ha with
-    | Algorithms.hashAlg.MD5    -> 1
-    | Algorithms.hashAlg.SHA    -> 2
-    | Algorithms.hashAlg.SHA256 -> 4
-    | Algorithms.hashAlg.SHA384 -> 5
+    | Algorithms.MD5    -> [| 1uy |]
+    | Algorithms.SHA    -> [| 2uy |]
+    | Algorithms.SHA256 -> [| 4uy |]
+    | Algorithms.SHA384 -> [| 5uy |]
 
 let tls12enum_to_hashAlg n =
     match n with
-    | 1 -> Some Algorithms.hashAlg.MD5
-    | 2 -> Some Algorithms.hashAlg.SHA
-    | 4 -> Some Algorithms.hashAlg.SHA256
-    | 5 -> Some Algorithms.hashAlg.SHA384
-    | _ -> None
-*)
-
-let hashAlg_to_tls12enum ha =
-    match ha with
-    | Algorithms.MD5    -> 1
-    | Algorithms.SHA    -> 2
-    | Algorithms.SHA256 -> 4
-    | Algorithms.SHA384 -> 5
-
-let tls12enum_to_hashAlg n =
-    match n with
-    | 1 -> Some Algorithms.MD5
-    | 2 -> Some Algorithms.SHA
-    | 4 -> Some Algorithms.SHA256
-    | 5 -> Some Algorithms.SHA384
-    | _ -> None
+    | [| 1uy |] -> Some Algorithms.MD5
+    | [| 2uy |] -> Some Algorithms.SHA
+    | [| 4uy |] -> Some Algorithms.SHA256
+    | [| 5uy |] -> Some Algorithms.SHA384
+    | _         -> None
 
 type sigAlg = bytes
 
@@ -176,30 +159,19 @@ type ClientCertType =
     | CLT_DSS_Fixed_DH = 4
 *)
 
-(*
-type HashAlg =
-    | HA_None = 0
-    | HA_md5 = 1
-    | HA_sha1 = 2
-    | HA_sha224 = 3
-    | HA_sha256 = 4
-    | HA_sha384 = 5
-    | HA_sha512 = 6
-*)
-
 type certificateRequest = {
     client_certificate_type: ClientCertType list
     signature_and_hash_algorithm: (SigAndHashAlg list) option (* Some(x) for TLS 1.2, None for previous versions *)
     certificate_authorities: string list
     }
 
-type serverHelloDone = bytes // empty bistring
+type serverHelloDone = bytes // empty bitstring
 
 
 (** A.4.3 Client Authentication and Key Exchange Messages *) 
 
 type preMasterSecret =
-    { pms_client_version : ProtocolVersion; (* Highest version supported by the client *)
+    { pms_client_version: ProtocolVersion; (* highest version supported by the client *)
       pms_random: bytes }
 
 type clientKeyExchange =
@@ -280,7 +252,7 @@ type nextState = hs_state
 
 /// Handshake message format 
 
-// we need a precise spec, as verifyData is a sereis of such messages.
+// we need a precise spec, as verifyData is a series of such messages.
 // private definition !ht,data. FragmentBytes(ht,data) = HTBytes(ht) @| VLBytes(3,data)
 
 let makeMessage ht data = htbytes ht @| vlbytes 3 data 
@@ -450,7 +422,7 @@ let parseClientHello data =
        ch_compression_methods = cm 
        ch_extensions          = extensions})
 
-// called only just below; inline? clientHello record seem unhelpful
+// called only just below; inline? clientHello record seems unhelpful
 // AP: Two (useless) indirection levels. We should get rid of the struct here.
 let makeClientHello poptions crand session prevCVerifyData =
     let ext =
@@ -956,8 +928,7 @@ let rec parseCertificateTypeList data =
 
 let parseSigAlg b = 
     let (hashb,sigb) = Bytes.split b 1 
-    let hash = int_of_bytes hashb in
-    match tls12enum_to_hashAlg hash with
+    match tls12enum_to_hashAlg hashb with
     | Some (hash) when checkSigAlg sigb ->
            Correct({SaHA_hash = hash; SaHA_signature = sigb })
     | _ -> Error(HSError(AD_illegal_parameter),HSSendAlert)
@@ -993,7 +964,7 @@ let makeCertificateRequestBytes cs version =
         match version with
         | TLS_1p2 ->
             (* For no particular reason, we will offer rsa-sha1 and dsa-sha1 *)
-            let sha1B   = bytes_of_int 1 (hashAlg_to_tls12enum Algorithms.hashAlg.SHA) in
+            let sha1B   = hashAlg_to_tls12enum Algorithms.hashAlg.SHA in
             let sigAndAlg = sha1B @| SA_rsa @| sha1B @| SA_dsa in
             vlbytes 2 sigAndAlg
         | _ -> [||]
@@ -1103,7 +1074,7 @@ let makeCertificateVerifyBytes cert data pv certReqMsg=
             | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
             | Correct (signed) ->
                 let signed = vlbytes 2 signed in
-                let hashAlgBytes = bytes_of_int 1 (hashAlg_to_tls12enum hashAlg) in
+                let hashAlgBytes = hashAlg_to_tls12enum hashAlg in
                 let payload = hashAlgBytes @| SA_rsa @| signed in
                 correct (makeMessage HT_certificate_verify payload)
     | TLS_1p0 | TLS_1p1 ->

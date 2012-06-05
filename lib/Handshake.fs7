@@ -1,7 +1,6 @@
-// Merge of Handshake.fs7 and Handshake3.fs7.
-// Not fully detailed, to fit in the paper.
-// Agreed to be implemented, once refined.
 module Handshake
+
+// We haven't yet verified the Handshake implementation against this interface.
 
 open Error
 open CipherSuites
@@ -10,6 +9,7 @@ open DataStream
 open Certificate
 
 (* Control Interface *)
+
 type (;ci:ConnectionInfo) hs_state
 function val Config: ci:ConnectionInfo * s:(;ci)hs_state -> config
 predicate val Authorize: config * cert -> bool
@@ -32,6 +32,7 @@ val authorize:   ci:ConnectionInfo -> s:(;ci)hs_state -> c:cert  ->
 val invalidateSession: ci:ConnectionInfo -> s:(;ci)hs_state -> (;ci,Config(ci,s))nextState
 
 (* Network Interface*)
+
 type (;ci:ConnectionInfo,c:config) outgoing =
   | OutIdle of (;ci,c)nextState
   | OutSome of (rg:range * (;ci.id_out,rg)Fragment.fragment) * (;ci,c)nextState
@@ -62,4 +63,4 @@ val recv_ccs     : ci:ConnectionInfo -> s:(;ci)hs_state -> rg:range -> (;ci.id_i
                    (;ci,Config(ci,s))incomingCCS
 
 val getNegotiatedVersion: ci:ConnectionInfo -> (;ci)hs_state -> ProtocolVersion
-val getMinVersion: ci:ConnectionInfo -> (;ci)hs_state -> ProtocolVersion
+val getMinVersion:        ci:ConnectionInfo -> (;ci)hs_state -> ProtocolVersion
