@@ -20,7 +20,7 @@ let options = {
     request_client_certificate = false
     check_client_version_in_pms_for_old_tls = true
     server_cert_file = "server"
-    certificateValidationPolicy = fun x -> true
+    trustedRootCertificates = []
     safe_renegotiation = true
 
     sessionDBFileName = "sessionDBFile.bin"

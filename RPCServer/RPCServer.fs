@@ -1,1 +1,3 @@
-﻿let _ = RPC.doserver ()
+﻿module RPCServer
+
+let _ = RPC.doserver ()

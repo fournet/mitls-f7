@@ -31,7 +31,7 @@ let tlsoptions = {
     TLSInfo.safe_renegotiation = true
 
     TLSInfo.server_cert_file = "server"
-    TLSInfo.certificateValidationPolicy = (fun _ -> true)
+    TLSInfo.trustedRootCertificates = []
 
     TLSInfo.sessionDBFileName = "sessionDBFile.bin"
     TLSInfo.sessionDBExpiry = Bytes.newTimeSpan 2 0 0 0 (* two days *)

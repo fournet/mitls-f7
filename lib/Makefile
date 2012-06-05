@@ -1,5 +1,27 @@
 include ../Makefile.inc
 
+localfiles = Makefile
+src = ../../../lib/concrete-fs/pi.fs Error.fsi Bytes.fsi tcp.fsi Algorithms.fsi RSA.fsi HASH.fsi HMAC.fsi Certificate.fsi CipherSuites.fsi formats.fsi TLSInfo.fsi DataStream.fsi Fragment.fsi MAC.fsi AEPlain.fsi ENC.fsi AEADPlain.fsi AEAD.fsi StatefulPlain.fsi StatefulAEAD.fsi TLSFragment.fsi record.fsi Alert.fsi PRFs.fsi SessionDB.fsi Handshake.fsi AppDataStream.fsi Dispatch.fsi TLS.fsi RPC.fsi Error.fs Bytes.fs tcp.fs Algorithms.fs RSA.fs HASH.fs HMAC.fs Certificate.fs CipherSuites.fs formats.fs TLSInfo.fs DataStream.fs Fragment.fs MAC.fs AEPlain.fs ENC.fs AEADPlain.fs AEAD.fs StatefulPlain.fs StatefulAEAD.fs TLSFragment.fs record.fs Alert.fs PRFs.fs SessionDB.fs Handshake.fs AppDataStream.fs Dispatch.fs TLS.fs RPC.fs
+deps = -r ../ManagedRC4/$(arch)/Debug/ManagedRC4.dll -a
+target = TLSlib.dll
+
+.PHONY: all build dist clean
+
+all: dist
+
+$(target): $(src)
+	$(target-fsc)
+	
+build: $(target)
+
+clean: clean-def
+
+dist: dist-def
+
+include ../Makefile_default.inc
+
+### BEGIN PRIVATE MAKEFILE PART ###
+# This part of the makefile is not included in the release
 all: toplevel.dll tc7
 
 lib7=../../../lib/fs7-interfaces/
@@ -200,6 +222,3 @@ RPC.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 Algorithms.fs7 RSA.fs7
 #CF ? 
 autogen.fsi: $(libperv) $(libfs7) $(recordfs7) record.fs
 	$(f7) -nofstypecheck -timeout 300 --define f7 -genfsi -fsifile autogen.fsi -genprotofs -protofsfile autogen.fs -nokindcheck $(lperv) $(libfs7) $(recordfs7) record.fs 
-
-clean:
-	@rm -rf bin obj .tmp *.exe *.pdb *.dll *.obj *.cm* *.pv *.res *~ *.html *.smp *.tc7 *.vo *.glob libcoq.v

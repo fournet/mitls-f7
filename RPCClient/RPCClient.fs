@@ -1,4 +1,6 @@
-﻿let _ =
+﻿module RPCClient
+
+let _ =
     let s = System.Console.ReadLine () in
 
     match RPC.doclient s with
