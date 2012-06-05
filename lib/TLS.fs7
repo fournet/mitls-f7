@@ -4,16 +4,13 @@ open Error
 open Bytes
 open TLSInfo 
 open DataStream (* application-specific module *) 
-
-// these modules are used only for typechecking TLS.fs
 open AppDataStream
-open Dispatch // for ConnectionInfo, Client, Server, ... 
-
+open Dispatch
 
 function val CnId: Connection -> ConnectionInfo
 private assume !id, s. CnId(Conn(id, s)) = id
 
-function val CnStream_i: c:Connection -> (;ConnectionEpochIn(c)) stream
+function val CnStream_i: c:Connection -> (;ConnectionEpochIn (c)) stream
 function val CnStream_o: c:Connection -> (;ConnectionEpochOut(c)) stream
 private assume !id, s. CnStream_i(Conn(id, s)) =  AppInStream(id, s.appdata)
 private assume !id, s. CnStream_o(Conn(id, s)) = AppOutStream(id, s.appdata)
@@ -21,73 +18,69 @@ private assume !id, s. CnStream_o(Conn(id, s)) = AppOutStream(id, s.appdata)
 function val Bytes_o: Connection -> bytes
 function val Bytes_i: Connection -> bytes
 function val StreamToBytes: ki:epoch * (;ki) stream -> bytes
-private assume !c. Bytes_o(c) = StreamToBytes(ConnectionEpochIn(c), CnStream_i(c))
+private assume !c. Bytes_o(c) = StreamToBytes(ConnectionEpochIn (c), CnStream_i(c))
 private assume !c. Bytes_i(c) = StreamToBytes(ConnectionEpochOut(c), CnStream_o(c))
 
-// type epoch, as defined in TLSInfo
-function val Role: Connection -> Role
-assume !c. Role(c) = ConnectionIndex(c).role
-
-// Peer(i) ghostly refers to the remote peer's ConnectionInfo 
-function val DualRole: Role -> Role
-assume DualRole(Client) = Server
-assume DualRole(Server) = Client
-
-function val Peer: ConnectionInfo -> ConnectionInfo 
-assume !ki. Peer(ki) = { id_in = ki.id_out; id_out = ki.id_in; role = DualRole(ki.role) }
-
-predicate val Write:      (ConnectionInfo * bytes) -> bool
-predicate val Warning:    (ConnectionInfo * alertDescription * bytes) -> bool
-predicate val Close:      (ConnectionInfo * bytes) -> bool
-predicate val Fatal:      (ConnectionInfo * alertDescription * bytes) -> bool
-predicate val FalseStart:  ConnectionInfo -> bool
+predicate EvWrite      of ConnectionInfo * bytes
+predicate EvWarning    of ConnectionInfo * alertDescription * bytes
+predicate EvClose      of ConnectionInfo * bytes
+predicate EvFatal      of ConnectionInfo * alertDescription * bytes
+predicate EvFalseStart of ConnectionInfo
 // Write records increasing prefixes of the stream, for each written data fragment, 
 // interleaved with warnings, ended by Fatal or Close [we may distinguish between two kinds of close too]
 // Write(i,p0), ..., Write(i,p0 @| ... @| pi), Warning(i,p0 @| ... @| pi), ..., Close(i, p0 @| ... @| pn)
 
-val getEpochIn:  c:Connection -> k:epoch{k=ConnectionEpochIn(c)}
-val getEpochOut: c:Connection -> k:epoch{k=ConnectionEpochOut(c)}
-val getSessionInfo: k:epoch -> s:SessionInfo{s=EpochSI(k)}
-val getInStream:  c:Connection -> s:(;ConnectionEpochIn(c)) stream{s=CnStream_i(c)}
-val getOutStream: c:Connection -> s:(;ConnectionEpochOut(c))stream{s=CnStream_o(c)}
+function val Role: Connection -> Role
+assume !c. Role(c) = CnId(c).role
 
+function val DualRole: Role -> Role
+assume DualRole(Client) = Server
+assume DualRole(Server) = Client
+
+// Peer(i,()) ghostly refers to the remote peer's ConnectionInfo 
+function val Peer: ConnectionInfo * unit -> ConnectionInfo 
+assume !ki. Peer(ki, ()) = { id_in = ki.id_out; id_out = ki.id_in; role = DualRole(ki.role) }
+
+predicate Extend   of c:Connection * c':Connection
+predicate Extend_o of c:Connection * c':Connection * (;ConnectionEpochOut(c),CnStream_o(c)) msg_o
+predicate Extend_i of c:Connection * c':Connection * (;ConnectionEpochIn (c),CnStream_i(c)) msg_i
 
 function val MsgOBytes: c:Connection * (;ConnectionEpochOut(c),CnStream_o(c)) msg_o -> bytes
-function val MsgIBytes: c:Connection * (;ConnectionEpochIn(c),CnStream_i(c)) msg_i -> bytes
+function val MsgIBytes: c:Connection * (;ConnectionEpochIn (c),CnStream_i(c)) msg_i -> bytes
 
-predicate val Split_o: (c:Connection *
-	(;ConnectionEpochOut(c),CnStream_o(c))msg_o *
-	(;ConnectionEpochOut(c),CnStream_o(c))msg_o *
-	c':Connection *
-	(;ConnectionEpochOut(c'),CnStream_o(c'))msg_o)  -> bool
+predicate Split_o of
+	  c:Connection
+	* (;ConnectionEpochOut(c),CnStream_o(c))msg_o
+	* (;ConnectionEpochOut(c),CnStream_o(c))msg_o
+	* c':Connection
+	* (;ConnectionEpochOut(c'),CnStream_o(c'))msg_o
 
-// Abbreviations for specifying connection invariants 
-predicate val Extend:   (c:Connection * c':Connection) -> bool
-predicate val Extend_o: (c:Connection * c':Connection * (;ConnectionEpochOut(c),CnStream_o(c)) msg_o) -> bool
-predicate val Extend_i: (c:Connection * c':Connection * (;ConnectionEpochIn(c),CnStream_i(c)) msg_i) -> bool
-
-// updating c within the same epoch
-type (;c:Connection) nextCn = c':Connection {  Role(c')    = Role(c) 
-                            /\ CnId(c')    = CnId(c)
-                            /\ Config(c')  = Config(c) }
 definition !c, c'. 
-  Extend(c, c') <=>            Bytes_i(c') = Bytes_i(c)
-                            /\ Bytes_o(c') = Bytes_o(c)
-definition !c, c', msg. 
-  Extend_o(c, c', msg) <=>   Bytes_i(c') = Bytes_i(c)
-                            /\ Bytes_o(c') = Bytes_o(c) @| MsgOBytes(c, msg)
-definition !c, c', msg. 
-  Extend_i(c, c', msg) <=>   Bytes_i(c') = Bytes_i(c) @| MsgIBytes(c, msg)
-                            /\ Bytes_o(c') = Bytes_o(c)
+	Extend(c, c') <=>    Bytes_i(c') = Bytes_i(c)
+                      /\ Bytes_o(c') = Bytes_o(c)
 
+definition !c, c', msg.
+	Extend_o(c, c', msg) <=>     Bytes_i(c') = Bytes_i(c)
+                              /\ Bytes_o(c') = Bytes_o(c) @| MsgOBytes(c, msg)
+
+definition !c, c', msg. 
+	Extend_i(c, c', msg) <=>     Bytes_i(c') = Bytes_i(c) @| MsgIBytes(c, msg)
+                              /\ Bytes_o(c') = Bytes_o(c)
 //TODO: in SameConnection, enforce the chaining for all HS-specific data, in particular to chain successive handshakes.
 //TODO: fix alertDescription, so that it only represents the second byte. 
 //TODO: check that we are not too restrictive for the ongoing connection once we start negotiating.
 //TODO: regroup the bits of the TLS library that are needed in the API.
 //TODO: write the "toplevel" automata, from the user viewpoint; consider enforcement by typing, session-style.
 
-// authorization query; TBD with principals
-// type (;c:cn) query // It's in Dispatch
+type (;r:Role,c:config) nullCn = conn:Connection {
+	   Config(conn) = c /\ Role(conn) = r
+	/\ CipherSuites.IsNullCiphersuite(ConnectionSIOut(conn).cipher_suite)
+	/\ CipherSuites.IsNullCiphersuite(ConnectionSIIn (conn).cipher_suite)
+}
+
+type (;c:Connection) nextCn = c':Connection {
+	Config(c')  = Config(c) /\ Role(c') = Role(c) /\ CnId(c') = CnId(c)
+}
 
 type (;c:Connection) ioresult_i =
 | ReadError of ioerror
@@ -95,20 +88,25 @@ type (;c:Connection) ioresult_i =
   // we return the fatal alert we may have sent, if any,
   // or None in case of an internal error.
 
-| Close     of Tcp.NetworkStream  {Auth(CnId(c)) => Close(Peer(CnId(c)), Bytes_i(c))}
+| Close of Tcp.NetworkStream {
+	Auth(CnId(c)) => EvClose(Peer(CnId(c),()), Bytes_i(c))
+  }
   // We received an alert notifying the normal closure of the connection; 
   // we learn that we have read everything sent by our peer,
   // and we get back the underlying TCP connection. 
 
-| Fatal     of a:alertDescription {Auth(CnId(c)) => Fatal(Peer(CnId(c)), a, Bytes_i(c))}
+| Fatal of a:alertDescription {
+	Auth(CnId(c)) => EvFatal(Peer(CnId(c),()), a, Bytes_i(c))
+  }
   // We received an alert notifying the abnornal closure of the connection by our peer
   // We learn that we have read everything sent by our peer.
   
-| Warning   of c':(;c) nextCn * a:alertDescription 
-  {Extend(c,c') /\ Auth(CnId(c)) => Warning(Peer(CnId(c)), a, Bytes_i(c))}
+| Warning of c':(;c) nextCn * a:alertDescription {
+	Extend(c,c') /\ Auth(CnId(c)) => EvWarning(Peer(CnId(c),()), a, Bytes_i(c))
+  }
   // We received a warning (at this point in the input stream)
 
-| CertQuery of c':(;c) nextCn * (* (;c') *) query {Extend(c, c')} 
+| CertQuery of c':(;c) nextCn * query {Extend(c, c')} 
   // We received the peer certificates for the next epoch, to be authorized before proceeding.
 
 | Handshaken of c':Connection {
@@ -116,19 +114,14 @@ type (;c:Connection) ioresult_i =
 	/\ Config(c') = Config(c)
 	/\ ConnectionEpochIn(c) = Pred(ConnectionEpochIn(c'))
 	/\ Bytes_i(c') = [||]
-	/\ Close(Peer(CnId(c)), Bytes_i(c))
-
+	/\ EvClose(Peer(CnId(c),()), Bytes_i(c))
 	/\ Handshake.Complete(CnId(c'),Config(c'))
-
-	/\ ( FalseStart(CnId(c')) =>
-			   Bytes_o(c') = Bytes_o(c)
-			/\ ConnectionEpochOut(c') = ConnectionEpochOut(c)
-	   ) \/
-	   ( 
-	        Bytes_o(c') = [||]
-		 /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
+	/\ (	(EvFalseStart(CnId(c')) =>
+				   Bytes_o(c') = Bytes_o(c)
+				/\ ConnectionEpochOut(c') = ConnectionEpochOut(c)))
+		\/	(	   Bytes_o(c') = [||]
+				/\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
 	   )
-
 	}
   // We completed a run of the Handshake, moving to the next epoch.
   // we learn that we have read everything sent by our peer in the closing epoch
@@ -138,34 +131,30 @@ type (;c:Connection) ioresult_i =
 	//AP: /\ Close(CnId(c),Bytes_o(c)) /\  -- and same for Alert protocol, and hanshake.
 	// We need to show agreement on the content of all protocols in previous and current connection to express the Alert attack (and therefore authentication)
 
-| Read      of c':(;c) nextCn * d:(;ConnectionEpochIn(c),CnStream_i(c)) msg_i
-  {Extend_i(c,c',d) /\ (Auth(CnId(c)) => Write(Peer(CnId(c)), Bytes_i(c'))) }
+| Read of c':(;c) nextCn * d:(;ConnectionEpochIn(c),CnStream_i(c)) msg_i {
+	Extend_i(c,c',d) /\ (Auth(CnId(c)) => EvWrite(Peer(CnId(c),()), Bytes_i(c')))
+  }
   // We received a data fragment, appended to the input stream)
 
-| DontWrite of c':Connection
-	{	   Role(c') = Role(c)
-		/\ Config(c') = Config(c)
-		/\ ConnectionEpochIn(c') = ConnectionEpochIn(c)
-		/\ Bytes_i(c') = Bytes_i(c)
-		/\ ((FalseStart(CnId(c)) => (
-		Bytes_o(c') = Bytes_o(c) /\
-		ConnectionEpochOut(c') = ConnectionEpochOut(c) 
-	 )) \/
-
-     (    Bytes_o(c') = [||]
-       /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
-       /\ FalseStart(CnId(c'))))
+| DontWrite of c':Connection {
+	   Role(c') = Role(c)
+	/\ Config(c') = Config(c)
+	/\ ConnectionEpochIn(c') = ConnectionEpochIn(c)
+	/\ Bytes_i(c') = Bytes_i(c)
+	/\ (	(EvFalseStart(CnId(c)) => (
+				   Bytes_o(c') = Bytes_o(c)
+				/\ ConnectionEpochOut(c') = ConnectionEpochOut(c)))
+		\/  (      Bytes_o(c') = [||]
+				/\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
+				/\ EvFalseStart(CnId(c'))))
     }
   // AP: TXT(ConnectionInfo) is not precise enough here:
   // in/out directions are not the same, and we want to only refer to the incoming direction
   // We must wait till the next epoch before writing application data again.  
   // Without false start, we have the global invariant that Pending(c) => Bytes_o(c) = [||]
-
-val read : c:Connection -> (;c) ioresult_i
-// TODO: document the events possibly recorded by calls to read
-
+    
 type (;c:Connection,d:(;ConnectionEpochOut(c),CnStream_o(c)) msg_o) ioresult_o =
-| WriteError    of ioerror
+| WriteError of ioerror
   // We encountered an error while writing; 
   // we return the fatal alert we may have sent, if any,
   // or None in case of an internal error.
@@ -173,24 +162,28 @@ type (;c:Connection,d:(;ConnectionEpochOut(c),CnStream_o(c)) msg_o) ioresult_o =
 | WriteComplete of c':(;c) nextCn {Extend_o(c,c',d)}
   // We wrote the message in full. appended to the output stream
 
-| WritePartial  of c':(;c) nextCn * d':(;ConnectionEpochOut(c'),CnStream_o(c')) msg_o 
-  { ?d0. Extend_o(c,c',d0) /\ Split_o(c, d, d0, c', d') }
+| WritePartial  of c':(;c) nextCn * d':(;ConnectionEpochOut(c'),CnStream_o(c')) msg_o {
+	?d0. Extend_o(c,c',d0) /\ Split_o(c, d, d0, c', d')
+  }
   // We wrote a fragment of the message, appended to the output stream, and return the rest
 
-| MustRead      of c':Connection
-    {   Role(c')    = Role(c) 
-     /\ Config(c')  = Config(c)
+| MustRead of c':Connection {
+		Role(c') = Role(c) 
+     /\ Config(c') = Config(c)
 	 /\ ConnectionEpochIn(c') = ConnectionEpochIn(c)
      /\ Bytes_i(c') = Bytes_i(c)
-	 /\ ((FalseStart(CnId(c)) => (
-		Bytes_o(c') = Bytes_o(c) /\
-		ConnectionEpochOut(c') = ConnectionEpochOut(c) 
-	 )) \/
-
-     (    Bytes_o(c') = [||]
-       /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
-       /\ FalseStart(CnId(c'))))
+	 /\ (	(EvFalseStart(CnId(c)) => (
+				   Bytes_o(c') = Bytes_o(c)
+				/\ ConnectionEpochOut(c') = ConnectionEpochOut(c)))
+		\/	(	   Bytes_o(c') = [||]
+				/\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
+				/\ EvFalseStart(CnId(c'))))
 	}
+
+(* Event-driven interface *)
+
+val read: c:Connection -> (;c) ioresult_i
+// TODO: document the events possibly recorded by calls to read
 
 val write: c:Connection -> d:(;ConnectionEpochOut(c),CnStream_o(c)) msg_o -> (;c,d) ioresult_o
 // On the write side, the following events may be generated:
@@ -200,22 +193,7 @@ val write: c:Connection -> d:(;ConnectionEpochOut(c),CnStream_o(c)) msg_o -> (;c
 // WriteComplete reports write completion
 // WritePartial reports partial write completion, and returns the rest
 // MustRead signals that the connection cannot be used anymore for writing until a new handshake completes. 
-// (it may be a bit too restrictive) 
-
-
-// special NULL_NULL initial connection ConnectionInfo
-// cannot be used for data writing (by typing)
-(* val null: i:ConnectionInfo{NullKeyInfo(i.id_in) /\ NullKeyInfo(i.id_out)} *)
-type (;r:Role,c:config) nullCn = conn:Connection {Config(conn) = c /\ Role(conn) = r /\
-	CipherSuites.IsNullCiphersuite(ConnectionSIOut(conn)) /\
-	CipherSuites.IsNullCiphersuite(ConnectionSIIn(conn))}
-
-val connect: Tcp.NetworkStream -> c:config -> (;Client,c) nullCn
-val resume:  Tcp.NetworkStream -> sid:sessionID ->  c:config -> (;Client,c) nullCn
-// even if the server declines, we authenticate the client's intent to resume from this sid.
-// AP: Agreed, but there's no refinement keeping track of the desired sid.
-
-val accept_connected:  Tcp.NetworkStream -> c:config -> (;Server,c) nullCn
+// (it may be a bit too restrictive)
 
 val shutdown: c:Connection -> (c':(;c) nextCn {Extend(c,c')})
 //was: (c':(;c) nextCn {Extend(c,c')}) Result
@@ -227,26 +205,54 @@ val shutdown: c:Connection -> (c':(;c) nextCn {Extend(c,c')})
 // - half_shutdown, where we internally send (write) our close notify, and then we drop the connection.
 // Cedric: is it a live comment? do we really need both? 
 
-val rekey:       c:Connection {Role(c)=Client} -> conf:config ->
+val connect : Tcp.NetworkStream -> c:config -> (;Client,c) nullCn
+val resume  : Tcp.NetworkStream -> sid:sessionID ->  c:config -> (;Client,c) nullCn
+// even if the server declines, we authenticate the client's intent to resume from this sid.
+// AP: Agreed, but there's no refinement keeping track of the desired sid.
+
+val rekey: c:Connection {Role(c) = Client} -> conf:config ->
 	(b:bool * c':Connection) {
-		Extend(c,c') /\ Role(c') = Role(c) /\ CnId(c') = CnId(c) /\
-		((b = false  /\ Config(c')  = Config(c))
-	\/   (b = true /\ Config(c') = conf ))}
-val rehandshake: c:Connection {Role(c)=Client} -> conf:config ->
+		   Extend(c,c')
+		/\ Role(c') = Role(c)
+		/\ CnId(c') = CnId(c)
+		/\ (   (b = false  /\ Config(c') = Config(c))
+			\/ (b = true   /\ Config(c') = conf    ))
+	}
+
+val rehandshake: c:Connection {Role(c) = Client} -> conf:config ->
 	(b:bool * c':Connection) {
-		Extend(c,c') /\ Role(c') = Role(c) /\ CnId(c') = CnId(c) /\
-		((b = false  /\ Config(c')  = Config(c))
-	\/   (b = true /\ Config(c') = conf ))}
-val request:     c:Connection {Role(c)=Server} -> conf:config ->
+		   Extend(c,c')
+		/\ Role(c') = Role(c)
+		/\ CnId(c') = CnId(c)
+		/\ (   (b = false /\ Config(c') = Config(c))
+			\/ (b = true  /\ Config(c') = conf    ))
+	}
+
+val request: c:Connection {Role(c) = Server} -> conf:config ->
 	(b:bool * c':Connection) {
-		Extend(c,c') /\ Role(c') = Role(c) /\ CnId(c') = CnId(c) /\
-		((b = false  /\ Config(c')  = Config(c))
-	\/   (b = true /\ Config(c') = conf ))}
+		   Extend(c,c')
+		/\ Role(c') = Role(c)
+		/\ CnId(c') = CnId(c)
+		/\ (   (b = false /\ Config(c') = Config(c))
+			\/ (b = true  /\ Config(c') = conf    ))
+	}
+
+val accept: Tcp.TcpListener -> c:config -> (;Server,c) nullCn
+val accept_connected: Tcp.NetworkStream -> c:config -> (;Server,c) nullCn
 
 // we echo the query so that we have an explicit user decision to blame.
-val authorize: c:Connection -> q:(* (;c) *) query -> (c': (;c) nextCn {Extend(c,c') /\ Handshake.Authorize(Config(c),q)})
-val refuse:    c:Connection -> (* (;c) *) query -> unit //AP: we will have to internally send a fatal alert,
-	// and this might fail. We might want to give some feedback to the user. Same as half_shutdown
+val authorize : c:Connection -> q:query -> (c': (;c) nextCn {Extend(c,c') /\ Handshake.Authorize(Config(c),q)})
+val refuse    : c:Connection -> q:query -> unit
+// AP: we will have to internally send a fatal alert,
+// and this might fail. We might want to give some feedback to the user. Same as half_shutdown
+
+val getSessionInfo: k:epoch -> s:SessionInfo{s = EpochSI(k)}
+
+val getEpochIn : c:Connection -> k:epoch{k = ConnectionEpochIn (c)}
+val getEpochOut: c:Connection -> k:epoch{k = ConnectionEpochOut(c)}
+
+val getInStream : c:Connection -> s:(;ConnectionEpochIn (c)) stream{s = CnStream_i(c)}
+val getOutStream: c:Connection -> s:(;ConnectionEpochOut(c)) stream{s = CnStream_o(c)}
 
 (* For each call through this API, say connect(x,p) returning r,
    we may use homonymous events, say Connect(x,p) & Connected(x,p,r), 
@@ -286,4 +292,3 @@ val refuse:    c:Connection -> (* (;c) *) query -> unit //AP: we will have to in
    Prior(c,c') <=> UID(c') = UID(c) /\ Epoch(c') = Epoch(c) /\ Seqn(c) < Seqn(c')
      
    *)
- 

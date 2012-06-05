@@ -23,6 +23,8 @@ type ioresult_o =
     | WritePartial  of nextCn * msg_o
     | MustRead      of Connection
 
+type nullCn = Dispatch.Connection
+
 (* Event-driven interface *)
 
 val read     : Connection -> ioresult_i
