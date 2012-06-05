@@ -69,7 +69,7 @@ tlsbase.dll: libsym.dll wrapperlibs.dll $(tlsbasei) $(tlsbase)
 	$(fsc) -d concrete -r libsym.dll -r wrapperlibs.dll $(tlsbasei) $(tlsbase) -a -o $@
 
 crypto.dll: libsym.dll wrapperlibs.dll tlsbase.dll $(cryptoi) $(crypto)
-	$(fsc) -d concrete -r libsym.dll -r wrapperlibs.dll -r tlsbase.dll $(cryptoi) $(crypto) -a -o $@
+	$(fsc) -d concrete -r libsym.dll -r wrapperlibs.dll -r tlsbase.dll -r ../ManagedRC4/$(arch)/Debug/ManagedRC4.dll $(cryptoi) $(crypto) -a -o $@
 
 record.dll: libsym.dll wrapperlibs.dll tlsbase.dll crypto.dll $(recordi) $(record)
 	$(fsc) -d concrete -r libsym.dll -r wrapperlibs.dll -r tlsbase.dll -r crypto.dll $(recordi) $(record) -a -o $@
@@ -202,4 +202,4 @@ autogen.fsi: $(libperv) $(libfs7) $(recordfs7) record.fs
 	$(f7) -nofstypecheck -timeout 300 --define f7 -genfsi -fsifile autogen.fsi -genprotofs -protofsfile autogen.fs -nokindcheck $(lperv) $(libfs7) $(recordfs7) record.fs 
 
 clean:
-	@rm -f .tmp *.exe *.pdb *.dll *.obj *.cm* *.pv *.res *~ *.html *.smp *.tc7 *.vo *.glob libcoq.v
+	@rm -rf bin obj .tmp *.exe *.pdb *.dll *.obj *.cm* *.pv *.res *~ *.html *.smp *.tc7 *.vo *.glob libcoq.v
