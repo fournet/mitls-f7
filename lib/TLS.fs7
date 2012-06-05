@@ -7,23 +7,6 @@ open DataStream (* application-specific module *)
 open AppDataStream
 open Dispatch
 
-
-//TODO: in SameConnection, enforce the chaining for all HS-specific data, in particular to chain successive handshakes.
-//TODO: fix alertDescription, so that it only represents the second byte. 
-//TODO: check that we are not too restrictive for the ongoing connection once we start negotiating.
-//TODO: regroup the bits of the TLS library that are needed in the API.
-//TODO: write the "toplevel" automata, from the user viewpoint; consider enforcement by typing, session-style.
-
-type (;r:Role,c:config) nullCn = conn:Connection {
-	   Config(conn) = c /\ Role(conn) = r
-	/\ CipherSuites.IsNullCiphersuite(ConnectionSIOut(conn).cipher_suite)
-	/\ CipherSuites.IsNullCiphersuite(ConnectionSIIn (conn).cipher_suite)
-}
-
-type (;c:Connection) nextCn = c':Connection {
-	Config(c')  = Config(c) /\ Role(c') = Role(c) /\ CnId(c') = CnId(c)
-}
-
 type (;c:Connection) ioresult_i =
 | ReadError of ioerror
   // We encountered an error while reading, so the connection dies. 

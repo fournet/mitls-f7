@@ -65,11 +65,6 @@ assume !id,s. ConnectionSIOut(Conn(id,s)) = EpochSI(id.id_out)
 function val ConnectionSIIn: Connection -> SessionInfo
 assume !id,s. ConnectionSIIn(Conn(id,s)) = EpochSI(id.id_in)
 
-function val ConnectionInStream: c:Connection -> (;ConnectionEpochIn(c))stream
-assume !id,s. ConnectionInStream(Conn(id,s)) = AppDataStream.AppInStream(id,s.appdata)
-function val ConnectionOutStream: c:Connection -> (;ConnectionEpochIn(c))stream
-assume !id,s. ConnectionOutStream(Conn(id,s)) = AppDataStream.AppOutStream(id,s.appdata)
-
 function val ConnectionInHistory: c:Connection -> (;ConnectionEpochIn(c))TLSFragment.history
 assume !id,s. ConnectionInHistory(Conn(id,s)) = Record.History(id.id_in,s.read.conn)
 function val ConnectionOutHistory: c:Connection -> (;ConnectionEpochOut(c))TLSFragment.history
@@ -144,7 +139,15 @@ val networkStream: Connection -> Tcp.NetworkStream
 function val Config: Connection -> config
 assume !id,s. Config(Conn(id,s)) = Handshake.Config(id,s.handshake)
 
-type (;c:Connection)nextCn = c':Connection{CnId(c) = CnId(c')}
+type (;r:Role,c:config) nullCn = conn:Connection {
+	   Config(conn) = c /\ Role(conn) = r
+	/\ CipherSuites.IsNullCiphersuite(ConnectionSIOut(conn).cipher_suite)
+	/\ CipherSuites.IsNullCiphersuite(ConnectionSIIn (conn).cipher_suite)
+}
+
+predicate NextCn of Connection * Connection
+assume !c,c'. NextCn(c,c') <=> ( Config(c')  = Config(c) /\ Role(c') = Role(c) /\ CnId(c') = CnId(c) )
+type (;c:Connection) nextCn = c':Connection {NextCn(c,c')}
 type query = Certificate.cert
 
 type writeOutcome =
@@ -172,8 +175,8 @@ predicate val IOResult_o : Connection * 'a * Connection * writeOutcome * 'b -> b
 
 assume !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo) =>
 	(
-		(wo = WAppDataDone /\ mo = None /\ Extend_o(c,c',m)) \/
-		(!m'. ?m0. wo = WAppDataDone /\ mo = Some(m') /\ Split_o(c,m,m0,c',m') /\ Extend_o(c,c',m0)) \/
+		(wo = WAppDataDone /\ mo = None /\ Extend_o(c,c',m) /\ NextCn(c,c')) \/
+		(!m'. ?m0. wo = WAppDataDone /\ mo = Some(m') /\ Split_o(c,m,m0,c',m') /\ Extend_o(c,c',m0) /\ NextCn(c,c')) \/
 		(wo = WHSDone /\
 		  (
 			   Role(c') = Role(c)
@@ -216,8 +219,8 @@ assume !c,c',ro,mo. IOResult_i(c,c',ro,mo) =>
    (
 	(ro = RClose /\ (Auth(CnId(c)) => EvClose(Peer(CnId(c),()),Bytes_i(c)))) \/
 	(!ad. ro = RFatal(ad) /\ (Auth(CnId(c)) => EvFatal(Peer(CnId(c),()),ad,Bytes_i(c)))) \/
-	(!ad. ro = RWarning(ad) /\ Extend(c,c') /\ (Auth(CnId(c)) => EvWarning(Peer(CnId(c),()),ad,Bytes_i(c)))) \/
-	(!q. ro = RQuery(q) /\ Extend(c,c')) \/
+	(!ad. ro = RWarning(ad) /\ Extend(c,c') /\ (Auth(CnId(c)) => EvWarning(Peer(CnId(c),()),ad,Bytes_i(c))) /\ NextCn(c,c')) \/
+	(!q. ro = RQuery(q) /\ Extend(c,c') /\ NextCn(c,c')) \/
 	(ro = RHSDone /\ 
 	  (
 		   Role(c') = Role(c)
@@ -245,15 +248,36 @@ assume !c,c',ro,mo. IOResult_i(c,c',ro,mo) =>
 	(!wo,m,m'. ro = WriteOutcome(wo) /\ IOResult_o(c,m,c',wo,m'))
    )
 
-val init: Tcp.NetworkStream -> Role -> config -> Connection
+val init: Tcp.NetworkStream -> r:Role -> c:config -> (;r,c)nullCn
 
-val resume: Tcp.NetworkStream -> sessionID -> config -> Connection
+val resume: Tcp.NetworkStream -> sessionID -> c:config -> (;Client,c)nullCn
 
-val rehandshake: c:Connection -> config -> bool * (;c) nextCn
-val rekey:       c:Connection -> config -> bool * (;c) nextCn
-val request:     c:Connection -> config -> bool * (;c) nextCn
+val rehandshake: c:Connection -> conf:config ->
+	(b:bool * c':Connection) {
+		   Extend(c,c')
+		/\ Role(c') = Role(c)
+		/\ CnId(c') = CnId(c)
+		/\ (   (b = false /\ Config(c') = Config(c))
+			\/ (b = true  /\ Config(c') = conf    ))
+	}
+val rekey:       c:Connection -> conf:config ->
+	(b:bool * c':Connection) {
+		   Extend(c,c')
+		/\ Role(c') = Role(c)
+		/\ CnId(c') = CnId(c)
+		/\ (   (b = false /\ Config(c') = Config(c))
+			\/ (b = true  /\ Config(c') = conf    ))
+	}
+val request:     c:Connection -> conf:config ->
+	(b:bool * c':Connection) {
+		   Extend(c,c')
+		/\ Role(c') = Role(c)
+		/\ CnId(c') = CnId(c)
+		/\ (   (b = false /\ Config(c') = Config(c))
+			\/ (b = true  /\ Config(c') = conf    ))
+	}
 
-val shutdown:    c:Connection -> (;c) nextCn
+val shutdown:    c:Connection -> c':(;c) nextCn{Extend(c,c')}
 
 val moveToOpenState: c:Connection ->
 	(;CnId(c))globalState Result
@@ -284,22 +308,22 @@ val writeAll: c:Connection ->
 	(writeOutcome * Connection) Result
 
 val read: c:Connection -> 
-    (c':Connection  * ro:readOutcome* mo:(;ConnectionEpochIn(c'),ConnectionInStream(c'))msg_i option)
+    (c':Connection  * ro:readOutcome* mo:(;ConnectionEpochIn(c'),CnStream_i(c'))msg_i option)
     {
       IOResult_i(c,c',ro,mo)
     }
 
 val write: c:Connection ->
-	m:(;ConnectionEpochOut(c),ConnectionOutStream(c))msg_o ->
-	(c':Connection* wo:writeOutcome* mo:(;ConnectionEpochOut(c'),ConnectionOutStream(c'))msg_o option)
+	m:(;ConnectionEpochOut(c),CnStream_o(c))msg_o ->
+	(c':Connection* wo:writeOutcome* mo:(;ConnectionEpochOut(c'),CnStream_o(c'))msg_o option)
     {
       IOResult_o(c,m,c',wo,mo)
     }
 
-val authorize: Connection -> query -> Connection
+val authorize: c:Connection -> q:query -> c': (;c) nextCn {Extend(c,c') /\ Handshake.Authorize(Config(c),q)}
 val refuse: Connection -> query -> unit
 
 val getEpochIn:   c:Connection -> e:epoch{e=ConnectionEpochIn(c) }
 val getEpochOut:  c:Connection -> e:epoch{e=ConnectionEpochOut(c)}
-val getInStream:  c:Connection -> s:(;ConnectionEpochIn(c))stream {s = ConnectionInStream(c)}
-val getOutStream: c:Connection -> s:(;ConnectionEpochOut(c))stream{s = ConnectionOutStream(c)}
+val getInStream:  c:Connection -> s:(;ConnectionEpochIn(c))stream {s = CnStream_i(c)}
+val getOutStream: c:Connection -> s:(;ConnectionEpochOut(c))stream{s = CnStream_o(c)}
