@@ -7,65 +7,7 @@ open DataStream (* application-specific module *)
 open AppDataStream
 open Dispatch
 
-function val CnId: Connection -> ConnectionInfo
-private assume !id, s. CnId(Conn(id, s)) = id
 
-function val CnStream_i: c:Connection -> (;ConnectionEpochIn (c)) stream
-function val CnStream_o: c:Connection -> (;ConnectionEpochOut(c)) stream
-private assume !id, s. CnStream_i(Conn(id, s)) =  AppInStream(id, s.appdata)
-private assume !id, s. CnStream_o(Conn(id, s)) = AppOutStream(id, s.appdata)
-
-function val Bytes_o: Connection -> bytes
-function val Bytes_i: Connection -> bytes
-function val StreamToBytes: ki:epoch * (;ki) stream -> bytes
-private assume !c. Bytes_o(c) = StreamToBytes(ConnectionEpochIn (c), CnStream_i(c))
-private assume !c. Bytes_i(c) = StreamToBytes(ConnectionEpochOut(c), CnStream_o(c))
-
-predicate EvWrite      of ConnectionInfo * bytes
-predicate EvWarning    of ConnectionInfo * alertDescription * bytes
-predicate EvClose      of ConnectionInfo * bytes
-predicate EvFatal      of ConnectionInfo * alertDescription * bytes
-predicate EvFalseStart of ConnectionInfo
-// Write records increasing prefixes of the stream, for each written data fragment, 
-// interleaved with warnings, ended by Fatal or Close [we may distinguish between two kinds of close too]
-// Write(i,p0), ..., Write(i,p0 @| ... @| pi), Warning(i,p0 @| ... @| pi), ..., Close(i, p0 @| ... @| pn)
-
-function val Role: Connection -> Role
-assume !c. Role(c) = CnId(c).role
-
-function val DualRole: Role -> Role
-assume DualRole(Client) = Server
-assume DualRole(Server) = Client
-
-// Peer(i,()) ghostly refers to the remote peer's ConnectionInfo 
-function val Peer: ConnectionInfo * unit -> ConnectionInfo 
-assume !ki. Peer(ki, ()) = { id_in = ki.id_out; id_out = ki.id_in; role = DualRole(ki.role) }
-
-predicate Extend   of c:Connection * c':Connection
-predicate Extend_o of c:Connection * c':Connection * (;ConnectionEpochOut(c),CnStream_o(c)) msg_o
-predicate Extend_i of c:Connection * c':Connection * (;ConnectionEpochIn (c),CnStream_i(c)) msg_i
-
-function val MsgOBytes: c:Connection * (;ConnectionEpochOut(c),CnStream_o(c)) msg_o -> bytes
-function val MsgIBytes: c:Connection * (;ConnectionEpochIn (c),CnStream_i(c)) msg_i -> bytes
-
-predicate Split_o of
-	  c:Connection
-	* (;ConnectionEpochOut(c),CnStream_o(c))msg_o
-	* (;ConnectionEpochOut(c),CnStream_o(c))msg_o
-	* c':Connection
-	* (;ConnectionEpochOut(c'),CnStream_o(c'))msg_o
-
-definition !c, c'. 
-	Extend(c, c') <=>    Bytes_i(c') = Bytes_i(c)
-                      /\ Bytes_o(c') = Bytes_o(c)
-
-definition !c, c', msg.
-	Extend_o(c, c', msg) <=>     Bytes_i(c') = Bytes_i(c)
-                              /\ Bytes_o(c') = Bytes_o(c) @| MsgOBytes(c, msg)
-
-definition !c, c', msg. 
-	Extend_i(c, c', msg) <=>     Bytes_i(c') = Bytes_i(c) @| MsgIBytes(c, msg)
-                              /\ Bytes_o(c') = Bytes_o(c)
 //TODO: in SameConnection, enforce the chaining for all HS-specific data, in particular to chain successive handshakes.
 //TODO: fix alertDescription, so that it only represents the second byte. 
 //TODO: check that we are not too restrictive for the ongoing connection once we start negotiating.

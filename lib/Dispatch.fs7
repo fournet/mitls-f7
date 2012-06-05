@@ -53,8 +53,6 @@ definition !ci,gs. GState(ci,gs)  <=>
 	))
                                  *)
 type Connection = Conn of (id:ConnectionInfo * (;id)globalState)
-function val ConnectionIndex: Connection -> ConnectionInfo
-assume !id,s. ConnectionIndex(Conn(id,s)) = id
 
 function val ConnectionEpochOut: Connection -> epoch
 assume !id,s. ConnectionEpochOut(Conn(id,s)) = id.id_out
@@ -77,16 +75,77 @@ assume !id,s. ConnectionInHistory(Conn(id,s)) = Record.History(id.id_in,s.read.c
 function val ConnectionOutHistory: c:Connection -> (;ConnectionEpochOut(c))TLSFragment.history
 assume !id,s. ConnectionOutHistory(Conn(id,s)) = Record.History(id.id_out,s.write.conn)
 
+// Previously in TLS, needed here.
+function val CnId: Connection -> ConnectionInfo
+private assume !id, s. CnId(Conn(id, s)) = id
+
+function val CnStream_i: c:Connection -> (;ConnectionEpochIn (c)) stream
+function val CnStream_o: c:Connection -> (;ConnectionEpochOut(c)) stream
+private assume !id, s. CnStream_i(Conn(id, s)) =  AppDataStream.AppInStream(id, s.appdata)
+private assume !id, s. CnStream_o(Conn(id, s)) = AppDataStream.AppOutStream(id, s.appdata)
+
+function val Bytes_o: Connection -> bytes
+function val Bytes_i: Connection -> bytes
+function val StreamToBytes: ki:epoch * (;ki) stream -> bytes
+private assume !c. Bytes_o(c) = StreamToBytes(ConnectionEpochIn (c), CnStream_i(c))
+private assume !c. Bytes_i(c) = StreamToBytes(ConnectionEpochOut(c), CnStream_o(c))
+
+predicate EvWrite      of ConnectionInfo * bytes
+predicate EvWarning    of ConnectionInfo * alertDescription * bytes
+predicate EvClose      of ConnectionInfo * bytes
+predicate EvFatal      of ConnectionInfo * alertDescription * bytes
+predicate EvFalseStart of ConnectionInfo
+// Write records increasing prefixes of the stream, for each written data fragment, 
+// interleaved with warnings, ended by Fatal or Close [we may distinguish between two kinds of close too]
+// Write(i,p0), ..., Write(i,p0 @| ... @| pi), Warning(i,p0 @| ... @| pi), ..., Close(i, p0 @| ... @| pn)
+
+function val Role: Connection -> Role
+assume !c. Role(c) = CnId(c).role
+
+function val DualRole: Role -> Role
+assume DualRole(Client) = Server
+assume DualRole(Server) = Client
+
+// Peer(i,()) ghostly refers to the remote peer's ConnectionInfo 
+function val Peer: ConnectionInfo * unit -> ConnectionInfo 
+assume !ki. Peer(ki, ()) = { id_in = ki.id_out; id_out = ki.id_in; role = DualRole(ki.role) }
+
+type (;e:epoch,s:(;e)stream)msg_i = r:range * (;e,s,r)delta
+type (;e:epoch,s:(;e)stream)msg_o = r:range * (;e,s,r)delta
+
+predicate Extend   of c:Connection * c':Connection
+predicate Extend_o of c:Connection * c':Connection * (;ConnectionEpochOut(c),CnStream_o(c)) msg_o
+predicate Extend_i of c:Connection * c':Connection * (;ConnectionEpochIn (c),CnStream_i(c)) msg_i
+
+function val MsgOBytes: c:Connection * (;ConnectionEpochOut(c),CnStream_o(c)) msg_o -> bytes
+function val MsgIBytes: c:Connection * (;ConnectionEpochIn (c),CnStream_i(c)) msg_i -> bytes
+
+predicate Split_o of
+	  c:Connection
+	* (;ConnectionEpochOut(c),CnStream_o(c))msg_o
+	* (;ConnectionEpochOut(c),CnStream_o(c))msg_o
+	* c':Connection
+	* (;ConnectionEpochOut(c'),CnStream_o(c'))msg_o
+
+definition !c, c'. 
+	Extend(c, c') <=>    Bytes_i(c') = Bytes_i(c)
+                      /\ Bytes_o(c') = Bytes_o(c)
+
+definition !c, c', msg.
+	Extend_o(c, c', msg) <=>     Bytes_i(c') = Bytes_i(c)
+                              /\ Bytes_o(c') = Bytes_o(c) @| MsgOBytes(c, msg)
+
+definition !c, c', msg. 
+	Extend_i(c, c', msg) <=>     Bytes_i(c') = Bytes_i(c) @| MsgIBytes(c, msg)
+                              /\ Bytes_o(c') = Bytes_o(c)
+
 val networkStream: Connection -> Tcp.NetworkStream
 
 function val Config: Connection -> config
 assume !id,s. Config(Conn(id,s)) = Handshake.Config(id,s.handshake)
 
-type (;c:Connection)nextCn = c':Connection{ConnectionIndex(c) = ConnectionIndex(c')}
+type (;c:Connection)nextCn = c':Connection{CnId(c) = CnId(c')}
 type query = Certificate.cert
-
-type (;e:epoch,s:(;e)stream)msg_i = r:range * (;e,s,r)delta
-type (;e:epoch,s:(;e)stream)msg_o = r:range * (;e,s,r)delta
 
 type writeOutcome =
     | WError of ioerror 
@@ -108,6 +167,84 @@ type readOutcome =
     | RFatal of alertDescription
     | RWarning of alertDescription
 
+predicate val IOResult_i : Connection * Connection * readOutcome * 'a -> bool
+predicate val IOResult_o : Connection * 'a * Connection * writeOutcome * 'b -> bool
+
+assume !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo) =>
+	(
+		(wo = WAppDataDone /\ mo = None /\ Extend_o(c,c',m)) \/
+		(!m'. ?m0. wo = WAppDataDone /\ mo = Some(m') /\ Split_o(c,m,m0,c',m') /\ Extend_o(c,c',m0)) \/
+		(wo = WHSDone /\
+		  (
+			   Role(c') = Role(c)
+			/\ Config(c') = Config(c)
+			/\ ConnectionEpochIn(c) = Pred(ConnectionEpochIn(c'))
+			/\ Bytes_i(c') = [||]
+			/\ EvClose(Peer(CnId(c),()), Bytes_i(c))
+
+			/\ Handshake.Complete(CnId(c'),Config(c'))
+
+			/\ (
+				( EvFalseStart(CnId(c')) =>
+					   Bytes_o(c') = Bytes_o(c)
+					/\ ConnectionEpochOut(c') = ConnectionEpochOut(c)
+				) \/
+				( 
+					Bytes_o(c') = [||]
+				 /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
+				)
+			   )
+		   )
+		 ) \/
+		 (wo = WMustRead /\
+		   (
+			  	Role(c') = Role(c) 
+			 /\ Config(c') = Config(c)
+			 /\ ConnectionEpochIn(c') = ConnectionEpochIn(c)
+			 /\ Bytes_i(c') = Bytes_i(c)
+			 /\ (	(EvFalseStart(CnId(c)) => (
+						   Bytes_o(c') = Bytes_o(c)
+						/\ ConnectionEpochOut(c') = ConnectionEpochOut(c)))
+				\/	(	   Bytes_o(c') = [||]
+						/\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
+						/\ EvFalseStart(CnId(c'))))
+		   )
+		 )
+	)
+
+assume !c,c',ro,mo. IOResult_i(c,c',ro,mo) =>
+   (
+	(ro = RClose /\ (Auth(CnId(c)) => EvClose(Peer(CnId(c),()),Bytes_i(c)))) \/
+	(!ad. ro = RFatal(ad) /\ (Auth(CnId(c)) => EvFatal(Peer(CnId(c),()),ad,Bytes_i(c)))) \/
+	(!ad. ro = RWarning(ad) /\ Extend(c,c') /\ (Auth(CnId(c)) => EvWarning(Peer(CnId(c),()),ad,Bytes_i(c)))) \/
+	(!q. ro = RQuery(q) /\ Extend(c,c')) \/
+	(ro = RHSDone /\ 
+	  (
+		   Role(c') = Role(c)
+		/\ Config(c') = Config(c)
+		/\ ConnectionEpochIn(c) = Pred(ConnectionEpochIn(c'))
+		/\ Bytes_i(c') = [||]
+		/\ EvClose(Peer(CnId(c),()), Bytes_i(c))
+
+		/\ Handshake.Complete(CnId(c'),Config(c'))
+
+		/\ (
+			( EvFalseStart(CnId(c')) =>
+				   Bytes_o(c') = Bytes_o(c)
+				/\ ConnectionEpochOut(c') = ConnectionEpochOut(c)
+			) \/
+			( 
+				Bytes_o(c') = [||]
+			 /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
+			)
+		   )
+	  )
+	) \/
+	(!m. ro = RAppDataDone /\ mo = Some(m) /\
+		Extend_i(c,c',m) /\ (Auth(CnId(c)) => EvWrite(Peer(CnId(c),()), Bytes_i(c')))) \/
+	(!wo,m,m'. ro = WriteOutcome(wo) /\ IOResult_o(c,m,c',wo,m'))
+   )
+
 val init: Tcp.NetworkStream -> Role -> config -> Connection
 
 val resume: Tcp.NetworkStream -> sessionID -> config -> Connection
@@ -119,7 +256,7 @@ val request:     c:Connection -> config -> bool * (;c) nextCn
 val shutdown:    c:Connection -> (;c) nextCn
 
 val moveToOpenState: c:Connection ->
-	(;ConnectionIndex(c))globalState Result
+	(;CnId(c))globalState Result
 
 val closeConnection: c:Connection-> (;c) nextCn
 
@@ -146,9 +283,6 @@ val writeOne: c:Connection ->
 val writeAll: c:Connection ->
 	(writeOutcome * Connection) Result
 
-predicate val IOResult_i : Connection * Connection * readOutcome * 'a -> bool
-predicate val IOResult_o : Connection * 'a * Connection * writeOutcome * 'b -> bool
-
 val read: c:Connection -> 
     (c':Connection  * ro:readOutcome* mo:(;ConnectionEpochIn(c'),ConnectionInStream(c'))msg_i option)
     {
@@ -156,10 +290,10 @@ val read: c:Connection ->
     }
 
 val write: c:Connection ->
-	mo:(;ConnectionEpochOut(c),ConnectionOutStream(c))msg_o ->
-	(c':Connection* wo:writeOutcome* mo':(;ConnectionEpochOut(c'),ConnectionOutStream(c'))msg_o option)
+	m:(;ConnectionEpochOut(c),ConnectionOutStream(c))msg_o ->
+	(c':Connection* wo:writeOutcome* mo:(;ConnectionEpochOut(c'),ConnectionOutStream(c'))msg_o option)
     {
-      IOResult_o(c,mo,c',wo,mo')
+      IOResult_o(c,m,c',wo,mo)
     }
 
 val authorize: Connection -> query -> Connection
