@@ -48,8 +48,8 @@ fsccopts= --noframework -r $(FW)mscorlib.dll -r $(FW)System.dll -r $(FW)System.N
 
 fsyaccexe=$(FSCCDIR)fsyacc.exe
 fslexexe=$(FSCCDIR)fslex.exe
-f7exe=$(TOP)bin/f7.exe
-z3exe=$(TOP)bin/z3.exe
+f7exe=../../../$(TOP)bin/f7.exe
+z3exe=../../../$(TOP)bin/z3.exe
 fs2pvexe=$(FS2PVDIR)fs2pv.exe
 goal2genexe =$(FS2PVDIR)goal2gen.exe
 

@@ -1,19 +1,27 @@
 include Makefile.inc
 
-projs = HttpServer lib ManagedRC4 TLSharp RPCClient RCPServer doc
+name = TLS
+version = 0.0.internal
 
-.PHONY = all dist build clean
+projs = HttpServer lib ManagedRC4 TLSharp RPCClient RCPServer doc
+distdir = __dist
+localfiles = Makefile.inc
+
+.PHONY = all dist dist-this build clean
 
 all: dist
 
 dist-this:
+	cp $(localfiles) $(distdir)
 
 dist:
-	rm -rf __dist
-	mkdir __dist
+	rm -rf $(distdir)
+	mkdir $(distdir)
 	for i in $(projs) ; do\
-		$(MAKE) top_distdir=$(dirname  -C $$i dist ;\
+		$(MAKE) distdir=../$(distdir) -C $$i dist ;\
 	done
+	$(MAKE) dist-this
+	tar cfz 
  	
 build:
 	for i in $(projs) ; do\
