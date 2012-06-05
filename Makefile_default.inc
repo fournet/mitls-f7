@@ -2,12 +2,12 @@
 
 all-def: dist-def
  
-target-fsc = $(fsc) $(deps) $(src) -o $(target)
+target-fsc = $(fsc) $(deps) $(src) -o $(target); cp $(target) ../bin
 
-dist-def: build
+dist-def:
 	mkdir $(distname)/$(this)
 	cp $(src) $(distname)/$(this)
-	cp $(target) $(distname)/$(this)
+	#cp $(target) $(distname)/$(this)
 	cp $(localfiles) $(distname)/$(this)
 
 clean-def:

@@ -1,19 +1,21 @@
 include ../Makefile.inc
 
-localfiles = Makefile
+localfiles = Makefile 
 src = 
 deps = 
-target = 
+target = ManagedRC4.dll
 
 .PHONY: all build dist clean
 
 all: dist
 
 build:
+	cp $(arch)/Release/$(target) ../bin
 
 clean: clean-def
 
 dist:
-	@echo "TODO"
+	mkdir $(distname)/$(this)
+	cp -a . $(distname)/$(this)
 
 include ../Makefile_default.inc

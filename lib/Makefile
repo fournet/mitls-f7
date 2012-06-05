@@ -1,7 +1,7 @@
 include ../Makefile.inc
 
 localfiles = Makefile
-src = ../../../lib/concrete-fs/pi.fs Error.fsi Bytes.fsi tcp.fsi Algorithms.fsi RSA.fsi HASH.fsi HMAC.fsi Certificate.fsi CipherSuites.fsi formats.fsi TLSInfo.fsi DataStream.fsi Fragment.fsi MAC.fsi AEPlain.fsi ENC.fsi AEADPlain.fsi AEAD.fsi StatefulPlain.fsi StatefulAEAD.fsi TLSFragment.fsi record.fsi Alert.fsi PRFs.fsi SessionDB.fsi Handshake.fsi AppDataStream.fsi Dispatch.fsi TLS.fsi RPC.fsi Error.fs Bytes.fs tcp.fs Algorithms.fs RSA.fs HASH.fs HMAC.fs Certificate.fs CipherSuites.fs formats.fs TLSInfo.fs DataStream.fs Fragment.fs MAC.fs AEPlain.fs ENC.fs AEADPlain.fs AEAD.fs StatefulPlain.fs StatefulAEAD.fs TLSFragment.fs record.fs Alert.fs PRFs.fs SessionDB.fs Handshake.fs AppDataStream.fs Dispatch.fs TLS.fs RPC.fs
+src = Error.fsi Bytes.fsi tcp.fsi Algorithms.fsi RSA.fsi HASH.fsi HMAC.fsi Certificate.fsi CipherSuites.fsi formats.fsi TLSInfo.fsi DataStream.fsi Fragment.fsi MAC.fsi AEPlain.fsi ENC.fsi AEADPlain.fsi AEAD.fsi StatefulPlain.fsi StatefulAEAD.fsi TLSFragment.fsi record.fsi Alert.fsi PRFs.fsi SessionDB.fsi Handshake.fsi AppDataStream.fsi Dispatch.fsi TLS.fsi RPC.fsi pi.fs Error.fs Bytes.fs tcp.fs Algorithms.fs RSA.fs HASH.fs HMAC.fs Certificate.fs CipherSuites.fs formats.fs TLSInfo.fs DataStream.fs Fragment.fs MAC.fs AEPlain.fs ENC.fs AEADPlain.fs AEAD.fs StatefulPlain.fs StatefulAEAD.fs TLSFragment.fs record.fs Alert.fs PRFs.fs SessionDB.fs Handshake.fs AppDataStream.fs Dispatch.fs TLS.fs RPC.fs
 deps = -r ../ManagedRC4/$(arch)/Debug/ManagedRC4.dll -a
 target = TLSlib.dll
 
@@ -17,11 +17,14 @@ build: $(target)
 clean: clean-def
 
 dist: dist-def
+	rm $(distname)/$(this)/Makefile
+	sed -n '1,/^### BEGIN PRIVATE MAKEFILE PART ###/{/^### BEGIN PRIVATE MAKEFILE PART ###/d;p;}' Makefile > $(distname)/$(this)/Makefile
 
 include ../Makefile_default.inc
 
 ### BEGIN PRIVATE MAKEFILE PART ###
-# This part of the makefile is not included in the release
+# This part of the makefile is not included in the release.
+# Do not change the line above, because it is the marker for the private part!
 all: toplevel.dll tc7
 
 lib7=../../../lib/fs7-interfaces/
