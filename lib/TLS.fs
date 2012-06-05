@@ -6,11 +6,13 @@ open TLSInfo
 open Tcp
 open Dispatch
 
+type nullCn = Dispatch.Connection
 type nextCn = Dispatch.Connection
 type query = Certificate.cert
 // FIXME: Put the following definitions close to range and delta, and use them
 type msg_i = (DataStream.range * DataStream.delta)
 type msg_o = (DataStream.range * DataStream.delta)
+
 
 // Outcomes for top-level functions
 type ioresult_i =
