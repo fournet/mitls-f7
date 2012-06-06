@@ -16,6 +16,6 @@ clean: clean-def
 
 dist:
 	mkdir $(distname)/$(this)
-	cp -a . $(distname)/$(this)
+	tar --exclude=".svn" -c -f - * | (cd $(distname)/$(this); tar xfp -)
 
 include ../Makefile_default.inc
