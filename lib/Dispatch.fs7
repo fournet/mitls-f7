@@ -217,9 +217,9 @@ assume !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo) =>
 
 assume !c,c',ro,mo. IOResult_i(c,c',ro,mo) =>
    (
-	(ro = RClose /\ (Auth(CnId(c)) => EvClose(Peer(CnId(c),()),Bytes_i(c)))) \/
-	(!ad. ro = RFatal(ad) /\ (Auth(CnId(c)) => EvFatal(Peer(CnId(c),()),ad,Bytes_i(c)))) \/
-	(!ad. ro = RWarning(ad) /\ Extend(c,c') /\ (Auth(CnId(c)) => EvWarning(Peer(CnId(c),()),ad,Bytes_i(c))) /\ NextCn(c,c')) \/
+	(ro = RClose /\ (Auth(ConnectionEpochIn(c)) => EvClose(Peer(CnId(c),()),Bytes_i(c)))) \/
+	(!ad. ro = RFatal(ad) /\ (Auth(ConnectionEpochIn(c)) => EvFatal(Peer(CnId(c),()),ad,Bytes_i(c)))) \/
+	(!ad. ro = RWarning(ad) /\ Extend(c,c') /\ (Auth(ConnectionEpochIn(c)) => EvWarning(Peer(CnId(c),()),ad,Bytes_i(c))) /\ NextCn(c,c')) \/
 	(!q. ro = RQuery(q) /\ Extend(c,c') /\ NextCn(c,c')) \/
 	(ro = RHSDone /\ 
 	  (
@@ -231,20 +231,16 @@ assume !c,c',ro,mo. IOResult_i(c,c',ro,mo) =>
 
 		/\ Handshake.Complete(CnId(c'),Config(c'))
 
-		/\ (
-			( EvFalseStart(CnId(c')) =>
-				   Bytes_o(c') = Bytes_o(c)
-				/\ ConnectionEpochOut(c') = ConnectionEpochOut(c)
-			) \/
-			( 
-				Bytes_o(c') = [||]
-			 /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
-			)
+		/\ (	(EvFalseStart(CnId(c')) =>
+					   Bytes_o(c') = Bytes_o(c)
+					/\ ConnectionEpochOut(c') = ConnectionEpochOut(c))
+			\/	(	   Bytes_o(c') = [||]
+					/\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c')))
 		   )
 	  )
 	) \/
 	(!m. ro = RAppDataDone /\ mo = Some(m) /\
-		Extend_i(c,c',m) /\ (Auth(CnId(c)) => EvWrite(Peer(CnId(c),()), Bytes_i(c')))) \/
+		Extend_i(c,c',m) /\ NextCn(c,c') /\ (Auth(ConnectionEpochIn(c)) => EvWrite(Peer(CnId(c),()), Bytes_i(c')))) \/
 	(!wo,m,m'. ro = WriteOutcome(wo) /\ IOResult_o(c,m,c',wo,m'))
    )
 

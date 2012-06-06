@@ -19,8 +19,14 @@ predicate val Complete: ConnectionInfo * config -> bool
 predicate val SentCCS: epoch -> bool
 type (;ci:ConnectionInfo,c:config) nextState = s:(;ci)hs_state {Config(ci,s) = c}
 
-val init:        r:Role            -> c:config  -> (ci:ConnectionInfo * s:(;ci)hs_state){ Config(ci,s) = c }
-val resume:      nextSID:sessionID -> c:config  -> (ci:ConnectionInfo * s:(;ci)hs_state){ Config(ci,s) = c }
+val init:        r:Role            -> c:config  ->
+	(ci:ConnectionInfo * s:(;ci)hs_state){ Config(ci,s) = c /\ ci.role = r /\
+		IsNullCiphersuite(EpochSI(ci.id_in).cipher_suite) /\
+		IsNullCiphersuite(EpochSI(ci.id_out).cipher_suite)}
+val resume:      nextSID:sessionID -> c:config  ->
+	(ci:ConnectionInfo * s:(;ci)hs_state){ Config(ci,s) = c /\ ci.role = Client /\
+		IsNullCiphersuite(EpochSI(ci.id_in).cipher_suite) /\
+		IsNullCiphersuite(EpochSI(ci.id_out).cipher_suite)}
 val rehandshake: ci:ConnectionInfo -> s:(;ci)hs_state -> c:config  ->
 	b:bool * s':(;ci)hs_state{ (b = true /\ Config(ci,s') = c) \/ (b = false /\ Config(ci,s') = Config(ci,s))}
 val rekey:       ci:ConnectionInfo -> s:(;ci)hs_state -> c:config  ->

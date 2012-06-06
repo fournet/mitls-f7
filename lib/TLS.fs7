@@ -14,20 +14,20 @@ type (;c:Connection) ioresult_i =
   // or None in case of an internal error.
 
 | Close of Tcp.NetworkStream {
-	Auth(CnId(c)) => EvClose(Peer(CnId(c),()), Bytes_i(c))
+	Auth(ConnectionEpochIn(c)) => EvClose(Peer(CnId(c),()), Bytes_i(c))
   }
   // We received an alert notifying the normal closure of the connection; 
   // we learn that we have read everything sent by our peer,
   // and we get back the underlying TCP connection. 
 
 | Fatal of a:alertDescription {
-	Auth(CnId(c)) => EvFatal(Peer(CnId(c),()), a, Bytes_i(c))
+	Auth(ConnectionEpochIn(c)) => EvFatal(Peer(CnId(c),()), a, Bytes_i(c))
   }
   // We received an alert notifying the abnornal closure of the connection by our peer
   // We learn that we have read everything sent by our peer.
   
 | Warning of c':(;c) nextCn * a:alertDescription {
-	Extend(c,c') /\ Auth(CnId(c)) => EvWarning(Peer(CnId(c),()), a, Bytes_i(c))
+	Extend(c,c') /\ Auth(ConnectionEpochIn(c)) => EvWarning(Peer(CnId(c),()), a, Bytes_i(c))
   }
   // We received a warning (at this point in the input stream)
 
@@ -43,9 +43,9 @@ type (;c:Connection) ioresult_i =
 	/\ Handshake.Complete(CnId(c'),Config(c'))
 	/\ (	(EvFalseStart(CnId(c')) =>
 				   Bytes_o(c') = Bytes_o(c)
-				/\ ConnectionEpochOut(c') = ConnectionEpochOut(c)))
+				/\ ConnectionEpochOut(c') = ConnectionEpochOut(c))
 		\/	(	   Bytes_o(c') = [||]
-				/\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
+				/\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c')))
 	   )
 	}
   // We completed a run of the Handshake, moving to the next epoch.
@@ -57,7 +57,7 @@ type (;c:Connection) ioresult_i =
 	// We need to show agreement on the content of all protocols in previous and current connection to express the Alert attack (and therefore authentication)
 
 | Read of c':(;c) nextCn * d:(;ConnectionEpochIn(c),CnStream_i(c)) msg_i {
-	Extend_i(c,c',d) /\ (Auth(CnId(c)) => EvWrite(Peer(CnId(c),()), Bytes_i(c')))
+	Extend_i(c,c',d) /\ (Auth(ConnectionEpochIn(c)) => EvWrite(Peer(CnId(c),()), Bytes_i(c')))
   }
   // We received a data fragment, appended to the input stream)
 

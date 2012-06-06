@@ -6,13 +6,6 @@ open TLSInfo
 open Tcp
 open Dispatch
 
-type nullCn = Dispatch.Connection
-type nextCn = Dispatch.Connection
-type query = Certificate.cert
-// FIXME: Put the following definitions close to range and delta, and use them
-type msg_i = (DataStream.range * DataStream.delta)
-type msg_o = (DataStream.range * DataStream.delta)
-
 
 // Outcomes for top-level functions
 type ioresult_i =
@@ -45,21 +38,21 @@ let accept_connected ns po = Dispatch.init ns Server po
 let request c po = Dispatch.request c po
 
 
-let read c = 
-  let c,outcome,m = Dispatch.read c in 
+let read ca = 
+  let cb,outcome,m = Dispatch.read ca in 
     match outcome,m with
       | WriteOutcome(WError(err)),_ -> ReadError(err)
       | RError(err),_ -> ReadError(err)
-      | RAppDataDone,Some(b) -> Read(c,b)
-      | RQuery(q),_ -> CertQuery(c,q)
-      | RHSDone,_ -> Handshaken(c)
-      | RClose,_ -> Close (networkStream c)
+      | RAppDataDone,Some(b) -> Read(cb,b)
+      | RQuery(q),_ -> CertQuery(cb,q)
+      | RHSDone,_ -> Handshaken(cb)
+      | RClose,_ -> Close (networkStream cb)
       | RFatal(ad),_ -> Fatal(ad)
-      | RWarning(ad),_ -> Warning(c,ad)
-      | WriteOutcome(WMustRead),_ -> DontWrite(c)
-      | WriteOutcome(WHSDone),_ -> Handshaken (c)
+      | RWarning(ad),_ -> Warning(cb,ad)
+      | WriteOutcome(WMustRead),_ -> DontWrite(cb)
+      | WriteOutcome(WHSDone),_ -> Handshaken (cb)
       | WriteOutcome(SentFatal(ad)),_ -> ReadError(EFatal(ad))
-      | WriteOutcome(SentClose),_ -> Close (networkStream c)
+      | WriteOutcome(SentClose),_ -> Close (networkStream cb)
       | WriteOutcome(WriteAgain),_ -> unexpectedError "[read] Dispatch.read should never return WriteAgain"
       | _,_ -> ReadError(EInternal(Dispatcher,InvalidState))
 

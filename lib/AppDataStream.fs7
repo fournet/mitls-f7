@@ -56,7 +56,7 @@ val next_fragment: ci:ConnectionInfo -> s:(;ci)app_state ->
 val recv_fragment: ci:ConnectionInfo -> s:(;ci)app_state -> r:range ->
 	f:(;ci.id_in,r)Fragment.fragment{Auth(ci.id_in) =>
 		Fragment.Fragment(ci.id_in,AppInStream(ci,s),r,f)} ->
-	s':(;ci)app_state{AppOutBuf(ci,s') = Some((r,f)) /\
+	s':(;ci)app_state{AppInBuf(ci,s') = Some((r,f)) /\
 		AppOutStream(ci,s') = AppOutStream(ci,s) /\
 		AppInStream (ci,s') = AppInStream (ci,s)}
 

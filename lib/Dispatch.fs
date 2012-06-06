@@ -46,6 +46,7 @@ type Connection = Conn of ConnectionInfo * globalState
 let networkStream (Conn(id,g)) = g.ns
 
 type nextCn = Connection
+type nullCn = Connection
 type query = Certificate.cert
 // FIXME: Put the following definitions close to range and delta, and use them
 type msg_i = (DataStream.range * DataStream.delta)
@@ -74,7 +75,8 @@ type readOutcome =
 
 
 let init ns role poptions =
-    let (ci,hs) = Handshake.init role poptions in
+    let hsInitRes = Handshake.init role poptions in
+    let (ci,hs) = hsInitRes in
     let id_in = ci.id_in in
     let id_out = ci.id_out in
     let recv = Record.nullConnState id_in in
@@ -173,7 +175,7 @@ let send ns e write pv rg ct frag =
     | Error(x,y) -> Error(x,y)
     | Correct(_) -> Correct(dState)
 
-type preds = GState of ConnectionInfo * globalState
+//type preds = GState of ConnectionInfo * globalState
 (* which fragment should we send next? *)
 (* we must send this fragment before restoring the connection invariant *)
 let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
@@ -207,7 +209,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                                                  write = new_write }
                                 (* Fairly, tell we're done, and we won't write more data *)
                                 // KB: To Fix                                 
-                                Pi.assume (GState(id,c));  
+                                //Pi.assume (GState(id,c));  
                                 (Correct (WAppDataDone, Conn(id,c)) )
 
 
@@ -261,7 +263,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                             let c = { c with handshake = new_hs_state;
                                              write  = new_write } in
                             //KB: to fix:
-                            Pi.assume(GState(id,c));
+                            //Pi.assume(GState(id,c));
                             (correct (WriteAgain, Conn(id,c)) )
                           | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
                       | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) (* TODO: we might want to send an "internal error" fatal alert *)
@@ -281,7 +283,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                             let c = { c with handshake = new_hs_state;
                                              write     = c_write }
                             // KB: to fix:
-                            Pi.assume(GState(id,c));
+                            //Pi.assume(GState(id,c));
                             (Correct (WMustRead, Conn(id,c)))
                           | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
                 | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) (* TODO: we might want to send an "internal error" fatal alert *)
@@ -297,7 +299,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                     | Correct(new_write) ->
                         let c = { c with handshake = new_hs_state;
                                          write     = new_write }
-                        Pi.assume (GState(id,c));  
+                        //Pi.assume (GState(id,c));  
                         (* Move to the new state *)
                         // Sanity check: in and out session infos should be the same
                         if epochSI(id.id_in) = epochSI(id.id_out) then
@@ -320,7 +322,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                 let c = { c with alert   = new_al_state;
                                  write   = new_write }
                 // KB: To Fix                                 
-                Pi.assume (GState(id,c));  
+                //Pi.assume (GState(id,c));  
                 (correct (WriteAgain, Conn(id,c )))
             | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
         | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) (* Unrecoverable error *)
@@ -337,7 +339,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                 let c = {c with alert = new_al_state;
                                 write = new_write}
                 // KB: To Fix                                 
-                Pi.assume (GState(id,c));  
+                //Pi.assume (GState(id,c));  
                 let closed = closeConnection (Conn(id,c)) in
                 correct (SentFatal(ad), closed)
             | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
@@ -358,7 +360,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                 let c = {c with alert = new_al_state;
                                 write = new_write}
                 // KB: To Fix                                 
-                Pi.assume (GState(id,c));  
+                //Pi.assume (GState(id,c));  
                 correct (SentClose, Conn(id,c))
             | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
         | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) (* Unrecoverable error *)
@@ -412,7 +414,7 @@ let readOne (Conn(id,c)) =
                                             //appdata = ad;
                                             handshake = hs} in
                             // KB: To Fix                                 
-                            Pi.assume (GState(id,c));  
+                            //Pi.assume (GState(id,c));  
                             correct (RAgain, Conn(id,c))
                         | Handshake.InVersionAgreed(hs) ->
                             match c_read.disp with
@@ -429,20 +431,20 @@ let readOne (Conn(id,c)) =
                                                 read = new_read;
                                                 write = new_write} in
                                     // KB: To Fix                                 
-                                    Pi.assume (GState(id,c));  
+                                    //Pi.assume (GState(id,c));  
                                     correct (RAgain, Conn(id,c) )
                             | _ -> (* It means we are doing a re-negotiation. Don't alter the current version number, because it
                                         is perfectly valid. It will be updated after the next CCS, along with all other session parameters *)
                                 let c = { c with read = c_read;
                                                     handshake = hs} in
                                     // KB: To Fix                           
-                                    Pi.assume (GState(id,c));  
+                                    //Pi.assume (GState(id,c));  
                                     (correct (RAgain, Conn(id, c) ))
                         | Handshake.InQuery(query,hs) ->
                                 let c = {c with read = c_read;
                                                 handshake = hs} in
                                     // KB: To Fix                           
-                                    Pi.assume (GState(id,c));  
+                                    //Pi.assume (GState(id,c));  
                                     correct(RQuery(query),Conn(id,c))
                         | Handshake.InFinished(hs) ->
                                 (* Ensure we are in Finishing state *)
@@ -459,14 +461,14 @@ let readOne (Conn(id,c)) =
                                             this sending our finished message, and thus letting us get the WHSDone event.
                                             I know, it's tricky and it sounds fishy, but that's the way it is now.*)
                                         // KB: To Fix                           
-                                        Pi.assume (GState(id,c));  
+                                        //Pi.assume (GState(id,c));  
                                         correct (RAgain,Conn(id,c))
                                     | _ -> let closed = closeConnection (Conn(id,{c with handshake = hs})) in Error(Dispatcher,InvalidState) // TODO: We might want to send some alert here
                         | Handshake.InComplete(hs) ->
                                 let c = {c with read = c_read;
                                                 handshake = hs} in
                                 // KB: To Fix                        
-                                Pi.assume (GState(id,c));  
+                                //Pi.assume (GState(id,c));  
                                 (* Ensure we are in Finishing state *)
                                     match x with
                                     | Finishing ->
@@ -494,7 +496,7 @@ let readOne (Conn(id,c)) =
                                                handshake = hs;
                                       }
                                 // KB: To Fix                                 
-                              Pi.assume (GState(nextID,c));  
+                              //Pi.assume (GState(nextID,c));  
                               correct (RAgain, Conn(nextID,c))
                           | InCCSError (x,y,hs) ->
                               let c = {c with handshake = hs} in
@@ -508,7 +510,7 @@ let readOne (Conn(id,c)) =
                                             //appdata = ad;
                                               alert = state} in
                                // KB: To Fix                                 
-                              Pi.assume (GState(id,c));  
+                              //Pi.assume (GState(id,c));  
                               correct (RAgain, Conn(id,c))
                           | Correct (Alert.ALClose_notify (state)) ->
                                  (* An outgoing close notify has already been buffered, if necessary *)
@@ -520,7 +522,7 @@ let readOne (Conn(id,c)) =
                                            //appdata = ad;
                                      } in
                              // KB: To Fix                                 
-                             Pi.assume (GState(id,c));  
+                             //Pi.assume (GState(id,c));  
                              correct (RClose, Conn(id,c))
                           | Correct (Alert.ALFatal (ad,state)) ->
                                (* Other fatal alert, we close both sides of the connection *)
@@ -529,7 +531,7 @@ let readOne (Conn(id,c)) =
                                              read = c_read
                                         }
                            // KB: To Fix                                 
-                             Pi.assume (GState(id,c));  
+                             //Pi.assume (GState(id,c));  
                              let closed = closeConnection (Conn(id,c)) in
                              correct (RFatal(ad), closed )
                           | Correct (Alert.ALWarning (ad,state)) ->
@@ -538,7 +540,7 @@ let readOne (Conn(id,c)) =
                                              read = c_read;
                                      }
                              // KB: To Fix                                 
-                             Pi.assume (GState(id,c));  
+                             //Pi.assume (GState(id,c));  
                              correct (RWarning(ad), Conn(id,c) )
                           | Error (x,y) -> let closed = closeConnection(Conn(id,c)) in Error(x,y) // TODO: We might want to send some alert here.
 
@@ -547,7 +549,7 @@ let readOne (Conn(id,c)) =
                       let c = {c with appdata = appstate
                                       read = c_read} in
                       // KB: To Fix                                 
-                      Pi.assume (GState(id,c));  
+                      //Pi.assume (GState(id,c));  
                       correct (RAppDataDone, Conn(id, c))
                   | _, _ -> let closed = closeConnection(Conn(id,c)) in Error(Dispatcher,InvalidState) // TODO: We might want to send some alert here.
   
@@ -653,7 +655,7 @@ let rec read c =
                     | (Some(b),appState) ->
                         let conn = {conn with appdata = appState} in
                         let c = Conn(id,conn) in
-                        Pi.assume (GState(id,conn));
+                        //Pi.assume (GState(id,conn));
                         c,RAppDataDone,Some(b)
                     | (None,_) -> unexpectedError "[read] When RAppDataDone, some data should have been read."
                 | RQuery(q) ->
