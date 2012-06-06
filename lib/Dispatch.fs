@@ -178,10 +178,10 @@ let send ns e write pv rg ct frag =
 //type preds = GState of ConnectionInfo * globalState
 (* which fragment should we send next? *)
 (* we must send this fragment before restoring the connection invariant *)
-let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
+let writeOne (Conn(id,c)) : writeOutcome * Connection =
   let c_write = c.write in
   match c_write.disp with
-  | Closed -> Error (Dispatcher,InvalidState)
+  | Closed -> (WError(EInternal(Dispatcher,InvalidState)), Conn(id,c))
   | _ ->
       let state = c.alert in
       match Alert.next_fragment id state with
@@ -191,7 +191,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
           | Handshake.OutIdle(_) ->
             let app_state = c.appdata in
                 match AppDataStream.next_fragment id app_state with
-                | None -> (correct (WAppDataDone,Conn(id,c)))
+                | None -> (WAppDataDone,Conn(id,c))
                 | Some (next) ->
                           let (tlen,f,new_app_state) = next in
                           match c_write.disp with
@@ -210,10 +210,10 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                                 (* Fairly, tell we're done, and we won't write more data *)
                                 // KB: To Fix                                 
                                 //Pi.assume (GState(id,c));  
-                                (Correct (WAppDataDone, Conn(id,c)) )
+                                (WAppDataDone, Conn(id,c))
 
 
-                            | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
+                            | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(x,y)),closed) (* Unrecoverable error *)
                           | _ ->
                             (* We have data to send, but we cannot now. It means we're finishing a handshake.
                                Force to read, so that we'll complete the handshake and we'll be able to send
@@ -222,7 +222,7 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                                because we'll return MustRead to the app, which indeed means that no data
                                have been sent (It doesn't really matter at this point how we internally messed up
                                with the buffer, as long as we did not send anything on the network. *)
-                              (correct(WMustRead, Conn(id,c)))   
+                              (WMustRead, Conn(id,c))   
           | Handshake.OutCCS(frag,newKeys) ->
                     let (rg,ccs) = frag in
                     let (nextID,nextWrite,new_hs_state) = newKeys in
@@ -246,9 +246,9 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                                              handshake = new_hs_state;
                                              alert = new_al;
                                              appdata = new_ad} in 
-                            (correct (WriteAgain, Conn(nextID,c)) )
-                        | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error (x,y) (* Unrecoverable error *)
-                    | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher, InvalidState) (* TODO: we might want to send an "internal error" fatal alert *)
+                            (WriteAgain, Conn(nextID,c))
+                        | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(x,y)),closed) (* Unrecoverable error *)
+                    | _ -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(Dispatcher, InvalidState)),closed) (* TODO: we might want to send an "internal error" fatal alert *)
           | (Handshake.OutSome((rg,f),new_hs_state)) ->     
                       (* we send some handshake fragment *)
                       match c_write.disp with
@@ -264,9 +264,9 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                                              write  = new_write } in
                             //KB: to fix:
                             //Pi.assume(GState(id,c));
-                            (correct (WriteAgain, Conn(id,c)) )
-                          | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
-                      | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) (* TODO: we might want to send an "internal error" fatal alert *)
+                            (WriteAgain, Conn(id,c))
+                          | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(x,y)),closed) (* Unrecoverable error *)
+                      | _ -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(Dispatcher,InvalidState)),closed) (* TODO: we might want to send an "internal error" fatal alert *)
           | (Handshake.OutFinished((rg,lastFrag),new_hs_state)) ->
                 (* check we are in finishing state *)
                 match c_write.disp with
@@ -284,9 +284,9 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                                              write     = c_write }
                             // KB: to fix:
                             //Pi.assume(GState(id,c));
-                            (Correct (WMustRead, Conn(id,c)))
-                          | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
-                | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) (* TODO: we might want to send an "internal error" fatal alert *)
+                            (WMustRead, Conn(id,c))
+                          | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(x,y)),closed) (* Unrecoverable error *)
+                | _ -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(Dispatcher,InvalidState)),closed) (* TODO: we might want to send an "internal error" fatal alert *)
           | (Handshake.OutComplete((rg,lastFrag),new_hs_state)) ->
                 match c_write.disp with
                 | Finishing ->
@@ -304,12 +304,12 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                         // Sanity check: in and out session infos should be the same
                         if epochSI(id.id_in) = epochSI(id.id_out) then
                             match moveToOpenState (Conn(id,c)) with
-                            | Correct(c) -> (correct(WHSDone,Conn(id,c)))
-                            | Error(x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) // TODO: we might want to send an alert here
+                            | Correct(c) -> (WHSDone,Conn(id,c))
+                            | Error(x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(x,y)),closed) // TODO: we might want to send an alert here
                         else
-                            let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,CheckFailed)
-                    | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
-                | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) (* TODO: we might want to send an "internal error" fatal alert *)
+                            let closed = closeConnection (Conn(id,c)) in (WError(EInternal(Dispatcher,CheckFailed)),closed)
+                    | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(x,y)),closed) (* Unrecoverable error *)
+                | _ -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(Dispatcher,InvalidState)),closed) (* TODO: we might want to send an "internal error" fatal alert *)
       | (Alert.ALFrag(tlen,f),new_al_state) ->
         match c_write.disp with
         | Init | FirstHandshake | Open ->
@@ -323,9 +323,9 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                                  write   = new_write }
                 // KB: To Fix                                 
                 //Pi.assume (GState(id,c));  
-                (correct (WriteAgain, Conn(id,c )))
-            | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
-        | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) (* Unrecoverable error *)
+                (WriteAgain, Conn(id,c ))
+            | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(x,y)),closed) (* Unrecoverable error *)
+        | _ -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(Dispatcher,InvalidState)),closed) (* Unrecoverable error *)
       | (Alert.LastALFrag(tlen,f,ad),new_al_state) ->
         match c_write.disp with
         | Init | FirstHandshake | Open ->
@@ -341,9 +341,9 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                 // KB: To Fix                                 
                 //Pi.assume (GState(id,c));  
                 let closed = closeConnection (Conn(id,c)) in
-                correct (SentFatal(ad), closed)
-            | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
-        | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) (* Unrecoverable error *)
+                (SentFatal(ad), closed)
+            | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(x,y)),closed) (* Unrecoverable error *)
+        | _ -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(Dispatcher,InvalidState)),closed) (* Unrecoverable error *)
       | (Alert.LastALCloseFrag(tlen,f),new_al_state) ->
         match c_write.disp with
         | Init | FirstHandshake | Open ->
@@ -361,9 +361,9 @@ let writeOne (Conn(id,c)) : (writeOutcome * Connection) Result =
                                 write = new_write}
                 // KB: To Fix                                 
                 //Pi.assume (GState(id,c));  
-                correct (SentClose, Conn(id,c))
-            | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in Error(x,y) (* Unrecoverable error *)
-        | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) (* Unrecoverable error *)
+                (SentClose, Conn(id,c))
+            | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(x,y)),closed) (* Unrecoverable error *)
+        | _ -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(Dispatcher,InvalidState)),closed) (* Unrecoverable error *)
 
 let recv (Conn(id,c)) =
     match Tcp.read c.ns 5 with // read & parse the header
@@ -557,7 +557,7 @@ let readOne (Conn(id,c)) =
 
 let rec writeAll c =
     match writeOne c with
-    | Correct (WriteAgain,c) -> writeAll c
+    | (WriteAgain,c) -> writeAll c
     | other -> other
 (*
 let rec read c =
@@ -635,75 +635,70 @@ let rec read c =
 let rec read c =
     let orig = c in
     let unitVal = () in
-    match writeAll c with
-    | Error(x,y) -> c,WriteOutcome(WError(EInternal(x,y))),None
-    | Correct(res) ->
-        let (outcome,c) = res in
-        match outcome with
-        | WAppDataDone ->
-            match readOne c with
-            | Error(x,y) -> c,RError(EInternal(x,y)),None
-            | Correct(res) ->
-                let (outcome,c) = res in
-                match outcome with
-                | RAgain ->
-                    read c 
-                | RAppDataDone ->    
-                    // empty the appData internal buffer, and return its content to the user
-                    let (Conn(id,conn)) = c in
-                    match AppDataStream.readAppData id conn.appdata with
-                    | (Some(b),appState) ->
-                        let conn = {conn with appdata = appState} in
-                        let c = Conn(id,conn) in
-                        //Pi.assume (GState(id,conn));
-                        c,RAppDataDone,Some(b)
-                    | (None,_) -> unexpectedError "[read] When RAppDataDone, some data should have been read."
-                | RQuery(q) ->
-                    c,RQuery(q),None
-                | RHSDone ->
-                    c,RHSDone,None
-                | RClose ->
-                    let (Conn(id,conn)) = c in
-                    match conn.write.disp with
-                    | Closed ->
-                        // we already sent a close_notify, tell the user it's over
-                        c,RClose, None
+    let (outcome,c) = writeAll c in
+    match outcome with
+    | WAppDataDone ->
+        match readOne c with
+        | Error(x,y) -> c,RError(EInternal(x,y)),None
+        | Correct(res) ->
+            let (outcome,c) = res in
+            match outcome with
+            | RAgain ->
+                read c 
+            | RAppDataDone ->    
+                // empty the appData internal buffer, and return its content to the user
+                let (Conn(id,conn)) = c in
+                match AppDataStream.readAppData id conn.appdata with
+                | (Some(b),appState) ->
+                    let conn = {conn with appdata = appState} in
+                    let c = Conn(id,conn) in
+                    //Pi.assume (GState(id,conn));
+                    c,RAppDataDone,Some(b)
+                | (None,_) -> unexpectedError "[read] When RAppDataDone, some data should have been read."
+            | RQuery(q) ->
+                c,RQuery(q),None
+            | RHSDone ->
+                c,RHSDone,None
+            | RClose ->
+                let (Conn(id,conn)) = c in
+                match conn.write.disp with
+                | Closed ->
+                    // we already sent a close_notify, tell the user it's over
+                    c,RClose, None
+                | _ ->
+                    let (outcome,c) = writeAll c in
+                    match outcome with
+                    | SentClose ->
+                        // clean shoutdown
+                        c,RClose,None
+                    | SentFatal(ad) ->
+                        c,RError(EFatal(ad)),None
+                    | WError(err) ->
+                        c,RError(err),None
                     | _ ->
-                        match writeAll c with
-                        | Correct(SentClose,c) ->
-                            // clean shoutdown
-                            c,RClose,None
-                        | Correct(SentFatal(ad),c) ->
-                            c,RError(EFatal(ad)),None
-                        | Correct(_,c) ->
-                            c,RError(EInternal(Dispatcher,Internal)),None // internal error
-                        | Error(x,y) ->
-                            c,RError(EInternal(x,y)),None // internal error
-                | RFatal(ad) ->
-                    c,RFatal(ad),None
-                | RWarning(ad) ->
-                    c,RWarning(ad),None
-        | SentClose -> c,WriteOutcome(SentClose),None
-        | WMustRead -> c,WriteOutcome(WMustRead),None
-        | WHSDone -> c,WriteOutcome(WHSDone),None
-        | SentFatal(ad) -> c,WriteOutcome(SentFatal(ad)),None
-        | WriteAgain -> unexpectedError "[read] writeAll should never return WriteAgain"
+                        c,RError(EInternal(Dispatcher,Internal)),None // internal error
+            | RFatal(ad) ->
+                c,RFatal(ad),None
+            | RWarning(ad) ->
+                c,RWarning(ad),None
+            | WriteOutcome(wo) -> c,WriteOutcome(wo),None
+            | RError(err) -> c,RError(err),None
+    | SentClose -> c,WriteOutcome(SentClose),None
+    | WMustRead -> c,WriteOutcome(WMustRead),None
+    | WHSDone -> c,WriteOutcome(WHSDone),None
+    | SentFatal(ad) -> c,WriteOutcome(SentFatal(ad)),None
+    | WError(err) -> c,WriteOutcome(WError(err)),None
+    | WriteAgain -> unexpectedError "[read] writeAll should never return WriteAgain"
 
 let write (Conn(id,c)) msg =
   let (r,d) = msg in
   let new_appdata = AppDataStream.writeAppData id c.appdata r d in
   let c = {c with appdata = new_appdata} in 
-  match writeAll (Conn(id,c)) with
-    | Error(x,y) -> Conn(id,c),WError(EInternal(x,y)),None // internal
-    | Correct(res) ->
-        let (outcome,c) = res in
-          match outcome with
-            | WAppDataDone ->
-                let (Conn(id,g)) = c in
-                let (rdOpt,new_appdata) = AppDataStream.emptyOutgoingAppData id g.appdata in
-                let g = {g with appdata = new_appdata} in
-                  Conn(id,g),WAppDataDone,rdOpt
-            | _ -> c,outcome,None
+  let (outcome,c) = writeAll (Conn(id,c)) in
+  let (Conn(id,g)) = c in
+  let (rdOpt,new_appdata) = AppDataStream.emptyOutgoingAppData id g.appdata in
+  let g = {g with appdata = new_appdata} in
+  Conn(id,g),outcome,rdOpt
 (*
 let write (Conn(id,c)) msg =
   let (r,d) = msg in

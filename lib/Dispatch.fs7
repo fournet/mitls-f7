@@ -298,10 +298,10 @@ val readOne: c:Connection ->
 	(readOutcome * Connection) Result
 
 val writeOne: c:Connection ->
-	(writeOutcome * Connection) Result
+	writeOutcome * Connection
 
 val writeAll: c:Connection ->
-	(writeOutcome * Connection) Result
+	writeOutcome * Connection
 
 val read: c:Connection -> 
     (c':Connection  * ro:readOutcome* mo:(;ConnectionEpochIn(c'),CnStream_i(c'))msg_i option)
@@ -309,11 +309,12 @@ val read: c:Connection ->
       IOResult_i(c,c',ro,mo)
     }
 
-val write: c:Connection ->
+val write: c:Connection -> // CnOutBuf(c) = None
 	m:(;ConnectionEpochOut(c),CnStream_o(c))msg_o ->
 	(c':Connection* wo:writeOutcome* mo:(;ConnectionEpochOut(c'),CnStream_o(c'))msg_o option)
     {
       IOResult_o(c,m,c',wo,mo)
+	  // /\ CnOutBuf(c') = None
     }
 
 val authorize: c:Connection -> q:query -> c': (;c) nextCn {Extend(c,c') /\ Handshake.Authorize(Config(c),q)}
