@@ -79,6 +79,12 @@ function val CnStream_o: c:Connection -> (;ConnectionEpochOut(c)) stream
 private assume !id, s. CnStream_i(Conn(id, s)) =  AppDataStream.AppInStream(id, s.appdata)
 private assume !id, s. CnStream_o(Conn(id, s)) = AppDataStream.AppOutStream(id, s.appdata)
 
+type (;e:epoch,s:(;e)stream)msg_i = r:range * (;e,s,r)delta
+type (;e:epoch,s:(;e)stream)msg_o = r:range * (;e,s,r)delta
+
+function val CnBuf_o: c:Connection -> (;ConnectionEpochOut(c),CnStream_o(c))msg_o option
+private assume !id,s. CnBuf_o(Conn(id,s)) = AppDataStream.AppOutBuf(id,s.appdata)
+
 function val Bytes_o: Connection -> bytes
 function val Bytes_i: Connection -> bytes
 function val StreamToBytes: ki:epoch * (;ki) stream -> bytes
@@ -104,9 +110,6 @@ assume DualRole(Server) = Client
 // Peer(i,()) ghostly refers to the remote peer's ConnectionInfo 
 function val Peer: ConnectionInfo * unit -> ConnectionInfo 
 assume !ki. Peer(ki, ()) = { id_in = ki.id_out; id_out = ki.id_in; role = DualRole(ki.role) }
-
-type (;e:epoch,s:(;e)stream)msg_i = r:range * (;e,s,r)delta
-type (;e:epoch,s:(;e)stream)msg_o = r:range * (;e,s,r)delta
 
 predicate Extend   of c:Connection * c':Connection
 predicate Extend_o of c:Connection * c':Connection * (;ConnectionEpochOut(c),CnStream_o(c)) msg_o
@@ -173,7 +176,7 @@ type readOutcome =
 predicate val IOResult_i : Connection * Connection * readOutcome * 'a -> bool
 predicate val IOResult_o : Connection * 'a * Connection * writeOutcome * 'b -> bool
 
-assume !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo) =>
+assume !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo) <=>
 	(
 		(wo = WAppDataDone /\ mo = None /\ Extend_o(c,c',m) /\ NextCn(c,c')) \/
 		(!m'. ?m0. wo = WAppDataDone /\ mo = Some(m') /\ Split_o(c,m,m0,c',m') /\ Extend_o(c,c',m0) /\ NextCn(c,c')) \/
@@ -275,32 +278,32 @@ val request:     c:Connection -> conf:config ->
 
 val shutdown:    c:Connection -> c':(;c) nextCn{Extend(c,c')}
 
-val moveToOpenState: c:Connection ->
+private val moveToOpenState: c:Connection ->
 	(;CnId(c))globalState Result
 
-val closeConnection: c:Connection-> (;c) nextCn
+private val closeConnection: c:Connection-> (;c) nextCn
 
-val pickSendPV: c:Connection -> CipherSuites.ProtocolVersion
+private val pickSendPV: c:Connection -> CipherSuites.ProtocolVersion
 
-val send: Tcp.NetworkStream -> e:epoch -> w:(;e)dState ->
+private val send: Tcp.NetworkStream -> e:epoch -> w:(;e)dState ->
 	CipherSuites.ProtocolVersion -> rg:range -> ct:Formats.ContentType ->
 	f:(;e,ct,Record.History(e,w.conn),rg)TLSFragment.fragment -> res: (;e) dState Result{
           !w'. (res = Correct(w') /\ Auth(e)) =>
             (Record.History(e,w'.conn) = TLSFragment.ExtendHistory(e,ct,Record.History(e,w.conn),rg,TLSFragment.TLSContents(f)))}
 
 
-val recv: c:Connection ->
+private val recv: c:Connection ->
 	((;ConnectionEpochIn(c)) Record.ConnectionState *
 	 ct:Formats.ContentType * r:range * 
          (;ConnectionEpochIn(c),ct,ConnectionInHistory(c),r)TLSFragment.fragment) Result
 
-val readOne: c:Connection ->
+private val readOne: c:Connection ->
 	(readOutcome * Connection) Result
 
-val writeOne: c:Connection ->
-	writeOutcome * Connection
+private val writeOne: c:Connection ->
+	(wo:writeOutcome * c':Connection) {!m. CnBuf_o(c) = Some(m) => IOResult_o(c,m,c',wo,CnBuf_o(c')) }
 
-val writeAll: c:Connection ->
+private val writeAll: c:Connection ->
 	writeOutcome * Connection
 
 val read: c:Connection -> 
