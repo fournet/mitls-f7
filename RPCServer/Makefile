@@ -7,7 +7,7 @@ target = RPCServer.exe
 
 .PHONY: all build dist clean
 
-all: dist
+all: build
 
 $(target): $(src)
 	$(target-fsc)

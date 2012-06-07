@@ -7,7 +7,7 @@ target = ManagedRC4.dll
 
 .PHONY: all build dist clean
 
-all: dist
+all: build
 
 build:
 	cp $(arch)/Release/$(target) ../bin
