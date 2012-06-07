@@ -54,21 +54,24 @@ let cmdparse = fun () ->
         certdir   = Path.Combine(mypath, "certificates");
         localaddr = IPEndPoint(IPAddress.Loopback, 2443); }
 
-    let valid_root_path = fun s ->
+    let valid_path = fun path ->
         try
-            Path.IsPathRooted s
-        with :?System.ArgumentException ->
-            false
+            let _ = FileInfo(path) in
+                true
+        with
+        | :?System.ArgumentException       -> false
+        | :?System.IO.PathTooLongException -> false
+        | :?System.NotSupportedException   -> false
 
     let o_rootdir = fun s ->
-        if not (valid_root_path s) then
-            let msg = sprintf "Invalid absolute path (root directory): %s" s in
+        if not (valid_path s) then
+            let msg = sprintf "Invalid path (root directory): %s" s in
                 raise (ArgError msg);
         options := { !options with rootdir = s }
 
     let o_certdir = fun s ->
-        if not (valid_root_path s) then
-            let msg = sprintf "Invalid absolute path (certs directory): %s" s in
+        if not (valid_path s) then
+            let msg = sprintf "Invalid path (certs directory): %s" s in
                 raise (ArgError msg);
         options := { !options with certdir = s }
 
