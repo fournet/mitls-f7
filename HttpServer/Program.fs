@@ -55,13 +55,7 @@ let cmdparse = fun () ->
         localaddr = IPEndPoint(IPAddress.Loopback, 2443); }
 
     let valid_path = fun path ->
-        try
-            let _ = FileInfo(path) in
-                true
-        with
-        | :?System.ArgumentException       -> false
-        | :?System.IO.PathTooLongException -> false
-        | :?System.NotSupportedException   -> false
+        Directory.Exists path
 
     let o_rootdir = fun s ->
         if not (valid_path s) then
@@ -90,8 +84,8 @@ let cmdparse = fun () ->
             raise (ArgError (sprintf "Invalid IP Address: %s" s))
 
     let specs = [
-        "--root-dir"    , ArgType.String o_rootdir, "HTTP root directory (absolute)"
-        "--cert-dir"    , ArgType.String o_certdir, "certificates root directory (absolute)"
+        "--root-dir"    , ArgType.String o_rootdir, "HTTP root directory"
+        "--cert-dir"    , ArgType.String o_certdir, "certificates root directory"
         "--bind-port"   , ArgType.Int    o_port   , "local port"
         "--bind-address", ArgType.String o_address, "local address"]
 

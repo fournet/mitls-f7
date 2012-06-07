@@ -86,6 +86,7 @@ type HttpClientHandler (server : HttpServer, peer : TcpClient) =
         end;
 
         let path = HttpServer.CanonicalPath request.path in
+        let path = if path.Equals("") then "index.html" else path
         let path = Path.Combine(server.Config.docroot, path) in
 
             try
