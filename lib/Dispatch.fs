@@ -181,7 +181,7 @@ let send ns e write pv rg ct frag =
 let writeOne (Conn(id,c)) : writeOutcome * Connection =
   let c_write = c.write in
   match c_write.disp with
-  | Closed -> (WError(EInternal(Dispatcher,InvalidState)), Conn(id,c))
+  | Closed -> raiseError ""//(WError(EInternal(Dispatcher,InvalidState)), Conn(id,c))
   | _ ->
       let state = c.alert in
       match Alert.next_fragment id state with
@@ -208,7 +208,6 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                                 let c = { c with appdata = new_app_state;
                                                  write = new_write }
                                 (* Fairly, tell we're done, and we won't write more data *)
-                                // KB: To Fix                                 
                                 //Pi.assume (GState(id,c));  
                                 (WAppDataDone, Conn(id,c))
 
