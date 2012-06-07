@@ -83,12 +83,8 @@ private assume !id, s. CnStream_o(Conn(id, s)) = AppDataStream.AppOutStream(id, 
 type (;e:epoch,s:(;e)stream)msg_i = r:range * (;e,s,r)delta
 type (;e:epoch,s:(;e)stream)msg_o = r:range * (;e,s,r)delta
 
-function val CnBuf_o: c:Connection -> (;ConnectionEpochOut(c),CnStream_o(c))msg_o option
+function val CnBuf_o: c:Connection -> ((;ConnectionEpochOut(c),CnStream_o(c))msg_o) option
 private assume !id,s. CnBuf_o(Conn(id,s)) = AppDataStream.AppOutBuf(id,s.appdata)
-
-
-
-
 
 function val Bytes_o: Connection -> bytes
 function val Bytes_i: Connection -> bytes
@@ -310,9 +306,7 @@ private val readOne: c:Connection ->
 	(readOutcome * Connection) Result
 
 private val writeOne: c:Connection ->
-	(wo:writeOutcome * c':Connection){false}
-
-// {!m. CnBuf_o(c) = Some(m) => IOResult_o(c,m,c',wo,CnBuf_o(c')) }
+	(wo:writeOutcome * c':Connection){!m. CnBuf_o(c) = Some(m) => IOResult_o(c,m,c',wo,CnBuf_o(c')) }
      
 
 private val writeAll: c:Connection ->
@@ -339,6 +333,3 @@ val getEpochIn:   c:Connection -> e:epoch{e=ConnectionEpochIn(c) }
 val getEpochOut:  c:Connection -> e:epoch{e=ConnectionEpochOut(c)}
 val getInStream:  c:Connection -> s:(;ConnectionEpochIn(c))stream {s = CnStream_i(c)}
 val getOutStream: c:Connection -> s:(;ConnectionEpochOut(c))stream{s = CnStream_o(c)}
-
-
-ask false

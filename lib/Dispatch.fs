@@ -181,7 +181,7 @@ let send ns e write pv rg ct frag =
 let writeOne (Conn(id,c)) : writeOutcome * Connection =
   let c_write = c.write in
   match c_write.disp with
-  | Closed -> raiseError ""//(WError(EInternal(Dispatcher,InvalidState)), Conn(id,c))
+  | Closed -> (WError(EInternal(Dispatcher,InvalidState)), Conn(id,c))
   | _ ->
       let state = c.alert in
       match Alert.next_fragment id state with
