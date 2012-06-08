@@ -124,7 +124,7 @@ type TLStream(s:System.Net.Sockets.NetworkStream, options, b) =
     override this.Close() =
         this.Flush()
         if not closed then
-            let conn = TLS.shutdown conn
+            let conn = TLS.full_shutdown conn
             try 
                 while not closed do
                     ignore (wrapRead conn)

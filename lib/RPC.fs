@@ -64,7 +64,7 @@ let rec drainMeta = fun conn ->
   | Handshaken conn      -> DRContinue conn
   | DontWrite  conn      -> drainMeta conn
   | Read       (conn, _) ->
-        ignore (TLS.shutdown conn)
+        ignore (TLS.full_shutdown conn)
         DRError (EInternal (Error.TLS, Error.InvalidState))
 
 let rec sendMsg = fun conn rg msg ->
@@ -96,7 +96,7 @@ let recvMsg = fun conn ->
                 if Bytes.length buffer < 2+msglen then
                     doit conn buffer
                 elif Bytes.length buffer > 2+msglen then
-                    ignore (TLS.shutdown conn); None
+                    ignore (TLS.full_shutdown conn); None
                 else
                     Some (conn, buffer)
                     
@@ -127,7 +127,7 @@ let doclient (request : string) =
             match recvMsg conn with
             | None -> None
             | Some (conn, response) ->
-                ignore (TLS.shutdown conn);
+                ignore (TLS.full_shutdown conn);
 
                 if Bytes.length response <> 2+msglen then
                     None
@@ -170,7 +170,7 @@ let doserver () =
                                 (Bytes.length response, Bytes.length response) response in
 
                         match sendMsg conn (Bytes.length response, Bytes.length response) msg with
-                        | Some conn -> ignore (TLS.shutdown conn); true
+                        | Some conn -> ignore (TLS.full_shutdown conn); true
                         | None -> false
         in
             Tcp.close client; result

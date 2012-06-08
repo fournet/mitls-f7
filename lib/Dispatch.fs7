@@ -55,6 +55,9 @@ definition !ci,gs. GState(ci,gs)  <=>
                                  *)
 type Connection = Conn of (id:ConnectionInfo * (;id)globalState)
 
+predicate CanWrite of ConnectionInfo
+assume !ci,c. Handshake.Complete(ci,c) => CanWrite(ci)
+
 function val ConnectionEpochOut: Connection -> epoch
 assume !id,s. ConnectionEpochOut(Conn(id,s)) = id.id_out
 function val ConnectionEpochIn:  Connection -> epoch
@@ -96,7 +99,6 @@ predicate EvWrite      of ConnectionInfo * bytes
 predicate EvWarning    of ConnectionInfo * alertDescription * bytes
 predicate EvClose      of ConnectionInfo * bytes
 predicate EvFatal      of ConnectionInfo * alertDescription * bytes
-predicate EvFalseStart of ConnectionInfo
 // Write records increasing prefixes of the stream, for each written data fragment, 
 // interleaved with warnings, ended by Fatal or Close [we may distinguish between two kinds of close too]
 // Write(i,p0), ..., Write(i,p0 @| ... @| pi), Warning(i,p0 @| ... @| pi), ..., Close(i, p0 @| ... @| pn)
@@ -193,15 +195,15 @@ assume !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo) <=>
 			/\ EvClose(Peer(CnId(c),()), Bytes_i(c))
 
 			/\ Handshake.Complete(CnId(c'),Config(c'))
-
 			/\ (
-				( EvFalseStart(CnId(c')) =>
-					   Bytes_o(c') = Bytes_o(c)
-					/\ ConnectionEpochOut(c') = ConnectionEpochOut(c)
-				) \/
-				( 
-					Bytes_o(c') = [||]
-				 /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
+				(Handshake.EvSentFinishedFirst(CnId(c'),true) /\
+					  Bytes_o(c') = Bytes_o(c)
+				   /\ ConnectionEpochOut(c') = ConnectionEpochOut(c)
+				)
+				\/
+				(Handshake.EvSentFinishedFirst(CnId(c'),false) /\
+					  Bytes_o(c') = [||]
+				   /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
 				)
 			   )
 		   )
@@ -212,13 +214,8 @@ assume !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo) <=>
 			 /\ Config(c') = Config(c)
 			 /\ ConnectionEpochIn(c') = ConnectionEpochIn(c)
 			 /\ Bytes_i(c') = Bytes_i(c)
-			 /\ (	(EvFalseStart(CnId(c)) => (
-						   Bytes_o(c') = Bytes_o(c)
-						/\ ConnectionEpochOut(c') = ConnectionEpochOut(c)))
-				\/	(	   Bytes_o(c') = [||]
-						/\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
-						/\ EvFalseStart(CnId(c'))))
-                                                                                                                                                                         
+			 /\ Bytes_o(c') = [||]
+			 /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))                                                                                                                                                         
 		   )
 		 ) \/
 		 // Cases needed by dispatch; in practice not giving any refinement,
@@ -248,11 +245,16 @@ assume !c,c',ro,mo. IOResult_i(c,c',ro,mo) =>
 
 		/\ Handshake.Complete(CnId(c'),Config(c'))
 
-		/\ (	(EvFalseStart(CnId(c')) =>
-					   Bytes_o(c') = Bytes_o(c)
-					/\ ConnectionEpochOut(c') = ConnectionEpochOut(c))
-			\/	(	   Bytes_o(c') = [||]
-					/\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c')))
+		/\ (
+			(Handshake.EvSentFinishedFirst(CnId(c'),true) /\
+				  Bytes_o(c') = Bytes_o(c)
+			   /\ ConnectionEpochOut(c') = ConnectionEpochOut(c)
+			)
+			\/
+			(Handshake.EvSentFinishedFirst(CnId(c'),false) /\
+				  Bytes_o(c') = [||]
+			   /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
+			)
 		   )
 	  )
 	) \/
@@ -264,13 +266,8 @@ assume !c,c',ro,mo. IOResult_i(c,c',ro,mo) =>
 			 /\ Config(c') = Config(c)
 			 /\ ConnectionEpochIn(c') = ConnectionEpochIn(c)
 			 /\ Bytes_i(c') = Bytes_i(c)
-			 /\ (	(EvFalseStart(CnId(c)) => (
-						   Bytes_o(c') = Bytes_o(c)
-						/\ ConnectionEpochOut(c') = ConnectionEpochOut(c)))
-				\/	(	   Bytes_o(c') = [||]
-						/\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
-						/\ EvFalseStart(CnId(c'))))
-                                                                                                                                                                         
+			 /\ Bytes_o(c') = [||]
+			 /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))                                                                                                     
 		   )
 	) \/
 	(ro = WriteOutcome(WHSDone) /\
@@ -284,16 +281,17 @@ assume !c,c',ro,mo. IOResult_i(c,c',ro,mo) =>
 			/\ Handshake.Complete(CnId(c'),Config(c'))
 
 			/\ (
-				( EvFalseStart(CnId(c')) =>
-					   Bytes_o(c') = Bytes_o(c)
-					/\ ConnectionEpochOut(c') = ConnectionEpochOut(c)
-				) \/
-				( 
-					Bytes_o(c') = [||]
-				 /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
+				(Handshake.EvSentFinishedFirst(CnId(c'),true) /\
+					  Bytes_o(c') = Bytes_o(c)
+				   /\ ConnectionEpochOut(c') = ConnectionEpochOut(c)
+				)
+				\/
+				(Handshake.EvSentFinishedFirst(CnId(c'),false) /\
+					  Bytes_o(c') = [||]
+				   /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
 				)
 			   )
-		   )
+		  )
 	) \/
 	(?ad. ro = WriteOutcome(SentFatal(ad)) ) \/
 	(ro = WriteOutcome(SentClose) /\ (Auth(ConnectionEpochIn(c)) => EvClose(Peer(CnId(c),()),Bytes_i(c)))
@@ -334,7 +332,12 @@ val request:     c:Connection -> conf:config ->
 			\/ (b = true  /\ Config(c') = conf    ))
 	}
 
-val shutdown:    c:Connection -> c':(;c) nextCn{Extend(c,c')}
+val full_shutdown:    c:Connection ->
+	c':Connection{ Config(c') = Config(c) /\ Role(c') = Role(c) /\
+		ConnectionEpochIn(c') = ConnectionEpochIn(c) /\ Extend(c,c')
+		// Note: we cannot write anymore
+		}
+val half_shutdown: c:Connection -> unit
 
 private val moveToOpenState: c:Connection ->
 	(;CnId(c))globalState Result

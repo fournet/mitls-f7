@@ -27,7 +27,8 @@ type ioresult_o =
 
 val read     : Connection -> ioresult_i
 val write    : Connection -> msg_o -> ioresult_o
-val shutdown : Connection -> Connection
+val full_shutdown : Connection -> Connection
+val half_shutdown : Connection -> unit
 
 val connect : NetworkStream -> config -> Connection
 val resume  : NetworkStream -> sessionID -> config -> Connection

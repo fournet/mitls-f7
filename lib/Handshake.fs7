@@ -14,6 +14,7 @@ type (;ci:ConnectionInfo) hs_state
 function val Config: ci:ConnectionInfo * s:(;ci)hs_state -> config
 predicate val Authorize: config * cert -> bool
 predicate val Complete: ConnectionInfo * config -> bool
+predicate EvSentFinishedFirst of ConnectionInfo * bool
 // AP: Not sure the SentCCS event is useful;
 // rather I'd welome a SentFinished event, to model False Start
 predicate val SentCCS: epoch -> bool
@@ -46,7 +47,7 @@ type (;ci:ConnectionInfo,c:config) outgoing =
                ((ci':ConnectionInfo * cs:(;ci'.id_out)StatefulAEAD.state * (;ci',c)nextState)
                { SentCCS(ci'.id_out) /\ ci.id_out = Pred(ci'.id_out) /\
                  ci.id_in = ci'.id_in})
-  | OutFinished of (rg:range * (;ci.id_out,rg)Fragment.fragment) * (;ci,c)nextState
+  | OutFinished of ((rg:range * (;ci.id_out,rg)Fragment.fragment) * (;ci,c)nextState){EvSentFinishedFirst(ci,true)}
   | OutComplete of (rg:range * (;ci.id_out,rg)Fragment.fragment) * (;ci,c)nextState 
                    {Complete(ci,c)}
 val next_fragment: ci:ConnectionInfo -> s:(;ci)hs_state -> (;ci,Config(ci,s))outgoing
@@ -55,7 +56,7 @@ type (;ci:ConnectionInfo,c:config)incoming =
   | InAck of (;ci,c)nextState
   | InVersionAgreed  of (;ci,c)nextState
   | InQuery of Certificate.cert * (;ci,c)nextState
-  | InFinished of (;ci,c)nextState
+  | InFinished of (;ci,c)nextState {EvSentFinishedFirst(ci,false)}
   | InComplete of (;ci,c)nextState {Complete(ci,c)}
   | InError of ErrorCause * ErrorKind * (;ci,c)nextState
 val recv_fragment: ci:ConnectionInfo -> s:(;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> 

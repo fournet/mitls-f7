@@ -41,20 +41,18 @@ type (;c:Connection) ioresult_i =
 	/\ Bytes_i(c') = [||]
 	/\ EvClose(Peer(CnId(c),()), Bytes_i(c))
 	/\ Handshake.Complete(CnId(c'),Config(c'))
-	/\ (	(EvFalseStart(CnId(c')) =>
-				   Bytes_o(c') = Bytes_o(c)
-				/\ ConnectionEpochOut(c') = ConnectionEpochOut(c))
-		\/	(	   Bytes_o(c') = [||]
-				/\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c')))
+	/\ (
+		(Handshake.EvSentFinishedFirst(CnId(c'),true) /\
+			  Bytes_o(c') = Bytes_o(c)
+		   /\ ConnectionEpochOut(c') = ConnectionEpochOut(c)
+		)
+		\/
+		(Handshake.EvSentFinishedFirst(CnId(c'),false) /\
+			  Bytes_o(c') = [||]
+		   /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
+		)
 	   )
 	}
-  // We completed a run of the Handshake, moving to the next epoch.
-  // we learn that we have read everything sent by our peer in the closing epoch
-  // LATER: with additional "Read" events, we could also learn that our peer has read everything we sent in the closing epoch
-	
-	//Cedric: ?? 
-	//AP: /\ Close(CnId(c),Bytes_o(c)) /\  -- and same for Alert protocol, and hanshake.
-	// We need to show agreement on the content of all protocols in previous and current connection to express the Alert attack (and therefore authentication)
 
 | Read of c':(;c) nextCn * d:(;ConnectionEpochIn(c),CnStream_i(c)) msg_i {
 	Extend_i(c,c',d) /\ (Auth(ConnectionEpochIn(c)) => EvWrite(Peer(CnId(c),()), Bytes_i(c')))
@@ -66,17 +64,9 @@ type (;c:Connection) ioresult_i =
 	/\ Config(c') = Config(c)
 	/\ ConnectionEpochIn(c') = ConnectionEpochIn(c)
 	/\ Bytes_i(c') = Bytes_i(c)
-	/\ (	(EvFalseStart(CnId(c)) => (
-				   Bytes_o(c') = Bytes_o(c)
-				/\ ConnectionEpochOut(c') = ConnectionEpochOut(c)))
-		\/  (      Bytes_o(c') = [||]
-				/\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
-				/\ EvFalseStart(CnId(c'))))
+	/\ Bytes_o(c') = [||]
+	/\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
     }
-  // AP: TXT(ConnectionInfo) is not precise enough here:
-  // in/out directions are not the same, and we want to only refer to the incoming direction
-  // We must wait till the next epoch before writing application data again.  
-  // Without false start, we have the global invariant that Pending(c) => Bytes_o(c) = [||]
     
 type (;c:Connection,d:(;ConnectionEpochOut(c),CnStream_o(c)) msg_o) ioresult_o =
 | WriteError of ioerror
@@ -97,12 +87,8 @@ type (;c:Connection,d:(;ConnectionEpochOut(c),CnStream_o(c)) msg_o) ioresult_o =
      /\ Config(c') = Config(c)
 	 /\ ConnectionEpochIn(c') = ConnectionEpochIn(c)
      /\ Bytes_i(c') = Bytes_i(c)
-	 /\ (	(EvFalseStart(CnId(c)) => (
-				   Bytes_o(c') = Bytes_o(c)
-				/\ ConnectionEpochOut(c') = ConnectionEpochOut(c)))
-		\/	(	   Bytes_o(c') = [||]
-				/\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
-				/\ EvFalseStart(CnId(c'))))
+	 /\ Bytes_o(c') = [||]
+	 /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
 	}
 
 (* Event-driven interface *)
@@ -110,7 +96,7 @@ type (;c:Connection,d:(;ConnectionEpochOut(c),CnStream_o(c)) msg_o) ioresult_o =
 val read: c:Connection -> (;c) ioresult_i
 // TODO: document the events possibly recorded by calls to read
 
-val write: c:Connection -> d:(;ConnectionEpochOut(c),CnStream_o(c)) msg_o -> (;c,d) ioresult_o
+val write: c:Connection{CanWrite(CnId(c))} -> d:(;ConnectionEpochOut(c),CnStream_o(c)) msg_o -> (;c,d) ioresult_o
 // On the write side, the following events may be generated:
 // - Write(ki,Bytes_o(c')) 
 // - Close(ki,Bytes_o(c))
@@ -120,15 +106,12 @@ val write: c:Connection -> d:(;ConnectionEpochOut(c),CnStream_o(c)) msg_o -> (;c
 // MustRead signals that the connection cannot be used anymore for writing until a new handshake completes. 
 // (it may be a bit too restrictive)
 
-val shutdown: c:Connection -> (c':(;c) nextCn {Extend(c,c')})
-//was: (c':(;c) nextCn {Extend(c,c')}) Result
-// [shutdown] will internally generate a Close(ki, Bytes_o(c)); releases the TCP socket after shutdown
-// AP: I don't agree with current shutdown. With the current interface we cannot have a one-way shutdown.
-// Not even if shutdown just sets some flag, and then we have to read. I propose two different
-// specialized functions for each behavior:
-// - full_shutdown, which returns immediately, and then the user must read until she gets a Close event
-// - half_shutdown, where we internally send (write) our close notify, and then we drop the connection.
-// Cedric: is it a live comment? do we really need both? 
+val full_shutdown: c:Connection ->
+	c':Connection{ Config(c') = Config(c) /\ Role(c') = Role(c) /\
+		ConnectionEpochIn(c') = ConnectionEpochIn(c) /\ Extend(c,c')
+		// Note: we cannot write anymore
+		}
+val half_shutdown: c:Connection -> unit
 
 val connect : Tcp.NetworkStream -> c:config -> (;Client,c) nullCn
 val resume  : Tcp.NetworkStream -> sid:sessionID ->  c:config -> (;Client,c) nullCn

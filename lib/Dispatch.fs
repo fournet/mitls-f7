@@ -122,11 +122,6 @@ let request (Conn(id,conn)) ops =
     let (accepted,new_hs) = Handshake.request id conn.handshake ops in // Equivalently, id.id_in.sinfo
     (accepted,Conn(id,{conn with handshake = new_hs}))
 
-let shutdown (Conn(id,conn)) =
-    let new_al = Alert.send_alert id conn.alert AD_close_notify in
-    let conn = {conn with alert = new_al} in
-    Conn(id,conn)
-
 let moveToOpenState (Conn(id,c)) =
     // Agreement should be on all protocols.
     // - As a pre-condition to invoke this function, we have agreement on HS protocol
@@ -736,6 +731,17 @@ let refuse (Conn(id,c)) (q:query) =
     let c = {c with alert = al} in
     //ignore (writeAll (Conn(id,c))) // we might want to tell the user something about this
     let _ = writeAll (Conn(id,c)) in
+    ()
+
+let full_shutdown (Conn(id,conn)) =
+    let new_al = Alert.send_alert id conn.alert AD_close_notify in
+    let conn = {conn with alert = new_al} in
+    Conn(id,conn)
+
+let half_shutdown (Conn(id,conn)) =
+    let new_al = Alert.send_alert id conn.alert AD_close_notify in
+    let conn = {conn with alert = new_al} in
+    let _ = writeAll (Conn(id,conn)) in
     ()
 
 let getEpochIn  (Conn(id,state)) = id.id_in

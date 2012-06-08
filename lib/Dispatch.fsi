@@ -27,7 +27,8 @@ val rehandshake: Connection -> config -> bool * nextCn
 val rekey: Connection -> config -> bool * nextCn
 val request: Connection -> config -> bool * nextCn
 
-val shutdown: Connection -> Connection
+val full_shutdown: Connection -> Connection
+val half_shutdown: Connection -> unit
 
 (*
 val resume_session: NetworkStream -> SessionInfo -> Connection (* New connection same session *)

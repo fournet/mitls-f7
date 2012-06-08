@@ -74,7 +74,10 @@ let write c msg =
       | WMustRead ->
           MustRead(c)
       | SentClose ->
-          MustRead(c)
+          (* A top-level write can never send a closure alert on its own.
+             Either the user asks for half_shutdown, and the connection is consumed,
+             or it asks for full_shutdown, and then it cannot write anymore *)
+          WriteError(EInternal(Dispatcher,InvalidState))
       | SentFatal(ad) ->
           WriteError(EFatal(ad))
       | WriteAgain ->
@@ -82,7 +85,8 @@ let write c msg =
 
 
 
-let shutdown c = Dispatch.shutdown c
+let full_shutdown c = Dispatch.full_shutdown c
+let half_shutdown c = Dispatch.half_shutdown c
 
 let authorize c q = Dispatch.authorize c q
 let refuse c q = Dispatch.refuse c q
