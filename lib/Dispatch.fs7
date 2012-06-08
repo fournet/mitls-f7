@@ -218,13 +218,14 @@ assume !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo) <=>
 				\/	(	   Bytes_o(c') = [||]
 						/\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
 						/\ EvFalseStart(CnId(c'))))
+                                                                                                                                                                         
 		   )
 		 ) \/
 		 // Cases needed by dispatch; in practice not giving any refinement,
 		 // just completing all the cases.
-		 (!err. wo = WError(err) ) \/
+		 (?err. wo = WError(err) ) \/
 		 (wo = WriteAgain ) \/
-		 (!ad. wo = SentFatal(ad) ) \/
+		 (?ad. wo = SentFatal(ad) ) \/
 		 (wo = SentClose )
 	)
 
@@ -234,9 +235,9 @@ assume !c,c',ro,mo. IOResult_i(c,c',ro,mo) =>
    (
     // Cases needed by the top level interface
 	(ro = RClose /\ (Auth(ConnectionEpochIn(c)) => EvClose(Peer(CnId(c),()),Bytes_i(c)))) \/
-	(!ad. ro = RFatal(ad) /\ (Auth(ConnectionEpochIn(c)) => EvFatal(Peer(CnId(c),()),ad,Bytes_i(c)))) \/
-	(!ad. ro = RWarning(ad) /\ Extend(c,c') /\ (Auth(ConnectionEpochIn(c)) => EvWarning(Peer(CnId(c),()),ad,Bytes_i(c))) /\ NextCn(c,c')) \/
-	(!q. ro = RQuery(q) /\ Extend(c,c') /\ NextCn(c,c')) \/
+	(?ad. ro = RFatal(ad) /\ (Auth(ConnectionEpochIn(c)) => EvFatal(Peer(CnId(c),()),ad,Bytes_i(c)))) \/
+	(?ad. ro = RWarning(ad) /\ Extend(c,c') /\ (Auth(ConnectionEpochIn(c)) => EvWarning(Peer(CnId(c),()),ad,Bytes_i(c))) /\ NextCn(c,c')) \/
+	(?q. ro = RQuery(q) /\ Extend(c,c') /\ NextCn(c,c')) \/
 	(ro = RHSDone /\ 
 	  (
 		   Role(c') = Role(c)
@@ -255,12 +256,12 @@ assume !c,c',ro,mo. IOResult_i(c,c',ro,mo) =>
 		   )
 	  )
 	) \/
-	(!m. ro = RAppDataDone /\ mo = Some(m) /\
+	(?m. ro = RAppDataDone /\ mo = Some(m) /\
 		Extend_i(c,c',m) /\ NextCn(c,c') /\ (Auth(ConnectionEpochIn(c)) => EvWrite(Peer(CnId(c),()), Bytes_i(c')))) \/
-	(!wo,m,m'. ro = WriteOutcome(wo) /\ IOResult_o(c,m,c',wo,m')) \/
+	(?wo,m,m'. ro = WriteOutcome(wo) /\ IOResult_o(c,m,c',wo,m')) \/
 	// Cases needed by dispatch; in practice not giving any refinement,
 	// just completing all the cases.
-	(!err. ro = RError(err)) \/
+	(?err. ro = RError(err)) \/
 	(ro = RAgain )
    )
 

@@ -87,3 +87,4 @@ val reset_incoming: ci:ConnectionInfo -> s:(;ci)app_state ->
 	s':(;ci')app_state{AppInBuf(ci',s') = None /\ 
             EmptyStream(ci'.id_in,AppInStream(ci',s')) /\
             AppOutStream(ci',s') = AppOutStream(ci,s)}
+
