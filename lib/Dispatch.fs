@@ -394,7 +394,7 @@ let recv (Conn(id,c)) =
 (* we have received, decrypted, and verified a record (ct,f); what to do? *)
 let readOne (Conn(id,c)) =
   match recv (Conn(id,c)) with
-    | Error(x,y) -> Error(x,y)
+    | Error(x,y) -> (RError(EInternal(x,y)),Conn(id,c))
     | Correct(received) -> 
         let (c_recv,ct,rg,frag) = received in 
         let c_read = c.read in
@@ -402,7 +402,7 @@ let readOne (Conn(id,c)) =
         let f = TLSFragment.contents id.id_in ct history rg frag in
         let c_read = {c_read with conn = c_recv} in
           match c_read.disp with
-            | Closed -> Error(Dispatcher,InvalidState)
+            | Closed -> (RError(EInternal(Dispatcher,InvalidState)),Conn(id,c))
             | _ ->
                 match (ct,c_read.disp) with 
                   | Handshake, x when x = Init || x = FirstHandshake || x = Finishing || x = Open ->
@@ -414,7 +414,7 @@ let readOne (Conn(id,c)) =
                                             handshake = hs} in
                             // KB: To Fix                                 
                             //Pi.assume (GState(id,c));  
-                            correct (RAgain, Conn(id,c))
+                            RAgain, Conn(id,c)
                         | Handshake.InVersionAgreed(hs) ->
                             match c_read.disp with
                             | Init ->
@@ -431,20 +431,20 @@ let readOne (Conn(id,c)) =
                                                 write = new_write} in
                                     // KB: To Fix                                 
                                     //Pi.assume (GState(id,c));  
-                                    correct (RAgain, Conn(id,c) )
+                                    (RAgain, Conn(id,c))
                             | _ -> (* It means we are doing a re-negotiation. Don't alter the current version number, because it
                                         is perfectly valid. It will be updated after the next CCS, along with all other session parameters *)
                                 let c = { c with read = c_read;
                                                     handshake = hs} in
                                     // KB: To Fix                           
                                     //Pi.assume (GState(id,c));  
-                                    (correct (RAgain, Conn(id, c) ))
+                                    (RAgain, Conn(id, c))
                         | Handshake.InQuery(query,hs) ->
                                 let c = {c with read = c_read;
                                                 handshake = hs} in
                                     // KB: To Fix                           
                                     //Pi.assume (GState(id,c));  
-                                    correct(RQuery(query),Conn(id,c))
+                                    (RQuery(query),Conn(id,c))
                         | Handshake.InFinished(hs) ->
                                 (* Ensure we are in Finishing state *)
                                 match x with
@@ -461,8 +461,8 @@ let readOne (Conn(id,c)) =
                                             I know, it's tricky and it sounds fishy, but that's the way it is now.*)
                                         // KB: To Fix                           
                                         //Pi.assume (GState(id,c));  
-                                        correct (RAgain,Conn(id,c))
-                                    | _ -> let closed = closeConnection (Conn(id,{c with handshake = hs})) in Error(Dispatcher,InvalidState) // TODO: We might want to send some alert here
+                                        (RAgain,Conn(id,c))
+                                    | _ -> let closed = closeConnection (Conn(id,{c with handshake = hs})) in (RError(EInternal(Dispatcher,InvalidState)),closed) // TODO: We might want to send some alert here
                         | Handshake.InComplete(hs) ->
                                 let c = {c with read = c_read;
                                                 handshake = hs} in
@@ -475,12 +475,12 @@ let readOne (Conn(id,c)) =
                                         if epochSI(id.id_in) = epochSI(id.id_out) then
                                             match moveToOpenState (Conn(id,c)) with
                                             | Correct(c) -> 
-                                                correct(RHSDone, Conn(id,c))
+                                                (RHSDone, Conn(id,c))
                                             | Error(x,y) -> 
-                                                let closed = closeConnection (Conn(id,c)) in Error(x,y) (* TODO: we might want to send an alert here *)
-                                        else let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,CheckFailed) (* TODO: we might want to send an internal_error fatal alert here. *)
-                                    | _ -> let closed = closeConnection (Conn(id,c)) in Error(Dispatcher,InvalidState) (* TODO: We might want to send some alert here. *)
-                        | Handshake.InError(x,y,hs) -> let c = {c with handshake = hs} in Error(x,y) (* TODO: we might need to send some alerts *)
+                                                let closed = closeConnection (Conn(id,c)) in (RError(EInternal(x,y)),closed) (* TODO: we might want to send an alert here *)
+                                        else let closed = closeConnection (Conn(id,c)) in (RError(EInternal(Dispatcher,CheckFailed)),closed) (* TODO: we might want to send an internal_error fatal alert here. *)
+                                    | _ -> let closed = closeConnection (Conn(id,c)) in (RError(EInternal(Dispatcher,InvalidState)),closed) (* TODO: We might want to send some alert here. *)
+                        | Handshake.InError(x,y,hs) -> let c = {c with handshake = hs} in (RError(EInternal(x,y)),Conn(id,c)) (* TODO: we might need to send some alerts *)
 
                   | Change_cipher_spec, x when x = FirstHandshake || x = Open ->
                         match Handshake.recv_ccs id c.handshake rg f with 
@@ -496,11 +496,11 @@ let readOne (Conn(id,c)) =
                                       }
                                 // KB: To Fix                                 
                               //Pi.assume (GState(nextID,c));  
-                              correct (RAgain, Conn(nextID,c))
+                              (RAgain, Conn(nextID,c))
                           | InCCSError (x,y,hs) ->
                               let c = {c with handshake = hs} in
                               let closed = closeConnection (Conn(id,c)) in
-                              Error (x,y) // TODO: We might want to send some alert here.
+                              (RError(EInternal(x,y)),closed) // TODO: We might want to send some alert here.
 
                   | Alert, x when x = Init || x = FirstHandshake || x = Open ->
                         match Alert.recv_fragment id c.alert rg f with
@@ -510,7 +510,7 @@ let readOne (Conn(id,c)) =
                                               alert = state} in
                                // KB: To Fix                                 
                               //Pi.assume (GState(id,c));  
-                              correct (RAgain, Conn(id,c))
+                              (RAgain, Conn(id,c))
                           | Correct (Alert.ALClose_notify (state)) ->
                                  (* An outgoing close notify has already been buffered, if necessary *)
                                  (* Only close the reading side of the connection *)
@@ -522,7 +522,7 @@ let readOne (Conn(id,c)) =
                                      } in
                              // KB: To Fix                                 
                              //Pi.assume (GState(id,c));  
-                             correct (RClose, Conn(id,c))
+                             (RClose, Conn(id,c))
                           | Correct (Alert.ALFatal (ad,state)) ->
                                (* Other fatal alert, we close both sides of the connection *)
                                //let ad = AppDataStream.writeNonAppDataFragment id c.appdata in
@@ -532,7 +532,7 @@ let readOne (Conn(id,c)) =
                            // KB: To Fix                                 
                              //Pi.assume (GState(id,c));  
                              let closed = closeConnection (Conn(id,c)) in
-                             correct (RFatal(ad), closed )
+                             (RFatal(ad), closed)
                           | Correct (Alert.ALWarning (ad,state)) ->
                              (* A warning alert, we carry on. The user will decide what to do *)
                              let c = {c with alert = state;
@@ -540,8 +540,8 @@ let readOne (Conn(id,c)) =
                                      }
                              // KB: To Fix                                 
                              //Pi.assume (GState(id,c));  
-                             correct (RWarning(ad), Conn(id,c) )
-                          | Error (x,y) -> let closed = closeConnection(Conn(id,c)) in Error(x,y) // TODO: We might want to send some alert here.
+                             (RWarning(ad), Conn(id,c))
+                          | Error (x,y) -> let closed = closeConnection(Conn(id,c)) in (RError(EInternal(x,y)),closed) // TODO: We might want to send some alert here.
 
                   | Application_data, Open ->
                       let appstate = AppDataStream.recv_fragment id c.appdata rg f in
@@ -549,8 +549,8 @@ let readOne (Conn(id,c)) =
                                       read = c_read} in
                       // KB: To Fix                                 
                       //Pi.assume (GState(id,c));  
-                      correct (RAppDataDone, Conn(id, c))
-                  | _, _ -> let closed = closeConnection(Conn(id,c)) in Error(Dispatcher,InvalidState) // TODO: We might want to send some alert here.
+                      (RAppDataDone, Conn(id, c))
+                  | _, _ -> let closed = closeConnection(Conn(id,c)) in (RError(EInternal(Dispatcher,InvalidState)),closed) // TODO: We might want to send some alert here.
   
 
 
@@ -637,51 +637,48 @@ let rec read c =
     let (outcome,c) = writeAll c in
     match outcome with
     | WAppDataDone ->
-        match readOne c with
-        | Error(x,y) -> c,RError(EInternal(x,y)),None
-        | Correct(res) ->
-            let (outcome,c) = res in
-            match outcome with
-            | RAgain ->
-                read c 
-            | RAppDataDone ->    
-                // empty the appData internal buffer, and return its content to the user
-                let (Conn(id,conn)) = c in
-                match AppDataStream.readAppData id conn.appdata with
-                | (Some(b),appState) ->
-                    let conn = {conn with appdata = appState} in
-                    let c = Conn(id,conn) in
-                    //Pi.assume (GState(id,conn));
-                    c,RAppDataDone,Some(b)
-                | (None,_) -> unexpectedError "[read] When RAppDataDone, some data should have been read."
-            | RQuery(q) ->
-                c,RQuery(q),None
-            | RHSDone ->
-                c,RHSDone,None
-            | RClose ->
-                let (Conn(id,conn)) = c in
-                match conn.write.disp with
-                | Closed ->
-                    // we already sent a close_notify, tell the user it's over
-                    c,RClose, None
+        let (outcome,c) = readOne c in
+        match outcome with
+        | RAgain ->
+            read c 
+        | RAppDataDone ->    
+            // empty the appData internal buffer, and return its content to the user
+            let (Conn(id,conn)) = c in
+            match AppDataStream.readAppData id conn.appdata with
+            | (Some(b),appState) ->
+                let conn = {conn with appdata = appState} in
+                let c = Conn(id,conn) in
+                //Pi.assume (GState(id,conn));
+                c,RAppDataDone,Some(b)
+            | (None,_) -> unexpectedError "[read] When RAppDataDone, some data should have been read."
+        | RQuery(q) ->
+            c,RQuery(q),None
+        | RHSDone ->
+            c,RHSDone,None
+        | RClose ->
+            let (Conn(id,conn)) = c in
+            match conn.write.disp with
+            | Closed ->
+                // we already sent a close_notify, tell the user it's over
+                c,RClose, None
+            | _ ->
+                let (outcome,c) = writeAll c in
+                match outcome with
+                | SentClose ->
+                    // clean shoutdown
+                    c,RClose,None
+                | SentFatal(ad) ->
+                    c,RError(EFatal(ad)),None
+                | WError(err) ->
+                    c,RError(err),None
                 | _ ->
-                    let (outcome,c) = writeAll c in
-                    match outcome with
-                    | SentClose ->
-                        // clean shoutdown
-                        c,RClose,None
-                    | SentFatal(ad) ->
-                        c,RError(EFatal(ad)),None
-                    | WError(err) ->
-                        c,RError(err),None
-                    | _ ->
-                        c,RError(EInternal(Dispatcher,Internal)),None // internal error
-            | RFatal(ad) ->
-                c,RFatal(ad),None
-            | RWarning(ad) ->
-                c,RWarning(ad),None
-            | WriteOutcome(wo) -> c,WriteOutcome(wo),None
-            | RError(err) -> c,RError(err),None
+                    c,RError(EInternal(Dispatcher,Internal)),None // internal error
+        | RFatal(ad) ->
+            c,RFatal(ad),None
+        | RWarning(ad) ->
+            c,RWarning(ad),None
+        | WriteOutcome(wo) -> c,WriteOutcome(wo),None
+        | RError(err) -> c,RError(err),None
     | SentClose -> c,WriteOutcome(SentClose),None
     | WMustRead -> c,WriteOutcome(WMustRead),None
     | WHSDone -> c,WriteOutcome(WHSDone),None

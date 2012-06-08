@@ -258,7 +258,46 @@ assume !c,c',ro,mo. IOResult_i(c,c',ro,mo) =>
 	) \/
 	(?m. ro = RAppDataDone /\ mo = Some(m) /\
 		Extend_i(c,c',m) /\ NextCn(c,c') /\ (Auth(ConnectionEpochIn(c)) => EvWrite(Peer(CnId(c),()), Bytes_i(c')))) \/
-	(?wo,m,m'. ro = WriteOutcome(wo) /\ IOResult_o(c,m,c',wo,m')) \/
+	(ro = WriteOutcome(WMustRead) /\ 
+		   (
+			  	Role(c') = Role(c) 
+			 /\ Config(c') = Config(c)
+			 /\ ConnectionEpochIn(c') = ConnectionEpochIn(c)
+			 /\ Bytes_i(c') = Bytes_i(c)
+			 /\ (	(EvFalseStart(CnId(c)) => (
+						   Bytes_o(c') = Bytes_o(c)
+						/\ ConnectionEpochOut(c') = ConnectionEpochOut(c)))
+				\/	(	   Bytes_o(c') = [||]
+						/\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
+						/\ EvFalseStart(CnId(c'))))
+                                                                                                                                                                         
+		   )
+	) \/
+	(ro = WriteOutcome(WHSDone) /\
+		  (
+			   Role(c') = Role(c)
+			/\ Config(c') = Config(c)
+			/\ ConnectionEpochIn(c) = Pred(ConnectionEpochIn(c'))
+			/\ Bytes_i(c') = [||]
+			/\ EvClose(Peer(CnId(c),()), Bytes_i(c))
+
+			/\ Handshake.Complete(CnId(c'),Config(c'))
+
+			/\ (
+				( EvFalseStart(CnId(c')) =>
+					   Bytes_o(c') = Bytes_o(c)
+					/\ ConnectionEpochOut(c') = ConnectionEpochOut(c)
+				) \/
+				( 
+					Bytes_o(c') = [||]
+				 /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
+				)
+			   )
+		   )
+	) \/
+	(?ad. ro = WriteOutcome(SentFatal(ad)) ) \/
+	(ro = WriteOutcome(SentClose) /\ (Auth(ConnectionEpochIn(c)) => EvClose(Peer(CnId(c),()),Bytes_i(c)))
+	) \/
 	// Cases needed by dispatch; in practice not giving any refinement,
 	// just completing all the cases.
 	(?err. ro = RError(err)) \/
@@ -316,7 +355,7 @@ private val recv: c:Connection ->
          (;ConnectionEpochIn(c),ct,ConnectionInHistory(c),r)TLSFragment.fragment) Result
 
 private val readOne: c:Connection ->
-	(readOutcome * Connection) Result
+	readOutcome * Connection
 
 private val writeOne: c:Connection ->
 	(wo:writeOutcome * c':Connection){!m. CnBuf_o(c) = Some(m) => IOResult_o(c,m,c',wo,CnBuf_o(c')) }
