@@ -71,7 +71,9 @@ let write c msg =
              able to prove that this case should never happen, and so use the
              unexpectedError function. *)
           WriteError(EInternal(Dispatcher,InvalidState))
-      | WMustRead | SentClose ->
+      | WMustRead ->
+          MustRead(c)
+      | SentClose ->
           MustRead(c)
       | SentFatal(ad) ->
           WriteError(EFatal(ad))
