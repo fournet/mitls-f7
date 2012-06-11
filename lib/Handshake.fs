@@ -733,12 +733,11 @@ let invalidateSession ci state =
 
 type outgoing =
   | OutIdle of hs_state
-  | OutSome of (DataStream.range * Fragment.fragment) * hs_state
-  | OutCCS of  (DataStream.range * Fragment.fragment) (* the unique one-byte CCS *) *
-               (ConnectionInfo * StatefulAEAD.state * hs_state)
-  | OutFinished of (DataStream.range * Fragment.fragment) * hs_state
-    // FIXME: StorableSession should not be returned
-  | OutComplete of (DataStream.range * Fragment.fragment) * hs_state
+  | OutSome of DataStream.range * Fragment.fragment * hs_state
+  | OutCCS of  DataStream.range * Fragment.fragment (* the unique one-byte CCS *) *
+               ConnectionInfo * StatefulAEAD.state * hs_state
+  | OutFinished of DataStream.range * Fragment.fragment * hs_state
+  | OutComplete of DataStream.range * Fragment.fragment * hs_state
 
 // FIXME: cleanup when handshake is ported to streams and deltas
 let makeFragment ki b =
@@ -773,61 +772,61 @@ let next_fragment ci state =
             | CWaitingToWrite (cSpecState) ->
                 match state.ccs_outgoing with
                 | None ->
-                    let ((d,dRem),(f,rem)) = makeFragment ci.id_out state.hs_outgoing_after_ccs in
+                    let (((rg,frag),dRem),(f,rem)) = makeFragment ci.id_out state.hs_outgoing_after_ccs in
                     let state = {state with hs_outgoing_after_ccs = rem} in
                     match rem with
                     | [||] ->
                         if cSpecState.resumed_session then
                             (* Handshake complete *)
                             let state = goToIdle state
-                            (OutComplete (d,state))
+                            (OutComplete (rg,frag,state))
                         else
                             (* HS write side finished *)
                             let state = {state with pstate = PSClient(CCCS(cSpecState))}
-                            (OutFinished (d, state))
-                    | _ -> (OutSome(d,state))
+                            (OutFinished (rg,frag, state))
+                    | _ -> (OutSome(rg,frag,state))
                 | Some data ->
                     (* Resetting the ccs_outgoing buffer here is necessary for the current "next_fragment" logic to work.
                        It is ok to forget the associated epoch, because it has already been used to generate
                        the Finished message on our side *)
                     let state = {state with ccs_outgoing = None}
                     let (ccs,(outEpoch,writeState)) = data in
-                    let (d,dRem),(frag,_) = makeCCSFragment ci.id_out ccs in
+                    let ((rg,frag),dRem),(f,_) = makeCCSFragment ci.id_out ccs in
                     let ci = {ci with id_out = outEpoch} in
-                    (OutCCS (d, (ci, writeState, state)))
+                    (OutCCS (rg,frag, ci, writeState, state))
             | _ -> (OutIdle(state))
         | PSServer(sstate) ->
             match sstate with
             | SWaitingToWrite (sSpecState) ->
                 match state.ccs_outgoing with
                 | None ->
-                    let (d,dRem),(f,rem) = makeFragment ci.id_out state.hs_outgoing_after_ccs in
+                    let ((rg,frag),dRem),(f,rem) = makeFragment ci.id_out state.hs_outgoing_after_ccs in
                     let state = {state with hs_outgoing_after_ccs = rem} in
                     match rem with
                     | [||] ->
                         if sSpecState.resumed_session then
                             (* HS Write side finished *)
                             let state = {state with pstate = PSServer(SCCS(sSpecState))}
-                            (OutFinished (d, state))
+                            (OutFinished (rg,frag, state))
                         else
                             (* Handshake fully finished *)
                             let state = goToIdle state
-                            (OutComplete (d, state))
-                    | _ -> (OutSome(d, state))
+                            (OutComplete (rg,frag, state))
+                    | _ -> (OutSome(rg,frag, state))
                 | Some data ->
                     (* Resetting the ccs_outgoing buffer here is necessary for the current "next_fragment" logic to work.
                        It is ok to forget the associated epoch, because it has already been used to generate
                        the Finished message on our side *)
                     let state = {state with ccs_outgoing = None}
                     let (ccs,(outEpoch,writeState)) = data in
-                    let (d,dRem),(frag,_) = makeCCSFragment ci.id_out ccs in
+                    let ((rg,frag),dRem),(f,_) = makeCCSFragment ci.id_out ccs in
                     let ci = {ci with id_out = outEpoch} in
-                    (OutCCS (d, (ci, writeState, state)))
+                    (OutCCS (rg,frag, ci, writeState, state))
             | _ -> (OutIdle(state))
     | d ->
-        let (d,dRem),(f,rem) = makeFragment ci.id_out d in
+        let ((rg,frag),dRem),(f,rem) = makeFragment ci.id_out d in
         let state = {state with hs_outgoing = rem} in
-        (OutSome(d,state))
+        (OutSome(rg,frag,state))
 
 type incoming = (* the fragment is accepted, and... *)
   | InAck of hs_state

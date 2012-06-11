@@ -9,7 +9,7 @@ open Bytes
 //CF 12/2: do we need pre/post on the ciphertext lengths?
 //CF 21/4: cut prestate and State? 
 
-private type (;ki:epoch) prestate = {
+type (;ki:epoch) prestate = {
   key: (;ki) AEAD.AEADKey; // possibly stateful
   history: (;ki)history    // ghost state, except for the derived sequence number
 }

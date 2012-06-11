@@ -182,7 +182,8 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
       match Alert.next_fragment id state with
       | (Alert.EmptyALFrag,_) -> 
           let hs_state = c.handshake in
-          match Handshake.next_fragment id hs_state with 
+          let hs_next_res = Handshake.next_fragment id hs_state in
+          match hs_next_res with 
           | Handshake.OutIdle(_) ->
             let app_state = c.appdata in
                 match AppDataStream.next_fragment id app_state with
@@ -217,9 +218,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                                have been sent (It doesn't really matter at this point how we internally messed up
                                with the buffer, as long as we did not send anything on the network. *)
                               (WMustRead, Conn(id,c))   
-          | Handshake.OutCCS(frag,newKeys) ->
-                    let (rg,ccs) = frag in
-                    let (nextID,nextWrite,new_hs_state) = newKeys in
+          | Handshake.OutCCS(rg,ccs,nextID,nextWrite,new_hs_state) ->
                     let nextWCS = Record.initConnState nextID.id_out nextWrite in
                     (* we send a (complete) CCS fragment *)
                     match c_write.disp with
@@ -243,7 +242,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                             (WriteAgain, Conn(nextID,c))
                         | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(x,y)),closed) (* Unrecoverable error *)
                     | _ -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(Dispatcher, InvalidState)),closed) (* TODO: we might want to send an "internal error" fatal alert *)
-          | (Handshake.OutSome((rg,f),new_hs_state)) ->     
+          | (Handshake.OutSome(rg,f,new_hs_state)) ->     
                       (* we send some handshake fragment *)
                       match c_write.disp with
                       | x when x = Init || x = FirstHandshake ||
@@ -261,7 +260,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                             (WriteAgain, Conn(id,c))
                           | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(x,y)),closed) (* Unrecoverable error *)
                       | _ -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(Dispatcher,InvalidState)),closed) (* TODO: we might want to send an "internal error" fatal alert *)
-          | (Handshake.OutFinished((rg,lastFrag),new_hs_state)) ->
+          | (Handshake.OutFinished(rg,lastFrag,new_hs_state)) ->
                 (* check we are in finishing state *)
                 match c_write.disp with
                 | Finishing ->
@@ -281,7 +280,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                             (WMustRead, Conn(id,c))
                           | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(x,y)),closed) (* Unrecoverable error *)
                 | _ -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(Dispatcher,InvalidState)),closed) (* TODO: we might want to send an "internal error" fatal alert *)
-          | (Handshake.OutComplete((rg,lastFrag),new_hs_state)) ->
+          | (Handshake.OutComplete(rg,lastFrag,new_hs_state)) ->
                 match c_write.disp with
                 | Finishing ->
                     (* Send the last fragment *)
