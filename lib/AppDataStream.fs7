@@ -58,10 +58,10 @@ val emptyOutgoingAppData: ci:ConnectionInfo -> s:(;ci)app_state ->
 
 val next_fragment: ci:ConnectionInfo -> s:(;ci)app_state ->
 	ro:((r:range * f:(;ci.id_out,r)Fragment.fragment * s':(;ci)app_state)
-	{Auth(ci.id_out) => (Fragment.Fragment(ci.id_out,AppOutStream(ci,s),r,f) /\
+	{(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,AppOutStream(ci,s),r,f) ) /\
 	 AppOutStream(ci,s') = Fragment.Extend(ci.id_out,AppOutStream(ci,s),r,f) /\
 	 AppInBuf(ci,s') = AppInBuf(ci,s) /\
-	 AppInStream (ci,s') = AppInStream (ci,s))}) option{ro = None => AppOutBuf(ci,s) = None}
+	 AppInStream (ci,s') = AppInStream (ci,s)}) option{ro = None => AppOutBuf(ci,s) = None}
 
 val recv_fragment: ci:ConnectionInfo -> s:(;ci)app_state -> r:range ->
 	f:(;ci.id_in,r)Fragment.fragment{Auth(ci.id_in) =>
