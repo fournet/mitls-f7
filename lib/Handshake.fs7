@@ -42,14 +42,14 @@ type (;ci:ConnectionInfo,c:config) nextState = s:(;ci)hs_state {Config(ci,s) = c
 
 val init:        r:Role            -> c:config  ->
 	(ci:ConnectionInfo * s:(;ci)hs_state){ Config(ci,s) = c /\ ci.role = r /\
-		IsNullCiphersuite(Epoci,sI(ci.id_in).cipher_suite) /\
-		IsNullCiphersuite(Epoci,sI(ci.id_out).cipher_suite) /\
+		IsNullCiphersuite(EpochSI(ci.id_in).cipher_suite) /\
+		IsNullCiphersuite(EpochSI(ci.id_out).cipher_suite) /\
 		EmptyStreams(ci,s)
 		}
 val resume:      nextSID:sessionID -> c:config  ->
 	(ci:ConnectionInfo * s:(;ci)hs_state){ Config(ci,s) = c /\ ci.role = Client /\
-		IsNullCiphersuite(Epoci,sI(ci.id_in).cipher_suite) /\
-		IsNullCiphersuite(Epoci,sI(ci.id_out).cipher_suite) /\
+		IsNullCiphersuite(EpochSI(ci.id_in).cipher_suite) /\
+		IsNullCiphersuite(EpochSI(ci.id_out).cipher_suite) /\
 		EmptyStreams(ci,s)}
 val rehandshake: ci:ConnectionInfo -> s:(;ci)hs_state -> c:config  ->
 	b:bool * s':(;ci)hs_state{
@@ -72,7 +72,7 @@ val invalidateSession: ci:ConnectionInfo -> s:(;ci)hs_state -> s':(;ci,Config(ci
 
 (* Network Interface*)
 
-type (;ci:ConnectionInfo,(;ci)hs_state) outgoing =
+type (;ci:ConnectionInfo,s:(;ci)hs_state) outgoing =
   | OutIdle of s':(;ci,Config(ci,s))nextState{SameStreams(ci,s,s')}
   | OutSome of (rg:range * f:(;ci.id_out,rg)Fragment.fragment * s':(;ci,Config(ci,s))nextState){
 				(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,HSOutStream(ci,s),rg,f) ) /\
@@ -109,7 +109,7 @@ type (;ci:ConnectionInfo,(;ci)hs_state) outgoing =
 					HSInStream(ci,s') = HSInStream(ci,s) /\
 					CCSInStream(ci,s') = CCSInStream(ci,s)
 				   }
-val next_fragment: ci:ConnectionInfo -> s:(;ci)hs_state -> (;(ci,s))outgoing
+val next_fragment: ci:ConnectionInfo -> s:(;ci)hs_state -> (;ci,s)outgoing
 
 type (;ci:ConnectionInfo,c:config)incoming =
   | InAck of (;ci,c)nextState
