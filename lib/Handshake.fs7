@@ -12,11 +12,6 @@ open StatefulAEAD
 (* Control Interface *)
 
 type (;ci:ConnectionInfo) hs_state
-type c_hs_state = ci:ConnectionInfo * (;ci)hs_state
-function val GetConn: c_hs_state -> ConnectionInfo
-function val GetState: c_hs_state -> 'a
-assume !ci,s. GetConn((ci,s)) = ci
-assume !ci,s. GetState((ci,s)) = s 
 function val Config: ci:ConnectionInfo * s:(;ci)hs_state -> config
 predicate val Authorize: config * cert -> bool
 predicate val Complete: ConnectionInfo * config -> bool
@@ -47,14 +42,14 @@ type (;ci:ConnectionInfo,c:config) nextState = s:(;ci)hs_state {Config(ci,s) = c
 
 val init:        r:Role            -> c:config  ->
 	(ci:ConnectionInfo * s:(;ci)hs_state){ Config(ci,s) = c /\ ci.role = r /\
-		IsNullCiphersuite(EpochSI(ci.id_in).cipher_suite) /\
-		IsNullCiphersuite(EpochSI(ci.id_out).cipher_suite) /\
+		IsNullCiphersuite(Epoci,sI(ci.id_in).cipher_suite) /\
+		IsNullCiphersuite(Epoci,sI(ci.id_out).cipher_suite) /\
 		EmptyStreams(ci,s)
 		}
 val resume:      nextSID:sessionID -> c:config  ->
 	(ci:ConnectionInfo * s:(;ci)hs_state){ Config(ci,s) = c /\ ci.role = Client /\
-		IsNullCiphersuite(EpochSI(ci.id_in).cipher_suite) /\
-		IsNullCiphersuite(EpochSI(ci.id_out).cipher_suite) /\
+		IsNullCiphersuite(Epoci,sI(ci.id_in).cipher_suite) /\
+		IsNullCiphersuite(Epoci,sI(ci.id_out).cipher_suite) /\
 		EmptyStreams(ci,s)}
 val rehandshake: ci:ConnectionInfo -> s:(;ci)hs_state -> c:config  ->
 	b:bool * s':(;ci)hs_state{
@@ -77,42 +72,42 @@ val invalidateSession: ci:ConnectionInfo -> s:(;ci)hs_state -> s':(;ci,Config(ci
 
 (* Network Interface*)
 
-type (;chs:c_hs_state) outgoing =
-  | OutIdle of s':(;GetConn(chs),Config(chs))nextState{SameStreams(GetConn(chs),GetState(chs),s')}
-  | OutSome of (rg:range * f:(;GetConn(chs).id_out,rg)Fragment.fragment * s':(;GetConn(chs),Config(chs))nextState){
-				(Auth(GetConn(chs).id_out) => Fragment.Fragment(GetConn(chs).id_out,HSOutStream(chs),rg,f) ) /\
-				HSOutStream(GetConn(chs),s') = Fragment.Extend(GetConn(chs).id_out,HSOutStream(chs),rg,f) /\
-				CCSOutStream(GetConn(chs),s') = CCSOutStream(chs) /\
-				HSInStream(GetConn(chs),s') = HSInStream(chs) /\
-				CCSInStream(GetConn(chs),s') = CCSInStream(chs)
+type (;ci:ConnectionInfo,(;ci)hs_state) outgoing =
+  | OutIdle of s':(;ci,Config(ci,s))nextState{SameStreams(ci,s,s')}
+  | OutSome of (rg:range * f:(;ci.id_out,rg)Fragment.fragment * s':(;ci,Config(ci,s))nextState){
+				(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,HSOutStream(ci,s),rg,f) ) /\
+				HSOutStream(ci,s') = Fragment.Extend(ci.id_out,HSOutStream(ci,s),rg,f) /\
+				CCSOutStream(ci,s') = CCSOutStream(ci,s) /\
+				HSInStream(ci,s') = HSInStream(ci,s) /\
+				CCSInStream(ci,s') = CCSInStream(ci,s)
 				}
-  | OutCCS of  (rg:range * f:(;GetConn(chs).id_out,rg)Fragment.fragment * 
-               ci':ConnectionInfo * cs:(;ci'.id_out)StatefulAEAD.state * s':(;ci',Config(chs))nextState)
+  | OutCCS of  (rg:range * f:(;ci.id_out,rg)Fragment.fragment * 
+               ci':ConnectionInfo * cs:(;ci'.id_out)StatefulAEAD.state * s':(;ci',Config(ci,s))nextState)
                { SentCCS(ci'.id_out) /\
 			     StatefulPlain.EmptyHistory(ci'.id_out,cs.history) /\
-			     GetConn(chs).id_out = Pred(ci'.id_out) /\
-                 GetConn(chs).id_in = ci'.id_in /\
-				 (Auth(GetConn(chs).id_out) => Fragment.Fragment(GetConn(chs).id_out,CCSOutStream(chs),rg,f) ) /\
+			     ci.id_out = Pred(ci'.id_out) /\
+                 ci.id_in = ci'.id_in /\
+				 (Auth(ci.id_out) => Fragment.Fragment(ci.id_out,CCSOutStream(ci,s),rg,f) ) /\
 				 EmptyStream(ci'.id_out,HSOutStream(ci',s')) /\
 				 EmptyStream(ci'.id_out,CCSOutStream(ci',s')) /\
-				 HSInStream(ci',s') = HSInStream(chs) /\
-				 CCSInStream(ci',s') = CCSInStream(chs)
+				 HSInStream(ci',s') = HSInStream(ci,s) /\
+				 CCSInStream(ci',s') = CCSInStream(ci,s)
 				 }
-  | OutFinished of (rg:range * f:(;GetConn(chs).id_out,rg)Fragment.fragment * s':(;GetConn(chs),Config(chs))nextState){
-				EvSentFinishedFirst(GetConn(chs),true) /\
-				(Auth(GetConn(chs).id_out) => Fragment.Fragment(GetConn(chs).id_out,HSOutStream(chs),rg,f) ) /\
-				HSOutStream(GetConn(chs),s') = Fragment.Extend(GetConn(chs).id_out,HSOutStream(chs),rg,f) /\
-				CCSOutStream(GetConn(chs),s') = CCSOutStream(chs) /\
-				HSInStream(GetConn(chs),s') = HSInStream(chs) /\
-				CCSInStream(GetConn(chs),s') = CCSInStream(chs)
+  | OutFinished of (rg:range * f:(;ci.id_out,rg)Fragment.fragment * s':(;ci,Config(ci,s))nextState){
+				EvSentFinishedFirst(ci,true) /\
+				(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,HSOutStream(ci,s),rg,f) ) /\
+				HSOutStream(ci,s') = Fragment.Extend(ci.id_out,HSOutStream(ci,s),rg,f) /\
+				CCSOutStream(ci,s') = CCSOutStream(ci,s) /\
+				HSInStream(ci,s') = HSInStream(ci,s) /\
+				CCSInStream(ci,s') = CCSInStream(ci,s)
 				}
-  | OutComplete of (rg:range * f:(;GetConn(chs).id_out,rg)Fragment.fragment * s':(;GetConn(chs),Config(chs))nextState)
-                   {Complete(GetConn(chs),Config(chs)) /\
-					(Auth(GetConn(chs).id_out) => Fragment.Fragment(GetConn(chs).id_out,HSOutStream(chs),rg,f) ) /\
-					HSOutStream(GetConn(chs),s') = Fragment.Extend(GetConn(chs).id_out,HSOutStream(chs),rg,f) /\
-					CCSOutStream(GetConn(chs),s') = CCSOutStream(chs) /\
-					HSInStream(GetConn(chs),s') = HSInStream(chs) /\
-					CCSInStream(GetConn(chs),s') = CCSInStream(chs)
+  | OutComplete of (rg:range * f:(;ci.id_out,rg)Fragment.fragment * s':(;ci,Config(ci,s))nextState)
+                   {Complete(ci,Config(ci,s)) /\
+					(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,HSOutStream(ci,s),rg,f) ) /\
+					HSOutStream(ci,s') = Fragment.Extend(ci.id_out,HSOutStream(ci,s),rg,f) /\
+					CCSOutStream(ci,s') = CCSOutStream(ci,s) /\
+					HSInStream(ci,s') = HSInStream(ci,s) /\
+					CCSInStream(ci,s') = CCSInStream(ci,s)
 				   }
 val next_fragment: ci:ConnectionInfo -> s:(;ci)hs_state -> (;(ci,s))outgoing
 
