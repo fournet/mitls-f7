@@ -11,7 +11,6 @@ all: build
 
 $(target): $(src)
 	$(target-fsc)
-	
 build: $(target)
 
 clean: clean-def
@@ -211,7 +210,7 @@ AppDataStream.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 Algorithms.f
 	 $(f7t) -scripts AppDataStream Error.fs7 Bytes.fs7 tcp.fs7 Algorithms.fs7 RSA.fs7 HASH.fs7 HMAC.fs7 Certificate.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 DataStream.fs7 Fragment.fs7 MAC.fs7 AEPlain.fs7 ENC.fs7 AEADPlain.fs7 AEAD.fs7 StatefulPlain.fs7 StatefulAEAD.fs7 TLSFragment.fs7 record.fs7 Alert.fs7 PRFs.fs7 SessionDB.fs7 Handshake.fs7 AppDataStream.fs7 AppDataStream.fs
 
 Dispatch.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 Algorithms.fs7 RSA.fs7 HASH.fs7 HMAC.fs7 Certificate.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 DataStream.fs7 Fragment.fs7 MAC.fs7 AEPlain.fs7 ENC.fs7 AEADPlain.fs7 AEAD.fs7 StatefulPlain.fs7 StatefulAEAD.fs7 TLSFragment.fs7 record.fs7 Alert.fs7 PRFs.fs7 SessionDB.fs7 Handshake.fs7 AppDataStream.fs7 Dispatch.fs7 Dispatch.fs
-	 $(f7t) -scripts Dispatch --verbose Error.fs7 Bytes.fs7 tcp.fs7 Algorithms.fs7 RSA.fs7 HASH.fs7 HMAC.fs7 Certificate.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 DataStream.fs7 Fragment.fs7 MAC.fs7 AEPlain.fs7 ENC.fs7 AEADPlain.fs7 AEAD.fs7 StatefulPlain.fs7 StatefulAEAD.fs7 TLSFragment.fs7 record.fs7 Alert.fs7 PRFs.fs7 SessionDB.fs7 Handshake.fs7 AppDataStream.fs7 Dispatch.fs7 Dispatch.fs
+	 $(f7t) -timeout 400 -scripts Dispatch --verbose Error.fs7 Bytes.fs7 tcp.fs7 Algorithms.fs7 RSA.fs7 HASH.fs7 HMAC.fs7 Certificate.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 DataStream.fs7 Fragment.fs7 MAC.fs7 AEPlain.fs7 ENC.fs7 AEADPlain.fs7 AEAD.fs7 StatefulPlain.fs7 StatefulAEAD.fs7 TLSFragment.fs7 record.fs7 Alert.fs7 PRFs.fs7 SessionDB.fs7 Handshake.fs7 AppDataStream.fs7 Dispatch.fs7 Dispatch.fs
 
 TLS.tc7: $(libperv) $(libfs7) Error.fs7 Bytes.fs7 tcp.fs7 Algorithms.fs7 RSA.fs7 HASH.fs7 HMAC.fs7 Certificate.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 DataStream.fs7 Fragment.fs7 MAC.fs7 AEPlain.fs7 ENC.fs7 AEADPlain.fs7 AEAD.fs7 StatefulPlain.fs7 StatefulAEAD.fs7 TLSFragment.fs7 record.fs7 Alert.fs7 PRFs.fs7 SessionDB.fs7 Handshake.fs7 AppDataStream.fs7 Dispatch.fs7 TLS.fs7 TLS.fs
 	 $(f7t) -scripts TLS -timeout 100 Error.fs7 Bytes.fs7 tcp.fs7 Algorithms.fs7 RSA.fs7 HASH.fs7 HMAC.fs7 Certificate.fs7 CipherSuites.fs7 formats.fs7 TLSInfo.fs7 DataStream.fs7 Fragment.fs7 MAC.fs7 AEPlain.fs7 ENC.fs7 AEADPlain.fs7 AEAD.fs7 StatefulPlain.fs7 StatefulAEAD.fs7 TLSFragment.fs7 record.fs7 Alert.fs7 PRFs.fs7 SessionDB.fs7 Handshake.fs7 AppDataStream.fs7 Dispatch.fs7 TLS.fs7 TLS.fs

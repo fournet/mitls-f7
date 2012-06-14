@@ -24,7 +24,7 @@ FSCDIR="/cygdrive/c/Program Files/Microsoft F\#/v4.0/"
 FSCCDIR="/cygdrive/c/Program Files/FSharpPowerPack-2.0.0.0/bin/"
 FS2PVDIR=$(TOP)bin/
 COQDIR="/cygdrive/c/Program Files/Coq/bin/"
-F7Z3DIR="C:/Program Files/Microsoft Research/z3-4.0/bin/"
+F7Z3DIR=$(TOP)bin/
 
 else
 
@@ -51,7 +51,7 @@ fsccopts= --noframework -r $(FW)mscorlib.dll -r $(FW)System.dll -r $(FW)System.N
 fsyaccexe=$(FSCCDIR)fsyacc.exe
 fslexexe=$(FSCCDIR)fslex.exe
 f7exe=../../../$(TOP)bin/f7.exe
-z3exe=$(F7Z3DIR)z3.exe
+z3exe=../../../$(TOP)bin/z3.exe
 fs2pvexe=$(FS2PVDIR)fs2pv.exe
 goal2genexe =$(FS2PVDIR)goal2gen.exe
 

@@ -198,50 +198,50 @@ type readOutcome =
 predicate val IOResult_i : Connection * Connection * readOutcome * 'a -> bool
 predicate val IOResult_o : Connection * 'a * Connection * writeOutcome * 'b -> bool
 
-assume !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo) // <=>
-//	(
-//		// Cases needed by the top level interface
-//		(wo = WAppDataDone /\ mo = None /\ Extend_o(c,c',m) /\ NextCn(c,c')) \/
-//		(wo = WAppDataDone /\ (?m0,m'. mo = Some(m') /\ Split_o(c,m,m0,c',m') /\ Extend_o(c,c',m0) /\ NextCn(c,c'))) \/
-//		(wo = WHSDone /\
-//		  (
-//			   Role(c') = Role(c)
-//			/\ Config(c') = Config(c)
-//			/\ ConnectionEpochIn(c) = Pred(ConnectionEpochIn(c'))
-//			/\ Bytes_i(c') = [||]
-//			/\ EvClose(Peer(CnId(c),()), Bytes_i(c))
-//
-//			/\ Handshake.Complete(CnId(c'),Config(c'))
-//			/\ (
-//				(Handshake.EvSentFinishedFirst(CnId(c'),true) /\
-//					  Bytes_o(c') = Bytes_o(c)
-//				   /\ ConnectionEpochOut(c') = ConnectionEpochOut(c)
-//				)
-//				\/
-//				(Handshake.EvSentFinishedFirst(CnId(c'),false) /\
-//					  Bytes_o(c') = [||]
-//				   /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
-//				)
-//			   )
-//		   )
-//		 ) \/
-//		 (wo = WMustRead /\
-//		   (
-//			  	Role(c') = Role(c) 
-//			 /\ Config(c') = Config(c)
-//			 /\ ConnectionEpochIn(c') = ConnectionEpochIn(c)
-//			 /\ Bytes_i(c') = Bytes_i(c)
-//			 /\ Bytes_o(c') = [||]
-//			 /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))                                                                                                                                                         
-//		   )
-//		 ) \/
-//		 // Cases needed by dispatch; in practice not giving any refinement,
-//		 // just completing all the cases.
-//		 (?err. wo = WError(err) ) \/
-//		 (wo = WriteAgain ) \/
-//		 (?ad. wo = SentFatal(ad) ) \/
-//		 (wo = SentClose )
-//	)
+assume !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo)  <=>
+	(
+		// Cases needed by the top level interface
+	(wo = WAppDataDone /\ mo = None /\ Extend_o(c,c',m) /\ NextCn(c,c')) \/
+		(wo = WAppDataDone /\ (?m0,m'. mo = Some(m') /\ Split_o(c,m,m0,c',m') /\ Extend_o(c,c',m0) /\ NextCn(c,c'))) \/
+		(wo = WHSDone /\
+		  (
+			   Role(c') = Role(c)
+	/\ Config(c') = Config(c)
+			/\ ConnectionEpochIn(c) = Pred(ConnectionEpochIn(c'))
+			/\ Bytes_i(c') = [||]
+			/\ EvClose(Peer(CnId(c),()), Bytes_i(c))
+
+			/\ Handshake.Complete(CnId(c'),Config(c'))
+			/\ (
+				(Handshake.EvSentFinishedFirst(CnId(c'),true) /\
+					  Bytes_o(c') = Bytes_o(c)
+		   /\ ConnectionEpochOut(c') = ConnectionEpochOut(c)
+			)
+		\/
+				(Handshake.EvSentFinishedFirst(CnId(c'),false) /\
+					  Bytes_o(c') = [||]
+				   /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
+				)
+			   )
+		   )
+		 ) \/
+		 (wo = WMustRead /\
+		   (
+			  	Role(c') = Role(c) 
+			 /\ Config(c') = Config(c)
+			 /\ ConnectionEpochIn(c') = ConnectionEpochIn(c)
+			 /\ Bytes_i(c') = Bytes_i(c)
+			 /\ Bytes_o(c') = [||]
+			 /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))                                                                                                                                                         
+		   )
+		 ) \/
+		 // Cases needed by dispatch; in practice not giving any refinement,
+		 // just completing all the cases.
+		 (?err. wo = WError(err) ) \/
+	 (wo = WriteAgain ) \/
+		 (?ad. wo = SentFatal(ad) ) \/
+		 (wo = SentClose )
+	)
 
                                                                                                                                                                 
 

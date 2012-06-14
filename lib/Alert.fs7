@@ -97,22 +97,42 @@ val send_alert: ci:ConnectionInfo -> (;ci)state -> alertDescription -> (;ci)stat
 
 val next_fragment: ci:ConnectionInfo -> s:(;ci)state ->
 	(res:(;ci.id_out)ALFragReply * s':(;ci)state)
-	{ (!r,f. res = ALFrag(r,f) => (
-			(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,AlOutStream(ci,s),r,f)) /\
-			AlOutStream(ci,s') = Fragment.Extend(ci.id_out,AlOutStream(ci,s),r,f) /\
-			AlInStream(ci,s') = AlInStream(ci,s)
-		)) /\
-	  (!r,f,ad. res = LastALFrag(r,f,ad) => (
-			(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,AlOutStream(ci,s),r,f)) /\
-			AlOutStream(ci,s') = Fragment.Extend(ci.id_out,AlOutStream(ci,s),r,f) /\
-			AlInStream(ci,s') = AlInStream(ci,s)
-	  )) /\
-	  (!r,f. res = LastALCloseFrag(r,f) => (
-			(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,AlOutStream(ci,s),r,f)) /\
-			AlOutStream(ci,s') = Fragment.Extend(ci.id_out,AlOutStream(ci,s),r,f) /\
-			AlInStream(ci,s') = AlInStream(ci,s)
-	  ))
-	}
+	  { (!r,f. res = ALFrag(r,f) => (
+   		(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,AlOutStream(ci,s),r,f)) /\
+		AlOutStream(ci,s') = Fragment.Extend(ci.id_out,AlOutStream(ci,s),r,f) /\
+		AlInStream(ci,s') = AlInStream(ci,s))) /\
+              (!r,f,ad. res = LastALFrag(r,f,ad) => (
+   		(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,AlOutStream(ci,s),r,f)) /\
+		AlOutStream(ci,s') = Fragment.Extend(ci.id_out,AlOutStream(ci,s),r,f) /\
+		AlInStream(ci,s') = AlInStream(ci,s))) /\
+
+                (!r,f. res = LastALCloseFrag(r,f) => (
+   		(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,AlOutStream(ci,s),r,f)) /\
+		AlOutStream(ci,s') = Fragment.Extend(ci.id_out,AlOutStream(ci,s),r,f) /\
+		AlInStream(ci,s') = AlInStream(ci,s)))}
+
+(*
+val verifyALCloseFrag: ci:ConnectionInfo -> s:(;ci)state -> r:range -> f:(;ci,r) Fragment.fragment -> s':(;ci)state -> unit{
+   		(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,AlOutStream(ci,s),r,f)) /\
+		AlOutStream(ci,s') = Fragment.Extend(ci.id_out,AlOutStream(ci,s),r,f) /\
+		AlInStream(ci,s') = AlInStream(ci,s)}
+*)
+
+(*	  { (?r,f. res = ALFrag(r,f) /\ 
+   		(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,AlOutStream(ci,s),r,f)) /\
+		AlOutStream(ci,s') = Fragment.Extend(ci.id_out,AlOutStream(ci,s),r,f) /\
+		AlInStream(ci,s') = AlInStream(ci,s)) \/
+              (?r,f,ad. res = LastALFrag(r,f,ad) /\ 
+   		(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,AlOutStream(ci,s),r,f)) /\
+		AlOutStream(ci,s') = Fragment.Extend(ci.id_out,AlOutStream(ci,s),r,f) /\
+		AlInStream(ci,s') = AlInStream(ci,s)) \/
+
+                (?r,f. res = LastALCloseFrag(r,f) /\ 
+   		(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,AlOutStream(ci,s),r,f)) /\
+		AlOutStream(ci,s') = Fragment.Extend(ci.id_out,AlOutStream(ci,s),r,f) /\
+		AlInStream(ci,s') = AlInStream(ci,s)) \/
+             res = EmptyALFrag}
+*)
 
 val handle_alert: ci:ConnectionInfo -> (;ci)state -> alertDescription -> (;ci)alert_reply
 

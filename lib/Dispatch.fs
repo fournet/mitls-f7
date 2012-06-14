@@ -255,8 +255,6 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                           | Correct(new_write) ->
                             let c = { c with handshake = new_hs_state;
                                              write  = new_write } in
-                            //KB: to fix:
-                            //Pi.assume(GState(id,c));
                             (WriteAgain, Conn(id,c))
                           | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(x,y)),closed) (* Unrecoverable error *)
                       | _ -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(Dispatcher,InvalidState)),closed) (* TODO: we might want to send an "internal error" fatal alert *)
@@ -275,8 +273,6 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                             let c_write = {new_write with disp = Finished} in
                             let c = { c with handshake = new_hs_state;
                                              write     = c_write }
-                            // KB: to fix:
-                            //Pi.assume(GState(id,c));
                             (WMustRead, Conn(id,c))
                           | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(x,y)),closed) (* Unrecoverable error *)
                 | _ -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(Dispatcher,InvalidState)),closed) (* TODO: we might want to send an "internal error" fatal alert *)
@@ -309,13 +305,12 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
             let history = Record.history id.id_out c_write.conn in
             let frag = TLSFragment.construct id.id_out Alert history tlen f in
             let pv = pickSendPV (Conn(id,c)) in
-            let resSend = send c.ns id.id_out c.write pv tlen Alert frag in
+            let c_write = c.write in
+            let resSend = send c.ns id.id_out c_write pv tlen Alert frag in
             match resSend with 
             | Correct(new_write) ->
                 let c = { c with alert   = new_al_state;
                                  write   = new_write }
-                // KB: To Fix                                 
-                //Pi.assume (GState(id,c));  
                 (WriteAgain, Conn(id,c ))
             | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(x,y)),closed) (* Unrecoverable error *)
         | _ -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(Dispatcher,InvalidState)),closed) (* Unrecoverable error *)
@@ -326,18 +321,17 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
             let history = Record.history id.id_out c_write.conn in
             let frag = TLSFragment.construct id.id_out Alert history tlen f in
             let pv = pickSendPV (Conn(id,c)) in
-            let resSend = send c.ns id.id_out c.write pv tlen Alert frag in
+            let c_write = c.write in
+            let resSend = send c.ns id.id_out c_write pv tlen Alert frag in
             match resSend with 
             | Correct(new_write) ->
                 let c = {c with alert = new_al_state;
                                 write = new_write}
-                // KB: To Fix                                 
-                //Pi.assume (GState(id,c));  
                 let closed = closeConnection (Conn(id,c)) in
                 (SentFatal(ad), closed)
             | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(x,y)),closed) (* Unrecoverable error *)
         | _ -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(Dispatcher,InvalidState)),closed) (* Unrecoverable error *)
-      | (Alert.LastALCloseFrag(tlen,f),new_al_state) ->
+      | (Alert.LastALCloseFrag(tlen,f),new_al_state) -> 
         match c_write.disp with
         | Init | FirstHandshake | Open ->
             (* We're sending a close_notify alert. Send it, then only close our sending side.
@@ -346,17 +340,23 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
             let history = Record.history id.id_out c_write.conn in
             let frag = TLSFragment.construct id.id_out Alert history tlen f in
             let pv = pickSendPV (Conn(id,c)) in
-            let resSend = send c.ns id.id_out c.write pv tlen Alert frag in
+            let c_write = c.write in
+            let resSend = send c.ns id.id_out c_write pv tlen Alert frag in
             match resSend with
             | Correct(new_write) ->
-                let new_write = {new_write with disp = Closed} in
+                let new_write = {new_write with disp = Closed} in 
                 let c = {c with alert = new_al_state;
                                 write = new_write}
-                // KB: To Fix                                 
-                //Pi.assume (GState(id,c));  
+                let closed = closeConnection (Conn(id,c)) in
+
+
+
                 (SentClose, Conn(id,c))
-            | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(x,y)),closed) (* Unrecoverable error *)
-        | _ -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(Dispatcher,InvalidState)),closed) (* Unrecoverable error *)
+            | Error (x,y) -> 
+                let closed = closeConnection (Conn(id,c)) in 
+                  (WError(EInternal(x,y)),closed) (* Unrecoverable error *)
+        | _ -> let closed = closeConnection (Conn(id,c)) in 
+                   (WError(EInternal(Dispatcher,InvalidState)),closed) (* Unrecoverable error *)
 
 let recv (Conn(id,c)) =
     match Tcp.read c.ns 5 with // read & parse the header

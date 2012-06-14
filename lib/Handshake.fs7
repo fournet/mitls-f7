@@ -72,42 +72,43 @@ val invalidateSession: ci:ConnectionInfo -> s:(;ci)hs_state -> s':(;ci,Config(ci
 
 (* Network Interface*)
 
-type (;ci:ConnectionInfo,s:(;ci)hs_state) outgoing =
-  | OutIdle of s':(;ci,Config(ci,s))nextState{SameStreams(ci,s,s')}
-  | OutSome of (rg:range * f:(;ci.id_out,rg)Fragment.fragment * s':(;ci,Config(ci,s))nextState){
-				(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,HSOutStream(ci,s),rg,f) ) /\
-				HSOutStream(ci,s') = Fragment.Extend(ci.id_out,HSOutStream(ci,s),rg,f) /\
-				CCSOutStream(ci,s') = CCSOutStream(ci,s) /\
-				HSInStream(ci,s') = HSInStream(ci,s) /\
-				CCSInStream(ci,s') = CCSInStream(ci,s)
+type (;ci:ConnectionInfo, hs:(;ci) hs_state) outgoing =
+  | OutIdle of s':(;ci,Config(ci,hs))nextState{SameStreams(ci,hs,s')}
+  | OutSome of (rg:range * f:(;ci.id_out,rg)Fragment.fragment * s':(;ci,Config(ci,hs))nextState){
+				(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,HSOutStream(ci,hs),rg,f) ) /\
+				HSOutStream(ci,s') = Fragment.Extend(ci.id_out,HSOutStream(ci,hs),rg,f) /\
+				CCSOutStream(ci,s') = CCSOutStream(ci,hs) /\
+				HSInStream(ci,s') = HSInStream(ci,hs) /\
+				CCSInStream(ci,s') = CCSInStream(ci,hs)
 				}
   | OutCCS of  (rg:range * f:(;ci.id_out,rg)Fragment.fragment * 
-               ci':ConnectionInfo * cs:(;ci'.id_out)StatefulAEAD.state * s':(;ci',Config(ci,s))nextState)
+               ci':ConnectionInfo * cs:(;ci'.id_out)StatefulAEAD.state * s':(;ci',Config(ci,hs))nextState)
                { SentCCS(ci'.id_out) /\
 			     StatefulPlain.EmptyHistory(ci'.id_out,cs.history) /\
-			     ci.id_out = Pred(ci'.id_out) /\
-                 ci.id_in = ci'.id_in /\
-				 (Auth(ci.id_out) => Fragment.Fragment(ci.id_out,CCSOutStream(ci,s),rg,f) ) /\
+			      ci.id_out = Pred(ci'.id_out) /\
+                              ci.id_in = ci'.id_in /\
+                              ci.role = ci'.role /\
+				 (Auth(ci.id_out) => Fragment.Fragment(ci.id_out,CCSOutStream(ci,hs),rg,f) ) /\
 				 EmptyStream(ci'.id_out,HSOutStream(ci',s')) /\
 				 EmptyStream(ci'.id_out,CCSOutStream(ci',s')) /\
-				 HSInStream(ci',s') = HSInStream(ci,s) /\
-				 CCSInStream(ci',s') = CCSInStream(ci,s)
+				 HSInStream(ci',s') = HSInStream(ci,hs) /\
+				 CCSInStream(ci',s') = CCSInStream(ci,hs)
 				 }
-  | OutFinished of (rg:range * f:(;ci.id_out,rg)Fragment.fragment * s':(;ci,Config(ci,s))nextState){
+  | OutFinished of (rg:range * f:(;ci.id_out,rg)Fragment.fragment * s':(;ci,Config(ci,hs))nextState){
 				EvSentFinishedFirst(ci,true) /\
-				(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,HSOutStream(ci,s),rg,f) ) /\
-				HSOutStream(ci,s') = Fragment.Extend(ci.id_out,HSOutStream(ci,s),rg,f) /\
-				CCSOutStream(ci,s') = CCSOutStream(ci,s) /\
-				HSInStream(ci,s') = HSInStream(ci,s) /\
-				CCSInStream(ci,s') = CCSInStream(ci,s)
+				(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,HSOutStream(ci,hs),rg,f) ) /\
+				HSOutStream(ci,s') = Fragment.Extend(ci.id_out,HSOutStream(ci,hs),rg,f) /\
+				CCSOutStream(ci,s') = CCSOutStream(ci,hs) /\
+				HSInStream(ci,s') = HSInStream(ci,hs) /\
+				CCSInStream(ci,s') = CCSInStream(ci,hs)
 				}
-  | OutComplete of (rg:range * f:(;ci.id_out,rg)Fragment.fragment * s':(;ci,Config(ci,s))nextState)
-                   {Complete(ci,Config(ci,s)) /\
-					(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,HSOutStream(ci,s),rg,f) ) /\
-					HSOutStream(ci,s') = Fragment.Extend(ci.id_out,HSOutStream(ci,s),rg,f) /\
-					CCSOutStream(ci,s') = CCSOutStream(ci,s) /\
-					HSInStream(ci,s') = HSInStream(ci,s) /\
-					CCSInStream(ci,s') = CCSInStream(ci,s)
+  | OutComplete of (rg:range * f:(;ci.id_out,rg)Fragment.fragment * s':(;ci,Config(ci,hs))nextState)
+                   {Complete(ci,Config(ci,hs)) /\
+					(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,HSOutStream(ci,hs),rg,f) ) /\
+					HSOutStream(ci,s') = Fragment.Extend(ci.id_out,HSOutStream(ci,hs),rg,f) /\
+					CCSOutStream(ci,s') = CCSOutStream(ci,hs) /\
+					HSInStream(ci,s') = HSInStream(ci,hs) /\
+					CCSInStream(ci,s') = CCSInStream(ci,hs)
 				   }
 val next_fragment: ci:ConnectionInfo -> s:(;ci)hs_state -> (;ci,s)outgoing
 
