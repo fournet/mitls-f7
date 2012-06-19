@@ -30,8 +30,7 @@ dist-check: dist
 	rm -rf $(distname)
  	
 build:
-	rm -rf bin
-	mkdir bin
+	mkdir -p bin
 	for proj in $(projs) ; do\
 		$(MAKE) -C $$proj build ;\
 	done
