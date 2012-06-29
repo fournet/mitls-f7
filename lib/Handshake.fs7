@@ -9,6 +9,7 @@ open DataStream
 open Certificate
 open StatefulAEAD
 
+(*--- controlinterface *)
 (* Control Interface *)
 
 type (;ci:ConnectionInfo) hs_state
@@ -70,6 +71,7 @@ val authorize:   ci:ConnectionInfo -> s:(;ci)hs_state -> c:cert  ->
 	s':(;ci,Config(ci,s))nextState { Authorize(Config(ci,s),c) /\ SameStreams(ci,s,s') }
 val invalidateSession: ci:ConnectionInfo -> s:(;ci)hs_state -> s':(;ci,Config(ci,s))nextState{SameStreams(ci,s,s')}
 
+(*--- networkinterface *)
 (* Network Interface*)
 
 type (;ci:ConnectionInfo, hs:(;ci) hs_state) outgoing =
