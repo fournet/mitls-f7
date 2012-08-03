@@ -2,8 +2,8 @@
 
 open System
 
-let FS = 10000
-let PS = 200
+let FS = 16384
+let PS = 255 - 16
 
 let ranges a b =
     let minpack = (b-a) / PS
