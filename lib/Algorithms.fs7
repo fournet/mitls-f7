@@ -6,13 +6,14 @@ open Bytes
 
 (* Not abstract, but meant to be used only by crypto modules and CipherSuites *)
 
-type kexAlg =
-    | RSA
-    | DH_DSS
-    | DH_RSA
-    | DHE_DSS
+type kexAlg =  (* all these kex have server-auth & optional client-auth, *)
+               (* except for anon which has nothing *)
+    | RSA     // --> client-generated pms encrypted using server's public key
+    | DH_DSS  // <-- Certificate(DSA containing g^y); --> g^x then pms = g^xy  //$ reuse of exponentials?
+    | DH_RSA  // idem with an RSA cert
+    | DHE_DSS // <-- Certificate(DSA); ServerKeyExchange({Cr,Sr,p,g,g^y}signed); --> g^x then pms = g^xy  //$ reuse of exponentials?
     | DHE_RSA
-    | DH_anon
+    | DH_anon // --> g^x ; <-- g^y then pms = g^xy ; secure only against passive adversaries
 
 type cipherAlg =
     | RC4_128

@@ -18,7 +18,7 @@ predicate val Authorize: config * cert -> bool
 predicate val Complete: ConnectionInfo * config -> bool
 predicate EvSentFinishedFirst of ConnectionInfo * bool
 // AP: Not sure the SentCCS event is useful;
-// rather I'd welome a SentFinished event, to model False Start
+// rather I'd welcome a SentFinished event, to model False Start
 predicate val SentCCS: epoch -> bool
 
 function val HSOutStream:  ci:ConnectionInfo * (;ci)hs_state -> 'a //(;ci.id_out)stream

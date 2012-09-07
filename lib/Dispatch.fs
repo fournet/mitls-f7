@@ -168,7 +168,9 @@ let send ns e write pv rg ct frag =
     let dState = {write with conn = conn} in
     match Tcp.write ns data with
     | Error(x,y) -> Error(x,y)
-    | Correct(_) -> Correct(dState)
+    | Correct(_) -> 
+        //let s = sprintf "                        %5d bytes --> %s\n" data.Length (Formats.CTtoString ct) in printf "%s" s 
+        Correct(dState)
 
 //type preds = GState of ConnectionInfo * globalState
 (* which fragment should we send next? *)
@@ -376,7 +378,7 @@ let recv (Conn(id,c)) =
                 | Error(x,y) -> Error(x,y)
                 | Correct(pack) -> 
                     let (c_recv,ct,pv,tl,f) = pack in
-                    //printf "%s[%d] " (Formats.CTtoString ct) len; 
+                    //let s = sprintf "                        %5d bytes --> %s\n" len (Formats.CTtoString ct) in printfn "%s" s  
                     let si = epochSI(id.id_in) in
                     if c.read.disp = Init ||
                        (c.read.disp = FirstHandshake && pv = getNegotiatedVersion id c.handshake) ||

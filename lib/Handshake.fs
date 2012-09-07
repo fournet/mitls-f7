@@ -13,12 +13,13 @@ open DataStream
 
 // BEGIN HS_msg
 
-// This section is currently copied/pasted from the legacy HS_msg module, now
-// syntactically merged with Handshake. Still, there are some redundancies that should
-// be eliminated, by semantically merge the two.
+// This section is from the legacy HS_msg module, now merged with Handshake. 
+// Still, there are some redundancies that should be eliminated, 
+// by semantically merge the two.
 
 (*** Following RFC5246 A.4 *)
 
+//$ why not an ADT?
 type HandshakeType =
     | HT_hello_request
     | HT_client_hello
@@ -30,7 +31,7 @@ type HandshakeType =
     | HT_certificate_verify
     | HT_client_key_exchange
     | HT_finished
-    | HT_unknown of byte
+    | HT_unknown of byte //$
 
 let htbytes t =
     match t with
@@ -92,7 +93,7 @@ type clientHello = {
     ch_session_id         : sessionID;
     ch_cipher_suites      : cipherSuites;
     ch_compression_methods: Compression list;
-    ch_extensions         : bytes;
+    ch_extensions         : bytes; //$ why unparsed? 
   }
 
 type serverHello = {
@@ -160,6 +161,7 @@ type ClientCertType =
 *)
 
 type certificateRequest = {
+    (* RFC acknowledges the relation between these fields is "somewhat complicated" *)
     client_certificate_type: ClientCertType list
     signature_and_hash_algorithm: (SigAndHashAlg list) option (* Some(x) for TLS 1.2, None for previous versions *)
     certificate_authorities: string list
@@ -231,7 +233,7 @@ type KIAndCCS = (epoch * StatefulAEAD.state)
 
 type pre_hs_state = {
   hs_outgoing    : bytes;                  (* outgoing data before a ccs *)
-  ccs_outgoing: (bytes * KIAndCCS) option; (* marker telling there's a ccs ready *)
+  ccs_outgoing: (bytes * KIAndCCS) option; (* marker telling there is a ccs ready *)
   hs_outgoing_after_ccs: bytes;            (* data to be sent after the ccs has been sent *)
   hs_incoming    : bytes;                  (* partial incoming HS message *)
   ccs_incoming: KIAndCCS option; (* used to store the computed secrets for receiving data. Not set when receiving CCS, but when we compute the session secrects *)
@@ -239,8 +241,8 @@ type pre_hs_state = {
   sDB: SessionDB;
   pstate : protoState;
   hs_msg_log: bytes;
-  hs_next_info: SessionInfo; (* The session we're establishing within the current HS *)
-  next_ms: masterSecret; (* The ms we're establishing *)
+  hs_next_info: SessionInfo; (* The session we are establishing within the current HS *)
+  next_ms: masterSecret; (* The ms we are establishing *)
   ki_crand: bytes; (* Client random for the session we're establishing (to be stored in epoch) *)
   ki_srand: bytes; (* Current server random, as above *)
   hs_renegotiation_info_cVerifyData: bytes (*Renegotiation info associated with the session we're establishing *)
@@ -259,9 +261,8 @@ let makeMessage ht data = htbytes ht @| vlbytes 3 data
 
 let parseMessage state =
     (* Inefficient but simple implementation:
-       every time we reparse the whole incoming buffer,
-       searching for a full packet. When a full packet is found,
-       it is removed from the buffer. *)
+       we repeatedly parse the whole incoming buffer until we have a complete message;
+       we then remove that message from the incoming buffer. *)
     if length state.hs_incoming < 4 then None (* not enough data to start parsing *)
     else
         let (hstypeb,rem) = Bytes.split state.hs_incoming 1 in
@@ -272,7 +273,7 @@ let parseMessage state =
             let hstype = parseHT hstypeb in
             let (payload,rem) = Bytes.split rem len in
             let state = { state with hs_incoming = rem } in
-            let to_log = hstypeb @| lenb @| payload in
+            let to_log = hstypeb @| lenb @| payload in //$
             Some(state,hstype,payload,to_log)
 
 /// Hello Request 
@@ -295,7 +296,7 @@ let makeRenegExtBytes verifyData =
 let rec extensionList_of_bytes_int data list =
     match length data with
     | 0 -> correct (list)
-    | x when x > 0 && x < 4 ->
+    | x when x < 4 ->
         (* This is a parsing error, or a malformed extension *)
         Error (HSError(AD_decode_error), HSSendAlert)
     | _ ->
@@ -374,7 +375,7 @@ let inspect_ServerHello_extensions recvExt expected =
 
 /// Client and Server random values
 
-let makeRandom() = 
+let makeRandom() = //$ crypto abstraction? timing guarantees local disjointness
     let time = makeTimestamp () in
     let timeb = bytes_of_int 4 time in
     let rnd = mkRandom 28 in
@@ -416,8 +417,8 @@ let parseClientHello data =
     let cm = parseCompressions cmBytes
     correct(
      { ch_client_version      = cv 
-       ch_random           = cr 
-       ch_session_id       = sid
+       ch_random              = cr 
+       ch_session_id          = sid
        ch_cipher_suites       = clientCipherSuites
        ch_compression_methods = cm 
        ch_extensions          = extensions})
@@ -1053,8 +1054,7 @@ let hashNametoFun hn =
     | _ -> Error(HSError(AD_internal_error),HSSendAlert)
 *)
 
-let makeCertificateVerifyBytes cert data pv certReqMsg=
-    let priKey = priKey_of_certificate cert in
+let makeCertificateVerifyBytes cert data pv certReqMsg =
     match pv with
     | TLS_1p2 ->
         (* If DSA, use SHA-1 hash *)
@@ -1066,9 +1066,11 @@ let makeCertificateVerifyBytes cert data pv certReqMsg=
             (* Get server preferred hash algorithm *)
             let hashAlg =
                 match certReqMsg.signature_and_hash_algorithm with
-                | None -> unexpectedError "[makeCertificateVerifyBytes] We are in TLS 1.2, so the server should send a SigAndHashAlg structure."
                 | Some (sahaList) -> sahaList.Head.SaHA_hash
+                | None -> unexpectedError "[makeCertificateVerifyBytes] We are in TLS 1.2, so the server should send a SigAndHashAlg structure."
             let hashed = HASH.hash hashAlg data in
+            let priKey = priKey_of_certificate cert in
+            //$ we should pick the signing alg from cert. Not rsaEncrypt!!
             match RSA.rsaEncrypt priKey hashed with
             | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
             | Correct (signed) ->
@@ -1192,7 +1194,7 @@ let ciphstate_of_ciphtype ct key iv =
 *)
 
     
-
+//$ todo?
 let find_client_cert (certReqMsg:certificateRequest) : (cert list) option =
     (* TODO *) None
 
@@ -1219,7 +1221,8 @@ let parseClientKEX sinfo sSpecState pops data =
         Error(HSError(AD_internal_error),HSSendAlert)
 
 let certificateVerifyCheck (state:hs_state) (payload:bytes) =
-    (* TODO: pretend client sent valid verification data. We need to understand how to treat certificates and related algorithms properly *)
+    (* TODO: pretend client sent valid verification data. 
+       We need to understand how to treat certificates and related algorithms properly *)
     correct(true)
 
 let compute_session_secrets_and_CCSs ci state =
@@ -2048,7 +2051,7 @@ let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:DataStream.range) (fragmen
     let b = Fragment.fragmentRepr ci.id_in r fragment in 
     if equalBytes b CCSBytes then  
         match state.pstate with
-        | PSClient (cstate) -> // Check we are in the right state (CCCS) 
+        | PSClient (cstate) -> // Check that we are in the right state (CCCS) 
             match cstate with
             | CCCS (clSpState) ->
                 match state.ccs_incoming with

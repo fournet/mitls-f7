@@ -98,11 +98,11 @@ let isAEADCipherSuite cs =
 
 let cipherSuiteBytes cs = 
     match cs with
-    | NullCipherSuite                                     -> [| 0x00uy; 0x00uy |]
+    | NullCipherSuite                                  -> [| 0x00uy; 0x00uy |]
 
-    | OnlyMACCipherSuite (RSA, MD5)                       -> [| 0x00uy; 0x01uy |]
-    | OnlyMACCipherSuite (RSA, SHA)                       -> [| 0x00uy; 0x02uy |]
-    | OnlyMACCipherSuite (RSA, SHA256)                    -> [| 0x00uy; 0x3Buy |]
+    | OnlyMACCipherSuite (RSA, MD5)                    -> [| 0x00uy; 0x01uy |]
+    | OnlyMACCipherSuite (RSA, SHA)                    -> [| 0x00uy; 0x02uy |]
+    | OnlyMACCipherSuite (RSA, SHA256)                 -> [| 0x00uy; 0x3Buy |]
     | CipherSuite (RSA, MtE (RC4_128, MD5))            -> [| 0x00uy; 0x04uy |]
     | CipherSuite (RSA, MtE (RC4_128, SHA))            -> [| 0x00uy; 0x05uy |]
     | CipherSuite (RSA, MtE (TDES_EDE_CBC, SHA))       -> [| 0x00uy; 0x0Auy |]
