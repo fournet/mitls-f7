@@ -271,17 +271,20 @@ type nextState = hs_state
 // For instance, for RSA with an anonymous client, we need just
 type log = bytes 
 type serverState' =  (* note that the CertRequest bits are determined by the config *) 
+                     (* we may omit some ProtocolVersion, mostly a ghost variable *)
    | ClientHello
-   | RSA_ClientCertificate of SessionInfo * ProtocolVersion * log 
-   |  DH_ClientCertificate of SessionInfo * ProtocolVersion * log 
-   | DHE_ClientCertificate of SessionInfo * ProtocolVersion * DHE.sk * log 
-   | RSA_ClientKeyExchange of SessionInfo * ProtocolVersion * log
-   |  DH_ClientKeyExchange of SessionInfo * ProtocolVersion * log 
-   | DHE_ClientKeyExchange of SessionInfo * ProtocolVersion * DHE.sk * log 
-   | CertificateVerify     of SessionInfo * ProtocolVersion * masterSecret * log 
-   | ClientCCS             of SessionInfo * ProtocolVersion * masterSecret * log 
-   | ClientFinished        of SessionInfo * ProtocolVersion * masterSecret * log 
-   (* by convention, the parameters are named si, cv, ms, log *)
+   | ClientCertificateRSA of SessionInfo * ProtocolVersion * log 
+   | ClientCertificateDH  of SessionInfo * log 
+   | ClientCertificateDHE of SessionInfo * DHE.sk * log 
+   | ClientKeyExchangeRSA of SessionInfo * ProtocolVersion * log
+   | ClientKeyExchangeDH  of SessionInfo * log 
+   | ClientKeyExchangeDHE of SessionInfo * DHE.sk * log 
+   | CertificateVerify    of SessionInfo * masterSecret * log 
+   | ClientCCS            of SessionInfo * masterSecret * log
+   | ClientCCSResume      of SessionInfo * bytes * bytes (* cr' & sr' *) * masterSecret * log  
+   | ClientFinished       of SessionInfo * masterSecret * log 
+   | ClientFinishedResume of SessionInfo * masterSecret * log 
+   (* by convention, the parameters are named si, cv, cr', sr', ms, log *)
    (* do we need WaitingToWrite? *)
    | ServerIdle   
    (* the ProtocolVersion is the highest TLS version proposed by the client *)
