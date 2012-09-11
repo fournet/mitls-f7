@@ -6,44 +6,64 @@ open TLSInfo
 open RSA
 open Error
 
-(*---------------------*)
-(* Plain module for RSA *)
-type (;si:SessionInfo) preMasterSecret
-(* TODO: this only works for RSA, when client arbitrarily chooses PMS. A different interface is required for DH *)
-(* Note: we need an external version type, and not the one contained in the session info. This is because
-   we need to use the highest client supported version type, and not the negotiated one, to avoid version rollback attacks. *)
-(* Client side: use genPMS and rsaEncryptPMS separately, by now. No idea yet on how to do it computationally-friendly *)
-val genPMS: si:SessionInfo -> CipherSuites.ProtocolVersion -> (;si)preMasterSecret
-val empty_pms: si:SessionInfo -> (;si)preMasterSecret (* Used to implement a dummy DH key exchange *)
-(*---------------------*)
-val rsaEncryptPMS: si:SessionInfo -> asymKey -> (;si)preMasterSecret -> bytes Result
-(* Server side: embed RSA decryiption and some sanity checks. Again, fully flexibility in making this computationally-friendly *)
+type (;si:SessionInfo) preMasterSecret (* used as "plain" by RSA & as index by PMS-PRF *)
+                                       (* should enforce RSA repr is 48-bytes array *)
+
+(* TODO: for now this works only for RSA, when client arbitrarily chooses PMS. *)
+(* We should use some underlying sum type to support also DH and ECDH *)
+
+
+(****** RSA ******)
+
+(** Client-side generation and encryption of RSA PMS *)
+
+val genPMS: si:SessionInfo -> vc:CipherSuites.ProtocolVersion -> (;si)preMasterSecret (*$ missing vc index or extractor *)
+
+(* pvc is the highest TLS version proposed by the client *)
+(* not necessarily the negotiated version stored in si;                   *)
+(* its inclusion helps preventing version rollback attacks.               *) 
+
+val empty_pms: si:SessionInfo -> (;si)preMasterSecret (* Deprecate? Used to implement a dummy DH key exchange *)
+
+val rsaEncryptPMS: si:SessionInfo -> asymKey -> (;si)preMasterSecret -> bytes Result (*$ how can this fail? *)
+
+(** Server-side decryption of RSA PMS *) 
+
 (* should be: rsaDecryptPMS *)
-val getPMS: si:SessionInfo -> CipherSuites.ProtocolVersion ->
-        bool -> (* Whether we should check protocol version in old TLS versions *)
-        Certificate.cert -> 
-         bytes -> (;si)preMasterSecret (* No Result type: in case of error, we return random value *)
-(*---------------------*)
+val getPMS: si:SessionInfo -> 
+            vc:CipherSuites.ProtocolVersion (* highest client version, as above *) ->
+            bool -> (* flag whether we should check protocol version in old TLS versions *)
+            Certificate.cert -> 
+            bytes -> (;si)preMasterSecret (* No Result type: in case of error, we return a fresh random PMS *)
+
+
+(****** DH ******) 
 
 
 
 
-(*----------------------*)
-(* Plain for KDF/PRF *)
-type (;si:SessionInfo) masterSecret
-val empty_masterSecret: si:SessionInfo ->  (;si) masterSecret
-(* ------------------- *)
-val prfMS: si:SessionInfo -> (;si) preMasterSecret ->
-           (* No label, it's hardcoded. Of course we can make it explicit -> *)
-           (* No seed (crandom @| srandom), it can be retrieved from SessionInfo -> *)
-           (;si) masterSecret (* of length 48 *)
-(* ------------------- *)
-(* PRF: for finished messages, needs refinement. Like a MAC *)
+(****** MS ******) 
+
+(** From PMS to MS *) 
+
+type (;si:SessionInfo) masterSecret (* 48 bytes; used as index by MS-PRF *) 
+
+val empty_masterSecret: si:SessionInfo ->  (;si) masterSecret (*$ Deprecate? *)
+
+(* computes the MS from the PMS, some constant label, and the (crandom @| srandom) from si *)
+
+val prfMS: si:SessionInfo -> (;si) preMasterSecret -> (;si) masterSecret 
+
+
+(** VerifyData MAC keyed with the master secret, relying on CMA ***)          
+
 val prfVerifyData: si:SessionInfo -> r:Role -> (;si) masterSecret ->
                    bytes (* msgLog *) -> 
                    bytes (* length depends on cs, 12 by default *)
 
-(* KDF *)
+
+(** KDF for the connection key materials, keyed with the master secret *)
+
 type (;ci:ConnectionInfo) keyBlob
 val prfKeyExp: ci:ConnectionInfo -> (;EpochSI(ci.id_out))masterSecret ->
                (* No label, it's hardcoded. Of course we can make it explicit -> *)

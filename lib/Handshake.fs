@@ -1,4 +1,5 @@
-﻿module Handshake
+﻿(* Handshake protocol *) 
+module Handshake
 
 open Bytes
 open Error
@@ -19,7 +20,6 @@ open DataStream
 
 (*** Following RFC5246 A.4 *)
 
-//$ why not an ADT?
 type HandshakeType =
     | HT_hello_request
     | HT_client_hello
@@ -201,56 +201,100 @@ type clientSpecificState =
       client_certificate: (cert list) option }
 
 type clientState =
-    | ServerHello
-    | Certificate
-    | ServerKeyExchange
-    | CertReqOrSHDone
-    | CSHDone of clientSpecificState
-    | CCCS of clientSpecificState
-    | CFinished of clientSpecificState
-    | CWaitingToWrite of clientSpecificState
-    | CIdle
+  | ServerHello (* of SessionInfo Option 
+                   client proposed session to be resumed, useful to
+                   check whether we're going to do resumption or full
+                   negotiation *)
+  | Certificate       (* of SessionInfo (* being established *) *)
+  | ServerKeyExchange (* of SessionInfo (* begin established *) *)
+  | CertReqOrSHDone   (* of SessionInfo (* being established *) *)
+  | CSHDone of           (* SessionInfo * *) clientSpecificState  
+  | CCCS of              (* SessionInfo * *) clientSpecificState      
+  | CFinished of         (* SessionInfo * *) clientSpecificState 
+  | CWaitingToWrite of   (* SessionInfo * *) clientSpecificState
+  | CIdle
 
 type serverSpecificState =
-    { resumed_session: bool
+    { resumed_session: bool;
       highest_client_ver: ProtocolVersion}
 
-type serverState =
-    | ClientHello
-    | ClCert of serverSpecificState
-    | ClientKEX of serverSpecificState
-    | CertificateVerify of serverSpecificState
-    | SCCS of serverSpecificState
-    | SFinished of serverSpecificState
-    | SWaitingToWrite of serverSpecificState
-    | SIdle
+type serverState = (* should also include SessionInfo beging established? *)
+  | ClientHello
+  | ClCert of serverSpecificState
+  | ClientKEX of serverSpecificState
+  | CertificateVerify of serverSpecificState
+  | SCCS of serverSpecificState
+  | SFinished of serverSpecificState
+  | SWaitingToWrite of serverSpecificState
+  | SIdle
 
 type protoState = // Cannot use Client and Server, otherwise clashes with Role
-    | PSClient of clientState
-    | PSServer of serverState
+  | PSClient of clientState
+  | PSServer of serverState
 
 type KIAndCCS = (epoch * StatefulAEAD.state)
 
 type pre_hs_state = {
+  (* I/O buffers *)
   hs_outgoing    : bytes;                  (* outgoing data before a ccs *)
   ccs_outgoing: (bytes * KIAndCCS) option; (* marker telling there is a ccs ready *)
   hs_outgoing_after_ccs: bytes;            (* data to be sent after the ccs has been sent *)
   hs_incoming    : bytes;                  (* partial incoming HS message *)
   ccs_incoming: KIAndCCS option; (* used to store the computed secrets for receiving data. Not set when receiving CCS, but when we compute the session secrects *)
-  poptions: config;
+ 
+  (* local configuration *)
+  poptions: config; 
   sDB: SessionDB;
-  pstate : protoState;
-  hs_msg_log: bytes;
-  hs_next_info: SessionInfo; (* The session we are establishing within the current HS *)
-  next_ms: masterSecret; (* The ms we are establishing *)
-  ki_crand: bytes; (* Client random for the session we're establishing (to be stored in epoch) *)
-  ki_srand: bytes; (* Current server random, as above *)
-  hs_renegotiation_info_cVerifyData: bytes (*Renegotiation info associated with the session we're establishing *)
-  hs_renegotiation_info_sVerifyData: bytes
+  
+  (* current handshake & session we are establishing, to be pushed within pstate *) 
+  pstate: protoState;
+  hs_next_info: SessionInfo; (* session being established or resumed, including crand and srand from its full handshake *)
+  next_ms: masterSecret;     (* master secret being established *)
+  hs_msg_log: bytes;         (* sequence of HS messages sent & received so far, to be eventually authenticated *) 
+  
+  (* to be pushed only in resumption-specific state: *)
+  ki_crand: bytes;           (* fresh client random for the session being established *)
+  ki_srand: bytes;           (* fresh server random for the session being established *)
+
+  (* state specific to the renegotiation-info extension
+     - exchanged in the extended Hello messages 
+     - updated with the content of the verifyData messages as the handshake completes *) 
+  hs_renegotiation_info_cVerifyData: bytes 
+  hs_renegotiation_info_sVerifyData: bytes 
 }
 
 type hs_state = pre_hs_state
 type nextState = hs_state
+
+/// More specific states; the state name refers to the incoming message we are waiting for 
+
+// For instance, for RSA with an anonymous client, we need just
+type log = bytes 
+type serverState' =  (* note that the CertRequest bits are determined by the config *) 
+   | ClientHello
+   | RSA_ClientCertificate of SessionInfo * ProtocolVersion * log 
+   |  DH_ClientCertificate of SessionInfo * ProtocolVersion * log 
+   | DHE_ClientCertificate of SessionInfo * ProtocolVersion * DHE.sk * log 
+   | RSA_ClientKeyExchange of SessionInfo * ProtocolVersion * log
+   |  DH_ClientKeyExchange of SessionInfo * ProtocolVersion * log 
+   | DHE_ClientKeyExchange of SessionInfo * ProtocolVersion * DHE.sk * log 
+   | CertificateVerify     of SessionInfo * ProtocolVersion * masterSecret * log 
+   | ClientCCS             of SessionInfo * ProtocolVersion * masterSecret * log 
+   | ClientFinished        of SessionInfo * ProtocolVersion * masterSecret * log 
+   (* by convention, the parameters are named si, cv, ms, log *)
+   (* do we need WaitingToWrite? *)
+   | ServerIdle   
+   (* the ProtocolVersion is the highest TLS version proposed by the client *)
+
+type clientState' = 
+   | ServerHello of bytes (* Cr *)
+   | ServerCertificate 
+   | ServerKeyExchange
+   | CertificateRequest 
+   | ServerHelloDone
+   | ServerCCS
+   | ServerFinished
+   | ClientIdle
 
 /// Handshake message format 
 

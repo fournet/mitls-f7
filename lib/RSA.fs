@@ -3,8 +3,8 @@
 open Bytes
 open Error
 
-(* RSA functions required by key exchange.
-   This is a mess I won't fix right now. *)
+(** RSA encryption of PMS **)
+
 type asymKey = AsymKey of System.Security.Cryptography.RSACryptoServiceProvider
 
 let rsaEncrypt (k:asymKey)  (v:bytes)  = 
@@ -29,7 +29,7 @@ let rsa_skey (key:string) =
 let rsa_pkey_bytes (key:byte[]) = 
   let mutable rkey = new System.Security.Cryptography.RSAParameters() in
   rkey.Exponent <- Array.sub key (key.Length - 3) 3;
-  rkey.Modulus <- Array.sub key (key.Length - 128 - 5) 128; 
+  rkey.Modulus  <- Array.sub key (key.Length - 128 - 5) 128; 
   let rsa = new System.Security.Cryptography.RSACryptoServiceProvider () in
     rsa.ImportParameters(rkey);
     AsymKey rsa

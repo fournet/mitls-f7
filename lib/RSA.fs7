@@ -3,6 +3,13 @@
 (* Contains crypto functions not yet ported to the computational model. *)
 (* One day this module will disappear and all the code will only use
    computationally-friendly modules *)
+
+// See also 
+// On the Security of RSA Encryption in TLS
+// Jakob Jonsson and Burton S. Kaliski Jr.
+// http://www.iacr.org/archive/crypto2002/24420127/24420127.pdf   
+
+
 open Bytes
 open Error
 
