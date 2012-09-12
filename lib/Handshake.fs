@@ -301,9 +301,6 @@ type clientState' =
 
 /// Handshake message format 
 
-// we need a precise spec, as verifyData is a series of such messages.
-// private definition !ht,data. FragmentBytes(ht,data) = HTBytes(ht) @| VLBytes(3,data)
-
 let makeMessage ht data = htbytes ht @| vlbytes 3 data 
 
 let parseMessage state =
@@ -437,11 +434,6 @@ let rec compressionMethodsBytes cs =
 
 /// Client Hello 
 
-// ClientHelloBytes(clVer,clRdm,sid,clientCipherSuites,cm,extensions) = 
-// VersionBytes clVer @| CRBytes clRdm @| SidBytes sid 
-//     @| CipherSuitesBytes clientCipherSuites 
-//     @| CompressionsBytes cm @| extensions
-
 let parseClientHello data =
     // pre: Length(data) > 34
     // correct post: something like data = ClientHelloBytes(...) 
@@ -496,19 +488,13 @@ let makeClientHelloBytes poptions crand session cVerifyData =
 
 /// Server Hello 
 
-let makeServerHelloBytes poptions sinfo srand prevVerifData =
+let makeServerHelloBytes sinfo srand ext = 
     let verB = versionBytes sinfo.protocol_version in
     let sidB = vlbytes 1 (match sinfo.sessionID with
                           | None -> [||]
                           | Some(sid) -> sid)
     let csB = cipherSuiteBytes sinfo.cipher_suite in
     let cmB = compressionBytes sinfo.compression in
-    let ext =
-        if poptions.safe_renegotiation then
-            let ren_extB = makeRenegExtBytes prevVerifData in
-            makeExtBytes ren_extB
-        else
-            [||]
     let data = verB @| srand @| sidB @| csB @| cmB @| ext in
     makeMessage HT_server_hello data
 
@@ -910,10 +896,6 @@ let compute_master_secret pms version crandom srandom =
 
 /// Certificates and Certificate Requests
 
-// CertificateListBytes([]) = [||] 
-// CertificateListBytes(c::cs) = CertificateBytes(c) @| CertificateListBytes(cs)
-// CertificatesBytes(cs) = VLBytes 3 (CertificateListBytes(cs))
- 
 let certificatesBytes certList =
     vlbytes 3 (List.foldBack (fun c a -> vlbytes 3 (certificateBytes c) @| a) certList [||])
     
@@ -1049,8 +1031,10 @@ let parseCertificateRequest version data =
                 certificate_authorities = distNamesList} in
     correct (res)
 
-let makeServerHelloDoneBytes unitVal =
-    makeMessage HT_server_hello_done [||]
+/// ServerHelloDone
+
+let serverHelloDoneBytes = makeMessage HT_server_hello_done [||] 
+
 
 let makeClientKEXBytes state clSpecInfo =
     if canEncryptPMS state.hs_next_info.cipher_suite then
@@ -1786,8 +1770,14 @@ let getServerCert cs ops =
         correct (cert)
 
 let prepare_server_output_full state maxClVer =
-    let ext_data = state.hs_renegotiation_info_cVerifyData @| state.hs_renegotiation_info_sVerifyData in
-    let sHelloB = makeServerHelloBytes state.poptions state.hs_next_info state.ki_srand ext_data in
+    let ext = 
+      if state.poptions.safe_renegotiation then
+        let data = state.hs_renegotiation_info_cVerifyData @| state.hs_renegotiation_info_sVerifyData in
+        let ren_extB = makeRenegExtBytes data in
+        makeExtBytes ren_extB
+      else
+        [||]
+    let serverHelloB = makeServerHelloBytes state.hs_next_info state.ki_srand ext  in
     let next_info = {state.hs_next_info with init_srand = state.ki_srand} in
     let state = {state with hs_next_info = next_info} in
     let res =
@@ -1819,8 +1809,7 @@ let prepare_server_output_full state maxClVer =
                     makeCertificateRequestBytes state.hs_next_info.cipher_suite state.hs_next_info.protocol_version
                 else
                     [||]
-            let sHelloDoneB = makeServerHelloDoneBytes () in
-            let output = sHelloB @| certificateB @| serverKeyExchangeB @| certificateRequestB @| sHelloDoneB in
+            let output = serverHelloB @| certificateB @| serverKeyExchangeB @| certificateRequestB @| serverHelloDoneBytes in
             (* Log the output and put it into the output buffer *)
             let new_log = state.hs_msg_log @| output in
             let new_out = state.hs_outgoing @| output in
@@ -1841,8 +1830,14 @@ let negotiate cList sList =
     List.tryFind (fun s -> List.exists (fun c -> c = s) cList) sList
 
 let prepare_server_output_resumption ci state =
-    let ext_data = state.hs_renegotiation_info_cVerifyData @| state.hs_renegotiation_info_sVerifyData in
-    let sHelloB = makeServerHelloBytes state.poptions state.hs_next_info state.ki_srand ext_data in
+    let ext = 
+      if state.poptions.safe_renegotiation then
+        let data = state.hs_renegotiation_info_cVerifyData @| state.hs_renegotiation_info_sVerifyData in
+        let ren_extB = makeRenegExtBytes data in
+        makeExtBytes ren_extB
+      else
+        [||]
+    let sHelloB = makeServerHelloBytes state.hs_next_info state.ki_srand ext in
     let new_out = state.hs_outgoing @| sHelloB in
     let new_log = state.hs_msg_log  @| sHelloB in
     let state = {state with hs_outgoing = new_out; hs_msg_log = new_log} in
@@ -1884,7 +1879,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 (* Log the received message *)
                 let new_log = state.hs_msg_log @| to_log in
                 let state = {state with hs_msg_log = new_log} in
-                (* Handling of renegotiation_info extenstion *)
+                (* handle extensions: for now only renegotiation_info *)
                 let extRes =
                     if state.poptions.safe_renegotiation then
                         if check_client_renegotiation_info cHello state.hs_renegotiation_info_cVerifyData then
