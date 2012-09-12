@@ -1036,6 +1036,8 @@ let parseCertificateRequest version data =
 let serverHelloDoneBytes = makeMessage HT_server_hello_done [||] 
 
 
+/// ClientKeyExchange
+
 let makeClientKEXBytes state clSpecInfo =
     if canEncryptPMS state.hs_next_info.cipher_suite then
         let pms = genPMS state.hs_next_info state.poptions.maxVer in
@@ -1071,6 +1073,28 @@ let makeClientKEXBytes state clSpecInfo =
             let ycBytes = [||] in
             let pms = empty_pms state.hs_next_info in
             correct ((makeMessage HT_client_key_exchange ycBytes),pms)
+
+let parseClientKEX sinfo sSpecState pops data =
+    if canEncryptPMS sinfo.cipher_suite then
+        match sinfo.serverID with
+        | Some(cert) ->
+            let encrypted = (* parse the message *)
+                match sinfo.protocol_version with
+                | SSL_3p0 -> correct (data)
+                | TLS_1p0 | TLS_1p1| TLS_1p2 ->
+                        match vlparse 2 data with
+                        | Correct (encPMS) -> correct(encPMS)
+                        | Error(x,y) -> Error(HSError(AD_decode_error),HSSendAlert)
+            match encrypted with
+            | Correct(encPMS) ->
+                let res = getPMS sinfo sSpecState.highest_client_ver pops.check_client_version_in_pms_for_old_tls cert encPMS in
+                correct(res)
+            | Error(x,y) -> Error(x,y)
+        | None -> unexpectedError "[parseClientKEX] when the ciphersuite can encrypt the PMS, the server certificate should always be set"
+    else
+        (* TODO *)
+        (* We should support the DH key exchanges *)
+        Error(HSError(AD_internal_error),HSSendAlert)
 
 (* Obsolete *)
 (*
@@ -1229,27 +1253,6 @@ let ciphstate_of_ciphtype ct key iv =
 let find_client_cert (certReqMsg:certificateRequest) : (cert list) option =
     (* TODO *) None
 
-let parseClientKEX sinfo sSpecState pops data =
-    if canEncryptPMS sinfo.cipher_suite then
-        match sinfo.serverID with
-        | Some(cert) ->
-            let encrypted = (* parse the message *)
-                match sinfo.protocol_version with
-                | SSL_3p0 -> correct (data)
-                | TLS_1p0 | TLS_1p1| TLS_1p2 ->
-                        match vlparse 2 data with
-                        | Correct (encPMS) -> correct(encPMS)
-                        | Error(x,y) -> Error(HSError(AD_decode_error),HSSendAlert)
-            match encrypted with
-            | Correct(encPMS) ->
-                let res = getPMS sinfo sSpecState.highest_client_ver pops.check_client_version_in_pms_for_old_tls cert encPMS in
-                correct(res)
-            | Error(x,y) -> Error(x,y)
-        | None -> unexpectedError "[parseClientKEX] when the ciphersuite can encrypt the PMS, the server certificate should always be set"
-    else
-        (* TODO *)
-        (* We should support the DH key exchanges *)
-        Error(HSError(AD_internal_error),HSSendAlert)
 
 let certificateVerifyCheck (state:hs_state) (payload:bytes) =
     (* TODO: pretend client sent valid verification data. 
