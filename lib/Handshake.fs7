@@ -163,7 +163,7 @@ definition !cv,clRdm,sid,clientCipherSuites,cm,ext.
       VersionBytes cv @| CRBytes clRdm @| SidBytes sid @| CipherSuitesBytes clientCipherSuites @| CompressionsBytes cm @| ext )
 
 //$ get rid of the intermediate record
-//$ factor ouyt extension processing
+//$ factor out extension processing
 val makeClientHelloBytes: ... -> msg:bytes { msg = ClientHelloBytes(...) } 
 val parseClientHello: payload:bytes -> ( cv,clRdm,sid,clientCipherSuites,cm,ext { MessageBytes(HT_client_hello,payload) =  ClientHelloBytes(...) }  ) Result
 
@@ -214,24 +214,25 @@ val parseClientKexRsa: si:SessionInfo -> payload:bytes -> pms:pms { !cs. si.serv
 // Full handshake, RSA with anonymous client, waiting for ClientKeyExchange:
 
 config, si, log { 
-// ? clientVer clientSid, clientCipherSuites, clientCm, clientExt,    cs, ts 
+// ? clientVer clientSid, clientCipherSuites, clientCm, clientExt,    certs, ts 
     log = ClientHelloBytes(clientVer         , si.crand, clientSid   , clientCipherSuites, clientCm      , clientExt)
       @|  ServerHelloBytes(si.protocolVersion, si.srand, si.sessionID, si.cipherSuite    , si.compression, serverExt)
-      @|  CertificateBytes(cs)
+      @|  CertificateBytes(certs)
       @|  serverHelloDoneBytes
      
- /\ si.sessionID <> clientSid (* full handshake *)
- /\ si.protocolVersion = Min(clientVer, config.ver) 
+ /\ (si.sessionID = [||] \/ si.sessionID <> clientSid) (* full handshake *)
+ /\ si.protocolVersion = Min(clientVer, config.maxVer) 
  /\ si.cipherSuite in clientCipherSuites 
  /\ si.cipherSuite in config.cipherSuites 
  /\ si.compression in clientCm
+ /\ si.compression in config.compressions
  /\ Extensions(clientExt,serverExt)
 
  (* RSA-specific *)
  //\ config says anon client
  /\ si.cipherSuite = CipherSuite(RSA,ts)
  /\ si.clientID = None
- /\ si.serverID = Some(cs)
+ /\ si.serverID = Some(certs)
 }
 
 // Idem, after a few more steps
@@ -261,7 +262,7 @@ config, si, log, pms {
  /\ ...
 
  (* after accepting Finished *) 
- /\ ( Honest(pms) /\ Strong(si.cipherSuite) -> ?clientConfig. ClientFinished(clientConfig,si) /\ clientVer = clientConfig.maxVer /\ ...  (* we may also rewrite the whole invariant by unification *) ) 
+ /\ ( Honest(pms) /\ StrongHS(si.cipherSuite) -> ?clientConfig. ClientFinished(clientConfig,si) /\ clientVer = clientConfig.maxVer /\ ...  (* we may also rewrite the whole invariant by unification *) ) 
 
 }
 
