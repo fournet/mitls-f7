@@ -283,11 +283,12 @@ type serverState' =  (* note that the CertRequest bits are determined by the con
    | ClientKeyExchangeDHE of SessionInfo * DHE.sk * log 
    | CertificateVerify    of SessionInfo * masterSecret * log 
    | ClientCCS            of SessionInfo * masterSecret * log
-   | ClientCCSResume      of SessionInfo * crand * srand * masterSecret * log  
-   | ClientFinished       of SessionInfo * masterSecret * log 
-   | ClientFinishedResume of SessionInfo * masterSecret * log 
+   | ClientFinished       of SessionInfo * masterSecret * StatefulAEAD.writer * log 
    (* by convention, the parameters are named si, cv, cr', sr', ms, log *)
-   | ServerWaitingToWrite
+   | ServerWritingCCS     of StatefulAEAD.writer * bytes (* outgoing after CCS; this and next state shared only for full HS *)
+   | ServerWritingFinished
+   | ClientCCSResume      of SessionInfo * crand * srand * masterSecret * log  
+   | ClientFinishedResume of SessionInfo * masterSecret * log 
    | ServerIdle   
    (* the ProtocolVersion is the highest TLS version proposed by the client *)
 
@@ -298,10 +299,12 @@ type clientState' =
    | ServerCertificateDHE  of SessionInfo * log
    | ServerKeyExchangeDHE  of SessionInfo * log
    | CertificateRequestRSA of SessionInfo * log (* In fact, CertReq or SHelloDone will be accepted *)
-   | CertificateRequestDH  of SessionInfo * log
+   | CertificateRequestDH  of SessionInfo * log (* We pick our cert and store it in sessionInfo as soon as the server requests it.
+                                                   We put None if we don't have such a certificate, and we know whether to send
+                                                   the Certificate message or not based on the state when we receive the Finished message *)
    | CertificateRequestDHE of SessionInfo * DHE.sk * log
-   | ServerHelloDoneRSA    of SessionInfo * log * bytes (* The received CertReq, we're here only if CertReq was sent by the server. Shall we save it in a parsed form? *)
-   | ServerHelloDoneDH     of SessionInfo * log * bytes
+   | ServerHelloDoneRSA    of SessionInfo * log
+   | ServerHelloDoneDH     of SessionInfo * log
    | ServerHelloDoneDHE    of SessionInfo * DHE.sk * bytes * log
    | ServerCCS             of SessionInfo * masterSecret * log
    | ServerCCSResume       of SessionInfo * masterSecret * log
