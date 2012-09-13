@@ -269,7 +269,9 @@ type nextState = hs_state
 /// More specific states; the state name refers to the incoming message we are waiting for 
 
 // For instance, for RSA with an anonymous client, we need just
-type log = bytes 
+type log = bytes
+type crand = bytes
+type srand = bytes
 type serverState' =  (* note that the CertRequest bits are determined by the config *) 
                      (* we may omit some ProtocolVersion, mostly a ghost variable *)
    | ClientHello
@@ -281,22 +283,31 @@ type serverState' =  (* note that the CertRequest bits are determined by the con
    | ClientKeyExchangeDHE of SessionInfo * DHE.sk * log 
    | CertificateVerify    of SessionInfo * masterSecret * log 
    | ClientCCS            of SessionInfo * masterSecret * log
-   | ClientCCSResume      of SessionInfo * bytes * bytes (* cr' & sr' *) * masterSecret * log  
+   | ClientCCSResume      of SessionInfo * crand * srand * masterSecret * log  
    | ClientFinished       of SessionInfo * masterSecret * log 
    | ClientFinishedResume of SessionInfo * masterSecret * log 
    (* by convention, the parameters are named si, cv, cr', sr', ms, log *)
-   (* do we need WaitingToWrite? *)
+   | ServerWaitingToWrite
    | ServerIdle   
    (* the ProtocolVersion is the highest TLS version proposed by the client *)
 
 type clientState' = 
-   | ServerHello of bytes (* Cr *)
-   | ServerCertificate 
-   | ServerKeyExchange
-   | CertificateRequest 
-   | ServerHelloDone
-   | ServerCCS
-   | ServerFinished
+   | ServerHello           of crand * sessionID (* * bytes for extensions? *) * log
+   | ServerCertificateRSA  of SessionInfo * log
+   | ServerCertificateDH   of SessionInfo * log
+   | ServerCertificateDHE  of SessionInfo * log
+   | ServerKeyExchangeDHE  of SessionInfo * log
+   | CertificateRequestRSA of SessionInfo * log (* In fact, CertReq or SHelloDone will be accepted *)
+   | CertificateRequestDH  of SessionInfo * log
+   | CertificateRequestDHE of SessionInfo * DHE.sk * log
+   | ServerHelloDoneRSA    of SessionInfo * log * bytes (* The received CertReq, we're here only if CertReq was sent by the server. Shall we save it in a parsed form? *)
+   | ServerHelloDoneDH     of SessionInfo * log * bytes
+   | ServerHelloDoneDHE    of SessionInfo * DHE.sk * bytes * log
+   | ServerCCS             of SessionInfo * masterSecret * log
+   | ServerCCSResume       of SessionInfo * masterSecret * log
+   | ServerFinished        of SessionInfo * masterSecret * log
+   | ServerFinishedResume  of SessionInfo * masterSecret * log
+   | ClientWaitingToWriteResume
    | ClientIdle
 
 /// Handshake message format 
