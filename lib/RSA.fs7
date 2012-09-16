@@ -21,3 +21,36 @@ val rsaDecrypt: asymKey -> bytes -> bytes Result
 
 val rsa_skey: string -> asymKey
 val rsa_pkey_bytes: bytes -> asymKey
+
+
+/// Some draft assumption discussed with Markulf on 13/9/12
+
+let sk, pk = keyGen() (* sk is private *) 
+
+let compliantClient v Cr Sr = 
+  (* check that Cr is used at most once *)
+  let pms  = random 46
+  let pms0 = random 46
+  log := (pms0,pms)::!log
+  rsaEncrypt pk (v @| if b then pms else pms0),
+  prf (v, pms, Cr, Sr)
+
+let decryptRO v Cr Sr =
+  (* check that Sr is used at most once *)
+  let _, pms0 = rsaDecrypt sk
+  let pms = try assoc !log pms0 with not_found -> pms0
+  prf (v, pms, Cr, Sr)
+
+// The adversary get pk, compliantClient, decryptRO, and prf. Its goal is to guess b. 
+
+// when b = 0, we have a simplification of concrete TLS
+// when b = 1, the protocol is parametric in "compliant" PMSs, so we get good session keys 
+
+/// Hopefully we can reduce it to RSA with an extra oracle:
+
+let ptxt plain cipher = (rsaDecrypt sk cipher = plain) (* possibly after erasing some bytes *)
+
+// I am puzzled that we do not use the cipher-integrity guarantee provided by the ClientFinished check
+// informally, the adversary would need to extract the pms to forge a Finished for any related ciphertext  
+
+
