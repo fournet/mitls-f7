@@ -9,11 +9,11 @@ open System.Security.Cryptography.X509Certificates
 type cert =
     | PriCert of X509Certificate2
 
-let certificate_of_bytes (cert_list:bytes) =
-    try correct (PriCert(new X509Certificate2(cert_list))) with
+let certificate_of_bytes (b:bytes) =
+    try correct (PriCert(new X509Certificate2(b))) with
     | :? CryptographicException -> Error(CertificateParsing,Internal)
 
-let certificateBytes (PriCert(cert)) = cert.Export(X509ContentType.Cert)
+let certificateBytes (PriCert(x)) = x.Export X509ContentType.Cert
 
 let pubKey_of_certificate (PriCert(cert)) =
     let rawkey = cert.GetPublicKey () in

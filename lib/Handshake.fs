@@ -141,7 +141,8 @@ type SigAndHashAlg = {
 
 (** A.4.2 Server Authentication and Key Exchange Messages *)
 
-type certificate = { certificate_list: cert list }
+//useless?
+// type certificate = { certificate_list: cert list }
 
 (* Server Key Exchange *)
 (* TODO *)
@@ -152,13 +153,6 @@ let CLT_RSA_Sign     = [| 1uy |]
 let CLT_DSS_Sign     = [| 2uy |]
 let CLT_RSA_Fixed_DH = [| 3uy |]
 let CLT_DSS_Fixed_DH = [| 4uy |]
-(* was:
-type ClientCertType =
-    | CLT_RSA_Sign = 1
-    | CLT_DSS_Sign = 2
-    | CLT_RSA_Fixed_DH = 3
-    | CLT_DSS_Fixed_DH = 4
-*)
 
 type certificateRequest = {
     (* RFC acknowledges the relation between these fields is "somewhat complicated" *)
@@ -266,6 +260,7 @@ type pre_hs_state = {
 type hs_state = pre_hs_state
 type nextState = hs_state
 
+(*
 /// More specific states; the state name refers to the incoming message we are waiting for 
 
 // For instance, for RSA with an anonymous client, we need just
@@ -312,6 +307,7 @@ type clientState' =
    | ServerFinishedResume  of SessionInfo * masterSecret * log
    | ClientWaitingToWriteResume
    | ClientIdle
+*)
 
 /// Handshake message format 
 
@@ -910,8 +906,8 @@ let compute_master_secret pms version crandom srandom =
 
 /// Certificates and Certificate Requests
 
-let certificatesBytes certList =
-    vlbytes 3 (List.foldBack (fun c a -> vlbytes 3 (certificateBytes c) @| a) certList [||])
+let certificatesBytes certs =
+    vlbytes 3 (List.foldBack (fun c a -> vlbytes 3 (certificateBytes c) @| a) certs [||])
     
 let makeCertificateBytes cso =
     let cs = match cso with None -> [] | Some(cs) -> cs
@@ -956,10 +952,10 @@ let parseCertificate data =
     match vlsplit 3 data with
     | Error(x,y) -> Error(HSError(AD_bad_certificate_fatal),HSSendAlert)
     | Correct (certList,_) ->
-    //CF why ignoring the rest? This breaks VerifyData
+    //$CF why ignoring the rest? This breaks VerifyData
     match parseCertificate_int certList [] with
     | Error(x,y) -> Error(x,y)
-    | Correct(certList) -> correct({certificate_list = certList})
+    | Correct(certs) -> correct(certs)
 
 //CF This list used to be reversed; was it intented??
 //   Also, we do not currently enforce that the bytes are between 0 and 3.
@@ -1002,6 +998,7 @@ let rec distNamesList_of_bytes data res =
 
 let makeCertificateRequestBytes cs version =
     (* TODO: now we send all possible choices, including inconsistent ones, and we hope the client will pick the proper one. *)
+    //$ make it an explicit protocol option? In the abstract protocol description we do not consider multiple choices!
     let certTypes = vlbytes 1 (CLT_RSA_Sign @| CLT_DSS_Sign @| CLT_RSA_Fixed_DH @| CLT_DSS_Fixed_DH) 
     let sigAndAlg =
         match version with
@@ -1013,7 +1010,9 @@ let makeCertificateRequestBytes cs version =
         | _ -> [||]
     (* We specify no cert auth *)
     let distNames = vlbytes 2 [||] in
-    let data = certTypes @| sigAndAlg @| distNames in
+    let data = certTypes 
+            @| sigAndAlg 
+            @| distNames in
     makeMessage HT_certificate_request data
 
 let parseCertificateRequest version data =
@@ -1494,7 +1493,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         let new_log = state.hs_msg_log @| to_log in
                         let state = {state with hs_msg_log = new_log} in           
                         (* update the sinfo we're establishing *)
-                        let next_sinfo = {state.hs_next_info with serverID = Some(certs.certificate_list.Head)} in
+                        let next_sinfo = {state.hs_next_info with serverID = Some(certs.Head)} in
                         let state = {state with hs_next_info = next_sinfo} in
                         if cipherSuiteRequiresKeyExchange state.hs_next_info.cipher_suite then
                             let state = {state with pstate = PSClient(ServerKeyExchange)} in
@@ -1951,7 +1950,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             | ClCert (sSpecSt) ->
                 match parseCertificate payload with
                 | Error(x,y) -> InError(x,y,state)
-                | Correct(certMsg) ->
+                | Correct(certs) ->
                     if false then // FIXME: not (certs.certificate_list trusted by state.poptions.trustedRootCertificates)
                         InError(HSError(AD_bad_certificate_fatal),HSSendAlert,state)
                     else (* We have validated client identity *)
@@ -1960,10 +1959,9 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         let state = {state with hs_msg_log = new_log} in           
                         (* update the sinfo we're establishing *)
                         let next_info =
-                            if certMsg.certificate_list.IsEmpty then
-                                {state.hs_next_info with clientID = None}
-                            else
-                                {state.hs_next_info with clientID = Some(certMsg.certificate_list.Head)}
+                            match certs with 
+                            | []   -> {state.hs_next_info with clientID = None}
+                            | c::_ -> {state.hs_next_info with clientID = Some(c) }
                         let state = {state with hs_next_info = next_info} in
                         (* move to the next state *)
                         let state = {state with pstate = PSServer(ClientKEX(sSpecSt))} in
