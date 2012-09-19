@@ -7,6 +7,9 @@ open CipherSuites
 open TLSInfo
 open Formats
 
+open Org.BouncyCastle.Crypto.Engines
+open Org.BouncyCastle.Crypto.Parameters
+
 type cipher = bytes
 
 (* Raw symmetric functions for encryption and decryption.
@@ -62,14 +65,14 @@ let tdesDecrypt ki key iv (data:bytes) =
     let dec = tdes.CreateDecryptor(key,iv) in
     symDecrypt dec data
 
-let rc4Encrypt (ki:epoch) (state:ManagedRC4.RC4) data =
-    let res = Array.copy data in
-    state.Encrypt(res,uint32 (length res));
+let rc4Encrypt (ki:epoch) (state:RC4Engine) data =
+    let res = Array.create (length data) (byte 0) in
+    state.ProcessBytes(data, 0, length data, res, 0)
     res
 
-let rc4Decrypt (ki:epoch) (state:ManagedRC4.RC4) data =
-    let res = Array.copy data in
-    state.Decrypt(res,uint32 (length res));
+let rc4Decrypt (ki:epoch) (state:RC4Engine) data =
+    let res = Array.create (length data) (byte 0) in
+    state.ProcessBytes(data, 0, length data, res, 0)
     res
 
 (* Early TLS chains IVs but this is not secure against adaptive CPA *)
@@ -88,7 +91,7 @@ type blockState =
      iv: iv3}
 type streamState = 
     {skey: key; // Ghost: Only stored so that we can LEAK it
-     sstate: ManagedRC4.RC4}
+     sstate: RC4Engine}
 
 type state =
     | BlockCipher of blockState
@@ -102,8 +105,8 @@ let GENOne ki =
     match alg with
     | RC4_128 ->
         let k = mkRandom (encKeySize alg) in
-        let rc4 = new ManagedRC4.RC4() in
-        rc4.Init(k,uint32 (length k));
+        let rc4 = new RC4Engine() in
+        rc4.Init(true (* unused / RC4 sym. *), new KeyParameter(k))
         let key = {k = k} in
         StreamCipher({skey = key; sstate = rc4})
     | _ ->
@@ -124,8 +127,8 @@ let COERCE (ki:epoch) k iv =
     let alg = encAlg_of_ciphersuite si.cipher_suite in
     match alg with
     | RC4_128 ->
-        let rc4 = new ManagedRC4.RC4() in
-        rc4.Init(k,uint32 (length k));
+        let rc4 = new RC4Engine() in
+        rc4.Init(true (* unused / RC4 sym. *), new KeyParameter(k));
         let key = {k = k} in
         StreamCipher({skey = key; sstate = rc4})
     | _ ->

@@ -143,16 +143,18 @@
     <Compile Include="RPC.fs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\ManagedRC4\ManagedRC4.vcxproj">
-      <Name>ManagedRC4</Name>
-      <Project>{eb382e07-589b-4894-aafa-754978c99ce3}</Project>
-      <Private>True</Private>
-    </ProjectReference>
     <Reference Include="mscorlib" />
     <Reference Include="FSharp.Core" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\BouncyCastle\BouncyCastle.csproj">
+      <Name>BouncyCastle</Name>
+      <Project>{38872a5f-e87e-4fad-b109-8eb7b2e6a4a0}</Project>
+      <Private>True</Private>
+    </ProjectReference>
   </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
 	     Other similar extension points exist, see Microsoft.Common.targets.
