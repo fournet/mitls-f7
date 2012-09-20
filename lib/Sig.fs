@@ -14,60 +14,30 @@ open Org.BouncyCastle.Security
 
 (* ------------------------------------------------------------------------ *)
 type sigAlg = 
-  | SA_RSA //[8.1.1] RSA digital signatures are performed using PKCS #1 block type 1. 
+  | SA_RSA
   | SA_DSA 
   | SA_ECDSA
 
-type hashAlg = // annoyingly not the same as Algorithms.hashAlg
-  | MD5    // 1
-  | SHA1   // 2
-  | SHA224 // 3
-  | SHA256 // 4
-  | SHA384 // 5
-  | SHA512 // 6
-  
-type alg = sigAlg * Algorithms.hashAlg // hashAlg does *not* include some values from the spec.
+type alg = sigAlg * hashAlg
 
 type text = bytes
 type sigv = bytes 
 
 (* ------------------------------------------------------------------------ *)
-type dsaparams = { p : bytes; q : bytes; g : bytes; }
-
-type skeyparams =
-| SK_RSA of bytes * bytes (* modulus x exponent *)
-| SK_DSA of bytes * dsaparams
-
-type vkeyparams =
-| VK_RSA of bytes * bytes
-| VK_DSA of bytes * dsaparams
-
 type skey = SKey of skeyparams * hashAlg
-type vkey = VKey of vkeyparams * hashAlg
+type vkey = VKey of pkeyparams * hashAlg
+
+let create_skey (h : hashAlg) (p : skeyparams) = SKey (p, h)
+let create_vkey (h : hashAlg) (p : pkeyparams) = VKey (p, h)
 
 (* ------------------------------------------------------------------------ *)
-let defaultAlg cs =
-  let a = 
-    match cs with 
-    | RSA | DH_RSA | DHE_RSA (* | RSA_PSK | ECDH_RSA | ECDHE_RSA *) -> SA_RSA
-    | DH_DSS | DHE_DSS                                              -> SA_DSA
-  (*| ECDH_ECDSA | ECDHE_ECDSA                                      -> SA_ECDSA *)
-  (a, SHA1)
-
-(* ------------------------------------------------------------------------ *)
-let sighash_of_hash = function
-| Algorithms.MD5    -> MD5
-| Algorithms.SHA    -> SHA1
-| Algorithms.SHA256 -> SHA256
-| Algorithms.SHA384 -> SHA384
-
 let sigalg_of_skeyparams = function
 | SK_RSA _ -> SA_RSA
 | SK_DSA _ -> SA_DSA
 
 let sigalg_of_vkeyparams = function
-| VK_RSA _ -> SA_RSA
-| VK_DSA _ -> SA_DSA
+| PK_RSA _ -> SA_RSA
+| PK_DSA _ -> SA_DSA
 
 (* ------------------------------------------------------------------------ *)
 let bytes_to_bigint (b : bytes) = new BigInteger(b)
@@ -77,11 +47,9 @@ let bytes_of_bigint (b : BigInteger) = b.ToByteArray()
 let new_hash_engine (h : hashAlg) : IDigest =
     match h with
     | MD5    -> (new MD5Digest   () :> IDigest)
-    | SHA1   -> (new Sha1Digest  () :> IDigest)
-    | SHA224 -> (new Sha224Digest() :> IDigest)
+    | SHA    -> (new Sha1Digest  () :> IDigest)
     | SHA256 -> (new Sha256Digest() :> IDigest)
     | SHA384 -> (new Sha384Digest() :> IDigest)
-    | SHA512 -> (new Sha512Digest() :> IDigest)
 
 (* ------------------------------------------------------------------------ *)
 let RSA_sign (m, e) (h : hashAlg) (t : text) : sigv =
@@ -105,7 +73,7 @@ let RSA_gen (h : hashAlg) =
     let vkey = (keys.Public  :?> RsaKeyParameters) in
     let skey = (keys.Private :?> RsaKeyParameters) in
 
-    (VKey (VK_RSA (bytes_of_bigint vkey.Modulus, bytes_of_bigint vkey.Exponent), h),
+    (VKey (PK_RSA (bytes_of_bigint vkey.Modulus, bytes_of_bigint vkey.Exponent), h),
      SKey (SK_RSA (bytes_of_bigint skey.Modulus, bytes_of_bigint skey.Exponent), h))
 
 (* ------------------------------------------------------------------------ *)
@@ -144,7 +112,7 @@ let DSA_gen (h : hashAlg) =
     let vkey = (keys.Public  :?> DsaPublicKeyParameters) in
     let skey = (keys.Private :?> DsaPrivateKeyParameters) in
 
-    (VKey (VK_DSA (bytes_of_bigint vkey.Y, bytes_of_dsaparams dsaparams.P dsaparams.Q dsaparams.G), h),
+    (VKey (PK_DSA (bytes_of_bigint vkey.Y, bytes_of_dsaparams dsaparams.P dsaparams.Q dsaparams.G), h),
      SKey (SK_DSA (bytes_of_bigint skey.X, bytes_of_dsaparams dsaparams.P dsaparams.Q dsaparams.G), h))
 
 (* ------------------------------------------------------------------------ *)
@@ -152,12 +120,12 @@ let sign (a : alg) (sk : skey) (t : text) : sigv =
     let asig, ahash = a in
     let (SKey (kparams, khash)) = sk in
 
-    if sighash_of_hash ahash <> khash then
-        failwith
+    if ahash <> khash then
+        Error.unexpectedError
             (sprintf "Sig.sign: requested sig-hash = %A, but key requires %A"
                 ahash khash)
     if asig <> sigalg_of_skeyparams kparams then
-        failwith
+        Error.unexpectedError
             (sprintf "Sig.sign: requested sig-algo = %A, but key requires %A"
                 asig (sigalg_of_skeyparams kparams))
 
@@ -170,28 +138,28 @@ let verify (a : alg) (vk : vkey) (t : text) (s : sigv) =
     let asig, ahash = a in
     let (VKey (kparams, khash)) = vk in
 
-    if sighash_of_hash ahash <> khash then
-        failwith
+    if ahash <> khash then
+        Error.unexpectedError
             (sprintf "Sig.verify: requested sig-hash = %A, but key requires %A"
                 ahash khash)
     if asig <> sigalg_of_vkeyparams kparams then
-        failwith
+        Error.unexpectedError
             (sprintf "Sig.verify: requested sig-algo = %A, but key requires %A"
                 asig (sigalg_of_vkeyparams kparams))
 
     match kparams with
-    | VK_RSA (m, e) -> RSA_verify (m, e) khash t s
-    | VK_DSA (y, p) -> DSA_verify (y, p) khash t s
+    | PK_RSA (m, e) -> RSA_verify (m, e) khash t s
+    | PK_DSA (y, p) -> DSA_verify (y, p) khash t s
 
 (* ------------------------------------------------------------------------ *)
 let gen (a:alg) : vkey * skey =
     let asig, ahash = a in
 
     match asig with
-    | SA_RSA   -> RSA_gen (sighash_of_hash ahash)
-    | SA_DSA   -> DSA_gen (sighash_of_hash ahash)
-    | SA_ECDSA -> failwith "todo"
+    | SA_RSA   -> RSA_gen ahash
+    | SA_DSA   -> DSA_gen ahash
+    | SA_ECDSA -> Error.unexpectedError "todo"
 
 (* ------------------------------------------------------------------------ *)
-let PkBytes (a:alg) (vk : vkey) : bytes = failwith "todo"
-let SkBytes (a:alg) (sk : skey) : bytes = failwith "todo"
+let PkBytes (a:alg) (vk : vkey) : bytes = Error.unexpectedError "todo"
+let SkBytes (a:alg) (sk : skey) : bytes = Error.unexpectedError "todo"

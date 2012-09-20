@@ -89,3 +89,14 @@ let ssl_pad1_md5  = createBytes 48 0x36
 let ssl_pad2_md5  = createBytes 48 0x5c
 let ssl_pad1_sha1 = createBytes 40 0x36
 let ssl_pad2_sha1 = createBytes 40 0x5c
+
+(* Key parameters *)
+type dsaparams = { p : bytes; q : bytes; g : bytes; }
+
+type skeyparams =
+| SK_RSA of bytes * bytes (* modulus x exponent *)
+| SK_DSA of bytes * dsaparams
+
+type pkeyparams =
+| PK_RSA of bytes * bytes
+| PK_DSA of bytes * dsaparams

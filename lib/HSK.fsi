@@ -2,9 +2,7 @@
 
 open Bytes
 
-type hint = string
-type cert = bytes
+type hint = string (* hostname CN *)
+type cert = bytes  (* public part of a certificate *)
 
-type pkey
-
-val RSA_pkey: hint -> (cert * pkey) option
+val for_signing : hint -> Sig.alg -> (cert * Sig.skey * Sig.vkey) option

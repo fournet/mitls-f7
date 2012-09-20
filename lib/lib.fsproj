@@ -64,12 +64,12 @@
     <None Include="HMAC.fs7" />
     <Compile Include="HMAC.fsi" />
     <Compile Include="HMAC.fs" />
-    <None Include="HSK.fs7" />
-    <Compile Include="HSK.fsi" />
-    <Compile Include="HSK.fs" />
     <None Include="Sig.fs7" />
     <Compile Include="Sig.fsi" />
     <Compile Include="Sig.fs" />
+    <None Include="HSK.fs7" />
+    <Compile Include="HSK.fsi" />
+    <Compile Include="HSK.fs" />
     <None Include="Certificate.fs7" />
     <Compile Include="Certificate.fsi" />
     <Compile Include="Certificate.fs" />
