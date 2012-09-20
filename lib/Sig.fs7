@@ -68,9 +68,9 @@ type (;a:alg) vkey = bytes //TODO: relate to sk
 
 type authentic =  Msg of alg * vk * text
 
-val Gen:     a:alg -> vk:(;a) vkey * sk:(;a) skey { pk = PK(sk) }
-val Sign:    a:alg -> sk:(;a) skey -> t:text{Msg(a,PK(k),t)} -> (;a) sigv
-val Verify:  a:alg -> pk:(;a) vkey -> t:text -> m:(;a) sigv -> b:bool {b=true /\ Strong(a) => Msg(a,pk,t)}
+val gen:     a:alg -> vk:(;a) vkey * sk:(;a) skey { pk = PK(sk) }
+val sign:    a:alg -> sk:(;a) skey -> t:text{Msg(a,PK(k),t)} -> (;a) sigv
+val verify:  a:alg -> pk:(;a) vkey -> t:text -> m:(;a) sigv -> b:bool {b=true /\ Strong(a) => Msg(a,pk,t)}
 
 val PkBytes: a:alg -> pkey -> bytes
 val SkBytes: a:alg -> sk:skey {!t. Msg(a,pk,t) } -> bytes // a.k.a. leak
