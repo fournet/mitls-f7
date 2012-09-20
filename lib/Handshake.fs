@@ -189,38 +189,76 @@ type finished = bytes
 
 // Handshake state machines 
 
-type clientSpecificState =
-    { resumed_session: bool
-      must_send_cert: certificateRequest option
-      client_certificate: (cert list) option }
+// Legacy state machine. Here for reference until the new one is stable.
 
-type clientState =
-  | ServerHello (* of SessionInfo Option 
-                   client proposed session to be resumed, useful to
-                   check whether we're going to do resumption or full
-                   negotiation *)
-  | Certificate       (* of SessionInfo (* being established *) *)
-  | ServerKeyExchange (* of SessionInfo (* begin established *) *)
-  | CertReqOrSHDone   (* of SessionInfo (* being established *) *)
-  | CSHDone of           (* SessionInfo * *) clientSpecificState  
-  | CCCS of              (* SessionInfo * *) clientSpecificState      
-  | CFinished of         (* SessionInfo * *) clientSpecificState 
-  | CWaitingToWrite of   (* SessionInfo * *) clientSpecificState
-  | CIdle
+// type clientState =
+//   | ServerHello (* of SessionInfo Option 
+//                    client proposed session to be resumed, useful to
+//                    check whether we're going to do resumption or full
+//                    negotiation *)
+//   | Certificate       (* of SessionInfo (* being established *) *)
+//   | ServerKeyExchange (* of SessionInfo (* begin established *) *)
+//   | CertReqOrSHDone   (* of SessionInfo (* being established *) *)
+//   | CSHDone of           (* SessionInfo * *) clientSpecificState  
+//   | CCCS of              (* SessionInfo * *) clientSpecificState      
+//   | CFinished of         (* SessionInfo * *) clientSpecificState 
+//   | CWaitingToWrite of   (* SessionInfo * *) clientSpecificState
+//   | CIdle
+// 
+// type serverState = (* should also include SessionInfo beging established? *)
+//   | ClientHello
+//   | ClCert of serverSpecificState
+//   | ClientKEX of serverSpecificState
+//   | CertificateVerify of serverSpecificState
+//   | SCCS of serverSpecificState
+//   | SFinished of serverSpecificState
+//   | SWaitingToWrite of serverSpecificState
+//   | SIdle
 
-type serverSpecificState =
-    { resumed_session: bool;
-      highest_client_ver: ProtocolVersion}
+// New state machine begins
+type log = bytes
 
-type serverState = (* should also include SessionInfo beging established? *)
-  | ClientHello
-  | ClCert of serverSpecificState
-  | ClientKEX of serverSpecificState
-  | CertificateVerify of serverSpecificState
-  | SCCS of serverSpecificState
-  | SFinished of serverSpecificState
-  | SWaitingToWrite of serverSpecificState
-  | SIdle
+type serverState =  (* note that the CertRequest bits are determined by the config *) 
+                     (* we may omit some ProtocolVersion, mostly a ghost variable *)
+   | ClientHello
+   | ClientCertificateRSA of SessionInfo * ProtocolVersion * log 
+   | ClientCertificateDH  of SessionInfo * log 
+   | ClientCertificateDHE of SessionInfo * (* DHE.sk * *) log 
+   | ClientKeyExchangeRSA of SessionInfo * ProtocolVersion * log
+   | ClientKeyExchangeDH  of SessionInfo * log 
+   | ClientKeyExchangeDHE of SessionInfo * (* DHE.sk * *) log 
+   | CertificateVerify    of SessionInfo * masterSecret * log 
+   | ClientCCS            of SessionInfo * masterSecret * log
+   | ClientFinished       of SessionInfo * masterSecret * StatefulAEAD.writer * log 
+   (* by convention, the parameters are named si, cv, cr', sr', ms, log *)
+   | ServerWritingCCS     of SessionInfo * StatefulAEAD.writer * bytes (* outgoing after CCS; this and next state shared only for full HS *)
+   | ServerWritingFinished
+   | ServerWritingCCSRes  of SessionInfo * crand * srand * masterSecret * log
+   | ClientCCSResume      of SessionInfo * crand * srand * masterSecret * log  
+   | ClientFinishedResume of SessionInfo * masterSecret * log 
+   | ServerIdle   
+   (* the ProtocolVersion is the highest TLS version proposed by the client *)
+
+type clientState = 
+   | ServerHello           of crand * sessionID (* * bytes for extensions? *) * log
+   | ServerCertificateRSA  of SessionInfo * log
+   | ServerCertificateDH   of SessionInfo * log
+   | ServerCertificateDHE  of SessionInfo * log
+   | ServerKeyExchangeDHE  of SessionInfo * log
+   | CertificateRequestRSA of SessionInfo * log (* In fact, CertReq or SHelloDone will be accepted *)
+   | CertificateRequestDH  of SessionInfo * log (* We pick our cert and store it in sessionInfo as soon as the server requests it.
+                                                   We put None if we don't have such a certificate, and we know whether to send
+                                                   the Certificate message or not based on the state when we receive the Finished message *)
+   | CertificateRequestDHE of SessionInfo * (* DHE.sk * *) log
+   | ServerHelloDoneRSA    of SessionInfo * log
+   | ServerHelloDoneDH     of SessionInfo * log
+   | ServerHelloDoneDHE    of SessionInfo * (* DHE.sk * *) bytes * log
+   | ServerCCS             of SessionInfo * masterSecret * log
+   | ServerCCSResume       of SessionInfo * masterSecret * log
+   | ServerFinished        of SessionInfo * masterSecret * log
+   | ServerFinishedResume  of SessionInfo * masterSecret * log
+   | ClientWaitingToWriteResume
+   | ClientIdle
 
 type protoState = // Cannot use Client and Server, otherwise clashes with Role
   | PSClient of clientState
@@ -231,10 +269,10 @@ type KIAndCCS = (epoch * StatefulAEAD.state)
 type pre_hs_state = {
   (* I/O buffers *)
   hs_outgoing    : bytes;                  (* outgoing data before a ccs *)
-  ccs_outgoing: (bytes * KIAndCCS) option; (* marker telling there is a ccs ready *)
-  hs_outgoing_after_ccs: bytes;            (* data to be sent after the ccs has been sent *)
+  //ccs_outgoing: (bytes * KIAndCCS) option; (* marker telling there is a ccs ready *)
+  //hs_outgoing_after_ccs: bytes;            (* data to be sent after the ccs has been sent *)
   hs_incoming    : bytes;                  (* partial incoming HS message *)
-  ccs_incoming: KIAndCCS option; (* used to store the computed secrets for receiving data. Not set when receiving CCS, but when we compute the session secrects *)
+  //ccs_incoming: KIAndCCS option; (* used to store the computed secrets for receiving data. Not set when receiving CCS, but when we compute the session secrects *)
  
   (* local configuration *)
   poptions: config; 
@@ -242,72 +280,24 @@ type pre_hs_state = {
   
   (* current handshake & session we are establishing, to be pushed within pstate *) 
   pstate: protoState;
-  hs_next_info: SessionInfo; (* session being established or resumed, including crand and srand from its full handshake *)
-  next_ms: masterSecret;     (* master secret being established *)
-  hs_msg_log: bytes;         (* sequence of HS messages sent & received so far, to be eventually authenticated *) 
+  //hs_next_info: SessionInfo; (* session being established or resumed, including crand and srand from its full handshake *)
+  //next_ms: masterSecret;     (* master secret being established *)
+  //hs_msg_log: bytes;         (* sequence of HS messages sent & received so far, to be eventually authenticated *) 
   
   (* to be pushed only in resumption-specific state: *)
-  ki_crand: bytes;           (* fresh client random for the session being established *)
-  ki_srand: bytes;           (* fresh server random for the session being established *)
+  //ki_crand: bytes;           (* fresh client random for the session being established *)
+  //ki_srand: bytes;           (* fresh server random for the session being established *)
 
   (* state specific to the renegotiation-info extension
      - exchanged in the extended Hello messages 
-     - updated with the content of the verifyData messages as the handshake completes *) 
-  hs_renegotiation_info_cVerifyData: bytes 
-  hs_renegotiation_info_sVerifyData: bytes 
+     - updated with the content of the verifyData messages as the handshake completes *)
+  // We'll retrieve them from the current epoch
+  //hs_renegotiation_info_cVerifyData: bytes 
+  //hs_renegotiation_info_sVerifyData: bytes 
 }
 
 type hs_state = pre_hs_state
 type nextState = hs_state
-
-(*
-/// More specific states; the state name refers to the incoming message we are waiting for 
-
-// For instance, for RSA with an anonymous client, we need just
-type log = bytes
-type crand = bytes
-type srand = bytes
-type serverState' =  (* note that the CertRequest bits are determined by the config *) 
-                     (* we may omit some ProtocolVersion, mostly a ghost variable *)
-   | ClientHello
-   | ClientCertificateRSA of SessionInfo * ProtocolVersion * log 
-   | ClientCertificateDH  of SessionInfo * log 
-   | ClientCertificateDHE of SessionInfo * DHE.sk * log 
-   | ClientKeyExchangeRSA of SessionInfo * ProtocolVersion * log
-   | ClientKeyExchangeDH  of SessionInfo * log 
-   | ClientKeyExchangeDHE of SessionInfo * DHE.sk * log 
-   | CertificateVerify    of SessionInfo * masterSecret * log 
-   | ClientCCS            of SessionInfo * masterSecret * log
-   | ClientFinished       of SessionInfo * masterSecret * StatefulAEAD.writer * log 
-   (* by convention, the parameters are named si, cv, cr', sr', ms, log *)
-   | ServerWritingCCS     of StatefulAEAD.writer * bytes (* outgoing after CCS; this and next state shared only for full HS *)
-   | ServerWritingFinished
-   | ClientCCSResume      of SessionInfo * crand * srand * masterSecret * log  
-   | ClientFinishedResume of SessionInfo * masterSecret * log 
-   | ServerIdle   
-   (* the ProtocolVersion is the highest TLS version proposed by the client *)
-
-type clientState' = 
-   | ServerHello           of crand * sessionID (* * bytes for extensions? *) * log
-   | ServerCertificateRSA  of SessionInfo * log
-   | ServerCertificateDH   of SessionInfo * log
-   | ServerCertificateDHE  of SessionInfo * log
-   | ServerKeyExchangeDHE  of SessionInfo * log
-   | CertificateRequestRSA of SessionInfo * log (* In fact, CertReq or SHelloDone will be accepted *)
-   | CertificateRequestDH  of SessionInfo * log (* We pick our cert and store it in sessionInfo as soon as the server requests it.
-                                                   We put None if we don't have such a certificate, and we know whether to send
-                                                   the Certificate message or not based on the state when we receive the Finished message *)
-   | CertificateRequestDHE of SessionInfo * DHE.sk * log
-   | ServerHelloDoneRSA    of SessionInfo * log
-   | ServerHelloDoneDH     of SessionInfo * log
-   | ServerHelloDoneDHE    of SessionInfo * DHE.sk * bytes * log
-   | ServerCCS             of SessionInfo * masterSecret * log
-   | ServerCCSResume       of SessionInfo * masterSecret * log
-   | ServerFinished        of SessionInfo * masterSecret * log
-   | ServerFinishedResume  of SessionInfo * masterSecret * log
-   | ClientWaitingToWriteResume
-   | ClientIdle
-*)
 
 /// Handshake message format 
 
@@ -500,9 +490,7 @@ let makeClientHelloBytes poptions crand session cVerifyData =
 
 let makeServerHelloBytes sinfo srand ext = 
     let verB = versionBytes sinfo.protocol_version in
-    let sidB = vlbytes 1 (match sinfo.sessionID with
-                          | None -> [||]
-                          | Some(sid) -> sid)
+    let sidB = vlbytes 1 sinfo.sessionID
     let csB = cipherSuiteBytes sinfo.cipher_suite in
     let cmB = compressionBytes sinfo.compression in
     let data = verB @| srand @| sidB @| csB @| cmB @| ext in
@@ -537,47 +525,29 @@ let parseServerHello data =
 
 let init (role:Role) poptions =
     (* Start a new first session without resumption *)
-    let next_sinfo = null_sessionInfo poptions.minVer in
+    let sid = [||] in
     let rand = makeRandom() in
+    let ci = initConnection role rand in
+    let cVerifyData = epochCVerifyData ci.id_out in // in fact [||], and id_in would give the same
+    let sVerifyData = epochSVerifyData ci.id_out in // in fact [||], and id_in would give the same
     match role with
     | Client ->
-        let cHelloBytes = makeClientHelloBytes poptions rand [||] [||] in
-        let next_sinfo = {next_sinfo with init_crand = rand} in
+        // FIXME: extensions should not be handled within makeClientHelloBytes!
+        let cHelloBytes = makeClientHelloBytes poptions rand sid cVerifyData in
         let state = {hs_outgoing = cHelloBytes
-                     ccs_outgoing = None
-                     hs_outgoing_after_ccs = [||]
                      hs_incoming = [||]
-                     ccs_incoming = None
                      poptions = poptions
                      sDB = SessionDB.create poptions
-                     pstate = PSClient (ServerHello)
-                     hs_msg_log = cHelloBytes
-                     hs_next_info = next_sinfo
-                     next_ms = empty_masterSecret next_sinfo
-                     ki_crand = rand
-                     ki_srand = [||]
-                     hs_renegotiation_info_cVerifyData = [||]
-                     hs_renegotiation_info_sVerifyData = [||]}
-        let ci = initConnection Client rand in
+                     pstate = PSClient (ServerHello (rand, sid, cHelloBytes))
+                    }
         (ci,state)
     | Server ->
-        let next_sinfo = {next_sinfo with init_srand = rand} in
         let state = {hs_outgoing = [||]
-                     ccs_outgoing = None
-                     hs_outgoing_after_ccs = [||]
                      hs_incoming = [||]
-                     ccs_incoming = None
                      poptions = poptions
                      sDB = SessionDB.create poptions
                      pstate = PSServer (ClientHello)
-                     hs_msg_log = [||]
-                     hs_next_info = next_sinfo
-                     next_ms = empty_masterSecret next_sinfo
-                     ki_crand = [||]
-                     ki_srand = rand
-                     hs_renegotiation_info_cVerifyData = [||]
-                     hs_renegotiation_info_sVerifyData = [||]}
-        let ci = initConnection Server rand in
+                    }
         (ci,state)
 
 let resume next_sid poptions =
@@ -594,26 +564,19 @@ let resume next_sid poptions =
     | Server -> init Client poptions
     | Client ->
     match retrievedSinfo.sessionID with
-    | None -> unexpectedError "[resume_handshake] a resumed session should always have a valid sessionID"
-    | Some(sid) ->
+    | [||] -> unexpectedError "[resume_handshake] a resumed session should always have a valid sessionID"
+    | sid ->
     let rand = makeRandom () in
-    let cHelloBytes = makeClientHelloBytes poptions rand sid [||] in
+    let ci = initConnection Client rand in
+    let cVerifyData = epochCVerifyData ci.id_out in // in fact [||], and id_in would give the same
+    let sVerifyData = epochSVerifyData ci.id_out in // in fact [||], and id_in would give the same
+    let cHelloBytes = makeClientHelloBytes poptions rand sid cVerifyData in
     let state = {hs_outgoing = cHelloBytes
-                 ccs_outgoing = None
-                 hs_outgoing_after_ccs = [||]
                  hs_incoming = [||]
-                 ccs_incoming = None
                  poptions = poptions
                  sDB = SessionDB.create poptions
-                 pstate = PSClient (ServerHello)
-                 hs_msg_log = cHelloBytes
-                 hs_next_info = retrievedSinfo
-                 next_ms = retrievedMS
-                 ki_crand = rand
-                 ki_srand = [||]
-                 hs_renegotiation_info_cVerifyData = [||]
-                 hs_renegotiation_info_sVerifyData = [||]} in
-    let ci = initConnection Client rand in
+                 pstate = PSClient (ServerHello (rand, sid, cHelloBytes))
+                } in
     (ci,state)
 
 let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
@@ -622,26 +585,16 @@ let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     match state.pstate with
     | PSClient (cstate) ->
         match cstate with
-        | CIdle ->
+        | ClientIdle ->
             let rand = makeRandom () in
-            let cHelloBytes = makeClientHelloBytes ops rand [||] state.hs_renegotiation_info_cVerifyData in
-            let init_sessionInfo = null_sessionInfo ops.minVer in
-            let next_sinfo = {init_sessionInfo with init_crand = rand} in
+            let sid = [||] in
+            let cHelloBytes = makeClientHelloBytes ops rand sid (epochCVerifyData ci.id_out) in
             let state = {hs_outgoing = cHelloBytes
-                         ccs_outgoing = None
-                         hs_outgoing_after_ccs = [||]
                          hs_incoming = [||]
-                         ccs_incoming = None
                          poptions = ops
                          sDB = SessionDB.create ops
-                         pstate = PSClient (ServerHello)
-                         hs_msg_log = cHelloBytes
-                         hs_next_info = next_sinfo
-                         next_ms = empty_masterSecret next_sinfo
-                         ki_crand = rand
-                         ki_srand = [||]
-                         hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
-                         hs_renegotiation_info_sVerifyData = state.hs_renegotiation_info_sVerifyData} in
+                         pstate = PSClient (ServerHello (rand, sid, cHelloBytes))
+                        } in
             (true,state)
         | _ -> (* handshake already happening, ignore this request *)
             (false,state)
@@ -652,9 +605,9 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     let si = epochSI(ci.id_out) in // or equivalently ci.id_in
     let sidOp = si.sessionID in
     match sidOp with
-    | None -> (* Non resumable session, let's do a full handshake *)
+    | [||] -> (* Non resumable session, let's do a full handshake *)
         rehandshake ci state ops
-    | Some (sid) ->
+    | sid ->
         (* Ensure the sid is in the SessionDB *)
         // FIXME: which SessionDB to use? The one in state, or create a new one from ops?
         match select state.sDB sid with
@@ -666,24 +619,15 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
                 match state.pstate with
                 | PSClient (cstate) ->
                     match cstate with
-                    | CIdle ->
+                    | ClientIdle ->
                         let rand = makeRandom () in
-                        let cHelloBytes = makeClientHelloBytes ops rand sid state.hs_renegotiation_info_cVerifyData in
+                        let cHelloBytes = makeClientHelloBytes ops rand sid (epochCVerifyData ci.id_out) in
                         let state = {hs_outgoing = cHelloBytes
-                                     ccs_outgoing = None
-                                     hs_outgoing_after_ccs = [||]
                                      hs_incoming = [||]
-                                     ccs_incoming = None
                                      poptions = ops
                                      sDB = SessionDB.create ops
-                                     pstate = PSClient (ServerHello)
-                                     hs_msg_log = cHelloBytes
-                                     hs_next_info = retrievedSinfo
-                                     next_ms = retrievedMS                      
-                                     ki_crand = rand
-                                     ki_srand = [||]
-                                     hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
-                                     hs_renegotiation_info_sVerifyData = state.hs_renegotiation_info_sVerifyData} in
+                                     pstate = PSClient (ServerHello (rand, sid, cHelloBytes))
+                                    } in
                         (true,state)
                     | _ -> (* Handshake already ongoing, ignore this request *)
                         (false,state)
@@ -697,35 +641,23 @@ let request (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     | PSClient _ -> unexpectedError "[start_hs_request] should only be invoked on server side connections."
     | PSServer (sstate) ->
         match sstate with
-        | SIdle ->
-            let nullSI = null_sessionInfo ops.minVer in
+        | ServerIdle ->
             (* Put HelloRequest in outgoing buffer (and do not log it), and move to the ClientHello state (so that we don't send HelloRequest again) *)
-            (true, { hs_outgoing = makeHelloRequestBytes ();
-                     ccs_outgoing = None
-                     hs_outgoing_after_ccs = [||]
+            (true, { hs_outgoing = makeHelloRequestBytes ()
                      hs_incoming = [||]
-                     ccs_incoming = None
                      poptions = ops
                      sDB = SessionDB.create ops
                      pstate = PSServer(ClientHello)
-                     hs_msg_log = [||]
-                     hs_next_info = nullSI
-                     next_ms = empty_masterSecret nullSI                 
-                     ki_crand = [||]
-                     ki_srand = [||]
-                     hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
-                     hs_renegotiation_info_sVerifyData = state.hs_renegotiation_info_sVerifyData})
+                    })
         | _ -> (* Handshake already ongoing, ignore this request *)
             (false,state)
 
-let storeSession role state =
-    match state.hs_next_info.sessionID with
-    | None -> (* Non-resumable session *)
-        state.sDB
-    | Some(sid) ->
-        let storable = (state.hs_next_info, state.next_ms, role) in
-        let sDB = SessionDB.insert state.sDB sid storable in
+let storeSession sDB (sinfo, ms, role) =
+    match sinfo.sessionID with
+    | [||] -> (* Non-resumable session *)
         sDB
+    | sid ->
+        SessionDB.insert sDB sinfo.sessionID (sinfo, ms, role)
 
 let goToIdle state =
     let init_sessionInfo = null_sessionInfo state.poptions.minVer in

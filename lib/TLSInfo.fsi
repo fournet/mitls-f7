@@ -11,23 +11,32 @@ type preRole =
     | Server
 type Role = preRole
 
+// Client/Server randomness
+type crand = bytes
+type srand = bytes
+// VerifyData Payload, for safe renego extension
+type cVerifyData = bytes
+type sVerifyData = bytes
+
 type SessionInfo = {
     clientID: cert option;
     serverID: cert option;
-    sessionID: sessionID option;
+    sessionID: sessionID;
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;
     compression: Compression;
-    init_crand: bytes;
-    init_srand: bytes
+    init_crand: crand;
+    init_srand: srand
     }
 
 type preEpoch
 type epoch = preEpoch
 
 val epochSI: epoch -> SessionInfo
-val epochSRand: epoch -> bytes
-val epochCRand: epoch -> bytes
+val epochSRand: epoch -> srand
+val epochCRand: epoch -> crand
+val epochCVerifyData: epoch -> cVerifyData
+val epochSVerifyData: epoch -> sVerifyData
 
 //type epoch = {
 //    sinfo: SessionInfo;
@@ -48,7 +57,7 @@ val connectionRole: ConnectionInfo -> Role
 val null_sessionInfo: ProtocolVersion -> SessionInfo
 val isNullSessionInfo: SessionInfo -> bool
 val initConnection: Role -> bytes -> ConnectionInfo
-val nextConnection: ConnectionInfo -> bytes -> bytes -> SessionInfo -> ConnectionInfo
+val nextEpoch: epoch -> crand -> srand -> cVerifyData -> sVerifyData -> SessionInfo -> epoch
 //val dual_KeyInfo: epoch -> epoch
 
 // Application configuration options

@@ -10,21 +10,28 @@ type preRole =
     | Server
 type Role = preRole
 
+// Client/Server randomness
+type crand = bytes
+type srand = bytes
+// VerifyData Payload, for safe renego extension
+type cVerifyData = bytes
+type sVerifyData = bytes
+
 type SessionInfo = {
     clientID: cert option;
     serverID: cert option;
-    sessionID: sessionID option;
+    sessionID: sessionID;
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;
     compression: Compression;
-    init_crand: bytes;
-    init_srand: bytes
+    init_crand: crand;
+    init_srand: srand
     }
 
 let null_sessionInfo pv =
     { clientID = None;
       serverID = None;
-      sessionID = None;
+      sessionID = [||];
       protocol_version = pv;
       cipher_suite = nullCipherSuite;
       compression = NullCompression;
@@ -33,29 +40,39 @@ let null_sessionInfo pv =
       }
 
 let isNullSessionInfo s =
-  s.clientID = None && s.serverID = None && s.sessionID = None &&
+  s.clientID = None && s.serverID = None && s.sessionID = [||] &&
   isNullCipherSuite s.cipher_suite && s.compression = NullCompression &&
   s.init_crand = [||] && s.init_srand = [||]
 
 type preEpoch =
     | InitEpoch of Role * (* ourRand *) bytes
-    | SuccEpoch of (* crand *) bytes * (* srand *) bytes * SessionInfo * preEpoch // * cVerifyData:bytes * sVerifyData:bytes
+    | SuccEpoch of crand * srand * cVerifyData * sVerifyData * SessionInfo * preEpoch
 type epoch = preEpoch
 
 let epochSI e =
     match e with
     | InitEpoch (d,b) -> let si = null_sessionInfo SSL_3p0 in si //FIXME: fake value
-    | SuccEpoch (b1,b2,si,pe) -> si
+    | SuccEpoch (cr,sr,cvd,svd,si,pe) -> si
 
 let epochSRand e =
     match e with
     | InitEpoch (d,b) -> Error.unexpectedError "[epochSRand] invoked on initial epoch."
-    | SuccEpoch (b1,b2,si,pe) -> b2
+    | SuccEpoch (cr,sr,cvd,svd,si,pe) -> sr
 
 let epochCRand e =
     match e with
     | InitEpoch (d,b) -> Error.unexpectedError "[epochSRand] invoked on initial epoch."
-    | SuccEpoch (b1,b2,si,pe) -> b1
+    | SuccEpoch (cr,sr,cvd,svd,si,pe) -> cr
+
+let epochCVerifyData e =
+    match e with
+    | InitEpoch (r,b) -> [||]
+    | SuccEpoch (cr,sr,cvd,svd,si,pe) -> cvd
+
+let epochSVerifyData e =
+    match e with
+    | InitEpoch (r,b) -> [||]
+    | SuccEpoch (cr,sr,cvd,svd,si,pe) -> svd
 
 type ConnectionInfo = {
     role: Role;
@@ -71,12 +88,8 @@ let initConnection role rand =
     | Client -> {role = Client; id_in = stoc; id_out = ctos}
     | Server -> {role = Server; id_in = ctos; id_out = stoc}
 
-let nextConnection ci crand srand si =
-    let incoming = SuccEpoch (crand, srand, si, ci.id_in ) in
-    let outgoing = SuccEpoch (crand, srand, si, ci.id_out) in
-    { role = ci.role;
-      id_in = incoming;
-      id_out = outgoing}
+let nextEpoch epoch crand srand cVerifyData sVerifyData si =
+    SuccEpoch (crand, srand, cVerifyData, sVerifyData, si, epoch )
 
 // Application configuration
 type helloReqPolicy =
