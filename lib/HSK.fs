@@ -39,7 +39,7 @@ let x509_to_keys (x509 : X509Certificate2) =
 
         let dsaparams = { p = pkey.P; q = pkey.Q; g = pkey.G } in
 
-        Some (SK_DSA (pkey.X, dsaparams), PK_DSA (pkey.Y, dsaparams))
+        Some (SK_DSA (skey.X, dsaparams), PK_DSA (pkey.Y, dsaparams))
 
     | _ -> None
 
