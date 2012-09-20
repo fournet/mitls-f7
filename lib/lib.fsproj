@@ -67,8 +67,6 @@
     <None Include="HSK.fs7" />
     <Compile Include="HSK.fsi" />
     <Compile Include="HSK.fs" />
-    <Compile Include="DHE.fsi" />
-    <Compile Include="DHE.fs" />
     <None Include="Sig.fs7" />
     <Compile Include="Sig.fsi" />
     <Compile Include="Sig.fs" />
