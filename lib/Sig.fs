@@ -32,11 +32,15 @@ type text = bytes
 type sigv = bytes 
 
 (* ------------------------------------------------------------------------ *)
+type dsaparams = { p : bytes; q : bytes; g : bytes; }
+
 type skeyparams =
 | SK_RSA of bytes * bytes (* modulus x exponent *)
+| SK_DSA of bytes * dsaparams
 
 type vkeyparams =
 | VK_RSA of bytes * bytes
+| VK_DSA of bytes * dsaparams
 
 type skey = SKey of skeyparams * hashAlg
 type vkey = VKey of vkeyparams * hashAlg
@@ -59,9 +63,11 @@ let sighash_of_hash = function
 
 let sigalg_of_skeyparams = function
 | SK_RSA _ -> SA_RSA
+| SK_DSA _ -> SA_DSA
 
 let sigalg_of_vkeyparams = function
 | VK_RSA _ -> SA_RSA
+| VK_DSA _ -> SA_DSA
 
 (* ------------------------------------------------------------------------ *)
 let bytes_to_bigint (b : bytes) = new BigInteger(b)
@@ -103,6 +109,45 @@ let RSA_gen (h : hashAlg) =
      SKey (SK_RSA (bytes_of_bigint skey.Modulus, bytes_of_bigint skey.Exponent), h))
 
 (* ------------------------------------------------------------------------ *)
+let bytes_of_dsaparams p q g =
+    { p = bytes_of_bigint p;
+      q = bytes_of_bigint q;
+      g = bytes_of_bigint g; }
+
+let DSA_sign (x, dsap) (h : hashAlg) (t : text) : sigv =
+    let signer    = new DsaDigestSigner(new DsaSigner(), new_hash_engine h) in
+    let dsaparams = new DsaParameters(bytes_to_bigint dsap.p,
+                                      bytes_to_bigint dsap.q,
+                                      bytes_to_bigint dsap.g)
+
+    signer.Init(true, new DsaPrivateKeyParameters(bytes_to_bigint x, dsaparams))
+    signer.BlockUpdate(t, 0, t.Length)
+    signer.GenerateSignature()
+
+let DSA_verify (y, dsap) (h : hashAlg) (t : text) (s : sigv) =
+    let signer    = new DsaDigestSigner(new DsaSigner(), new_hash_engine h) in
+    let dsaparams = new DsaParameters(bytes_to_bigint dsap.p,
+                                      bytes_to_bigint dsap.q,
+                                      bytes_to_bigint dsap.g)
+
+    signer.Init(false, new DsaPublicKeyParameters(bytes_to_bigint y, dsaparams))
+    signer.BlockUpdate(t, 0, t.Length)
+    signer.VerifySignature(s)
+
+let DSA_gen (h : hashAlg) =
+    let paramsgen = new DsaParametersGenerator() in
+    paramsgen.Init(2048, 80, new SecureRandom())
+    let dsaparams = paramsgen.GenerateParameters() in
+    let generator = new DsaKeyPairGenerator() in
+    generator.Init(new DsaKeyGenerationParameters(new SecureRandom(), dsaparams))
+    let keys = generator.GenerateKeyPair() in
+    let vkey = (keys.Public  :?> DsaPublicKeyParameters) in
+    let skey = (keys.Private :?> DsaPrivateKeyParameters) in
+
+    (VKey (VK_DSA (bytes_of_bigint vkey.Y, bytes_of_dsaparams dsaparams.P dsaparams.Q dsaparams.G), h),
+     SKey (SK_DSA (bytes_of_bigint skey.X, bytes_of_dsaparams dsaparams.P dsaparams.Q dsaparams.G), h))
+
+(* ------------------------------------------------------------------------ *)
 let sign (a : alg) (sk : skey) (t : text) : sigv =
     let asig, ahash = a in
     let (SKey (kparams, khash)) = sk in
@@ -118,6 +163,7 @@ let sign (a : alg) (sk : skey) (t : text) : sigv =
 
     match kparams with
     | SK_RSA (m, e) -> RSA_sign (m, e) khash t
+    | SK_DSA (x, p) -> DSA_sign (x, p) khash t
 
 (* ------------------------------------------------------------------------ *)
 let verify (a : alg) (vk : vkey) (t : text) (s : sigv) =
@@ -135,6 +181,7 @@ let verify (a : alg) (vk : vkey) (t : text) (s : sigv) =
 
     match kparams with
     | VK_RSA (m, e) -> RSA_verify (m, e) khash t s
+    | VK_DSA (y, p) -> DSA_verify (y, p) khash t s
 
 (* ------------------------------------------------------------------------ *)
 let gen (a:alg) : vkey * skey =
