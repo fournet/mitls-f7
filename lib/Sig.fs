@@ -188,8 +188,9 @@ let gen (a:alg) : vkey * skey =
     let asig, ahash = a in
 
     match asig with
-    | SA_RSA -> RSA_gen (sighash_of_hash ahash)
-    | _      -> failwith "todo"
+    | SA_RSA   -> RSA_gen (sighash_of_hash ahash)
+    | SA_DSA   -> DSA_gen (sighash_of_hash ahash)
+    | SA_ECDSA -> failwith "todo"
 
 (* ------------------------------------------------------------------------ *)
 let PkBytes (a:alg) (vk : vkey) : bytes = failwith "todo"
