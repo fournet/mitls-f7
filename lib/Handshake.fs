@@ -233,9 +233,9 @@ type serverState =  (* note that the CertRequest bits are determined by the conf
    (* by convention, the parameters are named si, cv, cr', sr', ms, log *)
    | ServerWritingCCS     of SessionInfo * StatefulAEAD.writer * bytes (* outgoing after CCS; this and next state shared only for full HS *)
    | ServerWritingFinished
-   | ServerWritingCCSRes  of SessionInfo * crand * srand * masterSecret * log
-   | ClientCCSResume      of SessionInfo * crand * srand * masterSecret * log  
-   | ClientFinishedResume of SessionInfo * masterSecret * log 
+   | ServerWritingCCSRes  of SessionInfo * masterSecret * srand * bytes (* ougoing after CCS *) * log
+   | ClientCCSResume      of SessionInfo * masterSecret * crand * srand * StatefulAEAD.reader * log (* St-AEAD.reader is redundant, but kept here for efficiency *)
+   | ClientFinishedResume of SessionInfo * masterSecret * crand * srand * log 
    | ServerIdle   
    (* the ProtocolVersion is the highest TLS version proposed by the client *)
 
@@ -253,6 +253,8 @@ type clientState =
    | ServerHelloDoneRSA    of SessionInfo * log
    | ServerHelloDoneDH     of SessionInfo * log
    | ServerHelloDoneDHE    of SessionInfo * (* DHE.sk * *) bytes * log
+   | ClientWritingCCS      of SessionInfo * StatefulAEAD.reader * bytes (* outgoing after CCS *)
+   | ClientWritingFinished of SessionInfo
    | ServerCCS             of SessionInfo * masterSecret * log
    | ServerCCSResume       of SessionInfo * masterSecret * log
    | ServerFinished        of SessionInfo * masterSecret * log
@@ -659,6 +661,8 @@ let storeSession sDB (sinfo, ms, role) =
     | sid ->
         SessionDB.insert sDB sinfo.sessionID (sinfo, ms, role)
 
+// FIXME: Seems we can skip this function with the new state machine *)
+(*
 let goToIdle state =
     let init_sessionInfo = null_sessionInfo state.poptions.minVer in
     match state.pstate with
@@ -698,14 +702,15 @@ let goToIdle state =
          ki_srand = rand
          hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
          hs_renegotiation_info_sVerifyData = state.hs_renegotiation_info_sVerifyData}
+*)
 
 let invalidateSession ci state =
-    let si = epochSI(ci.id_in) in //FIXME: which to choose? It is relevant because they might be misaligned, and we must chose the right one
+    let si = epochSI(ci.id_in) // FIXME: which epoch to choose? Here it matters since they could be mis-aligned
     match si.sessionID with
-    | None -> state
-    | Some(sid) ->
+    | [||] -> state
+    | sid ->
         let sDB = SessionDB.remove state.sDB sid in
-        {state with sDB = sDB}
+        {state with sDB=sDB}
 
 type outgoing =
   | OutIdle of hs_state
@@ -730,6 +735,14 @@ let makeFragment ki b =
 let makeCCSFragment ki b = makeFragment ki b
 
 let next_fragment ci state =
+    match state.hs_outgoing with
+    | [||] ->
+        match state.pstate with
+        | PSClient(cstate) ->
+            match cstate with
+            | 
+
+
     (* Assumptions: The buffers have been filled in the following order:
        1) hs_outgoing; 2) ccs_outgoing; 3) hs_outgoing_after_ccs
        We check 2) and 3) only if we are in a {C,S}WaitingToWrite state.
