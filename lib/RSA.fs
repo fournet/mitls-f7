@@ -12,7 +12,7 @@ type rsaskey = RSASKey of bytes * bytes
 type rsapkey = RSAPKey of bytes * bytes
 
 let rsaEncrypt (RSAPKey (m, e)) (v : bytes) =
-    let m, e   = new BigInteger(m), new BigInteger(e) in
+    let m, e   = new BigInteger(1, m), new BigInteger(1, e) in
     let engine = new RsaEngine() in
     let engine = new Pkcs1Encoding(engine) in
 
@@ -20,7 +20,7 @@ let rsaEncrypt (RSAPKey (m, e)) (v : bytes) =
     correct (engine.ProcessBlock(v, 0, v.Length))
 
 let rsaDecrypt (RSASKey (m, e)) (v : bytes) =
-    let m, e   = new BigInteger(m), new BigInteger(e) in
+    let m, e   = new BigInteger(1, m), new BigInteger(1, e) in
     let engine = new RsaEngine() in
     let engine = new Pkcs1Encoding(engine) in
 

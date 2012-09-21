@@ -40,8 +40,8 @@ let sigalg_of_vkeyparams = function
 | PK_DSA _ -> SA_DSA
 
 (* ------------------------------------------------------------------------ *)
-let bytes_to_bigint (b : bytes) = new BigInteger(b)
-let bytes_of_bigint (b : BigInteger) = b.ToByteArray()
+let bytes_to_bigint (b : bytes) = new BigInteger(1, b)
+let bytes_of_bigint (b : BigInteger) = b.ToByteArrayUnsigned()
 
 (* ------------------------------------------------------------------------ *)
 let new_hash_engine (h : hashAlg) : IDigest =
