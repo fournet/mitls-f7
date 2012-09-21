@@ -221,45 +221,45 @@ type log = bytes
 type serverState =  (* note that the CertRequest bits are determined by the config *) 
                      (* we may omit some ProtocolVersion, mostly a ghost variable *)
    | ClientHello
-   | ClientCertificateRSA of SessionInfo * ProtocolVersion * log 
-   | ClientCertificateDH  of SessionInfo * log 
-   | ClientCertificateDHE of SessionInfo * (* DHE.sk * *) log 
-   | ClientKeyExchangeRSA of SessionInfo * ProtocolVersion * log
-   | ClientKeyExchangeDH  of SessionInfo * log 
-   | ClientKeyExchangeDHE of SessionInfo * (* DHE.sk * *) log 
-   | CertificateVerify    of SessionInfo * masterSecret * log 
-   | ClientCCS            of SessionInfo * masterSecret * log
-   | ClientFinished       of SessionInfo * masterSecret * StatefulAEAD.writer * log 
+   | ClientCertificateRSA    of SessionInfo * ProtocolVersion * log 
+   | ClientCertificateDH     of SessionInfo * log 
+   | ClientCertificateDHE    of SessionInfo * (* DHE.sk * *) log 
+   | ClientKeyExchangeRSA    of SessionInfo * ProtocolVersion * log
+   | ClientKeyExchangeDH     of SessionInfo * log 
+   | ClientKeyExchangeDHE    of SessionInfo * (* DHE.sk * *) log 
+   | CertificateVerify       of SessionInfo * masterSecret * log 
+   | ClientCCS               of SessionInfo * masterSecret * log
+   | ClientFinished          of SessionInfo * masterSecret * epoch * StatefulAEAD.writer * log 
    (* by convention, the parameters are named si, cv, cr', sr', ms, log *)
-   | ServerWritingCCS     of SessionInfo * StatefulAEAD.writer * bytes (* outgoing after CCS; this and next state shared only for full HS *)
+   | ServerWritingCCS        of SessionInfo * epoch * StatefulAEAD.writer * bytes (* outgoing after CCS; this and next state shared only for full HS *)
    | ServerWritingFinished
-   | ServerWritingCCSRes  of SessionInfo * masterSecret * srand * bytes (* ougoing after CCS *) * log
-   | ClientCCSResume      of SessionInfo * masterSecret * crand * srand * StatefulAEAD.reader * log (* St-AEAD.reader is redundant, but kept here for efficiency *)
-   | ClientFinishedResume of SessionInfo * masterSecret * crand * srand * log 
-   | ServerIdle   
+   | ServerWritingCCSResume  of SessionInfo * masterSecret * crand * srand * bytes (* ougoing after CCS *) * log
+   | ClientCCSResume         of SessionInfo * masterSecret * crand * srand * epoch * StatefulAEAD.reader * log (* St-AEAD.reader is redundant, but kept here for efficiency *)
+   | ClientFinishedResume    of SessionInfo * masterSecret * log 
+   | ServerIdle
    (* the ProtocolVersion is the highest TLS version proposed by the client *)
 
 type clientState = 
-   | ServerHello           of crand * sessionID (* * bytes for extensions? *) * log
-   | ServerCertificateRSA  of SessionInfo * log
-   | ServerCertificateDH   of SessionInfo * log
-   | ServerCertificateDHE  of SessionInfo * log
-   | ServerKeyExchangeDHE  of SessionInfo * log
-   | CertificateRequestRSA of SessionInfo * log (* In fact, CertReq or SHelloDone will be accepted *)
-   | CertificateRequestDH  of SessionInfo * log (* We pick our cert and store it in sessionInfo as soon as the server requests it.
-                                                   We put None if we don't have such a certificate, and we know whether to send
-                                                   the Certificate message or not based on the state when we receive the Finished message *)
-   | CertificateRequestDHE of SessionInfo * (* DHE.sk * *) log
-   | ServerHelloDoneRSA    of SessionInfo * log
-   | ServerHelloDoneDH     of SessionInfo * log
-   | ServerHelloDoneDHE    of SessionInfo * (* DHE.sk * *) bytes * log
-   | ClientWritingCCS      of SessionInfo * StatefulAEAD.reader * bytes (* outgoing after CCS *)
-   | ClientWritingFinished of SessionInfo
-   | ServerCCS             of SessionInfo * masterSecret * log
-   | ServerCCSResume       of SessionInfo * masterSecret * log
-   | ServerFinished        of SessionInfo * masterSecret * log
-   | ServerFinishedResume  of SessionInfo * masterSecret * log
-   | ClientWaitingToWriteResume
+   | ServerHello            of crand * sessionID (* * bytes for extensions? *) * log
+   | ServerCertificateRSA   of SessionInfo * log
+   | ServerCertificateDH    of SessionInfo * log
+   | ServerCertificateDHE   of SessionInfo * log
+   | ServerKeyExchangeDHE   of SessionInfo * log
+   | CertificateRequestRSA  of SessionInfo * log (* In fact, CertReq or SHelloDone will be accepted *)
+   | CertificateRequestDH   of SessionInfo * log (* We pick our cert and store it in sessionInfo as soon as the server requests it.
+                                                    We put None if we don't have such a certificate, and we know whether to send
+                                                    the Certificate message or not based on the state when we receive the Finished message *)
+   | CertificateRequestDHE  of SessionInfo * (* DHE.sk * *) log
+   | ServerHelloDoneRSA     of SessionInfo * log
+   | ServerHelloDoneDH      of SessionInfo * log
+   | ServerHelloDoneDHE     of SessionInfo * (* DHE.sk * *) bytes * log
+   | ClientWritingCCS       of SessionInfo * masterSecret * bytes (* outgoing after CCS *) * log
+   | ServerCCS              of SessionInfo * masterSecret * epoch * StatefulAEAD.reader * log
+   | ServerFinished         of SessionInfo * masterSecret * log
+   | ServerCCSResume        of SessionInfo * masterSecret * crand * srand * log
+   | ServerFinishedResume   of SessionInfo * masterSecret * crand * srand * epoch * StatefulAEAD.writer * log
+   | ClientWritingCCSResume of SessionInfo * crand * srand * epoch * StatefulAEAD.writer * bytes (* outgoing after CCS *)
+   | ClientWritingFinishedResume
    | ClientIdle
 
 type protoState = // Cannot use Client and Server, otherwise clashes with Role
@@ -304,6 +304,8 @@ type nextState = hs_state
 /// Handshake message format 
 
 let makeMessage ht data = htbytes ht @| vlbytes 3 data 
+
+let CCSBytes = [| 1uy |]
 
 let parseMessage state =
     (* Inefficient but simple implementation:
@@ -734,14 +736,31 @@ let makeFragment ki b =
 
 let makeCCSFragment ki b = makeFragment ki b
 
+let generateStates (ci:ConnectionInfo) (ms:masterSecret): StatefulAEAD.writer * StatefulAEAD.reader =
+    let key_block = prfKeyExp ci ms in
+    let (cWrite,sWrite) = splitStates ci key_block in
+    match ci.role with 
+        | Client -> cWrite,sWrite
+        | Server -> sWrite,cWrite
+
 let next_fragment ci state =
     match state.hs_outgoing with
     | [||] ->
         match state.pstate with
         | PSClient(cstate) ->
             match cstate with
-            | 
-
+            | ClientWritingCCS (si,ms,afterCCS,log) ->
+                let nextEpochOut = nextEpoch ci.id_out si.init_crand si.init_srand (epochCVerifyData ci.id_out) (epochSVerifyData ci.id_out) si in
+                let nextEpochIn  = nextEpoch ci.id_in  si.init_crand si.init_srand (epochCVerifyData ci.id_in ) (epochSVerifyData ci.id_in ) si in
+                let (writer,reader) = generateStates {role = ci.role; id_in = nextEpochIn; id_out = nextEpochOut} ms in
+                let state = {state with hs_outgoing = afterCCS
+                                        pstate = PSClient(ServerCCS(si,ms,nextEpochOut,reader,log))} in
+                let (((rg,f),_),_) = makeCCSFragment ci.id_out CCSBytes in
+                let ci = {ci with id_out = nextEpochOut} in 
+                OutCCS(rg,f,ci,writer,state)
+            | _ -> unexpectedError "TODO"
+        | _ -> unexpectedError "TODO"
+    | _ -> unexpectedError "TODO"
 
     (* Assumptions: The buffers have been filled in the following order:
        1) hs_outgoing; 2) ccs_outgoing; 3) hs_outgoing_after_ccs
@@ -750,6 +769,8 @@ let next_fragment ci state =
        we can conclude HS protocol is terminated (at least for our sending side),
        and no more data will be added to any buffer
        (until a re-handshake) *)
+    // FIXME: Obsoleted by new state machine *)
+    (* 
     match state.hs_outgoing with
     | [||] ->
         (* FIXME: the following code should be heavily factorized out.
@@ -816,6 +837,7 @@ let next_fragment ci state =
         let ((rg,frag),dRem),(f,rem) = makeFragment ci.id_out d in
         let state = {state with hs_outgoing = rem} in
         (OutSome(rg,frag,state))
+*)
 
 type incoming = (* the fragment is accepted, and... *)
   | InAck of hs_state
@@ -1096,8 +1118,6 @@ let makeCertificateVerifyBytes cert data pv certReqMsg =
     | SSL_3p0 ->
         (* TODO *) Error(HSError(AD_internal_error),HSSendAlert)
 
-let CCSBytes = [| 1uy |] 
-
 (* Obsolete. Use PRFs.prfKeyExp instead *)
 (*
 let expand_master_secret version ms crandom srandom nb = 
@@ -1127,13 +1147,6 @@ let split_key_block key_block hsize ksize ivsize =
   let siv = Array.sub key_block (2*hsize+2*ksize+ivsize) ivsize in
   (cmk,smk,cek,sek,civ,siv)
 *)
-
-let generateStates (ci:ConnectionInfo) (ms:masterSecret) =
-    let key_block = prfKeyExp ci ms in
-    let (cWrite,sWrite) = splitStates ci key_block in
-    match ci.role with 
-        | Client -> cWrite,sWrite
-        | Server -> sWrite,cWrite
 
 (* Obsolete. Use PRFs.prfVerifyData instead *)
 (*
@@ -1217,6 +1230,8 @@ let certificateVerifyCheck (state:hs_state) (payload:bytes) =
        We need to understand how to treat certificates and related algorithms properly *)
     correct(true)
 
+// FIXME: This is outdated by the new state machine
+(*
 let compute_session_secrets_and_CCSs ci state =
     // FIXME: we create the next connection here, but then we don't use it and we release it
     // asynchronously to the Dispatch. The latter will locally re-create the next connection
@@ -1227,6 +1242,7 @@ let compute_session_secrets_and_CCSs ci state =
     let state = {state with ccs_outgoing = Some((CCSBytes,(ci.id_out,writer)))
                             ccs_incoming = Some(ci.id_in,reader)} in
     state
+*)
 
 let prepare_client_output_full ci state clSpecState =
     let clientCertBytes =
