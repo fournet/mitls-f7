@@ -3,33 +3,32 @@
 open Bytes
 open Error
 
-(** RSA encryption of PMS **)
+open Org.BouncyCastle.Math
+open Org.BouncyCastle.Crypto.Encodings
+open Org.BouncyCastle.Crypto.Engines
+open Org.BouncyCastle.Crypto.Parameters
 
-type asymKey = AsymKey of System.Security.Cryptography.RSACryptoServiceProvider
+type rsaskey = RSASKey of bytes * bytes
+type rsapkey = RSAPKey of bytes * bytes
 
-let rsaEncrypt (k:asymKey)  (v:bytes)  = 
-   try
-      match k with 
-      | AsymKey pkey -> correct (pkey.Encrypt(v,false))
-   with
-   | _ -> Error (Encryption, Internal)
+let rsaEncrypt (RSAPKey (m, e)) (v : bytes) =
+    let m, e   = new BigInteger(m), new BigInteger(e) in
+    let engine = new RsaEngine() in
+    let engine = new Pkcs1Encoding(engine) in
 
-let rsaDecrypt (k:asymKey) (v:bytes) =
-  try
-      match k with 
-      | AsymKey skey -> correct (skey.Decrypt(v,false))
-  with
-  | _ -> Error (Encryption, Internal)
+    engine.Init(true, new RsaKeyParameters(false, m, e))
+    correct (engine.ProcessBlock(v, 0, v.Length))
 
-let rsa_skey (key:string) = 
-  let rsa = new System.Security.Cryptography.RSACryptoServiceProvider () in
-    rsa.FromXmlString(key);
-    AsymKey rsa
+let rsaDecrypt (RSASKey (m, e)) (v : bytes) =
+    let m, e   = new BigInteger(m), new BigInteger(e) in
+    let engine = new RsaEngine() in
+    let engine = new Pkcs1Encoding(engine) in
 
-let rsa_pkey_bytes (key:byte[]) = 
-  let mutable rkey = new System.Security.Cryptography.RSAParameters() in
-  rkey.Exponent <- Array.sub key (key.Length - 3) 3;
-  rkey.Modulus  <- Array.sub key (key.Length - 128 - 5) 128; 
-  let rsa = new System.Security.Cryptography.RSACryptoServiceProvider () in
-    rsa.ImportParameters(rkey);
-    AsymKey rsa
+    engine.Init(false, new RsaKeyParameters(true, m, e))
+    correct (engine.ProcessBlock(v, 0, v.Length))
+
+let create_rsaskey ((m, e) : bytes * bytes) =
+    RSASKey (m, e)
+
+let create_rsapkey ((m, e) : bytes * bytes) =
+    RSAPKey (m, e)
