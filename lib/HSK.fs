@@ -44,7 +44,7 @@ let x509_to_keys (x509 : X509Certificate2) =
     | _ -> None
 
 (* ------------------------------------------------------------------------ *)
-let x509_is_for_signing (x509 : X509Certificate2) =
+let x509_has_key_usage_flag strict flag (x509 : X509Certificate2) =
     try
         let kue =
             x509.Extensions
@@ -52,10 +52,17 @@ let x509_is_for_signing (x509 : X509Certificate2) =
                 |> Seq.find (fun (e : X509Extension) -> e.Oid.Value = "2.5.29.15") in
         let kue = kue :?> X509KeyUsageExtension in
 
-            kue.KeyUsages.HasFlag(X509KeyUsageFlags.KeyEncipherment)
+            kue.KeyUsages.HasFlag(flag)
 
     with :? KeyNotFoundException ->
-        true
+        not strict
+
+(* ------------------------------------------------------------------------ *)
+let x509_is_for_signing (x509 : X509Certificate2) =
+    x509_has_key_usage_flag false X509KeyUsageFlags.DigitalSignature x509
+
+let x509_is_for_key_encryption (x509 : X509Certificate2) =
+    x509_has_key_usage_flag false X509KeyUsageFlags.KeyEncipherment x509
 
 (* ------------------------------------------------------------------------ *)
 let for_signing (h : hint) ((asig, ahash) : Sig.alg) =
@@ -80,6 +87,32 @@ let for_signing (h : hint) ((asig, ahash) : Sig.alg) =
                           Sig.create_skey ahash skey,
                           Sig.create_vkey ahash pkey)
                 | None -> None
+        with :? KeyNotFoundException -> None
+    finally
+        store.Close()
+
+(* ------------------------------------------------------------------------ *)
+let for_key_encryption (h : hint) =
+    let store = new X509Store(StoreName.My, StoreLocation.CurrentUser) in
+
+    store.Open(OpenFlags.ReadOnly ||| OpenFlags.OpenExistingOnly)
+    try
+        try
+            let x509 =
+                store.Certificates.Find(X509FindType.FindBySubjectName, h, true)
+                    |> Seq.cast
+                    |> Seq.filter (fun (x509 : X509Certificate2) -> x509.Version >= 3)
+                    |> Seq.filter (fun (x509 : X509Certificate2) -> x509.HasPrivateKey)
+                    |> Seq.filter (fun (x509 : X509Certificate2) -> x509.GetKeyAlgorithm() = OID_RSAEncryption)
+                    |> Seq.filter (fun (x509 : X509Certificate2) -> x509_is_for_key_encryption x509)
+                    |> Seq.head
+            in
+                match x509_to_keys x509 with
+                | Some (SK_RSA(sm, se) , PK_RSA (pm, pe)) ->
+                    Some (x509.Export(X509ContentType.Cert),
+                          RSA.create_rsaskey (sm, se),
+                          RSA.create_rsapkey (pm, pe))
+                | _ -> None
         with :? KeyNotFoundException -> None
     finally
         store.Close()
