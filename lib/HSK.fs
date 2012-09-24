@@ -19,9 +19,9 @@ let OID_DSASignatureKey   = "1.2.840.10040.4.1" (* FIX: CHECK *)
 let OID_ECDSASignatureKey = "1.2.840.10045.4.1" (* FIX: CHECK *)
 
 let oid_of_sigalg = function
-| Sig.SA_RSA   -> OID_RSAEncryption
-| Sig.SA_DSA   -> OID_DSASignatureKey
-| Sig.SA_ECDSA -> OID_ECDSASignatureKey
+| SA_RSA   -> OID_RSAEncryption
+| SA_DSA   -> OID_DSASignatureKey
+| SA_ECDSA -> OID_ECDSASignatureKey
 
 (* ------------------------------------------------------------------------ *)
 let x509_to_keys (x509 : X509Certificate2) =

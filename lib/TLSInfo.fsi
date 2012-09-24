@@ -78,9 +78,8 @@ type config = {
     (* Server side *)
     request_client_certificate: bool
     check_client_version_in_pms_for_old_tls: bool
-    server_cert_file: string (* FIXME: certificates should be found in a better way. To be fixed *)
+    server_name: HSK.hint
     (* Common *)
-    trustedRootCertificates: HSK.cert list
     safe_renegotiation: bool
 
     (* Sessions database *)

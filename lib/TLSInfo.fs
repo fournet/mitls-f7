@@ -109,9 +109,8 @@ type config = {
     (* Server side *)
     request_client_certificate: bool
     check_client_version_in_pms_for_old_tls: bool
-    server_cert_file: string (* FIXME: certificates should be found in a better way. To be fixed *)
+    server_name: HSK.hint
     (* Common *)
-    trustedRootCertificates: HSK.cert list
     safe_renegotiation: bool
     
     (* Sessions database *)
@@ -132,8 +131,7 @@ let defaultConfig ={
     allowAnonCipherSuite = false
     request_client_certificate = false
     check_client_version_in_pms_for_old_tls = true
-    server_cert_file = "server"
-    trustedRootCertificates = []
+    server_name = "MSR-INRIA TLS"
     safe_renegotiation = true
 
     sessionDBFileName = "sessionDBFile.bin"
