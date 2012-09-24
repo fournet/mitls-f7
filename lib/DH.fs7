@@ -1,5 +1,12 @@
 ﻿module DH
 
+open Bytes
+
+val Role: unit -> bytes * (bytes -> bytes)
+
+// AP: Commenting out to let the rest typecheck
+
+(* 
 // for TLS, we index all values by local randomness 
 // unclear how to deal with public parameters
 
@@ -56,3 +63,5 @@ val share: i:id -> (;i) x -> j:id -> (;j) gx -> (;i,j) gxy
 // let split n = let d = n / 2 in d, n - 2*d ;;
 // let (mod) v p = let d = v / p in v - d * p ;;
 // let rec expmod p g n = if n = 0 then 1 else let (d,r) = split n in let e = expmod p g d in let e2 = (e * e) mod p in if r=0 then e2 else (e2 * g) mod p ;;
+
+*)

@@ -4,10 +4,6 @@ open Bytes
 open Algorithms
 
 (* ------------------------------------------------------------------------ *)
-type sigAlg = 
-  | SA_RSA
-  | SA_DSA 
-  | SA_ECDSA
   
 type alg = sigAlg * hashAlg
 

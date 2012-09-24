@@ -7,7 +7,6 @@ open Formats
 open Algorithms
 open CipherSuites
 open TLSInfo
-open Certificate
 open SessionDB
 open PRFs
 open DataStream
@@ -253,12 +252,12 @@ type clientState =
    | ServerHelloDoneRSA     of SessionInfo * log
    | ServerHelloDoneDH      of SessionInfo * log
    | ServerHelloDoneDHE     of SessionInfo * (* DHE.sk * *) bytes * log
-   | ClientWritingCCS       of SessionInfo * masterSecret * bytes (* outgoing after CCS *) * log
-   | ServerCCS              of SessionInfo * masterSecret * epoch * StatefulAEAD.reader * log
-   | ServerFinished         of SessionInfo * masterSecret * log
+   | ClientWritingCCS       of SessionInfo * masterSecret * log
+   | ServerCCS              of SessionInfo * masterSecret * epoch * StatefulAEAD.reader
+   | ServerFinished         of SessionInfo * masterSecret
    | ServerCCSResume        of SessionInfo * masterSecret * crand * srand * log
    | ServerFinishedResume   of SessionInfo * masterSecret * crand * srand * epoch * StatefulAEAD.writer * log
-   | ClientWritingCCSResume of SessionInfo * crand * srand * epoch * StatefulAEAD.writer * bytes (* outgoing after CCS *)
+   | ClientWritingCCSResume of epoch * StatefulAEAD.writer
    | ClientWritingFinishedResume
    | ClientIdle
 
@@ -743,24 +742,58 @@ let generateStates (ci:ConnectionInfo) (ms:masterSecret): StatefulAEAD.writer * 
         | Client -> cWrite,sWrite
         | Server -> sWrite,cWrite
 
+let makeVerifyData si role ms hsmsgs =
+    prfVerifyData si role ms hsmsgs
+
 let next_fragment ci state =
     match state.hs_outgoing with
     | [||] ->
         match state.pstate with
         | PSClient(cstate) ->
             match cstate with
-            | ClientWritingCCS (si,ms,afterCCS,log) ->
-                let nextEpochOut = nextEpoch ci.id_out si.init_crand si.init_srand (epochCVerifyData ci.id_out) (epochSVerifyData ci.id_out) si in
-                let nextEpochIn  = nextEpoch ci.id_in  si.init_crand si.init_srand (epochCVerifyData ci.id_in ) (epochSVerifyData ci.id_in ) si in
+            | ClientWritingCCS (si,ms,log) ->
+                let cVerifyData = makeVerifyData si Client ms log in
+                let cFinished = makeMessage HT_finished cVerifyData in
+                let log = log @| cFinished in
+                let sVerifyData = makeVerifyData si Server ms log in
+                let nextEpochOut = nextEpoch ci.id_out si.init_crand si.init_srand cVerifyData sVerifyData si in
+                let nextEpochIn  = nextEpoch ci.id_in  si.init_crand si.init_srand cVerifyData sVerifyData si in
                 let (writer,reader) = generateStates {role = ci.role; id_in = nextEpochIn; id_out = nextEpochOut} ms in
-                let state = {state with hs_outgoing = afterCCS
-                                        pstate = PSClient(ServerCCS(si,ms,nextEpochOut,reader,log))} in
+                let state = {state with hs_outgoing = cFinished
+                                        pstate = PSClient(ServerCCS(si,ms,nextEpochIn,reader))} in
                 let (((rg,f),_),_) = makeCCSFragment ci.id_out CCSBytes in
                 let ci = {ci with id_out = nextEpochOut} in 
                 OutCCS(rg,f,ci,writer,state)
+            | ClientWritingCCSResume(e,w) ->
+                let cFinished = makeMessage HT_finished (epochCVerifyData e) in
+                let state = {state with hs_outgoing = cFinished
+                                        pstate = PSClient(ClientWritingFinishedResume)} in
+                let (((rg,f),_),_) = makeCCSFragment ci.id_out CCSBytes in
+                let ci = {ci with id_out = e} in
+                OutCCS(rg,f,ci,w,state)
+            | _ -> OutIdle(state)
+        | PSServer(sstate) ->
+            match sstate with
             | _ -> unexpectedError "TODO"
-        | _ -> unexpectedError "TODO"
-    | _ -> unexpectedError "TODO"
+    | outBuf ->
+        let (((rg,f),_),(_,remBuf)) = makeFragment ci.id_out outBuf in
+        let state = {state with hs_outgoing = remBuf} in
+        match remBuf with
+        | [||] ->
+            match state.pstate with
+            | PSClient(cstate) ->
+                match cstate with
+                | ServerCCS (_) ->
+                    OutFinished(rg,f,state)
+                | ClientWritingFinishedResume ->
+                    let state = {state with pstate = PSClient(ClientIdle)} in
+                    OutComplete(rg,f,state)
+                | _ -> OutSome(rg,f,state)
+            | PSServer(sstate) ->
+                match sstate with
+                | _ -> unexpectedError "TODO"
+        | _ -> OutSome(rg,f,state)
+                
 
     (* Assumptions: The buffers have been filled in the following order:
        1) hs_outgoing; 2) ccs_outgoing; 3) hs_outgoing_after_ccs
@@ -842,7 +875,7 @@ let next_fragment ci state =
 type incoming = (* the fragment is accepted, and... *)
   | InAck of hs_state
   | InVersionAgreed of hs_state
-  | InQuery of Certificate.cert * hs_state
+  | InQuery of HSK.cert * hs_state
   | InFinished of hs_state
     // FIXME: StorableSession
   | InComplete of hs_state
@@ -1018,17 +1051,17 @@ let serverHelloDoneBytes = makeMessage HT_server_hello_done [||]
 
 /// ClientKeyExchange
 
-let makeClientKEXBytes state clSpecInfo =
-    if canEncryptPMS state.hs_next_info.cipher_suite then
-        let pms = genPMS state.hs_next_info state.poptions.maxVer in
-        match state.hs_next_info.serverID with
+let makeClientKEXBytes si config clSpecInfo =
+    if canEncryptPMS si.cipher_suite then
+        let pms = genPMS si config.maxVer in
+        match si.serverID with
         | None -> unexpectedError "[makeClientKEXBytes] Server certificate should always be present with a RSA signing cipher suite."
         | Some (serverCert) ->
             let pubKey = pubKey_of_certificate serverCert in
-            match rsaEncryptPMS state.hs_next_info pubKey pms with
+            match rsaEncryptPMS si pubKey pms with
             | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
             | Correct (encpms) ->
-                if state.hs_next_info.protocol_version = SSL_3p0 then
+                if si.protocol_version = SSL_3p0 then
                     correct ((makeMessage HT_client_key_exchange encpms),pms)
                 else
                     let encpms = vlbytes 2 encpms in
@@ -1042,16 +1075,16 @@ let makeClientKEXBytes state clSpecInfo =
                 (* TODO: send public Yc value *)
                 let ycBytes = [||] in
                 (* TODO: compute pms *)
-                let pms = empty_pms state.hs_next_info in
+                let pms = empty_pms si in
                 correct ((makeMessage HT_client_key_exchange ycBytes),pms)
             | Some (cert) ->
                 (* TODO: check whether the certificate already contained suitable DH parameters *)
-                let pms = empty_pms state.hs_next_info in
+                let pms = empty_pms si in
                 correct ((makeMessage HT_client_key_exchange [||]),pms)
         | None ->
             (* Use DH parameters *)
             let ycBytes = [||] in
-            let pms = empty_pms state.hs_next_info in
+            let pms = empty_pms si in
             correct ((makeMessage HT_client_key_exchange ycBytes),pms)
 
 let parseClientKEX sinfo sSpecState pops data =
@@ -1207,10 +1240,6 @@ let bldVerifyData version cs ms entity hsmsgs =
 let checkVerifyData si role ms hsmsgs orig =
     let computed = prfVerifyData si role ms hsmsgs in
     equalBytes orig computed
-
-let makeFinishedMsgBytes si role ms hsmsgs =
-    let payload = prfVerifyData si role ms hsmsgs in
-    ((makeMessage HT_finished payload), payload)
 
 (*
 let ciphstate_of_ciphtype ct key iv =

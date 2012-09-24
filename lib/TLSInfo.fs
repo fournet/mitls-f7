@@ -1,7 +1,6 @@
 ﻿module TLSInfo
 
 open Bytes
-open Certificate
 open CipherSuites
 
 type sessionID = bytes
@@ -18,8 +17,8 @@ type cVerifyData = bytes
 type sVerifyData = bytes
 
 type SessionInfo = {
-    clientID: cert option;
-    serverID: cert option;
+    clientID: HSK.cert option;
+    serverID: HSK.cert option;
     sessionID: sessionID;
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;
@@ -112,7 +111,7 @@ type config = {
     check_client_version_in_pms_for_old_tls: bool
     server_cert_file: string (* FIXME: certificates should be found in a better way. To be fixed *)
     (* Common *)
-    trustedRootCertificates: cert list
+    trustedRootCertificates: HSK.cert list
     safe_renegotiation: bool
     
     (* Sessions database *)

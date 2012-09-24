@@ -24,6 +24,11 @@ type hashAlg =
     | SHA256
     | SHA384
 
+type sigAlg = 
+  | SA_RSA
+  | SA_DSA 
+  | SA_ECDSA
+
 type aeadAlg =
     | AES_128_GCM
     | AES_256_GCM

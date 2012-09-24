@@ -234,7 +234,7 @@ let isAnonCipherSuite cs =
  (* | ( ECDH_anon, _ ) -> true *)
     | _ -> false
 
-let cipherSuiteRequiresKeyExchange cs =
+let isDHECipherSuite cs =
     match cs with
     | CipherSuite ( DHE_DSS, _ )     -> true
     | CipherSuite ( DHE_RSA, _ )     -> true
@@ -242,7 +242,7 @@ let cipherSuiteRequiresKeyExchange cs =
     | CipherSuite ( ECDHE_RSA, _ )   -> true *)
     | _ -> false
 
-let canEncryptPMS cs =
+let isRSACipherSuite cs =
     match cs with
     | CipherSuite ( RSA, _ )     -> true
     | OnlyMACCipherSuite ( RSA, _ ) -> true

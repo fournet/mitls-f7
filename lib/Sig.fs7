@@ -20,29 +20,14 @@
 //         and hash algorithms from previous versions of TLS.
 
 // TODO: there is some adhocness processing of those algs left in Handhshake.fs
-
-/// Cf. [7.4.1.4.1]
-// implements SignatureAlgorithm without "none"
-type sigAlg = 
-  | RSA //[8.1.1] RSA digital signatures are performed using PKCS #1 block type 1. 
-  | DSA 
-  | ECDSA
-
-type hashAlg = // annoyingly not the same as Algorithms.hashAlg
-  | MD5    // 1
-  | SHA1   // 2
-  | SHA224 // 3
-  | SHA256 // 4
-  | SHA384 // 5
-  | SHA512 // 6
   
  // implements SignatureAndHashAlgorithm, with fewer values for hashAlg
-type alg = //
-  sigAlg * Algorithms.hashAlg // hashAlgo does *not* include some values from the spec.
+type alg = Algorithms.sigAlg * Algorithms.hashAlg // hashAlg does *not* include some values from the spec.
 
-type text = bytes
-type (;a:alg) sigv = bytes // TODO: specify their size, 36 with RSA, 20 with DSA
-                           // with TLS 1.2, this explicitly contains a; see DigitallySigned struct 
+type text = Bytes.bytes
+type (;a:alg) sigv = Bytes.bytes
+  // TODO: specify their size, 36 with RSA, 20 with DSA
+  // with TLS 1.2, this explicitly contains a; see DigitallySigned struct 
 
 // Summary of the extension logic for the client:
 // - specific to TLS 1.2
@@ -50,13 +35,13 @@ type (;a:alg) sigv = bytes // TODO: specify their size, 36 with RSA, 20 with DSA
 // - extension indicates supported algs (not necessarily following the cs)
 // - no extension == client supports exactly the default alg
 
-let defaultAlg cs =
-  let a = 
-    match cs with 
-    | RSA | DH_RSA | DHE_RSA | RSA_PSK (* | ECDH_RSA | ECDHE_RSA *) -> RSA
-    | DH_DSS | DHE_DSS                                              -> DSA
-  (*| ECDH_ECDSA | ECDHE_ECDSA                                      -> ECDSA in
-  (a, SHA1)
+// let defaultAlg cs =
+//   let a = 
+//     match cs with 
+//     | RSA | DH_RSA | DHE_RSA | RSA_PSK (* | ECDH_RSA | ECDHE_RSA *) -> RSA
+//     | DH_DSS | DHE_DSS                                              -> DSA
+//   (*| ECDH_ECDSA | ECDHE_ECDSA                                      -> ECDSA in
+//   (a, SHA1)
 
 // TODO: how to extract & checks the algs from certs?
 // TODO: how does the server control the choice of algorithms? For now hardcoded.
@@ -64,15 +49,25 @@ let defaultAlg cs =
 //********************** Ideal Functionality for Signing *********************** 
 
 type (;a:alg) skey 
-type (;a:alg) vkey = bytes //TODO: relate to sk
+type (;a:alg) vkey = Bytes.bytes //TODO: relate to sk
 
-type authentic =  Msg of alg * vk * text
+// AP: These are "Coerce"-like.
+val create_skey: Algorithms.hashAlg -> Algorithms.skeyparams -> skey
+val create_vkey: Algorithms.hashAlg -> Algorithms.pkeyparams -> vkey
 
-val gen:     a:alg -> vk:(;a) vkey * sk:(;a) skey { pk = PK(sk) }
-val sign:    a:alg -> sk:(;a) skey -> t:text{Msg(a,PK(k),t)} -> (;a) sigv
+function val PK: 'a -> vkey // a:alg * (;a)skey -> vkey
+predicate val Msg: alg * vkey * text -> bool
+
+// FIXME: Local dummy definition of "Strong", until we relocate CMA/CTXT and the like to algorithm.
+predicate val Strong: alg -> bool
+
+val gen:     a:alg -> pk:(;a) vkey * sk:(;a) skey { pk = PK(sk) }
+val sign:    a:alg -> sk:(;a) skey -> t:text{Msg(a,PK(sk),t)} -> (;a) sigv
 val verify:  a:alg -> pk:(;a) vkey -> t:text -> m:(;a) sigv -> b:bool {b=true /\ Strong(a) => Msg(a,pk,t)}
 
-val PkBytes: a:alg -> pkey -> bytes
-val SkBytes: a:alg -> sk:skey {!t. Msg(a,pk,t) } -> bytes // a.k.a. leak
+// AP: Commenting out these "leak"-like functions, until we implement them.
+// 
+// val PkBytes: a:alg -> pkey -> bytes
+// val SkBytes: a:alg -> sk:skey {!t. Msg(a,pk,t) } -> bytes // a.k.a. leak
 
 // TODO: adjust compromise model, connect it to HSK (mostly for the benefit of the adversary)

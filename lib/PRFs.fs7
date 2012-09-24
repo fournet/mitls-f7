@@ -33,7 +33,7 @@ val rsaEncryptPMS: si:SessionInfo -> asymKey -> (;si)preMasterSecret -> bytes Re
 val getPMS: si:SessionInfo -> 
             vc:CipherSuites.ProtocolVersion (* highest client version, as above *) ->
             bool -> (* flag whether we should check protocol version in old TLS versions *)
-            Certificate.cert -> 
+            HSK.cert -> 
             bytes -> (;si)preMasterSecret (* No Result type: in case of error, we return a fresh random PMS *)
 
 

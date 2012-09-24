@@ -11,7 +11,7 @@ open Error
 type preMasterSecret
 val genPMS: SessionInfo -> CipherSuites.ProtocolVersion -> preMasterSecret
 val rsaEncryptPMS: SessionInfo -> asymKey -> preMasterSecret -> bytes Result
-val getPMS: SessionInfo -> CipherSuites.ProtocolVersion -> bool -> Certificate.cert -> bytes -> preMasterSecret
+val getPMS: SessionInfo -> CipherSuites.ProtocolVersion -> bool -> HSK.cert -> bytes -> preMasterSecret
 
 val empty_pms: SessionInfo -> preMasterSecret (* Used to implement a dummy DH key exchange *)
 

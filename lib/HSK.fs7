@@ -1,5 +1,17 @@
 ﻿module HSK 
 
+open Bytes
+
+type hint = string
+type cert = bytes
+
+val for_signing : hint -> Sig.alg -> (cert * Sig.skey * Sig.vkey) option
+val for_key_encryption : hint -> (cert * RSA.rsaskey * RSA.rsapkey) option
+
+//AP: Commenting out to let typeckeching go through
+
+(*
+
 // long-term key repository (part of the handshake implementation):
 //
 // an abstract interface for creating and storing long-term keypairs:
@@ -49,3 +61,5 @@ val certkey: c:certs -> o:pk option {o = CertKey(c)}
 // - [Certificate] implements X509 certificate processing
 // - [Handshake] implements parsing of certificate chains into Certificate.cert list
 // - we do not provide concrete long-term key & cert generation 
+
+*)

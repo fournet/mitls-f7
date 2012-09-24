@@ -28,8 +28,8 @@ val isOnlyMACCipherSuite: cipherSuite -> bool
 val isAEADCipherSuite: cipherSuite -> bool
 
 val isAnonCipherSuite: cipherSuite -> bool
-val cipherSuiteRequiresKeyExchange: cipherSuite -> bool
-val canEncryptPMS: cipherSuite -> bool
+val isDHECipherSuite: cipherSuite -> bool
+val isRSACipherSuite: cipherSuite -> bool
 val contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV: cipherSuites -> bool
 val verifyDataLen_of_ciphersuite: cipherSuite -> int
 val prfHashAlg_of_ciphersuite: cipherSuite -> hashAlg

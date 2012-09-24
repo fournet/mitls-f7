@@ -13,11 +13,6 @@ open Org.BouncyCastle.Crypto.Parameters
 open Org.BouncyCastle.Security
 
 (* ------------------------------------------------------------------------ *)
-type sigAlg = 
-  | SA_RSA
-  | SA_DSA 
-  | SA_ECDSA
-
 type alg = sigAlg * hashAlg
 
 type text = bytes
