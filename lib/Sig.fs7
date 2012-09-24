@@ -49,21 +49,21 @@ type (;a:alg) sigv = Bytes.bytes
 //********************** Ideal Functionality for Signing *********************** 
 
 type (;a:alg) skey 
-type (;a:alg) vkey = Bytes.bytes //TODO: relate to sk
+type (;a:alg) vkey = Bytes.bytes //TODO: relate to sk // FIXME: This is misaligned with real code!
 
 // AP: These are "Coerce"-like.
-val create_skey: Algorithms.hashAlg -> Algorithms.skeyparams -> skey
-val create_vkey: Algorithms.hashAlg -> Algorithms.pkeyparams -> vkey
+val create_skey: a:alg -> Algorithms.skeyparams -> (;a)skey
+val create_vkey: a:alg -> Algorithms.pkeyparams -> (;a)vkey
 
-function val PK: 'a -> vkey // a:alg * (;a)skey -> vkey
-predicate val Msg: alg * vkey * text -> bool
+function val PK: 'a -> 'b // a:alg * (;a)skey -> vkey
+predicate val Msg: a:alg * (;a)vkey * text -> bool
 
 // FIXME: Local dummy definition of "Strong", until we relocate CMA/CTXT and the like to algorithm.
 predicate val Strong: alg -> bool
 
 val gen:     a:alg -> pk:(;a) vkey * sk:(;a) skey { pk = PK(sk) }
 val sign:    a:alg -> sk:(;a) skey -> t:text{Msg(a,PK(sk),t)} -> (;a) sigv
-val verify:  a:alg -> pk:(;a) vkey -> t:text -> m:(;a) sigv -> b:bool {b=true /\ Strong(a) => Msg(a,pk,t)}
+val verify:  a:alg -> pk:(;a) vkey -> t:text -> m:(;a) sigv -> b:bool {b=true /\ (Strong(a) => Msg(a,pk,t))}
 
 // AP: Commenting out these "leak"-like functions, until we implement them.
 // 

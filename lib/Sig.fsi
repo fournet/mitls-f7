@@ -14,8 +14,8 @@ type sigv = bytes
 type skey
 type vkey
 
-val create_skey: hashAlg -> skeyparams -> skey
-val create_vkey: hashAlg -> pkeyparams -> vkey
+val create_skey: alg -> skeyparams -> skey
+val create_vkey: alg -> pkeyparams -> vkey
 
 (* ------------------------------------------------------------------------ *)
 val gen    : alg -> vkey * skey

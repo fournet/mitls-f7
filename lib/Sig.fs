@@ -22,8 +22,8 @@ type sigv = bytes
 type skey = SKey of skeyparams * hashAlg
 type vkey = VKey of pkeyparams * hashAlg
 
-let create_skey (h : hashAlg) (p : skeyparams) = SKey (p, h)
-let create_vkey (h : hashAlg) (p : pkeyparams) = VKey (p, h)
+let create_skey ((s,h) : alg) (p : skeyparams) = SKey (p, h)
+let create_vkey ((s,h) : alg) (p : pkeyparams) = VKey (p, h)
 
 (* ------------------------------------------------------------------------ *)
 let sigalg_of_skeyparams = function
