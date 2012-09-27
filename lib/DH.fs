@@ -5,9 +5,8 @@ type p = bigint
 let modBytes p : bytes = failwith "todo"
 let modParse b : p     = failwith "todo"
 
-let ppgen() : p * bytes = failwith "todo" 
-
 type elt = bigint
+let ppgen() : p * elt = failwith "todo" 
 let eltBytes (p:p) g = failwith "todo"
 let eltParse (p:p) b = failwith "todo"
 
@@ -38,9 +37,9 @@ module Ideal = // implementing the ideal variant from a concrete one
     let gxlog: (p * elt * elt) list ref               = ref [] 
     let gxylog:((p * elt * elt * elt) * elt) list ref = ref []
 
-    let genpp() = 
-       let p,g = genpp()
-       pplog := (p,g)::pplog
+    let ppgen() = 
+       let p,g = ppgen()
+       pplog := (p,g)::!pplog
        p,g
 
     let gen (p:p) (g:elt) = 
