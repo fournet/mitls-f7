@@ -34,7 +34,7 @@ module Ideal = // implementing the ideal variant from a concrete one
       | _    ::xys           -> assoc xys x0
       | []                   -> None
 
-    let pplog: (p * elt) list ref
+    let pplog: (p * elt) list ref                     = ref []
     let gxlog: (p * elt * elt) list ref               = ref [] 
     let gxylog:((p * elt * elt * elt) * elt) list ref = ref []
 
