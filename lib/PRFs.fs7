@@ -52,12 +52,9 @@ val prfVerifyData: si:SessionInfo -> r:Role -> (;si) masterSecret ->
 
 (** KDF for the connection key materials, keyed with the master secret *)
 
-type (;ci:ConnectionInfo) keyBlob
-val prfKeyExp: ci:ConnectionInfo -> (;EpochSI(ci.id_out))masterSecret ->
-               (* No label, it's hardcoded. Of course we can make it explicit -> *)
-               (* No seed (crandom @| srandom), it can be retrieved from epoch (and not SessionInfo!) -> *)
-               (;ci)keyBlob (* length depends on cs *)
-
-val splitStates: ci:ConnectionInfo -> (;ci)keyBlob -> ((;ci.id_out)StatefulAEAD.state * (;ci.id_in)StatefulAEAD.state)
+val keyGen: ci:ConnectionInfo -> (;EpochSI(ci.id_out))masterSecret -> 
+  ((;ci.id_out)StatefulAEAD.state * (;ci.id_in)StatefulAEAD.state)
+         (* No label, it's hardcoded. Of course we can make it explicit -> *)
+         (* No seed (crandom @| srandom), it can be retrieved from epoch (and not SessionInfo!) -> *)
 
 val makeTimestamp: unit -> int

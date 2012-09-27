@@ -736,8 +736,7 @@ let makeFragment ki b =
 let makeCCSFragment ki b = makeFragment ki b
 
 let generateStates (ci:ConnectionInfo) (ms:masterSecret): StatefulAEAD.writer * StatefulAEAD.reader =
-    let key_block = prfKeyExp ci ms in
-    let (cWrite,sWrite) = splitStates ci key_block in
+    let (cWrite,sWrite) = PRFs.keyGen ci ms
     match ci.role with 
         | Client -> cWrite,sWrite
         | Server -> sWrite,cWrite
@@ -1051,6 +1050,8 @@ let serverHelloDoneBytes = makeMessage HT_server_hello_done [||]
 
 /// ClientKeyExchange
 
+//CF: to be separated?? 
+
 let makeClientKEXBytes si config clSpecInfo =
     if canEncryptPMS si.cipher_suite then
         let pms = RSAPlain.genPMS si config.maxVer in
@@ -1058,14 +1059,9 @@ let makeClientKEXBytes si config clSpecInfo =
         | None -> unexpectedError "[makeClientKEXBytes] Server certificate should always be present with a RSA signing cipher suite."
         | Some (serverCert) ->
             let pubKey = pubKey_of_certificate serverCert in
-            match rsaEncryptPMS si pubKey pms with
-            | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
-            | Correct (encpms) ->
-                if si.protocol_version = SSL_3p0 then
-                    correct ((makeMessage HT_client_key_exchange encpms),pms)
-                else
-                    let encpms = vlbytes 2 encpms in
-                    correct ((makeMessage HT_client_key_exchange encpms),pms)
+            let encpms = RSAEnc.encrypt pubKey pms 
+            let encpms = if si.protocol_version = SSL_3p0 then encpms else vlbytes 2 encpms 
+            correct ((makeMessage HT_client_key_exchange encpms),pms)
     else
         match clSpecInfo.must_send_cert with
         | Some (_) ->
@@ -1100,7 +1096,7 @@ let parseClientKEX sinfo sSpecState pops data =
                         | Error(x,y) -> Error(HSError(AD_decode_error),HSSendAlert)
             match encrypted with
             | Correct(encPMS) ->
-                let res = getPMS sinfo sSpecState.highest_client_ver pops.check_client_version_in_pms_for_old_tls cert encPMS in
+                let res = PRFs.getPMS sinfo sSpecState.highest_client_ver pops.check_client_version_in_pms_for_old_tls cert encPMS in
                 correct(res)
             | Error(x,y) -> Error(x,y)
         | None -> unexpectedError "[parseClientKEX] when the ciphersuite can encrypt the PMS, the server certificate should always be set"
@@ -1138,7 +1134,8 @@ let makeCertificateVerifyBytes cert data pv certReqMsg =
                 | None -> unexpectedError "[makeCertificateVerifyBytes] We are in TLS 1.2, so the server should send a SigAndHashAlg structure."
             let hashed = HASH.hash hashAlg data in
             let priKey = priKey_of_certificate cert in
-            //$ we should pick the signing alg from cert. Not rsaEncrypt!!
+            // THIS IS NOT AN ENCRYPTION!
+            // we should pick the signing alg from cert. Not rsaEncrypt!!
             match RSA.encrypt priKey hashed with
             | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
             | Correct (signed) ->
@@ -1275,11 +1272,9 @@ let compute_session_secrets_and_CCSs ci state =
 
 let prepare_client_output_full ci state clSpecState =
     let clientCertBytes =
-        match clSpecState.must_send_cert with
-        | Some (_) ->
-            makeCertificateBytes clSpecState.client_certificate
-        | None ->
-            [||]
+      match clSpecState.must_send_cert with
+      | Some (_) -> makeCertificateBytes clSpecState.client_certificate
+      | None     -> [||]
 
     match makeClientKEXBytes state clSpecState with
     | Error (x,y) -> Error (x,y)

@@ -24,3 +24,5 @@ val makeTimestamp: unit -> int
 
 val prfVerifyData: SessionInfo -> Role -> masterSecret -> bytes -> bytes 
 
+//CF not sure where this one should be
+val getPMS: SessionInfo -> CipherSuites.ProtocolVersion -> bool -> HSK.cert -> RSAPlain.pms -> bytes

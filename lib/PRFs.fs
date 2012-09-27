@@ -132,44 +132,38 @@ let prfVerifyData si role (ms:masterSecret) data =
   | TLS_1p2           -> let cs = si.cipher_suite in
                          tls12VerifyData cs ms.bytes role data
 
-type preMasterSecret = {bytes:bytes}
 
-let genPMS (sinfo:SessionInfo) ver =
-    let verBytes = versionBytes ver in
-    let rnd = mkRandom 46 in
-    let pms = verBytes @| rnd in
-    {bytes = pms}
-
-let rsaEncryptPMS (si:SessionInfo) key pms =
-    RSAEnc.encrypt key pms.bytes
-
-let getPMS sinfo ver check_client_version_in_pms_for_old_tls cert encPMS =
+//CF: relocate? 
+let getPMS (si:SessionInfo) 
+           (vc:CipherSuites.ProtocolVersion) 
+           (check_client_version_in_pms_for_old_tls: bool)
+           (cert: HSK.cert) 
+           (encPMS: RSAPlain.pms) =
   (* Security measures described in RFC 5246, section 7.4.7.1 *)
   (* 1. Generate random data, 46 bytes, for PMS except client version *)
   let fakepms = mkRandom 46 in
   (* 2. Decrypt the message to recover plaintext *)
   let priK = HSK.priKey_of_certificate cert in
-  let expected = versionBytes ver
-  match RSAEnc.decrypt priK encPMS with
+  let expected = versionBytes vc
+  match RSAEnc.decrypt priK id encPMS with
     | Correct(pms) when length pms = 48 ->
         let (clVB,postPMS) = split pms 2 in
-        match sinfo.protocol_version with
+        match si.protocol_version with
           | TLS_1p1 | TLS_1p2 ->
               (* 3. If new TLS version, just go on with client version and true pms.
                     This corresponds to a check of the client version number, but we'll fail later. *)
-              {bytes = expected @| postPMS}
+              expected @| postPMS
           
           | SSL_3p0 | TLS_1p0 ->
               (* 3. If check disabled, use client provided PMS, otherwise use our version number *)
               if check_client_version_in_pms_for_old_tls 
-              then {bytes = expected @| postPMS}
-              else {bytes = pms}
+              then expected @| postPMS
+              else pms
     | _  -> 
         (* 3. in case of decryption of length error, continue with fake PMS *) 
-        {bytes = expected @| fakepms}
+        expected @| fakepms
 
-//let empty_pms (si:SessionInfo) = {bytes = [||]}
-
+// internal
 let prfMS sinfo pmsBytes: masterSecret =
     let pv = sinfo.protocol_version in
     let cs = sinfo.cipher_suite in
@@ -180,17 +174,21 @@ let prfMS sinfo pmsBytes: masterSecret =
 let prfSmoothRSA si (pms: RSAPlain.pms)    = prfMS si pms
 let prfSmoothDH si (p:DH.p) (g:DH.elt) (gx:DH.elt) (gy:DH.elt) (pms: DH.pms) = prfMS si (DH.leak p g gx gy pms)
 
-type keyBlob = {bytes:bytes}
 
-let splitStates ci (blob:keyBlob) =
+let keyGen ci (ms:masterSecret) =
     let si = epochSI(ci.id_in) in
+    let pv = si.protocol_version in
     let cs = si.cipher_suite in
+    let srand = epochSRand ci.id_in in
+    let crand = epochCRand ci.id_in in
+    let data = srand @| crand in
+    let len = getKeyExtensionLength pv cs in
+    let b = generic_prf pv cs ms.bytes "key expansion" data len in
     match cs with
     | x when isOnlyMACCipherSuite x ->
         let macKeySize = macKeySize (macAlg_of_ciphersuite cs) in
-        let key_block = blob.bytes in
-        let cmkb = Array.sub key_block 0 macKeySize in
-        let smkb = Array.sub key_block macKeySize macKeySize in
+        let cmkb = Array.sub b 0 macKeySize in
+        let smkb = Array.sub b macKeySize macKeySize in
         let ck = StatefulAEAD.COERCE ci.id_out cmkb in
         let sk = StatefulAEAD.COERCE ci.id_in smkb in
         (ck,sk)
@@ -200,29 +198,15 @@ let splitStates ci (blob:keyBlob) =
         let ivsize = 
             if PVRequiresExplicitIV si.protocol_version then 0
             else ivSize (encAlg_of_ciphersuite si.cipher_suite)
-        let key_block = blob.bytes in
-        let cmkb = Array.sub key_block 0 macKeySize in
-        let smkb = Array.sub key_block macKeySize macKeySize in
-        let cekb = Array.sub key_block (2*macKeySize) encKeySize in
-        let sekb = Array.sub key_block (2*macKeySize+encKeySize) encKeySize in
-        let civb = Array.sub key_block (2*macKeySize+2*encKeySize) ivsize in
-        let sivb = Array.sub key_block (2*macKeySize+2*encKeySize+ivsize) ivsize in
+        let cmkb = Array.sub b 0 macKeySize in
+        let smkb = Array.sub b macKeySize macKeySize in
+        let cekb = Array.sub b (2*macKeySize) encKeySize in
+        let sekb = Array.sub b (2*macKeySize+encKeySize) encKeySize in
+        let civb = Array.sub b (2*macKeySize+2*encKeySize) ivsize in
+        let sivb = Array.sub b (2*macKeySize+2*encKeySize+ivsize) ivsize in
         let ck = StatefulAEAD.COERCE ci.id_out (cmkb @| cekb @| civb) in
         let sk = StatefulAEAD.COERCE ci.id_in (smkb @| sekb @| sivb) in
         (ck,sk)
-
-let keyExpansion ci (ms:masterSecret) =
-    let si = epochSI(ci.id_in) in
-    let pv = si.protocol_version in
-    let cs = si.cipher_suite in
-    let srand = epochSRand ci.id_in in
-    let crand = epochCRand ci.id_in in
-    let data = srand @| crand in
-    let len = getKeyExtensionLength pv cs in
-    let res = generic_prf pv cs ms.bytes "key expansion" data len in
-    {bytes = res}
-    
-let keyGen ci ms = splitStates ci (keyExpansion ci ms)
 
 (*  | x when IsGCM x -> ... *)
 

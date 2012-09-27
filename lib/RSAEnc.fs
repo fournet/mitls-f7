@@ -9,7 +9,7 @@ open Org.BouncyCastle.Crypto.Encodings
 open Org.BouncyCastle.Crypto.Engines
 open Org.BouncyCastle.Crypto.Parameters
 
-let encrypt (RSAPKey (m, e)) (v : bytes) =
+let encrypt (RSAPKey (m, e)) id (v : bytes) =
     let m, e   = new BigInteger(1, m), new BigInteger(1, e) in
     let engine = new RsaEngine() in
     let engine = new Pkcs1Encoding(engine) in
@@ -17,7 +17,7 @@ let encrypt (RSAPKey (m, e)) (v : bytes) =
     engine.Init(true, new RsaKeyParameters(false, m, e))
     engine.ProcessBlock(v, 0, v.Length)
 
-let decrypt (RSASKey (m, e)) (v : bytes) =
+let decrypt (RSASKey (m, e)) id (v : bytes) =
     let m, e   = new BigInteger(1, m), new BigInteger(1, e) in
     let engine = new RsaEngine() in
     let engine = new Pkcs1Encoding(engine) in
