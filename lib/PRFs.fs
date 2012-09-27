@@ -10,8 +10,10 @@ open RSA
 open HASH
 open HMAC
 
-type masterSecret = {bytes:bytes}
-let empty_masterSecret (si:SessionInfo) : masterSecret = {bytes = [||]}
+type repr = bytes
+type masterSecret = { bytes: repr }
+
+// let empty_masterSecret (si:SessionInfo) : masterSecret = {bytes = [||]}
 
 (** Low-level prf functions *)
 
@@ -166,28 +168,20 @@ let getPMS sinfo ver check_client_version_in_pms_for_old_tls cert encPMS =
         (* 3. in case of decryption of length error, continue with fake PMS *) 
         {bytes = expected @| fakepms}
 
-let empty_pms (si:SessionInfo) = {bytes = [||]}
+//let empty_pms (si:SessionInfo) = {bytes = [||]}
 
-let prfMS sinfo pms: masterSecret =
+let prfMS sinfo pmsBytes: masterSecret =
     let pv = sinfo.protocol_version in
     let cs = sinfo.cipher_suite in
     let data = sinfo.init_crand @| sinfo.init_srand in
-    let res = generic_prf pv cs pms.bytes "master secret" data 48 in
+    let res = generic_prf pv cs pmsBytes "master secret" data 48 in
     {bytes = res}
+
+let prfSmoothRSA si (pms: RSAPlain.pms)    = prfMS si pms
+let prfSmoothDH si (p:DH.p) (g:DH.elt) (gx:DH.elt) (gy:DH.elt) (pms: DH.pms) = prfMS si (DH.leak p g gx gy pms)
 
 type keyBlob = {bytes:bytes}
 
-let prfKeyExp ci (ms:masterSecret) =
-    let si = epochSI(ci.id_in) in
-    let pv = si.protocol_version in
-    let cs = si.cipher_suite in
-    let srand = epochSRand ci.id_in in
-    let crand = epochCRand ci.id_in in
-    let data = srand @| crand in
-    let len = getKeyExtensionLength pv cs in
-    let res = generic_prf pv cs ms.bytes "key expansion" data len in
-    {bytes = res}
-    
 let splitStates ci (blob:keyBlob) =
     let si = epochSI(ci.id_in) in
     let cs = si.cipher_suite in
@@ -216,6 +210,19 @@ let splitStates ci (blob:keyBlob) =
         let ck = StatefulAEAD.COERCE ci.id_out (cmkb @| cekb @| civb) in
         let sk = StatefulAEAD.COERCE ci.id_in (smkb @| sekb @| sivb) in
         (ck,sk)
+
+let keyExpansion ci (ms:masterSecret) =
+    let si = epochSI(ci.id_in) in
+    let pv = si.protocol_version in
+    let cs = si.cipher_suite in
+    let srand = epochSRand ci.id_in in
+    let crand = epochCRand ci.id_in in
+    let data = srand @| crand in
+    let len = getKeyExtensionLength pv cs in
+    let res = generic_prf pv cs ms.bytes "key expansion" data len in
+    {bytes = res}
+    
+let keyGen ci ms = splitStates ci (keyExpansion ci ms)
 
 (*  | x when IsGCM x -> ... *)
 

@@ -65,7 +65,7 @@ let x509_is_for_key_encryption (x509 : X509Certificate2) =
     x509_has_key_usage_flag false X509KeyUsageFlags.KeyEncipherment x509
 
 (* ------------------------------------------------------------------------ *)
-let for_signing (h : hint) ((asig, ahash) : Sig.alg) =
+let for_signing (h : hint) ((asig, ahash) as a: Sig.alg) =
     let kaoid = oid_of_sigalg asig in
     let store = new X509Store(StoreName.My, StoreLocation.CurrentUser) in
 
@@ -84,8 +84,8 @@ let for_signing (h : hint) ((asig, ahash) : Sig.alg) =
                 match x509_to_keys x509 with
                 | Some (skey, pkey) ->
                     Some (x509.Export(X509ContentType.Cert),
-                          Sig.create_skey ahash skey,
-                          Sig.create_vkey ahash pkey)
+                          Sig.create_skey a skey,
+                          Sig.create_vkey a pkey)
                 | None -> None
         with :? KeyNotFoundException -> None
     finally

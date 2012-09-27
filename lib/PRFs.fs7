@@ -20,7 +20,6 @@ val getPMS: si:SessionInfo ->
             HSK.cert -> 
             bytes -> (;si)preMasterSecret (* No Result type: in case of error, we return a fresh random PMS *)
 
-(****** DH ******) 
 
 (****** MS ******) 
 
@@ -36,7 +35,15 @@ val PRFsmoothRSA:
     pms: (;si) RSAPlain.pms ->
     (;si) masterSecret 
 
+val PRFsmoothDH:
+    si:SessionInfo ->
+	p: DH.p -> g: (;p) DH.elt -> gx: (;p) DH.elt -> gy: (;p) DH.elt -> 
+	pms: (p,g,gx,gy) DH.pms ->
+	(;si) masterSecret 
+
 (** VerifyData MAC keyed with the master secret, relying on CMA ***)          
+
+(* Generates verifyData for the Finished message *)
 
 val prfVerifyData: si:SessionInfo -> r:Role -> (;si) masterSecret ->
                    bytes (* msgLog *) -> 
