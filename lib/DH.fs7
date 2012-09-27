@@ -1,12 +1,45 @@
 ﻿module DH
 
+// Diffie-Hellman with ephemeral keys (single use)
+// our ideal functionality keeps track of abstract exponents (indexed by their exponentials)
+// and substitutes fresh exponentials for the resulting pms
+
 open Bytes
 
-val Role: unit -> bytes * (bytes -> bytes)
+type p
+val modBytes: p:p -> bytes
+val modParse: bytes -> p:p
 
-// AP: Commenting out to let the rest typecheck
+// "Strong" parameter generation used by compliant servers,
+// formally a precondition for signing them with an honest key.
+predicate val PP: p:p * g:(;p) -> bool 
 
-(* 
+// the RFCs are vague about best practices for ppgen
+val ppgen: unit -> p:p * g:(;p) elt {PP(p,g)} 
+
+type (;p:p) elt // for public parameters and exchange values 
+val eltBytes: p:p -> (;p) elt -> bytes 
+val eltParse: p:p -> bytes -> (;p) elt  
+
+// public parameters: p:p * (;p) elt 
+// Who chooses them in TLS?
+
+type (;p:p,g:elt,gx:elt) secret // private secret x, y, ... represented as some big integer modulo p
+
+val gen: p:p * g: (;p) elt -> gx:(;p) elt * (;p,gx) secret  
+
+type (;p:p, g:(;p) elt, gx:(;p) elt, gy:(;p) elt) pms // strong secret when (p,g), gx, and gy have been honestly generated
+ 
+// used only within PRFs
+val leak:   p:p -> (;p) pms -> (;p) elt  
+
+// used only within ideal DH
+val sample: p:p -> g:(;p) elt -> gx:(;p) elt -> gy:(;p) elt                   -> (;p,g,gx,gy) pms
+val exp:    p:p -> g:(;p) elt -> gx:(;p) elt -> gy:(;p) elt -> x:(;gx) secret -> (;p,g,gx,gy) pms 
+
+
+(* CF: older stuff
+
 // for TLS, we index all values by local randomness 
 // unclear how to deal with public parameters
 
@@ -40,7 +73,7 @@ type id = bytes
 type (;i:id,pp:pp) x // bigInt, secret exponent
 // indexing guarantees that any given private key is used with at most one pp
   
-type (;i:id,pp:pp) gx = e:elt // { e = g^x mod p }
+type (;i:id,pp:pp) gx = e:elt // { e = g^x p p }
 
 type eltrepr = bytes
 val elt:     i:id -> (;i) gx -> gxrepr
@@ -61,7 +94,7 @@ val share: i:id -> (;i) x -> j:id -> (;j) gx -> (;i,j) gxy
 // - relying on DDH, we replace those computations by fresh sampling of g^z
 
 // let split n = let d = n / 2 in d, n - 2*d ;;
-// let (mod) v p = let d = v / p in v - d * p ;;
-// let rec expmod p g n = if n = 0 then 1 else let (d,r) = split n in let e = expmod p g d in let e2 = (e * e) mod p in if r=0 then e2 else (e2 * g) mod p ;;
+// let (p) v p = let d = v / p in v - d * p ;;
+// let rec expmod p g n = if n = 0 then 1 else let (d,r) = split n in let e = expmod p g d in let e2 = (e * e) p p in if r=0 then e2 else (e2 * g) p p ;;
 
 *)

@@ -1,14 +1,13 @@
 ﻿module RSA
 
-(* See RSA.f7 for information *)
+// See comments in RSA.f7
+
 open Bytes
 open Error
 
-type rsaskey
-type rsapkey
+// breaking type abstraction only for RSAEnc.fs
+type dk = RSASKey of bytes * bytes
+type pk = RSAPKey of bytes * bytes
 
-val rsaEncrypt: rsapkey -> bytes -> bytes Result
-val rsaDecrypt: rsaskey -> bytes -> bytes Result
-
-val create_rsapkey : bytes * bytes -> rsapkey
-val create_rsaskey : bytes * bytes -> rsaskey
+val create_rsapkey : bytes * bytes -> pk
+val create_rsaskey : bytes * bytes -> dk

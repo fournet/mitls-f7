@@ -1,4 +1,64 @@
-﻿module ECDH
+﻿module DH 
+open Bytes
+
+type p = bigint
+let modBytes p : bytes = failwith "todo"
+let modParse b : p     = failwith "todo"
+
+let ppgen() : p * bytes = failwith "todo" 
+
+type elt = bigint
+let eltBytes (p:p) g = failwith "todo"
+let eltParse (p:p) b = failwith "todo"
+
+type secret = bigint 
+let gen p g = failwith "todo"
+
+type pms = elt
+
+let sample p g gx gy     = failwith "todo" 
+let leak   p g gx gy pms = failwith "todo"
+let exp    p g gx gy x   = failwith "todo" 
+
+module Ideal = // implementing the ideal variant from a concrete one
+
+    let rec mem xys x0 = 
+      match xys with 
+      | x::_ when x = x0 -> true
+      | _::xys           -> mem xys x0
+      | []               -> false
+
+    let rec assoc xys x0 = 
+      match xys with 
+      | (x,y)::_ when x = x0 -> Some y
+      | _    ::xys           -> assoc xys x0
+      | []                   -> None
+
+    let pplog: (p * elt) list ref
+    let gxlog: (p * elt * elt) list ref               = ref [] 
+    let gxylog:((p * elt * elt * elt) * elt) list ref = ref []
+
+    let genpp() = 
+       let p,g = genpp()
+       pplog := (p,g)::pplog
+       p,g
+
+    let gen (p:p) (g:elt) = 
+      let gx, x = gen p g 
+      if mem !pplog (p,g) then gxlog := (p,g,gx)::!gxlog
+      (gx, x)
+
+    let exp p g gx x gy = // since x exists, we know that gx is in the table
+      if mem !gxlog (p,g,gy) then
+        match assoc !gxylog (p,g,gx,gy) with 
+        | Some gz -> gz 
+        | None    -> let gz = sample p g gx gy in 
+                     gxylog := ((p,g,gx,gy),gz)::((p,g,gy,gx),gz)::!gxylog; 
+                     gz
+      else exp p g gx x gy 
+
+
+(* a previous attemps at using .NET ECDH
 
 open System.Security.Cryptography
 
@@ -38,4 +98,5 @@ let gyBytes, cy = Role()
 let pmsx = cx gyBytes
 let pmsy = cy gxBytes
 
+*)
 *)

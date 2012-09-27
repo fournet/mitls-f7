@@ -139,7 +139,7 @@ let genPMS (sinfo:SessionInfo) ver =
     {bytes = pms}
 
 let rsaEncryptPMS (si:SessionInfo) key pms =
-    rsaEncrypt key pms.bytes
+    RSAEnc.encrypt key pms.bytes
 
 let getPMS sinfo ver check_client_version_in_pms_for_old_tls cert encPMS =
   (* Security measures described in RFC 5246, section 7.4.7.1 *)
@@ -148,7 +148,7 @@ let getPMS sinfo ver check_client_version_in_pms_for_old_tls cert encPMS =
   (* 2. Decrypt the message to recover plaintext *)
   let priK = HSK.priKey_of_certificate cert in
   let expected = versionBytes ver
-  match rsaDecrypt priK encPMS with
+  match RSAEnc.decrypt priK encPMS with
     | Correct(pms) when length pms = 48 ->
         let (clVB,postPMS) = split pms 2 in
         match sinfo.protocol_version with
