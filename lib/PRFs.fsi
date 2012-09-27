@@ -8,25 +8,15 @@ open Error
 
 (* see .fs7 for comments *) 
 
-type preMasterSecret
-val genPMS: SessionInfo -> CipherSuites.ProtocolVersion -> preMasterSecret
-val rsaEncryptPMS: SessionInfo -> asymKey -> preMasterSecret -> bytes Result
-val getPMS: SessionInfo -> CipherSuites.ProtocolVersion -> bool -> HSK.cert -> bytes -> preMasterSecret
-
-val empty_pms: SessionInfo -> preMasterSecret (* Used to implement a dummy DH key exchange *)
-
-
-type masterSecret
-val empty_masterSecret: SessionInfo -> masterSecret (*$ deprecate? *)
+type msRepr = bytes
+type masterSecret = msRepr
 
 (* Generates verifyData for the Finished message *)
 
 val prfVerifyData: SessionInfo -> Role -> masterSecret -> bytes (* msgLog *) -> bytes (* length depends on cs, 12 by default *)
 
-val prfMS: SessionInfo -> preMasterSecret ->
-           (* No label, it's hardcoded. Of course we can make it explicit -> *)
-           (* No seed (crandom @| srandom), it can be retrieved from SessionInfo -> *)
-           masterSecret (* of length 48 *)
+val prfSmoothRSA: SessionInfo -> RSAPlain.pms -> masterSecret
+
 
 (* Used when generating key material from the MS. 
    The result must still be split into the various keys.

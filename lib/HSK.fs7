@@ -6,7 +6,7 @@ type hint = string
 type cert = bytes
 
 val for_signing : hint -> a:Sig.alg -> (cert * (;a)Sig.skey * (;a)Sig.vkey) option
-val for_key_encryption : hint -> (cert * RSA.rsaskey * RSA.rsapkey) option
+val for_key_encryption : hint -> (cert * RSA.dk * RSA.pk) option
 
 //AP: Commenting out to let typeckeching go through
 

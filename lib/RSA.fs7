@@ -1,10 +1,7 @@
 ﻿module RSA
+open RSAPlain
 
-(* Contains crypto functions not yet ported to the computational model. *)
-(* One day this module will disappear and all the code will only use
-   computationally-friendly modules *)
-
-// See also 
+// For concrete security, see also 
 // On the Security of RSA Encryption in TLS
 // Jakob Jonsson and Burton S. Kaliski Jr.
 // http://www.iacr.org/archive/crypto2002/24420127/24420127.pdf   
@@ -12,15 +9,18 @@
 open Bytes
 open Error
 
-(* RSA asymmetric enc/dec and DH for key exchange. *)
-type rsaskey
-type rsapkey
+// RSA asymmetric encryption & decryption, used for PMS
+// we currently exclude RSA keys used both for signing and decryption
 
-val rsaEncrypt: rsapkey -> bytes -> bytes Result
-val rsaDecrypt: rsaskey -> bytes -> bytes Result
+type dk (* private decryption key *)
+type pk (* public encryption key, abstract but bytes are accessible *)
 
-val create_rsapkey : bytes * bytes -> rsapkey
-val create_rsaskey : bytes * bytes -> rsaskey
+val encrypt: pk -> id -> (;id) pms -> bytes 
+val decrypt: dk -> id -> bytes -> (;id) pms Result
+
+val create_rsapkey : bytes * bytes -> pk
+val create_rsaskey : bytes * bytes -> dk
+
 
 /// Some draft assumption discussed with Markulf on 13/9/12
 
@@ -33,12 +33,12 @@ val create_rsaskey : bytes * bytes -> rsaskey
 //      let pms  = random 46
 //      let pms0 = random 46
 //      log := (pms0,pms)::!log
-//      rsaEncrypt pk (v @| if b then pms else pms0),
+//      encrypt pk (v @| if b then pms else pms0),
 //      prf (v, pms, Cr, Sr)
 //    
 //    let decryptRO v Cr Sr =
 //      (* check that Sr is used at most once *)
-//      let _, pms0 = rsaDecrypt sk
+//      let _, pms0 = decrypt sk
 //      let pms = try assoc !log pms0 with not_found -> pms0
 //      prf (v, pms, Cr, Sr)
 //    
@@ -49,7 +49,7 @@ val create_rsaskey : bytes * bytes -> rsaskey
 //    
 //    /// Hopefully we can reduce it to RSA with an extra oracle:
 //    
-//    let ptxt plain cipher = (rsaDecrypt sk cipher = plain) (* possibly after erasing some bytes *)
+//    let ptxt plain cipher = (decrypt sk cipher = plain) (* possibly after erasing some bytes *)
 //    
 //    // I am puzzled that we do not use the cipher-integrity guarantee provided by the ClientFinished check
 //    // informally, the adversary would need to extract the pms to forge a Finished for any related ciphertext  

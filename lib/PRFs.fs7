@@ -6,26 +6,10 @@ open TLSInfo
 open RSA
 open Error
 
-type (;si:SessionInfo) preMasterSecret (* used as "plain" by RSA & as index by PMS-PRF *)
-                                       (* should enforce RSA repr is 48-bytes array *)
+(* RSA pms is now defined in RSAPlain *)
 
-(* TODO: for now this works only for RSA, when client arbitrarily chooses PMS. *)
-(* We should use some underlying sum type to support also DH and ECDH *)
-
-
-(****** RSA ******)
-
-(** Client-side generation and encryption of RSA PMS *)
-
-val genPMS: si:SessionInfo -> vc:CipherSuites.ProtocolVersion -> (;si)preMasterSecret (*$ missing vc index or extractor *)
-
-(* pvc is the highest TLS version proposed by the client *)
-(* not necessarily the negotiated version stored in si;                   *)
-(* its inclusion helps preventing version rollback attacks.               *) 
-
-val empty_pms: si:SessionInfo -> (;si)preMasterSecret (* Deprecate? Used to implement a dummy DH key exchange *)
-
-val rsaEncryptPMS: si:SessionInfo -> asymKey -> (;si)preMasterSecret -> bytes Result (*$ how can this fail? *)
+// val empty_pms: si:SessionInfo -> (;si)preMasterSecret (* Deprecate? Used to implement a dummy DH key exchange *)
+// val rsaEncryptPMS: si:SessionInfo -> asymKey -> (;si)preMasterSecret -> bytes Result (*$ how can this fail? *)
 
 (** Server-side decryption of RSA PMS *) 
 
@@ -36,24 +20,21 @@ val getPMS: si:SessionInfo ->
             HSK.cert -> 
             bytes -> (;si)preMasterSecret (* No Result type: in case of error, we return a fresh random PMS *)
 
-
 (****** DH ******) 
-
-
-
 
 (****** MS ******) 
 
 (** From PMS to MS *) 
 
-type (;si:SessionInfo) masterSecret (* 48 bytes; used as index by MS-PRF *) 
-
-val empty_masterSecret: si:SessionInfo ->  (;si) masterSecret (*$ Deprecate? *)
+type msRepr = b:bytes{ Length(b) = 48 }
+private type (;si:SessionInfo) masterSecret = msRepr  
 
 (* computes the MS from the PMS, some constant label, and the (crandom @| srandom) from si *)
 
-val prfMS: si:SessionInfo -> (;si) preMasterSecret -> (;si) masterSecret 
-
+val PRFsmoothRSA:
+    si:SessionInfo -> 
+    pms: (;si) RSAPlain.pms ->
+    (;si) masterSecret 
 
 (** VerifyData MAC keyed with the master secret, relying on CMA ***)          
 

@@ -1053,7 +1053,7 @@ let serverHelloDoneBytes = makeMessage HT_server_hello_done [||]
 
 let makeClientKEXBytes si config clSpecInfo =
     if canEncryptPMS si.cipher_suite then
-        let pms = genPMS si config.maxVer in
+        let pms = RSAPlain.genPMS si config.maxVer in
         match si.serverID with
         | None -> unexpectedError "[makeClientKEXBytes] Server certificate should always be present with a RSA signing cipher suite."
         | Some (serverCert) ->
@@ -1139,7 +1139,7 @@ let makeCertificateVerifyBytes cert data pv certReqMsg =
             let hashed = HASH.hash hashAlg data in
             let priKey = priKey_of_certificate cert in
             //$ we should pick the signing alg from cert. Not rsaEncrypt!!
-            match RSA.rsaEncrypt priKey hashed with
+            match RSA.encrypt priKey hashed with
             | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
             | Correct (signed) ->
                 let signed = vlbytes 2 signed in
