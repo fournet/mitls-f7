@@ -17,8 +17,8 @@ type cVerifyData = bytes
 type sVerifyData = bytes
 
 type SessionInfo = {
-    clientID: HSK.cert option;
-    serverID: HSK.cert option;
+    clientID: Cert.cert option;
+    serverID: Cert.cert option;
     sessionID: sessionID;
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;
@@ -109,7 +109,7 @@ type config = {
     (* Server side *)
     request_client_certificate: bool
     check_client_version_in_pms_for_old_tls: bool
-    server_name: HSK.hint
+    server_name: Cert.hint
     (* Common *)
     safe_renegotiation: bool
     

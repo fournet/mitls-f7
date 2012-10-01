@@ -17,7 +17,7 @@ open Error
 val getPMS: si:SessionInfo -> 
             vc:CipherSuites.ProtocolVersion (* highest client version, as above *) ->
             bool -> (* flag whether we should check protocol version in old TLS versions *)
-            HSK.cert -> 
+            Cert.cert -> 
             bytes -> (;si)preMasterSecret (* No Result type: in case of error, we return a fresh random PMS *)
 
 

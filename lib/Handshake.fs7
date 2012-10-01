@@ -13,7 +13,7 @@ open StatefulAEAD
 
 type (;ci:ConnectionInfo) hs_state
 function val Config: ci:ConnectionInfo * s:(;ci)hs_state -> config
-predicate val Authorize: config * HSK.cert -> bool
+predicate val Authorize: config * Cert.cert -> bool
 predicate val Complete: ConnectionInfo * config -> bool
 predicate EvSentFinishedFirst of ConnectionInfo * bool
 // AP: Not sure the SentCCS event is useful;
@@ -66,7 +66,7 @@ val request:     ci:ConnectionInfo -> s:(;ci)hs_state -> c:config  ->
 		((b = true /\ Config(ci,s') = c) \/ (b = false /\ Config(ci,s') = Config(ci,s))) /\
 		SameStreams(ci,s,s')
 		}
-val authorize:   ci:ConnectionInfo -> s:(;ci)hs_state -> c:HSK.cert  ->
+val authorize:   ci:ConnectionInfo -> s:(;ci)hs_state -> c:Cert.cert  ->
 	s':(;ci,Config(ci,s))nextState { Authorize(Config(ci,s),c) /\ SameStreams(ci,s,s') }
 val invalidateSession: ci:ConnectionInfo -> s:(;ci)hs_state -> s':(;ci,Config(ci,s))nextState{SameStreams(ci,s,s')}
 
@@ -116,7 +116,7 @@ val next_fragment: ci:ConnectionInfo -> s:(;ci)hs_state -> (;ci,s)outgoing
 type (;ci:ConnectionInfo,c:config)incoming =
   | InAck of (;ci,c)nextState
   | InVersionAgreed  of (;ci,c)nextState
-  | InQuery of HSK.cert * (;ci,c)nextState
+  | InQuery of Cert.cert * (;ci,c)nextState
   | InFinished of (;ci,c)nextState {EvSentFinishedFirst(ci,false)}
   | InComplete of (;ci,c)nextState {Complete(ci,c)}
   | InError of ErrorCause * ErrorKind * (;ci,c)nextState
@@ -180,18 +180,18 @@ val parseClientHello: payload:bytes -> ( sv,sr,sid,cs,cm,ext { MessageBytes(HT_s
 
 /// Certificate chains
 
-function val CertificateListBytes: HSK.cert list -> bytes
+function val CertificateListBytes: Cert.cert list -> bytes
 definition CertificateListBytes([]) = [||] 
 definition !c,cs. CertificateListBytes(c::cs) = CertificateBytes(c) @| CertificateListBytes(cs)
 
-function val CertsBytes: HSK.cert list -> bytes
+function val CertsBytes: Cert.cert list -> bytes
 definition !cs. CertsBytes(cs) = VLBytes 3 (CertificateListBytes(cs))
 
-function val CertificateBytes: HSK.cert list -> bytes
+function val CertificateBytes: Cert.cert list -> bytes
 definition !certs. CertificateBytes(certs) = MessageBytes(HT_certificate,CertsBytes(certs))
 
-val makeCertificateBytes: certs:HSK.cert list -> msg:bytes { msg = CertificateBytes(certs) }
-val parseCertificate: payload:bytes -> (certs:HSK.cert list{ MessageBytes(HT_certificate,CertsBytes(certs)) = CertificateBytes(certs) } ) Result
+val makeCertificateBytes: certs:Cert.cert list -> msg:bytes { msg = CertificateBytes(certs) }
+val parseCertificate: payload:bytes -> (certs:Cert.cert list{ MessageBytes(HT_certificate,CertsBytes(certs)) = CertificateBytes(certs) } ) Result
 
 /// Server Hello Done
 

@@ -8,7 +8,7 @@ open Bytes
 type dk (* private decryption key *)
 type pk (* public encryption key, abstract but bytes are accessible *)
 
-// to be adjusted depending on the compromise model in HSK
+// to be adjusted depending on the compromise model in Cert
 
 val create_rsapkey : bytes * bytes -> pk
 val create_rsaskey : bytes * bytes -> dk

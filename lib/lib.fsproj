@@ -65,9 +65,9 @@
     <None Include="Sig.fs7" />
     <Compile Include="Sig.fsi" />
     <Compile Include="Sig.fs" />
-    <None Include="HSK.fs7" />
-    <Compile Include="HSK.fsi" />
-    <Compile Include="HSK.fs" />
+    <None Include="Cert.fs7" />
+    <Compile Include="Cert.fsi" />
+    <Compile Include="Cert.fs" />
     <None Include="CipherSuites.fs7" />
     <Compile Include="CipherSuites.fsi" />
     <Compile Include="CipherSuites.fs" />

@@ -27,7 +27,7 @@ val rekey:       ConnectionInfo -> hs_state -> config -> bool * hs_state
 // (Idle) Server requests an handshake 
 val request:  ConnectionInfo -> hs_state -> config -> bool * hs_state
 
-val authorize: ConnectionInfo -> hs_state -> HSK.cert -> hs_state
+val authorize: ConnectionInfo -> hs_state -> Cert.cert -> hs_state
 
 val invalidateSession: ConnectionInfo -> hs_state -> hs_state
 
@@ -49,7 +49,7 @@ val next_fragment: ConnectionInfo  -> hs_state -> outgoing
 type incoming = (* the fragment is accepted, and... *)
   | InAck of hs_state
   | InVersionAgreed of hs_state
-  | InQuery of HSK.cert * hs_state
+  | InQuery of Cert.cert * hs_state
   | InFinished of hs_state
   | InComplete of hs_state
   | InError of ErrorCause * ErrorKind * hs_state

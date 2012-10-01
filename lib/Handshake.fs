@@ -874,7 +874,7 @@ let next_fragment ci state =
 type incoming = (* the fragment is accepted, and... *)
   | InAck of hs_state
   | InVersionAgreed of hs_state
-  | InQuery of HSK.cert * hs_state
+  | InQuery of Cert.cert * hs_state
   | InFinished of hs_state
     // FIXME: StorableSession
   | InComplete of hs_state

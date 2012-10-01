@@ -137,13 +137,13 @@ let prfVerifyData si role (ms:masterSecret) data =
 let getPMS (si:SessionInfo) 
            (vc:CipherSuites.ProtocolVersion) 
            (check_client_version_in_pms_for_old_tls: bool)
-           (cert: HSK.cert) 
+           (cert: Cert.cert) 
            (encPMS: RSAPlain.pms) =
   (* Security measures described in RFC 5246, section 7.4.7.1 *)
   (* 1. Generate random data, 46 bytes, for PMS except client version *)
   let fakepms = mkRandom 46 in
   (* 2. Decrypt the message to recover plaintext *)
-  let priK = HSK.priKey_of_certificate cert in
+  let priK = Cert.priKey_of_certificate cert in
   let expected = versionBytes vc
   match RSAEnc.decrypt priK id encPMS with
     | Correct(pms) when length pms = 48 ->

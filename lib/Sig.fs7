@@ -70,4 +70,4 @@ val verify:  a:alg -> pk:(;a) vkey -> t:text -> m:(;a) sigv -> b:bool {b=true /\
 // val PkBytes: a:alg -> pkey -> bytes
 // val SkBytes: a:alg -> sk:skey {!t. Msg(a,pk,t) } -> bytes // a.k.a. leak
 
-// TODO: adjust compromise model, connect it to HSK (mostly for the benefit of the adversary)
+// TODO: adjust compromise model, connect it to Cert (mostly for the benefit of the adversary)
