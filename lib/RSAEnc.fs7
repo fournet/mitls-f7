@@ -14,8 +14,13 @@ open RSAPlain
 // http://www.iacr.org/archive/crypto2002/24420127/24420127.pdf   
 
 val encrypt: pk -> si:SessionInfo -> (;si) pms -> bytes 
-val decrypt: dk -> si:SessionInfo -> bytes -> (;si) pms
-
+// val decrypt: dk -> si:SessionInfo -> bytes -> (;si) pms
+// TLS specific, timing-attack-resistant variant
+val decrypt_PMS: dk ->
+			si:SessionInfo -> 
+            cv:CipherSuites.ProtocolVersion (* highest client version, as above *) ->
+            bool -> (* flag whether we should check protocol version in old TLS versions *)
+            bytes -> (;si)pms (* No Result type: in case of error, we return a fresh random PMS *)
 
 
 

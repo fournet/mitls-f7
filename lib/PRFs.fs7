@@ -6,21 +6,6 @@ open TLSInfo
 open RSA
 open Error
 
-(* RSA pms is now defined in RSAPlain *)
-
-// val empty_pms: si:SessionInfo -> (;si)preMasterSecret (* Deprecate? Used to implement a dummy DH key exchange *)
-// val rsaEncryptPMS: si:SessionInfo -> asymKey -> (;si)preMasterSecret -> bytes Result (*$ how can this fail? *)
-
-(** Server-side decryption of RSA PMS *) 
-
-(* should be: rsaDecryptPMS *)
-val getPMS: si:SessionInfo -> 
-            vc:CipherSuites.ProtocolVersion (* highest client version, as above *) ->
-            bool -> (* flag whether we should check protocol version in old TLS versions *)
-            Cert.cert -> 
-            bytes -> (;si)preMasterSecret (* No Result type: in case of error, we return a fresh random PMS *)
-
-
 (****** MS ******) 
 
 (** From PMS to MS *) 
@@ -45,15 +30,20 @@ val PRFsmoothDH:
 
 (* Generates verifyData for the Finished message *)
 
-val prfVerifyData: si:SessionInfo -> r:Role -> (;si) masterSecret ->
+val makeVerifyData: si:SessionInfo -> r:Role -> (;si) masterSecret ->
                    bytes (* msgLog *) -> 
                    bytes (* length depends on cs, 12 by default *)
+
+val checkVerifyData: si:SessionInfo -> r:Role -> (;si) masterSecret ->
+				   bytes (* the log *) ->
+				   bytes (* the expected value *) ->
+				   bool
 
 
 (** KDF for the connection key materials, keyed with the master secret *)
 
 val keyGen: ci:ConnectionInfo -> (;EpochSI(ci.id_out))masterSecret -> 
-  ((;ci.id_out)StatefulAEAD.state * (;ci.id_in)StatefulAEAD.state)
+  ((;ci.id_out)StatefulAEAD.writer * (;ci.id_in)StatefulAEAD.reader)
          (* No label, it's hardcoded. Of course we can make it explicit -> *)
          (* No seed (crandom @| srandom), it can be retrieved from epoch (and not SessionInfo!) -> *)
 

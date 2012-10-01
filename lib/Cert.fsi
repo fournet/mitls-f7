@@ -17,3 +17,6 @@ val parseCertType: bytes -> certType Result
 
 val for_signing : hint -> Sig.alg -> (cert list * Sig.skey * Sig.vkey) option
 val for_key_encryption : hint -> (cert list * RSA.dk * RSA.pk) option
+
+val is_for_signing: cert list -> bool
+val is_for_key_encryption: cert list -> bool

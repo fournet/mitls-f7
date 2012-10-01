@@ -18,11 +18,9 @@ val prfSmoothDH:  SessionInfo -> DH.p -> DH.elt -> DH.elt -> DH.elt -> DH.pms ->
    The result must still be split into the various keys.
    Of course this method can do the splitting internally and return a record/pair *)
 
-val keyGen: ConnectionInfo -> masterSecret -> StatefulAEAD.state * StatefulAEAD.state
+val keyGen: ConnectionInfo -> masterSecret -> StatefulAEAD.writer * StatefulAEAD.reader
 
 val makeTimestamp: unit -> int
 
-val prfVerifyData: SessionInfo -> Role -> masterSecret -> bytes -> bytes 
-
-//CF not sure where this one should be
-val getPMS: SessionInfo -> CipherSuites.ProtocolVersion -> bool -> Cert.cert -> RSAPlain.pms -> bytes
+val makeVerifyData:  SessionInfo -> Role -> masterSecret -> bytes -> bytes 
+val checkVerifyData: SessionInfo -> Role -> masterSecret -> bytes -> bytes -> bool

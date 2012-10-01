@@ -18,8 +18,8 @@ type cVerifyData = bytes
 type sVerifyData = bytes
 
 type SessionInfo = {
-    clientID: Cert.cert list option;
-    serverID: Cert.cert list option;
+    clientID: Cert.cert list;
+    serverID: Cert.cert list;
     sessionID: sessionID;
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;

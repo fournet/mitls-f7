@@ -250,7 +250,7 @@ type clientState =
    | ClientWritingCCS       of SessionInfo * masterSecret * log
    | ServerCCS              of SessionInfo * masterSecret * epoch * StatefulAEAD.reader
    | ServerFinished         of SessionInfo * masterSecret
-   | ServerCCSResume        of SessionInfo * masterSecret * crand * srand * log
+   | ServerCCSResume        of ConnectionInfo * StatefulAEAD.writer * StatefulAEAD.reader
    | ServerFinishedResume   of SessionInfo * masterSecret * crand * srand * epoch * StatefulAEAD.writer * log
    | ClientWritingCCSResume of epoch * StatefulAEAD.writer
    | ClientWritingFinishedResume
@@ -708,6 +708,22 @@ let invalidateSession ci state =
         let sDB = SessionDB.remove state.sDB sid in
         {state with sDB=sDB}
 
+let getNextEpochs_resume ci si ms log crand srand =
+    let sVerifyData = PRFs.makeVerifyData si Server ms log in
+    let log = log @| makeMessage HT_finished sVerifyData in
+    let cVerifyData = PRFs.makeVerifyData si Client ms log in
+    let id_in  = nextEpoch ci.id_in  crand srand cVerifyData sVerifyData si in
+    let id_out = nextEpoch ci.id_out crand srand cVerifyData sVerifyData si in
+    {ci with id_in = id_in; id_out = id_out}
+
+let getNextEpochs_full ci si ms log crand srand =
+    let cVerifyData = PRFs.makeVerifyData si Client ms log in
+    let log = log @| makeMessage HT_finished cVerifyData in
+    let sVerifyData = PRFs.makeVerifyData si Server ms log in
+    let id_in  = nextEpoch ci.id_in  crand srand cVerifyData sVerifyData si in
+    let id_out = nextEpoch ci.id_out crand srand cVerifyData sVerifyData si in
+    {ci with id_in = id_in; id_out = id_out}
+
 type outgoing =
   | OutIdle of hs_state
   | OutSome of DataStream.range * Fragment.fragment * hs_state
@@ -730,15 +746,6 @@ let makeFragment ki b =
 
 let makeCCSFragment ki b = makeFragment ki b
 
-let generateStates (ci:ConnectionInfo) (ms:masterSecret): StatefulAEAD.writer * StatefulAEAD.reader =
-    let (cWrite,sWrite) = PRFs.keyGen ci ms
-    match ci.role with 
-        | Client -> cWrite,sWrite
-        | Server -> sWrite,cWrite
-
-let makeVerifyData si role ms hsmsgs =
-    prfVerifyData si role ms hsmsgs
-
 let next_fragment ci state =
     match state.hs_outgoing with
     | [||] ->
@@ -752,7 +759,7 @@ let next_fragment ci state =
                 let sVerifyData = makeVerifyData si Server ms log in
                 let nextEpochOut = nextEpoch ci.id_out si.init_crand si.init_srand cVerifyData sVerifyData si in
                 let nextEpochIn  = nextEpoch ci.id_in  si.init_crand si.init_srand cVerifyData sVerifyData si in
-                let (writer,reader) = generateStates {role = ci.role; id_in = nextEpochIn; id_out = nextEpochOut} ms in
+                let (writer,reader) = PRFs.keyGen {role = ci.role; id_in = nextEpochIn; id_out = nextEpochOut} ms in
                 let state = {state with hs_outgoing = cFinished
                                         pstate = PSClient(ServerCCS(si,ms,nextEpochIn,reader))} in
                 let (((rg,f),_),_) = makeCCSFragment ci.id_out CCSBytes in
@@ -918,15 +925,6 @@ let rec parseList parseOne b =
         | Error(x,y)  -> Error(x,y)
     | Error(x,y)      -> Error(x,y)
 
-let parseOneCertificate b = 
-    match vlsplit 3 b with 
-    | Correct (one,rest) -> Correct (one,rest)
-    | Error(x,y)     -> Error(HSError(AD_bad_certificate_fatal),HSSendAlert)
-// then call 
-// parseList parseOneCerticate b instead of 
-// parseCertificate_int b []
-// AP: I don't understand the comments above.
-
 let rec parseCertificate_int toProcess list =
     if equalBytes toProcess [||] then
         correct(list)
@@ -1049,79 +1047,44 @@ let serverHelloDoneBytes = makeMessage HT_server_hello_done [||]
 
 let makeClientKEX_RSA si config =
     let pms = RSAPlain.genPMS si config.maxVer in
-    match si.serverID with
-        | None -> unexpectedError "[makeClientKEXBytes] Server certificate should always be present with a RSA signing cipher suite."
-        | Some (serverCert) ->
-            let pubKey = pubKey_of_certificate serverCert.Head in
-            let encpms = RSAEnc.encrypt pubKey si pms in
-            let encpms = if si.protocol_version = SSL_3p0 then encpms else vlbytes 2 encpms 
-            ((makeMessage HT_client_key_exchange encpms),pms)
-
-let makeClientKEXBytes si config clSpecInfo =
-    if canEncryptPMS si.cipher_suite then
-        let pms = RSAPlain.genPMS si config.maxVer in
-        match si.serverID with
-        | None -> unexpectedError "[makeClientKEXBytes] Server certificate should always be present with a RSA signing cipher suite."
-        | Some (serverCert) ->
-            let pubKey = pubKey_of_certificate serverCert in
-            let encpms = RSAEnc.encrypt pubKey pms 
-            let encpms = if si.protocol_version = SSL_3p0 then encpms else vlbytes 2 encpms 
-            correct ((makeMessage HT_client_key_exchange encpms),pms)
+    if si.serverID.IsEmpty then
+        unexpectedError "[makeClientKEXBytes] Server certificate should always be present with a RSA signing cipher suite."
     else
-        match clSpecInfo.must_send_cert with
-        | Some (_) ->
-            match state.hs_next_info.clientID with
-            | None -> (* Client certificate not sent, (and not in RSA mode)
-                         so we must use DH parameters *)
-                (* TODO: send public Yc value *)
-                let ycBytes = [||] in
-                (* TODO: compute pms *)
-                let pms = empty_pms si in
-                correct ((makeMessage HT_client_key_exchange ycBytes),pms)
-            | Some (cert) ->
-                (* TODO: check whether the certificate already contained suitable DH parameters *)
-                let pms = empty_pms si in
-                correct ((makeMessage HT_client_key_exchange [||]),pms)
-        | None ->
-            (* Use DH parameters *)
-            let ycBytes = [||] in
-            let pms = empty_pms si in
-            correct ((makeMessage HT_client_key_exchange ycBytes),pms)
+        let pubKey = pubKey_of_certificate si.serverID.Head in
+        let encpms = RSAEnc.encrypt pubKey si pms in
+        let encpms = if si.protocol_version = SSL_3p0 then encpms else vlbytes 2 encpms 
+        ((makeMessage HT_client_key_exchange encpms),pms)
 
-let parseClientKEX sinfo sSpecState pops data =
-    if canEncryptPMS sinfo.cipher_suite then
-        match sinfo.serverID with
-        | Some(cert) ->
-            let encrypted = (* parse the message *)
-                match sinfo.protocol_version with
-                | SSL_3p0 -> correct (data)
-                | TLS_1p0 | TLS_1p1| TLS_1p2 ->
-                        match vlparse 2 data with
-                        | Correct (encPMS) -> correct(encPMS)
-                        | Error(x,y) -> Error(HSError(AD_decode_error),HSSendAlert)
-            match encrypted with
-            | Correct(encPMS) ->
-                let res = PRFs.getPMS sinfo sSpecState.highest_client_ver pops.check_client_version_in_pms_for_old_tls cert encPMS in
-                correct(res)
-            | Error(x,y) -> Error(x,y)
-        | None -> unexpectedError "[parseClientKEX] when the ciphersuite can encrypt the PMS, the server certificate should always be set"
+let makeClientKEX_DH_explicit si config =
+    // TODO
+    makeMessage HT_client_key_exchange [||]
+
+let makeClientKEX_DH_implicit = makeMessage HT_client_key_exchange [||]
+
+let parseClientKEX_RSA si cv config data =
+    if si.serverID.IsEmpty then
+        unexpectedError "[parseClientKEX] when the ciphersuite can encrypt the PMS, the server certificate should always be set"
     else
-        (* TODO *)
-        (* We should support the DH key exchanges *)
-        Error(HSError(AD_internal_error),HSSendAlert)
+        let encrypted = (* parse the message *)
+            match si.protocol_version with
+            | SSL_3p0 -> correct (data)
+            | TLS_1p0 | TLS_1p1| TLS_1p2 ->
+                    match vlparse 2 data with
+                    | Correct (encPMS) -> correct(encPMS)
+                    | Error(x,y) -> Error(HSError(AD_decode_error),HSSendAlert)
+        match encrypted with
+        | Correct(encPMS) ->
+            let res = RSAEnc.decrypt_PMS (prikey_of_cert si.serverID.Head) si cv config.check_client_version_in_pms_for_old_tls encPMS in
+            correct(res)
+        | Error(x,y) -> Error(x,y)
 
-(* Obsolete *)
-(*
-let hashNametoFun hn =
-    match hn with
-    | HashAlg.HA_md5 -> correct (md5)
-    | HashAlg.HA_sha1 -> correct (sha1)
-    | HashAlg.HA_sha224 -> Error(HSError(AD_internal_error),HSSendAlert)
-    | HashAlg.HA_sha256 -> correct (sha256)
-    | HashAlg.HA_sha384 -> correct (sha384)
-    | HashAlg.HA_sha512 -> correct (sha512)
-    | _ -> Error(HSError(AD_internal_error),HSSendAlert)
-*)
+let parseClientKEX_DH_implict data =
+    if length data = 0 then
+        correct ( () )
+    else
+        Error(HSError(AD_decode_error),HSSendAlert)
+
+let parseClientKEX_DH_explicit data = correct( () ) // TODO
 
 let makeCertificateVerifyBytes cert data pv certReqMsg =
     match pv with
@@ -1152,104 +1115,6 @@ let makeCertificateVerifyBytes cert data pv certReqMsg =
         (* TODO *) Error(HSError(AD_internal_error),HSSendAlert)
     | SSL_3p0 ->
         (* TODO *) Error(HSError(AD_internal_error),HSSendAlert)
-
-(* Obsolete. Use PRFs.prfKeyExp instead *)
-(*
-let expand_master_secret version ms crandom srandom nb = 
-  match version with 
-  | SSL_3p0 -> 
-     match ssl_prf ms (append srandom crandom) nb with
-     | Error(x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
-     | Correct (res) -> correct (res)
-  | x when x = TLS_1p0 || x = TLS_1p1 ->
-     match prf ms "key expansion" (append srandom crandom) nb with
-     | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
-     | Correct (res) -> correct(res)
-  | TLS_1p2 ->
-     match tls12prf ms "key expansion" (append srandom crandom) nb with
-     | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
-     | Correct (res) -> correct (res)
-  | _ -> Error(HSError(AD_internal_error),HSSendAlert)
-*)
-
-(*
-let split_key_block key_block hsize ksize ivsize = 
-  let cmk = Array.sub key_block 0 hsize in
-  let smk = Array.sub key_block hsize hsize in
-  let cek = Array.sub key_block (2*hsize) ksize in
-  let sek = Array.sub key_block (2*hsize+ksize) ksize in
-  let civ = Array.sub key_block (2*hsize+2*ksize) ivsize in
-  let siv = Array.sub key_block (2*hsize+2*ksize+ivsize) ivsize in
-  (cmk,smk,cek,sek,civ,siv)
-*)
-
-(* Obsolete. Use PRFs.prfVerifyData instead *)
-(*
-let bldVerifyData version cs ms entity hsmsgs = 
-  (* FIXME: There should be only one (verifyData)prf function in CryptoTLS, that takes
-     version and cs and performs the proper computation *)
-  match version with 
-  | SSL_3p0 ->
-    let ssl_sender = 
-        match entity with
-        | Client -> ssl_sender_client 
-        | Server -> ssl_sender_server
-    let mm = append hsmsgs (append ssl_sender ms) in
-    match md5 (append mm ssl_pad1_md5) with
-    | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
-    | Correct (inner_md5) ->
-        match md5 (append ms (append ssl_pad2_md5 (inner_md5))) with
-        | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
-        | Correct (outer_md5) ->
-            match sha1 (append mm ssl_pad1_sha1) with
-            | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
-            | Correct(inner_sha1) ->
-                match sha1 (append ms (append ssl_pad2_sha1 (inner_sha1))) with
-                | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
-                | Correct (outer_sha1) ->
-                    correct (append outer_md5 outer_sha1)
-  | x when x = TLS_1p0 || x = TLS_1p1 -> 
-    let tls_label = 
-        match entity with
-        | Client -> "client finished"
-        | Server -> "server finished"
-    match md5 hsmsgs with
-    | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
-    | Correct (md5hash) ->
-        match sha1 hsmsgs with
-        | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
-        | Correct (sha1hash) ->
-            match prf ms tls_label (append md5hash sha1hash) 12 with
-            | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
-            | Correct (result) -> correct (result)
-  | TLS_1p2 ->
-    let tls_label = 
-        match entity with
-        | Client -> "client finished"
-        | Server -> "server finished"
-    let verifyDataHashAlg = verifyDataHashAlg_of_ciphersuite cs in
-    match verifyDataHashFun hsmsgs with
-    | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
-    | Correct(hashResult) ->
-        let verifyDataLen = verifyDataLen_of_ciphersuite cs in
-        match tls12prf ms tls_label hashResult verifyDataLen with
-        | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
-        | Correct(result) -> correct (result)
-  | _ -> Error(HSError(AD_internal_error),HSSendAlert)
-*)
-
-(* Probably we want to move the two following functions into PRFs *)
-let checkVerifyData si role ms hsmsgs orig =
-    let computed = prfVerifyData si role ms hsmsgs in
-    equalBytes orig computed
-
-(*
-let ciphstate_of_ciphtype ct key iv =
-    match ct with
-    | CT_block -> BlockCipherState (key,iv)
-    | CT_stream -> StreamCipherState
-*)
-
     
 //$ todo?
 let find_client_cert (certReqMsg:certificateRequest) : (cert list) option =
@@ -1260,20 +1125,6 @@ let certificateVerifyCheck (state:hs_state) (payload:bytes) =
     (* TODO: pretend client sent valid verification data. 
        We need to understand how to treat certificates and related algorithms properly *)
     correct(true)
-
-// FIXME: This is outdated by the new state machine
-(*
-let compute_session_secrets_and_CCSs ci state =
-    // FIXME: we create the next connection here, but then we don't use it and we release it
-    // asynchronously to the Dispatch. The latter will locally re-create the next connection
-    // by modifying the data structure. Smells like bad code.
-    let ci = nextConnection ci state.ki_crand state.ki_srand state.hs_next_info in
-    let (writer,reader) = generateStates ci state.next_ms in
-    (* Put the connection states in the appropriate buffers. *)
-    let state = {state with ccs_outgoing = Some((CCSBytes,(ci.id_out,writer)))
-                            ccs_incoming = Some(ci.id_in,reader)} in
-    state
-*)
 
 let prepare_client_output_full ci state clSpecState =
     let clientCertBytes =
@@ -1348,10 +1199,29 @@ let prepare_client_output_resumption state =
     let state = {state with hs_outgoing_after_ccs = new_out
                             hs_renegotiation_info_cVerifyData = cVerifyData} in
     state
+ 
+let on_serverHello_full crand log shello =
+    let si = { clientID = []
+               serverID = []
+               sessionID = shello.sh_session_id
+               protocol_version = shello.sh_server_version
+               cipher_suite = shello.sh_cipher_suite
+               compression = shello.sh_compression_method
+               init_crand = crand
+               init_srand = shello.sh_random
+               } in
+    (* If DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
+    if isAnonCipherSuite shello.sh_cipher_suite then
+        PSClient(ServerKeyExchangeDHE(si,log))
+    elif isDHCipherSuite shello.sh_cipher_suite then
+        PSClient(ServerCertificateDH(si,log))
+    elif isDHECipherSuite shello.sh_cipher_suite then
+        PSClient(ServerCertificateDHE(si,log))
+    elif isRSACipherSuite shello.sh_cipher_suite then
+        PSClient(ServerCertificateRSA(si,log))
+    else
+        unexpectedError "[recv_fragment] Unknown ciphersuite"
 
-//TODO we could pass in the client state to avoid redundant match state.pstate
-//     and flatten the pattern matching. I tried to simplify this function on a clone below; I hope it is supported by F7
-        
 let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion:ProtocolVersion option) =
     match parseMessage state with
     | None ->
@@ -1364,23 +1234,21 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
         match hstype with
         | HT_hello_request ->
             match cState with
-            | CIdle -> (* This is a legitimate hello request. Properly handle it *)
+            | ClientIdle -> (* This is a legitimate hello request. Properly handle it *)
                 (* Do not log this message *)
                 match state.poptions.honourHelloReq with
                 | HRPIgnore -> recv_fragment_client ci state agreedVersion
-                | HRPResume -> let (_,state) = rekey ci state state.poptions in InAck(state) (* Terminating case, we reset all buffers *)
-                | HRPFull   -> let (_,state) = rehandshake ci state state.poptions in InAck(state) (* Terminating case, we reset all buffers *)
+                | HRPResume -> let (_,state) = rekey ci state state.poptions in InAck(state) (* Terminating case, we're not idle anymore *)
+                | HRPFull   -> let (_,state) = rehandshake ci state state.poptions in InAck(state) (* Terminating case, we're not idle anymore *)
             | _ -> (* RFC 7.4.1.1: ignore this message *) recv_fragment_client ci state agreedVersion
         | HT_server_hello ->
             match cState with
-            | ServerHello ->
+            | ServerHello (crand,sid,log) ->
                 match parseServerHello payload with
                 | Error(x,y) -> InError(HSError(AD_decode_error),HSSendAlert,state)
                 | Correct (shello) ->
                   // Sanity checks on the received message; they are security relevant. 
                   // Check that the server agreed version is between maxVer and minVer.
-                  // FIXME: Using <= and >= should not work. Using and undocumented F# feature
-                  // where unions are enums 
                   if not (geqPV shello.sh_server_version state.poptions.minVer 
                        && geqPV state.poptions.maxVer shello.sh_server_version) 
                   then InError(HSError(AD_protocol_version),HSSendAlert,state)
@@ -1397,7 +1265,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                   // Handling of safe renegotiation
                   let safe_reneg_result =
                     if state.poptions.safe_renegotiation then
-                        let expected = state.hs_renegotiation_info_cVerifyData @| state.hs_renegotiation_info_sVerifyData in
+                        let expected = (epochCVerifyData ci.id_in) @| (epochSVerifyData ci.id_in) in // or, equivalenty, ci.id_out
                         inspect_ServerHello_extensions shello.sh_neg_extensions expected
                     else
                         // RFC Sec 7.4.1.4: with no safe renegotiation, we never send extensions; if the server sent any extension
@@ -1408,89 +1276,72 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                   match safe_reneg_result with
                     | Error (x,y) -> InError (x,y,state)
                     | Correct _ ->
-                        // Log the received packet and store the server random.
-                        let new_log = state.hs_msg_log @| to_log in
-                        let state = {state with hs_msg_log = new_log; ki_srand = shello.sh_random}
+                        // Log the received packet.
+                        let log = log @| to_log in
                         (* Check whether we asked for resumption *)
-                        if isNullCipherSuite state.hs_next_info.cipher_suite then
+                        if equalBytes sid [||] then
                             (* we did not request resumption, do a full handshake *)
                             (* define the sinfo we're going to establish *)
-                            let next_sinfo = { clientID = None
-                                               serverID = None
-                                               sessionID = (if equalBytes shello.sh_session_id [||] then None else Some(shello.sh_session_id))
-                                               protocol_version = shello.sh_server_version
-                                               cipher_suite = shello.sh_cipher_suite
-                                               compression = shello.sh_compression_method
-                                               init_crand = state.hs_next_info.init_crand (* or, alternatively, state.ki_crand *)
-                                               init_srand = shello.sh_random
-                                             } in
-                            let state = {state with hs_next_info = next_sinfo} in
-                            (* If DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
-                            if isAnonCipherSuite shello.sh_cipher_suite then
-                                let state = {state with pstate = PSClient(ServerKeyExchange)} in
-                                recv_fragment_client ci state (Some(shello.sh_server_version))
-                            else
-                                let state = {state with pstate = PSClient(Certificate)} in
-                                recv_fragment_client ci state (Some(shello.sh_server_version))
+                            let next_pstate = on_serverHello_full crand log shello in
+                            let state = {state with pstate = next_pstate} in
+                            recv_fragment_client ci state (Some(shello.sh_server_version))
                         else
-                            match state.hs_next_info.sessionID with
-                            | None -> unexpectedError "[recv_fragment] A resumed session should never have empty SID"
-                            | Some(sid) ->
-                                if sid = shello.sh_session_id then (* use resumption *)
-                                    (* Check that protocol version, ciph_suite and compression method are indeed the correct ones *)
-                                    if state.hs_next_info.protocol_version = shello.sh_server_version then
-                                        if state.hs_next_info.cipher_suite = shello.sh_cipher_suite then
-                                            if state.hs_next_info.compression = shello.sh_compression_method then
-                                                let state = compute_session_secrets_and_CCSs ci state in
-                                                let clSpecState = { resumed_session = true;
-                                                                    must_send_cert = None;
-                                                                    client_certificate = None} in
-                                                let state = { state with pstate = PSClient(CCCS(clSpecState))}
-                                                recv_fragment_client ci state (Some(shello.sh_server_version))
-                                            else InError(HSError(AD_illegal_parameter),HSSendAlert,state)
+                            if equalBytes sid shello.sh_session_id then (* use resumption *)
+                                (* Search for the session in our DB *)
+                                match SessionDB.select state.sDB sid with
+                                | None ->
+                                    (* This can happen, although we checked for the session before starting the HS.
+                                       For example, the session may have expired between us sending client hello, and now. *)
+                                    InError(HSError(AD_internal_error),HSSendAlert,state)
+                                | Some(storable) ->
+                                let (si,ms,role) = storable in
+                                (* Check that protocol version, ciphersuite and compression method are indeed the correct ones *)
+                                if si.protocol_version = shello.sh_server_version then
+                                    if si.cipher_suite = shello.sh_cipher_suite then
+                                        if si.compression = shello.sh_compression_method then
+                                            let next_ci = getNextEpochs_resume ci si ms log crand shello.sh_random in
+                                            let (writer,reader) = PRFs.keyGen next_ci ms in
+                                            let state = {state with pstate = PSClient(ServerCCSResume(next_ci,writer,reader))} in
+                                            recv_fragment_client ci state (Some(shello.sh_server_version))
                                         else InError(HSError(AD_illegal_parameter),HSSendAlert,state)
                                     else InError(HSError(AD_illegal_parameter),HSSendAlert,state)
-                                else (* server did not agreed on resumption, do a full handshake *)
-                                    (* define the sinfo we're going to establish *)
-                                    let next_sinfo = { clientID = None
-                                                       serverID = None
-                                                       sessionID = (if equalBytes shello.sh_session_id [||] then None else Some(shello.sh_session_id))
-                                                       protocol_version = shello.sh_server_version
-                                                       cipher_suite = shello.sh_cipher_suite
-                                                       compression = shello.sh_compression_method
-                                                       init_crand = state.hs_next_info.init_crand (* or, alternatively, state.ki_crand *)
-                                                       init_srand = shello.sh_random
-                                                     } in
-                                    let state = {state with hs_next_info = next_sinfo} in
-                                    (* If DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
-                                    if isAnonCipherSuite shello.sh_cipher_suite then
-                                        let state = {state with pstate = PSClient(ServerKeyExchange)} in
-                                        recv_fragment_client ci state (Some(shello.sh_server_version))
-                                    else
-                                        let state = {state with pstate = PSClient(Certificate)} in
-                                        recv_fragment_client ci state (Some(shello.sh_server_version))
+                                else InError(HSError(AD_illegal_parameter),HSSendAlert,state)
+                            else (* server did not agree on resumption, do a full handshake *)
+                                (* define the sinfo we're going to establish *)
+                                let next_pstate = on_serverHello_full crand log shello in
+                                let state = {state with pstate = next_pstate} in
+                                recv_fragment_client ci state (Some(shello.sh_server_version))
             | _ -> (* ServerHello arrived in the wrong state *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
         | HT_certificate ->
             match cState with
-            | Certificate ->
+            // FIXME: Most of the code in the branches is duplicated
+            | ServerCertificateRSA (si,log) ->
                 match parseCertificate payload with
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(certs) ->
-                    if false then // FIXME: not (certs.certificate_list trusted by state.poptions.trustedRootCertificates)
+                    if Cert.is_for_key_encryption certs || false then // FIXME: " || Cert.verify certs " ; FIXME: we still have to ask the user
                         InError(HSError(AD_bad_certificate_fatal),HSSendAlert,state)
                     else (* We have validated server identity *)
                         (* Log the received packet *)
-                        let new_log = state.hs_msg_log @| to_log in
-                        let state = {state with hs_msg_log = new_log} in           
+                        let log = log @| to_log in        
                         (* update the sinfo we're establishing *)
-                        let next_sinfo = {state.hs_next_info with serverID = Some(certs.Head)} in
-                        let state = {state with hs_next_info = next_sinfo} in
-                        if cipherSuiteRequiresKeyExchange state.hs_next_info.cipher_suite then
-                            let state = {state with pstate = PSClient(ServerKeyExchange)} in
-                            recv_fragment_client ci state agreedVersion
-                        else
-                            let state = {state with pstate = PSClient(CertReqOrSHDone)} in
-                            recv_fragment_client ci state agreedVersion
+                        let si = {si with serverID = certs} in
+                        let state = {state with pstate = PSClient(CertificateRequestRSA(si,log))} in
+                        recv_fragment_client ci state agreedVersion
+            | ServerCertificateDHE (si,log) ->
+                match parseCertificate payload with
+                | Error(x,y) -> InError(x,y,state)
+                | Correct(certs) ->
+                    if Cert.is_for_signing certs || false then // FIXME: " || Cert.verify certs " ; FIXME: we still have to ask the user
+                        InError(HSError(AD_bad_certificate_fatal),HSSendAlert,state)
+                    else (* We have validated server identity *)
+                        (* Log the received packet *)
+                        let log = log @| to_log in        
+                        (* update the sinfo we're establishing *)
+                        let si = {si with serverID = certs} in
+                        let state = {state with pstate = PSClient(CertificateRequestDHE(si,log))} in
+                        recv_fragment_client ci state agreedVersion
+            | ServerCertificateDH (si,log) -> InError(HSError(AD_internal_error),HSSendAlert,state) // TODO
             | _ -> (* Certificate arrived in the wrong state *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
         | HT_server_key_exchange ->
             match cState with

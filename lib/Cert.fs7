@@ -9,6 +9,9 @@ type cert = bytes
 val for_signing : hint -> a:Sig.alg -> (cert list * (;a)Sig.skey * (;a)Sig.vkey) option
 val for_key_encryption : hint -> (cert list * RSA.dk * RSA.pk) option
 
+val is_for_signing: cert list -> bool
+val is_for_key_encryption: cert list -> bool
+
 type certType =
     | RSA_sign
     | DSA_sign

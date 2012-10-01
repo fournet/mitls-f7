@@ -242,6 +242,12 @@ let isDHECipherSuite cs =
     | CipherSuite ( ECDHE_RSA, _ )   -> true *)
     | _ -> false
 
+let isDHCipherSuite cs =
+    match cs with
+    | CipherSuite (DH_DSS, _ ) -> true
+    | CipherSuite (DH_RSA, _ ) -> true
+    | _ -> false
+
 let isRSACipherSuite cs =
     match cs with
     | CipherSuite ( RSA, _ )     -> true

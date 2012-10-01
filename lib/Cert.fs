@@ -140,3 +140,11 @@ let for_key_encryption (h : hint) =
         with :? KeyNotFoundException -> None
     finally
         store.Close()
+
+let is_for_signing (l:cert list) =
+    let x509 = new X509Certificate2(l.Head) in
+    x509_is_for_signing x509
+
+let is_for_key_encryption (l:cert list) =
+    let x509 = new X509Certificate2(l.Head) in
+    x509_is_for_key_encryption x509
