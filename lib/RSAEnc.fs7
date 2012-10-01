@@ -5,6 +5,7 @@
 
 open Bytes
 open Error
+open RSA // Key definitions
 open RSAPlain
 
 // For concrete security, see also 
@@ -12,8 +13,8 @@ open RSAPlain
 // Jakob Jonsson and Burton S. Kaliski Jr.
 // http://www.iacr.org/archive/crypto2002/24420127/24420127.pdf   
 
-val encrypt: pk -> id -> (;id) pms -> bytes 
-val decrypt: dk -> id -> bytes -> (;id) pms Result
+val encrypt: pk -> si:SessionInfo -> (;si) pms -> bytes 
+val decrypt: dk -> si:SessionInfo -> bytes -> (;si) pms
 
 
 

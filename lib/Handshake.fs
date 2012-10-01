@@ -147,15 +147,10 @@ type SigAndHashAlg = {
 (* TODO *)
 
 (* Certificate Request *)
-type ClientCertType = bytes // of length 1, between 0 and 3
-let CLT_RSA_Sign     = [| 1uy |] 
-let CLT_DSS_Sign     = [| 2uy |]
-let CLT_RSA_Fixed_DH = [| 3uy |]
-let CLT_DSS_Fixed_DH = [| 4uy |]
 
 type certificateRequest = {
     (* RFC acknowledges the relation between these fields is "somewhat complicated" *)
-    client_certificate_type: ClientCertType list
+    client_certificate_type: Cert.certType list
     signature_and_hash_algorithm: (SigAndHashAlg list) option (* Some(x) for TLS 1.2, None for previous versions *)
     certificate_authorities: string list
     }
@@ -953,13 +948,16 @@ let parseCertificate data =
         | Error(x,y) -> Error(x,y)
         | Correct(certs) -> correct(certs)
 
-//CF This list used to be reversed; was it intented??
-//   Also, we do not currently enforce that the bytes are between 0 and 3.
 let rec parseCertificateTypeList data =
-    if length data = 0 then []
+    if length data = 0 then Correct([])
     else
         let (thisByte,data) = Bytes.split data 1 in
-        thisByte :: parseCertificateTypeList data 
+        match Cert.parseCertType thisByte with
+        | Correct(ct) ->
+            match parseCertificateTypeList data with
+            | Correct(ctList) -> Correct(ct :: ctList)
+            | Error(x,y) -> Error(x,y)
+        | Error(x,y) -> Error(HSError(AD_decode_error),HSSendAlert)
 
 let parseSigAlg b = 
     let (hashb,sigb) = Bytes.split b 1 
@@ -995,7 +993,7 @@ let rec distNamesList_of_bytes data res =
 let makeCertificateRequestBytes cs version =
     (* TODO: now we send all possible choices, including inconsistent ones, and we hope the client will pick the proper one. *)
     //$ make it an explicit protocol option? In the abstract protocol description we do not consider multiple choices!
-    let certTypes = vlbytes 1 (CLT_RSA_Sign @| CLT_DSS_Sign @| CLT_RSA_Fixed_DH @| CLT_DSS_Fixed_DH) 
+    let certTypes = vlbytes 1 (Cert.certTypeBytes Cert.RSA_sign @| Cert.certTypeBytes Cert.DSA_sign @| Cert.certTypeBytes Cert.RSA_fixed_dh @| Cert.certTypeBytes Cert.RSA_fixed_dh) 
     let sigAndAlg =
         match version with
         | TLS_1p2 ->
@@ -1015,7 +1013,9 @@ let parseCertificateRequest version data =
     match vlsplit 1 data with
     | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
     | Correct (certTypeListBytes,data) ->
-    let certTypeList = parseCertificateTypeList certTypeListBytes in
+    match parseCertificateTypeList certTypeListBytes with
+    | Error(x,y) -> Error(x,y)
+    | Correct(certTypeList) ->
     let sigAlgsAndData = (
         if version = TLS_1p2 then
             match vlsplit 2 data with
@@ -1047,7 +1047,15 @@ let serverHelloDoneBytes = makeMessage HT_server_hello_done [||]
 
 /// ClientKeyExchange
 
-//CF: to be separated?? 
+let makeClientKEX_RSA si config =
+    let pms = RSAPlain.genPMS si config.maxVer in
+    match si.serverID with
+        | None -> unexpectedError "[makeClientKEXBytes] Server certificate should always be present with a RSA signing cipher suite."
+        | Some (serverCert) ->
+            let pubKey = pubKey_of_certificate serverCert.Head in
+            let encpms = RSAEnc.encrypt pubKey si pms in
+            let encpms = if si.protocol_version = SSL_3p0 then encpms else vlbytes 2 encpms 
+            ((makeMessage HT_client_key_exchange encpms),pms)
 
 let makeClientKEXBytes si config clSpecInfo =
     if canEncryptPMS si.cipher_suite then

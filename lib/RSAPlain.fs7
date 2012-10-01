@@ -22,6 +22,6 @@ val genPMS: id:SessionInfo -> vc:CipherSuite.ProtocolVersion -> (;id) pms
 // not necessarily the negotiated version stored in si;
 // its inclusion helps preventing version rollback attacks.
 
-val coerce: id -> repr -> (;id) pms
-val leak: id -> (;id) pms -> repr
+val coerce: id:SessionInfo -> repr -> (;id) pms
+val leak: id:SessionInfo -> (;id) pms -> repr
 
