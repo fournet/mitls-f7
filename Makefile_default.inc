@@ -2,7 +2,7 @@
 
 all-def: dist-def
  
-target-fsc = $(fsc) $(deps) $(src) -o $(target); cp $(target) ../bin
+target-fsc = $(fsc) $(deps) $(src) -a -o $(target); cp $(target) ../bin
 
 dist-def:
 	mkdir $(distname)/$(this)
