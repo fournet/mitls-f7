@@ -10,14 +10,15 @@ type p
 val modBytes: p:p -> bytes
 val modParse: bytes -> p:p
 
+type (;p:p) elt // for public parameters and exchange values 
+
 // "Strong" parameter generation used by compliant servers,
 // formally a precondition for signing them with an honest key.
-predicate val PP: p:p * g:(;p) -> bool 
+predicate val PP: p:p * g:(;p) elt -> bool 
 
 // the RFCs are vague about best practices for ppgen
 val ppgen: unit -> p:p * g:(;p) elt {PP(p,g)} 
 
-type (;p:p) elt // for public parameters and exchange values 
 val eltBytes: p:p -> (;p) elt -> bytes 
 val eltParse: p:p -> bytes -> (;p) elt  
 
@@ -26,7 +27,7 @@ val eltParse: p:p -> bytes -> (;p) elt
 
 type (;p:p,g:elt,gx:elt) secret // private secret x, y, ... represented as some big integer modulo p
 
-val gen: p:p * g: (;p) elt -> gx:(;p) elt * (;p,gx) secret  
+val gen: p:p -> g: (;p) elt -> gx:(;p) elt * (;p,gx) secret  
 
 type (;p:p, g:(;p) elt, gx:(;p) elt, gy:(;p) elt) pms // strong secret when (p,g), gx, and gy have been honestly generated
  

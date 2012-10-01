@@ -8,10 +8,32 @@ open System.Security.Cryptography.X509Certificates
 
 open Bytes
 open Algorithms
+open Error
 
 (* ------------------------------------------------------------------------ *)
 type hint = string
 type cert = bytes
+
+type certType =
+    | RSA_sign
+    | DSA_sign
+    | RSA_fixed_dh
+    | DSA_fixed_dh
+
+let certTypeBytes ct =
+    match ct with
+    | RSA_sign     -> [|1uy|]
+    | DSA_sign     -> [|2uy|]
+    | RSA_fixed_dh -> [|3uy|]
+    | DSA_fixed_dh -> [|4uy|]
+
+let parseCertType b =
+    match b with
+    | [|1uy|] -> Correct(RSA_sign)
+    | [|2uy|] -> Correct(DSA_sign)
+    | [|3uy|] -> Correct(RSA_fixed_dh)
+    | [|4uy|] -> Correct(DSA_fixed_dh)
+    | _ -> Error(Parsing,WrongInputParameters)
 
 (* ------------------------------------------------------------------------ *)
 let OID_RSAEncryption     = "1.2.840.113549.1.1.1"
@@ -83,7 +105,8 @@ let for_signing (h : hint) ((asig, ahash) as a: Sig.alg) =
             in
                 match x509_to_keys x509 with
                 | Some (skey, pkey) ->
-                    Some (x509.Export(X509ContentType.Cert),
+                    // FIXME: We should return the full certificate chain
+                    Some ([ x509.Export(X509ContentType.Cert) ],
                           Sig.create_skey a skey,
                           Sig.create_vkey a pkey)
                 | None -> None
@@ -109,7 +132,8 @@ let for_key_encryption (h : hint) =
             in
                 match x509_to_keys x509 with
                 | Some (SK_RSA(sm, se) , PK_RSA (pm, pe)) ->
-                    Some (x509.Export(X509ContentType.Cert),
+                    // FIXME: We should return the full certificate chain
+                    Some ([ x509.Export(X509ContentType.Cert) ],
                           RSA.create_rsaskey (sm, se),
                           RSA.create_rsapkey (pm, pe))
                 | _ -> None

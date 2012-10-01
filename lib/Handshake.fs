@@ -906,7 +906,7 @@ let compute_master_secret pms version crandom srandom =
 /// Certificates and Certificate Requests
 
 let certificatesBytes certs =
-    vlbytes 3 (List.foldBack (fun c a -> vlbytes 3 (certificateBytes c) @| a) certs [||])
+    vlbytes 3 (List.foldBack (fun c a -> vlbytes 3 c @| a) certs [||])
     
 let makeCertificateBytes cso =
     let cs = match cso with None -> [] | Some(cs) -> cs
@@ -925,14 +925,12 @@ let rec parseList parseOne b =
 
 let parseOneCertificate b = 
     match vlsplit 3 b with 
-    | Correct (one,rest) ->
-        match certificate_of_bytes one with
-        | Correct(c) -> Correct(c,rest) 
-        | Error(x,y) -> Error(HSError(AD_bad_certificate_fatal),HSSendAlert)
+    | Correct (one,rest) -> Correct (one,rest)
     | Error(x,y)     -> Error(HSError(AD_bad_certificate_fatal),HSSendAlert)
 // then call 
 // parseList parseOneCerticate b instead of 
 // parseCertificate_int b []
+// AP: I don't understand the comments above.
 
 let rec parseCertificate_int toProcess list =
     if equalBytes toProcess [||] then
@@ -940,21 +938,20 @@ let rec parseCertificate_int toProcess list =
     else
         match vlsplit 3 toProcess with
         | Error(x,y) -> Error(HSError(AD_bad_certificate_fatal),HSSendAlert)
-        | Correct (nextCertBytes,toProcess) ->
-        match certificate_of_bytes nextCertBytes with
-        | Error(x,y) -> Error(HSError(AD_bad_certificate_fatal),HSSendAlert)
-        | Correct(nextCert) ->
+        | Correct (nextCert,toProcess) ->
             let list = list @ [nextCert] in
             parseCertificate_int toProcess list
 
 let parseCertificate data =
     match vlsplit 3 data with
     | Error(x,y) -> Error(HSError(AD_bad_certificate_fatal),HSSendAlert)
-    | Correct (certList,_) ->
-    //$CF why ignoring the rest? This breaks VerifyData
-    match parseCertificate_int certList [] with
-    | Error(x,y) -> Error(x,y)
-    | Correct(certs) -> correct(certs)
+    | Correct (certList,rem) ->
+    if not (equalBytes rem [||]) then
+        Error(HSError(AD_bad_certificate_fatal),HSSendAlert)
+    else
+        match parseCertificate_int certList [] with
+        | Error(x,y) -> Error(x,y)
+        | Correct(certs) -> correct(certs)
 
 //CF This list used to be reversed; was it intented??
 //   Also, we do not currently enforce that the bytes are between 0 and 3.
