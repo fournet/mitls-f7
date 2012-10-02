@@ -13,7 +13,7 @@ open TLSFragment // Required by F7, or deliver won't parse.
 
 type predispatchState =
   | Init
-  | FirstHandshake
+  | FirstHandshake of CipherSuites.ProtocolVersion
   | Finishing
   | Finished (* Only for Writing side, used to implement TLS False Start *)
   | Open
@@ -159,7 +159,7 @@ let closeConnection (Conn(id,c)) =
 let pickSendPV (Conn(id,c)) =
     match c.write.disp with
     | Init -> getMinVersion id c.handshake
-    | FirstHandshake -> getNegotiatedVersion id c.handshake
+    | FirstHandshake(pv) -> pv
     | _ -> let si = epochSI(id.id_out) in si.protocol_version
 
 let send ns e write pv rg ct frag =
@@ -224,7 +224,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                     let nextWCS = Record.initConnState nextID.id_out nextWrite in
                     (* we send a (complete) CCS fragment *)
                     match c_write.disp with
-                    | x when x = FirstHandshake || x = Open ->
+                    | FirstHandshake(_) | Open ->
                         let history = Record.history id.id_out c_write.conn in
                         let frag = TLSFragment.construct id.id_out Change_cipher_spec history rg ccs in
                         let pv = pickSendPV (Conn(id,c)) in
@@ -247,8 +247,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
           | (Handshake.OutSome(rg,f,new_hs_state)) ->     
                       (* we send some handshake fragment *)
                       match c_write.disp with
-                      | x when x = Init || x = FirstHandshake ||
-                               x = Finishing || x = Open ->
+                      | Init | FirstHandshake(_) | Finishing | Open ->
                           let history = Record.history id.id_out c_write.conn in
                           let frag = TLSFragment.construct id.id_out Handshake history rg f in
                           let pv = pickSendPV (Conn(id,c)) in
@@ -303,7 +302,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                 | _ -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(Dispatcher,InvalidState)),closed) (* TODO: we might want to send an "internal error" fatal alert *)
       | (Alert.ALFrag(tlen,f),new_al_state) ->
         match c_write.disp with
-        | Init | FirstHandshake | Open ->
+        | Init | FirstHandshake(_) | Open ->
             let history = Record.history id.id_out c_write.conn in
             let frag = TLSFragment.construct id.id_out Alert history tlen f in
             let pv = pickSendPV (Conn(id,c)) in
@@ -318,7 +317,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
         | _ -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(Dispatcher,InvalidState)),closed) (* Unrecoverable error *)
       | (Alert.LastALFrag(tlen,f,ad),new_al_state) ->
         match c_write.disp with
-        | Init | FirstHandshake | Open ->
+        | Init | FirstHandshake(_) | Open ->
             (* We're sending a fatal alert. Send it, then close both sending and receiving sides *)
             let history = Record.history id.id_out c_write.conn in
             let frag = TLSFragment.construct id.id_out Alert history tlen f in
@@ -335,7 +334,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
         | _ -> let closed = closeConnection (Conn(id,c)) in (WError(EInternal(Dispatcher,InvalidState)),closed) (* Unrecoverable error *)
       | (Alert.LastALCloseFrag(tlen,f),new_al_state) -> 
         match c_write.disp with
-        | Init | FirstHandshake | Open ->
+        | Init | FirstHandshake(_) | Open ->
             (* We're sending a close_notify alert. Send it, then only close our sending side.
                If we already received the other close notify, then reading is already closed,
                otherwise we wait to read it, then close. But do not close here. *)
@@ -380,12 +379,18 @@ let recv (Conn(id,c)) =
                     let (c_recv,ct,pv,tl,f) = pack in
                     //let s = sprintf "                        %5d bytes --> %s\n" len (Formats.CTtoString ct) in printfn "%s" s  
                     let si = epochSI(id.id_in) in
-                    if c.read.disp = Init ||
-                       (c.read.disp = FirstHandshake && pv = getNegotiatedVersion id c.handshake) ||
-                       pv = si.protocol_version then
-                        correct(c_recv,ct,tl,f)
-                    else
-                        Error(RecordVersion,CheckFailed)
+                    match c.read.disp with
+                    | Init -> correct(c_recv,ct,tl,f)
+                    | FirstHandshake(expPV) ->
+                        if pv = expPV then
+                            correct(c_recv,ct,tl,f)
+                        else
+                            Error(RecordVersion,CheckFailed)
+                    | _ ->
+                        if pv = si.protocol_version then
+                            correct(c_recv,ct,tl,f)
+                        else
+                            Error(RecordVersion,CheckFailed)
 
 (* we have received, decrypted, and verified a record (ct,f); what to do? *)
 let readOne (Conn(id,c)) =
@@ -411,7 +416,7 @@ let readOne (Conn(id,c)) =
                             // KB: To Fix                                 
                             //Pi.assume (GState(id,c));  
                             RAgain, Conn(id,c)
-                        | Handshake.InVersionAgreed(hs) ->
+                        | Handshake.InVersionAgreed(hs,pv) ->
                             match c_read.disp with
                             | Init ->
                                 (* Then, also c_write must be in Init state. It means this is the very first, unprotected handshake,
@@ -419,9 +424,9 @@ let readOne (Conn(id,c)) =
                                     Set the negotiated version in the current sinfo (read and write side), 
                                     and move to the FirstHandshake state, so that
                                     protocol version will be properly checked *)
-                                let new_read = {c_read with disp = FirstHandshake} in
+                                let new_read = {c_read with disp = FirstHandshake(pv)} in
                                 let c_write = c.write in
-                                let new_write = {c_write with disp = FirstHandshake} in
+                                let new_write = {c_write with disp = FirstHandshake(pv)} in
                                 let c = {c with handshake = hs;
                                                 read = new_read;
                                                 write = new_write} in

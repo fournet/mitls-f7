@@ -48,7 +48,7 @@ val next_fragment: ConnectionInfo  -> hs_state -> outgoing
 [<NoEquality;NoComparison>]
 type incoming = (* the fragment is accepted, and... *)
   | InAck of hs_state
-  | InVersionAgreed of hs_state
+  | InVersionAgreed of hs_state * ProtocolVersion
   | InQuery of Cert.cert * hs_state
   | InFinished of hs_state
   | InComplete of hs_state
@@ -61,6 +61,4 @@ type incomingCCS =
   | InCCSError of ErrorCause * ErrorKind * hs_state
 val recv_ccs     : ConnectionInfo -> hs_state -> DataStream.range -> Fragment.fragment -> incomingCCS
 
-// Which protocol version dispatch should use to check during the first handshake
-val getNegotiatedVersion: ConnectionInfo -> hs_state -> ProtocolVersion
 val getMinVersion: ConnectionInfo -> hs_state -> ProtocolVersion

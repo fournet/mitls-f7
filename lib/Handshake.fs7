@@ -115,7 +115,7 @@ val next_fragment: ci:ConnectionInfo -> s:(;ci)hs_state -> (;ci,s)outgoing
 
 type (;ci:ConnectionInfo,c:config)incoming =
   | InAck of (;ci,c)nextState
-  | InVersionAgreed  of (;ci,c)nextState
+  | InVersionAgreed  of (;ci,c)nextState * ProtocolVersion
   | InQuery of Cert.cert * (;ci,c)nextState
   | InFinished of (;ci,c)nextState {EvSentFinishedFirst(ci,false)}
   | InComplete of (;ci,c)nextState {Complete(ci,c)}
@@ -130,7 +130,6 @@ type (;ci:ConnectionInfo,c:config)incomingCCS =
 val recv_ccs     : ci:ConnectionInfo -> s:(;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> 
                    (;ci,Config(ci,s))incomingCCS
 
-val getNegotiatedVersion: ci:ConnectionInfo -> (;ci)hs_state -> ProtocolVersion
 val getMinVersion:        ci:ConnectionInfo -> (;ci)hs_state -> ProtocolVersion
 
 

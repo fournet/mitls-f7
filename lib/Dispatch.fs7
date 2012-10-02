@@ -6,15 +6,15 @@ open DataStream
 open TLSInfo
 
 type predispatchState =
-  | Init (* of ProtocolVersion * ProtocolVersion *) (* min and max *)
-  | FirstHandshake (* of ProtocolVersion *)             (* set by the ServerHello *) 
+  | Init 
+  | FirstHandshake of ProtocolVersion             (* set by the ServerHello *) 
   | Finishing
   | Finished (* Only for Writing side, used to avoid sending data on a partially completed handshake *)
   | Open
   | Closed
 
-type dispatchState = d:predispatchState{
-	d = Init \/ d = FirstHandshake \/ d = Finishing \/ d = Finished \/
+type dispatchState = d:predispatchState{!pv.
+	d = Init \/ d = FirstHandshake(pv) \/ d = Finishing \/ d = Finished \/
 	d = Open \/ d = Closed}
 
 type (;ki:epoch) dState = {
