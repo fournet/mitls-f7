@@ -406,7 +406,7 @@ let readOne (Conn(id,c)) =
             | Closed -> (RError(EInternal(Dispatcher,InvalidState)),Conn(id,c))
             | _ ->
                 match (ct,c_read.disp) with 
-                  | Handshake, x when x = Init || x = FirstHandshake || x = Finishing || x = Open ->
+                  | (Handshake, Init) | (Handshake, FirstHandshake(_)) | (Handshake, Finishing) | (Handshake, Open) ->
                       let c_hs = c.handshake in
                         match Handshake.recv_fragment id c_hs rg f with
                         | Handshake.InAck(hs) ->
@@ -448,7 +448,7 @@ let readOne (Conn(id,c)) =
                                     (RQuery(query),Conn(id,c))
                         | Handshake.InFinished(hs) ->
                                 (* Ensure we are in Finishing state *)
-                                match x with
+                                match c_read.disp with
                                     | Finishing ->
                                         let c = {c with read = c_read;
                                                         handshake = hs} in
@@ -470,7 +470,7 @@ let readOne (Conn(id,c)) =
                                 // KB: To Fix                        
                                 //Pi.assume (GState(id,c));  
                                 (* Ensure we are in Finishing state *)
-                                    match x with
+                                    match c_read.disp with
                                     | Finishing ->
                                             (* Sanity check: in and out session infos should be the same *)
                                         if epochSI(id.id_in) = epochSI(id.id_out) then
@@ -483,7 +483,7 @@ let readOne (Conn(id,c)) =
                                     | _ -> let closed = closeConnection (Conn(id,c)) in (RError(EInternal(Dispatcher,InvalidState)),closed) (* TODO: We might want to send some alert here. *)
                         | Handshake.InError(x,y,hs) -> let c = {c with handshake = hs} in (RError(EInternal(x,y)),Conn(id,c)) (* TODO: we might need to send some alerts *)
 
-                  | Change_cipher_spec, x when x = FirstHandshake || x = Open ->
+                  | (Change_cipher_spec, FirstHandshake(_)) | (Change_cipher_spec, Open) ->
                         match Handshake.recv_ccs id c.handshake rg f with 
                           | InCCSAck(nextID,nextR,hs) ->
                               let nextRCS = Record.initConnState nextID.id_in nextR in
@@ -503,7 +503,7 @@ let readOne (Conn(id,c)) =
                               let closed = closeConnection (Conn(id,c)) in
                               (RError(EInternal(x,y)),closed) // TODO: We might want to send some alert here.
 
-                  | Alert, x when x = Init || x = FirstHandshake || x = Open ->
+                  | (Alert, Init) | (Alert, FirstHandshake(_)) | (Alert, Open) ->
                         match Alert.recv_fragment id c.alert rg f with
                           | Correct (Alert.ALAck(state)) ->
                               let c = {c with read = c_read;
