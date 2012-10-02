@@ -223,13 +223,13 @@ type serverState =  (* note that the CertRequest bits are determined by the conf
    | ClientKeyExchangeDHE    of SessionInfo * (* DHE.sk * *) log 
    | CertificateVerify       of SessionInfo * masterSecret * log 
    | ClientCCS               of SessionInfo * masterSecret * log
-   | ClientFinished          of SessionInfo * masterSecret * epoch * StatefulAEAD.writer * log 
+   | ClientFinished          of SessionInfo * masterSecret * epoch * StatefulAEAD.writer
    (* by convention, the parameters are named si, cv, cr', sr', ms, log *)
-   | ServerWritingCCS        of SessionInfo * epoch * StatefulAEAD.writer * bytes (* outgoing after CCS; this and next state shared only for full HS *)
-   | ServerWritingFinished
-   | ServerWritingCCSResume  of SessionInfo * masterSecret * crand * srand * bytes (* ougoing after CCS *) * log
-   | ClientCCSResume         of SessionInfo * masterSecret * crand * srand * epoch * StatefulAEAD.reader * log (* St-AEAD.reader is redundant, but kept here for efficiency *)
-   | ClientFinishedResume    of SessionInfo * masterSecret * log 
+   | ServerWritingCCS        of SessionInfo * masterSecret * epoch * StatefulAEAD.writer
+   | ServerWritingFinished   of SessionInfo * masterSecret
+   | ServerWritingCCSResume  of ConnectionInfo * StatefulAEAD.writer * StatefulAEAD.reader
+   | ClientCCSResume         of epoch * StatefulAEAD.reader
+   | ClientFinishedResume
    | ServerIdle
    (* the ProtocolVersion is the highest TLS version proposed by the client *)
 
@@ -651,56 +651,6 @@ let request (ci:ConnectionInfo) (state:hs_state) (ops:config) =
         | _ -> (* Handshake already ongoing, ignore this request *)
             (false,state)
 
-let storeSession sDB (sinfo, ms, role) =
-    match sinfo.sessionID with
-    | [||] -> (* Non-resumable session *)
-        sDB
-    | sid ->
-        SessionDB.insert sDB sinfo.sessionID (sinfo, ms, role)
-
-// FIXME: Seems we can skip this function with the new state machine *)
-(*
-let goToIdle state =
-    let init_sessionInfo = null_sessionInfo state.poptions.minVer in
-    match state.pstate with
-    | PSClient (_) ->
-        let sDB = storeSession Client state in
-        {hs_outgoing = [||];
-         ccs_outgoing = None;
-         hs_outgoing_after_ccs = [||];
-         hs_incoming = [||];
-         ccs_incoming = None
-         poptions = state.poptions;
-         sDB = sDB;
-         pstate = PSClient(CIdle);
-         hs_msg_log = [||]
-         hs_next_info = init_sessionInfo
-         next_ms = empty_masterSecret init_sessionInfo
-         ki_crand = [||]
-         ki_srand = [||]
-         hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
-         hs_renegotiation_info_sVerifyData = state.hs_renegotiation_info_sVerifyData}
-    | PSServer (_) ->
-        let rand = makeRandom () in
-        let init_sessionInfo = {init_sessionInfo with init_srand = rand} in
-        let sDB = storeSession Server state in
-        {hs_outgoing = [||];
-         ccs_outgoing = None;
-         hs_outgoing_after_ccs = [||];
-         hs_incoming = [||];
-         ccs_incoming = None
-         poptions = state.poptions;
-         sDB = sDB;
-         pstate = PSServer(SIdle);
-         hs_msg_log = [||]
-         hs_next_info = init_sessionInfo
-         next_ms = empty_masterSecret init_sessionInfo
-         ki_crand = [||]
-         ki_srand = rand
-         hs_renegotiation_info_cVerifyData = state.hs_renegotiation_info_cVerifyData
-         hs_renegotiation_info_sVerifyData = state.hs_renegotiation_info_sVerifyData}
-*)
-
 let invalidateSession ci state =
     let si = epochSI(ci.id_in) // FIXME: which epoch to choose? Here it matters since they could be mis-aligned
     match si.sessionID with
@@ -756,8 +706,8 @@ let next_fragment ci state =
             | ClientWritingCCS (si,ms,log) ->
                 let next_ci = getNextEpochs_full ci si ms log si.init_crand si.init_srand in
                 let (writer,reader) = PRFs.keyGen next_ci ms in
-                let cFinished = makeMessage HT_finished (epochCVerifyData next_ci.id_out) in
-                let state = {state with hs_outgoing = cFinished // Equivalently, next_ci.id_in
+                let cFinished = makeMessage HT_finished (epochCVerifyData next_ci.id_out) in // Equivalently, next_ci.id_in
+                let state = {state with hs_outgoing = cFinished 
                                         pstate = PSClient(ServerCCS(si,ms,next_ci.id_in,reader))} in
                 let (((rg,f),_),_) = makeCCSFragment ci.id_out CCSBytes in
                 let ci = {ci with id_out = next_ci.id_out} in 
@@ -772,7 +722,21 @@ let next_fragment ci state =
             | _ -> OutIdle(state)
         | PSServer(sstate) ->
             match sstate with
-            | _ -> unexpectedError "TODO"
+            | ServerWritingCCS (si,ms,e,w) ->
+                let sFinished = makeMessage HT_finished (epochSVerifyData e) in
+                let state = {state with hs_outgoing = sFinished
+                                        pstate = PSServer(ServerWritingFinished(si,ms))}
+                let (((rg,f),_),_) = makeCCSFragment ci.id_out CCSBytes in
+                let ci = {ci with id_out = e} in
+                OutCCS(rg,f,ci,w,state)
+            | ServerWritingCCSResume(next_ci,w,r) ->
+                let sFinished = makeMessage HT_finished (epochSVerifyData next_ci.id_out) in // Equivalently, next_ci.id_in
+                let state = {state with hs_outgoing = sFinished
+                                        pstate = PSServer(ClientCCSResume(next_ci.id_in,r))}
+                let (((rg,f),_),_) = makeCCSFragment ci.id_out CCSBytes in
+                let ci = {ci with id_out = next_ci.id_out} in 
+                OutCCS(rg,f,ci,w,state)
+            | _ -> OutIdle(state)
     | outBuf ->
         let (((rg,f),_),(_,remBuf)) = makeFragment ci.id_out outBuf in
         let state = {state with hs_outgoing = remBuf} in
@@ -789,7 +753,18 @@ let next_fragment ci state =
                 | _ -> OutSome(rg,f,state)
             | PSServer(sstate) ->
                 match sstate with
-                | _ -> unexpectedError "TODO"
+                | ServerWritingFinished(si,ms) ->
+                    let sDB =
+                        if equalBytes si.sessionID [||] then
+                            state.sDB
+                        else
+                            SessionDB.insert state.sDB si.sessionID (si,ms,Server)
+                    let state = {state with pstate = PSServer(ServerIdle)   
+                                            sDB = sDB} in
+                    OutComplete(rg,f,state)
+                | ClientCCSResume(_) ->
+                    OutFinished(rg,f,state)
+                | _ -> OutSome(rg,f,state)
         | _ -> OutSome(rg,f,state)
                 
 
@@ -1348,20 +1323,6 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
       (* Should never happen *)
       | PSServer(_) -> unexpectedError "[recv_fragment_client] should only be invoked when in client role."
 
-// Move to Certificate? 
-let getServerCert cs ops =
-    (* TODO: Properly get the server certificate. Note this should be a list of certificates...*)
-    let data = System.IO.File.ReadAllBytes (ops.server_cert_file + ".cer") in
-    match certificate_of_bytes data with
-    | Error(x,y) -> Error(HSError(AD_internal_error),HSSendAlert)
-    | Correct(cert) ->
-        let pri = System.IO.File.ReadAllText(ops.server_cert_file + ".pvk") in
-        let cert = set_priKey cert pri in
-        (* FIXME TODO DEBUG: Remove next printing lines *)
-        printfn "Sending certificate of"
-        printfn "%s" (get_CN cert)
-        correct (cert)
-
 let prepare_server_output_full state maxClVer =
     let ext = 
       if state.poptions.safe_renegotiation then
@@ -1464,14 +1425,12 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
         match hstype with
         | HT_client_hello ->
             match sState with
-            | x when x = ClientHello || x = SIdle ->
+            | x when x = ClientHello || x = ServerIdle ->
                 match parseClientHello payload with
                 | Error(x,y) -> InError(HSError(AD_decode_error),HSSendAlert,state)
                 | Correct (cHello) ->
-                let state = {state with ki_crand = cHello.ch_random} in
                 (* Log the received message *)
-                let new_log = state.hs_msg_log @| to_log in
-                let state = {state with hs_msg_log = new_log} in
+                let log = to_log in
                 (* handle extensions: for now only renegotiation_info *)
                 let extRes =
                     if state.poptions.safe_renegotiation then
