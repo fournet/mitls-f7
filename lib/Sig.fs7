@@ -59,7 +59,7 @@ function val PK: 'a -> 'b // a:alg * (;a)skey -> vkey
 predicate val Msg: a:alg * (;a)vkey * text -> bool
 
 // FIXME: Local dummy definition of "Strong", until we relocate CMA/CTXT and the like to algorithm.
-predicate val Strong: alg -> bool
+predicate val Strong: 'a (* alg *) -> bool
 
 val gen:     a:alg -> pk:(;a) vkey * sk:(;a) skey { pk = PK(sk) }
 val sign:    a:alg -> sk:(;a) skey -> t:text{Msg(a,PK(sk),t)} -> (;a) sigv

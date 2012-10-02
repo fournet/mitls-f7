@@ -17,8 +17,9 @@ type cVerifyData = bytes
 type sVerifyData = bytes
 
 type SessionInfo = {
-    clientID: Cert.cert list option;
-    serverID: Cert.cert list option;
+    clientID: Cert.cert list;
+    serverID: Cert.cert list;
+    certificate_request: bool;
     sessionID: sessionID;
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;
@@ -28,8 +29,9 @@ type SessionInfo = {
     }
 
 let null_sessionInfo pv =
-    { clientID = None;
-      serverID = None;
+    { clientID = [];
+      serverID = [];
+      certificate_request = false;
       sessionID = [||];
       protocol_version = pv;
       cipher_suite = nullCipherSuite;
@@ -39,7 +41,7 @@ let null_sessionInfo pv =
       }
 
 let isNullSessionInfo s =
-  s.clientID = None && s.serverID = None && s.sessionID = [||] &&
+  s.clientID = [] && s.serverID = [] && s.certificate_request = false && s.sessionID = [||] &&
   isNullCipherSuite s.cipher_suite && s.compression = NullCompression &&
   s.init_crand = [||] && s.init_srand = [||]
 

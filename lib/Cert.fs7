@@ -19,10 +19,10 @@ type certType =
     | DSA_fixed_dh
 
 function val CertTypeBytes: certType -> bytes
-private definition CertTypeBytes(RSA_sign)     = [|1|]
-private definition CertTypeBytes(DSA_sign)     = [|2|]
-private definition CertTypeBytes(RSA_fixed_dh) = [|3|]
-private definition CertTypeBytes(DSA_fixed_dh) = [|4|]
+private definition CertTypeBytes(RSA_sign)     = [|1uy|]
+private definition CertTypeBytes(DSA_sign)     = [|2uy|]
+private definition CertTypeBytes(RSA_fixed_dh) = [|3uy|]
+private definition CertTypeBytes(DSA_fixed_dh) = [|4uy|]
 
 val certTypeBytes: ct:certType -> b:bytes{b=CertTypeBytes(ct)}
 val parseCertType: b:bytes -> (ct:certType {b=CertTypeBytes(ct)}) Result

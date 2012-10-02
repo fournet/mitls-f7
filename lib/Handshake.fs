@@ -239,6 +239,7 @@ type clientState =
    | ServerCertificateDH    of SessionInfo * log
    | ServerCertificateDHE   of SessionInfo * log
    | ServerKeyExchangeDHE   of SessionInfo * log
+   | ServerKeyExchangeDH_anon of SessionInfo * log (* Not supported yet *)
    | CertificateRequestRSA  of SessionInfo * log (* In fact, CertReq or SHelloDone will be accepted *)
    | CertificateRequestDH   of SessionInfo * log (* We pick our cert and store it in sessionInfo as soon as the server requests it.
                                                     We put None if we don't have such a certificate, and we know whether to send
@@ -753,17 +754,13 @@ let next_fragment ci state =
         | PSClient(cstate) ->
             match cstate with
             | ClientWritingCCS (si,ms,log) ->
-                let cVerifyData = makeVerifyData si Client ms log in
-                let cFinished = makeMessage HT_finished cVerifyData in
-                let log = log @| cFinished in
-                let sVerifyData = makeVerifyData si Server ms log in
-                let nextEpochOut = nextEpoch ci.id_out si.init_crand si.init_srand cVerifyData sVerifyData si in
-                let nextEpochIn  = nextEpoch ci.id_in  si.init_crand si.init_srand cVerifyData sVerifyData si in
-                let (writer,reader) = PRFs.keyGen {role = ci.role; id_in = nextEpochIn; id_out = nextEpochOut} ms in
-                let state = {state with hs_outgoing = cFinished
-                                        pstate = PSClient(ServerCCS(si,ms,nextEpochIn,reader))} in
+                let next_ci = getNextEpochs_full ci si ms log si.init_crand si.init_srand in
+                let (writer,reader) = PRFs.keyGen next_ci ms in
+                let cFinished = makeMessage HT_finished (epochCVerifyData next_ci.id_out) in
+                let state = {state with hs_outgoing = cFinished // Equivalently, next_ci.id_in
+                                        pstate = PSClient(ServerCCS(si,ms,next_ci.id_in,reader))} in
                 let (((rg,f),_),_) = makeCCSFragment ci.id_out CCSBytes in
-                let ci = {ci with id_out = nextEpochOut} in 
+                let ci = {ci with id_out = next_ci.id_out} in 
                 OutCCS(rg,f,ci,writer,state)
             | ClientWritingCCSResume(e,w) ->
                 let cFinished = makeMessage HT_finished (epochCVerifyData e) in
@@ -886,32 +883,12 @@ type incomingCCS =
   | InCCSAck of ConnectionInfo * StatefulAEAD.state * hs_state
   | InCCSError of ErrorCause * ErrorKind * hs_state
 
-(* Obsolete. Use PRFs.prfMS instead *)
-(*
-let compute_master_secret pms version crandom srandom = 
-    match version with 
-    | SSL_3p0 ->
-        match ssl_prf pms (append crandom srandom) 48 with
-        | Error(x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
-        | Correct (res) -> correct (res)
-    | x when x = TLS_1p0 || x = TLS_1p1 ->
-        match prf pms "master secret" (append crandom srandom) 48 with
-        | Error(x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
-        | Correct (res) -> correct (res)
-    | TLS_1p2 ->
-        match tls12prf pms "master secret" (append crandom srandom) 48 with
-        | Error(x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
-        | Correct (res) -> correct (res)
-    | _ -> Error(HSError(AD_internal_error),HSSendAlert)
-*)
-
 /// Certificates and Certificate Requests
 
 let certificatesBytes certs =
     vlbytes 3 (List.foldBack (fun c a -> vlbytes 3 c @| a) certs [||])
     
 let makeCertificateBytes cso =
-    let cs = match cso with None -> [] | Some(cs) -> cs
     makeMessage HT_certificate (certificatesBytes cs)
 
 // we need something more general for parsing lists, e.g.
@@ -1048,7 +1025,7 @@ let serverHelloDoneBytes = makeMessage HT_server_hello_done [||]
 let makeClientKEX_RSA si config =
     let pms = RSAPlain.genPMS si config.maxVer in
     if si.serverID.IsEmpty then
-        unexpectedError "[makeClientKEXBytes] Server certificate should always be present with a RSA signing cipher suite."
+        unexpectedError "[makeClientKEX_RSA] Server certificate should always be present with a RSA signing cipher suite."
     else
         let pubKey = pubKey_of_certificate si.serverID.Head in
         let encpms = RSAEnc.encrypt pubKey si pms in
@@ -1117,8 +1094,8 @@ let makeCertificateVerifyBytes cert data pv certReqMsg =
         (* TODO *) Error(HSError(AD_internal_error),HSSendAlert)
     
 //$ todo?
-let find_client_cert (certReqMsg:certificateRequest) : (cert list) option =
-    (* TODO *) None
+let find_client_cert (certReqMsg:certificateRequest) : (cert list) =
+    (* TODO *) []
 
 
 let certificateVerifyCheck (state:hs_state) (payload:bytes) =
@@ -1126,65 +1103,53 @@ let certificateVerifyCheck (state:hs_state) (payload:bytes) =
        We need to understand how to treat certificates and related algorithms properly *)
     correct(true)
 
-let prepare_client_output_full ci state clSpecState =
+let prepare_client_output_full_RSA ci state (si:SessionInfo) log =
     let clientCertBytes =
-      match clSpecState.must_send_cert with
-      | Some (_) -> makeCertificateBytes clSpecState.client_certificate
-      | None     -> [||]
+      // FIXME: we currently miss one bit of information on whether to send this message or not
+      if si.certReq then
+        makeCertificateBytes si.clientID
+      else [||]
 
-    match makeClientKEXBytes state clSpecState with
+    let log = log @| clientCertBytes in
+
+    let (clientKEXBytes,pms) = makeClientKEX_RSA si state.poptions in
+
+    let log = log @| clientKEXBytes in
+
+    let ms = PRFs.prfSmoothRSA si pms in
+    (* FIXME: here we should shred pms *)
+    let certificateVerifyBytesResult =
+        if si.certReq then
+            makeCertificateVerifyBytes cert to_sign state.hs_next_info.protocol_version certReqMsg
+        else
+            (* No client certificate ==> no certificateVerify message *)
+            correct ([||])
+    match certificateVerifyBytesResult with
     | Error (x,y) -> Error (x,y)
-    | Correct (result) ->
-        let (clientKEXBytes,pms) = result in
-        let ms = prfMS state.hs_next_info pms in
-        (* Assert: state.hs_next_info.{c,s}rand = state.ki_{c,s}rand
-           In fact, we want to use the {c,s}rand just used in this session (and not the constant sinfo ones).
-           And indeed, the PMS is computed only during the first session
-           where the assertion must be true. *)
-        (* Original code:
-        match compute_master_secret pms sinfo.more_info.mi_protocol_version state.hs_client_random state.hs_server_random with *)
-        (* TODO: here we should shred pms *)
-        let state = {state with next_ms = ms} in
-        let certificateVerifyBytesResult =
-            match state.hs_next_info.clientID with
-            | None ->
-                (* No client certificate ==> no certificateVerify message *)
-                correct ([||])
-            | Some (cert) ->
-                if certificate_has_signing_capability cert then
-                    let to_sign = state.hs_msg_log @| clientCertBytes @| clientKEXBytes in
-                    match clSpecState.must_send_cert with
-                    | None -> unexpectedError "[prepare_output] If client sent a certificate, it must have been requested to."
-                    | Some (certReqMsg) ->
-                        makeCertificateVerifyBytes cert to_sign state.hs_next_info.protocol_version certReqMsg
-                else
-                    correct ([||])
-        match certificateVerifyBytesResult with
-        | Error (x,y) -> Error (x,y)
-        | Correct (certificateVerifyBytes) ->
-            (* Enqueue current messages *)
-            let to_send = clientCertBytes @| clientKEXBytes @| certificateVerifyBytes in
-            let new_outgoing = state.hs_outgoing @| to_send in
-            let new_log = state.hs_msg_log @| to_send in
-            let state = {state with hs_outgoing = new_outgoing
-                                    hs_msg_log  = new_log} in
+    | Correct (certificateVerifyBytes) ->
+        (* Enqueue current messages *)
+        let to_send = clientCertBytes @| clientKEXBytes @| certificateVerifyBytes in
+        let new_outgoing = state.hs_outgoing @| to_send in
+        let new_log = state.hs_msg_log @| to_send in
+        let state = {state with hs_outgoing = new_outgoing
+                                hs_msg_log  = new_log} in
 
-            (* Handle CCS and Finished, including computation of session secrets *)
-            let state = compute_session_secrets_and_CCSs ci state in
-            (* Now go for the creation of the Finished message *)
-            let ki = 
-                match state.ccs_outgoing with
-                | None -> unexpectedError "[prepare_client_output_full] The current state should contain a valid outgoing epoch"
-                | Some (_,(ki,ccs_data)) -> ki
-            let si = epochSI(ki) in
-            let (finishedBytes,cVerifyData) = makeFinishedMsgBytes si Client state.next_ms state.hs_msg_log in
-            (* match makeFinishedMsgBytes sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms Client state.hs_msg_log with *)
-            let new_out = state.hs_outgoing_after_ccs @| finishedBytes in
-            let new_log = state.hs_msg_log @| finishedBytes in
-            let state = {state with hs_outgoing_after_ccs = new_out
-                                    hs_msg_log = new_log
-                                    hs_renegotiation_info_cVerifyData = cVerifyData} in
-            correct (state)
+        (* Handle CCS and Finished, including computation of session secrets *)
+        let state = compute_session_secrets_and_CCSs ci state in
+        (* Now go for the creation of the Finished message *)
+        let ki = 
+            match state.ccs_outgoing with
+            | None -> unexpectedError "[prepare_client_output_full] The current state should contain a valid outgoing epoch"
+            | Some (_,(ki,ccs_data)) -> ki
+        let si = epochSI(ki) in
+        let (finishedBytes,cVerifyData) = makeFinishedMsgBytes si Client state.next_ms state.hs_msg_log in
+        (* match makeFinishedMsgBytes sinfo.protocol_version sinfo.cipher_suite sinfo.more_info.mi_ms Client state.hs_msg_log with *)
+        let new_out = state.hs_outgoing_after_ccs @| finishedBytes in
+        let new_log = state.hs_msg_log @| finishedBytes in
+        let state = {state with hs_outgoing_after_ccs = new_out
+                                hs_msg_log = new_log
+                                hs_renegotiation_info_cVerifyData = cVerifyData} in
+        correct (state)
 
 let prepare_client_output_resumption state =
     let ki = 
@@ -1212,7 +1177,7 @@ let on_serverHello_full crand log shello =
                } in
     (* If DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
     if isAnonCipherSuite shello.sh_cipher_suite then
-        PSClient(ServerKeyExchangeDHE(si,log))
+        PSClient(ServerKeyExchangeDH_anon(si,log))
     elif isDHCipherSuite shello.sh_cipher_suite then
         PSClient(ServerCertificateDH(si,log))
     elif isDHECipherSuite shello.sh_cipher_suite then
@@ -1345,65 +1310,40 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             | _ -> (* Certificate arrived in the wrong state *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
         | HT_server_key_exchange ->
             match cState with
-            | ServerKeyExchange ->
+            | ServerKeyExchangeDHE(si,log) ->
                 (* TODO *) InError(HSError(AD_internal_error),HSSendAlert,state)
+            | ServerKeyExchangeDH_anon(si,log) -> (* TODO *) InError(HSError(AD_internal_error),HSSendAlert,state)
             | _ -> (* Server Key Exchange arrived in the wrong state *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
         | HT_certificate_request ->
             match cState with
-            | CertReqOrSHDone ->
+            | CertificateRequestRSA(si,log) ->
                 (* Log the received packet *)
-                let new_log = state.hs_msg_log @| to_log in
-                let state = {state with hs_msg_log = new_log} in
+                let log = log @| to_log in
 
-                (* Note: in next statement, use next_info, because the handshake runs according to the session we want to
+                (* Note: in next statement, use si, because the handshake runs according to the session we want to
                    establish, not the current one *)
-                match parseCertificateRequest state.hs_next_info.protocol_version payload with
+                match parseCertificateRequest si.protocol_version payload with
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(certReqMsg) ->
                 let client_cert = find_client_cert certReqMsg in
                 (* Update the sinfo we're establishing *)
-                let next_info = {state.hs_next_info with clientID =
-                                                            match client_cert with
-                                                            | None -> None
-                                                            | Some(certList) -> Some(certList.Head)} in
-                let state = {state with hs_next_info = next_info} in
-                let clSpecState = {resumed_session = false;
-                                   must_send_cert = Some(certReqMsg);
-                                   client_certificate = client_cert} in
-                let state = {state with pstate = PSClient(CSHDone(clSpecState))} in
+                let si = {si with clientID = client_cert} in
+                let state = {state with pstate = PSClient(ServerHelloDoneRSA(si,log))} in
                 recv_fragment_client ci state agreedVersion
             | _ -> (* Certificate Request arrived in the wrong state *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
         | HT_server_hello_done ->
             match cState with
-            | CertReqOrSHDone ->
+            | CertificateRequestRSA(si,log) | ServerHelloDoneRSA(si,log) ->
                 if not (equalBytes payload [||]) then
                     InError(HSError(AD_decode_error),HSSendAlert,state)
                 else
                     (* Log the received packet *)
-                    let new_log = state.hs_msg_log @| to_log in
-                    let state = {state with hs_msg_log = new_log} in
+                    let log = log @| to_log in
 
-                    let clSpecState = {
-                        resumed_session = false;
-                        must_send_cert = None;
-                        client_certificate = None} in
-                    match prepare_client_output_full ci state clSpecState with
+                    match prepare_client_output_full ci state si log with
                     | Error (x,y) -> InError (x,y, state)
-                    | Correct (state) ->
-                        let state = {state with pstate = PSClient(CWaitingToWrite(clSpecState))}
-                        recv_fragment_client ci state agreedVersion
-            | CSHDone(clSpecState) ->
-                if not (equalBytes payload [||]) then
-                    InError(HSError(AD_decode_error),HSSendAlert,state)
-                else
-                    (* Log the received packet *)
-                    let new_log = state.hs_msg_log @| to_log in
-                    let state = {state with hs_msg_log = new_log} in
-
-                    match prepare_client_output_full ci state clSpecState with
-                    | Error (x,y) -> InError (x,y, state)
-                    | Correct (state) ->
-                        let state = {state with pstate = PSClient(CWaitingToWrite(clSpecState))}
+                    | Correct (state,ms,log) ->
+                        let state = {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
                         recv_fragment_client ci state agreedVersion
             | _ -> (* Server Hello Done arrived in the wrong state *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
         | HT_finished ->

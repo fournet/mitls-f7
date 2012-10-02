@@ -29,6 +29,7 @@ type sVerifyData = bytes
 type SessionInfo = {
     clientID: Cert.cert list;
     serverID: Cert.cert list;
+	certificate_request: bool;
     sessionID: sessionID;
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;
@@ -46,7 +47,7 @@ function val Pred: epoch -> epoch
 assume !cr,sr,cvd,svd,si,pred. Pred(SuccEpoch(cr,sr,cvd,svd,si,pred)) = pred
 
 predicate NullSessionInfo of SessionInfo
-assume !si. NullSessionInfo(si) <=> (si.clientID = [] /\ si.serverID = [] /\ si.sessionID = [||] /\
+assume !si. NullSessionInfo(si) <=> (si.clientID = [] /\ si.serverID = [] /\ si.certificate_request = false /\ si.sessionID = [||] /\
     IsNullCiphersuite(si.cipher_suite) /\ si.compression = NullCompression /\ si.init_crand = [||] /\ si.init_srand = [||] )
 
 val null_sessionInfo: pv:ProtocolVersion -> si:SessionInfo{NullSessionInfo(si)}

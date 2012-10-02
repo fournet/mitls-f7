@@ -20,6 +20,7 @@ type sVerifyData = bytes
 type SessionInfo = {
     clientID: Cert.cert list;
     serverID: Cert.cert list;
+    certificate_request: bool;
     sessionID: sessionID;
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;
