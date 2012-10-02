@@ -13,7 +13,7 @@ open DataStream
 type Connection
 type nextCn = Connection
 type nullCn = Connection
-type query = Certificate.cert
+type query = Cert.cert
 type msg_i = (range * delta)
 type msg_o = (range * delta)
 

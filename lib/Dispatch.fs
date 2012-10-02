@@ -47,7 +47,7 @@ let networkStream (Conn(id,g)) = g.ns
 
 type nextCn = Connection
 type nullCn = Connection
-type query = Certificate.cert
+type query = Cert.cert
 // FIXME: Put the following definitions close to range and delta, and use them
 type msg_i = (DataStream.range * DataStream.delta)
 type msg_o = (DataStream.range * DataStream.delta)

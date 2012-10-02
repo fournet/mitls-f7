@@ -11,6 +11,6 @@ let genPMS (id:SessionInfo) (vc:CipherSuites.ProtocolVersion) : pms =
     let pms = verBytes @| rnd in
     {pmsbytes = pms}
 
-let coerce id b = {pmsbytes = b}
-let leak id pms = pms.pmsbytes
+let coerce (id:SessionInfo) b = {pmsbytes = b}
+let leak (id:SessionInfo) pms = pms.pmsbytes
 
