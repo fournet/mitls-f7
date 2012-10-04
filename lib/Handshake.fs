@@ -150,7 +150,7 @@ type SigAndHashAlg = {
 
 type certificateRequest = {
     (* RFC acknowledges the relation between these fields is "somewhat complicated" *)
-    client_certificate_type: Cert.certType list
+    client_certificate_type: Formats.certType list
     signature_and_hash_algorithm: (SigAndHashAlg list) option (* Some(x) for TLS 1.2, None for previous versions *)
     certificate_authorities: string list
     }
@@ -824,7 +824,7 @@ let rec parseCertificateTypeList data =
     if length data = 0 then Correct([])
     else
         let (thisByte,data) = Bytes.split data 1 in
-        match Cert.parseCertType thisByte with
+        match Formats.parseCertType thisByte with
         | Correct(ct) ->
             match parseCertificateTypeList data with
             | Correct(ctList) -> Correct(ct :: ctList)
@@ -866,9 +866,9 @@ let makeCertificateRequest sign version =
     //$ make it an explicit protocol option? In the abstract protocol description we do not consider multiple choices!
     let certTypes = 
         if sign then
-            vlbytes 1 (Cert.certTypeBytes Cert.RSA_sign @| Cert.certTypeBytes Cert.DSA_sign)
+            vlbytes 1 (certTypeBytes Formats.RSA_sign @| certTypeBytes Formats.DSA_sign)
         else // fixed
-            vlbytes 1 (Cert.certTypeBytes Cert.RSA_fixed_dh @| Cert.certTypeBytes Cert.DSA_fixed_dh) 
+            vlbytes 1 (certTypeBytes Formats.RSA_fixed_dh @| certTypeBytes Formats.DSA_fixed_dh) 
     let sigAndAlg =
         match version with
         | TLS_1p2 ->

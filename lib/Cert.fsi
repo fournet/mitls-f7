@@ -6,17 +6,13 @@ open Error
 type hint = string (* hostname CN *)
 type cert = bytes  (* public part of a certificate *)
 
-type certType =
-    | RSA_sign
-    | DSA_sign
-    | RSA_fixed_dh
-    | DSA_fixed_dh
+val for_signing : hint -> Sig.alg list -> (cert * cert list * Sig.skey) option
+val for_key_encryption : hint -> (cert * cert list * RSA.sk) option
 
-val certTypeBytes: certType -> bytes
-val parseCertType: bytes -> certType Result
+val get_public_signing_key : cert -> Sig.alg -> Sig.vkey Result
+val get_public_encryption_key : cert -> RSA.pk Result
 
-val for_signing : hint -> Sig.alg -> (cert list * Sig.skey * Sig.vkey) option
-val for_key_encryption : hint -> (cert list * RSA.dk * RSA.pk) option
+val is_for_signing : cert -> bool
+val is_for_key_encryption : cert -> bool
 
-val is_for_signing: cert list -> bool
-val is_for_key_encryption: cert list -> bool
+val validate_chain : cert -> cert list -> bool (* TODO *)

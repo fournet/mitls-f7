@@ -68,3 +68,24 @@ let rec splitList (b:bytes) (il:int list) : bytes list =
     | [] -> [b]
     | h::t -> let (x,y) = split b h in x::(splitList y t)
 *)
+
+type certType =
+    | RSA_sign
+    | DSA_sign
+    | RSA_fixed_dh
+    | DSA_fixed_dh
+
+let certTypeBytes ct =
+    match ct with
+    | RSA_sign     -> [|1uy|]
+    | DSA_sign     -> [|2uy|]
+    | RSA_fixed_dh -> [|3uy|]
+    | DSA_fixed_dh -> [|4uy|]
+
+let parseCertType b =
+    match b with
+    | [|1uy|] -> Correct(RSA_sign)
+    | [|2uy|] -> Correct(DSA_sign)
+    | [|3uy|] -> Correct(RSA_fixed_dh)
+    | [|4uy|] -> Correct(DSA_fixed_dh)
+    | _ -> Error(Parsing,WrongInputParameters)

@@ -24,3 +24,12 @@ val vlsplit: int -> bytes -> (bytes * bytes) Result
 val vlparse: int -> bytes -> bytes Result
 
 //val splitList: bytes -> int list -> bytes list
+
+type certType =
+    | RSA_sign
+    | DSA_sign
+    | RSA_fixed_dh
+    | DSA_fixed_dh
+
+val certTypeBytes: certType -> bytes
+val parseCertType: bytes -> certType Result

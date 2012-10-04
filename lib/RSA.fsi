@@ -6,8 +6,8 @@ open Bytes
 open Error
 
 // breaking type abstraction only for RSAEnc.fs
-type dk = RSASKey of bytes * bytes
+type sk = RSASKey of bytes * bytes
 type pk = RSAPKey of bytes * bytes
 
+val create_rsaskey : bytes * bytes -> sk
 val create_rsapkey : bytes * bytes -> pk
-val create_rsaskey : bytes * bytes -> dk
