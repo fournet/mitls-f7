@@ -52,6 +52,7 @@ val ssl_pad2_md5: bytes
 val ssl_pad1_sha1: bytes
 val ssl_pad2_sha1: bytes
 
+(* ------------------------------------------------------------------------ *)
 (* Key parameters *)
 type dsaparams = { p : bytes; q : bytes; g : bytes; }
 
@@ -62,3 +63,6 @@ type skeyparams =
 type pkeyparams =
 | PK_RSA of bytes * bytes
 | PK_DSA of bytes * dsaparams
+
+val sigalg_of_skeyparams : skeyparams -> sigAlg
+val sigalg_of_pkeyparams : pkeyparams -> sigAlg

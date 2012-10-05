@@ -15,26 +15,18 @@ open Org.BouncyCastle.Crypto.Parameters
 open Org.BouncyCastle.Security
 
 (* ------------------------------------------------------------------------ *)
-type alg = sigAlg * (hashAlg list)
+type chash = CHash of hashAlg list
+type alg   = sigAlg * chash
 
 type text = bytes
 type sigv = bytes 
 
 (* ------------------------------------------------------------------------ *)
-type skey = SKey of skeyparams * (hashAlg list)
-type vkey = VKey of pkeyparams * (hashAlg list)
+type skey = SKey of skeyparams * chash
+type vkey = VKey of pkeyparams * chash
 
-let create_skey ((s,h) : alg) (p : skeyparams) = SKey (p, h)
-let create_vkey ((s,h) : alg) (p : pkeyparams) = VKey (p, h)
-
-(* ------------------------------------------------------------------------ *)
-let sigalg_of_skeyparams = function
-| SK_RSA _ -> SA_RSA
-| SK_DSA _ -> SA_DSA
-
-let sigalg_of_vkeyparams = function
-| PK_RSA _ -> SA_RSA
-| PK_DSA _ -> SA_DSA
+let create_skey (h : chash) (p : skeyparams) = SKey (p, h)
+let create_vkey (h : chash) (p : pkeyparams) = VKey (p, h)
 
 (* ------------------------------------------------------------------------ *)
 let bytes_to_bigint (b : bytes) = new BigInteger(1, b)
@@ -87,21 +79,21 @@ let new_hash_engine (h : hashAlg list) : IDigest =
         (new MultipleDigester(h |> List.map new_hash_engine) :> IDigest)
 
 (* ------------------------------------------------------------------------ *)
-let RSA_sign (m, e) (h : hashAlg list) (t : text) : sigv =
+let RSA_sign (m, e) (CHash h : chash) (t : text) : sigv =
     let signer = new RsaDigestSigner(new_hash_engine h) in
 
     signer.Init(true, new RsaKeyParameters(true, bytes_to_bigint m, bytes_to_bigint e))
     signer.BlockUpdate(t, 0, t.Length)
     signer.GenerateSignature()
 
-let RSA_verify ((m, e) : bytes * bytes) (h : hashAlg list) (t : text) (s : sigv) =
+let RSA_verify ((m, e) : bytes * bytes) (CHash h : chash) (t : text) (s : sigv) =
     let signer = new RsaDigestSigner(new_hash_engine h) in
 
     signer.Init(false, new RsaKeyParameters(false, bytes_to_bigint m, bytes_to_bigint e))
     signer.BlockUpdate(t, 0, t.Length)
     signer.VerifySignature(s)
 
-let RSA_gen (h : hashAlg list) =
+let RSA_gen (h : chash) =
     let generator = new RsaKeyPairGenerator() in
     generator.Init(new KeyGenerationParameters(new SecureRandom(), 2048))
     let keys = generator.GenerateKeyPair() in
@@ -117,7 +109,7 @@ let bytes_of_dsaparams p q g =
       q = bytes_of_bigint q;
       g = bytes_of_bigint g; }
 
-let DSA_sign (x, dsap) (h : hashAlg list) (t : text) : sigv =
+let DSA_sign (x, dsap) (CHash h : chash) (t : text) : sigv =
     let signer    = new DsaDigestSigner(new DsaSigner(), new_hash_engine h) in
     let dsaparams = new DsaParameters(bytes_to_bigint dsap.p,
                                       bytes_to_bigint dsap.q,
@@ -127,7 +119,7 @@ let DSA_sign (x, dsap) (h : hashAlg list) (t : text) : sigv =
     signer.BlockUpdate(t, 0, t.Length)
     signer.GenerateSignature()
 
-let DSA_verify (y, dsap) (h : hashAlg list) (t : text) (s : sigv) =
+let DSA_verify (y, dsap) (CHash h : chash) (t : text) (s : sigv) =
     let signer    = new DsaDigestSigner(new DsaSigner(), new_hash_engine h) in
     let dsaparams = new DsaParameters(bytes_to_bigint dsap.p,
                                       bytes_to_bigint dsap.q,
@@ -137,7 +129,7 @@ let DSA_verify (y, dsap) (h : hashAlg list) (t : text) (s : sigv) =
     signer.BlockUpdate(t, 0, t.Length)
     signer.VerifySignature(s)
 
-let DSA_gen (h : hashAlg list) =
+let DSA_gen (h : chash) =
     let paramsgen = new DsaParametersGenerator() in
     paramsgen.Init(2048, 80, new SecureRandom())
     let dsaparams = paramsgen.GenerateParameters() in
@@ -177,10 +169,10 @@ let verify (a : alg) (vk : vkey) (t : text) (s : sigv) =
         Error.unexpectedError
             (sprintf "Sig.verify: requested sig-hash = %A, but key requires %A"
                 ahash khash)
-    if asig <> sigalg_of_vkeyparams kparams then
+    if asig <> sigalg_of_pkeyparams kparams then
         Error.unexpectedError
             (sprintf "Sig.verify: requested sig-algo = %A, but key requires %A"
-                asig (sigalg_of_vkeyparams kparams))
+                asig (sigalg_of_pkeyparams kparams))
 
     match kparams with
     | PK_RSA (m, e) -> RSA_verify (m, e) khash t s

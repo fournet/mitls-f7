@@ -4,7 +4,8 @@ open Bytes
 open Algorithms
 
 (* ------------------------------------------------------------------------ *)
-type alg = sigAlg * (hashAlg list)
+type chash = CHash of hashAlg List
+type alg   = sigAlg * chash
 
 type text = bytes
 type sigv = bytes 
@@ -13,8 +14,8 @@ type sigv = bytes
 type skey
 type vkey
 
-val create_skey: alg -> skeyparams -> skey
-val create_vkey: alg -> pkeyparams -> vkey
+val create_skey: chash -> skeyparams -> skey
+val create_vkey: chash -> pkeyparams -> vkey
 
 (* ------------------------------------------------------------------------ *)
 val gen    : alg -> vkey * skey
