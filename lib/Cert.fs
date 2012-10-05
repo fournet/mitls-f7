@@ -252,13 +252,27 @@ let rec validate_x509_chain (c : X509Certificate2) (issuers : X509Certificate2 l
     with :? CryptographicException -> false
 
 (* ------------------------------------------------------------------------ *)
-let validate_cert_chain (chain : certchain) =
+let get_chain_key_algorithm (chain : certchain) =
+    match chain with
+    | []     -> None
+    | c :: _ ->
+        try
+            let x509 = new X509Certificate2(c) in
+                match x509.GetKeyAlgorithm () with
+                | x when x = OID_RSAEncryption   -> Some SA_RSA
+                | x when x = OID_DSASignatureKey -> Some SA_DSA
+                | _ -> None
+        with :? CryptographicException -> None
+
+(* ------------------------------------------------------------------------ *)
+let validate_cert_chain (sigkeyalgs : Sig.alg list) (chain : certchain) =
     match chain with
     | []           -> false
     | c :: issuers ->
         try
             let c       = new X509Certificate2(c) in
             let issuers = List.map (fun (c : cert) -> new X509Certificate2(c)) chain in
-                validate_x509_chain c issuers
+                   Seq.forall (x509_check_key_sig_alg_one sigkeyalgs) (c :: issuers)
+                && validate_x509_chain c issuers
         with :? CryptographicException ->
             false

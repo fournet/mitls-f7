@@ -29,5 +29,10 @@ val get_chain_public_encryption_key : certchain -> RSA.pk Result
 val is_chain_for_signing : certchain -> bool
 val is_chain_for_key_encryption : certchain -> bool
 
-(* WARN: does not checked that the CA is trusted *)
-val validate_cert_chain : certchain -> bool
+val get_chain_key_algorithm : certchain -> Algorithms.sigAlg option
+
+(* WARN: does not checked that the CA is trusted
+ * First argument (Sig.alg list) gives the allowed signing alg. used for
+ * signing the keys of the chain.
+ *)
+val validate_cert_chain : Sig.alg list -> certchain -> bool
