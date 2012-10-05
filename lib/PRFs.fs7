@@ -34,13 +34,10 @@ val makeVerifyData: si:SessionInfo -> r:Role -> (;si) masterSecret ->
                    bytes (* msgLog *) -> 
                    bytes (* length depends on cs, 12 by default *)
 
-// AP: Warning! This is not used anymore, since we compute the expected
-// verify data of the other party in advance (in order to generate the
-// next epochs)
-// val checkVerifyData: si:SessionInfo -> r:Role -> (;si) masterSecret ->
-// 				   bytes (* the log *) ->
-// 				   bytes (* the expected value *) ->
-// 				   bool
+val checkVerifyData: si:SessionInfo -> r:Role -> (;si) masterSecret ->
+				   bytes (* the log *) ->
+				   bytes (* the expected value *) ->
+				   bool
 
 
 (** KDF for the connection key materials, keyed with the master secret *)

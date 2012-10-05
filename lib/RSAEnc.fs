@@ -12,16 +12,19 @@ open Org.BouncyCastle.Crypto.Encodings
 open Org.BouncyCastle.Crypto.Engines
 open Org.BouncyCastle.Crypto.Parameters
 
-let encrypt (RSAPKey (m, e)) id (pms : RSAPlain.pms) =
+let encrypt_pkcs1 (RSAPKey (m, e)) id v =
     let m, e   = new BigInteger(1, m), new BigInteger(1, e) in
     let engine = new RsaEngine() in
     let engine = new Pkcs1Encoding(engine) in
 
-    let v = RSAPlain.leak id pms in
     engine.Init(true, new RsaKeyParameters(false, m, e))
     engine.ProcessBlock(v, 0, v.Length)
 
-let decrypt (RSASKey (m, e)) (id:SessionInfo) (v : bytes) =
+let encrypt key id (pms:RSAPlain.pms) =
+    let v = RSAPlain.leak id pms
+    encrypt_pkcs1 key id v
+
+let decrypt_pkcs1 (RSASKey (m, e)) (id:SessionInfo) (v : bytes) =
     let m, e   = new BigInteger(1, m), new BigInteger(1, e) in
     let engine = new RsaEngine() in
     let engine = new Pkcs1Encoding(engine) in
@@ -32,13 +35,13 @@ let decrypt (RSASKey (m, e)) (id:SessionInfo) (v : bytes) =
     with :? InvalidCipherTextException ->
         Error(Encryption, Internal)
 
-let decrypt_PMS_int dk si cv check_client_version_in_pms_for_old_tls encPMS =
+let decrypt_int dk si cv check_client_version_in_pms_for_old_tls encPMS =
   (* Security measures described in RFC 5246, section 7.4.7.1 *)
   (* 1. Generate random data, 46 bytes, for PMS except client version *)
   let fakepms = mkRandom 46 in
   (* 2. Decrypt the message to recover plaintext *)
   let expected = versionBytes cv in
-  match decrypt dk si encPMS with
+  match decrypt_pkcs1 dk si encPMS with
     | Correct(pms) when length pms = 48 ->
         let (clVB,postPMS) = split pms 2 in
         match si.protocol_version with
@@ -56,5 +59,5 @@ let decrypt_PMS_int dk si cv check_client_version_in_pms_for_old_tls encPMS =
         (* 3. in case of decryption of length error, continue with fake PMS *) 
         expected @| fakepms
 
-let decrypt_PMS dk si cv check_client_version_in_pms_for_old_tls encPMS =
-    RSAPlain.coerce si (decrypt_PMS_int dk si cv check_client_version_in_pms_for_old_tls encPMS)
+let decrypt dk si cv check_client_version_in_pms_for_old_tls encPMS =
+    RSAPlain.coerce si (decrypt_int dk si cv check_client_version_in_pms_for_old_tls encPMS)

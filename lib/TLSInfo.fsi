@@ -13,14 +13,10 @@ type Role = preRole
 // Client/Server randomness
 type crand = bytes
 type srand = bytes
-// VerifyData Payload, for safe renego extension
-type cVerifyData = bytes
-type sVerifyData = bytes
 
 type SessionInfo = {
     clientID: Cert.cert list;
     serverID: Cert.cert list;
-    certificate_request: bool;
     sessionID: sessionID;
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;
@@ -35,17 +31,6 @@ type epoch = preEpoch
 val epochSI: epoch -> SessionInfo
 val epochSRand: epoch -> srand
 val epochCRand: epoch -> crand
-val epochCVerifyData: epoch -> cVerifyData
-val epochSVerifyData: epoch -> sVerifyData
-
-//type epoch = {
-//    sinfo: SessionInfo;
-//    dir: Direction;
-//    crand: bytes;
-//    srand: bytes;
-//    (* cVerifyData: bytes
-//    sVerifyData: bytes *)
-//    }
 
 // Role is of the writer
 type ConnectionInfo =
@@ -57,7 +42,7 @@ val connectionRole: ConnectionInfo -> Role
 val null_sessionInfo: ProtocolVersion -> SessionInfo
 val isNullSessionInfo: SessionInfo -> bool
 val initConnection: Role -> bytes -> ConnectionInfo
-val nextEpoch: epoch -> crand -> srand -> cVerifyData -> sVerifyData -> SessionInfo -> epoch
+val nextEpoch: epoch -> crand -> srand -> SessionInfo -> epoch
 //val dual_KeyInfo: epoch -> epoch
 
 // Application configuration options
@@ -73,15 +58,19 @@ type config = {
     compressions: Compression list
 
     (* Handshake specific options *)
+    
     (* Client side *)
     honourHelloReq: helloReqPolicy
     allowAnonCipherSuite: bool
+   
     (* Server side *)
     request_client_certificate: bool
     check_client_version_in_pms_for_old_tls: bool
-    server_name: Cert.hint
+
     (* Common *)
     safe_renegotiation: bool
+    server_name: Cert.hint
+    client_name: Cert.hint
 
     (* Sessions database *)
     sessionDBFileName: string

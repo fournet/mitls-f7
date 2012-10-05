@@ -132,9 +132,9 @@ let makeVerifyData si role (ms:masterSecret) data =
   | TLS_1p2           -> let cs = si.cipher_suite in
                          tls12VerifyData cs ms.bytes role data
 
-// let checkVerifyData si role ms log expected =
-//     let computed = makeVerifyData si role ms log in
-//     equalBytes expected computed
+let checkVerifyData si role ms log expected =
+    let computed = makeVerifyData si role ms log in
+    equalBytes expected computed
 
 // internal
 let prfMS sinfo pmsBytes: masterSecret =

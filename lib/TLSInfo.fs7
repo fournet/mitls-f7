@@ -16,9 +16,6 @@ type Role = r:preRole{r = Client \/ r = Server}
 // Client/Server randomness
 type crand = bytes
 type srand = bytes
-// VerifyData Payload, for safe renego extension
-type cVerifyData = bytes
-type sVerifyData = bytes
 
 // SessionInfo and epoch: Session and Connection level public immutable data.
 // Used for indexing
@@ -29,7 +26,6 @@ type sVerifyData = bytes
 type SessionInfo = {
     clientID: Cert.cert list;
     serverID: Cert.cert list;
-	certificate_request: bool;
     sessionID: sessionID;
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;
@@ -39,15 +35,15 @@ type SessionInfo = {
 
 private type preEpoch =
 	| InitEpoch of Role * ourRand:bytes 
-	| SuccEpoch of crand * srand * cVerifyData * sVerifyData * si:SessionInfo * pred:preEpoch 
+	| SuccEpoch of crand * srand * si:SessionInfo * pred:preEpoch 
 
 type epoch = p:preEpoch
 
 function val Pred: epoch -> epoch
-assume !cr,sr,cvd,svd,si,pred. Pred(SuccEpoch(cr,sr,cvd,svd,si,pred)) = pred
+assume !cr,sr,si,pred. Pred(SuccEpoch(cr,sr,si,pred)) = pred
 
 predicate NullSessionInfo of SessionInfo
-assume !si. NullSessionInfo(si) <=> (si.clientID = [] /\ si.serverID = [] /\ si.certificate_request = false /\ si.sessionID = [||] /\
+assume !si. NullSessionInfo(si) <=> (si.clientID = [] /\ si.serverID = [] /\ si.sessionID = [||] /\
     IsNullCiphersuite(si.cipher_suite) /\ si.compression = NullCompression /\ si.init_crand = [||] /\ si.init_srand = [||] )
 
 val null_sessionInfo: pv:ProtocolVersion -> si:SessionInfo{NullSessionInfo(si)}
@@ -55,14 +51,12 @@ val isNullSessionInfo: s:SessionInfo -> b:bool{b=true => NullSessionInfo(s)}
 
 function val EpochSI: epoch -> SessionInfo
 assume !r,o,si. si = EpochSI(InitEpoch(r,o)) <=> NullSessionInfo(si)
-assume !c,s,cvd,svd,si,p. EpochSI(SuccEpoch(c,s,cvd,svd,si,p)) = si
+assume !c,s,si,p. EpochSI(SuccEpoch(c,s,si,p)) = si
 
 val epochSI: e:epoch -> si:SessionInfo{si = EpochSI(e)}
 
-val epochSRand: e:epoch -> b:crand{!b1,b2,cvd,svd,si,pe. e = SuccEpoch(b1,b2,cvd,svd,si,pe) => b = b2}
-val epochCRand: e:epoch -> b:srand{!b1,b2,cvd,svd,si,pe. e = SuccEpoch(b1,b2,cvd,svd,si,pe) => b = b1}
-val epochCVerifyData: e:epoch -> b:cVerifyData
-val epochSVerifyData: e:epoch -> b:sVerifyData
+val epochSRand: e:epoch -> b:crand{!b1,b2,si,pe. e = SuccEpoch(b1,b2,si,pe) => b = b2}
+val epochCRand: e:epoch -> b:srand{!b1,b2,si,pe. e = SuccEpoch(b1,b2,si,pe) => b = b1}
 
 type ConnectionInfo =
 	{ role: Role;
@@ -73,7 +67,7 @@ val connectionRole: ci:ConnectionInfo -> r:Role{r = ci.role}
 
 val initConnection: r:Role -> b:bytes ->
 	ci:ConnectionInfo
-val nextEpoch: e:epoch -> crand -> srand -> cVerifyData -> sVerifyData -> si:SessionInfo ->
+val nextEpoch: e:epoch -> crand -> srand -> si:SessionInfo ->
 	e':epoch
 
 
@@ -139,15 +133,19 @@ type config = {
     compressions: Compression list;
 
     (* Handshake specific options *)
+
     (* Client side *)
     honourHelloReq: helloReqPolicy;
     allowAnonCipherSuite: bool;
+
     (* Server side *)
     request_client_certificate: bool;
     check_client_version_in_pms_for_old_tls: bool;
-    server_name: Cert.hint;
+
     (* Common *)
     safe_renegotiation: bool;
+	server_name: Cert.hint;
+	client_name: Cert.hint;
 
     (* Sessions database *)
     sessionDBFileName: string;

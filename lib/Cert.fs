@@ -15,6 +15,7 @@ type hint = string
 type cert = bytes
 
 type certchain = cert list
+type sign_cert = (certchain * Sig.skey) option
 
 (* ------------------------------------------------------------------------ *)
 let OID_RSAEncryption     = "1.2.840.113549.1.1.1"

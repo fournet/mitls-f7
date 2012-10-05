@@ -211,30 +211,32 @@ type finished = bytes
 
 // New state machine begins
 type log = bytes
+type cVerifyData = bytes
+type sVerifyData = bytes
 
 type serverState =  (* note that the CertRequest bits are determined by the config *) 
                      (* we may omit some ProtocolVersion, mostly a ghost variable *)
-   | ClientHello
-   | ClientCertificateRSA    of SessionInfo * ProtocolVersion * log 
+   | ClientHello             of cVerifyData * sVerifyData
+   | ClientCertificateRSA    of SessionInfo * ProtocolVersion * RSA.sk * log 
    | ClientCertificateDH     of SessionInfo * log 
    | ClientCertificateDHE    of SessionInfo * (* DHE.sk * *) log 
-   | ClientKeyExchangeRSA    of SessionInfo * ProtocolVersion * log
+   | ClientKeyExchangeRSA    of SessionInfo * ProtocolVersion * RSA.sk * log
    | ClientKeyExchangeDH     of SessionInfo * log 
    | ClientKeyExchangeDHE    of SessionInfo * (* DHE.sk * *) log 
    | CertificateVerify       of SessionInfo * masterSecret * log 
    | ClientCCS               of SessionInfo * masterSecret * log
-   | ClientFinished          of SessionInfo * masterSecret * epoch * StatefulAEAD.writer
+   | ClientFinished          of SessionInfo * masterSecret * epoch * StatefulAEAD.writer * log
    (* by convention, the parameters are named si, cv, cr', sr', ms, log *)
-   | ServerWritingCCS        of SessionInfo * masterSecret * epoch * StatefulAEAD.writer
-   | ServerWritingFinished   of SessionInfo * masterSecret
-   | ServerWritingCCSResume  of ConnectionInfo * StatefulAEAD.writer * StatefulAEAD.reader
-   | ClientCCSResume         of epoch * StatefulAEAD.reader
-   | ClientFinishedResume
-   | ServerIdle
+   | ServerWritingCCS        of SessionInfo * masterSecret * epoch * StatefulAEAD.writer * cVerifyData * log
+   | ServerWritingFinished   of SessionInfo * masterSecret * cVerifyData * sVerifyData
+   | ServerWritingCCSResume  of epoch * StatefulAEAD.writer * epoch * StatefulAEAD.reader * masterSecret * log
+   | ClientCCSResume         of epoch * StatefulAEAD.reader * sVerifyData * masterSecret * log
+   | ClientFinishedResume    of sVerifyData * log
+   | ServerIdle              of cVerifyData * sVerifyData
    (* the ProtocolVersion is the highest TLS version proposed by the client *)
 
 type clientState = 
-   | ServerHello            of crand * sessionID (* * bytes for extensions? *) * log
+   | ServerHello            of crand * sessionID (* * bytes for extensions? *) * cVerifyData * sVerifyData * log
    | ServerCertificateRSA   of SessionInfo * log
    | ServerCertificateDH    of SessionInfo * log
    | ServerCertificateDHE   of SessionInfo * log
@@ -245,17 +247,17 @@ type clientState =
                                                     We put None if we don't have such a certificate, and we know whether to send
                                                     the Certificate message or not based on the state when we receive the Finished message *)
    | CertificateRequestDHE  of SessionInfo * (* DHE.sk * *) log
-   | ServerHelloDoneRSA     of SessionInfo * log
+   | ServerHelloDoneRSA     of SessionInfo * Cert.sign_cert * log
    | ServerHelloDoneDH      of SessionInfo * log
    | ServerHelloDoneDHE     of SessionInfo * (* DHE.sk * *) bytes * log
    | ClientWritingCCS       of SessionInfo * masterSecret * log
-   | ServerCCS              of SessionInfo * masterSecret * epoch * StatefulAEAD.reader
-   | ServerFinished         of SessionInfo * masterSecret
-   | ServerCCSResume        of ConnectionInfo * StatefulAEAD.writer * StatefulAEAD.reader
-   | ServerFinishedResume   of epoch * StatefulAEAD.writer
-   | ClientWritingCCSResume of epoch * StatefulAEAD.writer
-   | ClientWritingFinishedResume
-   | ClientIdle
+   | ServerCCS              of SessionInfo * masterSecret * epoch * StatefulAEAD.reader * cVerifyData * log
+   | ServerFinished         of SessionInfo * masterSecret * cVerifyData * log
+   | ServerCCSResume        of epoch * StatefulAEAD.writer * epoch * StatefulAEAD.reader * log
+   | ServerFinishedResume   of epoch * StatefulAEAD.writer * masterSecret * log
+   | ClientWritingCCSResume of epoch * StatefulAEAD.writer * masterSecret * sVerifyData * log
+   | ClientWritingFinishedResume of cVerifyData * sVerifyData
+   | ClientIdle             of cVerifyData * sVerifyData
 
 type protoState = // Cannot use Client and Server, otherwise clashes with Role
   | PSClient of clientState
@@ -523,21 +525,19 @@ let parseServerHello data =
 /// Initiating Handshakes, mostly on the client side. 
 
 let init (role:Role) poptions =
-    (* Start a new first session without resumption *)
+    (* Start a new session without resumption, as the first epoch on this connection. *)
     let sid = [||] in
     let rand = makeRandom() in
     let ci = initConnection role rand in
-    let cVerifyData = epochCVerifyData ci.id_out in // in fact [||], and id_in would give the same
-    let sVerifyData = epochSVerifyData ci.id_out in // in fact [||], and id_in would give the same
     match role with
     | Client ->
         // FIXME: extensions should not be handled within makeClientHelloBytes!
-        let cHelloBytes = makeClientHelloBytes poptions rand sid cVerifyData in
+        let cHelloBytes = makeClientHelloBytes poptions rand sid [||] in
         let state = {hs_outgoing = cHelloBytes
                      hs_incoming = [||]
                      poptions = poptions
                      sDB = SessionDB.create poptions
-                     pstate = PSClient (ServerHello (rand, sid, cHelloBytes))
+                     pstate = PSClient (ServerHello (rand, sid, [||], [||], cHelloBytes))
                     }
         (ci,state)
     | Server ->
@@ -545,12 +545,12 @@ let init (role:Role) poptions =
                      hs_incoming = [||]
                      poptions = poptions
                      sDB = SessionDB.create poptions
-                     pstate = PSServer (ClientHello)
+                     pstate = PSServer (ClientHello([||],[||]))
                     }
         (ci,state)
 
 let resume next_sid poptions =
-    (* Resume a session, for the first time in this connection.
+    (* Resume a session, as the first epoch on this connection.
        Set up our state as a client. Servers cannot resume *)
 
     (* Search a client sid in the DB *)
@@ -567,32 +567,30 @@ let resume next_sid poptions =
     | sid ->
     let rand = makeRandom () in
     let ci = initConnection Client rand in
-    let cVerifyData = epochCVerifyData ci.id_out in // in fact [||], and id_in would give the same
-    let sVerifyData = epochSVerifyData ci.id_out in // in fact [||], and id_in would give the same
-    let cHelloBytes = makeClientHelloBytes poptions rand sid cVerifyData in
+    let cHelloBytes = makeClientHelloBytes poptions rand sid [||] in
     let state = {hs_outgoing = cHelloBytes
                  hs_incoming = [||]
                  poptions = poptions
                  sDB = SessionDB.create poptions
-                 pstate = PSClient (ServerHello (rand, sid, cHelloBytes))
+                 pstate = PSClient (ServerHello (rand, sid, [||], [||], cHelloBytes))
                 } in
     (ci,state)
 
 let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
-    (* Start a non-resuming handshake, over an existing connection.
+    (* Start a non-resuming handshake, over an existing epoch.
        Only client side, since a server can only issue a HelloRequest *)
     match state.pstate with
     | PSClient (cstate) ->
         match cstate with
-        | ClientIdle ->
+        | ClientIdle(cvd,svd) ->
             let rand = makeRandom () in
             let sid = [||] in
-            let cHelloBytes = makeClientHelloBytes ops rand sid (epochCVerifyData ci.id_out) in
+            let cHelloBytes = makeClientHelloBytes ops rand sid cvd in
             let state = {hs_outgoing = cHelloBytes
                          hs_incoming = [||]
                          poptions = ops
                          sDB = SessionDB.create ops
-                         pstate = PSClient (ServerHello (rand, sid, cHelloBytes))
+                         pstate = PSClient (ServerHello (rand, sid, cvd,svd, cHelloBytes))
                         } in
             (true,state)
         | _ -> (* handshake already happening, ignore this request *)
@@ -600,7 +598,7 @@ let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     | PSServer (_) -> unexpectedError "[start_rehandshake] should only be invoked on client side connections."
 
 let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
-    (* Start a (possibly) resuming handshake over an existing connection *)
+    (* Start a (possibly) resuming handshake over an existing epoch *)
     let si = epochSI(ci.id_out) in // or equivalently ci.id_in
     let sidOp = si.sessionID in
     match sidOp with
@@ -618,14 +616,14 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
                 match state.pstate with
                 | PSClient (cstate) ->
                     match cstate with
-                    | ClientIdle ->
+                    | ClientIdle(cvd,svd) ->
                         let rand = makeRandom () in
-                        let cHelloBytes = makeClientHelloBytes ops rand sid (epochCVerifyData ci.id_out) in
+                        let cHelloBytes = makeClientHelloBytes ops rand sid cvd in
                         let state = {hs_outgoing = cHelloBytes
                                      hs_incoming = [||]
                                      poptions = ops
                                      sDB = SessionDB.create ops
-                                     pstate = PSClient (ServerHello (rand, sid, cHelloBytes))
+                                     pstate = PSClient (ServerHello (rand, sid, cvd, svd, cHelloBytes))
                                     } in
                         (true,state)
                     | _ -> (* Handshake already ongoing, ignore this request *)
@@ -640,13 +638,13 @@ let request (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     | PSClient _ -> unexpectedError "[start_hs_request] should only be invoked on server side connections."
     | PSServer (sstate) ->
         match sstate with
-        | ServerIdle ->
+        | ServerIdle(cvd,svd) ->
             (* Put HelloRequest in outgoing buffer (and do not log it), and move to the ClientHello state (so that we don't send HelloRequest again) *)
             (true, { hs_outgoing = makeHelloRequestBytes ()
                      hs_incoming = [||]
                      poptions = ops
                      sDB = SessionDB.create ops
-                     pstate = PSServer(ClientHello)
+                     pstate = PSServer(ClientHello(cvd,svd))
                     })
         | _ -> (* Handshake already ongoing, ignore this request *)
             (false,state)
@@ -659,20 +657,9 @@ let invalidateSession ci state =
         let sDB = SessionDB.remove state.sDB sid in
         {state with sDB=sDB}
 
-let getNextEpochs_resume ci si ms log crand srand =
-    let sVerifyData = PRFs.makeVerifyData si Server ms log in
-    let log = log @| makeMessage HT_finished sVerifyData in
-    let cVerifyData = PRFs.makeVerifyData si Client ms log in
-    let id_in  = nextEpoch ci.id_in  crand srand cVerifyData sVerifyData si in
-    let id_out = nextEpoch ci.id_out crand srand cVerifyData sVerifyData si in
-    {ci with id_in = id_in; id_out = id_out}
-
-let getNextEpochs_full ci si ms log =
-    let cVerifyData = PRFs.makeVerifyData si Client ms log in
-    let log = log @| makeMessage HT_finished cVerifyData in
-    let sVerifyData = PRFs.makeVerifyData si Server ms log in
-    let id_in  = nextEpoch ci.id_in  si.init_crand si.init_srand cVerifyData sVerifyData si in
-    let id_out = nextEpoch ci.id_out si.init_crand si.init_srand cVerifyData sVerifyData si in
+let getNextEpochs ci si crand srand =
+    let id_in  = nextEpoch ci.id_in  crand srand si in
+    let id_out = nextEpoch ci.id_out crand srand si in
     {ci with id_in = id_in; id_out = id_out}
 
 type outgoing =
@@ -704,37 +691,43 @@ let next_fragment ci state =
         | PSClient(cstate) ->
             match cstate with
             | ClientWritingCCS (si,ms,log) ->
-                let next_ci = getNextEpochs_full ci si ms log in
+                let next_ci = getNextEpochs ci si si.init_crand si.init_srand in
                 let (writer,reader) = PRFs.keyGen next_ci ms in
-                let cFinished = makeMessage HT_finished (epochCVerifyData next_ci.id_out) in // Equivalently, next_ci.id_in
+                let cvd = makeVerifyData si Client ms log in
+                let cFinished = makeMessage HT_finished cvd in
+                let log = log @| cFinished in
                 let state = {state with hs_outgoing = cFinished 
-                                        pstate = PSClient(ServerCCS(si,ms,next_ci.id_in,reader))} in
+                                        pstate = PSClient(ServerCCS(si,ms,next_ci.id_in,reader,cvd,log))} in
                 let (((rg,f),_),_) = makeCCSFragment ci.id_out CCSBytes in
                 let ci = {ci with id_out = next_ci.id_out} in 
                 OutCCS(rg,f,ci,writer,state)
-            | ClientWritingCCSResume(e,w) ->
-                let cFinished = makeMessage HT_finished (epochCVerifyData e) in
+            | ClientWritingCCSResume(e,w,ms,svd,log) ->
+                let cvd = makeVerifyData (epochSI e) Client ms log in
+                let cFinished = makeMessage HT_finished cvd in
                 let state = {state with hs_outgoing = cFinished
-                                        pstate = PSClient(ClientWritingFinishedResume)} in
+                                        pstate = PSClient(ClientWritingFinishedResume(cvd,svd))} in
                 let (((rg,f),_),_) = makeCCSFragment ci.id_out CCSBytes in
                 let ci = {ci with id_out = e} in
                 OutCCS(rg,f,ci,w,state)
             | _ -> OutIdle(state)
         | PSServer(sstate) ->
             match sstate with
-            | ServerWritingCCS (si,ms,e,w) ->
-                let sFinished = makeMessage HT_finished (epochSVerifyData e) in
+            | ServerWritingCCS (si,ms,e,w,cvd,log) ->
+                let svd = makeVerifyData si Server ms log in
+                let sFinished = makeMessage HT_finished svd in
                 let state = {state with hs_outgoing = sFinished
-                                        pstate = PSServer(ServerWritingFinished(si,ms))}
+                                        pstate = PSServer(ServerWritingFinished(si,ms,cvd,svd))}
                 let (((rg,f),_),_) = makeCCSFragment ci.id_out CCSBytes in
                 let ci = {ci with id_out = e} in
                 OutCCS(rg,f,ci,w,state)
-            | ServerWritingCCSResume(next_ci,w,r) ->
-                let sFinished = makeMessage HT_finished (epochSVerifyData next_ci.id_out) in // Equivalently, next_ci.id_in
+            | ServerWritingCCSResume(we,w,re,r,ms,log) ->
+                let svd = makeVerifyData (epochSI we) Server ms log in
+                let sFinished = makeMessage HT_finished svd in
+                let log = log @| sFinished in
                 let state = {state with hs_outgoing = sFinished
-                                        pstate = PSServer(ClientCCSResume(next_ci.id_in,r))}
+                                        pstate = PSServer(ClientCCSResume(re,r,svd,ms,log))}
                 let (((rg,f),_),_) = makeCCSFragment ci.id_out CCSBytes in
-                let ci = {ci with id_out = next_ci.id_out} in 
+                let ci = {ci with id_out = we} in 
                 OutCCS(rg,f,ci,w,state)
             | _ -> OutIdle(state)
     | outBuf ->
@@ -747,19 +740,19 @@ let next_fragment ci state =
                 match cstate with
                 | ServerCCS (_) ->
                     OutFinished(rg,f,state)
-                | ClientWritingFinishedResume ->
-                    let state = {state with pstate = PSClient(ClientIdle)} in
+                | ClientWritingFinishedResume(cvd,svd) ->
+                    let state = {state with pstate = PSClient(ClientIdle(cvd,svd))} in
                     OutComplete(rg,f,state)
                 | _ -> OutSome(rg,f,state)
             | PSServer(sstate) ->
                 match sstate with
-                | ServerWritingFinished(si,ms) ->
+                | ServerWritingFinished(si,ms,cvd,svd) ->
                     let sDB =
                         if equalBytes si.sessionID [||] then
                             state.sDB
                         else
                             SessionDB.insert state.sDB si.sessionID (si,ms,Server)
-                    let state = {state with pstate = PSServer(ServerIdle)   
+                    let state = {state with pstate = PSServer(ServerIdle(cvd,svd))   
                                             sDB = sDB} in
                     OutComplete(rg,f,state)
                 | ClientCCSResume(_) ->
@@ -786,7 +779,10 @@ let certificatesBytes certs =
     vlbytes 3 (List.foldBack (fun c a -> vlbytes 3 c @| a) certs [||])
     
 let makeCertificateBytes cs =
-    makeMessage HT_certificate (certificatesBytes cs)
+    match cs with
+    | None -> makeMessage HT_certificate [||]
+    | Some(certList,_) ->
+        makeMessage HT_certificate (certificatesBytes certList)
 
 // we need something more general for parsing lists, e.g.
 let rec parseList parseOne b =
@@ -938,7 +934,7 @@ let makeClientKEX_DH_explicit si config =
 
 let makeClientKEX_DH_implicit = makeMessage HT_client_key_exchange [||]
 
-let parseClientKEX_RSA si cv config data =
+let parseClientKEX_RSA si skey cv config data =
     if si.serverID.IsEmpty then
         unexpectedError "[parseClientKEX_RSA] when the ciphersuite can encrypt the PMS, the server certificate should always be set"
     else
@@ -963,11 +959,10 @@ let parseClientKEX_DH_implict data =
 
 let parseClientKEX_DH_explicit data = Error(HSError(AD_internal_error),HSSendAlert) // TODO
 
-let makeCertificateVerifyBytes (cert: Cert.cert list) data pv =
+let makeCertificateVerifyBytes (cert: Cert.cert list) skey data pv =
     if cert.IsEmpty then
         correct (makeMessage HT_certificate_verify [||])
     else
-    let cert = cert.Head in
     match pv with
     | TLS_1p2 ->
         (* If DSA, use SHA-1 hash *)
@@ -998,8 +993,8 @@ let makeCertificateVerifyBytes (cert: Cert.cert list) data pv =
         (* TODO *) Error(HSError(AD_internal_error),HSSendAlert)
     
 //$ todo?
-let find_client_cert (certReqMsg:certificateRequest) : (Cert.cert list) =
-    (* TODO *) []
+let find_client_cert (certReqMsg:certificateRequest) : (Cert.sign_cert) =
+    (* TODO *) None
 
 
 let certificateVerifyCheck (state:hs_state) (payload:bytes) =
@@ -1007,11 +1002,20 @@ let certificateVerifyCheck (state:hs_state) (payload:bytes) =
        We need to understand how to treat certificates and related algorithms properly *)
     true
 
-let prepare_client_output_full_RSA (ci:ConnectionInfo) state (si:SessionInfo) log =
+let prepare_client_output_full_RSA (ci:ConnectionInfo) state (si:SessionInfo) cert_req log =
     let clientCertBytes =
-      if si.certificate_request then
-        makeCertificateBytes si.clientID
-      else [||]
+      match cert_req with
+      | Some(certOpt) ->
+        makeCertificateBytes certOpt
+      | None -> [||]
+
+    let si =
+        match cert_req with
+        | None -> si
+        | Some(certOpt) ->
+            match certOpt with
+            | None -> si
+            | Some(certList,_) -> {si with clientID = certList}
 
     let log = log @| clientCertBytes in
 
@@ -1022,9 +1026,10 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) state (si:SessionInfo) lo
     let ms = PRFs.prfSmoothRSA si pms in
     (* FIXME: here we should shred pms *)
     let certificateVerifyBytesResult =
-        if si.certificate_request then
-            makeCertificateVerifyBytes si.clientID log si.protocol_version
-        else
+        match cert_req with
+        | Some(_,skey) ->
+            makeCertificateVerifyBytes si.clientID skey log si.protocol_version
+        | None ->
             (* No client certificate ==> no certificateVerify message *)
             correct ([||])
     match certificateVerifyBytesResult with
@@ -1036,12 +1041,11 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) state (si:SessionInfo) lo
         let to_send = clientCertBytes @| clientKEXBytes @| certificateVerifyBytes in
         let new_outgoing = state.hs_outgoing @| to_send in
         let state = {state with hs_outgoing = new_outgoing} in
-        correct (state,ms,log)
+        correct (state,si,ms,log)
  
 let on_serverHello_full crand log shello =
     let si = { clientID = []
                serverID = []
-               certificate_request = false
                sessionID = shello.sh_session_id
                protocol_version = shello.sh_server_version
                cipher_suite = shello.sh_cipher_suite
@@ -1073,7 +1077,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
         match hstype with
         | HT_hello_request ->
             match cState with
-            | ClientIdle -> (* This is a legitimate hello request. Properly handle it *)
+            | ClientIdle(_,_) -> (* This is a legitimate hello request. Properly handle it *)
                 (* Do not log this message *)
                 match state.poptions.honourHelloReq with
                 | HRPIgnore -> recv_fragment_client ci state agreedVersion
@@ -1082,7 +1086,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             | _ -> (* RFC 7.4.1.1: ignore this message *) recv_fragment_client ci state agreedVersion
         | HT_server_hello ->
             match cState with
-            | ServerHello (crand,sid,log) ->
+            | ServerHello (crand,sid,cvd,svd,log) ->
                 match parseServerHello payload with
                 | Error(x,y) -> InError(HSError(AD_decode_error),HSSendAlert,state)
                 | Correct (shello) ->
@@ -1104,7 +1108,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                   // Handling of safe renegotiation
                   let safe_reneg_result =
                     if state.poptions.safe_renegotiation then
-                        let expected = (epochCVerifyData ci.id_in) @| (epochSVerifyData ci.id_in) in // or, equivalenty, ci.id_out
+                        let expected = cvd @| svd in
                         inspect_ServerHello_extensions shello.sh_neg_extensions expected
                     else
                         // RFC Sec 7.4.1.4: with no safe renegotiation, we never send extensions; if the server sent any extension
@@ -1115,7 +1119,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                   match safe_reneg_result with
                     | Error (x,y) -> InError (x,y,state)
                     | Correct _ ->
-                        // Log the received packet.
+                        // Log the received message.
                         let log = log @| to_log in
                         (* Check whether we asked for resumption *)
                         if equalBytes sid [||] then
@@ -1138,9 +1142,11 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                 if si.protocol_version = shello.sh_server_version then
                                     if si.cipher_suite = shello.sh_cipher_suite then
                                         if si.compression = shello.sh_compression_method then
-                                            let next_ci = getNextEpochs_resume ci si ms log crand shello.sh_random in
+                                            let next_ci = getNextEpochs ci si crand shello.sh_random in
                                             let (writer,reader) = PRFs.keyGen next_ci ms in
-                                            let state = {state with pstate = PSClient(ServerCCSResume(next_ci,writer,reader))} in
+                                            let state = {state with pstate = PSClient(ServerCCSResume(next_ci.id_out,writer,
+                                                                                                      next_ci.id_in,reader,
+                                                                                                      log))} in
                                             recv_fragment_client ci state (Some(shello.sh_server_version))
                                         else InError(HSError(AD_illegal_parameter),HSSendAlert,state)
                                     else InError(HSError(AD_illegal_parameter),HSSendAlert,state)
@@ -1158,7 +1164,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 match parseCertificate payload with
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(certs) ->
-                    if Cert.is_for_key_encryption certs || false then // FIXME: " || Cert.verify certs " ; FIXME: we still have to ask the user
+                    if not (Cert.is_chain_for_key_encryption certs && Cert.validate_cert_chain certs) then
                         InError(HSError(AD_bad_certificate_fatal),HSSendAlert,state)
                     else (* We have validated server identity *)
                         (* Log the received packet *)
@@ -1171,7 +1177,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 match parseCertificate payload with
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(certs) ->
-                    if Cert.is_for_signing certs || false then // FIXME: " || Cert.verify certs " ; FIXME: we still have to ask the user
+                    if not (Cert.is_chain_for_key_encryption certs && Cert.validate_cert_chain certs) then
                         InError(HSError(AD_bad_certificate_fatal),HSSendAlert,state)
                     else (* We have validated server identity *)
                         (* Log the received packet *)
@@ -1200,30 +1206,40 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(certReqMsg) ->
                 let client_cert = find_client_cert certReqMsg in
-                (* Update the sinfo we're establishing *)
-                let si = {si with clientID = client_cert; certificate_request = true} in
-                let state = {state with pstate = PSClient(ServerHelloDoneRSA(si,log))} in
+                let state = {state with pstate = PSClient(ServerHelloDoneRSA(si,client_cert,log))} in
                 recv_fragment_client ci state agreedVersion
             | _ -> (* Certificate Request arrived in the wrong state *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
         | HT_server_hello_done ->
             match cState with
-            | CertificateRequestRSA(si,log) | ServerHelloDoneRSA(si,log) ->
+            | CertificateRequestRSA(si,log) ->
                 if not (equalBytes payload [||]) then
                     InError(HSError(AD_decode_error),HSSendAlert,state)
                 else
                     (* Log the received packet *)
                     let log = log @| to_log in
 
-                    match prepare_client_output_full_RSA ci state si log with
+                    match prepare_client_output_full_RSA ci state si None log with
                     | Error (x,y) -> InError (x,y, state)
-                    | Correct (state,ms,log) ->
+                    | Correct (state,si,ms,log) ->
+                        let state = {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
+                        recv_fragment_client ci state agreedVersion
+            | ServerHelloDoneRSA(si,skey,log) ->
+                if not (equalBytes payload [||]) then
+                    InError(HSError(AD_decode_error),HSSendAlert,state)
+                else
+                    (* Log the received packet *)
+                    let log = log @| to_log in
+
+                    match prepare_client_output_full_RSA ci state si (Some(skey)) log with
+                    | Error (x,y) -> InError (x,y, state)
+                    | Correct (state,si,ms,log) ->
                         let state = {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
                         recv_fragment_client ci state agreedVersion
             | _ -> (* Server Hello Done arrived in the wrong state *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
         | HT_finished ->
             match cState with
-            | ServerFinished(si,ms) ->
-                if not (equalBytes payload (epochSVerifyData ci.id_in)) then
+            | ServerFinished(si,ms,cvd,log) ->
+                if not (checkVerifyData si Server ms log payload) then
                     InError(HSError(AD_decrypt_error),HSSendAlert,state)
                 else
                     let sDB =
@@ -1231,16 +1247,17 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                             state.sDB
                         else
                             SessionDB.insert state.sDB si.sessionID (si,ms,Client)
-                    let state = {state with pstate = PSClient(ClientIdle)
+                    let state = {state with pstate = PSClient(ClientIdle(cvd,payload))
                                             sDB = sDB} in
                     InComplete(state)
                     
 
-            | ServerFinishedResume(e,w) ->
-                if not (equalBytes payload (epochSVerifyData ci.id_in)) then
+            | ServerFinishedResume(e,w,ms,log) ->
+                if not (checkVerifyData (epochSI ci.id_in) Server ms log payload) then
                     InError(HSError(AD_decrypt_error),HSSendAlert,state)
                 else
-                    let state = {state with pstate = PSClient(ClientWritingCCSResume(e,w))} in
+                    let log = log @| to_log in
+                    let state = {state with pstate = PSClient(ClientWritingCCSResume(e,w,ms,payload,log))} in
                     InFinished(state)
             | _ -> (* Finished arrived in the wrong state *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
         | _ -> (* Unsupported/Wrong message *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
@@ -1248,19 +1265,19 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
       (* Should never happen *)
       | PSServer(_) -> unexpectedError "[recv_fragment_client] should only be invoked when in client role."
 
-let prepare_server_hello ci si srand config =
+let prepare_server_hello si srand config cvd svd =
     // FIXME: Super-redundant. At some point we should clean all this "preparing" functions...
     let ext = 
       if config.safe_renegotiation then
-        let data = (epochCVerifyData ci.id_out) @| (epochSVerifyData ci.id_out) in // Equivalently, ci.id_in
+        let data = cvd @| svd in
         let ren_extB = makeRenegExtBytes data in
         makeExtBytes ren_extB
       else
         [||]
     makeServerHelloBytes si srand ext
 
-let prepare_server_output_full_RSA ci state si cv log =
-    let serverHelloB = prepare_server_hello ci si si.init_srand state.poptions in
+let prepare_server_output_full_RSA ci state si cv cvd svd log =
+    let serverHelloB = prepare_server_hello si si.init_srand state.poptions cvd svd in
     match Cert.for_key_encryption state.poptions.server_name with
     | None -> Error(HSError(AD_internal_error),HSSendAlert)
     | Some(c,dk,pk) ->
@@ -1295,7 +1312,7 @@ let prepare_server_output_full_DH ci state si log =
 let prepare_server_output_full_DHE ci state si log =
     Error(HSError(AD_internal_error),HSSendAlert)
 
-let prepare_server_output_full ci state si cv log =
+let prepare_server_output_full ci state si cv cvd svd log =
     if isAnonCipherSuite si.cipher_suite then
         prepare_server_output_full_DH_anon ci state si log
     elif isDHCipherSuite si.cipher_suite then
@@ -1303,7 +1320,7 @@ let prepare_server_output_full ci state si cv log =
     elif isDHECipherSuite si.cipher_suite then
         prepare_server_output_full_DHE ci state si log
     elif isRSACipherSuite si.cipher_suite then
-        prepare_server_output_full_RSA ci state si cv log
+        prepare_server_output_full_RSA ci state si cv cvd svd log
     else
         unexpectedError "[prepare_server_hello_full] unexpected ciphersuite"
 
@@ -1311,18 +1328,20 @@ let prepare_server_output_full ci state si cv log =
 let negotiate cList sList =
     List.tryFind (fun s -> List.exists (fun c -> c = s) cList) sList
 
-let prepare_server_output_resumption ci state crand si ms log =
+let prepare_server_output_resumption ci state crand si ms cvd svd log =
     let srand = makeRandom () in
-    let sHelloB = prepare_server_hello ci si srand state.poptions in
+    let sHelloB = prepare_server_hello si srand state.poptions cvd svd in
 
     let log = log @| sHelloB
     let state = {state with hs_outgoing = sHelloB} in
-    let next_ci = getNextEpochs_resume ci si ms log crand srand in
+    let next_ci = getNextEpochs ci si crand srand in
     let (writer,reader) = PRFs.keyGen next_ci ms in
-    let state = {state with pstate = PSServer(ServerWritingCCSResume(next_ci,writer,reader))} in
+    let state = {state with pstate = PSServer(ServerWritingCCSResume(next_ci.id_out,writer,
+                                                                     next_ci.id_in,reader,
+                                                                     ms,log))} in
     state
 
-let startServerFull (ci:ConnectionInfo) state cHello log =  
+let startServerFull (ci:ConnectionInfo) state cHello cvd svd log =  
     // Negotiate the protocol parameters
     let version = minPV cHello.ch_client_version state.poptions.maxVer in
     if not (geqPV version state.poptions.minVer) then
@@ -1337,14 +1356,13 @@ let startServerFull (ci:ConnectionInfo) state cHello log =
                 (* Fill in the session info we're establishing *)
                 let si = { clientID         = []
                            serverID         = []
-                           certificate_request = state.poptions.request_client_certificate
                            sessionID        = sid
                            protocol_version = version
                            cipher_suite     = cs
                            compression      = cm
                            init_crand       = cHello.ch_random
                            init_srand       = srand }
-                prepare_server_output_full ci state si cHello.ch_client_version log
+                prepare_server_output_full ci state si cHello.ch_client_version cvd svd log
             | None -> Error(HSError(AD_handshake_failure),HSSendAlert)
         | None ->     Error(HSError(AD_handshake_failure),HSSendAlert)
 
@@ -1360,7 +1378,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
         match hstype with
         | HT_client_hello ->
             match sState with
-            | x when x = ClientHello || x = ServerIdle ->
+            | ClientHello(cvd,svd) | ServerIdle(cvd,svd) ->
                 match parseClientHello payload with
                 | Error(x,y) -> InError(HSError(AD_decode_error),HSSendAlert,state)
                 | Correct (cHello) ->
@@ -1369,7 +1387,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 (* handle extensions: for now only renegotiation_info *)
                 let extRes =
                     if state.poptions.safe_renegotiation then
-                        if check_client_renegotiation_info cHello (epochCVerifyData ci.id_in) then // equivalently, ci.id_out
+                        if check_client_renegotiation_info cHello cvd then
                             correct(state)
                         else
                             (* We don't accept an insecure client *)
@@ -1384,7 +1402,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     if equalBytes cHello.ch_session_id [||] 
                     then 
                         (* Client asked for a full handshake *)
-                        match startServerFull ci state cHello log with
+                        match startServerFull ci state cHello cvd svd log with
                         | Error(x,y) -> InError(x,y,state)
                         | Correct(state,pv) -> recv_fragment_server ci state (Some(pv))
                     else
@@ -1392,14 +1410,14 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         match select state.sDB cHello.ch_session_id with
                         | None ->
                             (* We don't have the requested session stored, go for a full handshake *)
-                            match startServerFull ci state cHello log with
+                            match startServerFull ci state cHello cvd svd log with
                             | Error(x,y) -> InError(x,y,state)
                             | Correct(state,pv) -> recv_fragment_server ci state (Some(pv))
                         | Some (storedSinfo,storedMS,storedDir) ->
                             (* Check that the client proposed algorithms match those of our stored session *)
                             match storedDir with
                             | Client -> (* This session is not for us, we're a server. Do full handshake *)
-                                match startServerFull ci state cHello log with
+                                match startServerFull ci state cHello cvd svd log with
                                 | Error(x,y) -> InError(x,y,state)
                                 | Correct(state,pv) -> recv_fragment_server ci state (Some(pv))
                             | Server ->
@@ -1407,21 +1425,21 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                     (* We have a common version *)
                                     if not (List.exists (fun cs -> cs = storedSinfo.cipher_suite) cHello.ch_cipher_suites) then
                                         (* Do a full handshake *)
-                                        match startServerFull ci state cHello log with
+                                        match startServerFull ci state cHello cvd svd log with
                                         | Error(x,y) -> InError(x,y,state)
                                         | Correct(state,pv) -> recv_fragment_server ci state (Some(pv))
                                     else if not (List.exists (fun cm -> cm = storedSinfo.compression) cHello.ch_compression_methods) then
                                         (* Do a full handshake *)
-                                        match startServerFull ci state cHello log with
+                                        match startServerFull ci state cHello cvd svd log with
                                         | Error(x,y) -> InError(x,y,state)
                                         | Correct(state,pv) -> recv_fragment_server ci state (Some(pv))
                                     else
                                         (* Everything is ok, proceed with resumption *)
-                                        let state = prepare_server_output_resumption ci state cHello.ch_random storedSinfo storedMS log in
+                                        let state = prepare_server_output_resumption ci state cHello.ch_random storedSinfo storedMS cvd svd log in
                                         recv_fragment_server ci state (Some(storedSinfo.protocol_version))
                                 else
                                     (* Do a full handshake *)
-                                    match startServerFull ci state cHello log with
+                                    match startServerFull ci state cHello cvd svd log with
                                     | Error(x,y) -> InError(x,y,state)
                                     | Correct(state,pv) -> recv_fragment_server ci state (Some(pv))
                                     

@@ -23,4 +23,4 @@ val keyGen: ConnectionInfo -> masterSecret -> StatefulAEAD.writer * StatefulAEAD
 val makeTimestamp: unit -> int
 
 val makeVerifyData:  SessionInfo -> Role -> masterSecret -> bytes -> bytes 
-//val checkVerifyData: SessionInfo -> Role -> masterSecret -> bytes -> bytes -> bool
+val checkVerifyData: SessionInfo -> Role -> masterSecret -> bytes -> bytes -> bool
