@@ -4,7 +4,7 @@ open Bytes
 open Algorithms
 
 (* ------------------------------------------------------------------------ *)
-type chash = CHash of hashAlg List
+type chash = hashAlg List
 type alg   = sigAlg * chash
 
 type text = bytes

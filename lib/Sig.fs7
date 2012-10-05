@@ -25,7 +25,7 @@ open Algorithms
 // TODO: there is some adhocness processing of those algs left in Handhshake.fs
   
  // implements SignatureAndHashAlgorithm, with fewer values for hashAlg
-type chash = CHash of hashAlg List // hashAlg does *not* include some values from the spec.
+type chash = hashAlg List // hashAlg does *not* include some values from the spec.
 type alg   = sigAlg * chash
 
 type text = Bytes.bytes

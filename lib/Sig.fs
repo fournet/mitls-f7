@@ -15,7 +15,7 @@ open Org.BouncyCastle.Crypto.Parameters
 open Org.BouncyCastle.Security
 
 (* ------------------------------------------------------------------------ *)
-type chash = CHash of hashAlg list
+type chash = hashAlg list
 type alg   = sigAlg * chash
 
 type text = bytes
@@ -79,14 +79,14 @@ let new_hash_engine (h : hashAlg list) : IDigest =
         (new MultipleDigester(h |> List.map new_hash_engine) :> IDigest)
 
 (* ------------------------------------------------------------------------ *)
-let RSA_sign (m, e) (CHash h : chash) (t : text) : sigv =
+let RSA_sign (m, e) (h : chash) (t : text) : sigv =
     let signer = new RsaDigestSigner(new_hash_engine h) in
 
     signer.Init(true, new RsaKeyParameters(true, bytes_to_bigint m, bytes_to_bigint e))
     signer.BlockUpdate(t, 0, t.Length)
     signer.GenerateSignature()
 
-let RSA_verify ((m, e) : bytes * bytes) (CHash h : chash) (t : text) (s : sigv) =
+let RSA_verify ((m, e) : bytes * bytes) (h : chash) (t : text) (s : sigv) =
     let signer = new RsaDigestSigner(new_hash_engine h) in
 
     signer.Init(false, new RsaKeyParameters(false, bytes_to_bigint m, bytes_to_bigint e))
@@ -109,7 +109,7 @@ let bytes_of_dsaparams p q g =
       q = bytes_of_bigint q;
       g = bytes_of_bigint g; }
 
-let DSA_sign (x, dsap) (CHash h : chash) (t : text) : sigv =
+let DSA_sign (x, dsap) (h : chash) (t : text) : sigv =
     let signer    = new DsaDigestSigner(new DsaSigner(), new_hash_engine h) in
     let dsaparams = new DsaParameters(bytes_to_bigint dsap.p,
                                       bytes_to_bigint dsap.q,
@@ -119,7 +119,7 @@ let DSA_sign (x, dsap) (CHash h : chash) (t : text) : sigv =
     signer.BlockUpdate(t, 0, t.Length)
     signer.GenerateSignature()
 
-let DSA_verify (y, dsap) (CHash h : chash) (t : text) (s : sigv) =
+let DSA_verify (y, dsap) (h : chash) (t : text) (s : sigv) =
     let signer    = new DsaDigestSigner(new DsaSigner(), new_hash_engine h) in
     let dsaparams = new DsaParameters(bytes_to_bigint dsap.p,
                                       bytes_to_bigint dsap.q,
