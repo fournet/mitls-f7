@@ -15,7 +15,7 @@ type hint = string
 type cert = bytes
 
 type certchain = cert list
-type sign_cert = (certchain * Sig.skey) option
+type sign_cert = (certchain * Sig.alg * Sig.skey) option
 
 (* ------------------------------------------------------------------------ *)
 let OID_RSAEncryption     = "1.2.840.113549.1.1.1"
@@ -122,7 +122,8 @@ let for_signing (h : hint) (algs : Sig.alg list) =
                 match x509_to_secret_key x509 with
                 | Some skey ->
                     let chain = x509_chain x509 in
-                        Some ((x509 :: chain) |> List.map x509_export_public, Sig.create_skey alg skey)
+                        Some ((x509 :: chain) |> List.map x509_export_public,
+                              alg, Sig.create_skey alg skey)
                 | None -> None
         with :? KeyNotFoundException -> None
     finally
@@ -146,7 +147,8 @@ let for_key_encryption (h : hint) =
                 match x509_to_secret_key x509 with
                 | Some (SK_RSA(sm, se)) ->
                     let chain = x509_chain x509 in
-                        Some ((x509 :: chain) |> List.map x509_export_public, RSA.create_rsaskey (sm, se))
+                        Some ((x509 :: chain) |> List.map x509_export_public,
+                              RSA.create_rsaskey (sm, se))
                 | _ -> None
         with :? KeyNotFoundException -> None
     finally

@@ -4,6 +4,8 @@
 open Bytes
 open Algorithms
 
+open System
+
 open Org.BouncyCastle.Math
 open Org.BouncyCastle.Crypto
 open Org.BouncyCastle.Crypto.Digests
@@ -13,14 +15,14 @@ open Org.BouncyCastle.Crypto.Parameters
 open Org.BouncyCastle.Security
 
 (* ------------------------------------------------------------------------ *)
-type alg = sigAlg * hashAlg
+type alg = sigAlg * (hashAlg list)
 
 type text = bytes
 type sigv = bytes 
 
 (* ------------------------------------------------------------------------ *)
-type skey = SKey of skeyparams * hashAlg
-type vkey = VKey of pkeyparams * hashAlg
+type skey = SKey of skeyparams * (hashAlg list)
+type vkey = VKey of pkeyparams * (hashAlg list)
 
 let create_skey ((s,h) : alg) (p : skeyparams) = SKey (p, h)
 let create_vkey ((s,h) : alg) (p : pkeyparams) = VKey (p, h)
@@ -38,30 +40,68 @@ let sigalg_of_vkeyparams = function
 let bytes_to_bigint (b : bytes) = new BigInteger(1, b)
 let bytes_of_bigint (b : BigInteger) = b.ToByteArrayUnsigned()
 
-(* ------------------------------------------------------------------------ *)
-let new_hash_engine (h : hashAlg) : IDigest =
-    match h with
-    | MD5    -> (new MD5Digest   () :> IDigest)
-    | SHA    -> (new Sha1Digest  () :> IDigest)
-    | SHA256 -> (new Sha256Digest() :> IDigest)
-    | SHA384 -> (new Sha384Digest() :> IDigest)
 
 (* ------------------------------------------------------------------------ *)
-let RSA_sign (m, e) (h : hashAlg) (t : text) : sigv =
+type MultipleDigester(digesters : IDigest list) =
+    interface IDigest with
+        member self.AlgorithmName =
+            String.Join("-", digesters |> List.map (fun i -> i.AlgorithmName))
+
+        member self.GetDigestSize () =
+            digesters
+                |> Seq.map (fun (i : IDigest) -> i.GetDigestSize ())
+                |> Seq.sum
+
+        member self.GetByteLength () =
+            digesters
+                |> Seq.map (fun (i : IDigest) -> i.GetByteLength ())
+                |> Seq.sum
+
+        member self.Update (b : byte) =
+            digesters |> List.iter (fun (i : IDigest) -> i.Update(b))
+
+        member self.BlockUpdate (bs : byte[], off : int, len : int) =
+            digesters |> List.iter (fun (i : IDigest) -> i.BlockUpdate(bs, off, len))
+
+        member self.DoFinal (output : byte[], off : int) =
+            let eoff =
+                List.fold
+                    (fun off (i : IDigest) ->
+                        off + i.DoFinal(output, off))
+                    off digesters
+            in
+                eoff - off
+
+        member self.Reset () =
+            digesters |> List.iter (fun (i : IDigest) -> i.Reset())
+
+(* ------------------------------------------------------------------------ *)
+let new_hash_engine (h : hashAlg list) : IDigest =
+    let new_hash_engine (h : hashAlg) : IDigest =
+        match h with
+        | MD5    -> (new MD5Digest   () :> IDigest)
+        | SHA    -> (new Sha1Digest  () :> IDigest)
+        | SHA256 -> (new Sha256Digest() :> IDigest)
+        | SHA384 -> (new Sha384Digest() :> IDigest)
+    in
+        (new MultipleDigester(h |> List.map new_hash_engine) :> IDigest)
+
+(* ------------------------------------------------------------------------ *)
+let RSA_sign (m, e) (h : hashAlg list) (t : text) : sigv =
     let signer = new RsaDigestSigner(new_hash_engine h) in
 
     signer.Init(true, new RsaKeyParameters(true, bytes_to_bigint m, bytes_to_bigint e))
     signer.BlockUpdate(t, 0, t.Length)
     signer.GenerateSignature()
 
-let RSA_verify ((m, e) : bytes * bytes) (h : hashAlg) (t : text) (s : sigv) =
+let RSA_verify ((m, e) : bytes * bytes) (h : hashAlg list) (t : text) (s : sigv) =
     let signer = new RsaDigestSigner(new_hash_engine h) in
 
     signer.Init(false, new RsaKeyParameters(false, bytes_to_bigint m, bytes_to_bigint e))
     signer.BlockUpdate(t, 0, t.Length)
     signer.VerifySignature(s)
 
-let RSA_gen (h : hashAlg) =
+let RSA_gen (h : hashAlg list) =
     let generator = new RsaKeyPairGenerator() in
     generator.Init(new KeyGenerationParameters(new SecureRandom(), 2048))
     let keys = generator.GenerateKeyPair() in
@@ -77,7 +117,7 @@ let bytes_of_dsaparams p q g =
       q = bytes_of_bigint q;
       g = bytes_of_bigint g; }
 
-let DSA_sign (x, dsap) (h : hashAlg) (t : text) : sigv =
+let DSA_sign (x, dsap) (h : hashAlg list) (t : text) : sigv =
     let signer    = new DsaDigestSigner(new DsaSigner(), new_hash_engine h) in
     let dsaparams = new DsaParameters(bytes_to_bigint dsap.p,
                                       bytes_to_bigint dsap.q,
@@ -87,7 +127,7 @@ let DSA_sign (x, dsap) (h : hashAlg) (t : text) : sigv =
     signer.BlockUpdate(t, 0, t.Length)
     signer.GenerateSignature()
 
-let DSA_verify (y, dsap) (h : hashAlg) (t : text) (s : sigv) =
+let DSA_verify (y, dsap) (h : hashAlg list) (t : text) (s : sigv) =
     let signer    = new DsaDigestSigner(new DsaSigner(), new_hash_engine h) in
     let dsaparams = new DsaParameters(bytes_to_bigint dsap.p,
                                       bytes_to_bigint dsap.q,
@@ -97,7 +137,7 @@ let DSA_verify (y, dsap) (h : hashAlg) (t : text) (s : sigv) =
     signer.BlockUpdate(t, 0, t.Length)
     signer.VerifySignature(s)
 
-let DSA_gen (h : hashAlg) =
+let DSA_gen (h : hashAlg list) =
     let paramsgen = new DsaParametersGenerator() in
     paramsgen.Init(2048, 80, new SecureRandom())
     let dsaparams = paramsgen.GenerateParameters() in

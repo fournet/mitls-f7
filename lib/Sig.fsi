@@ -4,8 +4,7 @@ open Bytes
 open Algorithms
 
 (* ------------------------------------------------------------------------ *)
-  
-type alg = sigAlg * hashAlg
+type alg = sigAlg * (hashAlg list)
 
 type text = bytes
 type sigv = bytes 

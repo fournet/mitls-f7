@@ -7,7 +7,7 @@ type hint = string (* hostname CN *)
 type cert = bytes  (* public part of a certificate *)
 
 type certchain = cert list
-type sign_cert = (certchain * Sig.skey) option
+type sign_cert = (certchain * Sig.alg * Sig.skey) option
 
 val for_signing : hint -> Sig.alg list -> sign_cert
 val for_key_encryption : hint -> (certchain * RSA.sk) option
