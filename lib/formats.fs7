@@ -57,3 +57,19 @@ ask !i,b. Length(VLBytes(i,b)) = i + Length(b)
 // relies on associativity
 ask !i,b1,b2,c1,c2. 
   (VLBytes(i,b1) @| b2 = VLBytes(i,c1) @| c2) => (b1 = c1 /\ b2 = c2)
+
+// cert-type parsing / formatting
+type certType =
+    | RSA_sign
+    | DSA_sign
+    | RSA_fixed_dh
+    | DSA_fixed_dh
+
+function val CertTypeBytes: certType -> bytes
+private definition CertTypeBytes(RSA_sign)     = [|1uy|]
+private definition CertTypeBytes(DSA_sign)     = [|2uy|]
+private definition CertTypeBytes(RSA_fixed_dh) = [|3uy|]
+private definition CertTypeBytes(DSA_fixed_dh) = [|4uy|]
+
+val certTypeBytes: ct:certType -> b:bytes{b=CertTypeBytes(ct)}
+val parseCertType: b:bytes -> (ct:certType {b=CertTypeBytes(ct)}) Result

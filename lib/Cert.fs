@@ -14,6 +14,8 @@ open Error
 type hint = string
 type cert = bytes
 
+type certchain = cert list
+
 (* ------------------------------------------------------------------------ *)
 let OID_RSAEncryption     = "1.2.840.113549.1.1.1"
 let OID_DSASignatureKey   = "1.2.840.10040.4.1" (* FIX: CHECK *)
@@ -74,8 +76,10 @@ let x509_has_key_usage_flag strict flag (x509 : X509Certificate2) =
         not strict
 
 (* ------------------------------------------------------------------------ *)
-let x509_chain (x509 : X509Certificate2) = (* FIXME *)
-    ([] : X509Certificate2 list)
+let x509_chain (x509 : X509Certificate2) = (* FIX: Is certs. store must be opened ? *)
+    let chain = new X509Chain() in
+        ignore (chain.Build(x509));
+        chain.ChainElements |> Seq.cast |> Seq.toList
 
 (* ------------------------------------------------------------------------ *)
 let x509_export_public (x509 : X509Certificate2) : bytes =
@@ -117,9 +121,7 @@ let for_signing (h : hint) (algs : Sig.alg list) =
                 match x509_to_secret_key x509 with
                 | Some skey ->
                     let chain = x509_chain x509 in
-                        Some (x509_export_public x509,
-                              chain |> List.map x509_export_public,
-                              Sig.create_skey alg skey)
+                        Some ((x509 :: chain) |> List.map x509_export_public, Sig.create_skey alg skey)
                 | None -> None
         with :? KeyNotFoundException -> None
     finally
@@ -143,9 +145,7 @@ let for_key_encryption (h : hint) =
                 match x509_to_secret_key x509 with
                 | Some (SK_RSA(sm, se)) ->
                     let chain = x509_chain x509 in
-                        Some (x509_export_public x509,
-                              chain |> List.map x509_export_public,
-                              RSA.create_rsaskey (sm, se))
+                        Some ((x509 :: chain) |> List.map x509_export_public, RSA.create_rsaskey (sm, se))
                 | _ -> None
         with :? KeyNotFoundException -> None
     finally
@@ -161,6 +161,13 @@ let is_for_key_encryption (c : cert) =
     try
         x509_is_for_key_encryption (new X509Certificate2(c))
     with :? CryptographicException -> false
+
+(* ------------------------------------------------------------------------ *)
+let is_chain_for_signing (chain : certchain) =
+    match chain with [] -> false| c :: _ -> is_for_signing c
+
+let is_chain_for_key_encryption (chain : certchain) =
+    match chain with [] -> false| c :: _ -> is_for_key_encryption c
 
 (* ------------------------------------------------------------------------ *)
 let get_public_signing_key (c : cert) ((siga, hasha) as a : Sig.alg) : Sig.vkey Result =
@@ -186,6 +193,49 @@ let get_public_encryption_key (c : cert) : RSA.pk Result =
     with :? CryptographicException -> Error(CertificateParsing, Internal)
 
 (* ------------------------------------------------------------------------ *)
-let validate_chain (c : cert) (issuers : cert list) =
-    (failwith "TODO" : bool)
+let get_chain_public_signing_key (chain : certchain) a =
+    match chain with
+    | []     -> Error(CertificateParsing, Internal)
+    | c :: _ -> get_public_signing_key c a
 
+let get_chain_public_encryption_key (chain : certchain) =
+    match chain with
+    | []     -> Error(CertificateParsing, Internal)
+    | c :: _ -> get_public_encryption_key c
+
+(* ------------------------------------------------------------------------ *)
+let rec validate_x509_chain (c : X509Certificate2) (issuers : X509Certificate2 list) =
+    try
+        let chain = new X509Chain () in
+            chain.ChainPolicy.ExtraStore.AddRange(List.toArray issuers);
+            chain.ChainPolicy.RevocationMode <- X509RevocationMode.NoCheck;
+
+            if not (chain.Build(c)) then
+                false
+            else
+                let eq_thumbprint (c1 : X509Certificate2) (c2 : X509Certificate2) =
+                    c1.Thumbprint = c2.Thumbprint
+                in
+
+                let certschain =
+                    chain.ChainElements
+                        |> Seq.cast
+                        |> (Seq.map (fun (ce : X509ChainElement) -> ce.Certificate))
+                        |> Seq.toList
+                in
+                       (certschain.Length = issuers.Length)
+                    && Seq.forall2 eq_thumbprint certschain issuers
+
+    with :? CryptographicException -> false
+
+(* ------------------------------------------------------------------------ *)
+let validate_cert_chain (chain : certchain) =
+    match chain with
+    | []           -> false
+    | c :: issuers ->
+        try
+            let c       = new X509Certificate2(c) in
+            let issuers = List.map (fun (c : cert) -> new X509Certificate2(c)) chain in
+                validate_x509_chain c issuers
+        with :? CryptographicException ->
+            false
