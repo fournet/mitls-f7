@@ -254,6 +254,14 @@ let isRSACipherSuite cs =
     | OnlyMACCipherSuite ( RSA, _ ) -> true
     | _ -> false
 
+let sigAlg_of_ciphersuite cs =
+    match cs with
+    | CipherSuite ( RSA, _ ) | OnlyMACCipherSuite( RSA, _ ) (* | CipherSuite(ECDHE_RSA,_) *)
+    | CipherSuite( DHE_RSA, _) | CipherSuite(DH_RSA,_) -> SA_RSA
+    | CipherSuite( DHE_DSS, _) | CipherSuite(DH_DSS,_) -> SA_DSA
+    (* | CipherSuite(ECDHE_ECDSA,_) -> SA_ECDSA *)
+    | _ -> unexpectedError "[sigAlg_of_ciphersuite] invoked on a worng ciphersuite"
+
 let contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV (css: cipherSuite list) =
 #if fs
     List.exists (fun cs -> cs = SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV) ) css

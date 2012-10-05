@@ -11,7 +11,7 @@ type sign_cert = (certchain * Sig.alg * Sig.skey) option
 
 (* First argument (Sig.alg list) for both functions gives the allowed
  * signing alg. used for signing the key. For [for_signing] TLS1.2
- * allows the signing alg. used for the key to be difference from the
+ * allows the signing alg. used for the key to be different from the
  * signing alg. that can be used with that key.
  *)
 val for_signing : Sig.alg list -> hint -> Sig.alg list -> sign_cert

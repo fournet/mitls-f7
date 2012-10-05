@@ -104,38 +104,6 @@ type serverHello = {
     sh_neg_extensions     : bytes;
   }
 
-let hashAlg_to_tls12enum ha =
-    match ha with
-    | Algorithms.MD5    -> [| 1uy |]
-    | Algorithms.SHA    -> [| 2uy |]
-    | Algorithms.SHA256 -> [| 4uy |]
-    | Algorithms.SHA384 -> [| 5uy |]
-
-let tls12enum_to_hashAlg n =
-    match n with
-    | [| 1uy |] -> Some Algorithms.MD5
-    | [| 2uy |] -> Some Algorithms.SHA
-    | [| 4uy |] -> Some Algorithms.SHA256
-    | [| 5uy |] -> Some Algorithms.SHA384
-    | _         -> None
-
-type sigAlg = bytes
-
-let SA_anonymous = [| 0uy |]
-let SA_rsa       = [| 1uy |]
-let SA_dsa       = [| 2uy |]
-let SA_ecdsa     = [| 3uy |] 
-
-let checkSigAlg v =  
-    v = SA_anonymous 
- || v = SA_rsa 
- || v = SA_dsa
- || v = SA_ecdsa 
-
-type SigAndHashAlg = {
-    SaHA_hash: Algorithms.hashAlg;
-    SaHA_signature: sigAlg;
-    }
 
 
 (** A.4.2 Server Authentication and Key Exchange Messages *)
@@ -151,7 +119,7 @@ type SigAndHashAlg = {
 type certificateRequest = {
     (* RFC acknowledges the relation between these fields is "somewhat complicated" *)
     client_certificate_type: Formats.certType list
-    signature_and_hash_algorithm: (SigAndHashAlg list) option (* Some(x) for TLS 1.2, None for previous versions *)
+    signature_and_hash_algorithm: (Sig.alg list) option (* Some(x) for TLS 1.2, None for previous versions *)
     certificate_authorities: string list
     }
 
@@ -176,6 +144,59 @@ type certificateVerify = bytes (* digital signature of all messages exchanged un
 (** A.4.4 Handshake Finalization Message *)
 
 type finished = bytes
+
+(* SignatureAndHashAlgorithm parsing functions *)
+let sigHashAlgBytes (alg:Sig.alg) =
+    // pre: we're in TLS 1.2, so hashL contains exactly one element
+    let (sign,hashL) = alg in
+    let hash = hashL.Head in
+    let signB = sigAlgBytes sign in
+    let hashB = hashAlgBytes hash in
+    signB @| hashB
+
+let parseSigHashAlg b =
+    let (signB,hashB) = Bytes.split b 1 in
+    match parseSigAlg signB with
+    | Error(x,y) -> Error(x,y)
+    | Correct(sign) ->
+        match parseHashAlg hashB with
+        | Error(x,y) -> Error(x,y)
+        | Correct(hash) -> correct(sign,[hash])
+
+let rec sigHashAlgListBytes_int algL =
+    match algL with
+    | [] -> [||]
+    | h::t -> (sigHashAlgBytes h) @| sigHashAlgListBytes_int t
+
+let sigHashAlgListBytes algL =
+    let payload = sigHashAlgListBytes_int algL in
+    vlbytes 2 payload
+
+let rec parseSigHashAlgList_int b : (Sig.alg list Result)=
+    if length b = 0 then correct([])
+    elif length b = 1 then Error(Parsing,WrongInputParameters)
+    else
+        let (thisB,remB) = Bytes.split b 2 in
+        match parseSigHashAlg thisB with
+        | Error(x,y) -> Error(x,y)
+        | Correct(this) ->
+            match parseSigHashAlgList_int remB with
+            | Error(x,y) -> Error(x,y)
+            | Correct(rem) -> correct(this :: rem)
+
+let parseSigHashAlgList b =
+    match vlparse 2 b with
+    | Error(x,y) -> Error(x,y)
+    | Correct(b) -> parseSigHashAlgList_int b
+
+let default_sigHashAlgList pv cs =
+    match sigAlg_of_ciphersuite cs with
+    | SA_RSA ->
+        match pv with
+        | TLS_1p2 -> [(SA_RSA, [SHA])]
+        | SSL_3p0 | TLS_1p0 | TLS_1p1 -> [(SA_RSA,[MD5;SHA])]
+    | SA_DSA -> [(SA_DSA, [SHA])]
+    | _ -> unexpectedError "[makeCertificateRequest] invoked on an invalid ciphersuite"
 
 // END HS_msg
 
@@ -827,23 +848,6 @@ let rec parseCertificateTypeList data =
             | Error(x,y) -> Error(x,y)
         | Error(x,y) -> Error(HSError(AD_decode_error),HSSendAlert)
 
-let parseSigAlg b = 
-    let (hashb,sigb) = Bytes.split b 1 
-    match tls12enum_to_hashAlg hashb with
-    | Some (hash) when checkSigAlg sigb ->
-           Correct({SaHA_hash = hash; SaHA_signature = sigb })
-    | _ -> Error(HSError(AD_illegal_parameter),HSSendAlert)
-
-//CF idem, not sure re: ordering of the list and empty lists
-let rec parseSigAlgs b parsed =
-    match length b with 
-    | 0 -> Correct(parsed)
-    | 1 -> Error(HSError(AD_illegal_parameter),HSSendAlert)
-    | _ -> let (b0,b) = Bytes.split b 2 
-           match parseSigAlg b0 with 
-           | Correct(sa) -> parseSigAlgs b (sa::parsed)
-           | Error(x,y)  -> Error(x,y)  
-
 let rec distNamesList_of_bytes data res =
     if length data = 0 then
         correct (res)
@@ -858,20 +862,22 @@ let rec distNamesList_of_bytes data res =
             let res = [name] @ res in
             distNamesList_of_bytes data res
 
-let makeCertificateRequest sign version =
-    //$ make it an explicit protocol option? In the abstract protocol description we do not consider multiple choices!
+let makeCertificateRequest sign cs version =
     let certTypes = 
         if sign then
-            vlbytes 1 (certTypeBytes Formats.RSA_sign @| certTypeBytes Formats.DSA_sign)
-        else // fixed
-            vlbytes 1 (certTypeBytes Formats.RSA_fixed_dh @| certTypeBytes Formats.DSA_fixed_dh) 
+            match sigAlg_of_ciphersuite cs with
+            | SA_RSA -> vlbytes 1 (certTypeBytes Formats.RSA_sign)
+            | SA_DSA -> vlbytes 1 (certTypeBytes Formats.DSA_sign)
+            | _ -> unexpectedError "[makeCertificateRequest] invoked on an invalid ciphersuite"
+        else 
+            match sigAlg_of_ciphersuite cs with
+            | SA_RSA -> vlbytes 1 (certTypeBytes Formats.RSA_fixed_dh)
+            | SA_DSA -> vlbytes 1 (certTypeBytes Formats.DSA_fixed_dh)
+            | _ -> unexpectedError "[makeCertificateRequest] invoked on an invalid ciphersuite"
     let sigAndAlg =
         match version with
         | TLS_1p2 ->
-            (* For no particular reason, we will offer rsa-sha1 and dsa-sha1 *)
-            let sha1B   = hashAlg_to_tls12enum Algorithms.hashAlg.SHA in
-            let sigAndAlg = sha1B @| SA_rsa @| sha1B @| SA_dsa in
-            vlbytes 2 sigAndAlg
+            sigHashAlgListBytes (default_sigHashAlgList version cs)
         | _ -> [||]
     (* We specify no cert auth *)
     let distNames = vlbytes 2 [||] in
@@ -892,7 +898,7 @@ let parseCertificateRequest version data =
             match vlsplit 2 data with
             | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
             | Correct (sigAlgsBytes,data) ->
-            match parseSigAlgs sigAlgsBytes [] with
+            match parseSigHashAlgList sigAlgsBytes with
             | Error(x,y) -> Error(x,y)               
             | Correct (sigAlgsList) -> correct (Some(sigAlgsList),data)
         else
@@ -900,9 +906,9 @@ let parseCertificateRequest version data =
     match sigAlgsAndData with
     | Error(x,y) -> Error(x,y)
     | Correct ((sigAlgs,data)) ->
-    match vlsplit 2 data with
+    match vlparse 2 data with
     | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
-    | Correct  (distNamesBytes,_) ->
+    | Correct  (distNamesBytes) ->
     match distNamesList_of_bytes distNamesBytes [] with
     | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
     | Correct distNamesList ->
@@ -923,10 +929,12 @@ let makeClientKEX_RSA si config =
     if si.serverID.IsEmpty then
         unexpectedError "[makeClientKEX_RSA] Server certificate should always be present with a RSA signing cipher suite."
     else
-        let pubKey = pubKey_of_certificate si.serverID.Head in
-        let encpms = RSAEnc.encrypt pubKey si pms in
-        let encpms = if si.protocol_version = SSL_3p0 then encpms else vlbytes 2 encpms 
-        ((makeMessage HT_client_key_exchange encpms),pms)
+        match Cert.get_chain_public_encryption_key si.serverID with
+        | Error(x,y) -> Error(HSError(AD_decode_error),HSSendAlert)
+            | Correct(pubKey) ->
+            let encpms = RSAEnc.encrypt pubKey si pms in
+            let encpms = if si.protocol_version = SSL_3p0 then encpms else vlbytes 2 encpms 
+            correct((makeMessage HT_client_key_exchange encpms),pms)
 
 let makeClientKEX_DH_explicit si config =
     // TODO
@@ -947,7 +955,7 @@ let parseClientKEX_RSA si skey cv config data =
                     | Error(x,y) -> Error(HSError(AD_decode_error),HSSendAlert)
         match encrypted with
         | Correct(encPMS) ->
-            let res = RSAEnc.decrypt_PMS (prikey_of_cert si.serverID.Head) si cv config.check_client_version_in_pms_for_old_tls encPMS in
+            let res = RSAEnc.decrypt skey si cv config.check_client_version_in_pms_for_old_tls encPMS in
             correct(res)
         | Error(x,y) -> Error(x,y)
 
@@ -959,38 +967,29 @@ let parseClientKEX_DH_implict data =
 
 let parseClientKEX_DH_explicit data = Error(HSError(AD_internal_error),HSSendAlert) // TODO
 
-let makeCertificateVerifyBytes (cert: Cert.cert list) skey data pv =
+let makeCertificateVerifyBytes (cert: Cert.cert list) alg skey data pv =
     if cert.IsEmpty then
-        correct (makeMessage HT_certificate_verify [||])
+        makeMessage HT_certificate_verify [||]
     else
+
+    let signed = Sig.sign alg skey data in
+    let signed = vlbytes 2 signed in
+
     match pv with
     | TLS_1p2 ->
-        (* If DSA, use SHA-1 hash *)
-        if certificate_is_dsa cert then (* TODO *)
-            (*let hash = sha1 data in
-            let signed = dsa_sign priKey hash in *)
-            correct ([||])
-        else
-            (* Get server preferred hash algorithm *)
-            let hashAlg =
-                match certReqMsg.signature_and_hash_algorithm with
-                | Some (sahaList) -> sahaList.Head.SaHA_hash
-                | None -> unexpectedError "[makeCertificateVerifyBytes] We are in TLS 1.2, so the server should send a SigAndHashAlg structure."
-            let hashed = HASH.hash hashAlg data in
-            let priKey = priKey_of_certificate cert in
-            // THIS IS NOT AN ENCRYPTION!
-            // we should pick the signing alg from cert. Not rsaEncrypt!!
-            match RSA.encrypt priKey hashed with
-            | Error (x,y) -> Error(HSError(AD_decrypt_error),HSSendAlert)
-            | Correct (signed) ->
-                let signed = vlbytes 2 signed in
-                let hashAlgBytes = hashAlg_to_tls12enum hashAlg in
-                let payload = hashAlgBytes @| SA_rsa @| signed in
-                correct (makeMessage HT_certificate_verify payload)
+        let sigHashB = sigHashAlgBytes alg in
+        let payload = sigHashB @| signed in
+        makeMessage HT_certificate_verify payload
     | TLS_1p0 | TLS_1p1 ->
-        (* TODO *) Error(HSError(AD_internal_error),HSSendAlert)
+        makeMessage HT_certificate_verify signed
     | SSL_3p0 ->
-        (* TODO *) Error(HSError(AD_internal_error),HSSendAlert)
+        (* TODO *) unexpectedError "[makeCertificateVerifyBytes] Shame: not implemented, and it sould be."
+//        CertificateVerify.signature.md5_hash
+//                   MD5(master_secret + pad_2 +
+//                       MD5(handshake_messages + master_secret + pad_1));
+//        Certificate.signature.sha_hash
+//                   SHA(master_secret + pad_2 +
+//                       SHA(handshake_messages + master_secret + pad_1));
     
 //$ todo?
 let find_client_cert (certReqMsg:certificateRequest) : (Cert.sign_cert) =

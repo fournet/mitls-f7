@@ -1,6 +1,7 @@
 ﻿module Algorithms
 
 open Bytes
+open Error
 
 (* Not abstracts, but only meant to be used by
    crypto modules and CipherSuites *)
@@ -36,6 +37,11 @@ type aeadAlg =
 type authencAlg =
     | MtE of cipherAlg * hashAlg
     | AEAD of aeadAlg * hashAlg
+
+val sigAlgBytes: sigAlg -> bytes
+val parseSigAlg: bytes -> sigAlg Result
+val hashAlgBytes: hashAlg -> bytes
+val parseHashAlg: bytes -> hashAlg Result
 
 val encKeySize: cipherAlg -> int
 val blockSize: cipherAlg -> int

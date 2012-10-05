@@ -1,6 +1,7 @@
 ﻿module Algorithms
 
 open Bytes
+open Error
 
 type kexAlg =
     | RSA
@@ -26,6 +27,34 @@ type sigAlg =
   | SA_RSA
   | SA_DSA 
   | SA_ECDSA
+
+let sigAlgBytes sa =
+    match sa with
+    | SA_RSA   -> [|1uy|]
+    | SA_DSA   -> [|2uy|]
+    | SA_ECDSA -> [|3uy|]
+
+let parseSigAlg b =
+    match b with
+    | [|1uy|] -> correct(SA_RSA)
+    | [|2uy|] -> correct(SA_DSA)
+    | [|3uy|] -> correct(SA_ECDSA)
+    | _ -> Error(Parsing,WrongInputParameters)
+
+let hashAlgBytes ha =
+    match ha with
+    | MD5    -> [|1uy|]
+    | SHA    -> [|2uy|]
+    | SHA256 -> [|4uy|]
+    | SHA384 -> [|5uy|]
+
+let parseHashAlg b =
+    match b with
+    | [|1uy|] -> correct(MD5)
+    | [|2uy|] -> correct(SHA)
+    | [|4uy|] -> correct(SHA256)
+    | [|5uy|] -> correct(SHA384)
+    | _ -> Error(Parsing,WrongInputParameters)
 
 type aeadAlg =
     | AES_128_GCM
