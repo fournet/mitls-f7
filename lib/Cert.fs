@@ -84,6 +84,9 @@ let x509_check_key_sig_alg (sigkeyalg : Sig.alg) (x509 : X509Certificate2) =
     | o when o.Value = OID_DSASignatureKey      -> sigkeyalg = (SA_DSA, [SHA])
     | _ -> false
 
+let x509_check_key_sig_alg_one (sigkeyalgs : Sig.alg list) (x509 : X509Certificate2) =
+    List.exists (fun a -> x509_check_key_sig_alg a x509) sigkeyalgs
+
 (* ------------------------------------------------------------------------ *)
 let x509_chain (x509 : X509Certificate2) = (* FIX: Is certs. store must be opened ? *)
     let chain = new X509Chain() in
@@ -104,7 +107,7 @@ let x509_is_for_key_encryption (x509 : X509Certificate2) =
     && x509_has_key_usage_flag false X509KeyUsageFlags.KeyEncipherment x509
 
 (* ------------------------------------------------------------------------ *)
-let for_signing (sigkeyalg : Sig.alg list) (h : hint) (algs : Sig.alg list) =
+let for_signing (sigkeyalgs : Sig.alg list) (h : hint) (algs : Sig.alg list) =
     let store = new X509Store(StoreName.My, StoreLocation.CurrentUser) in
 
     store.Open(OpenFlags.ReadOnly ||| OpenFlags.OpenExistingOnly)
@@ -125,21 +128,24 @@ let for_signing (sigkeyalg : Sig.alg list) (h : hint) (algs : Sig.alg list) =
                 in
                     store.Certificates.Find(X509FindType.FindBySubjectName, h, true)
                         |> Seq.cast
-                        |> Seq.filter (fun x509 -> List.exists (fun a -> x509_check_key_sig_alg a x509) sigkeyalg)
+                        |> Seq.filter (x509_check_key_sig_alg_one sigkeyalgs)
                         |> Seq.pick pick_wrt_req_alg
             in
                 match x509_to_secret_key x509 with
                 | Some skey ->
                     let chain = x509_chain x509 in
-                        Some ((x509 :: chain) |> List.map x509_export_public,
-                              alg, Sig.create_skey hasha skey)
+
+                    if Seq.forall (x509_check_key_sig_alg_one sigkeyalgs) chain then
+                        Some ((x509 :: chain) |> List.map x509_export_public, alg, Sig.create_skey hasha skey)
+                    else
+                        None
                 | None -> None
         with :? KeyNotFoundException -> None
     finally
         store.Close()
 
 (* ------------------------------------------------------------------------ *)
-let for_key_encryption (sigkeyalg : Sig.alg list) (h : hint) =
+let for_key_encryption (sigkeyalgs : Sig.alg list) (h : hint) =
     let store = new X509Store(StoreName.My, StoreLocation.CurrentUser) in
 
     store.Open(OpenFlags.ReadOnly ||| OpenFlags.OpenExistingOnly)
@@ -151,13 +157,17 @@ let for_key_encryption (sigkeyalg : Sig.alg list) (h : hint) =
                     |> Seq.filter (fun (x509 : X509Certificate2) -> x509.HasPrivateKey)
                     |> Seq.filter (fun (x509 : X509Certificate2) -> x509_is_for_key_encryption x509)
                     |> Seq.filter (fun (x509 : X509Certificate2) -> x509.GetKeyAlgorithm() = OID_RSAEncryption)
-                    |> Seq.filter (fun x509 -> List.exists (fun a -> x509_check_key_sig_alg a x509) sigkeyalg)
+                    |> Seq.filter (x509_check_key_sig_alg_one sigkeyalgs)
                     |> Seq.head
             in
                 match x509_to_secret_key x509 with
                 | Some (SK_RSA(sm, se)) ->
                     let chain = x509_chain x509 in
+
+                    if Seq.forall (x509_check_key_sig_alg_one sigkeyalgs) chain then
                         Some ((x509 :: chain) |> List.map x509_export_public, RSA.create_rsaskey (sm, se))
+                    else
+                        None
                 | _ -> None
         with :? KeyNotFoundException -> None
     finally
