@@ -167,7 +167,6 @@ def _main(*args):
         print >>sys.stderr
         for cs in sorted(CIPHERS.keys()):
             print >>sys.stderr, 'Ciphers: %s' % (cs,)
-        raise RuntimeError
         exit(1)
 
     entries = ('server', 'client')
