@@ -20,7 +20,9 @@ type enc_cert = (certchain * RSA.sk) option
 
 (* ------------------------------------------------------------------------ *)
 let OID_RSAEncryption        = "1.2.840.113549.1.1.1"
-let OID_MD5WithRSAEncryption = "1.2.840.113549.1.1.4"
+// let OID_MD5WithRSAEncryption = "1.2.840.113549.1.1.4" // Obsolete
+let OID_SHAWithRSAEncryption = "1.2.840.113549.1.1.5"
+let OID_SHA256WithRSAEncryption = "1.2.840.113549.1.1.11"
 let OID_DSASignatureKey      = "1.2.840.10040.4.1" (* FIX: CHECK *)
 let OID_ECDSASignatureKey    = "1.2.840.10045.4.1" (* FIX: CHECK *)
 
@@ -81,7 +83,9 @@ let x509_has_key_usage_flag strict flag (x509 : X509Certificate2) =
 (* ------------------------------------------------------------------------ *)
 let x509_check_key_sig_alg (sigkeyalg : Sig.alg) (x509 : X509Certificate2) =
     match x509.SignatureAlgorithm with
-    | o when o.Value = OID_MD5WithRSAEncryption -> sigkeyalg = (SA_RSA, [MD5])
+//    | o when o.Value = OID_MD5WithRSAEncryption -> sigkeyalg = (SA_RSA, [MD5]) // Obsolete
+    | o when o.Value = OID_SHAWithRSAEncryption -> sigkeyalg = (SA_RSA, [MD5;SHA]) || sigkeyalg = (SA_RSA, [SHA]) // We are not strict, to comply with TLS < 1.2
+    | o when o.Value = OID_SHA256WithRSAEncryption -> sigkeyalg = (SA_RSA, [SHA256])
     | o when o.Value = OID_DSASignatureKey      -> sigkeyalg = (SA_DSA, [SHA])
     | _ -> false
 
@@ -107,7 +111,7 @@ let x509_is_for_signing (x509 : X509Certificate2) =
     && x509_has_key_usage_flag false X509KeyUsageFlags.DigitalSignature x509
 
 let x509_is_for_key_encryption (x509 : X509Certificate2) =
-       x509.Version >= 3
+    x509.Version >= 3
     && x509_has_key_usage_flag false X509KeyUsageFlags.KeyEncipherment x509
 
 (* ------------------------------------------------------------------------ *)
