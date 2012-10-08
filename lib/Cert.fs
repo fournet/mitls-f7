@@ -159,7 +159,7 @@ let for_key_encryption (sigkeyalgs : Sig.alg list) (h : hint) =
                     |> Seq.filter (fun (x509 : X509Certificate2) -> x509_is_for_key_encryption x509)
                     |> Seq.filter (fun (x509 : X509Certificate2) -> x509.GetKeyAlgorithm() = OID_RSAEncryption)
                     |> Seq.filter (x509_check_key_sig_alg_one sigkeyalgs)
-                    |> Seq.head
+                    |> Seq.pick   Some
             in
                 match x509_to_secret_key x509 with
                 | Some (SK_RSA(sm, se)) ->
@@ -170,7 +170,8 @@ let for_key_encryption (sigkeyalgs : Sig.alg list) (h : hint) =
                     else
                         None
                 | _ -> None
-        with :? KeyNotFoundException -> None
+        with
+        | :? KeyNotFoundException -> None
     finally
         store.Close()
 
