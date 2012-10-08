@@ -24,3 +24,7 @@ val makeTimestamp: unit -> int
 
 val makeVerifyData:  SessionInfo -> Role -> masterSecret -> bytes -> bytes 
 val checkVerifyData: SessionInfo -> Role -> masterSecret -> bytes -> bytes -> bool
+
+// Maybe this is the wrong place? Better in Sig? Now placed here since it accesses MS bytes.
+val ssl_certificate_verify: SessionInfo -> masterSecret -> Sig.alg -> Sig.skey -> Sig.text -> Sig.sigv
+val ssl_certificate_verify_check: SessionInfo -> masterSecret -> Sig.alg -> Sig.vkey -> Sig.text -> Sig.sigv -> bool

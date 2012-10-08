@@ -2,13 +2,12 @@
 
 open TLSInfo
 
-// FIXME: in the DB a session must be identified by sessionID and host!
-type StorableSession = SessionInfo * PRFs.masterSecret * Role
-
 type SessionDB
+type SessionIndex = sessionID * Role * Cert.hint
+type StorableSession = SessionInfo * PRFs.masterSecret
 
 val create: config -> SessionDB
-val select: SessionDB -> sessionID -> StorableSession option
-val insert: SessionDB -> sessionID -> StorableSession -> SessionDB
-val remove: SessionDB -> sessionID -> SessionDB
-val getAllStoredIDs: SessionDB -> sessionID list
+val select: SessionDB -> SessionIndex -> StorableSession option
+val insert: SessionDB -> SessionIndex -> StorableSession -> SessionDB
+val remove: SessionDB -> SessionIndex -> SessionDB
+val getAllStoredIDs: SessionDB -> SessionIndex list

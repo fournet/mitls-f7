@@ -8,13 +8,14 @@ open System.Threading
 type SessionDB =
     { filename: string;
       expiry: Bytes.TimeSpan}
+type SessionIndex = sessionID * Role * Cert.hint
 
 (* Lock Policy:
    - Never acquire lock in basic load/store functions.
    - Upper level functions acquire read/upgradeable read/write lock as appropriate *)
 let DBLock = new ReaderWriterLockSlim()
 
-type StorableSession = SessionInfo * PRFs.masterSecret * Role
+type StorableSession = SessionInfo * PRFs.masterSecret
 
 let load filename =
     let bf = new BinaryFormatter() in
@@ -22,11 +23,11 @@ let load filename =
                                 FileMode.Open, (* Never overwrite, and fail if not exists *)
                                 FileAccess.Read,
                                 FileShare.ReadWrite) in
-    let map = bf.Deserialize(file) :?> Map<sessionID,(StorableSession * Bytes.DateTime)> in
+    let map = bf.Deserialize(file) :?> Map<SessionIndex,(StorableSession * Bytes.DateTime)> in
     file.Close()
     map
 
-let store filename (map:Map<sessionID,(StorableSession * Bytes.DateTime)>) =
+let store filename (map:Map<SessionIndex,(StorableSession * Bytes.DateTime)>) =
     let bf = new BinaryFormatter() in
     let file = new FileStream(  filename,
                                 FileMode.Create, (* Overwrite file, or create if it does not exists *)
@@ -42,7 +43,7 @@ let create poptions =
         self
     else
         DBLock.EnterWriteLock()
-        let map = Map.empty<sessionID,(StorableSession * Bytes.DateTime)> in
+        let map = Map.empty<SessionIndex,(StorableSession * Bytes.DateTime)> in
         store self.filename map
         DBLock.ExitWriteLock()
         self

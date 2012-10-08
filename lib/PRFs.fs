@@ -191,3 +191,34 @@ let makeTimestamp () = (* FIXME: we may need to abstract this function *)
     let t = (System.DateTime.UtcNow - new System.DateTime(1970, 1, 1))
     (int) t.TotalSeconds
 
+//internal
+let ssl_certificate_verify_hash si ms log hashAlg =
+    let (pad1,pad2) =
+        match hashAlg with
+        | SHA -> (ssl_pad1_sha1, ssl_pad2_sha1)
+        | MD5 -> (ssl_pad1_md5,  ssl_pad2_md5)
+        | _ -> unexpectedError "[ssl_certificate_verify_hash] invoked on a wrong hash algorithm"
+    let forStep1 = log @| ms.bytes @| pad1 in
+    let step1 = hash hashAlg forStep1 in
+    let forStep2 = ms.bytes @| pad2 @| step1 in
+    hash hashAlg forStep2
+
+let ssl_certificate_verify (si:SessionInfo) ms algs skey log =
+    let toSign =
+        match algs with
+        | (SA_RSA,_) ->
+            ssl_certificate_verify_hash si ms log MD5 @| ssl_certificate_verify_hash si ms log SHA
+        | (SA_DSA,_) ->
+            ssl_certificate_verify_hash si ms log SHA
+        | _ -> unexpectedError "[ssl_certificate_verify] invoked on a wrong signature algorithm"
+    Sig.sign algs skey toSign
+
+let ssl_certificate_verify_check (si:SessionInfo) ms algs vkey log expected =
+    let computed =
+        match algs with
+        | (SA_RSA,_) ->
+            ssl_certificate_verify_hash si ms log MD5 @| ssl_certificate_verify_hash si ms log SHA
+        | (SA_DSA,_) ->
+            ssl_certificate_verify_hash si ms log SHA
+        | _ -> unexpectedError "[ssl_certificate_verify] invoked on a wrong signature algorithm"
+    Sig.verify algs vkey computed expected

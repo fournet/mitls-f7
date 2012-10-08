@@ -27,7 +27,6 @@ type SessionInfo = {
 let null_sessionInfo pv =
     { clientID = [];
       serverID = [];
-      certificate_request = false;
       sessionID = [||];
       protocol_version = pv;
       cipher_suite = nullCipherSuite;
@@ -37,7 +36,7 @@ let null_sessionInfo pv =
       }
 
 let isNullSessionInfo s =
-  s.clientID = [] && s.serverID = [] && s.certificate_request = false && s.sessionID = [||] &&
+  s.clientID = [] && s.serverID = [] && s.sessionID = [||] &&
   isNullCipherSuite s.cipher_suite && s.compression = NullCompression &&
   s.init_crand = [||] && s.init_srand = [||]
 

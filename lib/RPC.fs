@@ -7,7 +7,7 @@ open DataStream
 open Dispatch
 open TLS
 
-let config certname = {
+let config = {
     TLSInfo.minVer = CipherSuites.SSL_3p0
     TLSInfo.maxVer = CipherSuites.TLS_1p2
 
@@ -27,10 +27,11 @@ let config certname = {
     (* Server side *)
     TLSInfo.request_client_certificate = true
     TLSInfo.check_client_version_in_pms_for_old_tls = true
+    
+    (* Common *)
     TLSInfo.safe_renegotiation = true
-
-    TLSInfo.server_cert_file = certname
-    TLSInfo.trustedRootCertificates = []
+    TLSInfo.server_name = "RPC server"
+    TLSInfo.client_name = "RPC client"
 
     TLSInfo.sessionDBFileName = "sessionDBFile.bin"
     TLSInfo.sessionDBExpiry = Bytes.newTimeSpan 2 0 0 0 (* two days *)
@@ -104,10 +105,8 @@ let recvMsg = fun conn ->
         doit conn [||]
 
 let doclient (request : string) =
-    let options = config "client" in
-
     let ns      = Tcp.connect "127.0.0.1" 5000 in
-    let conn    = TLS.connect ns options in
+    let conn    = TLS.connect ns config in
 
     match drainMeta conn with
     | DRError  _ -> None
@@ -140,15 +139,13 @@ let doclient (request : string) =
         | None -> None
 
 let doserver () =
-    let options = config "server" in
-
     let ns = Tcp.listen "127.0.0.1" 5000 in
 
     let rec doclient = fun () ->
         let client = Tcp.accept ns in
 
         let result =
-            let conn = TLS.accept_connected client options in
+            let conn = TLS.accept_connected client config in
 
             match drainMeta conn with
             | DRError  _ -> false

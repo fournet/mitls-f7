@@ -8,6 +8,7 @@ type cert = bytes  (* public part of a certificate *)
 
 type certchain = cert list
 type sign_cert = (certchain * Sig.alg * Sig.skey) option
+type enc_cert = (certchain * RSA.sk) option
 
 (* First argument (Sig.alg list) for both functions gives the allowed
  * signing alg. used for signing the key. For [for_signing] TLS1.2
@@ -15,7 +16,7 @@ type sign_cert = (certchain * Sig.alg * Sig.skey) option
  * signing alg. that can be used with that key.
  *)
 val for_signing : Sig.alg list -> hint -> Sig.alg list -> sign_cert
-val for_key_encryption : Sig.alg list -> hint -> (certchain * RSA.sk) option
+val for_key_encryption : Sig.alg list -> hint -> enc_cert
 
 val get_public_signing_key : cert -> Sig.alg -> Sig.vkey Result
 val get_public_encryption_key : cert -> RSA.pk Result

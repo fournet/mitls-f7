@@ -13,7 +13,7 @@ let try_read_mimes path =
         Console.WriteLine("cannot read mime-types: " + e.Message)
         Mime.MimeMap ()
 
-let tlsoptions certdir = {
+let tlsoptions sessionDBDir serverName clientName = {
     TLSInfo.minVer = CipherSuites.ProtocolVersion.SSL_3p0
     TLSInfo.maxVer = CipherSuites.ProtocolVersion.TLS_1p2
 
@@ -27,14 +27,15 @@ let tlsoptions certdir = {
 
     TLSInfo.honourHelloReq = TLSInfo.HRPResume
     TLSInfo.allowAnonCipherSuite = false
-    TLSInfo.request_client_certificate = false
     TLSInfo.check_client_version_in_pms_for_old_tls = true
+    TLSInfo.request_client_certificate = match clientName with | None -> false | Some(_) -> true
+    
     TLSInfo.safe_renegotiation = true
 
-    TLSInfo.server_cert_file = Path.Combine(certdir, "server")
-    TLSInfo.trustedRootCertificates = []
+    TLSInfo.server_name = serverName
+    TLSInfo.client_name = match clientName with | None -> "" | Some(name) -> name
 
-    TLSInfo.sessionDBFileName = Path.Combine(certdir, "sessionDBFile.bin")
+    TLSInfo.sessionDBFileName = Path.Combine(sessionDBDir, "sessionDBFile.bin")
     TLSInfo.sessionDBExpiry = Bytes.newTimeSpan 2 0 0 0 (* two days *)
 }
 
@@ -42,6 +43,8 @@ type options = {
     rootdir   : string;
     certdir   : string;
     localaddr : IPEndPoint;
+    localname : string;
+    remotename: string option;
 }
 
 exception ArgError of string
@@ -51,8 +54,10 @@ let cmdparse = fun () ->
     let mypath   = Path.GetDirectoryName(assembly.Location)
     let options  = ref {
         rootdir   = Path.Combine(mypath, "htdocs");
-        certdir   = Path.Combine(mypath, "certificates");
-        localaddr = IPEndPoint(IPAddress.Loopback, 2443); }
+        certdir   = Path.Combine(mypath, "sessionDB");
+        localaddr = IPEndPoint(IPAddress.Loopback, 2443);
+        localname = "tls.inria.fr";
+        remotename= None }
 
     let valid_path = fun path ->
         Directory.Exists path
@@ -83,11 +88,19 @@ let cmdparse = fun () ->
         with :?System.FormatException ->
             raise (ArgError (sprintf "Invalid IP Address: %s" s))
 
+    let o_localname = fun s ->
+        options := { !options with localname = s}
+
+    let o_remotename = fun s ->
+        options := { !options with remotename = Some(s)}
+
     let specs = [
-        "--root-dir"    , ArgType.String o_rootdir, "HTTP root directory"
-        "--cert-dir"    , ArgType.String o_certdir, "certificates root directory"
-        "--bind-port"   , ArgType.Int    o_port   , "local port"
-        "--bind-address", ArgType.String o_address, "local address"]
+        "--root-dir"     , ArgType.String o_rootdir   , "HTTP root directory"
+        "--sessionDB-dir", ArgType.String o_certdir   , "session database directory"
+        "--bind-port"    , ArgType.Int    o_port      , "local port"
+        "--bind-address" , ArgType.String o_address   , "local address"
+        "--local-name"   , ArgType.String o_localname , "local host name"
+        "--remote-name"  , ArgType.String o_remotename, "remote host name (if any)"]
 
     let specs = specs |> List.map (fun (sh, ty, desc) -> ArgInfo(sh, ty, desc))
 
@@ -102,7 +115,7 @@ let _ =
     HttpLogger.HttpLogger.Level <- HttpLogger.DEBUG;
 
     let options    = cmdparse () in
-    let tlsoptions = tlsoptions options.certdir in
+    let tlsoptions = tlsoptions options.certdir options.localname options.remotename in
     let mimesmap   = try_read_mimes (Path.Combine(options.rootdir, "mime.types")) in
 
         HttpServer.run {

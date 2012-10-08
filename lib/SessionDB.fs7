@@ -7,14 +7,13 @@ val load: filename: string -> Map
 val store: filename:string -> map:Map -> unit
 *)
 
-// FIXME: in the DB a session must be indexed by sessionID and host!
-
-type StorableSession = si:SessionInfo * (;si)PRFs.masterSecret * Role
+type StorableSession = si:SessionInfo * (;si)PRFs.masterSecret
 
 type SessionDB
+type SessionIndex = sessionID * Role * Cert.hint
 
 val create: config -> SessionDB
-val select: SessionDB -> sessionID -> StorableSession option
-val insert: SessionDB -> sessionID -> StorableSession -> SessionDB
-val remove: SessionDB -> sessionID -> SessionDB
-val getAllStoredIDs: SessionDB -> sessionID list
+val select: SessionDB -> SessionIndex -> StorableSession option
+val insert: SessionDB -> SessionIndex -> StorableSession -> SessionDB
+val remove: SessionDB -> SessionIndex -> SessionDB
+val getAllStoredIDs: SessionDB -> SessionIndex list

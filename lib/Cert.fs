@@ -16,6 +16,7 @@ type cert = bytes
 
 type certchain = cert list
 type sign_cert = (certchain * Sig.alg * Sig.skey) option
+type enc_cert = (certchain * RSA.sk) option
 
 (* ------------------------------------------------------------------------ *)
 let OID_RSAEncryption        = "1.2.840.113549.1.1.1"

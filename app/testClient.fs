@@ -19,8 +19,8 @@ let options = {
     allowAnonCipherSuite = false
     request_client_certificate = false
     check_client_version_in_pms_for_old_tls = true
-    server_cert_file = "server"
-    trustedRootCertificates = []
+    server_name = "tls.inria.fr"
+    client_name = ""
     safe_renegotiation = true
 
     sessionDBFileName = "sessionDBFile.bin"
