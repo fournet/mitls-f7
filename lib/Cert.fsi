@@ -32,6 +32,7 @@ val is_chain_for_key_encryption : certchain -> bool
 
 val get_chain_key_algorithm : certchain -> Algorithms.sigAlg option
 
+val get_hint : certchain -> hint option
 (* First argument (Sig.alg list) gives the allowed signing alg. used for
  * signing the keys of the chain.
  *)

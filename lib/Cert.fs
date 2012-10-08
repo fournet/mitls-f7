@@ -278,3 +278,11 @@ let validate_cert_chain (sigkeyalgs : Sig.alg list) (chain : certchain) =
 
         with :? CryptographicException ->
             false
+
+(* ------------------------------------------------------------------------ *)
+let get_hint (chain : certchain) =
+    let chain = List.map (fun (c : cert) -> new X509Certificate2(c)) chain in
+
+    match chain with
+    | []     -> None
+    | c :: _ -> Some (c.GetNameInfo (X509NameType.SimpleName, false)) (* FIX *)
