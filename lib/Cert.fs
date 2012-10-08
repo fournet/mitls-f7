@@ -227,6 +227,19 @@ let get_chain_public_encryption_key (chain : certchain) =
     | c :: _ -> get_public_encryption_key c
 
 (* ------------------------------------------------------------------------ *)
+let get_chain_key_algorithm (chain : certchain) =
+    match chain with
+    | []     -> None
+    | c :: _ ->
+        try
+            let x509 = new X509Certificate2(c) in
+                match x509.GetKeyAlgorithm () with
+                | x when x = OID_RSAEncryption   -> Some SA_RSA
+                | x when x = OID_DSASignatureKey -> Some SA_DSA
+                | _ -> None
+        with :? CryptographicException -> None
+
+(* ------------------------------------------------------------------------ *)
 let rec validate_x509_chain (c : X509Certificate2) (issuers : X509Certificate2 list) =
     try
         let chain = new X509Chain () in
@@ -246,23 +259,10 @@ let rec validate_x509_chain (c : X509Certificate2) (issuers : X509Certificate2 l
                         |> (Seq.map (fun (ce : X509ChainElement) -> ce.Certificate))
                         |> Seq.toList
                 in
-                       (certschain.Length = issuers.Length)
+                    (certschain.Length >= issuers.Length)
                     && Seq.forall2 eq_thumbprint certschain issuers
 
     with :? CryptographicException -> false
-
-(* ------------------------------------------------------------------------ *)
-let get_chain_key_algorithm (chain : certchain) =
-    match chain with
-    | []     -> None
-    | c :: _ ->
-        try
-            let x509 = new X509Certificate2(c) in
-                match x509.GetKeyAlgorithm () with
-                | x when x = OID_RSAEncryption   -> Some SA_RSA
-                | x when x = OID_DSASignatureKey -> Some SA_DSA
-                | _ -> None
-        with :? CryptographicException -> None
 
 (* ------------------------------------------------------------------------ *)
 let validate_cert_chain (sigkeyalgs : Sig.alg list) (chain : certchain) =
@@ -272,7 +272,8 @@ let validate_cert_chain (sigkeyalgs : Sig.alg list) (chain : certchain) =
         try
             let c       = new X509Certificate2(c) in
             let issuers = List.map (fun (c : cert) -> new X509Certificate2(c)) chain in
-                   Seq.forall (x509_check_key_sig_alg_one sigkeyalgs) (c :: issuers)
+                Seq.forall (x509_check_key_sig_alg_one sigkeyalgs) (c :: issuers)
                 && validate_x509_chain c issuers
+
         with :? CryptographicException ->
             false
