@@ -92,7 +92,10 @@ let x509_check_key_sig_alg_one (sigkeyalgs : Sig.alg list) (x509 : X509Certifica
 let x509_chain (x509 : X509Certificate2) = (* FIX: Is certs. store must be opened ? *)
     let chain = new X509Chain() in
         ignore (chain.Build(x509));
-        chain.ChainElements |> Seq.cast |> Seq.toList
+        chain.ChainElements
+            |> Seq.cast
+            |> Seq.map (fun (ce : X509ChainElement) -> ce.Certificate)
+            |> Seq.toList
 
 (* ------------------------------------------------------------------------ *)
 let x509_export_public (x509 : X509Certificate2) : bytes =
