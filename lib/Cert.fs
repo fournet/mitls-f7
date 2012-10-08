@@ -84,7 +84,7 @@ let x509_has_key_usage_flag strict flag (x509 : X509Certificate2) =
 let x509_check_key_sig_alg (sigkeyalg : Sig.alg) (x509 : X509Certificate2) =
     match x509.SignatureAlgorithm with
 //    | o when o.Value = OID_MD5WithRSAEncryption -> sigkeyalg = (SA_RSA, [MD5]) // Obsolete
-    | o when o.Value = OID_SHAWithRSAEncryption -> sigkeyalg = (SA_RSA, [MD5;SHA]) || sigkeyalg = (SA_RSA, [SHA]) // We are not strict, to comply with TLS < 1.2
+    | o when o.Value = OID_SHAWithRSAEncryption -> sigkeyalg = (SA_RSA, [MD5;SHA]) || sigkeyalg = (SA_RSA, [SHA]) || sigkeyalg = (SA_RSA, []) // We are not strict, to comply with TLS < 1.2
     | o when o.Value = OID_SHA256WithRSAEncryption -> sigkeyalg = (SA_RSA, [SHA256])
     | o when o.Value = OID_DSASignatureKey      -> sigkeyalg = (SA_DSA, [SHA])
     | _ -> false
