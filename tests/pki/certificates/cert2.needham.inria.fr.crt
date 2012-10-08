@@ -1,0 +1,51 @@
+Certificate:
+    Data:
+        Version: 1 (0x0)
+        Serial Number: 2 (0x2)
+    Signature Algorithm: md5WithRSAEncryption
+        Issuer: C=FR, ST=Ile de France, L=Paris, O=MSR-INRIA Joint Lab, OU=Security Group, CN=needham.inria.fr/emailAddress=root@needham.inria.fr
+        Validity
+            Not Before: Oct  8 14:36:06 2012 GMT
+            Not After : Dec 25 14:36:06 2020 GMT
+        Subject: C=FR, ST=Ile de France, L=paris, O=MSR-INRIA Joint Lab, OU=Certificate 0x02, CN=cert-02.needham.inria.fr/emailAddress=root@needham.inria.fr
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                Public-Key: (1024 bit)
+                Modulus:
+                    00:c9:62:b1:c7:12:18:02:37:c0:ce:09:0b:23:66:
+                    32:39:aa:3c:bc:74:24:25:84:6e:7c:f7:79:44:06:
+                    8f:58:5c:fc:b0:58:ac:c3:02:67:77:40:49:9d:cb:
+                    51:a2:c2:91:fe:b9:9f:09:e8:02:6a:62:ed:55:18:
+                    b8:a1:d3:ac:10:d7:46:d5:44:67:d4:af:65:5c:b1:
+                    2b:ef:7a:e5:e9:80:97:1f:33:ff:77:71:e4:01:b1:
+                    8a:29:c5:82:1f:91:72:8d:0e:cf:56:18:2e:1f:b6:
+                    a4:33:d4:10:0e:d9:9d:1f:de:91:58:1f:98:8c:56:
+                    7f:9e:c7:67:40:7b:5c:79:8f
+                Exponent: 65537 (0x10001)
+    Signature Algorithm: md5WithRSAEncryption
+         05:84:3c:85:65:d5:86:8d:b0:05:d1:5f:0a:c0:4d:4a:f2:17:
+         3f:89:54:96:67:ce:4d:23:b3:8c:a6:05:d1:ce:06:d9:3b:66:
+         99:b7:ef:83:e0:37:e5:de:70:45:df:36:79:15:75:b8:06:bf:
+         97:45:29:8b:33:77:9b:aa:f6:a3:2f:63:f1:82:6a:e5:7c:39:
+         36:5c:b5:94:1c:f6:aa:8f:a6:78:38:9a:a2:09:1f:a6:48:15:
+         ee:76:ba:a1:da:70:d3:4a:51:9d:21:8e:ef:97:fe:00:74:b6:
+         26:93:a2:ae:80:a6:f5:65:d1:6c:dd:ec:e2:b7:87:34:99:10:
+         5e:be
+-----BEGIN CERTIFICATE-----
+MIIC1TCCAj4CAQIwDQYJKoZIhvcNAQEEBQAwga0xCzAJBgNVBAYTAkZSMRYwFAYD
+VQQIDA1JbGUgZGUgRnJhbmNlMQ4wDAYDVQQHDAVQYXJpczEcMBoGA1UECgwTTVNS
+LUlOUklBIEpvaW50IExhYjEXMBUGA1UECwwOU2VjdXJpdHkgR3JvdXAxGTAXBgNV
+BAMMEG5lZWRoYW0uaW5yaWEuZnIxJDAiBgkqhkiG9w0BCQEWFXJvb3RAbmVlZGhh
+bS5pbnJpYS5mcjAeFw0xMjEwMDgxNDM2MDZaFw0yMDEyMjUxNDM2MDZaMIG3MQsw
+CQYDVQQGEwJGUjEWMBQGA1UECAwNSWxlIGRlIEZyYW5jZTEOMAwGA1UEBwwFcGFy
+aXMxHDAaBgNVBAoME01TUi1JTlJJQSBKb2ludCBMYWIxGTAXBgNVBAsMEENlcnRp
+ZmljYXRlIDB4MDIxITAfBgNVBAMMGGNlcnQtMDIubmVlZGhhbS5pbnJpYS5mcjEk
+MCIGCSqGSIb3DQEJARYVcm9vdEBuZWVkaGFtLmlucmlhLmZyMIGfMA0GCSqGSIb3
+DQEBAQUAA4GNADCBiQKBgQDJYrHHEhgCN8DOCQsjZjI5qjy8dCQlhG5893lEBo9Y
+XPywWKzDAmd3QEmdy1GiwpH+uZ8J6AJqYu1VGLih06wQ10bVRGfUr2VcsSvveuXp
+gJcfM/93ceQBsYopxYIfkXKNDs9WGC4ftqQz1BAO2Z0f3pFYH5iMVn+ex2dAe1x5
+jwIDAQABMA0GCSqGSIb3DQEBBAUAA4GBAAWEPIVl1YaNsAXRXwrATUryFz+JVJZn
+zk0js4ymBdHOBtk7Zpm374PgN+XecEXfNnkVdbgGv5dFKYszd5uq9qMvY/GCauV8
+OTZctZQc9qqPpng4mqIJH6ZIFe52uqHacNNKUZ0hju+X/gB0tiaToq6ApvVl0Wzd
+7OK3hzSZEF6+
+-----END CERTIFICATE-----
