@@ -30,7 +30,7 @@ let equalBytes (b1:bytes) (b2:bytes) =
     if length b1 <> length b2 then
         false
     else
-        Array.forall2 (fun x y -> x = y) b1 b2 (* No ArgumentException can be thrown *)
+        Array.fold2 (fun ok x y -> (x = y) && ok) true b1 b2
 
 let rng = new System.Security.Cryptography.RNGCryptoServiceProvider ()
 let mkRandom len =
