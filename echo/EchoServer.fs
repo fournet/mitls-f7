@@ -36,21 +36,27 @@ let tlsoptions sessionDBDir = {
 }
 
 let client_handler ctxt (peer : Socket) = fun () ->
+    printfn "Connect: %s" (peer.RemoteEndPoint.ToString ());
     try
-        let netstream = new NetworkStream (peer) in
-        let tlsstream = new TLStream.TLStream (netstream, ctxt, TLStream.TLSServer) in
-        let reader    = new StreamReader (tlsstream) in
-        let writer    = new StreamWriter (tlsstream) in
+        try
+            let netstream = new NetworkStream (peer) in
+            let tlsstream = new TLStream.TLStream (netstream, ctxt, TLStream.TLSServer) in
+            let reader    = new StreamReader (tlsstream) in
+            let writer    = new StreamWriter (tlsstream) in
 
-            let rec doit () =
-                let line = reader.ReadLine () in
-                    if line <> null then
-                        writer.WriteLine (line)
-                        writer.Flush ()
-                        doit ()
-            in
-                doit ()
+                let rec doit () =
+                    let line = reader.ReadLine () in
+                        if line <> null then
+                            printfn "Line[%s]: %s" (peer.RemoteEndPoint.ToString ()) line
+                            writer.WriteLine (line)
+                            writer.Flush ()
+                            doit ()
+                in
+                    doit ()
+        with e ->
+            printfn "%s" (e.ToString ())
     finally
+        printfn "Disconnect: %s" (peer.RemoteEndPoint.ToString ());
         noexn (fun () -> peer.Close ())
 
 let entry () =

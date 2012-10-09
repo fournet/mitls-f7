@@ -7,11 +7,11 @@ import OpenSSL.SSL as ssl
 # --------------------------------------------------------------------
 CA_PEM_CRT_FILE = 'pki/certificates/ca.crt'
 
-SERVER_PEM_KEY_FILE = 'pki/certificates/cert1.needham.inria.fr.key'
-SERVER_PEM_CRT_FILE = 'pki/certificates/cert1.needham.inria.fr.crt'
+SERVER_PEM_KEY_FILE = 'pki/certificates/cert-01.needham.inria.fr.key'
+SERVER_PEM_CRT_FILE = 'pki/certificates/cert-01.needham.inria.fr.crt'
 
-CLIENT_PEM_KEY_FILE = 'pki/certificates/cert2.needham.inria.fr.key'
-CLIENT_PEM_CRT_FILE = 'pki/certificates/cert2.needham.inria.fr.crt'
+CLIENT_PEM_KEY_FILE = 'pki/certificates/cert-02.needham.inria.fr.key'
+CLIENT_PEM_CRT_FILE = 'pki/certificates/cert-02.needham.inria.fr.crt'
 
 SERVER_INET_ADDR = ('127.0.0.1', 6000)
 
@@ -31,8 +31,9 @@ def _create_ctxt(cs, isclient):
     ctxt.set_options(ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3)
 
     if isclient:
-        ctxt.use_certificate_file(CLIENT_PEM_CRT_FILE, ssl.FILETYPE_PEM)
-        ctxt.use_privatekey_file (CLIENT_PEM_KEY_FILE, ssl.FILETYPE_PEM)
+        pass
+        # ctxt.use_certificate_file(CLIENT_PEM_CRT_FILE, ssl.FILETYPE_PEM)
+        # ctxt.use_privatekey_file (CLIENT_PEM_KEY_FILE, ssl.FILETYPE_PEM)
     else:
         ctxt.use_certificate_file(SERVER_PEM_CRT_FILE, ssl.FILETYPE_PEM)
         ctxt.use_privatekey_file (SERVER_PEM_KEY_FILE, ssl.FILETYPE_PEM)
@@ -40,10 +41,10 @@ def _create_ctxt(cs, isclient):
     ctxt.set_cipher_list(CIPHERS[cs])
 
     def _verify_x509(_c, x509, _eo, _ed, ok):
-        # print >>sys.stderr, x509.get_subject().get_components()
-        return ok
+        print >>sys.stderr, x509.get_subject().get_components()
+        return True
 
-    ctxt.set_verify(ssl.VERIFY_PEER | ssl.VERIFY_FAIL_IF_NO_PEER_CERT, _verify_x509)
+    ctxt.set_verify(ssl.VERIFY_PEER, _verify_x509)
     ctxt.load_verify_locations(CA_PEM_CRT_FILE)
 
     return ctxt
@@ -153,9 +154,8 @@ def _client(cs):
         except ssl.ZeroReturnError:
             return aout.getvalue()
 
-    conn.sendall('Hello World!\n')
+    conn.sendall("Hello World!\r\n")
     conn.shutdown()
-
     print _drain().splitlines()
 
     conn.close()
