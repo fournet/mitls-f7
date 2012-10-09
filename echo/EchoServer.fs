@@ -24,7 +24,7 @@ let tlsoptions sessionDBDir = {
     TLSInfo.honourHelloReq = TLSInfo.HRPResume
     TLSInfo.allowAnonCipherSuite = false
     TLSInfo.check_client_version_in_pms_for_old_tls = true
-    TLSInfo.request_client_certificate = false (* FIX *)
+    TLSInfo.request_client_certificate = true
     
     TLSInfo.safe_renegotiation = true
 
@@ -55,6 +55,7 @@ let client_handler ctxt (peer : Socket) = fun () ->
                     doit ()
         with e ->
             printfn "%s" (e.ToString ())
+            printfn "%s" (e.StackTrace)
     finally
         printfn "Disconnect: %s" (peer.RemoteEndPoint.ToString ());
         noexn (fun () -> peer.Close ())
