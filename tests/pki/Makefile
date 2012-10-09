@@ -30,7 +30,7 @@ define layout
 endef
 
 # --------------------------------------------------------------------
-.PHONY: ca layout clean %.cert
+.PHONY: ca layout clean hash
 
 .PRECIOUS: %.p12
 .PRECIOUS: %.key
@@ -78,6 +78,10 @@ certificates/cert-%.needham.inria.fr.csr: certificates/cert-%.needham.inria.fr.k
 # --------------------------------------------------------------------
 %.key:
 	openssl genrsa -out $@ 1024
+
+# --------------------------------------------------------------------
+hash:
+	cd $(PKI)/db/ca.db.certs && c_rehash
 
 # --------------------------------------------------------------------
 layout:
