@@ -30,7 +30,6 @@ type HandshakeType =
     | HT_certificate_verify
     | HT_client_key_exchange
     | HT_finished
-    | HT_unknown of byte //$
 
 let htbytes t =
     match t with
@@ -44,21 +43,20 @@ let htbytes t =
     | HT_certificate_verify  -> [| 15uy |]
     | HT_client_key_exchange -> [| 16uy |]
     | HT_finished            -> [| 20uy |]
-    | HT_unknown x           -> unexpectedError "Unknown handshake type"
 
 let parseHT (b:bytes) = 
-    match b.[0] with
-    |  0uy -> HT_hello_request
-    |  1uy -> HT_client_hello
-    |  2uy -> HT_server_hello
-    | 11uy -> HT_certificate
-    | 12uy -> HT_server_key_exchange
-    | 13uy -> HT_certificate_request
-    | 14uy -> HT_server_hello_done
-    | 15uy -> HT_certificate_verify
-    | 16uy -> HT_client_key_exchange
-    | 20uy -> HT_finished
-    |  x   -> HT_unknown (x)
+    match b with
+    | [|  0uy |] -> correct(HT_hello_request      )
+    | [|  1uy |] -> correct(HT_client_hello       )
+    | [|  2uy |] -> correct(HT_server_hello       )
+    | [| 11uy |] -> correct(HT_certificate        )
+    | [| 12uy |] -> correct(HT_server_key_exchange)
+    | [| 13uy |] -> correct(HT_certificate_request)
+    | [| 14uy |] -> correct(HT_server_hello_done  )
+    | [| 15uy |] -> correct(HT_certificate_verify )
+    | [| 16uy |] -> correct(HT_client_key_exchange)
+    | [| 20uy |] -> correct(HT_finished           )
+    | _   -> Error(Parsing,WrongInputParameters)
 
 /// Handshake message format 
 
@@ -75,10 +73,9 @@ let parseMessage buf =
         let len = int_of_bytes lenb in
         if length rem < len then None (* not enough payload, try next time *)
         else
-            let hstype = parseHT hstypeb in
             let (payload,rem) = Bytes.split rem len in
             let to_log = hstypeb @| lenb @| payload in //$
-            Some(rem,hstype,payload,to_log)
+            Some(rem,hstypeb,payload,to_log)
 
 
 // FIXME: cleanup when handshake is ported to streams and deltas
@@ -273,12 +270,9 @@ let rec parseCertificate_int toProcess list =
             parseCertificate_int toProcess list
 
 let parseCertificate data =
-    match vlsplit 3 data with
+    match vlparse 3 data with
     | Error(x,y) -> Error(HSError(AD_bad_certificate_fatal),HSSendAlert)
-    | Correct (certList,rem) ->
-    if not (equalBytes rem [||]) then
-        Error(HSError(AD_bad_certificate_fatal),HSSendAlert)
-    else
+    | Correct (certList) ->
         match parseCertificate_int certList [] with
         | Error(x,y) -> Error(x,y)
         | Correct(certs) -> correct(certs)
@@ -452,14 +446,6 @@ let parseCertificateRequest version data =
 
 (** A.4.3 Client Authentication and Key Exchange Messages *) 
 
-type preMasterSecret =
-    { pms_client_version: ProtocolVersion; (* highest version supported by the client *)
-      pms_random: bytes }
-
-type clientKeyExchange =
-    | EncryptedPreMasterSecret of bytes (* encryption of PMS *)
-    | ClientDHPublic (* TODO *)
-
 let makeClientKEX_RSA si config =
     let pms = RSAPlain.genPMS si config.maxVer in
     if si.serverID.IsEmpty then
@@ -554,41 +540,7 @@ let certificateVerifyCheck si ms algs vkey log payload =
 
 type finished = bytes
 
-(* makeVerifyData is defined in PRFs.fs *)
-
-// END HS_msg
-
-// Handshake module
-
-// Handshake state machines 
-
-// Legacy state machine. Here for reference until the new one is stable.
-
-// type clientState =
-//   | ServerHello (* of SessionInfo Option 
-//                    client proposed session to be resumed, useful to
-//                    check whether we're going to do resumption or full
-//                    negotiation *)
-//   | Certificate       (* of SessionInfo (* being established *) *)
-//   | ServerKeyExchange (* of SessionInfo (* begin established *) *)
-//   | CertReqOrSHDone   (* of SessionInfo (* being established *) *)
-//   | CSHDone of           (* SessionInfo * *) clientSpecificState  
-//   | CCCS of              (* SessionInfo * *) clientSpecificState      
-//   | CFinished of         (* SessionInfo * *) clientSpecificState 
-//   | CWaitingToWrite of   (* SessionInfo * *) clientSpecificState
-//   | CIdle
-// 
-// type serverState = (* should also include SessionInfo beging established? *)
-//   | ClientHello
-//   | ClCert of serverSpecificState
-//   | ClientKEX of serverSpecificState
-//   | CertificateVerify of serverSpecificState
-//   | SCCS of serverSpecificState
-//   | SFinished of serverSpecificState
-//   | SWaitingToWrite of serverSpecificState
-//   | SIdle
-
-// New state machine begins
+// State machine begins
 type log = bytes
 type cVerifyData = bytes
 type sVerifyData = bytes
@@ -646,32 +598,13 @@ type KIAndCCS = (epoch * StatefulAEAD.state)
 
 type pre_hs_state = {
   (* I/O buffers *)
-  hs_outgoing    : bytes;                  (* outgoing data before a ccs *)
-  //ccs_outgoing: (bytes * KIAndCCS) option; (* marker telling there is a ccs ready *)
-  //hs_outgoing_after_ccs: bytes;            (* data to be sent after the ccs has been sent *)
+  hs_outgoing    : bytes;                  (* outgoing data *)
   hs_incoming    : bytes;                  (* partial incoming HS message *)
-  //ccs_incoming: KIAndCCS option; (* used to store the computed secrets for receiving data. Not set when receiving CCS, but when we compute the session secrects *)
- 
   (* local configuration *)
   poptions: config; 
   sDB: SessionDB.SessionDB;
-  
-  (* current handshake & session we are establishing, to be pushed within pstate *) 
+  (* current handshake & session we are establishing *) 
   pstate: protoState;
-  //hs_next_info: SessionInfo; (* session being established or resumed, including crand and srand from its full handshake *)
-  //next_ms: masterSecret;     (* master secret being established *)
-  //hs_msg_log: bytes;         (* sequence of HS messages sent & received so far, to be eventually authenticated *) 
-  
-  (* to be pushed only in resumption-specific state: *)
-  //ki_crand: bytes;           (* fresh client random for the session being established *)
-  //ki_srand: bytes;           (* fresh server random for the session being established *)
-
-  (* state specific to the renegotiation-info extension
-     - exchanged in the extended Hello messages 
-     - updated with the content of the verifyData messages as the handshake completes *)
-  // We'll retrieve them from the current epoch
-  //hs_renegotiation_info_cVerifyData: bytes 
-  //hs_renegotiation_info_sVerifyData: bytes 
 }
 
 type hs_state = pre_hs_state
@@ -1071,7 +1004,10 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
       match agreedVersion with
       | None      -> InAck(state)
       | Some (pv) -> InVersionAgreed(state,pv)
-    | Some (state,hstype,payload,to_log) ->
+    | Some (state,hstypeb,payload,to_log) ->
+      match parseHT hstypeb with
+      | Error(x,y) -> InError(HSError(AD_decode_error),HSSendAlert,state)
+      | Correct(hstype) ->
       match state.pstate with
       | PSClient(cState) ->
         match hstype with
@@ -1378,7 +1314,10 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
       match agreedVersion with
       | None      -> InAck(state)
       | Some (pv) -> InVersionAgreed(state,pv)
-    | Some (state,hstype,payload,to_log) ->
+    | Some (state,hstypeb,payload,to_log) ->
+      match parseHT hstypeb with
+      | Error(x,y) -> InError(HSError(AD_decode_error),HSSendAlert,state)
+      | Correct(hstype) ->
       match state.pstate with
       | PSServer(sState) ->
         match hstype with
