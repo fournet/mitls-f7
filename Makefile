@@ -4,7 +4,7 @@ name = OurTLS
 version = 0.0.internal
 distname = $(name)-$(version)
 
-projs = ManagedRC4 lib TLSharp HttpServer RPCClient RPCServer www-data doc
+projs = ManagedRC4 lib TLSharp HttpServer rpc www-data doc
 localfiles = Makefile Makefile.inc Makefile_default.inc
 
 .PHONY = all dist dist-this build clean clean-dist
