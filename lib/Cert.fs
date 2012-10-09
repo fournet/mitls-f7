@@ -53,13 +53,13 @@ let x509_to_secret_key (x509 : X509Certificate2) =
     match x509.GetKeyAlgorithm() with
     | x when x = OID_RSAEncryption ->
         try
-            let skey = (x509.PrivateKey :?> RSA).ExportParameters(true ) in
-                Some (SK_RSA (skey.Modulus, skey.Exponent))
+            let skey = (x509.PrivateKey :?> RSA).ExportParameters(true) in
+                Some (SK_RSA (skey.Modulus, skey.D))
         with :? CryptographicException -> None
 
     | x when x = OID_DSASignatureKey ->
         try
-            let skey = (x509.PrivateKey :?> DSA).ExportParameters(true ) in
+            let skey = (x509.PrivateKey :?> DSA).ExportParameters(true) in
             let dsaparams = { p = skey.P; q = skey.Q; g = skey.G } in
                 Some (SK_DSA (skey.X, dsaparams))
         with :? CryptographicException -> None
