@@ -55,7 +55,13 @@ type TLStream(s:System.Net.Sockets.NetworkStream, options, b) =
         | TLS.Warning (conn,ad) -> raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
         | TLS.CertQuery (conn,q) -> raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate"))
         | TLS.Handshaken conn -> wrapRead conn
-        | TLS.Read (conn,msg) -> (conn,undoMsg_i conn msg)
+        | TLS.Read (conn,msg) ->
+            let read = undoMsg_i conn msg in
+            if equalBytes read [||] then
+                // The other party sent some empty fragment. Let's read more.
+                wrapRead conn
+            else
+                (conn,read)
         | TLS.DontWrite conn -> wrapRead conn
 
     let mutable conn =
