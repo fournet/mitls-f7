@@ -309,10 +309,10 @@ let sigHashAlgBytes (alg:Sig.alg) =
     let hash = hashL.Head in
     let signB = sigAlgBytes sign in
     let hashB = hashAlgBytes hash in
-    signB @| hashB
+    hashB @| signB
 
 let parseSigHashAlg b =
-    let (signB,hashB) = Bytes.split b 1 in
+    let (hashB,signB) = Bytes.split b 1 in
     match parseSigAlg signB with
     | Error(x,y) -> Error(x,y)
     | Correct(sign) ->
