@@ -68,7 +68,7 @@ type MultipleDigester(digesters : IDigest list) =
             digesters |> List.iter (fun (i : IDigest) -> i.Reset ())
 
 (* ------------------------------------------------------------------------ *)
-let new_hash_engine (h : hashAlg list) : IDigest =
+let new_hash_engine (h : chash) : IDigest =
     let new_hash_engine (h : hashAlg) : IDigest =
         match h with
         | MD5    -> (new MD5Digest   () :> IDigest)
@@ -82,15 +82,21 @@ let new_hash_engine (h : hashAlg list) : IDigest =
         | _   -> new MultipleDigester(h |> List.map new_hash_engine) :> IDigest
 
 (* ------------------------------------------------------------------------ *)
+let new_rsa_signer (h : chash) =
+    match h with
+    | [_] -> new RsaDigestSigner(new_hash_engine h)
+    | _   -> new RsaDigestSigner(new_hash_engine h, null)
+
+(* ------------------------------------------------------------------------ *)
 let RSA_sign (m, e) (h : chash) (t : text) : sigv =
-    let signer = new RsaDigestSigner(new_hash_engine h) in
+    let signer = new_rsa_signer h in
 
     signer.Init(true, new RsaKeyParameters(true, bytes_to_bigint m, bytes_to_bigint e))
     signer.BlockUpdate(t, 0, t.Length)
     signer.GenerateSignature()
 
 let RSA_verify ((m, e) : bytes * bytes) (h : chash) (t : text) (s : sigv) =
-    let signer = new RsaDigestSigner(new_hash_engine h) in
+    let signer = new_rsa_signer h in
 
     signer.Init(false, new RsaKeyParameters(false, bytes_to_bigint m, bytes_to_bigint e))
     signer.BlockUpdate(t, 0, t.Length)

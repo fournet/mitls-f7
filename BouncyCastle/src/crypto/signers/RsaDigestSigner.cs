@@ -65,6 +65,14 @@ namespace Org.BouncyCastle.Crypto.Signers
 			}
         }
 
+        public RsaDigestSigner(
+            IDigest digest,
+            AlgorithmIdentifier algId)
+        {
+            this.digest = digest;
+            this.algId = algId;
+        }
+
 		public string AlgorithmName
         {
             get { return digest.AlgorithmName + "withRSA"; }
