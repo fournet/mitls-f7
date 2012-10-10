@@ -18,13 +18,18 @@ private type (;si:SessionInfo) masterSecret = msRepr
 val PRFsmoothRSA:
     si:SessionInfo -> 
     pms: (;si) RSAPlain.pms ->
+    (;si) masterSecret
+
+val PRFsmoothDHE:
+    si:SessionInfo -> 
+    pms: (;si) DHE.pms ->
     (;si) masterSecret 
 
-val PRFsmoothDH:
-    si:SessionInfo ->
-	p: DH.p -> g: (;p) DH.elt -> gx: (;p) DH.elt -> gy: (;p) DH.elt -> 
-	pms: (p,g,gx,gy) DH.pms ->
-	(;si) masterSecret 
+// val PRFsmoothDH:
+//     si:SessionInfo ->
+// 	p: DH.p -> g: (;p) DH.elt -> gx: (;p) DH.elt -> gy: (;p) DH.elt -> 
+// 	pms: (p,g,gx,gy) DH.pms ->
+// 	(;si) masterSecret 
 
 (** VerifyData MAC keyed with the master secret, relying on CMA ***)          
 
@@ -49,6 +54,5 @@ val keyGen: ci:ConnectionInfo -> (;EpochSI(ci.id_out))masterSecret ->
 
 val makeTimestamp: unit -> int
 
-// Maybe this is the wrong place? Better in Sig? Now placed here since it accesses MS bytes.
-val ssl_certificate_verify: si:SessionInfo -> (;si)masterSecret -> a:Sig.alg -> (;a)Sig.skey -> Sig.text -> (;a)Sig.sigv
-val ssl_certificate_verify_check: si:SessionInfo -> (;si)masterSecret -> a:Sig.alg -> (;a)Sig.vkey -> Sig.text -> (;a)Sig.sigv -> bool
+// SSL 3 specific encoding function for certificate verify
+val ssl_certificate_verify: si:SessionInfo -> (;si)masterSecret -> a:Sig.alg -> bytes -> bytes

@@ -144,8 +144,8 @@ let prfMS sinfo pmsBytes: masterSecret =
     let res = generic_prf pv cs pmsBytes "master secret" data 48 in
     {bytes = res}
 
-let prfSmoothRSA si (pms: RSAPlain.pms)    = prfMS si (RSAPlain.leak si pms)
-let prfSmoothDH si (p:DH.p) (g:DH.elt) (gx:DH.elt) (gy:DH.elt) (pms: DH.pms) = prfMS si (DH.leak p g gx gy pms)
+let prfSmoothRSA si (pms: RSAPlain.pms) = prfMS si (RSAPlain.leak si pms)
+let prfSmoothDHE si (pms: DHE.pms)      = prfMS si (DHE.leak si pms)
 
 
 let keyGen ci (ms:masterSecret) =
@@ -203,22 +203,10 @@ let ssl_certificate_verify_hash si ms log hashAlg =
     let forStep2 = ms.bytes @| pad2 @| step1 in
     hash hashAlg forStep2
 
-let ssl_certificate_verify (si:SessionInfo) ms algs skey log =
-    let toSign =
-        match algs with
-        | (SA_RSA,_) ->
-            ssl_certificate_verify_hash si ms log MD5 @| ssl_certificate_verify_hash si ms log SHA
-        | (SA_DSA,_) ->
-            ssl_certificate_verify_hash si ms log SHA
-        | _ -> unexpectedError "[ssl_certificate_verify] invoked on a wrong signature algorithm"
-    Sig.sign algs skey toSign
-
-let ssl_certificate_verify_check (si:SessionInfo) ms algs vkey log expected =
-    let computed =
-        match algs with
-        | (SA_RSA,_) ->
-            ssl_certificate_verify_hash si ms log MD5 @| ssl_certificate_verify_hash si ms log SHA
-        | (SA_DSA,_) ->
-            ssl_certificate_verify_hash si ms log SHA
-        | _ -> unexpectedError "[ssl_certificate_verify] invoked on a wrong signature algorithm"
-    Sig.verify algs vkey computed expected
+let ssl_certificate_verify (si:SessionInfo) ms (algs:Sig.alg) log =
+    match algs with
+    | (SA_RSA,_) ->
+        ssl_certificate_verify_hash si ms log MD5 @| ssl_certificate_verify_hash si ms log SHA
+    | (SA_DSA,_) ->
+        ssl_certificate_verify_hash si ms log SHA
+    | _ -> unexpectedError "[ssl_certificate_verify] invoked on a wrong signature algorithm"
