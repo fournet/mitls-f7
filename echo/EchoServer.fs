@@ -65,8 +65,8 @@ let entry () =
     let mypath       = Path.GetDirectoryName(assembly.Location) in
     let sessiondbdir = Path.Combine(mypath, "sessionDB") in
     let ctxt         = tlsoptions sessiondbdir in
-    let localaddr    = new IPEndPoint(IPAddress.Loopback, 6000) in
-    let listener     = new TcpListener (localaddr) in
+    let localaddr    = new IPEndPoint(IPAddress.Any, 6000) in
+    let listener     = new TcpListener(localaddr) in
 
         listener.Start ();
         listener.Server.SetSocketOption(SocketOptionLevel.Socket,
