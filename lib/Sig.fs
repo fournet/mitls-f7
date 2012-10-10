@@ -68,38 +68,6 @@ type MultipleDigester(digesters : IDigest list) =
             digesters |> List.iter (fun (i : IDigest) -> i.Reset ())
 
 (* ------------------------------------------------------------------------ *)
-type IdDigester () =
-    let mutable buffer = new System.IO.MemoryStream ()
-
-    interface IDigest with
-        member self.AlgorithmName =
-            "IdDigester"
-
-        member self.GetDigestSize () =
-            int(buffer.Length)
-
-        member self.GetByteLength () =
-            int(buffer.Length)
-
-        member self.Update (b : byte) =
-            buffer.WriteByte (b)
-
-        member self.BlockUpdate (bs : byte[], off : int, len : int) =
-            buffer.Write (bs, off, len)
-
-        member self.DoFinal (output : byte[], off : int) =
-            try
-                let len = (self :> IDigest).GetDigestSize () in
-                    ignore (buffer.Seek(int64(0), IO.SeekOrigin.Begin));
-                    ignore (buffer.Read(output, off, len)); // MemoryStream does not short-read
-                    len
-            finally
-                (self :> IDigest).Reset ()
-
-        member self.Reset () =
-            buffer <- new System.IO.MemoryStream ()
-
-(* ------------------------------------------------------------------------ *)
 let new_hash_engine (h : hashAlg list) : IDigest =
     let new_hash_engine (h : hashAlg) : IDigest =
         match h with
@@ -108,10 +76,10 @@ let new_hash_engine (h : hashAlg list) : IDigest =
         | SHA256 -> (new Sha256Digest() :> IDigest)
         | SHA384 -> (new Sha384Digest() :> IDigest)
     in
-        if h = [] then
-            new IdDigester () :> IDigest
-        else
-            new MultipleDigester(h |> List.map new_hash_engine) :> IDigest
+        match h with
+        | []  -> new NullDigest () :> IDigest
+        | [h] -> new_hash_engine h
+        | _   -> new MultipleDigester(h |> List.map new_hash_engine) :> IDigest
 
 (* ------------------------------------------------------------------------ *)
 let RSA_sign (m, e) (h : chash) (t : text) : sigv =
