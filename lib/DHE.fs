@@ -34,7 +34,10 @@ let genKey (g : g) (p : p) : x * y =
         let skey  = (kpair.Private :?> DHPrivateKeyParameters) in
             ({ x = skey.X.ToByteArrayUnsigned() }, pkey.Y.ToByteArrayUnsigned())
 
-let genPMS (si:SessionInfo) (g : g) (p : p) (x : x) (y : y) : pms =
-    failwith "TODO"
+let genPMS (si : SessionInfo) (g : g) (p : p) ({ x = x } : x) (y : y) : pms =
+    let x = new BigInteger(1, x) in
+    let y = new BigInteger(1, y) in
+    let p = new BigInteger(1, p) in
+        { pms = y.ModPow(x, p).ToByteArrayUnsigned() }
 
 let leak (si : SessionInfo) pms = pms.pms

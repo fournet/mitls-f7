@@ -129,6 +129,8 @@
     <None Include="DH.fs7" />
     <None Include="DH.fsi" />
     <Compile Include="DH.fs" />
+    <Compile Include="DHE.fsi" />
+    <Compile Include="DHE.fs" />
     <None Include="PRFs.fs7" />
     <Compile Include="PRFs.fsi" />
     <Compile Include="PRFs.fs" />
