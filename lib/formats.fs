@@ -24,7 +24,7 @@ let parseCT b =
     | [|21uy|] -> correct(Alert)
     | [|22uy|] -> correct(Handshake)
     | [|23uy|] -> correct(Application_data)
-    | _        -> Error(Parsing,WrongInputParameters)
+    | _        -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let CTtoString = function
     | Change_cipher_spec -> "CCS" 
@@ -42,14 +42,14 @@ let vlsplit lSize vlb : (bytes * bytes) Result =
     let l = int_of_bytes vl
     if l <= length b 
     then correct(split b l) 
-    else Error(Parsing,CheckFailed)
+    else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
  
 let vlparse lSize vlb : bytes Result = 
     let (vl,b) = split vlb lSize 
     let l = int_of_bytes vl
     if l = length b 
     then correct b 
-    else Error(Parsing,CheckFailed)
+    else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 (*
 let split_at_most data len =
@@ -88,4 +88,4 @@ let parseCertType b =
     | [|2uy|] -> Correct(DSA_sign)
     | [|3uy|] -> Correct(RSA_fixed_dh)
     | [|4uy|] -> Correct(DSA_fixed_dh)
-    | _ -> Error(Parsing,WrongInputParameters)
+    | _ -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")

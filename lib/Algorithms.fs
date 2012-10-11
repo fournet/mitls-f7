@@ -39,7 +39,7 @@ let parseSigAlg b =
     | [|1uy|] -> correct(SA_RSA)
     | [|2uy|] -> correct(SA_DSA)
     | [|3uy|] -> correct(SA_ECDSA)
-    | _ -> Error(Parsing,WrongInputParameters)
+    | _ -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let hashAlgBytes ha =
     match ha with
@@ -54,7 +54,7 @@ let parseHashAlg b =
     | [|2uy|] -> correct(SHA)
     | [|4uy|] -> correct(SHA256)
     | [|5uy|] -> correct(SHA384)
-    | _ -> Error(Parsing,WrongInputParameters)
+    | _ -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 type aeadAlg =
     | AES_128_GCM

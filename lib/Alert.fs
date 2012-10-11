@@ -99,7 +99,7 @@ let parseAlert b =
     | [|2uy;  90uy|] -> correct(AD_user_cancelled_fatal                 )
     | [|1uy; 100uy|] -> correct(AD_no_renegotiation                     )
     | [|2uy; 110uy|] -> correct(AD_unsupported_extension                )
-    | _ -> Error(Parsing,WrongInputParameters)
+    | _ -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let isFatal ad =
     match ad with       
@@ -157,7 +157,7 @@ let next_fragment ci state =
             (* We now need to know which alert we're sending, in order to return the proper
                constructor to Dispatch. *)
             match parseAlert frag with
-            | Error(x,y) -> unexpectedError "[next_fragment] This invocation of parseAlertDescription should never fail"
+            | Error(x,y) -> unexpectedError (y + "[next_fragment] This invocation of parseAlertDescription should never fail")
             | Correct(ad) ->
                 match ad with
                 | AD_close_notify -> (LastALCloseFrag(r0,df),state)
@@ -183,23 +183,23 @@ let recv_fragment (ci:ConnectionInfo) state (r:range) (f:Fragment.fragment) =
     | [||] ->
         (* Empty buffer *)
         match length fragment with
-        | 0 -> Error(Parsing,WrongInputParameters) (* Empty alert fragments are invalid *)
+        | 0 -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Empty alert fragments are invalid")
         | 1 -> Correct (ALAck ({state with al_incoming = fragment})) (* Buffer this partial alert *)
         | _ -> (* Full alert received *)
             let (al,rem) = Bytes.split fragment 2 in
             if length rem <> 0 then (* Check there are no more data *)
-                Error(Parsing,WrongInputParameters)
+                Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "No more data are expected after an alert")
             else
                 match parseAlert al with
                 | Error(x,y) -> Error(x,y)
                 | Correct(alert) -> let res = handle_alert ci state alert in correct(res)
     | inc ->
         match length fragment with
-        | 0 -> Error(Parsing,WrongInputParameters) (* Empty alert fragments are invalid *)
+        | 0 -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Empty alert fragments are invalid")
         | _ -> 
             let (part2,rem) = Bytes.split fragment 1 in
             if length rem <> 0 then (* Check there are no more data *)
-                Error(Parsing,WrongInputParameters)
+                Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "No more data are expected after an alert")
             else
                 let bmsg = inc @| part2 in
                 match parseAlert bmsg with

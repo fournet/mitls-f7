@@ -208,10 +208,10 @@ let get_public_signing_key (c : cert) ((siga, hasha) as a : Sig.alg) : Sig.vkey 
                 match siga, x509_to_public_key x509 with
                 | SA_RSA, Some (PK_RSA (sm, se) as k) -> Correct (Sig.create_vkey hasha k)
                 | SA_DSA, Some (PK_DSA (y, p  ) as k) -> Correct (Sig.create_vkey hasha k)
-                | _ -> Error(CertificateParsing, Internal)
+                | _ -> Error(AD_unsupported_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate uses unknown signature algorithm or key")
             else
-                Error(CertificateParsing, Internal)
-    with :? CryptographicException -> Error(CertificateParsing, Internal)
+                Error(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate is not for signing")
+    with :? CryptographicException -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let get_public_encryption_key (c : cert) : RSA.pk Result =
     try
@@ -219,20 +219,20 @@ let get_public_encryption_key (c : cert) : RSA.pk Result =
             if x509_is_for_key_encryption x509 then
                 match x509_to_public_key x509 with
                 | Some (PK_RSA(pm, pe)) -> Correct (RSA.create_rsapkey (pm, pe))
-                | _ -> Error(CertificateParsing, Internal)
+                | _ -> Error(AD_unsupported_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate uses unknown key")
             else
-                Error(CertificateParsing, Internal)
-    with :? CryptographicException -> Error(CertificateParsing, Internal)
+                Error(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate is not for key encipherment")
+    with :? CryptographicException -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 (* ------------------------------------------------------------------------ *)
 let get_chain_public_signing_key (chain : certchain) a =
     match chain with
-    | []     -> Error(CertificateParsing, Internal)
+    | []     -> Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "This is likely a bug, please report it")
     | c :: _ -> get_public_signing_key c a
 
 let get_chain_public_encryption_key (chain : certchain) =
     match chain with
-    | []     -> Error(CertificateParsing, Internal)
+    | []     -> Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "This is likely a bug, please report it")
     | c :: _ -> get_public_encryption_key c
 
 (* ------------------------------------------------------------------------ *)

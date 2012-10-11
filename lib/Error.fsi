@@ -33,42 +33,10 @@ type alertDescription =
     | AD_no_renegotiation
     | AD_unsupported_extension
 
-type ErrorCause =
-    | Tcp
-    | MAC
-    | Hash
-    | Parsing
-    | Encryption
-    | Protocol
-    | Record
-    | RecordPadding
-    | RecordFragmentation
-    | RecordCompression
-    | RecordVersion
-    | AlertAlreadySent
-    | AlertProto
-    | HSError of alertDescription
-    | CertificateParsing
-    | Dispatcher
-    | TLS
-
-type ErrorKind =
-    | Unsupported
-    | CheckFailed
-    | WrongInputParameters
-    | InvalidState
-    | Internal
-    | UserAborted
-    | HSSendAlert
-    | ConnectionClosed
-
 type 'a Result =
-    | Error of ErrorCause * ErrorKind
+    | Error of alertDescription * string
     | Correct of 'a
 
-type ioerror =
-    | EInternal of ErrorCause * ErrorKind
-    | EFatal of alertDescription
-
+val perror: string -> string -> string -> string
 val correct: 'a -> 'a Result
 val unexpectedError: string -> 'a

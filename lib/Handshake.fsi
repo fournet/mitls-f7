@@ -52,13 +52,13 @@ type incoming = (* the fragment is accepted, and... *)
   | InQuery of Cert.cert * hs_state
   | InFinished of hs_state
   | InComplete of hs_state
-  | InError of ErrorCause * ErrorKind * hs_state
+  | InError of alertDescription * string * hs_state
 val recv_fragment: ConnectionInfo -> hs_state -> DataStream.range -> Fragment.fragment -> incoming
 
 [<NoEquality;NoComparison>]
 type incomingCCS =
   | InCCSAck of ConnectionInfo * StatefulAEAD.state * hs_state
-  | InCCSError of ErrorCause * ErrorKind * hs_state
+  | InCCSError of alertDescription * string * hs_state
 val recv_ccs     : ConnectionInfo -> hs_state -> DataStream.range -> Fragment.fragment -> incomingCCS
 
 val getMinVersion: ConnectionInfo -> hs_state -> ProtocolVersion

@@ -29,10 +29,10 @@ type TLStream(s:System.Net.Sockets.NetworkStream, options, b) =
 
     let rec doHS conn =
         match TLS.read conn with
-        | TLS.ReadError (err) ->
-            match err with
-            | EInternal(x,y) -> raise (IOException(sprintf "TLS-HS: Internal error: %A %A" x y))
-            | EFatal ad -> raise (IOException(sprintf "TLS-HS: Sent fatal alert: %A" ad))
+        | TLS.ReadError (adOpt,err) ->
+            match adOpt with
+            | Some(ad) -> raise (IOException(sprintf "TLS-HS: Sent fatal alert: %A %A" ad err))
+            | None     -> raise (IOException(sprintf "TLS-HS: Internal error: %A" err))
         | TLS.Close ns -> raise (IOException(sprintf "TLS-HS: Connection closed during HS"))
         | TLS.Fatal ad -> raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
         | TLS.Warning (conn,ad) -> raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
@@ -46,10 +46,10 @@ type TLStream(s:System.Net.Sockets.NetworkStream, options, b) =
 
     let rec wrapRead conn =
         match TLS.read conn with
-        | TLS.ReadError (err) ->
-            match err with
-            | EInternal(x,y) -> raise (IOException(sprintf "TLS-HS: Internal error: %A %A" x y))
-            | EFatal ad -> raise (IOException(sprintf "TLS-HS: Sent fatal alert: %A" ad))
+        | TLS.ReadError (adOpt,err) ->
+            match adOpt with
+            | None -> raise (IOException(sprintf "TLS-HS: Internal error: %A" err))
+            | Some ad -> raise (IOException(sprintf "TLS-HS: Sent fatal alert: %A %A" ad err))
         | TLS.Close ns -> closed <- true; (conn,[||]) // FIXME: this is an old connection, should not be used!
         | TLS.Fatal ad -> raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
         | TLS.Warning (conn,ad) -> raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
@@ -74,10 +74,10 @@ type TLStream(s:System.Net.Sockets.NetworkStream, options, b) =
 
     let rec wrapWrite conn msg =
         match TLS.write conn msg with
-        | TLS.WriteError err ->
-            match err with
-            | EInternal(x,y) -> raise (IOException(sprintf "TLS-HS: Internal error: %A %A" x y))
-            | EFatal ad -> raise (IOException(sprintf "TLS-HS: Sent alert: %A" ad))
+        | TLS.WriteError (adOpt,err) ->
+            match adOpt with
+            | None -> raise (IOException(sprintf "TLS-HS: Internal error: %A" err))
+            | Some ad -> raise (IOException(sprintf "TLS-HS: Sent alert: %A %A" ad err))
         | TLS.WriteComplete conn -> conn
         | TLS.WritePartial (conn,msg) -> wrapWrite conn msg
         | TLS.MustRead conn ->

@@ -8,7 +8,7 @@ open AppDataStream
 open Dispatch
 
 type (;c:Connection) ioresult_i =
-| ReadError of ioerror
+| ReadError of alertDescription option
   // We encountered an error while reading, so the connection dies. 
   // we return the fatal alert we may have sent, if any,
   // or None in case of an internal error.
@@ -69,7 +69,7 @@ type (;c:Connection) ioresult_i =
     }
     
 type (;c:Connection,d:(;ConnectionEpochOut(c),CnStream_o(c)) msg_o) ioresult_o =
-| WriteError of ioerror
+| WriteError of alertDescription option
   // We encountered an error while writing; 
   // we return the fatal alert we may have sent, if any,
   // or None in case of an internal error.

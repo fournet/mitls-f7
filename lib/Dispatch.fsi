@@ -43,24 +43,24 @@ val readNextAppFragment: Connection -> (unit Result) * Connection
 *)
 
 type writeOutcome =
-    | WError of ioerror
+    | WError of string (* internal *)
     | WriteAgain (* Possibly more data to send *)
     | WAppDataDone (* No more data to send in the current state *)
     | WHSDone
     | WMustRead (* Read until completion of Handshake *)
-    | SentFatal of alertDescription
+    | SentFatal of alertDescription * string (* The alert that has been sent *)
     | SentClose
 
 type readOutcome =
     | WriteOutcome of writeOutcome 
-    | RError of ioerror
+    | RError of string (* internal *)
     | RAgain
     | RAppDataDone
     | RQuery of query
     | RHSDone
     | RClose
-    | RFatal of alertDescription
-    | RWarning of alertDescription
+    | RFatal of alertDescription (* The received alert *)
+    | RWarning of alertDescription (* The received alert *)
 
     
 val write: Connection -> msg_o -> Connection * writeOutcome * msg_o option

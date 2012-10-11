@@ -100,14 +100,14 @@ let decrypt' ki key data cipher =
             if ok then 
               if AEPlain.verify ki ka maced tag (* padding time oracle *) then 
                   correct (nk,rg,plain)
-                else Error(MAC,CheckFailed)
-            else     Error(RecordPadding,CheckFailed) (* padding error oracle *)
+                else Error(AD_bad_record_mac, perror __SOURCE_FILE__ __LINE__ "")
+            else     Error(AD_decryption_failed, perror __SOURCE_FILE__ __LINE__ "") (* padding error oracle *)
         | TLS_1p1 | TLS_1p2 ->
             if AEPlain.verify ki ka maced tag then 
                if ok then
                   correct (nk,rg,plain)
-               else Error(MAC,CheckFailed)
-            else    Error(MAC,CheckFailed)
+               else Error(AD_bad_record_mac, perror __SOURCE_FILE__ __LINE__ "")
+            else    Error(AD_bad_record_mac, perror __SOURCE_FILE__ __LINE__ "")
     | (x,MACOnly (ka)) when isOnlyMACCipherSuite x ->
         let encoded        = AEPlain.plain ki (length cipher) cipher in
         let (rg,aep,tag) = AEPlain.decodeNoPad ki data (length cipher) encoded in
@@ -115,7 +115,7 @@ let decrypt' ki key data cipher =
         let maced          = AEPlain.macPlain ki rg data aep
         if AEPlain.verify ki ka maced tag 
         then   correct (key,rg,plain)
-          else Error(MAC,CheckFailed)
+          else Error(AD_bad_record_mac, perror __SOURCE_FILE__ __LINE__ "")
 //  | GCM (GCMKey) -> ... 
     | (_,_) -> unexpectedError "[decrypt] incompatible ciphersuite-key given."
 

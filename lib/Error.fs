@@ -33,42 +33,16 @@ type alertDescription =
     | AD_no_renegotiation
     | AD_unsupported_extension
 
-type ErrorCause =
-    | Tcp
-    | MAC
-    | Hash
-    | Parsing
-    | Encryption
-    | Protocol
-    | Record
-    | RecordPadding
-    | RecordFragmentation
-    | RecordCompression
-    | RecordVersion
-    | AlertAlreadySent
-    | AlertProto
-    | HSError of alertDescription
-    | CertificateParsing
-    | Dispatcher
-    | TLS
-
-type ErrorKind =
-    | Unsupported
-    | CheckFailed
-    | WrongInputParameters
-    | InvalidState
-    | Internal
-    | UserAborted
-    | HSSendAlert
-    | ConnectionClosed
-
 type 'a Result =
-    | Error of ErrorCause * ErrorKind
+    | Error of alertDescription * string
     | Correct of 'a
 
-type ioerror =
-    | EInternal of ErrorCause * ErrorKind
-    | EFatal of alertDescription
+let perror file line text =
+    let text =
+        match text with
+        | "" -> "No reason given"
+        | _ -> text
+    Printf.sprintf "Error at %s:%s: %s." file line text
 
 let correct x = Correct x
 

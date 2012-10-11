@@ -47,32 +47,35 @@ let dataAvailable (N ns) =
     try
         Correct (ns.DataAvailable)
     with
-        | _ -> Error (Tcp,Internal)
+        | _ -> Error (AD_internal_error, perror __SOURCE_FILE__ __LINE__ "TCP connection closed")
 
 let rec read_acc (N ns) nbytes prev =
     if nbytes = 0 then
         Correct (prev)
     else
-        let buf = Array.zeroCreate nbytes in
-        let read = ns.Read (buf, 0, nbytes) in
-        if read = 0 then
-            Error(Tcp,Internal)
-        else
-            let rem = nbytes - read in
-            read_acc (N ns) rem (Array.append prev (Array.sub buf 0 read))
+        try
+            let buf = Array.zeroCreate nbytes in
+            let read = ns.Read (buf, 0, nbytes) in
+            if read = 0 then
+                Error(AD_internal_error,"TCP connection closed")
+            else
+                let rem = nbytes - read in
+                read_acc (N ns) rem (Array.append prev (Array.sub buf 0 read))
+        with
+            | _ -> Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "TCP connection closed")
 
 let read (N ns) nbytes =
     try
         read_acc (N ns) nbytes (Array.zeroCreate 0)
     with
-        | _ -> Error (Tcp,Internal)
+        | _ -> Error (AD_internal_error, perror __SOURCE_FILE__ __LINE__ "TCP connection closed")
 
 
 let write (N ns) content =
     try
         Correct (ns.Write (content, 0, content.Length))
     with
-        | _ -> Error (Tcp,Internal)
+        | _ -> Error (AD_internal_error, perror __SOURCE_FILE__ __LINE__ "TCP connection closed")
 
 let close (N ns) =
     ns.Close()

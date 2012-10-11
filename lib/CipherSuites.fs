@@ -26,7 +26,7 @@ let compressionBytes (comp:Compression) =
 let parseCompression b =
     match b with
     | [|0uy|] -> correct(NullCompression)
-    | _       -> Error(Parsing,WrongInputParameters)
+    | _       -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 // Ignore compression methods we don't understand. This is a departure
 // from usual parsing, where we fail on unknown values, but that's how TLS
@@ -61,7 +61,7 @@ let parseVersion (v:bytes) =
     | [| 3uy; 1uy |] -> correct(TLS_1p0)
     | [| 3uy; 2uy |] -> correct(TLS_1p1)
     | [| 3uy; 3uy |] -> correct(TLS_1p2)
-    | _ -> Error(Parsing,WrongInputParameters)
+    | _ -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let minPV (a:ProtocolVersion) (b:ProtocolVersion) =
   match (a,b) with
@@ -190,7 +190,7 @@ let cipherSuite_of_bytes b =
 
     | [| 0x00uy; 0xFFuy |] -> correct(SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV))
 
-    | _ -> Error(Parsing,WrongInputParameters)
+    | _ -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 
 let consCipherSuites (cs:cipherSuite) (css:cipherSuites) = cs::css
@@ -209,7 +209,7 @@ let rec parseCipherSuites b:cipherSuites Result =
             | Correct(cs) -> let ncss = consCipherSuites cs css  in correct(ncss)
         | Error(x,y) -> Error(x,y) 
     else if length b = 0 then Correct([])
-    else Error(Parsing,CheckFailed)
+    else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let rec bytes_of_cipherSuites css =
     match css with 

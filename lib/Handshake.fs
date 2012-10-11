@@ -56,7 +56,7 @@ let parseHT (b:bytes) =
     | [| 15uy |] -> correct(HT_certificate_verify )
     | [| 16uy |] -> correct(HT_client_key_exchange)
     | [| 20uy |] -> correct(HT_finished           )
-    | _   -> Error(Parsing,WrongInputParameters)
+    | _   -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 /// Handshake message format 
 
@@ -170,21 +170,21 @@ let rec extensionList_of_bytes_int data list =
     | 0 -> correct (list)
     | x when x < 4 ->
         (* This is a parsing error, or a malformed extension *)
-        Error (HSError(AD_decode_error), HSSendAlert)
+        Error (AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
     | _ ->
         let (extTypeBytes,rem) = Bytes.split data 2 in
         let extType = hExt_of_bytes extTypeBytes in
         match vlsplit 2 rem with
-        | Error(x,y) -> Error (HSError(AD_decode_error), HSSendAlert) (* Parsing error *)
+        | Error(x,y) -> Error (x,y) (* Parsing error *)
         | Correct (payload,rem) -> extensionList_of_bytes_int rem ([(extType,payload)] @ list)
 
 let extensionList_of_bytes data =
     match length data with
     | 0 -> correct ([])
-    | 1 -> Error(HSError(AD_decode_error),HSSendAlert)
+    | 1 -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
     | _ ->
         match vlparse 2 data with
-        | Error(x,y)    -> Error(HSError(AD_decode_error),HSSendAlert)
+        | Error(x,y)    -> Error(x,y)
         | Correct(exts) -> extensionList_of_bytes_int exts []
 
 let makeClientHelloBytes poptions crand session cVerifyData =
@@ -264,14 +264,14 @@ let rec parseCertificate_int toProcess list =
         correct(list)
     else
         match vlsplit 3 toProcess with
-        | Error(x,y) -> Error(HSError(AD_bad_certificate_fatal),HSSendAlert)
+        | Error(x,y) -> Error(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ (""+y))
         | Correct (nextCert,toProcess) ->
             let list = list @ [nextCert] in
             parseCertificate_int toProcess list
 
 let parseCertificate data =
     match vlparse 3 data with
-    | Error(x,y) -> Error(HSError(AD_bad_certificate_fatal),HSSendAlert)
+    | Error(x,y) -> Error(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ (""+y))
     | Correct (certList) ->
         match parseCertificate_int certList [] with
         | Error(x,y) -> Error(x,y)
@@ -286,14 +286,14 @@ let rec parseCertificateTypeList data =
             match parseCertificateTypeList data with
             | Correct(ctList) -> Correct(ct :: ctList)
             | Error(x,y) -> Error(x,y)
-        | Error(x,y) -> Error(HSError(AD_decode_error),HSSendAlert)
+        | Error(x,y) -> Error(x,y)
 
 let rec distNamesList_of_bytes data res =
     if length data = 0 then
         correct (res)
     else
         if length data < 2 then (* FIXME: maybe at least 3 bytes, because we don't want empty names... *)
-            Error(Parsing,CheckFailed)
+            Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
         else
             match vlsplit 2 data with
             | Error(x,y) -> Error(x,y)
@@ -331,7 +331,7 @@ let sigHashAlgListBytes algL =
 
 let rec parseSigHashAlgList_int b : (Sig.alg list Result)=
     if length b = 0 then correct([])
-    elif length b = 1 then Error(Parsing,WrongInputParameters)
+    elif length b = 1 then Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
     else
         let (thisB,remB) = Bytes.split b 2 in
         match parseSigHashAlg thisB with
@@ -418,7 +418,7 @@ let makeCertificateRequest sign cs version =
 
 let parseCertificateRequest version data =
     match vlsplit 1 data with
-    | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
+    | Error(x,y) -> Error(x,y)
     | Correct (certTypeListBytes,data) ->
     match parseCertificateTypeList certTypeListBytes with
     | Error(x,y) -> Error(x,y)
@@ -426,7 +426,7 @@ let parseCertificateRequest version data =
     let sigAlgsAndData = (
         if version = TLS_1p2 then
             match vlsplit 2 data with
-            | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
+            | Error(x,y) -> Error(x,y)
             | Correct (sigAlgsBytes,data) ->
             match parseSigHashAlgList sigAlgsBytes with
             | Error(x,y) -> Error(x,y)               
@@ -437,10 +437,10 @@ let parseCertificateRequest version data =
     | Error(x,y) -> Error(x,y)
     | Correct ((sigAlgs,data)) ->
     match vlparse 2 data with
-    | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
+    | Error(x,y) -> Error(x,y)
     | Correct  (distNamesBytes) ->
     match distNamesList_of_bytes distNamesBytes [] with
-    | Error(x,y) -> Error(HSError(AD_illegal_parameter),HSSendAlert)
+    | Error(x,y) -> Error(x,y)
     | Correct distNamesList ->
     correct (certTypeList,sigAlgs,distNamesList)
 
@@ -453,7 +453,7 @@ let makeClientKEX_RSA si config =
         unexpectedError "[makeClientKEX_RSA] Server certificate should always be present with a RSA signing cipher suite."
     else
         match Cert.get_chain_public_encryption_key si.serverID with
-        | Error(x,y) -> Error(HSError(AD_decode_error),HSSendAlert)
+        | Error(x,y) -> Error(x,y)
             | Correct(pubKey) ->
             let encpms = RSAEnc.encrypt pubKey si pms in
             let encpms = if si.protocol_version = SSL_3p0 then encpms else vlbytes 2 encpms 
@@ -475,7 +475,7 @@ let parseClientKEX_RSA si skey cv config data =
             | TLS_1p0 | TLS_1p1| TLS_1p2 ->
                     match vlparse 2 data with
                     | Correct (encPMS) -> correct(encPMS)
-                    | Error(x,y) -> Error(HSError(AD_decode_error),HSSendAlert)
+                    | Error(x,y) -> Error(x,y)
         match encrypted with
         | Correct(encPMS) ->
             let res = RSAEnc.decrypt skey si cv config.check_client_version_in_pms_for_old_tls encPMS in
@@ -486,7 +486,7 @@ let parseClientKEX_DH_implict data =
     if length data = 0 then
         correct ( () )
     else
-        Error(HSError(AD_decode_error),HSSendAlert)
+        Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let parseClientKEX_DH_explicit data = vlparse 2 data
 
@@ -512,7 +512,7 @@ let parseDigitallySigned expectedAlgs payload pv =
                 | Error(x,y) -> Error(x,y)
                 | Correct(sign) -> correct(recvAlgs,sign)
             else
-                Error(Parsing,CheckFailed)
+                Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "")
     | SSL_3p0 | TLS_1p0 | TLS_1p1 ->
         match vlparse 2 payload with
         | Error(x,y) -> Error(x,y)
@@ -545,21 +545,21 @@ let serverKeyExchange_DHE crand srand p g y alg skey pv =
 
 let checkServerKeyExchange_DHE crand srand cert pv cs payload =
     match parseDHEParams payload with
-    | Error(x,y) -> Error(HSError(AD_decode_error),HSSendAlert)
+    | Error(x,y) -> Error(x,y)
     | Correct(p,g,y,payload) ->
         let dheb = dheParamBytes p g y in
         let expected = crand @| srand @| dheb in
         let allowedAlgs = default_sigHashAlg pv cs in
         match parseDigitallySigned allowedAlgs payload pv with
-        | Error(x,y) -> Error(HSError(AD_decode_error),HSSendAlert)
+        | Error(x,y) -> Error(x,y)
         | Correct(alg,signature) ->
             match Cert.get_chain_public_signing_key cert alg with
-            | Error(x,y) -> Error(HSError(AD_decode_error),HSSendAlert)
+            | Error(x,y) -> Error(x,y)
             | Correct(vkey) ->
             if Sig.verify alg vkey expected signature then
                 correct(p,g,y)
             else
-                Error(HSError(AD_decrypt_error),HSSendAlert)
+                Error(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let serverKeyExchange_DH_anon p g y =
     let dehb = dheParamBytes p g y in
@@ -572,7 +572,7 @@ let parseServerKeyExchange_DH_anon payload =
         if equalBytes rem [||] then
             correct(p,g,y)
         else
-            Error(Parsing,CheckFailed)
+            Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 (* Certificate Verify *)
 
@@ -730,8 +730,8 @@ let inspect_ServerHello_extensions recvExt expected =
     | Correct (extList) ->
         (* We expect to find exactly one extension *)
         match extList.Length with
-        | 0 -> Error(HSError(AD_handshake_failure),HSSendAlert)
-        | x when not (x = 1) -> Error(HSError(AD_unsupported_extension),HSSendAlert)
+        | 0 -> Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Not enough extensions given")
+        | x when not (x = 1) -> Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Too many extensions given")
         | _ ->
             let (extType,payload) = extList.Head in
             match extType with
@@ -742,8 +742,8 @@ let inspect_ServerHello_extensions recvExt expected =
                     correct (unitVal)
                 else
                     (* RFC 5746, sec 3.4: send a handshake failure alert *)
-                    Error(HSError(AD_handshake_failure),HSSendAlert)
-            | _ -> Error(HSError(AD_unsupported_extension),HSSendAlert)
+                    Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Wrong renegotiation information")
+            | _ -> Error(AD_unsupported_extension, perror __SOURCE_FILE__ __LINE__ "The server gave an unknown extension")
 
 
 
@@ -975,11 +975,11 @@ type incoming = (* the fragment is accepted, and... *)
   | InFinished of hs_state
     // FIXME: StorableSession
   | InComplete of hs_state
-  | InError of ErrorCause * ErrorKind * hs_state
+  | InError of alertDescription * string * hs_state
 
 type incomingCCS =
   | InCCSAck of ConnectionInfo * StatefulAEAD.state * hs_state
-  | InCCSError of ErrorCause * ErrorKind * hs_state
+  | InCCSError of alertDescription * string * hs_state
 
 
 
@@ -1126,7 +1126,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
       | Some (pv) -> InVersionAgreed(state,pv)
     | Some (state,hstypeb,payload,to_log) ->
       match parseHT hstypeb with
-      | Error(x,y) -> InError(HSError(AD_decode_error),HSSendAlert,state)
+      | Error(x,y) -> InError(x,y,state)
       | Correct(hstype) ->
       match state.pstate with
       | PSClient(cState) ->
@@ -1144,23 +1144,23 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             match cState with
             | ServerHello (crand,sid,cvd,svd,log) ->
                 match parseServerHello payload with
-                | Error(x,y) -> InError(HSError(AD_decode_error),HSSendAlert,state)
+                | Error(x,y) -> InError(x,y,state)
                 | Correct (shello) ->
                   let (sh_server_version,sh_random,sh_session_id,sh_cipher_suite,sh_compression_method,sh_neg_extensions) = shello
                   // Sanity checks on the received message; they are security relevant. 
                   // Check that the server agreed version is between maxVer and minVer.
                   if not (geqPV sh_server_version state.poptions.minVer 
                        && geqPV state.poptions.maxVer sh_server_version) 
-                  then InError(HSError(AD_protocol_version),HSSendAlert,state)
+                  then InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Protocol version negotiation",state)
                   else
                   // Check that the negotiated ciphersuite is in the proposed list.
                   // Note: if resuming a session, we still have to check that this ciphersuite is the expected one!
                   if not (List.exists (fun x -> x = sh_cipher_suite) state.poptions.ciphersuites) 
-                  then InError(HSError(AD_illegal_parameter),HSSendAlert,state)
+                  then InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Ciphersuite negotiation",state)
                   else
                   // Check that the compression method is in the proposed list.
                   if not (List.exists (fun x -> x = sh_compression_method) state.poptions.compressions) 
-                  then InError(HSError(AD_illegal_parameter),HSSendAlert,state)
+                  then InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Compression method negotiation",state)
                   else
                   // Handling of safe renegotiation
                   let safe_reneg_result =
@@ -1171,7 +1171,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         // RFC Sec 7.4.1.4: with no safe renegotiation, we never send extensions; if the server sent any extension
                         // we MUST abort the handshake with unsupported_extension fatal alter (handled by the dispatcher)
                         if not (equalBytes sh_neg_extensions [||])
-                        then Error(HSError(AD_unsupported_extension),HSSendAlert)
+                        then Error(AD_unsupported_extension, perror __SOURCE_FILE__ __LINE__ "The server gave an unknown extension")
                         else let unitVal = () in correct (unitVal)
                   match safe_reneg_result with
                     | Error (x,y) -> InError (x,y,state)
@@ -1192,7 +1192,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                 | None ->
                                     (* This can happen, although we checked for the session before starting the HS.
                                        For example, the session may have expired between us sending client hello, and now. *)
-                                    InError(HSError(AD_internal_error),HSSendAlert,state)
+                                    InError(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "A session expried while it was being resumed",state)
                                 | Some(storable) ->
                                 let (si,ms) = storable in
                                 (* Check that protocol version, ciphersuite and compression method are indeed the correct ones *)
@@ -1205,15 +1205,15 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                                                                                       next_ci.id_in,reader,
                                                                                                       ms,log))} in
                                             recv_fragment_client ci state (Some(sh_server_version))
-                                        else InError(HSError(AD_illegal_parameter),HSSendAlert,state)
-                                    else InError(HSError(AD_illegal_parameter),HSSendAlert,state)
-                                else InError(HSError(AD_illegal_parameter),HSSendAlert,state)
+                                        else InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Compression method negotiation",state)
+                                    else InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Ciphersuite negotiation",state)
+                                else InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Protocol version negotiation",state)
                             else (* server did not agree on resumption, do a full handshake *)
                                 (* define the sinfo we're going to establish *)
                                 let next_pstate = on_serverHello_full crand log shello in
                                 let state = {state with pstate = next_pstate} in
                                 recv_fragment_client ci state (Some(sh_server_version))
-            | _ -> (* ServerHello arrived in the wrong state *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
+            | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "ServerHello arrived in the wrong state",state)
         | HT_certificate ->
             match cState with
             // FIXME: Most of the code in the branches is duplicated
@@ -1223,7 +1223,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Correct(certs) ->
                     let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, this is the same as we sent in our extension
                     if not (Cert.is_chain_for_key_encryption certs && Cert.validate_cert_chain allowedAlgs certs) then
-                        InError(HSError(AD_bad_certificate_fatal),HSSendAlert,state)
+                        InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate could not be verified",state)
                     else (* We have validated server identity *)
                         (* Log the received packet *)
                         let log = log @| to_log in        
@@ -1237,7 +1237,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Correct(certs) ->
                     let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, this is the same as we sent in our extension
                     if not (Cert.is_chain_for_key_encryption certs && Cert.validate_cert_chain allowedAlgs certs) then
-                        InError(HSError(AD_bad_certificate_fatal),HSSendAlert,state)
+                        InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate could not be verified",state)
                     else (* We have validated server identity *)
                         (* Log the received packet *)
                         let log = log @| to_log in        
@@ -1245,8 +1245,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         let si = {si with serverID = certs} in
                         let state = {state with pstate = PSClient(ServerKeyExchangeDHE(si,log))} in
                         recv_fragment_client ci state agreedVersion
-            | ServerCertificateDH (si,log) -> InError(HSError(AD_internal_error),HSSendAlert,state) // TODO
-            | _ -> (* Certificate arrived in the wrong state *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
+            | ServerCertificateDH (si,log) -> InError(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Unimplemented",state) // TODO
+            | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "Certificate arrived in the wrong state",state)
         | HT_server_key_exchange ->
             match cState with
             | ServerKeyExchangeDHE(si,log) ->
@@ -1258,12 +1258,12 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     recv_fragment_client ci state agreedVersion
             | ServerKeyExchangeDH_anon(si,log) ->
                 match parseServerKeyExchange_DH_anon payload with
-                | Error(x,y) -> InError(HSError(AD_decode_error),HSSendAlert,state)
+                | Error(x,y) -> InError(x,y,state)
                 | Correct(p,g,y) ->
                     let log = log @| to_log in
                     let state = {state with pstate = PSClient(ServerHelloDoneDH_anon(si,g,p,y,log))} in
                     recv_fragment_client ci state agreedVersion
-            | _ -> (* Server Key Exchange arrived in the wrong state *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
+            | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "ServerKeyExchange arrived in the wrong state",state)
         | HT_certificate_request ->
             match cState with
             | CertificateRequestRSA(si,log) ->
@@ -1291,12 +1291,12 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 let client_cert = find_client_cert_sign certType alg distNames si.protocol_version state.poptions.client_name in
                 let state = {state with pstate = PSClient(ServerHelloDoneDHE(si,client_cert,g,p,y,log))} in
                 recv_fragment_client ci state agreedVersion
-            | _ -> (* Certificate Request arrived in the wrong state *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
+            | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "CertificateRequest arrived in the wrong state",state)
         | HT_server_hello_done ->
             match cState with
             | CertificateRequestRSA(si,log) ->
                 if not (equalBytes payload [||]) then
-                    InError(HSError(AD_decode_error),HSSendAlert,state)
+                    InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
                 else
                     (* Log the received packet *)
                     let log = log @| to_log in
@@ -1308,7 +1308,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         recv_fragment_client ci state agreedVersion
             | ServerHelloDoneRSA(si,skey,log) ->
                 if not (equalBytes payload [||]) then
-                    InError(HSError(AD_decode_error),HSSendAlert,state)
+                    InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
                 else
                     (* Log the received packet *)
                     let log = log @| to_log in
@@ -1320,7 +1320,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         recv_fragment_client ci state agreedVersion
             | CertificateRequestDHE(si,g,p,y,log) | ServerHelloDoneDH_anon(si,g,p,y,log) ->
                 if not (equalBytes payload [||]) then
-                    InError(HSError(AD_decode_error),HSSendAlert,state)
+                    InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
                 else
                     (* Log the received packet *)
                     let log = log @| to_log in
@@ -1332,7 +1332,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         recv_fragment_client ci state agreedVersion
             | ServerHelloDoneDHE(si,skey,g,p,y,log) ->
                 if not (equalBytes payload [||]) then
-                    InError(HSError(AD_decode_error),HSSendAlert,state)
+                    InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
                 else
                     (* Log the received packet *)
                     let log = log @| to_log in
@@ -1342,12 +1342,12 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     | Correct (state,si,ms,log) ->
                         let state = {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
                         recv_fragment_client ci state agreedVersion
-            | _ -> (* Server Hello Done arrived in the wrong state *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
+            | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "ServerHelloDone arrived in the wrong state",state)
         | HT_finished ->
             match cState with
             | ServerFinished(si,ms,cvd,log) ->
                 if not (checkVerifyData si Server ms log payload) then
-                    InError(HSError(AD_decrypt_error),HSSendAlert,state)
+                    InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "Verify data did not match",state)
                 else
                     let sDB =
                         if equalBytes si.sessionID [||] then
@@ -1361,13 +1361,13 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
 
             | ServerFinishedResume(e,w,ms,log) ->
                 if not (checkVerifyData (epochSI ci.id_in) Server ms log payload) then
-                    InError(HSError(AD_decrypt_error),HSSendAlert,state)
+                    InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "Verify data did not match",state)
                 else
                     let log = log @| to_log in
                     let state = {state with pstate = PSClient(ClientWritingCCSResume(e,w,ms,payload,log))} in
                     InFinished(state)
-            | _ -> (* Finished arrived in the wrong state *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
-        | _ -> (* Unsupported/Wrong message *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
+            | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "Finished arrived in the wrong state",state)
+        | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "Unrecognized message",state)
       
       (* Should never happen *)
       | PSServer(_) -> unexpectedError "[recv_fragment_client] should only be invoked when in client role."
@@ -1386,7 +1386,7 @@ let prepare_server_hello si srand config cvd svd =
 let prepare_server_output_full_RSA (ci:ConnectionInfo) state si cv calgs cvd svd log =
     let serverHelloB = prepare_server_hello si si.init_srand state.poptions cvd svd in
     match Cert.for_key_encryption calgs state.poptions.server_name with
-    | None -> Error(HSError(AD_internal_error),HSSendAlert)
+    | None -> Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "A key should have been extracted from the certificate")
     | Some(c,sk) ->
         (* update server identity in the sinfo *)
         let si = {si with serverID = c} in
@@ -1410,16 +1410,16 @@ let prepare_server_output_full_RSA (ci:ConnectionInfo) state si cv calgs cvd svd
         correct (state,si.protocol_version)
 
 let prepare_server_output_full_DH ci state si log =
-    Error(HSError(AD_internal_error),HSSendAlert)
+    Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Unimplemented") // TODO
 
 let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs cvd svd log =
     let serverHelloB = prepare_server_hello si si.init_srand state.poptions cvd svd in
     let keyAlgs = sigHashAlg_bySigList certAlgs [sigAlg_of_ciphersuite si.cipher_suite] in
     if keyAlgs.IsEmpty then
-        Error(HSError(AD_handshake_failure),HSSendAlert)
+        Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "The client provided inconsistent signature algorithms and ciphersuites")
     else
     match Cert.for_signing certAlgs state.poptions.server_name keyAlgs with
-    | None -> Error(HSError(AD_internal_error),HSSendAlert)
+    | None -> Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "A key should have been extracted from the certificate")
     | Some(c,alg,sk) ->
         (* update server identity in the sinfo *)
         let si = {si with serverID = c} in
@@ -1496,7 +1496,7 @@ let startServerFull (ci:ConnectionInfo) state cHello cvd svd log =
     // Negotiate the protocol parameters
     let version = minPV ch_client_version state.poptions.maxVer in
     if not (geqPV version state.poptions.minVer) then
-        Error(HSError(AD_handshake_failure),HSSendAlert)
+        Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Protocol version negotiation")
     else
         match negotiate ch_cipher_suites state.poptions.ciphersuites with
         | Some(cs) ->
@@ -1516,8 +1516,8 @@ let startServerFull (ci:ConnectionInfo) state cHello cvd svd log =
                            init_crand       = ch_random
                            init_srand       = srand }
                 prepare_server_output_full ci state si ch_client_version clientAlgs cvd svd log
-            | None -> Error(HSError(AD_handshake_failure),HSSendAlert)
-        | None ->     Error(HSError(AD_handshake_failure),HSSendAlert)
+            | None -> Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Compression method negotiation")
+        | None ->     Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Ciphersuite negotiation")
 
 let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion:ProtocolVersion option) =
     match parseMessageState state with
@@ -1527,7 +1527,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
       | Some (pv) -> InVersionAgreed(state,pv)
     | Some (state,hstypeb,payload,to_log) ->
       match parseHT hstypeb with
-      | Error(x,y) -> InError(HSError(AD_decode_error),HSSendAlert,state)
+      | Error(x,y) -> InError(x,y,state)
       | Correct(hstype) ->
       match state.pstate with
       | PSServer(sState) ->
@@ -1536,7 +1536,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             match sState with
             | ClientHello(cvd,svd) | ServerIdle(cvd,svd) ->
                 match parseClientHello payload with
-                | Error(x,y) -> InError(HSError(AD_decode_error),HSSendAlert,state)
+                | Error(x,y) -> InError(x,y,state)
                 | Correct (cHello) ->
                 let (ch_client_version,ch_random,ch_session_id,ch_cipher_suites,ch_compression_methods,ch_extensions) = cHello
                 (* Log the received message *)
@@ -1548,7 +1548,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                             correct(state)
                         else
                             (* We don't accept an insecure client *)
-                            Error(HSError(AD_handshake_failure),HSSendAlert)
+                            Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Safe renegotiation not supported by the peer")
                     else
                         (* We can ignore the extension, if any *)
                         correct(state)
@@ -1594,7 +1594,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                 | Error(x,y) -> InError(x,y,state)
                                 | Correct(state,pv) -> recv_fragment_server ci state (Some(pv))
                                     
-            | _ -> (* Message arrived in the wrong state *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
+            | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "ClientHello arrived in the wrong state",state)
         | HT_certificate ->
             match sState with
             | ClientCertificateRSA (si,cv,sk,log) ->
@@ -1602,7 +1602,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(certs) ->
                     if not (Cert.is_chain_for_signing certs && Cert.validate_cert_chain (default_sigHashAlg si.protocol_version si.cipher_suite) certs) then // FIXME: we still have to ask the user
-                        InError(HSError(AD_bad_certificate_fatal),HSSendAlert,state)
+                        InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate could not be verified",state)
                     else (* We have validated client identity *)
                         (* Log the received packet *)
                         let log = log @| to_log in           
@@ -1617,7 +1617,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(certs) ->
                     if not (Cert.is_chain_for_signing certs && Cert.validate_cert_chain (default_sigHashAlg si.protocol_version si.cipher_suite) certs) then // FIXME: we still have to ask the user
-                        InError(HSError(AD_bad_certificate_fatal),HSSendAlert,state)
+                        InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate could not be verified",state)
                     else (* We have validated client identity *)
                         (* Log the received packet *)
                         let log = log @| to_log in           
@@ -1626,8 +1626,8 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         (* move to the next state *)
                         let state = {state with pstate = PSServer(ClientKeyExchangeDHE(si,g,p,x,log))} in
                         recv_fragment_server ci state agreedVersion
-            | ClientCertificateDH  (si,log) -> (* TODO *) InError(HSError(AD_internal_error),HSSendAlert,state)
-            | _ -> (* Message arrived in the wrong state *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
+            | ClientCertificateDH  (si,log) -> (* TODO *) InError(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Unimplemented",state)
+            | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "Certificate arrived in the wrong state",state)
         | HT_client_key_exchange ->
             match sState with
             | ClientKeyExchangeRSA(si,cv,sk,log) ->
@@ -1647,7 +1647,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         recv_fragment_server ci state agreedVersion
             | ClientKeyExchangeDHE(si,g,p,x,log) ->
                 match parseClientKEX_DH_explicit payload with
-                | Error(x,y) -> InError(HSError(AD_decode_error),HSSendAlert,state)
+                | Error(x,y) -> InError(x,y,state)
                 | Correct(y) ->
                     let log = log @| to_log in
                     let pms = DHE.genPMS si (g, p) x y in
@@ -1662,7 +1662,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         recv_fragment_server ci state agreedVersion
             | ClientKeyExchangeDH_anon(si,g,p,x,log) ->
                 match parseClientKEX_DH_explicit payload with
-                | Error(x,y) -> InError(HSError(AD_decode_error),HSSendAlert,state)
+                | Error(x,y) -> InError(x,y,state)
                 | Correct(y) ->
                     let log = log @| to_log in
                     let pms = DHE.genPMS si (g, p) x y in
@@ -1671,7 +1671,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     (* move to new state *)
                     let state = {state with pstate = PSServer(ClientCCS(si,ms,log))} in
                     recv_fragment_server ci state agreedVersion
-            | _ -> (* Message arrived in the wrong state *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
+            | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "ClientKeyExchange arrived in the wrong state",state)
         | HT_certificate_verify ->
             match sState with
             | CertificateVerify(si,ms,log) ->
@@ -1683,25 +1683,25 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let state = {state with pstate = PSServer(ClientCCS(si,ms,log))} in
                     recv_fragment_server ci state agreedVersion
                 else
-                    InError(HSError(AD_decrypt_error),HSSendAlert,state)
-            | _ -> (* Message arrived in the wrong state *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
+                    InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "Certificate verify check failed",state)
+            | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "CertificateVerify arrived in the wrong state",state)
         | HT_finished ->
             match sState with
             | ClientFinished(si,ms,e,w,log) ->
                 if not (checkVerifyData si Client ms log payload) then
-                    InError(HSError(AD_decrypt_error),HSSendAlert,state)
+                    InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "Verify data did not match",state)
                 else
                     let log = log @| to_log in
                     let state = {state with pstate = PSServer(ServerWritingCCS(si,ms,e,w,payload,log))} in
                     InFinished(state)
             | ClientFinishedResume(si,ms,svd,log) ->
                 if not (checkVerifyData si Client ms log payload) then
-                    InError(HSError(AD_decrypt_error),HSSendAlert,state)
+                    InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "Verify data did not match",state)
                 else
                     let state = {state with pstate = PSServer(ServerIdle(payload,svd))} in
                     InComplete(state)                       
-            | _ -> (* Message arrived in the wrong state *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
-        | _ -> (* Unsupported/Wrong message *) InError(HSError(AD_unexpected_message),HSSendAlert,state)
+            | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "Finished arrived in the wrong state",state)
+        | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "Unknown message received",state)
       (* Should never happen *)
       | PSClient(_) -> unexpectedError "[recv_fragment_server] should only be invoked when in server role."
 
@@ -1714,7 +1714,7 @@ let recv_fragment ci (state:hs_state) (r:DataStream.range) (fragment:Fragment.fr
     let b = Fragment.fragmentRepr ci.id_in r fragment in 
     if length b = 0 then
         // Empty HS fragment are not allowed
-        InError(HSError(AD_decode_error),HSSendAlert,state)
+        InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Empty handshake fragment received",state)
     else
         let state = enqueue_fragment ci state b in
         match state.pstate with
@@ -1736,7 +1736,7 @@ let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:DataStream.range) (fragmen
                 let state = {state with pstate = PSClient(ServerFinishedResume(ew,w,ms,log))} in
                 let ci = {ci with id_in = er} in
                 InCCSAck(ci,r,state)
-            | _ -> InCCSError(HSError(AD_unexpected_message),HSSendAlert,state)
+            | _ -> InCCSError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "CCS arrived in the wrong state",state)
         | PSServer (sState) ->
             match sState with
             | ClientCCS(si,ms,log) ->
@@ -1749,8 +1749,8 @@ let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:DataStream.range) (fragmen
                 let state = {state with pstate = PSServer(ClientFinishedResume(epochSI e,ms,svd,log))} in
                 let ci = {ci with id_in = e} in
                 InCCSAck(ci,r,state)
-            | _ -> InCCSError(HSError(AD_unexpected_message),HSSendAlert,state)
-    else           InCCSError(HSError(AD_decode_error)      ,HSSendAlert,state)
+            | _ -> InCCSError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "CCS arrived in the wrong state",state)
+    else           InCCSError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
 
 let getMinVersion (ci:ConnectionInfo) state = state.poptions.minVer
 

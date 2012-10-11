@@ -29,7 +29,7 @@ type pms = { pms : bytes }
 let genParams () : dhparams =
     let random    = new SecureRandom() in
     let generator = new DHParametersGenerator() in
-        generator.Init(1024, 80, random);
+        generator.Init( 1024, 80, random);
         let dhparams = generator.GenerateParameters() in
             (dhparams.G.ToByteArrayUnsigned(), dhparams.P.ToByteArrayUnsigned())
 

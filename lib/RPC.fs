@@ -51,26 +51,26 @@ let response_bytes nonce r = nonce @| (padmsg r)
 let service = fun r -> r
 
 type DrainResult =
-| DRError    of ioerror
+| DRError    of alertDescription option * string
 | DRClosed   of Tcp.NetworkStream
 | DRContinue of Connection
 
 let rec drainMeta = fun conn ->
   match TLS.read conn with
-  | ReadError  e         -> DRError e
+  | ReadError  (ad,err)  -> DRError (ad,err)
   | Close      s         -> DRClosed s
-  | Fatal      e         -> DRError (EFatal e)
+  | Fatal      e         -> DRError (Some(e),"")
   | Warning    (conn, _) -> DRContinue conn
   | CertQuery  (conn, q) -> DRContinue (authorize conn q)
   | Handshaken conn      -> DRContinue conn
   | DontWrite  conn      -> drainMeta conn
   | Read       (conn, _) ->
         ignore (TLS.full_shutdown conn)
-        DRError (EInternal (Error.TLS, Error.InvalidState))
+        DRError (None,perror __SOURCE_FILE__ __LINE__ "Internal TLS error")
 
 let rec sendMsg = fun conn rg msg ->
     match TLS.write conn (rg, msg) with
-    | WriteError    e                 -> None
+    | WriteError    (ad,err)          -> None
     | WriteComplete conn              -> Some conn
     | WritePartial  (conn, (rg, msg)) -> sendMsg conn rg msg
     | MustRead      conn              ->

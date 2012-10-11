@@ -39,7 +39,7 @@ let headerLength b =
     // no need to check len, since it's on 2 bytes and the max allowed value is 2^16.
     // Here we do a runtime check to get the same property statically
     if len <= 0 || len > DataStream.max_TLSCipher_fragment_length then
-        Error(Parsing,CheckFailed)
+        Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Wrong fragment length")
     else
         correct(len)
 
@@ -57,7 +57,7 @@ let parseHeader b =
     // no need to check len, since it's on 2 bytes and the max allowed value is 2^16.
     // Here we do a runtime check to get the same property statically
     if len <= 0 || len > DataStream.max_TLSCipher_fragment_length then
-        Error(Parsing,CheckFailed)
+        Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Wrong frgament length")
     else
         correct(ct,pv,len)
 
@@ -135,7 +135,7 @@ let recordPacketIn ki conn headPayload =
     // tlen is checked in headerLength, which is invoked by Dispatch
     // before invoking this function
     if length payload <> plen then
-        Error(Record,CheckFailed)
+        Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Wrong record packet size")
     else
     let si = epochSI(ki) in
     let cs = si.cipher_suite in

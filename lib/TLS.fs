@@ -9,7 +9,7 @@ open Dispatch
 
 // Outcomes for top-level functions
 type ioresult_i =
-    | ReadError of ioerror
+    | ReadError of alertDescription option * string
     | Close     of Tcp.NetworkStream
     | Fatal     of alertDescription
     | Warning   of nextCn * alertDescription 
@@ -19,7 +19,7 @@ type ioresult_i =
     | DontWrite of Connection
 
 type ioresult_o =
-    | WriteError    of ioerror
+    | WriteError    of alertDescription option * string
     | WriteComplete of nextCn
     | WritePartial  of nextCn * msg_o
     | MustRead      of Connection
@@ -41,8 +41,8 @@ let request c po = Dispatch.request c po
 let read ca = 
   let cb,outcome,m = Dispatch.read ca in 
     match outcome,m with
-      | WriteOutcome(WError(err)),_ -> ReadError(err)
-      | RError(err),_ -> ReadError(err)
+      | WriteOutcome(WError(err)),_ -> ReadError(None,err)
+      | RError(err),_ -> ReadError(None,err)
       | RAppDataDone,Some(b) -> Read(cb,b)
       | RQuery(q),_ -> CertQuery(cb,q)
       | RHSDone,_ -> Handshaken(cb)
@@ -51,15 +51,15 @@ let read ca =
       | RWarning(ad),_ -> Warning(cb,ad)
       | WriteOutcome(WMustRead),_ -> DontWrite(cb)
       | WriteOutcome(WHSDone),_ -> Handshaken (cb)
-      | WriteOutcome(SentFatal(ad)),_ -> ReadError(EFatal(ad))
+      | WriteOutcome(SentFatal(ad,s)),_ -> ReadError(Some(ad),s)
       | WriteOutcome(SentClose),_ -> Close (networkStream cb)
       | WriteOutcome(WriteAgain),_ -> unexpectedError "[read] Dispatch.read should never return WriteAgain"
-      | _,_ -> ReadError(EInternal(Dispatcher,InvalidState))
+      | _,_ -> ReadError(None, perror __SOURCE_FILE__ __LINE__ "Invalid dispatcher state. This is probably a bug, please report it")
 
 let write c msg = 
   let c,outcome,rdOpt = Dispatch.write c msg in
     match outcome with
-      | WError(err) -> WriteError(err)
+      | WError(err) -> WriteError(None,err)
       | WAppDataDone ->
             match rdOpt with
               | None -> WriteComplete c
@@ -70,16 +70,16 @@ let write c msg =
              Being more precise about the Dispatch state machine, we should be
              able to prove that this case should never happen, and so use the
              unexpectedError function. *)
-          WriteError(EInternal(Dispatcher,InvalidState))
+          WriteError(None, perror __SOURCE_FILE__ __LINE__ "Invalid dispatcher state. This is probably a bug, please report it")
       | WMustRead ->
           MustRead(c)
       | SentClose ->
           (* A top-level write can never send a closure alert on its own.
              Either the user asks for half_shutdown, and the connection is consumed,
              or it asks for full_shutdown, and then it cannot write anymore *)
-          WriteError(EInternal(Dispatcher,InvalidState))
-      | SentFatal(ad) ->
-          WriteError(EFatal(ad))
+          WriteError(None, perror __SOURCE_FILE__ __LINE__ "Invalid dispatcher state. This is probably a bug, please report it")
+      | SentFatal(ad,err) ->
+          WriteError(Some(ad),err)
       | WriteAgain ->
           unexpectedError "[write] writeAll should never return WriteAgain"
 
