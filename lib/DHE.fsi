@@ -19,8 +19,10 @@ val genKey    : dhparams -> x * y
 val genPMS    : SessionInfo -> dhparams -> x -> y -> pms
 
 // DH parameters saving/loading
-val loadParams : string -> dhparams option
-val saveParams : string -> dhparams -> unit
+val loadParamsFromFile : string -> dhparams option
+val saveParamsToFile   : string -> dhparams -> bool
+
+val loadDefaultParams : unit -> dhparams
 
 // AP: to be put in some DHEPlain module
 val leak: SessionInfo -> pms -> bytes

@@ -65,7 +65,14 @@ let test2 () =
     finally
         store.Close ()
 
+let test3 () =
+    let dhparams = DHE.genParams () in
+        if not (DHE.saveParamsToFile "dhparams.pem" dhparams) then
+            false
+        else
+            match DHE.loadParamsFromFile "dhparams.pem" with
+            | None        -> false
+            | Some (g, p) -> (g, p) = dhparams
+
 let _ =
-    List.iter (fun f -> printfn "%b" (f ())) [test1; test2]
-
-
+    List.iter (fun f -> printfn "%b" (f ())) [test1; test2; test3]
