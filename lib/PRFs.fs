@@ -203,10 +203,10 @@ let ssl_certificate_verify_hash si ms log hashAlg =
     let forStep2 = ms.bytes @| pad2 @| step1 in
     hash hashAlg forStep2
 
-let ssl_certificate_verify (si:SessionInfo) ms (algs:Sig.alg) log =
+let ssl_certificate_verify (si:SessionInfo) ms (algs:sigAlg) log =
     match algs with
-    | (SA_RSA,_) ->
+    | SA_RSA ->
         ssl_certificate_verify_hash si ms log MD5 @| ssl_certificate_verify_hash si ms log SHA
-    | (SA_DSA,_) ->
+    | SA_DSA ->
         ssl_certificate_verify_hash si ms log SHA
     | _ -> unexpectedError "[ssl_certificate_verify] invoked on a wrong signature algorithm"

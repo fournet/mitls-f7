@@ -351,12 +351,13 @@ let default_sigHashAlg_fromSig pv sigAlg=
     | SA_RSA ->
         match pv with
         | TLS_1p2 -> [(SA_RSA, [SHA])]
-        | TLS_1p0 | TLS_1p1 -> [(SA_RSA,[MD5;SHA])]
-        | SSL_3p0 -> [(SA_RSA,[])]
+        | TLS_1p0 | TLS_1p1 | SSL_3p0 -> [(SA_RSA,[MD5;SHA])]
+        //| SSL_3p0 -> [(SA_RSA,[])]
     | SA_DSA ->
-        match pv with
-        | TLS_1p0| TLS_1p1 | TLS_1p2 -> [(SA_DSA, [SHA])]
-        | SSL_3p0 -> [(SA_DSA,[])]
+        [(SA_DSA,[SHA])]
+        //match pv with
+        //| TLS_1p0| TLS_1p1 | TLS_1p2 -> [(SA_DSA, [SHA])]
+        //| SSL_3p0 -> [(SA_DSA,[])]
     | _ -> unexpectedError "[makeCertificateRequest] invoked on an invalid ciphersuite"
 
 let default_sigHashAlg pv cs =
@@ -578,10 +579,13 @@ let parseServerKeyExchange_DH_anon payload =
 type certificateVerify = bytes (* digital signature of all messages exchanged until now *)
 
 let makeCertificateVerifyBytes si ms alg skey data =
-    let toSign =
+    let (alg,toSign) =
         match si.protocol_version with
-        | TLS_1p2 | TLS_1p1 | TLS_1p0 -> data
-        | SSL_3p0 -> PRFs.ssl_certificate_verify si ms alg data in
+        | TLS_1p2 | TLS_1p1 | TLS_1p0 -> (alg,data)
+        | SSL_3p0 ->
+            let (sigAlg,_) = alg in
+            let toSign = PRFs.ssl_certificate_verify si ms sigAlg data in
+            ((sigAlg,[]),toSign)
     let signed = Sig.sign alg skey toSign in
     let payload = digitallySignedBytes alg signed si.protocol_version in
     makeMessage HT_certificate_verify payload
@@ -590,10 +594,13 @@ let certificateVerifyCheck si ms algs cert log payload =
     match parseDigitallySigned algs payload si.protocol_version with
     | Error(x,y) -> false
     | Correct(alg,signature) ->
-        let expected =
+        let (alg,expected) =
             match si.protocol_version with
-            | TLS_1p2 | TLS_1p1 | TLS_1p0 -> log
-            | SSL_3p0 -> PRFs.ssl_certificate_verify si ms alg log in
+            | TLS_1p2 | TLS_1p1 | TLS_1p0 -> (alg,log)
+            | SSL_3p0 -> 
+                let (sigAlg,_) = alg in
+                let expected = PRFs.ssl_certificate_verify si ms sigAlg log in
+                ((sigAlg,[]),expected)
         match Cert.get_chain_public_signing_key cert alg with
         | Error(x,y) -> false
         | Correct(vkey) ->
