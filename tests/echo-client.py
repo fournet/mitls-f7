@@ -13,10 +13,10 @@ class SSLOptions(object):
     isclient  = True
 
 # --------------------------------------------------------------------
-class GSSLException(Exception):
+class SSLException(Exception):
     pass
 
-class GSSLWantIO(GSSLException):
+class SSLWantIO(SSLException):
     READ  = 0x01
     WRITE = 0x02
     X509  = 0x03
@@ -24,12 +24,12 @@ class GSSLWantIO(GSSLException):
     def __init__(self, kind):
         self.kind = kind
 
-class GSSLZeroReturn(GSSLException):
+class SSLZeroReturn(SSLException):
     pass
 
-class GSSLError(GSSLException):
+class SSLError(SSLException):
     def __init__(self, exn):
-        GSSLException.__init__(self, exn)
+        SSLException.__init__(self, exn)
 
 # --------------------------------------------------------------------
 # OpenSSL
@@ -49,7 +49,7 @@ class OSSLTunnel(object):
     def __init__(self, sock, opts):
         ctxt = ossl.Context(ossl.TLSv1_METHOD)
         ctxt.set_options(ossl.OP_NO_SSLv2 | ossl.OP_NO_SSLv3)
-        if opts.isclient and opts.clientcrt is not None:
+        if opts.clientcrt is not None:
             ctxt.use_certificate_file(opts.clientcrt + '.crt')
             ctxt.use_privatekey_file (opts.clientcrt + '.key')
         ctxt.set_cipher_list(self._CIPHERS[opts.cipher])
@@ -63,12 +63,12 @@ class OSSLTunnel(object):
 
     def _wrap_exn(self, e):
         if isinstance(e, ossl.WantReadError):
-            return GSSLWantIO(GSSLWantIO.READ)
+            return SSLWantIO(SSLWantIO.READ)
         if isinstance(e, ossl.WantWriteError):
-            return GSSLWantIO(GSSLWantIO.WRITE)
+            return SSLWantIO(SSLWantIO.WRITE)
         if isinstance(e, ossl.ZeroReturnError):
-            return GSSLZeroReturn()
-        return GSSLError(e)
+            return SSLZeroReturn()
+        return SSLError(e)
 
     def _wrap_call(self, f):
         try:
@@ -92,18 +92,67 @@ class OSSLTunnel(object):
         return self._wrap_call(lambda : self._conn.send(buf))
 
 # --------------------------------------------------------------------
+# GnuTLS
+
+import gnutls.connection as gssl
+import gnutls.crypto     as gsslc
+import gnutls.constants  as gsslct
+
+class GSSLTunnel(object):
+    _CIPHERS = {
+        'TLS_RSA_WITH_AES_128_CBC_SHA' : (gsslct.KX_RSA, gsslct.MAC_SHA1, gsslct.CIPHER_AES_128_CBC),
+    }
+
+    def __init__(self, sock, opts):
+        crt = gsslc.X509Certificate(open(opts.servercrt + '.crt').read())
+        key = gsslc.X509PrivateKey (open(opts.servercrt + '.key').read())
+        crd = gssl.X509Credentials(crt, key)
+
+        crd.session_params.protocols    = (gsslct.PROTO_TLS1_0,)
+        crd.session_params.compressions = (gsslct.COMP_NULL,)
+
+        kx, mac, cs = self._CIPHERS[opts.cipher]
+
+        crd.session_params.kx_algorithms  = (kx ,)
+        crd.session_params.mac_algorithms = (mac,)
+        crd.session_params.ciphers        = (cs ,)
+
+        self._conn = gssl.ClientSession(sock, crd)
+        self._conn.setblocking(True)
+
+    def _wrap_call(self, f):
+        return f()
+
+    def handshake(self):
+        return self._wrap_call(lambda : self._conn.handshake())
+
+    def shutdown(self):
+        try:
+            self._wrap_call(lambda : self._conn.bye())
+        except gssl.OperationWouldBlock:
+            pass
+
+    def close(self):
+        return self._wrap_call(lambda : self._conn.close())
+
+    def recv(self, length):
+        return self._wrap_call(lambda : self._conn.recv(length))
+
+    def send(self, buf):
+        return self._wrap_call(lambda : self._conn.send(buf))
+
+# --------------------------------------------------------------------
 def _main():
     options = SSLOptions()
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
     sock.connect(options.address)
-    sock = OSSLTunnel(sock, options)
+    sock = GSSLTunnel(sock, options)
 
     sock.handshake()
     sock.send('Hello World!\r\n')
     print sock.recv(65535).splitlines()
-    while not sock.shutdown():
-        pass
+    sock.shutdown()
     sock.close()
 
 # --------------------------------------------------------------------
