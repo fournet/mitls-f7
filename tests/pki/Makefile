@@ -30,7 +30,7 @@ define layout
 endef
 
 # --------------------------------------------------------------------
-.PHONY: ca layout clean hash
+.PHONY: ca dh layout clean hash
 
 .PRECIOUS: %.p12
 .PRECIOUS: %.key
@@ -53,6 +53,12 @@ certificates/ca.crt: certificates/ca.key
 	    -key    certificates/ca.key \
 	    -out    certificates/ca.crt
 	openssl x509 -in certificates/ca.crt -noout -text
+
+# --------------------------------------------------------------------
+dh: layout certificates/dh.pem
+
+certificates/dh.pem:
+	openssl dhparam -out certificates/dh.pem 1024
 
 # --------------------------------------------------------------------
 %.p12: %.key %.crt certificates/ca.crt
