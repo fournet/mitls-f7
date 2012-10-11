@@ -1058,13 +1058,13 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) state (si:SessionInfo) ce
 
     let log = log @| clientCertBytes in
 
-    let (x,cy) = DHE.genKey g p in
+    let (x,cy) = DHE.genKey (g, p) in
 
     let clientKEXBytes = makeClientKEX_DH_explicit cy in
 
     let log = log @| clientKEXBytes in
 
-    let pms = DHE.genPMS si g p x sy in
+    let pms = DHE.genPMS si (g, p) x sy in
     let ms = PRFs.prfSmoothDHE si pms in
     (* FIXME: here we should shred pms *)
     let certificateVerifyBytes =
@@ -1426,7 +1426,7 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs cvd svd
         let certificateB = makeCertificateBytes c in
         (* ServerKEyExchange *)
         let (g,p) = DHE.genParams () in
-        let (x,y) = DHE.genKey g p in
+        let (x,y) = DHE.genKey (g, p) in
         let serverKEXB = serverKeyExchange_DHE si.init_crand si.init_srand p g y alg sk si.protocol_version in
         (* CertificateRequest *)
         let certificateRequestB =
@@ -1451,7 +1451,7 @@ let prepare_server_output_full_DH_anon (ci:ConnectionInfo) state si cvd svd log 
     
     (* ServerKEyExchange *)
     let (g,p) = DHE.genParams () in
-    let (x,y) = DHE.genKey g p in
+    let (x,y) = DHE.genKey (g, p) in
     let serverKEXB = serverKeyExchange_DH_anon p g y in
  
     let output = serverHelloB @|serverKEXB @| serverHelloDoneBytes in
@@ -1650,7 +1650,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Error(x,y) -> InError(HSError(AD_decode_error),HSSendAlert,state)
                 | Correct(y) ->
                     let log = log @| to_log in
-                    let pms = DHE.genPMS si g p x y in
+                    let pms = DHE.genPMS si (g, p) x y in
                     let ms = PRFs.prfSmoothDHE si pms in
                     (* TODO: here we should shred pms *)
                     (* move to new state *)
@@ -1665,7 +1665,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Error(x,y) -> InError(HSError(AD_decode_error),HSSendAlert,state)
                 | Correct(y) ->
                     let log = log @| to_log in
-                    let pms = DHE.genPMS si g p x y in
+                    let pms = DHE.genPMS si (g, p) x y in
                     let ms = PRFs.prfSmoothDHE si pms in
                     (* TODO: here we should shred pms *)
                     (* move to new state *)
