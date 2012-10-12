@@ -1386,7 +1386,7 @@ let prepare_server_hello si srand config cvd svd =
 let prepare_server_output_full_RSA (ci:ConnectionInfo) state si cv calgs cvd svd log =
     let serverHelloB = prepare_server_hello si si.init_srand state.poptions cvd svd in
     match Cert.for_key_encryption calgs state.poptions.server_name with
-    | None -> Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "A key should have been extracted from the certificate")
+    | None -> Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Could not find in the store a certificate for the negotiated ciphersuite")
     | Some(c,sk) ->
         (* update server identity in the sinfo *)
         let si = {si with serverID = c} in
@@ -1419,7 +1419,7 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs cvd svd
         Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "The client provided inconsistent signature algorithms and ciphersuites")
     else
     match Cert.for_signing certAlgs state.poptions.server_name keyAlgs with
-    | None -> Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "A key should have been extracted from the certificate")
+    | None -> Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Could not find in the store a certificate for the negotiated ciphersuite")
     | Some(c,alg,sk) ->
         (* update server identity in the sinfo *)
         let si = {si with serverID = c} in
