@@ -6,30 +6,33 @@ open System.Net
 open System.Net.Sockets
 open System.Threading
 
+type options = {
+    ciphersuite : CipherSuites.cipherSuiteName list;
+    tlsversion  : CipherSuites.ProtocolVersion;
+    servername  : string;
+    clientname  : string option;
+}
+
 let noexn = fun cb ->
     try cb () with _ -> ()
 
-let tlsoptions sessionDBDir = {
-    TLSInfo.minVer = CipherSuites.ProtocolVersion.SSL_3p0
-    TLSInfo.maxVer = CipherSuites.ProtocolVersion.TLS_1p2
+let tlsoptions (options : options) sessionDBDir = {
+    TLSInfo.minVer = options.tlsversion
+    TLSInfo.maxVer = options.tlsversion
 
-    TLSInfo.ciphersuites =
-        CipherSuites.cipherSuites_of_nameList [
-            CipherSuites.TLS_RSA_WITH_AES_128_CBC_SHA;
-            CipherSuites.TLS_RSA_WITH_3DES_EDE_CBC_SHA;
-        ]
+    TLSInfo.ciphersuites = CipherSuites.cipherSuites_of_nameList options.ciphersuite
 
     TLSInfo.compressions = [ CipherSuites.NullCompression ]
 
     TLSInfo.honourHelloReq = TLSInfo.HRPResume
     TLSInfo.allowAnonCipherSuite = false
     TLSInfo.check_client_version_in_pms_for_old_tls = true
-    TLSInfo.request_client_certificate = true
+    TLSInfo.request_client_certificate = options.clientname.IsSome
     
     TLSInfo.safe_renegotiation = true
 
-    TLSInfo.server_name = "cert-01.needham.inria.fr"
-    TLSInfo.client_name = "cert-02.needham.inria.fr"
+    TLSInfo.server_name = options.servername
+    TLSInfo.client_name = match options.clientname with None -> "" | Some x -> x
 
     TLSInfo.sessionDBFileName = Path.Combine(sessionDBDir, "sessionDBFile.bin")
     TLSInfo.sessionDBExpiry   = Bytes.newTimeSpan 2 0 0 0 (* two days *)
@@ -55,16 +58,15 @@ let client_handler ctxt (peer : Socket) = fun () ->
                     doit ()
         with e ->
             printfn "%s" (e.ToString ())
-            printfn "%s" (e.StackTrace)
     finally
         printfn "Disconnect: %s" (peer.RemoteEndPoint.ToString ());
         noexn (fun () -> peer.Close ())
 
-let entry () =
+let entry (options : options) =
     let assembly     = System.Reflection.Assembly.GetExecutingAssembly() in
     let mypath       = Path.GetDirectoryName(assembly.Location) in
     let sessiondbdir = Path.Combine(mypath, "sessionDB") in
-    let ctxt         = tlsoptions sessiondbdir in
+    let ctxt         = tlsoptions options sessiondbdir in
     let localaddr    = new IPEndPoint(IPAddress.Any, 6000) in
     let listener     = new TcpListener(localaddr) in
 
