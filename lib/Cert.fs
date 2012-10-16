@@ -140,7 +140,7 @@ let for_signing (sigkeyalgs : Sig.alg list) (h : hint) (algs : Sig.alg list) =
                     else
                         None
                 in
-                    store.Certificates.Find(X509FindType.FindBySubjectName, h, true) (* WARN: true => only trusted certs. *)
+                    store.Certificates.Find(X509FindType.FindBySubjectName, h, false) (* WARN: true => only trusted certs. *)
                         |> Seq.cast
                         |> Seq.filter (x509_check_key_sig_alg_one sigkeyalgs)
                         |> Seq.pick pick_wrt_req_alg
