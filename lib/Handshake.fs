@@ -619,10 +619,10 @@ type sVerifyData = bytes
 type serverState =  (* note that the CertRequest bits are determined by the config *) 
                      (* we may omit some ProtocolVersion, mostly a ghost variable *)
    | ClientHello             of cVerifyData * sVerifyData
-   | ClientCertificateRSA    of SessionInfo * ProtocolVersion * RSA.sk * log 
+   | ClientCertificateRSA    of SessionInfo * ProtocolVersion * RSAKeys.sk * log 
    | ClientCertificateDH     of SessionInfo * log 
    | ClientCertificateDHE    of SessionInfo * DHE.g * DHE.p * DHE.x * log
-   | ClientKeyExchangeRSA    of SessionInfo * ProtocolVersion * RSA.sk * log
+   | ClientKeyExchangeRSA    of SessionInfo * ProtocolVersion * RSAKeys.sk * log
    | ClientKeyExchangeDH     of SessionInfo * log 
    | ClientKeyExchangeDHE    of SessionInfo * DHE.g * DHE.p * DHE.x * log
    | ClientKeyExchangeDH_anon of SessionInfo * DHE.g * DHE.p * DHE.x * log
@@ -1425,7 +1425,7 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs cvd svd
         let si = {si with serverID = c} in
         let certificateB = makeCertificateBytes c in
         (* ServerKEyExchange *)
-        let (g,p) = DHE.loadDefaultParams () in
+        let (g,p) = DHE.defaultParams () in
         let (x,y) = DHE.genKey (g, p) in
         let serverKEXB = serverKeyExchange_DHE si.init_crand si.init_srand p g y alg sk si.protocol_version in
         (* CertificateRequest *)
@@ -1450,7 +1450,7 @@ let prepare_server_output_full_DH_anon (ci:ConnectionInfo) state si cvd svd log 
     let serverHelloB = prepare_server_hello si si.init_srand state.poptions cvd svd in
     
     (* ServerKEyExchange *)
-    let (g,p) = DHE.loadDefaultParams () in
+    let (g,p) = DHE.defaultParams () in
     let (x,y) = DHE.genKey (g, p) in
     let serverKEXB = serverKeyExchange_DH_anon p g y in
  

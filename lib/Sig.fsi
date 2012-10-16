@@ -12,12 +12,18 @@ type sigv = bytes
 
 (* ------------------------------------------------------------------------ *)
 type skey
-type vkey
+type pkey
 
-val create_skey: chash -> skeyparams -> skey
-val create_vkey: chash -> pkeyparams -> vkey
+val create_skey: chash -> CoreSig.sigskey -> skey
+val create_vkey: chash -> CoreSig.sigpkey -> pkey
+
+val repr_of_skey: skey -> CoreSig.sigskey * chash
+val repr_of_pkey: pkey -> CoreSig.sigpkey * chash
+
+val sigalg_of_skeyparams : CoreSig.sigskey -> sigAlg
+val sigalg_of_pkeyparams : CoreSig.sigpkey -> sigAlg
 
 (* ------------------------------------------------------------------------ *)
-val gen    : alg -> vkey * skey
+val gen    : alg -> pkey * skey
 val sign   : alg -> skey -> text -> sigv
-val verify : alg -> vkey -> text -> sigv -> bool
+val verify : alg -> pkey -> text -> sigv -> bool

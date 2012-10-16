@@ -6,7 +6,6 @@ open Algorithms
 open Formats
 open CipherSuites
 open TLSInfo
-open RSA
 open HASH
 open HMAC
 

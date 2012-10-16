@@ -2,38 +2,12 @@
 
 open Bytes
 open Error
-open RSA
 open CipherSuites
 open TLSInfo
 
-open Org.BouncyCastle.Math
-open Org.BouncyCastle.Crypto
-open Org.BouncyCastle.Crypto.Encodings
-open Org.BouncyCastle.Crypto.Engines
-open Org.BouncyCastle.Crypto.Parameters
-
-let encrypt_pkcs1 (RSAPKey (m, e)) v =
-    let m, e   = new BigInteger(1, m), new BigInteger(1, e) in
-    let engine = new RsaEngine() in
-    let engine = new Pkcs1Encoding(engine) in
-
-    engine.Init(true, new RsaKeyParameters(false, m, e))
-    engine.ProcessBlock(v, 0, v.Length)
-
 let encrypt key id (pms:RSAPlain.pms) =
     let v = RSAPlain.leak id pms
-    encrypt_pkcs1 key v
-
-let decrypt_pkcs1 (RSASKey (m, e)) (v : bytes) =
-    let m, e   = new BigInteger(1, m), new BigInteger(1, e) in
-    let engine = new RsaEngine() in
-    let engine = new Pkcs1Encoding(engine) in
-
-    try
-        engine.Init(false, new RsaKeyParameters(true, m, e))
-        Some (engine.ProcessBlock(v, 0, v.Length))
-    with :? InvalidCipherTextException ->
-        None
+    CoreACiphers.encrypt_pkcs1 (RSAKeys.repr_of_rsapkey key) v
 
 let decrypt_int dk si cv check_client_version_in_pms_for_old_tls encPMS =
   (* Security measures described in RFC 5246, section 7.4.7.1 *)
@@ -41,7 +15,7 @@ let decrypt_int dk si cv check_client_version_in_pms_for_old_tls encPMS =
   let fakepms = mkRandom 46 in
   (* 2. Decrypt the message to recover plaintext *)
   let expected = versionBytes cv in
-  match decrypt_pkcs1 dk encPMS with
+  match CoreACiphers.decrypt_pkcs1 (RSAKeys.repr_of_rsaskey dk) encPMS with
     | Some pms when length pms = 48 ->
         let (clVB,postPMS) = split pms 2 in
         match si.protocol_version with

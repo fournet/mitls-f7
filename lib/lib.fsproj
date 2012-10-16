@@ -53,9 +53,9 @@
     <None Include="Algorithms.fs7" />
     <Compile Include="Algorithms.fsi" />
     <Compile Include="Algorithms.fs" />
-    <None Include="RSA.fs7" />
-    <Compile Include="RSA.fsi" />
-    <Compile Include="RSA.fs" />
+    <None Include="RSAKeys.fs7" />
+    <Compile Include="RSAKeys.fsi" />
+    <Compile Include="RSAKeys.fs" />
     <None Include="HASH.fs7" />
     <Compile Include="HASH.fsi" />
     <Compile Include="HASH.fs" />
@@ -161,9 +161,9 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\BouncyCastle\BouncyCastle.csproj">
-      <Name>BouncyCastle</Name>
-      <Project>{38872a5f-e87e-4fad-b109-8eb7b2e6a4a0}</Project>
+    <ProjectReference Include="..\CoreCrypto\CoreCrypto.fsproj">
+      <Name>CoreCrypto</Name>
+      <Project>{6d4e3f46-dbf9-473b-93ba-58614114aa57}</Project>
       <Private>True</Private>
     </ProjectReference>
   </ItemGroup>

@@ -3,7 +3,6 @@
 open Bytes
 open Formats
 open TLSInfo
-open RSA
 open Error
 
 (* see .fs7 for comments *) 

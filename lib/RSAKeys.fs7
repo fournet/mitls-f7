@@ -8,7 +8,12 @@ open Bytes
 type sk (* secret (decryption) key *)
 type pk (* public (encryption) key, abstract but bytes are accessible *)
 
-// to be adjusted depending on the compromise model in Cert
+type modulus  = bytes
+type exponent = bytes
 
-val create_rsapkey : bytes * bytes -> pk
-val create_rsaskey : bytes * bytes -> sk
+// to be adjusted depending on the compromise model in Cert
+val create_rsapkey : modulus * exponent -> pk
+val create_rsaskey : modulus * exponent -> sk
+
+val bytes_of_rsapkey : pk -> modulus * exponent
+val bytes_of_rsaskey : sk -> modulus * exponent

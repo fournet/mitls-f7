@@ -7,73 +7,7 @@ open CipherSuites
 open TLSInfo
 open Formats
 
-open Org.BouncyCastle.Crypto.Engines
-open Org.BouncyCastle.Crypto.Parameters
-
 type cipher = bytes
-
-(* Raw symmetric functions for encryption and decryption.
-   Although in principle their concrete implementations may throw exceptions,
-   we claim they can never do that:
-   ArgumentException:           we always pass a readable/writable and valid stream
-   NotSupportedException:       we always give a writable (readable) stream to write (read)
-   ArgumentOutOfRangeException: data.Length is always greater than zero
-   ArgumentException:           0+data.Length is never longer than data.Length
-   CryptographicException:      The key is never corrupt
-*)
-
-let symEncrypt enc data =
-    let mems = new System.IO.MemoryStream() in
-    let crs = new System.Security.Cryptography.CryptoStream(mems,enc,System.Security.Cryptography.CryptoStreamMode.Write) in
-    crs.Write(data,0,data.Length) 
-    crs.FlushFinalBlock() 
-    let cipher = mems.ToArray() in
-    mems.Close();
-    crs.Close();
-    cipher
-
-let symDecrypt dec (data:bytes) =
-    let mems = new System.IO.MemoryStream(data) in
-    let crs = new System.Security.Cryptography.CryptoStream(mems,dec,System.Security.Cryptography.CryptoStreamMode.Read) in
-    let plain = Array.zeroCreate(data.Length) in  
-    let _ =  crs.Read(plain,0,plain.Length) in
-    plain
-
-let aesEncrypt ki key iv data =
-    let aes = new System.Security.Cryptography.AesManaged() in
-    aes.KeySize <- 8 * length key
-    aes.Padding <- System.Security.Cryptography.PaddingMode.None
-    let enc = aes.CreateEncryptor(key,iv) in
-    symEncrypt enc data
-
-let aesDecrypt ki key iv (data:bytes) =
-    let aes = new System.Security.Cryptography.AesManaged() in
-    aes.KeySize <- 8 * length key
-    aes.Padding <- System.Security.Cryptography.PaddingMode.None;
-    let dec = aes.CreateDecryptor(key,iv) in
-    symDecrypt dec data
-       
-let tdesEncrypt ki key iv data =
-    let tdes = new System.Security.Cryptography.TripleDESCryptoServiceProvider() in
-    tdes.Padding <- System.Security.Cryptography.PaddingMode.None
-    let enc = tdes.CreateEncryptor(key,iv) in
-    symEncrypt enc data
-
-let tdesDecrypt ki key iv (data:bytes) =
-    let tdes = new System.Security.Cryptography.TripleDESCryptoServiceProvider() in
-    tdes.Padding <- System.Security.Cryptography.PaddingMode.None;
-    let dec = tdes.CreateDecryptor(key,iv) in
-    symDecrypt dec data
-
-let rc4Encrypt (ki:epoch) (state:RC4Engine) data =
-    let res = Array.create (length data) (byte 0) in
-    state.ProcessBytes(data, 0, length data, res, 0)
-    res
-
-let rc4Decrypt (ki:epoch) (state:RC4Engine) data =
-    let res = Array.create (length data) (byte 0) in
-    state.ProcessBytes(data, 0, length data, res, 0)
-    res
 
 (* Early TLS chains IVs but this is not secure against adaptive CPA *)
 let lastblock cipher ivl =
@@ -91,7 +25,7 @@ type blockState =
      iv: iv3}
 type streamState = 
     {skey: key; // Ghost: Only stored so that we can LEAK it
-     sstate: RC4Engine}
+     sstate: CoreCiphers.rc4engine}
 
 type state =
     | BlockCipher of blockState
@@ -105,10 +39,8 @@ let GENOne ki =
     match alg with
     | RC4_128 ->
         let k = mkRandom (encKeySize alg) in
-        let rc4 = new RC4Engine() in
-        rc4.Init(true (* unused / RC4 sym. *), new KeyParameter(k))
         let key = {k = k} in
-        StreamCipher({skey = key; sstate = rc4})
+        StreamCipher({skey = key; sstate = CoreCiphers.rc4create k})
     | _ ->
     let key =
         {k = mkRandom (encKeySize alg)}
@@ -127,10 +59,8 @@ let COERCE (ki:epoch) k iv =
     let alg = encAlg_of_ciphersuite si.cipher_suite in
     match alg with
     | RC4_128 ->
-        let rc4 = new RC4Engine() in
-        rc4.Init(true (* unused / RC4 sym. *), new KeyParameter(k));
         let key = {k = k} in
-        StreamCipher({skey = key; sstate = rc4})
+        StreamCipher({skey = key; sstate = CoreCiphers.rc4create k})
     | _ ->
     let ivOpt =
         match si.protocol_version with
@@ -165,9 +95,9 @@ let ENC ki s tlen data =
             | NoIV _    -> mkRandom ivl in
         let cipher =
             match alg with
-            | TDES_EDE_CBC -> tdesEncrypt ki s.key.k iv d
-            | AES_128_CBC  -> aesEncrypt  ki s.key.k iv d
-            | AES_256_CBC  -> aesEncrypt  ki s.key.k iv d
+            | TDES_EDE_CBC -> CoreCiphers.des3_cbc_encrypt s.key.k iv d
+            | AES_128_CBC  -> CoreCiphers.aes_cbc_encrypt  s.key.k iv d
+            | AES_256_CBC  -> CoreCiphers.aes_cbc_encrypt  s.key.k iv d
             | RC4_128      -> unexpectedError "[ENC] Wrong combination of cipher algorithm and state"
         match s.iv with
         | SomeIV(_) ->
@@ -190,7 +120,7 @@ let ENC ki s tlen data =
     | StreamCipher(s) ->
         let cipher = 
             match alg with
-            | RC4_128 -> rc4Encrypt ki s.sstate d
+            | RC4_128 -> CoreCiphers.rc4process s.sstate d
             | _ -> unexpectedError "[ENC] Wrong combination of cipher algorithm and state"
         if length cipher <> tlen || tlen > DataStream.max_TLSCipher_fragment_length then
                 // unexpected, because it is enforced statically by the
@@ -211,9 +141,9 @@ let DEC ki s cipher =
             | NoIV (b)    -> split cipher ivl
         let data =
             match alg with
-            | TDES_EDE_CBC -> tdesDecrypt ki s.key.k iv encrypted
-            | AES_128_CBC  -> aesDecrypt  ki s.key.k iv encrypted
-            | AES_256_CBC  -> aesDecrypt  ki s.key.k iv encrypted
+            | TDES_EDE_CBC -> CoreCiphers.des3_cbc_decrypt s.key.k iv encrypted
+            | AES_128_CBC  -> CoreCiphers.aes_cbc_decrypt  s.key.k iv encrypted
+            | AES_256_CBC  -> CoreCiphers.aes_cbc_decrypt  s.key.k iv encrypted
             | RC4_128      -> unexpectedError "[DEC] Wrong combination of cipher algorithm and state"
         let d = AEPlain.plain ki (length cipher) data in
         match s.iv with
@@ -226,7 +156,7 @@ let DEC ki s cipher =
     | StreamCipher(s) ->
         let data = 
             match alg with
-            | RC4_128 -> rc4Decrypt ki s.sstate cipher
+            | RC4_128 -> CoreCiphers.rc4process s.sstate cipher
             | _ -> unexpectedError "[DEC] Wrong combination of cipher algorithm and state"
         let d = AEPlain.plain ki (length cipher) data in
         (StreamCipher(s),d)

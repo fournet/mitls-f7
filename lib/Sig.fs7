@@ -55,6 +55,15 @@ type (;a:alg) sigv = Bytes.bytes
 type (;a:alg) skey 
 type (;a:alg) vkey
 
+function val sigalg_of_skeyparams : CoreSig.sigskey -> sigAlg
+function val sigalg_of_pkeyparams : CoreSig.sigpkey -> sigAlg
+
+private definition !m, e. sigalg_of_skeyparams (CoreSig.SK_RSA (m, e)) = SA_RSA
+private definition !x, p. sigalg_of_skeyparams (CoreSig.SK_DSA (x, p)) = SA_DSA
+
+private definition !m, e. sigalg_of_pkeyparams (CoreSig.PK_RSA (m, e)) = SA_RSA
+private definition !y, p. sigalg_of_pkeyparams (CoreSig.PK_DSA (y, p)) = SA_DSA
+
 // AP: These are "Coerce"-like.
 val create_skey: h:chash -> k:skeyparams -> (;(sigalg_of_skeyparams(k), h))skey
 val create_vkey: h:chash -> k:pkeyparams -> (;(sigalg_of_pkeyparams(k), h))vkey

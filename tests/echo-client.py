@@ -8,7 +8,7 @@ class SSLOptions(object):
     servercrt = 'pki/certificates/cert-02.needham.inria.fr'
     clientcrt = 'pki/certificates/cert-01.needham.inria.fr'
     cacrt     = 'pki/certificates/ca.crt'
-    cipher    = 'TLS_RSA_WITH_AES_128_CBC_SHA'
+    cipher    = 'TLS_RSA_WITH_RC4_128_SHA'
     address   = ('192.168.56.101', 6000)
     isclient  = True
 
@@ -147,7 +147,7 @@ def _main():
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
     sock.connect(options.address)
-    sock = GSSLTunnel(sock, options)
+    sock = OSSLTunnel(sock, options)
 
     sock.handshake()
     sock.send('Hello World!\r\n')

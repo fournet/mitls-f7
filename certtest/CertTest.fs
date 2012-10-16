@@ -30,7 +30,7 @@ let test1 () =
                 match Cert.for_key_encryption [(Algorithms.SA_RSA, [Algorithms.SHA])] hint with
                 | None -> failwith "cannot find certificate (lib)"
                 | Some (_, skey) ->
-                    match RSAEnc.decrypt_pkcs1 skey ctext with
+                    match CoreACiphers.decrypt_pkcs1 (RSAKeys.repr_of_rsaskey skey) ctext with
                     | None   -> failwith "decrypt_pkcs1 failed"
                     | Some x -> uenc.GetString x = plaintext
     finally
@@ -60,19 +60,19 @@ let test2 () =
                     match Cert.get_chain_public_encryption_key chain with
                     | Error.Error _    -> failwith "cannot get public key from chain"
                     | Error.Correct pk ->
-                        let ctext = RSAEnc.encrypt_pkcs1 pk (uenc.GetBytes plaintext) in
+                        let ctext = CoreACiphers.encrypt_pkcs1 (RSAKeys.repr_of_rsapkey pk) (uenc.GetBytes plaintext) in
                             (uenc.GetString (rsas.Decrypt (ctext, false))) = plaintext
     finally
         store.Close ()
 
 let test3 () =
-    let dhparams = DHE.genParams () in
-        if not (DHE.saveParamsToFile "dhparams.pem" dhparams) then
+    let dhparams = CoreDH.gen_params () in
+        if not (CoreDH.save_params_to_file "dhparams.pem" dhparams) then
             false
         else
-            match DHE.loadParamsFromFile "dhparams.pem" with
+            match CoreDH.load_params_from_file "dhparams.pem" with
             | None        -> false
-            | Some (g, p) -> (g, p) = dhparams
+            | Some loaded -> loaded = dhparams
 
 let _ =
     List.iter (fun f -> printfn "%b" (f ())) [test1; test2; test3]
