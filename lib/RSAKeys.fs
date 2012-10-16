@@ -15,5 +15,4 @@ let create_rsapkey ((m, e) : modulus * exponent) =
     { pk = CoreACiphers.RSAPKey(m, e) }
 
 let repr_of_rsapkey ({ pk = pk }) = pk
-
 let repr_of_rsaskey ({ sk = sk }) = sk
