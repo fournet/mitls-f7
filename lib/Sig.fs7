@@ -5,16 +5,16 @@ open Algorithms
 
 // TLS uses three signatures algorithms, together with an hash algorithm.
 // We verify TLS security relative to those combinations of algorithms
-// providing CMA-security, as specified in this interface. 
+// that provide CMA-security, as specified in this interface. 
 // However, none of them are CMA-secure in the standard model.
 
 // This interface is adapted from the one described in CCS'11.
-// Its implementation is *not* verified for now.
+// Its implementation is trusted, not verified.
 
 //*********************** Cryptographic agility **************************** 
 
-// note that the *same* key is used with different hashes. 
-// so we will need joint security for them
+// note that the same key may be used with different hashes. 
+// so we require some joint security assumption for them
 
 // TLS 1.2 provides explicit support for it:
 // [1.2] - Substantial cleanup to the client's and server's ability to
@@ -22,7 +22,7 @@ open Algorithms
 //         Note that this also relaxes some of the constraints on signature
 //         and hash algorithms from previous versions of TLS.
 
-// TODO: there is some adhocness processing of those algs left in Handhshake.fs
+// TODO: there is some adhocness processing of those algs left in Handshake.fs
   
  // implements SignatureAndHashAlgorithm, with fewer values for hashAlg
 type chash = hashAlg List // hashAlg does *not* include some values from the spec.
