@@ -11,9 +11,9 @@ target = ../bin/BouncyCastle.dll
 all: $(target)
 
 dist:
-	find bzip2 src -type d -exec mkdir '$(distdir)/{}' ';'
-	find bzip2 src -type f -print0 | \
-		xargs -0 -I '{}' -- cp --parent '{}' '$(distdir)'
+	find bzip2 src -type f -name '*.cs' -print0 | \
+		tar --null -T - -cf - | \
+		tar -C '$(distdir)' -xof -
 
 $(target): $(srcs)
 	$(csc) $(csflags) /target:library /out:$@ /recurse:*.cs
