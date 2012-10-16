@@ -39,7 +39,9 @@ let tlsoptions (options : options) sessionDBDir = {
 }
 
 let client_handler ctxt (peer : Socket) = fun () ->
-    printfn "Connect: %s" (peer.RemoteEndPoint.ToString ());
+    let endpoint = peer.RemoteEndPoint
+
+    printfn "Connect: %s" (endpoint.ToString ());
     try
         try
             let netstream = new NetworkStream (peer) in
@@ -59,7 +61,7 @@ let client_handler ctxt (peer : Socket) = fun () ->
         with e ->
             printfn "%s" (e.ToString ())
     finally
-        printfn "Disconnect: %s" (peer.RemoteEndPoint.ToString ());
+        printfn "Disconnect: %s" (endpoint.ToString ());
         noexn (fun () -> peer.Close ())
 
 let entry (options : options) =
