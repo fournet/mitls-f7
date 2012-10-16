@@ -5,7 +5,7 @@ src    = \
 	EchoServer.fs  \
 	EchoTest.fs
 
-deps   = -r ../bin/TLSStream.dll
+deps   = -r ../bin/TLSLib.dll -r ../bin/TLSStream.dll
 target = ../bin/EchoServer.exe
 
 .PHONY: all dist

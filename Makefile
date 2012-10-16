@@ -6,7 +6,7 @@ version  = 0.0.internal
 distname = $(name)-$(version)
 
 subdirs  += BouncyCastle CoreCrypto lib TLSharp
-subsirs  += HttpServer echo rpc
+subdirs  += HttpServer echo rpc
 subdirs  += www-data
 
 .PHONY = all build dist

@@ -3,7 +3,8 @@
 # --------------------------------------------------------------------
 include ../Makefile.config
 
-target = ../bin/BouncyCastle.dll
+target    = ../bin/BouncyCastle.dll
+mycsflags = /nowarn:0414 /nowarn:0219
 
 # --------------------------------------------------------------------
 .PHONY: all dist
@@ -16,4 +17,4 @@ dist:
 		tar -C '$(distdir)' -xof -
 
 $(target): $(srcs)
-	$(csc) $(csflags) /target:library /out:$@ /recurse:*.cs
+	$(csc) $(csflags) $(mycsflags) /target:library /out:$@ /recurse:*.cs
