@@ -11,7 +11,7 @@ src    = \
 	HttpServer.fs       \
 	Program.fs
 
-deps   = -r ../bin/TLSLib.dll -r ../bin/TLSStream.dll
+deps   = ../bin/TLSLib.dll ../bin/TLSStream.dll
 target = ../bin/HttpServer.exe
 
 .PHONY: all dist
@@ -21,7 +21,7 @@ all: $(target)
 dist:
 	cp $(src) $(distdir)
 
-$(target): $(src)
-	$(fsc) $(fsflags) $(deps) -o $@ $(src)
+$(target): $(src) $(deps)
+	$(fsc) $(fsflags) $(addprefix -r ,$(deps)) -o $@ $(src)
 
 include ../Makefile.config

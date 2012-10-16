@@ -76,12 +76,7 @@ src = \
 	RPC.fsi \
 	RPC.fs
 
-deps   = \
-			-r ../bin/BouncyCastle.dll \
-			-r ../bin/CoreCrypto.dll   \
-			-r FSharp.PowerPack.dll    \
-			-r FSharp.PowerPack.Compatibility.dll
-
+deps   = ../bin/BouncyCastle.dll ../bin/CoreCrypto.dll
 target = ../bin/TLSLib.dll
 
 .PHONY: all dist
@@ -91,7 +86,7 @@ all: $(target)
 dist:
 	cp $(src) $(distdir)
 
-$(target): $(src)
-	$(fsc) $(fsflags) --warn:0 $(deps) -a -o $@ $(src)
+$(target): $(src) $(deps)
+	$(fsc) $(fsflags) --warn:0 $(addprefix -r ,$(deps)) -a -o $@ $(src)
 
 include ../Makefile.config
