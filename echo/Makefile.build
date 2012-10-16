@@ -1,0 +1,21 @@
+# -*- Makefile -*-
+
+src    = \
+	EchoServer.fsi \
+	EchoServer.fs  \
+	EchoTest.fs
+
+deps   = -r ../bin/TLSStream.dll
+target = ../bin/EchoServer.exe
+
+.PHONY: all dist
+
+all: $(target)
+
+dist:
+	cp $(src) $(distdir)
+
+$(target): $(src)
+	$(fsc) $(fsflags) $(deps) -o $@ $(src)
+
+include ../Makefile.config

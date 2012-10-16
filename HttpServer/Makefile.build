@@ -1,0 +1,27 @@
+# -*- Makefile -*-
+
+src    = \
+	Utils.fs            \
+	Mime.fs             \
+	HttpLogger.fs       \
+	HttpCode.fs         \
+	HttpHeaders.fs      \
+	HttpData.fs         \
+	HttpStreamReader.fs \
+	HttpServer.fs       \
+	Program.fs
+
+deps   = -r ../bin/TLSStream.dll
+target = ../bin/HttpServer.exe
+
+.PHONY: all dist
+
+all: $(target)
+
+dist:
+	cp $(src) $(distdir)
+
+$(target): $(src)
+	$(fsc) $(fsflags) $(deps) -o $@ $(src)
+
+include ../Makefile.config

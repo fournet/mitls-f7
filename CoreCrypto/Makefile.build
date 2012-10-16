@@ -1,0 +1,32 @@
+# -*- Makefile -*-
+
+src    = \
+	CoreKeys.fsi     \
+	CoreKeys.fs      \
+	CoreHash.fsi     \
+	CoreHash.fs      \
+	CoreCiphers.fsi  \
+	CoreCiphers.fs   \
+	CoreACiphers.fsi \
+	CoreACiphers.fs  \
+	CoreHMac.fsi     \
+	CoreHMac.fs      \
+	CoreSig.fsi      \
+	CoreSig.fs       \
+	CoreDH.fsi       \
+	CoreDH.fs
+
+deps   = -r ../bin/BouncyCastle.dll
+target = ../bin/CoreCrypto.dll
+
+.PHONY: all dist
+
+all: $(target)
+
+dist:
+	cp $(src) $(distdir)
+
+$(target): $(src)
+	$(fsc) $(fsflags) $(deps) -a -o $@ $(src)
+
+include ../Makefile.config

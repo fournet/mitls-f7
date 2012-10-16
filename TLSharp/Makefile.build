@@ -1,0 +1,17 @@
+# -*- Makefile -*-
+
+src    = TLStream.fs
+deps   = -r ../bin/TLSLib.dll
+target = ../bin/TLSStream.dll
+
+.PHONY: all dist
+
+all: $(target)
+
+dist:
+	cp $(src) $(distdir)
+
+$(target): $(src)
+	$(fsc) $(fsflags) $(deps) -a -o $@ $(src)
+
+include ../Makefile.config

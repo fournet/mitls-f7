@@ -1,45 +1,36 @@
-include Makefile.inc
+# -*- Makefile -*-
 
-name = OurTLS
-version = 0.0.internal
+# --------------------------------------------------------------------
+name     = uTLS
+version  = 0.0.internal
 distname = $(name)-$(version)
+subdirs  = BouncyCastle CoreCrypto lib TLSharp HttpServer echo rpc
 
-projs = ManagedRC4 lib TLSharp HttpServer rpc www-data doc
-localfiles = Makefile Makefile.inc Makefile_default.inc
-
-.PHONY = all dist dist-this build clean clean-dist
+.PHONY = all build dist
 
 all: build
 
-dist-this:
-	cp $(localfiles) $(distname)
+build:
+	[ -d bin ] || mkdir bin
+	set -e; for d in $(subdirs); do $(MAKE) -f Makefile.build -C $$d; done
 
 dist:
-	rm -rf $(distname)
-	mkdir $(distname)
-	for i in $(projs) ; do\
-		$(MAKE) distname=../$(distname) this=$$i -C $$i dist ;\
+	rm -rf $(distname) && mkdir $(distname)
+	set -e; for d in $(subdirs); do \
+		mkdir $(distname)/$$d; \
+		cp $$d/Makefile.build $(distname)/$$d; \
+		$(MAKE) -f Makefile.build -C $$d distdir=../$(distname)/$$d dist; \
 	done
-	$(MAKE) dist-this
-	tar cfz $(distname).tar.gz $(distname)
+	cp Makefile $(distname)
+	cp Makefile.config $(distname)
+	tar --format=posix -czf $(distname).tgz $(distname)
 	rm -rf $(distname)
 
 dist-check: dist
-	tar xfz $(distname).tar.gz
-	$(MAKE) -C $(distname) build
+	tar -xof $(distname).tgz
+	cd $(distname) && $(MAKE) -C $(distname)
 	rm -rf $(distname)
- 	
-build:
-	mkdir -p bin
-	for proj in $(projs) ; do\
-		$(MAKE) -C $$proj build ;\
-	done
+	echo "$(distname).tgz is ready for distribution"
 
 clean:
-	for i in $(projs) ; do\
-		$(MAKE) -C $$i clean ;\
-	done
 	rm -rf bin
-
-dist-clean: clean
-	rm -rf $(distname).tar.gz $(distname)
