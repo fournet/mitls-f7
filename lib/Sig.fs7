@@ -59,9 +59,8 @@ function val sigalg_of_skeyparams : CoreSig.sigskey -> sigAlg
 function val sigalg_of_pkeyparams : CoreSig.sigpkey -> sigAlg
 
 private definition !m, e. sigalg_of_skeyparams (CoreSig.SK_RSA (m, e)) = SA_RSA
-private definition !x, p. sigalg_of_skeyparams (CoreSig.SK_DSA (x, p)) = SA_DSA
-
 private definition !m, e. sigalg_of_pkeyparams (CoreSig.PK_RSA (m, e)) = SA_RSA
+private definition !x, p. sigalg_of_skeyparams (CoreSig.SK_DSA (x, p)) = SA_DSA
 private definition !y, p. sigalg_of_pkeyparams (CoreSig.PK_DSA (y, p)) = SA_DSA
 
 // AP: These are "Coerce"-like.
