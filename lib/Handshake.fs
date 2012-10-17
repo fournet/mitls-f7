@@ -7,9 +7,7 @@ open Formats
 open Algorithms
 open CipherSuites
 open TLSInfo
-//open SessionDB
 open PRFs
-open DataStream
 
 // BEGIN HS_msg
 
@@ -31,7 +29,7 @@ type HandshakeType =
     | HT_client_key_exchange
     | HT_finished
 
-let htbytes t =
+let htBytes t =
     match t with
     | HT_hello_request       -> [|  0uy |] 
     | HT_client_hello        -> [|  1uy |]
@@ -44,7 +42,7 @@ let htbytes t =
     | HT_client_key_exchange -> [| 16uy |]
     | HT_finished            -> [| 20uy |]
 
-let parseHT (b:bytes) = 
+let parseHt (b:bytes) = 
     match b with
     | [|  0uy |] -> correct(HT_hello_request      )
     | [|  1uy |] -> correct(HT_client_hello       )
@@ -60,11 +58,11 @@ let parseHT (b:bytes) =
 
 /// Handshake message format 
 
-let makeMessage ht data = htbytes ht @| vlbytes 3 data 
+let messageBytes ht data = htBytes ht @| vlbytes 3 data 
 
 let parseMessage buf =
-    (* Inefficient but simple implementation:
-       we repeatedly parse the whole incoming buffer until we have a complete message;
+    (* Somewhat inefficient implementation:
+       we repeatedly parse the first 4 bytes of the incoming buffer until we have a complete message;
        we then remove that message from the incoming buffer. *)
     if length buf < 4 then None (* not enough data to start parsing *)
     else
@@ -78,42 +76,149 @@ let parseMessage buf =
             Some(rem,hstypeb,payload,to_log)
 
 
-// FIXME: cleanup when handshake is ported to streams and deltas
+// We implement locally fragmentation, not hiding any length
 let makeFragment ki b =
-    let stream = DataStream.init ki in
-    let rg = (length b,length b) in
-    let dFull = deltaPlain ki stream rg b in
-    let (r0,r1) = splitRange ki rg in
-    let (d,dRem) = DataStream.split ki stream r0 r1 dFull in
-    let frag = deltaRepr ki stream r0 d in
-    let rem = deltaRepr ki stream r1 dRem in
-    let f,_ = Fragment.fragment ki stream r0 d in
-    (((r0,f),(r1,dRem)),(frag,rem))
+    let (b0,rem) = if length b < DataStream.max_TLSCipher_fragment_length then (b,[||])
+                   else Bytes.split b DataStream.max_TLSCipher_fragment_length
+    let r0 = (length b0, length b0) in
+    let f = Fragment.fragmentPlain ki r0 b0 in
+    ((r0,f),rem)
 
-let makeCCSFragment ki b = makeFragment ki b
+// we need something more general for parsing lists, e.g.
+// let rec parseList parseOne b =
+//     if length b = 0 then correct([])
+//     else 
+//     match parseOne b with
+//     | Correct(x,b) -> 
+//         match parseList parseOne b with 
+//         | Correct(xs) -> correct(x::xs)
+//         | Error(x,y)  -> Error(x,y)
+//     | Error(x,y)      -> Error(x,y)
 
+
+(* Extension handling *)
+
+// missing some details, e.g. ExtensionType/Data
+type extensionType =
+    | HExt_renegotiation_info
+    | HExt_unsupported of bytes
+
+let extensionTypeBytes hExt =
+    match hExt with
+    | HExt_renegotiation_info -> [|0xFFuy; 0x01uy|]
+    | HExt_unsupported (_)    -> unexpectedError "Unknown extension type"
+
+let parseExtensionType b =
+    match b with
+    | [|0xFFuy; 0x01uy|] -> HExt_renegotiation_info
+    | _                  -> HExt_unsupported b
+
+let extensionBytes extType data =
+    let extTBytes = extensionTypeBytes extType in
+    let payload = vlbytes 2 data in
+    extTBytes @| payload
+
+let extensionListBytes el =
+    let flat = List.fold (@|) [||] el in
+    vlbytes 2 flat
+
+let rec parseExtensionList_int data list =
+    match length data with
+    | 0 -> correct (list)
+    | x when x < 4 ->
+        (* This is a parsing error, or a malformed extension *)
+        Error (AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+    | _ ->
+        let (extTypeBytes,rem) = Bytes.split data 2 in
+        let extType = parseExtensionType extTypeBytes in
+        match vlsplit 2 rem with
+        | Error(x,y) -> Error (x,y) (* Parsing error *)
+        | Correct (payload,rem) -> parseExtensionList_int rem ([(extType,payload)] @ list)
+
+let parseExtensionList data =
+    match length data with
+    | 0 -> correct ([])
+    | 1 -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+    | _ ->
+        match vlparse 2 data with
+        | Error(x,y)    -> Error(x,y)
+        | Correct(exts) -> 
+            match parseExtensionList_int exts [] with
+            | Error(x,y) -> Error(x,y)
+            | Correct(extList) ->
+                (* Check there is at most one renegotiation_info extension *)
+                let ren_ext_list = List.filter (fun (ext,_) -> ext = HExt_renegotiation_info) extList in
+                if ren_ext_list.Length > 1 then
+                    Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Same extension received more than once")
+                else
+                    correct(extList)
+                // FIXME: Check that each extension appears only once
+
+
+(* Renegotiation Info extension -- RFC 5746 *)
+let renegotiationInfoExtensionBytes verifyData =
+    let payload = vlbytes 1 verifyData in
+    extensionBytes HExt_renegotiation_info payload
+
+let check_reneg_info payload expected =
+    // We also check there were no more data in this extension.
+    match vlparse 1 payload with
+    | Error(x,y)     -> false
+    | Correct (recv) -> equalBytes recv expected
+
+let checkClientRenegotiationInfoExtension (ren_ext_list:(extensionType * bytes) list) ch_cipher_suites expected =
+    let has_SCSV = contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV ch_cipher_suites in
+    if equalBytes expected [||] 
+    then  
+        (* First handshake *)
+        if ren_ext_list.Length = 0 
+        then has_SCSV
+            (* either client gave SCSV and no extension; this is OK for first handshake *)
+            (* or the client doesn't support this extension and we fail *)
+        else
+            let ren_ext = ren_ext_list.Head in
+            let (extType,payload) = ren_ext in
+            check_reneg_info payload expected
+    else
+        (* Not first handshake *)
+        if has_SCSV || (ren_ext_list.Length = 0) then false
+        else
+            let ren_ext = ren_ext_list.Head in
+            let (extType,payload) = ren_ext in
+            check_reneg_info payload expected
+
+// FIXME: Like function above!!!
+let inspect_ServerHello_extensions recvExt expected =
+    (* Code is ad-hoc for the only extension we support now: renegotiation_info *)
+    match parseExtensionList recvExt with
+    | Error (x,y) -> Error (x,y)
+    | Correct (extList) ->
+        (* We expect to find exactly one extension *)
+        match extList.Length with
+        | 0 -> Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Not enough extensions given")
+        | x when not (x = 1) -> Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Too many extensions given")
+        | _ ->
+            let (extType,payload) = extList.Head in
+            match extType with
+            | HExt_renegotiation_info ->
+                (* Check its content *)
+                if check_reneg_info payload expected then
+                    let unitVal = () in
+                    correct (unitVal)
+                else
+                    (* RFC 5746, sec 3.4: send a handshake failure alert *)
+                    Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Wrong renegotiation information")
+            | _ -> Error(AD_unsupported_extension, perror __SOURCE_FILE__ __LINE__ "The server gave an unknown extension")
+
+(* TODO:
+- remove type for all messages.
+- uniform names for parse*, *Bytes functions
+- 
+*)
 
 (** A.4.1 Hello Messages *)
 
 type helloRequest = bytes  // empty bitstring 
-
-// missing SessionID, defined in TLSInfo
-// missing CompressionMethod
-
-// missing some details, e.g. ExtensionType/Data
-type Extension =
-    | HExt_renegotiation_info
-    | HExt_unknown of bytes
-
-let bytes_of_HExt hExt =
-    match hExt with
-    | HExt_renegotiation_info -> [|0xFFuy; 0x01uy|]
-    | HExt_unknown (_)        -> unexpectedError "Unknown extension type"
-
-let hExt_of_bytes b =
-    match b with
-    | [|0xFFuy; 0x01uy|] -> HExt_renegotiation_info
-    | _                  -> HExt_unknown b
 
 type clientHello = (ProtocolVersion * bytes * sessionID * cipherSuites * Compression list * bytes)
 
@@ -148,49 +253,12 @@ let makeRandom() = //$ crypto abstraction? timing guarantees local disjointness
     let rnd = mkRandom 28 in
     timeb @| rnd
 
-
-let rec compressionMethodsBytes cs =
-   match cs with
-   | c::cs -> compressionBytes c @| compressionMethodsBytes cs
-   | []    -> [||] 
-
-let makeExtStructBytes extType data =
-    let extBytes = bytes_of_HExt extType in
-    let payload = vlbytes 2 data in
-    extBytes @| payload
-
-let makeExtBytes data =  vlbytes 2 data
-
-let makeRenegExtBytes verifyData =
-    let payload = vlbytes 1 verifyData in
-    makeExtStructBytes HExt_renegotiation_info payload
-
-let rec extensionList_of_bytes_int data list =
-    match length data with
-    | 0 -> correct (list)
-    | x when x < 4 ->
-        (* This is a parsing error, or a malformed extension *)
-        Error (AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
-    | _ ->
-        let (extTypeBytes,rem) = Bytes.split data 2 in
-        let extType = hExt_of_bytes extTypeBytes in
-        match vlsplit 2 rem with
-        | Error(x,y) -> Error (x,y) (* Parsing error *)
-        | Correct (payload,rem) -> extensionList_of_bytes_int rem ([(extType,payload)] @ list)
-
-let extensionList_of_bytes data =
-    match length data with
-    | 0 -> correct ([])
-    | 1 -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
-    | _ ->
-        match vlparse 2 data with
-        | Error(x,y)    -> Error(x,y)
-        | Correct(exts) -> extensionList_of_bytes_int exts []
-
 let makeClientHelloBytes poptions crand session cVerifyData =
     let ext =
         if poptions.safe_renegotiation 
-        then makeExtBytes (makeRenegExtBytes cVerifyData)
+        then
+            let renInfoB = renegotiationInfoExtensionBytes cVerifyData in
+            extensionListBytes [renInfoB]
         else [||] in
     let cVerB      = versionBytes poptions.maxVer in
     let random     = crand in
@@ -198,7 +266,7 @@ let makeClientHelloBytes poptions crand session cVerifyData =
     let ccsuitesB  = vlbytes 2 (bytes_of_cipherSuites poptions.ciphersuites) in
     let ccompmethB = vlbytes 1 (compressionMethodsBytes poptions.compressions) in
     let data = cVerB @| random @| csessB @| ccsuitesB @| ccompmethB @| ext in
-    makeMessage HT_client_hello data
+    messageBytes HT_client_hello data
 
 let makeServerHelloBytes sinfo srand ext = 
     let verB = versionBytes sinfo.protocol_version in
@@ -206,7 +274,7 @@ let makeServerHelloBytes sinfo srand ext =
     let csB = cipherSuiteBytes sinfo.cipher_suite in
     let cmB = compressionBytes sinfo.compression in
     let data = verB @| srand @| sidB @| csB @| cmB @| ext in
-    makeMessage HT_server_hello data
+    messageBytes HT_server_hello data
 
 let parseServerHello data =
     let (serverVerBytes,serverRandomBytes,data) = split2 data 2 32 
@@ -226,7 +294,7 @@ let parseServerHello data =
     correct(serverVer,serverRandomBytes,sid,cs,cm,data)
 
 /// Hello Request 
-let makeHelloRequestBytes () = makeMessage HT_hello_request [||]
+let makeHelloRequestBytes () = messageBytes HT_hello_request [||]
 
 let CCSBytes = [| 1uy |]
 
@@ -236,28 +304,17 @@ let CCSBytes = [| 1uy |]
 
 type serverHelloDone = bytes // empty bitstring
 
-let serverHelloDoneBytes = makeMessage HT_server_hello_done [||] 
+let serverHelloDoneBytes = messageBytes HT_server_hello_done [||] 
 
 let certificatesBytes certs =
     vlbytes 3 (List.foldBack (fun c a -> vlbytes 3 c @| a) certs [||])
 
-let makeCertificateBytes cl = makeMessage HT_certificate (certificatesBytes cl)
+let makeCertificateBytes cl = messageBytes HT_certificate (certificatesBytes cl)
     
 let makeCertificateBytes_sign cs =
     match cs with
     | None -> makeCertificateBytes []
     | Some(certList,_,_) -> makeCertificateBytes certList
-
-// we need something more general for parsing lists, e.g.
-let rec parseList parseOne b =
-    if length b = 0 then correct([])
-    else 
-    match parseOne b with
-    | Correct(x,b) -> 
-        match parseList parseOne b with 
-        | Correct(xs) -> correct(x::xs)
-        | Error(x,y)  -> Error(x,y)
-    | Error(x,y)      -> Error(x,y)
 
 let rec parseCertificate_int toProcess list =
     if equalBytes toProcess [||] then
@@ -414,7 +471,7 @@ let makeCertificateRequest sign cs version =
     let data = certTypes 
             @| sigAndAlg 
             @| distNames in
-    makeMessage HT_certificate_request data
+    messageBytes HT_certificate_request data
 
 let parseCertificateRequest version data =
     match vlsplit 1 data with
@@ -457,13 +514,13 @@ let makeClientKEX_RSA si config =
             | Correct(pubKey) ->
             let encpms = RSAEnc.encrypt pubKey si pms in
             let encpms = if si.protocol_version = SSL_3p0 then encpms else vlbytes 2 encpms 
-            correct((makeMessage HT_client_key_exchange encpms),pms)
+            correct((messageBytes HT_client_key_exchange encpms),pms)
 
 let makeClientKEX_DH_explicit y =
     let yb = vlbytes 2 y in
-    makeMessage HT_client_key_exchange yb
+    messageBytes HT_client_key_exchange yb
 
-let makeClientKEX_DH_implicit = makeMessage HT_client_key_exchange [||]
+let makeClientKEX_DH_implicit = messageBytes HT_client_key_exchange [||]
 
 let parseClientKEX_RSA si skey cv config data =
     if si.serverID.IsEmpty then
@@ -541,7 +598,7 @@ let serverKeyExchange_DHE crand srand p g y alg skey pv =
     let sign = Sig.sign alg skey toSign in
     let sign = digitallySignedBytes alg sign pv in
     let payload = dheb @| sign in
-    makeMessage HT_server_key_exchange payload
+    messageBytes HT_server_key_exchange payload
 
 let checkServerKeyExchange_DHE crand srand cert pv cs payload =
     match parseDHEParams payload with
@@ -563,7 +620,7 @@ let checkServerKeyExchange_DHE crand srand cert pv cs payload =
 
 let serverKeyExchange_DH_anon p g y =
     let dehb = dheParamBytes p g y in
-    makeMessage HT_server_key_exchange dehb
+    messageBytes HT_server_key_exchange dehb
 
 let parseServerKeyExchange_DH_anon payload =
     match parseDHEParams payload with
@@ -588,7 +645,7 @@ let makeCertificateVerifyBytes si ms alg skey data =
             ((sigAlg,[]),toSign)
     let signed = Sig.sign alg skey toSign in
     let payload = digitallySignedBytes alg signed si.protocol_version in
-    makeMessage HT_certificate_verify payload
+    messageBytes HT_certificate_verify payload
     
 let certificateVerifyCheck si ms algs cert log payload =
     match parseDigitallySigned algs payload si.protocol_version with
@@ -696,70 +753,6 @@ type pre_hs_state = {
 
 type hs_state = pre_hs_state
 type nextState = hs_state
-
-
-/// Extensions
-
-let check_reneg_info payload expected =
-    // We also check there were no more data in this extension.
-    match vlparse 1 payload with
-    | Error(x,y)     -> false
-    | Correct (recv) -> equalBytes recv expected
-
-let check_client_renegotiation_info cHello expected =
-    let (ch_client_version,ch_random,ch_session_id,ch_cipher_suites,ch_compression_methods,ch_extensions) = cHello
-    match extensionList_of_bytes ch_extensions with
-    | Error(x,y) -> false
-    | Correct(extList) ->
-        (* Check there is at most one renegotiation_info extension *)
-        let ren_ext_list = List.filter (fun (ext,_) -> ext = HExt_renegotiation_info) extList in
-        if ren_ext_list.Length > 1 then
-            false
-        else
-            let has_SCSV = contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV ch_cipher_suites in
-            if equalBytes expected [||] 
-            then  
-                (* First handshake *)
-                if ren_ext_list.Length = 0 
-                then has_SCSV
-                    (* either client gave SCSV and no extension; this is OK for first handshake *)
-                    (* or the client doesn't support this extension and we fail *)
-                else
-                    let ren_ext = ren_ext_list.Head in
-                    let (extType,payload) = ren_ext in
-                    check_reneg_info payload expected
-            else
-                (* Not first handshake *)
-                if has_SCSV || (ren_ext_list.Length = 0) then false
-                else
-                    let ren_ext = ren_ext_list.Head in
-                    let (extType,payload) = ren_ext in
-                    check_reneg_info payload expected
-
-let inspect_ServerHello_extensions recvExt expected =
-    (* Code is ad-hoc for the only extension we support now: renegotiation_info *)
-    match extensionList_of_bytes recvExt with
-    | Error (x,y) -> Error (x,y)
-    | Correct (extList) ->
-        (* We expect to find exactly one extension *)
-        match extList.Length with
-        | 0 -> Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Not enough extensions given")
-        | x when not (x = 1) -> Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Too many extensions given")
-        | _ ->
-            let (extType,payload) = extList.Head in
-            match extType with
-            | HExt_renegotiation_info ->
-                (* Check its content *)
-                if check_reneg_info payload expected then
-                    let unitVal = () in
-                    correct (unitVal)
-                else
-                    (* RFC 5746, sec 3.4: send a handshake failure alert *)
-                    Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Wrong renegotiation information")
-            | _ -> Error(AD_unsupported_extension, perror __SOURCE_FILE__ __LINE__ "The server gave an unknown extension")
-
-
-
 
 /// Initiating Handshakes, mostly on the client side. 
 
@@ -915,19 +908,19 @@ let next_fragment ci state =
                 let next_ci = getNextEpochs ci si si.init_crand si.init_srand in
                 let (writer,reader) = PRFs.keyGen next_ci ms in
                 let cvd = makeVerifyData si Client ms log in
-                let cFinished = makeMessage HT_finished cvd in
+                let cFinished = messageBytes HT_finished cvd in
                 let log = log @| cFinished in
                 let state = {state with hs_outgoing = cFinished 
                                         pstate = PSClient(ServerCCS(si,ms,next_ci.id_in,reader,cvd,log))} in
-                let (((rg,f),_),_) = makeCCSFragment ci.id_out CCSBytes in
+                let ((rg,f),_) = makeFragment ci.id_out CCSBytes in
                 let ci = {ci with id_out = next_ci.id_out} in 
                 OutCCS(rg,f,ci,writer,state)
             | ClientWritingCCSResume(e,w,ms,svd,log) ->
                 let cvd = makeVerifyData (epochSI e) Client ms log in
-                let cFinished = makeMessage HT_finished cvd in
+                let cFinished = messageBytes HT_finished cvd in
                 let state = {state with hs_outgoing = cFinished
                                         pstate = PSClient(ClientWritingFinishedResume(cvd,svd))} in
-                let (((rg,f),_),_) = makeCCSFragment ci.id_out CCSBytes in
+                let ((rg,f),_) = makeFragment ci.id_out CCSBytes in
                 let ci = {ci with id_out = e} in
                 OutCCS(rg,f,ci,w,state)
             | _ -> OutIdle(state)
@@ -935,24 +928,24 @@ let next_fragment ci state =
             match sstate with
             | ServerWritingCCS (si,ms,e,w,cvd,log) ->
                 let svd = makeVerifyData si Server ms log in
-                let sFinished = makeMessage HT_finished svd in
+                let sFinished = messageBytes HT_finished svd in
                 let state = {state with hs_outgoing = sFinished
                                         pstate = PSServer(ServerWritingFinished(si,ms,cvd,svd))}
-                let (((rg,f),_),_) = makeCCSFragment ci.id_out CCSBytes in
+                let ((rg,f),_) = makeFragment ci.id_out CCSBytes in
                 let ci = {ci with id_out = e} in
                 OutCCS(rg,f,ci,w,state)
             | ServerWritingCCSResume(we,w,re,r,ms,log) ->
                 let svd = makeVerifyData (epochSI we) Server ms log in
-                let sFinished = makeMessage HT_finished svd in
+                let sFinished = messageBytes HT_finished svd in
                 let log = log @| sFinished in
                 let state = {state with hs_outgoing = sFinished
                                         pstate = PSServer(ClientCCSResume(re,r,svd,ms,log))}
-                let (((rg,f),_),_) = makeCCSFragment ci.id_out CCSBytes in
+                let ((rg,f),_) = makeFragment ci.id_out CCSBytes in
                 let ci = {ci with id_out = we} in 
                 OutCCS(rg,f,ci,w,state)
             | _ -> OutIdle(state)
     | outBuf ->
-        let (((rg,f),_),(_,remBuf)) = makeFragment ci.id_out outBuf in
+        let ((rg,f),remBuf) = makeFragment ci.id_out outBuf in
         let state = {state with hs_outgoing = remBuf} in
         match remBuf with
         | [||] ->
@@ -1138,7 +1131,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
       | None      -> InAck(state)
       | Some (pv) -> InVersionAgreed(state,pv)
     | Some (state,hstypeb,payload,to_log) ->
-      match parseHT hstypeb with
+      match parseHt hstypeb with
       | Error(x,y) -> InError(x,y,state)
       | Correct(hstype) ->
       match state.pstate with
@@ -1398,8 +1391,8 @@ let prepare_server_hello si srand config cvd svd =
     let ext = 
       if config.safe_renegotiation then
         let data = cvd @| svd in
-        let ren_extB = makeRenegExtBytes data in
-        makeExtBytes ren_extB
+        let ren_extB = renegotiationInfoExtensionBytes data in
+        extensionListBytes [ren_extB]
       else
         [||]
     makeServerHelloBytes si srand ext
@@ -1555,7 +1548,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
       | None      -> InAck(state)
       | Some (pv) -> InVersionAgreed(state,pv) (*CF: why? AP: Needed in first handshake, to check the protocol version at the record level. (See sec E.1 RFC5246) *)
     | Some (state,hstypeb,payload,to_log) ->
-      match parseHT hstypeb with
+      match parseHt hstypeb with
       | Error(x,y) -> InError(x,y,state)
       | Correct(hstype) ->
       match state.pstate with
@@ -1571,9 +1564,12 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 (* Log the received message *)
                 let log = to_log in
                 (* handle extensions: for now only renegotiation_info *) (*CF? AP: we need to add support for the Signature Algorithm extension at least.*)
+                match parseExtensionList ch_extensions with
+                | Error(x,y) -> InError(x,y,state)
+                | Correct(extList) ->
                 let extRes =
                     if state.poptions.safe_renegotiation then
-                        if check_client_renegotiation_info cHello cvd then
+                        if checkClientRenegotiationInfoExtension extList ch_cipher_suites cvd then
                             correct(state)
                         else
                             (* We don't accept an insecure client *)

@@ -41,6 +41,7 @@ val encAlg_of_ciphersuite: cipherSuite -> cipherAlg
 val sigAlg_of_ciphersuite: cipherSuite -> sigAlg
 
 val compressionBytes: Compression -> bytes
+val compressionMethodsBytes: Compression list -> bytes
 val parseCompression: bytes -> Compression Result
 val parseCompressions: bytes -> Compression list
 

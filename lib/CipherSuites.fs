@@ -19,10 +19,6 @@ type cipherSuites = cipherSuite list
 type Compression =
     | NullCompression
 
-let compressionBytes (comp:Compression) = 
-    match comp with
-    | NullCompression -> [|0uy|]
-
 let parseCompression b =
     match b with
     | [|0uy|] -> correct(NullCompression)
@@ -41,6 +37,15 @@ let rec parseCompressions b =
             parseCompressions b
         | Correct(cm) -> cm :: parseCompressions b
     else []
+
+let compressionBytes (comp:Compression) = 
+    match comp with
+    | NullCompression -> [|0uy|]
+
+let rec compressionMethodsBytes cs =
+   match cs with
+   | c::cs -> compressionBytes c @| compressionMethodsBytes cs
+   | []    -> [||] 
 
 type ProtocolVersion =
     | SSL_3p0
