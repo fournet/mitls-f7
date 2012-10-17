@@ -1147,7 +1147,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
         | HT_hello_request ->
             match cState with
             | ClientIdle(_,_) -> 
-                (* This is a legitimate hello request. We handle it, but do not log this message *)
+                (* This is a legitimate hello request.
+                   Handle it, but according to the spec do not log this message *)
                 match state.poptions.honourHelloReq with
                 | HRPIgnore -> recv_fragment_client ci state agreedVersion
                 | HRPResume -> let (_,state) = rekey ci state state.poptions in InAck(state)       (* Terminating case, we're not idle anymore *)
@@ -1232,36 +1233,41 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "ServerHello arrived in the wrong state",state)
         
         | HT_certificate ->
-            match parseCertificate payload with
-            | Error(x,y) -> InError(x,y,state)
-            | Correct(certs) ->
-                match cState with
-                | ServerCertificateRSA (si,log) ->
+            match cState with
+            // FIXME: Most of the code in the branches is duplicated
+            | ServerCertificateRSA (si,log) ->
+                match parseCertificate payload with
+                | Error(x,y) -> InError(x,y,state)
+                | Correct(certs) ->
                     let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, this is the same as we sent in our extension
-                    if not (Cert.is_chain_for_key_encryption certs && Cert.validate_cert_chain allowedAlgs certs) then
-                        InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate could not be verified",state)
-                    else (* We have validated server identity *)
+                    if Cert.is_chain_for_key_encryption certs && Cert.validate_cert_chain allowedAlgs certs then
+                        (* We have validated server identity *)
                         (* Log the received packet *)
                         let log = log @| to_log in        
                         (* update the sinfo we're establishing *)
                         let si = {si with serverID = certs} in
                         let state = {state with pstate = PSClient(CertificateRequestRSA(si,log))} in
                         recv_fragment_client ci state agreedVersion
-                | ServerCertificateDHE (si,log) ->
-                    let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, this is the same as we sent in our extension
-                    if not (Cert.is_chain_for_key_encryption certs && Cert.validate_cert_chain allowedAlgs certs) then
+                    else
                         InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate could not be verified",state)
-                    else (* We have validated server identity *)
+            | ServerCertificateDHE (si,log) ->
+                match parseCertificate payload with
+                | Error(x,y) -> InError(x,y,state)
+                | Correct(certs) ->
+                    let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, this is the same as we sent in our extension
+                    if Cert.is_chain_for_key_encryption certs && Cert.validate_cert_chain allowedAlgs certs then
+                        (* We have validated server identity *)
                         (* Log the received packet *)
                         let log = log @| to_log in        
                         (* update the sinfo we're establishing *)
                         let si = {si with serverID = certs} in
                         let state = {state with pstate = PSClient(ServerKeyExchangeDHE(si,log))} in
                         recv_fragment_client ci state agreedVersion
-                | ServerCertificateDH (si,log) -> 
-                    InError(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Unimplemented",state) // TODO
-                | _ -> 
-                    InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "Certificate arrived in the wrong state",state)
+                    else
+                        InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate could not be verified",state)
+            | ServerCertificateDH (si,log) -> InError(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Unimplemented",state) // TODO
+            | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "Certificate arrived in the wrong state",state)
+
 
         | HT_server_key_exchange ->
             match cState with
@@ -1311,37 +1317,57 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "CertificateRequest arrived in the wrong state",state)
 
         | HT_server_hello_done ->
-            if not (equalBytes payload [||]) then InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state) else
             match cState with
             | CertificateRequestRSA(si,log) ->
-                let log = log @| to_log in
-                match prepare_client_output_full_RSA ci state si None log with
-                | Error (x,y) -> InError (x,y, state)
-                | Correct (state,si,ms,log) ->
-                    let state = {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
-                    recv_fragment_client ci state agreedVersion
+                if equalBytes payload [||] then     
+                    (* Log the received packet *)
+                    let log = log @| to_log in
+
+                    match prepare_client_output_full_RSA ci state si None log with
+                    | Error (x,y) -> InError (x,y, state)
+                    | Correct (state,si,ms,log) ->
+                        let state = {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
+                        recv_fragment_client ci state agreedVersion
+                else
+                    InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
             | ServerHelloDoneRSA(si,skey,log) ->
-                let log = log @| to_log in
-                match prepare_client_output_full_RSA ci state si (Some(skey)) log with
-                | Error (x,y) -> InError (x,y, state)
-                | Correct (state,si,ms,log) ->
-                    let state = {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
-                    recv_fragment_client ci state agreedVersion
+                if equalBytes payload [||] then
+                    (* Log the received packet *)
+                    let log = log @| to_log in
+
+                    match prepare_client_output_full_RSA ci state si (Some(skey)) log with
+                    | Error (x,y) -> InError (x,y, state)
+                    | Correct (state,si,ms,log) ->
+                        let state = {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
+                        recv_fragment_client ci state agreedVersion
+                else
+                    InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
             | CertificateRequestDHE(si,g,p,y,log) | ServerHelloDoneDH_anon(si,g,p,y,log) ->
-                let log = log @| to_log in
-                match prepare_client_output_full_DHE ci state si None g p y log with
-                | Error (x,y) -> InError (x,y, state)
-                | Correct (state,si,ms,log) ->
-                    let state = {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
-                    recv_fragment_client ci state agreedVersion
+                if equalBytes payload [||] then
+                    (* Log the received packet *)
+                    let log = log @| to_log in
+
+                    match prepare_client_output_full_DHE ci state si None g p y log with
+                    | Error (x,y) -> InError (x,y, state)
+                    | Correct (state,si,ms,log) ->
+                        let state = {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
+                        recv_fragment_client ci state agreedVersion
+                else
+                    InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
             | ServerHelloDoneDHE(si,skey,g,p,y,log) ->
-                let log = log @| to_log in
-                match prepare_client_output_full_DHE ci state si (Some(skey)) g p y log with
-                | Error (x,y) -> InError (x,y, state)
-                | Correct (state,si,ms,log) ->
-                    let state = {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
-                    recv_fragment_client ci state agreedVersion
+                if equalBytes payload [||] then
+                    (* Log the received packet *)
+                    let log = log @| to_log in
+
+                    match prepare_client_output_full_DHE ci state si (Some(skey)) g p y log with
+                    | Error (x,y) -> InError (x,y, state)
+                    | Correct (state,si,ms,log) ->
+                        let state = {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
+                        recv_fragment_client ci state agreedVersion
+                else
+                    InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
             | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "ServerHelloDone arrived in the wrong state",state)
+
 
         | HT_finished ->
             match cState with
@@ -1527,7 +1553,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
     | None ->
       match agreedVersion with
       | None      -> InAck(state)
-      | Some (pv) -> InVersionAgreed(state,pv) (*CF: why? *)
+      | Some (pv) -> InVersionAgreed(state,pv) (*CF: why? AP: Needed in first handshake, to check the protocol version at the record level. (See sec E.1 RFC5246) *)
     | Some (state,hstypeb,payload,to_log) ->
       match parseHT hstypeb with
       | Error(x,y) -> InError(x,y,state)
@@ -1544,7 +1570,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 let (ch_client_version,ch_random,ch_session_id,ch_cipher_suites,ch_compression_methods,ch_extensions) = cHello
                 (* Log the received message *)
                 let log = to_log in
-                (* handle extensions: for now only renegotiation_info *) (*CF?*)
+                (* handle extensions: for now only renegotiation_info *) (*CF? AP: we need to add support for the Signature Algorithm extension at least.*)
                 let extRes =
                     if state.poptions.safe_renegotiation then
                         if check_client_renegotiation_info cHello cvd then
@@ -1586,26 +1612,29 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "ClientHello arrived in the wrong state",state)
 
         | HT_certificate ->
-            match parseCertificate payload with
-            | Error(x,y) -> InError(x,y,state)
-            | Correct(certs) ->
-                match sState with
-                | ClientCertificateRSA (si,cv,sk,log) ->
-                    if not (Cert.is_chain_for_signing certs && Cert.validate_cert_chain (default_sigHashAlg si.protocol_version si.cipher_suite) certs) then 
-                        // FIXME: we still have to ask the user
-                        InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate could not be verified",state)
-                    else (* We have validated client identity *)
-                        (* move to the next state, logging the received packet and updating sinfo *)
-                        let log = log @| to_log 
+            match sState with
+            | ClientCertificateRSA (si,cv,sk,log) ->
+                match parseCertificate payload with
+                | Error(x,y) -> InError(x,y,state)
+                | Correct(certs) ->
+                    if Cert.is_chain_for_signing certs && Cert.validate_cert_chain (default_sigHashAlg si.protocol_version si.cipher_suite) certs then // FIXME: we still have to ask the user
+                        (* We have validated client identity *)
+                        (* Log the received packet *)
+                        let log = log @| to_log in           
+                        (* update the sinfo we're establishing *)
                         let si = {si with clientID = certs}
-                        let state = {state with pstate = PSServer(ClientKeyExchangeRSA(si,cv,sk,log))} 
+                        (* move to the next state *)
+                        let state = {state with pstate = PSServer(ClientKeyExchangeRSA(si,cv,sk,log))} in
                         recv_fragment_server ci state agreedVersion
-
-                | ClientCertificateDHE (si,g,p,x,log) ->
-                    // Duplicated code from above.
-                    if not (Cert.is_chain_for_signing certs && Cert.validate_cert_chain (default_sigHashAlg si.protocol_version si.cipher_suite) certs) then // FIXME: we still have to ask the user
+                    else
                         InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate could not be verified",state)
-                    else (* We have validated client identity *)
+            | ClientCertificateDHE (si,g,p,x,log) ->
+                // Duplicated code from above.
+                match parseCertificate payload with
+                | Error(x,y) -> InError(x,y,state)
+                | Correct(certs) ->
+                    if Cert.is_chain_for_signing certs && Cert.validate_cert_chain (default_sigHashAlg si.protocol_version si.cipher_suite) certs then // FIXME: we still have to ask the user
+                        (* We have validated client identity *)
                         (* Log the received packet *)
                         let log = log @| to_log in           
                         (* update the sinfo we're establishing *)
@@ -1613,11 +1642,10 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         (* move to the next state *)
                         let state = {state with pstate = PSServer(ClientKeyExchangeDHE(si,g,p,x,log))} in
                         recv_fragment_server ci state agreedVersion
-                | ClientCertificateDH  (si,log) -> 
-                    (* TODO *) 
-                    InError(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Unimplemented",state)
-                | _ -> 
-                    InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "Certificate arrived in the wrong state",state)
+                    else
+                        InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate could not be verified",state)
+            | ClientCertificateDH  (si,log) -> (* TODO *) InError(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Unimplemented",state)
+            | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "Certificate arrived in the wrong state",state)
 
         | HT_client_key_exchange ->
             match sState with
@@ -1627,7 +1655,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Correct(pms) ->
                     let log = log @| to_log in
                     let ms = PRFs.prfSmoothRSA si pms in
-                    (* we could also shred the pms *)
+                    (* TODO: we should shred the pms *)
                     (* move to new state *)
                     if state.poptions.request_client_certificate then
                         let state = {state with pstate = PSServer(CertificateVerify(si,ms,log))} in
@@ -1642,7 +1670,8 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let log = log @| to_log in
                     let pms = DHE.genPMS si (g, p) x y in
                     let ms = PRFs.prfSmoothDHE si pms in
-                    (* we rely on scopes & type safety to get forward secrecy; we could also shred the pms *)
+                    (* TODO: we should shred the pms *)
+                    (* we rely on scopes & type safety to get forward secrecy*) (* AP:? *)
                     (* move to new state *)
                     if state.poptions.request_client_certificate then
                         let state = {state with pstate = PSServer(CertificateVerify(si,ms,log))} in
