@@ -7,7 +7,7 @@ open System.Security.Cryptography
 open System.Security.Cryptography.X509Certificates
 
 open Bytes
-open Algorithms
+open TLSConstants
 open Error
 
 (* ------------------------------------------------------------------------ *)

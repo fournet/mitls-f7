@@ -1,7 +1,7 @@
 ﻿module Sig
 
 open Bytes
-open Algorithms
+open TLSConstants
 
 (* ------------------------------------------------------------------------ *)
 type chash = hashAlg List

@@ -3,8 +3,8 @@
 open Error
 open Bytes
 open TLSInfo
-open Formats
-open CipherSuites
+open TLSConstants
+
 open DataStream
 open StatefulPlain
 

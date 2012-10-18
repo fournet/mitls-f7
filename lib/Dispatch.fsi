@@ -1,7 +1,7 @@
 ﻿module Dispatch
 
 open Bytes
-open Formats
+open TLSConstants
 open Tcp
 open Error
 open Record

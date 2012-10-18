@@ -1,7 +1,7 @@
 ﻿module Dispatch
 
 open Bytes
-open Formats
+open TLSConstants
 //open Record
 open Tcp
 open Error
@@ -13,7 +13,7 @@ open TLSFragment // Required by F7, or deliver won't parse.
 
 type predispatchState =
   | Init
-  | FirstHandshake of CipherSuites.ProtocolVersion
+  | FirstHandshake of TLSConstants.ProtocolVersion
   | Finishing
   | Finished (* Only for Writing side, used to implement TLS False Start *)
   | Open
@@ -184,7 +184,7 @@ let send ns e write pv rg ct frag =
     match Tcp.write ns data with
     | Error(x,y) -> Error(x,y)
     | Correct(_) -> 
-        //let s = sprintf "                        %5d bytes --> %s\n" data.Length (Formats.CTtoString ct) in printf "%s" s 
+        //let s = sprintf "                        %5d bytes --> %s\n" data.Length (TLSConstants.CTtoString ct) in printf "%s" s 
         Correct(dState)
 
 //type preds = GState of ConnectionInfo * globalState
@@ -399,7 +399,7 @@ let recv (Conn(id,c)) =
                 | Error(x,y) -> Error(x,y)
                 | Correct(pack) -> 
                     let (c_recv,ct,pv,tl,f) = pack in
-                    //let s = sprintf "                        %5d bytes --> %s\n" len (Formats.CTtoString ct) in printfn "%s" s  
+                    //let s = sprintf "                        %5d bytes --> %s\n" len (TLSConstants.CTtoString ct) in printfn "%s" s  
                     let si = epochSI(id.id_in) in
                     match c.read.disp with
                     | Init -> correct(c_recv,ct,tl,f)

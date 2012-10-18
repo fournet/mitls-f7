@@ -1,8 +1,8 @@
 ﻿module MAC
 
 open Bytes
-open Algorithms
-open CipherSuites
+open TLSConstants
+
 open TLSInfo
 //open HASH (* Only for SSL 3 keyed hash *)
 open Error

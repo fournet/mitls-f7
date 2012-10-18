@@ -2,8 +2,9 @@
 module Handshake
 
 open Error
-open CipherSuites
+
 open TLSInfo
+open TLSConstants
 open DataStream
 
 // protocol state  

@@ -1,7 +1,8 @@
 ﻿module TLSInfo
 
 open Bytes
-open CipherSuites
+open TLSConstants
+
 
 type sessionID = bytes
 type preRole =

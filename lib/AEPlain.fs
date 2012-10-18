@@ -2,8 +2,8 @@
 
 open Bytes
 open TLSInfo
-open Algorithms
-open CipherSuites
+open TLSConstants
+
 open DataStream
 open Fragment
 

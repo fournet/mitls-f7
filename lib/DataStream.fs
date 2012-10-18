@@ -24,7 +24,7 @@ let max (a:nat) (b:nat) =
 let splitRange ki r =
     let (l,h) = r in
     let si = epochSI(ki) in
-    let padSize = CipherSuites.maxPadSize si.protocol_version si.cipher_suite in
+    let padSize = TLSConstants.maxPadSize si.protocol_version si.cipher_suite in
     if padSize = 0 then
         if l <> h then
             unexpectedError "[splitRange] invalid argument"

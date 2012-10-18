@@ -2,10 +2,10 @@
 
 open Bytes
 open Tcp
-open Formats
+open TLSConstants
 open Error
 open TLSInfo
-open CipherSuites
+
 
 /// Implements stateful AE on top of AEAD,
 /// managing sequence numbers and the binary record format

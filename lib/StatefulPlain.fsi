@@ -1,6 +1,6 @@
 module StatefulPlain
 open Bytes
-open Formats
+open TLSConstants
 open TLSInfo
 open DataStream
 open AEADPlain

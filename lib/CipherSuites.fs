@@ -1,7 +1,7 @@
 ﻿module CipherSuites
 
 open Bytes
-open Algorithms
+open TLSConstants
 open Error
 
 // By now, we only support one SCSV, but there exist others.

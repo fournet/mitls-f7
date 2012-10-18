@@ -1,7 +1,7 @@
 ﻿module CipherSuites
 
 open Bytes
-open Algorithms
+open TLSConstants
 open Error
 
 type cipherSuite

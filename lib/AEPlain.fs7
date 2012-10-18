@@ -2,11 +2,11 @@
 
 open Bytes
 open TLSInfo
-open CipherSuites
+
 open DataStream
 open Fragment
-open Algorithms
-open CipherSuites
+open TLSConstants
+
 
 //------------------------------------------------------------------------------------------------------
 // Interface towards ENC 

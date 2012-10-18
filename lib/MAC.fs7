@@ -1,7 +1,7 @@
 ﻿module MAC
 
 open Bytes
-open Algorithms
+open TLSConstants
 open TLSInfo
 
 /// a refined, ideal interface for indexed MACs
@@ -12,15 +12,15 @@ open TLSInfo
 //          providing exact lengths for keys and tags.
 
 
-private type (;ki:epoch) key = {k:(x:bytes{Length(x) = MacKeySize(CipherSuites.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))})}
+private type (;ki:epoch) key = {k:(x:bytes{Length(x) = MacKeySize(TLSConstants.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))})}
 type text = bytes
 type tag = bytes
 predicate val Msg: epoch * text -> bool
 
-val Mac:    ki:epoch -> k:(;ki) key -> t:text{Msg(ki,t)} -> t:tag{Length(t) = MacKeySize(CipherSuites.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))}
+val Mac:    ki:epoch -> k:(;ki) key -> t:text{Msg(ki,t)} -> t:tag{Length(t) = MacKeySize(TLSConstants.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))}
 val Verify: ki:epoch -> k:(;ki) key -> t:text -> tag -> 
   v:bool{ (v=true /\ Auth(ki)) => Msg(ki,t) }
 
 val GEN:    ki:epoch -> (;ki) key
 val LEAK:   ki:epoch{not(Auth(ki))} -> (;ki)key -> bytes
-val COERCE: ki:epoch{not(Auth(ki))} -> x:bytes{Length(x) = MacKeySize(CipherSuites.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))} -> (;ki)key
+val COERCE: ki:epoch{not(Auth(ki))} -> x:bytes{Length(x) = MacKeySize(TLSConstants.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))} -> (;ki)key

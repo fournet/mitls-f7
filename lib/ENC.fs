@@ -2,10 +2,10 @@
 
 open Bytes
 open Error
-open Algorithms
-open CipherSuites
+open TLSConstants
+
 open TLSInfo
-open Formats
+open TLSConstants
 
 type cipher = bytes
 

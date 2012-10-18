@@ -1,7 +1,7 @@
 ﻿module MAC
 
 open Bytes
-open Algorithms
+open TLSConstants
 open TLSInfo
 
 type text = bytes

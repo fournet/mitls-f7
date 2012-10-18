@@ -2,7 +2,7 @@
 
 open Bytes
 open Error
-open Formats
+open TLSConstants
 open TLSInfo
 open DataStream
 

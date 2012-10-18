@@ -1,7 +1,7 @@
 ﻿module PRFs
 
 open Bytes
-open Formats
+open TLSConstants
 open TLSInfo
 open RSA
 open Error
@@ -55,4 +55,4 @@ val keyGen: ci:ConnectionInfo -> (;EpochSI(ci.id_out))masterSecret ->
 val makeTimestamp: unit -> int
 
 // SSL 3 specific encoding function for certificate verify
-val ssl_certificate_verify: si:SessionInfo -> (;si)masterSecret -> Algorithms.sigAlg -> bytes -> bytes
+val ssl_certificate_verify: si:SessionInfo -> (;si)masterSecret -> TLSConstants.sigAlg -> bytes -> bytes

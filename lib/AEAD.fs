@@ -1,8 +1,8 @@
 ﻿module AEAD
 
 open Bytes
-open CipherSuites
-open Algorithms
+
+open TLSConstants
 open TLSInfo
 open Error
 

@@ -8,17 +8,17 @@ open Dispatch
 open TLS
 
 let config = {
-    TLSInfo.minVer = CipherSuites.SSL_3p0
-    TLSInfo.maxVer = CipherSuites.TLS_1p2
+    TLSInfo.minVer = TLSConstants.SSL_3p0
+    TLSInfo.maxVer = TLSConstants.TLS_1p2
 
     TLSInfo.ciphersuites =
-        CipherSuites.cipherSuites_of_nameList [
-            CipherSuites.TLS_RSA_WITH_AES_128_CBC_SHA256;
-            CipherSuites.TLS_RSA_WITH_AES_128_CBC_SHA;
-            CipherSuites.TLS_RSA_WITH_3DES_EDE_CBC_SHA;
+        TLSConstants.cipherSuites_of_nameList [
+            TLSConstants.TLS_RSA_WITH_AES_128_CBC_SHA256;
+            TLSConstants.TLS_RSA_WITH_AES_128_CBC_SHA;
+            TLSConstants.TLS_RSA_WITH_3DES_EDE_CBC_SHA;
         ]
 
-    TLSInfo.compressions = [ CipherSuites.NullCompression ]
+    TLSInfo.compressions = [ TLSConstants.NullCompression ]
 
     (* Client side *)
     TLSInfo.honourHelloReq = TLSInfo.HRPResume

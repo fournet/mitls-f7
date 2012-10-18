@@ -1,7 +1,7 @@
 ﻿module HASH
 
 open Bytes
-open Algorithms
+open TLSConstants
 
 (* Parametric hash algorithm (implements interface) *)
 let hash alg data =

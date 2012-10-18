@@ -2,7 +2,7 @@
 
 open Bytes
 open TLSInfo
-open Formats
+open TLSConstants
 open DataStream
 open Fragment
 

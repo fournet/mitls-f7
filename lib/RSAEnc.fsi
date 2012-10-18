@@ -3,7 +3,8 @@
 open TLSInfo
 open RSAPlain
 open Bytes
-open CipherSuites
+open TLSConstants
+
 
 val encrypt: RSAKeys.pk -> SessionInfo -> pms -> bytes 
 

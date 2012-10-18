@@ -1,7 +1,7 @@
 ﻿module Sig
 
 open Bytes
-open Algorithms
+open TLSConstants
 
 // TLS uses three signatures algorithms, together with an hash algorithm.
 // We verify TLS security relative to those combinations of algorithms

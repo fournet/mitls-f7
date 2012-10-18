@@ -3,9 +3,9 @@ module Handshake
 
 open Bytes
 open Error
-open Formats
-open Algorithms
-open CipherSuites
+open TLSConstants
+open TLSConstants
+
 open TLSInfo
 open PRFs
 
@@ -263,7 +263,7 @@ let makeClientHelloBytes poptions crand session cVerifyData =
     let cVerB      = versionBytes poptions.maxVer in
     let random     = crand in
     let csessB     = vlbytes 1 session in
-    let ccsuitesB  = vlbytes 2 (bytes_of_cipherSuites poptions.ciphersuites) in
+    let ccsuitesB  = vlbytes 2 (cipherSuitesBytes poptions.ciphersuites) in
     let ccompmethB = vlbytes 1 (compressionMethodsBytes poptions.compressions) in
     let data = cVerB @| random @| csessB @| ccsuitesB @| ccompmethB @| ext in
     messageBytes HT_client_hello data
@@ -285,7 +285,7 @@ let parseServerHello data =
     | Error(x,y) -> Error (x,y)
     | Correct (sid,data) ->
     let (csBytes,cmBytes,data) = split2 data 2 1 
-    match cipherSuite_of_bytes csBytes with
+    match parseCipherSuite csBytes with
     | Error(x,y) -> Error(x,y)
     | Correct(cs) ->
     match parseCompression cmBytes with
@@ -338,7 +338,7 @@ let rec parseCertificateTypeList data =
     if length data = 0 then Correct([])
     else
         let (thisByte,data) = Bytes.split data 1 in
-        match Formats.parseCertType thisByte with
+        match TLSConstants.parseCertType thisByte with
         | Correct(ct) ->
             match parseCertificateTypeList data with
             | Correct(ctList) -> Correct(ct :: ctList)
@@ -428,8 +428,8 @@ let sigHashAlg_bySigList (algList:Sig.alg list) (sigAlgList:sigAlg list) =
 
 let cert_type_to_SigHashAlg ct pv =
     match ct with
-    | Formats.DSA_fixed_dh | Formats.DSA_sign -> default_sigHashAlg_fromSig pv SA_DSA
-    | Formats.RSA_fixed_dh | Formats.RSA_sign -> default_sigHashAlg_fromSig pv SA_RSA
+    | TLSConstants.DSA_fixed_dh | TLSConstants.DSA_sign -> default_sigHashAlg_fromSig pv SA_DSA
+    | TLSConstants.RSA_fixed_dh | TLSConstants.RSA_sign -> default_sigHashAlg_fromSig pv SA_RSA
 
 let rec cert_type_list_to_SigHashAlg ctl pv =
     // FIXME: Generates a list with duplicates!
@@ -439,8 +439,8 @@ let rec cert_type_list_to_SigHashAlg ctl pv =
 
 let cert_type_to_SigAlg ct =
     match ct with
-    | Formats.DSA_fixed_dh | Formats.DSA_sign -> SA_DSA
-    | Formats.RSA_fixed_dh | Formats.RSA_sign -> SA_RSA
+    | TLSConstants.DSA_fixed_dh | TLSConstants.DSA_sign -> SA_DSA
+    | TLSConstants.RSA_fixed_dh | TLSConstants.RSA_sign -> SA_RSA
 
 let rec cert_type_list_to_SigAlg ctl =
     // FIXME: Generates a list with duplicates!
@@ -453,13 +453,13 @@ let makeCertificateRequest sign cs version =
     let certTypes = 
         if sign then
             match sigAlg_of_ciphersuite cs with
-            | SA_RSA -> vlbytes 1 (certTypeBytes Formats.RSA_sign)
-            | SA_DSA -> vlbytes 1 (certTypeBytes Formats.DSA_sign)
+            | SA_RSA -> vlbytes 1 (certTypeBytes TLSConstants.RSA_sign)
+            | SA_DSA -> vlbytes 1 (certTypeBytes TLSConstants.DSA_sign)
             | _ -> unexpectedError "[makeCertificateRequest] invoked on an invalid ciphersuite"
         else 
             match sigAlg_of_ciphersuite cs with
-            | SA_RSA -> vlbytes 1 (certTypeBytes Formats.RSA_fixed_dh)
-            | SA_DSA -> vlbytes 1 (certTypeBytes Formats.DSA_fixed_dh)
+            | SA_RSA -> vlbytes 1 (certTypeBytes TLSConstants.RSA_fixed_dh)
+            | SA_DSA -> vlbytes 1 (certTypeBytes TLSConstants.DSA_fixed_dh)
             | _ -> unexpectedError "[makeCertificateRequest] invoked on an invalid ciphersuite"
     let sigAndAlg =
         match version with

@@ -17,7 +17,7 @@ val encrypt: pk -> si:SessionInfo -> (;si) pms -> bytes
 // TLS specific, timing-attack-resistant variant
 val decrypt: sk ->
 			si:SessionInfo -> 
-            cv:CipherSuites.ProtocolVersion (* highest client version, as above *) ->
+            cv:TLSConstants.ProtocolVersion (* highest client version, as above *) ->
             bool -> (* flag whether we should check protocol version in old TLS versions *)
             bytes -> (;si)pms (* No Result type: in case of error, we return a fresh random PMS *)
 

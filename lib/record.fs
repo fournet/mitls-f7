@@ -3,8 +3,8 @@
 open Bytes
 open Error
 open TLSInfo
-open Formats
-open CipherSuites
+open TLSConstants
+
 open TLSFragment
 
 type ConnectionState =
@@ -49,7 +49,7 @@ let parseHeader b =
     match parseCT ct1 with
     | Error(x,y) -> Error(x,y)
     | Correct(ct) ->
-    match CipherSuites.parseVersion pv2 with
+    match TLSConstants.parseVersion pv2 with
     | Error(x,y) -> Error(x,y)
     | Correct(pv) -> 
     let len = int_of_bytes len2 in

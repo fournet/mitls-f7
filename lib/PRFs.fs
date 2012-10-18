@@ -2,9 +2,9 @@
 
 open Bytes
 open Error
-open Algorithms
-open Formats
-open CipherSuites
+open TLSConstants
+open TLSConstants
+
 open TLSInfo
 open HASH
 open HMAC

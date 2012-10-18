@@ -2,7 +2,7 @@
 
 open Bytes
 open Error
-open CipherSuites
+open TLSConstants
 open TLSInfo
 
 let encrypt key id (pms:RSAPlain.pms) =

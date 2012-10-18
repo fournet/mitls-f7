@@ -3,7 +3,7 @@ module Handshake
 // We haven't yet verified the Handshake implementation against this interface.
 
 open Error
-open CipherSuites
+
 open TLSInfo
 open DataStream
 open StatefulAEAD

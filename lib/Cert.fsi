@@ -30,7 +30,7 @@ val get_chain_public_encryption_key : certchain -> RSAKeys.pk Result
 val is_chain_for_signing : certchain -> bool
 val is_chain_for_key_encryption : certchain -> bool
 
-val get_chain_key_algorithm : certchain -> Algorithms.sigAlg option
+val get_chain_key_algorithm : certchain -> TLSConstants.sigAlg option
 
 val get_hint : certchain -> hint option
 

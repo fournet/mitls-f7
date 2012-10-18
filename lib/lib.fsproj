@@ -9,14 +9,14 @@
     <OutputType>Library</OutputType>
     <RootNamespace>lib</RootNamespace>
     <AssemblyName>lib</AssemblyName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <Name>lib</Name>
+    <UsePartialTypes>False</UsePartialTypes>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
+    <DebugSymbols>True</DebugSymbols>
     <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <Tailcalls>false</Tailcalls>
+    <Optimize>False</Optimize>
+    <Tailcalls>False</Tailcalls>
     <OutputPath>bin\Debug\</OutputPath>
     <DefineConstants>TRACE;DEBUG;fs</DefineConstants>
     <WarningLevel>3</WarningLevel>
@@ -27,13 +27,14 @@
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <Tailcalls>true</Tailcalls>
+    <Optimize>True</Optimize>
+    <Tailcalls>True</Tailcalls>
     <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <DocumentationFile>bin\Release\lib.XML</DocumentationFile>
     <NoWarn>62</NoWarn>
+    <DebugSymbols>False</DebugSymbols>
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath32)\FSharp\1.0\Microsoft.FSharp.Targets" Condition="!Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
   <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft F#\v4.0\Microsoft.FSharp.Targets" Condition=" Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
@@ -50,9 +51,9 @@
     <None Include="tcp.fs7" />
     <Compile Include="tcp.fsi" />
     <Compile Include="tcp.fs" />
-    <None Include="Algorithms.fs7" />
-    <Compile Include="Algorithms.fsi" />
-    <Compile Include="Algorithms.fs" />
+    <None Include="TLSConstants.fs7" />
+    <Compile Include="TLSConstants.fsi" />
+    <Compile Include="TLSConstants.fs" />
     <None Include="RSAKeys.fs7" />
     <Compile Include="RSAKeys.fsi" />
     <Compile Include="RSAKeys.fs" />
@@ -68,12 +69,6 @@
     <None Include="Cert.fs7" />
     <Compile Include="Cert.fsi" />
     <Compile Include="Cert.fs" />
-    <None Include="CipherSuites.fs7" />
-    <Compile Include="CipherSuites.fsi" />
-    <Compile Include="CipherSuites.fs" />
-    <None Include="formats.fs7" />
-    <Compile Include="formats.fsi" />
-    <Compile Include="formats.fs" />
     <None Include="TLSInfo.fs7" />
     <Compile Include="TLSInfo.fsi" />
     <Compile Include="TLSInfo.fs" />
@@ -164,7 +159,6 @@
     <ProjectReference Include="..\CoreCrypto\CoreCrypto.fsproj">
       <Name>CoreCrypto</Name>
       <Project>{6d4e3f46-dbf9-473b-93ba-58614114aa57}</Project>
-      <Private>True</Private>
     </ProjectReference>
   </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

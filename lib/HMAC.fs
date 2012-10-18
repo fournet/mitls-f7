@@ -1,7 +1,7 @@
 ﻿module HMAC
 
 open Bytes
-open Algorithms
+open TLSConstants
 open Error
 
 type key = bytes

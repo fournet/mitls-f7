@@ -1,6 +1,6 @@
 module StatefulPlain
 open Bytes
-open Formats
+open TLSConstants
 open TLSInfo
 open DataStream
 // Do not open AEADPlain, or else AEADPlain "module" and AEADPlain "function" will clash. 

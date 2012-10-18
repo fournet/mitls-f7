@@ -1,6 +1,6 @@
 ﻿module HASH
 
 open Bytes
-open Algorithms
+open TLSConstants
 
 val hash: hashAlg -> bytes -> bytes

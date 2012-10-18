@@ -2,8 +2,8 @@
 
 open Bytes
 open TLSInfo
-open Formats
-open CipherSuites
+open TLSConstants
+
 open DataStream
 
 private type (;ki:epoch) prehistory = {
@@ -20,27 +20,27 @@ function val Multiplexed: ki:epoch * (;ki) StatefulPlain.history -> 'b
 predicate EmptyHistory of ki:epoch * (;ki)history
 val emptyHistory: ki:epoch -> h:(;ki)history{EmptyHistory(ki,h)}
 
-function val HistoryStream: e:epoch * Formats.ContentType * (;e)history -> 'a //(;e)stream
-private definition !e,h. HistoryStream(e,Formats.Handshake,h) = h.handshake
-private definition !e,h. HistoryStream(e,Formats.Alert,h) = h.alert
-private definition !e,h. HistoryStream(e,Formats.Change_cipher_spec,h) = h.ccs
-private definition !e,h. HistoryStream(e,Formats.Application_data,h) = h.appdata
+function val HistoryStream: e:epoch * TLSConstants.ContentType * (;e)history -> 'a //(;e)stream
+private definition !e,h. HistoryStream(e,TLSConstants.Handshake,h) = h.handshake
+private definition !e,h. HistoryStream(e,TLSConstants.Alert,h) = h.alert
+private definition !e,h. HistoryStream(e,TLSConstants.Change_cipher_spec,h) = h.ccs
+private definition !e,h. HistoryStream(e,TLSConstants.Application_data,h) = h.appdata
 
 predicate TLSFragment of ki:epoch * ct:ContentType * h:(;ki) history * rg:range * d:(;ki,rg) Fragment.fragment
 assume !ki,ct,h,rg,d.
   TLSFragment(ki,ct,h,rg,d) <=> (
-    (ct = Formats.Handshake /\ Fragment.Fragment(ki,HistoryStream(ki,ct,h),rg,d) ) \/
-    (ct = Formats.Change_cipher_spec /\ Fragment.Fragment(ki,HistoryStream(ki,ct,h),rg,d) ) \/
-    (ct = Formats.Alert /\ Fragment.Fragment(ki,HistoryStream(ki,ct,h),rg,d) ) \/
-    (ct = Formats.Application_data /\ Fragment.Fragment(ki,HistoryStream(ki,ct,h),rg,d))
+    (ct = TLSConstants.Handshake /\ Fragment.Fragment(ki,HistoryStream(ki,ct,h),rg,d) ) \/
+    (ct = TLSConstants.Change_cipher_spec /\ Fragment.Fragment(ki,HistoryStream(ki,ct,h),rg,d) ) \/
+    (ct = TLSConstants.Alert /\ Fragment.Fragment(ki,HistoryStream(ki,ct,h),rg,d) ) \/
+    (ct = TLSConstants.Application_data /\ Fragment.Fragment(ki,HistoryStream(ki,ct,h),rg,d))
   )
 
 
 type (;ki:epoch,ct:ContentType,h:(;ki) history,rg:range) fragment =
-    | FHandshake of f:(;ki,rg)Fragment.fragment{ct=Formats.Handshake  /\ (Auth(ki) => TLSFragment(ki,ct,h,rg,f))}
-    | FCCS       of f:(;ki,rg)Fragment.fragment{ct=Formats.Change_cipher_spec  /\ (Auth(ki) => TLSFragment(ki,ct,h,rg,f))}
-    | FAlert     of f:(;ki,rg)Fragment.fragment{ct=Formats.Alert  /\ (Auth(ki) => TLSFragment(ki,ct,h,rg,f))}
-    | FAppData   of f:(;ki,rg)Fragment.fragment{ct=Formats.Application_data  /\ (Auth(ki) => TLSFragment(ki,ct,h,rg,f))}
+    | FHandshake of f:(;ki,rg)Fragment.fragment{ct=TLSConstants.Handshake  /\ (Auth(ki) => TLSFragment(ki,ct,h,rg,f))}
+    | FCCS       of f:(;ki,rg)Fragment.fragment{ct=TLSConstants.Change_cipher_spec  /\ (Auth(ki) => TLSFragment(ki,ct,h,rg,f))}
+    | FAlert     of f:(;ki,rg)Fragment.fragment{ct=TLSConstants.Alert  /\ (Auth(ki) => TLSFragment(ki,ct,h,rg,f))}
+    | FAppData   of f:(;ki,rg)Fragment.fragment{ct=TLSConstants.Application_data  /\ (Auth(ki) => TLSFragment(ki,ct,h,rg,f))}
 
 function val TLSContents: 'a -> 'b // TLSFragment -> Fragment
 assume !f. TLSContents(FHandshake(f)) = f
@@ -82,76 +82,76 @@ private assume !ki,h. EmptyHistory(ki,h) <=>
 private assume !ki,h,h'. EmptyHistory(ki,h) /\ EmptyHistory(ki,h') => h = h'
 
 private assume !ki,ct,h,r,d,h'. ExtendHistory(ki,ct,h,r,d) = h' <=>
-    ((ct = Formats.Handshake /\ h' = 
+    ((ct = TLSConstants.Handshake /\ h' = 
 	 { handshake = Fragment.Extend(ki,h.handshake,r,d);
 	   alert = h.alert;
 	   ccs = h.ccs;
 	   appdata = h.appdata}) \/
-     (ct = Formats.Alert /\ h' = 
+     (ct = TLSConstants.Alert /\ h' = 
 	 { handshake = h.handshake;
 	   alert = Fragment.Extend(ki,h.alert,r,d);
 	   ccs = h.ccs;
 	   appdata = h.appdata}) \/
-     (ct = Formats.Change_cipher_spec /\ h' = 
+     (ct = TLSConstants.Change_cipher_spec /\ h' = 
 	 { handshake = h.handshake;
 	   alert = h.alert;
 	   ccs = Fragment.Extend(ki,h.ccs,r,d);
 	   appdata = h.appdata}) \/
-     (ct = Formats.Application_data /\ h' = 
+     (ct = TLSConstants.Application_data /\ h' = 
 	 { handshake = h.handshake;
 	   alert = h.alert;
 	   ccs = h.ccs;
 	   appdata = Fragment.Extend(ki,h.appdata,r,d)}))
 
-private assume !ki,h,r,d. ExtendHistory(ki,Formats.Handshake,h,r,d) = 
+private assume !ki,h,r,d. ExtendHistory(ki,TLSConstants.Handshake,h,r,d) = 
 	 { handshake = Fragment.Extend(ki,h.handshake,r,d);
 	   alert = h.alert;
 	   ccs = h.ccs;
 	   appdata = h.appdata}
-private assume !ki,h,r,d. ExtendHistory(ki,Formats.Alert,h,r,d) = 
+private assume !ki,h,r,d. ExtendHistory(ki,TLSConstants.Alert,h,r,d) = 
 	 { handshake = h.handshake;
 	   alert = Fragment.Extend(ki,h.alert,r,d);
 	   ccs = h.ccs;
 	   appdata = h.appdata}
-private assume !ki,h,r,d. ExtendHistory(ki,Formats.Change_cipher_spec,h,r,d) = 
+private assume !ki,h,r,d. ExtendHistory(ki,TLSConstants.Change_cipher_spec,h,r,d) = 
 	 { handshake = h.handshake;
 	   alert = h.alert;
 	   ccs = Fragment.Extend(ki,h.ccs,r,d);
 	   appdata = h.appdata}
-private assume !ki,h,r,d. ExtendHistory(ki,Formats.Application_data,h,r,d) = 
+private assume !ki,h,r,d. ExtendHistory(ki,TLSConstants.Application_data,h,r,d) = 
 	 { handshake = h.handshake;
 	   alert = h.alert;
 	   ccs = h.ccs;
 	   appdata = Fragment.Extend(ki,h.appdata,r,d)}
 
-ask !ki,h,h',r,d. h' = ExtendHistory(ki,Formats.Handshake,h,r,d) =>
-	( HistoryStream(ki,Formats.Handshake,h') = Fragment.Extend(ki,HistoryStream(ki,Formats.Handshake,h),r,d) /\
-	  HistoryStream(ki,Formats.Alert,h') = HistoryStream(ki,Formats.Alert,h) /\
-	  HistoryStream(ki,Formats.Change_cipher_spec,h') = HistoryStream(ki,Formats.Change_cipher_spec,h) /\
-	  HistoryStream(ki,Formats.Application_data,h') = HistoryStream(ki,Formats.Application_data,h))
-ask !ki,h,h',r,d. h' = ExtendHistory(ki,Formats.Alert,h,r,d) =>
-	( HistoryStream(ki,Formats.Alert,h') = Fragment.Extend(ki,HistoryStream(ki,Formats.Alert,h),r,d) /\
-	  HistoryStream(ki,Formats.Handshake,h') = HistoryStream(ki,Formats.Handshake,h) /\
-	  HistoryStream(ki,Formats.Change_cipher_spec,h') = HistoryStream(ki,Formats.Change_cipher_spec,h) /\
-	  HistoryStream(ki,Formats.Application_data,h') = HistoryStream(ki,Formats.Application_data,h))
-ask !ki,h,h',r,d. h' = ExtendHistory(ki,Formats.Change_cipher_spec,h,r,d) =>
-	( HistoryStream(ki,Formats.Change_cipher_spec,h') = Fragment.Extend(ki,HistoryStream(ki,Formats.Change_cipher_spec,h),r,d) /\
-	  HistoryStream(ki,Formats.Alert,h') = HistoryStream(ki,Formats.Alert,h) /\
-	  HistoryStream(ki,Formats.Handshake,h') = HistoryStream(ki,Formats.Handshake,h) /\
-	  HistoryStream(ki,Formats.Application_data,h') = HistoryStream(ki,Formats.Application_data,h))
-ask !ki,h,h',r,d. h' = ExtendHistory(ki,Formats.Application_data,h,r,d) =>
-	( HistoryStream(ki,Formats.Application_data,h') = Fragment.Extend(ki,HistoryStream(ki,Formats.Application_data,h),r,d) /\
-	  HistoryStream(ki,Formats.Alert,h') = HistoryStream(ki,Formats.Alert,h) /\
-	  HistoryStream(ki,Formats.Change_cipher_spec,h') = HistoryStream(ki,Formats.Change_cipher_spec,h) /\
-	  HistoryStream(ki,Formats.Handshake,h') = HistoryStream(ki,Formats.Handshake,h))
+ask !ki,h,h',r,d. h' = ExtendHistory(ki,TLSConstants.Handshake,h,r,d) =>
+	( HistoryStream(ki,TLSConstants.Handshake,h') = Fragment.Extend(ki,HistoryStream(ki,TLSConstants.Handshake,h),r,d) /\
+	  HistoryStream(ki,TLSConstants.Alert,h') = HistoryStream(ki,TLSConstants.Alert,h) /\
+	  HistoryStream(ki,TLSConstants.Change_cipher_spec,h') = HistoryStream(ki,TLSConstants.Change_cipher_spec,h) /\
+	  HistoryStream(ki,TLSConstants.Application_data,h') = HistoryStream(ki,TLSConstants.Application_data,h))
+ask !ki,h,h',r,d. h' = ExtendHistory(ki,TLSConstants.Alert,h,r,d) =>
+	( HistoryStream(ki,TLSConstants.Alert,h') = Fragment.Extend(ki,HistoryStream(ki,TLSConstants.Alert,h),r,d) /\
+	  HistoryStream(ki,TLSConstants.Handshake,h') = HistoryStream(ki,TLSConstants.Handshake,h) /\
+	  HistoryStream(ki,TLSConstants.Change_cipher_spec,h') = HistoryStream(ki,TLSConstants.Change_cipher_spec,h) /\
+	  HistoryStream(ki,TLSConstants.Application_data,h') = HistoryStream(ki,TLSConstants.Application_data,h))
+ask !ki,h,h',r,d. h' = ExtendHistory(ki,TLSConstants.Change_cipher_spec,h,r,d) =>
+	( HistoryStream(ki,TLSConstants.Change_cipher_spec,h') = Fragment.Extend(ki,HistoryStream(ki,TLSConstants.Change_cipher_spec,h),r,d) /\
+	  HistoryStream(ki,TLSConstants.Alert,h') = HistoryStream(ki,TLSConstants.Alert,h) /\
+	  HistoryStream(ki,TLSConstants.Handshake,h') = HistoryStream(ki,TLSConstants.Handshake,h) /\
+	  HistoryStream(ki,TLSConstants.Application_data,h') = HistoryStream(ki,TLSConstants.Application_data,h))
+ask !ki,h,h',r,d. h' = ExtendHistory(ki,TLSConstants.Application_data,h,r,d) =>
+	( HistoryStream(ki,TLSConstants.Application_data,h') = Fragment.Extend(ki,HistoryStream(ki,TLSConstants.Application_data,h),r,d) /\
+	  HistoryStream(ki,TLSConstants.Alert,h') = HistoryStream(ki,TLSConstants.Alert,h) /\
+	  HistoryStream(ki,TLSConstants.Change_cipher_spec,h') = HistoryStream(ki,TLSConstants.Change_cipher_spec,h) /\
+	  HistoryStream(ki,TLSConstants.Handshake,h') = HistoryStream(ki,TLSConstants.Handshake,h))
 
-val historyStream: e:epoch -> ct:Formats.ContentType -> h:(;e)history ->
+val historyStream: e:epoch -> ct:TLSConstants.ContentType -> h:(;e)history ->
 	s:(;e)stream{s=HistoryStream(e,ct,h)}
 
-ask !e,h. EmptyHistory(e,h) => EmptyStream(e,HistoryStream(e,Formats.Handshake,h))
-ask !e,h. EmptyHistory(e,h) => EmptyStream(e,HistoryStream(e,Formats.Alert,h))
-ask !e,h. EmptyHistory(e,h) => EmptyStream(e,HistoryStream(e,Formats.Change_cipher_spec,h))
-ask !e,h. EmptyHistory(e,h) => EmptyStream(e,HistoryStream(e,Formats.Application_data,h))
+ask !e,h. EmptyHistory(e,h) => EmptyStream(e,HistoryStream(e,TLSConstants.Handshake,h))
+ask !e,h. EmptyHistory(e,h) => EmptyStream(e,HistoryStream(e,TLSConstants.Alert,h))
+ask !e,h. EmptyHistory(e,h) => EmptyStream(e,HistoryStream(e,TLSConstants.Change_cipher_spec,h))
+ask !e,h. EmptyHistory(e,h) => EmptyStream(e,HistoryStream(e,TLSConstants.Application_data,h))
 
 assume !ki,sh,h. StatefulPlain.EmptyHistory(ki,sh) /\
    EmptyHistory(ki,h) => h = Multiplexed(ki,sh)

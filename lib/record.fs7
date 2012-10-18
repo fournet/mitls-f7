@@ -5,8 +5,8 @@ open Error
 open TLSInfo
 open DataStream
 open TLSFragment
-open Formats
-open CipherSuites
+open TLSConstants
+
 open StatefulAEAD
 
 private type (;ki:epoch) ConnectionState =
@@ -58,5 +58,5 @@ val history: ki:epoch -> s:(;ki) ConnectionState ->
 	h:(;ki)TLSFragment.history{h=History(ki,s)}
 
 val historyStream: e:epoch -> st:(;e) ConnectionState -> 
-  ct:Formats.ContentType -> s:(;e)stream{s=HistoryStream(e,ct,History(e,st))}
+  ct:TLSConstants.ContentType -> s:(;e)stream{s=HistoryStream(e,ct,History(e,st))}
 	

@@ -1,7 +1,7 @@
 ﻿module PRFs
 
 open Bytes
-open Formats
+open TLSConstants
 open TLSInfo
 open Error
 
@@ -25,4 +25,4 @@ val makeVerifyData:  SessionInfo -> Role -> masterSecret -> bytes -> bytes
 val checkVerifyData: SessionInfo -> Role -> masterSecret -> bytes -> bytes -> bool
 
 // SSL 3 specific encoding function for certificate verify
-val ssl_certificate_verify: SessionInfo -> masterSecret -> Algorithms.sigAlg -> bytes -> bytes
+val ssl_certificate_verify: SessionInfo -> masterSecret -> TLSConstants.sigAlg -> bytes -> bytes

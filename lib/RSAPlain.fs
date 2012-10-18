@@ -5,8 +5,8 @@ open TLSInfo
 type repr = bytes
 type pms = {pmsbytes: repr}
 
-let genPMS (id:SessionInfo) (vc:CipherSuites.ProtocolVersion) : pms = 
-    let verBytes = CipherSuites.versionBytes vc in
+let genPMS (id:SessionInfo) (vc:TLSConstants.ProtocolVersion) : pms = 
+    let verBytes = TLSConstants.versionBytes vc in
     let rnd = mkRandom 46 in
     let pms = verBytes @| rnd in
     {pmsbytes = pms}
