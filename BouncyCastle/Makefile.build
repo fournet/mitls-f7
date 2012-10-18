@@ -4,7 +4,7 @@
 include ../Makefile.config
 
 target    = ../bin/BouncyCastle.dll
-mycsflags = /nowarn:0414 /nowarn:0219
+mycsflags = /sdk:4 /d:INCLUDE_IDEA /nowarn:0414 /nowarn:0219
 
 # --------------------------------------------------------------------
 .PHONY: all dist
