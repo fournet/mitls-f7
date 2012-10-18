@@ -48,9 +48,9 @@
     <None Include="Bytes.fs7" />
     <Compile Include="Bytes.fsi" />
     <Compile Include="Bytes.fs" />
-    <None Include="tcp.fs7" />
-    <Compile Include="tcp.fsi" />
-    <Compile Include="tcp.fs" />
+    <None Include="Tcp.fs7" />
+    <Compile Include="Tcp.fsi" />
+    <Compile Include="Tcp.fs" />
     <None Include="TLSConstants.fs7" />
     <Compile Include="TLSConstants.fsi" />
     <Compile Include="TLSConstants.fs" />
@@ -109,9 +109,9 @@
     <None Include="TLSFragment.fs7" />
     <Compile Include="TLSFragment.fsi" />
     <Compile Include="TLSFragment.fs" />
-    <None Include="record.fs7" />
-    <Compile Include="record.fsi" />
-    <Compile Include="record.fs" />
+    <None Include="Record.fs7" />
+    <Compile Include="Record.fsi" />
+    <Compile Include="Record.fs" />
     <None Include="Alert.fs7" />
     <Compile Include="Alert.fsi" />
     <Compile Include="Alert.fs" />
