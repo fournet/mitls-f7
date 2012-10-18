@@ -350,7 +350,7 @@ let rec parseCipherSuites b:cipherSuites Result =
         let (b0,b1) = split b 2 
         match parseCipherSuites b1 with 
         | Correct(css) ->
-            match cipherSuite_of_bytes b0 with
+            match parseCipherSuite b0 with
             | Error(x,y) -> // ignore this cs
                 correct(css)
             | Correct(cs) -> let ncss = consCipherSuites cs css  in correct(ncss)

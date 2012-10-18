@@ -154,7 +154,7 @@ type cipherSuiteName =
     | TLS_DH_anon_WITH_AES_128_CBC_SHA256
     | TLS_DH_anon_WITH_AES_256_CBC_SHA256
 
-val cipherSuites_of_nameList: cipherSuiteName list -> cipherSuitesmodule Formats
+val cipherSuites_of_nameList: cipherSuiteName list -> cipherSuites
 
 (* val split_at_most: bytes -> int -> (bytes * bytes) *)
 
