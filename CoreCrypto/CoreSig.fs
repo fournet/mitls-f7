@@ -22,8 +22,6 @@ type sigalg =
 | SA_RSA
 | SA_DSA
 
-type chash = sighash list
-
 (* ------------------------------------------------------------------------ *)
 type sigskey =
 | SK_RSA of CoreKeys.rsaskey
@@ -50,41 +48,7 @@ let bytes_to_bigint (b : byte[]) = new BigInteger(1, b)
 let bytes_of_bigint (b : BigInteger) = b.ToByteArrayUnsigned()
 
 (* ------------------------------------------------------------------------ *)
-type MultipleDigester(digesters : IDigest list) =
-    interface IDigest with
-        member self.AlgorithmName =
-            String.Join("-", digesters |> List.map (fun i -> i.AlgorithmName))
-
-        member self.GetDigestSize () =
-            digesters
-                |> Seq.map (fun (i : IDigest) -> i.GetDigestSize ())
-                |> Seq.sum
-
-        member self.GetByteLength () =
-            digesters
-                |> Seq.map (fun (i : IDigest) -> i.GetByteLength ())
-                |> Seq.sum
-
-        member self.Update (b : byte) =
-            digesters |> List.iter (fun (i : IDigest) -> i.Update(b))
-
-        member self.BlockUpdate (bs : byte[], off : int, len : int) =
-            digesters |> List.iter (fun (i : IDigest) -> i.BlockUpdate(bs, off, len))
-
-        member self.DoFinal (output : byte[], off : int) =
-            let eoff =
-                List.fold
-                    (fun off (i : IDigest) ->
-                        off + i.DoFinal(output, off))
-                    off digesters
-            in
-                eoff - off
-
-        member self.Reset () =
-            digesters |> List.iter (fun (i : IDigest) -> i.Reset ())
-
-(* ------------------------------------------------------------------------ *)
-let new_hash_engine (h : chash) : IDigest =
+let new_hash_engine (h : sighash option) : IDigest =
     let new_hash_engine (h : sighash) : IDigest =
         match h with
         | SH_MD5    -> (new MD5Digest   () :> IDigest)
@@ -93,25 +57,22 @@ let new_hash_engine (h : chash) : IDigest =
         | SH_SHA384 -> (new Sha384Digest() :> IDigest)
     in
         match h with
-        | []  -> new NullDigest () :> IDigest
-        | [h] -> new_hash_engine h
-        | _   -> new MultipleDigester(h |> List.map new_hash_engine) :> IDigest
+        | None   -> new NullDigest () :> IDigest
+        | Some h -> new_hash_engine h
 
 (* ------------------------------------------------------------------------ *)
-let new_rsa_signer (h : chash) =
-    match h with
-    | [_] -> new RsaDigestSigner(new_hash_engine h)
-    | _   -> new RsaDigestSigner(new_hash_engine h, null)
+let new_rsa_signer (h : sighash option) =
+    new RsaDigestSigner(new_hash_engine h)
 
 (* ------------------------------------------------------------------------ *)
-let RSA_sign ((m, e) : CoreKeys.rsaskey) (h : chash) (t : text) : sigv =
+let RSA_sign ((m, e) : CoreKeys.rsaskey) (h : sighash option) (t : text) : sigv =
     let signer = new_rsa_signer h in
 
     signer.Init(true, new RsaKeyParameters(true, bytes_to_bigint m, bytes_to_bigint e))
     signer.BlockUpdate(t, 0, t.Length)
     signer.GenerateSignature()
 
-let RSA_verify ((m, e) : CoreKeys.rsapkey) (h : chash) (t : text) (s : sigv) =
+let RSA_verify ((m, e) : CoreKeys.rsapkey) (h : sighash option) (t : text) (s : sigv) =
     let signer = new_rsa_signer h in
 
     signer.Init(false, new RsaKeyParameters(false, bytes_to_bigint m, bytes_to_bigint e))
@@ -134,7 +95,7 @@ let bytes_of_dsaparams p q g : CoreKeys.dsaparams =
       q = bytes_of_bigint q;
       g = bytes_of_bigint g; }
 
-let DSA_sign ((x, dsap) : CoreKeys.dsaskey) (h : chash) (t : text) : sigv =
+let DSA_sign ((x, dsap) : CoreKeys.dsaskey) (h : sighash option) (t : text) : sigv =
     let signer    = new DsaDigestSigner(new DsaSigner(), new_hash_engine h) in
     let dsaparams = new DsaParameters(bytes_to_bigint dsap.p,
                                       bytes_to_bigint dsap.q,
@@ -144,7 +105,7 @@ let DSA_sign ((x, dsap) : CoreKeys.dsaskey) (h : chash) (t : text) : sigv =
     signer.BlockUpdate(t, 0, t.Length)
     signer.GenerateSignature()
 
-let DSA_verify ((y, dsap) : CoreKeys.dsapkey) (h : chash) (t : text) (s : sigv) =
+let DSA_verify ((y, dsap) : CoreKeys.dsapkey) (h : sighash option) (t : text) (s : sigv) =
     let signer    = new DsaDigestSigner(new DsaSigner(), new_hash_engine h) in
     let dsaparams = new DsaParameters(bytes_to_bigint dsap.p,
                                       bytes_to_bigint dsap.q,
@@ -168,13 +129,13 @@ let DSA_gen () =
      SK_DSA (bytes_of_bigint skey.X, bytes_of_dsaparams dsaparams.P dsaparams.Q dsaparams.G))
 
 (* ------------------------------------------------------------------------ *)
-let sign (ahash : chash) (sk : sigskey) (t : text) : sigv =
+let sign (ahash : sighash option) (sk : sigskey) (t : text) : sigv =
     match sk with
     | SK_RSA sk -> RSA_sign sk ahash t
     | SK_DSA sk -> DSA_sign sk ahash t
 
 (* ------------------------------------------------------------------------ *)
-let verify (ahash : chash) (pk : sigpkey) (t : text) (s : sigv) =
+let verify (ahash : sighash option) (pk : sigpkey) (t : text) (s : sigv) =
     match pk with
     | PK_RSA pk -> RSA_verify pk ahash t s
     | PK_DSA pk -> DSA_verify pk ahash t s

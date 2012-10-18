@@ -18,6 +18,8 @@ type cipherAlg =
     | AES_256_CBC
 
 type hashAlg =
+    | NULL
+    | MD5SHA1
     | MD5
     | SHA
     | SHA256
@@ -43,10 +45,12 @@ let parseSigAlg b =
 
 let hashAlgBytes ha =
     match ha with
-    | MD5    -> [|1uy|]
-    | SHA    -> [|2uy|]
-    | SHA256 -> [|4uy|]
-    | SHA384 -> [|5uy|]
+    | MD5     -> [|1uy|]
+    | SHA     -> [|2uy|]
+    | SHA256  -> [|4uy|]
+    | SHA384  -> [|5uy|]
+    | NULL    -> Error.unexpectedError "Cannot enode NULL hash alg."
+    | MD5SHA1 -> Error.unexpectedError "Cannot enode MD5SHA1 hash alg."
 
 let parseHashAlg b =
     match b with
@@ -101,6 +105,8 @@ let hashSize alg =
     | SHA           -> 20
     | SHA256        -> 32
     | SHA384        -> 48
+    | NULL          -> Error.unexpectedError "Unknown hash size for NULL algorithm"
+    | MD5SHA1       -> 16 + 20
 
 let macKeySize mac = hashSize mac
 //    match mac with

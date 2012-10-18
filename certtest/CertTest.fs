@@ -27,7 +27,7 @@ let test1 () =
             let rsas  = x509.PrivateKey    :?> RSACryptoServiceProvider in
             let ctext = rsap.Encrypt (uenc.GetBytes (plaintext), false) in
 
-                match Cert.for_key_encryption [(TLSConstants.SA_RSA, [TLSConstants.SHA])] hint with
+                match Cert.for_key_encryption [(TLSConstants.SA_RSA, TLSConstants.SHA)] hint with
                 | None -> failwith "cannot find certificate (lib)"
                 | Some (_, skey) ->
                     match CoreACiphers.decrypt_pkcs1 (RSAKeys.repr_of_rsaskey skey) ctext with
@@ -54,7 +54,7 @@ let test2 () =
             let rsap  = x509.PublicKey.Key :?> RSACryptoServiceProvider in
             let rsas  = x509.PrivateKey    :?> RSACryptoServiceProvider in
 
-                match Cert.for_key_encryption [(TLSConstants.SA_RSA, [TLSConstants.SHA])] hint with
+                match Cert.for_key_encryption [(TLSConstants.SA_RSA, TLSConstants.SHA)] hint with
                 | None -> failwith "cannot find certificate (lib)"
                 | Some (chain, _) ->
                     match Cert.get_chain_public_encryption_key chain with

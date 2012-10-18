@@ -20,6 +20,8 @@ type cipherAlg =
     | AES_256_CBC
 
 type hashAlg =
+    | NULL
+    | MD5SHA1
     | MD5
     | SHA
     | SHA256

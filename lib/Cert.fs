@@ -89,9 +89,9 @@ let x509_check_key_sig_alg (sigkeyalg : Sig.alg) (x509 : X509Certificate2) =
     match x509.SignatureAlgorithm with (* WARN: OID_MD5WithRSAEncryption is obsolete - removed *)
     | o when o.Value = OID_SHAWithRSAEncryption    ->
          (* We are not strict, to comply with TLS < 1.2 *)
-         sigkeyalg = (SA_RSA, [MD5;SHA]) || sigkeyalg = (SA_RSA, [SHA]) || sigkeyalg = (SA_RSA, [])
-    | o when o.Value = OID_SHA256WithRSAEncryption -> sigkeyalg = (SA_RSA, [SHA256])
-    | o when o.Value = OID_DSASignatureKey         -> sigkeyalg = (SA_DSA, [SHA])
+         sigkeyalg = (SA_RSA, MD5SHA1) || sigkeyalg = (SA_RSA, SHA) || sigkeyalg = (SA_RSA, NULL)
+    | o when o.Value = OID_SHA256WithRSAEncryption -> sigkeyalg = (SA_RSA, SHA256)
+    | o when o.Value = OID_DSASignatureKey         -> sigkeyalg = (SA_DSA, SHA)
     | _ -> false
 
 let x509_check_key_sig_alg_one (sigkeyalgs : Sig.alg list) (x509 : X509Certificate2) =

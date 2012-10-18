@@ -31,10 +31,12 @@ let sslKeyedHashVerify alg key data expected =
 
 let HMAC alg key data =
     match alg with
-    | MD5    -> CoreHMac.md5    key data
-    | SHA    -> CoreHMac.sha1   key data
-    | SHA256 -> CoreHMac.sha256 key data
-    | SHA384 -> CoreHMac.sha384 key data
+    | MD5     -> CoreHMac.md5    key data
+    | SHA     -> CoreHMac.sha1   key data
+    | SHA256  -> CoreHMac.sha256 key data
+    | SHA384  -> CoreHMac.sha384 key data
+    | NULL    -> Error.unexpectedError "Invalid hash (NULL) for HMAC"
+    | MD5SHA1 -> Error.unexpectedError "Invalid hash (MD5SHA1) for HMAC"
 
 let HMACVERIFY alg key data expected =
     let result = HMAC alg key data in

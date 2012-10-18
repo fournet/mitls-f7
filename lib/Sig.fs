@@ -4,18 +4,17 @@ open Bytes
 open TLSConstants
 
 (* ------------------------------------------------------------------------ *)
-type chash = hashAlg list
-type alg   = sigAlg * chash
+type alg   = sigAlg * hashAlg
 
 type text = bytes
 type sigv = bytes 
 
 (* ------------------------------------------------------------------------ *)
-type skey = { skey : CoreSig.sigskey * chash }
-type pkey = { pkey : CoreSig.sigpkey * chash }
+type skey = { skey : CoreSig.sigskey * hashAlg }
+type pkey = { pkey : CoreSig.sigpkey * hashAlg }
 
-let create_skey (h : chash) (p : CoreSig.sigskey) = { skey = (p, h) }
-let create_vkey (h : chash) (p : CoreSig.sigpkey) = { pkey = (p, h) }
+let create_skey (h : hashAlg) (p : CoreSig.sigskey) = { skey = (p, h) }
+let create_vkey (h : hashAlg) (p : CoreSig.sigpkey) = { pkey = (p, h) }
 
 let repr_of_skey { skey = skey } = skey
 let repr_of_pkey { pkey = pkey } = pkey
@@ -27,13 +26,6 @@ let sigalg_of_skeyparams = function
 let sigalg_of_pkeyparams = function
     | CoreSig.PK_RSA _ -> SA_RSA
     | CoreSig.PK_DSA _ -> SA_DSA
-
-(* ------------------------------------------------------------------------ *)
-let cnvhash = function
-    | MD5    -> CoreSig.SH_MD5
-    | SHA    -> CoreSig.SH_SHA1
-    | SHA256 -> CoreSig.SH_SHA256
-    | SHA384 -> CoreSig.SH_SHA384
 
 (* ------------------------------------------------------------------------ *)
 let sign (a : alg) (sk : skey) (t : text) : sigv =
@@ -49,7 +41,15 @@ let sign (a : alg) (sk : skey) (t : text) : sigv =
             (sprintf "Sig.sign: requested sig-algo = %A, but key requires %A"
                 asig (sigalg_of_skeyparams kparams))
 
-    CoreSig.sign (khash |> List.map cnvhash) kparams t
+    match khash with
+    | NULL    -> CoreSig.sign None                     kparams t
+    | MD5     -> CoreSig.sign (Some CoreSig.SH_MD5)    kparams t
+    | SHA     -> CoreSig.sign (Some CoreSig.SH_SHA1  ) kparams t
+    | SHA256  -> CoreSig.sign (Some CoreSig.SH_SHA256) kparams t
+    | SHA384  -> CoreSig.sign (Some CoreSig.SH_SHA384) kparams t
+    | MD5SHA1 ->
+        let t = HASH.hash MD5SHA1 t in
+            CoreSig.sign None kparams t
 
 (* ------------------------------------------------------------------------ *)
 let verify (a : alg) (pk : pkey) (t : text) (s : sigv) =
@@ -65,7 +65,15 @@ let verify (a : alg) (pk : pkey) (t : text) (s : sigv) =
             (sprintf "Sig.verify: requested sig-algo = %A, but key requires %A"
                 asig (sigalg_of_pkeyparams kparams))
 
-    CoreSig.verify (khash |> List.map cnvhash) kparams t s
+    match khash with
+    | NULL    -> CoreSig.verify None                     kparams t s
+    | MD5     -> CoreSig.verify (Some CoreSig.SH_MD5)    kparams t s
+    | SHA     -> CoreSig.verify (Some CoreSig.SH_SHA1  ) kparams t s
+    | SHA256  -> CoreSig.verify (Some CoreSig.SH_SHA256) kparams t s
+    | SHA384  -> CoreSig.verify (Some CoreSig.SH_SHA384) kparams t s
+    | MD5SHA1 ->
+        let t = HASH.hash MD5SHA1 t in
+            CoreSig.verify None kparams t s
 
 (* ------------------------------------------------------------------------ *)
 let gen (a:alg) : pkey * skey =

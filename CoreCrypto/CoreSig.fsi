@@ -28,5 +28,5 @@ type text = byte[]
 type sigv = byte[]
 
 val gen    : sigalg -> sigpkey * sigskey
-val sign   : sighash list -> sigskey -> text -> sigv
-val verify : sighash list -> sigpkey -> text -> sigv -> bool
+val sign   : sighash option -> sigskey -> text -> sigv
+val verify : sighash option -> sigpkey -> text -> sigv -> bool

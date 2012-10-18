@@ -341,9 +341,8 @@ let rec parseDistinguishedNameList data res =
 
 (* SignatureAndHashAlgorithm parsing functions *)
 let sigHashAlgBytes (alg:Sig.alg) =
-    // pre: we're in TLS 1.2, so hashL contains exactly one element
-    let (sign,hashL) = alg in
-    let hash = hashL.Head in
+    // pre: we're in TLS 1.2
+    let (sign,hash) = alg in
     let signB = sigAlgBytes sign in
     let hashB = hashAlgBytes hash in
     hashB @| signB
@@ -355,7 +354,7 @@ let parseSigHashAlg b =
     | Correct(sign) ->
         match parseHashAlg hashB with
         | Error(x,y) -> Error(x,y)
-        | Correct(hash) -> correct(sign,[hash])
+        | Correct(hash) -> correct(sign,hash)
 
 let rec sigHashAlgListBytes_int algL =
     match algL with
@@ -387,14 +386,14 @@ let default_sigHashAlg_fromSig pv sigAlg=
     match sigAlg with
     | SA_RSA ->
         match pv with
-        | TLS_1p2 -> [(SA_RSA, [SHA])]
-        | TLS_1p0 | TLS_1p1 | SSL_3p0 -> [(SA_RSA,[MD5;SHA])]
-        //| SSL_3p0 -> [(SA_RSA,[])]
+        | TLS_1p2 -> [(SA_RSA, SHA)]
+        | TLS_1p0 | TLS_1p1 | SSL_3p0 -> [(SA_RSA,MD5SHA1)]
+        //| SSL_3p0 -> [(SA_RSA,NULL)]
     | SA_DSA ->
-        [(SA_DSA,[SHA])]
+        [(SA_DSA,SHA)]
         //match pv with
-        //| TLS_1p0| TLS_1p1 | TLS_1p2 -> [(SA_DSA, [SHA])]
-        //| SSL_3p0 -> [(SA_DSA,[])]
+        //| TLS_1p0| TLS_1p1 | TLS_1p2 -> [(SA_DSA, SHA)]
+        //| SSL_3p0 -> [(SA_DSA,NULL)]
     | _ -> unexpectedError "[default_sigHashAlg_fromSig] invoked on an invalid signature algorithm"
 
 let default_sigHashAlg pv cs =
@@ -609,7 +608,7 @@ let makeCertificateVerifyBytes si ms alg skey data =
         | SSL_3p0 ->
             let (sigAlg,_) = alg in
             let toSign = PRFs.ssl_certificate_verify si ms sigAlg data in
-            ((sigAlg,[]),toSign)
+            ((sigAlg,NULL),toSign)
     let signed = Sig.sign alg skey toSign in
     let payload = digitallySignedBytes alg signed si.protocol_version in
     messageBytes HT_certificate_verify payload
@@ -624,7 +623,7 @@ let certificateVerifyCheck si ms algs cert log payload =
             | SSL_3p0 -> 
                 let (sigAlg,_) = alg in
                 let expected = PRFs.ssl_certificate_verify si ms sigAlg log in
-                ((sigAlg,[]),expected)
+                ((sigAlg,NULL),expected)
         match Cert.get_chain_public_signing_key cert alg with
         | Error(x,y) -> false
         | Correct(vkey) ->
