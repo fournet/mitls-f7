@@ -1,92 +1,22 @@
 # -*- Makefile -*-
 
-src = \
-	pi.fs \
-	Error.fsi \
-	Error.fs \
-	Bytes.fsi \
-	Bytes.fs \
-	tcp.fsi \
-	tcp.fs \
-	Algorithms.fsi \
-	Algorithms.fs \
-	RSAKeys.fsi \
-	RSAKeys.fs \
-	HASH.fsi \
-	HASH.fs \
-	HMAC.fsi \
-	HMAC.fs \
-	Sig.fsi \
-	Sig.fs \
-	Cert.fsi \
-	Cert.fs \
-	CipherSuites.fsi \
-	CipherSuites.fs \
-	formats.fsi \
-	formats.fs \
-	TLSInfo.fsi \
-	TLSInfo.fs \
-	DataStream.fsi \
-	DataStream.fs \
-	IdealDataStream.fsi \
-	IdealDataStream.fs \
-	RPCDataStream.fsi \
-	RPCDataStream.fs \
-	Fragment.fsi \
-	Fragment.fs \
-	MAC.fsi \
-	MAC.fs \
-	AEPlain.fsi \
-	AEPlain.fs \
-	ENC.fsi \
-	ENC.fs \
-	AEADPlain.fsi \
-	AEADPlain.fs \
-	AEAD.fsi \
-	AEAD.fs \
-	StatefulPlain.fsi \
-	StatefulPlain.fs \
-	StatefulAEAD.fsi \
-	StatefulAEAD.fs \
-	TLSFragment.fsi \
-	TLSFragment.fs \
-	record.fsi \
-	record.fs \
-	Alert.fsi \
-	Alert.fs \
-	RSAPlain.fsi \
-	RSAPlain.fs \
-	RSAEnc.fsi \
-	RSAEnc.fs \
-	DH.fs \
-	DHE.fsi \
-	DHE.fs \
-	PRFs.fsi \
-	PRFs.fs \
-	SessionDB.fsi \
-	SessionDB.fs \
-	Handshake.fsi \
-	Handshake.fs \
-	AppDataStream.fsi \
-	AppDataStream.fs \
-	Dispatch.fsi \
-	Dispatch.fs \
-	TLS.fsi \
-	TLS.fs \
-	RPC.fsi \
-	RPC.fs
+src    :=
+deps   := ../bin/BouncyCastle.dll ../bin/CoreCrypto.dll
+target  = ../bin/TLSLib.dll
 
-deps   = ../bin/BouncyCastle.dll ../bin/CoreCrypto.dll
-target = ../bin/TLSLib.dll
+include ../Makefile.config
 
 .PHONY: all dist
 
 all: $(target)
 
 dist:
-	cp $(src) $(distdir)
+	cp Makefile.config $(src) $(distdir)
 
 $(target): $(src) $(deps)
 	$(fsc) $(fsflags) --warn:0 $(addprefix -r ,$(deps)) -a -o $@ $(src)
 
-include ../Makefile.config
+Makefile.config: lib.fsproj
+	-../makegen -o $@ $<
+
+include Makefile.config

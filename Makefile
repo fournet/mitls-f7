@@ -24,8 +24,7 @@ dist:
 		cp $$d/Makefile.build $(distname)/$$d; \
 		$(MAKE) -f Makefile.build -C $$d distdir=../$(distname)/$$d dist; \
 	done
-	cp Makefile $(distname)
-	cp Makefile.config $(distname)
+	cp Makefile Makefile.config makegen $(distname)
 	find $(distname) -type f -exec chmod a-x '{}' \+
 	tar --format=posix -czf $(distname).tgz $(distname)
 	rm -rf $(distname)
