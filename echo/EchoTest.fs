@@ -32,11 +32,11 @@ let enumeration<'T> () =
         cases
 
 (* ------------------------------------------------------------------------ *)
-let cs_map = enumeration<CipherSuites.cipherSuiteName> ()
-let vr_map = [| ("ssl3"  , CipherSuites.SSL_3p0) ;
-                ("tls1.0", CipherSuites.TLS_1p0) ;
-                ("tls1.1", CipherSuites.TLS_1p1) ;
-                ("tls1.2", CipherSuites.TLS_1p2) ; |]
+let cs_map = enumeration<TLSConstants.cipherSuiteName> ()
+let vr_map = [| ("ssl3"  , TLSConstants.SSL_3p0) ;
+                ("tls1.0", TLSConstants.TLS_1p0) ;
+                ("tls1.1", TLSConstants.TLS_1p1) ;
+                ("tls1.2", TLSConstants.TLS_1p2) ; |]
 
 (* ------------------------------------------------------------------------ *)
 let parse_cipher  = let map = Map.ofArray cs_map in fun x -> map.TryFind x
@@ -50,8 +50,8 @@ let parse_cmd () =
     let mypath   = Path.GetFileName(assembly.Location)
 
     let options : EchoServer.options ref = ref {
-        ciphersuite = [ CipherSuites.TLS_RSA_WITH_RC4_128_SHA ];
-        tlsversion  = CipherSuites.TLS_1p0;
+        ciphersuite = [ TLSConstants.TLS_RSA_WITH_RC4_128_SHA ];
+        tlsversion  = TLSConstants.TLS_1p0;
         servername  = "needham.inria.fr";
         clientname  = None; }
     in

@@ -14,16 +14,16 @@ let try_read_mimes path =
         Mime.MimeMap ()
 
 let tlsoptions sessionDBDir serverName clientName = {
-    TLSInfo.minVer = CipherSuites.ProtocolVersion.SSL_3p0
-    TLSInfo.maxVer = CipherSuites.ProtocolVersion.TLS_1p2
+    TLSInfo.minVer = TLSConstants.ProtocolVersion.SSL_3p0
+    TLSInfo.maxVer = TLSConstants.ProtocolVersion.TLS_1p2
 
     TLSInfo.ciphersuites =
-        CipherSuites.cipherSuites_of_nameList [
-            CipherSuites.TLS_RSA_WITH_AES_128_CBC_SHA;
-            CipherSuites.TLS_RSA_WITH_3DES_EDE_CBC_SHA;
+        TLSConstants.cipherSuites_of_nameList [
+            TLSConstants.TLS_RSA_WITH_AES_128_CBC_SHA;
+            TLSConstants.TLS_RSA_WITH_3DES_EDE_CBC_SHA;
         ]
 
-    TLSInfo.compressions = [ CipherSuites.NullCompression ]
+    TLSInfo.compressions = [ TLSConstants.NullCompression ]
 
     TLSInfo.honourHelloReq = TLSInfo.HRPResume
     TLSInfo.allowAnonCipherSuite = false

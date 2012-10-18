@@ -7,8 +7,8 @@ open System.Net.Sockets
 open System.Threading
 
 type options = {
-    ciphersuite : CipherSuites.cipherSuiteName list;
-    tlsversion  : CipherSuites.ProtocolVersion;
+    ciphersuite : TLSConstants.cipherSuiteName list;
+    tlsversion  : TLSConstants.ProtocolVersion;
     servername  : string;
     clientname  : string option;
 }
@@ -20,9 +20,9 @@ let tlsoptions (options : options) sessionDBDir = {
     TLSInfo.minVer = options.tlsversion
     TLSInfo.maxVer = options.tlsversion
 
-    TLSInfo.ciphersuites = CipherSuites.cipherSuites_of_nameList options.ciphersuite
+    TLSInfo.ciphersuites = TLSConstants.cipherSuites_of_nameList options.ciphersuite
 
-    TLSInfo.compressions = [ CipherSuites.NullCompression ]
+    TLSInfo.compressions = [ TLSConstants.NullCompression ]
 
     TLSInfo.honourHelloReq = TLSInfo.HRPResume
     TLSInfo.allowAnonCipherSuite = false

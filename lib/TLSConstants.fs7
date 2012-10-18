@@ -133,7 +133,7 @@ val geqPV: a:ProtocolVersion -> b:ProtocolVersion -> r:bool
 // AP same as minPV
 
 (* FIXME: same duplication between logical and concrete function definitions, 
-   already seen in Algorithms. 
+   already seen in TLSConstants. 
    CF: we could save a bit by not making cipherSuite abstract for F7.
    *)
 predicate val IsNullCiphersuite: cipherSuite -> bool

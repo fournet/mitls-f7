@@ -1,8 +1,8 @@
 ﻿module EchoServer
 
 type options = {
-    ciphersuite : CipherSuites.cipherSuiteName list;
-    tlsversion  : CipherSuites.ProtocolVersion;
+    ciphersuite : TLSConstants.cipherSuiteName list;
+    tlsversion  : TLSConstants.ProtocolVersion;
     servername  : string;
     clientname  : string option;
 }
