@@ -496,12 +496,6 @@ let clientKEXBytes_RSA si config =
             let encpms = if si.protocol_version = SSL_3p0 then encpms else vlbytes 2 encpms 
             correct((messageBytes HT_client_key_exchange encpms),pms)
 
-let makeClientKEX_DH_explicit y =
-    let yb = vlbytes 2 y in
-    messageBytes HT_client_key_exchange yb
-
-let makeClientKEX_DH_implicit = messageBytes HT_client_key_exchange [||]
-
 let parseClientKEX_RSA si skey cv config data =
     if si.serverID.IsEmpty then
         unexpectedError "[parseClientKEX_RSA] when the ciphersuite can encrypt the PMS, the server certificate should always be set"
@@ -519,13 +513,20 @@ let parseClientKEX_RSA si skey cv config data =
             correct(res)
         | Error(x,y) -> Error(x,y)
 
-let parseClientKEX_DH_implict data =
+let clientKEXExplicitBytes_DH y =
+    let yb = vlbytes 2 y in
+    messageBytes HT_client_key_exchange yb
+
+let parseClientKEXExplicit_DH data = vlparse 2 data
+
+// Unused until we don't support DH ciphersuites.
+let clientKEXImplicitBytes_DH = messageBytes HT_client_key_exchange [||]
+// Unused until we don't support DH ciphersuites.
+let parseClientKEXImplicit_DH data =
     if length data = 0 then
         correct ( () )
     else
         Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
-
-let parseClientKEX_DH_explicit data = vlparse 2 data
 
 (* Digitally signed struct *)
 
@@ -572,31 +573,20 @@ let parseDHEParams payload =
     | Correct(y,payload) ->
     correct(p,g,y,payload)
 
-let serverKeyExchange_DHE crand srand p g y alg skey pv =
-    let dheb = dheParamBytes p g y in
-    let toSign = crand @| srand @| dheb in
-    let sign = Sig.sign alg skey toSign in
+let serverKeyExchangeBytes_DHE dheb alg sign pv = 
     let sign = digitallySignedBytes alg sign pv in
     let payload = dheb @| sign in
     messageBytes HT_server_key_exchange payload
 
-let checkServerKeyExchange_DHE crand srand cert pv cs payload =
+let parseServerKeyExchange_DHE pv cs payload =
     match parseDHEParams payload with
     | Error(x,y) -> Error(x,y)
     | Correct(p,g,y,payload) ->
-        let dheb = dheParamBytes p g y in
-        let expected = crand @| srand @| dheb in
         let allowedAlgs = default_sigHashAlg pv cs in
         match parseDigitallySigned allowedAlgs payload pv with
         | Error(x,y) -> Error(x,y)
         | Correct(alg,signature) ->
-            match Cert.get_chain_public_signing_key cert alg with
-            | Error(x,y) -> Error(x,y)
-            | Correct(vkey) ->
-            if Sig.verify alg vkey expected signature then
-                correct(p,g,y)
-            else
-                Error(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "")
+            correct(p,g,y,alg,signature)
 
 let serverKeyExchange_DH_anon p g y =
     let dehb = dheParamBytes p g y in
@@ -612,9 +602,6 @@ let parseServerKeyExchange_DH_anon payload =
             Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 (* Certificate Verify *)
-
-type certificateVerify = bytes (* digital signature of all messages exchanged until now *)
-
 let makeCertificateVerifyBytes si ms alg skey data =
     let (alg,toSign) =
         match si.protocol_version with
@@ -642,11 +629,6 @@ let certificateVerifyCheck si ms algs cert log payload =
         | Error(x,y) -> false
         | Correct(vkey) ->
         Sig.verify alg vkey expected signature
-
-
-(** A.4.4 Handshake Finalization Message *)
-
-type finished = bytes
 
 // State machine begins
 type log = bytes
@@ -1046,7 +1028,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) state (si:SessionInfo) ce
 
     let (x,cy) = DHE.genKey (g, p) in
 
-    let clientKEXBytes = makeClientKEX_DH_explicit cy in
+    let clientKEXBytes = clientKEXExplicitBytes_DH cy in
 
     let log = log @| clientKEXBytes in
 
@@ -1249,12 +1231,21 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
         | HT_server_key_exchange ->
             match cState with
             | ServerKeyExchangeDHE(si,log) ->
-                match checkServerKeyExchange_DHE si.init_crand si.init_srand si.serverID si.protocol_version si.cipher_suite payload with
+                match parseServerKeyExchange_DHE si.protocol_version si.cipher_suite payload with
                 | Error(x,y) -> InError(x,y,state)
-                | Correct(p,g,y) ->
-                    let log = log @| to_log in
-                    let state = {state with pstate = PSClient(CertificateRequestDHE(si,g,p,y,log))} in
-                    recv_fragment_client ci state agreedVersion
+                | Correct(p,g,y,alg,signature) ->
+                    match Cert.get_chain_public_signing_key si.serverID alg with
+                    | Error(x,y) -> InError(x,y,state)
+                    | Correct(vkey) ->
+                    let dheb = dheParamBytes p g y in
+                    let expected = si.init_crand @| si.init_srand @| dheb in
+                    if Sig.verify alg vkey expected signature then
+                        let log = log @| to_log in
+                        let state = {state with pstate = PSClient(CertificateRequestDHE(si,g,p,y,log))} in
+                        recv_fragment_client ci state agreedVersion
+                    else
+                        InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "",state)
+                    
             | ServerKeyExchangeDH_anon(si,log) ->
                 match parseServerKeyExchange_DH_anon payload with
                 | Error(x,y) -> InError(x,y,state)
@@ -1425,7 +1416,10 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs cvd svd
         (* ServerKEyExchange *)
         let (g,p) = DHE.defaultParams () in
         let (x,y) = DHE.genKey (g, p) in
-        let serverKEXB = serverKeyExchange_DHE si.init_crand si.init_srand p g y alg sk si.protocol_version in
+        let dheb = dheParamBytes p g y in
+        let toSign = si.init_crand @| si.init_srand @| dheb in
+        let sign = Sig.sign alg sk toSign in
+        let serverKEXB = serverKeyExchangeBytes_DHE dheb alg sign si.protocol_version in
         (* CertificateRequest *)
         let certificateRequestB =
             if state.poptions.request_client_certificate then
@@ -1644,7 +1638,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         let state = {state with pstate = PSServer(ClientCCS(si,ms,log))} in
                         recv_fragment_server ci state agreedVersion
             | ClientKeyExchangeDHE(si,g,p,x,log) ->
-                match parseClientKEX_DH_explicit payload with
+                match parseClientKEXExplicit_DH payload with
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(y) ->
                     let log = log @| to_log in
@@ -1660,7 +1654,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         let state = {state with pstate = PSServer(ClientCCS(si,ms,log))} in
                         recv_fragment_server ci state agreedVersion
             | ClientKeyExchangeDH_anon(si,g,p,x,log) ->
-                match parseClientKEX_DH_explicit payload with
+                match parseClientKEXExplicit_DH payload with
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(y) ->
                     let log = log @| to_log in
