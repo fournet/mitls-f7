@@ -48,7 +48,7 @@ let networkStream (Conn(id,g)) = g.ns
 
 type nextCn = Connection
 type nullCn = Connection
-type query = Cert.cert
+type query = Cert.certchain
 // FIXME: Put the following definitions close to range and delta, and use them
 type msg_i = (DataStream.range * DataStream.delta)
 type msg_o = (DataStream.range * DataStream.delta)
@@ -679,11 +679,10 @@ let authorize (Conn(id,c)) q =
     let c = {c with handshake = hs} in
     Conn(id,c)
 
-let refuse (Conn(id,c)) (q:query) =
-    let al = Alert.send_alert id c.alert AD_unknown_ca in
-    let c = {c with alert = al} in
-    //ignore (writeAll (Conn(id,c))) // we might want to tell the user something about this
-    let _ = writeAll (Conn(id,c)) in
+let refuse conn (q:query) =
+    let reason = perror __SOURCE_FILE__ __LINE__ "Remote certificate could not be verified locally" in
+    let conn = abortWithAlert conn AD_unknown_ca reason in
+    let _ = writeAll conn in
     ()
 
 let full_shutdown (Conn(id,conn)) =

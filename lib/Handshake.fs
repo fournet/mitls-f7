@@ -639,14 +639,17 @@ type serverState =  (* note that the CertRequest bits are determined by the conf
                     (* we may omit some ProtocolVersion, mostly a ghost variable *)
    | ClientHello             of cVerifyData * sVerifyData
 
-   | ClientCertificateRSA    of SessionInfo * ProtocolVersion * RSAKeys.sk * log 
-   | ClientKeyExchangeRSA    of SessionInfo * ProtocolVersion * RSAKeys.sk * log
+   | ClientCertificateRSA         of SessionInfo * ProtocolVersion * RSAKeys.sk * log
+   | ServerCheckingCertificateRSA of SessionInfo * ProtocolVersion * RSAKeys.sk * log * bytes
+   | ClientKeyExchangeRSA         of SessionInfo * ProtocolVersion * RSAKeys.sk * log
 
-   | ClientCertificateDH     of SessionInfo * log 
-   | ClientKeyExchangeDH     of SessionInfo * log 
+   | ClientCertificateDH          of SessionInfo * log
+   | ServerCheckingCertificateDH  of SessionInfo * log * bytes
+   | ClientKeyExchangeDH          of SessionInfo * log 
 
-   | ClientCertificateDHE    of SessionInfo * DHE.g * DHE.p * DHE.x * log
-   | ClientKeyExchangeDHE    of SessionInfo * DHE.g * DHE.p * DHE.x * log
+   | ClientCertificateDHE         of SessionInfo * DHE.g * DHE.p * DHE.x * log
+   | ServerCheckingCertificateDHE of SessionInfo * DHE.g * DHE.p * DHE.x * log * bytes
+   | ClientKeyExchangeDHE         of SessionInfo * DHE.g * DHE.p * DHE.x * log
 
    | ClientKeyExchangeDH_anon of SessionInfo * DHE.g * DHE.p * DHE.x * log
 
@@ -667,20 +670,23 @@ type serverState =  (* note that the CertRequest bits are determined by the conf
 type clientState = 
    | ServerHello            of crand * sessionID (* * bytes for extensions? *) * cVerifyData * sVerifyData * log
 
-   | ServerCertificateRSA   of SessionInfo * log
-   | CertificateRequestRSA  of SessionInfo * log (* In fact, CertReq or SHelloDone will be accepted *)
-   | ServerHelloDoneRSA     of SessionInfo * Cert.sign_cert * log
+   | ServerCertificateRSA         of SessionInfo * log
+   | ClientCheckingCertificateRSA of SessionInfo * log * bytes
+   | CertificateRequestRSA        of SessionInfo * log (* In fact, CertReq or SHelloDone will be accepted *)
+   | ServerHelloDoneRSA           of SessionInfo * Cert.sign_cert * log
 
-   | ServerCertificateDH    of SessionInfo * log
-   | CertificateRequestDH   of SessionInfo * log (* We pick our cert and store it in sessionInfo as soon as the server requests it.
-                                                    We put None if we don't have such a certificate, and we know whether to send
-                                                    the Certificate message or not based on the state when we receive the Finished message *)
-   | ServerHelloDoneDH      of SessionInfo * log
+   | ServerCertificateDH          of SessionInfo * log
+   | ClientCheckingCertificateDH  of SessionInfo * log * bytes
+   | CertificateRequestDH         of SessionInfo * log (* We pick our cert and store it in sessionInfo as soon as the server requests it.
+                                                         We put None if we don't have such a certificate, and we know whether to send
+                                                         the Certificate message or not based on the state when we receive the Finished message *)
+   | ServerHelloDoneDH            of SessionInfo * log
 
-   | ServerCertificateDHE   of SessionInfo * log
-   | ServerKeyExchangeDHE   of SessionInfo * log
-   | CertificateRequestDHE  of SessionInfo * DHE.g * DHE.p * DHE.y * log
-   | ServerHelloDoneDHE     of SessionInfo * Cert.sign_cert * DHE.g * DHE.p * DHE.y * log
+   | ServerCertificateDHE         of SessionInfo * log
+   | ClientCheckingCertificateDHE of SessionInfo * log * bytes
+   | ServerKeyExchangeDHE         of SessionInfo * log
+   | CertificateRequestDHE        of SessionInfo * DHE.g * DHE.p * DHE.y * log
+   | ServerHelloDoneDHE           of SessionInfo * Cert.sign_cert * DHE.g * DHE.p * DHE.y * log
 
    | ServerKeyExchangeDH_anon of SessionInfo * log (* Not supported yet *)
    | ServerHelloDoneDH_anon of SessionInfo * DHE.g * DHE.p * DHE.y * log
@@ -699,8 +705,6 @@ type clientState =
 type protoState = // Cannot use Client and Server, otherwise clashes with Role
   | PSClient of clientState
   | PSServer of serverState
-
-type KIAndCCS = (epoch * StatefulAEAD.state)
 
 type pre_hs_state = {
   (* I/O buffers *)
@@ -935,11 +939,11 @@ let next_fragment ci state =
                     OutFinished(rg,f,state)
                 | _ -> OutSome(rg,f,state)
         | _ -> OutSome(rg,f,state)
-                
+
 type incoming = (* the fragment is accepted, and... *)
   | InAck of hs_state
   | InVersionAgreed of hs_state * ProtocolVersion
-  | InQuery of Cert.cert * hs_state
+  | InQuery of Cert.certchain * hs_state
   | InFinished of hs_state
     // FIXME: StorableSession
   | InComplete of hs_state
@@ -1199,31 +1203,39 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(certs) ->
                     let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, this is the same as we sent in our extension
-                    if Cert.is_chain_for_key_encryption certs && Cert.validate_cert_chain allowedAlgs certs then
-                        (* We have validated server identity *)
-                        (* Log the received packet *)
-                        let log = log @| to_log in        
-                        (* update the sinfo we're establishing *)
-                        let si = {si with serverID = certs} in
-                        let state = {state with pstate = PSClient(CertificateRequestRSA(si,log))} in
-                        recv_fragment_client ci state agreedVersion
+                    if Cert.is_chain_for_key_encryption certs then
+                        if Cert.validate_cert_chain allowedAlgs certs then
+                            (* We have validated server identity *)
+                            (* Log the received packet *)
+                            let log = log @| to_log in        
+                            (* update the sinfo we're establishing *)
+                            let si = {si with serverID = certs} in
+                            let state = {state with pstate = PSClient(CertificateRequestRSA(si,log))} in
+                            recv_fragment_client ci state agreedVersion
+                        else // ask the user
+                            let state = {state with pstate = PSClient(ClientCheckingCertificateRSA(si,log,to_log))} in
+                            InQuery(certs,state)
                     else
-                        InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate could not be verified",state)
+                        InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Server sent wrong certificate type",state)
             | ServerCertificateDHE (si,log) ->
                 match parseClientOrServerCertificate payload with
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(certs) ->
                     let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, this is the same as we sent in our extension
-                    if Cert.is_chain_for_key_encryption certs && Cert.validate_cert_chain allowedAlgs certs then
-                        (* We have validated server identity *)
-                        (* Log the received packet *)
-                        let log = log @| to_log in        
-                        (* update the sinfo we're establishing *)
-                        let si = {si with serverID = certs} in
-                        let state = {state with pstate = PSClient(ServerKeyExchangeDHE(si,log))} in
-                        recv_fragment_client ci state agreedVersion
+                    if Cert.is_chain_for_signing certs then
+                        if Cert.validate_cert_chain allowedAlgs certs then
+                            (* We have validated server identity *)
+                            (* Log the received packet *)
+                            let log = log @| to_log in        
+                            (* update the sinfo we're establishing *)
+                            let si = {si with serverID = certs} in
+                            let state = {state with pstate = PSClient(ServerKeyExchangeDHE(si,log))} in
+                            recv_fragment_client ci state agreedVersion
+                        else // ask the user
+                            let state = {state with pstate = PSClient(ClientCheckingCertificateDHE(si,log,to_log))} in
+                            InQuery(certs,state)
                     else
-                        InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate could not be verified",state)
+                        InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Server sent wrong certificate type",state)
             | ServerCertificateDH (si,log) -> InError(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Unimplemented",state) // TODO
             | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "Certificate arrived in the wrong state",state)
 
@@ -1591,33 +1603,41 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 match parseClientOrServerCertificate payload with
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(certs) ->
-                    if Cert.is_chain_for_signing certs && Cert.validate_cert_chain (default_sigHashAlg si.protocol_version si.cipher_suite) certs then // FIXME: we still have to ask the user
-                        (* We have validated client identity *)
-                        (* Log the received packet *)
-                        let log = log @| to_log in           
-                        (* update the sinfo we're establishing *)
-                        let si = {si with clientID = certs}
-                        (* move to the next state *)
-                        let state = {state with pstate = PSServer(ClientKeyExchangeRSA(si,cv,sk,log))} in
-                        recv_fragment_server ci state agreedVersion
+                    if Cert.is_chain_for_signing certs then
+                        if Cert.validate_cert_chain (default_sigHashAlg si.protocol_version si.cipher_suite) certs then
+                            (* We have validated client identity *)
+                            (* Log the received packet *)
+                            let log = log @| to_log in           
+                            (* update the sinfo we're establishing *)
+                            let si = {si with clientID = certs}
+                            (* move to the next state *)
+                            let state = {state with pstate = PSServer(ClientKeyExchangeRSA(si,cv,sk,log))} in
+                            recv_fragment_server ci state agreedVersion
+                        else // ask the user
+                            let state = {state with pstate = PSServer(ServerCheckingCertificateRSA(si,cv,sk,log,to_log))} in
+                            InQuery(certs,state)
                     else
-                        InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate could not be verified",state)
+                        InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Client sent wrong certificate type",state)
             | ClientCertificateDHE (si,g,p,x,log) ->
                 // Duplicated code from above.
                 match parseClientOrServerCertificate payload with
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(certs) ->
-                    if Cert.is_chain_for_signing certs && Cert.validate_cert_chain (default_sigHashAlg si.protocol_version si.cipher_suite) certs then // FIXME: we still have to ask the user
-                        (* We have validated client identity *)
-                        (* Log the received packet *)
-                        let log = log @| to_log in           
-                        (* update the sinfo we're establishing *)
-                        let si = {si with clientID = certs}
-                        (* move to the next state *)
-                        let state = {state with pstate = PSServer(ClientKeyExchangeDHE(si,g,p,x,log))} in
-                        recv_fragment_server ci state agreedVersion
+                    if Cert.is_chain_for_signing certs then
+                        if Cert.validate_cert_chain (default_sigHashAlg si.protocol_version si.cipher_suite) certs then
+                            (* We have validated client identity *)
+                            (* Log the received packet *)
+                            let log = log @| to_log in           
+                            (* update the sinfo we're establishing *)
+                            let si = {si with clientID = certs}
+                            (* move to the next state *)
+                            let state = {state with pstate = PSServer(ClientKeyExchangeDHE(si,g,p,x,log))} in
+                            recv_fragment_server ci state agreedVersion
+                        else // ask the user
+                            let state = {state with pstate = PSServer(ServerCheckingCertificateDHE(si,g,p,x,log,to_log))} in
+                            InQuery(certs,state)
                     else
-                        InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate could not be verified",state)
+                        InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Client sent wrong certificate type",state)
             | ClientCertificateDH  (si,log) -> (* TODO *) InError(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Unimplemented",state)
             | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "Certificate arrived in the wrong state",state)
 
@@ -1748,7 +1768,33 @@ let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:DataStream.range) (fragmen
 
 let getMinVersion (ci:ConnectionInfo) state = state.poptions.minVer
 
-let authorize (ci:ConnectionInfo) (s:hs_state) (q:Cert.cert) = s // TODO
+let authorize (ci:ConnectionInfo) (state:hs_state) (q:Cert.certchain) =
+    let pstate = state.pstate in
+    match pstate with
+    | PSClient(cstate) ->
+        match cstate with
+        | ClientCheckingCertificateRSA(si,log,to_log) ->
+            let log = log @| to_log in
+            let si = {si with serverID = q} in
+            {state with pstate = PSClient(CertificateRequestRSA(si,log))}
+        | ClientCheckingCertificateDHE(si,log,to_log) ->
+            let log = log @| to_log in
+            let si = {si with serverID = q} in
+            {state with pstate = PSClient(ServerKeyExchangeDHE(si,log))}
+        // | ClientCheckingCertificateDH -> TODO
+        | _ -> unexpectedError "[authorize] invoked on the wrong state"
+    | PSServer(sstate) ->
+        match sstate with
+        | ServerCheckingCertificateRSA(si,cv,sk,log,to_log) ->
+            let log = log @| to_log in
+            let si = {si with clientID = q} in
+            {state with pstate = PSServer(ClientKeyExchangeRSA(si,cv,sk,log))}
+        | ServerCheckingCertificateDHE(si,g,p,x,log,to_log) ->
+            let log = log @| to_log in
+            let si = {si with clientID = q} in
+            {state with pstate = PSServer(ClientKeyExchangeDHE(si,g,p,x,log))}
+        // | ServerCheckingCertificateDH -> TODO
+        | _ -> unexpectedError "[authorize] invoked on the wrong state"
 
 (* function used by an ideal handshake implementation to decide whether to idealize keys
 let safe ki = 
