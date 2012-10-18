@@ -23,19 +23,28 @@ val makeFragment: ki:epoch -> b:bytes -> (r:range * (;ki,r) Fragment.fragment) *
 
 function val LenBytes: int * bytes -> bytes
 
-function val ClientHello: (config * bytes * sessionID * bytes * extensions) -> bytes
+
+function val ClientHello: (ProtocolVersion * bytes * sessionID * cipherSuites * Compression list * bytes) -> bytes
+function val ClientHelloBytes: (ProtocolVersion * bytes * sessionID * cipherSuites * Compression list * bytes) -> bytes
 definition !cv,clRdm,sid,clientCipherSuites,cm,ext.
   ClientHello(cv,clRdm,sid,clientCipherSuites,cm,ext) = 
-    MessageBytes(HT_client_hello, 
-                 VersionBytes cv @| 
+                (VersionBytes cv @| 
                  clRdm @| 
                  LenBytes(1, sid) @| 
                  LenBytes(2,(CipherSuitesBytes(clientCipherSuites))) @| 
                  LenBytes(1,(CompressionsBytes(cm))) @| 
                  ext)
 
+definition !cv,clRdm,sid,clientCipherSuites,cm,ext.
+  ClientHelloBytes(cv,clRdm,sid,clientCipherSuites,cm,ext) = 
+    MessageBytes(HT_client_hello, ClientHello(cv,clRdm,sid,clientCipherSuites,cm,ext))
+                
 
-val clientHelloBytes: 
+val parseClientHello: m:bytes -> 
+	(pv:ProtocolVersion * cr:bytes * sid:sessionID * cs:cipherSuites * cm:Compression list * ext:bytes{
+		m=ClientHello(pv,cr,sid,cs,cm)}) Result
+val clientHelloBytes: c:config -> cr:bytes -> sid:sessionID -> ext:bytes -> m:bytes{
+	    m=ClientHelloBytes(c.maxVer,cr,sid,c.ciphersuites,c.compressions,ext)}
 
 (*--- controlinterface *)
 (* Control Interface *)
