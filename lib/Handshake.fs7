@@ -2,11 +2,40 @@ module Handshake
 
 // We haven't yet verified the Handshake implementation against this interface.
 
+open Bytes
 open Error
-
 open TLSInfo
 open DataStream
 open StatefulAEAD
+
+(* Message Predicates *)
+type HandshakeType
+val htBytes: HandshakeType -> bytes
+val parseHt: bytes -> HandshakeType 
+
+function val MessageBytes: HandshakeType * bytes -> bytes
+val messageBytes: ht:HandshakeType -> x:bytes -> m:bytes{m = MessageBytes(ht,x)}
+val parseMessage: buf:bytes -> (rem:bytes * ht:HandShakeType * x:bytes * to_log:bytes){to_log = MessageBytes(ht,x)}
+
+val makeFragment: ki:epoch -> b:bytes -> (r:range * (;ki,r) Fragment.fragment) * bytes
+
+(* Ignoring Extensions *)
+
+function val LenBytes: int * bytes -> bytes
+
+function val ClientHello: (config * bytes * sessionID * bytes * extensions) -> bytes
+definition !cv,clRdm,sid,clientCipherSuites,cm,ext.
+  ClientHello(cv,clRdm,sid,clientCipherSuites,cm,ext) = 
+    MessageBytes(HT_client_hello, 
+                 VersionBytes cv @| 
+                 clRdm @| 
+                 LenBytes(1, sid) @| 
+                 LenBytes(2,(CipherSuitesBytes(clientCipherSuites))) @| 
+                 LenBytes(1,(CompressionsBytes(cm))) @| 
+                 ext)
+
+
+val clientHelloBytes: 
 
 (*--- controlinterface *)
 (* Control Interface *)
