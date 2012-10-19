@@ -46,6 +46,27 @@ val parseClientHello: m:bytes ->
 val clientHelloBytes: c:config -> cr:bytes -> sid:sessionID -> ext:bytes -> m:bytes{
 	    m=ClientHelloBytes(c.maxVer,cr,sid,c.ciphersuites,c.compressions,ext)}
 
+function val ServerHello: (ProtocolVersion * bytes * sessionID * cipherSuite * Compression * bytes) -> bytes
+
+function val ClientOrServerCertificate: bytes list -> bytes
+
+function val CertificateRequest: ProtocolVersion * certType list * Sig.alg list option * string list -> bytes
+
+function val ClientKeyExchange_RSA: ProtocolVersion * SessionInfo * RSAKey.pk * RSAPlain.pms -> bytes
+
+function val ClientKeyExchange_DHE: bytes -> bytes
+
+function val ServerKeyExchange_DHE:  ProtocolVersion * p:bytes * g:bytes * y:bytes * Sig.alg * sign:bytes-> bytes
+
+function val ServerKeyExchange_DH_anon: bytes * bytes * bytes -> bytes
+
+function val CertificateVerify: ProtocolVersion * PRFs.ms * Sig.alg * Cert.certchain * Sig.pkey * log -> bytes
+
+function val ServerHelloDone: unit -> bytes
+
+function val ServerFinished: ProtocolVersion * PRF.ms * log -> bytes
+function val ClientFinished: ProtocolVersion * PRF.ms * log -> bytes
+
 (*--- controlinterface *)
 (* Control Interface *)
 

@@ -238,6 +238,7 @@ let makeRandom() = //$ crypto abstraction? timing guarantees local disjointness
     timeb @| rnd
 
 let clientHelloBytes poptions crand session cVerifyData =
+    // TODO: Move extension parsing outside
     let ext =
         if poptions.safe_renegotiation 
         then
@@ -292,6 +293,7 @@ let certificateListBytes certs =
 let serverCertificateBytes cl = messageBytes HT_certificate (certificateListBytes cl)
 
 let clientCertificateBytes cs =
+    // TODO: move this match outside, and merge with serverCertificateBytes
     match cs with
     | None -> messageBytes HT_certificate (certificateListBytes [])
     | Some(certList,_,_) -> messageBytes HT_certificate (certificateListBytes certList)
@@ -428,6 +430,8 @@ let rec cert_type_list_to_SigAlg ctl =
     | h::t -> (cert_type_to_SigAlg h) :: (cert_type_list_to_SigAlg t)
 
 
+// TODO: Add a pair of functions: ciphersuite * version -> certType list * sigAlg list
+// ciphersuite * version * certType list * sigAlg list -> bool // tells me if they are plausible
 let certificateRequestBytes sign cs version =
     let certTypes = 
         if sign then
@@ -613,7 +617,7 @@ let makeCertificateVerifyBytes si ms alg skey data =
     let payload = digitallySignedBytes alg signed si.protocol_version in
     messageBytes HT_certificate_verify payload
     
-let certificateVerifyCheck si ms algs cert log payload =
+let certificateVerifyCheck si ms algs log payload =
     match parseDigitallySigned algs payload si.protocol_version with
     | Error(x,y) -> false
     | Correct(alg,signature) ->
@@ -624,7 +628,7 @@ let certificateVerifyCheck si ms algs cert log payload =
                 let (sigAlg,_) = alg in
                 let expected = PRFs.ssl_certificate_verify si ms sigAlg log in
                 ((sigAlg,NULL),expected)
-        match Cert.get_chain_public_signing_key cert alg with
+        match Cert.get_chain_public_signing_key si.clientID alg with
         | Error(x,y) -> false
         | Correct(vkey) ->
         Sig.verify alg vkey expected signature
@@ -1689,7 +1693,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             match sState with
             | CertificateVerify(si,ms,log) ->
                 let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, these are the same as we sent in CertificateRequest
-                if certificateVerifyCheck si ms allowedAlgs si.clientID log payload then// payload then
+                if certificateVerifyCheck si ms allowedAlgs log payload then// payload then
                     let log = log @| to_log in  
                     let state = {state with pstate = PSServer(ClientCCS(si,ms,log))} in
                     recv_fragment_server ci state agreedVersion
