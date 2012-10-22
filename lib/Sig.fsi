@@ -14,7 +14,7 @@ type skey
 type pkey
 
 val create_skey: hashAlg -> CoreSig.sigskey -> skey
-val create_vkey: hashAlg -> CoreSig.sigpkey -> pkey
+val create_pkey: hashAlg -> CoreSig.sigpkey -> pkey
 
 val repr_of_skey: skey -> CoreSig.sigskey * hashAlg
 val repr_of_pkey: pkey -> CoreSig.sigpkey * hashAlg

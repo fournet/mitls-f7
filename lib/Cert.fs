@@ -212,8 +212,8 @@ let get_public_signing_key (c : cert) ((siga, hasha) as a : Sig.alg) : Sig.pkey 
         let x509 = new X509Certificate2(c) in
             if x509_is_for_signing x509 then
                 match siga, x509_to_public_key x509 with
-                | SA_RSA, Some (CoreSig.PK_RSA (sm, se) as k) -> Correct (Sig.create_vkey hasha k)
-                | SA_DSA, Some (CoreSig.PK_DSA (y, p  ) as k) -> Correct (Sig.create_vkey hasha k)
+                | SA_RSA, Some (CoreSig.PK_RSA (sm, se) as k) -> Correct (Sig.create_pkey hasha k)
+                | SA_DSA, Some (CoreSig.PK_DSA (y, p  ) as k) -> Correct (Sig.create_pkey hasha k)
                 | _ -> Error(AD_unsupported_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate uses unknown signature algorithm or key")
             else
                 Error(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate is not for signing")

@@ -14,7 +14,7 @@ type skey = { skey : CoreSig.sigskey * hashAlg }
 type pkey = { pkey : CoreSig.sigpkey * hashAlg }
 
 let create_skey (h : hashAlg) (p : CoreSig.sigskey) = { skey = (p, h) }
-let create_vkey (h : hashAlg) (p : CoreSig.sigpkey) = { pkey = (p, h) }
+let create_pkey (h : hashAlg) (p : CoreSig.sigpkey) = { pkey = (p, h) }
 
 let repr_of_skey { skey = skey } = skey
 let repr_of_pkey { pkey = pkey } = pkey

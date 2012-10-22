@@ -15,5 +15,7 @@ type exponent = bytes
 val create_rsapkey : modulus * exponent -> pk
 val create_rsaskey : modulus * exponent -> sk
 
-val bytes_of_rsapkey : pk -> modulus * exponent
-val bytes_of_rsaskey : sk -> modulus * exponent
+(* Commented out because they depend on core ciphers,
+   and they are never used in ideal TLS crypto *)
+// val repr_of_rsapkey : pk -> CoreACiphers.pk
+// val repr_of_rsaskey : sk -> CoreACiphers.sk

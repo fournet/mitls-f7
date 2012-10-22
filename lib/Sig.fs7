@@ -25,11 +25,10 @@ open TLSConstants
 // TODO: there is some adhocness processing of those algs left in Handshake.fs
   
  // implements SignatureAndHashAlgorithm, with fewer values for hashAlg
-type chash = hashAlg List // hashAlg does *not* include some values from the spec.
-type alg   = sigAlg * chash
+type alg   = sigAlg * hashAlg
 
-type text = Bytes.bytes
-type (;a:alg) sigv = Bytes.bytes
+type text = bytes
+type (;a:alg) sigv = bytes
   // TODO: specify their size, 36 with RSA, 20 with DSA
   // with TLS 1.2, this explicitly contains a; see DigitallySigned struct 
 
@@ -53,8 +52,21 @@ type (;a:alg) sigv = Bytes.bytes
 //********************** Ideal Functionality for Signing *********************** 
 
 type (;a:alg) skey 
-type (;a:alg) vkey
+type (;a:alg) pkey
 
+function val PK: 'a -> 'b // a:alg * (;a)skey -> vkey
+predicate val Msg: a:alg * (;a)pkey * text -> bool
+
+// FIXME: Local dummy definition of "Strong", until we relocate CMA/CTXT and the like to algorithm.
+predicate val Strong: 'a (* alg *) -> bool
+
+val gen:     a:alg -> pk:(;a) pkey * sk:(;a) skey { pk = PK(sk) }
+val sign:    a:alg -> sk:(;a) skey -> t:text{Msg(a,PK(sk),t)} -> (;a) sigv
+val verify:  a:alg -> pk:(;a) pkey -> t:text -> m:(;a) sigv -> b:bool {b=true /\ (Strong(a) => Msg(a,pk,t))}
+
+
+// Commented out as it depends on core crypto and is not used by ideal functionality
+(* 
 function val sigalg_of_skeyparams : CoreSig.sigskey -> sigAlg
 function val sigalg_of_pkeyparams : CoreSig.sigpkey -> sigAlg
 
@@ -65,21 +77,10 @@ private definition !y, p. sigalg_of_pkeyparams (CoreSig.PK_DSA (y, p)) = SA_DSA
 
 // AP: These are "Coerce"-like.
 val create_skey: h:chash -> k:skeyparams -> (;(sigalg_of_skeyparams(k), h))skey
-val create_vkey: h:chash -> k:pkeyparams -> (;(sigalg_of_pkeyparams(k), h))vkey
-
-function val PK: 'a -> 'b // a:alg * (;a)skey -> vkey
-predicate val Msg: a:alg * (;a)vkey * text -> bool
-
-// FIXME: Local dummy definition of "Strong", until we relocate CMA/CTXT and the like to algorithm.
-predicate val Strong: 'a (* alg *) -> bool
-
-val gen:     a:alg -> pk:(;a) vkey * sk:(;a) skey { pk = PK(sk) }
-val sign:    a:alg -> sk:(;a) skey -> t:text{Msg(a,PK(sk),t)} -> (;a) sigv
-val verify:  a:alg -> pk:(;a) vkey -> t:text -> m:(;a) sigv -> b:bool {b=true /\ (Strong(a) => Msg(a,pk,t))}
-
-// AP: Commenting out these "leak"-like functions, until we implement them.
-// 
-// val PkBytes: a:alg -> pkey -> bytes
-// val SkBytes: a:alg -> sk:skey {!t. Msg(a,pk,t) } -> bytes // a.k.a. leak
+val create_pkey: h:chash -> k:pkeyparams -> (;(sigalg_of_pkeyparams(k), h))vkey
+// AP: And these are leak-like.
+val repr_of_skey: skey -> CoreSig.sigskey * hashAlg
+val repr_of_pkey: pkey -> CoreSig.sigpkey * hashAlg
 
 // TODO: adjust compromise model, connect it to Cert (mostly for the benefit of the adversary)
+*)

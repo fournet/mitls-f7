@@ -43,6 +43,11 @@ type authencAlg =
     | MtE of cipherAlg * hashAlg
     | AEAD of aeadAlg * hashAlg
 
+val sigAlgBytes: sigAlg -> bytes
+val parseSigAlg: bytes -> sigAlg Result
+val hashAlgBytes: hashAlg -> bytes
+val parseHashAlg: bytes -> hashAlg Result
+
 (* With F7, we need to declare both logical length functions
    and their concrete implementations; we still miss a few...
    TODO: use uniform naming convention, e.g. length implements Length
@@ -109,6 +114,7 @@ function val CompressionBytes: Compression -> bytes
 private assume CompressionBytes(NullCompression) = [| 0uy |]
 
 val compressionBytes: c:Compression -> b:bytes{CompressionBytes(c) = b}
+val compressionMethodsBytes: Compression list -> bytes
 val parseCompression: b:bytes -> (c:Compression{b=CompressionBytes(c)}) Result
 val parseCompressions: bytes -> Compression list
 
@@ -178,6 +184,7 @@ private assume !kex,enc,mac.
 	CipherSuiteENCAlg(CipherSuite(kex,MtE(enc,mac))) = enc
 val macAlg_of_ciphersuite: cs:cipherSuite -> h:hashAlg{h = CipherSuiteMACAlg(cs)}
 val encAlg_of_ciphersuite: cs:cipherSuite -> c:cipherAlg{c = CipherSuiteENCAlg(cs)}
+val sigAlg_of_ciphersuite: cipherSuite -> sigAlg
 
 function val AEAlg: cipherSuite -> authencAlg
 private assume !kex,a. AEAlg(CipherSuite(kex,a)) = a

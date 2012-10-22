@@ -18,9 +18,9 @@ val connect: string -> int -> NetworkStream
 
 (* Input/Output *)
 
-val dataAvailable: NetworkStream -> r:bool Result{!y,z. r = Error(y,z) => y = Tcp /\ z = Internal}
+val dataAvailable: NetworkStream -> r:bool Result{!y,z. r = Error(y,z) => y = AD_internal_error}
 val read: NetworkStream -> l:int{l>0} ->
 		r:bytes Result{(!b. r = Correct(b) => Length(b) = l)
-		/\ (!y,z. r = Error(y,z) => y = Tcp /\ z = Internal)}
-val write: NetworkStream -> bytes -> r:unit Result{!y,z. r = Error(y,z) => y = Tcp /\ z = Internal}
+		/\ (!y,z. r = Error(y,z) => y = AD_internal_error)}
+val write: NetworkStream -> bytes -> r:unit Result{!y,z. r = Error(y,z) => y = AD_internal_error}
 val close: NetworkStream -> unit
