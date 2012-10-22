@@ -12,6 +12,7 @@ mycsflags = /d:INCLUDE_IDEA /nowarn:0414 /nowarn:0219
 all: $(target)
 
 dist:
+	cp LICENSE.txt $(distdir)
 	find bzip2 src -type f -name '*.cs' -print0 | \
 		tar --null -T - -cf - | \
 		tar -C '$(distdir)' -xof -

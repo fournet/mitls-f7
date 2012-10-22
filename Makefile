@@ -19,12 +19,16 @@ build:
 
 dist:
 	rm -rf $(distname) && mkdir $(distname)
+	rm -rf $(distname).tgz
 	set -e; for d in $(subdirs); do \
 		mkdir $(distname)/$$d; \
 		cp $$d/Makefile.build $(distname)/$$d; \
 		$(MAKE) -f Makefile.build -C $$d distdir=../$(distname)/$$d dist; \
 	done
-	cp Makefile Makefile.config makegen $(distname)
+	cp Makefile               $(distname)
+	cp Makefile.config        $(distname)
+	cp Makefile.config.cygwin $(distname)
+	cp Makefile.config.unix   $(distname)
 	find $(distname) -type f -exec chmod a-x '{}' \+
 	tar --format=posix -czf $(distname).tgz $(distname)
 	rm -rf $(distname)
