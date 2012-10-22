@@ -4,11 +4,11 @@
 
 include ../Makefile.config
 
-lib7    = ../../../lib/fs7-interfaces/
-libperv = $(lib7)pervasives.fs7 $(lib7)tuples.fs7
-lperv   = -pervasives $(lib7)pervasives.fs7 -tuples $(lib7)tuples.fs7
-libfs7  = $(lib7)pi.fs7 $(lib7)formulas.fs7
-f7flags = -nokindcheck $(lperv) $(libfs7)
+lib7     = ../../../lib/fs7-interfaces/
+libperv  = $(lib7)pervasives.fs7 $(lib7)tuples.fs7
+lperv    = -pervasives $(lib7)pervasives.fs7 -tuples $(lib7)tuples.fs7
+libfs7   = $(lib7)pi.fs7 $(lib7)formulas.fs7
+f7flags += -nokindcheck $(lperv) $(libfs7)
 
 .PHONY: default clean
 
