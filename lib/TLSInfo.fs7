@@ -7,15 +7,19 @@ open TLSConstants
 type sessionID = b:bytes {Length(b) <= 32}
 // "An arbitrary byte sequence chosen by the server 
 // to identify an active or resumable session state."
+// treating [||] as the absence of identifier.
 
 type preRole =
 	| Client
 	| Server
 type Role = r:preRole{r = Client \/ r = Server}
 
-// Client/Server randomness
-type crand = bytes
-type srand = bytes
+// Client/Server randomness; 
+// their first 4 bytes give the local time, 
+// so that they are locally pairwise-distinct
+type random = (;32) lbytes 
+type crand = random
+type srand = random
 
 // SessionInfo and epoch: Session and Connection level public immutable data.
 // Used for indexing
@@ -24,18 +28,26 @@ type srand = bytes
 // the randoms are not just bytes.
 
 type SessionInfo = {
+    init_crand: crand;
+    init_srand: srand;
+	protocol_version: ProtocolVersion;
+    cipher_suite: cipherSuite;
+    compression: Compression;
     clientID: Cert.cert list;
     serverID: Cert.cert list;
     sessionID: sessionID;
-    protocol_version: ProtocolVersion;
-    cipher_suite: cipherSuite;
-    compression: Compression;
-    init_crand: crand;
-    init_srand: srand}
+    }
+// for certificates, the empty list represents the absence of identity 
+// (possibly refusing to present requested certs) 
+//   
+// for sessionID, the empty bytes [||] represents the absence of ID,
+// that is, the session is not resumable. 
 
 private type preEpoch =
-	| InitEpoch of Role * ourRand:bytes 
-	| SuccEpoch of crand * srand * si:SessionInfo * pred:preEpoch 
+  | InitEpoch of Role * random  (* our fresh local random *)
+  | SuccEpoch of crand * srand  (* the latest randoms     *)
+               * si:SessionInfo (* 
+			   * pred:preEpoch 
 
 type epoch = p:preEpoch
 

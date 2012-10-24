@@ -197,6 +197,8 @@ val getMinVersion:        ci:ConnectionInfo -> (;ci)hs_state -> ProtocolVersion
 
 /// Misc
 
+val makeRandom: unit -> (;32) lbytes 
+
 //$? change sessionID to uniformally use [||] instead of None.
 
 /// Handshake message format 

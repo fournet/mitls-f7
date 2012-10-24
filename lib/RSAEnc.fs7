@@ -17,40 +17,60 @@ val encrypt: pk -> si:SessionInfo -> (;si) pms -> bytes
 // TLS specific, timing-attack-resistant variant
 val decrypt: sk ->
 			si:SessionInfo -> 
-            cv:TLSConstants.ProtocolVersion (* highest client version, as above *) ->
+            cv:TLSConstants.ProtocolVersion -> (* highest client version, as above *) 
             bool -> (* flag whether we should check protocol version in old TLS versions *)
-            bytes -> (;si)pms (* No Result type: in case of error, we return a fresh random PMS *)
+            bytes -> (* encrypted PMS *)
+			(;si)pms (* No Result type: in case of error, we return a fresh random PMS *)
 
 
+#if whiteboard 
 /// Some draft assumption discussed with Markulf on 13/9/12
 
 // AP: Commenting out so we can still typecheck the rest of the code...
 
-//    let sk, pk = keyGen() (* sk is private *) 
-//    
-//    let compliantClient v Cr Sr = 
-//      (* check that Cr is used at most once *)
-//      let pms  = random 46
-//      let pms0 = random 46
-//      log := (pms0,pms)::!log
-//      encrypt pk (v @| if b then pms else pms0),
-//      prf (v, pms, Cr, Sr)
-//    
-//    let decryptRO v Cr Sr =
-//      (* check that Sr is used at most once *)
-//      let _, pms0 = decrypt sk
-//      let pms = try assoc !log pms0 with not_found -> pms0
-//      prf (v, pms, Cr, Sr)
-//    
-//    // The adversary get pk, compliantClient, decryptRO, and prf. Its goal is to guess b. 
-//    
-//    // when b = 0, we have a simplification of concrete TLS
-//    // when b = 1, the protocol is parametric in "compliant" PMSs, so we get good session keys 
-//    
-//    /// Hopefully we can reduce it to RSA with an extra oracle:
-//    
-//    let ptxt plain cipher = (decrypt sk cipher = plain) (* possibly after erasing some bytes *)
-//    
-//    // I am puzzled that we do not use the cipher-integrity guarantee provided by the ClientFinished check
-//    // informally, the adversary would need to extract the pms to forge a Finished for any related ciphertext  
+let sk, pk = keyGen() (* sk is private *) 
 
+let sample() = v @| random 46
+
+let compliantClient a v Cr Sr = 
+  (* a determines the prf algorithm *)
+  (* check that Cr is used at most once; probably irrelevant *)
+  let pms  = sample()
+  let pms0 = sample()
+  log := (pms0,pms)::!log
+  encrypt pk (if b then pms else pms0),
+  prf a (pms, Cr @| Sr)  
+    
+let decryptRO a v Cr Sr c =
+  (* check that Sr is used at most once *)
+  let pms0 = 
+    let fake = v @| ramdom 46
+    match decrypt sk c with 
+    | pms0 when length pms0 = 48 -> let (_,r) = split (decrypt sk c) 2 in v @| r
+    | _                          -> fake 
+  let pms = 
+    match assoc !log pms0 with 
+	| Some(pms) when b -> pms
+	| None             -> pms0
+  prf a (pms, Cr @| Sr)
+   
+// The adversary get pk, compliantClient, decryptRO, and prf. Its goal is to guess b. 
+   
+// when b = 0, we have a simplification of concrete TLS
+// when b = 1, the protocol is parametric in "compliant" PMSs, so we get good session keys 
+//             pms becomes abstract.    
+/// Hopefully we can reduce it to RSA with an extra oracle:
+
+let old_decryptRO a v Cr Sr c =
+  (* check that Sr is used at most once *)
+  let (_,r) = split (decrypt sk c) 2 
+  let pms0 = v @| r 
+  let pms = try assoc !log pms0 with not_found -> pms0
+  prf a (pms, Cr @| Sr)
+   
+   
+let ptxt plain cipher = (decrypt sk cipher = plain) (* possibly after erasing some bytes *)
+   
+   // I am puzzled that we do not use the cipher-integrity guarantee provided by the ClientFinished check
+   // informally, the adversary would need to extract the pms to forge a Finished for any related ciphertext  
+#endif 

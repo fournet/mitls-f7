@@ -10,13 +10,15 @@ function val Length: bytes -> int
 val length: b:bytes -> l:nat {Length(b) = l}
 assume !x:bytes, y:bytes. Length(x @| y) = Length(x) + Length(y)
 
+type (;l:nat) lbytes = b:bytes {Length(b) = l}
+
 function val ListLength: 'a list -> nat
 assume ListLength(op_Nil()) = 0
 assume !x,y. ListLength(op_ColonColon(x,y)) = 1 + ListLength(y)
 assume !l. Length(array_of_list(l)) = ListLength(l)
 
 
-val createBytes: l:int -> int -> b:bytes{Length(b) = l}
+val createBytes: l:int -> int -> (;l) lbytes
 // val zeroCreate: l:int -> b:bytes {Length(b) = l}
 
 val equalBytes: b0:bytes -> b1:bytes -> 

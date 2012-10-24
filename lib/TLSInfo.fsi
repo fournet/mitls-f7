@@ -11,18 +11,19 @@ type preRole =
 type Role = preRole
 
 // Client/Server randomness
-type crand = bytes
-type srand = bytes
+type random = bytes 
+type crand = random
+type srand = random
 
 type SessionInfo = {
-    clientID: Cert.cert list;
-    serverID: Cert.cert list;
-    sessionID: sessionID;
+    init_crand: crand;
+    init_srand: srand
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;
     compression: Compression;
-    init_crand: crand;
-    init_srand: srand
+    clientID: Cert.cert list;
+    serverID: Cert.cert list;
+    sessionID: sessionID;
     }
 
 type preEpoch

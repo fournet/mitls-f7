@@ -4,15 +4,15 @@
 # USER EDITABLE AREA
 arch = $(shell uname)
 
-ifeq ($(findstring $(arch),WOW64),) # Win32
-ProgramFiles = C:/Program Files
-WindowsFiles = C:/WINDOWS
-z3exe        = z3-x32.exe
-else
+#ifeq ($(findstring $(arch),WOW64),) # Win32
+#ProgramFiles = C:/Program Files
+#WindowsFiles = C:/WINDOWS
+#z3exe        = z3-x32.exe
+#else
 ProgramFiles = C:/Program Files (x86)
 WindowsFiles = C:/WINDOWS
 z3exe        = z3-x64.exe
-endif
+#endif
 
 VSInstallDir     = "$(ProgramFiles)/Microsoft Visual Studio 10.0/"
 FSInstallDir     = "$(ProgramFiles)/Microsoft F\#/v4.0/"

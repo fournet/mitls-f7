@@ -2,6 +2,7 @@
 
 type nat = int 
 type bytes = byte[]
+type lbytes = bytes
 
 val createBytes: int -> int -> bytes
 

@@ -231,7 +231,7 @@ let parseClientHello data =
     correct(cv,cr,sid,clientCipherSuites,cm,extensions)
      
     
-let makeRandom() = //$ crypto abstraction? timing guarantees local disjointness
+let makeRandom() = // crypto abstraction? timing guarantees local disjointness
     let time = makeTimestamp () in
     let timeb = bytes_of_int 4 time in
     let rnd = mkRandom 28 in
@@ -520,7 +520,7 @@ let clientKEXExplicitBytes_DH y =
     let yb = vlbytes 2 y in
     messageBytes HT_client_key_exchange yb
 
-let parseClientKEXExplicit_DH data = vlparse 2 data
+let parseClientKEXExplicit_DH data = vlparse 2 data (*$ should take (p.g) as parameter and check e.g. it is within 1..p-1 *)
 
 // Unused until we don't support DH ciphersuites.
 let clientKEXImplicitBytes_DH = messageBytes HT_client_key_exchange [||]
@@ -634,13 +634,17 @@ let certificateVerifyCheck si ms algs log payload =
         Sig.verify alg vkey expected signature
 
 // State machine begins
-type log = bytes
-type cVerifyData = bytes
-type sVerifyData = bytes
+
+(* verify data authenticated by the Finished messages *)
+type log = bytes         (* message payloads so far, to be eventually authenticated *) 
+type cVerifyData = bytes (* ClientFinished payload *)
+type sVerifyData = bytes (* ServerFinished payload *)
+
+// The constructor indicates either what we are doing locally or which peer message we are expecting, 
 
 type serverState =  (* note that the CertRequest bits are determined by the config *) 
                     (* we may omit some ProtocolVersion, mostly a ghost variable *)
-   | ClientHello             of cVerifyData * sVerifyData
+   | ClientHello                  of cVerifyData * sVerifyData
 
    | ClientCertificateRSA         of SessionInfo * ProtocolVersion * RSAKeys.sk * log
    | ServerCheckingCertificateRSA of SessionInfo * ProtocolVersion * RSAKeys.sk * log * bytes
@@ -654,24 +658,24 @@ type serverState =  (* note that the CertRequest bits are determined by the conf
    | ServerCheckingCertificateDHE of SessionInfo * DHE.g * DHE.p * DHE.x * log * bytes
    | ClientKeyExchangeDHE         of SessionInfo * DHE.g * DHE.p * DHE.x * log
 
-   | ClientKeyExchangeDH_anon of SessionInfo * DHE.g * DHE.p * DHE.x * log
+   | ClientKeyExchangeDH_anon     of SessionInfo * DHE.g * DHE.p * DHE.x * log
 
-   | CertificateVerify       of SessionInfo * masterSecret * log 
-   | ClientCCS               of SessionInfo * masterSecret * log
-   | ClientFinished          of SessionInfo * masterSecret * epoch * StatefulAEAD.writer * log
+   | CertificateVerify            of SessionInfo * masterSecret * log 
+   | ClientCCS                    of SessionInfo * masterSecret * log
+   | ClientFinished               of SessionInfo * masterSecret * epoch * StatefulAEAD.writer * log
    (* by convention, the parameters are named si, cv, cr', sr', ms, log *)
-   | ServerWritingCCS        of SessionInfo * masterSecret * epoch * StatefulAEAD.writer * cVerifyData * log
-   | ServerWritingFinished   of SessionInfo * masterSecret * cVerifyData * sVerifyData
+   | ServerWritingCCS             of SessionInfo * masterSecret * epoch * StatefulAEAD.writer * cVerifyData * log
+   | ServerWritingFinished        of SessionInfo * masterSecret * cVerifyData * sVerifyData
 
-   | ServerWritingCCSResume  of epoch * StatefulAEAD.writer * epoch * StatefulAEAD.reader * masterSecret * log
-   | ClientCCSResume         of epoch * StatefulAEAD.reader * sVerifyData * masterSecret * log
-   | ClientFinishedResume    of SessionInfo * masterSecret * sVerifyData * log
+   | ServerWritingCCSResume       of epoch * StatefulAEAD.writer * epoch * StatefulAEAD.reader * masterSecret * log
+   | ClientCCSResume              of epoch * StatefulAEAD.reader * sVerifyData * masterSecret * log
+   | ClientFinishedResume         of SessionInfo * masterSecret * sVerifyData * log
 
-   | ServerIdle              of cVerifyData * sVerifyData
+   | ServerIdle                   of cVerifyData * sVerifyData
    (* the ProtocolVersion is the highest TLS version proposed by the client *)
 
 type clientState = 
-   | ServerHello            of crand * sessionID (* * bytes for extensions? *) * cVerifyData * sVerifyData * log
+   | ServerHello                  of crand * sessionID (* * bytes for extensions? *) * cVerifyData * sVerifyData * log
 
    | ServerCertificateRSA         of SessionInfo * log
    | ClientCheckingCertificateRSA of SessionInfo * log * bytes
@@ -1015,33 +1019,44 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) state (si:SessionInfo) ce
     let state = {state with hs_outgoing = new_outgoing} in
     correct (state,si,ms,log)
 
-let prepare_client_output_full_DHE (ci:ConnectionInfo) state (si:SessionInfo) cert_req g p sy log =
-    // TODO: Factor code out with RSA case
-    let clientCertBytes =
-      match cert_req with
-      | Some(certOpt) ->
-        clientCertificateBytes certOpt
-      | None -> [||]
-
-    let si =
+let prepare_client_output_full_DHE (ci:ConnectionInfo) state (si:SessionInfo) cert_req g (*:(;p)elt *)  p sy log =
+    
+    (* pre: Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DHE.PP((p,g)) /\ ServerDHE((p,g),sy,si.init_crand @| si.init_srand) *)
+    (* moreover, by definition ServerDHE((p,g),sy,si.init_crand @| si.init_srand) implies ?sx.DHE.Exp((p,g),sx,sy) *)
+    (*$ formally, the need for signing nonces is unclear *)
+    
+    let si = 
         match cert_req with
         | None -> si
         | Some(certOpt) ->
             match certOpt with
             | None -> si
             | Some(certList,_,_) -> {si with clientID = certList}
+    (* si is now constant *)
 
-    let log = log @| clientCertBytes in
+    let clientCertBytes =
+      match cert_req with
+      | Some(certOpt) -> clientCertificateBytes certOpt
+      | None          -> [||]
+    let log = log @| clientCertBytes
 
     let (x,cy) = DHE.genKey (g, p) in
+    (* post: DHE.Exp((p,g),x,cy) *) 
 
     let clientKEXBytes = clientKEXExplicitBytes_DH cy in
-
     let log = log @| clientKEXBytes in
 
     let pms = DHE.genPMS si (g, p) x sy in
+    (* the post of this call is !sx,cy. PP((p,g) /\ DHE.Exp((p,g),x,cy)) /\ DHE.Exp((p,g),sx,sy) -> DHE.Secret((p,g),cy,sy) *)
+    (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DHE.Secret((p,g),cy,sy) *) 
     let ms = PRFs.prfSmoothDHE si pms in
-    (* FIXME: here we should shred pms *)
+    (* the post of this call is !p,g,gx,gy. StrongHS(si) /\ DHE.Secret((p,g),gx,gy) -> PRFs.Secret(ms) *)  
+    (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> PRFs.Secret(ms) *) 
+
+    (*$ unclear what si guarantees for the ms; treated as an abstract index for now *)
+
+    (*$ DHE.zeroPMS si pms; *) 
+
     let certificateVerifyBytes =
         match cert_req with
         | Some(certOpt) ->
@@ -1056,7 +1071,6 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) state (si:SessionInfo) ce
             [||]
     let log = log @| certificateVerifyBytes in
 
-    (* Enqueue current messages in output buffer *)
     let to_send = clientCertBytes @| clientKEXBytes @| certificateVerifyBytes in
     let new_outgoing = state.hs_outgoing @| to_send in
     let state = {state with hs_outgoing = new_outgoing} in
@@ -1425,7 +1439,7 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs cvd svd
     match Cert.for_signing certAlgs state.poptions.server_name keyAlgs with
     | None -> Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Could not find in the store a certificate for the negotiated ciphersuite")
     | Some(c,alg,sk) ->
-        (* update server identity in the sinfo *)
+        (* set server identity in the session info *)
         let si = {si with serverID = c} in
         let certificateB = serverCertificateBytes c in
         (* ServerKEyExchange *)
@@ -1452,6 +1466,8 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs cvd svd
             else
                 {state with pstate = PSServer(ClientKeyExchangeDHE(si,g,p,x,log))}
         correct (state,si.protocol_version)
+
+        (* ClientKeyExchangeDHE(si,g,p,x,log) should carry PP((p,g)) /\ ?gx. DHE.Exp((p,g),x,gx) *)
 
 let prepare_server_output_full_DH_anon (ci:ConnectionInfo) state si cvd svd log =
     let serverHelloB = prepare_server_hello si si.init_srand state.poptions cvd svd in
@@ -1665,10 +1681,15 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(y) ->
                     let log = log @| to_log in
+
+                    (* from the local state, we know: PP((p,g)) /\ ?gx. DHE.Exp((p,g),x,gx) ; tweak the ?gx for genPMS. *)
                     let pms = DHE.genPMS si (g, p) x y in
+                    (* StrongHS(si) /\ DHE.Exp((p,g),?cx,y) -> DHE.Secret(pms) *)
                     let ms = PRFs.prfSmoothDHE si pms in
-                    (* TODO: we should shred the pms *)
-                    (* we rely on scopes & type safety to get forward secrecy*) (* AP:? *)
+                    (* StrongHS(si) /\ DHE.Exp((p,g),?cx,y) -> PRFs.Secret(ms) *)
+                    
+                    (*$ TODO in e.g. DHE: we should shred the pms *)
+                    (* we rely on scopes & type safety to get forward secrecy*) 
                     (* move to new state *)
                     if state.poptions.request_client_certificate then
                         let state = {state with pstate = PSServer(CertificateVerify(si,ms,log))} in

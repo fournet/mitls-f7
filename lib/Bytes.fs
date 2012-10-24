@@ -4,6 +4,7 @@ type nat = int
 type bytes = byte[]
 
 let length (d:bytes) = d.Length
+type lbytes = bytes
 
 let createBytes len (value:int) : bytes =
     try Array.create len (byte value)
@@ -46,6 +47,7 @@ let split2 (b:bytes) i j : bytes * bytes * bytes =
   Array.sub b i j,
   Array.sub b (i+j) (b.Length-(i+j))
    
+ 
 let utf8 (x:string) : bytes = System.Text.Encoding.UTF8.GetBytes x
 let iutf8 (x:bytes) : string = System.Text.Encoding.UTF8.GetString x
 

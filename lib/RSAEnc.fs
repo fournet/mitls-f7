@@ -9,7 +9,7 @@ let encrypt key id (pms:RSAPlain.pms) =
     let v = RSAPlain.leak id pms
     CoreACiphers.encrypt_pkcs1 (RSAKeys.repr_of_rsapkey key) v
 
-let decrypt_int dk si cv check_client_version_in_pms_for_old_tls encPMS =
+let decrypt_int dk si cv cvCheck encPMS =
   (* Security measures described in RFC 5246, section 7.4.7.1 *)
   (* 1. Generate random data, 46 bytes, for PMS except client version *)
   let fakepms = mkRandom 46 in
@@ -26,7 +26,7 @@ let decrypt_int dk si cv check_client_version_in_pms_for_old_tls encPMS =
           
           | SSL_3p0 | TLS_1p0 ->
               (* 3. If check disabled, use client provided PMS, otherwise use our version number *)
-              if check_client_version_in_pms_for_old_tls 
+              if cvCheck 
               then expected @| postPMS
               else pms
     | _  -> 
