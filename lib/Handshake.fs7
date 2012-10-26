@@ -191,7 +191,7 @@ val recv_ccs     : ci:ConnectionInfo -> s:(;ci)hs_state -> rg:range -> (;ci.id_i
 
 val getMinVersion:        ci:ConnectionInfo -> (;ci)hs_state -> ProtocolVersion
 
-
+(*--- end *)
 
 (* INTERNAL HS VERIFICATION (ALL THESE DEFS ARE PRIVATE) *)
 
@@ -199,7 +199,7 @@ val getMinVersion:        ci:ConnectionInfo -> (;ci)hs_state -> ProtocolVersion
 
 val makeRandom: unit -> (;32) lbytes 
 
-//$? change sessionID to uniformally use [||] instead of None.
+//TODO? change sessionID to uniformally use [||] instead of None.
 
 /// Handshake message format 
 
@@ -210,7 +210,7 @@ definition !ht,payload. MessageBytes(ht,payload) = HTBytes(ht) @| VLBytes(3,data
 
 val makeMessage: ht:HandshakeType -> payload:bytes -> msg:bytes { msg = MessageBytes(ht,payload) }
 val parseMessage: hs_state -> (hs_state * ht:HandshakeType * payload:bytes * msg:bytes { msg = MessageBytes(ht,payload) }) option
-//$ unclear how to usefully maintain hs_state invariant; pass instead state.incoming? 
+//TODO unclear how to usefully maintain hs_state invariant; pass instead state.incoming? 
 
 /// Client Hello 
 
@@ -221,8 +221,8 @@ definition !cv,clRdm,sid,clientCipherSuites,cm,ext.
 	  HT_client_hello, 
       VersionBytes cv @| CRBytes clRdm @| SidBytes sid @| CipherSuitesBytes clientCipherSuites @| CompressionsBytes cm @| ext )
 
-//$ get rid of the intermediate record
-//$ factor out extension processing
+//TODO get rid of the intermediate record
+//TODO factor out extension processing
 val makeClientHelloBytes: ... -> msg:bytes { msg = ClientHelloBytes(...) } 
 val parseClientHello: payload:bytes -> ( cv,clRdm,sid,clientCipherSuites,cm,ext { MessageBytes(HT_client_hello,payload) =  ClientHelloBytes(...) }  ) Result
 
@@ -263,7 +263,7 @@ predicate val ClientKeyExchangeBytes: pms * pkey * bytes -> bool (* with some in
 definition !pms,pkey. ClientKeyExchangeBytes(pms,pkey,msg) =
   ?cipher. Encrypted(pms,pkey,cipher) /\ msg = MessageBytes(HT_client_key_exchange, cipher)
 
-//$ makeClientKeyExchangeBytes actually generates the pms?!
+//TODO makeClientKeyExchangeBytes actually generates the pms?!
 
 val makeClientKexRsaBytes: pms:pms -> pkey:pkey -> msg:bytes { ClientKeyExchangeBytes(pms,pkey,msg) }  
 val parseClientKexRsa: si:SessionInfo -> payload:bytes -> pms:pms { !cs. si.serverID = Some(cs)  = ClientKeyExchangeBytes(pms,CertsPKey(cs),MessageBytes(HT_client_key_exchange,payload)) } 
