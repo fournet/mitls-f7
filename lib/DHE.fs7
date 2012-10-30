@@ -1,0 +1,107 @@
+﻿module DHE
+
+// CF: *** work in progress ***
+
+// Diffie-Hellman with ephemeral keys (single use)
+// our ideal functionality keeps track of abstract exponents (indexed by their exponentials)
+// and substitutes fresh exponentials for the resulting pms
+
+open Bytes
+open TLSInfo
+
+type p = bytes // DH group order, actually a bignum
+
+type (;p:p) elt = bytes    // for public parameters and exchange values
+type (;p:p) g = (;p:p) elt // for the group generator
+
+// "Strong" parameter generation used by compliant servers,
+// formally a precondition for signing them with an honest key.
+predicate val PP: p:p * g:(;p) g -> bool 
+
+// the RFCs are vague about best practices for ppgen
+val gen_pp:     unit -> p:p * g:(;p) elt {PP(p,g)} 
+val default_pp: unit -> p:p * g:(;p) elt {PP(p,g)} 
+
+// group elements are now concrete bytes
+// val eltBytes: p:p -> (;p) elt -> bytes 
+// val eltParse: p:p -> bytes -> (;p) elt  
+
+type (;p:p,g:elt,gx:elt) secret // private secret x, y, ... represented as some big integer modulo p
+
+val genKey: p:p -> g: (;p) g -> gx:(;p) elt * (;p,gx) secret  
+
+type (;p:p, g:(;p) elt, gx:(;p) elt, gy:(;p) elt) pms // strong secret when (p,g), gx, and gy have been honestly generated
+ 
+// used only within PRFs
+val leak:   p:p -> (;p) pms -> (;p) elt  
+
+// used only within ideal DH
+val sample: p:p -> g:(;p) elt -> gx:(;p) elt -> gy:(;p) elt                   -> (;p,g,gx,gy) pms
+val exp:    p:p -> g:(;p) elt -> gx:(;p) elt -> gy:(;p) elt -> x:(;gx) secret -> (;p,g,gx,gy) pms 
+
+
+(*********** old stuff
+
+ 
+
+
+************
+
+// for TLS, we index all values by local randomness 
+// unclear how to deal with public parameters
+
+// RFC 5246 8.2.1: 
+//   A conventional Diffie-Hellman computation is performed.  The
+//   negotiated key (Z) is used as the pre_master_secret, and is converted
+//   into the master_secret, as specified above. Leading bytes of Z that
+//   contain all zero bits are stripped before it is used as the
+//   pre_master_secret.
+// // why?? is it treated in PRF smoothness? 
+
+// values of *any* size in 1..2^16 may be used ?? 
+type bigInt
+type bigIntbytes = (;(1,65535)) rbytes 
+type (;p) elt = e:bigInt { 0 < e /\ e < p }  
+
+// raw modular exponentiation
+private val exp: p:bigInt -> g:(;p) elt -> x:bigInt -> e:(;p) elt
+
+val bigIntBytes: bigInt -> bytes 
+val parseBigInt: bytes -> bigInt
+// binary format for bigInt, variable 2-byte length, big-endian;
+// the first byte cannot be 0;
+// this guarantees that every bigInt as a unique binary representation.
+
+// public DH parameters, chosen by the server.
+// validity? normally p should be prime and g < p
+type pp = p: bigInt * g: (;p) elt 
+
+type id = bytes
+type (;i:id,pp:pp) x // bigInt, secret exponent
+// indexing guarantees that any given private key is used with at most one pp
+  
+type (;i:id,pp:pp) gx = e:elt // { e = g^x p p }
+
+type eltrepr = bytes
+val elt:     i:id -> (;i) gx -> gxrepr
+val eltrepr: i:id -> gxrepr -> (;i) gx 
+
+// TODO: corruption
+
+type (;i:id,gy:elt) gxy // shared secret
+
+val gen:   i:id -> (;i) x * (;i) gx
+val share: i:id -> (;i) x -> j:id -> (;j) gx -> (;i,j) gxy
+
+
+// ideally, 
+// - we keep a table of generated exchange values, (i:id * pp:pp * (;i,pp) gx) list 
+// - we keep a table of computed shared secrets,   (i:id * j:id * pp:pp * (;i,j) gxy) list 
+//   (where i and i are matching indexes in the first table, irrespective of how gy was received)
+// - relying on DDH, we replace those computations by fresh sampling of g^z
+
+// let split n = let d = n / 2 in d, n - 2*d ;;
+// let (p) v p = let d = v / p in v - d * p ;;
+// let rec expmod p g n = if n = 0 then 1 else let (d,r) = split n in let e = expmod p g d in let e2 = (e * e) p p in if r=0 then e2 else (e2 * g) p p ;;
+
+*)

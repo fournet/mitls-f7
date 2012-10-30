@@ -30,13 +30,13 @@ val decrypt: sk ->
 
 let sk, pk = keyGen() (* sk is private *) 
 
-let sample() = v @| random 46
+let sample v = v @| random 46
 
 let compliantClient a v Cr Sr = 
   (* a determines the prf algorithm *)
   (* check that Cr is used at most once; probably irrelevant *)
-  let pms  = sample()
-  let pms0 = sample()
+  let pms  = sample v
+  let pms0 = sample v
   log := (pms0,pms)::!log
   encrypt pk (if b then pms else pms0),
   prf a (pms, Cr @| Sr)  
@@ -44,7 +44,7 @@ let compliantClient a v Cr Sr =
 let decryptRO a v Cr Sr c =
   (* check that Sr is used at most once *)
   let pms0 = 
-    let fake = v @| ramdom 46
+    let fake = sample v
     match decrypt sk c with 
     | pms0 when length pms0 = 48 -> let (_,r) = split (decrypt sk c) 2 in v @| r
     | _                          -> fake 
