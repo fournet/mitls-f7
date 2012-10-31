@@ -12,7 +12,7 @@ type pp  = p * g
 type y   = elt
 
 
-let private pp (pg:CoreKeys.dhparams) : p * elt = pg.p, pg.g 
+let private pp (pg:CoreKeys.dhparams) : pp = pg.p, pg.g 
 let private dhparams p g: CoreKeys.dhparams = { p = p; g = g }
 
 let gen_pp()     = pp (CoreDH.gen_params())

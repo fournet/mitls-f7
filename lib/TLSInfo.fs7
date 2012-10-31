@@ -46,7 +46,7 @@ type SessionInfo = {
 private type preEpoch =
   | InitEpoch of Role * random  (* our fresh local random *)
   | SuccEpoch of crand * srand  (* the latest randoms     *)
-               * si:SessionInfo (* 
+               * si:SessionInfo
 			   * pred:preEpoch 
 
 type epoch = p:preEpoch
