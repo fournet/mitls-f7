@@ -152,7 +152,7 @@ let parseExtensionList data =
                 if ren_ext_list.Length > 1 then
                     Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Same extension received more than once")
                 else
-                    correct(extList)
+                    correct(ren_ext_list)
 
 
 (* Renegotiation Info extension -- RFC 5746 *)
