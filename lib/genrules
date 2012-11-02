@@ -9,11 +9,11 @@ MSBUILD = 'http://schemas.microsoft.com/developer/msbuild/2003'
 MKHEADER = '''\
 include ../Makefile.config
 
-lib7    = ../../../lib/fs7-interfaces/
-libperv = $(lib7)pervasives.fs7 $(lib7)tuples.fs7
-lperv   = -pervasives $(lib7)pervasives.fs7 -tuples $(lib7)tuples.fs7
-libfs7  = $(lib7)pi.fs7 $(lib7)formulas.fs7
-f7flags = -nokindcheck $(lperv) $(libfs7)
+lib7     = ../../../lib/fs7-interfaces/
+libperv  = $(lib7)pervasives.fs7 $(lib7)tuples.fs7
+lperv    = -pervasives $(lib7)pervasives.fs7 -tuples $(lib7)tuples.fs7
+libfs7   = $(lib7)pi.fs7 $(lib7)formulas.fs7
+f7flags += -nokindcheck $(lperv) $(libfs7)
 
 .PHONY: default clean
 
@@ -46,8 +46,7 @@ def _main():
     for i in xrange(len(files)):
         name = files[i]
         deps = ['%s.fs7' % (x,) for x in files[:i]]
-
-        print '%s.tc7: $(libperv) $(libfs7) %s' % (files[i], ' '.join(deps))
+        print '%s.tc7: $(libperv) $(libfs7) %s %s.fs7 %s.fs' % (files[i], ' '.join(deps), name, name)
         print '\t$(f7) $(f7flags) -scripts %s %s %s.fs7 %s.fs' % (name, ' '.join(deps), name, name)
         print '\t@touch $@'
         print

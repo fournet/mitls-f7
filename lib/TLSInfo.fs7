@@ -49,26 +49,29 @@ private type preEpoch =
                * si:SessionInfo
 			   * pred:preEpoch 
 
-type epoch = p:preEpoch
+predicate val IsInitEpoch: preEpoch -> bool
+predicate val IsSuccEpoch: preEpoch -> bool
+private definition !e. IsInitEpoch(e) <=> ?r,b. e = InitEpoch(r,b)
+private definition !e. IsSuccEpoch(e) <=> ?c,s,si,pe. e = SuccEpoch(c,s,si,pe)
+
+type epoch = e:preEpoch {IsInitEpoch(e) \/ IsSuccEpoch(e)}
 
 function val Pred: epoch -> epoch
-assume !cr,sr,si,pred. Pred(SuccEpoch(cr,sr,si,pred)) = pred
-
-predicate NullSessionInfo of SessionInfo
-assume !si. NullSessionInfo(si) <=> (si.clientID = [] /\ si.serverID = [] /\ si.sessionID = [||] /\
-    IsNullCiphersuite(si.cipher_suite) /\ si.compression = NullCompression /\ si.init_crand = [||] /\ si.init_srand = [||] )
-
-val null_sessionInfo: pv:ProtocolVersion -> si:SessionInfo{NullSessionInfo(si)}
-val isNullSessionInfo: s:SessionInfo -> b:bool{b=true => NullSessionInfo(s)}
+private definition !cr,sr,si,pred. Pred(SuccEpoch(cr,sr,si,pred)) = pred
 
 function val EpochSI: epoch -> SessionInfo
-assume !r,o,si. si = EpochSI(InitEpoch(r,o)) <=> NullSessionInfo(si)
-assume !c,s,si,p. EpochSI(SuccEpoch(c,s,si,p)) = si
+private definition !c,s,si,p. EpochSI(SuccEpoch(c,s,si,p)) = si
 
-val epochSI: e:epoch -> si:SessionInfo{si = EpochSI(e)}
+function val EpochSRand: epoch -> bytes
+function val EpochCRand: epoch -> bytes
+private definition !b1,b2,si,pe. EpochSRand(SuccEpoch(b1,b2,si,pe)) = b2
+private definition !b1,b2,si,pe. EpochCRand(SuccEpoch(b1,b2,si,pe)) = b1
 
-val epochSRand: e:epoch -> b:crand{!b1,b2,si,pe. e = SuccEpoch(b1,b2,si,pe) => b = b2}
-val epochCRand: e:epoch -> b:srand{!b1,b2,si,pe. e = SuccEpoch(b1,b2,si,pe) => b = b1}
+val isInitEpoch: e:epoch -> b:bool{(b = true /\ IsInitEpoch(e)) \/ (b = false /\ IsSuccEpoch(e))}
+val epochSI: e:epoch{IsSuccEpoch(e)} -> si:SessionInfo{si = EpochSI(e)}
+
+val epochSRand: e:epoch{IsSuccEpoch(e)} -> b:crand{b = EpochSRand(e)}
+val epochCRand: e:epoch{IsSuccEpoch(e)} -> b:srand{b = EpochCRand(e)}
 
 type ConnectionInfo =
 	{ role: Role;
@@ -77,10 +80,11 @@ type ConnectionInfo =
 
 val connectionRole: ci:ConnectionInfo -> r:Role{r = ci.role}
 
-val initConnection: r:Role -> b:bytes ->
+val initConnection: r:Role -> r:random ->
 	ci:ConnectionInfo
-val nextEpoch: e:epoch -> crand -> srand -> si:SessionInfo ->
-	e':epoch
+val nextEpoch: e:epoch -> c:crand -> s:srand -> si:SessionInfo ->
+	e':epoch{IsSuccEpoch(e') /\ Pred(e') = e /\ EpochSI(e') = si /\
+			 EpochCRand(e') = c /\ EpochSRand(e') = s}
 
 
 /// Predicates specifying cryptographic assumptions on algorithms 
