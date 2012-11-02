@@ -11,8 +11,8 @@ open TLSInfo
 
 type p = bytes // DH group order, actually a bignum
 
-type (;p:p) elt = bytes    // for public parameters and exchange values
-type (;p:p) g = (;p:p) elt // for the group generator
+type (;p:p) elt = bytes   // for public parameters and exchange values
+type (;p:p) g = (;p) elt  // for the group generator
 
 // "Strong" parameter generation used by compliant servers,
 // formally a precondition for signing them with an honest key.
