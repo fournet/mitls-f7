@@ -29,6 +29,7 @@ type SessionInfo = {
 type preEpoch
 type epoch = preEpoch
 
+val isInitEpoch: epoch -> bool
 val epochSI: epoch -> SessionInfo
 val epochSRand: epoch -> srand
 val epochCRand: epoch -> crand
@@ -40,8 +41,6 @@ type ConnectionInfo =
       id_out: epoch}
 val connectionRole: ConnectionInfo -> Role
 
-val null_sessionInfo: ProtocolVersion -> SessionInfo
-val isNullSessionInfo: SessionInfo -> bool
 val initConnection: Role -> bytes -> ConnectionInfo
 val nextEpoch: epoch -> crand -> srand -> SessionInfo -> epoch
 //val dual_KeyInfo: epoch -> epoch

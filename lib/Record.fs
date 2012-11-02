@@ -71,9 +71,9 @@ let recordPacketOut ki conn pv rg ct fragment =
     | Error (x,y) -> Error (x,y)
     | Correct compressed ->
     *)
-    let si = epochSI(ki) in
-    match (si.cipher_suite, conn) with
-    | (x,NullState) when isNullCipherSuite x ->
+    let initEpoch = isInitEpoch ki in
+    match (initEpoch, conn) with
+    | (true,NullState) ->
         let eh = emptyHistory ki in
         let payload = fragmentRepr ki ct eh rg fragment in
         let packet = makePacket ct pv payload in
@@ -91,7 +91,7 @@ let recordPacketOut ki conn pv rg ct fragment =
 //        let payload = (TLSFragment.TLSFragmentRepr keyInfo ct st.history tlen fragment) @| (AEPlain.tagRepr keyInfo mac) in
 //        let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
 //        (conn,packet)
-    | (_,SomeState(history,state)) ->
+    | (false,SomeState(history,state)) ->
         let ad = makeAD ki ct in
         let sh = StatefulAEAD.history ki state in
         let aeadF = TLSFragmentToFragment ki ct history sh rg fragment in
@@ -137,10 +137,9 @@ let recordPacketIn ki conn headPayload =
     if length payload <> plen then
         Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Wrong record packet size")
     else
-    let si = epochSI(ki) in
-    let cs = si.cipher_suite in
-    match (cs,conn) with
-    | (x,NullState) when isNullCipherSuite x ->
+    let initEpoch = isInitEpoch ki in
+    match (initEpoch,conn) with
+    | (true,NullState) ->
         let rg = (plen,plen) in
         let eh = emptyHistory ki in
         let msg = fragmentPlain ki ct eh rg payload in
@@ -159,7 +158,7 @@ let recordPacketIn ki conn headPayload =
 //            correct(conn,ct,pv,rg,msg)
 //        else
 //            Error(MAC,CheckFailed)
-    | (x,SomeState(history,state)) ->
+    | (false,SomeState(history,state)) ->
         let ad = makeAD ki ct in
         let decr = StatefulAEAD.decrypt ki state ad payload in
         match decr with

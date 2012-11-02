@@ -400,7 +400,6 @@ let recv (Conn(id,c)) =
                 | Correct(pack) -> 
                     let (c_recv,ct,pv,tl,f) = pack in
                     //let s = sprintf "                        %5d bytes --> %s\n" len (TLSConstants.CTtoString ct) in printfn "%s" s  
-                    let si = epochSI(id.id_in) in
                     match c.read.disp with
                     | Init -> correct(c_recv,ct,tl,f)
                     | FirstHandshake(expPV) ->
@@ -409,6 +408,7 @@ let recv (Conn(id,c)) =
                         else
                             Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Protocol version check failed")
                     | _ ->
+                        let si = epochSI(id.id_in) in
                         if pv = si.protocol_version then
                             correct(c_recv,ct,tl,f)
                         else

@@ -26,30 +26,19 @@ type SessionInfo = {
     sessionID: sessionID;
     }
 
-let null_sessionInfo pv =
-    { clientID = [];
-      serverID = [];
-      sessionID = [||];
-      protocol_version = pv;
-      cipher_suite = nullCipherSuite;
-      compression = NullCompression;
-      init_crand = [||]
-      init_srand = [||]
-      }
-
-let isNullSessionInfo s =
-  s.clientID = [] && s.serverID = [] && s.sessionID = [||] &&
-  isNullCipherSuite s.cipher_suite && s.compression = NullCompression &&
-  s.init_crand = [||] && s.init_srand = [||]
-
 type preEpoch =
     | InitEpoch of Role * (* ourRand *) bytes
     | SuccEpoch of crand * srand * SessionInfo * preEpoch
 type epoch = preEpoch
 
+let isInitEpoch e = 
+    match e with
+    | InitEpoch (_,_) -> true
+    | SuccEpoch (_,_,_,_) -> false
+
 let epochSI e =
     match e with
-    | InitEpoch (d,b) -> let si = null_sessionInfo SSL_3p0 in si //FIXME: fake value
+    | InitEpoch (d,b) -> Error.unexpectedError "[epochSI] invoked on initial epoch."
     | SuccEpoch (cr,sr,si,pe) -> si
 
 let epochSRand e =

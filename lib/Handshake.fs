@@ -847,16 +847,19 @@ let request (ci:ConnectionInfo) (state:hs_state) (ops:config) =
             (false,state)
 
 let invalidateSession ci state =
-    let si = epochSI(ci.id_in) // FIXME: which epoch to choose? Here it matters since they could be mis-aligned
-    match si.sessionID with
-    | [||] -> state
-    | sid ->
-        let hint =
-            match ci.role with
-            | Client -> state.poptions.server_name
-            | Server -> state.poptions.client_name
-        let sDB = SessionDB.remove state.sDB (sid,ci.role,hint) in
-        {state with sDB=sDB}
+    if isInitEpoch(ci.id_in) then
+        state
+    else
+        let si = epochSI(ci.id_in) // FIXME: which epoch to choose? Here it matters since they could be mis-aligned
+        match si.sessionID with
+        | [||] -> state
+        | sid ->
+            let hint =
+                match ci.role with
+                | Client -> state.poptions.server_name
+                | Server -> state.poptions.client_name
+            let sDB = SessionDB.remove state.sDB (sid,ci.role,hint) in
+            {state with sDB=sDB}
 
 let getNextEpochs ci si crand srand =
     let id_in  = nextEpoch ci.id_in  crand srand si in
