@@ -3,7 +3,7 @@
 open Bytes
 open TLSConstants
 open TLSInfo
-open RSA
+open RSAKeys
 open Error
 
 (****** MS ******) 

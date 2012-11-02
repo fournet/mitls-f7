@@ -7,15 +7,29 @@ open Error
 open TLSInfo
 open DataStream
 open StatefulAEAD
+open TLSConstants
 
 (* Message Predicates *)
-type HandshakeType
-val htBytes: HandshakeType -> bytes
-val parseHt: bytes -> HandshakeType 
+type HandshakeType =
+    | HT_hello_request
+    | HT_client_hello
+    | HT_server_hello
+    | HT_certificate
+    | HT_server_key_exchange
+    | HT_certificate_request
+    | HT_server_hello_done
+    | HT_certificate_verify
+    | HT_client_key_exchange
+    | HT_finished
+
+function val HTBytes: HandshakeType -> bytes
+
+val htBytes: ht:HandshakeType -> b:bytes{b=HTBytes(ht)}
+val parseHt: b:bytes -> ht:HandshakeType{b=HTBytes(ht)} 
 
 function val MessageBytes: HandshakeType * bytes -> bytes
 val messageBytes: ht:HandshakeType -> x:bytes -> m:bytes{m = MessageBytes(ht,x)}
-val parseMessage: buf:bytes -> (rem:bytes * ht:HandShakeType * x:bytes * to_log:bytes){to_log = MessageBytes(ht,x)}
+val parseMessage: buf:bytes -> (rem:bytes * ht:HandshakeType * x:bytes * to_log:bytes){to_log = MessageBytes(ht,x)}
 
 val makeFragment: ki:epoch -> b:bytes -> (r:range * (;ki,r) Fragment.fragment) * bytes
 
@@ -23,17 +37,20 @@ val makeFragment: ki:epoch -> b:bytes -> (r:range * (;ki,r) Fragment.fragment) *
 
 function val LenBytes: int * bytes -> bytes
 
+type log = bytes
 
 function val ClientHello: (ProtocolVersion * bytes * sessionID * cipherSuites * Compression list * bytes) -> bytes
 function val ClientHelloBytes: (ProtocolVersion * bytes * sessionID * cipherSuites * Compression list * bytes) -> bytes
-definition !cv,clRdm,sid,clientCipherSuites,cm,ext.
-  ClientHello(cv,clRdm,sid,clientCipherSuites,cm,ext) = 
-                (VersionBytes cv @| 
+definition !cv,clRdm,sid,clientCipherSuites,cm,ext,b.
+  ClientHello(cv,clRdm,sid,clientCipherSuites,cm,ext) = b <=> (?b1,b2. 
+                ContainsCompressions(b2,cm) /\ ContainsCipherSuites(b1,clientCipherSuites) /\
+                b = (VersionBytes(cv) @| 
                  clRdm @| 
                  LenBytes(1, sid) @| 
-                 LenBytes(2,(CipherSuitesBytes(clientCipherSuites))) @| 
-                 LenBytes(1,(CompressionsBytes(cm))) @| 
+                 LenBytes(2,b1) @| 
+                 LenBytes(1,b2) @| 
                  ext)
+				 )
 
 definition !cv,clRdm,sid,clientCipherSuites,cm,ext.
   ClientHelloBytes(cv,clRdm,sid,clientCipherSuites,cm,ext) = 
@@ -52,7 +69,7 @@ function val ClientOrServerCertificate: bytes list -> bytes
 
 function val CertificateRequest: ProtocolVersion * certType list * Sig.alg list option * string list -> bytes
 
-function val ClientKeyExchange_RSA: ProtocolVersion * SessionInfo * RSAKey.pk * RSAPlain.pms -> bytes
+function val ClientKeyExchange_RSA: ProtocolVersion * SessionInfo * RSAKeys.pk * RSAPlain.pms -> bytes
 
 function val ClientKeyExchange_DHE: bytes -> bytes
 
@@ -60,12 +77,12 @@ function val ServerKeyExchange_DHE:  ProtocolVersion * p:bytes * g:bytes * y:byt
 
 function val ServerKeyExchange_DH_anon: bytes * bytes * bytes -> bytes
 
-function val CertificateVerify: ProtocolVersion * PRFs.ms * Sig.alg * Cert.certchain * Sig.pkey * log -> bytes
+function val CertificateVerify: si:SessionInfo * (;si)PRFs.masterSecret * Sig.alg * Cert.certchain * Sig.pkey * log -> bytes
 
 function val ServerHelloDone: unit -> bytes
 
-function val ServerFinished: ProtocolVersion * PRF.ms * log -> bytes
-function val ClientFinished: ProtocolVersion * PRF.ms * log -> bytes
+function val ServerFinished: si:SessionInfo * (;si)PRFs.masterSecret * log -> bytes
+function val ClientFinished: si:SessionInfo * (;si)PRFs.masterSecret * log -> bytes
 
 (*--- controlinterface *)
 (* Control Interface *)
@@ -175,17 +192,17 @@ val next_fragment: ci:ConnectionInfo -> s:(;ci)hs_state -> (;ci,s)outgoing
 type (;ci:ConnectionInfo,c:config)incoming =
   | InAck of (;ci,c)nextState
   | InVersionAgreed  of (;ci,c)nextState * ProtocolVersion
-  | InQuery of Cert.cert * (;ci,c)nextState
+  | InQuery of Cert.certchain * (;ci,c)nextState
   | InFinished of (;ci,c)nextState {EvSentFinishedFirst(ci,false)}
   | InComplete of (;ci,c)nextState {Complete(ci,c)}
-  | InError of ErrorCause * ErrorKind * (;ci,c)nextState
+  | InError of alertDescription * string * (;ci,c)nextState
 val recv_fragment: ci:ConnectionInfo -> s:(;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> 
                    (;ci,Config(ci,s))incoming
 
 type (;ci:ConnectionInfo,c:config)incomingCCS =
   | InCCSAck of ci':ConnectionInfo * (;ci'.id_in)StatefulAEAD.state * (;ci',c)nextState
 				{ci.id_out = ci'.id_out /\ ci.id_in = Pred(ci'.id_in)}
-  | InCCSError of ErrorCause * ErrorKind * (;ci,c)nextState
+  | InCCSError of alertDescription * string * (;ci,c)nextState
 val recv_ccs     : ci:ConnectionInfo -> s:(;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> 
                    (;ci,Config(ci,s))incomingCCS
 
@@ -197,132 +214,134 @@ val getMinVersion:        ci:ConnectionInfo -> (;ci)hs_state -> ProtocolVersion
 
 /// Misc
 
-val makeRandom: unit -> (;32) lbytes 
-
-//TODO? change sessionID to uniformally use [||] instead of None.
-
-/// Handshake message format 
-
-// we need a precise spec, as verifyData is a series of such messages.
-
-function val MessageBytes: HandshakeType * bytes -> bytes 
-definition !ht,payload. MessageBytes(ht,payload) = HTBytes(ht) @| VLBytes(3,data)
-
-val makeMessage: ht:HandshakeType -> payload:bytes -> msg:bytes { msg = MessageBytes(ht,payload) }
-val parseMessage: hs_state -> (hs_state * ht:HandshakeType * payload:bytes * msg:bytes { msg = MessageBytes(ht,payload) }) option
-//TODO unclear how to usefully maintain hs_state invariant; pass instead state.incoming? 
-
-/// Client Hello 
-
-function val ClientHelloBytes: ... 
-definition !cv,clRdm,sid,clientCipherSuites,cm,ext.
-  ClientHelloBytes(cv,clRdm,sid,clientCipherSuites,cm,ext) = 
-    MessageBytes(
-	  HT_client_hello, 
-      VersionBytes cv @| CRBytes clRdm @| SidBytes sid @| CipherSuitesBytes clientCipherSuites @| CompressionsBytes cm @| ext )
-
-//TODO get rid of the intermediate record
-//TODO factor out extension processing
-val makeClientHelloBytes: ... -> msg:bytes { msg = ClientHelloBytes(...) } 
-val parseClientHello: payload:bytes -> ( cv,clRdm,sid,clientCipherSuites,cm,ext { MessageBytes(HT_client_hello,payload) =  ClientHelloBytes(...) }  ) Result
-
-/// Server Hello 
-
-function val ServerHelloBytes: ... // (sv,sr,sid,cs,cm,extensions) 
-definition !sv,sr,sid,cs,cm,ext.
-  ServerHelloBytes(sv,sr,sid,cs,cm,ext) =
-    MessageBytes(
-	  HT_server_hello, 
-      VersionBytes sv @| CRBytes sr @| SidBytes sid @| CipherSuiteBytes cs @| CompressionsBytes cm @| ext )
-
-val makeServerHelloBytes: ... -> msg:bytes { msg = ServerHelloBytes(...) } 
-val parseClientHello: payload:bytes -> ( sv,sr,sid,cs,cm,ext { MessageBytes(HT_server_hello,payload) = ServerHelloBytes(sv,sr,sid,cs,cm,ext) } ) Result
-
-/// Certificate chains
-
-function val CertificateListBytes: Cert.cert list -> bytes
-definition CertificateListBytes([]) = [||] 
-definition !c,cs. CertificateListBytes(c::cs) = CertificateBytes(c) @| CertificateListBytes(cs)
-
-function val CertsBytes: Cert.cert list -> bytes
-definition !cs. CertsBytes(cs) = VLBytes 3 (CertificateListBytes(cs))
-
-function val CertificateBytes: Cert.cert list -> bytes
-definition !certs. CertificateBytes(certs) = MessageBytes(HT_certificate,CertsBytes(certs))
-
-val makeCertificateBytes: certs:Cert.cert list -> msg:bytes { msg = CertificateBytes(certs) }
-val parseCertificate: payload:bytes -> (certs:Cert.cert list{ MessageBytes(HT_certificate,CertsBytes(certs)) = CertificateBytes(certs) } ) Result
-
-/// Server Hello Done
-
-val serverHelloDoneBytes: msg:bytes { msg = Message(HT_server_hello_done,[||]) }
-
-/// Client Key Exchange (for now only for RSA); note that this message is randomized.
-
-predicate val ClientKeyExchangeBytes: pms * pkey * bytes -> bool (* with some injectivity properties *)
-definition !pms,pkey. ClientKeyExchangeBytes(pms,pkey,msg) =
-  ?cipher. Encrypted(pms,pkey,cipher) /\ msg = MessageBytes(HT_client_key_exchange, cipher)
-
-//TODO makeClientKeyExchangeBytes actually generates the pms?!
-
-val makeClientKexRsaBytes: pms:pms -> pkey:pkey -> msg:bytes { ClientKeyExchangeBytes(pms,pkey,msg) }  
-val parseClientKexRsa: si:SessionInfo -> payload:bytes -> pms:pms { !cs. si.serverID = Some(cs)  = ClientKeyExchangeBytes(pms,CertsPKey(cs),MessageBytes(HT_client_key_exchange,payload)) } 
-
-/// State-machine invariants (sample)
-
-// Full handshake, RSA with anonymous client, waiting for ClientKeyExchange:
-
-config, si, log { 
-// ? clientVer clientSid, clientCipherSuites, clientCm, clientExt,    certs, ts 
-    log = ClientHelloBytes(clientVer         , si.crand, clientSid   , clientCipherSuites, clientCm      , clientExt)
-      @|  ServerHelloBytes(si.protocolVersion, si.srand, si.sessionID, si.cipherSuite    , si.compression, serverExt)
-      @|  CertificateBytes(certs)
-      @|  serverHelloDoneBytes
-     
- /\ (si.sessionID = [||] \/ si.sessionID <> clientSid) (* full handshake *)
- /\ si.protocolVersion = Min(clientVer, config.maxVer) 
- /\ si.cipherSuite in clientCipherSuites 
- /\ si.cipherSuite in config.cipherSuites 
- /\ si.compression in clientCm
- /\ si.compression in config.compressions
- /\ Extensions(clientExt,serverExt)
-
- (* RSA-specific *)
- //\ config says anon client
- /\ si.cipherSuite = CipherSuite(RSA,ts)
- /\ si.clientID = None
- /\ si.serverID = Some(certs)
-}
-
-// Idem, after a few more steps
-
-config, si, log, pms {
-// ? clientVer clientSid, clientCipherSuites, clientCm, clientExt,     cs, ts,    cipher  
-    log = ClientHelloBytes(clientVer         , si.crand, clientSid   , clientCipherSuites, clientCm      , clientExt)
-      @|  ServerHelloBytes(si.protocolVersion, si.srand, si.sessionID, si.cipherSuite    , si.compression, serverExt)
-      @|  CertificateBytes(cs)
-      @|  serverHelloDoneBytes
-	  @|  ClientKeyExchangeBytes(cipher)
-     
- /\ si.sessionID <> clientSid (* full handshake *)
- /\ si.protocolVersion = Min(clientVer, config.ver) 
- /\ si.cipherSuite in clientCipherSuites 
- /\ si.cipherSuite in config.cipherSuites 
- /\ si.compression in clientCm
- /\ Extensions(clientExt,serverExt)
-
- (* RSA-specific *)
- //\ config says anon client
- /\ si.cipherSuite = CipherSuite(RSA,ts)
- /\ si.clientID = None
- /\ si.serverID = Some(cs)
-
- (* after ClientKeyExchange *)
- /\ ...
-
- (* after accepting Finished *) 
- /\ ( Honest(pms) /\ StrongHS(si.cipherSuite) -> ?clientConfig. ClientFinished(clientConfig,si) /\ clientVer = clientConfig.maxVer /\ ...  (* we may also rewrite the whole invariant by unification *) ) 
-
-}
-
-
+// val makeRandom: unit -> (;32) lbytes 
+// 
+// //TODO? change sessionID to uniformally use [||] instead of None.
+// 
+// /// Handshake message format 
+// 
+// // we need a precise spec, as verifyData is a series of such messages.
+// 
+// function val MessageBytes: HandshakeType * bytes -> bytes 
+// definition !ht,payload. MessageBytes(ht,payload) = HTBytes(ht) @| VLBytes(3,data)
+// 
+// val makeMessage: ht:HandshakeType -> payload:bytes -> msg:bytes { msg = MessageBytes(ht,payload) }
+// val parseMessage: hs_state -> (hs_state * ht:HandshakeType * payload:bytes * msg:bytes { msg = MessageBytes(ht,payload) }) option
+// //TODO unclear how to usefully maintain hs_state invariant; pass instead state.incoming? 
+// 
+// /// Client Hello 
+// 
+// 
+// function val ClientHelloBytes: ... 
+// definition !cv,clRdm,sid,clientCipherSuites,cm,ext.
+//   ClientHelloBytes(cv,clRdm,sid,clientCipherSuites,cm,ext) = 
+//     MessageBytes(
+// 	  HT_client_hello, 
+//       VersionBytes cv @| CRBytes clRdm @| SidBytes sid @| CipherSuitesBytes clientCipherSuites @| CompressionsBytes cm @| ext )
+// 
+// //TODO get rid of the intermediate record
+// //TODO factor out extension processing
+// val makeClientHelloBytes: ... -> msg:bytes { msg = ClientHelloBytes(...) } 
+// val parseClientHello: payload:bytes -> ( cv,clRdm,sid,clientCipherSuites,cm,ext { MessageBytes(HT_client_hello,payload) =  ClientHelloBytes(...) }  ) Result
+// 
+// /// Server Hello 
+// 
+// function val ServerHelloBytes: ... // (sv,sr,sid,cs,cm,extensions) 
+// definition !sv,sr,sid,cs,cm,ext.
+//   ServerHelloBytes(sv,sr,sid,cs,cm,ext) =
+//     MessageBytes(
+// 	  HT_server_hello, 
+//       VersionBytes sv @| CRBytes sr @| SidBytes sid @| CipherSuiteBytes cs @| CompressionsBytes cm @| ext )
+// 
+// val makeServerHelloBytes: ... -> msg:bytes { msg = ServerHelloBytes(...) } 
+// val parseClientHello: payload:bytes -> ( sv,sr,sid,cs,cm,ext { MessageBytes(HT_server_hello,payload) = ServerHelloBytes(sv,sr,sid,cs,cm,ext) } ) Result
+// 
+// /// Certificate chains
+// 
+// function val CertificateListBytes: Cert.cert list -> bytes
+// definition CertificateListBytes([]) = [||] 
+// definition !c,cs. CertificateListBytes(c::cs) = CertificateBytes(c) @| CertificateListBytes(cs)
+// 
+// function val CertsBytes: Cert.cert list -> bytes
+// definition !cs. CertsBytes(cs) = VLBytes 3 (CertificateListBytes(cs))
+// 
+// function val CertificateBytes: Cert.cert list -> bytes
+// definition !certs. CertificateBytes(certs) = MessageBytes(HT_certificate,CertsBytes(certs))
+// 
+// val makeCertificateBytes: certs:Cert.cert list -> msg:bytes { msg = CertificateBytes(certs) }
+// val parseCertificate: payload:bytes -> (certs:Cert.cert list{ MessageBytes(HT_certificate,CertsBytes(certs)) = CertificateBytes(certs) } ) Result
+// 
+// /// Server Hello Done
+// 
+// val serverHelloDoneBytes: msg:bytes { msg = Message(HT_server_hello_done,[||]) }
+// 
+// /// Client Key Exchange (for now only for RSA); note that this message is randomized.
+// 
+// predicate val ClientKeyExchangeBytes: pms * pkey * bytes -> bool (* with some injectivity properties *)
+// definition !pms,pkey. ClientKeyExchangeBytes(pms,pkey,msg) =
+//   ?cipher. Encrypted(pms,pkey,cipher) /\ msg = MessageBytes(HT_client_key_exchange, cipher)
+// 
+// //TODO makeClientKeyExchangeBytes actually generates the pms?!
+// 
+// val makeClientKexRsaBytes: pms:pms -> pkey:pkey -> msg:bytes { ClientKeyExchangeBytes(pms,pkey,msg) }  
+// val parseClientKexRsa: si:SessionInfo -> payload:bytes -> pms:pms { !cs. si.serverID = Some(cs)  = ClientKeyExchangeBytes(pms,CertsPKey(cs),MessageBytes(HT_client_key_exchange,payload)) } 
+// 
+// /// State-machine invariants (sample)
+// 
+// // Full handshake, RSA with anonymous client, waiting for ClientKeyExchange:
+// 
+// config, si, log { 
+// // ? clientVer clientSid, clientCipherSuites, clientCm, clientExt,    certs, ts 
+//     log = ClientHelloBytes(clientVer         , si.crand, clientSid   , clientCipherSuites, clientCm      , clientExt)
+//       @|  ServerHelloBytes(si.protocolVersion, si.srand, si.sessionID, si.cipherSuite    , si.compression, serverExt)
+//       @|  CertificateBytes(certs)
+//       @|  serverHelloDoneBytes
+//      
+//  /\ (si.sessionID = [||] \/ si.sessionID <> clientSid) (* full handshake *)
+//  /\ si.protocolVersion = Min(clientVer, config.maxVer) 
+//  /\ si.cipherSuite in clientCipherSuites 
+//  /\ si.cipherSuite in config.cipherSuites 
+//  /\ si.compression in clientCm
+//  /\ si.compression in config.compressions
+//  /\ Extensions(clientExt,serverExt)
+// 
+//  (* RSA-specific *)
+//  //\ config says anon client
+//  /\ si.cipherSuite = CipherSuite(RSA,ts)
+//  /\ si.clientID = None
+//  /\ si.serverID = Some(certs)
+// }
+// 
+// // Idem, after a few more steps
+// 
+// config, si, log, pms {
+// // ? clientVer clientSid, clientCipherSuites, clientCm, clientExt,     cs, ts,    cipher  
+//     log = ClientHelloBytes(clientVer         , si.crand, clientSid   , clientCipherSuites, clientCm      , clientExt)
+//       @|  ServerHelloBytes(si.protocolVersion, si.srand, si.sessionID, si.cipherSuite    , si.compression, serverExt)
+//       @|  CertificateBytes(cs)
+//       @|  serverHelloDoneBytes
+// 	  @|  ClientKeyExchangeBytes(cipher)
+//      
+//  /\ si.sessionID <> clientSid (* full handshake *)
+//  /\ si.protocolVersion = Min(clientVer, config.ver) 
+//  /\ si.cipherSuite in clientCipherSuites 
+//  /\ si.cipherSuite in config.cipherSuites 
+//  /\ si.compression in clientCm
+//  /\ Extensions(clientExt,serverExt)
+// 
+//  (* RSA-specific *)
+//  //\ config says anon client
+//  /\ si.cipherSuite = CipherSuite(RSA,ts)
+//  /\ si.clientID = None
+//  /\ si.serverID = Some(cs)
+// 
+//  (* after ClientKeyExchange *)
+//  /\ ...
+// 
+//  (* after accepting Finished *) 
+//  /\ ( Honest(pms) /\ StrongHS(si.cipherSuite) -> ?clientConfig. ClientFinished(clientConfig,si) /\ clientVer = clientConfig.maxVer /\ ...  (* we may also rewrite the whole invariant by unification *) ) 
+// 
+// }
+// 
+// 
+// 

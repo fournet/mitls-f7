@@ -5,8 +5,9 @@
 
 open Bytes
 open Error
-open RSA // Key definitions
+open RSAKeys
 open RSAPlain
+open TLSInfo
 
 // For concrete security, see also 
 // On the Security of RSA Encryption in TLS

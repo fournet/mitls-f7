@@ -113,10 +113,13 @@ type Compression =
 function val CompressionBytes: Compression -> bytes
 private assume CompressionBytes(NullCompression) = [| 0uy |]
 
+// To be defined
+predicate ContainsCompressions of bytes * Compression list
+
 val compressionBytes: c:Compression -> b:bytes{CompressionBytes(c) = b}
-val compressionMethodsBytes: Compression list -> bytes
+val compressionMethodsBytes: cl:Compression list -> b:bytes{ContainsCompressions(b,cl)}
 val parseCompression: b:bytes -> (c:Compression{b=CompressionBytes(c)}) Result
-val parseCompressions: bytes -> Compression list
+val parseCompressions: b:bytes -> cl:Compression list{ContainsCompressions(b,cl)}
 
 type ProtocolVersion =
     | SSL_3p0   
@@ -291,10 +294,13 @@ private assume !b,l. ContainsCipherSuites(b,l) <=>
    (?h,t. l = h::t /\ ContainsCipherSuite(b,h) /\ ContainsCipherSuites(b,t)))
 
 ask !b1,b2,cs. (Length(b1) = 2 /\ ContainsCipherSuite(b2,cs)) => ContainsCipherSuite(b1 @| b2, cs)
-
 //requires induction
 assume !b1,b2,l. (Length(b1) = 2 /\ ContainsCipherSuites(b2,l)) => ContainsCipherSuites(b1 @| b2, l)
 
+// function val ParseCipherSuites: bytes -> cipherSuites
+// private assume !b. (b = [||] /\ ParseCipherSuites(b) = []) \/
+// 		(?b1,b2,c. b = b1 @| b2 /\ Length(b1) = 2 /\ b1 = CipherSuiteBytes(c) /\ ParseCiphersuites(b) = c::ParseCipherSuites(b2)) /\
+// 		(?b1,b2. b = b1 @| b2 /\ Length(b1) = 2 /\ (!c. b1 <> CipherSuiteBytes(c)) /\ ParseCiphersuites(b) = ParseCipherSuites(b2))
 
 private val consCipherSuites: cs:cipherSuite -> css:cipherSuites -> css':cipherSuites{css' = cs::css}
 

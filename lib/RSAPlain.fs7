@@ -15,7 +15,7 @@ type repr = bytes
 
 (* Client-side generation & encryption of RSA PMS *)
 
-val genPMS: id:SessionInfo -> vc:CipherSuite.ProtocolVersion -> (;id) pms
+val genPMS: id:SessionInfo -> vc:TLSConstants.ProtocolVersion -> (;id) pms
 // missing vc index or refinement
 
 // vc is the highest TLS version proposed by the client
