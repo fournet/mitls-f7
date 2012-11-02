@@ -55,23 +55,24 @@ private definition !e. IsInitEpoch(e) <=> ?r,b. e = InitEpoch(r,b)
 private definition !e. IsSuccEpoch(e) <=> ?c,s,si,pe. e = SuccEpoch(c,s,si,pe)
 
 type epoch = e:preEpoch {IsInitEpoch(e) \/ IsSuccEpoch(e)}
+type succEpoch = e:preEpoch {IsSuccEpoch(e)}
 
 function val Pred: epoch -> epoch
 private definition !cr,sr,si,pred. Pred(SuccEpoch(cr,sr,si,pred)) = pred
 
-function val EpochSI: epoch -> SessionInfo
+function val EpochSI: succEpoch -> SessionInfo
 private definition !c,s,si,p. EpochSI(SuccEpoch(c,s,si,p)) = si
 
-function val EpochSRand: epoch -> bytes
-function val EpochCRand: epoch -> bytes
+function val EpochSRand: succEpoch -> bytes
+function val EpochCRand: succEpoch -> bytes
 private definition !b1,b2,si,pe. EpochSRand(SuccEpoch(b1,b2,si,pe)) = b2
 private definition !b1,b2,si,pe. EpochCRand(SuccEpoch(b1,b2,si,pe)) = b1
 
 val isInitEpoch: e:epoch -> b:bool{(b = true /\ IsInitEpoch(e)) \/ (b = false /\ IsSuccEpoch(e))}
-val epochSI: e:epoch{IsSuccEpoch(e)} -> si:SessionInfo{si = EpochSI(e)}
+val epochSI: e:succEpoch -> si:SessionInfo{si = EpochSI(e)}
 
-val epochSRand: e:epoch{IsSuccEpoch(e)} -> b:crand{b = EpochSRand(e)}
-val epochCRand: e:epoch{IsSuccEpoch(e)} -> b:srand{b = EpochCRand(e)}
+val epochSRand: e:succEpoch -> b:crand{b = EpochSRand(e)}
+val epochCRand: e:succEpoch -> b:srand{b = EpochCRand(e)}
 
 type ConnectionInfo =
 	{ role: Role;
@@ -83,8 +84,8 @@ val connectionRole: ci:ConnectionInfo -> r:Role{r = ci.role}
 val initConnection: r:Role -> r:random ->
 	ci:ConnectionInfo
 val nextEpoch: e:epoch -> c:crand -> s:srand -> si:SessionInfo ->
-	e':epoch{IsSuccEpoch(e') /\ Pred(e') = e /\ EpochSI(e') = si /\
-			 EpochCRand(e') = c /\ EpochSRand(e') = s}
+	e':succEpoch{Pred(e') = e /\ EpochSI(e') = si /\
+			     EpochCRand(e') = c /\ EpochSRand(e') = s}
 
 
 /// Predicates specifying cryptographic assumptions on algorithms 
@@ -131,7 +132,10 @@ ask !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) =>
     not (?kex,s. EpochSI(ki).cipher_suite = CipherSuite(kex,s))
 
 // so that TLS can exchange any traffic on the initial null connection
-ask !ki. IsNullCiphersuite(EpochSI(ki).cipher_suite)    => not Auth(ki)
+assume !e. IsInitEpoch(e) => not Auth(e)
+// AP: Was the following. Now we don't have a sessionInfo for the initial epoch anymore.
+// So we assume it
+// ask !ki. IsNullCiphersuite(EpochSI(ki).cipher_suite)    => not Auth(ki)
 
 
 

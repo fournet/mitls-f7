@@ -72,7 +72,6 @@
     <None Include="TLSInfo.fs7" />
     <Compile Include="TLSInfo.fsi" />
     <Compile Include="TLSInfo.fs" />
-    <None Include="DataStream2.fs7" />
     <None Include="DataStream.fs7" />
     <Compile Include="DataStream.fsi" />
     <Compile Include="DataStream.fs" />
@@ -87,7 +86,6 @@
     <None Include="MAC.fs7" />
     <Compile Include="MAC.fsi" />
     <Compile Include="MAC.fs" />
-    <None Include="RPCPlain.fs7" />
     <None Include="AEPlain.fs7" />
     <Compile Include="AEPlain.fsi" />
     <Compile Include="AEPlain.fs" />

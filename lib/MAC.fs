@@ -20,7 +20,7 @@ let Mac ki key data =
     let a = macAlg_of_ciphersuite si.cipher_suite in
     match pv with
     (* KB: added a when clause below. Remove it when epoch guarantees the condition as an invariant. *)
-    | SSL_3p0 when a = SHA || a = MD5 -> HMAC.sslKeyedHash a key.k data 
+    | SSL_3p0 when a = SHA || a = MD5 -> HMAC.sslKeyedHash a key.k data
     | TLS_1p0 | TLS_1p1 | TLS_1p2     -> HMAC.HMAC         a key.k data
 
 let Verify ki key data tag =

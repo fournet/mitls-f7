@@ -30,6 +30,7 @@ type preEpoch =
     | InitEpoch of Role * (* ourRand *) bytes
     | SuccEpoch of crand * srand * SessionInfo * preEpoch
 type epoch = preEpoch
+type succEpoch = preEpoch
 
 let isInitEpoch e = 
     match e with

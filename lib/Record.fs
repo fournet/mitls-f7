@@ -135,7 +135,8 @@ let recordPacketIn ki conn headPayload =
     // tlen is checked in headerLength, which is invoked by Dispatch
     // before invoking this function
     if length payload <> plen then
-        Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Wrong record packet size")
+        let reason = perror __SOURCE_FILE__ __LINE__ "Wrong record packet size" in
+        Error(AD_illegal_parameter, reason)
     else
     let initEpoch = isInitEpoch ki in
     match (initEpoch,conn) with

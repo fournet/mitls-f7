@@ -19,7 +19,7 @@ private assume !l0,h0,l1,h1. Sum((l0,h0),(l1,h1)) = (l0+l1,h0+h1)
 val rangeSum: r0:range -> r1:range -> r:range{r = Sum(r0,r1)}
 val min: a:int -> b:int -> c:int{(a<=b /\ c=a) \/ (a>b /\ c=b)}
 val max: a:int -> b:int -> c:int{(a>=b /\ c=a) \/ (a<b /\ c=b)}
-val splitRange: ki:epoch -> r:range -> (r0:range * r1:range){r = Sum(r0,r1)} 
+val splitRange: ki:succEpoch -> r:range -> (r0:range * r1:range){r = Sum(r0,r1)} 
 (* first range should fit in a fragment: FitsInFrag(ki,fragmentLength,r0)? *)
 
 // Bytestreams:
