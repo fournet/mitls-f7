@@ -54,7 +54,7 @@ let parseHt (b:bytes) =
     | [| 15uy |] -> correct(HT_certificate_verify )
     | [| 16uy |] -> correct(HT_client_key_exchange)
     | [| 20uy |] -> correct(HT_finished           )
-    | _   -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+    | _   -> let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_decode_error, reason)
 
 /// Handshake message format 
 
@@ -1052,7 +1052,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) state (si:SessionInfo) ce
     let pms = DHE.exp p g cy sy x in
     (* the post of this call is !sx,cy. PP((p,g) /\ DHE.Exp((p,g),x,cy)) /\ DHE.Exp((p,g),sx,sy) -> DHE.Secret((p,g),cy,sy) *)
     (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DHE.Secret((p,g),cy,sy) *) 
-    let ms = PRFs.prfSmoothDHE si pms in
+    let ms = PRFs.prfSmoothDHE si p g cy sy pms in
     (* the post of this call is !p,g,gx,gy. StrongHS(si) /\ DHE.Secret((p,g),gx,gy) -> PRFs.Secret(ms) *)  
     (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> PRFs.Secret(ms) *) 
 
@@ -1688,7 +1688,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     (* from the local state, we know: PP((p,g)) /\ ?gx. DHE.Exp((p,g),x,gx) ; tweak the ?gx for genPMS. *)
                     let pms = DHE.exp p g gx y x in
                     (* StrongHS(si) /\ DHE.Exp((p,g),?cx,y) -> DHE.Secret(pms) *)
-                    let ms = PRFs.prfSmoothDHE si pms in
+                    let ms = PRFs.prfSmoothDHE si p g gx y pms in
                     (* StrongHS(si) /\ DHE.Exp((p,g),?cx,y) -> PRFs.Secret(ms) *)
                     
                     (*$ TODO in e.g. DHE: we should shred the pms *)
@@ -1706,7 +1706,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Correct(y) ->
                     let log = log @| to_log in
                     let pms = DHE.exp p g gx y x in
-                    let ms = PRFs.prfSmoothDHE si pms in
+                    let ms = PRFs.prfSmoothDHE si p g gx y pms in
                     (* TODO: here we should shred pms *)
                     (* move to new state *)
                     let state = {state with pstate = PSServer(ClientCCS(si,ms,log))} in

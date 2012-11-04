@@ -33,7 +33,7 @@ val genKey: p:p -> g: (;p) g -> gx:(;p) elt * (;p,gx) secret
 type (;p:p, g:(;p) elt, gx:(;p) elt, gy:(;p) elt) pms // strong secret when (p,g), gx, and gy have been honestly generated
  
 // used only within PRFs
-val leak:   p:p -> (;p) pms -> (;p) elt  
+val leak:   p:p -> g:(;p)elt -> gx:(;p)elt -> gy:(;p)elt -> (;p,g,gx,gy) pms -> (;p) elt  
 
 // used only within ideal DH
 val sample: p:p -> g:(;p) elt -> gx:(;p) elt -> gy:(;p) elt                   -> (;p,g,gx,gy) pms

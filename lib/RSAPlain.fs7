@@ -15,8 +15,9 @@ type repr = bytes
 
 (* Client-side generation & encryption of RSA PMS *)
 
+// AP: FIXME: Fix indexing for RSA pms. SessionInfo is too much. See DHE for a weaker indexing.
+// Smooth PRF functions are lifting indexing from weak pms indexing, to sessioninfo indexing for the ms.
 val genPMS: id:SessionInfo -> vc:TLSConstants.ProtocolVersion -> (;id) pms
-// missing vc index or refinement
 
 // vc is the highest TLS version proposed by the client
 // not necessarily the negotiated version stored in si;

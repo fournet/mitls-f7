@@ -24,8 +24,21 @@ type HandshakeType =
 
 function val HTBytes: HandshakeType -> bytes
 
+private assume
+    HTBytes(HT_hello_request      ) = [|  0uy |] /\ 
+    HTBytes(HT_client_hello       ) = [|  1uy |] /\
+    HTBytes(HT_server_hello       ) = [|  2uy |] /\
+    HTBytes(HT_certificate        ) = [| 11uy |] /\
+    HTBytes(HT_server_key_exchange) = [| 12uy |] /\
+    HTBytes(HT_certificate_request) = [| 13uy |] /\
+    HTBytes(HT_server_hello_done  ) = [| 14uy |] /\
+    HTBytes(HT_certificate_verify ) = [| 15uy |] /\
+    HTBytes(HT_client_key_exchange) = [| 16uy |] /\
+    HTBytes(HT_finished           ) = [| 20uy |]
+
+
 val htBytes: ht:HandshakeType -> b:bytes{b=HTBytes(ht)}
-val parseHt: b:bytes -> ht:HandshakeType{b=HTBytes(ht)} 
+val parseHt: b:bytes -> (ht:HandshakeType{b=HTBytes(ht)}) Result 
 
 function val MessageBytes: HandshakeType * bytes -> bytes
 val messageBytes: ht:HandshakeType -> x:bytes -> m:bytes{m = MessageBytes(ht,x)}

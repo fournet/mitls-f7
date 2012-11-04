@@ -3,7 +3,6 @@
 open Bytes
 open Error
 open TLSConstants
-open TLSConstants
 
 open TLSInfo
 open HASH
@@ -144,7 +143,7 @@ let prfMS sinfo pmsBytes: masterSecret =
     {bytes = res}
 
 let prfSmoothRSA si (pms: RSAPlain.pms) = prfMS si (RSAPlain.leak si pms)
-let prfSmoothDHE si (pms: DHE.pms)      = prfMS si (DHE.leak si pms)
+let prfSmoothDHE si p g gx gy pms = prfMS si (DHE.leak p g gx gy pms)
 
 
 let keyGen ci (ms:masterSecret) =

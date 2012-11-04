@@ -11,7 +11,7 @@ type repr = bytes
 type masterSecret 
 
 val prfSmoothRSA: SessionInfo -> RSAPlain.pms -> masterSecret
-val prfSmoothDHE: SessionInfo -> DHE.pms -> masterSecret 
+val prfSmoothDHE: SessionInfo -> DHE.p -> DHE.g -> DHE.elt -> DHE.elt -> DHE.pms -> masterSecret 
 
 (* Used when generating key material from the MS. 
    The result must still be split into the various keys.

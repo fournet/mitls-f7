@@ -16,5 +16,4 @@ val genKey     : p -> g -> elt * secret
 val exp        : p -> g -> elt -> elt -> secret -> pms
 val sample     : p -> g -> elt -> elt           -> pms
 
-// AP: to be put in some DHEPlain module. CF: no?
-val leak: SessionInfo -> pms -> bytes
+val leak: p -> g -> elt -> elt -> pms -> bytes

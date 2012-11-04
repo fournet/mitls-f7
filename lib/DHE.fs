@@ -33,4 +33,4 @@ let exp p g (gx:elt) (gy:elt) (Key x) : pms =
 let sample (p:bytes) (g:elt) (gx:elt) (gy:elt) : pms =
     { pms = mkRandom 32}
 
-let leak (si : SessionInfo) pms = pms.pms
+let leak (p:p) (g:g) (gx:elt) (gy:elt) pms = pms.pms

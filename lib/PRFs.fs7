@@ -1,35 +1,31 @@
 ﻿module PRFs
 
 open Bytes
-open TLSConstants
-open TLSInfo
-open RSAKeys
 open Error
+open TLSConstants
+
+open TLSInfo
 
 (****** MS ******) 
 
 (** From PMS to MS *) 
 
-type msRepr = b:bytes{ Length(b) = 48 }
-private type (;si:SessionInfo) masterSecret = msRepr  
+type repr = (;48)lbytes
+private type (;si:SessionInfo) masterSecret = {bytes: repr}
 
 (* computes the MS from the PMS, some constant label, and the (crandom @| srandom) from si *)
 
-val PRFsmoothRSA:
+val prfSmoothRSA:
     si:SessionInfo -> 
     pms: (;si) RSAPlain.pms ->
     (;si) masterSecret
 
-val PRFsmoothDHE:
-    si:SessionInfo -> 
-    pms: (;si) DHE.pms ->
-    (;si) masterSecret 
-
-// val PRFsmoothDH:
-//     si:SessionInfo ->
-// 	p: DH.p -> g: (;p) DH.elt -> gx: (;p) DH.elt -> gy: (;p) DH.elt -> 
-// 	pms: (p,g,gx,gy) DH.pms ->
-// 	(;si) masterSecret 
+// AP: Don't we really want *any* link between si and (g,p,gx,gy)?
+val prfSmoothDHE:
+    si:SessionInfo ->
+	p:DHE.p -> g:(;p)DHE.g -> gx:(;p)elt -> gy:(;p)elt ->
+    pms: (;p,g,gx,gy)DHE.pms ->
+    (;si) masterSecret
 
 (** VerifyData MAC keyed with the master secret, relying on CMA ***)          
 
