@@ -17,7 +17,7 @@ f7flags += -nokindcheck $(lperv) $(libfs7)
 
 .PHONY: default clean
 
-default: TLS.tc7
+default: TLSInfo.tc7 DataStream.tc7 RPCDataStream.tc7 Fragment.tc7 AEADPlain.tc7 AEAD.tc7 StatefulPlain.tc7 StatefulAEAD.tc7 TLSFragment.tc7 Record.tc7
 
 clean:
 \trm -f *.tc7

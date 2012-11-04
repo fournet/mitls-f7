@@ -27,7 +27,7 @@ type (;ki:epoch) writer = w:(;ki) state
 
 //CF 21/4 patched, pls check; rediscuss COERCE/LEAK 
 val GEN:    ki:epoch{Safe(ki)} -> (;ki) reader * (;ki)writer
-val COERCE: ki:epoch{not Auth(ki)}  -> b:bytes{Length(b)=AEAD.AEADSize(ki)} -> (;ki)state
+val COERCE: ki:succEpoch{not Auth(ki)}  -> b:bytes{Length(b)=AEAD.AEADSize(ki)} -> (;ki)state
 val LEAK:   ki:epoch{not Auth(ki)}  -> (;ki)state -> b:bytes
 
 val history: ki:epoch -> s:(;ki) state -> h:(;ki)history{h=s.history}
@@ -51,7 +51,7 @@ assume !ki,s,ad,r,f,c. STXT(ki,s,ad,r,f,c)
 //AP 18/4: Cannot prove STXT until we don't get precise with {S}AEADContents, which breaks abstraction
 //CF ??
 
-val encrypt: ki:epoch -> 
+val encrypt: ki:succEpoch -> 
   w:(;ki) writer -> 
   ad:(;ki)data ->
   r:range ->
@@ -60,7 +60,7 @@ val encrypt: ki:epoch ->
     w'.history = StatefulPlain.ExtendHistory(ki,w.history,ad,r,SAEADContents(f)) /\
     STXT(ki,w,ad,r,SAEADContents(f),c)}
 
-val decrypt: ki:epoch -> 
+val decrypt: ki:succEpoch -> 
   rd:(;ki) reader -> 
   ad:(;ki)data ->
   c:cipher ->
