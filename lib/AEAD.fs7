@@ -25,13 +25,13 @@ private assume !ki,si. si = EpochSI(ki) =>
 	( IsAEADCiphersuite(si.cipher_suite) =>
 	  AEADSize(ki) = MacKeySize(TLSConstants.CipherSuiteMACAlg(si.cipher_suite)) +
 					    EncKeySize(TLSConstants.CipherSuiteENCAlg(si.cipher_suite)) +
-					    AEPlain.IVSize(ki) )
+					    Encode.IVSize(ki) )
 
 // Why is this failing? Because of AEADSize not being what I want, I cannot typecheck COERCE.
 //ask !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) => AEADSize(ki,ki) = MacKeySize(TLSConstants.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))
 
-val GEN:    ki:epoch{Safe(ki)} -> encryptor:(;ki)AEADKey * decryptor:(;ki)AEADKey
-val COERCE: ki:epoch{not Auth(ki)} -> b:bytes{Length(b) = AEADSize(ki)} -> (;ki)AEADKey
+val GEN:    ki:succEpoch{Safe(ki)} -> encryptor:(;ki)AEADKey * decryptor:(;ki)AEADKey
+val COERCE: ki:succEpoch{not Auth(ki)} -> b:bytes{Length(b) = AEADSize(ki)} -> (;ki)AEADKey
 val LEAK:   ki:epoch{not Auth(ki)} -> (;ki)AEADKey -> b:bytes
 
 (* KB: 2/5. Partial implementation of CTXT in the code. *)
@@ -42,22 +42,22 @@ assume !ki,d,p,p',c. (CTXT(ki,d,p,c) /\ CTXT(ki,d,p',c)) => p = p'
 private val mteKey: ki:epoch -> (;ki) MAC.key -> (;ki) ENC.state -> (;ki) AEADKey
 
 function val CipherRange: epoch * bytes -> range
-assume !e,c,rg. rg = CipherRange(e,c) <=> Length(c) = AEPlain.RangeCipher(e,rg)
-val encrypt': ki:epoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
+assume !e,c,rg. rg = CipherRange(e,c) <=> Length(c) = Encode.RangeCipher(e,rg)
+val encrypt': ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
   rg:range -> p:(;ki,rg,ad) AEADPlain.AEADPlain ->
   ((;ki) AEADKey * c:cipher){rg = CipherRange(ki,c)}
 
-val decrypt': ki:epoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
+val decrypt': ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
   c:cipher -> res: 
   ( ((;ki) AEADKey *  rg:range * (;ki,rg,ad) AEADPlain.AEADPlain)) Result
    {!k,r,p. res = Correct((k,r,p)) => r = CipherRange(ki,c)}
 
-val encrypt: ki:epoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
+val encrypt: ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
   rg:range -> p:(;ki,rg,ad) AEADPlain.AEADPlain ->
   ((;ki) AEADKey * c:cipher){rg = CipherRange(ki,c) /\
                              (Safe(ki) => CTXT(ki,ad,p,c))}
 
-val decrypt: ki:epoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
+val decrypt: ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
   c:cipher -> res: 
   ( ((;ki) AEADKey *  rg:range * (;ki,rg,ad) AEADPlain.AEADPlain)) Result
    {(!k,r,p. res = Correct((k,r,p)) => r = CipherRange(ki,c)) /\

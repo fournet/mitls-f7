@@ -67,16 +67,16 @@ let encrypt' ki key data rg plain =
     let cs = si.cipher_suite in
     match (cs,key) with
     | (x, MtE (ka,ke)) when isAEADCipherSuite x ->
-        let maced          = AEPlain.macPlain ki rg data aep
-        let tag            = AEPlain.mac    ki ka maced  
-        let (tlen,encoded) = AEPlain.encode ki rg data aep tag
+        let maced          = Encode.macPlain ki rg data aep
+        let tag            = Encode.mac    ki ka maced  
+        let (tlen,encoded) = Encode.encode ki rg data aep tag
         let (ke,res)       = ENC.ENC ki ke tlen encoded 
         (MtE(ka,ke),res)
     | (x,MACOnly (ka)) when isOnlyMACCipherSuite x ->
-        let maced          = AEPlain.macPlain ki rg data aep
-        let tag            = AEPlain.mac    ki ka maced  
-        let (tlen,encoded) = AEPlain.encodeNoPad ki rg data aep tag
-        let r = AEPlain.repr ki tlen encoded in
+        let maced          = Encode.macPlain ki rg data aep
+        let tag            = Encode.mac    ki ka maced  
+        let (tlen,encoded) = Encode.encodeNoPad ki rg data aep tag
+        let r = Encode.repr ki tlen encoded in
         (key,r)
 //  | GCM (k) -> ... 
     | (_,_) -> unexpectedError "[encrypt] incompatible ciphersuite-key given."
@@ -92,30 +92,30 @@ let decrypt' ki key data cipher =
         let (ke,encoded)      = ENC.DEC ki ke cipher in
         let nk = mteKey ki ka ke in
         let cl = length cipher in
-        let (rg,aep,tag,ok) = AEPlain.decode ki data cl encoded in
+        let (rg,aep,tag,ok) = Encode.decode ki data cl encoded in
         let plain = AEADPlain.AEPlainToAEADPlain ki rg data aep in
-        let maced             = AEPlain.macPlain ki rg data aep
+        let maced             = Encode.macPlain ki rg data aep
         match si.protocol_version with
         | SSL_3p0 | TLS_1p0 ->
             if ok then 
-              if AEPlain.verify ki ka maced tag (* padding time oracle *) then 
+              if Encode.verify ki ka maced tag (* padding time oracle *) then 
                   correct (nk,rg,plain)
-                else Error(AD_bad_record_mac, perror __SOURCE_FILE__ __LINE__ "")
-            else     Error(AD_decryption_failed, perror __SOURCE_FILE__ __LINE__ "") (* padding error oracle *)
+                else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
+            else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_decryption_failed, reason) (* padding error oracle *)
         | TLS_1p1 | TLS_1p2 ->
-            if AEPlain.verify ki ka maced tag then 
+            if Encode.verify ki ka maced tag then 
                if ok then
                   correct (nk,rg,plain)
-               else Error(AD_bad_record_mac, perror __SOURCE_FILE__ __LINE__ "")
-            else    Error(AD_bad_record_mac, perror __SOURCE_FILE__ __LINE__ "")
+               else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
+            else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
     | (x,MACOnly (ka)) when isOnlyMACCipherSuite x ->
-        let encoded        = AEPlain.plain ki (length cipher) cipher in
-        let (rg,aep,tag) = AEPlain.decodeNoPad ki data (length cipher) encoded in
+        let encoded        = Encode.plain ki (length cipher) cipher in
+        let (rg,aep,tag) = Encode.decodeNoPad ki data (length cipher) encoded in
         let plain = AEADPlain.AEPlainToAEADPlain ki rg data aep in
-        let maced          = AEPlain.macPlain ki rg data aep
-        if AEPlain.verify ki ka maced tag 
+        let maced          = Encode.macPlain ki rg data aep
+        if Encode.verify ki ka maced tag 
         then   correct (key,rg,plain)
-          else Error(AD_bad_record_mac, perror __SOURCE_FILE__ __LINE__ "")
+          else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
 //  | GCM (GCMKey) -> ... 
     | (_,_) -> unexpectedError "[decrypt] incompatible ciphersuite-key given."
 

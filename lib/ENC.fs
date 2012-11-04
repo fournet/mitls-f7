@@ -85,7 +85,7 @@ let LEAK (ki:epoch) s =
 let ENC ki s tlen data =
     let si = epochSI(ki) in
     let alg = encAlg_of_ciphersuite si.cipher_suite in
-    let d = AEPlain.repr ki tlen data in
+    let d = Encode.repr ki tlen data in
     match s with
     | BlockCipher(s) ->
         let ivl = ivSize alg in
@@ -145,7 +145,7 @@ let DEC ki s cipher =
             | AES_128_CBC  -> CoreCiphers.aes_cbc_decrypt  s.key.k iv encrypted
             | AES_256_CBC  -> CoreCiphers.aes_cbc_decrypt  s.key.k iv encrypted
             | RC4_128      -> unexpectedError "[DEC] Wrong combination of cipher algorithm and state"
-        let d = AEPlain.plain ki (length cipher) data in
+        let d = Encode.plain ki (length cipher) data in
         match s.iv with
         | SomeIV(_) ->
             let s = {s with iv = SomeIV(lastblock cipher ivl)} in
@@ -158,7 +158,7 @@ let DEC ki s cipher =
             match alg with
             | RC4_128 -> CoreCiphers.rc4process s.sstate cipher
             | _ -> unexpectedError "[DEC] Wrong combination of cipher algorithm and state"
-        let d = AEPlain.plain ki (length cipher) data in
+        let d = Encode.plain ki (length cipher) data in
         (StreamCipher(s),d)
 
 (* the SPRP game in F#, without indexing so far.

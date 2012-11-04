@@ -1,4 +1,4 @@
-﻿module AEPlain
+﻿module Encode
 
 open Bytes
 open TLSInfo
@@ -125,7 +125,7 @@ assume !ki,si,tlen. si = EpochSI(ki) =>
 
 //Comments:
 
-// AP and CF agree: AEPlain is indexed by (ki and) its public length, after encoding (and not by range).
+// AP and CF agree: Encode is indexed by (ki and) its public length, after encoding (and not by range).
 // We define function from:
 // - public length of ciphertext to public length of encoded plaintext (either identity, or minus iv length)
 // - from tlen to public range of decoded authenticated fragment

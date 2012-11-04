@@ -14,5 +14,5 @@ val COERCE: epoch -> bytes -> bytes-> state
 
 type cipher = bytes
 
-val ENC: epoch -> encryptor -> int -> AEPlain.plain -> (encryptor * cipher)
-val DEC: epoch -> decryptor -> cipher -> (decryptor * AEPlain.plain)
+val ENC: epoch -> encryptor -> int -> Encode.plain -> (encryptor * cipher)
+val DEC: epoch -> decryptor -> cipher -> (decryptor * Encode.plain)

@@ -1,4 +1,4 @@
-﻿module AEPlain
+﻿module Encode
 
 open Bytes
 open TLSInfo

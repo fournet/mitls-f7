@@ -9,7 +9,7 @@ open DataStream
 // Interface towards StatefulAEAD
 //------------------------------------------------------------------------------------------------------
 
-type (;ki:epoch) data = (b:bytes){Length(b) = AEPlain.ADLength(ki) - 8} 
+type (;ki:epoch) data = (b:bytes){Length(b) = Encode.ADLength(ki) - 8} 
 
 private type (;ki:epoch) prehistory = (ad:(;ki) data * r:range * x:(;ki,r)Fragment.fragment) list
 function val HLength: ki:epoch * (;ki)prehistory -> nat

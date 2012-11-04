@@ -85,10 +85,10 @@ let recordPacketOut ki conn pv rg ct fragment =
 //        let aeadSF = StatefulPlain.TLSFragmentToFragment keyInfo tlen seqn ct fragment in
 //        let st = connState keyInfo conn in
 //        let aeadF = AEADPlain.fragmentToPlain keyInfo st addData tlen aeadSF in
-//        let data = AEPlain.concat keyInfo tlen addData aeadF in
-//        let mac = AEPlain.mac keyInfo key data in
-//        // FIXME: next line should be: ley payload = AEPlain.encodeNoPad ..., to match decodeNoPad, and remove dependency on tagRepr
-//        let payload = (TLSFragment.TLSFragmentRepr keyInfo ct st.history tlen fragment) @| (AEPlain.tagRepr keyInfo mac) in
+//        let data = Encode.concat keyInfo tlen addData aeadF in
+//        let mac = Encode.mac keyInfo key data in
+//        // FIXME: next line should be: ley payload = Encode.encodeNoPad ..., to match decodeNoPad, and remove dependency on tagRepr
+//        let payload = (TLSFragment.TLSFragmentRepr keyInfo ct st.history tlen fragment) @| (Encode.tagRepr keyInfo mac) in
 //        let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
 //        (conn,packet)
     | (false,SomeState(history,state)) ->
@@ -149,10 +149,10 @@ let recordPacketIn ki conn headPayload =
 //    | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
 //        let ad0 = TLSFragment.makeAD epochSI(ki).protocol_version ct in
 //        let ad = StatefulPlain.makeAD seqn ad0 in
-//        let plain = AEPlain.plain ki tlen payload in
-//        let (rg,msg,mac) = AEPlain.decodeNoPad ki ad plain in
-//        let toVerify = AEPlain.concat ki rg ad msg in
-//        let ver = AEPlain.verify ki key toVerify mac in
+//        let plain = Encode.plain ki tlen payload in
+//        let (rg,msg,mac) = Encode.decodeNoPad ki ad plain in
+//        let toVerify = Encode.concat ki rg ad msg in
+//        let ver = Encode.verify ki key toVerify mac in
 //        if ver then
 //          let msg0 = AEADPlain.plainToFragment ki (connState ki conn) ad rg msg in
 //          let msg = StatefulPlain.fragmentToTLSFragment ki (connState ki conn) ad rg msg0 in
