@@ -8,7 +8,7 @@ open AppDataStream
 open Dispatch
 
 type (;c:Connection) ioresult_i =
-| ReadError of alertDescription option
+| ReadError of alertDescription option * string
   // We encountered an error while reading, so the connection dies. 
   // we return the fatal alert we may have sent, if any,
   // or None in case of an internal error.
@@ -69,7 +69,7 @@ type (;c:Connection) ioresult_i =
     }
     
 type (;c:Connection,d:(;ConnectionEpochOut(c),CnStream_o(c)) msg_o) ioresult_o =
-| WriteError of alertDescription option
+| WriteError of alertDescription option * string
   // We encountered an error while writing; 
   // we return the fatal alert we may have sent, if any,
   // or None in case of an internal error.
@@ -154,7 +154,7 @@ val refuse    : c:Connection -> q:query -> unit
 // AP: we will have to internally send a fatal alert,
 // and this might fail. We might want to give some feedback to the user. Same as half_shutdown
 
-val getSessionInfo: k:epoch -> s:SessionInfo{s = EpochSI(k)}
+val getSessionInfo: k:succEpoch -> s:SessionInfo{s = EpochSI(k)}
 
 val getEpochIn : c:Connection -> k:epoch{k = ConnectionEpochIn (c)}
 val getEpochOut: c:Connection -> k:epoch{k = ConnectionEpochOut(c)}
