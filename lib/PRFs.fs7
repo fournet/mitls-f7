@@ -23,7 +23,7 @@ val prfSmoothRSA:
 // AP: Don't we really want *any* link between si and (g,p,gx,gy)?
 val prfSmoothDHE:
     si:SessionInfo ->
-	p:DHE.p -> g:(;p)DHE.g -> gx:(;p)elt -> gy:(;p)elt ->
+	p:DHE.p -> g:(;p)DHE.g -> gx:(;p)DHE.elt -> gy:(;p)DHE.elt ->
     pms: (;p,g,gx,gy)DHE.pms ->
     (;si) masterSecret
 

@@ -4,6 +4,7 @@ open Bytes
 open Error
 open DataStream
 open TLSInfo
+open TLSConstants
 
 type predispatchState =
   | Init 
@@ -11,12 +12,12 @@ type predispatchState =
   | Finishing
   | Finished (* Only for Writing side, used to avoid sending data on a partially completed handshake *)
   | Open
-  | Closing (* To handle un-graceful closures *)
+  | Closing of string (* To handle un-graceful closures *)
   | Closed
 
-type dispatchState = d:predispatchState{!pv.
+type dispatchState = d:predispatchState{?pv,s.
 	d = Init \/ d = FirstHandshake(pv) \/ d = Finishing \/ d = Finished \/
-	d = Open \/ d = Closing \/ d = Closed}
+	d = Open \/ d = Closing(s) \/ d = Closed}
 
 type (;ki:epoch) dState = {
     disp: dispatchState;
@@ -174,20 +175,20 @@ type (;r:Role,c:config) nullCn = conn:Connection {
 predicate NextCn of Connection * Connection
 assume !c,c'. NextCn(c,c') <=> ( Config(c')  = Config(c) /\ Role(c') = Role(c) /\ CnId(c') = CnId(c) )
 type (;c:Connection) nextCn = c':Connection {NextCn(c,c')}
-type query = Cert.cert
+type query = Cert.certchain
 
 type writeOutcome =
-    | WError of ioerror 
+    | WError of string 
     | WriteAgain (* Possibly more data to send *)
     | WAppDataDone (* No more data to send in the current state *)
     | WHSDone
     | WMustRead (* Read until completion of Handshake *)
-    | SentFatal of alertDescription
+    | SentFatal of alertDescription * string
     | SentClose
 
 type readOutcome =
     | WriteOutcome of writeOutcome
-    | RError of ioerror 
+    | RError of string 
     | RAgain
     | RAppDataDone 
     | RQuery of query
@@ -244,7 +245,7 @@ assume !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo)  <=>
 		 // just completing all the cases.
 		 (?err. wo = WError(err) ) \/
 	 (wo = WriteAgain ) \/
-		 (?ad. wo = SentFatal(ad) ) \/
+		 (?ad,s. wo = SentFatal(ad,s) ) \/
 		 (wo = SentClose )
 	)
 

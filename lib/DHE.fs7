@@ -28,7 +28,7 @@ val default_pp: unit -> p:p * g:(;p) elt {PP(p,g)}
 
 type (;p:p,g:elt,gx:elt) secret // private secret x, y, ... represented as some big integer modulo p
 
-val genKey: p:p -> g: (;p) g -> gx:(;p) elt * (;p,gx) secret  
+val genKey: p:p -> g: (;p) g -> gx:(;p) elt * (;p,g,gx) secret  
 
 type (;p:p, g:(;p) elt, gx:(;p) elt, gy:(;p) elt) pms // strong secret when (p,g), gx, and gy have been honestly generated
  
@@ -37,7 +37,7 @@ val leak:   p:p -> g:(;p)elt -> gx:(;p)elt -> gy:(;p)elt -> (;p,g,gx,gy) pms -> 
 
 // used only within ideal DH
 val sample: p:p -> g:(;p) elt -> gx:(;p) elt -> gy:(;p) elt                   -> (;p,g,gx,gy) pms
-val exp:    p:p -> g:(;p) elt -> gx:(;p) elt -> gy:(;p) elt -> x:(;gx) secret -> (;p,g,gx,gy) pms 
+val exp:    p:p -> g:(;p) elt -> gx:(;p) elt -> gy:(;p) elt -> x:(;p,g,gx) secret -> (;p,g,gx,gy) pms 
 
 
 (*********** old stuff

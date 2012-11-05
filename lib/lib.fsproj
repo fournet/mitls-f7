@@ -119,9 +119,6 @@
     <None Include="RSAEnc.fs7" />
     <Compile Include="RSAEnc.fsi" />
     <Compile Include="RSAEnc.fs" />
-    <None Include="DH.fs7" />
-    <None Include="DH.fsi" />
-    <Compile Include="DH.fs" />
     <None Include="DHE.fs7" />
     <Compile Include="DHE.fsi" />
     <Compile Include="DHE.fs" />
