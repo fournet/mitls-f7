@@ -40,9 +40,9 @@ private assume
 val htBytes: ht:HandshakeType -> b:bytes{b=HTBytes(ht)}
 val parseHt: b:bytes -> (ht:HandshakeType{b=HTBytes(ht)}) Result 
 
-function val MessageBytes: HandshakeType * bytes -> bytes
-val messageBytes: ht:HandshakeType -> x:bytes -> m:bytes{m = MessageBytes(ht,x)}
-val parseMessage: buf:bytes -> (rem:bytes * ht:HandshakeType * x:bytes * to_log:bytes){to_log = MessageBytes(ht,x)}
+function val MessageBytes: bytes * bytes -> bytes
+val messageBytes: ht:HandshakeType -> x:bytes -> m:bytes{m = MessageBytes(HTBytes(ht),x)}
+val parseMessage: buf:bytes -> ((rem:bytes * ht:bytes * x:bytes * to_log:bytes){to_log = MessageBytes(ht,x)}) option
 
 val makeFragment: ki:epoch -> b:bytes -> (r:range * (;ki,r) Fragment.fragment) * bytes
 
@@ -55,10 +55,10 @@ type log = bytes         (* message payloads so far, to be eventually authentica
 type cVerifyData = bytes (* ClientFinished payload *)
 type sVerifyData = bytes (* ServerFinished payload *)
 
-function val ClientHello: (ProtocolVersion * bytes * sessionID * cipherSuites * Compression list * bytes) -> bytes
+function val ClientHelloMsg: (ProtocolVersion * bytes * sessionID * cipherSuites * Compression list * bytes) -> bytes
 function val ClientHelloBytes: (ProtocolVersion * bytes * sessionID * cipherSuites * Compression list * bytes) -> bytes
 definition !cv,clRdm,sid,clientCipherSuites,cm,ext,b.
-  ClientHello(cv,clRdm,sid,clientCipherSuites,cm,ext) = b <=> (?b1,b2. 
+  ClientHelloMsg(cv,clRdm,sid,clientCipherSuites,cm,ext) = b <=> (?b1,b2. 
                 ContainsCompressions(b2,cm) /\ ContainsCipherSuites(b1,clientCipherSuites) /\
                 b = (VersionBytes(cv) @| 
                  clRdm @| 
@@ -70,35 +70,35 @@ definition !cv,clRdm,sid,clientCipherSuites,cm,ext,b.
 
 definition !cv,clRdm,sid,clientCipherSuites,cm,ext.
   ClientHelloBytes(cv,clRdm,sid,clientCipherSuites,cm,ext) = 
-    MessageBytes(HT_client_hello, ClientHello(cv,clRdm,sid,clientCipherSuites,cm,ext))
+    MessageBytes(HTBytes(HT_client_hello), ClientHelloMsg(cv,clRdm,sid,clientCipherSuites,cm,ext))
                 
 
 val parseClientHello: m:bytes -> 
 	(pv:ProtocolVersion * cr:bytes * sid:sessionID * cs:cipherSuites * cm:Compression list * ext:bytes{
-		m=ClientHello(pv,cr,sid,cs,cm,ext)}) Result
+		m=ClientHelloMsg(pv,cr,sid,cs,cm,ext)}) Result
 val clientHelloBytes: c:config -> cr:bytes -> sid:sessionID -> ext:bytes -> m:bytes{
 	    m=ClientHelloBytes(c.maxVer,cr,sid,c.ciphersuites,c.compressions,ext)}
 
-function val ServerHello: (ProtocolVersion * bytes * sessionID * cipherSuite * Compression * bytes) -> bytes
+function val ServerHelloMsg: (ProtocolVersion * bytes * sessionID * cipherSuite * Compression * bytes) -> bytes
 
-function val ClientOrServerCertificate: bytes list -> bytes
+function val ClientOrServerCertificateMsg: bytes list -> bytes
 
-function val CertificateRequest: ProtocolVersion * certType list * Sig.alg list option * string list -> bytes
+function val CertificateRequestMsg: ProtocolVersion * certType list * Sig.alg list option * string list -> bytes
 
-function val ClientKeyExchange_RSA: ProtocolVersion * si:SessionInfo * RSAKeys.pk * (;si)RSAPlain.pms -> bytes
+function val ClientKeyExchangeMsg_RSA: ProtocolVersion * si:SessionInfo * RSAKeys.pk * (;si)RSAPlain.pms -> bytes
 
-function val ClientKeyExchange_DHE: bytes -> bytes
+function val ClientKeyExchangeMsg_DHE: bytes -> bytes
 
-function val ServerKeyExchange_DHE:  ProtocolVersion * p:bytes * g:bytes * y:bytes * Sig.alg * sign:bytes-> bytes
+function val ServerKeyExchangeMsg_DHE:  ProtocolVersion * p:bytes * g:bytes * y:bytes * Sig.alg * sign:bytes-> bytes
 
-function val ServerKeyExchange_DH_anon: bytes * bytes * bytes -> bytes
+function val ServerKeyExchangeMsg_DH_anon: bytes * bytes * bytes -> bytes
 
-function val CertificateVerify: si:SessionInfo * (;si)PRFs.masterSecret * a:Sig.alg * Cert.certchain * (;a)Sig.pkey * log -> bytes
+function val CertificateVerifyMsg: si:SessionInfo * (;si)PRFs.masterSecret * a:Sig.alg * Cert.certchain * (;a)Sig.pkey * log -> bytes
 
-function val ServerHelloDone: unit -> bytes
+function val ServerHelloDoneMsg: unit -> bytes
 
-function val ServerFinished: si:SessionInfo * (;si)PRFs.masterSecret * log -> bytes
-function val ClientFinished: si:SessionInfo * (;si)PRFs.masterSecret * log -> bytes
+function val ServerFinishedMsg: si:SessionInfo * (;si)PRFs.masterSecret * log -> bytes
+function val ClientFinishedMsg: si:SessionInfo * (;si)PRFs.masterSecret * log -> bytes
 
 type serverState =  (* note that the CertRequest bits are determined by the config *) 
                     (* we may omit some ProtocolVersion, mostly a ghost variable *)
@@ -112,22 +112,22 @@ type serverState =  (* note that the CertRequest bits are determined by the conf
    | ServerCheckingCertificateDH  of SessionInfo * log * bytes
    | ClientKeyExchangeDH          of SessionInfo * log 
 
-   | ClientCertificateDHE         of SessionInfo * DHE.p * DHE.g * DHE.elt * DHE.secret * log
-   | ServerCheckingCertificateDHE of SessionInfo * DHE.p * DHE.g * DHE.elt * DHE.secret * log * bytes
-   | ClientKeyExchangeDHE         of SessionInfo * DHE.p * DHE.g * DHE.elt * DHE.secret * log
+   | ClientCertificateDHE         of SessionInfo * p:DHE.p * g:(;p)DHE.g * gx:(;p)DHE.elt * (;p,g,gx)DHE.secret * log
+   | ServerCheckingCertificateDHE of SessionInfo * p:DHE.p * g:(;p)DHE.g * gx:(;p)DHE.elt * (;p,g,gx)DHE.secret * log * bytes
+   | ClientKeyExchangeDHE         of SessionInfo * p:DHE.p * g:(;p)DHE.g * gx:(;p)DHE.elt * (;p,g,gx)DHE.secret * log
 
-   | ClientKeyExchangeDH_anon     of SessionInfo * DHE.p * DHE.g * DHE.elt * DHE.secret * log
+   | ClientKeyExchangeDH_anon     of SessionInfo * p:DHE.p * g:(;p)DHE.g * gx:(;p)DHE.elt * (;p,g,gx)DHE.secret * log
 
-   | CertificateVerify            of SessionInfo * masterSecret * log 
-   | ClientCCS                    of SessionInfo * masterSecret * log
-   | ClientFinished               of SessionInfo * masterSecret * epoch * StatefulAEAD.writer * log
+   | CertificateVerify            of si:SessionInfo * (;si)PRFs.masterSecret * log 
+   | ClientCCS                    of si:SessionInfo * (;si)PRFs.masterSecret * log
+   | ClientFinished               of (si:SessionInfo * (;si)PRFs.masterSecret * e:succEpoch * (;e)StatefulAEAD.writer * log){EpochSI(e)=si}
    (* by convention, the parameters are named si, cv, cr', sr', ms, log *)
-   | ServerWritingCCS             of SessionInfo * masterSecret * epoch * StatefulAEAD.writer * cVerifyData * log
-   | ServerWritingFinished        of SessionInfo * masterSecret * cVerifyData * sVerifyData
+   | ServerWritingCCS             of (si:SessionInfo * (;si)PRFs.masterSecret * e:succEpoch * (;e)StatefulAEAD.writer * cVerifyData * log){EpochSI(e)=si}
+   | ServerWritingFinished        of si:SessionInfo * (;si)PRFs.masterSecret * cVerifyData * sVerifyData
 
-   | ServerWritingCCSResume       of epoch * StatefulAEAD.writer * epoch * StatefulAEAD.reader * masterSecret * log
-   | ClientCCSResume              of epoch * StatefulAEAD.reader * sVerifyData * masterSecret * log
-   | ClientFinishedResume         of SessionInfo * masterSecret * sVerifyData * log
+   | ServerWritingCCSResume       of (ew:succEpoch * (;ew)StatefulAEAD.writer * er:succEpoch * (;er)StatefulAEAD.reader * (;epochSI(ew))PRFs.masterSecret * log){EpochSI(ew)=EpochSI(er)}
+   | ClientCCSResume              of e:succEpoch * (;e)StatefulAEAD.reader * sVerifyData * (;EpochSI(e))PRFs.masterSecret * log
+   | ClientFinishedResume         of si:SessionInfo * (;si)PRFs.masterSecret * sVerifyData * log
 
    | ServerIdle                   of cVerifyData * sVerifyData
    (* the ProtocolVersion is the highest TLS version proposed by the client *)
@@ -150,19 +150,19 @@ type clientState =
    | ServerCertificateDHE         of SessionInfo * log
    | ClientCheckingCertificateDHE of SessionInfo * log * bytes
    | ServerKeyExchangeDHE         of SessionInfo * log
-   | CertificateRequestDHE        of SessionInfo * DHE.p * DHE.g * DHE.elt * log
-   | ServerHelloDoneDHE           of SessionInfo * Cert.sign_cert * DHE.p * DHE.g * DHE.elt * log
+   | CertificateRequestDHE        of SessionInfo * p:DHE.p * g:(;p)DHE.g * gx:(;p)DHE.elt * log
+   | ServerHelloDoneDHE           of SessionInfo * Cert.sign_cert * p:DHE.p * g:(;p)DHE.g * gx:(;p)DHE.elt * log
 
    | ServerKeyExchangeDH_anon of SessionInfo * log (* Not supported yet *)
-   | ServerHelloDoneDH_anon of SessionInfo * DHE.p * DHE.g * DHE.elt * log
+   | ServerHelloDoneDH_anon of SessionInfo * p:DHE.p * g:(;p)DHE.g * gx:(;p)DHE.elt * log
 
-   | ClientWritingCCS       of SessionInfo * masterSecret * log
-   | ServerCCS              of SessionInfo * masterSecret * epoch * StatefulAEAD.reader * cVerifyData * log
-   | ServerFinished         of SessionInfo * masterSecret * cVerifyData * log
+   | ClientWritingCCS       of si:SessionInfo * (;si)PRFs.masterSecret * log
+   | ServerCCS              of (si:SessionInfo * (;si)PRFs.masterSecret * e:succEpoch * (;e)StatefulAEAD.reader * cVerifyData * log){EpochSI(e)=si}
+   | ServerFinished         of si:SessionInfo * (;si)PRFs.masterSecret * cVerifyData * log
 
-   | ServerCCSResume        of epoch * StatefulAEAD.writer * epoch * StatefulAEAD.reader * masterSecret * log
-   | ServerFinishedResume   of epoch * StatefulAEAD.writer * masterSecret * log
-   | ClientWritingCCSResume of epoch * StatefulAEAD.writer * masterSecret * sVerifyData * log
+   | ServerCCSResume        of (ew:succEpoch * (;ew)StatefulAEAD.writer * er:succEpoch * (;er)StatefulAEAD.reader * (;EpochSI(ew))PRFs.masterSecret * log){EpochSI(ew)=EpochSI(er)}
+   | ServerFinishedResume   of e:succEpoch * (;e)StatefulAEAD.writer * (;EpochSI(e))PRFs.masterSecret * log
+   | ClientWritingCCSResume of e:succEpoch * (;e)StatefulAEAD.writer * (;EpochSI(e))PRFs.masterSecret * sVerifyData * log
    | ClientWritingFinishedResume of cVerifyData * sVerifyData
 
    | ClientIdle             of cVerifyData * sVerifyData
