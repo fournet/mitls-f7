@@ -31,7 +31,7 @@ type preGlobalState = {
   (* abstract protocol states for HS/CCS, AL, and AD *)
   handshake: Handshake.hs_state;
   alert    : Alert.state;
-  appdata  : AppDataStream.app_state;
+  appdata  : AppData.app_state;
 
   (* connection state for reading and writing *)
   read  : dState;
@@ -85,7 +85,7 @@ let init ns role poptions =
     let read_state = {disp = Init; conn = recv} in
     let write_state = {disp = Init; conn = send} in
     let al = Alert.init ci in
-    let app = AppDataStream.init ci in
+    let app = AppData.init ci in
     let state = { handshake = hs;
                   alert = al;
                   appdata = app;
@@ -101,7 +101,7 @@ let resume ns sid ops =
     let read_state = {disp = Init; conn = recv} in
     let write_state = {disp = Init; conn = send} in
     let al = Alert.init ci in
-    let app = AppDataStream.init ci in
+    let app = AppData.init ci in
     let res = Conn ( ci,
                      { handshake = hs;
                        alert = al;
@@ -203,7 +203,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
           match hs_next_res with 
           | Handshake.OutIdle(_) ->
             let app_state = c.appdata in
-                match AppDataStream.next_fragment id app_state with
+                match AppData.next_fragment id app_state with
                 | None -> (WAppDataDone,Conn(id,c))
                 | Some (next) ->
                           let (tlen,f,new_app_state) = next in
@@ -250,7 +250,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                                 - update the index and the state of other protocols
                                 - move the outgoing state to Finishing, to signal we must not send appData now. *)
                             let new_write = {c.write with disp = Finishing; conn = nextWCS} in 
-                            let new_ad = AppDataStream.reset_outgoing id c.appdata nextID in
+                            let new_ad = AppData.reset_outgoing id c.appdata nextID in
                             let new_al = Alert.reset_outgoing id c.alert nextID in
                             let c = { c with write = new_write;
                                              handshake = new_hs_state;
@@ -536,7 +536,7 @@ let readOne (Conn(id,c)) =
                           | InCCSAck(nextID,nextR,hs) ->
                               let nextRCS = Record.initConnState nextID.id_in nextR in
                               let new_read = {c_read with disp = Finishing; conn = nextRCS} in
-                              let new_ad = AppDataStream.reset_incoming id c.appdata nextID in
+                              let new_ad = AppData.reset_incoming id c.appdata nextID in
                               let new_al = Alert.reset_incoming id c.alert nextID in
                               let c = { c with read = new_read;
                                                appdata = new_ad;
@@ -564,7 +564,7 @@ let readOne (Conn(id,c)) =
                           | Correct (Alert.ALClose_notify (state)) ->
                                  (* An outgoing close notify has already been buffered, if necessary *)
                                  (* Only close the reading side of the connection *)
-                             //let ad = AppDataStream.writeNonAppDataFragment id c.appdata in
+                             //let ad = AppData.writeNonAppDataFragment id c.appdata in
                              let new_read = {c_read with disp = Closed} in
                              let c = { c with read = new_read;
                                               alert = state;
@@ -575,7 +575,7 @@ let readOne (Conn(id,c)) =
                              (RClose, Conn(id,c))
                           | Correct (Alert.ALFatal (ad,state)) ->
                                (* Other fatal alert, we close both sides of the connection *)
-                               //let ad = AppDataStream.writeNonAppDataFragment id c.appdata in
+                               //let ad = AppData.writeNonAppDataFragment id c.appdata in
                              let c = {c with alert = state;
                                              read = c_read
                                         }
@@ -597,7 +597,7 @@ let readOne (Conn(id,c)) =
                               WriteOutcome(wo),conn
 
                   | Application_data, Open ->
-                      let appstate = AppDataStream.recv_fragment id c.appdata rg f in
+                      let appstate = AppData.recv_fragment id c.appdata rg f in
                       let c = {c with appdata = appstate
                                       read = c_read} in
                       // KB: To Fix                                 
@@ -622,7 +622,7 @@ let rec read c =
         | RAppDataDone ->    
             // empty the appData internal buffer, and return its content to the user
             let (Conn(id,conn)) = c in
-            match AppDataStream.readAppData id conn.appdata with
+            match AppData.readAppData id conn.appdata with
             | (Some(b),appState) ->
                 let conn = {conn with appdata = appState} in
                 let c = Conn(id,conn) in
@@ -666,11 +666,11 @@ let rec read c =
 
 let write (Conn(id,c)) msg =
   let (r,d) = msg in
-  let new_appdata = AppDataStream.writeAppData id c.appdata r d in
+  let new_appdata = AppData.writeAppData id c.appdata r d in
   let c = {c with appdata = new_appdata} in 
   let (outcome,c) = writeAll (Conn(id,c)) in
   let (Conn(id,g)) = c in
-  let (rdOpt,new_appdata) = AppDataStream.emptyOutgoingAppData id g.appdata in
+  let (rdOpt,new_appdata) = AppData.emptyOutgoingAppData id g.appdata in
   let g = {g with appdata = new_appdata} in
   Conn(id,g),outcome,rdOpt
 
@@ -698,5 +698,5 @@ let half_shutdown (Conn(id,conn)) =
 
 let getEpochIn  (Conn(id,state)) = id.id_in
 let getEpochOut (Conn(id,state)) = id.id_out
-let getInStream  (Conn(id,state)) = AppDataStream.inStream  id state.appdata
-let getOutStream (Conn(id,state)) = AppDataStream.outStream id state.appdata 
+let getInStream  (Conn(id,state)) = AppData.inStream  id state.appdata
+let getOutStream (Conn(id,state)) = AppData.outStream id state.appdata 

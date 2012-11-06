@@ -50,7 +50,10 @@ val makeFragment: ki:epoch -> b:bytes -> (r:range * (;ki,r) Fragment.fragment) *
 
 function val LenBytes: int * bytes -> bytes
 
-type log = bytes
+(* verify data authenticated by the Finished messages *)
+type log = bytes         (* message payloads so far, to be eventually authenticated *) 
+type cVerifyData = bytes (* ClientFinished payload *)
+type sVerifyData = bytes (* ServerFinished payload *)
 
 function val ClientHello: (ProtocolVersion * bytes * sessionID * cipherSuites * Compression list * bytes) -> bytes
 function val ClientHelloBytes: (ProtocolVersion * bytes * sessionID * cipherSuites * Compression list * bytes) -> bytes
@@ -97,10 +100,92 @@ function val ServerHelloDone: unit -> bytes
 function val ServerFinished: si:SessionInfo * (;si)PRFs.masterSecret * log -> bytes
 function val ClientFinished: si:SessionInfo * (;si)PRFs.masterSecret * log -> bytes
 
+type serverState =  (* note that the CertRequest bits are determined by the config *) 
+                    (* we may omit some ProtocolVersion, mostly a ghost variable *)
+   | ClientHello                  of cVerifyData * sVerifyData
+
+   | ClientCertificateRSA         of SessionInfo * ProtocolVersion * RSAKeys.sk * log
+   | ServerCheckingCertificateRSA of SessionInfo * ProtocolVersion * RSAKeys.sk * log * bytes
+   | ClientKeyExchangeRSA         of SessionInfo * ProtocolVersion * RSAKeys.sk * log
+
+   | ClientCertificateDH          of SessionInfo * log
+   | ServerCheckingCertificateDH  of SessionInfo * log * bytes
+   | ClientKeyExchangeDH          of SessionInfo * log 
+
+   | ClientCertificateDHE         of SessionInfo * DHE.p * DHE.g * DHE.elt * DHE.secret * log
+   | ServerCheckingCertificateDHE of SessionInfo * DHE.p * DHE.g * DHE.elt * DHE.secret * log * bytes
+   | ClientKeyExchangeDHE         of SessionInfo * DHE.p * DHE.g * DHE.elt * DHE.secret * log
+
+   | ClientKeyExchangeDH_anon     of SessionInfo * DHE.p * DHE.g * DHE.elt * DHE.secret * log
+
+   | CertificateVerify            of SessionInfo * masterSecret * log 
+   | ClientCCS                    of SessionInfo * masterSecret * log
+   | ClientFinished               of SessionInfo * masterSecret * epoch * StatefulAEAD.writer * log
+   (* by convention, the parameters are named si, cv, cr', sr', ms, log *)
+   | ServerWritingCCS             of SessionInfo * masterSecret * epoch * StatefulAEAD.writer * cVerifyData * log
+   | ServerWritingFinished        of SessionInfo * masterSecret * cVerifyData * sVerifyData
+
+   | ServerWritingCCSResume       of epoch * StatefulAEAD.writer * epoch * StatefulAEAD.reader * masterSecret * log
+   | ClientCCSResume              of epoch * StatefulAEAD.reader * sVerifyData * masterSecret * log
+   | ClientFinishedResume         of SessionInfo * masterSecret * sVerifyData * log
+
+   | ServerIdle                   of cVerifyData * sVerifyData
+   (* the ProtocolVersion is the highest TLS version proposed by the client *)
+
+type clientState = 
+   | ServerHello                  of crand * sessionID (* * bytes for extensions? *) * cVerifyData * sVerifyData * log
+
+   | ServerCertificateRSA         of SessionInfo * log
+   | ClientCheckingCertificateRSA of SessionInfo * log * bytes
+   | CertificateRequestRSA        of SessionInfo * log (* In fact, CertReq or SHelloDone will be accepted *)
+   | ServerHelloDoneRSA           of SessionInfo * Cert.sign_cert * log
+
+   | ServerCertificateDH          of SessionInfo * log
+   | ClientCheckingCertificateDH  of SessionInfo * log * bytes
+   | CertificateRequestDH         of SessionInfo * log (* We pick our cert and store it in sessionInfo as soon as the server requests it.
+                                                         We put None if we don't have such a certificate, and we know whether to send
+                                                         the Certificate message or not based on the state when we receive the Finished message *)
+   | ServerHelloDoneDH            of SessionInfo * log
+
+   | ServerCertificateDHE         of SessionInfo * log
+   | ClientCheckingCertificateDHE of SessionInfo * log * bytes
+   | ServerKeyExchangeDHE         of SessionInfo * log
+   | CertificateRequestDHE        of SessionInfo * DHE.p * DHE.g * DHE.elt * log
+   | ServerHelloDoneDHE           of SessionInfo * Cert.sign_cert * DHE.p * DHE.g * DHE.elt * log
+
+   | ServerKeyExchangeDH_anon of SessionInfo * log (* Not supported yet *)
+   | ServerHelloDoneDH_anon of SessionInfo * DHE.p * DHE.g * DHE.elt * log
+
+   | ClientWritingCCS       of SessionInfo * masterSecret * log
+   | ServerCCS              of SessionInfo * masterSecret * epoch * StatefulAEAD.reader * cVerifyData * log
+   | ServerFinished         of SessionInfo * masterSecret * cVerifyData * log
+
+   | ServerCCSResume        of epoch * StatefulAEAD.writer * epoch * StatefulAEAD.reader * masterSecret * log
+   | ServerFinishedResume   of epoch * StatefulAEAD.writer * masterSecret * log
+   | ClientWritingCCSResume of epoch * StatefulAEAD.writer * masterSecret * sVerifyData * log
+   | ClientWritingFinishedResume of cVerifyData * sVerifyData
+
+   | ClientIdle             of cVerifyData * sVerifyData
+
+type protoState = // Cannot use Client and Server, otherwise clashes with Role
+  | PSClient of clientState
+  | PSServer of serverState
+
+private type pre_hs_state = {
+  (* I/O buffers *)
+  hs_outgoing    : bytes;                  (* outgoing data *)
+  hs_incoming    : bytes;                  (* partial incoming HS message *)
+  (* local configuration *)
+  poptions: config; 
+  sDB: SessionDB.SessionDB;
+  (* current handshake & session we are establishing *) 
+  pstate: protoState;
+}
+
 (*--- controlinterface *)
 (* Control Interface *)
 
-type (;ci:ConnectionInfo) hs_state
+private type (;ci:ConnectionInfo) hs_state = pre_hs_state
 function val Config: ci:ConnectionInfo * s:(;ci)hs_state -> config
 predicate val Authorize: config * Cert.cert -> bool
 predicate val Complete: ConnectionInfo * config -> bool

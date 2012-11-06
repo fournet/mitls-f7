@@ -28,7 +28,7 @@ type (;id:ConnectionInfo) preGlobalState = {
   (* abstract protocol states for HS/CCS, AL, and AD *)
   handshake: (;id) Handshake.hs_state;
   alert    : (;id) Alert.state;
-  appdata  : (;id) AppDataStream.app_state;    
+  appdata  : (;id) AppData.app_state;    
 
   (* connection state for reading and writing *)
   read  : (;id.id_in)  dState;
@@ -44,7 +44,7 @@ type (;id:ConnectionInfo) globalState = gs:(;id) preGlobalState{GState(id,gs)}
 definition !ci,gs. GState(ci,gs)  <=>
   ( (Auth(ci.id_out) =>
 		(
-		AppDataStream.AppOutStream(ci,gs.appdata) = TLSFragment.HistoryStream(ci.id_out,TLSConstants.Application_data,Record.History(ci.id_out,gs.write.conn)) /\
+		AppData.AppOutStream(ci,gs.appdata) = TLSFragment.HistoryStream(ci.id_out,TLSConstants.Application_data,Record.History(ci.id_out,gs.write.conn)) /\
 		Handshake.HSOutStream(ci,gs.handshake) = TLSFragment.HistoryStream(ci.id_out,TLSConstants.Handshake,Record.History(ci.id_out,gs.write.conn)) /\
 		Handshake.CCSOutStream(ci,gs.handshake) = TLSFragment.HistoryStream(ci.id_out,TLSConstants.Change_cipher_spec,Record.History(ci.id_out,gs.write.conn)) /\
 		Alert.AlOutStream(ci,gs.alert) = TLSFragment.HistoryStream(ci.id_out,TLSConstants.Alert,Record.History(ci.id_out,gs.write.conn))
@@ -52,7 +52,7 @@ definition !ci,gs. GState(ci,gs)  <=>
 	) /\
     (Auth(ci.id_in)  =>
 		(
-		AppDataStream.AppInStream(ci,gs.appdata)  = TLSFragment.HistoryStream(ci.id_in, TLSConstants.Application_data,Record.History(ci.id_in, gs.read.conn)) /\
+		AppData.AppInStream(ci,gs.appdata)  = TLSFragment.HistoryStream(ci.id_in, TLSConstants.Application_data,Record.History(ci.id_in, gs.read.conn)) /\
 		Handshake.HSInStream(ci,gs.handshake) = TLSFragment.HistoryStream(ci.id_in,TLSConstants.Handshake,Record.History(ci.id_in,gs.read.conn)) /\
 		Handshake.CCSInStream(ci,gs.handshake) = TLSFragment.HistoryStream(ci.id_in,TLSConstants.Change_cipher_spec,Record.History(ci.id_in,gs.read.conn)) /\
 		Alert.AlInStream(ci,gs.alert) = TLSFragment.HistoryStream(ci.id_in,TLSConstants.Alert,Record.History(ci.id_in,gs.read.conn))
@@ -63,11 +63,11 @@ definition !ci,gs. GState(ci,gs)  <=>
   (* /\
 
 (*/\
-	(( AppDataStream.AppInBuf(ci,gs.appdata) = None /\
-	    AppDataStream.AppInStream( ci,gs.appdata) =
+	(( AppData.AppInBuf(ci,gs.appdata) = None /\
+	    AppData.AppInStream( ci,gs.appdata) =
 		TLSFragment.HistoryStream(ci.id_in, TLSConstants.Application_data,Record.History(ci.id_in, gs.read.conn))) \/
-	  (?r,f. AppDataStream.AppInBuf(ci,gs.appdata) = Some((r,f)) /\
-	    Fragment.Extend(ci.id_in,AppDataStream.AppInStream(ci,gs.appdata),r,f) = 
+	  (?r,f. AppData.AppInBuf(ci,gs.appdata) = Some((r,f)) /\
+	    Fragment.Extend(ci.id_in,AppData.AppInStream(ci,gs.appdata),r,f) = 
 	    TLSFragment.HistoryStream(ci.id_in, TLSConstants.Application_data,Record.History(ci.id_in, gs.read.conn))
 	  )
 	))
@@ -99,14 +99,14 @@ private assume !id, s. CnId(Conn(id, s)) = id
 
 function val CnStream_i: c:Connection -> (;ConnectionEpochIn (c)) stream
 function val CnStream_o: c:Connection -> (;ConnectionEpochOut(c)) stream
-private assume !id, s. CnStream_i(Conn(id, s)) =  AppDataStream.AppInStream(id, s.appdata)
-private assume !id, s. CnStream_o(Conn(id, s)) = AppDataStream.AppOutStream(id, s.appdata)
+private assume !id, s. CnStream_i(Conn(id, s)) =  AppData.AppInStream(id, s.appdata)
+private assume !id, s. CnStream_o(Conn(id, s)) = AppData.AppOutStream(id, s.appdata)
 
 type (;e:epoch,s:(;e)stream)msg_i = r:range * (;e,s,r)delta
 type (;e:epoch,s:(;e)stream)msg_o = r:range * (;e,s,r)delta
 
 function val CnBuf_o: c:Connection -> ((;ConnectionEpochOut(c),CnStream_o(c))msg_o) option
-private assume !id,s. CnBuf_o(Conn(id,s)) = AppDataStream.AppOutBuf(id,s.appdata)
+private assume !id,s. CnBuf_o(Conn(id,s)) = AppData.AppOutBuf(id,s.appdata)
 
 function val Bytes_o: Connection -> bytes
 function val Bytes_i: Connection -> bytes

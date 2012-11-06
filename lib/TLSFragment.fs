@@ -12,7 +12,7 @@ type prehistory = {
   handshake: stream // Handshake.stream;
   alert: stream // Alert.stream;
   ccs: stream // Handshake.stream;
-  appdata: stream // AppDataStream.stream;
+  appdata: stream // AppData.stream;
 }
 
 type history = prehistory
@@ -21,7 +21,7 @@ type fragment =
     | FHandshake of Fragment.fragment // Handshake.fragment
     | FCCS of Fragment.fragment // Handshake.ccsFragment
     | FAlert of Fragment.fragment // Alert.fragment
-    | FAppData of Fragment.fragment // AppDataStream.fragment
+    | FAppData of Fragment.fragment // AppData.fragment
 
 let emptyHistory ki =
     let eh = init ki in

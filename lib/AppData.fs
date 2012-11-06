@@ -1,4 +1,4 @@
-﻿module AppDataStream
+﻿module AppData
 
 open Error
 open Bytes

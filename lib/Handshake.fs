@@ -867,12 +867,12 @@ let getNextEpochs ci si crand srand =
     {ci with id_in = id_in; id_out = id_out}
 
 type outgoing =
-  | OutIdle of hs_state
-  | OutSome of DataStream.range * Fragment.fragment * hs_state
+  | OutIdle of nextState
+  | OutSome of DataStream.range * Fragment.fragment * nextState
   | OutCCS of  DataStream.range * Fragment.fragment (* the unique one-byte CCS *) *
-               ConnectionInfo * StatefulAEAD.state * hs_state
-  | OutFinished of DataStream.range * Fragment.fragment * hs_state
-  | OutComplete of DataStream.range * Fragment.fragment * hs_state
+               ConnectionInfo * StatefulAEAD.state * nextState
+  | OutFinished of DataStream.range * Fragment.fragment * nextState
+  | OutComplete of DataStream.range * Fragment.fragment * nextState
 
 let next_fragment ci state =
     match state.hs_outgoing with
