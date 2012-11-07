@@ -1,7 +1,7 @@
 # -*- Makefile -*-
 
 src    = TLStream.fs
-deps   = ../bin/TLSLib.dll
+deps   = ../bin/CoreCrypto.dll ../bin/TLSLib.dll
 target = ../bin/TLSStream.dll
 
 .PHONY: all dist

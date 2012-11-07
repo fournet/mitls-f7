@@ -11,7 +11,7 @@ src    = \
 	HttpServer.fs       \
 	Program.fs
 
-deps   = ../bin/TLSLib.dll ../bin/TLSStream.dll
+deps   = ../bin/CoreCrypto.dll ../bin/TLSLib.dll ../bin/TLSStream.dll
 target = ../bin/HttpServer.exe
 
 .PHONY: all dist
