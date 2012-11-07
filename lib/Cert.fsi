@@ -8,7 +8,7 @@ type cert = bytes  (* public part of a certificate *)
 
 type certchain = cert list
 type sign_cert = (certchain * Sig.alg * Sig.skey) option
-type enc_cert = (certchain * RSAKeys.sk) option
+type enc_cert  = (certchain * RSAKeys.sk) option
 
 (* First argument (Sig.alg list) for both functions gives the allowed
  * signing alg. used for signing the key. For [for_signing] TLS1.2

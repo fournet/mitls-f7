@@ -149,6 +149,9 @@
     <None Include="RPC.fs7" />
     <Compile Include="RPC.fsi" />
     <Compile Include="RPC.fs" />
+    <None Include="UTLS.fs7" />
+    <Compile Include="UTLS.fsi" />
+    <Compile Include="UTLS.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />

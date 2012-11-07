@@ -88,7 +88,7 @@ let get_query = fun fd idx ->
     match get_query_cert fd idx with
     | None          -> (EI_BADHANDLE , [||])
     | Some None     -> (EI_BADCERTIDX, [||])
-    | Some (Some q) -> (0, Certificate.certificateBytes q)
+    | Some (Some q) -> (0, List.toArray q)
 
 let read = fun fd ->
     match connection_of_fd fd with
@@ -96,7 +96,7 @@ let read = fun fd ->
 
     | Some c ->
         match TLS.read c with
-        | TLS.ReadError e ->
+        | TLS.ReadError _ ->
             (EI_READERROR, [||])
 
         | TLS.Close _ ->
@@ -145,7 +145,7 @@ let write = fun fd bytes ->
                 (length, length) bytes
         in
             match TLS.write conn ((length, length), delta) with
-            | TLS.WriteError e ->
+            | TLS.WriteError _ ->
                 unbind_fd fd; EI_WRITEERROR
             | TLS.WriteComplete conn ->
                 ignore (update_fd_connection fd conn);
@@ -165,7 +165,7 @@ let shutdown = fun fd ->
     match connection_of_fd fd with
     | None -> ()
     | Some conn ->
-        ignore (TLS.shutdown conn);
+        ignore (TLS.full_shutdown conn);
         unbind_fd fd
 
 let authorize = fun fd idx ->
