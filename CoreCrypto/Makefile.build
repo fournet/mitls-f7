@@ -16,12 +16,12 @@ dist:
 make.in: Makefile.config
 	@true
 
-$(target): $(src) $(deps)
-	$(fsc) $(fsflags) $(addprefix -r ,$(deps)) -a -o $@ $(src)
-
 Makefile.config: CoreCrypto.fsproj
 	if [ -f $< ]; then ../makegen -o $@ $<; fi
 
 CoreCrypto.fsproj:
 
 include Makefile.config
+
+$(target): $(src) $(deps)
+	$(fsc) $(fsflags) $(addprefix -r ,$(deps)) -a -o $@ $(src)

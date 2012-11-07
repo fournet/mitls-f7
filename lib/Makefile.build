@@ -16,12 +16,12 @@ dist:
 make.in: Makefile.config
 	@true
 
-$(target): $(src) $(deps)
-	$(fsc) $(fsflags) --warn:0 $(addprefix -r ,$(deps)) -a -o $@ $(src)
-
 Makefile.config: lib.fsproj
 	if [ -f $< ]; then ../makegen -o $@ $<; fi
 
 lib.fsproj:
 
 include Makefile.config
+
+$(target): $(src) $(deps)
+	$(fsc) $(fsflags) --warn:0 $(addprefix -r ,$(deps)) -a -o $@ $(src)

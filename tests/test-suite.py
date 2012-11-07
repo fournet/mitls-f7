@@ -55,6 +55,7 @@ class OSSLTunnel(object):
             self._conn = ossl.Connection(ctxt, sock)
             self._conn.setblocking(True)
             self._conn.set_connect_state()
+
         except ossl.Error, e:
             raise self._wrap_exn(e)
 
@@ -112,7 +113,7 @@ def _check_for_config(driver, config):
     sessiondir = None
 
     try:
-        logging.debug('Create empty session directory...')
+        logging.debug('Creating empty session directory...')
         sessiondir = tempfile.mkdtemp()
         logging.debug('...created [%s]' % (sessiondir,))
 
@@ -149,8 +150,8 @@ def _check_for_config(driver, config):
     finally:
         if subp is not None:
             subp.kill()
-        # if sessiondir is not None:
-        #     shutil.rmtree(sessiondir, ignore_errors = True)
+        if sessiondir is not None:
+            shutil.rmtree(sessiondir, ignore_errors = True)
 
 # --------------------------------------------------------------------
 def _main():
