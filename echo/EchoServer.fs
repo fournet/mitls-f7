@@ -37,7 +37,7 @@ let tlsoptions (options : options) = {
     TLSInfo.client_name = match options.clientname with None -> "" | Some x -> x
 
     TLSInfo.sessionDBFileName = Path.Combine(options.sessiondir, "sessionDBFile.bin")
-    TLSInfo.sessionDBExpiry   = Bytes.newTimeSpan 2 0 0 0 (* two days *)
+    TLSInfo.sessionDBExpiry   = Bytes.newTimeSpan 1 0 0 0 (* one day *)
 }
 
 let client_handler ctxt (peer : Socket) = fun () ->

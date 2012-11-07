@@ -51,7 +51,7 @@ let parse_cmd () =
     let mypath   = Path.GetFileName(assembly.Location)
 
     let options : EchoServer.options ref = ref {
-        ciphersuite = [ TLSConstants.TLS_RSA_WITH_RC4_128_SHA ];
+        ciphersuite = [ TLSConstants.TLS_DHE_RSA_WITH_AES_128_CBC_SHA ];
         tlsversion  = TLSConstants.TLS_1p0;
         servername  = "needham.inria.fr";
         clientname  = None;
