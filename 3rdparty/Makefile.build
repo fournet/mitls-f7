@@ -1,0 +1,26 @@
+# -*- Makefile -*-
+
+# --------------------------------------------------------------------
+include ../Makefile.config
+
+dlls = \
+	FSharp.PowerPack \
+	FSharp.PowerPack.Compatibility
+
+# --------------------------------------------------------------------
+.PHONY: all cope dist make.in
+
+all: copy
+
+copy: $(dlls:%=../bin/%.dll)
+
+dist:
+	set -e; for i in $(dlls); do     \
+	  cp $$i.dll $$i.dll.mdb $(distdir); \
+	done
+
+make.in:
+	@true
+
+../bin/%.dll: %.dll
+	cp $*.dll $*.dll.mdb ../bin

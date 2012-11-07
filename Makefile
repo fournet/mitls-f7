@@ -5,7 +5,7 @@ name     = uTLS
 version  = 0.0.internal
 distname = $(name)-$(version)
 
-subdirs  += BouncyCastle CoreCrypto lib TLSharp
+subdirs  += 3rdparty BouncyCastle CoreCrypto lib TLSharp
 subdirs  += HttpServer echo rpc
 subdirs  += www-data
 
@@ -38,7 +38,7 @@ dist:
 
 dist-check: dist
 	tar -xof $(distname).tgz
-	cd $(distname) && $(MAKE)
+	cd $(distname) && $(MAKE) && $(MAKE) dist
 	rm -rf $(distname)
 	@echo "$(distname).tgz is ready for distribution"
 
