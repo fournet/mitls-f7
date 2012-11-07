@@ -18,7 +18,7 @@ type options = {
 let noexn = fun cb ->
     try cb () with _ -> ()
 
-let tlsoptions (options : options) sessionDBDir = {
+let tlsoptions (options : options) = {
     TLSInfo.minVer = options.tlsversion
     TLSInfo.maxVer = options.tlsversion
 
@@ -36,7 +36,7 @@ let tlsoptions (options : options) sessionDBDir = {
     TLSInfo.server_name = options.servername
     TLSInfo.client_name = match options.clientname with None -> "" | Some x -> x
 
-    TLSInfo.sessionDBFileName = Path.Combine(sessionDBDir, "sessionDBFile.bin")
+    TLSInfo.sessionDBFileName = options.sessiondir
     TLSInfo.sessionDBExpiry   = Bytes.newTimeSpan 2 0 0 0 (* two days *)
 }
 
@@ -69,8 +69,7 @@ let client_handler ctxt (peer : Socket) = fun () ->
 let entry (options : options) =
     let assembly     = System.Reflection.Assembly.GetExecutingAssembly() in
     let mypath       = Path.GetDirectoryName(assembly.Location) in
-    let sessiondbdir = Path.Combine(mypath, "sessionDB") in
-    let ctxt         = tlsoptions options sessiondbdir in
+    let ctxt         = tlsoptions options in
     let localaddr    = new IPEndPoint(IPAddress.Any, 6000) in
     let listener     = new TcpListener(localaddr) in
 
