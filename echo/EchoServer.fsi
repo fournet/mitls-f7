@@ -6,6 +6,7 @@ type options = {
     servername  : string;
     clientname  : string option;
     localaddr   : System.Net.IPEndPoint;
+    sessiondir  : string;
 }
 
 val entry : options -> unit

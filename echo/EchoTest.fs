@@ -55,8 +55,18 @@ let parse_cmd () =
         tlsversion  = TLSConstants.TLS_1p0;
         servername  = "needham.inria.fr";
         clientname  = None;
-        localaddr   = IPEndPoint(IPAddress.Loopback, 2443); }
+        localaddr   = IPEndPoint(IPAddress.Loopback, 2443);
+        sessiondir  = Path.Combine(mypath, "sessionDB"); }
     in
+
+    let valid_path = fun path ->
+        Directory.Exists path
+
+    let o_certdir = fun s ->
+        if not (valid_path s) then
+            let msg = sprintf "Invalid path (certs directory): %s" s in
+                raise (ArgError msg);
+        options := { !options with sessiondir = s }
 
     let o_port = fun i ->
         if i <= 0 || i > 65535 then
@@ -110,13 +120,14 @@ let parse_cmd () =
 
     let specs =
         let specs = [
-            "--bind-port"   , ArgType.Int    o_port       , "local port"
-            "--bind-address", ArgType.String o_address    , "local address"
-            "--ciphers"     , ArgType.String o_ciphers    , ":-separated ciphers list"
-            "--tlsversion"  , ArgType.String o_version    , "TLS version to accept / propose"
-            "--client-name" , ArgType.String o_client_name, "TLS client name"
-            "--server-name" , ArgType.String o_server_name, (sprintf "TLS server name (default: %s)" (!options).servername)
-            "--list"        , ArgType.Unit   o_list       , "Print supported version/ciphers and exit" ]
+            "--sessionDB-dir", ArgType.String o_certdir    , "session database directory"
+            "--bind-port"    , ArgType.Int    o_port       , "local port"
+            "--bind-address" , ArgType.String o_address    , "local address"
+            "--ciphers"      , ArgType.String o_ciphers    , ":-separated ciphers list"
+            "--tlsversion"   , ArgType.String o_version    , "TLS version to accept / propose"
+            "--client-name"  , ArgType.String o_client_name, "TLS client name"
+            "--server-name"  , ArgType.String o_server_name, (sprintf "TLS server name (default: %s)" (!options).servername)
+            "--list"         , ArgType.Unit   o_list       , "Print supported version/ciphers and exit" ]
         in
             specs |> List.map (fun (sh, ty, desc) -> ArgInfo(sh, ty, desc))
 

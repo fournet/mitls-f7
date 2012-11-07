@@ -12,6 +12,7 @@ type options = {
     servername  : string;
     clientname  : string option;
     localaddr   : IPEndPoint;
+    sessiondir  : string;
 }
 
 let noexn = fun cb ->
