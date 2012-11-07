@@ -6,7 +6,6 @@
 open Bytes
 open Error
 open RSAKeys
-open RSAPlain
 open TLSInfo
 
 // For concrete security, see also 
@@ -14,14 +13,14 @@ open TLSInfo
 // Jakob Jonsson and Burton S. Kaliski Jr.
 // http://www.iacr.org/archive/crypto2002/24420127/24420127.pdf   
 
-val encrypt: pk -> si:SessionInfo -> (;si) pms -> bytes 
+val encrypt: pk:pk -> pv:ProtocolVersion -> (;pk,pv) pms -> bytes 
 // TLS specific, timing-attack-resistant variant
 val decrypt: sk ->
-			si:SessionInfo -> 
-            cv:TLSConstants.ProtocolVersion -> (* highest client version, as above *) 
-            bool -> (* flag whether we should check protocol version in old TLS versions *)
-            bytes -> (* encrypted PMS *)
-			(;si)pms (* No Result type: in case of error, we return a fresh random PMS *)
+			 si:SessionInfo -> 
+             cv:TLSConstants.ProtocolVersion -> (* highest client version, as above *) 
+             bool -> (* flag whether we should check protocol version in old TLS versions *)
+             bytes -> (* encrypted PMS *)
+			 (;Cert.RSAPKCert(si.serverID),cv)pms (* No Result type: in case of error, we return a fresh random PMS *)
 
 // AP: As we don't have this kind of conditionals in F7, I'm once again commenting out the remainder of the file :-)
 // #if whiteboard 

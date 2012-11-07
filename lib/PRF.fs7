@@ -1,0 +1,26 @@
+module PRF
+
+open Bytes
+open TLSInfo
+
+type repr = (;48)lbytes
+private type (;si:SessionInfo) masterSecret = {bytes: repr}
+
+val keyGen: ci:ConnectionInfo -> (;EpochSI(ci.id_out))masterSecret -> 
+  ((;ci.id_out)StatefulAEAD.writer * (;ci.id_in)StatefulAEAD.reader)
+         (* No label, it's hardcoded. Of course we can make it explicit -> *)
+         (* No seed (crandom @| srandom), it can be retrieved from epoch (and not SessionInfo!) -> *)
+
+val makeVerifyData: si:SessionInfo -> r:Role -> (;si) masterSecret ->
+                   bytes (* msgLog *) -> 
+                   bytes (* length depends on cs, 12 by default *)
+
+val checkVerifyData: si:SessionInfo -> r:Role -> (;si) masterSecret ->
+				   bytes (* the log *) ->
+				   bytes (* the expected value *) ->
+				   bool
+
+val ssl_certificate_verify: si:SessionInfo -> (;si)masterSecret -> TLSConstants.sigAlg -> bytes -> bytes
+
+// AP: Fixme: we need to add something like {not Auth(si)}, but Auth is defined on epochs, not sessions
+val coerce: si:SessionInfo -> repr -> (;si)masterSecret

@@ -7,7 +7,6 @@ open TLSConstants
 open TLSConstants
 
 open TLSInfo
-open PRFs
 
 // BEGIN HS_msg
 
@@ -488,14 +487,14 @@ let parseCertificateRequest version data =
 (** A.4.3 Client Authentication and Key Exchange Messages *) 
 
 let clientKEXBytes_RSA si config =
-    let pms = RSAPlain.genPMS si config.maxVer in
     if si.serverID.IsEmpty then
         unexpectedError "[clientKEXBytes_RSA] Server certificate should always be present with a RSA signing cipher suite."
     else
         match Cert.get_chain_public_encryption_key si.serverID with
         | Error(x,y) -> Error(x,y)
-            | Correct(pubKey) ->
-            let encpms = RSAEnc.encrypt pubKey si pms in
+        | Correct(pubKey) ->
+            let pms = CRE.genRSA pubKey config.maxVer in
+            let encpms = RSAEnc.encrypt pubKey config.maxVer pms in
             let encpms = if si.protocol_version = SSL_3p0 then encpms else vlbytes 2 encpms 
             correct((messageBytes HT_client_key_exchange encpms),pms)
 
@@ -611,7 +610,7 @@ let makeCertificateVerifyBytes si ms alg skey data =
         | TLS_1p2 | TLS_1p1 | TLS_1p0 -> (alg,data)
         | SSL_3p0 ->
             let (sigAlg,_) = alg in
-            let toSign = PRFs.ssl_certificate_verify si ms sigAlg data in
+            let toSign = PRF.ssl_certificate_verify si ms sigAlg data in
             ((sigAlg,NULL),toSign)
     let signed = Sig.sign alg skey toSign in
     let payload = digitallySignedBytes alg signed si.protocol_version in
@@ -626,7 +625,7 @@ let certificateVerifyCheck si ms algs log payload =
             | TLS_1p2 | TLS_1p1 | TLS_1p0 -> (alg,log)
             | SSL_3p0 -> 
                 let (sigAlg,_) = alg in
-                let expected = PRFs.ssl_certificate_verify si ms sigAlg log in
+                let expected = PRF.ssl_certificate_verify si ms sigAlg log in
                 ((sigAlg,NULL),expected)
         match Cert.get_chain_public_signing_key si.clientID alg with
         | Error(x,y) -> false
@@ -654,22 +653,22 @@ type serverState =  (* note that the CertRequest bits are determined by the conf
    | ServerCheckingCertificateDH  of SessionInfo * log * bytes
    | ClientKeyExchangeDH          of SessionInfo * log 
 
-   | ClientCertificateDHE         of SessionInfo * DHE.p * DHE.g * DHE.elt * DHE.secret * log
-   | ServerCheckingCertificateDHE of SessionInfo * DHE.p * DHE.g * DHE.elt * DHE.secret * log * bytes
-   | ClientKeyExchangeDHE         of SessionInfo * DHE.p * DHE.g * DHE.elt * DHE.secret * log
+   | ClientCertificateDHE         of SessionInfo * DHGroup.p * DHGroup.g * DHGroup.elt * DHGroup.secret * log
+   | ServerCheckingCertificateDHE of SessionInfo * DHGroup.p * DHGroup.g * DHGroup.elt * DHGroup.secret * log * bytes
+   | ClientKeyExchangeDHE         of SessionInfo * DHGroup.p * DHGroup.g * DHGroup.elt * DHGroup.secret * log
 
-   | ClientKeyExchangeDH_anon     of SessionInfo * DHE.p * DHE.g * DHE.elt * DHE.secret * log
+   | ClientKeyExchangeDH_anon     of SessionInfo * DHGroup.p * DHGroup.g * DHGroup.elt * DHGroup.secret * log
 
-   | CertificateVerify            of SessionInfo * masterSecret * log 
-   | ClientCCS                    of SessionInfo * masterSecret * log
-   | ClientFinished               of SessionInfo * masterSecret * epoch * StatefulAEAD.writer * log
+   | CertificateVerify            of SessionInfo * PRF.masterSecret * log 
+   | ClientCCS                    of SessionInfo * PRF.masterSecret * log
+   | ClientFinished               of SessionInfo * PRF.masterSecret * epoch * StatefulAEAD.writer * log
    (* by convention, the parameters are named si, cv, cr', sr', ms, log *)
-   | ServerWritingCCS             of SessionInfo * masterSecret * epoch * StatefulAEAD.writer * cVerifyData * log
-   | ServerWritingFinished        of SessionInfo * masterSecret * cVerifyData * sVerifyData
+   | ServerWritingCCS             of SessionInfo * PRF.masterSecret * epoch * StatefulAEAD.writer * cVerifyData * log
+   | ServerWritingFinished        of SessionInfo * PRF.masterSecret * cVerifyData * sVerifyData
 
-   | ServerWritingCCSResume       of epoch * StatefulAEAD.writer * epoch * StatefulAEAD.reader * masterSecret * log
-   | ClientCCSResume              of epoch * StatefulAEAD.reader * sVerifyData * masterSecret * log
-   | ClientFinishedResume         of SessionInfo * masterSecret * sVerifyData * log
+   | ServerWritingCCSResume       of epoch * StatefulAEAD.writer * epoch * StatefulAEAD.reader * PRF.masterSecret * log
+   | ClientCCSResume              of epoch * StatefulAEAD.reader * sVerifyData * PRF.masterSecret * log
+   | ClientFinishedResume         of SessionInfo * PRF.masterSecret * sVerifyData * log
 
    | ServerIdle                   of cVerifyData * sVerifyData
    (* the ProtocolVersion is the highest TLS version proposed by the client *)
@@ -692,19 +691,19 @@ type clientState =
    | ServerCertificateDHE         of SessionInfo * log
    | ClientCheckingCertificateDHE of SessionInfo * log * bytes
    | ServerKeyExchangeDHE         of SessionInfo * log
-   | CertificateRequestDHE        of SessionInfo * DHE.p * DHE.g * DHE.elt * log
-   | ServerHelloDoneDHE           of SessionInfo * Cert.sign_cert * DHE.p * DHE.g * DHE.elt * log
+   | CertificateRequestDHE        of SessionInfo * DHGroup.p * DHGroup.g * DHGroup.elt * log
+   | ServerHelloDoneDHE           of SessionInfo * Cert.sign_cert * DHGroup.p * DHGroup.g * DHGroup.elt * log
 
    | ServerKeyExchangeDH_anon of SessionInfo * log (* Not supported yet *)
-   | ServerHelloDoneDH_anon of SessionInfo * DHE.p * DHE.g * DHE.elt * log
+   | ServerHelloDoneDH_anon of SessionInfo * DHGroup.p * DHGroup.g * DHGroup.elt * log
 
-   | ClientWritingCCS       of SessionInfo * masterSecret * log
-   | ServerCCS              of SessionInfo * masterSecret * epoch * StatefulAEAD.reader * cVerifyData * log
-   | ServerFinished         of SessionInfo * masterSecret * cVerifyData * log
+   | ClientWritingCCS       of SessionInfo * PRF.masterSecret * log
+   | ServerCCS              of SessionInfo * PRF.masterSecret * epoch * StatefulAEAD.reader * cVerifyData * log
+   | ServerFinished         of SessionInfo * PRF.masterSecret * cVerifyData * log
 
-   | ServerCCSResume        of epoch * StatefulAEAD.writer * epoch * StatefulAEAD.reader * masterSecret * log
-   | ServerFinishedResume   of epoch * StatefulAEAD.writer * masterSecret * log
-   | ClientWritingCCSResume of epoch * StatefulAEAD.writer * masterSecret * sVerifyData * log
+   | ServerCCSResume        of epoch * StatefulAEAD.writer * epoch * StatefulAEAD.reader * PRF.masterSecret * log
+   | ServerFinishedResume   of epoch * StatefulAEAD.writer * PRF.masterSecret * log
+   | ClientWritingCCSResume of epoch * StatefulAEAD.writer * PRF.masterSecret * sVerifyData * log
    | ClientWritingFinishedResume of cVerifyData * sVerifyData
 
    | ClientIdle             of cVerifyData * sVerifyData
@@ -882,8 +881,8 @@ let next_fragment ci state =
             match cstate with
             | ClientWritingCCS (si,ms,log) ->
                 let next_ci = getNextEpochs ci si si.init_crand si.init_srand in
-                let (writer,reader) = PRFs.keyGen next_ci ms in
-                let cvd = makeVerifyData si Client ms log in
+                let (writer,reader) = PRF.keyGen next_ci ms in
+                let cvd = PRF.makeVerifyData si Client ms log in
                 let cFinished = messageBytes HT_finished cvd in
                 let log = log @| cFinished in
                 let state = {state with hs_outgoing = cFinished 
@@ -892,7 +891,7 @@ let next_fragment ci state =
                 let ci = {ci with id_out = next_ci.id_out} in 
                 OutCCS(rg,f,ci,writer,state)
             | ClientWritingCCSResume(e,w,ms,svd,log) ->
-                let cvd = makeVerifyData (epochSI e) Client ms log in
+                let cvd = PRF.makeVerifyData (epochSI e) Client ms log in
                 let cFinished = messageBytes HT_finished cvd in
                 let state = {state with hs_outgoing = cFinished
                                         pstate = PSClient(ClientWritingFinishedResume(cvd,svd))} in
@@ -903,7 +902,7 @@ let next_fragment ci state =
         | PSServer(sstate) ->
             match sstate with
             | ServerWritingCCS (si,ms,e,w,cvd,log) ->
-                let svd = makeVerifyData si Server ms log in
+                let svd = PRF.makeVerifyData si Server ms log in
                 let sFinished = messageBytes HT_finished svd in
                 let state = {state with hs_outgoing = sFinished
                                         pstate = PSServer(ServerWritingFinished(si,ms,cvd,svd))}
@@ -911,7 +910,7 @@ let next_fragment ci state =
                 let ci = {ci with id_out = e} in
                 OutCCS(rg,f,ci,w,state)
             | ServerWritingCCSResume(we,w,re,r,ms,log) ->
-                let svd = makeVerifyData (epochSI we) Server ms log in
+                let svd = PRF.makeVerifyData (epochSI we) Server ms log in
                 let sFinished = messageBytes HT_finished svd in
                 let log = log @| sFinished in
                 let state = {state with hs_outgoing = sFinished
@@ -1000,7 +999,7 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) state (si:SessionInfo) ce
 
     let log = log @| clientKEXBytes in
 
-    let ms = PRFs.prfSmoothRSA si pms in
+    let ms = CRE.prfSmoothRSA si state.poptions.maxVer pms in
     (* FIXME: here we should shred pms *)
     let certificateVerifyBytes =
         match cert_req with
@@ -1043,16 +1042,16 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) state (si:SessionInfo) ce
       | None          -> [||]
     let log = log @| clientCertBytes
 
-    let (cy,x) = DHE.genKey p g in
+    let (cy,x) = DHGroup.genKey p g in
     (* post: DHE.Exp((p,g),x,cy) *) 
 
     let clientKEXBytes = clientKEXExplicitBytes_DH cy in
     let log = log @| clientKEXBytes in
 
-    let pms = DHE.exp p g cy sy x in
+    let pms = DH.exp p g cy sy x in
     (* the post of this call is !sx,cy. PP((p,g) /\ DHE.Exp((p,g),x,cy)) /\ DHE.Exp((p,g),sx,sy) -> DHE.Secret((p,g),cy,sy) *)
     (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DHE.Secret((p,g),cy,sy) *) 
-    let ms = PRFs.prfSmoothDHE si p g cy sy pms in
+    let ms = CRE.prfSmoothDHE si p g cy sy pms in
     (* the post of this call is !p,g,gx,gy. StrongHS(si) /\ DHE.Secret((p,g),gx,gy) -> PRFs.Secret(ms) *)  
     (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> PRFs.Secret(ms) *) 
 
@@ -1200,7 +1199,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                     if si.cipher_suite = sh_cipher_suite then
                                         if si.compression = sh_compression_method then
                                             let next_ci = getNextEpochs ci si crand sh_random in
-                                            let (writer,reader) = PRFs.keyGen next_ci ms in
+                                            let (writer,reader) = PRF.keyGen next_ci ms in
                                             let state = {state with pstate = PSClient(ServerCCSResume(next_ci.id_out,writer,
                                                                                                       next_ci.id_in,reader,
                                                                                                       ms,log))} in
@@ -1372,7 +1371,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
         | HT_finished ->
             match cState with
             | ServerFinished(si,ms,cvd,log) ->
-                if checkVerifyData si Server ms log payload then
+                if PRF.checkVerifyData si Server ms log payload then
                     let sDB = 
                         if equalBytes si.sessionID [||] then state.sDB
                         else SessionDB.insert state.sDB (si.sessionID,Client,state.poptions.server_name) (si,ms)
@@ -1381,7 +1380,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 else
                     InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "Verify data did not match",state)
             | ServerFinishedResume(e,w,ms,log) ->
-                if checkVerifyData (epochSI ci.id_in) Server ms log payload then
+                if PRF.checkVerifyData (epochSI ci.id_in) Server ms log payload then
                     let log = log @| to_log in
                     let state = {state with pstate = PSClient(ClientWritingCCSResume(e,w,ms,payload,log))} in
                     InFinished(state)
@@ -1446,8 +1445,8 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs cvd svd
         let si = {si with serverID = c} in
         let certificateB = serverCertificateBytes c in
         (* ServerKEyExchange *)
-        let (p,g) = DHE.default_pp () in
-        let (y,x) = DHE.genKey p g in
+        let (p,g) = DH.default_pp () in
+        let (y,x) = DHGroup.genKey p g in
         let dheb = dheParamBytes p g y in
         let toSign = si.init_crand @| si.init_srand @| dheb in
         let sign = Sig.sign alg sk toSign in
@@ -1476,8 +1475,8 @@ let prepare_server_output_full_DH_anon (ci:ConnectionInfo) state si cvd svd log 
     let serverHelloB = prepare_server_hello si si.init_srand state.poptions cvd svd in
     
     (* ServerKEyExchange *)
-    let (p,g) = DHE.default_pp () in
-    let (y,x) = DHE.genKey p g in
+    let (p,g) = DH.default_pp () in
+    let (y,x) = DHGroup.genKey p g in
     let serverKEXB = serverKeyExchange_DH_anon p g y in
  
     let output = serverHelloB @|serverKEXB @| serverHelloDoneBytes in
@@ -1511,7 +1510,7 @@ let prepare_server_output_resumption ci state crand si ms cvd svd log =
     let log = log @| sHelloB
     let state = {state with hs_outgoing = sHelloB} in
     let next_ci = getNextEpochs ci si crand srand in
-    let (writer,reader) = PRFs.keyGen next_ci ms in
+    let (writer,reader) = PRF.keyGen next_ci ms in
     let state = {state with pstate = PSServer(ServerWritingCCSResume(next_ci.id_out,writer,
                                                                      next_ci.id_in,reader,
                                                                      ms,log))} in
@@ -1670,7 +1669,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(pms) ->
                     let log = log @| to_log in
-                    let ms = PRFs.prfSmoothRSA si pms in
+                    let ms = CRE.prfSmoothRSA si cv pms in
                     (* TODO: we should shred the pms *)
                     (* move to new state *)
                     if state.poptions.request_client_certificate then
@@ -1686,9 +1685,9 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let log = log @| to_log in
 
                     (* from the local state, we know: PP((p,g)) /\ ?gx. DHE.Exp((p,g),x,gx) ; tweak the ?gx for genPMS. *)
-                    let pms = DHE.exp p g gx y x in
+                    let pms = DH.exp p g gx y x in
                     (* StrongHS(si) /\ DHE.Exp((p,g),?cx,y) -> DHE.Secret(pms) *)
-                    let ms = PRFs.prfSmoothDHE si p g gx y pms in
+                    let ms = CRE.prfSmoothDHE si p g gx y pms in
                     (* StrongHS(si) /\ DHE.Exp((p,g),?cx,y) -> PRFs.Secret(ms) *)
                     
                     (*$ TODO in e.g. DHE: we should shred the pms *)
@@ -1705,8 +1704,8 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(y) ->
                     let log = log @| to_log in
-                    let pms = DHE.exp p g gx y x in
-                    let ms = PRFs.prfSmoothDHE si p g gx y pms in
+                    let pms = DH.exp p g gx y x in
+                    let ms = CRE.prfSmoothDHE si p g gx y pms in
                     (* TODO: here we should shred pms *)
                     (* move to new state *)
                     let state = {state with pstate = PSServer(ClientCCS(si,ms,log))} in
@@ -1728,14 +1727,14 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
         | HT_finished ->
             match sState with
             | ClientFinished(si,ms,e,w,log) ->
-                if checkVerifyData si Client ms log payload then
+                if PRF.checkVerifyData si Client ms log payload then
                     let log = log @| to_log in
                     let state = {state with pstate = PSServer(ServerWritingCCS(si,ms,e,w,payload,log))} in
                     InFinished(state)
                 else
                     InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "Verify data did not match",state)
             | ClientFinishedResume(si,ms,svd,log) ->
-                if checkVerifyData si Client ms log payload then
+                if PRF.checkVerifyData si Client ms log payload then
                     let state = {state with pstate = PSServer(ServerIdle(payload,svd))} in
                     InComplete(state)                       
                 else
@@ -1782,7 +1781,7 @@ let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:DataStream.range) (fragmen
             match sState with
             | ClientCCS(si,ms,log) ->
                 let next_ci = getNextEpochs ci si si.init_crand si.init_srand in
-                let (writer,reader) = PRFs.keyGen next_ci ms in
+                let (writer,reader) = PRF.keyGen next_ci ms in
                 let ci = {ci with id_in = next_ci.id_in} in
                 let state = {state with pstate = PSServer(ClientFinished(si,ms,next_ci.id_out,writer,log))} in
                 InCCSAck(ci,reader,state)

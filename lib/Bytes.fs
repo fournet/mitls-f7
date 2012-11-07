@@ -58,6 +58,9 @@ let now () = DT (System.DateTime.Now)
 let newTimeSpan h d m s = TS (new System.TimeSpan(h,d,m,s))
 let addTimeSpan (DT(a)) (TS(b)) = DT (a + b)
 let greaterDateTime (DT(a)) (DT(b)) = a > b
+let makeTimestamp () =
+    let t = (System.DateTime.UtcNow - new System.DateTime(1970, 1, 1))
+    (int) t.TotalSeconds
 
 (* List operation functions. Currently only used by the Handshake. *)
 let fold (op: bytes-> bytes-> bytes) state data = List.fold op state data

@@ -7,7 +7,7 @@ val load: filename: string -> Map
 val store: filename:string -> map:Map -> unit
 *)
 
-type StorableSession = si:SessionInfo * (;si)PRFs.masterSecret
+type StorableSession = si:SessionInfo * (;si)PRF.masterSecret
 
 type SessionDB
 type SessionIndex = sessionID * Role * Cert.hint

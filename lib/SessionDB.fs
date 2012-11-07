@@ -15,7 +15,7 @@ type SessionIndex = sessionID * Role * Cert.hint
    - Upper level functions acquire read/upgradeable read/write lock as appropriate *)
 let DBLock = new ReaderWriterLockSlim()
 
-type StorableSession = SessionInfo * PRFs.masterSecret
+type StorableSession = SessionInfo * PRF.masterSecret
 
 let load filename =
     let bf = new BinaryFormatter() in

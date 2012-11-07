@@ -5,8 +5,8 @@ open Error
 open TLSConstants
 open TLSInfo
 
-let encrypt key id (pms:RSAPlain.pms) =
-    let v = RSAPlain.leak id pms
+let encrypt key pv pms =
+    let v = CRE.leakRSA key pv pms
     CoreACiphers.encrypt_pkcs1 (RSAKeys.repr_of_rsapkey key) v
 
 let decrypt_int dk si cv cvCheck encPMS =
@@ -34,4 +34,8 @@ let decrypt_int dk si cv cvCheck encPMS =
         expected @| fakepms
 
 let decrypt dk si cv check_client_version_in_pms_for_old_tls encPMS =
-    RSAPlain.coerce si (decrypt_int dk si cv check_client_version_in_pms_for_old_tls encPMS)
+    match Cert.get_chain_public_encryption_key si.serverID with
+    | Error(x,y) -> unexpectedError (perror __SOURCE_FILE__ __LINE__ "The server identity should contain a valid certificate")
+    | Correct(pk) ->
+        let pmsb = decrypt_int dk si cv check_client_version_in_pms_for_old_tls encPMS in
+        CRE.coerceRSA pk cv pmsb

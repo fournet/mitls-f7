@@ -4,7 +4,7 @@ open TLSInfo
 
 type SessionDB
 type SessionIndex = sessionID * Role * Cert.hint
-type StorableSession = SessionInfo * PRFs.masterSecret
+type StorableSession = SessionInfo * PRF.masterSecret
 
 val create: config -> SessionDB
 val select: SessionDB -> SessionIndex -> StorableSession option

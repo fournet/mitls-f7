@@ -120,5 +120,5 @@ let defaultConfig ={
     client_name = "www.inria.fr"
 
     sessionDBFileName = "sessionDBFile.bin"
-    sessionDBExpiry = newTimeSpan 2 0 0 0 (* two days *)
+    sessionDBExpiry = newTimeSpan 1 0 0 0 (* one day, as suggested by the RFC *)
     }

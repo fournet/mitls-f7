@@ -123,12 +123,18 @@ let macSize alg = hashSize alg
 //    | SHA384        -> 48
 
 
-(* SSL constants *)
+(* SSL/TLS constants *)
 
 let ssl_pad1_md5  = createBytes 48 0x36
 let ssl_pad2_md5  = createBytes 48 0x5c
 let ssl_pad1_sha1 = createBytes 40 0x36
 let ssl_pad2_sha1 = createBytes 40 0x5c
+let ssl_sender_client = [|0x43uy; 0x4Cuy; 0x4Euy; 0x54uy|]
+let ssl_sender_server = [|0x53uy; 0x52uy; 0x56uy; 0x52uy|]
+let tls_sender_client = "client finished"
+let tls_sender_server = "server finished"
+let tls_master_secret = "master secret"
+let tls_key_expansion = "key expansion"
 
 (* ------------------------------------------------------------------------ *)
 (* Key parameters *)

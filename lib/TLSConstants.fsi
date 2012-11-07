@@ -54,11 +54,17 @@ val macKeySize: hashAlg -> int
 val macSize: hashAlg -> int
 val hashSize: hashAlg -> int
 
-(* SSL Constants *)
+(* SSL/TLS Constants *)
 val ssl_pad1_md5: bytes
 val ssl_pad2_md5: bytes
 val ssl_pad1_sha1: bytes
 val ssl_pad2_sha1: bytes
+val ssl_sender_client: bytes
+val ssl_sender_server: bytes
+val tls_sender_client: string
+val tls_sender_server: string
+val tls_master_secret: string
+val tls_key_expansion: string
 
 type cipherSuite
 
