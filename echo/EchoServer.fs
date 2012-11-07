@@ -11,6 +11,7 @@ type options = {
     tlsversion  : TLSConstants.ProtocolVersion;
     servername  : string;
     clientname  : string option;
+    localaddr   : IPEndPoint;
 }
 
 let noexn = fun cb ->

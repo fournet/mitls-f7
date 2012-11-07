@@ -2,6 +2,7 @@
 
 open System
 open System.IO
+open System.Net
 open System.Text
 
 open Microsoft.FSharp.Text
@@ -53,8 +54,23 @@ let parse_cmd () =
         ciphersuite = [ TLSConstants.TLS_RSA_WITH_RC4_128_SHA ];
         tlsversion  = TLSConstants.TLS_1p0;
         servername  = "needham.inria.fr";
-        clientname  = None; }
+        clientname  = None;
+        localaddr   = IPEndPoint(IPAddress.Loopback, 2443); }
     in
+
+    let o_port = fun i ->
+        if i <= 0 || i > 65535 then
+            raise (ArgError (sprintf "Invalid (bind) port: %d" i));
+        let ep = IPEndPoint((!options).localaddr.Address, i) in
+            options := { !options with localaddr = ep }
+
+    let o_address = fun s ->
+        try
+            let ip = IPAddress.Parse s
+            let ep = IPEndPoint(ip, (!options).localaddr.Port) in
+                options := { !options with localaddr = ep }
+        with :?System.FormatException ->
+            raise (ArgError (sprintf "Invalid IP Address: %s" s))
 
     let o_ciphers (ciphers : string) =
         let ciphers =
@@ -94,11 +110,13 @@ let parse_cmd () =
 
     let specs =
         let specs = [
-            "--ciphers"    , ArgType.String o_ciphers    , ":-separated ciphers list"
-            "--tlsversion" , ArgType.String o_version    , "TLS version to accept / propose"
-            "--client-name", ArgType.String o_client_name, "TLS client name"
-            "--server-name", ArgType.String o_server_name, (sprintf "TLS server name (default: %s)" (!options).servername)
-            "--list"       , ArgType.Unit   o_list       , "Print supported version/ciphers and exit" ]
+            "--bind-port"   , ArgType.Int    o_port       , "local port"
+            "--bind-address", ArgType.String o_address    , "local address"
+            "--ciphers"     , ArgType.String o_ciphers    , ":-separated ciphers list"
+            "--tlsversion"  , ArgType.String o_version    , "TLS version to accept / propose"
+            "--client-name" , ArgType.String o_client_name, "TLS client name"
+            "--server-name" , ArgType.String o_server_name, (sprintf "TLS server name (default: %s)" (!options).servername)
+            "--list"        , ArgType.Unit   o_list       , "Print supported version/ciphers and exit" ]
         in
             specs |> List.map (fun (sh, ty, desc) -> ArgInfo(sh, ty, desc))
 
