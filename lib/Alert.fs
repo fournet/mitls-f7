@@ -137,26 +137,25 @@ let send_alert (ci:ConnectionInfo) state alertDesc =
     else
         state (* Just ignore the request *)
 
+// We implement locally fragmentation, not hiding any length
+let makeFragment ki b =
+    let (b0,rem) = if length b < DataStream.max_TLSCipher_fragment_length then (b,[||])
+                   else Bytes.split b DataStream.max_TLSCipher_fragment_length
+    let r0 = (length b0, length b0) in
+    let f = Fragment.fragmentPlain ki r0 b0 in
+    ((r0,f),rem)
+
 let next_fragment ci state =
     match state.al_outgoing with
     | [||] ->
         (EmptyALFrag, state)
     | d ->
-        // FIXME: cleanup when alert is ported to streams
-        let stream = DataStream.init ci.id_out in
-        let rg = (length d,length d) in
-        let dFull = deltaPlain ci.id_out stream rg d in
-        let (r0,r1) = splitRange ci.id_out rg in
-        let (d,dRem) = DataStream.split ci.id_out stream r0 r1 dFull in
-        let df,_ = Fragment.fragment ci.id_out stream r0 d in
-        let frag = deltaRepr ci.id_out stream r0 d in
-        let rem = deltaRepr ci.id_out stream r1 dRem in
+        let ((r0,df),rem) = makeFragment ci.id_out d in
         let state = {state with al_outgoing = rem} in
         match rem with
         | [||] ->
-            (* We now need to know which alert we're sending, in order to return the proper
-               constructor to Dispatch. *)
-            match parseAlert frag with
+            // FIXME: This hack is not even working, because if we do one-bye fragmentation parseAlert fails!
+            match parseAlert d with
             | Error(x,y) -> unexpectedError (y + "[next_fragment] This invocation of parseAlertDescription should never fail")
             | Correct(ad) ->
                 match ad with
@@ -177,7 +176,7 @@ let handle_alert ci state alDesc =
             ALWarning (alDesc,state)
 
 let recv_fragment (ci:ConnectionInfo) state (r:range) (f:Fragment.fragment) =
-    // FIXME: cleanup when alert is ported to streams and deltas
+    // FIXME: we should accept further data after a warning alert! (Parsing sequences of messages in Handshake style)
     let fragment = Fragment.fragmentRepr ci.id_in r f in
     match state.al_incoming with
     | [||] ->
