@@ -36,7 +36,7 @@ let tlsoptions (options : options) = {
     TLSInfo.server_name = options.servername
     TLSInfo.client_name = match options.clientname with None -> "" | Some x -> x
 
-    TLSInfo.sessionDBFileName = options.sessiondir
+    TLSInfo.sessionDBFileName = Path.Combine(options.sessiondir, "sessionDBFile.bin")
     TLSInfo.sessionDBExpiry   = Bytes.newTimeSpan 2 0 0 0 (* two days *)
 }
 
