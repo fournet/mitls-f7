@@ -8,12 +8,15 @@ src    = \
 deps   = ../bin/CoreCrypto.dll ../bin/TLSLib.dll ../bin/TLSStream.dll
 target = ../bin/EchoServer.exe
 
-.PHONY: all dist
+.PHONY: all dist make.in
 
 all: $(target)
 
 dist:
 	cp $(src) $(distdir)
+
+make.in:
+	@true
 
 $(target): $(src) $(deps)
 	$(fsc) $(fsflags) $(addprefix -r ,$(deps)) -o $@ $(src)

@@ -9,13 +9,16 @@ subdirs  += BouncyCastle CoreCrypto lib TLSharp
 subdirs  += HttpServer echo rpc
 subdirs  += www-data
 
-.PHONY = all build dist
+.PHONY = all build make.in dist
 
 all: build
 
 build:
 	[ -d bin ] || mkdir bin
 	set -e; for d in $(subdirs); do $(MAKE) -f Makefile.build -C $$d; done
+
+make.in:
+	set -e; for d in $(subdirs); do $(MAKE) -f Makefile.build -C $$d make.in; done
 
 dist:
 	rm -rf $(distname) && mkdir $(distname)

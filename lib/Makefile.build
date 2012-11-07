@@ -6,12 +6,15 @@ target  = ../bin/TLSLib.dll
 
 include ../Makefile.config
 
-.PHONY: all dist
+.PHONY: all dist make.in
 
 all: $(target)
 
 dist:
 	cp Makefile.config $(src) $(distdir)
+
+make.in: Makefile.config
+	@true
 
 $(target): $(src) $(deps)
 	$(fsc) $(fsflags) --warn:0 $(addprefix -r ,$(deps)) -a -o $@ $(src)

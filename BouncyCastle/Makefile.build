@@ -7,7 +7,7 @@ target    = ../bin/BouncyCastle.dll
 mycsflags = /d:INCLUDE_IDEA /nowarn:0414 /nowarn:0219
 
 # --------------------------------------------------------------------
-.PHONY: all dist
+.PHONY: all dist make.in
 
 all: $(target)
 
@@ -16,6 +16,9 @@ dist:
 	find bzip2 src -type f -name '*.cs' -print0 | \
 		tar --null -T - -cf - | \
 		tar -C '$(distdir)' -xof -
+
+make.in:
+	@true
 
 $(target): $(srcs)
 	$(csc) $(csflags) $(mycsflags) /target:library /out:$@ /recurse:*.cs

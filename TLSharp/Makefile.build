@@ -4,12 +4,15 @@ src    = TLStream.fs
 deps   = ../bin/CoreCrypto.dll ../bin/TLSLib.dll
 target = ../bin/TLSStream.dll
 
-.PHONY: all dist
+.PHONY: all dist make.in
 
 all: $(target)
 
 dist:
 	cp $(src) $(distdir)
+
+make.in:
+	@true
 
 $(target): $(src) $(deps)
 	$(fsc) $(fsflags) $(addprefix -r ,$(deps)) -a -o $@ $(src)
