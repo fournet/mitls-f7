@@ -120,6 +120,7 @@ def _check_for_config(driver, config):
                    '--bind-address' , str(config.address[0]),
                    '--bind-port'    , str(config.address[1]),
                    '--ciphers'      , config.cipher,
+                   '--server-name'  , config.servname,
                    '--sessionDB-dir', sessiondir]
 
         logging.debug('Starting echo server [%s]' % (' '.join(command)))
@@ -194,9 +195,10 @@ def _main():
     for cipher in ciphers:
         logging.info("Checking for cipher: `%s'" % (cipher,))
 
-        config = Object(cacrt   = 'pki/certificates/ca.crt',
-                        cipher  = cipher,
-                        address = bind)
+        config = Object(cacrt    = 'pki/certificates/ca.crt',
+                        cipher   = cipher,
+                        address  = bind,
+                        servname = servname)
         nerrors += int(not _check_for_config(driver, config))
 
     logging.info('# errors: %d' % (nerrors,))

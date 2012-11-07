@@ -2,7 +2,7 @@
 <config>
   <driver>OpenSSL</driver>
   <bind>127.0.0.1:6000</bind>
-  <servname>needham.inria.fr</servname>
+  <servname>cert-01.needham.inria.fr</servname>
   <ciphers>
     TLS_RSA_WITH_RC4_128_SHA
   </ciphers>
