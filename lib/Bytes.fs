@@ -58,3 +58,13 @@ let now () = DT (System.DateTime.Now)
 let newTimeSpan h d m s = TS (new System.TimeSpan(h,d,m,s))
 let addTimeSpan (DT(a)) (TS(b)) = DT (a + b)
 let greaterDateTime (DT(a)) (DT(b)) = a > b
+
+(* List operation functions. Currently only used by the Handshake. *)
+let fold (op: bytes-> bytes-> bytes) state data = List.fold op state data
+let filter f l = List.filter f l
+let foldBack (f:bytes -> bytes -> bytes) bl s = List.foldBack f bl s
+let exists f l = List.exists f l
+let choose f l = List.choose f l
+let tryFind f l = List.tryFind f l
+let listLength (l:'a list) = l.Length
+let listHead (l:'a list) = l.Head

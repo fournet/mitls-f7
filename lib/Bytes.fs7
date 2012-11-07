@@ -97,3 +97,13 @@ val now: unit -> DateTime
 val newTimeSpan: nat -> nat -> nat -> nat -> TimeSpan
 val addTimeSpan: DateTime -> TimeSpan -> DateTime
 val greaterDateTime: DateTime -> DateTime -> bool
+
+(* List operation functions. *)
+val fold: (bytes -> bytes -> bytes) -> bytes -> bytes list -> bytes
+val filter: ('a -> bool) -> 'a list -> 'a list
+val foldBack: (bytes -> bytes -> bytes) -> bytes list -> bytes -> bytes
+val exists: ('a -> bool) -> 'a list -> bool // Used parametrically in HS.
+val choose: ('a -> 'b option) -> 'a list -> 'b list // Not used parametrically in HS, but types are not defined here.
+val tryFind: ('a -> bool) -> 'a list -> 'a option
+val listLength: l:('a list) -> len:nat{ListLength(l)=len}
+val listHead: l:('a list){ListLength(l) > 0} -> 'a

@@ -119,7 +119,7 @@ let extensionBytes extType data =
     extTBytes @| payload
 
 let extensionListBytes el =
-    let flat = List.fold (@|) [||] el in
+    let flat = Bytes.fold (@|) [||] el in
     vlbytes 2 flat
 
 let rec parseExtensionList_int data list =
@@ -148,8 +148,8 @@ let parseExtensionList data =
             | Correct(extList) ->
                 (* Check there is at most one renegotiation_info extension *)
                 // FIXME: Currently only working for renegotiation extension. Check that each extension appears only once
-                let ren_ext_list = List.filter (fun (ext,_) -> ext = HExt_renegotiation_info) extList in
-                if ren_ext_list.Length > 1 then
+                let ren_ext_list = Bytes.filter (fun (ext,_) -> ext = HExt_renegotiation_info) extList in
+                if listLength ren_ext_list > 1 then
                     Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Same extension received more than once")
                 else
                     correct(ren_ext_list)
@@ -171,30 +171,30 @@ let checkClientRenegotiationInfoExtension (ren_ext_list:(extensionType * bytes) 
     if equalBytes expected [||] 
     then  
         (* First handshake *)
-        if ren_ext_list.Length = 0 
+        if listLength ren_ext_list = 0 
         then has_SCSV
             (* either client gave SCSV and no extension; this is OK for first handshake *)
             (* or the client doesn't support this extension and we fail *)
         else
-            let ren_ext = ren_ext_list.Head in
+            let ren_ext = listHead ren_ext_list in
             let (extType,payload) = ren_ext in
             check_reneg_info payload expected
     else
         (* Not first handshake *)
-        if has_SCSV || (ren_ext_list.Length = 0) then false
+        if has_SCSV || (listLength ren_ext_list = 0) then false
         else
-            let ren_ext = ren_ext_list.Head in
+            let ren_ext = listHead ren_ext_list in
             let (extType,payload) = ren_ext in
             check_reneg_info payload expected
 
 let inspect_ServerHello_extensions (extList:(extensionType * bytes) list) expected =
     // FIXME: Only works for renegotiation info at the moment
     (* We expect to find exactly one extension *)
-    match extList.Length with
+    match listLength extList with
     | 0 -> Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Not enough extensions given")
     | x when not (x = 1) -> Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Too many extensions given")
     | _ ->
-        let (extType,payload) = extList.Head in
+        let (extType,payload) = listHead extList in
         match extType with
         | HExt_renegotiation_info ->
             (* Check its content *)
@@ -288,7 +288,7 @@ let CCSBytes = [| 1uy |]
 let serverHelloDoneBytes = messageBytes HT_server_hello_done [||] 
 
 let certificateListBytes certs =
-    vlbytes 3 (List.foldBack (fun c a -> vlbytes 3 c @| a) certs [||])
+    vlbytes 3 (Bytes.foldBack (fun c a -> vlbytes 3 c @| a) certs [||])
 
 let serverCertificateBytes cl = messageBytes HT_certificate (certificateListBytes cl)
 
@@ -402,10 +402,10 @@ let default_sigHashAlg pv cs =
     default_sigHashAlg_fromSig pv (sigAlg_of_ciphersuite cs)
 
 let sigHashAlg_contains (algList:Sig.alg list) (alg:Sig.alg) =
-    List.exists (fun a -> a = alg) algList
+    Bytes.exists (fun a -> a = alg) algList
 
 let sigHashAlg_bySigList (algList:Sig.alg list) (sigAlgList:sigAlg list) =
-    List.choose (fun alg -> let (sigA,_) = alg in if (List.exists (fun a -> a = sigA) sigAlgList) then Some(alg) else None) algList
+    Bytes.choose (fun alg -> let (sigA,_) = alg in if (Bytes.exists (fun a -> a = sigA) sigAlgList) then Some(alg) else None) algList
 
 let cert_type_to_SigHashAlg ct pv =
     match ct with
@@ -559,7 +559,7 @@ let parseDigitallySigned expectedAlgs payload pv =
         | Error(x,y) -> Error(x,y)
         | Correct(sign) ->
         // assert: expectedAlgs contains exactly one element
-        correct(expectedAlgs.Head,sign)
+        correct(listHead expectedAlgs,sign)
 
 (* Server Key exchange *)
 
@@ -1151,11 +1151,11 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                   else
                   // Check that the negotiated ciphersuite is in the proposed list.
                   // Note: if resuming a session, we still have to check that this ciphersuite is the expected one!
-                  if not (List.exists (fun x -> x = sh_cipher_suite) state.poptions.ciphersuites) 
+                  if not (Bytes.exists (fun x -> x = sh_cipher_suite) state.poptions.ciphersuites) 
                   then InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Ciphersuite negotiation",state)
                   else
                   // Check that the compression method is in the proposed list.
-                  if not (List.exists (fun x -> x = sh_compression_method) state.poptions.compressions) 
+                  if not (Bytes.exists (fun x -> x = sh_compression_method) state.poptions.compressions) 
                   then InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Compression method negotiation",state)
                   else
                   // Parse extensions
@@ -1502,7 +1502,7 @@ let prepare_server_output_full ci state si cv calgs cvd svd log =
 
 // The server "negotiates" its first proposal included in the client's proposal
 let negotiate cList sList =
-    List.tryFind (fun s -> List.exists (fun c -> c = s) cList) sList
+    Bytes.tryFind (fun s -> Bytes.exists (fun c -> c = s) cList) sList
 
 let prepare_server_output_resumption ci state crand si ms cvd svd log =
     let srand = makeRandom () in
@@ -1605,8 +1605,8 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                             (* We have the requested session stored *)
                             (* Check that the client proposals match those of our stored session *)
                             when ch_client_version >= storedSinfo.protocol_version
-                              && List.exists (fun cs -> cs = storedSinfo.cipher_suite) ch_cipher_suites
-                              && List.exists (fun cm -> cm = storedSinfo.compression) ch_compression_methods ->
+                              && Bytes.exists (fun cs -> cs = storedSinfo.cipher_suite) ch_cipher_suites
+                              && Bytes.exists (fun cm -> cm = storedSinfo.compression) ch_compression_methods ->
                               
                                 (* Proceed with resumption *)
                                 let state = prepare_server_output_resumption ci state ch_random storedSinfo storedMS cvd svd log 
