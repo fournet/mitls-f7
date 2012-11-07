@@ -19,18 +19,19 @@ type (;p:p) g = (;p) elt  // for the group generator
 predicate val PP: p:p * g:(;p) g -> bool 
 
 // the RFCs are vague about best practices for ppgen
-val gen_pp:     unit -> p:p * g:(;p) elt {PP(p,g)} 
-val default_pp: unit -> p:p * g:(;p) elt {PP(p,g)} 
+val gen_pp:     unit -> p:p * g:(;p) g {PP(p,g)} 
+val default_pp: unit -> p:p * g:(;p) g {PP(p,g)} 
 
 // group elements are now concrete bytes
 // val eltBytes: p:p -> (;p) elt -> bytes 
 // val eltParse: p:p -> bytes -> (;p) elt  
 
-type (;p:p,g:elt,gx:elt) secret // private secret x, y, ... represented as some big integer modulo p
+//AP: Should be (;p:p,g:(;p)g,gx:(;p)elt) secret
+type (;p:p,g:g,gx:elt) secret // private secret x, y, ... represented as some big integer modulo p
 
 val genKey: p:p -> g: (;p) g -> gx:(;p) elt * (;p,g,gx) secret  
 
-type (;p:p, g:(;p) elt, gx:(;p) elt, gy:(;p) elt) pms // strong secret when (p,g), gx, and gy have been honestly generated
+type (;p:p, g:(;p) g, gx:(;p) elt, gy:(;p) elt) pms // strong secret when (p,g), gx, and gy have been honestly generated
  
 // used only within PRFs
 val leak:   p:p -> g:(;p)elt -> gx:(;p)elt -> gy:(;p)elt -> (;p,g,gx,gy) pms -> (;p) elt  
