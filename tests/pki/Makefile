@@ -16,7 +16,7 @@ CASUBJECT=/C=$(C)/ST=$(ST)/L=$(L)/O=$(O)/OU=$(OU)/CN=$(CN)/emailAddress=$(EA)
 
 # --------------------------------------------------------------------
 define layout
-	if [ ! -d $(PKI)/db ]; then             \
+	if [ ! -d $(PKI)/db ]; then                 \
 		mkdir $(PKI)/db;                    \
 		mkdir $(PKI)/db/ca.db.certs;        \
 		touch $(PKI)/db/ca.db.serial;       \
@@ -25,7 +25,11 @@ define layout
 	fi
 
 	if [ ! -d $(PKI)/certificates ]; then \
-		mkdir $(PKI)/certificates;        \
+		mkdir $(PKI)/certificates;    \
+	fi
+
+	if [ ! -d $(PKI)/imported ]; then \
+		mkdir $(PKI)/imported;    \
 	fi
 endef
 
@@ -82,6 +86,18 @@ certificates/cert-%.needham.inria.fr.csr: certificates/cert-%.needham.inria.fr.k
 	openssl x509 -in $@ -noout -text
 
 # --------------------------------------------------------------------
+imported/ca.imported:
+	umask 077; certmgr -add -c CA certificates/ca.crt
+	touch $@
+
+imported/%.imported: certificates/%.p12
+	umask 077; ( set -e;                                 \
+	  certmgr -add       -c My certificates/$*.crt;      \
+	  certmgr -importKey -c -p '' My certificates/$*.p12 \
+	)
+	touch $@
+
+# --------------------------------------------------------------------
 %.key:
 	openssl genrsa -out $@ 1024
 
@@ -97,3 +113,4 @@ layout:
 clean:
 	rm -rf $(PKI)/certificates
 	rm -rf $(PKI)/db
+	rm -rf $(PKI)/imported

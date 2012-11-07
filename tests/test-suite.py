@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 # --------------------------------------------------------------------
-import sys, os, socket, subprocess as sp, logging
+import sys, os, time, socket, shutil, tempfile, subprocess as sp, logging
 import lxml.etree as xml, cStringIO as sio
 
 # --------------------------------------------------------------------
@@ -44,16 +44,19 @@ class OSSLTunnel(object):
     }
 
     def __init__(self, sock, opts):
-        ctxt = ossl.Context(ossl.TLSv1_METHOD)
-        ctxt.set_options(ossl.OP_NO_SSLv2 | ossl.OP_NO_SSLv3)
-        ctxt.set_cipher_list(self._CIPHERS[opts.cipher])
-        ctxt.set_verify(ossl.VERIFY_PEER | ossl.VERIFY_FAIL_IF_NO_PEER_CERT,
-                        lambda _conn, _x509, _eo, _ed, ok : ok)
-        ctxt.load_verify_locations(opts.cacrt)
+	try:
+            ctxt = ossl.Context(ossl.TLSv1_METHOD)
+            ctxt.set_options(ossl.OP_NO_SSLv2 | ossl.OP_NO_SSLv3)
+            ctxt.set_cipher_list(self._CIPHERS[opts.cipher])
+            ctxt.set_verify(ossl.VERIFY_PEER | ossl.VERIFY_FAIL_IF_NO_PEER_CERT,
+                            lambda _conn, _x509, _eo, _ed, ok : ok)
+            ctxt.load_verify_locations(opts.cacrt)
 
-        self._conn = ossl.Connection(ctxt, sock)
-        self._conn.setblocking(True)
-        self._conn.set_connect_state()
+            self._conn = ossl.Connection(ctxt, sock)
+            self._conn.setblocking(True)
+            self._conn.set_connect_state()
+        except ossl.Error, e:
+            raise self._wrap_exn(e)
 
     def _wrap_exn(self, e):
         if isinstance(e, ossl.WantReadError):
@@ -105,13 +108,19 @@ DRIVERS = dict([('OpenSSL', OSSLTunnel)])
 
 # --------------------------------------------------------------------
 def _check_for_config(driver, config):
-    subp = None
+    subp       = None
+    sessiondir = None
 
     try:
-        command = ['EchoServer.exe',
-                   '--bind-address', str(config.address[0]),
-                   '--bind-port'   , str(config.address[1]),
-                   '--cipher'      , config.cipher]
+        logging.debug('Create empty session directory...')
+        sessiondir = tempfile.mkdtemp()
+        logging.debug('...created [%s]' % (sessiondir,))
+
+        command = ['mono', '../bin/EchoServer.exe',
+                   '--bind-address' , str(config.address[0]),
+                   '--bind-port'    , str(config.address[1]),
+                   '--ciphers'      , config.cipher,
+                   '--sessionDB-dir', sessiondir]
 
         logging.debug('Starting echo server [%s]' % (' '.join(command)))
 
@@ -121,8 +130,11 @@ def _check_for_config(driver, config):
             logging.error('Cannot start echo server: %s' % (e,))
             return False
 
+	logging.debug('Waiting echo server to settle up...')
+	time.sleep(1.5)
+
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
-        sock.connect(options.address)
+        sock.connect(config.address)
         sock = driver(sock, config)
 
         sock.handshake()
@@ -135,7 +147,9 @@ def _check_for_config(driver, config):
 
     finally:
         if subp is not None:
-            noexn(lambda : subp.kill())
+            subp.kill()
+        # if sessiondir is not None:
+        #     shutil.rmtree(sessiondir, ignore_errors = True)
 
 # --------------------------------------------------------------------
 def _main():
