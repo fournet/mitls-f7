@@ -20,7 +20,7 @@ let leakRSA (pk:RSAKeys.pk) (pv:ProtocolVersion) pms = pms.rsapms
 type dhpms = {dhpms: DHGroup.elt}
 
 let sampleDH p g (gx:DHGroup.elt) (gy:DHGroup.elt) = 
-    let (gz,z) = DHGroup.genKey p g
+    let gz = DHGroup.genElement p g in
     {dhpms = gz}
 
 let coerceDH (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) b = {dhpms = b}

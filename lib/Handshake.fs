@@ -646,11 +646,11 @@ type serverState =  (* note that the CertRequest bits are determined by the conf
    | ServerCheckingCertificateDH  of SessionInfo * log * bytes
    | ClientKeyExchangeDH          of SessionInfo * log 
 
-   | ClientCertificateDHE         of SessionInfo * DHGroup.p * DHGroup.g * DHGroup.elt * DHGroup.secret * log
-   | ServerCheckingCertificateDHE of SessionInfo * DHGroup.p * DHGroup.g * DHGroup.elt * DHGroup.secret * log * bytes
-   | ClientKeyExchangeDHE         of SessionInfo * DHGroup.p * DHGroup.g * DHGroup.elt * DHGroup.secret * log
+   | ClientCertificateDHE         of SessionInfo * DHGroup.p * DHGroup.g * DHGroup.elt * DH.secret * log
+   | ServerCheckingCertificateDHE of SessionInfo * DHGroup.p * DHGroup.g * DHGroup.elt * DH.secret * log * bytes
+   | ClientKeyExchangeDHE         of SessionInfo * DHGroup.p * DHGroup.g * DHGroup.elt * DH.secret * log
 
-   | ClientKeyExchangeDH_anon     of SessionInfo * DHGroup.p * DHGroup.g * DHGroup.elt * DHGroup.secret * log
+   | ClientKeyExchangeDH_anon     of SessionInfo * DHGroup.p * DHGroup.g * DHGroup.elt * DH.secret * log
 
    | CertificateVerify            of SessionInfo * PRF.masterSecret * log 
    | ClientCCS                    of SessionInfo * PRF.masterSecret * log
@@ -1035,7 +1035,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) state (si:SessionInfo) ce
       | None          -> [||]
     let log = log @| clientCertBytes
 
-    let (cy,x) = DHGroup.genKey p g in
+    let (cy,x) = DH.genKey p g in
     (* post: DHE.Exp((p,g),x,cy) *) 
 
     let clientKEXBytes = clientKEXExplicitBytes_DH cy in
@@ -1439,7 +1439,7 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs cvd svd
         let certificateB = serverCertificateBytes c in
         (* ServerKEyExchange *)
         let (p,g) = DH.default_pp () in
-        let (y,x) = DHGroup.genKey p g in
+        let (y,x) = DH.genKey p g in
         let dheb = dheParamBytes p g y in
         let toSign = si.init_crand @| si.init_srand @| dheb in
         let sign = Sig.sign alg sk toSign in
@@ -1469,7 +1469,7 @@ let prepare_server_output_full_DH_anon (ci:ConnectionInfo) state si cvd svd log 
     
     (* ServerKEyExchange *)
     let (p,g) = DH.default_pp () in
-    let (y,x) = DHGroup.genKey p g in
+    let (y,x) = DH.genKey p g in
     let serverKEXB = serverKeyExchange_DH_anon p g y in
  
     let output = serverHelloB @|serverKEXB @| serverHelloDoneBytes in

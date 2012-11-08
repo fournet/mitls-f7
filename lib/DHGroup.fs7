@@ -7,9 +7,4 @@ type p = bytes // DH group order, actually a bignum
 type (;p:p) elt = bytes   // for public parameters and exchange values
 type (;p:p) g = (;p) elt  // for the group generator
 
-//AP: Should be (;p:p,g:(;p)g,gx:(;p)elt) secret
-type (;p:p,g:g,gx:elt) secret
-
-val genKey: p:p -> g: (;p) g -> gx:(;p) elt * (;p,g,gx) secret
-
-val leak: p:p -> g:(;p)g -> gx:(;p)elt -> (;p,g,gx) secret -> bytes
+val genElement: p:p -> g:(;p)g -> (;p)elt
