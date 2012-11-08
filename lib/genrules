@@ -64,18 +64,19 @@ def _options(args):
 class TopoSortCycleException(Exception):
     pass
 
-def topoiter1(D, k, seen = None):
+def topoiter1(D, k, sk, seen = None):
     seen = dict() if seen is None else seen
     flag = seen.get(k, 0)
 
     if flag < 0:
+        print [k] + sk
         raise TopoSortCycleException()
     if flag > 0:
         return
 
     seen[k] = -1
     for x in D.get(k, []):
-        for y in topoiter1(D, x, seen):
+        for y in topoiter1(D, x, [k] + sk, seen):
             yield y
     seen[k] = 1
 
@@ -84,7 +85,7 @@ def topoiter1(D, k, seen = None):
 def topoiter(D):
     seen = dict()
     for k in D.iterkeys():
-        for x in topoiter1(D, k, seen):
+        for x in topoiter1(D, k, [], seen):
             yield x
 
 # --------------------------------------------------------------------
@@ -104,18 +105,22 @@ class FS7Deps(object):
 
         for name in files:
             modules  = set()
-            contents = open(srcfiles[name.lower() + '.fs7'], 'r').read()
-            contents = contents.splitlines()
-            contents = [re.sub(r'//.*', '', x) for x in contents]
-            contents = [re.sub(r'\s+', ' ', x.strip()) for x in contents]
 
-            for line in contents:
-                m = re.search(r'^open (\w+)', line)
-                if m is not None:
-                    modules.add(m.group(1).lower())
-                else:
-                    for m in re.finditer(r'(\w+?)\.\w+', line):
+            for ext in ['.fs', '.fsi', '.fs7']:
+                contents = open(srcfiles[name.lower() + ext], 'r').read()
+                contents = re.sub(r'\(\*.*?\*\)', '', contents, 0, re.M)
+                contents = re.sub(r'".*?"', '', contents)
+                contents = contents.splitlines()
+                contents = [re.sub(r'//.*', '', x) for x in contents]
+                contents = [re.sub(r'\s+', ' ', x.strip()) for x in contents]
+    
+                for line in contents:
+                    m = re.search(r'^open (\w+)', line)
+                    if m is not None:
                         modules.add(m.group(1).lower())
+                    else:
+                        for m in re.finditer(r'(\w+?)\.\w+', line):
+                            modules.add(m.group(1).lower())
 
             alldeps[name.lower()] = modules.intersection(lowfiles)
 
