@@ -312,7 +312,6 @@ val getMinVersion:        ci:ConnectionInfo -> (;ci)hs_state -> ProtocolVersion
 
 /// Misc
 
-// val makeRandom: unit -> (;32) lbytes 
 // 
 // //TODO? change sessionID to uniformally use [||] instead of None.
 // 

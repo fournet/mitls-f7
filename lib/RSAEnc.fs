@@ -12,7 +12,7 @@ let encrypt key pv pms =
 let decrypt_int dk si cv cvCheck encPMS =
   (* Security measures described in RFC 5246, section 7.4.7.1 *)
   (* 1. Generate random data, 46 bytes, for PMS except client version *)
-  let fakepms = mkRandom 46 in
+  let fakepms = Nonce.mkRandom 46 in
   (* 2. Decrypt the message to recover plaintext *)
   let expected = versionBytes cv in
   match CoreACiphers.decrypt_pkcs1 (RSAKeys.repr_of_rsaskey dk) encPMS with

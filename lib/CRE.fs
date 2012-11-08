@@ -10,7 +10,7 @@ type rsapms = {rsapms: rsarepr}
 
 let genRSA (pk:RSAKeys.pk) (vc:TLSConstants.ProtocolVersion) : rsapms = 
     let verBytes = TLSConstants.versionBytes vc in
-    let rnd = mkRandom 46 in
+    let rnd = Nonce.mkRandom 46 in
     let pms = verBytes @| rnd in
     {rsapms = pms}
 

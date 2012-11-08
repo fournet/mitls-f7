@@ -38,16 +38,16 @@ let GENOne ki =
     let alg = encAlg_of_ciphersuite si.cipher_suite in
     match alg with
     | RC4_128 ->
-        let k = mkRandom (encKeySize alg) in
+        let k = Nonce.mkRandom (encKeySize alg) in
         let key = {k = k} in
         StreamCipher({skey = key; sstate = CoreCiphers.rc4create k})
     | _ ->
     let key =
-        {k = mkRandom (encKeySize alg)}
+        {k = Nonce.mkRandom (encKeySize alg)}
     let iv =
         match si.protocol_version with
         | SSL_3p0 | TLS_1p0 ->
-            SomeIV(mkRandom (ivSize alg))
+            SomeIV(Nonce.mkRandom (ivSize alg))
         | TLS_1p1 | TLS_1p2 ->
             NoIV(true)
     BlockCipher ({key = key; iv = iv})
@@ -92,7 +92,7 @@ let ENC ki s tlen data =
         let iv =
             match s.iv with
             | SomeIV(b) -> b
-            | NoIV _    -> mkRandom ivl in
+            | NoIV _    -> Nonce.mkRandom ivl in
         let cipher =
             match alg with
             | TDES_EDE_CBC -> CoreCiphers.des3_cbc_encrypt s.key.k iv d

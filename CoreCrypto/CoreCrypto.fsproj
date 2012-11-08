@@ -39,6 +39,8 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CoreRandom.fsi" />
+    <Compile Include="CoreRandom.fs" />
     <Compile Include="CoreKeys.fsi" />
     <Compile Include="CoreKeys.fs" />
     <Compile Include="CoreHash.fsi" />

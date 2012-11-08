@@ -26,7 +26,7 @@ val read     : fd -> int * bytes
 val write    : fd -> bytes -> int
 val shutdown : fd -> unit
 
-val get_query : fd -> queryhd -> int * bytes[]
+val get_query : fd -> queryhd -> int * bytes array
 
 val authorize : fd -> queryhd -> int
 val refuse    : fd -> queryhd -> int
@@ -35,7 +35,11 @@ val rehandshake : fd -> config -> int
 val rekey       : fd -> config -> int
 val request     : fd -> config -> int
 
-val connect          : rawfd -> config -> fd
+val connect : rawfd -> conf:config -> i:fd {
+     ?c. get_conn(i) = Some c
+  /\ !c. get_conn(i) = Some c -> Pconnect(c)
+}
+
 val accept_connected : rawfd -> config -> fd
 
 val resume : rawfd -> bytes -> config -> int

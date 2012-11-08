@@ -25,10 +25,6 @@ val equalBytes: b0:bytes -> b1:bytes ->
   r:bool {(r = true /\ b0 = b1) \/ (r = false /\ b0 <> b1)}
 
 
-// cryptographically random bytes 
-val mkRandom: l:int -> b:bytes{Length(b) = l}
-
-
 (* array concatenation (append) *)
 
 val op_AtBar: b1:bytes -> b2:bytes -> b:bytes{b = b1 @| b2}
@@ -97,7 +93,6 @@ val now: unit -> DateTime
 val newTimeSpan: nat -> nat -> nat -> nat -> TimeSpan
 val addTimeSpan: DateTime -> TimeSpan -> DateTime
 val greaterDateTime: DateTime -> DateTime -> bool
-val makeTimestamp: unit -> int
 
 (* List operation functions. *)
 val fold: (bytes -> bytes -> bytes) -> bytes -> bytes list -> bytes

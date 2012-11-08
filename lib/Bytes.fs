@@ -33,11 +33,6 @@ let equalBytes (b1:bytes) (b2:bytes) =
     else
         Array.fold2 (fun ok x y -> (x = y) && ok) true b1 b2
 
-let rng = new System.Security.Cryptography.RNGCryptoServiceProvider ()
-let mkRandom len =
-    let x = Array.zeroCreate len in
-    rng.GetBytes x; x
-
 let (@|) (a:bytes) (b:bytes) = Array.append a b
 let split (b:bytes) i : bytes * bytes = 
   Array.sub b 0 i,
@@ -58,9 +53,6 @@ let now () = DT (System.DateTime.Now)
 let newTimeSpan h d m s = TS (new System.TimeSpan(h,d,m,s))
 let addTimeSpan (DT(a)) (TS(b)) = DT (a + b)
 let greaterDateTime (DT(a)) (DT(b)) = a > b
-let makeTimestamp () =
-    let t = (System.DateTime.UtcNow - new System.DateTime(1970, 1, 1))
-    (int) t.TotalSeconds
 
 (* List operation functions. Currently only used by the Handshake. *)
 let fold (op: bytes-> bytes-> bytes) state data = List.fold op state data

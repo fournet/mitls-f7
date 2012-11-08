@@ -33,6 +33,6 @@ let Verify ki key data tag =
 
 let GEN (ki) =
     let si = epochSI(ki) in
-    {k= mkRandom (macKeySize (macAlg_of_ciphersuite si.cipher_suite))}
+    {k= Nonce.mkRandom (macKeySize (macAlg_of_ciphersuite si.cipher_suite))}
 let COERCE (ki:epoch) k = {k=k}
 let LEAK (ki:epoch) {k=k} = k

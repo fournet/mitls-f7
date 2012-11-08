@@ -229,13 +229,6 @@ let parseClientHello data =
     let cm = parseCompressions cmBytes
     correct(cv,cr,sid,clientCipherSuites,cm,extensions)
      
-    
-let makeRandom() = // crypto abstraction? timing guarantees local disjointness
-    let time = makeTimestamp () in
-    let timeb = bytes_of_int 4 time in
-    let rnd = mkRandom 28 in
-    timeb @| rnd
-
 let clientHelloBytes poptions crand session cVerifyData =
     // TODO: Move extension parsing outside
     let ext =
@@ -731,7 +724,7 @@ type nextState = hs_state
 let init (role:Role) poptions =
     (* Start a new session without resumption, as the first epoch on this connection. *)
     let sid = [||] in
-    let rand = makeRandom() in
+    let rand = Nonce.mkClientRandom() in
     let ci = initConnection role rand in
     match role with
     | Client ->
@@ -766,7 +759,7 @@ let resume next_sid poptions =
     match retrievedSinfo.sessionID with
     | [||] -> unexpectedError "[resume_handshake] a resumed session should always have a valid sessionID"
     | sid ->
-    let rand = makeRandom () in
+    let rand = Nonce.mkClientRandom () in
     let ci = initConnection Client rand in
     let cHelloBytes = clientHelloBytes poptions rand sid [||] in
     let state = {hs_outgoing = cHelloBytes
@@ -784,7 +777,7 @@ let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     | PSClient (cstate) ->
         match cstate with
         | ClientIdle(cvd,svd) ->
-            let rand = makeRandom () in
+            let rand = Nonce.mkClientRandom () in
             let sid = [||] in
             let cHelloBytes = clientHelloBytes ops rand sid cvd in
             let state = {hs_outgoing = cHelloBytes
@@ -816,7 +809,7 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
             | PSClient (cstate) ->
                 match cstate with
                 | ClientIdle(cvd,svd) ->
-                    let rand = makeRandom () in
+                    let rand = Nonce.mkClientRandom () in
                     let cHelloBytes = clientHelloBytes ops rand sid cvd in
                     let state = {hs_outgoing = cHelloBytes
                                  hs_incoming = [||]
@@ -1504,7 +1497,7 @@ let negotiate cList sList =
     Bytes.tryFind (fun s -> Bytes.exists (fun c -> c = s) cList) sList
 
 let prepare_server_output_resumption ci state crand si ms cvd svd log =
-    let srand = makeRandom () in
+    let srand = Nonce.mkClientRandom () in
     let sHelloB = prepare_server_hello si srand state.poptions cvd svd in
 
     let log = log @| sHelloB
@@ -1529,8 +1522,8 @@ let startServerFull (ci:ConnectionInfo) state cHello cvd svd log =
             | Some(cm) ->
                 // Get the client supported SignatureAndHash algorithms. In TLS 1.2, this should be extracted from a client extension
                 let clientAlgs = default_sigHashAlg version cs in
-                let sid = mkRandom 32 in
-                let srand = makeRandom () in
+                let sid = Nonce.mkRandom 32 in
+                let srand = Nonce.mkClientRandom () in
                 (* Fill in the session info we're establishing *)
                 let si = { clientID         = []
                            serverID         = []

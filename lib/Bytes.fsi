@@ -14,8 +14,6 @@ val length: bytes -> int
 
 val equalBytes: bytes -> bytes -> bool
 
-val mkRandom: int -> bytes
-
 (* append *)
 val (@|): bytes -> bytes -> bytes
 val split: bytes -> int -> (bytes * bytes)
@@ -31,7 +29,6 @@ val now: unit -> DateTime
 val newTimeSpan: nat -> nat -> nat -> nat -> TimeSpan
 val addTimeSpan: DateTime -> TimeSpan -> DateTime
 val greaterDateTime: DateTime -> DateTime -> bool
-val makeTimestamp: unit -> int
 
 (* List operation functions. *)
 val fold: (bytes -> bytes -> bytes) -> bytes -> bytes list -> bytes
