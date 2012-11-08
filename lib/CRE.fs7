@@ -6,7 +6,7 @@ open TLSInfo
 open DHGroup
 
 type rsarepr = (;48)lbytes
-private type (;pk:RSAKeys.pk;pv:ProtocolVersion) rsapms = {rsapms:rsarepr}
+private type (;pk:RSAKeys.pk,pv:ProtocolVersion) rsapms = {rsapms:rsarepr}
 
 val genRSA: pk:RSAKeys.pk -> pv:ProtocolVersion -> (;pk,pv)rsapms
 
@@ -15,19 +15,19 @@ val leakRSA: pk:RSAKeys.pk -> pv:ProtocolVersion -> (;pk,pv)rsapms -> bytes
 
 type (;p:p, g:(;p) g, gx:(;p) elt, gy:(;p) elt) dhpms // strong secret when (p,g), gx, and gy have been honestly generated
 
-val sampleDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt ->         -> (;p,g,gx,gy) pms
-val coerceDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt -> (;p)elt -> (;p,g,gx,gy) pms
+val sampleDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt ->            (;p,g,gx,gy) dhpms
+val coerceDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt -> (;p)elt -> (;p,g,gx,gy) dhpms
 
 
 val prfSmoothRSA:
     si:SessionInfo ->
 	pv:ProtocolVersion ->
-    pms: (;RSAPKCert(si.serverID),pv) rsapms ->
-    (;si) masterSecret
+    pms: (;Cert.RSAPKCert(si.serverID),pv) rsapms ->
+    (;si) PRF.masterSecret
 
 // AP: Don't we really want *any* link between si and (g,p,gx,gy)?
 val prfSmoothDHE:
     si:SessionInfo ->
 	p:DHGroup.p -> g:(;p)DHGroup.g -> gx:(;p)DHGroup.elt -> gy:(;p)DHGroup.elt ->
     pms: (;p,g,gx,gy)dhpms ->
-    (;si) masterSecret
+    (;si) PRF.masterSecret

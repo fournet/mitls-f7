@@ -11,4 +11,4 @@ predicate val PP: p:p * g:(;p) g -> bool
 val gen_pp:     unit -> p:p * g:(;p) g {PP(p,g)}
 val default_pp: unit -> p:p * g:(;p) g {PP(p,g)}
 
-val exp: p:p -> g:(;p)g -> gx:(;p) elt -> gy:(;p) elt -> x:(;p,g,gx) secret -> (;p,g,gx,gy) pms
+val exp: p:p -> g:(;p)g -> gx:(;p) elt -> gy:(;p) elt -> x:(;p,g,gx) secret -> (;p,g,gx,gy) CRE.dhpms

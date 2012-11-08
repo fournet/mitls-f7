@@ -1,9 +1,16 @@
 ﻿module UTLS
 
+(* ------------------------------------------------------------------------ *)
 open Bytes
 open Error
 open Dispatch
 
+#if fs
+#else
+let lock (x : 'Lock) (f : unit -> 'T) : 'T = f ()
+#endif
+
+(* ------------------------------------------------------------------------ *)
 type rawfd   = Tcp.NetworkStream
 type fd      = int
 type queryhd = int
@@ -31,12 +38,17 @@ let handleinfo_of_conn = fun c ->
     { conn = c; queryidx = 0; queries = []; }
 
 let fds = ref ([] : (fd * handleinfo) list)
+let fdc = ref 0
 
 (* ------------------------------------------------------------------------ *)
 let new_fd = fun conn ->
-    let fd : fd = 1 + (List.max (List.map (fun (x, _) -> x) !fds)) in
-        fds := (fd, handleinfo_of_conn conn) :: !fds;
-        fd
+    let aux () =
+        let fd = !fdc in
+            fds := (fd, handleinfo_of_conn conn) :: !fds;
+            fdc := !fdc + 1;
+            fd
+    in
+        lock fds aux
 
 let apply_to_handle = fun fd f ->
     let rec doit = fun fds ->

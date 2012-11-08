@@ -26,16 +26,5 @@ val read     : fd -> int * bytes
 val write    : fd -> bytes -> int
 val shutdown : fd -> unit
 
-val get_query : fd -> queryhd -> int * bytes[]
-
-val authorize : fd -> queryhd -> int
-val refuse    : fd -> queryhd -> int
-
-val rehandshake : fd -> config -> int
-val rekey       : fd -> config -> int
-val request     : fd -> config -> int
-
 val connect          : rawfd -> config -> fd
 val accept_connected : rawfd -> config -> fd
-
-val resume : rawfd -> bytes -> config -> int
