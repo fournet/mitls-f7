@@ -50,6 +50,17 @@ let new_fd = fun conn ->
     in
         lock fds aux
 
+let rec unbind_fd_r = fun fd fds ->
+    match fds with
+    | [] -> []
+    | (h, hi) :: fds ->
+        let fds = unbind_fd_r fd fds in
+            if fd = h then fds else (h, hi) :: fds
+
+let unbind_fd = fun fd ->
+    fds := unbind_fd_r fd !fds
+
+(* ------------------------------------------------------------------------ *)
 let apply_to_handle = fun fd f ->
     let rec doit = fun fds ->
         match fds with
@@ -69,39 +80,7 @@ let connection_of_fd = fun fd ->
 let update_fd_connection = fun fd conn ->
     apply_to_handle fd (fun c -> ({c with conn = conn}, ()))
 
-let unbind_fd = fun fd ->
-    fds := List.filter (fun (i, c) -> i = fd) !fds
-
-let add_query_cert = fun fd query ->
-    apply_to_handle fd (fun c ->
-        let idx = c.queryidx in
-            ({ c with
-                    queryidx = c.queryidx + 1;
-                    queries  = (idx, query) :: c.queries }, idx))
-
-let get_query_cert = fun fd idx ->
-    apply_to_handle fd (fun c ->
-        let (theq, othq) = List.partition (fun (qi, q) -> qi = idx) c.queries in
-        let q =
-            match theq with
-            | []          -> None
-            | (_, q) :: _ -> Some q
-        in
-            (c, q))
-
-let pop_query_cert = fun fd idx ->
-    apply_to_handle fd (fun c ->
-        let (theq, othq) =
-            List.partition (fun (qi, q) -> qi = idx) c.queries in
-            ({ c with queries = othq }, theq))
-
 (* ------------------------------------------------------------------------ *)
-let get_query = fun fd idx ->
-    match get_query_cert fd idx with
-    | None          -> (EI_BADHANDLE , [||])
-    | Some None     -> (EI_BADCERTIDX, [||])
-    | Some (Some q) -> (0, List.toArray q)
-
 let read = fun fd ->
     match connection_of_fd fd with
     | None -> (EI_BADHANDLE, [||])
@@ -123,12 +102,13 @@ let read = fun fd ->
             ignore (update_fd_connection fd conn)
             (EI_WARNING, Alert.alertBytes e)
 
-        | TLS.CertQuery (conn, q) ->
-            match add_query_cert fd q with
+        | TLS.CertQuery (conn, q) -> failwith ""
+(*            match add_query_cert fd q with
             | None -> (EI_BADHANDLE, [||])
             | Some idx ->
                 ignore (update_fd_connection fd conn);
                 (EI_CERTQUERY, Bytes.bytes_of_int 4 idx)
+*)
 
         | TLS.Handshaken conn ->
             ignore (update_fd_connection fd conn)
@@ -179,57 +159,6 @@ let shutdown = fun fd ->
     | Some conn ->
         ignore (TLS.full_shutdown conn);
         unbind_fd fd
-
-let authorize = fun fd idx ->
-    match connection_of_fd fd with
-    | None -> EI_BADHANDLE
-    | Some conn ->
-        match pop_query_cert fd idx with
-        | None               -> EI_BADHANDLE
-        | Some []            -> EI_BADCERTIDX
-        | Some ((_, q) :: _) ->
-            let conn = TLS.authorize conn q in
-                ignore (update_fd_connection fd conn);
-                0
-
-let refuse = fun fd idx ->
-    match connection_of_fd fd with
-    | None -> EI_BADHANDLE
-    | Some conn ->
-        match pop_query_cert fd idx with
-        | None               -> EI_BADHANDLE
-        | Some []            -> EI_BADCERTIDX
-        | Some ((_, q) :: _) ->
-            let conn = TLS.authorize conn q in
-                ignore (update_fd_connection fd conn);
-                0
-
-let rehandshake = fun fd config ->
-    match connection_of_fd fd with
-    | None -> EI_BADHANDLE
-    | Some conn ->
-        let (accepted,conn) = TLS.rehandshake conn config in
-            ignore (update_fd_connection fd conn);
-            if accepted then 0
-            else EI_HSONGOING
-
-let rekey = fun fd config ->
-    match connection_of_fd fd with
-    | None -> EI_BADHANDLE
-    | Some conn ->
-        let (accepted,conn) = TLS.rekey conn config in
-            ignore (update_fd_connection fd conn);
-            if accepted then 0
-            else EI_HSONGOING
-
-let request = fun fd config ->
-    match connection_of_fd fd with
-    | None -> EI_BADHANDLE
-    | Some conn ->
-        let (accepted,conn) = TLS.request conn config in
-            ignore (update_fd_connection fd conn);
-            if accepted then 0
-            else EI_HSONGOING
 
 let connect = fun rawfd config ->
     let conn = TLS.connect rawfd config in
