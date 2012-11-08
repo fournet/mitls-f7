@@ -48,7 +48,7 @@ exception ArgError of string
 
 let parse_cmd () =
     let assembly = System.Reflection.Assembly.GetExecutingAssembly()
-    let mypath   = Path.GetFileName(assembly.Location)
+    let mypath   = Path.GetDirectoryName(assembly.Location)
 
     let options : EchoServer.options ref = ref {
         ciphersuite = [ TLSConstants.TLS_DHE_RSA_WITH_AES_128_CBC_SHA ];
@@ -56,7 +56,7 @@ let parse_cmd () =
         servername  = "needham.inria.fr";
         clientname  = None;
         localaddr   = IPEndPoint(IPAddress.Loopback, 2443);
-        sessiondir  = Path.Combine(mypath, "sessionDB"); }
+        sessiondir  = Path.Combine(mypath, "sessionDB.bin"); }
     in
 
     let valid_path = fun path ->
@@ -133,7 +133,8 @@ let parse_cmd () =
 
     in
         try
-            ArgParser.Parse(specs, usageText = sprintf "Usage: %s <options>" mypath); !options
+            ArgParser.Parse(specs, usageText = sprintf "Usage: %s <options>" mypath);
+            !options
 
         with ArgError msg ->
             ArgParser.Usage(specs, sprintf "Error: %s\n" msg);
