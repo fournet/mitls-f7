@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 # --------------------------------------------------------------------
-import sys, os, time, xml.etree.ElementTree as etree
+import sys, os, re, time, xml.etree.ElementTree as etree
 
 # --------------------------------------------------------------------
 MSBUILD = 'http://schemas.microsoft.com/developer/msbuild/2003'
@@ -17,25 +17,142 @@ f7flags += -timeout 1 -nokindcheck $(lperv) $(libfs7)
 
 .PHONY: default clean
 
-default: TLSInfo.tc7 DataStream.tc7 RPCDataStream.tc7 Fragment.tc7 AEADPlain.tc7 AEAD.tc7 StatefulPlain.tc7 StatefulAEAD.tc7 TLSFragment.tc7 Record.tc7
+DEFAULT =                 \\
+	TLSInfo.tc7       \\
+	DataStream.tc7    \\
+	RPCDataStream.tc7 \\
+	Fragment.tc7      \\
+	AEADPlain.tc7     \\
+	AEAD.tc7          \\
+	StatefulPlain.tc7 \\
+	StatefulAEAD.tc7  \\
+	TLSFragment.tc7   \\
+	Record.tc7
+
+default: $(DEFAULT)
 
 clean:
-\trm -f *.tc7
+	rm -f *.tc7
 '''
 
 # --------------------------------------------------------------------
-def _main():
-    if len(sys.argv)-1 != 1:
-        print >>sys.stderr, 'Usage: %s [fsproj]' % (os.path.basename(sys.argv[0]))
-        exit(1)
+class Object(object):
+    def __init__(self, **kw):
+        self.__dict__.update(kw)
 
-    with open(sys.argv[1], 'r') as stream:
+# --------------------------------------------------------------------
+def _options(args):
+    from optparse import OptionParser
+
+    parser = OptionParser(usage = "%prog: [options] file.fsproj")
+    parser.add_option('-e', None,
+                      action = 'store_true',
+                      dest   = 'doparse',
+                      help   = 'Parse .fs7 to obtain more fine grain dependencies')
+
+    options, args = parser.parse_args(args)
+
+    if len(args) != 1:
+        parser.error('exactly one .fsproj file must be given')
+
+    options.fsproj = args[0]
+
+    return options
+
+
+# --------------------------------------------------------------------
+class TopoSortCycleException(Exception):
+    pass
+
+def topoiter1(D, k, seen = None):
+    seen = dict() if seen is None else seen
+    flag = seen.get(k, 0)
+
+    if flag < 0:
+        raise TopoSortCycleException()
+    if flag > 0:
+        return
+
+    seen[k] = -1
+    for x in D.get(k, []):
+        for y in topoiter1(D, x, seen):
+            yield y
+    seen[k] = 1
+
+    yield k
+
+def topoiter(D):
+    seen = dict()
+    for k in D.iterkeys():
+        for x in topoiter1(D, k, seen):
+            yield x
+
+# --------------------------------------------------------------------
+class FS7Deps(object):
+    @staticmethod
+    def by_compilation_order(files):
+        return [ \
+            (files[i], ['%s.fs7' % (x,) for x in files[:i]]) \
+                for i in xrange(len(files))
+        ]
+
+    @staticmethod
+    def by_parsing(srcdir, files):
+        srcfiles = dict([(x.lower(), x) for x in os.listdir(srcdir)])
+        lowfiles = [x.lower() for x in files]
+        alldeps  = dict()
+
+        for name in files:
+            modules  = set()
+            contents = open(srcfiles[name.lower() + '.fs7'], 'r').read()
+            contents = contents.splitlines()
+            contents = [re.sub(r'//.*', '', x) for x in contents]
+            contents = [re.sub(r'\s+', ' ', x.strip()) for x in contents]
+
+            for line in contents:
+                m = re.search(r'^open (\w+)', line)
+                if m is not None:
+                    modules.add(m.group(1).lower())
+                else:
+                    for m in re.finditer(r'(\w+?)\.\w+', line):
+                        modules.add(m.group(1).lower())
+
+            alldeps[name.lower()] = modules.intersection(lowfiles)
+
+        for name in topoiter(alldeps):
+            for d in set(alldeps[name]): # copy
+                alldeps[name].update(alldeps[d])
+
+        # Reorder using user ordering
+        for name in alldeps.iterkeys():
+            alldeps[name] = [x for x in lowfiles if x in alldeps[name]]
+        alldeps = [(x, alldeps[x]) for x in lowfiles if x in alldeps]
+
+        # Go back to FS name (with correct case)
+        def _norm(x, y):
+            realname = os.path.splitext(srcfiles[x + '.fs7'])[0]
+            realdeps = [srcfiles[z + '.fs7'] for z in y]
+            return (realname, realdeps)
+
+        return [_norm(x, y) for (x, y) in alldeps]
+
+# --------------------------------------------------------------------
+def _main():
+    options = _options(sys.argv[1:])
+
+    with open(options.fsproj, 'r') as stream:
         doc = etree.parse(stream)
 
-    files = doc.findall('.//{0}ItemGroup/*'.format('{%s}' % (MSBUILD,)))
-    files = [x.get('Include') for x in files if x.get('Include') is not None]
-    files = [x for x in files if os.path.splitext(x)[1] == '.fs7']
-    files = [os.path.splitext(x)[0] for x in files]
+    files  = doc.findall('.//{0}ItemGroup/*'.format('{%s}' % (MSBUILD,)))
+    files  = [x.get('Include') for x in files if x.get('Include') is not None]
+    files  = [x for x in files if os.path.splitext(x)[1] == '.fs7']
+    files  = [os.path.splitext(x)[0] for x in files]
+    srcdir = os.path.dirname(options.fsproj) or os.path.curdir
+
+    if options.doparse:
+        fs7deps = FS7Deps.by_parsing(srcdir, files)
+    else:
+        fs7deps = FS7Deps.by_compilation_order(files)
 
     print "# -*- Makefile -*-"
     print "# Automatically generated by: %s" % (' '.join(sys.argv),)
@@ -43,11 +160,10 @@ def _main():
     print
     print MKHEADER
     print "# ----- BEGIN AUTO FS7 -----"
-    for i in xrange(len(files)):
-        name = files[i]
-        deps = ['%s.fs7' % (x,) for x in files[:i]]
-        print '%s.tc7: $(libperv) $(libfs7) %s %s.fs7 %s.fs' % (files[i], ' '.join(deps), name, name)
-        print '\t$(f7) $(f7flags) -scripts %s %s %s.fs7 %s.fs' % (name, ' '.join(deps), name, name)
+    for name, deps in fs7deps:
+        fargs = dict(name = name, deps = ' '.join(deps))
+        print '%(name)s.tc7: $(libperv) $(libfs7) %(deps)s %(name)s.fs7 %(name)s.fs'   % fargs
+        print '\t$(f7) $(f7flags) -scripts %(name)s %(deps)s %(name)s.fs7 %(name)s.fs' % fargs
         print '\t@touch $@'
         print
     print "# ----- END AUTO FS7 -----"
