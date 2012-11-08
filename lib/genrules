@@ -108,7 +108,7 @@ class FS7Deps(object):
 
             for ext in ['.fs', '.fsi', '.fs7']:
                 contents = open(srcfiles[name.lower() + ext], 'r').read()
-                contents = re.sub(r'\(\*.*?\*\)', '', contents, 0, re.M)
+                contents = re.sub(r'\(\*(?:.|\r|\n)*?\*\)', '', contents, 0)
                 contents = re.sub(r'".*?"', '', contents)
                 contents = contents.splitlines()
                 contents = [re.sub(r'//.*', '', x) for x in contents]
