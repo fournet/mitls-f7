@@ -5,10 +5,12 @@ open Bytes
 open TLSInfo
 open Dispatch
 
+(* ------------------------------------------------------------------------ *)
 type rawfd   = Tcp.NetworkStream
 type fd      = int
 type queryhd = int
 
+(* ------------------------------------------------------------------------ *)
 val EI_BADHANDLE  : int
 val EI_BADCERTIDX : int
 val EI_READERROR  : int
@@ -22,6 +24,32 @@ val EI_WRITEERROR : int
 val EI_MUSTREAD   : int
 val EI_HSONGOING  : int
 
+(* ------------------------------------------------------------------------ *)
+private type handleinfo = {
+    conn : Connection;
+}
+
+private type fdmap = (fd * handleinfo) list
+
+(* ------------------------------------------------------------------------ *)
+private val handleinfo_of_conn : Connection -> handleinfo
+
+(* ------------------------------------------------------------------------ *)
+private val fds : fdmap ref
+private val fdc : int ref
+
+private val new_fd : Connection -> fd
+
+private val unbind_fd_r : fd -> fdmap -> fdmap
+private val unbind_fd   : fd -> unit
+
+private val connection_of_fd_r : fd -> fdmap -> Connection option
+private val connection_of_fd   : fd -> Connection option
+
+private val update_fd_connection_r : fd -> Connection -> fdmap -> fdmap
+private val update_fd_connection   : fd -> Connection -> unit
+
+(* ------------------------------------------------------------------------ *)
 val read     : fd -> int * bytes
 val write    : fd -> bytes -> int
 val shutdown : fd -> unit

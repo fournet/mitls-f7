@@ -1,14 +1,13 @@
 ﻿module UTLS
 
+// TODO: locking
+
 (* ------------------------------------------------------------------------ *)
 open Bytes
 open Error
 open Dispatch
-
-#if fs
-#else
-let lock (x : 'Lock) (f : unit -> 'T) : 'T = f ()
-#endif
+open TLSInfo
+open TLS
 
 (* ------------------------------------------------------------------------ *)
 type rawfd   = Tcp.NetworkStream
@@ -29,59 +28,60 @@ let EI_MUSTREAD   = -11
 let EI_HSONGOING  = -12
 
 type handleinfo = {
-    conn     : Connection;
-    queryidx : int;
-    queries  : (int * query) list;
+    conn : Connection;
 }
 
-let handleinfo_of_conn = fun c ->
-    { conn = c; queryidx = 0; queries = []; }
+let handleinfo_of_conn (c : Connection) : handleinfo =
+    { conn = c; }
 
-let fds = ref ([] : (fd * handleinfo) list)
+type fdmap = (fd * handleinfo) list
+
+let fds = ref ([] : fdmap)
 let fdc = ref 0
 
 (* ------------------------------------------------------------------------ *)
-let new_fd = fun conn ->
-    let aux () =
-        let fd = !fdc in
-            fds := (fd, handleinfo_of_conn conn) :: !fds;
-            fdc := !fdc + 1;
-            fd
-    in
-        lock fds aux
+let new_fd (conn : Connection) : fd =
+    let fd = !fdc in
+        fds := (fd, handleinfo_of_conn conn) :: !fds;
+        fdc := !fdc + 1;
+        fd
 
-let rec unbind_fd_r = fun fd fds ->
+(* ------------------------------------------------------------------------ *)
+let rec unbind_fd_r (fd : fd) (fds : fdmap) : fdmap =
     match fds with
     | [] -> []
     | (h, hi) :: fds ->
         let fds = unbind_fd_r fd fds in
             if fd = h then fds else (h, hi) :: fds
 
-let unbind_fd = fun fd ->
+let unbind_fd (fd : fd) : unit =
     fds := unbind_fd_r fd !fds
 
 (* ------------------------------------------------------------------------ *)
-let apply_to_handle = fun fd f ->
-    let rec doit = fun fds ->
-        match fds with
-        | [] -> ([], None)
-        | (i, c) :: fds ->
-            if fd = i then
-                let c, r = f c in ((i, c) :: fds, Some r)
-            else
-                let (fds, r) = doit fds in ((i, c) :: fds, r)
-    in
-        let (newfds, r) = doit !fds in
-            fds := newfds; r
+let rec connection_of_fd_r (fd : fd) (fds : fdmap) : Connection option =
+    match fds with
+    | [] -> None
+    | (h, hd) :: fds ->
+        if fd = h then Some hd.conn else connection_of_fd_r fd fds
 
-let connection_of_fd = fun fd ->
-    apply_to_handle fd (fun c -> (c, c.conn))
-
-let update_fd_connection = fun fd conn ->
-    apply_to_handle fd (fun c -> ({c with conn = conn}, ()))
+let connection_of_fd (fd : fd) : Connection option =
+    connection_of_fd_r fd !fds
 
 (* ------------------------------------------------------------------------ *)
-let read = fun fd ->
+let rec update_fd_connection_r (fd : fd) (conn : Connection) (fds : fdmap) : fdmap =
+    match fds with
+    | [] -> Error.unexpectedError "[fd] unbound"
+    | (h, hd) :: fds ->
+        if fd = h then
+            (h, { hd with conn = conn }) :: fds
+        else
+            (h, hd) :: (update_fd_connection_r fd conn fds)
+
+let update_fd_connection (fd : fd) (conn : Connection) : unit =
+    fds := update_fd_connection_r fd conn !fds
+
+(* ------------------------------------------------------------------------ *)
+let read (fd : int) : int * bytes =
     match connection_of_fd fd with
     | None -> (EI_BADHANDLE, [||])
 
@@ -99,8 +99,8 @@ let read = fun fd ->
             (EI_FATAL, Alert.alertBytes e)
 
         | TLS.Warning (conn, e) ->
-            ignore (update_fd_connection fd conn)
-            (EI_WARNING, Alert.alertBytes e)
+            let _ = update_fd_connection fd conn in
+                (EI_WARNING, Alert.alertBytes e)
 
         | TLS.CertQuery (conn, q) -> failwith ""
 (*            match add_query_cert fd q with
@@ -111,22 +111,23 @@ let read = fun fd ->
 *)
 
         | TLS.Handshaken conn ->
-            ignore (update_fd_connection fd conn)
-            (EI_HANDSHAKEN, [||])
+            let _ = update_fd_connection fd conn in
+                (EI_HANDSHAKEN, [||])
 
         | TLS.Read (conn, (rg, m)) ->
             let plain =
                 DataStream.deltaRepr
                     (Dispatch.getEpochIn conn) (TLS.getInStream conn) rg m
             in
-                ignore (update_fd_connection fd conn);
-                (Bytes.length plain, plain)
+                let _ = update_fd_connection fd conn in
+                    (Bytes.length plain, plain)
 
         | TLS.DontWrite conn ->
-            ignore (update_fd_connection fd conn)
-            (EI_DONTWRITE, [||])
+            let _ = update_fd_connection fd conn in
+                (EI_DONTWRITE, [||])
 
-let write = fun fd bytes ->
+(* ------------------------------------------------------------------------ *)
+let write (fd : fd) (bytes : bytes) : int =
     match connection_of_fd fd with
     | None      -> EI_BADHANDLE
     | Some conn -> 
@@ -140,34 +141,33 @@ let write = fun fd bytes ->
             | TLS.WriteError _ ->
                 unbind_fd fd; EI_WRITEERROR
             | TLS.WriteComplete conn ->
-                ignore (update_fd_connection fd conn);
-                length
+                let _ = update_fd_connection fd conn in
+                    length
             | TLS.WritePartial (conn, (r, m)) ->
-                ignore (update_fd_connection fd conn);
+                let _ = update_fd_connection fd conn in
                 let rem =
                     DataStream.deltaRepr
                         (Dispatch.getEpochOut conn) (TLS.getOutStream conn) r m
                 in
                     (length - (Bytes.length rem))
             | TLS.MustRead conn ->
-                ignore (update_fd_connection fd conn);
-                EI_MUSTREAD
+                let _ = update_fd_connection fd conn in
+                    EI_MUSTREAD
 
-let shutdown = fun fd ->
+(* ------------------------------------------------------------------------ *)
+let shutdown (fd : fd) : unit =
     match connection_of_fd fd with
     | None -> ()
     | Some conn ->
-        ignore (TLS.full_shutdown conn);
-        unbind_fd fd
+        let _ = TLS.full_shutdown conn in
+            unbind_fd fd
 
-let connect = fun rawfd config ->
+(* ------------------------------------------------------------------------ *)
+let connect (rawfd : rawfd) (config : config) : fd =
     let conn = TLS.connect rawfd config in
         new_fd conn
 
-let accept_connected = fun rawfd config ->
+(* ------------------------------------------------------------------------ *)
+let accept_connected (rawfd : rawfd) (config :config) : fd =
     let conn = TLS.accept_connected rawfd config in
-        new_fd conn
-
-let resume = fun rawfd sid config ->
-    let conn = TLS.resume rawfd sid config in
         new_fd conn

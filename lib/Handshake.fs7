@@ -85,7 +85,7 @@ function val ClientOrServerCertificateMsg: bytes list -> bytes
 
 function val CertificateRequestMsg: ProtocolVersion * certType list * Sig.alg list option * string list -> bytes
 
-function val ClientKeyExchangeMsg_RSA: ProtocolVersion * si:SessionInfo * RSAKeys.pk * (;si)CRE.rsapms -> bytes
+function val ClientKeyExchangeMsg_RSA: pv:ProtocolVersion * si:SessionInfo * RSAKeys.pk * (;si,pv)CRE.rsapms -> bytes
 
 function val ClientKeyExchangeMsg_DHE: bytes -> bytes
 
@@ -112,11 +112,11 @@ type serverState =  (* note that the CertRequest bits are determined by the conf
    | ServerCheckingCertificateDH  of SessionInfo * log * bytes
    | ClientKeyExchangeDH          of SessionInfo * log 
 
-   | ClientCertificateDHE         of SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * (;p,g,gx)DHGroup.secret * log
-   | ServerCheckingCertificateDHE of SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * (;p,g,gx)DHGroup.secret * log * bytes
-   | ClientKeyExchangeDHE         of SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * (;p,g,gx)DHGroup.secret * log
+   | ClientCertificateDHE         of SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * (;p,g,gx)DH.secret * log
+   | ServerCheckingCertificateDHE of SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * (;p,g,gx)DH.secret * log * bytes
+   | ClientKeyExchangeDHE         of SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * (;p,g,gx)DH.secret * log
 
-   | ClientKeyExchangeDH_anon     of SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * (;p,g,gx)DHGroup.secret * log
+   | ClientKeyExchangeDH_anon     of SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * (;p,g,gx)DH.secret * log
 
    | CertificateVerify            of si:SessionInfo * (;si)PRF.masterSecret * log 
    | ClientCCS                    of si:SessionInfo * (;si)PRF.masterSecret * log
