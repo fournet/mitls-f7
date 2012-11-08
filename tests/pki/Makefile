@@ -87,7 +87,7 @@ certificates/cert-%.needham.inria.fr.csr: certificates/cert-%.needham.inria.fr.k
 
 # --------------------------------------------------------------------
 imported/ca.imported:
-	umask 077; certmgr -add -c CA certificates/ca.crt
+	umask 077; certmgr -add -c Trust certificates/ca.crt
 	touch $@
 
 imported/%.imported: certificates/%.p12

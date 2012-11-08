@@ -98,9 +98,15 @@ let x509_check_key_sig_alg_one (sigkeyalgs : Sig.alg list) (x509 : X509Certifica
     List.exists (fun a -> x509_check_key_sig_alg a x509) sigkeyalgs
 
 (* ------------------------------------------------------------------------ *)
+let x509_verify (x509 : X509Certificate2) =
+    let chain = new X509Chain() in
+        chain.ChainPolicy.RevocationMode <- X509RevocationMode.NoCheck;
+        chain.Build(x509)
+
+(* ------------------------------------------------------------------------ *)
 let x509_chain (x509 : X509Certificate2) = (* FIX: Is certs. store must be opened ? *)
     let chain = new X509Chain() in
-        chain.ChainPolicy.RevocationMode <- X509RevocationMode.Offline;
+        chain.ChainPolicy.RevocationMode <- X509RevocationMode.NoCheck;
         ignore (chain.Build(x509));
         chain.ChainElements
             |> Seq.cast
@@ -140,8 +146,9 @@ let for_signing (sigkeyalgs : Sig.alg list) (h : hint) (algs : Sig.alg list) =
                     else
                         None
                 in
-                    store.Certificates.Find(X509FindType.FindBySubjectName, h, true) (* WARN: true => only trusted certs. *)
+                    store.Certificates.Find(X509FindType.FindBySubjectName, h, false)
                         |> Seq.cast
+                        |> Seq.filter (fun (x509 : X509Certificate2) -> x509_verify x509)
                         |> Seq.filter (x509_check_key_sig_alg_one sigkeyalgs)
                         |> Seq.pick pick_wrt_req_alg
             in
@@ -150,7 +157,7 @@ let for_signing (sigkeyalgs : Sig.alg list) (h : hint) (algs : Sig.alg list) =
                     let chain = x509_chain x509 in
 
                     if Seq.forall (x509_check_key_sig_alg_one sigkeyalgs) chain then
-                        Some ((x509 :: chain) |> List.map x509_export_public, alg, Sig.create_skey hasha skey)
+                        Some (chain |> List.map x509_export_public, alg, Sig.create_skey hasha skey)
                     else
                         None
                 | None -> None
@@ -166,8 +173,9 @@ let for_key_encryption (sigkeyalgs : Sig.alg list) (h : hint) =
     try
         try
             let x509 =
-                store.Certificates.Find(X509FindType.FindBySubjectName, h, true) (* WARN: true => only trusted certs. *)
+                store.Certificates.Find(X509FindType.FindBySubjectName, h, false)
                     |> Seq.cast
+                    |> Seq.filter (fun (x509 : X509Certificate2) -> x509_verify x509)
                     |> Seq.filter (fun (x509 : X509Certificate2) -> x509.HasPrivateKey)
                     |> Seq.filter (fun (x509 : X509Certificate2) -> x509_is_for_key_encryption x509)
                     |> Seq.filter (fun (x509 : X509Certificate2) -> x509.GetKeyAlgorithm() = OID_RSAEncryption)
@@ -179,7 +187,7 @@ let for_key_encryption (sigkeyalgs : Sig.alg list) (h : hint) =
                     let chain = x509_chain x509 in
 
                     if Seq.forall (x509_check_key_sig_alg_one sigkeyalgs) chain then
-                        Some ((x509 :: chain) |> List.map x509_export_public, RSAKeys.create_rsaskey (sm, se))
+                        Some (chain |> List.map x509_export_public, RSAKeys.create_rsaskey (sm, se))
                     else
                         None
                 | _ -> None

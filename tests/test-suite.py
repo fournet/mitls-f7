@@ -149,9 +149,14 @@ def _check_for_config(driver, config):
 
     finally:
         if subp is not None:
+            logging.debug('Waiting echo server to shutdown...')
+            time.sleep(.2)
             subp.kill()
         if sessiondir is not None:
             shutil.rmtree(sessiondir, ignore_errors = True)
+
+    logging.info('Test successful')
+    return True
 
 # --------------------------------------------------------------------
 def _main():
