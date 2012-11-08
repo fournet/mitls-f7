@@ -56,7 +56,7 @@ let parse_cmd () =
         servername  = "needham.inria.fr";
         clientname  = None;
         localaddr   = IPEndPoint(IPAddress.Loopback, 2443);
-        sessiondir  = Path.Combine(mypath, "sessionDB.bin"); }
+        sessiondir  = Path.Combine(mypath, "sessionDB"); }
     in
 
     let valid_path = fun path ->
