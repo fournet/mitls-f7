@@ -17,7 +17,7 @@ type predispatchState =
   | Finishing
   | Finished (* Only for Writing side, used to implement TLS False Start *)
   | Open
-  | Closing of string
+  | Closing of TLSConstants.ProtocolVersion * string
   | Closed
 
 type dispatchState = predispatchState
@@ -145,6 +145,13 @@ let moveToOpenState (Conn(id,c)) =
         | _ -> Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "")
     | _ -> Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "")
 
+(* Dispatch dealing with network sockets *)
+let pickSendPV (Conn(id,c)) =
+    match c.write.disp with
+    | Init -> getMinVersion id c.handshake
+    | FirstHandshake(pv) | Closing(pv,_) -> pv
+    | _ -> let si = epochSI(id.id_out) in si.protocol_version
+
 let closeConnection (Conn(id,c)) =
     let new_read = {c.read with disp = Closed} in
     let new_write = {c.write with disp = Closed} in
@@ -155,8 +162,9 @@ let closeConnection (Conn(id,c)) =
     Conn(id,c)
 
 let abortWithAlert (Conn(id,c)) ad reason =
+    let closingPV = pickSendPV (Conn(id,c)) in
     let new_read = {c.read with disp = Closed} in
-    let new_write = {c.write with disp = Closing(reason)} in
+    let new_write = {c.write with disp = Closing(closingPV,reason)} in
     let new_hs = Handshake.invalidateSession id c.handshake in
     let new_alert = Alert.send_alert id c.alert ad in
     let c = {c with read = new_read;
@@ -167,15 +175,8 @@ let abortWithAlert (Conn(id,c)) ad reason =
 
 let getReason dstate =
     match dstate with
-    | Closing(reason) -> reason
+    | Closing(_,reason) -> reason
     | _ -> ""
-
-(* Dispatch dealing with network sockets *)
-let pickSendPV (Conn(id,c)) =
-    match c.write.disp with
-    | Init -> getMinVersion id c.handshake
-    | FirstHandshake(pv) -> pv
-    | _ -> let si = epochSI(id.id_out) in si.protocol_version
 
 let send ns e write pv rg ct frag =
     let res = Record.recordPacketOut e write.conn pv rg ct frag in
