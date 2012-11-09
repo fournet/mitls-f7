@@ -11,7 +11,7 @@ let log = ref []
 
 let encrypt key pv pms =
     #if ideal
-    let fake_pms = None.mkRandom 46
+    let fake_pms = (versionBytes pv) @|N one.mkRandom 46
     log := (fake_pms,pms)::!log
     let v = fake_pms
     #else
