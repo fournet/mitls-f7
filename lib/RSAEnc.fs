@@ -5,8 +5,18 @@ open Error
 open TLSConstants
 open TLSInfo
 
+#if ideal
+let log = ref []
+#endif
+
 let encrypt key pv pms =
+    #if ideal
+    let fake_pms = random 46
+    log := (fake_pms,pms)::!log
+    let v = fake_pms
+    #else
     let v = CRE.leakRSA key pv pms
+    #endif
     CoreACiphers.encrypt_pkcs1 (RSAKeys.repr_of_rsapkey key) v
 
 let decrypt_int dk si cv cvCheck encPMS =
@@ -38,4 +48,10 @@ let decrypt dk si cv check_client_version_in_pms_for_old_tls encPMS =
     | Error(x,y) -> unexpectedError (perror __SOURCE_FILE__ __LINE__ "The server identity should contain a valid certificate")
     | Correct(pk) ->
         let pmsb = decrypt_int dk si cv check_client_version_in_pms_for_old_tls encPMS in
+        #if ideal
+        match assoc !log pmsb with
+            Some(ideal_pms) -> ideal_pms
+            None -> CRE.coerceRSA pk cv pmsb
+        #else
         CRE.coerceRSA pk cv pmsb
+        #endif
