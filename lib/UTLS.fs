@@ -5,6 +5,7 @@
 (* ------------------------------------------------------------------------ *)
 open Bytes
 open Error
+open DataStream
 open Dispatch
 open TLSInfo
 open TLS
@@ -28,13 +29,16 @@ let EI_MUSTREAD   = -11
 let EI_HSONGOING  = -12
 
 type handleinfo = {
-    conn : Connection;
+    conn     : Connection;
+    canwrite : bool;
 }
 
-let handleinfo_of_conn (c : Connection) : handleinfo =
-    { conn = c; }
+type Phandleinfo = handleinfo
 
-type fdmap = (fd * handleinfo) list
+let handleinfo_of_conn (c : Connection) : Phandleinfo =
+    { conn = c; canwrite = false; }
+
+type fdmap = (fd * Phandleinfo) list
 
 let fds = ref ([] : fdmap)
 let fdc = ref 0
@@ -58,27 +62,33 @@ let unbind_fd (fd : fd) : unit =
     fds := unbind_fd_r fd !fds
 
 (* ------------------------------------------------------------------------ *)
-let rec connection_of_fd_r (fd : fd) (fds : fdmap) : Connection option =
+let rec connection_of_fd_r (fd : fd) (fds : fdmap) : Phandleinfo option =
     match fds with
     | [] -> None
     | (h, hd) :: fds ->
-        if fd = h then Some hd.conn else connection_of_fd_r fd fds
+        if fd = h then Some hd else connection_of_fd_r fd fds
 
-let connection_of_fd (fd : fd) : Connection option =
+let connection_of_fd (fd : fd) : Phandleinfo option =
     connection_of_fd_r fd !fds
 
 (* ------------------------------------------------------------------------ *)
-let rec update_fd_connection_r (fd : fd) (conn : Connection) (fds : fdmap) : fdmap =
+let rec update_fd_connection_r (fd : fd) (cw : bool) (conn : Connection) (fds : fdmap) : fdmap =
     match fds with
     | [] -> Error.unexpectedError "[fd] unbound"
     | (h, hd) :: fds ->
         if fd = h then
-            (h, { hd with conn = conn }) :: fds
+            (h, { hd with conn = conn; canwrite = cw }) :: fds
         else
-            (h, hd) :: (update_fd_connection_r fd conn fds)
+            (h, hd) :: (update_fd_connection_r fd cw conn fds)
 
-let update_fd_connection (fd : fd) (conn : Connection) : unit =
-    fds := update_fd_connection_r fd conn !fds
+let update_fd_connection (fd : fd) (cw : bool) (conn : Connection) : unit =
+    fds := update_fd_connection_r fd cw conn !fds
+
+(* ------------------------------------------------------------------------ *)
+let canwrite (fd : int) : int =
+    match connection_of_fd fd with
+    | None    -> EI_BADHANDLE
+    | Some hd -> if hd.canwrite then 1 else 0
 
 (* ------------------------------------------------------------------------ *)
 let read (fd : int) : int * bytes =
@@ -86,8 +96,8 @@ let read (fd : int) : int * bytes =
     | None -> (EI_BADHANDLE, [||])
 
     | Some c ->
-        match TLS.read c with
-        | TLS.ReadError _ ->
+        match TLS.read c.conn with
+        | TLS.ReadError (_, _) ->
             (EI_READERROR, [||])
 
         | TLS.Close _ ->
@@ -99,7 +109,7 @@ let read (fd : int) : int * bytes =
             (EI_FATAL, Alert.alertBytes e)
 
         | TLS.Warning (conn, e) ->
-            let _ = update_fd_connection fd conn in
+            let _ = update_fd_connection fd false conn in
                 (EI_WARNING, Alert.alertBytes e)
 
         | TLS.CertQuery (conn, q) -> failwith ""
@@ -111,7 +121,7 @@ let read (fd : int) : int * bytes =
 *)
 
         | TLS.Handshaken conn ->
-            let _ = update_fd_connection fd conn in
+            let _ = update_fd_connection fd false conn in
                 (EI_HANDSHAKEN, [||])
 
         | TLS.Read (conn, (rg, m)) ->
@@ -119,47 +129,52 @@ let read (fd : int) : int * bytes =
                 DataStream.deltaRepr
                     (Dispatch.getEpochIn conn) (TLS.getInStream conn) rg m
             in
-                let _ = update_fd_connection fd conn in
+                let _ = update_fd_connection fd false conn in
                     (Bytes.length plain, plain)
 
         | TLS.DontWrite conn ->
-            let _ = update_fd_connection fd conn in
+            let _ = update_fd_connection fd false conn in
                 (EI_DONTWRITE, [||])
 
 (* ------------------------------------------------------------------------ *)
+let mkDelta (conn : Connection) (bytes : bytes) : delta =
+    let ki = Dispatch.getEpochOut conn in
+    let st = TLS.getOutStream conn  in
+    let rg = (Bytes.length bytes, Bytes.length bytes) in
+        DataStream.createDelta ki st rg bytes
+
 let write (fd : fd) (bytes : bytes) : int =
     match connection_of_fd fd with
-    | None      -> EI_BADHANDLE
-    | Some conn -> 
-        let length = Bytes.length bytes in
-        let delta  =
-            DataStream.createDelta
-                (Dispatch.getEpochOut conn) (TLS.getOutStream conn)
-                (length, length) bytes
-        in
-            match TLS.write conn ((length, length), delta) with
-            | TLS.WriteError _ ->
-                unbind_fd fd; EI_WRITEERROR
-            | TLS.WriteComplete conn ->
-                let _ = update_fd_connection fd conn in
-                    length
-            | TLS.WritePartial (conn, (r, m)) ->
-                let _ = update_fd_connection fd conn in
-                let rem =
-                    DataStream.deltaRepr
-                        (Dispatch.getEpochOut conn) (TLS.getOutStream conn) r m
-                in
-                    (length - (Bytes.length rem))
-            | TLS.MustRead conn ->
-                let _ = update_fd_connection fd conn in
-                    EI_MUSTREAD
+    | None    -> EI_BADHANDLE
+    | Some hd ->
+        match hd.canwrite with
+        | false -> Error.unexpectedError "cannot write to FD"
+        | true  ->
+            let delta = mkDelta hd.conn bytes in
+            let rg    = (Bytes.length bytes, Bytes.length bytes) in
+                match TLS.write hd.conn (rg, delta) with
+                | TLS.WriteError (_, _) ->
+                    unbind_fd fd; EI_WRITEERROR
+                | TLS.WriteComplete conn ->
+                    let _ = update_fd_connection fd false conn in
+                        Bytes.length bytes
+                | TLS.WritePartial (conn, (r, m)) ->
+                    let _ = update_fd_connection fd false conn in
+                    let rem =
+                        DataStream.deltaRepr
+                            (Dispatch.getEpochOut conn) (TLS.getOutStream conn) r m
+                    in
+                        (Bytes.length bytes) - (Bytes.length rem)
+                | TLS.MustRead conn ->
+                    let _ = update_fd_connection fd false conn in
+                        EI_MUSTREAD
 
 (* ------------------------------------------------------------------------ *)
 let shutdown (fd : fd) : unit =
     match connection_of_fd fd with
     | None -> ()
-    | Some conn ->
-        let _ = TLS.full_shutdown conn in
+    | Some hd ->
+        let _ = TLS.full_shutdown hd.conn in
             unbind_fd fd
 
 (* ------------------------------------------------------------------------ *)
