@@ -191,7 +191,7 @@ let inspect_ServerHello_extensions (extList:(extensionType * bytes) list) expect
     (* We expect to find exactly one extension *)
     match listLength extList with
     | 0 -> Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Not enough extensions given")
-    | x when not (x = 1) -> Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Too many extensions given")
+    | x when x <> 1 -> Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Too many extensions given")
     | _ ->
         let (extType,payload) = listHead extList in
         match extType with
@@ -1137,17 +1137,17 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                   let (sh_server_version,sh_random,sh_session_id,sh_cipher_suite,sh_compression_method,sh_neg_extensions) = shello
                   // Sanity checks on the received message; they are security relevant. 
                   // Check that the server agreed version is between maxVer and minVer.
-                  if not (geqPV sh_server_version state.poptions.minVer 
-                       && geqPV state.poptions.maxVer sh_server_version) 
+                  if  (geqPV sh_server_version state.poptions.minVer 
+                       && geqPV state.poptions.maxVer sh_server_version) = false
                   then InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Protocol version negotiation",state)
                   else
                   // Check that the negotiated ciphersuite is in the proposed list.
                   // Note: if resuming a session, we still have to check that this ciphersuite is the expected one!
-                  if not (Bytes.exists (fun x -> x = sh_cipher_suite) state.poptions.ciphersuites) 
+                  if  (Bytes.exists (fun x -> x = sh_cipher_suite) state.poptions.ciphersuites) = false
                   then InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Ciphersuite negotiation",state)
                   else
                   // Check that the compression method is in the proposed list.
-                  if not (Bytes.exists (fun x -> x = sh_compression_method) state.poptions.compressions) 
+                  if (Bytes.exists (fun x -> x = sh_compression_method) state.poptions.compressions) = false
                   then InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Compression method negotiation",state)
                   else
                   // Parse extensions
@@ -1162,7 +1162,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     else
                         // RFC Sec 7.4.1.4: with no safe renegotiation, we never send extensions; if the server sent any extension
                         // we MUST abort the handshake with unsupported_extension fatal alter (handled by the dispatcher)
-                        if not (equalBytes sh_neg_extensions [||])
+                        if (equalBytes sh_neg_extensions [||]) = false
                         then Error(AD_unsupported_extension, perror __SOURCE_FILE__ __LINE__ "The server gave an unknown extension")
                         else let unitVal = () in correct (unitVal)
                   match safe_reneg_result with
@@ -1513,7 +1513,7 @@ let startServerFull (ci:ConnectionInfo) state cHello cvd svd log =
     let (ch_client_version,ch_random,ch_session_id,ch_cipher_suites,ch_compression_methods,ch_extensions) = cHello
     // Negotiate the protocol parameters
     let version = minPV ch_client_version state.poptions.maxVer in
-    if not (geqPV version state.poptions.minVer) then
+    if (geqPV version state.poptions.minVer) = false then
         Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Protocol version negotiation")
     else
         match negotiate ch_cipher_suites state.poptions.ciphersuites with
