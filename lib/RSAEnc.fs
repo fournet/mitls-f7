@@ -11,9 +11,12 @@ let log = ref []
 
 let encrypt key pv pms =
     #if ideal
-    let fake_pms = (versionBytes pv) @|N one.mkRandom 46
-    log := (fake_pms,pms)::!log
-    let v = fake_pms
+    v = if RSAKeys.honest key && not CRE.corrupt pms then
+            let fake_pms = (versionBytes pv) @|N one.mkRandom 46
+            log := (fake_pms,pms)::!log
+            fake_pms
+        else
+            CRE.leakRSA key pv pms
     #else
     let v = CRE.leakRSA key pv pms
     #endif
