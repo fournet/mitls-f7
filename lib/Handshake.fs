@@ -480,7 +480,7 @@ let parseCertificateRequest version data =
 (** A.4.3 Client Authentication and Key Exchange Messages *) 
 
 let clientKEXBytes_RSA si config =
-    if si.serverID.IsEmpty then
+    if listLength si.serverID = 0 then
         unexpectedError "[clientKEXBytes_RSA] Server certificate should always be present with a RSA signing cipher suite."
     else
         match Cert.get_chain_public_encryption_key si.serverID with
@@ -492,7 +492,7 @@ let clientKEXBytes_RSA si config =
             correct((messageBytes HT_client_key_exchange encpms),pms)
 
 let parseClientKEX_RSA si skey cv config data =
-    if si.serverID.IsEmpty then
+    if listLength si.serverID = 0 then
         unexpectedError "[parseClientKEX_RSA] when the ciphersuite can encrypt the PMS, the server certificate should always be set"
     else
         let encrypted = (* parse the message *)
@@ -1428,7 +1428,7 @@ let prepare_server_output_full_DH ci state si log =
 let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs cvd svd log =
     let serverHelloB = prepare_server_hello si si.init_srand state.poptions cvd svd in
     let keyAlgs = sigHashAlg_bySigList certAlgs [sigAlg_of_ciphersuite si.cipher_suite] in
-    if keyAlgs.IsEmpty then
+    if listLength keyAlgs = 0 then
         Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "The client provided inconsistent signature algorithms and ciphersuites")
     else
     match Cert.for_signing certAlgs state.poptions.server_name keyAlgs with
