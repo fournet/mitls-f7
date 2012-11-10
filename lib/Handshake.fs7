@@ -147,6 +147,29 @@ val parseServerHello: b:bytes ->
 	 {b=ServerHelloMsg(pv,sr,sid,cs,cm,ext)})
 	Result
 
+val helloRequestBytes: b:bytes{b=MessageBytes(HT_hello_request,[||])}
+val CCSBytes: b:bytes{b=[|1uy|]}
+
+val serverHelloDoneBytes: b:bytes{b=MessageBytes(HT_server_hello_done,[||])}
+
+val consCertificateBytes: c:bytes -> a:bytes ->
+	b:bytes{b=VLBytes(3,c) @| a}
+
+function val CertificateMsg: bytes list -> bytes
+private definition !bl. CertificateMsg(bl) = VLBytes(3,UnfoldBack(bl,[||]))
+
+val certificateListBytes: cl:bytes list ->
+	b:bytes{b = CertificateMsg(cl)}
+
+val serverCertificateBytes: cl:bytes list ->
+	b:bytes{b = MessageBytes(HT_certificate,CertificateMsg(cl))}
+
+val clientCertificateBytes: clo: (bytes list * 'a * 'b) option ->
+	b:bytes{
+		( clo = None /\ b = MessageBytes(HT_certificate, CertificateMsg([])) ) \/
+		( ?cl,a',b'. clo = Some((cl,a',b')) /\ b = MessageBytes(HT_certificate,CertificateMsg(cl))
+		)}
+
 function val ClientOrServerCertificateMsg: bytes list -> bytes
 
 function val CertificateRequestMsg: ProtocolVersion * certType list * Sig.alg list option * string list -> bytes
@@ -160,8 +183,6 @@ function val ServerKeyExchangeMsg_DHE:  ProtocolVersion * p:bytes * g:bytes * y:
 function val ServerKeyExchangeMsg_DH_anon: bytes * bytes * bytes -> bytes
 
 function val CertificateVerifyMsg: si:SessionInfo * (;si)PRF.masterSecret * a:Sig.alg * Cert.certchain * (;a)Sig.pkey * log -> bytes
-
-function val ServerHelloDoneMsg: unit -> bytes
 
 function val ServerFinishedMsg: si:SessionInfo * (;si)PRF.masterSecret * log -> bytes
 function val ClientFinishedMsg: si:SessionInfo * (;si)PRF.masterSecret * log -> bytes

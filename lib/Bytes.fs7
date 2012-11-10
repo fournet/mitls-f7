@@ -95,9 +95,11 @@ val addTimeSpan: DateTime -> TimeSpan -> DateTime
 val greaterDateTime: DateTime -> DateTime -> bool
 
 (* List operation functions. *)
-val fold: (bytes -> bytes -> bytes) -> bytes -> bytes list -> bytes
+function val Unfold: bytes * bytes list -> bytes
+function val UnfoldBack: bytes list * bytes -> bytes
+val fold: (bytes -> bytes -> bytes) -> s:bytes -> bl:bytes list -> b:bytes{b=Unfold(s,bl)}
 val filter: ('a -> bool) -> 'a list -> 'a list
-val foldBack: (bytes -> bytes -> bytes) -> bytes list -> bytes -> bytes
+val foldBack: (bytes -> bytes -> bytes) -> bl:bytes list -> s:bytes -> b:bytes{b=UnfoldBack(bl,s)}
 val exists: ('a -> bool) -> 'a list -> bool // Used parametrically in HS.
 val choose: ('a -> 'b option) -> 'a list -> 'b list // Not used parametrically in HS, but types are not defined here.
 val tryFind: ('a -> bool) -> 'a list -> 'a option

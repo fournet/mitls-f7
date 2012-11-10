@@ -172,7 +172,7 @@ let extensionsBytes config verifyData =
 
 let parseExtensions data =
     match length data with
-    | 0 -> correct ([])
+    | 0 -> let el = [] in correct (el)
     | 1 -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
     | _ ->
         match vlparse 2 data with
@@ -330,8 +330,13 @@ let CCSBytes = [| 1uy |]
 
 let serverHelloDoneBytes = messageBytes HT_server_hello_done [||] 
 
+let consCertificateBytes c a =
+    let cert = vlbytes 3 c in
+    cert @| a
+
 let certificateListBytes certs =
-    vlbytes 3 (Bytes.foldBack (fun c a -> vlbytes 3 c @| a) certs [||])
+    let unfolded = Bytes.foldBack consCertificateBytes certs [||] in
+    vlbytes 3 unfolded
 
 let serverCertificateBytes cl = messageBytes HT_certificate (certificateListBytes cl)
 
@@ -339,7 +344,9 @@ let clientCertificateBytes cs =
     // TODO: move this match outside, and merge with serverCertificateBytes
     match cs with
     | None -> messageBytes HT_certificate (certificateListBytes [])
-    | Some(certList,_,_) -> messageBytes HT_certificate (certificateListBytes certList)
+    | Some(v) ->
+        let (certList,_,_) = v in
+        messageBytes HT_certificate (certificateListBytes certList)
 
 let rec parseCertificateList toProcess list =
     if equalBytes toProcess [||] then
