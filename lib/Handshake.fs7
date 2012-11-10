@@ -40,15 +40,55 @@ private assume
 val htBytes: ht:HandshakeType -> b:bytes{b=HTBytes(ht)}
 val parseHt: b:bytes -> (ht:HandshakeType{b=HTBytes(ht)}) Result 
 
-function val MessageBytes: bytes * bytes -> bytes
-val messageBytes: ht:HandshakeType -> x:bytes -> m:bytes{m = MessageBytes(HTBytes(ht),x)}
-val parseMessage: buf:bytes -> ((rem:bytes * ht:bytes * x:bytes * to_log:bytes){to_log = MessageBytes(ht,x)}) option
+function val MessageBytes: HandshakeType * bytes -> bytes
+private definition !ht,b. MessageBytes(ht,b) = HTBytes(ht) @| VLBytes(3,b)
+val messageBytes: ht:HandshakeType -> x:bytes -> m:bytes{m = MessageBytes(ht,x)}
+val parseMessage: buf:bytes -> ((rem:bytes * ht:HandshakeType * x:bytes * to_log:bytes)
+				{buf = to_log @| rem /\ to_log = MessageBytes(ht,x)}) option Result
 
+// Next predicate to make sure we can make fragments
+predicate type unsafe = Unsafe of epoch
+private assume !ki. Unsafe(ki) <=> not Auth(ki)
 val makeFragment: ki:epoch -> b:bytes -> (r:range * (;ki,r) Fragment.fragment) * bytes
 
-(* Ignoring Extensions *)
+(* Extensions *)
 
-function val LenBytes: int * bytes -> bytes
+private type extensionType =
+    | HExt_renegotiation_info
+
+function val ExtensionTypeBytes: extensionType -> bytes
+private definition ExtensionTypeBytes(HExt_renegotiation_info) = [|0xFFuy; 0x01uy|]
+
+val extensionTypeBytes: et:extensionType -> b:bytes{b=ExtensionTypeBytes(et)}
+val parseExtensionType: b:bytes -> (et:extensionType{b=ExtensionTypeBytes(et)}) Result
+
+function val ExtensionBytes: extensionType * bytes -> bytes
+private definition !et,b.
+	ExtensionBytes(et,b) = ExtensionTypeBytes(et) @| VLBytes(2,b)
+predicate ContainsExtensions of bytes * (extensionType * bytes) list
+// FIXME: Next is wrong!
+private definition !b,l. ContainsExtensions(b,l)
+
+val extensionBytes: et:extensionType -> d:bytes -> b:bytes{b=ExtensionBytes(et,d)}
+val consExt: extensionType * bytes -> (extensionType * bytes) list -> (extensionType * bytes) list
+val parseExtensionList: b:bytes -> cur:(extensionType * bytes) list ->
+	(res:(extensionType * bytes) list{ContainsExtensions(b,res)}) Result
+
+val renegotiationInfoExtensionBytes: vd:bytes ->
+	b:bytes{b=ExtensionBytes(HExt_renegotiation_info,VLBytes(1,vd))}
+val parseRenegotiationInfoExtension: b:bytes{Length(b)>=1} ->
+	(vd:bytes{b=VLBytes(1,vd)}) Result
+
+function val ExtensionsBytes: bytes -> bytes
+private definition !b. ExtensionsBytes(b) = VLBytes(2,b)
+val extensionsBytes: c:config -> vd:bytes ->
+	b:bytes{(c.safe_renegotiation = true /\ b = ExtensionsBytes(ExtensionBytes(HExt_renegotiation_info,VLBytes(1,vd))) ) \/
+			(c.safe_renegotiation = false /\ b = [||])}
+
+val parseExtensions: b:bytes -> (res:(extensionType * bytes) list
+	{(b = [||] => res = [] ) \/
+	 (?ext. b = VLBytes(2,ext) /\ ContainsExtensions(b,ext) )
+	}) Result
 
 (* verify data authenticated by the Finished messages *)
 type log = bytes         (* message payloads so far, to be eventually authenticated *) 
@@ -62,15 +102,15 @@ definition !cv,clRdm,sid,clientCipherSuites,cm,ext,b.
                 ContainsCompressions(b2,cm) /\ ContainsCipherSuites(b1,clientCipherSuites) /\
                 b = (VersionBytes(cv) @| 
                  clRdm @| 
-                 LenBytes(1, sid) @| 
-                 LenBytes(2,b1) @| 
-                 LenBytes(1,b2) @| 
+                 VLBytes(1, sid) @| 
+                 VLBytes(2,b1) @| 
+                 VLBytes(1,b2) @| 
                  ext)
 				 )
 
 definition !cv,clRdm,sid,clientCipherSuites,cm,ext.
   ClientHelloBytes(cv,clRdm,sid,clientCipherSuites,cm,ext) = 
-    MessageBytes(HTBytes(HT_client_hello), ClientHelloMsg(cv,clRdm,sid,clientCipherSuites,cm,ext))
+    MessageBytes(HT_client_hello, ClientHelloMsg(cv,clRdm,sid,clientCipherSuites,cm,ext))
                 
 
 val parseClientHello: m:bytes -> 

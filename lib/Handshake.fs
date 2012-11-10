@@ -57,29 +57,37 @@ let parseHt (b:bytes) =
 
 /// Handshake message format 
 
-let messageBytes ht data = htBytes ht @| vlbytes 3 data 
+let messageBytes ht data =
+    let htb = htBytes ht in
+    let vldata = vlbytes 3 data in
+    htb @| vldata 
 
 let parseMessage buf =
     (* Somewhat inefficient implementation:
        we repeatedly parse the first 4 bytes of the incoming buffer until we have a complete message;
        we then remove that message from the incoming buffer. *)
-    if length buf < 4 then None (* not enough data to start parsing *)
+    if length buf < 4 then Correct(None) (* not enough data to start parsing *)
     else
         let (hstypeb,rem) = Bytes.split buf 1 in
-        let (lenb,rem) = Bytes.split rem 3 in
-        let len = int_of_bytes lenb in
-        if length rem < len then None (* not enough payload, try next time *)
-        else
-            let (payload,rem) = Bytes.split rem len in
-            let to_log = hstypeb @| lenb @| payload in //$
-            Some(rem,hstypeb,payload,to_log)
-
+        match parseHt hstypeb with
+        | Error(x,y) -> Error(x,y)
+        | Correct(hstype) ->
+            match vlsplit 3 rem with
+            | Error(x,y) -> Correct(None) // not enough payload, try next time
+            | Correct(res) ->
+                let (payload,rem) = res in
+                let to_log = messageBytes hstype payload in
+                let res = (rem,hstype,payload,to_log) in
+                let res = Some(res) in
+                correct(res)
 
 // We implement locally fragmentation, not hiding any length
+type unsafe = Unsafe of epoch
 let makeFragment ki b =
     let (b0,rem) = if length b < DataStream.max_TLSCipher_fragment_length then (b,[||])
                    else Bytes.split b DataStream.max_TLSCipher_fragment_length
     let r0 = (length b0, length b0) in
+    Pi.assume(Unsafe(ki))
     let f = Fragment.fragmentPlain ki r0 b0 in
     ((r0,f),rem)
 
@@ -97,31 +105,26 @@ let makeFragment ki b =
 
 (* Extension handling *)
 
-// missing some details, e.g. ExtensionType/Data
 type extensionType =
     | HExt_renegotiation_info
-    | HExt_unsupported of bytes
 
 let extensionTypeBytes hExt =
     match hExt with
     | HExt_renegotiation_info -> [|0xFFuy; 0x01uy|]
-    | HExt_unsupported (_)    -> unexpectedError "Unknown extension type"
 
 let parseExtensionType b =
     match b with
-    | [|0xFFuy; 0x01uy|] -> HExt_renegotiation_info
-    | _                  -> HExt_unsupported b
+    | [|0xFFuy; 0x01uy|] -> correct(HExt_renegotiation_info)
+    | _                  -> let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_decode_error, reason)
 
 let extensionBytes extType data =
     let extTBytes = extensionTypeBytes extType in
     let payload = vlbytes 2 data in
     extTBytes @| payload
 
-let extensionListBytes el =
-    let flat = Bytes.fold (@|) [||] el in
-    vlbytes 2 flat
+let consExt (e:extensionType * bytes) l = e :: l
 
-let rec parseExtensionList_int data list =
+let rec parseExtensionList data list =
     match length data with
     | 0 -> correct (list)
     | x when x < 4 ->
@@ -129,12 +132,36 @@ let rec parseExtensionList_int data list =
         Error (AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
     | _ ->
         let (extTypeBytes,rem) = Bytes.split data 2 in
-        let extType = parseExtensionType extTypeBytes in
         match vlsplit 2 rem with
-        | Error(x,y) -> Error (x,y) (* Parsing error *)
-        | Correct (payload,rem) -> parseExtensionList_int rem ([(extType,payload)] @ list)
+            | Error(x,y) -> Error (x,y) (* Parsing error *)
+            | Correct (res) ->
+                let (payload,rem) = res in
+                match parseExtensionType extTypeBytes with
+                | Error(x,y) ->
+                    (* Unknown extension, skip it *)
+                    parseExtensionList rem list
+                | Correct(extType) ->
+                    let thisExt = (extType,payload) in
+                    let list = consExt thisExt list in
+                    parseExtensionList rem list
 
-let parseExtensionList data =
+(* Renegotiation Info extension -- RFC 5746 *)
+let renegotiationInfoExtensionBytes verifyData =
+    let payload = vlbytes 1 verifyData in
+    extensionBytes HExt_renegotiation_info payload
+
+let parseRenegotiationInfoExtension payload = vlparse 1 payload
+
+(* Top-level extension handling *)
+let extensionsBytes config verifyData =
+    if config.safe_renegotiation then
+        let renInfo = renegotiationInfoExtensionBytes verifyData in
+        vlbytes 2 renInfo
+    else
+        (* We are sending no extensions at all *)
+        [||]
+
+let parseExtensions data =
     match length data with
     | 0 -> correct ([])
     | 1 -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
@@ -142,7 +169,7 @@ let parseExtensionList data =
         match vlparse 2 data with
         | Error(x,y)    -> Error(x,y)
         | Correct(exts) -> 
-            match parseExtensionList_int exts [] with
+            match parseExtensionList exts [] with
             | Error(x,y) -> Error(x,y)
             | Correct(extList) ->
                 (* Check there is at most one renegotiation_info extension *)
@@ -154,14 +181,9 @@ let parseExtensionList data =
                     correct(ren_ext_list)
 
 
-(* Renegotiation Info extension -- RFC 5746 *)
-let renegotiationInfoExtensionBytes verifyData =
-    let payload = vlbytes 1 verifyData in
-    extensionBytes HExt_renegotiation_info payload
-
 let check_reneg_info payload expected =
     // We also check there were no more data in this extension.
-    match vlparse 1 payload with
+    match parseRenegotiationInfoExtension payload with
     | Error(x,y)     -> false
     | Correct (recv) -> equalBytes recv expected
 
@@ -203,7 +225,6 @@ let inspect_ServerHello_extensions (extList:(extensionType * bytes) list) expect
             else
                 (* RFC 5746, sec 3.4: send a handshake failure alert *)
                 Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Wrong renegotiation information")
-        | _ -> Error(AD_unsupported_extension, perror __SOURCE_FILE__ __LINE__ "The server gave an unknown extension")
 
 (** A.4.1 Hello Messages *)
 
@@ -229,14 +250,7 @@ let parseClientHello data =
     let cm = parseCompressions cmBytes
     correct(cv,cr,sid,clientCipherSuites,cm,extensions)
      
-let clientHelloBytes poptions crand session cVerifyData =
-    // TODO: Move extension parsing outside
-    let ext =
-        if poptions.safe_renegotiation 
-        then
-            let renInfoB = renegotiationInfoExtensionBytes cVerifyData in
-            extensionListBytes [renInfoB]
-        else [||] in
+let clientHelloBytes poptions crand session ext =
     let cVerB      = versionBytes poptions.maxVer in
     let random     = crand in
     let csessB     = vlbytes 1 session in
@@ -330,7 +344,7 @@ let rec parseDistinguishedNameList data res =
             | Error(x,y) -> Error(x,y)
             | Correct (nameBytes,data) ->
             let name = iutf8 nameBytes in (* FIXME: I have no idea wat "X501 represented in DER-encoding format" (RFC 5246, page 54) is. I assume UTF8 will do. *)
-            let res = [name] @ res in
+            let res = name :: res in
             parseDistinguishedNameList data res
 
 (* SignatureAndHashAlgorithm parsing functions *)
@@ -728,8 +742,8 @@ let init (role:Role) poptions =
     let ci = initConnection role rand in
     match role with
     | Client ->
-        // FIXME: extensions should not be handled within clientHelloBytes!
-        let cHelloBytes = clientHelloBytes poptions rand sid [||] in
+        let ext = extensionsBytes poptions [||] in
+        let cHelloBytes = clientHelloBytes poptions rand sid ext in
         let state = {hs_outgoing = cHelloBytes
                      hs_incoming = [||]
                      poptions = poptions
@@ -761,7 +775,8 @@ let resume next_sid poptions =
     | sid ->
     let rand = Nonce.mkClientRandom () in
     let ci = initConnection Client rand in
-    let cHelloBytes = clientHelloBytes poptions rand sid [||] in
+    let ext = extensionsBytes poptions [||]
+    let cHelloBytes = clientHelloBytes poptions rand sid ext in
     let state = {hs_outgoing = cHelloBytes
                  hs_incoming = [||]
                  poptions = poptions
@@ -779,7 +794,8 @@ let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
         | ClientIdle(cvd,svd) ->
             let rand = Nonce.mkClientRandom () in
             let sid = [||] in
-            let cHelloBytes = clientHelloBytes ops rand sid cvd in
+            let ext = extensionsBytes ops cvd in
+            let cHelloBytes = clientHelloBytes ops rand sid ext in
             let state = {hs_outgoing = cHelloBytes
                          hs_incoming = [||]
                          poptions = ops
@@ -810,7 +826,8 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
                 match cstate with
                 | ClientIdle(cvd,svd) ->
                     let rand = Nonce.mkClientRandom () in
-                    let cHelloBytes = clientHelloBytes ops rand sid cvd in
+                    let ext = extensionsBytes ops cvd in
+                    let cHelloBytes = clientHelloBytes ops rand sid ext in
                     let state = {hs_outgoing = cHelloBytes
                                  hs_incoming = [||]
                                  poptions = ops
@@ -1097,21 +1114,26 @@ let on_serverHello_full crand log shello =
 
 let parseMessageState state = 
     match parseMessage state.hs_incoming with
-    | None -> None
-    | Some(rem,hstype,payload,to_log) -> 
-         let state = { state with hs_incoming = rem } in
-         Some(state,hstype,payload,to_log)
+    | Error(x,y) -> Error(x,y)
+    | Correct(res) ->
+        match res with
+        | None -> correct(None)
+        | Some(rem,hstype,payload,to_log) -> 
+             let state = { state with hs_incoming = rem } in
+             let res = Some(state,hstype,payload,to_log) in
+             correct(res)
 
 let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion:ProtocolVersion option) =
     match parseMessageState state with
-    | None ->
-      match agreedVersion with
-      | None      -> InAck(state)
-      | Some (pv) -> InVersionAgreed(state,pv)
-    | Some (state,hstypeb,payload,to_log) ->
-      match parseHt hstypeb with
-      | Error(x,y) -> InError(x,y,state)
-      | Correct(hstype) ->
+    | Error(x,y) -> InError(x,y,state)
+    | Correct(res) ->
+      match res with
+      | None ->
+          match agreedVersion with
+          | None      -> InAck(state)
+          | Some (pv) -> InVersionAgreed(state,pv)
+      | Some (res) ->
+      let (state,hstype,payload,to_log) = res in
       match state.pstate with
       | PSClient(cState) ->
         match hstype with
@@ -1151,7 +1173,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                   then InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Compression method negotiation",state)
                   else
                   // Parse extensions
-                  match parseExtensionList sh_neg_extensions with
+                  match parseExtensions sh_neg_extensions with
                   | Error(x,y) -> InError(x,y,state)
                   | Correct(extList) ->
                   // Handling of safe renegotiation
@@ -1385,19 +1407,10 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
       (* Should never happen *)
       | PSServer(_) -> unexpectedError "[recv_fragment_client] should only be invoked when in client role."
 
-let prepare_server_hello si srand config cvd svd =
-    // FIXME: Super-redundant. At some point we should clean all this "preparing" functions...
-    let ext = 
-      if config.safe_renegotiation then
-        let data = cvd @| svd in
-        let ren_extB = renegotiationInfoExtensionBytes data in
-        extensionListBytes [ren_extB]
-      else
-        [||]
-    serverHelloBytes si srand ext
-
 let prepare_server_output_full_RSA (ci:ConnectionInfo) state si cv calgs cvd svd log =
-    let serverHelloB = prepare_server_hello si si.init_srand state.poptions cvd svd in
+    let renInfo = cvd @| svd in
+    let ext = extensionsBytes state.poptions renInfo in
+    let serverHelloB = serverHelloBytes si si.init_srand ext in
     match Cert.for_key_encryption calgs state.poptions.server_name with
     | None -> Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Could not find in the store a certificate for the negotiated ciphersuite")
     | Some(c,sk) ->
@@ -1426,7 +1439,9 @@ let prepare_server_output_full_DH ci state si log =
     Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Unimplemented") // TODO
 
 let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs cvd svd log =
-    let serverHelloB = prepare_server_hello si si.init_srand state.poptions cvd svd in
+    let renInfo = cvd @| svd in
+    let ext = extensionsBytes state.poptions renInfo in
+    let serverHelloB = serverHelloBytes si si.init_srand ext in
     let keyAlgs = sigHashAlg_bySigList certAlgs [sigAlg_of_ciphersuite si.cipher_suite] in
     if listLength keyAlgs = 0 then
         Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "The client provided inconsistent signature algorithms and ciphersuites")
@@ -1465,7 +1480,9 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs cvd svd
         (* ClientKeyExchangeDHE(si,p,g,x,log) should carry PP((p,g)) /\ ?gx. DHE.Exp((p,g),x,gx) *)
 
 let prepare_server_output_full_DH_anon (ci:ConnectionInfo) state si cvd svd log =
-    let serverHelloB = prepare_server_hello si si.init_srand state.poptions cvd svd in
+    let renInfo = cvd @| svd in
+    let ext = extensionsBytes state.poptions renInfo in
+    let serverHelloB = serverHelloBytes si si.init_srand ext in
     
     (* ServerKEyExchange *)
     let (p,g) = DH.default_pp () in
@@ -1498,7 +1515,9 @@ let negotiate cList sList =
 
 let prepare_server_output_resumption ci state crand si ms cvd svd log =
     let srand = Nonce.mkClientRandom () in
-    let sHelloB = prepare_server_hello si srand state.poptions cvd svd in
+    let renInfo = cvd @| svd in
+    let ext = extensionsBytes state.poptions renInfo in
+    let sHelloB = serverHelloBytes si srand ext in
 
     let log = log @| sHelloB
     let state = {state with hs_outgoing = sHelloB} in
@@ -1547,14 +1566,15 @@ let startServerFull (ci:ConnectionInfo) state cHello cvd svd log =
 
 let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion:ProtocolVersion option) =
     match parseMessageState state with
-    | None ->
-      match agreedVersion with
-      | None      -> InAck(state)
-      | Some (pv) -> InVersionAgreed(state,pv) (*CF: why? AP: Needed in first handshake, to check the protocol version at the record level. (See sec E.1 RFC5246) *)
-    | Some (state,hstypeb,payload,to_log) ->
-      match parseHt hstypeb with
-      | Error(x,y) -> InError(x,y,state)
-      | Correct(hstype) ->
+    | Error(x,y) -> InError(x,y,state)
+    | Correct(res) ->
+      match res with
+      | None ->
+          match agreedVersion with
+          | None      -> InAck(state)
+          | Some (pv) -> InVersionAgreed(state,pv) (*CF: why? AP: Needed in first handshake, to check the protocol version at the record level. (See sec E.1 RFC5246) *)
+      | Some (res) ->
+      let (state,hstype,payload,to_log) = res in
       match state.pstate with
       | PSServer(sState) ->
         match hstype with
@@ -1568,7 +1588,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 (* Log the received message *)
                 let log = to_log in
                 (* handle extensions: for now only renegotiation_info *) (*CF? AP: we need to add support for the Signature Algorithm extension at least.*)
-                match parseExtensionList ch_extensions with
+                match parseExtensions ch_extensions with
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(extList) ->
                 let extRes =
