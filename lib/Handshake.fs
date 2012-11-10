@@ -237,6 +237,7 @@ let inspect_ServerHello_extensions (extList:(extensionType * bytes) list) expect
 
 (** A.4.1 Hello Messages *)
 
+type chello = | ClientHelloMsg of (bytes * ProtocolVersion * random * sessionID * cipherSuites * Compression list * bytes)
 let parseClientHello data =
     if length data >= 34 then
         let (clVerBytes,cr,data) = split2 data 2 32 in
@@ -263,6 +264,7 @@ let parseClientHello data =
                         | Correct (res) ->
                         let (cmBytes,extensions) = res in
                         let cm = parseCompressions cmBytes
+                        //Pi.assume(ClientHelloMsg(data,cv,cr,sid,clientCipherSuites,cm,extensions))
                         correct(cv,cr,sid,clientCipherSuites,cm,extensions)
                     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
                 else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
@@ -282,6 +284,7 @@ let clientHelloBytes poptions crand session ext =
     let cmb = (compressionMethodsBytes cm) in
     let ccompmethB = vlbytes 1 cmb in
     let data = cVerB @| random @| csessB @| ccsuitesB @| ccompmethB @| ext in
+    //Pi.assume(ClientHelloMsg(data,poptions.maxVer,crand,session,poptions.ciphersuites,poptions.compressions,ext))
     messageBytes HT_client_hello data
 
 let serverHelloBytes sinfo srand ext = 

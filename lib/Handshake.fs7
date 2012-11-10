@@ -109,9 +109,9 @@ type log = bytes         (* message payloads so far, to be eventually authentica
 type cVerifyData = bytes (* ClientFinished payload *)
 type sVerifyData = bytes (* ServerFinished payload *)
 
-function val ClientHelloMsg: (ProtocolVersion * random * sessionID * cipherSuites * Compression list * bytes) -> bytes
+predicate type chello = ClientHelloMsg of (bytes * ProtocolVersion * random * sessionID * cipherSuites * Compression list * bytes)
 definition !cv,clRdm,sid,clientCipherSuites,cm,ext,b.
-  ClientHelloMsg(cv,clRdm,sid,clientCipherSuites,cm,ext) = b <=> (?b1,b2. 
+  ClientHelloMsg(b,cv,clRdm,sid,clientCipherSuites,cm,ext) <=> (?b1,b2. 
                 ContainsCompressions(b2,cm) /\ ContainsCipherSuites(b1,clientCipherSuites) /\
                 b = (VersionBytes(cv) @| 
                  clRdm @| 
@@ -121,13 +121,12 @@ definition !cv,clRdm,sid,clientCipherSuites,cm,ext,b.
                  ext)
 				 )
                 
-
 val parseClientHello: m:bytes -> 
 	(pv:ProtocolVersion * cr:bytes * sid:sessionID * cs:cipherSuites * cm:Compression list * ext:bytes{
-		m=ClientHelloMsg(pv,cr,sid,cs,cm,ext)}) Result
+		ClientHelloMsg(m,pv,cr,sid,cs,cm,ext)}) Result
 val clientHelloBytes: c:config -> cr:random -> sid:sessionID -> ext:bytes -> m:bytes{
-	    m=MessageBytes(HT_client_hello,
-			ClientHelloMsg(c.maxVer,cr,sid,c.ciphersuites,c.compressions,ext))}
+	    ?m'. ClientHelloMsg(m',c.maxVer,cr,sid,c.ciphersuites,c.compressions,ext) /\
+		m=MessageBytes(HT_client_hello,m')}
 
 function val ServerHelloMsg: (ProtocolVersion * random * sessionID * cipherSuite * Compression * bytes) -> bytes
 
