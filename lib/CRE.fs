@@ -8,6 +8,15 @@ open TLSPRF
 type rsarepr = bytes
 type rsapms = {rsapms: rsarepr}
 
+#if ideal
+let honest_log = ref []
+let honest pms =
+    match assoc !honest_log pms with
+        Some -> true
+        None -> false
+let log = ref []
+#endif
+
 let genRSA (pk:RSAKeys.pk) (vc:TLSConstants.ProtocolVersion) : rsapms = 
     let verBytes = TLSConstants.versionBytes vc in
     let rnd = Nonce.mkRandom 46 in
@@ -21,7 +30,11 @@ type dhpms = {dhpms: DHGroup.elt}
 
 let sampleDH p g (gx:DHGroup.elt) (gy:DHGroup.elt) = 
     let gz = DHGroup.genElement p g in
-    {dhpms = gz}
+    let pms = {dhpms = gz}
+    #if ideal
+    honest_log := pms::!honest_log
+    #endif
+    pms
 
 let coerceDH (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) b = {dhpms = b}
 
@@ -34,7 +47,18 @@ let prfMS sinfo pmsBytes: PRF.masterSecret =
     PRF.coerce sinfo res
 
 let prfSmoothRSA si (pv:ProtocolVersion) pms = prfMS si pms.rsapms
-let prfSmoothDHE si (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) pms = prfMS si pms.dhpms
-
+let prfSmoothDHE si (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) pms = 
+    #if ideal
+    if not(corrupt pms)
+    then match assoc !log pms with
+             Some(ms) -> ms
+             None -> 
+                 let ms=PRF.sampleMS si 
+                 log := (prf,ms)::log
+                 ms 
+    else prfMS si pms.dhpms
+    #else
+    prfMS si pms.dhpms
+    #endif
 
 
