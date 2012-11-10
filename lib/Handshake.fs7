@@ -129,6 +129,23 @@ val clientHelloBytes: c:config -> cr:random -> sid:sessionID -> ext:bytes -> m:b
 		m=MessageBytes(HT_client_hello,m')}
 
 function val ServerHelloMsg: (ProtocolVersion * random * sessionID * cipherSuite * Compression * bytes) -> bytes
+private definition !pv,sr,sid,cs,cm,ext.
+	ServerHelloMsg(pv,sr,sid,cs,cm,ext) =
+		VersionBytes(pv) @|
+		sr @|
+		VLBytes(1,sid) @|
+		CipherSuiteBytes(cs) @|
+		CompressionBytes(cm) @|
+		ext
+
+val serverHelloBytes: si:SessionInfo -> sr:random -> ext:bytes ->
+	b:bytes{b=MessageBytes(HT_server_hello,
+		ServerHelloMsg(si.protocol_version,sr,si.sessionID,si.cipher_suite,
+					   si.compression,ext))}
+val parseServerHello: b:bytes ->
+	((pv:ProtocolVersion * sr:random * sid:sessionID * cs:cipherSuite * cm:Compression * ext:bytes)
+	 {b=ServerHelloMsg(pv,sr,sid,cs,cm,ext)})
+	Result
 
 function val ClientOrServerCertificateMsg: bytes list -> bytes
 

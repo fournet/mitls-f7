@@ -296,21 +296,30 @@ let serverHelloBytes sinfo srand ext =
     messageBytes HT_server_hello data
 
 let parseServerHello data =
-    let (serverVerBytes,serverRandomBytes,data) = split2 data 2 32 
-    match parseVersion serverVerBytes with
-    | Error(x,y) -> Error(x,y)
-    | Correct(serverVer) ->
-    match vlsplit 1 data with
-    | Error(x,y) -> Error (x,y)
-    | Correct (sid,data) ->
-    let (csBytes,cmBytes,data) = split2 data 2 1 
-    match parseCipherSuite csBytes with
-    | Error(x,y) -> Error(x,y)
-    | Correct(cs) ->
-    match parseCompression cmBytes with
-    | Error(x,y) -> Error(x,y)
-    | Correct(cm) ->
-    correct(serverVer,serverRandomBytes,sid,cs,cm,data)
+    if length data >= 34 then
+        let (serverVerBytes,serverRandomBytes,data) = split2 data 2 32 
+        match parseVersion serverVerBytes with
+        | Error(x,y) -> Error(x,y)
+        | Correct(serverVer) ->
+        if length data >= 1 then
+            match vlsplit 1 data with
+            | Error(x,y) -> Error (x,y)
+            | Correct (res) ->
+            let (sid,data) = res in
+            if length sid <= 32 then
+                if length data >= 3 then
+                    let (csBytes,cmBytes,data) = split2 data 2 1 
+                    match parseCipherSuite csBytes with
+                    | Error(x,y) -> Error(x,y)
+                    | Correct(cs) ->
+                    match parseCompression cmBytes with
+                    | Error(x,y) -> Error(x,y)
+                    | Correct(cm) ->
+                    correct(serverVer,serverRandomBytes,sid,cs,cm,data)
+                else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+            else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+        else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+    else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let helloRequestBytes = messageBytes HT_hello_request [||]
 
