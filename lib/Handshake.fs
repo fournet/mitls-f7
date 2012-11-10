@@ -117,6 +117,10 @@ let parseExtensionType b =
     | [|0xFFuy; 0x01uy|] -> correct(HExt_renegotiation_info)
     | _                  -> let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_decode_error, reason)
 
+let isExtensionType et (ext:extensionType * bytes) =
+    let et' = fst(ext) in
+    et = et'
+
 let extensionBytes extType data =
     let extTBytes = extensionTypeBytes extType in
     let payload = vlbytes 2 data in
@@ -150,7 +154,12 @@ let renegotiationInfoExtensionBytes verifyData =
     let payload = vlbytes 1 verifyData in
     extensionBytes HExt_renegotiation_info payload
 
-let parseRenegotiationInfoExtension payload = vlparse 1 payload
+let parseRenegotiationInfoExtension payload =
+    if length payload > 0 then
+        vlparse 1 payload
+    else
+        let reason = perror __SOURCE_FILE__ __LINE__ "" in
+        Error(AD_decode_error,reason)
 
 (* Top-level extension handling *)
 let extensionsBytes config verifyData =
@@ -174,7 +183,7 @@ let parseExtensions data =
             | Correct(extList) ->
                 (* Check there is at most one renegotiation_info extension *)
                 // FIXME: Currently only working for renegotiation extension. Check that each extension appears only once
-                let ren_ext_list = Bytes.filter (fun (ext,_) -> ext = HExt_renegotiation_info) extList in
+                let ren_ext_list = Bytes.filter (isExtensionType HExt_renegotiation_info) extList in
                 if listLength ren_ext_list > 1 then
                     Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Same extension received more than once")
                 else
@@ -229,33 +238,49 @@ let inspect_ServerHello_extensions (extList:(extensionType * bytes) list) expect
 (** A.4.1 Hello Messages *)
 
 let parseClientHello data =
-    // pre: Length(data) > 34
-    // correct post: something like data = ClientHelloBytes(...) 
-    let (clVerBytes,cr,data) = split2 data 2 32 in
-    match parseVersion clVerBytes with
-    | Error(x,y) -> Error(x,y)
-    | Correct(cv) ->
-    match vlsplit 1 data with
-    | Error(x,y) -> Error(x,y)
-    | Correct (sid,data) ->
-    match vlsplit 2 data with
-    | Error(x,y) -> Error(x,y)
-    | Correct (clCiphsuitesBytes,data) ->
-    match parseCipherSuites clCiphsuitesBytes with
-    | Error(x,y) -> Error(x,y) 
-    | Correct(clientCipherSuites) ->
-    match vlsplit 1 data with
-    | Error(x,y) -> Error(x,y)
-    | Correct (cmBytes,extensions) ->
-    let cm = parseCompressions cmBytes
-    correct(cv,cr,sid,clientCipherSuites,cm,extensions)
+    if length data >= 34 then
+        let (clVerBytes,cr,data) = split2 data 2 32 in
+        match parseVersion clVerBytes with
+        | Error(x,y) -> Error(x,y)
+        | Correct(cv) ->
+        if length data >= 1 then
+            match vlsplit 1 data with
+            | Error(x,y) -> Error(x,y)
+            | Correct (res) ->
+            let (sid,data) = res in
+            if length sid <= 32 then
+                if length data >= 2 then
+                    match vlsplit 2 data with
+                    | Error(x,y) -> Error(x,y)
+                    | Correct (res) ->
+                    let (clCiphsuitesBytes,data) = res in
+                    match parseCipherSuites clCiphsuitesBytes with
+                    | Error(x,y) -> Error(x,y) 
+                    | Correct (clientCipherSuites) ->
+                    if length data >= 1 then
+                        match vlsplit 1 data with
+                        | Error(x,y) -> Error(x,y)
+                        | Correct (res) ->
+                        let (cmBytes,extensions) = res in
+                        let cm = parseCompressions cmBytes
+                        correct(cv,cr,sid,clientCipherSuites,cm,extensions)
+                    else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+                else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+            else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+        else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+    else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
      
 let clientHelloBytes poptions crand session ext =
-    let cVerB      = versionBytes poptions.maxVer in
+    let mv = poptions.maxVer in
+    let cVerB      = versionBytes mv in
     let random     = crand in
     let csessB     = vlbytes 1 session in
-    let ccsuitesB  = vlbytes 2 (cipherSuitesBytes poptions.ciphersuites) in
-    let ccompmethB = vlbytes 1 (compressionMethodsBytes poptions.compressions) in
+    let cs = poptions.ciphersuites in
+    let csb = cipherSuitesBytes cs in
+    let ccsuitesB  = vlbytes 2 csb in
+    let cm = poptions.compressions in
+    let cmb = (compressionMethodsBytes cm) in
+    let ccompmethB = vlbytes 1 cmb in
     let data = cVerB @| random @| csessB @| ccsuitesB @| ccompmethB @| ext in
     messageBytes HT_client_hello data
 

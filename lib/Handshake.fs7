@@ -61,6 +61,8 @@ private definition ExtensionTypeBytes(HExt_renegotiation_info) = [|0xFFuy; 0x01u
 
 val extensionTypeBytes: et:extensionType -> b:bytes{b=ExtensionTypeBytes(et)}
 val parseExtensionType: b:bytes -> (et:extensionType{b=ExtensionTypeBytes(et)}) Result
+val isExtensionType: et:extensionType -> ext:(extensionType * bytes) ->
+	b:bool{b = true => (?et',d. ext=(et',d) /\ et = et')}
 
 function val ExtensionBytes: extensionType * bytes -> bytes
 private definition !et,b.
@@ -76,7 +78,7 @@ val parseExtensionList: b:bytes -> cur:(extensionType * bytes) list ->
 
 val renegotiationInfoExtensionBytes: vd:bytes ->
 	b:bytes{b=ExtensionBytes(HExt_renegotiation_info,VLBytes(1,vd))}
-val parseRenegotiationInfoExtension: b:bytes{Length(b)>=1} ->
+val parseRenegotiationInfoExtension: b:bytes ->
 	(vd:bytes{b=VLBytes(1,vd)}) Result
 
 function val ExtensionsBytes: bytes -> bytes
@@ -86,40 +88,48 @@ val extensionsBytes: c:config -> vd:bytes ->
 			(c.safe_renegotiation = false /\ b = [||])}
 
 val parseExtensions: b:bytes -> (res:(extensionType * bytes) list
-	{(b = [||] => res = [] ) \/
-	 (?ext. b = VLBytes(2,ext) /\ ContainsExtensions(b,ext) )
+	{(b = [||] /\ res = [] ) \/
+	 (b <> [||] /\ ?ext. b = VLBytes(2,ext) /\ ContainsExtensions(b,ext) )
 	}) Result
+
+val check_reneg_info: got:bytes -> exp:bytes ->
+	b:bool{b=true => (?d. got = VLBytes(1,d) /\ exp = d)}
+
+// TODO: That's tricky. There's a hidden invariant on whether we are in the first, or subsequent handshake.
+val checkClientRenegotiationInfoExtension:
+	(extensionType * bytes) list -> cipherSuites -> bytes -> bool
+
+// TODO: Need to deal with lists to say something about this function
+val inspect_ServerHello_extensions:
+	(extensionType * bytes) list -> bytes ->
+		unit Result
 
 (* verify data authenticated by the Finished messages *)
 type log = bytes         (* message payloads so far, to be eventually authenticated *) 
 type cVerifyData = bytes (* ClientFinished payload *)
 type sVerifyData = bytes (* ServerFinished payload *)
 
-function val ClientHelloMsg: (ProtocolVersion * bytes * sessionID * cipherSuites * Compression list * bytes) -> bytes
-function val ClientHelloBytes: (ProtocolVersion * bytes * sessionID * cipherSuites * Compression list * bytes) -> bytes
+function val ClientHelloMsg: (ProtocolVersion * random * sessionID * cipherSuites * Compression list * bytes) -> bytes
 definition !cv,clRdm,sid,clientCipherSuites,cm,ext,b.
   ClientHelloMsg(cv,clRdm,sid,clientCipherSuites,cm,ext) = b <=> (?b1,b2. 
                 ContainsCompressions(b2,cm) /\ ContainsCipherSuites(b1,clientCipherSuites) /\
                 b = (VersionBytes(cv) @| 
                  clRdm @| 
-                 VLBytes(1, sid) @| 
+                 VLBytes(1,sid) @| 
                  VLBytes(2,b1) @| 
                  VLBytes(1,b2) @| 
                  ext)
 				 )
-
-definition !cv,clRdm,sid,clientCipherSuites,cm,ext.
-  ClientHelloBytes(cv,clRdm,sid,clientCipherSuites,cm,ext) = 
-    MessageBytes(HT_client_hello, ClientHelloMsg(cv,clRdm,sid,clientCipherSuites,cm,ext))
                 
 
 val parseClientHello: m:bytes -> 
 	(pv:ProtocolVersion * cr:bytes * sid:sessionID * cs:cipherSuites * cm:Compression list * ext:bytes{
 		m=ClientHelloMsg(pv,cr,sid,cs,cm,ext)}) Result
-val clientHelloBytes: c:config -> cr:bytes -> sid:sessionID -> ext:bytes -> m:bytes{
-	    m=ClientHelloBytes(c.maxVer,cr,sid,c.ciphersuites,c.compressions,ext)}
+val clientHelloBytes: c:config -> cr:random -> sid:sessionID -> ext:bytes -> m:bytes{
+	    m=MessageBytes(HT_client_hello,
+			ClientHelloMsg(c.maxVer,cr,sid,c.ciphersuites,c.compressions,ext))}
 
-function val ServerHelloMsg: (ProtocolVersion * bytes * sessionID * cipherSuite * Compression * bytes) -> bytes
+function val ServerHelloMsg: (ProtocolVersion * random * sessionID * cipherSuite * Compression * bytes) -> bytes
 
 function val ClientOrServerCertificateMsg: bytes list -> bytes
 
