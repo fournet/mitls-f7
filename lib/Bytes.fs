@@ -61,5 +61,8 @@ let foldBack (f:bytes -> bytes -> bytes) bl s = List.foldBack f bl s
 let exists f l = List.exists f l
 let choose f l = List.choose f l
 let tryFind f l = List.tryFind f l
+#if ideal
+let find f l = List.find f l
+#endif
 let listLength (l:'a list) = l.Length
 let listHead (l:'a list) = l.Head

@@ -47,7 +47,7 @@ let rec pk_of_log sk hll =
       | [] -> None
 
 let pk_of (sk:skey) = 
-    fst ( List.find (fun el -> snd el=sk) !honest_log )  
+    fst (find (fun el -> snd el=sk) !honest_log )  
 
 let honest pk =
     List.exists (fun el -> fst el=pk) !honest_log

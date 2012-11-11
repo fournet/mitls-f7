@@ -13,7 +13,7 @@ type dhpms = {dhpms: DHGroup.elt}
 type pms = RSA_pms of rsapms | DHE_pms of dhpms
 
 let honest_log = ref []
-let honest pms = List.exists (fun el -> el=pms) !honest_log
+let honest pms = exists (fun el -> el=pms) !honest_log
 
 let corrupt pms = 
     not(honest pms)

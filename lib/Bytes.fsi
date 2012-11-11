@@ -37,5 +37,8 @@ val foldBack: (bytes -> bytes -> bytes) -> bytes list -> bytes -> bytes
 val exists: ('a -> bool) -> 'a list -> bool
 val choose: ('a -> 'b option) -> 'a list -> 'b list // Not used parametrically in HS, but types are not defined here.
 val tryFind: ('a -> bool) -> 'a list -> 'a option
+#if ideal
+val find: ('a -> bool) -> 'a list -> 'a
+#endif
 val listLength: ('a list) -> int
 val listHead: ('a list) -> 'a

@@ -103,5 +103,8 @@ val foldBack: (bytes -> bytes -> bytes) -> bl:bytes list -> s:bytes -> b:bytes{b
 val exists: ('a -> bool) -> 'a list -> bool // Used parametrically in HS.
 val choose: ('a -> 'b option) -> 'a list -> 'b list // Not used parametrically in HS, but types are not defined here.
 val tryFind: ('a -> bool) -> 'a list -> 'a option
+#if ideal
+val find: ('a -> bool) -> 'a list -> 'a
+#endif
 val listLength: l:('a list) -> len:nat{ListLength(l)=len}
 val listHead: l:('a list){ListLength(l) > 0} -> 'a
