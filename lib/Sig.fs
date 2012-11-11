@@ -50,7 +50,7 @@ let pk_of (sk:skey) =
     fst (find (fun el -> snd el=sk) !honest_log )  
 
 let honest pk =
-    List.exists (fun el -> fst el=pk) !honest_log
+    exists (fun el -> fst el=pk) !honest_log
 
 #endif
 

@@ -12,7 +12,7 @@ type masterSecret = { bytes: repr }
 let log = ref []
 let honest_log = ref[]
 
-let corrupt ci = List.exists (fun el -> el=epochSI(ci.id_in)) !honest_log
+let corrupt ci = exists (fun el -> el=epochSI(ci.id_in)) !honest_log
 #endif
 
 #if ideal
@@ -55,7 +55,7 @@ let keyGen ci (ms:masterSecret) =
     #if ideal
     let (cWrite,sWrite) =
         if not(corrupt ci)
-        then match List.tryFind (fun el-> fst el = (ci,ms)) !log with
+        then match tryFind (fun el-> fst el = (ci,ms)) !log with
                     Some(_,(cWrite,sWrite)) -> (cWrite,sWrite)
                   | None -> 
                         let (cWrite,sRead)=StatefulAEAD.GEN ci.id_out
