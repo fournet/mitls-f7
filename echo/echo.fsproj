@@ -24,7 +24,7 @@
     <WarningLevel>3</WarningLevel>
     <PlatformTarget>x86</PlatformTarget>
     <DocumentationFile>bin\Debug\echo.XML</DocumentationFile>
-    <StartArguments>--bind-port 6000 --bind-address 127.0.0.1 --server-name ciao.inria.fr</StartArguments>
+    <StartArguments>--bind-port 6000 --bind-address 127.0.0.1 --server-name cert-01.needham.inria.fr</StartArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
     <DebugType>pdbonly</DebugType>
