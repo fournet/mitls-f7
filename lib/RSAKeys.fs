@@ -5,6 +5,11 @@ open Bytes
 type pk = { pk : CoreACiphers.pk }
 type sk = { sk : CoreACiphers.sk }
 
+#if ideal
+let honest_log = ref[]
+let honest (pk:pk) = false
+#endif
+
 type modulus  = bytes
 type exponent = bytes
 

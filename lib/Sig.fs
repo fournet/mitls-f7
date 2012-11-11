@@ -3,6 +3,8 @@
 open Bytes
 open TLSConstants
 
+
+
 (* ------------------------------------------------------------------------ *)
 type alg   = sigAlg * hashAlg
 
@@ -27,6 +29,31 @@ let sigalg_of_pkeyparams = function
     | CoreSig.PK_RSA _ -> SA_RSA
     | CoreSig.PK_DSA _ -> SA_DSA
 
+#if ideal
+let log = ref []
+let honest_log = ref []
+
+let rec assoc hll pk =
+    match hll with
+        (pk',sk')::hll_tail when pk=pk' -> Some ()
+      | _::hll_tail -> assoc hll_tail pk
+      | [] -> None
+
+
+let rec pk_of_log sk hll =
+    match hll with
+        (pk',sk')::hll_tail when sk=sk' -> Some (pk')
+      | _::hll_tail -> pk_of_log sk hll_tail
+      | [] -> None
+
+let pk_of (sk:skey) = 
+    fst ( List.find (fun el -> snd el=sk) !honest_log )  
+
+let honest pk =
+    List.exists (fun el -> fst el=pk) !honest_log
+
+#endif
+
 (* ------------------------------------------------------------------------ *)
 let sign (a : alg) (sk : skey) (t : text) : sigv =
     let asig, ahash = a in
@@ -41,7 +68,7 @@ let sign (a : alg) (sk : skey) (t : text) : sigv =
             (sprintf "Sig.sign: requested sig-algo = %A, but key requires %A"
                 asig (sigalg_of_skeyparams kparams))
 
-    match khash with
+    let signature = match khash with
     | NULL    -> CoreSig.sign None                     kparams t
     | MD5     -> CoreSig.sign (Some CoreSig.SH_MD5)    kparams t
     | SHA     -> CoreSig.sign (Some CoreSig.SH_SHA1  ) kparams t
@@ -50,7 +77,11 @@ let sign (a : alg) (sk : skey) (t : text) : sigv =
     | MD5SHA1 ->
         let t = HASH.hash MD5SHA1 t in
             CoreSig.sign None kparams t
-
+    #if ideal
+    if honest (pk_of sk) then 
+        log := (a, pk_of sk,signature, t)::!log;
+    #endif
+    signature
 (* ------------------------------------------------------------------------ *)
 let verify (a : alg) (pk : pkey) (t : text) (s : sigv) =
     let asig, ahash = a in
@@ -65,7 +96,7 @@ let verify (a : alg) (pk : pkey) (t : text) (s : sigv) =
             (sprintf "Sig.verify: requested sig-algo = %A, but key requires %A"
                 asig (sigalg_of_pkeyparams kparams))
 
-    match khash with
+    let result = match khash with
     | NULL    -> CoreSig.verify None                     kparams t s
     | MD5     -> CoreSig.verify (Some CoreSig.SH_MD5)    kparams t s
     | SHA     -> CoreSig.verify (Some CoreSig.SH_SHA1  ) kparams t s
@@ -74,6 +105,12 @@ let verify (a : alg) (pk : pkey) (t : text) (s : sigv) =
     | MD5SHA1 ->
         let t = HASH.hash MD5SHA1 t in
             CoreSig.verify None kparams t s
+    #if ideal
+    let result = if honest pk 
+                    then result && (exists (fun el -> el=(a, pk, s, t)) !log)
+                    else result 
+    #endif
+    result
 
 (* ------------------------------------------------------------------------ *)
 let gen (a:alg) : pkey * skey =
@@ -84,4 +121,7 @@ let gen (a:alg) : pkey * skey =
         | SA_DSA -> CoreSig.gen CoreSig.SA_DSA
         | _      -> failwith "unsupported / TODO"
     in
+        #if ideal
+        honest_log := ({ pkey = (pkey, ahash) }, { skey = (skey, ahash) })::!honest_log;
+        #endif
         ({ pkey = (pkey, ahash) }, { skey = (skey, ahash) })

@@ -13,10 +13,7 @@ let default_pp() = pp (CoreDH.load_default_params())
 
 #if ideal
 let honest_log = ref []
-let honest gx =
-    match List.assoc !honest_log gx with
-         Some -> true
-       | None -> false
+let honest gx = List.exists (fun el-> el = gx) !honest_log 
 let log = ref []
 #endif
 
@@ -31,11 +28,11 @@ let exp p g (gx:elt) (gy:elt) (Key x) : CRE.dhpms =
     let pms = CoreDH.agreement (dhparams p g) x gy in
     #if ideal
     if honest gy && honest gx 
-    then match List.assoc !log (gx,gy) with
-             Some(pms) -> pms
+    then match List.tryFind (fun el -> fst el=(gx,gy)) !log with
+             Some(_,pms) -> pms
             |None -> 
                  let pms=CRE.sampleDH p g gx gy
-                 log := ((gx,gy),pms)::log
+                 log := ((gx,gy),pms)::!log;
                  pms 
     else CRE.coerceDH p g gx gy pms 
     #else

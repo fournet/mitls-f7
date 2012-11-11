@@ -11,8 +11,8 @@ let log = ref []
 
 let encrypt key pv pms =
     #if ideal
-    let v = if RSAKeys.honest key && not (CRE.corrupt pms) then
-              let fake_pms = (versionBytes pv) @|N one.mkRandom 46
+    let v = if RSAKeys.honest key && not (CRE.corrupt (CRE.RSA_pms pms)) then
+              let fake_pms = (versionBytes pv) @|Nonce.mkRandom 46
               log := (fake_pms,pms)::!log
               fake_pms
             else
@@ -52,8 +52,8 @@ let decrypt dk si cv check_client_version_in_pms_for_old_tls encPMS =
     | Correct(pk) ->
         let pmsb = decrypt_int dk si cv check_client_version_in_pms_for_old_tls encPMS in
         #if ideal
-        match assoc !log pmsb with
-            Some(ideal_pms) -> ideal_pms
+        match tryFind (fun el -> fst el=pmsb) !log  with
+            Some(_,ideal_pms) -> ideal_pms
            |None -> CRE.coerceRSA pk cv pmsb
         #else
         CRE.coerceRSA pk cv pmsb

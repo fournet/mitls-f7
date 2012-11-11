@@ -7,13 +7,17 @@ open Error
 
 type rsarepr = bytes
 type rsapms
+type dhpms
+
+#if ideal
+type pms = RSA_pms of rsapms | DHE_pms of dhpms
+val corrupt: pms -> bool
+#endif
 
 val genRSA: RSAKeys.pk -> TLSConstants.ProtocolVersion -> rsapms
 
 val coerceRSA: RSAKeys.pk -> ProtocolVersion -> rsarepr -> rsapms
 val leakRSA: RSAKeys.pk -> ProtocolVersion -> rsapms -> rsarepr
-
-type dhpms
 
 val sampleDH: DHGroup.p -> DHGroup.g -> DHGroup.elt -> DHGroup.elt -> dhpms
 
