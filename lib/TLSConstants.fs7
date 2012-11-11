@@ -43,10 +43,12 @@ type authencAlg =
     | MtE of cipherAlg * hashAlg
     | AEAD of aeadAlg * hashAlg
 
-val sigAlgBytes: sigAlg -> bytes
-val parseSigAlg: bytes -> sigAlg Result
-val hashAlgBytes: hashAlg -> bytes
-val parseHashAlg: bytes -> hashAlg Result
+function val SigAlgBytes: sigAlg -> bytes
+val sigAlgBytes: s:sigAlg -> b:bytes{b=SigAlgBytes(s)}
+val parseSigAlg: b:bytes -> (s:sigAlg{b=SigAlgBytes(s)}) Result
+function val HashAlgBytes: hashAlg -> bytes
+val hashAlgBytes: h:hashAlg -> b:bytes{b=HashAlgBytes(h)}
+val parseHashAlg: b:bytes -> (h:hashAlg{b=HashAlgBytes(h)}) Result
 
 (* With F7, we need to declare both logical length functions
    and their concrete implementations; we still miss a few...
@@ -119,7 +121,7 @@ private assume CompressionBytes(NullCompression) = [| 0uy |]
 // To be defined
 predicate ContainsCompressions of Compression list * Compression list
 function val CompressionsBytes: Compression list -> bytes
-assume !cl. ContainsCompressions(cl,cl)
+private assume !cl. ContainsCompressions(cl,cl)
 
 val compressionBytes: c:Compression -> b:bytes{CompressionBytes(c) = b}
 val compressionMethodsBytes: cl:Compression list -> b:bytes{b = CompressionsBytes(cl)}

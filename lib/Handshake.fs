@@ -352,22 +352,24 @@ let rec parseCertificateList toProcess list =
     if equalBytes toProcess [||] then
         correct(list)
     else
-        match vlsplit 3 toProcess with
-        | Error(x,y) -> Error(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ (""+y))
-        | Correct (nextCert,toProcess) ->
-            let list = list @ [nextCert] in
-            parseCertificateList toProcess list
+        if length toProcess >= 3 then
+            match vlsplit 3 toProcess with
+            | Error(x,y) -> Error(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ y)
+            | Correct (res) ->
+                let (nextCert,toProcess) = res in
+                let list = list @ [nextCert] in
+                parseCertificateList toProcess list
+        else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let parseClientOrServerCertificate data =
-    match vlparse 3 data with
-    | Error(x,y) -> Error(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ (""+y))
-    | Correct (certList) ->
-        match parseCertificateList certList [] with
-        | Error(x,y) -> Error(x,y)
-        | Correct(certs) -> correct(certs)
+    if length data >= 3 then
+        match vlparse 3 data with
+        | Error(x,y) -> Error(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ y)
+        | Correct (certList) -> parseCertificateList certList []
+    else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let rec parseCertificateTypeList data =
-    if length data = 0 then Correct([])
+    if length data = 0 then let res = [] in correct(res)
     else
         let (thisByte,data) = Bytes.split data 1 in
         match TLSConstants.parseCertType thisByte with
@@ -392,9 +394,8 @@ let rec parseDistinguishedNameList data res =
             parseDistinguishedNameList data res
 
 (* SignatureAndHashAlgorithm parsing functions *)
-let sigHashAlgBytes (alg:Sig.alg) =
+let sigHashAlgBytes sign hash =
     // pre: we're in TLS 1.2
-    let (sign,hash) = alg in
     let signB = sigAlgBytes sign in
     let hashB = hashAlgBytes hash in
     hashB @| signB
@@ -411,7 +412,10 @@ let parseSigHashAlg b =
 let rec sigHashAlgListBytes_int algL =
     match algL with
     | [] -> [||]
-    | h::t -> (sigHashAlgBytes h) @| sigHashAlgListBytes_int t
+    | h::t ->
+        let (sign,hash) = h in
+        let oneItem = sigHashAlgBytes sign hash in
+        oneItem @| sigHashAlgListBytes_int t
 
 let sigHashAlgListBytes algL =
     let payload = sigHashAlgListBytes_int algL in
@@ -587,7 +591,8 @@ let digitallySignedBytes alg data pv =
     let sign = vlbytes 2 data in
     match pv with
     | TLS_1p2 ->
-        let sigHashB = sigHashAlgBytes alg in
+        let (sAlg,hAlg) = alg in
+        let sigHashB = sigHashAlgBytes sAlg hAlg in
         sigHashB @| sign
     | SSL_3p0 | TLS_1p0 | TLS_1p1 -> sign
 
