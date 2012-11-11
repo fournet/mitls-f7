@@ -109,24 +109,21 @@ type log = bytes         (* message payloads so far, to be eventually authentica
 type cVerifyData = bytes (* ClientFinished payload *)
 type sVerifyData = bytes (* ServerFinished payload *)
 
-predicate type chello = ClientHelloMsg of (bytes * ProtocolVersion * random * sessionID * cipherSuites * Compression list * bytes)
-definition !cv,clRdm,sid,clientCipherSuites,cm,ext,b.
-  ClientHelloMsg(b,cv,clRdm,sid,clientCipherSuites,cm,ext) <=> (?b1,b2. 
-                ContainsCompressions(b2,cm) /\ ContainsCipherSuites(b1,clientCipherSuites) /\
-                b = (VersionBytes(cv) @| 
+
+function val ClientHelloMsg: (ProtocolVersion * random * sessionID * cipherSuites * Compression list * bytes) -> bytes
+definition !cv,clRdm,sid,cls,cm,ext,b.
+  ClientHelloMsg(cv,clRdm,sid,cls,cm,ext) =
+                (VersionBytes(cv) @| 
                  clRdm @| 
                  VLBytes(1,sid) @| 
-                 VLBytes(2,b1) @| 
-                 VLBytes(1,b2) @| 
+                 VLBytes(2,CipherSuitesBytes(cls)) @| 
+                 VLBytes(1,CompressionsBytes(cm)) @| 
                  ext)
-				 )
                 
 val parseClientHello: m:bytes -> 
-	(pv:ProtocolVersion * cr:bytes * sid:sessionID * cs:cipherSuites * cm:Compression list * ext:bytes{
-		ClientHelloMsg(m,pv,cr,sid,cs,cm,ext)}) Result
-val clientHelloBytes: c:config -> cr:random -> sid:sessionID -> ext:bytes -> m:bytes{
-	    ?m'. ClientHelloMsg(m',c.maxVer,cr,sid,c.ciphersuites,c.compressions,ext) /\
-		m=MessageBytes(HT_client_hello,m')}
+	(pv:ProtocolVersion * cr:bytes * sid:sessionID * cs:cipherSuites * cm:Compression list * ext:bytes{?cs',cm'. m = ClientHelloMsg(pv,cr,sid,cs',cm',ext)
+                          /\ ContainsCipherSuites(cs',cs) /\ ContainsCompressions(cm',cm)}) Result
+val clientHelloBytes: c:config -> cr:random -> sid:sessionID -> ext:bytes -> m:bytes{?m'. m' = ClientHelloMsg(c.maxVer,cr,sid,c.ciphersuites,c.compressions,ext) /\ m=MessageBytes(HT_client_hello,m')}
 
 function val ServerHelloMsg: (ProtocolVersion * random * sessionID * cipherSuite * Compression * bytes) -> bytes
 private definition !pv,sr,sid,cs,cm,ext.

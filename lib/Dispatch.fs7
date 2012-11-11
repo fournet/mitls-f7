@@ -60,7 +60,6 @@ definition !ci,gs. GState(ci,gs)  <=>
 	)
   )
   
-  (* /\
 
 (*/\
 	(( AppData.AppInBuf(ci,gs.appdata) = None /\
@@ -369,7 +368,10 @@ private val closeConnection: c:Connection-> (;c) nextCn
 
 private val abortWithAlert: c:Connection -> alertDescription -> string -> (;c)nextCn
 
-private val pickSendPV: c:Connection -> TLSConstants.ProtocolVersion
+private val getReason: predispatchState -> string
+private val pickSendPV: c:Connection{c.write.disp = Init \/ 
+    (?pv. c.write.disp = FirstHandshake(pv)) \/ 
+    IsSuccEpoch(CnId(c))} -> TLSConstants.ProtocolVersion
 
 private val send: Tcp.NetworkStream -> e:epoch -> w:(;e)dState ->
 	TLSConstants.ProtocolVersion -> rg:range -> ct:TLSConstants.ContentType ->

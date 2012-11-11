@@ -117,12 +117,14 @@ function val CompressionBytes: Compression -> bytes
 private assume CompressionBytes(NullCompression) = [| 0uy |]
 
 // To be defined
-predicate ContainsCompressions of bytes * Compression list
+predicate ContainsCompressions of Compression list * Compression list
+function val CompressionsBytes: Compression list -> bytes
+assume !cl. ContainsCompressions(cl,cl)
 
 val compressionBytes: c:Compression -> b:bytes{CompressionBytes(c) = b}
-val compressionMethodsBytes: cl:Compression list -> b:bytes{ContainsCompressions(b,cl)}
+val compressionMethodsBytes: cl:Compression list -> b:bytes{b = CompressionsBytes(cl)}
 val parseCompression: b:bytes -> (c:Compression{b=CompressionBytes(c)}) Result
-val parseCompressions: b:bytes -> cl:Compression list{ContainsCompressions(b,cl)}
+val parseCompressions: b:bytes -> cl:Compression list{?cl'. b = CompressionsBytes(cl') /\ ContainsCompressions(cl',cl)}
 
 type ProtocolVersion =
     | SSL_3p0   
@@ -286,6 +288,22 @@ private assume
     /\ CipherSuiteBytes(SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV))            = [| 0x00uy; 0xFFuy |]
 
 
+function val CipherSuitesBytes: cipherSuites -> bytes
+private assume !cs,b. (b = CipherSuitesBytes(cs)) <=> 
+   ((cs = [] /\ b = [||]) \/
+    (?h,t. cs = h::t /\ b = CipherSuiteBytes(h) @| CipherSuitesBytes(t)))
+
+predicate ContainsCipherSuite of cipherSuites * cipherSuite
+private assume !b,cs. ContainsCipherSuite(b,cs) <=> 
+                (?h,t. b = h::t /\ (h = cs \/ ContainsCipherSuite(t,cs)))
+
+predicate ContainsCipherSuites of cipherSuites * cipherSuites
+private assume !b,l. ContainsCipherSuites(b,l) <=>
+  (l = [] \/
+   (?h,t. l = h::t /\ ContainsCipherSuite(b,h) /\ ContainsCipherSuites(b,t)))
+
+
+(*
 predicate ContainsCipherSuite of bytes * cipherSuite
 private assume !b,cs. ContainsCipherSuite(b,cs) <=> 
                 (?b1,b2. b = b1 @| b2 /\ Length(b1) = 2 /\
@@ -299,7 +317,7 @@ private assume !b,l. ContainsCipherSuites(b,l) <=>
 ask !b1,b2,cs. (Length(b1) = 2 /\ ContainsCipherSuite(b2,cs)) => ContainsCipherSuite(b1 @| b2, cs)
 //requires induction
 assume !b1,b2,l. (Length(b1) = 2 /\ ContainsCipherSuites(b2,l)) => ContainsCipherSuites(b1 @| b2, l)
-
+*)
 // function val ParseCipherSuites: bytes -> cipherSuites
 // private assume !b. (b = [||] /\ ParseCipherSuites(b) = []) \/
 // 		(?b1,b2,c. b = b1 @| b2 /\ Length(b1) = 2 /\ b1 = CipherSuiteBytes(c) /\ ParseCiphersuites(b) = c::ParseCipherSuites(b2)) /\
@@ -312,8 +330,8 @@ val parseCipherSuite: b:bytes{Length(b)=2} -> (c:cipherSuite{b = CipherSuiteByte
 
 // this parsing function may fail if b has the wrong length,
 // or if we were strict on unknown ciphersuites
-val parseCipherSuites: b:bytes -> (css:cipherSuites {ContainsCipherSuites(b,css)}) Result
-val cipherSuitesBytes: css:cipherSuites -> b:bytes {ContainsCipherSuites(b,css)}
+val parseCipherSuites: b:bytes -> (css:cipherSuites {?csl. b = CipherSuitesBytes(csl) /\ ContainsCipherSuites(csl,css)}) Result
+val cipherSuitesBytes: css:cipherSuites -> b:bytes {b = CipherSuitesBytes(css)}
 
 val maxPadSize: ProtocolVersion -> cipherSuite -> nat
 
