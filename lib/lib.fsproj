@@ -11,6 +11,87 @@
     <AssemblyName>lib</AssemblyName>
     <Name>lib</Name>
     <UsePartialTypes>False</UsePartialTypes>
+    <BuildOrder>
+      <BuildOrder>
+        <String>pi.fs</String>
+        <String>Error.fsi</String>
+        <String>Error.fs</String>
+        <String>Bytes.fsi</String>
+        <String>Bytes.fs</String>
+        <String>Nonce.fsi</String>
+        <String>Nonce.fs</String>
+        <String>Tcp.fsi</String>
+        <String>Tcp.fs</String>
+        <String>TLSConstants.fsi</String>
+        <String>TLSConstants.fs</String>
+        <String>RSAKeys.fsi</String>
+        <String>RSAKeys.fs</String>
+        <String>HASH.fsi</String>
+        <String>HASH.fs</String>
+        <String>HMAC.fsi</String>
+        <String>HMAC.fs</String>
+        <String>TLSPRF.fsi</String>
+        <String>TLSPRF.fs</String>
+        <String>Sig.fsi</String>
+        <String>Sig.fs</String>
+        <String>Cert.fsi</String>
+        <String>Cert.fs</String>
+        <String>TLSInfo.fsi</String>
+        <String>TLSInfo.fs</String>
+        <String>DataStream.fsi</String>
+        <String>DataStream.fs</String>
+        <String>IdealDataStream.fsi</String>
+        <String>IdealDataStream.fs</String>
+        <String>RPCDataStream.fsi</String>
+        <String>RPCDataStream.fs</String>
+        <String>Fragment.fsi</String>
+        <String>Fragment.fs</String>
+        <String>MAC.fsi</String>
+        <String>MAC.fs</String>
+        <String>Encode.fsi</String>
+        <String>Encode.fs</String>
+        <String>ENC.fsi</String>
+        <String>ENC.fs</String>
+        <String>AEADPlain.fsi</String>
+        <String>AEADPlain.fs</String>
+        <String>AEAD.fsi</String>
+        <String>AEAD.fs</String>
+        <String>StatefulPlain.fsi</String>
+        <String>StatefulPlain.fs</String>
+        <String>StatefulAEAD.fsi</String>
+        <String>StatefulAEAD.fs</String>
+        <String>TLSFragment.fsi</String>
+        <String>TLSFragment.fs</String>
+        <String>Record.fsi</String>
+        <String>Record.fs</String>
+        <String>Alert.fsi</String>
+        <String>Alert.fs</String>
+        <String>DHGroup.fsi</String>
+        <String>DHGroup.fs</String>
+        <String>PRF.fsi</String>
+        <String>PRF.fs</String>
+        <String>CRE.fsi</String>
+        <String>CRE.fs</String>
+        <String>DH.fsi</String>
+        <String>DH.fs</String>
+        <String>RSAEnc.fsi</String>
+        <String>RSAEnc.fs</String>
+        <String>SessionDB.fsi</String>
+        <String>SessionDB.fs</String>
+        <String>Handshake.fsi</String>
+        <String>Handshake.fs</String>
+        <String>AppData.fsi</String>
+        <String>AppData.fs</String>
+        <String>Dispatch.fsi</String>
+        <String>Dispatch.fs</String>
+        <String>TLS.fsi</String>
+        <String>TLS.fs</String>
+        <String>RPC.fsi</String>
+        <String>RPC.fs</String>
+        <String>UTLS.fsi</String>
+        <String>UTLS.fs</String>
+      </BuildOrder>
+    </BuildOrder>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>True</DebugSymbols>
@@ -20,7 +101,7 @@
     <OutputPath>bin\Debug\</OutputPath>
     <DefineConstants>TRACE;DEBUG;fs</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>bin\Debug\lib.XML</DocumentationFile>
+    <DocumentationFile>lib.xml</DocumentationFile>
     <OtherFlags>
     </OtherFlags>
     <NoWarn>62</NoWarn>
@@ -35,6 +116,16 @@
     <DocumentationFile>bin\Release\lib.XML</DocumentationFile>
     <NoWarn>62</NoWarn>
     <DebugSymbols>False</DebugSymbols>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Ideal|AnyCPU' ">
+    <DebugSymbols>False</DebugSymbols>
+    <Optimize>False</Optimize>
+    <OutputPath>bin\Ideal</OutputPath>
+    <Tailcalls>False</Tailcalls>
+    <DebugType>none</DebugType>
+    <DocumentationFile />
+    <DefineConstants>ideal</DefineConstants>
+    <OtherFlags />
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath32)\FSharp\1.0\Microsoft.FSharp.Targets" Condition="!Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
   <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft F#\v4.0\Microsoft.FSharp.Targets" Condition=" Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />

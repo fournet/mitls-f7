@@ -13,7 +13,7 @@ let honest_log = ref []
 let honest pms =
     match assoc !honest_log pms with
         Some -> true
-        None -> false
+      | None -> false
 let log = ref []
 #endif
 
@@ -52,7 +52,7 @@ let prfSmoothDHE si (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt
     if not(corrupt pms)
     then match assoc !log pms with
              Some(ms) -> ms
-             None -> 
+           | None -> 
                  let ms=PRF.sampleMS si 
                  log := (prf,ms)::log
                  ms 
