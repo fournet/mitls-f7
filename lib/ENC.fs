@@ -52,7 +52,7 @@ let GENOne ki =
             NoIV(true)
     BlockCipher ({key = key; iv = iv})
 
-let GEN (ki) = (GENOne ki, GENOne ki)
+let GEN (ki) = let k = GENOne ki in (k,k)
     
 let COERCE (ki:epoch) k iv =
     let si = epochSI(ki) in

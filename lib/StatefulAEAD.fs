@@ -18,10 +18,10 @@ type reader = state
 type writer = state
 
 let GEN ki =
-    let r,w = AEAD.GEN ki in
+    let w,r = AEAD.GEN ki in
     let h = emptyHistory ki in
-    ( { key = r; history = h},
-      { key = w; history = h})  
+    ( { key = w; history = h},
+      { key = r; history = h})  
 let COERCE ki b =
     let k  = AEAD.COERCE ki b in
     let h = emptyHistory ki in
