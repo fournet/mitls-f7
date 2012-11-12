@@ -8,6 +8,7 @@ open TLSInfo
 open DataStream
 open StatefulAEAD
 open TLSConstants
+open TLSExtensions
 
 (* Message Predicates *)
 type HandshakeType =
@@ -51,58 +52,6 @@ predicate type unsafe = Unsafe of epoch
 private assume !ki. Unsafe(ki) <=> not Auth(ki)
 val makeFragment: ki:epoch -> b:bytes -> (r:range * (;ki,r) Fragment.fragment) * bytes
 
-(* Extensions *)
-
-private type extensionType =
-    | HExt_renegotiation_info
-
-function val ExtensionTypeBytes: extensionType -> bytes
-private definition ExtensionTypeBytes(HExt_renegotiation_info) = [|0xFFuy; 0x01uy|]
-
-val extensionTypeBytes: et:extensionType -> b:bytes{b=ExtensionTypeBytes(et)}
-val parseExtensionType: b:bytes -> (et:extensionType{b=ExtensionTypeBytes(et)}) Result
-val isExtensionType: et:extensionType -> ext:(extensionType * bytes) ->
-	b:bool{b = true => (?et',d. ext=(et',d) /\ et = et')}
-
-function val ExtensionBytes: extensionType * bytes -> bytes
-private definition !et,b.
-	ExtensionBytes(et,b) = ExtensionTypeBytes(et) @| VLBytes(2,b)
-predicate ContainsExtensions of bytes * (extensionType * bytes) list
-// FIXME: Next is wrong!
-private definition !b,l. ContainsExtensions(b,l)
-
-val extensionBytes: et:extensionType -> d:bytes -> b:bytes{b=ExtensionBytes(et,d)}
-val consExt: extensionType * bytes -> (extensionType * bytes) list -> (extensionType * bytes) list
-val parseExtensionList: b:bytes -> cur:(extensionType * bytes) list ->
-	(res:(extensionType * bytes) list{ContainsExtensions(b,res)}) Result
-
-val renegotiationInfoExtensionBytes: vd:bytes ->
-	b:bytes{b=ExtensionBytes(HExt_renegotiation_info,VLBytes(1,vd))}
-val parseRenegotiationInfoExtension: b:bytes ->
-	(vd:bytes{b=VLBytes(1,vd)}) Result
-
-function val ExtensionsBytes: bytes -> bytes
-private definition !b. ExtensionsBytes(b) = VLBytes(2,b)
-val extensionsBytes: c:config -> vd:bytes ->
-	b:bytes{(c.safe_renegotiation = true /\ b = ExtensionsBytes(ExtensionBytes(HExt_renegotiation_info,VLBytes(1,vd))) ) \/
-			(c.safe_renegotiation = false /\ b = [||])}
-
-val parseExtensions: b:bytes -> (res:(extensionType * bytes) list
-	{(b = [||] /\ res = [] ) \/
-	 (b <> [||] /\ ?ext. b = VLBytes(2,ext) /\ ContainsExtensions(b,ext) )
-	}) Result
-
-val check_reneg_info: got:bytes -> exp:bytes ->
-	b:bool{b=true => (?d. got = VLBytes(1,d) /\ exp = d)}
-
-// TODO: That's tricky. There's a hidden invariant on whether we are in the first, or subsequent handshake.
-val checkClientRenegotiationInfoExtension:
-	(extensionType * bytes) list -> cipherSuites -> bytes -> bool
-
-// TODO: Need to deal with lists to say something about this function
-val inspect_ServerHello_extensions:
-	(extensionType * bytes) list -> bytes ->
-		unit Result
 
 (* verify data authenticated by the Finished messages *)
 type log = bytes         (* message payloads so far, to be eventually authenticated *) 

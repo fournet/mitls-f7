@@ -68,14 +68,15 @@ let sign (a : alg) (sk : skey) (t : text) : sigv =
             (sprintf "Sig.sign: requested sig-algo = %A, but key requires %A"
                 asig (sigalg_of_skeyparams kparams))
 
-    let signature = match khash with
-    | NULL    -> CoreSig.sign None                     kparams t
-    | MD5     -> CoreSig.sign (Some CoreSig.SH_MD5)    kparams t
-    | SHA     -> CoreSig.sign (Some CoreSig.SH_SHA1  ) kparams t
-    | SHA256  -> CoreSig.sign (Some CoreSig.SH_SHA256) kparams t
-    | SHA384  -> CoreSig.sign (Some CoreSig.SH_SHA384) kparams t
-    | MD5SHA1 ->
-        let t = HASH.hash MD5SHA1 t in
+    let signature =
+        match khash with
+        | NULL    -> CoreSig.sign None                     kparams t
+        | MD5     -> CoreSig.sign (Some CoreSig.SH_MD5)    kparams t
+        | SHA     -> CoreSig.sign (Some CoreSig.SH_SHA1  ) kparams t
+        | SHA256  -> CoreSig.sign (Some CoreSig.SH_SHA256) kparams t
+        | SHA384  -> CoreSig.sign (Some CoreSig.SH_SHA384) kparams t
+        | MD5SHA1 ->
+            let t = HASH.hash MD5SHA1 t in
             CoreSig.sign None kparams t
     #if ideal
     if honest (pk_of sk) then 
@@ -96,14 +97,15 @@ let verify (a : alg) (pk : pkey) (t : text) (s : sigv) =
             (sprintf "Sig.verify: requested sig-algo = %A, but key requires %A"
                 asig (sigalg_of_pkeyparams kparams))
 
-    let result = match khash with
-    | NULL    -> CoreSig.verify None                     kparams t s
-    | MD5     -> CoreSig.verify (Some CoreSig.SH_MD5)    kparams t s
-    | SHA     -> CoreSig.verify (Some CoreSig.SH_SHA1  ) kparams t s
-    | SHA256  -> CoreSig.verify (Some CoreSig.SH_SHA256) kparams t s
-    | SHA384  -> CoreSig.verify (Some CoreSig.SH_SHA384) kparams t s
-    | MD5SHA1 ->
-        let t = HASH.hash MD5SHA1 t in
+    let result =
+        match khash with
+        | NULL    -> CoreSig.verify None                     kparams t s
+        | MD5     -> CoreSig.verify (Some CoreSig.SH_MD5)    kparams t s
+        | SHA     -> CoreSig.verify (Some CoreSig.SH_SHA1  ) kparams t s
+        | SHA256  -> CoreSig.verify (Some CoreSig.SH_SHA256) kparams t s
+        | SHA384  -> CoreSig.verify (Some CoreSig.SH_SHA384) kparams t s
+        | MD5SHA1 ->
+            let t = HASH.hash MD5SHA1 t in
             CoreSig.verify None kparams t s
     #if ideal
     let result = if honest pk 
