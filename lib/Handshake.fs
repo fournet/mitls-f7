@@ -208,53 +208,12 @@ let clientCertificateBytes cs =
         let (certList,_,_) = v in
         messageBytes HT_certificate (Cert.certificateListBytes certList)
 
-let rec parseCertificateList toProcess list =
-    if equalBytes toProcess [||] then
-        correct(list)
-    else
-        if length toProcess >= 3 then
-            match vlsplit 3 toProcess with
-            | Error(x,y) -> Error(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ y)
-            | Correct (res) ->
-                let (nextCert,toProcess) = res in
-                let list = list @ [nextCert] in
-                parseCertificateList toProcess list
-        else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
-
 let parseClientOrServerCertificate data =
     if length data >= 3 then
         match vlparse 3 data with
         | Error(x,y) -> Error(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ y)
-        | Correct (certList) -> parseCertificateList certList []
+        | Correct (certList) -> Cert.parseCertificateList certList []
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
-
-let rec parseCertificateTypeList data =
-    if length data = 0 then let res = [] in correct(res)
-    else
-        let (thisByte,data) = Bytes.split data 1 in
-        match TLSConstants.parseCertType thisByte with
-        | Correct(ct) ->
-            match parseCertificateTypeList data with
-            | Correct(ctList) -> Correct(ct :: ctList)
-            | Error(x,y) -> Error(x,y)
-        | Error(x,y) -> Error(x,y)
-
-let rec parseDistinguishedNameList data res =
-    if length data = 0 then
-        correct (res)
-    else
-        if length data < 2 then (* FIXME: maybe at least 3 bytes, because we don't want empty names... *)
-            Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
-        else
-            match vlsplit 2 data with
-            | Error(x,y) -> Error(x,y)
-            | Correct (nameBytes,data) ->
-            let name = iutf8 nameBytes in (* FIXME: I have no idea wat "X501 represented in DER-encoding format" (RFC 5246, page 54) is. I assume UTF8 will do. *)
-            let res = name :: res in
-            parseDistinguishedNameList data res
-
-
-
 
 // TODO: Add a pair of functions: ciphersuite * version -> certType list * sigAlg list
 // ciphersuite * version * certType list * sigAlg list -> bool // tells me if they are plausible
@@ -286,7 +245,7 @@ let parseCertificateRequest version data =
     match vlsplit 1 data with
     | Error(x,y) -> Error(x,y)
     | Correct (certTypeListBytes,data) ->
-    match parseCertificateTypeList certTypeListBytes with
+    match Cert.parseCertificateTypeList certTypeListBytes with
     | Error(x,y) -> Error(x,y)
     | Correct(certTypeList) ->
     let sigAlgsAndData = (
@@ -305,7 +264,7 @@ let parseCertificateRequest version data =
     match vlparse 2 data with
     | Error(x,y) -> Error(x,y)
     | Correct  (distNamesBytes) ->
-    match parseDistinguishedNameList distNamesBytes [] with
+    match Cert.parseDistinguishedNameList distNamesBytes [] with
     | Error(x,y) -> Error(x,y)
     | Correct distNamesList ->
     correct (certTypeList,sigAlgs,distNamesList)

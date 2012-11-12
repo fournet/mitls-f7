@@ -116,55 +116,29 @@ val clientCertificateBytes: clo: (Cert.certchain * 'a * 'b) option ->
 		( ?cl,a',b'. clo = Some((cl,a',b')) /\ b = CertificateMsg(cl)
 		)}
 
-val parseCertificateList: b:bytes -> s:Cert.certchain ->
-	(bl:Cert.certchain{
-		s = [] => b = UnfoldBack(bl,[||])
-	}) Result
-
 val parseClientOrServerCertificate: b:bytes ->
 	(bl:Cert.certchain{
 	  MessageBytes(HT_certificate,b) = CertificateMsg(bl)
 	}) Result
 
-function val CertTypesBytes: certType list -> bytes
-private definition !h,t.
-	CertTypesBytes([]) = [||] /\
-	CertTypesBytes(h::t) = CertTypeBytes(h) @| CertTypesBytes(t)
-
-val parseCertificateTypeList: b:bytes ->
-	(ctl:certType list{b = CertTypesBytes(ctl)}) Result
-
-function val DistinguishedNameListBytes: string list -> bytes
-private definition !h,t.
-	DistinguishedNameListBytes([]) = [||] /\
-	DistinguishedNameListBytes(h::t) = VLBytes(2,Utf8(h)) @| DistinguishedNameListBytes(t)
-function val DistinguishedNamesBytes: string list -> bytes
-private definition !l.
-	DistinguishedNamesBytes(l) = VLBytes(2,DistinguishedNameListBytes(l))
-
-val parseDistinguishedNameList: b:bytes -> s:string list ->
-	(res:string list{?l. res = l @ s /\
-		b = DistinguishedNameListBytes(l)
-	}) Result
-
 function val CertificateRequestMsg: ProtocolVersion * certType list * Sig.alg list option * string list -> bytes
 private definition !ct,sa,dn.
 	CertificateRequestMsg(TLS_1p2,ct,Some(sa),dn) =
-		  CertTypesBytes(ct) @|
+		  Cert.CertTypesBytes(ct) @|
 		  SigHashAlgsBytes(sa) @|
-		  DistinguishedNamesBytes(dn)
+		  Cert.DistinguishedNamesBytes(dn)
 	/\ 
 	CertificateRequestMsg(TLS_1p1,ct,None,dn) =
-		  CertTypesBytes(ct) @|
-		  DistinguishedNamesBytes(dn)
+		  Cert.CertTypesBytes(ct) @|
+		  Cert.DistinguishedNamesBytes(dn)
 	/\ 
 	CertificateRequestMsg(TLS_1p0,ct,None,dn) =
-		  CertTypesBytes(ct) @|
-		  DistinguishedNamesBytes(dn)
+		  Cert.CertTypesBytes(ct) @|
+		  Cert.DistinguishedNamesBytes(dn)
 	/\ 
 	CertificateRequestMsg(SSL_3p0,ct,None,dn) =
-		  CertTypesBytes(ct) @|
-		  DistinguishedNamesBytes(dn)
+		  Cert.CertTypesBytes(ct) @|
+		  Cert.DistinguishedNamesBytes(dn)
 
 // AP: I don't think many of these things will end up in the final sessionInfo.
 // So, no need to be too precise.
