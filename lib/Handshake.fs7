@@ -184,6 +184,9 @@ val parseServerKeyExchange_DHE: ProtocolVersion -> cipherSuite -> bytes -> (byte
 
 function val ServerKeyExchangeMsg_DH_anon: bytes * bytes * bytes -> bytes
 
+val serverKeyExchangeBytes_DH_anon: bytes -> bytes -> bytes -> bytes
+val parseServerKeyExchange_DH_anon: bytes -> (bytes * bytes * bytes) Result
+
 //function val CertificateVerifyMsg: si:SessionInfo * (;si)PRF.masterSecret * a:Sig.alg * Cert.certchain * (;a)Sig.pkey * log -> bytes
 function val CertificateVerifyMsg: ProtocolVersion * Sig.alg * bytes -> bytes
 
@@ -494,6 +497,8 @@ val authorize:   ci:ConnectionInfo -> s:(;ci)hs_state -> c:Cert.certchain  ->
 	s':(;ci,Config(ci,s))nextState { Authorize(Config(ci,s),c) /\ SameStreams(ci,s,s') }
 val invalidateSession: ci:ConnectionInfo -> s:(;ci)hs_state -> s':(;ci,Config(ci,s))nextState{SameStreams(ci,s,s')}
 
+val getNextEpochs: ci:ConnectionInfo -> si:SessionInfo -> crand -> srand -> ci':ConnectionInfo
+
 (*--- networkinterface *)
 (* Network Interface*)
 
@@ -559,6 +564,48 @@ val getMinVersion:        ci:ConnectionInfo -> (;ci)hs_state -> ProtocolVersion
 (*--- end *)
 
 (* INTERNAL HS VERIFICATION (ALL THESE DEFS ARE PRIVATE) *)
+
+val find_client_cert_sign: certType list -> Sig.alg list option -> string list ->
+	ProtocolVersion -> Cert.hint -> Cert.sign_cert
+val prepare_client_output_full_RSA: ci:ConnectionInfo -> (;ci)hs_state ->
+	si:SessionInfo -> (Cert.certchain * a:Sig.alg * (;a)Sig.skey) option -> log ->
+	((;ci)hs_state * si':SessionInfo * (;si)PRF.masterSecret * log) Result
+val prepare_client_output_full_DHE: ci:ConnectionInfo -> (;ci)hs_state ->
+	si:SessionInfo -> (Cert.certchain * a:Sig.alg * (;a)Sig.skey) option ->
+	p:DHGroup.p -> (;p)DHGroup.g -> (;p)DHGroup.elt -> log ->
+	((;ci)hs_state * si':SessionInfo * (;si)PRF.masterSecret * log) Result
+val on_serverHello_full: crand -> log ->
+	(ProtocolVersion * srand * sessionID * cipherSuite * Compression * bytes) -> // SHello
+	protoState
+val parseMessageState: ci:ConnectionInfo -> (;ci)hs_state ->
+	((;ci)hs_state * HandshakeType * bytes * bytes) option Result
+val recv_fragment_client: ci:ConnectionInfo -> s:(;ci)hs_state -> ProtocolVersion option ->
+	(;ci,Config(ci,s))incoming
+
+val prepare_server_output_full_RSA: ci:ConnectionInfo -> (;ci)hs_state -> SessionInfo ->
+	ProtocolVersion -> Sig.alg list -> cVerifyData -> sVerifyData -> log ->
+	((;ci)hs_state * ProtocolVersion) Result
+val prepare_server_output_full_DH: 'a -> 'b -> 'c -> 'd -> res:('e Result){?x,y. res = Error(x,y)}
+val prepare_server_output_full_DHE: ci:ConnectionInfo -> (;ci)hs_state -> SessionInfo ->
+	Sig.alg list -> cVerifyData -> sVerifyData -> log ->
+	((;ci)hs_state * ProtocolVersion) Result
+val prepare_server_output_full_DH_anon: ci:ConnectionInfo -> (;ci)hs_state -> SessionInfo ->
+	cVerifyData -> sVerifyData -> log ->
+	((;ci)hs_state * ProtocolVersion) Result
+val prepare_server_output_full: ci:ConnectionInfo -> (;ci)hs_state -> SessionInfo ->
+	ProtocolVersion -> Sig.alg list -> cVerifyData -> sVerifyData -> log ->
+	((;ci)hs_state * ProtocolVersion) Result
+val negotiate: 'a list -> 'a list -> 'a option
+val prepare_server_output_resumption: ci:ConnectionInfo -> (;ci)hs_state -> crand ->
+	si:SessionInfo -> (;si)PRF.masterSecret -> cVerifyData -> sVerifyData -> log ->
+	(;ci)hs_state
+val startServerFull: ci:ConnectionInfo -> s:(;ci)hs_state -> 
+	(ProtocolVersion * crand * sessionID * cipherSuites * Compression list * bytes) ->// CHello
+	cVerifyData -> sVerifyData -> log -> ((;ci)hs_state * ProtocolVersion) Result
+val recv_fragment_server: ci:ConnectionInfo -> s:(;ci)hs_state -> pv:ProtocolVersion option ->
+	(;ci,Config(ci,s))incoming
+val enqueue_fragment: ci:ConnectionInfo -> (;ci)hs_state -> bytes -> (;ci)hs_state
+
 
 /// Misc
 

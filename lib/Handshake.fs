@@ -376,7 +376,7 @@ let parseServerKeyExchange_DHE pv cs payload =
         | Correct(alg,signature) ->
             correct(p,g,y,alg,signature)
 
-let serverKeyExchange_DH_anon p g y =
+let serverKeyExchangeBytes_DH_anon p g y =
     let dehb = dheParamBytes p g y in
     messageBytes HT_server_key_exchange dehb
 
@@ -405,7 +405,8 @@ let makeCertificateVerifyBytes si ms alg skey data =
 let certificateVerifyCheck si ms algs log payload =
     match parseDigitallySigned algs payload si.protocol_version with
     | Error(x,y) -> false
-    | Correct(alg,signature) ->
+    | Correct(res) ->
+        let (alg,signature) = res in
         let (alg,expected) =
             match si.protocol_version with
             | TLS_1p2 | TLS_1p1 | TLS_1p0 -> (alg,log)
@@ -755,7 +756,7 @@ type incomingCCS =
 
 
 /// ClientKeyExchange
-let find_client_cert_sign certType algOpt distName pv hint =
+let find_client_cert_sign certType algOpt (distName:string list) pv hint =
     let certAlg =
         match algOpt with
         | Some(alg) -> alg
@@ -805,7 +806,7 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) state (si:SessionInfo) ce
     let state = {state with hs_outgoing = new_outgoing} in
     correct (state,si,ms,log)
 
-let prepare_client_output_full_DHE (ci:ConnectionInfo) state (si:SessionInfo) cert_req g (*:(;p)elt *)  p sy log =
+let prepare_client_output_full_DHE (ci:ConnectionInfo) state (si:SessionInfo) cert_req p g sy log =
     
     (* pre: Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DHE.PP((p,g)) /\ ServerDHE((p,g),sy,si.init_crand @| si.init_srand) *)
     (* moreover, by definition ServerDHE((p,g),sy,si.init_crand @| si.init_srand) implies ?sx.DHE.Exp((p,g),sx,sy) *)
@@ -860,7 +861,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) state (si:SessionInfo) ce
     let state = {state with hs_outgoing = new_outgoing} in
     correct (state,si,ms,log)
  
-let on_serverHello_full crand log shello =
+let on_serverHello_full crand log (shello:ProtocolVersion * srand * sessionID * cipherSuite * Compression * bytes) =
     let (sh_server_version,sh_random,sh_session_id,sh_cipher_suite,sh_compression_method,sh_neg_extensions) = shello
     let si = { clientID = []
                client_auth = false
@@ -885,7 +886,7 @@ let on_serverHello_full crand log shello =
         unexpectedError "[recv_fragment] Unknown ciphersuite"
 
 
-let parseMessageState state = 
+let parseMessageState (ci:ConnectionInfo) state = 
     match parseMessage state.hs_incoming with
     | Error(x,y) -> Error(x,y)
     | Correct(res) ->
@@ -897,7 +898,7 @@ let parseMessageState state =
              correct(res)
 
 let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion:ProtocolVersion option) =
-    match parseMessageState state with
+    match parseMessageState ci state with
     | Error(x,y) -> InError(x,y,state)
     | Correct(res) ->
       match res with
@@ -1136,7 +1137,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     (* Log the received packet *)
                     let log = log @| to_log in
 
-                    match prepare_client_output_full_DHE ci state si None g p y log with
+                    match prepare_client_output_full_DHE ci state si None p g y log with
                     | Error (x,y) -> InError (x,y, state)
                     | Correct (state,si,ms,log) ->
                         let state = {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
@@ -1148,7 +1149,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     (* Log the received packet *)
                     let log = log @| to_log in
 
-                    match prepare_client_output_full_DHE ci state si skey g p y log with
+                    match prepare_client_output_full_DHE ci state si skey p g y log with
                     | Error (x,y) -> InError (x,y, state)
                     | Correct (state,si,ms,log) ->
                         let state = {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
@@ -1262,7 +1263,7 @@ let prepare_server_output_full_DH_anon (ci:ConnectionInfo) state si cvd svd log 
     (* ServerKEyExchange *)
     let (p,g) = DH.default_pp () in
     let (y,x) = DH.genKey p g in
-    let serverKEXB = serverKeyExchange_DH_anon p g y in
+    let serverKEXB = serverKeyExchangeBytes_DH_anon p g y in
  
     let output = serverHelloB @|serverKEXB @| serverHelloDoneBytes in
     (* Log the output and put it into the output buffer *)
@@ -1303,7 +1304,7 @@ let prepare_server_output_resumption ci state crand si ms cvd svd log =
                                                                      ms,log))} in
     state
 
-let startServerFull (ci:ConnectionInfo) state cHello cvd svd log =  
+let startServerFull (ci:ConnectionInfo) state (cHello:ProtocolVersion * crand * sessionID * cipherSuites * Compression list * bytes) cvd svd log =  
     let (ch_client_version,ch_random,ch_session_id,ch_cipher_suites,ch_compression_methods,ch_extensions) = cHello
     // Negotiate the protocol parameters
     let version = minPV ch_client_version state.poptions.maxVer in
@@ -1341,7 +1342,7 @@ let startServerFull (ci:ConnectionInfo) state cHello cvd svd log =
 (*CF: we should rediscuss this monster pattern matching, factoring out some of it. *)
 
 let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion:ProtocolVersion option) =
-    match parseMessageState state with
+    match parseMessageState ci state with
     | Error(x,y) -> InError(x,y,state)
     | Correct(res) ->
       match res with
