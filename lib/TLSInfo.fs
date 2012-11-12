@@ -22,6 +22,7 @@ type SessionInfo = {
     cipher_suite: cipherSuite;
     compression: Compression;
     clientID: Cert.cert list;
+    client_auth: bool;
     serverID: Cert.cert list;
     sessionID: sessionID;
     }

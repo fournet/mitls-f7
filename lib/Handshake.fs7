@@ -150,13 +150,6 @@ val parseDistinguishedNameList: b:bytes -> s:string list ->
 		b = DistinguishedNameListBytes(l)
 	}) Result
 
-function val SigHashAlgBytes: sigAlg * hashAlg -> bytes
-private definition !s,h. SigHashAlgBytes(s,h) = HashAlgBytes(s) @| SigAlgBytes(h)
-
-val sigHashAlgBytes: s:sigAlg -> h:hashAlg -> b:bytes{b=SigHashAlgBytes(s,h)}
-
-function val SigHashAlgsBytes: Sig.alg list -> bytes
-
 function val CertificateRequestMsg: ProtocolVersion * certType list * Sig.alg list option * string list -> bytes
 private definition !ct,sa,dn.
 	CertificateRequestMsg(TLS_1p2,ct,Some(sa),dn) =

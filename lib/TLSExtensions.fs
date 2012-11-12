@@ -133,3 +133,93 @@ let inspect_ServerHello_extensions (extList:(extensionType * bytes) list) expect
             else
                 (* RFC 5746, sec 3.4: send a handshake failure alert *)
                 Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Wrong renegotiation information")
+
+(* SignatureAndHashAlgorithm parsing functions *)
+let sigHashAlgBytes alg =
+    // pre: we're in TLS 1.2
+    let (sign,hash) = alg in
+    let signB = sigAlgBytes sign in
+    let hashB = hashAlgBytes hash in
+    hashB @| signB
+
+let parseSigHashAlg b =
+    let (hashB,signB) = Bytes.split b 1 in
+    match parseSigAlg signB with
+    | Error(x,y) -> Error(x,y)
+    | Correct(sign) ->
+        match parseHashAlg hashB with
+        | Error(x,y) -> Error(x,y)
+        | Correct(hash) -> correct(sign,hash)
+
+let rec sigHashAlgListBytes_int algL =
+    match algL with
+    | [] -> [||]
+    | h::t ->
+        let oneItem = sigHashAlgBytes h in
+        oneItem @| sigHashAlgListBytes_int t
+
+let sigHashAlgListBytes algL =
+    let payload = sigHashAlgListBytes_int algL in
+    vlbytes 2 payload
+
+let rec parseSigHashAlgList_int b : (Sig.alg list Result)=
+    if length b = 0 then correct([])
+    elif length b = 1 then Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+    else
+        let (thisB,remB) = Bytes.split b 2 in
+        match parseSigHashAlg thisB with
+        | Error(x,y) -> Error(x,y)
+        | Correct(this) ->
+            match parseSigHashAlgList_int remB with
+            | Error(x,y) -> Error(x,y)
+            | Correct(rem) -> correct(this :: rem)
+
+let parseSigHashAlgList b =
+    match vlparse 2 b with
+    | Error(x,y) -> Error(x,y)
+    | Correct(b) -> parseSigHashAlgList_int b
+
+let default_sigHashAlg_fromSig pv sigAlg=
+    match sigAlg with
+    | SA_RSA ->
+        match pv with
+        | TLS_1p2 -> [(SA_RSA, SHA)]
+        | TLS_1p0 | TLS_1p1 | SSL_3p0 -> [(SA_RSA,MD5SHA1)]
+        //| SSL_3p0 -> [(SA_RSA,NULL)]
+    | SA_DSA ->
+        [(SA_DSA,SHA)]
+        //match pv with
+        //| TLS_1p0| TLS_1p1 | TLS_1p2 -> [(SA_DSA, SHA)]
+        //| SSL_3p0 -> [(SA_DSA,NULL)]
+    | _ -> unexpectedError "[default_sigHashAlg_fromSig] invoked on an invalid signature algorithm"
+
+let default_sigHashAlg pv cs =
+    default_sigHashAlg_fromSig pv (sigAlg_of_ciphersuite cs)
+
+let sigHashAlg_contains (algList:Sig.alg list) (alg:Sig.alg) =
+    Bytes.exists (fun a -> a = alg) algList
+
+let sigHashAlg_bySigList (algList:Sig.alg list) (sigAlgList:sigAlg list) =
+    Bytes.choose (fun alg -> let (sigA,_) = alg in if (Bytes.exists (fun a -> a = sigA) sigAlgList) then Some(alg) else None) algList
+
+let cert_type_to_SigHashAlg ct pv =
+    match ct with
+    | TLSConstants.DSA_fixed_dh | TLSConstants.DSA_sign -> default_sigHashAlg_fromSig pv SA_DSA
+    | TLSConstants.RSA_fixed_dh | TLSConstants.RSA_sign -> default_sigHashAlg_fromSig pv SA_RSA
+
+let rec cert_type_list_to_SigHashAlg ctl pv =
+    // FIXME: Generates a list with duplicates!
+    match ctl with
+    | [] -> []
+    | h::t -> (cert_type_to_SigHashAlg h pv) @ (cert_type_list_to_SigHashAlg t pv)
+
+let cert_type_to_SigAlg ct =
+    match ct with
+    | TLSConstants.DSA_fixed_dh | TLSConstants.DSA_sign -> SA_DSA
+    | TLSConstants.RSA_fixed_dh | TLSConstants.RSA_sign -> SA_RSA
+
+let rec cert_type_list_to_SigAlg ctl =
+    // FIXME: Generates a list with duplicates!
+    match ctl with
+    | [] -> []
+    | h::t -> (cert_type_to_SigAlg h) :: (cert_type_list_to_SigAlg t)

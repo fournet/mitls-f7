@@ -54,3 +54,19 @@ val checkClientRenegotiationInfoExtension:
 val inspect_ServerHello_extensions:
 	(extensionType * bytes) list -> bytes ->
 		unit Result
+
+(* SignatureAndHashAlgorithm parsing functions *)
+function val SigHashAlgBytes: 'a (* Sig.alg, can't use because it's a pair *) -> bytes
+private definition !s,h. SigHashAlgBytes((s,h)) = HashAlgBytes(s) @| SigAlgBytes(h)
+
+val sigHashAlgBytes: a:Sig.alg -> b:bytes{b=SigHashAlgBytes(a)}
+val parseSigHashAlg: b:bytes -> (a:Sig.alg{b=SigHashAlgBytes(a)}) Result
+
+function val SigHashAlgsBytes: Sig.alg list -> bytes
+val sigHashAlgListBytes: Sig.alg list -> bytes
+val parseSigHashAlgList: bytes -> Sig.alg list Result
+val default_sigHashAlg: ProtocolVersion -> cipherSuite -> Sig.alg list
+val sigHashAlg_contains: Sig.alg list -> Sig.alg -> bool
+val cert_type_list_to_SigHashAlg: certType list -> ProtocolVersion -> Sig.alg list
+val cert_type_list_to_SigAlg: certType list -> sigAlg list
+val sigHashAlg_bySigList: Sig.alg list -> sigAlg list -> Sig.alg list

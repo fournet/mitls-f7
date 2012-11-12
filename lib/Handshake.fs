@@ -261,95 +261,7 @@ let rec parseDistinguishedNameList data res =
             let res = name :: res in
             parseDistinguishedNameList data res
 
-(* SignatureAndHashAlgorithm parsing functions *)
-let sigHashAlgBytes sign hash =
-    // pre: we're in TLS 1.2
-    let signB = sigAlgBytes sign in
-    let hashB = hashAlgBytes hash in
-    hashB @| signB
 
-let parseSigHashAlg b =
-    let (hashB,signB) = Bytes.split b 1 in
-    match parseSigAlg signB with
-    | Error(x,y) -> Error(x,y)
-    | Correct(sign) ->
-        match parseHashAlg hashB with
-        | Error(x,y) -> Error(x,y)
-        | Correct(hash) -> correct(sign,hash)
-
-let rec sigHashAlgListBytes_int algL =
-    match algL with
-    | [] -> [||]
-    | h::t ->
-        let (sign,hash) = h in
-        let oneItem = sigHashAlgBytes sign hash in
-        oneItem @| sigHashAlgListBytes_int t
-
-let sigHashAlgListBytes algL =
-    let payload = sigHashAlgListBytes_int algL in
-    vlbytes 2 payload
-
-let rec parseSigHashAlgList_int b : (Sig.alg list Result)=
-    if length b = 0 then correct([])
-    elif length b = 1 then Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
-    else
-        let (thisB,remB) = Bytes.split b 2 in
-        match parseSigHashAlg thisB with
-        | Error(x,y) -> Error(x,y)
-        | Correct(this) ->
-            match parseSigHashAlgList_int remB with
-            | Error(x,y) -> Error(x,y)
-            | Correct(rem) -> correct(this :: rem)
-
-let parseSigHashAlgList b =
-    match vlparse 2 b with
-    | Error(x,y) -> Error(x,y)
-    | Correct(b) -> parseSigHashAlgList_int b
-
-let default_sigHashAlg_fromSig pv sigAlg=
-    match sigAlg with
-    | SA_RSA ->
-        match pv with
-        | TLS_1p2 -> [(SA_RSA, SHA)]
-        | TLS_1p0 | TLS_1p1 | SSL_3p0 -> [(SA_RSA,MD5SHA1)]
-        //| SSL_3p0 -> [(SA_RSA,NULL)]
-    | SA_DSA ->
-        [(SA_DSA,SHA)]
-        //match pv with
-        //| TLS_1p0| TLS_1p1 | TLS_1p2 -> [(SA_DSA, SHA)]
-        //| SSL_3p0 -> [(SA_DSA,NULL)]
-    | _ -> unexpectedError "[default_sigHashAlg_fromSig] invoked on an invalid signature algorithm"
-
-let default_sigHashAlg pv cs =
-    default_sigHashAlg_fromSig pv (sigAlg_of_ciphersuite cs)
-
-let sigHashAlg_contains (algList:Sig.alg list) (alg:Sig.alg) =
-    Bytes.exists (fun a -> a = alg) algList
-
-let sigHashAlg_bySigList (algList:Sig.alg list) (sigAlgList:sigAlg list) =
-    Bytes.choose (fun alg -> let (sigA,_) = alg in if (Bytes.exists (fun a -> a = sigA) sigAlgList) then Some(alg) else None) algList
-
-let cert_type_to_SigHashAlg ct pv =
-    match ct with
-    | TLSConstants.DSA_fixed_dh | TLSConstants.DSA_sign -> default_sigHashAlg_fromSig pv SA_DSA
-    | TLSConstants.RSA_fixed_dh | TLSConstants.RSA_sign -> default_sigHashAlg_fromSig pv SA_RSA
-
-let rec cert_type_list_to_SigHashAlg ctl pv =
-    // FIXME: Generates a list with duplicates!
-    match ctl with
-    | [] -> []
-    | h::t -> (cert_type_to_SigHashAlg h pv) @ (cert_type_list_to_SigHashAlg t pv)
-
-let cert_type_to_SigAlg ct =
-    match ct with
-    | TLSConstants.DSA_fixed_dh | TLSConstants.DSA_sign -> SA_DSA
-    | TLSConstants.RSA_fixed_dh | TLSConstants.RSA_sign -> SA_RSA
-
-let rec cert_type_list_to_SigAlg ctl =
-    // FIXME: Generates a list with duplicates!
-    match ctl with
-    | [] -> []
-    | h::t -> (cert_type_to_SigAlg h) :: (cert_type_list_to_SigAlg t)
 
 
 // TODO: Add a pair of functions: ciphersuite * version -> certType list * sigAlg list
@@ -459,8 +371,7 @@ let digitallySignedBytes alg data pv =
     let sign = vlbytes 2 data in
     match pv with
     | TLS_1p2 ->
-        let (sAlg,hAlg) = alg in
-        let sigHashB = sigHashAlgBytes sAlg hAlg in
+        let sigHashB = sigHashAlgBytes alg in
         sigHashB @| sign
     | SSL_3p0 | TLS_1p0 | TLS_1p1 -> sign
 
@@ -893,8 +804,6 @@ type incomingCCS =
 
 
 /// ClientKeyExchange
-
-    
 let find_client_cert_sign certType algOpt distName pv hint =
     let certAlg =
         match algOpt with
@@ -905,18 +814,16 @@ let find_client_cert_sign certType algOpt distName pv hint =
 
 let prepare_client_output_full_RSA (ci:ConnectionInfo) state (si:SessionInfo) cert_req log =
     let clientCertBytes =
-      match cert_req with
-      | Some(certOpt) ->
-        clientCertificateBytes certOpt
-      | None -> [||]
+      if si.client_auth then
+        clientCertificateBytes cert_req
+      else [||]
 
     let si =
-        match cert_req with
-        | None -> si
-        | Some(certOpt) ->
-            match certOpt with
+        if si.client_auth then
+            match cert_req with
             | None -> si
             | Some(certList,_,_) -> {si with clientID = certList}
+        else si
 
     let log = log @| clientCertBytes in
 
@@ -929,15 +836,14 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) state (si:SessionInfo) ce
     let ms = CRE.prfSmoothRSA si state.poptions.maxVer pms in
     (* FIXME: here we should shred pms *)
     let certificateVerifyBytes =
-        match cert_req with
-        | Some(certOpt) ->
-            match certOpt with
+        if si.client_auth then
+            match cert_req with
             | None ->
                 (* We sent an empty Certificate message, so no certificate verify message at all *)
                 [||]
             | Some(certList,algs,skey) ->
                 makeCertificateVerifyBytes si ms algs skey log
-        | None ->
+        else
             (* No client certificate ==> no certificateVerify message *)
             [||]
     let log = log @| certificateVerifyBytes in
@@ -955,18 +861,17 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) state (si:SessionInfo) ce
     (*$ formally, the need for signing nonces is unclear *)
     
     let si = 
-        match cert_req with
-        | None -> si
-        | Some(certOpt) ->
-            match certOpt with
+        if si.client_auth then
+            match cert_req with
             | None -> si
             | Some(certList,_,_) -> {si with clientID = certList}
+        else si
     (* si is now constant *)
 
     let clientCertBytes =
-      match cert_req with
-      | Some(certOpt) -> clientCertificateBytes certOpt
-      | None          -> [||]
+      if si.client_auth then
+        clientCertificateBytes cert_req
+      else [||]
     let log = log @| clientCertBytes
 
     let (cy,x) = DH.genKey p g in
@@ -987,15 +892,14 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) state (si:SessionInfo) ce
     (*$ DHE.zeroPMS si pms; *) 
 
     let certificateVerifyBytes =
-        match cert_req with
-        | Some(certOpt) ->
-            match certOpt with
+        if si.client_auth then
+            match cert_req with
             | None ->
                 (* We sent an empty Certificate message, so no certificate verify message at all *)
                 [||]
             | Some(certList,algs,skey) ->
                 makeCertificateVerifyBytes si ms algs skey log
-        | None ->
+        else
             (* No client certificate ==> no certificateVerify message *)
             [||]
     let log = log @| certificateVerifyBytes in
@@ -1008,6 +912,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) state (si:SessionInfo) ce
 let on_serverHello_full crand log shello =
     let (sh_server_version,sh_random,sh_session_id,sh_cipher_suite,sh_compression_method,sh_neg_extensions) = shello
     let si = { clientID = []
+               client_auth = false
                serverID = []
                sessionID = sh_session_id
                protocol_version = sh_server_version
@@ -1230,6 +1135,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(certType,alg,distNames) ->
                 let client_cert = find_client_cert_sign certType alg distNames si.protocol_version state.poptions.client_name in
+                let si = {si with client_auth = true} in
                 let state = {state with pstate = PSClient(ServerHelloDoneRSA(si,client_cert,log))} in
                 recv_fragment_client ci state agreedVersion
             | CertificateRequestDHE(si,p,g,y,log) ->
@@ -1243,6 +1149,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(certType,alg,distNames) ->
                 let client_cert = find_client_cert_sign certType alg distNames si.protocol_version state.poptions.client_name in
+                let si = {si with client_auth = true} in
                 let state = {state with pstate = PSClient(ServerHelloDoneDHE(si,client_cert,p,g,y,log))} in
                 recv_fragment_client ci state agreedVersion
             | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "CertificateRequest arrived in the wrong state",state)
@@ -1266,7 +1173,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     (* Log the received packet *)
                     let log = log @| to_log in
 
-                    match prepare_client_output_full_RSA ci state si (Some(skey)) log with
+                    match prepare_client_output_full_RSA ci state si skey log with
                     | Error (x,y) -> InError (x,y, state)
                     | Correct (state,si,ms,log) ->
                         let state = {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
@@ -1290,7 +1197,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     (* Log the received packet *)
                     let log = log @| to_log in
 
-                    match prepare_client_output_full_DHE ci state si (Some(skey)) g p y log with
+                    match prepare_client_output_full_DHE ci state si skey g p y log with
                     | Error (x,y) -> InError (x,y, state)
                     | Correct (state,si,ms,log) ->
                         let state = {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
@@ -1336,7 +1243,7 @@ let prepare_server_output_full_RSA (ci:ConnectionInfo) state si cv calgs cvd svd
         let certificateB = serverCertificateBytes c in
         (* No ServerKEyExchange in RSA ciphersuites *)
         let certificateRequestB =
-            if state.poptions.request_client_certificate then
+            if si.client_auth then
                 certificateRequestBytes true si.cipher_suite si.protocol_version // true: Ask for sign-capable certificates
             else
                 [||]
@@ -1346,7 +1253,7 @@ let prepare_server_output_full_RSA (ci:ConnectionInfo) state si cv calgs cvd svd
         let state = {state with hs_outgoing = output} in
         (* Compute the next state of the server *)
         let state =
-            if state.poptions.request_client_certificate then
+            if si.client_auth then
                 {state with pstate = PSServer(ClientCertificateRSA(si,cv,sk,log))}
             else
                 {state with pstate = PSServer(ClientKeyExchangeRSA(si,cv,sk,log))}
@@ -1378,7 +1285,7 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs cvd svd
         let serverKEXB = serverKeyExchangeBytes_DHE dheb alg sign si.protocol_version in
         (* CertificateRequest *)
         let certificateRequestB =
-            if state.poptions.request_client_certificate then
+            if si.client_auth then
                 certificateRequestBytes true si.cipher_suite si.protocol_version // true: Ask for sign-capable certificates
             else
                 [||]
@@ -1388,7 +1295,7 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs cvd svd
         let state = {state with hs_outgoing = output} in
         (* Compute the next state of the server *)
         let state =
-            if state.poptions.request_client_certificate then
+            if si.client_auth then
                 {state with pstate = PSServer(ClientCertificateDHE(si,p,g,y,x,log))}
             else
                 {state with pstate = PSServer(ClientKeyExchangeDHE(si,p,g,y,x,log))}
@@ -1462,6 +1369,7 @@ let startServerFull (ci:ConnectionInfo) state cHello cvd svd log =
                 let srand = Nonce.mkClientRandom () in
                 (* Fill in the session info we're establishing *)
                 let si = { clientID         = []
+                           client_auth = state.poptions.request_client_certificate
                            serverID         = []
                            sessionID        = sid
                            protocol_version = version
@@ -1602,7 +1510,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let ms = CRE.prfSmoothRSA si cv pms in
                     (* TODO: we should shred the pms *)
                     (* move to new state *)
-                    if state.poptions.request_client_certificate then
+                    if si.client_auth then
                         let state = {state with pstate = PSServer(CertificateVerify(si,ms,log))} in
                         recv_fragment_server ci state agreedVersion
                     else
@@ -1623,7 +1531,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     (*$ TODO in e.g. DHE: we should shred the pms *)
                     (* we rely on scopes & type safety to get forward secrecy*) 
                     (* move to new state *)
-                    if state.poptions.request_client_certificate then
+                    if si.client_auth then
                         let state = {state with pstate = PSServer(CertificateVerify(si,ms,log))} in
                         recv_fragment_server ci state agreedVersion
                     else
