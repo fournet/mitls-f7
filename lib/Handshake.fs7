@@ -185,7 +185,7 @@ val parseServerKeyExchange_DHE: ProtocolVersion -> cipherSuite -> bytes -> (byte
 function val ServerKeyExchangeMsg_DH_anon: bytes * bytes * bytes -> bytes
 
 //function val CertificateVerifyMsg: si:SessionInfo * (;si)PRF.masterSecret * a:Sig.alg * Cert.certchain * (;a)Sig.pkey * log -> bytes
-function val CertificateVerifyMsg: ProtocolVersion -> Sig.alg -> bytes -> bytes
+function val CertificateVerifyMsg: ProtocolVersion * Sig.alg * bytes -> bytes
 
 val makeCertificateVerifyBytes: si:SessionInfo -> (;si)PRF.masterSecret -> a:Sig.alg -> (;a)Sig.skey -> l:log ->
 	b:bytes{
@@ -253,19 +253,19 @@ predicate ServerLogBeforeClientCertificateVerify_Auth of SessionInfo * log
 predicate ServerLogBeforeClientCertificateVerify_NoAuth of SessionInfo * log 
 private assume !si,l.
   ServerLogBeforeClientCertificateVerify_Auth(si,l) <=>
-  (?pv,l',k,pms. ServerLogBeforeClientKeyExchangeRSA_Auth(si,pv,l) /\
-                 l = l' @| ClientKeyExchangeMsg_RSA(pv,si,k,pms))
+  (?pv,l',encpms. ServerLogBeforeClientKeyExchangeRSA_Auth(si,pv,l) /\
+                 l = l' @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
 private assume !si,l.
   ServerLogBeforeClientCertificateVerify_NoAuth(si,l) <=>
-  (?pv,l',k,pms. ServerLogBeforeClientKeyExchangeRSA_NoAuth(si,pv,l) /\
-                 l = l' @| ClientKeyExchangeMsg_RSA(pv,si,k,pms))
+  (?pv,l',encpms. ServerLogBeforeClientKeyExchangeRSA_NoAuth(si,pv,l) /\
+                 l = l' @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
 
 predicate ServerLogBeforeClientFinished_Auth of SessionInfo * log 
 predicate ServerLogBeforeClientFinished_NoAuth of SessionInfo * log
 private assume !si,l.
   ServerLogBeforeClientFinished_Auth(si,l) <=>
-  (?l',ms,a,k. ServerLogBeforeClientCertificateVerify_Auth(si,l') /\
-   (l = l' @| CertificateVerifyMsg(si,ms,a,si.clientID,k,l)))
+  (?l',a,sign. ServerLogBeforeClientCertificateVerify_Auth(si,l') /\
+   (l = l' @| CertificateVerifyMsg(si.protocol_version,a,sign))) // FIXME: ?k. sign = Sign(pk,l')
 private assume !si,l.
   ServerLogBeforeClientFinished_NoAuth(si,l) <=>
   ServerLogBeforeClientCertificateVerify_NoAuth(si,l)
@@ -274,12 +274,12 @@ predicate ServerLogBeforeServerFinished_Auth of SessionInfo * log
 predicate ServerLogBeforeServerFinished_NoAuth of SessionInfo * log 
 private assume !si,l.
   ServerLogBeforeServerFinished_Auth(si,l) <=>
-  (?l',ms. ServerLogBeforeClientFinished_Auth(si,l') /\
-   (l' = l @| ClientFinishedMsg(si,ms,l')))
+  (?l',cvd. ServerLogBeforeClientFinished_Auth(si,l') /\
+   (l' = l @| ClientFinishedMsg(cvd))) // FIXME: ?ms. cvd = Finished(si,ms,l')
 private assume !si,l.
   ServerLogBeforeServerFinished_NoAuth(si,l) <=>
-  (?l',ms. ServerLogBeforeClientFinished_NoAuth(si,l') /\
-   (l' = l @| ClientFinishedMsg(si,ms,l')))
+  (?l',cvd. ServerLogBeforeClientFinished_NoAuth(si,l') /\
+   (l' = l @| ClientFinishedMsg(cvd))) // FIXME: ?ms. cvd = Finished(si,ms,l')
 
 
 predicate ClientLogBeforeServerHello of random * sessionID * log 
@@ -319,33 +319,33 @@ private assume !si,pv,l.
 predicate ClientLogBeforeClientFinished_Auth of SessionInfo * log 
 private assume !si,pv,l. 
   ClientLogBeforeClientFinished_Auth(si,l) <=>
-  (?l',l'',pv,k,pms,ms,a,k'. ClientLogBeforeServerHelloDoneRSA_Auth(si,l') /\
+  (?l',l'',encpms,a,sign. ClientLogBeforeServerHelloDoneRSA_Auth(si,l') /\
      l'' = l' @| ServerHelloDoneMsg() 
          @| ClientOrServerCertificateMsg(si.clientID)
-         @| ClientKeyExchangeMsg_RSA(pv,si,k,pms) /\
+         @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms) /\
      l = l''
-         @| CertificateVerifyMsg(si,ms,a,si.clientID,k',l''))
+         @| CertificateVerifyMsg(si.protocol_version,a,sign)) // FIXME: ?k. sign = Sign(k,l'')
 
 predicate ClientLogBeforeClientFinished_NoAuth of SessionInfo * log 
 private assume !si,pv,l. 
   ClientLogBeforeClientFinished_Auth(si,l) <=>
-  (?l',pv,k,pms,ms,a,k'. ClientLogBeforeServerHelloDoneRSA_Auth(si,l') /\
+  (?l',encpms,ms,a,k'. ClientLogBeforeServerHelloDoneRSA_Auth(si,l') /\
      l = l' @| ServerHelloDoneMsg() 
          @| ClientOrServerCertificateMsg(si.clientID)
-         @| ClientKeyExchangeMsg_RSA(pv,si,k,pms))
+         @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
 
 predicate ClientLogBeforeServerFinished_Auth of SessionInfo * log 
 predicate ClientLogBeforeServerFinished_NoAuth of SessionInfo * log 
 
 private assume !si,pv,l. 
   ClientLogBeforeServerFinished_Auth(si,l) <=>
-  (?l',ms. ClientLogBeforeClientFinished_Auth(si,l') /\
-     l = l' @| ClientFinishedMsg(si,ms,l'))
+  (?l',cvd. ClientLogBeforeClientFinished_Auth(si,l') /\
+     l = l' @| ClientFinishedMsg(cvd)) // FIXME: ?ms. cvd = Finished(si,ms,l')
 
 private assume !si,pv,l. 
   ClientLogBeforeServerFinished_NoAuth(si,l) <=>
-  (?l',ms. ClientLogBeforeClientFinished_NoAuth(si,l') /\
-     l = l' @| ClientFinishedMsg(si,ms,l'))
+  (?l',cvd. ClientLogBeforeClientFinished_NoAuth(si,l') /\
+     l = l' @| ClientFinishedMsg(cvd)) // FIXME: ?ms. cvd = Finished(si,ms,l')
 
 type serverState =  (* note that the CertRequest bits are determined by the config *) 
                     (* we may omit some ProtocolVersion, mostly a ghost variable *)
