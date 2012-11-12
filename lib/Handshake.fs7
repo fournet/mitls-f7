@@ -261,7 +261,7 @@ predicate ServerLogBeforeClientFinished_NoAuth of SessionInfo * log
 private assume !si,l.
   ServerLogBeforeClientFinished_Auth(si,l) <=>
   (?l',ms,a,k. ServerLogBeforeClientCertificateVerify_Auth(si,l') /\
-   (l' = l @| CertificateVerifyMsg(si,ms,a,si.clientID,k,l')))
+   (l = l' @| CertificateVerifyMsg(si,ms,a,si.clientID,k,l)))
 private assume !si,l.
   ServerLogBeforeClientFinished_NoAuth(si,l) <=>
   ServerLogBeforeClientCertificateVerify_NoAuth(si,l)
