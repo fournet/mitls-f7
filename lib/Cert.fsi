@@ -41,6 +41,3 @@ val validate_cert_chain : Sig.alg list -> certchain -> bool
 
 val certificateListBytes: certchain -> bytes
 val parseCertificateList: bytes -> certchain -> certchain Result
-
-val parseCertificateTypeList: bytes -> TLSConstants.certType list Result
-val parseDistinguishedNameList: bytes -> string list -> string list Result

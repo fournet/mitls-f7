@@ -194,3 +194,7 @@ type certType =
 
 val certTypeBytes: certType -> bytes
 val parseCertType: bytes -> certType Result
+val certificateTypeListBytes: certType list -> bytes
+val parseCertificateTypeList: bytes -> certType list Result
+val distinguishedNameListBytes: string list -> bytes
+val parseDistinguishedNameList: bytes -> string list -> string list Result

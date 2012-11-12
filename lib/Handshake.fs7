@@ -124,21 +124,24 @@ val parseClientOrServerCertificate: b:bytes ->
 function val CertificateRequestMsg: ProtocolVersion * certType list * Sig.alg list option * string list -> bytes
 private definition !ct,sa,dn.
 	CertificateRequestMsg(TLS_1p2,ct,Some(sa),dn) =
-		  Cert.CertTypesBytes(ct) @|
+		  CertTypesBytes(ct) @|
 		  SigHashAlgsBytes(sa) @|
-		  Cert.DistinguishedNamesBytes(dn)
+		  DistinguishedNamesBytes(dn)
 	/\ 
 	CertificateRequestMsg(TLS_1p1,ct,None,dn) =
-		  Cert.CertTypesBytes(ct) @|
-		  Cert.DistinguishedNamesBytes(dn)
+		  CertTypesBytes(ct) @|
+		  DistinguishedNamesBytes(dn)
 	/\ 
 	CertificateRequestMsg(TLS_1p0,ct,None,dn) =
-		  Cert.CertTypesBytes(ct) @|
-		  Cert.DistinguishedNamesBytes(dn)
+		  CertTypesBytes(ct) @|
+		  DistinguishedNamesBytes(dn)
 	/\ 
 	CertificateRequestMsg(SSL_3p0,ct,None,dn) =
-		  Cert.CertTypesBytes(ct) @|
-		  Cert.DistinguishedNamesBytes(dn)
+		  CertTypesBytes(ct) @|
+		  DistinguishedNamesBytes(dn)
+
+val pickCertTypes: bool -> cipherSuite -> certType list
+val sigHashAlgBytesVersion: ProtocolVersion -> cipherSuite -> bytes
 
 // AP: I don't think many of these things will end up in the final sessionInfo.
 // So, no need to be too precise.

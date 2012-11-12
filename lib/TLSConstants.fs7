@@ -459,3 +459,29 @@ private definition CertTypeBytes(DSA_fixed_dh) = [|4uy|]
 
 val certTypeBytes: ct:certType -> b:bytes{b=CertTypeBytes(ct)}
 val parseCertType: b:bytes -> (ct:certType {b=CertTypeBytes(ct)}) Result
+
+function val CertTypesBytes: certType list -> bytes
+private definition !h,t.
+	CertTypesBytes([]) = [||] /\
+	CertTypesBytes(h::t) = CertTypeBytes(h) @| CertTypesBytes(t)
+
+val certificateTypeListBytes: ctl:certType list ->
+	b:bytes{b=CertTypesBytes(ctl)}
+val parseCertificateTypeList: b:bytes ->
+	(ctl:certType list{b = CertTypesBytes(ctl)}) Result
+
+function val DistinguishedNameListBytes: string list -> bytes
+private definition !h,t.
+	DistinguishedNameListBytes([]) = [||] /\
+	DistinguishedNameListBytes(h::t) = VLBytes(2,Utf8(h)) @| DistinguishedNameListBytes(t)
+function val DistinguishedNamesBytes: string list -> bytes
+private definition !l.
+	DistinguishedNamesBytes(l) = VLBytes(2,DistinguishedNameListBytes(l))
+
+val distinguishedNameListBytes: n:string list -> b:bytes{b=DistinguishedNamesBytes(n)}
+val parseDistinguishedNameList: b:bytes -> s:string list ->
+	(res:string list{
+		(* ?l. res = l @ s /\ b = DistinguishedNameListBytes(l) *)
+		s = [] => b = DistinguishedNameListBytes(res)
+	}) Result
+

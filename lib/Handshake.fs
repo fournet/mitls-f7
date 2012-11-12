@@ -215,28 +215,33 @@ let parseClientOrServerCertificate data =
         | Correct (certList) -> Cert.parseCertificateList certList []
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
-// TODO: Add a pair of functions: ciphersuite * version -> certType list * sigAlg list
-// ciphersuite * version * certType list * sigAlg list -> bool // tells me if they are plausible
-let certificateRequestBytes sign cs version =
-    let certTypes = 
-        if sign then
-            match sigAlg_of_ciphersuite cs with
-            | SA_RSA -> vlbytes 1 (certTypeBytes TLSConstants.RSA_sign)
-            | SA_DSA -> vlbytes 1 (certTypeBytes TLSConstants.DSA_sign)
-            | _ -> unexpectedError "[certificateRequestBytes] invoked on an invalid ciphersuite"
-        else 
-            match sigAlg_of_ciphersuite cs with
-            | SA_RSA -> vlbytes 1 (certTypeBytes TLSConstants.RSA_fixed_dh)
-            | SA_DSA -> vlbytes 1 (certTypeBytes TLSConstants.DSA_fixed_dh)
-            | _ -> unexpectedError "[certificateRequestBytes] invoked on an invalid ciphersuite"
-    let sigAndAlg =
-        match version with
+let pickCertTypes sign cs =
+    if sign then
+        match sigAlg_of_ciphersuite cs with
+        | SA_RSA -> [TLSConstants.RSA_sign]
+        | SA_DSA -> [TLSConstants.DSA_sign]
+        | _ -> unexpectedError "[certificateRequestBytes] invoked on an invalid ciphersuite"
+    else 
+        match sigAlg_of_ciphersuite cs with
+        | SA_RSA -> [TLSConstants.RSA_fixed_dh]
+        | SA_DSA -> [TLSConstants.DSA_fixed_dh]
+        | _ -> unexpectedError "[certificateRequestBytes] invoked on an invalid ciphersuite"
+
+let sigHashAlgBytesVersion version cs =
+     match version with
         | TLS_1p2 ->
             sigHashAlgListBytes (default_sigHashAlg version cs)
         | _ -> [||]
+
+let certificateRequestBytes sign cs version =
+    let certTypes = pickCertTypes sign cs in
+    let ctb = certificateTypeListBytes certTypes in
+    let ctb = vlbytes 1 ctb in
+    let sigAndAlg = sigHashAlgBytesVersion version cs in
     (* We specify no cert auth *)
-    let distNames = vlbytes 2 [||] in
-    let data = certTypes 
+    let distNames = distinguishedNameListBytes [] in
+    let distNames = vlbytes 2 distNames in
+    let data = ctb 
             @| sigAndAlg 
             @| distNames in
     messageBytes HT_certificate_request data
@@ -245,7 +250,7 @@ let parseCertificateRequest version data =
     match vlsplit 1 data with
     | Error(x,y) -> Error(x,y)
     | Correct (certTypeListBytes,data) ->
-    match Cert.parseCertificateTypeList certTypeListBytes with
+    match parseCertificateTypeList certTypeListBytes with
     | Error(x,y) -> Error(x,y)
     | Correct(certTypeList) ->
     let sigAlgsAndData = (
@@ -264,7 +269,7 @@ let parseCertificateRequest version data =
     match vlparse 2 data with
     | Error(x,y) -> Error(x,y)
     | Correct  (distNamesBytes) ->
-    match Cert.parseDistinguishedNameList distNamesBytes [] with
+    match parseDistinguishedNameList distNamesBytes [] with
     | Error(x,y) -> Error(x,y)
     | Correct distNamesList ->
     correct (certTypeList,sigAlgs,distNamesList)
@@ -518,7 +523,7 @@ type nextState = hs_state
 let init (role:Role) poptions =
     (* Start a new session without resumption, as the first epoch on this connection. *)
     let sid = [||] in
-    let rand = Nonce.mkClientRandom() in
+    let rand = Nonce.mkHelloRandom() in
     let ci = initConnection role rand in
     match role with
     | Client ->
@@ -553,7 +558,7 @@ let resume next_sid poptions =
     match retrievedSinfo.sessionID with
     | [||] -> unexpectedError "[resume_handshake] a resumed session should always have a valid sessionID"
     | sid ->
-    let rand = Nonce.mkClientRandom () in
+    let rand = Nonce.mkHelloRandom () in
     let ci = initConnection Client rand in
     let ext = extensionsBytes poptions.safe_renegotiation [||]
     let cHelloBytes = clientHelloBytes poptions rand sid ext in
@@ -572,7 +577,7 @@ let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     | PSClient (cstate) ->
         match cstate with
         | ClientIdle(cvd,svd) ->
-            let rand = Nonce.mkClientRandom () in
+            let rand = Nonce.mkHelloRandom () in
             let sid = [||] in
             let ext = extensionsBytes ops.safe_renegotiation cvd in
             let cHelloBytes = clientHelloBytes ops rand sid ext in
@@ -605,7 +610,7 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
             | PSClient (cstate) ->
                 match cstate with
                 | ClientIdle(cvd,svd) ->
-                    let rand = Nonce.mkClientRandom () in
+                    let rand = Nonce.mkHelloRandom () in
                     let ext = extensionsBytes ops.safe_renegotiation cvd in
                     let cHelloBytes = clientHelloBytes ops rand sid ext in
                     let state = {hs_outgoing = cHelloBytes
@@ -1290,7 +1295,7 @@ let negotiate cList sList =
     Bytes.tryFind (fun s -> Bytes.exists (fun c -> c = s) cList) sList
 
 let prepare_server_output_resumption ci state crand si ms cvd svd log =
-    let srand = Nonce.mkClientRandom () in
+    let srand = Nonce.mkHelloRandom () in
     let renInfo = cvd @| svd in
     let ext = extensionsBytes state.poptions.safe_renegotiation renInfo in
     let sHelloB = serverHelloBytes si srand ext in
@@ -1318,7 +1323,7 @@ let startServerFull (ci:ConnectionInfo) state (cHello:ProtocolVersion * crand * 
                 // Get the client supported SignatureAndHash algorithms. In TLS 1.2, this should be extracted from a client extension
                 let clientAlgs = default_sigHashAlg version cs in
                 let sid = Nonce.mkRandom 32 in
-                let srand = Nonce.mkClientRandom () in
+                let srand = Nonce.mkHelloRandom () in
                 (* Fill in the session info we're establishing *)
                 let si = { clientID         = []
                            client_auth = state.poptions.request_client_certificate

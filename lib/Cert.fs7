@@ -49,29 +49,6 @@ val parseCertificateList: b:bytes -> acc:certchain ->
 	(cl:certchain{(* ?l. cl = l @ acc /\ b=CertificateListBytes(l) *)
 		acc = [] => b=CertificateListBytes(cl)}) Result
 
-function val CertTypesBytes: certType list -> bytes
-private definition !h,t.
-	CertTypesBytes([]) = [||] /\
-	CertTypesBytes(h::t) = CertTypeBytes(h) @| CertTypesBytes(t)
-
-val parseCertificateTypeList: b:bytes ->
-	(ctl:certType list{b = CertTypesBytes(ctl)}) Result
-
-function val DistinguishedNameListBytes: string list -> bytes
-private definition !h,t.
-	DistinguishedNameListBytes([]) = [||] /\
-	DistinguishedNameListBytes(h::t) = VLBytes(2,Utf8(h)) @| DistinguishedNameListBytes(t)
-function val DistinguishedNamesBytes: string list -> bytes
-private definition !l.
-	DistinguishedNamesBytes(l) = VLBytes(2,DistinguishedNameListBytes(l))
-
-val parseDistinguishedNameList: b:bytes -> s:string list ->
-	(res:string list{
-		(* ?l. res = l @ s /\ b = DistinguishedNameListBytes(l) *)
-		s = [] => b = DistinguishedNameListBytes(res)
-	}) Result
-
-
 //AP: Commenting out to let typeckeching go through
 
 (*

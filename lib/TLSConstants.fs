@@ -687,5 +687,44 @@ let parseCertType b =
     | [|4uy|] -> Correct(DSA_fixed_dh)
     | _ -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
+let rec certificateTypeListBytes ctl =
+    match ctl with
+    | [] -> [||]
+    | h::t ->
+        let ct = certTypeBytes h in
+        ct @| certificateTypeListBytes t
+
+let rec parseCertificateTypeList data =
+    if length data = 0 then let res = [] in correct(res)
+    else
+        let (thisByte,data) = Bytes.split data 1 in
+        match parseCertType thisByte with
+        | Correct(ct) ->
+            match parseCertificateTypeList data with
+            | Correct(ctList) -> Correct(ct :: ctList)
+            | Error(x,y) -> Error(x,y)
+        | Error(x,y) -> Error(x,y)
+
+let rec distinguishedNameListBytes names =
+    match names with
+    | [] -> [||]
+    | h::t ->
+        let name = vlbytes 2 (utf8 h) in
+        name @| distinguishedNameListBytes t
+
+let rec parseDistinguishedNameList data res =
+    if length data = 0 then
+        correct (res)
+    else
+        if length data < 2 then (* FIXME: maybe at least 3 bytes, because we don't want empty names... *)
+            Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+        else
+            match vlsplit 2 data with
+            | Error(x,y) -> Error(x,y)
+            | Correct (nameBytes,data) ->
+            let name = iutf8 nameBytes in (* FIXME: I have no idea wat "X501 represented in DER-encoding format" (RFC 5246, page 54) is. I assume UTF8 will do. *)
+            let res = name :: res in
+            parseDistinguishedNameList data res
+
 
 

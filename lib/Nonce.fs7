@@ -3,5 +3,5 @@
 open Bytes
 
 val mkRandom: l:int -> b:bytes{Length(b) = l}
-val mkClientRandom: unit -> b:bytes{Length(b) = 32}
+val mkHelloRandom: unit -> b:(;32)lbytes
 

@@ -17,16 +17,16 @@ let mkRandom (i : int) : bytes =
 
 // crypto abstraction? timing guarantees local disjointness (?)
 #if ideal 
-let rec mkClientRandom () : bytes =
+let rec mkHelloRandom () : bytes =
 #else
-let mkClientRandom () : bytes =
+let mkHelloRandom () : bytes =
 #endif
     let timeb = bytes_of_int 4 (makeTimestamp ()) in
     let rnd   = mkRandom 28 in
     let Cr = timeb @| rnd
     #if ideal
     if (exists (fun el -> el=Cr) !log) then
-        mkClientRandom ()
+        mkHelloRandom ()
     else
         log := Cr::!log;
         Cr      
