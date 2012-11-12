@@ -62,35 +62,38 @@ type sVerifyData = bytes (* ServerFinished payload *)
 function val ClientHelloMsg: (ProtocolVersion * random * sessionID * cipherSuites * Compression list * bytes) -> bytes
 definition !cv,clRdm,sid,cls,cm,ext,b.
   ClientHelloMsg(cv,clRdm,sid,cls,cm,ext) =
+		MessageBytes(HT_client_hello,
                 (VersionBytes(cv) @| 
                  clRdm @| 
                  VLBytes(1,sid) @| 
                  VLBytes(2,CipherSuitesBytes(cls)) @| 
                  VLBytes(1,CompressionsBytes(cm)) @| 
                  ext)
+		)
                 
 val parseClientHello: m:bytes -> 
-	(pv:ProtocolVersion * cr:bytes * sid:sessionID * cs:cipherSuites * cm:Compression list * ext:bytes{?cs',cm'. m = ClientHelloMsg(pv,cr,sid,cs',cm',ext)
+	(pv:ProtocolVersion * cr:bytes * sid:sessionID * cs:cipherSuites * cm:Compression list * ext:bytes{?cs',cm'. MessageBytes(HT_client_hello,m) = ClientHelloMsg(pv,cr,sid,cs',cm',ext)
                           /\ ContainsCipherSuites(cs',cs) /\ ContainsCompressions(cm',cm)}) Result
-val clientHelloBytes: c:config -> cr:random -> sid:sessionID -> ext:bytes -> m:bytes{?m'. m' = ClientHelloMsg(c.maxVer,cr,sid,c.ciphersuites,c.compressions,ext) /\ m=MessageBytes(HT_client_hello,m')}
+val clientHelloBytes: c:config -> cr:random -> sid:sessionID -> ext:bytes -> m:bytes{m = ClientHelloMsg(c.maxVer,cr,sid,c.ciphersuites,c.compressions,ext)}
 
 function val ServerHelloMsg: (ProtocolVersion * random * sessionID * cipherSuite * Compression * bytes) -> bytes
 private definition !pv,sr,sid,cs,cm,ext.
 	ServerHelloMsg(pv,sr,sid,cs,cm,ext) =
-		VersionBytes(pv) @|
-		sr @|
-		VLBytes(1,sid) @|
-		CipherSuiteBytes(cs) @|
-		CompressionBytes(cm) @|
-		ext
+		MessageBytes(HT_server_hello,
+			(VersionBytes(pv) @|
+			 sr @|
+			 VLBytes(1,sid) @|
+			 CipherSuiteBytes(cs) @|
+			 CompressionBytes(cm) @|
+			 ext)
+		)
 
 val serverHelloBytes: si:SessionInfo -> sr:random -> ext:bytes ->
-	b:bytes{b=MessageBytes(HT_server_hello,
-		ServerHelloMsg(si.protocol_version,sr,si.sessionID,si.cipher_suite,
-					   si.compression,ext))}
+	b:bytes{b = ServerHelloMsg(si.protocol_version,sr,si.sessionID,si.cipher_suite,
+							   si.compression,ext)}
 val parseServerHello: b:bytes ->
 	((pv:ProtocolVersion * sr:random * sid:sessionID * cs:cipherSuite * cm:Compression * ext:bytes)
-	 {b=ServerHelloMsg(pv,sr,sid,cs,cm,ext)})
+	 {MessageBytes(HT_server_hello,b) = ServerHelloMsg(pv,sr,sid,cs,cm,ext)})
 	Result
 
 val helloRequestBytes: b:bytes{b=MessageBytes(HT_hello_request,[||])}
@@ -101,29 +104,29 @@ val serverHelloDoneBytes: b:bytes{b=MessageBytes(HT_server_hello_done,[||])}
 val consCertificateBytes: c:bytes -> a:bytes ->
 	b:bytes{b=VLBytes(3,c) @| a}
 
-function val CertificateMsg: bytes list -> bytes
-private definition !bl. CertificateMsg(bl) = VLBytes(3,UnfoldBack(bl,[||]))
+function val CertificateMsg: Cert.certchain -> bytes
+private definition !bl. CertificateMsg(bl) = MessageBytes(HT_certificate,VLBytes(3,UnfoldBack(bl,[||])))
 
-val certificateListBytes: cl:bytes list ->
+val certificateListBytes: cl:Cert.certchain ->
+	b:bytes{MessageBytes(HT_certificate,b) = CertificateMsg(cl)}
+
+val serverCertificateBytes: cl:Cert.certchain ->
 	b:bytes{b = CertificateMsg(cl)}
 
-val serverCertificateBytes: cl:bytes list ->
-	b:bytes{b = MessageBytes(HT_certificate,CertificateMsg(cl))}
-
-val clientCertificateBytes: clo: (bytes list * 'a * 'b) option ->
+val clientCertificateBytes: clo: (Cert.certchain * 'a * 'b) option ->
 	b:bytes{
-		( clo = None /\ b = MessageBytes(HT_certificate, CertificateMsg([])) ) \/
-		( ?cl,a',b'. clo = Some((cl,a',b')) /\ b = MessageBytes(HT_certificate,CertificateMsg(cl))
+		( clo = None /\ b = CertificateMsg([]) ) \/
+		( ?cl,a',b'. clo = Some((cl,a',b')) /\ b = CertificateMsg(cl)
 		)}
 
-val parseCertificateList: b:bytes -> s:bytes list ->
-	(bl:bytes list{
+val parseCertificateList: b:bytes -> s:Cert.certchain ->
+	(bl:Cert.certchain{
 		s = [] => b = UnfoldBack(bl,[||])
 	}) Result
 
 val parseClientOrServerCertificate: b:bytes ->
-	(bl:bytes list{
-	  b = CertificateMsg(bl)
+	(bl:Cert.certchain{
+	  MessageBytes(HT_certificate,b) = CertificateMsg(bl)
 	}) Result
 
 function val CertTypesBytes: certType list -> bytes
