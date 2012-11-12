@@ -35,8 +35,6 @@ predicate CanWriteP of bool * Connection
 
 definition !b, c. CanWriteP(b, c) <=> (b = true => CanWrite(CnId(c))) 
 
-ask !c. CanWriteP(false, c)
-
 private type Phandleinfo = h:handleinfo{ CanWriteP(h.canwrite, h.conn) }
 
 private type fdmap = (fd * Phandleinfo) list
@@ -64,6 +62,8 @@ private val mkDelta : c:Connection -> b:bytes ->
   (;ConnectionEpochOut(c), CnStream_o(c), (Length(b), Length(b))) delta
 
 (* ------------------------------------------------------------------------ *)
+assume !x. not Safe(x) // For datastream
+
 val canwrite : fd -> int
 val read     : fd -> int * bytes
 val write    : fd -> bytes -> int
