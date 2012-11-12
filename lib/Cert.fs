@@ -308,3 +308,12 @@ let get_hint (chain : certchain) =
     match chain with
     | []     -> None
     | c :: _ -> Some (c.GetNameInfo (X509NameType.SimpleName, false)) (* FIX *)
+
+(* ---- TLS-specific encoding ---- *)
+let consCertificateBytes c a =
+    let cert = vlbytes 3 c in
+    cert @| a
+
+let certificateListBytes certs =
+    let unfolded = Bytes.foldBack consCertificateBytes certs [||] in
+    vlbytes 3 unfolded

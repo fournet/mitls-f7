@@ -104,14 +104,8 @@ private definition ServerHelloDoneMsg() = MessageBytes(HT_server_hello_done,[||]
 
 val serverHelloDoneBytes: b:bytes{b=ServerHelloDoneMsg()}
 
-val consCertificateBytes: c:bytes -> a:bytes ->
-	b:bytes{b=VLBytes(3,c) @| a}
-
 function val CertificateMsg: Cert.certchain -> bytes
-private definition !bl. CertificateMsg(bl) = MessageBytes(HT_certificate,VLBytes(3,UnfoldBack(bl,[||])))
-
-val certificateListBytes: cl:Cert.certchain ->
-	b:bytes{MessageBytes(HT_certificate,b) = CertificateMsg(cl)}
+private definition !cl. CertificateMsg(cl) = MessageBytes(HT_certificate,VLBytes(3,Cert.CertificateListBytes(cl)))
 
 val serverCertificateBytes: cl:Cert.certchain ->
 	b:bytes{b = CertificateMsg(cl)}
@@ -198,13 +192,13 @@ val parseClientKEX_RSA: si:SessionInfo -> RSAKeys.sk -> pv:ProtocolVersion -> co
 function val ClientKeyExchangeMsg_DHE: bytes -> bytes
 
 val clientKEXExplicitBytes_DH: bytes -> bytes
-val parseClientKEXExplicit_DH: bytes -> bytes
+val parseClientKEXExplicit_DH: bytes -> bytes Result
 val clientKEXImplicitBytes_DH: bytes
 val parseClientKEXImplicit_DH: bytes -> unit Result
 
 (* Digitally signed and DHE parameters *)
 val digitallySignedBytes: Sig.alg -> bytes -> ProtocolVersion -> bytes
-val parseDigitallySigned: Sig.alg list -> bytes -> ProtocolVersion -> Sig.alg Result
+val parseDigitallySigned: Sig.alg list -> bytes -> ProtocolVersion -> (Sig.alg * bytes) Result
 
 val dheParamBytes: bytes -> bytes -> bytes -> bytes
 val parseDHEParams: bytes -> (bytes * bytes * bytes * bytes) Result
@@ -212,7 +206,7 @@ val parseDHEParams: bytes -> (bytes * bytes * bytes * bytes) Result
 function val ServerKeyExchangeMsg_DHE:  ProtocolVersion * p:bytes * g:bytes * y:bytes * Sig.alg * sign:bytes-> bytes
 
 val serverKeyExchangeBytes_DHE: bytes -> Sig.alg -> bytes -> ProtocolVersion -> bytes
-val parseServerKeyExchange_DHE: ProtocolVersion -> cipherSuite -> bytes -> (bytes * bytes * bytes )
+val parseServerKeyExchange_DHE: ProtocolVersion -> cipherSuite -> bytes -> (bytes * bytes * bytes * Sig.alg * bytes) Result
 
 function val ServerKeyExchangeMsg_DH_anon: bytes * bytes * bytes -> bytes
 
@@ -223,7 +217,7 @@ val makeCertificateVerifyBytes: si:SessionInfo -> (;si)PRF.masterSecret -> a:Sig
 	b:bytes{
 	  ?sign. b = CertificateVerifyMsg(si.protocol_version,a,sign)
 	}
-val certificateVerifyCheck: si:SessionInfo -> (;si)PRF.masterSecret -> a:Sig.alg -> l:log -> payload:bytes ->
+val certificateVerifyCheck: si:SessionInfo -> (;si)PRF.masterSecret -> a:Sig.alg list -> l:log -> payload:bytes ->
 	b:bool{
 	  b = true =>
 		?sign. MessageBytes(HT_certificate_verify,payload) = CertificateVerifyMsg(si.protocol_version,a,sign)

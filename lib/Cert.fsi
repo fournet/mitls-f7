@@ -38,3 +38,5 @@ val get_hint : certchain -> hint option
  * signing the keys of the chain.
  *)
 val validate_cert_chain : Sig.alg list -> certchain -> bool
+
+val certificateListBytes: certchain -> bytes

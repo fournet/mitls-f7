@@ -198,23 +198,15 @@ let CCSBytes = [| 1uy |]
 
 let serverHelloDoneBytes = messageBytes HT_server_hello_done [||] 
 
-let consCertificateBytes c a =
-    let cert = vlbytes 3 c in
-    cert @| a
-
-let certificateListBytes certs =
-    let unfolded = Bytes.foldBack consCertificateBytes certs [||] in
-    vlbytes 3 unfolded
-
-let serverCertificateBytes cl = messageBytes HT_certificate (certificateListBytes cl)
+let serverCertificateBytes cl = messageBytes HT_certificate (Cert.certificateListBytes cl)
 
 let clientCertificateBytes cs =
     // TODO: move this match outside, and merge with serverCertificateBytes
     match cs with
-    | None -> messageBytes HT_certificate (certificateListBytes [])
+    | None -> messageBytes HT_certificate (Cert.certificateListBytes [])
     | Some(v) ->
         let (certList,_,_) = v in
-        messageBytes HT_certificate (certificateListBytes certList)
+        messageBytes HT_certificate (Cert.certificateListBytes certList)
 
 let rec parseCertificateList toProcess list =
     if equalBytes toProcess [||] then
