@@ -99,7 +99,10 @@ val parseServerHello: b:bytes ->
 val helloRequestBytes: b:bytes{b=MessageBytes(HT_hello_request,[||])}
 val CCSBytes: b:bytes{b=[|1uy|]}
 
-val serverHelloDoneBytes: b:bytes{b=MessageBytes(HT_server_hello_done,[||])}
+function val ServerHelloDoneMsg: unit -> bytes
+private definition ServerHelloDoneMsg() = MessageBytes(HT_server_hello_done,[||])
+
+val serverHelloDoneBytes: b:bytes{b=ServerHelloDoneMsg()}
 
 val consCertificateBytes: c:bytes -> a:bytes ->
 	b:bytes{b=VLBytes(3,c) @| a}
@@ -178,19 +181,60 @@ val certificateRequestBytes: sign:bool -> cs:cipherSuite -> pv:ProtocolVersion -
 			)
 	}
 
-function val ClientKeyExchangeMsg_RSA: pv:ProtocolVersion * si:SessionInfo * RSAKeys.pk * (;si,pv)CRE.rsapms -> bytes
+val parseCertificateRequest: ProtocolVersion -> bytes -> (certType list * Sig.alg list option * string list) Result
+
+//function val ClientKeyExchangeMsg_RSA: pv:ProtocolVersion * si:SessionInfo * RSAKeys.pk * (;si,pv)CRE.rsapms -> bytes
+function val ClientKeyExchangeMsg_RSA: pv:ProtocolVersion * bytes -> bytes
+
+val clientKEXBytes_RSA: si:SessionInfo -> c:config ->
+	((b:bytes * pms:(;Cert.RSAPKCert(si.serverID),c.maxVer)CRE.rsapms){
+		?encpms. b=ClientKeyExchangeMsg_RSA(si.protocol_version,encpms)
+		}) Result
+val parseClientKEX_RSA: si:SessionInfo -> RSAKeys.sk -> pv:ProtocolVersion -> config -> b:bytes ->
+	((;Cert.RSAPKCert(si.serverID),pv)CRE.rsapms{
+		?encpms. ClientKeyExchangeMsg_RSA(si.protocol_version,encpms) = MessageBytes(HT_client_key_exchange,b)
+	}) Result
 
 function val ClientKeyExchangeMsg_DHE: bytes -> bytes
 
+val clientKEXExplicitBytes_DH: bytes -> bytes
+val parseClientKEXExplicit_DH: bytes -> bytes
+val clientKEXImplicitBytes_DH: bytes
+val parseClientKEXImplicit_DH: bytes -> unit Result
+
+(* Digitally signed and DHE parameters *)
+val digitallySignedBytes: Sig.alg -> bytes -> ProtocolVersion -> bytes
+val parseDigitallySigned: Sig.alg list -> bytes -> ProtocolVersion -> Sig.alg Result
+
+val dheParamBytes: bytes -> bytes -> bytes -> bytes
+val parseDHEParams: bytes -> (bytes * bytes * bytes * bytes) Result
+
 function val ServerKeyExchangeMsg_DHE:  ProtocolVersion * p:bytes * g:bytes * y:bytes * Sig.alg * sign:bytes-> bytes
+
+val serverKeyExchangeBytes_DHE: bytes -> Sig.alg -> bytes -> ProtocolVersion -> bytes
+val parseServerKeyExchange_DHE: ProtocolVersion -> cipherSuite -> bytes -> (bytes * bytes * bytes )
 
 function val ServerKeyExchangeMsg_DH_anon: bytes * bytes * bytes -> bytes
 
-function val CertificateVerifyMsg: si:SessionInfo * (;si)PRF.masterSecret * a:Sig.alg * Cert.certchain * (;a)Sig.pkey * log -> bytes
+//function val CertificateVerifyMsg: si:SessionInfo * (;si)PRF.masterSecret * a:Sig.alg * Cert.certchain * (;a)Sig.pkey * log -> bytes
+function val CertificateVerifyMsg: ProtocolVersion -> Sig.alg -> bytes -> bytes
 
-function val ServerFinishedMsg: si:SessionInfo * (;si)PRF.masterSecret * log -> bytes
+val makeCertificateVerifyBytes: si:SessionInfo -> (;si)PRF.masterSecret -> a:Sig.alg -> (;a)Sig.skey -> l:log ->
+	b:bytes{
+	  ?sign. b = CertificateVerifyMsg(si.protocol_version,a,sign)
+	}
+val certificateVerifyCheck: si:SessionInfo -> (;si)PRF.masterSecret -> a:Sig.alg -> l:log -> payload:bytes ->
+	b:bool{
+	  b = true =>
+		?sign. MessageBytes(HT_certificate_verify,payload) = CertificateVerifyMsg(si.protocol_version,a,sign)
+		// /\ Something good about signature check
+	}
 
-function val ClientFinishedMsg: si:SessionInfo * (;si)PRF.masterSecret * log -> bytes
+//function val ServerFinishedMsg: si:SessionInfo * (;si)PRF.masterSecret * log -> bytes
+function val ServerFinishedMsg: sVerifyData -> bytes
+
+//function val ClientFinishedMsg: si:SessionInfo * (;si)PRF.masterSecret * log -> bytes
+function val ClientFinishedMsg: cVerifyData -> bytes
 
 function val ClientFinished_Full_RSA_Auth: (ProtocolVersion * random * sessionID * cipherSuites * Compression list * bytes) * (* Client Hello *)
                                            (ProtocolVersion * random * sessionID * cipherSuite * Compression * bytes) *       (* Server Hello *)
@@ -202,7 +246,6 @@ function val ClientFinished_Full_RSA_Auth: (ProtocolVersion * random * sessionID
                                            bytes
 
 function val ClientOrServerCertificateMsg: Cert.certchain -> bytes
-function val ServerHelloDoneMsg: unit -> bytes
 
 predicate ServerLogBeforeClientCertificateRSA_Auth of SessionInfo * ProtocolVersion * log 
 
