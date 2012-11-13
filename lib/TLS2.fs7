@@ -31,9 +31,9 @@ type (;c:CI,d:(;c) msg_o) ioresult_o =
 | MustRead      of c':CI {...}
 val write: c:CI -> d:(;c,rg) msg_o -> (;c,d) ioresult_o
 
-val connect: TCP.Stream -> p:params                  -> c:nullCn{Role(c) = Client}  Result
-val resume:  TCP.Stream -> p:params -> sid:sessionID -> c:nullCn{Role(c) = Client} Result 
-val accept:  TCP.Stream -> p:params                  -> c:nullCn{Role(c) = Server} Result
+val connect: TCP.Stream -> config                  -> n:nullCn{Role(n) = Client}  Result
+val resume:  TCP.Stream -> config -> sid:sessionID -> n:nullCn{Role(n) = Client} Result 
+val accept:  TCP.Stream -> config                  -> n:nullCn{Role(n) = Server} Result
 val shutdown: c:CI -> TCP.Stream Result
 val rekey:       c:CI {Role(c)=Client} -> (c':(;c) nextCn {Extend(c,c')}) Result
 val rehandshake: c:CI {Role(c)=Client} -> (c':(;c) nextCn {Extend(c,c')}) Result
