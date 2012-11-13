@@ -176,15 +176,15 @@ val parseEncpmsVersion: pv:ProtocolVersion -> b:bytes ->
 		((pv = TLS_1p0 \/ pv = TLS_1p1 \/ pv = TLS_1p2) => b = VLBytes(2,encpms))
 	}) Result
 
-// FIXME: next two functions not typeching. We have problems with
-// formats that depends on protocol version.
+// For the next two functions, the returned encpms is a ghost variable used to
+// avoid an existential.
 val clientKEXBytes_RSA: si:SessionInfo -> c:config ->
-	((b:bytes * pms:(;Cert.RSAPKCert(si.serverID),c.maxVer)CRE.rsapms){
-		?encpms. b=ClientKeyExchangeMsg_RSA(si.protocol_version,encpms)
+	((b:bytes * encpms:bytes * pms:(;Cert.RSAPKCert(si.serverID),c.maxVer)CRE.rsapms){
+		b=ClientKeyExchangeMsg_RSA(si.protocol_version,encpms)
 		}) Result
 val parseClientKEX_RSA: si:SessionInfo -> RSAKeys.sk -> pv:ProtocolVersion -> config -> b:bytes ->
-	((;Cert.RSAPKCert(si.serverID),pv)CRE.rsapms{
-		?encpms. ClientKeyExchangeMsg_RSA(si.protocol_version,encpms) = MessageBytes(HT_client_key_exchange,b)
+	((encpms:bytes * (;Cert.RSAPKCert(si.serverID),pv)CRE.rsapms){
+		ClientKeyExchangeMsg_RSA(si.protocol_version,encpms) = MessageBytes(HT_client_key_exchange,b)
 	}) Result
 
 function val ClientKeyExchangeMsg_DHE: bytes -> bytes
@@ -204,14 +204,10 @@ val parseClientKEXImplicit_DH: bytes -> unit Result
 
 (* Digitally signed and DHE parameters *)
 function val DigitallySignedBytes: Sig.alg * bytes * ProtocolVersion -> bytes
-private definition !a,p,pv,b.
-	DigitallySignedBytes(a,p,pv) = b <=>
-	( (pv = TLS_1p2 /\ b = SigHashAlgBytes(a) @| p) \/
-	  ((pv = TLS_1p1 \/ pv = TLS_1p0 \/ pv = SSL_3p0) /\ 
-		b = p)
-	)
+private definition !a,p,pv.
+	(pv = TLS_1p2 => DigitallySignedBytes(a,p,pv) = SigHashAlgBytes(a) @| p) /\
+	( (pv = TLS_1p1 \/ pv = TLS_1p0 \/ pv = SSL_3p0) => DigitallySignedBytes(a,p,pv) = p)
 
-// FIXME: again, doesn't work with format depending on PV
 val digitallySignedBytes: a:Sig.alg -> p:bytes -> pv:ProtocolVersion ->
 	b:bytes{b = DigitallySignedBytes(a,p,pv)}
 val parseDigitallySigned: al:Sig.alg list -> b:bytes -> pv:ProtocolVersion ->

@@ -107,9 +107,6 @@ let makeFragment ki b =
 
 type chello = | ClientHelloMsg of (bytes * ProtocolVersion * random * sessionID * cipherSuites * Compression list * bytes)
 let parseClientHello data =
-#if avoid 
-    failwith "commenting out since it does not typecheck for some stupid Z3 reason"
-#else
     if length data >= 34 then
         let (clVerBytes,cr,data) = split2 data 2 32 in
         match parseVersion clVerBytes with
@@ -142,7 +139,6 @@ let parseClientHello data =
             else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
         else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
-#endif
 
 let clientHelloBytes poptions crand session ext =
     let mv = poptions.maxVer in
@@ -256,9 +252,6 @@ let certificateRequestBytes sign cs version =
     messageBytes HT_certificate_request data
 
 let parseCertificateRequest version data =
-#if avoid 
-    failwith "commenting out since it does not typecheck"
-#else
     if length data >= 1 then
         match vlsplit 1 data with
         | Error(x,y) -> Error(x,y)
@@ -279,10 +272,13 @@ let parseCertificateRequest version data =
             match parseDistinguishedNameList distNamesBytes el with
             | Error(x,y) -> Error(x,y)
             | Correct (distNamesList) ->
+            #if avoid 
+            failwith "commenting out since we run out of memory"
+            #else
             correct (certTypeList,sigAlgs,distNamesList)
+            #endif
         else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
-#endif
 
 (** A.4.3 Client Authentication and Key Exchange Messages *) 
 
@@ -302,9 +298,6 @@ let parseEncpmsVersion version data =
         else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let clientKEXBytes_RSA si config =
-#if avoid 
-    failwith "commenting out since it does not typecheck"
-#else
     if listLength si.serverID = 0 then
         unexpectedError "[clientKEXBytes_RSA] Server certificate should always be present with a RSA signing cipher suite."
     else
@@ -314,23 +307,20 @@ let clientKEXBytes_RSA si config =
             let pms = CRE.genRSA pubKey config.maxVer in
             let encpms = RSAEnc.encrypt pubKey config.maxVer pms in
             let nencpms = encpmsBytesVersion si.protocol_version encpms in
-            let mex = messageBytes HT_client_key_exchange nencpms in 
-            correct(mex,pms)
-#endif
+            let mex = messageBytes HT_client_key_exchange nencpms in
+            // The returned encpms is ghost: only used to avoid
+            // existentials in formal verification.
+            correct(mex,encpms,pms)
 
 let parseClientKEX_RSA si skey cv config data =
-#if avoid 
-    failwith "commenting out since it does not typecheck"
-#else
     if listLength si.serverID = 0 then
         unexpectedError "[parseClientKEX_RSA] when the ciphersuite can encrypt the PMS, the server certificate should always be set"
     else
         match parseEncpmsVersion si.protocol_version data with
         | Correct(encPMS) ->
             let res = RSAEnc.decrypt skey si cv config.check_client_version_in_pms_for_old_tls encPMS in
-            correct(res)
+            correct(encPMS,res)
         | Error(x,y) -> Error(x,y)
-#endif
 
 let clientKEXExplicitBytes_DH y =
     let yb = vlbytes 2 y in
@@ -354,21 +344,21 @@ let parseClientKEXImplicit_DH data =
 (* Digitally signed struct *)
 
 let digitallySignedBytes alg data pv =
-#if avoid 
-    failwith "commenting out since it does not typecheck"
-#else
+//#if avoid 
+//    failwith "commenting out since it does not typecheck"
+//#else
     let sign = vlbytes 2 data in
     match pv with
     | TLS_1p2 ->
         let sigHashB = sigHashAlgBytes alg in
         sigHashB @| sign
     | SSL_3p0 | TLS_1p0 | TLS_1p1 -> sign
-#endif 
+//#endif 
 
 let parseDigitallySigned expectedAlgs payload pv =
-#if avoid 
-    failwith "commenting out since it does not typecheck"
-#else
+//#if avoid 
+//    failwith "commenting out since it does not typecheck"
+//#else
     match pv with
     | TLS_1p2 ->
         if length payload >= 2 then
@@ -392,7 +382,7 @@ let parseDigitallySigned expectedAlgs payload pv =
             // assert: expectedAlgs contains exactly one element
             correct(listHead expectedAlgs,sign)
         else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
-#endif
+//#endif
 
 (* Server Key exchange *)
 
@@ -450,9 +440,9 @@ let parseServerKeyExchange_DH_anon payload =
 
 (* Certificate Verify *)
 let makeCertificateVerifyBytes si ms alg skey data =
-#if avoid 
-    failwith "commenting out since it does not typecheck"
-#else
+//#if avoid 
+//    failwith "commenting out since it does not typecheck"
+//#else
     let (alg,toSign) =
         match si.protocol_version with
         | TLS_1p2 | TLS_1p1 | TLS_1p0 -> (alg,data)
@@ -463,12 +453,12 @@ let makeCertificateVerifyBytes si ms alg skey data =
     let signed = Sig.sign alg skey toSign in
     let payload = digitallySignedBytes alg signed si.protocol_version in
     messageBytes HT_certificate_verify payload
-#endif
+//#endif
     
 let certificateVerifyCheck si ms algs log payload =
-#if avoid 
-    failwith "commenting out since it does not typecheck"
-#else
+//#if avoid 
+//    failwith "commenting out since it does not typecheck"
+//#else
     match parseDigitallySigned algs payload si.protocol_version with
     | Error(x,y) -> false
     | Correct(res) ->
@@ -484,7 +474,7 @@ let certificateVerifyCheck si ms algs log payload =
         | Error(x,y) -> false
         | Correct(vkey) ->
         Sig.verify alg vkey expected signature
-#endif 
+//#endif 
 
 // State machine begins
 
@@ -898,7 +888,7 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) state (si:SessionInfo) ce
     match clientKEXBytes_RSA si state.poptions with
     | Error(x,y) -> Error(x,y)
     | Correct(v) ->
-    let (clientKEXBytes,pms)  = v in
+    let (clientKEXBytes,_,pms)  = v in
 
     let log = log @| clientKEXBytes in
     let pop = state.poptions in 
@@ -1578,7 +1568,8 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             | ClientKeyExchangeRSA(si,cv,sk,log) ->
                 match parseClientKEX_RSA si sk cv state.poptions payload with
                 | Error(x,y) -> InError(x,y,state)
-                | Correct(pms) ->
+                | Correct(res) ->
+                    let (_,pms) = res in
                     let log = log @| to_log in
                     let ms = CRE.prfSmoothRSA si cv pms in
                     (* TODO: we should shred the pms *)
