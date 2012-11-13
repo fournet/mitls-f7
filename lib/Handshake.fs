@@ -435,9 +435,6 @@ let parseServerKeyExchange_DH_anon payload =
 let makeCertificateVerifyBytes si ms alg skey data =
     // The returned "signed" variable is ghost, only used to avoid
     // existentials in formal verification.
-//#if avoid 
-//    failwith "commenting out since it does not typecheck"
-//#else
     match si.protocol_version with
     | TLS_1p2 | TLS_1p1 | TLS_1p0 ->
         let signed = Sig.sign alg skey data in
@@ -448,18 +445,18 @@ let makeCertificateVerifyBytes si ms alg skey data =
         let (sigAlg,_) = alg in
         let alg = (sigAlg,NULL) in
         let toSign = PRF.ssl_certificate_verify si ms sigAlg data in
+        #if avoid 
+            failwith "we just broke indexing for the skey, this can't typecheck."
+        #else
         let signed = Sig.sign alg skey toSign in
         let payload = digitallySignedBytes alg signed si.protocol_version in
         let mex = messageBytes HT_certificate_verify payload in
         (mex,signed)
-//#endif
+        #endif
     
 let certificateVerifyCheck si ms algs log payload =
     // The returned byte array is ghost, only used to avoid
     // existentials in formal verification.
-//#if avoid 
-//    failwith "commenting out since it does not typecheck"
-//#else
     match parseDigitallySigned algs payload si.protocol_version with
     | Correct(res) ->
         let (alg,signature) = res in
@@ -481,7 +478,6 @@ let certificateVerifyCheck si ms algs log payload =
                 let res = Sig.verify alg vkey expected signature in
                 (res,signature)
     | Error(x,y) -> (false,[||])
-//#endif 
 
 // State machine begins
 

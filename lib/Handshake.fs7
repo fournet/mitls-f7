@@ -261,15 +261,15 @@ private definition !pv,a,sign.
 (* So that we can sign in make/check certificate verify   *)
 (* ------------------------------------------------------ *)
 
-
+private assume !a,k,t. Sig.Msg(a,k,t)
 
 val makeCertificateVerifyBytes: si:SessionInfo -> (;si)PRF.masterSecret -> a:Sig.alg -> (;a)Sig.skey -> l:log ->
 	b:bytes * sign:bytes{
 	  b = CertificateVerifyMsg(si.protocol_version,a,sign)
 	}
-val certificateVerifyCheck: si:SessionInfo -> (;si)PRF.masterSecret -> a:Sig.alg list -> l:log -> payload:bytes ->
+val certificateVerifyCheck: si:SessionInfo -> (;si)PRF.masterSecret -> al:Sig.alg list -> l:log -> payload:bytes ->
 	b:bool * sign:bytes{
-	  b = true =>
+	  b = true => ?a.
 		MessageBytes(HT_certificate_verify,payload) = CertificateVerifyMsg(si.protocol_version,a,sign)
 		// /\ Something good about signature check (depends on si.protocol_version)
 	}
