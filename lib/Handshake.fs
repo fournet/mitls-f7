@@ -885,8 +885,8 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) state (si:SessionInfo) ce
     let (clientKEXBytes,pms)  = v in
 
     let log = log @| clientKEXBytes in
-
-    let ms = CRE.prfSmoothRSA si state.poptions.maxVer pms in
+    let pop = state.poptions in 
+    let ms = CRE.prfSmoothRSA si pop.maxVer pms in
     (* FIXME: here we should shred pms *)
     let certificateVerifyBytes =
         if si.client_auth then
@@ -894,7 +894,8 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) state (si:SessionInfo) ce
             | None ->
                 (* We sent an empty Certificate message, so no certificate verify message at all *)
                 [||]
-            | Some(certList,algs,skey) ->
+            | Some(x) ->
+                let certList,algs,skey) = x in
                 makeCertificateVerifyBytes si ms algs skey log
         else
             (* No client certificate ==> no certificateVerify message *)
@@ -908,7 +909,9 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) state (si:SessionInfo) ce
     correct (state,si,ms,log)
 
 let prepare_client_output_full_DHE (ci:ConnectionInfo) state (si:SessionInfo) cert_req p g sy log =
-    
+#if avoid
+    failwith "does not typecheck"
+#else
     (* pre: Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DHE.PP((p,g)) /\ ServerDHE((p,g),sy,si.init_crand @| si.init_srand) *)
     (* moreover, by definition ServerDHE((p,g),sy,si.init_crand @| si.init_srand) implies ?sx.DHE.Exp((p,g),sx,sy) *)
     (*$ formally, the need for signing nonces is unclear *)
@@ -917,7 +920,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) state (si:SessionInfo) ce
         if si.client_auth then
             match cert_req with
             | None -> si
-            | Some(certList,_,_) -> {si with clientID = certList}
+            | Some(x) -> let (certList,_,_) = x in {si with clientID = certList}
         else si
     (* si is now constant *)
 
@@ -950,7 +953,8 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) state (si:SessionInfo) ce
             | None ->
                 (* We sent an empty Certificate message, so no certificate verify message at all *)
                 [||]
-            | Some(certList,algs,skey) ->
+            | Some(x) -> 
+                let (certList,algs,skey) = x in
                 makeCertificateVerifyBytes si ms algs skey log
         else
             (* No client certificate ==> no certificateVerify message *)
@@ -961,6 +965,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) state (si:SessionInfo) ce
     let new_outgoing = state.hs_outgoing @| to_send in
     let state = {state with hs_outgoing = new_outgoing} in
     correct (state,si,ms,log)
+#endif
  
 let on_serverHello_full crand log (shello:ProtocolVersion * srand * sessionID * cipherSuite * Compression * bytes) =
     let (sh_server_version,sh_random,sh_session_id,sh_cipher_suite,sh_compression_method,sh_neg_extensions) = shello
@@ -993,9 +998,11 @@ let parseMessageState (ci:ConnectionInfo) state =
     | Correct(res) ->
         match res with
         | None -> correct(None)
-        | Some(rem,hstype,payload,to_log) -> 
+        | Some(x) ->
+             let (rem,hstype,payload,to_log) = x in
              let state = { state with hs_incoming = rem } in
-             let res = Some(state,hstype,payload,to_log) in
+             let nx = (state,hstype,payload,to_log) in
+             let res = Some(nx) in
              correct(res)
 
 let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion:ProtocolVersion option) =
@@ -1294,7 +1301,8 @@ let prepare_server_output_full_RSA (ci:ConnectionInfo) state si cv calgs cvd svd
     let serverHelloB = serverHelloBytes si si.init_srand ext in
     match Cert.for_key_encryption calgs state.poptions.server_name with
     | None -> Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Could not find in the store a certificate for the negotiated ciphersuite")
-    | Some(c,sk) ->
+    | Some(x) ->
+        let (c,sk) = x in
         (* update server identity in the sinfo *)
         let si = {si with serverID = c} in
         let certificateB = serverCertificateBytes c in
@@ -1329,7 +1337,8 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs cvd svd
     else
     match Cert.for_signing certAlgs state.poptions.server_name keyAlgs with
     | None -> Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Could not find in the store a certificate for the negotiated ciphersuite")
-    | Some(c,alg,sk) ->
+    | Some(x) ->
+        let (c,alg,sk) = x in
         (* set server identity in the session info *)
         let si = {si with serverID = c} in
         let certificateB = serverCertificateBytes c in
