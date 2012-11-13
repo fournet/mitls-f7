@@ -93,7 +93,9 @@ val isFatal: ad:alertDescription -> b:bool{b = true => IsFatal(ad)}
 val init: ci:ConnectionInfo ->
 	s:(;ci)state{EmptyStream(ci.id_in,AlInStream(ci,s)) /\ EmptyStream(ci.id_out,AlOutStream(ci,s))}
 
-val send_alert: ci:ConnectionInfo -> (;ci)state -> alertDescription -> (;ci)state
+val send_alert: ci:ConnectionInfo -> s:(;ci)state -> alertDescription ->
+	s':(;ci)state{AlOutStream(ci,s) = AlOutStream(ci,s') /\
+				  AlInStream(ci,s)  = AlInStream(ci,s')}
 
 val next_fragment: ci:ConnectionInfo -> s:(;ci)state ->
 	(res:(;ci.id_out)ALFragReply * s':(;ci)state)

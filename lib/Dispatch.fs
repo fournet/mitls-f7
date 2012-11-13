@@ -147,10 +147,12 @@ let moveToOpenState (Conn(id,c)) =
 
 (* Dispatch dealing with network sockets *)
 let pickSendPV (Conn(id,c)) =
-    match c.write.disp with
+    let c_write = c.write
+    match c_write.disp with
     | Init -> getMinVersion id c.handshake
     | FirstHandshake(pv) | Closing(pv,_) -> pv
-    | _ -> let si = epochSI(id.id_out) in si.protocol_version
+    | Finishing | Finished | Open -> let id_out = id.id_out in let si = epochSI(id_out) in si.protocol_version
+    | Closed -> unexpectedError "[pickSendPV] invoked on a Closed connection"
 
 let closeConnection (Conn(id,c)) =
     let new_read = {c.read with disp = Closed} in
@@ -188,13 +190,13 @@ let send ns e write pv rg ct frag =
         //let s = sprintf "                        %5d bytes --> %s\n" data.Length (TLSConstants.CTtoString ct) in printf "%s" s 
         Correct(dState)
 
-//type preds = GState of ConnectionInfo * globalState
+type preds = GState of ConnectionInfo * globalState
 (* which fragment should we send next? *)
 (* we must send this fragment before restoring the connection invariant *)
 let writeOne (Conn(id,c)) : writeOutcome * Connection =
   let c_write = c.write in
   match c_write.disp with
-  | Closed -> (WError(perror __SOURCE_FILE__ __LINE__ "Trying to write on a closed connection"), Conn(id,c))
+  | Closed -> let reason = perror __SOURCE_FILE__ __LINE__ "Trying to write on a closed connection" in (WError(reason), Conn(id,c))
   | _ ->
       let state = c.alert in
       match Alert.next_fragment id state with
@@ -408,12 +410,13 @@ let recv (Conn(id,c)) =
                             correct(c_recv,ct,tl,f)
                         else
                             Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Protocol version check failed")
-                    | _ ->
+                    | Finishing | Finished | Open ->
                         let si = epochSI(id.id_in) in
                         if pv = si.protocol_version then
                             correct(c_recv,ct,tl,f)
                         else
                             Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Protocol version check failed")
+                    | _ -> unexpectedError "[recv] invoked on a closed connection"
 
 let rec writeAll c =
     match writeOne c with

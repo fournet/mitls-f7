@@ -15,13 +15,14 @@ type predispatchState =
   | Closing of ProtocolVersion * string (* To handle un-graceful closures *)
   | Closed
 
-type dispatchState = d:predispatchState{?pv,s.
-	d = Init \/ d = FirstHandshake(pv) \/ d = Finishing \/ d = Finished \/
-	d = Open \/ d = Closing(pv,s) \/ d = Closed}
+type (;e:epoch)dispatchState = d:predispatchState{?pv,s.
+	(d = Init \/ d = FirstHandshake(pv) \/ d = Finishing \/ d = Finished \/
+	d = Open \/ d = Closing(pv,s) \/ d = Closed) /\
+	((d = Finishing \/ d = Finished \/ d = Open) => IsSuccEpoch(e))}
 
-type (;ki:epoch) dState = {
-    disp: dispatchState;
-    conn: (;ki)Record.ConnectionState;
+type (;e:epoch) dState = {
+    disp: (;e)dispatchState;
+    conn: (;e)Record.ConnectionState;
     }
 
 type (;id:ConnectionInfo) preGlobalState = {
@@ -204,27 +205,24 @@ assume !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo)  <=>
 		// Cases needed by the top level interface
 	(wo = WAppDataDone /\ mo = None /\ Extend_o(c,c',m) /\ NextCn(c,c'))
 
-)
-(*
- \/
+	\/
         (wo = WAppDataDone /\ (?m0,m'. mo = Some(m') /\ Split_o(c,m,m0,c',m') /\ Extend_o(c,c',m0) /\ NextCn(c,c'))) \/
         (wo = WHSDone /\
 		  (
 			   Role(c') = Role(c)
-	/\ Config(c') = Config(c)
+			/\ Config(c') = Config(c)
 			/\ ConnectionEpochIn(c) = Pred(ConnectionEpochIn(c'))
 			/\ Bytes_i(c') = [||]
 			/\ EvClose(Peer(CnId(c),()), Bytes_i(c))
-
 			/\ Handshake.Complete(CnId(c'),Config(c'))
 			/\ (
-				(Handshake.EvSentFinishedFirst(CnId(c'),true) /\
-					  Bytes_o(c') = Bytes_o(c)
-		   /\ ConnectionEpochOut(c') = ConnectionEpochOut(c)
-			)
-		\/
-				(Handshake.EvSentFinishedFirst(CnId(c'),false) /\
-					  Bytes_o(c') = [||]
+				( Handshake.EvSentFinishedFirst(CnId(c'),true)
+				  /\ Bytes_o(c') = Bytes_o(c)
+				  /\ ConnectionEpochOut(c') = ConnectionEpochOut(c)
+			    )
+				\/
+				(  Handshake.EvSentFinishedFirst(CnId(c'),false)
+				   /\ Bytes_o(c') = [||]
 				   /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
 				)
 			   )
@@ -243,12 +241,10 @@ assume !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo)  <=>
 		 // Cases needed by dispatch; in practice not giving any refinement,
 		 // just completing all the cases.
 		 (?err. wo = WError(err) ) \/
-	 (wo = WriteAgain ) \/
+		 (wo = WriteAgain ) \/
 		 (?ad,s. wo = SentFatal(ad,s) ) \/
-		 (wo = SentClose )
+		 (wo = SentClose ) 
 	)
-
-  *)                                                                                                                                                              
 
 assume !c,c',ro,mo. IOResult_i(c,c',ro,mo) =>
    (
@@ -369,9 +365,7 @@ private val closeConnection: c:Connection-> (;c) nextCn
 private val abortWithAlert: c:Connection -> alertDescription -> string -> (;c)nextCn
 
 private val getReason: predispatchState -> string
-private val pickSendPV: c:Connection{c.write.disp = Init \/ 
-    (?pv. c.write.disp = FirstHandshake(pv)) \/ 
-    IsSuccEpoch(CnId(c))} -> TLSConstants.ProtocolVersion
+private val pickSendPV: c:Connection -> TLSConstants.ProtocolVersion
 
 private val send: Tcp.NetworkStream -> e:epoch -> w:(;e)dState ->
 	TLSConstants.ProtocolVersion -> rg:range -> ct:TLSConstants.ContentType ->
