@@ -433,6 +433,8 @@ let parseServerKeyExchange_DH_anon payload =
 
 (* Certificate Verify *)
 let makeCertificateVerifyBytes si ms alg skey data =
+    // The returned "signed" variable is ghost, only used to avoid
+    // existentials in formal verification.
 //#if avoid 
 //    failwith "commenting out since it does not typecheck"
 //#else
@@ -440,17 +442,21 @@ let makeCertificateVerifyBytes si ms alg skey data =
     | TLS_1p2 | TLS_1p1 | TLS_1p0 ->
         let signed = Sig.sign alg skey data in
         let payload = digitallySignedBytes alg signed si.protocol_version in
-        messageBytes HT_certificate_verify payload
+        let mex = messageBytes HT_certificate_verify payload in
+        (mex,signed)
     | SSL_3p0 ->
         let (sigAlg,_) = alg in
         let alg = (sigAlg,NULL) in
         let toSign = PRF.ssl_certificate_verify si ms sigAlg data in
         let signed = Sig.sign alg skey toSign in
         let payload = digitallySignedBytes alg signed si.protocol_version in
-        messageBytes HT_certificate_verify payload
+        let mex = messageBytes HT_certificate_verify payload in
+        (mex,signed)
 //#endif
     
 let certificateVerifyCheck si ms algs log payload =
+    // The returned byte array is ghost, only used to avoid
+    // existentials in formal verification.
 //#if avoid 
 //    failwith "commenting out since it does not typecheck"
 //#else
@@ -461,16 +467,20 @@ let certificateVerifyCheck si ms algs log payload =
         match si.protocol_version with
         | TLS_1p2 | TLS_1p1 | TLS_1p0 ->
             match Cert.get_chain_public_signing_key si.clientID alg with
-            | Error(x,y) -> false
-            | Correct(vkey) -> Sig.verify alg vkey log signature
+            | Error(x,y) -> (false,[||])
+            | Correct(vkey) ->
+                let res = Sig.verify alg vkey log signature in
+                (res,signature)
         | SSL_3p0 -> 
             let (sigAlg,_) = alg in
             let alg = (sigAlg,NULL) in
             let expected = PRF.ssl_certificate_verify si ms sigAlg log in
             match Cert.get_chain_public_signing_key si.clientID alg with
-            | Error(x,y) -> false
-            | Correct(vkey) -> Sig.verify alg vkey expected signature
-    | Error(x,y) -> false
+            | Error(x,y) -> (false,[||])
+            | Correct(vkey) ->
+                let res = Sig.verify alg vkey expected signature in
+                (res,signature)
+    | Error(x,y) -> (false,[||])
 //#endif 
 
 // State machine begins
@@ -872,7 +882,8 @@ let getCertificateVerifyBytes (si:SessionInfo) (ms:PRF.masterSecret) (cert_req:(
         [||]
     | Some(x) when si.client_auth = true ->
         let (certList,algs,skey) = x in
-          makeCertificateVerifyBytes si ms algs skey l
+          let (mex,_) = makeCertificateVerifyBytes si ms algs skey l in
+          mex
     | _ when si.client_auth = false -> 
         (* No client certificate ==> no certificateVerify message *)
         [||]
@@ -949,7 +960,8 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) state (si:SessionInfo) ce
                 [||]
             | Some(x) -> 
                 let (certList,algs,skey) = x in
-                makeCertificateVerifyBytes si ms algs skey log
+                let (mex,_) = makeCertificateVerifyBytes si ms algs skey log in
+                mex
         else
             (* No client certificate ==> no certificateVerify message *)
             [||]
@@ -1704,7 +1716,8 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             match sState with
             | CertificateVerify(si,ms,log) ->
                 let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, these are the same as we sent in CertificateRequest
-                if certificateVerifyCheck si ms allowedAlgs log payload then// payload then
+                let (verifyOK,_) = certificateVerifyCheck si ms allowedAlgs log payload in
+                if verifyOK then// payload then
                     let log = log @| to_log in  
                     let state = {state with pstate = PSServer(ClientCCS(si,ms,log))} in
                     recv_fragment_server ci state agreedVersion

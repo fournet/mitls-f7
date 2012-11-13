@@ -254,19 +254,24 @@ val parseServerKeyExchange_DH_anon: bytes -> (bytes * bytes * bytes) Result
 //function val CertificateVerifyMsg: si:SessionInfo * (;si)PRF.masterSecret * a:Sig.alg * Cert.certchain * (;a)Sig.pkey * log -> bytes
 function val CertificateVerifyMsg: ProtocolVersion * Sig.alg * bytes -> bytes
 private definition !pv,a,sign.
-	( (pv = TLS_1p2 \/ pv = TLS_1p1 \/ pv = TLS_1p0) =>
-		 ) /\
-	( pv = SSL_3p0 => )
+		 CertificateVerifyMsg(pv,a,sign) = MessageBytes(HT_certificate_verify,DigitallySignedBytes(a,sign,pv))
+
+(* ------------------------------------------------------ *)
+(* We need here and now to deinfe the Sig.Msg predicate,  *)
+(* So that we can sign in make/check certificate verify   *)
+(* ------------------------------------------------------ *)
+
+
 
 val makeCertificateVerifyBytes: si:SessionInfo -> (;si)PRF.masterSecret -> a:Sig.alg -> (;a)Sig.skey -> l:log ->
-	b:bytes{
-	  ?sign. b = CertificateVerifyMsg(si.protocol_version,a,sign)
+	b:bytes * sign:bytes{
+	  b = CertificateVerifyMsg(si.protocol_version,a,sign)
 	}
 val certificateVerifyCheck: si:SessionInfo -> (;si)PRF.masterSecret -> a:Sig.alg list -> l:log -> payload:bytes ->
-	b:bool{
+	b:bool * sign:bytes{
 	  b = true =>
-		?sign. MessageBytes(HT_certificate_verify,payload) = CertificateVerifyMsg(si.protocol_version,a,sign)
-		// /\ Something good about signature check
+		MessageBytes(HT_certificate_verify,payload) = CertificateVerifyMsg(si.protocol_version,a,sign)
+		// /\ Something good about signature check (depends on si.protocol_version)
 	}
 
 //function val ServerFinishedMsg: si:SessionInfo * (;si)PRF.masterSecret * log -> bytes
