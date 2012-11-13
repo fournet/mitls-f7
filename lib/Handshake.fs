@@ -1401,10 +1401,10 @@ let prepare_server_output_full_RSA (ci:ConnectionInfo) state si cv calgs cvd svd
         let state = {state with hs_outgoing = output} in
         (* Compute the next state of the server *)
         if si.client_auth then
-           state = {state with pstate = PSServer(ClientCertificateRSA(si,cv,sk,log))}
+           let state = {state with pstate = PSServer(ClientCertificateRSA(si,cv,sk,log))} in
            correct (state,si.protocol_version)
         else
-           state = {state with pstate = PSServer(ClientKeyExchangeRSA(si,cv,sk,log))}
+           let state = {state with pstate = PSServer(ClientKeyExchangeRSA(si,cv,sk,log))} in
            correct (state,si.protocol_version)
 
 let prepare_server_output_full_DH ci state si log =

@@ -253,6 +253,10 @@ val parseServerKeyExchange_DH_anon: bytes -> (bytes * bytes * bytes) Result
 
 //function val CertificateVerifyMsg: si:SessionInfo * (;si)PRF.masterSecret * a:Sig.alg * Cert.certchain * (;a)Sig.pkey * log -> bytes
 function val CertificateVerifyMsg: ProtocolVersion * Sig.alg * bytes -> bytes
+private definition !pv,a,sign.
+	( (pv = TLS_1p2 \/ pv = TLS_1p1 \/ pv = TLS_1p0) =>
+		 ) /\
+	( pv = SSL_3p0 => )
 
 val makeCertificateVerifyBytes: si:SessionInfo -> (;si)PRF.masterSecret -> a:Sig.alg -> (;a)Sig.skey -> l:log ->
 	b:bytes{
