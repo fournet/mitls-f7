@@ -26,7 +26,7 @@ let mkHelloRandom () : bytes =
     let Cr = timeb @| rnd
     #if ideal
     if (exists (fun el -> el=Cr) !log) then
-        mkHelloRandom ()
+        mkHelloRandom () //abort? Sample from smaller domain?
     else
         log := Cr::!log;
         Cr      
