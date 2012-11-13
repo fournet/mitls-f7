@@ -2,12 +2,16 @@ module PRF
 
 open Bytes
 open TLSInfo
+open StatefulAEAD
 
 type repr = (;48)lbytes
 private type (;si:SessionInfo) masterSecret = {bytes: repr}
 
 val keyGen: ci:ConnectionInfo -> (;EpochSI(ci.id_out))masterSecret -> 
-  ((;ci.id_out)StatefulAEAD.writer * (;ci.id_in)StatefulAEAD.reader)
+  (w:(;ci.id_out)StatefulAEAD.writer * r:(;ci.id_in)StatefulAEAD.reader){
+    StatefulPlain.EmptyHistory(ci.id_out,w.history) /\
+    StatefulPlain.EmptyHistory(ci.id_in,r.history)}
+
          (* No label, it's hardcoded. Of course we can make it explicit -> *)
          (* No seed (crandom @| srandom), it can be retrieved from epoch (and not SessionInfo!) -> *)
 

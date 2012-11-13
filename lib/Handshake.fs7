@@ -1,4 +1,3 @@
-
 module Handshake
 
 // We haven't yet verified the Handshake implementation against this interface.
@@ -51,7 +50,7 @@ val parseMessage: buf:bytes -> ((rem:bytes * ht:HandshakeType * x:bytes * to_log
 // Next predicate to make sure we can make fragments
 predicate type unsafe = Unsafe of epoch
 private assume !ki. Unsafe(ki) <=> not Auth(ki)
-val makeFragment: ki:epoch -> b:bytes -> (r:range * (;ki,r) Fragment.fragment) * bytes
+val makeFragment: ki:epoch -> b:bytes -> (r:range * (;ki,r) Fragment.fragment * bytes)
 
 
 (* verify data authenticated by the Finished messages *)
@@ -111,7 +110,7 @@ private definition !cl. CertificateMsg(cl) = MessageBytes(HT_certificate,VLBytes
 val serverCertificateBytes: cl:Cert.certchain ->
 	b:bytes{b = CertificateMsg(cl)}
 
-val clientCertificateBytes: clo: (Cert.certchain * 'a * 'b) option ->
+val clientCertificateBytes: clo: (Cert.certchain * a:Sig.alg * (;a)Sig.skey) option ->
 	b:bytes{
 		( clo = None /\ b = CertificateMsg([]) ) \/
 		( ?cl,a',b'. clo = Some((cl,a',b')) /\ b = CertificateMsg(cl)
@@ -659,49 +658,18 @@ val getNextEpochs: ci:ConnectionInfo -> si:SessionInfo -> crand -> srand -> ci':
 (* Network Interface*)
 
 type (;ci:ConnectionInfo, hs:(;ci) hs_state) outgoing =
-  | OutIdle of s':(;ci,Config(ci,hs))nextState{SameStreams(ci,hs,s')}
-  | OutSome of (rg:range * f:(;ci.id_out,rg)Fragment.fragment * s':(;ci,Config(ci,hs))nextState){
-				(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,HSOutStream(ci,hs),rg,f) ) /\
-				HSOutStream(ci,s') = Fragment.Extend(ci.id_out,HSOutStream(ci,hs),rg,f) /\
-				CCSOutStream(ci,s') = CCSOutStream(ci,hs) /\
-				HSInStream(ci,s') = HSInStream(ci,hs) /\
-				CCSInStream(ci,s') = CCSInStream(ci,hs)
-				}
+  | OutIdle of s':(;ci,Config(ci,hs))nextState
+  | OutSome of (rg:range * f:(;ci.id_out,rg)Fragment.fragment * s':(;ci,Config(ci,hs))nextState)
   | OutCCS of  (rg:range * f:(;ci.id_out,rg)Fragment.fragment * 
                ci':ConnectionInfo * cs:(;ci'.id_out)StatefulAEAD.state * s':(;ci',Config(ci,hs))nextState)
-               { (* SentCCS(ci'.id_out) /\
-	         StatefulPlain.EmptyHistory(ci'.id_out,cs.history) /\ *)
+               { StatefulPlain.EmptyHistory(ci'.id_out,cs.history) /\ 
                  ci.id_out = Pred(ci'.id_out) /\
                  ci.id_in = ci'.id_in /\
                  ci.role = ci'.role }
-(*/\
-				 (Auth(ci.id_out) => Fragment.Fragment(ci.id_out,CCSOutStream(ci,hs),rg,f) ) /\
-				 EmptyStream(ci'.id_out,HSOutStream(ci',s')) /\
-				 EmptyStream(ci'.id_out,CCSOutStream(ci',s')) /\
-				 HSInStream(ci',s') = HSInStream(ci,hs) /\
-				 CCSInStream(ci',s') = CCSInStream(ci,hs)
-				 }
-*)
   | OutFinished of (rg:range * f:(;ci.id_out,rg)Fragment.fragment * s':(;ci,Config(ci,hs))nextState){
 				EvSentFinishedFirst(ci,true)}
-(*
-				(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,HSOutStream(ci,hs),rg,f) ) /\
-				HSOutStream(ci,s') = Fragment.Extend(ci.id_out,HSOutStream(ci,hs),rg,f) /\
-				CCSOutStream(ci,s') = CCSOutStream(ci,hs) /\
-				HSInStream(ci,s') = HSInStream(ci,hs) /\
-				CCSInStream(ci,s') = CCSInStream(ci,hs)
-				}
-*)
   | OutComplete of (rg:range * f:(;ci.id_out,rg)Fragment.fragment * s':(;ci,Config(ci,hs))nextState)
                    {Complete(ci,Config(ci,hs))}
-(*
-					(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,HSOutStream(ci,hs),rg,f) ) /\
-					HSOutStream(ci,s') = Fragment.Extend(ci.id_out,HSOutStream(ci,hs),rg,f) /\
-					CCSOutStream(ci,s') = CCSOutStream(ci,hs) /\
-					HSInStream(ci,s') = HSInStream(ci,hs) /\
-					CCSInStream(ci,s') = CCSInStream(ci,hs)
-				   }
-*)
 val next_fragment: ci:ConnectionInfo -> s:(;ci)hs_state -> (;ci,s)outgoing
 
 type (;ci:ConnectionInfo,c:config)incoming =
@@ -729,8 +697,7 @@ val getMinVersion:        ci:ConnectionInfo -> (;ci)hs_state -> ProtocolVersion
 
 val find_client_cert_sign: certType list -> Sig.alg list option -> string list ->
 	ProtocolVersion -> Cert.hint -> Cert.sign_cert
-val clientAuthCert: si:SessionInfo  -> cert_req:(Cert.certchain * a:Sig.alg * (;a)Sig.skey) option -> 
-  (cb:bytes * cl:Cert.certchain){cb = CertificateMsg(cl)}
+val getCert: cert_req:(Cert.certchain * a:Sig.alg * (;a)Sig.skey) option -> Cert.certchain
 
 val prepare_client_output_full_RSA: ci:ConnectionInfo -> (;ci)hs_state ->
 	si:SessionInfo -> (Cert.certchain * a:Sig.alg * (;a)Sig.skey) option -> log ->

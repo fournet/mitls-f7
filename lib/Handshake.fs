@@ -89,7 +89,7 @@ let makeFragment ki b =
     let r0 = (length b0, length b0) in
     Pi.assume(Unsafe(ki))
     let f = Fragment.fragmentPlain ki r0 b0 in
-    ((r0,f),rem)
+    (r0,f,rem)
 
 // we need something more general for parsing lists, e.g.
 // let rec parseList parseOne b =
@@ -488,6 +488,10 @@ let certificateVerifyCheck si ms algs log payload =
 
 // State machine begins
 
+type events = 
+    EvSentFinishedFirst of ConnectionInfo * bool
+  | Complete of ConnectionInfo * config
+
 (* verify data authenticated by the Finished messages *)
 type log = bytes         (* message payloads so far, to be eventually authenticated *) 
 type cVerifyData = bytes (* ClientFinished payload *)
@@ -755,7 +759,7 @@ let next_fragment ci state =
                 let log = log @| cFinished in
                 let state = {state with hs_outgoing = cFinished 
                                         pstate = PSClient(ServerCCS(si,ms,next_ci.id_in,reader,cvd,log))} in
-                let ((rg,f),_) = makeFragment ci.id_out CCSBytes in
+                let (rg,f,_) = makeFragment ci.id_out CCSBytes in
                 let ci = {ci with id_out = next_ci.id_out} in 
 #if avoid 
                 failwith "commenting out since it does not typecheck"
@@ -767,9 +771,13 @@ let next_fragment ci state =
                 let cFinished = messageBytes HT_finished cvd in
                 let state = {state with hs_outgoing = cFinished
                                         pstate = PSClient(ClientWritingFinishedResume(cvd,svd))} in
-                let ((rg,f),_) = makeFragment ci.id_out CCSBytes in
-                let ci = {ci with id_out = e} in
+                let (rg,f,_) = makeFragment ci.id_out CCSBytes in
+                let ci = {ci with id_out = e} in 
+#if avoid 
+                failwith "commenting out since it does not typecheck"
+#else
                 OutCCS(rg,f,ci,w,state)
+#endif
             | _ -> OutIdle(state)
         | PSServer(sstate) ->
             match sstate with
@@ -778,45 +786,58 @@ let next_fragment ci state =
                 let sFinished = messageBytes HT_finished svd in
                 let state = {state with hs_outgoing = sFinished
                                         pstate = PSServer(ServerWritingFinished(si,ms,cvd,svd))}
-                let ((rg,f),_) = makeFragment ci.id_out CCSBytes in
+                let (rg,f,_) = makeFragment ci.id_out CCSBytes in
                 let ci = {ci with id_out = e} in
+#if avoid 
+                failwith "commenting out since it does not typecheck"
+#else
                 OutCCS(rg,f,ci,w,state)
+#endif
             | ServerWritingCCSResume(we,w,re,r,ms,log) ->
                 let svd = PRF.makeVerifyData (epochSI we) Server ms log in
                 let sFinished = messageBytes HT_finished svd in
                 let log = log @| sFinished in
                 let state = {state with hs_outgoing = sFinished
                                         pstate = PSServer(ClientCCSResume(re,r,svd,ms,log))}
-                let ((rg,f),_) = makeFragment ci.id_out CCSBytes in
+                let (rg,f,_) = makeFragment ci.id_out CCSBytes in
                 let ci = {ci with id_out = we} in 
+#if avoid 
+                failwith "commenting out since it does not typecheck"
+#else
                 OutCCS(rg,f,ci,w,state)
+#endif
             | _ -> OutIdle(state)
     | outBuf ->
-        let ((rg,f),remBuf) = makeFragment ci.id_out outBuf in
+        let (rg,f,remBuf) = makeFragment ci.id_out outBuf in
         let state = {state with hs_outgoing = remBuf} in
         match remBuf with
         | [||] ->
             match state.pstate with
             | PSClient(cstate) ->
                 match cstate with
-                | ServerCCS (_) ->
+                | ServerCCS (_,_,_,_,_,_) ->
+                    Pi.assume(EvSentFinishedFirst(ci,true));
                     OutFinished(rg,f,state)
                 | ClientWritingFinishedResume(cvd,svd) ->
                     let state = {state with pstate = PSClient(ClientIdle(cvd,svd))} in
+                    Pi.assume(Complete(ci,state.poptions));
                     OutComplete(rg,f,state)
                 | _ -> OutSome(rg,f,state)
             | PSServer(sstate) ->
                 match sstate with
                 | ServerWritingFinished(si,ms,cvd,svd) ->
-                    let sDB =
-                        if equalBytes si.sessionID [||] then
-                            state.sDB
-                        else
-                            SessionDB.insert state.sDB (si.sessionID,Server,state.poptions.client_name) (si,ms)
-                    let state = {state with pstate = PSServer(ServerIdle(cvd,svd))   
-                                            sDB = sDB} in
-                    OutComplete(rg,f,state)
-                | ClientCCSResume(_) ->
+                    if equalBytes si.sessionID [||] then
+                      let state = {state with pstate = PSServer(ServerIdle(cvd,svd))}
+                      Pi.assume(Complete(ci,state.poptions));
+                      OutComplete(rg,f,state)
+                    else
+                      let sdb = SessionDB.insert state.sDB (si.sessionID,Server,state.poptions.client_name) (si,ms)
+                      let state = {state with pstate = PSServer(ServerIdle(cvd,svd))   
+                                              sDB = sdb} in
+                      Pi.assume(Complete(ci,state.poptions));
+                      OutComplete(rg,f,state)
+                | ClientCCSResume(_,_,_,_,_) ->
+                    Pi.assume(EvSentFinishedFirst(ci,true));
                     OutFinished(rg,f,state)
                 | _ -> OutSome(rg,f,state)
         | _ -> OutSome(rg,f,state)
@@ -846,24 +867,22 @@ let find_client_cert_sign certType algOpt (distName:string list) pv hint =
     let keyAlg = sigHashAlg_bySigList certAlg (cert_type_list_to_SigAlg certType) in
     Cert.for_signing certAlg hint keyAlg
 
-let clientAuthCert si (cert_req:(Cert.certchain * Sig.alg * Sig.skey) option) = 
-  if si.client_auth then
-    let certby = clientCertificateBytes cert_req in
-    match cert_req with
-      | None -> certby,[]
-      | Some x -> let (certList,_,_) = x in 
-                  certby,certList
-  else [||],[]
-
+let getCert (cert_req:(Cert.certchain * Sig.alg * Sig.skey) option) = 
+  match cert_req with
+    | None -> []
+    | Some x -> let (certList,_,_) = x in 
+                certList
 
 let prepare_client_output_full_RSA (ci:ConnectionInfo) state (si:SessionInfo) cert_req log =
-    let clientCertBytes,certList = clientAuthCert si cert_req
+    let clientCertBytes = clientCertificateBytes cert_req in
+    let certList = getCert cert_req in
     let si = {si with clientID = certList}
     let log = log @| clientCertBytes in
 
     match clientKEXBytes_RSA si state.poptions with
     | Error(x,y) -> Error(x,y)
-    | Correct(clientKEXBytes,pms) ->
+    | Correct(v) ->
+    let (clientKEXBytes,pms)  = v in
 
     let log = log @| clientKEXBytes in
 
@@ -1135,7 +1154,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             | ServerKeyExchangeDHE(si,log) ->
                 match parseServerKeyExchange_DHE si.protocol_version si.cipher_suite payload with
                 | Error(x,y) -> InError(x,y,state)
-                | Correct(p,g,y,alg,signature) ->
+                | Correct(v) ->
+                    let (p,g,y,alg,signature) = v in
                     match Cert.get_chain_public_signing_key si.serverID alg with
                     | Error(x,y) -> InError(x,y,state)
                     | Correct(vkey) ->
@@ -1151,7 +1171,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             | ServerKeyExchangeDH_anon(si,log) ->
                 match parseServerKeyExchange_DH_anon payload with
                 | Error(x,y) -> InError(x,y,state)
-                | Correct(p,g,y) ->
+                | Correct(v) ->
+                    let (p,g,y) = v in
                     let log = log @| to_log in
                     let state = {state with pstate = PSClient(ServerHelloDoneDH_anon(si,p,g,y,log))} in
                     recv_fragment_client ci state agreedVersion
@@ -1167,7 +1188,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                    establish, not the current one *)
                 match parseCertificateRequest si.protocol_version payload with
                 | Error(x,y) -> InError(x,y,state)
-                | Correct(certType,alg,distNames) ->
+                | Correct(v) ->
+                let (certType,alg,distNames) = v in
                 let client_cert = find_client_cert_sign certType alg distNames si.protocol_version state.poptions.client_name in
                 let si = {si with client_auth = true} in
                 let state = {state with pstate = PSClient(ServerHelloDoneRSA(si,client_cert,log))} in
@@ -1181,7 +1203,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                    establish, not the current one *)
                 match parseCertificateRequest si.protocol_version payload with
                 | Error(x,y) -> InError(x,y,state)
-                | Correct(certType,alg,distNames) ->
+                | Correct(v) ->
+                let (certType,alg,distNames) = v in
                 let client_cert = find_client_cert_sign certType alg distNames si.protocol_version state.poptions.client_name in
                 let si = {si with client_auth = true} in
                 let state = {state with pstate = PSClient(ServerHelloDoneDHE(si,client_cert,p,g,y,log))} in
@@ -1468,7 +1491,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         (* Client asked for a full handshake *)
                         match startServerFull ci state cHello cvd svd log with 
                         | Error(x,y) -> InError(x,y,state)
-                        | Correct(state,pv) -> recv_fragment_server ci state (Some(pv))
+                        | Correct(v) -> let (state,pv) = v in recv_fragment_server ci state (Some(pv))
                     else
                         (* Client asked for resumption, let's see if we can satisfy the request *)
                         match SessionDB.select state.sDB (ch_session_id,Server,state.poptions.client_name) with
@@ -1485,7 +1508,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
 
                         | _ ->  (* Do a full handshake *)
                                 match startServerFull ci state cHello cvd svd log with
-                                | Correct(state,pv) -> recv_fragment_server ci state (Some(pv))
+                                | Correct(v) -> let (state,pv) = v in recv_fragment_server ci state (Some(pv))
                                 | Error(x,y) -> InError(x,y,state)
                                    
             | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "ClientHello arrived in the wrong state",state)
