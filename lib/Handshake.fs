@@ -303,8 +303,9 @@ let clientKEXBytes_RSA si config =
         | Correct(pubKey) ->
             let pms = CRE.genRSA pubKey config.maxVer in
             let encpms = RSAEnc.encrypt pubKey config.maxVer pms in
-            let encpms = encpmsBytesVersion si.protocol_version encpms in
-            correct((messageBytes HT_client_key_exchange encpms),pms)
+            let nencpms = encpmsBytesVersion si.protocol_version encpms in
+            let mex = messageBytes HT_client_key_exchange nencpms in 
+            correct(mex,pms)
 
 let parseClientKEX_RSA si skey cv config data =
     if listLength si.serverID = 0 then
@@ -554,23 +555,26 @@ let init (role:Role) poptions =
     (* Start a new session without resumption, as the first epoch on this connection. *)
     let sid = [||] in
     let rand = Nonce.mkHelloRandom() in
-    let ci = initConnection role rand in
     match role with
-    | Client ->
+    | Client -> 
+        let ci = initConnection role rand in
         let ext = extensionsBytes poptions.safe_renegotiation [||] in
         let cHelloBytes = clientHelloBytes poptions rand sid ext in
-        let state = {hs_outgoing = cHelloBytes
-                     hs_incoming = [||]
-                     poptions = poptions
-                     sDB = SessionDB.create poptions
+        let sdb = SessionDB.create poptions in 
+        let state = {hs_outgoing = cHelloBytes;
+                     hs_incoming = [||];
+                     poptions = poptions;
+                     sDB = sdb;
                      pstate = PSClient (ServerHello (rand, sid, [||], [||], cHelloBytes))
                     }
         (ci,state)
     | Server ->
+        let ci = initConnection role rand in
+        let sdb = SessionDB.create poptions in 
         let state = {hs_outgoing = [||]
                      hs_incoming = [||]
                      poptions = poptions
-                     sDB = SessionDB.create poptions
+                     sDB = sdb
                      pstate = PSServer (ClientHello([||],[||]))
                     }
         (ci,state)
@@ -592,10 +596,11 @@ let resume next_sid poptions =
     let ci = initConnection Client rand in
     let ext = extensionsBytes poptions.safe_renegotiation [||]
     let cHelloBytes = clientHelloBytes poptions rand sid ext in
+    let sdb = SessionDB.create poptions
     let state = {hs_outgoing = cHelloBytes
                  hs_incoming = [||]
                  poptions = poptions
-                 sDB = SessionDB.create poptions
+                 sDB = sdb
                  pstate = PSClient (ServerHello (rand, sid, [||], [||], cHelloBytes))
                 } in
     (ci,state)
@@ -611,10 +616,11 @@ let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
             let sid = [||] in
             let ext = extensionsBytes ops.safe_renegotiation cvd in
             let cHelloBytes = clientHelloBytes ops rand sid ext in
+            let sdb = SessionDB.create ops
             let state = {hs_outgoing = cHelloBytes
                          hs_incoming = [||]
                          poptions = ops
-                         sDB = SessionDB.create ops
+                         sDB = sdb
                          pstate = PSClient (ServerHello (rand, sid, cvd,svd, cHelloBytes))
                         } in
             (true,state)
@@ -623,6 +629,9 @@ let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     | PSServer (_) -> unexpectedError "[start_rehandshake] should only be invoked on client side connections."
 
 let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
+    if isInitEpoch(ci.id_out) then
+        unexpectedError "[rekey] should only be invoked on established connections."
+    else
     (* Start a (possibly) resuming handshake over an existing epoch *)
     let si = epochSI(ci.id_out) in // or equivalently ci.id_in
     let sidOp = si.sessionID in
@@ -635,7 +644,8 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
         match SessionDB.select sDB (sid,Client,ops.server_name) with
         | None -> (* Maybe session expired, or was never stored. Let's not resume *)
             rehandshake ci state ops
-        | Some (retrievedSinfo,retrievedMS) ->
+        | Some s ->
+            let (retrievedSinfo,retrievedMS) = s
             match state.pstate with
             | PSClient (cstate) ->
                 match cstate with
@@ -670,6 +680,11 @@ let request (ci:ConnectionInfo) (state:hs_state) (ops:config) =
         | _ -> (* Handshake already ongoing, ignore this request *)
             (false,state)
 
+let getPrincipal ci state =
+  match ci.role with
+    | Client -> state.poptions.server_name
+    | Server -> state.poptions.client_name
+
 let invalidateSession ci state =
     if isInitEpoch(ci.id_in) then
         state
@@ -678,12 +693,9 @@ let invalidateSession ci state =
         match si.sessionID with
         | [||] -> state
         | sid ->
-            let hint =
-                match ci.role with
-                | Client -> state.poptions.server_name
-                | Server -> state.poptions.client_name
-            let sDB = SessionDB.remove state.sDB (sid,ci.role,hint) in
-            {state with sDB=sDB}
+            let hint = getPrincipal ci state
+            let sdb = SessionDB.remove state.sDB (sid,ci.role,hint) in
+            {state with sDB=sdb}
 
 let getNextEpochs ci si crand srand =
     let id_in  = nextEpoch ci.id_in  crand srand si in
@@ -799,19 +811,19 @@ let find_client_cert_sign certType algOpt (distName:string list) pv hint =
     let keyAlg = sigHashAlg_bySigList certAlg (cert_type_list_to_SigAlg certType) in
     Cert.for_signing certAlg hint keyAlg
 
+let clientAuthCert si (cert_req:(Cert.certchain * Sig.alg * Sig.skey) option) = 
+  if si.client_auth then
+    let certby = clientCertificateBytes cert_req in
+    match cert_req with
+      | None -> certby,[]
+      | Some x -> let (certList,_,_) = x in 
+                  certby,certList
+  else [||],[]
+
+
 let prepare_client_output_full_RSA (ci:ConnectionInfo) state (si:SessionInfo) cert_req log =
-    let clientCertBytes =
-      if si.client_auth then
-        clientCertificateBytes cert_req
-      else [||]
-
-    let si =
-        if si.client_auth then
-            match cert_req with
-            | None -> si
-            | Some(certList,_,_) -> {si with clientID = certList}
-        else si
-
+    let clientCertBytes,certList = clientAuthCert si cert_req
+    let si = {si with clientID = certList}
     let log = log @| clientCertBytes in
 
     match clientKEXBytes_RSA si state.poptions with

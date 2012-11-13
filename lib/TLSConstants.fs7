@@ -128,11 +128,13 @@ val compressionMethodsBytes: cl:Compression list -> b:bytes{b = CompressionsByte
 val parseCompression: b:bytes -> (c:Compression{b=CompressionBytes(c)}) Result
 val parseCompressions: b:bytes -> cl:Compression list{?cl'. b = CompressionsBytes(cl') /\ ContainsCompressions(cl',cl)}
 
-type ProtocolVersion =
+type PreProtocolVersion =
     | SSL_3p0   
     | TLS_1p0   
     | TLS_1p1   
     | TLS_1p2   
+
+type ProtocolVersion = p:PreProtocolVersion{p = SSL_3p0 \/ p = TLS_1p0 \/ p = TLS_1p1 \/ p = TLS_1p2}
 
 //CF Bad name. We'll need VersionBytes to be injective; we can verify it in principle.
 function val VersionBytes: ProtocolVersion -> b:bytes

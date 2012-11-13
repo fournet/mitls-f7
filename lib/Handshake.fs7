@@ -1,3 +1,4 @@
+
 module Handshake
 
 // We haven't yet verified the Handshake implementation against this interface.
@@ -99,10 +100,10 @@ val parseServerHello: b:bytes ->
 val helloRequestBytes: b:bytes{b=MessageBytes(HT_hello_request,[||])}
 val CCSBytes: b:bytes{b=[|1uy|]}
 
-function val ServerHelloDoneMsg: unit -> bytes
-private definition ServerHelloDoneMsg() = MessageBytes(HT_server_hello_done,[||])
+function val ServerHelloDoneMsg: bytes -> bytes
+private definition !x. ServerHelloDoneMsg(x) = MessageBytes(HT_server_hello_done,[||])
 
-val serverHelloDoneBytes: b:bytes{b=ServerHelloDoneMsg()}
+val serverHelloDoneBytes: b:bytes{b=ServerHelloDoneMsg([||])}
 
 function val CertificateMsg: Cert.certchain -> bytes
 private definition !cl. CertificateMsg(cl) = MessageBytes(HT_certificate,VLBytes(3,Cert.CertificateListBytes(cl)))
@@ -132,22 +133,12 @@ function val CertificateRequestTLS: certType list * string list -> bytes
 private definition !ct,dn.
 	CertificateRequestTLS(ct,dn) =
 		MessageBytes(HT_certificate_request,
-			VLBytes(1,CertTypesBytes(ct)) @|
+		    VLBytes(1,CertTypesBytes(ct)) @| [||] @| 
 		    VLBytes(2,DistinguishedNamesBytes(dn)))
-function val CertificateRequestMsg: ProtocolVersion * certType list * Sig.alg list * string list -> bytes
-private definition !pv,ct,sa,dn,b.
-	CertificateRequestMsg(pv,ct,sa,dn) = b <=>
-	( ( pv = TLS_1p2 /\
-		b =  CertificateRequestTLS12(ct,sa,dn)) \/
-	  ( (pv = TLS_1p1 \/ pv = TLS_1p0 \/ pv = SSL_3p0) /\
-		b =  CertificateRequestTLS(ct,dn))
-	)
-
-// FIXME: This needs to pass through.
-// ask !pv,sign,cs,ct,sa,b. ct = DefaultCertTypes(sign,cs) /\ sa = DefaultSigHashAlgs(pv,cs)/\
-//  ((pv = TLS_1p2 /\ b = CertificateRequestTLS12(DefaultCertTypes(sign,cs),DefaultSigHashAlgs(pv,cs),[])) \/
-// 		((pv = TLS_1p1 \/ pv = TLS_1p0 \/ pv = SSL_3p0) /\ b = CertificateRequestTLS(DefaultCertTypes(sign,cs),[]))
-// 		) => b = CertificateRequestMsg(pv,ct,sa,[])
+function val CertificateRequestMsg: ProtocolVersion * certType list * Sig.alg list option * string list -> bytes
+private definition !pv,ct,sa,dn,sao.
+	(pv = TLS_1p2 => CertificateRequestMsg(pv,ct,Some(sa),dn) = CertificateRequestTLS12(ct,sa,dn)) /\
+	((pv = TLS_1p1 \/ pv = TLS_1p0 \/ pv = SSL_3p0) => CertificateRequestMsg(pv,ct,sao,dn) = CertificateRequestTLS(ct,dn))
 
 val sigHashAlgBytesVersion: pv:ProtocolVersion -> cs:cipherSuite ->
 	b:bytes{(pv = TLS_1p2 /\ b=VLBytes(2,SigHashAlgsBytes(DefaultSigHashAlgs(pv,cs)))) \/
@@ -156,53 +147,34 @@ val sigHashAlgBytesVersion: pv:ProtocolVersion -> cs:cipherSuite ->
 
 val parseSigHashAlgVersion: pv:ProtocolVersion -> b:bytes ->
 	((a:(Sig.alg list option) * r:bytes){
-		(pv = TLS_1p2 /\
-			?al,ba. b = VLBytes(2,ba) @| r /\ a = Some(al) /\
-				ba = SigHashAlgsBytes(al)
-		) \/
-		((pv = TLS_1p1 \/ pv = TLS_1p0 \/ pv = SSL_3p0) /\
+		(pv = TLS_1p2 =>
+			(?al. a = Some(al) /\ b = VLBytes(2,SigHashAlgsBytes(al)) @| r) 
+		) /\
+		((pv = TLS_1p1 \/ pv = TLS_1p0 \/ pv = SSL_3p0) =>
 			a = None /\  r=b)
 	}) Result
 
 val certificateRequestBytes: sign:bool -> cs:cipherSuite -> pv:ProtocolVersion ->
-	b:bytes{
-		(pv = TLS_1p2 /\ b = CertificateRequestTLS12(DefaultCertTypes(sign,cs),DefaultSigHashAlgs(pv,cs),[])) \/
-		((pv = TLS_1p1 \/ pv = TLS_1p0 \/ pv = SSL_3p0) /\ b = CertificateRequestTLS(DefaultCertTypes(sign,cs),[]))
-		// FIXME: Next is what we really want, but ask above is failing.
-		//b = CertificateRequestMsg(pv,DefaultCertTypes(sign,cs),DefaultSigHashAlgs(pv,cs),[])
-	}
+	b:bytes{b = CertificateRequestMsg(pv,DefaultCertTypes(sign,cs),Some(DefaultSigHashAlgs(pv,cs)),[])}
 
-// FIXME: I don't get why this is failing
 val parseCertificateRequest: pv:ProtocolVersion -> b:bytes ->
 	((ctl:certType list * alo:(Sig.alg list option) * sl:string list){
-		(pv = TLS_1p2 => ?al. alo = Some(al) /\ 
-		MessageBytes(HT_certificate_request,b) =
-			CertificateRequestTLS12(ctl,al,sl)
-		) \/
-		( (pv = TLS_1p1 \/ pv = TLS_1p0 \/ pv = SSL_3p0) /\
-			alo = None /\
-			MessageBytes(HT_certificate_request,b) =
-				CertificateRequestTLS(ctl,sl)
-		)
-	}) Result
+		MessageBytes(HT_certificate_request,b) = CertificateRequestMsg(pv,ctl,alo,sl)})	 Result
 
 //function val ClientKeyExchangeMsg_RSA: pv:ProtocolVersion * si:SessionInfo * RSAKeys.pk * (;si,pv)CRE.rsapms -> bytes
 function val ClientKeyExchangeMsg_RSA: pv:ProtocolVersion * bytes -> bytes
 private definition !pv,encpms,b.
-	ClientKeyExchangeMsg_RSA(pv,encpms) = b <=>
-		( ((pv = TLS_1p2 \/ pv = TLS_1p1 \/ pv = TLS_1p0) /\
-		    b = MessageBytes(HT_client_key_exchange,VLBytes(2,encpms)) ) \/
-		  pv = SSL_3p0 /\ b = MessageBytes(HT_client_key_exchange,encpms)
-		)
+       ((pv = TLS_1p2 \/ pv = TLS_1p1 \/ pv = TLS_1p0) => ClientKeyExchangeMsg_RSA(pv,encpms) = MessageBytes(HT_client_key_exchange,VLBytes(2,encpms))) /\
+	(pv = SSL_3p0 => ClientKeyExchangeMsg_RSA(pv,encpms) = MessageBytes(HT_client_key_exchange,encpms))
 
 val encpmsBytesVersion: pv:ProtocolVersion -> encpms:bytes ->
-	b:bytes{(pv = SSL_3p0 /\ b=encpms) \/
-			((pv = TLS_1p0 \/ pv = TLS_1p1 \/ pv = TLS_1p2)
-				/\ b=VLBytes(2,encpms))}
+	b:bytes{(pv = SSL_3p0 => b=encpms) /\
+		((pv = TLS_1p0 \/ pv = TLS_1p1 \/ pv = TLS_1p2) => b=VLBytes(2,encpms))}
+
 val parseEncpmsVersion: pv:ProtocolVersion -> b:bytes ->
 	(encpms:bytes{
-		(pv = SSL_3p0 /\ b=encpms) \/
-		((pv = TLS_1p0 \/ pv = TLS_1p1 \/ pv = TLS_1p2) /\ b = VLBytes(2,encpms))
+		(pv = SSL_3p0 => b=encpms) /\
+		((pv = TLS_1p0 \/ pv = TLS_1p1 \/ pv = TLS_1p2) => b = VLBytes(2,encpms))
 	}) Result
 
 // FIXME: next two functions not typeching. We have problems with
@@ -320,7 +292,7 @@ private assume !si,pv,l.
           ServerHelloMsg(si.protocol_version,si.init_srand,si.sessionID,si.cipher_suite,si.compression,ex2) @|
           CertificateMsg(si.serverID) @|
           CertificateRequestMsg(si.protocol_version,ctl,sal,nl) @|
-          ServerHelloDoneMsg()))
+          ServerHelloDoneMsg([||])))
 
 private assume !si,pv,l. 
   ServerLogBeforeClientCertificateRSA_NoAuth(si,pv,l) <=>
@@ -328,7 +300,7 @@ private assume !si,pv,l.
      l = (ClientHelloMsg(pv,si.init_crand,sess,cs,cm,ex1) @|
           ServerHelloMsg(si.protocol_version,si.init_srand,si.sessionID,si.cipher_suite,si.compression,ex2) @|
           CertificateMsg(si.serverID) @|
-          ServerHelloDoneMsg()))
+          ServerHelloDoneMsg([||])))
           
 
 predicate ServerLogBeforeClientKeyExchangeRSA of SessionInfo * ProtocolVersion * log 
@@ -430,6 +402,8 @@ private assume !cr,sid,l.
   ClientLogBeforeServerHello(cr,sid,l) <=>
   (?pv,cs,cm,ex1. l = ClientHelloMsg(pv,cr,sid,cs,cm,ex1))
 
+ask !pv,cs,cm,ex1,cr,sid. ClientLogBeforeServerHello(cr,sid,ClientHelloMsg(pv,cr,sid,cs,cm,ex1))
+
 private assume !si,l.
   ClientLogBeforeServerCertificateRSA(si,l) <=>
   (?l',cr,sid,ex2. 
@@ -476,7 +450,7 @@ private assume !si,pv,l.
 private assume !si,pv,l. 
   ClientLogBeforeClientFinishedRSA_Auth(si,l) <=>
   (?l',l'',encpms,a,sign. ClientLogBeforeServerHelloDoneRSA_Auth(si,l') /\
-     l'' = l' @| ServerHelloDoneMsg() 
+     l'' = l' @| ServerHelloDoneMsg([||]) 
          @| CertificateMsg(si.clientID)
          @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms) /\
      l = l''
@@ -485,7 +459,7 @@ private assume !si,pv,l.
 private assume !si,pv,l. 
   ClientLogBeforeClientFinishedRSA_TryNoAuth(si,l) <=>
   (?l',l'',encpms. ClientLogBeforeServerHelloDoneRSA_Auth(si,l') /\
-     l = l' @| ServerHelloDoneMsg() 
+     l = l' @| ServerHelloDoneMsg([||]) 
          @| CertificateMsg(si.clientID)
          @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
 
@@ -493,7 +467,7 @@ private assume !si,pv,l.
 private assume !si,pv,l. 
   ClientLogBeforeClientFinishedRSA_Auth(si,l) <=>
   (?l',encpms. ClientLogBeforeServerHelloDoneRSA_Auth(si,l') /\
-     l = l' @| ServerHelloDoneMsg() 
+     l = l' @| ServerHelloDoneMsg([||]) 
          @| CertificateMsg(si.clientID)
          @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
 
@@ -503,31 +477,11 @@ private assume
   ((?a. si.cipher_suite = CipherSuite(RSA,a) /\ ClientLogBeforeClientFinishedRSA(si,l)) \/
    (!a. si.cipher_suite <> CipherSuite(RSA,a)))
 
-predicate ClientLogBeforeServerFinishedRSA of SessionInfo * log 
-predicate ClientLogBeforeServerFinishedRSA_Auth of SessionInfo * log 
-predicate ClientLogBeforeServerFinishedRSA_NoAuth of SessionInfo * log 
-
-private assume !si,pv,l. 
-  ClientLogBeforeServerFinishedRSA(si,l) <=>
-  ((si.client_auth = true /\ ClientLogBeforeServerFinishedRSA_Auth(si,l)) \/
-   (si.client_auth = false /\ ClientLogBeforeServerFinishedRSA_NoAuth(si,l)))
-
-private assume !si,pv,l. 
-  ClientLogBeforeServerFinishedRSA_Auth(si,l) <=>
-  (?l',cvd. ClientLogBeforeClientFinishedRSA_Auth(si,l') /\
-     l = l' @| ClientFinishedMsg(cvd)) 
-
-private assume !si,pv,l. 
-  ClientLogBeforeServerFinishedRSA_NoAuth(si,l) <=>
-  (?l',cvd. ClientLogBeforeClientFinishedRSA_NoAuth(si,l') /\
-     l = l' @| ClientFinishedMsg(cvd)) // FIXME: ?ms. cvd = Finished(si,ms,l')
-
-
-predicate ClientLogBeforeServerFinished of SessionInfo * log
-private assume 
- !si,l. ClientLogBeforeServerFinished(si,l) <=>
-  ((?a. si.cipher_suite = CipherSuite(RSA,a) /\ ClientLogBeforeServerFinishedRSA(si,l)) \/
-   (!a. si.cipher_suite <> CipherSuite(RSA,a)))
+predicate ClientLogBeforeServerFinished of SessionInfo * log 
+private assume !si,l. 
+  ClientLogBeforeServerFinished(si,l) <=>
+  (?l',cvd. ClientLogBeforeClientFinished(si,l') /\
+     l = l' @| ClientFinishedMsg(cvd))
 
  
 type serverState =  (* note that the CertRequest bits are determined by the config *) 
@@ -589,8 +543,8 @@ type clientState =
    | ServerHelloDoneDH_anon of SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * log
 
    | ClientWritingCCS       of si:SessionInfo * (;si)PRF.masterSecret * l:log{ClientLogBeforeClientFinished(si,l)}
-   | ServerCCS              of (si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * (;e)StatefulAEAD.reader * cVerifyData * l:log){EpochSI(e)=si /\
-                                                                                                                                   ClientLogBeforeServerFinished(si,l)}
+   | ServerCCS              of (si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * (;e)StatefulAEAD.reader * cVerifyData * l:log){ EpochSI(e)=si  
+       (* /\ ClientLogBeforeServerFinished(si,l) *)}
    | ServerFinished         of si:SessionInfo * (;si)PRF.masterSecret * cVerifyData * l:log{ClientLogBeforeServerFinished(si,l)}
 
    | ServerCCSResume        of (ew:succEpoch * (;ew)StatefulAEAD.writer * er:succEpoch * (;er)StatefulAEAD.reader * (;EpochSI(ew))PRF.masterSecret * log){EpochSI(ew)=EpochSI(er)}
@@ -620,6 +574,8 @@ private type pre_hs_state = {
 
 private type (;ci:ConnectionInfo) hs_state = pre_hs_state
 function val Config: ci:ConnectionInfo * s:(;ci)hs_state -> config
+private assume !ci,s. Config(ci,s) = s.poptions
+
 predicate val Authorize: config * Cert.cert -> bool
 predicate val Complete: ConnectionInfo * config -> bool
 predicate EvSentFinishedFirst of ConnectionInfo * bool
@@ -647,37 +603,52 @@ assume !ci,s,s'. SameStreams(ci,s,s') <=> (
 
 type (;ci:ConnectionInfo,c:config) nextState = s:(;ci)hs_state {Config(ci,s) = c}
 
-val init:        r:Role            -> c:config  ->
-	(ci:ConnectionInfo * s:(;ci)hs_state){ Config(ci,s) = c /\ ci.role = r /\
-		IsNullCiphersuite(EpochSI(ci.id_in).cipher_suite) /\
-		IsNullCiphersuite(EpochSI(ci.id_out).cipher_suite) /\
-		EmptyStreams(ci,s)
-		}
+val init:  rl:Role  -> c:config  ->
+	(ci:ConnectionInfo * s:(;ci)hs_state){Config(ci,s) = c /\ 
+                ci.role = rl /\
+		IsInitEpoch(ci.id_in) /\
+		IsInitEpoch(ci.id_out)}
+		                    
 val resume:      nextSID:sessionID -> c:config  ->
-	(ci:ConnectionInfo * s:(;ci)hs_state){ Config(ci,s) = c /\ ci.role = Client /\
-		IsNullCiphersuite(EpochSI(ci.id_in).cipher_suite) /\
-		IsNullCiphersuite(EpochSI(ci.id_out).cipher_suite) /\
-		EmptyStreams(ci,s)}
+	(ci:ConnectionInfo * s:(;ci)hs_state){ Config(ci,s) = c /\ 
+                ci.role = Client /\          
+		IsInitEpoch(ci.id_in) /\
+		IsInitEpoch(ci.id_out)}
+
 val rehandshake: ci:ConnectionInfo -> s:(;ci)hs_state -> c:config  ->
-	b:bool * s':(;ci)hs_state{
-		((b = true /\ Config(ci,s') = c) \/ (b = false /\ Config(ci,s') = Config(ci,s))) /\
+	b:bool * s':(;ci)hs_state 
+
+(* {
+		((b = true /\ Config(ci,s') = c) \/ 
+                 (b = false /\ Config(ci,s') = Config(ci,s))) /\
 		SameStreams(ci,s,s')
-		}
-val rekey:       ci:ConnectionInfo -> s:(;ci)hs_state -> c:config  ->
-	b:bool * s':(;ci)hs_state{
+		} 
+*)
+
+val rekey: ci:ConnectionInfo -> s:(;ci)hs_state -> c:config  ->
+	   b:bool * s':(;ci)hs_state
+
+(*{
 		((b = true /\ Config(ci,s') = c) \/ (b = false /\ Config(ci,s') = Config(ci,s))) /\
-		SameStreams(ci,s,s')
-		}
+		SameStreams(ci,s,s')}
+*)
+		
 val request:     ci:ConnectionInfo -> s:(;ci)hs_state -> c:config  ->
-	b:bool * s':(;ci)hs_state{
+                 b:bool * s':(;ci)hs_state
+(*{
 		((b = true /\ Config(ci,s') = c) \/ (b = false /\ Config(ci,s') = Config(ci,s))) /\
 		SameStreams(ci,s,s')
 		}
+*)
+
 val authorize:   ci:ConnectionInfo -> s:(;ci)hs_state -> c:Cert.certchain  ->
 	s':(;ci,Config(ci,s))nextState { Authorize(Config(ci,s),c) /\ SameStreams(ci,s,s') }
-val invalidateSession: ci:ConnectionInfo -> s:(;ci)hs_state -> s':(;ci,Config(ci,s))nextState{SameStreams(ci,s,s')}
 
-val getNextEpochs: ci:ConnectionInfo -> si:SessionInfo -> crand -> srand -> ci':ConnectionInfo
+val getPrincipal:  ci:ConnectionInfo -> s:(;ci)hs_state -> string
+val invalidateSession: ci:ConnectionInfo -> s:(;ci)hs_state -> s':(;ci,Config(ci,s))nextState
+(*{SameStreams(ci,s,s')} *)
+
+val getNextEpochs: ci:ConnectionInfo -> si:SessionInfo -> crand -> srand -> ci':ConnectionInfo{IsSuccEpoch(ci'.id_in) /\ IsSuccEpoch(ci'.id_out) /\ EpochSI(ci'.id_in) = si /\ EpochSI(ci'.id_out) = si}
 
 (*--- networkinterface *)
 (* Network Interface*)
@@ -747,6 +718,9 @@ val getMinVersion:        ci:ConnectionInfo -> (;ci)hs_state -> ProtocolVersion
 
 val find_client_cert_sign: certType list -> Sig.alg list option -> string list ->
 	ProtocolVersion -> Cert.hint -> Cert.sign_cert
+val clientAuthCert: si:SessionInfo  -> cert_req:(Cert.certchain * a:Sig.alg * (;a)Sig.skey) option -> 
+  (cb:bytes * cl:Cert.certchain){cb = CertificateMsg(cl)}
+
 val prepare_client_output_full_RSA: ci:ConnectionInfo -> (;ci)hs_state ->
 	si:SessionInfo -> (Cert.certchain * a:Sig.alg * (;a)Sig.skey) option -> log ->
 	((;ci)hs_state * si':SessionInfo * (;si)PRF.masterSecret * log) Result

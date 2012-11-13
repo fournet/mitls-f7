@@ -21,13 +21,13 @@ val coerceDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt -> (;p)elt -> (;p,g,g
 
 val prfSmoothRSA:
     si:SessionInfo ->
-	pv:ProtocolVersion ->
+    pv:ProtocolVersion ->
     pms: (;Cert.RSAPKCert(si.serverID),pv) rsapms ->
     (;si) PRF.masterSecret
 
 // AP: Don't we really want *any* link between si and (g,p,gx,gy)?
 val prfSmoothDHE:
     si:SessionInfo ->
-	p:DHGroup.p -> g:(;p)DHGroup.g -> gx:(;p)DHGroup.elt -> gy:(;p)DHGroup.elt ->
+    p:DHGroup.p -> g:(;p)DHGroup.g -> gx:(;p)DHGroup.elt -> gy:(;p)DHGroup.elt ->
     pms: (;p,g,gx,gy)dhpms ->
     (;si) PRF.masterSecret

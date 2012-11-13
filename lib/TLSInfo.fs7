@@ -34,7 +34,7 @@ type SessionInfo = {
     cipher_suite: cipherSuite;
     compression: Compression;
     clientID: Cert.cert list;
-	client_auth: bool;
+    client_auth: bool;
     serverID: Cert.cert list;
     sessionID: sessionID;
     }
@@ -82,8 +82,7 @@ type ConnectionInfo =
 
 val connectionRole: ci:ConnectionInfo -> r:Role{r = ci.role}
 
-val initConnection: r:Role -> r:random ->
-	ci:ConnectionInfo
+val initConnection: r:Role -> ra:random -> ci:ConnectionInfo{ci.role = r /\ IsInitEpoch(ci.id_in) /\ IsInitEpoch(ci.id_out)}
 val nextEpoch: e:epoch -> c:crand -> s:srand -> si:SessionInfo ->
 	e':succEpoch{Pred(e') = e /\ EpochSI(e') = si /\
 			     EpochCRand(e') = c /\ EpochSRand(e') = s}
