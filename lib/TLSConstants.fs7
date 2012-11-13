@@ -470,6 +470,9 @@ val certificateTypeListBytes: ctl:certType list ->
 val parseCertificateTypeList: b:bytes ->
 	(ctl:certType list{b = CertTypesBytes(ctl)}) Result
 
+function val DefaultCertTypes: bool * cipherSuite -> certType list
+val defaultCertTypes: sign:bool -> cs:cipherSuite -> ctl:certType list{ctl=DefaultCertTypes(sign,cs)}
+
 function val DistinguishedNameListBytes: string list -> bytes
 private definition !h,t.
 	DistinguishedNameListBytes([]) = [||] /\

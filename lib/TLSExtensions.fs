@@ -151,16 +151,12 @@ let parseSigHashAlg b =
         | Error(x,y) -> Error(x,y)
         | Correct(hash) -> correct(sign,hash)
 
-let rec sigHashAlgListBytes_int algL =
+let rec sigHashAlgListBytes algL =
     match algL with
     | [] -> [||]
     | h::t ->
         let oneItem = sigHashAlgBytes h in
-        oneItem @| sigHashAlgListBytes_int t
-
-let sigHashAlgListBytes algL =
-    let payload = sigHashAlgListBytes_int algL in
-    vlbytes 2 payload
+        oneItem @| sigHashAlgListBytes t
 
 let rec parseSigHashAlgList_int b : (Sig.alg list Result)=
     if length b = 0 then correct([])

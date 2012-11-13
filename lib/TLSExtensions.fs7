@@ -63,9 +63,10 @@ val sigHashAlgBytes: a:Sig.alg -> b:bytes{b=SigHashAlgBytes(a)}
 val parseSigHashAlg: b:bytes -> (a:Sig.alg{b=SigHashAlgBytes(a)}) Result
 
 function val SigHashAlgsBytes: Sig.alg list -> bytes
-val sigHashAlgListBytes: Sig.alg list -> bytes
-val parseSigHashAlgList: bytes -> Sig.alg list Result
-val default_sigHashAlg: ProtocolVersion -> cipherSuite -> Sig.alg list
+val sigHashAlgListBytes: al:Sig.alg list -> b:bytes{b=SigHashAlgsBytes(al)}
+val parseSigHashAlgList: b:bytes -> (al:Sig.alg list{b=SigHashAlgsBytes(al)}) Result
+function val DefaultSigHashAlgs: ProtocolVersion * cipherSuite -> Sig.alg list
+val default_sigHashAlg: pv:ProtocolVersion -> cs:cipherSuite -> al:Sig.alg list{al=DefaultSigHashAlgs(pv,cs)}
 val sigHashAlg_contains: Sig.alg list -> Sig.alg -> bool
 val cert_type_list_to_SigHashAlg: certType list -> ProtocolVersion -> Sig.alg list
 val cert_type_list_to_SigAlg: certType list -> sigAlg list

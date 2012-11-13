@@ -705,6 +705,19 @@ let rec parseCertificateTypeList data =
             | Error(x,y) -> Error(x,y)
         | Error(x,y) -> Error(x,y)
 
+let defaultCertTypes sign cs =
+    if sign then
+        match sigAlg_of_ciphersuite cs with
+        | SA_RSA -> [RSA_sign]
+        | SA_DSA -> [DSA_sign]
+        | _ -> unexpectedError "[certificateRequestBytes] invoked on an invalid ciphersuite"
+    else 
+        match sigAlg_of_ciphersuite cs with
+        | SA_RSA -> [RSA_fixed_dh]
+        | SA_DSA -> [DSA_fixed_dh]
+        | _ -> unexpectedError "[certificateRequestBytes] invoked on an invalid ciphersuite"
+
+
 let rec distinguishedNameListBytes names =
     match names with
     | [] -> [||]

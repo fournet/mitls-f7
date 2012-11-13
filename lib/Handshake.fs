@@ -215,26 +215,31 @@ let parseClientOrServerCertificate data =
         | Correct (certList) -> Cert.parseCertificateList certList []
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
-let pickCertTypes sign cs =
-    if sign then
-        match sigAlg_of_ciphersuite cs with
-        | SA_RSA -> [TLSConstants.RSA_sign]
-        | SA_DSA -> [TLSConstants.DSA_sign]
-        | _ -> unexpectedError "[certificateRequestBytes] invoked on an invalid ciphersuite"
-    else 
-        match sigAlg_of_ciphersuite cs with
-        | SA_RSA -> [TLSConstants.RSA_fixed_dh]
-        | SA_DSA -> [TLSConstants.DSA_fixed_dh]
-        | _ -> unexpectedError "[certificateRequestBytes] invoked on an invalid ciphersuite"
-
 let sigHashAlgBytesVersion version cs =
      match version with
         | TLS_1p2 ->
-            sigHashAlgListBytes (default_sigHashAlg version cs)
-        | _ -> [||]
+            let defaults = default_sigHashAlg version cs in
+            let res = sigHashAlgListBytes defaults in
+            vlbytes 2 res
+        | TLS_1p1 | TLS_1p0 | SSL_3p0 -> [||]
+
+let parseSigHashAlgVersion version data =
+    match version with
+    | TLS_1p2 ->
+        if length data >= 2 then
+            match vlsplit 2 data with
+            | Error(x,y) -> Error(x,y)
+            | Correct (res) ->
+            let (sigAlgsBytes,data) = res in
+            match parseSigHashAlgList sigAlgsBytes with
+            | Error(x,y) -> Error(x,y)               
+            | Correct (sigAlgsList) -> correct (Some(sigAlgsList),data)
+        else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+    | TLS_1p1 | TLS_1p0 | SSL_3p0 ->
+        correct (None,data)
 
 let certificateRequestBytes sign cs version =
-    let certTypes = pickCertTypes sign cs in
+    let certTypes = defaultCertTypes sign cs in
     let ctb = certificateTypeListBytes certTypes in
     let ctb = vlbytes 1 ctb in
     let sigAndAlg = sigHashAlgBytesVersion version cs in
@@ -247,35 +252,47 @@ let certificateRequestBytes sign cs version =
     messageBytes HT_certificate_request data
 
 let parseCertificateRequest version data =
-    match vlsplit 1 data with
-    | Error(x,y) -> Error(x,y)
-    | Correct (certTypeListBytes,data) ->
-    match parseCertificateTypeList certTypeListBytes with
-    | Error(x,y) -> Error(x,y)
-    | Correct(certTypeList) ->
-    let sigAlgsAndData = (
-        if version = TLS_1p2 then
-            match vlsplit 2 data with
+    if length data >= 1 then
+        match vlsplit 1 data with
+        | Error(x,y) -> Error(x,y)
+        | Correct (res) ->
+        let (certTypeListBytes,data) = res in
+        match parseCertificateTypeList certTypeListBytes with
+        | Error(x,y) -> Error(x,y)
+        | Correct(certTypeList) ->
+        match parseSigHashAlgVersion version data with
+        | Error(x,y) -> Error(x,y)
+        | Correct (res) ->
+        let (sigAlgs,data) = res in
+        if length data >= 2 then
+            match vlparse 2 data with
             | Error(x,y) -> Error(x,y)
-            | Correct (sigAlgsBytes,data) ->
-            match parseSigHashAlgList sigAlgsBytes with
-            | Error(x,y) -> Error(x,y)               
-            | Correct (sigAlgsList) -> correct (Some(sigAlgsList),data)
-        else
-            correct (None,data)) in
-    match sigAlgsAndData with
-    | Error(x,y) -> Error(x,y)
-    | Correct ((sigAlgs,data)) ->
-    match vlparse 2 data with
-    | Error(x,y) -> Error(x,y)
-    | Correct  (distNamesBytes) ->
-    match parseDistinguishedNameList distNamesBytes [] with
-    | Error(x,y) -> Error(x,y)
-    | Correct distNamesList ->
-    correct (certTypeList,sigAlgs,distNamesList)
+            | Correct  (distNamesBytes) ->
+            let el = [] in
+            match parseDistinguishedNameList distNamesBytes el with
+            | Error(x,y) -> Error(x,y)
+            | Correct (distNamesList) ->
+            correct (certTypeList,sigAlgs,distNamesList)
+        else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+    else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 
 (** A.4.3 Client Authentication and Key Exchange Messages *) 
+
+let encpmsBytesVersion version encpms =
+    match version with
+    | SSL_3p0 -> encpms
+    | TLS_1p0 | TLS_1p1 | TLS_1p2 -> vlbytes 2 encpms
+
+let parseEncpmsVersion version data =
+    match version with
+    | SSL_3p0 -> correct (data)
+    | TLS_1p0 | TLS_1p1| TLS_1p2 ->
+        if length data >= 2 then    
+            match vlparse 2 data with
+            | Correct (encPMS) -> correct(encPMS)
+            | Error(x,y) -> Error(x,y)
+        else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let clientKEXBytes_RSA si config =
     if listLength si.serverID = 0 then
@@ -286,21 +303,14 @@ let clientKEXBytes_RSA si config =
         | Correct(pubKey) ->
             let pms = CRE.genRSA pubKey config.maxVer in
             let encpms = RSAEnc.encrypt pubKey config.maxVer pms in
-            let encpms = if si.protocol_version = SSL_3p0 then encpms else vlbytes 2 encpms 
+            let encpms = encpmsBytesVersion si.protocol_version encpms in
             correct((messageBytes HT_client_key_exchange encpms),pms)
 
 let parseClientKEX_RSA si skey cv config data =
     if listLength si.serverID = 0 then
         unexpectedError "[parseClientKEX_RSA] when the ciphersuite can encrypt the PMS, the server certificate should always be set"
     else
-        let encrypted = (* parse the message *)
-            match si.protocol_version with
-            | SSL_3p0 -> correct (data)
-            | TLS_1p0 | TLS_1p1| TLS_1p2 ->
-                    match vlparse 2 data with
-                    | Correct (encPMS) -> correct(encPMS)
-                    | Error(x,y) -> Error(x,y)
-        match encrypted with
+        match parseEncpmsVersion si.protocol_version data with
         | Correct(encPMS) ->
             let res = RSAEnc.decrypt skey si cv config.check_client_version_in_pms_for_old_tls encPMS in
             correct(res)
@@ -310,7 +320,11 @@ let clientKEXExplicitBytes_DH y =
     let yb = vlbytes 2 y in
     messageBytes HT_client_key_exchange yb
 
-let parseClientKEXExplicit_DH data = vlparse 2 data (*$ should take (p.g) as parameter and check e.g. it is within 1..p-1 *)
+let parseClientKEXExplicit_DH data =
+    (*$ should take (p.g) as parameter and check e.g. it is within 1..p-1 *)
+    if length data >= 2 then
+        vlparse 2 data
+    else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 // Unused until we don't support DH ciphersuites.
 let clientKEXImplicitBytes_DH = messageBytes HT_client_key_exchange [||]
@@ -334,37 +348,51 @@ let digitallySignedBytes alg data pv =
 let parseDigitallySigned expectedAlgs payload pv =
     match pv with
     | TLS_1p2 ->
-        let (recvAlgsB,sign) = Bytes.split payload 2 in
-        match parseSigHashAlg recvAlgsB with
-        | Error(x,y) -> Error(x,y)
-        | Correct(recvAlgs) ->
-            if sigHashAlg_contains expectedAlgs recvAlgs then
-                match vlparse 2 sign with
-                | Error(x,y) -> Error(x,y)
-                | Correct(sign) -> correct(recvAlgs,sign)
-            else
-                Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "")
+        if length payload >= 2 then
+            let (recvAlgsB,sign) = Bytes.split payload 2 in
+            match parseSigHashAlg recvAlgsB with
+            | Error(x,y) -> Error(x,y)
+            | Correct(recvAlgs) ->
+                if sigHashAlg_contains expectedAlgs recvAlgs then
+                    if length sign >= 2 then
+                        match vlparse 2 sign with
+                        | Error(x,y) -> Error(x,y)
+                        | Correct(sign) -> correct(recvAlgs,sign)
+                    else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+                else Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "")
+        else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
     | SSL_3p0 | TLS_1p0 | TLS_1p1 ->
-        match vlparse 2 payload with
-        | Error(x,y) -> Error(x,y)
-        | Correct(sign) ->
-        // assert: expectedAlgs contains exactly one element
-        correct(listHead expectedAlgs,sign)
+        if length payload >= 2 then
+            match vlparse 2 payload with
+            | Error(x,y) -> Error(x,y)
+            | Correct(sign) ->
+            // assert: expectedAlgs contains exactly one element
+            correct(listHead expectedAlgs,sign)
+        else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 (* Server Key exchange *)
 
 let dheParamBytes p g y = (vlbytes 2 p) @| (vlbytes 2 g) @| (vlbytes 2 y)
 let parseDHEParams payload =
-    match vlsplit 2 payload with
-    | Error(x,y) -> Error(x,y)
-    | Correct(p,payload) ->
-    match vlsplit 2 payload with
-    | Error(x,y) -> Error(x,y)
-    | Correct(g,payload) ->
-    match vlsplit 2 payload with
-    | Error(x,y) -> Error(x,y)
-    | Correct(y,payload) ->
-    correct(p,g,y,payload)
+    if length payload >= 2 then 
+        match vlsplit 2 payload with
+        | Error(x,y) -> Error(x,y)
+        | Correct(res) ->
+        let (p,payload) = res in
+        if length payload >= 2 then
+            match vlsplit 2 payload with
+            | Error(x,y) -> Error(x,y)
+            | Correct(res) ->
+            let (g,payload) = res in
+            if length payload >= 2 then
+                match vlsplit 2 payload with
+                | Error(x,y) -> Error(x,y)
+                | Correct(res) ->
+                let (y,payload) = res in
+                correct(p,g,y,payload)
+            else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+        else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+    else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let serverKeyExchangeBytes_DHE dheb alg sign pv = 
     let sign = digitallySignedBytes alg sign pv in
@@ -374,11 +402,13 @@ let serverKeyExchangeBytes_DHE dheb alg sign pv =
 let parseServerKeyExchange_DHE pv cs payload =
     match parseDHEParams payload with
     | Error(x,y) -> Error(x,y)
-    | Correct(p,g,y,payload) ->
+    | Correct(res) ->
+        let (p,g,y,payload) = res
         let allowedAlgs = default_sigHashAlg pv cs in
         match parseDigitallySigned allowedAlgs payload pv with
         | Error(x,y) -> Error(x,y)
-        | Correct(alg,signature) ->
+        | Correct(res) ->
+            let (alg,signature) = res
             correct(p,g,y,alg,signature)
 
 let serverKeyExchangeBytes_DH_anon p g y =
