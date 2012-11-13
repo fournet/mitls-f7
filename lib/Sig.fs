@@ -52,7 +52,7 @@ let pk_of (sk:skey) =
 let honest pk =
     exists (fun el -> fst el=pk) !honest_log
 
-let strong a = if a=(DH_DSS,SHA384) then true else false
+let strong a = if a=(SA_DSA ,SHA384) then true else false
 
 #endif
 
