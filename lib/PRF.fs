@@ -10,9 +10,12 @@ type masterSecret = { bytes: repr }
 
 #if ideal
 let log = ref []
-let honest_log = ref[]
+let finish_log = ref []
+let honest_log = ref []
 
-let corrupt ci = exists (fun el -> el=epochSI(ci.id_in)) !honest_log
+let corrupt si = exists (fun el -> el=si) !honest_log
+let honest si = not(corrupt si)
+let strong si = true  
 #endif
 
 #if ideal
@@ -54,7 +57,7 @@ let keyGen ci (ms:masterSecret) =
             (ck,sk)
     #if ideal
     let (cWrite,sWrite) =
-        if not(corrupt ci)
+        if not(corrupt (epochSI(ci.id_in)))
         then match tryFind (fun el-> fst el = (ci,ms)) !log with
                     Some(_,(cWrite,sWrite)) -> (cWrite,sWrite)
                   | None -> 
@@ -72,7 +75,7 @@ let keyGen ci (ms:masterSecret) =
 
 let makeVerifyData si role (ms:masterSecret) data =
   let pv = si.protocol_version in
-  match pv with 
+  let tag = match pv with 
   | SSL_3p0           ->
     match role with
     | Client ->
@@ -92,10 +95,21 @@ let makeVerifyData si role (ms:masterSecret) data =
         tls12VerifyData cs ms.bytes tls_sender_client data
     | Server ->
         tls12VerifyData cs ms.bytes tls_sender_server data
+  #if ideal
+  if honest si && strong si then 
+    finish_log := (si, tag, data)::!finish_log;
+  #endif
+  tag
 
 let checkVerifyData si role ms log expected =
     let computed = makeVerifyData si role ms log in
-    equalBytes expected computed
+    let result = equalBytes expected computed
+    #if ideal
+    let result = if honest si && strong si
+                    then result && (exists (fun el -> el=(si, expected, log)) !finish_log)
+                    else result 
+    #endif
+    result
 
 let ssl_certificate_verify (si:SessionInfo) ms (algs:sigAlg) log =
     match algs with

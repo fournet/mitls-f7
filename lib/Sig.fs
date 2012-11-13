@@ -52,6 +52,8 @@ let pk_of (sk:skey) =
 let honest pk =
     exists (fun el -> fst el=pk) !honest_log
 
+let strong a = if a=(DH_DSS,SHA384) then true else false
+
 #endif
 
 (* ------------------------------------------------------------------------ *)
@@ -79,7 +81,7 @@ let sign (a : alg) (sk : skey) (t : text) : sigv =
             let t = HASH.hash MD5SHA1 t in
             CoreSig.sign None kparams t
     #if ideal
-    if honest (pk_of sk) then 
+    if honest (pk_of sk) && strong a then 
         log := (a, pk_of sk,signature, t)::!log;
     #endif
     signature
@@ -108,7 +110,7 @@ let verify (a : alg) (pk : pkey) (t : text) (s : sigv) =
             let t = HASH.hash MD5SHA1 t in
             CoreSig.verify None kparams t s
     #if ideal
-    let result = if honest pk 
+    let result = if honest pk && strong a
                     then result && (exists (fun el -> el=(a, pk, s, t)) !log)
                     else result 
     #endif
