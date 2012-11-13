@@ -134,31 +134,31 @@ private definition !ct,dn.
 		MessageBytes(HT_certificate_request,
 		    VLBytes(1,CertTypesBytes(ct)) @| [||] @| 
 		    VLBytes(2,DistinguishedNamesBytes(dn)))
-function val CertificateRequestMsg: ProtocolVersion * certType list * Sig.alg list option * string list -> bytes
-private definition !pv,ct,sa,dn,sao.
-	(pv = TLS_1p2 => CertificateRequestMsg(pv,ct,Some(sa),dn) = CertificateRequestTLS12(ct,sa,dn)) /\
-	((pv = TLS_1p1 \/ pv = TLS_1p0 \/ pv = SSL_3p0) => CertificateRequestMsg(pv,ct,sao,dn) = CertificateRequestTLS(ct,dn))
+function val CertificateRequestMsg: ProtocolVersion * certType list * Sig.alg list * string list -> bytes
+private definition !pv,ct,sa,dn.
+	(pv = TLS_1p2 => CertificateRequestMsg(pv,ct,sa,dn) = CertificateRequestTLS12(ct,sa,dn)) /\
+	((pv = TLS_1p1 \/ pv = TLS_1p0 \/ pv = SSL_3p0) => CertificateRequestMsg(pv,ct,sa,dn) = CertificateRequestTLS(ct,dn))
 
 val sigHashAlgBytesVersion: pv:ProtocolVersion -> cs:cipherSuite ->
-	b:bytes{(pv = TLS_1p2 /\ b=VLBytes(2,SigHashAlgsBytes(DefaultSigHashAlgs(pv,cs)))) \/
-			((pv = TLS_1p1 \/ pv = TLS_1p0 \/ pv = SSL_3p0) /\
+	b:bytes{(pv = TLS_1p2 => b=VLBytes(2,SigHashAlgsBytes(DefaultSigHashAlgs(pv,cs)))) /\
+			((pv = TLS_1p1 \/ pv = TLS_1p0 \/ pv = SSL_3p0) =>
 				b = [||])}
 
 val parseSigHashAlgVersion: pv:ProtocolVersion -> b:bytes ->
-	((a:(Sig.alg list option) * r:bytes){
+	((a:(Sig.alg list) * r:bytes){
 		(pv = TLS_1p2 =>
-			(?al. a = Some(al) /\ b = VLBytes(2,SigHashAlgsBytes(al)) @| r) 
+			(b = VLBytes(2,SigHashAlgsBytes(a)) @| r) 
 		) /\
 		((pv = TLS_1p1 \/ pv = TLS_1p0 \/ pv = SSL_3p0) =>
-			a = None /\  r=b)
+			a = [] /\  r=b)
 	}) Result
 
 val certificateRequestBytes: sign:bool -> cs:cipherSuite -> pv:ProtocolVersion ->
-	b:bytes{b = CertificateRequestMsg(pv,DefaultCertTypes(sign,cs),Some(DefaultSigHashAlgs(pv,cs)),[])}
+	b:bytes{b = CertificateRequestMsg(pv,DefaultCertTypes(sign,cs),DefaultSigHashAlgs(pv,cs),[])}
 
 val parseCertificateRequest: pv:ProtocolVersion -> b:bytes ->
-	((ctl:certType list * alo:(Sig.alg list option) * sl:string list){
-		MessageBytes(HT_certificate_request,b) = CertificateRequestMsg(pv,ctl,alo,sl)})	 Result
+	((ctl:certType list * al:(Sig.alg list) * sl:string list){
+		MessageBytes(HT_certificate_request,b) = CertificateRequestMsg(pv,ctl,al,sl)})	 Result
 
 //function val ClientKeyExchangeMsg_RSA: pv:ProtocolVersion * si:SessionInfo * RSAKeys.pk * (;si,pv)CRE.rsapms -> bytes
 function val ClientKeyExchangeMsg_RSA: pv:ProtocolVersion * bytes -> bytes
@@ -695,7 +695,7 @@ val getMinVersion:        ci:ConnectionInfo -> (;ci)hs_state -> ProtocolVersion
 
 (* INTERNAL HS VERIFICATION (ALL THESE DEFS ARE PRIVATE) *)
 
-val find_client_cert_sign: certType list -> Sig.alg list option -> string list ->
+val find_client_cert_sign: certType list -> Sig.alg list -> string list ->
 	ProtocolVersion -> Cert.hint -> Cert.sign_cert
 val getCertificateBytes: si:SessionInfo ->
   cert_req:(Cert.certchain * a:Sig.alg * (;a)Sig.skey) option -> 

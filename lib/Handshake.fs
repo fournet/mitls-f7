@@ -204,7 +204,7 @@ let serverHelloDoneBytes = messageBytes HT_server_hello_done [||]
 
 let serverCertificateBytes cl = messageBytes HT_certificate (Cert.certificateListBytes cl)
 
-let clientCertificateBytes cs =
+let clientCertificateBytes (cs:(Cert.certchain * Sig.alg * Sig.skey) option) =
     // TODO: move this match outside, and merge with serverCertificateBytes
     match cs with
     | None -> messageBytes HT_certificate (Cert.certificateListBytes [])
@@ -237,10 +237,10 @@ let parseSigHashAlgVersion version data =
             let (sigAlgsBytes,data) = res in
             match parseSigHashAlgList sigAlgsBytes with
             | Error(x,y) -> Error(x,y)               
-            | Correct (sigAlgsList) -> correct (Some(sigAlgsList),data)
+            | Correct (sigAlgsList) -> correct (sigAlgsList,data)
         else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
     | TLS_1p1 | TLS_1p0 | SSL_3p0 ->
-        correct (None,data)
+        correct ([],data)
 
 let certificateRequestBytes sign cs version =
     let certTypes = defaultCertTypes sign cs in
@@ -859,13 +859,15 @@ type incomingCCS =
 
 
 /// ClientKeyExchange
-let find_client_cert_sign certType algOpt (distName:string list) pv hint =
-    let certAlg =
-        match algOpt with
-        | Some(alg) -> alg
-        | None -> cert_type_list_to_SigHashAlg certType pv
-    let keyAlg = sigHashAlg_bySigList certAlg (cert_type_list_to_SigAlg certType) in
-    Cert.for_signing certAlg hint keyAlg
+let find_client_cert_sign certType certAlg (distName:string list) pv hint =
+    match pv with
+    | TLS_1p2 ->
+        let keyAlg = sigHashAlg_bySigList certAlg (cert_type_list_to_SigAlg certType) in
+        Cert.for_signing certAlg hint keyAlg
+    | TLS_1p1 | TLS_1p0 | SSL_3p0 ->
+        let certAlg = cert_type_list_to_SigHashAlg certType pv
+        let keyAlg = sigHashAlg_bySigList certAlg (cert_type_list_to_SigAlg certType) in
+        Cert.for_signing certAlg hint keyAlg
 
 let getCertificateBytes (si:SessionInfo) (cert_req:(Cert.certchain * Sig.alg * Sig.skey) option) = 
   let clientCertBytes = clientCertificateBytes cert_req in
