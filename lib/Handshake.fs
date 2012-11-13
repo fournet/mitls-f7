@@ -344,21 +344,14 @@ let parseClientKEXImplicit_DH data =
 (* Digitally signed struct *)
 
 let digitallySignedBytes alg data pv =
-//#if avoid 
-//    failwith "commenting out since it does not typecheck"
-//#else
     let sign = vlbytes 2 data in
     match pv with
     | TLS_1p2 ->
         let sigHashB = sigHashAlgBytes alg in
         sigHashB @| sign
     | SSL_3p0 | TLS_1p0 | TLS_1p1 -> sign
-//#endif 
 
 let parseDigitallySigned expectedAlgs payload pv =
-//#if avoid 
-//    failwith "commenting out since it does not typecheck"
-//#else
     match pv with
     | TLS_1p2 ->
         if length payload >= 2 then
@@ -375,14 +368,14 @@ let parseDigitallySigned expectedAlgs payload pv =
                 else Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "")
         else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
     | SSL_3p0 | TLS_1p0 | TLS_1p1 ->
-        if length payload >= 2 then
-            match vlparse 2 payload with
-            | Error(x,y) -> Error(x,y)
-            | Correct(sign) ->
-            // assert: expectedAlgs contains exactly one element
-            correct(listHead expectedAlgs,sign)
-        else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
-//#endif
+        if listLength expectedAlgs = 1 then
+            if length payload >= 2 then
+                match vlparse 2 payload with
+                | Error(x,y) -> Error(x,y)
+                | Correct(sign) ->
+                correct(listHead expectedAlgs,sign)
+            else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+        else unexpectedError "[parseDigitallySigned] invoked with invalid SignatureAndHash algorithms"
 
 (* Server Key exchange *)
 
@@ -443,16 +436,18 @@ let makeCertificateVerifyBytes si ms alg skey data =
 //#if avoid 
 //    failwith "commenting out since it does not typecheck"
 //#else
-    let (alg,toSign) =
-        match si.protocol_version with
-        | TLS_1p2 | TLS_1p1 | TLS_1p0 -> (alg,data)
-        | SSL_3p0 ->
-            let (sigAlg,_) = alg in
-            let toSign = PRF.ssl_certificate_verify si ms sigAlg data in
-            ((sigAlg,NULL),toSign)
-    let signed = Sig.sign alg skey toSign in
-    let payload = digitallySignedBytes alg signed si.protocol_version in
-    messageBytes HT_certificate_verify payload
+    match si.protocol_version with
+    | TLS_1p2 | TLS_1p1 | TLS_1p0 ->
+        let signed = Sig.sign alg skey data in
+        let payload = digitallySignedBytes alg signed si.protocol_version in
+        messageBytes HT_certificate_verify payload
+    | SSL_3p0 ->
+        let (sigAlg,_) = alg in
+        let alg = (sigAlg,NULL) in
+        let toSign = PRF.ssl_certificate_verify si ms sigAlg data in
+        let signed = Sig.sign alg skey toSign in
+        let payload = digitallySignedBytes alg signed si.protocol_version in
+        messageBytes HT_certificate_verify payload
 //#endif
     
 let certificateVerifyCheck si ms algs log payload =
@@ -460,20 +455,22 @@ let certificateVerifyCheck si ms algs log payload =
 //    failwith "commenting out since it does not typecheck"
 //#else
     match parseDigitallySigned algs payload si.protocol_version with
-    | Error(x,y) -> false
     | Correct(res) ->
         let (alg,signature) = res in
-        let (alg,expected) =
-            match si.protocol_version with
-            | TLS_1p2 | TLS_1p1 | TLS_1p0 -> (alg,log)
-            | SSL_3p0 -> 
-                let (sigAlg,_) = alg in
-                let expected = PRF.ssl_certificate_verify si ms sigAlg log in
-                ((sigAlg,NULL),expected)
-        match Cert.get_chain_public_signing_key si.clientID alg with
-        | Error(x,y) -> false
-        | Correct(vkey) ->
-        Sig.verify alg vkey expected signature
+        //let (alg,expected) =
+        match si.protocol_version with
+        | TLS_1p2 | TLS_1p1 | TLS_1p0 ->
+            match Cert.get_chain_public_signing_key si.clientID alg with
+            | Error(x,y) -> false
+            | Correct(vkey) -> Sig.verify alg vkey log signature
+        | SSL_3p0 -> 
+            let (sigAlg,_) = alg in
+            let alg = (sigAlg,NULL) in
+            let expected = PRF.ssl_certificate_verify si ms sigAlg log in
+            match Cert.get_chain_public_signing_key si.clientID alg with
+            | Error(x,y) -> false
+            | Correct(vkey) -> Sig.verify alg vkey expected signature
+    | Error(x,y) -> false
 //#endif 
 
 // State machine begins

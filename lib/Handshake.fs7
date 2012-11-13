@@ -205,8 +205,8 @@ val parseClientKEXImplicit_DH: bytes -> unit Result
 (* Digitally signed and DHE parameters *)
 function val DigitallySignedBytes: Sig.alg * bytes * ProtocolVersion -> bytes
 private definition !a,p,pv.
-	(pv = TLS_1p2 => DigitallySignedBytes(a,p,pv) = SigHashAlgBytes(a) @| p) /\
-	( (pv = TLS_1p1 \/ pv = TLS_1p0 \/ pv = SSL_3p0) => DigitallySignedBytes(a,p,pv) = p)
+	(pv = TLS_1p2 => DigitallySignedBytes(a,p,pv) = SigHashAlgBytes(a) @| VLBytes(2,p)) /\
+	( (pv = TLS_1p1 \/ pv = TLS_1p0 \/ pv = SSL_3p0) => DigitallySignedBytes(a,p,pv) = VLBytes(2,p))
 
 val digitallySignedBytes: a:Sig.alg -> p:bytes -> pv:ProtocolVersion ->
 	b:bytes{b = DigitallySignedBytes(a,p,pv)}
