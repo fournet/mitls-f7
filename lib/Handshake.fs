@@ -895,7 +895,7 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) state (si:SessionInfo) ce
                 (* We sent an empty Certificate message, so no certificate verify message at all *)
                 [||]
             | Some(x) ->
-                let certList,algs,skey) = x in
+                let (certList,algs,skey) = x in
                 makeCertificateVerifyBytes si ms algs skey log
         else
             (* No client certificate ==> no certificateVerify message *)
