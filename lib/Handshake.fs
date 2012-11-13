@@ -867,15 +867,29 @@ let find_client_cert_sign certType algOpt (distName:string list) pv hint =
     let keyAlg = sigHashAlg_bySigList certAlg (cert_type_list_to_SigAlg certType) in
     Cert.for_signing certAlg hint keyAlg
 
-let getCert (cert_req:(Cert.certchain * Sig.alg * Sig.skey) option) = 
+let getCertificateBytes (si:SessionInfo) (cert_req:(Cert.certchain * Sig.alg * Sig.skey) option) = 
+  let clientCertBytes = clientCertificateBytes cert_req in
   match cert_req with
-    | None -> []
-    | Some x -> let (certList,_,_) = x in 
-                certList
+    | None when si.client_auth = true -> clientCertBytes,[]
+    | Some x when si.client_auth = true -> 
+        let (certList,_,_) = x in clientCertBytes,certList
+    | _ when si.client_auth = false -> [||],[]
+
+let getCertificateVerifyBytes (si:SessionInfo) (ms:PRF.masterSecret) (cert_req:(Cert.certchain * Sig.alg * Sig.skey) option) (l:log) =
+  match cert_req with
+    | None when si.client_auth = true ->
+        (* We sent an empty Certificate message, so no certificate verify message at all *)
+        [||]
+    | Some(x) when si.client_auth = true ->
+        let (certList,algs,skey) = x in
+          makeCertificateVerifyBytes si ms algs skey l
+    | _ when si.client_auth = false -> 
+        (* No client certificate ==> no certificateVerify message *)
+        [||]
+  
 
 let prepare_client_output_full_RSA (ci:ConnectionInfo) state (si:SessionInfo) cert_req log =
-    let clientCertBytes = clientCertificateBytes cert_req in
-    let certList = getCert cert_req in
+    let clientCertBytes,certList = getCertificateBytes si cert_req in
     let si = {si with clientID = certList}
     let log = log @| clientCertBytes in
 
@@ -888,18 +902,8 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) state (si:SessionInfo) ce
     let pop = state.poptions in 
     let ms = CRE.prfSmoothRSA si pop.maxVer pms in
     (* FIXME: here we should shred pms *)
-    let certificateVerifyBytes =
-        if si.client_auth then
-            match cert_req with
-            | None ->
-                (* We sent an empty Certificate message, so no certificate verify message at all *)
-                [||]
-            | Some(x) ->
-                let (certList,algs,skey) = x in
-                makeCertificateVerifyBytes si ms algs skey log
-        else
-            (* No client certificate ==> no certificateVerify message *)
-            [||]
+    let certificateVerifyBytes = getCertificateVerifyBytes si ms cert_req log in
+
     let log = log @| certificateVerifyBytes in
 
     (* Enqueue current messages in output buffer *)
@@ -967,7 +971,8 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) state (si:SessionInfo) ce
     correct (state,si,ms,log)
 #endif
  
-let on_serverHello_full crand log (shello:ProtocolVersion * srand * sessionID * cipherSuite * Compression * bytes) =
+let on_serverHello_full crand log to_log (shello:ProtocolVersion * srand * sessionID * cipherSuite * Compression * bytes) =
+    let log = log @| to_log in
     let (sh_server_version,sh_random,sh_session_id,sh_cipher_suite,sh_compression_method,sh_neg_extensions) = shello
     let si = { clientID = []
                client_auth = false
@@ -1073,12 +1078,11 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     | Error (x,y) -> InError (x,y,state)
                     | Correct _ ->
                         // Log the received message.
-                        let log = log @| to_log in
                         (* Check whether we asked for resumption *)
                         if equalBytes sid [||] then
                             (* we did not request resumption, do a full handshake *)
                             (* define the sinfo we're going to establish *)
-                            let next_pstate = on_serverHello_full crand log shello in
+                            let next_pstate = on_serverHello_full crand log to_log shello in
                             let state = {state with pstate = next_pstate} in
                             recv_fragment_client ci state (Some(sh_server_version))
                         else
@@ -1091,6 +1095,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                     InError(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "A session expried while it was being resumed",state)
                                 | Some(storable) ->
                                 let (si,ms) = storable in
+                                let log = log @| to_log in
                                 (* Check that protocol version, ciphersuite and compression method are indeed the correct ones *)
                                 if si.protocol_version = sh_server_version then
                                     if si.cipher_suite = sh_cipher_suite then
@@ -1106,7 +1111,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                 else InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Protocol version negotiation",state)
                             else (* server did not agree on resumption, do a full handshake *)
                                 (* define the sinfo we're going to establish *)
-                                let next_pstate = on_serverHello_full crand log shello in
+                                let next_pstate = on_serverHello_full crand log to_log shello in
                                 let state = {state with pstate = next_pstate} in
                                 recv_fragment_client ci state (Some(sh_server_version))
             | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "ServerHello arrived in the wrong state",state)

@@ -697,7 +697,17 @@ val getMinVersion:        ci:ConnectionInfo -> (;ci)hs_state -> ProtocolVersion
 
 val find_client_cert_sign: certType list -> Sig.alg list option -> string list ->
 	ProtocolVersion -> Cert.hint -> Cert.sign_cert
-val getCert: cert_req:(Cert.certchain * a:Sig.alg * (;a)Sig.skey) option -> Cert.certchain
+val getCertificateBytes: si:SessionInfo ->
+  cert_req:(Cert.certchain * a:Sig.alg * (;a)Sig.skey) option -> 
+  (b:bytes * cl:Cert.certchain){
+    (si.client_auth = true /\  b = CertificateMsg(cl)) \/
+    (si.client_auth = false /\ b = [||])}
+
+val getCertificateVerifyBytes: si:SessionInfo -> (;si) PRF.masterSecret ->
+  cert_req:(Cert.certchain * a:Sig.alg * (;a)Sig.skey) option -> log ->
+  b:bytes{(!cl,a,k. (cert_req = Some((cl,a,k)) /\ si.client_auth = true) => 
+                    (?sign. b = CertificateVerifyMsg(si.protocol_version,a,sign))) /\
+          ((cert_req = None \/ si.client_auth = false) => b = [||])}
 
 val prepare_client_output_full_RSA: ci:ConnectionInfo -> (;ci)hs_state ->
 	si:SessionInfo -> (Cert.certchain * a:Sig.alg * (;a)Sig.skey) option -> log ->
@@ -706,8 +716,10 @@ val prepare_client_output_full_DHE: ci:ConnectionInfo -> (;ci)hs_state ->
 	si:SessionInfo -> (Cert.certchain * a:Sig.alg * (;a)Sig.skey) option ->
 	p:DHGroup.p -> (;p)DHGroup.g -> (;p)DHGroup.elt -> log ->
 	((;ci)hs_state * si':SessionInfo * (;si)PRF.masterSecret * log) Result
-val on_serverHello_full: crand -> log ->
-	(ProtocolVersion * srand * sessionID * cipherSuite * Compression * bytes) -> // SHello
+val on_serverHello_full: cr:crand -> log -> to_log:bytes ->
+         (pv:ProtocolVersion * sr:random * sid:sessionID * cs:cipherSuite * cm:Compression * ext:bytes){
+         (?csid. ClientLogBeforeServerHello(cr,csid,log)) /\
+         to_log = ServerHelloMsg(pv,sr,sid,cs,cm,ext)} ->
 	protoState
 val parseMessageState: ci:ConnectionInfo -> (;ci)hs_state ->
 	((;ci)hs_state * HandshakeType * bytes * bytes) option Result
