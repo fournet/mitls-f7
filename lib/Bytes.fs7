@@ -101,6 +101,9 @@ val fold: (bytes -> bytes -> bytes) -> s:bytes -> bl:bytes list -> b:bytes{b=Unf
 val filter: ('a -> bool) -> 'a list -> 'a list
 val foldBack: (bytes -> bytes -> bytes) -> bl:bytes list -> s:bytes -> b:bytes{b=UnfoldBack(bl,s)}
 val exists: ('a -> bool) -> 'a list -> bool // Used parametrically in HS.
+
+val memr: 'a list -> 'a -> bool 
+
 val choose: ('a -> 'b option) -> 'a list -> 'b list // Not used parametrically in HS, but types are not defined here.
 val tryFind: ('a -> bool) -> 'a list -> 'a option
 val listLength: l:('a list) -> len:nat{ListLength(l)=len}

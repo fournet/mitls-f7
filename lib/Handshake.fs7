@@ -616,30 +616,16 @@ val resume:      nextSID:sessionID -> c:config  ->
 		IsInitEpoch(ci.id_out)}
 
 val rehandshake: ci:ConnectionInfo -> s:(;ci)hs_state -> c:config  ->
-	b:bool * s':(;ci)hs_state 
-
-(* {
+	b:bool * s':(;ci)hs_state{
 		((b = true /\ Config(ci,s') = c) \/ 
-                 (b = false /\ Config(ci,s') = Config(ci,s))) /\
-		SameStreams(ci,s,s')
-		} 
-*)
+                 (b = false /\ Config(ci,s') = Config(ci,s)))}
 
 val rekey: ci:ConnectionInfo -> s:(;ci)hs_state -> c:config  ->
-	   b:bool * s':(;ci)hs_state
-
-(*{
-		((b = true /\ Config(ci,s') = c) \/ (b = false /\ Config(ci,s') = Config(ci,s))) /\
-		SameStreams(ci,s,s')}
-*)
+	   b:bool * s':(;ci)hs_state{((b = true /\ Config(ci,s') = c) \/ (b = false /\ Config(ci,s') = Config(ci,s)))}
 		
 val request:     ci:ConnectionInfo -> s:(;ci)hs_state -> c:config  ->
-                 b:bool * s':(;ci)hs_state
-(*{
-		((b = true /\ Config(ci,s') = c) \/ (b = false /\ Config(ci,s') = Config(ci,s))) /\
-		SameStreams(ci,s,s')
-		}
-*)
+                 b:bool * s':(;ci)hs_state{
+		((b = true /\ Config(ci,s') = c) \/ (b = false /\ Config(ci,s') = Config(ci,s)))}
 
 val authorize:   ci:ConnectionInfo -> s:(;ci)hs_state -> c:Cert.certchain  ->
 	s':(;ci,Config(ci,s))nextState { Authorize(Config(ci,s),c) /\ SameStreams(ci,s,s') }
@@ -706,7 +692,7 @@ val getCertificateVerifyBytes: si:SessionInfo -> (;si) PRF.masterSecret ->
           ((cert_req = None \/ si.client_auth = false) => b = [||])}
 
 val prepare_client_output_full_RSA: ci:ConnectionInfo -> (;ci)hs_state ->
-	si:SessionInfo -> (Cert.certchain * a:Sig.alg * (;a)Sig.skey) option -> log ->
+	si:SessionInfo -> (Cert.certchain * a:Sig.alg * (;a)Sig.skey) option -> l:log ->
 	((;ci)hs_state * si':SessionInfo * (;si)PRF.masterSecret * log) Result
 val prepare_client_output_full_DHE: ci:ConnectionInfo -> (;ci)hs_state ->
 	si:SessionInfo -> (Cert.certchain * a:Sig.alg * (;a)Sig.skey) option ->
@@ -717,13 +703,16 @@ val on_serverHello_full: cr:crand -> l:log -> to_log:bytes ->
          (?csid. ClientLogBeforeServerHello(cr,csid,l)) /\
          to_log = ServerHelloMsg(pv,sr,sid,cs,cm,ext)} ->
 	protoState
-val parseMessageState: ci:ConnectionInfo -> (;ci)hs_state ->
-	((;ci)hs_state * HandshakeType * bytes * bytes) option Result
+val parseMessageState: ci:ConnectionInfo -> hs:(;ci)hs_state ->
+	(hs':(;ci)hs_state * ht:HandshakeType * pl:bytes * to_log:bytes{Config(ci,hs) = Config(ci,hs') /\
+                                                                     to_log = MessageBytes(ht,pl)}) option Result
 val recv_fragment_client: ci:ConnectionInfo -> s:(;ci)hs_state -> ProtocolVersion option ->
 	(;ci,Config(ci,s))incoming
 
-val prepare_server_output_full_RSA: ci:ConnectionInfo -> (;ci)hs_state -> SessionInfo ->
-	ProtocolVersion -> Sig.alg list -> cVerifyData -> sVerifyData -> log ->
+val prepare_server_output_full_RSA: ci:ConnectionInfo -> (;ci)hs_state -> si:SessionInfo ->
+	pv:ProtocolVersion -> Sig.alg list -> cVerifyData -> sVerifyData -> l:log{
+          ?csid,cs,cm,ex. l = ClientHelloMsg(pv,si.init_crand,cs,cm,ex)
+        }->
 	((;ci)hs_state * ProtocolVersion) Result
 val prepare_server_output_full_DH: 'a -> 'b -> 'c -> 'd -> res:('e Result){?x,y. res = Error(x,y)}
 val prepare_server_output_full_DHE: ci:ConnectionInfo -> (;ci)hs_state -> SessionInfo ->
@@ -732,8 +721,10 @@ val prepare_server_output_full_DHE: ci:ConnectionInfo -> (;ci)hs_state -> Sessio
 val prepare_server_output_full_DH_anon: ci:ConnectionInfo -> (;ci)hs_state -> SessionInfo ->
 	cVerifyData -> sVerifyData -> log ->
 	((;ci)hs_state * ProtocolVersion) Result
-val prepare_server_output_full: ci:ConnectionInfo -> (;ci)hs_state -> SessionInfo ->
-	ProtocolVersion -> Sig.alg list -> cVerifyData -> sVerifyData -> log ->
+val prepare_server_output_full: ci:ConnectionInfo -> (;ci)hs_state -> si:SessionInfo ->
+	pv:ProtocolVersion -> Sig.alg list -> cVerifyData -> sVerifyData -> l:log{
+          ?csid,cs,cm,ex. l = ClientHelloMsg(pv,si.init_crand,cs,cm,ex)
+        } ->
 	((;ci)hs_state * ProtocolVersion) Result
 val negotiate: 'a list -> 'a list -> 'a option
 val prepare_server_output_resumption: ci:ConnectionInfo -> (;ci)hs_state -> crand ->
@@ -741,7 +732,7 @@ val prepare_server_output_resumption: ci:ConnectionInfo -> (;ci)hs_state -> cran
 	(;ci)hs_state
 val startServerFull: ci:ConnectionInfo -> s:(;ci)hs_state -> 
 	(ProtocolVersion * crand * sessionID * cipherSuites * Compression list * bytes) ->// CHello
-	cVerifyData -> sVerifyData -> log -> ((;ci)hs_state * ProtocolVersion) Result
+	cVerifyData -> sVerifyData -> l:log -> ((;ci)hs_state * ProtocolVersion) Result
 val recv_fragment_server: ci:ConnectionInfo -> s:(;ci)hs_state -> pv:ProtocolVersion option ->
 	(;ci,Config(ci,s))incoming
 val enqueue_fragment: ci:ConnectionInfo -> (;ci)hs_state -> bytes -> (;ci)hs_state

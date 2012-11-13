@@ -59,6 +59,7 @@ let fold (op: bytes-> bytes-> bytes) state data = List.fold op state data
 let filter f l = List.filter f l
 let foldBack (f:bytes -> bytes -> bytes) bl s = List.foldBack f bl s
 let exists f l = List.exists f l
+let memr l x = List.mem x l
 let choose f l = List.choose f l
 let tryFind f l = List.tryFind f l
 #if ideal

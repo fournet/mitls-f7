@@ -695,11 +695,12 @@ let request (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     | PSServer (sstate) ->
         match sstate with
         | ServerIdle(cvd,svd) ->
+            let sdb = SessionDB.create ops
             (* Put HelloRequest in outgoing buffer (and do not log it), and move to the ClientHello state (so that we don't send HelloRequest again) *)
             (true, { hs_outgoing = helloRequestBytes
                      hs_incoming = [||]
                      poptions = ops
-                     sDB = SessionDB.create ops
+                     sDB = sdb
                      pstate = PSServer(ClientHello(cvd,svd))
                     })
         | _ -> (* Handshake already ongoing, ignore this request *)
@@ -1036,24 +1037,45 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Error(x,y) -> InError(x,y,state)
                 | Correct (shello) ->
                   let (sh_server_version,sh_random,sh_session_id,sh_cipher_suite,sh_compression_method,sh_neg_extensions) = shello
+                  let pop = state.poptions
                   // Sanity checks on the received message; they are security relevant. 
                   // Check that the server agreed version is between maxVer and minVer.
-                  if  (geqPV sh_server_version state.poptions.minVer 
-                       && geqPV state.poptions.maxVer sh_server_version) = false
-                  then InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Protocol version negotiation",state)
+                  if  (geqPV sh_server_version pop.minVer 
+                       && geqPV pop.maxVer sh_server_version) = false
+                  then 
+#if avoid
+                  failwith "does not typecheck for some silly reason"
+#else
+                    InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Protocol version negotiation",state)
+#endif
                   else
                   // Check that the negotiated ciphersuite is in the proposed list.
                   // Note: if resuming a session, we still have to check that this ciphersuite is the expected one!
-                  if  (Bytes.exists (fun x -> x = sh_cipher_suite) state.poptions.ciphersuites) = false
-                  then InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Ciphersuite negotiation",state)
+                  if  (Bytes.memr state.poptions.ciphersuites sh_cipher_suite) = false
+                  then 
+#if avoid
+                  failwith "does not typecheck for some silly reason"
+#else
+                    InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Ciphersuite negotiation",state)
+#endif
                   else
                   // Check that the compression method is in the proposed list.
-                  if (Bytes.exists (fun x -> x = sh_compression_method) state.poptions.compressions) = false
-                  then InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Compression method negotiation",state)
+                  if (Bytes.memr state.poptions.compressions sh_compression_method) = false
+                  then 
+#if avoid
+                  failwith "does not typecheck for some silly reason"
+#else
+                    InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Compression method negotiation",state)
+#endif
                   else
                   // Parse extensions
                   match parseExtensions sh_neg_extensions with
-                  | Error(x,y) -> InError(x,y,state)
+                  | Error(x,y) -> 
+#if avoid
+                      failwith "z3 error"
+#else
+                      InError(x,y,state)
+#endif
                   | Correct(extList) ->
                   // Handling of safe renegotiation
                   let safe_reneg_result =
@@ -1067,7 +1089,12 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         then Error(AD_unsupported_extension, perror __SOURCE_FILE__ __LINE__ "The server gave an unknown extension")
                         else let unitVal = () in correct (unitVal)
                   match safe_reneg_result with
-                    | Error (x,y) -> InError (x,y,state)
+                    | Error (x,y) -> 
+#if avoid
+                        failwith "z3 fails"
+#else
+                        InError (x,y,state)
+#endif
                     | Correct _ ->
                         // Log the received message.
                         (* Check whether we asked for resumption *)
@@ -1076,7 +1103,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                             (* define the sinfo we're going to establish *)
                             let next_pstate = on_serverHello_full crand log to_log shello in
                             let state = {state with pstate = next_pstate} in
-                            recv_fragment_client ci state (Some(sh_server_version))
+                            let sv = Some sh_server_version in
+                            recv_fragment_client ci state sv
                         else
                             if equalBytes sid sh_session_id then (* use resumption *)
                                 (* Search for the session in our DB *)
@@ -1084,7 +1112,11 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                 | None ->
                                     (* This can happen, although we checked for the session before starting the HS.
                                        For example, the session may have expired between us sending client hello, and now. *)
+#if avoid
+                                    failwith "z3 fails"
+#else
                                     InError(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "A session expried while it was being resumed",state)
+#endif
                                 | Some(storable) ->
                                 let (si,ms) = storable in
                                 let log = log @| to_log in
@@ -1098,22 +1130,47 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                                                                                       next_ci.id_in,reader,
                                                                                                       ms,log))} in
                                             recv_fragment_client ci state (Some(sh_server_version))
-                                        else InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Compression method negotiation",state)
-                                    else InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Ciphersuite negotiation",state)
-                                else InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Protocol version negotiation",state)
+                                        else 
+#if avoid
+                                          failwith "z3 fails"
+#else
+                                          InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Compression method negotiation",state)
+#endif
+                                    else 
+#if avoid
+                                      failwith "z3 fails"
+#else
+
+                                      InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Ciphersuite negotiation",state)
+#endif
+                                else 
+#if avoid
+                                  failwith "z3 fails"
+#else
+                                  InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Protocol version negotiation",state)
+#endif
                             else (* server did not agree on resumption, do a full handshake *)
                                 (* define the sinfo we're going to establish *)
                                 let next_pstate = on_serverHello_full crand log to_log shello in
                                 let state = {state with pstate = next_pstate} in
                                 recv_fragment_client ci state (Some(sh_server_version))
-            | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "ServerHello arrived in the wrong state",state)
-        
+            | _ -> 
+#if avoid
+                failwith "z3 fails"
+#else
+                InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "ServerHello arrived in the wrong state",state)
+#endif        
         | HT_certificate ->
             match cState with
             // FIXME: Most of the code in the branches is duplicated
             | ServerCertificateRSA (si,log) ->
                 match parseClientOrServerCertificate payload with
-                | Error(x,y) -> InError(x,y,state)
+                | Error(x,y) -> 
+#if avoid
+                    failwith "z3 fails"
+#else
+                    InError(x,y,state)
+#endif
                 | Correct(certs) ->
                     let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, this is the same as we sent in our extension
                     if Cert.is_chain_for_key_encryption certs then
@@ -1129,10 +1186,19 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                             let state = {state with pstate = PSClient(ClientCheckingCertificateRSA(si,log,to_log))} in
                             InQuery(certs,state)
                     else
+#if avoid
+                        failwith "z3 fails"
+#else
                         InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Server sent wrong certificate type",state)
+#endif
             | ServerCertificateDHE (si,log) ->
                 match parseClientOrServerCertificate payload with
-                | Error(x,y) -> InError(x,y,state)
+                | Error(x,y) -> 
+#if avoid
+                        failwith "z3 fails"
+#else
+                    InError(x,y,state)
+#endif
                 | Correct(certs) ->
                     let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, this is the same as we sent in our extension
                     if Cert.is_chain_for_signing certs then
@@ -1148,20 +1214,43 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                             let state = {state with pstate = PSClient(ClientCheckingCertificateDHE(si,log,to_log))} in
                             InQuery(certs,state)
                     else
+#if avoid
+                        failwith "z3 error"
+#else
                         InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Server sent wrong certificate type",state)
-            | ServerCertificateDH (si,log) -> InError(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Unimplemented",state) // TODO
-            | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "Certificate arrived in the wrong state",state)
-
+#endif
+            | ServerCertificateDH (si,log) -> 
+#if avoid
+                        failwith "z3 error"
+#else
+                InError(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Unimplemented",state) // TODO
+#endif
+            | _ -> 
+#if avoid
+                        failwith "z3 error"
+#else
+                InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "Certificate arrived in the wrong state",state)
+#endif
 
         | HT_server_key_exchange ->
             match cState with
             | ServerKeyExchangeDHE(si,log) ->
                 match parseServerKeyExchange_DHE si.protocol_version si.cipher_suite payload with
-                | Error(x,y) -> InError(x,y,state)
+                | Error(x,y) -> 
+#if avoid
+                    failwith "z3 error"
+#else
+                    InError(x,y,state)
+#endif
                 | Correct(v) ->
                     let (p,g,y,alg,signature) = v in
                     match Cert.get_chain_public_signing_key si.serverID alg with
-                    | Error(x,y) -> InError(x,y,state)
+                    | Error(x,y) -> 
+#if avoid
+                        failwith "z3 error"
+#else
+                        InError(x,y,state)
+#endif
                     | Correct(vkey) ->
                     let dheb = dheParamBytes p g y in
                     let expected = si.init_crand @| si.init_srand @| dheb in
@@ -1314,12 +1403,12 @@ let prepare_server_output_full_RSA (ci:ConnectionInfo) state si cv calgs cvd svd
         let log = log @| output in
         let state = {state with hs_outgoing = output} in
         (* Compute the next state of the server *)
-        let state =
-            if si.client_auth then
-                {state with pstate = PSServer(ClientCertificateRSA(si,cv,sk,log))}
-            else
-                {state with pstate = PSServer(ClientKeyExchangeRSA(si,cv,sk,log))}
-        correct (state,si.protocol_version)
+        if si.client_auth then
+           state = {state with pstate = PSServer(ClientCertificateRSA(si,cv,sk,log))}
+           correct (state,si.protocol_version)
+        else
+           state = {state with pstate = PSServer(ClientKeyExchangeRSA(si,cv,sk,log))}
+           correct (state,si.protocol_version)
 
 let prepare_server_output_full_DH ci state si log =
     Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Unimplemented") // TODO
