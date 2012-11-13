@@ -716,9 +716,9 @@ val prepare_client_output_full_DHE: ci:ConnectionInfo -> (;ci)hs_state ->
 	si:SessionInfo -> (Cert.certchain * a:Sig.alg * (;a)Sig.skey) option ->
 	p:DHGroup.p -> (;p)DHGroup.g -> (;p)DHGroup.elt -> log ->
 	((;ci)hs_state * si':SessionInfo * (;si)PRF.masterSecret * log) Result
-val on_serverHello_full: cr:crand -> log -> to_log:bytes ->
+val on_serverHello_full: cr:crand -> l:log -> to_log:bytes ->
          (pv:ProtocolVersion * sr:random * sid:sessionID * cs:cipherSuite * cm:Compression * ext:bytes){
-         (?csid. ClientLogBeforeServerHello(cr,csid,log)) /\
+         (?csid. ClientLogBeforeServerHello(cr,csid,l)) /\
          to_log = ServerHelloMsg(pv,sr,sid,cs,cm,ext)} ->
 	protoState
 val parseMessageState: ci:ConnectionInfo -> (;ci)hs_state ->
