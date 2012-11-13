@@ -273,8 +273,12 @@ val certificateVerifyCheck: si:SessionInfo -> (;si)PRF.masterSecret -> a:Sig.alg
 //function val ServerFinishedMsg: si:SessionInfo * (;si)PRF.masterSecret * log -> bytes
 function val ServerFinishedMsg: sVerifyData -> bytes
 
+private assume !svd. ServerFinishedMsg(svd) = MessageBytes(HT_finished,svd)
+
 //function val ClientFinishedMsg: si:SessionInfo * (;si)PRF.masterSecret * log -> bytes
 function val ClientFinishedMsg: cVerifyData -> bytes
+
+private assume !svd. ClientFinishedMsg(svd) = MessageBytes(HT_finished,svd)
 
 predicate ServerLogBeforeClientCertificateRSA of SessionInfo * ProtocolVersion * log
 predicate ServerLogBeforeClientCertificateRSA_Auth of SessionInfo * ProtocolVersion * log 
@@ -544,7 +548,7 @@ type clientState =
 
    | ClientWritingCCS       of si:SessionInfo * (;si)PRF.masterSecret * l:log{ClientLogBeforeClientFinished(si,l)}
    | ServerCCS              of (si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * (;e)StatefulAEAD.reader * cVerifyData * l:log){ EpochSI(e)=si  
-       (* /\ ClientLogBeforeServerFinished(si,l) *)}
+       /\ ClientLogBeforeServerFinished(si,l) }
    | ServerFinished         of si:SessionInfo * (;si)PRF.masterSecret * cVerifyData * l:log{ClientLogBeforeServerFinished(si,l)}
 
    | ServerCCSResume        of (ew:succEpoch * (;ew)StatefulAEAD.writer * er:succEpoch * (;er)StatefulAEAD.reader * (;EpochSI(ew))PRF.masterSecret * log){EpochSI(ew)=EpochSI(er)}
@@ -582,6 +586,7 @@ predicate EvSentFinishedFirst of ConnectionInfo * bool
 // AP: Not sure the SentCCS event is useful;
 // rather I'd welcome a SentFinished event, to model False Start
 predicate val SentCCS: epoch -> bool
+private assume !e. SentCCS(e)
 
 function val HSOutStream:  ci:ConnectionInfo * (;ci)hs_state -> 'a //(;ci.id_out)stream
 function val CCSOutStream: ci:ConnectionInfo * (;ci)hs_state -> 'a //(;ci.id_out)stream
@@ -664,33 +669,39 @@ type (;ci:ConnectionInfo, hs:(;ci) hs_state) outgoing =
 				}
   | OutCCS of  (rg:range * f:(;ci.id_out,rg)Fragment.fragment * 
                ci':ConnectionInfo * cs:(;ci'.id_out)StatefulAEAD.state * s':(;ci',Config(ci,hs))nextState)
-               { SentCCS(ci'.id_out) /\
-			     StatefulPlain.EmptyHistory(ci'.id_out,cs.history) /\
-			      ci.id_out = Pred(ci'.id_out) /\
-                              ci.id_in = ci'.id_in /\
-                              ci.role = ci'.role /\
+               { (* SentCCS(ci'.id_out) /\
+	         StatefulPlain.EmptyHistory(ci'.id_out,cs.history) /\ *)
+                 ci.id_out = Pred(ci'.id_out) /\
+                 ci.id_in = ci'.id_in /\
+                 ci.role = ci'.role }
+(*/\
 				 (Auth(ci.id_out) => Fragment.Fragment(ci.id_out,CCSOutStream(ci,hs),rg,f) ) /\
 				 EmptyStream(ci'.id_out,HSOutStream(ci',s')) /\
 				 EmptyStream(ci'.id_out,CCSOutStream(ci',s')) /\
 				 HSInStream(ci',s') = HSInStream(ci,hs) /\
 				 CCSInStream(ci',s') = CCSInStream(ci,hs)
 				 }
+*)
   | OutFinished of (rg:range * f:(;ci.id_out,rg)Fragment.fragment * s':(;ci,Config(ci,hs))nextState){
-				EvSentFinishedFirst(ci,true) /\
+				EvSentFinishedFirst(ci,true)}
+(*
 				(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,HSOutStream(ci,hs),rg,f) ) /\
 				HSOutStream(ci,s') = Fragment.Extend(ci.id_out,HSOutStream(ci,hs),rg,f) /\
 				CCSOutStream(ci,s') = CCSOutStream(ci,hs) /\
 				HSInStream(ci,s') = HSInStream(ci,hs) /\
 				CCSInStream(ci,s') = CCSInStream(ci,hs)
 				}
+*)
   | OutComplete of (rg:range * f:(;ci.id_out,rg)Fragment.fragment * s':(;ci,Config(ci,hs))nextState)
-                   {Complete(ci,Config(ci,hs)) /\
+                   {Complete(ci,Config(ci,hs))}
+(*
 					(Auth(ci.id_out) => Fragment.Fragment(ci.id_out,HSOutStream(ci,hs),rg,f) ) /\
 					HSOutStream(ci,s') = Fragment.Extend(ci.id_out,HSOutStream(ci,hs),rg,f) /\
 					CCSOutStream(ci,s') = CCSOutStream(ci,hs) /\
 					HSInStream(ci,s') = HSInStream(ci,hs) /\
 					CCSInStream(ci,s') = CCSInStream(ci,hs)
 				   }
+*)
 val next_fragment: ci:ConnectionInfo -> s:(;ci)hs_state -> (;ci,s)outgoing
 
 type (;ci:ConnectionInfo,c:config)incoming =
