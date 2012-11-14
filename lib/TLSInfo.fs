@@ -54,7 +54,7 @@ let epochCRand e =
     | SuccEpoch (cr,sr,si,pe) -> cr
 
 type ConnectionInfo = {
-    role: Role;
+    role: Role; // cached, could be retrieved from id_out
     id_in: epoch;
     id_out: epoch}
 
