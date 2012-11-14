@@ -177,6 +177,9 @@
     <None Include="RPCDataStream.fs7" />
     <Compile Include="RPCDataStream.fsi" />
     <Compile Include="RPCDataStream.fs" />
+    <None Include="PwDataStream.fs7" />
+    <Compile Include="PwDataStream.fsi" />
+    <Compile Include="PwDataStream.fs" />
     <None Include="Fragment.fs7" />
     <Compile Include="Fragment.fsi" />
     <Compile Include="Fragment.fs" />
