@@ -249,6 +249,11 @@
     <None Include="RPC.fs7" />
     <Compile Include="RPC.fsi" />
     <Compile Include="RPC.fs" />
+    <Compile Include="PwToken.fsi" />
+    <Compile Include="PwToken.fs" />
+    <None Include="PwApp.fs7" />
+    <Compile Include="PwApp.fsi" />
+    <Compile Include="PwApp.fs" />
     <None Include="UTLS.fs7" />
     <Compile Include="UTLS.fsi" />
     <Compile Include="UTLS.fs" />

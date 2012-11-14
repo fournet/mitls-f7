@@ -1,0 +1,15 @@
+﻿module PwApp
+
+(*
+event Authenticated of string
+
+definition !name, token.  AuthenticatedWithTk(name, token) => Authenticated(name)
+
+val request : name:string -> my:string -> token:token -> b:bool{
+  b = true => ?si. CN(si.serverID) = name /\ (Strong(si.cipher_suite) /\ Honest(si.serverID) => Authenticated(my)) 
+}
+
+val response : unit -> name:string{
+  ?si, token. Strong(si.cipher_suite) => AuthenticatedWithTk(name, token)
+} option
+*)
