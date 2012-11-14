@@ -36,9 +36,13 @@ type TLStream(s:System.Net.Sockets.NetworkStream, options, b) =
         | TLS.Close ns -> raise (IOException(sprintf "TLS-HS: Connection closed during HS"))
         | TLS.Fatal ad -> raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
         | TLS.Warning (conn,ad) -> raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
-        | TLS.CertQuery (conn,q) ->
-            TLS.refuse conn q
-            raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate"))
+        | TLS.CertQuery (conn,q,advice) ->
+            if advice then
+                let conn = TLS.authorize conn q in
+                doHS conn
+            else
+                TLS.refuse conn q
+                raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate"))
         | TLS.Handshaken conn -> closed <- false; conn
         | TLS.Read (conn,msg) ->
             let b = undoMsg_i conn msg
@@ -55,9 +59,13 @@ type TLStream(s:System.Net.Sockets.NetworkStream, options, b) =
         | TLS.Close ns -> closed <- true; (conn,[||]) // FIXME: this is an old connection, should not be used!
         | TLS.Fatal ad -> raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
         | TLS.Warning (conn,ad) -> raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
-        | TLS.CertQuery (conn,q) ->
-            TLS.refuse conn q
-            raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate"))
+        | TLS.CertQuery (conn,q,advice) ->
+            if advice then
+                let conn = TLS.authorize conn q in
+                wrapRead conn
+            else
+                TLS.refuse conn q
+                raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate"))
         | TLS.Handshaken conn -> wrapRead conn
         | TLS.Read (conn,msg) ->
             let read = undoMsg_i conn msg in
