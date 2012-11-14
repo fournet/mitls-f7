@@ -31,10 +31,19 @@ class SSLError(SSLException):
 # --------------------------------------------------------------------
 # OpenSSL
 
-import OpenSSL.SSL as ossl
+import OpenSSL, OpenSSL.SSL as ossl
+
+OSSL_MIN_VERSION = (0, 12)
+
+if tuple(map(int, OpenSSL.__version__.split('.'))) < OSSL_MIN_VERSION:
+    raise RuntimeError('invalid py-openssl version (< %r)' % (OSSL_MIN_VERSION,))
 
 class OSSLTunnel(object):
     _CIPHERS = {
+        'TLS_RSA_WITH_NULL_MD5'           : 'NULL-MD5'     ,
+        'TLS_RSA_WITH_NULL_SHA'           : 'NULL-SHA'     ,
+        'TLS_RSA_WITH_NULL_SHA256'        : None           ,
+        'TLS_RSA_WITH_RC4_128_MD5'        : 'RC4-MD5'      ,
         'TLS_RSA_WITH_RC4_128_SHA'        : 'RC4-SHA'      ,
         'TLS_RSA_WITH_3DES_EDE_CBC_SHA'   : 'DES-CBC3-SHA' ,
         'TLS_RSA_WITH_AES_128_CBC_SHA'    : 'AES128-SHA'   ,
@@ -117,12 +126,14 @@ def _check_for_config(driver, config):
         sessiondir = tempfile.mkdtemp()
         logging.debug('...created [%s]' % (sessiondir,))
 
-        command = ['mono', '../bin/EchoServer.exe',
+        command = ['../bin/EchoServer.exe',
                    '--bind-address' , str(config.address[0]),
                    '--bind-port'    , str(config.address[1]),
                    '--ciphers'      , config.cipher,
                    '--server-name'  , config.servname,
                    '--sessionDB-dir', sessiondir]
+        if sys.platform.lower() not in ('cygwin', 'win32'):
+            command = ['mono', '--debug'] + command
 
         logging.debug('Starting echo server [%s]' % (' '.join(command)))
 
@@ -200,6 +211,10 @@ def _main():
 
     for cipher in ciphers:
         logging.info("Checking for cipher: `%s'" % (cipher,))
+
+        if driver._CIPHERS.get(cipher, None) is None:
+            logging.info("Cipher `%s' not supported by driver" % (cipher,))
+            continue
 
         config = Object(cacrt    = 'pki/certificates/ca.crt',
                         cipher   = cipher,
