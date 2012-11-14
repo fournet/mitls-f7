@@ -91,21 +91,21 @@ val nextEpoch: e:epoch -> c:crand -> s:srand -> si:SessionInfo ->
 /// Predicates specifying cryptographic assumptions on algorithms 
 
 // relocate to TLSConstants?
-predicate CPA of cipherAlg
+predicate CPA of cipherAlg //IND-CPA
 // some reasonable assumptions:
 // assume(CPA(AES_128_CBC))
 // assume(CPA(AES_256_CBC))
 
-predicate CMA of hashAlg
+predicate CMA of hashAlg //INT-CMA_M
 // some reasonable assumptions:
 // assume(CMA(SHA))
 // assume(CMA(SHA256))
 // assume(CMA(SHA384))
 
-predicate CTXT of cipherAlg * hashAlg
+predicate CTXT of cipherAlg * hashAlg //INT-CTXT
 // some reasonable assumptions:
-// assume !e. PRF(m) => CTXT(AES_128_CBC,m)
-// assume !e. PRF(m) => CTXT(AES_256_CBC,m)
+// assume !e. PRF(m)  => CTXT(AES_128_CBC,m) // /\ SPRP(AES_128)
+// assume !e. PRF(m)  => CTXT(AES_256_CBC,m) // /\ SPRP(AES_256)
 
 predicate StrongAE of cipherSuite
 predicate StrongAuth of cipherSuite
@@ -120,6 +120,26 @@ predicate type cryptopreds =
   | SafeHS of epoch // specified by the Handshake
   | Safe of epoch // The epoch parameters yield privacy & integrity
   | Auth of epoch // The epoch parameters yield integrity (not necesarily privacy)
+
+(*
+
+predicate IND-CMA_S of ProtocolVersion * cipherSuite
+predicate CRE of ProtocolVersion * cipherSuite
+predicate PRF of ProtocolVersion * cipherSuite
+predicate RSA-PMS of ProtocolVersion * cipherSuite
+predicate DH-PMS of ProtocolVersion * cipherSuite
+predicate StrongHS of ProtocolVersion * cipherSuite
+
+definition !v,s. StrongHS(v,s) <=> INT-CMA_S(v,s) /\ CRE(v,s) /\ PRF(v,s) /\ ( RSA_PMS(v,s) \/ DH_PMS(v,s) )
+
+predicate SafeHS of epoch
+
+definition !e. SafeHS(id) <=> StrongHS(EpochSI(id).protocol_version,CS(id)) /\ Honest(LTKey(id)) /\ Honest(LTKey(Peer(id)))
+
+predicate Save of epoch
+predicate Auth of epoch
+
+*)
   
 definition !i. Safe(i) <=> (SafeHS(i) /\ StrongAE(EpochSI(i).cipher_suite))
 definition !i. Auth(i) <=> (SafeHS(i) /\ StrongAuth(EpochSI(i).cipher_suite))
