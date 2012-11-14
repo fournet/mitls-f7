@@ -56,7 +56,7 @@ type readOutcome =
     | RError of string (* internal *)
     | RAgain
     | RAppDataDone
-    | RQuery of query
+    | RQuery of query * bool
     | RHSDone
     | RClose
     | RFatal of alertDescription (* The received alert *)

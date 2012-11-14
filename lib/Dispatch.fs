@@ -68,7 +68,7 @@ type readOutcome =
     | RError of string (* internal *)
     | RAgain
     | RAppDataDone
-    | RQuery of query
+    | RQuery of query * bool
     | RHSDone
     | RClose
     | RFatal of alertDescription (* The alert we received *)
@@ -478,12 +478,12 @@ let readOne (Conn(id,c)) =
                                     // KB: To Fix                           
                                     //Pi.assume (GState(id,c));  
                                     (RAgain, Conn(id, c))
-                        | Handshake.InQuery(query,hs) ->
+                        | Handshake.InQuery(query,advice,hs) ->
                                 let c = {c with read = c_read;
                                                 handshake = hs} in
                                     // KB: To Fix                           
                                     //Pi.assume (GState(id,c));  
-                                    (RQuery(query),Conn(id,c))
+                                    (RQuery(query,advice),Conn(id,c))
                         | Handshake.InFinished(hs) ->
                                 (* Ensure we are in Finishing state *)
                                 match c_read.disp with
@@ -633,8 +633,8 @@ let rec read c =
                 //Pi.assume (GState(id,conn));
                 c,RAppDataDone,Some(b)
             | (None,_) -> unexpectedError "[read] When RAppDataDone, some data should have been read."
-        | RQuery(q) ->
-            c,RQuery(q),None
+        | RQuery(q,adv) ->
+            c,RQuery(q,adv),None
         | RHSDone ->
             c,RHSDone,None
         | RClose ->

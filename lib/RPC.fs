@@ -57,14 +57,14 @@ type DrainResult =
 
 let rec drainMeta = fun conn ->
   match TLS.read conn with
-  | ReadError  (ad,err)  -> DRError (ad,err)
-  | Close      s         -> DRClosed s
-  | Fatal      e         -> DRError (Some(e),"")
-  | Warning    (conn, _) -> DRContinue conn
-  | CertQuery  (conn, q) -> DRContinue (authorize conn q)
-  | Handshaken conn      -> DRContinue conn
-  | DontWrite  conn      -> drainMeta conn
-  | Read       (conn, _) ->
+  | ReadError  (ad,err)          -> DRError (ad,err)
+  | Close      s                 -> DRClosed s
+  | Fatal      e                 -> DRError (Some(e),"")
+  | Warning    (conn, _)         -> DRContinue conn
+  | CertQuery  (conn, q, advice) -> if advice then DRContinue (authorize conn q) else refuse conn q; DRError(None,"")
+  | Handshaken conn              -> DRContinue conn
+  | DontWrite  conn              -> drainMeta conn
+  | Read       (conn, _)         ->
         ignore (TLS.full_shutdown conn)
         DRError (None,perror __SOURCE_FILE__ __LINE__ "Internal TLS error")
 
@@ -82,14 +82,14 @@ let rec sendMsg = fun conn rg msg ->
 let recvMsg = fun conn ->
     let rec doit = fun conn buffer ->
         match TLS.read conn with
-          | ReadError  _              -> None
-          | Close      _              -> None
-          | Fatal      _              -> None
-          | Warning    (conn, _)      -> doit conn buffer
-          | CertQuery  (conn, q)      -> doit (authorize conn q) buffer
-          | Handshaken conn           -> doit conn buffer
-          | DontWrite  conn           -> doit conn buffer
-          | Read       (conn, (r, d)) ->
+          | ReadError  _                 -> None
+          | Close      _                 -> None
+          | Fatal      _                 -> None
+          | Warning    (conn, _)         -> doit conn buffer
+          | CertQuery  (conn, q, advice) -> if advice then doit (authorize conn q) buffer else refuse conn q; None
+          | Handshaken conn              -> doit conn buffer
+          | DontWrite  conn              -> doit conn buffer
+          | Read       (conn, (r, d))    ->
                 let ki     = Dispatch.getEpochIn  conn in
                 let s      = TLS.getInStream conn in
                 let buffer = buffer @| (DataStream.deltaRepr ki s r d) in

@@ -12,7 +12,7 @@ type ioresult_i =
     | Close     of Tcp.NetworkStream
     | Fatal     of alertDescription
     | Warning   of nextCn * alertDescription 
-    | CertQuery of nextCn * query
+    | CertQuery of nextCn * query * bool
     | Handshaken of Connection
     | Read      of nextCn * msg_i
     | DontWrite of Connection

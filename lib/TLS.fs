@@ -13,7 +13,7 @@ type ioresult_i =
     | Close     of Tcp.NetworkStream
     | Fatal     of alertDescription
     | Warning   of nextCn * alertDescription 
-    | CertQuery of nextCn * query
+    | CertQuery of nextCn * query * bool
     | Handshaken of Connection
     | Read      of nextCn * msg_i
     | DontWrite of Connection
@@ -44,7 +44,7 @@ let read ca =
       | WriteOutcome(WError(err)),_ -> ReadError(None,err)
       | RError(err),_ -> ReadError(None,err)
       | RAppDataDone,Some(b) -> Read(cb,b)
-      | RQuery(q),_ -> CertQuery(cb,q)
+      | RQuery(q,adv),_ -> CertQuery(cb,q,adv)
       | RHSDone,_ -> Handshaken(cb)
       | RClose,_ -> Close (networkStream cb)
       | RFatal(ad),_ -> Fatal(ad)

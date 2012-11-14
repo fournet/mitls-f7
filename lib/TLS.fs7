@@ -31,8 +31,9 @@ type (;c:Connection) ioresult_i =
   }
   // We received a warning (at this point in the input stream)
 
-| CertQuery of c':(;c) nextCn * query {Extend(c, c')} 
+| CertQuery of c':(;c) nextCn * query * advice:bool {Extend(c, c')} 
   // We received the peer certificates for the next epoch, to be authorized before proceeding.
+  // "advice" is what the Windows certificate store said about this certificate.
 
 | Handshaken of c':Connection {
        Role(c') = Role(c)

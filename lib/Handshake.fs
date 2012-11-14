@@ -839,7 +839,7 @@ let next_fragment ci state =
 type incoming = (* the fragment is accepted, and... *)
   | InAck of hs_state
   | InVersionAgreed of hs_state * ProtocolVersion
-  | InQuery of Cert.certchain * hs_state
+  | InQuery of Cert.certchain * bool * hs_state
   | InFinished of hs_state
     // FIXME: StorableSession
   | InComplete of hs_state
@@ -1179,17 +1179,9 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Correct(certs) ->
                     let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, this is the same as we sent in our extension
                     if Cert.is_chain_for_key_encryption certs then
-                        if Cert.validate_cert_chain allowedAlgs certs then
-                            (* We have validated server identity *)
-                            (* Log the received packet *)
-                            let log = log @| to_log in        
-                            (* update the sinfo we're establishing *)
-                            let si = {si with serverID = certs} in
-                            let state = {state with pstate = PSClient(CertificateRequestRSA(si,log))} in
-                            recv_fragment_client ci state agreedVersion
-                        else // ask the user
-                            let state = {state with pstate = PSClient(ClientCheckingCertificateRSA(si,log,to_log))} in
-                            InQuery(certs,state)
+                        let advice = Cert.validate_cert_chain allowedAlgs certs in
+                        let state = {state with pstate = PSClient(ClientCheckingCertificateRSA(si,log,to_log))} in
+                        InQuery(certs,advice,state)
                     else
 #if avoid
                         failwith "z3 fails"
@@ -1207,17 +1199,9 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Correct(certs) ->
                     let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, this is the same as we sent in our extension
                     if Cert.is_chain_for_signing certs then
-                        if Cert.validate_cert_chain allowedAlgs certs then
-                            (* We have validated server identity *)
-                            (* Log the received packet *)
-                            let log = log @| to_log in        
-                            (* update the sinfo we're establishing *)
-                            let si = {si with serverID = certs} in
-                            let state = {state with pstate = PSClient(ServerKeyExchangeDHE(si,log))} in
-                            recv_fragment_client ci state agreedVersion
-                        else // ask the user
-                            let state = {state with pstate = PSClient(ClientCheckingCertificateDHE(si,log,to_log))} in
-                            InQuery(certs,state)
+                        let advice = Cert.validate_cert_chain allowedAlgs certs in
+                        let state = {state with pstate = PSClient(ClientCheckingCertificateDHE(si,log,to_log))} in
+                        InQuery(certs,advice,state)
                     else
 #if avoid
                         failwith "z3 error"
@@ -1620,18 +1604,9 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(certs) ->
                     if Cert.is_chain_for_signing certs then
-                        if Cert.validate_cert_chain (default_sigHashAlg si.protocol_version si.cipher_suite) certs then
-                            (* We have validated client identity *)
-                            (* Log the received packet *)
-                            let log = log @| to_log in           
-                            (* update the sinfo we're establishing *)
-                            let si = {si with clientID = certs}
-                            (* move to the next state *)
-                            let state = {state with pstate = PSServer(ClientKeyExchangeRSA(si,cv,sk,log))} in
-                            recv_fragment_server ci state agreedVersion
-                        else // ask the user
-                            let state = {state with pstate = PSServer(ServerCheckingCertificateRSA(si,cv,sk,log,to_log))} in
-                            InQuery(certs,state)
+                        let advice = Cert.validate_cert_chain (default_sigHashAlg si.protocol_version si.cipher_suite) certs in
+                        let state = {state with pstate = PSServer(ServerCheckingCertificateRSA(si,cv,sk,log,to_log))} in
+                        InQuery(certs,advice,state)
                     else
                         InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Client sent wrong certificate type",state)
             | ClientCertificateDHE (si,p,g,gx,x,log) ->
@@ -1640,18 +1615,9 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(certs) ->
                     if Cert.is_chain_for_signing certs then
-                        if Cert.validate_cert_chain (default_sigHashAlg si.protocol_version si.cipher_suite) certs then
-                            (* We have validated client identity *)
-                            (* Log the received packet *)
-                            let log = log @| to_log in           
-                            (* update the sinfo we're establishing *)
-                            let si = {si with clientID = certs}
-                            (* move to the next state *)
-                            let state = {state with pstate = PSServer(ClientKeyExchangeDHE(si,p,g,gx,x,log))} in
-                            recv_fragment_server ci state agreedVersion
-                        else // ask the user
-                            let state = {state with pstate = PSServer(ServerCheckingCertificateDHE(si,p,g,gx,x,log,to_log))} in
-                            InQuery(certs,state)
+                        let advice = Cert.validate_cert_chain (default_sigHashAlg si.protocol_version si.cipher_suite) certs in
+                        let state = {state with pstate = PSServer(ServerCheckingCertificateDHE(si,p,g,gx,x,log,to_log))} in
+                        InQuery(certs,advice,state)
                     else
                         InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Client sent wrong certificate type",state)
             | ClientCertificateDH  (si,log) -> (* TODO *) InError(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Unimplemented",state)

@@ -112,7 +112,7 @@ let read (fd : int) : int * bytes =
             let _ = update_fd_connection fd c.canwrite conn in
                 (EI_WARNING, Alert.alertBytes e)
 
-        | TLS.CertQuery (conn, q) -> failwith ""
+        | TLS.CertQuery (conn, q, advice) -> failwith ""
 (*            match add_query_cert fd q with
             | None -> (EI_BADHANDLE, [||])
             | Some idx ->

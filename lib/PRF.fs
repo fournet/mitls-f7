@@ -75,26 +75,27 @@ let keyGen ci (ms:masterSecret) =
 
 let makeVerifyData si role (ms:masterSecret) data =
   let pv = si.protocol_version in
-  let tag = match pv with 
-  | SSL_3p0           ->
-    match role with
-    | Client ->
-        ssl_verifyData ms.bytes ssl_sender_client data
-    | Server ->
-        ssl_verifyData ms.bytes ssl_sender_server data
-  | TLS_1p0 | TLS_1p1 ->
-    match role with
-    | Client ->
-        tls_verifyData ms.bytes tls_sender_client data
-    | Server ->
-        tls_verifyData ms.bytes tls_sender_server data
-  | TLS_1p2           ->
-    let cs = si.cipher_suite in
-    match role with
-    | Client ->
-        tls12VerifyData cs ms.bytes tls_sender_client data
-    | Server ->
-        tls12VerifyData cs ms.bytes tls_sender_server data
+  let tag =
+    match pv with 
+    | SSL_3p0           ->
+        match role with
+        | Client ->
+            ssl_verifyData ms.bytes ssl_sender_client data
+        | Server ->
+            ssl_verifyData ms.bytes ssl_sender_server data
+    | TLS_1p0 | TLS_1p1 ->
+        match role with
+        | Client ->
+            tls_verifyData ms.bytes tls_sender_client data
+        | Server ->
+            tls_verifyData ms.bytes tls_sender_server data
+    | TLS_1p2           ->
+        let cs = si.cipher_suite in
+        match role with
+        | Client ->
+            tls12VerifyData cs ms.bytes tls_sender_client data
+        | Server ->
+            tls12VerifyData cs ms.bytes tls_sender_server data
   #if ideal
   if honest si && strong si then 
     finish_log := (si, tag, data)::!finish_log;

@@ -50,7 +50,7 @@ val next_fragment: ConnectionInfo  -> hs_state -> outgoing
 type incoming = (* the fragment is accepted, and... *)
   | InAck of hs_state
   | InVersionAgreed of hs_state * ProtocolVersion
-  | InQuery of Cert.certchain * hs_state
+  | InQuery of Cert.certchain * bool * hs_state
   | InFinished of hs_state
   | InComplete of hs_state
   | InError of alertDescription * string * hs_state

@@ -191,7 +191,7 @@ type readOutcome =
     | RError of string 
     | RAgain
     | RAppDataDone 
-    | RQuery of query
+    | RQuery of query * bool
     | RHSDone
     | RClose
     | RFatal of alertDescription
@@ -252,7 +252,7 @@ assume !c,c',ro,mo. IOResult_i(c,c',ro,mo) =>
 	(ro = RClose /\ (Auth(ConnectionEpochIn(c)) => EvClose(Peer(CnId(c),()),Bytes_i(c)))) \/
 	(?ad. ro = RFatal(ad) /\ (Auth(ConnectionEpochIn(c)) => EvFatal(Peer(CnId(c),()),ad,Bytes_i(c)))) \/
 	(?ad. ro = RWarning(ad) /\ Extend(c,c') /\ (Auth(ConnectionEpochIn(c)) => EvWarning(Peer(CnId(c),()),ad,Bytes_i(c))) /\ NextCn(c,c')) \/
-	(?q. ro = RQuery(q) /\ Extend(c,c') /\ NextCn(c,c')) \/
+	(?q,adv. ro = RQuery(q,adv) /\ Extend(c,c') /\ NextCn(c,c')) \/
 	(ro = RHSDone /\ 
 	  (
 		   Role(c') = Role(c)

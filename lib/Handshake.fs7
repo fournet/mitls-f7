@@ -666,7 +666,7 @@ val next_fragment: ci:ConnectionInfo -> s:(;ci)hs_state -> (;ci,s)outgoing
 type (;ci:ConnectionInfo,c:config)incoming =
   | InAck of (;ci,c)nextState
   | InVersionAgreed  of (;ci,c)nextState * ProtocolVersion
-  | InQuery of Cert.certchain * (;ci,c)nextState
+  | InQuery of Cert.certchain * advice:bool * (;ci,c)nextState
   | InFinished of (;ci,c)nextState {EvSentFinishedFirst(ci,false)}
   | InComplete of (;ci,c)nextState {Complete(ci,c)}
   | InError of alertDescription * string * (;ci,c)nextState
