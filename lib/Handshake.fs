@@ -84,7 +84,7 @@ let parseMessage buf =
 // We implement locally fragmentation, not hiding any length
 type unsafe = Unsafe of epoch
 let makeFragment ki b =
-    let (b0,rem) = if (length b > 16) then
+    let (b0,rem) = if (length b > 1600) then
                      Bytes.split b (length b - 4)
                    else (b,[||])
 (*
