@@ -23,7 +23,7 @@ let config (servname : string) = {
     TLSInfo.allowAnonCipherSuite = false
 
     (* Server side *)
-    TLSInfo.request_client_certificate = true
+    TLSInfo.request_client_certificate = false
     TLSInfo.check_client_version_in_pms_for_old_tls = true
     
     (* Common *)
@@ -79,15 +79,15 @@ let request (servname : string) (my : string) (tk : token) =
     do_request (Bytes.utf8 my) c
 
 // ------------------------------------------------------------------------
-let rec handle_client_request (c : Connection) =
-    match TLS.read c with
+let rec handle_client_request (conn : Connection) =
+    match TLS.read conn with
     | ReadError  (_, s)            -> printfn "%s" s; None
     | Close      _                 -> None
     | Fatal      _                 -> None
     | DontWrite  conn              -> None
     | Warning    (conn, _)         -> handle_client_request conn
     | CertQuery  (conn, q, advice) -> if   advice
-                                      then handle_client_request (authorize conn q)
+                                      then handle_client_request (TLS.authorize conn q)
                                       else refuse conn q; None
     | Handshaken conn              -> handle_client_request conn
     | Read       (conn, m)         ->
