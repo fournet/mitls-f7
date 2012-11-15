@@ -403,23 +403,26 @@ private assume
    (!a. si.cipher_suite <> CipherSuite(RSA,a)))
 
 
-predicate ClientLogBeforeServerHello of random * sessionID * log 
+predicate ClientLogBeforeServerHello of random * log 
 predicate ClientLogBeforeServerCertificateRSA of SessionInfo * log 
 
 private assume !cr,sid,l.
-  ClientLogBeforeServerHello(cr,sid,l) <=>
-  (?pv,cs,cm,ex1. l = ClientHelloMsg(pv,cr,sid,cs,cm,ex1))
+  ClientLogBeforeServerHello(cr,l) <=>
+  (?pv,csid,cs,cm,ex1. l = ClientHelloMsg(pv,cr,sid,cs,cm,ex1))
 
-ask !pv,cs,cm,ex1,cr,sid. ClientLogBeforeServerHello(cr,sid,ClientHelloMsg(pv,cr,sid,cs,cm,ex1))
+ask !pv,cs,cm,ex1,cr,sid. ClientLogBeforeServerHello(cr,ClientHelloMsg(pv,cr,sid,cs,cm,ex1))
 
 private assume !si,l.
   ClientLogBeforeServerCertificateRSA(si,l) <=>
-  (?l',cr,sid,ex2. 
-     ClientLogBeforeServerHello(cr,sid,l') /\
+  (?l',cr,ex2. 
+     ClientLogBeforeServerHello(cr,l') /\
      l = l' @| 
      ServerHelloMsg(si.protocol_version,si.init_srand,si.sessionID,si.cipher_suite,si.compression,ex2))
 
 predicate ClientLogBeforeCertificateRequestRSA of SessionInfo * log 
+
+
+(* KB HERE: add precise agreement parameters to these predicates *)
 
 private assume !si,pv,l. 
   ClientLogBeforeCertificateRequestRSA(si,l) <=>
@@ -527,7 +530,7 @@ type serverState =  (* note that the CertRequest bits are determined by the conf
    (* the ProtocolVersion is the highest TLS version proposed by the client *)
 
 type clientState = 
-   | ServerHello                  of cr:crand * sid:sessionID (* * bytes for extensions? *) * cvd:cVerifyData * svd:sVerifyData * l:log{ClientLogBeforeServerHello(cr,sid,l)}
+   | ServerHello                  of cr:crand * sid:sessionID (* * bytes for extensions? *) * cvd:cVerifyData * svd:sVerifyData * l:log{ClientLogBeforeServerHello(cr,l)}
 
    | ServerCertificateRSA         of si:SessionInfo * l:log{ClientLogBeforeServerCertificateRSA(si,l)}
    | ClientCheckingCertificateRSA of si:SessionInfo * l:log * b:bytes{ClientLogBeforeCertificateRequestRSA(si,l)}
@@ -709,7 +712,7 @@ val prepare_client_output_full_DHE: ci:ConnectionInfo -> (;ci)hs_state ->
 	((;ci)hs_state * si':SessionInfo * (;si)PRF.masterSecret * log) Result
 val on_serverHello_full: cr:crand -> l:log -> to_log:bytes ->
          (pv:ProtocolVersion * sr:random * sid:sessionID * cs:cipherSuite * cm:Compression * ext:bytes){
-         (?csid. ClientLogBeforeServerHello(cr,csid,l)) /\
+         ClientLogBeforeServerHello(cr,l) /\
          to_log = ServerHelloMsg(pv,sr,sid,cs,cm,ext)} ->
 	protoState
 val parseMessageState: ci:ConnectionInfo -> hs:(;ci)hs_state ->
@@ -720,7 +723,7 @@ val recv_fragment_client: ci:ConnectionInfo -> s:(;ci)hs_state -> ProtocolVersio
 
 val prepare_server_output_full_RSA: ci:ConnectionInfo -> (;ci)hs_state -> si:SessionInfo ->
 	pv:ProtocolVersion -> Sig.alg list -> cVerifyData -> sVerifyData -> l:log{
-          ?csid,cs,cm,ex. l = ClientHelloMsg(pv,si.init_crand,cs,cm,ex)
+          ?csid,cs,cm,ex. l = ClientHelloMsg(pv,si.init_crand,csid,cs,cm,ex)
         }->
 	((;ci)hs_state * ProtocolVersion) Result
 val prepare_server_output_full_DH: 'a -> 'b -> 'c -> 'd -> res:('e Result){?x,y. res = Error(x,y)}
@@ -732,7 +735,7 @@ val prepare_server_output_full_DH_anon: ci:ConnectionInfo -> (;ci)hs_state -> Se
 	((;ci)hs_state * ProtocolVersion) Result
 val prepare_server_output_full: ci:ConnectionInfo -> (;ci)hs_state -> si:SessionInfo ->
 	pv:ProtocolVersion -> Sig.alg list -> cVerifyData -> sVerifyData -> l:log{
-          ?csid,cs,cm,ex. l = ClientHelloMsg(pv,si.init_crand,cs,cm,ex)
+          ?csid,cs,cm,ex. l = ClientHelloMsg(pv,si.init_crand,csid,cs,cm,ex)
         } ->
 	((;ci)hs_state * ProtocolVersion) Result
 val negotiate: 'a list -> 'a list -> 'a option

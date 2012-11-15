@@ -84,8 +84,13 @@ let parseMessage buf =
 // We implement locally fragmentation, not hiding any length
 type unsafe = Unsafe of epoch
 let makeFragment ki b =
-    let (b0,rem) = if length b < DataStream.max_TLSCipher_fragment_length then (b,[||])
+    let (b0,rem) = if (length b > 16) then
+                     Bytes.split b (length b - 4)
+                   else (b,[||])
+(*
+                        if length b < DataStream.max_TLSCipher_fragment_length then (b,[||])
                    else Bytes.split b DataStream.max_TLSCipher_fragment_length
+*)
     let r0 = (length b0, length b0) in
     Pi.assume(Unsafe(ki))
     let f = Fragment.fragmentPlain ki r0 b0 in
