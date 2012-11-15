@@ -15,6 +15,7 @@ let create s = N(s)
 
 let listen addr port =
     let tcpList = new System.Net.Sockets.TcpListener(IPAddress.Parse(addr),port) in
+    tcpList.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
     tcpList.Start();
     T tcpList
 
