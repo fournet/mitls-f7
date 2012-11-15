@@ -71,12 +71,25 @@ let rec do_request (request : bytes) (c : Connection) =
     | WriteComplete c      -> read_server_response c
 
 // ------------------------------------------------------------------------
-let request (servname : string) (my : string) (tk : token) =
+let request (servname : string) (tk : token) =
     let config = config servname
     let s = Tcp.connect "127.0.0.1" 5000
     let c = TLS.connect s config
 
-    do_request (Bytes.utf8 my) c
+    do_request (PwToken.bytes tk) c
+
+// ------------------------------------------------------------------------
+let rec do_client_response (conn : Connection) (bytes : bytes) =
+    let epoch  = TLS.getEpochOut conn in
+    let stream = TLS.getOutStream conn in
+    let range  = (Bytes.length bytes, Bytes.length bytes) in
+    let delta  = DataStream.deltaPlain epoch stream range bytes in
+
+        match TLS.write conn (range, delta) with
+        | WriteError    (_, _) -> false
+        | WritePartial  (c, _) -> TLS.half_shutdown c; false
+        | MustRead      c      -> TLS.half_shutdown c; false
+        | WriteComplete c      -> true
 
 // ------------------------------------------------------------------------
 let rec handle_client_request (conn : Connection) =
@@ -91,15 +104,20 @@ let rec handle_client_request (conn : Connection) =
                                       else refuse conn q; None
     | Handshaken conn              -> handle_client_request conn
     | Read       (conn, m)         ->
-        let (r, d) = m in
-        let epoch  = TLS.getEpochIn conn in
-        let stream = TLS.getInStream conn in
-        let bytes  = DataStream.deltaRepr epoch stream r d in
+        let (r, d)   = m in
+        let epoch    = TLS.getEpochIn conn in
+        let stream   = TLS.getInStream conn in
+        let bytes    = DataStream.deltaRepr epoch stream r d in
 
-            if length bytes <> 16 then
-                None
+        match PwToken.parse bytes with
+        | None    -> TLS.half_shutdown conn; None
+        | Some tk ->
+            let clientok = PwToken.verify tk
+
+            if do_client_response conn [|(if clientok then 1uy else 0uy)|] then
+                Some (fst (PwToken.repr tk))
             else
-                Some (Bytes.iutf8 bytes)
+                None
 
 // ------------------------------------------------------------------------
 let response (servname : string) : string option =

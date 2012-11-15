@@ -3,5 +3,5 @@
 open Bytes
 open PwToken
 
-val request  : (*servname*)string -> (*my*)string -> token -> bool
+val request  : (*servname*)string ->  token -> bool
 val response : (*servname*)string -> (*name*)string option
