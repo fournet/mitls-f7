@@ -134,7 +134,8 @@ definition !v,s. StrongHS(v,s) <=> INT-CMA_S(v,s) /\ CRE(v,s) /\ PRF(v,s) /\ ( R
 
 predicate SafeHS of epoch
 
-definition !e. SafeHS(id) <=> StrongHS(EpochSI(id).protocol_version,CS(id)) /\ Honest(LTKey(id)) /\ Honest(LTKey(Peer(id)))
+definition !e. SafeHS(id) <=> StrongHS(EpochSI(id).protocol_version,CS(id)) /\ ClientPMS(EpochSI(id)) /\ Honest(ServerKey(id))
+// /\ Honest(LTKey(id)) /\ Honest(LTKey(Peer(id)))
 
 predicate Save of epoch
 predicate Auth of epoch
