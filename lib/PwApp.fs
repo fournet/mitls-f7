@@ -12,6 +12,10 @@ open PwToken
 type username = string
 
 // ------------------------------------------------------------------------
+type ca  = ClientAuthenticated   of username * token
+type abs = AuthenticatedByServer of SessionInfo  * username
+
+// ------------------------------------------------------------------------
 let config (servname : string) = {
     TLSInfo.minVer = TLSConstants.TLS_1p0
     TLSInfo.maxVer = TLSConstants.TLS_1p0
@@ -42,7 +46,7 @@ let config (servname : string) = {
 }
 
 // ------------------------------------------------------------------------
-let read_server_response (c : Connection) =
+let read_server_response (c : Connection) (u : username) (tk : token) =
     match TLS.read c with
     | ReadError  (_, _)            -> None
     | Close      _                 -> None
@@ -58,8 +62,10 @@ let read_server_response (c : Connection) =
         let bytes       = DataStream.deltaRepr epoch stream rg delta
 
         match DER.decode bytes with
-        | Some (DER.Bool true) -> Some conn
-        | _ -> TLS.half_shutdown conn; None
+        | Some (DER.Bool true) ->
+            Pi.assume (ClientAuthenticated(u, tk)); Some conn
+        | _ ->
+            TLS.half_shutdown conn; None
 
 let drain (c : Connection) =
     match TLS.read c with
@@ -82,7 +88,7 @@ let rec do_request (c : Connection) (u : username) (tk : token) =
     | WriteError    (_, _) -> None
     | WritePartial  (c, _) -> TLS.half_shutdown c; None
     | MustRead      c      -> (match drain c with Some c -> do_request c u tk | None -> None)
-    | WriteComplete c      -> read_server_response c
+    | WriteComplete c      -> read_server_response c u tk
 
 // ------------------------------------------------------------------------
 let request (servname : string)  (u : username) (tk : token) =
@@ -130,7 +136,11 @@ let rec handle_client_request (conn : Connection) =
 
             match do_client_response conn response with
             | None      -> None
-            | Some conn -> Some (username, conn)
+            | Some conn ->
+                Pi.assume
+                    (AuthenticatedByServer
+                        (TLS.getSessionInfo (TLS.getEpochIn conn), username));
+                Some (username, conn)
 
 // ------------------------------------------------------------------------
 let response (servname : string) =
