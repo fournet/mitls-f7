@@ -142,6 +142,9 @@
     <None Include="Nonce.fs7" />
     <Compile Include="Nonce.fsi" />
     <Compile Include="Nonce.fs" />
+    <None Include="DER.fs7" />
+    <Compile Include="DER.fsi" />
+    <Compile Include="DER.fs" />
     <None Include="Tcp.fs7" />
     <Compile Include="Tcp.fsi" />
     <Compile Include="Tcp.fs" />
@@ -169,12 +172,6 @@
     <None Include="TLSInfo.fs7" />
     <Compile Include="TLSInfo.fsi" />
     <Compile Include="TLSInfo.fs" />
-    <None Include="RawDataStream.fs7" />
-    <Compile Include="RawDataStream.fsi" />
-    <Compile Include="RawDataStream.fs" />
-    <None Include="RPCDataStream.fs7" />
-    <Compile Include="RPCDataStream.fsi" />
-    <Compile Include="RPCDataStream.fs" />
     <None Include="DataStream.fs7" />
     <Compile Include="DataStream.fsi" />
     <Compile Include="DataStream.fs" />
@@ -264,6 +261,11 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\BouncyCastle\BouncyCastle.csproj">
+      <Name>BouncyCastle</Name>
+      <Project>{38872a5f-e87e-4fad-b109-8eb7b2e6a4a0}</Project>
+      <Private>True</Private>
+    </ProjectReference>
     <ProjectReference Include="..\CoreCrypto\CoreCrypto.fsproj">
       <Name>CoreCrypto</Name>
       <Project>{6d4e3f46-dbf9-473b-93ba-58614114aa57}</Project>

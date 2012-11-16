@@ -1,51 +1,78 @@
-﻿module DataStream
-
+module DataStream
 open TLSInfo
 open Bytes
 open Error
 
-val max_TLSPlaintext_fragment_length  : n:nat{n = 16384}
-val max_TLSCompressed_fragment_length : n:nat{n = max_TLSPlaintext_fragment_length  + 1024}
-val max_TLSCipher_fragment_length     : n:nat{n = max_TLSCompressed_fragment_length + 1024}
-val fragmentLength                    : n:nat{n = max_TLSPlaintext_fragment_length}
+/// Some TLS constants (relocate?)
 
-type            range  = low:nat * high:nat { low <= high }
-type (;r:range) rbytes = b:bytes { ?l,h. r = (l,h) /\ l <= Length(b) /\ Length(b) <= h }
- 
+private val max_TLSPlaintext_fragment_length: nat
+private val max_TLSCompressed_fragment_length: nat
+private val fragmentLength: nat
+val max_TLSCipher_fragment_length: nat
+
+/// Ranges of lengths for byte arrays
+
+type range = low:nat * high:nat { low <= high }
+type (;r:range) rbytes = b:bytes { ?l,h. r = (l,h) /\ l <= Length(b) /\ Length(b) <= h }   
 function val Sum: range * range -> range
-private assume !l0, h0, l1, h1. Sum((l0, h0), (l1, h1)) = (l0+l1, h0+h1)
+private assume !l0,h0,l1,h1. Sum((l0,h0),(l1,h1)) = (l0+l1,h0+h1)
+val rangeSum: r0:range -> r1:range -> r:range{r = Sum(r0,r1)}
+val min: a:int -> b:int -> c:int{(a<=b /\ c=a) \/ (a>b /\ c=b)}
+val max: a:int -> b:int -> c:int{(a>=b /\ c=a) \/ (a<b /\ c=b)}
+val splitRange: ki:succEpoch -> r:range -> (r0:range * r1:range){r = Sum(r0,r1)} 
+(* first range should fit in a fragment: FitsInFrag(ki,fragmentLength,r0)? *)
 
-val rangeSum   : r0:range -> r1:range -> r:range{r = Sum(r0,r1)}
-val splitRange : ki:succEpoch -> r:range -> (r0:range * r1:range){r0 = r /\ r1 = (0, 0) /\ r = Sum(r0, r1)} 
+// Bytestreams:
+// we communicate deltas indexed by all preceding bytes on the stream.  
+// TLS guarantees abstraction for every delta with a safe index; 
+// this is the main basis for application-level integrity and secrecy 
 
-private type (;ki:epoch) stream = { sb: bytes list }
-private type (;ki:epoch, h:(;ki)stream, r:range) delta = { contents: (;r) rbytes }
+// used only as a ghost index:
+// streams have are no destructors, so they do not leak secrets
+// they are used abstractly by TLS, except that
+// their logical definition is needed for authentication in application code.
+private type (;ki:epoch) stream = {sb:bytes list}
+
+// the implementation of this type is application-specific 
+// but it must provide the following functions to TLS
+private type (;ki:epoch, h:(;ki)stream, r:range) delta = {contents: (;r) rbytes}
 
 predicate EmptyStream of ki:epoch * (;ki) stream 
-
+// function val EmptyStream:  ki:epoch -> (;ki) stream // AP: F7 issue with records as single argument of a function. Do not use this function, use the predicate instead.
 function val ExtendStream: 'a * 'b * 'c * 'd -> 'e
-assume !ki,s. EmptyStream(ki,s) <=> s = { sb = [] }
-assume !ki,s,r,d. ExtendStream(ki,s,r,d) = { sb = d.contents :: s.sb } 
-
+assume !ki,s. EmptyStream(ki,s) <=> s = {sb = [] }
+assume !ki,s,r,d. ExtendStream(ki,s,r,d) = {sb = d.contents :: s.sb } 
 ask !ki,s,s'. EmptyStream(ki,s) /\ EmptyStream(ki,s') => s = s'
 
+
+// used only by the application; could be omitted for TLS
 private val createDelta: 
   ki:epoch -> s:(;ki) stream -> r:range -> 
   b:(;r) rbytes -> c: (;ki,s,r) delta  
 
 val init: ki:epoch -> s:(;ki) stream{EmptyStream(ki,s)}
-
 val append: 
   ki:epoch -> s: (;ki) stream -> r:range ->
   d:(;ki,s,r) delta -> s':(;ki) stream{s' = ExtendStream(ki,s,r,d)}
 
-val deltaPlain: 
-  ki:epoch{not Auth(ki)} -> s:(;ki) stream -> r:range -> 
-  b:(;r) rbytes -> c: (;ki,s,r) delta  
 
+//CF: We need lineary on the stream! 
+
+//#if app
+val deltaPlain: 
+  ki:epoch -> s:(;ki) stream -> r:range -> 
+  b:(;r) rbytes -> c: (;ki,s,r) delta  
 val deltaRepr: 
-  ki:epoch{not Safe(ki)} -> s:(;ki) stream -> r:range -> 
+  ki:epoch -> s:(;ki) stream -> r:range -> 
   c: (;ki,s,r) delta -> (;r) rbytes
+//#else
+//val deltaPlain: 
+//  ki:epoch{not Auth(ki)} -> s:(;ki) stream -> r:range -> 
+//  b:(;r) rbytes -> c: (;ki,s,r) delta  
+//val deltaRepr: 
+//  ki:epoch{not Safe(ki)} -> s:(;ki) stream -> r:range -> 
+//  c: (;ki,s,r) delta -> (;r) rbytes
+//#endif
 
 val split: ki:epoch -> s:(;ki) stream -> 
   r0:range -> r1:range -> d:(;ki,s,Sum(r0,r1)) delta -> 

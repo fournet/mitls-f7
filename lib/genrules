@@ -17,17 +17,7 @@ f7flags += -timeout 1 --define avoid --verbose -nokindcheck $(lperv) $(libfs7)
 
 .PHONY: default clean
 
-DEFAULT =                 \\
-	TLSInfo.tc7       \\
-	DataStream.tc7    \\
-	RPCDataStream.tc7 \\
-	Fragment.tc7      \\
-	AEADPlain.tc7     \\
-	AEAD.tc7          \\
-	StatefulPlain.tc7 \\
-	StatefulAEAD.tc7  \\
-	TLSFragment.tc7   \\
-	Record.tc7
+-include Makefile.tc7
 
 default: $(DEFAULT)
 
@@ -166,8 +156,8 @@ def _main():
     print MKHEADER
     print "# ----- BEGIN AUTO FS7 -----"
     for name, deps in fs7deps:
-        fargs = dict(name = name, deps = ' '.join(deps))
-        print '%(name)s.tc7: $(libperv) $(libfs7) %(deps)s %(name)s.fs7 %(name)s.fs'   % fargs
+        fargs = dict(name = name, mod = name.lower(), deps = ' '.join(deps))
+        print '%(name)s.tc7: $(libperv) $(libfs7) %(deps)s %(name)s.fs7 %(name)s.fs %(name)s.fs7' % fargs
         print '\t$(f7) $(f7flags) -scripts %(name)s %(deps)s %(name)s.fs7 %(name)s.fs' % fargs
         print '\t@touch $@'
         print

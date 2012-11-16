@@ -2,6 +2,7 @@
 
 // ------------------------------------------------------------------------
 open Bytes
+open DER
 open Nonce
 open TLSInfo
 open DataStream
@@ -57,9 +58,31 @@ let guess (bytes : bytes) =
 type delta = DataStream.delta
 
 // ------------------------------------------------------------------------
+let tk_good (token : token) =
+    match token with GToken _ -> true | _ -> false
+
+let tk_bytes (token : token) =
+    match token with
+    | GToken bytes -> bytes
+    | BToken bytes -> bytes
+
+// ------------------------------------------------------------------------
 let tk_repr (e : epoch) (s : stream) (u : username) (tk : token) : delta =
-    Error.unexpectedError ""
+    let tkgood  = tk_good  tk
+    let tkbytes = tk_bytes tk
+
+    let der = DER.Sequence [DER.Utf8String u; DER.Bool tkgood; DER.Bytes tkbytes]
+    let der = DER.encode der
+
+    if Bytes.length der > MaxTkReprLen then
+        Error.unexpectedError "PwToken.tk_repr: token too large"
+    else
+        DataStream.createDelta e s (0, MaxTkReprLen) der
 
 // ------------------------------------------------------------------------
 let tk_plain (e : epoch) (s : stream) (r : range) (delta : delta) : (username * token) option =
-    None
+    match DER.decode (DataStream.deltaRepr e s r delta) with
+    | Some (Sequence [Utf8String u; Bool tkgood; Bytes tkbytes]) ->
+        let token = if tkgood then GToken tkbytes else BToken tkbytes in
+            Some (u, token)
+    | _ -> None

@@ -23,6 +23,11 @@ assume !bs. not GoodToken(BToken(bs))
 
 private val tokens : (utk:utk{RegisteredToken(utk)}) list ref
 
+function val TokenBytes : token -> bytes
+
+definition !bs. TokenBytes(GToken(bs)) = bs
+definition !bs. TokenBytes(BToken(bs)) = bs
+
 // ------------------------------------------------------------------------
 private val verify_r :
      utk:utk
@@ -34,6 +39,10 @@ val create   : unit{GoodClient()} -> tk:token{GoodToken(tk)}
 val register : u:username -> tk:token{GoodToken(tk)} -> unit{RegisteredToken(UTK(u, tk))} 
 val verify   : u:username -> tk:token -> b:bool{b = true => RegisteredToken(UTK(u, tk))}
 val guess    : bytes -> tk:token{not GoodToken(tk)}
+
+// ------------------------------------------------------------------------
+private val tk_good  : tk:token -> b:bool{b = true => GoodToken(tk)}
+private val tk_bytes : tk:token -> bs:bytes{bs = TokenBytes(tk)}
 
 // ------------------------------------------------------------------------
 type (;ki : epoch, s : (;ki)stream, r : range) delta = (;ki, s, r) DataStream.delta
