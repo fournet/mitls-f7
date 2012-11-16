@@ -7,7 +7,7 @@ open TLSConstants
 type sessionID = b:bytes {Length(b) <= 32}
 // "An arbitrary byte sequence chosen by the server 
 // to identify an active or resumable session state."
-// treating [||] as the absence of identifier.
+// We treat [||] as the absence of identifier.
 
 type preRole =
 	| Client
@@ -25,7 +25,7 @@ type srand = random
 // Used for indexing
 
 //CF 04-09
-// the randoms are not just bytes.
+// the randoms are not just bytes; where do we rely on collision-resistance?
 
 type SessionInfo = {
     init_crand: crand;
