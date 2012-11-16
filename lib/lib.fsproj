@@ -249,6 +249,9 @@
     <None Include="PwToken.fs7" />
     <Compile Include="PwToken.fsi" />
     <Compile Include="PwToken.fs" />
+    <None Include="PwApp.fs7" />
+    <Compile Include="PwApp.fsi" />
+    <Compile Include="PwApp.fs" />
     <None Include="UTLS.fs7" />
     <Compile Include="UTLS.fsi" />
     <Compile Include="UTLS.fs" />

@@ -17,5 +17,7 @@ val guess    : bytes -> token
 // ------------------------------------------------------------------------
 type delta = DataStream.delta
 
+val MaxTkReprLen : int
+
 val tk_repr  : epoch -> stream -> username -> token -> delta
 val tk_plain : epoch -> stream -> range -> delta -> (username * token) option

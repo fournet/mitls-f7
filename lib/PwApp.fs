@@ -1,9 +1,13 @@
 ﻿module PwApp
 
 open Bytes
+open DER
 open Dispatch
 open TLS
 open PwToken
+
+// ------------------------------------------------------------------------
+type username = string
 
 // ------------------------------------------------------------------------
 let config (servname : string) = {
@@ -38,17 +42,22 @@ let config (servname : string) = {
 // ------------------------------------------------------------------------
 let read_server_response (c : Connection) =
     match TLS.read c with
-    | ReadError  (_, _)            -> false
-    | Close      _                 -> false
-    | Fatal      _                 -> false
-    | DontWrite  conn              -> TLS.half_shutdown conn; false
-    | Warning    (conn, _)         -> TLS.half_shutdown conn; false
-    | CertQuery  (conn, _, _)      -> TLS.half_shutdown conn; false
-    | Handshaken conn              -> TLS.half_shutdown conn; false
-    | Read       (conn, m)         -> TLS.half_shutdown conn;
-        if m then
-            Pi.assume (AuthenticatedBy (...));
-        m
+    | ReadError  (_, _)            -> None
+    | Close      _                 -> None
+    | Fatal      _                 -> None
+    | DontWrite  conn              -> TLS.half_shutdown conn; None
+    | Warning    (conn, _)         -> TLS.half_shutdown conn; None
+    | CertQuery  (conn, _, _)      -> TLS.half_shutdown conn; None
+    | Handshaken conn              -> TLS.half_shutdown conn; None
+    | Read       (conn, m)         ->
+        let epoch       = TLS.getEpochIn c
+        let stream      = TLS.getInStream c
+        let (rg, delta) = m
+        let bytes       = DataStream.deltaRepr epoch stream rg delta
+
+        match DER.decode bytes with
+        | Some (DER.Bool true) -> Some conn
+        | _ -> TLS.half_shutdown conn; None
 
 let drain (c : Connection) =
     match TLS.read c with
@@ -61,25 +70,25 @@ let drain (c : Connection) =
     | Handshaken c              -> Some c
     | Read       (c, _)         -> TLS.half_shutdown c; None
 
-let rec do_request (request : bytes) (c : Connection) =
+let rec do_request (c : Connection) (u : username) (tk : token) =
     let epoch  = TLS.getEpochOut c
     let stream = TLS.getOutStream c
-    let range  = (length request, length request)
-    let delta  = DataStream.createDelta epoch stream range request
+    let rg     = (0, MaxTkReprLen)
+    let delta  = PwToken.tk_repr epoch stream u tk
 
-    match TLS.write c (range, delta) with
-    | WriteError    (_, _) -> false
-    | WritePartial  (c, _) -> TLS.half_shutdown c; false
-    | MustRead      c      -> (match drain c with Some c -> do_request request c | None -> false)
+    match TLS.write c (rg, delta) with
+    | WriteError    (_, _) -> None
+    | WritePartial  (c, _) -> TLS.half_shutdown c; None
+    | MustRead      c      -> (match drain c with Some c -> do_request c u tk | None -> None)
     | WriteComplete c      -> read_server_response c
 
 // ------------------------------------------------------------------------
-let request (servname : string) (tk : token) =
+let request (servname : string)  (u : username) (tk : token) =
     let config = config servname
     let s = Tcp.connect "127.0.0.1" 5000
     let c = TLS.connect s config
 
-    do_request (PwToken.bytes tk) c
+    do_request c u tk
 
 // ------------------------------------------------------------------------
 let rec do_client_response (conn : Connection) (bytes : bytes) =
@@ -89,10 +98,10 @@ let rec do_client_response (conn : Connection) (bytes : bytes) =
     let delta  = DataStream.deltaPlain epoch stream range bytes in
 
         match TLS.write conn (range, delta) with
-        | WriteError    (_, _) -> false
-        | WritePartial  (c, _) -> TLS.half_shutdown c; false
-        | MustRead      c      -> TLS.half_shutdown c; false
-        | WriteComplete c      -> true
+        | WriteError    (_, _)    -> None
+        | WritePartial  (conn, _) -> TLS.half_shutdown conn; None
+        | MustRead      conn      -> TLS.half_shutdown conn; None
+        | WriteComplete conn      -> Some conn
 
 // ------------------------------------------------------------------------
 let rec handle_client_request (conn : Connection) =
@@ -107,24 +116,22 @@ let rec handle_client_request (conn : Connection) =
                                       else refuse conn q; None
     | Handshaken conn              -> handle_client_request conn
     | Read       (conn, m)         ->
-        let (r, d)   = m in
-        let epoch    = TLS.getEpochIn conn in
-        let stream   = TLS.getInStream conn in
-        let bytes    = DataStream.deltaRepr epoch stream r d in
+        let (r, d) = m in
+        let epoch  = TLS.getEpochIn conn in
+        let stream = TLS.getInStream conn in
 
-        match PwToken.parse bytes with
-        | None    -> TLS.half_shutdown conn; None
-        | Some tk ->
-            let clientok = PwToken.verify tk
+        match PwToken.tk_plain epoch stream r d with
+        | None -> TLS.half_shutdown conn; None
+        | Some (username, token) ->
+            let clientok = PwToken.verify username token
+            let response = DER.encode (DER.Bool clientok)
 
-            if do_client_response conn [|(if clientok then 1uy else 0uy)|] then
-                Pi.assume (Authenticated (...));
-                Some (fst (PwToken.repr tk))
-            else
-                None
+            match do_client_response conn response with
+            | None      -> None
+            | Some conn -> Some (username, conn)
 
 // ------------------------------------------------------------------------
-let response (servname : string) : string option =
+let response (servname : string) =
     let config = config servname
     let s = Tcp.listen "0.0.0.0" 5000
     let c = TLS.accept s config

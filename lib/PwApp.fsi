@@ -2,6 +2,9 @@
 
 open Bytes
 open PwToken
+open Dispatch
 
-val request  : (*servname*)string ->  token -> bool
-val response : (*servname*)string -> (*name*)string option
+type username = PwToken.username
+
+val request  : (*servname*)string -> username -> token -> Connection option
+val response : (*servname*)string -> (string * Connection) option
