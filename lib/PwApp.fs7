@@ -1,5 +1,8 @@
 ﻿module PwApp
 
+open Cert
+open Dispatch
+open TLSInfo
 open PwToken
 
 type username = PwToken.username
@@ -7,16 +10,21 @@ type username = PwToken.username
 predicate ClientAuthenticated   of username * token
 predicate AuthenticatedByServer of SessionInfo  * username
 
+function val CN : Cert.cert list -> string
+
 val request :
       servname : string
    -> username : string
    -> token    : token{RegisteredToken(UTK(username, token))}
-   -> c:Connection{
-           CN(c.si.serverID) = name
-		/\ (Strong(c.si.cipher_suite) /\ Honest(c.si.serverID) => AuthenticatedByServer(c.si, username)) 
-      } option
+   -> (c:Connection{
+           CN(EpochSI(CnId(c).id_in).serverID) = username
+		/\ (   StrongAuth(EpochSI(CnId(c).id_in).cipher_suite)
+		    /\ Honest(ServerKey(EpochSI(CnId(c).id_in).serverID))
+		         => AuthenticatedByServer(EpochSI(CnId(c).id_in), username))
+      }) option
 
-val response : unit -> uc:(username * Connection) {
-  !c, u. (u, c) = uc ->
-    ?token. Strong(c.si.cipher_suite) => ClientAuthenticated(u, token) /\ GoodToken(u, token)
-} option
+val response : unit -> (uc:(username * Connection){
+  !c, u. (u, c) = uc =>
+    ?token. StrongAuth(EpochSI(CnId(c).id_in).cipher_suite)
+	          => ClientAuthenticated(u, token) /\ GoodToken(u, token)
+}) option

@@ -2,7 +2,9 @@
 
 open Bytes
 open DER
+open Cert
 open Dispatch
+open TLSInfo
 open TLS
 open PwToken
 
