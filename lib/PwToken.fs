@@ -86,3 +86,18 @@ let tk_plain (e : epoch) (s : stream) (r : range) (delta : delta) : (username * 
         let token = if tkgood then GToken tkbytes else BToken tkbytes in
             Some (u, token)
     | _ -> None
+
+// ------------------------------------------------------------------------
+let rp_repr (e : epoch) (s : stream) (b : bool) : delta =
+    let bytes = DER.encode (DER.Bool b)
+
+    if Bytes.length bytes > MaxTkReprLen then
+        Error.unexpectedError "PwToken.rp_repr: token too large"
+    else
+        DataStream.createDelta e s (0, MaxTkReprLen) bytes
+
+// ------------------------------------------------------------------------
+let rp_plain (e : epoch) (s : stream) (r : range) (d : delta) : bool =
+    match DER.decode (DataStream.deltaRepr e s r d) with
+    | Some (DER.Bool b) -> b
+    | _ -> false

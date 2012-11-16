@@ -59,13 +59,10 @@ let read_server_response (c : Connection) (u : username) (tk : token) =
         let epoch       = TLS.getEpochIn c
         let stream      = TLS.getInStream c
         let (rg, delta) = m
-        let bytes       = DataStream.deltaRepr epoch stream rg delta
 
-        match DER.decode bytes with
-        | Some (DER.Bool true) ->
-            Pi.assume (ClientAuthenticated(u, tk)); Some conn
-        | _ ->
-            TLS.half_shutdown conn; None
+        match PwToken.rp_plain epoch stream rg delta with
+        | true  -> Pi.assume (ClientAuthenticated(u, tk)); Some conn
+        | false -> TLS.half_shutdown conn; None
 
 let drain (c : Connection) =
     match TLS.read c with
@@ -99,13 +96,13 @@ let request (servname : string)  (u : username) (tk : token) =
     do_request c u tk
 
 // ------------------------------------------------------------------------
-let rec do_client_response (conn : Connection) (bytes : bytes) =
+let rec do_client_response (conn : Connection) (clientok : bool) =
     let epoch  = TLS.getEpochOut conn in
     let stream = TLS.getOutStream conn in
-    let range  = (Bytes.length bytes, Bytes.length bytes) in
-    let delta  = DataStream.deltaPlain epoch stream range bytes in
+    let rg     = (0, MaxTkReprLen)
+    let delta  = PwToken.rp_repr epoch stream clientok in
 
-        match TLS.write conn (range, delta) with
+        match TLS.write conn (rg, delta) with
         | WriteError    (_, _)    -> None
         | WritePartial  (conn, _) -> TLS.half_shutdown conn; None
         | MustRead      conn      -> TLS.half_shutdown conn; None
@@ -132,9 +129,8 @@ let rec handle_client_request (conn : Connection) =
         | None -> TLS.half_shutdown conn; None
         | Some (username, token) ->
             let clientok = PwToken.verify username token
-            let response = DER.encode (DER.Bool clientok)
 
-            match do_client_response conn response with
+            match do_client_response conn clientok with
             | None      -> None
             | Some conn ->
                 Pi.assume

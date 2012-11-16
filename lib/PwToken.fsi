@@ -21,3 +21,6 @@ val MaxTkReprLen : int
 
 val tk_repr  : epoch -> stream -> username -> token -> delta
 val tk_plain : epoch -> stream -> range -> delta -> (username * token) option
+
+val rp_repr  : epoch -> stream -> bool -> delta
+val rp_plain : epoch -> stream -> range -> delta -> bool

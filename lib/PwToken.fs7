@@ -49,9 +49,10 @@ type (;ki : epoch, s : (;ki)stream, r : range) delta = (;ki, s, r) DataStream.de
 
 private val MaxTkReprLen : nat
 
+// ------------------------------------------------------------------------
 val tk_repr :
      ki : epoch
-  -> s  : (;ki) stream
+  -> s  : (;ki) stream{EmptyStream(ki, s)}
   -> u  : username
   -> tk : token 
    
@@ -64,4 +65,20 @@ val tk_plain :
   -> d  : (;ki, s, r) delta
   
   -> (username * token) option
+
+// ------------------------------------------------------------------------
+val rp_repr :
+     ki : epoch
+  -> s  : (;ki)stream
+  -> b  : bool
+   
+  -> (;ki, s, (0, MaxTkReprLen)) delta
+
+val rp_plain :
+     ki : epoch
+  -> s  : (;ki) stream
+  -> r  : range
+  -> d  : (;ki, s, r) delta
+  
+  -> bool
 	
