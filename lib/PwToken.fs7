@@ -2,6 +2,8 @@
 
 // ------------------------------------------------------------------------
 open Bytes
+open TLSInfo
+open DataStream
 
 // ------------------------------------------------------------------------
 type username = string
@@ -10,24 +12,47 @@ type token =
   | GToken of bytes
   | BToken of bytes
 
+private type utk = UTK of username * token
+
 predicate GoodClient      of unit
 predicate GoodToken       of token
-predicate RegisteredToken of username * token
+predicate RegisteredToken of utk
 
 assume !bs.     GoodToken(GToken(bs))
 assume !bs. not GoodToken(BToken(bs))
 
-private type utk = username * token
-
-private val tokens : (utk:utk{RegisteredToken(fst(utk), snd(utk))}) list ref
+private val tokens : (utk:utk{RegisteredToken(utk)}) list ref
 
 // ------------------------------------------------------------------------
-val create   : x:unit{GoodClient()} -> tk:token{GoodToken(tk)}
-val register : u:username -> tk:token{GoodToken(tk)} -> unit {RegisteredToken(u, tk)} 
-val verify   : u:username -> tk:token -> b:bool{b = true => RegisteredToken(u, tk)}
+private val verify_r :
+     utk:utk
+  -> tokens:(utk:utk{RegisteredToken(utk)}) list
+  -> b:bool{b = true => RegisteredToken(utk)}
+
+// ------------------------------------------------------------------------
+val create   : unit{GoodClient()} -> tk:token{GoodToken(tk)}
+val register : u:username -> tk:token{GoodToken(tk)} -> unit{RegisteredToken(UTK(u, tk))} 
+val verify   : u:username -> tk:token -> b:bool{b = true => RegisteredToken(UTK(u, tk))}
 val guess    : bytes -> tk:token{not GoodToken(tk)}
 
 // ------------------------------------------------------------------------
-ask !u, tk. RegisteredToken(u, tk) => GoodToken(tk)
+type (;ki : epoch, s : (;ki)stream, r : range) delta = (;ki, s, r) DataStream.delta
 
-ask !tk1, tk2. GoodToken(tk1) /\ not GoodToken(tk2) => tk1 <> tk2
+private val MaxTkReprLen : nat
+
+val tk_repr :
+     ki : epoch
+  -> s  : (;ki) stream
+  -> u  : username
+  -> tk : token 
+   
+  -> (;ki, s, (0, MaxTkReprLen)) delta
+
+val tk_plain :
+     ki : epoch
+  -> s  : (;ki) stream
+  -> r  : range
+  -> d  : (;ki, s, r) delta
+  
+  -> (username * token) option
+	
