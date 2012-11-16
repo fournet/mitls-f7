@@ -1,19 +1,42 @@
 ﻿module PwToken
 
+// ------------------------------------------------------------------------
 open Bytes
+open Nonce
 
-type token = Token of string * bytes
+// ------------------------------------------------------------------------
+type username = string
 
-let repr (tk : token) =
-    let (Token (name, tk)) = tk in (name, tk)
+type token =
+  | GToken of bytes
+  | BToken  of bytes
 
-let mk (name : string) (tk : bytes) =
-    Token (name, tk)
+type gt = GoodToken of token
+type rt = RegisteredToken of username * token
 
-let bytes (tk : token) = ([||] : bytes) // FIX
+// ------------------------------------------------------------------------
+type utk = username * token
 
-let parse (bytes : bytes) = (None : token option) // FIX
+let tokens = ref ([] : utk list)
 
-let verify (tk : token) =
-    false // Table lookup (FIX)
+// ------------------------------------------------------------------------
+let create () =
+    let token = GToken (Nonce.mkRandom 256)
+    Pi.assume (GoodToken(token));
+    token
 
+// ------------------------------------------------------------------------
+let register (username : username) (token : token) =
+    match token with
+    | BToken _  -> ()
+    | GToken tk ->
+        Pi.assume (RegisteredToken(username, token));
+        tokens := (username, token) :: !tokens
+
+// ------------------------------------------------------------------------
+let verify (username : username) (token : token) =
+    Bytes.memr !tokens (username, token)
+
+// ------------------------------------------------------------------------
+let guess (bytes : bytes) =
+    BToken bytes
