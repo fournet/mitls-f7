@@ -1,16 +1,14 @@
 ﻿module PwApp
 
-(*
 predicate Authenticated of string
 predicate AuthenticatedWithTk of token * string
 
 definition !name, tk. AutheneticatedWithTk(tk, name) => Authenticated(name)
 
-val request : name:string -> my:string -> token:token -> b:bool{
-  b = true => ?si. CN(si.serverID) = name /\ (Strong(si.cipher_suite) /\ Honest(si.serverID) => Authenticated(my)) 
-}
-
-val response : unit -> name:string{
-  ?si, token. Strong(si.cipher_suite) => AuthenticatedWithTk(name, token)
+val request : name:string -> my:string -> token:token -> c:Connection{
+    CN(c.si.serverID) = name /\ (Strong(c.si.cipher_suite) /\ Honest(c.si.serverID) => Authenticated(my, c.si)) 
 } option
-*)
+
+val response : unit -> my:string{
+  ?si, token. Strong(si.cipher_suite) => AuthenticatedWithTk(my, token) /\ GoodToken(my, token)
+} option

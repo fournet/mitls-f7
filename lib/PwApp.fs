@@ -45,7 +45,10 @@ let read_server_response (c : Connection) =
     | Warning    (conn, _)         -> TLS.half_shutdown conn; false
     | CertQuery  (conn, _, _)      -> TLS.half_shutdown conn; false
     | Handshaken conn              -> TLS.half_shutdown conn; false
-    | Read       (conn, _)         -> TLS.half_shutdown conn; true
+    | Read       (conn, m)         -> TLS.half_shutdown conn;
+        if m then
+            Pi.assume (AuthenticatedBy (...));
+        m
 
 let drain (c : Connection) =
     match TLS.read c with
@@ -115,6 +118,7 @@ let rec handle_client_request (conn : Connection) =
             let clientok = PwToken.verify tk
 
             if do_client_response conn [|(if clientok then 1uy else 0uy)|] then
+                Pi.assume (Authenticated (...));
                 Some (fst (PwToken.repr tk))
             else
                 None
