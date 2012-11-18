@@ -27,7 +27,7 @@ let genRSA (pk:RSAKeys.pk) (vc:TLSConstants.ProtocolVersion) : rsapms =
     let pms = verBytes @| rnd in
     let pms = {rsapms = pms}
     #if ideal
-    honest_log := RSA_pms(pms)::!honest_log
+    if honest pk then honest_log := RSA_pms(pms)::!honest_log
     #endif
     pms
 
@@ -44,7 +44,7 @@ let sampleDH p g (gx:DHGroup.elt) (gy:DHGroup.elt) =
     #endif
     pms
 
-let coerceDH (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) b = {dhpms = b}
+let coerceDH (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) b = {dhpms = b} 
 
 // internal
 let prfMS sinfo pmsBytes: PRF.masterSecret =

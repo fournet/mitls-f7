@@ -1,0 +1,60 @@
+module Handshake // excerpts for the paper
+
+open Bytes
+open Error
+open TLSInfo
+open DataStream
+open StatefulAEAD
+open TLSConstants
+open TLSExtensions
+
+
+(*--- controlinterface *)
+(* Control Interface *)
+type ConnectionInfo = CI
+private type (;ci:CI) state
+function val Config: ci:CI * s:(;ci)state -> config
+
+predicate val Authorize: config * Cert.cert -> bool
+predicate val Complete: CI * config -> bool
+predicate EvSentFinishedFirst of CI * bool
+predicate val SentCCS: epoch -> bool
+
+val init:  rl:Role  -> c:config  ->
+	(ci:CI * s:(;ci)state){Config(ci,s) = c ...}
+		                    
+val resume:      nextSID:sessionID -> c:config  -> (ci:CI * s:(;ci)state){ Config(ci,s) = c ...}
+val rehandshake: ci:CI -> s:(;ci)state -> c:config -> (b:bool * s':(;ci)state){...}
+val rekey: ci:CI -> s:(;ci)state -> c:config  -> b:bool * s':(;ci)state{...}		
+val request:     ci:CI -> s:(;ci)state -> c:config  -> b:bool * s':(;ci)state{...}
+val authorize:   ci:CI-> s:(;ci)state -> c:Cert.certchain  -> s':(;ci)state {Authorize(Config(ci,s),c) ...}
+
+
+(*--- networkinterface *)
+(* Network Interface*)
+type (;ci:CI, hs:(;ci) state) outgoing =
+  | OutIdle of s':(;ci)state
+  | OutSome of (rg:range * f:(;ci.id_out,rg)Fragment.fragment * s':(;ci)state)
+  | OutCCS of  (rg:range * f:(;ci.id_out,rg)Fragment.fragment * 
+               ci':CI * cs:(;ci'.id_out)StatefulAEAD.state * s':(;ci')state) { ci.write = Pred(ci'.write) /\ ci.read = ci'.read ...}
+  | OutFinished of (rg:range * f:(;ci.id_out,rg)Fragment.fragment * s':(;ci)state) {EvSentFinishedFirst(ci,true)}
+  | OutComplete of (rg:range * f:(;ci.id_out,rg)Fragment.fragment * s':(;ci)state) {Complete(ci,Config(ci,hs))}
+val next_fragment: ci:CI -> s:(;ci)state -> (;ci,s)outgoing
+
+type (;ci:CI,c:config)incoming =
+  | InAck of (;ci,c)nextState
+  | InVersionAgreed  of (;ci,c)nextState * ProtocolVersion
+  | InQuery of Cert.certchain * advice:bool * (;ci)state
+  | InFinished of (;ci)state {EvSentFinishedFirst(ci,false)}
+  | InComplete of (;ci)state {Complete(ci,c)}
+  | InError of alertDescription * string * (;ci)state
+val recv_fragment: ci:CI -> s:(;ci)state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> (;ci,Config(ci,s))incoming
+
+type (;ci:CI,c:config)incomingCCS =
+  | InCCSAck of ci':CI * (;ci'.id_in)StatefulAEAD.state * (;ci')state {ci.write = ci'.write /\ ci.read = Pred(ci'.read)}
+  | InCCSError of alertDescription * string * (;ci,c)nextState
+val recv_ccs     : ci:CI -> s:(;ci)state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> (;ci,Config(ci,s))incomingCCS
+
+
+(*--- end *)
+
