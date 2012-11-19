@@ -1,0 +1,179 @@
+#! /usr/bin/env python
+
+import sys, os, re, codecs, StringIO as sio
+
+# --------------------------------------------------------------------
+def _noexn(f):
+    try: f()
+    except: pass
+
+# --------------------------------------------------------------------
+class _tag(object):
+    pass
+
+LEXPRINT = _tag()
+LEXPOP   = _tag()
+
+# --------------------------------------------------------------------
+CRLN = '\r\n'
+
+lexer = dict(
+    main = (
+        (r'[^("/]+', (LEXPRINT, None     )),
+        (r'//.*$'  , (None    , None     )),
+        (r'\(\*'   , (None    , 'comment')),
+        (r'"'      , (LEXPRINT, 'string' )),
+        (r'.'      , (LEXPRINT, None     )),
+    ),
+
+    comment = (
+        (r'[^()*]+', (None, None     )),
+        (r'\(\*'   , (None, 'comment')),
+        (r'\*\)'   , (None, LEXPOP   )),
+        (r'.'      , (None, None     )),
+    ),
+
+    string = (
+        (r'[^"]+', (LEXPRINT, None  )),
+        (r'"'    , (LEXPRINT, LEXPOP)),
+        (r'.'    , (LEXPRINT, None  )),
+    ),
+)
+
+# --------------------------------------------------------------------
+class LexError(Exception):
+    pass
+
+# --------------------------------------------------------------------
+def _compile(lexer, flags = 0):
+    import sre_parse, sre_compile, sre_constants as srec
+
+    compiled = dict()
+
+    for rulename, rules in lexer.iteritems():
+        ptn     = sre_parse.Pattern()
+        subptns = []
+
+        for i, (phrase, action) in enumerate(rules):
+            subptn = (srec.SUBPATTERN, (i+1, sre_parse.parse(phrase, flags)))
+            subptns.append(sre_parse.SubPattern(ptn, [subptn]))
+
+        ptn.flags  = flags
+        ptn.groups = len(subptns)+1
+        ptn = sre_parse.SubPattern(ptn, [(srec.BRANCH, (None, subptns))])
+        ptn = sre_compile.compile(ptn)
+
+        compiled[rulename] = ptn
+
+    return compiled
+
+# --------------------------------------------------------------------
+def _lex(lexer, entry, stream, ostream = sys.stdout):
+    compiled = _compile(lexer, flags = re.MULTILINE)
+    stack    = []
+    position = 0
+
+    while True:
+        rulename = entry if not stack else stack[-1]
+        mtch     = compiled[rulename].scanner(stream, position).match()
+
+        if mtch is None or position == mtch.end():
+            break
+
+        actions, state = lexer[rulename][mtch.lastindex-1][1]
+
+        if actions is not None:
+            if not isinstance(actions, (tuple, list)):
+                actions = (actions,)
+            for action in actions:
+                if action is LEXPRINT:
+                    ostream.write(stream[position:mtch.end()])
+                elif hasattr(action, '__call__'):
+                    action(stream[position:mtch.end()])
+                else:
+                    raise RuntimeError
+
+        if state is not None:
+            if state is LEXPOP:
+                if stack:
+                    stack.pop()
+            elif isinstance(state, basestring):
+                stack.append(state)
+            else:
+                raise RuntimeError
+
+        position = mtch.end()
+
+    if stack or position != len(stream):
+        raise LexError
+
+# --------------------------------------------------------------------
+def _options(args):
+    from optparse import OptionParser
+
+    parser = OptionParser(usage = '%prog <options> [filenames...]')
+    parser.add_option("-B", None,
+                      action  = "store_false",
+                      dest    = "backup",
+                      help    = "do NOT create a backup file",
+                      default = True,
+                      metavar = "BACKUP")
+    parser.add_option("-c", "--header",
+                      dest    = "header",
+                      help    = "add header from HEADER",
+                      metavar = "HEADER")
+
+    (options, args) = parser.parse_args()
+
+    return (options, args)
+
+# --------------------------------------------------------------------
+def _read_file(filename):
+    contents = open(filename, 'rb').read()
+
+    if contents.startswith(codecs.BOM_UTF8):
+        return unicode(contents[len(codecs.BOM_UTF8):], 'utf-8')
+    return unicode(contents, 'utf-8')
+
+# --------------------------------------------------------------------
+def _process_file(filename, options):
+    output = sio.StringIO()
+    _lex(lexer, 'main', _read_file(filename), output)
+    output = CRLN.join(output.getvalue().splitlines()) + CRLN
+    output = re.sub('(?:\r\n){3,}', 2 * CRLN, output)
+    output = re.sub('(?:\r\n)+$', CRLN, output)
+    output = re.sub('^(?:\r\n)*', CRLN, output)
+
+    if options.header:
+        output = CRLN.join(options.header.splitlines()) + CRLN + output
+
+    if options.backup:
+        if os.path.exists(filename + '~'):
+            os.unlink(filename + '~')
+        os.rename(filename, filename + '~')
+    else:
+        os.unlink(filename)
+
+    try:
+        with codecs.open(filename, 'w', 'utf-8') as ostream:
+            ostream.write(output)
+    except:
+        _noexn(lambda : os.unlink(filename))
+        raise
+
+# --------------------------------------------------------------------
+def _main():
+    options, filenames = _options(sys.argv[:1])
+
+    if options.header:
+        options.header = open(options.header, 'r').read().splitlines()
+        options.header = [' * ' + x for x in options.header]
+        options.header = ['(*'] + options.header + [' *)']
+        options.header = CRLN.join(options.header)
+
+    for filename in filenames:
+        _process_file(filename, options)
+
+# --------------------------------------------------------------------
+if __name__ == '__main__':
+    _main()
