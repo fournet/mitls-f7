@@ -17,7 +17,7 @@ f7flags += -timeout 1 --define avoid --verbose -nokindcheck $(lperv) $(libfs7)
 default: $(DEFAULT)
 
 clean:
-	rm -f *.tc7
+	rm -f *.tc7 *.smp
 
 # ----- BEGIN AUTO FS7 -----
 Error.tc7: $(libperv) $(libfs7)  Error.fs7 Error.fs Error.fs7
