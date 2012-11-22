@@ -423,6 +423,97 @@ let rec writeAll c =
     | (WriteAgain,c) -> writeAll c
     | other -> other
 
+let handleHandshakeOutcome (Conn(id,c)) hsRes =
+    let c_read = c.read in
+    match hsRes with
+    | Handshake.InAck(hs) ->
+        let c = { c with read = c_read;
+                        //appdata = ad;
+                        handshake = hs} in
+        // KB: To Fix                                 
+        //Pi.assume (GState(id,c));  
+        RAgain, Conn(id,c)
+    | Handshake.InVersionAgreed(hs,pv) ->
+        match c_read.disp with
+        | Init ->
+            (* Then, also c_write must be in Init state. It means this is the very first, unprotected handshake,
+                and we just negotiated the version.
+                Set the negotiated version in the current sinfo (read and write side), 
+                and move to the FirstHandshake state, so that
+                protocol version will be properly checked *)
+            let new_read = {c_read with disp = FirstHandshake(pv)} in
+            let c_write = c.write in
+            let new_write = {c_write with disp = FirstHandshake(pv)} in
+            let c = {c with handshake = hs;
+                            read = new_read;
+                            write = new_write} in
+                // KB: To Fix                                 
+                //Pi.assume (GState(id,c));  
+                (RAgain, Conn(id,c))
+        | _ -> (* It means we are doing a re-negotiation. Don't alter the current version number, because it
+                    is perfectly valid. It will be updated after the next CCS, along with all other session parameters *)
+            let c = { c with read = c_read;
+                                handshake = hs} in
+                // KB: To Fix                           
+                //Pi.assume (GState(id,c));  
+                (RAgain, Conn(id, c))
+    | Handshake.InQuery(query,advice,hs) ->
+            let c = {c with read = c_read;
+                            handshake = hs} in
+                // KB: To Fix                           
+                //Pi.assume (GState(id,c));  
+                (RQuery(query,advice),Conn(id,c))
+    | Handshake.InFinished(hs) ->
+            (* Ensure we are in Finishing state *)
+            match c_read.disp with
+                | Finishing ->
+                    let c = {c with read = c_read;
+                                    handshake = hs} in
+                    (* Indeed, we should stop reading now!
+                        (Because, except for false start implementations, the other side is now
+                        waiting for us to send our finished message)
+                        However, if we say RHSDone, the library will report an early completion of HS
+                        (we still have to send our finished message).
+                        So, here we say ReadAgain, which will anyway first flush our output buffers,
+                        this sending our finished message, and thus letting us get the WHSDone event.
+                        I know, it's tricky and it sounds fishy, but that's the way it is now.*)
+                    // KB: To Fix                           
+                    //Pi.assume (GState(id,c));  
+                    (RAgain,Conn(id,c))
+                | _ ->
+                    let reason = perror __SOURCE_FILE__ __LINE__ "Finishing handshake in the wrong state" in
+                    let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in
+                    let wo,conn = writeAll closing in
+                    WriteOutcome(wo),conn
+    | Handshake.InComplete(hs) ->
+            let c = {c with read = c_read;
+                            handshake = hs} in
+            // KB: To Fix                        
+            //Pi.assume (GState(id,c));  
+            (* Ensure we are in Finishing state *)
+                match c_read.disp with
+                | Finishing ->
+                        (* Sanity check: in and out session infos should be the same *)
+                    if epochSI(id.id_in) = epochSI(id.id_out) then
+                        match moveToOpenState (Conn(id,c)) with
+                        | Correct(c) -> 
+                            (RHSDone, Conn(id,c))
+                        | Error(x,y) -> 
+                            let closing = abortWithAlert (Conn(id,c)) x y in
+                            let wo,conn = writeAll closing in
+                            WriteOutcome(wo),conn
+                    else let closed = closeConnection (Conn(id,c)) in (RError(perror __SOURCE_FILE__ __LINE__ "Invalid connection state"),closed) (* Unrecoverable error *)
+                | _ ->
+                    let reason = perror __SOURCE_FILE__ __LINE__ "Invalid connection state" in
+                    let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in
+                    let wo,conn = writeAll closing in
+                    WriteOutcome(wo),conn
+    | Handshake.InError(x,y,hs) ->
+        let c = {c with handshake = hs} in
+        let closing = abortWithAlert (Conn(id,c)) x y in
+        let wo,conn = writeAll closing in
+        WriteOutcome(wo),conn
+
 (* we have received, decrypted, and verified a record (ct,f); what to do? *)
 let readOne (Conn(id,c)) =
   match recv (Conn(id,c)) with
@@ -446,94 +537,8 @@ let readOne (Conn(id,c)) =
                 match (ct,c_read.disp) with 
                   | (Handshake, Init) | (Handshake, FirstHandshake(_)) | (Handshake, Finishing) | (Handshake, Open) ->
                       let c_hs = c.handshake in
-                        match Handshake.recv_fragment id c_hs rg f with
-                        | Handshake.InAck(hs) ->
-                            let c = { c with read = c_read;
-                                            //appdata = ad;
-                                            handshake = hs} in
-                            // KB: To Fix                                 
-                            //Pi.assume (GState(id,c));  
-                            RAgain, Conn(id,c)
-                        | Handshake.InVersionAgreed(hs,pv) ->
-                            match c_read.disp with
-                            | Init ->
-                                (* Then, also c_write must be in Init state. It means this is the very first, unprotected handshake,
-                                    and we just negotiated the version.
-                                    Set the negotiated version in the current sinfo (read and write side), 
-                                    and move to the FirstHandshake state, so that
-                                    protocol version will be properly checked *)
-                                let new_read = {c_read with disp = FirstHandshake(pv)} in
-                                let c_write = c.write in
-                                let new_write = {c_write with disp = FirstHandshake(pv)} in
-                                let c = {c with handshake = hs;
-                                                read = new_read;
-                                                write = new_write} in
-                                    // KB: To Fix                                 
-                                    //Pi.assume (GState(id,c));  
-                                    (RAgain, Conn(id,c))
-                            | _ -> (* It means we are doing a re-negotiation. Don't alter the current version number, because it
-                                        is perfectly valid. It will be updated after the next CCS, along with all other session parameters *)
-                                let c = { c with read = c_read;
-                                                    handshake = hs} in
-                                    // KB: To Fix                           
-                                    //Pi.assume (GState(id,c));  
-                                    (RAgain, Conn(id, c))
-                        | Handshake.InQuery(query,advice,hs) ->
-                                let c = {c with read = c_read;
-                                                handshake = hs} in
-                                    // KB: To Fix                           
-                                    //Pi.assume (GState(id,c));  
-                                    (RQuery(query,advice),Conn(id,c))
-                        | Handshake.InFinished(hs) ->
-                                (* Ensure we are in Finishing state *)
-                                match c_read.disp with
-                                    | Finishing ->
-                                        let c = {c with read = c_read;
-                                                        handshake = hs} in
-                                        (* Indeed, we should stop reading now!
-                                            (Because, except for false start implementations, the other side is now
-                                            waiting for us to send our finished message)
-                                            However, if we say RHSDone, the library will report an early completion of HS
-                                            (we still have to send our finished message).
-                                            So, here we say ReadAgain, which will anyway first flush our output buffers,
-                                            this sending our finished message, and thus letting us get the WHSDone event.
-                                            I know, it's tricky and it sounds fishy, but that's the way it is now.*)
-                                        // KB: To Fix                           
-                                        //Pi.assume (GState(id,c));  
-                                        (RAgain,Conn(id,c))
-                                    | _ ->
-                                        let reason = perror __SOURCE_FILE__ __LINE__ "Finishing handshake in the wrong state" in
-                                        let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in
-                                        let wo,conn = writeAll closing in
-                                        WriteOutcome(wo),conn
-                        | Handshake.InComplete(hs) ->
-                                let c = {c with read = c_read;
-                                                handshake = hs} in
-                                // KB: To Fix                        
-                                //Pi.assume (GState(id,c));  
-                                (* Ensure we are in Finishing state *)
-                                    match c_read.disp with
-                                    | Finishing ->
-                                            (* Sanity check: in and out session infos should be the same *)
-                                        if epochSI(id.id_in) = epochSI(id.id_out) then
-                                            match moveToOpenState (Conn(id,c)) with
-                                            | Correct(c) -> 
-                                                (RHSDone, Conn(id,c))
-                                            | Error(x,y) -> 
-                                                let closing = abortWithAlert (Conn(id,c)) x y in
-                                                let wo,conn = writeAll closing in
-                                                WriteOutcome(wo),conn
-                                        else let closed = closeConnection (Conn(id,c)) in (RError(perror __SOURCE_FILE__ __LINE__ "Invalid connection state"),closed) (* Unrecoverable error *)
-                                    | _ ->
-                                        let reason = perror __SOURCE_FILE__ __LINE__ "Invalid connection state" in
-                                        let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in
-                                        let wo,conn = writeAll closing in
-                                        WriteOutcome(wo),conn
-                        | Handshake.InError(x,y,hs) ->
-                            let c = {c with handshake = hs} in
-                            let closing = abortWithAlert (Conn(id,c)) x y in
-                            let wo,conn = writeAll closing in
-                            WriteOutcome(wo),conn
+                        let hsRes = Handshake.recv_fragment id c_hs rg f in
+                        handleHandshakeOutcome (Conn(id,c)) hsRes
 
                   | (Change_cipher_spec, FirstHandshake(_)) | (Change_cipher_spec, Open) ->
                         match Handshake.recv_ccs id c.handshake rg f with 
@@ -679,9 +684,43 @@ let write (Conn(id,c)) msg =
   Conn(id,g),outcome,rdOpt
 
 let authorize (Conn(id,c)) q =
-    let hs = Handshake.authorize id c.handshake q in
-    let c = {c with handshake = hs} in
-    Conn(id,c)
+    let hsRes = Handshake.authorize id c.handshake q in
+    let (outcome,c) = handleHandshakeOutcome (Conn(id,c)) hsRes in
+    // The following code is borrowed from read.
+    // It should be factored out, but this would create a double-recursive function, which we try to avoid.
+    match outcome with
+    | RAgain ->
+        read c 
+    | RAppDataDone ->    
+        unexpectedError "[authorize] App data should never be received"
+    | RQuery(q,adv) ->
+        unexpectedError "[authorize] A query should never be received"
+    | RHSDone ->
+        c,RHSDone,None
+    | RClose ->
+        let (Conn(id,conn)) = c in
+        match conn.write.disp with
+        | Closed ->
+            // we already sent a close_notify, tell the user it's over
+            c,RClose, None
+        | _ ->
+            let (outcome,c) = writeAll c in
+            match outcome with
+            | SentClose ->
+                // clean shoutdown
+                c,RClose,None
+            | SentFatal(ad,err) ->
+                c,WriteOutcome(SentFatal(ad,err)),None
+            | WError(err) ->
+                c,RError(err),None
+            | _ ->
+                c,RError(perror __SOURCE_FILE__ __LINE__ ""),None // internal error
+    | RFatal(ad) ->
+        c,RFatal(ad),None
+    | RWarning(ad) ->
+        c,RWarning(ad),None
+    | WriteOutcome(wo) -> c,WriteOutcome(wo),None
+    | RError(err) -> c,RError(err),None
 
 let refuse conn (q:query) =
     let reason = perror __SOURCE_FILE__ __LINE__ "Remote certificate could not be verified locally" in

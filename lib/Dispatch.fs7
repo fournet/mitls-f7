@@ -388,20 +388,24 @@ private val writeAll: c:Connection ->
 	writeOutcome * Connection
 
 val read: c:Connection -> 
-    (c':Connection  * ro:readOutcome* mo:(;ConnectionEpochIn(c'),CnStream_i(c'))msg_i option)
+    (c':Connection  * ro:readOutcome * mo:(;ConnectionEpochIn(c'),CnStream_i(c'))msg_i option)
     {
       IOResult_i(c,c',ro,mo)
     }
 
 val write: c:Connection -> // CnOutBuf(c) = None
 	m:(;ConnectionEpochOut(c),CnStream_o(c))msg_o ->
-	(c':Connection* wo:writeOutcome* mo:(;ConnectionEpochOut(c'),CnStream_o(c'))msg_o option)
+	(c':Connection* wo:writeOutcome * mo:(;ConnectionEpochOut(c'),CnStream_o(c'))msg_o option)
     {
       IOResult_o(c,m,c',wo,mo)
 	  // /\ CnOutBuf(c') = None
     }
 
-val authorize: c:Connection -> q:query -> c': (;c) nextCn {Extend(c,c') /\ Handshake.Authorize(Config(c),q)}
+val authorize: c:Connection -> q:query{Handshake.Authorize(Config(c),q)} -> 
+	(c':Connection  * ro:readOutcome * mo:(;ConnectionEpochIn(c'),CnStream_i(c'))msg_i option)
+    {
+      IOResult_i(c,c',ro,mo)
+    }
 val refuse: Connection -> query -> unit
 
 val getEpochIn:   c:Connection -> e:epoch{e=ConnectionEpochIn(c) }

@@ -1765,11 +1765,13 @@ let authorize (ci:ConnectionInfo) (state:hs_state) (q:Cert.certchain) =
         | ClientCheckingCertificateRSA(si,log,to_log) ->
             let log = log @| to_log in
             let si = {si with serverID = q} in
-            {state with pstate = PSClient(CertificateRequestRSA(si,log))}
+            let state = {state with pstate = PSClient(CertificateRequestRSA(si,log))} in
+            recv_fragment_client ci state None
         | ClientCheckingCertificateDHE(si,log,to_log) ->
             let log = log @| to_log in
             let si = {si with serverID = q} in
-            {state with pstate = PSClient(ServerKeyExchangeDHE(si,log))}
+            let state = {state with pstate = PSClient(ServerKeyExchangeDHE(si,log))} in
+            recv_fragment_client ci state None
         // | ClientCheckingCertificateDH -> TODO
         | _ -> unexpectedError "[authorize] invoked on the wrong state"
     | PSServer(sstate) ->
@@ -1777,11 +1779,13 @@ let authorize (ci:ConnectionInfo) (state:hs_state) (q:Cert.certchain) =
         | ServerCheckingCertificateRSA(si,cv,sk,log,to_log) ->
             let log = log @| to_log in
             let si = {si with clientID = q} in
-            {state with pstate = PSServer(ClientKeyExchangeRSA(si,cv,sk,log))}
+            let state = {state with pstate = PSServer(ClientKeyExchangeRSA(si,cv,sk,log))} in
+            recv_fragment_server ci state None
         | ServerCheckingCertificateDHE(si,p,g,gx,x,log,to_log) ->
             let log = log @| to_log in
             let si = {si with clientID = q} in
-            {state with pstate = PSServer(ClientKeyExchangeDHE(si,p,g,gx,x,log))}
+            let state = {state with pstate = PSServer(ClientKeyExchangeDHE(si,p,g,gx,x,log))} in
+            recv_fragment_server ci state None
         // | ServerCheckingCertificateDH -> TODO
         | _ -> unexpectedError "[authorize] invoked on the wrong state"
 

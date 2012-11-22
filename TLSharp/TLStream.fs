@@ -38,11 +38,24 @@ type TLStream(s:System.Net.Sockets.NetworkStream, options, b) =
         | TLS.Warning (conn,ad) -> raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
         | TLS.CertQuery (conn,q,advice) ->
             if advice then
-                let conn = TLS.authorize conn q in
-                doHS conn
+                match TLS.authorize conn q with
+                | TLS.ReadError (adOpt,err) ->
+                    match adOpt with
+                    | Some(ad) -> raise (IOException(sprintf "TLS-HS: Sent fatal alert: %A %A" ad err))
+                    | None     -> raise (IOException(sprintf "TLS-HS: Internal error: %A" err))
+                | TLS.Close ns -> raise (IOException(sprintf "TLS-HS: Connection closed during HS"))
+                | TLS.Fatal ad -> raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
+                | TLS.Warning (conn,ad) -> raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
+                | TLS.CertQuery (conn,q,advice) -> raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate twice"))
+                | TLS.Handshaken conn -> closed <- false; conn
+                | TLS.Read (conn,msg) ->
+                    let b = undoMsg_i conn msg
+                    inbuf <- inbuf @| b
+                    doHS conn
+                | TLS.DontWrite conn -> doHS conn
             else
                 TLS.refuse conn q
-                raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate"))
+                raise (IOException(sprintf "TLS-HS: Refusing untrusted certificate"))
         | TLS.Handshaken conn -> closed <- false; conn
         | TLS.Read (conn,msg) ->
             let b = undoMsg_i conn msg
@@ -56,13 +69,29 @@ type TLStream(s:System.Net.Sockets.NetworkStream, options, b) =
             match adOpt with
             | None -> raise (IOException(sprintf "TLS-HS: Internal error: %A" err))
             | Some ad -> raise (IOException(sprintf "TLS-HS: Sent fatal alert: %A %A" ad err))
-        | TLS.Close ns -> closed <- true; (conn,[||]) // FIXME: this is an old connection, should not be used!
+        | TLS.Close ns -> closed <- true; (conn,[||]) // This is a closed connection, should not be used!
         | TLS.Fatal ad -> raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
         | TLS.Warning (conn,ad) -> raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
         | TLS.CertQuery (conn,q,advice) ->
             if advice then
-                let conn = TLS.authorize conn q in
-                wrapRead conn
+                match TLS.authorize conn q with
+                | TLS.ReadError (adOpt,err) ->
+                    match adOpt with
+                    | None -> raise (IOException(sprintf "TLS-HS: Internal error: %A" err))
+                    | Some ad -> raise (IOException(sprintf "TLS-HS: Sent fatal alert: %A %A" ad err))
+                | TLS.Close ns -> closed <- true; (conn,[||]) // This is a closed connection, should not be used!
+                | TLS.Fatal ad -> raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
+                | TLS.Warning (conn,ad) -> raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
+                | TLS.CertQuery (conn,q,advice) -> raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate twice"))
+                | TLS.Handshaken conn -> wrapRead conn
+                | TLS.Read (conn,msg) ->
+                    let read = undoMsg_i conn msg in
+                    if equalBytes read [||] then
+                        // The other party sent some empty fragment. Let's read more.
+                        wrapRead conn
+                    else
+                        (conn,read)
+                | TLS.DontWrite conn -> wrapRead conn
             else
                 TLS.refuse conn q
                 raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate"))

@@ -71,7 +71,16 @@ let drain (c : Connection) =
     | Fatal      _              -> None
     | DontWrite  c              -> Some c
     | Warning    (c, _)         -> TLS.half_shutdown c; None
-    | CertQuery  (c, q, _)      -> Some (TLS.authorize c q)
+    | CertQuery  (c, q, _)      ->
+        match TLS.authorize c q with
+        | ReadError (_,_) -> None
+        | Close (_) -> None
+        | Fatal (_) -> None
+        | DontWrite (c) -> Some c
+        | Warning (c,_) -> TLS.half_shutdown c; None
+        | CertQuery (c,_,_) -> TLS.half_shutdown c; None
+        | Handshaken (c) -> Some c
+        | Read (c,_) -> TLS.half_shutdown c; None
     | Handshaken c              -> Some c
     | Read       (c, _)         -> TLS.half_shutdown c; None
 
@@ -114,11 +123,21 @@ let rec handle_client_request (conn : Connection) =
     | ReadError  (_, s)            -> printfn "%s" s; None
     | Close      _                 -> None
     | Fatal      _                 -> None
-    | DontWrite  conn              -> None
+    | DontWrite  _                 -> None
     | Warning    (conn, _)         -> handle_client_request conn
-    | CertQuery  (conn, q, advice) -> if   advice
-                                      then handle_client_request (TLS.authorize conn q)
-                                      else refuse conn q; None
+    | CertQuery  (conn, q, advice) ->
+        if advice then
+            match TLS.authorize conn q with
+            | ReadError(_,s) -> printf "%s" s; None
+            | Close(_) -> None
+            | Fatal(_) -> None
+            | DontWrite (_) -> None
+            | Warning (conn,_) -> handle_client_request conn
+            | CertQuery (_,_,_) -> None
+            | Handshaken (conn) -> handle_client_request conn
+            | Read(conn,m) -> None // should never happen
+        else
+            refuse conn q; None
     | Handshaken conn              -> handle_client_request conn
     | Read       (conn, m)         ->
         let (r, d) = m in

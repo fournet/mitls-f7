@@ -65,9 +65,8 @@ type readOutcome =
     
 val write: Connection -> msg_o -> Connection * writeOutcome * msg_o option
 val read: Connection -> Connection * readOutcome * msg_i option
-(* val appDataAvailable: Connection -> bool *)
 
-val authorize: Connection -> query -> Connection
+val authorize: Connection -> query -> Connection * readOutcome * msg_i option
 val refuse:    Connection -> query -> unit
 
 val getEpochIn:  Connection -> epoch

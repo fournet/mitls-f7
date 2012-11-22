@@ -88,7 +88,22 @@ let write c msg =
 let full_shutdown c = Dispatch.full_shutdown c
 let half_shutdown c = Dispatch.half_shutdown c
 
-let authorize c q = Dispatch.authorize c q
+let authorize c q =
+    let cb,outcome,m = Dispatch.authorize c q in
+    match outcome with
+      | WriteOutcome(WError(err)) -> ReadError(None,err)
+      | RError(err) -> ReadError(None,err)
+      | RHSDone -> Handshaken(cb)
+      | RClose -> Close (networkStream cb)
+      | RFatal(ad) -> Fatal(ad)
+      | RWarning(ad) -> Warning(cb,ad)
+      | WriteOutcome(WMustRead) -> DontWrite(cb)
+      | WriteOutcome(WHSDone) -> Handshaken (cb)
+      | WriteOutcome(SentFatal(ad,s)) -> ReadError(Some(ad),s)
+      | WriteOutcome(SentClose) -> Close (networkStream cb)
+      | WriteOutcome(WriteAgain) -> unexpectedError "[read] Dispatch.read should never return WriteAgain"
+      | _ -> ReadError(None, perror __SOURCE_FILE__ __LINE__ "Invalid dispatcher state. This is probably a bug, please report it")
+
 let refuse c q = Dispatch.refuse c q
 
 let getEpochIn c = Dispatch.getEpochIn c

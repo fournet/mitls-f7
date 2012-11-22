@@ -61,7 +61,18 @@ let rec drainMeta = fun conn ->
   | Close      s                 -> DRClosed s
   | Fatal      e                 -> DRError (Some(e),"")
   | Warning    (conn, _)         -> DRContinue conn
-  | CertQuery  (conn, q, advice) -> if advice then DRContinue (authorize conn q) else refuse conn q; DRError(None,"")
+  | CertQuery  (conn, q, advice) ->
+    if advice then
+        match authorize conn q with
+        |ReadError(ad,err) -> DRError(ad,err)
+        | Close(s) -> DRClosed(s)
+        | Fatal(e) -> DRError(Some(e),"")
+        | Warning(conn,_) -> DRContinue conn
+        | Handshaken (conn) -> DRContinue conn
+        | DontWrite conn -> drainMeta conn
+        | _ -> DRError(None,perror __SOURCE_FILE__ __LINE__ "Internal TLS error")
+    else
+        refuse conn q; DRError(None,"")
   | Handshaken conn              -> DRContinue conn
   | DontWrite  conn              -> drainMeta conn
   | Read       (conn, _)         ->
@@ -86,7 +97,15 @@ let recvMsg = fun conn ->
           | Close      _                 -> None
           | Fatal      _                 -> None
           | Warning    (conn, _)         -> doit conn buffer
-          | CertQuery  (conn, q, advice) -> if advice then doit (authorize conn q) buffer else refuse conn q; None
+          | CertQuery  (conn, q, advice) ->
+            if advice then
+                match authorize conn q with
+                | Warning (conn,_)
+                | Handshaken conn
+                | DontWrite conn   -> doit conn buffer
+                | _ -> None
+            else
+                refuse conn q; None
           | Handshaken conn              -> doit conn buffer
           | DontWrite  conn              -> doit conn buffer
           | Read       (conn, (r, d))    ->

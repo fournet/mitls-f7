@@ -150,7 +150,7 @@ val accept: Tcp.TcpListener -> c:config -> (;Server,c) nullCn
 val accept_connected: Tcp.NetworkStream -> c:config -> (;Server,c) nullCn
 
 // we echo the query so that we have an explicit user decision to blame.
-val authorize : c:Connection -> q:query -> (c': (;c) nextCn {Extend(c,c') /\ Handshake.Authorize(Config(c),q)})
+val authorize : c:Connection -> q:query{Handshake.Authorize(Config(c),q)} -> (;c)ioresult_i
 val refuse    : c:Connection -> q:query -> unit
 // AP: we will have to internally send a fatal alert,
 // and this might fail. We might want to give some feedback to the user. Same as half_shutdown

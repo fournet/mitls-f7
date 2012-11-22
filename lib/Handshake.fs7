@@ -587,7 +587,7 @@ private type (;ci:ConnectionInfo) hs_state = pre_hs_state
 function val Config: ci:ConnectionInfo * s:(;ci)hs_state -> config
 private assume !ci,s. Config(ci,s) = s.poptions
 
-predicate val Authorize: config * Cert.cert -> bool
+predicate val Authorize: config * Cert.certchain -> bool
 predicate val Complete: ConnectionInfo * config -> bool
 predicate EvSentFinishedFirst of ConnectionInfo * bool
 // AP: Not sure the SentCCS event is useful;
@@ -639,9 +639,6 @@ val request:     ci:ConnectionInfo -> s:(;ci)hs_state -> c:config  ->
                  b:bool * s':(;ci)hs_state{
 		((b = true /\ Config(ci,s') = c) \/ (b = false /\ Config(ci,s') = Config(ci,s)))}
 
-val authorize:   ci:ConnectionInfo -> s:(;ci)hs_state -> c:Cert.certchain  ->
-	s':(;ci,Config(ci,s))nextState { Authorize(Config(ci,s),c) /\ SameStreams(ci,s,s') }
-
 val getPrincipal:  ci:ConnectionInfo -> s:(;ci)hs_state -> string
 val invalidateSession: ci:ConnectionInfo -> s:(;ci)hs_state -> s':(;ci,Config(ci,s))nextState
 (*{SameStreams(ci,s,s')} *)
@@ -675,6 +672,8 @@ type (;ci:ConnectionInfo,c:config)incoming =
   | InError of alertDescription * string * (;ci,c)nextState
 val recv_fragment: ci:ConnectionInfo -> s:(;ci)hs_state -> rg:range -> (;ci.id_in,rg)Fragment.fragment -> 
                    (;ci,Config(ci,s))incoming
+val authorize:     ci:ConnectionInfo -> s:(;ci)hs_state -> c:Cert.certchain {Authorize(Config(ci,s),c)}->
+				   (;ci,Config(ci,s))incoming
 
 type (;ci:ConnectionInfo,c:config)incomingCCS =
   | InCCSAck of ci':ConnectionInfo * (;ci'.id_in)StatefulAEAD.state * (;ci',c)nextState

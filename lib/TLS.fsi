@@ -40,7 +40,7 @@ val request     : Connection -> config -> bool * nextCn
 val accept           : TcpListener   -> config -> Connection
 val accept_connected : NetworkStream -> config -> Connection
 
-val authorize: Connection -> query -> Connection
+val authorize: Connection -> query -> ioresult_i
 val refuse:    Connection -> query -> unit
 
 val getEpochIn:  Connection -> epoch

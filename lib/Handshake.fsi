@@ -28,8 +28,6 @@ val rekey:       ConnectionInfo -> hs_state -> config -> bool * hs_state
 // (Idle) Server requests an handshake 
 val request:  ConnectionInfo -> hs_state -> config -> bool * hs_state
 
-val authorize: ConnectionInfo -> hs_state -> Cert.certchain -> hs_state
-
 val invalidateSession: ConnectionInfo -> hs_state -> hs_state
 
 (* Network Interface *)
@@ -55,6 +53,7 @@ type incoming = (* the fragment is accepted, and... *)
   | InComplete of hs_state
   | InError of alertDescription * string * hs_state
 val recv_fragment: ConnectionInfo -> hs_state -> DataStream.range -> Fragment.fragment -> incoming
+val authorize: ConnectionInfo -> hs_state -> Cert.certchain -> incoming
 
 [<NoEquality;NoComparison>]
 type incomingCCS =
