@@ -205,39 +205,34 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
           let hs_next_res = Handshake.next_fragment id hs_state in
           match hs_next_res with 
           | Handshake.OutIdle(_) ->
-            let app_state = c.appdata in
-                match AppData.next_fragment id app_state with
-                | None -> (WAppDataDone,Conn(id,c))
-                | Some (next) ->
-                          let (tlen,f,new_app_state) = next in
-                          match c_write.disp with
-                          | Open ->
-                          (* we send some data fragment *)
-                            let id_out = id.id_out in
-                            let c_write_conn = c_write.conn
-                            let history = Record.history id_out c_write_conn in
-                            let frag = TLSFragment.construct id_out Application_data history tlen f
-                            let pv = pickSendPV (Conn(id,c)) in
-                            let resSend = send c.ns id_out c_write pv tlen Application_data frag in
-                            match resSend with
-                            | Correct(new_write) ->
-                                let c = { c with appdata = new_app_state;
-                                                 write = new_write }
-                                (* Fairly, tell we're done, and we won't write more data *)
-                                //Pi.assume (GState(id,c));  
-                                (WAppDataDone, Conn(id,c))
+                // only poll AppData if we're in Open state
+                match c_write.disp with
+                | Open ->
+                    let app_state = c.appdata in
+                    match AppData.next_fragment id app_state with
+                    | None -> (WAppDataDone,Conn(id,c))
+                    | Some (next) ->
+                        let (tlen,f,new_app_state) = next in
+                        (* we send some data fragment *)
+                        let id_out = id.id_out in
+                        let c_write_conn = c_write.conn
+                        let history = Record.history id_out c_write_conn in
+                        let frag = TLSFragment.construct id_out Application_data history tlen f
+                        let pv = pickSendPV (Conn(id,c)) in
+                        let resSend = send c.ns id_out c_write pv tlen Application_data frag in
+                        match resSend with
+                        | Correct(new_write) ->
+                            let c = { c with appdata = new_app_state;
+                                                write = new_write }
+                            (* Fairly, tell we're done, and we won't write more data *)
+                            //Pi.assume (GState(id,c));  
+                            (WAppDataDone, Conn(id,c))
 
+                        | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
+                | _ ->
+                    // We are finishing a handshake. Force to read, so that we'll complete the handshake.
+                    (WMustRead,Conn(id,c))
 
-                            | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
-                          | _ ->
-                            (* We have data to send, but we cannot now. It means we're finishing a handshake.
-                               Force to read, so that we'll complete the handshake and we'll be able to send
-                               such data. *)
-                            (* NOTE: We just ate up a fragment, which was not sent. That's not a big deal,
-                               because we'll return MustRead to the app, which indeed means that no data
-                               have been sent (It doesn't really matter at this point how we internally messed up
-                               with the buffer, as long as we did not send anything on the network. *)
-                              (WMustRead, Conn(id,c))   
           | Handshake.OutCCS(rg,ccs,nextID,nextWrite,new_hs_state) ->
                     let nextWCS = Record.initConnState nextID.id_out nextWrite in
                     (* we send a (complete) CCS fragment *)
@@ -427,9 +422,7 @@ let handleHandshakeOutcome (Conn(id,c)) hsRes =
     let c_read = c.read in
     match hsRes with
     | Handshake.InAck(hs) ->
-        let c = { c with read = c_read;
-                        //appdata = ad;
-                        handshake = hs} in
+        let c = { c with handshake = hs} in
         // KB: To Fix                                 
         //Pi.assume (GState(id,c));  
         RAgain, Conn(id,c)
@@ -452,14 +445,12 @@ let handleHandshakeOutcome (Conn(id,c)) hsRes =
                 (RAgain, Conn(id,c))
         | _ -> (* It means we are doing a re-negotiation. Don't alter the current version number, because it
                     is perfectly valid. It will be updated after the next CCS, along with all other session parameters *)
-            let c = { c with read = c_read;
-                                handshake = hs} in
+            let c = { c with handshake = hs} in
                 // KB: To Fix                           
                 //Pi.assume (GState(id,c));  
                 (RAgain, Conn(id, c))
     | Handshake.InQuery(query,advice,hs) ->
-            let c = {c with read = c_read;
-                            handshake = hs} in
+            let c = {c with handshake = hs} in
                 // KB: To Fix                           
                 //Pi.assume (GState(id,c));  
                 (RQuery(query,advice),Conn(id,c))
@@ -467,8 +458,7 @@ let handleHandshakeOutcome (Conn(id,c)) hsRes =
             (* Ensure we are in Finishing state *)
             match c_read.disp with
                 | Finishing ->
-                    let c = {c with read = c_read;
-                                    handshake = hs} in
+                    let c = {c with handshake = hs} in
                     (* Indeed, we should stop reading now!
                         (Because, except for false start implementations, the other side is now
                         waiting for us to send our finished message)
@@ -486,8 +476,7 @@ let handleHandshakeOutcome (Conn(id,c)) hsRes =
                     let wo,conn = writeAll closing in
                     WriteOutcome(wo),conn
     | Handshake.InComplete(hs) ->
-            let c = {c with read = c_read;
-                            handshake = hs} in
+            let c = {c with handshake = hs} in
             // KB: To Fix                        
             //Pi.assume (GState(id,c));  
             (* Ensure we are in Finishing state *)
@@ -527,6 +516,7 @@ let readOne (Conn(id,c)) =
         let history = Record.history id.id_in c_read.conn in
         let f = TLSFragment.contents id.id_in ct history rg frag in
         let c_read = {c_read with conn = c_recv} in
+        let c = {c with read = c_read} in
           match c_read.disp with
             | Closed ->
                 let reason = perror __SOURCE_FILE__ __LINE__ "Trying to read from a closed connection" in
@@ -564,39 +554,30 @@ let readOne (Conn(id,c)) =
                   | (Alert, Init) | (Alert, FirstHandshake(_)) | (Alert, Open) ->
                         match Alert.recv_fragment id c.alert rg f with
                           | Correct (Alert.ALAck(state)) ->
-                              let c = {c with read = c_read;
-                                            //appdata = ad;
-                                              alert = state} in
+                              let c = {c with alert = state} in
                                // KB: To Fix                                 
                               //Pi.assume (GState(id,c));  
                               (RAgain, Conn(id,c))
                           | Correct (Alert.ALClose_notify (state)) ->
                                  (* An outgoing close notify has already been buffered, if necessary *)
                                  (* Only close the reading side of the connection *)
-                             //let ad = AppData.writeNonAppDataFragment id c.appdata in
                              let new_read = {c_read with disp = Closed} in
                              let c = { c with read = new_read;
                                               alert = state;
-                                           //appdata = ad;
                                      } in
                              // KB: To Fix                                 
                              //Pi.assume (GState(id,c));  
                              (RClose, Conn(id,c))
                           | Correct (Alert.ALFatal (ad,state)) ->
                                (* Other fatal alert, we close both sides of the connection *)
-                               //let ad = AppData.writeNonAppDataFragment id c.appdata in
-                             let c = {c with alert = state;
-                                             read = c_read
-                                        }
+                             let c = {c with alert = state}
                            // KB: To Fix                                 
                              //Pi.assume (GState(id,c));  
                              let closed = closeConnection (Conn(id,c)) in
                              (RFatal(ad), closed)
                           | Correct (Alert.ALWarning (ad,state)) ->
                              (* A warning alert, we carry on. The user will decide what to do *)
-                             let c = {c with alert = state;
-                                             read = c_read;
-                                     }
+                             let c = {c with alert = state}
                              // KB: To Fix                                 
                              //Pi.assume (GState(id,c));  
                              (RWarning(ad), Conn(id,c))
@@ -607,8 +588,7 @@ let readOne (Conn(id,c)) =
 
                   | Application_data, Open ->
                       let appstate = AppData.recv_fragment id c.appdata rg f in
-                      let c = {c with appdata = appstate
-                                      read = c_read} in
+                      let c = {c with appdata = appstate} in
                       // KB: To Fix                                 
                       //Pi.assume (GState(id,c));  
                       (RAppDataDone, Conn(id, c))
@@ -623,10 +603,10 @@ let rec read c =
     let unitVal = () in
     let (outcome,c) = writeAll c in
     match outcome with
-    | WAppDataDone ->
+    | WAppDataDone | WMustRead ->
         let (outcome,c) = readOne c in
         match outcome with
-        | RAgain ->
+        | RAgain | WriteOutcome(WMustRead) | WriteOutcome(WAppDataDone) ->
             read c 
         | RAppDataDone ->    
             // empty the appData internal buffer, and return its content to the user
@@ -667,7 +647,6 @@ let rec read c =
         | WriteOutcome(wo) -> c,WriteOutcome(wo),None
         | RError(err) -> c,RError(err),None
     | SentClose -> c,WriteOutcome(SentClose),None
-    | WMustRead -> c,WriteOutcome(WMustRead),None
     | WHSDone -> c,WriteOutcome(WHSDone),None
     | SentFatal(ad,err) -> c,WriteOutcome(SentFatal(ad,err)),None
     | WError(err) -> c,WriteOutcome(WError(err)),None

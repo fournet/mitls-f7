@@ -100,7 +100,7 @@ let decrypt' ki key data cipher =
             if ok then 
               if Encode.verify ki ka maced tag (* padding time oracle *) then 
                   correct (nk,rg,plain)
-                else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
+              else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
             else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_decryption_failed, reason) (* padding error oracle *)
         | TLS_1p1 | TLS_1p2 ->
             if Encode.verify ki ka maced tag then 
