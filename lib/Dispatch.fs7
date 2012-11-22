@@ -387,6 +387,9 @@ private val writeOne: c:Connection ->
 private val writeAll: c:Connection ->
 	writeOutcome * Connection
 
+private val handleHandshakeOutcome: c:Connection -> (;CnId(c),Config(c))Handshake.incoming ->
+	readOutcome * Connection
+
 val read: c:Connection -> 
     (c':Connection  * ro:readOutcome * mo:(;ConnectionEpochIn(c'),CnStream_i(c'))msg_i option)
     {
