@@ -264,3 +264,9 @@ let decode ki (ad:data) tlen plain =
                 let tag = {macT = mac} in
                 (rg,aeadF,tag,true)
 
+let AEADPlainToAEPlain (ki:epoch) (rg:range) (ad:AEADPlain.data) p =
+    let conts = AEADPlain.contents ki rg ad p in
+    AEConstruct ki rg ad conts
+let AEPlainToAEADPlain (ki:epoch) (rg:range) (ad:AEADPlain.data) p =
+    let conts = AEContents ki rg ad p in
+    AEADPlain.construct ki rg ad conts

@@ -23,24 +23,27 @@ let addToHistory (ki:epoch) (sh:history) d r x =
   let res = (s',nh) in
     res
 
-let makeAD (ki:epoch) ((seqn,h):history) ad =
-  let bn = bytes_of_seq seqn in
-  bn @| ad
-
 let statefulPlain (ki:epoch) (h:history) (ad:data) (r:range) (b:bytes) = {contents = Fragment.fragmentPlain ki r b}
 let statefulRepr (ki:epoch) (h:history) (ad:data) (r:range) (f:statefulPlain) = Fragment.fragmentRepr ki r f.contents
 
 let contents  (ki:epoch) (h:history) (ad:data) (rg:range) f = f.contents
 let construct (ki:epoch) (h:history) (ad:data) (rg:range) c = {contents = c}
 
-let StatefulToAEADPlain ki h ad r f =
-  let ad' = makeAD ki h ad in
-  let fr = f.contents in
-  AEADPlain.construct ki r ad' fr
+let makeAD ki ct =
+    let si = epochSI(ki) in
+    let pv = si.protocol_version in
+    let bct  = ctBytes ct in
+    let bver = versionBytes pv in
+    if pv = SSL_3p0 
+    then bct
+    else bct @| bver
 
-let AEADPlainToStateful ki h ad r p =
-  let ad' = makeAD ki h ad in
-  let f = AEADPlain.contents ki r ad' p in
-  {contents = f}
+let TLSFragmentToFragment ki ct ss st rg f =
+  let sb = TLSFragment.contents ki ct ss rg f in
+  let ad = makeAD ki ct in
+  construct ki st ad rg sb
 
-
+let fragmentToTLSFragment ki ct ss st rg f =
+  let ad = makeAD ki ct in
+  let sb = contents ki st ad rg f in
+  TLSFragment.construct ki ct ss rg sb

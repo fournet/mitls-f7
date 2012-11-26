@@ -63,7 +63,7 @@ let LEAK ki k =
 
 let encrypt' ki key data rg plain =
     let si = epochSI(ki) in
-    let aep = AEADPlain.AEADPlainToAEPlain ki rg data plain in
+    let aep = Encode.AEADPlainToAEPlain ki rg data plain in
     let cs = si.cipher_suite in
     match (cs,key) with
     | (x, MtE (ka,ke)) when isAEADCipherSuite x ->
@@ -93,7 +93,7 @@ let decrypt' ki key data cipher =
         let nk = mteKey ki ka ke in
         let cl = length cipher in
         let (rg,aep,tag,ok) = Encode.decode ki data cl encoded in
-        let plain = AEADPlain.AEPlainToAEADPlain ki rg data aep in
+        let plain = Encode.AEPlainToAEADPlain ki rg data aep in
         let maced             = Encode.macPlain ki rg data aep
         match si.protocol_version with
         | SSL_3p0 | TLS_1p0 ->
@@ -111,7 +111,7 @@ let decrypt' ki key data cipher =
     | (x,MACOnly (ka)) when isOnlyMACCipherSuite x ->
         let encoded        = Encode.plain ki (length cipher) cipher in
         let (rg,aep,tag) = Encode.decodeNoPad ki data (length cipher) encoded in
-        let plain = AEADPlain.AEPlainToAEADPlain ki rg data aep in
+        let plain = Encode.AEPlainToAEADPlain ki rg data aep in
         let maced          = Encode.macPlain ki rg data aep
         if Encode.verify ki ka maced tag 
         then   correct (key,rg,plain)

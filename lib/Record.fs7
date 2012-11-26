@@ -11,10 +11,10 @@ open StatefulAEAD
 
 private type (;ki:epoch) ConnectionState =
 	| NullState
-	| SomeState of h:(;ki)TLSFragment.history * st:(;ki)StatefulAEAD.state{h = Multiplexed(ki,st.history)}
+	| SomeState of h:(;ki)TLSFragment.history * st:(;ki)StatefulAEAD.state{h = StatefulPlain.Multiplexed(ki,st.history)}
                                                                              
 
-val someState: ki:epoch -> h:(;ki) TLSFragment.history -> st: (;ki) StatefulAEAD.state{h = Multiplexed(ki,st.history)} -> cs:(;ki) ConnectionState{cs = SomeState (h,st)}
+val someState: ki:epoch -> h:(;ki) TLSFragment.history -> st: (;ki) StatefulAEAD.state{h = StatefulPlain.Multiplexed(ki,st.history)} -> cs:(;ki) ConnectionState{cs = SomeState (h,st)}
 
 function val History: ki:epoch * (;ki) ConnectionState -> 'a
 private assume !ki,h,s. History(ki,SomeState(h,s)) = h

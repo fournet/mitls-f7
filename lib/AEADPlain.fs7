@@ -1,5 +1,6 @@
 module AEADPlain
 open Bytes
+open TLSConstants
 open TLSInfo
 open DataStream
 open Fragment
@@ -10,7 +11,7 @@ open Fragment
 // Interface towards AEAD
 //------------------------------------------------------------------------------------------------------
 
-type (;ki:epoch) data = (b:bytes){Length(b) = Encode.ADLength(ki)}
+type (;ki:epoch) data = (b:bytes){Length(b) = 8 + StatefulPlain.ADLength(ki)}
 predicate AEADSays of ki:epoch * r:range * (;ki)data * (;ki,r)fragment
 private type (;ki:epoch,r:range,ad:(;ki)data) preAEADPlain = x:(;ki,r)fragment{ Auth(ki) => AEADSays(ki,r,ad,x) }
 private type (;ki:epoch,r:range,ad:(;ki)data) AEADPlain    = {contents: (;ki,r,ad)preAEADPlain}
@@ -19,10 +20,30 @@ private type (;ki:epoch,r:range,ad:(;ki)data) AEADPlain    = {contents: (;ki,r,a
 val AEADPlain: ki:epoch{not Auth(ki)} -> r:range -> ad:(;ki)data -> (;r)rbytes -> (;ki,ad,r) AEADPlain
 val AEADRepr:  ki:epoch{not Safe(ki)} -> r:range -> ad:(;ki)data -> (;ki,ad,r) AEADPlain -> (;r)rbytes
 
-// The following conversions embed AEADPlains into AEPlains 
-val AEADPlainToAEPlain: ki:epoch -> r:range -> ad:(;ki)data -> (;ki,r,ad) AEADPlain -> (;ki,r,ad) Encode.AEPlain
-val AEPlainToAEADPlain: ki:epoch -> r:range -> ad:(;ki)data -> (;ki,r,ad) Encode.AEPlain -> (;ki,r,ad) AEADPlain
-assume !ki,r,d,f. Encode.AESays(ki,r,d,f) <=> AEADSays(ki,r,d,f)
+function val MakeAD:  ki:epoch * (;ki)StatefulPlain.history * (;ki)StatefulPlain.data -> bytes
+assume !ki,h,ad. MakeAD(ki,h,ad) = IntBytes(8,StatefulPlain.SeqN(ki,h)) @| ad
+val makeAD:  ki:epoch -> h:(;ki)StatefulPlain.history -> ad:(;ki)StatefulPlain.data -> b:(;ki)data{b=MakeAD(ki,h,ad)}
+
+//CF 22/4: needs discussion
+
+assume !ki,ad,r,x. AEADSays(ki,r,ad,x) <=> (?h,ad_h. 
+  ad = MakeAD(ki,h,ad_h) /\ StatefulPlain.Sent(ki,StatefulPlain.ExtendHistory(ki,h,ad_h,r,x)))
+
+ask !ki,ad,h,ad',r,x. (ad = MakeAD(ki,h,ad') /\ StatefulPlain.Sent(ki,StatefulPlain.ExtendHistory(ki,h,ad',r,x))) => AEADSays(ki,r,ad,x)
+
+ask !ki,ad,h,h',ad',ad''. ad = MakeAD(ki,h,ad') /\ ad = MakeAD(ki,h',ad'') => 
+    (StatefulPlain.SeqN(ki,h) = StatefulPlain.SeqN(ki,h') /\ ad' = ad'')
+
+ask !ki,ad,h,ad',r,x. (Auth(ki) /\ ad = MakeAD(ki,h,ad') /\ StatefulPlain.Sent(ki,h) /\ AEADSays(ki,r,ad,x)) => StatefulPlain.Sent(ki,StatefulPlain.ExtendHistory(ki,h,ad',r,x))
+
+
+//CF 22/4: these coercions are used only in StatefulAEAD.fs; they are not part of the "plain" interface to AEAD.
+
+val StatefulToAEADPlain: ki:epoch -> h:(;ki)StatefulPlain.history -> ad:(;ki)StatefulPlain.data -> r:range -> 
+  (;ki,h,ad,r)StatefulPlain.statefulPlain -> (;ki,r,MakeAD(ki,h,ad))AEADPlain
+
+val AEADPlainToStateful: ki:epoch -> h:(;ki)StatefulPlain.history -> ad:(;ki)StatefulPlain.data -> r:range ->
+  (;ki,r,MakeAD(ki,h,ad))AEADPlain -> (;ki,h,ad,r)StatefulPlain.statefulPlain
 
 //------------------------------------------------------------------------------------------------------
 // Interface towards StatefulPlain

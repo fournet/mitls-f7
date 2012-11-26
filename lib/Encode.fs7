@@ -27,10 +27,9 @@ val check_split:
 //------------------------------------------------------------------------------------------------------
 // Interface towards AEAD
 //------------------------------------------------------------------------------------------------------
-function val ADLength: epoch -> nat
 function val IVSize: epoch -> nat
 val ivLength: ki:succEpoch -> l:nat{l=IVSize(ki)}
-type (;ki:epoch) data = (b:bytes){Length(b) = ADLength(ki)}
+type (;ki:epoch) data = (b:bytes){Length(b) = 8 + StatefulPlain.ADLength(ki)}
 predicate AESays of ki:epoch * r:range * ad:(;ki) data * (;ki,r)fragment 
 
 // Plaintext for AE
@@ -98,16 +97,12 @@ assume !ki,ad1,x1,ad2,x2. (Length(ad1) = Length(ad2) /\
 
 assume !ki,tlen,pl. MAC.Msg(ki,pl) <=>
   (not Auth(ki) \/
-     (?ad,x. Length(ad) = ADLength(ki) /\
+     (?ad,x. Length(ad) = (8 + StatefulPlain.ADLength(ki)) /\
 	  pl = MsgBytes(ki,ad,x)))
 
 ask !ki,t. not Auth(ki) => MAC.Msg(ki,t)
 
 
-
-
-assume !ki. (EpochSI(ki).protocol_version = SSL_3p0 /\ ADLength(ki) = 9) \/
-	(EpochSI(ki).protocol_version <> SSL_3p0 /\ ADLength(ki) = 11)
 
 predicate type preds = Unsafe of epoch
 private assume !ki. Unsafe(ki) <=> not Auth(ki)
@@ -122,6 +117,11 @@ assume !ki,si,tlen. si = EpochSI(ki) =>
     ( IsAEADCiphersuite(si.cipher_suite) /\ tlen >= IVSize(ki) =>
 	  PlainLength(ki,tlen) = tlen - IVSize(ki) )
 
+
+// The following conversions embed AEADPlains into AEPlains 
+val AEADPlainToAEPlain: ki:epoch -> r:range -> ad:(;ki)AEADPlain.data -> (;ki,r,ad) AEADPlain.AEADPlain -> (;ki,r,ad) AEPlain
+val AEPlainToAEADPlain: ki:epoch -> r:range -> ad:(;ki)AEADPlain.data -> (;ki,r,ad) AEPlain -> (;ki,r,ad) AEADPlain.AEADPlain
+assume !ki,r,d,f. AESays(ki,r,d,f) <=> AEADPlain.AEADSays(ki,r,d,f)
 
 //Comments:
 

@@ -92,9 +92,9 @@ let recordPacketOut ki conn pv rg ct fragment =
 //        let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
 //        (conn,packet)
     | (false,SomeState(history,state)) ->
-        let ad = makeAD ki ct in
+        let ad = StatefulPlain.makeAD ki ct in
         let sh = StatefulAEAD.history ki state in
-        let aeadF = TLSFragmentToFragment ki ct history sh rg fragment in
+        let aeadF = StatefulPlain.TLSFragmentToFragment ki ct history sh rg fragment in
         let (state,payload) = StatefulAEAD.encrypt ki state ad rg aeadF in
         let history = addToHistory ki ct history rg fragment in
         let packet = makePacket ct pv payload in
@@ -160,14 +160,14 @@ let recordPacketIn ki conn headPayload =
 //        else
 //            Error(MAC,CheckFailed)
     | (false,SomeState(history,state)) ->
-        let ad = makeAD ki ct in
+        let ad = StatefulPlain.makeAD ki ct in
         let decr = StatefulAEAD.decrypt ki state ad payload in
         match decr with
         | Error(x,y) -> Error(x,y)
         | Correct (decrRes) ->
             let (newState, rg, plain) = decrRes in
             let oldH = StatefulAEAD.history ki state in
-            let msg = fragmentToTLSFragment ki ct history oldH rg plain in
+            let msg = StatefulPlain.fragmentToTLSFragment ki ct history oldH rg plain in
             let history = addToHistory ki ct history rg msg in
             let st' = someState ki history newState in
             correct(st',ct,pv,rg,msg)

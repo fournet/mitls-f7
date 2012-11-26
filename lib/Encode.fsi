@@ -33,3 +33,5 @@ val encodeNoPad: epoch -> range -> data -> AEPlain -> tag -> nat * plain
 val decode: epoch -> data -> nat -> plain -> (range * AEPlain * tag * bool)
 val decodeNoPad: epoch -> data -> nat -> plain -> (range * AEPlain * tag)
 
+val AEADPlainToAEPlain: epoch -> range -> AEADPlain.data -> AEADPlain.AEADPlain -> AEPlain
+val AEPlainToAEADPlain: epoch -> range -> AEADPlain.data -> AEPlain -> AEADPlain.AEADPlain

@@ -34,8 +34,8 @@ type cipher = AEAD.cipher
 
 let encrypt (ki:epoch) (w:writer) (ad0:data) (r:range) (f:statefulPlain) =
   let h = w.history in
-  let p = StatefulToAEADPlain ki h ad0 r f in
-  let ad = makeAD ki h ad0 in
+  let p = AEADPlain.StatefulToAEADPlain ki h ad0 r f in
+  let ad = AEADPlain.makeAD ki h ad0 in
   let k,c = AEAD.encrypt ki w.key ad r p in
   let h = addToHistory ki h ad0 r f in
   let w = {key = k; history = h} in
@@ -43,12 +43,12 @@ let encrypt (ki:epoch) (w:writer) (ad0:data) (r:range) (f:statefulPlain) =
 
 let decrypt (ki:epoch) (r:reader) (ad0:data) (e:cipher) =
   let h = r.history in
-  let ad = makeAD ki h ad0 in
+  let ad = AEADPlain.makeAD ki h ad0 in
   let res = AEAD.decrypt ki r.key ad e in
   match res with
     | Correct x ->
           let (k,rg,p) = x in
-          let f = AEADPlainToStateful ki h ad0 rg p in
+          let f = AEADPlain.AEADPlainToStateful ki h ad0 rg p in
           let h = addToHistory ki h ad0 rg f in
           correct (({history = h; key = k},rg,f))
     | Error (x,y) -> Error (x,y)

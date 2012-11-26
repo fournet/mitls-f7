@@ -3,7 +3,7 @@ open Bytes
 open TLSInfo
 open DataStream
 open Fragment
-open Encode
+open StatefulPlain
 
 type data = bytes
 type AEADPlain
@@ -14,5 +14,6 @@ val AEADRepr:  epoch -> range -> data -> AEADPlain -> bytes
 val contents:  epoch -> range -> data -> AEADPlain -> fragment
 val construct: epoch -> range -> data -> fragment -> AEADPlain
 
-val AEADPlainToAEPlain: epoch -> range -> data -> AEADPlain -> AEPlain
-val AEPlainToAEADPlain: epoch -> range -> data -> AEPlain -> AEADPlain
+val makeAD: epoch -> history -> StatefulPlain.data -> data
+val StatefulToAEADPlain: epoch -> history -> StatefulPlain.data -> range -> statefulPlain -> AEADPlain
+val AEADPlainToStateful: epoch -> history -> StatefulPlain.data -> range -> AEADPlain -> statefulPlain

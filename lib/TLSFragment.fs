@@ -6,7 +6,6 @@ open TLSInfo
 open TLSConstants
 
 open DataStream
-open StatefulPlain
 
 type prehistory = {
   handshake: stream // Handshake.stream;
@@ -29,15 +28,6 @@ let emptyHistory ki =
         alert = eh;
         ccs = eh;
         appdata = eh} in
-
-let makeAD ki ct =
-    let si = epochSI(ki) in
-    let pv = si.protocol_version in
-    let bct  = ctBytes ct in
-    let bver = versionBytes pv in
-    if pv = SSL_3p0 
-    then bct
-    else bct @| bver
 
 let historyStream (ki:epoch) ct ss =
     match ct with
@@ -93,12 +83,3 @@ let addToHistory (ki:epoch) ct ss r frag =
         let d,s' = Fragment.delta ki ss.appdata r ff in
           {ss with appdata = s'} 
 
-let TLSFragmentToFragment ki ct ss st rg f =
-  let sb = contents ki ct ss rg f in
-  let ad = makeAD ki ct in
-    StatefulPlain.construct ki st ad rg sb
-
-let fragmentToTLSFragment ki ct ss st rg f =
-  let ad = makeAD ki ct in
-  let sb = StatefulPlain.contents ki st ad rg f in
-    construct ki ct ss rg sb

@@ -20,13 +20,9 @@ val addToHistory: epoch -> ContentType -> history -> range -> fragment -> histor
 
 val historyStream: epoch -> ContentType -> history -> stream
 
-val makeAD: epoch -> ContentType -> StatefulPlain.data 
 val fragmentPlain: epoch -> ContentType -> history -> range -> bytes -> fragment
 val fragmentRepr:     epoch -> ContentType -> history -> range -> fragment -> bytes
 
 
 val contents:  epoch -> ContentType -> history -> range -> fragment -> Fragment.fragment
 val construct: epoch -> ContentType -> history -> range -> Fragment.fragment -> fragment
-
-val TLSFragmentToFragment: epoch -> ContentType -> history -> StatefulPlain.history -> range -> fragment -> StatefulPlain.statefulPlain
-val fragmentToTLSFragment: epoch -> ContentType -> history -> StatefulPlain.history -> range -> StatefulPlain.statefulPlain -> fragment
