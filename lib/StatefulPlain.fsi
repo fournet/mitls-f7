@@ -10,11 +10,13 @@ type prehistory = (data * range * Fragment.fragment) list
 type history  = (nat * prehistory)
 type statefulPlain
 
-val emptyHistory: epoch -> history
-val addToHistory: epoch -> history -> data -> range -> statefulPlain -> history
-
+//------------------------------------------------------------------------------
 val statefulPlain: epoch -> history -> data -> range -> bytes -> statefulPlain
 val statefulRepr:     epoch -> history -> data -> range -> statefulPlain -> bytes
+
+//------------------------------------------------------------------------------
+val emptyHistory: epoch -> history
+val addToHistory: epoch -> history -> data -> range -> statefulPlain -> history
 
 val contents:  epoch -> history -> data -> range -> statefulPlain -> Fragment.fragment
 val construct: epoch -> history -> data -> range -> Fragment.fragment -> statefulPlain

@@ -5,11 +5,12 @@ open TLSInfo
 open DataStream
 
 //------------------------------------------------------------------------------------------------------
-// Interface towards StatefulAEAD
+// `Plain' interface towards StatefulAEAD
 //------------------------------------------------------------------------------------------------------
 
 function val ADLength: epoch -> nat
-assume !ki. (EpochSI(ki).protocol_version = SSL_3p0 /\ ADLength(ki) = 1) \/
+assume !ki. 
+    (EpochSI(ki).protocol_version = SSL_3p0  /\ ADLength(ki) = 1) \/
 	(EpochSI(ki).protocol_version <> SSL_3p0 /\ ADLength(ki) = 3)
 
 type (;ki:epoch) data = (b:bytes){Length(b) = ADLength(ki)} 
@@ -35,9 +36,8 @@ private type (;ki:epoch,h:(;ki)history,ad:(;ki)data,range:range) statefulPlain =
 val statefulPlain: ki:epoch{not Auth(ki)} -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;r)rbytes -> (;ki,h,ad,r) statefulPlain
 val statefulRepr:  ki:epoch{not Safe(ki)} -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;ki,h,ad,r) statefulPlain -> (;r)rbytes
 
-
 //------------------------------------------------------------------------------------------------------
-// Interface towards TLSFragment
+// `internal' interface towards TLSFragment
 //------------------------------------------------------------------------------------------------------
 
 //CF 21/4 use a function instead? just inline?  
@@ -55,10 +55,10 @@ val addToHistory: ki:epoch -> h:(;ki)history ->
 // adding the 8-byte sequence number to AD (internal to AEAD) 
 
 val contents:  ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range -> 
-   sf:(;ki,h,ad,r)statefulPlain -> x:(;ki,r)Fragment.fragment{x = SAEADContents(sf) /\ 
-       (Auth(ki) => Sent(ki,ExtendHistory(ki,h,ad,r,x)))}
+    sf:(;ki,h,ad,r)statefulPlain -> 
+    x :(;ki,r)Fragment.fragment{x = SAEADContents(sf) /\ (Auth(ki) => Sent(ki,ExtendHistory(ki,h,ad,r,x)))}
 val construct: ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range ->
-	x:(;ki,r)Fragment.fragment{Auth(ki) => Sent(ki,ExtendHistory(ki,h,ad,r,x))} ->
+	x :(;ki,r)Fragment.fragment{Auth(ki) => Sent(ki,ExtendHistory(ki,h,ad,r,x))} ->
 	sf:(;ki,h,ad,r)statefulPlain{x = SAEADContents(sf)}
 
 
@@ -67,7 +67,7 @@ val construct: ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range ->
 //------------------------------------------------------------------------------------------------------
 
 // Sent grows linearly
-assume !ki. Sent(ki,(0,[]))
+assume !ki.          Sent(ki,(0,[]))
 assume !ki,h,ad,r,x. Sent(ki,ExtendHistory(ki,h,ad,r,x)) => Sent(ki,h)
 assume !ki,h,h'. (Auth(ki) /\ Sent(ki,h) /\ Sent(ki,h') /\ SeqN(ki,h) = SeqN(ki,h')) => h = h'
 
@@ -100,7 +100,6 @@ val TLSFragmentToFragment: ki:succEpoch -> ct:ContentType -> h:(;ki) TLSFragment
 	sf:(;ki,st,ADBytes(ki,ct),rg) statefulPlain
 		{TLSFragment.TLSContents(f) = SAEADContents(sf) /\
 		 (Auth(ki) => TLSFragment.TLSFragment(ki,ct,h,rg,SAEADContents(sf)))}
-
 
 val fragmentToTLSFragment: ki:succEpoch -> ct:ContentType -> h:(;ki) TLSFragment.history ->
 	st:(;ki) history{h = Multiplexed(ki,st)} -> rg:range -> 

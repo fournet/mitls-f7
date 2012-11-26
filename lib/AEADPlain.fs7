@@ -6,9 +6,8 @@ open DataStream
 open Fragment
 // Do not open Encode, or else Encode "module" and Encode "function" will clash. 
 
-
 //------------------------------------------------------------------------------------------------------
-// Interface towards AEAD
+// `Plain' interface towards AEAD
 //------------------------------------------------------------------------------------------------------
 
 type (;ki:epoch) data = (b:bytes){Length(b) = 8 + StatefulPlain.ADLength(ki)}
@@ -46,7 +45,7 @@ val AEADPlainToStateful: ki:epoch -> h:(;ki)StatefulPlain.history -> ad:(;ki)Sta
   (;ki,r,MakeAD(ki,h,ad))AEADPlain -> (;ki,h,ad,r)StatefulPlain.statefulPlain
 
 //------------------------------------------------------------------------------------------------------
-// Interface towards StatefulPlain
+// `Internal' interface towards StatefulPlain
 //------------------------------------------------------------------------------------------------------
 
 val contents:  ki:epoch -> r:range -> ad:(;ki)data -> (;ki,r,ad)AEADPlain ->

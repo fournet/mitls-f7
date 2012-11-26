@@ -51,14 +51,13 @@ let splitRange ki r =
               ((smallL,smallH),
                (lsub,hsub))
 
+
 type stream = {sb: bytes list}
 type delta = {contents: rbytes}
 
-let createDelta (ki:epoch) (s:stream) (r:range) (b:bytes) =
-    {contents = b}
-
-let deltaPlain (ki:epoch) (s:stream) (r:range) (b:rbytes) = {contents = b}
-let deltaRepr (ki:epoch) (s:stream) (r:range) (d:delta) = d.contents
+let createDelta (ki:epoch) (s:stream) (r:range) (b:bytes) = {contents = b}
+let deltaPlain  (ki:epoch) (s:stream) (r:range) (b:rbytes) = {contents = b}
+let deltaRepr   (ki:epoch) (s:stream) (r:range) (d:delta) = d.contents
 
 // ghost
 type es = EmptyStream of epoch

@@ -28,9 +28,10 @@ let exp p g (gx:elt) (gy:elt) (Key x) : CRE.dhpms =
     let pms = CoreDH.agreement (dhparams p g) x gy in
     #if ideal
     if honest gy && honest gx 
-    then match tryFind (fun el -> fst el=(gx,gy)) !log with
-             Some(_,pms) -> pms
-            |None -> 
+    then 
+      match tryFind (fun el -> fst el=(gx,gy)) !log with
+      | Some(_,pms) -> pms
+      | None -> 
                  let pms=CRE.sampleDH p g gx gy
                  log := ((gx,gy),pms)::!log;
                  pms 

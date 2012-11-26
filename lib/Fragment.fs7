@@ -4,7 +4,9 @@ open TLSInfo
 open DataStream
 
 predicate DeltaFragment of ki:epoch * s:(;ki) stream * r:range * (;ki,s,r)delta
-private type (;ki:epoch,r:range) fragment = {frag: (s:(;ki)stream * d:(;ki,s,r) delta{Auth(ki) => DeltaFragment(ki,s,r,d)})}
+private type (;ki:epoch,r:range) fragment = 
+  {frag: (s:(;ki)stream * d:(;ki,s,r) delta{Auth(ki) => DeltaFragment(ki,s,r,d)})}
+
 function val Extend: 'a * 'b * 'c * 'd -> 'e
 
 predicate Fragment of ki:epoch * (;ki) stream * r:range * (;ki,r)fragment
@@ -28,8 +30,8 @@ val delta': ki:epoch -> s:(;ki) stream -> r:range ->
 val fragmentPlain: ki:epoch{not Auth(ki)} -> r:range -> (;r) rbytes -> (;ki,r) fragment
 val fragmentRepr:  ki:epoch{not Safe(ki)} -> r:range -> (;ki,r) fragment -> (;r) rbytes
 
-//CF: This is *not* valid because of empty fragments; 
-// instead we may have to record in stream a sequence of bytes, rather than their concatenation.
+// Recall that our streams are lists of bytes; 
+// due to empty bytes, the theorem below would not be valid with their concatenation.
 
 private theorem !ki,s,r1,r2,f1,f2. 
   DeltaFragment(ki,s,r1,f1) /\ DeltaFragment(ki,s,r2,f2) => (r1 = r2 /\ f1 = f2)
