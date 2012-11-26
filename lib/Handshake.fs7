@@ -297,18 +297,18 @@ private assume !si,pv,l.
   ServerLogBeforeClientCertificateRSA_Auth(si,pv,l) <=>
   (?cs,cm,sess,ex1,ex2,ctl,sal,nl. 
      l = (ClientHelloMsg(pv,si.init_crand,sess,cs,cm,ex1) @|
-          ServerHelloMsg(si.protocol_version,si.init_srand,si.sessionID,si.cipher_suite,si.compression,ex2) @|
+          (ServerHelloMsg(si.protocol_version,si.init_srand,si.sessionID,si.cipher_suite,si.compression,ex2) @|
           CertificateMsg(si.serverID) @|
           CertificateRequestMsg(si.protocol_version,ctl,sal,nl) @|
-          ServerHelloDoneMsg([||])))
+          ServerHelloDoneMsg([||]))))
 
 private assume !si,pv,l. 
   ServerLogBeforeClientCertificateRSA_NoAuth(si,pv,l) <=>
   (?cs,cm,sess,ex1,ex2. 
      l = (ClientHelloMsg(pv,si.init_crand,sess,cs,cm,ex1) @|
-          ServerHelloMsg(si.protocol_version,si.init_srand,si.sessionID,si.cipher_suite,si.compression,ex2) @|
+          (ServerHelloMsg(si.protocol_version,si.init_srand,si.sessionID,si.cipher_suite,si.compression,ex2) @|
           CertificateMsg(si.serverID) @|
-          ServerHelloDoneMsg([||])))
+          ServerHelloDoneMsg([||]))))
           
 
 predicate ServerLogBeforeClientKeyExchangeRSA of SessionInfo * ProtocolVersion * log 

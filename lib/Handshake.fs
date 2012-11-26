@@ -251,7 +251,7 @@ let certificateRequestBytes sign cs version =
             @| distNames in
     messageBytes HT_certificate_request data
 
-let parseCertificateRequest version data =
+let parseCertificateRequest version data: (certType list * Sig.alg list * string list) Result =
     if length data >= 1 then
         match vlsplit 1 data with
         | Error(x,y) -> Error(x,y)
@@ -885,7 +885,7 @@ let getCertificateVerifyBytes (si:SessionInfo) (ms:PRF.masterSecret) (cert_req:(
         [||]
   
 
-let prepare_client_output_full_RSA (ci:ConnectionInfo) state (si:SessionInfo) cert_req log =
+let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) (cert_req:Cert.sign_cert) (log:log) : (hs_state * SessionInfo * PRF.masterSecret * log) Result =
     let clientCertBytes,certList = getCertificateBytes si cert_req in
     let si = {si with clientID = certList}
     let log = log @| clientCertBytes in
@@ -909,7 +909,7 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) state (si:SessionInfo) ce
     let state = {state with hs_outgoing = new_outgoing} in
     correct (state,si,ms,log)
 
-let prepare_client_output_full_DHE (ci:ConnectionInfo) state (si:SessionInfo) cert_req p g sy log =
+let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) (cert_req:Cert.sign_cert) (p:DHGroup.p) (g:DHGroup.g) (sy:DHGroup.elt) (log:log) : (hs_state * SessionInfo * PRF.masterSecret * log) Result =
 #if avoid
     failwith "does not typecheck"
 #else
@@ -1109,7 +1109,11 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                             let next_pstate = on_serverHello_full crand log to_log shello in
                             let state = {state with pstate = next_pstate} in
                             let sv = Some sh_server_version in
+#if avoid
+                            failwith ""
+#else
                             recv_fragment_client ci state sv
+#endif
                         else
                             if equalBytes sid sh_session_id then (* use resumption *)
                                 (* Search for the session in our DB *)
@@ -1131,8 +1135,11 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                         if si.compression = sh_compression_method then
                                             let next_ci = getNextEpochs ci si crand sh_random in
                                             let (writer,reader) = PRF.keyGen next_ci ms in
-                                            let state = {state with pstate = PSClient(ServerCCSResume(next_ci.id_out,writer,
-                                                                                                      next_ci.id_in,reader,
+                                            let nout = next_ci.id_out in
+                                            let nin = next_ci.id_in in
+
+                                            let state = {state with pstate = PSClient(ServerCCSResume(nout,writer,
+                                                                                                      nin,reader,
                                                                                                       ms,log))} in
                                             recv_fragment_client ci state (Some(sh_server_version))
                                         else 
@@ -1755,7 +1762,9 @@ let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:DataStream.range) (fragmen
             | _ -> InCCSError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "CCS arrived in the wrong state",state)
     else           InCCSError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
 
-let getMinVersion (ci:ConnectionInfo) state = state.poptions.minVer
+let getMinVersion (ci:ConnectionInfo) state = 
+  let pop = state.poptions in
+  pop.minVer
 
 let authorize (ci:ConnectionInfo) (state:hs_state) (q:Cert.certchain) =
     let pstate = state.pstate in
