@@ -19,11 +19,13 @@ CRLN = '\r\n'
 
 lexer = dict(
     main = (
-        (r'[^("/]+', (LEXPRINT, None     )),
-        (r'//.*$'  , (None    , None     )),
-        (r'\(\*'   , (None    , 'comment')),
-        (r'"'      , (LEXPRINT, 'string' )),
-        (r'.'      , (LEXPRINT, None     )),
+        (r'[^("/]+', (LEXPRINT, None      )),
+        (r'//@.*$' , (LEXPRINT, None      )),
+        (r'//.*$'  , (None    , None      )),
+        (r'\(\*@'  , (LEXPRINT, 'wcomment')),
+        (r'\(\*'   , (None    , 'comment' )),
+        (r'"'      , (LEXPRINT, 'string'  )),
+        (r'.'      , (LEXPRINT, None      )),
     ),
 
     comment = (
@@ -31,6 +33,13 @@ lexer = dict(
         (r'\(\*'   , (None, 'comment')),
         (r'\*\)'   , (None, LEXPOP   )),
         (r'.'      , (None, None     )),
+    ),
+
+    wcomment = (
+        (r'[^()*]+', (LEXPRINT, None      )),
+        (r'\(\*'   , (LEXPRINT, 'wcomment')),
+        (r'\*\)'   , (LEXPRINT, LEXPOP    )),
+        (r'.'      , (LEXPRINT, None      )),
     ),
 
     string = (
