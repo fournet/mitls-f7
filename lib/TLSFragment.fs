@@ -83,3 +83,11 @@ let addToHistory (ki:epoch) ct ss r frag =
           {ss with appdata = s'}
     | (_,_) -> unexpectedError "[addToHistory] invoked on inconstitent content type/fragment"
 
+let HSFragmentToTLSFragment    (e:epoch) (h:history) (r:range) (f:HSFragment.fragment) = FHandshake(f)
+let TLSFragmentToHSFragment    (e:epoch) (h:history) (r:range) (FHandshake(f)) = f
+let CCSFragmentToTLSFragment   (e:epoch) (h:history) (r:range) (f:HSFragment.fragment) = FCCS(f)
+let TLSFragmentToCCSFragment    (e:epoch) (h:history) (r:range) (FCCS(f)) = f
+let AlertFragmentToTLSFragment (e:epoch) (h:history) (r:range) (f:HSFragment.fragment) = FAlert(f)
+let TLSFragmentToAlertFragment    (e:epoch) (h:history) (r:range) (FAlert(f)) = f
+let AppFragmentToTLSFragment   (e:epoch) (h:history) (r:range) (f:AppFragment.fragment) = FAppData(f)
+let TLSFragmentToAppFragment    (e:epoch) (h:history) (r:range) (FAppData(f)) = f

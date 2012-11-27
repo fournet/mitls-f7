@@ -217,7 +217,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                         let id_out = id.id_out in
                         let c_write_conn = c_write.conn
                         let history = Record.history id_out c_write_conn in
-                        let frag = TLSFragment.construct id_out Application_data history tlen f
+                        let frag = TLSFragment.AppFragmentToTLSFragment id_out history tlen f
                         let pv = pickSendPV (Conn(id,c)) in
                         let resSend = send c.ns id_out c_write pv tlen Application_data frag in
                         match resSend with
@@ -239,7 +239,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                     match c_write.disp with
                     | FirstHandshake(_) | Open ->
                         let history = Record.history id.id_out c_write.conn in
-                        let frag = TLSFragment.construct id.id_out Change_cipher_spec history rg ccs in
+                        let frag = TLSFragment.CCSFragmentToTLSFragment id.id_out history rg ccs in
                         let pv = pickSendPV (Conn(id,c)) in
                         let resSend = send c.ns id.id_out c.write pv rg Change_cipher_spec frag in
                         match resSend with
@@ -264,7 +264,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                       match c_write.disp with
                       | Init | FirstHandshake(_) | Finishing | Open ->
                           let history = Record.history id.id_out c_write.conn in
-                          let frag = TLSFragment.construct id.id_out Handshake history rg f in
+                          let frag = TLSFragment.HSFragmentToTLSFragment id.id_out history rg f in
                           let pv = pickSendPV (Conn(id,c)) in
                           let resSend = send c.ns id.id_out c.write pv rg Handshake frag in
                           match resSend with 
@@ -282,7 +282,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                 | Finishing ->
                     (* Send the last fragment *)
                     let history = Record.history id.id_out c_write.conn in
-                    let frag = TLSFragment.construct id.id_out Handshake history rg lastFrag in
+                    let frag = TLSFragment.HSFragmentToTLSFragment id.id_out history rg lastFrag in
                     let pv = pickSendPV (Conn(id,c)) in
                     let resSend = send c.ns id.id_out c.write pv rg Handshake frag in
                     match resSend with 
@@ -301,7 +301,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                 | Finishing ->
                     (* Send the last fragment *)
                     let history = Record.history id.id_out c_write.conn in
-                    let frag = TLSFragment.construct id.id_out Handshake history rg lastFrag in
+                    let frag = TLSFragment.HSFragmentToTLSFragment id.id_out history rg lastFrag in
                     let pv = pickSendPV (Conn(id,c)) in
                     let resSend = send c.ns id.id_out c.write pv rg Handshake frag in
                     match resSend with 
@@ -326,7 +326,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
         match c_write.disp with
         | Init | FirstHandshake(_) | Open | Closing(_) ->
             let history = Record.history id.id_out c_write.conn in
-            let frag = TLSFragment.construct id.id_out Alert history tlen f in
+            let frag = TLSFragment.AlertFragmentToTLSFragment id.id_out history tlen f in
             let pv = pickSendPV (Conn(id,c)) in
             let c_write = c.write in
             let resSend = send c.ns id.id_out c_write pv tlen Alert frag in
@@ -342,7 +342,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
         | Init | FirstHandshake(_) | Open | Closing(_) ->
             (* We're sending a fatal alert. Send it, then close both sending and receiving sides *)
             let history = Record.history id.id_out c_write.conn in
-            let frag = TLSFragment.construct id.id_out Alert history tlen f in
+            let frag = TLSFragment.AlertFragmentToTLSFragment id.id_out history tlen f in
             let pv = pickSendPV (Conn(id,c)) in
             let c_write = c.write in
             let resSend = send c.ns id.id_out c_write pv tlen Alert frag in
@@ -362,7 +362,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                If we already received the other close notify, then reading is already closed,
                otherwise we wait to read it, then close. But do not close here. *)
             let history = Record.history id.id_out c_write.conn in
-            let frag = TLSFragment.construct id.id_out Alert history tlen f in
+            let frag = TLSFragment.AlertFragmentToTLSFragment id.id_out history tlen f in
             let pv = pickSendPV (Conn(id,c)) in
             let c_write = c.write in
             let resSend = send c.ns id.id_out c_write pv tlen Alert frag in
@@ -514,7 +514,7 @@ let readOne (Conn(id,c)) =
         let (c_recv,ct,rg,frag) = received in 
         let c_read = c.read in
         let history = Record.history id.id_in c_read.conn in
-        let f = TLSFragment.contents id.id_in ct history rg frag in
+        //let f = TLSFragment.contents id.id_in ct history rg frag in
         let c_read = {c_read with conn = c_recv} in
         let c = {c with read = c_read} in
           match c_read.disp with
@@ -527,10 +527,12 @@ let readOne (Conn(id,c)) =
                 match (ct,c_read.disp) with 
                   | (Handshake, Init) | (Handshake, FirstHandshake(_)) | (Handshake, Finishing) | (Handshake, Open) ->
                       let c_hs = c.handshake in
+                        let f = TLSFragment.TLSFragmentToHSFragment id.id_in history rg frag in
                         let hsRes = Handshake.recv_fragment id c_hs rg f in
                         handleHandshakeOutcome (Conn(id,c)) hsRes
 
                   | (Change_cipher_spec, FirstHandshake(_)) | (Change_cipher_spec, Open) ->
+                        let f = TLSFragment.TLSFragmentToCCSFragment id.id_in history rg frag in
                         match Handshake.recv_ccs id c.handshake rg f with 
                           | InCCSAck(nextID,nextR,hs) ->
                               let nextRCS = Record.initConnState nextID.id_in nextR in
@@ -552,6 +554,7 @@ let readOne (Conn(id,c)) =
                               WriteOutcome(wo),conn
 
                   | (Alert, Init) | (Alert, FirstHandshake(_)) | (Alert, Open) ->
+                        let f = TLSFragment.TLSFragmentToAlertFragment id.id_in history rg frag in
                         match Alert.recv_fragment id c.alert rg f with
                           | Correct (Alert.ALAck(state)) ->
                               let c = {c with alert = state} in
@@ -587,6 +590,7 @@ let readOne (Conn(id,c)) =
                               WriteOutcome(wo),conn
 
                   | Application_data, Open ->
+                      let f = TLSFragment.TLSFragmentToAppFragment id.id_in history rg frag in
                       let appstate = AppData.recv_fragment id c.appdata rg f in
                       let c = {c with appdata = appstate} in
                       // KB: To Fix                                 

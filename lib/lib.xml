@@ -50,9 +50,6 @@
 <member name="">
 
 </member>
-<member name="">
-
-</member>
 <member name="T:AEADPlain">
 
 </member>
@@ -150,6 +147,24 @@
 
 </member>
 <member name="T:AppData">
+
+</member>
+<member name="">
+
+</member>
+<member name="">
+
+</member>
+<member name="">
+
+</member>
+<member name="">
+
+</member>
+<member name="">
+
+</member>
+<member name="T:AppFragment">
 
 </member>
 <member name="">
@@ -422,18 +437,6 @@
 <member name="">
 
 </member>
-<member name="">
-
-</member>
-<member name="">
-
-</member>
-<member name="">
-
-</member>
-<member name="">
-
-</member>
 <member name="T:DataStream">
 
 </member>
@@ -644,12 +647,6 @@
 <member name="">
 
 </member>
-<member name="">
-
-</member>
-<member name="">
-
-</member>
 <member name="T:Encode">
 
 </member>
@@ -773,24 +770,6 @@
 <member name="">
 
 </member>
-<member name="">
-
-</member>
-<member name="">
-
-</member>
-<member name="">
-
-</member>
-<member name="">
-
-</member>
-<member name="T:Fragment">
-
-</member>
-<member name="">
-
-</member>
 <member name="T:HASH">
 
 </member>
@@ -816,6 +795,30 @@
 
 </member>
 <member name="T:HMAC">
+
+</member>
+<member name="">
+
+</member>
+<member name="">
+
+</member>
+<member name="">
+
+</member>
+<member name="">
+
+</member>
+<member name="">
+
+</member>
+<member name="">
+
+</member>
+<member name="">
+
+</member>
+<member name="T:HSFragment">
 
 </member>
 <member name="">
@@ -909,18 +912,6 @@
 
 </member>
 <member name="T:Handshake">
-
-</member>
-<member name="">
-
-</member>
-<member name="">
-
-</member>
-<member name="">
-
-</member>
-<member name="">
 
 </member>
 <member name="">
@@ -1253,9 +1244,6 @@
 <member name="">
 
 </member>
-<member name="">
-
-</member>
 <member name="T:Record">
 
 </member>
@@ -1365,9 +1353,6 @@
 
 </member>
 <member name="T:StatefulAEAD">
-
-</member>
-<member name="">
 
 </member>
 <member name="">
@@ -2063,7 +2048,22 @@
 <member name="">
 
 </member>
+<member name="">
+
+</member>
 <member name="T:TLSFragment">
+
+</member>
+<member name="">
+
+</member>
+<member name="">
+
+</member>
+<member name="">
+
+</member>
+<member name="">
 
 </member>
 <member name="">
