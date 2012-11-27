@@ -1,7 +1,7 @@
 # -*- Makefile -*-
 
 src    :=
-deps   := ../bin/BouncyCastle.dll
+deps   := ../bin/BouncyCastle.Crypto.dll
 target  = ../bin/CoreCrypto.dll
 
 include ../Makefile.config

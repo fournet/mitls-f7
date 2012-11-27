@@ -260,6 +260,9 @@
     <Compile Include="UTLS.fs" />
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="BouncyCastle.Crypto">
+      <HintPath>..\3rdparty\BouncyCastle.Crypto.dll</HintPath>
+    </Reference>
     <Reference Include="mscorlib" />
     <Reference Include="FSharp.Core" />
     <Reference Include="System" />
@@ -267,11 +270,6 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\BouncyCastle\BouncyCastle.csproj">
-      <Name>BouncyCastle</Name>
-      <Project>{38872a5f-e87e-4fad-b109-8eb7b2e6a4a0}</Project>
-      <Private>True</Private>
-    </ProjectReference>
     <ProjectReference Include="..\CoreCrypto\CoreCrypto.fsproj">
       <Name>CoreCrypto</Name>
       <Project>{6d4e3f46-dbf9-473b-93ba-58614114aa57}</Project>

@@ -3,7 +3,7 @@
 # --------------------------------------------------------------------
 include ../Makefile.config
 
-dlls :=
+dlls := BouncyCastle.Crypto
 
 ifeq ($(buildtype),unix)
 dlls += \
@@ -21,7 +21,7 @@ copy: $(dlls:%=../bin/%.dll)
 
 dist:
 	set -e; for i in $(dlls); do     \
-	  cp $$i.dll $$i.dll.mdb $(distdir); \
+	  cp $$i.dll $(distdir); \
 	done
 
 make.in:

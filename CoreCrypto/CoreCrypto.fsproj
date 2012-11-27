@@ -32,6 +32,9 @@
     <DocumentationFile>bin\Release\CoreCrypto.XML</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="BouncyCastle.Crypto">
+      <HintPath>..\3rdparty\BouncyCastle.Crypto.dll</HintPath>
+    </Reference>
     <Reference Include="mscorlib" />
     <Reference Include="FSharp.Core" />
     <Reference Include="System" />
@@ -55,13 +58,6 @@
     <Compile Include="CoreSig.fs" />
     <Compile Include="CoreDH.fsi" />
     <Compile Include="CoreDH.fs" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\BouncyCastle\BouncyCastle.csproj">
-      <Name>BouncyCastle</Name>
-      <Project>{38872a5f-e87e-4fad-b109-8eb7b2e6a4a0}</Project>
-      <Private>True</Private>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\FSharp\1.0\Microsoft.FSharp.Targets" Condition="!Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
   <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft F#\v4.0\Microsoft.FSharp.Targets" Condition=" Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />

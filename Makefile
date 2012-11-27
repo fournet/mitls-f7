@@ -5,7 +5,7 @@ name      = vsTLS
 version  ?= 0.0.internal
 distname  = $(name)-$(version)
 
-subdirs  += 3rdparty BouncyCastle CoreCrypto lib TLSharp
+subdirs  += 3rdparty CoreCrypto lib TLSharp
 subdirs  += HttpServer echo rpc
 subdirs  += www-data
 
