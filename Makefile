@@ -1,7 +1,7 @@
 # -*- Makefile -*-
 
 # --------------------------------------------------------------------
-name      = uTLS
+name      = vsTLS
 version  ?= 0.0.internal
 distname  = $(name)-$(version)
 
@@ -9,7 +9,7 @@ subdirs  += 3rdparty BouncyCastle CoreCrypto lib TLSharp
 subdirs  += HttpServer echo rpc
 subdirs  += www-data
 
-.PHONY = all build make.in prepare-dist dist ps13
+.PHONY = all build make.in prepare-dist dist sp13
 
 all: build
 
@@ -38,11 +38,11 @@ dist: prepare-dist
 	tar --format=posix -czf $(distname).tgz $(distname)
 	rm -rf $(distname)
 
-ps13: anonymize LICENSE.ps13 prepare-dist
-	cp LICENSE.ps13 $(distname)
+sp13: anonymize LICENSE.sp13 prepare-dist
+	cp LICENSE.sp13 $(distname)
 	find $(distname) \
 	  -type f -regex '.*\.fs.?' \
-	  -exec ./anonymize -B --header=LICENSE.ps13 '{}' \+
+	  -exec ./anonymize -B --header=LICENSE.sp13 '{}' \+
 	tar --format=posix -czf $(distname).tgz $(distname)
 	rm -rf $(distname)
 
