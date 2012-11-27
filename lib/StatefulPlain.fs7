@@ -15,7 +15,8 @@ assume !ki.
 
 type (;ki:epoch) data = (b:bytes){Length(b) = ADLength(ki)} 
 
-private type (;ki:epoch) prehistory = (ad:(;ki) data * r:range * x:(;ki,r)Fragment.fragment) list
+private type (;ki:epoch) prehistory = (;ki)TLSFragment.history // (ad:(;ki) data * r:range * x:(;ki,r)Fragment.fragment) list
+// FIXME: HLength does not work anymore!
 function val HLength: ki:epoch * (;ki)prehistory -> nat
 private definition !ki.          HLength(ki,[]) = 0
 private definition !ki,h,ad,r,x. HLength(ki,(ad,r,x)::h) = HLength(ki,h)+1
@@ -82,6 +83,7 @@ assume !ki,ct.
 
 private val makeAD: ki:succEpoch -> ct:ContentType ->
 	  ad: (;ki)data{ad=ADBytes(ki,ct)}
+private val parseAD: e:succEpoch -> ad:(;e)data -> ct:ContentType{ad=ADBytes(e,ct)}
 
 function val Multiplexed: ki:epoch * (;ki) history -> 'b
 assume !ki,sh,h. EmptyHistory(ki,sh) /\

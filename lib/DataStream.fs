@@ -3,19 +3,6 @@ open TLSInfo
 open Bytes
 open Error
 
-let max_TLSPlaintext_fragment_length = 16384 (* 2^14 *)
-let max_TLSCompressed_fragment_length = max_TLSPlaintext_fragment_length + 1024
-let max_TLSCipher_fragment_length = max_TLSCompressed_fragment_length + 1024
-let fragmentLength = max_TLSPlaintext_fragment_length (* use e.g. 1 for testing *)
-
-type range = nat * nat (* length range *)
-type rbytes = bytes 
-
-let rangeSum (l0,h0) (l1,h1) =
-  let l = l0 + l1
-  let h = h0 + h1
-  (l,h)
-
 let min (a:nat) (b:nat) =
     if a <= b then a else b
 let max (a:nat) (b:nat) =

@@ -177,9 +177,12 @@
     <Compile Include="DataStream.fs" />
     <Compile Include="IdealDataStream.fsi" />
     <Compile Include="IdealDataStream.fs" />
-    <None Include="Fragment.fs7" />
-    <Compile Include="Fragment.fsi" />
-    <Compile Include="Fragment.fs" />
+    <None Include="AppFragment.fs7" />
+    <Compile Include="AppFragment.fsi" />
+    <Compile Include="AppFragment.fs" />
+    <None Include="HSFragment.fs7" />
+    <Compile Include="HSFragment.fsi" />
+    <Compile Include="HSFragment.fs" />
     <None Include="TLSFragment.fs7" />
     <Compile Include="TLSFragment.fsi" />
     <Compile Include="TLSFragment.fs" />

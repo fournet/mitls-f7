@@ -1,0 +1,25 @@
+module HSFragment
+open Bytes
+open TLSInfo
+open DataStream
+
+private type (;ki:epoch) stream = {sb:bytes list}
+type range = nat * nat
+
+predicate Fragment of ki:epoch * (;ki) stream * r:range * bytes
+
+private type (;ki:epoch,r:range) fragment = {frag: (s:(;ki)stream * d:bytes{Auth(ki) => Fragment(ki,s,r,d)})}
+
+val fragmentPlain: ki:epoch{not Auth(ki)} -> r:range -> (;r) rbytes -> (;ki,r) fragment
+val fragmentRepr:  ki:epoch{not Safe(ki)} -> r:range -> (;ki,r) fragment -> (;r) rbytes
+
+predicate EmptyStream of e:epoch * (;e)stream
+val init: e:epoch -> s:(;e)stream{EmptyStream(e,s)}
+function val Extend: 'a * 'b * 'c * 'd -> 'e
+private definition !ki,s,r,s',d. 
+  Extend(ki,s,r,{frag = (s',d)}) = {sb = d :: s.sb }
+
+val extend: e:epoch -> s:(;e)stream -> r:range -> f:(;e,r)fragment -> s':(;e)stream{s'=Extend(e,s,r,f)}
+
+ 
+

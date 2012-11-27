@@ -4,18 +4,19 @@ open Bytes
 open TLSInfo
 open TLSConstants
 
-open DataStream
-open Fragment
-
 type data = bytes
 type preds = Unsafe of epoch
 
-type AEPlain = {contents: fragment}
+type AEPlain = {contents: AEADPlain.AEADPlain}
 
-let AEPlain (ki:epoch) (r:range) (ad:data) (b:bytes) = {contents = fragmentPlain ki r b}
-let AERepr  (ki:epoch) (r:range) (ad:data) (p:AEPlain) = fragmentRepr ki r p.contents
+let AEPlain (ki:epoch) (r:range) (ad:data) (b:bytes) =
+    // parseAD
+    { contents = AEADPlain.AEADPlain ki r ad b }
+let AERepr  (ki:epoch) (r:range) (ad:data) (p:AEPlain) =
+    // parseAD
+    AEADPlain.AEADRepr ki r ad p.contents
 
-let AEConstruct (ki:epoch) (r:range) (ad:data) (sb:fragment) =
+let AEConstruct (ki:epoch) (r:range) (ad:data) (sb:AEADPlain.AEADPlain) =
   {contents = sb}
 let AEContents  (ki:epoch) (r:range) (ad:data) (p:AEPlain) = 
   p.contents
@@ -58,7 +59,7 @@ let ivLength ki =
         let encAlg = encAlg_of_ciphersuite si.cipher_suite in
           ivSize encAlg 
     
-let rangeCipher ki (rg:DataStream.range) =
+let rangeCipher ki (rg:range) =
     let si = epochSI(ki) in
     let (_,h) = rg in
     let cs = si.cipher_suite in
@@ -66,7 +67,7 @@ let rangeCipher ki (rg:DataStream.range) =
     | x when isOnlyMACCipherSuite x ->
         let macLen = macSize (macAlg_of_ciphersuite cs) in
         let res = h + macLen in
-        if res > DataStream.max_TLSCipher_fragment_length then
+        if res > fragmentLength then
             Error.unexpectedError "[rangeCipher] given an invalid input range."
         else
             res
@@ -76,7 +77,7 @@ let rangeCipher ki (rg:DataStream.range) =
         let prePad = h + macLen in
         let padLen = padLength ki prePad in
         let res = ivL + prePad + padLen in
-        if res > DataStream.max_TLSCipher_fragment_length then
+        if res > fragmentLength then
             Error.unexpectedError "[rangeCipher] given an invalid input range."
         else
             res
@@ -265,8 +266,6 @@ let decode ki (ad:data) tlen plain =
                 (rg,aeadF,tag,true)
 
 let AEADPlainToAEPlain (ki:epoch) (rg:range) (ad:AEADPlain.data) p =
-    let conts = AEADPlain.contents ki rg ad p in
-    AEConstruct ki rg ad conts
+    AEConstruct ki rg ad p
 let AEPlainToAEADPlain (ki:epoch) (rg:range) (ad:AEADPlain.data) p =
-    let conts = AEContents ki rg ad p in
-    AEADPlain.construct ki rg ad conts
+    AEContents ki rg ad p

@@ -4,13 +4,11 @@ open Bytes
 open TLSInfo
 open TLSConstants
 
-open DataStream
-
 private type (;ki:epoch) prehistory = {
-  handshake: (;ki) stream;
-  alert: (;ki) stream; 
-  ccs: (;ki) stream; 
-  appdata: (;ki) stream
+  handshake: (;ki) HSFragment.stream;
+  alert: (;ki) HSFragment.stream; 
+  ccs: (;ki) HSFragment.stream; 
+  appdata: (;ki) DataStream.stream
 }
 predicate TLSHistory of ki:epoch * (;ki) prehistory
 type (;ki:epoch) history = p:(;ki) prehistory{TLSHistory(ki,p)}
@@ -24,21 +22,21 @@ private definition !e,h. HistoryStream(e,TLSConstants.Alert,h) = h.alert
 private definition !e,h. HistoryStream(e,TLSConstants.Change_cipher_spec,h) = h.ccs
 private definition !e,h. HistoryStream(e,TLSConstants.Application_data,h) = h.appdata
 
-predicate TLSFragment of ki:epoch * ct:ContentType * h:(;ki) history * rg:range * d:(;ki,rg) Fragment.fragment
+predicate TLSFragment of ki:epoch * ct:ContentType * h:(;ki) history * rg:range * 'a //d:(;ki,rg) Fragment.fragment
 assume !ki,ct,h,rg,d.
   TLSFragment(ki,ct,h,rg,d) <=> (
-    (ct = TLSConstants.Handshake          /\ Fragment.Fragment(ki,HistoryStream(ki,ct,h),rg,d) ) \/
-    (ct = TLSConstants.Change_cipher_spec /\ Fragment.Fragment(ki,HistoryStream(ki,ct,h),rg,d) ) \/
-    (ct = TLSConstants.Alert              /\ Fragment.Fragment(ki,HistoryStream(ki,ct,h),rg,d) ) \/
-    (ct = TLSConstants.Application_data   /\ Fragment.Fragment(ki,HistoryStream(ki,ct,h),rg,d))
+    (ct = TLSConstants.Handshake          /\ HSFragment.Fragment(ki,HistoryStream(ki,ct,h),rg,d) ) \/
+    (ct = TLSConstants.Change_cipher_spec /\ HSFragment.Fragment(ki,HistoryStream(ki,ct,h),rg,d) ) \/
+    (ct = TLSConstants.Alert              /\ HSFragment.Fragment(ki,HistoryStream(ki,ct,h),rg,d) ) \/
+    (ct = TLSConstants.Application_data   /\ AppFragment.Fragment(ki,HistoryStream(ki,ct,h),rg,d))
   )
 
 
 type (;ki:epoch,ct:ContentType,h:(;ki) history,rg:range) fragment =
-    | FHandshake of f:(;ki,rg)Fragment.fragment{ct=TLSConstants.Handshake  /\ (Auth(ki) => TLSFragment(ki,ct,h,rg,f))}
-    | FCCS       of f:(;ki,rg)Fragment.fragment{ct=TLSConstants.Change_cipher_spec  /\ (Auth(ki) => TLSFragment(ki,ct,h,rg,f))}
-    | FAlert     of f:(;ki,rg)Fragment.fragment{ct=TLSConstants.Alert  /\ (Auth(ki) => TLSFragment(ki,ct,h,rg,f))}
-    | FAppData   of f:(;ki,rg)Fragment.fragment{ct=TLSConstants.Application_data  /\ (Auth(ki) => TLSFragment(ki,ct,h,rg,f))}
+    | FHandshake of f:(;ki,rg)HSFragment.fragment{ct=TLSConstants.Handshake  /\ (Auth(ki) => TLSFragment(ki,ct,h,rg,f))}
+    | FCCS       of f:(;ki,rg)HSFragment.fragment{ct=TLSConstants.Change_cipher_spec  /\ (Auth(ki) => TLSFragment(ki,ct,h,rg,f))}
+    | FAlert     of f:(;ki,rg)HSFragment.fragment{ct=TLSConstants.Alert  /\ (Auth(ki) => TLSFragment(ki,ct,h,rg,f))}
+    | FAppData   of f:(;ki,rg)AppFragment.fragment{ct=TLSConstants.Application_data  /\ (Auth(ki) => TLSFragment(ki,ct,h,rg,f))}
 
 function val TLSContents: 'a -> 'b // TLSFragment -> Fragment
 assume !f. TLSContents(FHandshake(f)) = f
@@ -46,7 +44,7 @@ assume !f. TLSContents(FCCS(f)) = f
 assume !f. TLSContents(FAlert(f)) = f
 assume !f. TLSContents(FAppData(f)) = f
 
-function val ExtendHistory: ki:epoch * ct:ContentType * ss:(;ki)history * r:range * (;ki,r)Fragment.fragment -> 'a 
+function val ExtendHistory: ki:epoch * ct:ContentType * ss:(;ki)history * r:range * 'a (* (;ki,r)Fragment.fragment *) -> 'a 
 
 val addToHistory: ki:epoch -> ct:ContentType -> ss:(;ki)history -> r:range ->
 	f:(;ki,ct,ss,r)fragment ->  
@@ -60,90 +58,90 @@ val fragmentPlain: ki:epoch{not Auth(ki)} -> ct:ContentType -> h: (;ki) history 
   (;rg)rbytes -> (;ki,ct,h,rg)fragment 
 
 private assume !ki,h. EmptyHistory(ki,h) <=>
-	( EmptyStream(ki,h.handshake) /\ EmptyStream(ki,h.alert) /\
-	  EmptyStream(ki,h.ccs)       /\ EmptyStream(ki,h.appdata) )
+	( HSFragment.EmptyStream(ki,h.handshake) /\ HSFragment.EmptyStream(ki,h.alert) /\
+	  HSFragment.EmptyStream(ki,h.ccs)       /\ DataStream.EmptyStream(ki,h.appdata) )
 private assume !ki,h,h'. EmptyHistory(ki,h) /\ EmptyHistory(ki,h') => h = h'
 
 private assume !ki,ct,h,r,d,h'. ExtendHistory(ki,ct,h,r,d) = h' <=>
     ((ct = TLSConstants.Handshake /\ h' = 
-	 { handshake = Fragment.Extend(ki,h.handshake,r,d);
+	 { handshake = HSFragment.Extend(ki,h.handshake,r,d);
 	   alert = h.alert;
 	   ccs = h.ccs;
 	   appdata = h.appdata}) \/
      (ct = TLSConstants.Alert /\ h' = 
 	 { handshake = h.handshake;
-	   alert = Fragment.Extend(ki,h.alert,r,d);
+	   alert = HSFragment.Extend(ki,h.alert,r,d);
 	   ccs = h.ccs;
 	   appdata = h.appdata}) \/
      (ct = TLSConstants.Change_cipher_spec /\ h' = 
 	 { handshake = h.handshake;
 	   alert = h.alert;
-	   ccs = Fragment.Extend(ki,h.ccs,r,d);
+	   ccs = HSFragment.Extend(ki,h.ccs,r,d);
 	   appdata = h.appdata}) \/
      (ct = TLSConstants.Application_data /\ h' = 
 	 { handshake = h.handshake;
 	   alert = h.alert;
 	   ccs = h.ccs;
-	   appdata = Fragment.Extend(ki,h.appdata,r,d)}))
+	   appdata = AppFragment.Extend(ki,h.appdata,r,d)}))
 
 private assume !ki,h,r,d. ExtendHistory(ki,TLSConstants.Handshake,h,r,d) = 
-	 { handshake = Fragment.Extend(ki,h.handshake,r,d);
+	 { handshake = HSFragment.Extend(ki,h.handshake,r,d);
 	   alert = h.alert;
 	   ccs = h.ccs;
 	   appdata = h.appdata}
 private assume !ki,h,r,d. ExtendHistory(ki,TLSConstants.Alert,h,r,d) = 
 	 { handshake = h.handshake;
-	   alert = Fragment.Extend(ki,h.alert,r,d);
+	   alert = HSFragment.Extend(ki,h.alert,r,d);
 	   ccs = h.ccs;
 	   appdata = h.appdata}
 private assume !ki,h,r,d. ExtendHistory(ki,TLSConstants.Change_cipher_spec,h,r,d) = 
 	 { handshake = h.handshake;
 	   alert = h.alert;
-	   ccs = Fragment.Extend(ki,h.ccs,r,d);
+	   ccs = HSFragment.Extend(ki,h.ccs,r,d);
 	   appdata = h.appdata}
 private assume !ki,h,r,d. ExtendHistory(ki,TLSConstants.Application_data,h,r,d) = 
 	 { handshake = h.handshake;
 	   alert = h.alert;
 	   ccs = h.ccs;
-	   appdata = Fragment.Extend(ki,h.appdata,r,d)}
+	   appdata = AppFragment.Extend(ki,h.appdata,r,d)}
 
 ask !ki,h,h',r,d. h' = ExtendHistory(ki,TLSConstants.Handshake,h,r,d) =>
-	( HistoryStream(ki,TLSConstants.Handshake,h') = Fragment.Extend(ki,HistoryStream(ki,TLSConstants.Handshake,h),r,d) /\
+	( HistoryStream(ki,TLSConstants.Handshake,h') = HSFragment.Extend(ki,HistoryStream(ki,TLSConstants.Handshake,h),r,d) /\
 	  HistoryStream(ki,TLSConstants.Alert,h') = HistoryStream(ki,TLSConstants.Alert,h) /\
 	  HistoryStream(ki,TLSConstants.Change_cipher_spec,h') = HistoryStream(ki,TLSConstants.Change_cipher_spec,h) /\
 	  HistoryStream(ki,TLSConstants.Application_data,h') = HistoryStream(ki,TLSConstants.Application_data,h))
 ask !ki,h,h',r,d. h' = ExtendHistory(ki,TLSConstants.Alert,h,r,d) =>
-	( HistoryStream(ki,TLSConstants.Alert,h') = Fragment.Extend(ki,HistoryStream(ki,TLSConstants.Alert,h),r,d) /\
+	( HistoryStream(ki,TLSConstants.Alert,h') = HSFragment.Extend(ki,HistoryStream(ki,TLSConstants.Alert,h),r,d) /\
 	  HistoryStream(ki,TLSConstants.Handshake,h') = HistoryStream(ki,TLSConstants.Handshake,h) /\
 	  HistoryStream(ki,TLSConstants.Change_cipher_spec,h') = HistoryStream(ki,TLSConstants.Change_cipher_spec,h) /\
 	  HistoryStream(ki,TLSConstants.Application_data,h') = HistoryStream(ki,TLSConstants.Application_data,h))
 ask !ki,h,h',r,d. h' = ExtendHistory(ki,TLSConstants.Change_cipher_spec,h,r,d) =>
-	( HistoryStream(ki,TLSConstants.Change_cipher_spec,h') = Fragment.Extend(ki,HistoryStream(ki,TLSConstants.Change_cipher_spec,h),r,d) /\
+	( HistoryStream(ki,TLSConstants.Change_cipher_spec,h') = HSFragment.Extend(ki,HistoryStream(ki,TLSConstants.Change_cipher_spec,h),r,d) /\
 	  HistoryStream(ki,TLSConstants.Alert,h') = HistoryStream(ki,TLSConstants.Alert,h) /\
 	  HistoryStream(ki,TLSConstants.Handshake,h') = HistoryStream(ki,TLSConstants.Handshake,h) /\
 	  HistoryStream(ki,TLSConstants.Application_data,h') = HistoryStream(ki,TLSConstants.Application_data,h))
 ask !ki,h,h',r,d. h' = ExtendHistory(ki,TLSConstants.Application_data,h,r,d) =>
-	( HistoryStream(ki,TLSConstants.Application_data,h') = Fragment.Extend(ki,HistoryStream(ki,TLSConstants.Application_data,h),r,d) /\
+	( HistoryStream(ki,TLSConstants.Application_data,h') = AppFragment.Extend(ki,HistoryStream(ki,TLSConstants.Application_data,h),r,d) /\
 	  HistoryStream(ki,TLSConstants.Alert,h') = HistoryStream(ki,TLSConstants.Alert,h) /\
 	  HistoryStream(ki,TLSConstants.Change_cipher_spec,h') = HistoryStream(ki,TLSConstants.Change_cipher_spec,h) /\
 	  HistoryStream(ki,TLSConstants.Handshake,h') = HistoryStream(ki,TLSConstants.Handshake,h))
 
-val historyStream: e:epoch -> ct:TLSConstants.ContentType -> h:(;e)history ->
-	s:(;e)stream{s=HistoryStream(e,ct,h)}
+//val historyStream: e:epoch -> ct:TLSConstants.ContentType -> h:(;e)history ->
+//	s:(;e)stream{s=HistoryStream(e,ct,h)}
 
-ask !e,h. EmptyHistory(e,h) => EmptyStream(e,HistoryStream(e,TLSConstants.Handshake,h))
-ask !e,h. EmptyHistory(e,h) => EmptyStream(e,HistoryStream(e,TLSConstants.Alert,h))
-ask !e,h. EmptyHistory(e,h) => EmptyStream(e,HistoryStream(e,TLSConstants.Change_cipher_spec,h))
-ask !e,h. EmptyHistory(e,h) => EmptyStream(e,HistoryStream(e,TLSConstants.Application_data,h))
+ask !e,h. EmptyHistory(e,h) => HSFragment.EmptyStream(e,HistoryStream(e,TLSConstants.Handshake,h))
+ask !e,h. EmptyHistory(e,h) => HSFragment.EmptyStream(e,HistoryStream(e,TLSConstants.Alert,h))
+ask !e,h. EmptyHistory(e,h) => HSFragment.EmptyStream(e,HistoryStream(e,TLSConstants.Change_cipher_spec,h))
+ask !e,h. EmptyHistory(e,h) => DataStream.EmptyStream(e,HistoryStream(e,TLSConstants.Application_data,h))
 
 private assume !ki,h. TLSHistory(ki,h)
 
-val contents: ki:epoch -> ct:ContentType -> h:(;ki) history -> rg:range -> 
-  f:(;ki,ct,h,rg) fragment -> d:(;ki,rg) Fragment.fragment {d = TLSContents(f) /\
-	(Auth(ki) => TLSFragment(ki,ct,h,rg,d))}
-
-val construct: ki:epoch -> ct:ContentType -> h:(;ki) history -> rg:range -> 
-  d:(;ki,rg) Fragment.fragment {Auth(ki) => TLSFragment(ki,ct,h,rg,d)} -> 
-  f:(;ki,ct,h,rg) fragment{d = TLSContents(f)}
+// val contents: ki:epoch -> ct:ContentType -> h:(;ki) history -> rg:range -> 
+//   f:(;ki,ct,h,rg) fragment -> d:(;ki,rg) Fragment.fragment {d = TLSContents(f) /\
+// 	(Auth(ki) => TLSFragment(ki,ct,h,rg,d))}
+// 
+// val construct: ki:epoch -> ct:ContentType -> h:(;ki) history -> rg:range -> 
+//   d:(;ki,rg) Fragment.fragment {Auth(ki) => TLSFragment(ki,ct,h,rg,d)} -> 
+//   f:(;ki,ct,h,rg) fragment{d = TLSContents(f)}
     
 

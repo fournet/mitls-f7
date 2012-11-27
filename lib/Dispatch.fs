@@ -50,8 +50,8 @@ type nextCn = Connection
 type nullCn = Connection
 type query = Cert.certchain
 // FIXME: Put the following definitions close to range and delta, and use them
-type msg_i = (DataStream.range * DataStream.delta)
-type msg_o = (DataStream.range * DataStream.delta)
+type msg_i = (range * DataStream.delta)
+type msg_o = (range * DataStream.delta)
 
 // Outcomes for internal, one-message-at-a-time functions
 type writeOutcome =

@@ -22,6 +22,7 @@ val AEADRepr:  ki:epoch{not Safe(ki)} -> r:range -> ad:(;ki)data -> (;ki,ad,r) A
 function val MakeAD:  ki:epoch * (;ki)StatefulPlain.history * (;ki)StatefulPlain.data -> bytes
 assume !ki,h,ad. MakeAD(ki,h,ad) = IntBytes(8,StatefulPlain.SeqN(ki,h)) @| ad
 val makeAD:  ki:epoch -> h:(;ki)StatefulPlain.history -> ad:(;ki)StatefulPlain.data -> b:(;ki)data{b=MakeAD(ki,h,ad)}
+val parseAD: e:epoch -> b:(;e)data -> ad:(;ki)StatefulPlain.data{?h. b=MakeAD(e,h,ad)}
 
 //CF 22/4: needs discussion
 

@@ -18,9 +18,9 @@ let init (ci:ConnectionInfo) = {al_incoming = [||]; al_outgoing = [||]}
 
 type ALFragReply =
     | EmptyALFrag
-    | ALFrag of DataStream.range * Fragment.fragment
-    | LastALFrag of DataStream.range * Fragment.fragment * alertDescription
-    | LastALCloseFrag of DataStream.range * Fragment.fragment
+    | ALFrag of range * HSFragment.fragment
+    | LastALFrag of range * HSFragment.fragment * alertDescription
+    | LastALCloseFrag of range * HSFragment.fragment
 
 type alert_reply =
     | ALAck of state
@@ -139,10 +139,10 @@ let send_alert (ci:ConnectionInfo) state alertDesc =
 
 // We implement locally fragmentation, not hiding any length
 let makeFragment ki b =
-    let (b0,rem) = if length b < DataStream.max_TLSCipher_fragment_length then (b,[||])
-                   else Bytes.split b DataStream.max_TLSCipher_fragment_length
+    let (b0,rem) = if length b < fragmentLength then (b,[||])
+                   else Bytes.split b fragmentLength
     let r0 = (length b0, length b0) in
-    let f = Fragment.fragmentPlain ki r0 b0 in
+    let f = HSFragment.fragmentPlain ki r0 b0 in
     ((r0,f),rem)
 
 let next_fragment ci state =
@@ -175,9 +175,9 @@ let handle_alert ci state alDesc =
         else
             ALWarning (alDesc,state)
 
-let recv_fragment (ci:ConnectionInfo) state (r:range) (f:Fragment.fragment) =
+let recv_fragment (ci:ConnectionInfo) state (r:range) (f:HSFragment.fragment) =
     // FIXME: we should accept further data after a warning alert! (Parsing sequences of messages in Handshake style)
-    let fragment = Fragment.fragmentRepr ci.id_in r f in
+    let fragment = HSFragment.fragmentRepr ci.id_in r f in
     match state.al_incoming with
     | [||] ->
         (* Empty buffer *)

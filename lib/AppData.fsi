@@ -14,9 +14,9 @@ val init: ConnectionInfo -> app_state
 
 val writeAppData: ConnectionInfo -> app_state -> range -> delta -> app_state
 val emptyOutgoingAppData: ConnectionInfo -> app_state -> ((range * delta) option * app_state)
-val next_fragment: ConnectionInfo -> app_state -> (range * Fragment.fragment * app_state) option
+val next_fragment: ConnectionInfo -> app_state -> (range * AppFragment.fragment * app_state) option
 
-val recv_fragment: ConnectionInfo ->  app_state -> range -> Fragment.fragment -> app_state
+val recv_fragment: ConnectionInfo ->  app_state -> range -> AppFragment.fragment -> app_state
 
 val readAppData: ConnectionInfo -> app_state -> ((range * delta) option * app_state)
 

@@ -35,11 +35,11 @@ val invalidateSession: ConnectionInfo -> hs_state -> hs_state
 [<NoEquality;NoComparison>]
 type outgoing =
   | OutIdle of hs_state
-  | OutSome of DataStream.range * Fragment.fragment * hs_state
-  | OutCCS of  DataStream.range * Fragment.fragment (* the unique one-byte CCS *) *
+  | OutSome of range * HSFragment.fragment * hs_state
+  | OutCCS of  range * HSFragment.fragment (* the unique one-byte CCS *) *
                ConnectionInfo * StatefulAEAD.state * hs_state
-  | OutFinished of DataStream.range * Fragment.fragment * hs_state
-  | OutComplete of DataStream.range * Fragment.fragment * hs_state
+  | OutFinished of range * HSFragment.fragment * hs_state
+  | OutComplete of range * HSFragment.fragment * hs_state
 val next_fragment: ConnectionInfo  -> hs_state -> outgoing
 
 (* Receiving Handshake and CCS fragments *) 
@@ -52,13 +52,13 @@ type incoming = (* the fragment is accepted, and... *)
   | InFinished of hs_state
   | InComplete of hs_state
   | InError of alertDescription * string * hs_state
-val recv_fragment: ConnectionInfo -> hs_state -> DataStream.range -> Fragment.fragment -> incoming
+val recv_fragment: ConnectionInfo -> hs_state -> range -> HSFragment.fragment -> incoming
 val authorize: ConnectionInfo -> hs_state -> Cert.certchain -> incoming
 
 [<NoEquality;NoComparison>]
 type incomingCCS =
   | InCCSAck of ConnectionInfo * StatefulAEAD.state * hs_state
   | InCCSError of alertDescription * string * hs_state
-val recv_ccs     : ConnectionInfo -> hs_state -> DataStream.range -> Fragment.fragment -> incomingCCS
+val recv_ccs     : ConnectionInfo -> hs_state -> range -> HSFragment.fragment -> incomingCCS
 
 val getMinVersion: ConnectionInfo -> hs_state -> ProtocolVersion

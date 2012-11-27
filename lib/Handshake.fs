@@ -84,11 +84,11 @@ let parseMessage buf =
 // We implement locally fragmentation, not hiding any length
 type unsafe = Unsafe of epoch
 let makeFragment ki b =
-    let (b0,rem) = if length b < DataStream.max_TLSCipher_fragment_length then (b,[||])
-                   else Bytes.split b DataStream.max_TLSCipher_fragment_length
+    let (b0,rem) = if length b < fragmentLength then (b,[||])
+                   else Bytes.split b fragmentLength
     let r0 = (length b0, length b0) in
     Pi.assume(Unsafe(ki))
-    let f = Fragment.fragmentPlain ki r0 b0 in
+    let f = HSFragment.fragmentPlain ki r0 b0 in
     (r0,f,rem)
 
 // we need something more general for parsing lists, e.g.
@@ -733,11 +733,11 @@ let getNextEpochs ci si crand srand =
 
 type outgoing =
   | OutIdle of nextState
-  | OutSome of DataStream.range * Fragment.fragment * nextState
-  | OutCCS of  DataStream.range * Fragment.fragment (* the unique one-byte CCS *) *
+  | OutSome of range * HSFragment.fragment * nextState
+  | OutCCS of  range * HSFragment.fragment (* the unique one-byte CCS *) *
                ConnectionInfo * StatefulAEAD.state * nextState
-  | OutFinished of DataStream.range * Fragment.fragment * nextState
-  | OutComplete of DataStream.range * Fragment.fragment * nextState
+  | OutFinished of range * HSFragment.fragment * nextState
+  | OutComplete of range * HSFragment.fragment * nextState
 
 let next_fragment ci state =
     match state.hs_outgoing with
@@ -1719,9 +1719,9 @@ let enqueue_fragment (ci:ConnectionInfo) state fragment =
     let new_inc = state.hs_incoming @| fragment in
     {state with hs_incoming = new_inc}
 
-let recv_fragment ci (state:hs_state) (r:DataStream.range) (fragment:Fragment.fragment) =
+let recv_fragment ci (state:hs_state) (r:range) (fragment:HSFragment.fragment) =
     // FIXME: cleanup when Hs is ported to streams and deltas
-    let b = Fragment.fragmentRepr ci.id_in r fragment in 
+    let b = HSFragment.fragmentRepr ci.id_in r fragment in 
     if length b = 0 then
         // Empty HS fragment are not allowed
         InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Empty handshake fragment received",state)
@@ -1731,9 +1731,9 @@ let recv_fragment ci (state:hs_state) (r:DataStream.range) (fragment:Fragment.fr
         | PSClient (_) -> recv_fragment_client ci state None
         | PSServer (_) -> recv_fragment_server ci state None
 
-let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:DataStream.range) (fragment:Fragment.fragment): incomingCCS =
+let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:range) (fragment:HSFragment.fragment): incomingCCS =
     // FIXME: cleanup when Hs is ported to streams and deltas
-    let b = Fragment.fragmentRepr ci.id_in r fragment in 
+    let b = HSFragment.fragmentRepr ci.id_in r fragment in 
     if equalBytes b CCSBytes then  
         match state.pstate with
         | PSClient (cstate) -> // Check that we are in the right state (CCCS) 

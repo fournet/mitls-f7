@@ -3,22 +3,6 @@ open TLSInfo
 open Bytes
 open Error
 
-/// Some TLS constants (relocate?)
-
-private val max_TLSPlaintext_fragment_length: nat
-private val max_TLSCompressed_fragment_length: nat
-private val fragmentLength: nat
-val max_TLSCipher_fragment_length: nat
-
-/// Ranges of lengths for byte arrays
-
-type range = low:nat * high:nat { low <= high }
-type (;r:range) rbytes = b:bytes { ?l,h. r = (l,h) /\ l <= Length(b) /\ Length(b) <= h }   
-function val Sum: range * range -> range
-private definition !l0,h0,l1,h1. Sum((l0,h0),(l1,h1)) = (l0+l1,h0+h1)
-//CF why private?
-
-val rangeSum: r0:range -> r1:range -> r:range{r = Sum(r0,r1)}
 val min: a:int -> b:int -> c:int{(a<=b /\ c=a) \/ (a>b /\ c=b)}
 val max: a:int -> b:int -> c:int{(a>=b /\ c=a) \/ (a<b /\ c=b)}
 val splitRange: ki:succEpoch -> r:range -> (r0:range * r1:range){r = Sum(r0,r1)} 

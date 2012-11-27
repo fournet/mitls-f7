@@ -22,12 +22,12 @@ val nullConnState: epoch -> ConnectionState
 val headerLength: bytes -> int Result
 
 // CF do some uniform renaming, e.g. s/Out/Send/
-val recordPacketOut: epoch -> sendState -> ProtocolVersion -> DataStream.range -> ContentType -> TLSFragment.fragment -> (sendState * bytes)
-val recordPacketIn : epoch -> recvState -> bytes -> (recvState * ContentType * ProtocolVersion * DataStream.range * TLSFragment.fragment) Result
+val recordPacketOut: epoch -> sendState -> ProtocolVersion -> range -> ContentType -> TLSFragment.fragment -> (sendState * bytes)
+val recordPacketIn : epoch -> recvState -> bytes -> (recvState * ContentType * ProtocolVersion * range * TLSFragment.fragment) Result
 
 val history: epoch -> ConnectionState -> TLSFragment.history
 
-val historyStream: epoch -> ConnectionState -> ContentType -> DataStream.stream
+// val historyStream: epoch -> ConnectionState -> ContentType -> DataStream.stream
 
 (* val dataAvailable: recvState -> bool Result *)
 (* val coherentrw: SessionInfo -> recvState -> sendState -> bool *)

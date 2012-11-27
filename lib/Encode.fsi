@@ -3,8 +3,6 @@
 open Bytes
 open TLSInfo
 open TLSConstants
-open DataStream
-open Fragment
 
 type data = bytes
 
@@ -13,8 +11,8 @@ type AEPlain
 val AEPlain: epoch -> range -> data -> bytes -> AEPlain
 val AERepr:  epoch -> range -> data -> AEPlain -> bytes
 
-val AEConstruct: epoch -> range -> data -> fragment -> AEPlain
-val AEContents:  epoch -> range -> data -> AEPlain -> fragment
+//val AEConstruct: epoch -> range -> data -> fragment -> AEPlain
+//val AEContents:  epoch -> range -> data -> AEPlain -> fragment
 
 type MACPlain
 type tag

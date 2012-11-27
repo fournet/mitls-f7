@@ -5,7 +5,7 @@ open Bytes
 open TLSInfo
 open DataStream
 
-type input_buffer =  stream * (range * Fragment.fragment) option
+type input_buffer =  stream * (range * AppFragment.fragment) option
 type output_buffer = stream * (range * delta) option
 
 type app_state = {
@@ -50,13 +50,13 @@ let next_fragment (c:ConnectionInfo) (a:app_state) =
           let (r,d) = rd in
           let (r0,r1) = splitRange c.id_out r in
           if r = r0 then
-            let f0,ns = Fragment.fragment c.id_out s r d in
+            let f0,ns = AppFragment.fragment c.id_out s r d in
             let state = {a with app_outgoing = (ns,None)} in
             let res = (r,f0,state) in
             Some(res)
           else 
             let (d0,d1) = DataStream.split c.id_out s r0 r1 d in
-            let f0,ns = Fragment.fragment c.id_out s r0 d0 in
+            let f0,ns = AppFragment.fragment c.id_out s r0 d0 in
             let nd1 = (r1,d1) in
             let state = {a with app_outgoing = (ns,Some(nd1))} in
             let res = (r0,f0,state) in
@@ -64,7 +64,7 @@ let next_fragment (c:ConnectionInfo) (a:app_state) =
 
 // Gets a fragment from Dispatch, adds it to the incoming buffer, but not yet to
 // the stream of data delivered to the user
-let recv_fragment (ci:ConnectionInfo)  (a:app_state)  (r:range) (f:Fragment.fragment) =
+let recv_fragment (ci:ConnectionInfo)  (a:app_state)  (r:range) (f:AppFragment.fragment) =
     // pre: snd a.app_incoming = None
     let (s,_) = a.app_incoming in
     let rf = (r,f) in
@@ -77,7 +77,7 @@ let readAppData (c:ConnectionInfo) (a:app_state) =
       | None -> None,a
       | Some(rf) ->
           let (r,f) = rf in
-          let (d,ns) = Fragment.delta c.id_in s r f in
+          let (d,ns) = AppFragment.delta c.id_in s r f in
           let rd = (r,d) in
           Some(rd),{a with app_incoming = (ns,None)}
 

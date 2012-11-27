@@ -38,7 +38,7 @@ let headerLength b =
     // With a precise int/byte model,
     // no need to check len, since it's on 2 bytes and the max allowed value is 2^16.
     // Here we do a runtime check to get the same property statically
-    if len <= 0 || len > DataStream.max_TLSCipher_fragment_length then
+    if len <= 0 || len > fragmentLength then
         Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Wrong fragment length")
     else
         correct(len)
@@ -56,7 +56,7 @@ let parseHeader b =
     // With a precise int/byte model,
     // no need to check len, since it's on 2 bytes and the max allowed value is 2^16.
     // Here we do a runtime check to get the same property statically
-    if len <= 0 || len > DataStream.max_TLSCipher_fragment_length then
+    if len <= 0 || len > fragmentLength then
         Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Wrong frgament length")
     else
         correct(ct,pv,len)
@@ -178,6 +178,6 @@ let history (e:epoch) s =
     | NullState -> TLSFragment.emptyHistory e
     | SomeState(h,_) -> h
 
-let historyStream (e:epoch) st ct =
-    let h = history e st in
-    TLSFragment.historyStream e ct h
+// let historyStream (e:epoch) st ct =
+//     let h = history e st in
+//     TLSFragment.historyStream e ct h
