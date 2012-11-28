@@ -16,19 +16,23 @@ type (;ki:epoch) history = p:(;ki) prehistory{TLSHistory(ki,p)}
 predicate EmptyHistory of ki:epoch * (;ki)history
 val emptyHistory: ki:epoch -> h:(;ki)history{EmptyHistory(ki,h)}
 
-function val HistoryStream: e:epoch * TLSConstants.ContentType * (;e)history -> 'a //(;e)stream
-private definition !e,h. HistoryStream(e,TLSConstants.Handshake,h) = h.handshake
-private definition !e,h. HistoryStream(e,TLSConstants.Alert,h) = h.alert
-private definition !e,h. HistoryStream(e,TLSConstants.Change_cipher_spec,h) = h.ccs
-private definition !e,h. HistoryStream(e,TLSConstants.Application_data,h) = h.appdata
+function val HandshakeHistory: e:epoch * (;e)history -> 'a //(;e)HSFragment.stream
+function val AppDataHistory: e:epoch * (;e)history -> 'a //(;e)DataStream.stream
+function val AlertHistory: e:epoch * (;e) history -> 'a // (;e)HSFragment.stream
+function val CCSHistory: e:epoch * (;e) history -> 'a//(;e)HSFragment.stream
 
-predicate TLSFragment of ki:epoch * ct:ContentType * h:(;ki) history * rg:range * 'a //d:(;ki,rg) Fragment.fragment
+private definition !e,h. HandshakeHistory(e,h) = h.handshake
+private definition !e,h. AlertHistory(e,h) = h.alert
+private definition !e,h. CCSHistory(e,h) = h.ccs
+private definition !e,h. AppDataHistory(e,h) = h.appdata
+
+predicate val TLSFragment : ki:epoch * ct:ContentType * h:(;ki) history * rg:range * 'a  -> bool//d:(;ki,rg) Fragment.fragment
 assume !ki,ct,h,rg,d.
   TLSFragment(ki,ct,h,rg,d) <=> (
-    (ct = TLSConstants.Handshake          /\ HSFragment.Fragment(ki,HistoryStream(ki,ct,h),rg,d) ) \/
-    (ct = TLSConstants.Change_cipher_spec /\ HSFragment.Fragment(ki,HistoryStream(ki,ct,h),rg,d) ) \/
-    (ct = TLSConstants.Alert              /\ HSFragment.Fragment(ki,HistoryStream(ki,ct,h),rg,d) ) \/
-    (ct = TLSConstants.Application_data   /\ AppFragment.Fragment(ki,HistoryStream(ki,ct,h),rg,d))
+    (ct = TLSConstants.Handshake          /\ HSFragment.Fragment(ki,HandshakeHistory(ki,h),rg,d) ) \/
+    (ct = TLSConstants.Change_cipher_spec /\ HSFragment.Fragment(ki,CCSHistory(ki,h),rg,d) ) \/
+    (ct = TLSConstants.Alert              /\ HSFragment.Fragment(ki,AlertHistory(ki,h),rg,d) ) \/
+    (ct = TLSConstants.Application_data   /\ AppFragment.Fragment(ki,AppDataHistory(ki,h),rg,d))
   )
 
 
@@ -106,33 +110,31 @@ private assume !ki,h,r,d. ExtendHistory(ki,TLSConstants.Application_data,h,r,d) 
 	   appdata = AppFragment.Extend(ki,h.appdata,r,d)}
 
 ask !ki,h,h',r,d. h' = ExtendHistory(ki,TLSConstants.Handshake,h,r,d) =>
-	( HistoryStream(ki,TLSConstants.Handshake,h') = HSFragment.Extend(ki,HistoryStream(ki,TLSConstants.Handshake,h),r,d) /\
-	  HistoryStream(ki,TLSConstants.Alert,h') = HistoryStream(ki,TLSConstants.Alert,h) /\
-	  HistoryStream(ki,TLSConstants.Change_cipher_spec,h') = HistoryStream(ki,TLSConstants.Change_cipher_spec,h) /\
-	  HistoryStream(ki,TLSConstants.Application_data,h') = HistoryStream(ki,TLSConstants.Application_data,h))
+	( HandshakeHistory(ki,h') = HSFragment.Extend(ki,HandshakeHistory(ki,h),r,d) /\
+	  AlertHistory(ki,h') = AlertHistory(ki,h) /\
+	  CCSHistory(ki,h') = CCSHistory(ki,h) /\
+	  AppDataHistory(ki,h') = AppDataHistory(ki,h))
 ask !ki,h,h',r,d. h' = ExtendHistory(ki,TLSConstants.Alert,h,r,d) =>
-	( HistoryStream(ki,TLSConstants.Alert,h') = HSFragment.Extend(ki,HistoryStream(ki,TLSConstants.Alert,h),r,d) /\
-	  HistoryStream(ki,TLSConstants.Handshake,h') = HistoryStream(ki,TLSConstants.Handshake,h) /\
-	  HistoryStream(ki,TLSConstants.Change_cipher_spec,h') = HistoryStream(ki,TLSConstants.Change_cipher_spec,h) /\
-	  HistoryStream(ki,TLSConstants.Application_data,h') = HistoryStream(ki,TLSConstants.Application_data,h))
+	( AlertHistory(ki,h') = HSFragment.Extend(ki,AlertHistory(ki,h),r,d) /\
+	  HandshakeHistory(ki,h') = HandshakeHistory(ki,h) /\
+	  CCSHistory(ki,h') = CCSHistory(ki,h) /\
+	  AppDataHistory(ki,h') = AppDataHistory(ki,h))
 ask !ki,h,h',r,d. h' = ExtendHistory(ki,TLSConstants.Change_cipher_spec,h,r,d) =>
-	( HistoryStream(ki,TLSConstants.Change_cipher_spec,h') = HSFragment.Extend(ki,HistoryStream(ki,TLSConstants.Change_cipher_spec,h),r,d) /\
-	  HistoryStream(ki,TLSConstants.Alert,h') = HistoryStream(ki,TLSConstants.Alert,h) /\
-	  HistoryStream(ki,TLSConstants.Handshake,h') = HistoryStream(ki,TLSConstants.Handshake,h) /\
-	  HistoryStream(ki,TLSConstants.Application_data,h') = HistoryStream(ki,TLSConstants.Application_data,h))
+	( CCSHistory(ki,h') = HSFragment.Extend(ki,CCSHistory(ki,h),r,d) /\
+	  AlertHistory(ki,h') = AlertHistory(ki,h) /\
+	  HandshakeHistory(ki,h') = HandshakeHistory(ki,h) /\
+	  AppDataHistory(ki,h') = AppDataHistory(ki,h))
+
 ask !ki,h,h',r,d. h' = ExtendHistory(ki,TLSConstants.Application_data,h,r,d) =>
-	( HistoryStream(ki,TLSConstants.Application_data,h') = AppFragment.Extend(ki,HistoryStream(ki,TLSConstants.Application_data,h),r,d) /\
-	  HistoryStream(ki,TLSConstants.Alert,h') = HistoryStream(ki,TLSConstants.Alert,h) /\
-	  HistoryStream(ki,TLSConstants.Change_cipher_spec,h') = HistoryStream(ki,TLSConstants.Change_cipher_spec,h) /\
-	  HistoryStream(ki,TLSConstants.Handshake,h') = HistoryStream(ki,TLSConstants.Handshake,h))
+	( AppDataHistory(ki,h') = AppFragment.Extend(ki,AppDataHistory(ki,h),r,d) /\
+	  AlertHistory(ki,h') = AlertHistory(ki,h) /\
+	  CCSHistory(ki,h') = CCSHistory(ki,h) /\
+	  HandshakeHistory(ki,h') = HandshakeHistory(ki,h))
 
-//val historyStream: e:epoch -> ct:TLSConstants.ContentType -> h:(;e)history ->
-//	s:(;e)stream{s=HistoryStream(e,ct,h)}
-
-ask !e,h. EmptyHistory(e,h) => HSFragment.EmptyStream(e,HistoryStream(e,TLSConstants.Handshake,h))
-ask !e,h. EmptyHistory(e,h) => HSFragment.EmptyStream(e,HistoryStream(e,TLSConstants.Alert,h))
-ask !e,h. EmptyHistory(e,h) => HSFragment.EmptyStream(e,HistoryStream(e,TLSConstants.Change_cipher_spec,h))
-ask !e,h. EmptyHistory(e,h) => DataStream.EmptyStream(e,HistoryStream(e,TLSConstants.Application_data,h))
+ask !e,h. EmptyHistory(e,h) => HSFragment.EmptyStream(e,HandshakeHistory(e,h))
+ask !e,h. EmptyHistory(e,h) => HSFragment.EmptyStream(e,AlertHistory(e,h))
+ask !e,h. EmptyHistory(e,h) => HSFragment.EmptyStream(e,CCSHistory(e,h))
+ask !e,h. EmptyHistory(e,h) => DataStream.EmptyStream(e,AppDataHistory(e,h))
 
 private assume !ki,h. TLSHistory(ki,h)
 

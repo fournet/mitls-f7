@@ -10,8 +10,8 @@ predicate Fragment of ki:epoch * (;ki) stream * r:range * bytes
 
 private type (;ki:epoch,r:range) fragment = {frag: (s:(;ki)stream * d:bytes{Auth(ki) => Fragment(ki,s,r,d)})}
 
-val fragmentPlain: ki:epoch{not Auth(ki)} -> r:range -> (;r) rbytes -> (;ki,r) fragment
-val fragmentRepr:  ki:epoch{not Safe(ki)} -> r:range -> (;ki,r) fragment -> (;r) rbytes
+val fragmentPlain: ki:epoch -> r:range -> (;r) rbytes -> (;ki,r) fragment
+val fragmentRepr:  ki:epoch -> r:range -> (;ki,r) fragment -> (;r) rbytes
 
 predicate EmptyStream of e:epoch * (;e)stream
 val init: e:epoch -> s:(;e)stream{EmptyStream(e,s)}
