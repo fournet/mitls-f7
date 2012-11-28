@@ -3,9 +3,9 @@ open Bytes
 open TLSInfo
 
 type stream
-type range = nat * nat
 
 type fragment
+type plain = fragment
 
 val fragmentRepr: epoch -> range -> fragment -> bytes
 val fragmentPlain: epoch -> range -> bytes -> fragment

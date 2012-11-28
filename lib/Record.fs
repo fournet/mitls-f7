@@ -5,11 +5,9 @@ open Error
 open TLSInfo
 open TLSConstants
 
-open TLSFragment
-
 type ConnectionState =
     | NullState
-    | SomeState of history * StatefulAEAD.state
+    | SomeState of TLSFragment.history * StatefulAEAD.state
 
 let someState (ki:epoch) h s = SomeState(h,s)
 
@@ -17,7 +15,7 @@ type sendState = ConnectionState
 type recvState = ConnectionState
 
 let initConnState (ki:epoch) s = 
-  let eh = emptyHistory ki in
+  let eh = TLSFragment.emptyHistory ki in
     SomeState(eh,s)
 
 let nullConnState (ki:epoch) = NullState
@@ -74,8 +72,8 @@ let recordPacketOut ki conn pv rg ct fragment =
     let initEpoch = isInitEpoch ki in
     match (initEpoch, conn) with
     | (true,NullState) ->
-        let eh = emptyHistory ki in
-        let payload = fragmentRepr ki ct eh rg fragment in
+        let eh = TLSFragment.emptyHistory ki in
+        let payload = TLSFragment.repr ki ct eh rg fragment in
         let packet = makePacket ct pv payload in
         (conn,packet)
 // MACOnly is now handled within AEAD
@@ -96,7 +94,7 @@ let recordPacketOut ki conn pv rg ct fragment =
         let sh = StatefulAEAD.history ki state in
         let aeadF = StatefulPlain.TLSFragmentToFragment ki ct history sh rg fragment in
         let (state,payload) = StatefulAEAD.encrypt ki state ad rg aeadF in
-        let history = addToHistory ki ct history rg fragment in
+        let history = TLSFragment.addToHistory ki ct history rg fragment in
         let packet = makePacket ct pv payload in
         (SomeState(history,state),packet)
     | _ -> unexpectedError "[recordPacketOut] Incompatible ciphersuite and key type"
@@ -142,8 +140,8 @@ let recordPacketIn ki conn headPayload =
     match (initEpoch,conn) with
     | (true,NullState) ->
         let rg = (plen,plen) in
-        let eh = emptyHistory ki in
-        let msg = fragmentPlain ki ct eh rg payload in
+        let eh = TLSFragment.emptyHistory ki in
+        let msg = TLSFragment.plain ki ct eh rg payload in
         correct(conn,ct,pv,rg,msg)
 // MACOnly is now handled within AEAD
 //    | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
@@ -168,7 +166,7 @@ let recordPacketIn ki conn headPayload =
             let (newState, rg, plain) = decrRes in
             let oldH = StatefulAEAD.history ki state in
             let msg = StatefulPlain.fragmentToTLSFragment ki ct history oldH rg plain in
-            let history = addToHistory ki ct history rg msg in
+            let history = TLSFragment.addToHistory ki ct history rg msg in
             let st' = someState ki history newState in
             correct(st',ct,pv,rg,msg)
     | _ -> unexpectedError "[recordPacketIn] Incompatible ciphersuite and key type"

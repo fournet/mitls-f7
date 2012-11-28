@@ -19,7 +19,7 @@ f7flags += -timeout 1 --define avoid --verbose -nokindcheck $(lperv) $(libfs7)
 
 -include Makefile.tc7
 
-default: TLSInfo.tc7 DataStream.tc7 Fragment.tc7 TLSFragment.tc7 StatefulPlain.tc7 AEADPlain.tc7 AEAD.tc7 StatefulAEAD.tc7 Record.tc7
+default: TLSInfo.tc7 DataStream.tc7 AppFragment.tc7 TLSFragment.tc7 HSFragment.tc7 StatefulPlain.tc7 AEADPlain.tc7 AEAD.tc7 StatefulAEAD.tc7 Record.tc7
 
 clean:
 	rm -f *.smp *.tc7

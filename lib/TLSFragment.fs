@@ -6,20 +6,19 @@ open TLSInfo
 open TLSConstants
 
 
-type prehistory = {
+type history = {
   handshake: HSFragment.stream // Handshake.stream;
   alert: HSFragment.stream // Alert.stream;
   ccs: HSFragment.stream // Handshake.stream;
   appdata: DataStream.stream // AppData.stream;
 }
 
-type history = prehistory
-
 type fragment =
     | FHandshake of HSFragment.fragment // Handshake.fragment
     | FCCS of HSFragment.fragment // Handshake.ccsFragment
     | FAlert of HSFragment.fragment // Alert.fragment
     | FAppData of AppFragment.fragment // AppData.fragment
+type plain = fragment
 
 let emptyHistory ki =
     let es = HSFragment.init ki in
@@ -36,7 +35,7 @@ let emptyHistory ki =
 //     | Change_cipher_spec -> ss.ccs
 //     | Application_data -> ss.appdata
 
-let fragmentPlain ki (ct:ContentType) (h:history) (rg:range) b = 
+let plain ki (ct:ContentType) (h:history) (rg:range) b = 
     match ct with
     | Handshake ->          FHandshake(HSFragment.fragmentPlain ki rg b)
     | Change_cipher_spec -> FCCS(HSFragment.fragmentPlain ki rg b)
@@ -44,50 +43,49 @@ let fragmentPlain ki (ct:ContentType) (h:history) (rg:range) b =
     | Application_data ->   FAppData(AppFragment.fragmentPlain ki rg b)
 
 
-let fragmentRepr ki (ct:ContentType) (h:history) (rg:range) frag =
+let repr ki (ct:ContentType) (h:history) (rg:range) frag =
     match frag with
     | FHandshake(f) -> HSFragment.fragmentRepr ki rg f
     | FCCS(f) -> HSFragment.fragmentRepr ki rg f
     | FAlert(f) -> HSFragment.fragmentRepr ki rg f
     | FAppData(f) -> AppFragment.fragmentRepr ki rg f
 
+let HSPlainToRecordPlain    (e:epoch) (h:history) (r:range) (f:HSFragment.fragment) = FHandshake(f)
+let RecordPlainToHSPlain    (e:epoch) (h:history) (r:range) ff =
+    match ff with
+    | FHandshake(f) -> f
+    | _ -> unexpectedError "[RecordPlainToHSPlain] invoked on an invalid fragment"
+let CCSPlainToRecordPlain   (e:epoch) (h:history) (r:range) (f:HSFragment.fragment) = FCCS(f)
+let RecordPlainToCCSPlain    (e:epoch) (h:history) (r:range) ff =
+    match ff with
+    | FCCS(f) -> f
+    | _ -> unexpectedError "[RecordPlainToCCSPlain] invoked on an invalid fragment"
+let AlertPlainToRecordPlain (e:epoch) (h:history) (r:range) (f:HSFragment.fragment) = FAlert(f)
+let RecordPlainToAlertPlain    (e:epoch) (h:history) (r:range) ff =
+    match ff with
+    | FAlert(f) -> f
+    | _ -> unexpectedError "[RecordPlainToAlertPlain] invoked on an invalid fragment"
+let AppPlainToRecordPlain   (e:epoch) (h:history) (r:range) (f:AppFragment.fragment) = FAppData(f)
+let RecordPlainToAppPlain    (e:epoch) (h:history) (r:range) ff =
+    match ff with
+    | FAppData(f) -> f
+    | _ -> unexpectedError "[RecordPlainToAppPlain] invoked on an invalid fragment"
 
-// let contents (ki:epoch) (ct:ContentType) (h:history) (rg:range) f =
-//     match f with
-//         | FHandshake(f) -> f
-//         | FCCS(f) -> f
-//         | FAlert(f) -> f
-//         | FAppData(f) -> f
-//             
-// 
-// let construct (ki:epoch) (ct:ContentType) (h:history) (rg:range) sb =
-//     match ct with
-//         | Handshake -> FHandshake(sb)
-//         | Change_cipher_spec -> FCCS(sb)
-//         | Alert -> FAlert(sb)
-//         | Application_data -> FAppData(sb)
-
-let addToHistory (ki:epoch) ct ss r frag =
-  match ct,frag with
-    | (Handshake, FHandshake(f)) -> 
-        let s' = HSFragment.extend ki ss.handshake r f in
+let addToHistory (e:epoch) ct ss r frag =
+  match ct with
+    | Handshake ->
+        let f = RecordPlainToHSPlain e ss r frag in
+        let s' = HSFragment.extend e ss.handshake r f in
         {ss with handshake = s'} 
-    | (Alert, FAlert(f)) -> 
-        let s' = HSFragment.extend ki ss.alert r f in
+    | Alert ->
+        let f = RecordPlainToAlertPlain e ss r frag in
+        let s' = HSFragment.extend e ss.alert r f in
           {ss with alert = s'} 
-    | (Change_cipher_spec, FCCS(f)) -> 
-        let s' = HSFragment.extend ki ss.ccs r f in
+    | Change_cipher_spec ->
+        let f = RecordPlainToCCSPlain e ss r frag in
+        let s' = HSFragment.extend e ss.ccs r f in
           {ss  with ccs = s'} 
-    | (Application_data, FAppData(f)) -> 
-        let d,s' = AppFragment.delta ki ss.appdata r f in
+    | Application_data ->
+        let f = RecordPlainToAppPlain e ss r frag in
+        let d,s' = AppFragment.delta e ss.appdata r f in
           {ss with appdata = s'}
-    | (_,_) -> unexpectedError "[addToHistory] invoked on inconstitent content type/fragment"
-
-let HSFragmentToTLSFragment    (e:epoch) (h:history) (r:range) (f:HSFragment.fragment) = FHandshake(f)
-let TLSFragmentToHSFragment    (e:epoch) (h:history) (r:range) (FHandshake(f)) = f
-let CCSFragmentToTLSFragment   (e:epoch) (h:history) (r:range) (f:HSFragment.fragment) = FCCS(f)
-let TLSFragmentToCCSFragment    (e:epoch) (h:history) (r:range) (FCCS(f)) = f
-let AlertFragmentToTLSFragment (e:epoch) (h:history) (r:range) (f:HSFragment.fragment) = FAlert(f)
-let TLSFragmentToAlertFragment    (e:epoch) (h:history) (r:range) (FAlert(f)) = f
-let AppFragmentToTLSFragment   (e:epoch) (h:history) (r:range) (f:AppFragment.fragment) = FAppData(f)
-let TLSFragmentToAppFragment    (e:epoch) (h:history) (r:range) (FAppData(f)) = f

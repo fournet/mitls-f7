@@ -58,11 +58,11 @@ let addToHistory (ki:epoch) (sh:history) d (r:range) x =
 let statefulPlain (ki:epoch) (h:history) (ad:data) (r:range) (b:bytes) =
     let h = TLSFragment.emptyHistory ki // FIXME
     let ct = parseAD ki ad in
-    {contents = TLSFragment.fragmentPlain ki ct h r b}
+    {contents = TLSFragment.plain ki ct h r b}
 let statefulRepr (ki:epoch) (h:history) (ad:data) (r:range) (f:statefulPlain) =
     let h = TLSFragment.emptyHistory ki // FIXME
     let ct = parseAD ki ad in
-    TLSFragment.fragmentRepr ki ct h r f.contents
+    TLSFragment.repr ki ct h r f.contents
 
 let contents  (ki:epoch) (h:history) (ad:data) (rg:range) f = f.contents
 let construct (ki:epoch) (h:history) (ad:data) (rg:range) c = {contents = c}

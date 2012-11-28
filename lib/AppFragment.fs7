@@ -11,6 +11,7 @@ predicate Fragment of ki:epoch * (;ki) stream * r:range * (;ki,r)fragment
 private assume !ki,s,r,f. Fragment(ki,s,r,f) <=> 
   (?d. f.frag = (s,d) /\ DeltaFragment(ki,s,r,d))
 
+type (;e:epoch,s:(;e)stream,r:range)plain = f:(;e,r) fragment{Auth(e) => Fragment(e,s,r,f)}
 // range-based fragmentation 
 
 val fragment: ki:epoch -> s:(;ki) stream -> r:range ->

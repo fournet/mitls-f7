@@ -5,6 +5,7 @@ open DataStream
 
 type fragment = {frag: stream * delta}
 type fpred = DeltaFragment of epoch * stream * range * delta
+type plain = fragment
 
 
 let fragment ki s r d = 
