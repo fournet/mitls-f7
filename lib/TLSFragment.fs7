@@ -114,29 +114,29 @@ val HSPlainToRecordPlain: e:epoch -> h:(;e)history -> r:range ->
   f:(;e,TLSConstants.Handshake,h,r) plain
 
 val RecordPlainToHSPlain: e:epoch -> h:(;e) history -> r:range -> 
-  f:(;e,TLSConstants.Handshake,h,r) plain{?x. f = FHandshake(x)} ->
-  d:(;e,HandshakeHistory(e,h),r) HSFragment.plain{f = FHandshake(d)}
+  f:(;e,TLSConstants.Handshake,h,r) plain ->
+  d:(;e,HandshakeHistory(e,h),r) HSFragment.plain
 
 val CCSPlainToRecordPlain: e:epoch -> h:(;e)history -> r:range -> 
   d:(;e,CCSHistory(e,h),r) HSFragment.plain -> 
   f:(;e,TLSConstants.Change_cipher_spec,h,r) plain
 
 val RecordPlainToCCSPlain: e:epoch -> h:(;e) history -> r:range -> 
-  f:(;e,TLSConstants.Change_cipher_spec,h,r) plain{?x. f = FCCS(x)} -> 
-  d:(;e,CCSHistory(e,h),r) HSFragment.plain{f = FCCS(d)}
+  f:(;e,TLSConstants.Change_cipher_spec,h,r) plain -> 
+  d:(;e,CCSHistory(e,h),r) HSFragment.plain
 
 val AlertPlainToRecordPlain: e:epoch -> h:(;e)history -> r:range -> 
   d:(;e,AlertHistory(e,h),r) HSFragment.plain -> 
   f:(;e,TLSConstants.Alert,h,r) plain
 
 val RecordPlainToAlertPlain: e:epoch -> h:(;e) history -> r:range -> 
-  f:(;e,TLSConstants.Alert,h,r) plain{?x. f = FAlert(x)} -> 
-  d:(;e,AlertHistory(e,h),r) HSFragment.plain{f = FAlert(d)}
+  f:(;e,TLSConstants.Alert,h,r) plain -> 
+  d:(;e,AlertHistory(e,h),r) HSFragment.plain
 
 val AppPlainToRecordPlain: e:epoch -> h:(;e)history -> r:range -> 
   d:(;e,AppDataHistory(e,h),r) AppFragment.plain -> 
   f:(;e,TLSConstants.Application_data,h,r) plain
 
 val RecordPlainToAppPlain: e:epoch -> h:(;e) history -> r:range -> 
-  f:(;e,TLSConstants.Application_data,h,r) plain{?x. f = FAppData(x)} -> 
-  d:(;e,AppDataHistory(e,h),r) AppFragment.plain{f = FAppData(d)}
+  f:(;e,TLSConstants.Application_data,h,r) plain -> 
+  d:(;e,AppDataHistory(e,h),r) AppFragment.plain

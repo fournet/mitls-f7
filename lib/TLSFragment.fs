@@ -73,20 +73,16 @@ let RecordPlainToAppPlain    (e:epoch) (h:history) (r:range) ff =
 
 let addToHistory (e:epoch) ct ss r frag =
   match ct,frag with
-    | Handshake,FHandshake(_) ->
-        let f = RecordPlainToHSPlain e ss r frag in
+    | Handshake,FHandshake(f) ->
         let s' = HSFragment.extend e ss.handshake r f in
         {ss with handshake = s'} 
-    | Alert,FAlert(_) ->
-        let f = RecordPlainToAlertPlain e ss r frag in
+    | Alert,FAlert(f) ->
         let s' = HSFragment.extend e ss.alert r f in
           {ss with alert = s'} 
-    | Change_cipher_spec,FCCS(_) ->
-        let f = RecordPlainToCCSPlain e ss r frag in
+    | Change_cipher_spec,FCCS(f) ->
         let s' = HSFragment.extend e ss.ccs r f in
           {ss  with ccs = s'} 
-    | Application_data,FAppData(_) ->
-        let f = RecordPlainToAppPlain e ss r frag in
+    | Application_data,FAppData(f) ->
         let d,s' = AppFragment.delta e ss.appdata r f in
           {ss with appdata = s'}
     | _,_ -> unexpectedError "[addToHistory] invoked on an invalid contenttype/fragment"
