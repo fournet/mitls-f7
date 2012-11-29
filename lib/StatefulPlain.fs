@@ -64,13 +64,7 @@ let repr (e:epoch) (h:history) (ad:adata) (r:range) (f:plain) =
     let x = f.contents in
     TLSFragment.repr e ct h r x
 
-//let contents  (e:epoch) (h:history) (ad:adata) (rg:range) f = f.contents
-//let construct (e:epoch) (h:history) (ad:adata) (rg:range) c = {contents = c}
-
 let RecordPlainToStAEPlain (e:epoch) (ct:ContentType) (ss:TLSFragment.history) (st:history) (rg:range) f = {contents = f}
-  //let ad = makeAD e ct in
-  //construct e st ad rg f
 
 let StAEPlainToRecordPlain (e:epoch) (ct:ContentType) (ss:TLSFragment.history) (st:history) (rg:range) f = f.contents
-  //let ad = makeAD e ct in
-  //contents e st ad rg f
+
