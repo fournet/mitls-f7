@@ -16,17 +16,17 @@ let parseAD (e:epoch) ad =
     else
         Error.unexpectedError "[parseAD] should never fail parsing"
 
-type AEADPlain = {contents:StatefulPlain.statefulPlain}
+type AEADPlain = {contents:StatefulPlain.plain}
 
 let AEADPlain (ki:epoch) (rg:range) (ad:data) b =
     let ad = parseAD ki ad in
     let h = StatefulPlain.emptyHistory ki in
-    {contents = StatefulPlain.statefulPlain ki h ad rg b}
+    {contents = StatefulPlain.plain ki h ad rg b}
 
 let AEADRepr  (ki:epoch) (rg:range) (ad:data) p =
     let ad = parseAD ki ad in
     let h = StatefulPlain.emptyHistory ki in
-    StatefulPlain.statefulRepr ki h ad rg p.contents
+    StatefulPlain.repr ki h ad rg p.contents
 
 let contents  (ki:epoch) (rg:range) (ad:data) p = p.contents
 let construct (ki:epoch) (rg:range) (ad:data) b = {contents = b}

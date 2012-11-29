@@ -12,7 +12,7 @@ val AEADRepr:  epoch -> range -> data -> AEADPlain -> bytes
 //val contents:  epoch -> range -> data -> AEADPlain -> fragment
 //val construct: epoch -> range -> data -> fragment -> AEADPlain
 
-val makeAD: epoch -> history -> StatefulPlain.data -> data
-val parseAD: epoch -> data -> StatefulPlain.data
-val StatefulToAEADPlain: epoch -> history -> StatefulPlain.data -> range -> statefulPlain -> AEADPlain
-val AEADPlainToStateful: epoch -> history -> StatefulPlain.data -> range -> AEADPlain -> statefulPlain
+val makeAD: epoch -> history -> StatefulPlain.adata -> data
+val parseAD: epoch -> data -> StatefulPlain.adata
+val StatefulToAEADPlain: epoch -> history -> StatefulPlain.adata -> range -> plain -> AEADPlain
+val AEADPlainToStateful: epoch -> history -> StatefulPlain.adata -> range -> AEADPlain -> plain

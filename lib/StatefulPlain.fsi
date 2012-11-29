@@ -2,26 +2,26 @@ module StatefulPlain
 open Bytes
 open TLSConstants
 open TLSInfo
-open DataStream
 
-type data = bytes
+type adata = bytes
 
-type prehistory = (data * TLSFragment.fragment) list
+type fragment
+type prehistory = (adata * range * fragment) list
 type history  = (nat * prehistory)
-type statefulPlain
+type plain = fragment
 
 //------------------------------------------------------------------------------
-val statefulPlain: epoch -> history -> data -> range -> bytes -> statefulPlain
-val statefulRepr:  epoch -> history -> data -> range -> statefulPlain -> bytes
+val plain: epoch -> history -> adata -> range -> bytes -> plain
+val repr:  epoch -> history -> adata -> range -> plain -> bytes
 
 //------------------------------------------------------------------------------
 val emptyHistory: epoch -> history
-val addToHistory: epoch -> history -> data -> range -> statefulPlain -> history
+val addToHistory: epoch -> adata -> history -> range -> plain -> history
 
-//val contents:  epoch -> history -> data -> range -> statefulPlain -> Fragment.fragment
-//val construct: epoch -> history -> data -> range -> Fragment.fragment -> statefulPlain
+//val contents:  epoch -> history -> adata -> range -> statefulPlain -> Fragment.fragment
+//val construct: epoch -> history -> adata -> range -> Fragment.fragment -> statefulPlain
 
-val makeAD: epoch -> ContentType -> data
-val parseAD: epoch -> data -> ContentType
-val TLSFragmentToFragment: epoch -> ContentType -> TLSFragment.history -> history -> range -> TLSFragment.fragment -> statefulPlain
-val fragmentToTLSFragment: epoch -> ContentType -> TLSFragment.history -> history -> range -> statefulPlain -> TLSFragment.fragment
+val makeAD: epoch -> ContentType -> adata
+val parseAD: epoch -> adata -> ContentType
+val RecordPlainToStAEPlain: epoch -> ContentType -> TLSFragment.history -> history -> range -> TLSFragment.plain -> plain
+val StAEPlainToRecordPlain: epoch -> ContentType -> TLSFragment.history -> history -> range -> plain -> TLSFragment.plain

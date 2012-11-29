@@ -34,11 +34,11 @@ private definition !e,h. AppDataHistory(e,h) = h.appdata
 
 predicate RecordSent of e:epoch * ct:ContentType * h:(;e) history * rg:range * (;e,ct,rg)fragment
 private assume !e,ct,h,rg,d.
-  RecordSent(e,ct,h,rg,d) <=> (?f. 
-    (ct = TLSConstants.Handshake          /\ d = FHandshake(f) /\ HSFragment.Fragment(e,HandshakeHistory(e,h),rg,f) ) \/
-    (ct = TLSConstants.Change_cipher_spec /\ d = FCCS(f)       /\ HSFragment.Fragment(e,CCSHistory(e,h),rg,f) ) \/
-    (ct = TLSConstants.Alert              /\ d = FAlert(f)     /\ HSFragment.Fragment(e,AlertHistory(e,h),rg,f) ) \/
-    (ct = TLSConstants.Application_data   /\ d = FAppData(f)   /\ AppFragment.Fragment(e,AppDataHistory(e,h),rg,f))
+  RecordSent(e,ct,h,rg,d) <=> ( 
+    (?f. ct = TLSConstants.Handshake          /\ d = FHandshake(f) /\ HSFragment.FragmentSent(e,HandshakeHistory(e,h),rg,f) ) \/
+    (?f. ct = TLSConstants.Change_cipher_spec /\ d = FCCS(f)       /\ HSFragment.FragmentSent(e,CCSHistory(e,h),rg,f) ) \/
+    (?f. ct = TLSConstants.Alert              /\ d = FAlert(f)     /\ HSFragment.FragmentSent(e,AlertHistory(e,h),rg,f) ) \/
+    (?f. ct = TLSConstants.Application_data   /\ d = FAppData(f)   /\ AppFragment.FragmentSent(e,AppDataHistory(e,h),rg,f))
   )
 
 type (;e:epoch,ct:ContentType,h:(;e)history,rg:range) plain = f:(;e,ct,rg)fragment{(Auth(e) => RecordSent(e,ct,h,rg,f))}

@@ -3,15 +3,11 @@ open Bytes
 open Error
 open TLSConstants
 open TLSInfo
-open DataStream
 
-type data = bytes
+type adata = bytes
 
-type prehistory = ( (* epoch * ContentType * TLSFragment.history * range * *) data * TLSFragment.fragment) list
-type history = (nat * prehistory)
-
-let makeAD ki ct =
-    let si = epochSI(ki) in
+let makeAD e ct =
+    let si = epochSI(e) in
     let pv = si.protocol_version in
     let bct  = ctBytes ct in
     let bver = versionBytes pv in
@@ -41,36 +37,40 @@ let parseAD e ad =
         else
             unexpectedError "[parseAD] should never parse failing"
 
+type fragment = {contents: TLSFragment.fragment}
 
-type statefulPlain = {contents: TLSFragment.fragment}
+type prehistory = (adata * range * fragment) list
+type history = (nat * prehistory)
 
-let consHistory (ki:epoch) (h:prehistory) d f = (d,f)::h
+type plain = fragment
 
-let emptyHistory (ki:epoch): history = (0,[])
-let addToHistory (ki:epoch) (sh:history) d (r:range) x = 
+let consHistory (e:epoch) (h:prehistory) d r f = (d,r,f)::h
+
+let emptyHistory (e:epoch): history = (0,[])
+let addToHistory (e:epoch) d (sh:history) (r:range) f = 
   let (seqn,h) = sh in
-  let f = x.contents in
   let s' = seqn+1 in
-  let nh = consHistory ki h d f in
+  let nh = consHistory e h d r f in
   let res = (s',nh) in
   res
 
-let statefulPlain (ki:epoch) (h:history) (ad:data) (r:range) (b:bytes) =
-    let h = TLSFragment.emptyHistory ki // FIXME
-    let ct = parseAD ki ad in
-    {contents = TLSFragment.plain ki ct h r b}
-let statefulRepr (ki:epoch) (h:history) (ad:data) (r:range) (f:statefulPlain) =
-    let h = TLSFragment.emptyHistory ki // FIXME
-    let ct = parseAD ki ad in
-    TLSFragment.repr ki ct h r f.contents
+let plain (e:epoch) (h:history) (ad:adata) (r:range) (b:bytes) =
+    let h = TLSFragment.emptyHistory e // FIXME: should be: multiplexed e h
+    let ct = parseAD e ad in
+    {contents = TLSFragment.plain e ct h r b}
+let repr (e:epoch) (h:history) (ad:adata) (r:range) (f:plain) =
+    let h = TLSFragment.emptyHistory e // FIXME: should be: multiplexed e h
+    let ct = parseAD e ad in
+    let x = f.contents in
+    TLSFragment.repr e ct h r x
 
-let contents  (ki:epoch) (h:history) (ad:data) (rg:range) f = f.contents
-let construct (ki:epoch) (h:history) (ad:data) (rg:range) c = {contents = c}
+//let contents  (e:epoch) (h:history) (ad:adata) (rg:range) f = f.contents
+//let construct (e:epoch) (h:history) (ad:adata) (rg:range) c = {contents = c}
 
-let TLSFragmentToFragment ki ct (ss:TLSFragment.history) st rg f =
-  let ad = makeAD ki ct in
-  construct ki st ad rg f
+let RecordPlainToStAEPlain (e:epoch) (ct:ContentType) (ss:TLSFragment.history) (st:history) (rg:range) f = {contents = f}
+  //let ad = makeAD e ct in
+  //construct e st ad rg f
 
-let fragmentToTLSFragment ki ct (ss:TLSFragment.history) st rg f =
-  let ad = makeAD ki ct in
-  contents ki st ad rg f
+let StAEPlainToRecordPlain (e:epoch) (ct:ContentType) (ss:TLSFragment.history) (st:history) (rg:range) f = f.contents
+  //let ad = makeAD e ct in
+  //contents e st ad rg f

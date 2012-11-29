@@ -19,6 +19,6 @@ val history: epoch -> state -> history
 
 type cipher = ENC.cipher
 
-val encrypt: epoch -> writer ->  data -> range -> statefulPlain -> (writer * cipher)
+val encrypt: epoch -> writer ->  adata -> range -> plain -> (writer * cipher)
 
-val decrypt: epoch -> reader ->  data -> cipher -> (reader * range * statefulPlain) Result
+val decrypt: epoch -> reader ->  adata -> cipher -> (reader * range * plain) Result

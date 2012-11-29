@@ -2,65 +2,80 @@ module StatefulPlain
 open Bytes
 open TLSConstants
 open TLSInfo
-open DataStream
 
 //------------------------------------------------------------------------------------------------------
 // `Plain' interface towards StatefulAEAD
 //------------------------------------------------------------------------------------------------------
 
 function val ADLength: epoch -> nat
-assume !ki. 
-    (EpochSI(ki).protocol_version = SSL_3p0  /\ ADLength(ki) = 1) \/
-	(EpochSI(ki).protocol_version <> SSL_3p0 /\ ADLength(ki) = 3)
+private definition !e. 
+    (EpochSI(e).protocol_version = SSL_3p0  /\ ADLength(e) = 1) \/
+	(EpochSI(e).protocol_version <> SSL_3p0 /\ ADLength(e) = 3)
 
-type (;ki:epoch) data = (b:bytes){Length(b) = ADLength(ki)} 
+type (;e:epoch) adata = (b:bytes){Length(b) = ADLength(e)} 
 
-private type (;ki:epoch) prehistory = (;ki)TLSFragment.history // (ad:(;ki) data * r:range * x:(;ki,r)Fragment.fragment) list
-// FIXME: HLength does not work anymore!
-function val HLength: ki:epoch * (;ki)prehistory -> nat
-private definition !ki.          HLength(ki,[]) = 0
-private definition !ki,h,ad,r,x. HLength(ki,(ad,r,x)::h) = HLength(ki,h)+1
+function val ADBytes: (epoch * ContentType) -> bytes //(;e)StatefulPlain.adata
+private definition !e,ct.
+	( EpochSI(e).protocol_version = SSL_3p0 /\
+	  ADBytes(e,ct) =
+		CTBytes(ct) ) \/
+	( EpochSI(e).protocol_version <> SSL_3p0 /\
+          ADBytes(e,ct) =
+		(CTBytes(ct) @| VersionBytes(EpochSI(e).protocol_version)))
 
-predicate Sent of ki:epoch * (nat * (;ki)prehistory)
-private type (;ki:epoch)history = (sn:nat * ph:(;ki)prehistory){sn = HLength(ki,ph) /\ (Auth(ki) => Sent(ki,(sn,ph)))}
-function val SeqN: ki:epoch * (;ki)history -> nat
-assume !ki,sn,h. SeqN(ki,(sn,h)) = sn
-predicate EmptyHistory of ki:epoch * (;ki) history
-function val ExtendHistory: ki:epoch * h:(;ki) history * (;ki) data * r:range * (;ki,r) Fragment.fragment -> 'a
-private definition !ki,h. EmptyHistory(ki,h) <=> h = (0,[])
-private definition !ki,n,h,d,r,f. ExtendHistory(ki,(n,h),d,r,f) = (n+1,(d,r,f)::h)
+private val makeAD: e:succEpoch -> ct:ContentType ->
+	  ad: (;e)adata{ad=ADBytes(e,ct)}
+private val parseAD: e:succEpoch -> ad:(;e)adata -> ct:ContentType{ad=ADBytes(e,ct)}
 
+function val ParseAD: (e:epoch * (;e)adata) -> ContentType
+private definition !e,ct. ParseAD(e,ADBytes(e,ct)) = ct
 
-private type (;ki:epoch,h:(;ki)history,ad:(;ki)data,range:range) statefulPlain =
-	{contents: (x: (;ki,range)Fragment.fragment{Auth(ki) => Sent(ki,ExtendHistory(ki,h,ad,range,x))})}
+private type (;e:epoch,ad:(;e)adata,r:range)fragment = {contents: (;e,ParseAD(e,ad),r)TLSFragment.fragment}
 
-val statefulPlain: ki:epoch{not Auth(ki)} -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;r)rbytes -> (;ki,h,ad,r) statefulPlain
-val statefulRepr:  ki:epoch{not Safe(ki)} -> h:(;ki)history -> ad:(;ki)data -> r:range -> (;ki,h,ad,r) statefulPlain -> (;r)rbytes
+private type (;e:epoch) prehistory = (ad:(;e)adata * r:range * f:(;e,ad,r)fragment) list
+
+function val HLength: e:epoch * (;e)prehistory -> nat
+private definition !e.          HLength(e,[]) = 0
+private definition !e,h,ad,r,f. HLength(e,(ad,r,f)::h) = HLength(e,h)+1
+
+type (;e:epoch)history = (sn:nat * ph:(;e)prehistory){sn = HLength(e,ph)}
+function val SeqN: e:epoch * (;e)history -> nat
+assume !e,sn,h. SeqN(e,(sn,h)) = sn
+predicate EmptyHistory of e:epoch * (;e) history
+function val ExtendHistory: e:epoch * ad:(;e) adata * h:(;e) history * r:range * (;e,ad,r) fragment -> 'a //(;e)history
+private definition !e,h. EmptyHistory(e,h) <=> h = (0,[])
+private definition !e,n,h,d,r,f. ExtendHistory(e,d,(n,h),r,f) = (n+1,(d,r,f)::h)
+
+predicate StAESent of e:epoch * ad:(;e)adata *  h:(;e)history * r:range * (;e,ad,r)fragment
+
+function val Multiplexed: e:epoch * (;e) history -> 'b //(;e)TLSFragment.history
+private definition !e,sh,h. EmptyHistory(e,sh) /\
+   TLSFragment.EmptyHistory(e,h) => h = Multiplexed(e,sh)
+private definition !e,sh,sh',h,ct,r,f. 
+  (sh' = ExtendHistory(e,ADBytes(e,ct),sh,r,f) /\
+   h = Multiplexed(e,sh)) => 
+  (Multiplexed(e,sh') = TLSFragment.ExtendHistory(e,ct,h,r,f.contents))
+
+private definition !e,sh,ct,r,f. 
+	StAESent(e,ADBytes(e,ct),sh,r,f) <=>  TLSFragment.RecordSent(e,ct,Multiplexed(e,sh),r,f.contents)
+
+private type (;e:epoch,ad:(;e)adata,h:(;e)history,r:range) plain =
+	f:(;e,ad,r)fragment{Auth(e) => StAESent(e,ad,h,r,f)}
+
+val plain: e:succEpoch{not Auth(e)} -> h:(;e)history -> ad:(;e)adata -> r:range -> (;r)rbytes -> (;e,ad,h,r) plain
+val repr:  e:succEpoch{not Safe(e)} -> h:(;e)history -> ad:(;e)adata -> r:range -> (;e,ad,h,r) plain -> (;r)rbytes
 
 //------------------------------------------------------------------------------------------------------
 // `internal' interface towards TLSFragment
 //------------------------------------------------------------------------------------------------------
 
-//CF 21/4 use a function instead? just inline?  
-function val SAEADContents: 'a -> 'b
-assume !f. SAEADContents(f) = f.contents
-
-val emptyHistory: ki:epoch -> h:(;ki)history{EmptyHistory(ki,h)}
-private val consHistory: ki:epoch -> h:(;ki)prehistory ->
-	ad:(;ki)data -> r:range -> x:(;ki,r)Fragment.fragment ->
-	h':(;ki)prehistory{h' = (ad,r,x)::h}
-val addToHistory: ki:epoch -> h:(;ki)history ->
-	ad:(;ki)data -> r:range -> x:(;ki,h,ad,r)statefulPlain ->
-	h':(;ki)history{h' = ExtendHistory(ki,h,ad,r,SAEADContents(x))}
-
-// adding the 8-byte sequence number to AD (internal to AEAD) 
-
-val contents:  ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range -> 
-    sf:(;ki,h,ad,r)statefulPlain -> 
-    x :(;ki,r)Fragment.fragment{x = SAEADContents(sf) /\ (Auth(ki) => Sent(ki,ExtendHistory(ki,h,ad,r,x)))}
-val construct: ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range ->
-	x :(;ki,r)Fragment.fragment{Auth(ki) => Sent(ki,ExtendHistory(ki,h,ad,r,x))} ->
-	sf:(;ki,h,ad,r)statefulPlain{x = SAEADContents(sf)}
+val emptyHistory: e:epoch -> h:(;e)history{EmptyHistory(e,h)}
+private val consHistory: e:epoch -> h:(;e)prehistory ->
+	ad:(;e)adata -> r:range -> x:(;e,ad,r)fragment ->
+	h':(;e)prehistory{h' = (ad,r,x)::h}
+val addToHistory: e:epoch -> ad:(;e)adata ->
+	h:(;e)history -> r:range -> f:(;e,ad,h,r)plain ->
+	h':(;e)history{h' = ExtendHistory(e,ad,h,r,f)}
 
 
 //------------------------------------------------------------------------------------------------------
@@ -68,42 +83,15 @@ val construct: ki:epoch -> h:(;ki)history -> ad:(;ki)data -> r:range ->
 //------------------------------------------------------------------------------------------------------
 
 // Sent grows linearly
-assume !ki.          Sent(ki,(0,[]))
-assume !ki,h,ad,r,x. Sent(ki,ExtendHistory(ki,h,ad,r,x)) => Sent(ki,h)
-assume !ki,h,h'. (Auth(ki) /\ Sent(ki,h) /\ Sent(ki,h') /\ SeqN(ki,h) = SeqN(ki,h')) => h = h'
+// assume !e.          Sent(e,(0,[]))
+// assume !e,h,ad,r,x. Sent(e,ExtendHistory(e,h,ad,r,x)) => Sent(e,h)
+// assume !e,h,h'. (Auth(e) /\ Sent(e,h) /\ Sent(e,h') /\ SeqN(e,h) = SeqN(e,h')) => h = h'
 
-function val ADBytes: (epoch * ContentType) -> bytes //(;ki)StatefulPlain.data
-assume !ki,ct.
-	( EpochSI(ki).protocol_version = SSL_3p0 /\
-	  ADBytes(ki,ct) =
-		CTBytes(ct) ) \/
-	( EpochSI(ki).protocol_version <> SSL_3p0 /\
-          ADBytes(ki,ct) =
-		(CTBytes(ct) @| VersionBytes(EpochSI(ki).protocol_version)))
+val RecordPlainToStAEPlain: e:succEpoch -> ct:ContentType -> h:(;e) TLSFragment.history ->
+	st:(;e) history{h = Multiplexed(e,st)} -> rg:range -> f:(;e,ct,h,rg) TLSFragment.plain -> 
+	sf:(;e,ADBytes(e,ct),st,rg) plain
 
-private val makeAD: ki:succEpoch -> ct:ContentType ->
-	  ad: (;ki)data{ad=ADBytes(ki,ct)}
-private val parseAD: e:succEpoch -> ad:(;e)data -> ct:ContentType{ad=ADBytes(e,ct)}
-
-function val Multiplexed: ki:epoch * (;ki) history -> 'b
-assume !ki,sh,h. EmptyHistory(ki,sh) /\
-   TLSFragment.EmptyHistory(ki,h) => h = Multiplexed(ki,sh)
-assume !ki,sh,sh',h,ct,r,x. 
-  (sh' = ExtendHistory(ki,sh,ADBytes(ki,ct),r,x) /\
-   h = Multiplexed(ki,sh)) => 
-  (Multiplexed(ki,sh') = TLSFragment.ExtendHistory(ki,ct,h,r,x))
-
-assume !ki,sh,ct,r,x.  
-  Sent(ki,ExtendHistory(ki,sh,ADBytes(ki,ct),r,x)) <=> 
-  TLSFragment.TLSFragment(ki,ct,Multiplexed(ki,sh),r,x)
-
-val TLSFragmentToFragment: ki:succEpoch -> ct:ContentType -> h:(;ki) TLSFragment.history ->
-	st:(;ki) history{h = Multiplexed(ki,st)} -> rg:range -> f:(;ki,ct,h,rg) TLSFragment.fragment -> 
-	sf:(;ki,st,ADBytes(ki,ct),rg) statefulPlain
-		{TLSFragment.TLSContents(f) = SAEADContents(sf) /\
-		 (Auth(ki) => TLSFragment.TLSFragment(ki,ct,h,rg,SAEADContents(sf)))}
-
-val fragmentToTLSFragment: ki:succEpoch -> ct:ContentType -> h:(;ki) TLSFragment.history ->
-	st:(;ki) history{h = Multiplexed(ki,st)} -> rg:range -> 
-    d:(;ki,st,ADBytes(ki,ct),rg) statefulPlain ->
-	f:(;ki,ct,h,rg) TLSFragment.fragment{TLSFragment.TLSContents(f) = SAEADContents(d)}
+val StAEPlainToRecordPlain: e:succEpoch -> ct:ContentType -> h:(;e) TLSFragment.history ->
+	st:(;e) history{h = Multiplexed(e,st)} -> rg:range -> 
+    d:(;e,ADBytes(e,ct),st,rg) plain ->
+	f:(;e,ct,h,rg) TLSFragment.plain

@@ -5,9 +5,9 @@ open TLSInfo
 private type (;ki:epoch,r:range) fragment = {frag: (;r)rbytes}
 private type (;ki:epoch) stream = {sb:bytes list}
 
-predicate Fragment of ki:epoch * (;ki) stream * r:range * (;ki,r)fragment
+predicate FragmentSent of ki:epoch * (;ki) stream * r:range * (;ki,r)fragment
 
-type (;e:epoch,s:(;e)stream,r:range)plain = f:(;e,r)fragment{Auth(e) => Fragment(e,s,r,f)}
+type (;e:epoch,s:(;e)stream,r:range)plain = f:(;e,r)fragment{Auth(e) => FragmentSent(e,s,r,f)}
 
 val fragmentPlain: ki:epoch -> r:range -> (;r) rbytes -> (;ki,r) fragment
 val fragmentRepr:  ki:epoch -> r:range -> (;ki,r) fragment -> (;r) rbytes

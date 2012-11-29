@@ -80,7 +80,7 @@ let recordPacketOut ki conn pv rg ct fragment =
 //    | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
 //        let ad0 = TLSFragment.makeAD keyInfo.sinfo.protocol_version ct in
 //        let addData = StatefulPlain.makeAD seqn ad0 in
-//        let aeadSF = StatefulPlain.TLSFragmentToFragment keyInfo tlen seqn ct fragment in
+//        let aeadSF = StatefulPlain.RecordPlainToStAEPlain keyInfo tlen seqn ct fragment in
 //        let st = connState keyInfo conn in
 //        let aeadF = AEADPlain.fragmentToPlain keyInfo st addData tlen aeadSF in
 //        let data = Encode.concat keyInfo tlen addData aeadF in
@@ -92,7 +92,7 @@ let recordPacketOut ki conn pv rg ct fragment =
     | (false,SomeState(history,state)) ->
         let ad = StatefulPlain.makeAD ki ct in
         let sh = StatefulAEAD.history ki state in
-        let aeadF = StatefulPlain.TLSFragmentToFragment ki ct history sh rg fragment in
+        let aeadF = StatefulPlain.RecordPlainToStAEPlain ki ct history sh rg fragment in
         let (state,payload) = StatefulAEAD.encrypt ki state ad rg aeadF in
         let history = TLSFragment.addToHistory ki ct history rg fragment in
         let packet = makePacket ct pv payload in
@@ -153,7 +153,7 @@ let recordPacketIn ki conn headPayload =
 //        let ver = Encode.verify ki key toVerify mac in
 //        if ver then
 //          let msg0 = AEADPlain.plainToFragment ki (connState ki conn) ad rg msg in
-//          let msg = StatefulPlain.fragmentToTLSFragment ki (connState ki conn) ad rg msg0 in
+//          let msg = StatefulPlain.StAEPlainToRecordPlain ki (connState ki conn) ad rg msg0 in
 //            correct(conn,ct,pv,rg,msg)
 //        else
 //            Error(MAC,CheckFailed)
@@ -165,7 +165,7 @@ let recordPacketIn ki conn headPayload =
         | Correct (decrRes) ->
             let (newState, rg, plain) = decrRes in
             let oldH = StatefulAEAD.history ki state in
-            let msg = StatefulPlain.fragmentToTLSFragment ki ct history oldH rg plain in
+            let msg = StatefulPlain.StAEPlainToRecordPlain ki ct history oldH rg plain in
             let history = TLSFragment.addToHistory ki ct history rg msg in
             let st' = someState ki history newState in
             correct(st',ct,pv,rg,msg)
