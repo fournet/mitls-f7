@@ -55,14 +55,14 @@ let addToHistory (e:epoch) d (sh:history) (r:range) f =
   res
 
 let plain (e:epoch) (h:history) (ad:adata) (r:range) (b:bytes) =
-    let h = TLSFragment.emptyHistory e // FIXME: should be: multiplexed e h
+    let h = TLSFragment.emptyHistory e // Not Auth: we can pick any history
     let ct = parseAD e ad in
     {contents = TLSFragment.plain e ct h r b}
-let repr (e:epoch) (h:history) (ad:adata) (r:range) (f:plain) =
-    let h = TLSFragment.emptyHistory e // FIXME: should be: multiplexed e h
+let reprFragment (e:epoch) (ad:adata) (r:range) (f:plain) =
     let ct = parseAD e ad in
     let x = f.contents in
-    TLSFragment.repr e ct h r x
+    TLSFragment.reprFragment e ct r x
+let repr e (h:history) ad r f = reprFragment e ad r f
 
 let RecordPlainToStAEPlain (e:epoch) (ct:ContentType) (ss:TLSFragment.history) (st:history) (rg:range) f = {contents = f}
 

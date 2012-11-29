@@ -6,7 +6,7 @@ open Bytes
 open Error
 open TLSInfo
 open StatefulPlain
-open DataStream
+
 
 type prestate =
     { key: AEAD.AEADKey; 
@@ -34,7 +34,7 @@ type cipher = AEAD.cipher
 
 let encrypt (ki:epoch) (w:writer) (ad0:adata) (r:range) (f:plain) =
   let h = w.history in
-  let p = AEADPlain.StatefulToAEADPlain ki h ad0 r f in
+  let p = AEADPlain.StatefulPlainToAEADPlain ki h ad0 r f in
   let ad = AEADPlain.makeAD ki h ad0 in
   let k,c = AEAD.encrypt ki w.key ad r p in
   let h = addToHistory ki ad0 h r f in
@@ -48,7 +48,7 @@ let decrypt (ki:epoch) (r:reader) (ad0:adata) (e:cipher) =
   match res with
     | Correct x ->
           let (k,rg,p) = x in
-          let f = AEADPlain.AEADPlainToStateful ki h ad0 rg p in
+          let f = AEADPlain.AEADPlainToStatefulPlain ki h ad0 rg p in
           let h = addToHistory ki ad0 h rg f in
           correct (({history = h; key = k},rg,f))
     | Error (x,y) -> Error (x,y)

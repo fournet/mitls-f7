@@ -5,7 +5,7 @@ module Handshake
 open Bytes
 open Error
 open TLSInfo
-open DataStream
+
 open StatefulAEAD
 open TLSConstants
 open TLSExtensions

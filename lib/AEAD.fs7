@@ -2,13 +2,11 @@
 
 open Bytes
 open Error
-open DataStream
 open TLSInfo
 
 open TLSConstants
-// open AEADPlain (* parameter *) // Do not open, or AEADPlain "module" and AEADPlain "function" will clash. We should stop using the same name for modules, types and functions, as this creates names clashes everywhere!
 
-type cipher = b:bytes{Length(b) <= DataStream.max_TLSCipher_fragment_length}
+type cipher = b:bytes{Length(b) <= fragmentLength}
 
 private type (;ki:epoch) AEADKey =
     | MtE of ka:(;ki)MAC.key * ke:(;ki)ENC.state // {MtEKey(ki,(ka,ke))}
@@ -43,23 +41,23 @@ private val mteKey: ki:epoch -> (;ki) MAC.key -> (;ki) ENC.state -> (;ki) AEADKe
 
 function val CipherRange: epoch * bytes -> range
 assume !e,c,rg. rg = CipherRange(e,c) <=> Length(c) = Encode.RangeCipher(e,rg)
-val encrypt': ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
-  rg:range -> p:(;ki,rg,ad) AEADPlain.AEADPlain ->
+val encrypt': ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
+  rg:range -> p:(;ki,ad,rg) AEADPlain.plain ->
   ((;ki) AEADKey * c:cipher){rg = CipherRange(ki,c)}
 
-val decrypt': ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
+val decrypt': ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   c:cipher -> res: 
-  ( ((;ki) AEADKey *  rg:range * (;ki,rg,ad) AEADPlain.AEADPlain)) Result
+  ( ((;ki) AEADKey *  rg:range * (;ki,ad,rg) AEADPlain.plain)) Result
    {!k,r,p. res = Correct((k,r,p)) => r = CipherRange(ki,c)}
 
-val encrypt: ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
-  rg:range -> p:(;ki,rg,ad) AEADPlain.AEADPlain ->
+val encrypt: ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
+  rg:range -> p:(;ki,ad,rg) AEADPlain.plain ->
   ((;ki) AEADKey * c:cipher){rg = CipherRange(ki,c) /\
                              (Safe(ki) => CTXT(ki,ad,p,c))}
 
-val decrypt: ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.data ->
+val decrypt: ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   c:cipher -> res: 
-  ( ((;ki) AEADKey *  rg:range * (;ki,rg,ad) AEADPlain.AEADPlain)) Result
+  ( ((;ki) AEADKey *  rg:range * (;ki,ad,rg) AEADPlain.plain)) Result
    {(!k,r,p. res = Correct((k,r,p)) => r = CipherRange(ki,c)) /\
     (Safe(ki) => 
         ((!k,r,p. res = Correct((k,r,p)) => CTXT(ki,ad,p,c)) /\

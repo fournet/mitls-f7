@@ -4,7 +4,7 @@ open Bytes
 open Error
 open TLSConstants
 open TLSInfo
-open DataStream
+
 
 // FIXME: Port to deltas and streams!
 type pre_al_state = {

@@ -3,7 +3,6 @@
 open Bytes
 open Error
 open TLSInfo
-open DataStream
 open AEADPlain
 
 type AEADKey
@@ -14,7 +13,7 @@ val GEN: epoch -> AEADKey * AEADKey
 val COERCE: epoch -> bytes -> AEADKey
 val LEAK: epoch -> AEADKey -> bytes
 
-val encrypt: epoch -> AEADKey -> data -> 
-             range -> AEADPlain -> (AEADKey * cipher)
-val decrypt: epoch -> AEADKey -> data -> 
-             cipher -> (AEADKey * range * AEADPlain) Result
+val encrypt: epoch -> AEADKey -> adata -> 
+             range -> plain -> (AEADKey * cipher)
+val decrypt: epoch -> AEADKey -> adata -> 
+             cipher -> (AEADKey * range * plain) Result

@@ -2,59 +2,62 @@ module AEADPlain
 open Bytes
 open TLSConstants
 open TLSInfo
-open DataStream
-open Fragment
-// Do not open Encode, or else Encode "module" and Encode "function" will clash. 
 
 //------------------------------------------------------------------------------------------------------
 // `Plain' interface towards AEAD
 //------------------------------------------------------------------------------------------------------
 
-type (;ki:epoch) data = (b:bytes){Length(b) = 8 + StatefulPlain.ADLength(ki)}
-predicate AEADSays of ki:epoch * r:range * (;ki)data * (;ki,r)fragment
-private type (;ki:epoch,r:range,ad:(;ki)data) preAEADPlain = x:(;ki,r)fragment{ Auth(ki) => AEADSays(ki,r,ad,x) }
-private type (;ki:epoch,r:range,ad:(;ki)data) AEADPlain    = {contents: (;ki,r,ad)preAEADPlain}
+type (;e:epoch) adata = (b:bytes){Length(b) = 8 + StatefulPlain.ADLength(e)}
 
-// CF 04-09: TODO: add length constraints for those bytes
-val AEADPlain: ki:epoch{not Auth(ki)} -> r:range -> ad:(;ki)data -> (;r)rbytes -> (;ki,ad,r) AEADPlain
-val AEADRepr:  ki:epoch{not Safe(ki)} -> r:range -> ad:(;ki)data -> (;ki,ad,r) AEADPlain -> (;r)rbytes
+function val MakeAD:  e:epoch * (;e)StatefulPlain.history * (;e)StatefulPlain.adata -> 'a // (;e)adata
+private assume !e,h,ad. MakeAD(e,h,ad) = IntBytes(8,StatefulPlain.SeqN(e,h)) @| ad
+function val ParseAD: e:epoch * (;e)adata -> 'a //(;e)StatefulPlain.adata
+private assume !e,b,ad. Length(b) = 8 => ParseAD(e,b@|ad) = ad
 
-function val MakeAD:  ki:epoch * (;ki)StatefulPlain.history * (;ki)StatefulPlain.data -> bytes
-assume !ki,h,ad. MakeAD(ki,h,ad) = IntBytes(8,StatefulPlain.SeqN(ki,h)) @| ad
-val makeAD:  ki:epoch -> h:(;ki)StatefulPlain.history -> ad:(;ki)StatefulPlain.data -> b:(;ki)data{b=MakeAD(ki,h,ad)}
-val parseAD: e:epoch -> b:(;e)data -> ad:(;ki)StatefulPlain.data{?h. b=MakeAD(e,h,ad)}
+ask !e,h,ad. ParseAD(e,MakeAD(e,h,ad)) = ad
+
+val makeAD:  e:epoch -> h:(;e)StatefulPlain.history -> ad:(;e)StatefulPlain.adata -> b:(;e)adata{b=MakeAD(e,h,ad)}
+val parseAD: e:epoch -> b:(;e)adata -> ad:(;e)StatefulPlain.adata{ad = ParseAD(e,b)}
+
+private type (;e:epoch,ad:(;e)adata,r:range)fragment = {contents: (;e,ParseAD(e,ad),r)StatefulPlain.fragment}
+
+predicate AEADSent of e:epoch * ad:(;e)adata * r:range * (;e,ad,r)fragment
+private type (;e:epoch,ad:(;e)adata,r:range) plain = f:(;e,ad,r)fragment{ Auth(e) => AEADSent(e,ad,r,f) }
+
+val plain: e:succEpoch{not Auth(e)} -> ad:(;e)adata -> r:range -> (;r)rbytes -> (;e,ad,r) plain
+private val reprFragment:  e:succEpoch{not Safe(e)} -> ad:(;e)adata -> r:range -> (;e,ad,r) fragment -> (;r)rbytes
+val repr:  e:succEpoch{not Safe(e)} -> ad:(;e)adata -> r:range -> (;e,ad,r) plain -> (;r)rbytes
 
 //CF 22/4: needs discussion
 
-assume !ki,ad,r,x. AEADSays(ki,r,ad,x) <=> (?h,ad_h. 
-  ad = MakeAD(ki,h,ad_h) /\ StatefulPlain.Sent(ki,StatefulPlain.ExtendHistory(ki,h,ad_h,r,x)))
+assume !e,ad,r,x. AEADSent(e,ad,r,x) <=> (?h,ad'. 
+  ad = MakeAD(e,h,ad') /\ StatefulPlain.StAESent(e,ad',h,r,x.contents))
 
-ask !ki,ad,h,ad',r,x. (ad = MakeAD(ki,h,ad') /\ StatefulPlain.Sent(ki,StatefulPlain.ExtendHistory(ki,h,ad',r,x))) => AEADSays(ki,r,ad,x)
+ask !e,ad,h,ad',r,x. (ad = MakeAD(e,h,ad') /\ StatefulPlain.StAESent(e,ad',h,r,x.contents)) => AEADSent(e,ad,r,x)
 
-ask !ki,ad,h,h',ad',ad''. ad = MakeAD(ki,h,ad') /\ ad = MakeAD(ki,h',ad'') => 
-    (StatefulPlain.SeqN(ki,h) = StatefulPlain.SeqN(ki,h') /\ ad' = ad'')
+ask !e,ad,h,h',ad',ad''. ad = MakeAD(e,h,ad') /\ ad = MakeAD(e,h',ad'') => 
+    (StatefulPlain.SeqN(e,h) = StatefulPlain.SeqN(e,h') /\ ad' = ad'')
 
-ask !ki,ad,h,ad',r,x. (Auth(ki) /\ ad = MakeAD(ki,h,ad') /\ StatefulPlain.Sent(ki,h) /\ AEADSays(ki,r,ad,x)) => StatefulPlain.Sent(ki,StatefulPlain.ExtendHistory(ki,h,ad',r,x))
-
+//ask !e,ad,ad',ad'',sn,h,h',r,f. Auth(e) /\ StatefulPlain.StAESent(e,ad',(sn,h),r,f) /\ StatefulPlain.StAEHistory(e,h') /\  HLength(e,h') = sn => h = h'
 
 //CF 22/4: these coercions are used only in StatefulAEAD.fs; they are not part of the "plain" interface to AEAD.
 
-val StatefulToAEADPlain: ki:epoch -> h:(;ki)StatefulPlain.history -> ad:(;ki)StatefulPlain.data -> r:range -> 
-  (;ki,h,ad,r)StatefulPlain.statefulPlain -> (;ki,r,MakeAD(ki,h,ad))AEADPlain
+val StatefulPlainToAEADPlain: e:epoch -> h:(;e)StatefulPlain.history -> ad:(;e)StatefulPlain.adata -> r:range -> 
+  (;e,ad,h,r)StatefulPlain.plain -> (;e,MakeAD(e,h,ad),r)plain
 
-val AEADPlainToStateful: ki:epoch -> h:(;ki)StatefulPlain.history -> ad:(;ki)StatefulPlain.data -> r:range ->
-  (;ki,r,MakeAD(ki,h,ad))AEADPlain -> (;ki,h,ad,r)StatefulPlain.statefulPlain
+val AEADPlainToStatefulPlain: e:epoch -> h:(;e)StatefulPlain.history -> ad:(;e)StatefulPlain.adata -> r:range ->
+  (;e,MakeAD(e,h,ad),r)plain -> (;e,ad,h,r)StatefulPlain.plain
 
 //------------------------------------------------------------------------------------------------------
 // `Internal' interface towards StatefulPlain
 //------------------------------------------------------------------------------------------------------
 
-val contents:  ki:epoch -> r:range -> ad:(;ki)data -> (;ki,r,ad)AEADPlain ->
-	sb:(;ki,r)fragment{Auth(ki) => AEADSays(ki,r,ad,sb)}
-val construct: ki:epoch -> r:range -> ad:(;ki)data ->
-	sb:(;ki,r)fragment{Auth(ki) => AEADSays(ki,r,ad,sb)}
-	-> (;ki,r,ad)AEADPlain
-
-function val AEADContents: 'a -> 'b
-assume !f. AEADContents(f) = f.contents
+// val contents:  e:epoch -> r:range -> ad:(;e)adata -> (;e,r,ad)AEADPlain ->
+// 	sb:(;e,r)fragment{Auth(e) => AEADSent(e,ad,r,sb)}
+// val construct: e:epoch -> r:range -> ad:(;e)adata ->
+// 	sb:(;e,r)fragment{Auth(e) => AEADSent(e,ad,r,sb)}
+// 	-> (;e,r,ad)AEADPlain
+// 
+// function val AEADContents: 'a -> 'b
+// assume !f. AEADContents(f) = f.contents
 

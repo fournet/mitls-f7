@@ -9,7 +9,7 @@ open Error
 type cipher = bytes
 
 type preds = 
-    CTXT of epoch * bytes * AEADPlain.AEADPlain * cipher
+    CTXT of epoch * bytes * AEADPlain.plain * cipher
   | NotCTXT of epoch * bytes * cipher
 
 type AEADKey =

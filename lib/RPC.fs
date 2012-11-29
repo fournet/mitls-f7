@@ -3,7 +3,7 @@
 open Bytes
 open TLSInfo
 open Error
-open DataStream
+
 open Dispatch
 open TLS
 

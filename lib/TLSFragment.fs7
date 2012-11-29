@@ -49,12 +49,14 @@ val addToHistory: e:epoch -> ct:ContentType -> ss:(;e)history -> r:range ->
 	f:(;e,ct,ss,r)plain ->  
         ss':(;e)history{ss' = ExtendHistory(e,ct,ss,r,f)}
 
-
-val repr: e:epoch{not Safe(e)} -> ct:ContentType -> h: (;e) history -> rg:range ->
-  (;e,ct,h,rg)plain -> bytes
-
 val plain: e:epoch{not Auth(e)} -> ct:ContentType -> h: (;e) history -> rg:range ->
   (;rg)rbytes -> (;e,ct,h,rg)plain 
+
+val reprFragment: e:epoch{not Safe(e)} -> ct:ContentType -> rg:range ->
+  (;e,ct,rg)fragment -> (;rg)rbytes
+
+val repr: e:epoch{not Safe(e)} -> ct:ContentType -> h: (;e) history -> rg:range ->
+  (;e,ct,h,rg)plain -> (;rg)rbytes
 
 private assume !e,h. EmptyHistory(e,h) <=>
 	( HSFragment.EmptyStream(e,h.handshake) /\ HSFragment.EmptyStream(e,h.alert) /\

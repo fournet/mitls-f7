@@ -4,19 +4,20 @@ open Bytes
 open TLSInfo
 open TLSConstants
 
-type data = bytes
+type adata = AEADPlain.adata
 
-type AEPlain
+type AEFragment
+type AEPlain = AEFragment
 
-val AEPlain: epoch -> range -> data -> bytes -> AEPlain
-val AERepr:  epoch -> range -> data -> AEPlain -> bytes
+val AEPlain: epoch -> range -> adata -> bytes -> AEPlain
+val AERepr:  epoch -> range -> adata -> AEPlain -> bytes
 
 //val AEConstruct: epoch -> range -> data -> fragment -> AEPlain
 //val AEContents:  epoch -> range -> data -> AEPlain -> fragment
 
 type MACPlain
 type tag
-val macPlain: epoch -> range -> data -> AEPlain -> MACPlain
+val macPlain: epoch -> range -> adata -> AEPlain -> MACPlain
 val mac: epoch -> MAC.key -> MACPlain -> tag
 val verify: epoch -> MAC.key -> MACPlain -> tag -> bool
 
@@ -25,11 +26,11 @@ type plain
 val plain: epoch -> nat -> bytes -> plain
 val repr: epoch -> nat -> plain -> bytes
 
-val encode: epoch -> range -> data -> AEPlain -> tag -> nat * plain
-val encodeNoPad: epoch -> range -> data -> AEPlain -> tag -> nat * plain
+val encode: epoch -> range -> adata -> AEPlain -> tag -> nat * plain
+val encodeNoPad: epoch -> range -> adata -> AEPlain -> tag -> nat * plain
 
-val decode: epoch -> data -> nat -> plain -> (range * AEPlain * tag * bool)
-val decodeNoPad: epoch -> data -> nat -> plain -> (range * AEPlain * tag)
+val decode: epoch -> adata -> nat -> plain -> (range * AEPlain * tag * bool)
+val decodeNoPad: epoch -> adata -> nat -> plain -> (range * AEPlain * tag)
 
-val AEADPlainToAEPlain: epoch -> range -> AEADPlain.data -> AEADPlain.AEADPlain -> AEPlain
-val AEPlainToAEADPlain: epoch -> range -> AEADPlain.data -> AEPlain -> AEADPlain.AEADPlain
+val AEADPlainToAEPlain: epoch -> range -> AEADPlain.adata -> AEADPlain.plain -> AEPlain
+val AEPlainToAEADPlain: epoch -> range -> AEADPlain.adata -> AEPlain -> AEADPlain.plain

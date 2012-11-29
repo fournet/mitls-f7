@@ -28,27 +28,22 @@ let emptyHistory ki =
         ccs = es;
         appdata = ehApp} in
 
-// let historyStream (ki:epoch) ct ss =
-//     match ct with
-//     | Handshake -> ss.handshake
-//     | Alert -> ss.alert
-//     | Change_cipher_spec -> ss.ccs
-//     | Application_data -> ss.appdata
-
 let plain ki (ct:ContentType) (h:history) (rg:range) b = 
     match ct with
     | Handshake ->          FHandshake(HSFragment.fragmentPlain ki rg b)
     | Change_cipher_spec -> FCCS(HSFragment.fragmentPlain ki rg b)
     | Alert ->              FAlert(HSFragment.fragmentPlain ki rg b)
-    | Application_data ->   FAppData(AppFragment.fragmentPlain ki rg b)
+    | Application_data ->   FAppData(AppFragment.plain ki rg b)
 
 
-let repr ki (ct:ContentType) (h:history) (rg:range) frag =
+let reprFragment ki (ct:ContentType) (rg:range) frag =
     match frag with
     | FHandshake(f) -> HSFragment.fragmentRepr ki rg f
     | FCCS(f) -> HSFragment.fragmentRepr ki rg f
     | FAlert(f) -> HSFragment.fragmentRepr ki rg f
-    | FAppData(f) -> AppFragment.fragmentRepr ki rg f
+    | FAppData(f) -> AppFragment.repr ki rg f
+
+let repr ki ct (h:history) rg frag = reprFragment ki ct rg frag
 
 let HSPlainToRecordPlain    (e:epoch) (h:history) (r:range) (f:HSFragment.fragment) = FHandshake(f)
 let RecordPlainToHSPlain    (e:epoch) (h:history) (r:range) ff =

@@ -3,38 +3,41 @@ open Bytes
 open TLSConstants
 open TLSInfo
 
-type data = bytes
+type adata = bytes
 
-let makeAD (ki:epoch) ((seqn,h):StatefulPlain.history) ad =
+let makeAD (e:epoch) ((seqn,h):StatefulPlain.history) ad =
   let bn = bytes_of_seq seqn in
   bn @| ad
 
 let parseAD (e:epoch) ad =
-    if length ad > 8 then
+    let lad = length ad in
+    if lad > 8 then
         let (sn,ad) = Bytes.split ad 8 in
         ad
     else
         Error.unexpectedError "[parseAD] should never fail parsing"
 
-type AEADPlain = {contents:StatefulPlain.plain}
+type fragment = {contents:StatefulPlain.fragment}
+type plain = fragment
 
-let AEADPlain (ki:epoch) (rg:range) (ad:data) b =
-    let ad = parseAD ki ad in
-    let h = StatefulPlain.emptyHistory ki in
-    {contents = StatefulPlain.plain ki h ad rg b}
+let plain (e:epoch) (ad:adata) (rg:range) b =
+    let ad = parseAD e ad in
+    let h = StatefulPlain.emptyHistory e in
+    {contents = StatefulPlain.plain e h ad rg b}
 
-let AEADRepr  (ki:epoch) (rg:range) (ad:data) p =
-    let ad = parseAD ki ad in
-    let h = StatefulPlain.emptyHistory ki in
-    StatefulPlain.repr ki h ad rg p.contents
+let reprFragment (e:epoch) (ad:adata) (rg:range) p =
+    let ad = parseAD e ad in
+    StatefulPlain.reprFragment e ad rg p.contents
 
-let contents  (ki:epoch) (rg:range) (ad:data) p = p.contents
-let construct (ki:epoch) (rg:range) (ad:data) b = {contents = b}
+let repr e ad rg p = reprFragment e ad rg p
 
-let StatefulToAEADPlain ki h ad r f =
-  let ad' = makeAD ki h ad in
-  construct ki r ad' f
+//let contents  (e:epoch) (rg:range) (ad:data) p = p.contents
+//let construct (e:epoch) (rg:range) (ad:data) b = {contents = b}
 
-let AEADPlainToStateful ki h ad r p =
-  let ad' = makeAD ki h ad in
-  contents ki r ad' p
+let StatefulPlainToAEADPlain (e:epoch) (h:StatefulPlain.history) (ad:adata) (r:range) f = {contents = f}
+  //let ad' = makeAD e h ad in
+  //construct e r ad' f
+
+let AEADPlainToStatefulPlain (e:epoch) (h:StatefulPlain.history) (ad:adata) (r:range) f = f.contents
+  //let ad' = makeAD e h ad in
+  //contents e r ad' p

@@ -12,9 +12,8 @@ type plain = fragment
 val emptyHistory: epoch -> history
 val addToHistory: epoch -> ContentType -> history -> range -> fragment -> history
 
-//val historyStream: epoch -> ContentType -> history -> stream
-
 val plain: epoch -> ContentType -> history -> range -> bytes -> plain
+val reprFragment: epoch -> ContentType -> range -> fragment -> bytes
 val repr:  epoch -> ContentType -> history -> range -> plain -> bytes
 
 val HSPlainToRecordPlain     : epoch -> history -> range -> HSFragment.plain -> plain

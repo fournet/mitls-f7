@@ -2,23 +2,25 @@
 
 open TLSInfo
 open Error
-open StatefulPlain
-open DataStream 
+ 
 open Bytes
 
 //CF 12/2: do we need pre/post on the ciphertext lengths?
 //CF 21/4: cut prestate and State? 
 
-type (;ki:epoch) prestate = {
+private type (;ki:epoch) prestate = {
   key: (;ki) AEAD.AEADKey; // possibly stateful
-  history: (;ki)history    // ghost state, except for the derived sequence number
+  history: (;ki)StatefulPlain.history    // ghost state, except for the derived sequence number
 }
 
 predicate State of ki:epoch * (;ki)prestate
 
-private type (;ki:epoch) state = s:(;ki)prestate {State(ki,s)}
+type (;ki:epoch) state = s:(;ki)prestate {State(ki,s)}
 
 private definition !ki,s. State(ki,s) // KB: 21/4 Why do we need this?
+
+function val History: e:epoch * (;e)state -> 'a //(;e)StatefulPlain.history
+private definition !e,s. History(e,s) = s.history
 
 //CF 21/4 typing should prevent mixing read/write states! 
 //        can we keep state a public datatype and make reader/writer abstract? 
@@ -30,7 +32,7 @@ val GEN:    ki:epoch{Safe(ki)} -> (;ki) reader * (;ki)writer
 val COERCE: ki:succEpoch{not Auth(ki)}  -> b:bytes{Length(b)=AEAD.AEADSize(ki)} -> (;ki)state
 val LEAK:   ki:epoch{not Auth(ki)}  -> (;ki)state -> b:bytes
 
-val history: ki:epoch -> s:(;ki) state -> h:(;ki)history{h=s.history}
+val history: ki:epoch -> s:(;ki) state -> h:(;ki)StatefulPlain.history{h=History(ki,s)}
 
 // Ideally,
 // the writer maintains a table (ki, h, ad, range, fragment, cipher) {...} [details?]
@@ -44,8 +46,8 @@ val history: ki:epoch -> s:(;ki) state -> h:(;ki)history{h=s.history}
 
 type cipher = AEAD.cipher
 
-predicate STXT of ki:epoch * (;ki)state * ad:(;ki)data * r:range * (;ki,r)Fragment.fragment * cipher
-assume !ki,s,ad,r,f,c. STXT(ki,s,ad,r,f,c)
+predicate STXT of ki:epoch * (;ki)state * ad:(;ki)StatefulPlain.adata * r:range * (;ki,ad,r)StatefulPlain.fragment * cipher
+assume !ki,s,ad,r,f,c. STXT(ki,s,ad,r,f,c)  // FIXME!!!
 //	<=> AEAD.CTXT(ki,MakeAD(ki,s.history,ad),r,f,c)
 
 //AP 18/4: Cannot prove STXT until we don't get precise with {S}AEADContents, which breaks abstraction
@@ -53,23 +55,23 @@ assume !ki,s,ad,r,f,c. STXT(ki,s,ad,r,f,c)
 
 val encrypt: ki:succEpoch -> 
   w:(;ki) writer -> 
-  ad:(;ki)data ->
+  ad:(;ki)StatefulPlain.adata ->
   r:range ->
-  f: (;ki,w.history,ad,r) statefulPlain ->
+  f: (;ki,ad,History(ki,w),r) StatefulPlain.plain ->
   (w':(;ki) writer * c:cipher){
-    w'.history = StatefulPlain.ExtendHistory(ki,w.history,ad,r,SAEADContents(f)) /\
-    STXT(ki,w,ad,r,SAEADContents(f),c)}
+    History(ki,w') = StatefulPlain.ExtendHistory(ki,ad,History(ki,w),r,f) /\
+    STXT(ki,w,ad,r,f,c)}
 
 val decrypt: ki:succEpoch -> 
   rd:(;ki) reader -> 
-  ad:(;ki)data ->
+  ad:(;ki)StatefulPlain.adata ->
   c:cipher ->
-  res:((;ki) reader * rg:range * (;ki,rd.history,ad,rg) statefulPlain) Result
+  res:((;ki) reader * rg:range * (;ki,ad,History(ki,rd),rg) StatefulPlain.plain) Result
   { !nrd,rg,f. res = Correct((nrd,rg,f)) => 
-               (   nrd.history = StatefulPlain.ExtendHistory(ki,rd.history,ad,rg,SAEADContents(f)) /\
+               (   History(ki,nrd) = StatefulPlain.ExtendHistory(ki,ad,History(ki,rd),rg,f) /\
                    Length(c)=Encode.RangeCipher(ki,rg) /\
- 	         (Safe(ki) => STXT(ki,rd,ad,rg,SAEADContents(f),c)) /\
-                 (Auth(ki) => STXT(ki,rd,ad,rg,SAEADContents(f),c))) }
+ 	         (Safe(ki) => STXT(ki,rd,ad,rg,f,c)) /\
+                 (Auth(ki) => STXT(ki,rd,ad,rg,f,c))) }
 
 //CF 21/4: as stated, we need the resulting readers and writers to have explicitly-updated histories (irrespective of AUTH)
 //CF 21/4: can we return an option instead? Otherwise we may have to specify which errors can be returned.

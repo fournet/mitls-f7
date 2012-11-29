@@ -9,5 +9,5 @@ val delta: epoch -> stream -> range -> fragment -> delta * stream
 
 type plain = fragment
 
-val fragmentRepr: epoch -> range -> fragment -> bytes
-val fragmentPlain: epoch -> range -> bytes -> fragment
+val plain: epoch -> range -> bytes -> fragment
+val repr: epoch -> range -> fragment -> bytes

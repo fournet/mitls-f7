@@ -3,7 +3,7 @@
 open Bytes
 open Error
 open TLSInfo
-open DataStream
+
 
 private type (;ci:ConnectionInfo)pre_al_state = {
   al_incoming: bytes; (* incomplete incoming message *)

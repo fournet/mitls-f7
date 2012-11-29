@@ -1,18 +1,18 @@
 module AEADPlain
 open Bytes
 open TLSInfo
-open StatefulPlain
 
-type data = bytes
-type AEADPlain
+type adata = bytes
+type fragment
+type plain = fragment
 
-val AEADPlain: epoch -> range -> data -> bytes -> AEADPlain
-val AEADRepr:  epoch -> range -> data -> AEADPlain -> bytes
+val plain: epoch -> adata -> range -> bytes -> plain
+val repr:  epoch -> adata -> range -> plain -> bytes
 
 //val contents:  epoch -> range -> data -> AEADPlain -> fragment
 //val construct: epoch -> range -> data -> fragment -> AEADPlain
 
-val makeAD: epoch -> history -> StatefulPlain.adata -> data
-val parseAD: epoch -> data -> StatefulPlain.adata
-val StatefulToAEADPlain: epoch -> history -> StatefulPlain.adata -> range -> plain -> AEADPlain
-val AEADPlainToStateful: epoch -> history -> StatefulPlain.adata -> range -> AEADPlain -> plain
+val makeAD: epoch -> StatefulPlain.history -> StatefulPlain.adata -> adata
+val parseAD: epoch -> adata -> StatefulPlain.adata
+val StatefulPlainToAEADPlain: epoch -> StatefulPlain.history -> StatefulPlain.adata -> range -> StatefulPlain.plain -> plain
+val AEADPlainToStatefulPlain: epoch -> StatefulPlain.history -> StatefulPlain.adata -> range -> plain -> StatefulPlain.plain

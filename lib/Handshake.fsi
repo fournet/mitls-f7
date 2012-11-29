@@ -5,7 +5,7 @@ open Error
 
 open TLSInfo
 open TLSConstants
-open DataStream
+
 
 // protocol state  
 type pre_hs_state 

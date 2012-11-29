@@ -3,7 +3,7 @@
 open Bytes
 open Error
 open TLSInfo
-open DataStream
+
 open StatefulPlain 
 
 type prestate

@@ -26,11 +26,11 @@ let delta' ki s r f =
   let s'' = append ki s r d in 
     d,s''
 
-let fragmentPlain ki r b =
+let plain ki r b =
   let s = DataStream.init ki in
   let d = DataStream.deltaPlain ki s r b in
-    {frag = (s,d)}
-    
-let fragmentRepr ki r f =
+  {frag = (s,d)}
+
+let repr ki r f =
   let (s,d) = f.frag in
-    DataStream.deltaRepr ki s r d
+  DataStream.deltaRepr ki s r d

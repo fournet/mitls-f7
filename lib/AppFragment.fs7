@@ -26,8 +26,8 @@ val delta': ki:epoch -> s:(;ki) stream -> r:range ->
   f:(;ki,r) fragment{not Auth(ki)} -> 
   d:(;ki,s,r) delta * s':(;ki) stream{s' = ExtendStream(ki,s,r,d)}
 
-val fragmentPlain: ki:epoch{not Auth(ki)} -> r:range -> (;r) rbytes -> (;ki,r) fragment
-val fragmentRepr:  ki:epoch{not Safe(ki)} -> r:range -> (;ki,r) fragment -> (;r) rbytes
+val plain: ki:epoch{not Auth(ki)} -> r:range -> (;r) rbytes -> (;ki,r) fragment
+val repr:  ki:epoch{not Safe(ki)} -> r:range -> (;ki,r) fragment -> (;r) rbytes
 
 //CF: This is *not* valid because of empty fragments; 
 // instead we may have to record in stream a sequence of bytes, rather than their concatenation.

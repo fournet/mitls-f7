@@ -12,14 +12,13 @@ type plain = fragment
 
 //------------------------------------------------------------------------------
 val plain: epoch -> history -> adata -> range -> bytes -> plain
+val reprFragment:  epoch -> adata -> range -> fragment -> bytes
 val repr:  epoch -> history -> adata -> range -> plain -> bytes
 
 //------------------------------------------------------------------------------
 val emptyHistory: epoch -> history
-val addToHistory: epoch -> adata -> history -> range -> plain -> history
+val addToHistory: epoch -> adata -> history -> range -> fragment -> history
 
-//val contents:  epoch -> history -> adata -> range -> statefulPlain -> Fragment.fragment
-//val construct: epoch -> history -> adata -> range -> Fragment.fragment -> statefulPlain
 
 val makeAD: epoch -> ContentType -> adata
 val parseAD: epoch -> adata -> ContentType

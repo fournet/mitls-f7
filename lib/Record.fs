@@ -16,7 +16,7 @@ type recvState = ConnectionState
 
 let initConnState (ki:epoch) s = 
   let eh = TLSFragment.emptyHistory ki in
-    SomeState(eh,s)
+  someState ki eh s
 
 let nullConnState (ki:epoch) = NullState
 

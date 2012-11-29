@@ -50,6 +50,9 @@
 <member name="">
 
 </member>
+<member name="">
+
+</member>
 <member name="T:AEADPlain">
 
 </member>
@@ -594,6 +597,9 @@
 
 </member>
 <member name="T:ENC">
+
+</member>
+<member name="">
 
 </member>
 <member name="">
@@ -1397,6 +1403,9 @@
 <member name="">
 
 </member>
+<member name="">
+
+</member>
 <member name="T:StatefulPlain">
 
 </member>
@@ -2010,6 +2019,9 @@
 
 </member>
 <member name="T:TLSExtensions">
+
+</member>
+<member name="">
 
 </member>
 <member name="">
