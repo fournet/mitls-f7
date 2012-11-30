@@ -33,9 +33,15 @@ val repr:  e:succEpoch{not Safe(e)} -> ad:(;e)adata -> r:range -> (;e,ad,r) plai
 //private assume !e,ad,r,x. AEADSent(e,ad,r,x) <=> (?h,ad'. 
 //  ad = MakeAD(e,h,ad') /\ StatefulPlain.StAESent(e,ad',h,r,x.contents))
 
-private assume !e,h,ad,r,f. AEADSent(e,MakeAD(e,h,ad),r,f) <=> StatefulPlain.StAESent(e,ad,h,r,f.contents)
+//private assume !e,h,ad,r,f. AEADSent(e,MakeAD(e,h,ad),r,f) <=> StatefulPlain.StAESent(e,ad,h,r,f.contents)
 
-ask !e,ad,h,ad',r,x. (ad = MakeAD(e,h,ad') /\ StatefulPlain.StAESent(e,ad',h,r,x.contents)) => AEADSent(e,ad,r,x)
+private assume !e,lad,r,f. AEADSent(e,lad,r,f) <=> (?had,sn,ph. lad = MakeAD(e,(sn,ph),had) /\ StatefulPlain.StAESent(e,had,(sn,ph),r,f.contents))
+
+private ask !e,r,f,lad. (Auth(e) /\ (?had,sn,ph. MakeAD(e,(sn,ph),had) = lad /\ StatefulPlain.StAESent(e,had,(sn,ph),r,f.contents)) ) => 
+                        (!had', sn', ph'. MakeAD(e,(sn',ph'),had') = lad /\ StatefulPlain.StAEHistory(e,ph') /\ StatefulPlain.HLength(e,ph') = sn' => StatefulPlain.StAESent(e,had',(sn',ph'),r,f.contents))
+
+
+ask !e,ad,sn,ph,ad',r,x. (ad = MakeAD(e,(sn,ph),ad') /\ StatefulPlain.StAESent(e,ad',(sn,ph),r,x.contents)) => AEADSent(e,ad,r,x)
 
 ask !e,ad,h,h',ad',ad''. ad = MakeAD(e,h,ad') /\ ad = MakeAD(e,h',ad'') => 
     (StatefulPlain.SeqN(e,h) = StatefulPlain.SeqN(e,h') /\ ad' = ad'')
@@ -44,11 +50,14 @@ ask !e,ad,h,h',ad',ad''. ad = MakeAD(e,h,ad') /\ ad = MakeAD(e,h',ad'') =>
 
 //CF 22/4: these coercions are used only in StatefulAEAD.fs; they are not part of the "plain" interface to AEAD.
 
+function val StAEToAEAD: 'a -> 'b // StatefulPlain.plain -> plain
+private definition !p. StAEToAEAD(p) = {contents = p}
+
 val StatefulPlainToAEADPlain: e:epoch -> h:(;e)StatefulPlain.history -> ad:(;e)StatefulPlain.adata -> r:range -> 
-  (;e,ad,h,r)StatefulPlain.plain -> (;e,MakeAD(e,h,ad),r)plain
+  f:(;e,ad,h,r)StatefulPlain.plain -> p:(;e,MakeAD(e,h,ad),r)plain{p = StAEToAEAD(f)}
 
 val AEADPlainToStatefulPlain: e:epoch -> h:(;e)StatefulPlain.history -> ad:(;e)StatefulPlain.adata -> r:range ->
-  (;e,MakeAD(e,h,ad),r)plain -> (;e,ad,h,r)StatefulPlain.plain
+  p:(;e,MakeAD(e,h,ad),r)plain -> f:(;e,ad,h,r)StatefulPlain.plain{p = StAEToAEAD(f)}
 
 //------------------------------------------------------------------------------------------------------
 // `Internal' interface towards StatefulPlain

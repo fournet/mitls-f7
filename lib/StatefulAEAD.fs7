@@ -46,9 +46,8 @@ val history: ki:epoch -> s:(;ki) state -> h:(;ki)StatefulPlain.history{h=History
 
 type cipher = AEAD.cipher
 
-predicate STXT of ki:epoch * (;ki)state * ad:(;ki)StatefulPlain.adata * r:range * (;ki,ad,r)StatefulPlain.fragment * cipher
-assume !ki,s,ad,r,f,c. STXT(ki,s,ad,r,f,c)  // FIXME!!!
-//	<=> AEAD.CTXT(ki,MakeAD(ki,s.history,ad),r,f,c)
+predicate val STXT: ki:epoch * (;ki)state * ad:(;ki)StatefulPlain.adata * 'a (* (;ki,ad,r)StatefulPlain.fragment *) * cipher -> bool
+private assume !ki,s,ad,f,c. STXT(ki,s,ad,f,c) <=> AEAD.CTXT(ki,AEADPlain.MakeAD(ki,s.history,ad),AEADPlain.StAEToAEAD(f),c)
 
 val encrypt: ki:succEpoch -> 
   w:(;ki) writer -> 
@@ -57,7 +56,7 @@ val encrypt: ki:succEpoch ->
   f: (;ki,ad,History(ki,w),r) StatefulPlain.plain ->
   (w':(;ki) writer * c:cipher){
     History(ki,w') = StatefulPlain.ExtendHistory(ki,ad,History(ki,w),r,f) /\
-    STXT(ki,w,ad,r,f,c)}
+    (Safe(ki) => STXT(ki,w,ad,f,c))}
 
 val decrypt: ki:succEpoch -> 
   rd:(;ki) reader -> 
@@ -67,8 +66,14 @@ val decrypt: ki:succEpoch ->
   { !nrd,rg,f. res = Correct((nrd,rg,f)) => 
                (   History(ki,nrd) = StatefulPlain.ExtendHistory(ki,ad,History(ki,rd),rg,f) /\
                    Length(c)=Encode.RangeCipher(ki,rg) /\
- 	         (Safe(ki) => STXT(ki,rd,ad,rg,f,c)) /\
-                 (Auth(ki) => STXT(ki,rd,ad,rg,f,c))) }
+ 	         (Safe(ki) =>
+				( (!nrd,rg,f. res = Correct((nrd,rg,f)) => STXT(ki,rd,ad,f,c)) // /\
+				//  (!p. STXT(ki,rd,ad,p,c) => (?nrd,rg. res = Correct((nrd,rg,p))))
+				)
+			 ) ) }
+			 
+			  //STXT(ki,rd,ad,f,c)) /\
+              //   (Auth(ki) => STXT(ki,rd,ad,f,c))) }
 
 //CF 21/4: as stated, we need the resulting readers and writers to have explicitly-updated histories (irrespective of AUTH)
 //CF 21/4: can we return an option instead? Otherwise we may have to specify which errors can be returned.
