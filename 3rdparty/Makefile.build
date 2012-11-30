@@ -28,4 +28,4 @@ make.in:
 	@true
 
 ../bin/%.dll: %.dll
-	cp $*.dll $*.dll.mdb ../bin
+	cp $*.dll ../bin
