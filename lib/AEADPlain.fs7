@@ -30,8 +30,10 @@ val repr:  e:succEpoch{not Safe(e)} -> ad:(;e)adata -> r:range -> (;e,ad,r) plai
 
 //CF 22/4: needs discussion
 
-assume !e,ad,r,x. AEADSent(e,ad,r,x) <=> (?h,ad'. 
-  ad = MakeAD(e,h,ad') /\ StatefulPlain.StAESent(e,ad',h,r,x.contents))
+//private assume !e,ad,r,x. AEADSent(e,ad,r,x) <=> (?h,ad'. 
+//  ad = MakeAD(e,h,ad') /\ StatefulPlain.StAESent(e,ad',h,r,x.contents))
+
+private assume !e,h,ad,r,f. AEADSent(e,MakeAD(e,h,ad),r,f) <=> StatefulPlain.StAESent(e,ad,h,r,f.contents)
 
 ask !e,ad,h,ad',r,x. (ad = MakeAD(e,h,ad') /\ StatefulPlain.StAESent(e,ad',h,r,x.contents)) => AEADSent(e,ad,r,x)
 
