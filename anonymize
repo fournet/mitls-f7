@@ -8,113 +8,31 @@ def _noexn(f):
     except: pass
 
 # --------------------------------------------------------------------
-class _tag(object):
-    pass
+def parser():
+    import pyparsing as p
 
-LEXPRINT = _tag()
-LEXPOP   = _tag()
+    def internal_comment(comment):
+        comment = comment.strip()
+        if re.match(r'FIXME\b', comment):
+            return True
+        if re.match(r'\w+\s+:', comment):
+            return True
+        return False
 
-# --------------------------------------------------------------------
-CRLN = '\r\n'
+    ml_comments = p.Regex(r'\(\*(?:[^*]*\*+)+?\)')
+    ss_comments = p.Regex(r'//.*')
+    ml_strings  = p.Regex(r'"(?:[^"\n\r\\]|(?:"")|(?:\\x[0-9a-fA-F]+)|(?:\\.))*"')
 
-lexer = dict(
-    main = (
-        (r'[^("/]+', (LEXPRINT, None      )),
-        (r'//@.*$' , (LEXPRINT, None      )),
-        (r'//.*$'  , (None    , None      )),
-        (r'\(\*@'  , (LEXPRINT, 'wcomment')),
-        (r'\(\*'   , (None    , 'comment' )),
-        (r'"'      , (LEXPRINT, 'string'  )),
-        (r'.'      , (LEXPRINT, None      )),
-    ),
+    def ml_comments_action(_s, _loc, tk):
+        return [] if internal_comment(tk[0][2:-2]) else tk
 
-    comment = (
-        (r'[^()*]+', (None, None     )),
-        (r'\(\*'   , (None, 'comment')),
-        (r'\*\)'   , (None, LEXPOP   )),
-        (r'.'      , (None, None     )),
-    ),
+    def ss_comments_action(_s, _loc, tk):
+        return [] if internal_comment(tk[0][2:]) else tk
 
-    wcomment = (
-        (r'[^()*]+', (LEXPRINT, None      )),
-        (r'\(\*'   , (LEXPRINT, 'wcomment')),
-        (r'\*\)'   , (LEXPRINT, LEXPOP    )),
-        (r'.'      , (LEXPRINT, None      )),
-    ),
+    ml_comments.setParseAction(ml_comments_action)
+    ss_comments.setParseAction(ss_comments_action)
 
-    string = (
-        (r'[^"]+', (LEXPRINT, None  )),
-        (r'"'    , (LEXPRINT, LEXPOP)),
-        (r'.'    , (LEXPRINT, None  )),
-    ),
-)
-
-# --------------------------------------------------------------------
-class LexError(Exception):
-    pass
-
-# --------------------------------------------------------------------
-def _compile(lexer, flags = 0):
-    import sre_parse, sre_compile, sre_constants as srec
-
-    compiled = dict()
-
-    for rulename, rules in lexer.iteritems():
-        ptn     = sre_parse.Pattern()
-        subptns = []
-
-        for i, (phrase, action) in enumerate(rules):
-            subptn = (srec.SUBPATTERN, (i+1, sre_parse.parse(phrase, flags)))
-            subptns.append(sre_parse.SubPattern(ptn, [subptn]))
-
-        ptn.flags  = flags
-        ptn.groups = len(subptns)+1
-        ptn = sre_parse.SubPattern(ptn, [(srec.BRANCH, (None, subptns))])
-        ptn = sre_compile.compile(ptn)
-
-        compiled[rulename] = ptn
-
-    return compiled
-
-# --------------------------------------------------------------------
-def _lex(lexer, entry, stream, ostream = sys.stdout):
-    compiled = _compile(lexer, flags = re.MULTILINE)
-    stack    = []
-    position = 0
-
-    while True:
-        rulename = entry if not stack else stack[-1]
-        mtch     = compiled[rulename].scanner(stream, position).match()
-
-        if mtch is None or position == mtch.end():
-            break
-
-        actions, state = lexer[rulename][mtch.lastindex-1][1]
-
-        if actions is not None:
-            if not isinstance(actions, (tuple, list)):
-                actions = (actions,)
-            for action in actions:
-                if action is LEXPRINT:
-                    ostream.write(stream[position:mtch.end()])
-                elif hasattr(action, '__call__'):
-                    action(stream[position:mtch.end()])
-                else:
-                    raise RuntimeError
-
-        if state is not None:
-            if state is LEXPOP:
-                if stack:
-                    stack.pop()
-            elif isinstance(state, basestring):
-                stack.append(state)
-            else:
-                raise RuntimeError
-
-        position = mtch.end()
-
-    if stack or position != len(stream):
-        raise LexError
+    return ml_comments | ss_comments | ml_strings
 
 # --------------------------------------------------------------------
 def _options(args):
@@ -145,10 +63,11 @@ def _read_file(filename):
     return unicode(contents, 'utf-8')
 
 # --------------------------------------------------------------------
+CRLN = '\r\n'
+
 def _process_file(filename, options):
-    output = sio.StringIO()
-    _lex(lexer, 'main', _read_file(filename), output)
-    output = CRLN.join(output.getvalue().splitlines()) + CRLN
+    output = parser().transformString(_read_file(filename))
+    output = CRLN.join(output.splitlines()) + CRLN
     output = re.sub('(?:\r\n){3,}', 2 * CRLN, output)
     output = re.sub('(?:\r\n)+$', CRLN, output)
     output = re.sub('^(?:\r\n)*', CRLN, output)
