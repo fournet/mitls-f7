@@ -15,7 +15,7 @@ def parser():
         comment = comment.strip()
         if re.match(r'FIXME\b', comment):
             return True
-        if re.match(r'\w+\s+:', comment):
+        if re.match(r'[a-zA-Z]+\s*:', comment):
             return True
         return False
 
