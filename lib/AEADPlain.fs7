@@ -22,7 +22,7 @@ val parseAD: e:epoch -> b:(;e)adata -> ad:(;e)StatefulPlain.adata{ad = ParseAD(e
 private type (;e:epoch,ad:(;e)adata,r:range)fragment = {contents: (;e,ParseAD(e,ad),r)StatefulPlain.fragment}
 
 predicate AEADSent of e:epoch * ad:(;e)adata * r:range * (;e,ad,r)fragment
-private type (;e:epoch,ad:(;e)adata,r:range) plain = f:(;e,ad,r)fragment{ Auth(e) => AEADSent(e,ad,r,f) }
+type (;e:epoch,ad:(;e)adata,r:range) plain = f:(;e,ad,r)fragment{ Auth(e) => AEADSent(e,ad,r,f) }
 
 val plain: e:succEpoch{not Auth(e)} -> ad:(;e)adata -> r:range -> (;r)rbytes -> (;e,ad,r) plain
 private val reprFragment:  e:succEpoch{not Safe(e)} -> ad:(;e)adata -> r:range -> (;e,ad,r) fragment -> (;r)rbytes

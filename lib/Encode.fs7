@@ -29,12 +29,12 @@ function val IVSize: epoch -> nat
 val ivLength: e:succEpoch -> l:nat{l=IVSize(e)}
 type (;e:epoch) adata = (;e)AEADPlain.adata
 
-type (;e:epoch,ad:(;e)adata,r:range)AEFragment = {contents: (;e,ad,r)AEADPlain.fragment}
+private type (;e:epoch,ad:(;e)adata,r:range)AEFragment = {contents: (;e,ad,r)AEADPlain.fragment}
 
 predicate AESays of e:epoch * ad:(;e) adata * r:range * (;e,ad,r)AEFragment 
 
 // Plaintext for AE
-private type (;e:epoch,ad:(;e)adata,r:range)AEPlain = f:(;e,ad,r)AEFragment{Auth(e) => AESays(e,ad,r,f)}
+type (;e:epoch,ad:(;e)adata,r:range)AEPlain = f:(;e,ad,r)AEFragment{Auth(e) => AESays(e,ad,r,f)}
 val AEPlain: e:epoch{not Auth(e)} -> r:range -> ad:(;e)adata -> (;r)rbytes -> (;e,ad,r)AEPlain
 val AERepr:  e:epoch{not Safe(e)} -> r:range -> ad:(;e)adata -> (;e,ad,r)AEPlain -> (;r)rbytes
 

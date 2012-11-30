@@ -64,7 +64,7 @@ definition !e,sh,sh',h,ct,r,f.
    h = Multiplexed(e,sh)) => 
   (Multiplexed(e,sh') = TLSFragment.ExtendHistory(e,ct,h,r,StAEToRecord(e,ct,r,f)))
 
-private type (;e:epoch,ad:(;e)adata,h:(;e)history,r:range) plain =
+type (;e:epoch,ad:(;e)adata,h:(;e)history,r:range) plain =
 	f:(;e,ad,r)fragment{Auth(e) => StAESent(e,ad,h,r,f)}
 
 val plain: e:succEpoch{not Auth(e)} -> h:(;e)history -> ad:(;e)adata -> r:range -> (;r)rbytes -> (;e,ad,h,r) plain
