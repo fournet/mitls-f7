@@ -30,18 +30,6 @@ val request: Connection -> config -> bool * nextCn
 val full_shutdown: Connection -> Connection
 val half_shutdown: Connection -> unit
 
-(*
-val resume_session: NetworkStream -> SessionInfo -> Connection (* New connection same session *)
-val resume_connection: Connection -> Connection (* New crypto same TCP stream same session *)
-val renegotiate: Connection -> config -> Connection (* New session same TCP stream *)
-*)
-
-(* FIXME: unsure we want still to expose those functions to the upper levels *)
-(*
-val sendNextFragments: Connection -> (unit Result) * Connection
-val readNextAppFragment: Connection -> (unit Result) * Connection
-*)
-
 type writeOutcome =
     | WError of string (* internal *)
     | WriteAgain (* Possibly more data to send *)

@@ -8,8 +8,8 @@ open TLSInfo
 /// this file is loosely synchronized with cma/mac2.fs7
 
 //CF 12-02: we need to support agility here, 
-//          guaranteeing that ki has a MAC, and 
-//          providing exact lengths for keys and tags.
+//CF        guaranteeing that ki has a MAC, and 
+//CF        providing exact lengths for keys and tags.
 
 
 private type (;ki:succEpoch) key = {k:(x:bytes{Length(x) = MacKeySize(TLSConstants.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))})}

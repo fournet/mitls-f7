@@ -76,19 +76,6 @@ let recordPacketOut ki conn pv rg ct fragment =
         let payload = TLSFragment.repr ki ct eh rg fragment in
         let packet = makePacket ct pv payload in
         (conn,packet)
-// MACOnly is now handled within AEAD
-//    | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
-//        let ad0 = TLSFragment.makeAD keyInfo.sinfo.protocol_version ct in
-//        let addData = StatefulPlain.makeAD seqn ad0 in
-//        let aeadSF = StatefulPlain.RecordPlainToStAEPlain keyInfo tlen seqn ct fragment in
-//        let st = connState keyInfo conn in
-//        let aeadF = AEADPlain.fragmentToPlain keyInfo st addData tlen aeadSF in
-//        let data = Encode.concat keyInfo tlen addData aeadF in
-//        let mac = Encode.mac keyInfo key data in
-//        // FIXME: next line should be: ley payload = Encode.encodeNoPad ..., to match decodeNoPad, and remove dependency on tagRepr
-//        let payload = (TLSFragment.TLSFragmentRepr keyInfo ct st.history tlen fragment) @| (Encode.tagRepr keyInfo mac) in
-//        let packet = makePacket ct keyInfo.sinfo.protocol_version payload in
-//        (conn,packet)
     | (false,SomeState(history,state)) ->
         let ad = StatefulPlain.makeAD ki ct in
         let sh = StatefulAEAD.history ki state in
@@ -143,20 +130,6 @@ let recordPacketIn ki conn headPayload =
         let eh = TLSFragment.emptyHistory ki in
         let msg = TLSFragment.plain ki ct eh rg payload in
         correct(conn,ct,pv,rg,msg)
-// MACOnly is now handled within AEAD
-//    | (x,RecordMACKey(key)) when isOnlyMACCipherSuite x ->
-//        let ad0 = TLSFragment.makeAD epochSI(ki).protocol_version ct in
-//        let ad = StatefulPlain.makeAD seqn ad0 in
-//        let plain = Encode.plain ki tlen payload in
-//        let (rg,msg,mac) = Encode.decodeNoPad ki ad plain in
-//        let toVerify = Encode.concat ki rg ad msg in
-//        let ver = Encode.verify ki key toVerify mac in
-//        if ver then
-//          let msg0 = AEADPlain.plainToFragment ki (connState ki conn) ad rg msg in
-//          let msg = StatefulPlain.StAEPlainToRecordPlain ki (connState ki conn) ad rg msg0 in
-//            correct(conn,ct,pv,rg,msg)
-//        else
-//            Error(MAC,CheckFailed)
     | (false,SomeState(history,state)) ->
         let ad = StatefulPlain.makeAD ki ct in
         let decr = StatefulAEAD.decrypt ki state ad payload in
@@ -176,6 +149,3 @@ let history (e:epoch) s =
     | NullState -> TLSFragment.emptyHistory e
     | SomeState(h,_) -> h
 
-// let historyStream (e:epoch) st ct =
-//     let h = history e st in
-//     TLSFragment.historyStream e ct h

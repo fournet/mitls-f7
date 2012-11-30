@@ -26,5 +26,5 @@ val checkVerifyData: si:SessionInfo -> r:Role -> (;si) masterSecret ->
 
 val ssl_certificate_verify: si:SessionInfo -> (;si)masterSecret -> TLSConstants.sigAlg -> bytes -> bytes
 
-// AP: Fixme: we need to add something like {not Auth(si)}, but Auth is defined on epochs, not sessions
+// FIXME we need to add something like {not Auth(si)}, but Auth is defined on epochs, not sessions
 val coerce: si:SessionInfo -> repr -> (;si)masterSecret

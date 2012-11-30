@@ -30,7 +30,7 @@ val plain: ki:epoch{not Auth(ki)} -> r:range -> (;r) rbytes -> (;ki,r) fragment
 val repr:  ki:epoch{not Safe(ki)} -> r:range -> (;ki,r) fragment -> (;r) rbytes
 
 //CF: This is *not* valid because of empty fragments; 
-// instead we may have to record in stream a sequence of bytes, rather than their concatenation.
+//CF: instead we may have to record in stream a sequence of bytes, rather than their concatenation.
 
 private theorem !ki,s,r1,r2,f1,f2. 
   DeltaFragment(ki,s,r1,f1) /\ DeltaFragment(ki,s,r2,f2) => (r1 = r2 /\ f1 = f2)

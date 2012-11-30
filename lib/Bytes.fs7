@@ -56,9 +56,9 @@ assume !b1,b2,b3. (b1 @| b2) @| b3 = b1 @| (b2 @| b3)
 function val IntBytes: int * int -> bytes
 
 //CF: we need stronger preconditions, e.g.
-//    (l=1 /\ 0 <= l /\ l < 256)
-// \/ (l=2 /\ 0 <= l /\ l < 65536)
-// /\ (l=4 /\ 0 <= l) 
+//CF:    (l=1 /\ 0 <= l /\ l < 256)
+//CF: \/ (l=2 /\ 0 <= l /\ l < 65536)
+//CF: /\ (l=4 /\ 0 <= l) 
 val bytes_of_int: l:int -> i:int -> b:bytes{b = IntBytes(l,i)}
 val int_of_bytes: b:bytes {Length(b)<=8} -> i:nat{b = IntBytes(Length(b),i)}
 

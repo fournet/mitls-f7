@@ -22,8 +22,8 @@ private definition !ki,s. State(ki,s) // KB: 21/4 Why do we need this?
 function val History: e:epoch * (;e)state -> 'a //(;e)StatefulPlain.history
 private definition !e,s. History(e,s) = s.history
 
-//CF 21/4 typing should prevent mixing read/write states! 
-//        can we keep state a public datatype and make reader/writer abstract? 
+// CF 21/4 typing should prevent mixing read/write states! 
+// CF      can we keep state a public datatype and make reader/writer abstract?
 type (;ki:epoch) reader = r:(;ki) state
 type (;ki:epoch) writer = w:(;ki) state
 
@@ -41,17 +41,14 @@ val history: ki:epoch -> s:(;ki) state -> h:(;ki)StatefulPlain.history{h=History
 // turning forgeries into errors; retrieving the "right" history index; returning the concrete decrypted range
 
 //CF 21/4: STXT is an event tracking written fragments; not sure about details and contents ?!
-// e.g.    * the decrypted rg is NOT authenticated
-//         * the states are not necessarily synchronized; only the histories are when AUTH
+//CF e.g.    * the decrypted rg is NOT authenticated
+//CF         * the states are not necessarily synchronized; only the histories are when AUTH
 
 type cipher = AEAD.cipher
 
 predicate STXT of ki:epoch * (;ki)state * ad:(;ki)StatefulPlain.adata * r:range * (;ki,ad,r)StatefulPlain.fragment * cipher
 assume !ki,s,ad,r,f,c. STXT(ki,s,ad,r,f,c)  // FIXME!!!
 //	<=> AEAD.CTXT(ki,MakeAD(ki,s.history,ad),r,f,c)
-
-//AP 18/4: Cannot prove STXT until we don't get precise with {S}AEADContents, which breaks abstraction
-//CF ??
 
 val encrypt: ki:succEpoch -> 
   w:(;ki) writer -> 

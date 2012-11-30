@@ -841,7 +841,6 @@ type incoming = (* the fragment is accepted, and... *)
   | InVersionAgreed of hs_state * ProtocolVersion
   | InQuery of Cert.certchain * bool * hs_state
   | InFinished of hs_state
-    // FIXME: StorableSession
   | InComplete of hs_state
   | InError of alertDescription * string * hs_state
 
@@ -1174,7 +1173,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
 #endif        
         | HT_certificate ->
             match cState with
-            // FIXME: Most of the code in the branches is duplicated
+            // Most of the code in the branches is duplicated, but it helps for verification
             | ServerCertificateRSA (si,log) ->
                 match parseClientOrServerCertificate payload with
                 | Error(x,y) -> 

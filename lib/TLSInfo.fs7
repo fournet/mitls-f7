@@ -25,7 +25,7 @@ type srand = random
 // Used for indexing
 
 //CF 04-09
-// the randoms are not just bytes; where do we rely on collision-resistance?
+//CF the randoms are not just bytes; where do we rely on collision-resistance?
 
 type SessionInfo = {
     init_crand: crand;
@@ -154,11 +154,6 @@ ask !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) =>
 
 // so that TLS can exchange any traffic on the initial null connection
 assume !e. IsInitEpoch(e) => not Auth(e)
-// AP: Was the following. Now we don't have a sessionInfo for the initial epoch anymore.
-// So we assume it
-// ask !ki. IsNullCiphersuite(EpochSI(ki).cipher_suite)    => not Auth(ki)
-
-
 
 /// Application configuration options
 

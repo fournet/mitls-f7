@@ -63,7 +63,7 @@ val decrypt: ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
         ((!k,r,p. res = Correct((k,r,p)) => CTXT(ki,ad,p,c)) /\
          (!p. CTXT(ki,ad,p,c) => (?k,r. res = Correct((k,r,p))))))}
 
-// CF 04-09 discussion points: 
+(* CF 04-09 discussion points: 
 //
 // plaintext integrity follows from abstraction:
 // - a precondition for coercing to  (;ki,rg,ad) plain is that ki is un-Auth
@@ -90,3 +90,4 @@ val decrypt: ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
 // We are still in-between encryptor/decryptor and keys, why? 
 // Are TLS 1.0 IVs now part of the mutable key? 
 // Note that RangeCipher depends on the TLS version too.
+*)

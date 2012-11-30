@@ -27,7 +27,6 @@ val decrypt: sk ->
 // #if whiteboard 
 // /// Some draft assumption discussed with Markulf on 13/9/12
 // 
-// // AP: Commenting out so we can still typecheck the rest of the code...
 // 
 // let sk, pk = keyGen() (* sk is private *) 
 // 

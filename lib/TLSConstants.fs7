@@ -136,7 +136,6 @@ type PreProtocolVersion =
 
 type ProtocolVersion = p:PreProtocolVersion{p = SSL_3p0 \/ p = TLS_1p0 \/ p = TLS_1p1 \/ p = TLS_1p2}
 
-//CF Bad name. We'll need VersionBytes to be injective; we can verify it in principle.
 function val VersionBytes: ProtocolVersion -> b:bytes
 assume !p. Length(VersionBytes(p)) = 2
 private assume VersionBytes(SSL_3p0) = [| 3uy; 0uy |]
@@ -148,9 +147,8 @@ val versionBytes: pv:ProtocolVersion -> b:bytes{Length(b) = 2 /\ b = VersionByte
 val parseVersion: b:bytes{Length(b) = 2} -> (pv:ProtocolVersion{ b= VersionBytes(pv)}) Result
 val minPV: a:ProtocolVersion -> b:ProtocolVersion -> c:ProtocolVersion
 //CF what's this refinement?? adjust on demand
-//  {(a < b /\ c = a) \/ (a >= b /\ c = b)}
+//CF {(a < b /\ c = a) \/ (a >= b /\ c = b)}
 val geqPV: a:ProtocolVersion -> b:ProtocolVersion -> r:bool
-// AP same as minPV
 
 (* FIXME: same duplication between logical and concrete function definitions, 
    already seen in TLSConstants. 
@@ -404,13 +402,8 @@ type ContentType = ct:preContentType
   {ct = Change_cipher_spec \/ ct = Alert \/
    ct = Handshake \/ ct = Application_data}
 
-// unnecessary? function val SeqNumB: int -> bytes
 val bytes_of_seq: sn:int -> b:bytes{Length(b) = 8 /\ b = IntBytes(8,sn)}
 val seq_of_bytes: b:bytes{Length(b)=8} -> sn:int{b = IntBytes(8,sn)}
-
-//CF: let's pick better names, and maybe use length-1 arrays instead of single byte constants, e.g. 
-// CTBytes: ContentType -> bytes for the logical function 
-// ctBytes: ct:ContentType -> b:bytes{b=CTBytes(ct)} for the implementation
 
 function val CTBytes: ContentType -> bytes
 

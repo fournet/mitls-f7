@@ -123,8 +123,8 @@ let encodeNoPad (e:epoch) rg (ad:adata) data tag =
 let pad (p:int)  = createBytes p (p-1)
 
 let encode (e:epoch) rg (ad:adata) data tag =
-    // FIXME: A bit too special for stream cipher. Would be nicer if we had a more
-    // robust encoding with or without padding. (So also working for MACOnly ciphersuites)
+    // TODO: A bit too special for stream cipher. Would be nicer if we had a more
+    // TODO: robust encoding with or without padding. (So also working for MACOnly ciphersuites)
     let si = epochSI(e) in
     let alg = encAlg_of_ciphersuite si.cipher_suite in
     match alg with
@@ -168,8 +168,8 @@ let decodeNoPad e (ad:adata) tlen plain =
     (rg,aeadF,tag)
 
 let decode e (ad:adata) tlen plain =
-    // FIXME: A bit too special for stream cipher. Would be nicer if we had a more
-    // robust encoding with or without padding. (So also working for MACOnly ciphersuites)
+    // TODO: A bit too special for stream cipher. Would be nicer if we had a more
+    // TODO: robust encoding with or without padding. (So also working for MACOnly ciphersuites)
     let si = epochSI(e) in
     let alg = encAlg_of_ciphersuite si.cipher_suite in
     match alg with

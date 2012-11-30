@@ -729,7 +729,7 @@ let rec parseDistinguishedNameList data res =
     if length data = 0 then
         correct (res)
     else
-        if length data < 2 then (* FIXME: maybe at least 3 bytes, because we don't want empty names... *)
+        if length data < 2 then (* Maybe at least 3 bytes, because we don't want empty names... *)
             Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
         else
             match vlsplit 2 data with

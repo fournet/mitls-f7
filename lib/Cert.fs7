@@ -97,10 +97,10 @@ function val CertKey: certs -> pk option
 val certkey: c:certs -> o:pk option {o = CertKey(c)}
 
 //CF: note on the current implementation:
-// - [RSA] implements long-term keys
-// - we probably do not support DH yet
-// - [Certificate] implements X509 certificate processing
-// - [Handshake] implements parsing of certificate chains into Certificate.cert list
-// - we do not provide concrete long-term key & cert generation 
+//CF: - [RSA] implements long-term keys
+//CF: - we probably do not support DH yet
+//CF: - [Certificate] implements X509 certificate processing
+//CF: - [Handshake] implements parsing of certificate chains into Certificate.cert list
+//CF: - we do not provide concrete long-term key & cert generation 
 
 *)
