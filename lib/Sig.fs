@@ -4,7 +4,6 @@ open Bytes
 open TLSConstants
 
 
-
 (* ------------------------------------------------------------------------ *)
 type alg   = sigAlg * hashAlg
 
@@ -30,15 +29,22 @@ let sigalg_of_pkeyparams = function
     | CoreSig.PK_DSA _ -> SA_DSA
 
 #if ideal
-let log = ref []
-let honest_log = ref []
+// We maintain two logs:
+// - a log of honest public keys (a,pk), not necessarily with strong crypto
+// - a log of (a,pk,t) entries for all honestly signed texts with strong crypto
+// CF We could also implement it on top of ideal non-agile Sigs.
+
+type entry = alg * pk * text 
+// type entry = a:alg * pk:(;a) pk * t:text * s:(;a) sigv { Msg(a,pk,t) } 
+
+let honest_log = ref ([]: (alg * pkey) list
+let log        = ref ([]: entry list)
 
 let rec assoc hll pk =
     match hll with
-        (pk',sk')::hll_tail when pk=pk' -> Some ()
-      | _::hll_tail -> assoc hll_tail pk
-      | [] -> None
-
+      | (pk',sk')::_ when pk=pk' -> Some ()
+      | _::hll                   -> assoc hll pk
+      | []                       -> None
 
 let rec pk_of_log sk hll =
     match hll with
@@ -46,18 +52,14 @@ let rec pk_of_log sk hll =
       | _::hll_tail -> pk_of_log sk hll_tail
       | [] -> None
 
-let pk_of (sk:skey) = 
-    fst (find (fun el -> snd el=sk) !honest_log )  
+let pk_of (sk:skey) = fst (find (fun el -> snd el=sk) !honest_log )  
 
-let honest pk =
-    exists (fun el -> fst el=pk) !honest_log
-
+let honest a pk = mem (a,pk) !honest_log
 let strong a = if a=(SA_DSA ,SHA384) then true else false
-
 #endif
 
 (* ------------------------------------------------------------------------ *)
-let sign (a : alg) (sk : skey) (t : text) : sigv =
+let sign (a: alg) (sk: skey) (t: text): sigv =
     let asig, ahash = a in
     let { skey = (kparams, khash) } = sk in
 
@@ -81,14 +83,15 @@ let sign (a : alg) (sk : skey) (t : text) : sigv =
             let t = HASH.hash MD5SHA1 t in
             CoreSig.sign None kparams t
     #if ideal
-    if honest (pk_of sk) && strong a then 
-        log := (a, pk_of sk,signature, t)::!log;
+    if strong a && honest a (pk_of sk) then // CF why do we need this guard?
+      log := (a, pk_of sk, t)::!log
     #endif
     signature
+
 (* ------------------------------------------------------------------------ *)
 let verify (a : alg) (pk : pkey) (t : text) (s : sigv) =
     let asig, ahash = a in
-    let  { pkey = (kparams, khash) } = pk in
+    let { pkey = (kparams, khash) } = pk in
 
     if ahash <> khash then
         Error.unexpectedError
@@ -110,8 +113,8 @@ let verify (a : alg) (pk : pkey) (t : text) (s : sigv) =
             let t = HASH.hash MD5SHA1 t in
             CoreSig.verify None kparams t s
     #if ideal
-    let result = if honest pk && strong a
-                    then result && (exists (fun el -> el=(a, pk, s, t)) !log)
+    let result = if strong a && honest a pk  
+                    then result && mem (a,pk,t) !log
                     else result 
     #endif
     result
@@ -124,8 +127,7 @@ let gen (a:alg) : pkey * skey =
         | SA_RSA -> CoreSig.gen CoreSig.SA_RSA
         | SA_DSA -> CoreSig.gen CoreSig.SA_DSA
         | _      -> failwith "unsupported / TODO"
-    in
-        #if ideal
-        honest_log := ({ pkey = (pkey, ahash) }, { skey = (skey, ahash) })::!honest_log;
-        #endif
-        ({ pkey = (pkey, ahash) }, { skey = (skey, ahash) })
+    #if ideal
+    honest_log := (a,pkey)::!honest_log
+    #endif
+    ({ pkey = (pkey, ahash) }, { skey = (skey, ahash) })

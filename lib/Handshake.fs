@@ -344,12 +344,12 @@ let parseClientKEXImplicit_DH data =
 (* Digitally signed struct *)
 
 let digitallySignedBytes alg data pv =
-    let sign = vlbytes 2 data in
+    let tag = vlbytes 2 data in
     match pv with
     | TLS_1p2 ->
         let sigHashB = sigHashAlgBytes alg in
-        sigHashB @| sign
-    | SSL_3p0 | TLS_1p0 | TLS_1p1 -> sign
+        sigHashB @| tag
+    | SSL_3p0 | TLS_1p0 | TLS_1p1 -> tag
 
 let parseDigitallySigned expectedAlgs payload pv =
     match pv with
@@ -432,15 +432,16 @@ let parseServerKeyExchange_DH_anon payload =
             Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 (* Certificate Verify *)
+
 let makeCertificateVerifyBytes si ms alg skey data =
-    // The returned "signed" variable is ghost, only used to avoid
+    // The returned "tag" variable is ghost, only used to avoid
     // existentials in formal verification.
     match si.protocol_version with
     | TLS_1p2 | TLS_1p1 | TLS_1p0 ->
-        let signed = Sig.sign alg skey data in
-        let payload = digitallySignedBytes alg signed si.protocol_version in
+        let tag = Sig.sign alg skey data in
+        let payload = digitallySignedBytes alg tag si.protocol_version in
         let mex = messageBytes HT_certificate_verify payload in
-        (mex,signed)
+        (mex,tag)
     | SSL_3p0 ->
         let (sigAlg,_) = alg in
         let alg = (sigAlg,NULL) in
@@ -448,10 +449,10 @@ let makeCertificateVerifyBytes si ms alg skey data =
         #if avoid 
             failwith "we just broke indexing for the skey, this can't typecheck."
         #else
-        let signed = Sig.sign alg skey toSign in
-        let payload = digitallySignedBytes alg signed si.protocol_version in
+        let tag = Sig.sign alg skey toSign in
+        let payload = digitallySignedBytes alg tag si.protocol_version in
         let mex = messageBytes HT_certificate_verify payload in
-        (mex,signed)
+        (mex,tag)
         #endif
     
 let certificateVerifyCheck si ms algs log payload =
