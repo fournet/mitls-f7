@@ -6,9 +6,9 @@ open Error
 type hint = string (* hostname CN *)
 type cert = bytes  (* public part of a certificate *)
 
-type certchain = cert list
-type sign_cert = (certchain * Sig.alg * Sig.skey) option
-type enc_cert  = (certchain * RSAKeys.sk) option
+type chain = cert list
+type sign_cert = (chain * Sig.alg * Sig.skey) option
+type enc_cert  = (chain * RSAKeys.sk) option
 
 (* First argument (Sig.alg list) for both functions gives the allowed
  * signing alg. used for signing the key. For [for_signing] TLS1.2
@@ -24,20 +24,20 @@ val get_public_encryption_key : cert -> RSAKeys.pk Result
 val is_for_signing : cert -> bool
 val is_for_key_encryption : cert -> bool
 
-val get_chain_public_signing_key : certchain -> Sig.alg -> Sig.pkey Result
-val get_chain_public_encryption_key : certchain -> RSAKeys.pk Result
+val get_chain_public_signing_key : chain -> Sig.alg -> Sig.pkey Result
+val get_chain_public_encryption_key : chain -> RSAKeys.pk Result
 
-val is_chain_for_signing : certchain -> bool
-val is_chain_for_key_encryption : certchain -> bool
+val is_chain_for_signing : chain -> bool
+val is_chain_for_key_encryption : chain -> bool
 
-val get_chain_key_algorithm : certchain -> TLSConstants.sigAlg option
+val get_chain_key_algorithm : chain -> TLSConstants.sigAlg option
 
-val get_hint : certchain -> hint option
+val get_hint : chain -> hint option
 
 (* First argument (Sig.alg list) gives the allowed signing alg. used for
  * signing the keys of the chain.
  *)
-val validate_cert_chain : Sig.alg list -> certchain -> bool
+val validate_cert_chain : Sig.alg list -> chain -> bool
 
-val certificateListBytes: certchain -> bytes
-val parseCertificateList: bytes -> certchain -> certchain Result
+val certificateListBytes: chain -> bytes
+val parseCertificateList: bytes -> chain -> chain Result

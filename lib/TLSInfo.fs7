@@ -106,7 +106,7 @@ predicate CTXT of cipherAlg * hashAlg //INT-CTXT
 // some reasonable assumptions:
 // assume !e. PRF(m)  => CTXT(AES_128_CBC,m) // /\ SPRP(AES_128)
 // assume !e. PRF(m)  => CTXT(AES_256_CBC,m) // /\ SPRP(AES_256)
-
+// CF where do we declare & assume CTXTR and SPRP?
 predicate StrongAE of cipherSuite
 predicate StrongAuth of cipherSuite
 
@@ -117,35 +117,35 @@ definition !s. StrongAuth(s) <=> (?e,m. IsAEADCiphersuite(s) /\ AEAlg(s) = MtE(e
 // Predicates specifying the security of TLS connections 
 
 predicate type cryptopreds = 
-  | SafeHS of epoch // specified by the Handshake
-  | Safe of epoch // The epoch parameters yield privacy & integrity
-  | Auth of epoch // The epoch parameters yield integrity (not necesarily privacy)
+| SafeHS of epoch // specified by the Handshake
+| Safe   of epoch // The epoch parameters yield privacy & integrity
+| Auth   of epoch // The epoch parameters yield integrity (not necesarily privacy)
 
 (*
 
-predicate IND-CMA_S of ProtocolVersion * cipherSuite
-predicate CRE of ProtocolVersion * cipherSuite
-predicate PRF of ProtocolVersion * cipherSuite
-predicate RSA-PMS of ProtocolVersion * cipherSuite
-predicate DH-PMS of ProtocolVersion * cipherSuite
-predicate StrongHS of ProtocolVersion * cipherSuite
+// CF Handshake predicates; seems Ok. Why commented out? 
+predicate INT_CMA_S of ProtocolVersion * cipherSuite
+predicate CRE       of ProtocolVersion * cipherSuite
+predicate PRF       of ProtocolVersion * cipherSuite
+predicate RSA_PMS   of ProtocolVersion * cipherSuite
+predicate DH_PMS    of ProtocolVersion * cipherSuite
+predicate StrongHS  of ProtocolVersion * cipherSuite
 
-definition !v,s. StrongHS(v,s) <=> INT-CMA_S(v,s) /\ CRE(v,s) /\ PRF(v,s) /\ ( RSA_PMS(v,s) \/ DH_PMS(v,s) )
+definition !v,s. StrongHS(v,s) <=> INT_CMA_S(v,s) /\ CRE(v,s) /\ PRF(v,s) /\ ( RSA_PMS(v,s) \/ DH_PMS(v,s) )
 
-predicate SafeHS of epoch
-
-definition !e. SafeHS(id) <=> StrongHS(EpochSI(id).protocol_version,CS(id)) /\ ClientPMS(EpochSI(id)) /\ Honest(ServerKey(id))
+definition !e. SafeHS(id) <=> 
+      StrongHS(EpochSI(id).protocol_version,CS(id)) 
+   /\ ClientPMS(EpochSI(id))
+   /\ Honest(ServerKey(id))
 // /\ Honest(LTKey(id)) /\ Honest(LTKey(Peer(id)))
-
-predicate Save of epoch
-predicate Auth of epoch
 
 *)
   
-definition !i. Safe(i) <=> (SafeHS(i) /\ StrongAE(EpochSI(i).cipher_suite))
-definition !i. Auth(i) <=> (SafeHS(i) /\ StrongAuth(EpochSI(i).cipher_suite))
+definition !i. Safe(i) <=> SafeHS(i) /\ StrongAE  (EpochSI(i).cipher_suite)
+definition !i. Auth(i) <=> SafeHS(i) /\ StrongAuth(EpochSI(i).cipher_suite)
 
 // not quite derivable unless we add CTXT => CMA
+// CF do we use it?
 assume !ki. Safe(ki) => Auth(ki) 
 
 ask !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) => not Safe(ki)

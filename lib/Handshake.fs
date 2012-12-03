@@ -200,7 +200,7 @@ let serverHelloDoneBytes = messageBytes HT_server_hello_done [||]
 
 let serverCertificateBytes cl = messageBytes HT_certificate (Cert.certificateListBytes cl)
 
-let clientCertificateBytes (cs:(Cert.certchain * Sig.alg * Sig.skey) option) =
+let clientCertificateBytes (cs:(Cert.chain * Sig.alg * Sig.skey) option) =
     // TODO: move this match outside, and merge with serverCertificateBytes
     match cs with
     | None -> messageBytes HT_certificate (Cert.certificateListBytes [])
@@ -839,7 +839,7 @@ let next_fragment ci state =
 type incoming = (* the fragment is accepted, and... *)
   | InAck of hs_state
   | InVersionAgreed of hs_state * ProtocolVersion
-  | InQuery of Cert.certchain * bool * hs_state
+  | InQuery of Cert.chain * bool * hs_state
   | InFinished of hs_state
   | InComplete of hs_state
   | InError of alertDescription * string * hs_state
@@ -862,7 +862,7 @@ let find_client_cert_sign certType certAlg (distName:string list) pv hint =
         let keyAlg = sigHashAlg_bySigList certAlg (cert_type_list_to_SigAlg certType) in
         Cert.for_signing certAlg hint keyAlg
 
-let getCertificateBytes (si:SessionInfo) (cert_req:(Cert.certchain * Sig.alg * Sig.skey) option) = 
+let getCertificateBytes (si:SessionInfo) (cert_req:(Cert.chain * Sig.alg * Sig.skey) option) = 
   let clientCertBytes = clientCertificateBytes cert_req in
   match cert_req with
     | None when si.client_auth = true -> clientCertBytes,[]
@@ -870,7 +870,7 @@ let getCertificateBytes (si:SessionInfo) (cert_req:(Cert.certchain * Sig.alg * S
         let (certList,_,_) = x in clientCertBytes,certList
     | _ when si.client_auth = false -> [||],[]
 
-let getCertificateVerifyBytes (si:SessionInfo) (ms:PRF.masterSecret) (cert_req:(Cert.certchain * Sig.alg * Sig.skey) option) (l:log) =
+let getCertificateVerifyBytes (si:SessionInfo) (ms:PRF.masterSecret) (cert_req:(Cert.chain * Sig.alg * Sig.skey) option) (l:log) =
   match cert_req with
     | None when si.client_auth = true ->
         (* We sent an empty Certificate message, so no certificate verify message at all *)
@@ -1765,7 +1765,7 @@ let getMinVersion (ci:ConnectionInfo) state =
   let pop = state.poptions in
   pop.minVer
 
-let authorize (ci:ConnectionInfo) (state:hs_state) (q:Cert.certchain) =
+let authorize (ci:ConnectionInfo) (state:hs_state) (q:Cert.chain) =
     let pstate = state.pstate in
     match pstate with
     | PSClient(cstate) ->

@@ -7,9 +7,9 @@ open TLSConstants
 type hint = string
 type cert = bytes
 
-type certchain = cert list
-type sign_cert = (certchain * a:Sig.alg * (;a)Sig.skey) option
-type enc_cert = (certchain * RSAKeys.sk) option
+type chain = cert list
+type sign_cert = (chain * a:Sig.alg * (;a)Sig.skey) option
+type enc_cert = (chain * RSAKeys.sk) option
 
 val for_signing : Sig.alg list -> hint -> Sig.alg list -> sign_cert
 val for_key_encryption : Sig.alg list -> hint -> enc_cert
@@ -17,22 +17,22 @@ val for_key_encryption : Sig.alg list -> hint -> enc_cert
 val get_public_signing_key : cert -> a:Sig.alg -> (;a)Sig.pkey Result
 val get_public_encryption_key : cert -> RSAKeys.pk Result
 
-val is_for_signing : cert -> bool
-val is_for_key_encryption : cert -> bool
+val is_for_signing:        cert -> bool
+val is_for_key_encryption: cert -> bool
 
-val get_chain_public_signing_key : certchain -> a:Sig.alg -> (;a)Sig.pkey Result
+val get_chain_public_signing_key : chain -> a:Sig.alg -> (;a)Sig.pkey Result
 
 function val RSAPKCert: cert list -> RSAKeys.pk
-val get_chain_public_encryption_key : c:certchain -> (pk:RSAKeys.pk{pk=RSAPKCert(c)}) Result
+val get_chain_public_encryption_key : c:chain -> (pk:RSAKeys.pk{pk=RSAPKCert(c)}) Result
 
-val is_chain_for_signing : certchain -> bool
-val is_chain_for_key_encryption : certchain -> bool
+val is_chain_for_signing:        chain -> bool
+val is_chain_for_key_encryption: chain -> bool
 
-val get_chain_key_algorithm : certchain -> TLSConstants.sigAlg option
+val get_chain_key_algorithm : chain -> TLSConstants.sigAlg option
 
-val get_hint: certchain -> hint option
+val get_hint: chain -> hint option
 
-val validate_cert_chain : Sig.alg list -> certchain -> bool
+val validate_cert_chain : Sig.alg list -> chain -> bool
 
 
 (* ---- TLS-specific encoding ---- *)
@@ -40,13 +40,13 @@ val validate_cert_chain : Sig.alg list -> certchain -> bool
 private val consCertificateBytes: c:bytes -> a:bytes ->
 	b:bytes{b=VLBytes(3,c) @| a}
 
-function val CertificateListBytes: certchain -> bytes
+function val CertificateListBytes: chain -> bytes
 //private definition !bl. CertificateMsg(bl) = MessageBytes(HT_certificate,VLBytes(3,UnfoldBack(bl,[||])))
 
-val certificateListBytes: cl:certchain ->
+val certificateListBytes: cl:chain ->
 	b:bytes{b=VLBytes(3,CertificateListBytes(cl))}
-val parseCertificateList: b:bytes -> acc:certchain ->
-	(cl:certchain{(* ?l. cl = l @ acc /\ b=CertificateListBytes(l) *)
+val parseCertificateList: b:bytes -> acc:chain ->
+	(cl:chain{(* ?l. cl = l @ acc /\ b=CertificateListBytes(l) *)
 		acc = [] => b=CertificateListBytes(cl)}) Result
 
 //AP: Commenting out to let typeckeching go through
@@ -71,7 +71,8 @@ val template = bytes // some unspecified parameters for keys
 // type sk = DHSecret of DH.s | RSAPrivateKey of RSA.s | ... 
 
 predicate val Honest: pk -> bool
-// events tracking correct key generations
+// event tracking correct key generations
+// (defined as the indexes of the created key log)
 
 val create: template -> (pk:pk {Honest(pk)}) option 
 // correctly produces and stores a fresh keypair

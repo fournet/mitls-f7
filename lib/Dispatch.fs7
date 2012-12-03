@@ -175,7 +175,7 @@ type (;r:Role,c:config) nullCn = conn:Connection {
 predicate NextCn of Connection * Connection
 assume !c,c'. NextCn(c,c') <=> ( Config(c')  = Config(c) /\ Role(c') = Role(c) /\ CnId(c') = CnId(c) )
 type (;c:Connection) nextCn = c':Connection {NextCn(c,c')}
-type query = Cert.certchain
+type query = Cert.chain
 
 type writeOutcome =
     | WError of string 

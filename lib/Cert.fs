@@ -14,9 +14,9 @@ open Error
 type hint = string
 type cert = bytes
 
-type certchain = cert list
-type sign_cert = (certchain * Sig.alg * Sig.skey) option
-type enc_cert  = (certchain * RSAKeys.sk) option
+type chain = cert list
+type sign_cert = (chain * Sig.alg * Sig.skey) option
+type enc_cert  = (chain * RSAKeys.sk) option
 
 (* ------------------------------------------------------------------------ *)
 let OID_RSAEncryption           = "1.2.840.113549.1.1.1"
@@ -208,10 +208,10 @@ let is_for_key_encryption (c : cert) =
     with :? CryptographicException -> false
 
 (* ------------------------------------------------------------------------ *)
-let is_chain_for_signing (chain : certchain) =
+let is_chain_for_signing (chain : chain) =
     match chain with [] -> false| c :: _ -> is_for_signing c
 
-let is_chain_for_key_encryption (chain : certchain) =
+let is_chain_for_key_encryption (chain : chain) =
     match chain with [] -> false| c :: _ -> is_for_key_encryption c
 
 (* ------------------------------------------------------------------------ *)
@@ -239,18 +239,18 @@ let get_public_encryption_key (c : cert) : RSAKeys.pk Result =
     with :? CryptographicException -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 (* ------------------------------------------------------------------------ *)
-let get_chain_public_signing_key (chain : certchain) a =
+let get_chain_public_signing_key (chain : chain) a =
     match chain with
     | []     -> Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "This is likely a bug, please report it")
     | c :: _ -> get_public_signing_key c a
 
-let get_chain_public_encryption_key (chain : certchain) =
+let get_chain_public_encryption_key (chain : chain) =
     match chain with
     | []     -> Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "This is likely a bug, please report it")
     | c :: _ -> get_public_encryption_key c
 
 (* ------------------------------------------------------------------------ *)
-let get_chain_key_algorithm (chain : certchain) =
+let get_chain_key_algorithm (chain : chain) =
     match chain with
     | []     -> None
     | c :: _ ->
@@ -288,7 +288,7 @@ let rec validate_x509_chain (c : X509Certificate2) (issuers : X509Certificate2 l
     with :? CryptographicException -> false
 
 (* ------------------------------------------------------------------------ *)
-let validate_cert_chain (sigkeyalgs : Sig.alg list) (chain : certchain) =
+let validate_cert_chain (sigkeyalgs : Sig.alg list) (chain : chain) =
     match chain with
     | []           -> false
     | c :: issuers ->
@@ -302,7 +302,7 @@ let validate_cert_chain (sigkeyalgs : Sig.alg list) (chain : certchain) =
             false
 
 (* ------------------------------------------------------------------------ *)
-let get_hint (chain : certchain) =
+let get_hint (chain : chain) =
     let chain = List.map (fun (c : cert) -> new X509Certificate2(c)) chain in
 
     match chain with
