@@ -1,4 +1,4 @@
-﻿module Cert 
+module Cert 
 
 open Bytes
 open Error
@@ -30,7 +30,8 @@ val is_chain_for_key_encryption: chain -> bool
 
 val get_chain_key_algorithm : chain -> TLSConstants.sigAlg option
 
-val get_hint: chain -> hint option
+function val CN: chain -> hint
+val get_hint: c:chain -> (cn:hint{cn=CN(c)}) option
 
 val validate_cert_chain : Sig.alg list -> chain -> bool
 
