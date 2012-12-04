@@ -4,30 +4,11 @@ open Bytes
 open TLSInfo
 open TLSConstants
 
-type adata = AEADPlain.adata
-type preds = Unsafe of epoch
-
-type AEFragment = {contents: AEADPlain.plain}
-type AEPlain = AEFragment
-
-let AEPlain (e:epoch) (r:range) (ad:adata) (b:bytes) =
-    // parseAD
-    { contents = AEADPlain.plain e ad r b }
-let AERepr  (e:epoch) (r:range) (ad:adata) (p:AEPlain) =
-    // parseAD
-    AEADPlain.repr e ad r p.contents
-
-let AEConstruct (e:epoch) (r:range) (ad:adata) (sb:AEADPlain.plain) =
-  {contents = sb}
-let AEContents  (e:epoch) (r:range) (ad:adata) (p:AEPlain) = 
-  p.contents
-
 type MACPlain = {macP: bytes}
 type tag = {macT: bytes}
 
 let macPlain (e:epoch) (rg:range) ad f =
-    Pi.assume(Unsafe(e));
-    let b = AERepr e rg ad f in
+    let b = AEADPlain.repr e ad rg f in
     let fLen = bytes_of_int 2 (length b) in
     let fullData = ad @| fLen in 
     {macP = fullData @| b} 
@@ -105,9 +86,8 @@ type plain = {p:bytes}
 let plain (e:epoch) (tlen:nat)  b = {p=b}
 let repr (e:epoch) (tlen:nat) pl = pl.p
 
-let encodeNoPad (e:epoch) rg (ad:adata) data tag =
-    Pi.assume(Unsafe(e));
-    let b = AERepr e rg ad data in
+let encodeNoPad (e:epoch) rg (ad:AEADPlain.adata) data tag =
+    let b = AEADPlain.repr e ad rg data in
     // assert
     let (l,h) = rg in
     if l <> h || h <> length b then
@@ -122,7 +102,7 @@ let encodeNoPad (e:epoch) rg (ad:adata) data tag =
 
 let pad (p:int)  = createBytes p (p-1)
 
-let encode (e:epoch) rg (ad:adata) data tag =
+let encode (e:epoch) rg (ad:AEADPlain.adata) data tag =
     // TODO: A bit too special for stream cipher. Would be nicer if we had a more
     // TODO: robust encoding with or without padding. (So also working for MACOnly ciphersuites)
     let si = epochSI(e) in
@@ -131,8 +111,7 @@ let encode (e:epoch) rg (ad:adata) data tag =
     | RC4_128 ->
         encodeNoPad e rg ad data tag
     | _ ->
-    Pi.assume(Unsafe(e));
-    let b = AERepr e rg ad data in
+    let b = AEADPlain.repr e ad rg data in
     let ivL = ivLength e in
     let tlen = rangeCipher e rg in
     let lb = length b in
@@ -149,7 +128,7 @@ let check_split b l =
   if l < 0 then failwith "split failed: FIX THIS to return BOOL + ..."
   else Bytes.split b l
 
-let decodeNoPad e (ad:adata) tlen plain =
+let decodeNoPad e (ad:AEADPlain.adata) tlen plain =
     // assert length plain.d = tlen
     let si = epochSI(e) in
     let cs = si.cipher_suite in
@@ -162,12 +141,11 @@ let decodeNoPad e (ad:adata) tlen plain =
     let payloadLen = plainLen - maclen in
     let (frag,mac) = Bytes.split pl payloadLen in
     let rg = (payloadLen,payloadLen) in
-    Pi.assume(Unsafe(e));
-    let aeadF = AEPlain e rg ad frag in
+    let aeadF = AEADPlain.plain e ad rg frag in
     let tag = {macT = mac} in
     (rg,aeadF,tag)
 
-let decode e (ad:adata) tlen plain =
+let decode e (ad:AEADPlain.adata) tlen plain =
     // TODO: A bit too special for stream cipher. Would be nicer if we had a more
     // TODO: robust encoding with or without padding. (So also working for MACOnly ciphersuites)
     let si = epochSI(e) in
@@ -194,8 +172,7 @@ let decode e (ad:adata) tlen plain =
         (* Pretend we have a valid padding of length zero, but set we must fail *)
         let macStart = pLen - macSize - 1 in
         let (frag,mac) = check_split tmpdata macStart in
-        Pi.assume(Unsafe(e));
-        let aeadF = AEPlain e rg ad frag in
+        let aeadF = AEADPlain.plain e ad rg frag in
         let tag = {macT = mac} in
         (rg,aeadF,tag,false)
         (*
@@ -218,16 +195,14 @@ let decode e (ad:adata) tlen plain =
             if equalBytes expected pad then
                 let macStart = pLen - macSize - padlen - 1 in
                 let (frag,mac) = check_split data_no_pad macStart in
-                Pi.assume(Unsafe(e));
-                let aeadF = AEPlain e rg ad frag in
+                let aeadF = AEADPlain.plain e ad rg frag in
                 let tag = {macT = mac} in
                 (rg,aeadF,tag,true)
             else
                 (* Pretend we have a valid padding of length zero, but set we must fail *)
                 let macStart = pLen - macSize - 1 in
                 let (frag,mac) = check_split tmpdata macStart in
-                Pi.assume(Unsafe(e));
-                let aeadF = AEPlain e rg ad frag in
+                let aeadF = AEADPlain.plain e ad rg frag in
                 let tag = {macT = mac} in
                 (rg,aeadF,tag,false)
                 (*
@@ -249,8 +224,7 @@ let decode e (ad:adata) tlen plain =
                 (* Pretend we have a valid padding of length zero, but set we must fail *)
                 let macStart = pLen - macSize - 1 in
                 let (frag,mac) = check_split tmpdata macStart in
-                Pi.assume(Unsafe(e));
-                let aeadF = AEPlain e rg ad frag in
+                let aeadF = AEADPlain.plain e ad rg frag in
                 let tag = {macT = mac} in
                 (rg,aeadF,tag,false)
                 (*
@@ -261,12 +235,6 @@ let decode e (ad:adata) tlen plain =
             else
                 let macStart = pLen - macSize - padlen - 1 in
                 let (frag,mac) = check_split data_no_pad macStart in
-                Pi.assume(Unsafe(e));
-                let aeadF = AEPlain e rg ad frag in
+                let aeadF = AEADPlain.plain e ad rg frag in
                 let tag = {macT = mac} in
                 (rg,aeadF,tag,true)
-
-let AEADPlainToAEPlain (e:epoch) (rg:range) (ad:AEADPlain.adata) p =
-    AEConstruct e rg ad p
-let AEPlainToAEADPlain (e:epoch) (rg:range) (ad:AEADPlain.adata) p =
-    AEContents e rg ad p

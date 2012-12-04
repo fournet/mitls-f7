@@ -63,19 +63,18 @@ let LEAK ki k =
 
 let encrypt' ki key data rg plain =
     let si = epochSI(ki) in
-    let aep = Encode.AEADPlainToAEPlain ki rg data plain in
     let cs = si.cipher_suite in
     match (cs,key) with
     | (x, MtE (ka,ke)) when isAEADCipherSuite x ->
-        let maced          = Encode.macPlain ki rg data aep
+        let maced          = Encode.macPlain ki rg data plain
         let tag            = Encode.mac    ki ka maced  
-        let (tlen,encoded) = Encode.encode ki rg data aep tag
+        let (tlen,encoded) = Encode.encode ki rg data plain tag
         let (ke,res)       = ENC.ENC ki ke tlen encoded 
         (MtE(ka,ke),res)
     | (x,MACOnly (ka)) when isOnlyMACCipherSuite x ->
-        let maced          = Encode.macPlain ki rg data aep
+        let maced          = Encode.macPlain ki rg data plain
         let tag            = Encode.mac    ki ka maced  
-        let (tlen,encoded) = Encode.encodeNoPad ki rg data aep tag
+        let (tlen,encoded) = Encode.encodeNoPad ki rg data plain tag
         let r = Encode.repr ki tlen encoded in
         (key,r)
 //  | GCM (k) -> ... 
@@ -92,9 +91,8 @@ let decrypt' ki key data cipher =
         let (ke,encoded)      = ENC.DEC ki ke cipher in
         let nk = mteKey ki ka ke in
         let cl = length cipher in
-        let (rg,aep,tag,ok) = Encode.decode ki data cl encoded in
-        let plain = Encode.AEPlainToAEADPlain ki rg data aep in
-        let maced             = Encode.macPlain ki rg data aep
+        let (rg,plain,tag,ok) = Encode.decode ki data cl encoded in
+        let maced             = Encode.macPlain ki rg data plain
         match si.protocol_version with
         | SSL_3p0 | TLS_1p0 ->
             if ok then 
@@ -110,9 +108,8 @@ let decrypt' ki key data cipher =
             else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
     | (x,MACOnly (ka)) when isOnlyMACCipherSuite x ->
         let encoded        = Encode.plain ki (length cipher) cipher in
-        let (rg,aep,tag) = Encode.decodeNoPad ki data (length cipher) encoded in
-        let plain = Encode.AEPlainToAEADPlain ki rg data aep in
-        let maced          = Encode.macPlain ki rg data aep
+        let (rg,plain,tag) = Encode.decodeNoPad ki data (length cipher) encoded in
+        let maced          = Encode.macPlain ki rg data plain
         if Encode.verify ki ka maced tag 
         then   correct (key,rg,plain)
           else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
