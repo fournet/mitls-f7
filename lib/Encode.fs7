@@ -16,10 +16,6 @@ val repr:  e:epoch{not Safe(e)} -> tlen:nat -> (;e,tlen) plain -> b:bytes{Length
 
 val pad: l:int -> b:bytes{Length(b) = l}
 
-val check_split: 
-  b:bytes -> i:int -> 
-  b1:bytes * b2:bytes { Length(b1) = i /\ b = b1 @| b2 }
-
 
 //------------------------------------------------------------------------------------------------------
 // Interface towards AEAD
@@ -47,10 +43,10 @@ val verify: e:succEpoch -> k:(;e) MAC.key -> text:(;e) MACPlain -> tag:(;e) tag 
   v:bool{v = true => (?r,ad,f. text = MACPlain(e,r,ad,f)) /\ (MACed(e,k,text,tag) => v = true)}
 
 // Padding computations
-val padLength: e:succEpoch -> nat -> nat
+private val blockAlignPadding: e:succEpoch -> nat -> nat
 function val RangeCipher: epoch * range -> nat // not injective
-val rangeCipher: e:succEpoch -> r:range -> tlen:nat{tlen = RangeCipher(e,r) /\ tlen <= fragmentLength}
-val cipherRange: e:succEpoch -> tlen:nat{tlen <= fragmentLength} -> r:range{tlen = RangeCipher(e,r)}
+private val rangeCipher: e:succEpoch -> r:range -> tlen:nat{tlen = RangeCipher(e,r) /\ tlen <= fragmentLength}
+private val cipherRange: e:succEpoch -> tlen:nat{tlen <= fragmentLength} -> r:range{tlen = RangeCipher(e,r)}
 
 predicate val Encoded: 'e * 'a * 'b * 'c * 'd -> bool
 val encode: e:succEpoch{IsAEADCiphersuite(EpochSI(e).cipher_suite)} ->
@@ -69,20 +65,18 @@ val decodeNoPad: e:succEpoch{IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/
                     CipherSuiteENCAlg(EpochSI(e).cipher_suite) = RC4_128} ->
 	ad:(;e) AEADPlain.adata -> tlen:nat -> (;e,tlen) plain ->
 	(rg:range * (;e,ad,rg)AEADPlain.plain * (;e)tag){tlen=RangeCipher(e,rg)}
-// TODO: Say that the result of encode is "block-aligned" (more generally: compatible with the current enc algorithm)
-
 
 //------------------------------------------------------------------------------------------------------
-// Auxiliary definitions and Assumes for typing (CHECK!)
+// Auxiliary definitions and Assumes for typing
 //------------------------------------------------------------------------------------------------------
 
 function val MsgBytes: e:epoch * (;e) adata * bytes -> bytes
-assume !e,ad,x. MsgBytes(e,ad,x) = (ad @| IntBytes(2,Length(x))) @| x 
-assume !e,ad1,x1,ad2,x2. (Length(ad1) = Length(ad2) /\
+private assume !e,ad,x. MsgBytes(e,ad,x) = (ad @| IntBytes(2,Length(x))) @| x 
+private assume !e,ad1,x1,ad2,x2. (Length(ad1) = Length(ad2) /\
                         MsgBytes(e,ad1,x1) = MsgBytes(e,ad2,x2)) => 
                        (ad1 = ad2 /\ x1=x2)
 
-assume !e,tlen,pl. MAC.Msg(e,pl) <=>
+private assume !e,tlen,pl. MAC.Msg(e,pl) <=>
   (not Auth(e) \/
      (?ad,x. Length(ad) = (8 + StatefulPlain.ADLength(e)) /\
 	  pl = MsgBytes(e,ad,x)))
@@ -90,7 +84,7 @@ assume !e,tlen,pl. MAC.Msg(e,pl) <=>
 ask !e,t. not Auth(e) => MAC.Msg(e,t)
 
 
-assume !e. IVSize(e) >= 0
+private assume !e. IVSize(e) >= 0
 assume !e,si. si = EpochSI(e) =>
 	( si.protocol_version = SSL_3p0 \/ si.protocol_version = TLS_1p0
 		=> IVSize(e) = 0 ) /\

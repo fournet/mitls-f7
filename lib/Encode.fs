@@ -17,20 +17,20 @@ let mac e k t =
     {macT = MAC.Mac e k t.macP}
 
 let verify e k text tag =
+    (*@ We note a small timing leak here:
+    The time to verify the mac is linear in the
+    plaintext length. *)
     MAC.Verify e k text.macP tag.macT
 
-// From Ranges to Target Length
-let padLength e len =
-    // Always compute minimal padding.
-    // Ranges are taking care of requiring more pad, where appropriate.
+let blockAlignPadding e len =
     let si = epochSI(e) in
     let alg = encAlg_of_ciphersuite si.cipher_suite in
     let bs = blockSize alg in
     if bs = 0 then
-        // No Padding at all
+        //@ Stream cipher: no Padding at all
         0
     else
-        let overflow = (len + 1) % bs // at least one extra byte of padding
+        let overflow = (len + 1) % bs //@ at least one extra byte of padding
         if overflow = 0 then 1 else 1 + bs - overflow 
 
 let ivLength e =
@@ -40,7 +40,8 @@ let ivLength e =
     | TLS_1p1 | TLS_1p2 ->
         let encAlg = encAlg_of_ciphersuite si.cipher_suite in
           ivSize encAlg 
-    
+
+//@ From range to target ciphertext length 
 let rangeCipher e (rg:range) =
     let si = epochSI(e) in
     let (_,h) = rg in
@@ -57,7 +58,7 @@ let rangeCipher e (rg:range) =
         let ivL = ivLength e in
         let macLen = macSize (macAlg_of_ciphersuite cs) in
         let prePad = h + macLen in
-        let padLen = padLength e prePad in
+        let padLen = blockAlignPadding e prePad in
         let res = ivL + prePad + padLen in
         if res > fragmentLength then
             Error.unexpectedError "[rangeCipher] given an invalid input range."
@@ -65,16 +66,15 @@ let rangeCipher e (rg:range) =
             res
     | _ -> Error.unexpectedError "[rangeCipher] invoked on invalid ciphersuite."
 
-// And from Target Length to Ranges
+//@ From ciphertext length to range
 let cipherRange e tlen =
-    // we could be more precise, taking into account block alignement
     let si = epochSI(e) in
     let macSize = macSize (macAlg_of_ciphersuite si.cipher_suite) in
     let max = tlen - macSize - 1 in
     if max < 0 then
         Error.unexpectedError "[cipherRange] the given tlen should be of a valid ciphertext"
     else
-        // FIXME: in SSL/TLS1.0 pad is at most one block size. We could be more precise.
+        // FIXME: in SSL pad is at most one block size. We could be more precise.
         let min = max - 255 in
         if min < 0 then
             (0,max)
@@ -88,7 +88,6 @@ let repr (e:epoch) (tlen:nat) pl = pl.p
 
 let encodeNoPad (e:epoch) rg (ad:AEADPlain.adata) data tag =
     let b = AEADPlain.repr e ad rg data in
-    // assert
     let (l,h) = rg in
     if l <> h || h <> length b then
         Error.unexpectedError "[encodeNoPad] invoked on an invalid range."
@@ -103,8 +102,6 @@ let encodeNoPad (e:epoch) rg (ad:AEADPlain.adata) data tag =
 let pad (p:int)  = createBytes p (p-1)
 
 let encode (e:epoch) rg (ad:AEADPlain.adata) data tag =
-    // TODO: A bit too special for stream cipher. Would be nicer if we had a more
-    // TODO: robust encoding with or without padding. (So also working for MACOnly ciphersuites)
     let si = epochSI(e) in
     let alg = encAlg_of_ciphersuite si.cipher_suite in
     match alg with
@@ -122,11 +119,6 @@ let encode (e:epoch) rg (ad:AEADPlain.adata) data tag =
         Error.unexpectedError "[encode] Internal error."
     else
         (tlen, {p = payload})
-
-let check_split b l = 
-  if length(b) < l then failwith "split failed: FIX THIS to return BOOL + ..."
-  if l < 0 then failwith "split failed: FIX THIS to return BOOL + ..."
-  else Bytes.split b l
 
 let decodeNoPad e (ad:AEADPlain.adata) tlen plain =
     // assert length plain.d = tlen
@@ -146,8 +138,6 @@ let decodeNoPad e (ad:AEADPlain.adata) tlen plain =
     (rg,aeadF,tag)
 
 let decode e (ad:AEADPlain.adata) tlen plain =
-    // TODO: A bit too special for stream cipher. Would be nicer if we had a more
-    // TODO: robust encoding with or without padding. (So also working for MACOnly ciphersuites)
     let si = epochSI(e) in
     let alg = encAlg_of_ciphersuite si.cipher_suite in
     match alg with
@@ -162,79 +152,43 @@ let decode e (ad:AEADPlain.adata) tlen plain =
     let pl = plain.p in
     let pLen = length pl in
     if pLen <> expected || pLen < 1 then
-        Error.unexpectedError "[parse] tlen should be a valid target lentgth"
+        Error.unexpectedError "[parse] tlen does not match plaintext length"
     else
     let padLenStart = pLen - 1 in
     let (tmpdata, padlenb) = Bytes.split pl padLenStart in
     let padlen = int_of_bytes padlenb in
     let padstart = pLen - padlen - 1 in
-    if padstart < 0 then
-        (* Pretend we have a valid padding of length zero, but set we must fail *)
-        let macStart = pLen - macSize - 1 in
-        let (frag,mac) = check_split tmpdata macStart in
-        let aeadF = AEADPlain.plain e ad rg frag in
-        let tag = {macT = mac} in
-        (rg,aeadF,tag,false)
-        (*
-        (* Evidently padding has been corrupted, or has been incorrectly generated *)
-        (* in TLS1.0 we fail now, in more recent versions we fail later, see sec.6.2.3.2 Implementation Note *)
-        match epochSI(e).protocol_version with
-        | v when v >= TLS_1p1 ->
-            (* Pretend we have a valid padding of length zero, but set we must fail *)
-            correct(data,true)
-        | v when v = SSL_3p0 || v = TLS_1p0 ->
-            (* in TLS1.0/SSL we fail now, in more recent versions we fail later, see sec.6.2.3.2 Implementation Note *)
-            Error (RecordPadding,CheckFailed)
-        | _ -> unexpectedError "[check_padding] wrong protocol version"
-        *)
-    else
-        let (data_no_pad,pad) = check_split tmpdata padstart in
-        match si.protocol_version with
-        | TLS_1p0 | TLS_1p1 | TLS_1p2 ->
-            let expected = createBytes padlen padlen in
-            if equalBytes expected pad then
-                let macStart = pLen - macSize - padlen - 1 in
-                let (frag,mac) = check_split data_no_pad macStart in
-                let aeadF = AEADPlain.plain e ad rg frag in
-                let tag = {macT = mac} in
-                (rg,aeadF,tag,true)
-            else
-                (* Pretend we have a valid padding of length zero, but set we must fail *)
-                let macStart = pLen - macSize - 1 in
-                let (frag,mac) = check_split tmpdata macStart in
-                let aeadF = AEADPlain.plain e ad rg frag in
-                let tag = {macT = mac} in
-                (rg,aeadF,tag,false)
-                (*
-                (* in TLS1.0 we fail now, in more recent versions we fail later, see sec.6.2.3.2 Implementation Note *)
-                if  v = TLS_1p0 then
-                    Error (RecordPadding,CheckFailed)
+    let encAlg = encAlg_of_ciphersuite si.cipher_suite in
+    let bs = blockSize encAlg in
+    let (flag,data,padlen) =
+        if padstart < 0 then
+            (*@ Evidently padding has been corrupted, or has been incorrectly generated *)
+            (*@ Following TLS1.1 we fail later (see RFC5246 6.2.3.2 Implementation Note) *)
+            (false,tmpdata,0)
+        else
+            let (data_no_pad,pad) = check_split tmpdata padstart in
+            match si.protocol_version with
+            | TLS_1p0 | TLS_1p1 | TLS_1p2 ->
+                (*@ We note the small timing leak here.
+                    The timing of the following two lines
+                    depends on padding length.
+                    We could mitigate it by implementing
+                    constant time comparison up to maximum padding length.*)
+                let expected = createBytes padlen padlen in
+                if equalBytes expected pad then
+                    (true,data_no_pad,padlen)
                 else
-                    (* Pretend we have a valid padding of length zero, but set we must fail *)
-                    correct (data,true)
-                *)
-        | SSL_3p0 ->
-            (* Padding is random in SSL_3p0, no check to be done on its content.
-               However, its length should be at most one bs
-               (See sec 5.2.3.2 of SSL 3 draft). Enforce this check (which
-               is performed by openssl, and not by wireshark for example). *)
-            let encAlg = encAlg_of_ciphersuite si.cipher_suite in
-            let bs = blockSize encAlg in
-            if padlen >= bs then
-                (* Pretend we have a valid padding of length zero, but set we must fail *)
-                let macStart = pLen - macSize - 1 in
-                let (frag,mac) = check_split tmpdata macStart in
-                let aeadF = AEADPlain.plain e ad rg frag in
-                let tag = {macT = mac} in
-                (rg,aeadF,tag,false)
-                (*
-                (* Insecurely report the error. Only TLS 1.1 and above should
-                   be secure with this respect *)
-                Error (RecordPadding,CheckFailed)
-                *)
-            else
-                let macStart = pLen - macSize - padlen - 1 in
-                let (frag,mac) = check_split data_no_pad macStart in
-                let aeadF = AEADPlain.plain e ad rg frag in
-                let tag = {macT = mac} in
-                (rg,aeadF,tag,true)
+                    (false,tmpdata,0)
+            | SSL_3p0 ->
+               (*@ Padding is random in SSL_3p0, no check to be done on its content.
+                   However, its length should be at most one bs
+                   (See sec 5.2.3.2 of SSL 3 draft). Enforce this check. *)
+                if padlen < bs then
+                    (true,data_no_pad,padlen)
+                else
+                    (false,tmpdata,0)
+    let macStart = pLen - macSize - padlen - 1 in
+    let (frag,mac) = check_split data macStart in
+    let aeadF = AEADPlain.plain e ad rg frag in
+    let tag = {macT = mac} in
+    (rg,aeadF,tag,flag)

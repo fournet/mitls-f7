@@ -27,6 +27,7 @@ let bytes_of_int nb i =
 let int_of_bytes (b:bytes) : int =
     List.fold (fun x y -> 256 * x + y) 0 (List.map (int) (Array.toList b))
 
+//@ Constant time comparison
 let equalBytes (b1:bytes) (b2:bytes) =
     if length b1 <> length b2 then
         false
@@ -41,7 +42,11 @@ let split2 (b:bytes) i j : bytes * bytes * bytes =
   Array.sub b 0 i,
   Array.sub b i j,
   Array.sub b (i+j) (b.Length-(i+j))
-   
+
+let check_split b l = 
+  if length(b) < l then failwith "split failed: FIX THIS to return BOOL + ..."
+  if l < 0 then failwith "split failed: FIX THIS to return BOOL + ..."
+  else split b l
  
 let utf8 (x:string) : bytes = System.Text.Encoding.UTF8.GetBytes x
 let iutf8 (x:bytes) : string = System.Text.Encoding.UTF8.GetString x

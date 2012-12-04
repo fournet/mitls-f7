@@ -17,6 +17,7 @@ val equalBytes: bytes -> bytes -> bool
 (* append *)
 val (@|): bytes -> bytes -> bytes
 val split: bytes -> int -> (bytes * bytes)
+val check_split: bytes -> int -> (bytes * bytes)
 val split2: bytes -> int -> int -> (bytes * bytes * bytes)
 (* strings *)
 val utf8: string -> bytes

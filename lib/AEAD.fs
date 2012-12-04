@@ -44,9 +44,6 @@ let COERCE ki b =
           let encalg = encAlg_of_ciphersuite cs in
           let macKeySize = macKeySize macalg in
           let encKeySize = encKeySize encalg in
-          // let ivsize = 
-          //     if PVRequiresExplicitIV epochSI(ki).protocol_version then 0
-          //     else ivSize (encAlg_of_ciphersuite epochSI(ki).cipher_suite)
           let (mkb,rest) = split b macKeySize in
           let (ekb,ivb) = split rest encKeySize in
           let mk = MAC.COERCE ki mkb in
@@ -82,7 +79,6 @@ let encrypt' ki key data rg plain =
         
 let mteKey (ki:epoch) ka ke = MtE(ka,ke)
 
-
 let decrypt' ki key data cipher =
     let si = epochSI(ki) in
     let cs = si.cipher_suite in
@@ -95,12 +91,16 @@ let decrypt' ki key data cipher =
         let maced             = Encode.macPlain ki rg data plain
         match si.protocol_version with
         | SSL_3p0 | TLS_1p0 ->
+            (*@ SSL3 and TLS1 enable both timing and error padding oracles. *)
             if ok then 
-              if Encode.verify ki ka maced tag (* padding time oracle *) then 
+              if Encode.verify ki ka maced tag then 
                   correct (nk,rg,plain)
               else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
-            else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_decryption_failed, reason) (* padding error oracle *)
+            else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_decryption_failed, reason)
         | TLS_1p1 | TLS_1p2 ->
+            (*@ We implement standard mitigiation for padding oracles.
+                Still, we are aware of small timing leaks in verify and decode,
+                whose timing can be linked to the length of the plaintext. *)
             if Encode.verify ki ka maced tag then 
                if ok then
                   correct (nk,rg,plain)
