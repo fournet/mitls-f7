@@ -45,14 +45,14 @@ val parseSigAlg: bytes -> sigAlg Result
 val hashAlgBytes: hashAlg -> bytes
 val parseHashAlg: bytes -> hashAlg Result
 
-val encKeySize: cipherAlg -> int
-val blockSize: cipherAlg -> int
-val ivSize: cipherAlg -> int
-val aeadKeySize: aeadAlg -> int
-val aeadIVSize: aeadAlg -> int
-val macKeySize: hashAlg -> int
-val macSize: hashAlg -> int
-val hashSize: hashAlg -> int
+val encKeySize: cipherAlg -> nat
+val blockSize: cipherAlg -> nat
+val ivSize: cipherAlg -> nat
+val aeadKeySize: aeadAlg -> nat
+val aeadIVSize: aeadAlg -> nat
+val macKeySize: hashAlg -> nat
+val macSize: hashAlg -> nat
+val hashSize: hashAlg -> nat
 
 (* SSL/TLS Constants *)
 val ssl_pad1_md5: bytes
@@ -94,7 +94,7 @@ val isDHCipherSuite: cipherSuite -> bool
 val isDHECipherSuite: cipherSuite -> bool
 val isRSACipherSuite: cipherSuite -> bool
 val contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV: cipherSuites -> bool
-val verifyDataLen_of_ciphersuite: cipherSuite -> int
+val verifyDataLen_of_ciphersuite: cipherSuite -> nat
 val prfHashAlg_of_ciphersuite: cipherSuite -> hashAlg
 val verifyDataHashAlg_of_ciphersuite: cipherSuite -> hashAlg
 
@@ -114,7 +114,7 @@ val cipherSuitesBytes: cipherSuites -> bytes
 
 val maxPadSize: ProtocolVersion -> cipherSuite -> nat
 
-val getKeyExtensionLength: ProtocolVersion -> cipherSuite -> int
+val getKeyExtensionLength: ProtocolVersion -> cipherSuite -> nat
 
 val PVRequiresExplicitIV: ProtocolVersion -> bool
 
@@ -164,7 +164,7 @@ type cipherSuiteName =
 
 val cipherSuites_of_nameList: cipherSuiteName list -> cipherSuites
 
-(* val split_at_most: bytes -> int -> (bytes * bytes) *)
+(* val split_at_most: bytes -> nat -> (bytes * bytes) *)
 
 type preContentType =
     | Change_cipher_spec
@@ -173,18 +173,18 @@ type preContentType =
     | Application_data
 
 type ContentType = preContentType 
-val bytes_of_seq: int -> bytes
-val seq_of_bytes: bytes -> int
+val bytes_of_seq: nat -> bytes
+val seq_of_bytes: bytes -> nat
 
 val ctBytes: ContentType -> bytes
 val parseCT: bytes -> ContentType Result
 val CTtoString: ContentType -> string
 
-val vlbytes: int -> bytes -> bytes
-val vlsplit: int -> bytes -> (bytes * bytes) Result
-val vlparse: int -> bytes -> bytes Result
+val vlbytes: nat -> bytes -> bytes
+val vlsplit: nat -> bytes -> (bytes * bytes) Result
+val vlparse: nat -> bytes -> bytes Result
 
-//val splitList: bytes -> int list -> bytes list
+//val splitList: bytes -> nat list -> bytes list
 
 type certType =
     | RSA_sign

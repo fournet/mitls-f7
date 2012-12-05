@@ -55,7 +55,7 @@ val parseHashAlg: b:bytes -> (h:hashAlg{b=HashAlgBytes(h)}) Result
    TODO: use uniform naming convention, e.g. length implements Length
    a nicer F7 could enable homonymous concrete implementations of logical functions *) 
 
-function val EncKeySize: cipherAlg -> int
+function val EncKeySize: cipherAlg -> nat
 assume !x. EncKeySize(x) >= 0
 // providing an explicit spec at least once; this should be internal
 definition EncKeySize(RC4_128)      = 16
@@ -74,8 +74,8 @@ definition BlockSize(AES_256_CBC)	= 16
 val blockSize: a:cipherAlg -> l:nat {l=BlockSize(a)}
 val ivSize: a:cipherAlg -> l:nat    {l=BlockSize(a)}
 
-val aeadKeySize: aeadAlg -> int
-val aeadIVSize: aeadAlg -> int
+val aeadKeySize: aeadAlg -> nat
+val aeadIVSize: aeadAlg -> nat
 
 function val MacKeySize: hashAlg -> nat
 assume !x. MacKeySize(x) >= 0
@@ -179,7 +179,7 @@ val isDHCipherSuite: cipherSuite -> bool
 val isDHECipherSuite: cipherSuite -> bool
 val isRSACipherSuite: cipherSuite -> bool
 val contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV: cipherSuites -> bool
-val verifyDataLen_of_ciphersuite: cipherSuite -> int
+val verifyDataLen_of_ciphersuite: cipherSuite -> nat
 val prfHashAlg_of_ciphersuite: cipherSuite  -> hashAlg
 val verifyDataHashAlg_of_ciphersuite: cs:cipherSuite -> hashAlg
 
@@ -337,8 +337,8 @@ val cipherSuitesBytes: css:cipherSuites -> b:bytes {b = CipherSuitesBytes(css)}
 
 val maxPadSize: ProtocolVersion -> cipherSuite -> nat
 
-val mkIntTriple: (int * int * int) -> (int * int * int)
-val getKeyExtensionLength: ProtocolVersion -> cipherSuite -> int
+val mkIntTriple: (nat * nat * nat) -> (nat * nat * nat)
+val getKeyExtensionLength: ProtocolVersion -> cipherSuite -> nat
 
 val PVRequiresExplicitIV: ProtocolVersion -> bool
 
@@ -402,8 +402,8 @@ type ContentType = ct:preContentType
   {ct = Change_cipher_spec \/ ct = Alert \/
    ct = Handshake \/ ct = Application_data}
 
-val bytes_of_seq: sn:int -> b:bytes{Length(b) = 8 /\ b = IntBytes(8,sn)}
-val seq_of_bytes: b:bytes{Length(b)=8} -> sn:int{b = IntBytes(8,sn)}
+val bytes_of_seq: sn:nat -> b:bytes{Length(b) = 8 /\ b = IntBytes(8,sn)}
+val seq_of_bytes: b:bytes{Length(b)=8} -> sn:nat{b = IntBytes(8,sn)}
 
 function val CTBytes: ContentType -> bytes
 
@@ -421,7 +421,7 @@ val CTtoString: ContentType -> string
 // binary format for length-prefixed bytes;
 // the integer is the length of the prefix (1,2, 3 or 4 for TLS)
 
-function val VLBytes: (int * bytes) -> bytes 
+function val VLBytes: (nat * bytes) -> bytes 
 private definition !i,b. VLBytes(i,b) = IntBytes(i,Length(b)) @| b
 val vlbytes: l:nat -> b:bytes -> r:bytes {r=VLBytes(l,b)} 
 val vlsplit: 

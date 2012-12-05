@@ -192,11 +192,10 @@ val defaultConfig: config
 
 private val max_TLSPlaintext_fragment_length: nat
 private val max_TLSCompressed_fragment_length: nat
-private val fragmentLength: nat
-val max_TLSCipher_fragment_length: nat
+private val max_TLSCipher_fragment_length: nat
+val fragmentLength: nat
 
 /// Ranges of lengths for byte arrays
-
 type range = low:nat * high:nat { low <= high }
 type (;r:range) rbytes = b:bytes { ?l,h. r = (l,h) /\ l <= Length(b) /\ Length(b) <= h }   
 function val Sum: range * range -> range

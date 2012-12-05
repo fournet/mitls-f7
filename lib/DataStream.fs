@@ -11,33 +11,36 @@ let max (a:nat) (b:nat) =
 let splitRange ki r =
     let (l,h) = r in
     let si = epochSI(ki) in
-    let padSize = TLSConstants.maxPadSize si.protocol_version si.cipher_suite in
-    if padSize = 0 then
-        if l <> h then
-            unexpectedError "[splitRange] invalid argument"
-        else
-            let length = min l fragmentLength in
-            let rem = l-length in
-            let r0 = (length,length) in
-            let r1 = (rem,rem)
-            (r0,r1)
+    let FS = TLSInfo.fragmentLength in
+    let PS = TLSConstants.maxPadSize si.protocol_version si.cipher_suite in
+    let BS = TLSConstants.blockSize (TLSConstants.encAlg_of_ciphersuite si.cipher_suite) in
+    let t  = TLSConstants.macSize (TLSConstants.macAlg_of_ciphersuite si.cipher_suite) in
+    if FS < PS || PS < BS then
+        unexpectedError "[splitRange] Incompatible fragemnt size, padding size and block size"
     else
-        if h = 0 then
-            ((l,h),(0,0))
+        if l >= FS then
+            let r0 = (FS,FS) in
+            let r1 = (l-FS,h-FS) in
+            (r0,r1)
         else
-            let minpack = (h-l) / padSize
-            let minfrag = (h-1) / fragmentLength
-            let savebytes = max minpack minfrag
-            let smallL = max (min (l-savebytes) fragmentLength) 0
-            let smallH = min (min (padSize+smallL) fragmentLength) h
-            let lsub = l - smallL in
-            let hsub = h - smallH in
-            if ((lsub > hsub)) then
-                unexpectedError "Should not be possible, ask Alfredo" 
+            let z0 = PS - ((PS + t + 1) % BS) in
+            let zl = PS - ((l + PS + t + 1) % BS) in
+            if l = 0 then
+                let p = h-l in
+                let fh = min p z0 in
+                let r0 = (0,fh) in
+                let r1 = (0,h-fh) in
+                (r0,r1)
             else
-              ((smallL,smallH),
-               (lsub,hsub))
-
+                let p = (h-l) % z0 in
+                if (p <= zl) && (l+p <= FS) then
+                    let r0 = (l,l+p) in
+                    let r1 = (0,h-(l+p)) in
+                    (r0,r1)
+                else
+                    let r0 = (l,l) in
+                    let r1 = (0,h-l) in
+                    (r0,r1)
 
 type stream = {sb: bytes list}
 type delta = {contents: rbytes}
@@ -55,12 +58,9 @@ let append (ki:epoch) (s:stream) (r:range) (d:delta) =
   {sb = d.contents :: s.sb}
 
 let split (ki:epoch) (s:stream)  (r0:range) (r1:range) (d:delta) = 
-  // we put as few bytes as we can in b0, 
-  // to prevent early processing of split fragments
-  let (l0,_) = r0
-  let (_,h1) = r1
-  let n = length d.contents
-  let n0 = if n <= l0 + h1 then l0 else n - h1 
-  let (sb0,sb1) = Bytes.split d.contents n0
+  let (_,h0) = r0 in
+  let (l1,_) = r1 in
+  let len = length d.contents in
+  let n = if h0 < (len - l1) then h0 else len - l1
+  let (sb0,sb1) = Bytes.split d.contents n in
   ({contents = sb0},{contents = sb1})
-
