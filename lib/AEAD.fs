@@ -117,8 +117,10 @@ let decrypt' ki key data cipher =
     | (_,_) -> unexpectedError "[decrypt] incompatible ciphersuite-key given."
 
 let encrypt ki key data rg plain = 
-  let (key,cipher) = encrypt' ki key data rg plain in
+    let (key,cipher) = encrypt' ki key data rg plain in
+#if verify
     Pi.assume (CTXT(ki,data,plain,cipher));
+#endif
     (key,cipher)
 
 let decrypt ki key data cipher = 
@@ -126,8 +128,12 @@ let decrypt ki key data cipher =
     match res with
         Correct r ->
           let (key,rg,plain) = r in
+#if verify
           Pi.assume (CTXT(ki,data,plain,cipher));
+#endif
           Correct r
       | Error(x,y) ->
+#if verify
           Pi.assume (NotCTXT(ki,data,cipher));
+#endif
           Error(x,y)

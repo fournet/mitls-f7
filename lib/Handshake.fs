@@ -87,7 +87,9 @@ let makeFragment ki b =
     let (b0,rem) = if length b < fragmentLength then (b,[||])
                    else Bytes.split b fragmentLength
     let r0 = (length b0, length b0) in
+#if verify
     Pi.assume(Unsafe(ki))
+#endif
     let f = HSFragment.fragmentPlain ki r0 b0 in
     (r0,f,rem)
 
@@ -811,11 +813,15 @@ let next_fragment ci state =
             | PSClient(cstate) ->
                 match cstate with
                 | ServerCCS (_,_,_,_,_,_) ->
+#if verify
                     Pi.assume(EvSentFinishedFirst(ci,true));
+#endif
                     OutFinished(rg,f,state)
                 | ClientWritingFinishedResume(cvd,svd) ->
                     let state = {state with pstate = PSClient(ClientIdle(cvd,svd))} in
+#if verify
                     Pi.assume(Complete(ci,state.poptions));
+#endif
                     OutComplete(rg,f,state)
                 | _ -> OutSome(rg,f,state)
             | PSServer(sstate) ->
@@ -823,16 +829,22 @@ let next_fragment ci state =
                 | ServerWritingFinished(si,ms,cvd,svd) ->
                     if equalBytes si.sessionID [||] then
                       let state = {state with pstate = PSServer(ServerIdle(cvd,svd))}
+#if verify
                       Pi.assume(Complete(ci,state.poptions));
+#endif
                       OutComplete(rg,f,state)
                     else
                       let sdb = SessionDB.insert state.sDB (si.sessionID,Server,state.poptions.client_name) (si,ms)
                       let state = {state with pstate = PSServer(ServerIdle(cvd,svd))   
                                               sDB = sdb} in
+#if verify
                       Pi.assume(Complete(ci,state.poptions));
+#endif
                       OutComplete(rg,f,state)
                 | ClientCCSResume(_,_,_,_,_) ->
+#if verify
                     Pi.assume(EvSentFinishedFirst(ci,true));
+#endif
                     OutFinished(rg,f,state)
                 | _ -> OutSome(rg,f,state)
         | _ -> OutSome(rg,f,state)

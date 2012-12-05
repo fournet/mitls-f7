@@ -9,8 +9,10 @@ type plain = fragment
 
 
 let fragment ki s r d = 
-  let f = {frag = s,d} in
+    let f = {frag = s,d} in
+#if verify
     Pi.assume (DeltaFragment(ki,s,r,d));
+#endif
     let s' = append ki s r d in
     f,s'
 

@@ -28,7 +28,9 @@ let tokens = ref ([] : utk list)
 // ------------------------------------------------------------------------
 let create () =
     let token = GToken (Nonce.mkRandom 256)
+#if verify
     Pi.assume (GoodToken(token));
+#endif
     token
 
 // ------------------------------------------------------------------------
@@ -37,7 +39,9 @@ let register (username : username) (token : token) =
     | BToken _  -> ()
     | GToken tk ->
         let utk = UTK (username, token)
+#if verify
         Pi.assume (RegisteredToken utk);
+#endif
         tokens := utk :: !tokens
 
 // ------------------------------------------------------------------------

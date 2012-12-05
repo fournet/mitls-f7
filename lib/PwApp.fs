@@ -61,7 +61,11 @@ let read_server_response (c : Connection) (u : username) (tk : token) =
         let (rg, delta) = m
 
         match PwToken.rp_plain epoch stream rg delta with
-        | true  -> Pi.assume (ClientAuthenticated(u, tk)); Some conn
+        | true  ->
+#if verify
+            Pi.assume (ClientAuthenticated(u, tk));
+#endif
+            Some conn
         | false -> TLS.half_shutdown conn; None
 
 let drain (c : Connection) =
@@ -152,9 +156,11 @@ let rec handle_client_request (conn : Connection) =
             match do_client_response conn clientok with
             | None      -> None
             | Some conn ->
+#if verify
                 Pi.assume
                     (AuthenticatedByServer
                         (TLS.getSessionInfo (TLS.getEpochIn conn), username));
+#endif
                 Some (username, conn)
 
 // ------------------------------------------------------------------------
