@@ -422,10 +422,10 @@ let sigAlg_of_ciphersuite cs =
     | _ -> unexpectedError "[sigAlg_of_ciphersuite] invoked on a worng ciphersuite"
 
 let contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV (css: cipherSuite list) =
-#if fs
-    List.exists (fun cs -> cs = SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV) ) css
-#else
+#if avoid
     failwith "TODO: fix list library": bool
+#else
+    List.exists (fun cs -> cs = SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV) ) css
 #endif
 
 
@@ -548,7 +548,9 @@ type cipherSuiteName =
     | TLS_DH_anon_WITH_AES_256_CBC_SHA256
 
 let cipherSuites_of_nameList (nameList: cipherSuiteName list) =
-#if fs
+#if avoid
+   failwith "TODO: fix list library": cipherSuites
+#else
    List.map (
     fun name ->
         match name with
@@ -593,8 +595,6 @@ let cipherSuites_of_nameList (nameList: cipherSuiteName list) =
         | TLS_DH_anon_WITH_AES_128_CBC_SHA256    -> CipherSuite (DH_anon, MtE (AES_128_CBC, SHA256))
         | TLS_DH_anon_WITH_AES_256_CBC_SHA256    -> CipherSuite (DH_anon, MtE (AES_256_CBC, SHA256))
    ) nameList 
-#else
-    failwith "TODO: fix list library": cipherSuites
 #endif
 
 

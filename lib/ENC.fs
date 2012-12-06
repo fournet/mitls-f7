@@ -179,10 +179,7 @@ let rec findc pcs p =
 let k = mkRandom blocksize
 let qe = ref 0
 let qd = ref 0
-#if aes
-let F = AES k
-let G = AESminus k 
-#else
+#if ideal
 let log = ref ([] : (block * block) list)
 let F p = 
   match findc !pcs p with 
@@ -198,6 +195,9 @@ let G c =
   | None    -> let p = mkfreshp !log blocksize 
                log := (p,c)::!log
                p
+#else
+let F = AES k
+let G = AESminus k
 #endif
 let enc p = incr qe; F p
 let dec c = incr qd; G c
