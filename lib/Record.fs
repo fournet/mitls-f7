@@ -36,7 +36,7 @@ let headerLength b =
     // With a precise int/byte model,
     // no need to check len, since it's on 2 bytes and the max allowed value is 2^16.
     // Here we do a runtime check to get the same property statically
-    if len <= 0 || len > fragmentLength then
+    if len <= 0 || len > max_TLSCipher_fragment_length then
         Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Wrong fragment length")
     else
         correct(len)
@@ -54,7 +54,7 @@ let parseHeader b =
     // With a precise int/byte model,
     // no need to check len, since it's on 2 bytes and the max allowed value is 2^16.
     // Here we do a runtime check to get the same property statically
-    if len <= 0 || len > fragmentLength then
+    if len <= 0 || len > max_TLSCipher_fragment_length then
         Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Wrong frgament length")
     else
         correct(ct,pv,len)

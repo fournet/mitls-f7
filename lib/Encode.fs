@@ -50,7 +50,7 @@ let rangeCipher e (rg:range) =
     | x when isOnlyMACCipherSuite x ->
         let macLen = macSize (macAlg_of_ciphersuite cs) in
         let res = h + macLen in
-        if res > fragmentLength then
+        if res > max_TLSCipher_fragment_length then
             Error.unexpectedError "[rangeCipher] given an invalid input range."
         else
             res
@@ -60,7 +60,7 @@ let rangeCipher e (rg:range) =
         let prePad = h + macLen in
         let padLen = blockAlignPadding e prePad in
         let res = ivL + prePad + padLen in
-        if res > fragmentLength then
+        if res > max_TLSCipher_fragment_length then
             Error.unexpectedError "[rangeCipher] given an invalid input range."
         else
             res

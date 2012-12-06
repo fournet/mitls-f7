@@ -80,6 +80,7 @@ type config = {
 
 val defaultConfig: config
 
+val max_TLSCipher_fragment_length: nat
 val fragmentLength: nat
 type range = nat * nat (* length range *)
 type rbytes = bytes

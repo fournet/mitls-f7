@@ -192,7 +192,7 @@ val defaultConfig: config
 
 private val max_TLSPlaintext_fragment_length: nat
 private val max_TLSCompressed_fragment_length: nat
-private val max_TLSCipher_fragment_length: nat
+val max_TLSCipher_fragment_length: nat
 val fragmentLength: nat
 
 /// Ranges of lengths for byte arrays

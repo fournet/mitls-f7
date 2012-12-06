@@ -175,8 +175,6 @@
     <None Include="DataStream.fs7" />
     <Compile Include="DataStream.fsi" />
     <Compile Include="DataStream.fs" />
-    <Compile Include="IdealDataStream.fsi" />
-    <Compile Include="IdealDataStream.fs" />
     <None Include="AppFragment.fs7" />
     <Compile Include="AppFragment.fsi" />
     <Compile Include="AppFragment.fs" />
