@@ -4,13 +4,13 @@
 export PKI := ${PWD}
 
 # --------------------------------------------------------------------
-C  = fr
-ST = Ile de France
-L  = Paris
-O  = INRIA-MSR Joint Lab
-OU = Security Group
-CN = needham.inria.fr
-EA = root@needham.inria.fr
+C  = CC
+ST = State
+L  = Location
+O  = Organization
+OU = 
+CN = ks393354.kimsufi.com
+EA = root@ks393354.kimsufi.com
 
 CASUBJECT=/C=$(C)/ST=$(ST)/L=$(L)/O=$(O)/OU=$(OU)/CN=$(CN)/emailAddress=$(EA)
 
@@ -39,7 +39,7 @@ endef
 .PRECIOUS: %.p12
 .PRECIOUS: %.key
 .PRECIOUS: %.crt
-.PRECIOUS: certificates/cert-%.needham.inria.fr.csr
+.PRECIOUS: certificates/%.csr
 .PRECIOUS: certificates/ca.key
 .PRECIOUS: certificates/ca.crt
 
@@ -74,9 +74,9 @@ certificates/dh.pem:
 	    -caname   "uTLS PKI (CA)"     \
 	    -out      $*.p12
 
-certificates/cert-%.needham.inria.fr.csr: certificates/cert-%.needham.inria.fr.key
+certificates/%.csr: certificates/%.key
 	openssl req -new -batch \
-	    -subj   "/C=$(C)/ST=$(ST)/L=$(L)/O=$(O)/OU=$(OU)/CN=cert-$*.$(CN)/emailAddress=$(EA)" \
+	    -subj   "/C=$(C)/ST=$(ST)/L=$(L)/O=$(O)/OU=$(OU)/CN=$*/emailAddress=$(EA)" \
 	    -config config/ca.config \
 	    -key    $< \
 	    -out    $@
