@@ -39,7 +39,7 @@ let ssl_certificate_verify ms log hashAlg =
         match hashAlg with
         | SHA -> (ssl_pad1_sha1, ssl_pad2_sha1)
         | MD5 -> (ssl_pad1_md5,  ssl_pad2_md5)
-        | _ -> Error.unexpectedError "[ssl_certificate_verify_hash] invoked on a wrong hash algorithm"
+        | _ -> Error.unexpectedError "[ssl_certificate_verify] invoked on a wrong hash algorithm"
     let forStep1 = log @| ms @| pad1 in
     let step1 = hash hashAlg forStep1 in
     let forStep2 = ms @| pad2 @| step1 in

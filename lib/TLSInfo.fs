@@ -50,7 +50,7 @@ let epochSRand e =
 
 let epochCRand e =
     match e with
-    | InitEpoch (d,b) -> Error.unexpectedError "[epochSRand] invoked on initial epoch."
+    | InitEpoch (d,b) -> Error.unexpectedError "[epochCRand] invoked on initial epoch."
     | SuccEpoch (cr,sr,si,pe) -> cr
 
 type ConnectionInfo = {

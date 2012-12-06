@@ -49,8 +49,8 @@ let hashAlgBytes ha =
     | SHA     -> [|2uy|]
     | SHA256  -> [|4uy|]
     | SHA384  -> [|5uy|]
-    | NULL    -> Error.unexpectedError "Cannot enode NULL hash alg."
-    | MD5SHA1 -> Error.unexpectedError "Cannot enode MD5SHA1 hash alg."
+    | NULL    -> Error.unexpectedError "[hashAlgBytes] Cannot enode NULL hash alg."
+    | MD5SHA1 -> Error.unexpectedError "[hashAlgBytes] Cannot enode MD5SHA1 hash alg."
 
 let parseHashAlg b =
     match b with
@@ -105,7 +105,7 @@ let hashSize alg =
     | SHA           -> 20
     | SHA256        -> 32
     | SHA384        -> 48
-    | NULL          -> Error.unexpectedError "Unknown hash size for NULL algorithm"
+    | NULL          -> Error.unexpectedError "[hashSize] Unknown hash size for NULL algorithm"
     | MD5SHA1       -> 16 + 20
 
 let macKeySize mac = hashSize mac
@@ -301,7 +301,7 @@ let cipherSuiteBytes cs =
     | SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV)            -> [| 0x00uy; 0xFFuy |]
 
 (* KB: Must define known cipher suites as a predicate before typechecking the following: *)
-    | _ -> unexpectedError "[bytearray_of_ciphersuite] invoked on an unknown ciphersuite"
+    | _ -> unexpectedError "[cipherSuiteBytes] invoked on an unknown ciphersuite"
 
 let parseCipherSuite b = 
     match b with
@@ -710,12 +710,12 @@ let defaultCertTypes sign cs =
         match sigAlg_of_ciphersuite cs with
         | SA_RSA -> [RSA_sign]
         | SA_DSA -> [DSA_sign]
-        | _ -> unexpectedError "[certificateRequestBytes] invoked on an invalid ciphersuite"
+        | _ -> unexpectedError "[defaultCertTypes] invoked on an invalid ciphersuite"
     else 
         match sigAlg_of_ciphersuite cs with
         | SA_RSA -> [RSA_fixed_dh]
         | SA_DSA -> [DSA_fixed_dh]
-        | _ -> unexpectedError "[certificateRequestBytes] invoked on an invalid ciphersuite"
+        | _ -> unexpectedError "[defaultCertTypes] invoked on an invalid ciphersuite"
 
 
 let rec distinguishedNameListBytes names =

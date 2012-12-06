@@ -74,7 +74,7 @@ let connection_of_fd (fd : fd) : Phandleinfo option =
 (* ------------------------------------------------------------------------ *)
 let rec update_fd_connection_r (fd : fd) (cw : bool) (conn : Connection) (fds : fdmap) : fdmap =
     match fds with
-    | [] -> Error.unexpectedError "[fd] unbound"
+    | [] -> Error.unexpectedError "[update_fd_connection_r] unbound"
     | (h, hd) :: fds ->
         if fd = h then
             (h, { hd with conn = conn; canwrite = cw }) :: fds
@@ -148,7 +148,7 @@ let write (fd : fd) (bytes : bytes) : int =
     | None    -> EI_BADHANDLE
     | Some hd ->
         match hd.canwrite with
-        | false -> Error.unexpectedError "cannot write to FD"
+        | false -> Error.unexpectedError "[write] cannot write to FD"
         | true  ->
             let delta = mkDelta hd.conn bytes in
             let rg    = (Bytes.length bytes, Bytes.length bytes) in

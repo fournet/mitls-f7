@@ -627,7 +627,7 @@ let resume next_sid poptions =
     | Some (retrieved) ->
     let (retrievedSinfo,retrievedMS) = retrieved in
     match retrievedSinfo.sessionID with
-    | [||] -> unexpectedError "[resume_handshake] a resumed session should always have a valid sessionID"
+    | [||] -> unexpectedError "[resume] a resumed session should always have a valid sessionID"
     | sid ->
     let rand = Nonce.mkHelloRandom () in
     let ci = initConnection Client rand in
@@ -663,7 +663,7 @@ let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
             (true,state)
         | _ -> (* handshake already happening, ignore this request *)
             (false,state)
-    | PSServer (_) -> unexpectedError "[start_rehandshake] should only be invoked on client side connections."
+    | PSServer (_) -> unexpectedError "[rehandshake] should only be invoked on client side connections."
 
 let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     if isInitEpoch(ci.id_out) then
@@ -699,11 +699,11 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
                     (true,state)
                 | _ -> (* Handshake already ongoing, ignore this request *)
                     (false,state)
-            | PSServer (_) -> unexpectedError "[start_rekey] should only be invoked on client side connections."
+            | PSServer (_) -> unexpectedError "[rekey] should only be invoked on client side connections."
 
 let request (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     match state.pstate with
-    | PSClient _ -> unexpectedError "[start_hs_request] should only be invoked on server side connections."
+    | PSClient _ -> unexpectedError "[request] should only be invoked on server side connections."
     | PSServer (sstate) ->
         match sstate with
         | ServerIdle(cvd,svd) ->
@@ -1010,7 +1010,7 @@ let on_serverHello_full crand log to_log (shello:ProtocolVersion * srand * sessi
     elif isRSACipherSuite sh_cipher_suite then
         PSClient(ServerCertificateRSA(si,log))
     else
-        unexpectedError "[recv_fragment] Unknown ciphersuite"
+        unexpectedError "[on_serverHello_full] Unknown ciphersuite"
 
 
 let parseMessageState (ci:ConnectionInfo) state = 
@@ -1497,7 +1497,7 @@ let prepare_server_output_full ci state si cv calgs cvd svd log =
     elif isRSACipherSuite si.cipher_suite then
         prepare_server_output_full_RSA ci state si cv calgs cvd svd log
     else
-        unexpectedError "[prepare_server_hello_full] unexpected ciphersuite"
+        unexpectedError "[prepare_server_output_full] unexpected ciphersuite"
 
 // The server "negotiates" its first proposal included in the client's proposal
 let negotiate cList sList =

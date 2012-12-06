@@ -13,7 +13,7 @@ let sslKeyedHashPads alg =
   match alg with
     | MD5 -> (ssl_pad1_md5, ssl_pad2_md5)
     | SHA -> (ssl_pad1_sha1, ssl_pad2_sha1)
-    | _   -> Error.unexpectedError "[sslKeyedHash] invoked on unsupported algorithm"
+    | _   -> Error.unexpectedError "[sslKeyedHashPads] invoked on unsupported algorithm"
 
 let sslKeyedHash alg key data =
     let (pad1, pad2) = sslKeyedHashPads alg in
@@ -34,8 +34,8 @@ let HMAC alg key data =
     | SHA     -> CoreHMac.sha1   key data
     | SHA256  -> CoreHMac.sha256 key data
     | SHA384  -> CoreHMac.sha384 key data
-    | NULL    -> Error.unexpectedError "Invalid hash (NULL) for HMAC"
-    | MD5SHA1 -> Error.unexpectedError "Invalid hash (MD5SHA1) for HMAC"
+    | NULL    -> Error.unexpectedError "[HMAC] Invalid hash (NULL) for HMAC"
+    | MD5SHA1 -> Error.unexpectedError "[HMAC] Invalid hash (MD5SHA1) for HMAC"
 
 let HMACVERIFY alg key data expected =
     let result = HMAC alg key data in

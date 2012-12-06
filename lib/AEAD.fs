@@ -77,7 +77,7 @@ let encrypt' ki key data rg plain =
         let r = Encode.repr ki tlen encoded in
         (key,r)
 //  | GCM (k) -> ... 
-    | (_,_) -> unexpectedError "[encrypt] incompatible ciphersuite-key given."
+    | (_,_) -> unexpectedError "[encrypt'] incompatible ciphersuite-key given."
         
 let mteKey (ki:epoch) ka ke = MtE(ka,ke)
 
@@ -116,7 +116,7 @@ let decrypt' ki key data cipher =
         then   correct (key,rg,plain)
           else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
 //  | GCM (GCMKey) -> ... 
-    | (_,_) -> unexpectedError "[decrypt] incompatible ciphersuite-key given."
+    | (_,_) -> unexpectedError "[decrypt'] incompatible ciphersuite-key given."
 
 let encrypt ki key data rg plain = 
     let (key,cipher) = encrypt' ki key data rg plain in

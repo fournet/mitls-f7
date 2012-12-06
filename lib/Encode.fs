@@ -152,7 +152,7 @@ let decode e (ad:AEADPlain.adata) tlen plain =
     let pl = plain.p in
     let pLen = length pl in
     if pLen <> expected || pLen < 1 then
-        Error.unexpectedError "[parse] tlen does not match plaintext length"
+        Error.unexpectedError "[decode] tlen does not match plaintext length"
     else
     let padLenStart = pLen - 1 in
     let (tmpdata, padlenb) = Bytes.split pl padLenStart in
