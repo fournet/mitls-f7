@@ -8,9 +8,11 @@ open Error
 
 type cipher = bytes
 
+#if verify
 type preds = 
     CTXT of epoch * bytes * AEADPlain.plain * cipher
   | NotCTXT of epoch * bytes * cipher
+#endif
 
 type AEADKey =
     | MtE of MAC.key * ENC.state

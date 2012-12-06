@@ -190,7 +190,9 @@ let send ns e write pv rg ct frag =
         //let s = sprintf "                        %5d bytes --> %s\n" data.Length (TLSConstants.CTtoString ct) in printf "%s" s 
         Correct(dState)
 
+#if verify
 type preds = GState of ConnectionInfo * globalState
+#endif
 (* which fragment should we send next? *)
 (* we must send this fragment before restoring the connection invariant *)
 let writeOne (Conn(id,c)) : writeOutcome * Connection =
