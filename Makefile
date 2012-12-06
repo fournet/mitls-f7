@@ -31,12 +31,13 @@ prepare-dist:
 	   cp $$d/Makefile.build $(distname)/$$d; \
 	   $(MAKE) -f Makefile.build -C $$d distdir=../$(distname)/$$d dist; \
 	done
-	cp -r licenses            $(distname)
 	cp Makefile               $(distname)
 	cp Makefile.config        $(distname)
 	cp Makefile.config.cygwin $(distname)
 	cp Makefile.config.unix   $(distname)
 	cp README                 $(distname)
+	mkdir $(distname)/licenses && \
+	  cp licenses/*.txt $(distname)/licenses
 	find $(distname) -type f -exec chmod a-x '{}' \+
 
 dist: prepare-dist
