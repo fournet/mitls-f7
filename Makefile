@@ -59,7 +59,7 @@ sp13: anonymize LICENSE.sp13
 	sed -i 's/pi\.fs//' $(sp13distname)/lib/Makefile.config
 	cp LICENSE.sp13 $(sp13distname)
 	find $(sp13distname) \
-	  -type f -regex '.*\.fs.?' \
+	  -type f \( -name '*.fs' -o -name '*.fsi' \) \
 	  -exec ./anonymize -B --header=LICENSE.sp13 '{}' \+
 	tar --format=posix -czf $(sp13distname).tgz $(sp13distname)
 	rm -rf $(sp13distname)
