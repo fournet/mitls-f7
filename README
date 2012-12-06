@@ -1,8 +1,16 @@
 This is miTLS, a verified reference implementation of the TLS security protocol.
 
-To compile, usually running "make" from the top level directory is enough.
+To compile, usually running "make" from the top level directory is enough. (See below for prerequisites.)
 The compiled executables will be placed in the bin directory.
-Each command line tool accepts a "--help" option to show all the available command line options.
+Each command line tool accepts a "--help" option to show
+all the available command line options and their default values.
+
+The following make targets can be used:
+- build (default): compiles source code and puts executables in then bin directory
+- dist: prepares a compressed archive that can be distributed
+- dist-check: as dist, but also performs some sanity checks
+- clean: remove object files
+- dist-clean: remove object files and distribution archives
 
 In the following, the prerequisites for each supported platform are given.
 
