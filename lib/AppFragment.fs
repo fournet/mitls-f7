@@ -4,7 +4,9 @@ open TLSInfo
 open DataStream
 
 type fragment = {frag: stream * delta}
+#if verify
 type fpred = DeltaFragment of epoch * stream * range * delta
+#endif
 type plain = fragment
 
 

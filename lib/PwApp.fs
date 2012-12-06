@@ -12,8 +12,10 @@ open PwToken
 type username = string
 
 // ------------------------------------------------------------------------
+#if verify
 type ca  = ClientAuthenticated   of username * token
 type abs = AuthenticatedByServer of SessionInfo  * username
+#endif
 
 // ------------------------------------------------------------------------
 let config (servname : string) = {

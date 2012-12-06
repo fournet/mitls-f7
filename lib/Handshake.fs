@@ -109,7 +109,9 @@ let makeFragment ki b =
 
 (** A.4.1 Hello Messages *)
 
+#if verify
 type chello = | ClientHelloMsg of (bytes * ProtocolVersion * random * sessionID * cipherSuites * Compression list * bytes)
+#endif
 let parseClientHello data =
     if length data >= 34 then
         let (clVerBytes,cr,data) = split2 data 2 32 in
@@ -486,9 +488,11 @@ let certificateVerifyCheck si ms algs log payload =
 
 // State machine begins
 
+#if verify
 type events = 
     EvSentFinishedFirst of ConnectionInfo * bool
   | Complete of ConnectionInfo * config
+#endif
 
 (* verify data authenticated by the Finished messages *)
 type log = bytes         (* message payloads so far, to be eventually authenticated *) 

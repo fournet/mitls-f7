@@ -16,8 +16,10 @@ type token =
 
 type utk = UTK of username * token
 
+#if verfiy
 type gt = GoodToken       of token
 type rt = RegisteredToken of utk
+#endif
 
 // ------------------------------------------------------------------------
 let MaxTkReprLen = 512
