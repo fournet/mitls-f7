@@ -6,7 +6,7 @@ open System.Security.Cryptography
 open System.Security.Cryptography.X509Certificates
 
 let plaintext = "Hello World!"
-let hint = "cert-01.needham.inria.fr"
+let hint = "mitls.example.org"
 
 let test1 () =
     let store =  new X509Store(StoreName.My, StoreLocation.CurrentUser) in

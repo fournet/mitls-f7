@@ -3,7 +3,7 @@
 open System
 open System.Threading
 
-let servname = "cert-01.needham.inria.fr"
+let servname = "mitls.example.org"
 let my       = "xxxxxxxxxxxxxxxx"
 let token    = PwToken.create ()
 let _        = PwToken.register my token

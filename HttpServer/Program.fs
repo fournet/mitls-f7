@@ -21,6 +21,8 @@ let tlsoptions sessionDBDir serverName clientName = {
         TLSConstants.cipherSuites_of_nameList [
             TLSConstants.TLS_RSA_WITH_AES_128_CBC_SHA;
             TLSConstants.TLS_RSA_WITH_3DES_EDE_CBC_SHA;
+            TLSConstants.TLS_DHE_RSA_WITH_AES_128_CBC_SHA;
+            TLSConstants.TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA
         ]
 
     TLSInfo.compressions = [ TLSConstants.NullCompression ]
@@ -36,7 +38,7 @@ let tlsoptions sessionDBDir serverName clientName = {
     TLSInfo.client_name = match clientName with | None -> "" | Some(name) -> name
 
     TLSInfo.sessionDBFileName = Path.Combine(sessionDBDir, "sessionDBFile.bin")
-    TLSInfo.sessionDBExpiry = Bytes.newTimeSpan 2 0 0 0 (* two days *)
+    TLSInfo.sessionDBExpiry = Bytes.newTimeSpan 1 0 0 0 (* one day *)
 }
 
 type options = {
@@ -52,11 +54,18 @@ exception ArgError of string
 let cmdparse = fun () ->
     let assembly = System.Reflection.Assembly.GetExecutingAssembly()
     let mypath   = Path.GetDirectoryName(assembly.Location)
+    let myname   = Path.GetFileNameWithoutExtension(assembly.Location)
+
+    let defaultPort = 2443
+    let defaultRoot = "htdocs"
+    let defaultCert = "sessionDB"
+    let defaultName = "mitls.example.org"
+    
     let options  = ref {
-        rootdir   = Path.Combine(mypath, "htdocs");
-        certdir   = Path.Combine(mypath, "sessionDB");
-        localaddr = IPEndPoint(IPAddress.Loopback, 2443);
-        localname = "tls.inria.fr";
+        rootdir   = Path.Combine(mypath, defaultRoot);
+        certdir   = Path.Combine(mypath, defaultCert);
+        localaddr = IPEndPoint(IPAddress.Loopback, defaultPort);
+        localname = defaultName;
         remotename= None }
 
     let valid_path = fun path ->
@@ -95,17 +104,18 @@ let cmdparse = fun () ->
         options := { !options with remotename = Some(s)}
 
     let specs = [
-        "--root-dir"     , ArgType.String o_rootdir   , "HTTP root directory"
-        "--sessionDB-dir", ArgType.String o_certdir   , "session database directory"
-        "--bind-port"    , ArgType.Int    o_port      , "local port"
-        "--bind-address" , ArgType.String o_address   , "local address"
-        "--local-name"   , ArgType.String o_localname , "local host name"
-        "--remote-name"  , ArgType.String o_remotename, "remote host name (if any)"]
+        "--root-dir"     , ArgType.String o_rootdir   , sprintf "\t\tHTTP root directory (default `pwd`/%s)" defaultRoot
+        "--sessionDB-dir", ArgType.String o_certdir   , sprintf "\tsession database directory (default `pwd`/%s)" defaultCert
+        "--bind-port"    , ArgType.Int    o_port      , sprintf "\t\tlocal port (default %d)" defaultPort
+        "--bind-address" , ArgType.String o_address   , "\tlocal address (default localhost)"
+        "--local-name"   , ArgType.String o_localname , sprintf "\t\tlocal host name (default %s)" defaultName
+        "--remote-name"  , ArgType.String o_remotename, "\tremote client name (if any, default anonymous client)"]
 
     let specs = specs |> List.map (fun (sh, ty, desc) -> ArgInfo(sh, ty, desc))
 
     try
-        ArgParser.Parse specs; !options
+        ArgParser.Parse (specs, usageText = sprintf "Usage: %s <options>" myname);
+        !options
 
     with ArgError msg ->
         ArgParser.Usage(specs, sprintf "Error: %s\n" msg);

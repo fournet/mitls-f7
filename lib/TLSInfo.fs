@@ -117,14 +117,14 @@ let defaultConfig ={
     check_client_version_in_pms_for_old_tls = true
     
     safe_renegotiation = true
-    server_name = "msr-inria.tls"
-    client_name = "www.inria.fr"
+    server_name = "mitls.example.org"
+    client_name = "client.example.org"
 
     sessionDBFileName = "sessionDBFile.bin"
-    sessionDBExpiry = newTimeSpan 1 0 0 0 (* one day, as suggested by the RFC *)
+    sessionDBExpiry = newTimeSpan 1 0 0 0 (*@ one day, as suggested by the RFC *)
     }
 
-let max_TLSPlaintext_fragment_length = 16384 (* 2^14 *)
+let max_TLSPlaintext_fragment_length = 16384 (*@ 2^14 *)
 let max_TLSCompressed_fragment_length = max_TLSPlaintext_fragment_length + 1024
 let max_TLSCipher_fragment_length = max_TLSCompressed_fragment_length + 1024
 let fragmentLength = max_TLSPlaintext_fragment_length (* use e.g. 1 for testing *)

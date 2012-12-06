@@ -67,4 +67,6 @@ sp13-check: sp13
 
 clean:
 	rm -rf bin
+
+dist-clean: clean
 	rm -f $(distname).tgz

@@ -49,14 +49,22 @@ exception ArgError of string
 let parse_cmd () =
     let assembly = System.Reflection.Assembly.GetExecutingAssembly()
     let mypath   = Path.GetDirectoryName(assembly.Location)
+    let myname   = Path.GetFileNameWithoutExtension(assembly.Location)
 
+    let defaultCS  = [ TLSConstants.TLS_DHE_RSA_WITH_AES_128_CBC_SHA ; TLSConstants.TLS_RSA_WITH_AES_128_CBC_SHA]
+    let defaultVer = TLSConstants.TLS_1p0
+    let defaultSN  = "mitls.example.org"
+    let defaultCN  = None
+    let defaultPort = 6000
+    let defaultDB  = "sessionDB"
+    
     let options : EchoServer.options ref = ref {
-        ciphersuite = [ TLSConstants.TLS_DHE_RSA_WITH_AES_128_CBC_SHA ];
-        tlsversion  = TLSConstants.TLS_1p0;
-        servername  = "needham.inria.fr";
-        clientname  = None;
-        localaddr   = IPEndPoint(IPAddress.Loopback, 2443);
-        sessiondir  = Path.Combine(mypath, "sessionDB"); }
+        ciphersuite = defaultCS;
+        tlsversion  = defaultVer;
+        servername  = defaultSN;
+        clientname  = defaultCN;
+        localaddr   = IPEndPoint(IPAddress.Loopback, defaultPort);
+        sessiondir  = Path.Combine(mypath, defaultDB); }
     in
 
     let valid_path = fun path ->
@@ -120,20 +128,20 @@ let parse_cmd () =
 
     let specs =
         let specs = [
-            "--sessionDB-dir", ArgType.String o_certdir    , "session database directory"
-            "--bind-port"    , ArgType.Int    o_port       , "local port"
-            "--bind-address" , ArgType.String o_address    , "local address"
-            "--ciphers"      , ArgType.String o_ciphers    , ":-separated ciphers list"
-            "--tlsversion"   , ArgType.String o_version    , "TLS version to accept / propose"
-            "--client-name"  , ArgType.String o_client_name, "TLS client name"
-            "--server-name"  , ArgType.String o_server_name, (sprintf "TLS server name (default: %s)" (!options).servername)
-            "--list"         , ArgType.Unit   o_list       , "Print supported version/ciphers and exit" ]
+            "--sessionDB-dir", ArgType.String o_certdir    , sprintf "\tsession database directory (default `pwd`/%s)" defaultDB
+            "--bind-port"    , ArgType.Int    o_port       , sprintf "\t\tlocal port (default %d)" defaultPort
+            "--bind-address" , ArgType.String o_address    , "\tlocal address (default localhost)"
+            "--ciphers"      , ArgType.String o_ciphers    , sprintf "\t\t:-separated ciphers list (default %A)" defaultCS
+            "--tlsversion"   , ArgType.String o_version    , sprintf "\t\tTLS version to accept / propose (default %A)" defaultVer
+            "--client-name"  , ArgType.String o_client_name, "\tTLS client name (default None, anonymous client)"
+            "--server-name"  , ArgType.String o_server_name, (sprintf "\tTLS server name (default: %s)" defaultSN)
+            "--list"         , ArgType.Unit   o_list       , "\t\t\tPrint supported version/ciphers and exit" ]
         in
             specs |> List.map (fun (sh, ty, desc) -> ArgInfo(sh, ty, desc))
 
     in
         try
-            ArgParser.Parse(specs, usageText = sprintf "Usage: %s <options>" mypath);
+            ArgParser.Parse(specs, usageText = sprintf "Usage: %s <options>" myname);
             !options
 
         with ArgError msg ->

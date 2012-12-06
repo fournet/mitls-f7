@@ -70,8 +70,7 @@ let entry (options : options) =
     let assembly     = System.Reflection.Assembly.GetExecutingAssembly() in
     let mypath       = Path.GetDirectoryName(assembly.Location) in
     let ctxt         = tlsoptions options in
-    let localaddr    = new IPEndPoint(IPAddress.Any, 6000) in
-    let listener     = new TcpListener(localaddr) in
+    let listener     = new TcpListener(options.localaddr) in
 
         listener.Start ();
         listener.Server.SetSocketOption(SocketOptionLevel.Socket,
