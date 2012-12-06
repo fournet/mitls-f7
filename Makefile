@@ -1,7 +1,7 @@
 # -*- Makefile -*-
 
 # --------------------------------------------------------------------
-name      = vsTLS
+name      = miTLS
 version  ?= 0.0.internal
 distname  = $(name)-$(version)
 
@@ -54,3 +54,4 @@ dist-check: dist
 
 clean:
 	rm -rf bin
+	rm -f $(distname).tgz
