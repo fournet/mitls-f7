@@ -6,7 +6,7 @@ open TLSInfo
 
 open TLSConstants
 
-type cipher = b:bytes{Length(b) <= fragmentLength}
+type cipher = b:bytes{Length(b) <= max_TLSCipher_fragment_length}
 
 private type (;ki:epoch) AEADKey =
     | MtE of ka:(;ki)MAC.key * ke:(;ki)ENC.state // {MtEKey(ki,(ka,ke))}

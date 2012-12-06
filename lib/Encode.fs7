@@ -9,8 +9,8 @@ open TLSConstants
 // Interface towards ENC 
 //------------------------------------------------------------------------------------------------------
 function val PlainLength: e:epoch * tlen:nat -> plen:nat
-private type (;e:epoch,tlen:nat) plain = {p: (x:bytes){Length(x) = PlainLength(e,tlen) /\ tlen <= fragmentLength}}
-val plain: e:epoch{not Auth(e)} -> tlen:nat{tlen <= fragmentLength} -> b:bytes{Length(b) = PlainLength(e,tlen)} -> (;e,tlen) plain
+private type (;e:epoch,tlen:nat) plain = {p: (x:bytes){Length(x) = PlainLength(e,tlen) /\ tlen <= max_TLSCipher_fragment_length}}
+val plain: e:epoch{not Auth(e)} -> tlen:nat{tlen <= max_TLSCipher_fragment_length} -> b:bytes{Length(b) = PlainLength(e,tlen)} -> (;e,tlen) plain
 val repr:  e:epoch{not Safe(e)} -> tlen:nat -> (;e,tlen) plain -> b:bytes{Length(b) = PlainLength(e,tlen)}
 
 
@@ -45,13 +45,13 @@ val verify: e:succEpoch -> k:(;e) MAC.key -> text:(;e) MACPlain -> tag:(;e) tag 
 // Padding computations
 private val blockAlignPadding: e:succEpoch -> nat -> nat
 function val RangeCipher: epoch * range -> nat // not injective
-private val rangeCipher: e:succEpoch -> r:range -> tlen:nat{tlen = RangeCipher(e,r) /\ tlen <= fragmentLength}
-private val cipherRange: e:succEpoch -> tlen:nat{tlen <= fragmentLength} -> r:range{tlen = RangeCipher(e,r)}
+private val rangeCipher: e:succEpoch -> r:range -> tlen:nat{tlen = RangeCipher(e,r) /\ tlen <= max_TLSCipher_fragment_length}
+private val cipherRange: e:succEpoch -> tlen:nat{tlen <= max_TLSCipher_fragment_length} -> r:range{tlen = RangeCipher(e,r)}
 
 predicate val Encoded: 'e * 'a * 'b * 'c * 'd -> bool
 val encode: e:succEpoch{IsAEADCiphersuite(EpochSI(e).cipher_suite)} ->
 	rg:range -> ad:(;e) AEADPlain.adata -> pl:(;e,ad,rg) AEADPlain.plain -> tag:(;e) tag ->
-	(tlen:nat * p:(;e,tlen) plain){tlen=RangeCipher(e,rg) /\ tlen <= fragmentLength /\ Encoded(e,ad,pl,tag,p)}
+	(tlen:nat * p:(;e,tlen) plain){tlen=RangeCipher(e,rg) /\ tlen <= max_TLSCipher_fragment_length /\ Encoded(e,ad,pl,tag,p)}
 val decode: e:succEpoch{IsAEADCiphersuite(EpochSI(e).cipher_suite)} ->
 	ad:(;e) AEADPlain.adata -> tlen:nat -> p:(;e,tlen) plain ->
 	(rg:range * pl:(;e,ad,rg)AEADPlain.plain * tag:(;e)tag * ok:bool){
@@ -60,7 +60,7 @@ val decode: e:succEpoch{IsAEADCiphersuite(EpochSI(e).cipher_suite)} ->
 val encodeNoPad: e:succEpoch{IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/
                     CipherSuiteENCAlg(EpochSI(e).cipher_suite) = RC4_128} ->
 	rg:range -> ad:(;e) AEADPlain.adata -> (;e,ad,rg) AEADPlain.plain -> (;e) tag ->
-	(tlen:nat * (;e,tlen) plain){tlen=RangeCipher(e,rg) /\ tlen <= fragmentLength}
+	(tlen:nat * (;e,tlen) plain){tlen=RangeCipher(e,rg) /\ tlen <= max_TLSCipher_fragment_length}
 val decodeNoPad: e:succEpoch{IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/
                     CipherSuiteENCAlg(EpochSI(e).cipher_suite) = RC4_128} ->
 	ad:(;e) AEADPlain.adata -> tlen:nat -> (;e,tlen) plain ->

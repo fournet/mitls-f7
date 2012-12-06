@@ -26,10 +26,10 @@ val nullConnState: ki:epoch -> cs:(;ki) ConnectionState{TLSFragment.EmptyHistory
 
 private val makePacket: ContentType -> ProtocolVersion -> bytes -> bytes
 
-val headerLength: b:bytes{Length(b) = 5} -> (n:nat{n>0 /\ n <= fragmentLength}) Result
+val headerLength: b:bytes{Length(b) = 5} -> (n:nat{n>0 /\ n <= max_TLSCipher_fragment_length}) Result
 
 private val parseHeader: b:bytes{Length(b) = 5} ->
-	((ContentType * ProtocolVersion * n:nat){n>0 /\ n <= fragmentLength}) Result
+	((ContentType * ProtocolVersion * n:nat){n>0 /\ n <= max_TLSCipher_fragment_length}) Result
 
 val recordPacketOut: ki:epoch -> 
                      ss:(;ki) sendState -> pv:ProtocolVersion ->
