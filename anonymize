@@ -12,12 +12,7 @@ def parser():
     import pyparsing as p
 
     def internal_comment(comment):
-        comment = comment.strip()
-        if re.match(r'FIXME\b', comment):
-            return True
-        if re.match(r'[a-zA-Z]+\s*:', comment):
-            return True
-        return False
+        return comment.strip()[0:1] != '@'
 
     ml_comments = p.Regex(r'\(\*(?:[^*]*\*+)+?\)')
     ss_comments = p.Regex(r'//.*')
@@ -25,14 +20,42 @@ def parser():
 
     def ml_comments_action(_s, _loc, tk):
         return [] if internal_comment(tk[0][2:-2]) else tk
+    ml_comments.setParseAction(ml_comments_action)
 
     def ss_comments_action(_s, _loc, tk):
         return [] if internal_comment(tk[0][2:]) else tk
-
-    ml_comments.setParseAction(ml_comments_action)
     ss_comments.setParseAction(ss_comments_action)
 
     return ml_comments | ss_comments | ml_strings
+
+# --------------------------------------------------------------------
+def filter_hashes(input):
+    hif    = re.compile(r'^\s*#\s*if\s+(\w+)\s*$')
+    helse  = re.compile(r'^\s*#\s*else\b')
+    hend   = re.compile(r'^\s*#\s*endif\b')
+    hashes = []
+    output = []
+
+    for line in input:
+        m = None
+        for i, r in enumerate([hif, helse, hend]):
+            m = re.search(r, line)
+            if m is not None: break
+
+        if m is not None:
+            if i == 0:
+                hashes.append((m.group(1), True))
+            elif i == 1:
+                if hashes and hashes[-1][1]:
+                    hashes[-1] = (hashes[-1][0], False)
+            elif i == 2:
+                if hashes:
+                    hashes.pop()
+        else:
+            if all([not x[1] for x in hashes]):
+                output.append(line)
+
+    return output
 
 # --------------------------------------------------------------------
 def _options(args):
@@ -67,7 +90,9 @@ CRLN = '\r\n'
 
 def _process_file(filename, options):
     output = parser().transformString(_read_file(filename))
-    output = CRLN.join(output.splitlines()) + CRLN
+    output = output.splitlines()
+    output = filter_hashes(output)
+    output = CRLN.join(output) + CRLN
     output = re.sub('(?:\r\n){3,}', 2 * CRLN, output)
     output = re.sub('(?:\r\n)+$', CRLN, output)
     output = re.sub('^(?:\r\n)*', CRLN, output)

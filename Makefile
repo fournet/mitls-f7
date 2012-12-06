@@ -55,6 +55,8 @@ dist-check: dist do-dist-check
 
 sp13: anonymize LICENSE.sp13
 	$(MAKE) distname=$(sp13distname) prepare-dist
+	rm -f $(sp13distname)/lib/pi.fs
+	sed -i 's/pi\.fs//' $(sp13distname)/lib/Makefile.config
 	cp LICENSE.sp13 $(sp13distname)
 	find $(sp13distname) \
 	  -type f -regex '.*\.fs.?' \
