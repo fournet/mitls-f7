@@ -32,6 +32,7 @@ prepare-dist:
 	cp Makefile.config        $(distname)
 	cp Makefile.config.cygwin $(distname)
 	cp Makefile.config.unix   $(distname)
+	cp README                 $(distname)
 	find $(distname) -type f -exec chmod a-x '{}' \+
 
 dist: prepare-dist

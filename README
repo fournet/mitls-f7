@@ -1,0 +1,19 @@
+This is miTLS, a verified reference implementation of the TLS security protocol.
+
+To compile, usually running "make" from the top level directory is enough.
+The compiled executables will be placed in the bin directory.
+Each command line tool accepts a "--help" option to show all the available command line options.
+
+In the following, the prerequisites for each supported platform are given.
+
+*** Microsoft Windows ***
+
+- Cygwin, with the make utility installed
+- .NET version 4 or above
+- Visual F# 2.0
+- Power Pack for F# 2.0
+
+*** Linux and Mac OS X ***
+
+- Mono framework, version 3.0.1 or above
+- F# open source edition, version 3.0 or above
