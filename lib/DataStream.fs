@@ -16,7 +16,7 @@ let splitRange ki r =
     let BS = TLSConstants.blockSize (TLSConstants.encAlg_of_ciphersuite si.cipher_suite) in
     let t  = TLSConstants.macSize (TLSConstants.macAlg_of_ciphersuite si.cipher_suite) in
     if FS < PS || PS < BS then
-        unexpectedError "[splitRange] Incompatible fragemnt size, padding size and block size"
+        unexpectedError "[splitRange] Incompatible fragment size, padding size and block size"
     else
         if l >= FS then
             let r0 = (FS,FS) in
