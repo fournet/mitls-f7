@@ -5,12 +5,14 @@ open TLSConstants
 open TLSInfo
 
 /// a refined, ideal interface for indexed MACs
-/// this file is loosely synchronized with cma/mac2.fs7
+//CF this file is loosely synchronized with cma/mac2.fs7
 
 //CF 12-02: we need to support agility here, 
 //CF        guaranteeing that ki has a MAC, and 
 //CF        providing exact lengths for keys and tags.
 
+// TODO implement and typecheck the ideal functionality (preferably fron non-agile ideal ones)
+// TDOO maintaining a log of authentic MACed messages, correcting verification errors, etc
 
 private type (;ki:succEpoch) key = {k:(x:bytes{Length(x) = MacKeySize(TLSConstants.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))})}
 type text = bytes
@@ -18,8 +20,7 @@ type tag = bytes
 predicate val Msg: epoch * text -> bool
 
 val Mac:    ki:succEpoch -> k:(;ki) key -> t:text{Msg(ki,t)} -> t:tag{Length(t) = MacKeySize(TLSConstants.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))}
-val Verify: ki:succEpoch -> k:(;ki) key -> t:text -> tag -> 
-  v:bool{ (v=true /\ Auth(ki)) => Msg(ki,t) }
+val Verify: ki:succEpoch -> k:(;ki) key -> t:text -> tag -> v:bool{ (v=true /\ Auth(ki)) => Msg(ki,t) }
 
 val GEN:    ki:succEpoch -> (;ki) key
 val LEAK:   ki:epoch{not(Auth(ki))} -> (;ki)key -> bytes

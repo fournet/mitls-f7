@@ -3,10 +3,10 @@ open TLSInfo
 open Bytes
 open Error
 
-val min: a:nat -> b:nat -> c:nat{(a<=b /\ c=a) \/ (a>b /\ c=b)}
-val max: a:nat -> b:nat -> c:nat{(a>=b /\ c=a) \/ (a<b /\ c=b)}
+private val min: a:nat -> b:nat -> c:nat{(a<=b /\ c=a) \/ (a>b /\ c=b)}
+private val max: a:nat -> b:nat -> c:nat{(a>=b /\ c=a) \/ (a<b /\ c=b)}
 val splitRange: ki:succEpoch -> r:range -> (r0:range * r1:range){r = Sum(r0,r1)} 
-(* first range should fit in a fragment: FitsInFrag(ki,fragmentLength,r0)? *)
+(* TODO first range should fit in a fragment: FitsInFrag(ki,fragmentLength,r0)? *)
 
 /// Bytestreams
 
@@ -25,7 +25,7 @@ private type (;ki:epoch) stream = {sb:bytes list}
 private type (;ki:epoch, h:(;ki)stream, r:range) delta = {contents: (;r) rbytes}
 
 predicate EmptyStream of ki:epoch * (;ki) stream 
-definition !ki,s. EmptyStream(ki,s) <=> s = {sb = [] }
+definition !ki,s. EmptyStream(ki,s) <=> s = {sb = []}
 ask !ki,s,s'. EmptyStream(ki,s) /\ EmptyStream(ki,s') => s = s'
 
 function val ExtendStream: 'a * 'b * 'c * 'd -> 'e

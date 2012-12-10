@@ -95,10 +95,10 @@ assume !e,si,tlen. si = EpochSI(e) =>
     ( IsAEADCiphersuite(si.cipher_suite) /\ tlen >= IVSize(e) =>
 	  PlainLength(e,tlen) = tlen - IVSize(e) )
 
-//Comments:
-
-// AP and CF agree: Encode is indexed by (e and) its public length, after encoding (and not by range).
-// We define function from:
-// - public length of ciphertext to public length of encoded plaintext (either identity, or minus iv length)
-// - from tlen to public range of decoded authenticated fragment
-// - (and the inverse functions)
+//CF Comments:
+//CF 
+//CF AP and CF agree: Encode is indexed by (e and) its public length, after encoding (and not by range).
+//CF We define function from:
+//CF - public length of ciphertext to public length of encoded plaintext (either identity, or minus iv length)
+//CF - from tlen to public range of decoded authenticated fragment
+//CF - (and the inverse functions)
