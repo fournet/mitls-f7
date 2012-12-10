@@ -92,7 +92,7 @@ val nextEpoch: e:epoch -> c:crand -> s:srand -> si:SessionInfo ->
 
 /// Predicates specifying cryptographic assumptions on algorithms 
 
-// relocate to TLSConstants?
+// TODO relocate to TLSConstants?
 predicate CPA of cipherAlg //IND-CPA
 // some reasonable assumptions:
 // assume(CPA(AES_128_CBC))
@@ -157,7 +157,10 @@ ask !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) =>
 // so that TLS can exchange any traffic on the initial null connection
 assume !e. IsInitEpoch(e) => not Auth(e)
 
-/// Application configuration options
+
+(* Application configuration options *) 
+
+// TODO Consider repackaging client and server options 
 
 type helloReqPolicy =
     | HRPIgnore
@@ -197,10 +200,10 @@ private val max_TLSCompressed_fragment_length: nat
 val max_TLSCipher_fragment_length: nat
 val fragmentLength: nat
 
-/// Ranges of lengths for byte arrays
+(* Ranges of lengths for byte arrays *) 
+
 type range = low:nat * high:nat { low <= high }
 type (;r:range) rbytes = b:bytes { ?l,h. r = (l,h) /\ l <= Length(b) /\ Length(b) <= h }   
 function val Sum: range * range -> range
 definition !l0,h0,l1,h1. Sum((l0,h0),(l1,h1)) = (l0+l1,h0+h1)
-
 val rangeSum: r0:range -> r1:range -> r:range{r = Sum(r0,r1)}

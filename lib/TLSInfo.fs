@@ -107,8 +107,7 @@ let defaultConfig ={
     maxVer = TLS_1p2
     ciphersuites = cipherSuites_of_nameList
                     [ TLS_RSA_WITH_AES_128_CBC_SHA;
-                      TLS_RSA_WITH_3DES_EDE_CBC_SHA;
-                    ]
+                      TLS_RSA_WITH_3DES_EDE_CBC_SHA ]
     compressions = [ NullCompression ]
 
     honourHelloReq = HRPResume
@@ -129,7 +128,9 @@ let max_TLSCompressed_fragment_length = max_TLSPlaintext_fragment_length + 1024
 let max_TLSCipher_fragment_length = max_TLSCompressed_fragment_length + 1024
 let fragmentLength = max_TLSPlaintext_fragment_length (* use e.g. 1 for testing *)
 
-type range = nat * nat (* length range *)
+(* Ranges of lengths for byte arrays *) 
+
+type range = nat * nat 
 type rbytes = bytes 
 
 let rangeSum (l0,h0) (l1,h1) =

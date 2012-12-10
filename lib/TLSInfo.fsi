@@ -46,7 +46,9 @@ val initConnection: Role -> bytes -> ConnectionInfo
 val nextEpoch: epoch -> crand -> srand -> SessionInfo -> epoch
 //val dual_KeyInfo: epoch -> epoch
 
-// Application configuration options
+
+(* Application configuration options *) 
+
 type helloReqPolicy =
     | HRPIgnore
     | HRPFull
@@ -82,6 +84,7 @@ val defaultConfig: config
 
 val max_TLSCipher_fragment_length: nat
 val fragmentLength: nat
+
 type range = nat * nat (* length range *)
 type rbytes = bytes
 val rangeSum: range -> range -> range
