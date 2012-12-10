@@ -1,9 +1,13 @@
 ﻿module Encode
 
+(* The "plain" file for CPA encryption (module ENC) *)
+(* provided by AEAD, implementing AEADPlain @| MAC @| padding *) 
+
 open Bytes
 open TLSInfo
 open TLSConstants
 
+private val pad: l:int -> b:bytes{Length(b) = l}
 
 //------------------------------------------------------------------------------------------------------
 // Interface towards ENC 
@@ -12,10 +16,6 @@ function val PlainLength: e:epoch * tlen:nat -> plen:nat
 private type (;e:epoch,tlen:nat) plain = {p: (x:bytes){Length(x) = PlainLength(e,tlen) /\ tlen <= max_TLSCipher_fragment_length}}
 val plain: e:epoch{not Auth(e)} -> tlen:nat{tlen <= max_TLSCipher_fragment_length} -> b:bytes{Length(b) = PlainLength(e,tlen)} -> (;e,tlen) plain
 val repr:  e:epoch{not Safe(e)} -> tlen:nat -> (;e,tlen) plain -> b:bytes{Length(b) = PlainLength(e,tlen)}
-
-
-val pad: l:int -> b:bytes{Length(b) = l}
-
 
 //------------------------------------------------------------------------------------------------------
 // Interface towards AEAD
