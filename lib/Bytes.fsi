@@ -31,7 +31,8 @@ val newTimeSpan: nat -> nat -> nat -> nat -> TimeSpan
 val addTimeSpan: DateTime -> TimeSpan -> DateTime
 val greaterDateTime: DateTime -> DateTime -> bool
 
-(* List operation functions. *)
+(* List operations *)
+
 val fold: (bytes -> bytes -> bytes) -> bytes -> bytes list -> bytes
 val filter: ('a -> bool) -> 'a list -> 'a list // In HS, only used with 'a = HT_type, but it's not defined here.
 val foldBack: (bytes -> bytes -> bytes) -> bytes list -> bytes -> bytes
@@ -40,6 +41,7 @@ val memr: 'a list -> 'a -> bool when 'a : equality
 val choose: ('a -> 'b option) -> 'a list -> 'b list // Not used parametrically in HS, but types are not defined here.
 val tryFind: ('a -> bool) -> 'a list -> 'a option
 #if ideal
+// TODO not in f7
 val find: ('a -> bool) -> 'a list -> 'a
 #endif
 val listLength: ('a list) -> int

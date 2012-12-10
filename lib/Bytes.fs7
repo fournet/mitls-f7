@@ -1,10 +1,12 @@
 ﻿module Bytes
 
-(* Binary representations, using byte arrays *)
+(* Binary representations, using variable-length byte arrays *)
+(* This module implementation is trusted, not verified *) 
 
 type nat = n:int {0 <= n} // a convenient abbreviation 
 type bytes = byte array
 
+(* Lengths *)
 
 function val Length: bytes -> int 
 val length: b:bytes -> l:nat {Length(b) = l}
@@ -17,15 +19,13 @@ assume ListLength(op_Nil()) = 0
 assume !x,y. ListLength(op_ColonColon(x,y)) = 1 + ListLength(y)
 assume !l. Length(array_of_list(l)) = ListLength(l)
 
-
-val createBytes: l:int -> int -> (;l) lbytes
-// val zeroCreate: l:int -> b:bytes {Length(b) = l}
+val createBytes: l:int -> v:int { 0 <= v /\ v < 256 } -> (;l) lbytes
 
 val equalBytes: b0:bytes -> b1:bytes -> 
   r:bool {(r = true /\ b0 = b1) \/ (r = false /\ b0 <> b1)}
 
-
 (* array concatenation (append) *)
+(* we use the infix operator @| both concretely and in formulas *)
 
 val op_AtBar: b1:bytes -> b2:bytes -> b:bytes{b = b1 @| b2}
 //val append: b1:bytes -> b2:bytes -> b:bytes{b = b1 @| b2}
@@ -35,7 +35,7 @@ val split:
   b1:bytes * b2:bytes { Length(b1) = i /\ b = b1 @| b2 }
 
 val check_split: 
-  b:bytes -> i:int -> 
+  b:bytes -> i:nat -> 
   b1:bytes * b2:bytes { Length(b1) = i /\ b = b1 @| b2 }
 
 val split2: b:bytes -> i:nat -> j:nat  {Length(b) >= i+j} ->
@@ -69,13 +69,13 @@ val int_of_bytes: b:bytes {Length(b)<=8} -> i:nat{b = IntBytes(Length(b),i)}
 assume !l:int, i:int. Length(IntBytes(l,i)) = l
 assume !l:int, i0:int, i1:int. IntBytes(l,i0) = IntBytes(l,i1) => i0=i1
 
-(* We want a notion of equivalent representation that does not include length. 
-   Where do we use this? *)
-//function val EquivRepr: bytes -> bytes -> true
-//assume !l1:int, l2:int, i:int. EquivRepr(IntBytes(l1,i),IntBytes(l2,i))
+// TODO remove? 
+// TODO (* We want a notion of equivalent representation that does not include length. 
+// TODO   Where do we use this? *)
+// TODO //function val EquivRepr: bytes -> bytes -> true
+// TODO assume !l1:int, l2:int, i:int. EquivRepr(IntBytes(l1,i),IntBytes(l2,i))
 
-
-(* string representations *)
+(* string representation, used in sample apps *)
 
 function val Utf8: string -> bytes 
 val utf8:  s:string -> b:bytes { b = Utf8(s) }
@@ -84,13 +84,8 @@ val iutf8: b:bytes -> s:string { b = Utf8(s) }
 // utf8 is injective
 assume !x:string, y:string. ( Utf8(x)=Utf8(y) => x = y )
 
-
-(* misc, to be relocated *)
-
-//assume !x. x <= x
-//assume 0 <= 1
-
 (* Time spans *)
+
 type DateTime
 type TimeSpan
 val now: unit -> DateTime
@@ -98,16 +93,16 @@ val newTimeSpan: nat -> nat -> nat -> nat -> TimeSpan
 val addTimeSpan: DateTime -> TimeSpan -> DateTime
 val greaterDateTime: DateTime -> DateTime -> bool
 
-(* List operation functions. *)
+(* List operations *)
+
+// TODO usage? 
 function val Unfold: bytes * bytes list -> bytes
 function val UnfoldBack: bytes list * bytes -> bytes
-val fold: (bytes -> bytes -> bytes) -> s:bytes -> bl:bytes list -> b:bytes{b=Unfold(s,bl)}
-val filter: ('a -> bool) -> 'a list -> 'a list
+val fold:     (bytes -> bytes -> bytes) -> s:bytes -> bl:bytes list -> b:bytes{b=Unfold(s,bl)}
 val foldBack: (bytes -> bytes -> bytes) -> bl:bytes list -> s:bytes -> b:bytes{b=UnfoldBack(bl,s)}
+val filter: ('a -> bool) -> 'a list -> 'a list
 val exists: ('a -> bool) -> 'a list -> bool // Used parametrically in HS.
-
 val memr: 'a list -> 'a -> bool 
-
 val choose: ('a -> 'b option) -> 'a list -> 'b list // Not used parametrically in HS, but types are not defined here.
 val tryFind: ('a -> bool) -> 'a list -> 'a option
 val listLength: l:('a list) -> len:nat{ListLength(l)=len}

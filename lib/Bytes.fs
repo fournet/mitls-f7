@@ -27,12 +27,11 @@ let bytes_of_int nb i =
 let int_of_bytes (b:bytes) : int =
     List.fold (fun x y -> 256 * x + y) 0 (List.map (int) (Array.toList b))
 
-//@ Constant time comparison
+//@ Constant time comparison (to mitigate timing attacks)
+//@ The number of byte comparisons depends only on the lengths of both arrays.
 let equalBytes (b1:bytes) (b2:bytes) =
-    if length b1 <> length b2 then
-        false
-    else
-        Array.fold2 (fun ok x y -> (x = y) && ok) true b1 b2
+    length b1 = length b2 && 
+    Array.fold2 (fun ok x y -> x = y && ok) true b1 b2
 
 let (@|) (a:bytes) (b:bytes) = Array.append a b
 let split (b:bytes) i : bytes * bytes = 
