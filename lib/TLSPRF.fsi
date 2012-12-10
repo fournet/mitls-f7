@@ -9,7 +9,7 @@ val tls_verifyData : bytes -> string -> bytes -> bytes
 val tls12VerifyData: cipherSuite -> bytes -> string -> bytes -> bytes
 
 (* PRF *)
-val generic_prf: ProtocolVersion -> cipherSuite -> bytes -> string -> bytes -> int -> bytes
+val prf: ProtocolVersion -> cipherSuite -> bytes -> string -> bytes -> int -> bytes
 
 (* SSL-specific certificate verify *)
 val ssl_certificate_verify: bytes -> bytes -> hashAlg -> bytes

@@ -1,5 +1,7 @@
 ﻿module Sig
 
+// TODO still many details to fix.
+
 open Bytes
 open TLSConstants
 

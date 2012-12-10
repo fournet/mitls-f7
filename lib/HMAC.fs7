@@ -1,5 +1,7 @@
 ﻿module HMAC
 
+(* Core HMAC algorithms; trusted only on their tag lengths *)
+
 open Bytes
 open TLSConstants
 

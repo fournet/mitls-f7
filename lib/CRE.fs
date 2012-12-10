@@ -51,7 +51,7 @@ let prfMS sinfo pmsBytes: PRF.masterSecret =
     let pv = sinfo.protocol_version in
     let cs = sinfo.cipher_suite in
     let data = sinfo.init_crand @| sinfo.init_srand in
-    let res = generic_prf pv cs pmsBytes tls_master_secret data 48 in
+    let res = prf pv cs pmsBytes tls_master_secret data 48 in
     PRF.coerce sinfo res
 
 let prfSmoothRSA si (pv:ProtocolVersion) pms = 

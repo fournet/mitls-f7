@@ -1,5 +1,7 @@
 ﻿module TLSInfo
 
+(* public datatypes and parameters for our TLS API *) 
+
 open Bytes
 open TLSConstants
 
@@ -24,9 +26,9 @@ type srand = random
 // SessionInfo and epoch: Session and Connection level public immutable data.
 // Used for indexing
 
-//CF 04-09
-//CF the randoms are not just bytes; where do we rely on collision-resistance?
+//CF 04-09 the randoms are not just bytes; where do we rely on collision-resistance?
 
+// TODO this is out of sync with the paper, on client_auth and pms_data.
 type SessionInfo = {
     init_crand: crand;
     init_srand: srand;

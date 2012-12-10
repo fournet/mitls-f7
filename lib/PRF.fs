@@ -30,7 +30,7 @@ let keyGen ci (ms:masterSecret) =
     let crand = epochCRand ci.id_in in
     let data = srand @| crand in
     let len = getKeyExtensionLength pv cs in
-    let b = generic_prf pv cs ms.bytes tls_key_expansion data len in
+    let b = prf pv cs ms.bytes tls_key_expansion data len in
     let (cWrite,sWrite) =
         match cs with
         | x when isOnlyMACCipherSuite x ->

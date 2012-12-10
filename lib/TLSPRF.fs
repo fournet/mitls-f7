@@ -24,26 +24,26 @@ let ssl_prf secret seed nb =
         let step1 = ssl_prf_int secret (gen_label (n/16)) seed in
         apply_prf (res @| step1) (n+16)
   in
-  apply_prf (Array.zeroCreate 0) 0
+  apply_prf [||]  0
 
 let ssl_verifyData ms ssl_sender data =
   let mm = data @| ssl_sender @| ms in
-  let inner_md5 = hash MD5 (mm @| ssl_pad1_md5) in
-  let outer_md5 = hash MD5 (ms @| ssl_pad2_md5 @| inner_md5) in
+  let inner_md5  = hash MD5 (mm @| ssl_pad1_md5) in
+  let outer_md5  = hash MD5 (ms @| ssl_pad2_md5 @| inner_md5) in
   let inner_sha1 = hash SHA (mm @| ssl_pad1_sha1) in
   let outer_sha1 = hash SHA (ms @| ssl_pad2_sha1 @| inner_sha1) in
   outer_md5 @| outer_sha1
 
 let ssl_certificate_verify ms log hashAlg =
-    let (pad1,pad2) =
-        match hashAlg with
-        | SHA -> (ssl_pad1_sha1, ssl_pad2_sha1)
-        | MD5 -> (ssl_pad1_md5,  ssl_pad2_md5)
-        | _ -> Error.unexpectedError "[ssl_certificate_verify] invoked on a wrong hash algorithm"
-    let forStep1 = log @| ms @| pad1 in
-    let step1 = hash hashAlg forStep1 in
-    let forStep2 = ms @| pad2 @| step1 in
-    hash hashAlg forStep2
+  let (pad1,pad2) =
+      match hashAlg with
+      | SHA -> (ssl_pad1_sha1, ssl_pad2_sha1)
+      | MD5 -> (ssl_pad1_md5,  ssl_pad2_md5)
+      | _ -> Error.unexpectedError "[ssl_certificate_verify] invoked on a wrong hash algorithm"
+  let forStep1 = log @| ms @| pad1 in
+  let step1 = hash hashAlg forStep1 in
+  let forStep2 = ms @| pad2 @| step1 in
+  hash hashAlg forStep2
 
 (* TLS 1.0 and 1.1 *)
 
@@ -101,10 +101,10 @@ let tls12VerifyData cs ms tls_label data =
   let verifyDataLen = verifyDataLen_of_ciphersuite cs in
   tls12prf cs ms tls_label hashResult verifyDataLen
 
-(* Internal generic (SSL/TLS) implementation of PRF, used by purpose specific PRFs *)
+(* Internal generic (SSL/TLS) implementation of PRF *)
 
-let generic_prf pv cs secret label data len =
+let prf pv cs secret label data len =
   match pv with 
-  | SSL_3p0           -> ssl_prf secret data len
-  | TLS_1p0 | TLS_1p1 -> tls_prf secret label data len
+  | SSL_3p0           -> ssl_prf     secret       data len
+  | TLS_1p0 | TLS_1p1 -> tls_prf     secret label data len
   | TLS_1p2           -> tls12prf cs secret label data len
