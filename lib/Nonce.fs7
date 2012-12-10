@@ -5,3 +5,8 @@ open Bytes
 val mkRandom: l:int -> b:bytes{Length(b) = l}
 val mkHelloRandom: unit -> b:(;32)lbytes
 
+// Ideally, mkHelloRandom returns pairwise-distinct values
+// (up to a negligible probability of collision)
+
+// TODO do we need more than that, e.g. no clash with prior adv nonces?
+// TODO relocate mkRandom; rename mkHelloRandom to fresh

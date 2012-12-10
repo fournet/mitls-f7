@@ -1,5 +1,7 @@
 ﻿module Tcp
 
+(* Trusted only to return bytes with the requested length *)
+
 open Bytes
 open Error
 
@@ -16,11 +18,11 @@ val stop: TcpListener -> unit
 
 val connect: string -> int -> NetworkStream
 
-(* Input/Output *)
+(* Synchronous Input/Output *)
 
-val dataAvailable: NetworkStream -> r:bool Result{!y,z. r = Error(y,z) => y = AD_internal_error}
-val read: NetworkStream -> l:int{l>0} ->
-		r:bytes Result{(!b. r = Correct(b) => Length(b) = l)
-		/\ (!y,z. r = Error(y,z) => y = AD_internal_error)}
-val write: NetworkStream -> bytes -> r:unit Result{!y,z. r = Error(y,z) => y = AD_internal_error}
+val read:  NetworkStream -> l:int{l>0} -> (;l) lbytes Result
+val write: NetworkStream -> bytes -> unit Result
 val close: NetworkStream -> unit
+
+// TODO cut: val dataAvailable: NetworkStream -> r:bool Result{!y,z. r = Error(y,z) => y = AD_internal_error}
+

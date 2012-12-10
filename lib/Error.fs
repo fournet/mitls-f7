@@ -37,12 +37,12 @@ type 'a Result =
     | Error of alertDescription * string
     | Correct of 'a
 
-let perror file line text =
-    let text =
-        match text with
-        | "" -> "No reason given"
-        | _ -> text
-    Printf.sprintf "Error at %s:%s: %s." file line text
+let perror (file:string) (line:string) (text:string) =
+#if fs
+    Printf.sprintf "Error at %s:%s: %s." file line (if text="" then "No reason given" else text)
+#else
+    text
+#endif
 
 let correct x = Correct x
 
