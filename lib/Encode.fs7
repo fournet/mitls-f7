@@ -37,10 +37,12 @@ val macPlain: e:epoch -> r:range ->
 
 predicate MACed of e:epoch * (;e) MAC.key * (;e) MACPlain * (;e) tag
 
-val mac: e:succEpoch -> k:(;e) MAC.key -> t:(;e) MACPlain{?r,ad,f. t = MACPlain(e,r,ad,f)}
-  -> tag:(;e) tag{Length(tag.macT) = MacKeySize(CipherSuiteMACAlg(EpochSI(e).cipher_suite)) /\ MACed(e,k,t,tag)}
-val verify: e:succEpoch -> k:(;e) MAC.key -> text:(;e) MACPlain -> tag:(;e) tag ->
-  v:bool{v = true => (?r,ad,f. text = MACPlain(e,r,ad,f)) /\ (MACed(e,k,text,tag) => v = true)}
+val mac: e:succEpoch -> k:(;e) MAC.key -> 
+  t:(;e) MACPlain{?r,ad,f. t = MACPlain(e,r,ad,f)} -> 
+  tag:(;e) tag{Length(tag.macT) = MacKeySize(CipherSuiteMACAlg(EpochSI(e).cipher_suite)) /\ MACed(e,k,t,tag)}
+val verify: e:succEpoch -> k:(;e) MAC.key -> 
+  t:(;e) MACPlain -> tag:(;e) tag ->
+  v:bool{v = true => (?r,ad,f. text = MACPlain(e,r,ad,f)) /\ (MACed(e,k,t,tag) => v = true)}
 
 // Padding computations
 private val blockAlignPadding: e:succEpoch -> nat -> nat
@@ -67,7 +69,7 @@ val decodeNoPad: e:succEpoch{IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/
 	(rg:range * (;e,ad,rg)AEADPlain.plain * (;e)tag){tlen=RangeCipher(e,rg)}
 
 //------------------------------------------------------------------------------------------------------
-// Auxiliary definitions and Assumes for typing
+// Auxiliary definitions and assumptions for typing
 //------------------------------------------------------------------------------------------------------
 
 function val MsgBytes: e:epoch * (;e) adata * bytes -> bytes
@@ -82,7 +84,6 @@ private assume !e,tlen,pl. MAC.Msg(e,pl) <=>
 	  pl = MsgBytes(e,ad,x)))
 
 ask !e,t. not Auth(e) => MAC.Msg(e,t)
-
 
 private assume !e. IVSize(e) >= 0
 assume !e,si. si = EpochSI(e) =>
