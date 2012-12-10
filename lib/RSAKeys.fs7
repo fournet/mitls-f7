@@ -2,20 +2,23 @@
 
 // This module defines RSA keys
 // but not their use for public-key encryption: see RSAEnc
+// (We use two modules to break a circular dependency)
 
 open Bytes
 
-type sk (* secret (decryption) key *)
+type sk (* secret (decryption) key, abstract *)
 type pk (* public (encryption) key, abstract but bytes are accessible *)
 
 type modulus  = bytes
 type exponent = bytes
 
-// to be adjusted depending on the compromise model in Cert
+// TODO val honest: pk:pk -> b:bool { b = true <=> Honest(pk) }  
+
+// TODO to be adjusted depending on the compromise model in Cert
 val create_rsapkey : modulus * exponent -> pk
 val create_rsaskey : modulus * exponent -> sk
 
-(* Commented out because they depend on core ciphers,
-   and they are never used in ideal TLS crypto *)
-// val repr_of_rsapkey : pk -> CoreACiphers.pk
-// val repr_of_rsaskey : sk -> CoreACiphers.sk
+// TODO (* Commented out because they depend on core ciphers,
+// TODO    and they are never used in ideal TLS crypto *)
+// TODO val repr_of_rsapkey : pk -> CoreACiphers.pk
+// TODO val repr_of_rsaskey : sk -> CoreACiphers.sk

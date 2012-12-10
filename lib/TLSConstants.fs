@@ -38,9 +38,9 @@ let sigAlgBytes sa =
 
 let parseSigAlg b =
     match b with
-    | [|1uy|] -> correct(SA_RSA)
-    | [|2uy|] -> correct(SA_DSA)
-    | [|3uy|] -> correct(SA_ECDSA)
+    | [|1uy|] -> correct SA_RSA
+    | [|2uy|] -> correct SA_DSA
+    | [|3uy|] -> correct SA_ECDSA
     | _ -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let hashAlgBytes ha =
@@ -54,10 +54,10 @@ let hashAlgBytes ha =
 
 let parseHashAlg b =
     match b with
-    | [|1uy|] -> correct(MD5)
-    | [|2uy|] -> correct(SHA)
-    | [|4uy|] -> correct(SHA256)
-    | [|5uy|] -> correct(SHA384)
+    | [|1uy|] -> correct MD5
+    | [|2uy|] -> correct SHA
+    | [|4uy|] -> correct SHA256
+    | [|5uy|] -> correct SHA384
     | _ -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 type aeadAlg =

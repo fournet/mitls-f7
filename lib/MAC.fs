@@ -4,7 +4,6 @@ open Bytes
 open TLSConstants
 
 open TLSInfo
-//open HASH (* Only for SSL 3 keyed hash *)
 open Error
 
 type text = bytes

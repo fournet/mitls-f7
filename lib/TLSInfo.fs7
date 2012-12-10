@@ -14,7 +14,7 @@ type preRole =
 	| Server
 type Role = r:preRole{r = Client \/ r = Server}
 
-// Client/Server randomness; 
+// Client/Server randomness (implemented in Nonce) 
 // their first 4 bytes give the local time, 
 // so that they are locally pairwise-distinct
 type random = (;32) lbytes 

@@ -3,8 +3,8 @@
 open Bytes
 open Error
 
-(* Not abstracts, but only meant to be used by
-   crypto modules and CipherSuites *)
+(* Not abstract, but meant to be used only by crypto modules and CipherSuites *)
+
 type kexAlg =
     | RSA
     | DH_DSS

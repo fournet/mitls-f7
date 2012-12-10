@@ -7,7 +7,7 @@ open Error
 
 (* Not abstract, but meant to be used only by crypto modules and CipherSuites *)
 
-type kexAlg =  (* all these kex have server-auth & optional client-auth, *)
+type kexAlg =  (* all these kex have server auth & optional client auth, *)
                (* except for anon which has nothing *)
     | RSA     // --> client-generated pms encrypted using server's public key
     | DH_DSS  // <-- Certificate(DSA containing g^y); --> g^x then pms = g^xy  //CF$ reuse of exponentials?
@@ -43,6 +43,12 @@ type authencAlg =
     | MtE of cipherAlg * hashAlg
     | AEAD of aeadAlg * hashAlg
 
+(* With F7, we need to declare both logical length functions
+   and their concrete implementations; we still miss a few... 
+   a nicer F7 could enable homonymous concrete implementations of logical functions *) 
+
+(* TODO: use uniform naming convention, e.g. length implements Length; make more defs private *)
+
 function val SigAlgBytes: sigAlg -> bytes
 val sigAlgBytes: s:sigAlg -> b:bytes{b=SigAlgBytes(s)}
 val parseSigAlg: b:bytes -> (s:sigAlg{b=SigAlgBytes(s)}) Result
@@ -50,19 +56,12 @@ function val HashAlgBytes: hashAlg -> bytes
 val hashAlgBytes: h:hashAlg -> b:bytes{b=HashAlgBytes(h)}
 val parseHashAlg: b:bytes -> (h:hashAlg{b=HashAlgBytes(h)}) Result
 
-(* With F7, we need to declare both logical length functions
-   and their concrete implementations; we still miss a few...
-   TODO: use uniform naming convention, e.g. length implements Length
-   a nicer F7 could enable homonymous concrete implementations of logical functions *) 
-
 function val EncKeySize: cipherAlg -> nat
 assume !x. EncKeySize(x) >= 0
-// providing an explicit spec at least once; this should be internal
 definition EncKeySize(RC4_128)      = 16
 definition EncKeySize(TDES_EDE_CBC) = 24
 definition EncKeySize(AES_128_CBC)  = 16
 definition EncKeySize(AES_256_CBC)  = 32
-
 val encKeySize: a:cipherAlg -> l:nat{l=EncKeySize(a)}
 
 function val BlockSize: cipherAlg -> nat
@@ -201,7 +200,6 @@ private assume !kex,a. AEAlg(CipherSuite(kex,a)) = a
 
 predicate KnownCipherSuite of cipherSuite 
 function val CipherSuiteBytes: cipherSuite -> bytes 
-
 
 private assume !cs. KnownCipherSuite(cs) <=>
        (cs = NullCipherSuite)                                     

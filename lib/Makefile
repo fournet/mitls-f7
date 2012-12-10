@@ -14,7 +14,7 @@ f7flags += -timeout 1 --define avoid --define verify --verbose -nokindcheck $(lp
 
 -include Makefile.tc7
 
-default: TLSInfo.tc7 DataStream.tc7 AppFragment.tc7 HSFragment.tc7 TLSFragment.tc7 StatefulPlain.tc7 AEADPlain.tc7 AEAD.tc7 StatefulAEAD.tc7 Record.tc7
+default: Error.tc7 TLSInfo.tc7 DataStream.tc7 AppFragment.tc7 HSFragment.tc7 TLSFragment.tc7 StatefulPlain.tc7 AEADPlain.tc7 AEAD.tc7 StatefulAEAD.tc7 Record.tc7
 
 clean:
 	rm -f *.smp *.tc7

@@ -1,5 +1,9 @@
 ﻿module HASH
 
+(* Core cryptographic hash algorithms; trusted only to have the right tag length *)
+
+// CF the crypto assumptions are in MAC and TLSPRF, not here 
+
 open Bytes
 open TLSConstants
 
