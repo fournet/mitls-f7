@@ -19,6 +19,13 @@ type skey = dhskey
 type pkey = dhpkey
 
 (* ------------------------------------------------------------------------ *)
+let check_element (pbytes:byte[]) (ebytes:byte[]) =
+    let p = new BigInteger(1,pbytes) in
+    let e = new BigInteger(1,ebytes) in
+    // check e in [2,p-1]
+    ((e.CompareTo BigInteger.One) > 0) && ((e.CompareTo p) < 0)
+
+(* ------------------------------------------------------------------------ *)
 let gen_params () : dhparams =
     let random    = new SecureRandom() in
     let generator = new DHParametersGenerator() in

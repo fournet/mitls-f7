@@ -332,10 +332,14 @@ let clientKEXExplicitBytes_DH y =
     let yb = vlbytes 2 y in
     messageBytes HT_client_key_exchange yb
 
-let parseClientKEXExplicit_DH data =
-    (* FIXME: should take (p,g) as parameter and check e.g. it is within 1..p-1 *)
+let parseClientKEXExplicit_DH p data =
     if length data >= 2 then
-        vlparse 2 data
+        match vlparse 2 data with
+        | Error(x,y) -> Error(x,y)
+        | Correct(y) ->
+            match DHGroup.checkElement p y with
+            | None -> Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid DH key received")
+            | Some(y) -> correct y
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 // Unused until we don't support DH ciphersuites.
@@ -402,7 +406,13 @@ let parseDHEParams payload =
                 | Error(x,y) -> Error(x,y)
                 | Correct(res) ->
                 let (y,payload) = res in
-                correct(p,g,y,payload)
+                // Check g and y are valid elements
+                match DHGroup.checkElement p g with
+                | None -> Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid DH parameter received")
+                | Some(g) ->
+                    match DHGroup.checkElement p y with
+                    | None -> Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid DH parameter received")
+                    | Some(y) -> correct(p,g,y,payload)
             else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
         else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
@@ -1673,7 +1683,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         let state = {state with pstate = PSServer(ClientCCS(si,ms,log))} in
                         recv_fragment_server ci state agreedVersion
             | ClientKeyExchangeDHE(si,p,g,gx,x,log) ->
-                match parseClientKEXExplicit_DH payload with
+                match parseClientKEXExplicit_DH p payload with
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(y) ->
                     let log = log @| to_log in
@@ -1694,7 +1704,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         let state = {state with pstate = PSServer(ClientCCS(si,ms,log))} in
                         recv_fragment_server ci state agreedVersion
             | ClientKeyExchangeDH_anon(si,p,g,gx,x,log) ->
-                match parseClientKEXExplicit_DH payload with
+                match parseClientKEXExplicit_DH p payload with
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(y) ->
                     let log = log @| to_log in

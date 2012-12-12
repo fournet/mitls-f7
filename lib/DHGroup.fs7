@@ -4,7 +4,9 @@ open Bytes
 
 type p = bytes // DH group order, actually a bignum
 
-type (;p:p) elt = bytes   // for public parameters and exchange values
+// for public parameters and exchange values
+type (;p:p) elt = elt:bytes // {elt >= 2 /\ elt <= p-1} Cannot enforce since they are bytes
 type (;p:p) g = (;p) elt  // for the group generator
 
 val genElement: p:p -> g:(;p)g -> (;p)elt
+val checkElement: p:p -> bytes -> (;p)elt option

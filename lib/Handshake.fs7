@@ -200,8 +200,8 @@ private definition !b.
 
 val clientKEXExplicitBytes_DH: gx:bytes ->
 	b:bytes{b = ClientKeyExchangeMsg_DHE(gx)}
-val parseClientKEXExplicit_DH: b:bytes ->
-	(gx:bytes{
+val parseClientKEXExplicit_DH: p:DHGroup.p -> b:bytes ->
+	(gx:(;p)elt{
 		MessageBytes(HT_client_key_exchange,b) = ClientKeyExchangeMsg_DHE(gx)
 	}) Result
 val clientKEXImplicitBytes_DH: bytes
@@ -230,7 +230,7 @@ private definition !p,g,y.
 val dheParamBytes: p:bytes -> g:bytes -> y:bytes ->
 	b:bytes{b = DHEParamBytes(p,g,y)}
 val parseDHEParams: b:bytes -> 
- (p:bytes * g:bytes * y:bytes * rem:bytes {
+ (p:DHGroup.p * g:(;p)DHGroup.elt * y:(;p)DHGroup.elt * rem:bytes {
 	b = (DHEParamBytes(p,g,y) @| rem)
  }) Result
 
@@ -246,7 +246,7 @@ val serverKeyExchangeBytes_DHE: dheb:bytes{?p,g,y. dheb = DHEParamBytes(p,g,y)} 
 		b = ServerKeyExchangeMsg_DHE(pv,p,g,y,a,sign)}
 val parseServerKeyExchange_DHE: pv:ProtocolVersion -> cs:cipherSuite -> 
 	b:bytes ->
-	((p:bytes * g:bytes * y:bytes * a:Sig.alg * sign:bytes){
+	((p:DHGroup.p * g:(;p)DHGroup.elt * y:(;p)DHGroup.elt * a:Sig.alg * sign:bytes){
 	MessageBytes(HT_server_key_exchange,b) =
 		ServerKeyExchangeMsg_DHE(pv,p,g,y,a,sign)
 	}) Result
