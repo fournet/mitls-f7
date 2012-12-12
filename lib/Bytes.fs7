@@ -34,10 +34,6 @@ val split:
   b:bytes -> i:nat{Length(b) >= i} ->
   b1:bytes * b2:bytes { Length(b1) = i /\ b = b1 @| b2 }
 
-val check_split: 
-  b:bytes -> i:nat -> 
-  b1:bytes * b2:bytes { Length(b1) = i /\ b = b1 @| b2 }
-
 val split2: b:bytes -> i:nat -> j:nat  {Length(b) >= i+j} ->
   b1:bytes * b2:bytes * b3:bytes { Length(b1)=i /\ Length(b2)=j /\ b = b1 @| b2 @| b3}
 

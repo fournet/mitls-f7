@@ -41,11 +41,6 @@ let split2 (b:bytes) i j : bytes * bytes * bytes =
   Array.sub b 0 i,
   Array.sub b i j,
   Array.sub b (i+j) (b.Length-(i+j))
-
-let check_split b l = 
-  if length(b) < l then failwith "split failed: FIX THIS to return BOOL + ..."
-  if l < 0 then failwith "split failed: FIX THIS to return BOOL + ..."
-  else split b l
  
 let utf8 (x:string) : bytes = System.Text.Encoding.UTF8.GetBytes x
 let iutf8 (x:bytes) : string = System.Text.Encoding.UTF8.GetString x

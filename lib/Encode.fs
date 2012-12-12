@@ -1,6 +1,7 @@
 ﻿module Encode
 
 open Bytes
+open Error
 open TLSInfo
 open TLSConstants
 
@@ -143,7 +144,7 @@ let decode e (ad:AEADPlain.adata) tlen plain =
     match alg with
     | RC4_128 ->
         let (rg,aeadF,tag) = decodeNoPad e ad tlen plain in
-        (rg,aeadF,tag,true)
+        correct (rg,aeadF,tag,true)
     | _ ->
     let macSize = macSize (macAlg_of_ciphersuite si.cipher_suite) in
     let rg = cipherRange e tlen in
@@ -151,22 +152,28 @@ let decode e (ad:AEADPlain.adata) tlen plain =
     let expected = tlen - ivL
     let pl = plain.p in
     let pLen = length pl in
-    if pLen <> expected || pLen < 1 then
-        Error.unexpectedError "[decode] tlen does not match plaintext length"
+    if pLen <> expected then
+        unexpectedError "[decode] tlen does not match plaintext length"
+    else
+    if pLen < macSize + 1 then
+        (*@ It is safe to abort computation here, because the attacker
+            already knows we received an invalid length *)
+        Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "") 
     else
     let padLenStart = pLen - 1 in
     let (tmpdata, padlenb) = Bytes.split pl padLenStart in
     let padlen = int_of_bytes padlenb in
     let padstart = pLen - padlen - 1 in
+    let macstart = pLen - macSize - padlen - 1 in
     let encAlg = encAlg_of_ciphersuite si.cipher_suite in
     let bs = blockSize encAlg in
     let (flag,data,padlen) =
-        if padstart < 0 then
+        if padstart < 0 || macstart < 0 then
             (*@ Evidently padding has been corrupted, or has been incorrectly generated *)
             (*@ Following TLS1.1 we fail later (see RFC5246 6.2.3.2 Implementation Note) *)
             (false,tmpdata,0)
         else
-            let (data_no_pad,pad) = check_split tmpdata padstart in
+            let (data_no_pad,pad) = split tmpdata padstart in
             match si.protocol_version with
             | TLS_1p0 | TLS_1p1 | TLS_1p2 ->
                 (*@ We note the small timing leak here.
@@ -187,8 +194,8 @@ let decode e (ad:AEADPlain.adata) tlen plain =
                     (true,data_no_pad,padlen)
                 else
                     (false,tmpdata,0)
-    let macStart = pLen - macSize - padlen - 1 in
-    let (frag,mac) = check_split data macStart in
+    let macstart = pLen - macSize - padlen - 1 in
+    let (frag,mac) = split data macstart in
     let aeadF = AEADPlain.plain e ad rg frag in
     let tag = {macT = mac} in
-    (rg,aeadF,tag,flag)
+    correct (rg,aeadF,tag,flag)

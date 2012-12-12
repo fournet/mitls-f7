@@ -1,6 +1,7 @@
 ﻿module Encode
 
 open Bytes
+open Error
 open TLSInfo
 open TLSConstants
 
@@ -17,5 +18,5 @@ val verify: epoch -> MAC.key -> MACPlain -> tag -> bool
 val encode: epoch -> range -> AEADPlain.adata -> AEADPlain.plain -> tag -> nat * plain
 val encodeNoPad: epoch -> range -> AEADPlain.adata -> AEADPlain.plain -> tag -> nat * plain
 
-val decode: epoch -> AEADPlain.adata -> nat -> plain -> (range * AEADPlain.plain * tag * bool)
+val decode: epoch -> AEADPlain.adata -> nat -> plain -> (range * AEADPlain.plain * tag * bool) Result
 val decodeNoPad: epoch -> AEADPlain.adata -> nat -> plain -> (range * AEADPlain.plain * tag)

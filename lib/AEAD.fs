@@ -89,8 +89,11 @@ let decrypt' ki key data cipher =
         let (ke,encoded)      = ENC.DEC ki ke cipher in
         let nk = mteKey ki ka ke in
         let cl = length cipher in
-        let (rg,plain,tag,ok) = Encode.decode ki data cl encoded in
-        let maced             = Encode.macPlain ki rg data plain
+        match Encode.decode ki data cl encoded with
+        | Error(x,y) -> Error(x,y)
+        | Correct(res) ->
+        let (rg,plain,tag,ok) = res in
+        let maced             = Encode.macPlain ki rg data plain in
         match si.protocol_version with
         | SSL_3p0 | TLS_1p0 ->
             (*@ SSL3 and TLS1 enable both timing and error padding oracles. *)

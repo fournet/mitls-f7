@@ -4,6 +4,7 @@
 (* provided by AEAD, implementing AEADPlain @| MAC @| padding *) 
 
 open Bytes
+open Error
 open TLSInfo
 open TLSConstants
 
@@ -58,7 +59,7 @@ val decode: e:succEpoch{IsAEADCiphersuite(EpochSI(e).cipher_suite)} ->
 	ad:(;e) AEADPlain.adata -> tlen:nat -> p:(;e,tlen) plain ->
 	(rg:range * pl:(;e,ad,rg)AEADPlain.plain * tag:(;e)tag * ok:bool){
           tlen=RangeCipher(e,rg) /\
-          (Encoded(e,ad,pl,tag,p) => ok = true)}
+          (Encoded(e,ad,pl,tag,p) => ok = true)} Result
 val encodeNoPad: e:succEpoch{IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/
                     CipherSuiteENCAlg(EpochSI(e).cipher_suite) = RC4_128} ->
 	rg:range -> ad:(;e) AEADPlain.adata -> (;e,ad,rg) AEADPlain.plain -> (;e) tag ->
