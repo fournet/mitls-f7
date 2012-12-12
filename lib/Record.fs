@@ -20,8 +20,7 @@ let initConnState (ki:epoch) s =
 
 let nullConnState (ki:epoch) = NullState
 
-/// packet format
-
+// packet format
 let makePacket ct ver data =
     let l = length data in 
     let bct  = ctBytes ct in

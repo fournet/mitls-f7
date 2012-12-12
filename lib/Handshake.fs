@@ -315,7 +315,7 @@ let clientKEXBytes_RSA si config =
             let nencpms = encpmsBytesVersion si.protocol_version encpms in
             let mex = messageBytes HT_client_key_exchange nencpms in
             // The returned encpms is ghost: only used to avoid
-            // existentials in formal verification.
+            // existentials in formal verification, and storage in sessionInfo (as ghost variable).
             correct(mex,encpms,pms)
 
 let parseClientKEX_RSA si skey cv config data =
@@ -333,7 +333,7 @@ let clientKEXExplicitBytes_DH y =
     messageBytes HT_client_key_exchange yb
 
 let parseClientKEXExplicit_DH data =
-    (*$ should take (p.g) as parameter and check e.g. it is within 1..p-1 *)
+    (* FIXME: should take (p,g) as parameter and check e.g. it is within 1..p-1 *)
     if length data >= 2 then
         vlparse 2 data
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
@@ -911,7 +911,9 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:Sess
     match clientKEXBytes_RSA si state.poptions with
     | Error(x,y) -> Error(x,y)
     | Correct(v) ->
-    let (clientKEXBytes,_,pms)  = v in
+    let (clientKEXBytes,encpms,pms)  = v in
+
+    let si = {si with pmsData = RSAPMS(encpms)} in
 
     let log = log @| clientKEXBytes in
     let pop = state.poptions in 
@@ -941,7 +943,6 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
             | None -> si
             | Some(x) -> let (certList,_,_) = x in {si with clientID = certList}
         else si
-    (* si is now constant *)
 
     let clientCertBytes =
       if si.client_auth then
@@ -951,6 +952,9 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
 
     let (cy,x) = DH.genKey p g in
     (* post: DHE.Exp((p,g),x,cy) *) 
+
+    let si = {si with pmsData = DHPMS(p,g,cy,sy)} in
+    (* si is now constant *)
 
     let clientKEXBytes = clientKEXExplicitBytes_DH cy in
     let log = log @| clientKEXBytes in
@@ -999,6 +1003,7 @@ let on_serverHello_full crand log to_log (shello:ProtocolVersion * srand * sessi
                compression = sh_compression_method
                init_crand = crand
                init_srand = sh_random
+               pmsData = PMSUnset
                } in
     (* If DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
     if isAnonCipherSuite sh_cipher_suite then
@@ -1535,14 +1540,15 @@ let startServerFull (ci:ConnectionInfo) state (cHello:ProtocolVersion * crand * 
                 let srand = Nonce.mkHelloRandom () in
                 (* Fill in the session info we're establishing *)
                 let si = { clientID         = []
-                           client_auth = state.poptions.request_client_certificate
+                           client_auth      = state.poptions.request_client_certificate
                            serverID         = []
                            sessionID        = sid
                            protocol_version = version
                            cipher_suite     = cs
                            compression      = cm
                            init_crand       = ch_random
-                           init_srand       = srand }
+                           init_srand       = srand
+                           pmsData          = PMSUnset }
                 prepare_server_output_full ci state si ch_client_version clientAlgs cvd svd log
             | None -> Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Compression method negotiation")
         | None ->     Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Ciphersuite negotiation")
@@ -1654,7 +1660,8 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 match parseClientKEX_RSA si sk cv state.poptions payload with
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(res) ->
-                    let (_,pms) = res in
+                    let (encpms,pms) = res in
+                    let si = {si with pmsData = RSAPMS(encpms)} in
                     let log = log @| to_log in
                     let ms = CRE.prfSmoothRSA si cv pms in
                     (* TODO: we should shred the pms *)
@@ -1670,7 +1677,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(y) ->
                     let log = log @| to_log in
-
+                    let si = {si with pmsData = DHPMS(p,g,y,gx)} in
                     (* from the local state, we know: PP((p,g)) /\ ?gx. DHE.Exp((p,g),x,gx) ; tweak the ?gx for genPMS. *)
                     let pms = DH.exp p g gx y x in
                     (* StrongHS(si) /\ DHE.Exp((p,g),?cx,y) -> DHE.Secret(pms) *)

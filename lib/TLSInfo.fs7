@@ -28,7 +28,14 @@ type srand = random
 
 //CF 04-09 the randoms are not just bytes; where do we rely on collision-resistance?
 
-// TODO this is out of sync with the paper, on client_auth and pms_data.
+type pmsData =
+	| PMSUnset
+    | RSAPMS of encpms:bytes
+    | DHPMS  of p:DHGroup.p * (;p)g:DHGroup.g *
+			    (;p)gx:DHGroup.elt (* Client *) *
+				(;p)gy:DHGroup.elt (* Server *)
+
+// TODO this is out of sync with the paper, on client_auth.
 type SessionInfo = {
     init_crand: crand;
     init_srand: srand;
@@ -39,6 +46,7 @@ type SessionInfo = {
     client_auth: bool;
     serverID: Cert.cert list;
     sessionID: sessionID;
+	pmsData: pmsData;
     }
 // for certificates, the empty list represents the absence of identity 
 // (possibly refusing to present requested certs) 
@@ -119,7 +127,9 @@ definition !s. StrongAuth(s) <=> (?e,m. IsAEADCiphersuite(s) /\ AEAlg(s) = MtE(e
 // Predicates specifying the security of TLS connections 
 
 predicate type cryptopreds = 
-| SafeHS of epoch // specified by the Handshake
+| SafeSI  of SessionInfo // The session ciphersuite yields secrecy and integrity
+| AuthSI  of SessionInfo // The session ciphersuite yields integrity (not necessarily secrecy)
+| SafeHS of epoch // Good handshake for this epoch
 | Safe   of epoch // The epoch parameters yield privacy & integrity
 | Auth   of epoch // The epoch parameters yield integrity (not necesarily privacy)
 
@@ -142,9 +152,16 @@ definition !e. SafeHS(id) <=>
 // /\ Honest(LTKey(id)) /\ Honest(LTKey(Peer(id)))
 
 *)
-  
-definition !i. Safe(i) <=> SafeHS(i) /\ StrongAE  (EpochSI(i).cipher_suite)
-definition !i. Auth(i) <=> SafeHS(i) /\ StrongAuth(EpochSI(i).cipher_suite)
+
+//AP Resurrecting this for the time being. What do we do with the comments above?
+predicate StrongHS  of ProtocolVersion * cipherSuite
+definition !si. SafeSI(si) <=> StrongHS(si.protocol_version,si.cipher_suite) /\ StrongAE  (si.cipher_suite)
+definition !si. AuthSI(si) <=> StrongHS(si.protocol_version,si.cipher_suite) /\ StrongAuth(si.cipher_suite)
+
+definition !e. SafeHS(e) <=> StrongHS(EpochSI(e).protocol_version,EpochSI(e).cipher_suite) //AP /\ Complete(e)?
+
+definition !e. Safe(e) <=> SafeHS(e) /\ SafeSI(EpochSI(e))
+definition !e. Auth(e) <=> SafeHS(e) /\ AuthSI(EpochSI(e))
 
 // not quite derivable unless we add CTXT => CMA
 // CF do we use it?

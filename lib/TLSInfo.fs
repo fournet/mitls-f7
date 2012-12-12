@@ -15,6 +15,11 @@ type random = bytes
 type crand = random
 type srand = random
 
+type pmsData =
+    | PMSUnset
+    | RSAPMS of bytes
+    | DHPMS  of DHGroup.p * DHGroup.g * DHGroup.elt * DHGroup.elt
+
 type SessionInfo = {
     init_crand: crand;
     init_srand: srand;
@@ -25,6 +30,7 @@ type SessionInfo = {
     client_auth: bool;
     serverID: Cert.cert list;
     sessionID: sessionID;
+    pmsData: pmsData;
     }
 
 type preEpoch =

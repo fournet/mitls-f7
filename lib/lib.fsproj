@@ -154,6 +154,9 @@
     <None Include="RSAKeys.fs7" />
     <Compile Include="RSAKeys.fsi" />
     <Compile Include="RSAKeys.fs" />
+    <None Include="DHGroup.fs7" />
+    <Compile Include="DHGroup.fsi" />
+    <Compile Include="DHGroup.fs" />
     <None Include="HASH.fs7" />
     <Compile Include="HASH.fsi" />
     <Compile Include="HASH.fs" />
@@ -211,9 +214,6 @@
     <None Include="Alert.fs7" />
     <Compile Include="Alert.fsi" />
     <Compile Include="Alert.fs" />
-    <None Include="DHGroup.fs7" />
-    <Compile Include="DHGroup.fsi" />
-    <Compile Include="DHGroup.fs" />
     <None Include="PRF.fs7" />
     <Compile Include="PRF.fsi" />
     <Compile Include="PRF.fs" />
