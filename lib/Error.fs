@@ -38,10 +38,10 @@ type 'a Result =
     | Correct of 'a
 
 let perror (file:string) (line:string) (text:string) =
-#if fs
-    Printf.sprintf "Error at %s:%s: %s." file line (if text="" then "No reason given" else text)
-#else
+#if verify
     text
+#else
+    Printf.sprintf "Error at %s:%s: %s." file line (if text="" then "No reason given" else text)
 #endif
 
 let correct x = Correct x
