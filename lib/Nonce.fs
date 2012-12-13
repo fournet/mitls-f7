@@ -15,8 +15,11 @@ let timestamp () = bytes_of_int 4 ((int32) (DateTime.UtcNow - dawn).TotalSeconds
 let rec mkHelloRandom(): bytes =
     let Cr = timestamp() @| mkRandom 28
     #if ideal
-    if memr Cr !log 
-      then mkHelloRandom () // we retry; we could also raise a "bad" flag
-      else log := Cr::!log
-    #endif
+    if memr !log Cr then 
+        mkHelloRandom () // we retry; we could also raise a "bad" flag
+    else 
+        log := Cr::!log
+        Cr
+    #else
     Cr
+    #endif

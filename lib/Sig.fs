@@ -34,10 +34,10 @@ let sigalg_of_pkeyparams = function
 // - a log of (a,pk,t) entries for all honestly signed texts with strong crypto
 // CF We could also implement it on top of ideal non-agile Sigs.
 
-type entry = alg * pk * text 
+type entry = alg * pkey * text 
 // type entry = a:alg * pk:(;a) pk * t:text * s:(;a) sigv { Msg(a,pk,t) } 
 
-let honest_log = ref ([]: (alg * pkey) list
+let honest_log = ref ([]: (alg * skey * pkey) list)
 let log        = ref ([]: entry list)
 
 let rec assoc hll pk =
@@ -52,9 +52,11 @@ let rec pk_of_log sk hll =
       | _::hll_tail -> pk_of_log sk hll_tail
       | [] -> None
 
-let pk_of (sk:skey) = fst (find (fun el -> snd el=sk) !honest_log )  
+let pk_of (sk:skey) =  
+    let _,_,pk = (find (fun (_,sk',_) -> sk=sk') !honest_log )  
+    pk
 
-let honest a pk = mem (a,pk) !honest_log
+let honest a pk = exists (fun (a',_,pk') -> a=a' && pk=pk') !honest_log 
 let strong a = if a=(SA_DSA ,SHA384) then true else false
 #endif
 
@@ -114,7 +116,7 @@ let verify (a : alg) (pk : pkey) (t : text) (s : sigv) =
             CoreSig.verify None kparams t s
     #if ideal
     let result = if strong a && honest a pk  
-                    then result && mem (a,pk,t) !log
+                    then result && memr !log (a,pk,t)
                     else result 
     #endif
     result
@@ -127,7 +129,8 @@ let gen (a:alg) : pkey * skey =
         | SA_RSA -> CoreSig.gen CoreSig.SA_RSA
         | SA_DSA -> CoreSig.gen CoreSig.SA_DSA
         | _      -> failwith "unsupported / TODO"
+    let p,s =  ({ pkey = (pkey, ahash) }, { skey = (skey, ahash) })
     #if ideal
-    honest_log := (a,pkey)::!honest_log
+    honest_log := (a,s,p)::!honest_log
     #endif
-    ({ pkey = (pkey, ahash) }, { skey = (skey, ahash) })
+    (p,s)

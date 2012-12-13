@@ -27,7 +27,7 @@ let genRSA (pk:RSAKeys.pk) (vc:TLSConstants.ProtocolVersion) : rsapms =
     let pms = verBytes @| rnd in
     let pms = {rsapms = pms}
     #if ideal
-    if honest pk then honest_log := RSA_pms(pms)::!honest_log
+    if RSAKeys.honest pk then honest_log := RSA_pms(pms)::!honest_log
     #endif
     pms
 
