@@ -31,9 +31,9 @@ type srand = random
 type pmsData =
 	| PMSUnset
     | RSAPMS of encpms:bytes
-    | DHPMS  of p:DHGroup.p * (;p)g:DHGroup.g *
-			    (;p)gx:DHGroup.elt (* Client *) *
-				(;p)gy:DHGroup.elt (* Server *)
+    | DHPMS  of p:DHGroup.p * g:(;p)DHGroup.g *
+			    gx:(;p)DHGroup.elt (* Client *) *
+				gy:(;p)DHGroup.elt (* Server *)
 
 // TODO this is out of sync with the paper, on client_auth.
 type SessionInfo = {

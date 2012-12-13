@@ -43,7 +43,7 @@ val mac: e:succEpoch -> k:(;e) MAC.key ->
   tag:(;e) tag{Length(tag.macT) = MacKeySize(CipherSuiteMACAlg(EpochSI(e).cipher_suite)) /\ MACed(e,k,t,tag)}
 val verify: e:succEpoch -> k:(;e) MAC.key -> 
   t:(;e) MACPlain -> tag:(;e) tag ->
-  v:bool{v = true => (?r,ad,f. text = MACPlain(e,r,ad,f)) /\ (MACed(e,k,t,tag) => v = true)}
+  v:bool{v = true => (?r,ad,f. t = MACPlain(e,r,ad,f)) /\ (MACed(e,k,t,tag) => v = true)}
 
 // Padding computations
 private val blockAlignPadding: e:succEpoch -> nat -> nat
@@ -57,9 +57,9 @@ val encode: e:succEpoch{IsAEADCiphersuite(EpochSI(e).cipher_suite)} ->
 	(tlen:nat * p:(;e,tlen) plain){tlen=RangeCipher(e,rg) /\ tlen <= max_TLSCipher_fragment_length /\ Encoded(e,ad,pl,tag,p)}
 val decode: e:succEpoch{IsAEADCiphersuite(EpochSI(e).cipher_suite)} ->
 	ad:(;e) AEADPlain.adata -> tlen:nat -> p:(;e,tlen) plain ->
-	(rg:range * pl:(;e,ad,rg)AEADPlain.plain * tag:(;e)tag * ok:bool){
+	((rg:range * pl:(;e,ad,rg)AEADPlain.plain * tag:(;e)tag * ok:bool){
           tlen=RangeCipher(e,rg) /\
-          (Encoded(e,ad,pl,tag,p) => ok = true)} Result
+          (Encoded(e,ad,pl,tag,p) => ok = true)}) Result
 val encodeNoPad: e:succEpoch{IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/
                     CipherSuiteENCAlg(EpochSI(e).cipher_suite) = RC4_128} ->
 	rg:range -> ad:(;e) AEADPlain.adata -> (;e,ad,rg) AEADPlain.plain -> (;e) tag ->
