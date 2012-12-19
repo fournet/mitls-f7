@@ -5,6 +5,10 @@ open Error
 open TLSInfo
 open TLSConstants
 
+#if verify
+type preds = | CipherRange of epoch * range * nat
+#endif
+
 type tag = {macT: bytes}
 
 type parsed =
@@ -53,8 +57,8 @@ let repr (e:epoch) (tlen:nat) pl = pl.p
 
 let encodeNoPad (e:epoch) (tlen:nat) rg (ad:AEADPlain.adata) data tag =
     let b = AEADPlain.repr e ad rg data in
-    let (l,h) = rg in
-    if l <> h || h <> length b then
+    let (_,h) = rg in
+    if h <> length b then
         Error.unexpectedError "[encodeNoPad] invoked on an invalid range."
     else
     let payload = b @| tag.macT

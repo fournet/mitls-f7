@@ -16,6 +16,8 @@ private type (;ki:epoch) AEADKey =
 // TODO: Define AEADSize. 
 // In the code, (AEADSize * 2) is computed in TLSConstants.getKeyExtensionLength
 
+function val IVSize: epoch -> nat
+val ivLength: e:succEpoch -> l:nat{l=IVSize(e)}
 function val AEADSize: ki:epoch -> nat
 private assume !ki,si. si = EpochSI(ki) =>
 	( IsOnlyMACCiphersuite(si.cipher_suite) =>
@@ -23,7 +25,7 @@ private assume !ki,si. si = EpochSI(ki) =>
 	( IsAEADCiphersuite(si.cipher_suite) =>
 	  AEADSize(ki) = MacKeySize(TLSConstants.CipherSuiteMACAlg(si.cipher_suite)) +
 					    EncKeySize(TLSConstants.CipherSuiteENCAlg(si.cipher_suite)) +
-					    Encode.IVSize(ki) )
+					    IVSize(ki) )
 
 // Why is this failing? Because of AEADSize not being what I want, I cannot typecheck COERCE.
 //ask !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) => AEADSize(ki,ki) = MacKeySize(TLSConstants.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))
@@ -39,43 +41,45 @@ assume !ki,d,p,c. NotCTXT(ki,d,c) => not CTXT(ki,d,p,c)
 assume !ki,d,p,p',c. (CTXT(ki,d,p,c) /\ CTXT(ki,d,p',c)) => p = p'
 private val mteKey: ki:epoch -> (;ki) MAC.key -> (;ki) ENC.state -> (;ki) AEADKey
 
-function val IVSize: epoch -> nat
-val ivLength: e:succEpoch -> l:nat{l=IVSize(e)}
 // Padding computations
 private val blockAlignPadding: e:succEpoch -> nat -> nat
-function val RangeCipher: epoch * range -> nat // not injective
-private val rangeCipher: e:succEpoch -> r:range -> tlen:nat{tlen = RangeCipher(e,r) /\ tlen <= max_TLSCipher_fragment_length}
-private val cipherRange: e:succEpoch -> tlen:nat{tlen <= max_TLSCipher_fragment_length} -> r:range{tlen = RangeCipher(e,r)}
+
+// Some trivial ranges
+private assume !e,l.
+	( IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/ CipherSuiteENCAlg(EpochSI(e).cipher_suite) = RC4_128 ) =>
+		Encode.CipherRange(e,(l,l),l+MacKeySize(CipherSuiteMACAlg(EpochSI(e).cipher_suite)))
+private val rangeCipher: e:succEpoch -> r:range -> tlen:nat{Encode.CipherRange(e,r,tlen) /\ tlen <= max_TLSCipher_fragment_length}
+private val cipherRange: e:succEpoch -> tlen:nat{tlen <= max_TLSCipher_fragment_length} -> r:range{Encode.CipherRange(e,r,tlen)}
 
 //FIXME: next two should be ask
-assume !e,si. si = EpochSI(e) =>
+private assume !e,si. si = EpochSI(e) =>
 	( si.protocol_version = SSL_3p0 \/ si.protocol_version = TLS_1p0
 		=> IVSize(e) = 0 ) /\
 	( si.protocol_version = TLS_1p1 \/ si.protocol_version = TLS_1p2
 		=> IVSize(e) = BlockSize(CipherSuiteENCAlg(si.cipher_suite)) )
-assume !e,si,tlen. si = EpochSI(e) =>
-	( IsOnlyMACCiphersuite(si.cipher_suite) => PlainLength(e,tlen) = tlen ) /\
+private assume !e,si,tlen. si = EpochSI(e) =>
+	( IsOnlyMACCiphersuite(si.cipher_suite) => Encode.PlainLength(e,tlen) = tlen ) /\
     ( IsAEADCiphersuite(si.cipher_suite) /\ tlen >= IVSize(e) =>
-	  PlainLength(e,tlen) = tlen - IVSize(e) )
+	  Encode.PlainLength(e,tlen) = tlen - IVSize(e) )
 
 val encrypt': ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   rg:range -> p:(;ki,ad,rg) AEADPlain.plain ->
-  ((;ki) AEADKey * c:cipher){rg = CipherRange(ki,c)}
+  ((;ki) AEADKey * c:cipher){Encode.CipherRange(ki,rg,Length(c))}
 
 val decrypt': ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   c:cipher -> res: 
   ( ((;ki) AEADKey *  rg:range * (;ki,ad,rg) AEADPlain.plain)) Result
-   {!k,r,p. res = Correct((k,r,p)) => r = CipherRange(ki,c)}
+   {!k,r,p. res = Correct((k,r,p)) => Encode.CipherRange(ki,r,Length(c))}
 
 val encrypt: ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   rg:range -> p:(;ki,ad,rg) AEADPlain.plain ->
-  ((;ki) AEADKey * c:cipher){rg = CipherRange(ki,c) /\
+  ((;ki) AEADKey * c:cipher){Encode.CipherRange(ki,rg,Length(c)) /\
                              (Safe(ki) => CTXT(ki,ad,p,c))}
 
 val decrypt: ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   c:cipher -> res: 
   ( ((;ki) AEADKey *  rg:range * (;ki,ad,rg) AEADPlain.plain)) Result
-   {(!k,r,p. res = Correct((k,r,p)) => r = CipherRange(ki,c)) /\
+   {(!k,r,p. res = Correct((k,r,p)) => Encode.CipherRange(ki,r,Length(c))) /\
     (Safe(ki) => 
         ((!k,r,p. res = Correct((k,r,p)) => CTXT(ki,ad,p,c)) /\
          (!p. CTXT(ki,ad,p,c) => (?k,r. res = Correct((k,r,p))))))}
@@ -106,5 +110,5 @@ val decrypt: ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
 //
 // We are still in-between encryptor/decryptor and keys, why? 
 // Are TLS 1.0 IVs now part of the mutable key? 
-// Note that RangeCipher depends on the TLS version too.
+// Note that CipherRange depends on the TLS version too.
 *)

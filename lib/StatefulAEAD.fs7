@@ -65,7 +65,7 @@ val decrypt: ki:succEpoch ->
   res:((;ki) reader * rg:range * (;ki,ad,History(ki,rd),rg) StatefulPlain.plain) Result
   { !nrd,rg,f. res = Correct((nrd,rg,f)) => 
                (   History(ki,nrd) = StatefulPlain.ExtendHistory(ki,ad,History(ki,rd),rg,f) /\
-                   Length(c)=Encode.RangeCipher(ki,rg) /\
+                   Encode.CipherRange(ki,rg,Length(c)) /\
  	         (Safe(ki) =>
 				( (!nrd,rg,f. res = Correct((nrd,rg,f)) => STXT(ki,rd,ad,f,c)) // /\
 				//  (!p. STXT(ki,rd,ad,p,c) => (?nrd,rg. res = Correct((nrd,rg,p))))

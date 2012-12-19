@@ -5,6 +5,10 @@ open Error
 open TLSInfo
 open TLSConstants
 
+#if verify
+type preds = | CipherRange of epoch * range * nat
+#endif
+
 type plain
 val plain: epoch -> nat -> bytes -> plain
 val repr:  epoch -> nat -> plain -> bytes

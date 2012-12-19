@@ -10,7 +10,7 @@ type cipher = bytes
 
 #if verify
 type preds = 
-    CTXT of epoch * bytes * AEADPlain.plain * cipher
+  | CTXT of epoch * bytes * AEADPlain.plain * cipher
   | NotCTXT of epoch * bytes * cipher
 #endif
 
@@ -91,11 +91,17 @@ let rangeCipher e (rg:range) =
     if res > max_TLSCipher_fragment_length then
         Error.unexpectedError "[rangeCipher] given an invalid input range."
     else
+#if verify
+        Pi.assume(Encode.CipherRange(e,rg,res))
+#endif
         res
 
 //@ From ciphertext length to range
-let cipherRange macSize tlen =
-    let max = tlen - macSize - 1 in
+let cipherRange (e:epoch) tlen =
+    let si = epochSI(e) in
+    let macSize = macSize (macAlg_of_ciphersuite si.cipher_suite) in
+    let ivL = ivLength e in
+    let max = tlen - ivL - macSize - 1 in
     if max < 0 then
         Error.unexpectedError "[cipherRange] the given tlen should be of a valid ciphertext"
     else
@@ -103,9 +109,17 @@ let cipherRange macSize tlen =
            and not always the whole 255 bytes can be used. We could be more precise. *)
         let min = max - 255 in
         if min < 0 then
-            (0,max)
+            let rg = (0,max) in
+#if verify
+            Pi.assume(Encode.CipherRange(e,rg,tlen))
+#endif
+            rg
         else
-            (min,max)
+            let rg = (min,max) in
+#if verify
+            Pi.assume(Encode.CipherRange(e,rg,tlen))
+#endif
+            rg
 
 let encrypt' e key data rg plain =
     let si = epochSI(e) in
@@ -117,9 +131,9 @@ let encrypt' e key data rg plain =
         match encAlg with
         | RC4_128 -> // stream cipher
             let tag   = Encode.mac e ka data rg plain in
-            let (_,h) = rg in
+            let (l,h) = rg in
             let tlen  = h + macLen in
-            if tlen > max_TLSCipher_fragment_length then
+            if l <> h || tlen > max_TLSCipher_fragment_length then
                 unexpectedError "[encrypt'] given an invalid input range"
             else
                 let encoded  = Encode.encodeNoPad e tlen rg data plain tag in
@@ -134,8 +148,10 @@ let encrypt' e key data rg plain =
             (MtE(ka,ke),res)
     | (x,MACOnly (ka)) when isOnlyMACCipherSuite x ->
         let tag = Encode.mac e ka data rg plain in
-        let (_,h) = rg in
+        let (l,h) = rg in
         let tlen  = h + macLen in
+        if l <> h || tlen > max_TLSCipher_fragment_length then
+            unexpectedError "[encrypt']"
         let encoded = Encode.encodeNoPad e tlen rg data plain tag in
         let r = Encode.repr e tlen encoded in
         (key,r)
@@ -179,7 +195,7 @@ let decrypt' e key data cipher =
             else
                 let (ke,encoded) = ENC.DEC e ke cipher in
                 let nk = mteKey e ka ke in
-                let rg = cipherRange macSize (cl - ivL) in
+                let rg = cipherRange e cl in
                 let parsed = Encode.decode e ivL data rg cl encoded in
                 match Encode.verify e ka data rg parsed with
                 | Error(x,y) -> Error(x,y)

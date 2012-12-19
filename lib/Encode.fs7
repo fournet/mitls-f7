@@ -23,49 +23,57 @@ val repr:  e:epoch{not Safe(e)} -> tlen:nat -> (;e,tlen) plain -> b:bytes{Length
 //------------------------------------------------------------------------------------------------------
 type (;e:epoch) adata = (;e)AEADPlain.adata
 
-// Plaintext of MAC
-private type (;e:epoch) MACPlain = {macP:bytes}
 // Result of MAC
 private type (;e:epoch) tag = {macT:bytes}
 
-private type (;e:epoch;ad:(;e)AEADPlain.adata,rg:range) parsed =
-	{ plain = (;e,ad,rg)AEADPlain.plain;
-	  tag   = (;e)tag;
-	  ok    = bool}
+// Result of decoding
+private type (;e:epoch,ad:(;e)AEADPlain.adata,rg:range) parsed =
+	{ plain: (;e,ad,rg)AEADPlain.plain;
+	  tag  : (;e)tag;
+	  ok   : bool}
 
 function val MACPlain : 'a * 'b * 'c * 'd -> 'e
 val macPlain: e:epoch -> r:range -> 
   ad:(;e)AEADPlain.adata ->
   f:(;e,ad,r)AEADPlain.plain ->
-  p:(;e)MACPlain{p = MACPlain(e,r,ad,f)}
+  b:bytes{b = MACPlain(e,r,ad,f)}
 
-predicate MACed of e:epoch * (;e) MAC.key * (;e) MACPlain * (;e) tag
+predicate MACed of e:epoch * (;e) MAC.key * ad:(;e)AEADPlain.adata * rg:range * (;e,ad,rg)AEADPlain.plain * (;e) tag
 
-val mac: e:succEpoch -> k:(;e) MAC.key -> 
-  t:(;e) MACPlain{?r,ad,f. t = MACPlain(e,r,ad,f)} -> 
-  tag:(;e) tag{Length(tag.macT) = MacKeySize(CipherSuiteMACAlg(EpochSI(e).cipher_suite)) /\ MACed(e,k,t,tag)}
-val verify: e:succEpoch -> k:(;e) MAC.key -> 
-  t:(;e) MACPlain -> tag:(;e) tag ->
-  v:bool{v = true => (?r,ad,f. t = MACPlain(e,r,ad,f)) /\ (MACed(e,k,t,tag) => v = true)}
+val mac: e:succEpoch -> k:(;e) MAC.key ->
+  ad:(;e)AEADPlain.adata -> rg:range ->
+  p:(;e,ad,rg)AEADPlain.plain ->
+  tag:(;e) tag{Length(tag.macT) = MacKeySize(CipherSuiteMACAlg(EpochSI(e).cipher_suite)) /\ MACed(e,k,ad,rg,p,tag)}
+val verify: e:succEpoch -> k:(;e) MAC.key ->
+  ad:(;e)AEADPlain.adata -> rg:range ->
+  ps:(;e,ad,rg)parsed ->
+  (res:(;e,ad,rg)AEADPlain.plain Result)
+	{(!p. res = Correct(p) => (p = ps.plain /\ ps.tag = MACPlain(e,rg,ad,p)) ) /\ (MACed(e,k,ad,rg,ps.plain,ps.tag) => ?p. res = Correct(p))}
 
+predicate type preds = CipherRange of epoch * range * nat // declared here, defined in AEAD
 predicate val Encoded: 'e * 'a * 'b * 'c * 'd -> bool
 val encode: e:succEpoch{IsAEADCiphersuite(EpochSI(e).cipher_suite)} ->
-	rg:range -> ad:(;e) AEADPlain.adata -> pl:(;e,ad,rg) AEADPlain.plain -> tag:(;e) tag ->
-	(tlen:nat * p:(;e,tlen) plain){tlen=RangeCipher(e,rg) /\ tlen <= max_TLSCipher_fragment_length /\ Encoded(e,ad,pl,tag,p)}
+	ivL:nat -> tlen:nat{tlen <= max_TLSCipher_fragment_length} -> rg:range{CipherRange(e,rg,tlen)} ->
+	ad:(;e) AEADPlain.adata -> pl:(;e,ad,rg) AEADPlain.plain -> tag:(;e) tag ->
+	p:(;e,tlen) plain{Encoded(e,ad,pl,tag,p)}
 val decode: e:succEpoch{IsAEADCiphersuite(EpochSI(e).cipher_suite)} ->
+	ivL:nat ->
 	ad:(;e) AEADPlain.adata -> rg:range ->
-	tlen:nat{tlen >= ( MacKeySize(CipherSuiteMACAlg(EpochSI(e).cipher_suite)) + 1) } ->
+	tlen:nat{tlen - ivL >= ( MacKeySize(CipherSuiteMACAlg(EpochSI(e).cipher_suite)) + 1) /\
+	CipherRange(e,rg,tlen)} ->
 	p:(;e,tlen) plain ->
-	ps:(;e,ad,rg)parsed{Encoded(e,ad,pl,tag,p) => ps.ok = true}
+	ps:(;e,ad,rg)parsed{Encoded(e,ad,ps.plain,ps.tag,p) => ps.ok = true}
 
 val encodeNoPad: e:succEpoch{IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/
                     CipherSuiteENCAlg(EpochSI(e).cipher_suite) = RC4_128} ->
-	rg:range -> ad:(;e) AEADPlain.adata -> (;e,ad,rg) AEADPlain.plain -> (;e) tag ->
-	(tlen:nat * (;e,tlen) plain){tlen=RangeCipher(e,rg) /\ tlen <= max_TLSCipher_fragment_length}
+	tlen:nat{tlen <= max_TLSCipher_fragment_length} -> rg:range{CipherRange(e,rg,tlen)} ->
+	ad:(;e) AEADPlain.adata -> (;e,ad,rg) AEADPlain.plain -> (;e) tag ->
+	(;e,tlen) plain
 val decodeNoPad: e:succEpoch{IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/
                     CipherSuiteENCAlg(EpochSI(e).cipher_suite) = RC4_128} ->
 	ad:(;e) AEADPlain.adata -> rg:range ->
-	tlen:nat{tlen >= MacKeySize(CipherSuiteMACAlg(EpochSI(e).cipher_suite))} -> (;e,tlen) plain ->
+	tlen:nat{tlen >= MacKeySize(CipherSuiteMACAlg(EpochSI(e).cipher_suite)) /\
+	CipherRange(e,rg,tlen)} -> (;e,tlen) plain ->
 	(;e,ad,rg)parsed
 
 //------------------------------------------------------------------------------------------------------
