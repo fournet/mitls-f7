@@ -145,10 +145,13 @@ let encrypt' e key data rg plain =
 let mteKey (e:epoch) ka ke = MtE(ka,ke)
 
 let decrypt' e key data cipher =
+    let cl = length cipher in
+    if cl > max_TLSCipher_fragment_length then
+        let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
+    else
     let si = epochSI(e) in
     let cs = si.cipher_suite in
     let macSize = macSize (macAlg_of_ciphersuite cs) in
-    let cl = length cipher in
     match (cs,key) with
     | (x, MtE (ka,ke)) when isAEADCipherSuite x ->
         let encAlg = encAlg_of_ciphersuite cs in

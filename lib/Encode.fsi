@@ -10,9 +10,8 @@ val plain: epoch -> nat -> bytes -> plain
 val repr:  epoch -> nat -> plain -> bytes
 
 type parsed
-
 type tag
-//val macPlain: epoch -> range -> AEADPlain.adata -> AEADPlain.plain -> MACPlain
+
 val mac: epoch -> MAC.key -> AEADPlain.adata -> range -> AEADPlain.plain -> tag
 val verify: epoch -> MAC.key -> AEADPlain.adata -> range -> parsed -> AEADPlain.plain Result
 
