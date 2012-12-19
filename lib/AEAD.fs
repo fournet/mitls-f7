@@ -19,26 +19,26 @@ type AEADKey =
     | MACOnly of MAC.key
 (*  |   GCM of AENC.state  *)
 
-let GEN ki =
-    let si = epochSI(ki) in
+let GEN e =
+    let si = epochSI(e) in
     let cs = si.cipher_suite in
     match cs with
     | x when isOnlyMACCipherSuite x ->
-        let mk = MAC.GEN ki
+        let mk = MAC.GEN e
         (MACOnly(mk), MACOnly(mk))
     | _ ->
-        let mk = MAC.GEN ki in
-        let (ek,dk) = ENC.GEN ki in
+        let mk = MAC.GEN e in
+        let (ek,dk) = ENC.GEN e in
         (MtE(mk,ek),MtE(mk,dk))
 
-let COERCE ki b =
+let COERCE e b =
     // precondition: b is of the right length. No runtime checks here.
-    let si = epochSI(ki) in
+    let si = epochSI(e) in
     let cs = si.cipher_suite in
     let onlymac = isOnlyMACCipherSuite cs in
     let aeadcs = isAEADCipherSuite cs in
       if onlymac then 
-        let mk = MAC.COERCE ki b in
+        let mk = MAC.COERCE e b in
         MACOnly(mk)
       else 
         if aeadcs then
@@ -48,97 +48,170 @@ let COERCE ki b =
           let encKeySize = encKeySize encalg in
           let (mkb,rest) = split b macKeySize in
           let (ekb,ivb) = split rest encKeySize in
-          let mk = MAC.COERCE ki mkb in
-          let ek = ENC.COERCE ki ekb ivb in
+          let mk = MAC.COERCE e mkb in
+          let ek = ENC.COERCE e ekb ivb in
             MtE(mk,ek)
         else unexpectedError "[COERCE] invoked on wrong ciphersuite"
 
-let LEAK ki k =
+let LEAK e k =
     match k with
-    | MACOnly(mk) -> MAC.LEAK ki mk
+    | MACOnly(mk) -> MAC.LEAK e mk
     | MtE(mk,ek) ->
-        let (k,iv) = ENC.LEAK ki ek in
-        MAC.LEAK ki mk @| k @| iv
+        let (k,iv) = ENC.LEAK e ek in
+        MAC.LEAK e mk @| k @| iv
 
-let encrypt' ki key data rg plain =
-    let si = epochSI(ki) in
+let ivLength e =
+    let si = epochSI(e) in
+    match si.protocol_version with
+    | SSL_3p0 | TLS_1p0 -> 0
+    | TLS_1p1 | TLS_1p2 ->
+        let encAlg = encAlg_of_ciphersuite si.cipher_suite in
+        ivSize encAlg
+
+let blockAlignPadding e len =
+    let si = epochSI(e) in
+    let alg = encAlg_of_ciphersuite si.cipher_suite in
+    let bs = blockSize alg in
+    if bs = 0 then
+        //@ Stream cipher: no Padding at all
+        0
+    else
+        let overflow = (len + 1) % bs //@ at least one extra byte of padding
+        if overflow = 0 then 1 else 1 + bs - overflow 
+
+//@ From range to target ciphertext length 
+let rangeCipher e (rg:range) =
+    let (_,h) = rg in
+    let si = epochSI(e) in
+    let macLen = macSize (macAlg_of_ciphersuite si.cipher_suite) in
+    let ivL = ivLength e in
+    let prePad = h + macLen in
+    let padLen = blockAlignPadding e prePad in
+    let res = ivL + prePad + padLen in
+    if res > max_TLSCipher_fragment_length then
+        Error.unexpectedError "[rangeCipher] given an invalid input range."
+    else
+        res
+
+//@ From ciphertext length to range
+let cipherRange macSize tlen =
+    let max = tlen - macSize - 1 in
+    if max < 0 then
+        Error.unexpectedError "[cipherRange] the given tlen should be of a valid ciphertext"
+    else
+        (* FIXME: in SSL pad is at most one block size,
+           and not always the whole 255 bytes can be used. We could be more precise. *)
+        let min = max - 255 in
+        if min < 0 then
+            (0,max)
+        else
+            (min,max)
+
+let encrypt' e key data rg plain =
+    let si = epochSI(e) in
     let cs = si.cipher_suite in
+    let macLen = macSize (macAlg_of_ciphersuite cs) in
     match (cs,key) with
     | (x, MtE (ka,ke)) when isAEADCipherSuite x ->
-        let maced          = Encode.macPlain ki rg data plain
-        let tag            = Encode.mac    ki ka maced  
-        let (tlen,encoded) = Encode.encode ki rg data plain tag
-        let (ke,res)       = ENC.ENC ki ke tlen encoded 
-        (MtE(ka,ke),res)
+        let encAlg = encAlg_of_ciphersuite cs in
+        match encAlg with
+        | RC4_128 -> // stream cipher
+            let tag   = Encode.mac e ka data rg plain in
+            let (_,h) = rg in
+            let tlen  = h + macLen in
+            if tlen > max_TLSCipher_fragment_length then
+                unexpectedError "[encrypt'] given an invalid input range"
+            else
+                let encoded  = Encode.encodeNoPad e tlen rg data plain tag in
+                let (ke,res) = ENC.ENC e ke tlen encoded 
+                (MtE(ka,ke),res)
+        | TDES_EDE_CBC | AES_128_CBC | AES_256_CBC -> // block cipher
+            let tag  = Encode.mac e ka data rg plain in
+            let tlen = rangeCipher e rg in
+            let ivL  = ivLength e in
+            let encoded  = Encode.encode e ivL tlen rg data plain tag in
+            let (ke,res) = ENC.ENC e ke tlen encoded 
+            (MtE(ka,ke),res)
     | (x,MACOnly (ka)) when isOnlyMACCipherSuite x ->
-        let maced          = Encode.macPlain ki rg data plain
-        let tag            = Encode.mac    ki ka maced  
-        let (tlen,encoded) = Encode.encodeNoPad ki rg data plain tag
-        let r = Encode.repr ki tlen encoded in
+        let tag = Encode.mac e ka data rg plain in
+        let (_,h) = rg in
+        let tlen  = h + macLen in
+        let encoded = Encode.encodeNoPad e tlen rg data plain tag in
+        let r = Encode.repr e tlen encoded in
         (key,r)
 //  | GCM (k) -> ... 
     | (_,_) -> unexpectedError "[encrypt'] incompatible ciphersuite-key given."
         
-let mteKey (ki:epoch) ka ke = MtE(ka,ke)
+let mteKey (e:epoch) ka ke = MtE(ka,ke)
 
-let decrypt' ki key data cipher =
-    let si = epochSI(ki) in
+let decrypt' e key data cipher =
+    let si = epochSI(e) in
     let cs = si.cipher_suite in
+    let macSize = macSize (macAlg_of_ciphersuite cs) in
+    let cl = length cipher in
     match (cs,key) with
     | (x, MtE (ka,ke)) when isAEADCipherSuite x ->
-        let (ke,encoded)      = ENC.DEC ki ke cipher in
-        let nk = mteKey ki ka ke in
-        let cl = length cipher in
-        match Encode.decode ki data cl encoded with
-        | Error(x,y) -> Error(x,y)
-        | Correct(res) ->
-        let (rg,plain,tag,ok) = res in
-        let maced             = Encode.macPlain ki rg data plain in
-        match si.protocol_version with
-        | SSL_3p0 | TLS_1p0 ->
-            (*@ SSL3 and TLS1 enable both timing and error padding oracles. *)
-            if ok then 
-              if Encode.verify ki ka maced tag then 
-                  correct (nk,rg,plain)
-              else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
-            else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_decryption_failed, reason)
-        | TLS_1p1 | TLS_1p2 ->
-            (*@ We implement standard mitigiation for padding oracles.
-                Still, we are aware of small timing leaks in verify and decode,
-                whose timing can be linked to the length of the plaintext. *)
-            if Encode.verify ki ka maced tag then 
-               if ok then
-                  correct (nk,rg,plain)
-               else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
-            else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
+        let encAlg = encAlg_of_ciphersuite cs in
+        match encAlg with
+        | RC4_128 -> // stream cipher
+            if cl < macSize then
+                (*@ It is safe to return early, because we are branching
+                    on public data known to the attacker *)
+                let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
+            else
+                let (ke,encoded) = ENC.DEC e ke cipher in
+                let nk = mteKey e ka ke in
+                let rg = (cl-macSize,cl-macSize) in
+                let parsed = Encode.decodeNoPad e data rg cl encoded in
+                match Encode.verify e ka data rg parsed with
+                | Error(x,y) -> Error(x,y)
+                | Correct(plain) -> correct(nk,rg,plain)
+        | TDES_EDE_CBC | AES_128_CBC | AES_256_CBC -> // block cipher
+            let ivL = ivLength e in
+            let blockSize = blockSize (encAlg_of_ciphersuite cs) in
+            if (cl - ivL < macSize + 1) || (cl % blockSize <> 0) then
+                (*@ It is safe to return early, because we are branching
+                    on public data known to the attacker *)
+                let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
+            else
+                let (ke,encoded) = ENC.DEC e ke cipher in
+                let nk = mteKey e ka ke in
+                let rg = cipherRange macSize (cl - ivL) in
+                let parsed = Encode.decode e ivL data rg cl encoded in
+                match Encode.verify e ka data rg parsed with
+                | Error(x,y) -> Error(x,y)
+                | Correct(plain) -> correct (nk,rg,plain)
     | (x,MACOnly (ka)) when isOnlyMACCipherSuite x ->
-        let encoded        = Encode.plain ki (length cipher) cipher in
-        let (rg,plain,tag) = Encode.decodeNoPad ki data (length cipher) encoded in
-        let maced          = Encode.macPlain ki rg data plain
-        if Encode.verify ki ka maced tag 
-        then   correct (key,rg,plain)
-          else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
+        if cl < macSize then
+            let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
+        else
+            let rg = (cl-macSize,cl-macSize) in
+            let encoded = Encode.plain e (length cipher) cipher in
+            let parsed  = Encode.decodeNoPad e data rg cl encoded in
+            match Encode.verify e ka data rg parsed with
+            | Error(x,y) -> Error(x,y)
+            | Correct(plain) -> correct (key,rg,plain)
 //  | GCM (GCMKey) -> ... 
     | (_,_) -> unexpectedError "[decrypt'] incompatible ciphersuite-key given."
 
-let encrypt ki key data rg plain = 
-    let (key,cipher) = encrypt' ki key data rg plain in
+let encrypt e key data rg plain = 
+    let (key,cipher) = encrypt' e key data rg plain in
 #if verify
-    Pi.assume (CTXT(ki,data,plain,cipher));
+    Pi.assume (CTXT(e,data,plain,cipher));
 #endif
     (key,cipher)
 
-let decrypt ki key data cipher = 
-  let res = decrypt' ki key data cipher in
+let decrypt e key data cipher = 
+  let res = decrypt' e key data cipher in
     match res with
         Correct r ->
           let (key,rg,plain) = r in
 #if verify
-          Pi.assume (CTXT(ki,data,plain,cipher));
+          Pi.assume (CTXT(e,data,plain,cipher));
 #endif
           Correct r
       | Error(x,y) ->
 #if verify
-          Pi.assume (NotCTXT(ki,data,cipher));
+          Pi.assume (NotCTXT(e,data,cipher));
 #endif
           Error(x,y)

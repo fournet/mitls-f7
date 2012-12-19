@@ -5,113 +5,68 @@ open Error
 open TLSInfo
 open TLSConstants
 
-type MACPlain = {macP: bytes}
 type tag = {macT: bytes}
+
+type parsed =
+    {plain: AEADPlain.plain
+     tag:   tag
+     ok:    bool}
 
 let macPlain (e:epoch) (rg:range) ad f =
     let b = AEADPlain.repr e ad rg f in
     let fLen = bytes_of_int 2 (length b) in
     let fullData = ad @| fLen in 
-    {macP = fullData @| b} 
+    fullData @| b
 
-let mac e k t =
-    {macT = MAC.Mac e k t.macP}
+let mac e k ad rg plain =
+    let text = macPlain e rg ad plain in
+    {macT = MAC.Mac e k text}
 
-let verify e k text tag =
-    (*@ We note a small timing leak here:
-    The time to verify the mac is linear in the
-    plaintext length. *)
-    MAC.Verify e k text.macP tag.macT
-
-let blockAlignPadding e len =
+let verify e k ad rg parsed =
     let si = epochSI(e) in
-    let alg = encAlg_of_ciphersuite si.cipher_suite in
-    let bs = blockSize alg in
-    if bs = 0 then
-        //@ Stream cipher: no Padding at all
-        0
-    else
-        let overflow = (len + 1) % bs //@ at least one extra byte of padding
-        if overflow = 0 then 1 else 1 + bs - overflow 
-
-let ivLength e =
-    let si = epochSI(e) in
-    match si.protocol_version with
-    | SSL_3p0 | TLS_1p0 -> 0
+    let pv = si.protocol_version in
+    let text = macPlain e rg ad parsed.plain in
+    let tag  = parsed.tag in
+    match pv with
+    | SSL_3p0 | TLS_1p0 ->
+        (*@ SSL3 and TLS1 enable both timing and error padding oracles. *)
+        if parsed.ok then 
+            if MAC.Verify e k text tag.macT then 
+                correct parsed.plain
+            else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
+        else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_decryption_failed, reason)
     | TLS_1p1 | TLS_1p2 ->
-        let encAlg = encAlg_of_ciphersuite si.cipher_suite in
-          ivSize encAlg 
-
-//@ From range to target ciphertext length 
-let rangeCipher e (rg:range) =
-    let si = epochSI(e) in
-    let (_,h) = rg in
-    let cs = si.cipher_suite in
-    match cs with
-    | x when isOnlyMACCipherSuite x ->
-        let macLen = macSize (macAlg_of_ciphersuite cs) in
-        let res = h + macLen in
-        if res > max_TLSCipher_fragment_length then
-            Error.unexpectedError "[rangeCipher] given an invalid input range."
-        else
-            res
-    | x when isAEADCipherSuite x ->
-        let ivL = ivLength e in
-        let macLen = macSize (macAlg_of_ciphersuite cs) in
-        let prePad = h + macLen in
-        let padLen = blockAlignPadding e prePad in
-        let res = ivL + prePad + padLen in
-        if res > max_TLSCipher_fragment_length then
-            Error.unexpectedError "[rangeCipher] given an invalid input range."
-        else
-            res
-    | _ -> Error.unexpectedError "[rangeCipher] invoked on invalid ciphersuite."
-
-//@ From ciphertext length to range
-let cipherRange e tlen =
-    let si = epochSI(e) in
-    let macSize = macSize (macAlg_of_ciphersuite si.cipher_suite) in
-    let max = tlen - macSize - 1 in
-    if max < 0 then
-        Error.unexpectedError "[cipherRange] the given tlen should be of a valid ciphertext"
-    else
-        // FIXME: in SSL pad is at most one block size. We could be more precise.
-        let min = max - 255 in
-        if min < 0 then
-            (0,max)
-        else
-            (min,max)
+        (*@ We implement standard mitigiation for padding oracles.
+            Still, we note a small timing leak here:
+            The time to verify the mac is linear in the
+            plaintext length. *)
+        if MAC.Verify e k text tag.macT then 
+            if parsed.ok then
+                correct parsed.plain
+            else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
+        else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
 
 type plain = {p:bytes}
 
 let plain (e:epoch) (tlen:nat)  b = {p=b}
 let repr (e:epoch) (tlen:nat) pl = pl.p
 
-let encodeNoPad (e:epoch) rg (ad:AEADPlain.adata) data tag =
+let encodeNoPad (e:epoch) (tlen:nat) rg (ad:AEADPlain.adata) data tag =
     let b = AEADPlain.repr e ad rg data in
     let (l,h) = rg in
     if l <> h || h <> length b then
         Error.unexpectedError "[encodeNoPad] invoked on an invalid range."
     else
-    let tlen = rangeCipher e rg in
     let payload = b @| tag.macT
     if length payload <> tlen then
         Error.unexpectedError "[encodeNoPad] Internal error."
     else
-        (tlen, {p = payload})
+        {p = payload}
 
 let pad (p:int)  = createBytes p (p-1)
 
-let encode (e:epoch) rg (ad:AEADPlain.adata) data tag =
-    let si = epochSI(e) in
-    let alg = encAlg_of_ciphersuite si.cipher_suite in
-    match alg with
-    | RC4_128 ->
-        encodeNoPad e rg ad data tag
-    | _ ->
+let encode (e:epoch) ivL (tlen:nat) rg (ad:AEADPlain.adata) data tag =
     let b = AEADPlain.repr e ad rg data in
-    let ivL = ivLength e in
-    let tlen = rangeCipher e rg in
     let lb = length b in
     let lm = length tag.macT in
     let pl = tlen - lb - lm - ivL
@@ -119,46 +74,32 @@ let encode (e:epoch) rg (ad:AEADPlain.adata) data tag =
     if length payload <> tlen - ivL then
         Error.unexpectedError "[encode] Internal error."
     else
-        (tlen, {p = payload})
+        {p = payload}
 
-let decodeNoPad e (ad:AEADPlain.adata) tlen plain =
-    // assert length plain.d = tlen
-    let si = epochSI(e) in
-    let cs = si.cipher_suite in
-    let maclen = macSize (macAlg_of_ciphersuite cs) in
+let decodeNoPad e (ad:AEADPlain.adata) rg tlen plain =
     let pl = plain.p in
     let plainLen = length pl in
-    if plainLen <> tlen || tlen < maclen then
+    if plainLen <> tlen then
         Error.unexpectedError "[decodeNoPad] wrong target length given as input argument."
     else
+    let si = epochSI(e) in
+    let maclen = macSize (macAlg_of_ciphersuite si.cipher_suite) in
     let payloadLen = plainLen - maclen in
     let (frag,mac) = Bytes.split pl payloadLen in
-    let rg = (payloadLen,payloadLen) in
     let aeadF = AEADPlain.plain e ad rg frag in
     let tag = {macT = mac} in
-    (rg,aeadF,tag)
+    {plain = aeadF;
+     tag = tag;
+     ok = true}
 
-let decode e (ad:AEADPlain.adata) tlen plain =
+let decode e ivL (ad:AEADPlain.adata) rg tlen plain =
     let si = epochSI(e) in
-    let alg = encAlg_of_ciphersuite si.cipher_suite in
-    match alg with
-    | RC4_128 ->
-        let (rg,aeadF,tag) = decodeNoPad e ad tlen plain in
-        correct (rg,aeadF,tag,true)
-    | _ ->
     let macSize = macSize (macAlg_of_ciphersuite si.cipher_suite) in
-    let rg = cipherRange e tlen in
-    let ivL = ivLength e in
     let expected = tlen - ivL
     let pl = plain.p in
     let pLen = length pl in
     if pLen <> expected then
         unexpectedError "[decode] tlen does not match plaintext length"
-    else
-    if pLen < macSize + 1 then
-        (*@ It is safe to abort computation here, because the attacker
-            already knows we received an invalid length *)
-        Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "") 
     else
     let padLenStart = pLen - 1 in
     let (tmpdata, padlenb) = Bytes.split pl padLenStart in
@@ -198,4 +139,6 @@ let decode e (ad:AEADPlain.adata) tlen plain =
     let (frag,mac) = split data macstart in
     let aeadF = AEADPlain.plain e ad rg frag in
     let tag = {macT = mac} in
-    correct (rg,aeadF,tag,flag)
+    { plain = aeadF;
+      tag = tag;
+      ok = flag}

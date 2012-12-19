@@ -39,8 +39,25 @@ assume !ki,d,p,c. NotCTXT(ki,d,c) => not CTXT(ki,d,p,c)
 assume !ki,d,p,p',c. (CTXT(ki,d,p,c) /\ CTXT(ki,d,p',c)) => p = p'
 private val mteKey: ki:epoch -> (;ki) MAC.key -> (;ki) ENC.state -> (;ki) AEADKey
 
-function val CipherRange: epoch * bytes -> range
-assume !e,c,rg. rg = CipherRange(e,c) <=> Length(c) = Encode.RangeCipher(e,rg)
+function val IVSize: epoch -> nat
+val ivLength: e:succEpoch -> l:nat{l=IVSize(e)}
+// Padding computations
+private val blockAlignPadding: e:succEpoch -> nat -> nat
+function val RangeCipher: epoch * range -> nat // not injective
+private val rangeCipher: e:succEpoch -> r:range -> tlen:nat{tlen = RangeCipher(e,r) /\ tlen <= max_TLSCipher_fragment_length}
+private val cipherRange: e:succEpoch -> tlen:nat{tlen <= max_TLSCipher_fragment_length} -> r:range{tlen = RangeCipher(e,r)}
+
+//FIXME: next two should be ask
+assume !e,si. si = EpochSI(e) =>
+	( si.protocol_version = SSL_3p0 \/ si.protocol_version = TLS_1p0
+		=> IVSize(e) = 0 ) /\
+	( si.protocol_version = TLS_1p1 \/ si.protocol_version = TLS_1p2
+		=> IVSize(e) = BlockSize(CipherSuiteENCAlg(si.cipher_suite)) )
+assume !e,si,tlen. si = EpochSI(e) =>
+	( IsOnlyMACCiphersuite(si.cipher_suite) => PlainLength(e,tlen) = tlen ) /\
+    ( IsAEADCiphersuite(si.cipher_suite) /\ tlen >= IVSize(e) =>
+	  PlainLength(e,tlen) = tlen - IVSize(e) )
+
 val encrypt': ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   rg:range -> p:(;ki,ad,rg) AEADPlain.plain ->
   ((;ki) AEADKey * c:cipher){rg = CipherRange(ki,c)}

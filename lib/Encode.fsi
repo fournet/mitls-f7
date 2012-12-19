@@ -9,14 +9,15 @@ type plain
 val plain: epoch -> nat -> bytes -> plain
 val repr:  epoch -> nat -> plain -> bytes
 
-type MACPlain
+type parsed
+
 type tag
-val macPlain: epoch -> range -> AEADPlain.adata -> AEADPlain.plain -> MACPlain
-val mac: epoch -> MAC.key -> MACPlain -> tag
-val verify: epoch -> MAC.key -> MACPlain -> tag -> bool
+//val macPlain: epoch -> range -> AEADPlain.adata -> AEADPlain.plain -> MACPlain
+val mac: epoch -> MAC.key -> AEADPlain.adata -> range -> AEADPlain.plain -> tag
+val verify: epoch -> MAC.key -> AEADPlain.adata -> range -> parsed -> AEADPlain.plain Result
 
-val encode: epoch -> range -> AEADPlain.adata -> AEADPlain.plain -> tag -> nat * plain
-val encodeNoPad: epoch -> range -> AEADPlain.adata -> AEADPlain.plain -> tag -> nat * plain
+val encode: epoch -> nat -> nat -> range -> AEADPlain.adata -> AEADPlain.plain -> tag -> plain
+val encodeNoPad: epoch -> nat -> range -> AEADPlain.adata -> AEADPlain.plain -> tag -> plain
 
-val decode: epoch -> AEADPlain.adata -> nat -> plain -> (range * AEADPlain.plain * tag * bool) Result
-val decodeNoPad: epoch -> AEADPlain.adata -> nat -> plain -> (range * AEADPlain.plain * tag)
+val decode: epoch -> nat -> AEADPlain.adata -> range -> nat -> plain -> parsed
+val decodeNoPad: epoch -> AEADPlain.adata -> range -> nat -> plain -> parsed
