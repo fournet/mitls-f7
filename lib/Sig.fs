@@ -85,8 +85,7 @@ let sign (a: alg) (sk: skey) (t: text): sigv =
             let t = HASH.hash MD5SHA1 t in
             CoreSig.sign None kparams t
     #if ideal
-    if strong a && honest a (pk_of sk) then // CF why do we need this guard?
-      log := (a, pk_of sk, t)::!log
+    log := (a, pk_of sk, t)::!log
     #endif
     signature
 
