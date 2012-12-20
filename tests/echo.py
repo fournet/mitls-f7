@@ -7,6 +7,10 @@ import sys, os, re, subprocess as sp
 CS_DEFAULT = 'TLS_RSA_WITH_AES_128_CBC_SHA'
 
 OPENSSL_CIPHERS = {
+    'TLS_RSA_WITH_NULL_MD5'           : 'NULL-MD5'     ,
+    'TLS_RSA_WITH_NULL_SHA'           : 'NULL-SHA'     ,
+    'TLS_RSA_WITH_NULL_SHA256'        : None           ,
+    'TLS_RSA_WITH_RC4_128_MD5'        : 'RC4-MD5'      ,
     'TLS_RSA_WITH_RC4_128_SHA'        : 'RC4-SHA'      ,
     'TLS_RSA_WITH_3DES_EDE_CBC_SHA'   : 'DES-CBC3-SHA' ,
     'TLS_RSA_WITH_AES_128_CBC_SHA'    : 'AES128-SHA'   ,
@@ -67,7 +71,7 @@ class SSL_CLI(object):
 
     def run(self, vendor, isclient):
         cmd = [vendor] + self.build(vendor, isclient)
-        print >>sys.stderr, 'Command: %r' % (cmd,)
+        # print >>sys.stderr, 'Command: %r' % (cmd,)
         os.execvp(cmd[0], cmd) or exit(127)
 
 # --------------------------------------------------------------------

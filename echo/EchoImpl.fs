@@ -97,7 +97,10 @@ let server (options : options) =
 (* ------------------------------------------------------------------------ *)
 let client (options : options) =
     let ctxt      = tlsoptions options in
-    let socket    = new TcpClient(options.localaddr) in
+    let socket    = new TcpClient() in
+
+    socket.Connect(options.localaddr)
+
     let tlsstream = new TLStream.TLStream(socket.GetStream(), ctxt, TLStream.TLSClient) in
     let reader    = new StreamReader (tlsstream) in
     let writer    = new StreamWriter (tlsstream) in

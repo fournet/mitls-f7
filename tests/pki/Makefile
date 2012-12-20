@@ -103,7 +103,7 @@ imported/%.imported: certificates/%.p12
 
 # --------------------------------------------------------------------
 hash:
-	cd $(PKI)/db/ca.db.certs && c_rehash
+	cd $(PKI)/db/ca.db.certs && c_rehash .
 
 # --------------------------------------------------------------------
 layout:

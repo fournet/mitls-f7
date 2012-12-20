@@ -1,8 +1,8 @@
 # -*- Makefile -*-
 
 src    = \
-	EchoServer.fsi \
-	EchoServer.fs  \
+	EchoImpl.fsi \
+	EchoImpl.fs  \
 	EchoTest.fs
 
 deps   = ../bin/CoreCrypto.dll ../bin/TLSLib.dll ../bin/TLSStream.dll
