@@ -267,9 +267,11 @@ let rec validate_x509_chain (c : X509Certificate2) (issuers : X509Certificate2 l
     try
         let chain = new X509Chain () in
             chain.ChainPolicy.ExtraStore.AddRange(List.toArray issuers);
-            chain.ChainPolicy.RevocationMode <- X509RevocationMode.Offline;
+            chain.ChainPolicy.RevocationMode <- X509RevocationMode.NoCheck;
 
             if not (chain.Build(c)) then
+                chain.ChainStatus
+                    |> Array.iter (fun (cs : X509ChainStatus) -> fprintfn stderr "%A" cs.StatusInformation);
                 false
             else
                 let eq_thumbprint (c1 : X509Certificate2) (c2 : X509Certificate2) =
