@@ -1220,6 +1220,10 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, this is the same as we sent in our extension
                     if Cert.is_chain_for_key_encryption certs then
                         let advice = Cert.validate_cert_chain allowedAlgs certs in
+                        let advice = 
+                            match Cert.get_hint certs with
+                            | None -> false
+                            | Some(name) -> advice && (name = state.poptions.server_name)
                         let state = {state with pstate = PSClient(ClientCheckingCertificateRSA(si,log,certs,agreedVersion,to_log))} in
                         InQuery(certs,advice,state)
                     else
@@ -1240,6 +1244,10 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, this is the same as we sent in our extension
                     if Cert.is_chain_for_signing certs then
                         let advice = Cert.validate_cert_chain allowedAlgs certs in
+                        let advice = 
+                            match Cert.get_hint certs with
+                            | None -> false
+                            | Some(name) -> advice && (name = state.poptions.server_name)
                         let state = {state with pstate = PSClient(ClientCheckingCertificateDHE(si,log,agreedVersion,to_log))} in
                         InQuery(certs,advice,state)
                     else
@@ -1650,6 +1658,10 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Correct(certs) ->
                     if Cert.is_chain_for_signing certs then
                         let advice = Cert.validate_cert_chain (default_sigHashAlg si.protocol_version si.cipher_suite) certs in
+                        let advice = 
+                            match Cert.get_hint certs with
+                            | None -> false
+                            | Some(name) -> advice && (name = state.poptions.client_name)
                         let state = {state with pstate = PSServer(ServerCheckingCertificateRSA(si,cv,sk,log,to_log))} in
                         InQuery(certs,advice,state)
                     else
@@ -1661,6 +1673,10 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Correct(certs) ->
                     if Cert.is_chain_for_signing certs then
                         let advice = Cert.validate_cert_chain (default_sigHashAlg si.protocol_version si.cipher_suite) certs in
+                        let advice = 
+                            match Cert.get_hint certs with
+                            | None -> false
+                            | Some(name) -> advice && (name = state.poptions.client_name)
                         let state = {state with pstate = PSServer(ServerCheckingCertificateDHE(si,p,g,gx,x,log,to_log))} in
                         InQuery(certs,advice,state)
                     else
