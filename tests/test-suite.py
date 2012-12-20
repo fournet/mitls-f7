@@ -62,7 +62,11 @@ def _check_for_config(cr, sr, config):
         logging.debug('Starting echo server [%s]' % (' '.join(s_command)))
 
         try:
-            subps = sp.Popen(s_command)
+            subps = sp.Popen(s_command,
+                             stdout = os.open(logfile + '-s', 
+                                              os.O_WRONLY |
+                                              os.O_CREAT  |
+                                              os.O_TRUNC  ))
         except OSError, e:
             logging.error('Cannot start echo server: %s' % (e,))
             return False
@@ -75,7 +79,7 @@ def _check_for_config(cr, sr, config):
         try:
             subpc = sp.Popen(c_command,
                              stdin  = sp.PIPE,
-                             stdout = os.open(logfile, 
+                             stdout = os.open(logfile + '-c',
                                               os.O_WRONLY |
                                               os.O_CREAT  |
                                               os.O_TRUNC  ))
@@ -100,7 +104,7 @@ def _check_for_config(cr, sr, config):
             logging.error('Error while interacting with server: %s' % (e,))
             return False
 
-        contents = [x.strip() for x in open(logfile, 'r').readlines()]
+        contents = [x.strip() for x in open(logfile + ('-c' if sr else '-s'), 'r').readlines()]
 
         return DATA in contents
 
@@ -163,7 +167,12 @@ def _main():
                                 version  = version,
                                 address  = bind,
                                 servname = servname)
-                nerrors += int(not _check_for_config(cr, sr, config))
+
+                success  = _check_for_config(cr, sr, config)
+                nerrors += int(not success)
+
+                if not success:
+                    logging.error('---------- FAILURE ----------')
 
     logging.info('# errors: %d' % (nerrors,))
     exit(2 if nerrors else 0)

@@ -27,7 +27,6 @@ OPENSSL_VERSIONS = {
 }
 
 class SSL_CLI(object):
-    debug     = False
     servercrt = ''
     clientcrt = ''
     crthashed = 'pki/db/ca.db.certs'
@@ -36,8 +35,7 @@ class SSL_CLI(object):
     version   = ''
 
     def _build_openssl_common(self, args):
-        if self.debug:
-            args.append('-debug')
+        args.append('-quiet')
         args.extend(['-CApath', self.crthashed])
 
         if self.version:

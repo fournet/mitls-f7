@@ -47,7 +47,7 @@ let tlsoptions (options : options) = {
 let client_handler ctxt (peer : Socket) = fun () ->
     let endpoint = peer.RemoteEndPoint
 
-    printfn "Connect: %s" (endpoint.ToString ());
+    fprintfn stderr "Connect: %s" (endpoint.ToString ());
     try
         try
             let netstream = new NetworkStream (peer) in
@@ -58,16 +58,16 @@ let client_handler ctxt (peer : Socket) = fun () ->
                 let rec doit () =
                     let line = reader.ReadLine () in
                         if line <> null then
-                            printfn "Line[%s]: %s" (peer.RemoteEndPoint.ToString ()) line
+                            fprintfn stderr "Line[%s]: %s" (peer.RemoteEndPoint.ToString ()) line
                             writer.WriteLine (line)
                             writer.Flush ()
                             doit ()
                 in
                     doit ()
         with e ->
-            printfn "%s" (e.ToString ())
+            fprintfn stderr "%s" (e.ToString ())
     finally
-        printfn "Disconnect: %s" (endpoint.ToString ());
+        fprintfn stderr "Disconnect: %s" (endpoint.ToString ());
         noexn (fun () -> peer.Close ())
 
 (* ------------------------------------------------------------------------ *)
@@ -108,7 +108,7 @@ let client (options : options) =
     let rec doit () =
         let line = System.Console.ReadLine () in
             if line <> null then
-                writer.WriteLine ()
+                writer.WriteLine(line); writer.Flush ()
                 Console.WriteLine(reader.ReadLine ())
                 doit ()
     in
