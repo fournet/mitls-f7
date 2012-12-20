@@ -56,14 +56,15 @@ let parse_cmd () =
     let defaultPort = 6000
     let defaultDB   = "sessionDB"
     
-    let options : EchoServer.options ref = ref {
+    let options : EchoImpl.options ref = ref {
         ciphersuite = defaultCS;
         tlsversion  = defaultVer;
         servername  = defaultSN;
         clientname  = defaultCN;
         localaddr   = IPEndPoint(IPAddress.Loopback, defaultPort);
         sessiondir  = Path.Combine(mypath, defaultDB); }
-    in
+
+    let isclient = ref false
 
     let valid_path = fun path ->
         Directory.Exists path
@@ -127,24 +128,29 @@ let parse_cmd () =
     let specs =
         let specs = [
             "--sessionDB-dir", ArgType.String o_certdir    , sprintf "\tsession database directory (default `pwd`/%s)" defaultDB
-            "--bind-port"    , ArgType.Int    o_port       , sprintf "\t\tlocal port (default %d)" defaultPort
-            "--bind-address" , ArgType.String o_address    , "\tlocal address (default localhost)"
+            "--port"         , ArgType.Int    o_port       , sprintf "\t\tserver port (default %d)" defaultPort
+            "--address"      , ArgType.String o_address    , "\tserver address (default localhost)"
             "--ciphers"      , ArgType.String o_ciphers    , sprintf "\t\t,-separated ciphers list (default %s)" (String.Join(",", defaultCS))
             "--tlsversion"   , ArgType.String o_version    , sprintf "\t\tTLS version to accept / propose (default %A)" defaultVer
             "--client-name"  , ArgType.String o_client_name, "\tTLS client name (default None, anonymous client)"
             "--server-name"  , ArgType.String o_server_name, (sprintf "\tTLS server name (default: %s)" defaultSN)
-            "--list"         , ArgType.Unit   o_list       , "\t\t\tPrint supported version/ciphers and exit" ]
+            "--list"         , ArgType.Unit   o_list       , "\t\t\tPrint supported version/ciphers and exit"
+            "--client"       , ArgType.Set    isclient     , "\t\tAsk as a client instead of a server" ]
         in
             specs |> List.map (fun (sh, ty, desc) -> ArgInfo(sh, ty, desc))
 
     in
         try
             ArgParser.Parse(specs, usageText = sprintf "Usage: %s <options>" myname);
-            !options
+            (!options, !isclient)
 
         with ArgError msg ->
             ArgParser.Usage(specs, sprintf "Error: %s\n" msg);
             exit 1
 
 (* ------------------------------------------------------------------------ *)
-let _ = EchoServer.entry (parse_cmd ())
+let _ =
+    let options, isclient = parse_cmd () in
+    match isclient with
+    | true  -> EchoImpl.client options
+    | false -> EchoImpl.server options

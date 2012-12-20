@@ -1,4 +1,4 @@
-﻿module EchoServer
+﻿module EchoImpl
 
 type options = {
     ciphersuite : TLSConstants.cipherSuiteName list;
@@ -9,4 +9,5 @@ type options = {
     sessiondir  : string;
 }
 
-val entry : options -> unit
+val client : options -> unit
+val server : options -> unit

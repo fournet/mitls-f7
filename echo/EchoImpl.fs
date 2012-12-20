@@ -1,4 +1,4 @@
-﻿module EchoServer
+﻿module EchoImpl
 
 open System
 open System.IO
@@ -6,6 +6,7 @@ open System.Net
 open System.Net.Sockets
 open System.Threading
 
+(* ------------------------------------------------------------------------ *)
 type options = {
     ciphersuite : TLSConstants.cipherSuiteName list;
     tlsversion  : TLSConstants.ProtocolVersion;
@@ -15,9 +16,11 @@ type options = {
     sessiondir  : string;
 }
 
+(* ------------------------------------------------------------------------ *)
 let noexn = fun cb ->
     try cb () with _ -> ()
 
+(* ------------------------------------------------------------------------ *)
 let tlsoptions (options : options) = {
     TLSInfo.minVer = options.tlsversion
     TLSInfo.maxVer = options.tlsversion
@@ -40,6 +43,7 @@ let tlsoptions (options : options) = {
     TLSInfo.sessionDBExpiry   = Bytes.newTimeSpan 1 0 0 0 (* one day *)
 }
 
+(* ------------------------------------------------------------------------ *)
 let client_handler ctxt (peer : Socket) = fun () ->
     let endpoint = peer.RemoteEndPoint
 
@@ -66,11 +70,10 @@ let client_handler ctxt (peer : Socket) = fun () ->
         printfn "Disconnect: %s" (endpoint.ToString ());
         noexn (fun () -> peer.Close ())
 
-let entry (options : options) =
-    let assembly     = System.Reflection.Assembly.GetExecutingAssembly() in
-    let mypath       = Path.GetDirectoryName(assembly.Location) in
-    let ctxt         = tlsoptions options in
-    let listener     = new TcpListener(options.localaddr) in
+(* ------------------------------------------------------------------------ *)
+let server (options : options) =
+    let ctxt     = tlsoptions options in
+    let listener = new TcpListener(options.localaddr) in
 
         listener.Start ();
         listener.Server.SetSocketOption(SocketOptionLevel.Socket,
@@ -90,3 +93,20 @@ let entry (options : options) =
                     noexn (fun () -> peer.Close())                    
                     raise e
         done
+
+(* ------------------------------------------------------------------------ *)
+let client (options : options) =
+    let ctxt      = tlsoptions options in
+    let socket    = new TcpClient(options.localaddr) in
+    let tlsstream = new TLStream.TLStream(socket.GetStream(), ctxt, TLStream.TLSClient) in
+    let reader    = new StreamReader (tlsstream) in
+    let writer    = new StreamWriter (tlsstream) in
+
+    let rec doit () =
+        let line = System.Console.ReadLine () in
+            if line <> null then
+                writer.WriteLine ()
+                Console.WriteLine(reader.ReadLine ())
+                doit ()
+    in
+        doit ()
