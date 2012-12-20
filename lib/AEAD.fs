@@ -8,12 +8,6 @@ open Error
 
 type cipher = bytes
 
-#if verify
-type preds = 
-  | CTXT of epoch * bytes * AEADPlain.plain * cipher
-  | NotCTXT of epoch * bytes * cipher
-#endif
-
 type AEADKey =
     | MtE of MAC.key * ENC.state
     | MACOnly of MAC.key
@@ -213,14 +207,27 @@ let decrypt' e key data cipher =
 //  | GCM (GCMKey) -> ... 
     | (_,_) -> unexpectedError "[decrypt'] incompatible ciphersuite-key given."
 
+#if ideal
+type preds = 
+  | CTXT of epoch * bytes * AEADPlain.plain * cipher
+  | NotCTXT of epoch * bytes * cipher
+
+let log = ref [] // the semantics of CTXT
+#endif
+
 let encrypt e key data rg plain = 
     let (key,cipher) = encrypt' e key data rg plain in
-#if verify
+#if ideal
     Pi.assume (CTXT(e,data,plain,cipher));
+    log := ((e,data,cipher),plain)::!log;
 #endif
     (key,cipher)
 
 let decrypt e key data cipher = 
+#if ideal
+
+#else
+
   let res = decrypt' e key data cipher in
     match res with
         Correct r ->
@@ -234,3 +241,4 @@ let decrypt e key data cipher =
           Pi.assume (NotCTXT(e,data,cipher));
 #endif
           Error(x,y)
+#endif

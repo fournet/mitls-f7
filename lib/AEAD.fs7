@@ -74,15 +74,17 @@ val decrypt': ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
 val encrypt: ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   rg:range -> p:(;ki,ad,rg) AEADPlain.plain ->
   ((;ki) AEADKey * c:cipher){Encode.CipherRange(ki,rg,Length(c)) /\
-                             (Safe(ki) => CTXT(ki,ad,p,c))}
+                             ((* Safe(ki) => *) CTXT(ki,ad,p,c))}
 
 val decrypt: ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   c:cipher -> res: 
   ( ((;ki) AEADKey *  rg:range * (;ki,ad,rg) AEADPlain.plain)) Result
    {(!k,r,p. res = Correct((k,r,p)) => Encode.CipherRange(ki,r,Length(c))) /\
-    (Safe(ki) => 
+    (Auth(ki) => 
         ((!k,r,p. res = Correct((k,r,p)) => CTXT(ki,ad,p,c)) /\
          (!p. CTXT(ki,ad,p,c) => (?k,r. res = Correct((k,r,p))))))}
+// Last two lines are equivalent to:
+// !p. CTXT(ki,ad,p,c) <=> (?k,r. res = Correct((k,r,p)))
 
 (* CF 04-09 discussion points: 
 //

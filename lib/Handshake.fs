@@ -547,19 +547,19 @@ type clientState =
    | ServerHello                  of crand * sessionID (* * bytes for extensions? *) * cVerifyData * sVerifyData * log
 
    | ServerCertificateRSA         of SessionInfo * log
-   | ClientCheckingCertificateRSA of SessionInfo * log * Cert.cert list * bytes
+   | ClientCheckingCertificateRSA of SessionInfo * log * Cert.cert list * ProtocolVersion option * bytes
    | CertificateRequestRSA        of SessionInfo * log (* In fact, CertReq or SHelloDone will be accepted *)
    | ServerHelloDoneRSA           of SessionInfo * Cert.sign_cert * log
 
    | ServerCertificateDH          of SessionInfo * log
-   | ClientCheckingCertificateDH  of SessionInfo * log * bytes
+   | ClientCheckingCertificateDH  of SessionInfo * log * ProtocolVersion option * bytes
    | CertificateRequestDH         of SessionInfo * log (* We pick our cert and store it in sessionInfo as soon as the server requests it.
                                                          We put None if we don't have such a certificate, and we know whether to send
                                                          the Certificate message or not based on the state when we receive the Finished message *)
    | ServerHelloDoneDH            of SessionInfo * log
 
    | ServerCertificateDHE         of SessionInfo * log
-   | ClientCheckingCertificateDHE of SessionInfo * log * bytes
+   | ClientCheckingCertificateDHE of SessionInfo * log * ProtocolVersion option * bytes
    | ServerKeyExchangeDHE         of SessionInfo * log
    | CertificateRequestDHE        of SessionInfo * DHGroup.p * DHGroup.g * DHGroup.elt * log
    | ServerHelloDoneDHE           of SessionInfo * Cert.sign_cert * DHGroup.p * DHGroup.g * DHGroup.elt * log
@@ -1220,7 +1220,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, this is the same as we sent in our extension
                     if Cert.is_chain_for_key_encryption certs then
                         let advice = Cert.validate_cert_chain allowedAlgs certs in
-                        let state = {state with pstate = PSClient(ClientCheckingCertificateRSA(si,log,certs,to_log))} in
+                        let state = {state with pstate = PSClient(ClientCheckingCertificateRSA(si,log,certs,agreedVersion,to_log))} in
                         InQuery(certs,advice,state)
                     else
 #if avoid
@@ -1240,7 +1240,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, this is the same as we sent in our extension
                     if Cert.is_chain_for_signing certs then
                         let advice = Cert.validate_cert_chain allowedAlgs certs in
-                        let state = {state with pstate = PSClient(ClientCheckingCertificateDHE(si,log,to_log))} in
+                        let state = {state with pstate = PSClient(ClientCheckingCertificateDHE(si,log,agreedVersion,to_log))} in
                         InQuery(certs,advice,state)
                     else
 #if avoid
@@ -1810,20 +1810,20 @@ let authorize (ci:ConnectionInfo) (state:hs_state) (q:Cert.chain) =
     match pstate with
     | PSClient(cstate) ->
         match cstate with
-        | ClientCheckingCertificateRSA(si,log,certs,to_log) ->
+        | ClientCheckingCertificateRSA(si,log,certs,agreedVersion,to_log) ->
             if certs = q then
               let log = log @| to_log in
               let si = {si with serverID = q} in
               Pi.assume (Authorize(Client,si));
               let state = {state with pstate = PSClient(CertificateRequestRSA(si,log))} in
-              recv_fragment_client ci state None
+              recv_fragment_client ci state agreedVersion
             else unexpectedError "[authorize] invoked with different cert"
-        | ClientCheckingCertificateDHE(si,log,to_log) ->
+        | ClientCheckingCertificateDHE(si,log,agreedVersion,to_log) ->
             let log = log @| to_log in
             let si = {si with serverID = q} in
             Pi.assume (Authorize(Client,si));
             let state = {state with pstate = PSClient(ServerKeyExchangeDHE(si,log))} in
-            recv_fragment_client ci state None
+            recv_fragment_client ci state agreedVersion
         // | ClientCheckingCertificateDH -> TODO
         | _ -> unexpectedError "[authorize] invoked on the wrong state"
     | PSServer(sstate) ->

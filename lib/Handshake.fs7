@@ -719,7 +719,8 @@ type clientState =
    | ClientCheckingCertificateDH  of SessionInfo * log * bytes
    | CertificateRequestDH         of SessionInfo * log (* We pick our cert and store it in sessionInfo as soon as the server requests it.
                                                          We put None if we don't have such a certificate, and we know whether to send
-                                                         the Certificate message or not based on the state when we receive the Finished message *)   | ServerHelloDoneDH            of SessionInfo * log
+                                                         the Certificate message or not based on the state when we receive the Finished message *)
+   | ServerHelloDoneDH            of SessionInfo * log
 
    | ServerCertificateDHE         of si:SessionInfo * l:log{ClientLogBeforeServerCertificate(si,l)}
    | ClientCheckingCertificateDHE of si:SessionInfo * l:log * b:bytes{ClientLogBeforeServerCertificate(si,l) /\ b = CertificateMsg(ser)}

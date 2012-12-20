@@ -14,7 +14,9 @@ open TLSInfo
 // Jakob Jonsson and Burton S. Kaliski Jr.
 // http://www.iacr.org/archive/crypto2002/24420127/24420127.pdf   
 
-val encrypt: pk:pk -> pv:ProtocolVersion -> (;pk,pv) CRE.rsapms -> bytes 
+predicate EncryptedRSAPMS of pk * ProtocolVersion * CRE.rsapms * bytes
+
+val encrypt: pk:pk -> pv:ProtocolVersion -> pms:(;pk,pv) CRE.rsapms -> b:bytes{EncryptedRSAPMS(pk,pv,pms,b)} 
 // TLS specific, timing-attack-resistant variant
 val decrypt: sk ->
 			 si:SessionInfo -> 

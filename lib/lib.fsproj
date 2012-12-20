@@ -223,8 +223,8 @@
     <None Include="DH.fs7" />
     <Compile Include="DH.fsi" />
     <Compile Include="DH.fs" />
-    <Compile Include="RSAEnc.fsi" />
     <None Include="RSAEnc.fs7" />
+    <Compile Include="RSAEnc.fsi" />
     <Compile Include="RSAEnc.fs" />
     <None Include="SessionDB.fs7" />
     <Compile Include="SessionDB.fsi" />
