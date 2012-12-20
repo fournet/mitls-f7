@@ -34,10 +34,7 @@ let enumeration<'T> () =
 
 (* ------------------------------------------------------------------------ *)
 let cs_map = enumeration<TLSConstants.cipherSuiteName> ()
-let vr_map = [| ("ssl3"  , TLSConstants.SSL_3p0) ;
-                ("tls1.0", TLSConstants.TLS_1p0) ;
-                ("tls1.1", TLSConstants.TLS_1p1) ;
-                ("tls1.2", TLSConstants.TLS_1p2) ; |]
+let vr_map = enumeration<TLSConstants.ProtocolVersion> ()
 
 (* ------------------------------------------------------------------------ *)
 let parse_cipher  = let map = Map.ofArray cs_map in fun x -> map.TryFind x
