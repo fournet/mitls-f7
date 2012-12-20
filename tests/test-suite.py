@@ -39,13 +39,15 @@ def _check_for_config(cr, sr, config):
         logging.debug('...created [%s/{client,server}]' % (sessiondir,))
 
         def build_command(refpgm, isclient):
+            mysessiondir = os.path.join(sessiondir, 'client' if isclient else 'server')
+
             command  = ['./echo.py' if refpgm else '../bin/Echo.exe']
             command += ['--address'      , str(config.address[0]),
                         '--port'         , str(config.address[1]),
                         '--ciphers'      , config.cipher,
                         '--tlsversion'   , config.version,
                         '--server-name'  , config.servname,
-                        '--sessionDB-dir', sessiondir]
+                        '--sessionDB-dir', mysessiondir]
             if not refpgm:
                 if sys.platform.lower() not in ('cygwin', 'win32'):
                     command = ['mono', '--debug'] + command
