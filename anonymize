@@ -8,11 +8,27 @@ def _noexn(f):
     except: pass
 
 # --------------------------------------------------------------------
-def parser():
+class Object(object):
+    def __init__(self, **kw):
+        self.__dict__.update(kw)
+
+# --------------------------------------------------------------------
+MODE_FULL    = 0x00
+MODE_RELEASE = 0x01
+
+# --------------------------------------------------------------------
+def parser(mode):
     import pyparsing as p
 
     def internal_comment(comment):
-        return comment.strip()[0:1] != '@'
+        if mode.mode == MODE_FULL:
+            return comment.strip()[0:1] != '@'
+        if mode.mode == MODE_RELEASE:
+            m = re.search(r'^\s*(\w+?):*\b', comment)
+            return \
+                m is not None and \
+                    (m.group(1) == 'FIXME' or m.group(1) in mode.data)
+        return False
 
     ml_comments = p.Regex(r'\(\*(?:[^*]*\*+)+?\)')
     ss_comments = p.Regex(r'//.*')
@@ -61,19 +77,35 @@ def filter_hashes(input):
 def _options(args):
     from optparse import OptionParser
 
+    modes  = 'full|release[:kw1,...,kwn]'
     parser = OptionParser(usage = '%prog <options> [filenames...]')
+    
     parser.add_option("-B", None,
                       action  = "store_false",
                       dest    = "backup",
                       help    = "do NOT create a backup file",
-                      default = True,
-                      metavar = "BACKUP")
-    parser.add_option("-c", "--header",
+                      default = True)
+    parser.add_option("-c", None,
                       dest    = "header",
                       help    = "add header from HEADER",
                       metavar = "HEADER")
+    parser.add_option("-m", None,
+                      dest    = "mode",
+                      help    = "set anonymisation mode [%s]" % (modes,),
+                      default = 'full',
+                      metavar = "MODE")
 
     (options, args) = parser.parse_args()
+
+    if options.mode == 'full':
+        options.mode = Object(mode = MODE_FULL, data = None)
+    elif options.mode.startswith('release'):
+        kws = ''.join(options.mode.split(':', 1)[1:]).split(',')
+        kws = [x.strip() for x in kws]
+        kws = [x for x in kws if x]
+        options.mode = Object(mode = MODE_RELEASE, data = set(kws))
+    else:
+        parser.error('invalid mode: %s' % (options.mode,))
 
     return (options, args)
 
@@ -89,7 +121,7 @@ def _read_file(filename):
 CRLN = '\r\n'
 
 def _process_file(filename, options):
-    output = parser().transformString(_read_file(filename))
+    output = parser(options.mode).transformString(_read_file(filename))
     output = output.splitlines()
     output = filter_hashes(output)
     output = CRLN.join(output) + CRLN
