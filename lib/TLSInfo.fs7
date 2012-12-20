@@ -29,11 +29,22 @@ type srand = random
 //CF 04-09 the randoms are not just bytes; where do we rely on collision-resistance?
 
 type pmsData =
-	| PMSUnset
+    | PMSUnset
     | RSAPMS of encpms:bytes
     | DHPMS  of p:DHGroup.p * g:(;p)DHGroup.g *
-			    gx:(;p)DHGroup.elt (* Client *) *
-				gy:(;p)DHGroup.elt (* Server *)
+		  	      gx:(;p)DHGroup.elt (* Client *) *
+			      gy:(;p)DHGroup.elt (* Server *)
+
+// To be defined 
+predicate HonestRSAPMS of encpms:bytes
+predicate HonestDHPMS of p:DHGroup.p * g:(;p)DHGroup.g *
+		  	      gx:(;p)DHGroup.elt (* Client *) *
+			      gy:(;p)DHGroup.elt (* Server *)
+
+predicate HonestPMS of pmsData
+assume !pd. HonestPMS(pd) <=>
+      ((?e. pd = RSAPMS(e) /\ HonestRSAPMS(e)) \/
+       (?p,g,gx,gy. pd = DHPMS(p,g,gx,gy)))
 
 // TODO this is out of sync with the paper, on client_auth.
 type SessionInfo = {
@@ -46,7 +57,7 @@ type SessionInfo = {
     client_auth: bool;
     serverID: Cert.cert list;
     sessionID: sessionID;
-	pmsData: pmsData;
+    pmsData: pmsData;
     }
 // for certificates, the empty list represents the absence of identity 
 // (possibly refusing to present requested certs) 
@@ -58,7 +69,7 @@ private type preEpoch =
   | InitEpoch of Role * random  (* our fresh local random *)
   | SuccEpoch of crand * srand  (* the latest randoms     *)
                * si:SessionInfo
-			   * pred:preEpoch 
+	       * pred:preEpoch 
 
 predicate val IsInitEpoch: preEpoch -> bool
 predicate val IsSuccEpoch: preEpoch -> bool

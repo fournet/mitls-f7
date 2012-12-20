@@ -13,7 +13,10 @@ type SessionDB
 type SessionIndex = sessionID * Role * Cert.hint
 
 val create: config -> SessionDB
-val select: SessionDB -> SessionIndex -> StorableSession option
-val insert: SessionDB -> SessionIndex -> StorableSession -> SessionDB
+val select: SessionDB -> x:SessionIndex -> res:(StorableSession option){
+  !sid,r,h,si,ms. x = (sid,r,h) /\ res = Some((si,ms)) => Authorize(r,si)}
+val insert: SessionDB -> x:SessionIndex -> res:StorableSession{
+  !sid,r,h,si,ms. x = (sid,r,h) /\ res = (si,ms) => Authorize(r,si)}
+ -> SessionDB
 val remove: SessionDB -> SessionIndex -> SessionDB
 val getAllStoredIDs: SessionDB -> SessionIndex list

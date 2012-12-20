@@ -7,13 +7,13 @@ open DHGroup
 
 type rsarepr = (;48)lbytes
 private type (;pk:RSAKeys.pk,pv:ProtocolVersion) rsapms = {rsapms:rsarepr}
+type (;p:p, g:(;p) g, gx:(;p) elt, gy:(;p) elt) dhpms // strong secret when (p,g), gx, and gy have been honestly generated
 
-val genRSA: pk:RSAKeys.pk -> pv:ProtocolVersion -> (;pk,pv)rsapms
+
+val genRSA: pk:RSAKeys.pk -> pv:ProtocolVersion -> pms:(;pk,pv)rsapms{HonestRSAPMS
 
 val coerceRSA: pk:RSAKeys.pk -> pv:ProtocolVersion -> bytes -> (;pk,pv)rsapms
 val leakRSA: pk:RSAKeys.pk -> pv:ProtocolVersion -> (;pk,pv)rsapms -> bytes
-
-type (;p:p, g:(;p) g, gx:(;p) elt, gy:(;p) elt) dhpms // strong secret when (p,g), gx, and gy have been honestly generated
 
 val sampleDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt ->            (;p,g,gx,gy) dhpms
 val coerceDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt -> (;p)elt -> (;p,g,gx,gy) dhpms
@@ -31,3 +31,6 @@ val prfSmoothDHE:
     p:DHGroup.p -> g:(;p)DHGroup.g -> gx:(;p)DHGroup.elt -> gy:(;p)DHGroup.elt ->
     pms: (;p,g,gx,gy)dhpms ->
     (;si) PRF.masterSecret
+
+
+

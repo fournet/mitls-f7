@@ -498,11 +498,11 @@ let certificateVerifyCheck si ms algs log payload =
 
 // State machine begins
 
-#if verify
 type events = 
-    EvSentFinishedFirst of ConnectionInfo * bool
-  | Complete of ConnectionInfo * config
-#endif
+    Authorize of Role * SessionInfo
+  | Configure of Role * epoch * config
+  | EvSentFinishedFirst of ConnectionInfo * bool
+  | SentCCS of Role * SessionInfo
 
 (* verify data authenticated by the Finished messages *)
 type log = bytes         (* message payloads so far, to be eventually authenticated *) 
@@ -547,7 +547,7 @@ type clientState =
    | ServerHello                  of crand * sessionID (* * bytes for extensions? *) * cVerifyData * sVerifyData * log
 
    | ServerCertificateRSA         of SessionInfo * log
-   | ClientCheckingCertificateRSA of SessionInfo * log * bytes
+   | ClientCheckingCertificateRSA of SessionInfo * log * Cert.cert list * bytes
    | CertificateRequestRSA        of SessionInfo * log (* In fact, CertReq or SHelloDone will be accepted *)
    | ServerHelloDoneRSA           of SessionInfo * Cert.sign_cert * log
 
@@ -605,6 +605,7 @@ let init (role:Role) poptions =
     match role with
     | Client -> 
         let ci = initConnection role rand in
+        Pi.assume (Configure(Client,ci.id_in,poptions));
         let ext = extensionsBytes poptions.safe_renegotiation [||] in
         let cHelloBytes = clientHelloBytes poptions rand sid ext in
         let sdb = SessionDB.create poptions in 
@@ -617,6 +618,7 @@ let init (role:Role) poptions =
         (ci,state)
     | Server ->
         let ci = initConnection role rand in
+        Pi.assume (Configure(Server,ci.id_in,poptions));
         let sdb = SessionDB.create poptions in 
         let state = {hs_outgoing = [||]
                      hs_incoming = [||]
@@ -641,6 +643,7 @@ let resume next_sid poptions =
     | sid ->
     let rand = Nonce.mkHelloRandom () in
     let ci = initConnection Client rand in
+    Pi.assume (Configure(Server,ci.id_in,poptions));
     let ext = extensionsBytes poptions.safe_renegotiation [||]
     let cHelloBytes = clientHelloBytes poptions rand sid ext in
     let sdb = SessionDB.create poptions
@@ -663,6 +666,7 @@ let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
             let sid = [||] in
             let ext = extensionsBytes ops.safe_renegotiation cvd in
             let cHelloBytes = clientHelloBytes ops rand sid ext in
+            Pi.assume (Configure(Client,ci.id_in,ops));
             let sdb = SessionDB.create ops
             let state = {hs_outgoing = cHelloBytes
                          hs_incoming = [||]
@@ -699,6 +703,7 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
                 | ClientIdle(cvd,svd) ->
                     let rand = Nonce.mkHelloRandom () in
                     let ext = extensionsBytes ops.safe_renegotiation cvd in
+                    Pi.assume (Configure(Client,ci.id_in,ops));
                     let cHelloBytes = clientHelloBytes ops rand sid ext in
                     let state = {hs_outgoing = cHelloBytes
                                  hs_incoming = [||]
@@ -777,6 +782,7 @@ let next_fragment ci state =
 #if avoid 
                 failwith "commenting out since it does not typecheck"
 #else
+                Pi.assume (SentCCS(Client,si));
                 OutCCS(rg,f,ci,writer,state)
 #endif
             | ClientWritingCCSResume(e,w,ms,svd,log) ->
@@ -789,6 +795,7 @@ let next_fragment ci state =
 #if avoid 
                 failwith "commenting out since it does not typecheck"
 #else
+                Pi.assume (SentCCS(Client,epochSI(e)));
                 OutCCS(rg,f,ci,w,state)
 #endif
             | _ -> OutIdle(state)
@@ -804,6 +811,7 @@ let next_fragment ci state =
 #if avoid 
                 failwith "commenting out since it does not typecheck"
 #else
+                Pi.assume (SentCCS(Server,si));
                 OutCCS(rg,f,ci,w,state)
 #endif
             | ServerWritingCCSResume(we,w,re,r,ms,log) ->
@@ -817,6 +825,7 @@ let next_fragment ci state =
 #if avoid 
                 failwith "commenting out since it does not typecheck"
 #else
+                Pi.assume (SentCCS(Server,epochSI(we)));
                 OutCCS(rg,f,ci,w,state)
 #endif
             | _ -> OutIdle(state)
@@ -835,9 +844,6 @@ let next_fragment ci state =
                     OutFinished(rg,f,state)
                 | ClientWritingFinishedResume(cvd,svd) ->
                     let state = {state with pstate = PSClient(ClientIdle(cvd,svd))} in
-#if verify
-                    Pi.assume(Complete(ci,state.poptions));
-#endif
                     OutComplete(rg,f,state)
                 | _ -> OutSome(rg,f,state)
             | PSServer(sstate) ->
@@ -845,17 +851,11 @@ let next_fragment ci state =
                 | ServerWritingFinished(si,ms,cvd,svd) ->
                     if equalBytes si.sessionID [||] then
                       let state = {state with pstate = PSServer(ServerIdle(cvd,svd))}
-#if verify
-                      Pi.assume(Complete(ci,state.poptions));
-#endif
                       OutComplete(rg,f,state)
                     else
                       let sdb = SessionDB.insert state.sDB (si.sessionID,Server,state.poptions.client_name) (si,ms)
                       let state = {state with pstate = PSServer(ServerIdle(cvd,svd))   
                                               sDB = sdb} in
-#if verify
-                      Pi.assume(Complete(ci,state.poptions));
-#endif
                       OutComplete(rg,f,state)
                 | ClientCCSResume(_,_,_,_,_) ->
 #if verify
@@ -1220,7 +1220,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, this is the same as we sent in our extension
                     if Cert.is_chain_for_key_encryption certs then
                         let advice = Cert.validate_cert_chain allowedAlgs certs in
-                        let state = {state with pstate = PSClient(ClientCheckingCertificateRSA(si,log,to_log))} in
+                        let state = {state with pstate = PSClient(ClientCheckingCertificateRSA(si,log,certs,to_log))} in
                         InQuery(certs,advice,state)
                     else
 #if avoid
@@ -1342,7 +1342,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
 
                     match prepare_client_output_full_RSA ci state si None log with
                     | Error (x,y) -> InError (x,y, state)
-                    | Correct (state,si,ms,log) ->
+                    | Correct z ->
+                        let (state,si,ms,log) = z in
                         let state = {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
                         recv_fragment_client ci state agreedVersion
                 else
@@ -1354,7 +1355,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
 
                     match prepare_client_output_full_RSA ci state si skey log with
                     | Error (x,y) -> InError (x,y, state)
-                    | Correct (state,si,ms,log) ->
+                    | Correct z ->
+                        let (state,si,ms,log) = z in
                         let state = {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
                         recv_fragment_client ci state agreedVersion
                 else
@@ -1366,7 +1368,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
 
                     match prepare_client_output_full_DHE ci state si None p g y log with
                     | Error (x,y) -> InError (x,y, state)
-                    | Correct (state,si,ms,log) ->
+                    | Correct z ->
+                        let (state,si,ms,log) = z in
                         let state = {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
                         recv_fragment_client ci state agreedVersion
                 else
@@ -1378,7 +1381,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
 
                     match prepare_client_output_full_DHE ci state si skey p g y log with
                     | Error (x,y) -> InError (x,y, state)
-                    | Correct (state,si,ms,log) ->
+                    | Correct z ->
+                        let (state,si,ms,log) = z in
                         let state = {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
                         recv_fragment_client ci state agreedVersion
                 else
@@ -1806,14 +1810,18 @@ let authorize (ci:ConnectionInfo) (state:hs_state) (q:Cert.chain) =
     match pstate with
     | PSClient(cstate) ->
         match cstate with
-        | ClientCheckingCertificateRSA(si,log,to_log) ->
-            let log = log @| to_log in
-            let si = {si with serverID = q} in
-            let state = {state with pstate = PSClient(CertificateRequestRSA(si,log))} in
-            recv_fragment_client ci state None
+        | ClientCheckingCertificateRSA(si,log,certs,to_log) ->
+            if certs = q then
+              let log = log @| to_log in
+              let si = {si with serverID = q} in
+              Pi.assume (Authorize(Client,si));
+              let state = {state with pstate = PSClient(CertificateRequestRSA(si,log))} in
+              recv_fragment_client ci state None
+            else unexpectedError "[authorize] invoked with different cert"
         | ClientCheckingCertificateDHE(si,log,to_log) ->
             let log = log @| to_log in
             let si = {si with serverID = q} in
+            Pi.assume (Authorize(Client,si));
             let state = {state with pstate = PSClient(ServerKeyExchangeDHE(si,log))} in
             recv_fragment_client ci state None
         // | ClientCheckingCertificateDH -> TODO
@@ -1823,11 +1831,13 @@ let authorize (ci:ConnectionInfo) (state:hs_state) (q:Cert.chain) =
         | ServerCheckingCertificateRSA(si,cv,sk,log,to_log) ->
             let log = log @| to_log in
             let si = {si with clientID = q} in
+             Pi.assume (Authorize(Server,si));
             let state = {state with pstate = PSServer(ClientKeyExchangeRSA(si,cv,sk,log))} in
             recv_fragment_server ci state None
         | ServerCheckingCertificateDHE(si,p,g,gx,x,log,to_log) ->
             let log = log @| to_log in
             let si = {si with clientID = q} in
+            Pi.assume (Authorize(Server,si));
             let state = {state with pstate = PSServer(ClientKeyExchangeDHE(si,p,g,gx,x,log))} in
             recv_fragment_server ci state None
         // | ServerCheckingCertificateDH -> TODO

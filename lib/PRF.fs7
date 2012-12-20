@@ -15,16 +15,20 @@ val keyGen: ci:ConnectionInfo -> (;EpochSI(ci.id_out))masterSecret ->
          (* No label, it's hardcoded. Of course we can make it explicit -> *)
          (* No seed (crandom @| srandom), it can be retrieved from epoch (and not SessionInfo!) -> *)
 
+predicate VerifyData of SessionInfo * Role * bytes
+predicate AuthSI of SessionInfo
+
 val makeVerifyData: si:SessionInfo -> r:Role -> (;si) masterSecret ->
-                   bytes (* msgLog *) -> 
+                   log:bytes{VerifyData(si,r,log)} -> 
                    bytes (* length depends on cs, 12 by default *)
 
 val checkVerifyData: si:SessionInfo -> r:Role -> (;si) masterSecret ->
-				   bytes (* the log *) ->
-				   bytes (* the expected value *) ->
-				   bool
+				   log:bytes (* the log *) ->
+				   vd:bytes (* the expected value *) ->
+				   b:bool{b = true /\ AuthSI(si) => 
+                                          VerifyData(si,r,log)}
 
 val ssl_certificate_verify: si:SessionInfo -> (;si)masterSecret -> TLSConstants.sigAlg -> bytes -> bytes
 
 // FIXME we need to add something like {not Auth(si)}, but Auth is defined on epochs, not sessions
-val coerce: si:SessionInfo -> repr -> (;si)masterSecret
+val coerce: si:SessionInfo{not AuthSI(si)} -> repr -> (;si)masterSecret
