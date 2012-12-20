@@ -6,7 +6,7 @@ src    = \
 	EchoTest.fs
 
 deps   = ../bin/CoreCrypto.dll ../bin/TLSLib.dll ../bin/TLSStream.dll
-target = ../bin/EchoServer.exe
+target = ../bin/Echo.exe
 
 .PHONY: all dist make.in
 
