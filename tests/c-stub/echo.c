@@ -242,6 +242,9 @@ typedef struct stream {
     int fd, rdclosed, wrclosed;
     bufferevent_t *bevent;
 
+    /* SSL context */
+    SSL *sslcontext;
+
     /* logger */
     char *addst, *adsrc;
 } stream_t;
@@ -257,13 +260,14 @@ typedef struct stream {
 stream_t* stream_new(void) {
     stream_t *the = NEW(stream_t, 1);
 
-    the->options  = NULL;
-    the->rdclosed = 0;
-    the->wrclosed = 0;
-    the->fd       = -1;
-    the->bevent   = NULL;
-    the->addst    = NULL;
-    the->adsrc    = NULL;
+    the->options    = NULL;
+    the->rdclosed   = 0;
+    the->wrclosed   = 0;
+    the->fd         = -1;
+    the->bevent     = NULL;
+    the->sslcontext = NULL;
+    the->addst      = NULL;
+    the->adsrc      = NULL;
 
     return the;
 }
@@ -275,6 +279,8 @@ void stream_free(stream_t *the) {
     if (the->bevent != NULL)
         bufferevent_free(the->bevent);
     (void) close(the->fd);
+
+    /* FIXME: SSL context */
 
     free(the);
 }
@@ -368,21 +374,23 @@ void _onerror(bufferevent_t *be, short what, void *arg)  {
         }
     }
 
-    evbuffer_t *ibuffer = bufferevent_get_input (stream->bevent);
-    evbuffer_t *obuffer = bufferevent_get_output(stream->bevent);
-
-    if (evbuffer_add_buffer(obuffer, ibuffer) < 0) {
-        C2S_LOG_ERROR(stream);
-        goto bailout;
-    }
-
-    (void) shutdown(stream->fd, SHUT_RD);
-    stream->rdclosed = 1;
-
-    if (!_check_for_stream_end(stream)) {
-        bufferevent_modcb(stream->bevent,
-                          BEV_MOD_CB_READ | BEV_MOD_CB_WRITE,
-                          NULL, _onwrite, NULL, stream);
+    if ((what & BEV_EVENT_EOF)) {
+        evbuffer_t *ibuffer = bufferevent_get_input (stream->bevent);
+        evbuffer_t *obuffer = bufferevent_get_output(stream->bevent);
+    
+        if (evbuffer_add_buffer(obuffer, ibuffer) < 0) {
+            C2S_LOG_ERROR(stream);
+            goto bailout;
+        }
+    
+        (void) shutdown(stream->fd, SHUT_RD);
+        stream->rdclosed = 1;
+    
+        if (!_check_for_stream_end(stream)) {
+            bufferevent_modcb(stream->bevent,
+                              BEV_MOD_CB_READ | BEV_MOD_CB_WRITE,
+                              NULL, _onwrite, NULL, stream);
+        }
     }
 
     return ;
@@ -422,10 +430,23 @@ void _onaccept(struct evconnlistener  *listener,
 
     stelog(stream, LOG_INFO, "new client");
 
+    if ((stream->sslcontext = SSL_new(context->sslcontext)) == NULL) {
+        elog(LOG_ERROR, "cannot create SSL context");
+        goto bailout;
+    }
+
     stream->bevent =
-        bufferevent_socket_new(evb, stream->fd, BEV_OPT_DEFER_CALLBACKS);
+        bufferevent_openssl_socket_new(evb, stream->fd, stream->sslcontext,
+                                       BUFFEREVENT_SSL_ACCEPTING,
+                                       BEV_OPT_DEFER_CALLBACKS);
     bufferevent_setcb(stream->bevent, _onread, NULL, _onerror, stream);
     bufferevent_enable(stream->bevent, EV_READ|EV_WRITE);
+
+    return ;
+
+ bailout:
+    if (stream != NULL)
+        stream_free(stream);
 }
 
 
