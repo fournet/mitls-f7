@@ -21,16 +21,15 @@
 
 #include <netdb.h>
 
-#include <endian.h>
-
 #include <log4c.h>
 
 #include <event.h>
-#include <event2/bufferevent_struct.h> /* Break abstraction */
+#include <event2/listener.h>
+#include <event2/bufferevent_ssl.h>
 
-#ifndef SOL_TCP
-# define SOL_TCP IPPROTO_TCP
-#endif
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#include <openssl/rand.h>
 
 /* -------------------------------------------------------------------- */
 #define MAXBUF (1u << 17)       /* 128k */
@@ -43,6 +42,7 @@ typedef struct event event_t;
 typedef struct event_base event_base_t;
 typedef struct bufferevent bufferevent_t;
 typedef struct evbuffer evbuffer_t;
+typedef struct evconnlistener evconnlistener_t;
 
 static event_base_t *evb = NULL;
 
@@ -242,10 +242,6 @@ typedef struct stream {
     int fd, rdclosed, wrclosed;
     bufferevent_t *bevent;
 
-    /* sockets names */
-    in4_t localname;
-    in4_t peername;
-
     /* logger */
     char *addst, *adsrc;
 } stream_t;
@@ -261,17 +257,13 @@ typedef struct stream {
 stream_t* stream_new(void) {
     stream_t *the = NEW(stream_t, 1);
 
-    the->options = NULL;
+    the->options  = NULL;
     the->rdclosed = 0;
     the->wrclosed = 0;
-    the->fd = -1;
-    the->bevent = NULL;
-
-    memset(&the->localname, 0, sizeof(in4_t));
-    memset(&the->peername , 0, sizeof(in4_t));
-
-    the->addst = NULL;
-    the->adsrc = NULL;
+    the->fd       = -1;
+    the->bevent   = NULL;
+    the->addst    = NULL;
+    the->adsrc    = NULL;
 
     return the;
 }
@@ -324,6 +316,8 @@ void _onread(bufferevent_t *be, void *arg) {
     evbuffer_t *ibuffer = bufferevent_get_input (stream->bevent);
     evbuffer_t *obuffer = bufferevent_get_output(stream->bevent);
 
+    (void) be;
+
     while (1) {
         size_t  len  = 0u;
         char   *line = evbuffer_readln(ibuffer, &len, EVBUFFER_EOL_CRLF);
@@ -350,6 +344,8 @@ void _onread(bufferevent_t *be, void *arg) {
 void _onwrite(bufferevent_t *be, void *arg) {
     stream_t *stream = (stream_t*) arg;
 
+    (void) be;
+
     bufferevent_disable(stream->bevent, EV_WRITE);
     bufferevent_modcb(stream->bevent,
                       BEV_MOD_CB_READ | BEV_MOD_CB_WRITE,
@@ -360,6 +356,8 @@ void _onwrite(bufferevent_t *be, void *arg) {
 /* -------------------------------------------------------------------- */
 void _onerror(bufferevent_t *be, short what, void *arg)  {
     stream_t *stream = (stream_t*) arg;
+
+    (void) be;
 
     if ((what & BEV_EVENT_ERROR)) {
         int rr = evutil_socket_geterror(bufferevent_getfd(be));
@@ -395,42 +393,52 @@ void _onerror(bufferevent_t *be, short what, void *arg)  {
 }
 
 /* -------------------------------------------------------------------- */
-void _onaccept(int fd, short ev, void *arg) {
-    options_t *options = (options_t*) arg;
-    stream_t  *stream;
+typedef struct bindctxt {
+    /*-*/ SSL_CTX   *sslcontext;
+    const options_t *options;
+} bindctxt_t;
 
-    (void) ev;
+/* -------------------------------------------------------------------- */
+void _onaccept(struct evconnlistener  *listener,
+               /*--*/ evutil_socket_t  fd      ,
+               struct sockaddr        *address ,
+               /*--*/ int              socklen ,
+               /*--*/ void            *arg     )
+{
+    bindctxt_t *context = (bindctxt_t*) arg;
+    stream_t   *stream  = NULL;
+
+    (void) listener;
+    (void) socklen;
 
     stream = stream_new();
-    stream->options = options;
 
-    {   socklen_t slen = sizeof(stream->peername);
-
-        while ((stream->fd = accept(fd, (void*) &stream->peername, &slen)) < 0) {
-            if (errno == EWOULDBLOCK)
-                return ;
-            if (errno == EINTR || errno == EAGAIN)
-                continue ;
-            goto bailout;
-        }
-    }
-
-    stream->adsrc = inet4_ntop_x(&stream ->peername);
-    stream->addst = inet4_ntop_x(&options->echoname);
-
-    stelog(stream, LOG_INFO, "new client");
+    stream->options = context->options;
+    stream->fd      = fd;
+    stream->adsrc   = inet4_ntop_x((in4_t*) address);
+    stream->addst   = inet4_ntop_x(&context->options->echoname);
 
     fcntl(stream->fd, F_SETFL, fcntl(stream->fd, F_GETFL) | O_NONBLOCK);
+
+    stelog(stream, LOG_INFO, "new client");
 
     stream->bevent =
         bufferevent_socket_new(evb, stream->fd, BEV_OPT_DEFER_CALLBACKS);
     bufferevent_setcb(stream->bevent, _onread, NULL, _onerror, stream);
     bufferevent_enable(stream->bevent, EV_READ|EV_WRITE);
+}
 
-    return ;
 
- bailout:
-    stream_free(stream);
+/* -------------------------------------------------------------------- */
+static void _onaccept_error(struct evconnlistener *listener, void *ctxt) {
+    int err = EVUTIL_SOCKET_ERROR();
+
+    (void) listener;
+    (void) ctxt;
+
+    elog(LOG_FATAL, "got an error %d (%s) on the listener",
+         err, evutil_socket_error_to_string(err));
+    event_loopexit(NULL);
 }
 
 /* -------------------------------------------------------------------- */
@@ -454,13 +462,62 @@ static void _initialize_log4c(const options_t *options) {
 }
 
 /* -------------------------------------------------------------------- */
+#define MY_CERT "../pki/certificates/cert-01.needham.inria.fr.crt"
+#define MY_KEY  "../pki/certificates/cert-01.needham.inria.fr.key"
+
+static SSL_CTX* evssl_init(void) {
+    SSL_CTX *context = NULL;
+
+    SSL_load_error_strings();
+    SSL_library_init();
+
+    if (!RAND_poll()) {
+        elog(LOG_FATAL, "cannot initialize entropy");
+        goto bailout;
+    }
+
+    if ((context = SSL_CTX_new(TLSv1_server_method())) == NULL) {
+        elog(LOG_FATAL, "cannot create SSL context");
+        goto bailout;
+    }
+
+    if (!SSL_CTX_use_certificate_chain_file(context, MY_CERT)) {
+        elog(LOG_FATAL, "cannot load certificate");
+        goto bailout;
+    }
+
+    if (!SSL_CTX_use_PrivateKey_file(context, MY_KEY, SSL_FILETYPE_PEM)) {
+        elog(LOG_FATAL, "cannot load certificate key");
+        goto bailout;
+    }
+
+    return context;
+
+ bailout:
+    if (context != NULL)
+        SSL_CTX_free(context);
+    return context;
+}
+
+/* -------------------------------------------------------------------- */
 int main(int argc, char *argv[]) {
-    options_t options;
-    event_t   onaccept;
-    int       fd;
+    options_t         options;
+    bindctxt_t        context;
+    SSL_CTX          *sslcontext = NULL;
+    evconnlistener_t *acceptln   = NULL;
+
+    (void) argc;
+    (void) argv;
 
     _options(&options);
     _initialize_log4c(&options);
+
+    if ((sslcontext = evssl_init()) == NULL)
+        return EXIT_FAILURE;
+
+    memset(&context, 0, sizeof(context));
+    context.options    = &options;
+    context.sslcontext = sslcontext;
 
     if ((evb = event_init()) == NULL) {
         elog(LOG_FATAL, "cannot initialize libevent");
@@ -471,27 +528,17 @@ int main(int argc, char *argv[]) {
 
     event_set_mem_functions(&xmalloc, &xrealloc, &free);
 
-    if ((fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        elog(LOG_FATAL, "socket(AF_INET, SOCK_STREAM) failed: %s", strerror(errno));
+    acceptln = evconnlistener_new_bind
+        (evb, _onaccept, &context,
+         LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE, -1,
+         (struct sockaddr*) &options.echoname, sizeof(options.echoname));
+
+    if (acceptln == NULL) {
+        elog(LOG_FATAL, "cannot create listener");
         return EXIT_FAILURE;
     }
 
-    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
-    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
-
-    if (bind(fd, (void*) &options.echoname, sizeof(in4_t)) < 0) {
-        elog(LOG_FATAL, "bind(port = %d): %s",
-             ntohs(options.echoname.sin_port), strerror(errno));
-        return EXIT_FAILURE;
-    }
-
-    if (listen(fd, 5) < 0) {
-        elog(LOG_FATAL, "listen(): %s", strerror(errno));
-        return EXIT_FAILURE;
-    }
-
-    event_set(&onaccept, fd, EV_READ|EV_PERSIST, _onaccept, &options);
-    event_add(&onaccept, NULL);
+    evconnlistener_set_error_cb(acceptln, _onaccept_error);
 
     elog(LOG_NOTICE, "started");
 
