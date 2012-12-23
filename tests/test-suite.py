@@ -104,7 +104,8 @@ def _check_for_config(cr, sr, config):
             logging.error('Error while interacting with server: %s' % (e,))
             return False
 
-        contents = [x.strip() for x in open(logfile + ('-c' if sr else '-s'), 'r').readlines()]
+        contents = open(logfile + ('-c' if sr else '-s'), 'r').readlines()
+        contents = [x.strip() for x in contents]
 
         return DATA in contents
 
