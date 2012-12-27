@@ -30,6 +30,12 @@
 # define SHUT_RDWR SD_BOTH
 #endif
 
+#ifdef WIN32
+#define ERR(e) WSA##e
+#else
+#define ERR(e) e
+#endif
+
 #include <log4c.h>
 
 #include <event.h>
@@ -384,15 +390,10 @@ void _onerror(bufferevent_t *be, short what, void *arg)  {
     if ((what & BEV_EVENT_ERROR)) {
         int rr = evutil_socket_geterror(bufferevent_getfd(be));
 
-        stelog(stream, LOG_ERROR, "error client / server: %s",
-               evutil_socket_error_to_string(rr));
-
-#if 0
-        if (rr != ECONNRESET) {
+        if (rr != ERR(ECONNRESET)) {
             stelog(stream, LOG_ERROR, "error client / server: %s", strerror(rr));
             goto bailout;
         }
-#endif
     }
 
     if ((what & BEV_EVENT_EOF)) {
