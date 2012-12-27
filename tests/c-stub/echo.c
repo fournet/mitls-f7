@@ -9,21 +9,31 @@
 #include <errno.h>
 #include <assert.h>
 
-#include <fcntl.h>
-#include <unistd.h>
+#ifndef WIN32
+# include <unistd.h>
+#endif
 
-#include <sys/time.h>
+#ifdef WIN32
+# include <winsock2.h>
+# include <ws2tcpip.h>
+#else
+# include <sys/socket.h>
+# include <netinet/in.h>
+# include <netinet/tcp.h>
+# include <arpa/inet.h>
+# include <netdb.h>
+#endif
 
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
-
-#include <netdb.h>
+#ifdef WIN32
+# define SHUT_RD   SD_RECEIVE
+# define SHUT_WR   SD_SEND
+# define SHUT_RDWR SD_BOTH
+#endif
 
 #include <log4c.h>
 
 #include <event.h>
+#include <event2/util.h>
 #include <event2/listener.h>
 #include <event2/bufferevent_ssl.h>
 
@@ -81,6 +91,27 @@ void* xcalloc(size_t nmemb, size_t size) {
     return p;
 }
 
+/* -------------------------------------------------------------------- */
+#ifdef WIN32
+char *strndup(const char *s, size_t sz);
+
+char *strndup(const char *s, size_t sz) {
+    size_t  slen = strlen(s);
+    char   *new  = NULL;
+
+    slen = (slen > sz) ? sz : slen;
+    new  = malloc (slen + 1);
+
+    if (new == NULL)
+        return NULL;
+
+    memcpy(new, s, slen);
+    new[slen] = '\0';
+
+    return new;
+}
+#endif
+
 char* xstrdup(const char *s) {
     if ((s = strdup(s)) == NULL)
         abort();
@@ -96,21 +127,6 @@ char* xstrndup(const char *s, size_t n) {
 #define NEW(T, N) ((T*) xcalloc(N, sizeof(T)))
 
 /* -------------------------------------------------------------------- */
-void tvdiff(/*-*/ struct timeval *tv ,
-            const struct timeval *tv1,
-            const struct timeval *tv2)
-{
-    tv->tv_sec  = tv1->tv_sec  - tv2->tv_sec ;
-    tv->tv_usec = tv1->tv_usec - tv2->tv_usec;
-
-    if (tv->tv_usec < 0) {
-        tv->tv_sec  -= 1;
-        tv->tv_usec += 1000000;
-    }
-}
-
-
-/* -------------------------------------------------------------------- */
 log4c_category_t *logcat = NULL;
 
 #define LOGPRIO (log4c_category_get_priority(logcat))
@@ -122,7 +138,7 @@ log4c_category_t *logcat = NULL;
 #define LOG_WARN   LOG4C_PRIORITY_WARN
 #define LOG_NOTICE LOG4C_PRIORITY_NOTICE
 #define LOG_INFO   LOG4C_PRIORITY_INFO
-#define LOG_DEBUG  LOG4C_PRIORITY_DEBUG 
+#define LOG_DEBUG  LOG4C_PRIORITY_DEBUG
 
 static void elog(int level, const char *format, ...)
     __attribute__((format(printf, 2, 3)));
@@ -149,14 +165,14 @@ static void _evlog(int severity, const char *msg) { /* event logger CB */
 }
 
 /* -------------------------------------------------------------------- */
-int _getaddr(in4_t *out, const char *addr) {
+static int _getaddr(in4_t *out, const char *addr) {
     char *hostname = NULL;
     char *service  = NULL;
     char *colon    = strrchr(addr, ':');
 
     int rr = 0;
 
-    struct addrinfo ai, *res = NULL;
+    struct evutil_addrinfo ai, *res = NULL;
 
     if (colon == NULL) {
         hostname = xstrdup(addr);
@@ -172,7 +188,7 @@ int _getaddr(in4_t *out, const char *addr) {
     ai.ai_socktype = SOCK_STREAM;
     ai.ai_protocol = 0;
 
-    if ((rr = getaddrinfo(hostname, service, &ai, &res)) != 0)
+    if ((rr = evutil_getaddrinfo(hostname, service, &ai, &res)) != 0)
         goto bailout;
 
     assert(res[0].ai_addrlen == sizeof(in4_t));
@@ -183,17 +199,17 @@ int _getaddr(in4_t *out, const char *addr) {
     free(service);
 
     if (res != NULL)
-        freeaddrinfo(res);
+        evutil_freeaddrinfo(res);
 
     return rr;
 }
 
 /* -------------------------------------------------------------------- */
-char* inet4_ntop_x(const in4_t *addr) {
+static char* inet4_ntop_x(const in4_t *addr) {
     char ip[] = "xxx.xxx.xxx.xxx";
     char *the = NULL;
 
-    inet_ntop(AF_INET, &addr->sin_addr, ip, sizeof(ip));
+    evutil_inet_ntop(AF_INET, &addr->sin_addr, ip, sizeof(ip));
     the = NEW(char, strlen(ip) + sizeof(uint16_t) * 8 + 1);
     sprintf(the, "%s:%d", ip, (uint16_t) ntohs(addr->sin_port));
     return the;
@@ -205,11 +221,11 @@ typedef struct options {
     in4_t echoname;
 } options_t;
 
-void _options(options_t *options) {
+static void _options(options_t *options) {
     memset(options, 0, sizeof(options_t));
 
     options->debug = 1;
-    
+
     options->echoname.sin_family      = AF_INET;
     options->echoname.sin_port        = htons(6000u);
     options->echoname.sin_addr.s_addr = INADDR_ANY;
@@ -220,17 +236,17 @@ void _options(options_t *options) {
 #define BEV_MOD_CB_WRITE 0x02
 #define BEV_MOD_CB_ERROR 0x04
 
-void bufferevent_modcb(bufferevent_t *be, int flags,
-                       bufferevent_data_cb readcb,
-                       bufferevent_data_cb writecb,
-                       bufferevent_event_cb errorcb,
-                       void *cbarg)
+static void bufferevent_modcb(bufferevent_t *be, int flags,
+                              bufferevent_data_cb readcb,
+                              bufferevent_data_cb writecb,
+                              bufferevent_event_cb errorcb,
+                              void *cbarg)
 {
-    bufferevent_setcb(be,
-                      (flags & BEV_MOD_CB_READ ) ? readcb  : be->readcb ,
-                      (flags & BEV_MOD_CB_WRITE) ? writecb : be->writecb,
-                      (flags & BEV_MOD_CB_ERROR) ? errorcb : be->errorcb,
-                      cbarg);
+    bufferevent_setcb
+        (be, (flags & BEV_MOD_CB_READ ) ? readcb  : be->readcb ,
+             (flags & BEV_MOD_CB_WRITE) ? writecb : be->writecb,
+             (flags & BEV_MOD_CB_ERROR) ? errorcb : be->errorcb,
+         cbarg);
 }
 
 /* -------------------------------------------------------------------- */
@@ -278,7 +294,7 @@ void stream_free(stream_t *the) {
 
     if (the->bevent != NULL)
         bufferevent_free(the->bevent);
-    (void) close(the->fd);
+    (void) EVUTIL_CLOSESOCKET(the->fd);
 
     /* FIXME: SSL context */
 
@@ -338,7 +354,7 @@ void _onread(bufferevent_t *be, void *arg) {
             goto bailout;
         }
     }
-                
+
     return ;
 
  bailout:
@@ -368,24 +384,29 @@ void _onerror(bufferevent_t *be, short what, void *arg)  {
     if ((what & BEV_EVENT_ERROR)) {
         int rr = evutil_socket_geterror(bufferevent_getfd(be));
 
+        stelog(stream, LOG_ERROR, "error client / server: %s",
+               evutil_socket_error_to_string(rr));
+
+#if 0
         if (rr != ECONNRESET) {
-            stelog(stream, LOG_ERROR, "error client server: %s", strerror(rr));
+            stelog(stream, LOG_ERROR, "error client / server: %s", strerror(rr));
             goto bailout;
         }
+#endif
     }
 
     if ((what & BEV_EVENT_EOF)) {
         evbuffer_t *ibuffer = bufferevent_get_input (stream->bevent);
         evbuffer_t *obuffer = bufferevent_get_output(stream->bevent);
-    
+
         if (evbuffer_add_buffer(obuffer, ibuffer) < 0) {
             C2S_LOG_ERROR(stream);
             goto bailout;
         }
-    
+
         (void) shutdown(stream->fd, SHUT_RD);
         stream->rdclosed = 1;
-    
+
         if (!_check_for_stream_end(stream)) {
             bufferevent_modcb(stream->bevent,
                               BEV_MOD_CB_READ | BEV_MOD_CB_WRITE,
@@ -426,7 +447,7 @@ void _onaccept(struct evconnlistener  *listener,
     stream->adsrc   = inet4_ntop_x((in4_t*) address);
     stream->addst   = inet4_ntop_x(&context->options->echoname);
 
-    fcntl(stream->fd, F_SETFL, fcntl(stream->fd, F_GETFL) | O_NONBLOCK);
+    evutil_make_socket_nonblocking(stream->fd);
 
     stelog(stream, LOG_INFO, "new client");
 
@@ -517,7 +538,7 @@ static SSL_CTX* evssl_init(void) {
  bailout:
     if (context != NULL)
         SSL_CTX_free(context);
-    return context;
+    return NULL;
 }
 
 /* -------------------------------------------------------------------- */
