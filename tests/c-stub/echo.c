@@ -9,6 +9,8 @@
 #include <errno.h>
 #include <assert.h>
 
+#include <getopt.h>
+
 #ifndef WIN32
 # include <unistd.h>
 #endif
@@ -48,7 +50,14 @@
 #include <openssl/rand.h>
 
 /* -------------------------------------------------------------------- */
-#define MAXBUF (1u << 17)       /* 128k */
+#define REQOSSL 0x01000101L
+
+#if OPENSSL_VERSION_NUMBER < REQOSSL
+# error "invalid OpenSSL version number"
+#endif
+
+/* -------------------------------------------------------------------- */
+#define ARRAY_SIZE(A) (sizeof (A) / sizeof ((A)[0]))
 
 /* -------------------------------------------------------------------- */
 typedef struct sockaddr_in in4_t;
@@ -97,6 +106,8 @@ void* xcalloc(size_t nmemb, size_t size) {
     return p;
 }
 
+#define NEW(T, N) ((T*) xcalloc(N, sizeof(T)))
+
 /* -------------------------------------------------------------------- */
 #ifdef WIN32
 char *strndup(const char *s, size_t sz);
@@ -130,7 +141,31 @@ char* xstrndup(const char *s, size_t n) {
     return (char*) s;
 }
 
-#define NEW(T, N) ((T*) xcalloc(N, sizeof(T)))
+/* -------------------------------------------------------------------- */
+char* xjoin(const char *s, ...) {
+    /*-*/ size_t   len  = 0;
+    const char    *p    = NULL;
+    /*-*/ size_t   outi = 0u;
+    /*-*/ char    *out  = NULL;
+    /*-*/ va_list  ap;
+
+    va_start(ap, s);
+    for (p = s; p != NULL; p = va_arg(ap, char*))
+        len += strlen(p);
+    va_end(ap);
+
+    out = NEW(char, len + 1);
+
+    va_start(ap, s);
+    for (outi = 0u, p = s; p != NULL; p = va_arg(ap, char*)) {
+        const size_t plen = strlen(p);
+        memcpy(&out[outi], p, plen);
+        outi += plen;
+    }
+    va_end(ap);
+
+    out[outi] = '\0'; return out;
+}
 
 /* -------------------------------------------------------------------- */
 log4c_category_t *logcat = NULL;
@@ -171,22 +206,10 @@ static void _evlog(int severity, const char *msg) { /* event logger CB */
 }
 
 /* -------------------------------------------------------------------- */
-static int _getaddr(in4_t *out, const char *addr) {
-    char *hostname = NULL;
-    char *service  = NULL;
-    char *colon    = strrchr(addr, ':');
-
+static int _getaddr(in4_t *out, const char *hostname, const char *service) {
     int rr = 0;
 
     struct evutil_addrinfo ai, *res = NULL;
-
-    if (colon == NULL) {
-        hostname = xstrdup(addr);
-        service  = xstrdup("https");
-    } else {
-        hostname = xstrndup(addr, colon - addr);
-        service  = xstrdup(&colon[1]);
-    }
 
     memset(&ai, 0, sizeof(ai));
     ai.ai_flags    = 0;
@@ -201,9 +224,6 @@ static int _getaddr(in4_t *out, const char *addr) {
     memcpy(out, res[0].ai_addr, sizeof(in4_t));
 
  bailout:
-    free(hostname);
-    free(service);
-
     if (res != NULL)
         evutil_freeaddrinfo(res);
 
@@ -222,19 +242,128 @@ static char* inet4_ntop_x(const in4_t *addr) {
 }
 
 /* -------------------------------------------------------------------- */
+typedef enum tlsversion_e {
+    SSL_3p0 = 0x00,
+    TLS_1p0 = 0x01,
+    TLS_1p1 = 0x02,
+    TLS_1p2 = 0x03,
+} tlsver_t;
+
+struct tlsversion_s {
+    /*-*/ enum  tlsversion_e  version;
+    const /*-*/ char         *name;
+};
+
+static const struct tlsversion_s tlsversions[] = {
+    [SSL_3p0] = { SSL_3p0, "SSL_3p0"},
+    [TLS_1p0] = { TLS_1p0, "TLS_1p0"},
+    [TLS_1p1] = { TLS_1p1, "TLS_1p1"},
+    [TLS_1p2] = { TLS_1p2, "TLS_1p2"},
+};
+
+tlsver_t tlsver_of_name(const char *name) {
+    size_t i;
+
+    for (i = 0; i < ARRAY_SIZE(tlsversions); ++i) {
+        const struct tlsversion_s *p = &tlsversions[i];
+        if (p->name != NULL && strcmp(p->name, name) == 0)
+            return p->version;
+    }
+
+    return (tlsver_t) -1;
+}
+
+/* -------------------------------------------------------------------- */
 typedef struct options {
-    int   debug;
-    in4_t echoname;
+    int       debug   ;
+    in4_t     echoname;
+    tlsver_t  tlsver  ;
+    char     *sname   ;
+    char     *cname   ;
+    char     *ciphers ;
+    char     *dbdir   ;
+    char     *pki     ;
 } options_t;
 
-static void _options(options_t *options) {
+static const struct option long_options[] = {
+    {"port"         , required_argument, 0, 0},
+    {"address"      , required_argument, 0, 0},
+    {"ciphers"      , required_argument, 0, 0},
+    {"client-name"  , required_argument, 0, 0},
+    {"server-name"  , required_argument, 0, 0},
+    {"sessionDB-dir", required_argument, 0, 0},
+    {"tlsversion"   , required_argument, 0, 0},
+    {"pki"          , required_argument, 0, 0},
+    {NULL           , 0                , 0, 0},
+};
+
+static int _options(int argc, char *argv[], options_t *options) {
+    const char     *address = "127.0.0.1";
+    const char     *port    = "6000";
+    const char     *ciphers = NULL;
+    const char     *cname   = NULL;
+    const char     *sname   = NULL;
+    const char     *dbdir   = "sessionDB";
+    const char     *pki     = "pki";
+    /*-*/ tlsver_t  tlsver  = TLS_1p0;
+
+    (void) tlsver;              /* FIXME */
+
+    while (1) {
+        int i = 0;
+        int c = getopt_long(argc, argv, "", long_options, &i);
+
+        if (c < 0)
+            break ;
+
+        switch (i) {
+        case 0: port    = optarg; break ;
+        case 1: address = optarg; break ;
+        case 2: ciphers = optarg; break ;
+        case 3: cname   = optarg; break ;
+        case 4: sname   = optarg; break ;
+        case 5: dbdir   = optarg; break ;
+        case 7: pki     = optarg; break ;
+
+        case 6:
+            tlsver = tlsver_of_name(optarg);
+            if ((int) tlsver == -1) {
+                elog(LOG_FATAL, "invalid TLS version: %s", optarg);
+                return -1;
+            }
+            break ;
+
+        default:
+            abort();
+        }
+    }
+
     memset(options, 0, sizeof(options_t));
 
     options->debug = 1;
 
-    options->echoname.sin_family      = AF_INET;
-    options->echoname.sin_port        = htons(6000u);
-    options->echoname.sin_addr.s_addr = INADDR_ANY;
+    if (_getaddr(&options->echoname, address, port) != 0) {
+        elog(LOG_FATAL, "cannot resolve address %s:%s", address, port);
+        return -1;
+    }
+
+    if (cname != NULL)
+        options->cname = xstrdup(cname);
+    if (sname != NULL)
+        options->sname = xstrdup(sname);
+    if (ciphers != NULL)
+        options->ciphers = xstrdup(ciphers);
+
+    options->tlsver = tlsver;
+    options->dbdir  = xstrdup(dbdir);
+    options->pki    = xstrdup(pki);
+
+    if (options->sname == NULL) {
+        elog(LOG_FATAL, "no server name given (--server-name)");
+        return -1;
+    }
+
+    return 0;
 }
 
 /* -------------------------------------------------------------------- */
@@ -485,7 +614,7 @@ static void _onaccept_error(struct evconnlistener *listener, void *ctxt) {
 }
 
 /* -------------------------------------------------------------------- */
-static void _initialize_log4c(const options_t *options) {
+static void _initialize_log4c(void) {
     if (log4c_init() < 0 || (logcat = log4c_category_get("echo")) == NULL) {
         fprintf(stderr, "%s\n", "cannot initialize log4c");
         exit(EXIT_FAILURE);
@@ -499,17 +628,19 @@ static void _initialize_log4c(const options_t *options) {
         if ((appender = log4c_appender_get("stderr")) != NULL)
             log4c_category_set_appender(logcat, appender);
     }
-
-    if (options->debug)
-        log4c_category_set_priority(logcat, LOG_DEBUG);
 }
 
 /* -------------------------------------------------------------------- */
-#define MY_CERT "../pki/certificates/cert-01.needham.inria.fr.crt"
-#define MY_KEY  "../pki/certificates/cert-01.needham.inria.fr.key"
+static SSL_CTX* evssl_init(const options_t *options) {
+    /*-*/ SSL_CTX    *context = NULL;
+    /*-*/ char       *crtfile = NULL;
+    /*-*/ char       *keyfile = NULL;
+    /*-*/ char       *CApath  = NULL;
+    const SSL_METHOD *method  = NULL;
 
-static SSL_CTX* evssl_init(void) {
-    SSL_CTX *context = NULL;
+    crtfile = xjoin(options->pki, "/certificates/", options->sname, ".crt", NULL);
+    keyfile = xjoin(options->pki, "/certificates/", options->sname, ".key", NULL);
+    CApath  = xjoin(options->pki, "/db/ca.db.certs", NULL);
 
     SSL_load_error_strings();
     SSL_library_init();
@@ -519,26 +650,60 @@ static SSL_CTX* evssl_init(void) {
         goto bailout;
     }
 
-    if ((context = SSL_CTX_new(TLSv1_server_method())) == NULL) {
+    switch (options->tlsver) {
+    case SSL_3p0: method = SSLv3_server_method  (); break ;
+    case TLS_1p0: method = TLSv1_server_method  (); break ;
+    case TLS_1p1: method = TLSv1_1_server_method(); break ;
+    case TLS_1p2: method = TLSv1_2_server_method(); break ;
+
+    default:
+        abort();
+    }
+
+    if ((context = SSL_CTX_new(method)) == NULL) {
         elog(LOG_FATAL, "cannot create SSL context");
         goto bailout;
     }
 
-    if (!SSL_CTX_use_certificate_chain_file(context, MY_CERT)) {
-        elog(LOG_FATAL, "cannot load certificate");
+    if (options->ciphers != NULL) {
+        if (!SSL_CTX_set_cipher_list(context, options->ciphers)) {
+            elog(LOG_FATAL, "cannot set ciphers list `%s'", options->ciphers);
+            goto bailout;
+        }
+    }
+
+    if (!SSL_CTX_load_verify_locations(context, NULL, CApath)) {
+        elog(LOG_FATAL, "cannot load trusted hashed CA path");
         goto bailout;
     }
 
-    if (!SSL_CTX_use_PrivateKey_file(context, MY_KEY, SSL_FILETYPE_PEM)) {
-        elog(LOG_FATAL, "cannot load certificate key");
+    (void) SSL_CTX_set_default_verify_paths(context);
+
+
+    if (!SSL_CTX_use_certificate_chain_file(context, crtfile)) {
+        elog(LOG_FATAL, "cannot load certificate `%s'", crtfile);
         goto bailout;
     }
+
+    if (!SSL_CTX_use_PrivateKey_file(context, keyfile, SSL_FILETYPE_PEM)) {
+        elog(LOG_FATAL, "cannot load certificate key `%s'", keyfile);
+        goto bailout;
+    }
+
+    free(keyfile);
+    free(crtfile);
+    free(CApath);
 
     return context;
 
  bailout:
     if (context != NULL)
         SSL_CTX_free(context);
+
+    if (keyfile != NULL) free(keyfile);
+    if (crtfile != NULL) free(crtfile);
+    if (CApath  != NULL) free(CApath);
+
     return NULL;
 }
 
@@ -549,13 +714,21 @@ int main(int argc, char *argv[]) {
     SSL_CTX          *sslcontext = NULL;
     evconnlistener_t *acceptln   = NULL;
 
-    (void) argc;
-    (void) argv;
+    _initialize_log4c();
 
-    _options(&options);
-    _initialize_log4c(&options);
+    if (SSLeay() < REQOSSL) {
+        elog(LOG_FATAL, "OpenSSL version < 0x%.8lx (compiled with 0x%.8lx)",
+             SSLeay(), OPENSSL_VERSION_NUMBER);
+        return EXIT_FAILURE;
+    }
 
-    if ((sslcontext = evssl_init()) == NULL)
+    if (_options(argc, argv, &options) < 0)
+        return EXIT_FAILURE;
+
+    if (options.debug)
+        log4c_category_set_priority(logcat, LOG_DEBUG);
+
+    if ((sslcontext = evssl_init(&options)) == NULL)
         return EXIT_FAILURE;
 
     memset(&context, 0, sizeof(context));

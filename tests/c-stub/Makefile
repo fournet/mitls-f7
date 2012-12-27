@@ -4,7 +4,7 @@
 .PHONY: all clean
 
 # --------------------------------------------------------------------
-TARGET ?= unix					# allowed: unix, mingw
+TARGET ?= unix					# allowed: <empty>, mingw
 
 # --------------------------------------------------------------------
 ifeq ($(TARGET), mingw)
@@ -21,7 +21,7 @@ AR     = $(CROSS)ar
 PKGC   = $(CROSS)pkg-config
 LOG4C  = $(CROSS)log4c-config
 
-CFLAGS  += -O2 -I/sw/lib/endian-dev -Wall -W -Wno-unused-function \
+CFLAGS  += -O2 -ggdb -Wall -W -Wno-unused-function \
              $(shell $(PKGC)  --cflags libevent) \
              $(shell $(PKGC)  --cflags libevent_openssl) \
              $(shell $(PKGC)  --cflags libssl) \
