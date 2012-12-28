@@ -48,6 +48,8 @@ SOURCES = \
 	echo-ssl.h     \
 	echo-net.c     \
 	echo-net.h     \
+	echo-client.c  \
+	echo-client.h  \
 	echo-server.c  \
 	echo-server.h  \
 	echo.c

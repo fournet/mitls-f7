@@ -8,6 +8,7 @@
 #include "echo-log.h"
 #include "echo-memory.h"
 #include "echo-options.h"
+#include "echo-client.h"
 #include "echo-server.h"
 
 /* -------------------------------------------------------------------- */
@@ -47,10 +48,18 @@ int main(int argc, char *argv[]) {
     event_set_log_callback(_evlog);
     event_set_mem_functions(&xmalloc, &xrealloc, &free);
 
-    echo_server_setup(evb, &options);
+    {   int rr;
+
+        if (options.client)
+            rr = echo_client_setup(evb, &options);
+        else
+            rr = echo_server_setup(evb, &options);
+
+        if (rr < 0)
+            return EXIT_FAILURE;
+    }
 
     elog(LOG_NOTICE, "started");
-
     event_dispatch();
 
     return 0;

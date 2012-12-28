@@ -12,15 +12,15 @@
 
 /* -------------------------------------------------------------------- */
 enum {
-    OPT_PORT   ,
-    OPT_ADDRESS,
-    OPT_CIPHERS,
-    OPT_CNAME  ,
-    OPT_SNAME  ,
-    OPT_DBDIR  ,
-    OPT_TLSVER ,
-    OPT_PKI    ,
-    OPT_CLIENT ,
+    OPT_PORT    = 0x00,
+    OPT_ADDRESS = 0x01,
+    OPT_CIPHERS = 0x02,
+    OPT_CNAME   = 0x03,
+    OPT_SNAME   = 0x04,
+    OPT_DBDIR   = 0x05,
+    OPT_TLSVER  = 0x06,
+    OPT_PKI     = 0x07,
+    OPT_CLIENT  = 0x08,
 };
 
 
@@ -55,6 +55,9 @@ int _options(int argc, char *argv[], options_t *options) {
 
         if (c < 0)
             break ;
+
+        if (c == '?')
+            return -1;
 
         switch (i) {
         case OPT_PORT   : port    = optarg; break ;
