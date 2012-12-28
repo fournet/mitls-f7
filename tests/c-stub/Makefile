@@ -37,10 +37,25 @@ ifeq ($(TARGET), mingw)
 LIBS += -lws2_32 -lexpat
 endif
 
+SOURCES = \
+	echo-log.c     \
+	echo-log.h     \
+	echo-memory.c  \
+	echo-memory.h  \
+	echo-options.c \
+	echo-options.h \
+	echo-ssl.c     \
+	echo-ssl.h     \
+	echo-net.c     \
+	echo-net.h     \
+	echo-server.c  \
+	echo-server.h  \
+	echo.c
+
 # --------------------------------------------------------------------
 all: echo$(EXE)
 
-echo$(EXE): echo.c
+echo$(EXE): $(SOURCES)
 	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(LIBS)
 
 clean:
