@@ -1,5 +1,7 @@
 ﻿module RSAKeys
 
+// TODO not verifying for now.
+
 // This module defines RSA keys
 // but not their use for public-key encryption: see RSAEnc
 // (We use two modules to break a circular dependency)

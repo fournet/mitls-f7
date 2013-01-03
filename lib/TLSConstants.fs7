@@ -1,5 +1,7 @@
 ﻿module TLSConstants
 
+// TODO not verifying for now.
+
 (* Identifiers and sizes for the TLS crypto algorithms *)
 
 open Bytes

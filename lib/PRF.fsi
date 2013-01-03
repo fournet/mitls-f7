@@ -7,7 +7,7 @@ type repr = bytes
 type masterSecret
 
 #if ideal
-val sampleMS: SessionInfo -> masterSecret
+val sample: SessionInfo -> masterSecret
 #endif
 
 val keyGen: ConnectionInfo -> masterSecret -> StatefulAEAD.writer * StatefulAEAD.reader

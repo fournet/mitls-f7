@@ -7,25 +7,24 @@ open Error
 open TLSInfo
 open StatefulPlain
 
-
-type prestate =
-    { key: AEAD.AEADKey; 
-      history: history   
-    }
+type prestate = { 
+  key: AEAD.AEADKey; 
+  history: history   
+}
 
 type state = prestate
 type reader = state
 type writer = state
 
 let GEN ki =
-    let w,r = AEAD.GEN ki in
-    let h = emptyHistory ki in
-    ( { key = w; history = h},
-      { key = r; history = h})  
+  let w,r = AEAD.GEN ki in
+  let h = emptyHistory ki in
+  ( { key = w; history = h},
+    { key = r; history = h})  
 let COERCE ki b =
-    let k  = AEAD.COERCE ki b in
-    let h = emptyHistory ki in
-    { key = k; history = h}
+  let k  = AEAD.COERCE ki b in
+  let h = emptyHistory ki in
+  { key = k; history = h}
 let LEAK ki s = AEAD.LEAK ki s.key
 
 let history (ki:epoch) s = s.history

@@ -201,11 +201,12 @@ let rec compressionMethodsBytes cs =
    | c::cs -> compressionBytes c @| compressionMethodsBytes cs
    | []    -> [||] 
 
-type ProtocolVersion =
+type PreProtocolVersion =
     | SSL_3p0
     | TLS_1p0
     | TLS_1p1
     | TLS_1p2
+type ProtocolVersion = PreProtocolVersion
 
 let versionBytes pv =
     match pv with
@@ -453,12 +454,11 @@ let verifyDataHashAlg_of_ciphersuite (cs:cipherSuite) =
     (* Only to be invoked with TLS 1.2 (hardcoded in previous versions *)
     match cs with
    // | CipherSuite ( ECDH*, MtE (_,SHA384)) -> SHA384
-    | CipherSuite ( _ , MtE ( _ , _ )) -> SHA256
-    | CipherSuite ( _ , AEAD ( _ , hAlg ))   -> hAlg
-    | OnlyMACCipherSuite (_, hAlg) -> SHA256
-    | NullCipherSuite         -> unexpectedError "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
-    | SCSV (_)                -> unexpectedError "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
-    | _ -> unexpectedError "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
+    | CipherSuite ( _ , MtE ( _ , _ ))     -> SHA256
+    | CipherSuite ( _ , AEAD ( _ , hAlg )) -> hAlg
+    | OnlyMACCipherSuite (_, hAlg)         -> SHA256
+    | NullCipherSuite -> unexpectedError "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
+    | SCSV (_)        -> unexpectedError "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
 
 let maxPadSize pv cs =
     match cs with

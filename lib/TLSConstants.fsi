@@ -73,11 +73,12 @@ type cipherSuites = cipherSuite list
 type Compression =
     | NullCompression
 
-type ProtocolVersion =
+type PreProtocolVersion =
     | SSL_3p0
     | TLS_1p0
     | TLS_1p1
     | TLS_1p2
+type ProtocolVersion = PreProtocolVersion
 
 val versionBytes: ProtocolVersion -> bytes
 val parseVersion: bytes -> ProtocolVersion Result

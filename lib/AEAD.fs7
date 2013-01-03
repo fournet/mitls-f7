@@ -6,6 +6,7 @@ open TLSInfo
 
 open TLSConstants
 
+(* no need to be more precise on the length *)
 type cipher = b:bytes{Length(b) <= max_TLSCipher_fragment_length}
 
 private type (;ki:epoch) AEADKey =
@@ -27,12 +28,13 @@ private assume !ki,si. si = EpochSI(ki) =>
 					    EncKeySize(TLSConstants.CipherSuiteENCAlg(si.cipher_suite)) +
 					    IVSize(ki) )
 
-// Why is this failing? Because of AEADSize not being what I want, I cannot typecheck COERCE.
-//ask !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) => AEADSize(ki,ki) = MacKeySize(TLSConstants.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))
+//CF '13 who wrote this? when? 
+//TODO Why is this failing? Because of AEADSize not being what I want, I cannot typecheck COERCE.
+//TODO ask !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) => AEADSize(ki,ki) = MacKeySize(TLSConstants.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))
 
-val GEN:    ki:succEpoch{Safe(ki)} -> encryptor:(;ki)AEADKey * decryptor:(;ki)AEADKey
+val GEN:    ki:succEpoch{Safe(ki)}     -> encryptor:(;ki)AEADKey * decryptor:(;ki)AEADKey
 val COERCE: ki:succEpoch{not Auth(ki)} -> b:bytes{Length(b) = AEADSize(ki)} -> (;ki)AEADKey
-val LEAK:   ki:epoch{not Auth(ki)} -> (;ki)AEADKey -> b:bytes
+val LEAK:   ki:succEpoch{not Auth(ki)} -> (;ki)AEADKey -> b:bytes
 
 (* KB: 2/5. Partial implementation of CTXT in the code. *)
 predicate val CTXT: 'a * 'b * 'c * 'd -> bool
@@ -62,28 +64,42 @@ private assume !e,si,tlen. si = EpochSI(e) =>
     ( IsAEADCiphersuite(si.cipher_suite) /\ tlen >= IVSize(e) =>
 	  Encode.PlainLength(e,tlen) = tlen - IVSize(e) )
 
+// We have two variants for encryption and decryption: 
+// the first (primed) is concrete; the second is idealized at safe indexes.
+
 val encrypt': ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   rg:range -> p:(;ki,ad,rg) AEADPlain.plain ->
   ((;ki) AEADKey * c:cipher){Encode.CipherRange(ki,rg,Length(c))}
+
+val encrypt : ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
+  rg:range -> p:(;ki,ad,rg) AEADPlain.plain ->
+  ((;ki) AEADKey * c:cipher){Encode.CipherRange(ki,rg,Length(c)) /\
+                             ((* Safe(ki) => *) CTXT(ki,ad,p,c))}
 
 val decrypt': ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   c:cipher -> res: 
   ( ((;ki) AEADKey *  rg:range * (;ki,ad,rg) AEADPlain.plain)) Result
    {!k,r,p. res = Correct((k,r,p)) => Encode.CipherRange(ki,r,Length(c))}
 
-val encrypt: ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
-  rg:range -> p:(;ki,ad,rg) AEADPlain.plain ->
-  ((;ki) AEADKey * c:cipher){Encode.CipherRange(ki,rg,Length(c)) /\
-                             ((* Safe(ki) => *) CTXT(ki,ad,p,c))}
+//CF unclear whether the log should include the plaintext; trying without
+type entry = ki:succEpoch * ad:(;ki) AEADPlain.adata * c:ENC.cipher { ?p. CTXT(ki,ad,p,c) }
+private val log: entry list ref
+private val cmem: ki:succEpoch -> ad:(;ki)AEADPlain.adata -> c:cipher ->  
+  entry list -> r:bool { r = true => ?p. CTXT(ki,ad,p,c) } 
 
-val decrypt: ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
+private val honest: ki:succEpoch -> b:bool { b = true => Auth(ki) }
+
+//CF a corollary of affine encryptions:
+assume !ki,d,p0,p1,c. (CTXT(ki,d,p0,c) /\ CTXT(ki,d,p1,c)) => p0 = p1
+
+val decrypt : ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   c:cipher -> res: 
   ( ((;ki) AEADKey *  rg:range * (;ki,ad,rg) AEADPlain.plain)) Result
    {(!k,r,p. res = Correct((k,r,p)) => Encode.CipherRange(ki,r,Length(c))) /\
     (Auth(ki) => 
         ((!k,r,p. res = Correct((k,r,p)) => CTXT(ki,ad,p,c)) /\
          (!p. CTXT(ki,ad,p,c) => (?k,r. res = Correct((k,r,p))))))}
-// Last two lines are equivalent to:
+// The last two lines are equivalent to (but easier to verify than)
 // !p. CTXT(ki,ad,p,c) <=> (?k,r. res = Correct((k,r,p)))
 
 (* CF 04-09 discussion points: 

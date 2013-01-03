@@ -11,7 +11,7 @@ type cipher = bytes
 type AEADKey =
     | MtE of MAC.key * ENC.state
     | MACOnly of MAC.key
-(*  |   GCM of AENC.state  *)
+(*  | GCM of AENC.state  *)
 
 let GEN e =
     let si = epochSI(e) in
@@ -29,23 +29,22 @@ let COERCE e b =
     // precondition: b is of the right length. No runtime checks here.
     let si = epochSI(e) in
     let cs = si.cipher_suite in
-    let onlymac = isOnlyMACCipherSuite cs in
-    let aeadcs = isAEADCipherSuite cs in
-      if onlymac then 
-        let mk = MAC.COERCE e b in
-        MACOnly(mk)
-      else 
-        if aeadcs then
-          let macalg = macAlg_of_ciphersuite cs in
-          let encalg = encAlg_of_ciphersuite cs in
-          let macKeySize = macKeySize macalg in
-          let encKeySize = encKeySize encalg in
-          let (mkb,rest) = split b macKeySize in
-          let (ekb,ivb) = split rest encKeySize in
-          let mk = MAC.COERCE e mkb in
-          let ek = ENC.COERCE e ekb ivb in
-            MtE(mk,ek)
-        else unexpectedError "[COERCE] invoked on wrong ciphersuite"
+    if isOnlyMACCipherSuite cs then 
+      let mk = MAC.COERCE e b in
+      MACOnly(mk)
+    else 
+    if isAEADCipherSuite cs then
+      let macalg = macAlg_of_ciphersuite cs in
+      let encalg = encAlg_of_ciphersuite cs in
+      let macKeySize = macKeySize macalg in
+      let encKeySize = encKeySize encalg in
+      let (mkb,rest) = split b macKeySize in
+      let (ekb,ivb) = split rest encKeySize in
+      let mk = MAC.COERCE e mkb in
+      let ek = ENC.COERCE e ekb ivb in
+      MtE(mk,ek)
+    else 
+      unexpectedError "[COERCE] invoked on wrong ciphersuite"
 
 let LEAK e k =
     match k with
@@ -212,33 +211,46 @@ type preds =
   | CTXT of epoch * bytes * AEADPlain.plain * cipher
   | NotCTXT of epoch * bytes * cipher
 
-let log = ref [] // the semantics of CTXT
+type entry = epoch * AEADPlain.adata * ENC.cipher
+let log = ref ([]: entry list) // the semantics of CTXT
+
+let rec cmem (e:epoch) (ad:AEADPlain.adata) (c:ENC.cipher) (xs: entry list) = 
+  match xs with
+  | x::_ when x = (e,ad,c) -> true
+  | _::xs                  -> cmem e ad c xs 
+  | []                     -> false
+
+let honest (e:epoch) = failwith "todo"
+
 #endif
 
 let encrypt e key data rg plain = 
-    let (key,cipher) = encrypt' e key data rg plain in
-#if ideal
-    Pi.assume (CTXT(e,data,plain,cipher));
-    log := ((e,data,cipher),plain)::!log;
-#endif
-    (key,cipher)
-
-let decrypt e key data cipher = 
-#if ideal
-
-#else
-
+  let (key,cipher) = encrypt' e key data rg plain in
+  #if ideal
+  Pi.assume (CTXT(e,data,plain,cipher));
+  log := (e,data,cipher)::!log;
+  #endif
+  (key,cipher)
+  
+let decrypt e (key: AEADKey) data (cipher: bytes) =  
+  #if ideal
+  if honest e then
+    if cmem e data cipher !log  
+    then decrypt' e key data cipher
+    else Error(AD_decrypt_error,perror __SOURCE_FILE__ __LINE__ "")
+  else decrypt' e key data cipher
+  #else
+  //CF don't understand CTXT and NotCTXT 
   let res = decrypt' e key data cipher in
     match res with
-        Correct r ->
-          let (key,rg,plain) = r in
-#if verify
-          Pi.assume (CTXT(e,data,plain,cipher));
-#endif
-          Correct r
-      | Error(x,y) ->
-#if verify
-          Pi.assume (NotCTXT(e,data,cipher));
-#endif
-          Error(x,y)
-#endif
+    | Correct r  -> let (key,rg,plain) = r in
+                    #if verify
+                    Pi.assume (CTXT(e,data,plain,cipher));
+                    #endif
+                    Correct r
+    | Error(x,y) -> 
+                    #if verify
+                    Pi.assume (NotCTXT(e,data,cipher));
+                    #endif
+                    Error(x,y)
+  #endif

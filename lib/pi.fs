@@ -1,4 +1,7 @@
 (* Copyright (c) Microsoft Corporation.  All rights reserved.  *)
+
+(* This file provides trivial F# definitions for F7 specification primitives *)
+
 module Pi
 
 type formula = bool

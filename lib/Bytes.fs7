@@ -3,6 +3,8 @@
 (* Binary representations, using variable-length byte arrays *)
 (* This module implementation is trusted, not verified *) 
 
+(* TODO partial verification; restructuring e.g. for list operations *) 
+
 type nat = n:int {0 <= n} // a convenient abbreviation 
 type bytes = byte array
 

@@ -5,6 +5,9 @@ open Bytes
 val mkRandom: l:int -> b:bytes{Length(b) = l}
 val mkHelloRandom: unit -> b:(;32)lbytes
 
+private val log: (;32) lbytes list ref 
+private val timestamp: unit -> (;4) lbytes
+
 // Ideally, mkHelloRandom returns pairwise-distinct values
 // (up to a negligible probability of collision)
 

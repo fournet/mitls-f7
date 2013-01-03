@@ -1,36 +1,35 @@
 ﻿module StatefulAEAD
 
-open TLSInfo
 open Error
- 
 open Bytes
+open TLSInfo
 
-//CF 12/2: do we need pre/post on the ciphertext lengths?
+//CF 12/2: do we need pre/post on ciphertext lengths?
 //CF 21/4: cut prestate and State? 
 
 private type (;ki:epoch) prestate = {
-  key: (;ki) AEAD.AEADKey; // possibly stateful
-  history: (;ki)StatefulPlain.history    // ghost state, except for the derived sequence number
+  key    : (;ki) AEAD.AEADKey;         // possibly stateful
+  history: (;ki) StatefulPlain.history // ghost state, except for the derived sequence number
 }
 
 predicate State of ki:epoch * (;ki)prestate
 
 type (;ki:epoch) state = s:(;ki)prestate {State(ki,s)}
 
-private definition !ki,s. State(ki,s) // KB: 21/4 Why do we need this?
+private definition !ki,s. State(ki,s) // KB: 21/4 Why do we need this? CF: dunno...
 
 function val History: e:epoch * (;e)state -> 'a //(;e)StatefulPlain.history
 private definition !e,s. History(e,s) = s.history
 
-// CF 21/4 typing should prevent mixing read/write states! 
-// CF      can we keep state a public datatype and make reader/writer abstract?
+//CF 21/4 typing should prevent mixing read/write states! 
+//CF      can we keep state a public datatype and make reader/writer abstract?
 type (;ki:epoch) reader = r:(;ki) state
 type (;ki:epoch) writer = w:(;ki) state
 
 //CF 21/4 patched, pls check; rediscuss COERCE/LEAK 
-val GEN:    ki:epoch{Safe(ki)} -> (;ki) reader * (;ki)writer
-val COERCE: ki:succEpoch{not Auth(ki)}  -> b:bytes{Length(b)=AEAD.AEADSize(ki)} -> (;ki)state
-val LEAK:   ki:epoch{not Auth(ki)}  -> (;ki)state -> b:bytes
+val GEN:    ki:epoch{Safe(ki)}         -> (;ki) reader * (;ki)writer
+val COERCE: ki:succEpoch{not Auth(ki)} -> b:bytes{Length(b)=AEAD.AEADSize(ki)} -> (;ki)state
+val LEAK:   ki:epoch{not Auth(ki)}     -> (;ki)state -> b:bytes
 
 val history: ki:epoch -> s:(;ki) state -> h:(;ki)StatefulPlain.history{h=History(ki,s)}
 
@@ -40,27 +39,29 @@ val history: ki:epoch -> s:(;ki) state -> h:(;ki)StatefulPlain.history{h=History
 // when AUTH(ki), the reader decrypts by table lookup
 // turning forgeries into errors; retrieving the "right" history index; returning the concrete decrypted range
 
-//CF 21/4: STXT is an event tracking written fragments; not sure about details and contents ?!
+//CF 21/4: STXT is an event tracking written cipher fragments; not sure about details and contents ?!
 //CF e.g.    * the decrypted rg is NOT authenticated
 //CF         * the states are not necessarily synchronized; only the histories are when AUTH
 
 type cipher = AEAD.cipher
 
 predicate val STXT: ki:epoch * (;ki)state * ad:(;ki)StatefulPlain.adata * 'a (* (;ki,ad,r)StatefulPlain.fragment *) * cipher -> bool
-private assume !ki,s,ad,f,c. STXT(ki,s,ad,f,c) <=> AEAD.CTXT(ki,AEADPlain.MakeAD(ki,s.history,ad),AEADPlain.StAEToAEAD(f),c)
+private definition !ki,s,ad,f,c. 
+  STXT(ki,s,ad,f,c) <=> AEAD.CTXT(ki,AEADPlain.MakeAD(ki,s.history,ad),AEADPlain.StAEToAEAD(f),c)
 
 val encrypt: ki:succEpoch -> 
-  w:(;ki) writer -> 
-  ad:(;ki)StatefulPlain.adata ->
-  r:range ->
-  f: (;ki,ad,History(ki,w),r) StatefulPlain.plain ->
-  (w':(;ki) writer * c:cipher){
-    History(ki,w') = StatefulPlain.ExtendHistory(ki,ad,History(ki,w),r,f) /\
-    (Safe(ki) => STXT(ki,w,ad,f,c))}
+  wr:(;ki) writer -> 
+  ad:(;ki) StatefulPlain.adata ->
+  rg:range ->
+  f: (;ki,ad,History(ki,wr),rg) StatefulPlain.plain ->
+  (wr':(;ki) writer * c:cipher){
+    History(ki,wr') = StatefulPlain.ExtendHistory(ki,ad,History(ki,wr),rg,f) /\
+    (Safe(ki) => STXT(ki,wr,ad,f,c))}
+//CF why do we need a conditional here? 
 
 val decrypt: ki:succEpoch -> 
   rd:(;ki) reader -> 
-  ad:(;ki)StatefulPlain.adata ->
+  ad:(;ki) StatefulPlain.adata ->
   c:cipher ->
   res:((;ki) reader * rg:range * (;ki,ad,History(ki,rd),rg) StatefulPlain.plain) Result
   { !nrd,rg,f. res = Correct((nrd,rg,f)) => 
@@ -77,4 +78,3 @@ val decrypt: ki:succEpoch ->
 
 //CF 21/4: as stated, we need the resulting readers and writers to have explicitly-updated histories (irrespective of AUTH)
 //CF 21/4: can we return an option instead? Otherwise we may have to specify which errors can be returned.
-

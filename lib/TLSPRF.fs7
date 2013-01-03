@@ -1,6 +1,7 @@
 module TLSPRF
 
 (* Low-level (bytes -> byte) PRF implementations for TLS; trusted. *)
+(* Used by CRE and PRF *) 
 
 open Bytes
 open TLSConstants

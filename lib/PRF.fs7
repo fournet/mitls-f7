@@ -1,5 +1,7 @@
 module PRF
 
+(* PRFs keyed by master secrets, both for key derivation and verifyData *)
+
 open Bytes
 open TLSInfo
 open StatefulAEAD
@@ -7,16 +9,27 @@ open StatefulAEAD
 type repr = (;48)lbytes
 private type (;si:SessionInfo) masterSecret = {bytes: repr}
 
+// AuthSI is defined in TLSInfo
+val sample: si:SessionInfo                         -> (;si)masterSecret
+val coerce: si:SessionInfo{not AuthSI(si)} -> repr -> (;si)masterSecret
+
+// Master secrets are used to derive key materials. 
+// Compared with standard key derivation,
+// - the label is hardcoded & implicit; 
+// - the seed (crandom @| srandom) is retrieved from the epoch
+
 val keyGen: ci:ConnectionInfo -> (;EpochSI(ci.id_out))masterSecret -> 
-  (w:(;ci.id_out)StatefulAEAD.writer * r:(;ci.id_in)StatefulAEAD.reader){
-    StatefulPlain.EmptyHistory(ci.id_out,w.history) /\
+  ( w:(;ci.id_out)StatefulAEAD.writer * 
+    r:(;ci.id_in) StatefulAEAD.reader )
+  { StatefulPlain.EmptyHistory(ci.id_out,w.history) /\
     StatefulPlain.EmptyHistory(ci.id_in,r.history)}
 
-         (* No label, it's hardcoded. Of course we can make it explicit -> *)
-         (* No seed (crandom @| srandom), it can be retrieved from epoch (and not SessionInfo!) -> *)
+private val log: ((ConnectionInfo * masterSecret) * (state * state)) list ref 
+
+// Master secrets are also used to generate and check verifyData tags,
+// providing conditional authentication of the (abstract) VerifyData predicate.
 
 predicate VerifyData of SessionInfo * Role * bytes
-predicate AuthSI of SessionInfo
 
 val makeVerifyData: si:SessionInfo -> r:Role -> (;si) masterSecret ->
                    log:bytes{VerifyData(si,r,log)} -> 
@@ -24,11 +37,8 @@ val makeVerifyData: si:SessionInfo -> r:Role -> (;si) masterSecret ->
 
 val checkVerifyData: si:SessionInfo -> r:Role -> (;si) masterSecret ->
 				   log:bytes (* the log *) ->
-				   vd:bytes (* the expected value *) ->
-				   b:bool{b = true /\ AuthSI(si) => 
-                                          VerifyData(si,r,log)}
+				   tag:bytes (* the expected value *) ->
+				   b:bool{(b = true /\ AuthSI(si)) => VerifyData(si,r,log)}
 
 val ssl_certificate_verify: si:SessionInfo -> (;si)masterSecret -> TLSConstants.sigAlg -> bytes -> bytes
 
-// FIXME we need to add something like {not Auth(si)}, but Auth is defined on epochs, not sessions
-val coerce: si:SessionInfo{not AuthSI(si)} -> repr -> (;si)masterSecret

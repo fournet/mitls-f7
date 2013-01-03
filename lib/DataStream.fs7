@@ -1,12 +1,20 @@
 module DataStream
+
+(* Application-level bytes streams exchanged over TLS;            *)
+(* depending on the safety of their indexes,                      *) 
+(* these streams are treated abstractly by our TLS implementation *)
+
 open TLSInfo
 open Bytes
 open Error
+
+/// Auxiliary functions for ranges
 
 private val min: a:nat -> b:nat -> c:nat{(a<=b /\ c=a) \/ (a>b /\ c=b)}
 private val max: a:nat -> b:nat -> c:nat{(a>=b /\ c=a) \/ (a<b /\ c=b)}
 val splitRange: ki:succEpoch -> r:range -> (r0:range * r1:range){r = Sum(r0,r1)} 
 (* TODO first range should fit in a fragment: FitsInFrag(ki,fragmentLength,r0)? *)
+(* TODO exclude unexpectedErrors, or return a "result" *)
 
 /// Bytestreams
 
@@ -29,12 +37,15 @@ definition !ki,s. EmptyStream(ki,s) <=> s = {sb = []}
 ask !ki,s,s'. EmptyStream(ki,s) /\ EmptyStream(ki,s') => s = s'
 
 function val ExtendStream: 'a * 'b * 'c * 'd -> 'e
-definition !ki,s,r,d. ExtendStream(ki,s,r,d) = {sb = d.contents :: s.sb } 
+private definition !ki,s,r,d. ExtendStream(ki,s,r,d) = {sb = d.contents :: s.sb } 
 
 // used only by the application; could be omitted for TLS
 private val createDelta: 
   ki:epoch -> s:(;ki) stream -> r:range -> 
   b:(;r) rbytes -> c: (;ki,s,r) delta  
+
+//CF we need a better verification pattern for multi-user interfaces.
+//CF a cheap one is to use different names plus ifdefs in the .fsi
 
 // used by TLS
 val init: ki:epoch -> s:(;ki) stream{EmptyStream(ki,s)}
@@ -42,25 +53,26 @@ val append:
   ki:epoch -> s: (;ki) stream -> r:range ->
   d:(;ki,s,r) delta -> s':(;ki) stream{s' = ExtendStream(ki,s,r,d)}
 
+val deltaPlain: 
+  ki:epoch{not Auth(ki)} -> s:(;ki) stream -> r:range -> 
+  b:(;r) rbytes -> c: (;ki,s,r) delta  
+val deltaRepr: 
+  ki:epoch{not Safe(ki)} -> s:(;ki) stream -> r:range -> 
+  c: (;ki,s,r) delta -> (;r) rbytes
 
-//CF: We need lineary on the stream! 
+val split: ki:epoch -> s:(;ki) stream -> 
+  r0:range -> r1:range -> d:(;ki,s,Sum(r0,r1)) delta -> 
+  (d0:(;ki,s,r0) delta * d1:(;ki,ExtendStream(ki,s,r0,d0),r1) delta)
 
-//#if app
+//CF: We need linearity on the stream! 
+
+(* This would be the application interface: 
+
 val deltaPlain: 
   ki:epoch -> s:(;ki) stream -> r:range -> 
   b:(;r) rbytes -> c: (;ki,s,r) delta  
 val deltaRepr: 
   ki:epoch -> s:(;ki) stream -> r:range -> 
-  c: (;ki,s,r) delta -> (;r) rbytes
-//#else
-//val deltaPlain: 
-//  ki:epoch{not Auth(ki)} -> s:(;ki) stream -> r:range -> 
-//  b:(;r) rbytes -> c: (;ki,s,r) delta  
-//val deltaRepr: 
-//  ki:epoch{not Safe(ki)} -> s:(;ki) stream -> r:range -> 
-//  c: (;ki,s,r) delta -> (;r) rbytes
-//#endif
+  c: (;ki,s,r) delta -> (;r) rbytes 
 
-val split: ki:epoch -> s:(;ki) stream -> 
-  r0:range -> r1:range -> d:(;ki,s,Sum(r0,r1)) delta -> 
-  (d0:(;ki,s,r0) delta * d1:(;ki,ExtendStream(ki,s,r0,d0),r1) delta)
+*)

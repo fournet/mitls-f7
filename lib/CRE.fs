@@ -60,7 +60,7 @@ let prfSmoothRSA si (pv:ProtocolVersion) pms =
     then match tryFind (fun el -> fst el = RSA_pms(pms)) !log with
              Some(_,ms) -> ms
            | None -> 
-                 let ms=PRF.sampleMS si 
+                 let ms=PRF.sample si 
                  log := (RSA_pms(pms),ms)::!log
                  ms 
     else prfMS si pms.rsapms
@@ -74,7 +74,7 @@ let prfSmoothDHE si (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt
     then match tryFind (fun el -> fst el = DHE_pms(pms)) !log  with
              Some(_,ms) -> ms
            | None -> 
-                 let ms=PRF.sampleMS si 
+                 let ms=PRF.sample si 
                  log := (DHE_pms(pms),ms)::!log;
                  ms 
     else prfMS si pms.dhpms
