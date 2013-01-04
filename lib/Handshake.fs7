@@ -615,7 +615,7 @@ predicate CompleteSI of SessionInfo
 predicate Complete of ConnectionInfo
 
 (* Anonymous clients are authorized for client-unauthenticated sessions *)
-!si. (si.client_auth = false /\ si.clientID = []) => Authorize(Server,si)
+private assume !si. (si.client_auth = false /\ si.clientID = []) => Authorize(Server,si)
 
 private assume !a,k,t. Sig.Msg(a,k,t) 
   <=> ((?si. ClientLogBeforeCertificateVerifyRSA_Auth(si,t) /\

@@ -11,6 +11,9 @@ open TLSConstants
 //------------------------------------------------------------------------------------------------------
 // Interface towards ENC (abstract)
 //------------------------------------------------------------------------------------------------------
+
+// a function from public length of ciphertext to public length of encoded plaintext (either identity, or minus iv length)
+//CF still tbd :(
 function val PlainLength: e:epoch * tlen:nat -> plen:nat
 private type (;e:epoch,tlen:nat) plain = {p: (x:bytes){Length(x) = PlainLength(e,tlen) /\ tlen <= max_TLSCipher_fragment_length}}
 
@@ -23,7 +26,7 @@ val repr:  e:epoch{not Safe(e)} -> tlen:nat -> (;e,tlen) plain -> b:bytes{Length
 //CF cut: type (;e:epoch) adata = (;e)AEADPlain.adata
 
 // Result of MAC
-//CF added a length refinement; probably an unnecessary indirection
+//CF added a length refinement; this type is probably an unnecessary indirection
 private type (;e:succEpoch) tag = {macT: (;e) MAC.tag } 
 
 // Result of decoding
@@ -33,7 +36,7 @@ private type (;e:epoch,ad:(;e)AEADPlain.adata,rg:range) parsed =
 	  ok   : bool (* true iff decoding succeeded *) }
 
 function val MACPlain : 'a * 'b * 'c * 'd -> 'e
-val macPlain: e:epoch -> r:range -> 
+val macPlain: e:succEpoch -> r:range -> 
   ad:(;e)AEADPlain.adata -> f:(;e,ad,r)AEADPlain.plain -> b:bytes{b = MACPlain(e,r,ad,f)}
 
 predicate MACed of e:epoch * (;e) MAC.key * ad:(;e)AEADPlain.adata * rg:range * (;e,ad,rg)AEADPlain.plain * (;e) tag
@@ -66,6 +69,7 @@ val decode: e:succEpoch{IsAEADCiphersuite(EpochSI(e).cipher_suite)} ->
 	p:(;e,tlen) plain ->
 	ps:(;e,ad,rg)parsed{Encoded(e,ad,ps.plain,ps.tag,p) => ps.ok = true}
 
+//CF why do we need "NoPad" variants again? 
 val encodeNoPad: e:succEpoch{IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/
                     CipherSuiteENCAlg(EpochSI(e).cipher_suite) = RC4_128} ->
 	tlen:nat{tlen <= max_TLSCipher_fragment_length} -> rg:range{CipherRange(e,rg,tlen)} ->
@@ -88,6 +92,7 @@ private assume !e,ad1,x1,ad2,x2. (Length(ad1) = Length(ad2) /\
                         MsgBytes(e,ad1,x1) = MsgBytes(e,ad2,x2)) => 
                        (ad1 = ad2 /\ x1=x2)
 
+//CF this seems too weak: no constraint on x!
 private assume !e,pl. MAC.Msg(e,pl) <=>
   (not Auth(e) \/
      (?ad,x. Length(ad) = (8 + StatefulPlain.ADLength(e)) /\
@@ -97,7 +102,7 @@ ask !e,t. not Auth(e) => MAC.Msg(e,t)
 
 //CF Comments:
 //CF 
-//CF AP and CF agree: Encode is indexed by (e and) its public length, after encoding (and not by range).
+//CF AP and CF agree: Encode is indexed by (e and) its public length after encoding (rathern than its range).
 //CF We define function from:
 //CF - public length of ciphertext to public length of encoded plaintext (either identity, or minus iv length)
 //CF - from tlen to public range of decoded authenticated fragment
