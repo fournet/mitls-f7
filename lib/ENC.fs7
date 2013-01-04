@@ -1,11 +1,13 @@
 ﻿module ENC
 
+(* Bulk encryption for TLS record, agile & assumed conditionally CPA with "Encode" *) 
+(* This module is trusted *)
+(* TODO reduce it to its non-agile underlying algorithms, e.g. AES-CBC and GCM *) 
+
 open Bytes
-open Encode
+open Encode 
 open TLSInfo
 open Error
-
-(* this interface is trusted *)
 
 // ciphers consist of one or more blocks of bytes.
 type cipher = b:bytes{Length(b) <= max_TLSCipher_fragment_length}

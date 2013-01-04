@@ -8,42 +8,40 @@ open Error
 open TLSInfo
 open TLSConstants
 
-private val pad: l:int -> b:bytes{Length(b) = l}
-
 //------------------------------------------------------------------------------------------------------
-// Interface towards ENC 
+// Interface towards ENC (abstract)
 //------------------------------------------------------------------------------------------------------
 function val PlainLength: e:epoch * tlen:nat -> plen:nat
 private type (;e:epoch,tlen:nat) plain = {p: (x:bytes){Length(x) = PlainLength(e,tlen) /\ tlen <= max_TLSCipher_fragment_length}}
+
 val plain: e:epoch{not Auth(e)} -> tlen:nat{tlen <= max_TLSCipher_fragment_length} -> b:bytes{Length(b) = PlainLength(e,tlen)} -> (;e,tlen) plain
 val repr:  e:epoch{not Safe(e)} -> tlen:nat -> (;e,tlen) plain -> b:bytes{Length(b) = PlainLength(e,tlen)}
 
 //------------------------------------------------------------------------------------------------------
-// Interface towards AEAD
+// Interface towards AEAD (concrete)
 //------------------------------------------------------------------------------------------------------
-type (;e:epoch) adata = (;e)AEADPlain.adata
+//CF cut: type (;e:epoch) adata = (;e)AEADPlain.adata
 
 // Result of MAC
-private type (;e:epoch) tag = {macT:bytes}
+//CF added a length refinement; probably an unnecessary indirection
+private type (;e:succEpoch) tag = {macT: (;e) MAC.tag } 
 
 // Result of decoding
 private type (;e:epoch,ad:(;e)AEADPlain.adata,rg:range) parsed =
 	{ plain: (;e,ad,rg)AEADPlain.plain;
 	  tag  : (;e)tag;
-	  ok   : bool}
+	  ok   : bool (* true iff decoding succeeded *) }
 
 function val MACPlain : 'a * 'b * 'c * 'd -> 'e
 val macPlain: e:epoch -> r:range -> 
-  ad:(;e)AEADPlain.adata ->
-  f:(;e,ad,r)AEADPlain.plain ->
-  b:bytes{b = MACPlain(e,r,ad,f)}
+  ad:(;e)AEADPlain.adata -> f:(;e,ad,r)AEADPlain.plain -> b:bytes{b = MACPlain(e,r,ad,f)}
 
 predicate MACed of e:epoch * (;e) MAC.key * ad:(;e)AEADPlain.adata * rg:range * (;e,ad,rg)AEADPlain.plain * (;e) tag
 
 val mac: e:succEpoch -> k:(;e) MAC.key ->
   ad:(;e)AEADPlain.adata -> rg:range ->
   p:(;e,ad,rg)AEADPlain.plain ->
-  tag:(;e) tag{Length(tag.macT) = MacKeySize(CipherSuiteMACAlg(EpochSI(e).cipher_suite)) /\ MACed(e,k,ad,rg,p,tag)}
+  tag:(;e) tag {MACed(e,k,ad,rg,p,tag)}
 val verify: e:succEpoch -> k:(;e) MAC.key ->
   ad:(;e)AEADPlain.adata -> rg:range ->
   ps:(;e,ad,rg)parsed ->
@@ -52,6 +50,10 @@ val verify: e:succEpoch -> k:(;e) MAC.key ->
 
 predicate type preds = CipherRange of epoch * range * nat // declared here, defined in AEAD
 predicate val Encoded: 'e * 'a * 'b * 'c * 'd -> bool
+
+private val pad: l:int -> b:bytes{Length(b) = l}
+//CF we will need a more precise refinement for the MEE proof 
+
 val encode: e:succEpoch{IsAEADCiphersuite(EpochSI(e).cipher_suite)} ->
 	ivL:nat -> tlen:nat{tlen <= max_TLSCipher_fragment_length} -> rg:range{CipherRange(e,rg,tlen)} ->
 	ad:(;e) AEADPlain.adata -> pl:(;e,ad,rg) AEADPlain.plain -> tag:(;e) tag ->
@@ -59,7 +61,7 @@ val encode: e:succEpoch{IsAEADCiphersuite(EpochSI(e).cipher_suite)} ->
 val decode: e:succEpoch{IsAEADCiphersuite(EpochSI(e).cipher_suite)} ->
 	ivL:nat ->
 	ad:(;e) AEADPlain.adata -> rg:range ->
-	tlen:nat{tlen - ivL >= ( MacKeySize(CipherSuiteMACAlg(EpochSI(e).cipher_suite)) + 1) /\
+	tlen:nat{tlen - ivL >= ( HashSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite)) + 1) /\
 	CipherRange(e,rg,tlen)} ->
 	p:(;e,tlen) plain ->
 	ps:(;e,ad,rg)parsed{Encoded(e,ad,ps.plain,ps.tag,p) => ps.ok = true}
@@ -72,7 +74,7 @@ val encodeNoPad: e:succEpoch{IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/
 val decodeNoPad: e:succEpoch{IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/
                     CipherSuiteENCAlg(EpochSI(e).cipher_suite) = RC4_128} ->
 	ad:(;e) AEADPlain.adata -> rg:range ->
-	tlen:nat{tlen >= MacKeySize(CipherSuiteMACAlg(EpochSI(e).cipher_suite)) /\
+	tlen:nat{tlen >= HashSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite)) /\
 	CipherRange(e,rg,tlen)} -> (;e,tlen) plain ->
 	(;e,ad,rg)parsed
 
@@ -80,13 +82,13 @@ val decodeNoPad: e:succEpoch{IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/
 // Auxiliary definitions and assumptions for typing
 //------------------------------------------------------------------------------------------------------
 
-function val MsgBytes: e:epoch * (;e) adata * bytes -> bytes
+function val MsgBytes: e:epoch * (;e) AEADPlain.adata * bytes -> bytes
 private assume !e,ad,x. MsgBytes(e,ad,x) = (ad @| IntBytes(2,Length(x))) @| x 
 private assume !e,ad1,x1,ad2,x2. (Length(ad1) = Length(ad2) /\
                         MsgBytes(e,ad1,x1) = MsgBytes(e,ad2,x2)) => 
                        (ad1 = ad2 /\ x1=x2)
 
-private assume !e,tlen,pl. MAC.Msg(e,pl) <=>
+private assume !e,pl. MAC.Msg(e,pl) <=>
   (not Auth(e) \/
      (?ad,x. Length(ad) = (8 + StatefulPlain.ADLength(e)) /\
 	  pl = MsgBytes(e,ad,x)))

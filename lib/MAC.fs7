@@ -4,24 +4,52 @@ open Bytes
 open TLSConstants
 open TLSInfo
 
-/// a refined, ideal interface for indexed MACs
-//CF this file is loosely synchronized with cma/mac2.fs7
+(* refined, agile, ideal interface for indexed MACs resistant to plaintext forgery against CMA *) 
 
-//CF 12-02: we need to support agility here, 
-//CF        guaranteeing that ki has a MAC, and 
-//CF        providing exact lengths for keys and tags.
+(* CF TODO implement and typecheck the ideal functionality (preferably fron non-agile ideal ones)
+           maintaining  a log of authentic MACed messages, correcting verification errors, etc
 
-// TODO implement and typecheck the ideal functionality (preferably fron non-agile ideal ones)
-// TDOO maintaining a log of authentic MACed messages, correcting verification errors, etc
+   Our concrete core algorithms are implemented by HMAC, 
+   after partial application of the algorithm name.
+   (we keep using a single HMAC module just for convenience, with all "a" parameters being constant) 
 
-private type (;ki:succEpoch) key = {k:(x:bytes{Length(x) = MacKeySize(TLSConstants.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))})}
+   Given a strong subset of these algorithms, 
+   each of their ideal counterparts is coded & typed as in cma/mac2.fs7, 
+   relying on some abstract key type HMAC.key_a
+   wrt some HMAC.Msg_a(ki,t) abstract predicate defined below.
+
+   Technically, to typecheck MAC against this collection of ideal interfaces, we define 
+   
+   private type (;ki:succEpoch) key = | MacKey_a of (;ki) HMAC.key_a { CipherSuiteMACAlg(EpochSI(ki).cipher_suite) = a }
+                                      | ConcreteKey of (;ki) keyrepr 
+   private definition !ki,t. HMAC.Msg_a(ki,t) <=> 
+   ( CipherSuiteMACAlg(EpochSI(ki).cipher_suite) = a /\ (Auth(ki) => Msg(ki,t))
+
+   and we unfold separate branches for each strong a in Mac, Verify, GEN, COERCE, LEAK
+   
+   We depend on the definition of Auth only inasmuch as 
+   
+   ask !ki. Auth(ki) => \/_{idealized a} CipherSuiteMACAlg(EpochSI(ki).cipher_suite) = a
+
+   Notes: - this deals with CMA, not the joint CTXT assumption (where we may need PRF)  
+          - this multiplexing similarly applies to any keyed functionality.
+		  - concretely, we get a bound depending on the actual usage of each algorithm s.t. Auth
+		  - we may e.g. assume that both variants of SHA2 are secure, while MD5 and SHA are not.
+		  - so far we do not deal with the ad hoc constructions of SSL_3p0 (although we can still specify them as CMA-secure)
+		  - consider reshuffling MAC and HMAC 
+		  - what to include? probably the ideal typing of a single exemplary secure algorithm, importing mac2.fs*
+*)
+
 type text = bytes
-type tag = bytes
+type (;ki:succEpoch) keyrepr = k:bytes {Length(k) = HashSize(CipherSuiteMACAlg(EpochSI(ki).cipher_suite)) }
+type (;ki:succEpoch) tag     = m:bytes {Length(m) = HashSize(CipherSuiteMACAlg(EpochSI(ki).cipher_suite))}
+private type (;ki:succEpoch) key = {k:(;ki) keyrepr}
+
 predicate val Msg: epoch * text -> bool
 
-val Mac:    ki:succEpoch -> k:(;ki) key -> t:text{Msg(ki,t)} -> t:tag{Length(t) = MacKeySize(TLSConstants.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))}
-val Verify: ki:succEpoch -> k:(;ki) key -> t:text -> tag -> v:bool{ (v=true /\ Auth(ki)) => Msg(ki,t) }
+val Mac:    ki:succEpoch -> k:(;ki) key -> t:text{Msg(ki,t)} -> m:(;ki) tag
+val Verify: ki:succEpoch -> k:(;ki) key -> t:text -> m:(;ki) tag -> v:bool{ (v=true /\ Auth(ki)) => Msg(ki,t) }
 
 val GEN:    ki:succEpoch -> (;ki) key
-val LEAK:   ki:epoch{not(Auth(ki))} -> (;ki)key -> bytes
-val COERCE: ki:epoch{not(Auth(ki))} -> x:bytes{Length(x) = MacKeySize(TLSConstants.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))} -> (;ki)key
+val LEAK:   ki:succEpoch {not(Auth(ki))} -> (;ki)key -> (;ki)keyrepr
+val COERCE: ki:succEpoch {not(Auth(ki))} -> (;ki)keyrepr -> (;ki)key

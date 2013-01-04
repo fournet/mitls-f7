@@ -7,4 +7,4 @@
 open Bytes
 open TLSConstants
 
-val hash: a:hashAlg -> bytes -> b:bytes{Length(b)=MacKeySize(a)}
+val hash: a:hashAlg -> bytes -> b:bytes{Length(b)=HashSize(a)}

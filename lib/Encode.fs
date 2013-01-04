@@ -17,6 +17,7 @@ type parsed =
      ok:    bool}
 
 let macPlain (e:epoch) (rg:range) ad f =
+    //CF this is breaking abstraction
     let b = AEADPlain.repr e ad rg f in
     let fLen = bytes_of_int 2 (length b) in
     let fullData = ad @| fLen in 
@@ -40,15 +41,12 @@ let verify e k ad rg parsed =
             else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
         else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_decryption_failed, reason)
     | TLS_1p1 | TLS_1p2 ->
-        (*@ We implement standard mitigiation for padding oracles.
+        (*@ Otherwise, we implement standard mitigation for padding oracles.
             Still, we note a small timing leak here:
-            The time to verify the mac is linear in the
-            plaintext length. *)
-        if MAC.Verify e k text tag.macT then 
-            if parsed.ok then
-                correct parsed.plain
-            else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
-        else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
+            The time to verify the mac is linear in the plaintext length. *)
+        if MAC.Verify e k text tag.macT && parsed.ok 
+        then correct parsed.plain
+        else Error(AD_bad_record_mac, perror __SOURCE_FILE__ __LINE__ "")
 
 type plain = {p:bytes}
 

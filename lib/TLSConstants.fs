@@ -101,11 +101,11 @@ let aeadIVSize ciph =
 
 let hashSize alg =
     match alg with
+    | NULL          -> Error.unexpectedError "[hashSize] Unknown hash size for NULL algorithm"
     | MD5           -> 16
     | SHA           -> 20
     | SHA256        -> 32
     | SHA384        -> 48
-    | NULL          -> Error.unexpectedError "[hashSize] Unknown hash size for NULL algorithm"
     | MD5SHA1       -> 16 + 20
 
 let macKeySize mac = hashSize mac

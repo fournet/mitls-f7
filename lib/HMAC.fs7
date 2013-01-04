@@ -10,15 +10,15 @@ type data = bytes
 type mac = bytes
 
 val sslKeyedHash: 
-  a:hashAlg{a = MD5 \/ a = SHA} -> k:key{Length(k)=MacKeySize(a)} -> data -> 
-  t:mac {Length(t)=MacKeySize(a)} 
+  a:hashAlg{a = MD5 \/ a = SHA} -> k:key {Length(k)=HashSize(a)} -> 
+  data -> t:mac {Length(t)=HashSize(a)} 
 val sslKeyedHashVerify:
-  a:hashAlg{a = MD5 \/ a = SHA} -> k:key{Length(k)=MacKeySize(a)} -> data -> 
-  t:mac -> bool
+  a:hashAlg{a = MD5 \/ a = SHA} -> k:key {Length(k)=HashSize(a)} -> 
+  data -> t:mac {Length(t)=HashSize(a)} -> bool
 
 val HMAC:       
-  a:hashAlg -> k:key{Length(k)=MacKeySize(a)} -> data -> 
-  t:mac {Length(t)=MacKeySize(a)} 
+  a:hashAlg -> k:key {Length(k)=HashSize(a)} -> 
+  data -> t:mac {Length(t)=HashSize(a)} 
 val HMACVERIFY: 
-  a:hashAlg -> k:key{Length(k)=MacKeySize(a)} -> data -> 
-  t:mac -> bool
+  a:hashAlg -> k:key {Length(k)=HashSize(a)} -> 
+  data -> t:mac {Length(k)=HashSize(a)} -> bool

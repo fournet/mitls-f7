@@ -3,9 +3,9 @@
 open Bytes
 open Error
 open TLSConstants
-
 open TLSInfo
-open TLSConstants
+
+(* We do not open Encode so that we can syntactically check its usage restrictions *) 
 
 type cipher = bytes
 
