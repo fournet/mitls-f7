@@ -4,8 +4,10 @@ open TLSConstants
 open TLSInfo
 
 //------------------------------------------------------------------------------------------------------
-// `Plain' interface towards StatefulAEAD
+// `Plain' interface towards StatefulAEAD, encapsulating TLS-specific headers and content types
 //------------------------------------------------------------------------------------------------------
+
+(* The record header includes the CT and the protocol version if > SSL3. *)
 
 function val ADLength: epoch -> nat
 private definition !e. 
@@ -16,21 +18,17 @@ type (;e:epoch) adata = (b:bytes){Length(b) = ADLength(e)}
 
 function val ADBytes: (epoch * ContentType) -> bytes //(;e)StatefulPlain.adata
 private definition !e,ct.
-	( EpochSI(e).protocol_version = SSL_3p0 /\
-	  ADBytes(e,ct) =
-		CTBytes(ct) ) \/
+	( EpochSI(e).protocol_version = SSL_3p0 /\ ADBytes(e,ct) = CTBytes(ct) ) \/
 	( EpochSI(e).protocol_version <> SSL_3p0 /\
-          ADBytes(e,ct) =
-		(CTBytes(ct) @| VersionBytes(EpochSI(e).protocol_version)))
+	  ADBytes(e,ct) = (CTBytes(ct) @| VersionBytes(EpochSI(e).protocol_version)))
 
-private val makeAD: e:succEpoch -> ct:ContentType ->
-	  ad: (;e)adata{ad=ADBytes(e,ct)}
+private val makeAD:  e:succEpoch -> ct:ContentType -> ad:(;e)adata{ad=ADBytes(e,ct)}
 private val parseAD: e:succEpoch -> ad:(;e)adata -> ct:ContentType{ad=ADBytes(e,ct)}
 
 function val ParseAD: (e:epoch * (;e)adata) -> ContentType
 private definition !e,ct. ParseAD(e,ADBytes(e,ct)) = ct
 
-private type (;e:epoch,ad:(;e)adata,r:range)fragment = {contents: (;e,ParseAD(e,ad),r)TLSFragment.fragment}
+private type (;e:epoch,ad:(;e)adata,r:range) fragment = {contents: (;e,ParseAD(e,ad),r)TLSFragment.fragment}
 
 private type (;e:epoch) prehistory = (ad:(;e)adata * r:range * f:(;e,ad,r)fragment) list
 
@@ -67,9 +65,9 @@ definition !e,sh,sh',h,ct,r,f.
 type (;e:epoch,ad:(;e)adata,h:(;e)history,r:range) plain =
 	f:(;e,ad,r)fragment{Auth(e) => StAESent(e,ad,h,r,f)}
 
-val plain: e:succEpoch{not Auth(e)} -> h:(;e)history -> ad:(;e)adata -> r:range -> (;r)rbytes -> (;e,ad,h,r) plain
-val reprFragment:  e:succEpoch{not Safe(e)} -> ad:(;e)adata -> r:range -> (;e,ad,r) fragment -> (;r)rbytes
-val repr:  e:succEpoch{not Safe(e)} -> h:(;e)history -> ad:(;e)adata -> r:range -> (;e,ad,h,r) plain -> (;r)rbytes
+val plain:        e:succEpoch{not Auth(e)} -> h:(;e)history -> ad:(;e)adata -> r:range -> (;r)rbytes -> (;e,ad,h,r) plain
+val reprFragment: e:succEpoch{not Safe(e)} -> ad:(;e)adata -> r:range -> (;e,ad,r) fragment -> (;r)rbytes
+val repr:         e:succEpoch{not Safe(e)} -> h:(;e)history -> ad:(;e)adata -> r:range -> (;e,ad,h,r) plain -> (;r)rbytes
 
 //------------------------------------------------------------------------------------------------------
 // `internal' interface towards TLSFragment
@@ -79,7 +77,7 @@ val emptyHistory: e:epoch -> h:(;e)history{EmptyHistory(e,h)}
 private val consHistory: e:epoch -> h:(;e)prehistory ->
 	ad:(;e)adata -> r:range -> x:(;e,ad,r)fragment ->
 	h':(;e)prehistory{h' = (ad,r,x)::h}
-val addToHistory: e:epoch -> ad:(;e)adata ->
+val extendHistory: e:epoch -> ad:(;e)adata ->
 	h:(;e)history -> r:range -> f:(;e,ad,h,r)plain ->
 	h':(;e)history{h' = ExtendHistory(e,ad,h,r,f)}
 
@@ -95,11 +93,13 @@ private theorem !e,sh,ct,r,f.
 // assume !e.          Sent(e,(0,[]))
 // assume !e,h,ad,r,x. Sent(e,ExtendHistory(e,h,ad,r,x)) => Sent(e,h)
 //assume !e,ad,h,h',r,f. (Auth(e) /\ StAESent(e,ad,h,r,f) /\ StAESent(e,ad,h',r,f) /\ SeqN(e,h) = SeqN(e,h')) => h = h'
+
+//CF usage? 
 assume !e,ad,h,h',r,f. (Auth(e) /\ StAEHistory(e,h) /\ StAEHistory(e,h') /\ HLength(e,h) = HLength(e,h')) => h = h'
 
-
 val RecordPlainToStAEPlain: e:succEpoch -> ct:ContentType -> h:(;e) TLSFragment.history ->
-	st:(;e) history{h = Multiplexed(e,st)} -> rg:range -> f:(;e,ct,h,rg) TLSFragment.plain -> 
+	st:(;e) history{h = Multiplexed(e,st)} -> rg:range -> 
+	f:(;e,ct,h,rg) TLSFragment.plain -> 
 	sf:(;e,ADBytes(e,ct),st,rg) plain{f = StAEToRecord(e,ct,rg,sf)}
 
 val StAEPlainToRecordPlain: e:succEpoch -> ct:ContentType -> h:(;e) TLSFragment.history ->

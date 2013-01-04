@@ -17,7 +17,7 @@ val repr:  epoch -> history -> adata -> range -> plain -> bytes
 
 //------------------------------------------------------------------------------
 val emptyHistory: epoch -> history
-val addToHistory: epoch -> adata -> history -> range -> fragment -> history
+val extendHistory: epoch -> adata -> history -> range -> fragment -> history
 
 
 val makeAD: epoch -> ContentType -> adata

@@ -7,10 +7,11 @@ open TLSInfo
 // `Plain' interface towards AEAD
 //------------------------------------------------------------------------------------------------------
 
+// We add an 8-byte sequence number to additional data.
 type (;e:epoch) adata = (b:bytes){Length(b) = 8 + StatefulPlain.ADLength(e)}
 
 function val MakeAD:  e:epoch * (;e)StatefulPlain.history * (;e)StatefulPlain.adata -> 'a // (;e)adata
-private assume !e,h,ad. MakeAD(e,h,ad) = IntBytes(8,StatefulPlain.SeqN(e,h)) @| ad
+private definition !e,h,ad. MakeAD(e,h,ad) = IntBytes(8,StatefulPlain.SeqN(e,h)) @| ad
 function val ParseAD: e:epoch * (;e)adata -> 'a //(;e)StatefulPlain.adata
 private assume !e,b,ad. Length(b) = 8 => ParseAD(e,b@|ad) = ad
 
@@ -35,7 +36,9 @@ val repr:  e:succEpoch{not Safe(e)} -> ad:(;e)adata -> r:range -> (;e,ad,r) plai
 
 //private assume !e,h,ad,r,f. AEADSent(e,MakeAD(e,h,ad),r,f) <=> StatefulPlain.StAESent(e,ad,h,r,f.contents)
 
-private assume !e,lad,r,f. AEADSent(e,lad,r,f) <=> (?had,sn,ph. lad = MakeAD(e,(sn,ph),had) /\ StatefulPlain.StAESent(e,had,(sn,ph),r,f.contents))
+private definition !e,lad,r,f. 
+  AEADSent(e,lad,r,f) <=> 
+  (?had,sn,ph. lad = MakeAD(e,(sn,ph),had) /\ StatefulPlain.StAESent(e,had,(sn,ph),r,f.contents))
 
 private ask !e,r,f,lad. (Auth(e) /\ (?had,sn,ph. MakeAD(e,(sn,ph),had) = lad /\ StatefulPlain.StAESent(e,had,(sn,ph),r,f.contents)) ) => 
                         (!had', sn', ph'. MakeAD(e,(sn',ph'),had') = lad /\ StatefulPlain.StAEHistory(e,ph') /\ StatefulPlain.HLength(e,ph') = sn' => StatefulPlain.StAESent(e,had',(sn',ph'),r,f.contents))
@@ -71,4 +74,3 @@ val AEADPlainToStatefulPlain: e:epoch -> h:(;e)StatefulPlain.history -> ad:(;e)S
 // 
 // function val AEADContents: 'a -> 'b
 // assume !f. AEADContents(f) = f.contents
-

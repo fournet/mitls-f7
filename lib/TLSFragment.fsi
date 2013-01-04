@@ -10,7 +10,7 @@ type fragment
 type plain = fragment
 
 val emptyHistory: epoch -> history
-val addToHistory: epoch -> ContentType -> history -> range -> fragment -> history
+val extendHistory: epoch -> ContentType -> history -> range -> fragment -> history
 
 val plain: epoch -> ContentType -> history -> range -> bytes -> plain
 val reprFragment: epoch -> ContentType -> range -> fragment -> bytes

@@ -48,7 +48,8 @@ val DEC: ki:epoch -> s:(;ki) decryptor -> c:cipher ->
    (p:(;ki,Length(c))plain{!p'. ENCrypted(ki,Length(c),StateID(ki,s),p',c) => p=p'}) )
 
 
-(*val ENC: ki:epoch -> s:(;ki) encryptor -> tlen:int -> p:(;ki,tlen) plain -> 
+(*
+val ENC: ki:epoch -> s:(;ki) encryptor -> tlen:int -> p:(;ki,tlen) plain -> 
   ( s':(;ki)encryptor *
    c:cipher{StateID(s') = StateID(s)+1 /\ ENCrypted(ki,tlen,StateID(s),p,c) /\ Length(c)=tlen})
 

@@ -5,20 +5,19 @@ open TLSInfo
 private type (;ki:epoch,r:range) fragment = {frag: (;r)rbytes}
 private type (;ki:epoch) stream = {sb:bytes list}
 
-predicate FragmentSent of ki:epoch * (;ki) stream * r:range * (;ki,r)fragment
+predicate Sent of ki:epoch * (;ki) stream * r:range * (;ki,r)fragment
 
-type (;e:epoch,s:(;e)stream,r:range)plain = f:(;e,r)fragment{Auth(e) => FragmentSent(e,s,r,f)}
+type (;e:epoch,s:(;e)stream,r:range)plain = f:(;e,r)fragment{Auth(e) => Sent(e,s,r,f)}
 
 val fragmentPlain: ki:epoch -> r:range -> (;r) rbytes -> (;ki,r) fragment
 val fragmentRepr:  ki:epoch -> r:range -> (;ki,r) fragment -> (;r) rbytes
 
 predicate EmptyStream of e:epoch * (;e)stream
-private definition !e. EmptyStream(e,{sb = []})
+private definition !e,s. EmptyStream(e,s) <=> s = {sb = []}
 val init: e:epoch -> s:(;e)stream{EmptyStream(e,s)}
-function val Extend: e:epoch * s:(;e)stream * r:range * (;e,r)fragment -> 'a // (;e)stream
-private definition !ki,s,r,f. 
-  Extend(ki,s,r,f) = {sb = f.frag :: s.sb }
 
+function val Extend: e:epoch * s:(;e)stream * r:range * (;e,r)fragment -> 'a // (;e)stream
+private definition !ki,s,r,f. Extend(ki,s,r,f) = {sb = f.frag :: s.sb }
 val extend: e:epoch -> s:(;e)stream -> r:range -> f:(;e,r)fragment -> s':(;e)stream{s'=Extend(e,s,r,f)}
 
  

@@ -7,19 +7,19 @@ predicate DeltaFragment of ki:epoch * s:(;ki) stream * r:range * (;ki,s,r)delta
 private type (;ki:epoch,r:range) fragment = {frag: (s:(;ki)stream * d:(;ki,s,r) delta{Auth(ki) => DeltaFragment(ki,s,r,d)})}
 function val Extend: 'a * 'b * 'c * 'd -> 'e
 
-predicate FragmentSent of ki:epoch * (;ki) stream * r:range * (;ki,r)fragment
-private assume !ki,s,r,f. FragmentSent(ki,s,r,f) <=> 
+predicate Sent of ki:epoch * (;ki) stream * r:range * (;ki,r)fragment
+private assume !ki,s,r,f. Sent(ki,s,r,f) <=> 
   (?d. f.frag = (s,d) /\ DeltaFragment(ki,s,r,d))
 
-type (;e:epoch,s:(;e)stream,r:range)plain = f:(;e,r) fragment{Auth(e) => FragmentSent(e,s,r,f)}
+type (;e:epoch,s:(;e)stream,r:range)plain = f:(;e,r) fragment{Auth(e) => Sent(e,s,r,f)}
 // range-based fragmentation 
 
 val fragment: ki:epoch -> s:(;ki) stream -> r:range ->
   (;ki,s,r) delta -> 
-  (f:(;ki,r) fragment * s':(;ki) stream){FragmentSent(ki,s,r,f) /\ s' = Extend(ki,s,r,f)}
+  (f:(;ki,r) fragment * s':(;ki) stream){Sent(ki,s,r,f) /\ s' = Extend(ki,s,r,f)}
 
 val delta: ki:epoch -> s:(;ki) stream -> r:range -> 
-  f:(;ki,r) fragment{Auth(ki) => FragmentSent(ki,s,r,f)} -> 
+  f:(;ki,r) fragment{Auth(ki) => Sent(ki,s,r,f)} -> 
   d:(;ki,s,r) delta * s':(;ki) stream{s' = Extend(ki,s,r,f)}
 
 val delta': ki:epoch -> s:(;ki) stream -> r:range -> 

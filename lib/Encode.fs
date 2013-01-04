@@ -17,7 +17,8 @@ type parsed =
      ok:    bool}
 
 let macPlain (e:epoch) (rg:range) ad f =
-    //CF this is breaking abstraction
+    //CF this is breaking abstraction! Not acceptable from AEAD
+    //CF intuitively, the MACed bytes should be as abstract as the content. 
     let b = AEADPlain.repr e ad rg f in
     let fLen = bytes_of_int 2 (length b) in
     let fullData = ad @| fLen in 

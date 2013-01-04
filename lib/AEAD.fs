@@ -236,7 +236,9 @@ let decrypt e (key: AEADKey) data (cipher: bytes) =
   #if ideal
   if honest e then
     if cmem e data cipher !log  
-    then decrypt' e key data cipher
+    then 
+      // we know Auth(ki) and ?p. CTXT(e,data,p,cipher)
+      decrypt' e key data cipher
     else Error(AD_decrypt_error,perror __SOURCE_FILE__ __LINE__ "")
   else decrypt' e key data cipher
   #else

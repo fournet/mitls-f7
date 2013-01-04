@@ -12,8 +12,9 @@ open TLSConstants
 // Interface towards ENC (abstract)
 //------------------------------------------------------------------------------------------------------
 
-// a function from public length of ciphertext to public length of encoded plaintext (either identity, or minus iv length)
-//CF still tbd :(
+// a function from public length of ciphertext to public length of encoded plaintext 
+// (either identity, or minus iv length)
+//CF still TBD!
 function val PlainLength: e:epoch * tlen:nat -> plen:nat
 private type (;e:epoch,tlen:nat) plain = {p: (x:bytes){Length(x) = PlainLength(e,tlen) /\ tlen <= max_TLSCipher_fragment_length}}
 

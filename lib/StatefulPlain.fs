@@ -47,7 +47,7 @@ type plain = fragment
 let consHistory (e:epoch) (h:prehistory) d r f = (d,r,f)::h
 
 let emptyHistory (e:epoch): history = (0,[])
-let addToHistory (e:epoch) d (sh:history) (r:range) f = 
+let extendHistory (e:epoch) d (sh:history) (r:range) f = 
   let (seqn,h) = sh in
   let s' = seqn+1 in
   let nh = consHistory e h d r f in

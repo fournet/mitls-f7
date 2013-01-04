@@ -5,14 +5,6 @@ open Bytes
 open TLSInfo
 open TLSConstants
 
-
-type history = {
-  handshake: HSFragment.stream // Handshake.stream;
-  alert: HSFragment.stream // Alert.stream;
-  ccs: HSFragment.stream // Handshake.stream;
-  appdata: DataStream.stream // AppData.stream;
-}
-
 type fragment =
     | FHandshake of HSFragment.fragment // Handshake.fragment
     | FCCS of HSFragment.fragment // Handshake.ccsFragment
@@ -20,12 +12,19 @@ type fragment =
     | FAppData of AppFragment.fragment // AppData.fragment
 type plain = fragment
 
+type history = {
+  handshake: HSFragment.stream // Handshake.stream;
+  ccs:       HSFragment.stream // Handshake.stream;
+  alert:     HSFragment.stream // Alert.stream;
+  appdata: DataStream.stream   // AppData.stream;
+}
+
 let emptyHistory ki =
     let es = HSFragment.init ki in
     let ehApp = DataStream.init ki in
       { handshake = es;
-        alert = es;
         ccs = es;
+        alert = es;
         appdata = ehApp} in
 
 let plain ki (ct:ContentType) (h:history) (rg:range) b = 
@@ -34,7 +33,6 @@ let plain ki (ct:ContentType) (h:history) (rg:range) b =
     | Change_cipher_spec -> FCCS(HSFragment.fragmentPlain ki rg b)
     | Alert ->              FAlert(HSFragment.fragmentPlain ki rg b)
     | Application_data ->   FAppData(AppFragment.plain ki rg b)
-
 
 let reprFragment ki (ct:ContentType) (rg:range) frag =
     match frag with
@@ -66,7 +64,7 @@ let RecordPlainToAppPlain    (e:epoch) (h:history) (r:range) ff =
     | FAppData(f) -> f
     | _ -> unexpectedError "[RecordPlainToAppPlain] invoked on an invalid fragment"
 
-let addToHistory (e:epoch) ct ss r frag =
+let extendHistory (e:epoch) ct ss r frag =
   match ct,frag with
     | Handshake,FHandshake(f) ->
         let s' = HSFragment.extend e ss.handshake r f in
@@ -80,4 +78,4 @@ let addToHistory (e:epoch) ct ss r frag =
     | Application_data,FAppData(f) ->
         let d,s' = AppFragment.delta e ss.appdata r f in
           {ss with appdata = s'}
-    | _,_ -> unexpectedError "[addToHistory] invoked on an invalid contenttype/fragment"
+    | _,_ -> unexpectedError "[extendHistory] invoked on an invalid contenttype/fragment"
