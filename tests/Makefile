@@ -13,9 +13,9 @@ uname_V := $(shell sh -c 'uname -v 2>/dev/null || echo not')
 
 # --------------------------------------------------------------------
 all: pki.built
-ifneq ($(uname_O),Cygwin)
-	$(MAKE) -C c-stub
-endif
+	if [ "$(uname_O)" != "Cygwin" ]; then \
+	  $(MAKE) -C c-stub; \
+	fi
 	./test-suite.py
 
 pki.built:
@@ -29,4 +29,7 @@ pki.built:
 # --------------------------------------------------------------------
 clean:
 	$(MAKE) -C pki clean
+	if [ "$(uname_O)" != "Cygwin" ]; then \
+	  $(MAKE) -C c-stub clean; \
+	fi
 	rm -f pki.built
