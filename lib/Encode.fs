@@ -16,8 +16,7 @@ type parsed =
      tag:   tag
      ok:    bool}
 
-//CF ideal-only
-//CF where should it be?
+//CF ideal-only; should exist somewhere else
 let safe (e:epoch) : bool = failwith "spec only" 
 let zeros rg = let _,max = rg in createBytes max 0
 

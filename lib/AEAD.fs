@@ -141,7 +141,7 @@ let encrypt' e key data rg plain =
             let tag  = Encode.mac e ka data rg plain in
             let tlen = rangeCipher e rg in
             let ivL  = ivLength e in
-            let encoded  = Encode.encode e tlen rg data plain tag in
+            let encoded  = Encode.encode e ivL tlen rg data plain tag in
             let (ke,res) = ENC.ENC e ke tlen encoded 
             (MtE(ka,ke),res)
     | (x,MACOnly (ka)) when isOnlyMACCipherSuite x ->
