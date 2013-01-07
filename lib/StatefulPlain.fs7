@@ -3,10 +3,6 @@ open Bytes
 open TLSConstants
 open TLSInfo
 
-//------------------------------------------------------------------------------------------------------
-// `Plain' interface towards StatefulAEAD, encapsulating TLS-specific headers and content types
-//------------------------------------------------------------------------------------------------------
-
 (* The record header includes the CT and the protocol version if > SSL3. *)
 
 function val ADLength: epoch -> nat
@@ -32,6 +28,7 @@ private type (;e:epoch,ad:(;e)adata,r:range) fragment = {contents: (;e,ParseAD(e
 
 private type (;e:epoch) prehistory = (ad:(;e)adata * r:range * f:(;e,ad,r)fragment) list
 
+// The message sequence number (kept independently, as this is not ghost state)
 function val HLength: e:epoch * (;e)prehistory -> nat
 private definition !e.          HLength(e,[]) = 0
 private definition !e,h,ad,r,f. HLength(e,(ad,r,f)::h) = HLength(e,h)+1
@@ -40,7 +37,7 @@ predicate StAEHistory of e:epoch * (;e)prehistory
 
 type (;e:epoch)history = (sn:nat * ph:(;e)prehistory){sn = HLength(e,ph) /\ (Auth(e) => StAEHistory(e,ph))}
 function val SeqN: e:epoch * (;e)history -> nat
-assume !e,sn,h. SeqN(e,(sn,h)) = sn
+definition !e,sn,h. SeqN(e,(sn,h)) = sn
 predicate EmptyHistory of e:epoch * (;e) history
 function val ExtendHistory: e:epoch * ad:(;e) adata * h:(;e) history * r:range * (;e,ad,r) fragment -> 'a //(;e)history
 private definition !e,h. EmptyHistory(e,h) <=> h = (0,[])
@@ -50,44 +47,49 @@ predicate StAESent of e:epoch * ad:(;e)adata *  h:(;e)history * r:range * (;e,ad
 
 private definition !e. StAEHistory(e,[])
 private definition !e,ad,sn,h,r,f. StAEHistory(e,h) /\ StAESent(e,ad,(sn,h),r,f) => StAEHistory(e,(ad,r,f)::h)
+//CF how do we prove this?
 theorem !e,ad,sn,h,r,f. StAESent(e,ad,(sn,h),r,f) => (StAEHistory(e,h) /\ HLength(e,h) = sn)
 
 function val StAEToRecord: e:epoch * ct:ContentType * r:range * f:(;e,ADBytes(e,ct),r)fragment -> 'a // (;e,ct,r)TLSFragment.fragment
 private definition !e,ct,r,f. StAEToRecord(e,ct,r,f) = f.contents 
 function val Multiplexed: e:epoch * (;e) history -> 'b //(;e)TLSFragment.history
-definition !e,sh,h. EmptyHistory(e,sh) /\
+private definition !e,sh,h. EmptyHistory(e,sh) /\
    TLSFragment.EmptyHistory(e,h) => h = Multiplexed(e,sh)
-definition !e,sh,sh',h,ct,r,f. 
+private definition !e,sh,sh',h,ct,r,f. 
   (sh' = ExtendHistory(e,ADBytes(e,ct),sh,r,f) /\
    h = Multiplexed(e,sh)) => 
   (Multiplexed(e,sh') = TLSFragment.ExtendHistory(e,ct,h,r,StAEToRecord(e,ct,r,f)))
+
+private definition !e,sh,ct,r,f. 
+	StAESent(e,ADBytes(e,ct),sh,r,f) <=> TLSFragment.RecordSent(e,ct,Multiplexed(e,sh),r,f.contents)
+
+//------------------------------------------------------------------------------------------------------
+// `Plain' interface towards StatefulAEAD, encapsulating TLS-specific headers and content types
+//------------------------------------------------------------------------------------------------------
 
 type (;e:epoch,ad:(;e)adata,h:(;e)history,r:range) plain =
 	f:(;e,ad,r)fragment{Auth(e) => StAESent(e,ad,h,r,f)}
 
 val plain:        e:succEpoch{not Auth(e)} -> h:(;e)history -> ad:(;e)adata -> r:range -> (;r)rbytes -> (;e,ad,h,r) plain
-val reprFragment: e:succEpoch{not Safe(e)} -> ad:(;e)adata -> r:range -> (;e,ad,r) fragment -> (;r)rbytes
 val repr:         e:succEpoch{not Safe(e)} -> h:(;e)history -> ad:(;e)adata -> r:range -> (;e,ad,h,r) plain -> (;r)rbytes
+val reprFragment: e:succEpoch{not Safe(e)} -> ad:(;e)adata -> r:range -> (;e,ad,r) fragment -> (;r)rbytes
 
 //------------------------------------------------------------------------------------------------------
 // `internal' interface towards TLSFragment
 //------------------------------------------------------------------------------------------------------
 
 val emptyHistory: e:epoch -> h:(;e)history{EmptyHistory(e,h)}
-private val consHistory: e:epoch -> h:(;e)prehistory ->
-	ad:(;e)adata -> r:range -> x:(;e,ad,r)fragment ->
-	h':(;e)prehistory{h' = (ad,r,x)::h}
 val extendHistory: e:epoch -> ad:(;e)adata ->
 	h:(;e)history -> r:range -> f:(;e,ad,h,r)plain ->
 	h':(;e)history{h' = ExtendHistory(e,ad,h,r,f)}
 
-private theorem !e,sh,ct,r,f. 
-	StAESent(e,ADBytes(e,ct),sh,r,f) <=> TLSFragment.RecordSent(e,ct,Multiplexed(e,sh),r,f.contents)
-
-
 //------------------------------------------------------------------------------------------------------
 // Auxiliary Definitions and Assumes for Typing
 //------------------------------------------------------------------------------------------------------
+
+private val consHistory: e:epoch -> h:(;e)prehistory ->
+	ad:(;e)adata -> r:range -> x:(;e,ad,r)fragment ->
+	h':(;e)prehistory{h' = (ad,r,x)::h}
 
 // Sent grows linearly
 // assume !e.          Sent(e,(0,[]))
@@ -97,6 +99,7 @@ private theorem !e,sh,ct,r,f.
 //CF usage? 
 assume !e,ad,h,h',r,f. (Auth(e) /\ StAEHistory(e,h) /\ StAEHistory(e,h') /\ HLength(e,h) = HLength(e,h')) => h = h'
 
+//CF usage? 
 val RecordPlainToStAEPlain: e:succEpoch -> ct:ContentType -> h:(;e) TLSFragment.history ->
 	st:(;e) history{h = Multiplexed(e,st)} -> rg:range -> 
 	f:(;e,ct,h,rg) TLSFragment.plain -> 
