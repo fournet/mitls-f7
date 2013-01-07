@@ -1,6 +1,6 @@
 ﻿module TLSFragment
 
-(* Multiplexing the 4 content types used by TLS *) 
+(* Multiplexing the 4 content types used by TLS (some bureaucracy) *) 
 
 open Bytes
 open TLSInfo
@@ -25,7 +25,7 @@ private type (;e:epoch) history = {
 
 function val HandshakeHistory: e:epoch * (;e) history -> 'a //(;e)HSFragment.stream
 function val   AppDataHistory: e:epoch * (;e) history -> 'a //(;e)DataStream.stream
-function val     AlertHistory: e:epoch * (;e) history -> 'a // (;e)HSFragment.stream
+function val     AlertHistory: e:epoch * (;e) history -> 'a //(;e)HSFragment.stream
 function val       CCSHistory: e:epoch * (;e) history -> 'a //(;e)HSFragment.stream
 
 private definition !e,h. HandshakeHistory(e,h) = h.handshake
@@ -42,7 +42,7 @@ private definition !e,ct,h,rg,d.
     (?f. ct=Application_data   /\ d = FAppData(f)   /\ AppFragment.Sent(e,AppDataHistory(e,h),rg,f)))
 
 type (;e:epoch,ct:ContentType,h:(;e)history,rg:range) plain = 
-  f:(;e,ct,rg)fragment {(Auth(e) => RecordSent(e,ct,h,rg,f))}
+  f:(;e,ct,rg)fragment { Auth(e) => RecordSent(e,ct,h,rg,f) }
 
 function val ExtendHistory: e:epoch * ct:ContentType * ss:(;e)history * r:range * (;e,ct,r)fragment -> 'a //(;e)history
 

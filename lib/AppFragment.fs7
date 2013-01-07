@@ -3,12 +3,21 @@ open Bytes
 open TLSInfo
 open DataStream
 
+(* Application fragments are defined from DataStream as pairs (s,d) 
+   where s is a stream & d is a delta indexed by it. We also set up
+   predicates & functions to re-index with/without s. *) 
+
+//CF an event recording the creation of any fragment, assumed in fragment. What for?
 predicate DeltaFragment of ki:epoch * s:(;ki) stream * r:range * (;ki,s,r)delta
-private type (;ki:epoch,r:range) fragment = {frag: (s:(;ki)stream * d:(;ki,s,r) delta{Auth(ki) => DeltaFragment(ki,s,r,d)})}
+private type (;ki:epoch,r:range) fragment = 
+  {frag: (s:(;ki)stream * d:(;ki,s,r) delta{ Auth(ki) => DeltaFragment(ki,s,r,d)}) }
+
 function val Extend: 'a * 'b * 'c * 'd -> 'e
+private definition !ki,s,r,s',d. 
+  Extend(ki,s,r,{frag = (s',d)}) = ExtendStream(ki,s,r,d)
 
 predicate Sent of ki:epoch * (;ki) stream * r:range * (;ki,r)fragment
-private assume !ki,s,r,f. Sent(ki,s,r,f) <=> 
+private definition !ki,s,r,f. Sent(ki,s,r,f) <=> 
   (?d. f.frag = (s,d) /\ DeltaFragment(ki,s,r,d))
 
 type (;e:epoch,s:(;e)stream,r:range)plain = f:(;e,r) fragment{Auth(e) => Sent(e,s,r,f)}
@@ -22,6 +31,7 @@ val delta: ki:epoch -> s:(;ki) stream -> r:range ->
   f:(;ki,r) fragment{Auth(ki) => Sent(ki,s,r,f)} -> 
   d:(;ki,s,r) delta * s':(;ki) stream{s' = Extend(ki,s,r,f)}
 
+//CF what for?
 val delta': ki:epoch -> s:(;ki) stream -> r:range -> 
   f:(;ki,r) fragment{not Auth(ki)} -> 
   d:(;ki,s,r) delta * s':(;ki) stream{s' = ExtendStream(ki,s,r,d)}
@@ -29,13 +39,9 @@ val delta': ki:epoch -> s:(;ki) stream -> r:range ->
 val plain: ki:epoch{not Auth(ki)} -> r:range -> (;r) rbytes -> (;ki,r) fragment
 val repr:  ki:epoch{not Safe(ki)} -> r:range -> (;ki,r) fragment -> (;r) rbytes
 
-//CF: This is *not* valid because of empty fragments; 
-//CF: instead we may have to record in stream a sequence of bytes, rather than their concatenation.
-
+//CF where do we use this theorem?
 private theorem !ki,s,r1,r2,f1,f2. 
   DeltaFragment(ki,s,r1,f1) /\ DeltaFragment(ki,s,r2,f2) => (r1 = r2 /\ f1 = f2)
-private definition !ki,s,r,s',d. 
-  Extend(ki,s,r,{frag = (s',d)}) = ExtendStream(ki,s,r,d)
 
 
  

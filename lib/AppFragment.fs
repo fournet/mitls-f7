@@ -16,19 +16,19 @@ let fragment ki s r d =
     Pi.assume (DeltaFragment(ki,s,r,d));
 #endif
     let s' = append ki s r d in
-    f,s'
+    (f,s')
 
 let delta ki s r f = 
-  let (s',d) = f.frag in
-  let s'' = append ki s r d in 
-    d,s''
+    let (s',d) = f.frag in
+    let s'' = append ki s r d in 
+    (d,s'')
 
 let delta' ki s r f = 
-  let (s',d) = f.frag in
-  let b = DataStream.deltaRepr ki s' r d in
-  let d = DataStream.deltaPlain ki s r b in
-  let s'' = append ki s r d in 
-    d,s''
+    let (s',d) = f.frag in
+    let b = DataStream.deltaRepr ki s' r d in
+    let d = DataStream.deltaPlain ki s r b in
+    let s'' = append ki s r d in 
+    (d,s'')
 
 let plain ki r b =
   let s = DataStream.init ki in
