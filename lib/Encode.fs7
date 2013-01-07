@@ -11,10 +11,11 @@ open TLSConstants
 //CF ideal only
 private val safe: e:epoch -> r:bool { r = true <=> Safe(e) }
 private val zeros: rg:range -> b:(;rg) rbytes  
-private val payload: 
-  e:succEpoch -> r:range -> ad:(;e)AEADPlain.adata -> f:(;e,ad,r)AEADPlain.plain -> b:(;r) rbytes
 
-//CF we miss a logical function Repr(e,r,ad,f: AEADPlain.plain) : (;r) rbytes  
+//CF we miss this logical function, to be relocated as a postcondition of AEAD.repr and AEAD.plain
+function val Payload: e:epoch * r:range * ad:(;e)AEADPlain.adata * f:(;e,ad,r)AEADPlain.plain -> 'rbytes //(;r) rbytes
+private val payload: e:succEpoch -> r:range -> ad:(;e)AEADPlain.adata -> f:(;e,ad,r)AEADPlain.plain -> b:(;r) rbytes
+  { b = Payload(e,r,ad,f) }
 
 //------------------------------------------------------------------------------------------------------
 // Interface towards ENC (abstract)
@@ -34,7 +35,7 @@ val repr:  e:epoch{not Safe(e)} -> tlen:nat -> (;e,tlen) plain -> b:bytes{Length
 //------------------------------------------------------------------------------------------------------
 //CF cut: type (;e:epoch) adata = (;e)AEADPlain.adata
 
-// Result of MAC
+// the MAC tags 
 //CF added a length refinement; this abstract type protects secrecy 
 private type (;e:succEpoch) tag = {macT: (;e) MAC.tag } 
 
@@ -44,15 +45,17 @@ private type (;e:epoch,ad:(;e)AEADPlain.adata,rg:range) parsed =
 	  tag  : (;e)tag;
 	  ok   : bool (* true iff decoding succeeded *) }
 
-//CF usage unclear; should be structural. Undefined for now. 
-function val MACPlain : 'a * 'b * 'c * 'd -> 'e
-
 // the MACed bytes, i.e. ad @| 2-byte length of payload @| payload 
+//CF should ask some injectivity
+
+function val MACPlain : 'a * 'b * 'c * 'd -> 'e
+private definition !e,r,ad,f,b. MACPlain(e,r,ad,f) = ad @| VLBytes(2,Payload(e,r,ad,f))
 val macPlain: e:succEpoch -> r:range -> 
   ad:(;e)AEADPlain.adata -> f:(;e,ad,r)AEADPlain.plain -> b:bytes{b = MACPlain(e,r,ad,f)}
 
-//CF the MAC tag; undefined for now; overlaps with MAC.Msg ?
+//CF MACed is undefined for now; just added a placeholder def; overlaps with MAC.Msg ? omit the key?
 predicate MACed of e:epoch * (;e) MAC.key * ad:(;e)AEADPlain.adata * rg:range * (;e,ad,rg)AEADPlain.plain * (;e) tag
+private definition !e,k,rg,ad,p,m. MACed(e,k,ad,rg,p,m) 
 
 val mac: e:succEpoch -> k:(;e) MAC.key ->
   ad:(;e)AEADPlain.adata -> rg:range ->
@@ -67,9 +70,10 @@ val verify: e:succEpoch -> k:(;e) MAC.key ->
 predicate type preds = CipherRange of epoch * range * nat // declared here, defined in AEAD
 predicate val Encoded: 'e * 'a * 'b * 'c * 'd -> bool
 
-private val pad: l:int -> b:bytes{Length(b) = l}
+private val pad: l:int { 0 < l /\ l <= 256 } -> b:bytes{Length(b) = l}
 //CF we will need a more precise refinement for the MEE proof 
 
+//Cf why not extracting ivL from e? we need finer formulas for the pad computation.
 val encode: e:succEpoch{IsAEADCiphersuite(EpochSI(e).cipher_suite)} ->
 	ivL:nat -> tlen:nat{tlen <= max_TLSCipher_fragment_length} -> rg:range{CipherRange(e,rg,tlen)} ->
 	ad:(;e) AEADPlain.adata -> pl:(;e,ad,rg) AEADPlain.plain -> tag:(;e) tag ->
@@ -100,16 +104,16 @@ val decodeNoPad: e:succEpoch{IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/
 //------------------------------------------------------------------------------------------------------
 
 function val MsgBytes: e:epoch * (;e) AEADPlain.adata * bytes -> bytes
-private assume !e,ad,x. MsgBytes(e,ad,x) = (ad @| IntBytes(2,Length(x))) @| x 
+private assume !e,ad,x. MsgBytes(e,ad,x) = ad @| VLBytes(2,x)
 private ask !e,ad1,x1,ad2,x2. (Length(ad1) = Length(ad2) /\
                         MsgBytes(e,ad1,x1) = MsgBytes(e,ad2,x2)) => 
                        (ad1 = ad2 /\ x1=x2)
 
-//CF this seems too weak: no constraint on x!
+//CF this was too weak: no constraint on f! patched
 private assume !e,pl. MAC.Msg(e,pl) <=>
   (not Auth(e) \/
-     (?ad,x. Length(ad) = 8 + StatefulPlain.ADLength(e) /\
-	  pl = MsgBytes(e,ad,x)))
+     (?ad,r,f. Length(ad) = 8 + StatefulPlain.ADLength(e) /\
+	  pl = MACPlain(e,r,ad,f)))
 
 ask !e,t. not Auth(e) => MAC.Msg(e,t)
 

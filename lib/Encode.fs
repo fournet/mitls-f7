@@ -29,13 +29,11 @@ let payload (e:epoch) (rg:range) ad f =
     zeros rg
   else
   #endif
-    AEADPlain.repr e ad rg f in
+    AEADPlain.repr e ad rg f 
 
 let macPlain (e:epoch) (rg:range) ad f =
     let b = payload e rg ad f
-    let fLen = bytes_of_int 2 (length b) in
-    let fullData = ad @| fLen in 
-    fullData @| b
+    ad @| vlbytes 2 b
 
 let mac e k ad rg plain =
     let text = macPlain e rg ad plain in
@@ -44,7 +42,7 @@ let mac e k ad rg plain =
 let verify e k ad rg parsed =
     let si = epochSI(e) in
     let pv = si.protocol_version in
-    let text = macPlain e rg ad parsed.plain in
+    let text = payload e rg ad parsed.plain in
     let tag  = parsed.tag in
     match pv with
     | SSL_3p0 | TLS_1p0 ->
@@ -86,6 +84,7 @@ let encode (e:epoch) ivL (tlen:nat) rg (ad:AEADPlain.adata) data tag =
     let lb = length b in
     let lm = length tag.macT in
     let pl = tlen - lb - lm - ivL
+    //CF here we miss refinements to prove 0 < pl <= 256
     let payload = b @| tag.macT @| pad pl
     if length payload <> tlen - ivL then
         Error.unexpectedError "[encode] Internal error."
