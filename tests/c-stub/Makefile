@@ -55,10 +55,10 @@ SOURCES = \
 	echo.c
 
 # --------------------------------------------------------------------
-all: echo$(EXE)
+all: $(CROSS)echo$(EXE)
 
-echo$(EXE): $(SOURCES)
+$(CROSS)echo$(EXE): $(SOURCES)
 	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(LIBS)
 
 clean:
-	rm -f echo
+	rm -f $(CROSS)echo$(EXE)
