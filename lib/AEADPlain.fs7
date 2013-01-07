@@ -13,7 +13,7 @@ type (;e:epoch) adata = (b:bytes){Length(b) = 8 + StatefulPlain.ADLength(e)}
 function val MakeAD:  e:epoch * (;e)StatefulPlain.history * (;e)StatefulPlain.adata -> 'a // (;e)adata
 private definition !e,h,ad. MakeAD(e,h,ad) = IntBytes(8,StatefulPlain.SeqN(e,h)) @| ad
 function val ParseAD: e:epoch * (;e)adata -> 'a //(;e)StatefulPlain.adata
-private assume !e,b,ad. Length(b) = 8 => ParseAD(e,b@|ad) = ad
+private definition !e,b,ad. Length(b) = 8 => ParseAD(e,b@|ad) = ad
 
 ask !e,h,ad. ParseAD(e,MakeAD(e,h,ad)) = ad
 
@@ -26,15 +26,8 @@ predicate AEADSent of e:epoch * ad:(;e)adata * r:range * (;e,ad,r)fragment
 type (;e:epoch,ad:(;e)adata,r:range) plain = f:(;e,ad,r)fragment{ Auth(e) => AEADSent(e,ad,r,f) }
 
 val plain: e:succEpoch{not Auth(e)} -> ad:(;e)adata -> r:range -> (;r)rbytes -> (;e,ad,r) plain
-private val reprFragment:  e:succEpoch{not Safe(e)} -> ad:(;e)adata -> r:range -> (;e,ad,r) fragment -> (;r)rbytes
 val repr:  e:succEpoch{not Safe(e)} -> ad:(;e)adata -> r:range -> (;e,ad,r) plain -> (;r)rbytes
-
-//CF 22/4: needs discussion
-
-//private assume !e,ad,r,x. AEADSent(e,ad,r,x) <=> (?h,ad'. 
-//  ad = MakeAD(e,h,ad') /\ StatefulPlain.StAESent(e,ad',h,r,x.contents))
-
-//private assume !e,h,ad,r,f. AEADSent(e,MakeAD(e,h,ad),r,f) <=> StatefulPlain.StAESent(e,ad,h,r,f.contents)
+private val reprFragment:  e:succEpoch{not Safe(e)} -> ad:(;e)adata -> r:range -> (;e,ad,r) fragment -> (;r)rbytes
 
 private definition !e,lad,r,f. 
   AEADSent(e,lad,r,f) <=> 
@@ -42,7 +35,6 @@ private definition !e,lad,r,f.
 
 private ask !e,r,f,lad. (Auth(e) /\ (?had,sn,ph. MakeAD(e,(sn,ph),had) = lad /\ StatefulPlain.StAESent(e,had,(sn,ph),r,f.contents)) ) => 
                         (!had', sn', ph'. MakeAD(e,(sn',ph'),had') = lad /\ StatefulPlain.StAEHistory(e,ph') /\ StatefulPlain.HLength(e,ph') = sn' => StatefulPlain.StAESent(e,had',(sn',ph'),r,f.contents))
-
 
 ask !e,ad,sn,ph,ad',r,x. (ad = MakeAD(e,(sn,ph),ad') /\ StatefulPlain.StAESent(e,ad',(sn,ph),r,x.contents)) => AEADSent(e,ad,r,x)
 

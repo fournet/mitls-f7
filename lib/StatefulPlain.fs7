@@ -9,6 +9,7 @@ function val ADLength: epoch -> nat
 private definition !e. 
     (EpochSI(e).protocol_version = SSL_3p0  /\ ADLength(e) = 1) \/
 	(EpochSI(e).protocol_version <> SSL_3p0 /\ ADLength(e) = 3)
+ask !e. 0 <= ADLength(e) // needed for parsing and not entailed by ADLength's type
 
 type (;e:epoch) adata = (b:bytes){Length(b) = ADLength(e)} 
 
@@ -53,9 +54,9 @@ theorem !e,ad,sn,h,r,f. StAESent(e,ad,(sn,h),r,f) => (StAEHistory(e,h) /\ HLengt
 function val StAEToRecord: e:epoch * ct:ContentType * r:range * f:(;e,ADBytes(e,ct),r)fragment -> 'a // (;e,ct,r)TLSFragment.fragment
 private definition !e,ct,r,f. StAEToRecord(e,ct,r,f) = f.contents 
 function val Multiplexed: e:epoch * (;e) history -> 'b //(;e)TLSFragment.history
-private definition !e,sh,h. EmptyHistory(e,sh) /\
+definition !e,sh,h. EmptyHistory(e,sh) /\
    TLSFragment.EmptyHistory(e,h) => h = Multiplexed(e,sh)
-private definition !e,sh,sh',h,ct,r,f. 
+definition !e,sh,sh',h,ct,r,f. 
   (sh' = ExtendHistory(e,ADBytes(e,ct),sh,r,f) /\
    h = Multiplexed(e,sh)) => 
   (Multiplexed(e,sh') = TLSFragment.ExtendHistory(e,ct,h,r,StAEToRecord(e,ct,r,f)))

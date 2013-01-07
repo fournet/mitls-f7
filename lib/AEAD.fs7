@@ -14,13 +14,13 @@ private type (;ki:epoch) AEADKey =
     | MACOnly of (;ki) MAC.key
 (*  | GCM of ke:(;ki:AENC.state)  *)
 
-// TODO: Define AEADSize. 
-// In the code, (AEADSize * 2) is computed in TLSConstants.getKeyExtensionLength
+// TODO Define AEADSize. 
+// TODO In the code, (AEADSize * 2) is computed in TLSConstants.getKeyExtensionLength
 
 function val IVSize: epoch -> nat
 val ivLength: e:succEpoch -> l:nat{l=IVSize(e)}
 function val AEADSize: ki:epoch -> nat
-private assume !ki,si. si = EpochSI(ki) =>
+private definition !ki,si. si = EpochSI(ki) =>
 	( IsOnlyMACCiphersuite(si.cipher_suite) =>
 	  AEADSize(ki) = HashSize(TLSConstants.CipherSuiteMACAlg(si.cipher_suite)) ) /\
 	( IsAEADCiphersuite(si.cipher_suite) =>
@@ -76,7 +76,7 @@ val encrypt : ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   ((;ki) AEADKey * c:cipher){Encode.CipherRange(ki,rg,Length(c)) /\
                              ((* Safe(ki) => *) CTXT(ki,ad,p,c))}
 
-//CF unclear whether the log should include the plaintext; trying without
+//CF unclear whether the log should include the plaintext; tried without, should rollback...
 type entry = ki:succEpoch * ad:(;ki) AEADPlain.adata * c:ENC.cipher { ?p. CTXT(ki,ad,p,c) }
 private val log: entry list ref
 private val cmem: ki:succEpoch -> ad:(;ki)AEADPlain.adata -> c:cipher ->  
@@ -95,7 +95,7 @@ val decrypt': ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
 val decrypt : ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   c:cipher -> res: 
   ( ((;ki) AEADKey *  rg:range * (;ki,ad,rg) AEADPlain.plain)) Result
-   {(!k,r,p. res = Correct((ki,r,p)) => Encode.CipherRange(ki,r,Length(c))) /\
+   {(!k,r,p. res = Correct((k,r,p)) => Encode.CipherRange(ki,r,Length(c))) /\
     (Auth(ki) => 
         ((!k,r,p. res = Correct((k,r,p)) => CTXT(ki,ad,p,c)) /\
          (!p. CTXT(ki,ad,p,c) => (?k,r. res = Correct((k,r,p))))))}

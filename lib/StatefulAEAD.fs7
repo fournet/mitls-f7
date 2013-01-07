@@ -9,7 +9,7 @@ open TLSInfo
 
 private type (;ki:epoch) prestate = {
   key    : (;ki) AEAD.AEADKey;         // possibly stateful
-  history: (;ki) StatefulPlain.history // ghost state, except for the derived sequence number
+  history: (;ki) StatefulPlain.history // ghost state, except for the sequence number
 }
 
 predicate State of ki:epoch * (;ki)prestate
@@ -27,9 +27,9 @@ type (;ki:epoch) reader = r:(;ki) state
 type (;ki:epoch) writer = w:(;ki) state
 
 //CF 21/4 patched, pls check; rediscuss COERCE/LEAK 
-val GEN:    ki:succEpoch{Safe(ki)}         -> (;ki) reader * (;ki)writer
+val GEN:    ki:succEpoch{Safe(ki)}     -> (;ki) reader * (;ki)writer
 val COERCE: ki:succEpoch{not Auth(ki)} -> b:bytes{Length(b)=AEAD.AEADSize(ki)} -> (;ki)state
-val LEAK:   ki:succEpoch{not Auth(ki)}     -> (;ki)state -> b:bytes
+val LEAK:   ki:succEpoch{not Auth(ki)} -> (;ki)state -> b:bytes
 
 val history: ki:epoch -> s:(;ki) state -> h:(;ki)StatefulPlain.history{h=History(ki,s)}
 
