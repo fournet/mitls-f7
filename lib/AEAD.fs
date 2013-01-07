@@ -8,6 +8,8 @@ open Error
 
 type cipher = bytes
 
+(***** keying *****) 
+
 type AEADKey =
     | MtE of MAC.key * ENC.state
     | MACOnly of MAC.key
@@ -52,6 +54,8 @@ let LEAK e k =
     | MtE(mk,ek) ->
         let (k,iv) = ENC.LEAK e ek in
         MAC.LEAK e mk @| k @| iv
+
+(***** authenticated encryption *****)
 
 let ivLength e =
     let si = epochSI(e) in

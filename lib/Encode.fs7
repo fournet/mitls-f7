@@ -8,6 +8,14 @@ open Error
 open TLSInfo
 open TLSConstants
 
+//CF ideal only
+private val safe: e:epoch -> r:bool { r = true <=> Safe(e) }
+private val zeros: rg:range -> b:(;rg) rbytes  
+private val payload: 
+  e:succEpoch -> r:range -> ad:(;e)AEADPlain.adata -> f:(;e,ad,r)AEADPlain.plain -> b:(;r) rbytes
+
+//CF we miss a logical function Repr(e,r,ad,f: AEADPlain.plain) : (;r) rbytes  
+
 //------------------------------------------------------------------------------------------------------
 // Interface towards ENC (abstract)
 //------------------------------------------------------------------------------------------------------
@@ -15,31 +23,35 @@ open TLSConstants
 // a function from public length of ciphertext to public length of encoded plaintext 
 // (either identity, or minus iv length)
 //CF still TBD!
-function val PlainLength: e:epoch * tlen:nat -> plen:nat
+function val PlainLength: epoch * nat -> nat
 private type (;e:epoch,tlen:nat) plain = {p: (x:bytes){Length(x) = PlainLength(e,tlen) /\ tlen <= max_TLSCipher_fragment_length}}
 
 val plain: e:epoch{not Auth(e)} -> tlen:nat{tlen <= max_TLSCipher_fragment_length} -> b:bytes{Length(b) = PlainLength(e,tlen)} -> (;e,tlen) plain
 val repr:  e:epoch{not Safe(e)} -> tlen:nat -> (;e,tlen) plain -> b:bytes{Length(b) = PlainLength(e,tlen)}
 
 //------------------------------------------------------------------------------------------------------
-// Interface towards AEAD (concrete)
+// Interface towards AEAD 
 //------------------------------------------------------------------------------------------------------
 //CF cut: type (;e:epoch) adata = (;e)AEADPlain.adata
 
 // Result of MAC
-//CF added a length refinement; this type is probably an unnecessary indirection
+//CF added a length refinement; this abstract type protects secrecy 
 private type (;e:succEpoch) tag = {macT: (;e) MAC.tag } 
 
-// Result of decoding
+// Result of decoding; this abstract type protects secrecy
 private type (;e:epoch,ad:(;e)AEADPlain.adata,rg:range) parsed =
 	{ plain: (;e,ad,rg)AEADPlain.plain;
 	  tag  : (;e)tag;
 	  ok   : bool (* true iff decoding succeeded *) }
 
+//CF usage unclear; should be structural. Undefined for now. 
 function val MACPlain : 'a * 'b * 'c * 'd -> 'e
+
+// the MACed bytes, i.e. ad @| 2-byte length of payload @| payload 
 val macPlain: e:succEpoch -> r:range -> 
   ad:(;e)AEADPlain.adata -> f:(;e,ad,r)AEADPlain.plain -> b:bytes{b = MACPlain(e,r,ad,f)}
 
+//CF the MAC tag; undefined for now; overlaps with MAC.Msg ?
 predicate MACed of e:epoch * (;e) MAC.key * ad:(;e)AEADPlain.adata * rg:range * (;e,ad,rg)AEADPlain.plain * (;e) tag
 
 val mac: e:succEpoch -> k:(;e) MAC.key ->
@@ -89,14 +101,14 @@ val decodeNoPad: e:succEpoch{IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/
 
 function val MsgBytes: e:epoch * (;e) AEADPlain.adata * bytes -> bytes
 private assume !e,ad,x. MsgBytes(e,ad,x) = (ad @| IntBytes(2,Length(x))) @| x 
-private assume !e,ad1,x1,ad2,x2. (Length(ad1) = Length(ad2) /\
+private ask !e,ad1,x1,ad2,x2. (Length(ad1) = Length(ad2) /\
                         MsgBytes(e,ad1,x1) = MsgBytes(e,ad2,x2)) => 
                        (ad1 = ad2 /\ x1=x2)
 
 //CF this seems too weak: no constraint on x!
 private assume !e,pl. MAC.Msg(e,pl) <=>
   (not Auth(e) \/
-     (?ad,x. Length(ad) = (8 + StatefulPlain.ADLength(e)) /\
+     (?ad,x. Length(ad) = 8 + StatefulPlain.ADLength(e) /\
 	  pl = MsgBytes(e,ad,x)))
 
 ask !e,t. not Auth(e) => MAC.Msg(e,t)

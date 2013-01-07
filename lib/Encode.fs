@@ -16,10 +16,23 @@ type parsed =
      tag:   tag
      ok:    bool}
 
+//CF ideal-only
+//CF where should it be?
+let safe (e:epoch) : bool = failwith "spec only" 
+let zeros rg = let _,max = rg in createBytes max 0
+
+let payload (e:epoch) (rg:range) ad f = 
+  // After applying CPA encryption for ENC, 
+  // we access the fragment bytes only at unsafe indexes, and otherwise use some zeros
+  #if ideal 
+  if safe e then 
+    zeros rg
+  else
+  #endif
+    AEADPlain.repr e ad rg f in
+
 let macPlain (e:epoch) (rg:range) ad f =
-    //CF this is breaking abstraction! Not acceptable from AEAD
-    //CF intuitively, the MACed bytes should be as abstract as the content. 
-    let b = AEADPlain.repr e ad rg f in
+    let b = payload e rg ad f
     let fLen = bytes_of_int 2 (length b) in
     let fullData = ad @| fLen in 
     fullData @| b
@@ -55,7 +68,7 @@ let plain (e:epoch) (tlen:nat)  b = {p=b}
 let repr (e:epoch) (tlen:nat) pl = pl.p
 
 let encodeNoPad (e:epoch) (tlen:nat) rg (ad:AEADPlain.adata) data tag =
-    let b = AEADPlain.repr e ad rg data in
+    let b = payload e rg ad data in
     let (_,h) = rg in
     if h <> length b then
         Error.unexpectedError "[encodeNoPad] invoked on an invalid range."
@@ -69,7 +82,7 @@ let encodeNoPad (e:epoch) (tlen:nat) rg (ad:AEADPlain.adata) data tag =
 let pad (p:int)  = createBytes p (p-1)
 
 let encode (e:epoch) ivL (tlen:nat) rg (ad:AEADPlain.adata) data tag =
-    let b = AEADPlain.repr e ad rg data in
+    let b = payload e rg ad data in
     let lb = length b in
     let lm = length tag.macT in
     let pl = tlen - lb - lm - ivL
