@@ -82,7 +82,7 @@ private val log: entry list ref
 private val cmem: ki:succEpoch -> ad:(;ki)AEADPlain.adata -> c:cipher ->  
   entry list -> r:bool { r = true => ?p. CTXT(ki,ad,p,c) } 
 
-private val honest: ki:succEpoch -> b:bool { b = true <=> Auth(ki) }
+private val safe: ki:succEpoch -> b:bool { b = true <=> Auth(ki) }
 
 //CF a corollary of affine encryptions:
 assume !ki,d,p0,p1,c. (CTXT(ki,d,p0,c) /\ CTXT(ki,d,p1,c)) => p0 = p1
@@ -96,9 +96,10 @@ val decrypt : ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   c:cipher -> res: 
   ( ((;ki) AEADKey *  rg:range * (;ki,ad,rg) AEADPlain.plain)) Result
    {(!k,r,p. res = Correct((k,r,p)) => Encode.CipherRange(ki,r,Length(c))) /\
-    (Auth(ki) => 
-        ((!k,r,p. res = Correct((k,r,p)) => CTXT(ki,ad,p,c)) /\
-         (!p. CTXT(ki,ad,p,c) => (?k,r. res = Correct((k,r,p))))))}
+    (Safe(ki) => 
+        (   (!k,r,p. res = Correct((k,r,p)) => CTXT(ki,ad,p,c)) 
+		 /\ (!p. CTXT(ki,ad,p,c) => (?k,r. res = Correct((k,r,p))))
+		))}
 // The last two lines are equivalent to (but easier to verify than)
 // !p. CTXT(ki,ad,p,c) <=> (?k,r. res = Correct((k,r,p)))
 

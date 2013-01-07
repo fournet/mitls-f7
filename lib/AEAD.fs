@@ -225,7 +225,7 @@ let rec cmem (e:epoch) (ad:AEADPlain.adata) (c:ENC.cipher) (xs: entry list) =
   | _::xs                  -> cmem e ad c xs 
   | []                     -> false
 
-let honest (e:epoch) = failwith "todo"
+let safe (e:epoch) = failwith "todo"
 
 #endif
 
@@ -239,7 +239,7 @@ let encrypt e key data rg plain =
   
 let decrypt e (key: AEADKey) data (cipher: bytes) =  
   #if ideal
-  if honest e then
+  if safe e then
     if cmem e data cipher !log  
     then 
       // we know Auth(ki) and ?p. CTXT(e,data,p,cipher)
