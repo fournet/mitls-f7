@@ -137,10 +137,8 @@ static void _server_onerror(bufferevent_t *be, short what, void *arg) {
     if ((what & BEV_EVENT_ERROR)) {
         int rr = evutil_socket_geterror(bufferevent_getfd(be));
 
-        if (rr != ERR(ECONNRESET)) {
-            stelog(stream, LOG_ERROR, "error client / server: %s", strerror(rr));
-            goto bailout;
-        }
+        stelog(stream, LOG_ERROR, "communication error: %s", strerror(rr));
+        goto bailout;
     }
 
     if ((what & BEV_EVENT_EOF)) {

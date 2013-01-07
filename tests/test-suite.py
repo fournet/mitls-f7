@@ -1,8 +1,8 @@
 #! /usr/bin/env python
 
 # --------------------------------------------------------------------
-import sys, os, time, socket, shutil, tempfile, subprocess as sp, logging
-import lxml.etree as xml, cStringIO as sio
+import sys, os, time, socket, subprocess as sp, logging
+import ConfigParser as cp, StringIO as sio, shutil, tempfile
 
 # --------------------------------------------------------------------
 class Object(object):
@@ -10,23 +10,38 @@ class Object(object):
         self.__dict__.update(kw)
 
 # --------------------------------------------------------------------
-SCHEMA = '''\
-<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-  <xsd:element name="config" type="ConfigType"/>
-
-  <xsd:complexType name="ConfigType">
-    <xsd:sequence>
-      <xsd:element name="bind"     type="xsd:string" />
-      <xsd:element name="servname" type="xsd:string" />
-      <xsd:element name="versions" type="xsd:string" />
-      <xsd:element name="ciphers"  type="xsd:string" />
-    </xsd:sequence>
-  </xsd:complexType>
-</xsd:schema>
-'''
+OPENSSL_CIPHERS = {
+    'TLS_RSA_WITH_NULL_MD5'           : 'NULL-MD5'     ,
+    'TLS_RSA_WITH_NULL_SHA'           : 'NULL-SHA'     ,
+    'TLS_RSA_WITH_NULL_SHA256'        : None           ,
+    'TLS_RSA_WITH_RC4_128_MD5'        : 'RC4-MD5'      ,
+    'TLS_RSA_WITH_RC4_128_SHA'        : 'RC4-SHA'      ,
+    'TLS_RSA_WITH_3DES_EDE_CBC_SHA'   : 'DES-CBC3-SHA' ,
+    'TLS_RSA_WITH_AES_128_CBC_SHA'    : 'AES128-SHA'   ,
+    'TLS_RSA_WITH_AES_128_CBC_SHA256' : 'AES128-SHA256',
+    'TLS_RSA_WITH_AES_256_CBC_SHA'    : 'AES256-SHA'   ,
+    'TLS_RSA_WITH_AES_256_CBC_SHA256' : 'AES256-SHA256',
+}
 
 # --------------------------------------------------------------------
-def _check_for_config(cr, sr, config):
+class MI_MI_TLS(object):
+    miserver = True
+    miclient = True
+
+class MI_C_TLS(object):
+    miserver = False
+    miclient = True
+
+# --------------------------------------------------------------------
+def cygpath(mode, path):
+    command = ['cygpath', '-%s' % (mode,), path]
+    subp    = sp.Popen(command, stdout = sp.PIPE)
+    return subp.communicate()[0].splitlines()[0]
+
+# --------------------------------------------------------------------
+def _check_for_config(mode, config):
+    assert mode.miclient        # Non miTLS client unsupported
+
     subpc, subps = None, None
     sessiondir   = None
 
@@ -35,38 +50,53 @@ def _check_for_config(cr, sr, config):
         sessiondir = tempfile.mkdtemp()
         os.mkdir(os.path.join(sessiondir, 'client'))
         os.mkdir(os.path.join(sessiondir, 'server'))
-        logfile = os.path.join(sessiondir, 'log')
         logging.debug('...created [%s/{client,server}]' % (sessiondir,))
 
-        def build_command(refpgm, isclient):
-            mysessiondir = os.path.join(sessiondir, 'client' if isclient else 'server')
+        def build_command(mivendor, isclient):
+            assert not (not mivendor and isclient)
 
-            command  = ['./echo.py' if refpgm else '../bin/Echo.exe']
+            mysessiondir = os.path.join(sessiondir, 'client' if isclient else 'server')
+            win32        = sys.platform.lower() in ('cygwin', 'win32')
+            cipher       = config.cipher
+
+            if win32 and sys.platform.lower() == 'cygwin':
+                mysessiondir = cygpath('w', mysessiondir)
+
+            if not mivendor:
+                cipher = OPENSSL_CIPHERS[cipher]
+
+            if mivendor:
+                pgm = '../bin/Echo.exe'
+            else:
+                pgm = 'i686-pc-mingw32-echo.exe' if win32 else 'echo'
+                pgm = os.path.join('c-stub', pgm)
+
+            command  = [pgm]
             command += ['--address'      , str(config.address[0]),
                         '--port'         , str(config.address[1]),
-                        '--ciphers'      , config.cipher,
+                        '--ciphers'      , cipher,
                         '--tlsversion'   , config.version,
                         '--server-name'  , config.servname,
                         '--sessionDB-dir', mysessiondir]
-            if not refpgm:
-                if sys.platform.lower() not in ('cygwin', 'win32'):
-                    command = ['mono', '--debug'] + command
+
+            if not mivendor:
+                command += ['--pki', 'pki']
+
+            if mivendor and not win32:
+                command = ['mono', '--debug'] + command
+
             if isclient:
                 command += ['--client']
 
             return command
 
-        c_command = build_command(not cr, True )
-        s_command = build_command(not sr, False)
+        c_command = build_command(mode.miclient, True )
+        s_command = build_command(mode.miserver, False)
 
         logging.debug('Starting echo server [%s]' % (' '.join(s_command)))
 
         try:
-            subps = sp.Popen(s_command,
-                             stdout = os.open(logfile + '-s', 
-                                              os.O_WRONLY |
-                                              os.O_CREAT  |
-                                              os.O_TRUNC  ))
+            subps = sp.Popen(s_command)
         except OSError, e:
             logging.error('Cannot start echo server: %s' % (e,))
             return False
@@ -77,12 +107,7 @@ def _check_for_config(cr, sr, config):
         logging.debug('Starting echo client [%s]' % (' '.join(c_command)))
 
         try:
-            subpc = sp.Popen(c_command,
-                             stdin  = sp.PIPE,
-                             stdout = os.open(logfile + '-c',
-                                              os.O_WRONLY |
-                                              os.O_CREAT  |
-                                              os.O_TRUNC  ))
+            subpc = sp.Popen(c_command, stdin = sp.PIPE, stdout = sp.PIPE)
         except OSError, e:
             logging.error('Cannot start echo client: %s' % (e,))
             return False
@@ -95,17 +120,10 @@ def _check_for_config(cr, sr, config):
         DATA = 'dohj3do0aiF9eishilaiPh2aid2eidahch2eivaonevohmoovainazoo8Ooyoo9O'
 
         try:
-            subpc.stdin.write('%s\r\n' % DATA)
-            subpc.stdin.flush()
-            time.sleep(0.5)
-            subpc.stdin.close()
-            time.sleep(0.5)
+            contents = subpc.communicate(DATA)[0].splitlines()
         except (IOError, OSError), e:
             logging.error('Error while interacting with server: %s' % (e,))
             return False
-
-        contents = open(logfile + ('-c' if sr else '-s'), 'r').readlines()
-        contents = [x.strip() for x in contents]
 
         return DATA in contents
 
@@ -124,18 +142,30 @@ def _check_for_config(cr, sr, config):
     return True
 
 # --------------------------------------------------------------------
+DEFAULTS = '''\
+[config]
+bind     = 127.0.0.1:6000
+servname = cert-01.mitls.org
+versions = TLS_1p0
+ciphers  =  TLS_RSA_WITH_AES_128_CBC_SHA256
+ciphers  =  TLS_RSA_WITH_AES_256_CBC_SHA256
+'''
+
 def _main():
     logging.basicConfig(stream = sys.stderr,
                         level  = logging.DEBUG,
                         format = '%(asctime)-15s - %(levelname)s - %(message)s')
 
-    schema = xml.XMLSchema(xml.parse(sio.StringIO(SCHEMA)))
-    doc    = xml.parse(open('test-suite.xml', 'rb'))
+    parser = cp.ConfigParser()
+    parser.readfp(sio.StringIO(DEFAULTS))
+    if not parser.read('test-suite.ini'):
+        print >>sys.stderr, 'Cannot read configuration file'
+        exit(1)
 
-    bind     = doc.xpath('/config/bind/text()')[0]
-    servname = doc.xpath('/config/servname/text()')[0]
-    versions = doc.xpath('/config/versions/text()')[0].split()
-    ciphers  = doc.xpath('/config/ciphers/text()')[0].split()
+    bind     = parser.get('config', 'bind')
+    servname = parser.get('config', 'servname')
+    versions = parser.get('config', 'versions').split()
+    ciphers  = parser.get('config', 'ciphers').split()
 
     if ':' in bind:
         bind = tuple(bind.split(':', 1))
@@ -152,16 +182,18 @@ def _main():
         logging.fatal("cannot resolve `%s': %s" % (':'.join(bind), e))
         exit(1)
 
-    logging.info("Binding address is: `%s'" % ':'.join(map(str, bind)))
+    logging.info("Binding address is: %s" % ':'.join(map(str, bind)))
+    logging.info("Testing versions  : %s" % ', '.join(versions))
+    logging.info("Testing ciphers   : %s" % ', '.join(ciphers))
 
     nerrors = 0
 
     for cipher in ciphers:
         for version in versions:
-            for (cr, sr) in [(False, True), (True, False), (True, True)]:
+            for mode in (MI_C_TLS, MI_MI_TLS):
                 logging.info("Checking for cipher: `%s'" % (cipher,))
-                logging.info("* Client is miTLS: %r" % (cr,))
-                logging.info("* Server is miTLS: %r" % (sr,))
+                logging.info("* Client is miTLS: %r" % (mode.miclient,))
+                logging.info("* Server is miTLS: %r" % (mode.miserver,))
                 logging.info("* TLS version is : %s" % (version,))
     
                 config = Object(cipher   = cipher,
@@ -169,7 +201,7 @@ def _main():
                                 address  = bind,
                                 servname = servname)
 
-                success  = _check_for_config(cr, sr, config)
+                success  = _check_for_config(mode, config)
                 nerrors += int(not success)
 
                 if not success:

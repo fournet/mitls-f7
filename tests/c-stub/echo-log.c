@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------- */
 #include <sys/types.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include <log4c.h>
 #include <event.h>
@@ -25,6 +26,8 @@ void initialize_log4c(void) {
         if ((appender = log4c_appender_get("stderr")) != NULL)
             log4c_category_set_appender(logcat, appender);
     }
+
+    setvbuf(stderr, NULL, _IONBF, 0);
 }
 
 /* -------------------------------------------------------------------- */

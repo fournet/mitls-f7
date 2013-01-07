@@ -24,6 +24,9 @@ static event_base_t *evb = NULL;
 /* -------------------------------------------------------------------- */
 int main(int argc, char *argv[]) {
     options_t options;
+#ifdef WIN32
+    WSADATA WSAData;
+#endif
 
     initialize_log4c();
 
@@ -39,6 +42,12 @@ int main(int argc, char *argv[]) {
     if (options.debug)
         log4c_category_set_priority(logcat, LOG_DEBUG);
 
+#ifdef WIN32
+    if (WSAStartup(MAKEWORD(2, 2), &WSAData) != 0) {
+        elog(LOG_FATAL, "cannot initialize winsocks");
+        return EXIT_FAILURE;
+    }
+#endif
 
     if ((evb = event_init()) == NULL) {
         elog(LOG_FATAL, "cannot initialize libevent");
@@ -61,6 +70,10 @@ int main(int argc, char *argv[]) {
 
     elog(LOG_NOTICE, "started");
     event_dispatch();
+
+#ifdef WIN32
+    (void) WSACleanup();
+#endif
 
     return 0;
 }
