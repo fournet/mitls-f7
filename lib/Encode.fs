@@ -42,7 +42,7 @@ let mac e k ad rg plain =
 let verify e k ad rg parsed =
     let si = epochSI(e) in
     let pv = si.protocol_version in
-    let text = payload e rg ad parsed.plain in
+    let text = macPlain e rg ad parsed.plain in
     let tag  = parsed.tag in
     match pv with
     | SSL_3p0 | TLS_1p0 ->
