@@ -6,8 +6,8 @@ open TLSInfo
 
 open TLSConstants
 
-(* no need to be more precise on the length *)
 type cipher = b:bytes{Length(b) <= max_TLSCipher_fragment_length}
+(* no need to be more precise on the length *)
 
 private type (;ki:epoch) AEADKey =
     | MtE of ka:(;ki)MAC.key * ke:(;ki)ENC.state // {MtEKey(ki,(ka,ke))}
@@ -103,13 +103,17 @@ val decrypt : ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
 // The last two lines are equivalent to (but easier to verify than)
 // !p. CTXT(ki,ad,p,c) <=> (?k,r. res = Correct((k,r,p)))
 
-(* CF 13-01-07 working notes 
+(* CF 13-01-07 verification notes
 
 There are several ideal properties of AEAD:
 
 1. (When Safe:) filter out any cipher that is not an honest encryption---a.k.a "INT-CTXT" 
+
 2. (When Safe:) additionally decrypt by table lookup---so that we can get plain secrecy by typing 
-3. (When Auth:) filter out any (ki,plain,AD) forgery---aka "INT-PTXT" or "CMA" 
+                TODO implemented by #ideal in AEAD.fs
+
+3. (When Auth:) filter out any (ki,plain,AD) forgery---aka "INT-PTXT" or "CMA"
+                TODO implemented by #ideal in MAC.fs
 
 For F7 clarity, we distinguish several verification steps (using flags/Makefile):
 
@@ -135,21 +139,27 @@ The postcondition of decryption thus consists of
 		       <=> ( CTXT(ki,ad,p,c)))           
 /\
 // a functional property
-(Safe(ki) => ?p. res = Correct((ki,Range(ki,c),p))) \/ res = ConstantError)
+(Safe(ki) => ?p. res = Correct((ki,Range(ki,c),p))) \/ res = Error(AD_bad_record_mac,"")
 
 --- The sequence of games is 
 
 * indistinguishability of filtering out bad ciphers at safe indexes (by CTXT assumption) 
-* indistinguishability of decryption by lookup at safe indexes (by matching its Correct & Error results) 
+  The joint CTXT assumption still has to be proved "by hand" for now, 
+  although the functional property above helps.
+
+* indistinguishability of decryption by lookup at safe indexes
+  (by typechecking a full spec for the two variants when the lookup succeeds)
+
 * secrecy by typing (CPA), relying on nested plains.
   for that step, we need to encapsulate Encode & Mac encryption processing into DataStream; 
-  a generic pattern is (up to indexing)
+
+  the current, specific approach is to idealize repr as max-sized-zero at safe indexes
+  within encode (by ENC-CPA parametricity) then typecheck parametricy over delta.  
+
+  a generic pattern would be (up to indexing)
   
   abstract_repr: delta -> high_bytes (within a range)
   abstract_map: (bytes -> bytes) -> high_bytes -> high_bytes (within computed range)
-
-  a more specific approach is to idealize repr as max-sized-zero at safe indexes
-  within encode (by ENC-CPA parametricity) then typecheck parametricy over delta.  
 
   
 (independently:)

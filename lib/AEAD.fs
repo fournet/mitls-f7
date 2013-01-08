@@ -216,14 +216,14 @@ type preds =
   | CTXT of epoch * bytes * AEADPlain.plain * cipher
   | NotCTXT of epoch * bytes * cipher
 
-type entry = epoch * AEADPlain.adata * ENC.cipher
+type entry = epoch * AEADPlain.adata * AEADPlain.plain * ENC.cipher
 let log = ref ([]: entry list) // the semantics of CTXT
 
 let rec cmem (e:epoch) (ad:AEADPlain.adata) (c:ENC.cipher) (xs: entry list) = 
   match xs with
-  | x::_ when x = (e,ad,c) -> true
+  | (e',ad',p,c')::_ when e=e' && ad=ad' && c=c' -> Some p
   | _::xs                  -> cmem e ad c xs 
-  | []                     -> false
+  | []                     -> None
 
 let safe (e:epoch) = failwith "todo"
 
@@ -233,18 +233,17 @@ let encrypt e key data rg plain =
   let (key,cipher) = encrypt' e key data rg plain in
   #if ideal
   Pi.assume (CTXT(e,data,plain,cipher));
-  log := (e,data,cipher)::!log;
+  log := (e,data,plain,cipher)::!log;
   #endif
   (key,cipher)
   
 let decrypt e (key: AEADKey) data (cipher: bytes) =  
   #if ideal
   if safe e then
-    if cmem e data cipher !log  
-    then 
-      // we know Auth(ki) and ?p. CTXT(e,data,p,cipher)
-      decrypt' e key data cipher
-    else Error(AD_decrypt_error,perror __SOURCE_FILE__ __LINE__ "")
+    match cmem e data cipher !log with
+    | Some p -> // (* 1 *) decrypt' e key data cipher
+                   (* 2 *) let rg = cipherRange e (length cipher) in correct (key,rg,p)
+    | None   -> Encode.error  
   else decrypt' e key data cipher
   #else
   //CF don't understand CTXT and NotCTXT 

@@ -2,7 +2,7 @@
 
 (* Bulk encryption for TLS record, agile & assumed conditionally CPA with "Encode" *) 
 (* This module is trusted *)
-(* TODO reduce it to its non-agile underlying algorithms, e.g. AES-CBC and GCM *) 
+(* TODO write a well-typed ideal functionality; reduce it to its non-agile underlying algorithms, e.g. AES-CBC and GCM *) 
 
 open Bytes
 open Encode 

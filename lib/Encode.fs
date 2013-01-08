@@ -20,6 +20,7 @@ type parsed =
 let safe (e:epoch) : bool = failwith "spec only" 
 let zeros rg = let _,max = rg in createBytes max 0
 
+//CF does not typecheck because Payload is undefined 
 let payload (e:epoch) (rg:range) ad f = 
   // After applying CPA encryption for ENC, 
   // we access the fragment bytes only at unsafe indexes, and otherwise use some zeros
@@ -47,17 +48,19 @@ let verify e k ad rg parsed =
     | SSL_3p0 | TLS_1p0 ->
         (*@ SSL3 and TLS1 enable both timing and error padding oracles. *)
         if parsed.ok then 
-            if MAC.Verify e k text tag.macT then 
-                correct parsed.plain
-            else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
-        else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_decryption_failed, reason)
+          if MAC.Verify e k text tag.macT then 
+            correct parsed.plain
+          else Error(AD_bad_record_mac,"")
+        else Error(AD_decryption_failed,"")
     | TLS_1p1 | TLS_1p2 ->
         (*@ Otherwise, we implement standard mitigation for padding oracles.
             Still, we note a small timing leak here:
             The time to verify the mac is linear in the plaintext length. *)
-        if MAC.Verify e k text tag.macT && parsed.ok 
-        then correct parsed.plain
-        else Error(AD_bad_record_mac, perror __SOURCE_FILE__ __LINE__ "")
+        if MAC.Verify e k text tag.macT then 
+          if parsed.ok 
+            then correct parsed.plain
+          else Error(AD_bad_record_mac,"")
+        else Error(AD_bad_record_mac,"") 
 
 type plain = {p:bytes}
 
