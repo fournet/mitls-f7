@@ -45,42 +45,40 @@ let tlsoptions (options : options) = {
 
 (* ------------------------------------------------------------------------ *)
 let client_handler ctxt (peer : Socket) = fun () ->
+    use peer     = peer
     let endpoint = peer.RemoteEndPoint
 
     fprintfn stderr "Connect: %s" (endpoint.ToString ());
     try
         try
-            let netstream = new NetworkStream (peer)
-            let tlsstream = new TLStream.TLStream (netstream, ctxt, TLStream.TLSServer)
+            use netstream = new NetworkStream (peer, false)
+            use tlsstream = new TLStream.TLStream
+                              (netstream, ctxt, TLStream.TLSServer, false)
 
-            try
-                let reader    = new StreamReader (tlsstream)
-                let writer    = new StreamWriter (tlsstream)
+            let reader    = new StreamReader (tlsstream)
+            let writer    = new StreamWriter (tlsstream)
 
-                let rec doit () =
-                    let line = reader.ReadLine ()
+            let rec doit () =
+                let line = reader.ReadLine ()
 
-                    if line <> null then
-                        fprintfn stderr "Line[%s]: %s"
-                            (peer.RemoteEndPoint.ToString ()) line
-                        writer.WriteLine (line)
-                        writer.Flush ()
-                        doit ()
-                in
+                if line <> null then
+                    fprintfn stderr "Line[%s]: %s" (endpoint.ToString()) line
+                    writer.WriteLine (line)
+                    writer.Flush ()
                     doit ()
-            finally
-                tlsstream.Close ()
+            in
+                doit ()
         with e ->
             fprintfn stderr "%s" (e.ToString ())
     finally
         fprintfn stderr "Disconnect: %s" (endpoint.ToString ());
-        noexn (fun () -> peer.Close ())
 
 (* ------------------------------------------------------------------------ *)
 let server (options : options) =
-    let ctxt     = tlsoptions options in
-    let listener = new TcpListener(options.localaddr) in
+    let ctxt     = tlsoptions options
+    let listener = new TcpListener(options.localaddr)
 
+    try
         listener.Start ();
         listener.Server.SetSocketOption(SocketOptionLevel.Socket,
                                         SocketOptionName.ReuseAddress,
@@ -99,28 +97,27 @@ let server (options : options) =
                     noexn (fun () -> peer.Close())
                     raise e
         done
+    finally
+        listener.Stop ()
 
 (* ------------------------------------------------------------------------ *)
 let client (options : options) =
     let ctxt   = tlsoptions options
-    let socket = new TcpClient()
+    use socket = new TcpClient()
 
     socket.Connect(options.localaddr)
 
-    let tlsstream = new TLStream.TLStream(socket.GetStream(), ctxt, TLStream.TLSClient)
+    use tlsstream = new TLStream.TLStream(socket.GetStream(), ctxt, TLStream.TLSClient)
 
-    try
-        let reader = new StreamReader (tlsstream)
-        let writer = new StreamWriter (tlsstream)
+    let reader = new StreamReader (tlsstream)
+    let writer = new StreamWriter (tlsstream)
 
-        let rec doit () =
-            let line = System.Console.ReadLine ()
+    let rec doit () =
+        let line = System.Console.ReadLine ()
 
-            if line <> null then
-                writer.WriteLine(line); writer.Flush ()
-                Console.WriteLine(reader.ReadLine ())
-                doit ()
-        in
+        if line <> null then
+            writer.WriteLine(line); writer.Flush ()
+            Console.WriteLine(reader.ReadLine ())
             doit ()
-    finally
-        tlsstream.Close ()
+    in
+        doit ()

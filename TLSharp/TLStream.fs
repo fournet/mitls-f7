@@ -10,11 +10,14 @@ type TLSBehavior =
     | TLSClient
     | TLSServer
 
-type TLStream(s:System.Net.Sockets.NetworkStream, options, b) =
+type TLStream(s:System.Net.Sockets.NetworkStream, options, b, ?own) =
     inherit Stream()
-    let mutable inbuf:bytes = [||]
-    let mutable outbuf:bytes = [||]
-    let mutable closed:bool = true
+
+    let own = defaultArg own true
+
+    let mutable inbuf  : bytes = [||]
+    let mutable outbuf : bytes = [||]
+    let mutable closed : bool  = true
 
     let doMsg_o conn b =
         let ki = TLS.getEpochOut conn
@@ -173,4 +176,5 @@ type TLStream(s:System.Net.Sockets.NetworkStream, options, b) =
         if not closed then
             TLS.half_shutdown conn
             closed <- true
-        s.Close()
+        if own then
+            s.Close()
