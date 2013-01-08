@@ -50,8 +50,13 @@ let verify e k ad rg parsed =
         if parsed.ok then 
           if MAC.Verify e k text tag.macT then 
             correct parsed.plain
+#if DEBUG
+          else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac,reason)
+        else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_decryption_failed,reason)
+#else
           else Error(AD_bad_record_mac,"")
         else Error(AD_decryption_failed,"")
+#endif
     | TLS_1p1 | TLS_1p2 ->
         (*@ Otherwise, we implement standard mitigation for padding oracles.
             Still, we note a small timing leak here:
@@ -59,8 +64,13 @@ let verify e k ad rg parsed =
         if MAC.Verify e k text tag.macT then 
           if parsed.ok 
             then correct parsed.plain
+#if DEBUG
+          else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac,reason)
+        else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac,reason) 
+#else
           else Error(AD_bad_record_mac,"")
         else Error(AD_bad_record_mac,"") 
+#endif
 
 type plain = {p:bytes}
 
