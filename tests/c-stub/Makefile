@@ -42,6 +42,8 @@ SOURCES = \
 	echo-log.h     \
 	echo-memory.c  \
 	echo-memory.h  \
+	echo-dlist.c   \
+	echo-dlist.h   \
 	echo-options.c \
 	echo-options.h \
 	echo-ssl.c     \
