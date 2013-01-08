@@ -5,6 +5,9 @@
 
 #include <errno.h>
 
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
 #include "echo-log.h"
 #include "echo-memory.h"
 #include "echo-options.h"
@@ -137,7 +140,21 @@ static void _server_onerror(bufferevent_t *be, short what, void *arg) {
     if ((what & BEV_EVENT_ERROR)) {
         int rr = evutil_socket_geterror(bufferevent_getfd(be));
 
-        stelog(stream, LOG_ERROR, "communication error: %s", strerror(rr));
+        if (rr != 0) {
+            stelog(stream, LOG_ERROR, "communication error: %s", strerror(rr));
+        } else {
+            unsigned long sslrr = bufferevent_get_openssl_error(be);
+
+            if (sslrr != 0) {
+                char txterr[256];
+
+                ERR_error_string_n(sslrr, txterr, ARRAY_SIZE(txterr));
+                stelog(stream, LOG_ERROR, "SSL error: %s", txterr);
+            } else {
+                stelog(stream, LOG_ERROR, "unknown communication error");
+            }
+        }
+
         goto bailout;
     }
 
@@ -232,7 +249,7 @@ static void _server_onaccept_error(struct evconnlistener *listener, void *ctxt) 
 /* -------------------------------------------------------------------- */
 int echo_server_setup(event_base_t *evb, const options_t *options) {
     echossl_t         echossl;
-    bindctxt_t        context;
+    bindctxt_t       *context    = NULL;
     SSL_CTX          *sslcontext = NULL;
     evconnlistener_t *acceptln   = NULL;
 
@@ -243,25 +260,34 @@ int echo_server_setup(event_base_t *evb, const options_t *options) {
     echossl.pki     = options->pki;
     echossl.tlsver  = options->tlsver;
 
-    if ((sslcontext = evssl_init(&echossl, 1)) == NULL)
-        return -1;
+    if ((sslcontext = evssl_init(&echossl, 1)) == NULL) {
+        elog(LOG_FATAL, "cannot create SSL context");
+        goto bailout;
+    }
 
-    memset(&context, 0, sizeof(context));
-    context.options    = options;
-    context.sslcontext = sslcontext;
+    context = NEW(bindctxt_t, 1);
+    context->options    = options;
+    context->sslcontext = sslcontext;
 
     acceptln = evconnlistener_new_bind
-        (evb, _server_onaccept, &context,
+        (evb, _server_onaccept, context,
          LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE, -1,
          (struct sockaddr*) &options->echoname,
          sizeof(options->echoname));
 
     if (acceptln == NULL) {
-        elog(LOG_FATAL, "cannot create listener");
-        return -1;
+        elog(LOG_FATAL, "cannot create [libevent] listener");
+        goto bailout;
     }
 
     evconnlistener_set_error_cb(acceptln, _server_onaccept_error);
 
     return 0;
+
+ bailout:
+    if (acceptln   != NULL) evconnlistener_free(acceptln);
+    if (context    != NULL) free(context);
+    if (sslcontext != NULL) SSL_CTX_free(sslcontext);
+
+    return -1;
 }
