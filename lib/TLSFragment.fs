@@ -53,25 +53,25 @@ let RecordPlainToHSPlain    (e:epoch) (h:history) (r:range) ff =
     | FHandshake(f) -> f
     | FCCS(_) 
     | FAlert(_) 
-    | FAppData(_)   -> unreachable "[RecordPlainToHSPlain] invoked on an invalid fragment"
+    | FAppData(_)   -> unexpectedError "[RecordPlainToHSPlain] invoked on an invalid fragment"
 let RecordPlainToCCSPlain    (e:epoch) (h:history) (r:range) ff =
     match ff with
     | FCCS(f)       -> f
     | FHandshake(_) 
     | FAlert(_) 
-    | FAppData(_)   -> unreachable "[RecordPlainToCCSPlain] invoked on an invalid fragment"
+    | FAppData(_)   -> unexpectedError "[RecordPlainToCCSPlain] invoked on an invalid fragment"
 let RecordPlainToAlertPlain    (e:epoch) (h:history) (r:range) ff =
     match ff with
     | FAlert(f)     -> f
     | FHandshake(_) 
     | FCCS(_) 
-    | FAppData(_)   -> unreachable "[RecordPlainToAlertPlain] invoked on an invalid fragment"
+    | FAppData(_)   -> unexpectedError "[RecordPlainToAlertPlain] invoked on an invalid fragment"
 let RecordPlainToAppPlain    (e:epoch) (h:history) (r:range) ff =
     match ff with
     | FAppData(f)   -> f
     | FHandshake(_) 
     | FCCS(_) 
-    | FAlert(_)     -> unreachable "[RecordPlainToAppPlain] invoked on an invalid fragment"
+    | FAlert(_)     -> unexpectedError "[RecordPlainToAppPlain] invoked on an invalid fragment"
 
 let extendHistory (e:epoch) ct ss r frag =
   match ct,frag with
