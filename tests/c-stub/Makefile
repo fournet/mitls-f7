@@ -27,7 +27,7 @@ CFLAGS  += -O2 -ggdb -Wall -W -Wno-unused-function \
              $(shell $(PKGC)  --cflags libssl) \
              $(shell $(LOG4C) --cflags)
 LDFLAGS +=
-LIBS    += \
+LIBS    += -lpthread \
 	$(shell $(PKGC)  --libs libevent) \
 	$(shell $(PKGC)  --libs libevent_openssl) \
     $(shell $(PKGC)  --libs libssl) \

@@ -5,6 +5,8 @@
 
 #include <errno.h>
 
+#include <pthread.h>
+
 #include "echo-log.h"
 #include "echo-memory.h"
 #include "echo-options.h"
@@ -22,11 +24,48 @@
 static event_base_t *evb = NULL;
 
 /* -------------------------------------------------------------------- */
+const int zero = 0;
+const int one  = 1;
+
+/* -------------------------------------------------------------------- */
+static void* _entry (void *arg) {
+    const options_t *options = (options_t*) arg;
+
+    if ((evb = event_init()) == NULL) {
+        elog(LOG_FATAL, "cannot initialize libevent");
+        return (void*) zero;
+    }
+
+    event_set_log_callback(_evlog);
+    event_set_mem_functions(&xmalloc, &xrealloc, &free);
+
+    {   int rr;
+
+        if (options->client)
+            rr = echo_client_setup(evb, options);
+        else
+            rr = echo_server_setup(evb, options);
+
+        if (rr < 0)
+            return (void*) zero;
+    }
+
+    elog(LOG_NOTICE, "started");
+    event_dispatch();
+
+    return (void*) one;
+}
+
+/* -------------------------------------------------------------------- */
 int main(int argc, char *argv[]) {
     options_t options;
+    pthread_t worker;
+
 #ifdef WIN32
     WSADATA WSAData;
 #endif
+
+    int rr = 0;
 
     initialize_log4c();
 
@@ -49,31 +88,16 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
-    if ((evb = event_init()) == NULL) {
-        elog(LOG_FATAL, "cannot initialize libevent");
+    if (pthread_create(&worker, NULL, &_entry, &options) != 0) {
+        elog(LOG_FATAL, "Cannot create worker thread");
         return EXIT_FAILURE;
     }
 
-    event_set_log_callback(_evlog);
-    event_set_mem_functions(&xmalloc, &xrealloc, &free);
-
-    {   int rr;
-
-        if (options.client)
-            rr = echo_client_setup(evb, &options);
-        else
-            rr = echo_server_setup(evb, &options);
-
-        if (rr < 0)
-            return EXIT_FAILURE;
-    }
-
-    elog(LOG_NOTICE, "started");
-    event_dispatch();
+    (void) pthread_join(worker, (void**) &rr);
 
 #ifdef WIN32
     (void) WSACleanup();
 #endif
 
-    return 0;
+    return rr ? EXIT_SUCCESS : EXIT_FAILURE;
 }

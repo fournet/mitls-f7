@@ -6,10 +6,15 @@
 #include <log4c.h>
 #include <event.h>
 
+#include <pthread.h>
+
 #include "echo-log.h"
 
 /* -------------------------------------------------------------------- */
 log4c_category_t *logcat = NULL;
+
+/* -------------------------------------------------------------------- */
+static pthread_mutex_t _log_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* -------------------------------------------------------------------- */
 void initialize_log4c(void) {
@@ -38,7 +43,9 @@ void elog(int level, const char *format, ...) {
         return ;
 
     va_start(ap, format);
+    (void) pthread_mutex_lock(&_log_mutex);
     log4c_category_vlog(logcat, level, format, ap);
+    (void) pthread_mutex_unlock(&_log_mutex);
     va_end(ap);
 }
 
@@ -50,5 +57,7 @@ void _evlog(int severity, const char *msg) { /* event logger CB */
     else if (severity == _EVENT_LOG_ERR)   severity = LOG_ERROR;
     else severity = LOG4C_PRIORITY_UNKNOWN;
 
+    (void) pthread_mutex_lock(&_log_mutex);
     log4c_category_log(logcat, severity, "%s", (char*) msg);
+    (void) pthread_mutex_unlock(&_log_mutex);
 }
