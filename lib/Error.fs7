@@ -46,3 +46,4 @@ val correct: x:'a -> y:'a Result{y = Correct(x)}
 // TODO val unexpectedError: string{false} -> 'a
 // TODO For now, using false as post-condition, so not checking reachability of this code
 val unexpectedError: string -> 'a { false }
+val unreachable: string {false} -> 'a

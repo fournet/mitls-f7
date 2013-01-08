@@ -444,6 +444,7 @@ let prfHashAlg_of_ciphersuite (cs:cipherSuite) =
     | OnlyMACCipherSuite (_, hAlg) -> SHA256
     | NullCipherSuite         -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite" 
     | SCSV (_)                -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite" 
+    | _ -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
 
 // PRF and verifyData hash algorithms are potentially independent in TLS 1.2,
 // so we use two distinct functions. However, all currently defined ciphersuites
