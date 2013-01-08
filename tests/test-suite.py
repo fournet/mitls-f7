@@ -146,9 +146,6 @@ DEFAULTS = '''\
 [config]
 bind     = 127.0.0.1:6000
 servname = cert-01.mitls.org
-versions = TLS_1p0
-ciphers  =  TLS_RSA_WITH_AES_128_CBC_SHA256
-ciphers  =  TLS_RSA_WITH_AES_256_CBC_SHA256
 '''
 
 def _main():
@@ -162,10 +159,26 @@ def _main():
         print >>sys.stderr, 'Cannot read configuration file'
         exit(1)
 
-    bind     = parser.get('config', 'bind')
-    servname = parser.get('config', 'servname')
-    versions = parser.get('config', 'versions').split()
-    ciphers  = parser.get('config', 'ciphers').split()
+
+    if not parser.has_option('config', 'scenarios'):
+        print >>sys.stderr, "Missing `[config].scenarios' option"
+        exit(1)
+
+    bind      = parser.get('config', 'bind')
+    servname  = parser.get('config', 'servname')
+    scennames = parser.get('config', 'scenarios').split()
+    scenarios = []
+
+    for scenario in scennames:
+        for x in ('versions', 'ciphers'):
+            if not parser.has_option(scenario, x):
+                print >>sys.stderr, "Missing `[%s].%s' option" % (scenario, x)
+                exit(1)
+        versions = parser.get(scenario, 'versions').split()
+        ciphers  = parser.get(scenario, 'ciphers').split()
+        scenarios.append((scenario, ciphers, versions))
+
+    del ciphers, versions
 
     if ':' in bind:
         bind = tuple(bind.split(':', 1))
@@ -182,30 +195,35 @@ def _main():
         logging.fatal("cannot resolve `%s': %s" % (':'.join(bind), e))
         exit(1)
 
+    logging.info("----- CONFIGURATION -----")
     logging.info("Binding address is: %s" % ':'.join(map(str, bind)))
-    logging.info("Testing versions  : %s" % ', '.join(versions))
-    logging.info("Testing ciphers   : %s" % ', '.join(ciphers))
+    for i, (name, ciphers, versions) in enumerate(scenarios):
+        logging.info("Scenario %.2d (%s)" % (i+1, name))
+        logging.info("* TLS versions: %s" % ", ".join(versions))
+        logging.info("* TLS ciphers : %s" % ", ".join(ciphers))
+    logging.info("----- END OF CONFIGURATION -----")
 
     nerrors = 0
 
-    for cipher in ciphers:
-        for version in versions:
-            for mode in (MI_C_TLS, MI_MI_TLS):
-                logging.info("Checking for cipher: `%s'" % (cipher,))
-                logging.info("* Client is miTLS: %r" % (mode.miclient,))
-                logging.info("* Server is miTLS: %r" % (mode.miserver,))
-                logging.info("* TLS version is : %s" % (version,))
+    for name, ciphers, versions in scenarios:
+        for cipher in ciphers:
+            for version in versions:
+                for mode in (MI_C_TLS, MI_MI_TLS):
+                    logging.info("Checking for cipher: `%s'" % (cipher,))
+                    logging.info("* Client is miTLS: %r" % (mode.miclient,))
+                    logging.info("* Server is miTLS: %r" % (mode.miserver,))
+                    logging.info("* TLS version is : %s" % (version,))
+        
+                    config = Object(cipher   = cipher,
+                                    version  = version,
+                                    address  = bind,
+                                    servname = servname)
     
-                config = Object(cipher   = cipher,
-                                version  = version,
-                                address  = bind,
-                                servname = servname)
-
-                success  = _check_for_config(mode, config)
-                nerrors += int(not success)
-
-                if not success:
-                    logging.error('---------- FAILURE ----------')
+                    success  = _check_for_config(mode, config)
+                    nerrors += int(not success)
+    
+                    if not success:
+                        logging.error('---------- FAILURE ----------')
 
     logging.info('# errors: %d' % (nerrors,))
     exit(2 if nerrors else 0)
