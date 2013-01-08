@@ -243,7 +243,7 @@ let decrypt e (key: AEADKey) data (cipher: bytes) =
     match cmem e data cipher !log with
     | Some p -> // (* 1 *) decrypt' e key data cipher
                    (* 2 *) let rg = cipherRange e (length cipher) in correct (key,rg,p)
-    | None   -> Encode.error  
+    | None   -> Error(AD_bad_record_mac, "")  
   else decrypt' e key data cipher
   #else
   //CF don't understand CTXT and NotCTXT 
