@@ -60,9 +60,10 @@ static void stream_free(stream_t *the) {
 
     if (the->bevent != NULL)
         bufferevent_free(the->bevent);
-    (void) EVUTIL_CLOSESOCKET(the->fd);
-
-    /* FIXME: SSL context */
+    if (the->fd >= 0)
+        (void) EVUTIL_CLOSESOCKET(the->fd);
+    if (the->sslcontext != NULL)
+        SSL_free(the->sslcontext);
 
     free(the);
 }

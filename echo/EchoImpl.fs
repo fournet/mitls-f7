@@ -50,20 +50,26 @@ let client_handler ctxt (peer : Socket) = fun () ->
     fprintfn stderr "Connect: %s" (endpoint.ToString ());
     try
         try
-            let netstream = new NetworkStream (peer) in
-            let tlsstream = new TLStream.TLStream (netstream, ctxt, TLStream.TLSServer) in
-            let reader    = new StreamReader (tlsstream) in
-            let writer    = new StreamWriter (tlsstream) in
+            let netstream = new NetworkStream (peer)
+            let tlsstream = new TLStream.TLStream (netstream, ctxt, TLStream.TLSServer)
+
+            try
+                let reader    = new StreamReader (tlsstream)
+                let writer    = new StreamWriter (tlsstream)
 
                 let rec doit () =
-                    let line = reader.ReadLine () in
-                        if line <> null then
-                            fprintfn stderr "Line[%s]: %s" (peer.RemoteEndPoint.ToString ()) line
-                            writer.WriteLine (line)
-                            writer.Flush ()
-                            doit ()
+                    let line = reader.ReadLine ()
+
+                    if line <> null then
+                        fprintfn stderr "Line[%s]: %s"
+                            (peer.RemoteEndPoint.ToString ()) line
+                        writer.WriteLine (line)
+                        writer.Flush ()
+                        doit ()
                 in
                     doit ()
+            finally
+                tlsstream.Close ()
         with e ->
             fprintfn stderr "%s" (e.ToString ())
     finally
@@ -87,29 +93,34 @@ let server (options : options) =
                         thread.Start()
                 with
                 | :? IOException as e ->
-                    noexn (fun () -> peer.Close())                    
+                    noexn (fun () -> peer.Close())
                     Console.WriteLine(e.Message)
                 | e ->
-                    noexn (fun () -> peer.Close())                    
+                    noexn (fun () -> peer.Close())
                     raise e
         done
 
 (* ------------------------------------------------------------------------ *)
 let client (options : options) =
-    let ctxt      = tlsoptions options in
-    let socket    = new TcpClient() in
+    let ctxt   = tlsoptions options
+    let socket = new TcpClient()
 
     socket.Connect(options.localaddr)
 
-    let tlsstream = new TLStream.TLStream(socket.GetStream(), ctxt, TLStream.TLSClient) in
-    let reader    = new StreamReader (tlsstream) in
-    let writer    = new StreamWriter (tlsstream) in
+    let tlsstream = new TLStream.TLStream(socket.GetStream(), ctxt, TLStream.TLSClient)
 
-    let rec doit () =
-        let line = System.Console.ReadLine () in
+    try
+        let reader = new StreamReader (tlsstream)
+        let writer = new StreamWriter (tlsstream)
+
+        let rec doit () =
+            let line = System.Console.ReadLine ()
+
             if line <> null then
                 writer.WriteLine(line); writer.Flush ()
                 Console.WriteLine(reader.ReadLine ())
                 doit ()
-    in
-        doit ()
+        in
+            doit ()
+    finally
+        tlsstream.Close ()
