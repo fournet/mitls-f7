@@ -772,7 +772,7 @@ let next_fragment ci state =
             | ClientWritingCCS (si,ms,log) ->
                 let next_ci = getNextEpochs ci si si.init_crand si.init_srand in
                 let (writer,reader) = PRF.keyGen next_ci ms in
-                let cvd = PRF.makeVerifyData si Client ms log in
+                let cvd = PRF.makeVerifyData next_ci.id_out Client ms log in
                 let cFinished = messageBytes HT_finished cvd in
                 let log = log @| cFinished in
                 let state = {state with hs_outgoing = cFinished 
@@ -786,7 +786,7 @@ let next_fragment ci state =
                 OutCCS(rg,f,ci,writer,state)
 #endif
             | ClientWritingCCSResume(e,w,ms,svd,log) ->
-                let cvd = PRF.makeVerifyData (epochSI e) Client ms log in
+                let cvd = PRF.makeVerifyData e Client ms log in
                 let cFinished = messageBytes HT_finished cvd in
                 let state = {state with hs_outgoing = cFinished
                                         pstate = PSClient(ClientWritingFinishedResume(cvd,svd))} in
@@ -802,7 +802,7 @@ let next_fragment ci state =
         | PSServer(sstate) ->
             match sstate with
             | ServerWritingCCS (si,ms,e,w,cvd,log) ->
-                let svd = PRF.makeVerifyData si Server ms log in
+                let svd = PRF.makeVerifyData e Server ms log in
                 let sFinished = messageBytes HT_finished svd in
                 let state = {state with hs_outgoing = sFinished
                                         pstate = PSServer(ServerWritingFinished(si,ms,cvd,svd))}
@@ -815,7 +815,7 @@ let next_fragment ci state =
                 OutCCS(rg,f,ci,w,state)
 #endif
             | ServerWritingCCSResume(we,w,re,r,ms,log) ->
-                let svd = PRF.makeVerifyData (epochSI we) Server ms log in
+                let svd = PRF.makeVerifyData we Server ms log in
                 let sFinished = messageBytes HT_finished svd in
                 let log = log @| sFinished in
                 let state = {state with hs_outgoing = sFinished
@@ -1401,7 +1401,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
         | HT_finished ->
             match cState with
             | ServerFinished(si,ms,cvd,log) ->
-                if PRF.checkVerifyData si Server ms log payload then
+                if PRF.checkVerifyData ci.id_in Server ms log payload then
                     let sDB = 
                         if equalBytes si.sessionID [||] then state.sDB
                         else SessionDB.insert state.sDB (si.sessionID,Client,state.poptions.server_name) (si,ms)
@@ -1410,7 +1410,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 else
                     InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "Verify data did not match",state)
             | ServerFinishedResume(e,w,ms,log) ->
-                if PRF.checkVerifyData (epochSI ci.id_in) Server ms log payload then
+                if PRF.checkVerifyData ci.id_in Server ms log payload then
                     let log = log @| to_log in
                     let state = {state with pstate = PSClient(ClientWritingCCSResume(e,w,ms,payload,log))} in
                     InFinished(state)
@@ -1752,14 +1752,14 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
         | HT_finished ->
             match sState with
             | ClientFinished(si,ms,e,w,log) ->
-                if PRF.checkVerifyData si Client ms log payload then
+                if PRF.checkVerifyData ci.id_in Client ms log payload then
                     let log = log @| to_log in
                     let state = {state with pstate = PSServer(ServerWritingCCS(si,ms,e,w,payload,log))} in
                     InFinished(state)
                 else
                     InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "Verify data did not match",state)
             | ClientFinishedResume(si,ms,svd,log) ->
-                if PRF.checkVerifyData si Client ms log payload then
+                if PRF.checkVerifyData ci.id_in Client ms log payload then
                     let state = {state with pstate = PSServer(ServerIdle(payload,svd))} in
                     InComplete(state)                       
                 else

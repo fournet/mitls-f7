@@ -12,8 +12,8 @@ val sample: SessionInfo -> masterSecret
 
 val keyGen: ConnectionInfo -> masterSecret -> StatefulAEAD.writer * StatefulAEAD.reader
 
-val makeVerifyData:  SessionInfo -> Role -> masterSecret -> bytes -> bytes 
-val checkVerifyData: SessionInfo -> Role -> masterSecret -> bytes -> bytes -> bool
+val makeVerifyData:  epoch -> Role -> masterSecret -> bytes -> bytes 
+val checkVerifyData: epoch -> Role -> masterSecret -> bytes -> bytes -> bool
 
 val ssl_certificate_verify: SessionInfo -> masterSecret -> TLSConstants.sigAlg -> bytes -> bytes
 

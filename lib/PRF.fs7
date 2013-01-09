@@ -30,16 +30,16 @@ private val log: ((ConnectionInfo * masterSecret) * (state * state)) list ref
 // Master secrets are also used to generate and check verifyData tags,
 // providing conditional authentication of the (abstract) VerifyData predicate.
 
-predicate VerifyData of SessionInfo * Role * bytes
+predicate VerifyData of Epoch * Role * bytes
 
-val makeVerifyData: si:SessionInfo -> r:Role -> (;si) masterSecret ->
-                   log:bytes{VerifyData(si,r,log)} -> 
+val makeVerifyData: e:SuccEpoch -> r:Role -> (;EpochSI(si)) masterSecret ->
+                   log:bytes{VerifyData(e,r,log)} -> 
                    bytes (* length depends on cs, 12 by default *)
 
-val checkVerifyData: si:SessionInfo -> r:Role -> (;si) masterSecret ->
+val checkVerifyData: e:SuccEpoch -> r:Role -> (;EpochSI(si)) masterSecret ->
 				   log:bytes (* the log *) ->
 				   tag:bytes (* the expected value *) ->
-				   b:bool{(b = true /\ AuthSI(si)) => VerifyData(si,r,log)}
+				   b:bool{(b = true /\ AuthSI(si)) => VerifyData(e,r,log)}
 
 val ssl_certificate_verify: si:SessionInfo -> (;si)masterSecret -> TLSConstants.sigAlg -> bytes -> bytes
 

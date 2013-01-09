@@ -78,7 +78,8 @@ let keyGen ci (ms:masterSecret) =
     | Server -> sWrite,cWrite
 
 
-let makeVerifyData si role (ms:masterSecret) data =
+let makeVerifyData e role (ms:masterSecret) data =
+  let si = epochSI(e) in
   let pv = si.protocol_version in
   let tag =
     match pv with 
@@ -101,8 +102,8 @@ let makeVerifyData si role (ms:masterSecret) data =
   #endif
   tag
 
-let checkVerifyData si role ms log expected =
-  let computed = makeVerifyData si role ms log in
+let checkVerifyData e role ms log expected =
+  let computed = makeVerifyData e role ms log in
   let result = equalBytes expected computed
   #if ideal
   let result = 
