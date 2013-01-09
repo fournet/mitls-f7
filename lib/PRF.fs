@@ -64,7 +64,15 @@ let keyGen ci (ms:masterSecret) =
             let ck = StatefulAEAD.COERCE ci.id_out (cmkb @| cekb @| civb) in
             let sk = StatefulAEAD.COERCE ci.id_in (smkb @| sekb @| sivb) in
             (ck,sk)
-
+(* KB: rewrite the above in the style and typecheck:
+   #if ideal
+   if safeHS(...) 
+     ... GEN ...
+   else 
+   #endif
+     .... COERCE ...
+*)
+   
     match ci.role with 
     | Client -> cWrite,sWrite
     | Server -> sWrite,cWrite

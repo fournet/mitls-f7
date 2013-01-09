@@ -1,5 +1,32 @@
 ﻿module TLSInfo
 
+
+(* TODOs 20-12-12:
+- VerifyData and SentCCS should be about epochs not sessions (change PRF!)
+    
+- Fix Sig/VerifyData/Complete as discussed with Cedric
+
+- Declare all Strong predicates. Define in TLS?
+  PRF.Strong, CRE.Strong, RSAPMS, DHPMS, StrongHS, Sig.Strong, StrongAE, StrongAuth
+  
+- Declare all honest predicates
+  RSAKeys.Honest(pk) (enc), Sig.Honest(a,pk)
+  HonestRSAPMS(pv,pk,epms), HonestDHPMS(p,g,gx,gy)
+  extend to HonestMS, HonestKeys
+  (* Future: HonestKeys *)
+
+- What is used: DHGroup or DH?
+
+- We need to typecheck ideal code, so rewrite all modules in the style
+   #if ideal
+   if safeHS(...) 
+     ... GEN ...
+   else 
+   #endif
+     .... COERCE ...
+This requires concrete safe/auth/strong/honest functions (specify, dont implement)
+*)
+
 (* public datatypes and parameters for our TLS API *) 
 
 open Bytes
@@ -45,6 +72,7 @@ predicate HonestPMS of pmsData
 assume !pd. HonestPMS(pd) <=>
       ((?e. pd = RSAPMS(e) /\ HonestRSAPMS(e)) \/
        (?p,g,gx,gy. pd = DHPMS(p,g,gx,gy)))
+(* DHPMS(si) <=> HonestClientExponent(si) /\ HonestServerExponent(si) *)
 
 // TODO this is out of sync with the paper, on client_auth.
 type SessionInfo = {
@@ -53,11 +81,11 @@ type SessionInfo = {
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;
     compression: Compression;
-    clientID: Cert.cert list;
+    pmsData: pmsData;
     client_auth: bool;
+    clientID: Cert.cert list;
     serverID: Cert.cert list;
     sessionID: sessionID;
-    pmsData: pmsData;
     }
 // for certificates, the empty list represents the absence of identity 
 // (possibly refusing to present requested certs) 

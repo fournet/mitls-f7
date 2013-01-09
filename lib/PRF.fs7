@@ -26,6 +26,7 @@ val keyGen: ci:ConnectionInfo -> (;EpochSI(ci.id_out))masterSecret ->
 
 private val log: ((ConnectionInfo * masterSecret) * (state * state)) list ref 
 
+(* VerifyData should be about epochs not sessions *)
 // Master secrets are also used to generate and check verifyData tags,
 // providing conditional authentication of the (abstract) VerifyData predicate.
 

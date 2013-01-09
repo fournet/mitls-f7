@@ -36,7 +36,9 @@ val GEN:    ki:succEpoch{Safe(ki)}     -> encryptor:(;ki)AEADKey * decryptor:(;k
 val COERCE: ki:succEpoch{not Auth(ki)} -> b:bytes{Length(b) = AEADSize(ki)} -> (;ki)AEADKey
 val LEAK:   ki:succEpoch{not Auth(ki)} -> (;ki)AEADKey -> b:bytes
 
-(* KB: 2/5. Partial implementation of CTXT in the code. *)
+(* KB: 2/5. We would like to rename CTXT to ENCrypted, and consistently for STXT
+   Also rename CMA to INT_CMA_M etc. *)
+
 predicate val CTXT: 'a * 'b * 'c * 'd -> bool
 predicate val NotCTXT: 'a * 'b * 'd -> bool
 assume !ki,d,p,c. NotCTXT(ki,d,c) => not CTXT(ki,d,p,c)
@@ -92,7 +94,12 @@ val decrypt': ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   ( ((;ki) AEADKey *  rg:range * (;ki,ad,rg) AEADPlain.plain)) Result
    {!k,r,p. res = Correct((k,r,p)) => Encode.CipherRange(ki,r,Length(c))}
 
-val decrypt : ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
+val encrypt: ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
+  rg:range -> p:(;ki,ad,rg) AEADPlain.plain ->
+  ((;ki) AEADKey * c:cipher){Encode.CipherRange(ki,rg,Length(c)) /\
+                             CTXT(ki,ad,p,c)}
+
+val decrypt: ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   c:cipher -> res: 
   ( ((;ki) AEADKey *  rg:range * (;ki,ad,rg) AEADPlain.plain)) Result
    {(!k,r,p. res = Correct((k,r,p)) => Encode.CipherRange(ki,r,Length(c))) /\
