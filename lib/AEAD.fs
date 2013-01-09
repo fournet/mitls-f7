@@ -244,7 +244,7 @@ let decrypt e (key: AEADKey) data (cipher: bytes) =
     | Some x ->    let (r,p) = x in
            (* 1 *) decrypt' e key data cipher
            (* 2 *) let rg = cipherRange e (length cipher) in 
-                   correct (key,rg,p)
+                   correct (key,r,p)
     | None   -> Error(AD_bad_record_mac, "")  
   else decrypt' e key data cipher
   #else

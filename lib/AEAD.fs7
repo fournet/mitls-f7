@@ -83,7 +83,7 @@ type entry = ki:succEpoch * ad:(;ki) AEADPlain.adata * rg:range * p:(;ki,ad,rg) 
 private val log: entry list ref
 private val cmem: ki:succEpoch -> ad:(;ki)AEADPlain.adata -> c:cipher ->  
   entry list -> r:(rg:range * (;ki,ad,rg)AEADPlain.plain) option { 
-    ?x,p. r = Some ((x,p)) => CTXT(ki,ad,p,c)}
+    !x,p. r = Some ((x,p)) => CTXT(ki,ad,p,c)}
 
 private val safe: ki:succEpoch -> b:bool { b = true <=> Auth(ki) }
 
