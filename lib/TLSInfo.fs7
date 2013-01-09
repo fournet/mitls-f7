@@ -93,14 +93,14 @@ type SessionInfo = {
 // that is, the session is not resumable. 
 
 private type preEpoch =
-  | InitEpoch of Role * random  (* our fresh local random *)
+  | InitEpoch of Role
   | SuccEpoch of crand * srand  (* the latest randoms     *)
                * si:SessionInfo
 	       * pred:preEpoch 
 
 predicate val IsInitEpoch: preEpoch -> bool
 predicate val IsSuccEpoch: preEpoch -> bool
-private definition !e. IsInitEpoch(e) <=> ?r,b. e = InitEpoch(r,b)
+private definition !e. IsInitEpoch(e) <=> ?r. e = InitEpoch(r)
 private definition !e. IsSuccEpoch(e) <=> ?c,s,si,pe. e = SuccEpoch(c,s,si,pe)
 
 type epoch = e:preEpoch {IsInitEpoch(e) \/ IsSuccEpoch(e)}
@@ -125,12 +125,13 @@ val epochCRand: e:succEpoch -> b:srand{b = EpochCRand(e)}
 
 type ConnectionInfo =
 	{ role: Role;
+	  id_rand: random;
 	  id_in:  epoch;
       id_out: epoch}
 
 val connectionRole: ci:ConnectionInfo -> r:Role{r = ci.role}
 
-val initConnection: r:Role -> ra:random -> ci:ConnectionInfo{ci.role = r /\ IsInitEpoch(ci.id_in) /\ IsInitEpoch(ci.id_out)}
+val initConnection: r:Role -> ra:random -> ci:ConnectionInfo{ci.role = r /\ ci.id_rand = ra /\ IsInitEpoch(ci.id_in) /\ IsInitEpoch(ci.id_out)}
 val nextEpoch: e:epoch -> c:crand -> s:srand -> si:SessionInfo ->
 	e':succEpoch{Pred(e') = e /\ EpochSI(e') = si /\
 			     EpochCRand(e') = c /\ EpochSRand(e') = s}
@@ -203,11 +204,11 @@ definition !e. Auth(e) <=> SafeHS(e) /\ AuthSI(EpochSI(e))
 
 // not quite derivable unless we add CTXT => CMA
 // CF do we use it?
-assume !ki. Safe(ki) => Auth(ki) 
+assume !e. Safe(e) => Auth(e) 
 
-ask !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) => not Safe(ki)
-ask !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) => 
-    not (?kex,s. EpochSI(ki).cipher_suite = CipherSuite(kex,s))
+ask !e. IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) => not Safe(e)
+ask !e. IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) => 
+    not (?kex,s. EpochSI(e).cipher_suite = CipherSuite(kex,s))
 
 // so that TLS can exchange any traffic on the initial null connection
 assume !e. IsInitEpoch(e) => not Auth(e)

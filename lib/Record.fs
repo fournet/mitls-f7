@@ -9,16 +9,16 @@ type ConnectionState =
     | NullState
     | SomeState of TLSFragment.history * StatefulAEAD.state
 
-let someState (ki:epoch) h s = SomeState(h,s)
+let someState (ki:epoch) (rw:StatefulAEAD.rw) h s = SomeState(h,s)
 
 type sendState = ConnectionState
 type recvState = ConnectionState
 
-let initConnState (ki:epoch) s = 
+let initConnState (ki:epoch) (rw:StatefulAEAD.rw) s = 
   let eh = TLSFragment.emptyHistory ki in
-  someState ki eh s
+  someState ki rw eh s
 
-let nullConnState (ki:epoch) = NullState
+let nullConnState (ki:epoch) (rw:StatefulAEAD.rw) = NullState
 
 // packet format
 let makePacket ct ver data =
@@ -77,7 +77,7 @@ let recordPacketOut ki conn pv rg ct fragment =
         (conn,packet)
     | (false,SomeState(history,state)) ->
         let ad = StatefulPlain.makeAD ki ct in
-        let sh = StatefulAEAD.history ki state in
+        let sh = StatefulAEAD.history ki StatefulAEAD.WriterState state in
         let aeadF = StatefulPlain.RecordPlainToStAEPlain ki ct history sh rg fragment in
         let (state,payload) = StatefulAEAD.encrypt ki state ad rg aeadF in
         let history = TLSFragment.extendHistory ki ct history rg fragment in
@@ -136,14 +136,14 @@ let recordPacketIn ki conn headPayload =
         | Error(x,y) -> Error(x,y)
         | Correct (decrRes) ->
             let (newState, rg, plain) = decrRes in
-            let oldH = StatefulAEAD.history ki state in
+            let oldH = StatefulAEAD.history ki StatefulAEAD.ReaderState state in
             let msg = StatefulPlain.StAEPlainToRecordPlain ki ct history oldH rg plain in
             let history = TLSFragment.extendHistory ki ct history rg msg in
-            let st' = someState ki history newState in
+            let st' = someState ki StatefulAEAD.ReaderState history newState in
             correct(st',ct,pv,rg,msg)
     | _ -> unexpectedError "[recordPacketIn] Incompatible ciphersuite and key type"
 
-let history (e:epoch) s =
+let history (e:epoch) (rw:StatefulAEAD.rw) s =
     match s with
     | NullState -> TLSFragment.emptyHistory e
     | SomeState(h,_) -> h

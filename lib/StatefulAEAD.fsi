@@ -6,16 +6,18 @@ open TLSInfo
 
 open StatefulPlain 
 
-type prestate
-type state = prestate
+type rw =
+    | ReaderState
+    | WriterState
+type state
 type reader = state
 type writer = state
 
-val GEN: epoch -> state * state
-val COERCE: epoch -> bytes -> state
-val LEAK: epoch -> state -> bytes
+val GEN: epoch -> reader * writer
+val COERCE: epoch -> rw -> bytes -> state
+val LEAK: epoch -> rw -> state -> bytes
 
-val history: epoch -> state -> history
+val history: epoch -> rw -> state -> history
 
 type cipher = ENC.cipher
 

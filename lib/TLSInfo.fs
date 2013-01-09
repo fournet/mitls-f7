@@ -26,52 +26,53 @@ type SessionInfo = {
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;
     compression: Compression;
-    clientID: Cert.cert list;
+    pmsData: pmsData;
     client_auth: bool;
+    clientID: Cert.cert list;
     serverID: Cert.cert list;
     sessionID: sessionID;
-    pmsData: pmsData;
     }
 
 type preEpoch =
-    | InitEpoch of Role * (* ourRand *) bytes
+    | InitEpoch of Role
     | SuccEpoch of crand * srand * SessionInfo * preEpoch
 type epoch = preEpoch
 type succEpoch = preEpoch
 
 let isInitEpoch e = 
     match e with
-    | InitEpoch (_,_) -> true
+    | InitEpoch (_) -> true
     | SuccEpoch (_,_,_,_) -> false
 
 let epochSI e =
     match e with
-    | InitEpoch (d,b) -> Error.unexpectedError "[epochSI] invoked on initial epoch."
+    | InitEpoch (d) -> Error.unexpectedError "[epochSI] invoked on initial epoch."
     | SuccEpoch (cr,sr,si,pe) -> si
 
 let epochSRand e =
     match e with
-    | InitEpoch (d,b) -> Error.unexpectedError "[epochSRand] invoked on initial epoch."
+    | InitEpoch (d) -> Error.unexpectedError "[epochSRand] invoked on initial epoch."
     | SuccEpoch (cr,sr,si,pe) -> sr
 
 let epochCRand e =
     match e with
-    | InitEpoch (d,b) -> Error.unexpectedError "[epochCRand] invoked on initial epoch."
+    | InitEpoch (d) -> Error.unexpectedError "[epochCRand] invoked on initial epoch."
     | SuccEpoch (cr,sr,si,pe) -> cr
 
 type ConnectionInfo = {
     role: Role; // cached, could be retrieved from id_out
+    id_rand: random; // our random
     id_in: epoch;
     id_out: epoch}
 
 let connectionRole ci = ci.role
 
 let initConnection role rand =
-    let ctos = InitEpoch (Client,rand) in
-    let stoc = InitEpoch (Server,rand) in
+    let ctos = InitEpoch Client in
+    let stoc = InitEpoch Server in
     match role with
-    | Client -> {role = Client; id_in = stoc; id_out = ctos}
-    | Server -> {role = Server; id_in = ctos; id_out = stoc}
+    | Client -> {role = Client; id_rand = rand; id_in = stoc; id_out = ctos}
+    | Server -> {role = Server; id_rand = rand; id_in = ctos; id_out = stoc}
 
 let nextEpoch epoch crand srand si =
     SuccEpoch (crand, srand, si, epoch )

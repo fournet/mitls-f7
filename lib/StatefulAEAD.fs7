@@ -7,31 +7,26 @@ open TLSInfo
 //CF 12/2: do we need pre/post on ciphertext lengths?
 //CF 21/4: cut prestate and State? 
 
-private type (;ki:epoch) prestate = {
+type rw =
+	| ReaderState 
+	| WriterState
+
+private type (;ki:epoch,rw:rw) state = {
   key    : (;ki) AEAD.AEADKey;         // possibly stateful
   history: (;ki) StatefulPlain.history // ghost state, except for the sequence number
 }
 
-predicate State of ki:epoch * (;ki)prestate
+function val History: e:epoch * rw:rw * (;e,rw)state -> 'a //(;e)StatefulPlain.history
+private definition !e,rw,s. History(e,rw,s) = s.history
 
-type (;ki:epoch) state = s:(;ki)prestate {State(ki,s)}
+type (;ki:epoch) reader = r:(;ki,ReaderState) state
+type (;ki:epoch) writer = w:(;ki,WriterState) state
 
-private definition !ki,s. State(ki,s) // KB: 21/4 Why do we need this? CF: dunno...
+val GEN:    ki:succEpoch{Safe(ki)}     -> (;ki)reader * (;ki)writer
+val COERCE: ki:succEpoch{not Auth(ki)} -> rw:rw -> b:bytes{Length(b)=AEAD.AEADSize(ki)} -> (;ki,rw)state
+val LEAK:   ki:succEpoch{not Auth(ki)} -> rw:rw -> (;ki,rw)state -> b:bytes
 
-function val History: e:epoch * (;e)state -> 'a //(;e)StatefulPlain.history
-private definition !e,s. History(e,s) = s.history
-
-//CF 21/4 typing should prevent mixing read/write states! 
-//CF      can we keep state a public datatype and make reader/writer abstract?
-type (;ki:epoch) reader = r:(;ki) state
-type (;ki:epoch) writer = w:(;ki) state
-
-//CF 21/4 patched, pls check; rediscuss COERCE/LEAK 
-val GEN:    ki:succEpoch{Safe(ki)}     -> (;ki) reader * (;ki)writer
-val COERCE: ki:succEpoch{not Auth(ki)} -> b:bytes{Length(b)=AEAD.AEADSize(ki)} -> (;ki)state
-val LEAK:   ki:succEpoch{not Auth(ki)} -> (;ki)state -> b:bytes
-
-val history: ki:epoch -> s:(;ki) state -> h:(;ki)StatefulPlain.history{h=History(ki,s)}
+val history: ki:epoch -> rw:rw -> s:(;ki,rw) state -> h:(;ki)StatefulPlain.history{h=History(ki,rw,s)}
 
 // Ideally,
 // the writer maintains a table (ki, h, ad, range, fragment, cipher) {...} [details?]
@@ -45,30 +40,30 @@ val history: ki:epoch -> s:(;ki) state -> h:(;ki)StatefulPlain.history{h=History
 
 type cipher = AEAD.cipher
 
-predicate val STXT: ki:epoch * (;ki)state * ad:(;ki)StatefulPlain.adata * 'a (* (;ki,ad,r)StatefulPlain.fragment *) * cipher -> bool
-private definition !ki,s,ad,f,c. 
-  STXT(ki,s,ad,f,c) <=> AEAD.CTXT(ki,AEADPlain.MakeAD(ki,s.history,ad),AEADPlain.StAEToAEAD(f),c)
+predicate val STXT: ki:epoch * (;ki) StatefulPlain.history * ad:(;ki)StatefulPlain.adata * 'a (* (;ki,ad,r)StatefulPlain.fragment *) * cipher -> bool
+private definition !ki,h,ad,f,c. 
+  STXT(ki,h,ad,f,c) <=> AEAD.CTXT(ki,AEADPlain.MakeAD(ki,h,ad),AEADPlain.StAEToAEAD(f),c)
 
 val encrypt: ki:succEpoch -> 
   wr:(;ki) writer -> 
   ad:(;ki) StatefulPlain.adata ->
   rg:range ->
-  f: (;ki,ad,History(ki,wr),rg) StatefulPlain.plain ->
+  f: (;ki,ad,History(ki,WriterState,wr),rg) StatefulPlain.plain ->
   (wr':(;ki) writer * c:cipher){
-    History(ki,wr') = StatefulPlain.ExtendHistory(ki,ad,History(ki,wr),rg,f) /\
-    (Safe(ki) => STXT(ki,wr,ad,f,c))}
+    History(ki,WriterState,wr') = StatefulPlain.ExtendHistory(ki,ad,History(ki,WriterState,wr),rg,f) /\
+    (Safe(ki) => STXT(ki,History(ki,WriterState,wr),ad,f,c))}
 //CF why do we need a conditional here? 
 
 val decrypt: ki:succEpoch -> 
   rd:(;ki) reader -> 
   ad:(;ki) StatefulPlain.adata ->
   c:cipher ->
-  res:((;ki) reader * rg:range * (;ki,ad,History(ki,rd),rg) StatefulPlain.plain) Result
+  res:((;ki) reader * rg:range * (;ki,ad,History(ki,ReaderState,rd),rg) StatefulPlain.plain) Result
   { !nrd,rg,f. res = Correct((nrd,rg,f)) => 
-               (   History(ki,nrd) = StatefulPlain.ExtendHistory(ki,ad,History(ki,rd),rg,f) /\
+               (   History(ki,ReaderState,nrd) = StatefulPlain.ExtendHistory(ki,ad,History(ki,ReaderState,rd),rg,f) /\
                    Encode.CipherRange(ki,rg,Length(c)) /\
  	         (Safe(ki) =>
-				( (!nrd,rg,f. res = Correct((nrd,rg,f)) => STXT(ki,rd,ad,f,c)) // /\
+				( (!nrd,rg,f. res = Correct((nrd,rg,f)) => STXT(ki,History(ki,ReaderState,rd),ad,f,c)) // /\
 				//  (!p. STXT(ki,rd,ad,p,c) => (?nrd,rg. res = Correct((nrd,rg,p))))
 				)
 			 ) ) }

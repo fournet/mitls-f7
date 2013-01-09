@@ -14,8 +14,8 @@ type ConnectionState
 type sendState = ConnectionState
 type recvState = ConnectionState
 
-val initConnState: epoch -> StatefulAEAD.state -> ConnectionState
-val nullConnState: epoch -> ConnectionState
+val initConnState: epoch -> StatefulAEAD.rw -> StatefulAEAD.state -> ConnectionState
+val nullConnState: epoch -> StatefulAEAD.rw -> ConnectionState
 
 //val parseHeader: bytes -> (ContentType * ProtocolVersion * int) Result
 
@@ -25,7 +25,7 @@ val headerLength: bytes -> int Result
 val recordPacketOut: epoch -> sendState -> ProtocolVersion -> range -> ContentType -> TLSFragment.fragment -> (sendState * bytes)
 val recordPacketIn : epoch -> recvState -> bytes -> (recvState * ContentType * ProtocolVersion * range * TLSFragment.fragment) Result
 
-val history: epoch -> ConnectionState -> TLSFragment.history
+val history: epoch -> StatefulAEAD.rw -> ConnectionState -> TLSFragment.history
 
 // val historyStream: epoch -> ConnectionState -> ContentType -> DataStream.stream
 

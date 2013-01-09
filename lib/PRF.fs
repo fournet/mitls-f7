@@ -30,7 +30,7 @@ let keyGen ci (ms:masterSecret) =
     let data = srand @| crand in
     let len = getKeyExtensionLength pv cs in
     let b = prf pv cs ms.bytes tls_key_expansion data len in
-    let cWrite, sWrite = 
+    let cWriteb, sWriteb = 
     #if ideal
       if honest (epochSI(ci.id_in))
       then 
@@ -46,10 +46,7 @@ let keyGen ci (ms:masterSecret) =
         match cs with
         | x when isOnlyMACCipherSuite x ->
             let macKeySize = macKeySize (macAlg_of_ciphersuite cs) in
-            let cmkb, smkb = split b macKeySize 
-            let ck = StatefulAEAD.COERCE ci.id_out cmkb in
-            let sk = StatefulAEAD.COERCE ci.id_in smkb in
-            (ck,sk)
+            split b macKeySize 
         | _ ->
             let macKeySize = macKeySize (macAlg_of_ciphersuite cs) in
             let encKeySize = encKeySize (encAlg_of_ciphersuite cs) in
@@ -61,8 +58,8 @@ let keyGen ci (ms:masterSecret) =
             let cekb, b = split b encKeySize in
             let sekb, b = split b encKeySize in
             let civb, sivb = split b ivsize in
-            let ck = StatefulAEAD.COERCE ci.id_out (cmkb @| cekb @| civb) in
-            let sk = StatefulAEAD.COERCE ci.id_in (smkb @| sekb @| sivb) in
+            let ck = (cmkb @| cekb @| civb) in
+            let sk = (smkb @| sekb @| sivb) in
             (ck,sk)
 (* KB: rewrite the above in the style and typecheck:
    #if ideal
@@ -74,8 +71,12 @@ let keyGen ci (ms:masterSecret) =
 *)
    
     match ci.role with 
-    | Client -> cWrite,sWrite
-    | Server -> sWrite,cWrite
+    | Client ->
+        (StatefulAEAD.COERCE ci.id_out StatefulAEAD.WriterState cWriteb,
+         StatefulAEAD.COERCE ci.id_in  StatefulAEAD.ReaderState sWriteb)
+    | Server ->
+        (StatefulAEAD.COERCE ci.id_out StatefulAEAD.WriterState sWriteb,
+         StatefulAEAD.COERCE ci.id_in  StatefulAEAD.ReaderState cWriteb)
 
 
 let makeVerifyData e role (ms:masterSecret) data =
