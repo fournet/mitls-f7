@@ -11,16 +11,26 @@ class Object(object):
 
 # --------------------------------------------------------------------
 OPENSSL_CIPHERS = {
-    'TLS_RSA_WITH_NULL_MD5'           : 'NULL-MD5'     ,
-    'TLS_RSA_WITH_NULL_SHA'           : 'NULL-SHA'     ,
-    'TLS_RSA_WITH_NULL_SHA256'        : None           ,
-    'TLS_RSA_WITH_RC4_128_MD5'        : 'RC4-MD5'      ,
-    'TLS_RSA_WITH_RC4_128_SHA'        : 'RC4-SHA'      ,
-    'TLS_RSA_WITH_3DES_EDE_CBC_SHA'   : 'DES-CBC3-SHA' ,
-    'TLS_RSA_WITH_AES_128_CBC_SHA'    : 'AES128-SHA'   ,
-    'TLS_RSA_WITH_AES_128_CBC_SHA256' : 'AES128-SHA256',
-    'TLS_RSA_WITH_AES_256_CBC_SHA'    : 'AES256-SHA'   ,
-    'TLS_RSA_WITH_AES_256_CBC_SHA256' : 'AES256-SHA256',
+    'TLS_RSA_WITH_NULL_MD5'            : 'NULL-MD5'            ,
+    'TLS_RSA_WITH_NULL_SHA'            : 'NULL-SHA'            ,
+    'TLS_RSA_WITH_NULL_SHA256'         : 'NULL-SHA256'         ,
+    'TLS_RSA_WITH_RC4_128_MD5'         : 'RC4-MD5'             ,
+    'TLS_RSA_WITH_RC4_128_SHA'         : 'RC4-SHA'             ,
+    'TLS_RSA_WITH_3DES_EDE_CBC_SHA'    : 'DES-CBC3-SHA'        ,
+    'TLS_RSA_WITH_AES_128_CBC_SHA'     : 'AES128-SHA'          ,
+    'TLS_RSA_WITH_AES_128_CBC_SHA256'  : 'AES128-SHA256'       ,
+    'TLS_RSA_WITH_AES_256_CBC_SHA'     : 'AES256-SHA'          ,
+    'TLS_RSA_WITH_AES_256_CBC_SHA256'  : 'AES256-SHA256'       ,
+    'TLS_DH_anon_WITH_3DES_EDE_CBC_SHA': 'ADH-DES-CBC3-SHA'    ,
+    'TLS_DH_anon_WITH_AES_128_CBC_SHA' : 'ADH-AES128-SHA'      ,
+    'TLS_DH_anon_WITH_AES_256_CBC_SHA' : 'ADH-AES256-SHA'      ,
+    'TLS_DH_anon_WITH_RC4_128_MD5'     : 'ADH-RC4-MD5'         ,
+    'TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA': 'EDH-DSS-DES-CBC3-SHA',
+    'TLS_DHE_DSS_WITH_AES_128_CBC_SHA' : 'DHE-DSS-AES128-SHA'  ,
+    'TLS_DHE_DSS_WITH_AES_256_CBC_SHA' : 'DHE-DSS-AES256-SHA'  ,
+    'TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA': 'EDH-RSA-DES-CBC3-SHA',
+    'TLS_DHE_RSA_WITH_AES_128_CBC_SHA' : 'DHE-RSA-AES128-SHA'  ,
+    'TLS_DHE_RSA_WITH_AES_256_CBC_SHA' : 'DHE-RSA-AES256-SHA'  ,
 }
 
 # --------------------------------------------------------------------
@@ -76,8 +86,11 @@ def _check_for_config(mode, config):
                         '--port'         , str(config.address[1]),
                         '--ciphers'      , cipher,
                         '--tlsversion'   , config.version,
-                        '--server-name'  , config.servname,
                         '--sessionDB-dir', mysessiondir]
+
+            if config.servname is not None:
+                command += ['--server-name'  , config.servname,]
+
 
             if not mivendor:
                 command += ['--pki', 'pki']
@@ -131,9 +144,10 @@ def _check_for_config(mode, config):
         for subp, who in [(subpc, 'client'), (subps, 'server')]:
             if subp is not None:
                 logging.debug('Waiting echo %s to shutdown...' % (who,))
-                time.sleep(.2)
-                try: subp.kill()
-                except OSError: pass
+                try:
+                    subp.kill(); subp.wait()
+                except OSError:
+                    pass
                 
         if sessiondir is not None:
             shutil.rmtree(sessiondir, ignore_errors = True)
@@ -143,9 +157,9 @@ def _check_for_config(mode, config):
 
 # --------------------------------------------------------------------
 DEFAULTS = '''\
-[config]
+[DEFAULT]
 bind     = 127.0.0.1:6000
-servname = cert-01.mitls.org
+servname =
 '''
 
 def _main():
@@ -165,7 +179,6 @@ def _main():
         exit(1)
 
     bind      = parser.get('config', 'bind')
-    servname  = parser.get('config', 'servname')
     scennames = parser.get('config', 'scenarios').split()
     scenarios = []
 
@@ -174,11 +187,14 @@ def _main():
             if not parser.has_option(scenario, x):
                 print >>sys.stderr, "Missing `[%s].%s' option" % (scenario, x)
                 exit(1)
-        versions = parser.get(scenario, 'versions').split()
-        ciphers  = parser.get(scenario, 'ciphers').split()
-        scenarios.append((scenario, ciphers, versions))
+        scendata = Object(
+            servname = parser.get(scenario, 'servname').strip() or None,
+            versions = parser.get(scenario, 'versions').split(),
+            ciphers  = parser.get(scenario, 'ciphers' ).split(),
+        )
+        scenarios.append((scenario, scendata))
 
-    del ciphers, versions
+    del scendata
 
     if ':' in bind:
         bind = tuple(bind.split(':', 1))
@@ -197,17 +213,18 @@ def _main():
 
     logging.info("----- CONFIGURATION -----")
     logging.info("Binding address is: %s" % ':'.join(map(str, bind)))
-    for i, (name, ciphers, versions) in enumerate(scenarios):
+    for i, (name, scendata) in enumerate(scenarios):
         logging.info("Scenario %.2d (%s)" % (i+1, name))
-        logging.info("* TLS versions: %s" % ", ".join(versions))
-        logging.info("* TLS ciphers : %s" % ", ".join(ciphers))
+        logging.info("* TLS Servname: %s" % (scendata.servname or '<none>',))
+        logging.info("* TLS versions: %s" % ", ".join(scendata.versions))
+        logging.info("* TLS ciphers : %s" % ", ".join(scendata.ciphers))
     logging.info("----- END OF CONFIGURATION -----")
 
     nerrors = 0
 
-    for name, ciphers, versions in scenarios:
-        for cipher in ciphers:
-            for version in versions:
+    for name, scendata in scenarios:
+        for cipher in scendata.ciphers:
+            for version in scendata.versions:
                 for mode in (MI_C_TLS, MI_MI_TLS):
                     logging.info("Checking for cipher: `%s'" % (cipher,))
                     logging.info("* Client is miTLS: %r" % (mode.miclient,))
@@ -217,7 +234,7 @@ def _main():
                     config = Object(cipher   = cipher,
                                     version  = version,
                                     address  = bind,
-                                    servname = servname)
+                                    servname = scendata.servname)
     
                     success  = _check_for_config(mode, config)
                     nerrors += int(not success)

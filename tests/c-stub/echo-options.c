@@ -102,10 +102,12 @@ int _options(int argc, char *argv[], options_t *options) {
     options->dbdir  = xstrdup(dbdir);
     options->pki    = xstrdup(pki);
 
+#if 0
     if (options->sname == NULL) {
         elog(LOG_FATAL, "no server name given (--server-name)");
         return -1;
     }
+#endif
 
     return 0;
 }

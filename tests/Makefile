@@ -20,6 +20,7 @@ all: pki.built
 
 pki.built:
 	$(MAKE) -C pki clean
+	$(MAKE) -C pki dh
 	$(MAKE) -C pki ca imported/ca.imported
 	$(MAKE) -C pki imported/cert-01.mitls.org.imported
 	$(MAKE) -C pki imported/cert-02.mitls.org.imported

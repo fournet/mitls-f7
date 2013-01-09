@@ -19,6 +19,31 @@ const struct tlsversion_s tlsversions[] = {
 };
 
 /* -------------------------------------------------------------------- */
+long SSL_CTX_use_tmp_dh_file(SSL_CTX *ctx, const char *filename) {
+    BIO *stream   = NULL;
+    DH  *dhparams = NULL;
+    int  rr       = 0;
+
+    if ((stream = BIO_new_file(filename, "r")) == NULL)
+        goto bailout;
+    if ((dhparams = PEM_read_bio_DHparams(stream, NULL, NULL, NULL)) == NULL)
+        goto bailout;
+    if (!(rr = SSL_CTX_set_tmp_dh(ctx, dhparams)))
+        goto bailout;
+
+    DH_free(dhparams);
+    BIO_free(stream);
+
+    return rr;
+
+ bailout:
+    if (dhparams != NULL) DH_free(dhparams);
+    if (stream   != NULL) BIO_free(stream);
+
+    return 0;
+}
+
+/* -------------------------------------------------------------------- */
 tlsver_t tlsver_of_name(const char *name) {
     size_t i;
 
@@ -36,14 +61,19 @@ SSL_CTX* evssl_init(const echossl_t *options, int isserver) {
     /*-*/ SSL_CTX    *context = NULL;
     /*-*/ char       *crtfile = NULL;
     /*-*/ char       *keyfile = NULL;
+    /*-*/ char       *dhfile  = NULL;
     /*-*/ char       *CApath  = NULL;
     const SSL_METHOD *method  = NULL;
 
     if (!isserver)
         abort();                /* FIXME */
 
-    crtfile = xjoin(options->pki, "/certificates/", options->sname, ".crt", NULL);
-    keyfile = xjoin(options->pki, "/certificates/", options->sname, ".key", NULL);
+    if (options->sname != NULL) {
+        crtfile = xjoin(options->pki, "/certificates/", options->sname, ".crt", NULL);
+        keyfile = xjoin(options->pki, "/certificates/", options->sname, ".key", NULL);
+    }
+
+    dhfile  = xjoin(options->pki, "/certificates/dh.pem", NULL);
     CApath  = xjoin(options->pki, "/db/ca.db.certs", NULL);
 
     SSL_load_error_strings();
@@ -76,6 +106,11 @@ SSL_CTX* evssl_init(const echossl_t *options, int isserver) {
         }
     }
 
+    if (!SSL_CTX_use_tmp_dh_file(context, dhfile)) {
+        elog(LOG_FATAL, "cannot load/set DH parameters from file `%s'", dhfile);
+        goto bailout;
+    }
+
     if (!SSL_CTX_load_verify_locations(context, NULL, CApath)) {
         elog(LOG_FATAL, "cannot load trusted hashed CA path");
         goto bailout;
@@ -83,19 +118,24 @@ SSL_CTX* evssl_init(const echossl_t *options, int isserver) {
 
     (void) SSL_CTX_set_default_verify_paths(context);
 
+    if (options->sname != NULL) {
+        if (!SSL_CTX_use_certificate_chain_file(context, crtfile)) {
+            elog(LOG_FATAL, "cannot load certificate `%s'", crtfile);
+            goto bailout;
+        }
 
-    if (!SSL_CTX_use_certificate_chain_file(context, crtfile)) {
-        elog(LOG_FATAL, "cannot load certificate `%s'", crtfile);
-        goto bailout;
+        if (!SSL_CTX_use_PrivateKey_file(context, keyfile, SSL_FILETYPE_PEM)) {
+            elog(LOG_FATAL, "cannot load certificate key `%s'", keyfile);
+            goto bailout;
+        }
     }
 
-    if (!SSL_CTX_use_PrivateKey_file(context, keyfile, SSL_FILETYPE_PEM)) {
-        elog(LOG_FATAL, "cannot load certificate key `%s'", keyfile);
-        goto bailout;
+    if (options->sname != NULL) {
+        free(keyfile);
+        free(crtfile);
     }
 
-    free(keyfile);
-    free(crtfile);
+    free(dhfile);
     free(CApath);
 
     return context;
@@ -106,6 +146,7 @@ SSL_CTX* evssl_init(const echossl_t *options, int isserver) {
 
     if (keyfile != NULL) free(keyfile);
     if (crtfile != NULL) free(crtfile);
+    if (dhfile  != NULL) free(dhfile);
     if (CApath  != NULL) free(CApath);
 
     return NULL;

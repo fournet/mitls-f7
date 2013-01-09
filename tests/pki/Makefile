@@ -42,7 +42,7 @@ define layout
 endef
 
 # --------------------------------------------------------------------
-.PHONY: ca dh layout clean hash
+.PHONY: ca dh dsap layout clean hash
 
 .PRECIOUS: %.p12
 .PRECIOUS: %.key
@@ -51,7 +51,7 @@ endef
 .PRECIOUS: certificates/ca.key
 .PRECIOUS: certificates/ca.crt
 
-# --------------------------------------------------------------------
+# --------------------	------------------------------------------------
 all:
 	@echo "No default rule" >&2
 
@@ -70,7 +70,13 @@ certificates/ca.crt: certificates/ca.key
 dh: layout certificates/dh.pem
 
 certificates/dh.pem:
-	openssl dhparam -out certificates/dh.pem 1024
+	openssl dhparam -out $@ 1024
+
+# --------------------------------------------------------------------
+dsap: layout certificates/dsap.pem
+
+certificates/dsp.pem:
+	openssl dsaparam -out $@ 1024
 
 # --------------------------------------------------------------------
 %.p12: %.key %.crt certificates/ca.crt
@@ -134,6 +140,12 @@ clean-store:
 endif
 
 # --------------------------------------------------------------------
+dsa.%.key: certificates/dsap.pem
+	openssl gendsa -out $@ certificates/dsap.pem
+
+dsa-pub.%.key: dsa.%.key
+	openssl dsa -in $< -pubout -out $@
+
 %.key:
 	openssl genrsa -out $@ 1024
 
