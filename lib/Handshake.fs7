@@ -917,7 +917,7 @@ val prepare_server_output_full_DH_anon: ci:ConnectionInfo -> (;ci)hs_state -> Se
 	cVerifyData -> sVerifyData -> log ->
 	((;ci)hs_state * ProtocolVersion) Result
 val prepare_server_output_full: ci:ConnectionInfo -> (;ci)hs_state -> si:SessionInfo ->
-	pv:ProtocolVersion -> Sig.alg list -> cVerifyData -> sVerifyData -> l:log{
+	pv:ProtocolVersion -> cVerifyData -> sVerifyData -> l:log{
           ?csid,cs,cm,ex. l = ClientHelloMsg(pv,si.init_crand,csid,cs,cm,ex)
         } ->
 	((;ci)hs_state * ProtocolVersion) Result

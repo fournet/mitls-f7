@@ -1514,14 +1514,18 @@ let prepare_server_output_full_DH_anon (ci:ConnectionInfo) state si cvd svd log 
     let state = {state with pstate = PSServer(ClientKeyExchangeDH_anon(si,p,g,y,x,log))}
     correct (state,si.protocol_version)
 
-let prepare_server_output_full ci state si cv calgs cvd svd log =
+let prepare_server_output_full ci state si cv cvd svd log =
     if isAnonCipherSuite si.cipher_suite then
         prepare_server_output_full_DH_anon ci state si cvd svd log
     elif isDHCipherSuite si.cipher_suite then
         prepare_server_output_full_DH ci state si log
     elif isDHECipherSuite si.cipher_suite then
+        // Get the client supported SignatureAndHash algorithms. In TLS 1.2, this should be extracted from a client extension
+        let calgs = default_sigHashAlg si.protocol_version si.cipher_suite in
         prepare_server_output_full_DHE ci state si calgs cvd svd log
     elif isRSACipherSuite si.cipher_suite then
+        // Get the client supported SignatureAndHash algorithms. In TLS 1.2, this should be extracted from a client extension
+        let calgs = default_sigHashAlg si.protocol_version si.cipher_suite in
         prepare_server_output_full_RSA ci state si cv calgs cvd svd log
     else
         unexpectedError "[prepare_server_output_full] unexpected ciphersuite"
@@ -1556,8 +1560,6 @@ let startServerFull (ci:ConnectionInfo) state (cHello:ProtocolVersion * crand * 
         | Some(cs) ->
             match negotiate ch_compression_methods state.poptions.compressions with
             | Some(cm) ->
-                // Get the client supported SignatureAndHash algorithms. In TLS 1.2, this should be extracted from a client extension
-                let clientAlgs = default_sigHashAlg version cs in
                 let sid = Nonce.mkRandom 32 in
                 let srand = Nonce.mkHelloRandom () in
                 (* Fill in the session info we're establishing *)
@@ -1571,7 +1573,7 @@ let startServerFull (ci:ConnectionInfo) state (cHello:ProtocolVersion * crand * 
                            init_crand       = ch_random
                            init_srand       = srand
                            pmsData          = PMSUnset }
-                prepare_server_output_full ci state si ch_client_version clientAlgs cvd svd log
+                prepare_server_output_full ci state si ch_client_version cvd svd log
             | None -> Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Compression method negotiation")
         | None ->     Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Ciphersuite negotiation")
 
