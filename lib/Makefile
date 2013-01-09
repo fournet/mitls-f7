@@ -8,7 +8,7 @@ lib7     = ../../../lib/fs7-interfaces/
 libperv  = $(lib7)pervasives.fs7 $(lib7)tuples.fs7
 lperv    = -pervasives $(lib7)pervasives.fs7 -tuples $(lib7)tuples.fs7
 libfs7   = $(lib7)pi.fs7 $(lib7)formulas.fs7
-f7flags += -timeout 1 --define avoid --define verify --define ideal --verbose -nokindcheck $(lperv) $(libfs7)
+f7flags += -timeout 1 --verbose --define avoid --define verify --define ideal --verbose -nokindcheck $(lperv) $(libfs7)
 
 .PHONY: default clean
 

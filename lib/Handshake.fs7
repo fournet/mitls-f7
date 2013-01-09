@@ -608,11 +608,11 @@ private assume !a,k,t. Sig.Msg(a,k,t)
 
 predicate Configure of Role * epoch * config
 predicate Authorize of Role * SessionInfo
-predicate SentCCS of Role * SessionInfo (* Should be about epochs since 
-                                           CCS will be sent multiple times, one for each epoch *)
+predicate SentCCS of Role * epoch (* CCS will be sent multiple times, 
+                                     one for each epoch *)
 predicate EvSentFinishedFirst of ConnectionInfo * bool
 predicate Negotiated of SessionInfo * config * config
-predicate CompleteSI of SessionInfo
+predicate CompleteEpoch of Epoch * Epoch
 predicate Complete of ConnectionInfo
 
 (* Anonymous clients are authorized for client-unauthenticated sessions *)
@@ -633,23 +633,23 @@ private assume !a,k,t. Sig.Msg(a,k,t)
            k = Cert.RSAPKCert(si.serverID)))
 
            
-private assume !si,r,b. PRF.VerifyData(si,r,b) 
+private assume !e,r,b. PRF.VerifyData(e,r,b) 
   <=> ((r = Client /\
-        Authorize(Client,si) /\
-        SentCCS(Client,si) /\
-        ClientLogBeforeClientFinished(si,b)) \/
+        Authorize(Client,EpochSi(e)) /\
+        SentCCS(Client,e) /\
+        ClientLogBeforeClientFinished(EpochSI(e),b)) \/
        (r = Server /\
-        Authorize(Server,si) /\
-        SentCCS(Server,si) /\
-        ServerLogBeforeServerFinished(si,b)) \/
+        Authorize(Server,EpochSI(e)) /\
+        SentCCS(Server,e) /\
+        ServerLogBeforeServerFinished(EpochSI(e),b)) \/
        (r = Client /\
-        Authorize(Client,si) /\
-        SentCCS(Client,si) /\
-        ClientLogBeforeClientFinishedResume(si,b)) \/
+        Authorize(Client,EpochSI(e)) /\
+        SentCCS(Client,e) /\
+        ClientLogBeforeClientFinishedResume(EpochSI(e),b)) \/
        (r = Server /\
-        Authorize(Server,si) /\
-        SentCCS(Server,si) /\
-        ServerLogBeforeServerFinishedResume(si,b))) 
+        Authorize(Server,EpochSI(e)) /\
+        SentCCS(Server,e) /\
+        ServerLogBeforeServerFinishedResume(EpochSI(e),b))) 
 
 (* Complete should be defined on the current epoch not the session info.
 Sample:
@@ -667,24 +667,24 @@ private assume !e,si. CompleteSI(e) <=>
                ))
 *)
 
-private assume !e,si. CompleteSI(e,si) <=>
-        (StrongHS(si) /\ HonestPMS(si) =>
+private assume !e,si. CompleteEpoch(prev,e) <=>
+        (StrongHS(EpochSI(e)) /\ HonestPMS(EpochSI(e)) =>
             (?cfgC,cfgS.
-               SafeHS(si) /\ 
-               Authorize(Client,si) /\
-               Authorize(Server,si) /\
-               SentCCS(Client,si) /\
-               SentCCS(Server,si) /\
-               Configure(Client,e,cfgC) /\
-               Configure(Server,e,cfgS) /\
-               Negotiated(si,cfgC,cfgS)
+               SafeHS(EpochSI(e)) /\ 
+               Authorize(Client,EpochSI(e)) /\
+               Authorize(Server,EpochSI(e)) /\
+               SentCCS(Client,e) /\
+               SentCCS(Server,e) /\
+               Configure(Client,prev,cfgC) /\
+               Configure(Server,prev,cfgS) /\
+               Negotiated(EpochSI(e),cfgC,cfgS)
                ))
 (* Negotiated remains to be defined but it can be a nice global spec of what HS is meant to achieve.
    Especially interesting would be proving that the result is the "best possible" *)
 
 private assume !ci. Complete(ci) <=>
         (EpochSI(ci.id_in) = EpochSI(ci.id_out) /\
-         CompleteSI(Pred(ci.id_in),EpochSI(ci.id_in)))
+         CompleteEpoch(Pred(ci.id_in),ci.id_in))
             
  
 type serverState =  (* note that the CertRequest bits are determined by the config *) 

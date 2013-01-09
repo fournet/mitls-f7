@@ -52,6 +52,12 @@ type authencAlg =
 (* TODO: use uniform naming convention, e.g. length implements Length; make more defs private *)
 
 function val SigAlgBytes: sigAlg -> bytes
+private assume !s.
+           (SigAlgBytes(SA_RSA) = [|1uy|]) /\
+           (SigAlgBytes(SA_DSA) = [|2uy|]) /\
+           (SigAlgBytes(SA_ECDSA) = [|3uy|])
+           
+
 val sigAlgBytes: s:sigAlg -> b:bytes{b=SigAlgBytes(s)}
 val parseSigAlg: b:bytes -> (s:sigAlg{b=SigAlgBytes(s)}) Result
 function val HashAlgBytes: hashAlg -> bytes

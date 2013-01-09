@@ -216,12 +216,12 @@ type preds =
   | CTXT of epoch * bytes * AEADPlain.plain * cipher
   | NotCTXT of epoch * bytes * cipher
 
-type entry = epoch * AEADPlain.adata * AEADPlain.plain * ENC.cipher
+type entry = epoch * AEADPlain.adata * range * AEADPlain.plain * ENC.cipher
 let log = ref ([]: entry list) // the semantics of CTXT
 
 let rec cmem (e:epoch) (ad:AEADPlain.adata) (c:ENC.cipher) (xs: entry list) = 
   match xs with
-  | (e',ad',p,c')::_ when e=e' && ad=ad' && c=c' -> Some p
+  | (e',ad',r,p,c')::_ when e=e' && ad=ad' && c=c' -> Some (r,p)
   | _::xs                  -> cmem e ad c xs 
   | []                     -> None
 
@@ -233,7 +233,7 @@ let encrypt e key data rg plain =
   let (key,cipher) = encrypt' e key data rg plain in
   #if ideal
   Pi.assume (CTXT(e,data,plain,cipher));
-  log := (e,data,plain,cipher)::!log;
+  log := (e,data,rg,plain,cipher)::!log;
   #endif
   (key,cipher)
   
@@ -241,8 +241,9 @@ let decrypt e (key: AEADKey) data (cipher: bytes) =
   #if ideal
   if safe e then
     match cmem e data cipher !log with
-    | Some p -> // (* 1 *) decrypt' e key data cipher
-                   (* 2 *) let rg = cipherRange e (length cipher) in correct (key,rg,p)
+    | Some (r,p) -> // (* 1 *) decrypt' e key data cipher
+                       (* 2 *) let rg = cipherRange e (length cipher) in 
+                               correct (key,rg,p)
     | None   -> Error(AD_bad_record_mac, "")  
   else decrypt' e key data cipher
   #else
