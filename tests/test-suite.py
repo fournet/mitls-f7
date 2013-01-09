@@ -130,10 +130,14 @@ def _check_for_config(mode, config):
 
         logging.debug('Client <-> server communication...')
 
-        DATA = 'dohj3do0aiF9eishilaiPh2aid2eidahch2eivaonevohmoovainazoo8Ooyoo9O'
+        CRLN  = '\r\n'
+        DATA  = 'dohj3do0aiF9eishilaiPh2aid2eidahch2eivaonevohmoovainazoo8Ooyoo9O'
+        REGN  = '<renegotiate>'
+        #INPUT = CRLN.join([DATA, REGN, DATA]) + CRLN
+        INPUT = DATA + CRLN
 
         try:
-            contents = subpc.communicate(DATA)[0].splitlines()
+            contents = subpc.communicate(INPUT)[0].splitlines()
         except (IOError, OSError), e:
             logging.error('Error while interacting with server: %s' % (e,))
             return False

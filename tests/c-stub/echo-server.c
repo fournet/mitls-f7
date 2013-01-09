@@ -103,6 +103,16 @@ static void _server_onread(bufferevent_t *be, void *arg) {
 
         if (line == NULL)
             break ;
+
+        if (strcmp(line, "<renegotiate>") == 0) {
+            stelog(stream, LOG_INFO, "starting renegotiation");
+
+            if (bufferevent_ssl_renegotiate(be) < 0) {
+                stelog(stream, LOG_ERROR, "error setting renegotiation");
+                goto bailout;
+            }
+        }
+
         (void) evbuffer_expand(obuffer, len+2);
         if (evbuffer_add(obuffer, line  , len) < 0 ||
             evbuffer_add(obuffer, "\r\n", 2  ) < 0)
