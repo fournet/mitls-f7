@@ -26,11 +26,11 @@ type SessionInfo = {
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;
     compression: Compression;
-    pmsData: pmsData;
-    client_auth: bool;
     clientID: Cert.cert list;
+    client_auth: bool;
     serverID: Cert.cert list;
     sessionID: sessionID;
+    pmsData: pmsData;
     }
 
 type preEpoch =
