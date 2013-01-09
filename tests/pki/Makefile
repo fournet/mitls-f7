@@ -75,7 +75,7 @@ certificates/dh.pem:
 # --------------------------------------------------------------------
 dsap: layout certificates/dsap.pem
 
-certificates/dsp.pem:
+certificates/dsap.pem:
 	openssl dsaparam -out $@ 1024
 
 # --------------------------------------------------------------------
@@ -143,7 +143,7 @@ endif
 dsa.%.key: certificates/dsap.pem
 	openssl gendsa -out $@ certificates/dsap.pem
 
-dsa-pub.%.key: dsa.%.key
+dsa.%.pub: dsa.%.key
 	openssl dsa -in $< -pubout -out $@
 
 %.key:
