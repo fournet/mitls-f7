@@ -35,12 +35,17 @@ OPENSSL_CIPHERS = {
 
 # --------------------------------------------------------------------
 class MI_MI_TLS(object):
+    name     = 'MI_MI_TLS'
     miserver = True
     miclient = True
 
 class MI_C_TLS(object):
+    name     = 'MI_C_TLS'
     miserver = False
     miclient = True
+
+VENDORS_MODE = (MI_MI_TLS, MI_C_TLS)
+VENDORS_MODE = dict((x.name, x) for x in VENDORS_MODE)
 
 # --------------------------------------------------------------------
 def cygpath(mode, path):
@@ -133,8 +138,11 @@ def _check_for_config(mode, config):
         CRLN  = '\r\n'
         DATA  = 'dohj3do0aiF9eishilaiPh2aid2eidahch2eivaonevohmoovainazoo8Ooyoo9O'
         REGN  = '<renegotiate>'
-        #INPUT = CRLN.join([DATA, REGN, DATA]) + CRLN
-        INPUT = DATA + CRLN
+
+        if config.reneg:
+            INPUT = CRLN.join([DATA, REGN, DATA]) + CRLN
+        else:
+            INPUT = DATA + CRLN
 
         try:
             contents = subpc.communicate(INPUT)[0].splitlines()
@@ -164,6 +172,8 @@ DEFAULTS = '''\
 [DEFAULT]
 bind     = 127.0.0.1:6000
 servname =
+modes    = MI_MI_TLS MI_C_TLS
+reneg    = False
 '''
 
 def _main():
@@ -186,6 +196,14 @@ def _main():
     scennames = parser.get('config', 'scenarios').split()
     scenarios = []
 
+    if len(sys.argv)-1 > 0:
+        scennames = sys.argv[1:]
+
+    for scenario in scennames:
+        if not parser.has_section(scenario):
+            print >>sys.stderr, "No section for scenario `%s'" % (scenario,)
+            exit(1)
+
     for scenario in scennames:
         for x in ('versions', 'ciphers'):
             if not parser.has_option(scenario, x):
@@ -195,7 +213,16 @@ def _main():
             servname = parser.get(scenario, 'servname').strip() or None,
             versions = parser.get(scenario, 'versions').split(),
             ciphers  = parser.get(scenario, 'ciphers' ).split(),
+            modes    = parser.get(scenario, 'modes'   ).split(),
+            reneg    = parser.getboolean(scenario, 'reneg'),
         )
+
+        try:
+            scendata.modes = [VENDORS_MODE[x] for x in scendata.modes]
+        except KeyError, e:
+            print >>sys.stderr, "Unknown mode: `%s'" % (e.args[0])
+            exit(1)
+
         scenarios.append((scenario, scendata))
 
     del scendata
@@ -222,6 +249,8 @@ def _main():
         logging.info("* TLS Servname: %s" % (scendata.servname or '<none>',))
         logging.info("* TLS versions: %s" % ", ".join(scendata.versions))
         logging.info("* TLS ciphers : %s" % ", ".join(scendata.ciphers))
+        logging.info("* TLS vendors : %s" % ", ".join([x.name for x in scendata.modes]))
+        logging.info("* TL reneg    : %r" % (scendata.reneg,))
     logging.info("----- END OF CONFIGURATION -----")
 
     nerrors = 0
@@ -229,7 +258,7 @@ def _main():
     for name, scendata in scenarios:
         for cipher in scendata.ciphers:
             for version in scendata.versions:
-                for mode in (MI_C_TLS, MI_MI_TLS):
+                for mode in scendata.modes:
                     logging.info("Checking for cipher: `%s'" % (cipher,))
                     logging.info("* Client is miTLS: %r" % (mode.miclient,))
                     logging.info("* Server is miTLS: %r" % (mode.miserver,))
@@ -238,7 +267,8 @@ def _main():
                     config = Object(cipher   = cipher,
                                     version  = version,
                                     address  = bind,
-                                    servname = scendata.servname)
+                                    servname = scendata.servname,
+                                    reneg    = scendata.reneg)
     
                     success  = _check_for_config(mode, config)
                     nerrors += int(not success)
