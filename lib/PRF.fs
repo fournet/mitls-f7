@@ -19,7 +19,15 @@ let corrupt si = memr !corrupted si
 let honest si = if corrupt si then false else true
 
 let sample (si:SessionInfo) = {bytes = Nonce.mkRandom 48}
+
+// we normalize the pair to use as a shared index; 
+// this function could also leave in TLSInfo
+let epochs (ci:ConnectionInfo) = 
+  if ci.role = Client 
+  then (ci.id_in, ci.id_out)
+  else (ci.id_out, ci.id_in) 
 #endif
+
 
 let keyGen ci (ms:masterSecret) =
     let si = epochSI(ci.id_in) in
@@ -30,23 +38,38 @@ let keyGen ci (ms:masterSecret) =
     let data = srand @| crand in
     let len = getKeyExtensionLength pv cs in
     let b = prf pv cs ms.bytes tls_key_expansion data len in
-    let cWriteb, sWriteb = 
     #if ideal
-      if honest (epochSI(ci.id_in))
-      then 
-        match tryFind (fun el-> fst el = (ci,ms)) !log with
-        | Some(_,(cWrite,sWrite)) -> (cWrite,sWrite)
+            
+(* KB: rewrite the above in the style and typecheck:
+   #if ideal
+   if safeHS(...) 
+     ... GEN ...
+   else 
+   #endif
+     .... COERCE ...
+*)
+    if honest (epochSI(ci.id_in))
+    then 
+        match tryFind (fun el-> fst el = (epochs ci,ms)) !log with
+        | Some(_,(cWrite,cRead)) -> (cWrite,cRead)
         | None                    -> 
-            let (cWrite,sRead) = StatefulAEAD.GEN ci.id_out
-            let (sWrite,cRead) = StatefulAEAD.GEN ci.id_in 
-            log := ((ci,ms),(cWrite,sWrite))::!log;
-            (cWrite,sWrite)
-      else 
+            let (myWrite,peerRead) = StatefulAEAD.GEN ci.id_out
+            let (peerWrite,myRead) = StatefulAEAD.GEN ci.id_in 
+            log := ((epochs ci,ms),(peerWrite,peerRead))::!log;
+            (myWrite,myRead)
+    else 
     #endif
         match cs with
         | x when isOnlyMACCipherSuite x ->
             let macKeySize = macKeySize (macAlg_of_ciphersuite cs) in
-            split b macKeySize 
+            let ck,sk = split b macKeySize 
+            match ci.role with 
+            | Client ->
+                (StatefulAEAD.COERCE ci.id_out StatefulAEAD.WriterState ck,
+                 StatefulAEAD.COERCE ci.id_in  StatefulAEAD.ReaderState sk)
+            | Server ->
+                (StatefulAEAD.COERCE ci.id_out StatefulAEAD.WriterState sk,
+                 StatefulAEAD.COERCE ci.id_in  StatefulAEAD.ReaderState ck)
         | _ ->
             let macKeySize = macKeySize (macAlg_of_ciphersuite cs) in
             let encKeySize = encKeySize (encAlg_of_ciphersuite cs) in
@@ -60,23 +83,13 @@ let keyGen ci (ms:masterSecret) =
             let civb, sivb = split b ivsize in
             let ck = (cmkb @| cekb @| civb) in
             let sk = (smkb @| sekb @| sivb) in
-            (ck,sk)
-(* KB: rewrite the above in the style and typecheck:
-   #if ideal
-   if safeHS(...) 
-     ... GEN ...
-   else 
-   #endif
-     .... COERCE ...
-*)
-   
-    match ci.role with 
-    | Client ->
-        (StatefulAEAD.COERCE ci.id_out StatefulAEAD.WriterState cWriteb,
-         StatefulAEAD.COERCE ci.id_in  StatefulAEAD.ReaderState sWriteb)
-    | Server ->
-        (StatefulAEAD.COERCE ci.id_out StatefulAEAD.WriterState sWriteb,
-         StatefulAEAD.COERCE ci.id_in  StatefulAEAD.ReaderState cWriteb)
+            match ci.role with 
+            | Client ->
+                (StatefulAEAD.COERCE ci.id_out StatefulAEAD.WriterState ck,
+                 StatefulAEAD.COERCE ci.id_in  StatefulAEAD.ReaderState sk)
+            | Server ->
+                (StatefulAEAD.COERCE ci.id_out StatefulAEAD.WriterState sk,
+                 StatefulAEAD.COERCE ci.id_in  StatefulAEAD.ReaderState ck)
 
 
 let makeVerifyData e role (ms:masterSecret) data =
@@ -104,15 +117,14 @@ let makeVerifyData e role (ms:masterSecret) data =
   tag
 
 let checkVerifyData e role ms log expected =
-  let computed = makeVerifyData e role ms log in
-  let result = equalBytes expected computed
+  let computed = makeVerifyData e role ms log 
+  equalBytes expected computed
   #if ideal
-  let result = 
-    if honest si && strong si
-    then result && (exists (fun el -> el=(si, expected, log)) !finish_log)
-    else result 
+  && 
+    let si = epochSI(e) 
+    safe e = false || (exists (fun el -> el=(si, expected, log)) !finish_log)
   #endif
-  result
+  
 
 let ssl_certificate_verify (si:SessionInfo) ms (algs:sigAlg) log =
   match algs with

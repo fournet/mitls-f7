@@ -95,3 +95,5 @@ val fragmentLength: nat
 type range = nat * nat (* length range *)
 type rbytes = bytes
 val rangeSum: range -> range -> range
+
+val safe: epoch -> bool

@@ -48,12 +48,32 @@ private val mteKey: ki:epoch -> (;ki) MAC.key -> (;ki) ENC.state -> (;ki) AEADKe
 // Padding computations
 private val blockAlignPadding: e:succEpoch -> nat -> nat
 
-// Some trivial ranges
-private assume !e,l.
+// Range computations 
+
+(* CF suggests we define logical functions
+ 
+type clen = n:nat { n <= max_TLSCipher_fragment_length }
+val cipherLength e:epoch -> rg:range -> n:clen { n = CipherLength(e,rg) } // aka rangeCipher
+val decryptedRange: e:epoch -> n:clen -> rg:range { !rg0. n = CipherLength(e,rg0) => SubRange(rg0,rg) }  
+
+private definition !e.
+     ( IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/ CipherSuiteENCAlg(EpochSI(e).cipher_suite) = RC4_128 ) => !n. CipherLength(e,(l,l)) = l+HashSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite)))
+
+  /\ ...
+
+*)
+
+//CF should also cover MEE, right? 
+private definition !e,l.
 	( IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/ CipherSuiteENCAlg(EpochSI(e).cipher_suite) = RC4_128 ) =>
 		Encode.CipherRange(e,(l,l),l+HashSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite)))
-private val rangeCipher: e:succEpoch -> r:range -> tlen:nat{Encode.CipherRange(e,r,tlen) /\ tlen <= max_TLSCipher_fragment_length}
-private val cipherRange: e:succEpoch -> tlen:nat{tlen <= max_TLSCipher_fragment_length} -> r:range{Encode.CipherRange(e,r,tlen)}
+
+private val rangeCipher: e:succEpoch -> r:range -> 
+  tlen:nat {Encode.CipherRange(e,r,tlen) /\ tlen <= max_TLSCipher_fragment_length}
+
+private val cipherRange: e:succEpoch -> 
+  tlen:nat{tlen <= max_TLSCipher_fragment_length} -> 
+  r:range {Encode.CipherRange(e,r,tlen)}
 
 //FIXME: next two should be ask
 private assume !e,si. si = EpochSI(e) =>
@@ -93,10 +113,19 @@ assume !ki,d,p0,p1,c. (CTXT(ki,d,p0,c) /\ CTXT(ki,d,p1,c)) => p0 = p1
 //KB should be provable, but is invalid right now?
 assume !e. IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) => not TLSInfo.Auth(e)
 
-val decrypt': ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
+val decrypt': ki:succEpoch -> k:(;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   c:cipher -> res: 
-  ( ((;ki) AEADKey *  rg:range * (;ki,ad,rg) AEADPlain.plain)) Result
-   {!k,r,p. res = Correct((k,r,p)) => Encode.CipherRange(ki,r,Length(c))}
+  ( ( 
+    (;ki) AEADKey *  
+    rg:range * 
+	(;ki,ad,rg) AEADPlain.plain) { rg = DecryptedRange(ki,Length(c)) } ) Result
+// { (* partial functional correctness when decrypting what we encrypted *)
+//   !pl,p,tag,rg.
+//	(    Length(c) = EncryptedLength(ki,rg)
+//	  /\ MACed(e,ad,pl,tag) // nb Encode.MACed has extra args.
+//     /\ Encoded(e,ad,pl,tag,p) 
+//     /\ ENCrypted(e,Length(c),StateID(e,Encryptor(k)),p,c)  
+//   => ?k',r'. res = Correct((k',r',pl)) } 
 
 val decrypt: ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   c:cipher -> res: 
@@ -110,6 +139,37 @@ val decrypt: ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
 // !p. CTXT(ki,ad,p,c) <=> (?k,r. res = Correct((k,r,p)))
 
 (* CF 13-01-07 verification notes
+
+We need a full independent spec of StrongAE & StAE
+something like the functions below and the corresponding logical specs.
+
+let strongAE pv cs = match cs with
+  | NullCipherSuite | SCSV of _ | OnlyMACCipherSuite(_,_) -> false 
+  | CipherSuite(_,ea) ->
+      match ea with 
+	    | MtE(eAlg, hAlg) -> int_cma pv hAlg && 
+		                     ind_cpa pv eAlg && 
+							 int_ctxt pv hAlg eAlg 
+		| AEAD (_,_)      -> false // until we handle GCM 
+
+let strongAuth pv cs = match cs with
+  | NullCipherSuite | SCSV of _ -> false 
+  | OnlyMACCipherSuite(_,hAlg)  -> int_cma hAlg 
+  | CipherSuite(_,ea) -> 
+      match ea with 
+	    | MtE(eAlg, hAlg) -> int_cma pv hAlg  
+		| AEAD (_,_)      -> false // until we handle GCM 
+ 
+and the corresponding logical specs such that, e.g.,
+
+ask !pv,cs. StrongAE(pv,cs) -> StrongAuth(pv,cs)
+ask INT_CTXT(pv,h,e) -> 
+     pv = TLS_1p2 
+  \/ ?kex,hAlg. e = CipherSuite(kex,MtE(_,hAlg) && ... 
+
+(Note that we actually don't need full CMA when we have CTXT,
+ but this is practically irrelevant.)  
+
 
 There are several ideal properties of AEAD:
 

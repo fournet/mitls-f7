@@ -12,6 +12,7 @@ open Error
 
 private val min: a:nat -> b:nat -> c:nat{(a<=b /\ c=a) \/ (a>b /\ c=b)}
 private val max: a:nat -> b:nat -> c:nat{(a>=b /\ c=a) \/ (a<b /\ c=b)}
+
 val splitRange: ki:succEpoch -> r:range -> (r0:range * r1:range){r = Sum(r0,r1)} 
 (* TODO first range should fit in a fragment: FitsInFrag(ki,fragmentLength,r0)? *)
 (* TODO exclude unexpectedErrors, or return a "result" *)
@@ -63,6 +64,9 @@ val deltaRepr:
 val split: ki:epoch -> s:(;ki) stream -> 
   r0:range -> r1:range -> d:(;ki,s,Sum(r0,r1)) delta -> 
   (d0:(;ki,s,r0) delta * d1:(;ki,ExtendStream(ki,s,r0,d0),r1) delta)
+
+val widen: ki:epoch -> s:(;ki) stream -> 
+  r0:range -> r1:range { SubRange(r0,r1) }-> d:(;ki,s,r0) delta -> (;ki,s,r1) delta
 
 //CF: We need linearity on the stream! 
 

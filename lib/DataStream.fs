@@ -77,3 +77,6 @@ let split (ki:epoch) (s:stream)  (r0:range) (r1:range) (d:delta) =
   let n = if h0 < (len - l1) then h0 else len - l1
   let (sb0,sb1) = Bytes.split d.contents n in
   ({contents = sb0},{contents = sb1})
+
+let widen (ki:epoch) (s:stream)  (r0:range) (r1:range) (d:delta) = d
+

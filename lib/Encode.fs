@@ -18,7 +18,7 @@ type parsed =
      ok:    bool}
 
 //CF ideal-only; should exist somewhere else
-let safe (e:epoch) : bool = failwith "spec only" 
+let safe (e:epoch) : bool = failwith "spec only"
 let zeros rg = let _,max = rg in createBytes max 0
 
 //CF does not typecheck because Payload is undefined 
@@ -127,7 +127,7 @@ let decode e ivL (ad:AEADPlain.adata) rg tlen plain =
     let pl = plain.p in
     let pLen = length pl in
     if pLen <> expected then
-        unexpectedError "[decode] tlen does not match plaintext length"
+        unreachable "[decode] tlen does not match plaintext length"
     else
     let padLenStart = pLen - 1 in
     let (tmpdata, padlenb) = Bytes.split pl padLenStart in

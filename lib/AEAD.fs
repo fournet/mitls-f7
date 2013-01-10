@@ -77,7 +77,7 @@ let blockAlignPadding e len =
         let overflow = (len + 1) % bs //@ at least one extra byte of padding
         if overflow = 0 then 1 else 1 + bs - overflow 
 
-//@ From range to target ciphertext length 
+//@ From plaintext range to ciphertext length 
 let rangeCipher e (rg:range) =
     let (_,h) = rg in
     let si = epochSI(e) in
@@ -94,7 +94,7 @@ let rangeCipher e (rg:range) =
 #endif
         res
 
-//@ From ciphertext length to range
+//@ From ciphertext length to (maximal) plaintext range
 let cipherRange (e:epoch) tlen =
     let si = epochSI(e) in
     let macSize = macSize (macAlg_of_ciphersuite si.cipher_suite) in
@@ -160,9 +160,7 @@ let mteKey (e:epoch) ka ke = MtE(ka,ke)
 
 let decrypt' e key data cipher =
     let cl = length cipher in
-    if cl > max_TLSCipher_fragment_length then
-        let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
-    else
+    // by typing, we know that cl <= max_TLSCipher_fragment_length
     let si = epochSI(e) in
     let cs = si.cipher_suite in
     let macSize = macSize (macAlg_of_ciphersuite cs) in
@@ -237,28 +235,23 @@ let encrypt e key data rg plain =
   #endif
   (key,cipher)
   
+let widen x = failwith "todo!"
+
 let decrypt e (key: AEADKey) data (cipher: bytes) =  
   #if ideal
   if safe e then
     match cmem e data cipher !log with
-    | Some x ->    let (r,p) = x in
-           (* 1 *) decrypt' e key data cipher
-           (* 2 *) let rg = cipherRange e (length cipher) in 
-                   correct (key,r,p)
+    | Some _ -> (* 1 *)
+      decrypt' e key data cipher
+        
+    | Some x -> (* 2 *)
+      let (r,p) = x // we might store the wider range in the log
+      let rg = cipherRange e (length cipher) 
+      correct (key,rg,widen e data r rg p)
+
     | None   -> Error(AD_bad_record_mac, "")  
-  else decrypt' e key data cipher
+  else 
+      decrypt' e key data cipher
   #else
-  //CF don't understand CTXT and NotCTXT 
-  let res = decrypt' e key data cipher in
-    match res with
-    | Correct r  -> let (key,rg,plain) = r in
-                    #if verify
-                    Pi.assume (CTXT(e,data,plain,cipher));
-                    #endif
-                    Correct r
-    | Error(x,y) -> 
-                    #if verify
-                    Pi.assume (NotCTXT(e,data,cipher));
-                    #endif
-                    Error(x,y)
+      decrypt' e key data cipher
   #endif
