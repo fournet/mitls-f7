@@ -99,7 +99,7 @@
     <Optimize>False</Optimize>
     <Tailcalls>False</Tailcalls>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>TRACE;DEBUG</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;ideal</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <DocumentationFile>lib.xml</DocumentationFile>
     <OtherFlags>

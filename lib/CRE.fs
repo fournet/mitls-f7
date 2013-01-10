@@ -12,6 +12,11 @@ type dhpms = {dhpms: DHGroup.elt}
 #if ideal
 type pms = RSA_pms of rsapms | DHE_pms of dhpms
 
+// We maintain two log:
+// - a log of honest pms values
+// - a log for looking up good ms values using their pms values values
+// MK the first log is used in two idealization steps
+
 let honest_log = ref []
 let honest pms = exists (fun el -> el=pms) !honest_log
 
@@ -56,6 +61,7 @@ let prfMS sinfo pmsBytes: PRF.masterSecret =
 
 let prfSmoothRSA si (pv:ProtocolVersion) pms = 
     #if ideal
+    // MK this idealization relies on si being used only once with this function
     if not(corrupt (RSA_pms(pms)))
     then match tryFind (fun el -> fst el = RSA_pms(pms)) !log with
              Some(_,ms) -> ms
@@ -70,6 +76,7 @@ let prfSmoothRSA si (pv:ProtocolVersion) pms =
 
 let prfSmoothDHE si (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) (pms:dhpms) = 
     #if ideal
+    // MK this idealization relies on si being used only once with this function
     if not(corrupt (DHE_pms(pms)))
     then match tryFind (fun el -> fst el = DHE_pms(pms)) !log  with
              Some(_,ms) -> ms

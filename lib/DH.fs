@@ -6,11 +6,15 @@ open DHGroup
 type secret = Key of bytes 
 
 #if ideal
-let honest_log = ref []
-let honest gx = exists (fun el-> el = gx) !honest_log 
-let log = ref []
+// We maintain 4 logs:
+// - a log DH parameters returned by pp
+// - a log of honest gx and gy values
+// - a log for looking up good pms values using gx and gy values
 let goodPP_log = ref []
+let honest_log = ref []
+let log = ref []
 let goodPP dhparams =  exists (fun el-> el = dhparams) !goodPP_log
+let honest gx = exists (fun el-> el = gx) !honest_log 
 #endif
 
 let private pp (pg:CoreKeys.dhparams) : p * g = 
@@ -38,6 +42,7 @@ let exp p g (gx:elt) (gy:elt) (Key x) : CRE.dhpms =
     #if ideal
     if honest gy && honest gx && goodPP (p,g) 
     then 
+    //MK should use assoc here
       match tryFind (fun el -> fst el=(gx,gy)) !log with
       | Some(_,pms) -> pms
       | None -> 

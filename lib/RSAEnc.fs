@@ -1,4 +1,5 @@
 ﻿module RSAEnc
+// MK the module names in the paper are RSA and RSAKey. Where should we fix this?
 
 open Bytes
 open Error
@@ -6,11 +7,13 @@ open TLSConstants
 open TLSInfo
 
 #if ideal
+// We maintain a log to look up ideal_pms values using fake_pms values.
 let log = ref []
 #endif
 
 let encrypt key pv pms =
     #if ideal
+    //MK here we reply on pv and pms being used only once?
     let v = if RSAKeys.honest key && not (CRE.corrupt (CRE.RSA_pms pms)) then
               let fake_pms = (versionBytes pv) @|Nonce.mkRandom 46
               log := (fake_pms,pms)::!log
@@ -52,6 +55,7 @@ let decrypt dk si cv check_client_version_in_pms_for_old_tls encPMS =
     | Correct(pk) ->
         let pmsb = decrypt_int dk si cv check_client_version_in_pms_for_old_tls encPMS in
         #if ideal
+        //MK Should be replaced by assoc. Is the recommended style to define it locally to facilitate refinements?
         match tryFind (fun el -> fst el=pmsb) !log  with
             Some(_,ideal_pms) -> ideal_pms
            |None -> CRE.coerceRSA pk cv pmsb

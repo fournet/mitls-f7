@@ -31,7 +31,7 @@ let sigalg_of_pkeyparams = function
 #if ideal
 // We maintain two logs:
 // - a log of honest public keys (a,pk), not necessarily with strong crypto
-// - a log of (a,pk,t) entries for all honestly signed texts with strong crypto
+// - a log of (a,pk,t) entries for all honestly signed texts
 // CF We could also implement it on top of ideal non-agile Sigs.
 
 type entry = alg * pkey * text 
@@ -40,9 +40,10 @@ type entry = alg * pkey * text
 let honest_log = ref ([]: (alg * skey * pkey) list)
 let log        = ref ([]: entry list)
 
+// MK this assoc is unused and doesn't make any sense.
 let rec assoc hll pk =
     match hll with
-      | (pk',sk')::_ when pk=pk' -> Some ()
+      | (pk',sk')::_ when pk=pk' -> Some () // MK !!
       | _::hll                   -> assoc hll pk
       | []                       -> None
 

@@ -63,6 +63,14 @@ let choose f l = List.choose f l
 let tryFind f l = List.tryFind f l
 #if ideal
 let find f l = List.find f l
+// MK what is the right assoc function? 
+let rec assoc f l =
+    match l with
+      | (f',l')::_ when f=f' -> Some (f)
+      | _::l                   -> assoc f l
+      | []                       -> None
+// MK what is the right mem function?
+let mem x l = List.exists (fun y -> x = y) l
 #endif
 let listLength (l:'a list) = l.Length
 let listHead (l:'a list) = l.Head
