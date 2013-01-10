@@ -17,9 +17,11 @@ type parsed =
      tag:   tag
      ok:    bool}
 
-//CF ideal-only; should exist somewhere else
+#if ideal
+//CF should exist somewhere else
 let safe (e:epoch) : bool = failwith "spec only"
 let zeros rg = let _,max = rg in createBytes max 0
+#endif
 
 //CF does not typecheck because Payload is undefined 
 let payload (e:epoch) (rg:range) ad f = 

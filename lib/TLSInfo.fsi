@@ -96,4 +96,6 @@ type range = nat * nat (* length range *)
 type rbytes = bytes
 val rangeSum: range -> range -> range
 
+#if ideal
 val safe: epoch -> bool
+#endif

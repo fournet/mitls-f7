@@ -78,5 +78,6 @@ let split (ki:epoch) (s:stream)  (r0:range) (r1:range) (d:delta) =
   let (sb0,sb1) = Bytes.split d.contents n in
   ({contents = sb0},{contents = sb1})
 
+#if ideal
 let widen (ki:epoch) (s:stream)  (r0:range) (r1:range) (d:delta) = d
-
+#endif

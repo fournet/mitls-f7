@@ -234,8 +234,10 @@ let encrypt e key data rg plain =
   log := (e,data,rg,plain,cipher)::!log;
   #endif
   (key,cipher)
-  
+
+#if ideal
 let widen x = failwith "todo!"
+#endif
 
 let decrypt e (key: AEADKey) data (cipher: bytes) =  
   #if ideal
@@ -250,8 +252,6 @@ let decrypt e (key: AEADKey) data (cipher: bytes) =
       correct (key,rg,widen e data r rg p)
 
     | None   -> Error(AD_bad_record_mac, "")  
-  else 
+  else
+  #endif 
       decrypt' e key data cipher
-  #else
-      decrypt' e key data cipher
-  #endif

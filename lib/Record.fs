@@ -50,9 +50,6 @@ let parseHeader b =
     | Error(x,y) -> Error(x,y)
     | Correct(pv) -> 
     let len = int_of_bytes len2 in
-    // With a precise int/byte model,
-    // no need to check len, since it's on 2 bytes and the max allowed value is 2^16.
-    // Here we do a runtime check to get the same property statically
     if len <= 0 || len > max_TLSCipher_fragment_length then
         Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Wrong frgament length")
     else

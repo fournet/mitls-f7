@@ -145,4 +145,6 @@ let rangeSum (l0,h0) (l1,h1) =
   let h = h0 + h1
   (l,h)
 
+#if ideal
 let safe (e:epoch) = failwith "todo!" : bool //CF to be fixed!
+#endif
