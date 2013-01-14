@@ -113,6 +113,9 @@ ask !e,h. EmptyHistory(e,h) => HSFragment.EmptyStream(e,AlertHistory(e,h))
 ask !e,h. EmptyHistory(e,h) => HSFragment.EmptyStream(e,CCSHistory(e,h))
 ask !e,h. EmptyHistory(e,h) => DataStream.EmptyStream(e,AppDataHistory(e,h))
 
+val makePlain: e:epoch -> ct:ContentType -> h:(;e)history -> r:range ->
+	f:(;e,ct,r)fragment{Auth(e) => RecordSent(e,ct,h,r,f)} -> (;e,ct,h,r)plain
+
 val HSPlainToRecordPlain: e:epoch -> h:(;e)history -> r:range -> 
   d:(;e,HandshakeHistory(e,h),r) HSFragment.plain -> 
   f:(;e,TLSConstants.Handshake,h,r) plain

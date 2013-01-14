@@ -113,12 +113,14 @@ assume !ki,d,p0,p1,c. (CTXT(ki,d,p0,c) /\ CTXT(ki,d,p1,c)) => p0 = p1
 //KB should be provable, but is invalid right now?
 assume !e. IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) => not TLSInfo.Auth(e)
 
+val widen: 'a -> 'b //AP Only to be used when we switch to new range function definitions
+
 val decrypt': ki:succEpoch -> k:(;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   c:cipher -> res: 
   ( ( 
     (;ki) AEADKey *  
     rg:range * 
-	(;ki,ad,rg) AEADPlain.plain) { rg = DecryptedRange(ki,Length(c)) } ) Result
+	(;ki,ad,rg) AEADPlain.plain) { Encode.CipherRange(ki,rg,Length(c)) } ) Result
 // { (* partial functional correctness when decrypting what we encrypted *)
 //   !pl,p,tag,rg.
 //	(    Length(c) = EncryptedLength(ki,rg)
