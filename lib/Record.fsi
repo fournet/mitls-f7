@@ -5,6 +5,7 @@ open Tcp
 open TLSConstants
 open Error
 open TLSInfo
+open Range
 
 
 /// Implements stateful AE on top of AEAD,

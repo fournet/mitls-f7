@@ -4,6 +4,7 @@
 open Bytes
 open TLSInfo
 open DataStream
+open Range
 
 // ------------------------------------------------------------------------
 type token

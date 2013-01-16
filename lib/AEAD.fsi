@@ -4,6 +4,7 @@ open Bytes
 open Error
 open TLSInfo
 open AEADPlain
+open Range
 
 type AEADKey
 

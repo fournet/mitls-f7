@@ -93,7 +93,7 @@ type SessionInfo = {
 // that is, the session is not resumable. 
 
 private type preEpoch =
-  | InitEpoch of Role
+  | InitEpoch of writer:Role
   | SuccEpoch of crand * srand  (* the latest randoms     *)
                * si:SessionInfo
                * pred:preEpoch 
@@ -257,14 +257,3 @@ private val max_TLSPlaintext_fragment_length: nat
 private val max_TLSCompressed_fragment_length: nat
 val max_TLSCipher_fragment_length: nat
 val fragmentLength: nat
-
-(* Ranges of lengths for byte arrays *) 
-
-type range = low:nat * high:nat { low <= high }
-type (;r:range) rbytes = b:bytes { ?l,h. r = (l,h) /\ l <= Length(b) /\ Length(b) <= h }   
-function val Sum: range * range -> range
-definition !l0,h0,l1,h1. Sum((l0,h0),(l1,h1)) = (l0+l1,h0+h1)
-val rangeSum: r0:range -> r1:range -> r:range{r = Sum(r0,r1)}
-
-predicate SubRange of range * range
-definition !l0,l1,h0,h1. SubRange((l0,h0),(l1,h1)) <=> l1 <= l0 && h0 <= h1

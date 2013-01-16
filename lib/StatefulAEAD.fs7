@@ -3,6 +3,7 @@
 open Error
 open Bytes
 open TLSInfo
+open Range
 
 //CF 12/2: do we need pre/post on ciphertext lengths?
 //CF 21/4: cut prestate and State? 

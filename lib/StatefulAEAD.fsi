@@ -3,6 +3,7 @@
 open Bytes
 open Error
 open TLSInfo
+open Range
 
 open StatefulPlain 
 

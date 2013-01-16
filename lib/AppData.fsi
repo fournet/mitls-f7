@@ -4,6 +4,7 @@ open TLSInfo
 open Bytes
 open Error
 open DataStream
+open Range
 
 type app_state
 

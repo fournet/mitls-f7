@@ -6,6 +6,7 @@ open DER
 open Nonce
 open TLSInfo
 open DataStream
+open Range
 
 // ------------------------------------------------------------------------
 type username = string

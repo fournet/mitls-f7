@@ -2,10 +2,9 @@
 module Handshake
 
 open Error
-
 open TLSInfo
 open TLSConstants
-
+open Range
 
 // protocol state  
 type pre_hs_state 

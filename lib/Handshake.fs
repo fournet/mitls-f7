@@ -5,8 +5,8 @@ open Bytes
 open Error
 open TLSConstants
 open TLSExtensions
-
 open TLSInfo
+open Range
 
 // BEGIN HS_msg
 

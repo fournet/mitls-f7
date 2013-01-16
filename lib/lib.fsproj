@@ -175,6 +175,9 @@
     <None Include="TLSInfo.fs7" />
     <Compile Include="TLSInfo.fsi" />
     <Compile Include="TLSInfo.fs" />
+    <None Include="Range.fs7" />
+    <Compile Include="Range.fsi" />
+    <Compile Include="Range.fs" />
     <None Include="DataStream.fs7" />
     <Compile Include="DataStream.fsi" />
     <Compile Include="DataStream.fs" />

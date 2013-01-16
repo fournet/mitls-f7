@@ -6,6 +6,7 @@ open Bytes
 open Error
 open TLSInfo
 open StatefulPlain
+open Range
 
 type rw =
     | ReaderState

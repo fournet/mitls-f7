@@ -3,6 +3,7 @@
 open Bytes
 open TLSInfo
 open TLSConstants
+open Range
 
 type history
 
@@ -24,3 +25,7 @@ val RecordPlainToHSPlain     : epoch -> history -> range -> plain -> HSFragment.
 val RecordPlainToCCSPlain    : epoch -> history -> range -> plain -> HSFragment.plain
 val RecordPlainToAlertPlain  : epoch -> history -> range -> plain -> HSFragment.plain
 val RecordPlainToAppPlain    : epoch -> history -> range -> plain -> AppFragment.plain
+
+#if ideal
+val widen: epoch -> ContentType -> range -> fragment -> fragment
+#endif

@@ -5,6 +5,7 @@ open Bytes
 open TLSConstants
 open TLSInfo
 open Error
+open Range
 
 type cipher = bytes
 
@@ -57,72 +58,9 @@ let LEAK e k =
 
 (***** authenticated encryption *****)
 
-//CF should move elsewhere & be specified!
-let ivLength e =
-    let si = epochSI(e) in
-    match si.protocol_version with
-    | SSL_3p0 | TLS_1p0 -> 0
-    | TLS_1p1 | TLS_1p2 ->
-        let encAlg = encAlg_of_ciphersuite si.cipher_suite in
-        ivSize encAlg
-
-let blockAlignPadding e len =
-    let si = epochSI(e) in
-    let alg = encAlg_of_ciphersuite si.cipher_suite in
-    let bs = blockSize alg in
-    if bs = 0 then
-        //@ Stream cipher: no Padding at all
-        0
-    else
-        let overflow = (len + 1) % bs //@ at least one extra byte of padding
-        if overflow = 0 then 1 else 1 + bs - overflow 
-
-//@ From plaintext range to ciphertext length 
-let rangeCipher e (rg:range) =
-    let (_,h) = rg in
-    let si = epochSI(e) in
-    let macLen = macSize (macAlg_of_ciphersuite si.cipher_suite) in
-    let ivL = ivLength e in
-    let prePad = h + macLen in
-    let padLen = blockAlignPadding e prePad in
-    let res = ivL + prePad + padLen in
-    if res > max_TLSCipher_fragment_length then
-        Error.unexpectedError "[rangeCipher] given an invalid input range."
-    else
-#if verify
-        Pi.assume(Encode.CipherRange(e,rg,res))
-#endif
-        res
-
-//@ From ciphertext length to (maximal) plaintext range
-let cipherRange (e:epoch) tlen =
-    let si = epochSI(e) in
-    let macSize = macSize (macAlg_of_ciphersuite si.cipher_suite) in
-    let ivL = ivLength e in
-    let max = tlen - ivL - macSize - 1 in
-    if max < 0 then
-        Error.unexpectedError "[cipherRange] the given tlen should be of a valid ciphertext"
-    else
-        (* FIXME: in SSL pad is at most one block size,
-           and not always the whole 255 bytes can be used. We could be more precise. *)
-        let min = max - 255 in
-        if min < 0 then
-            let rg = (0,max) in
-#if verify
-            Pi.assume(Encode.CipherRange(e,rg,tlen))
-#endif
-            rg
-        else
-            let rg = (min,max) in
-#if verify
-            Pi.assume(Encode.CipherRange(e,rg,tlen))
-#endif
-            rg
-
 let encrypt' e key data rg plain =
     let si = epochSI(e) in
     let cs = si.cipher_suite in
-    let macLen = macSize (macAlg_of_ciphersuite cs) in
     match (cs,key) with
     | (x, MtE (ka,ke)) when isAEADCipherSuite x ->
         let encAlg = encAlg_of_ciphersuite cs in
@@ -130,29 +68,29 @@ let encrypt' e key data rg plain =
         | RC4_128 -> // stream cipher
             let tag   = Encode.mac e ka data rg plain in
             let (l,h) = rg in
-            let tlen  = h + macLen in
-            if l <> h || tlen > max_TLSCipher_fragment_length then
+            if l <> h then
                 unexpectedError "[encrypt'] given an invalid input range"
             else
+                let tlen  = targetLength e rg in
                 let encoded  = Encode.encodeNoPad e tlen rg data plain tag in
                 let (ke,res) = ENC.ENC e ke tlen encoded 
                 (MtE(ka,ke),res)
         | TDES_EDE_CBC | AES_128_CBC | AES_256_CBC -> // block cipher
             let tag  = Encode.mac e ka data rg plain in
-            let tlen = rangeCipher e rg in
-            let ivL  = ivLength e in
-            let encoded  = Encode.encode e ivL tlen rg data plain tag in
+            let tlen = targetLength e rg in
+            let encoded  = Encode.encode e tlen rg data plain tag in
             let (ke,res) = ENC.ENC e ke tlen encoded 
             (MtE(ka,ke),res)
     | (x,MACOnly (ka)) when isOnlyMACCipherSuite x ->
         let tag = Encode.mac e ka data rg plain in
         let (l,h) = rg in
-        let tlen  = h + macLen in
-        if l <> h || tlen > max_TLSCipher_fragment_length then
-            unexpectedError "[encrypt']"
-        let encoded = Encode.encodeNoPad e tlen rg data plain tag in
-        let r = Encode.repr e tlen encoded in
-        (key,r)
+        if l <> h then
+            unexpectedError "[encrypt'] given an invalid input range"
+        else
+            let tlen  = targetLength e rg in
+            let encoded = Encode.encodeNoPad e tlen rg data plain tag in
+            let r = Encode.repr e tlen encoded in
+            (key,r)
 //  | GCM (k) -> ... 
     | (_,_) -> unexpectedError "[encrypt'] incompatible ciphersuite-key given."
         
@@ -176,7 +114,7 @@ let decrypt' e key data cipher =
             else
                 let (ke,encoded) = ENC.DEC e ke cipher in
                 let nk = mteKey e ka ke in
-                let rg = (cl-macSize,cl-macSize) in
+                let rg = cipherRangeClass e cl in
                 let parsed = Encode.decodeNoPad e data rg cl encoded in
                 match Encode.verify e ka data rg parsed with
                 | Error(x,y) -> Error(x,y)
@@ -191,8 +129,8 @@ let decrypt' e key data cipher =
             else
                 let (ke,encoded) = ENC.DEC e ke cipher in
                 let nk = mteKey e ka ke in
-                let rg = cipherRange e cl in
-                let parsed = Encode.decode e ivL data rg cl encoded in
+                let rg = cipherRangeClass e cl in
+                let parsed = Encode.decode e data rg cl encoded in
                 match Encode.verify e ka data rg parsed with
                 | Error(x,y) -> Error(x,y)
                 | Correct(plain) -> correct (nk,rg,plain)
@@ -200,8 +138,8 @@ let decrypt' e key data cipher =
         if cl < macSize then
             let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
         else
-            let rg = (cl-macSize,cl-macSize) in
-            let encoded = Encode.plain e (length cipher) cipher in
+            let rg = cipherRangeClass e cl in
+            let encoded = Encode.plain e cl cipher in
             let parsed  = Encode.decodeNoPad e data rg cl encoded in
             match Encode.verify e ka data rg parsed with
             | Error(x,y) -> Error(x,y)
@@ -210,18 +148,17 @@ let decrypt' e key data cipher =
     | (_,_) -> unexpectedError "[decrypt'] incompatible ciphersuite-key given."
 
 #if ideal
-type preds = 
-  | CTXT of epoch * bytes * AEADPlain.plain * cipher
-  | NotCTXT of epoch * bytes * cipher
+
+type preds = | ENCrypted of epoch * AEADPlain.adata * range * AEADPlain.plain * cipher
 
 type entry = epoch * AEADPlain.adata * range * AEADPlain.plain * ENC.cipher
 let log = ref ([]: entry list) // the semantics of CTXT
 
-let rec cmem (e:epoch) (ad:AEADPlain.adata) (c:ENC.cipher) (xs: entry list) = 
-  match xs with
-  | (e',ad',r,p,c')::_ when e=e' && ad=ad' && c=c' -> let x = (r,p) in Some x
-  | _::xs                  -> cmem e ad c xs 
-  | []                     -> None
+let rec cmem (e:epoch) (ad:AEADPlain.adata) (c:ENC.cipher) (xs: entry list) = failwith "verify"
+//  match xs with
+//  | (e',ad',r,p,c')::_ when e=e' && ad=ad' && c=c' -> let x = (r,p) in Some x
+//  | _::xs                  -> cmem e ad c xs 
+//  | []                     -> None
 
 let safe (e:epoch) = failwith "todo"
 
@@ -230,26 +167,23 @@ let safe (e:epoch) = failwith "todo"
 let encrypt e key data rg plain = 
   let (key,cipher) = encrypt' e key data rg plain in
   #if ideal
-  Pi.assume (CTXT(e,data,plain,cipher));
-  log := (e,data,rg,plain,cipher)::!log;
+  let p' = AEADPlain.widen e data rg plain in
+  let rg' = rangeClass e rg in
+  Pi.assume(ENCrypted(e,data,rg',p',cipher));
+  log := (e,data,rg',p',cipher)::!log;
   #endif
   (key,cipher)
-
-#if ideal
-let widen x = failwith "todo!"
-#endif
 
 let decrypt e (key: AEADKey) data (cipher: bytes) =  
   #if ideal
   if safe e then
     match cmem e data cipher !log with
-    | Some _ -> (* 1 *)
-      decrypt' e key data cipher
+    // | Some _ -> (* 1 *)
+    //   decrypt' e key data cipher
         
     | Some x -> (* 2 *)
-      let (r,p) = x // we might store the wider range in the log
-      let rg = cipherRange e (length cipher) 
-      correct (key,rg,widen e data r rg p)
+      let (r,p) = x
+      correct (key,r,p)
 
     | None   -> Error(AD_bad_record_mac, "")  
   else

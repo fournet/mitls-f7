@@ -8,6 +8,7 @@ open Record
 open Handshake
 open TLSInfo
 open DataStream
+open Range
 
 [<NoEquality;NoComparison>]
 type Connection

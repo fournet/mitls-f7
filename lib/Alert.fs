@@ -4,6 +4,7 @@ open Bytes
 open Error
 open TLSConstants
 open TLSInfo
+open Range
 
 
 // FIXME: Port to deltas and streams!

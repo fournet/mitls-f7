@@ -1,6 +1,7 @@
 module AppFragment
 open Bytes
 open TLSInfo
+open Range
 open DataStream
 
 type fragment
@@ -11,3 +12,7 @@ type plain = fragment
 
 val plain: epoch -> range -> bytes -> fragment
 val repr: epoch -> range -> fragment -> bytes
+
+#if ideal
+val widen: epoch -> range -> fragment -> fragment
+#endif

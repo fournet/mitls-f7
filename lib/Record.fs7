@@ -4,6 +4,7 @@ open Bytes
 open Error
 open TLSInfo
 open TLSConstants
+open Range
 
 private type (;ki:epoch,rw:StatefulAEAD.rw) ConnectionState =
 	| NullState

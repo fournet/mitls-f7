@@ -3,7 +3,7 @@ module Handshake
 open Bytes
 open Error
 open TLSInfo
-
+open Range
 open StatefulAEAD
 open TLSConstants
 open TLSExtensions

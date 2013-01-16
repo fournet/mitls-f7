@@ -7,6 +7,7 @@ module DataStream
 open TLSInfo
 open Bytes
 open Error
+open Range
 
 /// Auxiliary functions for ranges
 
@@ -54,19 +55,23 @@ val append:
   ki:epoch -> s: (;ki) stream -> r:range ->
   d:(;ki,s,r) delta -> s':(;ki) stream{s' = ExtendStream(ki,s,r,d)}
 
+function val Payload: e:epoch * s:(;e)stream * r:range * (;e,s,r)delta -> 'a // (;r)rbytes
+private definition !e,s,r,d. Payload(e,s,r,d) = d.contents
+
 val deltaPlain: 
   ki:epoch{not Auth(ki)} -> s:(;ki) stream -> r:range -> 
-  b:(;r) rbytes -> c: (;ki,s,r) delta  
+  b:(;r) rbytes -> d: (;ki,s,r) delta {b = Payload(ki,s,r,d)} 
 val deltaRepr: 
   ki:epoch{not Safe(ki)} -> s:(;ki) stream -> r:range -> 
-  c: (;ki,s,r) delta -> (;r) rbytes
+  d: (;ki,s,r) delta -> b:(;r) rbytes{b = Payload(ki,s,r,d)}
 
 val split: ki:epoch -> s:(;ki) stream -> 
   r0:range -> r1:range -> d:(;ki,s,Sum(r0,r1)) delta -> 
   (d0:(;ki,s,r0) delta * d1:(;ki,ExtendStream(ki,s,r0,d0),r1) delta)
 
 val widen: ki:epoch -> s:(;ki) stream -> 
-  r0:range -> r1:range { SubRange(r0,r1) }-> d:(;ki,s,r0) delta -> (;ki,s,r1) delta
+  r0:range -> r1:range{SubRange(r0,r1)} -> d0:(;ki,s,r0) delta ->
+  d1:(;ki,s,r1) delta{Payload(ki,s,r0,d0) = Payload(ki,s,r1,d1)}
 
 //CF: We need linearity on the stream! 
 

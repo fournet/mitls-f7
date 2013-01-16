@@ -8,6 +8,7 @@ open Error
 open Handshake
 open Alert
 open TLSInfo
+open Range
 
 open TLSFragment // Required by F7, or deliver won't parse.
 

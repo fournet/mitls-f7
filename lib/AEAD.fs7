@@ -3,6 +3,7 @@
 open Bytes
 open Error
 open TLSInfo
+open Range
 
 open TLSConstants
 
@@ -17,8 +18,6 @@ private type (;ki:epoch) AEADKey =
 // TODO Define AEADSize. 
 // TODO In the code, (AEADSize * 2) is computed in TLSConstants.getKeyExtensionLength
 
-function val IVSize: epoch -> nat
-val ivLength: e:succEpoch -> l:nat{l=IVSize(e)}
 function val AEADSize: ki:epoch -> nat
 private definition !ki,si. si = EpochSI(ki) =>
 	( IsOnlyMACCiphersuite(si.cipher_suite) =>
@@ -26,7 +25,7 @@ private definition !ki,si. si = EpochSI(ki) =>
 	( IsAEADCiphersuite(si.cipher_suite) =>
 	  AEADSize(ki) = HashSize(TLSConstants.CipherSuiteMACAlg(si.cipher_suite)) +
 					    EncKeySize(TLSConstants.CipherSuiteENCAlg(si.cipher_suite)) +
-					    IVSize(ki) )
+					    Range.IVSize(ki) )
 
 //CF '13 who wrote this? when? 
 //TODO Why is this failing? Because of AEADSize not being what I want, I cannot typecheck COERCE.
@@ -36,24 +35,12 @@ val GEN:    ki:succEpoch{Safe(ki)}     -> encryptor:(;ki)AEADKey * decryptor:(;k
 val COERCE: ki:succEpoch{not Auth(ki)} -> b:bytes{Length(b) = AEADSize(ki)} -> (;ki)AEADKey
 val LEAK:   ki:succEpoch{not Auth(ki)} -> (;ki)AEADKey -> b:bytes
 
-(* KB: 2/5. We would like to rename CTXT to ENCrypted, and consistently for STXT
-   Also rename CMA to INT_CMA_M etc. *)
-
-predicate val CTXT: 'a * 'b * 'c * 'd -> bool
-predicate val NotCTXT: 'a * 'b * 'd -> bool
-assume !ki,d,p,c. NotCTXT(ki,d,c) => not CTXT(ki,d,p,c)
-assume !ki,d,p,p',c. (CTXT(ki,d,p,c) /\ CTXT(ki,d,p',c)) => p = p'
 private val mteKey: ki:epoch -> (;ki) MAC.key -> (;ki) ENC.state -> (;ki) AEADKey
-
-// Padding computations
-private val blockAlignPadding: e:succEpoch -> nat -> nat
-
-// Range computations 
 
 (* CF suggests we define logical functions
  
 type clen = n:nat { n <= max_TLSCipher_fragment_length }
-val cipherLength e:epoch -> rg:range -> n:clen { n = CipherLength(e,rg) } // aka rangeCipher
+val cipherLength e:epoch -> rg:range -> n:clen { n = CipherLength(e,rg) } // aka targetLength
 val decryptedRange: e:epoch -> n:clen -> rg:range { !rg0. n = CipherLength(e,rg0) => SubRange(rg0,rg) }  
 
 private definition !e.
@@ -62,18 +49,6 @@ private definition !e.
   /\ ...
 
 *)
-
-//CF should also cover MEE, right? 
-private definition !e,l.
-	( IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/ CipherSuiteENCAlg(EpochSI(e).cipher_suite) = RC4_128 ) =>
-		Encode.CipherRange(e,(l,l),l+HashSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite)))
-
-private val rangeCipher: e:succEpoch -> r:range -> 
-  tlen:nat {Encode.CipherRange(e,r,tlen) /\ tlen <= max_TLSCipher_fragment_length}
-
-private val cipherRange: e:succEpoch -> 
-  tlen:nat{tlen <= max_TLSCipher_fragment_length} -> 
-  r:range {Encode.CipherRange(e,r,tlen)}
 
 //FIXME: next two should be ask
 private assume !e,si. si = EpochSI(e) =>
@@ -89,38 +64,46 @@ private assume !e,si,tlen. si = EpochSI(e) =>
 // We have two variants for encryption and decryption: 
 // the first (primed) is concrete; the second is idealized at safe indexes.
 
+predicate ENCrypted of e:epoch * ad:(;e)AEADPlain.adata * rg:range *  (;rg)rbytes * cipher
+
+// private definition !e,ad,rg,p,c.
+// 	ENCrypted(e,ad,rg,p,c) <=>
+// 		?k,p'. ENC.ENCrypted(e,Length(c),k,)
+
 val encrypt': ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   rg:range -> p:(;ki,ad,rg) AEADPlain.plain ->
-  ((;ki) AEADKey * c:cipher){Encode.CipherRange(ki,rg,Length(c))}
+  ((;ki) AEADKey * c:cipher){Length(c) = TargetLength(ki,rg)}
 
 val encrypt : ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   rg:range -> p:(;ki,ad,rg) AEADPlain.plain ->
-  ((;ki) AEADKey * c:cipher){Encode.CipherRange(ki,rg,Length(c)) /\
-                             ((* Safe(ki) => *) CTXT(ki,ad,p,c))}
+  ((;ki) AEADKey * c:cipher){Length(c) = TargetLength(ki,rg)
+							 /\ ENCrypted(ki,ad,RangeClass(ki,rg),AEADPlain.Payload(ki,ad,RangeClass(ki,rg),p),c)}
 
 //CF unclear whether the log should include the plaintext; tried without, should rollback...
-type entry = ki:succEpoch * ad:(;ki) AEADPlain.adata * rg:range * p:(;ki,ad,rg) AEADPlain.plain * c:ENC.cipher { CTXT(ki,ad,p,c) }
+type entry = ki:succEpoch * ad:(;ki) AEADPlain.adata * rg:range * p:(;ki,ad,rg) AEADPlain.plain * c:ENC.cipher { ENCrypted(ki,ad,rg,AEADPlain.Payload(ki,ad,rg,p),c) /\ rg = CipherRangeClass(ki,Length(c)) }
 private val log: entry list ref
 private val cmem: ki:succEpoch -> ad:(;ki)AEADPlain.adata -> c:cipher ->  
-  entry list -> r:(rg:range * (;ki,ad,rg)AEADPlain.plain) option { 
-    !x,p. r = Some ((x,p)) => CTXT(ki,ad,p,c)}
+  entry list -> res:(r:range * (;ki,ad,r)AEADPlain.plain) option { 
+    ( !rg,p. res = Some ((rg,p)) => ENCrypted(ki,ad,rg,AEADPlain.Payload(ki,ad,rg,p),c) ) /\
+	( res = None => !rg,p. not ENCrypted(ki,ad,rg,AEADPlain.Payload(ki,ad,rg,p),c) )}
 
 private val safe: ki:succEpoch -> b:bool { b = true <=> Auth(ki) }
 
 //CF a corollary of affine encryptions:
-assume !ki,d,p0,p1,c. (CTXT(ki,d,p0,c) /\ CTXT(ki,d,p1,c)) => p0 = p1
+theorem !ki,d,rg0,p0,rg1,p1,c. (ENCrypted(ki,d,rg0,p0,c) /\ ENCrypted(ki,d,rg1,p1,c)) => p0 = p1
 
 //KB should be provable, but is invalid right now?
 assume !e. IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) => not TLSInfo.Auth(e)
-
-val widen: 'a -> 'b //AP Only to be used when we switch to new range function definitions
 
 val decrypt': ki:succEpoch -> k:(;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   c:cipher -> res: 
   ( ( 
     (;ki) AEADKey *  
     rg:range * 
-	(;ki,ad,rg) AEADPlain.plain) { Encode.CipherRange(ki,rg,Length(c)) } ) Result
+	p:(;ki,ad,rg) AEADPlain.plain) { rg = CipherRangeClass(ki,Length(c))
+									 // /\ !p',rg'. ENCrypted(ki,ad,rg',p',c) => p=p'
+									 } ) Result
+
 // { (* partial functional correctness when decrypting what we encrypted *)
 //   !pl,p,tag,rg.
 //	(    Length(c) = EncryptedLength(ki,rg)
@@ -131,11 +114,13 @@ val decrypt': ki:succEpoch -> k:(;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
 
 val decrypt: ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   c:cipher -> res: 
-  ( ((;ki) AEADKey *  rg:range * (;ki,ad,rg) AEADPlain.plain)) Result
-   {(!k,r,p. res = Correct((k,r,p)) => Encode.CipherRange(ki,r,Length(c))) /\
+  ( ((;ki) AEADKey *  rg:range * (;ki,ad,rg) AEADPlain.plain)
+     {rg = CipherRangeClass(ki,Length(c))}
+  ) Result
+   {
     (Safe(ki) => 
-        (   (!k,r,p. res = Correct((k,r,p)) => CTXT(ki,ad,p,c)) 
-		 /\ (!p. CTXT(ki,ad,p,c) => (?k,r. res = Correct((k,r,p))))
+        (   (!k,r,p. res = Correct((k,r,p)) => ENCrypted(ki,ad,r,AEADPlain.Payload(ki,ad,r,p),c)) 
+		 /\ (!r,p. ENCrypted(ki,ad,r,AEADPlain.Payload(ki,ad,r,p),c) => (?k,r'. res = Correct((k,r',p))))
 		))}
 // The last two lines are equivalent to (but easier to verify than)
 // !p. CTXT(ki,ad,p,c) <=> (?k,r. res = Correct((k,r,p)))

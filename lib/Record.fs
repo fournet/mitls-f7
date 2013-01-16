@@ -4,6 +4,7 @@ open Bytes
 open Error
 open TLSInfo
 open TLSConstants
+open Range
 
 type ConnectionState =
     | NullState

@@ -92,10 +92,6 @@ val defaultConfig: config
 val max_TLSCipher_fragment_length: nat
 val fragmentLength: nat
 
-type range = nat * nat (* length range *)
-type rbytes = bytes
-val rangeSum: range -> range -> range
-
 #if ideal
 val safe: epoch -> bool
 #endif

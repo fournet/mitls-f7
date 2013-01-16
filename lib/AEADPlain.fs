@@ -3,6 +3,7 @@ open Bytes
 open Error
 open TLSConstants
 open TLSInfo
+open Range
 
 type adata = bytes
 
@@ -27,5 +28,26 @@ let reprFragment (e:epoch) (ad:adata) (rg:range) p =
 
 let repr e ad rg p = reprFragment e ad rg p
 
+#if ideal
+let zeros rg = let _,max = rg in createBytes max 0
+#endif
+
+let payload (e:epoch) (rg:range) ad f = 
+  // After applying CPA encryption for ENC, 
+  // we access the fragment bytes only at unsafe indexes, and otherwise use some zeros
+  #if ideal 
+  if safe e then 
+    zeros rg
+  else
+  #endif
+    repr e ad rg f 
+
 let StatefulPlainToAEADPlain (e:epoch) (h:StatefulPlain.history) (ad:adata) (r:range) f = {contents = f}
 let AEADPlainToStatefulPlain (e:epoch) (h:StatefulPlain.history) (ad:adata) (r:range) f = f.contents
+
+#if ideal
+let widen e ad r f =
+    let ad' = parseAD e ad in
+    let f' = StatefulPlain.widen e ad' r f.contents in
+    {contents = f'}
+#endif

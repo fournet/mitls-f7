@@ -4,7 +4,7 @@ open Bytes
 open Error
 open TLSInfo
 open TLSConstants
-
+open Range
 
 #if verify
 type preds = | CipherRange of epoch * range * nat
@@ -17,25 +17,8 @@ type parsed =
      tag:   tag
      ok:    bool}
 
-#if ideal
-//CF should exist somewhere else
-let safe (e:epoch) : bool = failwith "spec only"
-let zeros rg = let _,max = rg in createBytes max 0
-#endif
-
-//CF does not typecheck because Payload is undefined 
-let payload (e:epoch) (rg:range) ad f = 
-  // After applying CPA encryption for ENC, 
-  // we access the fragment bytes only at unsafe indexes, and otherwise use some zeros
-  #if ideal 
-  if safe e then 
-    zeros rg
-  else
-  #endif
-    AEADPlain.repr e ad rg f 
-
 let macPlain (e:epoch) (rg:range) ad f =
-    let b = payload e rg ad f
+    let b = AEADPlain.payload e rg ad f
     ad @| vlbytes 2 b
 
 let mac e k ad rg plain =
@@ -81,7 +64,7 @@ let plain (e:epoch) (tlen:nat)  b = {p=b}
 let repr (e:epoch) (tlen:nat) pl = pl.p
 
 let encodeNoPad (e:epoch) (tlen:nat) rg (ad:AEADPlain.adata) data tag =
-    let b = payload e rg ad data in
+    let b = AEADPlain.payload e rg ad data in
     let (_,h) = rg in
     if h <> length b then
         Error.unexpectedError "[encodeNoPad] invoked on an invalid range."
@@ -94,10 +77,11 @@ let encodeNoPad (e:epoch) (tlen:nat) rg (ad:AEADPlain.adata) data tag =
 
 let pad (p:int)  = createBytes p (p-1)
 
-let encode (e:epoch) ivL (tlen:nat) rg (ad:AEADPlain.adata) data tag =
-    let b = payload e rg ad data in
+let encode (e:epoch) (tlen:nat) rg (ad:AEADPlain.adata) data tag =
+    let b = AEADPlain.payload e rg ad data in
     let lb = length b in
     let lm = length tag.macT in
+    let ivL = ivLength e in
     let pl = tlen - lb - lm - ivL
     //CF here we miss refinements to prove 0 < pl <= 256
     let payload = b @| tag.macT @| pad pl
@@ -122,9 +106,10 @@ let decodeNoPad e (ad:AEADPlain.adata) rg tlen plain =
      tag = tag;
      ok = true}
 
-let decode e ivL (ad:AEADPlain.adata) rg tlen plain =
+let decode e (ad:AEADPlain.adata) rg tlen plain =
     let si = epochSI(e) in
     let macSize = macSize (macAlg_of_ciphersuite si.cipher_suite) in
+    let ivL = ivLength e in
     let expected = tlen - ivL
     let pl = plain.p in
     let pLen = length pl in

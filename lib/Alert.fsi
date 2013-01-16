@@ -2,6 +2,7 @@
 
 open Error
 open TLSInfo
+open Range
 
 
 type pre_al_state

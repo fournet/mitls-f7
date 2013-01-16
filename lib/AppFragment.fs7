@@ -1,6 +1,7 @@
 module AppFragment
 open Bytes
 open TLSInfo
+open Range
 open DataStream
 
 (* Application fragments are defined from DataStream as pairs (s,d) 
@@ -11,6 +12,9 @@ open DataStream
 predicate DeltaFragment of ki:epoch * s:(;ki) stream * r:range * (;ki,s,r)delta
 private type (;ki:epoch,r:range) fragment = 
   {frag: (s:(;ki)stream * d:(;ki,s,r) delta{ Auth(ki) => DeltaFragment(ki,s,r,d)}) }
+
+function val Payload: e:epoch * r:range * (;e,r)fragment -> 'a // (;r)rbytes
+private definition !e,r,s,d,f. f.frag = (s,d) => Payload(e,r,f) = DataStream.Payload(e,s,r,d)
 
 function val Extend: 'a * 'b * 'c * 'd -> 'e
 private definition !ki,s,r,s',d. 
@@ -24,8 +28,8 @@ type (;e:epoch,s:(;e)stream,r:range)plain = f:(;e,r) fragment{Auth(e) => Sent(e,
 // range-based fragmentation 
 
 val fragment: ki:epoch -> s:(;ki) stream -> r:range ->
-  (;ki,s,r) delta -> 
-  (f:(;ki,r) fragment * s':(;ki) stream){Sent(ki,s,r,f) /\ s' = Extend(ki,s,r,f)}
+  d:(;ki,s,r) delta -> 
+  (f:(;ki,r) fragment * s':(;ki) stream){Sent(ki,s,r,f) /\ s' = Extend(ki,s,r,f) /\ Payload(ki,r,f) = DataStream.Payload(ki,s,r,d)}
 
 val delta: ki:epoch -> s:(;ki) stream -> r:range -> 
   f:(;ki,r) fragment{Auth(ki) => Sent(ki,s,r,f)} -> 
@@ -36,8 +40,10 @@ val delta': ki:epoch -> s:(;ki) stream -> r:range ->
   f:(;ki,r) fragment{not Auth(ki)} -> 
   d:(;ki,s,r) delta * s':(;ki) stream{s' = ExtendStream(ki,s,r,d)}
 
-val plain: ki:epoch{not Auth(ki)} -> r:range -> (;r) rbytes -> (;ki,r) fragment
-val repr:  ki:epoch{not Safe(ki)} -> r:range -> (;ki,r) fragment -> (;r) rbytes
+val plain: ki:epoch{not Auth(ki)} -> r:range -> b:(;r) rbytes -> f:(;ki,r) fragment{b = Payload(ki,r,f)}
+val repr:  ki:epoch{not Safe(ki)} -> r:range -> f:(;ki,r) fragment -> b:(;r) rbytes{b = Payload(ki,r,f)}
+
+val widen: e:succEpoch -> r0:range -> f0:(;e,r0)fragment -> f1:(;e,RangeClass(e,r0))fragment{Payload(e,r0,f0) = Payload(e,RangeClass(e,r0),f1)}
 
 //CF where do we use this theorem?
 private theorem !ki,s,r1,r2,f1,f2. 

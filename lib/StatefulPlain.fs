@@ -3,6 +3,7 @@ open Bytes
 open Error
 open TLSConstants
 open TLSInfo
+open Range
 
 type adata = bytes
 
@@ -68,3 +69,9 @@ let RecordPlainToStAEPlain (e:epoch) (ct:ContentType) (ss:TLSFragment.history) (
 
 let StAEPlainToRecordPlain (e:epoch) (ct:ContentType) (ss:TLSFragment.history) (st:history) (rg:range) f = f.contents
 
+#if ideal
+let widen e ad r f =
+    let ct = parseAD e ad in
+    let f1 = TLSFragment.widen e ct r f.contents in
+    {contents = f1}
+#endif

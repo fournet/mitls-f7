@@ -4,6 +4,7 @@ open Error
 open Bytes
 open TLSInfo
 open DataStream
+open Range
 
 type input_buffer =  stream * (range * AppFragment.fragment) option
 type output_buffer = stream * (range * delta) option

@@ -135,16 +135,6 @@ let max_TLSCompressed_fragment_length = max_TLSPlaintext_fragment_length + 1024
 let max_TLSCipher_fragment_length = max_TLSCompressed_fragment_length + 1024
 let fragmentLength = max_TLSPlaintext_fragment_length (* use e.g. 1 for testing *)
 
-(* Ranges of lengths for byte arrays *) 
-
-type range = nat * nat 
-type rbytes = bytes 
-
-let rangeSum (l0,h0) (l1,h1) =
-  let l = l0 + l1
-  let h = h0 + h1
-  (l,h)
-
 #if ideal
 let safe (e:epoch) = failwith "todo!" : bool //CF to be fixed!
 #endif

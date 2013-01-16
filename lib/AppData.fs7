@@ -4,6 +4,7 @@ open TLSInfo
 open Bytes
 open Error
 open DataStream
+open Range
 
 private type (;ki:epoch) input_buffer =
 	h:(;ki) stream * (r:range * f:(;ki,r)Fragment.fragment

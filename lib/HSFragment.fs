@@ -1,6 +1,7 @@
 module HSFragment
 open Bytes
 open TLSInfo
+open Range
 
 type fragment = {frag: rbytes}
 type stream = {sb:bytes list}
@@ -11,3 +12,8 @@ let fragmentRepr (ki:epoch) (r:range) f = f.frag
 
 let init (e:epoch) = {sb=[]}
 let extend (e:epoch) (s:stream) (r:range) (f:fragment) = {sb = f.frag :: s.sb}
+
+#if ideal
+let widen (e:epoch) (r0:range) (r1:range) (f0:fragment) =
+    let b = f0.frag in {frag = b}
+#endif

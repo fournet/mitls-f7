@@ -473,8 +473,8 @@ let maxPadSize pv cs =
             | AES_128_CBC
             | AES_256_CBC ->
                 match pv with
-                | SSL_3p0 | TLS_1p0 -> blockSize encAlg
-                | TLS_1p1 | TLS_1p2 -> 255
+                | SSL_3p0 -> blockSize encAlg
+                | TLS_1p0 | TLS_1p1 | TLS_1p2 -> 255
     | SCSV _ -> unexpectedError "[maxPadSize] invoked on an invalid ciphersuite"
 
 let mkIntTriple x:(int*int*int) = x
