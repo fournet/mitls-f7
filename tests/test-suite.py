@@ -11,26 +11,32 @@ class Object(object):
 
 # --------------------------------------------------------------------
 OPENSSL_CIPHERS = {
-    'TLS_RSA_WITH_NULL_MD5'            : 'NULL-MD5'            ,
-    'TLS_RSA_WITH_NULL_SHA'            : 'NULL-SHA'            ,
-    'TLS_RSA_WITH_NULL_SHA256'         : 'NULL-SHA256'         ,
-    'TLS_RSA_WITH_RC4_128_MD5'         : 'RC4-MD5'             ,
-    'TLS_RSA_WITH_RC4_128_SHA'         : 'RC4-SHA'             ,
-    'TLS_RSA_WITH_3DES_EDE_CBC_SHA'    : 'DES-CBC3-SHA'        ,
-    'TLS_RSA_WITH_AES_128_CBC_SHA'     : 'AES128-SHA'          ,
-    'TLS_RSA_WITH_AES_128_CBC_SHA256'  : 'AES128-SHA256'       ,
-    'TLS_RSA_WITH_AES_256_CBC_SHA'     : 'AES256-SHA'          ,
-    'TLS_RSA_WITH_AES_256_CBC_SHA256'  : 'AES256-SHA256'       ,
-    'TLS_DH_anon_WITH_3DES_EDE_CBC_SHA': 'ADH-DES-CBC3-SHA'    ,
-    'TLS_DH_anon_WITH_AES_128_CBC_SHA' : 'ADH-AES128-SHA'      ,
-    'TLS_DH_anon_WITH_AES_256_CBC_SHA' : 'ADH-AES256-SHA'      ,
-    'TLS_DH_anon_WITH_RC4_128_MD5'     : 'ADH-RC4-MD5'         ,
-    'TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA': 'EDH-DSS-DES-CBC3-SHA',
-    'TLS_DHE_DSS_WITH_AES_128_CBC_SHA' : 'DHE-DSS-AES128-SHA'  ,
-    'TLS_DHE_DSS_WITH_AES_256_CBC_SHA' : 'DHE-DSS-AES256-SHA'  ,
-    'TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA': 'EDH-RSA-DES-CBC3-SHA',
-    'TLS_DHE_RSA_WITH_AES_128_CBC_SHA' : 'DHE-RSA-AES128-SHA'  ,
-    'TLS_DHE_RSA_WITH_AES_256_CBC_SHA' : 'DHE-RSA-AES256-SHA'  ,
+    'TLS_RSA_WITH_NULL_MD5'               : 'NULL-MD5'               ,
+    'TLS_RSA_WITH_NULL_SHA'               : 'NULL-SHA'               ,
+    'TLS_RSA_WITH_NULL_SHA256'            : 'NULL-SHA256'            ,
+    'TLS_RSA_WITH_RC4_128_MD5'            : 'RC4-MD5'                ,
+    'TLS_RSA_WITH_RC4_128_SHA'            : 'RC4-SHA'                ,
+    'TLS_RSA_WITH_3DES_EDE_CBC_SHA'       : 'DES-CBC3-SHA'           ,
+    'TLS_RSA_WITH_AES_128_CBC_SHA'        : 'AES128-SHA'             ,
+    'TLS_RSA_WITH_AES_128_CBC_SHA256'     : 'AES128-SHA256'          ,
+    'TLS_RSA_WITH_AES_256_CBC_SHA'        : 'AES256-SHA'             ,
+    'TLS_RSA_WITH_AES_256_CBC_SHA256'     : 'AES256-SHA256'          ,
+    'TLS_DH_anon_WITH_3DES_EDE_CBC_SHA'   : 'ADH-DES-CBC3-SHA'       ,
+    'TLS_DH_anon_WITH_AES_128_CBC_SHA'    : 'ADH-AES128-SHA'         ,
+    'TLS_DH_anon_WITH_AES_128_CBC_SHA256' : 'ADH-AES128-SHA256'      ,
+    'TLS_DH_anon_WITH_AES_256_CBC_SHA'    : 'ADH-AES256-SHA'         ,
+    'TLS_DH_anon_WITH_AES_256_CBC_SHA256' : 'ADH-AES256-SHA256'      ,
+    'TLS_DH_anon_WITH_RC4_128_MD5'        : 'ADH-RC4-MD5'            ,
+    'TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA'   : 'EDH-DSS-DES-CBC3-SHA'   ,
+    'TLS_DHE_DSS_WITH_AES_128_CBC_SHA'    : 'DHE-DSS-AES128-SHA'     ,
+    'TLS_DHE_DSS_WITH_AES_128_CBC_SHA256' : 'DHE-DSS-AES128-SHA256'  ,
+    'TLS_DHE_DSS_WITH_AES_256_CBC_SHA'    : 'DHE-DSS-AES256-SHA'     ,
+    'TLS_DHE_DSS_WITH_AES_256_CBC_SHA256' : 'DHE-DSS-AES256-SHA256'  ,
+    'TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA'   : 'EDH-RSA-DES-CBC3-SHA'   ,
+    'TLS_DHE_RSA_WITH_AES_128_CBC_SHA'    : 'DHE-RSA-AES128-SHA'     ,
+    'TLS_DHE_RSA_WITH_AES_128_CBC_SHA256' : 'DHE-RSA-AES128-SHA256'  ,
+    'TLS_DHE_RSA_WITH_AES_256_CBC_SHA'    : 'DHE-RSA-AES256-SHA'     ,
+    'TLS_DHE_RSA_WITH_AES_256_CBC_SHA256' : 'DHE-RSA-AES256-SHA256'  ,
 }
 
 # --------------------------------------------------------------------
@@ -52,6 +58,14 @@ def cygpath(mode, path):
     command = ['cygpath', '-%s' % (mode,), path]
     subp    = sp.Popen(command, stdout = sp.PIPE)
     return subp.communicate()[0].splitlines()[0]
+
+# --------------------------------------------------------------------
+def _openssl_ciphers():
+    ciphers = sp.Popen(['openssl', 'ciphers', 'ALL:NULL'], stdout = sp.PIPE)
+    ciphers = ciphers.communicate()[0]
+    ciphers = ciphers.splitlines()[0].split(':')
+
+    return ciphers
 
 # --------------------------------------------------------------------
 def _check_for_config(mode, config):
@@ -241,6 +255,10 @@ def _main():
     except socket.error, e:
         logging.fatal("cannot resolve `%s': %s" % (':'.join(bind), e))
         exit(1)
+
+    logging.info("----- OPENSSL CIPHERS -----")
+    logging.info(':'.join(_openssl_ciphers()))
+    logging.info("----- END OF OPENSSL CIPHERS -----")
 
     logging.info("----- CONFIGURATION -----")
     logging.info("Binding address is: %s" % ':'.join(map(str, bind)))
