@@ -1,7 +1,8 @@
 # -*- Makefile -*-
 
 # --------------------------------------------------------------------
-export PKI := $(CURDIR)
+# Available modes: rsa, dsa
+MODE ?= rsa
 
 # --------------------------------------------------------------------
 C  = CC
@@ -12,7 +13,10 @@ OU =
 CN = mitls.org
 EA = root@mitls.org
 
-CASUBJECT=/C=$(C)/ST=$(ST)/L=$(L)/O=$(O)/OU=$(OU)/CN=$(CN)/emailAddress=$(EA)
+# --------------------------------------------------------------------
+export PKI := $(CURDIR)/$(MODE)
+
+CASUBJECT=/C=$(C)/ST=$(ST)/L=$(L)/O=$(O)/OU=$(OU)/CN=$(MODE).$(CN)/emailAddress=$(EA)
 
 # --------------------------------------------------------------------
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
@@ -24,94 +28,114 @@ uname_V := $(shell sh -c 'uname -v 2>/dev/null || echo not')
 
 # --------------------------------------------------------------------
 define layout
-	if [ ! -d db ]; then                 \
-		mkdir db;                    \
-		mkdir db/ca.db.certs;        \
-		touch db/ca.db.serial;       \
-		touch db/ca.db.index;        \
-		echo '01' > db/ca.db.serial; \
+	if [ ! -d $(PKI) ]; then \
+	    mkdir -p $(PKI);     \
 	fi
 
-	if [ ! -d certificates ]; then \
-		mkdir certificates;    \
+	if [ ! -d $(PKI)/db ]; then             \
+		mkdir $(PKI)/db;                    \
+		mkdir $(PKI)/db/ca.db.certs;        \
+		touch $(PKI)/db/ca.db.serial;       \
+		touch $(PKI)/db/ca.db.index;        \
+		echo '01' > $(PKI)/db/ca.db.serial; \
 	fi
 
-	if [ ! -d imported ]; then \
-		mkdir imported;    \
+	if [ ! -d $(PKI)/certificates ]; then \
+		mkdir $(PKI)/certificates;        \
+	fi
+
+	if [ ! -d $(PKI)/imported ]; then \
+		mkdir $(PKI)/imported;        \
 	fi
 endef
 
 # --------------------------------------------------------------------
 .PHONY: ca dh dsap layout clean hash
+.PHONY: cert!% import!%
 
-.PRECIOUS: %.p12
-.PRECIOUS: %.key
-.PRECIOUS: %.crt
-.PRECIOUS: certificates/%.csr
-.PRECIOUS: certificates/ca.key
-.PRECIOUS: certificates/ca.crt
+.PRECIOUS: $(MODE)/certificates/%.p12
+.PRECIOUS: $(MODE)/certificates/%.key
+.PRECIOUS: $(MODE)/certificates/%.crt
+.PRECIOUS: $(MODE)/certificates/%.csr
+.PRECIOUS: $(MODE)/certificates/ca.key
+.PRECIOUS: $(MODE)/certificates/ca.crt
+.PRECIOUS: $(MODE)/imported/%.imported
 
 # --------------------	------------------------------------------------
 all:
 	@echo "No default rule" >&2
 
 # --------------------------------------------------------------------
-ca: layout certificates/ca.crt
+cert!%: $(MODE)/certificates/%.p12
+	@true
 
-certificates/ca.crt: certificates/ca.key
-	openssl req -new -x509 -batch          \
-	    -subj   "$(CASUBJECT)"             \
-	    -config config/ca.config           \
-	    -key    certificates/ca.key \
-	    -out    certificates/ca.crt
-	openssl x509 -in certificates/ca.crt -noout -text
+import!%: $(MODE)/imported/%.imported
+	@true
 
 # --------------------------------------------------------------------
-dh: layout certificates/dh.pem
+ca: layout $(MODE)/certificates/ca.crt
 
-certificates/dh.pem:
+$(MODE)/certificates/ca.crt: $(MODE)/certificates/ca.key
+	openssl req -new -x509 -batch          \
+	    -subj   "$(CASUBJECT)"             \
+	    -config $(CURDIR)/config/ca.config \
+	    -key    $<                         \
+	    -out    $@
+	openssl x509 -in $@ -noout -text
+
+# --------------------------------------------------------------------
+dh: layout $(MODE)/certificates/dh.pem
+
+$(MODE)/certificates/dh.pem:
 	openssl dhparam -out $@ 1024
 
 # --------------------------------------------------------------------
-dsap: layout certificates/dsap.pem
+dsap: layout $(MODE)/certificates/dsap.pem
 
-certificates/dsap.pem:
+$(MODE)/certificates/dsap.pem:
 	openssl dsaparam -out $@ 1024
 
 # --------------------------------------------------------------------
-%.p12: %.key %.crt certificates/ca.crt
+ifeq ($(MODE),rsa)
+$(MODE)/certificates/%.key:
+	openssl genrsa -out $@ 1024
+endif
+
+ifeq ($(MODE),dsa)
+$(MODE)/certificates/%.key: $(MODE)/certificates/dsap.pem
+	openssl gendsa -out $@ $(MODE)/certificates/dsap.pem
+endif
+
+$(MODE)/certificates/%.p12: $(MODE)/certificates/%.crt $(MODE)/certificates/ca.crt
 	echo | openssl pkcs12 -export -password stdin \
-	    -in       $*.crt   \
-	    -inkey    $*.key   \
+	    -in       $(PKI)/certificates/$*.crt   \
+	    -inkey    $(PKI)/certificates/$*.key   \
 	    -name     "uTLS PKI ($*)" \
-	    -out      $*.p12
+	    -out      $(PKI)/certificates/$*.p12
 
-#	    -certfile certificates/ca.crt \
-#	    -caname   "uTLS PKI (CA)"     \
-
-certificates/%.csr: certificates/%.key
+$(MODE)/certificates/%.csr: $(MODE)/certificates/%.key
 	openssl req -new -batch \
 	    -subj   "/C=$(C)/ST=$(ST)/L=$(L)/O=$(O)/OU=$(OU)/CN=$*/emailAddress=$(EA)" \
 	    -config config/ca.config \
 	    -key    $< \
 	    -out    $@
 
-%.crt: %.csr certificates/ca.crt
+$(MODE)/certificates/%.crt: $(MODE)/certificates/%.csr $(MODE)/certificates/ca.crt
 	openssl ca -batch -config config/ca.config -in $< -out $@
 	openssl x509 -in $@ -noout -text
 
 # --------------------------------------------------------------------
-IMPORTED := $(wildcard imported/*.imported)
-IMPORTED := $(patsubst imported/%.imported,%,$(IMPORTED))
+IMPORTED := $(wildcard $(MODE)/imported/*.imported)
+IMPORTED := $(patsubst $(MODE)/imported/%.imported,%,$(IMPORTED))
 IMPORTED := $(filter-out ca,$(IMPORTED))
 
 ifeq ($(uname_O),Cygwin)
-imported/ca.imported:
-	certutil -f -user -addstore Root certificates/ca.crt
+$(MODE)/imported/ca.imported:
+	certutil -f -user -addstore Root $(MODE)/certificates/ca.crt
 	touch $@
 
-imported/%.imported: certificates/%.p12
-	certutil -f -user -p '' -v -importpfx certificates/$*.p12
+$(MODE)/imported/%.imported: $(MODE)/certificates/%.p12
+	certutil -f -user -p '' -v -importpfx $(MODE)/certificates/$*.p12
 	touch $@
 
 clean-store:
@@ -121,14 +145,14 @@ clean-store:
 	done
 	sleep 2						# Yes, I know...
 else
-imported/ca.imported:
-	umask 077; certmgr -add -c Trust certificates/ca.crt
+$(MODE)/imported/ca.imported:
+	umask 077; certmgr -add -c Trust $(MODE)/certificates/ca.crt
 	touch $@
 
-imported/%.imported: certificates/%.p12
-	umask 077; ( set -e;                                 \
-	  certmgr -add       -c My certificates/$*.crt;      \
-	  certmgr -importKey -c -p '' My certificates/$*.p12 \
+$(MODE)/imported/%.imported: $(MODE)/certificates/%.p12
+	umask 077; ( set -e; \
+	  certmgr -add       -c My $(MODE)/certificates/$*.crt;      \
+	  certmgr -importKey -c -p '' My $(MODE)/certificates/$*.p12 \
 	)
 	touch $@
 
@@ -140,25 +164,16 @@ clean-store:
 endif
 
 # --------------------------------------------------------------------
-dsa.%.key: certificates/dsap.pem
-	openssl gendsa -out $@ certificates/dsap.pem
-
-dsa.%.pub: dsa.%.key
-	openssl dsa -in $< -pubout -out $@
-
-%.key:
-	openssl genrsa -out $@ 1024
-
-# --------------------------------------------------------------------
 hash:
-	cd db/ca.db.certs && c_rehash .
+	cd $(MODE)/db/ca.db.certs && c_rehash .
 
 # --------------------------------------------------------------------
 layout:
-	$(call layout)
+	@$(call layout)
 
 # --------------------------------------------------------------------
 clean: clean-store
-	rm -rf certificates
-	rm -rf db
-	rm -rf imported
+	rm -rf $(PKI)/certificates
+	rm -rf $(PKI)/db
+	rm -rf $(PKI)/imported
+	if [ -d $(PKI) ]; then rmdir $(PKI); fi

@@ -12,6 +12,16 @@ uname_P := $(shell sh -c 'uname -p 2>/dev/null || echo not')
 uname_V := $(shell sh -c 'uname -v 2>/dev/null || echo not')
 
 # --------------------------------------------------------------------
+define pki
+  $(MAKE) -C pki MODE=$(1) clean
+  $(MAKE) -C pki MODE=$(1) dh dsap ca
+  $(MAKE) -C pki MODE=$(1) 'import!ca'
+  $(MAKE) -C pki MODE=$(1) 'import!$(1).cert-01.mitls.org'
+  $(MAKE) -C pki MODE=$(1) 'import!$(1).cert-02.mitls.org'
+  $(MAKE) -C pki MODE=$(1) hash
+endef
+
+# --------------------------------------------------------------------
 all: pki.built
 	if [ "$(uname_O)" != "Cygwin" ]; then \
 	  $(MAKE) -C c-stub; \
@@ -19,19 +29,14 @@ all: pki.built
 	./test-suite.py
 
 pki.built:
-	$(MAKE) -C pki clean
-	$(MAKE) -C pki dh dsap ca
-	$(MAKE) -C pki imported/ca.imported
-	$(MAKE) -C pki imported/cert-01.mitls.org.imported
-	$(MAKE) -C pki imported/cert-02.mitls.org.imported
-	$(MAKE) -C pki imported/dsa.cert-01.mitls.org.imported
-	$(MAKE) -C pki imported/dsa.cert-02.mitls.org.imported
-	$(MAKE) -C pki hash
+	$(call pki,rsa)
+	$(call pki,dsa)
 	touch $@
 
 # --------------------------------------------------------------------
 clean:
-	$(MAKE) -C pki clean
+	$(MAKE) -C pki MODE=rsa clean
+	$(MAKE) -C pki MODE=dsa clean
 	if [ "$(uname_O)" != "Cygwin" ]; then \
 	  $(MAKE) -C c-stub clean; \
 	fi

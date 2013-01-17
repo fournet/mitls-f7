@@ -111,8 +111,8 @@ def _check_for_config(mode, config):
                 command += ['--server-name'  , config.servname,]
 
 
-            if not mivendor:
-                command += ['--pki', 'pki']
+            if not mivendor and config.pki is not None:
+                command += ['--pki', config.pki]
 
             if mivendor and not win32:
                 command = ['mono', '--debug'] + command
@@ -188,6 +188,7 @@ bind     = 127.0.0.1:6000
 servname =
 modes    = MI_MI_TLS MI_C_TLS
 reneg    = False
+pki      =
 '''
 
 def _main():
@@ -229,6 +230,7 @@ def _main():
             ciphers  = parser.get(scenario, 'ciphers' ).split(),
             modes    = parser.get(scenario, 'modes'   ).split(),
             reneg    = parser.getboolean(scenario, 'reneg'),
+            pki      = parser.get(scenario, 'pki').strip() or None,
         )
 
         try:
@@ -268,7 +270,7 @@ def _main():
         logging.info("* TLS versions: %s" % ", ".join(scendata.versions))
         logging.info("* TLS ciphers : %s" % ", ".join(scendata.ciphers))
         logging.info("* TLS vendors : %s" % ", ".join([x.name for x in scendata.modes]))
-        logging.info("* TL reneg    : %r" % (scendata.reneg,))
+        logging.info("* TLS reneg   : %r" % (scendata.reneg,))
     logging.info("----- END OF CONFIGURATION -----")
 
     nerrors = 0
@@ -281,12 +283,16 @@ def _main():
                     logging.info("* Client is miTLS: %r" % (mode.miclient,))
                     logging.info("* Server is miTLS: %r" % (mode.miserver,))
                     logging.info("* TLS version is : %s" % (version,))
+                    logging.info("* TLS reneg      : %r" % (scendata.reneg,))
+                    logging.info("* servname is    : %s" % (scendata.servname or '<none>',))
+                    logging.info("* PKI located at : %s" % (scendata.pki or '<none>',))
         
                     config = Object(cipher   = cipher,
                                     version  = version,
                                     address  = bind,
                                     servname = scendata.servname,
-                                    reneg    = scendata.reneg)
+                                    reneg    = scendata.reneg,
+                                    pki      = scendata.pki)
     
                     success  = _check_for_config(mode, config)
                     nerrors += int(not success)
