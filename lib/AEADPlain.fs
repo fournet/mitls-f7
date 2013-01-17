@@ -17,6 +17,11 @@ let parseAD (e:epoch) ad = let (sn,ad) = Bytes.split ad 8 in ad
 type fragment = {contents:StatefulPlain.fragment}
 type plain = fragment
 
+(*
+let widenRange (e:epoch) (d:adata) (rg:range) (p:plain) (rg':range) = 
+  p 
+*)
+
 let plain (e:epoch) (ad:adata) (rg:range) b =
     let ad = parseAD e ad in
     let h = StatefulPlain.emptyHistory e in

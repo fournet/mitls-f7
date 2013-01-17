@@ -7,7 +7,65 @@
 open Bytes
 open Error
 
+type PreProtocolVersion =
+    | SSL_3p0   
+    | TLS_1p0   
+    | TLS_1p1   
+    | TLS_1p2   
+
+type ProtocolVersion = p:PreProtocolVersion{p = SSL_3p0 \/ p = TLS_1p0 \/ p = TLS_1p1 \/ p = TLS_1p2}
+
 (* Not abstract, but meant to be used only by crypto modules and CipherSuites *)
+
+type cipherAlg =
+    | RC4_128
+    | TDES_EDE_CBC
+    | AES_128_CBC
+    | AES_256_CBC
+
+predicate IND_CPA of cipherAlg 
+// some reasonable assumptions:
+// assume(IND_CPA(AES_128_CBC))
+// assume(IND_CPA(AES_256_CBC))
+// assume(IND_CPA(RC4_128))
+
+type hashAlg =
+    | NULL
+    | MD5SHA1
+    | MD5
+    | SHA
+    | SHA256
+    | SHA384
+
+predicate INT_CMA_M of hashAlg // INT_CMA_M(HMAC-hasAlg)
+// some reasonable assumptions:
+// assume(INT_CMA_M(SHA))
+// assume(INT_CMA_M(SHA256))
+// assume(CMA(SHA384))
+
+type sigAlg = 
+  | SA_RSA
+  | SA_DSA 
+  | SA_ECDSA
+
+predicate INT_CMA_S of sigAlg * hashAlg// INT_CMA_S(sigAlg-hashAlg)
+// some reasonable assumptions:
+// assume(INT_CMA_S(SA_RSA,SHA))
+// assume(INT_CMA_S(SA_DSA,SHA))
+// assume(INT_CMA_S(SA_ECDSA,SHA))
+
+type aeadAlg =
+    | AES_128_GCM
+    | AES_256_GCM
+
+type authencAlg =
+    | MtE of cipherAlg * hashAlg
+    | AEAD of aeadAlg * hashAlg
+
+predicate INT_CTXT of authencAlg
+// some reasonable assumptions:
+// assume !m. PRF(m) /\ SPRP(AES_128) => INT_CTXT(MtE(AES_128_CBC,m))
+// assume !e. PRF(m) /\ SPRP(AES_256) => INT_CTXT(MtE(AES_256_CBC,m))
 
 type kexAlg =  (* all these kex have server auth & optional client auth, *)
                (* except for anon which has nothing *)
@@ -18,32 +76,11 @@ type kexAlg =  (* all these kex have server auth & optional client auth, *)
     | DHE_RSA
     | DH_anon // --> g^x ; <-- g^y then pms = g^xy ; secure only against passive adversaries
 
-type cipherAlg =
-    | RC4_128
-    | TDES_EDE_CBC
-    | AES_128_CBC
-    | AES_256_CBC
+predicate RSA_PMS   of ProtocolVersion * kexAlg
+predicate DH_PMS    of ProtocolVersion * kexAlg
+predicate PRF of ProtocolVersion * kexAlg
+predicate CRE of ProtocolVersion * kexAlg
 
-type hashAlg =
-    | NULL
-    | MD5SHA1
-    | MD5
-    | SHA
-    | SHA256
-    | SHA384
-
-type sigAlg = 
-  | SA_RSA
-  | SA_DSA 
-  | SA_ECDSA
-
-type aeadAlg =
-    | AES_128_GCM
-    | AES_256_GCM
-
-type authencAlg =
-    | MtE of cipherAlg * hashAlg
-    | AEAD of aeadAlg * hashAlg
 
 (* With F7, we need to declare both logical length functions
    and their concrete implementations; we still miss a few... 
@@ -138,13 +175,9 @@ val compressionMethodsBytes: cl:Compression list -> b:bytes{b = CompressionsByte
 val parseCompression: b:bytes -> (c:Compression{b=CompressionBytes(c)}) Result
 val parseCompressions: b:bytes -> cl:Compression list{?cl'. b = CompressionsBytes(cl') /\ ContainsCompressions(cl',cl)}
 
-type PreProtocolVersion =
-    | SSL_3p0   
-    | TLS_1p0   
-    | TLS_1p1   
-    | TLS_1p2   
 
-type ProtocolVersion = p:PreProtocolVersion{p = SSL_3p0 \/ p = TLS_1p0 \/ p = TLS_1p1 \/ p = TLS_1p2}
+
+
 
 function val VersionBytes: ProtocolVersion -> b:bytes
 assume !p. Length(VersionBytes(p)) = 2
@@ -193,6 +226,7 @@ val verifyDataLen_of_ciphersuite: cipherSuite -> nat
 val prfHashAlg_of_ciphersuite: cipherSuite  -> hashAlg
 val verifyDataHashAlg_of_ciphersuite: cs:cipherSuite -> hashAlg
 
+function val CipherSuiteSigAlg: cipherSuite -> sigAlg
 function val CipherSuiteMACAlg: cipherSuite -> hashAlg
 function val CipherSuiteENCAlg: cipherSuite -> cipherAlg
 
@@ -204,7 +238,7 @@ private assume !kex,enc,mac.
 	CipherSuiteENCAlg(CipherSuite(kex,MtE(enc,mac))) = enc
 val macAlg_of_ciphersuite: cs:cipherSuite -> h:hashAlg{h = CipherSuiteMACAlg(cs)}
 val encAlg_of_ciphersuite: cs:cipherSuite -> c:cipherAlg{c = CipherSuiteENCAlg(cs)}
-val sigAlg_of_ciphersuite: cipherSuite -> sigAlg
+val sigAlg_of_ciphersuite: cs:cipherSuite -> s:sigAlg{s = CipherSuiteSigAlg(cs)}
 
 function val AEAlg: cipherSuite -> authencAlg
 private assume !kex,a. AEAlg(CipherSuite(kex,a)) = a

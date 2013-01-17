@@ -138,75 +138,51 @@ val nextEpoch: e:epoch -> c:crand -> s:srand -> si:SessionInfo ->
 
 
 /// Predicates specifying cryptographic assumptions on algorithms 
-
-// TODO relocate to TLSConstants?
-predicate CPA of cipherAlg //IND-CPA
-// some reasonable assumptions:
-// assume(CPA(AES_128_CBC))
-// assume(CPA(AES_256_CBC))
-
-predicate CMA of hashAlg //INT-CMA_M
-// some reasonable assumptions:
-// assume(CMA(SHA))
-// assume(CMA(SHA256))
-// assume(CMA(SHA384))
-
-predicate CTXT of cipherAlg * hashAlg //INT-CTXT
-// some reasonable assumptions:
-// assume !e. PRF(m)  => CTXT(AES_128_CBC,m) // /\ SPRP(AES_128)
-// assume !e. PRF(m)  => CTXT(AES_256_CBC,m) // /\ SPRP(AES_256)
-// CF where do we declare & assume CTXTR and SPRP?
 predicate StrongAE of cipherSuite
 predicate StrongAuth of cipherSuite
 
-definition !s. StrongAE(s)   <=> (?e,m. IsAEADCiphersuite(s) /\ AEAlg(s) = MtE(e,m) /\ CPA(e) /\ CTXT(e,m))
-definition !s. StrongAuth(s) <=> (?e,m. IsAEADCiphersuite(s) /\ AEAlg(s) = MtE(e,m) /\ CMA(m))
+definition !s. StrongAE(s)   <=> (?e,m. IsAEADCiphersuite(s) /\ AEAlg(s) = MtE(e,m) /\ IND_CPA(e) /\ INT_CMA_M(m) /\ INT_CTXT(AEAlg(s)))
+definition !s. StrongAuth(s) <=> (?e,m. IsAEADCiphersuite(s) /\ AEAlg(s) = MtE(e,m) /\ INT_CMA_M(m))
 
+predicate StrongHS  of ProtocolVersion * cipherSuite // * hashAlg for certs?
+(*
+definition !v,s. StrongHS(v,s) <=> 
+           INT_CMA_S(CipherSuiteSigAlg(s),??) 
+           /\ CRE(v,??) 
+           /\ PRF(v,??) 
+           /\ ( RSA_PMS(v,??) \/ DH_PMS(v,??) )
+
+*)
 
 // Predicates specifying the security of TLS connections 
-
 predicate type cryptopreds = 
 | SafeSI  of SessionInfo // The session ciphersuite yields secrecy and integrity
 | AuthSI  of SessionInfo // The session ciphersuite yields integrity (not necessarily secrecy)
+| SafeHS_SI of SessionInfo // Good handshake for this sessioninfo
 | SafeHS of epoch // Good handshake for this epoch
 | Safe   of epoch // The epoch parameters yield privacy & integrity
 | Auth   of epoch // The epoch parameters yield integrity (not necesarily privacy)
 
-(*
 
-// CF Handshake predicates; seems Ok. Why commented out? 
-predicate INT_CMA_S of ProtocolVersion * cipherSuite
-predicate CRE       of ProtocolVersion * cipherSuite
-predicate PRF       of ProtocolVersion * cipherSuite
-predicate RSA_PMS   of ProtocolVersion * cipherSuite
-predicate DH_PMS    of ProtocolVersion * cipherSuite
-predicate StrongHS  of ProtocolVersion * cipherSuite
+definition !si. SafeSI(si) <=> 
+           SafeHS_SI(si) /\
+           StrongAE(si.cipher_suite)
+definition !si. AuthSI(si) <=> 
+           SafeHS_SI(si) /\    
+           StrongAuth(si.cipher_suite)
 
-definition !v,s. StrongHS(v,s) <=> INT_CMA_S(v,s) /\ CRE(v,s) /\ PRF(v,s) /\ ( RSA_PMS(v,s) \/ DH_PMS(v,s) )
+definition !id. SafeHS_SI(id) <=> 
+      StrongHS(id.protocol_version,id.cipher_suite)
+   /\ HonestPMS(id.pmsData)
 
-definition !e. SafeHS(id) <=> 
-      StrongHS(EpochSI(id).protocol_version,CS(id)) 
-   /\ ClientPMS(EpochSI(id))
-   /\ Honest(ServerKey(id))
-// /\ Honest(LTKey(id)) /\ Honest(LTKey(Peer(id)))
+definition !id. SafeHS(id) <=> SafeHS_SI(EpochSI(id)) 
 
-*)
-
-//AP Resurrecting this for the time being. What do we do with the comments above?
-predicate StrongHS  of ProtocolVersion * cipherSuite
-definition !si. SafeSI(si) <=> StrongHS(si.protocol_version,si.cipher_suite) /\ StrongAE  (si.cipher_suite)
-definition !si. AuthSI(si) <=> StrongHS(si.protocol_version,si.cipher_suite) /\ StrongAuth(si.cipher_suite)
-
-definition !e. SafeHS(e) <=> StrongHS(EpochSI(e).protocol_version,EpochSI(e).cipher_suite) //AP /\ Complete(e)?
-
-definition !e. Safe(e) <=> SafeHS(e) /\ SafeSI(EpochSI(e))
-definition !e. Auth(e) <=> SafeHS(e) /\ AuthSI(EpochSI(e))
+definition !e. Safe(e) <=> SafeSI(EpochSI(e))
+definition !e. Auth(e) <=> AuthSI(EpochSI(e))
 
 val safe: (e:epoch) -> b:bool { b = true <=> Safe(e) }
 
-// not quite derivable unless we add CTXT => CMA
-// CF do we use it?
-assume !e. Safe(e) => Auth(e) 
+ask !e. Safe(e) => Auth(e) 
 
 ask !e. IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) => not Safe(e)
 ask !e. IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) => 

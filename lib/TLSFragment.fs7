@@ -47,6 +47,17 @@ private definition !e,ct,h,rg,d.
     (?f. ct=Change_cipher_spec /\ d = FCCS(f)       /\ HSFragment.Sent(e,CCSHistory(e,h),rg,f) ) \/
     (?f. ct=Alert              /\ d = FAlert(f)     /\ HSFragment.Sent(e,AlertHistory(e,h),rg,f) ) \/
     (?f. ct=Application_data   /\ d = FAppData(f)   /\ AppFragment.Sent(e,AppDataHistory(e,h),rg,f)))
+(*
+private definition !e,h,rg,f.
+  (HSFragment,.
+  RecordSent(e,ct,h,rg,d) <=> ( 
+    (?f. ct=Handshake          /\ d = FHandshake(f) /\ HSFragment.Sent(e,HandshakeHistory(e,h),rg,f) ) \/
+    (?f. ct=Change_cipher_spec /\ d = FCCS(f)       /\ HSFragment.Sent(e,CCSHistory(e,h),rg,f) ) \/
+    (?f. ct=Alert              /\ d = FAlert(f)     /\ HSFragment.Sent(e,AlertHistory(e,h),rg,f) ) \/
+    (?f. ct=Application_data   /\ d = FAppData(f)   /\ AppFragment.Sent(e,AppDataHistory(e,h),rg,f)))
+*)
+ask !e,h,rg,f. HSFragment.Sent(e,HandshakeHistory(e,h),rg,f) =>
+      RecordSent(e,Handshake,h,rg,FHandshake(f))
 
 type (;e:epoch,ct:ContentType,h:(;e)history,rg:range) plain = 
   f:(;e,ct,rg)fragment { Auth(e) => RecordSent(e,ct,h,rg,f) }
@@ -124,7 +135,8 @@ ask !e,h. EmptyHistory(e,h) => HSFragment.EmptyStream(e,CCSHistory(e,h))
 ask !e,h. EmptyHistory(e,h) => DataStream.EmptyStream(e,AppDataHistory(e,h))
 
 val makePlain: e:epoch -> ct:ContentType -> h:(;e)history -> r:range ->
-	f:(;e,ct,r)fragment{Auth(e) => RecordSent(e,ct,h,r,f)} -> (;e,ct,h,r)plain
+	f:(;e,ct,r)fragment{Auth(e) => RecordSent(e,ct,h,r,f)} -> 
+        (;e,ct,h,r)plain
 
 val HSPlainToRecordPlain: e:epoch -> h:(;e)history -> r:range -> 
   d:(;e,HandshakeHistory(e,h),r) HSFragment.plain -> 

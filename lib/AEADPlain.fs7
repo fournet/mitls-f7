@@ -37,7 +37,11 @@ private definition !e,ad,r,f.
 
 predicate AEADSent of e:epoch * ad:(;e)adata * r:range * (;e,ad,r)fragment
 type (;e:epoch,ad:(;e)adata,r:range) plain = f:(;e,ad,r)fragment{ Auth(e) => AEADSent(e,ad,r,f) }
-
+(*
+val widenRange: ki:epoch -> ad:(;ki)AEADPlain.adata -> 
+                rg:range -> p:(;ki,ad,rg) AEADPlain.plain ->
+                rg':range -> (;ki,ad,rg') AEADPlain.plain
+*)
 val payload: e:succEpoch -> r:range -> ad:(;e)adata -> f:(;e,ad,r)plain ->
 	b:(;r) rbytes{ b = AEADPlain.Payload(e,ad,r,f) }
 
