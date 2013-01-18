@@ -12,7 +12,7 @@ let rangeSum (l0,h0) (l1,h1) =
   let h = h0 + h1
   (l,h)
 
-let ivLength e =
+let ivSize e =
     let si = epochSI(e) in
     if isOnlyMACCipherSuite si.cipher_suite then
         0
@@ -42,7 +42,7 @@ let targetLength e (rg:range) =
     let (_,h) = rg in
     let si = epochSI(e) in
     let macLen = macSize (macAlg_of_ciphersuite si.cipher_suite si.protocol_version) in
-    let ivL = ivLength e in
+    let ivL = ivSize e in
     let prePad = h + macLen in
     let padLen = blockAlignPadding e prePad in
     let res = ivL + prePad + padLen in
@@ -62,7 +62,7 @@ let minMaxPad si =
 let cipherRangeClass (e:epoch) tlen =
     let si = epochSI(e) in
     let macSize = macSize (macAlg_of_ciphersuite si.cipher_suite si.protocol_version) in
-    let ivL = ivLength e in
+    let ivL = ivSize e in
     let (minPad,maxPad) = minMaxPad si in
     let max = tlen - ivL - macSize - minPad in
     if max < 0 then

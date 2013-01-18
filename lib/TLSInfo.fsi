@@ -94,4 +94,6 @@ val fragmentLength: nat
 
 #if ideal
 val safe: epoch -> bool
+val safeHS: epoch -> bool
+val auth: epoch -> bool
 #endif

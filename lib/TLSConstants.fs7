@@ -17,12 +17,6 @@ type ProtocolVersion = p:PreProtocolVersion{p = SSL_3p0 \/ p = TLS_1p0 \/ p = TL
 
 (* Not abstract, but meant to be used only by crypto modules and CipherSuites *)
 
-type cipherAlg = // used only in ciphersuite definition
-	| RC4_128
-	| TDES_EDE_CBC
-	| AES_128_CBC
-	| AES_256_CBC
-
 type blockCipher =
     | TDES_EDE
     | AES_128
@@ -117,19 +111,19 @@ val parseMacAlg: b:bytes -> (h:hashAlg{b=HashAlgBytes(h)}) Result
 function val EncKeySize: encAlg -> nat
 assume !x. EncKeySize(x) >= 0
 private definition EncKeySize(Stream_RC4_128)      = 16
-private definition EncKeySize(CBC_Stale(TDES_EDE_CBC)) = 24
-private definition EncKeySize(CBC_Stale(AES_128_CBC))  = 16
-private definition EncKeySize(CBC_Stale(AES_256_CBC))  = 32
-private definition EncKeySize(CBC_Fresh(TDES_EDE_CBC)) = 24
-private definition EncKeySize(CBC_Fresh(AES_128_CBC))  = 16
-private definition EncKeySize(CBC_Fresh(AES_256_CBC))  = 32
+private definition EncKeySize(CBC_Stale(TDES_EDE)) = 24
+private definition EncKeySize(CBC_Stale(AES_128))  = 16
+private definition EncKeySize(CBC_Stale(AES_256))  = 32
+private definition EncKeySize(CBC_Fresh(TDES_EDE)) = 24
+private definition EncKeySize(CBC_Fresh(AES_128))  = 16
+private definition EncKeySize(CBC_Fresh(AES_256))  = 32
 val encKeySize: a:encAlg -> l:nat{l=EncKeySize(a)}
 
 function val BlockSize: blockCipher -> nat
 assume !x. BlockSize(x) >= 0
-private definition BlockSize(TDES_EDE_CBC)	=  8
-private definition BlockSize(AES_128_CBC)	= 16
-private definition BlockSize(AES_256_CBC)	= 16
+private definition BlockSize(TDES_EDE)	=  8
+private definition BlockSize(AES_128)	= 16
+private definition BlockSize(AES_256)	= 16
 val blockSize: a:blockCipher -> l:nat {l=BlockSize(a)}
 
 val aeadKeySize: aeadAlg -> nat
@@ -257,17 +251,17 @@ val prfMacAlg_of_ciphersuite: cipherSuite  -> macAlg
 val verifyDataHashAlg_of_ciphersuite: cs:cipherSuite -> hashAlg
 
 function val CipherSuiteSigAlg: cipherSuite -> sigAlg
-function val CipherSuiteMACAlg: cipherSuite -> ProtocolVersion -> macAlg
-function val CipherSuiteENCAlg: cipherSuite -> ProtocolVersion -> encAlg
+function val CipherSuiteMACAlg: cipherSuite * ProtocolVersion -> macAlg
+function val CipherSuiteENCAlg: cipherSuite * ProtocolVersion -> encAlg
 
 private assume !kex,enc,mac.
-	CipherSuiteMACAlg(CipherSuite(kex,MtE(enc,mac)),SSL_3p0) = MA_SSLKHASH(mac)
+	CipherSuiteMACAlg(CipherSuite(kex,CS_MtE(enc,mac)),SSL_3p0) = MA_SSLKHASH(mac)
 private assume !kex,enc,mac.
-	CipherSuiteMACAlg(CipherSuite(kex,MtE(enc,mac)),TLS_1p0) = MA_HMAC(mac)
+	CipherSuiteMACAlg(CipherSuite(kex,CS_MtE(enc,mac)),TLS_1p0) = MA_HMAC(mac)
 private assume !kex,enc,mac.
-	CipherSuiteMACAlg(CipherSuite(kex,MtE(enc,mac)),TLS_1p1) = MA_HMAC(mac)
+	CipherSuiteMACAlg(CipherSuite(kex,CS_MtE(enc,mac)),TLS_1p1) = MA_HMAC(mac)
 private assume !kex,enc,mac.
-	CipherSuiteMACAlg(CipherSuite(kex,MtE(enc,mac)),TLS_1p1) = MA_HMAC(mac)
+	CipherSuiteMACAlg(CipherSuite(kex,CS_MtE(enc,mac)),TLS_1p1) = MA_HMAC(mac)
 
 private assume !enc,mac.
 	CipherSuiteMACAlg(OnlyMACCipherSuite(enc,mac),SSL_3p0) = MA_SSLKHASH(mac)
@@ -279,17 +273,39 @@ private assume !enc,mac.
 	CipherSuiteMACAlg(OnlyMACCipherSuite(enc,mac),TLS_1p2) = MA_HMAC(mac)
 
 private assume !kex,mac,pv.
-	CipherSuiteENCAlg(CipherSuite(kex,MtE(Stream_RC4_128,mac)),pv) = Stream_RC4_128
-
+	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(RC4_128,mac)),pv) = Stream_RC4_128
 private assume !kex,mac.
-	CipherSuiteENCAlg(CipherSuite(kex,MtE(Stream_RC4_128,mac)),SSL_3p0) = Stream_RC4_128
+	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(TDES_EDE_CBC,mac)),SSL_3p0) = CBC_Stale(TDES_EDE)
+private assume !kex,mac.
+	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(TDES_EDE_CBC,mac)),TLS_1p0) = CBC_Stale(TDES_EDE)
+private assume !kex,mac.
+	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(AES_128_CBC,mac)),SSL_3p0) = CBC_Stale(AES_128)
+private assume !kex,mac.
+	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(AES_128_CBC,mac)),TLS_1p0) = CBC_Stale(AES_128)
+private assume !kex,mac.
+	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(AES_256_CBC,mac)),SSL_3p0) = CBC_Stale(AES_256)
+private assume !kex,mac.
+	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(AES_256_CBC,mac)),TLS_1p0) = CBC_Stale(AES_256)
+private assume !kex,mac.
+	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(TDES_EDE_CBC,mac)),TLS_1p1) = CBC_Fresh(TDES_EDE)
+private assume !kex,mac.
+	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(TDES_EDE_CBC,mac)),TLS_1p2) = CBC_Fresh(TDES_EDE)
+private assume !kex,mac.
+	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(AES_128_CBC,mac)),TLS_1p1) = CBC_Fresh(AES_128)
+private assume !kex,mac.
+	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(AES_128_CBC,mac)),TLS_1p2) = CBC_Fresh(AES_128)
+private assume !kex,mac.
+	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(AES_256_CBC,mac)),TLS_1p1) = CBC_Fresh(AES_256)
+private assume !kex,mac.
+	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(AES_256_CBC,mac)),TLS_1p2) = CBC_Fresh(AES_256)
 
-val macAlg_of_ciphersuite: cs:cipherSuite -> h:hashAlg{h = CipherSuiteMACAlg(cs)}
-val encAlg_of_ciphersuite: cs:cipherSuite -> c:cipherAlg{c = CipherSuiteENCAlg(cs)}
+val macAlg_of_ciphersuite: cs:cipherSuite -> pv:ProtocolVersion -> h:macAlg{h = CipherSuiteMACAlg(cs,pv)}
+val encAlg_of_ciphersuite: cs:cipherSuite -> pv:ProtocolVersion -> c:encAlg{c = CipherSuiteENCAlg(cs,pv)}
 val sigAlg_of_ciphersuite: cs:cipherSuite -> s:sigAlg{s = CipherSuiteSigAlg(cs)}
 
-function val AEAlg: cipherSuite -> authencAlg
-private assume !kex,a. AEAlg(CipherSuite(kex,a)) = a
+function val AEAlg: ProtocolVersion * cipherSuite -> authencAlg
+// FIXME: update this definition
+// private definiti !kex,a. AEAlg(CipherSuite(kex,a)) = a
 
 predicate KnownCipherSuite of cipherSuite 
 function val CipherSuiteBytes: cipherSuite -> bytes 
@@ -299,86 +315,66 @@ private assume !cs. KnownCipherSuite(cs) <=>
     \/ (cs = OnlyMACCipherSuite (RSA, MD5))                       
     \/ (cs = OnlyMACCipherSuite (RSA, SHA))                       
     \/ (cs = OnlyMACCipherSuite (RSA, SHA256))                    
-    \/ (cs = CipherSuite (RSA, MtE (RC4_128, MD5)))            
-    \/ (cs = CipherSuite (RSA, MtE (RC4_128, SHA)))            
-    \/ (cs = CipherSuite (RSA, MtE (TDES_EDE_CBC, SHA)))       
-    \/ (cs = CipherSuite (RSA, MtE (AES_128_CBC, SHA)))        
-    \/ (cs = CipherSuite (RSA, MtE (AES_256_CBC, SHA)))        
-    \/ (cs = CipherSuite (RSA, MtE (AES_128_CBC, SHA256)))     
-    \/ (cs = CipherSuite (RSA, MtE (AES_256_CBC, SHA256)))     
+    \/ (cs = CipherSuite (RSA, CS_MtE (RC4_128, MD5)))            
+    \/ (cs = CipherSuite (RSA, CS_MtE (RC4_128, SHA)))            
+    \/ (cs = CipherSuite (RSA, CS_MtE (TDES_EDE_CBC, SHA)))       
+    \/ (cs = CipherSuite (RSA, CS_MtE (AES_128_CBC, SHA)))        
+    \/ (cs = CipherSuite (RSA, CS_MtE (AES_256_CBC, SHA)))        
+    \/ (cs = CipherSuite (RSA, CS_MtE (AES_128_CBC, SHA256)))     
+    \/ (cs = CipherSuite (RSA, CS_MtE (AES_256_CBC, SHA256)))     
+  
+    \/ (cs = CipherSuite (DHE_DSS, CS_MtE (TDES_EDE_CBC, SHA)))   
+    \/ (cs = CipherSuite (DHE_RSA, CS_MtE (TDES_EDE_CBC, SHA)))      
+    \/ (cs = CipherSuite (DHE_DSS, CS_MtE (AES_128_CBC, SHA)))    
+    \/ (cs = CipherSuite (DHE_RSA, CS_MtE (AES_128_CBC, SHA)))        
+    \/ (cs = CipherSuite (DHE_DSS, CS_MtE (AES_256_CBC, SHA)))    
+    \/ (cs = CipherSuite (DHE_RSA, CS_MtE (AES_256_CBC, SHA)))    
+    \/ (cs = CipherSuite (DHE_DSS, CS_MtE (AES_128_CBC, SHA256))) 
+    \/ (cs = CipherSuite (DHE_RSA, CS_MtE (AES_128_CBC, SHA256))) 
+    \/ (cs = CipherSuite (DHE_DSS, CS_MtE (AES_256_CBC, SHA256))) 
+    \/ (cs = CipherSuite (DHE_RSA, CS_MtE (AES_256_CBC, SHA256))) 
 
-    \/ (cs = CipherSuite (DH_DSS,  MtE (TDES_EDE_CBC, SHA)))   
-    \/ (cs = CipherSuite (DH_RSA,  MtE (TDES_EDE_CBC, SHA)))   
-    \/ (cs = CipherSuite (DHE_DSS, MtE (TDES_EDE_CBC, SHA)))   
-    \/ (cs = CipherSuite (DHE_RSA, MtE (TDES_EDE_CBC, SHA)))   
-    \/ (cs = CipherSuite (DH_DSS,  MtE (AES_128_CBC, SHA)))    
-    \/ (cs = CipherSuite (DH_RSA,  MtE (AES_128_CBC, SHA)))    
-    \/ (cs = CipherSuite (DHE_DSS, MtE (AES_128_CBC, SHA)))    
-    \/ (cs = CipherSuite (DHE_RSA, MtE (AES_128_CBC, SHA)))    
-    \/ (cs = CipherSuite (DH_DSS,  MtE (AES_256_CBC, SHA)))    
-    \/ (cs = CipherSuite (DH_RSA,  MtE (AES_256_CBC, SHA)))    
-    \/ (cs = CipherSuite (DHE_DSS, MtE (AES_256_CBC, SHA)))    
-    \/ (cs = CipherSuite (DHE_RSA, MtE (AES_256_CBC, SHA)))    
-    \/ (cs = CipherSuite (DH_DSS,  MtE (AES_128_CBC, SHA256))) 
-    \/ (cs = CipherSuite (DH_RSA,  MtE (AES_128_CBC, SHA256))) 
-    \/ (cs = CipherSuite (DHE_DSS, MtE (AES_128_CBC, SHA256))) 
-    \/ (cs = CipherSuite (DHE_RSA, MtE (AES_128_CBC, SHA256))) 
-    \/ (cs = CipherSuite (DH_DSS,  MtE (AES_256_CBC, SHA256))) 
-    \/ (cs = CipherSuite (DH_RSA,  MtE (AES_256_CBC, SHA256))) 
-    \/ (cs = CipherSuite (DHE_DSS, MtE (AES_256_CBC, SHA256))) 
-    \/ (cs = CipherSuite (DHE_RSA, MtE (AES_256_CBC, SHA256))) 
-
-    \/ (cs = CipherSuite (DH_anon, MtE (RC4_128, MD5)))        
-    \/ (cs = CipherSuite (DH_anon, MtE (TDES_EDE_CBC, SHA)))   
-    \/ (cs = CipherSuite (DH_anon, MtE (AES_128_CBC, SHA)))    
-    \/ (cs = CipherSuite (DH_anon, MtE (AES_256_CBC, SHA)))    
-    \/ (cs = CipherSuite (DH_anon, MtE (AES_128_CBC, SHA256))) 
-    \/ (cs = CipherSuite (DH_anon, MtE (AES_256_CBC, SHA256))) 
+    \/ (cs = CipherSuite (DH_anon, CS_MtE (RC4_128, MD5)))        
+    \/ (cs = CipherSuite (DH_anon, CS_MtE (TDES_EDE_CBC, SHA)))   
+    \/ (cs = CipherSuite (DH_anon, CS_MtE (AES_128_CBC, SHA)))    
+    \/ (cs = CipherSuite (DH_anon, CS_MtE (AES_256_CBC, SHA)))    
+    \/ (cs = CipherSuite (DH_anon, CS_MtE (AES_128_CBC, SHA256))) 
+    \/ (cs = CipherSuite (DH_anon, CS_MtE (AES_256_CBC, SHA256))) 
 
     \/ (cs = SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV))            
 
 private assume 
-       CipherSuiteBytes(NullCipherSuite)                                     = [| 0x00uy; 0x00uy |]
-    /\ CipherSuiteBytes(OnlyMACCipherSuite (RSA, MD5))                       = [| 0x00uy; 0x01uy |]
-    /\ CipherSuiteBytes(OnlyMACCipherSuite (RSA, SHA))                       = [| 0x00uy; 0x02uy |]
-    /\ CipherSuiteBytes(OnlyMACCipherSuite (RSA, SHA256))                    = [| 0x00uy; 0x3Buy |]
-    /\ CipherSuiteBytes(CipherSuite (RSA, MtE (RC4_128, MD5)))            = [| 0x00uy; 0x04uy |]
-    /\ CipherSuiteBytes(CipherSuite (RSA, MtE (RC4_128, SHA)))            = [| 0x00uy; 0x05uy |]
-    /\ CipherSuiteBytes(CipherSuite (RSA, MtE (TDES_EDE_CBC, SHA)))       = [| 0x00uy; 0x0Auy |]
-    /\ CipherSuiteBytes(CipherSuite (RSA, MtE (AES_128_CBC, SHA)))        = [| 0x00uy; 0x2Fuy |]
-    /\ CipherSuiteBytes(CipherSuite (RSA, MtE (AES_256_CBC, SHA)))        = [| 0x00uy; 0x35uy |]
-    /\ CipherSuiteBytes(CipherSuite (RSA, MtE (AES_128_CBC, SHA256)))     = [| 0x00uy; 0x3Cuy |]
-    /\ CipherSuiteBytes(CipherSuite (RSA, MtE (AES_256_CBC, SHA256)))     = [| 0x00uy; 0x3Duy |]
+       CipherSuiteBytes(NullCipherSuite)                                  = [| 0x00uy; 0x00uy |]
+    /\ CipherSuiteBytes(OnlyMACCipherSuite (RSA, MD5))                    = [| 0x00uy; 0x01uy |]
+    /\ CipherSuiteBytes(OnlyMACCipherSuite (RSA, SHA))                    = [| 0x00uy; 0x02uy |]
+    /\ CipherSuiteBytes(OnlyMACCipherSuite (RSA, SHA256))                 = [| 0x00uy; 0x3Buy |]
+    /\ CipherSuiteBytes(CipherSuite (RSA, CS_MtE (RC4_128, MD5)))            = [| 0x00uy; 0x04uy |]
+    /\ CipherSuiteBytes(CipherSuite (RSA, CS_MtE (RC4_128, SHA)))            = [| 0x00uy; 0x05uy |]
+    /\ CipherSuiteBytes(CipherSuite (RSA, CS_MtE (TDES_EDE_CBC, SHA)))       = [| 0x00uy; 0x0Auy |]
+    /\ CipherSuiteBytes(CipherSuite (RSA, CS_MtE (AES_128_CBC, SHA)))        = [| 0x00uy; 0x2Fuy |]
+    /\ CipherSuiteBytes(CipherSuite (RSA, CS_MtE (AES_256_CBC, SHA)))        = [| 0x00uy; 0x35uy |]
+    /\ CipherSuiteBytes(CipherSuite (RSA, CS_MtE (AES_128_CBC, SHA256)))     = [| 0x00uy; 0x3Cuy |]
+    /\ CipherSuiteBytes(CipherSuite (RSA, CS_MtE (AES_256_CBC, SHA256)))     = [| 0x00uy; 0x3Duy |]
 
-    /\ CipherSuiteBytes(CipherSuite (DH_DSS,  MtE (TDES_EDE_CBC, SHA)))   = [| 0x00uy; 0x0Duy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_RSA,  MtE (TDES_EDE_CBC, SHA)))   = [| 0x00uy; 0x10uy |]
-    /\ CipherSuiteBytes(CipherSuite (DHE_DSS, MtE (TDES_EDE_CBC, SHA)))   = [| 0x00uy; 0x13uy |]
-    /\ CipherSuiteBytes(CipherSuite (DHE_RSA, MtE (TDES_EDE_CBC, SHA)))   = [| 0x00uy; 0x16uy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_DSS,  MtE (AES_128_CBC, SHA)))    = [| 0x00uy; 0x30uy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_RSA,  MtE (AES_128_CBC, SHA)))    = [| 0x00uy; 0x31uy |]
-    /\ CipherSuiteBytes(CipherSuite (DHE_DSS, MtE (AES_128_CBC, SHA)))    = [| 0x00uy; 0x32uy |]
-    /\ CipherSuiteBytes(CipherSuite (DHE_RSA, MtE (AES_128_CBC, SHA)))    = [| 0x00uy; 0x33uy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_DSS,  MtE (AES_256_CBC, SHA)))    = [| 0x00uy; 0x36uy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_RSA,  MtE (AES_256_CBC, SHA)))    = [| 0x00uy; 0x37uy |]
-    /\ CipherSuiteBytes(CipherSuite (DHE_DSS, MtE (AES_256_CBC, SHA)))    = [| 0x00uy; 0x38uy |]
-    /\ CipherSuiteBytes(CipherSuite (DHE_RSA, MtE (AES_256_CBC, SHA)))    = [| 0x00uy; 0x39uy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_DSS,  MtE (AES_128_CBC, SHA256))) = [| 0x00uy; 0x3Euy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_RSA,  MtE (AES_128_CBC, SHA256))) = [| 0x00uy; 0x3Fuy |]
-    /\ CipherSuiteBytes(CipherSuite (DHE_DSS, MtE (AES_128_CBC, SHA256))) = [| 0x00uy; 0x40uy |]
-    /\ CipherSuiteBytes(CipherSuite (DHE_RSA, MtE (AES_128_CBC, SHA256))) = [| 0x00uy; 0x67uy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_DSS,  MtE (AES_256_CBC, SHA256))) = [| 0x00uy; 0x68uy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_RSA,  MtE (AES_256_CBC, SHA256))) = [| 0x00uy; 0x69uy |]
-    /\ CipherSuiteBytes(CipherSuite (DHE_DSS, MtE (AES_256_CBC, SHA256))) = [| 0x00uy; 0x6Auy |]
-    /\ CipherSuiteBytes(CipherSuite (DHE_RSA, MtE (AES_256_CBC, SHA256))) = [| 0x00uy; 0x6Buy |]
+    /\ CipherSuiteBytes(CipherSuite (DHE_DSS, CS_MtE (TDES_EDE_CBC, SHA)))   = [| 0x00uy; 0x13uy |]
+    /\ CipherSuiteBytes(CipherSuite (DHE_RSA, CS_MtE (TDES_EDE_CBC, SHA)))   = [| 0x00uy; 0x16uy |]
+    /\ CipherSuiteBytes(CipherSuite (DHE_DSS, CS_MtE (AES_128_CBC, SHA)))    = [| 0x00uy; 0x32uy |]
+    /\ CipherSuiteBytes(CipherSuite (DHE_RSA, CS_MtE (AES_128_CBC, SHA)))    = [| 0x00uy; 0x33uy |]
+    /\ CipherSuiteBytes(CipherSuite (DHE_DSS, CS_MtE (AES_256_CBC, SHA)))    = [| 0x00uy; 0x38uy |]
+    /\ CipherSuiteBytes(CipherSuite (DHE_RSA, CS_MtE (AES_256_CBC, SHA)))    = [| 0x00uy; 0x39uy |]
+    /\ CipherSuiteBytes(CipherSuite (DHE_DSS, CS_MtE (AES_128_CBC, SHA256))) = [| 0x00uy; 0x40uy |]
+    /\ CipherSuiteBytes(CipherSuite (DHE_RSA, CS_MtE (AES_128_CBC, SHA256))) = [| 0x00uy; 0x67uy |]
+    /\ CipherSuiteBytes(CipherSuite (DHE_DSS, CS_MtE (AES_256_CBC, SHA256))) = [| 0x00uy; 0x6Auy |]
+    /\ CipherSuiteBytes(CipherSuite (DHE_RSA, CS_MtE (AES_256_CBC, SHA256))) = [| 0x00uy; 0x6Buy |]
 
-    /\ CipherSuiteBytes(CipherSuite (DH_anon, MtE (RC4_128, MD5)))        = [| 0x00uy; 0x18uy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_anon, MtE (TDES_EDE_CBC, SHA)))   = [| 0x00uy; 0x1Buy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_anon, MtE (AES_128_CBC, SHA)))    = [| 0x00uy; 0x34uy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_anon, MtE (AES_256_CBC, SHA)))    = [| 0x00uy; 0x3Auy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_anon, MtE (AES_128_CBC, SHA256))) = [| 0x00uy; 0x6Cuy |]
-    /\ CipherSuiteBytes(CipherSuite (DH_anon, MtE (AES_256_CBC, SHA256))) = [| 0x00uy; 0x6Duy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_anon, CS_MtE (RC4_128, MD5)))        = [| 0x00uy; 0x18uy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_anon, CS_MtE (TDES_EDE_CBC, SHA)))   = [| 0x00uy; 0x1Buy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_anon, CS_MtE (AES_128_CBC, SHA)))    = [| 0x00uy; 0x34uy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_anon, CS_MtE (AES_256_CBC, SHA)))    = [| 0x00uy; 0x3Auy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_anon, CS_MtE (AES_128_CBC, SHA256))) = [| 0x00uy; 0x6Cuy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_anon, CS_MtE (AES_256_CBC, SHA256))) = [| 0x00uy; 0x6Duy |]
 
-    /\ CipherSuiteBytes(SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV))            = [| 0x00uy; 0xFFuy |]
+    /\ CipherSuiteBytes(SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV))         = [| 0x00uy; 0xFFuy |]
 
 
 function val CipherSuitesBytes: cipherSuites -> bytes
@@ -430,8 +426,6 @@ val maxPadSize: ProtocolVersion -> cipherSuite -> nat
 
 val mkIntTriple: (nat * nat * nat) -> (nat * nat * nat)
 val getKeyExtensionLength: ProtocolVersion -> cipherSuite -> nat
-
-val PVRequiresExplicitIV: ProtocolVersion -> bool
 
 (* Not for verification, just to run the implementation *)
 

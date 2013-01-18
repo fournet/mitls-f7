@@ -123,7 +123,7 @@ let decrypt' e key data cipher =
                 | Error(x,y) -> Error(x,y)
                 | Correct(plain) -> correct(nk,rg,plain)
         | CBC_Stale(alg) | CBC_Fresh(alg) -> // block cipher
-            let ivL = ivLength e in
+            let ivL = ivSize e in
             let blockSize = blockSize alg in
             if (cl - ivL < macSize + 1) || (cl % blockSize <> 0) then
                 (*@ It is safe to return early, because we are branching

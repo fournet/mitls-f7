@@ -21,15 +21,15 @@ private type (;ki:epoch) AEADKey =
 function val AEADSize: ki:epoch -> nat
 private definition !ki,si. si = EpochSI(ki) =>
 	( IsOnlyMACCiphersuite(si.cipher_suite) =>
-	  AEADSize(ki) = HashSize(TLSConstants.CipherSuiteMACAlg(si.cipher_suite)) ) /\
+	  AEADSize(ki) = MacSize(TLSConstants.CipherSuiteMACAlg(si.cipher_suite,si.protocol_version)) ) /\
 	( IsAEADCiphersuite(si.cipher_suite) =>
-	  AEADSize(ki) = HashSize(TLSConstants.CipherSuiteMACAlg(si.cipher_suite)) +
-					    EncKeySize(TLSConstants.CipherSuiteENCAlg(si.cipher_suite)) +
+	  AEADSize(ki) = MacSize(TLSConstants.CipherSuiteMACAlg(si.cipher_suite,si.protocol_version)) +
+					    EncKeySize(TLSConstants.CipherSuiteENCAlg(si.cipher_suite,si.protocol_version)) +
 					    Range.IVSize(ki) )
 
 //CF '13 who wrote this? when? 
 //TODO Why is this failing? Because of AEADSize not being what I want, I cannot typecheck COERCE.
-//TODO ask !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) => AEADSize(ki,ki) = HashSize(TLSConstants.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))
+//TODO ask !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) => AEADSize(ki,ki) = MacSize(TLSConstants.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))
 
 val GEN:    ki:succEpoch     -> encryptor:(;ki)AEADKey * decryptor:(;ki)AEADKey
 val COERCE: ki:succEpoch{not Auth(ki)} -> b:bytes{Length(b) = AEADSize(ki)} -> (;ki)AEADKey
@@ -44,7 +44,7 @@ val cipherLength e:epoch -> rg:range -> n:clen { n = CipherLength(e,rg) } // aka
 val decryptedRange: e:epoch -> n:clen -> rg:range { !rg0. n = CipherLength(e,rg0) => SubRange(rg0,rg) }  
 
 private definition !e.
-     ( IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/ CipherSuiteENCAlg(EpochSI(e).cipher_suite) = RC4_128 ) => !n. CipherLength(e,(l,l)) = l+HashSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite)))
+     ( IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/ CipherSuiteENCAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = Stream_RC4_128 ) => !n. CipherLength(e,(l,l)) = l+MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)))
 
   /\ ...
 
@@ -55,7 +55,7 @@ private assume !e,si. si = EpochSI(e) =>
 	( si.protocol_version = SSL_3p0 \/ si.protocol_version = TLS_1p0
 		=> IVSize(e) = 0 ) /\
 	( si.protocol_version = TLS_1p1 \/ si.protocol_version = TLS_1p2
-		=> IVSize(e) = BlockSize(CipherSuiteENCAlg(si.cipher_suite)) )
+		=> IVSize(e) = BlockSize(CipherSuiteENCAlg(si.cipher_suite,si.protocol_version)) )
 private assume !e,si,tlen. si = EpochSI(e) =>
 	( IsOnlyMACCiphersuite(si.cipher_suite) => Encode.PlainLength(e,tlen) = tlen ) /\
     ( IsAEADCiphersuite(si.cipher_suite) /\ tlen >= IVSize(e) =>

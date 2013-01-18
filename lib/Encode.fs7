@@ -33,7 +33,7 @@ private type (;e:succEpoch) tag = {macT: (;e) MAC.tag }
 private type (;e:epoch,ad:(;e)AEADPlain.adata,rg:range) parsed =
 	{ plain: (;e,ad,rg)AEADPlain.plain;
 	  tag  : (;e)tag;
-	  ok   : b:bool { CipherSuiteENCAlg(EpochSI(e).cipher_suite) = RC4_128 => b = true }
+	  ok   : b:bool { CipherSuiteENCAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = Stream_RC4_128 => b = true }
 	  (* true iff decoding succeeded; always true with RC4. *) }
 
 val payload: e:succEpoch -> r:range -> ad:(;e)AEADPlain.adata -> f:(;e,ad,r)AEADPlain.plain ->
@@ -81,7 +81,7 @@ val encode: e:succEpoch{IsAEADCiphersuite(EpochSI(e).cipher_suite)} ->
 	p:(;e,tlen) plain{Encoded(e,ad,pl,tag,p)}
 val decode: e:succEpoch{IsAEADCiphersuite(EpochSI(e).cipher_suite)} ->
 	ad:(;e) AEADPlain.adata -> rg:range ->
-	tlen:nat{tlen - IVSize(e) >= ( HashSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite)) + 1) /\
+	tlen:nat{tlen - IVSize(e) >= ( MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) + 1) /\
 	tlen = TargetLength(e,rg)} ->
 	p:(;e,tlen) plain ->
 	ps:(;e,ad,rg)parsed{ Decoded(e,ad,ps) }
@@ -90,14 +90,14 @@ val decode: e:succEpoch{IsAEADCiphersuite(EpochSI(e).cipher_suite)} ->
 
 //CF why do we need "NoPad" variants again? 
 val encodeNoPad: e:succEpoch{IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/
-                    CipherSuiteENCAlg(EpochSI(e).cipher_suite) = RC4_128} ->
+                    CipherSuiteENCAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = Stream_RC4_128} ->
 	tlen:nat{tlen <= max_TLSCipher_fragment_length} -> rg:range{tlen = TargetLength(e,rg)} ->
 	ad:(;e) AEADPlain.adata -> (;e,ad,rg) AEADPlain.plain -> (;e) tag ->
 	(;e,tlen) plain
 val decodeNoPad: e:succEpoch{IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/
-                    CipherSuiteENCAlg(EpochSI(e).cipher_suite) = RC4_128} ->
+                    CipherSuiteENCAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = Stream_RC4_128} ->
 	ad:(;e) AEADPlain.adata -> rg:range ->
-	tlen:nat{tlen >= HashSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite)) /\
+	tlen:nat{tlen >= MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) /\
 	tlen = TargetLength(e,rg)} -> (;e,tlen) plain ->
 	(;e,ad,rg)parsed
 
