@@ -5,6 +5,13 @@ open Error
 
 (* Not abstract, but meant to be used only by crypto modules and CipherSuites *)
 
+type PreProtocolVersion =
+    | SSL_3p0
+    | TLS_1p0
+    | TLS_1p1
+    | TLS_1p2
+type ProtocolVersion = PreProtocolVersion
+
 type kexAlg =
     | RSA
     | DH_DSS
@@ -13,11 +20,15 @@ type kexAlg =
     | DHE_RSA
     | DH_anon
 
-type cipherAlg =
-    | RC4_128
-    | TDES_EDE_CBC
-    | AES_128_CBC
-    | AES_256_CBC
+type blockCipher =
+    | TDES_EDE
+    | AES_128
+    | AES_256
+
+type encAlg =
+    | CBC_Stale of blockCipher
+    | CBC_Fresh of blockCipher
+    | Stream_RC4_128
 
 type hashAlg =
     | NULL
@@ -26,6 +37,10 @@ type hashAlg =
     | SHA
     | SHA256
     | SHA384
+
+type macAlg =
+    | MA_HMAC of hashAlg
+    | MA_SSLKHASH of hashAlg
 
 type sigAlg = 
   | SA_RSA
@@ -36,23 +51,18 @@ type aeadAlg =
     | AES_128_GCM
     | AES_256_GCM
 
-type authencAlg =
-    | MtE of cipherAlg * hashAlg
-    | AEAD of aeadAlg * hashAlg
-
 val sigAlgBytes: sigAlg -> bytes
 val parseSigAlg: bytes -> sigAlg Result
 val hashAlgBytes: hashAlg -> bytes
 val parseHashAlg: bytes -> hashAlg Result
 
-val encKeySize: cipherAlg -> nat
-val blockSize: cipherAlg -> nat
-val ivSize: cipherAlg -> nat
+val encKeySize: encAlg -> nat
+val blockSize: blockCipher -> nat
 val aeadKeySize: aeadAlg -> nat
 val aeadIVSize: aeadAlg -> nat
-val macKeySize: hashAlg -> nat
-val macSize: hashAlg -> nat
-val hashSize: hashAlg -> nat
+val macKeySize: macAlg -> nat
+val macSize: macAlg -> nat
+val hashSize: macAlg -> nat
 
 (* SSL/TLS Constants *)
 val ssl_pad1_md5: bytes
@@ -73,13 +83,6 @@ type cipherSuites = cipherSuite list
 type Compression =
     | NullCompression
 
-type PreProtocolVersion =
-    | SSL_3p0
-    | TLS_1p0
-    | TLS_1p1
-    | TLS_1p2
-type ProtocolVersion = PreProtocolVersion
-
 val versionBytes: ProtocolVersion -> bytes
 val parseVersion: bytes -> ProtocolVersion Result
 val minPV: ProtocolVersion -> ProtocolVersion -> ProtocolVersion
@@ -96,11 +99,11 @@ val isDHECipherSuite: cipherSuite -> bool
 val isRSACipherSuite: cipherSuite -> bool
 val contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV: cipherSuites -> bool
 val verifyDataLen_of_ciphersuite: cipherSuite -> nat
-val prfHashAlg_of_ciphersuite: cipherSuite -> hashAlg
+val prfMacAlg_of_ciphersuite: cipherSuite -> macAlg
 val verifyDataHashAlg_of_ciphersuite: cipherSuite -> hashAlg
 
-val macAlg_of_ciphersuite: cipherSuite -> hashAlg
-val encAlg_of_ciphersuite: cipherSuite -> cipherAlg
+val macAlg_of_ciphersuite: cipherSuite -> ProtocolVersion -> macAlg
+val encAlg_of_ciphersuite: cipherSuite -> ProtocolVersion -> encAlg
 val sigAlg_of_ciphersuite: cipherSuite -> sigAlg
 
 val compressionBytes: Compression -> bytes
@@ -116,8 +119,6 @@ val cipherSuitesBytes: cipherSuites -> bytes
 val maxPadSize: ProtocolVersion -> cipherSuite -> nat
 
 val getKeyExtensionLength: ProtocolVersion -> cipherSuite -> nat
-
-val PVRequiresExplicitIV: ProtocolVersion -> bool
 
 (* Not for verification, just to run the implementation *)
 

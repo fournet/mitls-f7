@@ -21,6 +21,14 @@ definition !e,r. RangeClass(e,r) = CipherRangeClass(e,TargetLength(e,r))
 theorem !e,r. SubRange(r,RangeClass(e,r))
 
 function val IVSize: epoch -> nat
+private definition !e.
+	(IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) => IVSize(e) = 0 ) /\
+	( (not IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) /\
+		(EpochSI(e).protocol_version = SSL_3p0 \/ EpochSI(e).protocol_version = TLS_1p0) ) => IVSize(e)=0) /\
+	( (not IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) /\
+		(EpochSI(e).protocol_version = TLS_1p1 \/ EpochSI(e).protocol_version = TLS_1p2) ) =>
+			IVSize(e)= BlockSize(CipherSuiteENCAlg(EpochSI(e).cipher_suite)) )
+
 val ivLength: e:succEpoch -> l:nat{l=IVSize(e)}
 
 // Padding computations

@@ -17,8 +17,22 @@ type parsed =
      tag:   tag
      ok:    bool}
 
+#if ideal
+let zeros rg = let _,max = rg in createBytes max 0
+#endif
+
+let payload (e:epoch) (rg:range) ad f = 
+  // After applying CPA encryption for ENC, 
+  // we access the fragment bytes only at unsafe indexes, and otherwise use some zeros
+  #if ideal 
+  if safe e then 
+    zeros rg
+  else
+  #endif
+    AEADPlain.repr e ad rg f 
+
 let macPlain (e:epoch) (rg:range) ad f =
-    let b = AEADPlain.payload e rg ad f
+    let b = payload e rg ad f
     ad @| vlbytes 2 b
 
 let mac e k ad rg plain =
@@ -64,7 +78,7 @@ let plain (e:epoch) (tlen:nat)  b = {p=b}
 let repr (e:epoch) (tlen:nat) pl = pl.p
 
 let encodeNoPad (e:epoch) (tlen:nat) rg (ad:AEADPlain.adata) data tag =
-    let b = AEADPlain.payload e rg ad data in
+    let b = payload e rg ad data in
     let (_,h) = rg in
     if h <> length b then
         Error.unexpectedError "[encodeNoPad] invoked on an invalid range."
@@ -78,7 +92,7 @@ let encodeNoPad (e:epoch) (tlen:nat) rg (ad:AEADPlain.adata) data tag =
 let pad (p:int)  = createBytes p (p-1)
 
 let encode (e:epoch) (tlen:nat) rg (ad:AEADPlain.adata) data tag =
-    let b = AEADPlain.payload e rg ad data in
+    let b = payload e rg ad data in
     let lb = length b in
     let lm = length tag.macT in
     let ivL = ivLength e in
@@ -97,7 +111,7 @@ let decodeNoPad e (ad:AEADPlain.adata) rg tlen plain =
         Error.unexpectedError "[decodeNoPad] wrong target length given as input argument."
     else
     let si = epochSI(e) in
-    let maclen = macSize (macAlg_of_ciphersuite si.cipher_suite) in
+    let maclen = macSize (macAlg_of_ciphersuite si.cipher_suite si.protocol_version) in
     let payloadLen = plainLen - maclen in
     let (frag,mac) = Bytes.split pl payloadLen in
     let aeadF = AEADPlain.plain e ad rg frag in
@@ -108,7 +122,7 @@ let decodeNoPad e (ad:AEADPlain.adata) rg tlen plain =
 
 let decode e (ad:AEADPlain.adata) rg tlen plain =
     let si = epochSI(e) in
-    let macSize = macSize (macAlg_of_ciphersuite si.cipher_suite) in
+    let macSize = macSize (macAlg_of_ciphersuite si.cipher_suite si.protocol_version) in
     let ivL = ivLength e in
     let expected = tlen - ivL
     let pl = plain.p in
@@ -121,7 +135,10 @@ let decode e (ad:AEADPlain.adata) rg tlen plain =
     let padlen = int_of_bytes padlenb in
     let padstart = pLen - padlen - 1 in
     let macstart = pLen - macSize - padlen - 1 in
-    let encAlg = encAlg_of_ciphersuite si.cipher_suite in
+    let alg = encAlg_of_ciphersuite si.cipher_suite si.protocol_version in
+    match alg with
+    | Stream_RC4_128 -> unreachable "[decode] invoked on stream cipher"
+    | CBC_Stale(encAlg) | CBC_Fresh(encAlg) ->
     let bs = blockSize encAlg in
     let (flag,data,padlen) =
         if padstart < 0 || macstart < 0 then

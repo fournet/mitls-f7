@@ -31,7 +31,7 @@ private definition !ki,si. si = EpochSI(ki) =>
 //TODO Why is this failing? Because of AEADSize not being what I want, I cannot typecheck COERCE.
 //TODO ask !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) => AEADSize(ki,ki) = HashSize(TLSConstants.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))
 
-val GEN:    ki:succEpoch{Safe(ki)}     -> encryptor:(;ki)AEADKey * decryptor:(;ki)AEADKey
+val GEN:    ki:succEpoch     -> encryptor:(;ki)AEADKey * decryptor:(;ki)AEADKey
 val COERCE: ki:succEpoch{not Auth(ki)} -> b:bytes{Length(b) = AEADSize(ki)} -> (;ki)AEADKey
 val LEAK:   ki:succEpoch{not Auth(ki)} -> (;ki)AEADKey -> b:bytes
 

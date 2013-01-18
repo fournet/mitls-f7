@@ -61,7 +61,7 @@ let keyGen ci (ms:masterSecret) =
     #endif
         match cs with
         | x when isOnlyMACCipherSuite x ->
-            let macKeySize = macKeySize (macAlg_of_ciphersuite cs) in
+            let macKeySize = macKeySize (macAlg_of_ciphersuite cs pv) in
             let ck,sk = split b macKeySize 
             match ci.role with 
             | Client ->
@@ -70,26 +70,42 @@ let keyGen ci (ms:masterSecret) =
             | Server ->
                 (StatefulAEAD.COERCE ci.id_out StatefulAEAD.WriterState sk,
                  StatefulAEAD.COERCE ci.id_in  StatefulAEAD.ReaderState ck)
-        | _ ->
-            let macKeySize = macKeySize (macAlg_of_ciphersuite cs) in
-            let encKeySize = encKeySize (encAlg_of_ciphersuite cs) in
-            let ivsize = 
-                if PVRequiresExplicitIV si.protocol_version then 0
-                else ivSize (encAlg_of_ciphersuite si.cipher_suite)
-            let cmkb, b = split b macKeySize in
-            let smkb, b = split b macKeySize in
-            let cekb, b = split b encKeySize in
-            let sekb, b = split b encKeySize in
-            let civb, sivb = split b ivsize in
-            let ck = (cmkb @| cekb @| civb) in
-            let sk = (smkb @| sekb @| sivb) in
-            match ci.role with 
-            | Client ->
-                (StatefulAEAD.COERCE ci.id_out StatefulAEAD.WriterState ck,
-                 StatefulAEAD.COERCE ci.id_in  StatefulAEAD.ReaderState sk)
-            | Server ->
-                (StatefulAEAD.COERCE ci.id_out StatefulAEAD.WriterState sk,
-                 StatefulAEAD.COERCE ci.id_in  StatefulAEAD.ReaderState ck)
+        | x when isAEADCipherSuite x ->
+            let macKeySize = macKeySize (macAlg_of_ciphersuite cs pv) in
+            let encAlg = encAlg_of_ciphersuite cs pv in
+            let encKeySize = encKeySize (encAlg) in
+            match encAlg with
+            | Stream_RC4_128 | CBC_Fresh(_) ->
+                let cmkb, b = split b macKeySize in
+                let smkb, b = split b macKeySize in
+                let cekb, b = split b encKeySize in
+                let sekb, b = split b encKeySize in
+                let ck = (cmkb @| cekb) in
+                let sk = (smkb @| sekb) in
+                match ci.role with 
+                | Client ->
+                    (StatefulAEAD.COERCE ci.id_out StatefulAEAD.WriterState ck,
+                     StatefulAEAD.COERCE ci.id_in  StatefulAEAD.ReaderState sk)
+                | Server ->
+                    (StatefulAEAD.COERCE ci.id_out StatefulAEAD.WriterState sk,
+                     StatefulAEAD.COERCE ci.id_in  StatefulAEAD.ReaderState ck)
+            | CBC_Stale(alg) ->
+                let ivsize = blockSize alg
+                let cmkb, b = split b macKeySize in
+                let smkb, b = split b macKeySize in
+                let cekb, b = split b encKeySize in
+                let sekb, b = split b encKeySize in
+                let civb, sivb = split b ivsize in
+                let ck = (cmkb @| cekb @| civb) in
+                let sk = (smkb @| sekb @| sivb) in
+                match ci.role with 
+                | Client ->
+                    (StatefulAEAD.COERCE ci.id_out StatefulAEAD.WriterState ck,
+                     StatefulAEAD.COERCE ci.id_in  StatefulAEAD.ReaderState sk)
+                | Server ->
+                    (StatefulAEAD.COERCE ci.id_out StatefulAEAD.WriterState sk,
+                     StatefulAEAD.COERCE ci.id_in  StatefulAEAD.ReaderState ck)
+        | _ -> unexpectedError "[keyGen] invoked on unsupported ciphersuite"
 
 
 let makeVerifyData e role (ms:masterSecret) data =

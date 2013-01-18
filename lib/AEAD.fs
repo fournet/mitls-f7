@@ -32,13 +32,14 @@ let COERCE e b =
     // precondition: b is of the right length. No runtime checks here.
     let si = epochSI(e) in
     let cs = si.cipher_suite in
+    let pv = si.protocol_version in
     if isOnlyMACCipherSuite cs then 
       let mk = MAC.COERCE e b in
       MACOnly(mk)
     else 
     if isAEADCipherSuite cs then
-      let macalg = macAlg_of_ciphersuite cs in
-      let encalg = encAlg_of_ciphersuite cs in
+      let macalg = macAlg_of_ciphersuite cs pv in
+      let encalg = encAlg_of_ciphersuite cs pv in
       let macKeySize = macKeySize macalg in
       let encKeySize = encKeySize encalg in
       let (mkb,rest) = split b macKeySize in
@@ -61,11 +62,12 @@ let LEAK e k =
 let encrypt' e key data rg plain =
     let si = epochSI(e) in
     let cs = si.cipher_suite in
+    let pv = si.protocol_version in
     match (cs,key) with
     | (x, MtE (ka,ke)) when isAEADCipherSuite x ->
-        let encAlg = encAlg_of_ciphersuite cs in
+        let encAlg = encAlg_of_ciphersuite cs pv in
         match encAlg with
-        | RC4_128 -> // stream cipher
+        | Stream_RC4_128 -> // stream cipher
             let tag   = Encode.mac e ka data rg plain in
             let (l,h) = rg in
             if l <> h then
@@ -75,7 +77,7 @@ let encrypt' e key data rg plain =
                 let encoded  = Encode.encodeNoPad e tlen rg data plain tag in
                 let (ke,res) = ENC.ENC e ke tlen encoded 
                 (MtE(ka,ke),res)
-        | TDES_EDE_CBC | AES_128_CBC | AES_256_CBC -> // block cipher
+        | CBC_Stale(_) | CBC_Fresh(_) -> // block cipher
             let tag  = Encode.mac e ka data rg plain in
             let tlen = targetLength e rg in
             let encoded  = Encode.encode e tlen rg data plain tag in
@@ -101,12 +103,13 @@ let decrypt' e key data cipher =
     // by typing, we know that cl <= max_TLSCipher_fragment_length
     let si = epochSI(e) in
     let cs = si.cipher_suite in
-    let macSize = macSize (macAlg_of_ciphersuite cs) in
+    let pv = si.protocol_version in
+    let macSize = macSize (macAlg_of_ciphersuite cs pv) in
     match (cs,key) with
     | (x, MtE (ka,ke)) when isAEADCipherSuite x ->
-        let encAlg = encAlg_of_ciphersuite cs in
+        let encAlg = encAlg_of_ciphersuite cs pv in
         match encAlg with
-        | RC4_128 -> // stream cipher
+        | Stream_RC4_128 -> // stream cipher
             if cl < macSize then
                 (*@ It is safe to return early, because we are branching
                     on public data known to the attacker *)
@@ -119,9 +122,9 @@ let decrypt' e key data cipher =
                 match Encode.verify e ka data rg parsed with
                 | Error(x,y) -> Error(x,y)
                 | Correct(plain) -> correct(nk,rg,plain)
-        | TDES_EDE_CBC | AES_128_CBC | AES_256_CBC -> // block cipher
+        | CBC_Stale(alg) | CBC_Fresh(alg) -> // block cipher
             let ivL = ivLength e in
-            let blockSize = blockSize (encAlg_of_ciphersuite cs) in
+            let blockSize = blockSize alg in
             if (cl - ivL < macSize + 1) || (cl % blockSize <> 0) then
                 (*@ It is safe to return early, because we are branching
                     on public data known to the attacker *)

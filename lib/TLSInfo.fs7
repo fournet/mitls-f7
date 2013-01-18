@@ -138,19 +138,24 @@ val nextEpoch: e:epoch -> c:crand -> s:srand -> si:SessionInfo ->
 
 
 /// Predicates specifying cryptographic assumptions on algorithms 
-predicate StrongAE of cipherSuite
-predicate StrongAuth of cipherSuite
+predicate StrongAE of ProtocolVersion * cipherSuite
+predicate StrongAuth of ProtocolVersion * cipherSuite
 
-definition !s. StrongAE(s)   <=> (?e,m. IsAEADCiphersuite(s) /\ AEAlg(s) = MtE(e,m) /\ IND_CPA(e) /\ INT_CMA_M(m) /\ INT_CTXT(AEAlg(s)))
-definition !s. StrongAuth(s) <=> (?e,m. IsAEADCiphersuite(s) /\ AEAlg(s) = MtE(e,m) /\ INT_CMA_M(m))
+definition !pv,s. StrongAE(pv,s)   <=> (?e,m. AEAlg(pv,s) = MtE(e,m) /\ IND_CPA(e) /\ INT_CMA_M(m) /\ INT_CTXT(pv,AEAlg(s)))
+definition !pv,s. StrongAuth(pv,s) <=> (?e,m. AEAlg(pv,s) = MtE(e,m) /\ INT_CMA_M(m))
 
-predicate StrongHS  of ProtocolVersion * cipherSuite // * hashAlg for certs?
+predicate StrongHS  of SessionInfo // * hashAlg for certs?
 (*
-definition !v,s. StrongHS(v,s) <=> 
-           INT_CMA_S(CipherSuiteSigAlg(s),??) 
-           /\ CRE(v,??) 
-           /\ PRF(v,??) 
-           /\ ( RSA_PMS(v,??) \/ DH_PMS(v,??) )
+predicate RSA_PMS   of ProtocolVersion * kexAlg
+predicate DH_PMS    of ProtocolVersion * kexAlg
+
+definition !si. StrongHS(si) <=> 
+          (INT_CMA_S(CipherSuiteSigAlg(si.cipher_suite),DefaultSigHashAlg(si),SupportedSigHashAlgs(si)) 
+		   /\ PRF(pv,CipherSuiteMacAlg(pv,s)) 
+           /\ ((CRE_RSA(pv,CipherSuiteMacAlg(pv,si.cipher_suite)) 
+                /\ RSA_PMS(si)) \/
+	   	       (CRE_DH(pv,CipherSuiteMacAlg(pv,si.cipher_suite))
+			    /\ DH_PMS(si)))
 
 *)
 
@@ -179,8 +184,12 @@ definition !id. SafeHS(id) <=> SafeHS_SI(EpochSI(id))
 
 definition !e. Safe(e) <=> SafeSI(EpochSI(e))
 definition !e. Auth(e) <=> AuthSI(EpochSI(e))
+// Safety for epochs relies only on SessionInfo, but this would change if we introduce a finer model of compromise
+// E.g. if we allowed the attacker to compromise specific epochs
 
 val safe: (e:epoch) -> b:bool { b = true <=> Safe(e) }
+val safeHS: (e:epoch) -> b:bool {b = true <=> SafeHS(e)}
+val auth: (e:epoch) -> b:bool {b = true <=> Auth(e)}
 
 ask !e. Safe(e) => Auth(e) 
 

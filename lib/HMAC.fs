@@ -40,3 +40,15 @@ let HMAC alg key data =
 let HMACVERIFY alg key data expected =
     let result = HMAC alg key data in
     equalBytes result expected
+
+(* Top level MAC function *)
+
+let MAC a k d =
+    match a with
+    | MA_HMAC(alg) -> HMAC alg k d
+    | MA_SSLKHASH(alg) -> sslKeyedHash alg k d
+
+let MACVERIFY a k d t =
+    match a with
+    | MA_HMAC(alg) -> HMACVERIFY alg k d t
+    | MA_SSLKHASH(alg) -> sslKeyedHashVerify alg k d t

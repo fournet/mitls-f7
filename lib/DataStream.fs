@@ -15,8 +15,8 @@ let splitRange ki r =
     let si = epochSI(ki) in
     let cs = si.cipher_suite in
     let FS = TLSInfo.fragmentLength in
-    match cs with
-    | x when isOnlyMACCipherSuite(x) || encAlg_of_ciphersuite cs = RC4_128 ->
+    let PS = maxPadSize si.protocol_version cs in
+    if PS = 0 then
         // no LH is possible
         if l<>h then
             unexpectedError "[splitRange] Incompatible range provided"
@@ -25,36 +25,39 @@ let splitRange ki r =
             let r0 = (len,len) in
             let r1 = (l-len,h-len) in
             (r0,r1)
-    | _ ->
-        let PS = TLSConstants.maxPadSize si.protocol_version si.cipher_suite in
-        let BS = TLSConstants.blockSize (TLSConstants.encAlg_of_ciphersuite si.cipher_suite) in
-        let t  = TLSConstants.macSize (TLSConstants.macAlg_of_ciphersuite si.cipher_suite) in
-        if FS < PS || PS < BS then
-            unexpectedError "[splitRange] Incompatible fragment size, padding size and block size"
-        else
-            if l >= FS then
-                let r0 = (FS,FS) in
-                let r1 = (l-FS,h-FS) in
-                (r0,r1)
+    else
+        let encAlg = encAlg_of_ciphersuite cs si.protocol_version in
+        match encAlg with
+        | Stream_RC4_128 -> unexpectedError "[splitRange] Stream ciphers do not support pad"
+        | CBC_Stale(alg) | CBC_Fresh(alg) ->
+            let BS = blockSize alg in
+            let t  = macSize (TLSConstants.macAlg_of_ciphersuite cs si.protocol_version) in
+            if FS < PS || PS < BS then
+                unexpectedError "[splitRange] Incompatible fragment size, padding size and block size"
             else
-                let z0 = PS - ((PS + t + 1) % BS) in
-                let zl = PS - ((l + PS + t + 1) % BS) in
-                if l = 0 then
-                    let p = h-l in
-                    let fh = min p z0 in
-                    let r0 = (0,fh) in
-                    let r1 = (0,h-fh) in
+                if l >= FS then
+                    let r0 = (FS,FS) in
+                    let r1 = (l-FS,h-FS) in
                     (r0,r1)
                 else
-                    let p = (h-l) % z0 in
-                    if (p <= zl) && (l+p <= FS) then
-                        let r0 = (l,l+p) in
-                        let r1 = (0,h-(l+p)) in
+                    let z0 = PS - ((PS + t + 1) % BS) in
+                    let zl = PS - ((l + PS + t + 1) % BS) in
+                    if l = 0 then
+                        let p = h-l in
+                        let fh = min p z0 in
+                        let r0 = (0,fh) in
+                        let r1 = (0,h-fh) in
                         (r0,r1)
                     else
-                        let r0 = (l,l) in
-                        let r1 = (0,h-l) in
-                        (r0,r1)
+                        let p = (h-l) % z0 in
+                        if (p <= zl) && (l+p <= FS) then
+                            let r0 = (l,l+p) in
+                            let r1 = (0,h-(l+p)) in
+                            (r0,r1)
+                        else
+                            let r0 = (l,l) in
+                            let r1 = (0,h-l) in
+                            (r0,r1)
 
 type stream = {sb: bytes list}
 type delta = {contents: rbytes}

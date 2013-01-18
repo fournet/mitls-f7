@@ -9,16 +9,9 @@ type key = bytes
 type data = bytes
 type mac = bytes
 
-val sslKeyedHash: 
-  a:hashAlg{a = MD5 \/ a = SHA} -> k:key {Length(k)=HashSize(a)} -> 
-  data -> t:mac {Length(t)=HashSize(a)} 
-val sslKeyedHashVerify:
-  a:hashAlg{a = MD5 \/ a = SHA} -> k:key {Length(k)=HashSize(a)} -> 
-  data -> t:mac {Length(t)=HashSize(a)} -> bool
-
-val HMAC:       
-  a:hashAlg -> k:key {Length(k)=HashSize(a)} -> 
-  data -> t:mac {Length(t)=HashSize(a)} 
-val HMACVERIFY: 
-  a:hashAlg -> k:key {Length(k)=HashSize(a)} -> 
-  data -> t:mac {Length(k)=HashSize(a)} -> bool
+val MAC:       
+  a:macAlg -> k:key {Length(k)=MacSize(a)} -> 
+  data -> t:mac {Length(t)=MacSize(a)} 
+val MACVERIFY: 
+  a:macAlg -> k:key {Length(k)=MacSize(a)} -> 
+  data -> t:mac {Length(k)=MacSize(a)} -> bool

@@ -58,8 +58,8 @@ let xor s1 s2 nb =
     res
 
 let rec p_hash_int alg secret seed len it aPrev acc =
-  let aCur = HMAC alg secret aPrev in
-  let pCur = HMAC alg secret (aCur @| seed) in
+  let aCur = MAC alg secret aPrev in
+  let pCur = MAC alg secret (aCur @| seed) in
   if it = 1 then
     let hs = hashSize alg in
     let r = len%hs in
@@ -79,8 +79,8 @@ let tls_prf secret label seed len =
   let secret1 = Array.sub secret 0 l_s1 in
   let secret2 = Array.sub secret (l_s-l_s1) l_s1 in
   let newseed = (utf8 label) @| seed in
-  let hmd5 = p_hash MD5 secret1 newseed len in
-  let hsha1 = p_hash SHA secret2 newseed len in
+  let hmd5 = p_hash (MA_HMAC(MD5)) secret1 newseed len in
+  let hsha1 = p_hash (MA_HMAC(SHA)) secret2 newseed len in
   xor hmd5 hsha1 len
 
 let tls_verifyData ms tls_label data =
@@ -91,9 +91,9 @@ let tls_verifyData ms tls_label data =
 (* TLS 1.2 *)
 
 let tls12prf cs secret label seed len =
-  let prfHashAlg = prfHashAlg_of_ciphersuite cs in
+  let prfMacAlg = prfMacAlg_of_ciphersuite cs in
   let newseed = (utf8 label) @| seed in
-  p_hash prfHashAlg secret newseed len
+  p_hash prfMacAlg secret newseed len
 
 let tls12VerifyData cs ms tls_label data =
   let verifyDataHashAlg = verifyDataHashAlg_of_ciphersuite cs in

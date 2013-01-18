@@ -136,5 +136,5 @@ let max_TLSCipher_fragment_length = max_TLSCompressed_fragment_length + 1024
 let fragmentLength = max_TLSPlaintext_fragment_length (* use e.g. 1 for testing *)
 
 #if ideal
-let safe (e:epoch) = failwith "todo!" : bool //CF to be fixed!
+let safe (e:epoch) = failwith "Todo!" : bool // Define in terms of strength and honesty
 #endif

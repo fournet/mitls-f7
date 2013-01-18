@@ -10,8 +10,6 @@ type plain = fragment
 val plain: epoch -> adata -> range -> bytes -> plain
 val repr:  epoch -> adata -> range -> plain -> bytes
 
-val payload: epoch -> range -> adata -> plain -> bytes
-
 val makeAD: epoch -> StatefulPlain.history -> StatefulPlain.adata -> adata
 val parseAD: epoch -> adata -> StatefulPlain.adata
 val StatefulPlainToAEADPlain: epoch -> StatefulPlain.history -> StatefulPlain.adata -> range -> StatefulPlain.plain -> plain

@@ -36,6 +36,9 @@ private type (;e:epoch,ad:(;e)AEADPlain.adata,rg:range) parsed =
 	  ok   : b:bool { CipherSuiteENCAlg(EpochSI(e).cipher_suite) = RC4_128 => b = true }
 	  (* true iff decoding succeeded; always true with RC4. *) }
 
+val payload: e:succEpoch -> r:range -> ad:(;e)AEADPlain.adata -> f:(;e,ad,r)AEADPlain.plain ->
+	b:(;r) rbytes{ Safe(e) \/ b = AEADPlain.Payload(e,ad,r,f) }
+
 // the MACed bytes, i.e. ad @| 2-byte length of payload @| payload 
 //CF should ask some injectivity
 

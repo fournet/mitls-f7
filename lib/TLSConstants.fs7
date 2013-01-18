@@ -17,17 +17,27 @@ type ProtocolVersion = p:PreProtocolVersion{p = SSL_3p0 \/ p = TLS_1p0 \/ p = TL
 
 (* Not abstract, but meant to be used only by crypto modules and CipherSuites *)
 
-type cipherAlg =
-    | RC4_128
-    | TDES_EDE_CBC
-    | AES_128_CBC
-    | AES_256_CBC
+type cipherAlg = // used only in ciphersuite definition
+	| RC4_128
+	| TDES_EDE_CBC
+	| AES_128_CBC
+	| AES_256_CBC
 
-predicate IND_CPA of cipherAlg 
+type blockCipher =
+    | TDES_EDE
+    | AES_128
+    | AES_256
+
+type encAlg =
+	| CBC_Stale of blockCipher
+	| CBC_Fresh of blockCipher
+	| Stream_RC4_128
+
+predicate IND_CPA of encAlg
 // some reasonable assumptions:
-// assume(IND_CPA(AES_128_CBC))
-// assume(IND_CPA(AES_256_CBC))
-// assume(IND_CPA(RC4_128))
+// assume(IND_CPA(CBC_Fresh(AES_128_CBC)))
+// assume(IND_CPA(CBC_Fresh(AES_256_CBC)))
+// assume(IND_CPA(Stream_RC4_128))
 
 type hashAlg =
     | NULL
@@ -37,35 +47,39 @@ type hashAlg =
     | SHA256
     | SHA384
 
-predicate INT_CMA_M of hashAlg // INT_CMA_M(HMAC-hasAlg)
+type macAlg =
+	| MA_HMAC of hashAlg
+	| MA_SSLKHASH of hashAlg
+
+predicate INT_CMA_M of macAlg // INT_CMA_M(HMAC-hasAlg) 
 // some reasonable assumptions:
-// assume(INT_CMA_M(SHA))
-// assume(INT_CMA_M(SHA256))
-// assume(CMA(SHA384))
+// assume(INT_CMA_M(MA_HMAC(SHA)))
+// assume(INT_CMA_M(MA_HMAC(SHA256)))
+// assume(INT_CMA_M(MA_HMAC(SHA384)))
 
 type sigAlg = 
   | SA_RSA
   | SA_DSA 
   | SA_ECDSA
 
-predicate INT_CMA_S of sigAlg * hashAlg// INT_CMA_S(sigAlg-hashAlg)
+predicate INT_CMA_S of sigAlg * hashAlg * hashAlg list// INT_CMA_S(sigAlg-hashAlg)
 // some reasonable assumptions:
-// assume(INT_CMA_S(SA_RSA,SHA))
-// assume(INT_CMA_S(SA_DSA,SHA))
-// assume(INT_CMA_S(SA_ECDSA,SHA))
+// assume(INT_CMA_S(SA_DSA,SHA,[SHA]))
+// assume(INT_CMA_S(SA_ECDSA,SHA,[SHA]))
 
 type aeadAlg =
     | AES_128_GCM
     | AES_256_GCM
 
-type authencAlg =
-    | MtE of cipherAlg * hashAlg
-    | AEAD of aeadAlg * hashAlg
+type authencAlg = // for specification of INT_CTXT predicate
+    | MtE of encAlg * macAlg
+    | AEAD of aeadAlg * macAlg // macAlg is for the PRF
 
-predicate INT_CTXT of authencAlg
+predicate INT_CTXT of authencAlg * ProtocolVersion
 // some reasonable assumptions:
-// assume !m. PRF(m) /\ SPRP(AES_128) => INT_CTXT(MtE(AES_128_CBC,m))
-// assume !e. PRF(m) /\ SPRP(AES_256) => INT_CTXT(MtE(AES_256_CBC,m))
+// assume INT_CTXT(MtE(CBC_Fresh(AES_128_CBC),HMAC(SHA256)),TLS_1p2)
+// This follows from Paterson et al.
+// assume !e,m. PRF(m) /\ SPRP(e) => INT_CTXT(MtE(CBC_Fresh(e),m),TLS_1p2)
 
 type kexAlg =  (* all these kex have server auth & optional client auth, *)
                (* except for anon which has nothing *)
@@ -76,11 +90,10 @@ type kexAlg =  (* all these kex have server auth & optional client auth, *)
     | DHE_RSA
     | DH_anon // --> g^x ; <-- g^y then pms = g^xy ; secure only against passive adversaries
 
-predicate RSA_PMS   of ProtocolVersion * kexAlg
-predicate DH_PMS    of ProtocolVersion * kexAlg
-predicate PRF of ProtocolVersion * kexAlg
-predicate CRE of ProtocolVersion * kexAlg
-
+predicate PRF of ProtocolVersion * macAlg
+predicate CRE_DH of ProtocolVersion * macAlg
+predicate CRE_RSA of ProtocolVersion * macAlg
+// In the paper, these are global assumptions. Here we get StrongHS even if one of them is false.
 
 (* With F7, we need to declare both logical length functions
    and their concrete implementations; we still miss a few... 
@@ -98,39 +111,46 @@ private assume !s.
 val sigAlgBytes: s:sigAlg -> b:bytes{b=SigAlgBytes(s)}
 val parseSigAlg: b:bytes -> (s:sigAlg{b=SigAlgBytes(s)}) Result
 function val HashAlgBytes: hashAlg -> bytes
-val hashAlgBytes: h:hashAlg -> b:bytes{b=HashAlgBytes(h)}
-val parseHashAlg: b:bytes -> (h:hashAlg{b=HashAlgBytes(h)}) Result
+val macAlgBytes: h:hashAlg -> b:bytes{b=HashAlgBytes(h)}
+val parseMacAlg: b:bytes -> (h:hashAlg{b=HashAlgBytes(h)}) Result
 
-function val EncKeySize: cipherAlg -> nat
+function val EncKeySize: encAlg -> nat
 assume !x. EncKeySize(x) >= 0
-definition EncKeySize(RC4_128)      = 16
-definition EncKeySize(TDES_EDE_CBC) = 24
-definition EncKeySize(AES_128_CBC)  = 16
-definition EncKeySize(AES_256_CBC)  = 32
-val encKeySize: a:cipherAlg -> l:nat{l=EncKeySize(a)}
+private definition EncKeySize(Stream_RC4_128)      = 16
+private definition EncKeySize(CBC_Stale(TDES_EDE_CBC)) = 24
+private definition EncKeySize(CBC_Stale(AES_128_CBC))  = 16
+private definition EncKeySize(CBC_Stale(AES_256_CBC))  = 32
+private definition EncKeySize(CBC_Fresh(TDES_EDE_CBC)) = 24
+private definition EncKeySize(CBC_Fresh(AES_128_CBC))  = 16
+private definition EncKeySize(CBC_Fresh(AES_256_CBC))  = 32
+val encKeySize: a:encAlg -> l:nat{l=EncKeySize(a)}
 
-function val BlockSize: cipherAlg -> nat
+function val BlockSize: blockCipher -> nat
 assume !x. BlockSize(x) >= 0
-definition BlockSize(RC4_128)		=  0
-definition BlockSize(TDES_EDE_CBC)	=  8
-definition BlockSize(AES_128_CBC)	= 16
-definition BlockSize(AES_256_CBC)	= 16
-val blockSize: a:cipherAlg -> l:nat {l=BlockSize(a)}
-val ivSize: a:cipherAlg -> l:nat    {l=BlockSize(a)}
+private definition BlockSize(TDES_EDE_CBC)	=  8
+private definition BlockSize(AES_128_CBC)	= 16
+private definition BlockSize(AES_256_CBC)	= 16
+val blockSize: a:blockCipher -> l:nat {l=BlockSize(a)}
 
 val aeadKeySize: aeadAlg -> nat
 val aeadIVSize: aeadAlg -> nat
 
 //CF in TLS, hashes and MAC keys & tags have the same size, depending on hashAlg. 
-function val HashSize: hashAlg -> nat
-assume !x. HashSize(x) >= 0
-definition HashSize(MD5)    = 16
-definition HashSize(SHA)    = 20
-definition HashSize(SHA256)	= 32
-definition HashSize(SHA384)	= 48
-val macKeySize: a:hashAlg -> l:nat{l=HashSize(a)}
-val macSize:    a:hashAlg -> l:nat{l=HashSize(a)}
-val hashSize:   a:hashAlg -> l:nat{l=HashSize(a)}
+function val MacSize: macAlg -> nat
+assume !x. MacSize(x) >= 0
+private definition MacSize(MA_HMAC(MD5)    )     = 16
+private definition MacSize(MA_HMAC(SHA)    )     = 20
+private definition MacSize(MA_HMAC(SHA256) )     = 32
+private definition MacSize(MA_HMAC(SHA384) )     = 48
+private definition MacSize(MA_HMAC(MD5SHA1))     = 36
+private definition MacSize(MA_SSLKHASH(MD5)    ) = 16
+private definition MacSize(MA_SSLKHASH(SHA)    ) = 20
+private definition MacSize(MA_SSLKHASH(SHA256) ) = 32
+private definition MacSize(MA_SSLKHASH(SHA384) ) = 48
+private definition MacSize(MA_SSLKHASH(MD5SHA1)) = 36
+val macKeySize: a:macAlg -> l:nat{l=MacSize(a)}
+val macSize:    a:macAlg -> l:nat{l=MacSize(a)}
+val hashSize:   a:macAlg -> l:nat{l=MacSize(a)}
 
 (* SSL/TLS Constants *)
 // TODO move those to HMAC? We don't care anywhere else
@@ -151,9 +171,19 @@ val tls_key_expansion: string
 private type SCSVsuite =
     | TLS_EMPTY_RENEGOTIATION_INFO_SCSV
 
+type cipherAlg = // internal; used only in ciphersuite definition
+    | RC4_128
+    | TDES_EDE_CBC
+    | AES_128_CBC
+    | AES_256_CBC
+
+type csAuthEncAlg = // internal; used only in ciphersuite definition
+    | CS_MtE of cipherAlg * hashAlg
+    | CS_AEAD of aeadAlg * hashAlg
+
 private type cipherSuite = // internal; kept abstract in the .fsi
     | NullCipherSuite
-    | CipherSuite of kexAlg * authencAlg
+    | CipherSuite of kexAlg * csAuthEncAlg
     | OnlyMACCipherSuite of kexAlg * hashAlg
     | SCSV of SCSVsuite
 
@@ -200,18 +230,18 @@ val geqPV: a:ProtocolVersion -> b:ProtocolVersion -> r:bool
 predicate val IsNullCiphersuite: cipherSuite -> bool
 assume !x. IsNullCiphersuite(x) <=> x = NullCipherSuite
 val nullCipherSuite: c:cipherSuite{IsNullCiphersuite(c)}
-val isNullCipherSuite: c:cipherSuite -> r:bool{r=true => IsNullCiphersuite(c)}
+val isNullCipherSuite: c:cipherSuite -> r:bool{r=true <=> IsNullCiphersuite(c)}
 
 predicate val IsOnlyMACCiphersuite: cipherSuite -> bool
 assume !x. (IsOnlyMACCiphersuite(x) <=> ?z,t. x = OnlyMACCipherSuite(z,t))
-val isOnlyMACCipherSuite: c:cipherSuite -> r:bool{r=true => IsOnlyMACCiphersuite(c)}
+val isOnlyMACCipherSuite: c:cipherSuite -> r:bool{r=true <=> IsOnlyMACCiphersuite(c)}
 
 predicate val IsSCSVCiphersuite: cipherSuite -> bool
 assume !x. IsSCSVCiphersuite(x) <=> ?z. x = SCSV(z)
 
 predicate val IsAEADCiphersuite: cipherSuite -> bool
 assume !x. IsAEADCiphersuite(x) <=> ?z,t. x = CipherSuite(z,t)
-val isAEADCipherSuite: c:cipherSuite -> r:bool{r=true => IsAEADCiphersuite(c)}
+val isAEADCipherSuite: c:cipherSuite -> r:bool{r=true <=> IsAEADCiphersuite(c)}
 
 assume !x. IsAEADCiphersuite(x) => not IsOnlyMACCiphersuite(x)
 assume !x. IsAEADCiphersuite(x) => not IsNullCiphersuite(x)
@@ -223,19 +253,37 @@ val isDHECipherSuite: cipherSuite -> bool
 val isRSACipherSuite: cipherSuite -> bool
 val contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV: cipherSuites -> bool
 val verifyDataLen_of_ciphersuite: cipherSuite -> nat
-val prfHashAlg_of_ciphersuite: cipherSuite  -> hashAlg
+val prfMacAlg_of_ciphersuite: cipherSuite  -> macAlg
 val verifyDataHashAlg_of_ciphersuite: cs:cipherSuite -> hashAlg
 
 function val CipherSuiteSigAlg: cipherSuite -> sigAlg
-function val CipherSuiteMACAlg: cipherSuite -> hashAlg
-function val CipherSuiteENCAlg: cipherSuite -> cipherAlg
+function val CipherSuiteMACAlg: cipherSuite -> ProtocolVersion -> macAlg
+function val CipherSuiteENCAlg: cipherSuite -> ProtocolVersion -> encAlg
 
 private assume !kex,enc,mac.
-	CipherSuiteMACAlg(CipherSuite(kex,MtE(enc,mac))) = mac
-private assume !enc,mac.
-	CipherSuiteMACAlg(OnlyMACCipherSuite(enc,mac)) = mac
+	CipherSuiteMACAlg(CipherSuite(kex,MtE(enc,mac)),SSL_3p0) = MA_SSLKHASH(mac)
 private assume !kex,enc,mac.
-	CipherSuiteENCAlg(CipherSuite(kex,MtE(enc,mac))) = enc
+	CipherSuiteMACAlg(CipherSuite(kex,MtE(enc,mac)),TLS_1p0) = MA_HMAC(mac)
+private assume !kex,enc,mac.
+	CipherSuiteMACAlg(CipherSuite(kex,MtE(enc,mac)),TLS_1p1) = MA_HMAC(mac)
+private assume !kex,enc,mac.
+	CipherSuiteMACAlg(CipherSuite(kex,MtE(enc,mac)),TLS_1p1) = MA_HMAC(mac)
+
+private assume !enc,mac.
+	CipherSuiteMACAlg(OnlyMACCipherSuite(enc,mac),SSL_3p0) = MA_SSLKHASH(mac)
+private assume !enc,mac.
+	CipherSuiteMACAlg(OnlyMACCipherSuite(enc,mac),TLS_1p0) = MA_HMAC(mac)
+private assume !enc,mac.
+	CipherSuiteMACAlg(OnlyMACCipherSuite(enc,mac),TLS_1p1) = MA_HMAC(mac)
+private assume !enc,mac.
+	CipherSuiteMACAlg(OnlyMACCipherSuite(enc,mac),TLS_1p2) = MA_HMAC(mac)
+
+private assume !kex,mac,pv.
+	CipherSuiteENCAlg(CipherSuite(kex,MtE(Stream_RC4_128,mac)),pv) = Stream_RC4_128
+
+private assume !kex,mac.
+	CipherSuiteENCAlg(CipherSuite(kex,MtE(Stream_RC4_128,mac)),SSL_3p0) = Stream_RC4_128
+
 val macAlg_of_ciphersuite: cs:cipherSuite -> h:hashAlg{h = CipherSuiteMACAlg(cs)}
 val encAlg_of_ciphersuite: cs:cipherSuite -> c:cipherAlg{c = CipherSuiteENCAlg(cs)}
 val sigAlg_of_ciphersuite: cs:cipherSuite -> s:sigAlg{s = CipherSuiteSigAlg(cs)}

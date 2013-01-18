@@ -17,23 +17,23 @@ let ivLength e =
     if isOnlyMACCipherSuite si.cipher_suite then
         0
     else
-        match si.protocol_version with
-        | SSL_3p0 | TLS_1p0 -> 0
-        | TLS_1p1 | TLS_1p2 ->
-            let encAlg = encAlg_of_ciphersuite si.cipher_suite in
-            ivSize encAlg
+        let encAlg  = encAlg_of_ciphersuite si.cipher_suite si.protocol_version in
+        match encAlg with
+        | Stream_RC4_128 -> 0
+        | CBC_Stale(_) -> 0
+        | CBC_Fresh(alg) -> blockSize alg
+
 
 let blockAlignPadding e len =
     let si = epochSI(e) in
     if isOnlyMACCipherSuite si.cipher_suite then
         0
     else
-        let alg = encAlg_of_ciphersuite si.cipher_suite in
-        let bs = blockSize alg in
-        if bs = 0 then
-            //@ Stream cipher: no Padding at all
-            0
-        else
+        let encAlg = encAlg_of_ciphersuite si.cipher_suite si.protocol_version in
+        match encAlg with
+        | Stream_RC4_128 -> 0
+        | CBC_Stale(alg) | CBC_Fresh(alg) ->
+            let bs = blockSize alg in
             let overflow = (len + 1) % bs //@ at least one extra byte of padding
             if overflow = 0 then 1 else 1 + bs - overflow 
 
@@ -41,7 +41,7 @@ let blockAlignPadding e len =
 let targetLength e (rg:range) =
     let (_,h) = rg in
     let si = epochSI(e) in
-    let macLen = macSize (macAlg_of_ciphersuite si.cipher_suite) in
+    let macLen = macSize (macAlg_of_ciphersuite si.cipher_suite si.protocol_version) in
     let ivL = ivLength e in
     let prePad = h + macLen in
     let padLen = blockAlignPadding e prePad in
@@ -61,7 +61,7 @@ let minMaxPad si =
 //@ From ciphertext length to (maximal) plaintext range
 let cipherRangeClass (e:epoch) tlen =
     let si = epochSI(e) in
-    let macSize = macSize (macAlg_of_ciphersuite si.cipher_suite) in
+    let macSize = macSize (macAlg_of_ciphersuite si.cipher_suite si.protocol_version) in
     let ivL = ivLength e in
     let (minPad,maxPad) = minMaxPad si in
     let max = tlen - ivL - macSize - minPad in
