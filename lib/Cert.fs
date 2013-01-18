@@ -23,13 +23,13 @@ let OID_RSAEncryption           = "1.2.840.113549.1.1.1"
 let OID_MD5WithRSAEncryption    = "1.2.840.113549.1.1.4"
 let OID_SHAWithRSAEncryption    = "1.2.840.113549.1.1.5"
 let OID_SHA256WithRSAEncryption = "1.2.840.113549.1.1.11"
-let OID_DSASignatureKey         = "1.2.840.10040.4.1" (* FIX: CHECK *)
-let OID_ECDSASignatureKey       = "1.2.840.10045.4.1" (* FIX: CHECK *)
+let OID_DSASignatureKey         = "1.2.840.10040.4.1"
+let OID_DSASignature            = "1.2.840.10040.4.3"
 
-let oid_of_sigalg = function
+let oid_of_keyalg = function
 | SA_RSA   -> OID_RSAEncryption
 | SA_DSA   -> OID_DSASignatureKey
-| SA_ECDSA -> OID_ECDSASignatureKey
+| SA_ECDSA -> Error.unexpectedError "SA_ECDSA"
 
 (* ------------------------------------------------------------------------ *)
 let x509_to_public_key (x509 : X509Certificate2) =
@@ -87,11 +87,15 @@ let x509_has_key_usage_flag strict flag (x509 : X509Certificate2) =
 (* ------------------------------------------------------------------------ *)
 let x509_check_key_sig_alg (sigkeyalg : Sig.alg) (x509 : X509Certificate2) =
     match x509.SignatureAlgorithm with (* WARN: OID_MD5WithRSAEncryption is obsolete - removed *)
-    | o when o.Value = OID_SHAWithRSAEncryption    ->
+    | o when o.Value = OID_SHAWithRSAEncryption ->
          (* We are not strict, to comply with TLS < 1.2 *)
-         sigkeyalg = (SA_RSA, MD5SHA1) || sigkeyalg = (SA_RSA, SHA) || sigkeyalg = (SA_RSA, NULL)
-    | o when o.Value = OID_SHA256WithRSAEncryption -> sigkeyalg = (SA_RSA, SHA256)
-    | o when o.Value = OID_DSASignatureKey         -> sigkeyalg = (SA_DSA, SHA)
+            sigkeyalg = (SA_RSA, MD5SHA1)
+         || sigkeyalg = (SA_RSA, SHA    )
+         || sigkeyalg = (SA_RSA, NULL   )
+    | o when o.Value = OID_SHA256WithRSAEncryption ->
+        sigkeyalg = (SA_RSA, SHA256)
+    | o when o.Value = OID_DSASignature ->
+        sigkeyalg = (SA_DSA, SHA)
     | _ -> false
 
 let x509_check_key_sig_alg_one (sigkeyalgs : Sig.alg list) (x509 : X509Certificate2) =
@@ -136,7 +140,7 @@ let for_signing (sigkeyalgs : Sig.alg list) (h : hint) (algs : Sig.alg list) =
             let (x509, ((siga, hasha) as alg)) =
                 let pick_wrt_req_alg (x509 : X509Certificate2) =
                     let testalg ((asig, _) : Sig.alg) =
-                        x509.GetKeyAlgorithm() = oid_of_sigalg asig
+                        x509.GetKeyAlgorithm() = oid_of_keyalg asig
                     in
 
                     if x509.HasPrivateKey && x509_is_for_signing x509 then

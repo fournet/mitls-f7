@@ -139,7 +139,7 @@ $(MODE)/imported/%.imported: $(MODE)/certificates/%.p12
 	touch $@
 
 clean-store:
-	certutil -user -delstore Root mitls.org
+	certutil -user -delstore Root $(MODE).$(CN)
 	for i in $(IMPORTED); do                   \
 	  certutil -user -delstore My $$i || true; \
 	done
@@ -157,7 +157,7 @@ $(MODE)/imported/%.imported: $(MODE)/certificates/%.p12
 	touch $@
 
 clean-store:
-	for i in $$(support/mono-crt-cleanup.py $(CN) $(IMPORTED)); do \
+	for i in $$(support/mono-crt-cleanup.py $(MODE).$(CN) $(IMPORTED)); do \
 	  certmgr -del -c My    $$i || true; \
 	  certmgr -del -c Trust $$i || true; \
 	done
