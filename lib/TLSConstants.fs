@@ -510,21 +510,6 @@ let getKeyExtensionLength pv cs =
         | _ -> unexpectedError "[getKeyExtensionLength] invoked on an invalid ciphersuite"
     2 * (keySize + IVSize + hashSize)
 
-let maxPadSize pv cs =
-    match cs with
-    | NullCipherSuite
-    | OnlyMACCipherSuite (_,_) -> 0
-    | SCSV _ -> unexpectedError "[maxPadSize] invoked on an invalid ciphersuite"
-    | CipherSuite(_,aead) ->
-        // FIXME: use encAlg_of_ciphersuite
-        let authencAlg = encAlg_of_ciphersuite cs pv in
-        match authencAlg with
-        | Stream_RC4_128 -> 0
-        | CBC_Stale(alg) | CBC_Fresh(alg) ->
-            match pv with
-            | SSL_3p0 -> blockSize alg
-            | TLS_1p0 | TLS_1p1 | TLS_1p2 -> 255
-
 (* Not for verification, just to run the implementation. See TLSInfo.fs *)
 type cipherSuiteName =
     | TLS_NULL_WITH_NULL_NULL              

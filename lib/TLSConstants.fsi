@@ -116,8 +116,6 @@ val parseCipherSuite: bytes -> cipherSuite Result
 val parseCipherSuites: bytes -> cipherSuites Result
 val cipherSuitesBytes: cipherSuites -> bytes
 
-val maxPadSize: ProtocolVersion -> cipherSuite -> nat
-
 val getKeyExtensionLength: ProtocolVersion -> cipherSuite -> nat
 
 (* Not for verification, just to run the implementation *)

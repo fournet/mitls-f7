@@ -23,6 +23,24 @@ let ivSize e =
         | CBC_Stale(_) -> 0
         | CBC_Fresh(alg) -> blockSize alg
 
+let fixedPadSize si =
+    if si.extended_record_padding then 2 else 1
+
+let maxPadSize si =
+    if si.extended_record_padding then
+        fragmentLength
+    else
+        match si.cipher_suite with
+        | x when isNullCipherSuite x || isOnlyMACCipherSuite x -> 0
+        | x when isAEADCipherSuite(x) ->
+            let authencAlg = encAlg_of_ciphersuite si.cipher_suite si.protocol_version in
+            match authencAlg with
+            | Stream_RC4_128 -> 0
+            | CBC_Stale(alg) | CBC_Fresh(alg) ->
+                match si.protocol_version with
+                | SSL_3p0 -> blockSize alg
+                | TLS_1p0 | TLS_1p1 | TLS_1p2 -> 255
+        | _ -> Error.unexpectedError "[maxPadSize] invoked on an invalid ciphersuite"
 
 let blockAlignPadding e len =
     let si = epochSI(e) in
@@ -34,8 +52,9 @@ let blockAlignPadding e len =
         | Stream_RC4_128 -> 0
         | CBC_Stale(alg) | CBC_Fresh(alg) ->
             let bs = blockSize alg in
-            let overflow = (len + 1) % bs //@ at least one extra byte of padding
-            if overflow = 0 then 1 else 1 + bs - overflow 
+            let fp = fixedPadSize si in
+            let overflow = (len + fp) % bs //@ at least fp bytes of fixed padding
+            if overflow = 0 then fp else fp + bs - overflow 
 
 //@ From plaintext range to ciphertext length 
 let targetLength e (rg:range) =
@@ -52,11 +71,11 @@ let targetLength e (rg:range) =
         res
 
 let minMaxPad si =
-    let maxPad = maxPadSize si.protocol_version si.cipher_suite in
+    let maxPad = maxPadSize si in
     if maxPad = 0 then
         (0,0)
     else
-        (1,maxPad) 
+        (fixedPadSize si,maxPad) 
 
 //@ From ciphertext length to (maximal) plaintext range
 let cipherRangeClass (e:epoch) tlen =

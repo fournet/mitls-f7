@@ -422,8 +422,6 @@ val parseCipherSuite: b:bytes{Length(b)=2} -> (c:cipherSuite{b = CipherSuiteByte
 val parseCipherSuites: b:bytes -> (css:cipherSuites {?csl. b = CipherSuitesBytes(csl) /\ ContainsCipherSuites(csl,css)}) Result
 val cipherSuitesBytes: css:cipherSuites -> b:bytes {b = CipherSuitesBytes(css)}
 
-val maxPadSize: ProtocolVersion -> cipherSuite -> nat
-
 val mkIntTriple: (nat * nat * nat) -> (nat * nat * nat)
 val getKeyExtensionLength: ProtocolVersion -> cipherSuite -> nat
 

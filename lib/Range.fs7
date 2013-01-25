@@ -31,6 +31,13 @@ private definition !e,alg.
 
 val ivSize: e:succEpoch -> l:nat{l=IVSize(e)}
 
+val fixedPadSize: si:SessionInfo -> l:nat{
+	(si.extended_record_padding /\ l=2) \/
+	( (not si.extended_record_padding) /\ l=1)
+	}
+
+val maxPadSize: si:SessionInfo -> l:nat
+
 // Padding computations
 function val BlockAligned: epoch * nat -> nat
 private assume !e,l,alg.
