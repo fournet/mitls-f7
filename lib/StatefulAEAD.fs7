@@ -6,7 +6,6 @@ open TLSInfo
 open Range
 
 //CF 12/2: do we need pre/post on ciphertext lengths?
-//CF 21/4: cut prestate and State? 
 
 type rw =
 	| ReaderState 
@@ -35,15 +34,15 @@ val history: ki:epoch -> rw:rw -> s:(;ki,rw) state -> h:(;ki)StatefulPlain.histo
 // when AUTH(ki), the reader decrypts by table lookup
 // turning forgeries into errors; retrieving the "right" history index; returning the concrete decrypted range
 
-//CF 21/4: STXT is an event tracking written cipher fragments; not sure about details and contents ?!
+//CF 21/4: ENCrypted is an event tracking written cipher fragments; not sure about details and contents ?!
 //CF e.g.    * the decrypted rg is NOT authenticated
 //CF         * the states are not necessarily synchronized; only the histories are when AUTH
 
 type cipher = AEAD.cipher
 
-predicate val STXT: ki:epoch * (;ki) StatefulPlain.history * ad:(;ki)StatefulPlain.adata * 'a (* (;ki,ad,r)StatefulPlain.fragment *) * cipher -> bool
-private definition !ki,h,ad,f,c. 
-  STXT(ki,h,ad,f,c) <=> AEAD.CTXT(ki,AEADPlain.MakeAD(ki,h,ad),AEADPlain.StAEToAEAD(f),c)
+predicate ENCrypted of e:epoch * h:(;e) StatefulPlain.history * ad:(;e)StatefulPlain.adata * rg:range * (;rg)rbytes * cipher
+private definition !e,h,ad,rg,f,c. 
+  ENCrypted(e,h,ad,rg,f,c) <=> AEAD.ENCrypted(e,AEADPlain.MakeAD(e,h,ad),rg,f,c)
 
 val encrypt: ki:succEpoch -> 
   wr:(;ki) writer -> 
@@ -51,8 +50,9 @@ val encrypt: ki:succEpoch ->
   rg:range ->
   f: (;ki,ad,History(ki,WriterState,wr),rg) StatefulPlain.plain ->
   (wr':(;ki) writer * c:cipher){
-    History(ki,WriterState,wr') = StatefulPlain.ExtendHistory(ki,ad,History(ki,WriterState,wr),rg,f) /\
-    (Safe(ki) => STXT(ki,History(ki,WriterState,wr),ad,f,c))}
+    History(ki,WriterState,wr') = StatefulPlain.ExtendHistory(ki,ad,History(ki,WriterState,wr),rg,f)
+/\  ENCrypted(ki,History(ki,WriterState,wr),ad,rg,StatefulPlain.Payload(ki,ad,rg,f),c)
+  }
 //CF why do we need a conditional here? 
 
 val decrypt: ki:succEpoch -> 
@@ -62,15 +62,13 @@ val decrypt: ki:succEpoch ->
   res:((;ki) reader * rg:range * (;ki,ad,History(ki,ReaderState,rd),rg) StatefulPlain.plain) Result
   { !nrd,rg,f. res = Correct((nrd,rg,f)) => 
                (   History(ki,ReaderState,nrd) = StatefulPlain.ExtendHistory(ki,ad,History(ki,ReaderState,rd),rg,f) /\
-                   Encode.CipherRange(ki,rg,Length(c)) /\
+                   rg = CipherRangeClass(ki,Length(c)) /\
  	         (Safe(ki) =>
-				( (!nrd,rg,f. res = Correct((nrd,rg,f)) => STXT(ki,History(ki,ReaderState,rd),ad,f,c)) // /\
-				//  (!p. STXT(ki,rd,ad,p,c) => (?nrd,rg. res = Correct((nrd,rg,p))))
+				( (!nrd,rg,f. res = Correct((nrd,rg,f)) => ENCrypted(ki,History(ki,ReaderState,rd),rg,ad,StatefulPlain.Payload(ki,ad,rg,f),c)) // /\
+				//  (!rg,p. ENCrypted(ki,rd,ad,rg,StatefulPlain.Payload(ki,ad,rg,p),c) => (?nrd,rg. res = Correct((nrd,rg,p))))
 				)
 			 ) ) }
 			 
-			  //STXT(ki,rd,ad,f,c)) /\
-              //   (Auth(ki) => STXT(ki,rd,ad,f,c))) }
 
 //CF 21/4: as stated, we need the resulting readers and writers to have explicitly-updated histories (irrespective of AUTH)
 //CF 21/4: can we return an option instead? Otherwise we may have to specify which errors can be returned.

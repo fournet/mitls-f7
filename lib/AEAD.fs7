@@ -77,7 +77,7 @@ val encrypt': ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
 val encrypt : ki:succEpoch -> (;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   rg:range -> p:(;ki,ad,rg) AEADPlain.plain ->
   ((;ki) AEADKey * c:cipher){Length(c) = TargetLength(ki,rg)
-							 /\ ENCrypted(ki,ad,RangeClass(ki,rg),AEADPlain.Payload(ki,ad,RangeClass(ki,rg),p),c)}
+  			  /\ ENCrypted(ki,ad,RangeClass(ki,rg),AEADPlain.Payload(ki,ad,RangeClass(ki,rg),p),c)}
 
 //CF unclear whether the log should include the plaintext; tried without, should rollback...
 type entry = ki:succEpoch * ad:(;ki) AEADPlain.adata * rg:range * p:(;ki,ad,rg) AEADPlain.plain * c:ENC.cipher { ENCrypted(ki,ad,rg,AEADPlain.Payload(ki,ad,rg,p),c) /\ rg = CipherRangeClass(ki,Length(c)) }

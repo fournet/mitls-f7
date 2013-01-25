@@ -23,6 +23,10 @@ assume !l. Length(array_of_list(l)) = ListLength(l)
 
 val createBytes: l:int -> v:int { 0 <= v /\ v < 256 } -> (;l) lbytes
 
+function val Zeros: n:nat -> (;n)lbytes
+private val zeros: n:nat -> b:(;n)lbytes{b = Zeros(n)}
+
+
 val equalBytes: b0:bytes -> b1:bytes -> 
   r:bool {(r = true /\ b0 = b1) \/ (r = false /\ b0 <> b1)}
 
