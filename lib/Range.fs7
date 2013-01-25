@@ -21,12 +21,12 @@ definition !e,r. RangeClass(e,r) = CipherRangeClass(e,TargetLength(e,r))
 theorem !e,r. SubRange(r,RangeClass(e,r))
 
 function val IVSize: epoch -> nat
-private definition !e,alg.
-	( (IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/
-	   CipherSuiteENCAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = Stream_RC4_128 \/
-	   CipherSuiteENCAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = CBC_Stale(alg))
+private definition !e,enc,mac,alg.
+	( (CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version = MACOnly(mac)) \/
+	  (CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version = MtE(Stream_RC4_128,mac)) \/
+	  (CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version = MtE(CBC_Stale(alg),mac))
 	 => IVSize(e) = 0 ) /\
-	(  CipherSuiteENCAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = CBC_Fresh(alg)
+	(  CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version = MtE(CBC_Fresh(alg),mac)
 	 => IVSize(e)= BlockSize(alg) )
 
 val ivSize: e:succEpoch -> l:nat{l=IVSize(e)}

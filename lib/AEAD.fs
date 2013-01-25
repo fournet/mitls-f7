@@ -12,48 +12,48 @@ type cipher = bytes
 (***** keying *****) 
 
 type AEADKey =
-    | MtE of MAC.key * ENC.state
-    | MACOnly of MAC.key
+    | MtEK of MAC.key * ENC.state
+    | MACOnlyK of MAC.key
 (*  | GCM of AENC.state  *)
 
 let GEN e =
     let si = epochSI(e) in
-    let cs = si.cipher_suite in
-    match cs with
-    | x when isOnlyMACCipherSuite x ->
+    let authEnc = authencAlg_of_ciphersuite si.cipher_suite si.protocol_version in
+    match authEnc with
+    | MACOnly _ ->
         let mk = MAC.GEN e
-        (MACOnly(mk), MACOnly(mk))
-    | _ ->
+        (MACOnlyK(mk), MACOnlyK(mk))
+    | MtE(_,_) ->
         let mk = MAC.GEN e in
         let (ek,dk) = ENC.GEN e in
-        (MtE(mk,ek),MtE(mk,dk))
+        (MtEK(mk,ek),MtEK(mk,dk))
+    | AEAD (_,_) -> unexpectedError "[GEN] invoked on unsupported ciphersuite"
 
 let COERCE e b =
     // precondition: b is of the right length. No runtime checks here.
     let si = epochSI(e) in
     let cs = si.cipher_suite in
     let pv = si.protocol_version in
-    if isOnlyMACCipherSuite cs then 
+    let authEnc = authencAlg_of_ciphersuite cs pv in
+    match authEnc with
+    | MACOnly _ -> 
       let mk = MAC.COERCE e b in
-      MACOnly(mk)
-    else 
-    if isAEADCipherSuite cs then
-      let macalg = macAlg_of_ciphersuite cs pv in
-      let encalg = encAlg_of_ciphersuite cs pv in
+      MACOnlyK(mk)
+    | MtE(encalg,macalg) ->
       let macKeySize = macKeySize macalg in
       let encKeySize = encKeySize encalg in
       let (mkb,rest) = split b macKeySize in
       let (ekb,ivb) = split rest encKeySize in
       let mk = MAC.COERCE e mkb in
       let ek = ENC.COERCE e ekb ivb in
-      MtE(mk,ek)
-    else 
+      MtEK(mk,ek)
+    | AEAD (_,_) -> 
       unexpectedError "[COERCE] invoked on wrong ciphersuite"
 
 let LEAK e k =
     match k with
-    | MACOnly(mk) -> MAC.LEAK e mk
-    | MtE(mk,ek) ->
+    | MACOnlyK(mk) -> MAC.LEAK e mk
+    | MtEK(mk,ek) ->
         let (k,iv) = ENC.LEAK e ek in
         MAC.LEAK e mk @| k @| iv
 
@@ -63,9 +63,9 @@ let encrypt' e key data rg plain =
     let si = epochSI(e) in
     let cs = si.cipher_suite in
     let pv = si.protocol_version in
-    match (cs,key) with
-    | (x, MtE (ka,ke)) when isAEADCipherSuite x ->
-        let encAlg = encAlg_of_ciphersuite cs pv in
+    let authEnc = authencAlg_of_ciphersuite cs pv in
+    match (authEnc,key) with
+    | (MtE(encAlg,_), MtEK (ka,ke)) ->
         match encAlg with
         | Stream_RC4_128 -> // stream cipher
             let tag   = Encode.mac e ka data rg plain in
@@ -76,14 +76,14 @@ let encrypt' e key data rg plain =
                 let tlen  = targetLength e rg in
                 let encoded  = Encode.encodeNoPad e tlen rg data plain tag in
                 let (ke,res) = ENC.ENC e ke tlen encoded 
-                (MtE(ka,ke),res)
+                (MtEK(ka,ke),res)
         | CBC_Stale(_) | CBC_Fresh(_) -> // block cipher
             let tag  = Encode.mac e ka data rg plain in
             let tlen = targetLength e rg in
             let encoded  = Encode.encode e tlen rg data plain tag in
             let (ke,res) = ENC.ENC e ke tlen encoded 
-            (MtE(ka,ke),res)
-    | (x,MACOnly (ka)) when isOnlyMACCipherSuite x ->
+            (MtEK(ka,ke),res)
+    | (MACOnly _, MACOnlyK (ka)) ->
         let tag = Encode.mac e ka data rg plain in
         let (l,h) = rg in
         if l <> h then
@@ -96,7 +96,7 @@ let encrypt' e key data rg plain =
 //  | GCM (k) -> ... 
     | (_,_) -> unexpectedError "[encrypt'] incompatible ciphersuite-key given."
         
-let mteKey (e:epoch) ka ke = MtE(ka,ke)
+let mteKey (e:epoch) ka ke = MtEK(ka,ke)
 
 let decrypt' e key data cipher =
     let cl = length cipher in
@@ -104,10 +104,10 @@ let decrypt' e key data cipher =
     let si = epochSI(e) in
     let cs = si.cipher_suite in
     let pv = si.protocol_version in
-    let macSize = macSize (macAlg_of_ciphersuite cs pv) in
-    match (cs,key) with
-    | (x, MtE (ka,ke)) when isAEADCipherSuite x ->
-        let encAlg = encAlg_of_ciphersuite cs pv in
+    let authEnc = authencAlg_of_ciphersuite cs pv in
+    match (authEnc,key) with
+    | (MtE(encAlg,macAlg), MtEK (ka,ke)) ->
+        let macSize = macSize macAlg in
         match encAlg with
         | Stream_RC4_128 -> // stream cipher
             if cl < macSize then
@@ -137,7 +137,8 @@ let decrypt' e key data cipher =
                 match Encode.verify e ka data rg parsed with
                 | Error(x,y) -> Error(x,y)
                 | Correct(plain) -> correct (nk,rg,plain)
-    | (x,MACOnly (ka)) when isOnlyMACCipherSuite x ->
+    | (MACOnly macAlg ,MACOnlyK (ka)) ->
+        let macSize = macSize macAlg in
         if cl < macSize then
             let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
         else

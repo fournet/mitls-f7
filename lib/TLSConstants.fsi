@@ -51,6 +51,11 @@ type aeadAlg =
     | AES_128_GCM
     | AES_256_GCM
 
+type authencAlg =
+    | MACOnly of macAlg
+    | MtE of encAlg * macAlg
+    | AEAD of aeadAlg * macAlg
+
 val sigAlgBytes: sigAlg -> bytes
 val parseSigAlg: bytes -> sigAlg Result
 val hashAlgBytes: hashAlg -> bytes
@@ -90,8 +95,6 @@ val geqPV: ProtocolVersion -> ProtocolVersion -> bool
 
 val nullCipherSuite: cipherSuite
 val isNullCipherSuite: cipherSuite -> bool
-val isOnlyMACCipherSuite: cipherSuite -> bool
-val isAEADCipherSuite: cipherSuite -> bool
 
 val isAnonCipherSuite: cipherSuite -> bool
 val isDHCipherSuite: cipherSuite -> bool
@@ -102,6 +105,7 @@ val verifyDataLen_of_ciphersuite: cipherSuite -> nat
 val prfMacAlg_of_ciphersuite: cipherSuite -> macAlg
 val verifyDataHashAlg_of_ciphersuite: cipherSuite -> hashAlg
 
+val authencAlg_of_ciphersuite: cipherSuite -> ProtocolVersion -> authencAlg
 val macAlg_of_ciphersuite: cipherSuite -> ProtocolVersion -> macAlg
 val encAlg_of_ciphersuite: cipherSuite -> ProtocolVersion -> encAlg
 val sigAlg_of_ciphersuite: cipherSuite -> sigAlg

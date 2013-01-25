@@ -14,14 +14,15 @@ let rangeSum (l0,h0) (l1,h1) =
 
 let ivSize e =
     let si = epochSI(e) in
-    if isOnlyMACCipherSuite si.cipher_suite then
-        0
-    else
-        let encAlg  = encAlg_of_ciphersuite si.cipher_suite si.protocol_version in
+    let authEnc = authencAlg_of_ciphersuite si.cipher_suite si.protocol_version in
+    match authEnc with
+    | MACOnly _ -> 0
+    | MtE (encAlg,_) ->
         match encAlg with
         | Stream_RC4_128 -> 0
         | CBC_Stale(_) -> 0
         | CBC_Fresh(alg) -> blockSize alg
+    | AEAD (_,_) -> Error.unexpectedError "[ivSize] invoked on unsupported ciphersuite"
 
 let fixedPadSize si =
     if si.extended_record_padding then 2 else 1
@@ -30,31 +31,32 @@ let maxPadSize si =
     if si.extended_record_padding then
         fragmentLength
     else
-        match si.cipher_suite with
-        | x when isNullCipherSuite x || isOnlyMACCipherSuite x -> 0
-        | x when isAEADCipherSuite(x) ->
-            let authencAlg = encAlg_of_ciphersuite si.cipher_suite si.protocol_version in
-            match authencAlg with
+        let authEnc = authencAlg_of_ciphersuite si.cipher_suite si.protocol_version in
+        match authEnc with
+        | MACOnly _ -> 0
+        | MtE(enc,_) ->
+            match enc with
             | Stream_RC4_128 -> 0
             | CBC_Stale(alg) | CBC_Fresh(alg) ->
                 match si.protocol_version with
                 | SSL_3p0 -> blockSize alg
                 | TLS_1p0 | TLS_1p1 | TLS_1p2 -> 255
-        | _ -> Error.unexpectedError "[maxPadSize] invoked on an invalid ciphersuite"
+        | _ -> Error.unexpectedError "[maxPadSize] invoked on unsupported ciphersuite"
 
 let blockAlignPadding e len =
     let si = epochSI(e) in
-    if isOnlyMACCipherSuite si.cipher_suite then
-        0
-    else
-        let encAlg = encAlg_of_ciphersuite si.cipher_suite si.protocol_version in
-        match encAlg with
+    let authEnc = authencAlg_of_ciphersuite si.cipher_suite si.protocol_version in
+    match authEnc with
+    | MACOnly _ -> 0
+    | MtE(enc,_) ->
+        match enc with
         | Stream_RC4_128 -> 0
         | CBC_Stale(alg) | CBC_Fresh(alg) ->
             let bs = blockSize alg in
             let fp = fixedPadSize si in
             let overflow = (len + fp) % bs //@ at least fp bytes of fixed padding
             if overflow = 0 then fp else fp + bs - overflow 
+    | _ -> Error.unexpectedError "[maxPadSize] invoked on unsupported ciphersuite"
 
 //@ From plaintext range to ciphertext length 
 let targetLength e (rg:range) =

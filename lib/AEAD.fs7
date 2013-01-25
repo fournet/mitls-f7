@@ -11,20 +11,20 @@ type cipher = b:bytes{Length(b) <= max_TLSCipher_fragment_length}
 (* no need to be more precise on the length *)
 
 private type (;ki:epoch) AEADKey =
-    | MtE of ka:(;ki)MAC.key * ke:(;ki)ENC.state // {MtEKey(ki,(ka,ke))}
-    | MACOnly of (;ki) MAC.key
+    | MtEK of ka:(;ki)MAC.key * ke:(;ki)ENC.state // {MtEKey(ki,(ka,ke))}
+    | MACOnlyK of (;ki) MAC.key
 (*  | GCM of ke:(;ki:AENC.state)  *)
 
 // TODO Define AEADSize. 
 // TODO In the code, (AEADSize * 2) is computed in TLSConstants.getKeyExtensionLength
 
 function val AEADSize: ki:epoch -> nat
-private definition !ki,si. si = EpochSI(ki) =>
-	( IsOnlyMACCiphersuite(si.cipher_suite) =>
-	  AEADSize(ki) = MacSize(TLSConstants.CipherSuiteMACAlg(si.cipher_suite,si.protocol_version)) ) /\
-	( IsAEADCiphersuite(si.cipher_suite) =>
-	  AEADSize(ki) = MacSize(TLSConstants.CipherSuiteMACAlg(si.cipher_suite,si.protocol_version)) +
-					    EncKeySize(TLSConstants.CipherSuiteENCAlg(si.cipher_suite,si.protocol_version)) +
+private definition !ki,si,enc,mac. si = EpochSI(ki) =>
+	( CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MACOnly(mac) =>
+	  AEADSize(ki) = MacSize(mac) ) /\
+	( CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(enc,mac) =>
+	  AEADSize(ki) = MacSize(mac) +
+					    EncKeySize(enc) +
 					    Range.IVSize(ki) )
 
 //CF '13 who wrote this? when? 
@@ -56,9 +56,9 @@ private assume !e,si. si = EpochSI(e) =>
 		=> IVSize(e) = 0 ) /\
 	( si.protocol_version = TLS_1p1 \/ si.protocol_version = TLS_1p2
 		=> IVSize(e) = BlockSize(CipherSuiteENCAlg(si.cipher_suite,si.protocol_version)) )
-private assume !e,si,tlen. si = EpochSI(e) =>
-	( IsOnlyMACCiphersuite(si.cipher_suite) => Encode.PlainLength(e,tlen) = tlen ) /\
-    ( IsAEADCiphersuite(si.cipher_suite) /\ tlen >= IVSize(e) =>
+private assume !e,si,tlen,enc,mac. si = EpochSI(e) =>
+	( CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MACOnly(mac) => Encode.PlainLength(e,tlen) = tlen ) /\
+    ( CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(enc,mac) /\ tlen >= IVSize(e) =>
 	  Encode.PlainLength(e,tlen) = tlen - IVSize(e) )
 
 // We have two variants for encryption and decryption: 
@@ -93,7 +93,8 @@ private val safe: ki:succEpoch -> b:bool { b = true <=> Auth(ki) }
 theorem !ki,d,rg0,p0,rg1,p1,c. (ENCrypted(ki,d,rg0,p0,c) /\ ENCrypted(ki,d,rg1,p1,c)) => p0 = p1
 
 //KB should be provable, but is invalid right now?
-assume !e. IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) => not TLSInfo.Auth(e)
+assume !e,mac. CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MACOnly(mac)
+		=> not TLSInfo.Auth(e)
 
 val decrypt': ki:succEpoch -> k:(;ki) AEADKey -> ad:(;ki)AEADPlain.adata ->
   c:cipher -> res: 

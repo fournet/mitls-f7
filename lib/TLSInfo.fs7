@@ -195,9 +195,10 @@ val auth: (e:epoch) -> b:bool {b = true <=> Auth(e)}
 
 ask !e. Safe(e) => Auth(e) 
 
-ask !e. IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) => not Safe(e)
-ask !e. IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) => 
-    not (?kex,s. EpochSI(e).cipher_suite = CipherSuite(kex,s))
+ask !e,mac. CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MACOnly(mac) => not Safe(e)
+// AP: This should be invalid, as ciphersuite is a private type!!!
+//ask !e. CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MACOnly(mac) => 
+//    not (?kex,s. EpochSI(e).cipher_suite = CipherSuite(kex,s))
 
 // so that TLS can exchange any traffic on the initial null connection
 assume !e. IsInitEpoch(e) => not Auth(e)

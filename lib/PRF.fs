@@ -59,9 +59,10 @@ let keyGen ci (ms:masterSecret) =
             (myWrite,myRead)
     else 
     #endif
-        match cs with
-        | x when isOnlyMACCipherSuite x ->
-            let macKeySize = macKeySize (macAlg_of_ciphersuite cs pv) in
+        let authEnc = authencAlg_of_ciphersuite cs pv in
+        match authEnc with
+        | MACOnly macAlg ->
+            let macKeySize = macKeySize macAlg in
             let ck,sk = split b macKeySize 
             match ci.role with 
             | Client ->
@@ -70,10 +71,9 @@ let keyGen ci (ms:masterSecret) =
             | Server ->
                 (StatefulAEAD.COERCE ci.id_out StatefulAEAD.WriterState sk,
                  StatefulAEAD.COERCE ci.id_in  StatefulAEAD.ReaderState ck)
-        | x when isAEADCipherSuite x ->
-            let macKeySize = macKeySize (macAlg_of_ciphersuite cs pv) in
-            let encAlg = encAlg_of_ciphersuite cs pv in
-            let encKeySize = encKeySize (encAlg) in
+        | MtE(encAlg,macAlg) ->
+            let macKeySize = macKeySize macAlg in
+            let encKeySize = encKeySize encAlg in
             match encAlg with
             | Stream_RC4_128 | CBC_Fresh(_) ->
                 let cmkb, b = split b macKeySize in

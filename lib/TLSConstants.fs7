@@ -66,6 +66,7 @@ type aeadAlg =
     | AES_256_GCM
 
 type authencAlg = // for specification of INT_CTXT predicate
+    | MACOnly of macAlg
     | MtE of encAlg * macAlg
     | AEAD of aeadAlg * macAlg // macAlg is for the PRF
 
@@ -226,19 +227,8 @@ assume !x. IsNullCiphersuite(x) <=> x = NullCipherSuite
 val nullCipherSuite: c:cipherSuite{IsNullCiphersuite(c)}
 val isNullCipherSuite: c:cipherSuite -> r:bool{r=true <=> IsNullCiphersuite(c)}
 
-predicate val IsOnlyMACCiphersuite: cipherSuite -> bool
-assume !x. (IsOnlyMACCiphersuite(x) <=> ?z,t. x = OnlyMACCipherSuite(z,t))
-val isOnlyMACCipherSuite: c:cipherSuite -> r:bool{r=true <=> IsOnlyMACCiphersuite(c)}
-
 predicate val IsSCSVCiphersuite: cipherSuite -> bool
 assume !x. IsSCSVCiphersuite(x) <=> ?z. x = SCSV(z)
-
-predicate val IsAEADCiphersuite: cipherSuite -> bool
-assume !x. IsAEADCiphersuite(x) <=> ?z,t. x = CipherSuite(z,t)
-val isAEADCipherSuite: c:cipherSuite -> r:bool{r=true <=> IsAEADCiphersuite(c)}
-
-assume !x. IsAEADCiphersuite(x) => not IsOnlyMACCiphersuite(x)
-assume !x. IsAEADCiphersuite(x) => not IsNullCiphersuite(x)
 
 (* TODO: predicates similar to the ones above, to be done when handling handshake *)
 val isAnonCipherSuite: cipherSuite -> bool
@@ -253,6 +243,7 @@ val verifyDataHashAlg_of_ciphersuite: cs:cipherSuite -> hashAlg
 function val CipherSuiteSigAlg: cipherSuite -> sigAlg
 function val CipherSuiteMACAlg: cipherSuite * ProtocolVersion -> macAlg
 function val CipherSuiteENCAlg: cipherSuite * ProtocolVersion -> encAlg
+function val CipherSuiteAuthEncAlg: ciphersuite * ProtocolVersion -> authencAlg
 
 private assume !kex,enc,mac.
 	CipherSuiteMACAlg(CipherSuite(kex,CS_MtE(enc,mac)),SSL_3p0) = MA_SSLKHASH(mac)
@@ -263,14 +254,14 @@ private assume !kex,enc,mac.
 private assume !kex,enc,mac.
 	CipherSuiteMACAlg(CipherSuite(kex,CS_MtE(enc,mac)),TLS_1p1) = MA_HMAC(mac)
 
-private assume !enc,mac.
-	CipherSuiteMACAlg(OnlyMACCipherSuite(enc,mac),SSL_3p0) = MA_SSLKHASH(mac)
-private assume !enc,mac.
-	CipherSuiteMACAlg(OnlyMACCipherSuite(enc,mac),TLS_1p0) = MA_HMAC(mac)
-private assume !enc,mac.
-	CipherSuiteMACAlg(OnlyMACCipherSuite(enc,mac),TLS_1p1) = MA_HMAC(mac)
-private assume !enc,mac.
-	CipherSuiteMACAlg(OnlyMACCipherSuite(enc,mac),TLS_1p2) = MA_HMAC(mac)
+private assume !kex,mac.
+	CipherSuiteMACAlg(OnlyMACCipherSuite(kex,mac),SSL_3p0) = MA_SSLKHASH(mac)
+private assume !kex,mac.
+	CipherSuiteMACAlg(OnlyMACCipherSuite(kex,mac),TLS_1p0) = MA_HMAC(mac)
+private assume !kex,mac.
+	CipherSuiteMACAlg(OnlyMACCipherSuite(kex,mac),TLS_1p1) = MA_HMAC(mac)
+private assume !kex,mac.
+	CipherSuiteMACAlg(OnlyMACCipherSuite(kex,mac),TLS_1p2) = MA_HMAC(mac)
 
 private assume !kex,mac,pv.
 	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(RC4_128,mac)),pv) = Stream_RC4_128
@@ -299,6 +290,13 @@ private assume !kex,mac.
 private assume !kex,mac.
 	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(AES_256_CBC,mac)),TLS_1p2) = CBC_Fresh(AES_256)
 
+private assume !kex,mac,pv.
+	CipherSuiteAuthEncAlg(OnlyMACCiphersuite(kex,mac),pv) = MACOnly(CipherSuiteMACAlg(OnlyMACCiphersuite(kex,mac),pv))
+private assume !kex,enc,mac,pv.
+	CipherSuiteAuthEncAlg(CipherSuite(kex,CS_MtE(enc,mac)),pv) =
+		MtE(CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(enc,mac)),pv),CipherSuiteMACAlg(CipherSuite(kex,CS_MtE(enc,mac)),pv))
+
+val authencAlg_of_ciphersuite: cs:cipherSuite -> pv:ProtocolVersion -> a:authencAlg{a = CipherSuiteAuthEncAlg(cs,pv)}
 val macAlg_of_ciphersuite: cs:cipherSuite -> pv:ProtocolVersion -> h:macAlg{h = CipherSuiteMACAlg(cs,pv)}
 val encAlg_of_ciphersuite: cs:cipherSuite -> pv:ProtocolVersion -> c:encAlg{c = CipherSuiteENCAlg(cs,pv)}
 val sigAlg_of_ciphersuite: cs:cipherSuite -> s:sigAlg{s = CipherSuiteSigAlg(cs)}
