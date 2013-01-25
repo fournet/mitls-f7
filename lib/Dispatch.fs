@@ -81,8 +81,8 @@ let init ns role poptions =
     let (ci,hs) = hsInitRes in
     let id_in = ci.id_in in
     let id_out = ci.id_out in
-    let recv = Record.nullConnState id_in StatefulAEAD.ReaderState in
-    let send = Record.nullConnState id_out StatefulAEAD.WriterState in
+    let recv = Record.nullConnState id_in StatefulLHAE.ReaderState in
+    let send = Record.nullConnState id_out StatefulLHAE.WriterState in
     let read_state = {disp = Init; conn = recv} in
     let write_state = {disp = Init; conn = send} in
     let al = Alert.init ci in
@@ -98,9 +98,9 @@ let init ns role poptions =
 let resume ns sid ops =
     (* Only client side, can never be server side *)
     let (ci,hs) = Handshake.resume sid ops in
-    let send = Record.nullConnState ci.id_out StatefulAEAD.WriterState in
+    let send = Record.nullConnState ci.id_out StatefulLHAE.WriterState in
     let write_state = {disp = Init; conn = send} in
-    let recv = Record.nullConnState ci.id_in  StatefulAEAD.ReaderState in
+    let recv = Record.nullConnState ci.id_in  StatefulLHAE.ReaderState in
     let read_state = {disp = Init; conn = recv} in
     let al = Alert.init ci in
     let app = AppData.init ci in
@@ -220,7 +220,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                         (* we send some data fragment *)
                         let id_out = id.id_out in
                         let c_write_conn = c_write.conn
-                        let history = Record.history id_out StatefulAEAD.WriterState c_write_conn in
+                        let history = Record.history id_out StatefulLHAE.WriterState c_write_conn in
                         let frag = TLSFragment.AppPlainToRecordPlain id_out history tlen f
                         let pv = pickSendPV (Conn(id,c)) in
                         let resSend = send c.ns id_out c_write pv tlen Application_data frag in
@@ -238,11 +238,11 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                     (WMustRead,Conn(id,c))
 
           | Handshake.OutCCS(rg,ccs,nextID,nextWrite,new_hs_state) ->
-                    let nextWCS = Record.initConnState nextID.id_out StatefulAEAD.WriterState nextWrite in
+                    let nextWCS = Record.initConnState nextID.id_out StatefulLHAE.WriterState nextWrite in
                     (* we send a (complete) CCS fragment *)
                     match c_write.disp with
                     | FirstHandshake(_) | Open ->
-                        let history = Record.history id.id_out StatefulAEAD.WriterState c_write.conn in
+                        let history = Record.history id.id_out StatefulLHAE.WriterState c_write.conn in
                         let frag = TLSFragment.CCSPlainToRecordPlain id.id_out history rg ccs in
                         let pv = pickSendPV (Conn(id,c)) in
                         let resSend = send c.ns id.id_out c.write pv rg Change_cipher_spec frag in
@@ -267,7 +267,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                       (* we send some handshake fragment *)
                       match c_write.disp with
                       | Init | FirstHandshake(_) | Finishing | Open ->
-                          let history = Record.history id.id_out StatefulAEAD.WriterState c_write.conn in
+                          let history = Record.history id.id_out StatefulLHAE.WriterState c_write.conn in
                           let frag = TLSFragment.HSPlainToRecordPlain id.id_out history rg f in
                           let pv = pickSendPV (Conn(id,c)) in
                           let resSend = send c.ns id.id_out c.write pv rg Handshake frag in
@@ -285,7 +285,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                 match c_write.disp with
                 | Finishing ->
                     (* Send the last fragment *)
-                    let history = Record.history id.id_out StatefulAEAD.WriterState c_write.conn in
+                    let history = Record.history id.id_out StatefulLHAE.WriterState c_write.conn in
                     let frag = TLSFragment.HSPlainToRecordPlain id.id_out history rg lastFrag in
                     let pv = pickSendPV (Conn(id,c)) in
                     let resSend = send c.ns id.id_out c.write pv rg Handshake frag in
@@ -304,7 +304,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                 match c_write.disp with
                 | Finishing ->
                     (* Send the last fragment *)
-                    let history = Record.history id.id_out StatefulAEAD.WriterState c_write.conn in
+                    let history = Record.history id.id_out StatefulLHAE.WriterState c_write.conn in
                     let frag = TLSFragment.HSPlainToRecordPlain id.id_out history rg lastFrag in
                     let pv = pickSendPV (Conn(id,c)) in
                     let resSend = send c.ns id.id_out c.write pv rg Handshake frag in
@@ -329,7 +329,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
       | (Alert.ALFrag(tlen,f),new_al_state) ->
         match c_write.disp with
         | Init | FirstHandshake(_) | Open | Closing(_) ->
-            let history = Record.history id.id_out StatefulAEAD.WriterState c_write.conn in
+            let history = Record.history id.id_out StatefulLHAE.WriterState c_write.conn in
             let frag = TLSFragment.AlertPlainToRecordPlain id.id_out history tlen f in
             let pv = pickSendPV (Conn(id,c)) in
             let c_write = c.write in
@@ -345,7 +345,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
         match c_write.disp with
         | Init | FirstHandshake(_) | Open | Closing(_) ->
             (* We're sending a fatal alert. Send it, then close both sending and receiving sides *)
-            let history = Record.history id.id_out StatefulAEAD.WriterState c_write.conn in
+            let history = Record.history id.id_out StatefulLHAE.WriterState c_write.conn in
             let frag = TLSFragment.AlertPlainToRecordPlain id.id_out history tlen f in
             let pv = pickSendPV (Conn(id,c)) in
             let c_write = c.write in
@@ -365,7 +365,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
             (* We're sending a close_notify alert. Send it, then only close our sending side.
                If we already received the other close notify, then reading is already closed,
                otherwise we wait to read it, then close. But do not close here. *)
-            let history = Record.history id.id_out StatefulAEAD.WriterState c_write.conn in
+            let history = Record.history id.id_out StatefulLHAE.WriterState c_write.conn in
             let frag = TLSFragment.AlertPlainToRecordPlain id.id_out history tlen f in
             let pv = pickSendPV (Conn(id,c)) in
             let c_write = c.write in
@@ -517,7 +517,7 @@ let readOne (Conn(id,c)) =
     | Correct(received) -> 
         let (c_recv,ct,rg,frag) = received in 
         let c_read = c.read in
-        let history = Record.history id.id_in StatefulAEAD.ReaderState c_read.conn in
+        let history = Record.history id.id_in StatefulLHAE.ReaderState c_read.conn in
         //let f = TLSFragment.contents id.id_in ct history rg frag in
         let c_read = {c_read with conn = c_recv} in
         let c = {c with read = c_read} in
@@ -539,7 +539,7 @@ let readOne (Conn(id,c)) =
                         let f = TLSFragment.RecordPlainToCCSPlain id.id_in history rg frag in
                         match Handshake.recv_ccs id c.handshake rg f with 
                           | InCCSAck(nextID,nextR,hs) ->
-                              let nextRCS = Record.initConnState nextID.id_in StatefulAEAD.ReaderState nextR in
+                              let nextRCS = Record.initConnState nextID.id_in StatefulLHAE.ReaderState nextR in
                               let new_read = {c_read with disp = Finishing; conn = nextRCS} in
                               let new_ad = AppData.reset_incoming id c.appdata nextID in
                               let new_al = Alert.reset_incoming id c.alert nextID in

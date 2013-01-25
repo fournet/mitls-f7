@@ -1,7 +1,7 @@
 ﻿module Encode
 
 (* The "plain" file for CPA encryption (module ENC) *)
-(* provided by AEAD, implementing AEADPlain @| MAC @| padding when using MtE *) 
+(* provided by LHAE, implementing LHAEPlain @| MAC @| padding when using MtE *) 
 
 open Bytes
 open Error
@@ -23,44 +23,44 @@ val plain: e:epoch{not Auth(e)} -> tlen:nat{tlen <= max_TLSCipher_fragment_lengt
 val repr:  e:epoch{not Safe(e)} -> tlen:nat -> (;e,tlen) plain -> b:bytes{Length(b) = PlainLength(e,tlen)}
 
 //------------------------------------------------------------------------------------------------------
-// Interface towards AEAD 
+// Interface towards LHAE 
 //------------------------------------------------------------------------------------------------------
 
 // the MAC tags, with an abstract type for secrecy
 private type (;e:succEpoch) tag = {macT: (;e) MAC.tag } 
 
 // the result of decrypting & decoding, with an abstract type for secrecy
-private type (;e:epoch,ad:(;e)AEADPlain.adata,rg:range) parsed =
-	{ plain: (;e,ad,rg)AEADPlain.plain;
+private type (;e:epoch,ad:(;e)LHAEPlain.adata,rg:range) parsed =
+	{ plain: (;e,ad,rg)LHAEPlain.plain;
 	  tag  : (;e)tag;
 	  ok   : b:bool { CipherSuiteENCAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = Stream_RC4_128 => b = true }
 	  (* true iff decoding succeeded; always true with RC4. *) }
 
-val payload: e:succEpoch -> r:range -> ad:(;e)AEADPlain.adata -> f:(;e,ad,r)AEADPlain.plain ->
-	b:(;r) rbytes{ Safe(e) \/ b = AEADPlain.Payload(e,ad,r,f) }
+val payload: e:succEpoch -> r:range -> ad:(;e)LHAEPlain.adata -> f:(;e,ad,r)LHAEPlain.plain ->
+	b:(;r) rbytes{ Safe(e) \/ b = LHAEPlain.Payload(e,ad,r,f) }
 
 // the MACed bytes, i.e. ad @| 2-byte length of payload @| payload 
 //CF should ask some injectivity
 
 function val MACPlain : 'a * 'b * 'c * 'd -> 'e
-private definition !e,r,ad,f. MACPlain(e,r,ad,f) = ad @| VLBytes(2,AEADPlain.Payload(e,ad,r,f))
+private definition !e,r,ad,f. MACPlain(e,r,ad,f) = ad @| VLBytes(2,LHAEPlain.Payload(e,ad,r,f))
 val macPlain: e:succEpoch -> r:range -> 
-  ad:(;e)AEADPlain.adata -> f:(;e,ad,r)AEADPlain.plain -> b:bytes{b = MACPlain(e,r,ad,f)}
+  ad:(;e)LHAEPlain.adata -> f:(;e,ad,r)LHAEPlain.plain -> b:bytes{b = MACPlain(e,r,ad,f)}
 
 //CF MACed is undefined for now; just added a placeholder def; overlaps with MAC.Msg? omit the key?
-predicate MACed of e:epoch * (;e) MAC.key * ad:(;e)AEADPlain.adata * rg:range * (;e,ad,rg)AEADPlain.plain * (;e) tag
+predicate MACed of e:epoch * (;e) MAC.key * ad:(;e)LHAEPlain.adata * rg:range * (;e,ad,rg)LHAEPlain.plain * (;e) tag
 private definition !e,k,rg,ad,p,m. MACed(e,k,ad,rg,p,m) 
 
 predicate val Decoded: 'e * 'a * 'b -> bool
 
 val mac: e:succEpoch -> k:(;e) MAC.key ->
-  ad:(;e)AEADPlain.adata -> rg:range ->
-  p:(;e,ad,rg)AEADPlain.plain ->
+  ad:(;e)LHAEPlain.adata -> rg:range ->
+  p:(;e,ad,rg)LHAEPlain.plain ->
   tag:(;e) tag {MACed(e,k,ad,rg,p,tag)}
 val verify: e:succEpoch -> k:(;e) MAC.key ->
-  ad:(;e)AEADPlain.adata -> rg:range ->
+  ad:(;e)LHAEPlain.adata -> rg:range ->
   ps:(;e,ad,rg)parsed -> 
-  (res:(;e,ad,rg)AEADPlain.plain Result)
+  (res:(;e,ad,rg)LHAEPlain.plain Result)
   {   (!p. res = Correct(p) => (p = ps.plain /\ ps.tag = MACPlain(e,rg,ad,p)) )
    /\ (Safe(e) => (res = Error(AD_bad_record_mac,"") \/ ?p. res = Correct(p)))
    /\ ((  MACed(e,k,ad,rg,ps.plain,ps.tag) 
@@ -77,10 +77,10 @@ private val pad: l:int { 0 < l /\ l <= 256 } -> b:bytes{Length(b) = l}
 
 val encode: e:succEpoch{IsAEADCiphersuite(EpochSI(e).cipher_suite)} ->
     tlen:nat{tlen <= max_TLSCipher_fragment_length} -> rg:range{tlen = TargetLength(e,rg)} ->
-	ad:(;e) AEADPlain.adata -> pl:(;e,ad,rg) AEADPlain.plain -> tag:(;e) tag ->
+	ad:(;e) LHAEPlain.adata -> pl:(;e,ad,rg) LHAEPlain.plain -> tag:(;e) tag ->
 	p:(;e,tlen) plain{Encoded(e,ad,pl,tag,p)}
 val decode: e:succEpoch{IsAEADCiphersuite(EpochSI(e).cipher_suite)} ->
-	ad:(;e) AEADPlain.adata -> rg:range ->
+	ad:(;e) LHAEPlain.adata -> rg:range ->
 	tlen:nat{tlen - IVSize(e) >= ( MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) + 1) /\
 	tlen = TargetLength(e,rg)} ->
 	p:(;e,tlen) plain ->
@@ -92,11 +92,11 @@ val decode: e:succEpoch{IsAEADCiphersuite(EpochSI(e).cipher_suite)} ->
 val encodeNoPad: e:succEpoch{IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/
                     CipherSuiteENCAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = Stream_RC4_128} ->
 	tlen:nat{tlen <= max_TLSCipher_fragment_length} -> rg:range{tlen = TargetLength(e,rg)} ->
-	ad:(;e) AEADPlain.adata -> (;e,ad,rg) AEADPlain.plain -> (;e) tag ->
+	ad:(;e) LHAEPlain.adata -> (;e,ad,rg) LHAEPlain.plain -> (;e) tag ->
 	(;e,tlen) plain
 val decodeNoPad: e:succEpoch{IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/
                     CipherSuiteENCAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = Stream_RC4_128} ->
-	ad:(;e) AEADPlain.adata -> rg:range ->
+	ad:(;e) LHAEPlain.adata -> rg:range ->
 	tlen:nat{tlen >= MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) /\
 	tlen = TargetLength(e,rg)} -> (;e,tlen) plain ->
 	(;e,ad,rg)parsed
@@ -105,7 +105,7 @@ val decodeNoPad: e:succEpoch{IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/
 // Auxiliary definitions and assumptions for typing
 //------------------------------------------------------------------------------------------------------
 
-function val MsgBytes: e:epoch * (;e) AEADPlain.adata * bytes -> bytes
+function val MsgBytes: e:epoch * (;e) LHAEPlain.adata * bytes -> bytes
 private assume !e,ad,x. MsgBytes(e,ad,x) = ad @| VLBytes(2,x)
 private ask !e,ad1,x1,ad2,x2. (Length(ad1) = Length(ad2) /\
                         MsgBytes(e,ad1,x1) = MsgBytes(e,ad2,x2)) => 

@@ -13,7 +13,7 @@ type preds = | CipherRange of epoch * range * nat
 type tag = {macT: bytes}
 
 type parsed =
-    {plain: AEADPlain.plain
+    {plain: LHAEPlain.plain
      tag:   tag
      ok:    bool}
 
@@ -29,7 +29,7 @@ let payload (e:epoch) (rg:range) ad f =
     zeros rg
   else
   #endif
-    AEADPlain.repr e ad rg f 
+    LHAEPlain.repr e ad rg f 
 
 let macPlain (e:epoch) (rg:range) ad f =
     let b = payload e rg ad f
@@ -77,7 +77,7 @@ type plain = {p:bytes}
 let plain (e:epoch) (tlen:nat)  b = {p=b}
 let repr (e:epoch) (tlen:nat) pl = pl.p
 
-let encodeNoPad (e:epoch) (tlen:nat) rg (ad:AEADPlain.adata) data tag =
+let encodeNoPad (e:epoch) (tlen:nat) rg (ad:LHAEPlain.adata) data tag =
     let b = payload e rg ad data in
     let (_,h) = rg in
     if h <> length b then
@@ -91,7 +91,7 @@ let encodeNoPad (e:epoch) (tlen:nat) rg (ad:AEADPlain.adata) data tag =
 
 let pad (p:int)  = createBytes p (p-1)
 
-let encode (e:epoch) (tlen:nat) rg (ad:AEADPlain.adata) data tag =
+let encode (e:epoch) (tlen:nat) rg (ad:LHAEPlain.adata) data tag =
     let b = payload e rg ad data in
     let lb = length b in
     let lm = length tag.macT in
@@ -104,7 +104,7 @@ let encode (e:epoch) (tlen:nat) rg (ad:AEADPlain.adata) data tag =
     else
         {p = payload}
 
-let decodeNoPad e (ad:AEADPlain.adata) rg tlen plain =
+let decodeNoPad e (ad:LHAEPlain.adata) rg tlen plain =
     let pl = plain.p in
     let plainLen = length pl in
     if plainLen <> tlen then
@@ -114,13 +114,13 @@ let decodeNoPad e (ad:AEADPlain.adata) rg tlen plain =
     let maclen = macSize (macAlg_of_ciphersuite si.cipher_suite si.protocol_version) in
     let payloadLen = plainLen - maclen in
     let (frag,mac) = Bytes.split pl payloadLen in
-    let aeadF = AEADPlain.plain e ad rg frag in
+    let aeadF = LHAEPlain.plain e ad rg frag in
     let tag = {macT = mac} in
     {plain = aeadF;
      tag = tag;
      ok = true}
 
-let decode e (ad:AEADPlain.adata) rg tlen plain =
+let decode e (ad:LHAEPlain.adata) rg tlen plain =
     let si = epochSI(e) in
     let macSize = macSize (macAlg_of_ciphersuite si.cipher_suite si.protocol_version) in
     let ivL = ivSize e in
@@ -169,7 +169,7 @@ let decode e (ad:AEADPlain.adata) rg tlen plain =
                     (false,tmpdata,0)
     let macstart = pLen - macSize - padlen - 1 in
     let (frag,mac) = split data macstart in
-    let aeadF = AEADPlain.plain e ad rg frag in
+    let aeadF = LHAEPlain.plain e ad rg frag in
     let tag = {macT = mac} in
     { plain = aeadF;
       tag = tag;

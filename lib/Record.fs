@@ -8,18 +8,18 @@ open Range
 
 type ConnectionState =
     | NullState
-    | SomeState of TLSFragment.history * StatefulAEAD.state
+    | SomeState of TLSFragment.history * StatefulLHAE.state
 
-let someState (ki:epoch) (rw:StatefulAEAD.rw) h s = SomeState(h,s)
+let someState (ki:epoch) (rw:StatefulLHAE.rw) h s = SomeState(h,s)
 
 type sendState = ConnectionState
 type recvState = ConnectionState
 
-let initConnState (ki:epoch) (rw:StatefulAEAD.rw) s = 
+let initConnState (ki:epoch) (rw:StatefulLHAE.rw) s = 
   let eh = TLSFragment.emptyHistory ki in
   someState ki rw eh s
 
-let nullConnState (ki:epoch) (rw:StatefulAEAD.rw) = NullState
+let nullConnState (ki:epoch) (rw:StatefulLHAE.rw) = NullState
 
 // packet format
 let makePacket ct ver data =
@@ -75,9 +75,9 @@ let recordPacketOut ki conn pv rg ct fragment =
         (conn,packet)
     | (false,SomeState(history,state)) ->
         let ad = StatefulPlain.makeAD ki ct in
-        let sh = StatefulAEAD.history ki StatefulAEAD.WriterState state in
+        let sh = StatefulLHAE.history ki StatefulLHAE.WriterState state in
         let aeadF = StatefulPlain.RecordPlainToStAEPlain ki ct history sh rg fragment in
-        let (state,payload) = StatefulAEAD.encrypt ki state ad rg aeadF in
+        let (state,payload) = StatefulLHAE.encrypt ki state ad rg aeadF in
         let history = TLSFragment.extendHistory ki ct history rg fragment in
         let packet = makePacket ct pv payload in
         (SomeState(history,state),packet)
@@ -100,8 +100,8 @@ let recordPacketOut2 conn clen ct fragment =
                 conn, 
                 fragment_mac_to_cipher conn.rec_ki clen fragment (bytes_to_mac mac)
             else
-                let key = getAEADKey conn.key in
-                let newIV, payload = AEAD.encrypt conn.rec_ki key conn.iv3 clen ad fragment 
+                let key = getLHAEKey conn.key in
+                let newIV, payload = LHAE.encrypt conn.rec_ki key conn.iv3 clen ad fragment 
                 {conn with iv3 = newIV},
                 payload
     incN conn,
@@ -129,19 +129,19 @@ let recordPacketIn ki conn headPayload =
         correct(conn,ct,pv,rg,msg)
     | (false,SomeState(history,state)) ->
         let ad = StatefulPlain.makeAD ki ct in
-        let decr = StatefulAEAD.decrypt ki state ad payload in
+        let decr = StatefulLHAE.decrypt ki state ad payload in
         match decr with
         | Error(x,y) -> Error(x,y)
         | Correct (decrRes) ->
             let (newState, rg, plain) = decrRes in
-            let oldH = StatefulAEAD.history ki StatefulAEAD.ReaderState state in
+            let oldH = StatefulLHAE.history ki StatefulLHAE.ReaderState state in
             let msg = StatefulPlain.StAEPlainToRecordPlain ki ct history oldH rg plain in
             let history = TLSFragment.extendHistory ki ct history rg msg in
-            let st' = someState ki StatefulAEAD.ReaderState history newState in
+            let st' = someState ki StatefulLHAE.ReaderState history newState in
             correct(st',ct,pv,rg,msg)
     | _ -> unexpectedError "[recordPacketIn] Incompatible ciphersuite and key type"
 
-let history (e:epoch) (rw:StatefulAEAD.rw) s =
+let history (e:epoch) (rw:StatefulLHAE.rw) s =
     match s with
     | NullState -> TLSFragment.emptyHistory e
     | SomeState(h,_) -> h

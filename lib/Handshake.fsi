@@ -36,7 +36,7 @@ type outgoing =
   | OutIdle of hs_state
   | OutSome of range * HSFragment.fragment * hs_state
   | OutCCS of  range * HSFragment.fragment (* the unique one-byte CCS *) *
-               ConnectionInfo * StatefulAEAD.state * hs_state
+               ConnectionInfo * StatefulLHAE.state * hs_state
   | OutFinished of range * HSFragment.fragment * hs_state
   | OutComplete of range * HSFragment.fragment * hs_state
 val next_fragment: ConnectionInfo  -> hs_state -> outgoing
@@ -56,7 +56,7 @@ val authorize: ConnectionInfo -> hs_state -> Cert.chain -> incoming
 
 [<NoEquality;NoComparison>]
 type incomingCCS =
-  | InCCSAck of ConnectionInfo * StatefulAEAD.state * hs_state
+  | InCCSAck of ConnectionInfo * StatefulLHAE.state * hs_state
   | InCCSError of alertDescription * string * hs_state
 val recv_ccs     : ConnectionInfo -> hs_state -> range -> HSFragment.fragment -> incomingCCS
 

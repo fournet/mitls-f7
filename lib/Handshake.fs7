@@ -4,7 +4,7 @@ open Bytes
 open Error
 open TLSInfo
 open Range
-open StatefulAEAD
+open StatefulLHAE
 open TLSConstants
 open TLSExtensions
 
@@ -707,15 +707,15 @@ type serverState =  (* note that the CertRequest bits are determined by the conf
 
    | CertificateVerify            of (si:SessionInfo * (;si)PRF.masterSecret * l:log){ServerLogBeforeClientCertificateVerify(si,l)}
    | ClientCCS                    of (si:SessionInfo * (;si)PRF.masterSecret * l:log){ServerLogBeforeClientFinished(si,l)}
-   | ClientFinished               of (si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * (;e)StatefulAEAD.writer * l:log){
+   | ClientFinished               of (si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * (;e)StatefulLHAE.writer * l:log){
                                        EpochSI(e)=si /\ ServerLogBeforeClientFinished(si,l)}
    (* by convention, the parameters are named si, cv, cr', sr', ms, log *)
-   | ServerWritingCCS             of (si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * (;e)StatefulAEAD.writer * cVerifyData * l:log){
+   | ServerWritingCCS             of (si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * (;e)StatefulLHAE.writer * cVerifyData * l:log){
                                        EpochSI(e)=si /\ ServerLogBeforeServerFinished(si,l)}
    | ServerWritingFinished        of si:SessionInfo * (;si)PRF.masterSecret * cVerifyData * sVerifyData
 
-   | ServerWritingCCSResume       of (ew:succEpoch * (;ew)StatefulAEAD.writer * er:succEpoch * (;er)StatefulAEAD.reader * (;epochSI(ew))PRF.masterSecret * l:log){EpochSI(ew)=EpochSI(er) /\ ServerLogBeforeServerFinishedResume(EpochSI(ew),l)}
-   | ClientCCSResume              of e:succEpoch * (;e)StatefulAEAD.reader * sVerifyData * (;EpochSI(e))PRF.masterSecret * l:log{ServerLogBeforeClientFinishedResume(EpochSI(e),l)}
+   | ServerWritingCCSResume       of (ew:succEpoch * (;ew)StatefulLHAE.writer * er:succEpoch * (;er)StatefulLHAE.reader * (;epochSI(ew))PRF.masterSecret * l:log){EpochSI(ew)=EpochSI(er) /\ ServerLogBeforeServerFinishedResume(EpochSI(ew),l)}
+   | ClientCCSResume              of e:succEpoch * (;e)StatefulLHAE.reader * sVerifyData * (;EpochSI(e))PRF.masterSecret * l:log{ServerLogBeforeClientFinishedResume(EpochSI(e),l)}
    | ClientFinishedResume         of si:SessionInfo * (;si)PRF.masterSecret * sVerifyData * log
 
    | ServerIdle                   of cVerifyData * sVerifyData
@@ -746,13 +746,13 @@ type clientState =
    | ServerHelloDoneDH_anon of SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * log
 
    | ClientWritingCCS       of si:SessionInfo * (;si)PRF.masterSecret * l:log{ClientLogBeforeClientFinished(si,l)}
-   | ServerCCS              of (si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * (;e)StatefulAEAD.reader * cVerifyData * l:log){ EpochSI(e)=si  
+   | ServerCCS              of (si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * (;e)StatefulLHAE.reader * cVerifyData * l:log){ EpochSI(e)=si  
        /\ ClientLogBeforeServerFinished(si,l) }
    | ServerFinished         of si:SessionInfo * (;si)PRF.masterSecret * cVerifyData * l:log{ClientLogBeforeServerFinished(si,l)}
 
-   | ServerCCSResume        of (ew:succEpoch * (;ew)StatefulAEAD.writer * er:succEpoch * (;er)StatefulAEAD.reader * (;EpochSI(ew))PRF.masterSecret * l:log){EpochSI(ew)=EpochSI(er) /\ ClientLogBeforeServerFinsihedResume(EpochSI(ew),l)}
-   | ServerFinishedResume   of e:succEpoch * (;e)StatefulAEAD.writer * (;EpochSI(e))PRF.masterSecret * l:log{ClientLogBeforeServerFinsihedResume(EpochSI(e),l)}
-   | ClientWritingCCSResume of e:succEpoch * (;e)StatefulAEAD.writer * (;EpochSI(e))PRF.masterSecret * sVerifyData * l:log{ClientLogBeforeClientFinishedResume(EpochSI(e),l)}
+   | ServerCCSResume        of (ew:succEpoch * (;ew)StatefulLHAE.writer * er:succEpoch * (;er)StatefulLHAE.reader * (;EpochSI(ew))PRF.masterSecret * l:log){EpochSI(ew)=EpochSI(er) /\ ClientLogBeforeServerFinsihedResume(EpochSI(ew),l)}
+   | ServerFinishedResume   of e:succEpoch * (;e)StatefulLHAE.writer * (;EpochSI(e))PRF.masterSecret * l:log{ClientLogBeforeServerFinsihedResume(EpochSI(e),l)}
+   | ClientWritingCCSResume of e:succEpoch * (;e)StatefulLHAE.writer * (;EpochSI(e))PRF.masterSecret * sVerifyData * l:log{ClientLogBeforeClientFinishedResume(EpochSI(e),l)}
    | ClientWritingFinishedResume of cVerifyData * sVerifyData
 
    | ClientIdle             of cVerifyData * sVerifyData
@@ -836,7 +836,7 @@ type (;ci:ConnectionInfo, hs:(;ci) hs_state) outgoing =
   | OutIdle of s':(;ci,Config(ci,hs))nextState
   | OutSome of (rg:range * f:(;ci.id_out,rg)HSFragment.fragment * s':(;ci,Config(ci,hs))nextState)
   | OutCCS of  (rg:range * f:(;ci.id_out,rg)HSFragment.fragment * 
-               ci':ConnectionInfo * cs:(;ci'.id_out)StatefulAEAD.state * s':(;ci',Config(ci,hs))nextState)
+               ci':ConnectionInfo * cs:(;ci'.id_out)StatefulLHAE.state * s':(;ci',Config(ci,hs))nextState)
                { StatefulPlain.EmptyHistory(ci'.id_out,cs.history) /\ 
                  ci.id_out = Pred(ci'.id_out) /\
                  ci.id_in = ci'.id_in /\
@@ -860,7 +860,7 @@ val authorize:     ci:ConnectionInfo -> s:(;ci)hs_state ->
                    c:Cert.chain -> (;ci,Config(ci,s))incoming
 
 type (;ci:ConnectionInfo,c:config)incomingCCS =
-  | InCCSAck of ci':ConnectionInfo * (;ci'.id_in)StatefulAEAD.state * (;ci',c)nextState
+  | InCCSAck of ci':ConnectionInfo * (;ci'.id_in)StatefulLHAE.state * (;ci',c)nextState
 				{ci.id_out = ci'.id_out /\ ci.id_in = Pred(ci'.id_in)}
   | InCCSError of alertDescription * string * (;ci,c)nextState
 val recv_ccs     : ci:ConnectionInfo -> s:(;ci)hs_state -> rg:range -> (;ci.id_in,rg)HSFragment.fragment -> 

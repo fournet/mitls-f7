@@ -53,8 +53,8 @@ let keyGen ci (ms:masterSecret) =
         match tryFind (fun el-> fst el = (epochs ci,ms)) !log with
         | Some(_,(cWrite,cRead)) -> (cWrite,cRead)
         | None                    -> 
-            let (myWrite,peerRead) = StatefulAEAD.GEN ci.id_out
-            let (peerWrite,myRead) = StatefulAEAD.GEN ci.id_in 
+            let (myWrite,peerRead) = StatefulLHAE.GEN ci.id_out
+            let (peerWrite,myRead) = StatefulLHAE.GEN ci.id_in 
             log := ((epochs ci,ms),(peerWrite,peerRead))::!log;
             (myWrite,myRead)
     else 
@@ -66,11 +66,11 @@ let keyGen ci (ms:masterSecret) =
             let ck,sk = split b macKeySize 
             match ci.role with 
             | Client ->
-                (StatefulAEAD.COERCE ci.id_out StatefulAEAD.WriterState ck,
-                 StatefulAEAD.COERCE ci.id_in  StatefulAEAD.ReaderState sk)
+                (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState ck,
+                 StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState sk)
             | Server ->
-                (StatefulAEAD.COERCE ci.id_out StatefulAEAD.WriterState sk,
-                 StatefulAEAD.COERCE ci.id_in  StatefulAEAD.ReaderState ck)
+                (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState sk,
+                 StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState ck)
         | MtE(encAlg,macAlg) ->
             let macKeySize = macKeySize macAlg in
             let encKeySize = encKeySize encAlg in
@@ -84,11 +84,11 @@ let keyGen ci (ms:masterSecret) =
                 let sk = (smkb @| sekb) in
                 match ci.role with 
                 | Client ->
-                    (StatefulAEAD.COERCE ci.id_out StatefulAEAD.WriterState ck,
-                     StatefulAEAD.COERCE ci.id_in  StatefulAEAD.ReaderState sk)
+                    (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState ck,
+                     StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState sk)
                 | Server ->
-                    (StatefulAEAD.COERCE ci.id_out StatefulAEAD.WriterState sk,
-                     StatefulAEAD.COERCE ci.id_in  StatefulAEAD.ReaderState ck)
+                    (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState sk,
+                     StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState ck)
             | CBC_Stale(alg) ->
                 let ivsize = blockSize alg
                 let cmkb, b = split b macKeySize in
@@ -100,11 +100,11 @@ let keyGen ci (ms:masterSecret) =
                 let sk = (smkb @| sekb @| sivb) in
                 match ci.role with 
                 | Client ->
-                    (StatefulAEAD.COERCE ci.id_out StatefulAEAD.WriterState ck,
-                     StatefulAEAD.COERCE ci.id_in  StatefulAEAD.ReaderState sk)
+                    (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState ck,
+                     StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState sk)
                 | Server ->
-                    (StatefulAEAD.COERCE ci.id_out StatefulAEAD.WriterState sk,
-                     StatefulAEAD.COERCE ci.id_in  StatefulAEAD.ReaderState ck)
+                    (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState sk,
+                     StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState ck)
         | _ -> unexpectedError "[keyGen] invoked on unsupported ciphersuite"
 
 

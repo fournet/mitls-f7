@@ -17,11 +17,11 @@ val repr:  epoch -> nat -> plain -> bytes
 type parsed
 type tag
 
-val mac: epoch -> MAC.key -> AEADPlain.adata -> range -> AEADPlain.plain -> tag
-val verify: epoch -> MAC.key -> AEADPlain.adata -> range -> parsed -> AEADPlain.plain Result
+val mac: epoch -> MAC.key -> LHAEPlain.adata -> range -> LHAEPlain.plain -> tag
+val verify: epoch -> MAC.key -> LHAEPlain.adata -> range -> parsed -> LHAEPlain.plain Result
 
-val encode: epoch -> nat -> range -> AEADPlain.adata -> AEADPlain.plain -> tag -> plain
-val encodeNoPad: epoch -> nat -> range -> AEADPlain.adata -> AEADPlain.plain -> tag -> plain
+val encode: epoch -> nat -> range -> LHAEPlain.adata -> LHAEPlain.plain -> tag -> plain
+val encodeNoPad: epoch -> nat -> range -> LHAEPlain.adata -> LHAEPlain.plain -> tag -> plain
 
-val decode: epoch -> AEADPlain.adata -> range -> nat -> plain -> parsed
-val decodeNoPad: epoch -> AEADPlain.adata -> range -> nat -> plain -> parsed
+val decode: epoch -> LHAEPlain.adata -> range -> nat -> plain -> parsed
+val decodeNoPad: epoch -> LHAEPlain.adata -> range -> nat -> plain -> parsed

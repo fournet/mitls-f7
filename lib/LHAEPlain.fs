@@ -1,4 +1,4 @@
-module AEADPlain
+module LHAEPlain
 open Bytes
 open Error
 open TLSConstants
@@ -33,8 +33,8 @@ let reprFragment (e:epoch) (ad:adata) (rg:range) p =
 
 let repr e ad rg p = reprFragment e ad rg p
 
-let StatefulPlainToAEADPlain (e:epoch) (h:StatefulPlain.history) (ad:adata) (r:range) f = {contents = f}
-let AEADPlainToStatefulPlain (e:epoch) (h:StatefulPlain.history) (ad:adata) (r:range) f = f.contents
+let StatefulPlainToLHAEPlain (e:epoch) (h:StatefulPlain.history) (ad:adata) (r:range) f = {contents = f}
+let LHAEPlainToStatefulPlain (e:epoch) (h:StatefulPlain.history) (ad:adata) (r:range) f = f.contents
 
 #if ideal
 let widen e ad r f =

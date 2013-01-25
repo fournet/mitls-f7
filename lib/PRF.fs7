@@ -4,7 +4,7 @@ module PRF
 
 open Bytes
 open TLSInfo
-open StatefulAEAD
+open StatefulLHAE
 
 type repr = (;48)lbytes
 private type (;si:SessionInfo) masterSecret = {bytes: repr}
@@ -19,8 +19,8 @@ val coerce: si:SessionInfo{not SafeHS_SI(si)} -> repr -> (;si)masterSecret
 // - the seed (crandom @| srandom) is retrieved from the epoch
 
 val keyGen: ci:ConnectionInfo -> (;EpochSI(ci.id_out))masterSecret -> 
-  ( w:(;ci.id_out)StatefulAEAD.writer * 
-    r:(;ci.id_in) StatefulAEAD.reader )
+  ( w:(;ci.id_out)StatefulLHAE.writer * 
+    r:(;ci.id_in) StatefulLHAE.reader )
   { StatefulPlain.EmptyHistory(ci.id_out,w.history) /\
     StatefulPlain.EmptyHistory(ci.id_in,r.history)}
 

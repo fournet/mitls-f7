@@ -1,4 +1,4 @@
-﻿module AEAD
+﻿module LHAE
 
 open Bytes
 
@@ -11,7 +11,7 @@ type cipher = bytes
 
 (***** keying *****) 
 
-type AEADKey =
+type LHAEKey =
     | MtEK of MAC.key * ENC.state
     | MACOnlyK of MAC.key
 (*  | GCM of AENC.state  *)
@@ -153,12 +153,12 @@ let decrypt' e key data cipher =
 
 #if ideal
 
-type preds = | ENCrypted of epoch * AEADPlain.adata * range * AEADPlain.plain * cipher
+type preds = | ENCrypted of epoch * LHAEPlain.adata * range * LHAEPlain.plain * cipher
 
-type entry = epoch * AEADPlain.adata * range * AEADPlain.plain * ENC.cipher
+type entry = epoch * LHAEPlain.adata * range * LHAEPlain.plain * ENC.cipher
 let log = ref ([]: entry list) // the semantics of CTXT
 
-let rec cmem (e:epoch) (ad:AEADPlain.adata) (c:ENC.cipher) (xs: entry list) = failwith "verify"
+let rec cmem (e:epoch) (ad:LHAEPlain.adata) (c:ENC.cipher) (xs: entry list) = failwith "verify"
 //  match xs with
 //  | (e',ad',r,p,c')::_ when e=e' && ad=ad' && c=c' -> let x = (r,p) in Some x
 //  | _::xs                  -> cmem e ad c xs 
@@ -171,14 +171,14 @@ let safe (e:epoch) = failwith "todo"
 let encrypt e key data rg plain = 
   let (key,cipher) = encrypt' e key data rg plain in
   #if ideal
-  let p' = AEADPlain.widen e data rg plain in
+  let p' = LHAEPlain.widen e data rg plain in
   let rg' = rangeClass e rg in
   Pi.assume(ENCrypted(e,data,rg',p',cipher));
   log := (e,data,rg',p',cipher)::!log;
   #endif
   (key,cipher)
 
-let decrypt e (key: AEADKey) data (cipher: bytes) =  
+let decrypt e (key: LHAEKey) data (cipher: bytes) =  
   #if ideal
   if safe e then
     match cmem e data cipher !log with

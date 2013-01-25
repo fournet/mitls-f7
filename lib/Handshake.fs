@@ -531,13 +531,13 @@ type serverState =  (* note that the CertRequest bits are determined by the conf
 
    | CertificateVerify            of SessionInfo * PRF.masterSecret * log 
    | ClientCCS                    of SessionInfo * PRF.masterSecret * log
-   | ClientFinished               of SessionInfo * PRF.masterSecret * epoch * StatefulAEAD.writer * log
+   | ClientFinished               of SessionInfo * PRF.masterSecret * epoch * StatefulLHAE.writer * log
    (* by convention, the parameters are named si, cv, cr', sr', ms, log *)
-   | ServerWritingCCS             of SessionInfo * PRF.masterSecret * epoch * StatefulAEAD.writer * cVerifyData * log
+   | ServerWritingCCS             of SessionInfo * PRF.masterSecret * epoch * StatefulLHAE.writer * cVerifyData * log
    | ServerWritingFinished        of SessionInfo * PRF.masterSecret * cVerifyData * sVerifyData
 
-   | ServerWritingCCSResume       of epoch * StatefulAEAD.writer * epoch * StatefulAEAD.reader * PRF.masterSecret * log
-   | ClientCCSResume              of epoch * StatefulAEAD.reader * sVerifyData * PRF.masterSecret * log
+   | ServerWritingCCSResume       of epoch * StatefulLHAE.writer * epoch * StatefulLHAE.reader * PRF.masterSecret * log
+   | ClientCCSResume              of epoch * StatefulLHAE.reader * sVerifyData * PRF.masterSecret * log
    | ClientFinishedResume         of SessionInfo * PRF.masterSecret * sVerifyData * log
 
    | ServerIdle                   of cVerifyData * sVerifyData
@@ -568,12 +568,12 @@ type clientState =
    | ServerHelloDoneDH_anon of SessionInfo * DHGroup.p * DHGroup.g * DHGroup.elt * log
 
    | ClientWritingCCS       of SessionInfo * PRF.masterSecret * log
-   | ServerCCS              of SessionInfo * PRF.masterSecret * epoch * StatefulAEAD.reader * cVerifyData * log
+   | ServerCCS              of SessionInfo * PRF.masterSecret * epoch * StatefulLHAE.reader * cVerifyData * log
    | ServerFinished         of SessionInfo * PRF.masterSecret * cVerifyData * log
 
-   | ServerCCSResume        of epoch * StatefulAEAD.writer * epoch * StatefulAEAD.reader * PRF.masterSecret * log
-   | ServerFinishedResume   of epoch * StatefulAEAD.writer * PRF.masterSecret * log
-   | ClientWritingCCSResume of epoch * StatefulAEAD.writer * PRF.masterSecret * sVerifyData * log
+   | ServerCCSResume        of epoch * StatefulLHAE.writer * epoch * StatefulLHAE.reader * PRF.masterSecret * log
+   | ServerFinishedResume   of epoch * StatefulLHAE.writer * PRF.masterSecret * log
+   | ClientWritingCCSResume of epoch * StatefulLHAE.writer * PRF.masterSecret * sVerifyData * log
    | ClientWritingFinishedResume of cVerifyData * sVerifyData
 
    | ClientIdle             of cVerifyData * sVerifyData
@@ -759,7 +759,7 @@ type outgoing =
   | OutIdle of nextState
   | OutSome of range * HSFragment.fragment * nextState
   | OutCCS of  range * HSFragment.fragment (* the unique one-byte CCS *) *
-               ConnectionInfo * StatefulAEAD.state * nextState
+               ConnectionInfo * StatefulLHAE.state * nextState
   | OutFinished of range * HSFragment.fragment * nextState
   | OutComplete of range * HSFragment.fragment * nextState
 
@@ -874,7 +874,7 @@ type incoming = (* the fragment is accepted, and... *)
   | InError of alertDescription * string * hs_state
 
 type incomingCCS =
-  | InCCSAck of ConnectionInfo * StatefulAEAD.state * hs_state
+  | InCCSAck of ConnectionInfo * StatefulLHAE.state * hs_state
   | InCCSError of alertDescription * string * hs_state
 
 

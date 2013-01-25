@@ -10,7 +10,7 @@ type masterSecret
 val sample: SessionInfo -> masterSecret
 #endif
 
-val keyGen: ConnectionInfo -> masterSecret -> StatefulAEAD.writer * StatefulAEAD.reader
+val keyGen: ConnectionInfo -> masterSecret -> StatefulLHAE.writer * StatefulLHAE.reader
 
 val makeVerifyData:  epoch -> Role -> masterSecret -> bytes -> bytes 
 val checkVerifyData: epoch -> Role -> masterSecret -> bytes -> bytes -> bool

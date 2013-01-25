@@ -1,4 +1,4 @@
-﻿module StatefulAEAD
+﻿module StatefulLHAE
 
 open Bytes
 open Error

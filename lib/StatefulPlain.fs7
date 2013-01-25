@@ -72,7 +72,7 @@ private definition !e,sh,ct,r,f.
 	StAESent(e,ADBytes(e,ct),sh,r,f) <=> TLSFragment.RecordSent(e,ct,Multiplexed(e,sh),r,f.contents)
 
 //------------------------------------------------------------------------------------------------------
-// `Plain' interface towards StatefulAEAD, encapsulating TLS-specific headers and content types
+// `Plain' interface towards StatefulLHAE, encapsulating TLS-specific headers and content types
 //------------------------------------------------------------------------------------------------------
 
 type (;e:epoch,ad:(;e)adata,h:(;e)history,r:range) plain =
