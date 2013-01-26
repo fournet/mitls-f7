@@ -1014,6 +1014,7 @@ let on_serverHello_full crand log to_log (shello:ProtocolVersion * srand * sessi
                init_crand = crand
                init_srand = sh_random
                pmsData = PMSUnset
+               extended_record_padding = false
                } in
     (* If DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
     if isAnonCipherSuite sh_cipher_suite then
@@ -1572,7 +1573,8 @@ let startServerFull (ci:ConnectionInfo) state (cHello:ProtocolVersion * crand * 
                            compression      = cm
                            init_crand       = ch_random
                            init_srand       = srand
-                           pmsData          = PMSUnset }
+                           pmsData          = PMSUnset
+                           extended_record_padding = false }
                 prepare_server_output_full ci state si ch_client_version cvd svd log
             | None -> Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Compression method negotiation")
         | None ->     Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Ciphersuite negotiation")
