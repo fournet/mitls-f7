@@ -5,7 +5,7 @@ version  ?= 0.1
 name      = miTLS
 distname  = $(name)-$(version)
 
-subdirs  += 3rdparty CoreCrypto lib TLSharp
+subdirs  += 3rdparty CoreCrypto DB lib TLSharp
 subdirs  += HttpServer echo rpc
 subdirs  += www-data
 

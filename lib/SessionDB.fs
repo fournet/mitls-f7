@@ -1,110 +1,125 @@
 ﻿module SessionDB
 
-open TLSInfo
 open System.IO
 open System.Runtime.Serialization.Formatters.Binary
-open System.Threading
 
-type SessionDB =
-    { filename: string;
-      expiry: Bytes.TimeSpan}
+open Bytes
+open TLSInfo
+
+(* ------------------------------------------------------------------------------- *)
+type SessionDB = {
+    filename: string;
+      expiry: Bytes.TimeSpan;
+}
+
 type SessionIndex = sessionID * Role * Cert.hint
-
-(* Lock Policy:
-   - Never acquire lock in basic load/store functions.
-   - Upper level functions acquire read/upgradeable read/write lock as appropriate *)
-let DBLock = new ReaderWriterLockSlim()
-
 type StorableSession = SessionInfo * PRF.masterSecret
 
-let load filename =
-    let bf = new BinaryFormatter() in
-    use file = new FileStream(  filename,
-                                FileMode.Open, (* Never overwrite, and fail if not exists *)
-                                FileAccess.Read,
-                                FileShare.ReadWrite) in
-    let map = bf.Deserialize(file) :?> Map<SessionIndex,(StorableSession * Bytes.DateTime)> in
-    map
+(* ------------------------------------------------------------------------------- *)
+module Option =
+    let filter (f : 'a -> bool) (x : 'a option) =
+        match x with
+        | None -> None
+        | Some x when f x -> Some x
+        | Some x -> None
 
-let store filename (map:Map<SessionIndex,(StorableSession * Bytes.DateTime)>) =
-    let bf = new BinaryFormatter() in
-    use file = new FileStream(  filename,
-                                FileMode.Create, (* Overwrite file, or create if it does not exists *)
-                                FileAccess.Write,
-                                FileShare.ReadWrite) in
-    bf.Serialize(file,map)
+(* ------------------------------------------------------------------------------- *)
+let bytes_of_key (k : SessionIndex) =
+    let bf = new BinaryFormatter () in
+    let m  = new MemoryStream () in
+        bf.Serialize(m, k); m.ToArray ()
 
+let key_of_bytes (k : bytes) =
+    let bf = new BinaryFormatter () in
+    let m  = new MemoryStream(k) in
+    
+        bf.Deserialize(m) :?> SessionIndex
+
+let bytes_of_value (k : StorableSession * DateTime) =
+    let bf = new BinaryFormatter () in
+    let m  = new MemoryStream () in
+        bf.Serialize(m, k); m.ToArray ()
+
+let value_of_bytes (k : bytes) =
+    let bf = new BinaryFormatter () in
+    let m  = new MemoryStream(k) in
+    
+        bf.Deserialize(m) :?> (StorableSession * DateTime)
+
+(* ------------------------------------------------------------------------------- *)
 let create poptions =
-    let self = {filename = poptions.sessionDBFileName;
-                expiry = poptions.sessionDBExpiry} in
-    if File.Exists (self.filename) then
-        self
-    else
-        DBLock.EnterWriteLock()
-        try
-            let map = Map.empty<SessionIndex,(StorableSession * Bytes.DateTime)> in
-            store self.filename map
-            self
-        finally
-            DBLock.ExitWriteLock()
+    let self = {
+        filename = poptions.sessionDBFileName;
+          expiry = poptions.sessionDBExpiry;
+    }
 
+    DB.closedb (DB.opendb self.filename)
+    self
+
+(* ------------------------------------------------------------------------------- *)
 let remove self key =
-    DBLock.EnterWriteLock()
+    let key = bytes_of_key key in
+    let db  = DB.opendb self.filename in
+
     try
-        let map = load self.filename in
-        let map = Map.remove key map in
-        store self.filename map
+        DB.tx db (fun db -> ignore (DB.remove db key));
         self
     finally
-        DBLock.ExitWriteLock()
+        DB.closedb db
 
+(* ------------------------------------------------------------------------------- *)
 let select self key =
-    DBLock.EnterUpgradeableReadLock()
-    try
-        let map = load self.filename in
-        match Map.tryFind key map with
-        | None ->
-            None
-        | Some (sinfo,ts) ->
-            (* Check timestamp validity *) 
+    let key = bytes_of_key key in
+
+    let select (db : DB.db) =
+        let filter_record ((sinfo, ts) : StorableSession * _) =
             let expires = Bytes.addTimeSpan ts self.expiry in
+
             if Bytes.greaterDateTime expires (Bytes.now()) then
-                Some (sinfo)
+                Some sinfo
             else
-                (* Remove will upgrade to the Write Lock *)
-                let self = remove self key in
+                ignore (DB.remove db key);
                 None
-    finally
-        DBLock.ExitUpgradeableReadLock()
+        in
 
+        DB.get db key
+            |> Option.map value_of_bytes
+            |> Option.bind filter_record
+
+    let db  = DB.opendb self.filename in
+
+    try
+        DB.tx db select
+    finally
+        DB.closedb db
+
+(* ------------------------------------------------------------------------------- *)
 let insert self key value =
-    DBLock.EnterUpgradeableReadLock()
-    try
-        let map = load self.filename in
-        (* If the session is already in the store, don't do anything.
-           However, do _not_ use select to check availavility, or an expired
-           session will be removed by select, and then re-added by us.
-           Make direct access to the map instead *)
-        match Map.tryFind key map with
-        | Some (sinfo,ts) ->
-            self
-        | None ->
-            DBLock.EnterWriteLock()
-            try 
-                let map = Map.add key (value,Bytes.now()) map in
-                store self.filename map
-                self
-            finally
-                DBLock.ExitWriteLock()
-    finally
-        DBLock.ExitUpgradeableReadLock()
+    let key = bytes_of_key key in
 
-let getAllStoredIDs self =
-    DBLock.EnterReadLock()
+    let insert (db : DB.db) =
+        match DB.get db key with
+        | Some _ -> ()
+        | None   -> DB.put db key (bytes_of_value (value, Bytes.now ()))
+    in
+    
+    let db = DB.opendb self.filename in
+    
     try
-        let map = load self.filename in
-        let mapList = Map.toList map in
-        let res = List.map (fun (x,y) -> x) mapList in
-        res
+        DB.tx db insert; self
     finally
-        DBLock.ExitReadLock()
+        DB.closedb db
+
+(* ------------------------------------------------------------------------------- *)
+let getAllStoredIDs self =
+    let aout =
+        let db   = DB.opendb self.filename in
+    
+        try
+            DB.tx db (fun db -> DB.all db)
+        finally
+            DB.closedb db
+    in
+        List.map
+          (fun (k, v) -> (key_of_bytes k, value_of_bytes v))
+          aout

@@ -46,6 +46,7 @@ def parser(mode):
 
 # --------------------------------------------------------------------
 def filter_hashes(input):
+    tokeep = ["mono"]
     hif    = re.compile(r'^\s*#\s*if\s+(\w+)\s*$')
     helse  = re.compile(r'^\s*#\s*else\b')
     hend   = re.compile(r'^\s*#\s*endif\b')
@@ -60,15 +61,27 @@ def filter_hashes(input):
 
         if m is not None:
             if i == 0:
-                hashes.append((m.group(1), True))
+                hashes.append(Object(
+                        name   = m.group(1),
+                        inthen = True,
+                        tokeep = m.group(1) in tokeep))
+                if hashes[-1].tokeep:
+                    output.append(line)
+
             elif i == 1:
-                if hashes and hashes[-1][1]:
-                    hashes[-1] = (hashes[-1][0], False)
+                if hashes and hashes[-1].inthen:
+                    hashes[-1].inthen = False
+                if hashes[-1].tokeep:
+                    output.append(line)
+
             elif i == 2:
                 if hashes:
+                    if hashes[-1].tokeep:
+                        output.append(line)
                     hashes.pop()
+
         else:
-            if all([not x[1] for x in hashes]):
+            if all([not x.inthen or x.tokeep for x in hashes]):
                 output.append(line)
 
     return output

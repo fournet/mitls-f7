@@ -275,6 +275,11 @@
       <Name>CoreCrypto</Name>
       <Project>{6d4e3f46-dbf9-473b-93ba-58614114aa57}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\DB\DB.fsproj">
+      <Name>DB</Name>
+      <Project>{cad78b05-0adc-433b-954b-1f31fc6477f6}</Project>
+      <Private>True</Private>
+    </ProjectReference>
   </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
 	     Other similar extension points exist, see Microsoft.Common.targets.
