@@ -213,12 +213,9 @@ and HttpServer (localaddr : IPEndPoint, config : HttpServerConfig) =
                         thread.IsBackground <- true;
                         thread.Start()
                 with
-                | :? IOException as e ->
-                    noexn (fun () -> peer.Close())                    
-                    Console.WriteLine(e.Message)
                 | e ->
-                    noexn (fun () -> peer.Close())                    
-                    raise e
+                    noexn (fun () -> peer.Close())
+                    Console.WriteLine(e.Message)
 
     member self.Start () =
         if socket <> null then begin
