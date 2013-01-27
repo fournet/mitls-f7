@@ -20,12 +20,12 @@ private type (;ki:epoch) LHAEKey =
 
 function val LHAESize: ki:epoch -> nat
 private definition !ki,si,enc,mac. si = EpochSI(ki) =>
-	( CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MACOnly(mac) =>
+	(( CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MACOnly(mac) =>
 	  LHAESize(ki) = MacSize(mac) ) /\
-	( CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(enc,mac) =>
+	 ( CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(enc,mac) =>
 	  LHAESize(ki) = MacSize(mac) +
 					    EncKeySize(enc) +
-					    Range.IVSize(ki) )
+					    Range.IVSize(ki) ))
 
 //CF '13 who wrote this? when? 
 //TODO Why is this failing? Because of LHAESize not being what I want, I cannot typecheck COERCE.
@@ -39,10 +39,9 @@ private val mteKey: ki:epoch -> (;ki) MAC.key -> (;ki) ENC.state -> (;ki) LHAEKe
 
 //FIXME: next two should be ask
 private assume !e,si. si = EpochSI(e) =>
-	( si.protocol_version = SSL_3p0 \/ si.protocol_version = TLS_1p0
+	( (si.protocol_version = SSL_3p0 \/ si.protocol_version = TLS_1p0)
 		=> IVSize(e) = 0 ) /\
-	( si.protocol_version = TLS_1p1 \/ si.protocol_version = TLS_1p2
-		=> IVSize(e) = BlockSize(CipherSuiteENCAlg(si.cipher_suite,si.protocol_version)) )
+	( (si.protocol_version = TLS_1p1 \/ si.protocol_version = TLS_1p2) 		=> IVSize(e) = EncAlgBlockSize(CipherSuiteENCAlg(si.cipher_suite,si.protocol_version)) )
 private assume !e,si,tlen,enc,mac. si = EpochSI(e) =>
 	( CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MACOnly(mac) => Encode.PlainLength(e,tlen) = tlen ) /\
     ( CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(enc,mac) /\ tlen >= IVSize(e) =>

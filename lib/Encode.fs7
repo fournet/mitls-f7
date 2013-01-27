@@ -75,11 +75,11 @@ predicate val Encoded: 'e * 'a * 'b * 'c * 'd -> bool
 private val pad: l:int { 0 < l /\ l <= 256 } -> b:bytes{Length(b) = l}
 //CF we will need a more precise refinement for the MEE proof 
 
-val encode: e:succEpoch{IsAEADCiphersuite(EpochSI(e).cipher_suite)} ->
+val encode: e:succEpoch -> 
     tlen:nat{tlen <= max_TLSCipher_fragment_length} -> rg:range{tlen = TargetLength(e,rg)} ->
 	ad:(;e) LHAEPlain.adata -> pl:(;e,ad,rg) LHAEPlain.plain -> tag:(;e) tag ->
 	p:(;e,tlen) plain{Encoded(e,ad,pl,tag,p)}
-val decode: e:succEpoch{IsAEADCiphersuite(EpochSI(e).cipher_suite)} ->
+val decode: e:succEpoch -> 
 	ad:(;e) LHAEPlain.adata -> rg:range ->
 	tlen:nat{tlen - IVSize(e) >= ( MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) + 1) /\
 	tlen = TargetLength(e,rg)} ->
@@ -89,13 +89,11 @@ val decode: e:succEpoch{IsAEADCiphersuite(EpochSI(e).cipher_suite)} ->
 // private definition Decoded(e,ad,ps) <=> (Encoded(e,ad,ps.plain,ps.tag,p) => ps.ok = true)
 
 //CF why do we need "NoPad" variants again? 
-val encodeNoPad: e:succEpoch{IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/
-                    CipherSuiteENCAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = Stream_RC4_128} ->
+val encodeNoPad: e:succEpoch ->
 	tlen:nat{tlen <= max_TLSCipher_fragment_length} -> rg:range{tlen = TargetLength(e,rg)} ->
 	ad:(;e) LHAEPlain.adata -> (;e,ad,rg) LHAEPlain.plain -> (;e) tag ->
 	(;e,tlen) plain
-val decodeNoPad: e:succEpoch{IsOnlyMACCiphersuite(EpochSI(e).cipher_suite) \/
-                    CipherSuiteENCAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = Stream_RC4_128} ->
+val decodeNoPad: e:succEpoch ->
 	ad:(;e) LHAEPlain.adata -> rg:range ->
 	tlen:nat{tlen >= MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) /\
 	tlen = TargetLength(e,rg)} -> (;e,tlen) plain ->

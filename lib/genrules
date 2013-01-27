@@ -28,9 +28,9 @@ AppFragment.tc7 \
 HSFragment.tc7 \
 TLSFragment.tc7 \
 StatefulPlain.tc7 \
-AEADPlain.tc7 \
-AEAD.tc7 \
-StatefulAEAD.tc7 \
+LHAEPlain.tc7 \
+LHAE.tc7 \
+StatefulLHAE.tc7 \
 Record.tc7
 
 # pending: TLSConstants.tc7 Range.tc7 RSAKeys.tc7 Encode.tc7 AppData.tc7 Alert.tc7 Dispatch.tc7 TLS.tc7

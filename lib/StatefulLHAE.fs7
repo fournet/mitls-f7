@@ -64,7 +64,7 @@ val decrypt: ki:succEpoch ->
                (   History(ki,ReaderState,nrd) = StatefulPlain.ExtendHistory(ki,ad,History(ki,ReaderState,rd),rg,f) /\
                    rg = CipherRangeClass(ki,Length(c)) /\
  	         (Safe(ki) =>
-				( (!nrd,rg,f. res = Correct((nrd,rg,f)) => ENCrypted(ki,History(ki,ReaderState,rd),rg,ad,StatefulPlain.Payload(ki,ad,rg,f),c)) // /\
+				( (!nrd,rg,f. res = Correct((nrd,rg,f)) => ENCrypted(ki,History(ki,ReaderState,rd),ad,rg,StatefulPlain.Payload(ki,ad,rg,f),c)) // /\
 				//  (!rg,p. ENCrypted(ki,rd,ad,rg,StatefulPlain.Payload(ki,ad,rg,p),c) => (?nrd,rg. res = Correct((nrd,rg,p))))
 				)
 			 ) ) }

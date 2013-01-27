@@ -127,6 +127,12 @@ private definition BlockSize(AES_128)	= 16
 private definition BlockSize(AES_256)	= 16
 val blockSize: a:blockCipher -> l:nat {l=BlockSize(a)}
 
+function val EncAlgBlockSize: encAlg -> nat
+assume !x. EncAlgBlockSize(x) >= 0
+private definition !b. EncAlgBlockSize(CBC_Stale(b)) = BlockSize(b)
+private definition !b. EncAlgBlockSize(CBC_Fresh(b)) = BlockSize(b)
+private definition EncAlgBlockSize(Stream_RC4_128) = 0
+
 val aeadKeySize: aeadAlg -> nat
 val aeadIVSize: aeadAlg -> nat
 
@@ -243,7 +249,7 @@ val verifyDataHashAlg_of_ciphersuite: cs:cipherSuite -> hashAlg
 function val CipherSuiteSigAlg: cipherSuite -> sigAlg
 function val CipherSuiteMACAlg: cipherSuite * ProtocolVersion -> macAlg
 function val CipherSuiteENCAlg: cipherSuite * ProtocolVersion -> encAlg
-function val CipherSuiteAuthEncAlg: ciphersuite * ProtocolVersion -> authencAlg
+function val CipherSuiteAuthEncAlg: cipherSuite * ProtocolVersion -> authencAlg
 
 private assume !kex,enc,mac.
 	CipherSuiteMACAlg(CipherSuite(kex,CS_MtE(enc,mac)),SSL_3p0) = MA_SSLKHASH(mac)
@@ -291,10 +297,15 @@ private assume !kex,mac.
 	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(AES_256_CBC,mac)),TLS_1p2) = CBC_Fresh(AES_256)
 
 private assume !kex,mac,pv.
-	CipherSuiteAuthEncAlg(OnlyMACCiphersuite(kex,mac),pv) = MACOnly(CipherSuiteMACAlg(OnlyMACCiphersuite(kex,mac),pv))
+	CipherSuiteAuthEncAlg(OnlyMACCipherSuite(kex,mac),pv) = MACOnly(CipherSuiteMACAlg(OnlyMACCipherSuite(kex,mac),pv))
 private assume !kex,enc,mac,pv.
 	CipherSuiteAuthEncAlg(CipherSuite(kex,CS_MtE(enc,mac)),pv) =
 		MtE(CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(enc,mac)),pv),CipherSuiteMACAlg(CipherSuite(kex,CS_MtE(enc,mac)),pv))
+private assume !cs,pv,ealg,malg.
+	CipherSuiteAuthEncAlg(cs,pv) = MACOnly(malg) => malg = CipherSuiteMACAlg(cs,pv)
+private assume !cs,pv,ealg,malg.
+	CipherSuiteAuthEncAlg(cs,pv) = MtE(ealg,malg) => (ealg = CipherSuiteENCAlg(cs,pv) /\ malg = CipherSuiteMACAlg(cs,pv))
+
 
 val authencAlg_of_ciphersuite: cs:cipherSuite -> pv:ProtocolVersion -> a:authencAlg{a = CipherSuiteAuthEncAlg(cs,pv)}
 val macAlg_of_ciphersuite: cs:cipherSuite -> pv:ProtocolVersion -> h:macAlg{h = CipherSuiteMACAlg(cs,pv)}
