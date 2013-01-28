@@ -28,20 +28,20 @@ let fixedPadSize si =
     if si.extended_record_padding then 2 else 1
 
 let maxPadSize si =
-    if si.extended_record_padding then
-        fragmentLength
-    else
-        let authEnc = authencAlg_of_ciphersuite si.cipher_suite si.protocol_version in
-        match authEnc with
-        | MACOnly _ -> 0
-        | MtE(enc,_) ->
+    let authEnc = authencAlg_of_ciphersuite si.cipher_suite si.protocol_version in
+    match authEnc with
+    | MACOnly _ -> 0
+    | MtE(enc,_) ->
+        if si.extended_record_padding then
+            fragmentLength
+        else
             match enc with
             | Stream_RC4_128 -> 0
             | CBC_Stale(alg) | CBC_Fresh(alg) ->
                 match si.protocol_version with
                 | SSL_3p0 -> blockSize alg
                 | TLS_1p0 | TLS_1p1 | TLS_1p2 -> 255
-        | _ -> Error.unexpectedError "[maxPadSize] invoked on unsupported ciphersuite"
+    | _ -> Error.unexpectedError "[maxPadSize] invoked on unsupported ciphersuite"
 
 let blockAlignPadding e len =
     let si = epochSI(e) in
