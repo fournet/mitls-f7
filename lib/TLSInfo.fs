@@ -141,4 +141,5 @@ let fragmentLength = max_TLSPlaintext_fragment_length (* use e.g. 1 for testing 
 let safe (e:epoch) = failwith "todo" : bool // Define in terms of strength and honesty
 let safeHS (e:epoch) = failwith "todo": bool
 let auth (e:epoch) = failwith "todo": bool
+let MAC_safe (e:epoch) = failwith "todo":bool
 #endif

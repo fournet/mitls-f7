@@ -42,6 +42,8 @@ val tryFind: ('a -> bool) -> 'a list -> 'a option
 #if ideal
 // TODO not in f7
 val find: ('a -> bool) -> 'a list -> 'a
+//val assoc: 'a -> ('a * 'b) list -> 'b option
+//val assoc2_1: ('a*'b) -> ('a * 'b *'c) list -> 'b option
 #endif
 val listLength: ('a list) -> int
 val listHead: ('a list) -> 'a

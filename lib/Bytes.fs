@@ -69,6 +69,12 @@ let rec assoc f l =
       | (f',l')::_ when f=f' -> Some (f)
       | _::l                   -> assoc f l
       | []                       -> None
+let rec assoc2_1 (f1,f2) l =
+    match l with
+      | (f1',f2',v)::_ when f1=f1' && f2=f2' -> Some (v)
+      | _::l                   -> assoc2_1 (f1,f2) l
+      | []                       -> None
+      
 // MK what is the right mem function?
 let mem x l = List.exists (fun y -> x = y) l
 #endif
