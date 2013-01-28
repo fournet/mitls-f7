@@ -11,7 +11,7 @@ type TcpListener
    Does not have an fs7 refinement, as it is not supposed to be used
    by typechecked implementations *)
 
-val create: System.Net.Sockets.NetworkStream -> NetworkStream
+val create: System.IO.Stream -> NetworkStream
 
 (* Server side *)
 

@@ -10,7 +10,7 @@ type TLSBehavior =
     | TLSClient
     | TLSServer
 
-type TLStream(s:System.Net.Sockets.NetworkStream, options, b, ?own) =
+type TLStream(s:System.IO.Stream, options, b, ?own) =
     inherit Stream()
 
     let own = defaultArg own true

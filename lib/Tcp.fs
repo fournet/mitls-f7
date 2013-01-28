@@ -5,10 +5,9 @@ open System.Net.Sockets
 open Bytes
 open Error
 
-type NetworkStream = N of System.Net.Sockets.NetworkStream
+type NetworkStream = N of System.IO.Stream
 type TcpListener = T of System.Net.Sockets.TcpListener
 
-(* Create a network stream from a given stream *)
 let create s = N(s)
 
 (* Server side *)
@@ -43,12 +42,6 @@ let connect addr port =
     connectTimeout 0 addr port
 
 (* Input/Output *)
-
-let dataAvailable (N ns) =
-    try
-        Correct (ns.DataAvailable)
-    with
-        | _ -> Error (AD_internal_error, perror __SOURCE_FILE__ __LINE__ "TCP connection closed")
 
 let rec read_acc (N ns) nbytes prev =
     if nbytes = 0 then
