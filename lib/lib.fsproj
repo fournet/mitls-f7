@@ -101,7 +101,8 @@
     <OutputPath>bin\Debug\</OutputPath>
     <DefineConstants>TRACE;DEBUG</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>lib.xml</DocumentationFile>
+    <DocumentationFile>
+    </DocumentationFile>
     <OtherFlags>
     </OtherFlags>
     <NoWarn>62</NoWarn>
