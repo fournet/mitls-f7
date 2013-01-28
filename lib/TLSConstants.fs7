@@ -246,65 +246,50 @@ val verifyDataLen_of_ciphersuite: cipherSuite -> nat
 val prfMacAlg_of_ciphersuite: cipherSuite  -> macAlg
 val verifyDataHashAlg_of_ciphersuite: cs:cipherSuite -> hashAlg
 
+function val TLSMACAlg: hashAlg   * ProtocolVersion -> macAlg
+function val TLSENCAlg: cipherAlg * ProtocolVersion -> encAlg
+
+private assume !mac. TLSMACAlg(mac,SSL_3p0) = MA_SSLKHASH(mac)
+private assume !mac. TLSMACAlg(mac,TLS_1p0) = MA_HMAC(mac)
+private assume !mac. TLSMACAlg(mac,TLS_1p1) = MA_HMAC(mac)
+private assume !mac. TLSMACAlg(mac,TLS_1p1) = MA_HMAC(mac)
+
+private assume !mac. TLSMACAlg(mac,SSL_3p0) = MA_SSLKHASH(mac)
+private assume !mac. TLSMACAlg(mac,TLS_1p0) = MA_HMAC(mac)
+private assume !mac. TLSMACAlg(mac,TLS_1p1) = MA_HMAC(mac)
+private assume !mac. TLSMACAlg(mac,TLS_1p2) = MA_HMAC(mac)
+
+private assume !pv. TLSENCAlg(RC4_128,pv) = Stream_RC4_128
+private assume TLSENCAlg(TDES_EDE_CBC,SSL_3p0) = CBC_Stale(TDES_EDE)
+private assume TLSENCAlg(TDES_EDE_CBC,TLS_1p0) = CBC_Stale(TDES_EDE)
+private assume TLSENCAlg(AES_128_CBC, SSL_3p0) = CBC_Stale(AES_128)
+private assume TLSENCAlg(AES_128_CBC, TLS_1p0) = CBC_Stale(AES_128)
+private assume TLSENCAlg(AES_256_CBC, SSL_3p0) = CBC_Stale(AES_256)
+private assume TLSENCAlg(AES_256_CBC, TLS_1p0) = CBC_Stale(AES_256)
+private assume TLSENCAlg(TDES_EDE_CBC,TLS_1p1) = CBC_Fresh(TDES_EDE)
+private assume TLSENCAlg(TDES_EDE_CBC,TLS_1p2) = CBC_Fresh(TDES_EDE)
+private assume TLSENCAlg(AES_128_CBC, TLS_1p1) = CBC_Fresh(AES_128)
+private assume TLSENCAlg(AES_128_CBC, TLS_1p2) = CBC_Fresh(AES_128)
+private assume TLSENCAlg(AES_256_CBC, TLS_1p1) = CBC_Fresh(AES_256)
+private assume TLSENCAlg(AES_256_CBC, TLS_1p2) = CBC_Fresh(AES_256)
+
 function val CipherSuiteSigAlg: cipherSuite -> sigAlg
 function val CipherSuiteMACAlg: cipherSuite * ProtocolVersion -> macAlg
 function val CipherSuiteENCAlg: cipherSuite * ProtocolVersion -> encAlg
 function val CipherSuiteAuthEncAlg: cipherSuite * ProtocolVersion -> authencAlg
 
-private assume !kex,enc,mac.
-	CipherSuiteMACAlg(CipherSuite(kex,CS_MtE(enc,mac)),SSL_3p0) = MA_SSLKHASH(mac)
-private assume !kex,enc,mac.
-	CipherSuiteMACAlg(CipherSuite(kex,CS_MtE(enc,mac)),TLS_1p0) = MA_HMAC(mac)
-private assume !kex,enc,mac.
-	CipherSuiteMACAlg(CipherSuite(kex,CS_MtE(enc,mac)),TLS_1p1) = MA_HMAC(mac)
-private assume !kex,enc,mac.
-	CipherSuiteMACAlg(CipherSuite(kex,CS_MtE(enc,mac)),TLS_1p1) = MA_HMAC(mac)
-
-private assume !kex,mac.
-	CipherSuiteMACAlg(OnlyMACCipherSuite(kex,mac),SSL_3p0) = MA_SSLKHASH(mac)
-private assume !kex,mac.
-	CipherSuiteMACAlg(OnlyMACCipherSuite(kex,mac),TLS_1p0) = MA_HMAC(mac)
-private assume !kex,mac.
-	CipherSuiteMACAlg(OnlyMACCipherSuite(kex,mac),TLS_1p1) = MA_HMAC(mac)
-private assume !kex,mac.
-	CipherSuiteMACAlg(OnlyMACCipherSuite(kex,mac),TLS_1p2) = MA_HMAC(mac)
+private assume !kex,mac,pv.
+	CipherSuiteMACAlg(OnlyMACCipherSuite(kex,mac),pv) = TLSMACAlg(mac,pv)
+private assume !kex,enc,mac,pv
+	CipherSuiteMACAlg(CipherSuite(kex,CS_MtE(enc,mac)),pv) = TLSMACAlg(mac,pv)
+private assume !kex,enc,mac,pv
+	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(enc,mac)),pv) = TLSENCAlg(enc,pv)
 
 private assume !kex,mac,pv.
-	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(RC4_128,mac)),pv) = Stream_RC4_128
-private assume !kex,mac.
-	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(TDES_EDE_CBC,mac)),SSL_3p0) = CBC_Stale(TDES_EDE)
-private assume !kex,mac.
-	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(TDES_EDE_CBC,mac)),TLS_1p0) = CBC_Stale(TDES_EDE)
-private assume !kex,mac.
-	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(AES_128_CBC,mac)),SSL_3p0) = CBC_Stale(AES_128)
-private assume !kex,mac.
-	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(AES_128_CBC,mac)),TLS_1p0) = CBC_Stale(AES_128)
-private assume !kex,mac.
-	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(AES_256_CBC,mac)),SSL_3p0) = CBC_Stale(AES_256)
-private assume !kex,mac.
-	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(AES_256_CBC,mac)),TLS_1p0) = CBC_Stale(AES_256)
-private assume !kex,mac.
-	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(TDES_EDE_CBC,mac)),TLS_1p1) = CBC_Fresh(TDES_EDE)
-private assume !kex,mac.
-	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(TDES_EDE_CBC,mac)),TLS_1p2) = CBC_Fresh(TDES_EDE)
-private assume !kex,mac.
-	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(AES_128_CBC,mac)),TLS_1p1) = CBC_Fresh(AES_128)
-private assume !kex,mac.
-	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(AES_128_CBC,mac)),TLS_1p2) = CBC_Fresh(AES_128)
-private assume !kex,mac.
-	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(AES_256_CBC,mac)),TLS_1p1) = CBC_Fresh(AES_256)
-private assume !kex,mac.
-	CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(AES_256_CBC,mac)),TLS_1p2) = CBC_Fresh(AES_256)
-
-private assume !kex,mac,pv.
-	CipherSuiteAuthEncAlg(OnlyMACCipherSuite(kex,mac),pv) = MACOnly(CipherSuiteMACAlg(OnlyMACCipherSuite(kex,mac),pv))
+	CipherSuiteAuthEncAlg(OnlyMACCipherSuite(kex,mac),pv) = MACOnly(TLSMACAlg(mac,pv))
 private assume !kex,enc,mac,pv.
-	CipherSuiteAuthEncAlg(CipherSuite(kex,CS_MtE(enc,mac)),pv) =
-		MtE(CipherSuiteENCAlg(CipherSuite(kex,CS_MtE(enc,mac)),pv),CipherSuiteMACAlg(CipherSuite(kex,CS_MtE(enc,mac)),pv))
-private assume !cs,pv,ealg,malg.
-	CipherSuiteAuthEncAlg(cs,pv) = MACOnly(malg) => malg = CipherSuiteMACAlg(cs,pv)
-private assume !cs,pv,ealg,malg.
-	CipherSuiteAuthEncAlg(cs,pv) = MtE(ealg,malg) => (ealg = CipherSuiteENCAlg(cs,pv) /\ malg = CipherSuiteMACAlg(cs,pv))
+	CipherSuiteAuthEncAlg(CipherSuite(kex,CS_MtE(enc,mac)),pv) = MtE(TLSENCAlg(enc,pv),TLSMACAlg(mac,pv))
+
 
 
 val authencAlg_of_ciphersuite: cs:cipherSuite -> pv:ProtocolVersion -> a:authencAlg{a = CipherSuiteAuthEncAlg(cs,pv)}
