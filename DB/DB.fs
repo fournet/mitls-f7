@@ -90,6 +90,25 @@ module Internal =
                 finally
                     reader.Close()
 
+    let keys (DB db : db) =
+        let request = "SELECT key FROM map" in
+        let command = db.CreateCommand() in
+
+            command.CommandText <- request;
+
+            let reader = command.ExecuteReader() in
+            let aout   = ref [] in
+
+                try
+                    while reader.Read() do
+                        let klen  = reader.GetBytes(0, 0L, null, 0, 0) in
+                        let kdata = Array.create ((int) klen) 0uy in
+                            ignore (reader.GetBytes(0, 0L, kdata, 0, (int) klen) : int64);
+                            aout := kdata :: !aout
+                    done;
+                    !aout
+                finally
+                    reader.Close()
 
     let tx (DB db : db) (f : db -> 'a) : 'a =
         use tx = db.BeginTransaction (IsolationLevel.ReadCommitted) in
@@ -114,6 +133,9 @@ let remove (db : db) (k : byte[]) =
 
 let all (db : db) =
     Internal.wrap (fun () -> Internal.all db)
+
+let keys (db : db) =
+    Internal.wrap (fun () -> Internal.keys db)
 
 let tx (db : db) (f : db -> 'a) =
     Internal.wrap (fun () -> Internal.tx db f)

@@ -113,13 +113,11 @@ let insert self key value =
 (* ------------------------------------------------------------------------------- *)
 let getAllStoredIDs self =
     let aout =
-        let db   = DB.opendb self.filename in
+        let db = DB.opendb self.filename in
     
         try
-            DB.tx db (fun db -> DB.all db)
+            DB.tx db (fun db -> DB.keys db)
         finally
             DB.closedb db
     in
-        List.map
-          (fun (k, v) -> (key_of_bytes k, value_of_bytes v))
-          aout
+        List.map key_of_bytes aout
