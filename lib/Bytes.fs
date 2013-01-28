@@ -10,8 +10,6 @@ let createBytes len (value:int) : bytes =
     try Array.create len (byte value)
     with :? System.OverflowException -> failwith "Default integer for createBytes was greater than max_value"
 
-let zeros len : bytes = createBytes len 0
-
 let bytes_of_int nb i =
   let rec put_bytes bb lb n =
     if lb = 0 then failwith "not enough bytes"
