@@ -98,4 +98,5 @@ val fragmentLength: nat
 val safe: epoch -> bool
 val safeHS: epoch -> bool
 val auth: epoch -> bool
+val MAC_safe: epoch -> bool
 #endif
