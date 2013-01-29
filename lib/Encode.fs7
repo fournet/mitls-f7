@@ -22,6 +22,16 @@ private type (;e:epoch,tlen:nat) plain = {p: (x:bytes){Length(x) = PlainLength(e
 val plain: e:epoch{not Auth(e)} -> tlen:nat{tlen <= max_TLSCipher_fragment_length} -> b:bytes{Length(b) = PlainLength(e,tlen)} -> (;e,tlen) plain
 val repr:  e:epoch{not Safe(e)} -> tlen:nat -> (;e,tlen) plain -> b:bytes{Length(b) = PlainLength(e,tlen)}
 
+assume !e,si,tlen,enc,mac. 
+  si = EpochSI(e) /\
+  CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MACOnly(mac) => 
+  PlainLength(e,tlen) = tlen 
+assume !e,si,tlen,enc,mac. 
+  si = EpochSI(e) /\
+  CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(enc,mac) /\ 
+  tlen >= IVSize(e) =>
+  PlainLength(e,tlen) = tlen - IVSize(e)
+
 //------------------------------------------------------------------------------------------------------
 // Interface towards LHAE 
 //------------------------------------------------------------------------------------------------------

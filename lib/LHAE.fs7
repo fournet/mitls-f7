@@ -42,10 +42,6 @@ private assume !e,si. si = EpochSI(e) =>
 	( (si.protocol_version = SSL_3p0 \/ si.protocol_version = TLS_1p0)
 		=> IVSize(e) = 0 ) /\
 	( (si.protocol_version = TLS_1p1 \/ si.protocol_version = TLS_1p2) 		=> IVSize(e) = EncAlgBlockSize(CipherSuiteENCAlg(si.cipher_suite,si.protocol_version)) )
-private assume !e,si,tlen,enc,mac. si = EpochSI(e) =>
-	( CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MACOnly(mac) => Encode.PlainLength(e,tlen) = tlen ) /\
-    ( CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(enc,mac) /\ tlen >= IVSize(e) =>
-	  Encode.PlainLength(e,tlen) = tlen - IVSize(e) )
 
 // We have two variants for encryption and decryption: 
 // the first (primed) is concrete; the second is idealized at safe indexes.
@@ -87,7 +83,7 @@ val decrypt': ki:succEpoch -> k:(;ki) LHAEKey -> ad:(;ki)LHAEPlain.adata ->
   ( ( 
     (;ki) LHAEKey *  
     rg:range * 
-	p:(;ki,ad,rg) LHAEPlain.plain) { rg = CipherRangeClass(ki,Length(c))
+	p:(;ki,ad,rg) LHAEPlain.plain) { //rg = CipherRangeClass(ki,Length(c))
 									 // /\ !p',rg'. ENCrypted(ki,ad,rg',p',c) => p=p'
 									 } ) Result
 
