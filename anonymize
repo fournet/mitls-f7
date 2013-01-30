@@ -47,13 +47,28 @@ def parser(mode):
     return ml_comments | ss_comments | ml_strings
 
 # --------------------------------------------------------------------
-def filter_hashes(input):
+def filter_hashes(input, defined):
     tokeep = ["mono"]
     hif    = re.compile(r'^\s*#\s*if\s+(\w+)\s*$')
     helse  = re.compile(r'^\s*#\s*else\b')
     hend   = re.compile(r'^\s*#\s*endif\b')
     hashes = []
     output = []
+
+    class Mode(object):
+        def ofname(name):
+            if name in tokeep:
+                return None
+            return name in defined
+        ofname = staticmethod(ofname)
+
+        def flip(mode):
+            return None if mode is None else (not mode)
+        flip = staticmethod(flip)
+
+        def inprint(mode):
+            return mode in (None, True)
+        inprint = staticmethod(inprint)
 
     for line in input:
         m = None
@@ -64,26 +79,25 @@ def filter_hashes(input):
         if m is not None:
             if i == 0:
                 hashes.append(Object(
-                        name   = m.group(1),
-                        inthen = True,
-                        tokeep = m.group(1) in tokeep))
-                if hashes[-1].tokeep:
+                        name = m.group(1),
+                        keep = Mode.ofname(m.group(1))))
+                if hashes[-1].keep is None:
                     output.append(line)
 
             elif i == 1:
-                if hashes and hashes[-1].inthen:
-                    hashes[-1].inthen = False
-                if hashes[-1].tokeep:
+                if hashes:
+                    hashes[-1].keep = Mode.flip(hashes[-1].keep)
+                if hashes[-1].keep is None:
                     output.append(line)
 
             elif i == 2:
                 if hashes:
-                    if hashes[-1].tokeep:
+                    if hashes[-1].keep is None:
                         output.append(line)
                     hashes.pop()
 
         else:
-            if all([not x.inthen or x.tokeep for x in hashes]):
+            if all([Mode.inprint(x.keep) for x in hashes]):
                 output.append(line)
 
     return output
@@ -109,6 +123,22 @@ def _options(args):
                       help    = "set anonymisation mode [%s]" % (modes,),
                       default = 'full',
                       metavar = "MODE")
+    parser.add_option("-D", None,
+                      dest    = "defined",
+                      help    = "define symbol SYMBOL",
+                      action  = "append",
+                      metavar = "SYMBOL",
+                      default = [])
+    parser.add_option("-r", None,
+                      dest    = "rename",
+                      help    = "rename output file using given pattern",
+                      metavar = "PATTERN",
+                      default = None)
+    parser.add_option("-o", None,
+                      dest    = "output",
+                      help    = "output directory",
+                      metavar = "OUTPUT",
+                      default = None)
 
     (options, args) = parser.parse_args()
 
@@ -141,27 +171,41 @@ CRLN = '\r\n'
 def _process_file(filename, options):
     output = parser(options.mode).transformString(_read_file(filename))
     output = output.splitlines()
-    output = filter_hashes(output)
+    output = filter_hashes(output, set(options.defined))
     output = CRLN.join(output) + CRLN
     output = re.sub('(?:\r\n){3,}', 2 * CRLN, output)
     output = re.sub('(?:\r\n)+$', CRLN, output)
-    output = re.sub('^(?:\r\n)*', CRLN, output)
+    output = re.sub('^(?:\r\n)*', '', output)
 
     if options.header:
-        output = CRLN.join(options.header.splitlines()) + CRLN + output
+        output = CRLN.join(options.header.splitlines()) + 2 * CRLN + output
+
+    dirname , basename = os.path.split(filename)
+    basename, ext      = os.path.splitext(basename)
+
+    if options.rename is None:
+        outname = basename
+    else:
+        outname = options.rename.replace('%', basename)
+    outname = outname + ext
+
+    if options.output is None:
+        outname = os.path.join(dirname, outname)
+    else:
+        outname = os.path.join(options.output, outname)
 
     if options.backup:
-        if os.path.exists(filename + '~'):
-            os.unlink(filename + '~')
-        os.rename(filename, filename + '~')
+        if os.path.exists(outname + '~'):
+            os.unlink(outname + '~')
+        os.rename(outname, outname + '~')
     else:
-        os.unlink(filename)
+        _noexn(lambda : os.unlink(outname))
 
     try:
-        with codecs.open(filename, 'w', 'utf-8') as ostream:
+        with codecs.open(outname, 'w', 'utf-8') as ostream:
             ostream.write(output)
     except:
-        _noexn(lambda : os.unlink(filename))
+        _noexn(lambda : os.unlink(outname))
         raise
 
 # --------------------------------------------------------------------
