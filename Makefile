@@ -9,8 +9,6 @@ subdirs  += 3rdparty CoreCrypto DB lib TLSharp
 subdirs  += HttpServer echo rpc
 subdirs  += www-data
 
-AKWS = AP,CF,KB,MK,PYS
-
 sp13version  = 0.0.internal
 sp13distname = $(name)-$(sp13version)
 

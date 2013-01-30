@@ -16,6 +16,8 @@ class Object(object):
 MODE_FULL    = 0x00
 MODE_RELEASE = 0x01
 
+AKWS = ['AP', 'CF', 'KB', 'MK', 'PYS']
+
 # --------------------------------------------------------------------
 def parser(mode):
     import pyparsing as p
@@ -113,9 +115,12 @@ def _options(args):
     if options.mode == 'full':
         options.mode = Object(mode = MODE_FULL, data = None)
     elif options.mode.startswith('release'):
-        kws = ''.join(options.mode.split(':', 1)[1:]).split(',')
-        kws = [x.strip() for x in kws]
-        kws = [x for x in kws if x]
+        if ':' in options.mode:
+            kws = ''.join(options.mode.split(':', 1)[1:]).split(',')
+            kws = [x.strip() for x in kws]
+            kws = [x for x in kws if x]
+        else:
+            kws = AKWS[:]
         options.mode = Object(mode = MODE_RELEASE, data = set(kws))
     else:
         parser.error('invalid mode: %s' % (options.mode,))
