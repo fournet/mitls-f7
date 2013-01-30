@@ -12,7 +12,13 @@ include ../Makefile.config
 all: $(libs) $(target)
 
 dist:
-	cp -r Makefile.config $(src) lib $(distdir)
+	cp Makefile.config $(src) $(distdir)
+	mkdir $(distdir)/lib
+	cp lib/System.Data.SQLite.dll $(distdir)/lib
+	for i in x86 x64; do \
+	  mkdir $(distdir)/lib/$$i; \
+	  cp lib/$$i/SQLite.Interop.dll $(distdir)/lib/$$i; \
+	done
 
 make.in: Makefile.config
 	@true
