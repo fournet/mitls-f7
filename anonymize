@@ -170,7 +170,7 @@ CRLN = '\r\n'
 
 def _process_file(filename, options):
     output = parser(options.mode).transformString(_read_file(filename))
-    output = output.splitlines()
+    output = [x.rstrip() for x in output.splitlines()]
     output = filter_hashes(output, set(options.defined))
     output = CRLN.join(output) + CRLN
     output = re.sub('(?:\r\n){3,}', 2 * CRLN, output)
