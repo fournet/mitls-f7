@@ -30,13 +30,13 @@ private val log: ((ConnectionInfo * masterSecret) * (state * state)) list ref
 // Master secrets are also used to generate and check verifyData tags,
 // providing conditional authentication of the (abstract) VerifyData predicate.
 
-predicate VerifyData of Epoch * Role * bytes
+predicate VerifyData of epoch * Role * bytes
 
-val makeVerifyData: e:SuccEpoch -> r:Role -> (;EpochSI(e)) masterSecret ->
+val makeVerifyData: e:succEpoch -> r:Role -> (;EpochSI(e)) masterSecret ->
                    log:bytes{VerifyData(e,r,log)} -> 
                    bytes (* length depends on cs, 12 by default *)
 
-val checkVerifyData: e:SuccEpoch -> r:Role -> (;EpochSI(e)) masterSecret ->
+val checkVerifyData: e:succEpoch -> r:Role -> (;EpochSI(e)) masterSecret ->
 				   log:bytes (* the log *) ->
 				   tag:bytes (* the expected value *) ->
 				   b:bool{(b = true /\ SafeHS(e)) => VerifyData(e,r,log)}
