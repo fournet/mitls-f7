@@ -42,6 +42,7 @@ def _main():
             print >>output, ' '.join(srcfiles + f7files)
         else:
             print >>output, 'src  += %s' % (' '.join(srcfiles),)
+            print >>output, 'src7 += %s' % (' '.join(f7files),)
             print >>output, 'deps += '
     finally:
         if output is not sys.stdout:
