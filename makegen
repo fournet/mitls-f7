@@ -14,6 +14,10 @@ def _main():
                       dest    = "output",
                       help    = "output makefile to FILE",
                       metavar = "FILE")
+    parser.add_option("-r", None,
+                      dest   = "raw",
+                      action = 'store_true',
+                      help   = "RAW output")
 
     (options, args) = parser.parse_args()
 
@@ -23,16 +27,22 @@ def _main():
     with open(args[0], 'r') as stream:
         doc = etree.parse(stream)
 
-    files = doc.findall('.//{0}ItemGroup/{0}Compile'.format('{%s}' % (MSBUILD,)))
+    files = doc.findall('.//{0}ItemGroup/*'.format('{%s}' % (MSBUILD,)))
     files = [x.get('Include') for x in files if x.get('Include') is not None]
-    files = [x for x in files if os.path.splitext(x)[1] in ('.fsi', '.fs')]
+
+    srcfiles = [x for x in files if os.path.splitext(x)[1] in ('.fsi', '.fs')]
+    f7files  = [x for x in files if os.path.splitext(x)[1] in ('.fs7',)]
 
     output = sys.stdout
     try:
         if options.output is not None:
             output = open(options.output, 'w')
-        print >>output, 'src  += %s' % (' '.join(files),)
-        print >>output, 'deps += '
+
+        if options.raw:
+            print >>output, ' '.join(srcfiles + f7files)
+        else:
+            print >>output, 'src  += %s' % (' '.join(srcfiles),)
+            print >>output, 'deps += '
     finally:
         if output is not sys.stdout:
             output.close()
