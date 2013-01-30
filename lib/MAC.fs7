@@ -4,14 +4,40 @@ open Bytes
 open TLSConstants
 open TLSInfo
 
-(* refined, agile, ideal interface for indexed MACs resistant to plaintext forgery against CMA *) 
+(* refined, agile, ideal interface for indexed MACs 
+   resistant to existential forgery against chosen message attacks (INT-CMA). *) 
 
-(* CF TODO implement and typecheck the ideal functionality (preferably fron non-agile ideal ones)
-           maintaining  a log of authentic MACed messages, correcting verification errors, etc
+(* This module depends on  
+
+   - a datatype of MAC algorithms (TLSConstants.MAC_alg)
+   - an abstract type of indexes (TLSInfo.epoch)
+   - a function from indexes to MAC algorithms (macAlg_of_epoch) and its logical spec.
+   - functions from MAC algorithms to their key-lengths and tag-lengths, and their logical specs.
+   - an function from indexes to booleans that indicates the safe indexes (MAC_safe) and its logical spec;
+     (this function is used only #if ideal)
+   - an abstract predicate on indexes and message (Msg), 
+     specifying the logical property authenticated by safe MACs. 
+   
+   and the following assumptions:
+   
+   - we generate (or coerce) at most one key per index.
+   - if an index is safe, then its algorithm is computationally strong (INT-CMA).
+     (concretely, we would get a probabilistic bound depending on the quantitative usage of each algorithm) 
+
+   ask !ki. Auth(ki) => \/_{idealized a} CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = a
+
+   Notes: - this interface deals with CMA, not the joint CTXT assumption (where we rely on PRF)  
+          - this multiplexing similarly applies to any keyed functionality.
+		  - concretely, we would get a bound depending on the quantitative usage of each strong algorithm 
+		  - pragmatically, we may e.g. assume INT-CMA for both variants of SHA2, but not for MD5 or SHA.
+		  - so far we do attempt to prove that the ad hoc constructions of SSL_3p0 are strong.  *)
+
+(* CF TODO implement and typecheck the ideal functionality (preferably from non-agile ideal ones)
+           maintaining  a log of authentic MACed messages & correcting verification errors.
 
    Our concrete core algorithms are implemented by HMAC, 
    after partial application of the algorithm name.
-   (we keep using a single HMAC module just for convenience, with all "a" parameters being constant) 
+   (we keep using a single HMAC module just for convenience, with constants as their first "a" parameters) 
 
    Given a strong subset of these algorithms, 
    each of their ideal counterparts is coded & typed as in cma/mac2.fs7, 
@@ -25,20 +51,9 @@ open TLSInfo
    private definition !ki,t. HMAC.Msg_a(ki,t) <=> 
    ( CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = a /\ (Auth(ki) => Msg(ki,t))
 
-   and we unfold separate branches for each strong a in Mac, Verify, GEN, COERCE, LEAK
+   and we unfold separate branches for each strong a in Mac, Verify, GEN, COERCE, LEAK 
    
-   We depend on the definition of Auth only inasmuch as 
-   
-   ask !ki. Auth(ki) => \/_{idealized a} CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = a
-
-   Notes: - this deals with CMA, not the joint CTXT assumption (where we may need PRF)  
-          - this multiplexing similarly applies to any keyed functionality.
-		  - concretely, we get a bound depending on the actual usage of each algorithm s.t. Auth
-		  - we may e.g. assume that both variants of SHA2 are secure, while MD5 and SHA are not.
-		  - so far we do not deal with the ad hoc constructions of SSL_3p0 (although we can still specify them as CMA-secure)
-		  - consider reshuffling MAC and HMAC 
-		  - what to include? probably the ideal typing of a single exemplary secure algorithm, importing mac2.fs*
-*)
+   What to include? probably the ideal typing of a single exemplary secure algorithm, importing mac2.fs* *)
 
 type text = bytes
 type (;ki:succEpoch) keyrepr = k:bytes {Length(k) = MacSize(CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version)) }

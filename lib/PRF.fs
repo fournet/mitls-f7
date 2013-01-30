@@ -48,6 +48,9 @@ let keyGen ci (ms:masterSecret) =
    #endif
      .... COERCE ...
 *)
+    //CF "honest" is not the right predicate; we should use PRED := safeHS.
+    //CF for typechecking against StAE, we PRED s.t. Auth => Pred.
+    //CF for applying the prf assumption, we need to decided depending *only* on the session 
     if honest (epochSI(ci.id_in))
     then 
         match tryFind (fun el-> fst el = (epochs ci,ms)) !log with
