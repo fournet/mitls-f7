@@ -296,10 +296,6 @@ val macAlg_of_ciphersuite: cs:cipherSuite -> pv:ProtocolVersion -> h:macAlg{h = 
 val encAlg_of_ciphersuite: cs:cipherSuite -> pv:ProtocolVersion -> c:encAlg{c = CipherSuiteENCAlg(cs,pv)}
 val sigAlg_of_ciphersuite: cs:cipherSuite -> s:sigAlg{s = CipherSuiteSigAlg(cs)}
 
-function val AEAlg: ProtocolVersion * cipherSuite -> authencAlg
-// FIXME: update this definition
-// private definiti !kex,a. AEAlg(CipherSuite(kex,a)) = a
-
 predicate KnownCipherSuite of cipherSuite 
 function val CipherSuiteBytes: cipherSuite -> bytes 
 

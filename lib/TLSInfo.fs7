@@ -143,9 +143,9 @@ val nextEpoch: e:epoch -> c:crand -> s:srand -> si:SessionInfo ->
 predicate StrongAE of ProtocolVersion * cipherSuite
 predicate StrongAuth of ProtocolVersion * cipherSuite
 
-definition !pv,s. StrongAE(pv,s)   <=> (?e,m. AEAlg(pv,s) = MtE(e,m) /\ IND_CPA(e) /\ INT_CMA_M(m) /\ INT_CTXT(AEAlg(pv,s),pv))
-definition !pv,s. StrongAuth(pv,s) <=> (?e,m. AEAlg(pv,s) = MtE(e,m) /\ INT_CMA_M(m))
-
+definition !pv,s. StrongAE(pv,s)   <=> (?e,m. CipherSuiteAuthEncAlg(s,pv) = MtE(e,m) /\ IND_CPA(e) /\ INT_CMA_M(m) /\ INT_CTXT(CipherSuiteAuthEncAlg(s,pv),pv))
+definition !pv,s. StrongAuth(pv,s) <=> (?e,m. CipherSuiteAuthEncAlg(s,pv) = MtE(e,m) /\ INT_CMA_M(m))
+           
 predicate StrongHS  of SessionInfo // * hashAlg for certs?
 (*
 predicate RSA_PMS   of ProtocolVersion * kexAlg
@@ -191,7 +191,8 @@ definition !e. Auth(e) <=> AuthSI(EpochSI(e))
 
 val safe: (e:epoch) -> b:bool { b = true <=> Safe(e) }
 val safeHS: (e:epoch) -> b:bool {b = true <=> SafeHS(e)}
-val auth: (e:epoch) -> b:bool {b = true <=> Auth(e)}
+val auth :(e:epoch) -> b:bool {b = true <=> Auth(e)}
+val MAC_safe: (e:epoch) -> b:bool {b = true <=> Auth(e)}
 
 ask !e. Safe(e) => Auth(e) 
 
