@@ -9,11 +9,8 @@ subdirs  += 3rdparty CoreCrypto DB lib TLSharp
 subdirs  += HttpServer echo rpc
 subdirs  += www-data
 
-sp13version  = 0.0.internal
-sp13distname = $(name)-$(sp13version)
-
 .PHONY: all build make.in prepare-dist
-.PHONY: do-dist-check dist dist-check sp13-check
+.PHONY: do-dist-check dist dist-check
 
 all: build
 
@@ -60,20 +57,6 @@ do-dist-check:
 	@echo "$(distname).tgz is ready for distribution"
 
 dist-check: dist do-dist-check
-
-sp13: anonymize LICENSE.sp13
-	$(MAKE) version=$(sp13version) prepare-dist
-	rm -f $(sp13distname)/lib/pi.fs
-	sed -i 's/pi\.fs//' $(sp13distname)/lib/Makefile.config
-	cp LICENSE.sp13 $(sp13distname)
-	find $(sp13distname) \
-	  -type f \( -name '*.fs' -o -name '*.fsi' \) \
-	  -exec ./anonymize -m full -B -c LICENSE.sp13 '{}' \+
-	tar --format=posix -czf $(sp13distname).tgz $(sp13distname)
-	rm -rf $(sp13distname)
-
-sp13-check: sp13
-	$(MAKE) version=$(sp13version) do-dist-check
 
 clean:
 	rm -rf bin
