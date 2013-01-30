@@ -1,9 +1,10 @@
 # -*- Makefile -*-
 
 # --------------------------------------------------------------------
-version  ?= 0.1
-name      = miTLS
-distname  = $(name)-$(version)
+version    ?= 0.1
+name        = miTLS
+distname    = $(name)-$(version)
+f7distname  = $(name)-f7-$(version)
 
 subdirs  += 3rdparty CoreCrypto DB lib TLSharp
 subdirs  += HttpServer echo rpc
@@ -38,15 +39,29 @@ prepare-dist:
 	  cp licenses/*.txt $(distname)/licenses
 	find $(distname) -type f -exec chmod a-x '{}' \+
 
+prepare-dist-f7:
+	rm -rf $(f7distname) && mkdir $(f7distname)
+	rm -rf $(f7distname).tgz
+	mkdir $(f7distname)/lib
+	$(MAKE) -f Makefile.build -C lib distdir=../$(f7distname)/lib dist-f7
+	find $(f7distname) -type f -exec chmod a-x '{}' \+
+
 dist: prepare-dist
 	cp LICENSE AUTHORS $(distname)
 	if [ -x ./anonymize ]; then \
 	  find $(distname) \
 	    -type f \( -name '*.fs' -o -name '*.fsi' \) \
-	    -exec ./anonymize -m release:$(AKWS) -B -c LICENSE '{}' \+; \
+	    -exec ./anonymize -m release -B -c LICENSE '{}' \+; \
 	fi
 	tar --format=posix -czf $(distname).tgz $(distname)
 	rm -rf $(distname)
+
+dist-f7: anonymize prepare-dist-f7
+	cp LICENSE AUTHORS $(f7distname)
+	tar --format=posix -czf $(f7distname).tgz $(f7distname)
+	find $(f7distname)/lib -type f \
+	  -exec ./anonymize -m release -B -D ideal -c LICENSE '{}' \+;
+	rm -rf $(f7distname)
 
 do-dist-check:
 	tar -xof $(distname).tgz
@@ -63,3 +78,4 @@ clean:
 
 dist-clean: clean
 	rm -f $(distname).tgz
+	rm -f $(f7distname).tgz
