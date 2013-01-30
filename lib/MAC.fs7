@@ -5,9 +5,9 @@ open TLSConstants
 open TLSInfo
 
 (* refined, agile, ideal interface for indexed MACs 
-   resistant to existential forgery against chosen message attacks (INT-CMA). *) 
+   resistant to existential forgery against chosen message attacks (INT-CMA). 
 
-(* This module depends on  
+  This module depends on  
 
    - a datatype of MAC algorithms (TLSConstants.MAC_alg)
    - an abstract type of indexes (TLSInfo.epoch)
