@@ -302,9 +302,9 @@ function val CipherSuiteMACAlg: cipherSuite * ProtocolVersion -> macAlg
 function val CipherSuiteENCAlg: cipherSuite * ProtocolVersion -> encAlg
 function val CipherSuiteAuthEncAlg: cipherSuite * ProtocolVersion -> authencAlg
 
-assume !kex,mac,pv.
+private assume !kex,mac,pv.
 	CipherSuiteAuthEncAlg(OnlyMACCipherSuite(kex,mac),pv) = MACOnly(TLSMACAlg(mac,pv))
-assume !kex,enc,mac,pv.
+private assume !kex,enc,mac,pv.
 	CipherSuiteAuthEncAlg(CipherSuite(kex,CS_MtE(enc,mac)),pv) = MtE(TLSENCAlg(enc,pv),TLSMACAlg(mac,pv))
 
 assume !cs,pv,mac.
