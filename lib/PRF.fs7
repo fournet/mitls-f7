@@ -9,7 +9,7 @@ open StatefulLHAE
 type repr = (;48)lbytes
 private type (;si:SessionInfo) masterSecret = {bytes: repr}
 
-function val Epochs: ConnectionInfo -> epoch * epoch
+function val Epochs: 'a -> 'b
 private definition !ci,r,e_in,e_out.
 	(ci = {role=Client;id_rand=r;id_in=e_in;id_out=e_out} /\
 	 Epochs(ci) = (ci.id_in,ci.id_out) ) \/
@@ -31,8 +31,8 @@ val keyGen: ci:ConnectionInfo -> (;EpochSI(ci.id_out))masterSecret ->
   { StatefulPlain.EmptyHistory(ci.id_out,w.history) /\
     StatefulPlain.EmptyHistory(ci.id_in,r.history)}
 
-private function val Fst: 'a * 'b -> 'a
-private function val Snd: 'a * 'b -> 'b
+private function val Fst: 'a -> 'b
+private function val Snd: 'a -> 'b
 private assume !e1,e2. Fst((e1,e2)) = e1
 private assume !e1,e2. Snd((e1,e2)) = e1
 

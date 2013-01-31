@@ -736,7 +736,7 @@ type clientState =
    | ServerHelloDoneRSA           of si:SessionInfo * c:Cert.sign_cert * l:log{ClientLogBeforeServerHelloDoneRSA(si,l)}
 
    | ServerCertificateDH          of SessionInfo * log
-   | ClientCheckingCertificateDH  of SessionInfo * log * bytes
+   | ClientCheckingCertificateDH  of SessionInfo * log * ProtocolVersion option * bytes
    | CertificateRequestDH         of SessionInfo * log (* We pick our cert and store it in sessionInfo as soon as the server requests it.
                                                          We put None if we don't have such a certificate, and we know whether to send
                                                          the Certificate message or not based on the state when we receive the Finished message *)

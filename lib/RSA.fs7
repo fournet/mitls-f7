@@ -19,7 +19,7 @@ predicate EncryptedRSAPMS of pk:pk * pv:ProtocolVersion * (;pk,pv)CRE.rsapms * b
 val encrypt: pk:pk -> pv:ProtocolVersion -> pms:(;pk,pv) CRE.rsapms -> b:bytes{EncryptedRSAPMS(pk,pv,pms,b)} 
 // TLS specific, timing-attack-resistant variant
 val decrypt: sk ->
-			 si:SessionInfo -> 
+  	     si:SessionInfo -> 
              cv:TLSConstants.ProtocolVersion -> (* highest client version, as above *) 
              bool -> (* flag whether we should check protocol version in old TLS versions *)
              bytes -> (* encrypted PMS *)
