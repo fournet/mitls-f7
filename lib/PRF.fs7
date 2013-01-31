@@ -17,7 +17,7 @@ private definition !ci,r,e_in,e_out.
 	 Epochs(ci) = (ci.id_out,ci.id_in) )
 
 // AuthSI is defined in TLSInfo
-val sample: si:SessionInfo                         -> (;si)masterSecret
+val sample: si:SessionInfo                            -> (;si)masterSecret
 val coerce: si:SessionInfo{not SafeHS_SI(si)} -> repr -> (;si)masterSecret
 
 // Master secrets are used to derive key materials. 
@@ -27,13 +27,18 @@ val coerce: si:SessionInfo{not SafeHS_SI(si)} -> repr -> (;si)masterSecret
 
 val keyGen: ci:ConnectionInfo -> (;EpochSI(ci.id_out))masterSecret -> 
   ( w:(;ci.id_out)StatefulLHAE.writer * 
-    r:(;ci.id_in) StatefulLHAE.reader )
+    r:(;ci.id_in) StatefulLHAE.reader ) 
   { StatefulPlain.EmptyHistory(ci.id_out,w.history) /\
     StatefulPlain.EmptyHistory(ci.id_in,r.history)}
 
-(* AP for Karthik to fix ;-)
-private val log: ((e0:epoch * e1:epoch)  * (;e0)masterSecret) * ((;e0)state * (;e1)state)) list ref 
-*)
+private function val Fst: epoch * epoch -> epoch
+private function val Snd: epoch * epoch -> epoch
+private assume !e1,e2. Fst((e1,e2)) = e1
+private assume !e1,e2. Snd((e1,e2)) = e1
+
+private val log:  (ems:(e12:(epoch * epoch)  * (;Fst(e12))masterSecret) * 
+                   ((;Fst(Fst(ems)))state * (;Snd(Fst(ems)))state)) list ref 
+private val finish_log: (SessionInfo * bytes * bytes) list ref 
 
 (* VerifyData should be about epochs not sessions *)
 // Master secrets are also used to generate and check verifyData tags,

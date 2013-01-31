@@ -158,11 +158,11 @@ type preds = | ENCrypted of epoch * LHAEPlain.adata * range * LHAEPlain.plain * 
 type entry = epoch * LHAEPlain.adata * range * LHAEPlain.plain * ENC.cipher
 let log = ref ([]: entry list) // the semantics of CTXT
 
-let rec cmem (e:epoch) (ad:LHAEPlain.adata) (c:ENC.cipher) (xs: entry list) = failwith "verify"
-//  match xs with
-//  | (e',ad',r,p,c')::_ when e=e' && ad=ad' && c=c' -> let x = (r,p) in Some x
-//  | _::xs                  -> cmem e ad c xs 
-//  | []                     -> None
+let rec cmem (e:epoch) (ad:LHAEPlain.adata) (c:ENC.cipher) (xs: entry list) = 
+  match xs with
+  | (e',ad',r,p,c')::_ when e=e' && ad=ad' && c=c' -> let x = (r,p) in Some x
+  | _::xs                  -> cmem e ad c xs 
+  | []                     -> None
 
 let safe (e:epoch) = failwith "todo"
 
@@ -179,17 +179,22 @@ let encrypt e key data rg plain =
   (key,cipher)
 
 let decrypt e (key: LHAEKey) data (cipher: bytes) =  
+  #if idealC
+  if safe e then
+    match cmem e data cipher !log with
+    | Some _ -> 
+      decrypt' e key data cipher
+    | None   -> Error(AD_bad_record_mac, "")  
+  else
+  #else
   #if ideal
   if safe e then
     match cmem e data cipher !log with
-    // | Some _ -> (* 1 *)
-    //   decrypt' e key data cipher
-        
-    | Some x -> (* 2 *)
+    | Some x -> 
       let (r,p) = x
       correct (key,r,p)
-
     | None   -> Error(AD_bad_record_mac, "")  
   else
+  #endif 
   #endif 
       decrypt' e key data cipher

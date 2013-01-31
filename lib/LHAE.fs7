@@ -102,7 +102,7 @@ val decrypt: ki:succEpoch -> (;ki) LHAEKey -> ad:(;ki)LHAEPlain.adata ->
    {
     (Safe(ki) => 
         (   (!k,r,p. res = Correct((k,r,p)) => ENCrypted(ki,ad,r,p,c)) 
-		 /\ (!r,p. ENCrypted(ki,ad,r,p,c) => (?k,r'. res = Correct((k,r',p))))
+	 /\ (!r,p. ENCrypted(ki,ad,r,p,c) => (?k,r'. res = Correct((k,r',p))))
 		))}
 // The last two lines are equivalent to (but easier to verify than)
 // !p. CTXT(ki,ad,p,c) <=> (?k,r. res = Correct((k,r,p)))

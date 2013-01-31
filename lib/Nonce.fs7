@@ -1,5 +1,7 @@
 ﻿module Nonce
 
+(* This module is not typechecked. *)
+
 open Bytes
 
 val mkRandom: l:int -> b:bytes{Length(b) = l}

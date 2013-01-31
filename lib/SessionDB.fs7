@@ -1,5 +1,7 @@
 ﻿module SessionDB
 
+(* Trusted *)
+
 open TLSInfo
 
 type StorableSession = si:SessionInfo * (;si) PRF.masterSecret

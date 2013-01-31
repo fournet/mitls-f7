@@ -1,6 +1,6 @@
 ﻿module RSAKey
 
-// TODO not verifying for now.
+(* This module is not typechecked *)
 
 // This module defines RSA keys
 // but not their use for public-key encryption: see RSA

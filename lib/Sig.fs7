@@ -27,7 +27,7 @@ open TLSConstants
 
 // TODO: there is some adhocness processing of those algs left in Handshake.fs
   
- // implements SignatureAndHashAlgorithm, with fewer values for hashAlg
+// implements SignatureAndHashAlgorithm, with fewer values for hashAlg
 type alg   = sigAlg * hashAlg
 
 type text = bytes
@@ -54,15 +54,13 @@ type (;a:alg) sigv = bytes
 
 //********************** Ideal Functionality for Signing *********************** 
 
-type (;a:alg) skey
+type (;a:alg)             skey
 type (;a:alg) pkey
 
 function val PK: 'a -> 'b // a:alg * (;a)skey -> vkey
-predicate val Msg: a:alg * (;a)pkey * text -> bool
-predicate val Honest: a:alg * (;a) pkey -> bool
-
-// FIXME: Local dummy definition of "Strong", until we relocate CMA/CTXT and the like to TLSConstants.
-predicate val Strong: 'a (* alg *) -> bool
+predicate Msg of a:alg * (;a)pkey * text 
+predicate Honest of a:alg * (;a) pkey
+predicate Strong of alg
 
 val gen:     a:alg -> pk:(;a) pkey * sk:(;a) skey { pk = PK(sk) }
 val sign:    a:alg -> sk:(;a) skey -> t:text{Msg(a,PK(sk),t)} -> (;a) sigv

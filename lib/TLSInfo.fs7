@@ -149,6 +149,11 @@ predicate StrongAuth of ProtocolVersion * cipherSuite
 definition !pv,s. StrongAE(pv,s)   <=> (?e,m. CipherSuiteAuthEncAlg(s,pv) = MtE(e,m) /\ IND_CPA(e) /\ INT_CMA_M(m) /\ INT_CTXT(CipherSuiteAuthEncAlg(s,pv),pv))
 definition !pv,s. StrongAuth(pv,s) <=> (?e,m. CipherSuiteAuthEncAlg(s,pv) = MtE(e,m) /\ INT_CMA_M(m))
            
+predicate HonestSig of a:Sig.alg * (;a) Sig.pkey
+predicate StrongSig of Sig.alg
+definition !a,k. HonestSig(a,k) <=> Sig.Honest(a,k)
+definition !a,k. StrongSig(a) <=> Sig.Strong(a)
+
 predicate StrongHS  of SessionInfo // * hashAlg for certs?
 (*
 predicate RSA_PMS   of ProtocolVersion * kexAlg

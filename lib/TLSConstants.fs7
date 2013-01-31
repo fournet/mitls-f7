@@ -142,21 +142,23 @@ val aeadKeySize: aeadAlg -> nat
 val aeadIVSize: aeadAlg -> nat
 
 //CF in TLS, hashes and MAC keys & tags have the same size, depending on hashAlg. 
+function val HashSize: hashAlg -> nat
+assume !x. HashSize(x) >= 0
+private definition HashSize(MD5    )     = 16
+private definition HashSize(SHA    )     = 20
+private definition HashSize(SHA256 )     = 32
+private definition HashSize(SHA384 )     = 48
+private definition HashSize(MD5SHA1)     = 36
+
 function val MacSize: macAlg -> nat
 assume !x. MacSize(x) >= 0
-private definition MacSize(MA_HMAC(MD5)    )     = 16
-private definition MacSize(MA_HMAC(SHA)    )     = 20
-private definition MacSize(MA_HMAC(SHA256) )     = 32
-private definition MacSize(MA_HMAC(SHA384) )     = 48
-private definition MacSize(MA_HMAC(MD5SHA1))     = 36
-private definition MacSize(MA_SSLKHASH(MD5)    ) = 16
-private definition MacSize(MA_SSLKHASH(SHA)    ) = 20
-private definition MacSize(MA_SSLKHASH(SHA256) ) = 32
-private definition MacSize(MA_SSLKHASH(SHA384) ) = 48
-private definition MacSize(MA_SSLKHASH(MD5SHA1)) = 36
+private definition !a. MacSize(MA_HMAC(a)) = HashSize(a)
+private definition !a. MacSize(MA_SSLKHASH(a)) = HashSize(a)
+
+
 val macKeySize: a:macAlg -> l:nat{l=MacSize(a)}
 val macSize:    a:macAlg -> l:nat{l=MacSize(a)}
-val hashSize:   a:macAlg -> l:nat{l=MacSize(a)}
+val hashSize:   a:hashAlg -> l:nat{l=HashSize(a)}
 
 (* SSL/TLS Constants *)
 // TODO move those to HMAC? We don't care anywhere else

@@ -7,7 +7,7 @@ open DHGroup
 
 type rsarepr = (;48)lbytes
 private type (;pk:RSAKey.pk,pv:ProtocolVersion) rsapms = {rsapms:rsarepr}
-type (;p:p, g:(;p) g, gx:(;p) elt, gy:(;p) elt) dhpms // strong secret when (p,g), gx, and gy have been honestly generated
+private type (;p:p, g:(;p) g, gx:(;p) elt, gy:(;p) elt) dhpms = {dhpms: (;p) elt} // strong secret when (p,g), gx, and gy have been honestly generated
 
 predicate GeneratedRSAPMS of pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms
 

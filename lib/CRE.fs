@@ -20,8 +20,7 @@ type pms = RSA_pms of rsapms | DHE_pms of dhpms
 let honest_log = ref []
 let honest pms = exists (fun el -> el=pms) !honest_log
 
-let corrupt pms = 
-    not(honest pms)
+let corrupt pms =    not(honest pms)
 
 let log = ref []
 #endif
@@ -33,6 +32,7 @@ let genRSA (pk:RSAKey.pk) (vc:TLSConstants.ProtocolVersion) : rsapms =
     let pms = {rsapms = pms}
     #if ideal
     if RSAKey.honest pk then honest_log := RSA_pms(pms)::!honest_log
+    Pi.assume (GeneratedRSAPMS(pk,vc,pms));
     #endif
     pms
 
