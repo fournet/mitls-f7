@@ -67,7 +67,6 @@ val aeadKeySize: aeadAlg -> nat
 val aeadIVSize: aeadAlg -> nat
 val macKeySize: macAlg -> nat
 val macSize: macAlg -> nat
-val hashSize: macAlg -> nat
 
 (* SSL/TLS Constants *)
 val ssl_pad1_md5: bytes

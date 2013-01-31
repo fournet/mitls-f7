@@ -12,6 +12,8 @@ type dhpms = {dhpms: DHGroup.elt}
 #if ideal
 type pms = RSA_pms of rsapms | DHE_pms of dhpms
 
+type pred = GeneratedRSAPMS of RSAKey.pk * ProtocolVersion * rsapms
+
 // We maintain two log:
 // - a log of honest pms values
 // - a log for looking up good ms values using their pms values values

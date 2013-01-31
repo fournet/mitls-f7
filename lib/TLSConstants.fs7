@@ -143,7 +143,7 @@ val aeadIVSize: aeadAlg -> nat
 
 //CF in TLS, hashes and MAC keys & tags have the same size, depending on hashAlg. 
 function val HashSize: hashAlg -> nat
-assume !x. HashSize(x) >= 0
+private assume !x. HashSize(x) >= 0
 private definition HashSize(MD5    )     = 16
 private definition HashSize(SHA    )     = 20
 private definition HashSize(SHA256 )     = 32
@@ -158,7 +158,7 @@ private definition !a. MacSize(MA_SSLKHASH(a)) = HashSize(a)
 
 val macKeySize: a:macAlg -> l:nat{l=MacSize(a)}
 val macSize:    a:macAlg -> l:nat{l=MacSize(a)}
-val hashSize:   a:hashAlg -> l:nat{l=HashSize(a)}
+private val hashSize:   a:hashAlg -> l:nat{l=HashSize(a)}
 
 (* SSL/TLS Constants *)
 // TODO move those to HMAC? We don't care anywhere else

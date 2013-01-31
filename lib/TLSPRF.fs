@@ -61,7 +61,7 @@ let rec p_hash_int alg secret seed len it aPrev acc =
   let aCur = MAC alg secret aPrev in
   let pCur = MAC alg secret (aCur @| seed) in
   if it = 1 then
-    let hs = hashSize alg in
+    let hs = macSize alg in
     let r = len%hs in
     let (pCur,_) = split pCur r in
     acc @| pCur
@@ -69,7 +69,7 @@ let rec p_hash_int alg secret seed len it aPrev acc =
     p_hash_int alg secret seed len (it-1) aCur (acc @| pCur)
 
 let p_hash alg secret seed len =
-  let hs = hashSize alg in
+  let hs = macSize alg in
   let it = (len/hs)+1 in
   p_hash_int alg secret seed len it seed [||]
 

@@ -105,22 +105,22 @@ let aeadIVSize ciph =
 
 let hashSize alg =
     match alg with
-    | MA_SSLKHASH(MD5    )       -> 16
-    | MA_SSLKHASH(SHA    )       -> 20
-    | MA_SSLKHASH(SHA256 )       -> 32
-    | MA_SSLKHASH(SHA384 )       -> 48
-    | MA_SSLKHASH(MD5SHA1)       -> 16 + 20
-    | MA_HMAC(    MD5    )       -> 16
-    | MA_HMAC(    SHA    )       -> 20
-    | MA_HMAC(    SHA256 )       -> 32
-    | MA_HMAC(    SHA384 )       -> 48
-    | MA_HMAC(    MD5SHA1)       -> 16 + 20
-    | MA_SSLKHASH(NULL) | MA_HMAC(NULL) -> Error.unexpectedError "[hashSize] Unknown hash size for NULL algorithm"
+    | MD5     -> 16
+    | SHA     -> 20
+    | SHA256  -> 32
+    | SHA384  -> 48
+    | MD5SHA1 -> 16 + 20
+    | NULL    -> Error.unexpectedError "[hashSize] Unknown hash size for NULL algorithm"
 
-let macKeySize mac = hashSize mac
+let macKeySize mac =
+    match mac with
+    | MA_HMAC(alg) | MA_SSLKHASH(alg) ->
+        hashSize alg
 
-let macSize alg = hashSize alg
-
+let macSize mac =
+    match mac with
+    | MA_HMAC(alg) | MA_SSLKHASH(alg) ->
+        hashSize alg
 (* SSL/TLS constants *)
 
 let ssl_pad1_md5  = createBytes 48 0x36
