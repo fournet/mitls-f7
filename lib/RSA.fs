@@ -1,4 +1,4 @@
-﻿module RSAEnc
+﻿module RSA
 // MK the module names in the paper are RSA and RSAKey. Where should we fix this?
 
 open Bytes
@@ -14,7 +14,7 @@ let log = ref []
 let encrypt key pv pms =
     #if ideal
     //MK here we reply on pv and pms being used only once?
-    let v = if RSAKeys.honest key && not (CRE.corrupt (CRE.RSA_pms pms)) then
+    let v = if RSAKey.honest key && not (CRE.corrupt (CRE.RSA_pms pms)) then
               let fake_pms = (versionBytes pv) @|Nonce.mkRandom 46
               log := (fake_pms,pms)::!log
               fake_pms
@@ -23,7 +23,7 @@ let encrypt key pv pms =
     #else
     let v = CRE.leakRSA key pv pms
     #endif
-    CoreACiphers.encrypt_pkcs1 (RSAKeys.repr_of_rsapkey key) v
+    CoreACiphers.encrypt_pkcs1 (RSAKey.repr_of_rsapkey key) v
 
 let decrypt_int dk si cv cvCheck encPMS =
   (*@ Security measures described in RFC 5246, section 7.4.7.1 *)
@@ -31,7 +31,7 @@ let decrypt_int dk si cv cvCheck encPMS =
   let fakepms = Nonce.mkRandom 46 in
   (*@ 2. Decrypt the message to recover plaintext *)
   let expected = versionBytes cv in
-  match CoreACiphers.decrypt_pkcs1 (RSAKeys.repr_of_rsaskey dk) encPMS with
+  match CoreACiphers.decrypt_pkcs1 (RSAKey.repr_of_rsaskey dk) encPMS with
     | Some pms when length pms = 48 ->
         let (clVB,postPMS) = split pms 2 in
         match si.protocol_version with

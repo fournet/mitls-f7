@@ -152,9 +152,9 @@
     <None Include="TLSConstants.fs7" />
     <Compile Include="TLSConstants.fsi" />
     <Compile Include="TLSConstants.fs" />
-    <None Include="RSAKeys.fs7" />
-    <Compile Include="RSAKeys.fsi" />
-    <Compile Include="RSAKeys.fs" />
+    <None Include="RSAKey.fs7" />
+    <Compile Include="RSAKey.fsi" />
+    <Compile Include="RSAKey.fs" />
     <None Include="DHGroup.fs7" />
     <Compile Include="DHGroup.fsi" />
     <Compile Include="DHGroup.fs" />
@@ -227,9 +227,9 @@
     <None Include="DH.fs7" />
     <Compile Include="DH.fsi" />
     <Compile Include="DH.fs" />
-    <None Include="RSAEnc.fs7" />
-    <Compile Include="RSAEnc.fsi" />
-    <Compile Include="RSAEnc.fs" />
+    <None Include="RSA.fs7" />
+    <Compile Include="RSA.fsi" />
+    <Compile Include="RSA.fs" />
     <None Include="SessionDB.fs7" />
     <Compile Include="SessionDB.fsi" />
     <Compile Include="SessionDB.fs" />

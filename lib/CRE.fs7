@@ -6,15 +6,15 @@ open TLSInfo
 open DHGroup
 
 type rsarepr = (;48)lbytes
-private type (;pk:RSAKeys.pk,pv:ProtocolVersion) rsapms = {rsapms:rsarepr}
+private type (;pk:RSAKey.pk,pv:ProtocolVersion) rsapms = {rsapms:rsarepr}
 type (;p:p, g:(;p) g, gx:(;p) elt, gy:(;p) elt) dhpms // strong secret when (p,g), gx, and gy have been honestly generated
 
-predicate GeneratedRSAPMS of RSAKeys.pk * ProtocolVersion * rsapms
+predicate GeneratedRSAPMS of RSAKey.pk * ProtocolVersion * rsapms
 
-val genRSA: pk:RSAKeys.pk -> pv:ProtocolVersion -> pms:(;pk,pv)rsapms{GeneratedRSAPMS(pk,pv,pms)}
+val genRSA: pk:RSAKey.pk -> pv:ProtocolVersion -> pms:(;pk,pv)rsapms{GeneratedRSAPMS(pk,pv,pms)}
 
-val coerceRSA: pk:RSAKeys.pk -> pv:ProtocolVersion -> bytes -> (;pk,pv)rsapms
-val leakRSA: pk:RSAKeys.pk -> pv:ProtocolVersion -> (;pk,pv)rsapms -> bytes
+val coerceRSA: pk:RSAKey.pk -> pv:ProtocolVersion -> bytes -> (;pk,pv)rsapms
+val leakRSA: pk:RSAKey.pk -> pv:ProtocolVersion -> (;pk,pv)rsapms -> bytes
 
 val sampleDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt ->            (;p,g,gx,gy) dhpms
 val coerceDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt -> (;p)elt -> (;p,g,gx,gy) dhpms

@@ -1,11 +1,11 @@
-﻿module RSAEnc
+﻿module RSA
 
 // RSA asymmetric encryption & decryption, used for PMS
 // we currently exclude RSA keys used both for signing and decryption
 
 open Bytes
 open Error
-open RSAKeys
+open RSAKey
 open TLSConstants
 open TLSInfo
 

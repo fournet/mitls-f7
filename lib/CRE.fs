@@ -26,18 +26,18 @@ let corrupt pms =
 let log = ref []
 #endif
 
-let genRSA (pk:RSAKeys.pk) (vc:TLSConstants.ProtocolVersion) : rsapms = 
+let genRSA (pk:RSAKey.pk) (vc:TLSConstants.ProtocolVersion) : rsapms = 
     let verBytes = TLSConstants.versionBytes vc in
     let rnd = Nonce.mkRandom 46 in
     let pms = verBytes @| rnd in
     let pms = {rsapms = pms}
     #if ideal
-    if RSAKeys.honest pk then honest_log := RSA_pms(pms)::!honest_log
+    if RSAKey.honest pk then honest_log := RSA_pms(pms)::!honest_log
     #endif
     pms
 
-let coerceRSA (pk:RSAKeys.pk) (pv:ProtocolVersion) b = {rsapms = b}
-let leakRSA (pk:RSAKeys.pk) (pv:ProtocolVersion) pms = pms.rsapms
+let coerceRSA (pk:RSAKey.pk) (pv:ProtocolVersion) b = {rsapms = b}
+let leakRSA (pk:RSAKey.pk) (pv:ProtocolVersion) pms = pms.rsapms
 
 
 

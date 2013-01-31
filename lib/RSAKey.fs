@@ -1,4 +1,4 @@
-﻿module RSAKeys
+﻿module RSAKey
 
 open Bytes
 

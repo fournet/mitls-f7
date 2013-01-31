@@ -10,7 +10,7 @@
   PRF.Strong, CRE.Strong, RSAPMS, DHPMS, StrongHS, Sig.Strong, StrongAE, StrongAuth
   
 - Declare all honest predicates
-  RSAKeys.Honest(pk) (enc), Sig.Honest(a,pk)
+  RSAKey.Honest(pk) (enc), Sig.Honest(a,pk)
   HonestRSAPMS(pv,pk,epms), HonestDHPMS(p,g,gx,gy)
   extend to HonestMS, HonestKeys
 

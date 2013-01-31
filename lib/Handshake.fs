@@ -311,7 +311,7 @@ let clientKEXBytes_RSA si config =
         | Error(x,y) -> Error(x,y)
         | Correct(pubKey) ->
             let pms = CRE.genRSA pubKey config.maxVer in
-            let encpms = RSAEnc.encrypt pubKey config.maxVer pms in
+            let encpms = RSA.encrypt pubKey config.maxVer pms in
             let nencpms = encpmsBytesVersion si.protocol_version encpms in
             let mex = messageBytes HT_client_key_exchange nencpms in
             // The returned encpms is ghost: only used to avoid
@@ -324,7 +324,7 @@ let parseClientKEX_RSA si skey cv config data =
     else
         match parseEncpmsVersion si.protocol_version data with
         | Correct(encPMS) ->
-            let res = RSAEnc.decrypt skey si cv config.check_client_version_in_pms_for_old_tls encPMS in
+            let res = RSA.decrypt skey si cv config.check_client_version_in_pms_for_old_tls encPMS in
             correct(encPMS,res)
         | Error(x,y) -> Error(x,y)
 
@@ -515,9 +515,9 @@ type serverState =  (* note that the CertRequest bits are determined by the conf
                     (* we may omit some ProtocolVersion, mostly a ghost variable *)
    | ClientHello                  of cVerifyData * sVerifyData
 
-   | ClientCertificateRSA         of SessionInfo * ProtocolVersion * RSAKeys.sk * log
-   | ServerCheckingCertificateRSA of SessionInfo * ProtocolVersion * RSAKeys.sk * log * bytes
-   | ClientKeyExchangeRSA         of SessionInfo * ProtocolVersion * RSAKeys.sk * log
+   | ClientCertificateRSA         of SessionInfo * ProtocolVersion * RSAKey.sk * log
+   | ServerCheckingCertificateRSA of SessionInfo * ProtocolVersion * RSAKey.sk * log * bytes
+   | ClientKeyExchangeRSA         of SessionInfo * ProtocolVersion * RSAKey.sk * log
 
    | ClientCertificateDH          of SessionInfo * log
    | ServerCheckingCertificateDH  of SessionInfo * log * bytes

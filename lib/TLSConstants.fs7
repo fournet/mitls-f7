@@ -223,7 +223,7 @@ private assume CompressionsBytes([]) = [||] /\
 private assume !cl. ContainsCompressions(cl,cl) /\ 
    (!cl. ContainsCompressions(cl,[])) /\
    (!h,t,cl. ContainsCompressions(t,cl) => ContainsCompressions(h::t,cl)) /\
-   (!h,t,h',t'. ContainsCompressions(t,t') => ContainsCompressions(h::t,h'::t'))
+   (!h,t,t'. ContainsCompressions(t,t') => ContainsCompressions(h::t,h::t'))
 
 val compressionBytes: c:Compression -> b:bytes{CompressionBytes(c) = b}
 val compressionMethodsBytes: cl:Compression list -> b:bytes{b = CompressionsBytes(cl)}

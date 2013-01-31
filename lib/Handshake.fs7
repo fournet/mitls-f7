@@ -163,7 +163,7 @@ val parseCertificateRequest: pv:ProtocolVersion -> b:bytes ->
 	((ctl:certType list * al:(Sig.alg list) * sl:string list){
 		MessageBytes(HT_certificate_request,b) = CertificateRequestMsg(pv,ctl,al,sl)})	 Result
 
-//function val ClientKeyExchangeMsg_RSA: pv:ProtocolVersion * si:SessionInfo * RSAKeys.pk * (;si,pv)CRE.rsapms -> bytes
+//function val ClientKeyExchangeMsg_RSA: pv:ProtocolVersion * si:SessionInfo * RSAKey.pk * (;si,pv)CRE.rsapms -> bytes
 function val ClientKeyExchangeMsg_RSA: pv:ProtocolVersion * bytes -> bytes
 private definition !pv,encpms,b.
        ((pv = TLS_1p2 \/ pv = TLS_1p1 \/ pv = TLS_1p0) => ClientKeyExchangeMsg_RSA(pv,encpms) = MessageBytes(HT_client_key_exchange,VLBytes(2,encpms))) /\
@@ -185,7 +185,7 @@ val clientKEXBytes_RSA: si:SessionInfo -> c:config ->
 	((b:bytes * encpms:bytes * pms:(;Cert.RSAPKCert(si.serverID),c.maxVer)CRE.rsapms){
 		b=ClientKeyExchangeMsg_RSA(si.protocol_version,encpms)
 		}) Result
-val parseClientKEX_RSA: si:SessionInfo -> RSAKeys.sk -> pv:ProtocolVersion -> config -> b:bytes ->
+val parseClientKEX_RSA: si:SessionInfo -> RSAKey.sk -> pv:ProtocolVersion -> config -> b:bytes ->
 	((encpms:bytes * (;Cert.RSAPKCert(si.serverID),pv)CRE.rsapms){
 		ClientKeyExchangeMsg_RSA(si.protocol_version,encpms) = MessageBytes(HT_client_key_exchange,b)
 	}) Result
@@ -691,9 +691,9 @@ type serverState =  (* note that the CertRequest bits are determined by the conf
                     (* we may omit some ProtocolVersion, mostly a ghost variable *)
    | ClientHello                  of cVerifyData * sVerifyData
 
-   | ClientCertificateRSA         of (si:SessionInfo * pv:ProtocolVersion * sk:RSAKeys.sk * l:log){ServerLogBeforeClientCertificateRSA(si,pv,l)}
-   | ServerCheckingCertificateRSA of (si:SessionInfo * pv:ProtocolVersion * sk:RSAKeys.sk * l:log * b:bytes){ServerLogBeforeClientKeyExchangeRSA(si,pv,l)}
-   | ClientKeyExchangeRSA         of (si:SessionInfo * pv:ProtocolVersion * sk:RSAKeys.sk * l:log){ServerLogBeforeClientKeyExchangeRSA(si,pv,l)}
+   | ClientCertificateRSA         of (si:SessionInfo * pv:ProtocolVersion * sk:RSAKey.sk * l:log){ServerLogBeforeClientCertificateRSA(si,pv,l)}
+   | ServerCheckingCertificateRSA of (si:SessionInfo * pv:ProtocolVersion * sk:RSAKey.sk * l:log * b:bytes){ServerLogBeforeClientKeyExchangeRSA(si,pv,l)}
+   | ClientKeyExchangeRSA         of (si:SessionInfo * pv:ProtocolVersion * sk:RSAKey.sk * l:log){ServerLogBeforeClientKeyExchangeRSA(si,pv,l)}
 
    | ClientCertificateDH          of si:SessionInfo * l:log
    | ServerCheckingCertificateDH  of si:SessionInfo * l:log * b:bytes

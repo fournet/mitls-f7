@@ -16,7 +16,7 @@ type cert = bytes
 
 type chain = cert list
 type sign_cert = (chain * Sig.alg * Sig.skey) option
-type enc_cert  = (chain * RSAKeys.sk) option
+type enc_cert  = (chain * RSAKey.sk) option
 
 (* ------------------------------------------------------------------------ *)
 let OID_RSAEncryption           = "1.2.840.113549.1.1.1"
@@ -191,7 +191,7 @@ let for_key_encryption (sigkeyalgs : Sig.alg list) (h : hint) =
                     let chain = x509_chain x509 in
 
                     if Seq.forall (x509_check_key_sig_alg_one sigkeyalgs) chain then
-                        Some (chain |> List.map x509_export_public, RSAKeys.create_rsaskey (sm, se))
+                        Some (chain |> List.map x509_export_public, RSAKey.create_rsaskey (sm, se))
                     else
                         None
                 | _ -> None
@@ -231,12 +231,12 @@ let get_public_signing_key (c : cert) ((siga, hasha) as a : Sig.alg) : Sig.pkey 
                 Error(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate is not for signing")
     with :? CryptographicException -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
-let get_public_encryption_key (c : cert) : RSAKeys.pk Result =
+let get_public_encryption_key (c : cert) : RSAKey.pk Result =
     try
         let x509 = new X509Certificate2(c) in
             if x509_is_for_key_encryption x509 then
                 match x509_to_public_key x509 with
-                | Some (CoreSig.PK_RSA(pm, pe)) -> Correct (RSAKeys.create_rsapkey (pm, pe))
+                | Some (CoreSig.PK_RSA(pm, pe)) -> Correct (RSAKey.create_rsapkey (pm, pe))
                 | _ -> Error(AD_unsupported_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate uses unknown key")
             else
                 Error(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate is not for key encipherment")
