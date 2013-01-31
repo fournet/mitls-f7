@@ -179,7 +179,7 @@ let encrypt e key data rg plain =
   (key,cipher)
 
 let decrypt e (key: LHAEKey) data (cipher: bytes) =  
-  #if idealC
+  #if ideal_F
   if safe e then
     match cmem e data cipher !log with
     | Some _ -> 
