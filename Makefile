@@ -48,10 +48,10 @@ prepare-dist-f7:
 
 dist: prepare-dist
 	cp LICENSE AUTHORS $(distname)
-	if [ -x ./anonymize ]; then \
+	if [ -x scripts/anonymize ]; then \
 	  find $(distname) \
-	    -type f \( -name '*.fs' -o -name '*.fsi' \) \
-	    -exec ./anonymize -m release -B -c LICENSE '{}' \+; \
+	    -type f \( -name '*.fs' -o -name '*.fsi' -o -name '*.fs7' \) \
+	    -exec scripts/anonymize -m release -B -c LICENSE '{}' \+; \
 	fi
 	tar --format=posix -czf $(distname).tgz $(distname)
 	rm -rf $(distname)

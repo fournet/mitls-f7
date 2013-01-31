@@ -11,7 +11,7 @@ include ../Makefile.config
 all: $(target)
 
 dist:
-	cp Makefile.config $(src) $(distdir)
+	cp Makefile.config $(src) $(src7) $(distdir)
 
 dist-f7:
 	cp $(src) $(src7) $(distdir)
@@ -20,7 +20,7 @@ make.in: Makefile.config
 	@true
 
 Makefile.config: lib.fsproj
-	if [ -f $< ]; then ../makegen -o $@ $<; fi
+	-if [ -f $< ]; then ../scripts/makegen -o $@ $<; fi
 
 lib.fsproj:
 

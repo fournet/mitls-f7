@@ -17,7 +17,7 @@ make.in: Makefile.config
 	@true
 
 Makefile.config: CoreCrypto.fsproj
-	if [ -f $< ]; then ../makegen -o $@ $<; fi
+	-if [ -f $< ]; then ../scripts/makegen -o $@ $<; fi
 
 CoreCrypto.fsproj:
 
