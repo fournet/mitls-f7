@@ -841,7 +841,7 @@ type (;ci:ConnectionInfo, hs:(;ci) hs_state) outgoing =
   | OutIdle of s':(;ci,Config(ci,hs))nextState
   | OutSome of (rg:range * f:(;ci.id_out,rg)HSFragment.fragment * s':(;ci,Config(ci,hs))nextState)
   | OutCCS of  (rg:range * f:(;ci.id_out,rg)HSFragment.fragment * 
-               ci':ConnectionInfo * cs:(;ci'.id_out)StatefulLHAE.state * s':(;ci',Config(ci,hs))nextState)
+               ci':ConnectionInfo * cs:(;ci'.id_out,StatefulLHAE.WriterState)StatefulLHAE.state * s':(;ci',Config(ci,hs))nextState)
                { StatefulPlain.EmptyHistory(ci'.id_out,cs.history) /\ 
                  ci.id_out = Pred(ci'.id_out) /\
                  ci.id_in = ci'.id_in /\
@@ -865,7 +865,7 @@ val authorize:     ci:ConnectionInfo -> s:(;ci)hs_state ->
                    c:Cert.chain -> (;ci,Config(ci,s))incoming
 
 type (;ci:ConnectionInfo,c:config)incomingCCS =
-  | InCCSAck of ci':ConnectionInfo * (;ci'.id_in)StatefulLHAE.state * (;ci',c)nextState
+  | InCCSAck of ci':ConnectionInfo * (;ci'.id_in,StatefulLHAE.ReaderState)StatefulLHAE.state * (;ci',c)nextState
 				{ci.id_out = ci'.id_out /\ ci.id_in = Pred(ci'.id_in)}
   | InCCSError of alertDescription * string * (;ci,c)nextState
 val recv_ccs     : ci:ConnectionInfo -> s:(;ci)hs_state -> rg:range -> (;ci.id_in,rg)HSFragment.fragment -> 

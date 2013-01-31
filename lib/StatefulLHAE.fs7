@@ -40,9 +40,9 @@ val history: ki:epoch -> rw:rw -> s:(;ki,rw) state -> h:(;ki)StatefulPlain.histo
 
 type cipher = LHAE.cipher
 
-predicate ENCrypted of e:epoch * h:(;e) StatefulPlain.history * ad:(;e)StatefulPlain.adata * rg:range * (;rg)rbytes * cipher
+predicate ENCrypted of e:epoch * h:(;e) StatefulPlain.history * ad:(;e)StatefulPlain.adata * rg:range * (;e,ad,h,rg)StatefulPlain.plain * cipher
 private definition !e,h,ad,rg,f,c. 
-  ENCrypted(e,h,ad,rg,f,c) <=> LHAE.ENCrypted(e,LHAEPlain.MakeAD(e,h,ad),rg,f,c)
+  ENCrypted(e,h,ad,rg,f,c) <=> LHAE.ENCrypted(e,LHAEPlain.MakeAD(e,h,ad),rg,LHAEPlain.StAEToLHAE(f),c)
 
 val encrypt: ki:succEpoch -> 
   wr:(;ki) writer -> 
@@ -51,7 +51,9 @@ val encrypt: ki:succEpoch ->
   f: (;ki,ad,History(ki,WriterState,wr),rg) StatefulPlain.plain ->
   (wr':(;ki) writer * c:cipher){
     History(ki,WriterState,wr') = StatefulPlain.ExtendHistory(ki,ad,History(ki,WriterState,wr),rg,f)
-/\  ENCrypted(ki,History(ki,WriterState,wr),ad,rg,StatefulPlain.Payload(ki,ad,rg,f),c)
+/\  (?f'. StatefulPlain.Payload(ki,ad,rg,f) = 
+                                  StatefulPlain.Payload(ki,ad,RangeClass(ki,rg),f') /\
+	ENCrypted(ki,History(ki,WriterState,wr),ad,RangeClass(ki,rg),f',c))
   }
 //CF why do we need a conditional here? 
 
@@ -64,7 +66,7 @@ val decrypt: ki:succEpoch ->
                (   History(ki,ReaderState,nrd) = StatefulPlain.ExtendHistory(ki,ad,History(ki,ReaderState,rd),rg,f) /\
                    rg = CipherRangeClass(ki,Length(c)) /\
  	         (Safe(ki) =>
-				( (!nrd,rg,f. res = Correct((nrd,rg,f)) => ENCrypted(ki,History(ki,ReaderState,rd),ad,rg,StatefulPlain.Payload(ki,ad,rg,f),c)) // /\
+				( (!nrd,rg,f. res = Correct((nrd,rg,f)) => ENCrypted(ki,History(ki,ReaderState,rd),ad,rg,f,c)) // /\
 				//  (!rg,p. ENCrypted(ki,rd,ad,rg,StatefulPlain.Payload(ki,ad,rg,p),c) => (?nrd,rg. res = Correct((nrd,rg,p))))
 				)
 			 ) ) }
