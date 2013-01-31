@@ -31,7 +31,9 @@ val keyGen: ci:ConnectionInfo -> (;EpochSI(ci.id_out))masterSecret ->
   { StatefulPlain.EmptyHistory(ci.id_out,w.history) /\
     StatefulPlain.EmptyHistory(ci.id_in,r.history)}
 
+(* AP for Karthik to fix ;-)
 private val log: ((e0:epoch * e1:epoch)  * (;e0)masterSecret) * ((;e0)state * (;e1)state)) list ref 
+*)
 
 (* VerifyData should be about epochs not sessions *)
 // Master secrets are also used to generate and check verifyData tags,
