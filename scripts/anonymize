@@ -29,7 +29,8 @@ def parser(mode):
             m = re.search(r'^\s*(\w+?):*\b', comment)
             return \
                 m is not None and \
-                    (m.group(1) == 'FIXME' or m.group(1) in mode.data)
+                    (m.group(1) in ['FIXME', 'TODO'] \
+                         or m.group(1) in mode.data)
         return False
 
     ml_comments = p.Regex(r'\(\*(?:[^*]*\*+)+?\)')
