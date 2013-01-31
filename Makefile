@@ -10,6 +10,8 @@ subdirs  += 3rdparty CoreCrypto DB lib TLSharp
 subdirs  += HttpServer echo rpc
 subdirs  += www-data
 
+TAR = tar --format=posix --owner=0 --group=0
+
 .PHONY: all build make.in prepare-dist
 .PHONY: do-dist-check dist dist-check
 
@@ -53,14 +55,14 @@ dist: prepare-dist
 	    -type f \( -name '*.fs' -o -name '*.fsi' -o -name '*.fs7' \) \
 	    -exec scripts/anonymize -m release -B -c LICENSE '{}' \+; \
 	fi
-	tar --format=posix -czf $(distname).tgz $(distname)
+	$(TAR) -czf $(distname).tgz $(distname)
 	rm -rf $(distname)
 
 dist-f7: anonymize prepare-dist-f7
 	cp LICENSE AUTHORS $(f7distname)
 	find $(f7distname)/lib -type f \
 	  -exec ./anonymize -m release -B -D ideal -c LICENSE '{}' \+;
-	tar --format=posix -czf $(f7distname).tgz $(f7distname)
+	$(TAR) -czf $(f7distname).tgz $(f7distname)
 	rm -rf $(f7distname)
 
 do-dist-check:
