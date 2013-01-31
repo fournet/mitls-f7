@@ -3,7 +3,6 @@
 open Bytes
 open TLSConstants
 
-
 (* ------------------------------------------------------------------------ *)
 type alg   = sigAlg * hashAlg
 
