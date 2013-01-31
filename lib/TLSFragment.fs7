@@ -62,7 +62,7 @@ ask !e,h,rg,f. HSFragment.Sent(e,HandshakeHistory(e,h),rg,f) =>
 type (;e:epoch,ct:ContentType,h:(;e)history,rg:range) plain = 
   f:(;e,ct,rg)fragment { Auth(e) => RecordSent(e,ct,h,rg,f) }
 
-function val ExtendHistory: e:epoch * ct:ContentType * ss:(;e)history * r:range * (;e,ct,r)fragment -> 'a //(;e)history
+function val ExtendHistory: e:epoch * ct:ContentType * ss:(;e)history * r:range * (;e,ct,ss,r)plain -> 'a //(;e)history
 
 val extendHistory: e:epoch -> ct:ContentType -> ss:(;e)history -> r:range ->
   f:(;e,ct,ss,r)plain -> ss':(;e)history{ss' = ExtendHistory(e,ct,ss,r,f)}

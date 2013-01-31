@@ -673,9 +673,9 @@ private assume !e,si. CompleteSI(e) <=>
 *)
 
 private assume !prev,e. CompleteEpoch(prev,e) <=>
-        (StrongHS(EpochSI(e)) /\ HonestPMS(EpochSI(e)) =>
+        (StrongHS(EpochSI(e)) /\ HonestPMS(EpochSI(e).pmsData) =>
             (?cfgC,cfgS.
-               SafeHS(EpochSI(e)) /\ 
+               SafeHS(e) /\ 
                Authorize(Client,EpochSI(e)) /\
                Authorize(Server,EpochSI(e)) /\
                SentCCS(Client,e) /\

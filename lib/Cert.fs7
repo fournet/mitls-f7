@@ -52,7 +52,7 @@ val parseCertificateList: b:bytes -> acc:chain ->
 
 //AP: Commenting out to let typeckeching go through
 
-(*
+(*FIXME
 
 // long-term key repository (part of the handshake implementation):
 //

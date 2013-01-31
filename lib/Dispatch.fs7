@@ -6,7 +6,7 @@ open Range
 open TLSInfo
 open TLSConstants
 
-type predispatchState =
+private type predispatchState =
   | Init 
   | FirstHandshake of ProtocolVersion             (* set by the ServerHello *) 
   | Finishing
@@ -15,54 +15,55 @@ type predispatchState =
   | Closing of ProtocolVersion * string (* To handle un-graceful closures *)
   | Closed
 
-type (;e:epoch)dispatchState = d:predispatchState{?pv,s.
+private type (;e:epoch)dispatchState = d:predispatchState{?pv,s.
 	(d = Init \/ d = FirstHandshake(pv) \/ d = Finishing \/ d = Finished \/
 	d = Open \/ d = Closing(pv,s) \/ d = Closed) /\
 	((d = Finishing \/ d = Finished \/ d = Open) => IsSuccEpoch(e))}
 
-type (;e:epoch) dState = {
+private type (;e:epoch,rw:StatefulLHAE.rw) dState = {
     disp: (;e)dispatchState;
-    conn: (;e)Record.ConnectionState;
+    conn: (;e,rw)Record.ConnectionState;
     }
 
-type (;id:ConnectionInfo) preGlobalState = {
+private type (;id:ConnectionInfo) preGlobalState = {
   (* abstract protocol states for HS/CCS, AL, and AD *)
   handshake: (;id) Handshake.hs_state;
   alert    : (;id) Alert.state;
   appdata  : (;id) AppData.app_state;    
 
   (* connection state for reading and writing *)
-  read  : (;id.id_in)  dState;
-  write : (;id.id_out) dState;
+  read  : (;id.id_in, StatefulLHAE.ReaderState) dState;
+  write : (;id.id_out,StatefulLHAE.WriterState) dState;
   (* The actual socket *)
   ns: Tcp.NetworkStream;
   }
 
 
 predicate GState of ci:ConnectionInfo * (;ci)preGlobalState
-type (;id:ConnectionInfo) globalState = gs:(;id) preGlobalState{GState(id,gs)}
+private type (;id:ConnectionInfo) globalState = gs:(;id) preGlobalState{GState(id,gs)}
 
-definition !ci,gs. GState(ci,gs)  <=>
+private definition !ci,gs. GState(ci,gs)  <=>
   ( (Auth(ci.id_out) =>
 		(
-		AppData.AppOutStream(ci,gs.appdata) = TLSFragment.HistoryStream(ci.id_out,TLSConstants.Application_data,Record.History(ci.id_out,gs.write.conn)) /\
-		Handshake.HSOutStream(ci,gs.handshake) = TLSFragment.HistoryStream(ci.id_out,TLSConstants.Handshake,Record.History(ci.id_out,gs.write.conn)) /\
-		Handshake.CCSOutStream(ci,gs.handshake) = TLSFragment.HistoryStream(ci.id_out,TLSConstants.Change_cipher_spec,Record.History(ci.id_out,gs.write.conn)) /\
-		Alert.AlOutStream(ci,gs.alert) = TLSFragment.HistoryStream(ci.id_out,TLSConstants.Alert,Record.History(ci.id_out,gs.write.conn))
+		AppData.AppOutStream(ci,gs.appdata) = TLSFragment.AppDataHistory(ci.id_out,Record.History(ci.id_out,StatefulLHAE.WriterState,gs.write.conn)) /\
+		Handshake.HSOutStream(ci,gs.handshake) = TLSFragment.HandshakeHistory(ci.id_out,Record.History(ci.id_out,StatefulLHAE.WriterState,gs.write.conn)) /\
+		Handshake.CCSOutStream(ci,gs.handshake) = TLSFragment.CCSHistory(ci.id_out,Record.History(ci.id_out,StatefulLHAE.WriterState,gs.write.conn)) /\
+		Alert.AlOutStream(ci,gs.alert) = TLSFragment.AlertHistory(ci.id_out,Record.History(ci.id_out,StatefulLHAE.WriterState,gs.write.conn))
 		)
 	) /\
     (Auth(ci.id_in)  =>
 		(
-		AppData.AppInStream(ci,gs.appdata)  = TLSFragment.HistoryStream(ci.id_in, TLSConstants.Application_data,Record.History(ci.id_in, gs.read.conn)) /\
-		Handshake.HSInStream(ci,gs.handshake) = TLSFragment.HistoryStream(ci.id_in,TLSConstants.Handshake,Record.History(ci.id_in,gs.read.conn)) /\
-		Handshake.CCSInStream(ci,gs.handshake) = TLSFragment.HistoryStream(ci.id_in,TLSConstants.Change_cipher_spec,Record.History(ci.id_in,gs.read.conn)) /\
-		Alert.AlInStream(ci,gs.alert) = TLSFragment.HistoryStream(ci.id_in,TLSConstants.Alert,Record.History(ci.id_in,gs.read.conn))
+		AppData.AppInStream(ci,gs.appdata)  = TLSFragment.AppDataHistory(ci.id_in,Record.History(ci.id_in,StatefulLHAE.ReaderState,gs.read.conn)) /\
+		Handshake.HSInStream(ci,gs.handshake) = TLSFragment.HandshakeHistory(ci.id_in,Record.History(ci.id_in,StatefulLHAE.ReaderState,gs.read.conn)) /\
+		Handshake.CCSInStream(ci,gs.handshake) = TLSFragment.CCSHistory(ci.id_in,Record.History(ci.id_in,StatefulLHAE.ReaderState,gs.read.conn)) /\
+		Alert.AlInStream(ci,gs.alert) = TLSFragment.AlertHistory(ci.id_in,Record.History(ci.id_in,StatefulLHAE.ReaderState,gs.read.conn))
 		)
 	)
   )
   
 
-(*/\
+(*FIXME
+	/\
 	(( AppData.AppInBuf(ci,gs.appdata) = None /\
 	    AppData.AppInStream( ci,gs.appdata) =
 		TLSFragment.HistoryStream(ci.id_in, TLSConstants.Application_data,Record.History(ci.id_in, gs.read.conn))) \/
@@ -71,46 +72,46 @@ definition !ci,gs. GState(ci,gs)  <=>
 	    TLSFragment.HistoryStream(ci.id_in, TLSConstants.Application_data,Record.History(ci.id_in, gs.read.conn))
 	  )
 	))
-                                 *)
-type Connection = Conn of (id:ConnectionInfo * (;id)globalState)
+ *)
+private type Connection = Conn of (id:ConnectionInfo * (;id)globalState)
 
 predicate CanWrite of ConnectionInfo
-assume !ci,c. Handshake.Complete(ci,c) => CanWrite(ci)
+private assume !ci,c. Handshake.Complete(ci,c) => CanWrite(ci)
 
 function val ConnectionEpochOut: Connection -> epoch
-assume !id,s. ConnectionEpochOut(Conn(id,s)) = id.id_out
+private assume !id,s. ConnectionEpochOut(Conn(id,s)) = id.id_out
 function val ConnectionEpochIn:  Connection -> epoch
-assume !id,s. ConnectionEpochIn(Conn(id,s))  = id.id_in
+private assume !id,s. ConnectionEpochIn(Conn(id,s))  = id.id_in
 
 
 function val ConnectionSIOut: Connection -> SessionInfo
-assume !id,s. ConnectionSIOut(Conn(id,s)) = EpochSI(id.id_out)
+private assume !id,s. ConnectionSIOut(Conn(id,s)) = EpochSI(id.id_out)
 function val ConnectionSIIn: Connection -> SessionInfo
-assume !id,s. ConnectionSIIn(Conn(id,s)) = EpochSI(id.id_in)
+private assume !id,s. ConnectionSIIn(Conn(id,s)) = EpochSI(id.id_in)
 
 function val ConnectionInHistory: c:Connection -> (;ConnectionEpochIn(c))TLSFragment.history
-assume !id,s. ConnectionInHistory(Conn(id,s)) = Record.History(id.id_in,s.read.conn)
+private assume !id,s. ConnectionInHistory(Conn(id,s)) = Record.History(id.id_in,s.read.conn)
 function val ConnectionOutHistory: c:Connection -> (;ConnectionEpochOut(c))TLSFragment.history
-assume !id,s. ConnectionOutHistory(Conn(id,s)) = Record.History(id.id_out,s.write.conn)
+private assume !id,s. ConnectionOutHistory(Conn(id,s)) = Record.History(id.id_out,s.write.conn)
 
 // Previously in TLS, needed here.
 function val CnId: Connection -> ConnectionInfo
 private assume !id, s. CnId(Conn(id, s)) = id
 
-function val CnStream_i: c:Connection -> (;ConnectionEpochIn (c)) stream
-function val CnStream_o: c:Connection -> (;ConnectionEpochOut(c)) stream
+function val CnStream_i: c:Connection -> (;ConnectionEpochIn (c)) DataStream.stream
+function val CnStream_o: c:Connection -> (;ConnectionEpochOut(c)) DataStream.stream
 private assume !id, s. CnStream_i(Conn(id, s)) =  AppData.AppInStream(id, s.appdata)
 private assume !id, s. CnStream_o(Conn(id, s)) = AppData.AppOutStream(id, s.appdata)
 
-type (;e:epoch,s:(;e)stream)msg_i = r:range * (;e,s,r)delta
-type (;e:epoch,s:(;e)stream)msg_o = r:range * (;e,s,r)delta
+type (;e:epoch,s:(;e)DataStream.stream)msg_i = r:range * (;e,s,r)DataStream.delta
+type (;e:epoch,s:(;e)DataStream.stream)msg_o = r:range * (;e,s,r)DataStream.delta
 
 function val CnBuf_o: c:Connection -> ((;ConnectionEpochOut(c),CnStream_o(c))msg_o) option
 private assume !id,s. CnBuf_o(Conn(id,s)) = AppData.AppOutBuf(id,s.appdata)
 
 function val Bytes_o: Connection -> bytes
 function val Bytes_i: Connection -> bytes
-function val StreamToBytes: ki:epoch * (;ki) stream -> bytes
+function val StreamToBytes: ki:epoch * (;ki) DataStream.stream -> bytes
 private assume !c. Bytes_o(c) = StreamToBytes(ConnectionEpochIn (c), CnStream_i(c))
 private assume !c. Bytes_i(c) = StreamToBytes(ConnectionEpochOut(c), CnStream_o(c))
 
@@ -123,7 +124,7 @@ predicate EvFatal      of ConnectionInfo * alertDescription * bytes
 // Write(i,p0), ..., Write(i,p0 @| ... @| pi), Warning(i,p0 @| ... @| pi), ..., Close(i, p0 @| ... @| pn)
 
 function val Role: Connection -> Role
-assume !c. Role(c) = CnId(c).role
+private assume !c. Role(c) = CnId(c).role
 
 function val DualRole: Role -> Role
 assume DualRole(Client) = Server
@@ -131,7 +132,7 @@ assume DualRole(Server) = Client
 
 // Peer(i,()) ghostly refers to the remote peer's ConnectionInfo 
 function val Peer: ConnectionInfo * unit -> ConnectionInfo 
-assume !ki. Peer(ki, ()) = { id_in = ki.id_out; id_out = ki.id_in; role = DualRole(ki.role) }
+private assume !ki. Peer(ki, ()) = { id_in = ki.id_out; id_out = ki.id_in; role = DualRole(ki.role) }
 
 predicate Extend   of c:Connection * c':Connection
 predicate Extend_o of c:Connection * c':Connection * (;ConnectionEpochOut(c),CnStream_o(c)) msg_o
@@ -148,24 +149,24 @@ predicate Split_o of
 	* (;ConnectionEpochOut(c'),CnStream_o(c'))msg_o
 
 
-definition !c, c'. 
+private definition !c, c'. 
 	Extend(c, c') <=>    Bytes_i(c') = Bytes_i(c)
                       /\ Bytes_o(c') = Bytes_o(c)
 
-definition !c, c', msg.
+private definition !c, c', msg.
 	Extend_o(c, c', msg) <=>     Bytes_i(c') = Bytes_i(c)
                               /\ Bytes_o(c') = Bytes_o(c) @| MsgOBytes(c, msg)
 
-definition !c, c', msg. 
+private definition !c, c', msg. 
 	Extend_i(c, c', msg) <=>     Bytes_i(c') = Bytes_i(c) @| MsgIBytes(c, msg)
                               /\ Bytes_o(c') = Bytes_o(c)
 
 val networkStream: Connection -> Tcp.NetworkStream
 
 function val Config: Connection -> config
-assume !id,s. Config(Conn(id,s)) = Handshake.Config(id,s.handshake)
+private assume !id,s. Config(Conn(id,s)) = Handshake.Config(id,s.handshake)
 
-type (;r:Role,c:config) nullCn = conn:Connection {
+private type (;r:Role,c:config) nullCn = conn:Connection {
 	   Config(conn) = c /\ Role(conn) = r
 	/\ TLSConstants.IsNullCiphersuite(ConnectionSIOut(conn).cipher_suite)
 	/\ TLSConstants.IsNullCiphersuite(ConnectionSIIn (conn).cipher_suite)
@@ -173,7 +174,7 @@ type (;r:Role,c:config) nullCn = conn:Connection {
 
 
 predicate NextCn of Connection * Connection
-assume !c,c'. NextCn(c,c') <=> ( Config(c')  = Config(c) /\ Role(c') = Role(c) /\ CnId(c') = CnId(c) )
+private assume !c,c'. NextCn(c,c') <=> ( Config(c')  = Config(c) /\ Role(c') = Role(c) /\ CnId(c') = CnId(c) )
 type (;c:Connection) nextCn = c':Connection {NextCn(c,c')}
 type query = Cert.chain
 
@@ -367,16 +368,17 @@ private val abortWithAlert: c:Connection -> alertDescription -> string -> (;c)ne
 private val getReason: predispatchState -> string
 private val pickSendPV: c:Connection -> TLSConstants.ProtocolVersion
 
-private val send: Tcp.NetworkStream -> e:epoch -> w:(;e)dState ->
+private val send: Tcp.NetworkStream -> e:epoch -> w:(;e,StatefulLHAE.WriterState)dState ->
 	TLSConstants.ProtocolVersion -> rg:range -> ct:TLSConstants.ContentType ->
-	f:(;e,ct,Record.History(e,w.conn),rg)TLSFragment.fragment -> res: (;e) dState Result{
+	f:(;e,ct,Record.History(e,StatefulLHAE.WriterState,w.conn),rg)TLSFragment.plain ->
+	res: (;e,StatefulLHAE.WriterState) dState Result{
           !w'. (res = Correct(w') /\ Auth(e)) =>
-            (Record.History(e,w'.conn) = TLSFragment.ExtendHistory(e,ct,Record.History(e,w.conn),rg,TLSFragment.TLSContents(f)))}
+            (Record.History(e,StatefulLHAE.WriterState,w'.conn) = TLSFragment.ExtendHistory(e,ct,Record.History(e,StatefulLHAE.WriterState,w.conn),rg,f))}
                                                                                                                                                                 
 private val recv: c:Connection ->
-	((;ConnectionEpochIn(c)) Record.ConnectionState *
+	((;ConnectionEpochIn(c),StatefulLHAE.ReaderState) Record.ConnectionState *
 	 ct:TLSConstants.ContentType * r:range * 
-         (;ConnectionEpochIn(c),ct,ConnectionInHistory(c),r)TLSFragment.fragment) Result
+         (;ConnectionEpochIn(c),ct,ConnectionInHistory(c),r)TLSFragment.plain) Result
 
 private val readOne: c:Connection ->
 	readOutcome * Connection
@@ -413,5 +415,5 @@ val refuse: Connection -> query -> unit
 
 val getEpochIn:   c:Connection -> e:epoch{e=ConnectionEpochIn(c) }
 val getEpochOut:  c:Connection -> e:epoch{e=ConnectionEpochOut(c)}
-val getInStream:  c:Connection -> s:(;ConnectionEpochIn(c))stream {s = CnStream_i(c)}
-val getOutStream: c:Connection -> s:(;ConnectionEpochOut(c))stream{s = CnStream_o(c)}
+val getInStream:  c:Connection -> s:(;ConnectionEpochIn(c))DataStream.stream {s = CnStream_i(c)}
+val getOutStream: c:Connection -> s:(;ConnectionEpochOut(c))DataStream.stream{s = CnStream_o(c)}
