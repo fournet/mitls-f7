@@ -98,19 +98,6 @@ private assume !id,s. ConnectionOutHistory(Conn(id,s)) = Record.History(id.id_ou
 function val CnInfo: Connection -> ConnectionInfo
 private assume !id, s. CnInfo(Conn(id, s)) = id
 
-// Returns the shared index
-function val CnID: Connection -> epoch * epoch
-private assume !id, e_in, e_out, rnd, s.
-	( (id = {id_in = e_in; id_out = e_out; role = Client; id_rand = rnd}) /\
-	  (CnID(Conn(id,s)) = (id.id_out,id.id_in))
-	) \/
-	( (id = {id_in = e_in; id_out = e_out; role = Server; id_rand = rnd}) /\
-	  (CnID(Conn(id,s)) = (id.id_in,id.id_out))
-	)
-// Returns the peer's shared index
-function val Peer: 'a (* epoch * epoch *)  -> epoch * epoch
-private assume !e,e'. Peer((e,e')) = (e',e)
-
 function val CnStream_i: c:Connection -> (;ConnectionEpochIn (c)) DataStream.stream
 function val CnStream_o: c:Connection -> (;ConnectionEpochOut(c)) DataStream.stream
 private assume !id, s. CnStream_i(Conn(id, s)) =  AppData.AppInStream(id, s.appdata)
@@ -128,10 +115,10 @@ function val StreamToBytes: ki:epoch * (;ki) DataStream.stream -> bytes
 private assume !c. Bytes_o(c) = StreamToBytes(ConnectionEpochIn (c), CnStream_i(c))
 private assume !c. Bytes_i(c) = StreamToBytes(ConnectionEpochOut(c), CnStream_o(c))
 
-predicate EvWrite      of (epoch * epoch) * bytes
-predicate EvWarning    of (epoch * epoch) * alertDescription * bytes
-predicate EvClose      of (epoch * epoch) * bytes
-predicate EvFatal      of (epoch * epoch) * alertDescription * bytes
+predicate EvWrite      of epoch * bytes
+predicate EvWarning    of epoch * alertDescription * bytes
+predicate EvClose      of epoch * bytes
+predicate EvFatal      of epoch * alertDescription * bytes
 // Write records increasing prefixes of the stream, for each written data fragment, 
 // interleaved with warnings, ended by Fatal or Close [we may distinguish between two kinds of close too]
 // Write(i,p0), ..., Write(i,p0 @| ... @| pi), Warning(i,p0 @| ... @| pi), ..., Close(i, p0 @| ... @| pn)
@@ -222,7 +209,7 @@ assume !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo)  <=>
 			/\ Config(c') = Config(c)
 			/\ ConnectionEpochIn(c) = Pred(ConnectionEpochIn(c'))
 			/\ Bytes_i(c') = [||]
-			/\ EvClose(Peer(CnID(c)), Bytes_i(c))
+			/\ EvClose(CnInfo(c).id_in, Bytes_i(c))
 			/\ Handshake.Complete(CnInfo(c'),Config(c'))
 			/\ (
 				( Handshake.EvSentFinishedFirst(CnInfo(c'),true)
@@ -259,9 +246,9 @@ assume !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo)  <=>
 assume !c,c',ro,mo. IOResult_i(c,c',ro,mo) =>
    (
     // Cases needed by the top level interface
-	(ro = RClose /\ (Auth(ConnectionEpochIn(c)) => EvClose(Peer(CnID(c)),Bytes_i(c)))) \/
-	(?ad. ro = RFatal(ad) /\ (Auth(ConnectionEpochIn(c)) => EvFatal(Peer(CnID(c)),ad,Bytes_i(c)))) \/
-	(?ad. ro = RWarning(ad) /\ Extend(c,c') /\ (Auth(ConnectionEpochIn(c)) => EvWarning(Peer(CnID(c)),ad,Bytes_i(c))) /\ NextCn(c,c')) \/
+	(ro = RClose /\ (Auth(ConnectionEpochIn(c)) => EvClose(CnInfo(c).id_in,Bytes_i(c)))) \/
+	(?ad. ro = RFatal(ad) /\ (Auth(ConnectionEpochIn(c)) => EvFatal(CnInfo(c).id_in,ad,Bytes_i(c)))) \/
+	(?ad. ro = RWarning(ad) /\ Extend(c,c') /\ (Auth(ConnectionEpochIn(c)) => EvWarning(CnInfo(c).id_in,ad,Bytes_i(c))) /\ NextCn(c,c')) \/
 	(?q,adv. ro = RQuery(q,adv) /\ Extend(c,c') /\ NextCn(c,c')) \/
 	(ro = RHSDone /\ 
 	  (
@@ -270,7 +257,7 @@ assume !c,c',ro,mo. IOResult_i(c,c',ro,mo) =>
 		/\ Config(c') = Config(c)
 		/\ ConnectionEpochIn(c) = Pred(ConnectionEpochIn(c'))
 		/\ Bytes_i(c') = [||]
-		/\ EvClose(Peer(CnID(c)), Bytes_i(c))
+		/\ EvClose(CnInfo(c).id_in, Bytes_i(c))
 
 		/\ Handshake.Complete(CnInfo(c'),Config(c'))
 
@@ -288,7 +275,7 @@ assume !c,c',ro,mo. IOResult_i(c,c',ro,mo) =>
 	  )
 	) \/
 	(?m. ro = RAppDataDone /\ mo = Some(m) /\
-		Extend_i(c,c',m) /\ NextCn(c,c') /\ (Auth(ConnectionEpochIn(c)) => EvWrite(Peer(CnID(c)), Bytes_i(c')))) \/
+		Extend_i(c,c',m) /\ NextCn(c,c') /\ (Auth(ConnectionEpochIn(c)) => EvWrite(CnInfo(c).id_in, Bytes_i(c')))) \/
 	(ro = WriteOutcome(WMustRead) /\ 
 		   (
 			  	Role(c') = Role(c) 
@@ -307,7 +294,7 @@ assume !c,c',ro,mo. IOResult_i(c,c',ro,mo) =>
 			/\ Config(c') = Config(c)
 			/\ ConnectionEpochIn(c) = Pred(ConnectionEpochIn(c'))
 			/\ Bytes_i(c') = [||]
-			/\ EvClose(Peer(CnID(c)), Bytes_i(c))
+			/\ EvClose(CnInfo(c).id_in, Bytes_i(c))
 
 			/\ Handshake.Complete(CnInfo(c'),Config(c'))
 
@@ -325,7 +312,7 @@ assume !c,c',ro,mo. IOResult_i(c,c',ro,mo) =>
 		  )
 	) \/
 	(?ad,s. ro = WriteOutcome(SentFatal(ad,s)) ) \/
-	(ro = WriteOutcome(SentClose) /\ (Auth(ConnectionEpochIn(c)) => EvClose(Peer(CnID(c)),Bytes_i(c)))
+	(ro = WriteOutcome(SentClose) /\ (Auth(ConnectionEpochIn(c)) => EvClose(CnInfo(c).id_in,Bytes_i(c)))
 	) \/
 	// Cases needed by dispatch; in practice not giving any refinement,
 	// just completing all the cases.

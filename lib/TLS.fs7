@@ -14,20 +14,20 @@ type (;c:Connection) ioresult_i =
   // or None in case of an internal error.
 
 | Close of Tcp.NetworkStream {
-	Auth(ConnectionEpochIn(c)) => EvClose(Peer(CnID(c)), Bytes_i(c))
+	Auth(ConnectionEpochIn(c)) => EvClose(CnInfo(c).id_in, Bytes_i(c))
   }
   // We received an alert notifying the normal closure of the connection; 
   // we learn that we have read everything sent by our peer,
   // and we get back the underlying TCP connection. 
 
 | Fatal of a:alertDescription {
-	Auth(ConnectionEpochIn(c)) => EvFatal(Peer(CnID(c)), a, Bytes_i(c))
+	Auth(ConnectionEpochIn(c)) => EvFatal(CnInfo(c).id_in, a, Bytes_i(c))
   }
   // We received an alert notifying the abnornal closure of the connection by our peer
   // We learn that we have read everything sent by our peer.
   
 | Warning of c':(;c) nextCn * a:alertDescription {
-	Extend(c,c') /\ Auth(ConnectionEpochIn(c)) => EvWarning(Peer(CnID(c)), a, Bytes_i(c))
+	Extend(c,c') /\ Auth(ConnectionEpochIn(c)) => EvWarning(CnInfo(c).id_in, a, Bytes_i(c))
   }
   // We received a warning (at this point in the input stream)
 
@@ -41,7 +41,7 @@ type (;c:Connection) ioresult_i =
 	/\ Config(c') = Config(c)
 	/\ ConnectionEpochIn(c) = Pred(ConnectionEpochIn(c'))
 	/\ Bytes_i(c') = [||]
-	/\ EvClose(Peer(CnID(c)), Bytes_i(c))
+	/\ EvClose(CnInfo(c).id_in, Bytes_i(c))
 	/\ Handshake.Complete(CnInfo(c'),Config(c'))
 	/\ (
 		(Handshake.EvSentFinishedFirst(CnInfo(c'),true) /\
@@ -57,7 +57,7 @@ type (;c:Connection) ioresult_i =
 	}
 
 | Read of c':(;c) nextCn * d:(;ConnectionEpochIn(c),CnStream_i(c)) msg_i {
-	Extend_i(c,c',d) /\ (Auth(ConnectionEpochIn(c)) => EvWrite(Peer(CnID(c)), Bytes_i(c')))
+	Extend_i(c,c',d) /\ (Auth(ConnectionEpochIn(c)) => EvWrite(CnInfo(c).id_in, Bytes_i(c')))
   }
   // We received a data fragment, appended to the input stream)
 
