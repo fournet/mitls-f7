@@ -46,7 +46,8 @@ private assume !e,si. si = EpochSI(e) =>
 // We have two variants for encryption and decryption: 
 // the first (primed) is concrete; the second is idealized at safe indexes.
 
-predicate ENCrypted of e:epoch * ad:(;e)LHAEPlain.adata * rg:range *  (;rg)rbytes * cipher
+predicate ENCrypted of e:epoch * ad:(;e)LHAEPlain.adata * rg:range *  
+                      (;e,ad,rg)LHAEPlain.plain * cipher
 
 // private definition !e,ad,rg,p,c.
 // 	ENCrypted(e,ad,rg,p,c) <=>
@@ -59,32 +60,30 @@ val encrypt': ki:succEpoch -> (;ki) LHAEKey -> ad:(;ki)LHAEPlain.adata ->
 val encrypt : ki:succEpoch -> (;ki) LHAEKey -> ad:(;ki)LHAEPlain.adata ->
   rg:range -> p:(;ki,ad,rg) LHAEPlain.plain ->
   ((;ki) LHAEKey * c:cipher){Length(c) = TargetLength(ki,rg)
-  			  /\ ENCrypted(ki,ad,RangeClass(ki,rg),LHAEPlain.Payload(ki,ad,RangeClass(ki,rg),p),c)}
+  			  /\ ?p'. LHAEPlain.Payload(ki,ad,rg,p) = 
+                                  LHAEPlain.Payload(ki,ad,RangeClass(ki,rg),p') /\
+                                  ENCrypted(ki,ad,RangeClass(ki,rg),p',c)}
 
 //CF unclear whether the log should include the plaintext; tried without, should rollback...
-type entry = ki:succEpoch * ad:(;ki) LHAEPlain.adata * rg:range * p:(;ki,ad,rg) LHAEPlain.plain * c:ENC.cipher { ENCrypted(ki,ad,rg,LHAEPlain.Payload(ki,ad,rg,p),c) /\ rg = CipherRangeClass(ki,Length(c)) }
+type entry = ki:succEpoch * ad:(;ki) LHAEPlain.adata * rg:range * p:(;ki,ad,rg) LHAEPlain.plain * c:ENC.cipher { ENCrypted(ki,ad,rg,p,c)}
 private val log: entry list ref
 private val cmem: ki:succEpoch -> ad:(;ki)LHAEPlain.adata -> c:cipher ->  
   entry list -> res:(r:range * (;ki,ad,r)LHAEPlain.plain) option { 
-    ( !rg,p. res = Some ((rg,p)) => ENCrypted(ki,ad,rg,LHAEPlain.Payload(ki,ad,rg,p),c) ) /\
-	( res = None => !rg,p. not ENCrypted(ki,ad,rg,LHAEPlain.Payload(ki,ad,rg,p),c) )}
+    ( !rg,p. res = Some ((rg,p)) => ENCrypted(ki,ad,rg,p,c) ) /\
+	( res = None => !rg,p. not ENCrypted(ki,ad,rg,p,c) )}
 
 private val safe: ki:succEpoch -> b:bool { b = true <=> Auth(ki) }
 
 //CF a corollary of affine encryptions:
 theorem !ki,d,rg0,p0,rg1,p1,c. (ENCrypted(ki,d,rg0,p0,c) /\ ENCrypted(ki,d,rg1,p1,c)) => p0 = p1
 
-//KB should be provable, but is invalid right now?
-assume !e,mac. CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MACOnly(mac)
-		=> not TLSInfo.Auth(e)
-
 val decrypt': ki:succEpoch -> k:(;ki) LHAEKey -> ad:(;ki)LHAEPlain.adata ->
   c:cipher -> res: 
   ( ( 
     (;ki) LHAEKey *  
     rg:range * 
-	p:(;ki,ad,rg) LHAEPlain.plain) { //rg = CipherRangeClass(ki,Length(c))
-									 // /\ !p',rg'. ENCrypted(ki,ad,rg',p',c) => p=p'
+    p:(;ki,ad,rg) LHAEPlain.plain) {rg = CipherRangeClass(ki,Length(c))
+                                    ///\ !p',rg'. ENCrypted(ki,ad,rg',p',c) => p=p'
 									 } ) Result
 
 // { (* partial functional correctness when decrypting what we encrypted *)
@@ -102,8 +101,8 @@ val decrypt: ki:succEpoch -> (;ki) LHAEKey -> ad:(;ki)LHAEPlain.adata ->
   ) Result
    {
     (Safe(ki) => 
-        (   (!k,r,p. res = Correct((k,r,p)) => ENCrypted(ki,ad,r,LHAEPlain.Payload(ki,ad,r,p),c)) 
-		 /\ (!r,p. ENCrypted(ki,ad,r,LHAEPlain.Payload(ki,ad,r,p),c) => (?k,r'. res = Correct((k,r',p))))
+        (   (!k,r,p. res = Correct((k,r,p)) => ENCrypted(ki,ad,r,p,c)) 
+		 /\ (!r,p. ENCrypted(ki,ad,r,p,c) => (?k,r'. res = Correct((k,r',p))))
 		))}
 // The last two lines are equivalent to (but easier to verify than)
 // !p. CTXT(ki,ad,p,c) <=> (?k,r. res = Correct((k,r,p)))

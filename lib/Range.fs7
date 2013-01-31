@@ -18,6 +18,7 @@ function val TargetLength: epoch * range -> nat
 function val CipherRangeClass: epoch * nat -> range
 
 definition !e,r. RangeClass(e,r) = CipherRangeClass(e,TargetLength(e,r))
+theorem !e,t,rg.  rg = CipherRangeClass(e,t) => t = TargetLength(e,rg)
 theorem !e,r. SubRange(r,RangeClass(e,r))
 
 function val IVSize: epoch -> nat

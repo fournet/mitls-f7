@@ -68,3 +68,9 @@ val Verify: ki:succEpoch -> k:(;ki) key -> t:text -> m:(;ki) tag -> v:bool{ (v=t
 val GEN:    ki:succEpoch -> (;ki) key
 val LEAK:   ki:succEpoch {not(Auth(ki))} -> (;ki)key -> (;ki)keyrepr
 val COERCE: ki:succEpoch {not(Auth(ki))} -> (;ki)keyrepr -> (;ki)key
+
+type entry = (ki:epoch * t:text * (;ki)tag){Msg(ki,t)}
+val log: entry list ref
+val tmem: ki:epoch -> t:text -> entry list -> b:bool{
+  (b = true) => Msg(ki,t)
+}

@@ -142,4 +142,5 @@ let safe (e:epoch) = failwith "todo" : bool // Define in terms of strength and h
 let safeHS (e:epoch) = failwith "todo": bool
 let auth (e:epoch) = failwith "todo": bool
 let MAC_safe (e:epoch) = failwith "todo":bool
+let ENC_safe (e:epoch) = failwith "todo":bool
 #endif

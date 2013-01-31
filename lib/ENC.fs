@@ -76,22 +76,21 @@ let LEAK (ki:epoch) s =
     | StreamCipher (ss) ->
         ss.skey.k,[||]
 
-let enc_int alg k iv d =
+let cbcenc alg k iv d =
     match alg with
     | TDES_EDE -> CoreCiphers.des3_cbc_encrypt k iv d
     | AES_128 | AES_256  -> CoreCiphers.aes_cbc_encrypt  k iv d
 
 (* Parametric ENC/DEC functions *)
-let ENC ki s tlen data =
+let ENC_int ki s tlen d =
     let si = epochSI(ki) in
     let encAlg = encAlg_of_ciphersuite si.cipher_suite si.protocol_version in
-    let d = Encode.repr ki tlen data in
     match s,encAlg with
     | BlockCipher(s), CBC_Stale(alg) ->
         match s.iv with
         | NoIV -> unexpectedError "[ENC] Wrong combination of cipher algorithm and state"
         | SomeIV(iv) ->
-            let cipher = enc_int alg s.key.k iv d
+            let cipher = cbcenc alg s.key.k iv d
             if length cipher <> tlen || tlen > max_TLSCipher_fragment_length then
                 // unexpected, because it is enforced statically by the
                 // CompatibleLength predicate
@@ -105,7 +104,7 @@ let ENC ki s tlen data =
         | NoIV   ->
             let ivl = blockSize alg in
             let iv = Nonce.mkRandom ivl in
-            let cipher = enc_int alg s.key.k iv d
+            let cipher = cbcenc alg s.key.k iv d
             let res = iv @| cipher in
             if length res <> tlen || tlen > max_TLSCipher_fragment_length then
                 // unexpected, because it is enforced statically by the
@@ -124,12 +123,34 @@ let ENC ki s tlen data =
             (StreamCipher(s),cipher)
     | _, _ -> unexpectedError "[ENC] Wrong combination of cipher algorithm and state"
 
-let dec_int alg k iv e =
+#if ideal
+type entry = epoch * nat * Encode.plain * cipher
+let log = ref []
+let rec cfind (e:epoch) (c:cipher) (xs: entry list) = 
+  match xs with
+      [] -> failwith "not found"
+    | (e',l,text,c')::res when e = e' && c = c' -> text
+    | _::res -> cfind e c res
+#endif
+
+let ENC ki s tlen data =
+  #if ideal
+    if ENC_safe(ki) then
+      let d = createBytes tlen 0 in
+      let (s,c) = ENC_int ki s tlen d in
+      log := (ki, tlen, data, c)::!log;
+      (s,c)
+    else
+  #endif
+      let d = Encode.repr ki tlen data in
+      ENC_int ki s tlen d
+
+let cbcdec alg k iv e =
     match alg with
     | TDES_EDE -> CoreCiphers.des3_cbc_decrypt k iv e
     | AES_128 | AES_256  -> CoreCiphers.aes_cbc_decrypt k iv e
 
-let DEC ki s cipher =
+let DEC_int ki s cipher =
     let si = epochSI(ki) in
     let encAlg = encAlg_of_ciphersuite si.cipher_suite si.protocol_version in
     match s, encAlg with
@@ -137,7 +158,7 @@ let DEC ki s cipher =
         match s.iv with
         | NoIV -> unexpectedError "[DEC] Wrong combination of cipher algorithm and state"
         | SomeIV(iv) ->
-            let data = dec_int alg s.key.k iv cipher
+            let data = cbcdec alg s.key.k iv cipher
             let d = Encode.plain ki (length cipher) data in
             let s = {s with iv = SomeIV(lastblock cipher alg)} in
             (BlockCipher(s), d)
@@ -147,7 +168,7 @@ let DEC ki s cipher =
         | NoIV ->
             let ivL = blockSize alg in
             let (iv,encrypted) = split cipher ivL in
-            let data = dec_int alg s.key.k iv encrypted in
+            let data = cbcdec alg s.key.k iv encrypted in
             let d = Encode.plain ki (length cipher) data in
             let s = {s with iv = NoIV} in
             (BlockCipher(s), d)
@@ -156,6 +177,17 @@ let DEC ki s cipher =
         let d = Encode.plain ki (length cipher) data in
         (StreamCipher(s),d)
     | _,_ -> unexpectedError "[DEC] Wrong combination of cipher algorithm and state"
+
+let DEC ki s cipher =
+  #if ideal
+    if ENC_safe(ki) then
+      let (s,p) = DEC_int ki s cipher in
+      let p' = cfind ki cipher !log in
+      (s,p')
+    else
+  #endif
+      DEC_int ki s cipher
+
 
 (* the SPRP game in F#, without indexing so far.
    the adversary gets 

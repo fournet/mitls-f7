@@ -193,6 +193,7 @@ val safe: (e:epoch) -> b:bool { b = true <=> Safe(e) }
 val safeHS: (e:epoch) -> b:bool {b = true <=> SafeHS(e)}
 val auth :(e:epoch) -> b:bool {b = true <=> Auth(e)}
 val MAC_safe: (e:epoch) -> b:bool {b = true <=> Auth(e)}
+val ENC_safe: (e:epoch) -> b:bool {b = true <=> Safe(e)}
 
 ask !e. Safe(e) => Auth(e) 
 

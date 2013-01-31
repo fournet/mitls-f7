@@ -8,11 +8,12 @@ open Error
 
 type text = bytes
 type tag = bytes
-
-type key = {k:bytes}
+type keyrepr = bytes
+type key = {k:keyrepr}
 
 #if ideal 
-let log=ref []
+type entry = epoch * text * tag
+let log:entry list ref=ref []
 #endif
 
 let Mac ki key data =
@@ -26,6 +27,14 @@ let Mac ki key data =
     #endif
     tag
 
+let rec tmem (e:epoch) (t:text) (xs: entry list) = 
+  match xs with
+      [] -> false
+    | (e',t',tag)::res when e = e' && t = t' -> true
+    | (e',t',tag)::res -> tmem e t res
+        
+
+
 let Verify ki key data tag =
     let si = epochSI(ki) in
     let pv = si.protocol_version in
@@ -35,7 +44,7 @@ let Verify ki key data tag =
     // At safe indexes, we use the log to detect and correct verification errors
     && if MAC_safe ki
        then 
-           exists (fun (ki', data', _) -> ki'=ki && data'= data) !log
+           tmem ki data !log
        else 
            true  
     #endif
