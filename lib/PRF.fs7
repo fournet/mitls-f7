@@ -37,7 +37,7 @@ private assume !e1,e2. Fst((e1,e2)) = e1
 private assume !e1,e2. Snd((e1,e2)) = e1
 
 private val log:  (ems:(e12:(epoch * epoch)  * (;Fst(e12))masterSecret) * 
-                   ((;Fst(Fst(ems)))state * (;Snd(Fst(ems)))state)) list ref 
+                   ((;Fst(Fst(ems)),WriterState)state * (;Snd(Fst(ems)),ReaderState)state)) list ref 
 private val finish_log: (SessionInfo * bytes * bytes) list ref 
 
 (* VerifyData should be about epochs not sessions *)
