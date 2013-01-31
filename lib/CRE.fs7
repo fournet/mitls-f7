@@ -9,7 +9,7 @@ type rsarepr = (;48)lbytes
 private type (;pk:RSAKey.pk,pv:ProtocolVersion) rsapms = {rsapms:rsarepr}
 type (;p:p, g:(;p) g, gx:(;p) elt, gy:(;p) elt) dhpms // strong secret when (p,g), gx, and gy have been honestly generated
 
-predicate GeneratedRSAPMS of RSAKey.pk * ProtocolVersion * rsapms
+predicate GeneratedRSAPMS of pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms
 
 val genRSA: pk:RSAKey.pk -> pv:ProtocolVersion -> pms:(;pk,pv)rsapms{GeneratedRSAPMS(pk,pv,pms)}
 
