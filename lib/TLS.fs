@@ -6,7 +6,6 @@ open TLSInfo
 open Tcp
 open Dispatch
 
-
 // Outcomes for top-level functions
 type ioresult_i =
     | ReadError of alertDescription option * string

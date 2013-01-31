@@ -58,9 +58,9 @@ dist: prepare-dist
 
 dist-f7: anonymize prepare-dist-f7
 	cp LICENSE AUTHORS $(f7distname)
-	tar --format=posix -czf $(f7distname).tgz $(f7distname)
 	find $(f7distname)/lib -type f \
 	  -exec ./anonymize -m release -B -D ideal -c LICENSE '{}' \+;
+	tar --format=posix -czf $(f7distname).tgz $(f7distname)
 	rm -rf $(f7distname)
 
 do-dist-check:

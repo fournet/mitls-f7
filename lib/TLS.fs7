@@ -95,7 +95,6 @@ type (;c:Connection,d:(;ConnectionEpochOut(c),CnStream_o(c)) msg_o) ioresult_o =
 (* Event-driven interface *)
 
 val read: c:Connection -> (;c) ioresult_i
-// TODO: document the events possibly recorded by calls to read
 
 val write: c:Connection{CanWrite(CnId(c))} -> d:(;ConnectionEpochOut(c),CnStream_o(c)) msg_o -> (;c,d) ioresult_o
 // On the write side, the following events may be generated:
@@ -153,7 +152,8 @@ val accept_connected: Tcp.NetworkStream -> c:config -> (;Server,c) nullCn
 val authorize : c:Connection -> q:query-> (;c)ioresult_i
 val refuse    : c:Connection -> q:query -> unit
 // AP: we will have to internally send a fatal alert,
-// AP: and this might fail. We might want to give some feedback to the user. Same as half_shutdown
+// AP: and this might fail. We might want to give some feedback to the user.
+// AP: Same as for half_shutdown
 
 val getSessionInfo: k:succEpoch -> s:SessionInfo{s = EpochSI(k)}
 
@@ -163,7 +163,8 @@ val getEpochOut: c:Connection -> k:epoch{k = ConnectionEpochOut(c)}
 val getInStream : c:Connection -> s:(;ConnectionEpochIn (c)) stream{s = CnStream_i(c)}
 val getOutStream: c:Connection -> s:(;ConnectionEpochOut(c)) stream{s = CnStream_o(c)}
 
-(* For each call through this API, say connect(x,p) returning r,
+(* FIXME:
+   For each call through this API, say connect(x,p) returning r,
    we may use homonymous events, say Connect(x,p) & Connected(x,p,r), 
    or something more ad hoc, like Writing, generated internally between Write & Written
    (s/Write/Writing/ later) 
@@ -199,5 +200,4 @@ val getOutStream: c:Connection -> s:(;ConnectionEpochOut(c)) stream{s = CnStream
    
    Next(c,c') <=> UID(c') = UID(c) /\ Seqn(c') = Seqn(c) + 1
    Prior(c,c') <=> UID(c') = UID(c) /\ Epoch(c') = Epoch(c) /\ Seqn(c) < Seqn(c')
-     
-   *)
+*)

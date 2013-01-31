@@ -197,7 +197,8 @@ def _process_file(filename, options):
     if options.backup:
         if os.path.exists(outname + '~'):
             os.unlink(outname + '~')
-        os.rename(outname, outname + '~')
+        if os.path.exists(outname):
+            os.rename(outname, outname + '~')
     else:
         _noexn(lambda : os.unlink(outname))
 
