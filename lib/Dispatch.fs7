@@ -90,9 +90,9 @@ function val ConnectionSIIn: Connection -> SessionInfo
 private assume !id,s. ConnectionSIIn(Conn(id,s)) = EpochSI(id.id_in)
 
 function val ConnectionInHistory: c:Connection -> (;ConnectionEpochIn(c))TLSFragment.history
-private assume !id,s. ConnectionInHistory(Conn(id,s)) = Record.History(id.id_in,s.read.conn)
+private assume !id,s. ConnectionInHistory(Conn(id,s)) = Record.History(id.id_in,StatefulLHAE.ReaderState,s.read.conn)
 function val ConnectionOutHistory: c:Connection -> (;ConnectionEpochOut(c))TLSFragment.history
-private assume !id,s. ConnectionOutHistory(Conn(id,s)) = Record.History(id.id_out,s.write.conn)
+private assume !id,s. ConnectionOutHistory(Conn(id,s)) = Record.History(id.id_out,StatefulLHAE.WriterState,s.write.conn)
 
 // Previously in TLS, needed here.
 function val CnId: Connection -> ConnectionInfo
@@ -125,10 +125,6 @@ predicate EvFatal      of ConnectionInfo * alertDescription * bytes
 
 function val Role: Connection -> Role
 private assume !c. Role(c) = CnId(c).role
-
-function val DualRole: Role -> Role
-assume DualRole(Client) = Server
-assume DualRole(Server) = Client
 
 // Peer(i,()) ghostly refers to the remote peer's ConnectionInfo 
 function val Peer: ConnectionInfo * unit -> ConnectionInfo 

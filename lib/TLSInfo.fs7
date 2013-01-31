@@ -41,6 +41,9 @@ type preRole =
 	| Client
 	| Server
 type Role = r:preRole{r = Client \/ r = Server}
+function val DualRole: Role -> Role
+assume DualRole(Client) = Server
+assume DualRole(Server) = Client
 
 // Client/Server randomness (implemented in Nonce) 
 // their first 4 bytes give the local time, 

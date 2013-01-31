@@ -617,8 +617,8 @@ predicate SentCCS of Role * epoch (* CCS will be sent multiple times,
                                      one for each epoch *)
 predicate EvSentFinishedFirst of ConnectionInfo * bool
 predicate Negotiated of SessionInfo * config * config
-predicate CompleteEpoch of epoch * epoch
-predicate Complete of ConnectionInfo
+predicate CompleteEpoch of Role * epoch * epoch * config
+predicate Complete of ConnectionInfo * config
 
 (* Anonymous clients are authorized for client-unauthenticated sessions *)
 private assume !si. (si.client_auth = false /\ si.clientID = []) => Authorize(Server,si)
@@ -672,24 +672,25 @@ private assume !e,si. CompleteSI(e) <=>
                ))
 *)
 
-private assume !prev,e. CompleteEpoch(prev,e) <=>
+private assume !role,prev,e,cfg. CompleteEpoch(role,prev,e,cfg) <=>
         (StrongHS(EpochSI(e)) /\ HonestPMS(EpochSI(e).pmsData) =>
-            (?cfgC,cfgS.
+            (?cfgPeer.
                SafeHS(e) /\ 
                Authorize(Client,EpochSI(e)) /\
                Authorize(Server,EpochSI(e)) /\
                SentCCS(Client,e) /\
                SentCCS(Server,e) /\
-               Configure(Client,prev,cfgC) /\
-               Configure(Server,prev,cfgS) /\
-               Negotiated(EpochSI(e),cfgC,cfgS)
+               Configure(role,prev,cfg) /\
+               Configure(DualRole(role),prev,cfgPeer) /\
+               Negotiated(EpochSI(e),cfg,cfgPeer)
                ))
 (* Negotiated remains to be defined but it can be a nice global spec of what HS is meant to achieve.
    Especially interesting would be proving that the result is the "best possible" *)
 
-private assume !ci. Complete(ci) <=>
+private assume !ci,cfg. Complete(ci,cfg) <=>
         (EpochSI(ci.id_in) = EpochSI(ci.id_out) /\
-         CompleteEpoch(Pred(ci.id_in),ci.id_in))
+          CompleteEpoch(ci.role,Pred(ci.id_in),ci.id_in,cfg)
+		)
             
  
 type serverState =  (* note that the CertRequest bits are determined by the config *) 
@@ -849,7 +850,7 @@ type (;ci:ConnectionInfo, hs:(;ci) hs_state) outgoing =
   | OutFinished of (rg:range * f:(;ci.id_out,rg)HSFragment.fragment * s':(;ci,Config(ci,hs))nextState){
 				EvSentFinishedFirst(ci,true)}
   | OutComplete of (rg:range * f:(;ci.id_out,rg)HSFragment.fragment * s':(;ci,Config(ci,hs))nextState)
-                   {Complete(ci)}
+                   {Complete(ci,Config(ci,hs))}
 val next_fragment: ci:ConnectionInfo -> s:(;ci)hs_state -> (;ci,s)outgoing
 
 type (;ci:ConnectionInfo,c:config)incoming =
@@ -857,7 +858,7 @@ type (;ci:ConnectionInfo,c:config)incoming =
   | InVersionAgreed  of (;ci,c)nextState * ProtocolVersion
   | InQuery of Cert.chain * advice:bool * (;ci,c)nextState
   | InFinished of (;ci,c)nextState {EvSentFinishedFirst(ci,false)}
-  | InComplete of (;ci,c)nextState {Complete(ci)}
+  | InComplete of (;ci,c)nextState {Complete(ci,c)}
   | InError of alertDescription * string * (;ci,c)nextState
 val recv_fragment: ci:ConnectionInfo -> s:(;ci)hs_state -> rg:range -> (;ci.id_in,rg)HSFragment.fragment -> 
                    (;ci,Config(ci,s))incoming
