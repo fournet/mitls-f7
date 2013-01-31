@@ -127,7 +127,8 @@ function val Role: Connection -> Role
 private assume !c. Role(c) = CnId(c).role
 
 // Peer(i,()) ghostly refers to the remote peer's ConnectionInfo 
-function val Peer: ConnectionInfo * unit -> ConnectionInfo 
+function val Peer: ConnectionInfo * unit -> ConnectionInfo
+// FIXME: We need to assign the id_rand field! Tricky!
 private assume !ki. Peer(ki, ()) = { id_in = ki.id_out; id_out = ki.id_in; role = DualRole(ki.role) }
 
 predicate Extend   of c:Connection * c':Connection
@@ -402,7 +403,7 @@ val write: c:Connection -> // CnOutBuf(c) = None
 	  // /\ CnOutBuf(c') = None
     }
 
-val authorize: c:Connection -> q:query{Handshake.Authorize(Config(c),q)} -> 
+val authorize: c:Connection -> q:query -> 
 	(c':Connection  * ro:readOutcome * mo:(;ConnectionEpochIn(c'),CnStream_i(c'))msg_i option)
     {
       IOResult_i(c,c',ro,mo)
