@@ -598,12 +598,12 @@ private assume !si,l.
 (* Old
 private assume !a,k,t. Sig.Msg(a,k,t) 
   <=> ((?si. ClientLogBeforeCertificateVerifyRSA_Auth(si,t) /\
-             k = Cert.RSAPKCert(si.clientID)) \/
+             k = Cert.SigPKCert(si.clientID,a)) \/
         (?si. ClientLogBeforeCertificateVerifyDHE_Auth(si,t) /\
-           k = Cert.RSAPKCert(si.clientID)) \/
+           k = Cert.SigPKCert(si.clientID,a)) \/
         (?si,p,g,y. t = si.init_crand @| si.init_srand @| 
                     DHEParamBytes(p,g,y) /\
-           k = Cert.RSAPKCert(si.serverID)))
+           k = Cert.SigPKCert(si.serverID,a)))
 *)
 
 predicate Configure of Role * epoch * config
@@ -625,17 +625,17 @@ private assume !si. (si.client_auth = false /\ si.clientID = []) => Authorize(Se
 
 private assume !a,k,t. Sig.Msg(a,k,t) 
   <=> ((?si. ClientLogBeforeCertificateVerifyRSA_Auth(si,t) /\
-             k = Cert.RSAPKCert(si.clientID) /\
-             HonestPMS(si) /\
+             k = Cert.SigPKCert(si.clientID,a) /\
+             HonestPMS(si.pmsData) /\
              Authorize(Client,si)) \/
         (?si. ClientLogBeforeCertificateVerifyDHE_Auth(si,t) /\
-           k = Cert.RSAPKCert(si.clientID) /\
-           (* HonestServerExponent(si) => HonestPMS(si) /\ *)
+           k = Cert.SigPKCert(si.clientID,a) /\
+           (* HonestServerExponent(si) => HonestPMS(si.pmsData) /\ *)
            Authorize(Client,si)) \/
         (?si,p,g,y. t = si.init_crand @| si.init_srand @| 
            DHEParamBytes(p,g,y) /\
            (* HonestServerExponent(si) *)
-           k = Cert.RSAPKCert(si.serverID)))
+           k = Cert.SigPKCert(si.serverID,a)))
 
            
 private assume !e,r,b. PRF.VerifyData(e,r,b) 
@@ -659,7 +659,7 @@ private assume !e,r,b. PRF.VerifyData(e,r,b)
 (* Complete should be defined on the current epoch not the session info.
 Sample:
 private assume !e,si. CompleteSI(e) <=>
-        (StrongHS(EpochSI(e)) /\ HonestPMS(EpochSI(e)) =>
+        (StrongHS(EpochSI(e)) /\ HonestPMS(EpochSI(e).pmsData) =>
             (?cfgC,cfgS.
                SafeHS(EpochSI(si)) /\ 
                Authorize(Client,EpochSI(si)) /\
