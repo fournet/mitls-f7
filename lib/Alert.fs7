@@ -12,8 +12,10 @@ private type (;ci:ConnectionInfo)pre_al_state = {
 }
 type (;ci:ConnectionInfo)state = (;ci)pre_al_state
 
+(* AP
 function val AlInStream:  ci:ConnectionInfo * (;ci)state -> 'a //(;ci.id_in) stream
 function val AlOutStream: ci:ConnectionInfo * (;ci)state -> 'a //(;ci.id_out)stream
+*)
 
 type (;ki:epoch)ALFragReply =
     | EmptyALFrag
@@ -92,14 +94,18 @@ private assume
 val isFatal: ad:alertDescription -> b:bool{b = true => IsFatal(ad)}
 
 val init: ci:ConnectionInfo ->
-	s:(;ci)state{HSFragment.EmptyStream(ci.id_in,AlInStream(ci,s)) /\ HSFragment.EmptyStream(ci.id_out,AlOutStream(ci,s))}
+	s:(;ci)state // AP{HSFragment.EmptyStream(ci.id_in,AlInStream(ci,s)) /\ HSFragment.EmptyStream(ci.id_out,AlOutStream(ci,s))}
 
 val send_alert: ci:ConnectionInfo -> s:(;ci)state -> alertDescription ->
-	s':(;ci)state{AlOutStream(ci,s) = AlOutStream(ci,s') /\
-				  AlInStream(ci,s)  = AlInStream(ci,s')}
+	s':(;ci)state
+		    (*AP  {AlOutStream(ci,s) = AlOutStream(ci,s') /\
+				  AlInStream(ci,s)  = AlInStream(ci,s')} *)
+
+val makeFragment: e:epoch -> b:bytes -> (rg:range * (;e,rg)HSFragment.fragment) * bytes
 
 val next_fragment: ci:ConnectionInfo -> s:(;ci)state ->
 	(res:(;ci.id_out)ALFragReply * s':(;ci)state)
+	(* AP
 	  { (!r,f. res = ALFrag(r,f) => (
    		(Auth(ci.id_out) => HSFragment.Sent(ci.id_out,AlOutStream(ci,s),r,f)) /\
 		AlOutStream(ci,s') = HSFragment.Extend(ci.id_out,AlOutStream(ci,s),r,f) /\
@@ -113,6 +119,7 @@ val next_fragment: ci:ConnectionInfo -> s:(;ci)state ->
    		(Auth(ci.id_out) => HSFragment.Sent(ci.id_out,AlOutStream(ci,s),r,f)) /\
 		AlOutStream(ci,s') = HSFragment.Extend(ci.id_out,AlOutStream(ci,s),r,f) /\
 		AlInStream(ci,s') = AlInStream(ci,s)))}
+	*)
 
 (*TODO
 val verifyALCloseFrag: ci:ConnectionInfo -> s:(;ci)state -> r:range -> f:(;ci,r) HSFragment.fragment -> s':(;ci)state -> unit{
@@ -140,21 +147,28 @@ val verifyALCloseFrag: ci:ConnectionInfo -> s:(;ci)state -> r:range -> f:(;ci,r)
 val handle_alert: ci:ConnectionInfo -> (;ci)state -> alertDescription -> (;ci)alert_reply
 
 val recv_fragment: ci:ConnectionInfo -> s:(;ci)state ->
-	rg:range -> f:(;ci.id_in,rg)HSFragment.fragment{Auth(ci.id_in) =>
-		HSFragment.Sent(ci.id_in,AlInStream(ci,s),rg,f)} ->
-	(s':(;ci)alert_reply{
-		AlOutStream(ci,s') = AlOutStream(ci,s) /\
-		AlInStream(ci,s')  = AlInStream(ci,s)
-		}) Result
+	rg:range -> f:(;ci.id_in,rg)HSFragment.fragment
+    // {Auth(ci.id_in) => HSFragment.Sent(ci.id_in,AlInStream(ci,s),rg,f)}
+	->
+	(s':(;ci)alert_reply
+	    (* AP
+		{AlOutStream(ci,s') = AlOutStream(ci,s) /\
+		 AlInStream(ci,s')  = AlInStream(ci,s)
+		}*)
+	) Result
 
 val reset_incoming: ci:ConnectionInfo -> s:(;ci)state ->
 	ci':ConnectionInfo{ci'.role = ci.role /\ ci'.id_out = ci.id_out} ->
-	s':(;ci')state{
-		HSFragment.EmptyStream(ci'.id_in,AlInStream(ci',s')) /\
-		AlOutStream(ci',s') = AlOutStream(ci,s)}
+	s':(;ci')state
+		(* AP
+		{HSFragment.EmptyStream(ci'.id_in,AlInStream(ci',s')) /\
+		 AlOutStream(ci',s') = AlOutStream(ci,s)}
+		*)
 
 val reset_outgoing: ci:ConnectionInfo -> s:(;ci)state ->
 	ci':ConnectionInfo{ci'.role = ci.role /\ ci'.id_in = ci.id_in} ->
-		s':(;ci')state{
-		HSFragment.EmptyStream(ci'.id_out,AlOutStream(ci',s')) /\
-		AlInStream(ci',s') = AlInStream(ci,s)}
+		s':(;ci')state
+		(* AP
+		{HSFragment.EmptyStream(ci'.id_out,AlOutStream(ci',s')) /\
+		 AlInStream(ci',s') = AlInStream(ci,s)}
+		*)
