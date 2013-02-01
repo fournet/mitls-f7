@@ -76,7 +76,7 @@ private definition !ci,gs. GState(ci,gs)  <=>
 private type Connection = Conn of (id:ConnectionInfo * (;id)globalState)
 
 predicate CanWrite of ConnectionInfo
-private assume !ci,c. Handshake.Complete(ci,c) => CanWrite(ci)
+assume !ci,c. Handshake.Complete(ci,c) => CanWrite(ci)
 
 function val ConnectionEpochOut: Connection -> epoch
 private assume !id,s. ConnectionEpochOut(Conn(id,s)) = id.id_out
