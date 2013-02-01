@@ -42,7 +42,11 @@ type cipher = LHAE.cipher
 
 predicate ENCrypted of e:epoch * h:(;e) StatefulPlain.history * ad:(;e)StatefulPlain.adata * rg:range * (;e,ad,h,rg)StatefulPlain.plain * cipher
 private definition !e,h,ad,rg,f,c. 
-  ENCrypted(e,h,ad,rg,f,c) <=> LHAE.ENCrypted(e,LHAEPlain.MakeAD(e,h,ad),rg,LHAEPlain.StAEToLHAE(f),c)
+  ENCrypted(e,h,ad,rg,f,c) <=> 
+  (?f'. LHAEPlain.Payload(e,LHAEPlain.MakeAD(e,h,ad),rg,LHAEPlain.StAEToLHAE(f)) = 
+        LHAEPlain.Payload(e,LHAEPlain.MakeAD(e,h,ad),RangeClass(e,rg),f') /\
+        LHAE.ENCrypted(e,LHAEPlain.MakeAD(e,h,ad),
+                       RangeClass(e,rg),f',c))
 
 val encrypt: ki:succEpoch -> 
   wr:(;ki) writer -> 
@@ -50,12 +54,9 @@ val encrypt: ki:succEpoch ->
   rg:range ->
   f: (;ki,ad,History(ki,WriterState,wr),rg) StatefulPlain.plain ->
   (wr':(;ki) writer * c:cipher){
-    History(ki,WriterState,wr') = StatefulPlain.ExtendHistory(ki,ad,History(ki,WriterState,wr),rg,f)
-/\  (?f'. StatefulPlain.Payload(ki,ad,rg,f) = 
-                                  StatefulPlain.Payload(ki,ad,RangeClass(ki,rg),f') /\
-	ENCrypted(ki,History(ki,WriterState,wr),ad,RangeClass(ki,rg),f',c))
-  }
-//CF why do we need a conditional here? 
+    History(ki,WriterState,wr') = 
+      StatefulPlain.ExtendHistory(ki,ad,History(ki,WriterState,wr),rg,f)
+/\    ENCrypted(ki,History(ki,WriterState,wr),ad,rg,f,c)} 
 
 val decrypt: ki:succEpoch -> 
   rd:(;ki) reader -> 
@@ -63,7 +64,8 @@ val decrypt: ki:succEpoch ->
   c:cipher ->
   res:((;ki) reader * rg:range * (;ki,ad,History(ki,ReaderState,rd),rg) StatefulPlain.plain) Result
   { !nrd,rg,f. res = Correct((nrd,rg,f)) => 
-               (   History(ki,ReaderState,nrd) = StatefulPlain.ExtendHistory(ki,ad,History(ki,ReaderState,rd),rg,f) /\
+               (   History(ki,ReaderState,nrd) = 
+                   StatefulPlain.ExtendHistory(ki,ad,History(ki,ReaderState,rd),rg,f) /\
                    rg = CipherRangeClass(ki,Length(c)) /\
  	         (Safe(ki) =>
 				( (!nrd,rg,f. res = Correct((nrd,rg,f)) => ENCrypted(ki,History(ki,ReaderState,rd),ad,rg,f,c)) // /\

@@ -161,7 +161,7 @@ let write (fd : fd) (bytes : bytes) : int =
                 | TLS.WritePartial (conn, (r, m)) ->
                     let _ = update_fd_connection fd true conn in
                     let rem =
-                        DataStream.deltaRepr
+                        DataStream.deltaBytes
                             (Dispatch.getEpochOut conn) (TLS.getOutStream conn) r m
                     in
                         (Bytes.length bytes) - (Bytes.length rem)

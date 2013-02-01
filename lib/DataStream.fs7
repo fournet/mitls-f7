@@ -41,10 +41,15 @@ ask !ki,s,s'. EmptyStream(ki,s) /\ EmptyStream(ki,s') => s = s'
 function val ExtendStream: 'a * 'b * 'c * 'd -> 'e
 private definition !ki,s,r,d. ExtendStream(ki,s,r,d) = {sb = d.contents :: s.sb } 
 
-// used only by the application; could be omitted for TLS
-private val createDelta: 
+// The following two functions are 
+// used only by the application.
+// They are never called from TLS.
+val createDelta: 
   ki:epoch -> s:(;ki) stream -> r:range -> 
   b:(;r) rbytes -> c: (;ki,s,r) delta  
+val deltaBytes: 
+  ki:epoch -> s:(;ki) stream -> r:range -> 
+  c: (;ki,s,r) delta -> b:(;r) rbytes 
 
 //CF we need a better verification pattern for multi-user interfaces.
 //CF a cheap one is to use different names plus ifdefs in the .fsi
