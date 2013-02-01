@@ -229,7 +229,6 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                             let c = { c with appdata = new_app_state;
                                                 write = new_write }
                             (* Fairly, tell we're done, and we won't write more data *)
-                            //Pi.assume (GState(id,c));  
                             (WAppDataDone, Conn(id,c))
 
                         | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
@@ -312,7 +311,6 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                     | Correct(new_write) ->
                         let c = { c with handshake = new_hs_state;
                                          write     = new_write }
-                        //Pi.assume (GState(id,c));  
                         (* Move to the new state *)
                         // Sanity check: in and out session infos should be the same
                         if epochSI(id.id_in) = epochSI(id.id_out) then
@@ -427,8 +425,6 @@ let handleHandshakeOutcome (Conn(id,c)) hsRes =
     match hsRes with
     | Handshake.InAck(hs) ->
         let c = { c with handshake = hs} in
-        // KB: To Fix                                 
-        //Pi.assume (GState(id,c));  
         RAgain, Conn(id,c)
     | Handshake.InVersionAgreed(hs,pv) ->
         match c_read.disp with
@@ -444,26 +440,20 @@ let handleHandshakeOutcome (Conn(id,c)) hsRes =
             let c = {c with handshake = hs;
                             read = new_read;
                             write = new_write} in
-                // KB: To Fix                                 
-                //Pi.assume (GState(id,c));  
                 (RAgain, Conn(id,c))
         | _ -> (* It means we are doing a re-negotiation. Don't alter the current version number, because it
                     is perfectly valid. It will be updated after the next CCS, along with all other session parameters *)
             let c = { c with handshake = hs} in
-                // KB: To Fix                           
-                //Pi.assume (GState(id,c));  
                 (RAgain, Conn(id, c))
     | Handshake.InQuery(query,advice,hs) ->
             let c = {c with handshake = hs} in
-                // KB: To Fix                           
-                //Pi.assume (GState(id,c));  
                 (RQuery(query,advice),Conn(id,c))
     | Handshake.InFinished(hs) ->
             (* Ensure we are in Finishing state *)
             match c_read.disp with
                 | Finishing ->
                     let c = {c with handshake = hs} in
-                    (* Indeed, we should stop reading now!
+                    (* FIXME Indeed, we should stop reading now!
                         (Because, except for false start implementations, the other side is now
                         waiting for us to send our finished message)
                         However, if we say RHSDone, the library will report an early completion of HS
@@ -471,8 +461,6 @@ let handleHandshakeOutcome (Conn(id,c)) hsRes =
                         So, here we say ReadAgain, which will anyway first flush our output buffers,
                         this sending our finished message, and thus letting us get the WHSDone event.
                         I know, it's tricky and it sounds fishy, but that's the way it is now.*)
-                    // KB: To Fix                           
-                    //Pi.assume (GState(id,c));  
                     (RAgain,Conn(id,c))
                 | _ ->
                     let reason = perror __SOURCE_FILE__ __LINE__ "Finishing handshake in the wrong state" in
@@ -481,8 +469,6 @@ let handleHandshakeOutcome (Conn(id,c)) hsRes =
                     WriteOutcome(wo),conn
     | Handshake.InComplete(hs) ->
             let c = {c with handshake = hs} in
-            // KB: To Fix                        
-            //Pi.assume (GState(id,c));  
             (* Ensure we are in Finishing state *)
                 match c_read.disp with
                 | Finishing ->
@@ -548,8 +534,6 @@ let readOne (Conn(id,c)) =
                                                alert = new_al;
                                                handshake = hs;
                                       }
-                                // KB: To Fix                                 
-                              //Pi.assume (GState(nextID,c));  
                               (RAgain, Conn(nextID,c))
                           | InCCSError (x,y,hs) ->
                               let c = {c with handshake = hs} in
@@ -562,8 +546,6 @@ let readOne (Conn(id,c)) =
                         match Alert.recv_fragment id c.alert rg f with
                           | Correct (Alert.ALAck(state)) ->
                               let c = {c with alert = state} in
-                               // KB: To Fix                                 
-                              //Pi.assume (GState(id,c));  
                               (RAgain, Conn(id,c))
                           | Correct (Alert.ALClose_notify (state)) ->
                                  (* An outgoing close notify has already been buffered, if necessary *)
@@ -572,21 +554,15 @@ let readOne (Conn(id,c)) =
                              let c = { c with read = new_read;
                                               alert = state;
                                      } in
-                             // KB: To Fix                                 
-                             //Pi.assume (GState(id,c));  
                              (RClose, Conn(id,c))
                           | Correct (Alert.ALFatal (ad,state)) ->
                                (* Other fatal alert, we close both sides of the connection *)
                              let c = {c with alert = state}
-                           // KB: To Fix                                 
-                             //Pi.assume (GState(id,c));  
                              let closed = closeConnection (Conn(id,c)) in
                              (RFatal(ad), closed)
                           | Correct (Alert.ALWarning (ad,state)) ->
                              (* A warning alert, we carry on. The user will decide what to do *)
                              let c = {c with alert = state}
-                             // KB: To Fix                                 
-                             //Pi.assume (GState(id,c));  
                              (RWarning(ad), Conn(id,c))
                           | Error (x,y) ->
                               let closing = abortWithAlert (Conn(id,c)) x y in
@@ -597,8 +573,6 @@ let readOne (Conn(id,c)) =
                       let f = TLSFragment.RecordPlainToAppPlain id.id_in history rg frag in
                       let appstate = AppData.recv_fragment id c.appdata rg f in
                       let c = {c with appdata = appstate} in
-                      // KB: To Fix                                 
-                      //Pi.assume (GState(id,c));  
                       (RAppDataDone, Conn(id, c))
                   | _, _ ->
                       let reason = perror __SOURCE_FILE__ __LINE__ "Message type received in wrong state"
@@ -623,7 +597,6 @@ let rec read c =
             | (Some(b),appState) ->
                 let conn = {conn with appdata = appState} in
                 let c = Conn(id,conn) in
-                //Pi.assume (GState(id,conn));
                 c,RAppDataDone,Some(b)
             | (None,_) -> unexpectedError "[read] When RAppDataDone, some data should have been read."
         | RQuery(q,adv) ->
