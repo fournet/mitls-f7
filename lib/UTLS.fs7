@@ -33,7 +33,7 @@ private type handleinfo = {
 
 predicate CanWriteP of bool * Connection
 
-definition !b, c. CanWriteP(b, c) <=> (b = true => CanWrite(CnId(c))) 
+definition !b, c. CanWriteP(b, c) <=> (b = true => CanWrite(CnInfo(c))) 
 
 private type Phandleinfo = h:handleinfo{ CanWriteP(h.canwrite, h.conn) }
 
