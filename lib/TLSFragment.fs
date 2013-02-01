@@ -44,10 +44,7 @@ let reprFragment ki (ct:ContentType) (rg:range) frag =
 
 let repr ki ct (h:history) rg frag = reprFragment ki ct rg frag
 
-let makePlain (e:epoch) (ct:ContentType) (h:history) (r:range) (f:fragment) = f
-
-let HSPlainToRecordPlain    (e:epoch) (h:history) (r:range) (f:HSFragment.plain) =
-    makePlain e Handshake h r (FHandshake(f))
+let HSPlainToRecordPlain    (e:epoch) (h:history) (r:range) (f:HSFragment.plain) = FHandshake(f)
 let CCSPlainToRecordPlain   (e:epoch) (h:history) (r:range) (f:HSFragment.plain) = FCCS(f)
 let AlertPlainToRecordPlain (e:epoch) (h:history) (r:range) (f:HSFragment.plain) = FAlert(f)
 let AppPlainToRecordPlain   (e:epoch) (h:history) (r:range) (f:AppFragment.plain)= FAppData(f)

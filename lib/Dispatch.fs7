@@ -45,18 +45,18 @@ private type (;id:ConnectionInfo) globalState = gs:(;id) preGlobalState{GState(i
 private definition !ci,gs. GState(ci,gs)  <=>
   ( (Auth(ci.id_out) =>
 		(
-		AppData.AppOutStream(ci,gs.appdata) = TLSFragment.AppDataHistory(ci.id_out,Record.History(ci.id_out,StatefulLHAE.WriterState,gs.write.conn)) /\
-		Handshake.HSOutStream(ci,gs.handshake) = TLSFragment.HandshakeHistory(ci.id_out,Record.History(ci.id_out,StatefulLHAE.WriterState,gs.write.conn)) /\
-		Handshake.CCSOutStream(ci,gs.handshake) = TLSFragment.CCSHistory(ci.id_out,Record.History(ci.id_out,StatefulLHAE.WriterState,gs.write.conn)) /\
-		Alert.AlOutStream(ci,gs.alert) = TLSFragment.AlertHistory(ci.id_out,Record.History(ci.id_out,StatefulLHAE.WriterState,gs.write.conn))
+		AppData.AppOutStream(ci,gs.appdata) = TLSFragment.AppDataHistory(ci.id_out,Record.History(ci.id_out,StatefulLHAE.WriterState,gs.write.conn)) //AP /\
+		//AP Handshake.HSOutStream(ci,gs.handshake) = TLSFragment.HandshakeHistory(ci.id_out,Record.History(ci.id_out,StatefulLHAE.WriterState,gs.write.conn)) /\
+		//AP Handshake.CCSOutStream(ci,gs.handshake) = TLSFragment.CCSHistory(ci.id_out,Record.History(ci.id_out,StatefulLHAE.WriterState,gs.write.conn)) /\
+		//AP Alert.AlOutStream(ci,gs.alert) = TLSFragment.AlertHistory(ci.id_out,Record.History(ci.id_out,StatefulLHAE.WriterState,gs.write.conn))
 		)
 	) /\
     (Auth(ci.id_in)  =>
 		(
-		AppData.AppInStream(ci,gs.appdata)  = TLSFragment.AppDataHistory(ci.id_in,Record.History(ci.id_in,StatefulLHAE.ReaderState,gs.read.conn)) /\
-		Handshake.HSInStream(ci,gs.handshake) = TLSFragment.HandshakeHistory(ci.id_in,Record.History(ci.id_in,StatefulLHAE.ReaderState,gs.read.conn)) /\
-		Handshake.CCSInStream(ci,gs.handshake) = TLSFragment.CCSHistory(ci.id_in,Record.History(ci.id_in,StatefulLHAE.ReaderState,gs.read.conn)) /\
-		Alert.AlInStream(ci,gs.alert) = TLSFragment.AlertHistory(ci.id_in,Record.History(ci.id_in,StatefulLHAE.ReaderState,gs.read.conn))
+		AppData.AppInStream(ci,gs.appdata)  = TLSFragment.AppDataHistory(ci.id_in,Record.History(ci.id_in,StatefulLHAE.ReaderState,gs.read.conn)) //AP /\
+		//AP Handshake.HSInStream(ci,gs.handshake) = TLSFragment.HandshakeHistory(ci.id_in,Record.History(ci.id_in,StatefulLHAE.ReaderState,gs.read.conn)) /\
+		//AP Handshake.CCSInStream(ci,gs.handshake) = TLSFragment.CCSHistory(ci.id_in,Record.History(ci.id_in,StatefulLHAE.ReaderState,gs.read.conn)) /\
+		//AP Alert.AlInStream(ci,gs.alert) = TLSFragment.AlertHistory(ci.id_in,Record.History(ci.id_in,StatefulLHAE.ReaderState,gs.read.conn))
 		)
 	)
   )
@@ -243,7 +243,7 @@ assume !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo)  <=>
 		 (wo = SentClose ) 
 	)
 
-assume !c,c',ro,mo. IOResult_i(c,c',ro,mo) =>
+assume !c,c',ro,mo. IOResult_i(c,c',ro,mo) <=>
    (
     // Cases needed by the top level interface
 	(ro = RClose /\ (Auth(ConnectionEpochIn(c)) => EvClose(CnInfo(c).id_in,Bytes_i(c)))) \/

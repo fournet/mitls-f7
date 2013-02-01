@@ -119,7 +119,8 @@ let rehandshake (Conn(id,conn)) ops =
 
 let rekey (Conn(id,conn)) ops =
     let (accepted,new_hs) = Handshake.rekey id conn.handshake ops in // Equivalently, id.id_in.sinfo
-    (accepted,Conn(id,{conn with handshake = new_hs}))
+    let conn = {conn with handshake = new_hs} in
+    (accepted,Conn(id,conn))
 
 let request (Conn(id,conn)) ops =
     let (accepted,new_hs) = Handshake.request id conn.handshake ops in // Equivalently, id.id_in.sinfo

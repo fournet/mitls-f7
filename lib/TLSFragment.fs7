@@ -44,15 +44,7 @@ private definition !e,ct,h,rg,d.
     (?f. ct=Change_cipher_spec /\ d = FCCS(f)       /\ HSFragment.Sent(e,CCSHistory(e,h),rg,f) ) \/
     (?f. ct=Alert              /\ d = FAlert(f)     /\ HSFragment.Sent(e,AlertHistory(e,h),rg,f) ) \/
     (?f. ct=Application_data   /\ d = FAppData(f)   /\ AppFragment.Sent(e,AppDataHistory(e,h),rg,f)))
-(*
-private definition !e,h,rg,f.
-  (HSFragment,.
-  RecordSent(e,ct,h,rg,d) <=> ( 
-    (?f. ct=Handshake          /\ d = FHandshake(f) /\ HSFragment.Sent(e,HandshakeHistory(e,h),rg,f) ) \/
-    (?f. ct=Change_cipher_spec /\ d = FCCS(f)       /\ HSFragment.Sent(e,CCSHistory(e,h),rg,f) ) \/
-    (?f. ct=Alert              /\ d = FAlert(f)     /\ HSFragment.Sent(e,AlertHistory(e,h),rg,f) ) \/
-    (?f. ct=Application_data   /\ d = FAppData(f)   /\ AppFragment.Sent(e,AppDataHistory(e,h),rg,f)))
-*)
+
 ask !e,h,rg,f. HSFragment.Sent(e,HandshakeHistory(e,h),rg,f) =>
       RecordSent(e,Handshake,h,rg,FHandshake(f))
 
@@ -105,22 +97,31 @@ private assume !e,h,r,f. ExtendHistory(e,TLSConstants.Application_data,h,r,FAppD
 	   ccs = CCSHistory(e,h);
 	   appdata = AppFragment.Extend(e,AppDataHistory(e,h),r,f)}
 
-ask !e,h,h',r,f. h' = ExtendHistory(e,TLSConstants.Handshake,h,r,FHandshake(f)) =>
+function val HandshakeRecordPlain: e:epoch * h:(;e)history * r:range * f:(;e,h,r)HSFragment.plain -> 'a //(;e,TLSConstants.Handshake,h,r)plain
+private definition !e,h,r,f. HandshakeRecordPlain(e,h,r,f) = FHandshake(f)
+function val CCSRecordPlain: e:epoch * h:(;e)history * r:range * f:(;e,h,r)HSFragment.plain -> 'a //(;e,TLSConstants.Change_cipher_spec,h,r)plain
+private definition !e,h,r,f. CCSRecordPlain(e,h,r,f) = FCCS(f)
+function val AlertRecordPlain: e:epoch * h:(;e)history * r:range * f:(;e,h,r)HSFragment.plain -> 'a //(;e,TLSConstants.Alert,h,r)plain
+private definition !e,h,r,f. AlertRecordPlain(e,h,r,f) = FAlert(f)
+function val AppDataRecordPlain: e:epoch * h:(;e)history * r:range * f:(;e,h,r)AppFragment.plain -> 'a //(;e,TLSConstants.Application_data,h,r)plain
+private definition !e,h,r,f. AppDataRecordPlain(e,h,r,f) = FAppData(f)
+
+ask !e,h,h',r,f. h' = ExtendHistory(e,TLSConstants.Handshake,h,r,HandshakeRecordPlain(e,h,r,f)) =>
 	( HandshakeHistory(e,h') = HSFragment.Extend(e,HandshakeHistory(e,h),r,f) /\
 	  AlertHistory(e,h') = AlertHistory(e,h) /\
 	  CCSHistory(e,h') = CCSHistory(e,h) /\
 	  AppDataHistory(e,h') = AppDataHistory(e,h))
-ask !e,h,h',r,f. h' = ExtendHistory(e,TLSConstants.Alert,h,r,FAlert(f)) =>
+ask !e,h,h',r,f. h' = ExtendHistory(e,TLSConstants.Alert,h,r,AlertRecordPlain(e,h,r,f)) =>
 	( AlertHistory(e,h') = HSFragment.Extend(e,AlertHistory(e,h),r,f) /\
 	  HandshakeHistory(e,h') = HandshakeHistory(e,h) /\
 	  CCSHistory(e,h') = CCSHistory(e,h) /\
 	  AppDataHistory(e,h') = AppDataHistory(e,h))
-ask !e,h,h',r,f. h' = ExtendHistory(e,TLSConstants.Change_cipher_spec,h,r,FCCS(f)) =>
+ask !e,h,h',r,f. h' = ExtendHistory(e,TLSConstants.Change_cipher_spec,h,r,CCSRecordPlain(e,h,r,f)) =>
 	( CCSHistory(e,h') = HSFragment.Extend(e,CCSHistory(e,h),r,f) /\
 	  AlertHistory(e,h') = AlertHistory(e,h) /\
 	  HandshakeHistory(e,h') = HandshakeHistory(e,h) /\
 	  AppDataHistory(e,h') = AppDataHistory(e,h))
-ask !e,h,h',r,f. h' = ExtendHistory(e,TLSConstants.Application_data,h,r,FAppData(f)) =>
+ask !e,h,h',r,f. h' = ExtendHistory(e,TLSConstants.Application_data,h,r,AppDataRecordPlain(e,h,r,f)) =>
 	( AppDataHistory(e,h') = AppFragment.Extend(e,AppDataHistory(e,h),r,f) /\
 	  AlertHistory(e,h') = AlertHistory(e,h) /\
 	  CCSHistory(e,h') = CCSHistory(e,h) /\
@@ -131,38 +132,34 @@ ask !e,h. EmptyHistory(e,h) => HSFragment.EmptyStream(e,AlertHistory(e,h))
 ask !e,h. EmptyHistory(e,h) => HSFragment.EmptyStream(e,CCSHistory(e,h))
 ask !e,h. EmptyHistory(e,h) => DataStream.EmptyStream(e,AppDataHistory(e,h))
 
-val makePlain: e:epoch -> ct:ContentType -> h:(;e)history -> r:range ->
-	f:(;e,ct,r)fragment{Auth(e) => RecordSent(e,ct,h,r,f)} -> 
-        (;e,ct,h,r)plain
-
 val HSPlainToRecordPlain: e:epoch -> h:(;e)history -> r:range -> 
   d:(;e,HandshakeHistory(e,h),r) HSFragment.plain -> 
-  f:(;e,TLSConstants.Handshake,h,r) plain
+  f:(;e,TLSConstants.Handshake,h,r) plain{f = HandshakeRecordPlain(e,h,r,d)}
 
 val RecordPlainToHSPlain: e:epoch -> h:(;e) history -> r:range -> 
   f:(;e,TLSConstants.Handshake,h,r) plain ->
-  d:(;e,HandshakeHistory(e,h),r) HSFragment.plain
+  d:(;e,HandshakeHistory(e,h),r) HSFragment.plain{f = HandshakeRecordPlain(e,h,r,d)}
 
 val CCSPlainToRecordPlain: e:epoch -> h:(;e)history -> r:range -> 
   d:(;e,CCSHistory(e,h),r) HSFragment.plain -> 
-  f:(;e,TLSConstants.Change_cipher_spec,h,r) plain
+  f:(;e,TLSConstants.Change_cipher_spec,h,r) plain{f = CCSRecordPlain(e,h,r,d)}
 
 val RecordPlainToCCSPlain: e:epoch -> h:(;e) history -> r:range -> 
   f:(;e,TLSConstants.Change_cipher_spec,h,r) plain -> 
-  d:(;e,CCSHistory(e,h),r) HSFragment.plain
+  d:(;e,CCSHistory(e,h),r) HSFragment.plain{f = CCSRecordPlain(e,h,r,d)}
 
 val AlertPlainToRecordPlain: e:epoch -> h:(;e)history -> r:range -> 
   d:(;e,AlertHistory(e,h),r) HSFragment.plain -> 
-  f:(;e,TLSConstants.Alert,h,r) plain
+  f:(;e,TLSConstants.Alert,h,r) plain{f = AlertRecordPlain(e,h,r,d)}
 
 val RecordPlainToAlertPlain: e:epoch -> h:(;e) history -> r:range -> 
   f:(;e,TLSConstants.Alert,h,r) plain -> 
-  d:(;e,AlertHistory(e,h),r) HSFragment.plain
+  d:(;e,AlertHistory(e,h),r) HSFragment.plain{f = AlertRecordPlain(e,h,r,d)}
 
 val AppPlainToRecordPlain: e:epoch -> h:(;e)history -> r:range -> 
   d:(;e,AppDataHistory(e,h),r) AppFragment.plain -> 
-  f:(;e,TLSConstants.Application_data,h,r) plain
+  f:(;e,TLSConstants.Application_data,h,r) plain{f = AppDataRecordPlain(e,h,r,d)}
 
 val RecordPlainToAppPlain: e:epoch -> h:(;e) history -> r:range -> 
   f:(;e,TLSConstants.Application_data,h,r) plain -> 
-  d:(;e,AppDataHistory(e,h),r) AppFragment.plain
+  d:(;e,AppDataHistory(e,h),r) AppFragment.plain{f = AppDataRecordPlain(e,h,r,d)}
