@@ -156,7 +156,7 @@ let sigalg_of_pkeyparams = function
 
 (* Cipher Suites *)
 
-// By now, we only support one SCSV, but there exist others.
+// For now we only support one SCSV, but there exist others.
 type SCSVsuite =
     | TLS_EMPTY_RENEGOTIATION_INFO_SCSV
 
@@ -188,7 +188,7 @@ let parseCompression b =
 
 // Ignore compression methods we don't understand. This is a departure
 // from usual parsing, where we fail on unknown values, but that's how TLS
-// handle compression method lists.
+// handles compression method lists.
 let rec parseCompressions b =
     let l = length b
     if l > 0 
@@ -375,7 +375,7 @@ let rec cipherSuitesBytes css =
     | cs::css -> cipherSuiteBytes cs @| 
                  cipherSuitesBytes css
     
-(* we could use sub instead, with proper refinements:
+(*CF we could use sub instead, with proper refinements:
 let rec cipherSuites_of_bytes2 i b =
     if i <= Length(b) + 2 then 
         cipherSuite_of_bytes (sub b i 2) :: cipherSuites_of_bytes2 (i+2) b 
@@ -636,7 +636,7 @@ let vlparse lSize vlb : bytes Result =
     then correct b 
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
-(*
+(*CF
 let split_at_most data len =
     if len >= length data then
         (data,empty_bstr)
