@@ -164,7 +164,7 @@ let rec cmem (e:epoch) (ad:LHAEPlain.adata) (c:ENC.cipher) (xs: entry list) =
   | _::xs                  -> cmem e ad c xs 
   | []                     -> None
 
-let safe (e:epoch) = failwith "todo"
+let safe (e:epoch) = failwith "specification-only"
 
 #endif
 
