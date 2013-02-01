@@ -135,12 +135,13 @@ let defaultConfig ={
 let max_TLSPlaintext_fragment_length = 16384 (*@ 2^14 *)
 let max_TLSCompressed_fragment_length = max_TLSPlaintext_fragment_length + 1024
 let max_TLSCipher_fragment_length = max_TLSCompressed_fragment_length + 1024
-let fragmentLength = max_TLSPlaintext_fragment_length (* use e.g. 1 for testing *)
+let fragmentLength = max_TLSPlaintext_fragment_length (*CF use e.g. 1 for testing *)
 
 #if ideal
-let safe (e:epoch) = failwith "todo" : bool // Define in terms of strength and honesty
-let safeHS (e:epoch) = failwith "todo": bool
-let auth (e:epoch) = failwith "todo": bool
-let MAC_safe (e:epoch) = failwith "todo":bool
-let ENC_safe (e:epoch) = failwith "todo":bool
+// These functions are used only for specifying ideal implementations
+let safe (e:epoch) = failwith "spec only" : bool //CF Define in terms of strength and honesty
+let safeHS (e:epoch) = failwith "spec only": bool
+let auth (e:epoch) = failwith "spec only": bool
+let MAC_safe (e:epoch) = failwith "spec only":bool
+let ENC_safe (e:epoch) = failwith "spec only":bool
 #endif

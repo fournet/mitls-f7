@@ -56,12 +56,12 @@ let parseHeader b =
     else
         correct(ct,pv,len)
 
-(* This replaces send. It's not called send, since it doesn't send anything on the
-   network *)
+(* This replaces send. It's not called send, 
+   since it doesn't send anything on the network *)
 let recordPacketOut ki conn pv rg ct fragment =
     (* No need to deal with compression. It is handled internally by TLSPlain,
        when returning us the next (already compressed!) fragment *)
-    (*
+    (*TODO
     match make_compression conn.rec_ki.sinfo fragment with
     | Error (x,y) -> Error (x,y)
     | Correct compressed ->

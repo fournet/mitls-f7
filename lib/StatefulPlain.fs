@@ -56,7 +56,7 @@ let extendHistory (e:epoch) d (sh:history) (r:range) f =
   res
 
 let plain (e:epoch) (h:history) (ad:adata) (r:range) (b:bytes) =
-    let h = TLSFragment.emptyHistory e // Not Auth: we can pick any history
+    let h = TLSFragment.emptyHistory e //CF Not Auth: we can pick any history
     let ct = parseAD e ad in
     {contents = TLSFragment.plain e ct h r b}
 let reprFragment (e:epoch) (ad:adata) (r:range) (f:plain) =

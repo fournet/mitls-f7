@@ -6,7 +6,6 @@ open TLSConstants
 open TLSInfo
 open Range
 
-
 // FIXME: Port to deltas and streams!
 type pre_al_state = {
   al_incoming: bytes (* incomplete incoming message *)
@@ -32,8 +31,7 @@ type alert_reply =
 (* Conversions *)
 
 let alertBytes ad =
-  (* Severity (warning or fatal) is hardcoded,
-     as specified in sec. 7.2.2 *)
+  (* Severity (warning or fatal) is hardcoded, as specified in sec. 7.2.2 *)
   match ad with
     | AD_close_notify ->                       [|1uy;   0uy|]
     | AD_unexpected_message ->                 [|2uy;  10uy|]

@@ -30,7 +30,7 @@ let GEN e =
     | AEAD (_,_) -> unexpectedError "[GEN] invoked on unsupported ciphersuite"
 
 let COERCE e b =
-    // precondition: b is of the right length. No runtime checks here.
+    // precondition: b is of the right length, so no need for a runtime checks here.
     let si = epochSI(e) in
     let cs = si.cipher_suite in
     let pv = si.protocol_version in
@@ -156,7 +156,7 @@ let decrypt' e key data cipher =
 type preds = | ENCrypted of epoch * LHAEPlain.adata * range * LHAEPlain.plain * cipher
 
 type entry = epoch * LHAEPlain.adata * range * LHAEPlain.plain * ENC.cipher
-let log = ref ([]: entry list) // the semantics of CTXT
+let log = ref ([]: entry list) // for defining the ideal functionality for CTXT
 
 let rec cmem (e:epoch) (ad:LHAEPlain.adata) (c:ENC.cipher) (xs: entry list) = 
   match xs with

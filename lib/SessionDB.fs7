@@ -1,6 +1,6 @@
 ﻿module SessionDB
 
-(* Trusted *)
+(* Database storing live sessions towards resumption. Trusted. *)
 
 open TLSInfo
 

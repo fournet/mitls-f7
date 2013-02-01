@@ -1,5 +1,7 @@
 ﻿module Range
 
+(* This modules defines the range computations for length-hiding *) 
+
 open Bytes
 open TLSInfo
 open TLSConstants

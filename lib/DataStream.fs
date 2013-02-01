@@ -17,7 +17,6 @@ let splitRange ki r =
     let FS = TLSInfo.fragmentLength in
     let PS = maxPadSize si in
     if PS = 0 then
-        // no LH is possible
         if l<>h then
             unexpectedError "[splitRange] Incompatible range provided"
         else

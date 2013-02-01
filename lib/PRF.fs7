@@ -21,7 +21,7 @@ val sample: si:SessionInfo                            -> (;si)masterSecret
 val coerce: si:SessionInfo{not SafeHS_SI(si)} -> repr -> (;si)masterSecret
 
 // Master secrets are used to derive key materials. 
-// Compared with standard key derivation,
+// Compared with standard (non-tls) key derivation,
 // - the label is hardcoded & implicit; 
 // - the seed (crandom @| srandom) is retrieved from the epoch
 
@@ -41,7 +41,7 @@ private val log:  (ems:(e12:(epoch * epoch)  * (;Fst(e12))masterSecret) *
                     (;Snd(Fst(ems)),WriterState)state)) list ref 
 private val finish_log: (SessionInfo * bytes * bytes) list ref 
 
-(* VerifyData should be about epochs not sessions *)
+(*CF VerifyData should be about epochs not sessions *)
 // Master secrets are also used to generate and check verifyData tags,
 // providing conditional authentication of the (abstract) VerifyData predicate.
 
@@ -55,7 +55,7 @@ val checkVerifyData: e:succEpoch -> r:Role -> (;EpochSI(e)) masterSecret ->
 				   log:bytes (* the log *) ->
 				   tag:bytes (* the expected value *) ->
 				   b:bool{(b = true /\ SafeHS(e)) => VerifyData(e,r,log)}
-				   // SafeHS(e) => PRF(pv,MacAlg(e))
+				   //TODO SafeHS(e) => PRF(pv,MacAlg(e))
 
 val ssl_certificate_verify: si:SessionInfo -> (;si)masterSecret -> TLSConstants.sigAlg -> bytes -> bytes
 

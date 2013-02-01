@@ -7,17 +7,17 @@ open TLSConstants
 open Range
 
 type fragment =
-    | FHandshake of HSFragment.fragment // Handshake.fragment
-    | FCCS of HSFragment.fragment // Handshake.ccsFragment
-    | FAlert of HSFragment.fragment // Alert.fragment
-    | FAppData of AppFragment.fragment // AppData.fragment
+    | FHandshake of HSFragment.fragment //Cf Handshake.fragment
+    | FCCS of HSFragment.fragment //CF Handshake.ccsFragment
+    | FAlert of HSFragment.fragment //CF Alert.fragment
+    | FAppData of AppFragment.fragment //CF AppData.fragment
 type plain = fragment
 
 type history = {
-  handshake: HSFragment.stream // Handshake.stream;
-  ccs:       HSFragment.stream // Handshake.stream;
-  alert:     HSFragment.stream // Alert.stream;
-  appdata:   DataStream.stream // AppData.stream;
+  handshake: HSFragment.stream //CF Handshake.stream;
+  ccs:       HSFragment.stream //CF Handshake.stream;
+  alert:     HSFragment.stream //CF Alert.stream;
+  appdata:   DataStream.stream //CF AppData.stream;
 }
 
 let emptyHistory ki =
@@ -95,5 +95,5 @@ let widen e ct r0 f0 =
     | Change_cipher_spec,FCCS(f)   -> let f1 = HSFragment.widen e r0 r1 f in FCCS(f1)
     | Application_data,FAppData(f) -> let f1 = AppFragment.widen e r0 f in FAppData(f1)
     | _,_                          -> unexpectedError "[widen] invoked on an invalid contenttype/fragment"
-    // unreachable too
+    //CF unreachable too
 #endif

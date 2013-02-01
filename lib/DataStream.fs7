@@ -75,7 +75,7 @@ val widen: ki:epoch -> s:(;ki) stream ->
 
 //CF: We need linearity on the stream! 
 
-(* This would be the application interface: 
+(*CF This would be the application interface: 
 
 val deltaPlain: 
   ki:epoch -> s:(;ki) stream -> r:range -> 

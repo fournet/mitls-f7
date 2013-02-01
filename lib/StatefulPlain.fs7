@@ -1,4 +1,7 @@
 module StatefulPlain
+
+(* 'plain' module for Stateful AEAD *) 
+
 open Bytes
 open TLSConstants
 open TLSInfo
@@ -31,7 +34,6 @@ private type (;e:epoch,ad:(;e)adata,r:range) fragment = {contents: (;e,ParseAD(e
 function val Payload: e:epoch * ad:(;e)adata * r:range * (;e,ad,r)fragment -> 'a //(;r)rbytes
 private definition !e,ad,r,f.
         Payload(e,ad,r,f) = TLSFragment.Payload(e,ParseAD(e,ad),r,f.contents)
-
 
 
 private type (;e:epoch) prehistory = (ad:(;e)adata * r:range * f:(;e,ad,r)fragment) list
@@ -94,17 +96,17 @@ val extendHistory: e:epoch -> ad:(;e)adata ->
 	h':(;e)history{h' = ExtendHistory(e,ad,h,r,f)}
 
 //------------------------------------------------------------------------------------------------------
-// Auxiliary Definitions and Assumes for Typing
+// Auxiliary definitions for typing
 //------------------------------------------------------------------------------------------------------
 
 private val consHistory: e:epoch -> h:(;e)prehistory ->
 	ad:(;e)adata -> r:range -> x:(;e,ad,r)fragment ->
 	h':(;e)prehistory{h' = (ad,r,x)::h}
 
-// Sent grows linearly
-// assume !e.          Sent(e,(0,[]))
-// assume !e,h,ad,r,x. Sent(e,ExtendHistory(e,h,ad,r,x)) => Sent(e,h)
-//assume !e,ad,h,h',r,f. (Auth(e) /\ StAESent(e,ad,h,r,f) /\ StAESent(e,ad,h',r,f) /\ SeqN(e,h) = SeqN(e,h')) => h = h'
+//CF Sent grows linearly
+//CF assume !e.          Sent(e,(0,[]))
+//CF assume !e,h,ad,r,x. Sent(e,ExtendHistory(e,h,ad,r,x)) => Sent(e,h)
+//CF assume !e,ad,h,h',r,f. (Auth(e) /\ StAESent(e,ad,h,r,f) /\ StAESent(e,ad,h',r,f) /\ SeqN(e,h) = SeqN(e,h')) => h = h'
 
 //CF usage? 
 assume !e,ad,h,h',r,f. (Auth(e) /\ StAEHistory(e,h) /\ StAEHistory(e,h') /\ HLength(e,h) = HLength(e,h')) => h = h'

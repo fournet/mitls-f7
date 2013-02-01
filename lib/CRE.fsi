@@ -32,5 +32,5 @@ val prfSmoothDHE: SessionInfo -> DHGroup.p -> DHGroup.g -> DHGroup.elt -> DHGrou
 
 
 
-// SSL 3 specific encoding function for certificate verify
+//TODO SSL 3 specific encoding function for certificate verify
 

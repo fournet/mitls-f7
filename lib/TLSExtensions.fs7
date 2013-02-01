@@ -56,7 +56,7 @@ val inspect_ServerHello_extensions:
 		unit Result
 
 (* SignatureAndHashAlgorithm parsing functions *)
-function val SigHashAlgBytes: 'a (* Sig.alg, can't use because it's a pair *) -> bytes
+function val SigHashAlgBytes: 'a (*TODO Sig.alg, can't use because it's a pair *) -> bytes
 private definition !s,h. SigHashAlgBytes((s,h)) = HashAlgBytes(s) @| SigAlgBytes(h)
 
 val sigHashAlgBytes: a:Sig.alg -> b:bytes{b=SigHashAlgBytes(a)}
@@ -70,4 +70,4 @@ val default_sigHashAlg: pv:ProtocolVersion -> cs:cipherSuite -> al:Sig.alg list{
 val sigHashAlg_contains: Sig.alg list -> Sig.alg -> bool
 val cert_type_list_to_SigHashAlg: certType list -> ProtocolVersion -> Sig.alg list
 val cert_type_list_to_SigAlg: certType list -> sigAlg list
-val sigHashAlg_bySigList: Sig.alg list -> sigAlg list -> Sig.alg list
+val sigHashAlg_bySigList: Sig.alg list s-> sigAlg list -> Sig.alg list

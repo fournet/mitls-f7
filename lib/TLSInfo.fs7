@@ -1,5 +1,9 @@
 ﻿module TLSInfo
 
+(* This module gathers the definitions of 
+   public datatypes, parameters, and predicates for our TLS API.
+   
+   Its interface is used by most TLS modules; its implementation is typechecked. *)
 
 (* TODOs 20-12-12:
 - VerifyData and SentCCS should be about epochs not sessions (change PRF!)
@@ -25,8 +29,6 @@
      .... COERCE ...
 This requires concrete safe/auth/strong/honest functions (specify, dont implement)
 *)
-
-(* public datatypes and parameters for our TLS API *) 
 
 open Bytes
 open TLSConstants
@@ -152,7 +154,7 @@ predicate StrongSig of Sig.alg
 definition !a,k. HonestSig(a,k) <=> Sig.Honest(a,k)
 definition !a,k. StrongSig(a) <=> Sig.Strong(a)
 
-predicate StrongHS  of SessionInfo // * hashAlg for certs?
+predicate StrongHS  of SessionInfo //CF * hashAlg for certs?
 (*
 predicate RSA_PMS   of ProtocolVersion * kexAlg
 predicate DH_PMS    of ProtocolVersion * kexAlg
@@ -195,6 +197,8 @@ definition !e. Auth(e) <=> AuthSI(EpochSI(e))
 // Safety for epochs relies only on SessionInfo, but this would change if we introduce a finer model of compromise
 // E.g. if we allowed the attacker to compromise specific epochs
 
+// In the code of ideal implementations only,
+// we use F# functions that characterize the Safe and Auth predicates.
 val safe: (e:epoch) -> b:bool { b = true <=> Safe(e) }
 val safeHS: (e:epoch) -> b:bool {b = true <=> SafeHS(e)}
 val auth :(e:epoch) -> b:bool {b = true <=> Auth(e)}
@@ -205,8 +209,8 @@ ask !e. Safe(e) => Auth(e)
 
 ask !e,mac. CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MACOnly(mac) => not Safe(e)
 // AP: This should be invalid, as ciphersuite is a private type!!!
-//ask !e. CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MACOnly(mac) => 
-//    not (?kex,s. EpochSI(e).cipher_suite = CipherSuite(kex,s))
+// AP ask !e. CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MACOnly(mac) => 
+// AP   not (?kex,s. EpochSI(e).cipher_suite = CipherSuite(kex,s))
 
 // so that TLS can exchange any traffic on the initial null connection
 assume !e. IsInitEpoch(e) => not Auth(e)

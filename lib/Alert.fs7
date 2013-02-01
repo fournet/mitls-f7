@@ -114,14 +114,14 @@ val next_fragment: ci:ConnectionInfo -> s:(;ci)state ->
 		AlOutStream(ci,s') = HSFragment.Extend(ci.id_out,AlOutStream(ci,s),r,f) /\
 		AlInStream(ci,s') = AlInStream(ci,s)))}
 
-(*
+(*TODO
 val verifyALCloseFrag: ci:ConnectionInfo -> s:(;ci)state -> r:range -> f:(;ci,r) HSFragment.fragment -> s':(;ci)state -> unit{
    		(Auth(ci.id_out) => HSFragment.Sent(ci.id_out,AlOutStream(ci,s),r,f)) /\
 		AlOutStream(ci,s') = HSFragment.Extend(ci.id_out,AlOutStream(ci,s),r,f) /\
 		AlInStream(ci,s') = AlInStream(ci,s)}
 *)
 
-(*	  { (?r,f. res = ALFrag(r,f) /\ 
+(*TODO	  { (?r,f. res = ALFrag(r,f) /\ 
    		(Auth(ci.id_out) => HSFragment.Sent(ci.id_out,AlOutStream(ci,s),r,f)) /\
 		AlOutStream(ci,s') = HSFragment.Extend(ci.id_out,AlOutStream(ci,s),r,f) /\
 		AlInStream(ci,s') = AlInStream(ci,s)) \/

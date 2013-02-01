@@ -9,9 +9,6 @@ open Range
 
 //CF are we still planning to define clones of HSFragment or not? 
 
-// no additional data definition for this module
-//CF ? 
-
 private type (;e:epoch,ct:ContentType,rg:range) fragment =
     | FHandshake of f:(;e,rg)HSFragment.fragment {ct=Handshake}
     | FCCS       of f:(;e,rg)HSFragment.fragment {ct=Change_cipher_spec}

@@ -52,7 +52,7 @@ ask !e,ad,sn,ph,ad',r,x. (ad = MakeAD(e,(sn,ph),ad') /\ StatefulPlain.StAESent(e
 ask !e,ad,h,h',ad',ad''. ad = MakeAD(e,h,ad') /\ ad = MakeAD(e,h',ad'') => 
     (StatefulPlain.SeqN(e,h) = StatefulPlain.SeqN(e,h') /\ ad' = ad'')
 
-//ask !e,ad,ad',ad'',sn,h,h',r,f. Auth(e) /\ StatefulPlain.StAESent(e,ad',(sn,h),r,f) /\ StatefulPlain.StAEHistory(e,h') /\  HLength(e,h') = sn => h = h'
+//CF ask !e,ad,ad',ad'',sn,h,h',r,f. Auth(e) /\ StatefulPlain.StAESent(e,ad',(sn,h),r,f) /\ StatefulPlain.StAEHistory(e,h') /\  HLength(e,h') = sn => h = h'
 
 //CF 22/4: these coercions are used only in StatefulLHAE.fs; they are not part of the "plain" interface to LHAE.
 
@@ -65,15 +65,15 @@ val StatefulPlainToLHAEPlain: e:epoch -> h:(;e)StatefulPlain.history -> ad:(;e)S
 val LHAEPlainToStatefulPlain: e:epoch -> h:(;e)StatefulPlain.history -> ad:(;e)StatefulPlain.adata -> r:range ->
   p:(;e,MakeAD(e,h,ad),r)plain -> f:(;e,ad,h,r)StatefulPlain.plain{p = StAEToLHAE(f)}
 
-//------------------------------------------------------------------------------------------------------
-// `Internal' interface towards StatefulPlain
-//------------------------------------------------------------------------------------------------------
+//TODO------------------------------------------------------------------------------------------------------
+//TODO `Internal' interface towards StatefulPlain
+//TODO------------------------------------------------------------------------------------------------------
 
-// val contents:  e:epoch -> r:range -> ad:(;e)adata -> (;e,r,ad)LHAEPlain ->
-// 	sb:(;e,r)fragment{Auth(e) => LHAESent(e,ad,r,sb)}
-// val construct: e:epoch -> r:range -> ad:(;e)adata ->
-// 	sb:(;e,r)fragment{Auth(e) => LHAESent(e,ad,r,sb)}
-// 	-> (;e,r,ad)LHAEPlain
-// 
-// function val LHAEContents: 'a -> 'b
-// assume !f. LHAEContents(f) = f.contents
+//TODO val contents:  e:epoch -> r:range -> ad:(;e)adata -> (;e,r,ad)LHAEPlain ->
+//TODO 	sb:(;e,r)fragment{Auth(e) => LHAESent(e,ad,r,sb)}
+//TODO val construct: e:epoch -> r:range -> ad:(;e)adata ->
+//TODO 	sb:(;e,r)fragment{Auth(e) => LHAESent(e,ad,r,sb)}
+//TODO 	-> (;e,r,ad)LHAEPlain
+//TODO 
+//TODO function val LHAEContents: 'a -> 'b
+//TODO assume !f. LHAEContents(f) = f.contents

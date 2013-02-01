@@ -139,7 +139,8 @@ let checkVerifyData e role ms log expected =
   let computed = makeVerifyData e role ms log 
   equalBytes expected computed
   #if ideal
-  && 
+  && // ideally, we return "false" when concrete 
+     // verification suceeeds but shouldn't according to the log 
     let si = epochSI(e) 
     safe e = false || (exists (fun el -> el=(si, expected, log)) !finish_log)
   #endif
