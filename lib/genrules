@@ -38,7 +38,8 @@ StatefulLHAE.tc7 \
 Record.tc7 \
 Handshake.tc7 \
 Dispatch.tc7 \
-TLS.tc7
+TLS.tc7 \
+UTLS.tc7
 
 #==Categories of .fs7 files==
 #
@@ -68,7 +69,7 @@ TLS.tc7
 # 
 #   DataStream, AppFragment, HSFragment, TLSFragment, StatefulPlain,
 #   LHAEPlain, StatefulLHAE, Record, Alert, Handshake, AppData,
-#   Dispatch, TLS
+#   Dispatch, TLS, UTLS
 #
 # Current verification status:
 # - TLSConstants.tc7 fails on recently added list primitives.
