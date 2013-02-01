@@ -62,7 +62,7 @@ TLS.tc7
 # against multiple flags
 #
 #
-# protocol: these .fs7 files verify the trunk of TLS on building on
+# protocol: these .fs7 files verify the trunk of TLS building on
 # the cryptographic guarantees provided by the interfaces of idealized
 # modules:
 # 
@@ -75,6 +75,8 @@ TLS.tc7
 # - Encode.tc7 fails on full correctness for decryption.
 # - Handshake.tc7 still fails outside TLS 1.2 for DHE and RSA.
 # - Dispatch.tc7 
+# - <idealizing modules>.tc7 mostly fail because of CoreCrypto dependencies, 
+#   - MAC.tc7 type checks
 
 
 
