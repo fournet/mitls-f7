@@ -40,13 +40,6 @@ Handshake.tc7 \
 Dispatch.tc7 \
 TLS.tc7
 
-# current verification status: 
-# - TLSConstants.tc7 fails on recently added list primitives.
-# - Encode.tc7 fails on full correctness for decryption.
-# - Handshake.tc7 still fails outside TLS 1.2 for DHE and RSA.
-# - Dispatch.tc7 
-
-
 #==Categories of .fs7 files==
 #
 # trusted: these files are not supposed to be verified, but we rely on
@@ -62,21 +55,28 @@ TLS.tc7
 # idealizing: these are .fs7 files for .fs files with #ideal flags
 # this flag is used to define ideal variants of the modules
 #
-#   Nonce Sig MAC ENC LHAE PRF CRE RSA DH
+#   Sig MAC ENC LHAE PRF CRE RSA DH
 #
-# the Makefile rules by default verify with --define ideal; 
-# additonal typing is needed for some modules:
-#   Nonce is trusted and not typechecked, 
-#   Encode and LHAE are typechecked against multiple flags
+# the Makefile rules by default verify with --define ideal; additional
+# typing is needed for some modules: Encode and LHAE are typechecked
+# against multiple flags
 #
 #
-# protocol: these .fs7 files verify the trunc of TLS on building on
+# protocol: these .fs7 files verify the trunk of TLS on building on
 # the cryptographic guarantees provided by the interfaces of idealized
 # modules:
 # 
 #   DataStream, AppFragment, HSFragment, TLSFragment, StatefulPlain,
 #   LHAEPlain, StatefulLHAE, Record, Alert, Handshake, AppData,
 #   Dispatch, TLS
+#
+# Current verification status:
+# - TLSConstants.tc7 fails on recently added list primitives.
+# - Encode.tc7 fails on full correctness for decryption.
+# - Handshake.tc7 still fails outside TLS 1.2 for DHE and RSA.
+# - Dispatch.tc7 
+
+
 
 clean:
 	rm -f *.smp *.tc7
