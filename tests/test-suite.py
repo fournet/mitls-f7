@@ -74,6 +74,11 @@ def _check_for_config(mode, config):
     subpc, subps = None, None
     sessiondir   = None
 
+    if sys.platform.lower() not in ('cygwin', 'win32'):
+        if 'nomono' in config.options:
+            logging.warning('Test disabled under Mono')
+            return True
+
     try:
         logging.debug('Creating empty session directory...')
         sessiondir = tempfile.mkdtemp()
@@ -189,6 +194,7 @@ servname =
 modes    = MI_MI_TLS MI_C_TLS
 reneg    = False
 pki      =
+options  =
 '''
 
 def _main():
@@ -231,6 +237,7 @@ def _main():
             modes    = parser.get(scenario, 'modes'   ).split(),
             reneg    = parser.getboolean(scenario, 'reneg'),
             pki      = parser.get(scenario, 'pki').strip() or None,
+            options  = set(parser.get(scenario, 'options').split()) or None,
         )
 
         try:
@@ -292,7 +299,8 @@ def _main():
                                     address  = bind,
                                     servname = scendata.servname,
                                     reneg    = scendata.reneg,
-                                    pki      = scendata.pki)
+                                    pki      = scendata.pki,
+                                    options  = scendata.options)
     
                     success  = _check_for_config(mode, config)
                     nerrors += int(not success)
