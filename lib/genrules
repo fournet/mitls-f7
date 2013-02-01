@@ -19,6 +19,7 @@ f7flags += -timeout 1 --define avoid --define verify --define ideal --verbose -n
 
 -include Makefile.tc7
 
+# default verification targets 
 default: \
 Error.tc7 \
 TLSConstants.tc7 \
@@ -39,9 +40,8 @@ Handshake.tc7 \
 Dispatch.tc7 \
 TLS.tc7
 
-# current status: 
+# current verification status: 
 # - TLSConstants.tc7 fails on new list primitives.
-# 
 # - Encode.tc7 fails on full correctness for decryption.
 # - Handshake.tc7 still fails outside TLS 1.2 for DHE and RSA.
 # - Dispatch.tc7 
