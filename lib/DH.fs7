@@ -7,12 +7,18 @@ open DHGroup
 // formally a precondition for signing them with an honest key.
 predicate val PP: p:p * g:(;p) g -> bool
 
-//AP: Should be (;p:p,g:(;p)g,gx:(;p)elt) secret
-type (;p:p,g:g,gx:elt) secret
+type (;p:p,g:(;p)g,gx:(;p)elt) secret
 
 // the RFCs are vague about best practices for ppgen
 val gen_pp:     unit -> p:p * g:(;p) g {PP(p,g)}
 val default_pp: unit -> p:p * g:(;p) g {PP(p,g)}
 
-val genKey: p:p -> g: (;p) g -> gx:(;p) elt * (;p,g,gx) secret
-val exp: p:p -> g:(;p)g -> gx:(;p) elt -> gy:(;p) elt -> x:(;p,g,gx) secret -> (;p,g,gx,gy) CRE.dhpms
+predicate HonestExponent of p:p * g:(;p)g * gx:(;p)elt
+val genKey: p:p -> g: (;p) g -> gx:(;p) elt * (;p,g,gx) secret{
+  HonestExponent(p,g,gx)}
+
+val exp: p:p -> g:(;p)g -> gx:(;p) elt -> gy:(;p) elt -> x:(;p,g,gx) secret -> res:(;p,g,gx,gy) CRE.dhpms{
+  HonestExponent(p,g,gx) /\ HonestExponent(p,g,gy) => 
+    TLSInfo.HonestDHPMS(p,g,gx,gy)}
+    
+    

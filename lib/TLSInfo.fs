@@ -17,7 +17,7 @@ type srand = random
 
 type pmsData =
     | PMSUnset
-    | RSAPMS of bytes
+    | RSAPMS of RSAKey.pk * ProtocolVersion * bytes
     | DHPMS  of DHGroup.p * DHGroup.g * DHGroup.elt * DHGroup.elt
 
 type SessionInfo = {

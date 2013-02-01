@@ -314,9 +314,8 @@ let clientKEXBytes_RSA si config =
             let encpms = RSA.encrypt pubKey config.maxVer pms in
             let nencpms = encpmsBytesVersion si.protocol_version encpms in
             let mex = messageBytes HT_client_key_exchange nencpms in
-            // The returned encpms is ghost: only used to avoid
-            // existentials in formal verification, and storage in sessionInfo (as ghost variable).
-            correct(mex,encpms,pms)
+            let pmsdata = RSAPMS(pubKey,config.maxVer,encpms) in                                                         
+            correct(mex,pmsdata,pms)
 
 let parseClientKEX_RSA si skey cv config data =
     if listLength si.serverID = 0 then
@@ -325,7 +324,8 @@ let parseClientKEX_RSA si skey cv config data =
         match parseEncpmsVersion si.protocol_version data with
         | Correct(encPMS) ->
             let res = RSA.decrypt skey si cv config.check_client_version_in_pms_for_old_tls encPMS in
-            correct(encPMS,res)
+            let (Correct(pk)) = Cert.get_chain_public_encryption_key si.serverID in  
+            correct(RSAPMS(pk,cv,encPMS),res)
         | Error(x,y) -> Error(x,y)
 
 let clientKEXExplicitBytes_DH y =
@@ -921,9 +921,9 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:Sess
     match clientKEXBytes_RSA si state.poptions with
     | Error(x,y) -> Error(x,y)
     | Correct(v) ->
-    let (clientKEXBytes,encpms,pms)  = v in
+    let (clientKEXBytes,pmsdata,pms)  = v in
 
-    let si = {si with pmsData = RSAPMS(encpms)} in
+    let si = {si with pmsData = pmsdata} in
 
     let log = log @| clientKEXBytes in
     let pop = state.poptions in 
@@ -1694,8 +1694,8 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 match parseClientKEX_RSA si sk cv state.poptions payload with
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(res) ->
-                    let (encpms,pms) = res in
-                    let si = {si with pmsData = RSAPMS(encpms)} in
+                    let (pmsdata,pms) = res in
+                    let si = {si with pmsData = pmsdata} in
                     let log = log @| to_log in
                     let ms = CRE.prfSmoothRSA si cv pms in
                     (* TODO: we should shred the pms *)

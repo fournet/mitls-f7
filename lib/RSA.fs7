@@ -16,7 +16,7 @@ open TLSInfo
 
 predicate EncryptedRSAPMS of pk:pk * pv:ProtocolVersion * (;pk,pv)CRE.rsapms * bytes
 
-val encrypt: pk:pk -> pv:ProtocolVersion -> pms:(;pk,pv) CRE.rsapms -> b:bytes{EncryptedRSAPMS(pk,pv,pms,b)} 
+val encrypt: pk:pk -> pv:ProtocolVersion -> pms:(;pk,pv) CRE.rsapms -> b:bytes{EncryptedRSAPMS(pk,pv,pms,b) /\ HonestRSAPMS(pk,pv,b)} 
 // TLS specific, timing-attack-resistant variant
 val decrypt: sk ->
   	     si:SessionInfo -> 

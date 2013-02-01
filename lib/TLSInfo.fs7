@@ -59,22 +59,21 @@ type srand = random
 
 type pmsData =
     | PMSUnset
-    | RSAPMS of encpms:bytes
+    | RSAPMS of pk:RSAKey.pk * ProtocolVersion * encpms:bytes
     | DHPMS  of p:DHGroup.p * g:(;p)DHGroup.g *
 		  	      gx:(;p)DHGroup.elt (* Client *) *
 			      gy:(;p)DHGroup.elt (* Server *)
 
 // To be defined 
-predicate HonestRSAPMS of encpms:bytes
+predicate HonestRSAPMS of pk:RSAKey.pk * pv:ProtocolVersion * encpms:bytes
 predicate HonestDHPMS of p:DHGroup.p * g:(;p)DHGroup.g *
 		  	      gx:(;p)DHGroup.elt (* Client *) *
 			      gy:(;p)DHGroup.elt (* Server *)
 
 predicate HonestPMS of pmsData
 assume !pd. HonestPMS(pd) <=>
-      ((?e. pd = RSAPMS(e) /\ HonestRSAPMS(e)) \/
-       (?p,g,gx,gy. pd = DHPMS(p,g,gx,gy)))
-(* DHPMS(si) <=> HonestClientExponent(si) /\ HonestServerExponent(si) *)
+      ((?pk,pv,e. pd = RSAPMS(pk,pv,e) /\ HonestRSAPMS(pk,pv,e)) \/
+       (?p,g,gx,gy. pd = DHPMS(p,g,gx,gy) /\ HonestDHPMS(p,g,gx,gy)))
 
 // TODO this is out of sync with the paper, on client_auth.
 type SessionInfo = {

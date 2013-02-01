@@ -14,6 +14,12 @@ type key = {k:keyrepr}
 #if ideal 
 type entry = epoch * text * tag
 let log:entry list ref=ref []
+let rec tmem (e:epoch) (t:text) (xs: entry list) = 
+  match xs with
+      [] -> false
+    | (e',t',tag)::res when e = e' && t = t' -> true
+    | (e',t',tag)::res -> tmem e t res
+        
 #endif
 
 let Mac ki key data =
@@ -27,12 +33,6 @@ let Mac ki key data =
     #endif
     tag
 
-let rec tmem (e:epoch) (t:text) (xs: entry list) = 
-  match xs with
-      [] -> false
-    | (e',t',tag)::res when e = e' && t = t' -> true
-    | (e',t',tag)::res -> tmem e t res
-        
 
 
 let Verify ki key data tag =

@@ -17,4 +17,4 @@ type (;p:p) elt = b:bytes{ Elt(p,b) }
 type (;p:p) g = (;p) elt  // for the group generator
 
 val genElement: p:p -> g:(;p)g -> (;p)elt
-val checkElement: p:p -> bytes -> (;p)elt option
+val checkElement: p:p -> b:bytes -> (b':(;p)elt{b=b'}) option

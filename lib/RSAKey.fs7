@@ -14,7 +14,9 @@ type pk (* public (encryption) key, abstract but bytes are accessible *)
 type modulus  = bytes
 type exponent = bytes
 
-// TODO val honest: pk:pk -> b:bool { b = true <=> Honest(pk) }  
+(* Used in specifications *)
+predicate Honest of pk
+val honest: pk:pk -> b:bool { b = true <=> Honest(pk) }  
 
 // TODO to be adjusted depending on the compromise model in Cert
 val create_rsapkey : modulus * exponent -> pk

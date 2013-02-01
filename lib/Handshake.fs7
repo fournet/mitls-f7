@@ -163,7 +163,6 @@ val parseCertificateRequest: pv:ProtocolVersion -> b:bytes ->
 	((ctl:certType list * al:(Sig.alg list) * sl:string list){
 		MessageBytes(HT_certificate_request,b) = CertificateRequestMsg(pv,ctl,al,sl)})	 Result
 
-//function val ClientKeyExchangeMsg_RSA: pv:ProtocolVersion * si:SessionInfo * RSAKey.pk * (;si,pv)CRE.rsapms -> bytes
 function val ClientKeyExchangeMsg_RSA: pv:ProtocolVersion * bytes -> bytes
 private definition !pv,encpms,b.
        ((pv = TLS_1p2 \/ pv = TLS_1p1 \/ pv = TLS_1p0) => ClientKeyExchangeMsg_RSA(pv,encpms) = MessageBytes(HT_client_key_exchange,VLBytes(2,encpms))) /\
@@ -182,12 +181,15 @@ val parseEncpmsVersion: pv:ProtocolVersion -> b:bytes ->
 // For the next two functions, the returned encpms is a ghost variable used to
 // avoid an existential.
 val clientKEXBytes_RSA: si:SessionInfo -> c:config ->
-	((b:bytes * encpms:bytes * pms:(;Cert.RSAPKCert(si.serverID),c.maxVer)CRE.rsapms){
+	((b:bytes * pmsdata:TLSInfo.pmsData * pms:(;Cert.RSAPKCert(si.serverID),c.maxVer)CRE.rsapms){
+           ?encpms. pmsdata = RSAPMS(Cert.RSAPKCert(si.serverID),c.maxVer,encpms) /\
 		b=ClientKeyExchangeMsg_RSA(si.protocol_version,encpms)
 		}) Result
 val parseClientKEX_RSA: si:SessionInfo -> RSAKey.sk -> pv:ProtocolVersion -> config -> b:bytes ->
-	((encpms:bytes * (;Cert.RSAPKCert(si.serverID),pv)CRE.rsapms){
-		ClientKeyExchangeMsg_RSA(si.protocol_version,encpms) = MessageBytes(HT_client_key_exchange,b)
+	((pmsdata:TLSInfo.pmsData * 
+         (;Cert.RSAPKCert(si.serverID),pv)CRE.rsapms){
+           ?encpms. pmsdata = RSAPMS(Cert.RSAPKCert(si.serverID),pv,encpms) /\
+     	            ClientKeyExchangeMsg_RSA(si.protocol_version,encpms) = MessageBytes(HT_client_key_exchange,b)
 	}) Result
 
 function val ClientKeyExchangeMsg_DHE: bytes -> bytes
@@ -200,7 +202,8 @@ val clientKEXExplicitBytes_DH: gx:bytes ->
 	b:bytes{b = ClientKeyExchangeMsg_DHE(gx)}
 val parseClientKEXExplicit_DH: p:DHGroup.p -> b:bytes ->
 	(gx:(;p)DHGroup.elt{
-		MessageBytes(HT_client_key_exchange,b) = ClientKeyExchangeMsg_DHE(gx)
+		MessageBytes(HT_client_key_exchange,b) = 
+                ClientKeyExchangeMsg_DHE(gx)
 	}) Result
 val clientKEXImplicitBytes_DH: bytes
 val parseClientKEXImplicit_DH: bytes -> unit Result
@@ -260,16 +263,18 @@ private definition !pv,a,sign.
 		 CertificateVerifyMsg(pv,a,sign) = MessageBytes(HT_certificate_verify,DigitallySignedBytes(a,sign,pv))
 
 
-val makeCertificateVerifyBytes: si:SessionInfo -> (;si)PRF.masterSecret -> a:Sig.alg -> (;a)Sig.skey -> l:log ->
+val makeCertificateVerifyBytes: si:SessionInfo -> (;si)PRF.masterSecret -> a:Sig.alg -> k:(;a)Sig.skey -> 
+  l:log{Sig.Msg(a,k,l)} ->
 	b:bytes * sign:bytes{
 	  b = CertificateVerifyMsg(si.protocol_version,a,sign)
 	}
 val certificateVerifyCheck: si:SessionInfo -> (;si)PRF.masterSecret -> al:Sig.alg list -> l:log -> payload:bytes ->
 	b:bool * sign:bytes{
 	  b = true => ?a.
-		MessageBytes(HT_certificate_verify,payload) = CertificateVerifyMsg(si.protocol_version,a,sign)
-		// /\ Something good about signature check (depends on si.protocol_version)
-	}
+		(MessageBytes(HT_certificate_verify,payload) = CertificateVerifyMsg(si.protocol_version,a,sign)
+		/\ Sig.Honest(a,Cert.SigPKCert(si.clientID,a)) =>
+                   Sig.Msg(a,Cert.SigPKCert(si.clientID,a),l))}
+
 
 //function val ServerFinishedMsg: si:SessionInfo * (;si)PRF.masterSecret * log -> bytes
 function val ServerFinishedMsg: sVerifyData -> bytes
@@ -594,18 +599,6 @@ private assume !si,l.
     l = l' @| ServerFinishedMsg(svd))
 
 
-
-(* Old
-private assume !a,k,t. Sig.Msg(a,k,t) 
-  <=> ((?si. ClientLogBeforeCertificateVerifyRSA_Auth(si,t) /\
-             k = Cert.SigPKCert(si.clientID,a)) \/
-        (?si. ClientLogBeforeCertificateVerifyDHE_Auth(si,t) /\
-           k = Cert.SigPKCert(si.clientID,a)) \/
-        (?si,p,g,y. t = si.init_crand @| si.init_srand @| 
-                    DHEParamBytes(p,g,y) /\
-           k = Cert.SigPKCert(si.serverID,a)))
-*)
-
 predicate Configure of Role * epoch * config
 predicate Authorize of Role * SessionInfo
 // If the user Authorize, we can put the session in the DB
@@ -624,17 +617,21 @@ predicate Complete of ConnectionInfo * config
 private assume !si. (si.client_auth = false /\ si.clientID = []) => Authorize(Server,si)
 
 private assume !a,k,t. Sig.Msg(a,k,t) 
-  <=> ((?si. ClientLogBeforeCertificateVerifyRSA_Auth(si,t) /\
+  <=> ((?si,pk,pv,e. 
+             ClientLogBeforeCertificateVerifyRSA_Auth(si,t) /\
+             si.pmsData = RSAPMS(pk,pv,e) /\
+             HonestRSAPMS(pk,pv,e) /\
              k = Cert.SigPKCert(si.clientID,a) /\
-             HonestPMS(si.pmsData) /\
              Authorize(Client,si)) \/
-        (?si. ClientLogBeforeCertificateVerifyDHE_Auth(si,t) /\
+        (?si,p,g,gx,gy. 
+           ClientLogBeforeCertificateVerifyDHE_Auth(si,t) /\
+           si.pmsData = DHPMS(p,g,gx,gy) /\
+           DH.HonestExponent(p,g,gy) => HonestDHPMS(p,g,gx,gy) /\ 
            k = Cert.SigPKCert(si.clientID,a) /\
-           (* HonestServerExponent(si) => HonestPMS(si.pmsData) /\ *)
            Authorize(Client,si)) \/
-        (?si,p,g,y. t = si.init_crand @| si.init_srand @| 
-           DHEParamBytes(p,g,y) /\
-           (* HonestServerExponent(si) *)
+        (?si,p,g,gy. t = si.init_crand @| si.init_srand @| 
+           DHEParamBytes(p,g,gy) /\
+           DH.HonestExponent(p,g,gy) /\
            k = Cert.SigPKCert(si.serverID,a)))
 
            
@@ -743,7 +740,7 @@ type clientState =
    | ServerHelloDoneDH            of SessionInfo * log
 
    | ServerCertificateDHE         of si:SessionInfo * l:log{ClientLogBeforeServerCertificate(si,l)}
-   | ClientCheckingCertificateDHE of si:SessionInfo * l:log * b:bytes{ClientLogBeforeServerCertificate(si,l) (* /\ b = CertificateMsg(ser) *) }
+   | ClientCheckingCertificateDHE of si:SessionInfo * l:log * ProtocolVersion option * b:bytes{ClientLogBeforeServerCertificate(si,l) (* /\ b = CertificateMsg(ser) *) }
    | ServerKeyExchangeDHE         of si:SessionInfo * l:log{ClientLogBeforeServerKeyExchangeDHE(si,l)}
    | CertificateRequestDHE        of si:SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * l:log{ClientLogBeforeCertificateRequestDHE(si,l)}
    | ServerHelloDoneDHE           of si:SessionInfo * Cert.sign_cert * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * l:log{ClientLogBeforeServerHelloDoneDHE(si,l)}
