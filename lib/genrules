@@ -41,7 +41,7 @@ Dispatch.tc7 \
 TLS.tc7
 
 # current verification status: 
-# - TLSConstants.tc7 fails on new list primitives.
+# - TLSConstants.tc7 fails on recently added list primitives.
 # - Encode.tc7 fails on full correctness for decryption.
 # - Handshake.tc7 still fails outside TLS 1.2 for DHE and RSA.
 # - Dispatch.tc7 

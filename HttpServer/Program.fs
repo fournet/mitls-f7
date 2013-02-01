@@ -57,7 +57,7 @@ let cmdparse = fun () ->
     let defaultPort = 2443
     let defaultRoot = "htdocs"
     let defaultCert = "sessionDB"
-    let defaultName = "mitls.example.org"
+    let defaultName = "cert-01.mitls.org"
     
     let options  = ref {
         rootdir   = Path.Combine(mypath, defaultRoot);
