@@ -28,7 +28,7 @@ type encAlg =
 	| Stream_RC4_128
 
 predicate IND_CPA of encAlg
-// some reasonable assumptions:
+// some reasonable cryptographic assumptions:
 // assume(IND_CPA(CBC_Fresh(AES_128_CBC)))
 // assume(IND_CPA(CBC_Fresh(AES_256_CBC)))
 // assume(IND_CPA(Stream_RC4_128))
@@ -41,23 +41,31 @@ type hashAlg =
     | SHA256
     | SHA384
 
+(** Algorithms for the MAC module *) 
+
 type macAlg =
 	| MA_HMAC of hashAlg
 	| MA_SSLKHASH of hashAlg
 
-predicate INT_CMA_M of macAlg // INT_CMA_M(HMAC-hasAlg) 
-// some reasonable assumptions:
+predicate INT_CMA_M of macAlg  (* Strong algorithms for the INT-CMA game *) 
+// some reasonable cryptogaphic assumptions:
 // assume(INT_CMA_M(MA_HMAC(SHA)))
 // assume(INT_CMA_M(MA_HMAC(SHA256)))
 // assume(INT_CMA_M(MA_HMAC(SHA384)))
+
+(** Signing algorithms for the Sig module *) 
 
 type sigAlg = 
   | SA_RSA
   | SA_DSA 
   | SA_ECDSA
 
-predicate INT_CMA_S of sigAlg * hashAlg * hashAlg list// INT_CMA_S(sigAlg-hashAlg)
-// some reasonable assumptions:
+predicate INT_CMA_S of sigAlg * hashAlg * hashAlg list 
+// INT_CMA_S(s,h,hs) indicates that signing hashes using s,h is INT-CMA, 
+// even if we also sign hashes using s,h' in hs
+// (
+//
+// some reasonable cryptographic assumptions:
 // assume(INT_CMA_S(SA_DSA,SHA,[SHA]))
 // assume(INT_CMA_S(SA_ECDSA,SHA,[SHA]))
 
@@ -90,23 +98,21 @@ predicate CRE_DH of ProtocolVersion * macAlg
 predicate CRE_RSA of ProtocolVersion * macAlg
 // In the paper, these are global assumptions. Here we get StrongHS even if one of them is false.
 
-(* With F7, we need to declare both logical length functions
-   and their concrete implementations; we still miss a few... 
-   a nicer F7 could enable homonymous concrete implementations of logical functions *) 
+(* With F7, we need to declare both logical functions for lengths, constants, etc
+   and their concrete F# implementations, typechecked against these logical functions. *) 
 
 (* TODO: use uniform naming convention, e.g. length implements Length; make more defs private *)
 
 function val SigAlgBytes: sigAlg -> bytes
-private assume !s.
+private definition !s.
            (SigAlgBytes(SA_RSA) = [|1uy|]) /\
            (SigAlgBytes(SA_DSA) = [|2uy|]) /\
            (SigAlgBytes(SA_ECDSA) = [|3uy|])
-           
 
 val sigAlgBytes: s:sigAlg -> b:bytes{b=SigAlgBytes(s)}
 val parseSigAlg: b:bytes -> (s:sigAlg{b=SigAlgBytes(s)}) Result
 function val HashAlgBytes: hashAlg -> bytes
-assume HashAlgBytes(MD5) = [|1uy|] /\
+definition HashAlgBytes(MD5) = [|1uy|] /\
        HashAlgBytes(SHA) = [|2uy|] /\
        HashAlgBytes(SHA256) = [|4uy|] /\
        HashAlgBytes(SHA384) = [|5uy|] 
@@ -215,7 +221,7 @@ type Compression =
     | NullCompression
 
 function val CompressionBytes: Compression -> bytes
-private assume CompressionBytes(NullCompression) = [| 0uy |]
+private definition CompressionBytes(NullCompression) = [| 0uy |]
 
 predicate ContainsCompressions of Compression list * Compression list
 function val CompressionsBytes: Compression list -> bytes
@@ -225,14 +231,12 @@ private assume CompressionsBytes([]) = [||] /\
 private assume !cl. ContainsCompressions(cl,cl) /\ 
    (!cl. ContainsCompressions(cl,[])) /\
    (!h,t,cl. ContainsCompressions(t,cl) => ContainsCompressions(h::t,cl)) /\
-   (!h,t,t'. ContainsCompressions(t,t') => ContainsCompressions(h::t,h::t'))
+   (!h,t,h',t'. ContainsCompressions(t,t') => ContainsCompressions(h::t,h'::t'))
 
 val compressionBytes: c:Compression -> b:bytes{CompressionBytes(c) = b}
 val compressionMethodsBytes: cl:Compression list -> b:bytes{b = CompressionsBytes(cl)}
 val parseCompression: b:bytes -> (c:Compression{b=CompressionBytes(c)}) Result
 val parseCompressions: b:bytes -> cl:Compression list{?cl'. b = CompressionsBytes(cl') /\ ContainsCompressions(cl',cl)}
-
-
 
 
 
@@ -255,12 +259,12 @@ val geqPV: a:ProtocolVersion -> b:ProtocolVersion -> r:bool
    CF: we could save a bit by not making cipherSuite abstract for F7.
    *)
 predicate val IsNullCiphersuite: cipherSuite -> bool
-assume !x. IsNullCiphersuite(x) <=> x = NullCipherSuite
+definition !x. IsNullCiphersuite(x) <=> x = NullCipherSuite
 val nullCipherSuite: c:cipherSuite{IsNullCiphersuite(c)}
 val isNullCipherSuite: c:cipherSuite -> r:bool{r=true <=> IsNullCiphersuite(c)}
 
 predicate val IsSCSVCiphersuite: cipherSuite -> bool
-assume !x. IsSCSVCiphersuite(x) <=> ?z. x = SCSV(z)
+definition !x. IsSCSVCiphersuite(x) <=> ?z. x = SCSV(z)
 
 (* TODO: predicates similar to the ones above, to be done when handling handshake *)
 val isAnonCipherSuite: cipherSuite -> bool
@@ -275,40 +279,41 @@ val verifyDataHashAlg_of_ciphersuite: cs:cipherSuite -> hashAlg
 function val TLSMACAlg: hashAlg   * ProtocolVersion -> macAlg
 function val TLSENCAlg: cipherAlg * ProtocolVersion -> encAlg
 
-private assume !mac. TLSMACAlg(mac,SSL_3p0) = MA_SSLKHASH(mac)
-private assume !mac. TLSMACAlg(mac,TLS_1p0) = MA_HMAC(mac)
-private assume !mac. TLSMACAlg(mac,TLS_1p1) = MA_HMAC(mac)
-private assume !mac. TLSMACAlg(mac,TLS_1p1) = MA_HMAC(mac)
+private definition !mac. TLSMACAlg(mac,SSL_3p0) = MA_SSLKHASH(mac)
+private definition !mac. TLSMACAlg(mac,TLS_1p0) = MA_HMAC(mac)
+private definition !mac. TLSMACAlg(mac,TLS_1p1) = MA_HMAC(mac)
+private definition !mac. TLSMACAlg(mac,TLS_1p1) = MA_HMAC(mac)
 
-private assume !mac. TLSMACAlg(mac,SSL_3p0) = MA_SSLKHASH(mac)
-private assume !mac. TLSMACAlg(mac,TLS_1p0) = MA_HMAC(mac)
-private assume !mac. TLSMACAlg(mac,TLS_1p1) = MA_HMAC(mac)
-private assume !mac. TLSMACAlg(mac,TLS_1p2) = MA_HMAC(mac)
+private definition !mac. TLSMACAlg(mac,SSL_3p0) = MA_SSLKHASH(mac)
+private definition !mac. TLSMACAlg(mac,TLS_1p0) = MA_HMAC(mac)
+private definition !mac. TLSMACAlg(mac,TLS_1p1) = MA_HMAC(mac)
+private definition !mac. TLSMACAlg(mac,TLS_1p2) = MA_HMAC(mac)
 
-private assume !pv. TLSENCAlg(RC4_128,pv) = Stream_RC4_128
-private assume TLSENCAlg(TDES_EDE_CBC,SSL_3p0) = CBC_Stale(TDES_EDE)
-private assume TLSENCAlg(TDES_EDE_CBC,TLS_1p0) = CBC_Stale(TDES_EDE)
-private assume TLSENCAlg(AES_128_CBC, SSL_3p0) = CBC_Stale(AES_128)
-private assume TLSENCAlg(AES_128_CBC, TLS_1p0) = CBC_Stale(AES_128)
-private assume TLSENCAlg(AES_256_CBC, SSL_3p0) = CBC_Stale(AES_256)
-private assume TLSENCAlg(AES_256_CBC, TLS_1p0) = CBC_Stale(AES_256)
-private assume TLSENCAlg(TDES_EDE_CBC,TLS_1p1) = CBC_Fresh(TDES_EDE)
-private assume TLSENCAlg(TDES_EDE_CBC,TLS_1p2) = CBC_Fresh(TDES_EDE)
-private assume TLSENCAlg(AES_128_CBC, TLS_1p1) = CBC_Fresh(AES_128)
-private assume TLSENCAlg(AES_128_CBC, TLS_1p2) = CBC_Fresh(AES_128)
-private assume TLSENCAlg(AES_256_CBC, TLS_1p1) = CBC_Fresh(AES_256)
-private assume TLSENCAlg(AES_256_CBC, TLS_1p2) = CBC_Fresh(AES_256)
+private definition !pv. TLSENCAlg(RC4_128,pv) = Stream_RC4_128
+private definition TLSENCAlg(TDES_EDE_CBC,SSL_3p0) = CBC_Stale(TDES_EDE)
+private definition TLSENCAlg(TDES_EDE_CBC,TLS_1p0) = CBC_Stale(TDES_EDE)
+private definition TLSENCAlg(AES_128_CBC, SSL_3p0) = CBC_Stale(AES_128)
+private definition TLSENCAlg(AES_128_CBC, TLS_1p0) = CBC_Stale(AES_128)
+private definition TLSENCAlg(AES_256_CBC, SSL_3p0) = CBC_Stale(AES_256)
+private definition TLSENCAlg(AES_256_CBC, TLS_1p0) = CBC_Stale(AES_256)
+private definition TLSENCAlg(TDES_EDE_CBC,TLS_1p1) = CBC_Fresh(TDES_EDE)
+private definition TLSENCAlg(TDES_EDE_CBC,TLS_1p2) = CBC_Fresh(TDES_EDE)
+private definition TLSENCAlg(AES_128_CBC, TLS_1p1) = CBC_Fresh(AES_128)
+private definition TLSENCAlg(AES_128_CBC, TLS_1p2) = CBC_Fresh(AES_128)
+private definition TLSENCAlg(AES_256_CBC, TLS_1p1) = CBC_Fresh(AES_256)
+private definition TLSENCAlg(AES_256_CBC, TLS_1p2) = CBC_Fresh(AES_256)
 
 function val CipherSuiteSigAlg: cipherSuite -> sigAlg
 function val CipherSuiteMACAlg: cipherSuite * ProtocolVersion -> macAlg
 function val CipherSuiteENCAlg: cipherSuite * ProtocolVersion -> encAlg
 function val CipherSuiteAuthEncAlg: cipherSuite * ProtocolVersion -> authencAlg
 
-private assume !kex,mac,pv.
+private definition !kex,mac,pv.
 	CipherSuiteAuthEncAlg(OnlyMACCipherSuite(kex,mac),pv) = MACOnly(TLSMACAlg(mac,pv))
-private assume !kex,enc,mac,pv.
+private definition !kex,enc,mac,pv.
 	CipherSuiteAuthEncAlg(CipherSuite(kex,CS_MtE(enc,mac)),pv) = MtE(TLSENCAlg(enc,pv),TLSMACAlg(mac,pv))
 
+//CF status? 
 assume !cs,pv,mac.
         CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) => CipherSuiteMACAlg(cs,pv) = mac
 assume !cs,pv,mac,enc.
@@ -393,21 +398,21 @@ private assume
 
 
 function val CipherSuitesBytes: cipherSuites -> bytes
-private assume !cs,b. (b = CipherSuitesBytes(cs)) <=> 
+private definition !cs,b. (b = CipherSuitesBytes(cs)) <=> 
    ((cs = [] /\ b = [||]) \/
     (?h,t. cs = h::t /\ b = CipherSuiteBytes(h) @| CipherSuitesBytes(t)))
 
 predicate ContainsCipherSuite of cipherSuites * cipherSuite
-private assume !b,cs. ContainsCipherSuite(b,cs) <=> 
+private definition !b,cs. ContainsCipherSuite(b,cs) <=> 
                 (?h,t. b = h::t /\ (h = cs \/ ContainsCipherSuite(t,cs)))
 
 predicate ContainsCipherSuites of cipherSuites * cipherSuites
-private assume !b,l. ContainsCipherSuites(b,l) <=>
+private definition !b,l. ContainsCipherSuites(b,l) <=>
   (l = [] \/
    (?h,t. l = h::t /\ ContainsCipherSuite(b,h) /\ ContainsCipherSuites(b,t)))
 
 
-(*
+(* CF 
 predicate ContainsCipherSuite of bytes * cipherSuite
 private assume !b,cs. ContainsCipherSuite(b,cs) <=> 
                 (?b1,b2. b = b1 @| b2 /\ Length(b1) = 2 /\
@@ -422,10 +427,10 @@ ask !b1,b2,cs. (Length(b1) = 2 /\ ContainsCipherSuite(b2,cs)) => ContainsCipherS
 //requires induction
 assume !b1,b2,l. (Length(b1) = 2 /\ ContainsCipherSuites(b2,l)) => ContainsCipherSuites(b1 @| b2, l)
 *)
-// function val ParseCipherSuites: bytes -> cipherSuites
-// private assume !b. (b = [||] /\ ParseCipherSuites(b) = []) \/
-// 		(?b1,b2,c. b = b1 @| b2 /\ Length(b1) = 2 /\ b1 = CipherSuiteBytes(c) /\ ParseCiphersuites(b) = c::ParseCipherSuites(b2)) /\
-// 		(?b1,b2. b = b1 @| b2 /\ Length(b1) = 2 /\ (!c. b1 <> CipherSuiteBytes(c)) /\ ParseCiphersuites(b) = ParseCipherSuites(b2))
+//CF function val ParseCipherSuites: bytes -> cipherSuites
+//CF private assume !b. (b = [||] /\ ParseCipherSuites(b) = []) \/
+//CF 		(?b1,b2,c. b = b1 @| b2 /\ Length(b1) = 2 /\ b1 = CipherSuiteBytes(c) /\ ParseCiphersuites(b) = c::ParseCipherSuites(b2)) /\
+//CF 		(?b1,b2. b = b1 @| b2 /\ Length(b1) = 2 /\ (!c. b1 <> CipherSuiteBytes(c)) /\ ParseCiphersuites(b) = ParseCipherSuites(b2))
 
 private val consCipherSuites: cs:cipherSuite -> css:cipherSuites -> css':cipherSuites{css' = cs::css}
 
@@ -440,7 +445,7 @@ val cipherSuitesBytes: css:cipherSuites -> b:bytes {b = CipherSuitesBytes(css)}
 val mkIntTriple: (nat * nat * nat) -> (nat * nat * nat)
 val getKeyExtensionLength: ProtocolVersion -> cipherSuite -> nat
 
-(* Not for verification, just to run the implementation *)
+(* CF Not for verification, just to run the implementation *)
 
 type cipherSuiteName =
     | TLS_NULL_WITH_NULL_NULL            

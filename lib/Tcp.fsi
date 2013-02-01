@@ -7,9 +7,7 @@ type NetworkStream
 type TcpListener 
 
 (* Create a network stream from a given stream.
-   Only used by the application interface TLSharp
-   Does not have an fs7 refinement, as it is not supposed to be used
-   by typechecked implementations *)
+   Only used by the application interface TLSharp. *)
 
 val create: System.IO.Stream -> NetworkStream
 

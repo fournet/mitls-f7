@@ -8,10 +8,11 @@
 type nat = n:int {0 <= n} // a convenient abbreviation 
 type bytes = byte array
 
-(* Lengths *)
+(* Lengths for arrays and lists *)
 
 function val Length: bytes -> int 
 val length: b:bytes -> l:nat {Length(b) = l}
+// lengths distribute over concatenations
 assume !x:bytes, y:bytes. Length(x @| y) = Length(x) + Length(y)
 
 type (;l:nat) lbytes = b:bytes {Length(b) = l}
@@ -26,7 +27,7 @@ val createBytes: l:int -> v:int { 0 <= v /\ v < 256 } -> (;l) lbytes
 val equalBytes: b0:bytes -> b1:bytes -> 
   r:bool {(r = true /\ b0 = b1) \/ (r = false /\ b0 <> b1)}
 
-(* array concatenation (append) *)
+(* Array concatenation (append) *)
 (* we use the infix operator @| both concretely and in formulas *)
 
 val op_AtBar: b1:bytes -> b2:bytes -> b:bytes{b = b1 @| b2}
@@ -56,7 +57,7 @@ assume !b1,b2,b3. (b1 @| b2) @| b3 = b1 @| (b2 @| b3)
 (* integer multi-byte representations *)
 
 function val IntBytes: int * int -> bytes
-
+//CF:
 //CF: we need stronger preconditions, e.g.
 //CF:    (l=1 /\ 0 <= l /\ l < 256)
 //CF: \/ (l=2 /\ 0 <= l /\ l < 65536)
@@ -65,7 +66,9 @@ val bytes_of_int: l:int -> i:int -> b:bytes{b = IntBytes(l,i)}
 val int_of_bytes: b:bytes {Length(b)<=8} -> i:nat
   {b = IntBytes(Length(b),i) /\ (Length(b) = 1 => (0 <= i /\ i < 256)) }
 
+// the first argument is the length of the representation
 assume !l:int, i:int. Length(IntBytes(l,i)) = l
+// the representation is injective
 assume !l:int, i0:int, i1:int. IntBytes(l,i0) = IntBytes(l,i1) => i0=i1
 
 // TODO remove? 
@@ -100,9 +103,9 @@ function val UnfoldBack: bytes list * bytes -> bytes
 val fold:     (bytes -> bytes -> bytes) -> s:bytes -> bl:bytes list -> b:bytes{b=Unfold(s,bl)}
 val foldBack: (bytes -> bytes -> bytes) -> bl:bytes list -> s:bytes -> b:bytes{b=UnfoldBack(bl,s)}
 val filter: ('a -> bool) -> 'a list -> 'a list
-val exists: ('a -> bool) -> 'a list -> bool // Used parametrically in HS.
+val exists: ('a -> bool) -> 'a list -> bool // CF Used parametrically in HS.
 val memr: 'a list -> 'a -> bool 
-val choose: ('a -> 'b option) -> 'a list -> 'b list // Not used parametrically in HS, but types are not defined here.
+val choose: ('a -> 'b option) -> 'a list -> 'b list // CF Not used parametrically in HS, but types are not defined here.
 val tryFind: ('a -> bool) -> 'a list -> 'a option
 val listLength: l:('a list) -> len:nat{ListLength(l)=len}
 val listHead: l:('a list){ListLength(l) > 0} -> 'a

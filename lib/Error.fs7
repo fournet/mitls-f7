@@ -41,12 +41,10 @@ val perror: string -> string -> string -> string
 
 val correct: x:'a -> y:'a Result{y = Correct(x)}
 
-(* Both unexpectedError and unreachabe indicate a bug,
+(* Both unexpectedError and unreachable indicate a bug,
    so code that should never be reached.
-   However, unexpectedError is used in non security-critical code,
-   where we do not need to prove that the code is unreachable.
-   The unreachable function is used in security-critical code,
-   where we want to verify that the code is indeed unreachable.
+   The unreachable function is used in security-critical code;
+   it verifies that the code is indeed unreachable.
  *)
 val unexpectedError: string -> 'a { false }
 val unreachable: string {false} -> 'a
