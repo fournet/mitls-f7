@@ -46,12 +46,37 @@ TLS.tc7
 # - Handshake.tc7 still fails outside TLS 1.2 for DHE and RSA.
 # - Dispatch.tc7 
 
-# trusted: Bytes.fs7 DER.fs7 Tcp.fs7 Range.fs7 
-#   CoreCrypto wrappers: RSAKeys.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 TLSPRF.fs7
 
-# the Makefile rules verify with --define ideal; 
+#==Categories of .fs7 files==
+#
+# trusted: these files are not supposed to be verified, but we rely on
+# their .fs7 files for verification:
+#
+#   Base: Bytes DER Tcp Range
+#
+#   CoreCrypto wrappers: RSAKeys DHGroup HASH HMAC TLSPRF
+#
+#   Key management: Cert, SessionDB
+#
+#
+# idealizing: these are .fs7 files for .fs files with #ideal flags
 # this flag is used to define ideal variants of the modules
-#    Nonce.tc7 Sig.tc7 MAC.tc7 ENC.tc7 LHAE.tc7 PRF.tc7 CRE.ts7 RSA.tc7 DH.tc7
+#
+#   Nonce Sig MAC ENC LHAE PRF CRE RSA DH
+#
+# the Makefile rules by default verify with --define ideal; 
+# additonal typing is needed for some modules:
+#   Nonce is trusted and not typechecked, 
+#   Encode and LHAE are typechecked against multiple flags
+#
+#
+# protocol: these .fs7 files verify the trunc of TLS on building on
+# the cryptographic guarantees provided by the interfaces of idealized
+# modules:
+# 
+#   DataStream, AppFragment, HSFragment, TLSFragment, StatefulPlain,
+#   LHAEPlain, StatefulLHAE, Record, Alert, Handshake, AppData,
+#   Dispatch, TLS
 
 clean:
 	rm -f *.smp *.tc7
