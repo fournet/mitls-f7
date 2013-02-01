@@ -89,9 +89,6 @@ let makeFragment ki b =
     let (b0,rem) = if length b < fragmentLength then (b,[||])
                    else Bytes.split b fragmentLength
     let r0 = (length b0, length b0) in
-#if verify
-    Pi.assume(Unsafe(ki))
-#endif
     let f = HSFragment.fragmentPlain ki r0 b0 in
     (r0,f,rem)
 
@@ -138,7 +135,6 @@ let parseClientHello data =
                         | Correct (res) ->
                         let (cmBytes,extensions) = res in
                         let cm = parseCompressions cmBytes
-                        //Pi.assume(ClientHelloMsg(data,cv,cr,sid,clientCipherSuites,cm,extensions))
                         correct(cv,cr,sid,clientCipherSuites,cm,extensions)
                     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
                 else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
@@ -158,7 +154,6 @@ let clientHelloBytes poptions crand session ext =
     let cmb = (compressionMethodsBytes cm) in
     let ccompmethB = vlbytes 1 cmb in
     let data = cVerB @| random @| csessB @| ccsuitesB @| ccompmethB @| ext in
-    //Pi.assume(ClientHelloMsg(data,poptions.maxVer,crand,session,poptions.ciphersuites,poptions.compressions,ext))
     messageBytes HT_client_hello data
 
 let serverHelloBytes sinfo srand ext = 
@@ -502,7 +497,7 @@ type events =
     Authorize of Role * SessionInfo
   | Configure of Role * epoch * config
   | EvSentFinishedFirst of ConnectionInfo * bool
-  | SentCCS of Role * SessionInfo
+  | SentCCS of Role * epoch
 
 (* verify data authenticated by the Finished messages *)
 type log = bytes         (* message payloads so far, to be eventually authenticated *) 
@@ -534,11 +529,11 @@ type serverState =  (* note that the CertRequest bits are determined by the conf
    | ClientFinished               of SessionInfo * PRF.masterSecret * epoch * StatefulLHAE.writer * log
    (* by convention, the parameters are named si, cv, cr', sr', ms, log *)
    | ServerWritingCCS             of SessionInfo * PRF.masterSecret * epoch * StatefulLHAE.writer * cVerifyData * log
-   | ServerWritingFinished        of SessionInfo * PRF.masterSecret * cVerifyData * sVerifyData
+   | ServerWritingFinished        of SessionInfo * PRF.masterSecret * epoch * cVerifyData * sVerifyData
 
    | ServerWritingCCSResume       of epoch * StatefulLHAE.writer * epoch * StatefulLHAE.reader * PRF.masterSecret * log
    | ClientCCSResume              of epoch * StatefulLHAE.reader * sVerifyData * PRF.masterSecret * log
-   | ClientFinishedResume         of SessionInfo * PRF.masterSecret * sVerifyData * log
+   | ClientFinishedResume         of SessionInfo * PRF.masterSecret * epoch * sVerifyData * log
 
    | ServerIdle                   of cVerifyData * sVerifyData
    (* the ProtocolVersion is the highest TLS version proposed by the client *)
@@ -569,7 +564,7 @@ type clientState =
 
    | ClientWritingCCS       of SessionInfo * PRF.masterSecret * log
    | ServerCCS              of SessionInfo * PRF.masterSecret * epoch * StatefulLHAE.reader * cVerifyData * log
-   | ServerFinished         of SessionInfo * PRF.masterSecret * cVerifyData * log
+   | ServerFinished         of SessionInfo * PRF.masterSecret * epoch * cVerifyData * log
 
    | ServerCCSResume        of epoch * StatefulLHAE.writer * epoch * StatefulLHAE.reader * PRF.masterSecret * log
    | ServerFinishedResume   of epoch * StatefulLHAE.writer * PRF.masterSecret * log
@@ -618,7 +613,7 @@ let init (role:Role) poptions =
         (ci,state)
     | Server ->
         let ci = initConnection role rand in
-        Pi.assume (Configure(Server,ci.id_in,poptions));
+        Pi.assume (Configure(Client,ci.id_in,poptions));
         let sdb = SessionDB.create poptions in 
         let state = {hs_outgoing = [||]
                      hs_incoming = [||]
@@ -772,6 +767,7 @@ let next_fragment ci state =
             | ClientWritingCCS (si,ms,log) ->
                 let next_ci = getNextEpochs ci si si.init_crand si.init_srand in
                 let (writer,reader) = PRF.keyGen next_ci ms in
+                Pi.assume (SentCCS(Client,next_ci.id_out));
                 let cvd = PRF.makeVerifyData next_ci.id_out Client ms log in
                 let cFinished = messageBytes HT_finished cvd in
                 let log = log @| cFinished in
@@ -782,10 +778,10 @@ let next_fragment ci state =
 #if avoid 
                 failwith "commenting out since it does not typecheck"
 #else
-                Pi.assume (SentCCS(Client,si));
                 OutCCS(rg,f,ci,writer,state)
 #endif
             | ClientWritingCCSResume(e,w,ms,svd,log) ->
+                Pi.assume (SentCCS(Client,e));
                 let cvd = PRF.makeVerifyData e Client ms log in
                 let cFinished = messageBytes HT_finished cvd in
                 let state = {state with hs_outgoing = cFinished
@@ -795,26 +791,26 @@ let next_fragment ci state =
 #if avoid 
                 failwith "commenting out since it does not typecheck"
 #else
-                Pi.assume (SentCCS(Client,epochSI(e)));
                 OutCCS(rg,f,ci,w,state)
 #endif
             | _ -> OutIdle(state)
         | PSServer(sstate) ->
             match sstate with
             | ServerWritingCCS (si,ms,e,w,cvd,log) ->
+                Pi.assume (SentCCS(Server,e));
                 let svd = PRF.makeVerifyData e Server ms log in
                 let sFinished = messageBytes HT_finished svd in
                 let state = {state with hs_outgoing = sFinished
-                                        pstate = PSServer(ServerWritingFinished(si,ms,cvd,svd))}
+                                        pstate = PSServer(ServerWritingFinished(si,ms,e,cvd,svd))}
                 let (rg,f,_) = makeFragment ci.id_out CCSBytes in
                 let ci = {ci with id_out = e} in
 #if avoid 
                 failwith "commenting out since it does not typecheck"
 #else
-                Pi.assume (SentCCS(Server,si));
                 OutCCS(rg,f,ci,w,state)
 #endif
             | ServerWritingCCSResume(we,w,re,r,ms,log) ->
+                Pi.assume (SentCCS(Server,we));
                 let svd = PRF.makeVerifyData we Server ms log in
                 let sFinished = messageBytes HT_finished svd in
                 let log = log @| sFinished in
@@ -825,7 +821,6 @@ let next_fragment ci state =
 #if avoid 
                 failwith "commenting out since it does not typecheck"
 #else
-                Pi.assume (SentCCS(Server,epochSI(we)));
                 OutCCS(rg,f,ci,w,state)
 #endif
             | _ -> OutIdle(state)
@@ -848,7 +843,7 @@ let next_fragment ci state =
                 | _ -> OutSome(rg,f,state)
             | PSServer(sstate) ->
                 match sstate with
-                | ServerWritingFinished(si,ms,cvd,svd) ->
+                | ServerWritingFinished(si,ms,e,cvd,svd) ->
                     if equalBytes si.sessionID [||] then
                       let state = {state with pstate = PSServer(ServerIdle(cvd,svd))}
                       OutComplete(rg,f,state)
@@ -1401,7 +1396,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
 
         | HT_finished ->
             match cState with
-            | ServerFinished(si,ms,cvd,log) ->
+            | ServerFinished(si,ms,e,cvd,log) ->
                 if PRF.checkVerifyData ci.id_in Server ms log payload then
                     let sDB = 
                         if equalBytes si.sessionID [||] then state.sDB
@@ -1762,7 +1757,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     InFinished(state)
                 else
                     InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "Verify data did not match",state)
-            | ClientFinishedResume(si,ms,svd,log) ->
+            | ClientFinishedResume(si,ms,e,svd,log) ->
                 if PRF.checkVerifyData ci.id_in Client ms log payload then
                     let state = {state with pstate = PSServer(ServerIdle(payload,svd))} in
                     InComplete(state)                       
@@ -1798,7 +1793,7 @@ let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:range) (fragment:HSFragmen
         | PSClient (cstate) -> // Check that we are in the right state (CCCS) 
             match cstate with
             | ServerCCS(si,ms,e,r,cvd,log) ->
-                let state = {state with pstate = PSClient(ServerFinished(si,ms,cvd,log))} in
+                let state = {state with pstate = PSClient(ServerFinished(si,ms,e,cvd,log))} in
                 let ci = {ci with id_in = e} in
                 InCCSAck(ci,r,state)
             | ServerCCSResume(ew,w,er,r,ms,log) ->
@@ -1815,7 +1810,7 @@ let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:range) (fragment:HSFragmen
                 let state = {state with pstate = PSServer(ClientFinished(si,ms,next_ci.id_out,writer,log))} in
                 InCCSAck(ci,reader,state)
             | ClientCCSResume(e,r,svd,ms,log) ->
-                let state = {state with pstate = PSServer(ClientFinishedResume(epochSI e,ms,svd,log))} in
+                let state = {state with pstate = PSServer(ClientFinishedResume(epochSI e,ms,e,svd,log))} in
                 let ci = {ci with id_in = e} in
                 InCCSAck(ci,r,state)
             | _ -> InCCSError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "CCS arrived in the wrong state",state)
