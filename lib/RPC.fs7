@@ -1,14 +1,15 @@
 ﻿module RPC
 
-/// A sample application on top of TLS, similar but simpler than HTTPS.
-
-// We assume fixed-lengths requests and responses for now
+// Fixed-lengths requests and responses
 
 type principal = string
-type (;a:principal,b:principal) request 
-//  { Request(a,b,r) \/ Corrupt(a) \/ Corrupt(b) }
-type (;a:principal,b:principal,r:request) response
-//  { (Request(a,b,r) /\ Response(a,b,r,s)) \/ Corrupt(a) \/ Corrupt(b) }
+type (;a:principal, b:principal) request {
+  Request(a,b,r) \/ Corrupt(a) \/ Corrupt(b)
+}
+
+type (;a:principal, b:principal, r:request) response {
+  (Request(a,b,r) /\ Response(a,b,r,s)) \/ Corrupt(a) \/ Corrupt(b)
+}
 
 val request: a:principal -> b:principal -> m:bytes -> r:(;a,b) request 
 val response: a:principal -> b:principal -> r:(;a,b) request -> s:(;a,b,r) response
@@ -25,26 +26,20 @@ val service:
   a:principal -> b:principal -> (bytes -> bytes (*pure*) ) -> 
   r:(;a,b) request -> s:(;a,b,r) response
 
-// let request_bytes a b r = r 
-// let response_bytes a b r s = s 
-// let service a b f r = f r  
-
-// We may need a single indexed type for all TLS traffic for this app.
-// actually, we need some minimal formatting, e.g. length prefixing.
 type (;i) plain 
+
 val request_msg: i:index {Client(i)} -> (;Client(i),Server(i)) request -> (;i) plain 
 val msg_request: i:index {Client(i)} -> (;i) plain -> (;Client(i),Server(i)) request
 
 // in RPC, we abstract Connections to
 // a fresh abstract ID, a pair (a,b) of optional principals, and a polarity (C or S) 
 
-// Confidentiality: TLS does not access the plain bytes, and
-// Authenticity: TLS does not forge appdata,
-// except for bad principals or crypto: 
-// assuming mutual authentication, the precondition for 
-// coercing bytes <=> (;i) plain is:
-// WeakCrypto(CipherSuite(i)) \/  Corrupt(ClientID(i)) \/ Corrupt(ServerID(i)) 
+// Confidentiality : TLS does not access the plain bytes,
+// Authenticity    : TLS does not forge appdata,
+//
+// Assuming mutual authentication, the precondition for coercing bytes <=> (;i) plain is:
+//   WeakCrypto(CipherSuite(i)) \/  Corrupt(ClientID(i)) \/ Corrupt(ServerID(i)) 
 
 // If we treat naive principals as corrupt, we may 
-assume !i. WeakCrypto(i) => Corrupt(ClientID(i)) \/ Corrupt(ServerID(i)) 
+//   assume !i. WeakCrypto(i) => Corrupt(ClientID(i)) \/ Corrupt(ServerID(i)) 
 // and then the precondition above just reflects application-level corrupted principals.
