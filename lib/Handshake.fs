@@ -273,11 +273,12 @@ let parseCertificateRequest version data: (certType list * Sig.alg list * string
             match parseDistinguishedNameList distNamesBytes el with
             | Error(x,y) -> Error(x,y)
             | Correct (distNamesList) ->
-            #if avoid 
+(* KB            #if avoid 
             failwith "commenting out since we run out of memory"
-            #else
+            #else *)
             correct (certTypeList,sigAlgs,distNamesList)
-            #endif
+(* KB            #endif
+*)
         else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
@@ -457,14 +458,14 @@ let makeCertificateVerifyBytes si ms alg skey data =
         let (sigAlg,_) = alg in
         let alg = (sigAlg,NULL) in
         let toSign = PRF.ssl_certificate_verify si ms sigAlg data in
-        #if avoid 
+        (* KB #if avoid 
             failwith "we just broke indexing for the skey, this can't typecheck."
-        #else
+        #else *)
         let tag = Sig.sign alg skey toSign in
         let payload = digitallySignedBytes alg tag si.protocol_version in
         let mex = messageBytes HT_certificate_verify payload in
         (mex,tag)
-        #endif
+        (* KB #endif*)
     
 let certificateVerifyCheck si ms algs log payload =
     // The returned byte array is ghost, only used to avoid
@@ -498,6 +499,7 @@ type events =
   | Configure of Role * epoch * config
   | EvSentFinishedFirst of ConnectionInfo * bool
   | SentCCS of Role * epoch
+  | Negotiated of Role * SessionInfo * config * config
 
 (* verify data authenticated by the Finished messages *)
 type log = bytes         (* message payloads so far, to be eventually authenticated *) 
@@ -758,6 +760,10 @@ type outgoing =
   | OutFinished of range * HSFragment.fragment * nextState
   | OutComplete of range * HSFragment.fragment * nextState
 
+let check_negotiation (r:Role) (si:SessionInfo) (c:config) = 
+  Pi.assume (Negotiated(r,si,c,c)) (* Dummy definition. 
+                                      TODO: define valid negotiations *)
+
 let next_fragment ci state =
     match state.hs_outgoing with
     | [||] ->
@@ -775,11 +781,11 @@ let next_fragment ci state =
                                         pstate = PSClient(ServerCCS(si,ms,next_ci.id_in,reader,cvd,log))} in
                 let (rg,f,_) = makeFragment ci.id_out CCSBytes in
                 let ci = {ci with id_out = next_ci.id_out} in 
-#if avoid 
+(* KB #if avoid 
                 failwith "commenting out since it does not typecheck"
-#else
+#else *)
                 OutCCS(rg,f,ci,writer,state)
-#endif
+(* KB #endif*)
             | ClientWritingCCSResume(e,w,ms,svd,log) ->
                 Pi.assume (SentCCS(Client,e));
                 let cvd = PRF.makeVerifyData e Client ms log in
@@ -788,11 +794,11 @@ let next_fragment ci state =
                                         pstate = PSClient(ClientWritingFinishedResume(cvd,svd))} in
                 let (rg,f,_) = makeFragment ci.id_out CCSBytes in
                 let ci = {ci with id_out = e} in 
-#if avoid 
+(* KB #if avoid 
                 failwith "commenting out since it does not typecheck"
-#else
+#else *)
                 OutCCS(rg,f,ci,w,state)
-#endif
+(* KB #endif*)
             | _ -> OutIdle(state)
         | PSServer(sstate) ->
             match sstate with
@@ -804,11 +810,11 @@ let next_fragment ci state =
                                         pstate = PSServer(ServerWritingFinished(si,ms,e,cvd,svd))}
                 let (rg,f,_) = makeFragment ci.id_out CCSBytes in
                 let ci = {ci with id_out = e} in
-#if avoid 
+(* KB #if avoid 
                 failwith "commenting out since it does not typecheck"
-#else
+#else *)
                 OutCCS(rg,f,ci,w,state)
-#endif
+(* KB #endif*)
             | ServerWritingCCSResume(we,w,re,r,ms,log) ->
                 Pi.assume (SentCCS(Server,we));
                 let svd = PRF.makeVerifyData we Server ms log in
@@ -818,11 +824,11 @@ let next_fragment ci state =
                                         pstate = PSServer(ClientCCSResume(re,r,svd,ms,log))}
                 let (rg,f,_) = makeFragment ci.id_out CCSBytes in
                 let ci = {ci with id_out = we} in 
-#if avoid 
+(* KB #if avoid 
                 failwith "commenting out since it does not typecheck"
-#else
+#else *)
                 OutCCS(rg,f,ci,w,state)
-#endif
+(* KB #endif*)
             | _ -> OutIdle(state)
     | outBuf ->
         let (rg,f,remBuf) = makeFragment ci.id_out outBuf in
@@ -839,6 +845,7 @@ let next_fragment ci state =
                     OutFinished(rg,f,state)
                 | ClientWritingFinishedResume(cvd,svd) ->
                     let state = {state with pstate = PSClient(ClientIdle(cvd,svd))} in
+                    check_negotiation Client (epochSI ci.id_out) state.poptions;
                     OutComplete(rg,f,state)
                 | _ -> OutSome(rg,f,state)
             | PSServer(sstate) ->
@@ -846,11 +853,13 @@ let next_fragment ci state =
                 | ServerWritingFinished(si,ms,e,cvd,svd) ->
                     if equalBytes si.sessionID [||] then
                       let state = {state with pstate = PSServer(ServerIdle(cvd,svd))}
+                      check_negotiation Server si state.poptions;
                       OutComplete(rg,f,state)
                     else
                       let sdb = SessionDB.insert state.sDB (si.sessionID,Server,state.poptions.client_name) (si,ms)
                       let state = {state with pstate = PSServer(ServerIdle(cvd,svd))   
                                               sDB = sdb} in
+                      check_negotiation Server si state.poptions;
                       OutComplete(rg,f,state)
                 | ClientCCSResume(_,_,_,_,_) ->
 #if verify
@@ -935,9 +944,9 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:Sess
     correct (state,si,ms,log)
 
 let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) (cert_req:Cert.sign_cert) (p:DHGroup.p) (g:DHGroup.g) (sy:DHGroup.elt) (log:log) : (hs_state * SessionInfo * PRF.masterSecret * log) Result =
-#if avoid
+(* KB #if avoid
     failwith "does not typecheck"
-#else
+#else *)
     (* pre: Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DHE.PP((p,g)) /\ ServerDHE((p,g),sy,si.init_crand @| si.init_srand) *)
     (* moreover, by definition ServerDHE((p,g),sy,si.init_crand @| si.init_srand) implies ?sx.DHE.Exp((p,g),sx,sy) *)
     (*$ formally, the need for signing nonces is unclear *)
@@ -994,7 +1003,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
     let new_outgoing = state.hs_outgoing @| to_send in
     let state = {state with hs_outgoing = new_outgoing} in
     correct (state,si,ms,log)
-#endif
+(* #endif *)
  
 let on_serverHello_full crand log to_log (shello:ProtocolVersion * srand * sessionID * cipherSuite * Compression * bytes) =
     let log = log @| to_log in
@@ -1077,39 +1086,39 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                   if  (geqPV sh_server_version pop.minVer 
                        && geqPV pop.maxVer sh_server_version) = false
                   then 
-#if avoid
+(* KB #if avoid
                   failwith "does not typecheck for some silly reason"
-#else
+#else *)
                     InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Protocol version negotiation",state)
-#endif
+(* KB #endif*)
                   else
                   // Check that the negotiated ciphersuite is in the proposed list.
                   // Note: if resuming a session, we still have to check that this ciphersuite is the expected one!
                   if  (Bytes.memr state.poptions.ciphersuites sh_cipher_suite) = false
                   then 
-#if avoid
+(* KB #if avoid
                   failwith "does not typecheck for some silly reason"
-#else
+#else *)
                     InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Ciphersuite negotiation",state)
-#endif
+(* KB #endif*)
                   else
                   // Check that the compression method is in the proposed list.
                   if (Bytes.memr state.poptions.compressions sh_compression_method) = false
                   then 
-#if avoid
+(* KB #if avoid
                   failwith "does not typecheck for some silly reason"
-#else
+#else *)
                     InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Compression method negotiation",state)
-#endif
+(* KB #endif*)
                   else
                   // Parse extensions
                   match parseExtensions sh_neg_extensions with
                   | Error(x,y) -> 
-#if avoid
+(* KB #if avoid
                       failwith "z3 error"
-#else
+#else *)
                       InError(x,y,state)
-#endif
+(* KB #endif*)
                   | Correct(extList) ->
                   // Handling of safe renegotiation
                   let safe_reneg_result =
@@ -1124,11 +1133,11 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         else let unitVal = () in correct (unitVal)
                   match safe_reneg_result with
                     | Error (x,y) -> 
-#if avoid
+(* KB #if avoid
                         failwith "z3 fails"
-#else
+#else *)
                         InError (x,y,state)
-#endif
+(* KB #endif*)
                     | Correct _ ->
                         // Log the received message.
                         (* Check whether we asked for resumption *)
@@ -1138,11 +1147,11 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                             let next_pstate = on_serverHello_full crand log to_log shello in
                             let state = {state with pstate = next_pstate} in
                             let sv = Some sh_server_version in
-#if avoid
+(* KB #if avoid
                             failwith ""
-#else
+#else *)
                             recv_fragment_client ci state sv
-#endif
+(* KB #endif*)
                         else
                             if equalBytes sid sh_session_id then (* use resumption *)
                                 (* Search for the session in our DB *)
@@ -1150,11 +1159,11 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                 | None ->
                                     (* This can happen, although we checked for the session before starting the HS.
                                        For example, the session may have expired between us sending client hello, and now. *)
-#if avoid
+(* KB #if avoid
                                     failwith "z3 fails"
-#else
+#else *)
                                     InError(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "A session expried while it was being resumed",state)
-#endif
+(* KB #endif*)
                                 | Some(storable) ->
                                 let (si,ms) = storable in
                                 let log = log @| to_log in
@@ -1172,46 +1181,46 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                                                                                       ms,log))} in
                                             recv_fragment_client ci state (Some(sh_server_version))
                                         else 
-#if avoid
+(* KB #if avoid
                                           failwith "z3 fails"
-#else
+#else *)
                                           InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Compression method negotiation",state)
-#endif
+(* KB #endif*)
                                     else 
-#if avoid
+(* KB #if avoid
                                       failwith "z3 fails"
-#else
+#else *)
 
                                       InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Ciphersuite negotiation",state)
-#endif
+(* KB #endif*)
                                 else 
-#if avoid
+(* KB #if avoid
                                   failwith "z3 fails"
-#else
+#else *)
                                   InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Protocol version negotiation",state)
-#endif
+(* KB #endif*)
                             else (* server did not agree on resumption, do a full handshake *)
                                 (* define the sinfo we're going to establish *)
                                 let next_pstate = on_serverHello_full crand log to_log shello in
                                 let state = {state with pstate = next_pstate} in
                                 recv_fragment_client ci state (Some(sh_server_version))
             | _ -> 
-#if avoid
+(* KB #if avoid
                 failwith "z3 fails"
-#else
+#else *)
                 InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "ServerHello arrived in the wrong state",state)
-#endif        
+(* KB #endif*)        
         | HT_certificate ->
             match cState with
             // Most of the code in the branches is duplicated, but it helps for verification
             | ServerCertificateRSA (si,log) ->
                 match parseClientOrServerCertificate payload with
                 | Error(x,y) -> 
-#if avoid
+(* KB #if avoid
                     failwith "z3 fails"
-#else
+#else *)
                     InError(x,y,state)
-#endif
+(* KB #endif*)
                 | Correct(certs) ->
                     let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, this is the same as we sent in our extension
                     if Cert.is_chain_for_key_encryption certs then
@@ -1223,19 +1232,19 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         let state = {state with pstate = PSClient(ClientCheckingCertificateRSA(si,log,certs,agreedVersion,to_log))} in
                         InQuery(certs,advice,state)
                     else
-#if avoid
+(* KB #if avoid
                         failwith "z3 fails"
-#else
+#else *)
                         InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Server sent wrong certificate type",state)
-#endif
+(* KB #endif*)
             | ServerCertificateDHE (si,log) ->
                 match parseClientOrServerCertificate payload with
                 | Error(x,y) -> 
-#if avoid
+(* KB #if avoid
                         failwith "z3 fails"
-#else
+#else *)
                     InError(x,y,state)
-#endif
+(* KB #endif*)
                 | Correct(certs) ->
                     let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, this is the same as we sent in our extension
                     if Cert.is_chain_for_signing certs then
@@ -1247,43 +1256,43 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         let state = {state with pstate = PSClient(ClientCheckingCertificateDHE(si,log,agreedVersion,to_log))} in
                         InQuery(certs,advice,state)
                     else
-#if avoid
+(* KB #if avoid
                         failwith "z3 error"
-#else
+#else *)
                         InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Server sent wrong certificate type",state)
-#endif
+(* KB #endif*)
             | ServerCertificateDH (si,log) -> 
-#if avoid
+(* KB #if avoid
                         failwith "z3 error"
-#else
+#else *)
                 InError(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Unimplemented",state) // TODO
-#endif
+(* KB #endif*)
             | _ -> 
-#if avoid
+(* KB #if avoid
                         failwith "z3 error"
-#else
+#else *)
                 InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "Certificate arrived in the wrong state",state)
-#endif
+(* KB #endif*)
 
         | HT_server_key_exchange ->
             match cState with
             | ServerKeyExchangeDHE(si,log) ->
                 match parseServerKeyExchange_DHE si.protocol_version si.cipher_suite payload with
                 | Error(x,y) -> 
-#if avoid
+(* KB #if avoid
                     failwith "z3 error"
-#else
+#else *)
                     InError(x,y,state)
-#endif
+(* KB #endif*)
                 | Correct(v) ->
                     let (p,g,y,alg,signature) = v in
                     match Cert.get_chain_public_signing_key si.serverID alg with
                     | Error(x,y) -> 
-#if avoid
+(* KB #if avoid
                         failwith "z3 error"
-#else
+#else *)
                         InError(x,y,state)
-#endif
+(* KB #endif*)
                     | Correct(vkey) ->
                     let dheb = dheParamBytes p g y in
                     let expected = si.init_crand @| si.init_srand @| dheb in
@@ -1402,6 +1411,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         if equalBytes si.sessionID [||] then state.sDB
                         else SessionDB.insert state.sDB (si.sessionID,Client,state.poptions.server_name) (si,ms)
                     let state = {state with pstate = PSClient(ClientIdle(cvd,payload)); sDB = sDB} in
+                    check_negotiation Client si state.poptions;
                     InComplete(state)
                 else
                     InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "Verify data did not match",state)
@@ -1760,6 +1770,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             | ClientFinishedResume(si,ms,e,svd,log) ->
                 if PRF.checkVerifyData ci.id_in Client ms log payload then
                     let state = {state with pstate = PSServer(ServerIdle(payload,svd))} in
+                    check_negotiation Server si state.poptions;
                     InComplete(state)                       
                 else
                     InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "Verify data did not match",state)

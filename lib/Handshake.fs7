@@ -719,6 +719,8 @@ predicate Negotiated of Role * SessionInfo * config * config
 predicate CompleteEpoch of Role * epoch * config
 predicate Complete of ConnectionInfo * config
 
+val check_negotiation: r:Role -> si:SessionInfo -> cfg:config -> unit{?cfg'. Negotiated(r,si,cfg,cfg')}
+
 (* Anonymous clients are authorized for client-unauthenticated sessions *)
 private assume !si. (si.client_auth = false /\ si.clientID = []) => Authorize(Server,si)
 
