@@ -30,6 +30,9 @@ The following make targets are available:
 - dist-clean
     remove object files and distribution archives
 
+The test suite is currently not released, and thus not
+available as a make target.
+
 * 2. Prerequisites
 
 In the following, the prerequisites for each supported platform are
@@ -46,3 +49,21 @@ given.
 
 - Mono framework, version 3.0.1 or above
 - F# open source edition, version 3.0 or above
+
+* 3. Verification
+
+Refinement type checking of the code base is triggered by the default
+target of the lib/Makefile file. This file contains a "tc7" target
+for each file to be type checked.
+
+Type checking requires F7 and Z3. Note, however, that the latest
+version of F7 used to type check the code base is not publicly
+distributed.
+
+Each F# implementation file (with .fs extension) can contain
+two compilation flags useful for verification:
+- ideal: enables ideal cryptographic functionalities in the code.
+  (e.g. the ones performing table lookups)
+- verify: enables assumptions of events in the code.
+Both compilation flags are disabled when compiling the concrete code,
+and enable during type checking.
