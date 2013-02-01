@@ -87,9 +87,11 @@ predicate INT_CTXT of authencAlg * ProtocolVersion
 type kexAlg =  (* all these kex have server auth & optional client auth, *)
                (* except for anon which has nothing *)
     | RSA     // --> client-generated pms encrypted using server's public key
-    | DH_DSS  // <-- Certificate(DSA containing g^y); --> g^x then pms = g^xy  //CF$ reuse of exponentials?
+    | DH_DSS  // <-- Certificate(DSA containing g^y); --> g^x then pms = g^xy
+	          //CF reuse of exponentials?
     | DH_RSA  // idem with an RSA cert
-    | DHE_DSS // <-- Certificate(DSA); ServerKeyExchange({Cr,Sr,p,g,g^y}signed); --> g^x then pms = g^xy  //CF$ reuse of exponentials?
+    | DHE_DSS // <-- Certificate(DSA); ServerKeyExchange({Cr,Sr,p,g,g^y}signed); --> g^x then pms = g^xy 
+	          //CF reuse of exponentials?
     | DHE_RSA
     | DH_anon // --> g^x ; <-- g^y then pms = g^xy ; secure only against passive adversaries
 

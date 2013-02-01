@@ -949,7 +949,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
 #else *)
     (* pre: Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DHE.PP((p,g)) /\ ServerDHE((p,g),sy,si.init_crand @| si.init_srand) *)
     (* moreover, by definition ServerDHE((p,g),sy,si.init_crand @| si.init_srand) implies ?sx.DHE.Exp((p,g),sx,sy) *)
-    (*$ formally, the need for signing nonces is unclear *)
+    (*FIXME formally, the need for signing nonces is unclear *)
     
     let si = 
         if si.client_auth then
@@ -980,9 +980,9 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
     (* the post of this call is !p,g,gx,gy. StrongHS(si) /\ DHE.Secret((p,g),gx,gy) -> PRFs.Secret(ms) *)  
     (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> PRFs.Secret(ms) *) 
 
-    (*$ unclear what si guarantees for the ms; treated as an abstract index for now *)
+    (*FIXME unclear what si guarantees for the ms; treated as an abstract index for now *)
 
-    (*$ DHE.zeroPMS si pms; *) 
+    (*FIXME DHE.zeroPMS si pms; *) 
 
     let certificateVerifyBytes =
         if si.client_auth then
@@ -1723,7 +1723,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let ms = CRE.prfSmoothDHE si p g gx y pms in
                     (* StrongHS(si) /\ DHE.Exp((p,g),?cx,y) -> PRFs.Secret(ms) *)
                     
-                    (*$ TODO in e.g. DHE: we should shred the pms *)
+                    (* TODO in e.g. DHE: we should shred the pms *)
                     (* we rely on scopes & type safety to get forward secrecy*) 
                     (* move to new state *)
                     if si.client_auth then
