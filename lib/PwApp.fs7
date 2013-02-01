@@ -17,9 +17,9 @@ val request :
    -> username : string
    -> token    : token{RegisteredToken(UTK(username, token))}
    -> (c:Connection{
-           CN(EpochSI(CnId(c).id_in).serverID) = username
-		/\ (   StrongAuth(EpochSI(CnId(c).id_in).cipher_suite)
-		    /\ Honest(ServerKey(EpochSI(CnId(c).id_in).serverID))
+           CN(EpochSI(CnInfo(c).id_in).serverID) = username
+		/\ (   StrongAuth(EpochSI(CnInfo(c).id_in).cipher_suite)
+		    /\ Honest(ServerKey(EpochSI(CnInfo(c).id_in).serverID))
 		         => AuthenticatedByServer(EpochSI(CnId(c).id_in), username))
       }) option
 

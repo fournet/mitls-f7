@@ -112,23 +112,23 @@ let read (fd : int) : int * bytes =
             let _ = update_fd_connection fd c.canwrite conn in
                 (EI_WARNING, Alert.alertBytes e)
 
-        | TLS.CertQuery (conn, q, advice) -> failwith ""
-(*            match add_query_cert fd q with
-            | None -> (EI_BADHANDLE, [||])
-            | Some idx ->
-                ignore (update_fd_connection fd conn);
-                (EI_CERTQUERY, Bytes.bytes_of_int 4 idx)
-*)
+        | TLS.CertQuery (conn, q, advice) ->
+            let _ = update_fd_connection fd c.canwrite conn in
+                (EI_CERTQUERY, [||])
 
         | TLS.Handshaken conn ->
             let _ = update_fd_connection fd true conn in
                 (EI_HANDSHAKEN, [||])
 
         | TLS.Read (conn, (rg, m)) ->
+#if verify
+            let plain = [||] in
+#else
             let plain =
                 DataStream.deltaRepr
                     (Dispatch.getEpochIn conn) (TLS.getInStream conn) rg m
             in
+#endif
                 let _ = update_fd_connection fd c.canwrite conn in
                     (Bytes.length plain, plain)
 
@@ -152,7 +152,8 @@ let write (fd : fd) (bytes : bytes) : int =
         | true  ->
             let delta = mkDelta hd.conn bytes in
             let rg    = (Bytes.length bytes, Bytes.length bytes) in
-                match TLS.write hd.conn (rg, delta) with
+            let rgd   = (rg, delta) in
+                match TLS.write hd.conn rgd with
                 | TLS.WriteError (_, _) ->
                     unbind_fd fd; EI_WRITEERROR
                 | TLS.WriteComplete conn ->
@@ -161,8 +162,12 @@ let write (fd : fd) (bytes : bytes) : int =
                 | TLS.WritePartial (conn, (r, m)) ->
                     let _ = update_fd_connection fd true conn in
                     let rem =
-                        DataStream.deltaBytes
+#if verify
+                        [||]
+#else
+                        DataStream.deltaRepr
                             (Dispatch.getEpochOut conn) (TLS.getOutStream conn) r m
+#endif
                     in
                         (Bytes.length bytes) - (Bytes.length rem)
                 | TLS.MustRead conn ->

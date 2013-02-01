@@ -168,7 +168,7 @@ private type (;r:Role,c:config) nullCn = conn:Connection {
 
 
 predicate NextCn of Connection * Connection
-private assume !c,c'. NextCn(c,c') <=> ( Config(c')  = Config(c) /\ CnInfo(c') = CnInfo(c) )
+assume !c,c'. NextCn(c,c') <=> ( Config(c')  = Config(c) /\ CnInfo(c') = CnInfo(c) )
 type (;c:Connection) nextCn = c':Connection {NextCn(c,c')}
 type query = Cert.chain
 
