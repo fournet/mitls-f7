@@ -126,10 +126,14 @@ def _options(args):
                       metavar = "MODE")
     parser.add_option("-D", None,
                       dest    = "defined",
-                      help    = "define symbol SYMBOL",
+                      help    = "define symbol SYMBOL (implied -D)",
                       action  = "append",
                       metavar = "SYMBOL",
                       default = [])
+    parser.add_option("-P", None,
+                      dest    = "preprocess",
+                      help    = "preprocess file for #symbols",
+                      default = False)
     parser.add_option("-r", None,
                       dest    = "rename",
                       help    = "rename output file using given pattern",
@@ -156,6 +160,9 @@ def _options(args):
     else:
         parser.error('invalid mode: %s' % (options.mode,))
 
+    if options.defined:
+        options.preprocess = True
+
     return (options, args)
 
 # --------------------------------------------------------------------
@@ -172,7 +179,10 @@ CRLN = '\r\n'
 def _process_file(filename, options):
     output = parser(options.mode).transformString(_read_file(filename))
     output = [x.rstrip() for x in output.splitlines()]
-    output = filter_hashes(output, set(options.defined))
+
+    if options.preprocess:
+        output = filter_hashes(output, set(options.defined))
+
     output = CRLN.join(output) + CRLN
     output = re.sub('(?:\r\n){3,}', 2 * CRLN, output)
     output = re.sub('(?:\r\n)+$', CRLN, output)
