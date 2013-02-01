@@ -17,7 +17,9 @@ type db = DB of SQLiteConnection
 module Internal =
     let wrap (cb : unit -> 'a) =
         try  cb ()
-        with exn -> raise (DBError (exn.ToString()))
+        with exn ->
+            Console.Error.WriteLine(exn.Message);
+            raise (DBError (exn.ToString()))
 
     let opendb (filename : string) =
         let request = "CREATE TABLE IF NOT EXISTS map(key BLOB PRIMARY KEY, value BLOB NOT NULL)" in
