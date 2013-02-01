@@ -127,7 +127,7 @@ let gen (a:alg) : pkey * skey =
         match asig with
         | SA_RSA -> CoreSig.gen CoreSig.SA_RSA
         | SA_DSA -> CoreSig.gen CoreSig.SA_DSA
-        | _      -> failwith "unsupported / TODO"
+        | _      -> Error.unexpectedError "[gen] invoked on unsupported algorithm"
     let p,s =  ({ pkey = (pkey, ahash) }, { skey = (skey, ahash) })
     #if ideal
     honest_log := (a,s,p)::!honest_log

@@ -85,5 +85,5 @@ val create_pkey: h:chash -> k:pkeyparams -> (;(sigalg_of_pkeyparams(k), h))vkey
 val repr_of_skey: skey -> CoreSig.sigskey * hashAlg
 val repr_of_pkey: pkey -> CoreSig.sigpkey * hashAlg
 
-// TODO: adjust compromise model, connect it to Cert (mostly for the benefit of the adversary)
 *)
+// TODO: adjust compromise model, connect it to Cert (mostly for the benefit of the adversary)

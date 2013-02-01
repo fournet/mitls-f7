@@ -5,7 +5,7 @@
    
    Its interface is used by most TLS modules; its implementation is typechecked. *)
 
-(* TODOs 20-12-12:
+(* TODO 20-12-12:
 - VerifyData and SentCCS should be about epochs not sessions (change PRF!)
     
 - Fix Sig/VerifyData/Complete as discussed with Cedric

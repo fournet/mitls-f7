@@ -761,8 +761,8 @@ type outgoing =
   | OutComplete of range * HSFragment.fragment * nextState
 
 let check_negotiation (r:Role) (si:SessionInfo) (c:config) = 
-  Pi.assume (Negotiated(r,si,c,c)) (* Dummy definition. 
-                                      TODO: define valid negotiations *)
+  Pi.assume (Negotiated(r,si,c,c)) (* FIXME: Dummy definition. 
+                                      Define valid negotiations *)
 
 let next_fragment ci state =
     match state.hs_outgoing with
