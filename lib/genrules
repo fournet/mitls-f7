@@ -48,9 +48,10 @@ TLS.tc7
 
 # trusted: Bytes.fs7 DER.fs7 Tcp.fs7 Range.fs7 
 #   CoreCrypto wrappers: RSAKeys.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 TLSPRF.fs7
-#
-# idealizing: Nonce.tc7 Sig.tc7 MAC.tc7 ENC.tc7 LHAE.tc7 PRF.tc7 
-#   CRE.ts7 RSA.tc7 DH.tc7
+
+# the Makefile rules verify with --define ideal; 
+# this flag is used to define ideal variants of the modules
+#    Nonce.tc7 Sig.tc7 MAC.tc7 ENC.tc7 LHAE.tc7 PRF.tc7 CRE.ts7 RSA.tc7 DH.tc7
 
 clean:
 	rm -f *.smp *.tc7

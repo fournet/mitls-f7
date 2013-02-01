@@ -34,6 +34,7 @@ let genRSA (pk:RSAKey.pk) (vc:TLSConstants.ProtocolVersion) : rsapms =
     let pms = {rsapms = pms}
     #if ideal
     if RSAKey.honest pk then honest_log := RSA_pms(pms)::!honest_log
+    // event keeping track of honestly-generated PMSs
     Pi.assume (GeneratedRSAPMS(pk,vc,pms));
     #endif
     pms

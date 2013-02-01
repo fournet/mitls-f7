@@ -92,7 +92,7 @@ let makeFragment ki b =
     let f = HSFragment.fragmentPlain ki r0 b0 in
     (r0,f,rem)
 
-// we need something more general for parsing lists, e.g.
+// we could use something more general for parsing lists, e.g.
 // let rec parseList parseOne b =
 //     if length b = 0 then correct([])
 //     else 
