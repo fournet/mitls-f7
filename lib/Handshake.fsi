@@ -7,8 +7,7 @@ open TLSConstants
 open Range
 
 // protocol state  
-type pre_hs_state 
-type hs_state = pre_hs_state
+type hs_state 
 type nextState = hs_state
 
 (* Control Interface *)

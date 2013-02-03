@@ -780,7 +780,7 @@ private definition !ci,cfg. Complete(ci,cfg) <=>
           CompleteEpoch(ci.role,ci.id_in,cfg))
             
  
-type serverState =  (* note that the CertRequest bits are determined by the config *) 
+type (;ci:ConnectionInfo) serverState =  (* note that the CertRequest bits are determined by the config *) 
                     (* we may omit some ProtocolVersion, mostly a ghost variable *)
    | ClientHello                  of cVerifyData * sVerifyData
 
@@ -822,7 +822,7 @@ type serverState =  (* note that the CertRequest bits are determined by the conf
    | ServerIdle                   of cVerifyData * sVerifyData
    (* the ProtocolVersion is the highest TLS version proposed by the client *)
 
-type clientState = 
+type (;ci:ConnectionInfo) clientState = 
    | ServerHello                  of cr:crand * sid:sessionID (* * bytes for extensions? *) * cvd:cVerifyData * svd:sVerifyData * l:log{ClientLogBeforeServerHello(cr,l)}
 
    | ServerCertificateRSA         of si:SessionInfo * l:log{ClientLogBeforeServerCertificate(si,l)}
@@ -858,11 +858,11 @@ type clientState =
 
    | ClientIdle             of cVerifyData * sVerifyData
 
-type protoState = // Cannot use Client and Server, otherwise clashes with Role
-  | PSClient of clientState
-  | PSServer of serverState
+type (;ci:ConnectionInfo) protoState = // Cannot use Client and Server, otherwise clashes with Role
+  | PSClient of (;ci) clientState
+  | PSServer of (;ci) serverState
 
-private type pre_hs_state = {
+private type (;ci:ConnectionInfo) hs_state = {
   (* I/O buffers *)
   hs_outgoing    : bytes;                  (* outgoing data *)
   hs_incoming    : bytes;                  (* partial incoming HS message *)
@@ -870,13 +870,12 @@ private type pre_hs_state = {
   poptions: config; 
   sDB: SessionDB.SessionDB;
   (* current handshake & session we are establishing *) 
-  pstate: protoState;
+  pstate: (;ci) protoState;
 }
 
 (*--- controlinterface *)
 (* Control Interface *)
 
-private type (;ci:ConnectionInfo) hs_state = pre_hs_state
 function val Config: ci:ConnectionInfo * s:(;ci)hs_state -> config
 private definition !ci,s. Config(ci,s) = s.poptions
 
@@ -994,11 +993,11 @@ val prepare_client_output_full_DHE: ci:ConnectionInfo -> (;ci)hs_state ->
 	si:SessionInfo -> (Cert.chain * a:Sig.alg * (;a)Sig.skey) option ->
 	p:DHGroup.p -> (;p)DHGroup.g -> (;p)DHGroup.elt -> log ->
 	((;ci)hs_state * si':SessionInfo * (;si)PRF.masterSecret * log) Result
-val on_serverHello_full: cr:crand -> l:log -> to_log:bytes ->
+val on_serverHello_full: ci:ConnectionInfo -> cr:crand -> l:log -> to_log:bytes ->
          (pv:ProtocolVersion * sr:random * sid:sessionID * cs:cipherSuite * cm:Compression * ext:bytes){
          ClientLogBeforeServerHello(cr,l) /\
          to_log = ServerHelloMsg(pv,sr,sid,cs,cm,ext)} ->
-	protoState
+ 	 (;ci) protoState
 val parseMessageState: ci:ConnectionInfo -> hs:(;ci)hs_state ->
 	(hs':(;ci)hs_state * ht:HandshakeType * pl:bytes * to_log:bytes{Config(ci,hs) = Config(ci,hs') /\
                                                                      to_log = MessageBytes(ht,pl)}) option Result

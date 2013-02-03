@@ -58,7 +58,7 @@ predicate StAESent of e:epoch * ad:(;e)adata *  h:(;e)history * r:range * (;e,ad
 private definition !e. StAEHistory(e,[])
 private definition !e,ad,sn,h,r,f. StAEHistory(e,h) /\ StAESent(e,ad,(sn,h),r,f) => StAEHistory(e,(ad,r,f)::h)
 //CF how do we prove this?
-//theorem !e,ad,sn,h,r,f. StAESent(e,ad,(sn,h),r,f) => (StAEHistory(e,h) /\ HLength(e,h) = sn)
+theorem !e,ad,sn,h,r,f. StAESent(e,ad,(sn,h),r,f) => (StAEHistory(e,h) /\ HLength(e,h) = sn)
 
 function val StAEToRecord: e:epoch * ct:ContentType * r:range * f:(;e,ADBytes(e,ct),r)fragment -> 'a // (;e,ct,r)TLSFragment.fragment
 private definition !e,ct,r,f. StAEToRecord(e,ct,r,f) = f.contents 

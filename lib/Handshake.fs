@@ -445,7 +445,7 @@ let parseServerKeyExchange_DH_anon payload =
 
 (* Certificate Verify *)
 
-let makeCertificateVerifyBytes si ms alg skey data =
+let makeCertificateVerifyBytes si (ms:PRF.masterSecret) alg skey data =
     // The returned "tag" variable is ghost, only used to avoid
     // existentials in formal verification.
     match si.protocol_version with
@@ -454,19 +454,18 @@ let makeCertificateVerifyBytes si ms alg skey data =
         let payload = digitallySignedBytes alg tag si.protocol_version in
         let mex = messageBytes HT_certificate_verify payload in
         (mex,tag)
+#if verify
+#else
     | SSL_3p0 ->
         let (sigAlg,_) = alg in
         let alg = (sigAlg,NULL) in
         let toSign = PRF.ssl_certificate_verify si ms sigAlg data in
-        (* KB #if avoid 
-            failwith "we just broke indexing for the skey, this can't typecheck."
-        #else *)
         let tag = Sig.sign alg skey toSign in
         let payload = digitallySignedBytes alg tag si.protocol_version in
         let mex = messageBytes HT_certificate_verify payload in
         (mex,tag)
-        (* KB #endif*)
-    
+#endif   
+
 let certificateVerifyCheck si ms algs log payload =
     // The returned byte array is ghost, only used to avoid
     // existentials in formal verification.
@@ -579,7 +578,7 @@ type protoState = // Cannot use Client and Server, otherwise clashes with Role
   | PSClient of clientState
   | PSServer of serverState
 
-type pre_hs_state = {
+type hs_state = {
   (* I/O buffers *)
   hs_outgoing    : bytes;                  (* outgoing data *)
   hs_incoming    : bytes;                  (* partial incoming HS message *)
@@ -590,7 +589,6 @@ type pre_hs_state = {
   pstate: protoState;
 }
 
-type hs_state = pre_hs_state
 type nextState = hs_state
 
 /// Initiating Handshakes, mostly on the client side. 
@@ -606,24 +604,22 @@ let init (role:Role) poptions =
         let ext = extensionsBytes poptions.safe_renegotiation [||] in
         let cHelloBytes = clientHelloBytes poptions rand sid ext in
         let sdb = SessionDB.create poptions in 
-        let state = {hs_outgoing = cHelloBytes;
+        (ci,{hs_outgoing = cHelloBytes;
                      hs_incoming = [||];
                      poptions = poptions;
                      sDB = sdb;
                      pstate = PSClient (ServerHello (rand, sid, [||], [||], cHelloBytes))
-                    }
-        (ci,state)
+            })
     | Server ->
         let ci = initConnection role rand in
         Pi.assume (Configure(Client,ci.id_in,poptions));
         let sdb = SessionDB.create poptions in 
-        let state = {hs_outgoing = [||]
-                     hs_incoming = [||]
-                     poptions = poptions
-                     sDB = sdb
-                     pstate = PSServer (ClientHello([||],[||]))
-                    }
-        (ci,state)
+        (ci,{hs_outgoing = [||]
+             hs_incoming = [||]
+             poptions = poptions
+             sDB = sdb
+             pstate = PSServer (ClientHello([||],[||]))
+            })
 
 let resume next_sid poptions =
     (* Resume a session, as the first epoch on this connection.
@@ -644,13 +640,12 @@ let resume next_sid poptions =
     let ext = extensionsBytes poptions.safe_renegotiation [||]
     let cHelloBytes = clientHelloBytes poptions rand sid ext in
     let sdb = SessionDB.create poptions
-    let state = {hs_outgoing = cHelloBytes
-                 hs_incoming = [||]
-                 poptions = poptions
-                 sDB = sdb
-                 pstate = PSClient (ServerHello (rand, sid, [||], [||], cHelloBytes))
-                } in
-    (ci,state)
+    (ci,{hs_outgoing = cHelloBytes
+         hs_incoming = [||]
+         poptions = poptions
+         sDB = sdb
+         pstate = PSClient (ServerHello (rand, sid, [||], [||], cHelloBytes))
+        })
 
 let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     (* Start a non-resuming handshake, over an existing epoch.
@@ -665,13 +660,12 @@ let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
             let cHelloBytes = clientHelloBytes ops rand sid ext in
             Pi.assume (Configure(Client,ci.id_in,ops));
             let sdb = SessionDB.create ops
-            let state = {hs_outgoing = cHelloBytes
-                         hs_incoming = [||]
-                         poptions = ops
-                         sDB = sdb
-                         pstate = PSClient (ServerHello (rand, sid, cvd,svd, cHelloBytes))
-                        } in
-            (true,state)
+            (true,{hs_outgoing = cHelloBytes
+                   hs_incoming = [||]
+                   poptions = ops
+                   sDB = sdb
+                   pstate = PSClient (ServerHello (rand, sid, cvd,svd, cHelloBytes))
+                   })
         | _ -> (* handshake already happening, ignore this request *)
             (false,state)
     | PSServer (_) -> unexpectedError "[rehandshake] should only be invoked on client side connections."
@@ -702,13 +696,12 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
                     let ext = extensionsBytes ops.safe_renegotiation cvd in
                     Pi.assume (Configure(Client,ci.id_in,ops));
                     let cHelloBytes = clientHelloBytes ops rand sid ext in
-                    let state = {hs_outgoing = cHelloBytes
-                                 hs_incoming = [||]
-                                 poptions = ops
-                                 sDB = sDB
-                                 pstate = PSClient (ServerHello (rand, sid, cvd, svd, cHelloBytes))
-                                } in
-                    (true,state)
+                    (true,{hs_outgoing = cHelloBytes
+                           hs_incoming = [||]
+                           poptions = ops
+                           sDB = sDB
+                           pstate = PSClient (ServerHello (rand, sid, cvd, svd, cHelloBytes))
+                           })
                 | _ -> (* Handshake already ongoing, ignore this request *)
                     (false,state)
             | PSServer (_) -> unexpectedError "[rekey] should only be invoked on client side connections."
@@ -777,27 +770,27 @@ let next_fragment ci state =
                 let cvd = PRF.makeVerifyData next_ci.id_out Client ms log in
                 let cFinished = messageBytes HT_finished cvd in
                 let log = log @| cFinished in
-                let state = {state with hs_outgoing = cFinished 
-                                        pstate = PSClient(ServerCCS(si,ms,next_ci.id_in,reader,cvd,log))} in
                 let (rg,f,_) = makeFragment ci.id_out CCSBytes in
                 let ci = {ci with id_out = next_ci.id_out} in 
 (* KB #if avoid 
                 failwith "commenting out since it does not typecheck"
 #else *)
-                OutCCS(rg,f,ci,writer,state)
+                OutCCS(rg,f,ci,writer,
+                       {state with hs_outgoing = cFinished 
+                                   pstate = PSClient(ServerCCS(si,ms,next_ci.id_in,reader,cvd,log))})
 (* KB #endif*)
             | ClientWritingCCSResume(e,w,ms,svd,log) ->
                 Pi.assume (SentCCS(Client,e));
                 let cvd = PRF.makeVerifyData e Client ms log in
                 let cFinished = messageBytes HT_finished cvd in
-                let state = {state with hs_outgoing = cFinished
-                                        pstate = PSClient(ClientWritingFinishedResume(cvd,svd))} in
                 let (rg,f,_) = makeFragment ci.id_out CCSBytes in
                 let ci = {ci with id_out = e} in 
 (* KB #if avoid 
                 failwith "commenting out since it does not typecheck"
 #else *)
-                OutCCS(rg,f,ci,w,state)
+                OutCCS(rg,f,ci,w,
+                       {state with hs_outgoing = cFinished
+                                   pstate = PSClient(ClientWritingFinishedResume(cvd,svd))})
 (* KB #endif*)
             | _ -> OutIdle(state)
         | PSServer(sstate) ->
@@ -806,33 +799,33 @@ let next_fragment ci state =
                 Pi.assume (SentCCS(Server,e));
                 let svd = PRF.makeVerifyData e Server ms log in
                 let sFinished = messageBytes HT_finished svd in
-                let state = {state with hs_outgoing = sFinished
-                                        pstate = PSServer(ServerWritingFinished(si,ms,e,cvd,svd))}
                 let (rg,f,_) = makeFragment ci.id_out CCSBytes in
                 let ci = {ci with id_out = e} in
 (* KB #if avoid 
                 failwith "commenting out since it does not typecheck"
 #else *)
-                OutCCS(rg,f,ci,w,state)
+                OutCCS(rg,f,ci,w,
+                       {state with hs_outgoing = sFinished
+                                   pstate = PSServer(ServerWritingFinished(si,ms,e,cvd,svd))})
 (* KB #endif*)
             | ServerWritingCCSResume(we,w,re,r,ms,log) ->
                 Pi.assume (SentCCS(Server,we));
                 let svd = PRF.makeVerifyData we Server ms log in
                 let sFinished = messageBytes HT_finished svd in
                 let log = log @| sFinished in
-                let state = {state with hs_outgoing = sFinished
-                                        pstate = PSServer(ClientCCSResume(re,r,svd,ms,log))}
                 let (rg,f,_) = makeFragment ci.id_out CCSBytes in
                 let ci = {ci with id_out = we} in 
 (* KB #if avoid 
                 failwith "commenting out since it does not typecheck"
 #else *)
-                OutCCS(rg,f,ci,w,state)
+                OutCCS(rg,f,ci,w,
+                       {state with hs_outgoing = sFinished
+                                   pstate = PSServer(ClientCCSResume(re,r,svd,ms,log))})
+
 (* KB #endif*)
             | _ -> OutIdle(state)
     | outBuf ->
         let (rg,f,remBuf) = makeFragment ci.id_out outBuf in
-        let state = {state with hs_outgoing = remBuf} in
         match remBuf with
         | [||] ->
             match state.pstate with
@@ -842,25 +835,31 @@ let next_fragment ci state =
 #if verify
                     Pi.assume(EvSentFinishedFirst(ci,true));
 #endif
-                    OutFinished(rg,f,state)
+                    OutFinished(rg,f,{state with hs_outgoing = remBuf})
                 | ClientWritingFinishedResume(cvd,svd) ->
-                    let state = {state with pstate = PSClient(ClientIdle(cvd,svd))} in
                     check_negotiation Client (epochSI ci.id_out) state.poptions;
-                    OutComplete(rg,f,state)
+                    OutComplete(rg,f,
+                                {state with hs_outgoing = remBuf
+                                            pstate = PSClient(ClientIdle(cvd,svd))})
+
                 | _ -> OutSome(rg,f,state)
             | PSServer(sstate) ->
                 match sstate with
                 | ServerWritingFinished(si,ms,e,cvd,svd) ->
                     if equalBytes si.sessionID [||] then
-                      let state = {state with pstate = PSServer(ServerIdle(cvd,svd))}
                       check_negotiation Server si state.poptions;
-                      OutComplete(rg,f,state)
+                      OutComplete(rg,f,
+                                  {state with hs_outgoing = remBuf
+                                              pstate = PSServer(ServerIdle(cvd,svd))})
+
                     else
                       let sdb = SessionDB.insert state.sDB (si.sessionID,Server,state.poptions.client_name) (si,ms)
-                      let state = {state with pstate = PSServer(ServerIdle(cvd,svd))   
-                                              sDB = sdb} in
                       check_negotiation Server si state.poptions;
-                      OutComplete(rg,f,state)
+                      OutComplete(rg,f,
+                                  {state with hs_outgoing = remBuf
+                                              pstate = PSServer(ServerIdle(cvd,svd))   
+                                              sDB = sdb})
+
                 | ClientCCSResume(_,_,_,_,_) ->
 #if verify
                     Pi.assume(EvSentFinishedFirst(ci,true));
@@ -940,8 +939,7 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:Sess
     (* Enqueue current messages in output buffer *)
     let to_send = clientCertBytes @| clientKEXBytes @| certificateVerifyBytes in
     let new_outgoing = state.hs_outgoing @| to_send in
-    let state = {state with hs_outgoing = new_outgoing} in
-    correct (state,si,ms,log)
+    correct ({state with hs_outgoing = new_outgoing},si,ms,log)
 
 let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) (cert_req:Cert.sign_cert) (p:DHGroup.p) (g:DHGroup.g) (sy:DHGroup.elt) (log:log) : (hs_state * SessionInfo * PRF.masterSecret * log) Result =
 (* KB #if avoid
@@ -1001,11 +999,10 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
 
     let to_send = clientCertBytes @| clientKEXBytes @| certificateVerifyBytes in
     let new_outgoing = state.hs_outgoing @| to_send in
-    let state = {state with hs_outgoing = new_outgoing} in
-    correct (state,si,ms,log)
+    correct ({state with hs_outgoing = new_outgoing},si,ms,log)
 (* #endif *)
  
-let on_serverHello_full crand log to_log (shello:ProtocolVersion * srand * sessionID * cipherSuite * Compression * bytes) =
+let on_serverHello_full (ci:ConnectionInfo) crand log to_log (shello:ProtocolVersion * srand * sessionID * cipherSuite * Compression * bytes) =
     let log = log @| to_log in
     let (sh_server_version,sh_random,sh_session_id,sh_cipher_suite,sh_compression_method,sh_neg_extensions) = shello
     let si = { clientID = []
@@ -1144,13 +1141,12 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         if equalBytes sid [||] then
                             (* we did not request resumption, do a full handshake *)
                             (* define the sinfo we're going to establish *)
-                            let next_pstate = on_serverHello_full crand log to_log shello in
-                            let state = {state with pstate = next_pstate} in
+                            let next_pstate = on_serverHello_full ci crand log to_log shello in
                             let sv = Some sh_server_version in
 (* KB #if avoid
                             failwith ""
 #else *)
-                            recv_fragment_client ci state sv
+                            recv_fragment_client ci {state with pstate = next_pstate}  sv
 (* KB #endif*)
                         else
                             if equalBytes sid sh_session_id then (* use resumption *)
@@ -1175,11 +1171,11 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                             let (writer,reader) = PRF.keyGen next_ci ms in
                                             let nout = next_ci.id_out in
                                             let nin = next_ci.id_in in
-
-                                            let state = {state with pstate = PSClient(ServerCCSResume(nout,writer,
-                                                                                                      nin,reader,
-                                                                                                      ms,log))} in
-                                            recv_fragment_client ci state (Some(sh_server_version))
+                                            recv_fragment_client ci 
+                                              {state with pstate = PSClient(ServerCCSResume(nout,writer,
+                                                                                            nin,reader,
+                                                                                            ms,log))} 
+                                              (Some(sh_server_version))
                                         else 
 (* KB #if avoid
                                           failwith "z3 fails"
@@ -1201,9 +1197,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
 (* KB #endif*)
                             else (* server did not agree on resumption, do a full handshake *)
                                 (* define the sinfo we're going to establish *)
-                                let next_pstate = on_serverHello_full crand log to_log shello in
-                                let state = {state with pstate = next_pstate} in
-                                recv_fragment_client ci state (Some(sh_server_version))
+                                let next_pstate = on_serverHello_full ci crand log to_log shello in
+                                recv_fragment_client ci {state with pstate = next_pstate} (Some(sh_server_version))
             | _ -> 
 (* KB #if avoid
                 failwith "z3 fails"
@@ -1229,8 +1224,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                             match Cert.get_hint certs with
                             | None -> false
                             | Some(name) -> advice && (name = state.poptions.server_name)
-                        let state = {state with pstate = PSClient(ClientCheckingCertificateRSA(si,log,certs,agreedVersion,to_log))} in
-                        InQuery(certs,advice,state)
+                        InQuery(certs,advice,{state with pstate = PSClient(ClientCheckingCertificateRSA(si,log,certs,agreedVersion,to_log))})
                     else
 (* KB #if avoid
                         failwith "z3 fails"
@@ -1253,8 +1247,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                             match Cert.get_hint certs with
                             | None -> false
                             | Some(name) -> advice && (name = state.poptions.server_name)
-                        let state = {state with pstate = PSClient(ClientCheckingCertificateDHE(si,log,agreedVersion,to_log))} in
-                        InQuery(certs,advice,state)
+                        InQuery(certs,advice,{state with pstate = PSClient(ClientCheckingCertificateDHE(si,log,agreedVersion,to_log))})
                     else
 (* KB #if avoid
                         failwith "z3 error"
@@ -1298,8 +1291,9 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let expected = si.init_crand @| si.init_srand @| dheb in
                     if Sig.verify alg vkey expected signature then
                         let log = log @| to_log in
-                        let state = {state with pstate = PSClient(CertificateRequestDHE(si,p,g,y,log))} in
-                        recv_fragment_client ci state agreedVersion
+                        recv_fragment_client ci 
+                          {state with pstate = PSClient(CertificateRequestDHE(si,p,g,y,log))} 
+                          agreedVersion
                     else
                         InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "",state)
                     
@@ -1309,8 +1303,9 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Correct(v) ->
                     let (p,g,y) = v in
                     let log = log @| to_log in
-                    let state = {state with pstate = PSClient(ServerHelloDoneDH_anon(si,p,g,y,log))} in
-                    recv_fragment_client ci state agreedVersion
+                    recv_fragment_client ci 
+                      {state with pstate = PSClient(ServerHelloDoneDH_anon(si,p,g,y,log))} 
+                      agreedVersion
             | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "ServerKeyExchange arrived in the wrong state",state)
 
         | HT_certificate_request ->
@@ -1327,8 +1322,9 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 let (certType,alg,distNames) = v in
                 let client_cert = find_client_cert_sign certType alg distNames si.protocol_version state.poptions.client_name in
                 let si = {si with client_auth = true} in
-                let state = {state with pstate = PSClient(ServerHelloDoneRSA(si,client_cert,log))} in
-                recv_fragment_client ci state agreedVersion
+                recv_fragment_client ci 
+                  {state with pstate = PSClient(ServerHelloDoneRSA(si,client_cert,log))} 
+                  agreedVersion
             | CertificateRequestDHE(si,p,g,y,log) ->
                 // Duplicated code
                 (* Log the received packet *)
@@ -1342,8 +1338,9 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 let (certType,alg,distNames) = v in
                 let client_cert = find_client_cert_sign certType alg distNames si.protocol_version state.poptions.client_name in
                 let si = {si with client_auth = true} in
-                let state = {state with pstate = PSClient(ServerHelloDoneDHE(si,client_cert,p,g,y,log))} in
-                recv_fragment_client ci state agreedVersion
+                recv_fragment_client ci 
+                  {state with pstate = PSClient(ServerHelloDoneDHE(si,client_cert,p,g,y,log))} 
+                  agreedVersion
             | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "CertificateRequest arrived in the wrong state",state)
 
         | HT_server_hello_done ->
@@ -1357,8 +1354,9 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     | Error (x,y) -> InError (x,y, state)
                     | Correct z ->
                         let (state,si,ms,log) = z in
-                        let state = {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
-                        recv_fragment_client ci state agreedVersion
+                        recv_fragment_client ci
+                          {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
+                          agreedVersion
                 else
                     InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
             | ServerHelloDoneRSA(si,skey,log) ->
@@ -1370,8 +1368,9 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     | Error (x,y) -> InError (x,y, state)
                     | Correct z ->
                         let (state,si,ms,log) = z in
-                        let state = {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
-                        recv_fragment_client ci state agreedVersion
+                        recv_fragment_client ci 
+                          {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
+                          agreedVersion
                 else
                     InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
             | CertificateRequestDHE(si,p,g,y,log) | ServerHelloDoneDH_anon(si,p,g,y,log) ->
@@ -1383,8 +1382,9 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     | Error (x,y) -> InError (x,y, state)
                     | Correct z ->
                         let (state,si,ms,log) = z in
-                        let state = {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
-                        recv_fragment_client ci state agreedVersion
+                        recv_fragment_client ci 
+                          {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
+                          agreedVersion
                 else
                     InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
             | ServerHelloDoneDHE(si,skey,p,g,y,log) ->
@@ -1396,8 +1396,9 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     | Error (x,y) -> InError (x,y, state)
                     | Correct z ->
                         let (state,si,ms,log) = z in
-                        let state = {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
-                        recv_fragment_client ci state agreedVersion
+                        recv_fragment_client ci 
+                          {state with pstate = PSClient(ClientWritingCCS(si,ms,log))}
+                          agreedVersion
                 else
                     InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
             | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "ServerHelloDone arrived in the wrong state",state)
@@ -1410,16 +1411,14 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let sDB = 
                         if equalBytes si.sessionID [||] then state.sDB
                         else SessionDB.insert state.sDB (si.sessionID,Client,state.poptions.server_name) (si,ms)
-                    let state = {state with pstate = PSClient(ClientIdle(cvd,payload)); sDB = sDB} in
                     check_negotiation Client si state.poptions;
-                    InComplete(state)
+                    InComplete({state with pstate = PSClient(ClientIdle(cvd,payload)); sDB = sDB})
                 else
                     InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "Verify data did not match",state)
             | ServerFinishedResume(e,w,ms,log) ->
                 if PRF.checkVerifyData ci.id_in Server ms log payload then
                     let log = log @| to_log in
-                    let state = {state with pstate = PSClient(ClientWritingCCSResume(e,w,ms,payload,log))} in
-                    InFinished(state)
+                    InFinished({state with pstate = PSClient(ClientWritingCCSResume(e,w,ms,payload,log))})
                 else
                     InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "Verify data did not match",state)
             | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "Finished arrived in the wrong state",state)
@@ -1448,14 +1447,15 @@ let prepare_server_output_full_RSA (ci:ConnectionInfo) state si cv calgs cvd svd
         let output = serverHelloB @| certificateB @| certificateRequestB @| serverHelloDoneBytes in
         (* Log the output and put it into the output buffer *)
         let log = log @| output in
-        let state = {state with hs_outgoing = output} in
         (* Compute the next state of the server *)
         if si.client_auth then
-           let state = {state with pstate = PSServer(ClientCertificateRSA(si,cv,sk,log))} in
-           correct (state,si.protocol_version)
+           correct ({state with hs_outgoing = output
+                                pstate = PSServer(ClientCertificateRSA(si,cv,sk,log))},
+                    si.protocol_version)
         else
-           let state = {state with pstate = PSServer(ClientKeyExchangeRSA(si,cv,sk,log))} in
-           correct (state,si.protocol_version)
+           correct ({state with hs_outgoing = output
+                                pstate = PSServer(ClientKeyExchangeRSA(si,cv,sk,log))},
+                    si.protocol_version)
 
 let prepare_server_output_full_DH ci state si log =
     Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Unimplemented") // TODO
@@ -1491,14 +1491,18 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs cvd svd
         let output = serverHelloB @| certificateB @| serverKEXB @| certificateRequestB @| serverHelloDoneBytes in
         (* Log the output and put it into the output buffer *)
         let log = log @| output in
-        let state = {state with hs_outgoing = output} in
         (* Compute the next state of the server *)
-        let state =
-            if si.client_auth then
-                {state with pstate = PSServer(ClientCertificateDHE(si,p,g,y,x,log))}
-            else
-                {state with pstate = PSServer(ClientKeyExchangeDHE(si,p,g,y,x,log))}
-        correct (state,si.protocol_version)
+          if si.client_auth then
+            correct (
+              {state with hs_outgoing = output
+                          pstate = PSServer(ClientCertificateDHE(si,p,g,y,x,log))},
+              si.protocol_version)
+          else
+            correct (
+              {state with hs_outgoing = output
+                          pstate = PSServer(ClientKeyExchangeDHE(si,p,g,y,x,log))},
+              si.protocol_version)
+
 
         (* ClientKeyExchangeDHE(si,p,g,x,log) should carry PP((p,g)) /\ ?gx. DHE.Exp((p,g),x,gx) *)
 
@@ -1515,10 +1519,10 @@ let prepare_server_output_full_DH_anon (ci:ConnectionInfo) state si cvd svd log 
     let output = serverHelloB @|serverKEXB @| serverHelloDoneBytes in
     (* Log the output and put it into the output buffer *)
     let log = log @| output in
-    let state = {state with hs_outgoing = output} in
     (* Compute the next state of the server *)
-    let state = {state with pstate = PSServer(ClientKeyExchangeDH_anon(si,p,g,y,x,log))}
-    correct (state,si.protocol_version)
+    correct ({state with hs_outgoing = output
+                         pstate = PSServer(ClientKeyExchangeDH_anon(si,p,g,y,x,log))},
+             si.protocol_version)
 
 let prepare_server_output_full ci state si cv cvd svd log =
     if isAnonCipherSuite si.cipher_suite then
@@ -1547,13 +1551,12 @@ let prepare_server_output_resumption ci state crand si ms cvd svd log =
     let sHelloB = serverHelloBytes si srand ext in
 
     let log = log @| sHelloB
-    let state = {state with hs_outgoing = sHelloB} in
     let next_ci = getNextEpochs ci si crand srand in
     let (writer,reader) = PRF.keyGen next_ci ms in
-    let state = {state with pstate = PSServer(ServerWritingCCSResume(next_ci.id_out,writer,
-                                                                     next_ci.id_in,reader,
-                                                                     ms,log))} in
-    state
+    {state with hs_outgoing = sHelloB
+                pstate = PSServer(ServerWritingCCSResume(next_ci.id_out,writer,
+                                                         next_ci.id_in,reader,
+                                                         ms,log))} 
 
 let startServerFull (ci:ConnectionInfo) state (cHello:ProtocolVersion * crand * sessionID * cipherSuites * Compression list * bytes) cvd svd log =  
     let (ch_client_version,ch_random,ch_session_id,ch_cipher_suites,ch_compression_methods,ch_extensions) = cHello
@@ -1671,8 +1674,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                             match Cert.get_hint certs with
                             | None -> false
                             | Some(name) -> advice && (name = state.poptions.client_name)
-                        let state = {state with pstate = PSServer(ServerCheckingCertificateRSA(si,cv,sk,log,to_log))} in
-                        InQuery(certs,advice,state)
+                        InQuery(certs,advice,{state with pstate = PSServer(ServerCheckingCertificateRSA(si,cv,sk,log,to_log))})
                     else
                         InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Client sent wrong certificate type",state)
             | ClientCertificateDHE (si,p,g,gx,x,log) ->
@@ -1686,8 +1688,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                             match Cert.get_hint certs with
                             | None -> false
                             | Some(name) -> advice && (name = state.poptions.client_name)
-                        let state = {state with pstate = PSServer(ServerCheckingCertificateDHE(si,p,g,gx,x,log,to_log))} in
-                        InQuery(certs,advice,state)
+                        InQuery(certs,advice,{state with pstate = PSServer(ServerCheckingCertificateDHE(si,p,g,gx,x,log,to_log))})
                     else
                         InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Client sent wrong certificate type",state)
             | ClientCertificateDH  (si,log) -> (* TODO *) InError(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Unimplemented",state)
@@ -1706,11 +1707,13 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     (* TODO: we should shred the pms *)
                     (* move to new state *)
                     if si.client_auth then
-                        let state = {state with pstate = PSServer(CertificateVerify(si,ms,log))} in
-                        recv_fragment_server ci state agreedVersion
+                        recv_fragment_server ci 
+                          {state with pstate = PSServer(CertificateVerify(si,ms,log))} 
+                          agreedVersion
                     else
-                        let state = {state with pstate = PSServer(ClientCCS(si,ms,log))} in
-                        recv_fragment_server ci state agreedVersion
+                        recv_fragment_server ci 
+                          {state with pstate = PSServer(ClientCCS(si,ms,log))} 
+                          agreedVersion
             | ClientKeyExchangeDHE(si,p,g,gx,x,log) ->
                 match parseClientKEXExplicit_DH p payload with
                 | Error(x,y) -> InError(x,y,state)
@@ -1727,11 +1730,13 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     (* we rely on scopes & type safety to get forward secrecy*) 
                     (* move to new state *)
                     if si.client_auth then
-                        let state = {state with pstate = PSServer(CertificateVerify(si,ms,log))} in
-                        recv_fragment_server ci state agreedVersion
+                        recv_fragment_server ci 
+                          {state with pstate = PSServer(CertificateVerify(si,ms,log))} 
+                          agreedVersion
                     else
-                        let state = {state with pstate = PSServer(ClientCCS(si,ms,log))} in
-                        recv_fragment_server ci state agreedVersion
+                        recv_fragment_server ci 
+                          {state with pstate = PSServer(ClientCCS(si,ms,log))}
+                          agreedVersion
             | ClientKeyExchangeDH_anon(si,p,g,gx,x,log) ->
                 match parseClientKEXExplicit_DH p payload with
                 | Error(x,y) -> InError(x,y,state)
@@ -1741,8 +1746,9 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let ms = CRE.prfSmoothDHE si p g gx y pms in
                     (* TODO: here we should shred pms *)
                     (* move to new state *)
-                    let state = {state with pstate = PSServer(ClientCCS(si,ms,log))} in
-                    recv_fragment_server ci state agreedVersion
+                    recv_fragment_server ci 
+                      {state with pstate = PSServer(ClientCCS(si,ms,log))} 
+                      agreedVersion
             | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "ClientKeyExchange arrived in the wrong state",state)
 
         | HT_certificate_verify ->
@@ -1752,8 +1758,9 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 let (verifyOK,_) = certificateVerifyCheck si ms allowedAlgs log payload in
                 if verifyOK then// payload then
                     let log = log @| to_log in  
-                    let state = {state with pstate = PSServer(ClientCCS(si,ms,log))} in
-                    recv_fragment_server ci state agreedVersion
+                    recv_fragment_server ci 
+                      {state with pstate = PSServer(ClientCCS(si,ms,log))} 
+                      agreedVersion
                 else  
                     InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "Certificate verify check failed",state)
             | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "CertificateVerify arrived in the wrong state",state)
@@ -1763,15 +1770,13 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             | ClientFinished(si,ms,e,w,log) ->
                 if PRF.checkVerifyData ci.id_in Client ms log payload then
                     let log = log @| to_log in
-                    let state = {state with pstate = PSServer(ServerWritingCCS(si,ms,e,w,payload,log))} in
-                    InFinished(state)
+                    InFinished({state with pstate = PSServer(ServerWritingCCS(si,ms,e,w,payload,log))})
                 else
                     InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "Verify data did not match",state)
             | ClientFinishedResume(si,ms,e,svd,log) ->
                 if PRF.checkVerifyData ci.id_in Client ms log payload then
-                    let state = {state with pstate = PSServer(ServerIdle(payload,svd))} in
                     check_negotiation Server si state.poptions;
-                    InComplete(state)                       
+                    InComplete({state with pstate = PSServer(ServerIdle(payload,svd))})                       
                 else
                     InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "Verify data did not match",state)
             | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "Finished arrived in the wrong state",state)
@@ -1804,13 +1809,11 @@ let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:range) (fragment:HSFragmen
         | PSClient (cstate) -> // Check that we are in the right state (CCCS) 
             match cstate with
             | ServerCCS(si,ms,e,r,cvd,log) ->
-                let state = {state with pstate = PSClient(ServerFinished(si,ms,e,cvd,log))} in
                 let ci = {ci with id_in = e} in
-                InCCSAck(ci,r,state)
+                InCCSAck(ci,r,{state with pstate = PSClient(ServerFinished(si,ms,e,cvd,log))})
             | ServerCCSResume(ew,w,er,r,ms,log) ->
-                let state = {state with pstate = PSClient(ServerFinishedResume(ew,w,ms,log))} in
                 let ci = {ci with id_in = er} in
-                InCCSAck(ci,r,state)
+                InCCSAck(ci,r,{state with pstate = PSClient(ServerFinishedResume(ew,w,ms,log))})
             | _ -> InCCSError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "CCS arrived in the wrong state",state)
         | PSServer (sState) ->
             match sState with
@@ -1818,12 +1821,10 @@ let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:range) (fragment:HSFragmen
                 let next_ci = getNextEpochs ci si si.init_crand si.init_srand in
                 let (writer,reader) = PRF.keyGen next_ci ms in
                 let ci = {ci with id_in = next_ci.id_in} in
-                let state = {state with pstate = PSServer(ClientFinished(si,ms,next_ci.id_out,writer,log))} in
-                InCCSAck(ci,reader,state)
+                InCCSAck(ci,reader,{state with pstate = PSServer(ClientFinished(si,ms,next_ci.id_out,writer,log))})
             | ClientCCSResume(e,r,svd,ms,log) ->
-                let state = {state with pstate = PSServer(ClientFinishedResume(epochSI e,ms,e,svd,log))} in
                 let ci = {ci with id_in = e} in
-                InCCSAck(ci,r,state)
+                InCCSAck(ci,r,{state with pstate = PSServer(ClientFinishedResume(epochSI e,ms,e,svd,log))})
             | _ -> InCCSError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "CCS arrived in the wrong state",state)
     else           InCCSError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
 
@@ -1841,15 +1842,17 @@ let authorize (ci:ConnectionInfo) (state:hs_state) (q:Cert.chain) =
               let log = log @| to_log in
               let si = {si with serverID = q} in
               Pi.assume (Authorize(Client,si));
-              let state = {state with pstate = PSClient(CertificateRequestRSA(si,log))} in
-              recv_fragment_client ci state agreedVersion
+              recv_fragment_client ci 
+                {state with pstate = PSClient(CertificateRequestRSA(si,log))}
+                agreedVersion
             else unexpectedError "[authorize] invoked with different cert"
         | ClientCheckingCertificateDHE(si,log,agreedVersion,to_log) ->
             let log = log @| to_log in
             let si = {si with serverID = q} in
             Pi.assume (Authorize(Client,si));
-            let state = {state with pstate = PSClient(ServerKeyExchangeDHE(si,log))} in
-            recv_fragment_client ci state agreedVersion
+            recv_fragment_client ci 
+              {state with pstate = PSClient(ServerKeyExchangeDHE(si,log))} 
+              agreedVersion
         // | ClientCheckingCertificateDH -> TODO
         | _ -> unexpectedError "[authorize] invoked on the wrong state"
     | PSServer(sstate) ->
@@ -1858,14 +1861,16 @@ let authorize (ci:ConnectionInfo) (state:hs_state) (q:Cert.chain) =
             let log = log @| to_log in
             let si = {si with clientID = q} in
              Pi.assume (Authorize(Server,si));
-            let state = {state with pstate = PSServer(ClientKeyExchangeRSA(si,cv,sk,log))} in
-            recv_fragment_server ci state None
+            recv_fragment_server ci 
+              {state with pstate = PSServer(ClientKeyExchangeRSA(si,cv,sk,log))} 
+              None
         | ServerCheckingCertificateDHE(si,p,g,gx,x,log,to_log) ->
             let log = log @| to_log in
             let si = {si with clientID = q} in
             Pi.assume (Authorize(Server,si));
-            let state = {state with pstate = PSServer(ClientKeyExchangeDHE(si,p,g,gx,x,log))} in
-            recv_fragment_server ci state None
+            recv_fragment_server ci 
+              {state with pstate = PSServer(ClientKeyExchangeDHE(si,p,g,gx,x,log))} 
+              None
         // | ServerCheckingCertificateDH -> TODO
         | _ -> unexpectedError "[authorize] invoked on the wrong state"
 

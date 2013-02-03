@@ -49,13 +49,15 @@ private assume !e,si. si = EpochSI(e) =>
 predicate ENCrypted of e:epoch * ad:(;e)LHAEPlain.adata * rg:range *  
                       (;e,ad,rg)LHAEPlain.plain * cipher
 
-// private definition !e,ad,rg,p,c.
-// 	ENCrypted(e,ad,rg,p,c) <=>
-// 		?k,p'. ENC.ENCrypted(e,Length(c),k,)
+private definition !e,ad,rg,p,c.
+	ENCrypted(e,ad,rg,p,c) <=>
+		?n,p'. ENC.ENCrypted(e,Length(c),n,p',c)
 
 val encrypt': ki:succEpoch -> (;ki) LHAEKey -> ad:(;ki)LHAEPlain.adata ->
   rg:range -> p:(;ki,ad,rg) LHAEPlain.plain ->
-  ((;ki) LHAEKey * c:cipher){Length(c) = TargetLength(ki,rg)}
+  ((;ki) LHAEKey * c:cipher){Length(c) = TargetLength(ki,rg) /\         
+     (Safe(ki) => ENCrypted(ki,ad,rg,p,c))}
+ 
 
 val encrypt : ki:succEpoch -> (;ki) LHAEKey -> ad:(;ki)LHAEPlain.adata ->
   rg:range -> p:(;ki,ad,rg) LHAEPlain.plain ->
@@ -65,26 +67,24 @@ val encrypt : ki:succEpoch -> (;ki) LHAEKey -> ad:(;ki)LHAEPlain.adata ->
                                   ENCrypted(ki,ad,RangeClass(ki,rg),p',c)}
 
 //CF unclear whether the log should include the plaintext; tried without, should rollback...
-type entry = ki:succEpoch * ad:(;ki) LHAEPlain.adata * rg:range * p:(;ki,ad,rg) LHAEPlain.plain * c:ENC.cipher { ENCrypted(ki,ad,rg,p,c)}
+type entry = ki:succEpoch * ad:(;ki) LHAEPlain.adata * rg:range * p:(;ki,ad,rg) LHAEPlain.plain * c:ENC.cipher {rg = CipherRangeClass(ki,Length(c)) /\
+                                ?rg',p'. ENCrypted(ki,ad,rg',p',c)}
 private val log: entry list ref
 private val cmem: ki:succEpoch -> ad:(;ki)LHAEPlain.adata -> c:cipher ->  
   entry list -> res:(r:range * (;ki,ad,r)LHAEPlain.plain) option { 
-    ( !rg,p. res = Some ((rg,p)) => ENCrypted(ki,ad,rg,p,c) ) /\
+    ( !rg,p. res = Some ((rg,p)) => (ENCrypted(ki,ad,rg,p,c) /\ rg = CipherRangeClass(ki,Length(c))) ) /\
 	( res = None => !rg,p. not ENCrypted(ki,ad,rg,p,c) )}
 
-private val safe: ki:succEpoch -> b:bool { b = true <=> Auth(ki) }
 
 //CF a corollary of affine encryptions:
 theorem !ki,d,rg0,p0,rg1,p1,c. (ENCrypted(ki,d,rg0,p0,c) /\ ENCrypted(ki,d,rg1,p1,c)) => p0 = p1
 
 val decrypt': ki:succEpoch -> k:(;ki) LHAEKey -> ad:(;ki)LHAEPlain.adata ->
-  c:cipher -> res: 
+  c:cipher{?rg',p'. ENCrypted(ki,ad,rg',p',c)} -> res: 
   ( ( 
     (;ki) LHAEKey *  
     rg:range * 
-    p:(;ki,ad,rg) LHAEPlain.plain) {rg = CipherRangeClass(ki,Length(c))
-                                    ///\ !p',rg'. ENCrypted(ki,ad,rg',p',c) => p=p'
-									 } ) Result
+    p:(;ki,ad,rg) LHAEPlain.plain) {rg = CipherRangeClass(ki,Length(c))} ) Result
 
 // { (* partial functional correctness when decrypting what we encrypted *)
 //   !pl,p,tag,rg.

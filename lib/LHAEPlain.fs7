@@ -44,6 +44,7 @@ private definition !e,lad,r,f.
   LHAESent(e,lad,r,f) <=> 
   (?had,sn,ph. lad = MakeAD(e,(sn,ph),had) /\ StatefulPlain.StAESent(e,had,(sn,ph),r,f.contents))
 
+(*
 private ask !e,r,f,lad. (Auth(e) /\ (?had,sn,ph. MakeAD(e,(sn,ph),had) = lad /\ StatefulPlain.StAESent(e,had,(sn,ph),r,f.contents)) ) => 
                         (!had', sn', ph'. MakeAD(e,(sn',ph'),had') = lad /\ StatefulPlain.StAEHistory(e,ph') /\ StatefulPlain.HLength(e,ph') = sn' => StatefulPlain.StAESent(e,had',(sn',ph'),r,f.contents))
 
@@ -51,7 +52,7 @@ ask !e,ad,sn,ph,ad',r,x. (ad = MakeAD(e,(sn,ph),ad') /\ StatefulPlain.StAESent(e
 
 ask !e,ad,h,h',ad',ad''. ad = MakeAD(e,h,ad') /\ ad = MakeAD(e,h',ad'') => 
     (StatefulPlain.SeqN(e,h) = StatefulPlain.SeqN(e,h') /\ ad' = ad'')
-
+*)
 //CF ask !e,ad,ad',ad'',sn,h,h',r,f. Auth(e) /\ StatefulPlain.StAESent(e,ad',(sn,h),r,f) /\ StatefulPlain.StAEHistory(e,h') /\  HLength(e,h') = sn => h = h'
 
 //CF 22/4: these coercions are used only in StatefulLHAE.fs; they are not part of the "plain" interface to LHAE.
