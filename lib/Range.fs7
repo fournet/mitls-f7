@@ -38,7 +38,15 @@ val fixedPadSize: si:SessionInfo -> l:nat{
 	(si.extended_record_padding = true /\ l=2) \/
 	(si.extended_record_padding = false /\ l=1)}
 
-val maxPadSize: si:SessionInfo -> l:nat
+function val MaxPadSize: si:SessionInfo * unit -> nat
+// TODO: private definition !si. MaxPadSize(si) = ...
+val maxPadSize: si:SessionInfo -> l:nat{l = MaxPadSize(si,())}
+
+(* A range that can be conveyed in one fragment *)
+predicate RangeFragment of SessionInfo * range
+definition !si,l,h. RangeFragment(si,(l,h)) <=>
+	( h <= fragmentLength /\ h - l <= MaxPadSize(si,()))
+type (;si:SessionInfo) rangeF = r:range{RangeFragment(si,r)}
 
 // Padding computations
 function val BlockAligned: epoch * nat -> nat

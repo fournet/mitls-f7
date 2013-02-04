@@ -33,14 +33,6 @@ let writeAppData (c:ConnectionInfo) (a:app_state) (r:range) (d:delta) =
     let nd = (r,d) in
     {a with app_outgoing = (s,Some(nd))}
 
-// Returns the unsent data to the user, and resets the output buffer
-let emptyOutgoingAppData (c:ConnectionInfo) (a:app_state) = 
-  let (s,b) = a.app_outgoing in
-    match b with
-      | None -> None,a
-      | Some(nd) -> 
-          Some(nd),{a with app_outgoing = (s,None)}
-
 // When polled, gives the Dispatch the next fragment to be delivered,
 // and commits to it (adds it to the output stream)
 let next_fragment (c:ConnectionInfo) (a:app_state) =
@@ -48,20 +40,16 @@ let next_fragment (c:ConnectionInfo) (a:app_state) =
     match data with
       | None -> None
       | Some (rd) ->
-          let (r,d) = rd in
-          let (r0,r1) = splitRange c.id_out r in
-          if r = r0 then
-            let f0,ns = AppFragment.fragment c.id_out s r d in
-            let state = {a with app_outgoing = (ns,None)} in
-            let res = (r,f0,state) in
-            Some(res)
-          else 
-            let (d0,d1) = DataStream.split c.id_out s r0 r1 d in
-            let f0,ns = AppFragment.fragment c.id_out s r0 d0 in
-            let nd1 = (r1,d1) in
-            let state = {a with app_outgoing = (ns,Some(nd1))} in
-            let res = (r0,f0,state) in
-            Some(res)
+        let (r,d) = rd in
+        let f0,ns = AppFragment.fragment c.id_out s r d in
+        let state = {a with app_outgoing = (ns,None)} in
+        let res = (r,f0,state) in
+        Some(res)
+
+// Clear contents from the output buffer
+let clearOutBuf (c:ConnectionInfo) (a:app_state) =
+    let (s,data) = a.app_outgoing in
+    {a with app_outgoing = (s,None)}
 
 // Gets a fragment from Dispatch, adds it to the incoming buffer, but not yet to
 // the stream of data delivered to the user

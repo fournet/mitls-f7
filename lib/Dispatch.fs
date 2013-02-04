@@ -127,14 +127,6 @@ let request (Conn(id,conn)) ops =
     (accepted,Conn(id,{conn with handshake = new_hs}))
 
 let moveToOpenState (Conn(id,c)) =
-    // Agreement should be on all protocols.
-    // - As a pre-condition to invoke this function, we have agreement on HS protocol
-    // - We have implicit agreement on appData, because the input/output buffer is empty
-    //   (This can either be a pre-condition, or we can add a dynamic check here)
-    // - We need to enforce agreement on the alert protocol.
-    //   We do it here, by checking that our input buffer is empty. Maybe, we should have done
-    //   it before, when we sent/received the CCS
-    //if Alert.incomingEmpty id c.alert then
     let read = c.read in
     match read.disp with
     | Finishing | Finished ->
@@ -189,13 +181,8 @@ let send ns e write pv rg ct frag =
     let dState = {write with conn = conn} in
     match Tcp.write ns data with
     | Error(x,y) -> Error(x,y)
-    | Correct(_) -> 
-        //let s = sprintf "                        %5d bytes --> %s\n" data.Length (TLSConstants.CTtoString ct) in printf "%s" s 
-        Correct(dState)
+    | Correct(_) -> Correct(dState)
 
-#if verify
-type preds = GState of ConnectionInfo * globalState
-#endif
 (* which fragment should we send next? *)
 (* we must send this fragment before restoring the connection invariant *)
 let writeOne (Conn(id,c)) : writeOutcome * Connection =
@@ -243,7 +230,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                     match c_write.disp with
                     | FirstHandshake(_) | Open ->
                         let history = Record.history id.id_out StatefulLHAE.WriterState c_write.conn in
-                        let frag = TLSFragment.CCSPlainToRecordPlain id.id_out history rg ccs in
+                        let frag = TLSFragment.CCSPlainToRecordPlain id.id_out history rg ccs in // AP XXX
                         let pv = pickSendPV (Conn(id,c)) in
                         let resSend = send c.ns id.id_out c.write pv rg Change_cipher_spec frag in
                         match resSend with
@@ -400,7 +387,6 @@ let recv (Conn(id,c)) =
                 | Error(x,y) -> Error(x,y)
                 | Correct(pack) -> 
                     let (c_recv,ct,pv,tl,f) = pack in
-                    //let s = sprintf "                        %5d bytes --> %s\n" len (TLSConstants.CTtoString ct) in printfn "%s" s  
                     match c.read.disp with
                     | Init -> correct(c_recv,ct,tl,f)
                     | FirstHandshake(expPV) ->
@@ -460,7 +446,7 @@ let handleHandshakeOutcome (Conn(id,c)) hsRes =
                         However, if we say RHSDone, the library will report an early completion of HS
                         (we still have to send our finished message).
                         So, here we say ReadAgain, which will anyway first flush our output buffers,
-                        this sending our finished message, and thus letting us get the WHSDone event.
+                        thus sending our finished message, and thus letting us get the WHSDone event.
                         I know, it's tricky and it sounds fishy, but that's the way it is now.*)
                     (RAgain,Conn(id,c))
                 | _ ->
@@ -473,7 +459,7 @@ let handleHandshakeOutcome (Conn(id,c)) hsRes =
             (* Ensure we are in Finishing state *)
                 match c_read.disp with
                 | Finishing ->
-                        (* Sanity check: in and out session infos should be the same *)
+                    (* Sanity check: in and out session infos should be the same *)
                     if epochSI(id.id_in) = epochSI(id.id_out) then
                         match moveToOpenState (Conn(id,c)) with
                         | Correct(c) -> 
@@ -505,7 +491,6 @@ let readOne (Conn(id,c)) =
         let (c_recv,ct,rg,frag) = received in 
         let c_read = c.read in
         let history = Record.history id.id_in StatefulLHAE.ReaderState c_read.conn in
-        //let f = TLSFragment.contents id.id_in ct history rg frag in
         let c_read = {c_read with conn = c_recv} in
         let c = {c with read = c_read} in
           match c_read.disp with
@@ -634,15 +619,27 @@ let rec read c =
     | WError(err) -> c,WriteOutcome(WError(err)),None
     | WriteAgain -> unexpectedError "[read] writeAll should never return WriteAgain"
 
-let write (Conn(id,c)) msg =
-  let (r,d) = msg in
-  let new_appdata = AppData.writeAppData id c.appdata r d in
-  let c = {c with appdata = new_appdata} in 
-  let (outcome,c) = writeAll (Conn(id,c)) in
-  let (Conn(id,g)) = c in
-  let (rdOpt,new_appdata) = AppData.emptyOutgoingAppData id g.appdata in
-  let g = {g with appdata = new_appdata} in
-  Conn(id,g),outcome,rdOpt
+let msgWrite (Conn(id,c)) (rg,d) =
+  let (r0,r1) = DataStream.splitRange id.id_out rg in
+  if r0 = rg then
+    let msg = (rg,d) in
+    (msg,None)
+  else
+    let outStr = AppData.outStream id c.appdata in
+    let (d0,d1) = DataStream.split id.id_out outStr r0 r1 d in
+    let msg0 = (r0,d0) in
+    let msg1 = (r1,d1) in
+    (msg0,Some(msg1))
+
+let write (Conn(id,s)) msg =
+  let (msg0,rdOpt) = msgWrite (Conn(id,s)) msg in
+  let (r0,d0) = msg0 in
+  let new_appdata = AppData.writeAppData id s.appdata r0 d0 in
+  let s = {s with appdata = new_appdata} in 
+  let (outcome,Conn(id,s)) = writeAll (Conn(id,s)) in
+  let new_appdata = AppData.clearOutBuf id s.appdata in
+  let s = {s with appdata = new_appdata} in
+  (Conn(id,s)),outcome,rdOpt
 
 let authorize (Conn(id,c)) q =
     let hsRes = Handshake.authorize id c.handshake q in

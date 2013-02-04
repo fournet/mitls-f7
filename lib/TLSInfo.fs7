@@ -132,7 +132,7 @@ type ConnectionInfo =
 	{ role: Role;
 	  id_rand: random;
 	  id_in:  epoch;
-          id_out: epoch}
+      id_out: epoch}
 
 val connectionRole: ci:ConnectionInfo -> r:Role{r = ci.role}
 

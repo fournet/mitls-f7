@@ -14,9 +14,7 @@ open Range
 private val min: a:nat -> b:nat -> c:nat{(a<=b /\ c=a) \/ (a>b /\ c=b)}
 private val max: a:nat -> b:nat -> c:nat{(a>=b /\ c=a) \/ (a<b /\ c=b)}
 
-val splitRange: ki:succEpoch -> r:range -> (r0:range * r1:range){r = Sum(r0,r1)} 
-(* TODO first range should fit in a fragment: FitsInFrag(ki,fragmentLength,r0)? *)
-(* TODO exclude unexpectedErrors, or return a "result" *)
+val splitRange: ki:succEpoch -> r:range -> (r0:range * r1:range){r = Sum(r0,r1)} //AP /\ RangeFragment(EpochSI(ki),r0)
 
 /// Bytestreams
 
@@ -34,12 +32,22 @@ private type (;ki:epoch) stream = {sb:bytes list}
 // but it must provide the following functions to TLS
 private type (;ki:epoch, h:(;ki)stream, r:range) delta = {contents: (;r) rbytes}
 
+function val Payload: e:epoch * s:(;e)stream * r:range * (;e,s,r)delta -> 'a // (;r)rbytes
+private definition !e,s,r,d. Payload(e,s,r,d) = d.contents
+
 predicate EmptyStream of ki:epoch * (;ki) stream 
 definition !ki,s. EmptyStream(ki,s) <=> s = {sb = []}
 ask !ki,s,s'. EmptyStream(ki,s) /\ EmptyStream(ki,s') => s = s'
 
 function val ExtendStream: 'a * 'b * 'c * 'd -> 'e
 private definition !ki,s,r,d. ExtendStream(ki,s,r,d) = {sb = d.contents :: s.sb } 
+
+function val StreamBytes: e:epoch * (;e)stream -> bytes
+private definition !e,s,h,t.
+ (s.sb = []   /\ StreamBytes(e,s) = [||]) \/
+ (s.sb = h::t /\ StreamBytes(e,s) = (StreamBytes(e,{sb=t}) @| h))
+
+ask !e,s,r,d. StreamBytes(e,ExtendStream(e,s,r,d)) = ( StreamBytes(e,s) @| Payload(e,s,r,d) )
 
 // The following two functions are 
 // used only by the application.
@@ -59,9 +67,6 @@ val init: ki:epoch -> s:(;ki) stream{EmptyStream(ki,s)}
 val append: 
   ki:epoch -> s: (;ki) stream -> r:range ->
   d:(;ki,s,r) delta -> s':(;ki) stream{s' = ExtendStream(ki,s,r,d)}
-
-function val Payload: e:epoch * s:(;e)stream * r:range * (;e,s,r)delta -> 'a // (;r)rbytes
-private definition !e,s,r,d. Payload(e,s,r,d) = d.contents
 
 val deltaPlain: 
   ki:epoch{not Auth(ki)} -> s:(;ki) stream -> r:range -> 

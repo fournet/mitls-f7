@@ -775,8 +775,9 @@ private definition !role,e,cfg.
 (* Negotiated remains to be defined but it can be a nice global spec of what HS is meant to achieve.
    Especially interesting would be proving that the result is the "best possible" *)
 
-private definition !ci,cfg. Complete(ci,cfg) <=>
-        (EpochSI(ci.id_in) = EpochSI(ci.id_out) /\
+definition !ci,cfg. Complete(ci,cfg) <=>
+        ( IsSuccEpoch(ci.id_in) /\ IsSuccEpoch(ci.id_out) /\
+		  EpochSI(ci.id_in) = EpochSI(ci.id_out) /\
           CompleteEpoch(ci.role,ci.id_in,cfg))
             
  
@@ -937,7 +938,7 @@ type (;ci:ConnectionInfo, hs:(;ci) hs_state) outgoing =
   | OutSome of (rg:range * f:(;ci.id_out,rg)HSFragment.fragment * s':(;ci,Config(ci,hs))nextState)
   | OutCCS of  (rg:range * f:(;ci.id_out,rg)HSFragment.fragment * 
                ci':ConnectionInfo * cs:(;ci'.id_out,StatefulLHAE.WriterState)StatefulLHAE.state * s':(;ci',Config(ci,hs))nextState)
-               { StatefulPlain.EmptyHistory(ci'.id_out,cs.history) /\ 
+               { StatefulPlain.EmptyHistory(ci'.id_out,StatefulLHAE.History(ci'.id_out,StatefulLHAE.WriterState,cs)) /\ 
                  ci.id_out = Pred(ci'.id_out) /\
                  ci.id_in = ci'.id_in /\
                  ci.role = ci'.role }
@@ -966,7 +967,10 @@ type (;ci:ConnectionInfo,c:config)incomingCCS =
 val recv_ccs     : ci:ConnectionInfo -> s:(;ci)hs_state -> rg:range -> (;ci.id_in,rg)HSFragment.fragment -> 
                    (;ci,Config(ci,s))incomingCCS
 
-val getMinVersion:        ci:ConnectionInfo -> (;ci)hs_state -> ProtocolVersion
+function val GetMinVersion: ci:ConnectionInfo * (;ci)hs_state -> ProtocolVersion
+private definition !ci,s. GetMinVersion(ci,s) = s.poptions.minVer
+val getMinVersion: ci:ConnectionInfo -> s:(;ci)hs_state ->
+	pv:ProtocolVersion{pv = GetMinVersion(ci,s)}
 
 (*--- end *)
 

@@ -43,26 +43,30 @@ val init: ci:ConnectionInfo ->
 	s:(;ci)app_state{AppInBuf(ci,s) = None /\ AppOutBuf(ci,s) = None /\
 		EmptyStream(ci.id_in,AppInStream(ci,s)) /\ EmptyStream(ci.id_out,AppOutStream(ci,s))}
 
-val writeAppData: ci:ConnectionInfo -> s:(;ci)app_state{AppOutBuf(ci,s) = None} ->
+val writeAppData: ci:ConnectionInfo -> s:(;ci)app_state ->
 	r:range -> d:(;ci.id_out,AppOutStream(ci,s),r)delta ->
 	s':(;ci)app_state{AppOutBuf(ci,s') = Some((r,d)) /\
 		AppInBuf(ci,s') = AppInBuf(ci,s) /\
 		AppOutStream(ci,s') = AppOutStream(ci,s) /\
 		AppInStream (ci,s') = AppInStream (ci,s)}
 		
-val emptyOutgoingAppData: ci:ConnectionInfo -> s:(;ci)app_state ->
-	((r:range * d:(;ci.id_out, AppOutStream(ci,s), r)delta) option) *
-		s':(;ci)app_state{AppOutBuf(ci,s') = None /\
-		AppInBuf(ci,s') = AppInBuf(ci,s) /\
-		AppOutStream(ci,s') = AppOutStream(ci,s) /\
-		AppInStream (ci,s') = AppInStream (ci,s)}
-
 val next_fragment: ci:ConnectionInfo{IsSuccEpoch(ci.id_out)} -> s:(;ci)app_state ->
 	ro:((r:range * f:(;ci.id_out,r)AppFragment.fragment * s':(;ci)app_state)
 	{(Auth(ci.id_out) => AppFragment.Sent(ci.id_out,AppOutStream(ci,s),r,f) ) /\
 	 AppOutStream(ci,s') = AppFragment.Extend(ci.id_out,AppOutStream(ci,s),r,f) /\
+	 (?d. AppOutBuf(ci,s) = Some((r,d)) /\
+	      DataStream.Payload(ci.id_out,AppOutStream(ci,s),r,d) = AppFragment.Payload(ci.id_out,r,f) ) /\
+	 AppOutBuf(ci,s') = None /\
 	 AppInBuf(ci,s') = AppInBuf(ci,s) /\
 	 AppInStream (ci,s') = AppInStream (ci,s)}) option{ro = None => AppOutBuf(ci,s) = None}
+
+val clearOutBuf: ci:ConnectionInfo -> s:(;ci)app_state ->
+	s':(;ci)app_state{
+		AppOutStream(ci,s') = AppOutStream(ci,s) /\
+		AppOutBuf(ci,s') = None /\
+		AppInStream(ci,s') = AppInStream(ci,s) /\
+		AppInBuf(ci,s') = AppInBuf(ci,s)
+		}
 
 val recv_fragment: ci:ConnectionInfo -> s:(;ci)app_state -> r:range ->
 	f:(;ci.id_in,r)AppFragment.fragment{Auth(ci.id_in) =>

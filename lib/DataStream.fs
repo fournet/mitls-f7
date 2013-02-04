@@ -62,7 +62,7 @@ type stream = {sb: bytes list}
 type delta = {contents: rbytes}
 
 let createDelta (ki:epoch) (s:stream) (r:range) (b:bytes) = {contents = b}
-let deltaBytes (ki:epoch) (s:stream) (r:range) (d:delta) = d.contents
+let deltaBytes  (ki:epoch) (s:stream) (r:range) (d:delta) = d.contents
 let deltaPlain  (ki:epoch) (s:stream) (r:range) (b:rbytes) = {contents = b}
 let deltaRepr   (ki:epoch) (s:stream) (r:range) (d:delta) = d.contents
 

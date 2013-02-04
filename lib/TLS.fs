@@ -55,8 +55,8 @@ let read ca =
       | WriteOutcome(WriteAgain),_ -> unexpectedError "[read] Dispatch.read should never return WriteAgain"
       | _,_ -> ReadError(None, perror __SOURCE_FILE__ __LINE__ "Invalid dispatcher state. This is probably a bug, please report it")
 
-let write c msg = 
-  let c,outcome,rdOpt = Dispatch.write c msg in
+let write c msg =
+    let c,outcome,rdOpt = Dispatch.write c msg in
     match outcome with
       | WError(err) -> WriteError(None,err)
       | WAppDataDone ->
