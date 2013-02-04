@@ -96,10 +96,17 @@ def _main(*modules):
     result   = [_check_module(x) for x in modules]
     document = _xunit_document(result, config)
 
-    print lxml.etree.tostring(document,
-                              pretty_print    = True   ,
-                              xml_declaration = True   ,
-                              encoding        = 'utf-8')
+
+    xunit = lxml.etree.tostring(document,
+                                pretty_print    = True   ,
+                                xml_declaration = True   ,
+                                encoding        = 'utf-8')
+
+    if options.xunit is None:
+        sys.stderr.write(xunit)
+    else:
+        with open(options.xunit, 'wb') as output:
+            output.write(xunit)
 
 # --------------------------------------------------------------------
 if __name__ == '__main__':
