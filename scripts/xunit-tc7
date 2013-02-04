@@ -35,6 +35,7 @@ def _options():
 def _check_module(module):
     aout = Object(success = None,
                   time    = None,
+                  output  = None,
                   module  = module)
 
     with open(os.devnull, "w") as devnull:
@@ -44,14 +45,16 @@ def _check_module(module):
             command = ['make', '%s.tc7' % (module,)]
             process = sp.Popen(command,
                                stdout = devnull,
-                               stderr = devnull)
-            status = process.wait()
+                               stderr = sp.PIPE)
+            output = process.communicate()[1]
+            status = process.returncode
             timestamp = time.time() - timestamp
         except OSError:
             return aout
 
         aout.success = (status == 0)
         aout.time    = timestamp
+        aout.output  = output
         return aout
 
 # --------------------------------------------------------------------
@@ -77,7 +80,7 @@ def _xunit_document(result, config):
 
         if not rr.success:
             rnode.append(E.failure( \
-                    message = 'invalid-exit-status',
+                    message = rr.output,
                     type    = 'should-typecheck'))
         tt.append(rnode)
 
@@ -88,8 +91,8 @@ def _xunit_document(result, config):
 
 
 # --------------------------------------------------------------------
-def _main(*modules):
-    options, args = _options()
+def _main():
+    options, modules = _options()
 
     config   = Object(hostname  = socket.gethostname(),
                       timestamp = datetime.datetime.utcnow())
@@ -110,4 +113,4 @@ def _main(*modules):
 
 # --------------------------------------------------------------------
 if __name__ == '__main__':
-    _main(*sys.argv[1:])
+    _main()
