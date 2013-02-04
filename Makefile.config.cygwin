@@ -33,4 +33,4 @@ csc = "$(c_FrameworkDir)/$(FrameworkVersion)"/csc.exe
 # --------------------------------------------------------------------
 # TOOLS FOR VERIFICATION
 f7       = ../../../$(TOP)/bin/f7.exe
-f7flags := -z3exe ../../../$(TOP)/bin/$(z3exe)
+override f7flags += -z3exe ../../../$(TOP)/bin/$(z3exe)

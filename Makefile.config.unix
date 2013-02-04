@@ -10,4 +10,4 @@ fsflags += --define:mono -r Mono.Data.Sqlite.dll
 # --------------------------------------------------------------------
 # TOOLS FOR VERIFICATION
 f7       = ../../../$(TOP)/bin/f7.exe
-f7flags := -z3exe ../../../$(TOP)/bin/z3.exe
+override f7flags += -z3exe ../../../$(TOP)/bin/z3.exe
