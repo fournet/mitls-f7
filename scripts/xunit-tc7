@@ -80,7 +80,7 @@ def _xunit_document(result, config):
 
         if not rr.success:
             rnode.append(E.failure( \
-                    message = rr.output,
+                    message = unicode(rr.output, 'utf-8', 'replace'),
                     type    = 'should-typecheck'))
         tt.append(rnode)
 
