@@ -40,13 +40,9 @@ val history: ki:epoch -> rw:rw -> s:(;ki,rw) state -> h:(;ki)StatefulPlain.histo
 
 type cipher = LHAE.cipher
 
-predicate ENCrypted of e:epoch * h:(;e) StatefulPlain.history * ad:(;e)StatefulPlain.adata * rg:range * (;e,ad,h,rg)StatefulPlain.plain * cipher
+predicate ENCrypted of e:epoch * cipher
 private definition !e,h,ad,rg,f,c. 
-  ENCrypted(e,h,ad,rg,f,c) <=> 
-  (?f'. LHAEPlain.Payload(e,LHAEPlain.MakeAD(e,h,ad),rg,LHAEPlain.StAEToLHAE(f)) = 
-        LHAEPlain.Payload(e,LHAEPlain.MakeAD(e,h,ad),RangeClass(e,rg),f') /\
-        LHAE.ENCrypted(e,LHAEPlain.MakeAD(e,h,ad),
-                       RangeClass(e,rg),f',c))
+  ENCrypted(e,c) <=> LHAE.ENCrypted(e,c)
 
 val encrypt: ki:succEpoch -> 
   wr:(;ki) writer -> 
@@ -56,7 +52,7 @@ val encrypt: ki:succEpoch ->
   (wr':(;ki) writer * c:cipher){
     History(ki,WriterState,wr') = 
       StatefulPlain.ExtendHistory(ki,ad,History(ki,WriterState,wr),rg,f)
-/\    ENCrypted(ki,History(ki,WriterState,wr),ad,rg,f,c)} 
+/\    (Safe(ki) => ENCrypted(ki,c))} 
 
 val decrypt: ki:succEpoch -> 
   rd:(;ki) reader -> 
@@ -68,7 +64,7 @@ val decrypt: ki:succEpoch ->
                    StatefulPlain.ExtendHistory(ki,ad,History(ki,ReaderState,rd),rg,f) /\
                    rg = CipherRangeClass(ki,Length(c)) /\
  	         (Safe(ki) =>
-				( (!nrd,rg,f. res = Correct((nrd,rg,f)) => ENCrypted(ki,History(ki,ReaderState,rd),ad,rg,f,c)) // /\
+				( (!nrd,rg,f. res = Correct((nrd,rg,f)) => ENCrypted(ki,c)) // /\
 				//  (!rg,p. ENCrypted(ki,rd,ad,rg,StatefulPlain.Payload(ki,ad,rg,p),c) => (?nrd,rg. res = Correct((nrd,rg,p))))
 				)
 			 ) ) }

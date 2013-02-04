@@ -71,7 +71,8 @@ definition !e,sh,sh',h,ct,r,f.
   (Multiplexed(e,sh') = TLSFragment.ExtendHistory(e,ct,h,r,StAEToRecord(e,ct,r,f)))
 
 private definition !e,sh,ct,r,f. 
-	StAESent(e,ADBytes(e,ct),sh,r,f) <=> TLSFragment.RecordSent(e,ct,Multiplexed(e,sh),r,f.contents)
+	StAESent(e,ADBytes(e,ct),sh,r,f) <=> 
+        TLSFragment.RecordSent(e,ct,Multiplexed(e,sh),r,f.contents)
 
 //------------------------------------------------------------------------------------------------------
 // `Plain' interface towards StatefulLHAE, encapsulating TLS-specific headers and content types
@@ -84,7 +85,11 @@ val plain:        e:succEpoch{not Auth(e)} -> h:(;e)history -> ad:(;e)adata -> r
 val repr:         e:succEpoch{not Safe(e)} -> h:(;e)history -> ad:(;e)adata -> r:range -> p:(;e,ad,h,r) plain -> b:(;r)rbytes {b = Payload(e,ad,r,p)}
 val reprFragment: e:succEpoch{not Safe(e)} -> ad:(;e)adata -> r:range -> f:(;e,ad,r) fragment -> b:(;r)rbytes {b = Payload(e,ad,r,f)}
 
-val widen: e:succEpoch -> ad:(;e)adata -> r:range -> f:(;e,ad,r) fragment -> f':(;e,ad,RangeClass(e,r))fragment{Payload(e,ad,r,f) = Payload(e,ad,RangeClass(e,r),f')}
+val widen: e:succEpoch -> ad:(;e)adata -> r:range -> 
+  f:(;e,ad,r) fragment -> 
+  f':(;e,ad,RangeClass(e,r)) fragment{
+    Payload(e,ad,r,f) = Payload(e,ad,RangeClass(e,r),f') /\
+    !h. StAESent(e,ad,h,r,f) => StAESent(e,ad,h,RangeClass(e,r),f')}
 
 //------------------------------------------------------------------------------------------------------
 // `internal' interface towards TLSFragment

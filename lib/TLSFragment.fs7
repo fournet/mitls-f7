@@ -65,8 +65,13 @@ val reprFragment: e:epoch{not Safe(e)} -> ct:ContentType -> rg:range ->
 val repr: e:epoch{not Safe(e)} -> ct:ContentType -> h: (;e) history -> rg:range ->
   p:(;e,ct,h,rg)plain -> b:(;rg)rbytes{b = Payload(e,ct,rg,p)}
 
-val widen: e:succEpoch -> ct:ContentType -> r0:range -> f0:(;e,ct,r0)fragment ->
-	f1:(;e,ct,RangeClass(e,r0))fragment{Payload(e,ct,r0,f0) = Payload(e,ct,RangeClass(e,r0),f1)}
+val widen: e:succEpoch -> ct:ContentType -> 
+  r0:range -> 
+  f0:(;e,ct,r0)fragment ->
+  f1:(;e,ct,RangeClass(e,r0))fragment{
+    Payload(e,ct,r0,f0) = Payload(e,ct,RangeClass(e,r0),f1) /\
+    !h. RecordSent(e,ct,h,r0,f0) => 
+        RecordSent(e,ct,h,RangeClass(e,r0),f1)}
 
 //CF why not using a logical function instead?
 predicate EmptyHistory of e:epoch * (;e)history

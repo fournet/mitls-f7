@@ -38,7 +38,10 @@ val plain: e:succEpoch{not Auth(e)} -> ad:(;e)adata -> r:range -> b:(;r)rbytes -
 val repr:  e:succEpoch{not Safe(e)} -> ad:(;e)adata -> r:range -> p:(;e,ad,r) plain -> b:(;r)rbytes {b = Payload(e,ad,r,p)}
 private val reprFragment:  e:succEpoch{not Safe(e)} -> ad:(;e)adata -> r:range -> f:(;e,ad,r) fragment -> b:(;r)rbytes {b = Payload(e,ad,r,f)}
 
-val widen: e:succEpoch -> ad:(;e)adata -> r:range -> f:(;e,ad,r)fragment -> f':(;e,ad,RangeClass(e,r))fragment{Payload(e,ad,r,f) = Payload(e,ad,RangeClass(e,r),f')}
+val widen: e:succEpoch -> ad:(;e)adata -> r:range -> 
+  f:(;e,ad,r)plain -> 
+  f':(;e,ad,RangeClass(e,r))plain{
+    Payload(e,ad,r,f) = Payload(e,ad,RangeClass(e,r),f')}
 
 private definition !e,lad,r,f. 
   LHAESent(e,lad,r,f) <=> 

@@ -22,7 +22,7 @@ private definition !ki,s,r,s',d.
 
 predicate Sent of ki:epoch * (;ki) stream * r:range * (;ki,r)fragment
 private definition !ki,s,r,f. Sent(ki,s,r,f) <=> 
-  (?d. f.frag = (s,d) /\ DeltaFragment(ki,s,r,d))
+  (?d,r. f.frag = (s,d) /\ DeltaFragment(ki,s,r,d))
 
 type (;e:epoch,s:(;e)stream,r:range)plain = f:(;e,r) fragment{Auth(e) => Sent(e,s,r,f)}
 
@@ -47,12 +47,15 @@ val repr:  ki:epoch{not Safe(ki)} -> r:range -> f:(;ki,r) fragment -> b:(;r) rby
 // We use this function for ideal decryption by table lookup,
 // as the range after decryption is usually wider than the one used for encryption.
 // (Note that by design the encryption ranges are *not* authenticated).
-val widen: e:succEpoch -> r0:range -> f0:(;e,r0)fragment -> f1:(;e,RangeClass(e,r0))fragment{Payload(e,r0,f0) = Payload(e,RangeClass(e,r0),f1)}
+val widen: e:succEpoch -> r0:range -> f0:(;e,r0)fragment -> 
+    f1:(;e,RangeClass(e,r0))fragment{
+    Payload(e,r0,f0) = Payload(e,RangeClass(e,r0),f1) /\
+    !s. Sent(e,s,r0,f0) => Sent(e,s,RangeClass(e,r0),f1)}
 
 //CF where do we use this theorem?
 // injectivity of data-fragment (follows from linearity of streams)
 private theorem !ki,s,r1,r2,f1,f2. 
-  DeltaFragment(ki,s,r1,f1) /\ DeltaFragment(ki,s,r2,f2) => (r1 = r2 /\ f1 = f2)
+  DeltaFragment(ki,s,r1,f1) /\ DeltaFragment(ki,s,r2,f2) => (f1 = f2)
 
 
  

@@ -159,22 +159,23 @@ type entry = epoch * LHAEPlain.adata * range * LHAEPlain.plain * ENC.cipher
 let log = ref ([]: entry list) // for defining the ideal functionality for CTXT
 
 let rec cmem (e:epoch) (ad:LHAEPlain.adata) (c:ENC.cipher) (xs: entry list) = 
+#if verify
+  failwith "specification only"
+#else
   match xs with
   | (e',ad',r,p,c')::_ when e=e' && ad=ad' && c=c' -> let x = (r,p) in Some x
   | _::xs                  -> cmem e ad c xs 
   | []                     -> None
-
-let safe (e:epoch) = failwith "specification-only"
+#endif
 
 #endif
 
 let encrypt e key data rg plain = 
   let (key,cipher) = encrypt' e key data rg plain in
   #if ideal
-  let p' = LHAEPlain.widen e data rg plain in
-  let rg' = rangeClass e rg in
-  Pi.assume(ENCrypted(e,data,rg',p',cipher));
-  log := (e,data,rg',p',cipher)::!log;
+  if safe e then
+    log := (e,data,rg,plain,cipher)::!log
+  else ()
   #endif
   (key,cipher)
 
@@ -182,8 +183,7 @@ let decrypt e (key: LHAEKey) data (cipher: bytes) =
   #if ideal_F
   if safe e then
     match cmem e data cipher !log with
-    | Some _ -> 
-      decrypt' e key data cipher
+    | Some _ -> decrypt' e key data cipher
     | None   -> Error(AD_bad_record_mac, "")  
   else
   #else
@@ -191,8 +191,11 @@ let decrypt e (key: LHAEKey) data (cipher: bytes) =
   if safe e then
     match cmem e data cipher !log with
     | Some x -> 
-      let (r,p) = x
-      correct (key,r,p)
+       let (r,p) = x in
+       let p' = LHAEPlain.widen e data r p in
+       let tlen = length cipher in
+       let rg' = cipherRangeClass e tlen in
+       correct (key,rg',p')
     | None   -> Error(AD_bad_record_mac, "")  
   else
   #endif 
