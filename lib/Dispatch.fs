@@ -230,7 +230,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                     match c_write.disp with
                     | FirstHandshake(_) | Open ->
                         let history = Record.history id.id_out StatefulLHAE.WriterState c_write.conn in
-                        let frag = TLSFragment.CCSPlainToRecordPlain id.id_out history rg ccs in // AP XXX
+                        let frag = TLSFragment.CCSPlainToRecordPlain id.id_out history rg ccs in
                         let pv = pickSendPV (Conn(id,c)) in
                         let resSend = send c.ns id.id_out c.write pv rg Change_cipher_spec frag in
                         match resSend with
