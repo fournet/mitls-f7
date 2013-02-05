@@ -940,9 +940,10 @@ type (;ci:ConnectionInfo, hs:(;ci) hs_state) outgoing =
   | OutCCS of  (rg:range * f:(;ci.id_out,HSFragment.EmptyStream(ci.id_out),rg)HSFragment.plain * 
                ci':ConnectionInfo * cs:(;ci'.id_out,StatefulLHAE.WriterState)StatefulLHAE.state * s':(;ci',Config(ci,hs))nextState)
                { StatefulLHAE.History(ci'.id_out,StatefulLHAE.WriterState,cs) = StatefulPlain.EmptyHistory(ci'.id_out) /\ 
-                 ci.id_out = Pred(ci'.id_out) /\
+                 ci.id_out = Pred(ci'.id_out) /\ IsSuccEpoch(ci'.id_out) /\
                  ci.id_in = ci'.id_in /\
-                 ci.role = ci'.role }
+                 ci.role = ci'.role /\
+				 ci.id_rand = ci'.id_rand}
   | OutFinished of (rg:range * f:(;ci.id_out,HSFragment.EmptyStream(ci.id_out),rg)HSFragment.plain * s':(;ci,Config(ci,hs))nextState){
 				EvSentFinishedFirst(ci,true)}
   | OutComplete of (rg:range * f:(;ci.id_out,HSFragment.EmptyStream(ci.id_out),rg)HSFragment.plain * s':(;ci,Config(ci,hs))nextState)

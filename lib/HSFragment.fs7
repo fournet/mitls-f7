@@ -21,6 +21,11 @@ val init: e:epoch -> s:(;e)stream{s = EmptyStream(e)}
 val fragmentPlain: ki:epoch -> r:range -> b:(;r) rbytes -> f:(;ki,EmptyStream(ki),r) plain{b = Payload(ki,r,f)}
 val fragmentRepr:  ki:epoch -> r:range -> f:(;ki,r) fragment -> b:(;r) rbytes{b = Payload(ki,r,f)}
 
+//AP Unless the two streams are the same, this functions breaks the streaming
+//AP authentication property (which we currently don't prove for HS/CCS/Alert) 
+val reStream: e:epoch -> s:(;e)stream -> r:range -> p:(;e,s,r)plain -> s':(;e)stream ->
+	p':(;e,s',r)plain{Payload(e,r,p) = Payload(e,r,p')}
+
 val widen: e:epoch -> r0:range -> r1:range {r1 = RangeClass(e,r0)} -> 
     f0:(;e,r0)fragment -> f1:(;e,r1)fragment{Payload(e,r0,f0) = Payload(e,r1,f1) /\ !s. Sent(e,s,r0,f0) => Sent(e,s,r1,f1)}
 

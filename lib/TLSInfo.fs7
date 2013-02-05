@@ -111,7 +111,7 @@ private definition !e. IsSuccEpoch(e) <=> ?c,s,si,pe. e = SuccEpoch(c,s,si,pe)
 type epoch = e:preEpoch {IsInitEpoch(e) \/ IsSuccEpoch(e)}
 type succEpoch = e:preEpoch {IsSuccEpoch(e)}
 
-function val Pred: epoch -> epoch
+function val Pred: succEpoch -> epoch
 private definition !cr,sr,si,pred. Pred(SuccEpoch(cr,sr,si,pred)) = pred
 
 function val EpochSI: succEpoch -> SessionInfo

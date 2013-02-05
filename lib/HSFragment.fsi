@@ -14,6 +14,8 @@ val fragmentPlain: epoch -> range -> bytes -> fragment
 val extend: epoch -> stream -> range -> fragment -> stream
 val init: epoch -> stream
 
+val reStream: epoch -> stream -> range -> plain -> stream -> plain
+
 #if ideal
 val widen: epoch -> range -> range -> fragment -> fragment
 #endif

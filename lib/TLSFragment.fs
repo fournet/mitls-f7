@@ -28,6 +28,10 @@ let emptyHistory ki =
       alert = es;
       appdata = ehApp} in
 
+let handshakeHistory (e:epoch) h = h.handshake
+let ccsHistory (e:epoch) h = h.ccs
+let alertHistory (e:epoch) h = h.alert
+
 let plain ki (ct:ContentType) (h:history) (rg:range) b = 
     match ct with
     | Handshake          -> FHandshake(HSFragment.fragmentPlain ki rg b)

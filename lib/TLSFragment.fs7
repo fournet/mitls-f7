@@ -37,6 +37,10 @@ private definition !e,h. AlertHistory(e,h)     = h.alert
 private definition !e,h. CCSHistory(e,h)       = h.ccs
 private definition !e,h. AppDataHistory(e,h)   = h.appdata
 
+val handshakeHistory: e:epoch -> h:(;e)history -> s:(;e)HSFragment.stream{s = HandshakeHistory(e,h)}
+val ccsHistory: e:epoch -> h:(;e)history -> s:(;e)HSFragment.stream{s = CCSHistory(e,h)}
+val alertHistory: e:epoch -> h:(;e)history -> s:(;e)HSFragment.stream{s = AlertHistory(e,h)}
+
 predicate RecordSent of e:epoch * ct:ContentType * h:(;e) history * rg:range * (;e,ct,rg)fragment
 private definition !e,ct,h,rg,d.
   RecordSent(e,ct,h,rg,d) <=> ( 
@@ -132,6 +136,9 @@ ask !e,h,h',r,f. h' = ExtendHistory(e,TLSConstants.Application_data,h,r,AppDataR
 	  AlertHistory(e,h') = AlertHistory(e,h) /\
 	  CCSHistory(e,h') = CCSHistory(e,h) /\
 	  HandshakeHistory(e,h') = HandshakeHistory(e,h))
+
+ask !e,h,r,p. AppDataHistory(e,h) = AppDataHistory(e,ExtendHistory(e,TLSConstants.Handshake,h,r,HandshakeRecordPlain(e,h,r,p)))
+ask !e,h,r,p. AppDataHistory(e,h) = AppDataHistory(e,ExtendHistory(e,TLSConstants.Alert,h,r,AlertRecordPlain(e,h,r,p)))
 
 ask !e. HandshakeHistory(e,EmptyHistory(e)) = HSFragment.EmptyStream(e)
 ask !e. AlertHistory(e,EmptyHistory(e))     = HSFragment.EmptyStream(e)

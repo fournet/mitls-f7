@@ -373,7 +373,10 @@ val full_shutdown:    c:Connection ->
 val half_shutdown: c:Connection -> unit
 
 private val moveToOpenState: c:Connection ->
-	(;CnInfo(c))globalState Result
+	(gs:(;CnInfo(c))globalState{
+		gs.write.disp = Open /\ gs.read.disp = Open /\
+		Config(c) = Handshake.Config(CnInfo(c),gs.handshake)
+	}) Result
 
 function val PickSendPV: Connection -> TLSConstants.ProtocolVersion
 private definition !id,s.
@@ -397,9 +400,10 @@ private val getReason: predispatchState -> string
 private val send: Tcp.NetworkStream -> e:epoch -> w:(;e,StatefulLHAE.WriterState)dState ->
 	TLSConstants.ProtocolVersion -> rg:range -> ct:TLSConstants.ContentType ->
 	f:(;e,ct,Record.History(e,StatefulLHAE.WriterState,w.conn),rg)TLSFragment.plain ->
-	res: (;e,StatefulLHAE.WriterState) dState Result{
-          !w'. (res = Correct(w') /\ Auth(e)) =>
-            (Record.History(e,StatefulLHAE.WriterState,w'.conn) = TLSFragment.ExtendHistory(e,ct,Record.History(e,StatefulLHAE.WriterState,w.conn),rg,f))}
+	(w':(;e,StatefulLHAE.WriterState) dState{w.disp = w'.disp /\
+		(Auth(e) =>
+            Record.History(e,StatefulLHAE.WriterState,w'.conn) = TLSFragment.ExtendHistory(e,ct,Record.History(e,StatefulLHAE.WriterState,w.conn),rg,f) )
+	}) Result
                                                                                                                                                                 
 private val recv: c:Connection ->
 	((;ConnectionEpochIn(c),StatefulLHAE.ReaderState) Record.ConnectionState *

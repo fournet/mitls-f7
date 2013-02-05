@@ -18,7 +18,7 @@ type predispatchState =
   | Finishing
   | Finished (* Only for Writing side, used to implement TLS False Start *)
   | Open
-  | Closing of TLSConstants.ProtocolVersion * string
+  | Closing of ProtocolVersion * string
   | Closed
 
 type dispatchState = predispatchState
@@ -230,6 +230,9 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                     match c_write.disp with
                     | FirstHandshake(_) | Open ->
                         let history = Record.history id.id_out StatefulLHAE.WriterState c_write.conn in
+                        let es = HSFragment.init id.id_out in
+                        let hs = TLSFragment.ccsHistory id.id_out history in
+                        let ccs = HSFragment.reStream id.id_out es rg ccs hs in 
                         let frag = TLSFragment.CCSPlainToRecordPlain id.id_out history rg ccs in
                         let pv = pickSendPV (Conn(id,c)) in
                         let resSend = send c.ns id.id_out c.write pv rg Change_cipher_spec frag in
@@ -255,6 +258,9 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                       match c_write.disp with
                       | Init | FirstHandshake(_) | Finishing | Open ->
                           let history = Record.history id.id_out StatefulLHAE.WriterState c_write.conn in
+                          let es = HSFragment.init id.id_out in
+                          let hs = TLSFragment.handshakeHistory id.id_out history in
+                          let f = HSFragment.reStream id.id_out es rg f hs in
                           let frag = TLSFragment.HSPlainToRecordPlain id.id_out history rg f in
                           let pv = pickSendPV (Conn(id,c)) in
                           let resSend = send c.ns id.id_out c.write pv rg Handshake frag in
@@ -273,6 +279,9 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                 | Finishing ->
                     (* Send the last fragment *)
                     let history = Record.history id.id_out StatefulLHAE.WriterState c_write.conn in
+                    let es = HSFragment.init id.id_out in
+                    let hs = TLSFragment.handshakeHistory id.id_out history in
+                    let lastFrag = HSFragment.reStream id.id_out es rg lastFrag hs in
                     let frag = TLSFragment.HSPlainToRecordPlain id.id_out history rg lastFrag in
                     let pv = pickSendPV (Conn(id,c)) in
                     let resSend = send c.ns id.id_out c.write pv rg Handshake frag in
@@ -292,6 +301,9 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                 | Finishing ->
                     (* Send the last fragment *)
                     let history = Record.history id.id_out StatefulLHAE.WriterState c_write.conn in
+                    let es = HSFragment.init id.id_out in
+                    let hs = TLSFragment.handshakeHistory id.id_out history in
+                    let lastFrag = HSFragment.reStream id.id_out es rg lastFrag hs in
                     let frag = TLSFragment.HSPlainToRecordPlain id.id_out history rg lastFrag in
                     let pv = pickSendPV (Conn(id,c)) in
                     let resSend = send c.ns id.id_out c.write pv rg Handshake frag in
@@ -307,15 +319,20 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                             | Error(x,y) ->
                                 let closing = abortWithAlert (Conn(id,c)) AD_internal_error y in (WriteAgain, closing)
                         else
-                            let closed = closeConnection (Conn(id,c)) in (WError(perror __SOURCE_FILE__ __LINE__ "Invalid connection state"),closed) (* Unrecoverable error *)
+                            let closed = closeConnection (Conn(id,c)) in
+                            let reason = perror __SOURCE_FILE__ __LINE__ "Invalid connection state" in
+                            (WError(reason),closed) (* Unrecoverable error *)
                     | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
                 | _ -> (* Internal error: send a fatal alert to the other side *)
                         let reason = perror __SOURCE_FILE__ __LINE__ "Sending handshake message in wrong state" in
                         let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in (WriteAgain, closing) 
       | (Alert.ALFrag(tlen,f),new_al_state) ->
         match c_write.disp with
-        | Init | FirstHandshake(_) | Open | Closing(_) ->
+        | Init | FirstHandshake(_) | Open | Closing(_,_) ->
             let history = Record.history id.id_out StatefulLHAE.WriterState c_write.conn in
+            let es = HSFragment.init id.id_out in
+            let hs = TLSFragment.alertHistory id.id_out history in
+            let f = HSFragment.reStream id.id_out es tlen f hs in
             let frag = TLSFragment.AlertPlainToRecordPlain id.id_out history tlen f in
             let pv = pickSendPV (Conn(id,c)) in
             let c_write = c.write in
@@ -326,12 +343,18 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                                  write   = new_write }
                 (WriteAgain, Conn(id,c ))
             | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
-        | _ -> let closed = closeConnection (Conn(id,c)) in (WError(perror __SOURCE_FILE__ __LINE__ "Sending alert message in wrong state"),closed) (* Unrecoverable error *)
+        | _ ->
+            let closed = closeConnection (Conn(id,c)) in
+            let reason = perror __SOURCE_FILE__ __LINE__ "Sending alert message in wrong state" in
+            (WError(reason),closed) (* Unrecoverable error *)
       | (Alert.LastALFrag(tlen,f,ad),new_al_state) ->
         match c_write.disp with
-        | Init | FirstHandshake(_) | Open | Closing(_) ->
+        | Init | FirstHandshake(_) | Open | Closing(_,_) ->
             (* We're sending a fatal alert. Send it, then close both sending and receiving sides *)
             let history = Record.history id.id_out StatefulLHAE.WriterState c_write.conn in
+            let es = HSFragment.init id.id_out in
+            let hs = TLSFragment.alertHistory id.id_out history in
+            let f = HSFragment.reStream id.id_out es tlen f hs in
             let frag = TLSFragment.AlertPlainToRecordPlain id.id_out history tlen f in
             let pv = pickSendPV (Conn(id,c)) in
             let c_write = c.write in
@@ -344,7 +367,10 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                 let reason = getReason c_write.disp in
                 (SentFatal(ad,reason), closed)
             | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
-        | _ -> let closed = closeConnection (Conn(id,c)) in (WError(perror __SOURCE_FILE__ __LINE__ "Sending alert message in wrong state"),closed) (* Unrecoverable error *)
+        | _ ->
+            let closed = closeConnection (Conn(id,c)) in
+            let reason = perror __SOURCE_FILE__ __LINE__ "Sending alert message in wrong state" in
+            (WError(reason),closed) (* Unrecoverable error *)
       | (Alert.LastALCloseFrag(tlen,f),new_al_state) -> 
         match c_write.disp with
         | Init | FirstHandshake(_) | Open -> (* Not Closing: this is a graceful closure, should not happen in case of fatal alerts *)
@@ -352,6 +378,9 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                If we already received the other close notify, then reading is already closed,
                otherwise we wait to read it, then close. But do not close here. *)
             let history = Record.history id.id_out StatefulLHAE.WriterState c_write.conn in
+            let es = HSFragment.init id.id_out in
+            let hs = TLSFragment.alertHistory id.id_out history in
+            let f = HSFragment.reStream id.id_out es tlen f hs in
             let frag = TLSFragment.AlertPlainToRecordPlain id.id_out history tlen f in
             let pv = pickSendPV (Conn(id,c)) in
             let c_write = c.write in
@@ -366,8 +395,10 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
             | Error (x,y) -> 
                 let closed = closeConnection (Conn(id,c)) in 
                   (WError(y),closed) (* Unrecoverable error *)
-        | _ -> let closed = closeConnection (Conn(id,c)) in 
-                   (WError(perror __SOURCE_FILE__ __LINE__ "Sending alert message in wrong state"),closed) (* Unrecoverable error *)
+        | _ ->
+            let closed = closeConnection (Conn(id,c)) in
+            let reason = perror __SOURCE_FILE__ __LINE__ "Sending alert message in wrong state" in
+            (WError(reason),closed) (* Unrecoverable error *)
 
 let recv (Conn(id,c)) =
     match Tcp.read c.ns 5 with // read & parse the header
