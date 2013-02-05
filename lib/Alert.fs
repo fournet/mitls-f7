@@ -18,9 +18,9 @@ let init (ci:ConnectionInfo) = {al_incoming = [||]; al_outgoing = [||]}
 
 type ALFragReply =
     | EmptyALFrag
-    | ALFrag of range * HSFragment.fragment
-    | LastALFrag of range * HSFragment.fragment * alertDescription
-    | LastALCloseFrag of range * HSFragment.fragment
+    | ALFrag of range * HSFragment.plain
+    | LastALFrag of range * HSFragment.plain * alertDescription
+    | LastALCloseFrag of range * HSFragment.plain
 
 type alert_reply =
     | ALAck of state

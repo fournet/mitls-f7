@@ -28,8 +28,8 @@ val coerce: si:SessionInfo{not SafeHS_SI(si)} -> repr -> (;si)masterSecret
 val keyGen: ci:ConnectionInfo -> (;EpochSI(ci.id_out))masterSecret -> 
   ( w:(;ci.id_out)StatefulLHAE.writer * 
     r:(;ci.id_in) StatefulLHAE.reader ) 
-  { StatefulPlain.EmptyHistory(ci.id_out,w.history) /\
-    StatefulPlain.EmptyHistory(ci.id_in,r.history)}
+  { StatefulLHAE.History(ci.id_out,WriterState,w) = StatefulPlain.EmptyHistory(ci.id_out) /\
+    StatefulLHAE.History(ci.id_out,ReaderState,r) = StatefulPlain.EmptyHistory(ci.id_in)}
 
 private function val Fst: 'a -> 'b
 private function val Snd: 'a -> 'b

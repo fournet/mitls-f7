@@ -35,9 +35,8 @@ private type (;ki:epoch, h:(;ki)stream, r:range) delta = {contents: (;r) rbytes}
 function val Payload: e:epoch * s:(;e)stream * r:range * (;e,s,r)delta -> 'a // (;r)rbytes
 private definition !e,s,r,d. Payload(e,s,r,d) = d.contents
 
-predicate EmptyStream of ki:epoch * (;ki) stream 
-definition !ki,s. EmptyStream(ki,s) <=> s = {sb = []}
-ask !ki,s,s'. EmptyStream(ki,s) /\ EmptyStream(ki,s') => s = s'
+function val EmptyStream: e:epoch -> (;e)stream 
+private definition !e. EmptyStream(e) = {sb = []}
 
 function val ExtendStream: 'a * 'b * 'c * 'd -> 'e
 private definition !ki,s,r,d. ExtendStream(ki,s,r,d) = {sb = d.contents :: s.sb } 
@@ -63,7 +62,7 @@ val deltaBytes:
 //CF a cheap one is to use different names plus ifdefs in the .fsi
 
 // used by TLS
-val init: ki:epoch -> s:(;ki) stream{EmptyStream(ki,s)}
+val init: e:epoch -> s:(;e)stream{s=EmptyStream(e)}
 val append: 
   ki:epoch -> s: (;ki) stream -> r:range ->
   d:(;ki,s,r) delta -> s':(;ki) stream{s' = ExtendStream(ki,s,r,d)}

@@ -411,10 +411,11 @@ private val readOne: c:Connection ->
 
 private val writeOne: c:Connection ->
 	(wo:writeOutcome * c':Connection){
-		(?s. wo = WError(s)) \/
+		(?s. wo = WError(s) /\ NextCn(c,c')) \/
 		(wo = WAppDataDone /\ NextCn(c,c') /\ CnBuf_o(c') = None) \/
 		(wo = WMustRead /\ NextCn(c,c')) \/
 		(wo = WriteAgain /\
+				CnState_o(c) <> Finishing /\
 				CnState_o(c') = Finishing /\
 				Config(c) = Config(c') /\
 				Role(c) = Role(c') /\
@@ -422,13 +423,13 @@ private val writeOne: c:Connection ->
 				ConnectionEpochIn(c) = ConnectionEpochIn(c') /\
 				ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))) \/
 		(wo = WriteAgain /\
-				CnState_o(c') <> Finishing /\
+				(CnState_o(c) = CnState_o(c') \/ CnState_o(c') <> Finishing) /\
 				NextCn(c,c')) \/
 		(wo = WHSDone /\
 				CnState_o(c') = Open /\ CnState_i(c') = Open /\
 				NextCn(c,c')) \/
 		(?ad,r. wo = SentFatal(ad,r) /\ NextCn(c,c')) \/
-		(wo = SentClose)
+		(wo = SentClose /\ NextCn(c,c'))
 	}
      
 private val writeAll: c:Connection ->

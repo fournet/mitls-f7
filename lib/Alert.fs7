@@ -19,9 +19,9 @@ function val AlOutStream: ci:ConnectionInfo * (;ci)state -> 'a //(;ci.id_out)str
 
 type (;ki:epoch)ALFragReply =
     | EmptyALFrag
-    | ALFrag of          (rg:range * (;ki,rg)HSFragment.fragment)
-    | LastALFrag of      (rg:range * (;ki,rg)HSFragment.fragment * alertDescription)
-    | LastALCloseFrag of (rg:range * (;ki,rg)HSFragment.fragment)
+    | ALFrag of          (rg:range * (;ki,HSFragment.EmptyStream(ki),rg)HSFragment.plain)
+    | LastALFrag of      (rg:range * (;ki,HSFragment.EmptyStream(ki),rg)HSFragment.plain * alertDescription)
+    | LastALCloseFrag of (rg:range * (;ki,HSFragment.EmptyStream(ki),rg)HSFragment.plain)
 
 type (;ci:ConnectionInfo)alert_reply =
     | ALAck of          (;ci)state
@@ -101,7 +101,7 @@ val send_alert: ci:ConnectionInfo -> s:(;ci)state -> alertDescription ->
 		    (*AP  {AlOutStream(ci,s) = AlOutStream(ci,s') /\
 				  AlInStream(ci,s)  = AlInStream(ci,s')} *)
 
-val makeFragment: e:epoch -> b:bytes -> (rg:range * (;e,rg)HSFragment.fragment) * bytes
+val makeFragment: e:epoch -> b:bytes -> (rg:range * (;e,HSFragment.EmptyStream(e),rg)HSFragment.plain) * bytes
 
 val next_fragment: ci:ConnectionInfo -> s:(;ci)state ->
 	(res:(;ci.id_out)ALFragReply * s':(;ci)state)

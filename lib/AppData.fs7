@@ -41,7 +41,7 @@ val outStream: ci:ConnectionInfo -> s:(;ci)app_state -> st:(;ci.id_out)stream{st
 
 val init: ci:ConnectionInfo ->
 	s:(;ci)app_state{AppInBuf(ci,s) = None /\ AppOutBuf(ci,s) = None /\
-		EmptyStream(ci.id_in,AppInStream(ci,s)) /\ EmptyStream(ci.id_out,AppOutStream(ci,s))}
+		AppInStream(ci,s) = EmptyStream(ci.id_in) /\ AppOutStream(ci,s) = EmptyStream(ci.id_out)}
 
 val writeAppData: ci:ConnectionInfo -> s:(;ci)app_state ->
 	r:range -> d:(;ci.id_out,AppOutStream(ci,s),r)delta ->
@@ -85,11 +85,11 @@ val readAppData: ci:ConnectionInfo -> s:(;ci)app_state ->
 val reset_outgoing: ci:ConnectionInfo -> s:(;ci)app_state ->
 	ci':ConnectionInfo{ci'.role = ci.role /\ ci'.id_in = ci.id_in} ->
 	s':(;ci')app_state{AppOutBuf(ci',s') = None /\ 
-            EmptyStream(ci'.id_out,AppOutStream(ci',s')) /\
+            AppOutStream(ci',s') = EmptyStream(ci'.id_out) /\
             AppInStream(ci',s') = AppInStream(ci,s)}
 val reset_incoming: ci:ConnectionInfo -> s:(;ci)app_state ->
 	ci':ConnectionInfo{ci'.role = ci.role /\ ci'.id_out = ci.id_out} ->
 	s':(;ci')app_state{AppInBuf(ci',s') = None /\ 
-            EmptyStream(ci'.id_in,AppInStream(ci',s')) /\
+            AppInStream(ci',s') = EmptyStream(ci'.id_in) /\
             AppOutStream(ci',s') = AppOutStream(ci,s)}
 

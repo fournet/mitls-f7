@@ -73,30 +73,31 @@ val widen: e:succEpoch -> ct:ContentType ->
     !h. RecordSent(e,ct,h,r0,f0) => 
         RecordSent(e,ct,h,RangeClass(e,r0),f1)}
 
-//CF why not using a logical function instead?
-predicate EmptyHistory of e:epoch * (;e)history
-private definition !e,h. EmptyHistory(e,h) <=>
-	( HSFragment.EmptyStream(e,h.handshake) /\ HSFragment.EmptyStream(e,h.alert) /\
-	  HSFragment.EmptyStream(e,h.ccs)       /\ DataStream.EmptyStream(e,h.appdata) )
+function val EmptyHistory: e:epoch -> (;e)history
+private definition !e. EmptyHistory(e) = {
+	handshake = HSFragment.EmptyStream(e);
+	ccs = HSFragment.EmptyStream(e);
+	alert = HSFragment.EmptyStream(e);
+	appdata = DataStream.EmptyStream(e)}
 
-val emptyHistory: e:epoch -> h:(;e)history{EmptyHistory(e,h)}
+val emptyHistory: e:epoch -> h:(;e)history{h = EmptyHistory(e)}
     
-private assume !e,h,r,f. ExtendHistory(e,TLSConstants.Handshake,h,r,FHandshake(f)) = 
+private definition !e,h,r,f. ExtendHistory(e,TLSConstants.Handshake,h,r,FHandshake(f)) = 
 	 { handshake = HSFragment.Extend(e,HandshakeHistory(e,h),r,f);
 	   alert = AlertHistory(e,h);
 	   ccs = CCSHistory(e,h);
 	   appdata = AppDataHistory(e,h)}
-private assume !e,h,r,f. ExtendHistory(e,TLSConstants.Alert,h,r,FAlert(f)) = 
+private definition !e,h,r,f. ExtendHistory(e,TLSConstants.Alert,h,r,FAlert(f)) = 
 	 { handshake = HandshakeHistory(e,h);
 	   alert = HSFragment.Extend(e,AlertHistory(e,h),r,f);
 	   ccs = CCSHistory(e,h);
 	   appdata = AppDataHistory(e,h)}
-private assume !e,h,r,f. ExtendHistory(e,TLSConstants.Change_cipher_spec,h,r,FCCS(f)) = 
+private definition !e,h,r,f. ExtendHistory(e,TLSConstants.Change_cipher_spec,h,r,FCCS(f)) = 
 	 { handshake = HandshakeHistory(e,h);
 	   alert = AlertHistory(e,h);
 	   ccs = HSFragment.Extend(e,CCSHistory(e,h),r,f);
 	   appdata = AppDataHistory(e,h)}
-private assume !e,h,r,f. ExtendHistory(e,TLSConstants.Application_data,h,r,FAppData(f)) = 
+private definition !e,h,r,f. ExtendHistory(e,TLSConstants.Application_data,h,r,FAppData(f)) = 
 	 { handshake = HandshakeHistory(e,h);
 	   alert = AlertHistory(e,h);
 	   ccs = CCSHistory(e,h);
@@ -132,10 +133,10 @@ ask !e,h,h',r,f. h' = ExtendHistory(e,TLSConstants.Application_data,h,r,AppDataR
 	  CCSHistory(e,h') = CCSHistory(e,h) /\
 	  HandshakeHistory(e,h') = HandshakeHistory(e,h))
 
-ask !e,h. EmptyHistory(e,h) => HSFragment.EmptyStream(e,HandshakeHistory(e,h))
-ask !e,h. EmptyHistory(e,h) => HSFragment.EmptyStream(e,AlertHistory(e,h))
-ask !e,h. EmptyHistory(e,h) => HSFragment.EmptyStream(e,CCSHistory(e,h))
-ask !e,h. EmptyHistory(e,h) => DataStream.EmptyStream(e,AppDataHistory(e,h))
+ask !e. HandshakeHistory(e,EmptyHistory(e)) = HSFragment.EmptyStream(e)
+ask !e. AlertHistory(e,EmptyHistory(e))     = HSFragment.EmptyStream(e)
+ask !e. CCSHistory(e,EmptyHistory(e))       = HSFragment.EmptyStream(e)
+ask !e. AppDataHistory(e,EmptyHistory(e))   = DataStream.EmptyStream(e)
 
 val HSPlainToRecordPlain: e:epoch -> h:(;e)history -> r:range -> 
   d:(;e,HandshakeHistory(e,h),r) HSFragment.plain -> 

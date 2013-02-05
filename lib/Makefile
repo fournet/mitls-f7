@@ -17,7 +17,9 @@ xunit   ?= xunit.xml
 -include Makefile.tc7
 
 # default verification targets 
-default: Error.tc7 TLSConstants.tc7 TLSInfo.tc7 DataStream.tc7 Alert.tc7 AppFragment.tc7 HSFragment.tc7 TLSFragment.tc7 AppData.tc7 StatefulPlain.tc7 LHAEPlain.tc7 MAC.tc7 Encode.tc7 LHAE.tc7 StatefulLHAE.tc7 Record.tc7 Handshake.tc7 Dispatch.tc7 TLS.tc7 UTLS.tc7
+default: Error.tc7 \
+TLSInfo.tc7 DataStream.tc7 Alert.tc7 AppFragment.tc7 HSFragment.tc7 TLSFragment.tc7 AppData.tc7 StatefulPlain.tc7 LHAEPlain.tc7 MAC.tc7 \
+LHAE.tc7 StatefulLHAE.tc7 Record.tc7 TLS.tc7 UTLS.tc7
 
 #==Categories of .fs7 files==
 #

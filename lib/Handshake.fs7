@@ -47,7 +47,7 @@ val parseMessage: buf:bytes -> ((rem:bytes * ht:HandshakeType * x:bytes * to_log
 // Next predicate to make sure we can make fragments
 predicate type unsafe = Unsafe of epoch
 private definition !ki. Unsafe(ki) <=> not Auth(ki)
-val makeFragment: ki:epoch -> b:bytes -> (r:range * (;ki,r) HSFragment.fragment * bytes)
+val makeFragment: ki:epoch -> b:bytes -> (r:range * (;ki,HSFragment.EmptyStream(ki),r) HSFragment.plain * bytes)
 
 
 (* verify data authenticated by the Finished messages *)
@@ -880,23 +880,24 @@ private type (;ci:ConnectionInfo) hs_state = {
 function val Config: ci:ConnectionInfo * s:(;ci)hs_state -> config
 private definition !ci,s. Config(ci,s) = s.poptions
 
-function val HSOutStream:  ci:ConnectionInfo * (;ci)hs_state -> 'a //(;ci.id_out)stream
-function val CCSOutStream: ci:ConnectionInfo * (;ci)hs_state -> 'a //(;ci.id_out)stream
-function val HSInStream:   ci:ConnectionInfo * (;ci)hs_state -> 'a //(;ci.id_in) stream
-function val CCSInStream:  ci:ConnectionInfo * (;ci)hs_state -> 'a //(;ci.id_in) stream
-
-predicate EmptyStreams of ci:ConnectionInfo * (;ci)hs_state
-predicate SameStreams of ci:ConnectionInfo * (;ci)hs_state * (;ci)hs_state
-definition !ci,s. EmptyStreams(ci,s) <=> (
-		HSFragment.EmptyStream(ci.id_in,HSInStream(ci,s)) /\
-		HSFragment.EmptyStream(ci.id_in,CCSInStream(ci,s)) /\
-		HSFragment.EmptyStream(ci.id_out,HSOutStream(ci,s)) /\
-		HSFragment.EmptyStream(ci.id_out,CCSOutStream(ci,s)) )
-definition !ci,s,s'. SameStreams(ci,s,s') <=> (
-		HSInStream(ci,s') = HSInStream(ci,s) /\
-		CCSInStream(ci,s') = CCSInStream(ci,s) /\
-		HSOutStream(ci,s') = HSOutStream(ci,s) /\
-		CCSOutStream(ci,s') = CCSOutStream(ci,s) )
+// AP: Commenting out until we restore streams for HS. Should be ported to EmptyStream as functions
+// AP: function val HSOutStream:  ci:ConnectionInfo * (;ci)hs_state -> 'a //(;ci.id_out)stream
+// AP: function val CCSOutStream: ci:ConnectionInfo * (;ci)hs_state -> 'a //(;ci.id_out)stream
+// AP: function val HSInStream:   ci:ConnectionInfo * (;ci)hs_state -> 'a //(;ci.id_in) stream
+// AP: function val CCSInStream:  ci:ConnectionInfo * (;ci)hs_state -> 'a //(;ci.id_in) stream
+// AP: 
+// AP: predicate EmptyStreams of ci:ConnectionInfo * (;ci)hs_state
+// AP: predicate SameStreams of ci:ConnectionInfo * (;ci)hs_state * (;ci)hs_state
+// AP: definition !ci,s. EmptyStreams(ci,s) <=> (
+// AP: 		HSFragment.EmptyStream(ci.id_in,HSInStream(ci,s)) /\
+// AP: 		HSFragment.EmptyStream(ci.id_in,CCSInStream(ci,s)) /\
+// AP: 		HSFragment.EmptyStream(ci.id_out,HSOutStream(ci,s)) /\
+// AP: 		HSFragment.EmptyStream(ci.id_out,CCSOutStream(ci,s)) )
+// AP: definition !ci,s,s'. SameStreams(ci,s,s') <=> (
+// AP: 		HSInStream(ci,s') = HSInStream(ci,s) /\
+// AP: 		CCSInStream(ci,s') = CCSInStream(ci,s) /\
+// AP: 		HSOutStream(ci,s') = HSOutStream(ci,s) /\
+// AP: 		CCSOutStream(ci,s') = CCSOutStream(ci,s) )
 
 type (;ci:ConnectionInfo,c:config) nextState = s:(;ci)hs_state {Config(ci,s) = c}
 
@@ -935,16 +936,16 @@ val getNextEpochs: ci:ConnectionInfo -> si:SessionInfo -> crand -> srand -> ci':
 
 type (;ci:ConnectionInfo, hs:(;ci) hs_state) outgoing =
   | OutIdle of s':(;ci,Config(ci,hs))nextState
-  | OutSome of (rg:range * f:(;ci.id_out,rg)HSFragment.fragment * s':(;ci,Config(ci,hs))nextState)
-  | OutCCS of  (rg:range * f:(;ci.id_out,rg)HSFragment.fragment * 
+  | OutSome of (rg:range * f:(;ci.id_out,HSFragment.EmptyStream(ci.id_out),rg)HSFragment.plain * s':(;ci,Config(ci,hs))nextState)
+  | OutCCS of  (rg:range * f:(;ci.id_out,HSFragment.EmptyStream(ci.id_out),rg)HSFragment.plain * 
                ci':ConnectionInfo * cs:(;ci'.id_out,StatefulLHAE.WriterState)StatefulLHAE.state * s':(;ci',Config(ci,hs))nextState)
-               { StatefulPlain.EmptyHistory(ci'.id_out,StatefulLHAE.History(ci'.id_out,StatefulLHAE.WriterState,cs)) /\ 
+               { StatefulLHAE.History(ci'.id_out,StatefulLHAE.WriterState,cs) = StatefulPlain.EmptyHistory(ci'.id_out) /\ 
                  ci.id_out = Pred(ci'.id_out) /\
                  ci.id_in = ci'.id_in /\
                  ci.role = ci'.role }
-  | OutFinished of (rg:range * f:(;ci.id_out,rg)HSFragment.fragment * s':(;ci,Config(ci,hs))nextState){
+  | OutFinished of (rg:range * f:(;ci.id_out,HSFragment.EmptyStream(ci.id_out),rg)HSFragment.plain * s':(;ci,Config(ci,hs))nextState){
 				EvSentFinishedFirst(ci,true)}
-  | OutComplete of (rg:range * f:(;ci.id_out,rg)HSFragment.fragment * s':(;ci,Config(ci,hs))nextState)
+  | OutComplete of (rg:range * f:(;ci.id_out,HSFragment.EmptyStream(ci.id_out),rg)HSFragment.plain * s':(;ci,Config(ci,hs))nextState)
                    {Complete(ci,Config(ci,hs))}
 val next_fragment: ci:ConnectionInfo -> s:(;ci)hs_state -> (;ci,s)outgoing
 

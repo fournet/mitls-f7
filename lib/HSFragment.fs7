@@ -14,15 +14,15 @@ type (;e:epoch,s:(;e)stream,r:range)plain = f:(;e,r)fragment{Auth(e) => Sent(e,s
 function val Payload: e:epoch * r:range * (;e,r)fragment -> 'a // (;r)rbytes
 private definition !e,r,f. Payload(e,r,f) = f.frag
 
-val fragmentPlain: ki:epoch -> r:range -> b:(;r) rbytes -> f:(;ki,r) fragment{b = Payload(ki,r,f)}
+function val EmptyStream: e:epoch -> (;e)stream
+private definition !e. EmptyStream(e) = {sb = []}
+val init: e:epoch -> s:(;e)stream{s = EmptyStream(e)}
+
+val fragmentPlain: ki:epoch -> r:range -> b:(;r) rbytes -> f:(;ki,EmptyStream(ki),r) plain{b = Payload(ki,r,f)}
 val fragmentRepr:  ki:epoch -> r:range -> f:(;ki,r) fragment -> b:(;r) rbytes{b = Payload(ki,r,f)}
 
 val widen: e:epoch -> r0:range -> r1:range {r1 = RangeClass(e,r0)} -> 
     f0:(;e,r0)fragment -> f1:(;e,r1)fragment{Payload(e,r0,f0) = Payload(e,r1,f1) /\ !s. Sent(e,s,r0,f0) => Sent(e,s,r1,f1)}
-
-predicate EmptyStream of e:epoch * (;e)stream
-private definition !e,s. EmptyStream(e,s) <=> s = {sb = []}
-val init: e:epoch -> s:(;e)stream{EmptyStream(e,s)}
 
 function val Extend: e:epoch * s:(;e)stream * r:range * (;e,r)fragment -> 'a // (;e)stream
 private definition !ki,s,r,f. Extend(ki,s,r,f) = {sb = f.frag :: s.sb }

@@ -747,11 +747,11 @@ let getNextEpochs ci si crand srand =
 
 type outgoing =
   | OutIdle of nextState
-  | OutSome of range * HSFragment.fragment * nextState
-  | OutCCS of  range * HSFragment.fragment (* the unique one-byte CCS *) *
+  | OutSome of range * HSFragment.plain * nextState
+  | OutCCS of  range * HSFragment.plain (* the unique one-byte CCS *) *
                ConnectionInfo * StatefulLHAE.state * nextState
-  | OutFinished of range * HSFragment.fragment * nextState
-  | OutComplete of range * HSFragment.fragment * nextState
+  | OutFinished of range * HSFragment.plain * nextState
+  | OutComplete of range * HSFragment.plain * nextState
 
 let check_negotiation (r:Role) (si:SessionInfo) (c:config) = 
   Pi.assume (Negotiated(r,si,c,c)) (* FIXME: Dummy definition. 
