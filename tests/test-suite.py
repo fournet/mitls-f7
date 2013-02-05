@@ -237,7 +237,7 @@ def _main():
             modes    = parser.get(scenario, 'modes'   ).split(),
             reneg    = parser.getboolean(scenario, 'reneg'),
             pki      = parser.get(scenario, 'pki').strip() or None,
-            options  = set(parser.get(scenario, 'options').split()) or None,
+            options  = set(parser.get(scenario, 'options').split()) or [],
         )
 
         try:
