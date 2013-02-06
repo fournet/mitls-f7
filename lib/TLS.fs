@@ -79,8 +79,8 @@ let write c msg =
           WriteError(None, perror __SOURCE_FILE__ __LINE__ "Invalid dispatcher state. This is probably a bug, please report it")
       | SentFatal(ad,err) ->
           WriteError(Some(ad),err)
-      | WriteAgain ->
-          unexpectedError "[write] writeAll should never return WriteAgain"
+      | WriteAgain | WriteAgainFinishing ->
+          unexpectedError "[write] writeAll should never ask to write again"
 
 
 

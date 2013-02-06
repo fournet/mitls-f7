@@ -34,6 +34,7 @@ val half_shutdown: Connection -> unit
 type writeOutcome =
     | WError of string (* internal *)
     | WriteAgain (* Possibly more data to send *)
+    | WriteAgainFinishing (* Possibly more data to send, and the outgoing epoch changed *)
     | WAppDataDone (* No more data to send in the current state *)
     | WHSDone
     | WMustRead (* Read until completion of Handshake *)

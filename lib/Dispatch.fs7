@@ -195,6 +195,7 @@ type query = Cert.chain
 type writeOutcome =
     | WError of string 
     | WriteAgain (* Possibly more data to send *)
+	| WriteAgainFinishing (* Possibly more data to send, and the outgoing epoch changed *)
     | WAppDataDone (* No more data to send in the current state *)
     | WHSDone
     | WMustRead (* Read until completion of Handshake *)
@@ -415,31 +416,51 @@ private val readOne: c:Connection ->
 
 private val writeOne: c:Connection ->
 	(wo:writeOutcome * c':Connection){
+		// Errors
 		(?s. wo = WError(s) /\ NextCn(c,c')) \/
+		(?ad,r. wo = SentFatal(ad,r) /\ NextCn(c,c')) \/
+		(wo = SentClose /\ NextCn(c,c')) \/
+		// Other events
 		(wo = WAppDataDone /\ NextCn(c,c') /\ CnBuf_o(c') = None) \/
 		(wo = WMustRead /\ NextCn(c,c')) \/
-		(wo = WriteAgain /\
-				CnState_o(c) <> Finishing /\
-				CnState_o(c') = Finishing /\
+		(wo = WriteAgainFinishing /\
 				Config(c) = Config(c') /\
 				Role(c) = Role(c') /\
 				Rnd(c) = Rnd(c') /\
 				ConnectionEpochIn(c) = ConnectionEpochIn(c') /\
-				ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))) \/
-		(wo = WriteAgain /\
-				(CnState_o(c) = CnState_o(c') \/ CnState_o(c') <> Finishing) /\
-				NextCn(c,c')) \/
+				ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c')) ) \/
+		(wo = WriteAgain /\ NextCn(c,c')) \/
 		(wo = WHSDone /\
 				CnState_o(c') = Open /\ CnState_i(c') = Open /\
-				NextCn(c,c')) \/
-		(?ad,r. wo = SentFatal(ad,r) /\ NextCn(c,c')) \/
-		(wo = SentClose /\ NextCn(c,c'))
+				NextCn(c,c'))
 	}
-     
-private val writeAll: c:Connection ->
+
+private val writeAll: c:Connection -> wo:writeOutcome * c':Connection
+ 
+private val writeAllFinishing: c:Connection ->
+	wo:writeOutcome * c':(;c)nextCn{
+		(?s. wo = WError(s)) \/
+		(?ad,r. wo = SentFatal(ad,r)) \/
+		(wo = SentClose) \/
+		(wo = WMustRead)
+	}
+
+// Transitivity of NextCn
+ask !c0,c1,c2. NextCn(c0,c1) /\ NextCn(c1,c2) => NextCn(c0,c2)
+   
+private val writeAllTop: c:Connection ->
 	wo:writeOutcome * c':Connection{
-		//OOBResult_o(c,c',wo) \/
-		(wo = WAppDataDone /\ CnBuf_o(c') = None)}
+		(?s. wo = WError(s)) \/
+		(?ad,r. wo = SentFatal(ad,r)) \/
+		(wo = SentClose) \/
+		(wo = WAppDataDone /\ NextCn(c,c') /\ CnBuf_o(c') = None) \/
+		(wo = WMustRead /\
+			Config(c) = Config(c') /\
+			Role(c) = Role(c') /\
+			Rnd(c) = Rnd(c') /\
+			ConnectionEpochIn(c) = ConnectionEpochIn(c') /\
+			ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c')) )
+	}
 
 private val handleHandshakeOutcome: c:Connection -> (;CnInfo(c),Config(c))Handshake.incoming ->
 	readOutcome * Connection

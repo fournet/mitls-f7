@@ -58,6 +58,7 @@ type msg_o = (range * DataStream.delta)
 type writeOutcome =
     | WError of string (* internal *)
     | WriteAgain (* Possibly more data to send *)
+    | WriteAgainFinishing (* Possibly more data to send, and the outgoing epoch changed *)
     | WAppDataDone (* No more data to send in the current state *)
     | WHSDone
     | WMustRead (* Read until completion of Handshake *)
@@ -222,7 +223,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                         | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
                 | _ ->
                     // We are finishing a handshake. Force to read, so that we'll complete the handshake.
-                    (WMustRead,Conn(id,c))
+                    (WMustRead,Conn(id,c)) 
 
           | Handshake.OutCCS(rg,ccs,nextID,nextWrite,new_hs_state) ->
                     let nextWCS = Record.initConnState nextID.id_out StatefulLHAE.WriterState nextWrite in
@@ -248,7 +249,7 @@ let writeOne (Conn(id,c)) : writeOutcome * Connection =
                                              handshake = new_hs_state;
                                              alert = new_al;
                                              appdata = new_ad} in 
-                            (WriteAgain, Conn(nextID,c))
+                            (WriteAgainFinishing, Conn(nextID,c))
                         | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
                     | _ -> (* Internal error: send a fatal alert to the other side *)
                         let reason = perror __SOURCE_FILE__ __LINE__ "Sending CCS in wrong state" in
@@ -435,8 +436,27 @@ let recv (Conn(id,c)) =
 
 let rec writeAll c =
     match writeOne c with
-    | (WriteAgain,c) -> writeAll c
+    | (WriteAgain,c) | (WriteAgainFinishing,c) -> writeAll c
     | other -> other
+
+let rec writeAllFinishing conn =
+    match writeOne conn with
+    | (WError(x),conn) -> (WError(x), conn)
+    | (SentFatal(x,y),conn) -> (SentFatal(x,y),conn)
+    | (SentClose,conn) -> (SentClose,conn) 
+    | (WriteAgain,conn) -> writeAllFinishing conn
+    | (WMustRead, conn) -> (WMustRead, conn)
+    | (_,_) -> unexpectedError "[writeAllFinishing] writeOne returned wrong result"
+
+let rec writeAllTop conn =
+    match writeOne conn with
+    | (WError(x),conn) -> (WError(x), conn)
+    | (SentFatal(x,y),conn) -> (SentFatal(x,y),conn)
+    | (SentClose,conn) -> (SentClose,conn)
+    | (WAppDataDone,conn) -> (WAppDataDone,conn)
+    | (WriteAgain,conn) -> writeAllTop conn
+    | (WriteAgainFinishing,conn) -> writeAllFinishing conn
+    | (_,_) -> unexpectedError "[writeAllTop] writeOne returned wrong result"
 
 let handleHandshakeOutcome (Conn(id,c)) hsRes =
     let c_read = c.read in
@@ -648,7 +668,7 @@ let rec read c =
     | WHSDone -> c,WriteOutcome(WHSDone),None
     | SentFatal(ad,err) -> c,WriteOutcome(SentFatal(ad,err)),None
     | WError(err) -> c,WriteOutcome(WError(err)),None
-    | WriteAgain -> unexpectedError "[read] writeAll should never return WriteAgain"
+    | WriteAgain | WriteAgainFinishing -> unexpectedError "[read] writeAll should never return WriteAgain"
 
 let msgWrite (Conn(id,c)) (rg,d) =
   let (r0,r1) = DataStream.splitRange id.id_out rg in
@@ -667,7 +687,7 @@ let write (Conn(id,s)) msg =
   let (r0,d0) = msg0 in
   let new_appdata = AppData.writeAppData id s.appdata r0 d0 in
   let s = {s with appdata = new_appdata} in 
-  let (outcome,Conn(id,s)) = writeAll (Conn(id,s)) in
+  let (outcome,Conn(id,s)) = writeAllTop (Conn(id,s)) in
   let new_appdata = AppData.clearOutBuf id s.appdata in
   let s = {s with appdata = new_appdata} in
   (Conn(id,s)),outcome,rdOpt
