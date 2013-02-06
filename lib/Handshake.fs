@@ -842,7 +842,7 @@ let next_fragment ci state =
                                 {state with hs_outgoing = remBuf
                                             pstate = PSClient(ClientIdle(cvd,svd))})
 
-                | _ -> OutSome(rg,f,state)
+                | _ -> OutSome(rg,f,{state with hs_outgoing = remBuf})
             | PSServer(sstate) ->
                 match sstate with
                 | ServerWritingFinished(si,ms,e,cvd,svd) ->
@@ -864,9 +864,9 @@ let next_fragment ci state =
 #if verify
                     Pi.assume(EvSentFinishedFirst(ci,true));
 #endif
-                    OutFinished(rg,f,state)
-                | _ -> OutSome(rg,f,state)
-        | _ -> OutSome(rg,f,state)
+                    OutFinished(rg,f,{state with hs_outgoing = remBuf})
+                | _ -> OutSome(rg,f,{state with hs_outgoing = remBuf})
+        | _ -> OutSome(rg,f,{state with hs_outgoing = remBuf})
 
 type incoming = (* the fragment is accepted, and... *)
   | InAck of hs_state
