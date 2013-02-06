@@ -417,18 +417,38 @@ private val writeOne: c:Connection ->
 		(?ad,r. wo = SentFatal(ad,r) /\ NextCn(c,c')) \/
 		(wo = SentClose /\ NextCn(c,c')) \/
 		// Other events
-		(wo = WAppDataDone /\ NextCn(c,c') /\ CnBuf_o(c') = None) \/
-		(wo = WMustRead /\ NextCn(c,c')) \/
+		(wo = WAppDataDone /\
+			NextCn(c,c') /\
+			CnBuf_o(c) = None /\
+			Bytes_i(c') = Bytes_i(c) /\
+			Bytes_o(c') = Bytes_o(c) /\
+			CnBuf_o(c') = None) \/
+		(?m. wo = WAppDataDone /\
+			NextCn(c,c') /\
+			CnBuf_o(c) = Some(m) /\
+			Bytes_i(c') = Bytes_i(c) /\
+			Bytes_o(c') = DataStream.StreamBytes(ConnectionEpochOut(c'),ExtendStream_o(c,m)) /\
+			CnBuf_o(c') = None) \/
+		(wo = WMustRead /\
+			Bytes_i(c') = Bytes_i(c) /\
+			Bytes_o(c') = Bytes_o(c) /\
+			NextCn(c,c')) \/
 		(wo = WriteAgainFinishing /\
-				Config(c) = Config(c') /\
-				Role(c) = Role(c') /\
-				Rnd(c) = Rnd(c') /\
-				ConnectionEpochIn(c) = ConnectionEpochIn(c') /\
-				ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c')) ) \/
-		(wo = WriteAgain /\ NextCn(c,c')) \/
+			Bytes_i(c') = Bytes_i(c) /\
+			Bytes_o(c') = [||] /\
+			Config(c) = Config(c') /\
+			Role(c) = Role(c') /\
+			Rnd(c) = Rnd(c') /\
+			ConnectionEpochIn(c) = ConnectionEpochIn(c') /\
+			ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c')) ) \/
+		(wo = WriteAgain /\
+			NextCn(c,c') /\
+			Bytes_i(c') = Bytes_i(c) /\
+			Bytes_o(c') = Bytes_o(c)) \/
 		(wo = WHSDone /\
-				CnState_o(c') = Open /\ CnState_i(c') = Open /\
-				NextCn(c,c'))
+			Bytes_i(c') = Bytes_i(c) /\
+			Bytes_o(c') = Bytes_o(c) /\
+			NextCn(c,c'))
 	}
 
 private val writeAll: c:Connection -> wo:writeOutcome * c':Connection
@@ -438,7 +458,9 @@ private val writeAllFinishing: c:Connection ->
 		(?s. wo = WError(s)) \/
 		(?ad,r. wo = SentFatal(ad,r)) \/
 		(wo = SentClose) \/
-		(wo = WMustRead)
+		(wo = WMustRead /\
+			Bytes_i(c') = Bytes_i(c) /\
+			Bytes_o(c') = [||])
 	}
 
 // Transitivity of NextCn
@@ -451,6 +473,8 @@ private val writeAllTop: c:Connection ->
 		(wo = SentClose) \/
 		(wo = WAppDataDone /\ NextCn(c,c') /\ CnBuf_o(c') = None) \/
 		(wo = WMustRead /\
+			Bytes_i(c') = Bytes_i(c) /\
+			Bytes_o(c') = [||] /\
 			Config(c) = Config(c') /\
 			Role(c) = Role(c') /\
 			Rnd(c) = Rnd(c') /\

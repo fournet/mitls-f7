@@ -14,11 +14,19 @@ private type (;ki:epoch,r:range) fragment =
   {frag: (s:(;ki)stream * d:(;ki,s,r) delta{ Auth(ki) => DeltaFragment(ki,s,r,d)}) }
 
 function val Payload: e:epoch * r:range * (;e,r)fragment -> 'a //CF (;r)rbytes
-private definition !e,r,s,d,f. f.frag = (s,d) => Payload(e,r,f) = DataStream.Payload(e,s,r,d)
+private definition !e,r,s,d. Payload(e,r,{frag = (s,d)}) = DataStream.Payload(e,s,r,d)
 
+(* AP FIXME: next definition is wrong. It should be
+   Extend(ki,s,r,{frag = (s,d)}) = ExtendStream(ki,s,r,d)
+   Note there's no (s').
+   Not doing it now as it breaks some functions.
+*)
 function val Extend: 'a * 'b * 'c * 'd -> 'e
 private definition !ki,s,r,s',d. 
   Extend(ki,s,r,{frag = (s',d)}) = ExtendStream(ki,s,r,d)
+
+//AP theorem !e,r,f,s,d. Payload(e,r,f) = DataStream.Payload(e,s,r,d) =>
+//AP 	Extend(e,s,r,f) = ExtendStream(e,s,r,d)
 
 predicate Sent of ki:epoch * (;ki) stream * r:range * (;ki,r)fragment
 private definition !ki,s,r,f. Sent(ki,s,r,f) <=> 
