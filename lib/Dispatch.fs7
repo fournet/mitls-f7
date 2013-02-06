@@ -93,7 +93,7 @@ private definition !id,s. CnState_o(Conn(id,s)) = s.write.disp
 private definition !id,s. CnState_i(Conn(id,s)) = s.read.disp
 
 predicate CanWrite of ConnectionInfo
-definition !id. (?s. Handshake.Complete(id,Config(Conn(id,s))) ) <=> CanWrite(id)
+definition !id,s. Handshake.Complete(id,Config(Conn(id,s))) => CanWrite(id)
 
 function val ConnectionSIOut: Connection -> SessionInfo
 private definition !id,s. ConnectionSIOut(Conn(id,s)) = EpochSI(id.id_out)
@@ -139,15 +139,11 @@ private assume !id,s. Role(Conn(id,s)) = id.role
 function val Rnd: Connection -> random
 private assume !id,s. Rnd(Conn(id,s)) = id.id_rand
 
-//AP Why failing? Not sure that I need them anyway.
-//AP ask !id,id'. (id.id_out = id'.id_out /\ id.id_in = id'.id_in /\
-//AP 			  id.id_rand = id'.id_rand /\ id.role = id'.role) <=>
-//AP 			 id = id'
-//AP 
-//AP ask !c,c'. ( ConnectionEpochIn(c)  = ConnectionEpochIn(c')  /\
-//AP 			 ConnectionEpochOut(c) = ConnectionEpochOut(c') /\
-//AP 			 Role(c) = Role(c') /\
-//AP 			 Rnd(c) = Rnd(c') ) <=> CnInfo(c) = CnInfo(c')
+// Not provable in the untyped logic, because we don't know that c and c have the same type.
+theorem !c,c'. ( ConnectionEpochIn(c)  = ConnectionEpochIn(c')  /\
+			 ConnectionEpochOut(c) = ConnectionEpochOut(c') /\
+			 Role(c) = Role(c') /\
+			 Rnd(c) = Rnd(c') ) <=> CnInfo(c) = CnInfo(c')
 
 predicate Extend   of c:Connection * c':Connection
 predicate Extend_o of c:Connection * c':Connection * (;ConnectionEpochOut(c),CnStream_o(c)) msg_o
