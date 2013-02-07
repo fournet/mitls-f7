@@ -18,8 +18,7 @@ type fragment = {contents:StatefulPlain.fragment}
 type plain = fragment
 
 (*
-let widenRange (e:epoch) (d:adata) (rg:range) (p:plain) (rg':range) = 
-  p 
+let widenRange (e:epoch) (d:adata) (rg:range) (p:plain) (rg':range) = p 
 *)
 
 let plain (e:epoch) (ad:adata) (rg:range) b =

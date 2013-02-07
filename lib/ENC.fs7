@@ -9,7 +9,7 @@ open Encode
 open TLSInfo
 open Error
 
-(* CF
+(* CF (to be deleted)
 // TLSConstant should define  
 predicate IND_CPA of epoch 
 val ind_cpa: e:epoch -> b:bool{ b = true <=> IND_CPA(e) }
@@ -44,6 +44,7 @@ val GEN: ki:epoch -> (e:(;ki)encryptor{StateID(ki,e)=0}) * (d:(;ki)decryptor{Sta
 val LEAK:   ki:epoch{not Safe(ki)} -> (;ki)state -> key:bytes * iv:bytes
 val COERCE: ki:epoch{not Safe(ki)} -> key:bytes -> iv:bytes -> (;ki)state
 
+(* an abstract predicate recording all encryption results. *)
 predicate ENCrypted of
   (ki:epoch * tlen:int * int * (;ki,tlen) plain * cipher)
 

@@ -64,7 +64,9 @@ val encrypt : ki:succEpoch -> (;ki) LHAEKey -> ad:(;ki)LHAEPlain.adata ->
                              (Safe(ki) => ENCrypted(ki,c))}
 
 //CF unclear whether the log should include the plaintext; tried without, should rollback...
-type entry = ki:succEpoch * ad:(;ki) LHAEPlain.adata * rg:range * p:(;ki,ad,rg) LHAEPlain.plain * c:ENC.cipher {ENCrypted(ki,c)} 
+type entry = 
+  ki:succEpoch * ad:(;ki) LHAEPlain.adata * rg:range * 
+  p:(;ki,ad,rg) LHAEPlain.plain * c:ENC.cipher {ENCrypted(ki,c)} 
 private val log: entry list ref
 private val cmem: ki:succEpoch -> ad:(;ki)LHAEPlain.adata -> c:cipher ->  
   entry list -> res:(r:range * (;ki,ad,r)LHAEPlain.plain) option { 

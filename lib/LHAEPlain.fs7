@@ -8,7 +8,8 @@ open Range
 // `Plain' interface towards LHAE
 //------------------------------------------------------------------------------------------------------
 
-// We add an 8-byte sequence number to additional data.
+// We define payloads and additional data from those of StatefulPlain, 
+// adding an 8-byte sequence number to additional data.
 type (;e:epoch) adata = (b:bytes){Length(b) = 8 + StatefulPlain.ADLength(e)}
 
 function val MakeAD:  e:epoch * (;e)StatefulPlain.history * (;e)StatefulPlain.adata -> 'a // (;e)adata
@@ -29,11 +30,6 @@ private definition !e,ad,r,f,b.
 
 predicate LHAESent of e:epoch * ad:(;e)adata * r:range * (;e,ad,r)fragment
 type (;e:epoch,ad:(;e)adata,r:range) plain = f:(;e,ad,r)fragment{ Auth(e) => LHAESent(e,ad,r,f) }
-(*
-val widenRange: ki:epoch -> ad:(;ki)LHAEPlain.adata -> 
-                rg:range -> p:(;ki,ad,rg) LHAEPlain.plain ->
-                rg':range -> (;ki,ad,rg') LHAEPlain.plain
-*)
 val plain: e:succEpoch{not Auth(e)} -> ad:(;e)adata -> r:range -> b:(;r)rbytes -> p:(;e,ad,r) plain {b = Payload(e,ad,r,p)}
 val repr:  e:succEpoch{not Safe(e)} -> ad:(;e)adata -> r:range -> p:(;e,ad,r) plain -> b:(;r)rbytes {b = Payload(e,ad,r,p)}
 private val reprFragment:  e:succEpoch{not Safe(e)} -> ad:(;e)adata -> r:range -> f:(;e,ad,r) fragment -> b:(;r)rbytes {b = Payload(e,ad,r,f)}
@@ -58,7 +54,8 @@ ask !e,ad,h,h',ad',ad''. ad = MakeAD(e,h,ad') /\ ad = MakeAD(e,h',ad'') =>
 *)
 //CF ask !e,ad,ad',ad'',sn,h,h',r,f. Auth(e) /\ StatefulPlain.StAESent(e,ad',(sn,h),r,f) /\ StatefulPlain.StAEHistory(e,h') /\  HLength(e,h') = sn => h = h'
 
-//CF 22/4: these coercions are used only in StatefulLHAE.fs; they are not part of the "plain" interface to LHAE.
+(* These coercions are used only in StatefulLHAE.fs; 
+   they are not part of the "plain" interface to LHAE. *)
 
 function val StAEToLHAE: 'a -> 'b // StatefulPlain.plain -> plain
 private definition !p. StAEToLHAE(p) = {contents = p}
@@ -68,16 +65,3 @@ val StatefulPlainToLHAEPlain: e:epoch -> h:(;e)StatefulPlain.history -> ad:(;e)S
 
 val LHAEPlainToStatefulPlain: e:epoch -> h:(;e)StatefulPlain.history -> ad:(;e)StatefulPlain.adata -> r:range ->
   p:(;e,MakeAD(e,h,ad),r)plain -> f:(;e,ad,h,r)StatefulPlain.plain{p = StAEToLHAE(f)}
-
-//TODO------------------------------------------------------------------------------------------------------
-//TODO `Internal' interface towards StatefulPlain
-//TODO------------------------------------------------------------------------------------------------------
-
-//TODO val contents:  e:epoch -> r:range -> ad:(;e)adata -> (;e,r,ad)LHAEPlain ->
-//TODO 	sb:(;e,r)fragment{Auth(e) => LHAESent(e,ad,r,sb)}
-//TODO val construct: e:epoch -> r:range -> ad:(;e)adata ->
-//TODO 	sb:(;e,r)fragment{Auth(e) => LHAESent(e,ad,r,sb)}
-//TODO 	-> (;e,r,ad)LHAEPlain
-//TODO 
-//TODO function val LHAEContents: 'a -> 'b
-//TODO assume !f. LHAEContents(f) = f.contents
