@@ -76,7 +76,10 @@ val deltaRepr:
 
 val split: ki:epoch -> s:(;ki) stream -> 
   r0:range -> r1:range -> d:(;ki,s,Sum(r0,r1)) delta -> 
-  (d0:(;ki,s,r0) delta * d1:(;ki,ExtendStream(ki,s,r0,d0),r1) delta)
+  (d0:(;ki,s,r0) delta * d1:(;ki,ExtendStream(ki,s,r0,d0),r1) delta){
+	Payload(ki,s,Sum(r0,r1),d) =
+		Payload(ki,s,r0,d0) @| Payload(ki,ExtendStream(ki,s,r0,d0),r1,d1)
+  }
 
 val widen: ki:epoch -> s:(;ki) stream -> 
   r0:range -> r1:range{SubRange(r0,r1)} -> d0:(;ki,s,r0) delta ->

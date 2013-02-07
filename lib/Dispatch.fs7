@@ -93,7 +93,7 @@ private definition !id,s. CnState_o(Conn(id,s)) = s.write.disp
 private definition !id,s. CnState_i(Conn(id,s)) = s.read.disp
 
 predicate CanWrite of ConnectionInfo
-definition !id,s. Handshake.Complete(id,Config(Conn(id,s))) => CanWrite(id)
+definition !id. (?s. Handshake.Complete(id,Config(Conn(id,s))) ) <=> CanWrite(id)
 
 function val ConnectionSIOut: Connection -> SessionInfo
 private definition !id,s. ConnectionSIOut(Conn(id,s)) = EpochSI(id.id_out)
@@ -118,7 +118,7 @@ private definition !c,r,d.
 	ExtendStream_o(c,(r,d)) =
 	  DataStream.ExtendStream(ConnectionEpochOut(c),CnStream_o(c),r,d)
 
-function val CnBuf_o: c:Connection -> ((;ConnectionEpochOut(c),CnStream_o(c))msg_o) option
+function val CnBuf_o: c:Connection -> (r:range * (;ConnectionEpochOut(c),r)AppFragment.fragment * (;ConnectionEpochOut(c))DataStream.stream) option
 private definition !id,s. CnBuf_o(Conn(id,s)) = AppData.AppOutBuf(id,s.appdata)
 
 function val Bytes_o: Connection -> bytes
@@ -139,11 +139,14 @@ private assume !id,s. Role(Conn(id,s)) = id.role
 function val Rnd: Connection -> random
 private assume !id,s. Rnd(Conn(id,s)) = id.id_rand
 
-// Not provable in the untyped logic, because we don't know that c and c have the same type.
-theorem !c,c'. ( ConnectionEpochIn(c)  = ConnectionEpochIn(c')  /\
+ask !c,c',x1,x2,x3,x4,y1,y2,y3,y4,s,s'.  
+	c  = Conn({id_in = x1; id_out = x2; id_rand = x3; role = x4},s) /\
+	c' = Conn({id_in = y1; id_out = y2; id_rand = y3; role = y4},s') =>
+			( CnInfo(c) = CnInfo(c') <=>
+			 ( ConnectionEpochIn(c)  = ConnectionEpochIn(c')  /\
 			 ConnectionEpochOut(c) = ConnectionEpochOut(c') /\
 			 Role(c) = Role(c') /\
-			 Rnd(c) = Rnd(c') ) <=> CnInfo(c) = CnInfo(c')
+			 Rnd(c) = Rnd(c') ) )
 
 predicate Extend   of c:Connection * c':Connection
 predicate Extend_o of c:Connection * c':Connection * (;ConnectionEpochOut(c),CnStream_o(c)) msg_o
@@ -160,6 +163,9 @@ predicate Split_o of
 	* (;ConnectionEpochOut(c),CnStream_o(c))msg_o
 	* c':Connection
 	* (;ConnectionEpochOut(c'),CnStream_o(c'))msg_o
+private definition !c,m,m0,c',m1.
+	Split_o(c,m,m0,c',m1) <=>
+		MsgOBytes(c,m) = MsgOBytes(c,m0) @| MsgOBytes(c',m1)
 
 private definition !c, c'. 
 	Extend(c, c') <=>    Bytes_i(c') = Bytes_i(c)
@@ -423,11 +429,11 @@ private val writeOne: c:Connection ->
 			Bytes_i(c') = Bytes_i(c) /\
 			Bytes_o(c') = Bytes_o(c) /\
 			CnBuf_o(c') = None) \/
-		(?m. wo = WAppDataDone /\
+		(?r,f,s. wo = WAppDataDone /\
 			NextCn(c,c') /\
-			CnBuf_o(c) = Some(m) /\
+			CnBuf_o(c) = Some((r,f,s)) /\
 			Bytes_i(c') = Bytes_i(c) /\
-			Bytes_o(c') = DataStream.StreamBytes(ConnectionEpochOut(c'),ExtendStream_o(c,m)) /\
+			Bytes_o(c') = DataStream.StreamBytes(ConnectionEpochOut(c'),s) /\
 			CnBuf_o(c') = None) \/
 		(wo = WMustRead /\
 			Bytes_i(c') = Bytes_i(c) /\
@@ -471,7 +477,12 @@ private val writeAllTop: c:Connection ->
 		(?s. wo = WError(s)) \/
 		(?ad,r. wo = SentFatal(ad,r)) \/
 		(wo = SentClose) \/
-		(wo = WAppDataDone /\ NextCn(c,c') /\ CnBuf_o(c') = None) \/
+		(?r,f,s. wo = WAppDataDone /\
+			NextCn(c,c') /\
+			CnBuf_o(c) = Some((r,f,s)) /\
+			Bytes_i(c') = Bytes_i(c) /\
+			Bytes_o(c') = DataStream.StreamBytes(ConnectionEpochOut(c'),s) /\
+			CnBuf_o(c') = None) \/
 		(wo = WMustRead /\
 			Bytes_i(c') = Bytes_i(c) /\
 			Bytes_o(c') = [||] /\
@@ -492,9 +503,17 @@ val read: c:Connection ->
     }
 
 val msgWrite: c:Connection{CanWrite(CnInfo(c))} -> m:(;ConnectionEpochOut(c),CnStream_o(c))msg_o ->
-	res:(m0:(;ConnectionEpochOut(c),CnStream_o(c))msg_o * 
-	     m1:(;ConnectionEpochOut(c),ExtendStream_o(c,m0))msg_o option)
-	 {!m0. res=(m0,None) => MsgOBytes(c,m0) = MsgOBytes(c,m)}
+	res:(r:range * f:(;ConnectionEpochOut(c),CnStream_o(c),r)AppFragment.plain *
+		 s':(;ConnectionEpochOut(c))DataStream.stream *
+	     m1:(;ConnectionEpochOut(c),s')msg_o option)
+	 {(!r,f,s'. res=(r,f,s',None) =>
+			(s' = AppFragment.Extend(ConnectionEpochOut(c),CnStream_o(c),r,f) /\
+			 MsgOBytes(c,m) = AppFragment.Payload(ConnectionEpochOut(c),r,f)) ) /\
+	  (!r,f,s',r1,d1. res=(r,f,s',Some((r1,d1))) =>
+		(s' = AppFragment.Extend(ConnectionEpochOut(c),CnStream_o(c),r,f) /\
+		 MsgOBytes(c,m) =
+		  AppFragment.Payload(ConnectionEpochOut(c),r,f) @|
+		  DataStream.Payload(ConnectionEpochOut(c),s',r1,d1) ))}
 
 val write: c:Connection{CanWrite(CnInfo(c))} ->
 	m:(;ConnectionEpochOut(c),CnStream_o(c))msg_o ->

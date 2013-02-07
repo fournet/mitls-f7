@@ -13,7 +13,7 @@ val outStream: ConnectionInfo -> app_state -> stream
 
 val init: ConnectionInfo -> app_state
 
-val writeAppData: ConnectionInfo -> app_state -> range -> delta -> app_state
+val writeAppData: ConnectionInfo -> app_state -> range -> AppFragment.fragment -> stream -> app_state
 
 val next_fragment: ConnectionInfo -> app_state -> (range * AppFragment.fragment * app_state) option
 

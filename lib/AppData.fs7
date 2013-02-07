@@ -9,7 +9,11 @@ open Range
 private type (;ki:epoch) input_buffer =
 	h:(;ki) stream * (r:range * f:(;ki,r)AppFragment.fragment
 	{Auth(ki) => AppFragment.Sent(ki,h,r,f)}) option
-private type (;ki:epoch) output_buffer = h:(;ki) stream * (r:range * (;ki,h,r) delta) option
+private type (;ki:epoch) output_buffer =
+	| NoneBuf of (;ki)stream
+	| SomeBuf of s:(;ki) stream * r:range * f:(;ki,r)AppFragment.fragment *
+				 s':(;ki)stream{s' = AppFragment.Extend(ki,s,r,f) /\
+				 (Auth(ki) => AppFragment.Sent(ki,s,r,f))}
 
 private type (;ci:ConnectionInfo) app_state = {
     app_incoming: (;ci.id_in) input_buffer;
@@ -19,7 +23,8 @@ private type (;ci:ConnectionInfo) app_state = {
 private function val AppInStream_int: e:epoch * (;e)input_buffer -> 'a
 private definition !e,st,d. AppInStream_int(e,(st,d)) = st
 private function val AppOutStream_int: e:epoch * (;e)output_buffer -> 'a
-private definition !e,st,d. AppOutStream_int(e,(st,d)) = st
+private definition !e,s. AppOutStream_int(e,NoneBuf(s)) = s
+private definition !e,s,r,f,s'.	AppOutStream_int(e,SomeBuf(s,r,f,s')) = s
 
 function val AppInStream:  ci:ConnectionInfo * (;ci)app_state -> 'a //(;ci.id_in) stream
 function val AppOutStream: ci:ConnectionInfo * (;ci)app_state -> 'a //(;ci.id_out)stream
@@ -29,10 +34,11 @@ private definition !ci,s. AppOutStream(ci,s) = AppOutStream_int(ci.id_out,s.app_
 private function val AppInBuf_int: e:epoch * (;e)input_buffer -> 'a
 private definition !e,st,d. AppInBuf_int(e,(st,d)) = d
 private function val AppOutBuf_int: e:epoch * (;e)output_buffer -> 'a
-private definition !e,st,d. AppOutBuf_int(e,(st,d)) = d
+private definition !e,s. AppOutBuf_int(e,NoneBuf(s)) = None
+private definition !e,s,r,f,s'.	AppOutBuf_int(e,SomeBuf(s,r,f,s')) = Some((r,f,s'))
 
-function val AppInBuf:  ci:ConnectionInfo * (;ci)app_state -> 'a //(range * AppFragment.fragment) option
-function val AppOutBuf: ci:ConnectionInfo * (;ci)app_state -> 'a //(range * delta) option
+function val AppInBuf:  ci:ConnectionInfo * (;ci)app_state -> 'a //(range * AppFragment.plain) option
+function val AppOutBuf: ci:ConnectionInfo * (;ci)app_state -> 'a //(range * AppFragment.plain * stream) option
 private definition !ci,s. AppInBuf(ci,s) = AppInBuf_int(ci.id_in,s.app_incoming)
 private definition !ci,s. AppOutBuf(ci,s) = AppOutBuf_int(ci.id_out,s.app_outgoing)
 
@@ -44,8 +50,9 @@ val init: ci:ConnectionInfo ->
 		AppInStream(ci,s) = EmptyStream(ci.id_in) /\ AppOutStream(ci,s) = EmptyStream(ci.id_out)}
 
 val writeAppData: ci:ConnectionInfo -> s:(;ci)app_state ->
-	r:range -> d:(;ci.id_out,AppOutStream(ci,s),r)delta ->
-	s':(;ci)app_state{AppOutBuf(ci,s') = Some((r,d)) /\
+	r:range -> f:(;ci.id_out,r)AppFragment.fragment{Auth(ci.id_out) => AppFragment.Sent(ci.id_out,AppOutStream(ci,s),r,f)} ->
+	st:(;ci.id_out)stream{st = AppFragment.Extend(ci.id_out,AppOutStream(ci,s),r,f)} ->
+	s':(;ci)app_state{AppOutBuf(ci,s') = Some((r,f,st)) /\
 		AppInBuf(ci,s') = AppInBuf(ci,s) /\
 		AppOutStream(ci,s') = AppOutStream(ci,s) /\
 		AppInStream (ci,s') = AppInStream (ci,s)}
@@ -54,8 +61,6 @@ val next_fragment: ci:ConnectionInfo{IsSuccEpoch(ci.id_out)} -> s:(;ci)app_state
 	ro:((r:range * f:(;ci.id_out,r)AppFragment.fragment * s':(;ci)app_state)
 	{(Auth(ci.id_out) => AppFragment.Sent(ci.id_out,AppOutStream(ci,s),r,f) ) /\
 	 AppOutStream(ci,s') = AppFragment.Extend(ci.id_out,AppOutStream(ci,s),r,f) /\
-	 (?d. AppOutBuf(ci,s) = Some((r,d)) /\
-	      DataStream.Payload(ci.id_out,AppOutStream(ci,s),r,d) = AppFragment.Payload(ci.id_out,r,f) ) /\
 	 AppOutBuf(ci,s') = None /\
 	 AppInBuf(ci,s') = AppInBuf(ci,s) /\
 	 AppInStream (ci,s') = AppInStream (ci,s)}) option{ro = None => AppOutBuf(ci,s) = None}

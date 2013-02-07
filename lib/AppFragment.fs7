@@ -13,7 +13,7 @@ predicate DeltaFragment of ki:epoch * s:(;ki) stream * r:range * (;ki,s,r)delta
 private type (;ki:epoch,r:range) fragment = 
   {frag: (s:(;ki)stream * d:(;ki,s,r) delta{ Auth(ki) => DeltaFragment(ki,s,r,d)}) }
 
-function val Payload: e:epoch * r:range * (;e,r)fragment -> 'a //CF (;r)rbytes
+function val Payload: e:epoch * r:range * (;e,r)fragment -> 'a // (;r)rbytes
 private definition !e,r,s,d. Payload(e,r,{frag = (s,d)}) = DataStream.Payload(e,s,r,d)
 
 (* AP FIXME: next definition is wrong. It should be
@@ -25,8 +25,14 @@ function val Extend: 'a * 'b * 'c * 'd -> 'e
 private definition !ki,s,r,s',d. 
   Extend(ki,s,r,{frag = (s',d)}) = ExtendStream(ki,s,r,d)
 
-//AP theorem !e,r,f,s,d. Payload(e,r,f) = DataStream.Payload(e,s,r,d) =>
-//AP 	Extend(e,s,r,f) = ExtendStream(e,s,r,d)
+predicate FragOfDelta of e:epoch * r:range * (;e,r)fragment * s:(;e)stream * (;e,s,r)delta
+private definition !e,r,f,s,d.
+	FragOfDelta(e,r,f,s,d) <=> f.frag = (s,d)
+
+ask !e,r,f,s,d. FragOfDelta(e,r,f,s,d) =>
+	Payload(e,r,f) = DataStream.Payload(e,s,r,d)
+ask !e,r,f,s,d. FragOfDelta(e,r,f,s,d) =>
+ 	Extend(e,s,r,f) = ExtendStream(e,s,r,d)
 
 predicate Sent of ki:epoch * (;ki) stream * r:range * (;ki,r)fragment
 private definition !ki,s,r,f. Sent(ki,s,r,f) <=> 
@@ -38,11 +44,11 @@ type (;e:epoch,s:(;e)stream,r:range)plain = f:(;e,r) fragment{Auth(e) => Sent(e,
 
 val fragment: ki:epoch -> s:(;ki) stream -> r:range ->
   d:(;ki,s,r) delta -> 
-  (f:(;ki,r) fragment * s':(;ki) stream){Sent(ki,s,r,f) /\ s' = Extend(ki,s,r,f) /\ Payload(ki,r,f) = DataStream.Payload(ki,s,r,d)}
+  (f:(;ki,r) fragment * s':(;ki) stream){Sent(ki,s,r,f) /\ s' = Extend(ki,s,r,f) /\ FragOfDelta(ki,r,f,s,d)}
 
 val delta: ki:epoch -> s:(;ki) stream -> r:range -> 
   f:(;ki,r) fragment{Auth(ki) => Sent(ki,s,r,f)} -> 
-  d:(;ki,s,r) delta * s':(;ki) stream{s' = Extend(ki,s,r,f)}
+  d:(;ki,s,r) delta * s':(;ki) stream{s' = Extend(ki,s,r,f)} //AP /\ FragOfDelta(ki,r,f,s,d)}
 
 //CF what for?
 val delta': ki:epoch -> s:(;ki) stream -> r:range -> 
