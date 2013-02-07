@@ -449,6 +449,7 @@ private val writeOne: c:Connection ->
 			ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c')) ) \/
 		(wo = WriteAgain /\
 			NextCn(c,c') /\
+			CnBuf_o(c') = CnBuf_o(c) /\
 			Bytes_i(c') = Bytes_i(c) /\
 			Bytes_o(c') = Bytes_o(c)) \/
 		(wo = WHSDone /\
@@ -472,7 +473,7 @@ private val writeAllFinishing: c:Connection ->
 // Transitivity of NextCn
 ask !c0,c1,c2. NextCn(c0,c1) /\ NextCn(c1,c2) => NextCn(c0,c2)
    
-private val writeAllTop: c:Connection ->
+private val writeAllTop: c:Connection{?r,f,s. CnBuf_o(c) = Some((r,f,s))} ->
 	wo:writeOutcome * c':Connection{
 		(?s. wo = WError(s)) \/
 		(?ad,r. wo = SentFatal(ad,r)) \/
