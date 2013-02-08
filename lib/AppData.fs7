@@ -65,6 +65,7 @@ val next_fragment: ci:ConnectionInfo{IsSuccEpoch(ci.id_out)} ->
   ro:((r:range * f:(;ci.id_out,r)AppFragment.fragment * s':(;ci)app_state)
 	{(Auth(ci.id_out) => AppFragment.Sent(ci.id_out,AppOutStream(ci,s),r,f) ) /\
 	  AppOutStream(ci,s') = AppFragment.Extend(ci.id_out,AppOutStream(ci,s),r,f) /\
+	  AppOutBuf(ci,s) = Some((r,f,AppFragment.Extend(ci.id_out,AppOutStream(ci,s),r,f))) /\
 	  AppOutBuf(ci,s') = None /\
 	  AppInBuf(ci,s') = AppInBuf(ci,s) /\
 	  AppInStream (ci,s') = AppInStream (ci,s)}) option{

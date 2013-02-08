@@ -46,6 +46,7 @@ private definition !e,s,h,t.
  (s.sb = []   /\ StreamBytes(e,s) = [||]) \/
  (s.sb = h::t /\ StreamBytes(e,s) = (StreamBytes(e,{sb=t}) @| h))
 
+ask !e. StreamBytes(e,EmptyStream(e)) = [||]
 ask !e,s,r,d. StreamBytes(e,ExtendStream(e,s,r,d)) = ( StreamBytes(e,s) @| Payload(e,s,r,d) )
 
 // The following two functions are 

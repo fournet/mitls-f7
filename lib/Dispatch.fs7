@@ -121,10 +121,10 @@ private definition !c,r,d.
 function val CnBuf_o: c:Connection -> (r:range * (;ConnectionEpochOut(c),r)AppFragment.fragment * (;ConnectionEpochOut(c))DataStream.stream) option
 private definition !id,s. CnBuf_o(Conn(id,s)) = AppData.AppOutBuf(id,s.appdata)
 
-function val Bytes_o: Connection -> bytes
 function val Bytes_i: Connection -> bytes
-private definition !c. Bytes_o(c) = DataStream.StreamBytes(ConnectionEpochIn (c), CnStream_i(c))
-private definition !c. Bytes_i(c) = DataStream.StreamBytes(ConnectionEpochOut(c), CnStream_o(c))
+function val Bytes_o: Connection -> bytes
+private definition !c. Bytes_i(c) = DataStream.StreamBytes(ConnectionEpochIn (c), CnStream_i(c))
+private definition !c. Bytes_o(c) = DataStream.StreamBytes(ConnectionEpochOut(c), CnStream_o(c))
 
 predicate EvWrite      of epoch * bytes
 predicate EvWarning    of epoch * alertDescription * bytes
@@ -378,7 +378,9 @@ val half_shutdown: c:Connection -> unit
 private val moveToOpenState: c:Connection ->
 	(gs:(;CnInfo(c))globalState{
 		gs.write.disp = Open /\ gs.read.disp = Open /\
-		Config(c) = Handshake.Config(CnInfo(c),gs.handshake)
+		Config(c) = Handshake.Config(CnInfo(c),gs.handshake) /\
+		Bytes_o(c) = DataStream.StreamBytes(ConnectionEpochOut(c),AppData.AppOutStream(CnInfo(c), gs.appdata)) /\
+		Bytes_i(c) = DataStream.StreamBytes(ConnectionEpochIn(c),AppData.AppInStream(CnInfo(c), gs.appdata))
 	}) Result
 
 function val PickSendPV: Connection -> TLSConstants.ProtocolVersion
@@ -393,10 +395,13 @@ private definition !id,s.
 
 private val pickSendPV: c:Connection -> pv:TLSConstants.ProtocolVersion{pv = PickSendPV(c)}
 
-private val closeConnection: c:Connection-> c':(;c) nextCn{CnState_o(c') = Closed /\ CnState_i(c') = Closed}
+private val closeConnection: c:Connection-> c':(;c) nextCn{
+	CnState_o(c') = Closed /\ CnState_i(c') = Closed /\
+	Bytes_o(c') = Bytes_o(c) /\ Bytes_i(c') = Bytes_i(c) /\ CnBuf_o(c') = CnBuf_o(c)}
 
 private val abortWithAlert: c:Connection -> alertDescription -> s:string ->
-	c':(;c)nextCn{CnState_o(c') = Closing(PickSendPV(c),s) /\ CnState_i(c') = Closed}
+	c':(;c)nextCn{CnState_o(c') = Closing(PickSendPV(c),s) /\ CnState_i(c') = Closed /\
+		Bytes_o(c') = Bytes_o(c) /\ Bytes_i(c') = Bytes_i(c) /\ CnBuf_o(c') = CnBuf_o(c)}
 
 private val getReason: predispatchState -> string
 
@@ -416,7 +421,12 @@ private val recv: c:Connection ->
 private val readOne: c:Connection ->
 	readOutcome * Connection
 
-private val writeOne: c:Connection ->
+private val writeOne: c:Connection -> r:range -> f:(;ConnectionEpochOut(c),r)AppFragment.fragment ->
+	s:(;e)DataStream.stream{CnBuf_o(c) = None \/
+		(
+			CnBuf_o(c) = Some((r,f,s)) /\
+			s = AppFragment.Extend(ConnectionEpochOut(c),CnStream_o(c),r,f)
+		)} ->
 	(wo:writeOutcome * c':Connection){
 		// Errors
 		(?s. wo = WError(s) /\ NextCn(c,c')) \/
@@ -429,11 +439,11 @@ private val writeOne: c:Connection ->
 			Bytes_i(c') = Bytes_i(c) /\
 			Bytes_o(c') = Bytes_o(c) /\
 			CnBuf_o(c') = None) \/
-		(?r,f,s. wo = WAppDataDone /\
+		(wo = WAppDataDone /\
 			NextCn(c,c') /\
 			CnBuf_o(c) = Some((r,f,s)) /\
 			Bytes_i(c') = Bytes_i(c) /\
-			Bytes_o(c') = DataStream.StreamBytes(ConnectionEpochOut(c'),s) /\
+			Bytes_o(c') = DataStream.StreamBytes(ConnectionEpochOut(c),s) /\
 			CnBuf_o(c') = None) \/
 		(wo = WMustRead /\
 			Bytes_i(c') = Bytes_i(c) /\
@@ -442,6 +452,7 @@ private val writeOne: c:Connection ->
 		(wo = WriteAgainFinishing /\
 			Bytes_i(c') = Bytes_i(c) /\
 			Bytes_o(c') = [||] /\
+			CnBuf_o(c') = None /\
 			Config(c) = Config(c') /\
 			Role(c) = Role(c') /\
 			Rnd(c) = Rnd(c') /\
@@ -458,9 +469,13 @@ private val writeOne: c:Connection ->
 			NextCn(c,c'))
 	}
 
-private val writeAll: c:Connection -> wo:writeOutcome * c':Connection
+private val ghostFragment: e:epoch -> (r:range * (;e,r)AppFragment.fragment * (;e)DataStream.stream)
+
+private val writeAll: c:Connection{CnBuf_o(c) = None} -> wo:writeOutcome * c':Connection
  
-private val writeAllFinishing: c:Connection ->
+private val writeAllFinishing: c:Connection{CnBuf_o(c) = None /\ Bytes_o(c) = [||]} ->
+	r:range -> f:(;ConnectionEpochOut(c),r)AppFragment.fragment ->
+	s:(;ConnectionEpochOut(c))DataStream.stream ->
 	wo:writeOutcome * c':(;c)nextCn{
 		(?s. wo = WError(s)) \/
 		(?ad,r. wo = SentFatal(ad,r)) \/
@@ -473,16 +488,20 @@ private val writeAllFinishing: c:Connection ->
 // Transitivity of NextCn
 ask !c0,c1,c2. NextCn(c0,c1) /\ NextCn(c1,c2) => NextCn(c0,c2)
    
-private val writeAllTop: c:Connection{?r,f,s. CnBuf_o(c) = Some((r,f,s))} ->
+private val writeAllTop: c:Connection -> r:range -> f:(;ConnectionEpochOut(c),r)AppFragment.fragment ->
+	s:(;ConnectionEpochOut(c))DataStream.stream{
+		CnBuf_o(c) = Some((r,f,s)) /\
+		s = AppFragment.Extend(ConnectionEpochOut(c),CnStream_o(c),r,f)
+	} ->
 	wo:writeOutcome * c':Connection{
 		(?s. wo = WError(s)) \/
 		(?ad,r. wo = SentFatal(ad,r)) \/
 		(wo = SentClose) \/
-		(?r,f,s. wo = WAppDataDone /\
+		(wo = WAppDataDone /\
 			NextCn(c,c') /\
-			CnBuf_o(c) = Some((r,f,s)) /\
+			//CnBuf_o(c) = Some((r,f,s)) /\
 			Bytes_i(c') = Bytes_i(c) /\
-			Bytes_o(c') = DataStream.StreamBytes(ConnectionEpochOut(c'),s) /\
+			Bytes_o(c') = DataStream.StreamBytes(ConnectionEpochOut(c),s) /\
 			CnBuf_o(c') = None) \/
 		(wo = WMustRead /\
 			Bytes_i(c') = Bytes_i(c) /\
