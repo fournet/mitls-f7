@@ -56,14 +56,19 @@ val writeAppData: ci:ConnectionInfo -> s:(;ci)app_state ->
 		AppInBuf(ci,s') = AppInBuf(ci,s) /\
 		AppOutStream(ci,s') = AppOutStream(ci,s) /\
 		AppInStream (ci,s') = AppInStream (ci,s)}
-		
-val next_fragment: ci:ConnectionInfo{IsSuccEpoch(ci.id_out)} -> s:(;ci)app_state ->
-	ro:((r:range * f:(;ci.id_out,r)AppFragment.fragment * s':(;ci)app_state)
+	
+private val noneBuf: e:epoch -> s:(;e) stream -> o:(;e) output_buffer{o = NoneBuf(s)}
+private val some: x:'a -> o:'a option{o = Some(x)}
+	
+val next_fragment: ci:ConnectionInfo{IsSuccEpoch(ci.id_out)} -> 
+  s:(;ci)app_state ->
+  ro:((r:range * f:(;ci.id_out,r)AppFragment.fragment * s':(;ci)app_state)
 	{(Auth(ci.id_out) => AppFragment.Sent(ci.id_out,AppOutStream(ci,s),r,f) ) /\
-	 AppOutStream(ci,s') = AppFragment.Extend(ci.id_out,AppOutStream(ci,s),r,f) /\
-	 AppOutBuf(ci,s') = None /\
-	 AppInBuf(ci,s') = AppInBuf(ci,s) /\
-	 AppInStream (ci,s') = AppInStream (ci,s)}) option{ro = None => AppOutBuf(ci,s) = None}
+	  AppOutStream(ci,s') = AppFragment.Extend(ci.id_out,AppOutStream(ci,s),r,f) /\
+	  AppOutBuf(ci,s') = None /\
+	  AppInBuf(ci,s') = AppInBuf(ci,s) /\
+	  AppInStream (ci,s') = AppInStream (ci,s)}) option{
+    ro = None => AppOutBuf(ci,s) = None}
 
 val clearOutBuf: ci:ConnectionInfo -> s:(;ci)app_state ->
 	s':(;ci)app_state{

@@ -35,6 +35,8 @@ let writeAppData (c:ConnectionInfo) (a:app_state) (r:range) (f:AppFragment.plain
     let s = outStream c a in
     {a with app_outgoing = SomeBuf(s,r,f,s')}
 
+let noneBuf ki s = NoneBuf(s)
+let some x = Some x
 // When polled, gives Dispatch the next fragment to be delivered,
 // and commits to it (adds it to the output stream)
 let next_fragment (c:ConnectionInfo) (a:app_state) =
@@ -42,9 +44,8 @@ let next_fragment (c:ConnectionInfo) (a:app_state) =
     match out with
     | NoneBuf(_) -> None
     | SomeBuf (s,r,f,s') ->
-    let state = {a with app_outgoing = NoneBuf(s')} in
-    let res = (r,f,state) in
-    Some(res)
+        let b' = noneBuf c.id_out s' in
+        some (r,f,{a with app_outgoing = b'})
 
 // Clear contents from the output buffer
 let clearOutBuf (c:ConnectionInfo) (a:app_state) =
