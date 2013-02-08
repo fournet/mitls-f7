@@ -47,9 +47,10 @@ private val finish_log: (SessionInfo * bytes * bytes) list ref
 
 predicate VerifyData of epoch * Role * bytes
 
-val makeVerifyData: e:succEpoch -> r:Role -> (;EpochSI(e)) masterSecret ->
-                   log:bytes{VerifyData(e,r,log)} -> 
-                   bytes (* length depends on cs, 12 by default *)
+val makeVerifyData: e:succEpoch -> 
+  r:Role -> (;EpochSI(e)) masterSecret -> 
+  log:bytes{VerifyData(e,r,log)} -> 
+  bytes (* length depends on cs, 12 by default *)
 
 val checkVerifyData: e:succEpoch -> r:Role -> (;EpochSI(e)) masterSecret ->
 				   log:bytes (* the log *) ->
