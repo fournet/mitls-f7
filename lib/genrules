@@ -248,7 +248,8 @@ def _main():
         print ' '.join(fs7default)
 
     if options.mode == 'json':
-        jsondata = { name: fs7deps_m[name] for name in fs7default }
+        jsondata = { name: [os.path.splitext(x)[0] for x in fs7deps_m[name]] \
+                         for name in fs7default }
         print json.dumps(jsondata)
 
 # --------------------------------------------------------------------
