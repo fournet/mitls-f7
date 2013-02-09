@@ -173,7 +173,8 @@ class FS7Deps(object):
             modules  = set()
 
             for ext in ['.fs', '.fsi', '.fs7']:
-                contents = open(srcfiles[name.lower() + ext], 'r').read()
+                contents = srcfiles[name.lower() + ext]
+                contents = open(os.path.join(srcdir, contents), 'r').read()
                 contents = re.sub(r'\(\*(?:.|\r|\n)*?\*\)', '', contents, 0)
                 contents = re.sub(r'".*?"', '', contents)
                 contents = contents.splitlines()
