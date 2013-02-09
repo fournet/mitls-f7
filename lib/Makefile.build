@@ -11,7 +11,7 @@ include ../Makefile.config
 all: $(target)
 
 dist:
-	cp Makefile Makefile.config $(src) $(src7) $(distdir)
+	cp Makefile.config $(src) $(distdir)
 
 dist-f7:
 	cp $(src) $(src7) $(distdir)

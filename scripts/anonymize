@@ -48,8 +48,7 @@ def parser(mode):
     return ml_comments | ss_comments | ml_strings
 
 # --------------------------------------------------------------------
-def filter_hashes(input, defined):
-    tokeep = ["mono"]
+def filter_hashes(input, symbols):
     hif    = re.compile(r'^\s*#\s*if\s+(\w+)\s*$')
     helse  = re.compile(r'^\s*#\s*else\b')
     hend   = re.compile(r'^\s*#\s*endif\b')
@@ -57,10 +56,12 @@ def filter_hashes(input, defined):
     output = []
 
     class Mode(object):
+        MODE_OF_KIND = dict(I = None, U = False, D = True)
+
         def ofname(name):
-            if name in tokeep:
-                return None
-            return name in defined
+            dfl  = 'I' if name == 'mono' else 'U'
+            kind = symbols.get(name, dfl)
+            return Mode.MODE_OF_KIND[kind]
         ofname = staticmethod(ofname)
 
         def flip(mode):
@@ -109,7 +110,12 @@ def _options(args):
 
     modes  = 'full|release[:kw1,...,kwn]'
     parser = OptionParser(usage = '%prog <options> [filenames...]')
-    
+
+    def osymbol(option, opt, value, parser, kind):
+         parser.values \
+             .ensure_value(option.dest, dict()) \
+             [value] = kind
+
     parser.add_option("-B", None,
                       action  = "store_false",
                       dest    = "backup",
@@ -124,13 +130,17 @@ def _options(args):
                       help    = "set anonymisation mode [%s]" % (modes,),
                       default = 'full',
                       metavar = "MODE")
-    parser.add_option("-D", None,
-                      dest    = "defined",
-                      help    = "define symbol SYMBOL (implied -D)",
-                      action  = "append",
-                      metavar = "SYMBOL",
-                      default = [])
+    for x in ("D", "U", "I"):
+        parser.add_option("-%s" % (x,), None,
+                          dest          = "symbols",
+                          help          = "define symbol SYMBOL (implied -P)",
+                          action        = "callback",
+                          callback      = osymbol,
+                          callback_args = (x,),
+                          type          = str,
+                          metavar       = "SYMBOL")
     parser.add_option("-P", None,
+                      action  = 'store_true',
                       dest    = "preprocess",
                       help    = "preprocess file for #symbols",
                       default = False)
@@ -160,8 +170,10 @@ def _options(args):
     else:
         parser.error('invalid mode: %s' % (options.mode,))
 
-    if options.defined:
+    if options.symbols is not None:
         options.preprocess = True
+    else:
+        options.symbols = dict()
 
     return (options, args)
 
@@ -181,7 +193,7 @@ def _process_file(filename, options):
     output = [x.rstrip() for x in output.splitlines()]
 
     if options.preprocess:
-        output = filter_hashes(output, set(options.defined))
+        output = filter_hashes(output, options.symbols.copy())
 
     output = CRLN.join(output) + CRLN
     output = re.sub('(?:\r\n){3,}', 2 * CRLN, output)

@@ -37,8 +37,13 @@ libperv   = $(lib7)pervasives.fs7 $(lib7)tuples.fs7
 lperv     = -pervasives $(lib7)pervasives.fs7 -tuples $(lib7)tuples.fs7
 libfs7    = $(lib7)pi.fs7 $(lib7)formulas.fs7
 f7timeout = 1
-override f7flags += -timeout $(f7timeout) --define avoid --define verify --define ideal --verbose -nokindcheck $(lperv) $(libfs7)
-xunit   ?= xunit.xml
+f7defs    = avoid verify ideal
+
+override f7flags += \\
+  -timeout $(f7timeout) $(patsubst %%,--define %%,$(f7defs)) \\
+  --verbose -nokindcheck $(lperv) $(libfs7)
+
+xunit ?= xunit.xml
 
 .PHONY: default clean check-xunit
 

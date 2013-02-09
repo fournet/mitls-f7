@@ -53,7 +53,8 @@ dist: prepare-dist
 	if [ -x scripts/anonymize ]; then \
 	  find $(distname) \
 	    -type f \( -name '*.fs' -o -name '*.fsi' -o -name '*.fs7' \) \
-	    -exec scripts/anonymize -m release -B -c LICENSE '{}' \+; \
+	    -exec scripts/anonymize \
+	      -m release -B -P -I ideal -I verify -c LICENSE '{}' \+; \
 	fi
 	$(TAR) -czf $(distname).tgz $(distname)
 	rm -rf $(distname)
@@ -61,7 +62,8 @@ dist: prepare-dist
 dist-f7: anonymize prepare-dist-f7
 	cp LICENSE AUTHORS $(f7distname)
 	find $(f7distname)/lib -type f \
-	  -exec ./anonymize -m release -B -D ideal -c LICENSE '{}' \+;
+	  -exec ./anonymize \
+	    -m release -B -I ideal -I verify -c LICENSE '{}' \+;
 	$(TAR) -czf $(f7distname).tgz $(f7distname)
 	rm -rf $(f7distname)
 
