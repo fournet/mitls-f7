@@ -61,18 +61,6 @@ private definition !ci,gs. GState(ci,gs)  <=>
 	)
   )
   
-
-(*FIXME
-	/\
-	(( AppData.AppInBuf(ci,gs.appdata) = None /\
-	    AppData.AppInStream( ci,gs.appdata) =
-		TLSFragment.HistoryStream(ci.id_in, TLSConstants.Application_data,Record.History(ci.id_in, gs.read.conn))) \/
-	  (?r,f. AppData.AppInBuf(ci,gs.appdata) = Some((r,f)) /\
-	    Fragment.Extend(ci.id_in,AppData.AppInStream(ci,gs.appdata),r,f) = 
-	    TLSFragment.HistoryStream(ci.id_in, TLSConstants.Application_data,Record.History(ci.id_in, gs.read.conn))
-	  )
-	))
- *)
 private type Connection = Conn of (id:ConnectionInfo * (;id)globalState)
 
 // Returns the local index, which includes our fresh initial randomness
@@ -422,10 +410,11 @@ private val readOne: c:Connection ->
 	readOutcome * Connection
 
 private val writeOne: c:Connection -> r:range -> f:(;ConnectionEpochOut(c),r)AppFragment.fragment ->
-	s:(;e)DataStream.stream{CnBuf_o(c) = None \/
+	s:(;ConnectionEpochOut(c))DataStream.stream{CnBuf_o(c) = None \/
 		(
 			CnBuf_o(c) = Some((r,f,s)) /\
-			s = AppFragment.Extend(ConnectionEpochOut(c),CnStream_o(c),r,f)
+			DataStream.StreamBytes(ConnectionEpochOut(c),s) =
+				DataStream.StreamBytes(ConnectionEpochOut(c),AppFragment.Extend(ConnectionEpochOut(c),CnStream_o(c),r,f))
 		)} ->
 	(wo:writeOutcome * c':Connection){
 		// Errors
@@ -472,7 +461,7 @@ private val writeOne: c:Connection -> r:range -> f:(;ConnectionEpochOut(c),r)App
 private val ghostFragment: e:epoch -> (r:range * (;e,r)AppFragment.fragment * (;e)DataStream.stream)
 
 private val writeAll: c:Connection{CnBuf_o(c) = None} -> wo:writeOutcome * c':Connection
- 
+
 private val writeAllFinishing: c:Connection{CnBuf_o(c) = None /\ Bytes_o(c) = [||]} ->
 	r:range -> f:(;ConnectionEpochOut(c),r)AppFragment.fragment ->
 	s:(;ConnectionEpochOut(c))DataStream.stream ->
@@ -491,7 +480,8 @@ ask !c0,c1,c2. NextCn(c0,c1) /\ NextCn(c1,c2) => NextCn(c0,c2)
 private val writeAllTop: c:Connection -> r:range -> f:(;ConnectionEpochOut(c),r)AppFragment.fragment ->
 	s:(;ConnectionEpochOut(c))DataStream.stream{
 		CnBuf_o(c) = Some((r,f,s)) /\
-		s = AppFragment.Extend(ConnectionEpochOut(c),CnStream_o(c),r,f)
+		DataStream.StreamBytes(ConnectionEpochOut(c),s) =
+			DataStream.StreamBytes(ConnectionEpochOut(c),AppFragment.Extend(ConnectionEpochOut(c),CnStream_o(c),r,f))
 	} ->
 	wo:writeOutcome * c':Connection{
 		(?s. wo = WError(s)) \/

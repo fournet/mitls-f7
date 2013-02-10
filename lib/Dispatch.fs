@@ -453,8 +453,8 @@ let rec writeAllFinishing conn ghr ghf ghs =
     | (WError(x),conn) -> (WError(x), conn)
     | (SentFatal(x,y),conn) -> (SentFatal(x,y),conn)
     | (SentClose,conn) -> (SentClose,conn) 
-    | (WriteAgain,Conn(id,s)) ->
-        let (ghr,ghf,ghs) = ghostFragment id.id_out in
+    | (WriteAgain,conn) ->
+        let (Conn(id,s)) = conn in
         writeAllFinishing (Conn(id,s)) ghr ghf ghs
     | (WMustRead, conn) -> (WMustRead, conn)
     | (_,_) -> unexpectedError "[writeAllFinishing] writeOne returned wrong result"
@@ -465,8 +465,12 @@ let rec writeAllTop conn ghr ghf ghs =
     | (SentFatal(x,y),conn) -> (SentFatal(x,y),conn)
     | (SentClose,conn) -> (SentClose,conn)
     | (WAppDataDone,conn) -> (WAppDataDone,conn)
-    | (WriteAgain,conn) -> writeAllTop conn ghr ghf ghs
-    | (WriteAgainFinishing,conn) -> writeAllFinishing conn ghr ghf ghs
+    | (WriteAgainFinishing,conn) ->
+        let (Conn(id,s)) = conn in
+        writeAllFinishing (Conn(id,s)) ghr ghf ghs
+    | (WriteAgain,conn) ->
+        let (Conn(id,s)) = conn in
+        writeAllTop (Conn(id,s)) ghr ghf ghs
     | (_,_) -> unexpectedError "[writeAllTop] writeOne returned wrong result"
 
 let handleHandshakeOutcome (Conn(id,c)) hsRes =
@@ -695,7 +699,8 @@ let msgWrite (Conn(id,c)) (rg,d) =
     (r0,f,ns,Some(msg1))
 
 let write (Conn(id,s)) msg =
-  let (r0,f0,ns,rdOpt) = msgWrite (Conn(id,s)) msg in
+  let res = msgWrite (Conn(id,s)) msg in
+  let (r0,f0,ns,rdOpt) = res in
   let new_appdata = AppData.writeAppData id s.appdata r0 f0 ns in
   let s = {s with appdata = new_appdata} in 
   let (outcome,Conn(id,s)) = writeAllTop (Conn(id,s)) r0 f0 ns in
