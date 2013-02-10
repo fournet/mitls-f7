@@ -15,12 +15,13 @@ let timestamp () = bytes_of_int 4 ((int32) (DateTime.UtcNow - dawn).TotalSeconds
 
 let rec mkHelloRandom(): bytes =
     let Cr = timestamp() @| mkRandom 28
+    //#begin-idealization
     #if ideal
     if memr !log Cr then 
         mkHelloRandom () // we formally retry to exclude collisions.
     else 
         log := Cr::!log
         Cr
-    #else
+    #else //#end-idealization
     Cr
     #endif

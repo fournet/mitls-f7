@@ -152,8 +152,10 @@ let ssl_certificate_verify (si:SessionInfo) ms (algs:sigAlg) log =
   | SA_DSA -> ssl_certificate_verify ms.bytes log SHA
   | _      -> unexpectedError "[ssl_certificate_verify] invoked on a wrong signature algorithm"
 
+//#begin-coerce
 let coerce (si:SessionInfo) b = 
   #if ideal
   corrupted := si::!corrupted;
   #endif 
   {bytes = b}
+//#end-coerce

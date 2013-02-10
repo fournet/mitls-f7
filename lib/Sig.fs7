@@ -54,7 +54,9 @@ type (;a:alg) sigv = bytes
 
 //********************** Ideal Functionality for Signing *********************** 
 
-type (;a:alg)             skey
+//#begin-abstraction
+type (;a:alg) skey
+//#end-abstraction
 type (;a:alg) pkey
 
 function val PK: 'a -> 'b // a:alg * (;a)skey -> vkey

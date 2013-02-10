@@ -6,6 +6,7 @@ open TLSInfo
 open DHGroup
 
 type rsarepr = (;48)lbytes
+//#begin-abstraction
 private type (;pk:RSAKey.pk,pv:ProtocolVersion) rsapms = {rsapms:rsarepr}
 private type (;p:p, g:(;p) g, gx:(;p) elt, gy:(;p) elt) dhpms = {dhpms: (;p) elt} // strong secret when (p,g), gx, and gy have been honestly generated
 
@@ -18,6 +19,7 @@ val leakRSA: pk:RSAKey.pk -> pv:ProtocolVersion -> (;pk,pv)rsapms -> bytes
 
 val sampleDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt ->            (;p,g,gx,gy) dhpms
 val coerceDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt -> (;p)elt -> (;p,g,gx,gy) dhpms
+//#end-abstraction
 
 
 val prfSmoothRSA:
