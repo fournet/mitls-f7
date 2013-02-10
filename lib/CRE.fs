@@ -22,7 +22,7 @@ type pred = GeneratedRSAPMS of RSAKey.pk * ProtocolVersion * rsapms
 let honest_log = ref []
 let honest pms = exists (fun el -> el=pms) !honest_log
 
-let corrupt pms =    not(honest pms)
+let corrupt pms = not(honest pms)
 
 let log = ref []
 #endif

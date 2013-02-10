@@ -7,7 +7,9 @@ open DHGroup
 // formally a precondition for signing them with an honest key.
 predicate val PP: p:p * g:(;p) g -> bool
 
+//#begin-abstraction
 type (;p:p,g:(;p)g,gx:(;p)elt) secret
+//#end-abstraction
 
 // the RFCs are vague about best practices for ppgen
 val gen_pp:     unit -> p:p * g:(;p) g {PP(p,g)}

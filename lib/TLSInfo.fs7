@@ -178,7 +178,6 @@ predicate type cryptopreds =
 | Safe   of epoch // The epoch parameters yield privacy & integrity
 | Auth   of epoch // The epoch parameters yield integrity (not necesarily privacy)
 
-
 definition !si. SafeSI(si) <=> 
            SafeHS_SI(si) /\
            StrongAE(si.protocol_version,si.cipher_suite)

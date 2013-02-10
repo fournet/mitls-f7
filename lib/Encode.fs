@@ -1,4 +1,4 @@
-module Encode
+﻿module Encode
 
 open Bytes
 open Error
