@@ -1,4 +1,4 @@
-﻿module ENC
+module ENC
 
 open Bytes
 open Error
@@ -86,6 +86,7 @@ let ENC_int ki s tlen d =
     let si = epochSI(ki) in
     let encAlg = encAlg_of_ciphersuite si.cipher_suite si.protocol_version in
     match s,encAlg with
+    //#begin-ivStaleEnc
     | BlockCipher(s), CBC_Stale(alg) ->
         match s.iv with
         | NoIV -> unexpectedError "[ENC] Wrong combination of cipher algorithm and state"
@@ -98,6 +99,7 @@ let ENC_int ki s tlen d =
             else
                 let s = {s with iv = SomeIV(lastblock cipher alg) } in
                 (BlockCipher(s), cipher)
+    //#end-ivStaleEnc
     | BlockCipher(s), CBC_Fresh(alg) ->
         match s.iv with
         | SomeIV(b) -> unexpectedError "[ENC] Wrong combination of cipher algorithm and state"
@@ -154,6 +156,7 @@ let DEC_int ki s cipher =
     let si = epochSI(ki) in
     let encAlg = encAlg_of_ciphersuite si.cipher_suite si.protocol_version in
     match s, encAlg with
+    //#begin-ivStaleDec
     | BlockCipher(s), CBC_Stale(alg) ->
         match s.iv with
         | NoIV -> unexpectedError "[DEC] Wrong combination of cipher algorithm and state"
@@ -162,6 +165,7 @@ let DEC_int ki s cipher =
             let d = Encode.plain ki (length cipher) data in
             let s = {s with iv = SomeIV(lastblock cipher alg)} in
             (BlockCipher(s), d)
+    //#end-ivStaleDec
     | BlockCipher(s), CBC_Fresh(alg) ->
         match s.iv with
         | SomeIV(_) -> unexpectedError "[DEC] Wrong combination of cipher algorithm and state"
