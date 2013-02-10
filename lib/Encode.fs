@@ -1,4 +1,4 @@
-﻿module Encode
+module Encode
 
 open Bytes
 open Error
@@ -45,18 +45,27 @@ let verify e k ad rg parsed =
     let text = macPlain e rg ad parsed.plain in
     let tag  = parsed.tag in
     match pv with
+//#begin-separate_err
     | SSL_3p0 | TLS_1p0 ->
         (*@ SSL3 and TLS1 enable both timing and error padding oracles. *)
         if parsed.ok then 
           if MAC.Verify e k text tag.macT then 
             correct parsed.plain
+          else
 #if DEBUG
-          else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac,reason)
-        else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_decryption_failed,reason)
+              let reason = perror __SOURCE_FILE__ __LINE__ "" in 
 #else
-          else Error(AD_bad_record_mac,"")
-        else Error(AD_decryption_failed,"")
+              let reason = ""
 #endif
+              Error(AD_bad_record_mac,reason)
+        else
+#if DEBUG
+           let reason = perror __SOURCE_FILE__ __LINE__ "" in 
+#else
+           let reason = ""
+#endif
+           Error(AD_decryption_failed,reason)
+//#end-separate_err //#begin-uniform_err
     | TLS_1p1 | TLS_1p2 ->
         (*@ Otherwise, we implement standard mitigation for padding oracles.
             Still, we note a small timing leak here:
@@ -64,13 +73,21 @@ let verify e k ad rg parsed =
         if MAC.Verify e k text tag.macT then 
           if parsed.ok 
             then correct parsed.plain
+          else
 #if DEBUG
-          else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac,reason)
-        else let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac,reason) 
+              let reason = perror __SOURCE_FILE__ __LINE__ "" in 
 #else
-          else Error(AD_bad_record_mac,"")
-        else Error(AD_bad_record_mac,"") 
+              let reason = ""
 #endif
+              Error(AD_bad_record_mac,"")
+        else
+#if DEBUG
+           let reason = perror __SOURCE_FILE__ __LINE__ "" in 
+#else
+           let reason = ""
+#endif
+           Error(AD_bad_record_mac,"") 
+//#end-uniform_err
 
 type plain = {p:bytes}
 
