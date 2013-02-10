@@ -90,7 +90,8 @@ let prfSmoothRSA si (pv:ProtocolVersion) pms =
     prfMS si pms.rsapms
     #endif
 
-let prfSmoothDHE si (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) (pms:dhpms) = 
+let prfSmoothDHE si (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) (pms:dhpms) =
+    //#begin-ideal 
     #if ideal
     // MK this idealization relies on si being used only once with this function
     if not(corrupt (DHE_pms(pms)))
@@ -101,6 +102,7 @@ let prfSmoothDHE si (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt
                  log := (DHE_pms(pms),ms)::!log;
                  ms 
     else prfMS si pms.dhpms
+    //#end-ideal
     #else
     prfMS si pms.dhpms
     #endif

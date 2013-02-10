@@ -39,6 +39,7 @@ let genKey p g: elt * secret =
 
 let exp p g (gx:elt) (gy:elt) (Key x) : CRE.dhpms =
     let pms = CoreDH.agreement (dhparams p g) x gy in
+    //#begin-ideal
     #if ideal
     if honest gy && honest gx && goodPP (p,g) 
     then 
@@ -49,7 +50,8 @@ let exp p g (gx:elt) (gy:elt) (Key x) : CRE.dhpms =
                  let pms=CRE.sampleDH p g gx gy
                  log := ((gx,gy),pms)::!log;
                  pms 
-    else CRE.coerceDH p g gx gy pms 
+    else CRE.coerceDH p g gx gy pms
+    //#end-ideal 
     #else
     CRE.coerceDH p g gx gy pms
     #endif

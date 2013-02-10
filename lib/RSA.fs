@@ -12,6 +12,7 @@ let log = ref []
 #endif
 
 let encrypt key pv pms =
+    //#begin-ideal1
     #if ideal
     //MK here we reply on pv and pms being used only once?
     let v = if RSAKey.honest key && not (CRE.corrupt (CRE.RSA_pms pms)) then
@@ -20,6 +21,7 @@ let encrypt key pv pms =
               fake_pms
             else
               CRE.leakRSA key pv pms
+    //#end-ideal1
     #else
     let v = CRE.leakRSA key pv pms
     #endif
@@ -56,11 +58,13 @@ let decrypt dk si cv check_client_version_in_pms_for_old_tls encPMS =
     | Error(x,y) -> unexpectedError (perror __SOURCE_FILE__ __LINE__ "The server identity should contain a valid certificate")
     | Correct(pk) ->
         let pmsb = decrypt_int dk si cv check_client_version_in_pms_for_old_tls encPMS in
+        //#begin-ideal2
         #if ideal
         //MK Should be replaced by assoc. Is the recommended style to define it locally to facilitate refinements?
         match tryFind (fun el -> fst el=pmsb) !log  with
             Some(_,ideal_pms) -> ideal_pms
            |None -> CRE.coerceRSA pk cv pmsb
+        //#end-ideal2
         #else
         CRE.coerceRSA pk cv pmsb
         #endif

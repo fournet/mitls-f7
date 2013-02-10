@@ -38,6 +38,7 @@ let keyGen ci (ms:masterSecret) =
     let data = srand @| crand in
     let len = getKeyExtensionLength pv cs in
     let b = prf pv cs ms.bytes tls_key_expansion data len in
+    //#begin-ideal1
     #if ideal
             
 (* KB: rewrite the above in the style and typecheck:
@@ -61,6 +62,7 @@ let keyGen ci (ms:masterSecret) =
             log := ((epochs ci,ms),(peerWrite,peerRead))::!log;
             (myWrite,myRead)
     else 
+    //#end-ideal1
     #endif
         let authEnc = authencAlg_of_ciphersuite cs pv in
         match authEnc with
@@ -138,11 +140,13 @@ let makeVerifyData e role (ms:masterSecret) data =
 let checkVerifyData e role ms log expected =
   let computed = makeVerifyData e role ms log 
   equalBytes expected computed
+  //#begin-ideal2
   #if ideal
   && // ideally, we return "false" when concrete 
      // verification suceeeds but shouldn't according to the log 
     let si = epochSI(e) 
     safe e = false || (exists (fun el -> el=(si, expected, log)) !finish_log)
+  //#end-ideal2
   #endif
   
 
