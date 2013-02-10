@@ -1130,7 +1130,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                       InError(x,y,state)
 (* KB #endif*)
                   | Correct(extList) ->
-                  // Handling of safe renegotiation //#being-safe_renego
+                  // Handling of safe renegotiation //#begin-safe_renego
                   let safe_reneg_result =
                     if state.poptions.safe_renegotiation then
                         let expected = cvd @| svd in
