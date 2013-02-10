@@ -55,14 +55,14 @@ let verify e k ad rg parsed =
 #if DEBUG
               let reason = perror __SOURCE_FILE__ __LINE__ "" in 
 #else
-              let reason = ""
+              let reason = "" in
 #endif
               Error(AD_bad_record_mac,reason)
         else
 #if DEBUG
            let reason = perror __SOURCE_FILE__ __LINE__ "" in 
 #else
-           let reason = ""
+           let reason = "" in
 #endif
            Error(AD_decryption_failed,reason)
 //#end-separate_err //#begin-uniform_err
@@ -77,16 +77,16 @@ let verify e k ad rg parsed =
 #if DEBUG
               let reason = perror __SOURCE_FILE__ __LINE__ "" in 
 #else
-              let reason = ""
+              let reason = "" in
 #endif
-              Error(AD_bad_record_mac,"")
+              Error(AD_bad_record_mac,reason)
         else
 #if DEBUG
            let reason = perror __SOURCE_FILE__ __LINE__ "" in 
 #else
-           let reason = ""
+           let reason = "" in
 #endif
-           Error(AD_bad_record_mac,"") 
+           Error(AD_bad_record_mac,reason) 
 //#end-uniform_err
 
 type plain = {p:bytes}
