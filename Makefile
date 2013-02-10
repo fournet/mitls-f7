@@ -59,10 +59,10 @@ dist: prepare-dist
 	$(TAR) -czf $(distname).tgz $(distname)
 	rm -rf $(distname)
 
-dist-f7: anonymize prepare-dist-f7
+dist-f7: scripts/anonymize prepare-dist-f7
 	cp LICENSE AUTHORS $(f7distname)
 	find $(f7distname)/lib -type f \
-	  -exec ./anonymize \
+	  -exec scripts/anonymize \
 	    -m release -B -I ideal -I verify -c LICENSE '{}' \+;
 	$(TAR) -czf $(f7distname).tgz $(f7distname)
 	rm -rf $(f7distname)
