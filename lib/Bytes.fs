@@ -80,3 +80,8 @@ let mem x l = List.exists (fun y -> x = y) l
 #endif
 let listLength (l:'a list) = l.Length
 let listHead (l:'a list) = l.Head
+
+let isSome (l:'a option) = 
+  match l with
+      Some(x) -> true
+    | None -> false

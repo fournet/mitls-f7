@@ -74,7 +74,7 @@ definition !cv,clRdm,sid,cls,cm,ext,b.
               
 val clientHelloBytes: c:config -> cr:random -> sid:sessionID -> ext:bytes -> m:bytes{m = ClientHelloMsg(c.maxVer,cr,sid,c.ciphersuites,c.compressions,ext)}
 val parseClientHello: m:bytes -> 
-	( pv:ProtocolVersion * cr:bytes * sid:sessionID * cs:cipherSuites * cm:Compression list * ext:bytes
+	( pv:ProtocolVersion * cr:crand * sid:sessionID * cs:cipherSuites * cm:Compression list * ext:bytes
 	  {?cs',cm'. MessageBytes(HT_client_hello,m) = ClientHelloMsg(pv,cr,sid,cs',cm',ext)
               /\ ContainsCipherSuites(cs',cs) /\ ContainsCompressions(cm',cm)}) Result
 
@@ -89,6 +89,10 @@ private definition !pv,sr,sid,cs,cm,ext.
 			 CompressionBytes(cm) @|
 			 ext)
 		)
+
+function type params =  SessionHelloParams of SessionInfo 
+private definition !si. 
+ SessionHelloParams(si) = (si.protocol_version,si.cipher_suite,si.compression)
 
 val serverHelloBytes: si:SessionInfo -> sr:random -> ext:bytes ->
 	b:bytes{b = ServerHelloMsg(si.protocol_version,sr,si.sessionID,si.cipher_suite,
@@ -117,6 +121,7 @@ val clientCertificateBytes: clo: (Cert.chain * a:Sig.alg * (;a)Sig.skey) option 
 		( clo = None /\ b = CertificateMsg([]) ) \/
 		( ?cl,a',b'. clo = Some((cl,a',b')) /\ b = CertificateMsg(cl)
 		)}
+
 
 val parseClientOrServerCertificate: b:bytes ->
 	(bl:Cert.chain{
@@ -351,7 +356,8 @@ private definition !si,pv,l.
 
 private definition !si,pv,l.
   ServerLogBeforeClientKeyExchangeRSA_Auth(si,pv,l) <=>
-  (?l'. ServerLogBeforeClientCertificateRSA_Auth(si,pv,l') /\
+  (?si',l'. ServerLogBeforeClientCertificateRSA_Auth(si',pv,l') /\
+        SessionHelloParams(si) = SessionHelloParams(si') /\
         l = l' @| CertificateMsg(si.clientID))
 
 private definition !si,pv,l.
@@ -369,7 +375,8 @@ private definition !si,pv,l.
 
 private definition !si,pv,l.
   ServerLogBeforeClientKeyExchangeDHE_Auth(si,l) <=>
-  (?l'. ServerLogBeforeClientCertificateDHE_Auth(si,l') /\
+  (?si',l'. ServerLogBeforeClientCertificateDHE_Auth(si',l') /\
+        SessionHelloParams(si) = SessionHelloParams(si') /\
         l = l' @| CertificateMsg(si.clientID))
 
 private definition !si,pv,l.
@@ -382,16 +389,22 @@ predicate ServerLogBeforeClientCertificateVerifyRSA_NoAuth of SessionInfo * log
 
 private definition !si,pv,l.
   ServerLogBeforeClientCertificateVerifyRSA(si,l) <=>
-  ((si.client_auth = true /\  ServerLogBeforeClientCertificateVerifyRSA_Auth(si,l)) \/
-   (si.client_auth = false /\  ServerLogBeforeClientCertificateVerifyRSA_NoAuth(si,l)))
-private definition !si,l.
+  (?si',pv,l',encpms,pk. ServerLogBeforeClientKeyExchangeRSA(si',pv,l') /\
+      SessionHelloParams(si) = SessionHelloParams(si') /\
+(*      si'.pmsData = RSAPMS(pk,pv,encpms) /\ *)
+      l = l' @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
+
+(* KB obsolete
+private definition !si,pv,l.
   ServerLogBeforeClientCertificateVerifyRSA_Auth(si,l) <=>
   (?pv,l',encpms. ServerLogBeforeClientKeyExchangeRSA_Auth(si,pv,l') /\
-                 l = l' @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
-private definition !si,l.
+      l = l' @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
+
+private definition !si,pv,l.
   ServerLogBeforeClientCertificateVerifyRSA_NoAuth(si,l) <=>
   (?pv,l',encpms. ServerLogBeforeClientKeyExchangeRSA_NoAuth(si,pv,l') /\
-                 l = l' @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
+      l = l' @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
+*)  
 
 predicate ServerLogBeforeClientCertificateVerifyDHE of SessionInfo * log 
 predicate ServerLogBeforeClientCertificateVerifyDHE_Auth of SessionInfo * log 
@@ -399,24 +412,47 @@ predicate ServerLogBeforeClientCertificateVerifyDHE_NoAuth of SessionInfo * log
 
 private definition !si,pv,l.
   ServerLogBeforeClientCertificateVerifyDHE(si,l) <=>
-  ((si.client_auth = true /\  ServerLogBeforeClientCertificateVerifyDHE_Auth(si,l)) \/
-   (si.client_auth = false /\  ServerLogBeforeClientCertificateVerifyDHE_NoAuth(si,l)))
-private definition !si,l.
+  (?si',d,l'. ServerLogBeforeClientKeyExchangeDHE(si',l') /\
+        SessionHelloParams(si) = SessionHelloParams(si') /\
+(*      si'.pmsData = DHPMS(d) /\ *)
+          l = l' @| ClientKeyExchangeMsg_DHE(d))
+
+(*
+private definition !si,pv,l.
   ServerLogBeforeClientCertificateVerifyDHE_Auth(si,l) <=>
   (?d,l'. ServerLogBeforeClientKeyExchangeDHE_Auth(si,l') /\
           l = l' @| ClientKeyExchangeMsg_DHE(d))
-private definition !si,l.
+
+private definition !si,pv,l.
   ServerLogBeforeClientCertificateVerifyDHE_NoAuth(si,l) <=>
   (?d,l'. ServerLogBeforeClientKeyExchangeDHE_NoAuth(si,l') /\
-                 l = l' @| ClientKeyExchangeMsg_DHE(d))
+          l = l' @| ClientKeyExchangeMsg_DHE(d))
+*)
 
 predicate ServerLogBeforeClientCertificateVerify of SessionInfo * log
+(*
 private definition 
  !si,l. ServerLogBeforeClientCertificateVerify(si,l) <=>
   ((?a. si.cipher_suite = CipherSuite(RSA,a) /\ ServerLogBeforeClientCertificateVerifyRSA(si,l)) \/
 (?a. si.cipher_suite = CipherSuite(RSA,a) /\ ServerLogBeforeClientCertificateVerifyDHE(si,l)) \/
    (!a. si.cipher_suite <> CipherSuite(RSA,a) /\
         si.cipher_suite <> CipherSuite(DHE_RSA,a)))
+*)
+private definition 
+ !si,l. ServerLogBeforeClientCertificateVerify(si,l) =>
+  (ServerLogBeforeClientCertificateVerifyRSA(si,l) \/
+   ServerLogBeforeClientCertificateVerifyDHE(si,l) \/
+   (!a. si.cipher_suite <> CipherSuite(RSA,a) /\
+        si.cipher_suite <> CipherSuite(DHE_RSA,a)))
+
+private assume  !si,l. 
+    ServerLogBeforeClientCertificateVerifyRSA(si,l) =>
+    ServerLogBeforeClientCertificateVerify(si,l)
+
+private assume  !si,l. 
+    ServerLogBeforeClientCertificateVerifyDHE(si,l) =>
+    ServerLogBeforeClientCertificateVerify(si,l)
+
 
 predicate ServerLogBeforeClientFinishedRSA of SessionInfo * log 
 predicate ServerLogBeforeClientFinishedRSA_Auth of SessionInfo * log 
@@ -424,17 +460,17 @@ predicate ServerLogBeforeClientFinishedRSA_NoAuth of SessionInfo * log
 
 private definition !si,pv,l.
   ServerLogBeforeClientFinishedRSA(si,l) <=>
-  ((si.client_auth = true /\  si.clientID <> [] /\ ServerLogBeforeClientFinishedRSA_Auth(si,l)) \/
-   ((si.client_auth = false \/  si.clientID = []) /\ ServerLogBeforeClientFinishedRSA_NoAuth(si,l)))
+  ((si.client_auth = true (*/\  si.clientID <> []*) /\ ServerLogBeforeClientFinishedRSA_Auth(si,l)) \/
+  ((si.client_auth = false (* \/  si.clientID = [] *)) /\ ServerLogBeforeClientFinishedRSA_NoAuth(si,l)))
 
 private definition !si,l.
   ServerLogBeforeClientFinishedRSA_Auth(si,l) <=>
-  (?l',a,sign. ServerLogBeforeClientCertificateVerifyRSA_Auth(si,l') /\
+  (?l',a,sign. ServerLogBeforeClientCertificateVerifyRSA(si,l') /\
    (l = l' @| CertificateVerifyMsg(si.protocol_version,a,sign)))
 
 private definition !si,l.
   ServerLogBeforeClientFinishedRSA_NoAuth(si,l) <=>
-  ServerLogBeforeClientCertificateVerifyRSA_NoAuth(si,l)
+  ServerLogBeforeClientCertificateVerifyRSA(si,l)
 
 predicate ServerLogBeforeClientFinishedDHE of SessionInfo * log 
 predicate ServerLogBeforeClientFinishedDHE_Auth of SessionInfo * log 
@@ -442,25 +478,35 @@ predicate ServerLogBeforeClientFinishedDHE_NoAuth of SessionInfo * log
 
 private definition !si,pv,l.
   ServerLogBeforeClientFinishedDHE(si,l) <=>
-  ((si.client_auth = true /\  si.clientID <> [] /\ ServerLogBeforeClientFinishedDHE_Auth(si,l)) \/
-   ((si.client_auth = false \/  si.clientID = []) /\ ServerLogBeforeClientFinishedDHE_NoAuth(si,l)))
+  ((si.client_auth = true (* /\  si.clientID <> []*) /\ ServerLogBeforeClientFinishedDHE_Auth(si,l)) \/
+   ((si.client_auth = false (* \/  si.clientID = [] *)) /\ ServerLogBeforeClientFinishedDHE_NoAuth(si,l)))
 
 private definition !si,l.
   ServerLogBeforeClientFinishedDHE_Auth(si,l) <=>
-  (?l',a,sign. ServerLogBeforeClientCertificateVerifyDHE_Auth(si,l') /\
+  (?l',a,sign. ServerLogBeforeClientCertificateVerifyDHE(si,l') /\
    (l = l' @| CertificateVerifyMsg(si.protocol_version,a,sign)))
 
 private definition !si,l.
   ServerLogBeforeClientFinishedDHE_NoAuth(si,l) <=>
-  ServerLogBeforeClientCertificateVerifyDHE_NoAuth(si,l)
+  ServerLogBeforeClientCertificateVerifyDHE(si,l)
 
 predicate ServerLogBeforeClientFinished of SessionInfo * log
+predicate ServerLogBeforeClientFinished_Auth of SessionInfo * log
+predicate ServerLogBeforeClientFinished_NoAuth of SessionInfo * log
 private definition 
  !si,l. ServerLogBeforeClientFinished(si,l) <=>
-  ((?a. si.cipher_suite = CipherSuite(RSA,a) /\ ServerLogBeforeClientFinishedRSA(si,l)) \/
-   (?a. si.cipher_suite = CipherSuite(DHE_RSA,a) /\ ServerLogBeforeClientFinishedDHE(si,l)) \/
-   (!a. si.cipher_suite <> CipherSuite(RSA,a) /\
-        si.cipher_suite <> CipherSuite(DHE_RSA,a)))
+  ((si.client_auth = true (* /\  si.clientID <> [] *) /\ ServerLogBeforeClientFinished_Auth(si,l)) \/
+  ((si.client_auth = false  (* \/  si.clientID = [] *)) /\ ServerLogBeforeClientFinished_NoAuth(si,l)))
+
+private definition !si,l.
+  ServerLogBeforeClientFinished_Auth(si,l) <=>
+  (?l',a,sign. ServerLogBeforeClientCertificateVerify(si,l') /\
+   (l = l' @| CertificateVerifyMsg(si.protocol_version,a,sign)))
+
+private definition !si,l.
+  ServerLogBeforeClientFinished_NoAuth(si,l) <=>
+  ServerLogBeforeClientCertificateVerify(si,l)
+
 
 predicate ServerLogBeforeServerFinishedRSA of SessionInfo * log 
 predicate ServerLogBeforeServerFinishedRSA_Auth of SessionInfo * log 
@@ -722,8 +768,14 @@ val check_negotiation: r:Role -> si:SessionInfo -> cfg:config -> unit{?cfg'. Neg
 
 (* Anonymous clients are authorized for client-unauthenticated sessions *)
 private assume !si. (si.client_auth = false /\ si.clientID = []) => Authorize(Server,si)
+private assume !r,si,si'. Authorize(Client,si) /\ SessionHelloParams(si) =
+  SessionHelloParams(si') /\ si'.serverID = si.serverID => Authorize(Client,si')
+
+private assume !r,si,si'. Authorize(Server,si) /\ SessionHelloParams(si) = 
+  SessionHelloParams(si') /\ si'.serverID = si.serverID /\ si'.clientID = si.clientID /\ si'.client_auth = si.client_auth => Authorize(Server,si')
 
 private definition !a,k,t. Sig.Msg(a,k,t) 
+(*
   <=> ((?si,pk,pv,e. 
              ClientLogBeforeCertificateVerifyRSA_Auth(si,t) /\
              si.pmsData = RSAPMS(pk,pv,e) /\
@@ -738,9 +790,9 @@ private definition !a,k,t. Sig.Msg(a,k,t)
            DHEParamBytes(p,g,gy) /\
            DH.HonestExponent(p,g,gy) /\
            k = Cert.SigPKCert(si.serverID,a)))
-           
+*)           
 private definition !e,r,b. PRF.VerifyData(e,r,b) 
-  <=> ((r = Client /\
+(*  <=> ((r = Client /\
         Authorize(Client,EpochSI(e)) /\
         SentCCS(Client,e) /\
         ClientLogBeforeClientFinished(EpochSI(e),b)) \/
@@ -756,9 +808,10 @@ private definition !e,r,b. PRF.VerifyData(e,r,b)
         Authorize(Server,EpochSI(e)) /\
         SentCCS(Server,e) /\
         ServerLogBeforeServerFinishedResume(EpochSI(e),b))) 
-
+*)
 private definition !role,e,cfg. 
-  CompleteEpoch(role,e,cfg) <=>
+  CompleteEpoch(role,e,cfg) 
+(*  <=>
   ((StrongHS(EpochSI(e)) /\ HonestPMS(EpochSI(e).pmsData) =>
               (Authorize(Client,EpochSI(e)) /\
                Authorize(Server,EpochSI(e)) /\
@@ -771,7 +824,7 @@ private definition !role,e,cfg.
      (?a. Sig.Honest(a,Cert.SigPKCert(EpochSI(e).serverID,a))) /\
      RSAKey.Honest(Cert.RSAPKCert(EpochSI(e).serverID))) 
     => HonestPMS(EpochSI(e).pmsData)))
-
+*)
 (* Negotiated remains to be defined but it can be a nice global spec of what HS is meant to achieve.
    Especially interesting would be proving that the result is the "best possible" *)
 
@@ -786,7 +839,7 @@ type (;ci:ConnectionInfo) serverState =  (* note that the CertRequest bits are d
    | ClientHello                  of cVerifyData * sVerifyData
 
    | ClientCertificateRSA         of (si:SessionInfo * pv:ProtocolVersion * sk:RSAKey.sk * l:log){ServerLogBeforeClientCertificateRSA(si,pv,l)}
-   | ServerCheckingCertificateRSA of (si:SessionInfo * pv:ProtocolVersion * sk:RSAKey.sk * l:log * b:bytes){ServerLogBeforeClientKeyExchangeRSA(si,pv,l)}
+   | ServerCheckingCertificateRSA of (si:SessionInfo * pv:ProtocolVersion * sk:RSAKey.sk * l:log * certs:Cert.chain * b:bytes){ServerLogBeforeClientCertificateRSA(si,pv,l) /\ b = CertificateMsg(certs)}
    | ClientKeyExchangeRSA         of (si:SessionInfo * pv:ProtocolVersion * sk:RSAKey.sk * l:log){ServerLogBeforeClientKeyExchangeRSA(si,pv,l) /\ Authorize(Server,si)}
 
    | ClientCertificateDH          of si:SessionInfo * l:log
@@ -796,8 +849,9 @@ type (;ci:ConnectionInfo) serverState =  (* note that the CertRequest bits are d
    | ClientCertificateDHE         of si:SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * (;p,g,gx)DH.secret * l:log{
        ServerLogBeforeClientCertificateDHE(si,l)}
     
-   | ServerCheckingCertificateDHE of si:SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * (;p,g,gx)DH.secret * l:log * bytes{
-       ServerLogBeforeClientKeyExchangeDHE(si,l)}
+   | ServerCheckingCertificateDHE of si:SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * (;p,g,gx)DH.secret * l:log * c:Cert.chain * b:bytes{
+       ServerLogBeforeClientCertificateDHE(si,l) /\
+       b = CertificateMsg(c)}
 
    | ClientKeyExchangeDHE         of si:SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * (;p,g,gx)DH.secret * l:log{
        ServerLogBeforeClientKeyExchangeDHE(si,l) /\ Authorize(Server,si)}
@@ -805,20 +859,26 @@ type (;ci:ConnectionInfo) serverState =  (* note that the CertRequest bits are d
 
    | ClientKeyExchangeDH_anon     of SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * (;p,g,gx)DH.secret * log
 
-   | CertificateVerify            of (si:SessionInfo * (;si)PRF.masterSecret * l:log){ServerLogBeforeClientCertificateVerify(si,l) /\ Authorize(Server,si)}
+   | CertificateVerify            of (si:SessionInfo * (;si)PRF.masterSecret * l:log){si.client_auth = true /\ ServerLogBeforeClientCertificateVerify(si,l) /\ Authorize(Server,si)}
    | ClientCCS                    of (si:SessionInfo * (;si)PRF.masterSecret * l:log){ServerLogBeforeClientFinished(si,l) /\ Authorize(Server,si)}
    | ClientFinished               of (si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * (;e)StatefulLHAE.writer * l:log){
-                                       EpochSI(e)=si /\ ServerLogBeforeClientFinished(si,l) /\ Authorize(Server,si)}
+       IsSuccEpoch(ci.id_in) /\ EpochSI(e)=si /\ ServerLogBeforeClientFinished(si,l) /\ Authorize(Server,si)}
    (* by convention, the parameters are named si, cv, cr', sr', ms, log *)
    | ServerWritingCCS             of (si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * (;e)StatefulLHAE.writer * cv:cVerifyData * l:log){
-                                       EpochSI(e)=si /\ ServerLogBeforeServerFinished(si,l) /\ PRF.VerifyData(e,Client,cv) /\ Authorize(Server,si)}
+                                       EpochSI(e)=si /\ ServerLogBeforeServerFinished(si,l) /\ 
+         (* PRF.VerifyData(e,Client,cv) /\ *)
+         Authorize(Server,si)}
    | ServerWritingFinished        of si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * cv:cVerifyData * sv:sVerifyData{
-       EpochSI(e)=si /\ PRF.VerifyData(e,Client,cv) /\ PRF.VerifyData(e,Server,sv) /\ Authorize(Server,si)}
+       EpochSI(e)=si /\ 
+         (* PRF.VerifyData(e,Client,cv) /\ PRF.VerifyData(e,Server,sv) /\ *)
+         Authorize(Server,si)}
 
    | ServerWritingCCSResume       of (ew:succEpoch * (;ew)StatefulLHAE.writer * er:succEpoch * (;er)StatefulLHAE.reader * (;epochSI(ew))PRF.masterSecret * l:log){EpochSI(ew)=EpochSI(er) /\ ServerLogBeforeServerFinishedResume(EpochSI(ew),l) /\ Authorize(Server,EpochSI(ew))}
-   | ClientCCSResume              of e:succEpoch * (;e)StatefulLHAE.reader * sVerifyData * (;EpochSI(e))PRF.masterSecret * l:log{ServerLogBeforeClientFinishedResume(EpochSI(e),l) /\ Authorize(Server,EpochSI(e))}
+   | ClientCCSResume              of e:succEpoch * (;e)StatefulLHAE.reader * sVerifyData * (;EpochSI(e))PRF.masterSecret * l:log{ServerLogBeforeClientFinishedResume(EpochSI(e),l) /\ ci.id_in = Pred(e) /\ Authorize(Server,EpochSI(e))}
    | ClientFinishedResume         of si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * sv:sVerifyData * log{
-       EpochSI(e)=si /\ PRF.VerifyData(e,Server,sv) /\ Authorize(Server,EpochSI(e))}
+       EpochSI(e)=si /\ 
+(* PRF.VerifyData(e,Server,sv) /\ *)
+         Authorize(Server,EpochSI(e))}
 
    | ServerIdle                   of cVerifyData * sVerifyData
    (* the ProtocolVersion is the highest TLS version proposed by the client *)
@@ -848,13 +908,20 @@ type (;ci:ConnectionInfo) clientState =
    | ServerHelloDoneDH_anon of SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * log
 
    | ClientWritingCCS       of si:SessionInfo * (;si)PRF.masterSecret * l:log{ClientLogBeforeClientFinished(si,l) /\ Authorize(Client,si)}
-   | ServerCCS              of (si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * (;e)StatefulLHAE.reader * cv:cVerifyData * l:log){ EpochSI(e)=si  /\ ClientLogBeforeServerFinished(si,l) /\ PRF.VerifyData(e,Client,cv) /\ Authorize(Client,si)}
+   | ServerCCS              of (si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * (;e)StatefulLHAE.reader * cv:cVerifyData * l:log){ EpochSI(e)=si  /\ ClientLogBeforeServerFinished(si,l) /\
+         ci.id_in = Pred(e) /\
+         (* PRF.VerifyData(e,Client,cv) /\ *)
+         Authorize(Client,si)}
    | ServerFinished         of si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * cv:cVerifyData * l:log{ClientLogBeforeServerFinished(si,l) /\
-                                                                                                               EpochSI(e)=si  /\PRF.VerifyData(e,Client,cv) /\ Authorize(Client,si)}
+                                                                                                               EpochSI(e)=si  /\ 
+         (* ci.id_in = Pred(e) /\ *)
+         (* PRF.VerifyData(e,Client,cv) /\ *)
+         Authorize(Client,si)}
 
-   | ServerCCSResume        of (ew:succEpoch * (;ew)StatefulLHAE.writer * er:succEpoch * (;er)StatefulLHAE.reader * (;EpochSI(ew))PRF.masterSecret * l:log){EpochSI(ew)=EpochSI(er) /\ ClientLogBeforeServerFinishedResume(EpochSI(ew),l) /\ Authorize(Client,EpochSI(ew))}
+   | ServerCCSResume        of (ew:succEpoch * (;ew)StatefulLHAE.writer * er:succEpoch * (;er)StatefulLHAE.reader * (;EpochSI(ew))PRF.masterSecret * l:log){EpochSI(ew)=EpochSI(er) /\ ci.id_in = Pred(er) /\ ClientLogBeforeServerFinishedResume(EpochSI(ew),l) /\ Authorize(Client,EpochSI(ew))}
    | ServerFinishedResume   of e:succEpoch * (;e)StatefulLHAE.writer * (;EpochSI(e))PRF.masterSecret * l:log{ClientLogBeforeServerFinishedResume(EpochSI(e),l) /\ Authorize(Client,EpochSI(e))}
-   | ClientWritingCCSResume of e:succEpoch * (;e)StatefulLHAE.writer * (;EpochSI(e))PRF.masterSecret * sv:sVerifyData * l:log{ClientLogBeforeClientFinishedResume(EpochSI(e),l) /\ PRF.VerifyData(e,Server,sv) /\ Authorize(Client,EpochSI(e))}
+   | ClientWritingCCSResume of e:succEpoch * (;e)StatefulLHAE.writer * (;EpochSI(e))PRF.masterSecret * sv:sVerifyData * l:log{ClientLogBeforeClientFinishedResume(EpochSI(e),l) /\ (* PRF.VerifyData(e,Server,sv) /\ *)
+                                                                                                                                Authorize(Client,EpochSI(e))}
    | ClientWritingFinishedResume of cVerifyData * sVerifyData
 
    | ClientIdle             of cVerifyData * sVerifyData
@@ -862,6 +929,9 @@ type (;ci:ConnectionInfo) clientState =
 type (;ci:ConnectionInfo) protoState = // Cannot use Client and Server, otherwise clashes with Role
   | PSClient of (;ci) clientState
   | PSServer of (;ci) serverState
+
+val clientState: ci:ConnectionInfo -> c:(;ci) clientState -> p:(;ci) protoState{p = PSClient(c)}
+val serverState: ci:ConnectionInfo -> c:(;ci) serverState -> p:(;ci) protoState{p = PSServer(c)}
 
 private type (;ci:ConnectionInfo) hs_state = {
   (* I/O buffers *)
@@ -929,7 +999,15 @@ val getPrincipal:  ci:ConnectionInfo -> s:(;ci)hs_state -> string
 val invalidateSession: ci:ConnectionInfo -> s:(;ci)hs_state -> s':(;ci,Config(ci,s))nextState
 (*{SameStreams(ci,s,s')} *)
 
-val getNextEpochs: ci:ConnectionInfo -> si:SessionInfo -> crand -> srand -> ci':ConnectionInfo{IsSuccEpoch(ci'.id_in) /\ IsSuccEpoch(ci'.id_out) /\ EpochSI(ci'.id_in) = si /\ EpochSI(ci'.id_out) = si}
+val getNextEpochs: ci:ConnectionInfo -> si:SessionInfo -> crand -> srand -> ci':ConnectionInfo{
+    IsSuccEpoch(ci'.id_in) /\ 
+    IsSuccEpoch(ci'.id_out) /\ 
+    EpochSI(ci'.id_in) = si /\ 
+    EpochSI(ci'.id_out) = si /\
+    ci.id_out = Pred(ci'.id_out) /\
+    ci.id_in = Pred(ci'.id_in) /\
+    ci.role = ci'.role
+}
 
 (*--- networkinterface *)
 (* Network Interface*)
@@ -987,7 +1065,8 @@ val getCertificateBytes: si:SessionInfo ->
     (si.client_auth = false /\ b = [||])}
 
 val getCertificateVerifyBytes: si:SessionInfo -> (;si) PRF.masterSecret ->
-  cert_req:(Cert.chain * a:Sig.alg * (;a)Sig.skey) option -> log ->
+  cert_req:(Cert.chain * a:Sig.alg * (;a)Sig.skey) option -> 
+  l:log{!cl,a,k. cert_req = Some((cl,a,k)) => Sig.Msg(a,Sig.PK(k),l)} ->
   b:bytes{(!cl,a,k. (cert_req = Some((cl,a,k)) /\ si.client_auth = true) => 
                     (?sign. b = CertificateVerifyMsg(si.protocol_version,a,sign))) /\
           ((cert_req = None \/ si.client_auth = false) => b = [||])}
@@ -1010,32 +1089,54 @@ val parseMessageState: ci:ConnectionInfo -> hs:(;ci)hs_state ->
 val recv_fragment_client: ci:ConnectionInfo -> s:(;ci)hs_state -> ProtocolVersion option ->
 	(;ci,Config(ci,s))incoming
 
-val prepare_server_output_full_RSA: ci:ConnectionInfo -> (;ci)hs_state -> si:SessionInfo ->
+val prepare_server_output_full_RSA: ci:ConnectionInfo -> s:(;ci)hs_state -> si:SessionInfo ->
 	pv:ProtocolVersion -> Sig.alg list -> cVerifyData -> sVerifyData -> l:log{
           ?csid,cs,cm,ex. l = ClientHelloMsg(pv,si.init_crand,csid,cs,cm,ex)
         }->
-	((;ci)hs_state * ProtocolVersion) Result
+	((s':(;ci)hs_state{Config(ci,s) = Config(ci,s')}) * ProtocolVersion) Result
 val prepare_server_output_full_DH: 'a -> 'b -> 'c -> 'd -> res:('e Result){?x,y. res = Error(x,y)}
-val prepare_server_output_full_DHE: ci:ConnectionInfo -> (;ci)hs_state -> SessionInfo ->
+val prepare_server_output_full_DHE: ci:ConnectionInfo -> s:(;ci)hs_state -> SessionInfo ->
 	Sig.alg list -> cVerifyData -> sVerifyData -> log ->
-	((;ci)hs_state * ProtocolVersion) Result
-val prepare_server_output_full_DH_anon: ci:ConnectionInfo -> (;ci)hs_state -> SessionInfo ->
+	((s':(;ci)hs_state{Config(ci,s) = Config(ci,s')}) * ProtocolVersion) Result
+val prepare_server_output_full_DH_anon: ci:ConnectionInfo -> s:(;ci)hs_state -> SessionInfo ->
 	cVerifyData -> sVerifyData -> log ->
-	((;ci)hs_state * ProtocolVersion) Result
-val prepare_server_output_full: ci:ConnectionInfo -> (;ci)hs_state -> si:SessionInfo ->
+	((s':(;ci)hs_state{Config(ci,s) = Config(ci,s')}) * ProtocolVersion) Result
+val prepare_server_output_full: ci:ConnectionInfo -> s:(;ci)hs_state -> si:SessionInfo ->
 	pv:ProtocolVersion -> cVerifyData -> sVerifyData -> l:log{
           ?csid,cs,cm,ex. l = ClientHelloMsg(pv,si.init_crand,csid,cs,cm,ex)
         } ->
-	((;ci)hs_state * ProtocolVersion) Result
+	((s':(;ci)hs_state{Config(ci,s) = Config(ci,s')}) * ProtocolVersion) Result
 val negotiate: 'a list -> 'a list -> 'a option
-val prepare_server_output_resumption: ci:ConnectionInfo -> (;ci)hs_state -> crand ->
+val prepare_server_output_resumption: ci:ConnectionInfo -> s:(;ci)hs_state -> crand ->
 	si:SessionInfo -> (;si)PRF.masterSecret -> cVerifyData -> sVerifyData -> log ->
-	(;ci)hs_state
+	s':(;ci)hs_state{Config(ci,s) = Config(ci,s')}
 val startServerFull: ci:ConnectionInfo -> s:(;ci)hs_state -> 
-	(ProtocolVersion * crand * sessionID * cipherSuites * Compression list * bytes) ->// CHello
-	cVerifyData -> sVerifyData -> l:log -> ((;ci)hs_state * ProtocolVersion) Result
+  ch:(ProtocolVersion * crand * sessionID * cipherSuites * Compression list * bytes) ->// CHello
+  cVerifyData -> sVerifyData -> 
+  l:log{!pv,cr,sid,cs,cms,ex. ch = (pv,cr,sid,cs,cms,ex) =>
+         l = ClientHelloMsg(pv,cr,sid,cs,cms,ex)} -> 
+  ((s':(;ci)hs_state{Config(ci,s') = Config(ci,s)}) * ProtocolVersion) Result
 val recv_fragment_server: ci:ConnectionInfo -> s:(;ci)hs_state -> pv:ProtocolVersion option ->
 	(;ci,Config(ci,s))incoming
-val enqueue_fragment: ci:ConnectionInfo -> (;ci)hs_state -> bytes -> (;ci)hs_state
+val enqueue_fragment: ci:ConnectionInfo -> s1:(;ci)hs_state -> bytes -> s2:(;ci)hs_state{Config(ci,s1) = Config(ci,s2)}
 
 (* CF removed large commented out stuff; see prior revisions *) 
+
+val sessionInfoCertBytesAuth: (si:SessionInfo) -> 
+  (clo: (Cert.chain * a:Sig.alg * (;a)Sig.skey) option) ->
+  (si':SessionInfo * b:bytes){
+    (si.client_auth = false /\ si' = si /\ b = [||]) \/
+    (si.client_auth = true /\ clo = None /\ b = CertificateMsg([]) /\ si = si') \/
+    (si.client_auth = true /\  (?cl,a',b'. clo = Some((cl,a',b')) /\ b = CertificateMsg(cl) /\ si'.clientID = cl))}
+
+val certificateVerifyBytesAuth: si:SessionInfo -> 
+  (;si) PRF.masterSecret -> 
+  cert_req: (Cert.chain * a:Sig.alg * (;a)Sig.skey) option ->
+  log:bytes{!cl,a,sk. cert_req = Some((cl,a,sk)) => Sig.Msg(a,Sig.PK(sk),log)} -> 
+  b:bytes{
+    ((si.client_auth = false \/ cert_req = None) /\ b = [||]) \/
+     (si.client_auth = true /\ 
+         (?cl,a,sk,sign. 
+            cert_req = Some((cl,a,sk)) /\
+            b = CertificateVerifyMsg(si.protocol_version,a,sign)))}
+

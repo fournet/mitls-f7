@@ -255,7 +255,7 @@ val minPV: a:ProtocolVersion -> b:ProtocolVersion -> c:ProtocolVersion
 //CF what's this refinement?? adjust on demand
 //CF {(a < b /\ c = a) \/ (a >= b /\ c = b)}
 val geqPV: a:ProtocolVersion -> b:ProtocolVersion -> r:bool
-
+val somePV: a: ProtocolVersion -> b:ProtocolVersion option {b = Some(a)}
 (* FIXME: same duplication between logical and concrete function definitions, 
    already seen in TLSConstants. 
    CF: we could save a bit by not making cipherSuite abstract for F7.
