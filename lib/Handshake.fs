@@ -1,4 +1,4 @@
-﻿(* Handshake protocol *) 
+(* Handshake protocol *) 
 module Handshake
 
 open Bytes
@@ -1130,11 +1130,12 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                       InError(x,y,state)
 (* KB #endif*)
                   | Correct(extList) ->
-                  // Handling of safe renegotiation
+                  // Handling of safe renegotiation //#being-safe_renego
                   let safe_reneg_result =
                     if state.poptions.safe_renegotiation then
                         let expected = cvd @| svd in
                         inspect_ServerHello_extensions extList expected
+                        //#end-safe_renego
                     else
                         // RFC Sec 7.4.1.4: with no safe renegotiation, we never send extensions; if the server sent any extension
                         // we MUST abort the handshake with unsupported_extension fatal alter (handled by the dispatcher)
