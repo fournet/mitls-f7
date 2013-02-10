@@ -1,4 +1,4 @@
-﻿module Dispatch
+module Dispatch
 
 open Bytes
 open TLSConstants
@@ -226,6 +226,7 @@ let writeOne (Conn(id,c)) (ghr:range) (ghf:AppFragment.fragment) (ghs:DataStream
                     // We are finishing a handshake. Force to read, so that we'll complete the handshake.
                     (WMustRead,Conn(id,c)) 
 
+          //#begin-alertAttack
           | Handshake.OutCCS(rg,ccs,nextID,nextWrite,new_hs_state) ->
                     let nextWCS = Record.initConnState nextID.id_out StatefulLHAE.WriterState nextWrite in
                     (* we send a (complete) CCS fragment *)
@@ -255,6 +256,7 @@ let writeOne (Conn(id,c)) (ghr:range) (ghf:AppFragment.fragment) (ghs:DataStream
                     | _ -> (* Internal error: send a fatal alert to the other side *)
                         let reason = perror __SOURCE_FILE__ __LINE__ "Sending CCS in wrong state" in
                         let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in (WriteAgain, closing) 
+          //#end-alertAttack
           | (Handshake.OutSome(rg,f,new_hs_state)) ->     
                       (* we send some handshake fragment *)
                       match c_write.disp with
