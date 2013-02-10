@@ -1,4 +1,4 @@
-﻿module RSA
+module RSA
 // MK the module names in the paper are RSA and RSAKey. Where should we fix this?
 
 open Bytes
@@ -25,6 +25,7 @@ let encrypt key pv pms =
     #endif
     CoreACiphers.encrypt_pkcs1 (RSAKey.repr_of_rsapkey key) v
 
+//#begin-decrypt_int
 let decrypt_int dk si cv cvCheck encPMS =
   (*@ Security measures described in RFC 5246, section 7.4.7.1 *)
   (*@ 1. Generate random data, 46 bytes, for PMS except client version *)
@@ -48,6 +49,7 @@ let decrypt_int dk si cv cvCheck encPMS =
     | _  -> 
         (*@ 3. in case of decryption of length error, continue with fake PMS *) 
         expected @| fakepms
+//#end-decrypt_int
 
 let decrypt dk si cv check_client_version_in_pms_for_old_tls encPMS =
     match Cert.get_chain_public_encryption_key si.serverID with
