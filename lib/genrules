@@ -29,6 +29,8 @@ FS7DEFAULT = [
   'UTLS',
 ]
 
+FS7APPS = [ 'PwToken', 'PwApp' ]
+
 MKHEADER = '''\
 include ../Makefile.config
 
@@ -249,7 +251,7 @@ def _main():
 
     if options.mode == 'json':
         jsondata = { name: [os.path.splitext(x)[0] for x in fs7deps_m[name]] \
-                         for name in fs7default }
+                         for name in (fs7default + FS7APPS) }
         print json.dumps(jsondata)
 
 # --------------------------------------------------------------------
