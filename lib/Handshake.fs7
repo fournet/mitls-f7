@@ -394,7 +394,7 @@ private definition !si,pv,l.
 (*      si'.pmsData = RSAPMS(pk,pv,encpms) /\ *)
       l = l' @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
 
-(* KB obsolete
+(*KB obsolete
 private definition !si,pv,l.
   ServerLogBeforeClientCertificateVerifyRSA_Auth(si,l) <=>
   (?pv,l',encpms. ServerLogBeforeClientKeyExchangeRSA_Auth(si,pv,l') /\
@@ -417,7 +417,7 @@ private definition !si,pv,l.
 (*      si'.pmsData = DHPMS(d) /\ *)
           l = l' @| ClientKeyExchangeMsg_DHE(d))
 
-(*
+(*KB
 private definition !si,pv,l.
   ServerLogBeforeClientCertificateVerifyDHE_Auth(si,l) <=>
   (?d,l'. ServerLogBeforeClientKeyExchangeDHE_Auth(si,l') /\
@@ -430,7 +430,7 @@ private definition !si,pv,l.
 *)
 
 predicate ServerLogBeforeClientCertificateVerify of SessionInfo * log
-(*
+(*KB
 private definition 
  !si,l. ServerLogBeforeClientCertificateVerify(si,l) <=>
   ((?a. si.cipher_suite = CipherSuite(RSA,a) /\ ServerLogBeforeClientCertificateVerifyRSA(si,l)) \/
@@ -460,8 +460,8 @@ predicate ServerLogBeforeClientFinishedRSA_NoAuth of SessionInfo * log
 
 private definition !si,pv,l.
   ServerLogBeforeClientFinishedRSA(si,l) <=>
-  ((si.client_auth = true (*/\  si.clientID <> []*) /\ ServerLogBeforeClientFinishedRSA_Auth(si,l)) \/
-  ((si.client_auth = false (* \/  si.clientID = [] *)) /\ ServerLogBeforeClientFinishedRSA_NoAuth(si,l)))
+  ((si.client_auth = true (*KB /\  si.clientID <> []*) /\ ServerLogBeforeClientFinishedRSA_Auth(si,l)) \/
+  ((si.client_auth = false (*KB \/  si.clientID = [] *)) /\ ServerLogBeforeClientFinishedRSA_NoAuth(si,l)))
 
 private definition !si,l.
   ServerLogBeforeClientFinishedRSA_Auth(si,l) <=>
@@ -478,8 +478,8 @@ predicate ServerLogBeforeClientFinishedDHE_NoAuth of SessionInfo * log
 
 private definition !si,pv,l.
   ServerLogBeforeClientFinishedDHE(si,l) <=>
-  ((si.client_auth = true (* /\  si.clientID <> []*) /\ ServerLogBeforeClientFinishedDHE_Auth(si,l)) \/
-   ((si.client_auth = false (* \/  si.clientID = [] *)) /\ ServerLogBeforeClientFinishedDHE_NoAuth(si,l)))
+  ((si.client_auth = true (*KB /\  si.clientID <> []*) /\ ServerLogBeforeClientFinishedDHE_Auth(si,l)) \/
+   ((si.client_auth = false (*KB \/  si.clientID = [] *)) /\ ServerLogBeforeClientFinishedDHE_NoAuth(si,l)))
 
 private definition !si,l.
   ServerLogBeforeClientFinishedDHE_Auth(si,l) <=>
@@ -495,8 +495,8 @@ predicate ServerLogBeforeClientFinished_Auth of SessionInfo * log
 predicate ServerLogBeforeClientFinished_NoAuth of SessionInfo * log
 private definition 
  !si,l. ServerLogBeforeClientFinished(si,l) <=>
-  ((si.client_auth = true (* /\  si.clientID <> [] *) /\ ServerLogBeforeClientFinished_Auth(si,l)) \/
-  ((si.client_auth = false  (* \/  si.clientID = [] *)) /\ ServerLogBeforeClientFinished_NoAuth(si,l)))
+  ((si.client_auth = true (*KB /\  si.clientID <> [] *) /\ ServerLogBeforeClientFinished_Auth(si,l)) \/
+  ((si.client_auth = false  (*KB \/  si.clientID = [] *)) /\ ServerLogBeforeClientFinished_NoAuth(si,l)))
 
 private definition !si,l.
   ServerLogBeforeClientFinished_Auth(si,l) <=>
@@ -775,7 +775,6 @@ private assume !r,si,si'. Authorize(Server,si) /\ SessionHelloParams(si) =
   SessionHelloParams(si') /\ si'.serverID = si.serverID /\ si'.clientID = si.clientID /\ si'.client_auth = si.client_auth => Authorize(Server,si')
 
 private definition !a,k,t. Sig.Msg(a,k,t) 
-(*
   <=> ((?si,pk,pv,e. 
              ClientLogBeforeCertificateVerifyRSA_Auth(si,t) /\
              si.pmsData = RSAPMS(pk,pv,e) /\
@@ -790,9 +789,8 @@ private definition !a,k,t. Sig.Msg(a,k,t)
            DHEParamBytes(p,g,gy) /\
            DH.HonestExponent(p,g,gy) /\
            k = Cert.SigPKCert(si.serverID,a)))
-*)           
 private definition !e,r,b. PRF.VerifyData(e,r,b) 
-(*  <=> ((r = Client /\
+  <=> ((r = Client /\
         Authorize(Client,EpochSI(e)) /\
         SentCCS(Client,e) /\
         ClientLogBeforeClientFinished(EpochSI(e),b)) \/
@@ -808,10 +806,10 @@ private definition !e,r,b. PRF.VerifyData(e,r,b)
         Authorize(Server,EpochSI(e)) /\
         SentCCS(Server,e) /\
         ServerLogBeforeServerFinishedResume(EpochSI(e),b))) 
-*)
+
 private definition !role,e,cfg. 
   CompleteEpoch(role,e,cfg) 
-(*  <=>
+  <=>
   ((StrongHS(EpochSI(e)) /\ HonestPMS(EpochSI(e).pmsData) =>
               (Authorize(Client,EpochSI(e)) /\
                Authorize(Server,EpochSI(e)) /\
@@ -824,7 +822,7 @@ private definition !role,e,cfg.
      (?a. Sig.Honest(a,Cert.SigPKCert(EpochSI(e).serverID,a))) /\
      RSAKey.Honest(Cert.RSAPKCert(EpochSI(e).serverID))) 
     => HonestPMS(EpochSI(e).pmsData)))
-*)
+
 (* Negotiated remains to be defined but it can be a nice global spec of what HS is meant to achieve.
    Especially interesting would be proving that the result is the "best possible" *)
 
