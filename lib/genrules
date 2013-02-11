@@ -18,6 +18,7 @@ FS7DEFAULT = [
   'AppData',
   'StatefulPlain',
   'LHAEPlain',
+  'MACa',
   'MAC',
   'Encode',
   'LHAE',

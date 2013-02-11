@@ -55,22 +55,35 @@ open TLSInfo
    
    What to include? probably the ideal typing of a single exemplary secure algorithm, importing mac2.fs* *)
 
-type text = bytes
 type (;ki:succEpoch) keyrepr = k:bytes {Length(k) = MacSize(CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version)) }
 type (;ki:succEpoch) tag     = m:bytes {Length(m) = MacSize(CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version))}
-private type (;ki:succEpoch) key = {k:(;ki) keyrepr}
+private type (;ki:succEpoch) key = 
+  | KeyNoAuth of (k:(;ki) keyrepr { not(Auth(ki)) })
+  | Key_a of (k:(;ki) MACa.key 
+    { Auth(ki) /\ 
+	  MACa.a = CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) })
 
+(* this assumption records the list of algorithms assumed to be INT-CMA *) 
+private assume
+  !ki. Auth(ki) => MACa.a = CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version)
+
+type text = bytes
 predicate val Msg: epoch * text -> bool
+private definition 
+  !ki,t. MACa.Msg(ki,t) <=> 
+      (Msg(ki,t) /\ Auth(ki) /\ 
+	   MACa.a = CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version))
 
 val Mac:    ki:succEpoch -> k:(;ki) key -> t:text{Msg(ki,t)} -> m:(;ki) tag
-val Verify: ki:succEpoch -> k:(;ki) key -> t:text -> m:(;ki) tag -> v:bool{ (v=true /\ Auth(ki)) => Msg(ki,t) }
+val Verify: ki:succEpoch -> k:(;ki) key -> t:text -> m:(;ki) tag -> b:bool{ (b=true /\ Auth(ki)) => Msg(ki,t) }
 
 val GEN:    ki:succEpoch -> (;ki) key
 val LEAK:   ki:succEpoch {not(Auth(ki))} -> (;ki)key -> (;ki)keyrepr
 val COERCE: ki:succEpoch {not(Auth(ki))} -> (;ki)keyrepr -> (;ki)key
 
-type entry = (ki:epoch * t:text * (;ki)tag){Msg(ki,t)}
-val log: entry list ref
-val tmem: ki:epoch -> t:text -> entry list -> b:bool{
-  (b = true) => Msg(ki,t)
-}
+(* 
+// typing the log for the ideal functionality (not needed anymore)
+private type entry = (ki:epoch * t:text * (;ki)tag){Msg(ki,t)}
+private val log: entry list ref
+private val tmem: ki:epoch -> t:text -> entry list -> b:bool{ b = true => Msg(ki,t) }
+*)

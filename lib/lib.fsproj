@@ -197,6 +197,9 @@
     <None Include="LHAEPlain.fs7" />
     <Compile Include="LHAEPlain.fsi" />
     <Compile Include="LHAEPlain.fs" />
+    <None Include="MACa.fs7" />
+    <Compile Include="MACa.fsi" />
+    <Compile Include="MACa.fs" />
     <None Include="MAC.fs7" />
     <Compile Include="MAC.fsi" />
     <Compile Include="MAC.fs" />
