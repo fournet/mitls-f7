@@ -226,7 +226,7 @@ let writeOne (Conn(id,c)) (ghr:range) (ghf:AppFragment.fragment) (ghs:DataStream
                     // We are finishing a handshake. Force to read, so that we'll complete the handshake.
                     (WMustRead,Conn(id,c)) 
 
-          //#begin-alertAttack
+          //#begin-alertAttackSend
           | Handshake.OutCCS(rg,ccs,nextID,nextWrite,new_hs_state) ->
                     let nextWCS = Record.initConnState nextID.id_out StatefulLHAE.WriterState nextWrite in
                     (* we send a (complete) CCS fragment *)
@@ -256,7 +256,7 @@ let writeOne (Conn(id,c)) (ghr:range) (ghf:AppFragment.fragment) (ghs:DataStream
                     | _ -> (* Internal error: send a fatal alert to the other side *)
                         let reason = perror __SOURCE_FILE__ __LINE__ "Sending CCS in wrong state" in
                         let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in (WriteAgain, closing) 
-          //#end-alertAttack
+          //#end-alertAttackSend
           | (Handshake.OutSome(rg,f,new_hs_state)) ->     
                       (* we send some handshake fragment *)
                       match c_write.disp with
@@ -578,6 +578,7 @@ let readOne (Conn(id,c)) =
                   | (Change_cipher_spec, FirstHandshake(_)) | (Change_cipher_spec, Open) ->
                         let f = TLSFragment.RecordPlainToCCSPlain id.id_in history rg frag in
                         match Handshake.recv_ccs id c.handshake rg f with 
+                          //#begin-alertAttackRecv
                           | InCCSAck(nextID,nextR,hs) ->
                               (* We know statically that Handshake and Application data buffers are empty.
                                * We check Alert. We are going to reset the Alert buffer anyway, so we
@@ -599,6 +600,7 @@ let readOne (Conn(id,c)) =
                                   let closing = abortWithAlert (Conn(id,c)) AD_handshake_failure reason in
                                   let wo,conn = writeAll closing in
                                   WriteOutcome(wo),conn
+                          //#end-alertAttackRecv
                           | InCCSError (x,y,hs) ->
                               let c = {c with handshake = hs} in
                               let closing = abortWithAlert (Conn(id,c)) x y in
