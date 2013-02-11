@@ -15,13 +15,15 @@ type modulus  = bytes
 type exponent = bytes
 
 (* Used in specifications *)
+function val PK: sk -> pk
 predicate Honest of pk
 val honest: pk:pk -> b:bool { b = true <=> Honest(pk) }  
+val gen: unit -> p:pk * s:sk{Honest(p) /\ p = PK(s)}
 
-// TODO to be adjusted depending on the compromise model in Cert
+(* TODO: to be adjusted depending on the compromise model in Cert
 val create_rsapkey : modulus * exponent -> pk
 val create_rsaskey : modulus * exponent -> sk
-
+*)
 // TODO (* Commented out because they depend on core ciphers,
 // TODO    and they are never used in ideal TLS crypto *)
 // TODO val repr_of_rsapkey : pk -> CoreACiphers.pk

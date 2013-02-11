@@ -64,14 +64,14 @@ predicate Msg of a:alg * (;a)pkey * text
 predicate Honest of a:alg * (;a) pkey
 predicate Strong of alg
 
-val gen:     a:alg -> pk:(;a) pkey * sk:(;a) skey { pk = PK(sk) }
+val gen:     a:alg -> pk:(;a) pkey * sk:(;a) skey { pk = PK(sk) /\ Honest(a,pk) }
 val sign:    a:alg -> sk:(;a) skey -> t:text{Msg(a,PK(sk),t)} -> (;a) sigv
 val verify:  a:alg -> pk:(;a) pkey -> t:text -> m:(;a) sigv -> 
   b:bool {(b=true /\ Strong(a) /\ Honest(a,pk)) => Msg(a,pk,t)}
 
 
-// Commented out as it depends on core crypto and is not used by ideal functionality
-(* 
+
+(* MK: Commented out as it depends on core crypto and is not used by ideal functionality
 function val sigalg_of_skeyparams : CoreSig.sigskey -> sigAlg
 function val sigalg_of_pkeyparams : CoreSig.sigpkey -> sigAlg
 
@@ -80,9 +80,8 @@ private definition !m, e. sigalg_of_pkeyparams (CoreSig.PK_RSA (m, e)) = SA_RSA
 private definition !x, p. sigalg_of_skeyparams (CoreSig.SK_DSA (x, p)) = SA_DSA
 private definition !y, p. sigalg_of_pkeyparams (CoreSig.PK_DSA (y, p)) = SA_DSA
 
-// Coerce-like
-val create_skey: h:chash -> k:skeyparams -> (;(sigalg_of_skeyparams(k), h))skey
-val create_pkey: h:chash -> k:pkeyparams -> (;(sigalg_of_pkeyparams(k), h))vkey
+val create_skey: h:chash -> k:skeyparams -> sk:(;(sigalg_of_skeyparams(k), h))skey{not Honest(PK(sk))}
+val create_pkey: h:chash -> k:pkeyparams -> pk:(;(sigalg_of_pkeyparams(k), h))vkey
 // Leak-like
 val repr_of_skey: skey -> CoreSig.sigskey * hashAlg
 val repr_of_pkey: pkey -> CoreSig.sigpkey * hashAlg

@@ -7,7 +7,7 @@ private type (;ki:epoch,r:range) fragment = {frag: (;r)rbytes}
 private type (;ki:epoch) stream = {sb:bytes list}
 
 predicate Sent of ki:epoch * (;ki) stream * r:range * (;ki,r)fragment
-private assume !ki,s,r,f. Sent(ki,s,r,f) (*KB No Handshake/Alert/CCS Authentication *)
+assume !ki,s,r,f. Sent(ki,s,r,f) (*KB No Handshake/Alert/CCS Authentication *)
 
 type (;e:epoch,s:(;e)stream,r:range)plain = f:(;e,r)fragment{Auth(e) => Sent(e,s,r,f)}
 

@@ -90,9 +90,9 @@ private definition !pv,sr,sid,cs,cm,ext.
 			 ext)
 		)
 
-function type params =  SessionHelloParams of SessionInfo 
+function val  SessionHelloParams: SessionInfo * unit -> (ProtocolVersion * cipherSuite * Compression)
 private definition !si. 
- SessionHelloParams(si) = (si.protocol_version,si.cipher_suite,si.compression)
+ SessionHelloParams(si,()) = (si.protocol_version,si.cipher_suite,si.compression)
 
 val serverHelloBytes: si:SessionInfo -> sr:random -> ext:bytes ->
 	b:bytes{b = ServerHelloMsg(si.protocol_version,sr,si.sessionID,si.cipher_suite,
@@ -357,7 +357,7 @@ private definition !si,pv,l.
 private definition !si,pv,l.
   ServerLogBeforeClientKeyExchangeRSA_Auth(si,pv,l) <=>
   (?si',l'. ServerLogBeforeClientCertificateRSA_Auth(si',pv,l') /\
-        SessionHelloParams(si) = SessionHelloParams(si') /\
+        SessionHelloParams(si,()) = SessionHelloParams(si',()) /\
         l = l' @| CertificateMsg(si.clientID))
 
 private definition !si,pv,l.
@@ -376,7 +376,7 @@ private definition !si,pv,l.
 private definition !si,pv,l.
   ServerLogBeforeClientKeyExchangeDHE_Auth(si,l) <=>
   (?si',l'. ServerLogBeforeClientCertificateDHE_Auth(si',l') /\
-        SessionHelloParams(si) = SessionHelloParams(si') /\
+        SessionHelloParams(si,()) = SessionHelloParams(si',()) /\
         l = l' @| CertificateMsg(si.clientID))
 
 private definition !si,pv,l.
@@ -390,7 +390,7 @@ predicate ServerLogBeforeClientCertificateVerifyRSA_NoAuth of SessionInfo * log
 private definition !si,pv,l.
   ServerLogBeforeClientCertificateVerifyRSA(si,l) <=>
   (?si',pv,l',encpms,pk. ServerLogBeforeClientKeyExchangeRSA(si',pv,l') /\
-      SessionHelloParams(si) = SessionHelloParams(si') /\
+      SessionHelloParams(si,()) = SessionHelloParams(si',()) /\
 (*      si'.pmsData = RSAPMS(pk,pv,encpms) /\ *)
       l = l' @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
 
@@ -413,7 +413,7 @@ predicate ServerLogBeforeClientCertificateVerifyDHE_NoAuth of SessionInfo * log
 private definition !si,pv,l.
   ServerLogBeforeClientCertificateVerifyDHE(si,l) <=>
   (?si',d,l'. ServerLogBeforeClientKeyExchangeDHE(si',l') /\
-        SessionHelloParams(si) = SessionHelloParams(si') /\
+        SessionHelloParams(si,()) = SessionHelloParams(si',()) /\
 (*      si'.pmsData = DHPMS(d) /\ *)
           l = l' @| ClientKeyExchangeMsg_DHE(d))
 
@@ -768,11 +768,11 @@ val check_negotiation: r:Role -> si:SessionInfo -> cfg:config -> unit{?cfg'. Neg
 
 (* Anonymous clients are authorized for client-unauthenticated sessions *)
 private assume !si. (si.client_auth = false /\ si.clientID = []) => Authorize(Server,si)
-private assume !r,si,si'. Authorize(Client,si) /\ SessionHelloParams(si) =
-  SessionHelloParams(si') /\ si'.serverID = si.serverID => Authorize(Client,si')
+private assume !r,si,si'. Authorize(Client,si) /\ SessionHelloParams(si,()) =
+  SessionHelloParams(si',()) /\ si'.serverID = si.serverID => Authorize(Client,si')
 
-private assume !r,si,si'. Authorize(Server,si) /\ SessionHelloParams(si) = 
-  SessionHelloParams(si') /\ si'.serverID = si.serverID /\ si'.clientID = si.clientID /\ si'.client_auth = si.client_auth => Authorize(Server,si')
+private assume !r,si,si'. Authorize(Server,si) /\ SessionHelloParams(si,()) = 
+  SessionHelloParams(si',()) /\ si'.serverID = si.serverID /\ si'.clientID = si.clientID /\ si'.client_auth = si.client_auth => Authorize(Server,si')
 
 private definition !a,k,t. Sig.Msg(a,k,t) 
   <=> ((?si,pk,pv,e. 
@@ -789,7 +789,9 @@ private definition !a,k,t. Sig.Msg(a,k,t)
            DHEParamBytes(p,g,gy) /\
            DH.HonestExponent(p,g,gy) /\
            k = Cert.SigPKCert(si.serverID,a)))
+
 private definition !e,r,b. PRF.VerifyData(e,r,b) 
+
   <=> ((r = Client /\
         Authorize(Client,EpochSI(e)) /\
         SentCCS(Client,e) /\
@@ -807,8 +809,10 @@ private definition !e,r,b. PRF.VerifyData(e,r,b)
         SentCCS(Server,e) /\
         ServerLogBeforeServerFinishedResume(EpochSI(e),b))) 
 
+
 private definition !role,e,cfg. 
   CompleteEpoch(role,e,cfg) 
+
   <=>
   ((StrongHS(EpochSI(e)) /\ HonestPMS(EpochSI(e).pmsData) =>
               (Authorize(Client,EpochSI(e)) /\
@@ -918,8 +922,11 @@ type (;ci:ConnectionInfo) clientState =
 
    | ServerCCSResume        of (ew:succEpoch * (;ew)StatefulLHAE.writer * er:succEpoch * (;er)StatefulLHAE.reader * (;EpochSI(ew))PRF.masterSecret * l:log){EpochSI(ew)=EpochSI(er) /\ ci.id_in = Pred(er) /\ ClientLogBeforeServerFinishedResume(EpochSI(ew),l) /\ Authorize(Client,EpochSI(ew))}
    | ServerFinishedResume   of e:succEpoch * (;e)StatefulLHAE.writer * (;EpochSI(e))PRF.masterSecret * l:log{ClientLogBeforeServerFinishedResume(EpochSI(e),l) /\ Authorize(Client,EpochSI(e))}
-   | ClientWritingCCSResume of e:succEpoch * (;e)StatefulLHAE.writer * (;EpochSI(e))PRF.masterSecret * sv:sVerifyData * l:log{ClientLogBeforeClientFinishedResume(EpochSI(e),l) /\ (* PRF.VerifyData(e,Server,sv) /\ *)
-                                                                                                                                Authorize(Client,EpochSI(e))}
+   | ClientWritingCCSResume of e:succEpoch * w:(;e)StatefulLHAE.writer * (;EpochSI(e))PRF.masterSecret * sv:sVerifyData * l:log{ClientLogBeforeClientFinishedResume(EpochSI(e),l) /\ (* PRF.VerifyData(e,Server,sv) /\ *)
+Authorize(Client,EpochSI(e)) /\
+ci.id_out = Pred(e) /\
+         StatefulLHAE.History(e,StatefulLHAE.WriterState,w) = 
+         StatefulPlain.EmptyHistory(e) }
    | ClientWritingFinishedResume of cVerifyData * sVerifyData
 
    | ClientIdle             of cVerifyData * sVerifyData
