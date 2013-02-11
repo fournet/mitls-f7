@@ -25,7 +25,8 @@ type HttpStreamReader (stream : Stream) =
 
     interface IDisposable with
         member self.Dispose () =
-            if stream <> null then stream.Close ()
+           if stream <> null then
+                Utils.noexn (fun () -> stream.Close ())
 
     member private self.EnsureAvailable () =
         if position = available then begin
