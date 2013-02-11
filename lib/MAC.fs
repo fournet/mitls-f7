@@ -11,7 +11,7 @@ type tag = bytes
 type keyrepr = bytes
 type key = 
   | KeyNoAuth of keyrepr
-  | Key_a of MACa.key
+  | Key_a     of MACa.key
  
 // this ideal variant enables us to directly specify that MAC is ideal
 // at safe indexes; we do not need that assumption anymore, as we 

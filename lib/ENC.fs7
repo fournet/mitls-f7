@@ -24,6 +24,12 @@ type cipher = b:bytes{Length(b) <= max_TLSCipher_fragment_length}
 
 private type (;ki:epoch) key = {k:bytes}
 
+//CF should actually be 
+//CF private type (;ki:epoch) key' = 
+//CF   | GoodKey_A of ideal_A.key 
+//CF   | GoodKey_B of ideal_B.key
+//CF   | BadKey_A 
+
 type iv = bytes
 private type (;ki:epoch) iv3 =
 	| SomeIV of iv // SSL_3p0 and TLS_1p0

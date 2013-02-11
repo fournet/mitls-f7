@@ -8,7 +8,7 @@ MSBUILD = 'http://schemas.microsoft.com/developer/msbuild/2003'
 
 FS7DEFAULT = [
   'Error',
-  'TLSConstants',
+#  'TLSConstants',
   'TLSInfo',
   'DataStream',
   'Alert',
@@ -42,9 +42,10 @@ libfs7    = $(lib7)pi.fs7 $(lib7)formulas.fs7
 f7timeout = 1
 f7defs    = avoid verify ideal
 
+# removed --verbose for automated testing
 override f7flags += \\
   -timeout $(f7timeout) $(patsubst %%,--define %%,$(f7defs)) \\
-  --verbose -nokindcheck $(lperv) $(libfs7)
+  -nokindcheck $(lperv) $(libfs7)
 
 xunit ?= xunit.xml
 
