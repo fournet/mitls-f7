@@ -25,6 +25,7 @@ private type (;e:epoch,rw:StatefulLHAE.rw) dState = {
     conn: (;e,rw)Record.ConnectionState;
     }
 
+//#begin-gs
 private type (;id:ConnectionInfo) preGlobalState = {
   (* abstract protocol states for HS/CCS, AL, and AD *)
   handshake: (;id) Handshake.hs_state;
@@ -37,6 +38,7 @@ private type (;id:ConnectionInfo) preGlobalState = {
   (* The actual socket *)
   ns: Tcp.NetworkStream;
   }
+//#end-gs
 
 
 predicate GState of ci:ConnectionInfo * (;ci)preGlobalState

@@ -207,6 +207,8 @@ let recv_fragment (ci:ConnectionInfo) state (r:range) (f:HSFragment.fragment) =
                     let res = handle_alert ci state alert in
                     correct(res)
 
+let is_incoming_empty (c:ConnectionInfo) s = equalBytes s.al_incoming [||]
+
 let reset_incoming (c:ConnectionInfo) s (nc:ConnectionInfo) =
     {s with al_incoming = [||]}
 

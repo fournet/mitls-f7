@@ -579,16 +579,26 @@ let readOne (Conn(id,c)) =
                         let f = TLSFragment.RecordPlainToCCSPlain id.id_in history rg frag in
                         match Handshake.recv_ccs id c.handshake rg f with 
                           | InCCSAck(nextID,nextR,hs) ->
-                              let nextRCS = Record.initConnState nextID.id_in StatefulLHAE.ReaderState nextR in
-                              let new_read = {c_read with disp = Finishing; conn = nextRCS} in
-                              let new_ad = AppData.reset_incoming id c.appdata nextID in
-                              let new_al = Alert.reset_incoming id c.alert nextID in
-                              let c = { c with read = new_read;
-                                               appdata = new_ad;
-                                               alert = new_al;
-                                               handshake = hs;
-                                      }
-                              (RAgain, Conn(nextID,c))
+                              (* We know statically that Handshake and Application data buffers are empty.
+                               * We check Alert. We are going to reset the Alert buffer anyway, so we
+                               * never concatenate buffers of different epochs. But it is nicer to abort the
+                               * session if some buffers are not in the expected state. *)
+                              if Alert.is_incoming_empty id c.alert then
+                                  let nextRCS = Record.initConnState nextID.id_in StatefulLHAE.ReaderState nextR in
+                                  let new_read = {c_read with disp = Finishing; conn = nextRCS} in
+                                  let new_ad = AppData.reset_incoming id c.appdata nextID in
+                                  let new_al = Alert.reset_incoming id c.alert nextID in
+                                  let c = { c with read = new_read;
+                                                   appdata = new_ad;
+                                                   alert = new_al;
+                                                   handshake = hs;
+                                          }
+                                  (RAgain, Conn(nextID,c))
+                               else
+                                  let reason = perror __SOURCE_FILE__ __LINE__ "Changing epoch with non-empty buffers" in
+                                  let closing = abortWithAlert (Conn(id,c)) AD_handshake_failure reason in
+                                  let wo,conn = writeAll closing in
+                                  WriteOutcome(wo),conn
                           | InCCSError (x,y,hs) ->
                               let c = {c with handshake = hs} in
                               let closing = abortWithAlert (Conn(id,c)) x y in
