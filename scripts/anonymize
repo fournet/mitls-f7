@@ -49,7 +49,7 @@ def parser(mode):
 
 # --------------------------------------------------------------------
 def filter_hashes(input, symbols):
-    hif    = re.compile(r'^\s*#\s*if\s+(\w+)\s*$')
+    hif    = re.compile(r'^\s*#\s*if\s+(\w+)\b')
     helse  = re.compile(r'^\s*#\s*else\b')
     hend   = re.compile(r'^\s*#\s*endif\b')
     hashes = []
