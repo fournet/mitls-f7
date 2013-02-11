@@ -24,8 +24,8 @@ val sigalg_of_skey : sigskey -> sigalg
 val sigalg_of_pkey : sigpkey -> sigalg
 
 (* ------------------------------------------------------------------------ *)
-type text = byte[]
-type sigv = byte[]
+type text = byte array
+type sigv = byte array
 
 val gen    : sigalg -> sigpkey * sigskey
 val sign   : sighash option -> sigskey -> text -> sigv

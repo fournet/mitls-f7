@@ -1,20 +1,20 @@
 ﻿module CoreKeys
 
-type modulus  = byte[]
-type exponent = byte[]
+type modulus  = byte array
+type exponent = byte array
 
 type rsapkey = modulus * exponent
 type rsaskey = modulus * exponent
 
-type dsaparams = { p : byte[]; q : byte[]; g : byte[]; }
+type dsaparams = { p : byte array; q : byte array; g : byte array; }
 
-type dsapkey = byte[] * dsaparams
-type dsaskey = byte[] * dsaparams
+type dsapkey = byte array * dsaparams
+type dsaskey = byte array * dsaparams
 
-type dhparams = { p : byte[]; g : byte[] }
+type dhparams = { p : byte array; g : byte array }
 
-type dhpbytes = byte[]
-type dhsbytes = byte[]
+type dhpbytes = byte array
+type dhsbytes = byte array
 
 type dhpkey = dhpbytes * dhparams
 type dhskey = dhsbytes * dhparams

@@ -1,3 +1,3 @@
 ﻿module CoreRandom
 
-val random : int -> byte[]
+val random : int -> byte array
