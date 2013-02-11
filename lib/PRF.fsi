@@ -18,4 +18,5 @@ val checkVerifyData: epoch -> Role -> masterSecret -> bytes -> bytes -> bool
 val ssl_certificate_verify: SessionInfo -> masterSecret -> TLSConstants.sigAlg -> bytes -> bytes
 
 //#begin-coerce
-val coerce: SessionInfo -> repr -> masterSecret //#end-coerce
+val coerce: SessionInfo -> repr -> masterSecret
+//#end-coerce
