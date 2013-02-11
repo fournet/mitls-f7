@@ -83,7 +83,7 @@ private definition !id,s. CnState_o(Conn(id,s)) = s.write.disp
 private definition !id,s. CnState_i(Conn(id,s)) = s.read.disp
 
 predicate CanWrite of ConnectionInfo
-definition !id. (?s. Handshake.Complete(id,Config(Conn(id,s))) ) <=> CanWrite(id)
+definition !c. Handshake.Complete(CnInfo(c),Config(c)) <=> CanWrite(CnInfo(c))
 
 function val ConnectionSIOut: Connection -> SessionInfo
 private definition !id,s. ConnectionSIOut(Conn(id,s)) = EpochSI(id.id_out)
