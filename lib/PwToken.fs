@@ -88,11 +88,18 @@ let tk_repr (e : epoch) (s : stream) (u : username) (tk : token) : delta =
 
 // ------------------------------------------------------------------------
 let tk_plain (e : epoch) (s : stream) (r : range) (delta : delta) : (username * token) option =
-    match DER.decode (DataStream.deltaRepr e s r delta) with
-    | Some (Sequence [Utf8String u; Bool tkgood; Bytes tkbytes]) ->
-        let token = if tkgood then GToken tkbytes else BToken tkbytes in
-            Some (u, token)
-    | _ -> None
+    let data =
+#if verify
+        [||]
+#else
+        DataStream.deltaRepr e s r delta
+#endif
+    in
+        match DER.decode data with
+        | Some (Sequence [Utf8String u; Bool tkgood; Bytes tkbytes]) ->
+            let token = if tkgood then GToken tkbytes else BToken tkbytes in
+                Some (u, token)
+        | _ -> None
 
 // ------------------------------------------------------------------------
 let rp_repr (e : epoch) (s : stream) (b : bool) : delta =
@@ -105,6 +112,13 @@ let rp_repr (e : epoch) (s : stream) (b : bool) : delta =
 
 // ------------------------------------------------------------------------
 let rp_plain (e : epoch) (s : stream) (r : range) (d : delta) : bool =
-    match DER.decode (DataStream.deltaRepr e s r d) with
-    | Some (DER.Bool b) -> b
-    | _ -> false
+    let data =
+#if verify
+        [||]
+#else
+        DataStream.deltaRepr e s r d
+#endif
+    in
+        match DER.decode data with
+        | Some (DER.Bool b) -> b
+        | _ -> false

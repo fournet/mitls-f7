@@ -53,7 +53,7 @@ private val MaxTkReprLen : nat
 // ------------------------------------------------------------------------
 val tk_repr :
      ki : epoch
-  -> s  : (;ki) stream{EmptyStream(ki, s)}
+  -> s  : (;ki) stream{s=EmptyStream(ki)}
   -> u  : username
   -> tk : token 
    
