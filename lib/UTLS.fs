@@ -109,15 +109,15 @@ let read (fd : int) : int * bytes =
             (EI_FATAL, Alert.alertBytes e)
 
         | TLS.Warning (conn, e) ->
-            let _ = update_fd_connection fd c.canwrite conn in
+            let _ = update_fd_connection fd false (* c.canwrite *) conn in
                 (EI_WARNING, Alert.alertBytes e)
 
         | TLS.CertQuery (conn, q, advice) ->
-            let _ = update_fd_connection fd c.canwrite conn in
+            let _ = update_fd_connection fd false (* c.canwrite *) conn in
                 (EI_CERTQUERY, [||])
 
         | TLS.Handshaken conn ->
-            let _ = update_fd_connection fd true conn in
+            let _ = update_fd_connection fd false conn in
                 (EI_HANDSHAKEN, [||])
 
         | TLS.Read (conn, (rg, m)) ->
@@ -129,7 +129,7 @@ let read (fd : int) : int * bytes =
                     (Dispatch.getEpochIn conn) (TLS.getInStream conn) rg m
             in
 #endif
-                let _ = update_fd_connection fd c.canwrite conn in
+                let _ = update_fd_connection fd false (* c.canwrite *) conn in
                     (Bytes.length plain, plain)
 
         | TLS.DontWrite conn ->
@@ -157,10 +157,10 @@ let write (fd : fd) (bytes : bytes) : int =
                 | TLS.WriteError (_, _) ->
                     unbind_fd fd; EI_WRITEERROR
                 | TLS.WriteComplete conn ->
-                    let _ = update_fd_connection fd true conn in
+                    let _ = update_fd_connection fd false (* true *) conn in
                         Bytes.length bytes
                 | TLS.WritePartial (conn, (r, m)) ->
-                    let _ = update_fd_connection fd true conn in
+                    let _ = update_fd_connection fd false (* true *) conn in
                     let rem =
 #if verify
                         [||]
