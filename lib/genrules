@@ -47,7 +47,7 @@ override f7flags += \\
 
 xunit ?= xunit.xml
 
-.PHONY: default clean check-xunit
+.PHONY: default clean check-xunit regen
 
 -include Makefile.tc7
 
@@ -94,6 +94,9 @@ default: %(fs7default)s
 
 clean:
 	rm -f *.smp *.tc7
+
+regen:
+	./genrules -I ../CoreCrypto/CoreCrypto.fsproj lib.fsproj > Makefile
 ''' % dict(fs7default = ' '.join([x + '.tc7' for x in FS7DEFAULT]))
 
 # --------------------------------------------------------------------
@@ -105,18 +108,18 @@ class Object(object):
 def _options(args):
     from optparse import OptionParser
 
-    parser = OptionParser(usage = "%prog: [options] file.fsproj")
-    parser.add_option('-I', None,
-                      action  = 'append',
-                      dest    = 'includes',
-                      default = [],
-                      metavar = 'DIR',
-                      help    = 'Add DIR to include path')
+    parser = OptionParser(usage = "%prog: [options] file.fsproj...")
     parser.add_option('-m', '--mode',
                       action  = 'store',
                       default = 'makefile',
                       metavar = 'MODE',
                       help    = 'set output mode to MODE')
+    parser.add_option('-I', None,
+                      dest    = 'includes',
+                      action  = 'append',
+                      default = [],
+                      metavar = 'FSPROJ',
+                      help    = 'Add project contents for FSI')
 
     options, args = parser.parse_args(args)
 
@@ -126,7 +129,6 @@ def _options(args):
     options.fsproj = args[0]
 
     return options
-
 
 # --------------------------------------------------------------------
 class TopoSortCycleException(Exception):
@@ -159,39 +161,43 @@ def topoiter(D):
 # --------------------------------------------------------------------
 class FS7Deps(object):
     @staticmethod
-    def by_compilation_order(files):
-        return [ \
-            (files[i], ['%s.fs7' % (x,) for x in files[:i]]) \
-                for i in xrange(len(files))
-        ]
+    def by_parsing(fsproj, included):
+        srcfiles = dict()
+        lowfiles = []
 
-    @staticmethod
-    def by_parsing(srcdir, files):
-        srcfiles = dict([(x.lower(), x) for x in os.listdir(srcdir)])
-        lowfiles = [x.lower() for x in files]
+        for (i, fsp) in enumerate(included + [fsproj]):
+            wext  = ['.fs', '.fsi', '.fs7'] if i == len(included) else ['.fsi']
+            files = os.listdir(fsp.srcdir)
+            files = [x for x in files if \
+                         os.path.splitext(x)[1].lower() in  wext]
+            files = [(x.lower(), (x, fsp.srcdir)) for x in files]
+            srcfiles.update(dict(files))
+            lowfiles.extend([x.lower() for x in fsp.files])
+
         alldeps  = dict()
 
-        for name in files:
-            modules  = set()
-
-            for ext in ['.fs', '.fsi', '.fs7']:
-                contents = srcfiles[name.lower() + ext]
-                contents = open(os.path.join(srcdir, contents), 'r').read()
-                contents = re.sub(r'\(\*(?:.|\r|\n)*?\*\)', '', contents, 0)
-                contents = re.sub(r'".*?"', '', contents)
-                contents = contents.splitlines()
-                contents = [re.sub(r'//.*', '', x) for x in contents]
-                contents = [re.sub(r'\s+', ' ', x.strip()) for x in contents]
-    
-                for line in contents:
-                    m = re.search(r'^open (\w+)', line)
-                    if m is not None:
-                        modules.add(m.group(1).lower())
-                    else:
-                        for m in re.finditer(r'(\w+?)\.\w+', line):
+        for (i, fsp) in enumerate(included + [fsproj]):
+            wext = ['.fs', '.fsi', '.fs7'] if i == len(included) else ['.fsi']
+            for name in fsp.files:
+                modules  = set()
+                for ext in wext:
+                    contents = srcfiles[name.lower() + ext][0]
+                    contents = open(os.path.join(fsp.srcdir, contents), 'r').read()
+                    contents = re.sub(r'\(\*(?:.|\r|\n)*?\*\)', '', contents, 0)
+                    contents = re.sub(r'".*?"', '', contents)
+                    contents = contents.splitlines()
+                    contents = [re.sub(r'//.*', '', x) for x in contents]
+                    contents = [re.sub(r'\s+', ' ', x.strip()) for x in contents]
+        
+                    for line in contents:
+                        m = re.search(r'^open (\w+)', line)
+                        if m is not None:
                             modules.add(m.group(1).lower())
+                        else:
+                            for m in re.finditer(r'(\w+?)\.\w+', line):
+                                modules.add(m.group(1).lower())
 
-            alldeps[name.lower()] = modules.intersection(lowfiles)
+                alldeps[name.lower()] = modules.intersection(lowfiles)
 
         for name in topoiter(alldeps):
             for d in set(alldeps[name]): # copy
@@ -200,30 +206,48 @@ class FS7Deps(object):
         # Reorder using user ordering
         for name in alldeps.iterkeys():
             alldeps[name] = [x for x in lowfiles if x in alldeps[name]]
-        alldeps = [(x, alldeps[x]) for x in lowfiles if x in alldeps]
+        alldeps = [(x, alldeps[x]) for x in lowfiles \
+                       if x in alldeps and (x + '.fs7') in srcfiles]
 
         # Go back to FS name (with correct case)
         def _norm(x, y):
-            realname = os.path.splitext(srcfiles[x + '.fs7'])[0]
-            realdeps = [srcfiles[z + '.fs7'] for z in y]
+            def _norm1(x):
+                x = x + ('.fs7' if (x + '.fs7' in srcfiles) else '.fsi')
+                x = srcfiles[x]
+                if x[1] != os.path.curdir:
+                    x = os.path.join(x[1], x[0])
+                else:
+                    x = x[0]
+                return x
+            realname = os.path.splitext(_norm1(x))[0]
+            realdeps = [_norm1(z) for z in y]
             return (realname, realdeps)
 
         return [_norm(x, y) for (x, y) in alldeps]
 
 # --------------------------------------------------------------------
-def _main():
-    options = _options(sys.argv[1:])
+def _files_of_fsproj(fsproj, pure = True):
+    wext = '.%s' % ('fs7' if pure else 'fsi',)
 
-    with open(options.fsproj, 'r') as stream:
+    with open(fsproj, 'r') as stream:
         doc = etree.parse(stream)
 
     files  = doc.findall('.//{0}ItemGroup/*'.format('{%s}' % (MSBUILD,)))
     files  = [x.get('Include') for x in files if x.get('Include') is not None]
-    files  = [x for x in files if os.path.splitext(x)[1] == '.fs7']
+    files  = [x for x in files if os.path.splitext(x)[1].lower() == wext]
     files  = [os.path.splitext(x)[0] for x in files]
-    srcdir = os.path.dirname(options.fsproj) or os.path.curdir
+    srcdir = os.path.dirname(fsproj) or os.path.curdir
 
-    fs7deps    = FS7Deps.by_parsing(srcdir, files)
+    return Object(srcdir = srcdir, files = files)
+
+# --------------------------------------------------------------------
+def _main():
+    options = _options(sys.argv[1:])
+
+    fsprojs_ext = [_files_of_fsproj(x, False) for x in options.includes]
+    fsproj      = _files_of_fsproj(options.fsproj)
+
+    fs7deps    = FS7Deps.by_parsing(fsproj, fsprojs_ext)
     fs7deps_m  = dict(fs7deps)
     fs7default = [x for (x, _) in fs7deps if x in FS7DEFAULT]
 
@@ -231,6 +255,7 @@ def _main():
         print "# -*- Makefile -*-"
         print "# Automatically generated by: %s" % (' '.join(sys.argv),)
         print "# Generated on %s" % (time.ctime(),)
+        print "# Use [make regen] to regenerate this Makefile"
         print
         print MKHEADER
         print "# ----- BEGIN AUTO FS7 -----"
