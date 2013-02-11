@@ -27,13 +27,10 @@ type HttpClientHandler (server : HttpServer, peer : TcpClient) =
 
     interface IDisposable with
         member self.Dispose () =
-            begin
-                use reader    = reader
-                use stream    = stream
-                use rawstream = rawstream
-
-                ()
-            end
+            if stream <> null then
+                noexn (fun () -> rawstream.Dispose ());
+            if rawstream <> null then
+                noexn (fun () -> rawstream.Dispose ());
 
             rawstream <- null
             stream    <- null
