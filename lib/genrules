@@ -278,8 +278,12 @@ def _main():
         print ' '.join(fs7default)
 
     if options.mode == 'json':
-        jsondata = dict([(name, [os.path.splitext(x)[0] for x in deps]) \
-                             for (name, deps) in fs7deps])
+        jsondata = dict()
+        for name, deps in fs7deps:
+            name = os.path.basename(name)
+            deps = map(os.path.basename, deps)
+            deps = [os.path.splitext(x)[0] for x in deps]
+            jsondata[name] = deps
         print json.dumps(jsondata)
 
 # --------------------------------------------------------------------
