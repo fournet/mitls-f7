@@ -139,15 +139,10 @@ let decodeNoPad e (ad:LHAEPlain.adata) rg tlen pl =
      tag = tag;
      ok = true}
 
-let decode e (ad:LHAEPlain.adata) rg tlen pl =
+let decode e (ad:LHAEPlain.adata) rg (tlen:nat) pl =
     let si = epochSI(e) in
     let macSize = macSize (macAlg_of_ciphersuite si.cipher_suite si.protocol_version) in
-    let ivL = ivSize e in
-    let expected = tlen - ivL
     let pLen = length pl in
-    if pLen <> expected then
-        unreachable "[decode] tlen does not match plaintext length"
-    else
     let padLenStart = pLen - 1 in
     let (tmpdata, padlenb) = Bytes.split pl padLenStart in
     let padlen = int_of_bytes padlenb in

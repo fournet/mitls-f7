@@ -56,7 +56,7 @@ definition !e,mac,alg,l.
 	 => BlockAligned(e,l) = 0 ) /\
 	((CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Fresh(alg),mac) \/
 	  CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Stale(alg),mac))
-	 =>  ( BlockAligned(e,l) >= 0 /\ BlockAligned(e,l) < BlockSize(alg) ) )
+	 =>  ( BlockAligned(e,l) >= 1 /\ BlockAligned(e,l) < (BlockSize(alg) + 1) ) )
 
 private val blockAlignPadding: e:succEpoch -> l:nat -> l':nat{l' = BlockAligned(e,l)}
 
