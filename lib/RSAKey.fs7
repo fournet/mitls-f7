@@ -17,8 +17,15 @@ type exponent = bytes
 (* Used in specifications *)
 function val PK: sk -> pk
 predicate Honest of pk
-val honest: pk:pk -> b:bool { b = true <=> Honest(pk) }  
-val gen: unit -> p:pk * s:sk{Honest(p) /\ p = PK(s)}
+
+val gen: unit -> p:pk * s:sk {p = PK(s)}
+
+val pkey: CoreACiphers.pk -> pk
+val pkey_repr:  pk -> CoreACiphers.pk
+
+val coerce: p:pk {not Honest(p)} -> CoreACiphers.sk -> s:sk{p = PK(s)}
+val leak:   s:sk {not Honest(PK(s))} -> CoreACiphers.sk
+
 
 (* TODO: to be adjusted depending on the compromise model in Cert
 val create_rsapkey : modulus * exponent -> pk

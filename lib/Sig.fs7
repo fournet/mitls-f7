@@ -64,11 +64,16 @@ predicate Msg of a:alg * (;a)pkey * text
 predicate Honest of a:alg * (;a) pkey
 predicate Strong of alg
 
-val gen:     a:alg -> pk:(;a) pkey * sk:(;a) skey { pk = PK(sk) /\ Honest(a,pk) }
+val gen:     a:alg -> pk:(;a) pkey * sk:(;a) skey { pk = PK(sk) }
 val sign:    a:alg -> sk:(;a) skey -> t:text{Msg(a,PK(sk),t)} -> (;a) sigv
 val verify:  a:alg -> pk:(;a) pkey -> t:text -> m:(;a) sigv -> 
   b:bool {(b=true /\ Strong(a) /\ Honest(a,pk)) => Msg(a,pk,t)}
 
+val pkey:    a:alg -> CoreSig.sigpkey -> p:(;a) pk
+val pkey_repr:  a:alg -> p:(;a) pk -> CoreSig.sigpkey 
+
+val coerce:  a:alg -> p:(;a) pk{not Honest(a,p)} -> CoreSig.sigskey -> s:(;a)sk{p = PK(s)}
+val leak:    a:alg -> s:(;a) sk{not Honest(a,PK(s))} -> CoreSig.sigskey
 
 
 (* MK: Commented out as it depends on core crypto and is not used by ideal functionality
