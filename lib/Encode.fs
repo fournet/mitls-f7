@@ -139,10 +139,6 @@ let decodeNoPad e (ad:LHAEPlain.adata) rg tlen pl =
      tag = tag;
      ok = true}
 
-let checkRange l h d =
-    let len = length d in
-    (l <= len) && (len <= h)
-
 let decode e (ad:LHAEPlain.adata) rg (tlen:nat) pl =
     let si = epochSI(e) in
     let macSize = macSize (macAlg_of_ciphersuite si.cipher_suite si.protocol_version) in
@@ -163,13 +159,11 @@ let decode e (ad:LHAEPlain.adata) rg (tlen:nat) pl =
         let macstart = pLen - macSize - 1 in
         let (frag,tag) = split tmpdata macstart in
         let (l,h) = rg in
-        if checkRange l h frag then //AP should statically succeed
-            let aeadF = LHAEPlain.plain e ad rg frag in
-            { plain = aeadF;
-              tag = tag;
-              ok = false;
-            }
-        else unexpectedError "[decode] internal error"
+        let aeadF = LHAEPlain.plain e ad rg frag in
+        { plain = aeadF;
+            tag = tag;
+            ok = false;
+        }
     else
         let (data_no_pad,pad) = split tmpdata padstart in
         match si.protocol_version with
@@ -183,24 +177,20 @@ let decode e (ad:LHAEPlain.adata) rg (tlen:nat) pl =
             if equalBytes expected pad then
                 let (frag,tag) = split data_no_pad macstart in
                 let (l,h) = rg in
-                if checkRange l h frag then //AP should statically succeed
-                    let aeadF = LHAEPlain.plain e ad rg frag in
-                    { plain = aeadF;
-                      tag = tag;
-                      ok = true;
-                    }
-                else unexpectedError "[decode] internal error"
+                let aeadF = LHAEPlain.plain e ad rg frag in
+                { plain = aeadF;
+                    tag = tag;
+                    ok = true;
+                }
             else
                 let macstart = pLen - macSize - 1 in
                 let (frag,tag) = split tmpdata macstart in
                 let (l,h) = rg in
-                if checkRange l h frag then //AP should statically succeed
-                    let aeadF = LHAEPlain.plain e ad rg frag in
-                    { plain = aeadF;
-                      tag = tag;
-                      ok = false;
-                    }
-                else unexpectedError "[decode] internal error"
+                let aeadF = LHAEPlain.plain e ad rg frag in
+                { plain = aeadF;
+                    tag = tag;
+                    ok = false;
+                }
         | SSL_3p0 ->
             (*@ Padding is random in SSL_3p0, no check to be done on its content.
                 However, its length should be at most one bs
@@ -208,24 +198,20 @@ let decode e (ad:LHAEPlain.adata) rg (tlen:nat) pl =
             if padlen < bs then
                 let (frag,tag) = split data_no_pad macstart in
                 let (l,h) = rg in
-                if checkRange l h frag then //AP should statically succeed
-                    let aeadF = LHAEPlain.plain e ad rg frag in
-                    { plain = aeadF;
-                      tag = tag;
-                      ok = true;
-                    }
-                else unexpectedError "[decode] internal error"
+                let aeadF = LHAEPlain.plain e ad rg frag in
+                { plain = aeadF;
+                    tag = tag;
+                    ok = true;
+                }
             else
                 let macstart = pLen - macSize - 1 in
                 let (frag,tag) = split tmpdata macstart in
                 let (l,h) = rg in
-                if checkRange l h frag then //AP should statically succeed
-                    let aeadF = LHAEPlain.plain e ad rg frag in
-                    { plain = aeadF;
-                      tag = tag;
-                      ok = false;
-                    }
-                else unexpectedError "[decode] internal error"
+                let aeadF = LHAEPlain.plain e ad rg frag in
+                { plain = aeadF;
+                    tag = tag;
+                    ok = false;
+                }
 
 let plain (e:epoch) ad rg b = 
   let si = epochSI(e) in

@@ -70,9 +70,6 @@ predicate val Encoded: 'e * 'a * 'b * 'c * 'd -> bool
 private val pad: l:int { 0 < l /\ l <= 256 } -> b:bytes{Length(b) = l}
 //CF we will need a more precise refinement for the MEE proof 
 
-private val checkRange: l:nat -> h:nat{l <= h} -> b:bytes ->
-	r:bool{(r = true) => (l <= Length(b) /\ Length(b) <= h)}
-
 val encode: e:succEpoch{not Safe(e) /\ (?alg,mac. CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Stale(alg),mac) \/
 	  CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Fresh(alg),mac))} -> 
     tlen:nat{tlen <= max_TLSCipher_fragment_length} -> rg:range{tlen = TargetLength(e,rg)} ->
