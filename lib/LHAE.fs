@@ -68,30 +68,24 @@ let encrypt' e key data rg plain =
     | (MtE(encAlg,_), MtEK (ka,ke)) ->
         match encAlg with
         | Stream_RC4_128 -> // stream cipher
-            let tag   = Encode.mac e ka data rg plain in
+            let plain   = Encode.mac e ka data rg plain in
             let (l,h) = rg in
             if l <> h then
                 unexpectedError "[encrypt'] given an invalid input range"
             else
-                let tlen  = targetLength e rg in
-                let encoded  = Encode.encodeNoPad e tlen rg data plain tag in
-                let (ke,res) = ENC.ENC e ke tlen encoded 
+                let (ke,res) = ENC.ENC e ke data rg plain 
                 (MtEK(ka,ke),res)
         | CBC_Stale(_) | CBC_Fresh(_) -> // block cipher
-            let tag  = Encode.mac e ka data rg plain in
-            let tlen = targetLength e rg in
-            let encoded  = Encode.encode e tlen rg data plain tag in
-            let (ke,res) = ENC.ENC e ke tlen encoded 
+            let plain  = Encode.mac e ka data rg plain in
+            let (ke,res) = ENC.ENC e ke data rg plain 
             (MtEK(ka,ke),res)
     | (MACOnly _, MACOnlyK (ka)) ->
-        let tag = Encode.mac e ka data rg plain in
+        let plain = Encode.mac e ka data rg plain in
         let (l,h) = rg in
         if l <> h then
             unexpectedError "[encrypt'] given an invalid input range"
         else
-            let tlen  = targetLength e rg in
-            let encoded = Encode.encodeNoPad e tlen rg data plain tag in
-            let r = Encode.repr e tlen encoded in
+            let r = Encode.repr e data rg plain in
             (key,r)
 //  | GCM (k) -> ... 
     | (_,_) -> unexpectedError "[encrypt'] incompatible ciphersuite-key given."
@@ -115,13 +109,12 @@ let decrypt' e key data cipher =
                     on public data known to the attacker *)
                 let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
             else
-                let (ke,encoded) = ENC.DEC e ke cipher in
-                let nk = mteKey e ka ke in
                 let rg = cipherRangeClass e cl in
-                let parsed = Encode.decodeNoPad e data rg cl encoded in
-                match Encode.verify e ka data rg parsed with
+                let (ke,plain) = ENC.DEC e ke data rg cipher in
+                let nk = mteKey e ka ke in
+                match Encode.verify e ka data rg plain with
                 | Error(x,y) -> Error(x,y)
-                | Correct(plain) -> correct(nk,rg,plain)
+                | Correct(aeplain) -> correct(nk,rg,aeplain)
         | CBC_Stale(alg) | CBC_Fresh(alg) -> // block cipher
             let ivL = ivSize e in
             let blockSize = blockSize alg in
@@ -130,24 +123,22 @@ let decrypt' e key data cipher =
                     on public data known to the attacker *)
                 let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
             else
-                let (ke,encoded) = ENC.DEC e ke cipher in
-                let nk = mteKey e ka ke in
                 let rg = cipherRangeClass e cl in
-                let parsed = Encode.decode e data rg cl encoded in
-                match Encode.verify e ka data rg parsed with
+                let (ke,plain) = ENC.DEC e ke data rg cipher in
+                let nk = mteKey e ka ke in
+                match Encode.verify e ka data rg plain with
                 | Error(x,y) -> Error(x,y)
-                | Correct(plain) -> correct (nk,rg,plain)
+                | Correct(aeplain) -> correct (nk,rg,aeplain)
     | (MACOnly macAlg ,MACOnlyK (ka)) ->
         let macSize = macSize macAlg in
         if cl < macSize then
             let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
         else
             let rg = cipherRangeClass e cl in
-            let encoded = Encode.plain e cl cipher in
-            let parsed  = Encode.decodeNoPad e data rg cl encoded in
-            match Encode.verify e ka data rg parsed with
+            let plain = Encode.plain e data rg cipher in
+            match Encode.verify e ka data rg plain with
             | Error(x,y) -> Error(x,y)
-            | Correct(plain) -> correct (key,rg,plain)
+            | Correct(aeplain) -> correct (key,rg,aeplain)
 //  | GCM (GCMKey) -> ... 
     | (_,_) -> unexpectedError "[decrypt'] incompatible ciphersuite-key given."
 

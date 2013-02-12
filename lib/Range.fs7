@@ -24,7 +24,7 @@ theorem !e,t,rg.  rg = CipherRangeClass(e,t) => t = TargetLength(e,rg)
 theorem !e,r. SubRange(r,RangeClass(e,r))
 
 function val IVSize: epoch -> nat
-private definition !e,enc,mac,alg.
+definition !e,mac,alg.
 	((CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MACOnly(mac) \/
 	  CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(Stream_RC4_128,mac) \/
 	  CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Stale(alg),mac))
@@ -50,13 +50,17 @@ type (;si:SessionInfo) rangeF = r:range{RangeFragment(si,r)}
 
 // Padding computations
 function val BlockAligned: epoch * nat -> nat
-private assume !e,l,alg.
-	( CBC_Stale(alg) = CipherSuiteENCAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) \/
-	  CBC_Fresh(alg) = CipherSuiteENCAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)   ) =>
-    ( BlockAligned(e,l) >= 0 /\ BlockAligned(e,l) < BlockSize(alg) )
+definition !e,mac,alg,l.
+	((CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MACOnly(mac) \/
+	  CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(Stream_RC4_128,mac))
+	 => BlockAligned(e,l) = 0 ) /\
+	((CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Fresh(alg),mac) \/
+	  CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Stale(alg),mac))
+	 =>  ( BlockAligned(e,l) >= 0 /\ BlockAligned(e,l) < BlockSize(alg) ) )
+
 private val blockAlignPadding: e:succEpoch -> l:nat -> l':nat{l' = BlockAligned(e,l)}
 
-private definition !e,l,h.
+definition !e,l,h.
 	TargetLength(e,(l,h)) =
 		IVSize(e) + h + MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) +
 		BlockAligned(e,h + MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)))
@@ -69,3 +73,6 @@ val cipherRangeClass: e:succEpoch ->
   r:range {r = CipherRangeClass(e,tlen)}
 
 val rangeClass: e:succEpoch -> r0:range -> r1:range{r1 = RangeClass(e,r0)}
+
+//AP type (;e:epoch)frange = l:nat * h:nat{l<=h /\ TargetLength(e,rg) <= max_TLSCipher_fragment_length
+//AP									/\ h-l <= MaxPad(e)}

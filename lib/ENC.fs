@@ -4,6 +4,7 @@ open Bytes
 open Error
 open TLSConstants
 open TLSInfo
+open Range
 
 (* We do not open Encode so that we can syntactically check its usage restrictions *) 
 
@@ -126,25 +127,26 @@ let ENC_int ki s tlen d =
     | _, _ -> unexpectedError "[ENC] Wrong combination of cipher algorithm and state"
 
 #if ideal
-type entry = epoch * nat * Encode.plain * cipher
-let log = ref []
+type entry = epoch * LHAEPlain.adata * range * Encode.plain * cipher
+let log:entry list ref = ref []
 let rec cfind (e:epoch) (c:cipher) (xs: entry list) = 
   match xs with
       [] -> failwith "not found"
-    | (e',l,text,c')::res when e = e' && c = c' -> text
+    | (e',ad,r,text,c')::res when e = e' && c = c' -> (ad,r,text)
     | _::res -> cfind e c res
 #endif
 
-let ENC ki s tlen data =
+let ENC ki s ad rg data =
+    let tlen = targetLength ki rg in
   #if ideal
     if ENC_safe(ki) then
       let d = createBytes tlen 0 in
       let (s,c) = ENC_int ki s tlen d in
-      log := (ki, tlen, data, c)::!log;
+      log := (ki, ad, rg, data, c)::!log;
       (s,c)
     else
   #endif
-      let d = Encode.repr ki tlen data in
+      let d = Encode.repr ki ad rg data in
       ENC_int ki s tlen d
 
 let cbcdec alg k iv e =
@@ -162,9 +164,8 @@ let DEC_int ki s cipher =
         | NoIV -> unexpectedError "[DEC] Wrong combination of cipher algorithm and state"
         | SomeIV(iv) ->
             let data = cbcdec alg s.key.k iv cipher
-            let d = Encode.plain ki (length cipher) data in
             let s = {s with iv = SomeIV(lastblock cipher alg)} in
-            (BlockCipher(s), d)
+            (BlockCipher(s), data)
     //#end-ivStaleDec
     | BlockCipher(s), CBC_Fresh(alg) ->
         match s.iv with
@@ -173,24 +174,24 @@ let DEC_int ki s cipher =
             let ivL = blockSize alg in
             let (iv,encrypted) = split cipher ivL in
             let data = cbcdec alg s.key.k iv encrypted in
-            let d = Encode.plain ki (length cipher) data in
             let s = {s with iv = NoIV} in
-            (BlockCipher(s), d)
+            (BlockCipher(s), data)
     | StreamCipher(s), Stream_RC4_128 ->
         let data = CoreCiphers.rc4process s.sstate cipher
-        let d = Encode.plain ki (length cipher) data in
-        (StreamCipher(s),d)
+        (StreamCipher(s),data)
     | _,_ -> unexpectedError "[DEC] Wrong combination of cipher algorithm and state"
 
-let DEC ki s cipher =
+let DEC ki s ad rg cipher =
   #if ideal
     if ENC_safe(ki) then
       let (s,p) = DEC_int ki s cipher in
-      let p' = cfind ki cipher !log in
+      let (ad',rg',p') = cfind ki cipher !log in
       (s,p')
     else
   #endif
-      DEC_int ki s cipher
+      let (s,p) = DEC_int ki s cipher in
+      let p' = Encode.plain ki ad rg p in
+      (s,p')
 
 
 (* the SPRP game in F#, without indexing so far.

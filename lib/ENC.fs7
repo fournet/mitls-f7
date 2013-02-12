@@ -8,6 +8,7 @@ open Bytes
 open Encode 
 open TLSInfo
 open Error
+open Range
 
 (* CF (to be deleted)
 // TLSConstant should define  
@@ -52,25 +53,29 @@ val COERCE: ki:epoch{not Safe(ki)} -> key:bytes -> iv:bytes -> (;ki)state
 
 (* an abstract predicate recording all encryption results. *)
 predicate ENCrypted of
-  (ki:epoch * tlen:int * int * (;ki,tlen) plain * cipher)
+  (ki:epoch * ad:(;ki)LHAEPlain.adata * r:range * int * (;ki,ad,r) plain * cipher)
 
 // TODO: We need to refine cipher before applying CPA
 
-val ENC: ki:epoch -> s:(;ki) encryptor -> tlen:nat{tlen <= max_TLSCipher_fragment_length} -> p:(;ki,tlen) plain -> 
+val ENC: ki:epoch -> s:(;ki) encryptor -> ad:(;ki)LHAEPlain.adata -> r:range ->
+  p:(;ki,ad,r)plain -> 
   ( (s':(;ki) encryptor{StateID(ki,s') = StateID(ki,s)+1}) *
-   (c:cipher{(Safe(ki) => ENCrypted(ki,tlen,StateID(ki,s),p,c)) 
-             /\ Length(c)=tlen}) )
+   (c:cipher{(Safe(ki) => ENCrypted(ki,ad,r,StateID(ki,s),p,c)) 
+             /\ Length(c)=TargetLength(ki,r)}) )
 
-val DEC: ki:epoch -> s:(;ki) decryptor -> c:cipher
-  {Safe(ki) => (?t,n,p'. ENCrypted(ki,t,n,p',c))} -> 
+val DEC: ki:epoch -> s:(;ki) decryptor -> ad:(;ki)LHAEPlain.adata -> r:range ->
+  c:cipher
+  {Length(c) = TargetLength(ki,r) /\
+   (Safe(ki) => (?ad',r',n,p'. ENCrypted(ki,ad',r',n,p',c)))} -> 
   ( (s':(;ki) decryptor{StateID(ki,s') = StateID(ki,s)+1}) *
-   (p:(;ki,Length(c))plain
-   {!t',n',p'. ENCrypted(ki,t',n',p',c) => p=p'}))
+   (p:(;ki,ad,r)plain
+   {!ad',r',n',p'. ENCrypted(ki,ad',r',n',p',c) => p=p'}))
 
 
-type entry = (ki:epoch * tlen:nat * p:(;ki,tlen)Encode.plain * cipher)
+type entry = (ki:epoch * ad:(;ki)LHAEPlain.adata * rg:range * p:(;ki,ad,rg)Encode.plain * cipher)
 val log: entry list ref
-val cfind: e:epoch -> c:cipher -> xs: entry list -> (;e,Length(c)) Encode.plain
+val cfind: e:epoch -> c:cipher -> xs: entry list ->
+	(ad:(;e)LHAEPlain.adata * rg:range * (;e,ad,rg) Encode.plain)
 
 (*
 val ENC: ki:epoch -> s:(;ki) encryptor -> tlen:int -> p:(;ki,tlen) plain -> 

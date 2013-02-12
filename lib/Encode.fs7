@@ -13,22 +13,15 @@ open Range
 // Interface towards ENC (abstract)
 //------------------------------------------------------------------------------------------------------
 
-// a function from public length of ciphertext to public length of encoded plaintext 
-// (either identity, or minus iv length)
-//CF still TBD!
+// the result of decrypting & decoding, with an abstract type for secrecy
+private type (;e:epoch,ad:(;e)LHAEPlain.adata,rg:range) plain =
+	{ plain: (;e,ad,rg)LHAEPlain.plain;
+	  tag  : (;e)MAC.tag;
+	  ok   : b:bool { CipherSuiteENCAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = Stream_RC4_128 => b = true }
+	  (* true iff decoding succeeded; always true with RC4. *) }
+
 function val PlainLength: epoch * nat -> nat
-private type (;e:epoch,tlen:nat) plain = {p: (x:bytes){Length(x) = PlainLength(e,tlen) /\ tlen <= max_TLSCipher_fragment_length}}
-
-val plain: e:epoch{not Auth(e)} -> tlen:nat{tlen <= max_TLSCipher_fragment_length} -> b:bytes{Length(b) = PlainLength(e,tlen)} -> (;e,tlen) plain
-val repr:  e:epoch{not Safe(e)} -> tlen:nat -> (;e,tlen) plain -> b:bytes{Length(b) = PlainLength(e,tlen)}
-
-assume !e,si,tlen,enc,mac. 
-  si = EpochSI(e) /\
-  CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MACOnly(mac) => 
-  PlainLength(e,tlen) = tlen 
-assume !e,si,tlen,enc,mac. 
-  si = EpochSI(e) /\
-  CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(enc,mac) /\ 
+definition !e,tlen. 
   tlen >= IVSize(e) =>
   PlainLength(e,tlen) = tlen - IVSize(e)
 
@@ -36,18 +29,11 @@ assume !e,si,tlen,enc,mac.
 // Interface towards LHAE 
 //------------------------------------------------------------------------------------------------------
 
-// the MAC tags, with an abstract type for secrecy
-private type (;e:succEpoch) tag = {macT: (;e) MAC.tag } 
+private val zeros: r:range -> (;r)rbytes
 
-// the result of decrypting & decoding, with an abstract type for secrecy
-private type (;e:epoch,ad:(;e)LHAEPlain.adata,rg:range) parsed =
-	{ plain: (;e,ad,rg)LHAEPlain.plain;
-	  tag  : (;e)tag;
-	  ok   : b:bool { CipherSuiteENCAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = Stream_RC4_128 => b = true }
-	  (* true iff decoding succeeded; always true with RC4. *) }
-
-val payload: e:succEpoch -> r:range -> ad:(;e)LHAEPlain.adata -> f:(;e,ad,r)LHAEPlain.plain ->
-	b:(;r) rbytes{ Safe(e) \/ b = LHAEPlain.Payload(e,ad,r,f) }
+val payload: e:succEpoch -> r:range -> ad:(;e)LHAEPlain.adata -> 
+  f:(;e,ad,r)LHAEPlain.plain ->
+  b:(;r) rbytes{ Safe(e) \/ b = LHAEPlain.Payload(e,ad,r,f) }
 
 // the MACed bytes, i.e. ad @| 2-byte length of payload @| payload 
 //CF should ask some injectivity
@@ -55,77 +41,90 @@ val payload: e:succEpoch -> r:range -> ad:(;e)LHAEPlain.adata -> f:(;e,ad,r)LHAE
 function val MACPlain : 'a * 'b * 'c * 'd -> 'e
 private definition !e,r,ad,f. MACPlain(e,r,ad,f) = ad @| VLBytes(2,LHAEPlain.Payload(e,ad,r,f))
 val macPlain: e:succEpoch -> r:range -> 
-  ad:(;e)LHAEPlain.adata -> f:(;e,ad,r)LHAEPlain.plain -> b:bytes{b = MACPlain(e,r,ad,f)}
-
-//CF MACed is undefined for now; just added a placeholder def; overlaps with MAC.Msg? omit the key?
-predicate MACed of e:epoch * (;e) MAC.key * ad:(;e)LHAEPlain.adata * rg:range * (;e,ad,rg)LHAEPlain.plain * (;e) tag
-private definition !e,k,rg,ad,p,m. MACed(e,k,ad,rg,p,m) 
+  ad:(;e)LHAEPlain.adata -> 
+  f:(;e,ad,r)LHAEPlain.plain -> b:bytes{ Safe(e) \/ b = MACPlain(e,r,ad,f) }
 
 predicate val Decoded: 'e * 'a * 'b -> bool
 
 val mac: e:succEpoch -> k:(;e) MAC.key ->
   ad:(;e)LHAEPlain.adata -> rg:range ->
   p:(;e,ad,rg)LHAEPlain.plain ->
-  tag:(;e) tag {MACed(e,k,ad,rg,p,tag)}
+  (;e,ad,rg) plain
+
 val verify: e:succEpoch -> k:(;e) MAC.key ->
-  ad:(;e)LHAEPlain.adata -> rg:range ->
-  ps:(;e,ad,rg)parsed -> 
-  (res:(;e,ad,rg)LHAEPlain.plain Result)
-  {   (!p. res = Correct(p) => (p = ps.plain /\ ps.tag = MACPlain(e,rg,ad,p)) )
-   /\ (Safe(e) => (res = Error(AD_bad_record_mac,"") \/ ?p. res = Correct(p)))
-   /\ ((  MACed(e,k,ad,rg,ps.plain,ps.tag) 
-       /\ Decoded(e,ad,ps) ) => ?p. res = Correct(p)) }
-//CF we should not use the fields of ps in the refinement.
+  ad:(;e)LHAEPlain.adata -> 
+  rg:range ->
+  ps:(;e,ad,rg) plain -> 
+  res:(;e,ad,rg)LHAEPlain.plain Result
+
+(* KB we need to add some refinement to ensure that verify
+   will not fail for MACed values *)
 
 (* CF to verify the 3rd postcondition, we need something like
-   Safe(e) => Version(e) = TLS_1p1 \/ Version(e) = TLS_1p2 \/ ps.ok = true *)
+   Safe(e) => Version(e) = TLS_1p1 \/ Version(e) = TLS_1p2 \/ ps.ok = true 
+   
+*)
 
 predicate val Encoded: 'e * 'a * 'b * 'c * 'd -> bool
 
 private val pad: l:int { 0 < l /\ l <= 256 } -> b:bytes{Length(b) = l}
 //CF we will need a more precise refinement for the MEE proof 
 
-val encode: e:succEpoch -> 
+val encode: e:succEpoch{not Safe(e) /\ (?alg,mac. CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Stale(alg),mac) \/
+	  CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Fresh(alg),mac))} -> 
     tlen:nat{tlen <= max_TLSCipher_fragment_length} -> rg:range{tlen = TargetLength(e,rg)} ->
-	ad:(;e) LHAEPlain.adata -> pl:(;e,ad,rg) LHAEPlain.plain -> tag:(;e) tag ->
-	p:(;e,tlen) plain{Encoded(e,ad,pl,tag,p)}
-val decode: e:succEpoch -> 
+	ad:(;e) LHAEPlain.adata -> pl:(;e,ad,rg) LHAEPlain.plain -> tag:(;e) MAC.tag ->
+	(;PlainLength(e,tlen))lbytes
+val decode: e:succEpoch{not Auth(e) /\ (?alg,mac. CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Stale(alg),mac) \/
+	  CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Fresh(alg),mac))} -> 
 	ad:(;e) LHAEPlain.adata -> rg:range ->
 	tlen:nat{tlen - IVSize(e) >= ( MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) + 1) /\
 	tlen = TargetLength(e,rg)} ->
-	p:(;e,tlen) plain ->
-	ps:(;e,ad,rg)parsed{ Decoded(e,ad,ps) }
+	(;PlainLength(e,tlen))lbytes ->
+	ps:(;e,ad,rg)plain{ Decoded(e,ad,ps) }
 // with some 
 // private definition Decoded(e,ad,ps) <=> (Encoded(e,ad,ps.plain,ps.tag,p) => ps.ok = true)
 
 //CF why do we need "NoPad" variants again? 
-val encodeNoPad: e:succEpoch ->
+val encodeNoPad: e:succEpoch{not Safe(e) /\ (?mac. CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MACOnly(mac) \/
+	  CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(Stream_RC4_128,mac))} ->
 	tlen:nat{tlen <= max_TLSCipher_fragment_length} -> rg:range{tlen = TargetLength(e,rg)} ->
-	ad:(;e) LHAEPlain.adata -> (;e,ad,rg) LHAEPlain.plain -> (;e) tag ->
-	(;e,tlen) plain
-val decodeNoPad: e:succEpoch ->
+	ad:(;e) LHAEPlain.adata -> (;e,ad,rg) LHAEPlain.plain -> (;e) MAC.tag ->
+	(;PlainLength(e,tlen))lbytes
+val decodeNoPad: e:succEpoch{not Auth(e) /\ (?mac. CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MACOnly(mac) \/
+	  CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(Stream_RC4_128,mac))} ->
 	ad:(;e) LHAEPlain.adata -> rg:range ->
 	tlen:nat{tlen >= MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) /\
-	tlen = TargetLength(e,rg)} -> (;e,tlen) plain ->
-	(;e,ad,rg)parsed
+	tlen = TargetLength(e,rg)} -> (;PlainLength(e,tlen))lbytes ->
+	(;e,ad,rg)plain
+
+function val MinTlen: e:epoch -> nat
+definition !e,mac,alg.
+    ((CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MACOnly(mac) \/
+	  CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(Stream_RC4_128,mac))
+	 => MinTlen(e) = MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) ) /\
+	((CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Fresh(alg),mac) \/
+	  CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Stale(alg),mac))
+	 => MinTlen(e) = MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) + 1 )
+
+val plain: e:succEpoch{not Auth(e)} ->
+		   ad:(;e)LHAEPlain.adata -> rg:range -> //AP {rg is fRange /\ tlen - IVSize(e) >= MinTlen(e)}
+           (;PlainLength(e,TargetLength(e,rg)))lbytes ->
+           (;e,ad,rg) plain
+
+val repr:  e:succEpoch{not Safe(e)} -> 
+  ad:(;e)LHAEPlain.adata -> rg:range -> //AP {rg is fRange}
+  (;e,ad,rg) plain -> 
+  (;PlainLength(e,TargetLength(e,rg)))lbytes{TargetLength(e,rg) <= max_TLSCipher_fragment_length}
 
 //------------------------------------------------------------------------------------------------------
 // Auxiliary definitions and assumptions for typing
 //------------------------------------------------------------------------------------------------------
 
-function val MsgBytes: e:epoch * (;e) LHAEPlain.adata * bytes -> bytes
-private assume !e,ad,x. MsgBytes(e,ad,x) = ad @| VLBytes(2,x)
-private ask !e,ad1,x1,ad2,x2. (Length(ad1) = Length(ad2) /\
-                        MsgBytes(e,ad1,x1) = MsgBytes(e,ad2,x2)) => 
-                       (ad1 = ad2 /\ x1=x2)
-
 //CF this was too weak: no constraint on f! patched
 private assume !e,pl. MAC.Msg(e,pl) <=>
-  (not Auth(e) \/
-     (?ad,r,f. Length(ad) = 8 + StatefulPlain.ADLength(e) /\
+     (Safe(e) \/ (?ad,r,f. Length(ad) = 8 + StatefulPlain.ADLength(e) /\
 	  pl = MACPlain(e,r,ad,f)))
-
-ask !e,t. not Auth(e) => MAC.Msg(e,t)
 
 //CF Comments:
 //CF 

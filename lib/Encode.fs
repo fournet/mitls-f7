@@ -10,11 +10,9 @@ open Range
 type preds = | CipherRange of epoch * range * nat
 #endif
 
-type tag = {macT: bytes}
-
-type parsed =
-    {plain: LHAEPlain.plain
-     tag:   tag
+type plain =
+    {plain: LHAEPlain.plain;
+     tag:   MAC.tag;
      ok:    bool}
 
 #if ideal
@@ -37,20 +35,25 @@ let macPlain (e:epoch) (rg:range) ad f =
 
 let mac e k ad rg plain =
     let text = macPlain e rg ad plain in
-    {macT = MAC.Mac e k text}
+    let tag  = MAC.Mac e k text in
+    {plain = plain;
+     tag = tag;
+     ok = true
+    }
 
-let verify e k ad rg parsed =
+let verify e k ad rg plain =
     let si = epochSI(e) in
     let pv = si.protocol_version in
-    let text = macPlain e rg ad parsed.plain in
-    let tag  = parsed.tag in
+    let f = plain.plain in
+    let text = macPlain e rg ad f in
+    let tag  = plain.tag in
     match pv with
 //#begin-separate_err
     | SSL_3p0 | TLS_1p0 ->
         (*@ SSL3 and TLS1 enable both timing and error padding oracles. *)
-        if parsed.ok then 
-          if MAC.Verify e k text tag.macT then 
-            correct parsed.plain
+        if plain.ok then 
+          if MAC.Verify e k text tag then 
+            correct f
           else
 #if DEBUG
               let reason = perror __SOURCE_FILE__ __LINE__ "" in 
@@ -70,9 +73,9 @@ let verify e k ad rg parsed =
         (*@ Otherwise, we implement standard mitigation for padding oracles.
             Still, we note a small timing leak here:
             The time to verify the mac is linear in the plaintext length. *)
-        if MAC.Verify e k text tag.macT then 
-          if parsed.ok 
-            then correct parsed.plain
+        if MAC.Verify e k text tag then 
+          if plain.ok 
+            then correct f
           else
 #if DEBUG
               let reason = perror __SOURCE_FILE__ __LINE__ "" in 
@@ -89,10 +92,7 @@ let verify e k ad rg parsed =
            Error(AD_bad_record_mac,reason) 
 //#end-uniform_err
 
-type plain = {p:bytes}
 
-let plain (e:epoch) (tlen:nat)  b = {p=b}
-let repr (e:epoch) (tlen:nat) pl = pl.p
 
 let encodeNoPad (e:epoch) (tlen:nat) rg (ad:LHAEPlain.adata) data tag =
     let b = payload e rg ad data in
@@ -100,29 +100,32 @@ let encodeNoPad (e:epoch) (tlen:nat) rg (ad:LHAEPlain.adata) data tag =
     if h <> length b then
         Error.unexpectedError "[encodeNoPad] invoked on an invalid range."
     else
-    let payload = b @| tag.macT
+    let payload = b @| tag
     if length payload <> tlen then
         Error.unexpectedError "[encodeNoPad] Internal error."
     else
-        {p = payload}
+        payload
 
 let pad (p:int)  = createBytes p (p-1)
 
 let encode (e:epoch) (tlen:nat) rg (ad:LHAEPlain.adata) data tag =
     let b = payload e rg ad data in
     let lb = length b in
-    let lm = length tag.macT in
+    let lm = length tag in
     let ivL = ivSize e in
     let pl = tlen - lb - lm - ivL
-    //CF here we miss refinements to prove 0 < pl <= 256
-    let payload = b @| tag.macT @| pad pl
-    if length payload <> tlen - ivL then
-        Error.unexpectedError "[encode] Internal error."
+    if pl > 0 && pl <= 256 then
+        //CF here we miss refinements to prove 0 < pl <= 256
+        let payload = b @| tag @| pad pl
+        if length payload <> tlen - ivL then
+            Error.unexpectedError "[encode] Internal error."
+        else
+            payload
     else
-        {p = payload}
+        unexpectedError "[encode] Internal error."
 
-let decodeNoPad e (ad:LHAEPlain.adata) rg tlen plain =
-    let pl = plain.p in
+
+let decodeNoPad e (ad:LHAEPlain.adata) rg tlen pl =
     let plainLen = length pl in
     if plainLen <> tlen then
         Error.unexpectedError "[decodeNoPad] wrong target length given as input argument."
@@ -130,19 +133,17 @@ let decodeNoPad e (ad:LHAEPlain.adata) rg tlen plain =
     let si = epochSI(e) in
     let maclen = macSize (macAlg_of_ciphersuite si.cipher_suite si.protocol_version) in
     let payloadLen = plainLen - maclen in
-    let (frag,mac) = Bytes.split pl payloadLen in
+    let (frag,tag) = Bytes.split pl payloadLen in
     let aeadF = LHAEPlain.plain e ad rg frag in
-    let tag = {macT = mac} in
     {plain = aeadF;
      tag = tag;
      ok = true}
 
-let decode e (ad:LHAEPlain.adata) rg tlen plain =
+let decode e (ad:LHAEPlain.adata) rg tlen pl =
     let si = epochSI(e) in
     let macSize = macSize (macAlg_of_ciphersuite si.cipher_suite si.protocol_version) in
     let ivL = ivSize e in
     let expected = tlen - ivL
-    let pl = plain.p in
     let pLen = length pl in
     if pLen <> expected then
         unreachable "[decode] tlen does not match plaintext length"
@@ -157,37 +158,93 @@ let decode e (ad:LHAEPlain.adata) rg tlen plain =
     | Stream_RC4_128 -> unreachable "[decode] invoked on stream cipher"
     | CBC_Stale(encAlg) | CBC_Fresh(encAlg) ->
     let bs = blockSize encAlg in
-    let (flag,data,padlen) =
-        if padstart < 0 || macstart < 0 then
-            (*@ Evidently padding has been corrupted, or has been incorrectly generated *)
-            (*@ Following TLS1.1 we fail later (see RFC5246 6.2.3.2 Implementation Note) *)
-            (false,tmpdata,0)
-        else
-            let (data_no_pad,pad) = split tmpdata padstart in
-            match si.protocol_version with
-            | TLS_1p0 | TLS_1p1 | TLS_1p2 ->
-                (*@ We note the small timing leak here.
-                    The timing of the following two lines
-                    depends on padding length.
-                    We could mitigate it by implementing
-                    constant time comparison up to maximum padding length.*)
-                let expected = createBytes padlen padlen in
-                if equalBytes expected pad then
-                    (true,data_no_pad,padlen)
-                else
-                    (false,tmpdata,0)
-            | SSL_3p0 ->
-               (*@ Padding is random in SSL_3p0, no check to be done on its content.
-                   However, its length should be at most one bs
-                   (See sec 5.2.3.2 of SSL 3 draft). Enforce this check. *)
-                if padlen < bs then
-                    (true,data_no_pad,padlen)
-                else
-                    (false,tmpdata,0)
-    let macstart = pLen - macSize - padlen - 1 in
-    let (frag,mac) = split data macstart in
-    let aeadF = LHAEPlain.plain e ad rg frag in
-    let tag = {macT = mac} in
-    { plain = aeadF;
-      tag = tag;
-      ok = flag}
+    if padstart < 0 || macstart < 0 then
+        (*@ Evidently padding has been corrupted, or has been incorrectly generated *)
+        (*@ Following TLS1.1 we fail later (see RFC5246 6.2.3.2 Implementation Note) *)
+        let macstart = pLen - macSize - 1 in
+        let (frag,tag) = split tmpdata macstart in
+        let aeadF = LHAEPlain.plain e ad rg frag in
+        { plain = aeadF;
+          tag = tag;
+          ok = false;
+        }
+    else
+        let (data_no_pad,pad) = split tmpdata padstart in
+        match si.protocol_version with
+        | TLS_1p0 | TLS_1p1 | TLS_1p2 ->
+            (*@ We note the small timing leak here.
+                The timing of the following two lines
+                depends on padding length.
+                We could mitigate it by implementing
+                constant time comparison up to maximum padding length.*)
+            let expected = createBytes padlen padlen in
+            if equalBytes expected pad then
+                let (frag,tag) = split data_no_pad macstart in
+                let aeadF = LHAEPlain.plain e ad rg frag in
+                { plain = aeadF;
+                  tag = tag;
+                  ok = true;
+                }
+            else
+                let macstart = pLen - macSize - 1 in
+                let (frag,tag) = split tmpdata macstart in
+                let aeadF = LHAEPlain.plain e ad rg frag in
+                { plain = aeadF;
+                  tag = tag;
+                  ok = false;
+                }
+        | SSL_3p0 ->
+            (*@ Padding is random in SSL_3p0, no check to be done on its content.
+                However, its length should be at most one bs
+                (See sec 5.2.3.2 of SSL 3 draft). Enforce this check. *)
+            if padlen < bs then
+                let (frag,tag) = split data_no_pad macstart in
+                let aeadF = LHAEPlain.plain e ad rg frag in
+                { plain = aeadF;
+                  tag = tag;
+                  ok = true;
+                }
+            else
+                let macstart = pLen - macSize - 1 in
+                let (frag,tag) = split tmpdata macstart in
+                let aeadF = LHAEPlain.plain e ad rg frag in
+                { plain = aeadF;
+                  tag = tag;
+                  ok = false;
+                }
+
+let plain (e:epoch) ad rg b = 
+  let si = epochSI(e) in
+  let cs = si.cipher_suite in
+  let pv = si.protocol_version in
+  let authEnc = authencAlg_of_ciphersuite cs pv in
+  let tlen = targetLength e rg in
+  match authEnc with
+    | MtE(Stream_RC4_128,_) 
+    | MACOnly _ ->
+        decodeNoPad e ad rg tlen b 
+    | MtE(CBC_Stale(_),_) 
+    | MtE(CBC_Fresh(_),_) ->
+        decode e ad rg tlen b
+
+//  | GCM _ ->
+    | _ -> unexpectedError "[Encode.plain] incompatible ciphersuite given."
+
+let repr (e:epoch) ad rg pl = 
+  let si = epochSI(e) in
+  let cs = si.cipher_suite in
+  let pv = si.protocol_version in
+  let authEnc = authencAlg_of_ciphersuite cs pv in
+  let lp = pl.plain in
+  let tg = pl.tag in
+  let tlen = targetLength e rg in
+  match authEnc with
+    | MtE(Stream_RC4_128,_) 
+    | MACOnly _ ->
+        encodeNoPad e tlen rg ad lp tg
+    | MtE(CBC_Stale(_),_) 
+    | MtE(CBC_Fresh(_),_) ->
+        encode e tlen rg ad lp tg
+//  | GCM _ ->
+    | _ -> unexpectedError "[Encode.repr] incompatible ciphersuite given."
+

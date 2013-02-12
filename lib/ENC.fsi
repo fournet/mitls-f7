@@ -3,6 +3,7 @@
 open Bytes
 open TLSInfo
 open Error
+open Range
 
 type state
 type encryptor = state
@@ -14,5 +15,5 @@ val COERCE: epoch -> bytes -> bytes-> state
 
 type cipher = bytes
 
-val ENC: epoch -> encryptor -> int -> Encode.plain -> (encryptor * cipher)
-val DEC: epoch -> decryptor -> cipher -> (decryptor * Encode.plain)
+val ENC: epoch -> encryptor -> LHAEPlain.adata -> range -> Encode.plain -> (encryptor * cipher)
+val DEC: epoch -> decryptor -> LHAEPlain.adata -> range -> cipher -> (decryptor * Encode.plain)

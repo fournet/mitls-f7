@@ -50,7 +50,7 @@ predicate ENCrypted of e:epoch * cipher
 
 private definition !e,c.
 	ENCrypted(e,c) <=>
-		?n,p'. ENC.ENCrypted(e,Length(c),n,p',c)
+		?ad,r,n,p'. ENC.ENCrypted(e,ad,r,n,p',c)
 
 val encrypt': ki:succEpoch -> (;ki) LHAEKey -> ad:(;ki)LHAEPlain.adata ->
   rg:range -> p:(;ki,ad,rg) LHAEPlain.plain ->
