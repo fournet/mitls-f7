@@ -67,7 +67,7 @@ val DEC: ki:epoch -> s:(;ki) decryptor -> ad:(;ki)LHAEPlain.adata ->
   tlen:nat{tlen <= max_TLSCipher_fragment_length /\ tlen >= MinTlen(ki)} ->
   c:cipher
   {Length(c) = tlen /\
-   (Safe(ki) => (?n,p'. ENCrypted(ki,ad,CipherRangeClass(ki,tlen),n,p',c)))} -> 
+   (Safe(ki) => (?ad',r',n,p'. ENCrypted(ki,ad',r',n,p',c)))} -> 
   ( (s':(;ki) decryptor{StateID(ki,s') = StateID(ki,s)+1}) *
    (p:(;ki,ad,CipherRangeClass(ki,tlen))plain
    {!ad',r',n',p'. ENCrypted(ki,ad',r',n',p',c) => p=p'}))
