@@ -77,6 +77,8 @@ private assume
   !ki. Auth(ki) => (  CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = MACa.a 
                    \/ CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = MACb.a )
 			  
+//ask MACa.a = MA_HMAC(SHA256)
+
 type text = bytes
 predicate val Msg: epoch * text -> bool
 

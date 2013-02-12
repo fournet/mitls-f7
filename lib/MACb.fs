@@ -10,9 +10,10 @@ type tag = bytes
 type keyrepr = bytes
 type key = {k:keyrepr}
 
-let a = MA_HMAC(SHA256) // for concreteness; this module is actually parametric.
+// for concreteness; the rest of the module is parametric in a 
+let a = MA_HMAC(SHA384) 
 
-#if ideal 
+#if ideal // We maintain a table of MACed plaintexts
 type entry = epoch * text * tag
 let log:entry list ref=ref []
 let rec tmem (e:epoch) (t:text) (xs: entry list) = 
@@ -31,7 +32,7 @@ let Mac (ki:epoch) key t =
 
 let Verify (ki:epoch) key t m =
     HMAC.MACVERIFY a key.k t m
-    #if ideal // At safe indexes, we use the log to detect and correct verification errors
+    #if ideal // We use the log to correct any verification errors
     && tmem ki t !log
     #endif
 
