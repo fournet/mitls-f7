@@ -164,6 +164,7 @@ let rec cmem (e:epoch) (ad:LHAEPlain.adata) (c:ENC.cipher) (xs: entry list) =
 let encrypt e key data rg plain = 
   let (key,cipher) = encrypt' e key data rg plain in
   #if ideal
+  (* CF we do not log in all cases, as we do not have ENCrypted for MAC-only suites *)
   if safe e then
     log := (e,data,rg,plain,cipher)::!log
   else ()

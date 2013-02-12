@@ -1,6 +1,6 @@
 ﻿module ENC
 
-(* Bulk encryption for TLS record, agile & assumed conditionally CPA with "Encode" *) 
+(* Bulk encryption for TLS record, agile & assumed conditionally CPA with "Encode" for plaintexts *) 
 (* This module is trusted *)
 (* TODO write a well-typed ideal functionality; reduce it to its non-agile underlying algorithms, e.g. AES-CBC and GCM *) 
 
@@ -36,9 +36,9 @@ private type (;ki:epoch) iv3 =
 	| SomeIV of iv // SSL_3p0 and TLS_1p0
 	| NoIV         // TLS_1p0 and TLS_1p2
 
-private type (;ki:epoch)state =
-	{key: (;ki)key;  iv: (;ki)iv3}
+private type (;ki:epoch)state =	{key: (;ki)key; iv: (;ki)iv3}
 
+//CF TODO we need to separate those two types!
 type (;ki:epoch)encryptor = (;ki)state
 type (;ki:epoch)decryptor = (;ki)state
 
@@ -53,7 +53,7 @@ val COERCE: ki:epoch{not Safe(ki)} -> key:bytes -> iv:bytes -> (;ki)state
 
 (* an abstract predicate recording all encryption results. *)
 predicate ENCrypted of
-  (ki:epoch * ad:(;ki)LHAEPlain.adata * r:range * int * (;ki,ad,r) plain * cipher)
+  (ki:epoch * ad:(;ki)LHAEPlain.adata * rg:range * n:int * p:(;ki,ad,rg) plain * c:cipher)
 
 // TODO: We need to refine cipher before applying CPA
 
@@ -71,8 +71,10 @@ val DEC: ki:epoch -> s:(;ki) decryptor -> ad:(;ki)LHAEPlain.adata -> r:range ->
    (p:(;ki,ad,r)plain
    {!ad',r',n',p'. ENCrypted(ki,ad',r',n',p',c) => p=p'}))
 
+type entry = 
+  (ki:epoch * ad:(;ki)LHAEPlain.adata * rg:range * n:int * p:(;ki,ad,rg)plain * c:cipher)
+  { ENCrypted(ki,ad,rg,n,p,c) } 
 
-type entry = (ki:epoch * ad:(;ki)LHAEPlain.adata * rg:range * p:(;ki,ad,rg)Encode.plain * cipher)
 val log: entry list ref
 val cfind: e:epoch -> c:cipher -> xs: entry list ->
 	(ad:(;e)LHAEPlain.adata * rg:range * (;e,ad,rg) Encode.plain)

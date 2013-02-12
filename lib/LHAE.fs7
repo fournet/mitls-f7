@@ -39,31 +39,29 @@ private val mteKey: ki:epoch -> (;ki) MAC.key -> (;ki) ENC.state -> (;ki) LHAEKe
 
 //FIXME: next two should be ask
 private assume !e,si. si = EpochSI(e) =>
-	( (si.protocol_version = SSL_3p0 \/ si.protocol_version = TLS_1p0)
-		=> IVSize(e) = 0 ) /\
-	( (si.protocol_version = TLS_1p1 \/ si.protocol_version = TLS_1p2) 		=> IVSize(e) = EncAlgBlockSize(CipherSuiteENCAlg(si.cipher_suite,si.protocol_version)) )
+	( (si.protocol_version = SSL_3p0 \/ si.protocol_version = TLS_1p0) => IVSize(e) = 0 ) /\
+	( (si.protocol_version = TLS_1p1 \/ si.protocol_version = TLS_1p2) => 
+	   IVSize(e) = EncAlgBlockSize(CipherSuiteENCAlg(si.cipher_suite,si.protocol_version)) )
 
 // We have two variants for encryption and decryption: 
-// the first (primed) is concrete; the second is idealized at safe indexes.
+// the first (primed) is concrete; the second is idealized at safe indexes,
+// using either #ideal_F (filtering out non-cipher) or #ideal (decrypting just by lookup)
 
 predicate ENCrypted of e:epoch * cipher
 
 private definition !e,c.
-	ENCrypted(e,c) <=>
-		?ad,r,n,p'. ENC.ENCrypted(e,ad,r,n,p',c)
+  ENCrypted(e,c) <=> ?ad,r,n,p'. ENC.ENCrypted(e,ad,r,n,p',c)
 
 val encrypt': ki:succEpoch -> (;ki) LHAEKey -> ad:(;ki)LHAEPlain.adata ->
   rg:range -> p:(;ki,ad,rg) LHAEPlain.plain ->
   ((;ki) LHAEKey * c:cipher){Length(c) = TargetLength(ki,rg) /\         
-     (Safe(ki) => ENCrypted(ki,c))}
- 
+                             (Safe(ki) => ENCrypted(ki,c))}
 
 val encrypt : ki:succEpoch -> (;ki) LHAEKey -> ad:(;ki)LHAEPlain.adata ->
   rg:range -> p:(;ki,ad,rg) LHAEPlain.plain ->
   ((;ki) LHAEKey * c:cipher){Length(c) = TargetLength(ki,rg) /\
                              (Safe(ki) => ENCrypted(ki,c))}
 
-//CF unclear whether the log should include the plaintext; tried without, should rollback...
 type entry = 
   ki:succEpoch * ad:(;ki) LHAEPlain.adata * rg:range * 
   p:(;ki,ad,rg) LHAEPlain.plain * c:ENC.cipher {ENCrypted(ki,c)} 
@@ -134,19 +132,18 @@ ask INT_CTXT(pv,h,e) ->
      pv = TLS_1p2 
   \/ ?kex,hAlg. e = CipherSuite(kex,MtE(_,hAlg) && ... 
 
-(Note that we actually don't need full CMA when we have CTXT,
- but this is practically irrelevant.)  
-
+(Note that we actually don't need full CMA when we have CTXT, but this is practically irrelevant.)  
 
 There are several ideal properties of AEAD:
 
 1. (When Safe:) filter out any cipher that is not an honest encryption---a.k.a "INT-CTXT" 
+                implemented by #ideal_F in AEAD.fs
 
 2. (When Safe:) additionally decrypt by table lookup---so that we can get plain secrecy by typing 
-                TODO implemented by #ideal in AEAD.fs
+                implemented by #ideal in AEAD.fs
 
 3. (When Auth:) filter out any (ki,plain,AD) forgery---aka "INT-PTXT" or "CMA"
-                TODO implemented by #ideal in MAC.fs
+                implemented by #ideal in MAC.fs
 
 For F7 clarity, we distinguish several verification steps (using flags/Makefile):
 
@@ -159,7 +156,7 @@ For F7 clarity, we distinguish several verification steps (using flags/Makefile)
 
 3. (When Auth, irrespective of Safe & CTXT:) AEAD is PTXT wrt to some user-defined Msg property.
 
-We need to agree e.g. that #if ideal refers to typechecking 2. 
+We agreed that #if ideal refers to typechecking 2. 
 
 The postcondition of decryption thus consists of
 
