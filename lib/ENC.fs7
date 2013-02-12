@@ -66,7 +66,7 @@ val ENC: ki:epoch -> s:(;ki) encryptor -> ad:(;ki)LHAEPlain.adata -> r:range ->
 val DEC: ki:epoch -> s:(;ki) decryptor -> ad:(;ki)LHAEPlain.adata -> r:range ->
   c:cipher
   {Length(c) = TargetLength(ki,r) /\
-   (Safe(ki) => (?ad',r',n,p'. ENCrypted(ki,ad',r',n,p',c)))} -> 
+   (Safe(ki) => (?n,p'. ENCrypted(ki,ad,r,n,p',c)))} -> 
   ( (s':(;ki) decryptor{StateID(ki,s') = StateID(ki,s)+1}) *
    (p:(;ki,ad,r)plain
    {!ad',r',n',p'. ENCrypted(ki,ad',r',n',p',c) => p=p'}))
