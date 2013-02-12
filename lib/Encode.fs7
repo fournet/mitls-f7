@@ -70,6 +70,9 @@ predicate val Encoded: 'e * 'a * 'b * 'c * 'd -> bool
 private val pad: l:int { 0 < l /\ l <= 256 } -> b:bytes{Length(b) = l}
 //CF we will need a more precise refinement for the MEE proof 
 
+private val checkRange: l:nat -> h:nat{l <= h} -> b:bytes ->
+	r:bool{(r = true) => (l <= Length(b) /\ Length(b) <= h)}
+
 val encode: e:succEpoch{not Safe(e) /\ (?alg,mac. CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Stale(alg),mac) \/
 	  CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Fresh(alg),mac))} -> 
     tlen:nat{tlen <= max_TLSCipher_fragment_length} -> rg:range{tlen = TargetLength(e,rg)} ->
@@ -81,9 +84,9 @@ val decode: e:succEpoch{not Auth(e) /\ (?alg,mac. CipherSuiteAuthEncAlg(EpochSI(
 	tlen:nat{tlen - IVSize(e) >= ( MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) + 1) /\
 	tlen = TargetLength(e,rg)} ->
 	(;PlainLength(e,tlen))lbytes ->
-	ps:(;e,ad,rg)plain{ Decoded(e,ad,ps) }
-// with some 
-// private definition Decoded(e,ad,ps) <=> (Encoded(e,ad,ps.plain,ps.tag,p) => ps.ok = true)
+	ps:(;e,ad,rg)plain//AP{ Decoded(e,ad,ps) }
+//AP with some 
+//AP private definition Decoded(e,ad,ps) <=> (Encoded(e,ad,ps.plain,ps.tag,p) => ps.ok = true)
 
 //CF why do we need "NoPad" variants again? 
 val encodeNoPad: e:succEpoch{not Safe(e) /\ (?mac. CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MACOnly(mac) \/
