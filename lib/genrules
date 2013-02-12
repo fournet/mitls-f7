@@ -267,7 +267,7 @@ def _main():
             print '%(name)s.tc7: $(libperv) $(libfs7) %(deps)s %(name)s.fs7 %(name)s.fs %(name)s.fs7' % fargs
             print '\t@echo '
             print '\t@echo Lemma $@'
-            print '\t$(f7) $(f7flags) -scripts %(name)s %(deps)s %(name)s.fs7 %(name)s.fs' % fargs
+            print '\t$(monoexe) $(f7) $(f7flags) -scripts %(name)s %(deps)s %(name)s.fs7 %(name)s.fs' % fargs
             print '\t@touch $@'
             print
         print 'check-xunit: clean'
