@@ -1,4 +1,4 @@
-﻿module MACa
+﻿module MACb
 
 (* Core HMAC algorithms, idealized for INT-CMA:
    compared with MAC.fs7, we are still abstractly indexed (for multi-instance)

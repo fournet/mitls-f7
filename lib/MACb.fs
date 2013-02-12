@@ -1,4 +1,4 @@
-﻿module MACa
+﻿module MACb
 
 open Bytes
 open TLSConstants

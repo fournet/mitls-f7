@@ -12,11 +12,12 @@ type keyrepr = bytes
 type key = 
   | KeyNoAuth of keyrepr
   | Key_a     of MACa.key
+  | Key_b     of MACb.key
  
-// this ideal variant enables us to directly specify that MAC is ideal
-// at safe indexes; we do not need that assumption anymore, as we 
-// typecheck the code below against the usual INT-CMA interface:
-// idealization occurs within each of their implementations.
+// We comment out an ideal variant that directly specified that MAC 
+// is ideal at Auth indexes; we do not need that assumption anymore, 
+// as we now typecheck this module against plain INT-CMA MAC interfaces:
+// idealization now occurs within each of their implementations.
 #if false
 type entry = epoch * text * tag
 let log:entry list ref=ref []
@@ -29,14 +30,14 @@ let rec tmem (e:epoch) (t:text) (xs: entry list) =
 
 let Mac ki key data =
     let si = epochSI(ki) in
-    let pv = si.protocol_version in
-    let a = macAlg_of_ciphersuite si.cipher_suite pv in
+    let a = macAlg_of_ciphersuite si.cipher_suite si.protocol_version in
     #if false
     let tag = 
     #endif
       match key with 
         | KeyNoAuth(k) -> HMAC.MAC a k data 
         | Key_a(k)     -> MACa.Mac ki k data 
+        | Key_b(k)     -> MACb.Mac ki k data 
     #if false
     // We log every authenticated texts, with their index and resulting tag
     log := (ki, data, tag)::!log;
@@ -45,10 +46,10 @@ let Mac ki key data =
 
 let Verify ki key data tag =
     let si = epochSI(ki) in
-    let pv = si.protocol_version in
-    let a = macAlg_of_ciphersuite si.cipher_suite pv in
+    let a = macAlg_of_ciphersuite si.cipher_suite si.protocol_version in
     match key with 
     | Key_a(k)     -> MACa.Verify ki k data tag
+    | Key_b(k)     -> MACb.Verify ki k data tag
     | KeyNoAuth(k) -> HMAC.MACVERIFY a k data tag
     #if false
     // At safe indexes, we use the log to detect and correct verification errors
@@ -66,6 +67,7 @@ let GEN ki =
     if MAC_safe ki then 
       match a with 
       | a when a = MACa.a -> Key_a(MACa.GEN ki)
+      | a when a = MACb.a -> Key_b(MACb.GEN ki)
       | a                 -> unreachable "only strong algorithms provide safety"
     else                   
     #endif
@@ -75,4 +77,5 @@ let COERCE (ki:epoch) k = KeyNoAuth(k)
 let LEAK (ki:epoch) k = 
     match k with 
     | Key_a(k)     -> unreachable "since we have Auth"
+    | Key_b(k)     -> unreachable "since we have Auth"
     | KeyNoAuth(k) -> k

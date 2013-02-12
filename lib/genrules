@@ -19,6 +19,7 @@ FS7DEFAULT = [
   'StatefulPlain',
   'LHAEPlain',
   'MACa',
+  'MACb',
   'MAC',
   'Encode',
   'LHAE',
