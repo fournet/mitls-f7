@@ -79,7 +79,7 @@ val decode: e:succEpoch{not Auth(e) /\ (?alg,mac. CipherSuiteAuthEncAlg(EpochSI(
 	  CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Fresh(alg),mac))} -> 
 	ad:(;e) LHAEPlain.adata -> rg:range ->
 	tlen:nat{tlen - IVSize(e) >= ( MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) + 1) /\
-	tlen = TargetLength(e,rg)} ->
+	rg = CipherRangeClass(e,tlen)} ->
 	(;PlainLength(e,tlen))lbytes ->
 	ps:(;e,ad,rg)plain//AP{ Decoded(e,ad,ps) }
 //AP with some 
@@ -95,7 +95,7 @@ val decodeNoPad: e:succEpoch{not Auth(e) /\ (?mac. CipherSuiteAuthEncAlg(EpochSI
 	  CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(Stream_RC4_128,mac))} ->
 	ad:(;e) LHAEPlain.adata -> rg:range ->
 	tlen:nat{tlen >= MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) /\
-	tlen = TargetLength(e,rg)} -> (;PlainLength(e,tlen))lbytes ->
+	rg = CipherRangeClass(e,tlen)} -> (;PlainLength(e,tlen))lbytes ->
 	(;e,ad,rg)plain
 
 function val MinTlen: e:epoch -> nat
@@ -108,9 +108,9 @@ definition !e,mac,alg.
 	 => MinTlen(e) = MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) + 1 )
 
 val plain: e:succEpoch{not Auth(e)} ->
-		   ad:(;e)LHAEPlain.adata -> rg:range -> //AP {rg is fRange /\ tlen - IVSize(e) >= MinTlen(e)}
-           (;PlainLength(e,TargetLength(e,rg)))lbytes ->
-           (;e,ad,rg) plain
+		   ad:(;e)LHAEPlain.adata -> tlen:nat{tlen <= max_TLSCipher_fragment_length /\ tlen >= MinTlen(e)} ->
+           (;PlainLength(e,tlen))lbytes ->
+           (;e,ad,CipherRangeClass(e,tlen)) plain
 
 val repr:  e:succEpoch{not Safe(e)} -> 
   ad:(;e)LHAEPlain.adata -> rg:range -> //AP {rg is fRange}

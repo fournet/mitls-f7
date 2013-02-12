@@ -16,4 +16,4 @@ val COERCE: epoch -> bytes -> bytes-> state
 type cipher = bytes
 
 val ENC: epoch -> encryptor -> LHAEPlain.adata -> range -> Encode.plain -> (encryptor * cipher)
-val DEC: epoch -> decryptor -> LHAEPlain.adata -> range -> cipher -> (decryptor * Encode.plain)
+val DEC: epoch -> decryptor -> LHAEPlain.adata -> nat -> cipher -> (decryptor * Encode.plain)

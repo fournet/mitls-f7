@@ -24,7 +24,7 @@ let ivSize e =
         | CBC_Fresh(alg) -> blockSize alg
     | AEAD (_,_) -> Error.unexpectedError "[ivSize] invoked on unsupported ciphersuite"
 
-let fixedPadSize si =
+let fixedPadSize (si:SessionInfo) =
     if si.extended_record_padding then 2 else 1
 
 let maxPadSize si =
@@ -77,7 +77,8 @@ let minMaxPad si =
     if maxPad = 0 then
         (0,0)
     else
-        (fixedPadSize si,maxPad) 
+        let fp = fixedPadSize si in
+        (fp,maxPad) 
 
 //@ From ciphertext length to (maximal) plaintext range
 let cipherRangeClass (e:epoch) tlen =

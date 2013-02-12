@@ -11,7 +11,7 @@ type preds = | CipherRange of epoch * range * nat
 #endif
 
 type plain
-val plain: epoch -> LHAEPlain.adata -> range -> bytes -> plain
+val plain: epoch -> LHAEPlain.adata -> nat -> bytes -> plain
 val repr:  epoch -> LHAEPlain.adata -> range -> plain -> bytes
 
 val mac: epoch -> MAC.key -> LHAEPlain.adata -> range -> LHAEPlain.plain -> plain

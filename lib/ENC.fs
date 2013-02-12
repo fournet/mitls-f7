@@ -181,7 +181,7 @@ let DEC_int ki s cipher =
         (StreamCipher(s),data)
     | _,_ -> unexpectedError "[DEC] Wrong combination of cipher algorithm and state"
 
-let DEC ki s ad rg cipher =
+let DEC ki s ad tlen cipher =
   #if ideal
     if ENC_safe(ki) then
       let (s,p) = DEC_int ki s cipher in
@@ -190,7 +190,7 @@ let DEC ki s ad rg cipher =
     else
   #endif
       let (s,p) = DEC_int ki s cipher in
-      let p' = Encode.plain ki ad rg p in
+      let p' = Encode.plain ki ad tlen p in
       (s,p')
 
 

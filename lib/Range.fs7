@@ -39,7 +39,13 @@ val fixedPadSize: si:SessionInfo -> l:nat{
 	(si.extended_record_padding = false /\ l=1)}
 
 function val MaxPadSize: si:SessionInfo * unit -> nat
-// TODO: private definition !si. MaxPadSize(si) = ...
+// AP definition !si,mac,alg.
+// AP 	((CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MACOnly(mac) \/
+// AP 	  CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(Stream_RC4_128,mac))
+// AP 	 => MaxPadSize(si,()) = 0 ) /\
+// AP 	((CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(CBC_Fresh(alg),mac) \/
+// AP 	  CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(CBC_Stale(alg),mac))
+// AP 	 =>   MaxPadSize(si,()) = 255 ) //AP FIXME: not true for SSL 3.0
 val maxPadSize: si:SessionInfo -> l:nat{l = MaxPadSize(si,())}
 
 (* A range that can be conveyed in one fragment *)
@@ -71,6 +77,27 @@ val targetLength: e:succEpoch -> r:range ->
 val cipherRangeClass: e:succEpoch -> 
   tlen:nat{tlen <= max_TLSCipher_fragment_length} -> 
   r:range {r = CipherRangeClass(e,tlen)}
+
+definition !e,l,h,tlen,alg,mac. (l,h) = CipherRangeClass(e,tlen) /\
+	((CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Fresh(alg),mac) \/
+	  CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Stale(alg),mac))) =>
+	( h >= 0 /\
+	  (h = tlen - IVSize(e) - 
+		   MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) - 1) /\
+	  ( (h >= 255 /\ l = h - 255) \/ 
+	    (h < 255 /\ l = 0 )
+	  )
+	)
+
+definition !e,l,h,tlen,alg,mac. (l,h) = CipherRangeClass(e,tlen) /\
+	((CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MACOnly(mac) \/
+	  CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(Stream_RC4_128,mac))) =>
+	( h >= 0 /\
+	  (h = tlen - IVSize(e) - 
+		   MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) ) /\
+	  ( l = h
+	  )
+	)
 
 val rangeClass: e:succEpoch -> r0:range -> r1:range{r1 = RangeClass(e,r0)}
 

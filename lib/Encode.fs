@@ -213,12 +213,12 @@ let decode e (ad:LHAEPlain.adata) rg (tlen:nat) pl =
                     ok = false;
                 }
 
-let plain (e:epoch) ad rg b = 
+let plain (e:epoch) ad tlen b = 
   let si = epochSI(e) in
   let cs = si.cipher_suite in
   let pv = si.protocol_version in
   let authEnc = authencAlg_of_ciphersuite cs pv in
-  let tlen = targetLength e rg in
+  let rg = cipherRangeClass e tlen in
   match authEnc with
     | MtE(Stream_RC4_128,_) 
     | MACOnly _ ->
