@@ -139,7 +139,7 @@ let rec cfind (e:epoch) (c:cipher) (xs: entry list) =
 let ENC ki s ad rg data =
     let tlen = targetLength ki rg in
   #if ideal
-    if ENC_safe(ki) then
+    if safeENC(ki) then
       let d = createBytes tlen 0 in
       let (s,c) = ENC_int ki s tlen d in
       log := (ki, ad, rg, data, c)::!log;
@@ -183,7 +183,7 @@ let DEC_int ki s cipher =
 
 let DEC ki s ad tlen cipher =
   #if ideal
-    if ENC_safe(ki) then
+    if safeENC(ki) then
       let (s,p) = DEC_int ki s cipher in
       let (ad',rg',p') = cfind ki cipher !log in
       (s,p')

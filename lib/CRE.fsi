@@ -10,6 +10,7 @@ type rsapms
 type dhpms
 
 #if ideal
+// MK use TLSInfo.pmsData instead?
 type pms = RSA_pms of rsapms | DHE_pms of dhpms
 val corrupt: pms -> bool
 #endif

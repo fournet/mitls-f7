@@ -53,7 +53,7 @@ let Verify ki key data tag =
     | KeyNoAuth(k) -> HMAC.MACVERIFY a k data tag
     #if false
     // At safe indexes, we use the log to detect and correct verification errors
-    && if MAC_safe ki
+    && if safeMAC ki
        then 
            tmem ki data !log
        else 
@@ -64,7 +64,7 @@ let GEN ki =
     let si = epochSI(ki) in
     let a = macAlg_of_ciphersuite si.cipher_suite si.protocol_version in
     #if ideal
-    if MAC_safe ki then 
+    if safeMAC ki then 
       match a with 
       | a when a = MAC_SHA256.a -> Key_SHA256(MAC_SHA256.GEN ki)
       | a when a = MAC_SHA1.a   -> Key_SHA1(MAC_SHA1.GEN ki)

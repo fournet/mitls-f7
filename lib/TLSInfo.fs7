@@ -11,7 +11,7 @@
 - Fix Sig/VerifyData/Complete as discussed with Cedric
 
 - Declare all Strong predicates. Define in TLS?
-  PRF.Strong, CRE.Strong, RSAPMS, DHPMS, StrongHS, Sig.Strong, StrongAE, StrongAuth
+  PRF.Strong, CRE.Strong, StrongRSAPMS, StrongDHPMS, StrongHS, Sig.Strong, StrongAE, StrongAuth
   
 - Declare all honest predicates
   RSAKey.Honest(pk) (enc), Sig.Honest(a,pk)
@@ -156,23 +156,23 @@ definition !a,k. StrongSig(a) <=> Sig.Strong(a)
 
 predicate StrongHS  of SessionInfo //CF * hashAlg for certs?
 
-predicate CRE_SafeRSA of RSAKey.pk * ProtocolVersion // The public key and protocol version yields a good rsapms
-predicate CRE_SafeDH of p:DHGroup.p * (;p)DHGroup.g * (;p)DHGroup.elt * (;p)DHGroup.elt // The DH parameters, generator, and gx and gy values yield a good dhpms
+(* MK renamed to SafeRSAPMS and SafeDHPMS
+predicate SafeRSAPMS of RSAKey.pk * ProtocolVersion // The public key and protocol version yields a good rsapms
+predicate SafeDHPMS of p:DHGroup.p * (;p)DHGroup.g * (;p)DHGroup.elt * (;p)DHGroup.elt // The DH parameters, generator, and gx and gy values yield a good dhpms
 
 (* KB: Incomplete 
-predicate RSA_PMS   of ProtocolVersion * kexAlg
-predicate DH_PMS    of ProtocolVersion * kexAlg
-      ((?pk,pv,e. pd = RSAPMS(pk,pv,e) /\ HonestRSAPMS(pk,pv,e)) \/
-       (?p,g,gx,gy. pd = DHPMS(p,g,gx,gy) /\ HonestDHPMS(p,g,gx,gy)))
+predicate StrongRSAPMS   of ProtocolVersion * kexAlg
+predicate StrongDHPMS    of ProtocolVersion * kexAlg
+// MK??     ((?pk,pv,e. pd = RSAPMS(pk,pv,e) /\ HonestRSAPMS(pk,pv,e)) \/
+// MK??     (?p,g,gx,gy. pd = DHPMS(p,g,gx,gy) /\ HonestDHPMS(p,g,gx,gy)))
 
 definition !si. StrongHS(si) <=> 
-          (Sig.Strong(CipherSuiteSigAlg(si.cipher_suite),DefaultSigHashAlg(si),SupportedSigHashAlgs(si))
-		   /\ PRF(pv,CipherSuiteMacAlg(pv,s)) 
-           /\ ((CRE_RSA(pv,CipherSuiteMacAlg(pv,si.cipher_suite)) 
-                /\ RSA_PMS(si)) \/
-	   	       (CRE_DH(pv,CipherSuiteMacAlg(pv,si.cipher_suite))
-			    /\ DH_PMS(si)))
-
+// MK why not get alg directly?     (Sig.Strong(CipherSuiteSigAlg(si.cipher_suite),DefaultSigHashAlg(si),SupportedSigHashAlgs(si))
+    (StrongSig(CipherSuiteSigAlg(si.cipher_suite))
+		   /\ StrongPRF(pv,CipherSuiteMacAlg(pv,s)) 
+           /\ StrongCRE(pv,CipherSuiteMacAlg(pv,si.cipher_suite)
+           /\ (StrongRSAPMS(si) \/
+	   	       StrongDHPMS(si)
 *)
 
 // Predicates specifying the security of TLS connections 
@@ -207,8 +207,8 @@ definition !e. Auth(e) <=> AuthSI(EpochSI(e))
 val safe: (e:epoch) -> b:bool { b = true <=> Safe(e) }
 val safeHS: (e:epoch) -> b:bool {b = true <=> SafeHS(e)}
 val auth :(e:epoch) -> b:bool {b = true <=> Auth(e)}
-val MAC_safe: (e:epoch) -> b:bool {b = true <=> Auth(e)}
-val ENC_safe: (e:epoch) -> b:bool {b = true <=> Safe(e)}
+val safeMAC: (e:epoch) -> b:bool {b = true <=> Auth(e)}
+val safeENC: (e:epoch) -> b:bool {b = true <=> Safe(e)}
 
 ask !e. Safe(e) => Auth(e) 
 

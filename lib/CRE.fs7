@@ -12,15 +12,15 @@ private type (;pk:RSAKey.pk,pv:ProtocolVersion) rsapms = {rsapms:rsarepr}
 predicate GeneratedRSAPMS of pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms
 
 val genRSA: pk:RSAKey.pk -> pv:ProtocolVersion -> pms:(;pk,pv)rsapms{GeneratedRSAPMS(pk,pv,pms)}
-val coerceRSA: pk:RSAKey.pk -> pv:ProtocolVersion {not CRE_SafeRSA(pk,pv)}-> bytes -> (;pk,pv)rsapms
-val leakRSA: pk:RSAKey.pk -> pv:ProtocolVersion {not CRE_SafeRSA(pk,pv)}-> (;pk,pv)rsapms -> bytes
+val coerceRSA: pk:RSAKey.pk -> pv:ProtocolVersion {not SafeRSAPMS(pk,pv)}-> bytes -> (;pk,pv)rsapms
+val leakRSA: pk:RSAKey.pk -> pv:ProtocolVersion {not SafeRSAPMS(pk,pv)}-> (;pk,pv)rsapms -> bytes
 //#end-abstractionRSA
 
 //#begin-abstractionDH
 private type (;p:p, g:(;p) g, gx:(;p) elt, gy:(;p) elt) dhpms = {dhpms: (;p) elt} // strong secret when (p,g), gx, and gy have been honestly generated
 
 val sampleDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt ->            (;p,g,gx,gy) dhpms
-val coerceDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt {not CRE_SafeDH(p,g,gx,gy)}-> (;p)elt -> (;p,g,gx,gy) dhpms
+val coerceDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt {not SafeDHPMS(p,g,gx,gy)}-> (;p)elt -> (;p,g,gx,gy) dhpms
 //#end-abstractionDH
 
 
