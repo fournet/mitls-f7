@@ -62,15 +62,16 @@ let Verify ki key data tag =
 
 let GEN ki =
     let si = epochSI(ki) in
-    let a = macAlg_of_ciphersuite si.cipher_suite si.protocol_version in
     #if ideal
     if safeMAC ki then 
+      let a = macAlg_of_ciphersuite si.cipher_suite si.protocol_version in
       match a with 
       | a when a = MAC_SHA256.a -> Key_SHA256(MAC_SHA256.GEN ki)
       | a when a = MAC_SHA1.a   -> Key_SHA1(MAC_SHA1.GEN ki)
       | a                       -> unreachable "only strong algorithms provide safety"
     else                   
     #endif
+    let a = macAlg_of_ciphersuite si.cipher_suite si.protocol_version in
     KeyNoAuth(Nonce.mkRandom (macKeySize (a)))
 
 let COERCE (ki:epoch) k = KeyNoAuth(k)  
