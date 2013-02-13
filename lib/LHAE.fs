@@ -169,6 +169,11 @@ let encrypt e key data rg plain =
     log := (e,data,rg,plain,cipher)::!log
   else ()
   #endif
+  #if ideal_F
+  if safe e then
+    log := (e,data,rg,plain,cipher)::!log
+  else ()
+  #endif
   (key,cipher)
 
 let decrypt e (key: LHAEKey) data (cipher: bytes) =  
@@ -178,7 +183,7 @@ let decrypt e (key: LHAEKey) data (cipher: bytes) =
     | Some _ -> decrypt' e key data cipher
     | None   -> Error(AD_bad_record_mac, "")  
   else
-  #else
+  #endif 
   #if ideal
   if safe e then
     match cmem e data cipher !log with
@@ -190,6 +195,5 @@ let decrypt e (key: LHAEKey) data (cipher: bytes) =
        correct (key,rg',p')
     | None   -> Error(AD_bad_record_mac, "")  
   else
-  #endif 
   #endif 
       decrypt' e key data cipher
