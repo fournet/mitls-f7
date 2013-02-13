@@ -52,6 +52,8 @@ predicate ENCrypted of e:epoch * ad:(;e)LHAEPlain.adata * cipher
 private definition !e,ad,c.
   ENCrypted(e,ad,c) <=> ?p'. ENC.ENCrypted(e,ad,c,p')
 
+ask !e,ad,c. ( Safe(e) => ENCrypted(e,ad,c) ) => (Safe(e) => ?p. ENC.ENCrypted(e,ad,c,p))
+
 val encrypt': ki:succEpoch -> (;ki) LHAEKey -> ad:(;ki)LHAEPlain.adata ->
   rg:range -> p:(;ki,ad,rg) LHAEPlain.plain ->
   ((;ki) LHAEKey * c:cipher){Length(c) = TargetLength(ki,rg) /\         
