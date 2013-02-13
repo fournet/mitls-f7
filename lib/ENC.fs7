@@ -46,8 +46,7 @@ type (;ki:epoch)decryptor = (;ki)state
 // encryptor and decryptor states
 private function val StateID: ki:epoch * (;ki)state -> int
 
-//val GEN: ki:epoch -> e:(;ki)encryptor * d:(;ki)decryptor{StateID(e)=0 /\ StateID(d)=0}
-val GEN: ki:epoch -> (e:(;ki)encryptor{StateID(ki,e)=0}) * (d:(;ki)decryptor{StateID(ki,d)=0}) //syntax error
+val GEN: ki:epoch -> (e:(;ki)encryptor{StateID(ki,e)=0}) * (d:(;ki)decryptor{StateID(ki,d)=0})
 val LEAK:   ki:epoch{not Safe(ki)} -> (;ki)state -> key:bytes * iv:bytes
 val COERCE: ki:epoch{not Safe(ki)} -> key:bytes -> iv:bytes -> (;ki)state
 
@@ -56,20 +55,17 @@ predicate val ENCrypted:
   (e:epoch * ad:(;e)LHAEPlain.adata * c:cipher * 'a) -> bool // p:(;e,ad,CipherRangeClass(e,Length(c))) plain
 
 // TODO: We need to refine cipher before applying CPA
-
+//CF we miss a refinement synchronizing ad and s
 val ENC: ki:epoch -> s:(;ki) encryptor -> ad:(;ki)LHAEPlain.adata -> r:range ->
   p:(;ki,ad,r)plain -> 
-  ( (s':(;ki) encryptor{StateID(ki,s') = StateID(ki,s)+1}) *
-   (c:cipher{(Safe(ki) => ENCrypted(ki,ad,c,p)) 
-             /\ Length(c)=TargetLength(ki,r)}) )
+  ( (s': (;ki) encryptor{StateID(ki,s') = StateID(ki,s)+1}) *
+    (c : cipher{(Safe(ki) => ENCrypted(ki,ad,c,p)) /\ Length(c)=TargetLength(ki,r)}) )
 
 val DEC: ki:epoch -> s:(;ki) decryptor -> ad:(;ki)LHAEPlain.adata ->
   c:cipher
-  {Length(c) >= MinTlen(ki) /\
-   (Safe(ki) => (?p'. ENCrypted(ki,ad,c,p')))} -> 
-  ( (s':(;ki) decryptor{StateID(ki,s') = StateID(ki,s)+1}) *
-   (p:(;ki,ad,CipherRangeClass(ki,Length(c)))plain
-   {!p'. ENCrypted(ki,ad,c,p') => p=p'}))
+  { (Safe(ki) => ?p'. ENCrypted(ki,ad,c,p')) /\ Length(c) >= MinTlen(ki) } -> 
+  ( (s': (;ki) decryptor{StateID(ki,s') = StateID(ki,s)+1}) *
+    (p : (;ki,ad,CipherRangeClass(ki,Length(c)))plain {!p'. ENCrypted(ki,ad,c,p') => p=p'}))
 
 type entry = 
   (ki:epoch * ad:(;ki)LHAEPlain.adata * c:cipher * p:(;ki,ad,CipherRangeClass(ki,Length(c)))plain)
