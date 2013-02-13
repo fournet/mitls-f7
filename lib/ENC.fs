@@ -127,12 +127,12 @@ let ENC_int ki s tlen d =
     | _, _ -> unexpectedError "[ENC] Wrong combination of cipher algorithm and state"
 
 #if ideal
-type entry = epoch * LHAEPlain.adata * range * Encode.plain * cipher
+type entry = epoch * LHAEPlain.adata * cipher * Encode.plain
 let log:entry list ref = ref []
 let rec cfind (e:epoch) (c:cipher) (xs: entry list) = 
   match xs with
       [] -> failwith "not found"
-    | (e',ad,r,text,c')::res when e = e' && c = c' -> (ad,r,text)
+    | (e',ad,c',text)::res when e = e' && c = c' -> (ad,cipherRangeClass e (length c),text)
     | _::res -> cfind e c res
 #endif
 
@@ -142,7 +142,7 @@ let ENC ki s ad rg data =
     if safeENC(ki) then
       let d = createBytes tlen 0 in
       let (s,c) = ENC_int ki s tlen d in
-      log := (ki, ad, rg, data, c)::!log;
+      log := (ki, ad, c, data)::!log;
       (s,c)
     else
   #endif
@@ -181,7 +181,7 @@ let DEC_int ki s cipher =
         (StreamCipher(s),data)
     | _,_ -> unexpectedError "[DEC] Wrong combination of cipher algorithm and state"
 
-let DEC ki s ad tlen cipher =
+let DEC ki s ad cipher =
   #if ideal
     if safeENC(ki) then
       let (s,p) = DEC_int ki s cipher in
@@ -190,6 +190,7 @@ let DEC ki s ad tlen cipher =
     else
   #endif
       let (s,p) = DEC_int ki s cipher in
+      let tlen = length cipher in
       let p' = Encode.plain ki ad tlen p in
       (s,p')
 

@@ -66,7 +66,7 @@ private type (;ki:succEpoch) key =
   | KeyNoAuth of (k:(;ki) keyrepr { not(Auth(ki)) })
   | Key_SHA256 of (k:(;ki) MAC_SHA256.key 
     { Auth(ki) /\ 
-	  MAC_SHA.a = CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) })
+	  MAC_SHA256.a = CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) })
   | Key_SHA1 of (k:(;ki) MAC_SHA1.key 
     { Auth(ki) /\ 
 	  MAC_SHA1.a = CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) })

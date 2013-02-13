@@ -47,36 +47,36 @@ private assume !e,si. si = EpochSI(e) =>
 // the first (primed) is concrete; the second is idealized at safe indexes,
 // using either #ideal_F (filtering out non-cipher) or #ideal (decrypting just by lookup)
 
-predicate ENCrypted of e:epoch * cipher
+predicate ENCrypted of e:epoch * ad:(;e)LHAEPlain.adata * cipher
 
-private definition !e,c.
-  ENCrypted(e,c) <=> ?ad,r,n,p'. ENC.ENCrypted(e,ad,r,n,p',c)
+private definition !e,ad,c.
+  ENCrypted(e,ad,c) <=> ?p'. ENC.ENCrypted(e,ad,c,p')
 
 val encrypt': ki:succEpoch -> (;ki) LHAEKey -> ad:(;ki)LHAEPlain.adata ->
   rg:range -> p:(;ki,ad,rg) LHAEPlain.plain ->
   ((;ki) LHAEKey * c:cipher){Length(c) = TargetLength(ki,rg) /\         
-                             (Safe(ki) => ENCrypted(ki,c))}
+                             (Safe(ki) => ENCrypted(ki,ad,c))}
 
 val encrypt : ki:succEpoch -> (;ki) LHAEKey -> ad:(;ki)LHAEPlain.adata ->
   rg:range -> p:(;ki,ad,rg) LHAEPlain.plain ->
   ((;ki) LHAEKey * c:cipher){Length(c) = TargetLength(ki,rg) /\
-                             (Safe(ki) => ENCrypted(ki,c))}
+                             (Safe(ki) => ENCrypted(ki,ad,c))}
 
 type entry = 
   ki:succEpoch * ad:(;ki) LHAEPlain.adata * rg:range * 
-  p:(;ki,ad,rg) LHAEPlain.plain * c:ENC.cipher {ENCrypted(ki,c)} 
+  p:(;ki,ad,rg) LHAEPlain.plain * c:ENC.cipher {ENCrypted(ki,ad,c)} 
 private val log: entry list ref
 private val cmem: ki:succEpoch -> ad:(;ki)LHAEPlain.adata -> c:cipher ->  
   entry list -> res:(r:range * (;ki,ad,r)LHAEPlain.plain) option { 
-    ( !rg,p. res = Some ((rg,p)) => (ENCrypted(ki,c) /\ rg = CipherRangeClass(ki,Length(c))) ) /\
-	( res = None => not ENCrypted(ki,c) )}
+    ( !rg,p. res = Some ((rg,p)) => (ENCrypted(ki,ad,c) /\ rg = CipherRangeClass(ki,Length(c))) ) /\
+	( res = None => not ENCrypted(ki,ad,c) )}
 
 (*CF
 theorem !ki,d,rg0,p0,rg1,p1,c. (ENCrypted(ki,d,rg0,p0,c) /\ ENCrypted(ki,d,rg1,p1,c)) => p0 = p1
 *)
 
 val decrypt': ki:succEpoch -> k:(;ki) LHAEKey -> ad:(;ki)LHAEPlain.adata ->
-  c:cipher{Safe(ki) => ENCrypted(ki,c)} -> res: 
+  c:cipher{Safe(ki) => ENCrypted(ki,ad,c)} -> res: 
   ( ( 
     (;ki) LHAEKey *  
     rg:range * 
@@ -97,8 +97,8 @@ val decrypt: ki:succEpoch -> (;ki) LHAEKey -> ad:(;ki)LHAEPlain.adata ->
   ) Result
    {
     (Safe(ki) => 
-        (   (!k,r,p. res = Correct((k,r,p)) => ENCrypted(ki,c)) 
-	 /\ (ENCrypted(ki,c) => (?p,k,r'. res = Correct((k,r',p))))
+        (   (!k,r,p. res = Correct((k,r,p)) => ENCrypted(ki,ad,c)) 
+	 /\ (ENCrypted(ki,ad,c) => (?p,k,r'. res = Correct((k,r',p))))
 		))}
 // The last two lines are equivalent to (but easier to verify than)
 // !p. CTXT(ki,ad,p,c) <=> (?k,r. res = Correct((k,r,p)))

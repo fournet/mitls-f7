@@ -110,7 +110,7 @@ let decrypt' e key data cipher =
                 let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
             else
                 let rg = cipherRangeClass e cl in
-                let (ke,plain) = ENC.DEC e ke data cl cipher in
+                let (ke,plain) = ENC.DEC e ke data cipher in
                 let nk = mteKey e ka ke in
                 match Encode.verify e ka data rg plain with
                 | Error(x,y) -> Error(x,y)
@@ -124,7 +124,7 @@ let decrypt' e key data cipher =
                 let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
             else
                 let rg = cipherRangeClass e cl in
-                let (ke,plain) = ENC.DEC e ke data cl cipher in
+                let (ke,plain) = ENC.DEC e ke data cipher in
                 let nk = mteKey e ka ke in
                 match Encode.verify e ka data rg plain with
                 | Error(x,y) -> Error(x,y)

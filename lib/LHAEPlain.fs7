@@ -16,6 +16,8 @@ function val MakeAD:  e:epoch * (;e)StatefulPlain.history * (;e)StatefulPlain.ad
 private definition !e,h,ad. MakeAD(e,h,ad) = IntBytes(8,StatefulPlain.SeqN(e,h)) @| ad
 function val ParseAD: e:epoch * (;e)adata -> 'a //(;e)StatefulPlain.adata
 private definition !e,b,ad. Length(b) = 8 => ParseAD(e,b@|ad) = ad
+function val SeqN: e:epoch * (;e)adata -> nat
+private definition !e,sn,ad. SeqN(e,IntBytes(8,sn)@|ad) = sn
 
 ask !e,h,ad. ParseAD(e,MakeAD(e,h,ad)) = ad
 
