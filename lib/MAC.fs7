@@ -59,41 +59,41 @@ type (;ki:succEpoch) keyrepr = k:bytes {Length(k) = MacSize(CipherSuiteMACAlg(Ep
 type (;ki:succEpoch) tag     = m:bytes {Length(m) = MacSize(CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version))}
 
 // Our type of keys has a separate constructor for each strong MAC algorithm,
-// so that each of their key types (MACa.key) can be kept abstract at every Auth index when #ideal.
+// so that each of their key types (MAC_SHA256.key) can be kept abstract at every Auth index when #ideal.
 // plus a default constructor for all other keys, concretely represented as fixed-length bytes.
 // (thus, when not #ideal, all keys are KeyNoAuth and the other constructors are not used.)
 private type (;ki:succEpoch) key = 
   | KeyNoAuth of (k:(;ki) keyrepr { not(Auth(ki)) })
-  | Key_a of (k:(;ki) MACa.key 
+  | Key_SHA256 of (k:(;ki) MAC_SHA256.key 
     { Auth(ki) /\ 
-	  MACa.a = CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) })
-  | Key_b of (k:(;ki) MACb.key 
+	  MAC_SHA.a = CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) })
+  | Key_SHA1 of (k:(;ki) MAC_SHA1.key 
     { Auth(ki) /\ 
-	  MACb.a = CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) })
+	  MAC_SHA1.a = CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) })
 
 // this assumption records the list of concrete MAC algorithms 
-// assumed to be INT-CMA (in this instance, just MACa.a is)  
+// assumed to be INT-CMA (in this instance, just MAC_SHA256.a is)  
 private assume
-  !ki. Auth(ki) => (  CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = MACa.a 
-                   \/ CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = MACb.a )
+  !ki. Auth(ki) => (  CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = MAC_SHA256.a 
+                   \/ CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = MAC_SHA1.a )
 			  
-//ask MACa.a = MA_HMAC(SHA256)
+//ask MAC_SHA256.a = MA_HMAC(SHA256)
 
 type text = bytes
 predicate val Msg: epoch * text -> bool
 
-// We define the Msg predicate of each MACa as follows, 
+// We define the Msg predicate of each MAC_SHA256 as follows, 
 // logically multiplexing them to the Msg predicate of MAC (to be defined in turn by users of MAC) 
 private definition 
-  !ki,t. MACa.Msg(ki,t) <=> 
+  !ki,t. MAC_SHA256.Msg(ki,t) <=> 
       (Msg(ki,t) /\ 
 	   Auth(ki) /\ 
-	   MACa.a = CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version))
+	   MAC_SHA256.a = CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version))
 private definition 
-  !ki,t. MACb.Msg(ki,t) <=> 
+  !ki,t. MAC_SHA1.Msg(ki,t) <=> 
       (Msg(ki,t) /\ 
 	   Auth(ki) /\ 
-	   MACb.a = CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version))
+	   MAC_SHA1.a = CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version))
 
 val Mac:    ki:succEpoch -> k:(;ki) key -> t:text{Msg(ki,t)} -> m:(;ki) tag
 val Verify: ki:succEpoch -> k:(;ki) key -> t:text -> m:(;ki) tag -> b:bool{ (b=true /\ Auth(ki)) => Msg(ki,t) }
