@@ -41,13 +41,6 @@ prepare-dist:
 	  cp licenses/*.txt $(distname)/licenses
 	find $(distname) -type f -exec chmod a-x '{}' \+
 
-prepare-dist-f7:
-	rm -rf $(f7distname) && mkdir $(f7distname)
-	rm -rf $(f7distname).tgz
-	mkdir $(f7distname)/lib
-	$(MAKE) -f Makefile.build -C lib distdir=../$(f7distname)/lib dist-f7
-	find $(f7distname) -type f -exec chmod a-x '{}' \+
-
 dist: prepare-dist
 	cp LICENSE AUTHORS $(distname)
 	if [ -x scripts/anonymize ]; then \
@@ -58,14 +51,6 @@ dist: prepare-dist
 	fi
 	$(TAR) -czf $(distname).tgz $(distname)
 	rm -rf $(distname)
-
-dist-f7: scripts/anonymize prepare-dist-f7
-	cp LICENSE AUTHORS $(f7distname)
-	find $(f7distname)/lib -type f \
-	  -exec scripts/anonymize \
-	    -m release -B -I ideal -I verify -c LICENSE.header '{}' \+;
-	$(TAR) -czf $(f7distname).tgz $(f7distname)
-	rm -rf $(f7distname)
 
 do-dist-check:
 	tar -xof $(distname).tgz
