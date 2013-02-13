@@ -160,20 +160,22 @@ predicate StrongHS  of SessionInfo //CF * hashAlg for certs?
 predicate SafeRSAPMS of RSAKey.pk * ProtocolVersion // The public key and protocol version yields a good rsapms
 predicate SafeDHPMS of p:DHGroup.p * (;p)DHGroup.g * (;p)DHGroup.elt * (;p)DHGroup.elt // The DH parameters, generator, and gx and gy values yield a good dhpms
 
-(* KB: Incomplete 
-predicate StrongRSAPMS   of ProtocolVersion * kexAlg
-predicate StrongDHPMS    of ProtocolVersion * kexAlg
+(* KB: Incomplete
+predicate StrongRSAPMS   of SessionInfo // MK was ProtocolVersion * kexAlg
+predicate StrongDHPMS    of SessionInfo // MK was ProtocolVersion * kexAlg
+predicate StrongPRF    of ProtocolVersion * macAlg
+predicate StrongCRE    of ProtocolVersion * macAlg
 // MK??     ((?pk,pv,e. pd = RSAPMS(pk,pv,e) /\ HonestRSAPMS(pk,pv,e)) \/
 // MK??     (?p,g,gx,gy. pd = DHPMS(p,g,gx,gy) /\ HonestDHPMS(p,g,gx,gy)))
 
 definition !si. StrongHS(si) <=> 
 // MK why not get alg directly?     (Sig.Strong(CipherSuiteSigAlg(si.cipher_suite),DefaultSigHashAlg(si),SupportedSigHashAlgs(si))
-    (StrongSig(CipherSuiteSigAlg(si.cipher_suite))
-		   /\ StrongPRF(pv,CipherSuiteMacAlg(pv,s)) 
-           /\ StrongCRE(pv,CipherSuiteMacAlg(pv,si.cipher_suite)
+    StrongSig(CipherSuiteSigAlg(si.cipher_suite))
+		   /\ StrongPRF(si.protocol_version,CipherSuiteMACAlg(si.protocol_version,si.cipher_suite)) 
+           /\ StrongCRE(si.protocol_version,CipherSuiteMACAlg(si.protocol_version,si.cipher_suite))
            /\ (StrongRSAPMS(si) \/
-	   	       StrongDHPMS(si)
-*)
+	   	       StrongDHPMS(si))
+ *)
 
 // Predicates specifying the security of TLS connections 
 predicate type cryptopreds = 
