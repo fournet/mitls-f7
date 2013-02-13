@@ -24,17 +24,17 @@ let ivSize e =
         | CBC_Fresh(alg) -> blockSize alg
     | AEAD (_,_) -> Error.unexpectedError "[ivSize] invoked on unsupported ciphersuite"
 
-let fixedPadSize (si:SessionInfo) =
-    if si.extended_record_padding then 2 else 1
+let fixedPadSize (si:SessionInfo) = 1
+    //AP if si.extended_record_padding then 2 else 1
 
 let maxPadSize si =
     let authEnc = authencAlg_of_ciphersuite si.cipher_suite si.protocol_version in
     match authEnc with
     | MACOnly _ -> 0
     | MtE(enc,_) ->
-        if si.extended_record_padding then
-            fragmentLength
-        else
+  // AP      if si.extended_record_padding then
+  // AP          fragmentLength
+  // AP      else
             match enc with
             | Stream_RC4_128 -> 0
             | CBC_Stale(alg) | CBC_Fresh(alg) ->
