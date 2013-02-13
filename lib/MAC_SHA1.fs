@@ -1,4 +1,4 @@
-﻿module MACb
+﻿module MAC_SHA1
 
 open Bytes
 open TLSConstants
@@ -11,7 +11,7 @@ type keyrepr = bytes
 type key = {k:keyrepr}
 
 // for concreteness; the rest of the module is parametric in a 
-let a = MA_HMAC(SHA384) 
+let a = MA_HMAC(SHA) 
 
 #if ideal // We maintain a table of MACed plaintexts
 type entry = epoch * text * tag

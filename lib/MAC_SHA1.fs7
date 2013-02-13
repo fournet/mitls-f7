@@ -1,4 +1,4 @@
-﻿module MACa
+﻿module MAC_SHA1
 
 (* Core HMAC algorithms, idealized for INT-CMA:
    compared with MAC.fs7, we are still abstractly indexed (for multi-instance)
@@ -8,7 +8,7 @@ open Bytes
 open TLSConstants
 open TLSInfo
 
-val a: a:macAlg{ a = MA_HMAC(SHA256) } // symbolic constant
+val a:macAlg // symbolic constant
 
 type (;ki:succEpoch) keyrepr = k:bytes {Length(k) = MacSize(a)}
 private type (;ki:succEpoch) key = {k:(;ki) keyrepr}

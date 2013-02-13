@@ -1,4 +1,4 @@
-﻿module MACb
+﻿module MAC_SHA256
 
 open Bytes
 open TLSConstants
