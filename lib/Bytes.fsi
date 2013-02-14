@@ -47,3 +47,5 @@ val find: ('a -> bool) -> 'a list -> 'a
 #endif
 val listLength: ('a list) -> int
 val listHead: ('a list) -> 'a
+
+val random: nat -> bytes

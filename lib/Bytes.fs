@@ -85,3 +85,5 @@ let isSome (l:'a option) =
   match l with
       Some(x) -> true
     | None -> false
+
+let random (n:nat) = CoreRandom.random n

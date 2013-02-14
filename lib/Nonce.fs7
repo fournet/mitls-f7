@@ -4,7 +4,6 @@
 
 open Bytes
 
-val mkRandom: l:int -> b:bytes{Length(b) = l}
 val mkHelloRandom: unit -> b:(;32)lbytes
 
 private val log: (;32) lbytes list ref 
@@ -14,4 +13,4 @@ private val timestamp: unit -> (;4) lbytes
 // up to a negligible probability of collision
 
 // TODO do we need more than that, e.g. no clash with prior adv nonces?
-// TODO relocate mkRandom; rename mkHelloRandom to fresh
+// TODO rename mkHelloRandom to fresh
