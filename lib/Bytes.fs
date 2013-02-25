@@ -49,7 +49,7 @@ let iutf8 (x:bytes) : string = System.Text.Encoding.UTF8.GetString x
 type DateTime = DT of System.DateTime
 type TimeSpan = TS of System.TimeSpan
 let now () = DT (System.DateTime.Now)
-let newTimeSpan h d m s = TS (new System.TimeSpan(h,d,m,s))
+let newTimeSpan d h m s = TS (new System.TimeSpan(d,h,m,s))
 let addTimeSpan (DT(a)) (TS(b)) = DT (a + b)
 let greaterDateTime (DT(a)) (DT(b)) = a > b
 
