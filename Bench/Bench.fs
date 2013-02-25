@@ -52,8 +52,8 @@ type options = {
 
 (* ------------------------------------------------------------------------ *)
 let tlsconfig options = {
-    TLSInfo.minVer = TLSConstants.TLS_1p0
-    TLSInfo.maxVer = TLSConstants.TLS_1p0
+    TLSInfo.minVer = TLSConstants.TLS_1p2
+    TLSInfo.maxVer = TLSConstants.TLS_1p2
 
     TLSInfo.ciphersuites = TLSConstants.cipherSuites_of_nameList [options.ciphersuite]
 
@@ -108,7 +108,8 @@ let client config =
                 upos := 0
             end;
             stream.Write (udata, !upos, block)
-            sent := !sent + block
+            sent := !sent + block;
+            upos := !upos + block;
         done;
         let ticks = DateTime.Now.Ticks - ticks in
             stream.Close ();
@@ -139,7 +140,7 @@ let entry () =
         Async.Start server;
         let sent, ticks = Async.RunSynchronously client in
         let rate = float(sent) / (float(ticks) / float(TimeSpan.TicksPerSecond)) in
-            printfn "%s: %f MiB/s" ciphersuite (rate / (1024. * 1024.))
+            printfn "%s: %.2f MiB/s" ciphersuite (rate / (1024. * 1024.))
 
 (* ------------------------------------------------------------------------ *)
 let _ = entry ()

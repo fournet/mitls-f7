@@ -65,9 +65,6 @@ SSL_CTX* evssl_init(const echossl_t *options, int isserver) {
     /*-*/ char       *CApath  = NULL;
     const SSL_METHOD *method  = NULL;
 
-    if (!isserver)
-        abort();                /* FIXME */
-
     if (options->sname != NULL) {
         crtfile = xjoin(options->pki, "/certificates/", options->sname, ".crt", NULL);
         keyfile = xjoin(options->pki, "/certificates/", options->sname, ".key", NULL);
@@ -84,14 +81,26 @@ SSL_CTX* evssl_init(const echossl_t *options, int isserver) {
         goto bailout;
     }
 
-    switch (options->tlsver) {
-    case SSL_3p0: method = SSLv3_server_method  (); break ;
-    case TLS_1p0: method = TLSv1_server_method  (); break ;
-    case TLS_1p1: method = TLSv1_1_server_method(); break ;
-    case TLS_1p2: method = TLSv1_2_server_method(); break ;
-
-    default:
-        abort();
+    if (isserver) {
+        switch (options->tlsver) {
+        case SSL_3p0: method = SSLv3_server_method  (); break ;
+        case TLS_1p0: method = TLSv1_server_method  (); break ;
+        case TLS_1p1: method = TLSv1_1_server_method(); break ;
+        case TLS_1p2: method = TLSv1_2_server_method(); break ;
+    
+        default:
+            abort();
+        }
+    } else {
+        switch (options->tlsver) {
+        case SSL_3p0: method = SSLv3_client_method  (); break ;
+        case TLS_1p0: method = TLSv1_client_method  (); break ;
+        case TLS_1p1: method = TLSv1_1_client_method(); break ;
+        case TLS_1p2: method = TLSv1_2_client_method(); break ;
+    
+        default:
+            abort();
+        }
     }
 
     if ((context = SSL_CTX_new(method)) == NULL) {
@@ -118,18 +127,20 @@ SSL_CTX* evssl_init(const echossl_t *options, int isserver) {
 
     (void) SSL_CTX_set_default_verify_paths(context);
 
-    if (options->sname != NULL) {
-        if (!SSL_CTX_use_certificate_chain_file(context, crtfile)) {
-            elog(LOG_FATAL, "cannot load certificate `%s'", crtfile);
-            goto bailout;
-        }
-
-        if (!SSL_CTX_use_PrivateKey_file(context, keyfile, SSL_FILETYPE_PEM)) {
-            elog(LOG_FATAL, "cannot load certificate key `%s'", keyfile);
-            goto bailout;
+    if (isserver) {
+        if (options->sname != NULL) {
+            if (!SSL_CTX_use_certificate_chain_file(context, crtfile)) {
+                elog(LOG_FATAL, "cannot load certificate `%s'", crtfile);
+                goto bailout;
+            }
+    
+            if (!SSL_CTX_use_PrivateKey_file(context, keyfile, SSL_FILETYPE_PEM)) {
+                elog(LOG_FATAL, "cannot load certificate key `%s'", keyfile);
+                goto bailout;
+            }
         }
     }
-
+    
     if (options->sname != NULL) {
         free(keyfile);
         free(crtfile);
