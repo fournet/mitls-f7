@@ -1,7 +1,7 @@
 #! -*- Makefile -*-
 
 # --------------------------------------------------------------------
-.PHONY: all
+.PHONY: all clean jsse
 
 PKGC   = pkg-config
 LOG4C  = log4c-config
@@ -21,3 +21,10 @@ all: openssl
 
 openssl: $(OSRC)
 	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $(OSRC) $(LIBS)
+
+jsse:
+	rm -rf jsse && mkdir jsse
+	javac -d jsse JSSE.java
+
+clean:
+	rm -rf jsse openssl

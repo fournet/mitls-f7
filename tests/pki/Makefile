@@ -26,6 +26,8 @@ uname_R := $(shell sh -c 'uname -r 2>/dev/null || echo not')
 uname_P := $(shell sh -c 'uname -p 2>/dev/null || echo not')
 uname_V := $(shell sh -c 'uname -v 2>/dev/null || echo not')
 
+JSKPW = 123456
+
 # --------------------------------------------------------------------
 define layout
 	if [ ! -d $(PKI) ]; then \
@@ -149,11 +151,27 @@ $(MODE)/imported/ca.imported:
 	umask 077; certmgr -add -c Trust $(MODE)/certificates/ca.crt
 	touch $@
 
+$(MODE)/imported/ca.imported.jsk:
+	(echo $(JSKPW); echo $(JSKPW); echo yes) | \
+	  keytool -keystore $(MODE)/JSK.db \
+	    -importcert -file $(MODE)/certificates/ca.crt
+	touch $@
+
 $(MODE)/imported/%.imported: $(MODE)/certificates/%.p12
 	umask 077; ( set -e; \
 	  certmgr -add       -c My $(MODE)/certificates/$*.crt;      \
 	  certmgr -importKey -c -p '' My $(MODE)/certificates/$*.p12 \
 	)
+	touch $@
+
+$(MODE)/imported/%.imported.jsk: $(MODE)/certificates/%.p12
+	(echo $(JSKPW); echo yes) | \
+	  keytool -keystore $(MODE)/JSK.db \
+	    -importkeystore \
+	    -srckeystore $(MODE)/certificates/$*.p12 \
+	    -srcstorepass '' \
+	    -srcstoretype pkcs12 \
+	    -destkeystore $(MODE)/JSK.db
 	touch $@
 
 clean-store:
@@ -176,4 +194,5 @@ clean: clean-store
 	rm -rf $(PKI)/certificates
 	rm -rf $(PKI)/db
 	rm -rf $(PKI)/imported
+	rm  -f $(PKI)/JSK.db
 	if [ -d $(PKI) ]; then rmdir $(PKI); fi
