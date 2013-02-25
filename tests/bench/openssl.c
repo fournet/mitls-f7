@@ -284,6 +284,8 @@ void client(SSL_CTX *sslctx, const struct echossl_s *options) {
     if ((rr = SSL_connect(ssl)) <= 0)
         s_error(ERR_get_error(), "SSL connect failed");
 
+    (void) gettimeofday(&tv1, NULL);
+
     while (sent < TOSEND) {
         if (sizeof(udata) - upos < BLKSZ)
             upos = 0;
