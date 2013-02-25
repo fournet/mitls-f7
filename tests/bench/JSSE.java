@@ -3,6 +3,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.security.KeyStore;
 import java.security.Principal;
@@ -85,6 +86,7 @@ public class JSSE {
 			sslcontext.init(
 					new KeyManager[] { new MyKeyManager((X509KeyManager) kmf.getKeyManagers()[0]) },
 					tmf.getTrustManagers(), null);
+			sslcontext.getServerSessionContext().setSessionCacheSize(0);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
@@ -95,7 +97,11 @@ public class JSSE {
 
 		if (cipher == null)
 			throw new RuntimeException("CIPHERSUITE not set");
-		socket.setEnabledCipherSuites(new String[] { cipher });
+		try {
+			socket.setEnabledCipherSuites(new String[] { cipher });
+		} catch (IllegalArgumentException e) {
+			socket.setEnabledCipherSuites(new String[] { cipher.replaceFirst("^TLS_",  "SSL_") });			
+		}
 	}
 	
 	private static SSLServerSocket createServerSocket() throws IOException {
@@ -115,22 +121,21 @@ public class JSSE {
 		@Override
 		public synchronized void run() {
 			try {
-				
-				SSLSocket sslsocket = (SSLSocket) this.socket.accept();
-
-				JSSE.configureSSLSocket(sslsocket, true);
-				InputStream input = sslsocket.getInputStream();
-				
-				this.socket.close();
-				this.socket = null;
-
 				final byte[] buffer = new byte[1024 * 1024];
-				
+
 				while (true) {
-					if (input.read(buffer) == 0)
-						break ;
+					SSLSocket sslsocket = (SSLSocket) this.socket.accept();
+					JSSE.configureSSLSocket(sslsocket, true);
+					sslsocket.startHandshake();
+					
+					InputStream input = sslsocket.getInputStream();
+				
+					while (true) {
+						if (input.read(buffer) < 0)
+							break ;
+					}
+					sslsocket.close();
 				}
-				sslsocket.close();
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			}
@@ -138,8 +143,10 @@ public class JSSE {
 	}
 	
 	private static class ClientThread extends Thread {
-		private long totalsent  = 0;
-		private long totalticks = 0;
+		private long totaltxsent  = 0;
+		private long totaltxticks = 0;
+		private long totalhs      = 0;
+		private long totalhsticks = 0;
 		
 		@Override
 		public synchronized void run() {
@@ -147,16 +154,41 @@ public class JSSE {
 			
 			try {
 				SSLSocketFactory sslsocketfactory = (SSLSocketFactory) sslcontext.getSocketFactory();
-				SSLSocket socket = (SSLSocket) sslsocketfactory.createSocket("localhost", 5000);
 
-				JSSE.configureSSLSocket(socket, false);
+				for (int i = 0; i < 100; ++i) {
+					Socket rsocket  = new Socket(InetAddress.getLoopbackAddress(), 5000);
+					String hostname = rsocket.getInetAddress().getHostName();
+
+					long t1  = System.nanoTime() / 1000;
+					
+					SSLSocket socket = (SSLSocket) sslsocketfactory
+							.createSocket(rsocket, hostname, rsocket.getPort(), true);
+					JSSE.configureSSLSocket(socket, false);
+					// From documentation:  This method is synchronous for the initial handshake on
+					// a connection and returns when the negotiated handshake is complete.
+					socket.startHandshake();
+
+					long t2 = System.nanoTime() / 1000;
+					
+					socket.close();
+
+					if (i != 0) {
+						totalhs      += 1;
+						totalhsticks += (t2 - t1);
+					}
+				}
 				
-	            OutputStream output = socket.getOutputStream();
+				SSLSocket socket = (SSLSocket) sslsocketfactory
+						.createSocket(InetAddress.getLoopbackAddress(), 5000);
+				JSSE.configureSSLSocket(socket, false);
+				socket.startHandshake();
+
+				OutputStream output = socket.getOutputStream();
 
 	            int sent = 0;
 	            int upos = 0;
 	            
-	            final long t1 = System.nanoTime();
+	            final long t1 = System.nanoTime() / 1000;
 	            
             	while (sent < 64 * 1024 * 1024) {
 	            	if (JSSE.data.length - upos < blksize)
@@ -167,10 +199,10 @@ public class JSSE {
 	            }
 	            output.flush();
 
-	            final long t2 = System.nanoTime();
+	            final long t2 = System.nanoTime() / 1000;
 
-	            this.totalsent  = sent;
-	            this.totalticks = t2 - t1;
+	            this.totaltxsent  = sent;
+	            this.totaltxticks = t2 - t1;
 	            
 	            socket.close();
 			} catch (Exception e) {
@@ -178,12 +210,20 @@ public class JSSE {
 			}
         }
 
-		public long getTotalsent() {
-			return this.totalsent;
+		public long getTotaltxsent() {
+			return this.totaltxsent;
 		}
 
-		public long getTotalticks() {
-			return this.totalticks;
+		public long getTotaltxticks() {
+			return this.totaltxticks;
+		}
+
+		public long getTotalhs() {
+			return this.totalhs;
+		}
+
+		public long getTotalhsticks() {
+			return this.totalhsticks;
 		}
 	}
 	
@@ -195,12 +235,17 @@ public class JSSE {
 		client.start();
 		client.join();
 		
-		if (client.getTotalticks() > 0) {
+		if (client.getTotaltxticks() > 0) {
+			System.out.format("%s: %.2f HS/s\n",
+					System.getenv("CIPHERSUITE"),
+						client.getTotalhs()
+						/ (((double) client.getTotalhsticks()) / 1000000));
+
 			System.out.format("%s: %.2f MiB/s\n",
 					System.getenv("CIPHERSUITE"),
-						client.getTotalsent()
-						/ (((double) client.getTotalticks()) / 1000000000)
-						/ (1024 * 1024));
+						client.getTotaltxsent()
+						/ ((double) (1024 * 1024))
+						/ (((double) client.getTotaltxticks()) / 1000000));
 		}
 	}
 }

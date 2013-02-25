@@ -171,44 +171,43 @@ void server(int servfd, SSL_CTX *sslctx) {
 
     SSL *ssl = NULL;
 
-    memset(&peername, 0, sizeof(peername));
-    if ((client = accept(servfd, (sockaddr_t*) &peername, &peerlen)) < 0)
-        e_error("accepting client");
-    (void) close(servfd); servfd = -1;
-
-    if ((ssl = SSL_new(sslctx)) == NULL)
-        i_error("cannot SSL server side SSL context");
-
-    (void) SSL_set_fd(ssl, client);
-    if ((rr = SSL_accept(ssl)) <= 0)
-        s_error(ERR_get_error(), "SSL accept failed");
-
     buffer = xmalloc(BUFSIZE);
 
-    while ((rr = SSL_read(ssl, buffer, BUFSIZE)) > 0) {}
-
-    free(buffer);
-
-    if (rr == 0) {
-        int sslerr = SSL_get_error(ssl, rr);
-
-        if (sslerr == SSL_ERROR_ZERO_RETURN) {
-            if (!(SSL_get_shutdown(ssl) & SSL_RECEIVED_SHUTDOWN))
-                s_error(ERR_get_error(), "short-read in client");
-        }
-    } else
-        s_error(ERR_get_error(), "read error in client");
-
-    (void) SSL_shutdown(ssl);
-    SSL_free(ssl);
-    close(client);
+    while (1) {
+        memset(&peername, 0, sizeof(peername));
+        if ((client = accept(servfd, (sockaddr_t*) &peername, &peerlen)) < 0)
+            e_error("accepting client");
+    
+        if ((ssl = SSL_new(sslctx)) == NULL)
+            i_error("cannot SSL server side SSL context");
+    
+        (void) SSL_set_fd(ssl, client);
+        if ((rr = SSL_accept(ssl)) <= 0)
+            s_error(ERR_get_error(), "SSL accept failed");
+    
+        while ((rr = SSL_read(ssl, buffer, BUFSIZE)) > 0) {}
+    
+        if (rr == 0) {
+            int sslerr = SSL_get_error(ssl, rr);
+    
+            if (sslerr == SSL_ERROR_ZERO_RETURN) {
+                if (!(SSL_get_shutdown(ssl) & SSL_RECEIVED_SHUTDOWN))
+                    s_error(ERR_get_error(), "short-read in server");
+            }
+        } else
+            s_error(ERR_get_error(), "read error in server");
+    
+        (void) SSL_shutdown(ssl);
+        SSL_free(ssl);
+        close(client);
+    }
 }
 
 
 /* -------------------------------------------------------------------- */
 void client(SSL_CTX *sslctx, const struct echossl_s *options) {
 #define BLKSZ (256 * 1024u)
-
+    int   i;
     int   fd;
     int   rr;
     in4_t peername;
@@ -221,25 +220,56 @@ void client(SSL_CTX *sslctx, const struct echossl_s *options) {
     struct timeval tv1;
     struct timeval tv2;
 
-    if ((fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-        e_error("socket(AF_INET, SOCK_STREAM)");
+    unsigned hsdone  = 0;
+    double   hsticks = 0;
 
     memset(&peername, 0, sizeof(in4_t));
     peername.sin_family = AF_INET;
     peername.sin_addr   = (struct in_addr) { .s_addr = INADDR_ANY };
     peername.sin_port   = htons(5000);
 
+    for (i = 0; i < 100; ++i) {
+        if ((fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+            e_error("socket(AF_INET, SOCK_STREAM)");
+        if (connect(fd, (sockaddr_t*) &peername, sizeof(in4_t)) < 0)
+            e_error("connecting to server");
+
+        (void) gettimeofday(&tv1, NULL);
+
+        if ((ssl = SSL_new(sslctx)) == NULL)
+            i_error("cannot SSL server side SSL context");
+        (void) SSL_set_fd(ssl, fd);
+        /* If the underlying BIO is blocking, SSL_connect() will only
+           return once the handshake has been finished or an error
+           occurred. */
+        if ((rr = SSL_connect(ssl)) <= 0)
+            s_error(ERR_get_error(), "SSL connect failed");
+
+        (void) gettimeofday(&tv2, NULL);
+
+        (void) SSL_shutdown(ssl);
+        (void) SSL_free(ssl);
+        (void) close(fd); fd = -1;
+
+        double tv1_d = (double)tv1.tv_sec + ((double)tv1.tv_usec) / 1000000;
+        double tv2_d = (double)tv2.tv_sec + ((double)tv2.tv_usec) / 1000000;
+
+        if (i != 0) {
+            hsdone  += 1;
+            hsticks += (tv2_d - tv1_d);
+            
+        }
+    }
+
+    if ((fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+        e_error("socket(AF_INET, SOCK_STREAM)");
     if (connect(fd, (sockaddr_t*) &peername, sizeof(in4_t)) < 0)
         e_error("connecting to server");
-
     if ((ssl = SSL_new(sslctx)) == NULL)
         i_error("cannot SSL server side SSL context");
-
     (void) SSL_set_fd(ssl, fd);
     if ((rr = SSL_connect(ssl)) <= 0)
         s_error(ERR_get_error(), "SSL connect failed");
-
-    (void) gettimeofday(&tv1, NULL);
 
     while (sent < TOSEND) {
         if (sizeof(udata) - upos < BLKSZ)
@@ -269,6 +299,9 @@ void client(SSL_CTX *sslctx, const struct echossl_s *options) {
     double tv1_d = (double)tv1.tv_sec + ((double)tv1.tv_usec) / 1000000;
     double tv2_d = (double)tv2.tv_sec + ((double)tv2.tv_usec) / 1000000;
 
+    printf("%s: %.2f HS/s\n",
+           get_cs_fullname(options->ciphers),
+           (hsdone / hsticks));
     printf("%s: %.2f MiB/s\n",
            get_cs_fullname(options->ciphers),
            (sent / ((double) (1024 * 1024))) / (tv2_d - tv1_d));
@@ -319,6 +352,7 @@ int main(void) {
         if ((sslctx = evssl_init(&options, 1)) == NULL)
             i_error("cannot initialize SSL context");
         (void) SSL_CTX_set_mode(sslctx, SSL_MODE_AUTO_RETRY);
+        (void) SSL_CTX_set_session_cache_mode(sslctx, SSL_SESS_CACHE_OFF);
         server(fd, sslctx);
         return EXIT_SUCCESS;
     }
@@ -328,6 +362,7 @@ int main(void) {
     if ((sslctx = evssl_init(&options, 0)) == NULL)
         i_error("cannot initialize SSL context");
     (void) SSL_CTX_set_mode(sslctx, SSL_MODE_AUTO_RETRY);
+    (void) SSL_CTX_set_session_cache_mode(sslctx, SSL_SESS_CACHE_OFF);
     client(sslctx, &options);
     (void) kill(pid, SIGTERM);
 
