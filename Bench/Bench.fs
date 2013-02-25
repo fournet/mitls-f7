@@ -82,17 +82,35 @@ let initialize_udata () =
 
 (* ------------------------------------------------------------------------ *)
 let server (listener : Sockets.TcpListener) config =
-    use socket = listener.AcceptTcpClient () in
-    let stream = new TLStream (socket.GetStream (), config, TLStream.TLSServer, false) in
-    let buffer = Array.create block 0uy in
-    let loop   = ref true in
-        while !loop do
-            if stream.Read (buffer, 0, buffer.Length) = 0 then
-                loop := false
-        done
+    while true do
+        use socket = listener.AcceptTcpClient () in
+        let stream = new TLStream (socket.GetStream (), config, TLStream.TLSServer, false) in
+        let buffer = Array.create block 0uy in
+        let loop   = ref true in
+            while !loop do
+                if stream.Read (buffer, 0, buffer.Length) = 0 then
+                    loop := false
+            done
+    done
 
 (* ------------------------------------------------------------------------ *)
 let client config =
+    let hsdone  = ref 0 in
+    let hsticks = ref (int64 (0)) in
+
+    for i = 0 to 100 do
+        use socket = new Sockets.TcpClient () in
+        socket.Connect (new IPEndPoint(IPAddress.Loopback, 5000));
+
+        let t1 = DateTime.Now.Ticks in
+        let stream = new TLStream (socket.GetStream (), config, TLStream.TLSClient, false) in
+
+        if i <> 0 then begin
+            hsdone  := !hsdone  + 1;
+            hsticks := !hsticks + (DateTime.Now.Ticks - t1);
+        end
+    done;
+
     use socket = new Sockets.TcpClient () in
 
     socket.Connect (new IPEndPoint(IPAddress.Loopback, 5000));
@@ -113,7 +131,7 @@ let client config =
         done;
         let ticks = DateTime.Now.Ticks - ticks in
             stream.Close ();
-            (!sent, ticks)
+            ((!sent, ticks), (!hsdone, !hsticks))
 
 (* ------------------------------------------------------------------------ *)
 let entry () =
@@ -138,8 +156,10 @@ let entry () =
     let client   = async { return (client (tlsconfig options)) } in
     let server   = async { server listener (tlsconfig options) } in
         Async.Start server;
-        let sent, ticks = Async.RunSynchronously client in
+        let ((sent, ticks), (hsdone, hsticks)) = Async.RunSynchronously client in
         let rate = float(sent) / (float(ticks) / float(TimeSpan.TicksPerSecond)) in
+        let hsrate = float(hsdone) / (float(ticks) / float(TimeSpan.TicksPerSecond)) in
+            printfn "%s: %.2f MiB/s" ciphersuite hsrate;
             printfn "%s: %.2f MiB/s" ciphersuite (rate / (1024. * 1024.))
 
 (* ------------------------------------------------------------------------ *)

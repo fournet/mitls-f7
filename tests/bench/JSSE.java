@@ -82,7 +82,7 @@ public class JSSE {
 			kmf.init(ks, new char[] {});
 			tmf.init(ks);
 			
-			sslcontext = SSLContext.getInstance("TLSv1.2");
+			sslcontext = SSLContext.getInstance("TLSv1");
 			sslcontext.init(
 					new KeyManager[] { new MyKeyManager((X509KeyManager) kmf.getKeyManagers()[0]) },
 					tmf.getTrustManagers(), null);
@@ -156,7 +156,7 @@ public class JSSE {
 				SSLSocketFactory sslsocketfactory = (SSLSocketFactory) sslcontext.getSocketFactory();
 
 				for (int i = 0; i < 100; ++i) {
-					Socket rsocket  = new Socket(InetAddress.getLoopbackAddress(), 5000);
+					Socket rsocket  = new Socket(InetAddress.getLocalHost(), 5000);
 					String hostname = rsocket.getInetAddress().getHostName();
 
 					long t1  = System.nanoTime() / 1000;
@@ -179,7 +179,7 @@ public class JSSE {
 				}
 				
 				SSLSocket socket = (SSLSocket) sslsocketfactory
-						.createSocket(InetAddress.getLoopbackAddress(), 5000);
+						.createSocket(InetAddress.getLocalHost(), 5000);
 				JSSE.configureSSLSocket(socket, false);
 				socket.startHandshake();
 
