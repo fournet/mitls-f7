@@ -6,7 +6,7 @@
 PKGC   = pkg-config
 LOG4C  = log4c-config
 
-CC      := gcc -ggdb
+CC      := gcc -ggdb -O2
 CFLAGS  := -I ../c-stub -Wall -W
 CFLAGS  += $(shell $(PKGC) --cflags libssl) 
 CFLAGS  += $(shell $(LOG4C) --cflags)

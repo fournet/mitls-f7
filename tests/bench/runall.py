@@ -4,8 +4,8 @@
 import sys, os, subprocess as sp
 
 # --------------------------------------------------------------------
-BIN = '../../Bench/bin/Debug/Bench.exe'
-# BIN = './openssl'
+# BIN = '../../Bench/bin/Debug/Bench.exe'
+BIN = './openssl'
 # BIN = 'java -cp jsse JSSE'
 
 CONFIGS = [

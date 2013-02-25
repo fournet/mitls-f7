@@ -178,6 +178,12 @@ void server(int servfd, SSL_CTX *sslctx) {
         if ((client = accept(servfd, (sockaddr_t*) &peername, &peerlen)) < 0)
             e_error("accepting client");
     
+        {   int ival = 128 * 1024;
+            int oval = 128 * 1024;
+            setsockopt(client, SOL_SOCKET, SO_RCVBUF, &ival, sizeof(ival));
+            setsockopt(client, SOL_SOCKET, SO_SNDBUF, &oval, sizeof(oval));
+        }
+
         if ((ssl = SSL_new(sslctx)) == NULL)
             i_error("cannot SSL server side SSL context");
     
@@ -265,6 +271,13 @@ void client(SSL_CTX *sslctx, const struct echossl_s *options) {
         e_error("socket(AF_INET, SOCK_STREAM)");
     if (connect(fd, (sockaddr_t*) &peername, sizeof(in4_t)) < 0)
         e_error("connecting to server");
+
+    {   int ival = 128 * 1024;
+        int oval = 128 * 1024;
+        setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &ival, sizeof(ival));
+        setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &oval, sizeof(oval));
+    }
+
     if ((ssl = SSL_new(sslctx)) == NULL)
         i_error("cannot SSL server side SSL context");
     (void) SSL_set_fd(ssl, fd);
