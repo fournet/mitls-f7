@@ -62,7 +62,7 @@ static void udata_initialize(void) {
     size_t position = 0;
 
     if ((fd = open("/dev/urandom", O_RDONLY)) < 0)
-        e_error("open(/dev/urandom");
+        e_error("open(/dev/urandom)");
     while (position < sizeof(udata)) {
         ssize_t rr = read(fd, &udata[position], sizeof(udata) - position);
 
