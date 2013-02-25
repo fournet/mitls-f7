@@ -51,7 +51,7 @@ type options = {
 }
 
 (* ------------------------------------------------------------------------ *)
-let tlsconfig options = {
+let tlsconfig options isserver = {
     TLSInfo.minVer = TLSConstants.TLS_1p2
     TLSInfo.maxVer = TLSConstants.TLS_1p2
 
@@ -69,7 +69,7 @@ let tlsconfig options = {
     TLSInfo.server_name = options.certname;
     TLSInfo.client_name = ""
 
-    TLSInfo.sessionDBFileName = "sessionDBFile.bin"
+    TLSInfo.sessionDBFileName = (if isserver then "sessionDBFile.bin" else "sessionDBFile-client.bin")
     TLSInfo.sessionDBExpiry   = Bytes.newTimeSpan 1 0 0 0 (* one day *)
 }
 
@@ -155,8 +155,8 @@ let entry () =
 
     listener.Start ();
 
-    let client   = async { return (client (tlsconfig options)) } in
-    let server   = async { server listener (tlsconfig options) } in
+    let client   = async { return (client (tlsconfig options false)) } in
+    let server   = async { server listener (tlsconfig options true) } in
         Async.Start server;
         let ((sent, ticks), (hsdone, hsticks)) = Async.RunSynchronously client in
         let rate = float(sent) / (float(ticks) / float(TimeSpan.TicksPerSecond)) in
