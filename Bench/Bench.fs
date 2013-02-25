@@ -98,7 +98,7 @@ let client config =
     let hsdone  = ref 0 in
     let hsticks = ref (int64 (0)) in
 
-    for i = 0 to 100 do
+    for i = 0 to 20 do
         use socket = new Sockets.TcpClient () in
         socket.Connect (new IPEndPoint(IPAddress.Loopback, 5000));
 
@@ -109,10 +109,11 @@ let client config =
             hsdone  := !hsdone  + 1;
             hsticks := !hsticks + (DateTime.Now.Ticks - t1);
         end
+
+        stream.Close ();
     done;
 
     use socket = new Sockets.TcpClient () in
-
     socket.Connect (new IPEndPoint(IPAddress.Loopback, 5000));
 
     let stream = new TLStream (socket.GetStream (), config, TLStream.TLSClient, false) in
@@ -129,6 +130,7 @@ let client config =
             sent := !sent + block;
             upos := !upos + block;
         done;
+        stream.Close ();
         let ticks = DateTime.Now.Ticks - ticks in
             stream.Close ();
             ((!sent, ticks), (!hsdone, !hsticks))
@@ -159,7 +161,7 @@ let entry () =
         let ((sent, ticks), (hsdone, hsticks)) = Async.RunSynchronously client in
         let rate = float(sent) / (float(ticks) / float(TimeSpan.TicksPerSecond)) in
         let hsrate = float(hsdone) / (float(ticks) / float(TimeSpan.TicksPerSecond)) in
-            printfn "%s: %.2f MiB/s" ciphersuite hsrate;
+            printfn "%s: %.2f HS/s" ciphersuite hsrate;
             printfn "%s: %.2f MiB/s" ciphersuite (rate / (1024. * 1024.))
 
 (* ------------------------------------------------------------------------ *)

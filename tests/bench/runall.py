@@ -4,9 +4,9 @@
 import sys, os, subprocess as sp
 
 # --------------------------------------------------------------------
-# BIN = '../../Bench/bin/Debug/Bench.exe'
+BIN = '../../Bench/bin/Debug/Bench.exe'
 # BIN = './openssl'
-BIN = 'java -cp jsse JSSE'
+# BIN = 'java -cp jsse JSSE'
 
 CONFIGS = [
     ('rsa', 'rsa.cert-01.mitls.org', 'TLS_RSA_WITH_RC4_128_MD5'           ),
