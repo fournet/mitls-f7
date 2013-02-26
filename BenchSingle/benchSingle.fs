@@ -83,7 +83,7 @@ let client config =
     let hsdone  = ref 0 in
     let hsticks = ref (int64 (0)) in
 
-    for i = 0 to 20 do
+    for i = 0 to 100 do
         use socket = new Sockets.TcpClient () in
         socket.Connect (new IPEndPoint(IPAddress.Loopback, 5000));
 

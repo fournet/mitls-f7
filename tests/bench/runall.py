@@ -8,8 +8,8 @@ import sys, os, subprocess as sp
 # BIN = './openssl'
 # BIN = 'java -cp jsse JSSE'
 # BIN = 'java -cp jsse-client JSSEClient'
-BIN = './openssl-client'
-# BIN = '../../BenchSingle/bin/Release/BenchSingle.exe'
+# BIN = './openssl-client'
+BIN = '../../BenchSingle/bin/Release/BenchSingle.exe'
 # BIN = '../../BCBench/bin/Release/BCBench.exe'
 # BIN = '/usr/lib/jvm/j2sdk1.7-oracle/jre/bin/java -cp jsse-client JSSEClient'
 
@@ -24,8 +24,8 @@ CONFIGS = [
     ('dsa', 'dsa.cert-01.mitls.org', 'TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA'  ),
     ('dsa', 'dsa.cert-01.mitls.org', 'TLS_DHE_DSS_WITH_AES_128_CBC_SHA'   ),
     ('dsa', 'dsa.cert-01.mitls.org', 'TLS_DHE_DSS_WITH_AES_128_CBC_SHA256'),
-    ('dsa', 'dsa.cert-01.mitls.org', 'TLS_DHE_DSS_WITH_AES_256_CBC_SHA'   ),
-    ('dsa', 'dsa.cert-01.mitls.org', 'TLS_DHE_DSS_WITH_AES_256_CBC_SHA256'),
+#    ('dsa', 'dsa.cert-01.mitls.org', 'TLS_DHE_DSS_WITH_AES_256_CBC_SHA'   ),
+#    ('dsa', 'dsa.cert-01.mitls.org', 'TLS_DHE_DSS_WITH_AES_256_CBC_SHA256'),
 ]
 
 # --------------------------------------------------------------------
