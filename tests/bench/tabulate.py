@@ -5,18 +5,18 @@ import sys, os, re
 
 # --------------------------------------------------------------------
 NAMES = [
-    ('TLS_RSA_WITH_RC4_128_MD5'           , ('RSA', 'RC4 / MD5')),
-    ('TLS_RSA_WITH_RC4_128_SHA'           , ('RSA', 'RC4 / SHA')),
-    ('TLS_RSA_WITH_3DES_EDE_CBC_SHA'      , ('RSA', '3DES / SHA')),
-    ('TLS_RSA_WITH_AES_128_CBC_SHA'       , ('RSA', 'AES 128 / SHA')),
-    ('TLS_RSA_WITH_AES_128_CBC_SHA256'    , ('RSA', 'AES 128 / SHA 256')),
-    ('TLS_RSA_WITH_AES_256_CBC_SHA'       , ('RSA', 'AES 256 / SHA')),
-    ('TLS_RSA_WITH_AES_256_CBC_SHA256'    , ('RSA', 'AES 256 / SHA 256')),
-    ('TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA'  , ('DHE', '3DES / SHA')),
-    ('TLS_DHE_DSS_WITH_AES_128_CBC_SHA'   , ('DHE', 'AES 128 / SHA')),
-    ('TLS_DHE_DSS_WITH_AES_128_CBC_SHA256', ('DHE', 'AES 128 / SHA 256')),
-    ('TLS_DHE_DSS_WITH_AES_256_CBC_SHA'   , ('DHE', 'AES 256 / SHA')),
-    ('TLS_DHE_DSS_WITH_AES_256_CBC_SHA256', ('DHE', 'AES 256 / SHA 256')),
+    ('TLS_RSA_WITH_RC4_128_MD5'           , ('RSA', 'RC4'   , 'MD5')),
+    ('TLS_RSA_WITH_RC4_128_SHA'           , ('RSA', 'RC4'   , 'SHA')),
+    ('TLS_RSA_WITH_3DES_EDE_CBC_SHA'      , ('RSA', '3DES'  , 'SHA')),
+    ('TLS_RSA_WITH_AES_128_CBC_SHA'       , ('RSA', 'AES128', 'SHA')),
+    ('TLS_RSA_WITH_AES_128_CBC_SHA256'    , ('RSA', 'AES128', 'SHA256')),
+    ('TLS_RSA_WITH_AES_256_CBC_SHA'       , ('RSA', 'AES256', 'SHA')),
+    ('TLS_RSA_WITH_AES_256_CBC_SHA256'    , ('RSA', 'AES256', 'SHA256')),
+    ('TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA'  , ('DHE', '3DES'  , 'SHA')),
+    ('TLS_DHE_DSS_WITH_AES_128_CBC_SHA'   , ('DHE', 'AES128', 'SHA')),
+    ('TLS_DHE_DSS_WITH_AES_128_CBC_SHA256', ('DHE', 'AES128', 'SHA256')),
+    ('TLS_DHE_DSS_WITH_AES_256_CBC_SHA'   , ('DHE', 'AES256', 'SHA')),
+    ('TLS_DHE_DSS_WITH_AES_256_CBC_SHA256', ('DHE', 'AES256', 'SHA256')),
 ]
 
 # --------------------------------------------------------------------
