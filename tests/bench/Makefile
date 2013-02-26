@@ -1,7 +1,7 @@
 #! -*- Makefile -*-
 
 # --------------------------------------------------------------------
-.PHONY: all clean jsse
+.PHONY: all clean jsse jsse-server
 
 PKGC   = pkg-config
 LOG4C  = log4c-config
@@ -13,18 +13,33 @@ CFLAGS  += $(shell $(LOG4C) --cflags)
 LDFLAGS :=
 LIBS    := $(shell $(PKGC) --libs libssl) $(shell $(LOG4C) --libs)
 
-ESRC    = echo-memory.c echo-ssl.c echo-log.c
-OSRC    = $(patsubst %,../c-stub/%,$(ESRC)) openssl.c
+ESRC := echo-memory.c echo-ssl.c echo-log.c
+ESRC := $(patsubst %,../c-stub/%,$(ESRC))
 
 # --------------------------------------------------------------------
 all: openssl
 
-openssl: $(OSRC)
-	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $(OSRC) $(LIBS)
+openssl: openssl.c $(ESRC)
+	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(LIBS)
+
+openssl-server: openssl-server.c $(ESRC)
+	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(LIBS)
+
+openssl-client: openssl-client.c $(ESRC)
+	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(LIBS)
 
 jsse:
 	rm -rf jsse && mkdir jsse
 	javac -d jsse JSSE.java
 
+jsse-server:
+	rm -rf jsse-server && mkdir jsse-server
+	javac -d jsse-server JSSEServer.java
+
+jsse-client:
+	rm -rf jsse-client && mkdir jsse-client
+	javac -d jsse-client JSSEClient.java
+
 clean:
-	rm -rf jsse openssl
+	rm -rf jsse jsse-server jsse-client
+	rm -rf openssl openssl-server openssl-client
