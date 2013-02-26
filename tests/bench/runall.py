@@ -7,23 +7,23 @@ import sys, os, subprocess as sp
 # BIN = '../../Bench/bin/Debug/Bench.exe'
 # BIN = './openssl'
 # BIN = 'java -cp jsse JSSE'
-# BIN = 'java -cp jsse-client JSSEClient'
+BIN = 'java -cp jsse-client JSSEClient'
 # BIN = './openssl-client'
 # BIN = '../../BenchSingle/bin/Debug/BenchSingle.exe'
 # BIN = '../../BCBench/bin/Debug/BCBench.exe'
-BIN = '/usr/lib/jvm/j2sdk1.7-oracle/jre/bin/java -cp jsse-client JSSEClient'
+# BIN = '/usr/lib/jvm/j2sdk1.7-oracle/jre/bin/java -cp jsse-client JSSEClient'
 
 CONFIGS = [
-#    ('rsa', 'rsa.cert-01.mitls.org', 'TLS_RSA_WITH_RC4_128_MD5'           ),
-#    ('rsa', 'rsa.cert-01.mitls.org', 'TLS_RSA_WITH_RC4_128_SHA'           ),
-#    ('rsa', 'rsa.cert-01.mitls.org', 'TLS_RSA_WITH_3DES_EDE_CBC_SHA'      ),
-#    ('rsa', 'rsa.cert-01.mitls.org', 'TLS_RSA_WITH_AES_128_CBC_SHA'       ),
+    ('rsa', 'rsa.cert-01.mitls.org', 'TLS_RSA_WITH_RC4_128_MD5'           ),
+    ('rsa', 'rsa.cert-01.mitls.org', 'TLS_RSA_WITH_RC4_128_SHA'           ),
+    ('rsa', 'rsa.cert-01.mitls.org', 'TLS_RSA_WITH_3DES_EDE_CBC_SHA'      ),
+    ('rsa', 'rsa.cert-01.mitls.org', 'TLS_RSA_WITH_AES_128_CBC_SHA'       ),
 #    ('rsa', 'rsa.cert-01.mitls.org', 'TLS_RSA_WITH_AES_128_CBC_SHA256'    ),
 #    ('rsa', 'rsa.cert-01.mitls.org', 'TLS_RSA_WITH_AES_256_CBC_SHA'       ),
 #    ('rsa', 'rsa.cert-01.mitls.org', 'TLS_RSA_WITH_AES_256_CBC_SHA256'    ),
-    ('dsa', 'dsa.cert-01.mitls.org', 'TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA'  ),
-    ('dsa', 'dsa.cert-01.mitls.org', 'TLS_DHE_DSS_WITH_AES_128_CBC_SHA'   ),
-    ('dsa', 'dsa.cert-01.mitls.org', 'TLS_DHE_DSS_WITH_AES_128_CBC_SHA256'),
+#    ('dsa', 'dsa.cert-01.mitls.org', 'TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA'  ),
+#    ('dsa', 'dsa.cert-01.mitls.org', 'TLS_DHE_DSS_WITH_AES_128_CBC_SHA'   ),
+#    ('dsa', 'dsa.cert-01.mitls.org', 'TLS_DHE_DSS_WITH_AES_128_CBC_SHA256'),
 #    ('dsa', 'dsa.cert-01.mitls.org', 'TLS_DHE_DSS_WITH_AES_256_CBC_SHA'   ),
 #    ('dsa', 'dsa.cert-01.mitls.org', 'TLS_DHE_DSS_WITH_AES_256_CBC_SHA256'),
 ]

@@ -162,7 +162,7 @@ int main(void) {
     options.sname   = getenv("CERTNAME");
     options.cname   = NULL;
     options.pki     = getenv("PKI");
-    options.tlsver  = TLS_1p2;
+    options.tlsver  = TLS_1p0;
 
     if (options.pki == NULL)
         i_error("no PKI directory given");

@@ -140,7 +140,9 @@ SSL_CTX* evssl_init(const echossl_t *options, int isserver) {
             }
         }
     }
-    
+
+    (void) SSL_CTX_set_options(context, SSL_OP_NO_COMPRESSION); 
+
     if (options->sname != NULL) {
         free(keyfile);
         free(crtfile);
