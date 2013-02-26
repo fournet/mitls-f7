@@ -151,17 +151,24 @@ $(MODE)/imported/ca.imported:
 	umask 077; certmgr -add -c Trust $(MODE)/certificates/ca.crt
 	touch $@
 
-$(MODE)/imported/ca.imported.jsk:
-	(echo $(JSKPW); echo $(JSKPW); echo yes) | \
-	  keytool -keystore $(MODE)/JSK.db \
-	    -importcert -file $(MODE)/certificates/ca.crt
-	touch $@
-
 $(MODE)/imported/%.imported: $(MODE)/certificates/%.p12
 	umask 077; ( set -e; \
 	  certmgr -add       -c My $(MODE)/certificates/$*.crt;      \
 	  certmgr -importKey -c -p '' My $(MODE)/certificates/$*.p12 \
 	)
+	touch $@
+
+clean-store:
+	for i in $$(support/mono-crt-cleanup.py $(MODE).$(CN) $(IMPORTED)); do \
+	  certmgr -del -c My    $$i || true; \
+	  certmgr -del -c Trust $$i || true; \
+	done
+endif
+
+$(MODE)/imported/ca.imported.jsk:
+	(echo $(JSKPW); echo $(JSKPW); echo yes) | \
+	  keytool -keystore $(MODE)/JSK.db \
+	    -importcert -file $(MODE)/certificates/ca.crt
 	touch $@
 
 $(MODE)/imported/%.imported.jsk: $(MODE)/certificates/%.p12
@@ -173,13 +180,6 @@ $(MODE)/imported/%.imported.jsk: $(MODE)/certificates/%.p12
 	    -srcstoretype pkcs12 \
 	    -destkeystore $(MODE)/JSK.db
 	touch $@
-
-clean-store:
-	for i in $$(support/mono-crt-cleanup.py $(MODE).$(CN) $(IMPORTED)); do \
-	  certmgr -del -c My    $$i || true; \
-	  certmgr -del -c Trust $$i || true; \
-	done
-endif
 
 # --------------------------------------------------------------------
 hash:
