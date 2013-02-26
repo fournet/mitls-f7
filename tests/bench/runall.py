@@ -9,7 +9,8 @@ import sys, os, subprocess as sp
 # BIN = 'java -cp jsse JSSE'
 # BIN = 'java -cp jsse-client JSSEClient'
 # BIN = './openssl-client'
-BIN = '../../BenchSingle/bin/Debug/BenchSingle.exe'
+# BIN = '../../BenchSingle/bin/Debug/BenchSingle.exe'
+BIN = '../../BCBench/bin/Debug/BCBench.exe'
 
 CONFIGS = [
 #    ('rsa', 'rsa.cert-01.mitls.org', 'TLS_RSA_WITH_RC4_128_MD5'           ),
