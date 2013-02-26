@@ -14,13 +14,10 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-
 #include "echo-memory.h"
 #include "echo-ssl.h"
 #include "echo-log.h"
+#include "echo-net.h"
 
 /* -------------------------------------------------------------------- */
 #define TOSEND (64 * 1024u * 1024u)
@@ -89,7 +86,7 @@ int listener(void) {
     sockname.sin_addr   = (struct in_addr) { .s_addr = INADDR_ANY };
     sockname.sin_port   = htons(5000);
 
-    setsockopt(servfd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+    setsockopt(servfd, SOL_SOCKET, SO_REUSEADDR, (void*) &one, sizeof(one));
 
     if (bind(servfd, (sockaddr_t*) &sockname, sizeof(in4_t)) < 0)
         e_error("cannot bind socket");
@@ -121,8 +118,8 @@ void server(int servfd, SSL_CTX *sslctx) {
     
         {   int ival = 128 * 1024;
             int oval = 128 * 1024;
-            setsockopt(client, SOL_SOCKET, SO_RCVBUF, &ival, sizeof(ival));
-            setsockopt(client, SOL_SOCKET, SO_SNDBUF, &oval, sizeof(oval));
+            setsockopt(client, SOL_SOCKET, SO_RCVBUF, (void*) &ival, sizeof(ival));
+            setsockopt(client, SOL_SOCKET, SO_SNDBUF, (void*) &oval, sizeof(oval));
         }
 
         if ((ssl = SSL_new(sslctx)) == NULL)
@@ -156,7 +153,18 @@ int main(void) {
     int fd;
     SSL_CTX *sslctx = NULL;
 
+#ifdef WIN32
+    WSADATA WSAData;
+#endif
+
     initialize_log4c();
+
+#ifdef WIN32
+    if (WSAStartup(MAKEWORD(2, 2), &WSAData) != 0) {
+        elog(LOG_FATAL, "cannot initialize winsocks");
+        return EXIT_FAILURE;
+    }
+#endif
 
     options.ciphers = xstrdup("ALL:NULL");
     options.sname   = getenv("CERTNAME");
@@ -182,6 +190,10 @@ int main(void) {
     (void) SSL_CTX_set_mode(sslctx, SSL_MODE_AUTO_RETRY);
     (void) SSL_CTX_set_session_cache_mode(sslctx, SSL_SESS_CACHE_OFF);
     server(fd, sslctx);
+
+#ifdef WIN32
+    (void) WSACleanup();
+#endif
 
     return EXIT_SUCCESS;
 }
