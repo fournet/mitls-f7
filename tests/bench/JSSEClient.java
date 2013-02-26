@@ -78,7 +78,7 @@ public class JSSEClient {
 			kmf.init(ks, new char[] {});
 			tmf.init(ks);
 			
-			sslcontext = SSLContext.getInstance("TLSv1");
+			sslcontext = SSLContext.getInstance("TLSv1.2");
 			sslcontext.init(
 					new KeyManager[] { new MyKeyManager((X509KeyManager) kmf.getKeyManagers()[0]) },
 					tmf.getTrustManagers(), null);

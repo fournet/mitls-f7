@@ -1,7 +1,7 @@
 #! -*- Makefile -*-
 
 # --------------------------------------------------------------------
-.PHONY: all clean jsse jsse-server
+.PHONY: all clean jsse jsse-server jsse-client
 
 PKGC   = pkg-config
 LOG4C  = log4c-config
@@ -17,7 +17,7 @@ ESRC := echo-memory.c echo-ssl.c echo-log.c
 ESRC := $(patsubst %,../c-stub/%,$(ESRC))
 
 # --------------------------------------------------------------------
-all: openssl
+all: openssl openssl-server openssl-client jsse jsse-server jsse-client
 
 openssl: openssl.c $(ESRC)
 	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(LIBS)
