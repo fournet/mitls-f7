@@ -14,6 +14,8 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
+#define ECHO_NO_EVENT_LIB 1
+
 #include "echo-memory.h"
 #include "echo-ssl.h"
 #include "echo-log.h"
@@ -58,9 +60,21 @@ static void udata_initialize(void) {
     int    fd = -1;
     size_t position = 0;
 
-    if ((fd = open("/dev/urandom", O_RDONLY)) < 0)
-        e_error("open(/dev/urandom)");
+#ifdef WIN32
+#define URANDOM "urandom"
+#else
+#define URANDOM "/dev/urandom"
+#endif
+
+    if ((fd = open(URANDOM, O_RDONLY)) < 0)
+        e_error("open(" URANDOM ")");
     while (position < sizeof(udata)) {
+#ifdef WIN32
+        (void) lseek(fd, 0, SEEK_SET);
+#endif
+
+        errno = 0;
+
         ssize_t rr = read(fd, &udata[position], sizeof(udata) - position);
 
         if (rr <= 0)
