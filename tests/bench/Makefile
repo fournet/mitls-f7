@@ -33,7 +33,7 @@ ESRC := echo-memory.c echo-ssl.c echo-log.c
 ESRC := $(patsubst %,../c-stub/%,$(ESRC))
 
 # --------------------------------------------------------------------
-all: openssl$(EXE) openssl-server$(EXE) openssl-client$(EXE) jsse jsse-server jsse-client
+all: openssl-server$(EXE) openssl-client$(EXE) jsse-server jsse-client
 
 openssl-server$(EXE): openssl-server.c $(ESRC)
 	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(LIBS)

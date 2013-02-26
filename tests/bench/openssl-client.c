@@ -21,6 +21,10 @@
 #include "echo-log.h"
 #include "echo-net.h"
 
+#ifndef WIN32
+# define closesocket close
+#endif
+
 /* -------------------------------------------------------------------- */
 #define TOSEND (256 * 1024u * 1024u)
 
@@ -173,7 +177,7 @@ void client(SSL_CTX *sslctx, const struct echossl_s *options) {
     peername.sin_port   = htons(5000);
 
     for (i = 0; i < 250; ++i) {
-        uint8_t byte[0] = { 0x00 };
+        uint8_t byte[1] = { 0x00 };
 
         if ((fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
             e_error("socket(AF_INET, SOCK_STREAM)");
@@ -198,7 +202,7 @@ void client(SSL_CTX *sslctx, const struct echossl_s *options) {
 
         (void) SSL_shutdown(ssl);
         (void) SSL_free(ssl);
-        (void) SOCKETCLOSE(fd); fd = -1;
+        (void) closesocket(fd); fd = -1;
 
         double tv1_d = (double)tv1.tv_sec + ((double)tv1.tv_usec) / 1000000;
         double tv2_d = (double)tv2.tv_sec + ((double)tv2.tv_usec) / 1000000;
@@ -217,8 +221,8 @@ void client(SSL_CTX *sslctx, const struct echossl_s *options) {
 
     {   int ival = 128 * 1024;
         int oval = 128 * 1024;
-        setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &ival, sizeof(ival));
-        setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &oval, sizeof(oval));
+        setsockopt(fd, SOL_SOCKET, SO_RCVBUF, (void*) &ival, sizeof(ival));
+        setsockopt(fd, SOL_SOCKET, SO_SNDBUF, (void*) &oval, sizeof(oval));
     }
 
     if ((ssl = SSL_new(sslctx)) == NULL)
@@ -264,7 +268,7 @@ void client(SSL_CTX *sslctx, const struct echossl_s *options) {
            get_cs_fullname(options->ciphers),
            (sent / ((double) (1024 * 1024))) / (tv2_d - tv1_d));
 
-    (void) SOCKETCLOSE(fd);
+    (void) closesocket(fd);
 }
 
 /* -------------------------------------------------------------------- */

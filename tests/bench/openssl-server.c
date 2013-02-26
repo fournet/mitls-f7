@@ -21,6 +21,10 @@
 #include "echo-log.h"
 #include "echo-net.h"
 
+#ifndef WIN32
+# define closesocket close
+#endif
+
 /* -------------------------------------------------------------------- */
 #define TOSEND (64 * 1024u * 1024u)
 
@@ -32,7 +36,7 @@ typedef struct sockaddr_in in4_t;
 static void e_error(const char *message)
     __attribute__((noreturn));
 
-static void e_error(const char *message) {
+static void e_error(const char *message) { /* Should move to WSAError under winsocks... */
     elog(LOG_FATAL, "%s: %s", message, strerror(errno));
     exit(EXIT_FAILURE);
 }
@@ -127,7 +131,7 @@ void server(int servfd, SSL_CTX *sslctx) {
     
         (void) SSL_shutdown(ssl);
         SSL_free(ssl);
-        close(client);
+        closesocket(client);
     }
 }
 
@@ -173,6 +177,8 @@ int main(void) {
     (void) SSL_CTX_set_mode(sslctx, SSL_MODE_AUTO_RETRY);
     (void) SSL_CTX_set_session_cache_mode(sslctx, SSL_SESS_CACHE_OFF);
     server(fd, sslctx);
+
+    (void) closesocket(fd);
 
 #ifdef WIN32
     (void) WSACleanup();
