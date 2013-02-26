@@ -1,7 +1,7 @@
 #! -*- Makefile -*-
 
 # --------------------------------------------------------------------
-.PHONY: all clean jsse jsse-server jsse-client
+.PHONY: all clean jsse-server jsse-client
 
 ifeq ($(TARGET), mingw)
 EXE   = .exe
@@ -35,18 +35,11 @@ ESRC := $(patsubst %,../c-stub/%,$(ESRC))
 # --------------------------------------------------------------------
 all: openssl$(EXE) openssl-server$(EXE) openssl-client$(EXE) jsse jsse-server jsse-client
 
-openssl$(EXE): openssl.c $(ESRC)
-	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(LIBS)
-
 openssl-server$(EXE): openssl-server.c $(ESRC)
 	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(LIBS)
 
 openssl-client$(EXE): openssl-client.c $(ESRC)
 	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(LIBS)
-
-jsse:
-	rm -rf jsse && mkdir jsse
-	javac -d jsse JSSE.java
 
 jsse-server:
 	rm -rf jsse-server && mkdir jsse-server

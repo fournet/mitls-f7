@@ -5,13 +5,14 @@
     <Platform Condition=" '$(Platform)' == '' ">x86</Platform>
     <ProductVersion>8.0.30703</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{2830647a-4186-45b6-9dba-9051ea9ea321}</ProjectGuid>
+    <ProjectGuid>{377a7c1a-5294-4ad8-9121-bfaacf65ad5c}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>BCBench</RootNamespace>
-    <AssemblyName>BCBench</AssemblyName>
+    <RootNamespace>BenchSingleServer</RootNamespace>
+    <AssemblyName>BenchSingleServer</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
-    <TargetFrameworkProfile>Client</TargetFrameworkProfile>
-    <Name>BCBench</Name>
+    <TargetFrameworkProfile>
+    </TargetFrameworkProfile>
+    <Name>BenchSingleServer</Name>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
     <DebugSymbols>true</DebugSymbols>
@@ -22,7 +23,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <PlatformTarget>x86</PlatformTarget>
-    <DocumentationFile>bin\Debug\BCBench.XML</DocumentationFile>
+    <DocumentationFile>bin\Debug\BenchSingleServer.XML</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
     <DebugType>pdbonly</DebugType>
@@ -32,12 +33,17 @@
     <DefineConstants>TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <PlatformTarget>x86</PlatformTarget>
-    <DocumentationFile>bin\Release\BCBench.XML</DocumentationFile>
+    <DocumentationFile>bin\Release\BenchSingleServer.XML</DocumentationFile>
   </PropertyGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\FSharp\1.0\Microsoft.FSharp.Targets" Condition="!Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
+  <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft F#\v4.0\Microsoft.FSharp.Targets" Condition=" Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
   <ItemGroup>
-    <Reference Include="BouncyCastle.Crypto">
-      <HintPath>..\3rdparty\BouncyCastle.Crypto.dll</HintPath>
-    </Reference>
+    <Compile Include="BenchSingleServer.fs" />
+    <None Include="App.config">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
     <Reference Include="mscorlib" />
     <Reference Include="FSharp.Core" />
     <Reference Include="System" />
@@ -45,10 +51,17 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Program.fs" />
+    <ProjectReference Include="..\lib\lib.fsproj">
+      <Name>lib</Name>
+      <Project>{7283c0ef-3c40-495d-9969-79cb71b3aacc}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\TLSharp\TLSharp.fsproj">
+      <Name>TLSharp</Name>
+      <Project>{bdba21eb-cb44-435b-bf9a-c9393ad2a613}</Project>
+      <Private>True</Private>
+    </ProjectReference>
   </ItemGroup>
-  <Import Project="$(MSBuildExtensionsPath32)\FSharp\1.0\Microsoft.FSharp.Targets" Condition="!Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
-  <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft F#\v4.0\Microsoft.FSharp.Targets" Condition=" Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
 	     Other similar extension points exist, see Microsoft.Common.targets.
 	<Target Name="BeforeBuild">

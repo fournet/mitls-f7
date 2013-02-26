@@ -113,7 +113,9 @@ public class JSSEClient {
 			try {
 				SSLSocketFactory sslsocketfactory = (SSLSocketFactory) sslcontext.getSocketFactory();
 
-				for (int i = 0; i < 100; ++i) {
+				for (int i = 0; i < 250; ++i) {
+                    byte[] bytea = { 0x00 };
+                    
 					Socket rsocket  = new Socket(InetAddress.getLocalHost(), 5000);
 					String hostname = rsocket.getInetAddress().getHostName();
 
@@ -125,6 +127,7 @@ public class JSSEClient {
 					// From documentation:  This method is synchronous for the initial handshake on
 					// a connection and returns when the negotiated handshake is complete.
 					socket.startHandshake();
+                    socket.getOutputStream().write(bytea, 0, 1);
 
 					long t2 = System.nanoTime() / 1000;
 					
@@ -148,7 +151,7 @@ public class JSSEClient {
 	            
 	            final long t1 = System.nanoTime() / 1000;
 	            
-            	while (sent < 64 * 1024 * 1024) {
+            	while (sent < 256 * 1024 * 1024) {
 	            	if (JSSEClient.data.length - upos < blksize)
 	            		upos = 0;
 	            	output.write(JSSEClient.data, upos, blksize);

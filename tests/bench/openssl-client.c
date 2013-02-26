@@ -14,16 +14,15 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
+#define ECHO_NO_EVENT_LIB 1
 
 #include "echo-memory.h"
 #include "echo-ssl.h"
 #include "echo-log.h"
+#include "echo-net.h"
 
 /* -------------------------------------------------------------------- */
-#define TOSEND (64 * 1024u * 1024u)
+#define TOSEND (256 * 1024u * 1024u)
 
 /* -------------------------------------------------------------------- */
 typedef struct sockaddr sockaddr_t;
@@ -61,15 +60,29 @@ static void udata_initialize(void) {
     int    fd = -1;
     size_t position = 0;
 
-    if ((fd = open("/dev/urandom", O_RDONLY)) < 0)
-        e_error("open(/dev/urandom)");
+#ifdef WIN32
+#define URANDOM "urandom"
+#else
+#define URANDOM "/dev/urandom"
+#endif
+
+    if ((fd = open(URANDOM, O_RDONLY)) < 0)
+        e_error("open(" URANDOM ")");
     while (position < sizeof(udata)) {
+#ifdef WIN32
+        (void) lseek(fd, 0, SEEK_SET);
+#endif
+
+        errno = 0;
+
         ssize_t rr = read(fd, &udata[position], sizeof(udata) - position);
 
         if (rr <= 0)
             e_error("reading from /dev/urandom");
         position += rr;
     }
+
+    (void) close(fd);
 }
 
 /* -------------------------------------------------------------------- */
@@ -159,7 +172,9 @@ void client(SSL_CTX *sslctx, const struct echossl_s *options) {
     peername.sin_addr   = (struct in_addr) { .s_addr = INADDR_ANY };
     peername.sin_port   = htons(5000);
 
-    for (i = 0; i < 100; ++i) {
+    for (i = 0; i < 250; ++i) {
+        uint8_t byte[0] = { 0x00 };
+
         if ((fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
             e_error("socket(AF_INET, SOCK_STREAM)");
         if (connect(fd, (sockaddr_t*) &peername, sizeof(in4_t)) < 0)
@@ -176,11 +191,14 @@ void client(SSL_CTX *sslctx, const struct echossl_s *options) {
         if ((rr = SSL_connect(ssl)) <= 0)
             s_error(ERR_get_error(), "SSL connect failed");
 
+        if (SSL_write(ssl, byte, 1) <= 0)
+            s_error(ERR_get_error(), "SSL write (HS) failed");
+
         (void) gettimeofday(&tv2, NULL);
 
         (void) SSL_shutdown(ssl);
         (void) SSL_free(ssl);
-        (void) close(fd); fd = -1;
+        (void) SOCKETCLOSE(fd); fd = -1;
 
         double tv1_d = (double)tv1.tv_sec + ((double)tv1.tv_usec) / 1000000;
         double tv2_d = (double)tv2.tv_sec + ((double)tv2.tv_usec) / 1000000;
@@ -246,7 +264,7 @@ void client(SSL_CTX *sslctx, const struct echossl_s *options) {
            get_cs_fullname(options->ciphers),
            (sent / ((double) (1024 * 1024))) / (tv2_d - tv1_d));
 
-    (void) close(fd);
+    (void) SOCKETCLOSE(fd);
 }
 
 /* -------------------------------------------------------------------- */
@@ -254,7 +272,18 @@ int main(void) {
     struct echossl_s options;
     SSL_CTX *sslctx = NULL;
 
+#ifdef WIN32
+    WSADATA WSAData;
+#endif
+
     initialize_log4c();
+
+#ifdef WIN32
+    if (WSAStartup(MAKEWORD(2, 2), &WSAData) != 0) {
+        elog(LOG_FATAL, "cannot initialize winsocks");
+        return EXIT_FAILURE;
+    }
+#endif
 
     options.ciphers = getenv("CIPHERSUITE");
     options.sname   = getenv("CERTNAME");
@@ -284,6 +313,10 @@ int main(void) {
     (void) SSL_CTX_set_mode(sslctx, SSL_MODE_AUTO_RETRY);
     (void) SSL_CTX_set_session_cache_mode(sslctx, SSL_SESS_CACHE_OFF);
     client(sslctx, &options);
+
+#ifdef WIN32
+    (void) WSACleanup();
+#endif
 
     return EXIT_SUCCESS;
 }

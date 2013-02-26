@@ -54,36 +54,6 @@ static void s_error(unsigned long e, const char *message) {
 }
 
 /* -------------------------------------------------------------------- */
-static uint8_t udata[1024 * 1024];
-
-static void udata_initialize(void) {
-    int    fd = -1;
-    size_t position = 0;
-
-#ifdef WIN32
-#define URANDOM "urandom"
-#else
-#define URANDOM "/dev/urandom"
-#endif
-
-    if ((fd = open(URANDOM, O_RDONLY)) < 0)
-        e_error("open(" URANDOM ")");
-    while (position < sizeof(udata)) {
-#ifdef WIN32
-        (void) lseek(fd, 0, SEEK_SET);
-#endif
-
-        errno = 0;
-
-        ssize_t rr = read(fd, &udata[position], sizeof(udata) - position);
-
-        if (rr <= 0)
-            e_error("reading from /dev/urandom");
-        position += rr;
-    }
-}
-
-/* -------------------------------------------------------------------- */
 static const int zero = 0;
 static const int one  = 1;
 
@@ -195,7 +165,6 @@ int main(void) {
     options.sname = xstrdup(options.sname);
 
     (void) SSL_library_init();
-    udata_initialize();
 
     fd = listener();
 
