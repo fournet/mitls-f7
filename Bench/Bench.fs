@@ -160,7 +160,7 @@ let entry () =
         Async.Start server;
         let ((sent, ticks), (hsdone, hsticks)) = Async.RunSynchronously client in
         let rate = float(sent) / (float(ticks) / float(TimeSpan.TicksPerSecond)) in
-        let hsrate = float(hsdone) / (float(ticks) / float(TimeSpan.TicksPerSecond)) in
+        let hsrate = float(hsdone) / (float(hsticks) / float(TimeSpan.TicksPerSecond)) in
             printfn "%s: %.2f HS/s" ciphersuite hsrate;
             printfn "%s: %.2f MiB/s" ciphersuite (rate / (1024. * 1024.))
 
