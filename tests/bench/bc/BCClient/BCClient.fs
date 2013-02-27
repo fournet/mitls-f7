@@ -53,6 +53,9 @@ type MyTlsClient (cs : CipherSuite) =
     override this.GetAuthentication () =
         new MyAuthentication () :> TlsAuthentication
 
+    override this.GetCompressionMethods () =
+        [| CompressionMethod.NULL |]
+
 (* ------------------------------------------------------------------------ *)
 let client () =
     let cs = Environment.GetEnvironmentVariable("CIPHERSUITE") in
