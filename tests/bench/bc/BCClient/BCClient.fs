@@ -1,4 +1,6 @@
-﻿open System
+﻿(* ------------------------------------------------------------------------ *)
+open System
+open System.Reflection
 open System.Net
 open System.Net.Sockets
 
@@ -8,16 +10,22 @@ open Org.BouncyCastle.Crypto.Tls
 (* ------------------------------------------------------------------------ *)
 let block = 256 * 1024
 
-let ciphers =
-    Map.ofList [
-      ("TLS_RSA_WITH_RC4_128_MD5", CipherSuite.TLS_RSA_WITH_RC4_128_MD5);
-      ("TLS_RSA_WITH_RC4_128_SHA", CipherSuite.TLS_RSA_WITH_RC4_128_SHA);
-      ("TLS_RSA_WITH_3DES_EDE_CBC_SHA", CipherSuite.TLS_RSA_WITH_3DES_EDE_CBC_SHA);
-      ("TLS_RSA_WITH_AES_128_CBC_SHA", CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA);
-      ("TLS_RSA_WITH_AES_256_CBC_SHA", CipherSuite.TLS_RSA_WITH_AES_256_CBC_SHA);
-      ("TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA", CipherSuite.TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA);
-      ("TLS_DHE_DSS_WITH_AES_128_CBC_SHA", CipherSuite.TLS_DHE_DSS_WITH_AES_128_CBC_SHA);
-      ("TLS_DHE_DSS_WITH_AES_256_CBC_SHA", CipherSuite.TLS_DHE_DSS_WITH_AES_256_CBC_SHA); ]
+(* ------------------------------------------------------------------------ *)
+exception NotAValidEnumeration
+
+let enumeration<'T> () =
+    let t = typeof<'T>
+
+    if not t.IsEnum then
+        raise NotAValidEnumeration;
+
+    let fields = t.GetFields (BindingFlags.Public ||| BindingFlags.Static) in
+        Array.map   
+            (fun (fi : FieldInfo) -> (fi.Name, fi.GetValue(null) :?> 'T))
+            fields
+
+(* ------------------------------------------------------------------------ *)
+let cs_map = Map.ofArray (enumeration<CipherSuite> ())
 
 (* ------------------------------------------------------------------------ *)
 let udata = Array.create (1024*1024) 0uy
@@ -48,7 +56,7 @@ type MyTlsClient (cs : CipherSuite) =
 (* ------------------------------------------------------------------------ *)
 let client () =
     let cs = Environment.GetEnvironmentVariable("CIPHERSUITE") in
-    let cs = Map.find cs ciphers in
+    let cs = Map.find cs cs_map in
 
     let hsdone  = ref 0 in
     let hsticks = ref (int64 (0)) in
@@ -61,6 +69,7 @@ let client () =
         let tlssock = new TlsProtocolHandler(socket.GetStream ())
 
         tlssock.Connect (new MyTlsClient (cs));
+        tlssock.Stream.Write([| 0uy |], 0, 1);
 
         if i <> 0 then begin
             hsdone  := !hsdone  + 1;
@@ -80,7 +89,7 @@ let client () =
     let upos  = ref 0 in
     let ticks = DateTime.Now.Ticks in
 
-        while !sent < 64*1024*1024 do
+        while !sent < 128*1024*1024 do
             if udata.Length - !upos < block then begin
                 upos := 0
             end;
