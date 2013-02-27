@@ -76,12 +76,16 @@ let server (listener : Sockets.TcpListener) config =
 
     while true do
         use socket = listener.AcceptTcpClient () in
-        let stream = new TLStream (socket.GetStream (), config, TLStream.TLSServer, false) in
-        let loop   = ref true in
-            while !loop do
-                if stream.Read (buffer, 0, buffer.Length) = 0 then
-                    loop := false
-            done
+
+        try
+            let stream = new TLStream (socket.GetStream (), config, TLStream.TLSServer, false) in
+            let loop   = ref true in
+                while !loop do
+                    if stream.Read (buffer, 0, buffer.Length) = 0 then
+                        loop := false
+                done
+        with e ->
+            printfn "%A" e
     done
 
 (* ------------------------------------------------------------------------ *)

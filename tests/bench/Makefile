@@ -3,6 +3,16 @@
 # --------------------------------------------------------------------
 .PHONY: all clean jsse-server jsse-client
 
+arch      = $(shell uname)
+buildtype =
+
+ifneq ($(findstring CYGWIN,$(arch)),)
+buildtype = cygwin
+else
+buildtype = unix
+endif
+
+ifeq ($(buildtype), unix)
 ifeq ($(TARGET), mingw)
 EXE   = .exe
 CROSS = i686-pc-mingw32-
@@ -31,23 +41,31 @@ endif
 
 ESRC := echo-memory.c echo-ssl.c echo-log.c
 ESRC := $(patsubst %,../c-stub/%,$(ESRC))
+endif
+
+JAVACP := $(wildcard 3rdparty/*.jar)
+JAVACP := $(patsubst 3rdparty/%.jar,-cp 3rdparty/%.jar,$(JAVACP))
 
 # --------------------------------------------------------------------
-all: openssl-server$(EXE) openssl-client$(EXE) jsse-server jsse-client
+all:: jsse-server jsse-client
+
+ifeq ($(buildtype), unix)
+all:: openssl-server$(EXE) openssl-client$(EXE)
 
 openssl-server$(EXE): openssl-server.c $(ESRC)
 	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(LIBS)
 
 openssl-client$(EXE): openssl-client.c $(ESRC)
 	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(LIBS)
+endif
 
 jsse-server:
 	rm -rf jsse-server && mkdir jsse-server
-	javac -d jsse-server JSSEServer.java
+	javac $(JAVACP) -d jsse-server JSSEServer.java
 
 jsse-client:
 	rm -rf jsse-client && mkdir jsse-client
-	javac -d jsse-client JSSEClient.java
+	javac $(JAVACP) -d jsse-client JSSEClient.java
 
 clean:
 	rm -rf jsse jsse-server jsse-client

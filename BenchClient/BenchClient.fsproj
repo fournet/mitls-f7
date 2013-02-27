@@ -8,7 +8,7 @@
     <ProjectGuid>{eb2f95ae-c1ca-451f-96e6-40b33a2344d5}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <RootNamespace>BenchSingle</RootNamespace>
-    <AssemblyName>BenchSingle</AssemblyName>
+    <AssemblyName>BenchClient</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <TargetFrameworkProfile>
     </TargetFrameworkProfile>
