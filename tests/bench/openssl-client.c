@@ -22,11 +22,14 @@
 #include "echo-net.h"
 
 #ifndef WIN32
-# define closesocket close
+# define closesocket    close
+# define GET_SOCKET_ERROR() (errno)
+#else
+# define GET_SOCKET_ERROR() (WSAGetLastError())
 #endif
 
 /* -------------------------------------------------------------------- */
-#define TOSEND (256 * 1024u * 1024u)
+#define TOSEND (128 * 1024u * 1024u)
 
 /* -------------------------------------------------------------------- */
 typedef struct sockaddr sockaddr_t;
@@ -38,6 +41,14 @@ static void e_error(const char *message)
 
 static void e_error(const char *message) {
     elog(LOG_FATAL, "%s: %s", message, strerror(errno));
+    exit(EXIT_FAILURE);
+}
+
+static void sock_error(const char *message)
+    __attribute__((noreturn));
+
+static void sock_error(const char *message) {
+    elog(LOG_FATAL, "%s: %s", message, strerror(GET_SOCKET_ERROR()));
     exit(EXIT_FAILURE);
 }
 
@@ -173,16 +184,16 @@ void client(SSL_CTX *sslctx, const struct echossl_s *options) {
 
     memset(&peername, 0, sizeof(in4_t));
     peername.sin_family = AF_INET;
-    peername.sin_addr   = (struct in_addr) { .s_addr = INADDR_ANY };
+    peername.sin_addr   = (struct in_addr) { .s_addr = htonl(INADDR_LOOPBACK) };
     peername.sin_port   = htons(5000);
 
     for (i = 0; i < 250; ++i) {
         uint8_t byte[1] = { 0x00 };
 
         if ((fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-            e_error("socket(AF_INET, SOCK_STREAM)");
+            sock_error("socket(AF_INET, SOCK_STREAM)");
         if (connect(fd, (sockaddr_t*) &peername, sizeof(in4_t)) < 0)
-            e_error("connecting to server");
+            sock_error("connecting to server (HS)");
 
         (void) gettimeofday(&tv1, NULL);
 
@@ -215,9 +226,10 @@ void client(SSL_CTX *sslctx, const struct echossl_s *options) {
     }
 
     if ((fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-        e_error("socket(AF_INET, SOCK_STREAM)");
+        sock_error("socket(AF_INET, SOCK_STREAM)");
+
     if (connect(fd, (sockaddr_t*) &peername, sizeof(in4_t)) < 0)
-        e_error("connecting to server");
+        sock_error("connecting to server");
 
     {   int ival = 128 * 1024;
         int oval = 128 * 1024;
@@ -290,7 +302,7 @@ int main(void) {
 #endif
 
     options.ciphers = getenv("CIPHERSUITE");
-    options.sname   = getenv("CERTNAME");
+    options.sname   = NULL;
     options.cname   = NULL;
     options.pki     = getenv("PKI");
     options.tlsver  = TLS_1p2;
@@ -304,10 +316,6 @@ int main(void) {
     if (options.pki == NULL)
         i_error("no PKI directory given");
     options.pki = xstrdup(options.pki);
-
-    if (options.sname == NULL)
-        i_error("no cert-name given");
-    options.sname = xstrdup(options.sname);
 
     (void) SSL_library_init();
     udata_initialize();
