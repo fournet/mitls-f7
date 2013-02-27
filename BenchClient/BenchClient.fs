@@ -83,6 +83,7 @@ let client config =
     let hsdone  = ref 0 in
     let hsticks = ref (int64 (0)) in
 
+#if false
     for i = 0 to 250 do
         let b = [| 0uy |] in
 
@@ -100,6 +101,7 @@ let client config =
 
         stream.Close ();
     done;
+#endif
 
     use socket = new Sockets.TcpClient () in
     socket.Connect (new IPEndPoint(IPAddress.Loopback, 5000));
@@ -110,7 +112,7 @@ let client config =
     let upos  = ref 0 in
     let ticks = DateTime.Now.Ticks in
 
-        while !sent < 256*1024*1024 do
+        while !sent < 512*1024*1024 do
             if udata.Length - !upos < block then begin
                 upos := 0
             end;
