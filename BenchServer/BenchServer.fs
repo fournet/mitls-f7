@@ -49,7 +49,7 @@ type options = {
 
 (* ------------------------------------------------------------------------ *)
 let tlsconfig options isserver = {
-    TLSInfo.minVer = TLSConstants.TLS_1p2
+    TLSInfo.minVer = TLSConstants.TLS_1p0
     TLSInfo.maxVer = TLSConstants.TLS_1p2
 
     TLSInfo.ciphersuites = TLSConstants.cipherSuites_of_nameList options.ciphersuites
@@ -101,7 +101,7 @@ let entry () =
 
     let listener = new Sockets.TcpListener(IPAddress.Loopback, 5000) in
     listener.Start ();
-    server listener (tlsconfig options false)
+    server listener (tlsconfig options true)
 
 (* ------------------------------------------------------------------------ *)
 let _ = entry ()
