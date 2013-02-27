@@ -17,6 +17,8 @@ import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509KeyManager;
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+
 /* ------------------------------------------------------------------------ */
 public class JSSEClient {
 	private static byte[] data = new byte[1024 * 1024];
@@ -185,6 +187,12 @@ public class JSSEClient {
 
 		public long getTotalhsticks() {
 			return this.totalhsticks;
+		}
+	}
+	
+	static {
+		if ("1".equals(System.getenv("USEBC"))) {
+			java.security.Security.addProvider(new BouncyCastleProvider());
 		}
 	}
 	
