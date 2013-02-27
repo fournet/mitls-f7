@@ -5,8 +5,8 @@ import sys, os, subprocess as sp
 
 # --------------------------------------------------------------------
 # BIN = './openssl-client.exe'
-# BIN = 'java -classpath "3rdparty/bcprov-ext-jdk15on-148.jar;jsse-client" JSSEClient'
-BIN = '../../BenchClient/bin/Release/BenchClient.exe'
+BIN = 'java -classpath "3rdparty/bcprov-ext-jdk15on-148.jar;jsse-client" JSSEClient'
+# BIN = '../../BenchClient/bin/Release/BenchClient.exe'
 
 CONFIGS = [
     ('rsa', 'rsa.cert-01.mitls.org', 'TLS_RSA_WITH_RC4_128_MD5'           ),

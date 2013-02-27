@@ -5,6 +5,8 @@ import java.net.Socket;
 import java.security.KeyStore;
 import java.security.Principal;
 import java.security.PrivateKey;
+import java.security.Provider;
+import java.security.Security;
 import java.security.cert.X509Certificate;
 import java.util.Random;
 
@@ -146,8 +148,10 @@ public class JSSEClient {
                             } catch (Exception ie) {}
                         }
                         socket = null;
-                        if (++failures < 10)
+                        if (++failures < 10) {
+                            System.err.println(e);
                             continue ;
+                        }
                         throw e;
                     }
                     
@@ -177,8 +181,10 @@ public class JSSEClient {
                             } catch (Exception ie) {}
                         }
                         socket = null;
-                        if (++failures < 10)
+                        if (++failures < 10) {
+                            System.err.println(e);
                             continue ;
+                        }
                         throw e;
                     }
                     
@@ -231,7 +237,11 @@ public class JSSEClient {
 
     static {
         if ("1".equals(System.getenv("USEBC"))) {
-            java.security.Security.addProvider(new BouncyCastleProvider());
+            System.err.println("Using BC as Security Provider");
+            Security.addProvider(new BouncyCastleProvider());
+            for (Provider provider : Security.getProviders()) {
+                System.err.println("Security Provider: " + provider);
+            }
         }
     }
 
