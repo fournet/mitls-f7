@@ -143,11 +143,16 @@ val nextEpoch: e:epoch -> c:crand -> s:srand -> si:SessionInfo ->
 
 
 /// Predicates specifying cryptographic assumptions on algorithms 
-predicate StrongAE of SessionInfo
-predicate StrongAuth of SessionInfo
+predicate StrongAESI of SessionInfo
+predicate StrongAuthSI of SessionInfo
+predicate StrongAE of epoch
+predicate StrongAuth of epoch
 
-definition !si. StrongAE(si)   <=> (?e,m. CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(e,m) /\ IND_CPA(e) /\ INT_CMA_M(m) /\ INT_CTXT(CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version),si.protocol_version))
-definition !si. StrongAuth(si) <=> (?e,m. CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(e,m) /\ INT_CMA_M(m))
+definition !e. StrongAE(e)   <=> StrongAESI(EpochSI(e))
+definition !e. StrongAuth(e) <=> StrongAuthSI(EpochSI(e))
+
+definition !si. StrongAESI(si)   <=> (?e,m. CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(e,m) /\ IND_CPA(e) /\ INT_CMA_M(m) /\ INT_CTXT(CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version),si.protocol_version))
+definition !si. StrongAuthSI(si) <=> (?e,m. CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(e,m) /\ INT_CMA_M(m))
            
 predicate HonestSig of a:Sig.alg * (;a) Sig.pkey
 predicate StrongSig of SessionInfo
@@ -189,10 +194,10 @@ predicate type cryptopreds =
 
 definition !si. SafeSI(si) <=> 
            SafeHS_SI(si) /\
-           StrongAE(si)
+           StrongAESI(si)
 definition !si. AuthSI(si) <=> 
            SafeHS_SI(si) /\    
-           StrongAuth(si)
+           StrongAuthSI(si)
 
 definition !id. SafeHS_SI(id) <=> 
       StrongHS(id)

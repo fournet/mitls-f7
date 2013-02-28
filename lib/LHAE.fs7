@@ -129,7 +129,7 @@ let strongAuth pv cs = match cs with
  
 and the corresponding logical specs such that, e.g.,
 
-ask !si. StrongAE(si) => StrongAuth(si)
+ask !e. StrongAE(e) => StrongAuth(e)
 ask INT_CTXT(pv,h,e) => 
      pv = TLS_1p2 
   \/ ?kex,hAlg. e = CipherSuite(kex,MtE(_,hAlg) && ... 
