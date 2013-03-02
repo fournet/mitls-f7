@@ -104,4 +104,6 @@ let entry () =
     server listener (tlsconfig options true)
 
 (* ------------------------------------------------------------------------ *)
-let _ = entry ()
+let _ =
+    CryptoProvider.CoreCrypto.Config ();
+    entry ()

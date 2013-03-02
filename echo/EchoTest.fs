@@ -150,6 +150,7 @@ let parse_cmd () =
 
 (* ------------------------------------------------------------------------ *)
 let _ =
+    CryptoProvider.CoreCrypto.Config ();
     let options, isclient = parse_cmd () in
     match isclient with
     | true  -> EchoImpl.client options

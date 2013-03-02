@@ -120,6 +120,7 @@ let cmdparse = fun () ->
         exit 1
 
 let _ =
+    CryptoProvider.CoreCrypto.Config ();
     HttpLogger.HttpLogger.Level <- HttpLogger.DEBUG;
 
     let options    = cmdparse () in

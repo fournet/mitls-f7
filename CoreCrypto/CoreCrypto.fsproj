@@ -42,6 +42,10 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CryptoProvider.fs" />
+    <Compile Include="BCCryptoProvider.fs" />
+    <Compile Include="CSPCryptoProvider.fs" />
+    <Compile Include="OSSLCryptoProvider.fs" />
     <Compile Include="CoreRandom.fsi" />
     <Compile Include="CoreRandom.fs" />
     <Compile Include="CoreKeys.fsi" />
@@ -58,6 +62,13 @@
     <Compile Include="CoreSig.fs" />
     <Compile Include="CoreDH.fsi" />
     <Compile Include="CoreDH.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OpenSSL\OpenSSL.csproj">
+      <Name>OpenSSL</Name>
+      <Project>{db787d27-c33e-4d14-bf2c-b92cbdbf0c54}</Project>
+      <Private>True</Private>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\FSharp\1.0\Microsoft.FSharp.Targets" Condition="!Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
   <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft F#\v4.0\Microsoft.FSharp.Targets" Condition=" Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />

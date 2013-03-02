@@ -3,9 +3,7 @@
 type engine
 
 val name   : engine -> string
-val update : engine -> byte array -> unit
-val hash   : engine -> byte array
-val reset  : engine -> unit
+val digest : engine -> byte array -> byte array
 
 val md5engine    : unit -> engine
 val sha1engine   : unit -> engine

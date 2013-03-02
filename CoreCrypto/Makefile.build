@@ -23,5 +23,9 @@ CoreCrypto.fsproj:
 
 include Makefile.config
 
+# Remove OpenSSL provider
+src := $(filter-out OSSLCryptoProvider.%,$(src))
+
 $(target): $(src) $(deps)
+	echo $(src)
 	$(fsc) $(fsflags) $(addprefix -r ,$(deps)) -a -o $@ $(src)

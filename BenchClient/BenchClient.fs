@@ -7,6 +7,7 @@ open Org.BouncyCastle.Crypto.Prng
 
 open TLStream
 
+(* ------------------------------------------------------------------------ *)
 let port  = 5000
 let block = 256 * 1024
 
@@ -128,7 +129,7 @@ let client config =
 (* ------------------------------------------------------------------------ *)
 let entry () =
     let ciphersuite =
-        unnull "TLS_RSA_WITH_AES_128_CBC_SHA"
+        unnull "TLS_RSA_WITH_RC4_128_SHA"
             (Environment.GetEnvironmentVariable ("CIPHERSUITE"))
 
     let certname =
@@ -149,4 +150,7 @@ let entry () =
         printfn "%s: %.2f MiB/s" ciphersuite (rate / (1024. * 1024.))
 
 (* ------------------------------------------------------------------------ *)
-let _ = entry ()
+let _ =
+    CryptoProvider.CoreCrypto.Config ();
+    // CryptoProvider.CoreCrypto.Register(new OSSLCryptoProvider.OSSLProvider ());
+    entry ()
