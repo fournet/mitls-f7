@@ -75,7 +75,9 @@
     </ProjectReference>
   </ItemGroup>
   <PropertyGroup>
-    <PostBuildEvent>Copy $(ProjectDir)\..\DB\lib\$(PlatformName)\SQLite.Interop.dll $(TargetDir)</PostBuildEvent>
+    <PostBuildEvent>Copy $(ProjectDir)\..\DB\lib\$(PlatformName)\SQLite.Interop.dll $(TargetDir)
+Copy $(ProjectDir)\..\3rdparty\libeay32-$(PlatformName).dll $(TargetDir)\libeay32.dll
+</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
 	     Other similar extension points exist, see Microsoft.Common.targets.

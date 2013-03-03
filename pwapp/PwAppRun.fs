@@ -26,5 +26,4 @@ let program () =
     Thread.Sleep -1
 
 let _ =
-    CryptoProvider.CoreCrypto.Config ();
     program ()

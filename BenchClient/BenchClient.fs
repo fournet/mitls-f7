@@ -151,6 +151,4 @@ let entry () =
 
 (* ------------------------------------------------------------------------ *)
 let _ =
-    CryptoProvider.CoreCrypto.Config ();
-    // CryptoProvider.CoreCrypto.Register(new OSSLCryptoProvider.OSSLProvider ());
     entry ()

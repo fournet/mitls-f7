@@ -63,6 +63,9 @@ type OSSLHMac (engine : OpenSSL.HMAC) =
 
 (* ------------------------------------------------------------------------ *)
 type OSSLProvider () =
+    do
+        fprintfn stderr "Using lib eay version %10x" (OpenSSL.Core.SSLeay())
+
     interface Provider with
         member self.MessageDigest (name : string) =
             Option.map

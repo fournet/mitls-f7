@@ -105,5 +105,4 @@ let entry () =
 
 (* ------------------------------------------------------------------------ *)
 let _ =
-    CryptoProvider.CoreCrypto.Config ();
     entry ()

@@ -5,6 +5,17 @@ using System.Runtime.InteropServices;
 
 namespace OpenSSL
 {
+    /* ---------------------------------------------------------------------- */
+    public sealed class Config
+    {
+#if mono
+        public const string DLL = @"libeay32.so";
+#else
+        public const string DLL = @"libeay32.dll";
+#endif
+    }
+    
+    /* ---------------------------------------------------------------------- */
     public class EVPException : ApplicationException { };
 
     /* ---------------------------------------------------------------------- */
@@ -19,43 +30,43 @@ namespace OpenSSL
     /* ---------------------------------------------------------------------- */
     internal sealed unsafe class _MD
     {
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern EVP_MD_CTX* EVP_MD_CTX_create();
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern void EVP_MD_CTX_destroy(EVP_MD_CTX* handle);
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern EVP_MD* EVP_MD_CTX_md(EVP_MD_CTX* handle);
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern int EVP_DigestInit_ex(EVP_MD_CTX* handle, EVP_MD* type, IntPtr engine);
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern int EVP_DigestUpdate(EVP_MD_CTX* handle, byte[] array, UIntPtr size);
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern int EVP_DigestFinal_ex(EVP_MD_CTX* handle, byte[] array, IntPtr psize);
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern int EVP_MD_block_size(EVP_MD* handle);
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern int EVP_MD_size(EVP_MD* handle);
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern EVP_MD* EVP_md5();
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern EVP_MD* EVP_sha1();
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern EVP_MD* EVP_sha256();
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern EVP_MD* EVP_sha384();
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern EVP_MD* EVP_sha512();
     }
 
@@ -160,64 +171,64 @@ namespace OpenSSL
     /* ---------------------------------------------------------------------- */
     internal sealed unsafe class _CIPHER
     {
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern EVP_CIPHER_CTX* EVP_CIPHER_CTX_new(); 
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern void EVP_CIPHER_CTX_init(EVP_CIPHER_CTX *handle); 
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern void EVP_CIPHER_CTX_free(EVP_CIPHER_CTX *handle); 
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern void EVP_CIPHER_CTX_cleanup(EVP_CIPHER_CTX *handle); 
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern int EVP_CipherInit_ex(EVP_CIPHER_CTX *handle, EVP_CIPHER *cipher, IntPtr engine, byte[] key, byte[] iv, int enc);
         
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern int EVP_CIPHER_CTX_set_padding(EVP_CIPHER_CTX *handle, int padding);
         
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern int EVP_CipherUpdate(EVP_CIPHER_CTX *handle, byte[] outbuf, ref int outlen, byte[] inbuf, int inlen);
         
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern EVP_CIPHER* EVP_CIPHER_CTX_cipher(EVP_CIPHER_CTX *handle);
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern int EVP_CIPHER_CTX_block_size(EVP_CIPHER_CTX *handle);
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern int EVP_CIPHER_CTX_key_length(EVP_CIPHER_CTX *handle);
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern int EVP_CIPHER_CTX_set_key_length(EVP_CIPHER_CTX *handle, int length);
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern int EVP_CIPHER_CTX_iv_length(EVP_CIPHER_CTX *handle);
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern int EVP_CIPHER_CTX_set_iv_length(EVP_CIPHER_CTX *handle, int length);
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern EVP_CIPHER* EVP_des_ede3();
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern EVP_CIPHER* EVP_des_ede3_cbc();
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern EVP_CIPHER* EVP_aes_128_ecb();
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern EVP_CIPHER* EVP_aes_128_cbc();
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern EVP_CIPHER* EVP_aes_256_ecb();
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern EVP_CIPHER* EVP_aes_256_cbc();
 
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern EVP_CIPHER* EVP_rc4();
     }
 
@@ -502,7 +513,7 @@ namespace OpenSSL
     /* ---------------------------------------------------------------------- */
     internal sealed unsafe class _HMAC
     {
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern IntPtr HMAC
             (EVP_MD *md, byte[] key, int klen, byte[] data, int len, byte[] aout, ref int olen); 
     }
@@ -559,7 +570,7 @@ namespace OpenSSL
     /* ---------------------------------------------------------------------- */
     public class Core
     {
-        [DllImport(@"libeay32.dll", CharSet = CharSet.None)]
+        [DllImport(Config.DLL, CharSet = CharSet.None)]
         public static extern int SSLeay();
     }
 }

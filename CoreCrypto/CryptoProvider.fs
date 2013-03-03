@@ -71,7 +71,9 @@ exception NoHMac             of string
 type CoreCrypto () =
     static let default_provider = "BCCryptoProvider.BCProvider"
 
-    static let mutable providers = ref []
+    static let mutable providers   = ref []
+    static let mutable initialized = ref false
+    static let mutable config      = ref CoreCrypto.Config
 
     static member Register (provider : Provider) =
         providers := provider :: !providers
@@ -80,32 +82,36 @@ type CoreCrypto () =
         Array.ofList !providers
 
     static member Digest (name : string) =
+        !config ();
         let select (p : Provider) = p.MessageDigest name in
             match !providers |> List.tryPick select with
             | None   -> raise (NoMessageDigest name)
             | Some x -> x
 
     static member BlockCipher (d : direction) (c : cipher) (m : mode option) (k : key) =
+        !config ();
         let select (p : Provider) = p.BlockCipher d c m k in
             match !providers |> List.tryPick select with
             | None   -> raise (NoBlockCipher (c, m))
             | Some x -> x
 
     static member StreamCipher (d : direction) (c : scipher) (k : key) =
+        !config ();
         let select (p : Provider) = p.StreamCipher d c k in
             match !providers |> List.tryPick select with
             | None   -> raise (NoStreamCipher c)
             | Some x -> x
 
     static member HMac (name : string) (k : key) =
+        !config ();
         let select (p : Provider) = p.HMac name k in
             match !providers |> List.tryPick select with
             | None   -> raise (NoHMac name)
             | Some x -> x
 
     static member LoadProvider (name : string) =
+        !config ()
         let type_ = Type.GetType (name) in
-
         if type_ = null || not type_.IsClass then
             raise (CannotLoadProvider name);
         if not (typeof<Provider>.IsAssignableFrom (type_)) then
@@ -120,14 +126,21 @@ type CoreCrypto () =
             CoreCrypto.Register provider; provider
 
     static member Config () =
-        let providers = Environment.GetEnvironmentVariable("mitls.crypto.provider") in
-        let providers = if providers = null then default_provider else providers in
-        let providers = providers.Split([| ':' |]) in
+        let doit () =
+            let providers = Environment.GetEnvironmentVariable("mitls_crypto_provider") in
+            let providers = if providers = null then default_provider else providers in
+            let providers = providers.Split([| ':' |]) in
 
-        let register1 (name : string) =
-            try
-                ignore (CoreCrypto.LoadProvider (name))
-            with CannotLoadProvider _ ->
-                fprintfn stderr "cannot load crypto provider `%s'" name
+            let register1 (name : string) =
+                try
+                    ignore (CoreCrypto.LoadProvider (name))
+                with CannotLoadProvider _ ->
+                    fprintfn stderr "cannot load crypto provider `%s'" name
+            in
+                Array.iter register1 providers
         in
-            Array.iter register1 providers
+            lock initialized (fun () ->
+                config := (fun () -> ());
+                if not !initialized then doit ();
+                initialized := true)
+
