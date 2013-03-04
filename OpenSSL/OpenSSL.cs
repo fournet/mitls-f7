@@ -9,7 +9,7 @@ namespace OpenSSL
     public sealed class Config
     {
 #if mono
-        public const string DLL = @"libeay32.so";
+        public const string DLL = @"libcrypto.so";
 #else
         public const string DLL = @"libeay32.dll";
 #endif
@@ -71,7 +71,9 @@ namespace OpenSSL
     }
 
     /* ---------------------------------------------------------------------- */
-    //[HostProtectionAttribute(MayLeakOnAbort=true)]
+#if !mono
+    [HostProtectionAttribute(MayLeakOnAbort=true)]
+#endif
     public sealed unsafe class MD : IDisposable
     {
         private EVP_MD_CTX* _handle = null;
@@ -233,7 +235,9 @@ namespace OpenSSL
     }
 
     /* ---------------------------------------------------------------------- */
-    //[HostProtectionAttribute(MayLeakOnAbort=true)]
+#if !mono
+    [HostProtectionAttribute(MayLeakOnAbort=true)]
+#endif
     public sealed unsafe class CIPHER  : IDisposable
     {
         private EVP_CIPHER_CTX* _handle = null;
@@ -397,7 +401,9 @@ namespace OpenSSL
     }
 
     /* ---------------------------------------------------------------------- */
-    //[HostProtectionAttribute(MayLeakOnAbort=true)]
+#if !mono
+    [HostProtectionAttribute(MayLeakOnAbort=true)]
+#endif
     public sealed unsafe class SCIPHER  : IDisposable
     {
         private EVP_CIPHER_CTX* _handle = null;
