@@ -1,8 +1,8 @@
 # -*- Makefile -*-
 
-src    :=
-deps   := ../bin/BouncyCastle.Crypto.dll ../bin/OpenSSL.dll
-target  = ../bin/CoreCrypto.dll
+src    := OpenSSL.cs
+deps   := ../bin/BouncyCastle.Crypto.dll
+target  = ../bin/OpenSSL.dll
 
 include ../Makefile.config
 
@@ -13,7 +13,7 @@ all: $(target)
 dist:
 	cp Makefile.config $(src) $(distdir)
 
-make.in: Makefile.config
+make.in:
 	@true
 
 Makefile.config: CoreCrypto.fsproj
@@ -21,7 +21,5 @@ Makefile.config: CoreCrypto.fsproj
 
 CoreCrypto.fsproj:
 
-include Makefile.config
-
 $(target): $(src) $(deps)
-	$(fsc) $(fsflags) $(addprefix -r ,$(deps)) -a -o $@ $(src)
+	$(csc) $(csflags) -unsafe $(addprefix -r:,$(deps)) -t:library -out:$@ $(src)

@@ -2,9 +2,9 @@
 
 # --------------------------------------------------------------------
 fsc = fsharpc
-csc = gmcs
+csc = mcs
 
-csflags += --define:mono
+csflags += -d:mono -sdk:4
 fsflags += --define:mono -r Mono.Data.Sqlite.dll
 
 # --------------------------------------------------------------------

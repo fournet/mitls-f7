@@ -71,7 +71,7 @@ namespace OpenSSL
     }
 
     /* ---------------------------------------------------------------------- */
-    [HostProtectionAttribute(MayLeakOnAbort=true)]
+    //[HostProtectionAttribute(MayLeakOnAbort=true)]
     public sealed unsafe class MD : IDisposable
     {
         private EVP_MD_CTX* _handle = null;
@@ -233,7 +233,7 @@ namespace OpenSSL
     }
 
     /* ---------------------------------------------------------------------- */
-    [HostProtectionAttribute(MayLeakOnAbort=true)]
+    //[HostProtectionAttribute(MayLeakOnAbort=true)]
     public sealed unsafe class CIPHER  : IDisposable
     {
         private EVP_CIPHER_CTX* _handle = null;
@@ -397,7 +397,7 @@ namespace OpenSSL
     }
 
     /* ---------------------------------------------------------------------- */
-    [HostProtectionAttribute(MayLeakOnAbort=true)]
+    //[HostProtectionAttribute(MayLeakOnAbort=true)]
     public sealed unsafe class SCIPHER  : IDisposable
     {
         private EVP_CIPHER_CTX* _handle = null;
