@@ -14,6 +14,8 @@ exception DBError of string
 
 type db = DB of SQLiteConnection
 
+let _db_lock = new Object()
+
 module Internal =
     let wrap (cb : unit -> 'a) =
         try  cb ()
@@ -113,10 +115,10 @@ module Internal =
                     reader.Close()
 
     let tx (DB db : db) (f : db -> 'a) : 'a =
-        use tx = db.BeginTransaction (IsolationLevel.ReadCommitted) in
-
-        let aout = f (DB db) in
-            tx.Commit (); aout
+        lock (_db_lock) (fun () ->
+            use tx = db.BeginTransaction (IsolationLevel.ReadCommitted) in
+            let aout = f (DB db) in
+                tx.Commit (); aout)
 
 let opendb (filename : string) =
     Internal.wrap (fun () -> Internal.opendb filename)
