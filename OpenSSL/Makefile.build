@@ -11,15 +11,10 @@ include ../Makefile.config
 all: $(target)
 
 dist:
-	cp Makefile.config $(src) $(distdir)
+	cp $(src) $(distdir)
 
 make.in:
 	@true
-
-Makefile.config: CoreCrypto.fsproj
-	-if [ -f $< ]; then ../scripts/makegen -o $@ $<; fi
-
-CoreCrypto.fsproj:
 
 $(target): $(src) $(deps)
 	$(csc) $(csflags) -unsafe $(addprefix -r:,$(deps)) -t:library -out:$@ $(src)

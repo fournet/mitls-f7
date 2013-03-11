@@ -54,11 +54,17 @@ dist: prepare-dist
 
 do-dist-check:
 	tar -xof $(distname).tgz
-	cd $(distname) && $(MAKE) && $(MAKE) dist
-	tar -C $(distname) -xof $(distname).tgz
-	tar -C $(distname) -df $(distname).tgz $(distname)
+	set -x; \
+	     $(MAKE) -C $(distname) \
+	  && $(MAKE) -C $(distname) dist \
+	  && mkdir $(distname)/dist1 $(distname)/dist2 \
+	  && ( cd $(distname)/dist1 && tar -xof ../$(distname).tgz ) \
+	  && ( cd $(distname)/dist2 && tar -xof ../../$(distname).tgz ) \
+	  && diff -rq $(distname)/dist1 $(distname)/dist2 \
+	  || exit 1
 	rm -rf $(distname)
-	@echo "$(distname).tgz is ready for distribution"
+	@echo "$(distname).tgz is ready for distribution" | \
+	  sed -e 1h -e 1s/./=/g -e 1p -e 1x -e '$$p' -e '$$x'
 
 dist-check: dist do-dist-check
 
