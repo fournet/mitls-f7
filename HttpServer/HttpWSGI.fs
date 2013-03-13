@@ -6,6 +6,14 @@ open Python.Runtime
 open HttpData
 
 // ------------------------------------------------------------------------
+type WsgiEngineLock () =
+    let gil = PythonEngine.AcquireLock ()
+
+    interface IDisposable with
+        member this.Dispose () =
+            PythonEngine.ReleaseLock gil
+
+// ------------------------------------------------------------------------
 type WsgiEngine () =
     static let mutable tid = (nativeint) 0
 
@@ -17,6 +25,7 @@ type WsgiEngine () =
                 failwith "PythonEngine already initialized";
             PythonEngine.Initialize ();
             try
+                fprintfn stderr "WSGI: using python engine: %A" (PythonEngine.BuildInfo);
                 tid <- PythonEngine.BeginAllowThreads ()
             with e ->
                 PythonEngine.Shutdown ();
@@ -32,46 +41,38 @@ type WsgiEngine () =
                 tid <- (nativeint) 0)
 
 // ------------------------------------------------------------------------
+// We currently only support one WSGI application per server
 type WsgiHandler () =
+    static let mutable application = null
+
     do
         WsgiEngine.initialize ()
+        use lock   = new WsgiEngineLock () in
+        use appmod = PythonEngine.ImportModule ("wsgiapp") in
+            application <- appmod.GetAttr("main").Invoke([||])
 
     interface IDisposable with
         member self.Dispose () =
+            application <- null
             WsgiEngine.finalize ()
 
-// ------------------------------------------------------------------------
-type PythonEngineLock () =
-    let gil = PythonEngine.AcquireLock ()
+    static member entry (config : HttpServerConfig) (request : HttpRequest) (stream : Stream) =
+        assert PythonEngine.IsInitialized
 
-    interface IDisposable with
-        member this.Dispose () =
-            PythonEngine.ReleaseLock gil
+        use lock   = new WsgiEngineLock () in
+        use bridge = PythonEngine.ImportModule ("wsgibridge") in
+        let error  = System.Console.Error in
+        let url    = sprintf "https://localhost:%d/%s" config.localaddr.Port request.path in (* FIXME *)
 
-// ------------------------------------------------------------------------
-let application () =
-    use lock = new PythonEngineLock () in
-    use app = PythonEngine.ImportModule ("wsgiapp") in
-        app.GetAttr("application")
+        let config =
+            [ ("url"    , url     :> obj);
+              ("request", request :> obj);
+              ("error"  , error   :> obj);
+              ("input"  , stream  :> obj);
+              ("output" , stream  :> obj);
+            ]
+                |> Map.ofList
+                |> PyObject.FromManagedObject
+        in
 
-// ------------------------------------------------------------------------
-let entry (config : HttpServerConfig) (request : HttpRequest) (stream : Stream) =
-    assert PythonEngine.IsInitialized
-
-    use lock   = new PythonEngineLock () in
-    use bridge = PythonEngine.ImportModule ("wsgibridge") in
-    let error  = System.Console.Error in
-    let url    = sprintf "https://localhost:%d/%s" config.localaddr.Port request.path in (* FIXME *)
-
-    let config =
-        [ ("url"    , url     :> obj);
-          ("request", request :> obj);
-          ("error"  , error   :> obj);
-          ("input"  , stream  :> obj);
-          ("output" , stream  :> obj);
-        ]
-            |> Map.ofList
-            |> PyObject.FromManagedObject
-    in
-
-    ignore (bridge.GetAttr("_entry").Invoke([|config; application ()|]))
+        ignore (bridge.GetAttr("_entry").Invoke([|config; application|]))

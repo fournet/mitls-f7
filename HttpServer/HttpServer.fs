@@ -86,7 +86,7 @@ type HttpClientHandler (server : HttpServer, peer : TcpClient) =
 
 #if wsgi
     member private self.ServeWsgi (request : HttpRequest) =
-        HttpWSGI.entry server.Config request stream
+        HttpWSGI.WsgiHandler.entry server.Config request stream
 
     member private self.WsgiHandler (request : HttpRequest) =
         let path   = HttpServer.CanonicalPath request.path in
