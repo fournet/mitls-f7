@@ -86,7 +86,7 @@ let select self key =
             |> Option.map value_of_bytes
             |> Option.bind filter_record
 
-    let db  = DB.opendb self.filename in
+    let db = DB.opendb self.filename in
 
     try
         DB.tx db select
