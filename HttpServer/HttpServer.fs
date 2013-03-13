@@ -265,5 +265,8 @@ and HttpServer (localaddr : IPEndPoint, config : HttpServerConfig) =
             socket <- null
 
 let run = fun config ->
+#if wsgi
+    use wsgi = new WsgiHandler ()
+#endif
     use http = new HttpServer (config.localaddr, config)
     http.Start ()

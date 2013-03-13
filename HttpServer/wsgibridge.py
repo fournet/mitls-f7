@@ -75,6 +75,14 @@ class WSGIOutputStream(object):
     def flush(self):
         self._txtstream.Flush()
 
+    def close(self):
+        try:
+            self._txtstream .Close()
+            self._basestream.Close()
+        finally:
+            self._txtstream  = None
+            self._basestream = None
+
 # ------------------------------------------------------------------------
 class Bridge(object):
     def __init__(self, config):
@@ -128,8 +136,6 @@ class Bridge(object):
         return self.write
 
     def __call__(self, application):
-        print >>sys.stderr, self
-
         path = [x for x in self.url.path.split('/') if x]
         if path[:1] != ['wsgi']:
             raise AssertionError("path does not start with `/wsgi'")
