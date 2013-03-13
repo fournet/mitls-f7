@@ -197,7 +197,7 @@ type HttpClientHandler (server : HttpServer, peer : TcpClient) =
                 reader <- new HttpStreamReader(stream);
                 while self.ReadAndServeRequest () do () done
             with
-            | :? System.IO.IOException as e ->
+            | e ->
                 Console.WriteLine(e.Message)
         finally
             HttpLogger.Info "closing connection";
