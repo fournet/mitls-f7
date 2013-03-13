@@ -5,6 +5,7 @@ open System.IO
 open System.Net
 open System.Net.Sockets
 open System.Text
+open System.Text.RegularExpressions
 open System.Threading
 
 open HttpHeaders
@@ -12,6 +13,10 @@ open HttpStreamReader
 open HttpData
 open HttpLogger
 open Utils
+
+#if wsgi
+open HttpWSGI
+#endif
 
 open TLStream
 
@@ -24,6 +29,8 @@ type HttpClientHandler (server : HttpServer, peer : TcpClient) =
     let mutable rawstream : NetworkStream    = null
     let mutable stream    : Stream           = null
     let mutable reader    : HttpStreamReader = Unchecked.defaultof<HttpStreamReader>
+
+    let mutable handlers = []
 
     interface IDisposable with
         member self.Dispose () =
@@ -77,14 +84,29 @@ type HttpClientHandler (server : HttpServer, peer : TcpClient) =
               headers = HttpHeaders.OfList [(HttpHeaders.CONTENT_TYPE, ctype)];
               body    = HB_Stream (stream, fi.Length) }
 
-    member private self.ServeRequest (request : HttpRequest) =
-        if request.mthod <> "GET" then begin
-            raise (HttpResponseExnWithCode HttpCode.HTTP_400)
-        end;
+#if wsgi
+    member private self.ServeWsgi (request : HttpRequest) =
+        HttpWSGI.entry server.Config request stream
 
+    member private self.WsgiHandler (request : HttpRequest) =
+        let path   = HttpServer.CanonicalPath request.path in
+        let wsgire = new Regex(@"^wsgi(:?/|$)") in
+
+            if wsgire.IsMatch(path) then
+                self.ServeWsgi(request)
+                Some false (* No keep-alive *)
+            else
+                None        
+#endif
+
+    member private self.ServeStatic (request : HttpRequest) =
         let path = HttpServer.CanonicalPath request.path in
         let path = if path.Equals("") then "index.html" else path
         let path = Path.Combine(server.Config.docroot, path) in
+
+            if request.mthod <> "GET" then begin
+                raise (HttpResponseExnWithCode HttpCode.HTTP_400)
+            end;
 
             try
                 let infos = FileInfo(path) in
@@ -109,38 +131,45 @@ type HttpClientHandler (server : HttpServer, peer : TcpClient) =
     member private self.ReadAndServeRequest () =
         try
             let request = reader.ReadRequest () in
-            let close =
-                match request.headers.Get "Connection" with
-                | Some v when v.ToLowerInvariant() = "close" -> true
-                | Some v when v.ToLowerInvariant() = "keep-alive" -> false
-                | _ -> request.version <> HTTPV_11
-            in
-            let response =
-                try self.ServeRequest request
-                with
-                | :? System.IO.IOException as e -> raise e
-                | HttpResponseExn response -> response
-                | e -> http_response_of_code HttpCode.HTTP_500
-            in
-                if close then begin
-                    response.headers.Set "Connection" "close"
-                end;
-                response.headers.Set "Content-Length" (sprintf "%d" (http_body_length response.body));
-                begin
-                    match response.body with
-                    | HB_Raw bytes ->
-                            self.SendResponseWithBody request.version response.code (response.headers.ToSeq ()) bytes
-                    | HB_Stream (f, flen) ->
-                            self.SendStatus request.version response.code;
-                            self.SendHeaders (response.headers.ToSeq ());
-                            self.SendLine "";
-                            try
-                                if f.CopyTo(stream, flen) < flen then
-                                    failwith "ReadAndServeRequest: short-read"
-                            finally
-                                noexn (fun () -> f.Close ())
-                end;
-                stream.Flush (); not close
+
+            match List.tryPick (fun handler -> handler(request)) handlers with
+            | Some status -> status
+            
+            | None ->            
+                let close =
+                    match request.headers.Get "Connection" with
+                    | Some v when v.ToLowerInvariant() = "close" -> true
+                    | Some v when v.ToLowerInvariant() = "keep-alive" -> false
+                    | _ -> request.version <> HTTPV_11
+                in
+                let response =
+                    try self.ServeStatic request
+                    with
+                    | :? System.IO.IOException as e -> raise e
+                    | HttpResponseExn response -> response
+                    | e -> http_response_of_code HttpCode.HTTP_500
+                in
+                    if close then begin
+                        response.headers.Set "Connection" "close"
+                    end;
+                    response.headers.Set "Content-Length" (sprintf "%d" (http_body_length response.body));
+                    begin
+                        match response.body with
+                        | HB_Raw bytes ->
+                                self.SendResponseWithBody
+                                    request.version response.code (response.headers.ToSeq ())
+                                    bytes
+                        | HB_Stream (f, flen) ->
+                                self.SendStatus request.version response.code;
+                                self.SendHeaders (response.headers.ToSeq ());
+                                self.SendLine "";
+                                try
+                                    if f.CopyTo(stream, flen) < flen then
+                                        failwith "ReadAndServeRequest: short-read"
+                                finally
+                                    noexn (fun () -> f.Close ())
+                    end;
+                    stream.Flush (); not close
 
         with
         | InvalidHttpRequest | NoHttpRequest as e->
@@ -148,9 +177,13 @@ type HttpClientHandler (server : HttpServer, peer : TcpClient) =
                 self.SendResponse HTTPV_10 HttpCode.HTTP_400;
                 stream.Flush ();
             end;
-            false
+            false (* no keep-alive *)
 
     member self.Start () =
+#if wsgi
+        handlers <- self.WsgiHandler :: handlers
+#endif
+
         try
             try
                 HttpLogger.Info
@@ -194,7 +227,7 @@ and HttpServer (localaddr : IPEndPoint, config : HttpServerConfig) =
                         | _                , segment -> segment :: canon)
                     []
         in
-            Path.Combine(Array.ofList (List.rev path))
+            String.Join("/", Array.ofList (List.rev path))
 
     member private self.ClientHandler peer = fun () ->
         use peer    = peer

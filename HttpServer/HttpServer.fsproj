@@ -25,7 +25,7 @@
     <WarningLevel>3</WarningLevel>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DocumentationFile>bin\Debug\ConsoleApplication1.XML</DocumentationFile>
-    <StartArguments>--root-dir ../../../www-data/www-root/ --sessionDB-dir ../../../www-data/sessionDB/ --local-name "cert01-needham.inria.fr"</StartArguments>
+    <StartArguments>--root-dir ../../../www-data/www-root/ --sessionDB-dir ../../../www-data/sessionDB/ --local-name "rsa.www.mitls.org"</StartArguments>
     <StartWorkingDirectory>
     </StartWorkingDirectory>
   </PropertyGroup>
@@ -52,13 +52,23 @@
     <Compile Include="HttpHeaders.fs" />
     <Compile Include="HttpData.fs" />
     <Compile Include="HttpStreamReader.fs" />
+    <Compile Include="HttpWSGI.fs" />
     <Compile Include="HttpServer.fs" />
     <Compile Include="Program.fs" />
+    <None Include="wsgibridge.py">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="wsgiapp.py">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.PowerPack, Version=2.0.0.0, Culture=neutral, PublicKeyToken=a19089b1c74d0809" />
     <Reference Include="mscorlib" />
     <Reference Include="FSharp.Core" />
+    <Reference Include="Python.Runtime">
+      <HintPath>Python.Runtime.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />

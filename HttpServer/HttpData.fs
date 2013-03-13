@@ -56,4 +56,3 @@ let http_response_of_code = fun code ->
         { code    = code    ;
           headers = headers ;
           body    = message }
-

@@ -117,4 +117,3 @@ type HttpStreamReader (stream : Stream) =
                           headers = headers }
 
                 | _ -> raise InvalidHttpRequest
-
