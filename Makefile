@@ -39,7 +39,8 @@ prepare-dist:
 	cp README                 $(distname)
 	mkdir $(distname)/licenses && \
 	  cp licenses/*.txt $(distname)/licenses
-	find $(distname) -type f -exec chmod a-x '{}' \+
+	find $(distname) \( -type f -a \! -name '*.dll' \) \
+	  -exec chmod a-x '{}' \+
 
 dist: prepare-dist
 	cp LICENSE AUTHORS $(distname)
