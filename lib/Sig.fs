@@ -4,7 +4,8 @@ open Bytes
 open TLSConstants
 
 (* ------------------------------------------------------------------------ *)
-type alg   = sigAlg * hashAlg
+//MK: now defined in TLSConstants type alg   = sigAlg * hashAlg
+type alg = sigHashAlg
 
 type text = bytes
 type sigv = bytes 

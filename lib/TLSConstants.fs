@@ -38,6 +38,8 @@ type sigAlg =
   | SA_DSA 
   | SA_ECDSA
 
+type sigHashAlg   = sigAlg * hashAlg
+
 let sigAlgBytes sa =
     match sa with
     | SA_RSA   -> [|1uy|]

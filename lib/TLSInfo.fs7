@@ -19,6 +19,7 @@
   extend to HonestMS, HonestKeys
 
 - What is used: DHGroup or DH?
+  MK? I don't understand this question. Both?
 
 - We need to typecheck ideal code, so rewrite all modules in the style
    #if ideal
@@ -27,7 +28,8 @@
    else 
    #endif
      .... COERCE ...
-This requires concrete safe/auth/strong/honest functions (specify, dont implement)
+  This requires concrete safe/auth/strong/honest functions (specify, dont implement)
+  MK: honest could be implemented and sometimes is implemented. Is this misguided?
 *)
 
 open Bytes
@@ -52,11 +54,10 @@ assume DualRole(Server) = Client
 type random = (;32) lbytes 
 type crand = random
 type srand = random
+//CF 04-09 the randoms are not just bytes; where do we rely on collision-resistance?
 
 // SessionInfo and epoch: Session and Connection level public immutable data.
 // Used for indexing
-
-//CF 04-09 the randoms are not just bytes; where do we rely on collision-resistance?
 
 type pmsData =
     | PMSUnset
@@ -64,17 +65,6 @@ type pmsData =
     | DHPMS  of p:DHGroup.p * g:(;p)DHGroup.g *
 		  	      gx:(;p)DHGroup.elt (* Client *) *
 			      gy:(;p)DHGroup.elt (* Server *)
-
-// To be defined 
-predicate HonestRSAPMS of pk:RSAKey.pk * pv:ProtocolVersion * encpms:bytes
-predicate HonestDHPMS of p:DHGroup.p * g:(;p)DHGroup.g *
-		  	      gx:(;p)DHGroup.elt (* Client *) *
-			      gy:(;p)DHGroup.elt (* Server *)
-
-predicate HonestPMS of pmsData
-assume !pd. HonestPMS(pd) <=>
-      ((?pk,pv,e. pd = RSAPMS(pk,pv,e) /\ HonestRSAPMS(pk,pv,e)) \/
-       (?p,g,gx,gy. pd = DHPMS(p,g,gx,gy) /\ HonestDHPMS(p,g,gx,gy)))
 
 // TODO this is out of sync with the paper, on client_auth.
 type SessionInfo = {
@@ -141,8 +131,20 @@ val nextEpoch: e:epoch -> c:crand -> s:srand -> si:SessionInfo ->
 	e':succEpoch{Pred(e') = e /\ EpochSI(e') = si /\
 			     EpochCRand(e') = c /\ EpochSRand(e') = s}
 
+// Predicates specifying the honesty of keys and key material
 
-/// Predicates specifying cryptographic assumptions on algorithms 
+// To be defined 
+predicate HonestRSAPMS of pk:RSAKey.pk * pv:ProtocolVersion * encpms:bytes
+predicate HonestDHPMS of p:DHGroup.p * g:(;p)DHGroup.g *
+		  	      gx:(;p)DHGroup.elt (* Client *) *
+			      gy:(;p)DHGroup.elt (* Server *)
+
+predicate HonestPMS of pmsData
+assume !pd. HonestPMS(pd) <=>
+      ((?pk,pv,e. pd = RSAPMS(pk,pv,e) /\ HonestRSAPMS(pk,pv,e)) \/
+       (?p,g,gx,gy. pd = DHPMS(p,g,gx,gy) /\ HonestDHPMS(p,g,gx,gy)))
+
+// Predicates specifying cryptographic assumptions on algorithms 
 predicate StrongAESI of SessionInfo
 predicate StrongAuthSI of SessionInfo
 predicate StrongAE of epoch
@@ -157,7 +159,7 @@ definition !si. StrongAuthSI(si) <=> (?e,m. CipherSuiteAuthEncAlg(si.cipher_suit
 predicate HonestSig of a:Sig.alg * (;a) Sig.pkey
 predicate StrongSig of SessionInfo
 definition !a,k. HonestSig(a,k) <=> Sig.Honest(a,k)
-definition !si. StrongSig(si) <=> Sig.Strong(CipherSuiteSigAlg(si.cipher_suite))
+definition !si. StrongSig(si) <=> Sig.Strong(CipherSuiteSigHashAlg(si.cipher_suite))
 
 predicate StrongPRF of SessionInfo
 // TODO: definition !si. StrongPRF(si) <=> PRF.Strong(si.protocol_version,CipherSuiteMACAlg(si.protocol_version,si.cipher_suite))

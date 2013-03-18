@@ -47,6 +47,8 @@ type sigAlg =
   | SA_DSA 
   | SA_ECDSA
 
+type sigHashAlg = sigAlg * hashAlg
+
 type aeadAlg =
     | AES_128_GCM
     | AES_256_GCM

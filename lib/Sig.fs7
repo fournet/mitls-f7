@@ -28,7 +28,7 @@ open TLSConstants
 // TODO: there is some adhocness processing of those algs left in Handshake.fs
   
 // implements SignatureAndHashAlgorithm, with fewer values for hashAlg
-type alg   = sigAlg * hashAlg
+type alg   = sigHashAlg //MK: now defined in TLSConstants.fs7: sigAlg * hashAlg
 
 type text = bytes
 type (;a:alg) sigv = bytes

@@ -4,7 +4,7 @@ open Bytes
 open TLSConstants
 
 (* ------------------------------------------------------------------------ *)
-type alg  = sigAlg * hashAlg
+type alg   = sigHashAlg //MK: now defined in TLSConstants.fs7: sigAlg * hashAlg
 
 type text = bytes
 type sigv = bytes 

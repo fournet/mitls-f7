@@ -60,6 +60,8 @@ type sigAlg =
   | SA_DSA 
   | SA_ECDSA
 
+type sigHashAlg   = sigAlg * hashAlg
+
 predicate INT_CMA_S of sigAlg * hashAlg * hashAlg list 
 // INT_CMA_S(s,h,hs) indicates that signing hashes using s,h is INT-CMA, 
 // even if we also sign hashes using s,h' in hs
@@ -306,6 +308,7 @@ private definition TLSENCAlg(AES_256_CBC, TLS_1p1) = CBC_Fresh(AES_256)
 private definition TLSENCAlg(AES_256_CBC, TLS_1p2) = CBC_Fresh(AES_256)
 
 function val CipherSuiteSigAlg: cipherSuite -> sigAlg
+function val CipherSuiteSigHashAlg: cipherSuite -> sigHashAlg
 function val CipherSuiteMACAlg: cipherSuite * ProtocolVersion -> macAlg
 function val CipherSuiteENCAlg: cipherSuite * ProtocolVersion -> encAlg
 function val CipherSuiteAuthEncAlg: cipherSuite * ProtocolVersion -> authencAlg
