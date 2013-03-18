@@ -76,8 +76,8 @@ val sign:    a:alg -> sk:(;a) skey -> t:text{Msg(a,PK(sk),t)} -> (;a) sigv
 val verify:  a:alg -> pk:(;a) pkey -> t:text -> m:(;a) sigv -> 
   b:bool {(b=true /\ Strong(a) /\ Honest(a,pk)) => Msg(a,pk,t)}
 
-val pkey:    a:alg -> CoreSig.sigpkey -> p:(;a) pkey
-val pkey_repr:  a:alg -> p:(;a) pkey -> CoreSig.sigpkey 
+// MK bot used: val pkey:    a:alg -> CoreSig.sigpkey -> p:(;a) pkey
+// MK not used: val pkey_repr:  a:alg -> p:(;a) pkey -> CoreSig.sigpkey 
 
 val coerce:  a:alg -> p:(;a) pkey{not Honest(a,p)} -> CoreSig.sigskey -> s:(;a)skey{p = PK(s)}
 val leak:    a:alg -> s:(;a) skey{not Honest(a,PK(s))} -> CoreSig.sigskey

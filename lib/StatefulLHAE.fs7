@@ -5,6 +5,37 @@ open Bytes
 open TLSInfo
 open Range
 
+
+(* MK
+
+Dependencies:
+ * StatefulPlain: for the definition of abstract types:
+   * StatefulPlain.plain of plaintext and
+   * StatefulPlain.history of the current log of plaintexts.
+
+
+Usage: 
+ * We assume that each encryption/decryption state is used at most once.
+ * This condition is justified by inspecting uses of StatefulLHAE.encrypt 
+   and StatefulLHAE.decrypt and verifying that the old encryption state is 
+   discarded.
+
+
+Assumptions:
+ * None
+
+Theorems:
+ * (By Typing) The F# code for StatefulLHAE meets its F7 interface.
+ * (Corollary) In safe epochs, the history, each plaintext, and LHAE keys are
+   kept confidential. 
+ * (Corollary) In safe epochs, the overall length of plaintext in
+   the history is kept confidential (within a range).
+ * (Corollary) In safe epochs, the sequence of plaintexts returned
+   by decryption (at the receiver) is a prefix of the sequence of
+   plaintexts passed to encryption (at the sender.)
+
+*)
+
 //CF 12/2: do we need pre/post on ciphertext lengths?
 
 type rw =
@@ -31,13 +62,13 @@ val history: ki:epoch -> rw:rw -> s:(;ki,rw) state -> h:(;ki)StatefulPlain.histo
 
 // Ideally,
 // the writer maintains a table (ki, h, ad, range, fragment, cipher) {...} [details?]
-// when SAFE(ki), the writer uses 0s instead of the actual fragment
-// when AUTH(ki), the reader decrypts by table lookup
+// when Safe(ki), the writer uses 0s instead of the actual fragment
+// when Auth(ki), the reader decrypts by table lookup
 // turning forgeries into errors; retrieving the "right" history index; returning the concrete decrypted range
 
 //CF 21/4: ENCrypted is an event tracking written cipher fragments; not sure about details and contents ?!
 //CF e.g.    * the decrypted rg is NOT authenticated
-//CF         * the states are not necessarily synchronized; only the histories are when AUTH
+//CF         * the states are not necessarily synchronized; only the histories are when Auth(ki)
 
 type cipher = LHAE.cipher
 
