@@ -108,4 +108,9 @@ val certkey: c:certs -> o:pk option {o = CertKey(c)}
 //CF: - [Handshake] implements parsing of certificate chains into Certificate.cert list
 //CF: - we do not provide concrete long-term key & cert generation 
 
+//MK: should we define pk as a sumtype of (;a)Sig.pkey and RSAKey.pk, rather than as bytes? 
+//MK: can we then define Honest in terms of HonestSig and HonestRSAKey?
+//MK: should we plan ahead for static DH??
+
+
 *)

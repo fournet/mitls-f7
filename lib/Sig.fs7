@@ -8,9 +8,15 @@ open TLSConstants
 // TLS uses three signatures algorithms, together with hash algorithm.
 // We verify TLS security relative to those *combinations* of algorithms
 // that provide CMA-security, as specified in this interface. 
-// However, none of them are CMA-secure in the standard model.
+// However, none of them are CMA-secure in the standard model under an 
+// assumption weaker than "This scheme is secure".
 
-// This interface is adapted from the one described in CCS'11.
+// This interface is adapted from the one described in CCS'11:
+//
+//      Cedric Fournet, Markulf Kohlweiss, Pierre-Yves Strub: Modular 
+//      code-based cryptographic verification. ACM Conference on Computer 
+//      and Communications Security 2011: 341-350
+// 
 // Its implementation is trusted, not verified.
 // CF we should verify its ideal implementation!?
 
@@ -28,6 +34,7 @@ open TLSConstants
 // TODO: there is some adhocness processing of those algs left in Handshake.fs
   
 // implements SignatureAndHashAlgorithm, with fewer values for hashAlg
+//MK: I don't understand this comment.
 type alg   = sigHashAlg //MK: now defined in TLSConstants.fs7: sigAlg * hashAlg
 
 type text = bytes
@@ -46,7 +53,7 @@ type (;a:alg) sigv = bytes
 //     match cs with 
 //     | RSA | DH_RSA | DHE_RSA | RSA_PSK (* | ECDH_RSA | ECDHE_RSA *) -> RSA
 //     | DH_DSS | DHE_DSS                                              -> DSA
-//   (*| ECDH_ECDSA | ECDHE_ECDSA                                      -> ECDSA in
+//     | ECDH_ECDSA | ECDHE_ECDSA                                      -> ECDSA in
 //   (a, SHA1)
 
 // TODO: how to extract & checks the algs from certs?
@@ -77,6 +84,7 @@ val leak:    a:alg -> s:(;a) skey{not Honest(a,PK(s))} -> CoreSig.sigskey
 
 
 (* MK: Commented out as it depends on core crypto and is not used by ideal functionality
+   MK: Can this be deleted?
 function val sigalg_of_skeyparams : CoreSig.sigskey -> sigAlg
 function val sigalg_of_pkeyparams : CoreSig.sigpkey -> sigAlg
 

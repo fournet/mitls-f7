@@ -133,6 +133,14 @@ val nextEpoch: e:epoch -> c:crand -> s:srand -> si:SessionInfo ->
 
 // Predicates specifying the honesty of keys and key material
 
+predicate HonestSig of a:sigHashAlg * (;a) Sig.pkey
+definition !a,k. HonestSig(a,k) <=> Sig.Honest(a,k)
+
+predicate HonestRSAKey of RSAKey.pk
+definition !pk. HonestRSAKey(pk) <=> RSAKey.Honest(pk)
+
+//MK: predicate HonestLTKey (See also Cert.fs7)
+
 // To be defined 
 predicate HonestRSAPMS of pk:RSAKey.pk * pv:ProtocolVersion * encpms:bytes
 predicate HonestDHPMS of p:DHGroup.p * g:(;p)DHGroup.g *
@@ -156,9 +164,7 @@ definition !e. StrongAuth(e) <=> StrongAuthSI(EpochSI(e))
 definition !si. StrongAESI(si)   <=> (?e,m. CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(e,m) /\ IND_CPA(e) /\ INT_CMA_M(m) /\ INT_CTXT(CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version),si.protocol_version))
 definition !si. StrongAuthSI(si) <=> (?e,m. CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(e,m) /\ INT_CMA_M(m))
            
-predicate HonestSig of a:Sig.alg * (;a) Sig.pkey
 predicate StrongSig of SessionInfo
-definition !a,k. HonestSig(a,k) <=> Sig.Honest(a,k)
 definition !si. StrongSig(si) <=> Sig.Strong(CipherSuiteSigHashAlg(si.cipher_suite))
 
 predicate StrongPRF of SessionInfo
