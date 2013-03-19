@@ -64,12 +64,26 @@ type WsgiHandler () =
         let error  = System.Console.Error in
         let url    = sprintf "https://mitls.rocq.inria.fr/%s" request.path in (* FIXME *)
 
+        let sinfo =
+            try
+                let sinfo = (stream :?> TLStream.TLStream) in
+                let sinfo = sinfo.GetSessionInfo () in
+                let sinfo =
+                    [ ("cipher", sinfo.cipher_suite.ToString () :> obj) ]
+                        |> Map.ofList
+                        |> PyObject.FromManagedObject
+                in
+                    sinfo
+            with :? InvalidCastException -> null
+        in
+
         let config =
             [ ("url"    , url     :> obj);
               ("request", request :> obj);
               ("error"  , error   :> obj);
               ("input"  , stream  :> obj);
               ("output" , stream  :> obj);
+              ("sinfo"  , sinfo   :> obj);
             ]
                 |> Map.ofList
                 |> PyObject.FromManagedObject

@@ -13,7 +13,7 @@ class miTLSApplication(object):
     def create():
         import sys, os, mitls, pyramid.paster as paster
 
-        inifile = '/opt/mitls/bridge/production.ini'
+        inifile = '/home/strub/Projects/Cvk/samples/protocols/tls/doc/web/development.ini'
         env     = paster.bootstrap(inifile)
 
         return env['app']

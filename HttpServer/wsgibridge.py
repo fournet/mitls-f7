@@ -91,6 +91,7 @@ class Bridge(object):
         self._output  = WSGIOutputStream(config['output'])
         self._error   = WSGIErrorStream(config['error'])
         self._request = config['request']
+        self._sinfo   = config['sinfo']
         self._headers = None
         self._hdsent  = False
 
@@ -148,6 +149,7 @@ class Bridge(object):
         environ['wsgi.multiprocess' ] = False
         environ['wsgi.run_once'     ] = True
         environ['wsgi.url_scheme'   ] = self.url.scheme
+        environ['mitls.sinfo']        = self._sinfo
         environ['HTTPS']              = '1' if self.url.scheme == 'https' else '0'
 
         environ['REQUEST_METHOD']  = self._request.mthod

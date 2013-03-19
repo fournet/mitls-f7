@@ -128,7 +128,7 @@ type TLStream(s:System.IO.Stream, options, b, ?own) =
             let conn = doHS conn
             wrapWrite conn msg
 
-    let getSessionInfo () =
+    member self.GetSessionInfo () =
         if closed then
             raise (ObjectDisposedException("Trying to get SessionInfo on a closed connection."))
         else
