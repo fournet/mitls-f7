@@ -2,6 +2,7 @@
 
 open System
 open System.IO
+open Microsoft.FSharp.Reflection
 open Python.Runtime
 open HttpData
 
@@ -51,6 +52,11 @@ type WsgiHandler () =
         use appmod = PythonEngine.ImportModule ("wsgiapp") in
             application <- appmod.GetAttr("main").Invoke([||])
 
+    (* ------------------------------------------------------------------------ *)
+    static let cs_map = Map.ofArray (Utils.enumeration<TLSConstants.cipherSuiteName> ())
+    static let vr_map = Map.ofArray (Utils.enumeration<TLSConstants.ProtocolVersion> ())
+    static let cp_map = Map.ofArray (Utils.enumeration<TLSConstants.Compression>     ())
+
     interface IDisposable with
         member self.Dispose () =
             application <- null
@@ -69,7 +75,10 @@ type WsgiHandler () =
                 let sinfo = (stream :?> TLStream.TLStream) in
                 let sinfo = sinfo.GetSessionInfo () in
                 let sinfo =
-                    [ ("cipher", sinfo.cipher_suite.ToString () :> obj) ]
+                    [ ("cipher"     , Map.find (TLSConstants.name_of_cipherSuite) sinfo.cipher_suite) cs_map :> obj);
+                      ("compression", Map.find sinfo.compression  cp_map :> obj);
+                      ("version"    , Map.find sinfo.protocol_version vr_map :> obj);
+                    ]
                         |> Map.ofList
                         |> PyObject.FromManagedObject
                 in

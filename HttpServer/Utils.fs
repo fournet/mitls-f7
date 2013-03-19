@@ -4,7 +4,9 @@ open System
 open System.IO
 open System.Text.RegularExpressions
 open System.Web
+open Microsoft.FSharp.Reflection
 
+(* ------------------------------------------------------------------------ *)
 type String with
     member self.UrlDecode () = HttpUtility.UrlDecode(self)
 
@@ -14,6 +16,7 @@ type Option<'T> with
         match self with None -> dfl | Some x -> x
 *)
 
+(* ------------------------------------------------------------------------ *)
 type Stream with
     member self.CopyTo (output : Stream, length : int64) : int64 =
         let (*---*) buffer   : byte[] = Array.zeroCreate (128 * 1024) in
@@ -31,9 +34,11 @@ type Stream with
             done;
             position
 
+(* ------------------------------------------------------------------------ *)
 let noexn = fun cb ->
     try cb () with _ -> ()
 
+(* ------------------------------------------------------------------------ *)
 let (|Match|_|) pattern input =
     let re = System.Text.RegularExpressions.Regex(pattern)
     let m  = re.Match(input) in
@@ -45,8 +50,33 @@ let (|Match|_|) pattern input =
                         |> Map.ofSeq)
         else None
 
+(* ------------------------------------------------------------------------ *)
 module IO =
     let ReadAllLines (stream : StreamReader) = seq {
         while not stream.EndOfStream do
             yield stream.ReadLine ()
     }
+
+(* ------------------------------------------------------------------------ *)
+exception NotAValidEnumeration
+
+let enumeration<'T> () =
+    let t = typeof<'T>
+
+    if not (FSharpType.IsUnion(t)) then
+        raise NotAValidEnumeration;
+
+    let cases = FSharpType.GetUnionCases(t)
+
+    if not (Array.forall
+                (fun (c : UnionCaseInfo) -> c.GetFields().Length = 0)
+                (FSharpType.GetUnionCases(t))) then
+        raise NotAValidEnumeration;
+
+    let cases =
+        Array.map
+            (fun (c : UnionCaseInfo) ->
+                (FSharpValue.MakeUnion(c, [||]) :?> 'T), c.Name)
+            cases
+    in
+        cases
