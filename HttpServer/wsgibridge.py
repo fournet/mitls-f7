@@ -111,7 +111,7 @@ class Bridge(object):
         try:
             self._output.write('%s %s\r\n' % ("HTTP/1.0", status,))
             for hk, hv in headers:
-                self._output.write('%s :%s\r\n' % (hk, hv))
+                self._output.write('%s: %s\r\n' % (hk, hv))
             self._output.write('\r\n')
             self._output.flush()
         finally:
