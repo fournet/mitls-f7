@@ -43,7 +43,7 @@ prepare-dist:
 	  -exec chmod a-x '{}' \+
 
 dist: prepare-dist
-	cp LICENSE AUTHORS $(distname)
+	cp LICENSE AUTHORS CHANGELOG $(distname)
 	if [ -x scripts/anonymize ]; then \
 	  find $(distname) \
 	    -type f \( -name '*.fs' -o -name '*.fsi' -o -name '*.fs7' \) \
