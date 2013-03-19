@@ -159,6 +159,7 @@ type cipherSuiteName =
     | TLS_DH_anon_WITH_AES_256_CBC_SHA256
 
 val cipherSuites_of_nameList: cipherSuiteName list -> cipherSuites
+val name_of_cipherSuite: cipherSuite -> cipherSuiteName Result
 
 (* val split_at_most: bytes -> nat -> (bytes * bytes) *)
 
