@@ -1,6 +1,6 @@
 # -*- Makefile -*-
 
-MITLSWSGI ?= yes
+MITLSWSGI ?= no
 
 srccore = \
 	Utils.fs            \

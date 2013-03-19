@@ -39,6 +39,12 @@ let noexn = fun cb ->
     try cb () with _ -> ()
 
 (* ------------------------------------------------------------------------ *)
+let unerror (x : 'a Error.Result) =
+    match x with
+    | Error.Error   _ -> failwith "Utils.unerror"
+    | Error.Correct x -> x
+
+(* ------------------------------------------------------------------------ *)
 let (|Match|_|) pattern input =
     let re = System.Text.RegularExpressions.Regex(pattern)
     let m  = re.Match(input) in
