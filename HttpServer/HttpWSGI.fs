@@ -25,7 +25,7 @@ type WsgiEngine () =
                 failwith "PythonEngine already initialized";
             PythonEngine.Initialize ();
             try
-                fprintfn stderr "WSGI: using python engine: %A" (PythonEngine.BuildInfo);
+                // fprintfn stderr "WSGI: using python engine: %A" (PythonEngine.BuildInfo);
                 tid <- PythonEngine.BeginAllowThreads ()
             with e ->
                 PythonEngine.Shutdown ();
@@ -62,7 +62,7 @@ type WsgiHandler () =
         use lock   = new WsgiEngineLock () in
         use bridge = PythonEngine.ImportModule ("wsgibridge") in
         let error  = System.Console.Error in
-        let url    = sprintf "https://localhost:%d/%s" config.localaddr.Port request.path in (* FIXME *)
+        let url    = sprintf "https://mitls.rocq.inria.fr/%s" request.path in (* FIXME *)
 
         let config =
             [ ("url"    , url     :> obj);

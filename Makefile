@@ -48,7 +48,7 @@ dist: prepare-dist
 	  find $(distname) \
 	    -type f \( -name '*.fs' -o -name '*.fsi' -o -name '*.fs7' \) \
 	    -exec scripts/anonymize \
-	      -m release -B -P -I ideal -I verify -c LICENSE.header '{}' \+; \
+	      -m release -B -P -I wsgi -I ideal -I verify -c LICENSE.header '{}' \+; \
 	fi
 	$(TAR) -czf $(distname).tgz $(distname)
 	rm -rf $(distname)
