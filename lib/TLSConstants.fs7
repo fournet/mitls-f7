@@ -28,6 +28,7 @@ type encAlg =
 	| Stream_RC4_128
 
 predicate IND_CPA of encAlg
+//#begin-cipherAssert
 // some reasonable cryptographic assumptions if you believe that you are sufficiently 
 // protected against timing attacks (see: http://www.isg.rhul.ac.uk/tls/Lucky13.html )
 // assume(IND_CPA(CBC_Fresh(AES_128_CBC)))
@@ -35,6 +36,7 @@ predicate IND_CPA of encAlg
 // examples for wrong cryptographic assumptions: 
 // assume(IND_CPA(Stream_RC4_128)) (see: http://vnhacker.blogspot.co.uk/2011/09/beast.html )
 // assume(IND_CPA(CBC_Stale(AES_256_CBC))) (see: http://www.isg.rhul.ac.uk/tls/ )
+//#end-cipherAssert
 
 type hashAlg =
     | NULL
