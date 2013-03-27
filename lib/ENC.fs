@@ -11,7 +11,7 @@ open Range
 type cipher = bytes
 
 (* Early TLS chains IVs but this is not secure against adaptive CPA *)
-let lastblock cipher alg =
+let lastblock alg cipher =
     let ivl = blockSize alg in
     let (_,b) = split cipher (length cipher - ivl) in b
 
@@ -52,7 +52,8 @@ let GENOne ki =
         let iv = NoIV
         BlockCipher ({key = key; iv = iv})
 
-let GEN (ki) = let k = GENOne ki in (k,k)
+let GEN (ki) = 
+    let k = GENOne ki in (k,k)
     
 let COERCE (ki:epoch) k iv =
     let si = epochSI(ki) in
@@ -65,6 +66,7 @@ let COERCE (ki:epoch) k iv =
         BlockCipher ({key = {k=k}; iv = SomeIV(iv)})
     | CBC_Fresh(_) ->
         BlockCipher ({key = {k=k}; iv = NoIV})
+
 
 let LEAK (ki:epoch) s =
     match s with
@@ -98,7 +100,7 @@ let ENC_int ki s tlen d =
                 // CompatibleLength predicate
                 unexpectedError "[ENC] Length of encrypted data do not match expected length"
             else
-                let s = {s with iv = SomeIV(lastblock cipher alg) } in
+                let s = {s with iv = SomeIV(lastblock alg cipher) } in
                 (BlockCipher(s), cipher)
     //#end-ivStaleEnc
     | BlockCipher(s), CBC_Fresh(alg) ->
@@ -164,7 +166,7 @@ let DEC_int ki s cipher =
         | NoIV -> unexpectedError "[DEC] Wrong combination of cipher algorithm and state"
         | SomeIV(iv) ->
             let data = cbcdec alg s.key.k iv cipher
-            let s = {s with iv = SomeIV(lastblock cipher alg)} in
+            let s = {s with iv = SomeIV(lastblock alg cipher)} in
             (BlockCipher(s), data)
     //#end-ivStaleDec
     | BlockCipher(s), CBC_Fresh(alg) ->

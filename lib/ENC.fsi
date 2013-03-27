@@ -17,3 +17,7 @@ type cipher = bytes
 
 val ENC: epoch -> encryptor -> LHAEPlain.adata -> range -> Encode.plain -> (encryptor * cipher)
 val DEC: epoch -> decryptor -> LHAEPlain.adata -> cipher -> (decryptor * Encode.plain)
+
+val lastblock: TLSConstants.blockCipher -> cipher -> bytes
+
+val GENOne: epoch -> state
