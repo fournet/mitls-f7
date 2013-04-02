@@ -14,7 +14,7 @@ let log = ref []
 let finish_log = ref []
 let corrupted = ref []
 
-let strong si = true  
+let strong (si:SessionInfo) = true  
 let corrupt si = memr !corrupted si 
 let honest si = if corrupt si then false else true
 

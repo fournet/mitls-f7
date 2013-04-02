@@ -6,6 +6,11 @@ open Bytes
 open TLSInfo
 open StatefulLHAE
 
+val honest: SessionInfo -> bool
+val strong: SessionInfo -> bool
+val corrupt: SessionInfo -> bool
+
+
 type repr = (;48)lbytes
 //#begin-abstraction
 private type (;si:SessionInfo) masterSecret = {bytes: repr}
@@ -64,3 +69,4 @@ val checkVerifyData: e:succEpoch -> r:Role -> (;EpochSI(e)) masterSecret ->
 
 val ssl_certificate_verify: si:SessionInfo -> (;si)masterSecret -> TLSConstants.sigAlg -> bytes -> bytes
 
+private val epochs:ConnectionInfo -> epoch * epoch
