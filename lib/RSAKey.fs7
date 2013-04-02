@@ -14,6 +14,8 @@ type pk (* public (encryption) key, abstract but bytes are accessible *)
 type modulus  = bytes
 type exponent = bytes
 
+val honest: pk -> bool
+
 (* Used in specifications *)
 function val PK: sk -> pk
 predicate Honest of pk

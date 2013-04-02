@@ -22,7 +22,8 @@ type pred = GeneratedRSAPMS of RSAKey.pk * ProtocolVersion * rsapms
 let honest_log = ref []
 let honest pms = exists (fun el -> el=pms) !honest_log
 
-let corrupt pms = not(honest pms)
+//MK causes problems so rewritten in terms of honest
+//MK let corrupt pms = not(honest pms)
 
 let log = ref []
 #endif
@@ -78,7 +79,7 @@ PRF.sample si ~_C prfMS si sampleDH p g //relate si and p g
 let prfSmoothRSA si (pv:ProtocolVersion) pms = 
     #if ideal
     // MK this idealization relies on si being used only once with this function
-    if not(corrupt (RSA_pms(pms)))
+    if honest (RSA_pms(pms))
     then match tryFind (fun el -> fst el = RSA_pms(pms)) !log with
              Some(_,ms) -> ms
            | None -> 
@@ -94,7 +95,7 @@ let prfSmoothDHE si (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt
     //#begin-ideal 
     #if ideal
     // MK this idealization relies on si being used only once with this function
-    if not(corrupt (DHE_pms(pms)))
+    if honest(DHE_pms(pms))
     then match tryFind (fun el -> fst el = DHE_pms(pms)) !log  with
              Some(_,ms) -> ms
            | None -> 
