@@ -11,6 +11,8 @@ type dhpms = {dhpms: DHGroup.elt}
 
 #if ideal
 type pms = RSA_pms of rsapms | DHE_pms of dhpms
+type ext_pms = Ext_RSA_pms of RSAKey.pk * ProtocolVersion * rsapms | Ext_DHE_pms of DHGroup.p * DHGroup.g * DHGroup.elt * DHGroup.elt * dhpms
+
 
 type pred = GeneratedRSAPMS of RSAKey.pk * ProtocolVersion * rsapms
 

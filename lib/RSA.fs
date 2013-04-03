@@ -15,7 +15,7 @@ let encrypt key pv pms =
     //#begin-ideal1
     #if ideal
     //MK here we reply on pv and pms being used only once?
-    let v = if RSAKey.honest key && not (CRE.corrupt (CRE.RSA_pms pms)) then
+    let v = if RSAKey.honest key && CRE.honest (CRE.RSA_pms pms) then // MK remove CRE.honest (CRE.RSA_pms pms)??
               let fake_pms = (versionBytes pv) @|random 46
               log := (fake_pms,pms)::!log
               fake_pms

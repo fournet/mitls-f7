@@ -12,7 +12,6 @@ private type (;pk:RSAKey.pk,pv:ProtocolVersion) rsapms = {rsapms:rsarepr}
 predicate GeneratedRSAPMS of pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms
 
 
-
 val genRSA: pk:RSAKey.pk -> pv:ProtocolVersion -> pms:(;pk,pv)rsapms{GeneratedRSAPMS(pk,pv,pms)}
 val coerceRSA: pk:RSAKey.pk -> pv:ProtocolVersion {not SafeRSAPMS(pk,pv)}-> b:bytes {Length(b)=48} -> (;pk,pv)rsapms
 val leakRSA: pk:RSAKey.pk -> pv:ProtocolVersion {not SafeRSAPMS(pk,pv)}-> (;pk,pv)rsapms -> bytes
@@ -40,7 +39,7 @@ val prfSmoothDHE:
     pms: (;p,g,gx,gy)dhpms ->
     (;si) PRF.masterSecret
 
-//MK: private type (;si:SessionInfo) pms = RSA_pms of rsapms | DHE_pms of (;si.p,si.g,si.gx,si.gy)dhpms
+private type ext_pms = Ext_RSA_pms of pk:RSAKey.pk * pv:ProtocolVersion *(;pk,pv)rsapms | Ext_DHE_pms of p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * (;p,g,gx,gy)dhpms
 type pms
-val honest: pms -> bool
+val honest: pms -> bool //MK should this be defined over TLSInfo.pmsData?
 
