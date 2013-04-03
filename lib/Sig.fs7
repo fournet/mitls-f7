@@ -5,31 +5,33 @@
 open Bytes
 open TLSConstants
 
-// TLS uses three signatures algorithms, together with hash algorithm.
-// We verify TLS security relative to those *combinations* of algorithms
-// that provide CMA-security, as specified in this interface. 
-// However, none of them are CMA-secure in the standard model under an 
-// assumption weaker than "This scheme is secure".
+(* TLS uses three signatures algorithms, together with hash algorithm.
+   We verify TLS security relative to those *combinations* of algorithms
+   that provide CMA-security, as specified in this interface. 
+   However, none of them are CMA-secure in the standard model under an 
+   assumption weaker than "This scheme is secure".
 
-// This interface is adapted from the one described in CCS'11:
-//
-//      Cedric Fournet, Markulf Kohlweiss, Pierre-Yves Strub: Modular 
-//      code-based cryptographic verification. ACM Conference on Computer 
-//      and Communications Security 2011: 341-350
-// 
-// Its implementation is trusted, not verified.
+   This interface is adapted from the one described in CCS'11:
+
+       Cedric Fournet, Markulf Kohlweiss, Pierre-Yves Strub: Modular 
+       code-based cryptographic verification. ACM Conference on Computer 
+       and Communications Security 2011: 341-350
+
+   Its implementation is trusted, not verified. *)
+
 // CF we should verify its ideal implementation!?
 
-//*********************** Cryptographic agility **************************** 
+(*********************** Cryptographic agility **************************** 
 
-// note that the same key may be used with different hashes. 
-// so we require some joint security assumption for them
+   note that the same key may be used with different hashes. 
+   so we require some joint security assumption for them
 
-// TLS 1.2 provides explicit support for it:
-// [1.2] - Substantial cleanup to the client's and server's ability to
-//         specify which hash and signature algorithms they will accept.
-//         Note that this also relaxes some of the constraints on signature
-//         and hash algorithms from previous versions of TLS.
+   TLS 1.2 provides explicit support for it:
+   [1.2] - Substantial cleanup to the client's and server's ability to
+           specify which hash and signature algorithms they will accept.
+           Note that this also relaxes some of the constraints on signature
+           and hash algorithms from previous versions of TLS.
+***************************************************************************)
 
 // TODO: there is some adhocness processing of those algs left in Handshake.fs
   
@@ -82,22 +84,6 @@ val verify:  a:alg -> pk:(;a) pkey -> t:text -> m:(;a) sigv ->
 val coerce:  a:alg -> p:(;a) pkey{not Honest(a,p)} -> CoreSig.sigskey -> s:(;a)skey{p = PK(s)}
 val leak:    a:alg -> s:(;a) skey{not Honest(a,PK(s))} -> CoreSig.sigskey
 
+private val create_pkey: a:alg -> CoreSig.sigpkey -> (;a)pkey
 
-(* MK: Commented out as it depends on core crypto and is not used by ideal functionality
-   MK: Can this be deleted?
-function val sigalg_of_skeyparams : CoreSig.sigskey -> sigAlg
-function val sigalg_of_pkeyparams : CoreSig.sigpkey -> sigAlg
-
-private definition !m, e. sigalg_of_skeyparams (CoreSig.SK_RSA (m, e)) = SA_RSA
-private definition !m, e. sigalg_of_pkeyparams (CoreSig.PK_RSA (m, e)) = SA_RSA
-private definition !x, p. sigalg_of_skeyparams (CoreSig.SK_DSA (x, p)) = SA_DSA
-private definition !y, p. sigalg_of_pkeyparams (CoreSig.PK_DSA (y, p)) = SA_DSA
-
-val create_skey: h:chash -> k:skeyparams -> sk:(;(sigalg_of_skeyparams(k), h))skey{not Honest(PK(sk))}
-val create_pkey: h:chash -> k:pkeyparams -> pk:(;(sigalg_of_pkeyparams(k), h))vkey
-// Leak-like
-val repr_of_skey: skey -> CoreSig.sigskey * hashAlg
-val repr_of_pkey: pkey -> CoreSig.sigpkey * hashAlg
-
-*)
 // TODO: adjust compromise model, connect it to Cert (mostly for the benefit of the adversary)

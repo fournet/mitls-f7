@@ -19,8 +19,8 @@ type sighash =
 | SH_SHA384
 
 type sigalg =
-| SA_RSA
-| SA_DSA
+| CORE_SA_RSA
+| CORE_SA_DSA
 
 (* ------------------------------------------------------------------------ *)
 type sigskey =
@@ -36,12 +36,12 @@ type sigv = byte[]
 
 (* ------------------------------------------------------------------------ *)
 let sigalg_of_skey = function
-    | SK_RSA _ -> SA_RSA
-    | SK_DSA _ -> SA_DSA
+    | SK_RSA _ -> CORE_SA_RSA
+    | SK_DSA _ -> CORE_SA_DSA
 
 let sigalg_of_pkey = function
-    | PK_RSA _ -> SA_RSA
-    | PK_DSA _ -> SA_DSA
+    | PK_RSA _ -> CORE_SA_RSA
+    | PK_DSA _ -> CORE_SA_DSA
 
 (* ------------------------------------------------------------------------ *)
 let bytes_to_bigint (b : byte[]) = new BigInteger(1, b)
@@ -143,5 +143,5 @@ let verify (ahash : sighash option) (pk : sigpkey) (t : text) (s : sigv) =
 (* ------------------------------------------------------------------------ *)
 let gen (a : sigalg) : sigpkey * sigskey =
     match a with
-    | SA_RSA   -> RSA_gen ()
-    | SA_DSA   -> DSA_gen ()
+    | CORE_SA_RSA   -> RSA_gen ()
+    | CORE_SA_DSA   -> DSA_gen ()

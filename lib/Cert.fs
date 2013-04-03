@@ -156,15 +156,16 @@ let for_signing (sigkeyalgs : Sig.alg list) (h : hint) (algs : Sig.alg list) =
                         |> Seq.filter (x509_check_key_sig_alg_one sigkeyalgs)
                         |> Seq.pick pick_wrt_req_alg
             in
-                match x509_to_secret_key x509 with
-                | Some skey ->
+                match x509_to_secret_key x509, x509_to_public_key x509 with
+                | Some skey, Some pkey ->
                     let chain = x509_chain x509 in
 
                     if Seq.forall (x509_check_key_sig_alg_one sigkeyalgs) chain then
-                        Some (chain |> List.map x509_export_public, alg, Sig.create_skey hasha skey)
+                        Some (chain |> List.map x509_export_public, alg, Sig.coerce alg (Sig.create_pkey alg pkey) skey)
                     else
                         None
-                | None -> None
+                | None, _ -> None
+                | _, None -> None
         with :? KeyNotFoundException -> None
     finally
         store.Close()
@@ -219,13 +220,13 @@ let is_chain_for_key_encryption (chain : chain) =
     match chain with [] -> false| c :: _ -> is_for_key_encryption c
 
 (* ------------------------------------------------------------------------ *)
-let get_public_signing_key (c : cert) ((siga, hasha) as a : Sig.alg) : Sig.pkey Result =
+let get_public_signing_key (c : cert) ((siga, _) as a : Sig.alg) : Sig.pkey Result =
     try
         let x509 = new X509Certificate2(c) in
             if x509_is_for_signing x509 then
                 match siga, x509_to_public_key x509 with
-                | SA_RSA, Some (CoreSig.PK_RSA (sm, se) as k) -> Correct (Sig.create_pkey hasha k)
-                | SA_DSA, Some (CoreSig.PK_DSA (y, p  ) as k) -> Correct (Sig.create_pkey hasha k)
+                | SA_RSA, Some (CoreSig.PK_RSA (sm, se) as k) -> Correct (Sig.create_pkey a k)
+                | SA_DSA, Some (CoreSig.PK_DSA (y, p  ) as k) -> Correct (Sig.create_pkey a k)
                 | _ -> Error(AD_unsupported_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate uses unknown signature algorithm or key")
             else
                 Error(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate is not for signing")

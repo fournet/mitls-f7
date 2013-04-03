@@ -8,8 +8,8 @@ type sighash =
 | SH_SHA384
 
 type sigalg =
-| SA_RSA
-| SA_DSA
+| CORE_SA_RSA
+| CORE_SA_DSA
 
 (* ------------------------------------------------------------------------ *)
 type sigskey =

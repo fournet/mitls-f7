@@ -2,6 +2,7 @@
 
 open Bytes
 open TLSConstants
+open CoreSig
 
 (* ------------------------------------------------------------------------ *)
 //MK: now defined in TLSConstants type alg   = sigAlg * hashAlg
@@ -11,14 +12,14 @@ type text = bytes
 type sigv = bytes 
 
 (* ------------------------------------------------------------------------ *)
-type skey = { skey : CoreSig.sigskey * hashAlg }
-type pkey = { pkey : CoreSig.sigpkey * hashAlg }
+type skey = { skey : sigskey * hashAlg }
+type pkey = { pkey : sigpkey * hashAlg }
 
-let create_skey (h : hashAlg) (p : CoreSig.sigskey) = { skey = (p, h) }
-let create_pkey (h : hashAlg) (p : CoreSig.sigpkey) = { pkey = (p, h) }
+// MK let create_skey (h : hashAlg) (p : CoreSig.sigskey) = { skey = (p, h) }
 
-let repr_of_skey { skey = skey } = skey
-let repr_of_pkey { pkey = pkey } = pkey
+
+// MK let repr_of_skey { skey = skey } = skey
+// MK let repr_of_pkey { pkey = pkey } = pkey
 
 let sigalg_of_skeyparams = function
     | CoreSig.SK_RSA _ -> SA_RSA
@@ -40,18 +41,20 @@ type entry = alg * pkey * text
 let honest_log = ref ([]: (alg * skey * pkey) list)
 let log        = ref ([]: entry list)
 
-// MK this assoc is unused and doesn't make any sense.
+(* MK assoc and pk_of_log are unused and assoc doesn't make any sense.
 let rec assoc hll pk =
     match hll with
       | (pk',sk')::_ when pk=pk' -> Some () // MK !!
       | _::hll                   -> assoc hll pk
       | []                       -> None
 
+
 let rec pk_of_log sk hll =
     match hll with
         (pk',sk')::hll_tail when sk=sk' -> Some (pk')
       | _::hll_tail -> pk_of_log sk hll_tail
       | [] -> None
+*)
 
 let pk_of (sk:skey) =  
     let _,_,pk = (find (fun (_,sk',_) -> sk=sk') !honest_log )  
@@ -67,13 +70,21 @@ let sign (a: alg) (sk: skey) (t: text): sigv =
     let { skey = (kparams, khash) } = sk in
 
     if ahash <> khash then
+        #if verify
+        Error.unexpectedError("Sig.sign")
+        #else
         Error.unexpectedError
             (sprintf "Sig.sign: requested sig-hash = %A, but key requires %A"
                 ahash khash)
+        #endif
     if asig <> sigalg_of_skeyparams kparams then
+        #if verify
+        Error.unexpectedError("Sig.sign")
+        #else
         Error.unexpectedError
             (sprintf "Sig.sign: requested sig-algo = %A, but key requires %A"
                 asig (sigalg_of_skeyparams kparams))
+        #endif
 
     let signature =
         match khash with
@@ -96,13 +107,21 @@ let verify (a : alg) (pk : pkey) (t : text) (s : sigv) =
     let { pkey = (kparams, khash) } = pk in
 
     if ahash <> khash then
+        #if verify
+        Error.unexpectedError("Sig.verify")
+        #else
         Error.unexpectedError
             (sprintf "Sig.verify: requested sig-hash = %A, but key requires %A"
                 ahash khash)
+        #endif
     if asig <> sigalg_of_pkeyparams kparams then
+        #if verify
+        Error.unexpectedError("Sig.verify")
+        #else
         Error.unexpectedError
             (sprintf "Sig.verify: requested sig-algo = %A, but key requires %A"
                 asig (sigalg_of_pkeyparams kparams))
+        #endif
 
     let result =
         match khash with
@@ -126,8 +145,8 @@ let gen (a:alg) : pkey * skey =
     let asig, ahash  = a in
     let (pkey, skey) =
         match asig with
-        | SA_RSA -> CoreSig.gen CoreSig.SA_RSA
-        | SA_DSA -> CoreSig.gen CoreSig.SA_DSA
+        | SA_RSA -> CoreSig.gen CoreSig.CORE_SA_RSA
+        | SA_DSA -> CoreSig.gen CoreSig.CORE_SA_DSA
         | _      -> Error.unexpectedError "[gen] invoked on unsupported algorithm"
     let p,s =  ({ pkey = (pkey, ahash) }, { skey = (skey, ahash) })
     #if ideal
@@ -136,9 +155,15 @@ let gen (a:alg) : pkey * skey =
     (p,s)
 
 let leak (a:alg) (s:skey) : CoreSig.sigskey = 
-    let (sk, ahash) = repr_of_skey s
+    let (sk, ahash) = s.skey
     sk
+
+let create_pkey (a : alg) (p : CoreSig.sigpkey):pkey = 
+    let (_,ahash)=a in
+    { pkey = (p, ahash) }
 
 let coerce (a:alg)  (p:pkey)  (csk:CoreSig.sigskey) : skey =
     let (_,ahash)=a in
-    create_skey ahash csk
+    { skey = (csk, ahash) }
+    //MK create_skey ahash csk
+
