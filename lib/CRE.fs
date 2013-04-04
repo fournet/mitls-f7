@@ -95,7 +95,7 @@ let prfSmoothRSA si (pv:ProtocolVersion) pms =
         let pk = 
             match (Cert.get_chain_public_encryption_key si.serverID) with 
             | Correct(pk) -> pk
-            | _ -> unreachable "server must have an ID"    
+            | _           -> unexpectedError "server must have an ID"    
         (* CF we assoc on pk and pv, implicitly relying on the absence of collisions between ideal RSAPMSs.*)
         match rsaassoc (pk,pv,pms,csrands si) !rsalog with 
         | Some(ms) -> ms
