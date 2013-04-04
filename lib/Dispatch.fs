@@ -725,26 +725,26 @@ let write (Conn(id,s)) msg =
 
 let authorize (Conn(id,c)) q =
     let hsRes = Handshake.authorize id c.handshake q in
-    let (outcome,c) = handleHandshakeOutcome (Conn(id,c)) hsRes in
+    let (outcome,(Conn(id,c))) = handleHandshakeOutcome (Conn(id,c)) hsRes in
     // The following code is borrowed from read.
     // It should be factored out, but this would create a double-recursive function, which we try to avoid.
     match outcome with
     | RAgain ->
-        read c 
+        let res = read (Conn(id,c)) in
+        res
     | RAppDataDone ->    
         unexpectedError "[authorize] App data should never be received"
     | RQuery(q,adv) ->
         unexpectedError "[authorize] A query should never be received"
     | RHSDone ->
-        c,RHSDone,None
+        (Conn(id,c)),RHSDone,None
     | RClose ->
-        let (Conn(id,conn)) = c in
-        match conn.write.disp with
+        match c.write.disp with
         | Closed ->
             // we already sent a close_notify, tell the user it's over
-            c,RClose, None
+            (Conn(id,c)),RClose, None
         | _ ->
-            let (outcome,c) = writeAll c in
+            let (outcome,c) = writeAll (Conn(id,c)) in
             match outcome with
             | SentClose ->
                 // clean shoutdown
@@ -756,11 +756,11 @@ let authorize (Conn(id,c)) q =
             | _ ->
                 c,RError(perror __SOURCE_FILE__ __LINE__ ""),None // internal error
     | RFatal(ad) ->
-        c,RFatal(ad),None
+        (Conn(id,c)),RFatal(ad),None
     | RWarning(ad) ->
-        c,RWarning(ad),None
-    | WriteOutcome(wo) -> c,WriteOutcome(wo),None
-    | RError(err) -> c,RError(err),None
+        (Conn(id,c)),RWarning(ad),None
+    | WriteOutcome(wo) -> (Conn(id,c)),WriteOutcome(wo),None
+    | RError(err) -> (Conn(id,c)),RError(err),None
 
 let refuse conn (q:query) =
     let reason = perror __SOURCE_FILE__ __LINE__ "Remote certificate could not be verified locally" in
