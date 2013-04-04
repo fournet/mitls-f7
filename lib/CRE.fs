@@ -5,16 +5,21 @@ open TLSConstants
 open TLSInfo
 open TLSPRF
 
+// internal
+let prfMS sinfo pmsBytes: PRF.masterSecret =
+    let pv = sinfo.protocol_version in
+    let cs = sinfo.cipher_suite in
+    let data = csrands sinfo in
+    let res = prf pv cs pmsBytes tls_master_secret data 48 in
+    PRF.coerce sinfo res
+
 type rsarepr = bytes
-type rsapms = {rsapms: rsarepr}
+type rsaseed = {seed: rsarepr}
 type dhpms = {dhpms: DHGroup.elt}
 
 #if ideal
-type pms = RSA_pms of rsapms | DHE_pms of dhpms
-type ext_pms = Ext_RSA_pms of RSAKey.pk * ProtocolVersion * rsapms | Ext_DHE_pms of DHGroup.p * DHGroup.g * DHGroup.elt * DHGroup.elt * dhpms
-
-
-type pred = GeneratedRSAPMS of RSAKey.pk * ProtocolVersion * rsapms
+type pms = RSA_pms of rsaseed | DHE_pms of dhpms
+#endif
 
 // We maintain two logs:
 // - a log of honest pms values
@@ -23,57 +28,53 @@ type pred = GeneratedRSAPMS of RSAKey.pk * ProtocolVersion * rsapms
 
    To ideally avoid collisions concerns between Honest and Coerced pms, 
    we could discard this log, and use instead a sum type of rsapms, e.g.
-   type (;pk:RSAKey.pk, pv:ProtocolVersion) rsapms = 
+   type  rsapms = 
    | IdealRSAPMS    of abstract_seed 
    | ConcreteRSAPMS of rsarepr
 
 MK the first log is used in two idealization steps
 *) 
-let honest_log = ref []
-let honest pms = exists (fun el -> el=pms) !honest_log
+
+type rsapms = 
+#if ideal 
+  | IdealRSAPMS of rsaseed 
+#endif
+  | ConcreteRSAPMS of rsarepr
+
+#if ideal
+let honestRSAPMS pk pv pms = 
+  match pms with 
+  | IdealRSAPMS(s)    -> true
+  | ConcreteRSAPMS(s) -> false 
 
 // - a log for looking up good ms values using their pms values
 
 //MK causes problems so rewritten in terms of honest
 //MK let corrupt pms = not(honest pms)
 
-let log = ref []
+let rsalog = ref []
 #endif
 
 let genRSA (pk:RSAKey.pk) (vc:TLSConstants.ProtocolVersion) : rsapms = 
     let verBytes = TLSConstants.versionBytes vc in
     let rnd = random 46 in
     let pms = verBytes @| rnd in
-    let pms = {rsapms = pms}
     #if ideal
-    if RSAKey.honest pk then honest_log := RSA_pms(pms)::!honest_log
-    // event keeping track of honestly-generated PMSs
-    Pi.assume (GeneratedRSAPMS(pk,vc,pms));
+      if RSAKey.honest pk then 
+        IdealRSAPMS({seed=pms}) 
+      else 
     #endif
-    pms
+        ConcreteRSAPMS(pms)  
 
-let coerceRSA (pk:RSAKey.pk) (pv:ProtocolVersion) b = {rsapms = b}
-let leakRSA (pk:RSAKey.pk) (pv:ProtocolVersion) pms = pms.rsapms
+let coerceRSA (pk:RSAKey.pk) (pv:ProtocolVersion) b = ConcreteRSAPMS(b)
+let leakRSA (pk:RSAKey.pk) (pv:ProtocolVersion) pms = 
+  match pms with 
+  #if ideal
+  | IdealRSAPMS(_) -> Error.unreachable "pms is dishonest" 
+  #endif
+  | ConcreteRSAPMS(b) -> b 
 
 
-
-let sampleDH p g (gx:DHGroup.elt) (gy:DHGroup.elt) = 
-    let gz = DHGroup.genElement p g in
-    let pms = {dhpms = gz}
-    #if ideal
-    honest_log := DHE_pms(pms)::!honest_log
-    #endif
-    pms
-
-let coerceDH (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) b = {dhpms = b} 
-
-// internal
-let prfMS sinfo pmsBytes: PRF.masterSecret =
-    let pv = sinfo.protocol_version in
-    let cs = sinfo.cipher_suite in
-    let data = csrands sinfo in
-    let res = prf pv cs pmsBytes tls_master_secret data 48 in
-    PRF.coerce sinfo res
 
 (* MK assumption notes
 
@@ -88,19 +89,42 @@ PRF.sample si ~_C prfMS si sampleDH p g //relate si and p g
 
 *)
 
+#if ideal
+let assoc i ms = failwith "todo" 
+#endif
+
 let prfSmoothRSA si (pv:ProtocolVersion) pms = 
-    #if ideal
-    if honest (RSA_pms(pms))
-    then match tryFind (fun (el1,el2,_) -> el1 = csrands si && el2 = RSA_pms(pms) ) !log with
-             Some(_,_,ms) -> ms
-           | None -> 
+  match pms with
+  #if ideal 
+  | IdealRSAPMS(s) ->
+        let pk = Cert.get_chain_public_encryption_key si.serverID
+        (* CF we assoc on pk and pv, implicitly relying on the absence of collisions between ideal RSAPMSs.*)
+        match assoc (pk,pv,pms,csrands si) !rsalog with 
+        | Some(ms) -> ms
+        | None -> 
                  let ms=PRF.sample si 
-                 log := (csrands si, RSA_pms(pms),ms)::!log
+                 rsalog := ((pk,pv,pms,csrands si),ms)::!rsalog
                  ms 
-    else prfMS si pms.rsapms
-    #else
-    prfMS si pms.rsapms
+  #endif  
+  | ConcreteRSAPMS(s) -> prfMS si s
+
+
+
+  
+
+#if ideal
+let honest_log = ref []
+#endif
+
+let sampleDH p g (gx:DHGroup.elt) (gy:DHGroup.elt) = 
+    let gz = DHGroup.genElement p g in
+    let pms = {dhpms = gz}
+    #if ideal
+    honest_log := DHE_pms(pms)::!honest_log
     #endif
+    pms
+
+let coerceDH (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) b = {dhpms = b} 
 
 let prfSmoothDHE si (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) (pms:dhpms) =
     //#begin-ideal 

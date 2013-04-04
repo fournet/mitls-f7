@@ -7,13 +7,27 @@ open Bytes
 open TLSInfo
 
 (* ------------------------------------------------------------------------------- *)
-type SessionDB = {
-    filename: string;
-      expiry: Bytes.TimeSpan;
-}
-
 type SessionIndex = sessionID * Role * Cert.hint
 type StorableSession = SessionInfo * PRF.masterSecret
+
+#if ideal
+type SessionDB = StorableSession list ref 
+
+let create config : SessionDB= ref [] 
+let select db (sid,r,h) = 
+  // find entry matching sid r h 
+let insert db (sid,r,h) (si,ms) =  
+  db := (si,ms)::!db 
+
+let remove db (sid,r,h) = 
+let getAllStoredIDs db = 
+  List.map (fun ...) !db
+
+#else 
+type SessionDB = {
+    filename: string;
+    expiry: Bytes.TimeSpan;
+}
 
 (* ------------------------------------------------------------------------------- *)
 module Option =
@@ -94,9 +108,8 @@ let select self key =
         DB.closedb db
 
 (* ------------------------------------------------------------------------------- *)
-let insert self key value =
-    let key = bytes_of_key key in
-
+let insert self k value =
+    let key = bytes_of_key k in
     let insert (db : DB.db) =
         match DB.get db key with
         | Some _ -> ()
@@ -121,3 +134,5 @@ let getAllStoredIDs self =
             DB.closedb db
     in
         List.map key_of_bytes aout
+
+#endif

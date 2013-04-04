@@ -7,15 +7,37 @@ open DHGroup
 
 type rsarepr = (;48)lbytes
 
-//#begin-abstractionRSA
-private type (;pk:RSAKey.pk,pv:ProtocolVersion) rsapms = {rsapms:rsarepr}
-predicate GeneratedRSAPMS of pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms
+private val prfMS: si:SessionInfo -> p:bytes -> (;si) PRF.masterSecret
 
+type pms
+val honest: pms -> bool //MK should this be defined over TLSInfo.pmsData?
+
+
+//#begin-abstractionRSA
+
+private type rsaseed = {rsapms:rsarepr} // treated abstractly almost everywhere in this file
+type (;pk:RSAKey.pk, pv:ProtocolVersion) rsapms = 
+   | IdealRSAPMS    of rsaseed 
+   | ConcreteRSAPMS of rsarepr
+
+predicate HonestRSAPMS of pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms
+
+private definition !pk,pv,pms. HonestRSAPMS(pk,pv,pms) <=> ?s. pms = IdealRSAPMS(s)
+
+val honestRSAPMS: pk:RSAKey.pk -> pv:ProtocolVersion -> pms: (;pk,pv) rsapms -> b:bool { b=true <=> HonestRSAPMS(pk,pv,pms) } 
 
 val genRSA: pk:RSAKey.pk -> pv:ProtocolVersion -> pms:(;pk,pv)rsapms{GeneratedRSAPMS(pk,pv,pms)}
+
 val coerceRSA: pk:RSAKey.pk -> pv:ProtocolVersion {not SafeRSAPMS(pk,pv)}-> b:bytes {Length(b)=48} -> (;pk,pv)rsapms
 val leakRSA: pk:RSAKey.pk -> pv:ProtocolVersion {not SafeRSAPMS(pk,pv)}-> (;pk,pv)rsapms -> bytes
 //#end-abstractionRSA
+
+val prfSmoothRSA:
+    si:SessionInfo ->
+	pv:ProtocolVersion ->
+    pms: (;Cert.RSAPKCert(si.serverID),pv) rsapms ->
+    (;si) PRF.masterSecret
+
 
 //#begin-abstractionDH
 private type (;p:p, g:(;p) g, gx:(;p) elt, gy:(;p) elt) dhpms = {dhpms: (;p) elt} // strong secret when (p,g), gx, and gy have been honestly generated
@@ -24,14 +46,6 @@ val sampleDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt ->            (;p,g,g
 val coerceDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt {not SafeDHPMS(p,g,gx,gy)}-> (;p)elt -> (;p,g,gx,gy) dhpms
 //#end-abstractionDH
 
-private val prfMS: si:SessionInfo -> p:bytes -> (;si) PRF.masterSecret
-
-val prfSmoothRSA:
-    si:SessionInfo ->
-    pv:ProtocolVersion ->
-    pms: (;Cert.RSAPKCert(si.serverID),pv) rsapms ->
-    (;si) PRF.masterSecret
-
 // AP: Don't we really want *any* link between si and (g,p,gx,gy)?
 val prfSmoothDHE:
     si:SessionInfo ->
@@ -39,7 +53,4 @@ val prfSmoothDHE:
     pms: (;p,g,gx,gy)dhpms ->
     (;si) PRF.masterSecret
 
-private type ext_pms = Ext_RSA_pms of pk:RSAKey.pk * pv:ProtocolVersion *(;pk,pv)rsapms | Ext_DHE_pms of p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * (;p,g,gx,gy)dhpms
-type pms
-val honest: pms -> bool //MK should this be defined over TLSInfo.pmsData?
 
