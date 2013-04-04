@@ -1,15 +1,17 @@
 ﻿module SessionDB
 
-(* Database storing live sessions towards resumption. Trusted. *)
+(* Database storing live sessions towards resumption. 
+   Mostly trusted: we typecheck a much simplified in-memory database *)
 
 open TLSInfo
 
+predicate Authorize of Role * SessionInfo
+
+type SessionIndex = sessionID * Role * Cert.hint
 type StorableSession = si:SessionInfo * (;si) PRF.masterSecret
 
-type SessionDB
-type SessionIndex = sessionID * Role * Cert.hint
-
-predicate Authorize of Role * SessionInfo
+private type SessionDB = 
+  (r:Role * si:SessionInfo * (;si) PRF.masterSecret {Authorize(r,si)) list ref
 
 val create: config -> SessionDB
 val select: SessionDB -> x:SessionIndex -> res:(StorableSession option){
@@ -18,4 +20,6 @@ val insert: SessionDB -> x:SessionIndex -> res:StorableSession{
   !sid,r,h,si,ms. x = (sid,r,h) /\ res = (si,ms) => Authorize(r,si)}
  -> SessionDB
 val remove: SessionDB -> SessionIndex -> SessionDB
-val getAllStoredIDs: SessionDB -> SessionIndex list
+
+// unused: 
+// val getAllStoredIDs: SessionDB -> SessionIndex list

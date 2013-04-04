@@ -16,13 +16,23 @@ type ext_pms = Ext_RSA_pms of RSAKey.pk * ProtocolVersion * rsapms | Ext_DHE_pms
 
 type pred = GeneratedRSAPMS of RSAKey.pk * ProtocolVersion * rsapms
 
-// We maintain two log:
+// We maintain two logs:
 // - a log of honest pms values
-// - a log for looking up good ms values using their pms values values
-// MK the first log is used in two idealization steps
+(* CF
+   We need a predicate 'HonestRSAPMS', and its ideal boolean function `honest' 
 
+   To ideally avoid collisions concerns between Honest and Coerced pms, 
+   we could discard this log, and use instead a sum type of rsapms, e.g.
+   type (;pk:RSAKey.pk, pv:ProtocolVersion) rsapms = 
+   | IdealRSAPMS    of abstract_seed 
+   | ConcreteRSAPMS of rsarepr
+
+MK the first log is used in two idealization steps
+*) 
 let honest_log = ref []
 let honest pms = exists (fun el -> el=pms) !honest_log
+
+// - a log for looking up good ms values using their pms values
 
 //MK causes problems so rewritten in terms of honest
 //MK let corrupt pms = not(honest pms)
