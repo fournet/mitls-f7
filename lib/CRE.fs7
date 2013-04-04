@@ -30,7 +30,7 @@ val leakRSA: pk:RSAKey.pk -> pv:ProtocolVersion -> pms:(;pk,pv)rsapms {not CREHo
 
 // MK val rsaassoc pk:RSAKey.pk * pv:ProtocolVersion * pms:(;pk,pv)rsapms -> ((pk:RSAKey.pk * pv:ProtocolVersion * pms:(;pk,pv)rsapms) * PRF.masterSecret) list -> PRF.masterSecret
 
-val rsaassoc: 'a -> ('a * 'b) list -> 'b option
+val rsaassoc: (pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms * bytes) -> ((pk':RSAKey.pk * pv':ProtocolVersion * (;pk',pv')rsapms * bytes) * 'b) list -> 'b option
 
 val prfSmoothRSA:
     si:SessionInfo ->
@@ -58,7 +58,7 @@ val sampleDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt ->  (;p,g,gx,gy) dhpm
 val coerceDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt {not SafeDHPMS(p,g,gx,gy)}-> (;p)elt -> (;p,g,gx,gy) dhpms
 //#end-abstractionDH
 
-val dhassoc: 'a -> ('a * 'b) list -> 'b option
+val dhassoc: p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * (;p,g,gx,gy) dhpms * bytes -> ((p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * (;p,g,gx,gy) dhpms * bytes) * 'b) list -> 'b option
 
 // AP: Don't we really want *any* link between si and (g,p,gx,gy)?
 val prfSmoothDHE:

@@ -5,6 +5,7 @@ open TLSConstants
 open TLSInfo
 open TLSPRF
 open Error
+open DHGroup
 
 // internal
 let prfMS sinfo pmsBytes: PRF.masterSecret =
@@ -81,7 +82,7 @@ PRF.sample si ~_C prfMS si sampleDH p g //relate si and p g
 *)
 
 #if ideal
-let rec rsaassoc i mss = 
+let rec rsaassoc (i:(RSAKey.pk * ProtocolVersion * rsapms * bytes)) mss = 
     match mss with 
     | (i',ms)::mss' when i=i' -> Some(ms) 
     | _::mss' -> rsaassoc i mss'
@@ -158,10 +159,10 @@ let sampleDH p g (gx:DHGroup.elt) (gy:DHGroup.elt) =
 let coerceDH (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) b = ConcreteDHPMS(b) 
 
 #if ideal
-let rec dhassoc i mss = 
+let rec dhassoc (i:(p * g * elt * elt * dhpms * bytes)) mss = 
     match mss with 
     | (i',ms)::mss' when i=i' -> Some(ms) 
-    | _::mss' -> rsaassoc i mss'
+    | _::mss' -> dhassoc i mss'
     | [] -> None 
 #endif
 
