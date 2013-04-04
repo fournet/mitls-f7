@@ -232,8 +232,8 @@
     <Compile Include="PRF.fs" />
     <None Include="CRE.fs7" />
     <Compile Include="CRE.fsi" />
-    <None Include="DH.fs7" />
     <Compile Include="CRE.fs" />
+    <None Include="DH.fs7" />
     <Compile Include="DH.fsi" />
     <Compile Include="DH.fs" />
     <None Include="RSA.fs7" />

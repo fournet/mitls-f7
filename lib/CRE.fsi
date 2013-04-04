@@ -9,11 +9,7 @@ type rsarepr = bytes
 type rsapms
 type dhpms
 
-#if ideal
-// MK use TLSInfo.pmsData instead?
-type pms = RSA_pms of rsapms | DHE_pms of dhpms
-val honest: pms -> bool
-#endif
+//val honestRSAPMS: RSAKey.pk -> TLSConstants.ProtocolVersion -> rsapms -> bool
 
 val genRSA: RSAKey.pk -> TLSConstants.ProtocolVersion -> rsapms
 

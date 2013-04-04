@@ -4,6 +4,7 @@ open Bytes
 open TLSConstants
 open TLSInfo
 open TLSPRF
+open Error
 
 // internal
 let prfMS sinfo pmsBytes: PRF.masterSecret =
@@ -15,14 +16,7 @@ let prfMS sinfo pmsBytes: PRF.masterSecret =
 
 type rsarepr = bytes
 type rsaseed = {seed: rsarepr}
-type dhpms = {dhpms: DHGroup.elt}
 
-#if ideal
-type pms = RSA_pms of rsaseed | DHE_pms of dhpms
-#endif
-
-// We maintain two logs:
-// - a log of honest pms values
 (* CF
    We need a predicate 'HonestRSAPMS', and its ideal boolean function `honest' 
 
@@ -32,7 +26,7 @@ type pms = RSA_pms of rsaseed | DHE_pms of dhpms
    | IdealRSAPMS    of abstract_seed 
    | ConcreteRSAPMS of rsarepr
 
-MK the first log is used in two idealization steps
+MK honestRSAPMS is used in two idealization steps
 *) 
 
 type rsapms = 
@@ -42,17 +36,14 @@ type rsapms =
   | ConcreteRSAPMS of rsarepr
 
 #if ideal
-let honestRSAPMS pk pv pms = 
+let honestRSAPMS (pk:RSAKey.pk) (pv:TLSConstants.ProtocolVersion) pms = 
   match pms with 
   | IdealRSAPMS(s)    -> true
   | ConcreteRSAPMS(s) -> false 
 
-// - a log for looking up good ms values using their pms values
-
-//MK causes problems so rewritten in terms of honest
-//MK let corrupt pms = not(honest pms)
-
+// We maintain a log for looking up good ms values using their pms values
 let rsalog = ref []
+
 #endif
 
 let genRSA (pk:RSAKey.pk) (vc:TLSConstants.ProtocolVersion) : rsapms = 
@@ -90,16 +81,23 @@ PRF.sample si ~_C prfMS si sampleDH p g //relate si and p g
 *)
 
 #if ideal
-let assoc i ms = failwith "todo" 
+let rec rsaassoc i mss = 
+    match mss with 
+    | (i',ms)::mss' when i=i' -> Some(ms) 
+    | _::mss' -> rsaassoc i mss'
+    | [] -> None 
 #endif
 
 let prfSmoothRSA si (pv:ProtocolVersion) pms = 
   match pms with
   #if ideal 
   | IdealRSAPMS(s) ->
-        let pk = Cert.get_chain_public_encryption_key si.serverID
+        let pk = 
+            match (Cert.get_chain_public_encryption_key si.serverID) with 
+            | Correct(pk) -> pk
+            | _ -> unreachable "server must have an ID"    
         (* CF we assoc on pk and pv, implicitly relying on the absence of collisions between ideal RSAPMSs.*)
-        match assoc (pk,pv,pms,csrands si) !rsalog with 
+        match rsaassoc (pk,pv,pms,csrands si) !rsalog with 
         | Some(ms) -> ms
         | None -> 
                  let ms=PRF.sample si 
@@ -110,36 +108,77 @@ let prfSmoothRSA si (pv:ProtocolVersion) pms =
 
 
 
-  
+type dhrepr = bytes
+type dhseed = {seed: dhrepr}
+
+(* CF
+   We need a predicate 'HonestDHPMS', and its ideal boolean function `honestDHPMS' 
+
+   To ideally avoid collisions concerns between Honest and Coerced pms, 
+   we could discard this log, and use instead a sum type of rsapms, e.g.
+   type  rsapms = 
+   | IdealDHPMS    of dhseed 
+   | ConcreteDHPMS of dhrepr
+
+MK honestDHPMS is used in two idealization steps
+*) 
+
+type dhpms = 
+#if ideal 
+  | IdealDHPMS of dhseed 
+#endif
+  | ConcreteDHPMS of dhrepr
+
+#if ideal
+let honestDHPMS (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) pms = 
+  match pms with 
+  | IdealDHPMS(s)    -> true
+  | ConcreteDHPMS(s) -> false 
+
+// We maintain a log for looking up good ms values using their pms values
+let dhlog = ref []
+
+#endif
+
+//type dhpms = {dhpms: DHGroup.elt}  
 
 #if ideal
 let honest_log = ref []
+let log = ref []
 #endif
 
 let sampleDH p g (gx:DHGroup.elt) (gy:DHGroup.elt) = 
     let gz = DHGroup.genElement p g in
-    let pms = {dhpms = gz}
     #if ideal
-    honest_log := DHE_pms(pms)::!honest_log
+    IdealDHPMS({seed=gz}) 
+    #else
+    ConcreteDHPMS(gz)  
     #endif
-    pms
 
-let coerceDH (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) b = {dhpms = b} 
+let coerceDH (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) b = ConcreteDHPMS(b) 
+
+#if ideal
+let rec dhassoc i mss = 
+    match mss with 
+    | (i',ms)::mss' when i=i' -> Some(ms) 
+    | _::mss' -> rsaassoc i mss'
+    | [] -> None 
+#endif
 
 let prfSmoothDHE si (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) (pms:dhpms) =
+    match pms with
     //#begin-ideal 
     #if ideal
-    if honest(DHE_pms(pms))
-    then match tryFind (fun (el1,el2,_) -> el1 = csrands si && el2 = DHE_pms(pms)) !log  with
-             Some(_,_,ms) -> ms
+    | IdealDHPMS(s) -> 
+        match dhassoc (p, g, gx, gy, pms, csrands si) !dhlog with
+           | Some(ms) -> ms
            | None -> 
                  let ms=PRF.sample si 
-                 log := (csrands si, DHE_pms(pms),ms)::!log;
+                 dhlog := ((p, g, gx, gy, pms, csrands si), ms)::!log;
                  ms 
-    else prfMS si pms.dhpms
-    //#end-ideal
-    #else
-    prfMS si pms.dhpms
     #endif
+    //#end-ideal
+    | ConcreteDHPMS(s) -> prfMS si s
+   
 
 

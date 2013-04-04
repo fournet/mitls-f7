@@ -9,28 +9,28 @@ type rsarepr = (;48)lbytes
 
 private val prfMS: si:SessionInfo -> p:bytes -> (;si) PRF.masterSecret
 
-type pms
-val honest: pms -> bool //MK should this be defined over TLSInfo.pmsData?
-
-
 //#begin-abstractionRSA
 
-private type rsaseed = {rsapms:rsarepr} // treated abstractly almost everywhere in this file
+private type rsaseed = {seed:rsarepr} // treated abstractly almost everywhere in this file
 type (;pk:RSAKey.pk, pv:ProtocolVersion) rsapms = 
    | IdealRSAPMS    of rsaseed 
    | ConcreteRSAPMS of rsarepr
 
-predicate HonestRSAPMS of pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms
+predicate CREHonestRSAPMS of pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms
 
-private definition !pk,pv,pms. HonestRSAPMS(pk,pv,pms) <=> ?s. pms = IdealRSAPMS(s)
+private definition !pk,pv,pms. CREHonestRSAPMS(pk,pv,pms) <=> ?s. pms = IdealRSAPMS(s)
 
-val honestRSAPMS: pk:RSAKey.pk -> pv:ProtocolVersion -> pms: (;pk,pv) rsapms -> b:bool { b=true <=> HonestRSAPMS(pk,pv,pms) } 
+val honestRSAPMS: pk:RSAKey.pk -> pv:ProtocolVersion -> pms: (;pk,pv) rsapms -> b:bool { b=true <=> CREHonestRSAPMS(pk,pv,pms) } 
 
-val genRSA: pk:RSAKey.pk -> pv:ProtocolVersion -> pms:(;pk,pv)rsapms{GeneratedRSAPMS(pk,pv,pms)}
+val genRSA: pk:RSAKey.pk -> pv:ProtocolVersion -> pms:(;pk,pv)rsapms
+val coerceRSA: pk:RSAKey.pk -> pv:ProtocolVersion (* MK suspicious {not SafeRSAPMS(pk,pv)} *)-> b:bytes {Length(b)=48} -> (;pk,pv)rsapms
+val leakRSA: pk:RSAKey.pk -> pv:ProtocolVersion -> pms:(;pk,pv)rsapms {not CREHonestRSAPMS(pk,pv,pms)}-> bytes
 
-val coerceRSA: pk:RSAKey.pk -> pv:ProtocolVersion {not SafeRSAPMS(pk,pv)}-> b:bytes {Length(b)=48} -> (;pk,pv)rsapms
-val leakRSA: pk:RSAKey.pk -> pv:ProtocolVersion {not SafeRSAPMS(pk,pv)}-> (;pk,pv)rsapms -> bytes
 //#end-abstractionRSA
+
+// MK val rsaassoc pk:RSAKey.pk * pv:ProtocolVersion * pms:(;pk,pv)rsapms -> ((pk:RSAKey.pk * pv:ProtocolVersion * pms:(;pk,pv)rsapms) * PRF.masterSecret) list -> PRF.masterSecret
+
+val rsaassoc: 'a -> ('a * 'b) list -> 'b option
 
 val prfSmoothRSA:
     si:SessionInfo ->
@@ -40,11 +40,25 @@ val prfSmoothRSA:
 
 
 //#begin-abstractionDH
-private type (;p:p, g:(;p) g, gx:(;p) elt, gy:(;p) elt) dhpms = {dhpms: (;p) elt} // strong secret when (p,g), gx, and gy have been honestly generated
 
-val sampleDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt ->            (;p,g,gx,gy) dhpms
+type dhrepr = bytes
+
+private type dhseed = {seed:dhrepr} // treated abstractly almost everywhere in this file
+private type (;p:p, g:(;p) g, gx:(;p) elt, gy:(;p) elt) dhpms =   
+   | IdealDHPMS    of dhseed 
+   | ConcreteDHPMS of dhrepr
+
+predicate CREHonestDHPMS of p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * (;p,g,gx,gy) dhpms
+
+private definition !p,g,gx,gy,pms. CREHonestDHPMS(p,g,gx,gy,pms) <=> ?s. pms = IdealDHPMS(s)
+
+val honestDHPMS: p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt -> pms: (;p,g,gx,gy) dhpms -> b:bool { b=true <=> CREHonestDHPMS(p,g,gx,gy,pms) } 
+
+val sampleDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt ->  (;p,g,gx,gy) dhpms
 val coerceDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt {not SafeDHPMS(p,g,gx,gy)}-> (;p)elt -> (;p,g,gx,gy) dhpms
 //#end-abstractionDH
+
+val dhassoc: 'a -> ('a * 'b) list -> 'b option
 
 // AP: Don't we really want *any* link between si and (g,p,gx,gy)?
 val prfSmoothDHE:
