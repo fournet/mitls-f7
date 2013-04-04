@@ -178,12 +178,13 @@ let getReason dstate =
     | _ -> ""
 
 let send ns e write pv rg ct frag =
-    let res = Record.recordPacketOut e write.conn pv rg ct frag in
+    let w_conn = write.conn in
+    let res = Record.recordPacketOut e w_conn pv rg ct frag in
     let (conn,data) = res in
     let dState = {write with conn = conn} in
     match Tcp.write ns data with
     | Error(x,y) -> Error(x,y)
-    | Correct(_) -> Correct(dState)
+    | Correct(_) -> correct(dState)
 
 (* which fragment should we send next? *)
 (* we must send this fragment before restoring the connection invariant *)
