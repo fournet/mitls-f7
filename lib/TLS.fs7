@@ -7,6 +7,9 @@ open DataStream (* application-specific module *)
 open AppData
 open Dispatch
 
+// An invariant ensuring our library never buffers user data
+type Connection = c:Dispatch.Connection{CnBuf_o(c) = None}
+
 type (;c:Connection) ioresult_i =
 | ReadError of alertDescription option * string
   // We encountered an error while reading, so the connection dies. 

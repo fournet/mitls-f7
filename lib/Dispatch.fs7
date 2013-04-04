@@ -338,6 +338,7 @@ val resume: Tcp.NetworkStream -> sessionID -> c:config -> (;Client,c)nullCn
 val rehandshake: c:Connection -> conf:config ->
 	(b:bool * c':Connection) {
 		   Extend(c,c')
+		/\ CnBuf_o(c') = CnBuf_o(c)
 		/\ CnInfo(c') = CnInfo(c)
 		/\ (   (b = false /\ Config(c') = Config(c))
 			\/ (b = true  /\ Config(c') = conf    ))
@@ -345,6 +346,7 @@ val rehandshake: c:Connection -> conf:config ->
 val rekey:       c:Connection -> conf:config ->
 	(b:bool * c':Connection) {
 		   Extend(c,c')
+		/\ CnBuf_o(c') = CnBuf_o(c)
 		/\ CnInfo(c') = CnInfo(c)
 		/\ (   (b = false /\ Config(c') = Config(c))
 			\/ (b = true  /\ Config(c') = conf    ))
@@ -352,6 +354,7 @@ val rekey:       c:Connection -> conf:config ->
 val request:     c:Connection -> conf:config ->
 	(b:bool * c':Connection) {
 		   Extend(c,c')
+		/\ CnBuf_o(c') = CnBuf_o(c)
 		/\ CnInfo(c') = CnInfo(c)
 		/\ (   (b = false /\ Config(c') = Config(c))
 			\/ (b = true  /\ Config(c') = conf    ))
@@ -361,9 +364,10 @@ val full_shutdown:    c:Connection ->
 	c':Connection{ Config(c') = Config(c) /\ Role(c') = Role(c) /\
 	    Rnd(c') = Rnd(c) /\
 		ConnectionEpochIn(c') = ConnectionEpochIn(c) /\ Extend(c,c')
+		/\ CnBuf_o(c') = CnBuf_o(c)
 		// Note: we cannot write anymore
 		}
-val half_shutdown: c:Connection -> unit
+val half_shutdown: c:Connection{CnBuf_o(c) = None} -> unit
 
 private val moveToOpenState: c:Connection ->
 	(gs:(;CnInfo(c))globalState{
@@ -512,6 +516,7 @@ val read: c:Connection ->
     (c':Connection  * ro:readOutcome * mo:(;ConnectionEpochIn(c'),CnStream_i(c'))msg_i option)
     {
       IOResult_i(c,c',ro,mo)
+	  /\ CnBuf_o(c') = CnBuf_o(c)
     }
 
 val msgWrite: c:Connection{CanWrite(CnInfo(c))} -> m:(;ConnectionEpochOut(c),CnStream_o(c))msg_o ->
@@ -539,8 +544,9 @@ val authorize: c:Connection -> q:query ->
 	(c':Connection  * ro:readOutcome * mo:(;ConnectionEpochIn(c'),CnStream_i(c'))msg_i option)
     {
       IOResult_i(c,c',ro,mo)
+	  /\ CnBuf_o(c') = CnBuf_o(c)
     }
-val refuse: Connection -> query -> unit
+val refuse: c:Connection{CnBuf_o(c) = None} -> query -> unit
 
 val getEpochIn:   c:Connection -> e:epoch{e=ConnectionEpochIn(c) }
 val getEpochOut:  c:Connection -> e:epoch{e=ConnectionEpochOut(c)}

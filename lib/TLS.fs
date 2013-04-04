@@ -6,6 +6,8 @@ open TLSInfo
 open Tcp
 open Dispatch
 
+type Connection = Dispatch.Connection
+
 // Outcomes for top-level functions
 type ioresult_i =
     | ReadError of alertDescription option * string
