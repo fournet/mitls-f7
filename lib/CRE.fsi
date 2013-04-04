@@ -9,7 +9,9 @@ type rsarepr = bytes
 type rsapms
 type dhpms
 
-//val honestRSAPMS: RSAKey.pk -> TLSConstants.ProtocolVersion -> rsapms -> bool
+#if ideal
+val honestRSAPMS: RSAKey.pk -> TLSConstants.ProtocolVersion -> rsapms -> bool
+#endif
 
 val genRSA: RSAKey.pk -> TLSConstants.ProtocolVersion -> rsapms
 
