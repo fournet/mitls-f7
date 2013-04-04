@@ -71,7 +71,7 @@ let coerceDH (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) b = {
 let prfMS sinfo pmsBytes: PRF.masterSecret =
     let pv = sinfo.protocol_version in
     let cs = sinfo.cipher_suite in
-    let data = sinfo.init_crand @| sinfo.init_srand in
+    let data = csrands sinfo in
     let res = prf pv cs pmsBytes tls_master_secret data 48 in
     PRF.coerce sinfo res
 
@@ -90,13 +90,12 @@ PRF.sample si ~_C prfMS si sampleDH p g //relate si and p g
 
 let prfSmoothRSA si (pv:ProtocolVersion) pms = 
     #if ideal
-    // MK this idealization relies on si being used only once with this function
     if honest (RSA_pms(pms))
-    then match tryFind (fun el -> fst el = RSA_pms(pms)) !log with
-             Some(_,ms) -> ms
+    then match tryFind (fun (el1,el2,_) -> el1 = csrands si && el2 = RSA_pms(pms) ) !log with
+             Some(_,_,ms) -> ms
            | None -> 
                  let ms=PRF.sample si 
-                 log := (RSA_pms(pms),ms)::!log
+                 log := (csrands si, RSA_pms(pms),ms)::!log
                  ms 
     else prfMS si pms.rsapms
     #else
@@ -106,13 +105,12 @@ let prfSmoothRSA si (pv:ProtocolVersion) pms =
 let prfSmoothDHE si (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) (pms:dhpms) =
     //#begin-ideal 
     #if ideal
-    // MK this idealization relies on si being used only once with this function
     if honest(DHE_pms(pms))
-    then match tryFind (fun el -> fst el = DHE_pms(pms)) !log  with
-             Some(_,ms) -> ms
+    then match tryFind (fun (el1,el2,_) -> el1 = csrands si && el2 = DHE_pms(pms)) !log  with
+             Some(_,_,ms) -> ms
            | None -> 
                  let ms=PRF.sample si 
-                 log := (DHE_pms(pms),ms)::!log;
+                 log := (csrands si, DHE_pms(pms),ms)::!log;
                  ms 
     else prfMS si pms.dhpms
     //#end-ideal

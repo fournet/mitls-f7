@@ -35,6 +35,8 @@ type SessionInfo = {
     extended_record_padding: bool;
     }
 
+val csrands: SessionInfo -> bytes
+
 type preEpoch
 type epoch = preEpoch
 

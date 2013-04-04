@@ -35,6 +35,9 @@ type SessionInfo = {
     extended_record_padding: bool;
     }
 
+let csrands sinfo = 
+    sinfo.init_crand @| sinfo.init_srand
+
 type preEpoch =
     | InitEpoch of Role
     | SuccEpoch of crand * srand * SessionInfo * preEpoch
