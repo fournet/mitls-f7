@@ -322,6 +322,7 @@ assume !c,c',ro,mo. IOResult_i(c,c',ro,mo) <=>
 		  )
 	) \/
 	(?ad,s. ro = WriteOutcome(SentFatal(ad,s)) ) \/
+	(?s. ro = WriteOutcome(WError(s)) ) \/
 	(ro = WriteOutcome(SentClose) /\ (Auth(ConnectionEpochIn(c)) => EvClose(CnInfo(c).id_in,Bytes_i(c)))
 	) \/
 	// Cases needed by dispatch; in practice not giving any refinement,
@@ -374,7 +375,8 @@ private val moveToOpenState: c:Connection ->
 		gs.write.disp = Open /\ gs.read.disp = Open /\
 		Config(c) = Handshake.Config(CnInfo(c),gs.handshake) /\
 		Bytes_o(c) = DataStream.StreamBytes(ConnectionEpochOut(c),AppData.AppOutStream(CnInfo(c), gs.appdata)) /\
-		Bytes_i(c) = DataStream.StreamBytes(ConnectionEpochIn(c),AppData.AppInStream(CnInfo(c), gs.appdata))
+		Bytes_i(c) = DataStream.StreamBytes(ConnectionEpochIn(c),AppData.AppInStream(CnInfo(c), gs.appdata)) /\
+		CnBuf_o(c) = AppData.AppOutBuf(CnInfo(c),gs.appdata)
 	}) Result
 
 function val PickSendPV: Connection -> TLSConstants.ProtocolVersion
@@ -468,6 +470,12 @@ private val ghostFragment: e:epoch -> (r:range * (;e,r)AppFragment.fragment * (;
 
 private val writeAll: c:Connection{CnBuf_o(c) = None} -> wo:writeOutcome * c':Connection
 
+private val writeAllClosing: c:Connection{CnBuf_o(c) = None} -> wo:writeOutcome * c':Connection{
+	(?s. wo = WError(s) /\ NextCn(c,c')) \/
+	(?ad,r. wo = SentFatal(ad,r) /\ NextCn(c,c')) \/
+	(wo = SentClose /\ NextCn(c,c'))
+	}
+
 private val writeAllFinishing: c:Connection{CnBuf_o(c) = None /\ Bytes_o(c) = [||]} ->
 	r:range -> f:(;ConnectionEpochOut(c),r)AppFragment.fragment ->
 	s:(;ConnectionEpochOut(c))DataStream.stream ->
@@ -509,9 +517,9 @@ private val writeAllTop: c:Connection -> r:range -> f:(;ConnectionEpochOut(c),r)
 			ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c')) )
 	}
 
-private val handleHandshakeOutcome: c:Connection -> (;CnInfo(c),Config(c))Handshake.incoming ->
-	(ro:readOutcome * c':Connection){
-		NextCn(c,c') /\
+private val handleHandshakeOutcome: c:Connection{CnBuf_o(c) = None} -> (;CnInfo(c),Config(c))Handshake.incoming ->
+	(ro:readOutcome * c':(;c)nextCn){
+		(?wo. ro = WriteOutcome(wo)) \/
 		CnBuf_o(c') = CnBuf_o(c) /\
 		Extend(c,c')
 	}

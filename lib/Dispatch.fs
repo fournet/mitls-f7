@@ -451,6 +451,15 @@ let rec writeAll (Conn(id,s)) =
     | (WriteAgain,c) | (WriteAgainFinishing,c) -> writeAll c
     | other -> other
 
+let rec writeAllClosing (Conn(id,s)) =
+    let (ghr,ghf,ghs) = ghostFragment id.id_out in
+    match writeOne (Conn(id,s)) ghr ghf ghs with
+    | (WriteAgain,c) -> writeAllClosing c
+    | (WError(x),conn) -> WError(x),conn
+    | (SentClose,conn) -> SentClose,conn
+    | (SentFatal(x,y),conn) -> SentFatal(x,y),conn
+    | (_,_) -> unexpectedError "[writeAllClosing] writeOne returned wrong result"
+
 let rec writeAllFinishing conn ghr ghf ghs =
     match writeOne conn ghr ghf ghs with
     | (WError(x),conn) -> (WError(x), conn)
@@ -521,7 +530,7 @@ let handleHandshakeOutcome (Conn(id,c)) hsRes =
                 | _ ->
                     let reason = perror __SOURCE_FILE__ __LINE__ "Finishing handshake in the wrong state" in
                     let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in
-                    let wo,conn = writeAll closing in
+                    let wo,conn = writeAllClosing closing in
                     WriteOutcome(wo),conn
     | Handshake.InComplete(hs) ->
             let c = {c with handshake = hs} in
@@ -535,18 +544,18 @@ let handleHandshakeOutcome (Conn(id,c)) hsRes =
                             (RHSDone, Conn(id,c))
                         | Error(x,y) -> 
                             let closing = abortWithAlert (Conn(id,c)) x y in
-                            let wo,conn = writeAll closing in
+                            let wo,conn = writeAllClosing closing in
                             WriteOutcome(wo),conn
                     else let closed = closeConnection (Conn(id,c)) in (RError(perror __SOURCE_FILE__ __LINE__ "Invalid connection state"),closed) (* Unrecoverable error *)
                 | _ ->
                     let reason = perror __SOURCE_FILE__ __LINE__ "Invalid connection state" in
                     let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in
-                    let wo,conn = writeAll closing in
+                    let wo,conn = writeAllClosing closing in
                     WriteOutcome(wo),conn
     | Handshake.InError(x,y,hs) ->
         let c = {c with handshake = hs} in
         let closing = abortWithAlert (Conn(id,c)) x y in
-        let wo,conn = writeAll closing in
+        let wo,conn = writeAllClosing closing in
         WriteOutcome(wo),conn
 
 (* we have received, decrypted, and verified a record (ct,f); what to do? *)
@@ -554,7 +563,7 @@ let readOne (Conn(id,c)) =
   match recv (Conn(id,c)) with
     | Error(x,y) ->
         let closing = abortWithAlert (Conn(id,c)) x y in
-        let wo,conn = writeAll closing in
+        let wo,conn = writeAllClosing closing in
         WriteOutcome(wo),conn
     | Correct(received) -> 
         let (c_recv,ct,rg,frag) = received in 
@@ -566,7 +575,7 @@ let readOne (Conn(id,c)) =
             | Closed ->
                 let reason = perror __SOURCE_FILE__ __LINE__ "Trying to read from a closed connection" in
                 let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in
-                let wo,conn = writeAll closing in
+                let wo,conn = writeAllClosing closing in
                 WriteOutcome(wo),conn
             | _ ->
                 match (ct,c_read.disp) with 
@@ -599,13 +608,13 @@ let readOne (Conn(id,c)) =
                                else
                                   let reason = perror __SOURCE_FILE__ __LINE__ "Changing epoch with non-empty buffers" in
                                   let closing = abortWithAlert (Conn(id,c)) AD_handshake_failure reason in
-                                  let wo,conn = writeAll closing in
+                                  let wo,conn = writeAllClosing closing in
                                   WriteOutcome(wo),conn
                           //#end-alertAttackRecv
                           | InCCSError (x,y,hs) ->
                               let c = {c with handshake = hs} in
                               let closing = abortWithAlert (Conn(id,c)) x y in
-                              let wo,conn = writeAll closing in
+                              let wo,conn = writeAllClosing closing in
                               WriteOutcome(wo),conn
 
                   | (Alert, Init) | (Alert, FirstHandshake(_)) | (Alert, Open) ->
@@ -633,7 +642,7 @@ let readOne (Conn(id,c)) =
                              (RWarning(ad), Conn(id,c))
                           | Error (x,y) ->
                               let closing = abortWithAlert (Conn(id,c)) x y in
-                              let wo,conn = writeAll closing in
+                              let wo,conn = writeAllClosing closing in
                               WriteOutcome(wo),conn
 
                   | Application_data, Open ->
@@ -644,7 +653,7 @@ let readOne (Conn(id,c)) =
                   | _, _ ->
                       let reason = perror __SOURCE_FILE__ __LINE__ "Message type received in wrong state"
                       let closing = abortWithAlert (Conn(id,c)) AD_unexpected_message reason in
-                      let wo,conn = writeAll closing in
+                      let wo,conn = writeAllClosing closing in
                       WriteOutcome(wo),conn
 
 let rec read c =
@@ -677,7 +686,7 @@ let rec read c =
                 // we already sent a close_notify, tell the user it's over
                 c,RClose, None
             | _ ->
-                let (outcome,c) = writeAll c in
+                let (outcome,c) = writeAllClosing c in
                 match outcome with
                 | SentClose ->
                     // clean shoutdown
