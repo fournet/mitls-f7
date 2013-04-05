@@ -11,7 +11,7 @@ type SessionIndex = sessionID * Role * Cert.hint
 type StorableSession = si:SessionInfo * (;si) PRF.masterSecret
 
 private type SessionDB = 
-  (r:Role * si:SessionInfo * (;si) PRF.masterSecret {Authorize(r,si)) list ref
+  (r:Role * si:SessionInfo * (;si) PRF.masterSecret {Authorize(r,si)}) list ref
 
 val create: config -> SessionDB
 val select: SessionDB -> x:SessionIndex -> res:(StorableSession option){
@@ -21,5 +21,5 @@ val insert: SessionDB -> x:SessionIndex -> res:StorableSession{
  -> SessionDB
 val remove: SessionDB -> SessionIndex -> SessionDB
 
-// unused: 
-// val getAllStoredIDs: SessionDB -> SessionIndex list
+// Useful for the user of miTLS; nothing interesting to verify 
+val getAllStoredIDs: SessionDB -> SessionIndex list
