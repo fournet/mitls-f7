@@ -10,7 +10,7 @@ type SessionIndex = sessionID * Role * Cert.hint
 
 #if ideal
 type entry = sessionID * Role * Cert.hint * StorableSession 
-type t = entry list ref 
+type t = entry list 
 #else
 type t
 #endif
