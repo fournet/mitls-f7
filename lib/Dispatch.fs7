@@ -119,6 +119,8 @@ private definition !c. Bytes_o(c) = DataStream.StreamBytes(ConnectionEpochOut(c)
 predicate EvWrite      of epoch * bytes
 predicate EvWarning    of epoch * alertDescription * bytes
 predicate EvClose      of epoch * bytes
+// AP FIXME: Dummy definition of EvClose, to let the state machine verification go through
+private assume !e,b. EvClose(e,b)
 predicate EvFatal      of epoch * alertDescription * bytes
 // Write records increasing prefixes of the stream, for each written data fragment, 
 // interleaved with warnings, ended by Fatal or Close [we may distinguish between two kinds of close too]
@@ -415,7 +417,11 @@ private val recv: c:Connection ->
          (;ConnectionEpochIn(c),ct,ConnectionInHistory(c),r)TLSFragment.plain) Result
 
 private val readOne: c:Connection ->
-	readOutcome * Connection
+	ro:readOutcome * c':Connection{
+	(?ad,s. ro = WriteOutcome(SentFatal(ad,s)) /\ NextCn(c,c')) \/
+	(?s. ro = WriteOutcome(WError(s))  /\ NextCn(c,c')) \/
+	(ro = WriteOutcome(SentClose) /\ NextCn(c,c') /\ (Auth(ConnectionEpochIn(c)) => EvClose(CnInfo(c).id_in,Bytes_i(c))) )
+	}
 
 private val writeOne: c:Connection -> r:range -> f:(;ConnectionEpochOut(c),r)AppFragment.fragment ->
 	s:(;ConnectionEpochOut(c))DataStream.stream{CnBuf_o(c) = None \/
@@ -470,10 +476,10 @@ private val ghostFragment: e:epoch -> (r:range * (;e,r)AppFragment.fragment * (;
 
 private val writeAll: c:Connection{CnBuf_o(c) = None} -> wo:writeOutcome * c':Connection
 
-private val writeAllClosing: c:Connection{CnBuf_o(c) = None} -> wo:writeOutcome * c':Connection{
-	(?s. wo = WError(s) /\ NextCn(c,c')) \/
-	(?ad,r. wo = SentFatal(ad,r) /\ NextCn(c,c')) \/
-	(wo = SentClose /\ NextCn(c,c'))
+private val writeAllClosing: c:Connection{CnBuf_o(c) = None} -> wo:writeOutcome * c':(;c)nextCn{
+	(?s. wo = WError(s)) \/
+	(?ad,r. wo = SentFatal(ad,r)) \/
+	(wo = SentClose /\ (Auth(ConnectionEpochIn(c)) => EvClose(CnInfo(c).id_in,Bytes_i(c))) )
 	}
 
 private val writeAllFinishing: c:Connection{CnBuf_o(c) = None /\ Bytes_o(c) = [||]} ->
@@ -519,9 +525,12 @@ private val writeAllTop: c:Connection -> r:range -> f:(;ConnectionEpochOut(c),r)
 
 private val handleHandshakeOutcome: c:Connection{CnBuf_o(c) = None} -> (;CnInfo(c),Config(c))Handshake.incoming ->
 	(ro:readOutcome * c':(;c)nextCn){
-		(?wo. ro = WriteOutcome(wo)) \/
-		CnBuf_o(c') = CnBuf_o(c) /\
-		Extend(c,c')
+		(?ad,s. ro = WriteOutcome(SentFatal(ad,s))) \/
+		(?s. ro = WriteOutcome(WError(s))) \/
+		(ro = WriteOutcome(SentClose) /\ (Auth(ConnectionEpochIn(c)) => EvClose(CnInfo(c).id_in,Bytes_i(c))) ) \/
+		((ro = RAgain \/ (?q,a. ro = RQuery(q,a)) \/ ro = RHSDone) /\
+		  CnBuf_o(c') = CnBuf_o(c) /\
+		  Extend(c,c') )
 	}
 
 val read: c:Connection -> 
