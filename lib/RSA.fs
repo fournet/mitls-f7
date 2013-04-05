@@ -11,6 +11,8 @@ open RSAKey
 
 #if ideal
 // We maintain a log to look up ideal_pms values using dummy_pms values.
+
+type entry = (pk * ProtocolVersion * bytes) *  CRE.rsapms
 let log = ref []
 #endif
 
@@ -47,7 +49,7 @@ let rec pmsassoc (i:(RSAKey.pk * ProtocolVersion * bytes)) (pmss:((RSAKey.pk * P
     let (pk,pv,dummy_pms)=i in
     match pmss with 
     | [] -> None 
-    | ((pk',_,dummy_pms'),ideal_pms)::mss' when pk=pk' && dummy_pms=dummy_pms' -> Some(ideal_pms) 
+    | ((pk',pv',dummy_pms'),ideal_pms)::mss' when pk=pk' && pv=pv' && dummy_pms=dummy_pms' -> Some(ideal_pms) 
     | _::mss' -> pmsassoc i mss'
 #endif
 
@@ -58,7 +60,6 @@ let decrypt (sk:RSAKey.sk) si cv check_client_version_in_pms_for_old_tls encPMS 
         let pmsb = decrypt_int sk si cv check_client_version_in_pms_for_old_tls encPMS in
         //#begin-ideal2
         #if ideal
-        let Correct(pk) = (Cert.get_chain_public_encryption_key si.serverID)
         //MK Should be replaced by assoc. Is the recommended style to define it locally to facilitate refinements?
         //match tryFind (fun (pk',_,dummy_pms, _) -> pk'=pk && dummy_pms=pmsb) !log  with
         match pmsassoc (pk,cv,pmsb) !log with
@@ -73,7 +74,7 @@ let encrypt pk pv pms =
     //#begin-ideal1
     #if ideal
     //MK here we reply on pv and pms being used only once?
-    let v = if RSAKey.honest pk && CRE.honestRSAPMS pk pv pms then // MK remove CRE.honest (CRE.RSA_pms pms)??
+    let v = if (* redundant RSAKey.honest pk  && *) CRE.honestRSAPMS pk pv pms then // MK remove CRE.honest (CRE.RSA_pms pms)??
               let dummy_pms = (versionBytes pv) @|random 46
               log := ((pk,pv,dummy_pms),pms)::!log
               dummy_pms

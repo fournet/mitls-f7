@@ -43,7 +43,7 @@ val keyGen: ci:ConnectionInfo -> (;EpochSI(ci.id_out))masterSecret ->
 private function val Fst: 'a -> 'b
 private function val Snd: 'a -> 'b
 private definition !e1,e2. Fst((e1,e2)) = e1
-private definition !e1,e2. Snd((e1,e2)) = e1
+private definition !e1,e2. Snd((e1,e2)) = e2
 
 private val log:  (ems:(e12:(epoch * epoch)  * (;Fst(e12))masterSecret) * 
                    ((;Fst(Fst(ems)),ReaderState)state * 

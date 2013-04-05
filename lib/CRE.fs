@@ -82,11 +82,14 @@ PRF.sample si ~_C prfMS si sampleDH p g //relate si and p g
 *)
 
 #if ideal
-let rec rsaassoc (si:SessionInfo) (i:(RSAKey.pk * ProtocolVersion * rsapms * bytes)) mss: PRF.masterSecret option = 
+
+type rsaentry = (RSAKey.pk * ProtocolVersion * rsapms * bytes * SessionInfo) * PRF.masterSecret
+
+let rec rsaassoc (i:(RSAKey.pk * ProtocolVersion * rsapms * bytes * SessionInfo)) mss: PRF.masterSecret option = 
     match mss with 
     | [] -> None 
     | (i',ms)::mss' when i=i' -> Some(ms) 
-    | _::mss' -> rsaassoc si i mss'
+    | _::mss' -> rsaassoc i mss'
 #endif
 
 let prfSmoothRSA si (pv:ProtocolVersion) pms = 
@@ -98,11 +101,11 @@ let prfSmoothRSA si (pv:ProtocolVersion) pms =
             | Correct(pk) -> pk
             | _           -> unexpectedError "server must have an ID"    
         (* CF we assoc on pk and pv, implicitly relying on the absence of collisions between ideal RSAPMSs.*)
-        match rsaassoc si (pk,pv,pms,csrands si) !rsalog with 
+        match rsaassoc (pk,pv,pms,csrands si,si) !rsalog with 
         | Some(ms) -> ms
         | None -> 
                  let ms=PRF.sample si 
-                 rsalog := ((pk,pv,pms,csrands si),ms)::!rsalog
+                 rsalog := ((pk,pv,pms,csrands si,si),ms)::!rsalog
                  ms 
   #endif  
   | ConcreteRSAPMS(s) -> prfMS si s

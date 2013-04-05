@@ -20,21 +20,29 @@ predicate CREHonestRSAPMS of pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms
 
 private definition !pk,pv,pms. CREHonestRSAPMS(pk,pv,pms) <=> ?s. pms = IdealRSAPMS(s)
 
+//private definition !pk,pv,pms. SafeRSAPMS(pk,pv) <=> ?s. pms = IdealRSAPMS(s)
+
+private definition !pk,pv,pms. SafeRSAPMS(pk,pv) <=> CREHonestRSAPMS(pk,pv,pms)
+
+theorem !pk,pv,pms. not CREHonestRSAPMS(pk,pv,pms) => not SafeRSAPMS(pk,pv)
+
 val honestRSAPMS: pk:RSAKey.pk -> pv:ProtocolVersion -> pms: (;pk,pv) rsapms -> b:bool { b=true <=> CREHonestRSAPMS(pk,pv,pms) } 
 
 val genRSA: pk:RSAKey.pk -> pv:ProtocolVersion -> pms:(;pk,pv)rsapms
 val coerceRSA: pk:RSAKey.pk -> pv:ProtocolVersion (* MK suspicious {not SafeRSAPMS(pk,pv)} *)-> b:bytes {Length(b)=48} -> (;pk,pv)rsapms
-val leakRSA: pk:RSAKey.pk -> pv:ProtocolVersion -> pms:(;pk,pv)rsapms {not CREHonestRSAPMS(pk,pv,pms)}-> bytes
+val leakRSA: pk:RSAKey.pk -> pv:ProtocolVersion -> pms:(;pk,pv)rsapms {not SafeRSAPMS(pk,pv)}-> bytes
 
 //#end-abstractionRSA
 
-// MK val rsaassoc pk:RSAKey.pk * pv:ProtocolVersion * pms:(;pk,pv)rsapms -> ((pk:RSAKey.pk * pv:ProtocolVersion * pms:(;pk,pv)rsapms) * PRF.masterSecret) list -> PRF.masterSecret
+private function val Fifth: 'a -> 'b
+private definition !e1,e2,e3,e4,e5. Fifth((e1,e2,e3,e4,e5)) = e5
 
-//val log: (((pk':RSAKey.pk * pv':ProtocolVersion * (;pk',pv')rsapms * csr':bytes) * ms':(;si) PRF.masterSecret) list) ref
+private type rsaentry = i':(pk':RSAKey.pk * pv':ProtocolVersion * (;pk',pv')rsapms * csr':bytes * si':SessionInfo) * ms':(;Fifth(i')) PRF.masterSecret
+private val rsalog: rsaentry list ref 
 
-val rsaassoc: si:SessionInfo -> (pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms * csr:bytes) -> 
-              ((pk':RSAKey.pk * pv':ProtocolVersion * (;pk',pv')rsapms * csr':bytes) * ms':(;si) PRF.masterSecret) list -> 
-			  ms:(;si) PRF.masterSecret option
+val rsaassoc: i:(pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms * csr:bytes * si:SessionInfo) -> 
+              (i':(pk':RSAKey.pk * pv':ProtocolVersion * (;pk',pv')rsapms * csr':bytes * si':SessionInfo) * ms':(;Fifth(i')) PRF.masterSecret) list -> 
+			  ms:(;Fifth(i)) PRF.masterSecret option
 
 val prfSmoothRSA:
     si:SessionInfo ->
@@ -62,9 +70,12 @@ val sampleDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt ->  (;p,g,gx,gy) dhpm
 val coerceDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt {not SafeDHPMS(p,g,gx,gy)}-> (;p)elt -> (;p,g,gx,gy) dhpms
 //#end-abstractionDH
 
-val dhassoc: si:SessionInfo -> p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * (;p,g,gx,gy) dhpms * bytes -> 
-             ((p':p * g':(;p') g * gx':(;p') elt * gy':(;p') elt * (;p',g',gx',gy') dhpms * bytes) * (;si) PRF.masterSecret) list -> 
-             (;si) PRF.masterSecret option
+//private type dsentry = i:(pk':RSAKey.pk * pv':ProtocolVersion * (;pk',pv')rsapms * csr':bytes * si':SessionInfo) * ms':(;Fifth(i')) PRF.masterSecret
+//private val dslog: rsaentry list ref 
+
+//val dhassoc: p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * (;p,g,gx,gy) dhpms * bytes * si:SessionInfo -> 
+//             ((p':p * g':(;p') g * gx':(;p') elt * gy':(;p') elt * (;p',g',gx',gy') dhpms * bytes) * (;si) PRF.masterSecret) list -> 
+//             (;si) PRF.masterSecret option
 
 // AP: Don't we really want *any* link between si and (g,p,gx,gy)?
 val prfSmoothDHE:
