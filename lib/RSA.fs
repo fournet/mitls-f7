@@ -7,37 +7,23 @@ open Bytes
 open Error
 open TLSConstants
 open TLSInfo
+open RSAKey
 
 #if ideal
-// We maintain a log to look up ideal_pms values using fake_pms values.
+// We maintain a log to look up ideal_pms values using dummy_pms values.
 let log = ref []
 #endif
 
-let encrypt pk pv pms =
-    //#begin-ideal1
-    #if ideal
-    //MK here we reply on pv and pms being used only once?
-    let v = if RSAKey.honest pk && CRE.honestRSAPMS pk pv pms then // MK remove CRE.honest (CRE.RSA_pms pms)??
-              let fake_pms = (versionBytes pv) @|random 46
-              log := (pk,pv,fake_pms,pms)::!log
-              fake_pms
-            else
-              CRE.leakRSA pk pv pms
-    //#end-ideal1
-    #else
-    let v = CRE.leakRSA pk pv pms
-    #endif
-    CoreACiphers.encrypt_pkcs1 (RSAKey.repr_of_rsapkey pk) v
 
 
 //#begin-decrypt_int
-let decrypt_int pk si cv cvCheck encPMS =
+let decrypt_int dk si cv cvCheck encPMS =
   (*@ Security measures described in RFC 5246, section 7.4.7.1 *)
   (*@ 1. Generate random data, 46 bytes, for PMS except client version *)
   let fakepms = random 46 in
   (*@ 2. Decrypt the message to recover plaintext *)
   let expected = versionBytes cv in
-  match CoreACiphers.decrypt_pkcs1 (RSAKey.repr_of_rsaskey pk) encPMS with
+  match CoreACiphers.decrypt_pkcs1 (RSAKey.repr_of_rsaskey dk) encPMS with
     | Some pms when length pms = 48 ->
         let (clVB,postPMS) = split pms 2 in
         match si.protocol_version with
@@ -56,6 +42,15 @@ let decrypt_int pk si cv cvCheck encPMS =
         expected @| fakepms
 //#end-decrypt_int
 
+#if ideal
+let rec pmsassoc (i:(RSAKey.pk * ProtocolVersion * bytes)) (pmss:((RSAKey.pk * ProtocolVersion * bytes) * CRE.rsapms) list) = 
+    let (pk,pv,dummy_pms)=i in
+    match pmss with 
+    | [] -> None 
+    | ((pk',_,dummy_pms'),ideal_pms)::mss' when pk=pk' && dummy_pms=dummy_pms' -> Some(ideal_pms) 
+    | _::mss' -> pmsassoc i mss'
+#endif
+
 let decrypt (sk:RSAKey.sk) si cv check_client_version_in_pms_for_old_tls encPMS =
     match Cert.get_chain_public_encryption_key si.serverID with
     | Error(x,y) -> unexpectedError (perror __SOURCE_FILE__ __LINE__ "The server identity should contain a valid certificate")
@@ -65,10 +60,27 @@ let decrypt (sk:RSAKey.sk) si cv check_client_version_in_pms_for_old_tls encPMS 
         #if ideal
         let Correct(pk) = (Cert.get_chain_public_encryption_key si.serverID)
         //MK Should be replaced by assoc. Is the recommended style to define it locally to facilitate refinements?
-        match tryFind (fun (pk',_,fake_pms, _) -> pk'=pk && fake_pms=pmsb) !log  with
-          | Some(_,_,_,ideal_pms) -> ideal_pms
-          | None                -> CRE.coerceRSA pk cv pmsb
+        //match tryFind (fun (pk',_,dummy_pms, _) -> pk'=pk && dummy_pms=pmsb) !log  with
+        match pmsassoc (pk,cv,pmsb) !log with
+          | Some(ideal_pms) -> ideal_pms
+          | None            -> CRE.coerceRSA pk cv pmsb
         //#end-ideal2
         #else
         CRE.coerceRSA pk cv pmsb
         #endif
+
+let encrypt pk pv pms =
+    //#begin-ideal1
+    #if ideal
+    //MK here we reply on pv and pms being used only once?
+    let v = if RSAKey.honest pk && CRE.honestRSAPMS pk pv pms then // MK remove CRE.honest (CRE.RSA_pms pms)??
+              let dummy_pms = (versionBytes pv) @|random 46
+              log := ((pk,pv,dummy_pms),pms)::!log
+              dummy_pms
+            else
+              CRE.leakRSA pk pv pms
+    //#end-ideal1
+    #else
+    let v = CRE.leakRSA pk pv pms
+    #endif
+    CoreACiphers.encrypt_pkcs1 (RSAKey.repr_of_rsapkey pk) v
