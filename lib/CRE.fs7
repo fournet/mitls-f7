@@ -12,7 +12,7 @@ private val prfMS: si:SessionInfo -> p:bytes -> (;si) PRF.masterSecret
 //#begin-abstractionRSA
 
 private type rsaseed = {seed:rsarepr} // treated abstractly almost everywhere in this file
-type (;pk:RSAKey.pk, pv:ProtocolVersion) rsapms = 
+private type (;pk:RSAKey.pk, pv:ProtocolVersion) rsapms = 
    | IdealRSAPMS    of rsaseed 
    | ConcreteRSAPMS of rsarepr
 
@@ -30,7 +30,11 @@ val leakRSA: pk:RSAKey.pk -> pv:ProtocolVersion -> pms:(;pk,pv)rsapms {not CREHo
 
 // MK val rsaassoc pk:RSAKey.pk * pv:ProtocolVersion * pms:(;pk,pv)rsapms -> ((pk:RSAKey.pk * pv:ProtocolVersion * pms:(;pk,pv)rsapms) * PRF.masterSecret) list -> PRF.masterSecret
 
-val rsaassoc: (pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms * bytes) -> ((pk':RSAKey.pk * pv':ProtocolVersion * (;pk',pv')rsapms * bytes) * 'b) list -> 'b option
+//val log: (((pk':RSAKey.pk * pv':ProtocolVersion * (;pk',pv')rsapms * csr':bytes) * ms':(;si) PRF.masterSecret) list) ref
+
+val rsaassoc: si:SessionInfo -> (pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms * csr:bytes) -> 
+              ((pk':RSAKey.pk * pv':ProtocolVersion * (;pk',pv')rsapms * csr':bytes) * ms':(;si) PRF.masterSecret) list -> 
+			  ms:(;si) PRF.masterSecret option
 
 val prfSmoothRSA:
     si:SessionInfo ->
@@ -58,7 +62,9 @@ val sampleDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt ->  (;p,g,gx,gy) dhpm
 val coerceDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt {not SafeDHPMS(p,g,gx,gy)}-> (;p)elt -> (;p,g,gx,gy) dhpms
 //#end-abstractionDH
 
-val dhassoc: p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * (;p,g,gx,gy) dhpms * bytes -> ((p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * (;p,g,gx,gy) dhpms * bytes) * 'b) list -> 'b option
+val dhassoc: si:SessionInfo -> p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * (;p,g,gx,gy) dhpms * bytes -> 
+             ((p':p * g':(;p') g * gx':(;p') elt * gy':(;p') elt * (;p',g',gx',gy') dhpms * bytes) * (;si) PRF.masterSecret) list -> 
+             (;si) PRF.masterSecret option
 
 // AP: Don't we really want *any* link between si and (g,p,gx,gy)?
 val prfSmoothDHE:

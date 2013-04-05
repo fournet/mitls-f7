@@ -16,7 +16,10 @@ open TLSInfo
 
 predicate EncryptedRSAPMS of pk:pk * pv:ProtocolVersion * (;pk,pv)CRE.rsapms * bytes
 
+//private val log:  (pk:pk * pv:ProtocolVersion * bytes * (;pk,pv)CRE.rsapms) list ref 
+
 val encrypt: pk:pk -> pv:ProtocolVersion -> pms:(;pk,pv) CRE.rsapms -> b:bytes{EncryptedRSAPMS(pk,pv,pms,b) /\ HonestRSAPMS(pk,pv,b)} 
+
 // TLS specific, timing-attack-resistant variant
 val decrypt: sk ->
   	     si:SessionInfo -> 
@@ -25,54 +28,60 @@ val decrypt: sk ->
              bytes -> (* encrypted PMS *)
 			 (;Cert.RSAPKCert(si.serverID),cv) CRE.rsapms (* No Result type: in case of error, we return a fresh random PMS *)
 
-// AP: As we don't have this kind of conditionals in F7, I'm once again commenting out the remainder of the file :-)
-// AP #if whiteboard 
-// AP Some draft assumption discussed with Markulf on 13/9/12
-// AP 
-// AP 
-// AP let sk, pk = keyGen() (* sk is private *) 
-// AP 
-// AP let sample v = v @| random 46
-// AP 
-// AP let compliantClient a v Cr Sr = 
-// AP   (* a determines the prf algorithm *)
-// AP   (* check that Cr is used at most once; probably irrelevant *)
-// AP   let pms  = sample v
-// AP   let pms0 = sample v
-// AP   log := (pms0,pms)::!log
-// AP   encrypt pk (if b then pms else pms0),
-// AP   prf a (pms, Cr @| Sr)  
-// AP     
-// AP let decryptRO a v Cr Sr c =
-// AP   (* check that Sr is used at most once *)
-// AP   let pms0 = 
-// AP     let fake = sample v
-// AP     match decrypt sk c with 
-// AP     | pms0 when length pms0 = 48 -> let (_,r) = split (decrypt sk c) 2 in v @| r
-// AP     | _                          -> fake 
-// AP   let pms = 
-// AP     match assoc !log pms0 with 
-// AP 	| Some(pms) when b -> pms
-// AP 	| None             -> pms0
-// AP   prf a (pms, Cr @| Sr)
-// AP    
-// AP  The adversary get pk, compliantClient, decryptRO, and prf. Its goal is to guess b. 
-// AP    
-// AP  when b = 0, we have a simplification of concrete TLS
-// AP  when b = 1, the protocol is parametric in "compliant" PMSs, so we get good session keys 
-// AP              pms becomes abstract.    
-// AP  Hopefully we can reduce it to RSA with an extra oracle:
-// AP 
-// AP let old_decryptRO a v Cr Sr c =
-// AP   (* check that Sr is used at most once *)
-// AP   let (_,r) = split (decrypt sk c) 2 
-// AP   let pms0 = v @| r 
-// AP   let pms = try assoc !log pms0 with not_found -> pms0
-// AP   prf a (pms, Cr @| Sr)
-// AP    
-// AP    
-// AP let ptxt plain cipher = (decrypt sk cipher = plain) (* possibly after erasing some bytes *)
-// AP    
-// AP  I am puzzled that we do not use the cipher-integrity guarantee provided by the ClientFinished check
-// AP  informally, the adversary would need to extract the pms to forge a Finished for any related ciphertext  
-// AP #endif
+
+
+
+
+
+(* CF Alfredo: as we don't have this kind of conditionals in F7, I'm once again commenting out the remainder of the file :-)
+ #if whiteboard 
+ Some draft assumption discussed with Markulf on 13/9/12
+ 
+ 
+ let sk, pk = keyGen() // sk is private  
+ 
+ let sample v = v @| random 46
+ 
+ let compliantClient a v Cr Sr = 
+   // a determines the prf algorithm 
+   // check that Cr is used at most once; probably irrelevant 
+   let pms  = sample v
+   let pms0 = sample v
+   log := (pms0,pms)::!log
+   encrypt pk (if b then pms else pms0),
+   prf a (pms, Cr @| Sr)  
+     
+ let decryptRO a v Cr Sr c =
+   // check that Sr is used at most once
+   let pms0 = 
+     let fake = sample v
+     match decrypt sk c with 
+     | pms0 when length pms0 = 48 -> let (_,r) = split (decrypt sk c) 2 in v @| r
+     | _                          -> fake 
+   let pms = 
+     match assoc !log pms0 with 
+ 	| Some(pms) when b -> pms
+ 	| None             -> pms0
+   prf a (pms, Cr @| Sr)
+    
+  The adversary get pk, compliantClient, decryptRO, and prf. Its goal is to guess b. 
+    
+  when b = 0, we have a simplification of concrete TLS
+  when b = 1, the protocol is parametric in "compliant" PMSs, so we get good session keys 
+              pms becomes abstract.    
+  Hopefully we can reduce it to RSA with an extra oracle:
+ 
+ let old_decryptRO a v Cr Sr c =
+   // check that Sr is used at most once 
+   let (_,r) = split (decrypt sk c) 2 
+   let pms0 = v @| r 
+   let pms = try assoc !log pms0 with not_found -> pms0
+   prf a (pms, Cr @| Sr)
+    
+    
+ let ptxt plain cipher = (decrypt sk cipher = plain) // possibly after erasing some bytes 
+    
+  I am puzzled that we do not use the cipher-integrity guarantee provided by the ClientFinished check
+  informally, the adversary would need to extract the pms to forge a Finished for any related ciphertext  
+ #endif
+*)

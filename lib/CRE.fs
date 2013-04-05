@@ -82,11 +82,11 @@ PRF.sample si ~_C prfMS si sampleDH p g //relate si and p g
 *)
 
 #if ideal
-let rec rsaassoc (i:(RSAKey.pk * ProtocolVersion * rsapms * bytes)) mss = 
+let rec rsaassoc (si:SessionInfo) (i:(RSAKey.pk * ProtocolVersion * rsapms * bytes)) mss: PRF.masterSecret option = 
     match mss with 
-    | (i',ms)::mss' when i=i' -> Some(ms) 
-    | _::mss' -> rsaassoc i mss'
     | [] -> None 
+    | (i',ms)::mss' when i=i' -> Some(ms) 
+    | _::mss' -> rsaassoc si i mss'
 #endif
 
 let prfSmoothRSA si (pv:ProtocolVersion) pms = 
@@ -98,7 +98,7 @@ let prfSmoothRSA si (pv:ProtocolVersion) pms =
             | Correct(pk) -> pk
             | _           -> unexpectedError "server must have an ID"    
         (* CF we assoc on pk and pv, implicitly relying on the absence of collisions between ideal RSAPMSs.*)
-        match rsaassoc (pk,pv,pms,csrands si) !rsalog with 
+        match rsaassoc si (pk,pv,pms,csrands si) !rsalog with 
         | Some(ms) -> ms
         | None -> 
                  let ms=PRF.sample si 
@@ -141,13 +141,6 @@ let dhlog = ref []
 
 #endif
 
-//type dhpms = {dhpms: DHGroup.elt}  
-
-#if ideal
-let honest_log = ref []
-let log = ref []
-#endif
-
 let sampleDH p g (gx:DHGroup.elt) (gy:DHGroup.elt) = 
     let gz = DHGroup.genElement p g in
     #if ideal
@@ -159,23 +152,23 @@ let sampleDH p g (gx:DHGroup.elt) (gy:DHGroup.elt) =
 let coerceDH (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) b = ConcreteDHPMS(b) 
 
 #if ideal
-let rec dhassoc (i:(p * g * elt * elt * dhpms * bytes)) mss = 
+let rec dhassoc (si:SessionInfo) (i:(p * g * elt * elt * dhpms * bytes)) mss: PRF.masterSecret option = 
     match mss with 
     | (i',ms)::mss' when i=i' -> Some(ms) 
-    | _::mss' -> dhassoc i mss'
+    | _::mss' -> dhassoc si i mss'
     | [] -> None 
 #endif
 
-let prfSmoothDHE si (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) (pms:dhpms) =
+let prfSmoothDHE (si:SessionInfo) (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) (pms:dhpms): PRF.masterSecret =
     match pms with
     //#begin-ideal 
     #if ideal
     | IdealDHPMS(s) -> 
-        match dhassoc (p, g, gx, gy, pms, csrands si) !dhlog with
+        match dhassoc si (p, g, gx, gy, pms, csrands si) !dhlog with
            | Some(ms) -> ms
            | None -> 
                  let ms=PRF.sample si 
-                 dhlog := ((p, g, gx, gy, pms, csrands si), ms)::!log;
+                 dhlog := ((p, g, gx, gy, pms, csrands si), ms)::!dhlog;
                  ms 
     #endif
     //#end-ideal

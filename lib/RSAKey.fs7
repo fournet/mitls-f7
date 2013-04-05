@@ -37,3 +37,5 @@ val create_rsaskey : modulus * exponent -> sk
 // TODO    and they are never used in ideal TLS crypto *)
 // TODO val repr_of_rsapkey : pk -> CoreACiphers.pk
 // TODO val repr_of_rsaskey : sk -> CoreACiphers.sk
+val repr_of_rsapkey : pk -> CoreACiphers.pk
+val repr_of_rsaskey : sk -> CoreACiphers.sk

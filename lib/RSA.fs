@@ -1,5 +1,7 @@
 module RSA
-// MK the module names in the paper are RSA and RSAKey. Where should we fix this?
+
+// CF The check_client_... flag is included in the CRE-RSA assumption, 
+// CF which seens even stronger if the adversary can choose the flag value.
 
 open Bytes
 open Error
@@ -17,7 +19,7 @@ let encrypt pk pv pms =
     //MK here we reply on pv and pms being used only once?
     let v = if RSAKey.honest pk && CRE.honestRSAPMS pk pv pms then // MK remove CRE.honest (CRE.RSA_pms pms)??
               let fake_pms = (versionBytes pv) @|random 46
-              log := (pk,fake_pms,pms)::!log
+              log := (pk,pv,fake_pms,pms)::!log
               fake_pms
             else
               CRE.leakRSA pk pv pms
@@ -26,6 +28,7 @@ let encrypt pk pv pms =
     let v = CRE.leakRSA pk pv pms
     #endif
     CoreACiphers.encrypt_pkcs1 (RSAKey.repr_of_rsapkey pk) v
+
 
 //#begin-decrypt_int
 let decrypt_int pk si cv cvCheck encPMS =
@@ -62,9 +65,9 @@ let decrypt (sk:RSAKey.sk) si cv check_client_version_in_pms_for_old_tls encPMS 
         #if ideal
         let Correct(pk) = (Cert.get_chain_public_encryption_key si.serverID)
         //MK Should be replaced by assoc. Is the recommended style to define it locally to facilitate refinements?
-        match tryFind (fun (pk',fake_pms, _) -> pk'=pk && fake_pms=pmsb) !log  with
-            Some(_,_,ideal_pms) -> ideal_pms
-           |None -> CRE.coerceRSA pk cv pmsb
+        match tryFind (fun (pk',_,fake_pms, _) -> pk'=pk && fake_pms=pmsb) !log  with
+          | Some(_,_,_,ideal_pms) -> ideal_pms
+          | None                -> CRE.coerceRSA pk cv pmsb
         //#end-ideal2
         #else
         CRE.coerceRSA pk cv pmsb
