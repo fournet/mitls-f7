@@ -1,30 +1,40 @@
 ﻿module SessionDB
 
-open System.IO
-open System.Runtime.Serialization.Formatters.Binary
-
 open Bytes
 open TLSInfo
 
 (* ------------------------------------------------------------------------------- *)
-type SessionIndex = sessionID * Role * Cert.hint
 type StorableSession = SessionInfo * PRF.masterSecret
-
+type SessionIndex = sessionID * Role * Cert.hint
 #if ideal
-type SessionDB = StorableSession list ref 
+type entry = sessionID * Role * Cert.hint * StorableSession
+type t = entry list  
 
-let create config : SessionDB= ref [] 
-let select db (sid,r,h) = 
-  // find entry matching sid r h 
-let insert db (sid,r,h) (si,ms) =  
-  db := (si,ms)::!db 
+let create (c:config) : t = []
 
-let remove db (sid,r,h) = 
-let getAllStoredIDs db = 
-  List.map (fun ...) !db
+let insert (db:t) sid r h sims : t = (sid,r,h,sims)::db 
 
+let rec select (db:t) sid r h = 
+  match db with 
+  | (sid',r',h',sims)::db when sid=sid' && r=r' && h=h'  -> Some(sims)
+  | _::db                                                -> select db sid r h  
+  | []                                                   -> None
+
+let rec remove (db:t) sid r h = 
+  match db with 
+  | (sid',r',h',sims)::db when sid=sid' && r=r' && h=h' -> remove db sid r h 
+  | e::db                                               -> e::remove db sid r h 
+  | []                                                  -> []
+
+let rec getAllStoredIDs (db:t) = 
+  match db with 
+  | (sid,r,h,sims)::db -> (sid,r,h)::getAllStoredIDs db
+  | []                 -> []
 #else 
-type SessionDB = {
+open System.IO
+open System.Runtime.Serialization.Formatters.Binary
+
+type t = {
     filename: string;
     expiry: Bytes.TimeSpan;
 }
@@ -71,8 +81,8 @@ let create poptions =
     self
 
 (* ------------------------------------------------------------------------------- *)
-let remove self key =
-    let key = bytes_of_key key in
+let remove self sid role hint =
+    let key = bytes_of_key (sid,role,hint) in
     let db  = DB.opendb self.filename in
 
     try
@@ -82,8 +92,8 @@ let remove self key =
         DB.closedb db
 
 (* ------------------------------------------------------------------------------- *)
-let select self key =
-    let key = bytes_of_key key in
+let select self sid role hint =
+    let key = bytes_of_key (sid,role,hint) in
 
     let select (db : DB.db) =
         let filter_record ((sinfo, ts) : StorableSession * _) =
@@ -108,16 +118,13 @@ let select self key =
         DB.closedb db
 
 (* ------------------------------------------------------------------------------- *)
-let insert self k value =
-    let key = bytes_of_key k in
+let insert self sid role hint value =
+    let key = bytes_of_key (sid,role,hint) in
     let insert (db : DB.db) =
         match DB.get db key with
         | Some _ -> ()
-        | None   -> DB.put db key (bytes_of_value (value, Bytes.now ()))
-    in
-    
+        | None   -> DB.put db key (bytes_of_value (value, Bytes.now ())) in
     let db = DB.opendb self.filename in
-    
     try
         DB.tx db insert; self
     finally

@@ -592,7 +592,7 @@ type hs_state = {
   hs_incoming    : bytes;                  (* partial incoming HS message *)
   (* local configuration *)
   poptions: config; 
-  sDB: SessionDB.SessionDB;
+  sDB: SessionDB.t;
   (* current handshake & session we are establishing *) 
   pstate: protoState;
 }
@@ -635,7 +635,7 @@ let resume next_sid poptions =
 
     (* Search a client sid in the DB *)
     let sDB = SessionDB.create poptions in
-    match SessionDB.select sDB (next_sid,Client,poptions.server_name) with
+    match SessionDB.select sDB next_sid Client poptions.server_name with
     | None -> init Client poptions
     | Some (retrieved) ->
     let (retrievedSinfo,retrievedMS) = retrieved in
@@ -691,7 +691,7 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     | sid ->
         let sDB = SessionDB.create ops in
         (* Ensure the sid is in the SessionDB *)
-        match SessionDB.select sDB (sid,Client,ops.server_name) with
+        match SessionDB.select sDB sid Client ops.server_name with
         | None -> (* Maybe session expired, or was never stored. Let's not resume *)
             rehandshake ci state ops
         | Some s ->
@@ -745,7 +745,7 @@ let invalidateSession ci state =
         | [||] -> state
         | sid ->
             let hint = getPrincipal ci state
-            let sdb = SessionDB.remove state.sDB (sid,ci.role,hint) in
+            let sdb = SessionDB.remove state.sDB sid ci.role hint in
             {state with sDB=sdb}
 
 let getNextEpochs ci si crand srand =
@@ -861,7 +861,7 @@ let next_fragment ci state =
                                               pstate = PSServer(ServerIdle(cvd,svd))})
 
                     else
-                      let sdb = SessionDB.insert state.sDB (si.sessionID,Server,state.poptions.client_name) (si,ms)
+                      let sdb = SessionDB.insert state.sDB si.sessionID Server state.poptions.client_name (si,ms)
                       check_negotiation Server si state.poptions;
                       OutComplete(rg,f,
                                   {state with hs_outgoing = remBuf
@@ -1164,7 +1164,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         else
                             if equalBytes sid sh_session_id then (* use resumption *)
                                 (* Search for the session in our DB *)
-                                match SessionDB.select state.sDB (sid,Client,state.poptions.server_name) with
+                                match SessionDB.select state.sDB sid Client state.poptions.server_name with
                                 | None ->
                                     (* This can happen, although we checked for the session before starting the HS.
                                        For example, the session may have expired between us sending client hello, and now. *)
@@ -1423,7 +1423,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 if PRF.checkVerifyData ci.id_in Server ms log payload then
                     let sDB = 
                         if equalBytes si.sessionID [||] then state.sDB
-                        else SessionDB.insert state.sDB (si.sessionID,Client,state.poptions.server_name) (si,ms)
+                        else SessionDB.insert state.sDB si.sessionID Client state.poptions.server_name (si,ms)
                     check_negotiation Client si state.poptions;
                     InComplete({state with pstate = PSClient(ClientIdle(cvd,payload)); sDB = sDB})
                 else
@@ -1662,7 +1662,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                               recv_fragment_server ci state spv
                     else
                         (* Client asked for resumption, let's see if we can satisfy the request *)
-                        match SessionDB.select state.sDB (ch_session_id,Server,state.poptions.client_name) with
+                        match SessionDB.select state.sDB ch_session_id Server state.poptions.client_name with
                         | Some sentry -> 
                             let (storedSinfo,storedMS)  = sentry in
                             if geqPV ch_client_version storedSinfo.protocol_version

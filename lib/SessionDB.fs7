@@ -1,25 +1,25 @@
 ﻿module SessionDB
 
-(* Database storing live sessions towards resumption. 
-   Mostly trusted: we typecheck a much simplified in-memory database *)
+(* Database storing live sessions towards resumption;
+   We verify a simplified in-memory database with the same contents,
+   but we trust its System.Data.SQLite implementation *)
 
+open Bytes
 open TLSInfo
 
 predicate Authorize of Role * SessionInfo
 
+type (;sid:sessionID, r:Role) StorableSession = si:SessionInfo * (;si) PRF.masterSecret 
+  { si.sessionID = sid /\ Authorize(r,si) }
+
 type SessionIndex = sessionID * Role * Cert.hint
-type StorableSession = si:SessionInfo * (;si) PRF.masterSecret
+private type entry = sid:sessionID * r:Role *  Cert.hint * (;sid,r) StorableSession 
+private type t = entry list 
 
-private type SessionDB = 
-  (r:Role * si:SessionInfo * (;si) PRF.masterSecret {Authorize(r,si)}) list ref
+val create: config -> t
+val select: t -> sid:sessionID -> r:Role -> Cert.hint -> (;sid,r) StorableSession option 
+val insert: t -> sid:sessionID -> r:Role -> Cert.hint -> (;sid,r) StorableSession -> t
+val remove: t -> sid:sessionID -> r:Role -> Cert.hint -> t
 
-val create: config -> SessionDB
-val select: SessionDB -> x:SessionIndex -> res:(StorableSession option){
-  !sid,r,h,si,ms. x = (sid,r,h) /\ res = Some((si,ms)) => Authorize(r,si)}
-val insert: SessionDB -> x:SessionIndex -> res:StorableSession{
-  !sid,r,h,si,ms. x = (sid,r,h) /\ res = (si,ms) => Authorize(r,si)}
- -> SessionDB
-val remove: SessionDB -> SessionIndex -> SessionDB
-
-// Useful for the user of miTLS; nothing interesting to verify 
-val getAllStoredIDs: SessionDB -> SessionIndex list
+// Useful for the user of miTLS
+val getAllStoredIDs: t -> SessionIndex list

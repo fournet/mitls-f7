@@ -944,7 +944,7 @@ private type (;ci:ConnectionInfo) hs_state = {
   hs_incoming    : bytes;                  (* partial incoming HS message *)
   (* local configuration *)
   poptions: config; 
-  sDB: SessionDB.SessionDB;
+  sDB: SessionDB.t;
   (* current handshake & session we are establishing *) 
   pstate: (;ci) protoState;
 }

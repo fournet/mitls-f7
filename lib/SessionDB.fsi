@@ -1,14 +1,23 @@
 ﻿module SessionDB
 
-open Bytes
 open TLSInfo
 
-type SessionDB
-type SessionIndex = sessionID * Role * Cert.hint
-type StorableSession = SessionInfo * PRF.masterSecret
+//CF type SessionIndex = sessionID * Role * Cert.hint
+//CF flattened for simpler refinements 
 
-val create: config -> SessionDB
-val select: SessionDB -> SessionIndex -> StorableSession option
-val insert: SessionDB -> SessionIndex -> StorableSession -> SessionDB
-val remove: SessionDB -> SessionIndex -> SessionDB
-val getAllStoredIDs: SessionDB -> SessionIndex list
+type StorableSession = SessionInfo * PRF.masterSecret
+type SessionIndex = sessionID * Role * Cert.hint
+
+#if ideal
+type entry = sessionID * Role * Cert.hint * StorableSession 
+type t = entry list ref 
+#else
+type t
+#endif
+
+val create: config -> t
+val select: t -> sessionID -> Role -> Cert.hint -> StorableSession option
+val insert: t -> sessionID -> Role -> Cert.hint -> StorableSession -> t
+val remove: t -> sessionID -> Role -> Cert.hint -> t
+
+val getAllStoredIDs: t -> SessionIndex list
