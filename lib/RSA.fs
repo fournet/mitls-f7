@@ -2,6 +2,23 @@ module RSA
 
 // CF The check_client_... flag is included in the CRE-RSA assumption, 
 // CF which seens even stronger if the adversary can choose the flag value.
+(* MK 
+
+   See http://tools.ietf.org/html/rfc5246#section-7.4.7.1
+   
+   The version number in the PreMasterSecret is the version
+   offered by the client in the ClientHello.client_version, not the
+   version negotiated for the connection.  This feature is designed to
+   prevent rollback attacks.  
+
+   Client implementations MUST always send the correct version number in
+   PreMasterSecret.  If ClientHello.client_version is TLS 1.1 or higher,
+   server implementations MUST check the version number as described in
+   the note below.  If the version number is TLS 1.0 or earlier, server
+   implementations SHOULD check the version number, but MAY have a
+   configuration option to disable the check.  
+
+*)
 
 open Bytes
 open Error
