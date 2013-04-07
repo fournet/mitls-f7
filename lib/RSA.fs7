@@ -38,11 +38,11 @@ val decrypt_int: sk ->
                  ct:bytes -> (* encrypted PMS *)
 			     pmsb:CRE.rsarepr { cv_check=true => ?b. pmsb= VersionBytes(cv) @| b} (* No Result type: in case of error, we return a fresh random PMS *)
 
-
+//Specialized assoc function
 val pmsassoc: i:(pk:RSAKey.pk * pv:ProtocolVersion * bytes) -> 
              (i':(pk':RSAKey.pk * pv':ProtocolVersion * bytes) * (;Fst(i'),Snd(i'))CRE.rsapms) list -> 
 			 (;Fst(i),Snd(i))CRE.rsapms option
-//val pmsassoc: 'a -> ('a*'b) list -> 'b option
+
 
 val decrypt: sk ->
   	         si:SessionInfo -> 
@@ -54,10 +54,12 @@ val decrypt: sk ->
 
 
 
-(* CF Alfredo: as we don't have this kind of conditionals in F7, I'm once again commenting out the remainder of the file :-)
- #if whiteboard 
+(* CF 
+
+ Markulf: this is an old discussion of the joint RSAPMS assumption. 
+ May still contain some interesting insights, but has mostly been rewritten by me in the techreport.
+
  Some draft assumption discussed with Markulf on 13/9/12
- 
  
  let sk, pk = keyGen() // sk is private  
  
@@ -104,5 +106,5 @@ val decrypt: sk ->
     
   I am puzzled that we do not use the cipher-integrity guarantee provided by the ClientFinished check
   informally, the adversary would need to extract the pms to forge a Finished for any related ciphertext  
- #endif
+
 *)

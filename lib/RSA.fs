@@ -28,11 +28,26 @@ open RSAKey
 
 #if ideal
 // We maintain a log to look up ideal_pms values using dummy_pms values.
-
 type entry = (pk * ProtocolVersion * bytes) *  CRE.rsapms
 let log = ref []
 #endif
 
+let encrypt pk pv pms =
+    //#begin-ideal1
+    #if ideal
+    //MK Here we rely on every pms being encrypted only once. 
+    //MK Otherwise we would have to story dummy_pms values to maintain consistency.
+    let v = if (* MK redundant RSAKey.honest pk  && *) CRE.honestRSAPMS pk pv pms then
+              let dummy_pms = (versionBytes pv) @|random 46
+              log := ((pk,pv,dummy_pms),pms)::!log
+              dummy_pms
+            else
+              CRE.leakRSA pk pv pms
+    //#end-ideal1
+    #else
+    let v = CRE.leakRSA pk pv pms
+    #endif
+    CoreACiphers.encrypt_pkcs1 (RSAKey.repr_of_rsapkey pk) v
 
 
 //#begin-decrypt_int
@@ -77,8 +92,6 @@ let decrypt (sk:RSAKey.sk) si cv check_client_version_in_pms_for_old_tls encPMS 
         let pmsb = decrypt_int sk si cv check_client_version_in_pms_for_old_tls encPMS in
         //#begin-ideal2
         #if ideal
-        //MK Should be replaced by assoc. Is the recommended style to define it locally to facilitate refinements?
-        //match tryFind (fun (pk',_,dummy_pms, _) -> pk'=pk && dummy_pms=pmsb) !log  with
         match pmsassoc (pk,cv,pmsb) !log with
           | Some(ideal_pms) -> ideal_pms
           | None            -> CRE.coerceRSA pk cv pmsb
@@ -87,18 +100,3 @@ let decrypt (sk:RSAKey.sk) si cv check_client_version_in_pms_for_old_tls encPMS 
         CRE.coerceRSA pk cv pmsb
         #endif
 
-let encrypt pk pv pms =
-    //#begin-ideal1
-    #if ideal
-    //MK here we reply on pv and pms being used only once?
-    let v = if (* redundant RSAKey.honest pk  && *) CRE.honestRSAPMS pk pv pms then // MK remove CRE.honest (CRE.RSA_pms pms)??
-              let dummy_pms = (versionBytes pv) @|random 46
-              log := ((pk,pv,dummy_pms),pms)::!log
-              dummy_pms
-            else
-              CRE.leakRSA pk pv pms
-    //#end-ideal1
-    #else
-    let v = CRE.leakRSA pk pv pms
-    #endif
-    CoreACiphers.encrypt_pkcs1 (RSAKey.repr_of_rsapkey pk) v
