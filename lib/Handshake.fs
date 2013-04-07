@@ -306,7 +306,7 @@ let parseEncpmsVersion version data =
 
 let clientKEXBytes_RSA si config =
     if listLength si.serverID = 0 then
-        unexpectedError "[clientKEXBytes_RSA] Server certificate should always be present with a RSA signing cipher suite."
+        unexpected "[clientKEXBytes_RSA] Server certificate should always be present with a RSA signing cipher suite."
     else
         match Cert.get_chain_public_encryption_key si.serverID with
         | Error(x,y) -> Error(x,y)
@@ -320,7 +320,7 @@ let clientKEXBytes_RSA si config =
 
 let parseClientKEX_RSA si skey cv config data =
     if listLength si.serverID = 0 then
-        unexpectedError "[parseClientKEX_RSA] when the ciphersuite can encrypt the PMS, the server certificate should always be set"
+        unexpected "[parseClientKEX_RSA] when the ciphersuite can encrypt the PMS, the server certificate should always be set"
     else
         match parseEncpmsVersion si.protocol_version data with
         | Correct(encPMS) ->
@@ -386,7 +386,7 @@ let parseDigitallySigned expectedAlgs payload pv =
                 | Correct(sign) ->
                 correct(listHead expectedAlgs,sign)
             else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
-        else unexpectedError "[parseDigitallySigned] invoked with invalid SignatureAndHash algorithms"
+        else unexpected "[parseDigitallySigned] invoked with invalid SignatureAndHash algorithms"
 
 (* Server Key exchange *)
 
@@ -640,7 +640,7 @@ let resume next_sid poptions =
     | Some (retrieved) ->
     let (retrievedSinfo,retrievedMS) = retrieved in
     match retrievedSinfo.sessionID with
-    | [||] -> unexpectedError "[resume] a resumed session should always have a valid sessionID"
+    | [||] -> unexpected "[resume] a resumed session should always have a valid sessionID"
     | sid ->
     let rand = Nonce.mkHelloRandom () in
     let ci = initConnection Client rand in
@@ -676,11 +676,11 @@ let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
                    })
         | _ -> (* handshake already happening, ignore this request *)
             (false,state)
-    | PSServer (_) -> unexpectedError "[rehandshake] should only be invoked on client side connections."
+    | PSServer (_) -> unexpected "[rehandshake] should only be invoked on client side connections."
 
 let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     if isInitEpoch(ci.id_out) then
-        unexpectedError "[rekey] should only be invoked on established connections."
+        unexpected "[rekey] should only be invoked on established connections."
     else
     (* Start a (possibly) resuming handshake over an existing epoch *)
     let si = epochSI(ci.id_out) in // or equivalently ci.id_in
@@ -712,11 +712,11 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
                            })
                 | _ -> (* Handshake already ongoing, ignore this request *)
                     (false,state)
-            | PSServer (_) -> unexpectedError "[rekey] should only be invoked on client side connections."
+            | PSServer (_) -> unexpected "[rekey] should only be invoked on client side connections."
 
 let request (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     match state.pstate with
-    | PSClient _ -> unexpectedError "[request] should only be invoked on server side connections."
+    | PSClient _ -> unexpected "[request] should only be invoked on server side connections."
     | PSServer (sstate) ->
         match sstate with
         | ServerIdle(cvd,svd) ->
@@ -1040,7 +1040,7 @@ let on_serverHello_full (ci:ConnectionInfo) crand log to_log (shello:ProtocolVer
     elif isRSACipherSuite sh_cipher_suite then
         PSClient(ServerCertificateRSA(si,log))
     else
-        unexpectedError "[on_serverHello_full] Unknown ciphersuite"
+        unexpected "[on_serverHello_full] Unknown ciphersuite"
 
 
 let parseMessageState (ci:ConnectionInfo) state = 
@@ -1438,7 +1438,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
         | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "Unrecognized message",state)
       
       (* Should never happen *)
-      | PSServer(_) -> unexpectedError "[recv_fragment_client] should only be invoked when in client role."
+      | PSServer(_) -> unexpected "[recv_fragment_client] should only be invoked when in client role."
 
 let prepare_server_output_full_RSA (ci:ConnectionInfo) state si cv calgs cvd svd log =
     let renInfo = cvd @| svd in
@@ -1553,7 +1553,7 @@ let prepare_server_output_full ci state si cv cvd svd log =
         let calgs = default_sigHashAlg si.protocol_version si.cipher_suite in
         prepare_server_output_full_RSA ci state si cv calgs cvd svd log
     else
-        unexpectedError "[prepare_server_output_full] unexpected ciphersuite"
+        unexpected "[prepare_server_output_full] unexpected ciphersuite"
 
 // The server "negotiates" its first proposal included in the client's proposal
 let negotiate cList sList =
@@ -1827,7 +1827,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
 
         | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "Unknown message received",state)
       (* Should never happen *)
-      | PSClient(_) -> unexpectedError "[recv_fragment_server] should only be invoked when in server role."
+      | PSClient(_) -> unexpected "[recv_fragment_server] should only be invoked when in server role."
 
 let enqueue_fragment (ci:ConnectionInfo) state fragment =
     let new_inc = state.hs_incoming @| fragment in
@@ -1889,7 +1889,7 @@ let authorize (ci:ConnectionInfo) (state:hs_state) (q:Cert.chain) =
               recv_fragment_client ci 
                 {state with pstate = PSClient(CertificateRequestRSA(si,log))}
                 agreedVersion
-            else unexpectedError "[authorize] invoked with different cert"
+            else unexpected "[authorize] invoked with different cert"
         | ClientCheckingCertificateDHE(si,log,agreedVersion,to_log) ->
             let log = log @| to_log in
             let si = {si with serverID = q} in
@@ -1898,7 +1898,7 @@ let authorize (ci:ConnectionInfo) (state:hs_state) (q:Cert.chain) =
               {state with pstate = PSClient(ServerKeyExchangeDHE(si,log))} 
               agreedVersion
         // | ClientCheckingCertificateDH -> TODO
-        | _ -> unexpectedError "[authorize] invoked on the wrong state"
+        | _ -> unexpected "[authorize] invoked on the wrong state"
     | PSServer(sstate) ->
         match sstate with
         | ServerCheckingCertificateRSA(si,cv,sk,log,c,to_log) when c = q ->
@@ -1916,7 +1916,7 @@ let authorize (ci:ConnectionInfo) (state:hs_state) (q:Cert.chain) =
               {state with pstate = PSServer(ClientKeyExchangeDHE(si,p,g,gx,x,log))} 
               None
         // | ServerCheckingCertificateDH -> TODO
-        | _ -> unexpectedError "[authorize] invoked on the wrong state"
+        | _ -> unexpected "[authorize] invoked on the wrong state"
 
 (* function used by an ideal handshake implementation to decide whether to idealize keys
 let safe ki = 

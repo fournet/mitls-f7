@@ -32,7 +32,7 @@ private type (;ki:succEpoch) key = {k:bytes}
 //CF   | GoodKey_B of ideal_B.key
 //CF   | BadKey_A 
 
-type iv = bytes
+type iv = bytes //CF could specify its size
 private type (;ki:succEpoch) iv3 =
 	| SomeIV of iv // SSL_3p0 and TLS_1p0
 	| NoIV         // TLS_1p0 and TLS_1p2

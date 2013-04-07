@@ -187,7 +187,7 @@ let default_sigHashAlg_fromSig pv sigAlg=
         //match pv with
         //| TLS_1p0| TLS_1p1 | TLS_1p2 -> [(SA_DSA, SHA)]
         //| SSL_3p0 -> [(SA_DSA,NULL)]
-    | _ -> unexpectedError "[default_sigHashAlg_fromSig] invoked on an invalid signature algorithm"
+    | _ -> unexpected "[default_sigHashAlg_fromSig] invoked on an invalid signature algorithm"
 
 let default_sigHashAlg pv cs =
     default_sigHashAlg_fromSig pv (sigAlg_of_ciphersuite cs)

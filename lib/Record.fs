@@ -81,7 +81,7 @@ let recordPacketOut ki conn pv rg ct fragment =
         let history = TLSFragment.extendHistory ki ct history rg fragment in
         let packet = makePacket ct pv payload in
         (SomeState(history,state),packet)
-    | _ -> unexpectedError "[recordPacketOut] Incompatible ciphersuite and key type"
+    | _ -> unexpected "[recordPacketOut] Incompatible ciphersuite and key type"
     
 
 (* CF: an attempt to simplify for typechecking 
@@ -139,7 +139,7 @@ let recordPacketIn ki conn headPayload =
             let history = TLSFragment.extendHistory ki ct history rg msg in
             let st' = someState ki StatefulLHAE.ReaderState history newState in
             correct(st',ct,pv,rg,msg)
-    | _ -> unexpectedError "[recordPacketIn] Incompatible ciphersuite and key type"
+    | _ -> unexpected "[recordPacketIn] Incompatible ciphersuite and key type"
 
 let history (e:epoch) (rw:StatefulLHAE.rw) s =
     match s with

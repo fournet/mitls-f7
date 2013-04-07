@@ -29,7 +29,7 @@ let OID_DSASignature            = "1.2.840.10040.4.3"
 let oid_of_keyalg = function
 | SA_RSA   -> OID_RSAEncryption
 | SA_DSA   -> OID_DSASignatureKey
-| SA_ECDSA -> Error.unexpectedError "SA_ECDSA"
+| SA_ECDSA -> Error.unexpected "SA_ECDSA"
 
 (* ------------------------------------------------------------------------ *)
 let x509_to_public_key (x509 : X509Certificate2) =

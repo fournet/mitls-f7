@@ -149,7 +149,7 @@ let pickSendPV (Conn(id,c)) =
     | Init -> getMinVersion id c.handshake
     | FirstHandshake(pv) | Closing(pv,_) -> pv
     | Finishing | Finished | Open -> let id_out = id.id_out in let si = epochSI(id_out) in si.protocol_version
-    | Closed -> unexpectedError "[pickSendPV] invoked on a Closed connection"
+    | Closed -> unexpected "[pickSendPV] invoked on a Closed connection"
 
 let closeConnection (Conn(id,c)) =
     let new_read = {c.read with disp = Closed} in
@@ -436,7 +436,7 @@ let recv (Conn(id,c)) =
                             correct(c_recv,ct,tl,f)
                         else
                             Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Protocol version check failed")
-                    | _ -> unexpectedError "[recv] invoked on a closed connection"
+                    | _ -> unexpected "[recv] invoked on a closed connection"
 
 let ghostFragment e = 
     let s = DataStream.init e in
@@ -458,7 +458,7 @@ let rec writeAllClosing (Conn(id,s)) =
     | (WError(x),conn) -> WError(x),conn
     | (SentClose,conn) -> SentClose,conn
     | (SentFatal(x,y),conn) -> SentFatal(x,y),conn
-    | (_,_) -> unexpectedError "[writeAllClosing] writeOne returned wrong result"
+    | (_,_) -> unexpected "[writeAllClosing] writeOne returned wrong result"
 
 let rec writeAllFinishing conn ghr ghf ghs =
     match writeOne conn ghr ghf ghs with
@@ -469,7 +469,7 @@ let rec writeAllFinishing conn ghr ghf ghs =
         let (Conn(id,s)) = conn in
         writeAllFinishing (Conn(id,s)) ghr ghf ghs
     | (WMustRead, conn) -> (WMustRead, conn)
-    | (_,_) -> unexpectedError "[writeAllFinishing] writeOne returned wrong result"
+    | (_,_) -> unexpected "[writeAllFinishing] writeOne returned wrong result"
 
 let rec writeAllTop conn ghr ghf ghs =
     match writeOne conn ghr ghf ghs with
@@ -483,7 +483,7 @@ let rec writeAllTop conn ghr ghf ghs =
     | (WriteAgain,conn) ->
         let (Conn(id,s)) = conn in
         writeAllTop (Conn(id,s)) ghr ghf ghs
-    | (_,_) -> unexpectedError "[writeAllTop] writeOne returned wrong result"
+    | (_,_) -> unexpected "[writeAllTop] writeOne returned wrong result"
 
 let handleHandshakeOutcome (Conn(id,c)) hsRes =
     let c_read = c.read in
@@ -674,7 +674,7 @@ let rec read c =
                 let conn = {conn with appdata = appState} in
                 let c = Conn(id,conn) in
                 c,RAppDataDone,Some(b)
-            | (None,_) -> unexpectedError "[read] When RAppDataDone, some data should have been read."
+            | (None,_) -> unexpected "[read] When RAppDataDone, some data should have been read."
         | RQuery(q,adv) ->
             c,RQuery(q,adv),None
         | RHSDone ->
@@ -707,7 +707,7 @@ let rec read c =
     | WHSDone -> c,WriteOutcome(WHSDone),None
     | SentFatal(ad,err) -> c,WriteOutcome(SentFatal(ad,err)),None
     | WError(err) -> c,WriteOutcome(WError(err)),None
-    | WriteAgain | WriteAgainFinishing -> unexpectedError "[read] writeAll should never return WriteAgain"
+    | WriteAgain | WriteAgainFinishing -> unexpected "[read] writeAll should never return WriteAgain"
 
 let msgWrite (Conn(id,c)) (rg,d) =
   let (r0,r1) = DataStream.splitRange id.id_out rg in
@@ -742,9 +742,9 @@ let authorize (Conn(id,c)) q =
         let res = read (Conn(id,c)) in
         res
     | RAppDataDone ->    
-        unexpectedError "[authorize] App data should never be received"
+        unexpected "[authorize] App data should never be received"
     | RQuery(q,adv) ->
-        unexpectedError "[authorize] A query should never be received"
+        unexpected "[authorize] A query should never be received"
     | RHSDone ->
         (Conn(id,c)),RHSDone,None
     | RClose ->

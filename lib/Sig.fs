@@ -71,17 +71,17 @@ let sign (a: alg) (sk: skey) (t: text): sigv =
 
     if ahash <> khash then
         #if verify
-        Error.unexpectedError("Sig.sign")
+        Error.unexpected("Sig.sign")
         #else
-        Error.unexpectedError
+        Error.unexpected
             (sprintf "Sig.sign: requested sig-hash = %A, but key requires %A"
                 ahash khash)
         #endif
     if asig <> sigalg_of_skeyparams kparams then
         #if verify
-        Error.unexpectedError("Sig.sign")
+        Error.unexpected("Sig.sign")
         #else
-        Error.unexpectedError
+        Error.unexpected
             (sprintf "Sig.sign: requested sig-algo = %A, but key requires %A"
                 asig (sigalg_of_skeyparams kparams))
         #endif
@@ -108,17 +108,17 @@ let verify (a : alg) (pk : pkey) (t : text) (s : sigv) =
 
     if ahash <> khash then
         #if verify
-        Error.unexpectedError("Sig.verify")
+        Error.unexpected("Sig.verify")
         #else
-        Error.unexpectedError
+        Error.unexpected
             (sprintf "Sig.verify: requested sig-hash = %A, but key requires %A"
                 ahash khash)
         #endif
     if asig <> sigalg_of_pkeyparams kparams then
         #if verify
-        Error.unexpectedError("Sig.verify")
+        Error.unexpected("Sig.verify")
         #else
-        Error.unexpectedError
+        Error.unexpected
             (sprintf "Sig.verify: requested sig-algo = %A, but key requires %A"
                 asig (sigalg_of_pkeyparams kparams))
         #endif
@@ -147,7 +147,7 @@ let gen (a:alg) : pkey * skey =
         match asig with
         | SA_RSA -> CoreSig.gen CoreSig.CORE_SA_RSA
         | SA_DSA -> CoreSig.gen CoreSig.CORE_SA_DSA
-        | _      -> Error.unexpectedError "[gen] invoked on unsupported algorithm"
+        | _      -> Error.unexpected "[gen] invoked on unsupported algorithm"
     let p,s =  ({ pkey = (pkey, ahash) }, { skey = (skey, ahash) })
     #if ideal
     honest_log := (a,s,p)::!honest_log

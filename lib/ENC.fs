@@ -92,20 +92,20 @@ let ENC_int ki s tlen d =
     //#begin-ivStaleEnc
     | BlockCipher(s), CBC_Stale(alg) ->
         match s.iv with
-        | NoIV -> unexpectedError "[ENC] Wrong combination of cipher algorithm and state"
+        | NoIV -> unexpected "[ENC] Wrong combination of cipher algorithm and state"
         | SomeIV(iv) ->
             let cipher = cbcenc alg s.key.k iv d
             if length cipher <> tlen || tlen > max_TLSCipher_fragment_length then
                 // unexpected, because it is enforced statically by the
                 // CompatibleLength predicate
-                unexpectedError "[ENC] Length of encrypted data do not match expected length"
+                unexpected "[ENC] Length of encrypted data do not match expected length"
             else
                 let s = {s with iv = SomeIV(lastblock alg cipher) } in
                 (BlockCipher(s), cipher)
     //#end-ivStaleEnc
     | BlockCipher(s), CBC_Fresh(alg) ->
         match s.iv with
-        | SomeIV(b) -> unexpectedError "[ENC] Wrong combination of cipher algorithm and state"
+        | SomeIV(b) -> unexpected "[ENC] Wrong combination of cipher algorithm and state"
         | NoIV   ->
             let ivl = blockSize alg in
             let iv = random ivl in
@@ -114,7 +114,7 @@ let ENC_int ki s tlen d =
             if length res <> tlen || tlen > max_TLSCipher_fragment_length then
                 // unexpected, because it is enforced statically by the
                 // CompatibleLength predicate
-                unexpectedError "[ENC] Length of encrypted data do not match expected length"
+                unexpected "[ENC] Length of encrypted data do not match expected length"
             else
                 let s = {s with iv = NoIV} in
                 (BlockCipher(s), res)
@@ -123,10 +123,10 @@ let ENC_int ki s tlen d =
         if length cipher <> tlen || tlen > max_TLSCipher_fragment_length then
                 // unexpected, because it is enforced statically by the
                 // CompatibleLength predicate
-                unexpectedError "[ENC] Length of encrypted data do not match expected length"
+                unexpected "[ENC] Length of encrypted data do not match expected length"
         else
             (StreamCipher(s),cipher)
-    | _, _ -> unexpectedError "[ENC] Wrong combination of cipher algorithm and state"
+    | _, _ -> unexpected "[ENC] Wrong combination of cipher algorithm and state"
 
 #if ideal
 type entry = epoch * LHAEPlain.adata * cipher * Encode.plain
@@ -163,7 +163,7 @@ let DEC_int ki s cipher =
     //#begin-ivStaleDec
     | BlockCipher(s), CBC_Stale(alg) ->
         match s.iv with
-        | NoIV -> unexpectedError "[DEC] Wrong combination of cipher algorithm and state"
+        | NoIV -> unexpected "[DEC] Wrong combination of cipher algorithm and state"
         | SomeIV(iv) ->
             let data = cbcdec alg s.key.k iv cipher
             let s = {s with iv = SomeIV(lastblock alg cipher)} in
@@ -171,7 +171,7 @@ let DEC_int ki s cipher =
     //#end-ivStaleDec
     | BlockCipher(s), CBC_Fresh(alg) ->
         match s.iv with
-        | SomeIV(_) -> unexpectedError "[DEC] Wrong combination of cipher algorithm and state"
+        | SomeIV(_) -> unexpected "[DEC] Wrong combination of cipher algorithm and state"
         | NoIV ->
             let ivL = blockSize alg in
             let (iv,encrypted) = split cipher ivL in
@@ -181,7 +181,7 @@ let DEC_int ki s cipher =
     | StreamCipher(s), Stream_RC4_128 ->
         let data = CoreCiphers.rc4process s.sstate cipher
         (StreamCipher(s),data)
-    | _,_ -> unexpectedError "[DEC] Wrong combination of cipher algorithm and state"
+    | _,_ -> unexpected "[DEC] Wrong combination of cipher algorithm and state"
 
 let DEC ki s ad cipher =
   #if ideal

@@ -22,7 +22,7 @@ let ivSize e =
         | Stream_RC4_128 -> 0
         | CBC_Stale(_) -> 0
         | CBC_Fresh(alg) -> blockSize alg
-    | AEAD (_,_) -> Error.unexpectedError "[ivSize] invoked on unsupported ciphersuite"
+    | AEAD (_,_) -> Error.unexpected "[ivSize] invoked on unsupported ciphersuite"
 
 let fixedPadSize (si:SessionInfo) = 1
     //AP if si.extended_record_padding then 2 else 1
@@ -41,7 +41,7 @@ let maxPadSize si =
                 match si.protocol_version with
                 | SSL_3p0 -> blockSize alg
                 | TLS_1p0 | TLS_1p1 | TLS_1p2 -> 255
-    | _ -> Error.unexpectedError "[maxPadSize] invoked on unsupported ciphersuite"
+    | _ -> Error.unexpected "[maxPadSize] invoked on unsupported ciphersuite"
 
 let blockAlignPadding e len =
     let si = epochSI(e) in
@@ -56,7 +56,7 @@ let blockAlignPadding e len =
             let fp = fixedPadSize si in
             let overflow = (len + fp) % bs //@ at least fp bytes of fixed padding
             if overflow = 0 then fp else fp + bs - overflow 
-    | _ -> Error.unexpectedError "[maxPadSize] invoked on unsupported ciphersuite"
+    | _ -> Error.unexpected "[maxPadSize] invoked on unsupported ciphersuite"
 
 //@ From plaintext range to ciphertext length 
 let targetLength e (rg:range) =
@@ -68,7 +68,7 @@ let targetLength e (rg:range) =
     let padLen = blockAlignPadding e prePad in
     let res = ivL + prePad + padLen in
     if res > max_TLSCipher_fragment_length then
-        Error.unexpectedError "[targetLength] given an invalid input range."
+        Error.unexpected "[targetLength] given an invalid input range."
     else
         res
 
@@ -88,7 +88,7 @@ let cipherRangeClass (e:epoch) tlen =
     let (minPad,maxPad) = minMaxPad si in
     let max = tlen - ivL - macSize - minPad in
     if max < 0 then
-        Error.unexpectedError "[cipherRangeClass] the given tlen should be of a valid ciphertext"
+        Error.unexpected "[cipherRangeClass] the given tlen should be of a valid ciphertext"
     else
         let min = max - maxPad in
         if min < 0 then

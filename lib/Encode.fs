@@ -98,11 +98,11 @@ let encodeNoPad (e:epoch) (tlen:nat) rg (ad:LHAEPlain.adata) data tag =
     let b = payload e rg ad data in
     let (_,h) = rg in
     if h <> length b then
-        Error.unexpectedError "[encodeNoPad] invoked on an invalid range."
+        Error.unexpected "[encodeNoPad] invoked on an invalid range."
     else
     let payload = b @| tag
     if length payload <> tlen then
-        Error.unexpectedError "[encodeNoPad] Internal error."
+        Error.unexpected "[encodeNoPad] Internal error."
     else
         payload
 
@@ -118,17 +118,17 @@ let encode (e:epoch) (tlen:nat) rg (ad:LHAEPlain.adata) data tag =
         //CF here we miss refinements to prove 0 < pl <= 256
         let payload = b @| tag @| pad pl
         if length payload <> tlen - ivL then
-            Error.unexpectedError "[encode] Internal error."
+            Error.unexpected "[encode] Internal error."
         else
             payload
     else
-        unexpectedError "[encode] Internal error."
+        unexpected "[encode] Internal error."
 
 
 let decodeNoPad e (ad:LHAEPlain.adata) rg tlen pl =
     let plainLen = length pl in
     if plainLen <> tlen then
-        Error.unexpectedError "[decodeNoPad] wrong target length given as input argument."
+        Error.unexpected "[decodeNoPad] wrong target length given as input argument."
     else
     let si = epochSI(e) in
     let maclen = macSize (macAlg_of_ciphersuite si.cipher_suite si.protocol_version) in
@@ -228,7 +228,7 @@ let plain (e:epoch) ad tlen b =
         decode e ad rg tlen b
 
 //  | GCM _ ->
-    | _ -> unexpectedError "[Encode.plain] incompatible ciphersuite given."
+    | _ -> unexpected "[Encode.plain] incompatible ciphersuite given."
 
 let repr (e:epoch) ad rg pl = 
   let si = epochSI(e) in
@@ -246,5 +246,5 @@ let repr (e:epoch) ad rg pl =
     | MtE(CBC_Fresh(_),_) ->
         encode e tlen rg ad lp tg
 //  | GCM _ ->
-    | _ -> unexpectedError "[Encode.repr] incompatible ciphersuite given."
+    | _ -> unexpected "[Encode.repr] incompatible ciphersuite given."
 

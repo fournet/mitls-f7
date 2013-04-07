@@ -1,6 +1,6 @@
 ﻿module Tcp
 
-(* Trusted only to return bytes with the requested length *)
+(* Trusted only to return bytes of the requested length *)
 
 open Bytes
 open Error

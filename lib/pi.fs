@@ -1,6 +1,6 @@
 (* Copyright (c) Microsoft Corporation.  All rights reserved.  *)
 
-(* This file provides trivial F# definitions for F7 specification primitives *)
+(* This file provides dummy F# definitions for the F7 specification primitives *)
 
 module Pi
 

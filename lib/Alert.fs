@@ -155,7 +155,7 @@ let next_fragment ci state =
         | [||] ->
             // FIXME: This hack is not even working, because if we do one-bye fragmentation parseAlert fails!
             match parseAlert d with
-            | Error(x,y) -> unexpectedError ("[next_fragment] This invocation of parseAlertDescription should never fail")
+            | Error(x,y) -> unexpected ("[next_fragment] This invocation of parseAlertDescription should never fail")
             | Correct(ad) ->
                 match ad with
                 | AD_close_notify -> (LastALCloseFrag(r0,df),state)

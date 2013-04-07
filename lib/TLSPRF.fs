@@ -39,7 +39,7 @@ let ssl_certificate_verify ms log hashAlg =
       match hashAlg with
       | SHA -> (ssl_pad1_sha1, ssl_pad2_sha1)
       | MD5 -> (ssl_pad1_md5,  ssl_pad2_md5)
-      | _ -> Error.unexpectedError "[ssl_certificate_verify] invoked on a wrong hash algorithm"
+      | _ -> Error.unexpected "[ssl_certificate_verify] invoked on a wrong hash algorithm"
   let forStep1 = log @| ms @| pad1 in
   let step1 = hash hashAlg forStep1 in
   let forStep2 = ms @| pad2 @| step1 in
@@ -49,7 +49,7 @@ let ssl_certificate_verify ms log hashAlg =
 
 let xor s1 s2 nb =
   if Array.length s1 < nb || Array.length s2 < nb then
-    Error.unexpectedError "[xor] arrays too short"
+    Error.unexpected "[xor] arrays too short"
   else
     let res = Array.zeroCreate nb in  
     for i=0 to nb-1 do

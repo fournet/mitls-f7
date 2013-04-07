@@ -46,5 +46,5 @@ let perror (file:string) (line:string) (text:string) =
 
 let correct x = Correct x
 
-let unexpectedError info = failwith info
+let unexpected info = failwith info
 let unreachable info = failwith info

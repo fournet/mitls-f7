@@ -27,7 +27,7 @@ let GEN e =
         let mk = MAC.GEN e in
         let (ek,dk) = ENC.GEN e in
         (MtEK(mk,ek),MtEK(mk,dk))
-    | AEAD (_,_) -> unexpectedError "[GEN] invoked on unsupported ciphersuite"
+    | AEAD (_,_) -> unexpected "[GEN] invoked on unsupported ciphersuite"
 
 let COERCE e b =
     // precondition: b is of the right length, so no need for a runtime checks here.
@@ -48,7 +48,7 @@ let COERCE e b =
       let ek = ENC.COERCE e ekb ivb in
       MtEK(mk,ek)
     | AEAD (_,_) -> 
-      unexpectedError "[COERCE] invoked on wrong ciphersuite"
+      unexpected "[COERCE] invoked on wrong ciphersuite"
 
 let LEAK e k =
     match k with
@@ -71,7 +71,7 @@ let encrypt' e key data rg plain =
             let plain   = Encode.mac e ka data rg plain in
             let (l,h) = rg in
             if l <> h then
-                unexpectedError "[encrypt'] given an invalid input range"
+                unexpected "[encrypt'] given an invalid input range"
             else
                 let (ke,res) = ENC.ENC e ke data rg plain 
                 (MtEK(ka,ke),res)
@@ -83,12 +83,12 @@ let encrypt' e key data rg plain =
         let plain = Encode.mac e ka data rg plain in
         let (l,h) = rg in
         if l <> h then
-            unexpectedError "[encrypt'] given an invalid input range"
+            unexpected "[encrypt'] given an invalid input range"
         else
             let r = Encode.repr e data rg plain in
             (key,r)
 //  | GCM (k) -> ... 
-    | (_,_) -> unexpectedError "[encrypt'] incompatible ciphersuite-key given."
+    | (_,_) -> unexpected "[encrypt'] incompatible ciphersuite-key given."
         
 let mteKey (e:epoch) ka ke = MtEK(ka,ke)
 
@@ -140,7 +140,7 @@ let decrypt' e key data cipher =
             | Error(x,y) -> Error(x,y)
             | Correct(aeplain) -> correct (key,rg,aeplain)
 //  | GCM (GCMKey) -> ... 
-    | (_,_) -> unexpectedError "[decrypt'] incompatible ciphersuite-key given."
+    | (_,_) -> unexpected "[decrypt'] incompatible ciphersuite-key given."
 
 #if ideal
 

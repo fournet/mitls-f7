@@ -21,22 +21,22 @@ let parseAD e ad =
     let pv = si.protocol_version in
     if pv = SSL_3p0 then
         match parseCT ad with
-        | Error(x,y) -> unexpectedError "[parseAD] should never parse failing"
+        | Error(x,y) -> unexpected "[parseAD] should never parse failing"
         | Correct(ct) -> ct
     else
         if length ad = 3 then
             let (bct, bver) = Bytes.split ad 1 in
             match parseCT bct with
-            | Error(x,y) -> unexpectedError "[parseAD] should never parse failing"
+            | Error(x,y) -> unexpected "[parseAD] should never parse failing"
             | Correct(ct) ->
                 match parseVersion bver with
-                | Error(x,y) -> unexpectedError "[parseAD] should never parse failing"
+                | Error(x,y) -> unexpected "[parseAD] should never parse failing"
                 | Correct(ver) ->
                     if pv <> ver then
-                        unexpectedError "[parseAD] should never parse failing"
+                        unexpected "[parseAD] should never parse failing"
                     else ct
         else
-            unexpectedError "[parseAD] should never parse failing"
+            unexpected "[parseAD] should never parse failing"
 
 type fragment = {contents: TLSFragment.fragment}
 

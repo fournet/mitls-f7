@@ -59,8 +59,8 @@ let hashAlgBytes ha =
     | SHA     -> [|2uy|]
     | SHA256  -> [|4uy|]
     | SHA384  -> [|5uy|]
-    | NULL    -> unexpectedError "[macAlgBytes] Cannot enode NULL hash alg."
-    | MD5SHA1 -> unexpectedError "[macAlgBytes] Cannot enode MD5SHA1 hash alg."
+    | NULL    -> unexpected "[macAlgBytes] Cannot enode NULL hash alg."
+    | MD5SHA1 -> unexpected "[macAlgBytes] Cannot enode MD5SHA1 hash alg."
 
 let parseHashAlg b =
     match b with
@@ -112,7 +112,7 @@ let hashSize alg =
     | SHA256  -> 32
     | SHA384  -> 48
     | MD5SHA1 -> 16 + 20
-    | NULL    -> Error.unexpectedError "[hashSize] Unknown hash size for NULL algorithm"
+    | NULL    -> Error.unexpected "[hashSize] Unknown hash size for NULL algorithm"
 
 let macKeySize mac =
     match mac with
@@ -304,7 +304,7 @@ let cipherSuiteBytes cs =
     | SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV)            -> [| 0x00uy; 0xFFuy |]
 
 (* KB: Must define known cipher suites as a predicate before typechecking the following: *)
-    | _ -> unexpectedError "[cipherSuiteBytes] invoked on an unknown ciphersuite"
+    | _ -> unexpected "[cipherSuiteBytes] invoked on an unknown ciphersuite"
 
 let parseCipherSuite b = 
     match b with
@@ -422,7 +422,7 @@ let sigAlg_of_ciphersuite cs =
     | CipherSuite( DHE_RSA, _) | CipherSuite(DH_RSA,_) -> SA_RSA
     | CipherSuite( DHE_DSS, _) | CipherSuite(DH_DSS,_) -> SA_DSA
     (* | CipherSuite(ECDHE_ECDSA,_) -> SA_ECDSA *)
-    | _ -> unexpectedError "[sigAlg_of_ciphersuite] invoked on a worng ciphersuite"
+    | _ -> unexpected "[sigAlg_of_ciphersuite] invoked on a worng ciphersuite"
 
 let contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV (css: cipherSuite list) =
 (* KB
@@ -446,8 +446,8 @@ let prfMacAlg_of_ciphersuite (cs:cipherSuite) =
     | CipherSuite ( _ , CS_MtE ( _ , _ )) -> MA_HMAC(SHA256)
     | CipherSuite ( _ , CS_AEAD ( _ , hAlg ))   -> MA_HMAC(hAlg)
     | OnlyMACCipherSuite (_, hAlg) -> MA_HMAC(SHA256)
-    | NullCipherSuite         -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite" 
-    | SCSV (_)                -> unexpectedError "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite" 
+    | NullCipherSuite         -> unexpected "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite" 
+    | SCSV (_)                -> unexpected "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite" 
 
 // PRF and verifyData hash algorithms are potentially independent in TLS 1.2,
 // so we use two distinct functions. However, all currently defined ciphersuites
@@ -460,8 +460,8 @@ let verifyDataHashAlg_of_ciphersuite (cs:cipherSuite) =
     | CipherSuite ( _ , CS_MtE ( _ , _ ))     -> SHA256
     | CipherSuite ( _ , CS_AEAD ( _ , hAlg )) -> hAlg
     | OnlyMACCipherSuite (_, hAlg)         -> SHA256
-    | NullCipherSuite -> unexpectedError "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
-    | SCSV (_)        -> unexpectedError "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
+    | NullCipherSuite -> unexpected "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
+    | SCSV (_)        -> unexpected "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
 
 let macAlg_of_ciphersuite cs pv =
     match cs with
@@ -469,7 +469,7 @@ let macAlg_of_ciphersuite cs pv =
         match pv with
         | SSL_3p0 -> MA_SSLKHASH(alg)
         | TLS_1p0 | TLS_1p1 | TLS_1p2 -> MA_HMAC(alg)
-    | _ -> unexpectedError "[macAlg_of_ciphersuite] invoked on an invalid ciphersuite"
+    | _ -> unexpected "[macAlg_of_ciphersuite] invoked on an invalid ciphersuite"
 
 let encAlg_of_ciphersuite cs pv =
     match cs with
@@ -487,7 +487,7 @@ let encAlg_of_ciphersuite cs pv =
             | TDES_EDE_CBC -> CBC_Fresh(TDES_EDE)
             | AES_128_CBC -> CBC_Fresh(AES_128)
             | AES_256_CBC -> CBC_Fresh(AES_256)
-    | _ -> unexpectedError "[encAlg_of_ciphersuite] inovked on an invalid ciphersuite"
+    | _ -> unexpected "[encAlg_of_ciphersuite] inovked on an invalid ciphersuite"
 
 let authencAlg_of_ciphersuite cs pv =
     match cs with
@@ -498,7 +498,7 @@ let authencAlg_of_ciphersuite cs pv =
         let enc = encAlg_of_ciphersuite cs pv in
         let mac = macAlg_of_ciphersuite cs pv in
         MtE (enc,mac)
-    | _ -> unexpectedError "[authencAlg_of_ciphersuite] invoked on an invalid ciphersuite"
+    | _ -> unexpected "[authencAlg_of_ciphersuite] invoked on an invalid ciphersuite"
 
 let mkIntTriple x:(int*int*int) = x
 
@@ -515,7 +515,7 @@ let getKeyExtensionLength pv cs =
         | OnlyMACCipherSuite (_,hAlg) ->
             let macAlg = macAlg_of_ciphersuite cs pv in
             (0,0,macKeySize macAlg)
-        | _ -> unexpectedError "[getKeyExtensionLength] invoked on an invalid ciphersuite"
+        | _ -> unexpected "[getKeyExtensionLength] invoked on an invalid ciphersuite"
     2 * (keySize + IVSize + hashSize)
 
 (* Not for verification, just to run the implementation. See TLSInfo.fs *)
@@ -740,12 +740,12 @@ let defaultCertTypes sign cs =
         match sigAlg_of_ciphersuite cs with
         | SA_RSA -> [RSA_sign]
         | SA_DSA -> [DSA_sign]
-        | _ -> unexpectedError "[defaultCertTypes] invoked on an invalid ciphersuite"
+        | _ -> unexpected "[defaultCertTypes] invoked on an invalid ciphersuite"
     else 
         match sigAlg_of_ciphersuite cs with
         | SA_RSA -> [RSA_fixed_dh]
         | SA_DSA -> [DSA_fixed_dh]
-        | _ -> unexpectedError "[defaultCertTypes] invoked on an invalid ciphersuite"
+        | _ -> unexpected "[defaultCertTypes] invoked on an invalid ciphersuite"
 
 
 let rec distinguishedNameListBytes names =

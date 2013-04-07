@@ -54,7 +54,7 @@ let read ca =
       | WriteOutcome(WHSDone),_ -> Handshaken (cb)
       | WriteOutcome(SentFatal(ad,s)),_ -> ReadError(Some(ad),s)
       | WriteOutcome(SentClose),_ -> Close (networkStream cb)
-      | WriteOutcome(WriteAgain),_ -> unexpectedError "[read] Dispatch.read should never return WriteAgain"
+      | WriteOutcome(WriteAgain),_ -> unexpected "[read] Dispatch.read should never return WriteAgain"
       | _,_ -> ReadError(None, perror __SOURCE_FILE__ __LINE__ "Invalid dispatcher state. This is probably a bug, please report it")
 
 let write c msg =
@@ -70,7 +70,7 @@ let write c msg =
              Currently, we report this as an internal error.
              Being more precise about the Dispatch state machine, we should be
              able to prove that this case should never happen, and so use the
-             unexpectedError function. *)
+             unexpected function. *)
           WriteError(None, perror __SOURCE_FILE__ __LINE__ "Invalid dispatcher state. This is probably a bug, please report it")
       | WMustRead ->
           MustRead(c)
@@ -82,7 +82,7 @@ let write c msg =
       | SentFatal(ad,err) ->
           WriteError(Some(ad),err)
       | WriteAgain | WriteAgainFinishing ->
-          unexpectedError "[write] writeAll should never ask to write again"
+          unexpected "[write] writeAll should never ask to write again"
 
 
 
@@ -102,7 +102,7 @@ let authorize c q =
       | WriteOutcome(WHSDone) -> Handshaken (cb)
       | WriteOutcome(SentFatal(ad,s)) -> ReadError(Some(ad),s)
       | WriteOutcome(SentClose) -> Close (networkStream cb)
-      | WriteOutcome(WriteAgain) -> unexpectedError "[read] Dispatch.read should never return WriteAgain"
+      | WriteOutcome(WriteAgain) -> unexpected "[read] Dispatch.read should never return WriteAgain"
       | _ -> ReadError(None, perror __SOURCE_FILE__ __LINE__ "Invalid dispatcher state. This is probably a bug, please report it")
 
 let refuse c q = Dispatch.refuse c q

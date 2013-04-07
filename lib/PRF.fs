@@ -110,7 +110,7 @@ let keyGen ci (ms:masterSecret) =
                 | Server ->
                     (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState sk,
                      StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState ck)
-        | _ -> unexpectedError "[keyGen] invoked on unsupported ciphersuite"
+        | _ -> unexpected "[keyGen] invoked on unsupported ciphersuite"
 
 
 let makeVerifyData e role (ms:masterSecret) data =
@@ -154,7 +154,7 @@ let ssl_certificate_verify (si:SessionInfo) ms (algs:sigAlg) log =
   match algs with
   | SA_RSA -> ssl_certificate_verify ms.bytes log MD5 @| ssl_certificate_verify ms.bytes log SHA
   | SA_DSA -> ssl_certificate_verify ms.bytes log SHA
-  | _      -> unexpectedError "[ssl_certificate_verify] invoked on a wrong signature algorithm"
+  | _      -> unexpected "[ssl_certificate_verify] invoked on a wrong signature algorithm"
 
 //#begin-coerce
 let coerce (si:SessionInfo) b = 

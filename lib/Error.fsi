@@ -39,5 +39,5 @@ type 'a Result =
 
 val perror: string -> string -> string -> string
 val correct: 'a -> 'a Result
-val unexpectedError: string -> 'a
+val unexpected: string -> 'a
 val unreachable: string -> 'a

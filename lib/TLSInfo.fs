@@ -51,17 +51,17 @@ let isInitEpoch e =
 
 let epochSI e =
     match e with
-    | InitEpoch (d) -> Error.unexpectedError "[epochSI] invoked on initial epoch."
+    | InitEpoch (d) -> Error.unexpected "[epochSI] invoked on initial epoch."
     | SuccEpoch (cr,sr,si,pe) -> si
 
 let epochSRand e =
     match e with
-    | InitEpoch (d) -> Error.unexpectedError "[epochSRand] invoked on initial epoch."
+    | InitEpoch (d) -> Error.unexpected "[epochSRand] invoked on initial epoch."
     | SuccEpoch (cr,sr,si,pe) -> sr
 
 let epochCRand e =
     match e with
-    | InitEpoch (d) -> Error.unexpectedError "[epochCRand] invoked on initial epoch."
+    | InitEpoch (d) -> Error.unexpected "[epochCRand] invoked on initial epoch."
     | SuccEpoch (cr,sr,si,pe) -> cr
 
 type ConnectionInfo = {

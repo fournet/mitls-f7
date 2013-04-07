@@ -84,7 +84,7 @@ let extendHistory (e:epoch) ct ss r frag =
     | Alert,FAlert(f)              -> let s' = HSFragment.extend e ss.alert r f in {ss with alert = s'} 
     | Change_cipher_spec,FCCS(f)   -> let s' = HSFragment.extend e ss.ccs r f in {ss  with ccs = s'} 
     | Application_data,FAppData(f) -> let d,s' = AppFragment.delta e ss.appdata r f in {ss with appdata = s'}
-    | _,_                          -> unexpectedError "[extendHistory] invoked on an invalid contenttype/fragment"
+    | _,_                          -> unexpected "[extendHistory] invoked on an invalid contenttype/fragment"
     //CF unreachable too, but we'd need to list the other 12 cases to prove it. 
 
 #if ideal
@@ -95,6 +95,6 @@ let widen e ct r0 f0 =
     | Alert,FAlert(f)              -> let f1 = HSFragment.widen e r0 r1 f in FAlert(f1)
     | Change_cipher_spec,FCCS(f)   -> let f1 = HSFragment.widen e r0 r1 f in FCCS(f1)
     | Application_data,FAppData(f) -> let f1 = AppFragment.widen e r0 f in FAppData(f1)
-    | _,_                          -> unexpectedError "[widen] invoked on an invalid contenttype/fragment"
+    | _,_                          -> unexpected "[widen] invoked on an invalid contenttype/fragment"
     //CF unreachable too
 #endif

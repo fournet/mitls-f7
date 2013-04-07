@@ -18,7 +18,7 @@ let splitRange ki r =
     let PS = maxPadSize si in
     if PS = 0 then
         if l<>h then
-            unexpectedError "[splitRange] Incompatible range provided"
+            unexpected "[splitRange] Incompatible range provided"
         else
             let len = min h FS in
             let r0 = (len,len) in
@@ -27,12 +27,12 @@ let splitRange ki r =
     else
         let encAlg = encAlg_of_ciphersuite cs si.protocol_version in
         match encAlg with
-        | Stream_RC4_128 -> unexpectedError "[splitRange] Stream ciphers do not support pad"
+        | Stream_RC4_128 -> unexpected "[splitRange] Stream ciphers do not support pad"
         | CBC_Stale(alg) | CBC_Fresh(alg) ->
             let BS = blockSize alg in
             let t  = macSize (TLSConstants.macAlg_of_ciphersuite cs si.protocol_version) in
             if FS < PS || PS < BS then
-                unexpectedError "[splitRange] Incompatible fragment size, padding size and block size"
+                unexpected "[splitRange] Incompatible fragment size, padding size and block size"
             else
                 if l >= FS then
                     let r0 = (FS,FS) in
