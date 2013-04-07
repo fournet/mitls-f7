@@ -19,7 +19,6 @@ private definition !e1,e2,e3. Snd((e1,e2,e3)) = e2
 // Jakob Jonsson and Burton S. Kaliski Jr.
 // http://www.iacr.org/archive/crypto2002/24420127/24420127.pdf   
 
-predicate EncryptedRSAPMS of pk:pk * pv:ProtocolVersion * (;pk,pv)CRE.rsapms * bytes
 
 private type entry = i:(pk:pk * pv:ProtocolVersion * (;48) lbytes) * 
                      (;Fst(i),Snd(i)) CRE.rsapms
@@ -28,7 +27,7 @@ private val log: entry list ref
 
 
 
-val encrypt: pk:pk -> pv:ProtocolVersion -> pms:(;pk,pv) CRE.rsapms -> b:bytes (*MK suspicious {EncryptedRSAPMS(pk,pv,pms,b) /\ HonestRSAPMSData(pk,pv,b)} *)
+val encrypt: pk:pk -> pv:ProtocolVersion -> pms:(;pk,pv) CRE.rsapms -> b:bytes {CRE.EncryptedRSAPMS(pk,pv,pms,b)} (*MK suspicious  /\ HonestRSAPMSData(pk,pv,b)} *)
 
 // TLS specific, timing-attack-resistant variant
 val decrypt_int: sk ->

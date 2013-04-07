@@ -15,7 +15,7 @@
   
 - Declare all honest predicates
   RSAKey.Honest(pk) (enc), Sig.Honest(a,pk)
-  HonestRSAPMS(pv,pk,epms), HonestDHPMS(p,g,gx,gy)
+  HonestRSAPMSData(pv,pk,epms), HonestDHPMSData(p,g,gx,gy)
   extend to HonestMS, HonestKeys
 
 - What is used: DHGroup or DH?
@@ -144,15 +144,15 @@ definition !pk. HonestRSAKey(pk) <=> RSAKey.Honest(pk)
 //MK: predicate HonestLTKey (See also Cert.fs7)
 
 // To be defined 
-predicate HonestRSAPMS of pk:RSAKey.pk * pv:ProtocolVersion * encpms:bytes
-predicate HonestDHPMS of p:DHGroup.p * g:(;p)DHGroup.g *
+predicate HonestRSAPMSData of pk:RSAKey.pk * pv:ProtocolVersion * encpms:bytes
+predicate HonestDHPMSData of p:DHGroup.p * g:(;p)DHGroup.g *
 		  	      gx:(;p)DHGroup.elt (* Client *) *
 			      gy:(;p)DHGroup.elt (* Server *)
 
-predicate HonestPMS of pmsData
-assume !pd. HonestPMS(pd) <=>
-      ((?pk,pv,e. pd = RSAPMS(pk,pv,e) /\ HonestRSAPMS(pk,pv,e)) \/
-       (?p,g,gx,gy. pd = DHPMS(p,g,gx,gy) /\ HonestDHPMS(p,g,gx,gy)))
+predicate HonestPMSData of pmsData
+assume !pd. HonestPMSData(pd) <=>
+      ((?pk,pv,e. pd = RSAPMS(pk,pv,e) /\ HonestRSAPMSData(pk,pv,e)) \/
+       (?p,g,gx,gy. pd = DHPMS(p,g,gx,gy) /\ HonestDHPMSData(p,g,gx,gy)))
 
 // Predicates specifying cryptographic assumptions on algorithms 
 predicate StrongAESI of SessionInfo
@@ -178,15 +178,15 @@ predicate StrongHS  of SessionInfo //CF * hashAlg for certs?
 
 
 predicate SafeRSAPMS of RSAKey.pk * ProtocolVersion // The public key and protocol version yields a good rsapms
+
+//MK SafeDHPMS is much more specific involving the contributions to the pms. This is probably by necessity.
 predicate SafeDHPMS of p:DHGroup.p * (;p)DHGroup.g * (;p)DHGroup.elt * (;p)DHGroup.elt // The DH parameters, generator, and gx and gy values yield a good dhpms
 
 predicate StrongRSAPMS   of SessionInfo // MK was ProtocolVersion * kexAlg
 predicate StrongDHPMS    of SessionInfo // MK was ProtocolVersion * kexAlg
-// MK??     ((?pk,pv,e. pd = RSAPMS(pk,pv,e) /\ HonestRSAPMS(pk,pv,e)) \/
-// MK??     (?p,g,gx,gy. pd = DHPMS(p,g,gx,gy) /\ HonestDHPMS(p,g,gx,gy)))
+
 
 definition !si. StrongHS(si) <=> 
-// MK why not get alg directly?     (Sig.Strong(CipherSuiteSigAlg(si.cipher_suite),DefaultSigHashAlg(si),SupportedSigHashAlgs(si))
 		      StrongSig(si)
 		   /\ StrongPRF(si) 
            /\ StrongCRE(si)
@@ -211,7 +211,7 @@ definition !si. AuthSI(si) <=>
 
 definition !id. SafeHS_SI(id) <=> 
       StrongHS(id)
-   /\ HonestPMS(id.pmsData)
+   /\ HonestPMSData(id.pmsData)
 
 definition !id. SafeHS(id) <=> SafeHS_SI(EpochSI(id)) 
 

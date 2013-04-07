@@ -40,9 +40,15 @@ type rsapms =
 let honestRSAPMS (pk:RSAKey.pk) (pv:TLSConstants.ProtocolVersion) pms = 
   match pms with 
   | IdealRSAPMS(s)    -> true
-  | ConcreteRSAPMS(s) -> false 
+  | ConcreteRSAPMS(s) -> false
+  
+type rsapreds = 
+    | EncryptedRSAPMS of RSAKey.pk * ProtocolVersion * rsapms * bytes
+ 
 
 // We maintain a log for looking up good ms values using their pms values
+type rsaentry = (RSAKey.pk * ProtocolVersion * rsapms * bytes * SessionInfo) * PRF.masterSecret
+
 let rsalog = ref []
 
 #endif
@@ -62,7 +68,7 @@ let coerceRSA (pk:RSAKey.pk) (pv:ProtocolVersion) b = ConcreteRSAPMS(b)
 let leakRSA (pk:RSAKey.pk) (pv:ProtocolVersion) pms = 
   match pms with 
   #if ideal
-  | IdealRSAPMS(_) -> Error.unreachable "pms is dishonest" 
+  | IdealRSAPMS(_) -> Error.unexpected "pms is dishonest" //MK changed to unexpected from unreachable
   #endif
   | ConcreteRSAPMS(b) -> b 
 
@@ -83,7 +89,6 @@ PRF.sample si ~_C prfMS si sampleDH p g //relate si and p g
 
 #if ideal
 
-type rsaentry = (RSAKey.pk * ProtocolVersion * rsapms * bytes * SessionInfo) * PRF.masterSecret
 
 let rec rsaassoc (i:(RSAKey.pk * ProtocolVersion * rsapms * bytes * SessionInfo)) mss: PRF.masterSecret option = 
     match mss with 
@@ -140,6 +145,9 @@ let honestDHPMS (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) pm
   | ConcreteDHPMS(s) -> false 
 
 // We maintain a log for looking up good ms values using their pms values
+
+type dsentry = (p * g * elt * elt * dhpms * bytes * SessionInfo) * PRF.masterSecret
+
 let dhlog = ref []
 
 #endif
@@ -155,11 +163,13 @@ let sampleDH p g (gx:DHGroup.elt) (gy:DHGroup.elt) =
 let coerceDH (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) b = ConcreteDHPMS(b) 
 
 #if ideal
-let rec dhassoc (si:SessionInfo) (i:(p * g * elt * elt * dhpms * bytes)) mss: PRF.masterSecret option = 
+
+let rec dhassoc (i:(p * g * elt * elt * dhpms * bytes * SessionInfo)) mss: PRF.masterSecret option = 
     match mss with 
-    | (i',ms)::mss' when i=i' -> Some(ms) 
-    | _::mss' -> dhassoc si i mss'
     | [] -> None 
+    | (i',ms)::mss' when i=i' -> Some(ms) 
+    | _::mss' -> dhassoc i mss'
+
 #endif
 
 let prfSmoothDHE (si:SessionInfo) (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) (pms:dhpms): PRF.masterSecret =
@@ -167,11 +177,11 @@ let prfSmoothDHE (si:SessionInfo) (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (
     //#begin-ideal 
     #if ideal
     | IdealDHPMS(s) -> 
-        match dhassoc si (p, g, gx, gy, pms, csrands si) !dhlog with
+        match dhassoc (p, g, gx, gy, pms, csrands si, si) !dhlog with
            | Some(ms) -> ms
            | None -> 
                  let ms=PRF.sample si 
-                 dhlog := ((p, g, gx, gy, pms, csrands si), ms)::!dhlog;
+                 dhlog := ((p, g, gx, gy, pms, csrands si, si), ms)::!dhlog;
                  ms 
     #endif
     //#end-ideal

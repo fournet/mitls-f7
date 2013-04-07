@@ -32,6 +32,7 @@ type entry = (pk * ProtocolVersion * bytes) *  CRE.rsapms
 let log = ref []
 #endif
 
+
 let encrypt pk pv pms =
     //#begin-ideal1
     #if ideal
@@ -47,8 +48,11 @@ let encrypt pk pv pms =
     #else
     let v = CRE.leakRSA pk pv pms
     #endif
-    CoreACiphers.encrypt_pkcs1 (RSAKey.repr_of_rsapkey pk) v
-
+    let epms = CoreACiphers.encrypt_pkcs1 (RSAKey.repr_of_rsapkey pk) v
+    #if ideal
+    Pi.assume(CRE.EncryptedRSAPMS(pk,pv,pms,epms))
+    #endif
+    epms
 
 //#begin-decrypt_int
 let decrypt_int dk si cv cvCheck encPMS =
