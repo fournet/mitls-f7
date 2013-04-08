@@ -27,7 +27,9 @@ private definition !ki,si,enc,mac. si = EpochSI(ki) =>
 					    EncKeySize(enc) +
 					    Range.IVSize(ki) ))
 
-//CF '13 who wrote this? when? 
+//CF '13 who wrote this? when?
+//MK I have a partial answer, for a different question, why?: it was needed for PRF verification, and 
+//MK I added a similar ask in PRF.fs7. Succeeds for me. 
 //TODO Why is this failing? Because of LHAESize not being what I want, I cannot typecheck COERCE.
 //TODO ask !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) => LHAESize(ki,ki) = MacSize(TLSConstants.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))
 

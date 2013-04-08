@@ -453,8 +453,17 @@ val parseCipherSuites: b:bytes -> (css:cipherSuites {?csl. b = CipherSuitesBytes
 val cipherSuitesBytes: css:cipherSuites -> b:bytes {b = CipherSuitesBytes(css)}
 
 val mkIntTriple: (nat * nat * nat) -> (nat * nat * nat)
-val getKeyExtensionLength: pv:ProtocolVersion -> cs:cipherSuite -> n:nat {!mac. CipherSuiteAuthEncAlg(cs,pv) = TLSConstants.MACOnly(mac) =>
-	   n = 2*TLSConstants.MacSize(mac)}
+
+//MK This function needs to be further annotated to make PRF typecheck.  
+val getKeyExtensionLength: pv:ProtocolVersion -> cs:cipherSuite -> n:nat 
+    { ( !mac. CipherSuiteAuthEncAlg(cs,pv) = TLSConstants.MACOnly(mac) => n = 2*TLSConstants.MacSize(mac) )
+	}
+	// /\ ( !mac. CipherSuiteAuthEncAlg(cs,pv) = MtE(Stream_RC4_128,mac)  => n = 2* (MacSize(mac) + EncKeySize(Stream_RC4_128) ) )
+	//}
+
+//ask   !pv,cs,n. ( (!mac. CipherSuiteAuthEncAlg(cs,pv) = TLSConstants.MACOnly(mac) => n = 2*TLSConstants.MacSize(mac) ) 
+//        /\ ( !enc,blockenc,mac. (CipherSuiteAuthEncAlg(cs,pv) = MtE(enc,mac) /\ (enc=Stream_RC4_128 \/ enc=CBC_Fresh(blockenc)) ) => n = 2*(MacSize(mac) + EncKeySize(enc)) ))
+//		=> (!mac. CipherSuiteAuthEncAlg(cs,pv) = TLSConstants.MACOnly(mac) => n = 2*TLSConstants.MacSize(mac) ) 
 
 (* CF Not for verification, just to run the implementation *)
 
