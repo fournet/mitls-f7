@@ -21,6 +21,6 @@ val genKey: p:p -> g: (;p) g -> gx:(;p) elt * (;p,g,gx) secret{
 
 val exp: p:p -> g:(;p)g -> gx:(;p) elt -> gy:(;p) elt -> x:(;p,g,gx) secret -> res:(;p,g,gx,gy) CRE.dhpms{
   HonestExponent(p,g,gx) /\ HonestExponent(p,g,gy) => 
-    TLSInfo.HonestDHPMS(p,g,gx,gy)}
+    TLSInfo.HonestDHPMSData(p,g,gx,gy)}
     
     

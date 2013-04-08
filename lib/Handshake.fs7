@@ -778,12 +778,12 @@ private definition !a,k,t. Sig.Msg(a,k,t)
   <=> ((?si,pk,pv,e. 
              ClientLogBeforeCertificateVerifyRSA_Auth(si,t) /\
              si.pmsData = RSAPMS(pk,pv,e) /\
-             HonestRSAPMS(pk,pv,e) /\
+             HonestRSAPMSData(pk,pv,e) /\
              k = Cert.SigPKCert(si.clientID,a)) \/
         (?si,p,g,gx,gy. 
            ClientLogBeforeCertificateVerifyDHE_Auth(si,t) /\
            si.pmsData = DHPMS(p,g,gx,gy) /\
-           DH.HonestExponent(p,g,gy) => HonestDHPMS(p,g,gx,gy) /\ 
+           DH.HonestExponent(p,g,gy) => HonestDHPMSData(p,g,gx,gy) /\ 
            k = Cert.SigPKCert(si.clientID,a)) \/
         (?si,p,g,gy. t = si.init_crand @| si.init_srand @| 
            DHEParamBytes(p,g,gy) /\
@@ -814,7 +814,7 @@ private definition !role,e,cfg.
   CompleteEpoch(role,e,cfg) 
 
   <=>
-  ((StrongHS(EpochSI(e)) /\ HonestPMS(EpochSI(e).pmsData) =>
+  ((StrongHS(EpochSI(e)) /\ HonestPMSData(EpochSI(e).pmsData) =>
               (Authorize(Client,EpochSI(e)) /\
                Authorize(Server,EpochSI(e)) /\
                SentCCS(Client,e) /\
@@ -825,7 +825,7 @@ private definition !role,e,cfg.
      (?a. Sig.Honest(a,Cert.SigPKCert(EpochSI(e).clientID,a))) /\
      (?a. Sig.Honest(a,Cert.SigPKCert(EpochSI(e).serverID,a))) /\
      RSAKey.Honest(Cert.RSAPKCert(EpochSI(e).serverID))) 
-    => HonestPMS(EpochSI(e).pmsData)))
+    => HonestPMSData(EpochSI(e).pmsData)))
 
 (* Negotiated remains to be defined but it can be a nice global spec of what HS is meant to achieve.
    Especially interesting would be proving that the result is the "best possible" *)
