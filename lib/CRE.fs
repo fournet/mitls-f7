@@ -90,10 +90,11 @@ PRF.sample si ~_C prfMS si sampleDH p g //relate si and p g
 #if ideal
 
 
-let rec rsaassoc (i:(RSAKey.pk * ProtocolVersion * rsapms * bytes * SessionInfo)) mss: PRF.masterSecret option = 
+let rec rsaassoc (i:(RSAKey.pk * ProtocolVersion * rsapms * bytes * SessionInfo)) (mss:rsaentry list): PRF.masterSecret option = 
+    let pk,pv,pms,csr,si=i in
     match mss with 
     | [] -> None 
-    | (i',ms)::mss' when i=i' -> Some(ms) 
+    | ((pk',pv',pms',csr',si'),ms)::mss' when pk=pk' && pv=pv' && pms=pms' && csr=csr' -> Some(ms) 
     | _::mss' -> rsaassoc i mss'
 #endif
 
@@ -146,7 +147,7 @@ let honestDHPMS (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) pm
 
 // We maintain a log for looking up good ms values using their pms values
 
-type dsentry = (p * g * elt * elt * dhpms * bytes * SessionInfo) * PRF.masterSecret
+type dhentry = (p * g * elt * elt * dhpms * bytes * SessionInfo) * PRF.masterSecret
 
 let dhlog = ref []
 
@@ -164,10 +165,11 @@ let coerceDH (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) b = C
 
 #if ideal
 
-let rec dhassoc (i:(p * g * elt * elt * dhpms * bytes * SessionInfo)) mss: PRF.masterSecret option = 
+let rec dhassoc (i:(p * g * elt * elt * dhpms * bytes * SessionInfo)) (mss:dhentry list): PRF.masterSecret option = 
+    let (p,g,gx,gy,pms,csr,_)=i in
     match mss with 
     | [] -> None 
-    | (i',ms)::mss' when i=i' -> Some(ms) 
+    | ((p',g',gx',gy',pms',csr',_),ms)::mss' when p=p' && g=g' && gx=gx' && gy=gy' && pms=pms' && csr=csr' -> Some(ms) 
     | _::mss' -> dhassoc i mss'
 
 #endif

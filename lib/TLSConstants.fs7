@@ -453,7 +453,8 @@ val parseCipherSuites: b:bytes -> (css:cipherSuites {?csl. b = CipherSuitesBytes
 val cipherSuitesBytes: css:cipherSuites -> b:bytes {b = CipherSuitesBytes(css)}
 
 val mkIntTriple: (nat * nat * nat) -> (nat * nat * nat)
-val getKeyExtensionLength: ProtocolVersion -> cipherSuite -> nat
+val getKeyExtensionLength: pv:ProtocolVersion -> cs:cipherSuite -> n:nat {!mac. CipherSuiteAuthEncAlg(cs,pv) = TLSConstants.MACOnly(mac) =>
+	   n = 2*TLSConstants.MacSize(mac)}
 
 (* CF Not for verification, just to run the implementation *)
 

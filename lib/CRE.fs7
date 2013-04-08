@@ -22,11 +22,13 @@ predicate HonestRSAPMS of pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms
 
 private definition !pk,pv,pms. HonestRSAPMS(pk,pv,pms) <=> ?s. pms = IdealRSAPMS(s)
 
-//private definition !pk,pv,pms. SafeRSAPMS(pk,pv) <=> ?s. pms = IdealRSAPMS(s)
+//MK some dangerouse attempts: 
+//MK private definition !pk,pv,pms. SafeRSAPMS(pk,pv) <=> ?s. pms = IdealRSAPMS(s)
+//MK private definition !pk,pv,pms,epms. SafeRSAPMS(pk,pv) /\ EncryptedRSAPMS(pk,pv,pms,epms) <=> HonestRSAPMS(pk,pv,pms)
+//MK theorem !pk,pv,pms,epms. not HonestRSAPMS(pk,pv,pms) /\ EncryptedRSAPMS(pk,pv,pms,epms) <=> not SafeRSAPMS(pk,pv)
 
-private definition !pk,pv,pms,epms. SafeRSAPMS(pk,pv) /\ EncryptedRSAPMS(pk,pv,pms,epms) <=> HonestRSAPMS(pk,pv,pms)
-
-theorem !pk,pv,pms. ?epms. not HonestRSAPMS(pk,pv,pms) /\ EncryptedRSAPMS(pk,pv,pms,epms) <=> HonestRSAPMS(pk,pv,pms) => not SafeRSAPMS(pk,pv)
+//MK TODO maybe dangerouse as well but at least makes typechecker happy ;)
+theorem !pk,pv,pms. not HonestRSAPMS(pk,pv,pms) => not SafeRSAPMS(pk,pv)
 
 val honestRSAPMS: pk:RSAKey.pk -> pv:ProtocolVersion -> pms: (;pk,pv) rsapms -> b:bool { b=true <=> HonestRSAPMS(pk,pv,pms) } 
 
@@ -75,8 +77,8 @@ val coerceDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt {not SafeDHPMS(p,g,gx
 private function val Seventh: 'a -> 'b
 private definition !e1,e2,e3,e4,e5,e6,e7. Seventh((e1,e2,e3,e4,e5,e6,e7)) = e7
 
-private type dsentry = i:(p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * (;p,g,gx,gy) dhpms * bytes * si:SessionInfo) * ms:(;Seventh(i)) PRF.masterSecret
-private val dslog: dsentry list ref 
+private type dhentry = i:(p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * (;p,g,gx,gy) dhpms * bytes * si:SessionInfo) * ms:(;Seventh(i)) PRF.masterSecret
+private val dhlog: dhentry list ref 
 
 val dhassoc: i:(p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * (;p,g,gx,gy) dhpms * bytes * si:SessionInfo) -> 
              (i':(p':p * g':(;p') g * gx':(;p') elt * gy':(;p') elt * (;p',g',gx',gy') dhpms * bytes * SessionInfo) * (;Seventh(i')) PRF.masterSecret) list -> 

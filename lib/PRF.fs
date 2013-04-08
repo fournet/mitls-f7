@@ -29,7 +29,7 @@ let epochs (ci:ConnectionInfo) =
 #endif
 
 
-let keyGen ci (ms:masterSecret) =
+let keyGen_int ci (ms:masterSecret) =
     let si = epochSI(ci.id_in) in
     let pv = si.protocol_version in
     let cs = si.cipher_suite in
@@ -38,17 +38,57 @@ let keyGen ci (ms:masterSecret) =
     let data = srand @| crand in
     let len = getKeyExtensionLength pv cs in
     let b = prf pv cs ms.bytes tls_key_expansion data len in
+    let authEnc = authencAlg_of_ciphersuite cs pv in
+    match authEnc with
+    | MACOnly macAlg ->
+        let macKeySize = macKeySize macAlg in
+        let ck,sk = split b macKeySize 
+        match ci.role with 
+        | Client ->
+            (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState ck,
+             StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState sk)
+        | Server ->
+            (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState sk,
+             StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState ck)
+    | MtE(encAlg,macAlg) ->
+        let macKeySize = macKeySize macAlg in
+        let encKeySize = encKeySize encAlg in
+        match encAlg with
+        | Stream_RC4_128 | CBC_Fresh(_) ->
+            let cmkb, b = split b macKeySize in
+            let smkb, b = split b macKeySize in
+            let cekb, b = split b encKeySize in
+            let sekb, b = split b encKeySize in
+            let ck = (cmkb @| cekb) in
+            let sk = (smkb @| sekb) in
+            match ci.role with 
+            | Client ->
+                (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState ck,
+                 StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState sk)
+            | Server ->
+                (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState sk,
+                 StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState ck)
+        | CBC_Stale(alg) ->
+            let ivsize = blockSize alg
+            let cmkb, b = split b macKeySize in
+            let smkb, b = split b macKeySize in
+            let cekb, b = split b encKeySize in
+            let sekb, b = split b encKeySize in
+            let civb, sivb = split b ivsize in
+            let ck = (cmkb @| cekb @| civb) in
+            let sk = (smkb @| sekb @| sivb) in
+            match ci.role with 
+            | Client ->
+                (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState ck,
+                 StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState sk)
+            | Server ->
+                (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState sk,
+                 StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState ck)
+    | _ -> unexpected "[keyGen] invoked on unsupported ciphersuite"
+
+let keyGen ci ms =
     //#begin-ideal1
     #if ideal
-            
-(* KB: rewrite the above in the style and typecheck:
-   #if ideal
-   if safeHS(...) 
-     ... GEN ...
-   else 
-   #endif
-     .... COERCE ...
-*)
     //CF "honest" is not the right predicate; we should use PRED := safeHS.
     //CF for typechecking against StAE, we PRED s.t. Auth => Pred.
     //CF for applying the prf assumption, we need to decided depending *only* on the session 
@@ -64,54 +104,7 @@ let keyGen ci (ms:masterSecret) =
     else 
     //#end-ideal1
     #endif
-        let authEnc = authencAlg_of_ciphersuite cs pv in
-        match authEnc with
-        | MACOnly macAlg ->
-            let macKeySize = macKeySize macAlg in
-            let ck,sk = split b macKeySize 
-            match ci.role with 
-            | Client ->
-                (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState ck,
-                 StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState sk)
-            | Server ->
-                (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState sk,
-                 StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState ck)
-        | MtE(encAlg,macAlg) ->
-            let macKeySize = macKeySize macAlg in
-            let encKeySize = encKeySize encAlg in
-            match encAlg with
-            | Stream_RC4_128 | CBC_Fresh(_) ->
-                let cmkb, b = split b macKeySize in
-                let smkb, b = split b macKeySize in
-                let cekb, b = split b encKeySize in
-                let sekb, b = split b encKeySize in
-                let ck = (cmkb @| cekb) in
-                let sk = (smkb @| sekb) in
-                match ci.role with 
-                | Client ->
-                    (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState ck,
-                     StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState sk)
-                | Server ->
-                    (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState sk,
-                     StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState ck)
-            | CBC_Stale(alg) ->
-                let ivsize = blockSize alg
-                let cmkb, b = split b macKeySize in
-                let smkb, b = split b macKeySize in
-                let cekb, b = split b encKeySize in
-                let sekb, b = split b encKeySize in
-                let civb, sivb = split b ivsize in
-                let ck = (cmkb @| cekb @| civb) in
-                let sk = (smkb @| sekb @| sivb) in
-                match ci.role with 
-                | Client ->
-                    (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState ck,
-                     StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState sk)
-                | Server ->
-                    (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState sk,
-                     StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState ck)
-        | _ -> unexpected "[keyGen] invoked on unsupported ciphersuite"
-
+        keyGen_int ci ms
 
 let makeVerifyData e role (ms:masterSecret) data =
   let si = epochSI(e) in
