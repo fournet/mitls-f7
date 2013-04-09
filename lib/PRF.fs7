@@ -39,6 +39,8 @@ val coerce: si:SessionInfo (*MK {not SafeHS_SI(si)} *) -> repr -> (;si)masterSec
 ask !ki,si,enc,mac. TLSConstants.CipherSuiteAuthEncAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = TLSConstants.MACOnly(mac) =>
 	  LHAE.LHAESize(ki) = TLSConstants.MacSize(mac)
 
+//MK theorem !cs,pv,mac,n. TLSConstants.CipherSuiteAuthEncAlg(cs,pv) = TLSConstants.MACOnly(mac) /\ TLSConstants.KeyExtensionLength(pv,cs)=n => n = TLSConstants.MacSize(mac)+TLSConstants.MacSize(mac)
+
 private val keyGen_int: ci:ConnectionInfo{IsSuccEpoch(ci.id_in)} -> (;EpochSI(ci.id_out))masterSecret -> 
   ( w:(;ci.id_out)StatefulLHAE.writer * 
     r:(;ci.id_in) StatefulLHAE.reader ) 
