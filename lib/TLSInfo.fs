@@ -144,6 +144,7 @@ let fragmentLength = max_TLSPlaintext_fragment_length (*CF use e.g. 1 for testin
 // These functions are used only for specifying ideal implementations
 let safe (e:epoch) = failwith "spec only" : bool //CF Define in terms of strength and honesty
 let safeHS (e:epoch) = failwith "spec only": bool
+let safeHS_SI (e:SessionInfo) = failwith "spec only": bool
 let auth (e:epoch) = failwith "spec only": bool
 let safeMAC (e:epoch) = failwith "spec only":bool
 let safeENC (e:epoch) = failwith "spec only":bool

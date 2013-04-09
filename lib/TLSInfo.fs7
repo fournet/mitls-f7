@@ -209,6 +209,9 @@ definition !si. AuthSI(si) <=>
            SafeHS_SI(si) /\    
            StrongAuthSI(si)
 
+// MK This definition is too strong. 
+// MK StrongHS(id) /\ HonestPMSData(id.pmsData) => SafeHS_ID(id) but not the other way around.
+// MK SafeHS_ID(id) => ( ? pms, sk. StrongHS(id) /\ HonestPMS(pms) /\ pms=RSADecrypt(sk,id.pmsData) )
 definition !id. SafeHS_SI(id) <=> 
       StrongHS(id)
    /\ HonestPMSData(id.pmsData)
@@ -224,6 +227,7 @@ definition !e. Auth(e) <=> AuthSI(EpochSI(e))
 // we use F# functions that characterize the Safe and Auth predicates.
 val safe: (e:epoch) -> b:bool { b = true <=> Safe(e) }
 val safeHS: (e:epoch) -> b:bool {b = true <=> SafeHS(e)}
+val safeHS_SI: (si:SessionInfo) -> b:bool {b = true <=> SafeHS_SI(si)}
 val auth :(e:epoch) -> b:bool {b = true <=> Auth(e)}
 val safeMAC: (e:epoch) -> b:bool {b = true <=> Auth(e)}
 val safeENC: (e:epoch) -> b:bool {b = true <=> Safe(e)}

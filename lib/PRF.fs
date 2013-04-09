@@ -11,12 +11,18 @@ type masterSecret = { bytes: repr }
 
 #if ideal
 let log = ref []
-let finish_log = ref []
-let corrupted = ref []
 
+type finishedtext = bytes
+type finishedtag = bytes
+type finishedentry = epoch * Role * finishedtext * finishedtag
+let finish_log = ref []
+
+(* MK deprecated, use predicated and functions from TLSInfo
+let corrupted = ref []
 let strong (si:SessionInfo) = true  
 let corrupt si = memr !corrupted si 
 let honest si = if corrupt si then false else true
+*)
 
 let sample (si:SessionInfo) = {bytes = random 48}
 
@@ -92,7 +98,7 @@ let keyGen ci ms =
     //CF "honest" is not the right predicate; we should use PRED := safeHS.
     //CF for typechecking against StAE, we PRED s.t. Auth => Pred.
     //CF for applying the prf assumption, we need to decided depending *only* on the session 
-    if honest (epochSI(ci.id_in))
+    if TLSInfo.safeHS_SI (epochSI(ci.id_in))
     then 
         match tryFind (fun el-> fst el = (epochs ci,ms)) !log with
         | Some(_,(cWrite,cRead)) -> (cWrite,cRead)
@@ -105,6 +111,8 @@ let keyGen ci ms =
     //#end-ideal1
     #endif
         keyGen_int ci ms
+
+
 
 let makeVerifyData e role (ms:masterSecret) data =
   let si = epochSI(e) in
@@ -125,7 +133,7 @@ let makeVerifyData e role (ms:masterSecret) data =
         | Client -> tls12VerifyData cs ms.bytes tls_sender_client data
         | Server -> tls12VerifyData cs ms.bytes tls_sender_server data
   #if ideal
-  if honest si && strong si then 
+  if safeHS_SI si then 
     finish_log := (si, tag, data)::!finish_log;
   #endif
   tag
@@ -151,8 +159,8 @@ let ssl_certificate_verify (si:SessionInfo) ms (algs:sigAlg) log =
 
 //#begin-coerce
 let coerce (si:SessionInfo) b = 
-  #if ideal
-  corrupted := si::!corrupted;
-  #endif 
+  //#if ideal
+  //corrupted := si::!corrupted;
+  //#endif 
   {bytes = b}
 //#end-coerce
