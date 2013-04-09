@@ -76,7 +76,7 @@ type finishedtext = bytes
 type finishedtag = bytes
 
 private type finishedentry = (ki:epoch * r:Role * t:finishedtext * finishedtag){VerifyData(ki,r,t)}
-private val log: finishedentry list ref
+private val finishedlog: finishedentry list ref
 private val ftmem: ki:epoch -> r:Role -> t:finishedtext -> finishedentry list -> b:bool{ b=true => VerifyData(ki,r,t) }
 
 private val finish_log: (SessionInfo * bytes * bytes) list ref 
