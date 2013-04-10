@@ -2,28 +2,29 @@ module PRF
 
 (* PRFs keyed by master secrets, both for key derivation and verifyData *)
 
+
+
 open Bytes
 open TLSInfo
 open StatefulLHAE
+open TLSConstants
 
-(* MK deprecated, use predicates and functions from TLSInfo
-private val corrupted: SessionInfo list ref
-val honest: SessionInfo -> bool
-val strong: SessionInfo -> bool
-val corrupt: SessionInfo -> bool
-*)
 
 type repr = (;48)lbytes
 //#begin-abstraction
 private type (;si:SessionInfo) masterSecret = {bytes: repr}
 //#end-abstraction
 
+
+(*
 function val Epochs: 'a -> 'b
 private definition !ci,r,e_in,e_out.
 	(ci = {role=Client;id_rand=r;id_in=e_in;id_out=e_out} /\
 	 Epochs(ci) = (ci.id_in,ci.id_out) ) \/
 	(ci = {role=Server;id_rand=r;id_in=e_in;id_out=e_out} /\
 	 Epochs(ci) = (ci.id_out,ci.id_in) )
+*)
+
 
 // AuthSI is defined in TLSInfo
 val sample: si:SessionInfo                            -> (;si)masterSecret
@@ -31,17 +32,22 @@ val sample: si:SessionInfo                            -> (;si)masterSecret
 val coerce: si:SessionInfo (*{not SafeHS_SI(si)} *) -> repr -> (;si)masterSecret 
 //#end-coerce
 
+
 // Master secrets are used to derive key materials. 
 // Compared with standard (non-tls) key derivation,
 // - the label is hardcoded & implicit; 
 // - the seed (crandom @| srandom) is retrieved from the epoch
 
+//ask from LHAE.fs7 repeated here to help Z3
 ask !ki,si,enc,mac. TLSConstants.CipherSuiteAuthEncAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = TLSConstants.MACOnly(mac) =>
-	  LHAE.LHAESize(ki) = TLSConstants.MacSize(mac)
+	  LHAE.LHAEKeySize(ki) = TLSConstants.MacKeySize(mac)
 
-//MK theorem !cs,pv,mac,n. TLSConstants.CipherSuiteAuthEncAlg(cs,pv) = TLSConstants.MACOnly(mac) /\ TLSConstants.KeyExtensionLength(pv,cs)=n => n = TLSConstants.MacSize(mac)+TLSConstants.MacSize(mac)
+ask !cs,pv,mac. CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) => KeyExtensionLength(pv,cs) = MacKeySize(mac)+MacKeySize(mac)
+ask !cs,pv,mac. CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) => LHAE.LHAEKeySize_AEAlg(MACOnly(mac)) = TLSConstants.MacKeySize(mac)
+ask !ki,mac. CipherSuiteAuthEncAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = MACOnly(mac) =>
+	  LHAE.LHAEKeySize(ki) = TLSConstants.MacKeySize(mac)
 
-private val keyGen_int: ci:ConnectionInfo{IsSuccEpoch(ci.id_in)} -> (;EpochSI(ci.id_out))masterSecret -> 
+private val keyGen_int: ci:ConnectionInfo{EpochSI(ci.id_in)=EpochSI(ci.id_out) /\ IsSuccEpoch(ci.id_in) /\ IsSuccEpoch(ci.id_out) /\ not Auth(ci.id_in) /\ not Auth(ci.id_out)} -> (;EpochSI(ci.id_out))masterSecret -> 
   ( w:(;ci.id_out)StatefulLHAE.writer * 
     r:(;ci.id_in) StatefulLHAE.reader ) 
 //  { StatefulLHAE.History(ci.id_out,WriterState,w) = StatefulPlain.EmptyHistory(ci.id_out) /\
@@ -90,7 +96,7 @@ val makeVerifyData: e:succEpoch ->
 val checkVerifyData: e:succEpoch -> r:Role -> (;EpochSI(e)) masterSecret ->
 				   log:bytes (* the log *) ->
 				   tag:bytes (* the expected value *) ->
-				   b:bool{(b = true /\ SafeHS(e)) => VerifyData(e,r,log)}
+				   b:bool{(b = true /\ SafeHS(e)) => VerifyData(e,r,log)} //MK SafeMS(MS(e)) => VerifyData(MS(e),r,log)
 				   //TODO SafeHS(e) => PRF(pv,MacAlg(e))
 
 val ssl_certificate_verify: si:SessionInfo -> (;si)masterSecret -> TLSConstants.sigAlg -> bytes -> bytes

@@ -430,7 +430,7 @@ let contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV (css: cipherSuite list) =
     failwith "TODO: fix list library": bool
 #else
 *)
-    List.exists (fun cs -> cs = SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV) ) css
+    exists (fun cs -> cs = SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV) ) css
 //KB #endif
 
 
@@ -551,13 +551,19 @@ type cipherSuiteName =
     | TLS_DH_anon_WITH_AES_128_CBC_SHA256
     | TLS_DH_anon_WITH_AES_256_CBC_SHA256
 
+
+
 let cipherSuites_of_nameList (nameList: cipherSuiteName list) =
 (* KB
 #if avoid
    failwith "TODO: fix list library": cipherSuites
 #else
 *)
+#if ideal
+   map (
+#else
    List.map (
+#endif
     fun name ->
         match name with
         | TLS_NULL_WITH_NULL_NULL                -> NullCipherSuite

@@ -165,14 +165,14 @@ private definition HashSize(SHA256 )     = 32
 private definition HashSize(SHA384 )     = 48
 private definition HashSize(MD5SHA1)     = 36
 
-function val MacSize: macAlg -> nat
-assume !x. MacSize(x) >= 0
-private definition !a. MacSize(MA_HMAC(a)) = HashSize(a)
-private definition !a. MacSize(MA_SSLKHASH(a)) = HashSize(a)
+function val MacKeySize: macAlg -> nat
+assume !x. MacKeySize(x) >= 0
+private definition !a. MacKeySize(MA_HMAC(a)) = HashSize(a)
+private definition !a. MacKeySize(MA_SSLKHASH(a)) = HashSize(a)
 
 
-val macKeySize: a:macAlg -> l:nat{l=MacSize(a)}
-val macSize:    a:macAlg -> l:nat{l=MacSize(a)}
+val macKeySize: a:macAlg -> l:nat{l=MacKeySize(a)}
+val macSize:    a:macAlg -> l:nat{l=MacKeySize(a)}
 private val hashSize:   a:hashAlg -> l:nat{l=HashSize(a)}
 
 (* SSL/TLS Constants *)
@@ -454,25 +454,55 @@ val cipherSuitesBytes: css:cipherSuites -> b:bytes {b = CipherSuitesBytes(css)}
 
 val mkIntTriple: (nat * nat * nat) -> (nat * nat * nat)
 
+function val KeyDerivationIVSize_AEAlg: authencAlg -> nat
+definition !a.
+	( (?mac. a = MACOnly(mac)) \/
+	  (?mac. a = MtE(Stream_RC4_128,mac)) \/
+	  (?mac,alg. a = MtE(CBC_Fresh(alg),mac) ))
+	 => KeyDerivationIVSize_AEAlg(a) = 0  
+definition !a,mac,alg.
+	( a = MtE(CBC_Stale(alg),mac)
+	 => KeyDerivationIVSize_AEAlg(a)= BlockSize(alg) )
+
+ask !mac. TLSConstants.KeyDerivationIVSize_AEAlg(MtE(Stream_RC4_128,mac))=0
+
+
 //MK This function needs to be further annotated to make PRF typecheck.  
 
-//(*	
-val getKeyExtensionLength: pv:ProtocolVersion -> cs:cipherSuite -> n:nat 
-    { ( !mac. CipherSuiteAuthEncAlg(cs,pv) = TLSConstants.MACOnly(mac) => n = 2*TLSConstants.MacSize(mac) )}
-//*)
 
-(*
 function val KeyExtensionLength: ProtocolVersion * cipherSuite -> nat 
-private definition !cs,pv,mac,enc,cipher,n. KeyExtensionLength(pv,cs)=n <=>
-	( CipherSuiteAuthEncAlg(cs,pv) = TLSConstants.MACOnly(mac) /\ n = 2*TLSConstants.MacSize(mac) ) \/ 
-	( CipherSuiteAuthEncAlg(cs,pv) = MtE(Stream_RC4_128,mac)  /\ n = 2* ( MacSize(mac) + EncKeySize(Stream_RC4_128) ) ) \/
-    ( CipherSuiteAuthEncAlg(cs,pv) = MtE(enc,mac) /\ enc=CBC_Fresh(cipher) /\ n = 2*( MacSize(mac) + EncKeySize(enc) ) )
-val getKeyExtensionLength: pv:ProtocolVersion -> cs:cipherSuite -> n:nat { n=KeyExtensionLength(pv,cs) }
+
+(* MK switched from this to a partial definition style recommended by AP
+definition !cs,pv,mac,enc,cipher,n. KeyExtensionLength(pv,cs)=n <=>
+    ( CipherSuiteAuthEncAlg(cs,pv) = TLSConstants.MACOnly(mac) => n = 2*TLSConstants.MacKeySize(mac) ) /\ 
+    ( CipherSuiteAuthEncAlg(cs,pv) = MtE(Stream_RC4_128,mac)  => n = 2* ( MacKeySize(mac) + EncKeySize(Stream_RC4_128) ) ) /\
+    ( CipherSuiteAuthEncAlg(cs,pv) = MtE(enc,mac) => enc=CBC_Fresh(cipher) /\ n = 2*( MacKeySize(mac) + EncKeySize(enc) ) )
 *)
 
-//ask   !pv,cs,n. ( (!mac. CipherSuiteAuthEncAlg(cs,pv) = TLSConstants.MACOnly(mac) => n = 2*TLSConstants.MacSize(mac) ) 
-//        /\ ( !enc,blockenc,mac. (CipherSuiteAuthEncAlg(cs,pv) = MtE(enc,mac) /\ (enc=Stream_RC4_128 \/ enc=CBC_Fresh(blockenc)) ) => n = 2*(MacSize(mac) + EncKeySize(enc)) ))
-//		=> (!mac. CipherSuiteAuthEncAlg(cs,pv) = TLSConstants.MACOnly(mac) => n = 2*TLSConstants.MacSize(mac) ) 
+definition !cs,pv,mac. 
+	(( CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) => 
+		KeyExtensionLength(pv,cs) = 2*MacKeySize(mac) ))  
+		
+(* private definition !cs,pv,mac,cipher. 
+    ( CipherSuiteAuthEncAlg(cs,pv) = MtE(Stream_RC4_128,mac)  => KeyExtensionLength(pv,cs) = 2* ( MacKeySize(mac) + EncKeySize(Stream_RC4_128) ) ) /\
+    ( CipherSuiteAuthEncAlg(cs,pv) = MtE(CBC_Fresh(cipher),mac) => KeyExtensionLength(pv,cs) = 2*( MacKeySize(mac) + EncKeySize(CBC_Fresh(cipher)) ) )
+} *)
+
+definition !cs,pv,mac,enc.
+    ( CipherSuiteAuthEncAlg(cs,pv) = MtE(enc,mac) =>
+		KeyExtensionLength(pv,cs) = 2*(MacKeySize(mac) +
+					    EncKeySize(enc) +
+					    KeyDerivationIVSize_AEAlg(CipherSuiteAuthEncAlg(cs,pv))) )
+
+
+ask !cs,pv,mac. CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) => KeyExtensionLength(pv,cs) = 2*MacKeySize(mac)
+ask !cs,pv,mac. CipherSuiteAuthEncAlg(cs,pv) = MtE(Stream_RC4_128,mac) => KeyExtensionLength(pv,cs) = 2* ( MacKeySize(mac) + EncKeySize(Stream_RC4_128) )
+
+
+
+
+val getKeyExtensionLength: pv:ProtocolVersion -> cs:cipherSuite -> n:nat { n=KeyExtensionLength(pv,cs) }
+
 
 (* CF Not for verification, just to run the implementation *)
 

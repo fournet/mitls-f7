@@ -10,13 +10,13 @@ open TLSInfo
 
 val a: a:macAlg{ a = MA_HMAC(SHA) } // symbolic constant
 
-type (;ki:succEpoch) keyrepr = k:bytes {Length(k) = MacSize(a)}
+type (;ki:succEpoch) keyrepr = k:bytes {Length(k) = MacKeySize(a)}
 private type (;ki:succEpoch) key = {k:(;ki) keyrepr}
 
 type text = bytes
 predicate val Msg: epoch * text -> bool
 
-type tag = m:bytes {Length(m) = MacSize(a)}
+type tag = m:bytes {Length(m) = MacKeySize(a)}
 
 val Mac:       
   ki:succEpoch -> (;ki) key -> 

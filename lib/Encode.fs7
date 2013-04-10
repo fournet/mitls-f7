@@ -78,7 +78,7 @@ val encode: e:succEpoch{not Safe(e) /\ (?alg,mac. CipherSuiteAuthEncAlg(EpochSI(
 val decode: e:succEpoch{not Auth(e) /\ (?alg,mac. CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Stale(alg),mac) \/
 	  CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Fresh(alg),mac))} -> 
 	ad:(;e) LHAEPlain.adata -> rg:range ->
-	tlen:nat{tlen - IVSize(e) >= ( MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) + 1) /\
+	tlen:nat{tlen - IVSize(e) >= ( MacKeySize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) + 1) /\
 	rg = CipherRangeClass(e,tlen)} ->
 	(;PlainLength(e,tlen))lbytes ->
 	ps:(;e,ad,rg)plain//AP{ Decoded(e,ad,ps) }
@@ -94,7 +94,7 @@ val encodeNoPad: e:succEpoch{not Safe(e) /\ (?mac. CipherSuiteAuthEncAlg(EpochSI
 val decodeNoPad: e:succEpoch{not Auth(e) /\ (?mac. CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MACOnly(mac) \/
 	  CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(Stream_RC4_128,mac))} ->
 	ad:(;e) LHAEPlain.adata -> rg:range ->
-	tlen:nat{tlen >= MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) /\
+	tlen:nat{tlen >= MacKeySize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) /\
 	rg = CipherRangeClass(e,tlen)} -> (;PlainLength(e,tlen))lbytes ->
 	(;e,ad,rg)plain
 
@@ -102,10 +102,10 @@ function val MinTlen: e:epoch -> nat
 definition !e,mac,alg.
     ((CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MACOnly(mac) \/
 	  CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(Stream_RC4_128,mac))
-	 => MinTlen(e) = MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) ) /\
+	 => MinTlen(e) = MacKeySize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) ) /\
 	((CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Fresh(alg),mac) \/
 	  CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Stale(alg),mac))
-	 => MinTlen(e) = MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) + 1 )
+	 => MinTlen(e) = MacKeySize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) + 1 )
 
 val plain: e:succEpoch{not Auth(e)} ->
 		   ad:(;e)LHAEPlain.adata -> tlen:nat{tlen <= max_TLSCipher_fragment_length /\ tlen >= MinTlen(e)} ->

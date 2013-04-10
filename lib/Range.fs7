@@ -34,6 +34,10 @@ definition !e,mac,alg.
 
 val ivSize: e:succEpoch -> l:nat{l=IVSize(e)}
 
+function val KeyDerivationIVSize: epoch -> nat
+definition !e. KeyDerivationIVSize(e)=KeyDerivationIVSize_AEAlg(CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version))
+
+
 val fixedPadSize: si:SessionInfo -> l:nat{l=1}
 //AP (si.extended_record_padding = true /\ l=2) \/
 //AP (si.extended_record_padding = false /\ l=1)}
@@ -83,8 +87,8 @@ private val blockAlignPadding: e:succEpoch -> l:nat -> l':nat{l' = BlockAligned(
 
 definition !e,l,h.
 	TargetLength(e,(l,h)) =
-		IVSize(e) + h + MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) +
-		BlockAligned(e,h + MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)))
+		IVSize(e) + h + MacKeySize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) +
+		BlockAligned(e,h + MacKeySize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)))
 
 val targetLength: e:succEpoch -> r:range -> 
   tlen:nat {tlen = TargetLength(e,r) /\ tlen <= max_TLSCipher_fragment_length}
@@ -94,7 +98,7 @@ definition !h,tlen,e,l. (?alg,mac. (l,h) = CipherRangeClass(e,tlen) /\
 	  CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Stale(alg),mac))) ) <=>
 	( h >= 0 /\
 	  (h = tlen - IVSize(e) - 
-		   MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) - 1) /\
+		   MacKeySize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) - 1) /\
 	  ( (h >= 255 /\ l = h - 255) \/ 
 	    (h < 255 /\ l = 0 )
 	  )
@@ -105,7 +109,7 @@ definition !e,l,h,tlen. (?alg,mac. (l,h) = CipherRangeClass(e,tlen) /\
 	  CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(Stream_RC4_128,mac))) ) <=>
 	( h >= 0 /\
 	  (h = tlen - IVSize(e) - 
-		   MacSize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) ) /\
+		   MacKeySize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) ) /\
 	  ( l = h
 	  )
 	)

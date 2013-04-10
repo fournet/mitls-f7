@@ -15,35 +15,75 @@ private type (;ki:epoch) LHAEKey =
     | MACOnlyK of (;ki) MAC.key
 (*  | GCM of ke:(;ki:AENC.state)  *)
 
-// TODO Define LHAESize. 
-// TODO In the code, (LHAESize * 2) is computed in TLSConstants.getKeyExtensionLength
+// TODO Define LHAEKeySize. 
+// TODO In the code, (LHAEKeySize * 2) is computed in TLSConstants.getKeyExtensionLength
 
-function val LHAESize: ki:epoch -> nat
+function val LHAEKeySize_AEAlg: a:authencAlg -> nat
+definition !a,enc,mac. 
+	(( a = MACOnly(mac) =>
+	  LHAEKeySize_AEAlg(a) = MacKeySize(mac) ) /\
+	 ( a = MtE(enc,mac) =>
+	  LHAEKeySize_AEAlg(a) = MacKeySize(mac) +
+					    EncKeySize(enc) +
+					    KeyDerivationIVSize_AEAlg(a) ))
+ask !cs,pv,mac. CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) => LHAEKeySize_AEAlg(MACOnly(mac)) = MacKeySize(mac)
+
+
+//MK rewrite in terms of LHAEKeySize_AEAlg
+
+function val LHAEKeySize: ki:epoch -> nat
+definition !ki. LHAEKeySize(ki)=LHAEKeySize_AEAlg(CipherSuiteAuthEncAlg((EpochSI(ki)).cipher_suite,(EpochSI(ki)).protocol_version))
+
+(*
+function val LHAEKeySize: ki:epoch -> nat
+definition !ki,si. si = EpochSI(ki) => 
+	LHAEKeySize(ki)=LHAEKeySize_AEAlg(CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version))
+
+
 private definition !ki,si,enc,mac. si = EpochSI(ki) =>
 	(( CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MACOnly(mac) =>
-	  LHAESize(ki) = MacSize(mac) ) /\
+	  LHAEKeySize(ki) = MacKeySize(mac) ) /\
 	 ( CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(enc,mac) =>
-	  LHAESize(ki) = MacSize(mac) +
+	  LHAEKeySize(ki) = MacKeySize(mac) +
 					    EncKeySize(enc) +
-					    Range.IVSize(ki) ))
+					    Range.KeyDerivationIVSize(ki) ))
+*)
+
+ask !ki,mac. CipherSuiteAuthEncAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = MACOnly(mac) =>
+	  LHAEKeySize(ki) = TLSConstants.MacKeySize(mac)
+
+ask !ki,si,enc,mac. CipherSuiteAuthEncAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = MtE(enc,mac) =>
+	  LHAEKeySize(ki) = MacKeySize(mac) + EncKeySize(enc) + Range.KeyDerivationIVSize(ki)
+
 
 //CF '13 who wrote this? when?
 //MK I have a partial answer, for a different question, why?: it was needed for PRF verification, and 
 //MK I added a similar ask in PRF.fs7. Succeeds for me. 
-//TODO Why is this failing? Because of LHAESize not being what I want, I cannot typecheck COERCE.
-//TODO ask !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) => LHAESize(ki,ki) = MacSize(TLSConstants.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))
+//TODO Why is this failing? Because of LHAEKeySize not being what I want, I cannot typecheck COERCE.
+//TODO ask !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) => LHAEKeySize(ki,ki) = MacKeySize(TLSConstants.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))
 
 val GEN:    ki:succEpoch     -> encryptor:(;ki)LHAEKey * decryptor:(;ki)LHAEKey
-val COERCE: ki:succEpoch{not Auth(ki)} -> b:bytes{Length(b) = LHAESize(ki)} -> (;ki)LHAEKey
+val COERCE: ki:succEpoch{not Auth(ki)} -> b:bytes{Length(b) = LHAEKeySize(ki)} -> (;ki)LHAEKey
 val LEAK:   ki:succEpoch{not Auth(ki)} -> (;ki)LHAEKey -> b:bytes
 
 private val mteKey: ki:epoch -> (;ki) MAC.key -> (;ki) ENC.state -> (;ki) LHAEKey
 
-//FIXME: next two should be ask
-private assume !e,si. si = EpochSI(e) =>
+(* MK not needed any more
+FIXME: next two should be ask
+private ask !e,si. si = EpochSI(e) =>
 	( (si.protocol_version = SSL_3p0 \/ si.protocol_version = TLS_1p0) => IVSize(e) = 0 ) /\
 	( (si.protocol_version = TLS_1p1 \/ si.protocol_version = TLS_1p2) => 
 	   IVSize(e) = EncAlgBlockSize(CipherSuiteENCAlg(si.cipher_suite,si.protocol_version)) )
+*)
+
+
+//MK I added this one, to typecheck key generation in PRF and LHAE.COERCE. 
+//MK As this change resulted from a bug in LHAE, I am even more concerned about these assumes.
+//MK Should be replaced by a different ask.
+private assume !e,si. si = EpochSI(e) =>
+	( (si.protocol_version = SSL_3p0 \/ si.protocol_version = TLS_1p0) => KeyDerivationIVSize(e) = EncAlgBlockSize(CipherSuiteENCAlg(si.cipher_suite,si.protocol_version)) ) /\
+	( (si.protocol_version = TLS_1p1 \/ si.protocol_version = TLS_1p2) => 
+	   KeyDerivationIVSize(e) = 0 )
 
 // We have two variants for encryption and decryption: 
 // the first (primed) is concrete; the second is idealized at safe indexes,

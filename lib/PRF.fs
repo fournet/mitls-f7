@@ -98,6 +98,7 @@ let keyGen ci ms =
     //CF "honest" is not the right predicate; we should use PRED := safeHS.
     //CF for typechecking against StAE, we PRED s.t. Auth => Pred.
     //CF for applying the prf assumption, we need to decided depending *only* on the session 
+    //MK should this be safeMS_SI?
     if TLSInfo.safeHS_SI (epochSI(ci.id_in))
     then 
         match tryFind (fun el-> fst el = (epochs ci,ms)) !log with
@@ -133,6 +134,7 @@ let makeVerifyData e role (ms:masterSecret) data =
         | Client -> tls12VerifyData cs ms.bytes tls_sender_client data
         | Server -> tls12VerifyData cs ms.bytes tls_sender_server data
   #if ideal
+  //MK should be safeMS_SI?
   if safeHS_SI si then 
     finish_log := (si, tag, data)::!finish_log;
   #endif
