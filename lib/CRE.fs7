@@ -5,22 +5,41 @@ open TLSConstants
 open TLSInfo
 open DHGroup
 
+// in this file RSA refers to any crypto materials used for the RSA KEX. 
+//CF consider splitting the file into two
+
+// representation of PMS as RSA plaintexts.
 type rsarepr = (;48)lbytes
 
 private val prfMS: si:SessionInfo -> p:bytes -> (;si) PRF.masterSecret
 
 //#begin-abstractionRSA
 
-private type rsaseed = {seed:rsarepr} // treated abstractly almost everywhere in this file
+private type rsaseed = {seed:rsarepr} 
+
+// We have two layers of abstraction:
+// - rsaseed, treated abstractly almost everywhere in this module, 
+//   we could use a separate agile PRF module & assumption
+// - rsapms, treated abstractly outside this module, 
+//   so that we can control their usage for the RSA-PMS assumption.
+
 private type (;pk:RSAKey.pk, pv:ProtocolVersion) rsapms = 
-   | IdealRSAPMS    of rsaseed 
+   | IdealRSAPMS    of rsaseed // used only ideally & for abstract pms values 
    | ConcreteRSAPMS of rsarepr
+// pattern matching is used only in this module for specifying ideal code
+// so we also define ideal predicate & test for the module users:
+predicate HonestRSAPMS of    pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms
+private definition !pk,pv,pms. 
+  HonestRSAPMS(pk,pv,pms) <=> ?s. pms = IdealRSAPMS(s)
 
-predicate EncryptedRSAPMS of pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)CRE.rsapms * bytes
+val honestRSAPMS: pk:RSAKey.pk -> pv:ProtocolVersion -> pms: (;pk,pv) rsapms -> b:bool { b=true <=> HonestRSAPMS(pk,pv,pms) } 
 
-predicate HonestRSAPMS of pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms
+// abstract postcondition of RSA encryption (event) 
+predicate EncryptedRSAPMS of pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms * bytes
 
-private definition !pk,pv,pms. HonestRSAPMS(pk,pv,pms) <=> ?s. pms = IdealRSAPMS(s)
+//CF we may get it as a runtime invariant, attached as a refinement of rsapms.
+private theorem !pk,pv,pms. 
+  HonestRSAPMS(pk,pv,pms) => SafeRSAPMS(pk,pv) //CF dubious:(/\ EncryptedRSAPMS(pk,pv,pms,epms)) 
 
 //MK some dangerouse attempts: 
 //MK private definition !pk,pv,pms. SafeRSAPMS(pk,pv) <=> ?s. pms = IdealRSAPMS(s)
@@ -28,9 +47,9 @@ private definition !pk,pv,pms. HonestRSAPMS(pk,pv,pms) <=> ?s. pms = IdealRSAPMS
 //MK theorem !pk,pv,pms,epms. not HonestRSAPMS(pk,pv,pms) /\ EncryptedRSAPMS(pk,pv,pms,epms) <=> not SafeRSAPMS(pk,pv)
 
 //MK TODO maybe dangerouse as well but at least makes typechecker happy ;)
-theorem !pk,pv,pms. not HonestRSAPMS(pk,pv,pms) => not SafeRSAPMS(pk,pv)
-
-val honestRSAPMS: pk:RSAKey.pk -> pv:ProtocolVersion -> pms: (;pk,pv) rsapms -> b:bool { b=true <=> HonestRSAPMS(pk,pv,pms) } 
+//MK theorem !pk,pv,pms. (not HonestRSAPMS(pk,pv,pms)) => not SafeRSAPMS(pk,pv)
+//MK theorem !pk,pv,pms. SafeRSAPMS(pk,pv) => HonestRSAPMS(pk,pv,pms)
+//MK not clearly correct or useful...
 
 val genRSA: pk:RSAKey.pk -> pv:ProtocolVersion -> pms:(;pk,pv)rsapms
 val coerceRSA: pk:RSAKey.pk -> pv:ProtocolVersion (* MK suspicious {not SafeRSAPMS(pk,pv)} *)-> b:bytes {Length(b)=48} -> (;pk,pv)rsapms
@@ -44,6 +63,10 @@ private definition !e1,e2,e3,e4,e5. Fifth((e1,e2,e3,e4,e5)) = e5
 private type rsaentry = i:(pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms * csr:bytes * si:SessionInfo) * ms:(;Fifth(i)) PRF.masterSecret
 private val rsalog: rsaentry list ref 
 
+val rsaassoc0: si:SessionInfo -> 
+              (si':SessionInfo * (;si') PRF.masterSecret) list -> 
+			  ms:(;si) PRF.masterSecret option
+
 val rsaassoc: i:(pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms * csr:bytes * si:SessionInfo) -> 
               (i':(pk':RSAKey.pk * pv':ProtocolVersion * (;pk',pv')rsapms * csr':bytes * si':SessionInfo) * ms':(;Fifth(i')) PRF.masterSecret) list -> 
 			  ms:(;Fifth(i)) PRF.masterSecret option
@@ -53,7 +76,6 @@ val prfSmoothRSA:
 	pv:ProtocolVersion ->
     pms: (;Cert.RSAPKCert(si.serverID),pv) rsapms ->
     (;si) PRF.masterSecret
-
 
 //#begin-abstractionDH
 
@@ -90,5 +112,3 @@ val prfSmoothDHE:
     p:DHGroup.p -> g:(;p)DHGroup.g -> gx:(;p)DHGroup.elt -> gy:(;p)DHGroup.elt ->
     pms: (;p,g,gx,gy)dhpms ->
     (;si) PRF.masterSecret
-
-

@@ -28,13 +28,11 @@ val pkey_repr: pk -> CoreACiphers.pk
 val coerce: p:pk {not Honest(p)}     -> CoreACiphers.sk -> s:sk{p = PK(s)}
 val leak:   s:sk {not Honest(PK(s))} -> CoreACiphers.sk
 
-(* TODO: to be adjusted depending on the compromise model in Cert
+// those are morally private, used only in RSA.fs
+val repr_of_rsapkey : pk -> CoreACiphers.pk
+val repr_of_rsaskey : sk -> CoreACiphers.sk
+
+(* TODO: to be adjusted depending on the compromise model in Cert & renamed to ...of_repr
 val create_rsapkey : modulus * exponent -> pk
 val create_rsaskey : modulus * exponent -> sk
 *)
-// TODO (* Commented out because they depend on core ciphers,
-// TODO    and they are never used in ideal TLS crypto *)
-// TODO val repr_of_rsapkey : pk -> CoreACiphers.pk
-// TODO val repr_of_rsaskey : sk -> CoreACiphers.sk
-val repr_of_rsapkey : pk -> CoreACiphers.pk
-val repr_of_rsaskey : sk -> CoreACiphers.sk

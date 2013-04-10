@@ -88,7 +88,11 @@ PRF.sample si ~_C prfMS si sampleDH p g //relate si and p g
 *)
 
 #if ideal
-
+let rsaassoc0 (si:SessionInfo) (mss:((SessionInfo * PRF.masterSecret) list)) : PRF.masterSecret option = 
+    match mss with 
+    | [] -> None 
+    | (si',ms)::mss' -> Some(ms) 
+  //  | _::mss' -> rsaassoc0 si mss'
 
 let rec rsaassoc (i:(RSAKey.pk * ProtocolVersion * rsapms * bytes * SessionInfo)) (mss:rsaentry list): PRF.masterSecret option = 
     let pk,pv,pms,csr,si=i in
