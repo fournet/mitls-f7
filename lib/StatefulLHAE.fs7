@@ -48,6 +48,19 @@ private type (;ki:epoch,rw:rw) state = {
   history: (;ki) StatefulPlain.history // ghost state, except for the sequence number
 }
 
+(*KB SHOULD BE:
+private type (;si:SessionInfo,rw:rw) prestate = {
+  key    : (;(;si) PRF.masterSecret,cr:bytes,sr:bytes) LHAE.LHAEKey;         
+}
+
+private type (;ki:epoch,rw:rw) state = {
+  key    : (;(;EpochSI(ki)) PRF.masterSecret,cr:bytes,sr:bytes) LHAE.LHAEKey;         
+  history: (;ki) StatefulPlain.history; 
+}
+
+val changeState: ki:epoch -> rw:rw -> (;EpochSI(ki),rw) prestate{Complete(ki,..)} -> (;ki,rw) state
+*)
+
 function val History: e:epoch * rw:rw * (;e,rw)state -> 'a //(;e)StatefulPlain.history
 private definition !e,rw,s. History(e,rw,s) = s.history
 
