@@ -49,7 +49,7 @@ private type (;ki:epoch,rw:rw) state = {
 }
 
 (*KB SHOULD BE:
-private type (;si:SessionInfo,rw:rw) prestate = {
+private type (;si:SessionInfo,rw:rw) protostate = {
   key    : (;(;si) PRF.masterSecret,cr:bytes,sr:bytes) LHAE.LHAEKey;         
 }
 
@@ -58,7 +58,7 @@ private type (;ki:epoch,rw:rw) state = {
   history: (;ki) StatefulPlain.history; 
 }
 
-val changeState: ki:epoch -> rw:rw -> (;EpochSI(ki),rw) prestate{Complete(ki,..)} -> (;ki,rw) state
+val changeState: ki:epoch -> rw:rw -> (;EpochSI(ki),rw) protostate{Complete(ki,..)} -> (;ki,rw) state
 *)
 
 function val History: e:epoch * rw:rw * (;e,rw)state -> 'a //(;e)StatefulPlain.history

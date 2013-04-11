@@ -15,8 +15,18 @@ type repr = (;48)lbytes
 private type (;si:SessionInfo) masterSecret = {bytes: repr} //MK this abstraction doesn't really work
 //#end-abstraction
 
+(*MK SHOULD BE:
+private type (;pms:Pms,csr:csrands) protoMasterSecret = { bytes: repr }
 
-(*
+private type (;si:SessionInfo) masterSecret = {
+  protoms    : (;(;GetPMS(si),si.csrands) protoMasterSecret;         
+}
+
+val changeMasterSecret: si:SessionInfo -> (;GetPMS(si),si.csrands) protoMasterSecret{?ki. EpochSI(ki)=si /\ Complete(ki,..)} -> (;si) masterSecret
+*)
+
+
+(* MK !! causes logical inconsistency
 function val Epochs: 'a -> 'b
 private definition !ci,r,e_in,e_out.
 	(ci = {role=Client;id_rand=r;id_in=e_in;id_out=e_out} /\

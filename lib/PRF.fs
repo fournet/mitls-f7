@@ -113,7 +113,7 @@ let keyGen ci ms =
     then 
         let e1,e2=epochs ci
 //        match tryFind (fun (e1',e2',ms',_,_) -> e1=e1' && e2=e2' && ms=ms') !keyslog with
-        match keysassoc e1 e2 ms !keyslog with
+        match keysassoc e1 e2 ms !keyslog with //add new csrand
         | Some(cWrite,cRead) -> (cWrite,cRead)
         | None                    -> 
             let (myWrite,peerRead) = StatefulLHAE.GEN ci.id_out
