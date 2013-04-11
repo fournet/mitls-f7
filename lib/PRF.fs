@@ -10,7 +10,8 @@ type repr = bytes
 type masterSecret = { bytes: repr }
 
 #if ideal
-let log = ref []
+type keysentry = (epoch * epoch * masterSecret * StatefulLHAE.reader * StatefulLHAE.writer) 
+let keyslog = ref []
 
 type finishedtext = bytes
 type finishedtag = bytes
@@ -27,7 +28,7 @@ let honest si = if corrupt si then false else true
 let sample (si:SessionInfo) = {bytes = random 48}
 
 // we normalize the pair to use as a shared index; 
-// this function could also leave in TLSInfo
+// this function could also live in TLSInfo
 let epochs (ci:ConnectionInfo) = 
   if ci.role = Client 
   then (ci.id_in, ci.id_out)
@@ -92,6 +93,15 @@ let keyGen_int ci (ms:masterSecret) =
                  StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState ck)
     | _ -> unexpected "[keyGen] invoked on unsupported ciphersuite"
 
+#if ideal
+let rec keysassoc (e1:epoch) (e2:epoch) (ms:masterSecret) (ks:keysentry list): (StatefulLHAE.reader * StatefulLHAE.writer) option = 
+    match ks with 
+    | [] -> None 
+    | (e1',e2',ms',r',w')::ks' when  ms=ms' -> Some(r',w') 
+    | _::ks' -> keysassoc e1 e2 ms ks'
+#endif
+
+
 let keyGen ci ms =
     //#begin-ideal1
     #if ideal
@@ -101,18 +111,19 @@ let keyGen ci ms =
     //MK should this be safeMS_SI?
     if TLSInfo.safeHS_SI (epochSI(ci.id_in))
     then 
-        match tryFind (fun el-> fst el = (epochs ci,ms)) !log with
-        | Some(_,(cWrite,cRead)) -> (cWrite,cRead)
+        let e1,e2=epochs ci
+//        match tryFind (fun (e1',e2',ms',_,_) -> e1=e1' && e2=e2' && ms=ms') !keyslog with
+        match keysassoc e1 e2 ms !keyslog with
+        | Some(cWrite,cRead) -> (cWrite,cRead)
         | None                    -> 
             let (myWrite,peerRead) = StatefulLHAE.GEN ci.id_out
             let (peerWrite,myRead) = StatefulLHAE.GEN ci.id_in 
-            log := ((epochs ci,ms),(peerWrite,peerRead))::!log;
+            keyslog := (e1,e2,ms,peerWrite,peerRead)::!keyslog;
             (myWrite,myRead)
     else 
     //#end-ideal1
     #endif
         keyGen_int ci ms
-
 
 
 let makeVerifyData e role (ms:masterSecret) data =
