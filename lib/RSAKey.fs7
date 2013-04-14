@@ -17,7 +17,7 @@ type exponent = bytes
 (* Used only for specification *)
 
 predicate Honest of pk
-val honest: pk -> bool
+val honest: pk:pk -> b:bool {b=true <=> Honest(pk)}
 
 function val PK: sk -> pk
 val gen: unit -> p:pk * s:sk {p = PK(s)}

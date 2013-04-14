@@ -9,48 +9,48 @@ open RSAKey
 open TLSConstants
 open TLSInfo
 
-private function val Fst: 'a -> 'b
-private function val Snd: 'a -> 'b
-private definition !e1,e2,e3. Fst((e1,e2,e3)) = e1
-private definition !e1,e2,e3. Snd((e1,e2,e3)) = e2
-
 // For concrete security, see also 
 // On the Security of RSA Encryption in TLS
 // Jakob Jonsson and Burton S. Kaliski Jr.
 // http://www.iacr.org/archive/crypto2002/24420127/24420127.pdf   
 
 
-private type entry = i:(pk:pk * pv:ProtocolVersion * (;48) lbytes) * 
-                     (;Fst(i),Snd(i)) CRE.rsapms
+val encrypt: 
+  pk:pk -> cv:ProtocolVersion -> pms:(;pk,cv) CRE.rsapms -> 
+  b:bytes {CRE.EncryptedRSAPMS(pk,cv,pms,b)}
 
+val decrypt: 
+  sk -> si:SessionInfo -> 
+  cv:ProtocolVersion -> (* highest client version *) 
+  bool -> (* flag whether we should check protocol version in old TLS versions *)
+  bytes -> (* encrypted PMS *)
+  (;Cert.RSAPKCert(si.serverID),cv) CRE.rsapms (* no Result type: instead of an error, we return a fresh random PMS *)
+
+// CF TODO where do we require/use that cv_check be used everywhere with Honest keys? 
+
+// projection functions (we could also flatten more)
+private function val Fst: 'a -> 'b
+private function val Snd: 'a -> 'b
+private definition !e1,e2,e3. Fst((e1,e2,e3)) = e1
+private definition !e1,e2,e3. Snd((e1,e2,e3)) = e2
+
+// Ideally, we add an indirection from a fresh dummy pms to the ideal pms (before encryption)
+// and we maintain a table to undo it (after concrete decryption)
+
+private type entry = i:(pk:pk * cv:ProtocolVersion * (;48) lbytes) * (;Fst(i),Snd(i)) CRE.rsapms
 private val log: entry list ref 
-
-
-
-val encrypt: pk:pk -> pv:ProtocolVersion -> pms:(;pk,pv) CRE.rsapms -> b:bytes {CRE.EncryptedRSAPMS(pk,pv,pms,b)} (*MK suspicious  /\ HonestRSAPMSData(pk,pv,b)} *)
-
-// TLS specific, timing-attack-resistant variant
-val decrypt_int: sk ->
-  	             si:SessionInfo -> 
-                 cv:TLSConstants.ProtocolVersion -> (* highest client version, as above *) 
-                 cv_check:bool -> (* flag whether we should check protocol version in old TLS versions *)
-                 ct:bytes -> (* encrypted PMS *)
-			     pmsb:CRE.rsarepr { cv_check=true => ?b. pmsb= VersionBytes(cv) @| b} (* No Result type: in case of error, we return a fresh random PMS *)
-
-//Specialized assoc function
-val pmsassoc: i:(pk:RSAKey.pk * pv:ProtocolVersion * bytes) -> 
+private val pmsassoc: i:(pk:RSAKey.pk * pv:ProtocolVersion * bytes) -> 
              (i':(pk':RSAKey.pk * pv':ProtocolVersion * bytes) * (;Fst(i'),Snd(i'))CRE.rsapms) list -> 
 			 (;Fst(i),Snd(i))CRE.rsapms option
 
-
-val decrypt: sk ->
-  	         si:SessionInfo -> 
-             cv:TLSConstants.ProtocolVersion -> (* highest client version, as above *) 
-             bool -> (* flag whether we should check protocol version in old TLS versions *)
-             bytes -> (* encrypted PMS *)
-			 (;Cert.RSAPKCert(si.serverID),cv) CRE.rsapms (* No Result type: in case of error, we return a fresh random PMS *)
-
-
+// Concrete decryption with TLS-specific countermeasures against 
+// protocol regression, Bleichenbacher, and related timing attacks
+private val decrypt_int: 
+  sk -> si:SessionInfo -> 
+  cv:ProtocolVersion -> (* highest client version *) 
+  cv_check:bool -> (* flag whether we should check protocol version in old TLS versions *)
+  ct:bytes -> (* encrypted PMS *)
+  pmsb:CRE.rsarepr { cv_check=true => ?b. pmsb= VersionBytes(cv) @| b} (* No Result type: in case of error, we return a fresh random PMS *)
 
 
 (* CF 

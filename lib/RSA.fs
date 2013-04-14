@@ -39,7 +39,7 @@ let encrypt pk pv pms =
     //MK Here we rely on every pms being encrypted only once. 
     //MK Otherwise we would have to story dummy_pms values to maintain consistency.
     let v = if (* MK redundant RSAKey.honest pk  && *) CRE.honestRSAPMS pk pv pms then
-              let dummy_pms = (versionBytes pv) @|random 46
+              let dummy_pms = versionBytes pv @|random 46
               log := ((pk,pv,dummy_pms),pms)::!log
               dummy_pms
             else

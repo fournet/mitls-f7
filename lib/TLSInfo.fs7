@@ -177,7 +177,8 @@ predicate StrongCRE of SessionInfo
 predicate StrongHS  of SessionInfo //CF * hashAlg for certs?
 
 
-predicate SafeRSAPMS of RSAKey.pk * ProtocolVersion // The public key and protocol version yields a good rsapms
+predicate SafeRSAPMS of RSAKey.pk * ProtocolVersion // These parameters can encrypt HonestRSAPMSs
+
 
 //MK SafeDHPMS is much more specific involving the contributions to the pms. This is probably by necessity.
 predicate SafeDHPMS of p:DHGroup.p * (;p)DHGroup.g * (;p)DHGroup.elt * (;p)DHGroup.elt // The DH parameters, generator, and gx and gy values yield a good dhpms

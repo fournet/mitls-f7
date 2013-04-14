@@ -18,18 +18,6 @@ let prfMS sinfo pmsBytes: PRF.masterSecret =
 type rsarepr = bytes
 type rsaseed = {seed: rsarepr}
 
-(* CF
-   We need a predicate 'HonestRSAPMS', and its ideal boolean function `honest' 
-
-   To ideally avoid collisions concerns between Honest and Coerced pms, 
-   we could discard this log, and use instead a sum type of rsapms, e.g.
-   type  rsapms = 
-   | IdealRSAPMS    of abstract_seed 
-   | ConcreteRSAPMS of rsarepr
-
-MK honestRSAPMS is used in two idealization steps
-*) 
-
 type rsapms = 
 #if ideal 
   | IdealRSAPMS of rsaseed 
@@ -51,9 +39,22 @@ type rsaentry = (RSAKey.pk * ProtocolVersion * rsapms * bytes * SessionInfo) * P
 
 let rsalog = ref []
 
+//CF temporary counter-example!
+let rsaassoc0 (si:SessionInfo) (mss:((SessionInfo * PRF.masterSecret) list)) : PRF.masterSecret option = 
+    match mss with 
+    | [] -> None 
+    | (si',ms)::mss' -> Some(ms) 
+  
+let rec rsaassoc (i:(RSAKey.pk * ProtocolVersion * rsapms * bytes * SessionInfo)) (mss:rsaentry list): PRF.masterSecret option = 
+    let pk,pv,pms,csr,si=i in
+    match mss with 
+    | [] -> None 
+    | ((pk',pv',pms',csr',si'),ms)::mss' when pk=pk' && pv=pv' && pms=pms' && csr=csr' -> Some(ms) 
+    | _::mss' -> rsaassoc i mss'
+
 #endif
 
-let genRSA (pk:RSAKey.pk) (vc:TLSConstants.ProtocolVersion) : rsapms = 
+let genRSA (pk:RSAKey.pk) (vc:ProtocolVersion): rsapms = 
     let verBytes = TLSConstants.versionBytes vc in
     let rnd = random 46 in
     let pms = verBytes @| rnd in
@@ -88,18 +89,9 @@ PRF.sample si ~_C prfMS si sampleDH p g //relate si and p g
 *)
 
 #if ideal
-let rsaassoc0 (si:SessionInfo) (mss:((SessionInfo * PRF.masterSecret) list)) : PRF.masterSecret option = 
-    match mss with 
-    | [] -> None 
-    | (si',ms)::mss' -> Some(ms) 
-  //  | _::mss' -> rsaassoc0 si mss'
-
-let rec rsaassoc (i:(RSAKey.pk * ProtocolVersion * rsapms * bytes * SessionInfo)) (mss:rsaentry list): PRF.masterSecret option = 
-    let pk,pv,pms,csr,si=i in
-    match mss with 
-    | [] -> None 
-    | ((pk',pv',pms',csr',si'),ms)::mss' when pk=pk' && pv=pv' && pms=pms' && csr=csr' -> Some(ms) 
-    | _::mss' -> rsaassoc i mss'
+let todo s = failwith s 
+#else
+let todo s = ()
 #endif
 
 let prfSmoothRSA si (pv:ProtocolVersion) pms = 
@@ -118,7 +110,7 @@ let prfSmoothRSA si (pv:ProtocolVersion) pms =
                  rsalog := ((pk,pv,pms,csrands si,si),ms)::!rsalog
                  ms 
   #endif  
-  | ConcreteRSAPMS(s) -> prfMS si s
+  | ConcreteRSAPMS(s) -> todo "SafeHS_SI ==> HonestRSAPMS"; prfMS si s
 
 
 
@@ -191,7 +183,5 @@ let prfSmoothDHE (si:SessionInfo) (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (
                  ms 
     #endif
     //#end-ideal
-    | ConcreteDHPMS(s) -> prfMS si s
+    | ConcreteDHPMS(s) -> todo "SafeHS_SI ==> HonestDHPMS"; prfMS si s
    
-
-
