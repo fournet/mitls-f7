@@ -5,6 +5,7 @@ open Bytes
 open TLSInfo
 open DataStream
 open Dispatch
+open TLS
 
 (* ------------------------------------------------------------------------ *)
 type rawfd   = Tcp.NetworkStream
