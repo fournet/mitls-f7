@@ -23,7 +23,7 @@ private definition !e,ct.
 	( EpochSI(e).protocol_version <> SSL_3p0 /\
 	  ADBytes(e,ct) = (CTBytes(ct) @| VersionBytes(EpochSI(e).protocol_version)))
 
-private val makeAD:  e:succEpoch -> ct:ContentType -> ad:(;e)adata{ad=ADBytes(e,ct)}
+val makeAD:  e:succEpoch -> ct:ContentType -> ad:(;e)adata{ad=ADBytes(e,ct)}
 private val parseAD: e:succEpoch -> ad:(;e)adata -> ct:ContentType{ad=ADBytes(e,ct)}
 
 function val ParseAD: (e:epoch * (;e)adata) -> ContentType

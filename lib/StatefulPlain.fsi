@@ -22,7 +22,6 @@ val extendHistory: epoch -> adata -> history -> range -> fragment -> history
 
 
 val makeAD: epoch -> ContentType -> adata
-val parseAD: epoch -> adata -> ContentType
 val RecordPlainToStAEPlain: epoch -> ContentType -> TLSFragment.history -> history -> range -> TLSFragment.plain -> plain
 val StAEPlainToRecordPlain: epoch -> ContentType -> TLSFragment.history -> history -> range -> plain -> TLSFragment.plain
 
