@@ -21,8 +21,18 @@ let fragment ki s r d =
 
 let delta ki s r f = 
     let (s',d) = f.frag in
-    let s'' = append ki s r d in 
-    (d,s'')
+#if ideal
+    if auth ki then
+#endif
+        let s'' = append ki s r d in
+        (d,s'')
+#if ideal
+    else
+        let b = deltaRepr ki s' r d in
+        let d' = deltaPlain ki s r b in
+        let s'' = append ki s r d' in
+        (d',s'')
+#endif
 
 let delta' ki s r f = 
     let (s',d) = f.frag in

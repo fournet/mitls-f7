@@ -13,8 +13,8 @@ type (;sid:sessionID, r:Role) StorableSession = si:SessionInfo * (;si) PRF.maste
   { si.sessionID = sid /\ Authorize(r,si) }
 
 type SessionIndex = sessionID * Role * Cert.hint
-private type entry = sid:sessionID * r:Role *  Cert.hint * (;sid,r) StorableSession 
-private type t = entry list 
+type entry = sid:sessionID * r:Role *  Cert.hint * (;sid,r) StorableSession 
+type t = entry list 
 
 val create: config -> t
 val select: t -> sid:sessionID -> r:Role -> Cert.hint -> (;sid,r) StorableSession option 

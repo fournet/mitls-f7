@@ -35,11 +35,16 @@ private type (;ki:epoch, h:(;ki)stream, r:range) delta = {contents: (;r) rbytes}
 function val Payload: e:epoch * s:(;e)stream * r:range * (;e,s,r)delta -> 'a // (;r)rbytes
 private definition !e,s,r,d. Payload(e,s,r,d) = d.contents
 
+ask !e,s,s',r,d. Payload(e,s,r,d) = Payload(e,s',r,d)
+
 function val EmptyStream: e:epoch -> (;e)stream 
 private definition !e. EmptyStream(e) = {sb = []}
 
 function val ExtendStream: 'a * 'b * 'c * 'd -> 'e
-private definition !ki,s,r,d. ExtendStream(ki,s,r,d) = {sb = d.contents :: s.sb } 
+private definition !ki,s,r,b. ExtendStream(ki,s,r,b) = {sb = b :: s.sb } 
+
+function val ExtendStreamDelta: 'a * 'b * 'c * 'd -> 'e
+definition !ki,s,r,d. ExtendStreamDelta(ki,s,r,d) = ExtendStream(ki,s,r,Payload(ki,s,r,d))
 
 function val StreamBytes: e:epoch * (;e)stream -> bytes
 private definition !e,s,h,t.
@@ -47,7 +52,7 @@ private definition !e,s,h,t.
  (s.sb = h::t /\ StreamBytes(e,s) = (StreamBytes(e,{sb=t}) @| h))
 
 ask !e. StreamBytes(e,EmptyStream(e)) = [||]
-ask !e,s,r,d. StreamBytes(e,ExtendStream(e,s,r,d)) = ( StreamBytes(e,s) @| Payload(e,s,r,d) )
+ask !e,s,r,b. StreamBytes(e,ExtendStream(e,s,r,b)) = ( StreamBytes(e,s) @| b )
 
 // The following two functions are 
 // used only by the application.
@@ -66,7 +71,7 @@ val deltaBytes:
 val init: e:epoch -> s:(;e)stream{s=EmptyStream(e)}
 val append: 
   ki:epoch -> s: (;ki) stream -> r:range ->
-  d:(;ki,s,r) delta -> s':(;ki) stream{s' = ExtendStream(ki,s,r,d)}
+  d:(;ki,s,r) delta -> s':(;ki) stream{s' = ExtendStreamDelta(ki,s,r,d)}
 
 val deltaPlain: 
   ki:epoch{not Auth(ki)} -> s:(;ki) stream -> r:range -> 
@@ -77,9 +82,9 @@ val deltaRepr:
 
 val split: ki:epoch -> s:(;ki) stream -> 
   r0:range -> r1:range -> d:(;ki,s,Sum(r0,r1)) delta -> 
-  (d0:(;ki,s,r0) delta * d1:(;ki,ExtendStream(ki,s,r0,d0),r1) delta){
+  (d0:(;ki,s,r0) delta * d1:(;ki,ExtendStreamDelta(ki,s,r0,d0),r1) delta){
 	Payload(ki,s,Sum(r0,r1),d) =
-		Payload(ki,s,r0,d0) @| Payload(ki,ExtendStream(ki,s,r0,d0),r1,d1)
+		Payload(ki,s,r0,d0) @| Payload(ki,ExtendStreamDelta(ki,s,r0,d0),r1,d1)
   }
 
 val widen: ki:epoch -> s:(;ki) stream -> 

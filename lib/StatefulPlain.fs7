@@ -36,7 +36,7 @@ private definition !e,ad,r,f.
         Payload(e,ad,r,f) = TLSFragment.Payload(e,ParseAD(e,ad),r,f.contents)
 
 
-private type (;e:epoch) prehistory = (ad:(;e)adata * r:range * f:(;e,ad,r)fragment) list
+type (;e:epoch) prehistory = (ad:(;e)adata * r:range * f:(;e,ad,r)fragment) list
 
 // The message sequence number (kept independently, as this is not ghost state)
 function val HLength: e:epoch * (;e)prehistory -> nat

@@ -17,13 +17,13 @@ function val Payload: e:epoch * r:range * (;e,r)fragment -> 'a // (;r)rbytes
 private definition !e,r,s,d. Payload(e,r,{frag = (s,d)}) = DataStream.Payload(e,s,r,d)
 
 (* AP FIXME: next definition is wrong. It should be
-   Extend(ki,s,r,{frag = (s,d)}) = ExtendStream(ki,s,r,d)
+   Extend(ki,s,r,{frag = (s,d)}) = ExtendStreamDelta(ki,s,r,d)
    Note there's no (s').
    Not doing it now as it breaks some functions.
 *)
 function val Extend: 'a * 'b * 'c * 'd -> 'e
 private definition !ki,s,r,s',d. 
-  Extend(ki,s,r,{frag = (s',d)}) = ExtendStream(ki,s,r,d)
+  Extend(ki,s,r,{frag = (s',d)}) = ExtendStreamDelta(ki,s,r,d)
 
 predicate FragOfDelta of e:epoch * r:range * (;e,r)fragment * s:(;e)stream * (;e,s,r)delta
 private definition !e,r,f,s,d.
@@ -32,7 +32,7 @@ private definition !e,r,f,s,d.
 ask !e,r,f,s,d. FragOfDelta(e,r,f,s,d) =>
 	Payload(e,r,f) = DataStream.Payload(e,s,r,d)
 ask !e,r,f,s,d. FragOfDelta(e,r,f,s,d) =>
- 	Extend(e,s,r,f) = ExtendStream(e,s,r,d)
+ 	Extend(e,s,r,f) = ExtendStreamDelta(e,s,r,d)
 
 predicate Sent of ki:epoch * (;ki) stream * r:range * (;ki,r)fragment
 private definition !ki,s,r,f. Sent(ki,s,r,f) <=> 
@@ -53,7 +53,7 @@ val delta: ki:epoch -> s:(;ki) stream -> r:range ->
 //CF what for?
 val delta': ki:epoch -> s:(;ki) stream -> r:range -> 
   f:(;ki,r) fragment{not Auth(ki)} -> 
-  d:(;ki,s,r) delta * s':(;ki) stream{s' = ExtendStream(ki,s,r,d)}
+  d:(;ki,s,r) delta * s':(;ki) stream{s' = ExtendStreamDelta(ki,s,r,d)}
 
 val plain: ki:epoch{not Auth(ki)} -> r:range -> b:(;r) rbytes -> f:(;ki,r) fragment{b = Payload(ki,r,f)}
 val repr:  ki:epoch{not Safe(ki)} -> r:range -> f:(;ki,r) fragment -> b:(;r) rbytes{b = Payload(ki,r,f)}
