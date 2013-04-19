@@ -6,9 +6,14 @@ open Range
 open TLSInfo
 open TLSConstants
 
+(* This file provides much typechecking annotations; 
+   see Dispatch.fsi for a simpler external interface *)
+
+(* internal state machine (one for reading, one for writing) *) 
+
 private type predispatchState =
   | Init 
-  | FirstHandshake of ProtocolVersion             (* set by the ServerHello *) 
+  | FirstHandshake of ProtocolVersion (* set by the ServerHello *) 
   | Finishing
   | Finished (* Only for Writing side, used to avoid sending data on a partially completed handshake *)
   | Open
@@ -43,7 +48,7 @@ private type (;id:ConnectionInfo) preGlobalState = {
 
 predicate GState of ci:ConnectionInfo * (;ci)preGlobalState
 private type (;id:ConnectionInfo) globalState = gs:(;id) preGlobalState{GState(id,gs)}
-
+	
 private definition !ci,gs. GState(ci,gs)  <=>
   ( (Auth(ci.id_out) =>
 		(
@@ -136,9 +141,9 @@ ask !c,c',x1,x2,x3,x4,y1,y2,y3,y4,s,s'.
 	c' = Conn({id_in = y1; id_out = y2; id_rand = y3; role = y4},s') =>
 			( CnInfo(c) = CnInfo(c') <=>
 			 ( ConnectionEpochIn(c)  = ConnectionEpochIn(c')  /\
-			 ConnectionEpochOut(c) = ConnectionEpochOut(c') /\
-			 Role(c) = Role(c') /\
-			 Rnd(c) = Rnd(c') ) )
+		  	   ConnectionEpochOut(c) = ConnectionEpochOut(c') /\
+			   Role(c) = Role(c') /\
+			   Rnd(c) = Rnd(c') ) )
 
 predicate Extend   of c:Connection * c':Connection
 predicate Extend_o of c:Connection * c':Connection * (;ConnectionEpochOut(c),CnStream_o(c)) msg_o

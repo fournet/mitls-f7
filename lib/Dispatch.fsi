@@ -15,18 +15,16 @@ type Connection
 type nextCn = Connection
 type nullCn = Connection
 type query = Cert.chain
-type msg_i = (range * delta)
-type msg_o = (range * delta)
+type msg_i = range * delta
+type msg_o = range * delta
 
 val networkStream: Connection -> NetworkStream
-
-val init: NetworkStream -> Role -> config -> Connection
-
+val init:   NetworkStream -> Role -> config -> Connection
 val resume: NetworkStream -> sessionID -> config -> Connection
 
 val rehandshake: Connection -> config -> bool * nextCn
-val rekey: Connection -> config -> bool * nextCn
-val request: Connection -> config -> bool * nextCn
+val rekey:       Connection -> config -> bool * nextCn
+val request:     Connection -> config -> bool * nextCn
 
 val full_shutdown: Connection -> Connection
 val half_shutdown: Connection -> unit
@@ -51,15 +49,14 @@ type readOutcome =
     | RClose
     | RFatal of alertDescription (* The received alert *)
     | RWarning of alertDescription (* The received alert *)
-
     
 val write: Connection -> msg_o -> Connection * writeOutcome * msg_o option
-val read: Connection -> Connection * readOutcome * msg_i option
+val read:  Connection -> Connection * readOutcome * msg_i option
 
 val authorize: Connection -> query -> Connection * readOutcome * msg_i option
 val refuse:    Connection -> query -> unit
 
-val getEpochIn:  Connection -> epoch
-val getEpochOut: Connection -> epoch
+val getEpochIn:   Connection -> epoch
+val getEpochOut:  Connection -> epoch
 val getInStream:  Connection -> stream
 val getOutStream: Connection -> stream
