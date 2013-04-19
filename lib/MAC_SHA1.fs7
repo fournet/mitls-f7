@@ -30,6 +30,6 @@ val GEN:
 
 (* typing the log for the ideal functionality *)
  
-private type entry = (ki:epoch * t:text * tag){Msg(ki,t)}
+type entry = (ki:epoch * t:text * tag){Msg(ki,t)}
 private val log: entry list ref
 private val tmem: ki:epoch -> t:text -> entry list -> b:bool{ b=true => Msg(ki,t) }
