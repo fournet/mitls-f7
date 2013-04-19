@@ -44,17 +44,7 @@ predicate EncryptedRSAPMS of pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms 
 
 //CF we may get it as a runtime invariant, attached as a refinement of rsapms.
 private theorem !pk,cv,pms. 
-  HonestRSAPMS(pk,cv,pms) => SafeRSAPMS(pk,cv) //CF dubious:(/\ EncryptedRSAPMS(pk,pv,pms,epms)) 
-
-//MK some dangerous attempts: 
-//MK private definition !pk,pv,pms. SafeRSAPMS(pk,pv) <=> ?s. pms = IdealRSAPMS(s)
-//MK private definition !pk,pv,pms,epms. SafeRSAPMS(pk,pv) /\ EncryptedRSAPMS(pk,pv,pms,epms) <=> HonestRSAPMS(pk,pv,pms)
-//MK theorem !pk,pv,pms,epms. not HonestRSAPMS(pk,pv,pms) /\ EncryptedRSAPMS(pk,pv,pms,epms) <=> not SafeRSAPMS(pk,pv)
-
-//MK TODO maybe dangerouse as well but at least makes typechecker happy ;)
-//MK theorem !pk,pv,pms. (not HonestRSAPMS(pk,pv,pms)) => not SafeRSAPMS(pk,pv)
-//MK theorem !pk,pv,pms. SafeRSAPMS(pk,pv) => HonestRSAPMS(pk,pv,pms)
-//MK not clearly correct or useful...
+  HonestRSAPMS(pk,cv,pms) => SafeRSAPMS(pk,cv) 
 
 val genRSA: pk:RSAKey.pk -> cv:ProtocolVersion -> pms:(;pk,cv)rsapms
 { HonestRSAKey(pk) => HonestRSAPMS(pk,cv,pms) } 
