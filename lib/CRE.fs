@@ -9,10 +9,10 @@ open DHGroup
 
 // internal
 let prfMS sinfo pmsBytes: PRF.masterSecret =
-    let pv = sinfo.protocol_version in
+    let cv = sinfo.protocol_version in
     let cs = sinfo.cipher_suite in
     let data = csrands sinfo in
-    let res = prf pv cs pmsBytes tls_master_secret data 48 in
+    let res = prf cv cs pmsBytes tls_master_secret data 48 in
     PRF.coerce sinfo res
 
 type rsarepr = bytes
@@ -25,7 +25,7 @@ type rsapms =
   | ConcreteRSAPMS of rsarepr
 
 #if ideal
-let honestRSAPMS (pk:RSAKey.pk) (pv:TLSConstants.ProtocolVersion) pms = 
+let honestRSAPMS (pk:RSAKey.pk) (cv:TLSConstants.ProtocolVersion) pms = 
   match pms with 
   | IdealRSAPMS(s)    -> true
   | ConcreteRSAPMS(s) -> false
@@ -35,7 +35,7 @@ type rsapreds =
  
 
 // We maintain a log for looking up good ms values using their pms values
-type rsaentry = (RSAKey.pk * ProtocolVersion * rsapms * bytes * SessionInfo) * PRF.masterSecret
+type rsaentry = RSAKey.pk * ProtocolVersion * rsapms * bytes * SessionInfo * PRF.masterSecret
 
 let rsalog = ref []
 
@@ -46,12 +46,11 @@ let rsaassoc0 (si:SessionInfo) (mss:((SessionInfo * PRF.masterSecret) list)) : P
     | (si',ms)::mss' -> Some(ms) 
 *) 
 
-let rec rsaassoc (i:(RSAKey.pk * ProtocolVersion * rsapms * bytes * SessionInfo)) (mss:rsaentry list): PRF.masterSecret option = 
-    let pk,pv,pms,csr,si=i in
+let rec rsaassoc (pk:RSAKey.pk) (cv:ProtocolVersion) (pms:rsapms)  (csr:bytes) (si:SessionInfo) (mss:rsaentry list): PRF.masterSecret option = 
     match mss with 
     | [] -> None 
-    | ((pk',pv',pms',csr',si'),ms)::mss' when pk=pk' && pv=pv' && pms=pms' && csr=csr' -> Some(ms) 
-    | _::mss' -> rsaassoc i mss'
+    | (pk',cv',pms',csr',si',ms)::mss' when pk=pk' && cv=cv' && pms=pms' && csr=csr' -> Some(ms) 
+    | _::mss' -> rsaassoc pk cv pms csr si mss'
 
 #endif
 
@@ -66,8 +65,8 @@ let genRSA (pk:RSAKey.pk) (vc:ProtocolVersion): rsapms =
     #endif
         ConcreteRSAPMS(pms)  
 
-let coerceRSA (pk:RSAKey.pk) (pv:ProtocolVersion) b = ConcreteRSAPMS(b)
-let leakRSA (pk:RSAKey.pk) (pv:ProtocolVersion) pms = 
+let coerceRSA (pk:RSAKey.pk) (cv:ProtocolVersion) b = ConcreteRSAPMS(b)
+let leakRSA (pk:RSAKey.pk) (cv:ProtocolVersion) pms = 
   match pms with 
   #if ideal
   | IdealRSAPMS(_) -> Error.unexpected "pms is dishonest" //MK changed to unexpected from unreachable
@@ -95,7 +94,7 @@ let todo s = failwith s
 let todo s = ()
 #endif
 
-let prfSmoothRSA si (pv:ProtocolVersion) pms = 
+let prfSmoothRSA si (cv:ProtocolVersion) pms = 
   match pms with
   #if ideal
   | IdealRSAPMS(s) ->
@@ -103,16 +102,16 @@ let prfSmoothRSA si (pv:ProtocolVersion) pms =
             match (Cert.get_chain_public_encryption_key si.serverID) with 
             | Correct(pk) -> pk
             | _           -> unexpected "server must have an ID"    
-        //CF we assoc on pk and pv, implicitly relying on 
+        //CF we assoc on pk and cv, implicitly relying on 
         //CF the absence of collisions between ideal RSAPMSs.
-        match rsaassoc (pk,pv,pms,csrands si,si) !rsalog with 
+        match rsaassoc pk cv pms (csrands si) si !rsalog with 
         | Some(ms) -> ms
         | None -> 
                  let ms = PRF.sample si 
-                 rsalog := ((pk,pv,pms,csrands si,si),ms)::!rsalog
+                 rsalog := (pk,cv,pms,csrands si,si,ms)::!rsalog
                  ms 
   #endif  
-  | ConcreteRSAPMS(s) -> (*todo "SafeHS_SI ==> HonestRSAPMS";*) prfMS si s
+  | ConcreteRSAPMS(s) -> todo "SafeHS_SI ==> HonestRSAPMS"; prfMS si s
 
 
 
@@ -145,7 +144,7 @@ let honestDHPMS (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) pm
 
 // We maintain a log for looking up good ms values using their pms values
 
-type dhentry = (p * g * elt * elt * dhpms * bytes * SessionInfo) * PRF.masterSecret
+type dhentry = p * g * elt * elt * dhpms * bytes * SessionInfo * PRF.masterSecret
 
 let dhlog = ref []
 
@@ -163,12 +162,11 @@ let coerceDH (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) b = C
 
 #if ideal
 
-let rec dhassoc (i:(p * g * elt * elt * dhpms * bytes * SessionInfo)) (mss:dhentry list): PRF.masterSecret option = 
-    let (p,g,gx,gy,pms,csr,_)=i in
+let rec dhassoc (p:p) (g:g) (gx:elt) (gy:elt) (pms:dhpms)  (csr:bytes)  (si:SessionInfo) (mss:dhentry list): PRF.masterSecret option = 
     match mss with 
     | [] -> None 
-    | ((p',g',gx',gy',pms',csr',_),ms)::mss' when p=p' && g=g' && gx=gx' && gy=gy' && pms=pms' && csr=csr' -> Some(ms) 
-    | _::mss' -> dhassoc i mss'
+    | (p',g',gx',gy',pms',csr',_,ms)::mss' when p=p' && g=g' && gx=gx' && gy=gy' && pms=pms' && csr=csr' -> Some(ms) 
+    | _::mss' -> dhassoc p g gx gy pms csr si mss'
 
 #endif
 
@@ -177,11 +175,11 @@ let prfSmoothDHE (si:SessionInfo) (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (
     //#begin-ideal 
     #if ideal
     | IdealDHPMS(s) -> 
-        match dhassoc (p, g, gx, gy, pms, csrands si, si) !dhlog with
+        match dhassoc p g gx gy pms (csrands si) si !dhlog with
            | Some(ms) -> ms
            | None -> 
                  let ms=PRF.sample si 
-                 dhlog := ((p, g, gx, gy, pms, csrands si, si), ms)::!dhlog;
+                 dhlog := (p, g, gx, gy, pms, csrands si, si, ms)::!dhlog;
                  ms 
     #endif
     //#end-ideal

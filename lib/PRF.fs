@@ -10,7 +10,7 @@ type repr = bytes
 type masterSecret = { bytes: repr }
 
 #if ideal
-type keysentry = (epoch * epoch * masterSecret * StatefulLHAE.reader * StatefulLHAE.writer) 
+type keysentry = (epoch * epoch * masterSecret * bytes * StatefulLHAE.reader * StatefulLHAE.writer) 
 let keyslog = ref []
 
 type finishedtext = bytes
@@ -94,11 +94,11 @@ let keyGen_int ci (ms:masterSecret) =
     | _ -> unexpected "[keyGen] invoked on unsupported ciphersuite"
 
 #if ideal
-let rec keysassoc (e1:epoch) (e2:epoch) (ms:masterSecret) (ks:keysentry list): (StatefulLHAE.reader * StatefulLHAE.writer) option = 
+let rec keysassoc (e1:epoch) (e2:epoch) (ms:masterSecret) (ecsr: bytes) (ks:keysentry list): (StatefulLHAE.reader * StatefulLHAE.writer) option = 
     match ks with 
     | [] -> None 
-    | (e1',e2',ms',r',w')::ks' when  ms=ms' -> Some(r',w') 
-    | _::ks' -> keysassoc e1 e2 ms ks'
+    | (e1',e2',ms',ecsr', r',w')::ks' when  ms=ms' && ecsr=ecsr'-> Some(r',w') 
+    | _::ks' -> keysassoc e1 e2 ms ecsr ks'
 #endif
 
 
@@ -109,16 +109,16 @@ let keyGen ci ms =
     //CF for typechecking against StAE, we PRED s.t. Auth => Pred.
     //CF for applying the prf assumption, we need to decided depending *only* on the session 
     //MK should this be safeMS_SI?
-    if TLSInfo.safeHS_SI (epochSI(ci.id_in))
+    if safeHS_SI (epochSI(ci.id_in))
     then 
         let e1,e2=epochs ci
 //        match tryFind (fun (e1',e2',ms',_,_) -> e1=e1' && e2=e2' && ms=ms') !keyslog with
-        match keysassoc e1 e2 ms !keyslog with //add new csrand
+        match keysassoc e1 e2 ms (epochCSRands e1) !keyslog with //add new csrand
         | Some(cWrite,cRead) -> (cWrite,cRead)
         | None                    -> 
             let (myWrite,peerRead) = StatefulLHAE.GEN ci.id_out
             let (peerWrite,myRead) = StatefulLHAE.GEN ci.id_in 
-            keyslog := (e1,e2,ms,peerWrite,peerRead)::!keyslog;
+            keyslog := (e1,e2,ms,epochCSRands e1, peerWrite,peerRead)::!keyslog;
             (myWrite,myRead)
     else 
     //#end-ideal1

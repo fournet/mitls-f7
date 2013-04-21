@@ -44,6 +44,7 @@ val isInitEpoch: epoch -> bool
 val epochSI: epoch -> SessionInfo
 val epochSRand: epoch -> srand
 val epochCRand: epoch -> crand
+val epochCSRands: epoch -> crand
 
 // Role is of the writer
 type ConnectionInfo =

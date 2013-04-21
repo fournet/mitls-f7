@@ -33,9 +33,9 @@ private type (;pk:RSAKey.pk, cv:ProtocolVersion) rsapms =
    | ConcreteRSAPMS of rsarepr
 // pattern matching is used in this module only for specifying ideal code
 // so we also define ideal predicate & test for the module users:
-predicate HonestRSAPMS of pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms
-private definition !pk,pv,pms. 
-  HonestRSAPMS(pk,pv,pms) <=> ?s. pms = IdealRSAPMS(s)
+predicate HonestRSAPMS of pk:RSAKey.pk * cv:ProtocolVersion * (;pk,cv)rsapms
+private definition !pk,cv,pms. 
+  HonestRSAPMS(pk,cv,pms) <=> ?s. pms = IdealRSAPMS(s)
 
 ask !pk,cv,s. not(HonestRSAPMS(pk,cv,ConcreteRSAPMS(s)))
 
@@ -43,7 +43,7 @@ val honestRSAPMS: pk:RSAKey.pk -> cv:ProtocolVersion -> pms: (;pk,cv) rsapms -> 
 
 //CF UNUSED. to be deleted.
 // abstract postcondition of RSA encryption (event) 
-predicate EncryptedRSAPMS of pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms * bytes
+predicate EncryptedRSAPMS of pk:RSAKey.pk * cv:ProtocolVersion * (;pk,cv)rsapms * bytes
 
 //CF we may get it as a runtime invariant, attached as a refinement of rsapms.
 private theorem !pk,cv,pms. 
@@ -61,11 +61,9 @@ val leakRSA:
 // used for concrete RSA encryption 
 //#end-abstractionRSA
 
-private function val Fifth: 'a -> 'b
-private definition !e1,e2,e3,e4,e5. Fifth((e1,e2,e3,e4,e5)) = e5
 
 //CF actually a private type 
-type rsaentry = i:(pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms * csr:bytes * si:SessionInfo) * ms:(;Fifth(i)) PRF.masterSecret
+type rsaentry = pk:RSAKey.pk * cv:ProtocolVersion * (;pk,cv)rsapms * csr:bytes * si:SessionInfo * ms:(;si) PRF.masterSecret
 private val rsalog: rsaentry list ref 
 
 (* CF an old counter-example...
@@ -75,14 +73,14 @@ val rsaassoc0: si:SessionInfo ->
 *)
 
 private val rsaassoc: 
-    i:(pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms * csr:bytes * si:SessionInfo) -> 
-    (i':(pk':RSAKey.pk * pv':ProtocolVersion * (;pk',pv')rsapms * csr':bytes * si':SessionInfo) * ms':(;Fifth(i')) PRF.masterSecret) list -> 
-	ms:(;Fifth(i)) PRF.masterSecret option
+    pk:RSAKey.pk -> cv:ProtocolVersion -> (;pk,cv)rsapms -> csr:bytes -> si:SessionInfo -> 
+    (pk':RSAKey.pk * cv':ProtocolVersion * (;pk',cv')rsapms * csr':bytes * si':SessionInfo * ms':(;si') PRF.masterSecret) list -> 
+	ms:(;si) PRF.masterSecret option
 
 val prfSmoothRSA:
     si:SessionInfo ->
-	pv:ProtocolVersion ->
-    pms: (;Cert.RSAPKCert(si.serverID),pv) rsapms 
+	cv:ProtocolVersion ->
+    pms: (;Cert.RSAPKCert(si.serverID),cv) rsapms 
 	// { DecryptedPMS(si.pmsdata,pms)  } 
 	->
     (;si) PRF.masterSecret
@@ -110,16 +108,14 @@ val sampleDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt ->  (;p,g,gx,gy) dhpm
 val coerceDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt {not SafeDHPMS(p,g,gx,gy)}-> (;p)elt -> (;p,g,gx,gy) dhpms
 //#end-abstractionDH
 
-private function val Seventh: 'a -> 'b
-private definition !e1,e2,e3,e4,e5,e6,e7. Seventh((e1,e2,e3,e4,e5,e6,e7)) = e7
 
 //CF actually a private type
-type dhentry = i:(p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * (;p,g,gx,gy) dhpms * bytes * si:SessionInfo) * ms:(;Seventh(i)) PRF.masterSecret
+type dhentry = p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * (;p,g,gx,gy) dhpms * bytes * si:SessionInfo * ms:(;si) PRF.masterSecret
 private val dhlog: dhentry list ref 
 
-val dhassoc: i:(p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * (;p,g,gx,gy) dhpms * bytes * si:SessionInfo) -> 
-             (i':(p':p * g':(;p') g * gx':(;p') elt * gy':(;p') elt * (;p',g',gx',gy') dhpms * bytes * SessionInfo) * (;Seventh(i')) PRF.masterSecret) list -> 
-             (;Seventh(i)) PRF.masterSecret option
+val dhassoc: p:p -> g:(;p) g -> gx:(;p) elt -> gy:(;p) elt -> (;p,g,gx,gy) dhpms -> csr:bytes -> si:SessionInfo -> 
+             (p':p * g':(;p') g * gx':(;p') elt * gy':(;p') elt * (;p',g',gx',gy') dhpms * csr':bytes * si':SessionInfo * (;si') PRF.masterSecret) list -> 
+             (;si) PRF.masterSecret option
 
 // AP: Don't we really want *any* link between si and (g,p,gx,gy)?
 val prfSmoothDHE:

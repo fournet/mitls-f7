@@ -62,9 +62,9 @@ private val keyGen_int: ci:ConnectionInfo{EpochSI(ci.id_in)=EpochSI(ci.id_out) /
 //  { StatefulLHAE.History(ci.id_out,WriterState,w) = StatefulPlain.EmptyHistory(ci.id_out) /\
 //    StatefulLHAE.History(ci.id_out,ReaderState,r) = StatefulPlain.EmptyHistory(ci.id_in)}
 
-private type keysentry = (e:epoch * e':epoch * ms:(;EpochSI(e)) masterSecret * (;e)StatefulLHAE.reader * (;e')StatefulLHAE.writer) 
+private type keysentry = (e:epoch * e':epoch * ms:(;EpochSI(e)) masterSecret * bytes * (;e)StatefulLHAE.reader * (;e')StatefulLHAE.writer) 
 private val keyslog: keysentry list ref 
-val keysassoc: e:epoch -> e':epoch -> ms:(;EpochSI(e)) masterSecret -> keysentry list -> ((;e)StatefulLHAE.reader * (;e')StatefulLHAE.writer) option
+val keysassoc: e:epoch -> e':epoch -> ms:(;EpochSI(e)) masterSecret -> bytes -> keysentry list -> ((;e)StatefulLHAE.reader * (;e')StatefulLHAE.writer) option
 
 val keyGen: ci:ConnectionInfo{IsSuccEpoch(ci.id_in)} -> (;EpochSI(ci.id_out))masterSecret -> 
   ( w:(;ci.id_out)StatefulLHAE.writer * 

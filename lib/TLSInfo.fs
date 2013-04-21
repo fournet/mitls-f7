@@ -64,6 +64,9 @@ let epochCRand e =
     | InitEpoch (d) -> Error.unexpected "[epochCRand] invoked on initial epoch."
     | SuccEpoch (cr,sr,si,pe) -> cr
 
+let epochCSRands e =
+    epochCRand e @| epochSRand e
+
 type ConnectionInfo = {
     role: Role; // cached, could be retrieved from id_out
     id_rand: random; // our random
