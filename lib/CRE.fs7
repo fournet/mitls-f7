@@ -74,9 +74,10 @@ val rsaassoc0: si:SessionInfo ->
 			  ms:(;si) PRF.masterSecret option
 *)
 
-private val rsaassoc: i:(pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms * csr:bytes * si:SessionInfo) -> 
-              (i':(pk':RSAKey.pk * pv':ProtocolVersion * (;pk',pv')rsapms * csr':bytes * si':SessionInfo) * ms':(;Fifth(i')) PRF.masterSecret) list -> 
-			  ms:(;Fifth(i)) PRF.masterSecret option
+private val rsaassoc: 
+    i:(pk:RSAKey.pk * pv:ProtocolVersion * (;pk,pv)rsapms * csr:bytes * si:SessionInfo) -> 
+    (i':(pk':RSAKey.pk * pv':ProtocolVersion * (;pk',pv')rsapms * csr':bytes * si':SessionInfo) * ms':(;Fifth(i')) PRF.masterSecret) list -> 
+	ms:(;Fifth(i)) PRF.masterSecret option
 
 val prfSmoothRSA:
     si:SessionInfo ->

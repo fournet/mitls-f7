@@ -45,7 +45,7 @@ let rsaassoc0 (si:SessionInfo) (mss:((SessionInfo * PRF.masterSecret) list)) : P
     | [] -> None 
     | (si',ms)::mss' -> Some(ms) 
 *) 
- 
+
 let rec rsaassoc (i:(RSAKey.pk * ProtocolVersion * rsapms * bytes * SessionInfo)) (mss:rsaentry list): PRF.masterSecret option = 
     let pk,pv,pms,csr,si=i in
     match mss with 
@@ -97,7 +97,7 @@ let todo s = ()
 
 let prfSmoothRSA si (pv:ProtocolVersion) pms = 
   match pms with
-  #if ideal 
+  #if ideal
   | IdealRSAPMS(s) ->
         let pk = 
             match (Cert.get_chain_public_encryption_key si.serverID) with 
