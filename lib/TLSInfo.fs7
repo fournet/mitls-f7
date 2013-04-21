@@ -138,6 +138,7 @@ val nextEpoch: e:epoch -> c:crand -> s:srand -> si:SessionInfo ->
 predicate HonestSig of a:sigHashAlg * (;a) Sig.pkey
 definition !a,k. HonestSig(a,k) <=> Sig.Honest(a,k)
 
+// ``The associated sk is used only by compliant TLS''
 predicate HonestRSAKey of RSAKey.pk
 definition !pk. HonestRSAKey(pk) <=> RSAKey.Honest(pk)
 
@@ -176,8 +177,8 @@ predicate StrongCRE of SessionInfo
 
 predicate StrongHS  of SessionInfo //CF * hashAlg for certs?
 
-
-predicate SafeRSAPMS of RSAKey.pk * ProtocolVersion // These parameters can encrypt HonestRSAPMSs
+// ``These parameters can encrypt HonestRSAPMSs.''
+predicate SafeRSAPMS of RSAKey.pk * ProtocolVersion 
 
 
 //MK SafeDHPMS is much more specific involving the contributions to the pms. This is probably by necessity.

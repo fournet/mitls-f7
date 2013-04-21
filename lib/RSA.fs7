@@ -1,6 +1,6 @@
 ﻿module RSA
 
-// RSA asymmetric encryption & decryption, used for PMS
+// RSA encryption & decryption of the PMS
 // we currently exclude RSA keys used both for signing and decryption
 
 open Bytes
@@ -14,7 +14,6 @@ open TLSInfo
 // Jakob Jonsson and Burton S. Kaliski Jr.
 // http://www.iacr.org/archive/crypto2002/24420127/24420127.pdf   
 
-
 val encrypt: 
   pk:pk -> cv:ProtocolVersion -> pms:(;pk,cv) CRE.rsapms -> 
   b:bytes {CRE.EncryptedRSAPMS(pk,cv,pms,b)}
@@ -26,6 +25,12 @@ val decrypt:
   bytes -> (* encrypted PMS *)
   (;Cert.RSAPKCert(si.serverID),cv) CRE.rsapms (* no Result type: instead of an error, we return a fresh random PMS *)
 
+// This is not just plain RSA_PKCS1 decryption.
+// We put in place timing attack countermeasures.
+// See RFC 5246, section 7.4.7.1
+  
+
+// The rest of the interface is internal to RSA.fs
 // CF TODO where do we require/use that cv_check be used everywhere with Honest keys? 
 
 // projection functions (we could also flatten more)
@@ -37,11 +42,12 @@ private definition !e1,e2,e3. Snd((e1,e2,e3)) = e2
 // Ideally, we add an indirection from a fresh dummy pms to the ideal pms (before encryption)
 // and we maintain a table to undo it (after concrete decryption)
 
-private type entry = i:(pk:pk * cv:ProtocolVersion * (;48) lbytes) * (;Fst(i),Snd(i)) CRE.rsapms
+(* private *) type entry = i:(pk:pk * cv:ProtocolVersion * (;48) lbytes) * (;Fst(i),Snd(i)) CRE.rsapms
 private val log: entry list ref 
-private val pmsassoc: i:(pk:RSAKey.pk * pv:ProtocolVersion * bytes) -> 
-             (i':(pk':RSAKey.pk * pv':ProtocolVersion * bytes) * (;Fst(i'),Snd(i'))CRE.rsapms) list -> 
-			 (;Fst(i),Snd(i))CRE.rsapms option
+private val pmsassoc: 
+  i:(pk:RSAKey.pk * pv:ProtocolVersion * bytes) -> 
+  (i':(pk':RSAKey.pk * pv':ProtocolVersion * bytes) * (;Fst(i'),Snd(i'))CRE.rsapms) list -> 
+  (;Fst(i),Snd(i))CRE.rsapms option
 
 // Concrete decryption with TLS-specific countermeasures against 
 // protocol regression, Bleichenbacher, and related timing attacks

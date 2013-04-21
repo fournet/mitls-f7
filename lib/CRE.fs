@@ -39,12 +39,13 @@ type rsaentry = (RSAKey.pk * ProtocolVersion * rsapms * bytes * SessionInfo) * P
 
 let rsalog = ref []
 
-//CF temporary counter-example!
+(* CF an old counter-example...
 let rsaassoc0 (si:SessionInfo) (mss:((SessionInfo * PRF.masterSecret) list)) : PRF.masterSecret option = 
     match mss with 
     | [] -> None 
     | (si',ms)::mss' -> Some(ms) 
-  
+*) 
+ 
 let rec rsaassoc (i:(RSAKey.pk * ProtocolVersion * rsapms * bytes * SessionInfo)) (mss:rsaentry list): PRF.masterSecret option = 
     let pk,pv,pms,csr,si=i in
     match mss with 
@@ -102,15 +103,16 @@ let prfSmoothRSA si (pv:ProtocolVersion) pms =
             match (Cert.get_chain_public_encryption_key si.serverID) with 
             | Correct(pk) -> pk
             | _           -> unexpected "server must have an ID"    
-        (* CF we assoc on pk and pv, implicitly relying on the absence of collisions between ideal RSAPMSs.*)
+        //CF we assoc on pk and pv, implicitly relying on 
+        //CF the absence of collisions between ideal RSAPMSs.
         match rsaassoc (pk,pv,pms,csrands si,si) !rsalog with 
         | Some(ms) -> ms
         | None -> 
-                 let ms=PRF.sample si 
+                 let ms = PRF.sample si 
                  rsalog := ((pk,pv,pms,csrands si,si),ms)::!rsalog
                  ms 
   #endif  
-  | ConcreteRSAPMS(s) -> todo "SafeHS_SI ==> HonestRSAPMS"; prfMS si s
+  | ConcreteRSAPMS(s) -> (*todo "SafeHS_SI ==> HonestRSAPMS";*) prfMS si s
 
 
 

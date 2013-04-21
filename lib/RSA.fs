@@ -32,23 +32,21 @@ type entry = (pk * ProtocolVersion * bytes) *  CRE.rsapms
 let log = ref []
 #endif
 
-
 let encrypt pk pv pms =
     //#begin-ideal1
+    let plaintext = 
     #if ideal
     //MK Here we rely on every pms being encrypted only once. 
     //MK Otherwise we would have to story dummy_pms values to maintain consistency.
-    let v = if (* MK redundant RSAKey.honest pk  && *) CRE.honestRSAPMS pk pv pms then
-              let dummy_pms = versionBytes pv @|random 46
-              log := ((pk,pv,dummy_pms),pms)::!log
-              dummy_pms
-            else
-              CRE.leakRSA pk pv pms
-    //#end-ideal1
-    #else
-    let v = CRE.leakRSA pk pv pms
+      if (* MK redundant RSAKey.honest pk  && *) CRE.honestRSAPMS pk pv pms then
+        let dummy_pms = versionBytes pv @| random 46
+        log := ((pk,pv,dummy_pms),pms)::!log
+        dummy_pms
+      else
     #endif
-    let epms = CoreACiphers.encrypt_pkcs1 (RSAKey.repr_of_rsapkey pk) v
+        CRE.leakRSA pk pv pms       
+    //#end-ideal1
+    let epms = CoreACiphers.encrypt_pkcs1 (RSAKey.repr_of_rsapkey pk) plaintext
     #if ideal
     Pi.assume(CRE.EncryptedRSAPMS(pk,pv,pms,epms))
     #endif
@@ -56,27 +54,27 @@ let encrypt pk pv pms =
 
 //#begin-decrypt_int
 let decrypt_int dk si cv cvCheck encPMS =
-  (*@ Security measures described in RFC 5246, section 7.4.7.1 *)
-  (*@ 1. Generate random data, 46 bytes, for PMS except client version *)
+  (* Security measures described in RFC 5246, section 7.4.7.1 *)
+  (* 1. Generate 46 random bytes, for fake PMS except client version *)
   let fakepms = random 46 in
-  (*@ 2. Decrypt the message to recover plaintext *)
   let expected = versionBytes cv in
+  (* 2. Decrypt the message to recover plaintext *)
   match CoreACiphers.decrypt_pkcs1 (RSAKey.repr_of_rsaskey dk) encPMS with
     | Some pms when length pms = 48 ->
         let (clVB,postPMS) = split pms 2 in
         match si.protocol_version with
           | TLS_1p1 | TLS_1p2 ->
-              (*@ 3. If new TLS version, just go on with client version and true pms.
+              (* 3. If new TLS version, just go on with client version and true pms.
                     This corresponds to a check of the client version number, but we'll fail later. *)
               expected @| postPMS
           
           | SSL_3p0 | TLS_1p0 ->
-              (*@ 3. If check disabled, use client provided PMS, otherwise use our version number *)
+              (* 3. If check disabled, use client provided PMS, otherwise use our version number *)
               if cvCheck 
               then expected @| postPMS
               else pms
     | _  -> 
-        (*@ 3. in case of decryption of length error, continue with fake PMS *) 
+        (* 3. in case of decryption length error, continue with fake PMS *) 
         expected @| fakepms
 //#end-decrypt_int
 
@@ -91,16 +89,15 @@ let rec pmsassoc (i:(RSAKey.pk * ProtocolVersion * bytes)) (pmss:((RSAKey.pk * P
 
 let decrypt (sk:RSAKey.sk) si cv check_client_version_in_pms_for_old_tls encPMS =
     match Cert.get_chain_public_encryption_key si.serverID with
-    | Error(x,y) -> unexpected (perror __SOURCE_FILE__ __LINE__ "The server identity should contain a valid certificate")
+    | Error(x,y)  -> unexpected (perror __SOURCE_FILE__ __LINE__ "The server identity should contain a valid certificate")
     | Correct(pk) ->
         let pmsb = decrypt_int sk si cv check_client_version_in_pms_for_old_tls encPMS in
         //#begin-ideal2
         #if ideal
         match pmsassoc (pk,cv,pmsb) !log with
           | Some(ideal_pms) -> ideal_pms
-          | None            -> CRE.coerceRSA pk cv pmsb
-        //#end-ideal2
-        #else
-        CRE.coerceRSA pk cv pmsb
+          | None            -> 
         #endif
-
+            CRE.coerceRSA pk cv pmsb
+        //#end-ideal2
+        
