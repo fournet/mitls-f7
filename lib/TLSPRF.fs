@@ -90,16 +90,17 @@ let tls_verifyData ms tls_label data =
 
 (* TLS 1.2 *)
 
-let tls12prf cs secret label seed len =
+(* internal, shared between the two functions below *)
+
+let tls12prf cs ms label data len =
   let prfMacAlg = prfMacAlg_of_ciphersuite cs in
-  let newseed = (utf8 label) @| seed in
-  p_hash prfMacAlg secret newseed len
+  p_hash prfMacAlg ms (utf8 label @| data) len
 
 let tls12VerifyData cs ms tls_label data =
   let verifyDataHashAlg = verifyDataHashAlg_of_ciphersuite cs in
-  let hashResult = hash verifyDataHashAlg data in
   let verifyDataLen = verifyDataLen_of_ciphersuite cs in
-  tls12prf cs ms tls_label hashResult verifyDataLen
+  let hashed = hash verifyDataHashAlg data in
+  tls12prf cs ms tls_label hashed verifyDataLen
 
 (* Internal generic (SSL/TLS) implementation of PRF *)
 
