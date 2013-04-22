@@ -13,11 +13,6 @@ type masterSecret = { bytes: repr }
 type keysentry = (epoch * epoch * masterSecret * bytes * StatefulLHAE.reader * StatefulLHAE.writer) 
 let keyslog = ref []
 
-type finishedtext = bytes
-type finishedtag = bytes
-type finishedentry = epoch * Role * finishedtext * finishedtag
-let finish_log = ref []
-
 (* MK deprecated, use predicated and functions from TLSInfo
 let corrupted = ref []
 let strong (si:SessionInfo) = true  
@@ -65,7 +60,7 @@ let keyGen_int ci (ms:masterSecret) =
             let cmkb, b = split b macKeySize in
             let smkb, b = split b macKeySize in
             let cekb, b = split b encKeySize in
-            let sekb, b = split b encKeySize in
+            let sekb, b = split b encKeySize in 
             let ck = (cmkb @| cekb) in
             let sk = (smkb @| sekb) in
             match ci.role with 
@@ -93,12 +88,15 @@ let keyGen_int ci (ms:masterSecret) =
                  StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState ck)
     | _ -> unexpected "[keyGen] invoked on unsupported ciphersuite"
 
+
 #if ideal
-let rec keysassoc (e1:epoch) (e2:epoch) (ms:masterSecret) (ecsr: bytes) (ks:keysentry list): (StatefulLHAE.reader * StatefulLHAE.writer) option = 
+let rec keysassoc
+  (e1:epoch) (e2:epoch) (ms:masterSecret) (ecsr: bytes) (ks:keysentry list): 
+  (StatefulLHAE.reader * StatefulLHAE.writer) option = 
     match ks with 
     | [] -> None 
-    | (e1',e2',ms',ecsr', r',w')::ks' when  ms=ms' && ecsr=ecsr'-> Some(r',w') 
-    | _::ks' -> keysassoc e1 e2 ms ecsr ks'
+    | (e1',e2',ms',ecsr',r',w')::ks' when ms=ms' && ecsr=ecsr' -> Some((r',w')) //CF not correctly indexed!?
+    | (e1',e2',ms',ecsr',r',w')::ks' -> keysassoc e1 e2 ms ecsr ks'
 #endif
 
 
@@ -111,10 +109,10 @@ let keyGen ci ms =
     //MK should this be safeMS_SI?
     if safeHS_SI (epochSI(ci.id_in))
     then 
-        let e1,e2=epochs ci
+        let (e1,e2) = epochs ci
 //        match tryFind (fun (e1',e2',ms',_,_) -> e1=e1' && e2=e2' && ms=ms') !keyslog with
         match keysassoc e1 e2 ms (epochCSRands e1) !keyslog with //add new csrand
-        | Some(cWrite,cRead) -> (cWrite,cRead)
+        | Some(e) -> e //CF: not typing: (cWrite,cRead) -> (cWrite,cRead)
         | None                    -> 
             let (myWrite,peerRead) = StatefulLHAE.GEN ci.id_out
             let (peerWrite,myRead) = StatefulLHAE.GEN ci.id_in 
@@ -126,10 +124,14 @@ let keyGen ci ms =
         keyGen_int ci ms
 
 
-let makeVerifyData e role (ms:masterSecret) data =
-  let si = epochSI(e) in
+type text = bytes
+type tag = bytes
+type entry = SessionInfo * tag * Role * text
+let log : entry list ref = ref []
+
+let makeVerifyData si role (ms:masterSecret) data =
   let pv = si.protocol_version in
-  let tag =
+  let tag : tag =
     match pv with 
     | SSL_3p0           ->
         match role with
@@ -145,24 +147,28 @@ let makeVerifyData e role (ms:masterSecret) data =
         | Client -> tls12VerifyData cs ms.bytes tls_sender_client data
         | Server -> tls12VerifyData cs ms.bytes tls_sender_server data
   #if ideal
-  //MK should be safeMS_SI?
-  if safeHS_SI si then 
-    finish_log := (si, tag, data)::!finish_log;
+  if safeHS_SI si then
+    log := (si,tag,role,data)::!log ;
   #endif
   tag
 
-let checkVerifyData e role ms log expected =
-  let computed = makeVerifyData e role ms log 
-  equalBytes expected computed
+let rec ftmem (si:SessionInfo) (r:Role) (t:text) (es:entry list) = 
+  match es with
+  | [] -> false 
+  | (si',tag',role,text)::es when si=si' && r=role && text=t -> true
+  | (si',tag',role,text)::es -> ftmem si r t es
+
+let checkVerifyData si role ms data tag =
+  let computed = makeVerifyData si role ms data //CF this can't typecheck. 
+  equalBytes tag computed
   //#begin-ideal2
   #if ideal
   && // ideally, we return "false" when concrete 
      // verification suceeeds but shouldn't according to the log 
-    let si = epochSI(e) 
-    safe e = false || (exists (fun el -> el=(si, expected, log)) !finish_log)
+    ( safeHS_SI si = false ||
+      ftmem si role data !log )
   //#end-ideal2
   #endif
-  
 
 let ssl_certificate_verify (si:SessionInfo) ms (algs:sigAlg) log =
   match algs with

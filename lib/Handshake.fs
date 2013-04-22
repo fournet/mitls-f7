@@ -775,7 +775,9 @@ let next_fragment ci state =
                 let next_ci = getNextEpochs ci si si.init_crand si.init_srand in
                 let (writer,reader) = PRF.keyGen next_ci ms in
                 Pi.assume (SentCCS(Client,next_ci.id_out));
-                let cvd = PRF.makeVerifyData next_ci.id_out Client ms log in
+                //CF now passing si, instead of next_ci.id_out
+                //CF but the precondition should be on F(si)
+                let cvd = PRF.makeVerifyData si Client ms log in
                 let cFinished = messageBytes HT_finished cvd in
                 let log = log @| cFinished in
                 let (rg,f,_) = makeFragment ci.id_out CCSBytes in
@@ -789,7 +791,7 @@ let next_fragment ci state =
 (* KB #endif*)
             | ClientWritingCCSResume(e,w,ms,svd,log) ->
                 Pi.assume (SentCCS(Client,e));
-                let cvd = PRF.makeVerifyData e Client ms log in
+                let cvd = PRF.makeVerifyData (epochSI e) Client ms log in
                 let cFinished = messageBytes HT_finished cvd in
                 let (rg,f,_) = makeFragment ci.id_out CCSBytes in
                 let ci = {ci with id_out = e} in 
@@ -805,7 +807,7 @@ let next_fragment ci state =
             match sstate with
             | ServerWritingCCS (si,ms,e,w,cvd,log) ->
                 Pi.assume (SentCCS(Server,e));
-                let svd = PRF.makeVerifyData e Server ms log in
+                let svd = PRF.makeVerifyData si Server ms log in
                 let sFinished = messageBytes HT_finished svd in
                 let (rg,f,_) = makeFragment ci.id_out CCSBytes in
                 let ci = {ci with id_out = e} in
@@ -818,7 +820,7 @@ let next_fragment ci state =
 (* KB #endif*)
             | ServerWritingCCSResume(we,w,re,r,ms,log) ->
                 Pi.assume (SentCCS(Server,we));
-                let svd = PRF.makeVerifyData we Server ms log in
+                let svd = PRF.makeVerifyData (epochSI we) Server ms log in
                 let sFinished = messageBytes HT_finished svd in
                 let log = log @| sFinished in
                 let (rg,f,_) = makeFragment ci.id_out CCSBytes in
@@ -1420,7 +1422,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
         | HT_finished ->
             match cState with
             | ServerFinished(si,ms,e,cvd,log) ->
-                if PRF.checkVerifyData ci.id_in Server ms log payload then
+                if PRF.checkVerifyData si Server ms log payload then
                     let sDB = 
                         if equalBytes si.sessionID [||] then state.sDB
                         else SessionDB.insert state.sDB si.sessionID Client state.poptions.server_name (si,ms)
@@ -1429,7 +1431,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 else
                     InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "Verify data did not match",state)
             | ServerFinishedResume(e,w,ms,log) ->
-                if PRF.checkVerifyData ci.id_in Server ms log payload then
+                if PRF.checkVerifyData (epochSI ci.id_in) Server ms log payload then
                     let log = log @| to_log in
                     InFinished({state with pstate = PSClient(ClientWritingCCSResume(e,w,ms,payload,log))})
                 else
@@ -1812,13 +1814,13 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
         | HT_finished ->
             match sState with
             | ClientFinished(si,ms,e,w,log) ->
-                if PRF.checkVerifyData ci.id_in Client ms log payload then
+                if PRF.checkVerifyData si Client ms log payload then
                     let log = log @| to_log in
                     InFinished({state with pstate = PSServer(ServerWritingCCS(si,ms,e,w,payload,log))})
                 else
                     InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "Verify data did not match",state)
             | ClientFinishedResume(si,ms,e,svd,log) ->
-                if PRF.checkVerifyData ci.id_in Client ms log payload then
+                if PRF.checkVerifyData si Client ms log payload then
                     check_negotiation Server si state.poptions;
                     InComplete({state with pstate = PSServer(ServerIdle(payload,svd))})                       
                 else

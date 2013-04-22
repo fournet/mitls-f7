@@ -1,11 +1,13 @@
 module PRF
 
-(* PRFs keyed by master secrets, both for key derivation and verifyData *)
+// This module implements the PRFs keyed by master secrets, 
+// for two purposes: MACing the verifyData and deriving the connection keys. 
+// (CRE separately implements PRFs keyed by pre master secrets.)
 
 open Bytes
+open TLSConstants
 open TLSInfo
 open StatefulLHAE
-open TLSConstants
 
 // Master secrets are used to derive key materials. 
 // Compared with standard (non-tls) key derivation,
@@ -14,12 +16,18 @@ open TLSConstants
 
 type repr = (;48)lbytes
 //#begin-abstraction
-//CF the index records the *local* session info 
-//CF index abstract is currently broken
+//CF the index records the *local* session info --- this is not precise.
 private type (;si:SessionInfo) masterSecret = {bytes: repr}
 //#end-abstraction
 
+// Ideally, we maintain two logs
+// - all safe connection keys generated so far, to share them with the second, matching ideal key derivation.
+// - all authentic Finished messages, to check them in their "MAC verify". 
 
+
+
+
+//CF Markulf, what to do with those?  
 (*MK SHOULD BE:
 private type (;pms:Pms,csr:csrands) protoMasterSecret = { bytes: repr }
 
@@ -30,7 +38,6 @@ private type (;si:SessionInfo) masterSecret = {
 val changeMasterSecret: si:SessionInfo -> (;GetPMS(si),si.csrands) protoMasterSecret{?ki. EpochSI(ki)=si /\ Complete(ki,..)} -> (;si) masterSecret
 *)
 
-
 (* MK !! causes logical inconsistency
 function val Epochs: 'a -> 'b
 private definition !ci,r,e_in,e_out.
@@ -39,6 +46,7 @@ private definition !ci,r,e_in,e_out.
 	(ci = {role=Server;id_rand=r;id_in=e_in;id_out=e_out} /\
 	 Epochs(ci) = (ci.id_out,ci.id_in) )
 *)
+
 
 
 // AuthSI is defined in TLSInfo
@@ -62,7 +70,7 @@ private val keyGen_int: ci:ConnectionInfo{EpochSI(ci.id_in)=EpochSI(ci.id_out) /
 //  { StatefulLHAE.History(ci.id_out,WriterState,w) = StatefulPlain.EmptyHistory(ci.id_out) /\
 //    StatefulLHAE.History(ci.id_out,ReaderState,r) = StatefulPlain.EmptyHistory(ci.id_in)}
 
-private type keysentry = (e:epoch * e':epoch * ms:(;EpochSI(e)) masterSecret * bytes * (;e)StatefulLHAE.reader * (;e')StatefulLHAE.writer) 
+type keysentry = (e:epoch * e':epoch * ms:(;EpochSI(e)) masterSecret * bytes * (;e)StatefulLHAE.reader * (;e')StatefulLHAE.writer) 
 private val keyslog: keysentry list ref 
 val keysassoc: e:epoch -> e':epoch -> ms:(;EpochSI(e)) masterSecret -> bytes -> keysentry list -> ((;e)StatefulLHAE.reader * (;e')StatefulLHAE.writer) option
 
@@ -86,31 +94,45 @@ private definition !e1,e2. Snd((e1,e2)) = e2
 // Master secrets are also used to generate and check verifyData tags,
 // providing conditional authentication of the (abstract) VerifyData predicate.
 
-predicate VerifyData of epoch * Role * bytes
 
-(* typing the finishedlog for the ideal functionality *)
+(** verifyData authenticator in Finished messages **)
 
-type finishedtext = bytes
-type finishedtag = bytes
+// We specify it as we do for MACs,
+// whereas we have a stronger PRF assumption.
+// TODO reduction from joint MAC & KDF to PRF. 
 
-private type finishedentry = (ki:epoch * r:Role * t:finishedtext * finishedtag){VerifyData(ki,r,t)}
-private val finishedlog: finishedentry list ref
-private val ftmem: ki:epoch -> r:Role -> t:finishedtext -> finishedentry list -> b:bool{ b=true => VerifyData(ki,r,t) }
+// Some verbatim handshake message log...
+type text = bytes
+// ...MACed into tags (with a fixed, irrelevant length) 
+type tag = bytes
 
-private val finish_log: (SessionInfo * bytes * bytes) list ref 
+// Abstract predicate authenticated by the Finished messages.
+//CF we used to index it by epoch, now by SessionInfo, but this is still too wide:
+//CF the first index should be F(si), keeping only the pms, pv, and nonces.
+predicate VerifyData of SessionInfo * Role * text
 
+// We actually do not use the tag in this table
+type entry = si:SessionInfo * tag * r:Role * t:text {VerifyData(si,r,t)}
+private val log: entry list ref
+private val ftmem: si:SessionInfo -> r:Role -> t:text -> entry list -> b:bool{ b=true => VerifyData(si,r,t) }
+//private val cons: si:SessionInfo -> tag -> r:Role -> t:text {VerifyData(si,r,t)} -> entry list -> entry list
 
-val makeVerifyData: e:succEpoch -> 
-  r:Role -> (;EpochSI(e)) masterSecret -> 
-  log:bytes{VerifyData(e,r,log)} -> 
-  bytes (* length depends on cs, 12 by default *)
+(* MACing *)
+val makeVerifyData: 
+  si:SessionInfo -> r:Role -> (;si) masterSecret -> 
+  t:text{VerifyData(si,r,t)} -> 
+  tag (* length depends on cs, 12 by default *)
 
-val checkVerifyData: e:succEpoch -> r:Role -> (;EpochSI(e)) masterSecret ->
-				   log:bytes (* the log *) ->
-				   tag:bytes (* the expected value *) ->
-				   b:bool{(b = true /\ SafeHS(e)) => VerifyData(e,r,log)} //MK SafeMS(MS(e)) => VerifyData(MS(e),r,log)
-				   //TODO SafeHS(e) => PRF(pv,MacAlg(e))
-
-val ssl_certificate_verify: si:SessionInfo -> (;si)masterSecret -> TLSConstants.sigAlg -> bytes -> bytes
+(* MAC verifying *)
+val checkVerifyData: 
+  si:SessionInfo -> r:Role -> (;si) masterSecret ->
+  t:text -> tag:tag (* the expected value *) ->
+  b:bool{(b = true /\ SafeHS_SI(si)) => VerifyData(si,r,t)} 
+  
+(* ad hoc SSL3-only function; untrusted. *) 
+//CF we need to exclude calls to this function when SafeHS_SI(si)!
+val ssl_certificate_verify: 
+  si:SessionInfo -> (;si)masterSecret ->
+  TLSConstants.sigAlg -> bytes -> bytes
 
 private val epochs:ConnectionInfo -> epoch * epoch
