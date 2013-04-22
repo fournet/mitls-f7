@@ -6,80 +6,84 @@ open TLSInfo
 open DataStream
 open Range
 
-type input_buffer =  stream * (range * AppFragment.plain) option
+type input_buffer =
+    | NoneIBuf of stream
+    | SomeIBuf of stream * range * AppFragment.plain
 type output_buffer =
-    | NoneBuf of stream
-    | SomeBuf of stream * range * AppFragment.plain * stream
+    | NoneOBuf of stream
+    | SomeOBuf of stream * range * AppFragment.plain * stream
 
 type app_state = {
   app_incoming: input_buffer;
   app_outgoing: output_buffer;
 }
 
-let inStream  (c:ConnectionInfo) state = 
-    let (s,_) = state.app_incoming in s
+let inStream  (c:ConnectionInfo) state =
+    match state.app_incoming with
+    | NoneIBuf(s) -> s
+    | SomeIBuf(s,_,_) -> s
+
 let outStream (c:ConnectionInfo) state =
     match state.app_outgoing with
-    | NoneBuf(s) -> s
-    | SomeBuf(s,_,_,_) -> s
+    | NoneOBuf(s) -> s
+    | SomeOBuf(s,_,_,_) -> s
 
 let init ci =
   let in_s = DataStream.init ci.id_in in
   let out_s = DataStream.init ci.id_out in
-    {app_outgoing = (NoneBuf(out_s));
-     app_incoming = (in_s,None)
+    {app_outgoing = (NoneOBuf(out_s));
+     app_incoming = (NoneIBuf(in_s))
     }
 
 // Stores appdata in the output buffer, so that it will possibly sent on the network
 let writeAppData (c:ConnectionInfo) (a:app_state) (r:range) (f:AppFragment.plain) (s':stream) =
     let s = outStream c a in
-    {a with app_outgoing = SomeBuf(s,r,f,s')}
+    {a with app_outgoing = SomeOBuf(s,r,f,s')}
 
-let noneBuf ki s = NoneBuf(s)
+let noneOutBuf ki s = NoneOBuf(s)
 let some x = Some x
 // When polled, gives Dispatch the next fragment to be delivered,
 // and commits to it (adds it to the output stream)
 let next_fragment (c:ConnectionInfo) (a:app_state) =
     let out = a.app_outgoing in
     match out with
-    | NoneBuf(_) -> None
-    | SomeBuf (s,r,f,s') ->
-        let b' = noneBuf c.id_out s' in
+    | NoneOBuf(_) -> None
+    | SomeOBuf (s,r,f,s') ->
+        let b' = noneOutBuf c.id_out s' in
         some (r,f,{a with app_outgoing = b'})
 
 // Clear contents from the output buffer
 let clearOutBuf (c:ConnectionInfo) (a:app_state) =
     let s = outStream c a in
-    {a with app_outgoing = NoneBuf(s)}
+    {a with app_outgoing = NoneOBuf(s)}
 
 // Gets a fragment from Dispatch, adds it to the incoming buffer, but not yet to
 // the stream of data delivered to the user
 let recv_fragment (ci:ConnectionInfo)  (a:app_state)  (r:range) (f:AppFragment.fragment) =
     // pre: snd a.app_incoming = None
-    let (s,_) = a.app_incoming in
-    let rf = (r,f) in
-    {a with app_incoming = (s,Some(rf))}
+    match a.app_incoming with
+    | NoneIBuf(s) ->
+        {a with app_incoming = (SomeIBuf(s,r,f))}
+    | SomeIBuf(_,_,_) -> unexpected "[recv_fragment] invoked with non-empty buffer"
 
 // Returns the buffered data to the user, and stores them in the stream
 let readAppData (c:ConnectionInfo) (a:app_state) =
-  let (s,data) = a.app_incoming in
-    match data with
-      | None -> None,a
-      | Some(rf) ->
-          let (r,f) = rf in
+    match a.app_incoming with
+      | NoneIBuf(_) -> None,a
+      | SomeIBuf(s,r,f) ->
           let (d,ns) = AppFragment.delta c.id_in s r f in
           let rd = (r,d) in
-          Some(rd),{a with app_incoming = (ns,None)}
+          Some(rd),{a with app_incoming = NoneIBuf(ns)}
 
 
 let reset_outgoing (ci:ConnectionInfo) (a:app_state) (nci:ConnectionInfo) = 
   let out_s = DataStream.init nci.id_out in
     {a with 
-       app_outgoing = NoneBuf(out_s)
+       app_outgoing = NoneOBuf(out_s)
     }
 
 let reset_incoming (ci:ConnectionInfo) (a:app_state) (nci:ConnectionInfo) = 
   let in_s = DataStream.init nci.id_in in
     {a with 
-       app_incoming =  (in_s,None)
+       app_incoming =  NoneIBuf(in_s)
     }
