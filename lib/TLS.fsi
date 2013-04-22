@@ -7,6 +7,8 @@ open TLSInfo
 open Tcp
 open DataStream
 
+type Connection = Dispatch.Connection
+
 type ioresult_i =
     | ReadError of alertDescription option * string
     | Close     of Tcp.NetworkStream

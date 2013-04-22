@@ -29,7 +29,7 @@ let EI_MUSTREAD   = -11
 let EI_HSONGOING  = -12
 
 type handleinfo = {
-    conn     : Connection;
+    conn     : TLS.Connection;
     canwrite : bool;
 }
 

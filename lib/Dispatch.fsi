@@ -11,7 +11,8 @@ open DataStream
 open Range
 
 [<NoEquality;NoComparison>]
-type Connection
+type preConnection
+type Connection = preConnection
 type nextCn = Connection
 type nullCn = Connection
 type query = Cert.chain
@@ -43,6 +44,7 @@ type readOutcome =
     | WriteOutcome of writeOutcome 
     | RError of string (* internal *)
     | RAgain
+    | RAgainFinishing
     | RAppDataDone
     | RQuery of query * bool
     | RHSDone

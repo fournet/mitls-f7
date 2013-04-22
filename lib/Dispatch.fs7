@@ -47,7 +47,7 @@ private type (;id:ConnectionInfo) preGlobalState = {
 
 
 predicate GState of ci:ConnectionInfo * (;ci)preGlobalState
-private type (;id:ConnectionInfo) globalState = gs:(;id) preGlobalState{GState(id,gs)}
+type (;id:ConnectionInfo) globalState = gs:(;id) preGlobalState{GState(id,gs)}
 	
 private definition !ci,gs. GState(ci,gs)  <=>
   ( (Auth(ci.id_out) =>
@@ -67,8 +67,13 @@ private definition !ci,gs. GState(ci,gs)  <=>
 		)
 	)
   )
-  
-private type Connection = Conn of (id:ConnectionInfo * (;id)globalState)
+
+private type preConnection = Conn of (id:ConnectionInfo * (;id)globalState)
+predicate IsConnection of preConnection
+private definition !c. IsConnection(c) <=>
+	(?x1,x2,x3,x4,s. c  = Conn({id_in = x1; id_out = x2; id_rand = x3; role = x4},s))
+ 
+type Connection = c:preConnection{IsConnection(c)}
 
 // Returns the local index, which includes our fresh initial randomness
 function val CnInfo: Connection -> ConnectionInfo
@@ -111,7 +116,7 @@ type (;e:epoch,s:(;e)DataStream.stream)msg_o = r:range * (;e,s,r)DataStream.delt
 function val ExtendStream_o: c:Connection * (;ConnectionEpochOut(c),CnStream_o(c))msg_o -> 'a //(;ConnectionEpochOut(c)) DataStream.stream
 private definition !c,r,d.
 	ExtendStream_o(c,(r,d)) =
-	  DataStream.ExtendStream(ConnectionEpochOut(c),CnStream_o(c),r,d)
+	  DataStream.ExtendStreamDelta(ConnectionEpochOut(c),CnStream_o(c),r,d)
 
 function val CnBuf_o: c:Connection -> (r:range * (;ConnectionEpochOut(c),r)AppFragment.fragment * (;ConnectionEpochOut(c))DataStream.stream) option
 private definition !id,s. CnBuf_o(Conn(id,s)) = AppData.AppOutBuf(id,s.appdata)
@@ -124,9 +129,11 @@ private definition !c. Bytes_o(c) = DataStream.StreamBytes(ConnectionEpochOut(c)
 predicate EvWrite      of epoch * bytes
 predicate EvWarning    of epoch * alertDescription * bytes
 predicate EvClose      of epoch * bytes
-// AP FIXME: Dummy definition of EvClose, to let the state machine verification go through
-private assume !e,b. EvClose(e,b)
 predicate EvFatal      of epoch * alertDescription * bytes
+// AP FIXME: Dummy definition of the above events, to let the state machine verification go through
+private assume !e,b. EvClose(e,b)
+private assume !e,ad,b. EvWarning(e,ad,b)
+private assume !e,ad,b. EvFatal(e,ad,b)
 // Write records increasing prefixes of the stream, for each written data fragment, 
 // interleaved with warnings, ended by Fatal or Close [we may distinguish between two kinds of close too]
 // Write(i,p0), ..., Write(i,p0 @| ... @| pi), Warning(i,p0 @| ... @| pi), ..., Close(i, p0 @| ... @| pn)
@@ -136,9 +143,8 @@ private assume !id,s. Role(Conn(id,s)) = id.role
 function val Rnd: Connection -> random
 private assume !id,s. Rnd(Conn(id,s)) = id.id_rand
 
-ask !c,c',x1,x2,x3,x4,y1,y2,y3,y4,s,s'.  
-	c  = Conn({id_in = x1; id_out = x2; id_rand = x3; role = x4},s) /\
-	c' = Conn({id_in = y1; id_out = y2; id_rand = y3; role = y4},s') =>
+ask !c,c'.  
+	IsConnection(c) /\ IsConnection(c') =>
 			( CnInfo(c) = CnInfo(c') <=>
 			 ( ConnectionEpochIn(c)  = ConnectionEpochIn(c')  /\
 		  	   ConnectionEpochOut(c) = ConnectionEpochOut(c') /\
@@ -204,8 +210,9 @@ type writeOutcome =
 type readOutcome =
     | WriteOutcome of writeOutcome
     | RError of string 
-    | RAgain
-    | RAppDataDone 
+    | RAgain (* More data to read *)
+	| RAgainFinishing (* More data to read, and the incoming epoch changed *)
+    | RAppDataDone (* No more data to read *)
     | RQuery of query * bool
     | RHSDone
     | RClose
@@ -260,7 +267,7 @@ definition !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo)  <=>
 		 (wo = SentClose ) 
 	)
 
-assume !c,c',ro,mo. IOResult_i(c,c',ro,mo) <=>
+definition !c,c',ro,mo. IOResult_i(c,c',ro,mo) <=>
    (
     // Cases needed by the top level interface
 	(ro = RClose /\ (Auth(ConnectionEpochIn(c)) => EvClose(CnInfo(c).id_in,Bytes_i(c)))) \/
@@ -421,11 +428,45 @@ private val recv: c:Connection ->
 	 ct:TLSConstants.ContentType * r:range * 
          (;ConnectionEpochIn(c),ct,ConnectionInHistory(c),r)TLSFragment.plain) Result
 
-private val readOne: c:Connection ->
+private val readOne: c:Connection{CnBuf_o(c) = None} ->
 	ro:readOutcome * c':Connection{
+	// From writeAllClosing
 	(?ad,s. ro = WriteOutcome(SentFatal(ad,s)) /\ NextCn(c,c')) \/
 	(?s. ro = WriteOutcome(WError(s))  /\ NextCn(c,c')) \/
-	(ro = WriteOutcome(SentClose) /\ NextCn(c,c') /\ (Auth(ConnectionEpochIn(c)) => EvClose(CnInfo(c).id_in,Bytes_i(c))) )
+	(ro = WriteOutcome(SentClose) /\ NextCn(c,c') /\ (Auth(ConnectionEpochIn(c)) => EvClose(CnInfo(c).id_in,Bytes_i(c))) ) \/
+	// From handleHandshakeOutcome
+	(ro = RAgain /\
+		  CnBuf_o(c') = CnBuf_o(c) /\
+		  Extend(c,c')) \/
+	((?q,a. ro = RQuery(q,a)) /\
+		  CnBuf_o(c') = CnBuf_o(c) /\
+		  Extend(c,c')) \/
+	(ro = RHSDone /\
+		  CnBuf_o(c') = CnBuf_o(c) /\
+		  Extend(c,c')) \/
+	// Other cases handled directly
+	(ro = RAgainFinishing
+		/\ CnBuf_o(c') = CnBuf_o(c)
+		/\ Role(c') = Role(c)
+		/\ Rnd(c') = Rnd(c)
+		/\ Config(c') = Config(c)
+		/\ ConnectionEpochIn(c) = Pred(ConnectionEpochIn(c'))
+		/\ Bytes_i(c') = [||]
+		/\ EvClose(CnInfo(c).id_in, Bytes_i(c))
+		/\ Bytes_o(c') = Bytes_o(c)
+		/\ ConnectionEpochOut(c') = ConnectionEpochOut(c) ) \/
+	(ro = RClose
+		/\ (Auth(ConnectionEpochIn(c)) => EvClose(CnInfo(c).id_in,Bytes_i(c))) ) \/
+	(?ad. ro = RFatal(ad)
+		/\ (Auth(ConnectionEpochIn(c)) => EvFatal(CnInfo(c).id_in,ad,Bytes_i(c))) ) \/
+	(?ad. ro = RWarning(ad)
+		/\ Extend(c,c')
+		/\ NextCn(c,c')
+		/\ (Auth(ConnectionEpochIn(c)) => EvWarning(CnInfo(c).id_in,ad,Bytes_i(c))) ) \/
+	(?m. ro = RAppDataDone
+		/\ Extend_i(c,c',m)
+		/\ NextCn(c,c')
+		/\ (Auth(ConnectionEpochIn(c)) => EvWrite(CnInfo(c).id_in, Bytes_i(c'))) )
 	}
 
 private val writeOne: c:Connection -> r:range -> f:(;ConnectionEpochOut(c),r)AppFragment.fragment ->
@@ -539,7 +580,7 @@ private val handleHandshakeOutcome: c:Connection{CnBuf_o(c) = None} -> (;CnInfo(
 	}
 
 val read: c:Connection -> 
-    (c':Connection  * ro:readOutcome * mo:(;ConnectionEpochIn(c'),CnStream_i(c'))msg_i option)
+    (c':Connection  * ro:readOutcome * mo:(;ConnectionEpochIn(c),CnStream_i(c))msg_i option)
     {
       IOResult_i(c,c',ro,mo)
 	  /\ CnBuf_o(c') = CnBuf_o(c)

@@ -44,7 +44,8 @@ type preGlobalState = {
 
 type globalState = preGlobalState
 
-type Connection = Conn of ConnectionInfo * globalState
+type preConnection = Conn of ConnectionInfo * globalState
+type Connection = preConnection
 let networkStream (Conn(id,g)) = g.ns
 
 type nextCn = Connection
@@ -69,6 +70,7 @@ type readOutcome =
     | WriteOutcome of writeOutcome 
     | RError of string (* internal *)
     | RAgain
+    | RAgainFinishing
     | RAppDataDone
     | RQuery of query * bool
     | RHSDone
@@ -604,7 +606,7 @@ let readOne (Conn(id,c)) =
                                                    alert = new_al;
                                                    handshake = hs;
                                           }
-                                  (RAgain, Conn(nextID,c))
+                                  (RAgainFinishing, Conn(nextID,c))
                                else
                                   let reason = perror __SOURCE_FILE__ __LINE__ "Changing epoch with non-empty buffers" in
                                   let closing = abortWithAlert (Conn(id,c)) AD_handshake_failure reason in
@@ -664,7 +666,7 @@ let rec read c =
     | WAppDataDone | WMustRead ->
         let (outcome,c) = readOne c in
         match outcome with
-        | RAgain | WriteOutcome(WMustRead) | WriteOutcome(WAppDataDone) ->
+        | RAgain | RAgainFinishing | WriteOutcome(WMustRead) | WriteOutcome(WAppDataDone) ->
             read c 
         | RAppDataDone ->    
             // empty the appData internal buffer, and return its content to the user
@@ -738,7 +740,7 @@ let authorize (Conn(id,c)) q =
     // The following code is borrowed from read.
     // It should be factored out, but this would create a double-recursive function, which we try to avoid.
     match outcome with
-    | RAgain ->
+    | RAgain | RAgainFinishing ->
         let res = read (Conn(id,c)) in
         res
     | RAppDataDone ->    

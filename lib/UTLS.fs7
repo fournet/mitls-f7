@@ -28,18 +28,18 @@ val EI_HSONGOING  : i:int{i = 0-12}
 
 (* ------------------------------------------------------------------------ *)
 private type handleinfo = {
-    conn     : Connection;
+    conn     : TLS.Connection;
 	canwrite : bool;
 }
 
-predicate CanWriteP of bool * Connection
+predicate CanWriteP of bool * TLS.Connection
 
 definition !b, c. (b = true => CanWrite(CnInfo(c))) => CanWriteP(b, c)
 definition !b, c. CanWriteP(b, c) => (b = true => CanWrite(CnInfo(c))) 
 
-private type Phandleinfo = h:handleinfo{ CanWriteP(h.canwrite, h.conn) }
+type Phandleinfo = h:handleinfo{ CanWriteP(h.canwrite, h.conn) }
 
-private type fdmap = (fd * Phandleinfo) list
+type fdmap = (fd * Phandleinfo) list
 
 (* ------------------------------------------------------------------------ *)
 private val handleinfo_of_conn : Connection -> Phandleinfo
