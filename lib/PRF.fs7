@@ -17,7 +17,13 @@ open StatefulLHAE
 type repr = (;48)lbytes
 //#begin-abstraction
 //CF the index records the *local* session info --- this is not precise.
-private type (;si:SessionInfo) masterSecret = {bytes: repr}
+
+
+type msindex
+val msF: SessionInfo -> msindex
+
+private type (;i:msindex) ms = {bytes: repr}
+type (;si:SessionInfo) masterSecret = (;msF(si)) ms 
 //#end-abstraction
 
 // Ideally, we maintain two logs
@@ -47,10 +53,10 @@ private definition !ci,r,e_in,e_out.
 	 Epochs(ci) = (ci.id_out,ci.id_in) )
 *)
 
-
+//MK ask !si, si'. SafeHS_SI(si) /\ SafeHS_SI(si') /\ si.csrands=si.csrands => CS(si)=CS(si')
 
 // AuthSI is defined in TLSInfo
-val sample: si:SessionInfo -> (;si)masterSecret
+val sample: si:SessionInfo -> (;si)masterSecret 
 //#begin-coerce
 val coerce: si:SessionInfo {not SafeHS_SI(si)} -> repr -> (;si)masterSecret 
 //#end-coerce

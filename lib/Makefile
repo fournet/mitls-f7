@@ -16,7 +16,6 @@ f7defs    = avoid verify ideal
 
 # removed --verbose for automated testing
 override f7flags += \
-  --verbose \
   -timeout $(f7timeout) $(patsubst %,--define %,$(f7defs)) \
   -nokindcheck $(lperv) $(libfs7)
 

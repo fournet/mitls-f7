@@ -940,7 +940,7 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:Sess
 
     let log = log @| clientKEXBytes in
     let pop = state.poptions in 
-    let ms = CRE.prfSmoothRSA si pop.maxVer pms in
+    let ms = CRE.extractRSA si pop.maxVer pms in
     (* FIXME: here we should shred pms *)
     let certificateVerifyBytes = getCertificateVerifyBytes si ms cert_req log in
 
@@ -999,7 +999,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
     let pms = DH.exp p g cy sy x in
     (* the post of this call is !sx,cy. PP((p,g) /\ DHE.Exp((p,g),x,cy)) /\ DHE.Exp((p,g),sx,sy) -> DHE.Secret((p,g),cy,sy) *)
     (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DHE.Secret((p,g),cy,sy) *) 
-    let ms = CRE.prfSmoothDHE si p g cy sy pms in
+    let ms = CRE.extractDHE si p g cy sy pms in
     (* the post of this call is !p,g,gx,gy. StrongHS(si) /\ DHE.Secret((p,g),gx,gy) -> PRFs.Secret(ms) *)  
     (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> PRFs.Secret(ms) *) 
 
@@ -1732,7 +1732,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let (pmsdata,pms) = res in
                     let si = {si with pmsData = pmsdata} in
                     let log = log @| to_log in
-                    let ms = CRE.prfSmoothRSA si cv pms in
+                    let ms = CRE.extractRSA si cv pms in
                     (* TODO: we should shred the pms *)
                     (* move to new state *)
                     if si.client_auth then
@@ -1757,7 +1757,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     (* from the local state, we know: PP((p,g)) /\ ?gx. DHE.Exp((p,g),x,gx) ; tweak the ?gx for genPMS. *)
                     let pms = DH.exp p g gx y x in
                     (* StrongHS(si) /\ DHE.Exp((p,g),?cx,y) -> DHE.Secret(pms) *)
-                    let ms = CRE.prfSmoothDHE si p g gx y pms in
+                    let ms = CRE.extractDHE si p g gx y pms in
                     (* StrongHS(si) /\ DHE.Exp((p,g),?cx,y) -> PRFs.Secret(ms) *)
                     
                     (* TODO in e.g. DHE: we should shred the pms *)
@@ -1784,7 +1784,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Correct(y) ->
                     let log = log @| to_log in
                     let pms = DH.exp p g gx y x in
-                    let ms = CRE.prfSmoothDHE si p g gx y pms in
+                    let ms = CRE.extractDHE si p g gx y pms in
                     (* TODO: here we should shred pms *)
                     (* move to new state *)
                     recv_fragment_server ci 

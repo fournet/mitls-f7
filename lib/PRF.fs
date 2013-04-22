@@ -6,8 +6,15 @@ open TLSConstants
 open TLSPRF
 open TLSInfo
 
+//MK: type rsamsindex = RSAKey.pk * ProtocolVersion * rsapms * bytes
+//let rsamsF (si:SessionInfo):rsamsindex = failwith "not efficiently implementable"
+type msindex = { b:bytes } //MK: RSAMSIndex of rsamsindex | DHMSIndex of dhmsindex
+let msF (si:SessionInfo):msindex = failwith "not efficiently implementable"
+
 type repr = bytes
-type masterSecret = { bytes: repr }
+
+type ms = { bytes: repr }
+type masterSecret = ms
 
 #if ideal
 type keysentry = (epoch * epoch * masterSecret * bytes * StatefulLHAE.reader * StatefulLHAE.writer) 
@@ -107,7 +114,7 @@ let keyGen ci ms =
     //CF for typechecking against StAE, we PRED s.t. Auth => Pred.
     //CF for applying the prf assumption, we need to decided depending *only* on the session 
     //MK should this be safeMS_SI?
-    if safeHS_SI (epochSI(ci.id_in))
+    if safeHS_SI (epochSI(ci.id_in)) 
     then 
         let (e1,e2) = epochs ci
 //        match tryFind (fun (e1',e2',ms',_,_) -> e1=e1' && e2=e2' && ms=ms') !keyslog with
@@ -147,7 +154,7 @@ let makeVerifyData si role (ms:masterSecret) data =
         | Client -> tls12VerifyData cs ms.bytes tls_sender_client data
         | Server -> tls12VerifyData cs ms.bytes tls_sender_server data
   #if ideal
-  if safeHS_SI si then
+  if safeMS_SI si then
     log := (si,tag,role,data)::!log ;
   #endif
   tag
@@ -165,8 +172,8 @@ let checkVerifyData si role ms data tag =
   #if ideal
   && // ideally, we return "false" when concrete 
      // verification suceeeds but shouldn't according to the log 
-    ( safeHS_SI si = false ||
-      ftmem si role data !log )
+    ( safeMS_SI si = false ||
+      ftmem si role data !log ) //MK: (TLSInfo.csrands si)
   //#end-ideal2
   #endif
 

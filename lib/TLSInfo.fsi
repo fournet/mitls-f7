@@ -101,6 +101,7 @@ val fragmentLength: nat
 val safe: epoch -> bool
 val safeHS: epoch -> bool
 val safeHS_SI: SessionInfo -> bool
+val safeMS_SI: SessionInfo -> bool
 val auth: epoch -> bool
 val safeMAC: epoch -> bool
 val safeENC: epoch -> bool

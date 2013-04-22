@@ -66,6 +66,8 @@ type pmsData =
 		  	      gx:(;p)DHGroup.elt (* Client *) *
 			      gy:(;p)DHGroup.elt (* Server *)
 
+function val EncPMS: pmsData -> bytes 
+
 // TODO this is out of sync with the paper, on client_auth.
 type SessionInfo = {
     init_crand: crand;
@@ -201,6 +203,7 @@ predicate type cryptopreds =
 | SafeSI  of SessionInfo // The session ciphersuite yields secrecy and integrity
 | AuthSI  of SessionInfo // The session ciphersuite yields integrity (not necessarily secrecy)
 | SafeHS_SI of SessionInfo // Good handshake for this sessioninfo
+| SafeMS_SI of SessionInfo // Good enough handshake for finished macking for this sessioninfo
 | SafeHS of epoch // Good handshake for this epoch
 | Safe   of epoch // The epoch parameters yield privacy & integrity
 | Auth   of epoch // The epoch parameters yield integrity (not necesarily privacy)
@@ -213,11 +216,19 @@ definition !si. AuthSI(si) <=>
            StrongAuthSI(si)
 
 // MK This definition is too strong. 
-// MK StrongHS(id) /\ HonestPMSData(id.pmsData) => SafeHS_ID(id) but not the other way around.
-// MK SafeHS_ID(id) => ( ? pms, sk. StrongHS(id) /\ HonestPMS(pms) /\ pms=RSADecrypt(sk,id.pmsData) )
-definition !id. SafeHS_SI(id) <=> 
-      StrongHS(id)
-   /\ HonestPMSData(id.pmsData)
+// MK StrongHS(si) /\ HonestPMSData(si.pmsData) => SafeHS_SI(si) but not the other way around.
+// MK SafeHS_SI(si) => ( ? pms, sk. StrongHS(si) /\ HonestPMS(pms) /\ pms=RSADecrypt(sk,id.pmsData) )
+
+definition !si. SafeHS_SI(si) <=> 
+      StrongHS(si)
+   /\ HonestPMSData(si.pmsData)
+// /\ ? pms. EncryptedRSAPMS(PK(si.serverID),pms,EncOMS(pmsData)) /\ HonestRSAPMS(pms) //MK: \/ DH branch ...
+// /\ ClientCommittedCS(si.csrands,CS(si)) /\ ServerCommittedCS(si.csrands,CS(si) 
+
+//MK I think we need a separate SafeMS_SI to idealize the finished message
+definition !si. SafeMS_SI(si) <=> 
+      StrongHS(si)
+//  /\ ? pms. EncryptedRSAPMS(PK(si.serverID),pms,EncOMS(pmsData)) /\ HonestRSAPMS(pms) //MK: \/ DH branch ...  
 
 definition !id. SafeHS(id) <=> SafeHS_SI(EpochSI(id)) 
 
@@ -231,6 +242,9 @@ definition !e. Auth(e) <=> AuthSI(EpochSI(e))
 val safe: (e:epoch) -> b:bool { b = true <=> Safe(e) }
 val safeHS: (e:epoch) -> b:bool {b = true <=> SafeHS(e)}
 val safeHS_SI: (si:SessionInfo) -> b:bool {b = true <=> SafeHS_SI(si)}
+val safeMS_SI: (si:SessionInfo) -> b:bool {b = true <=> SafeMS_SI(si)} 
+//MK: safeMS_SI is used for idealization even if ciphersuites don't match.
+//MK: this is needed to guarantee security of finished message MACs
 val auth :(e:epoch) -> b:bool {b = true <=> Auth(e)}
 val safeMAC: (e:epoch) -> b:bool {b = true <=> Auth(e)}
 val safeENC: (e:epoch) -> b:bool {b = true <=> Safe(e)}

@@ -7,6 +7,7 @@ open TLSPRF
 open Error
 open DHGroup
 
+
 // internal
 let prfMS sinfo pmsBytes: PRF.masterSecret =
     let cv = sinfo.protocol_version in
@@ -25,6 +26,9 @@ type rsapms =
   | ConcreteRSAPMS of rsarepr
 
 #if ideal
+
+type predicates = EncryptedRSAPMS of RSAKey.pk * ProtocolVersion * rsapms * bytes
+
 let honestRSAPMS (pk:RSAKey.pk) (cv:TLSConstants.ProtocolVersion) pms = 
   match pms with 
   | IdealRSAPMS(s)    -> true
@@ -45,6 +49,7 @@ let rsaassoc0 (si:SessionInfo) (mss:((SessionInfo * PRF.masterSecret) list)) : P
     | [] -> None 
     | (si',ms)::mss' -> Some(ms) 
 *) 
+
 
 let rec rsaassoc (pk:RSAKey.pk) (cv:ProtocolVersion) (pms:rsapms)  (csr:bytes) (si:SessionInfo) (mss:rsaentry list): PRF.masterSecret option = 
     match mss with 
@@ -94,7 +99,7 @@ let todo s = failwith s
 let todo s = ()
 #endif
 
-let prfSmoothRSA si (cv:ProtocolVersion) pms = 
+let extractRSA si (cv:ProtocolVersion) pms = 
   match pms with
   #if ideal
   | IdealRSAPMS(s) ->
@@ -170,7 +175,7 @@ let rec dhassoc (p:p) (g:g) (gx:elt) (gy:elt) (pms:dhpms)  (csr:bytes)  (si:Sess
 
 #endif
 
-let prfSmoothDHE (si:SessionInfo) (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) (pms:dhpms): PRF.masterSecret =
+let extractDHE (si:SessionInfo) (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) (pms:dhpms): PRF.masterSecret =
     match pms with
     //#begin-ideal 
     #if ideal

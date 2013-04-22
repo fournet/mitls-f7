@@ -4,7 +4,8 @@ open Bytes
 open TLSInfo
 
 type repr = bytes
-type masterSecret
+type ms
+type masterSecret = ms
 
 #if ideal
 val sample: SessionInfo -> masterSecret

@@ -10,6 +10,20 @@ open TLSConstants
 type cipher = b:bytes{Length(b) <= max_TLSCipher_fragment_length}
 (* no need to be more precise on the length *)
 
+
+(* MK 
+type keyindex
+val keyF: epoch -> keyindex
+
+private type (;ki:keyindex) secretLHAEKey =
+    | MtEK of ka:(;ki)MAC.key * ke:(;ki)ENC.state // {MtEKey(ki,(ka,ke))}
+    | MACOnlyK of (;ki) MAC.key
+//  | GCM of ke:(;ki:AENC.state)  
+
+
+type (e:epoch) LHAEKey = (;keyF(e)) secretLHAEKey
+*)
+
 private type (;ki:epoch) LHAEKey =
     | MtEK of ka:(;ki)MAC.key * ke:(;ki)ENC.state // {MtEKey(ki,(ka,ke))}
     | MACOnlyK of (;ki) MAC.key

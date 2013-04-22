@@ -77,7 +77,7 @@ private val rsaassoc:
     (pk':RSAKey.pk * cv':ProtocolVersion * (;pk',cv')rsapms * csr':bytes * si':SessionInfo * ms':(;si') PRF.masterSecret) list -> 
 	ms:(;si) PRF.masterSecret option
 
-val prfSmoothRSA:
+val extractRSA:
     si:SessionInfo ->
 	cv:ProtocolVersion ->
     pms: (;Cert.RSAPKCert(si.serverID),cv) rsapms 
@@ -118,7 +118,7 @@ val dhassoc: p:p -> g:(;p) g -> gx:(;p) elt -> gy:(;p) elt -> (;p,g,gx,gy) dhpms
              (;si) PRF.masterSecret option
 
 // AP: Don't we really want *any* link between si and (g,p,gx,gy)?
-val prfSmoothDHE:
+val extractDHE:
     si:SessionInfo ->
     p:DHGroup.p -> g:(;p)DHGroup.g -> gx:(;p)DHGroup.elt -> gy:(;p)DHGroup.elt ->
     pms: (;p,g,gx,gy)dhpms ->
