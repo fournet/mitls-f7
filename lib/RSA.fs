@@ -47,9 +47,6 @@ let encrypt pk pv pms =
         CRE.leakRSA pk pv pms       
     //#end-ideal1
     let epms = CoreACiphers.encrypt_pkcs1 (RSAKey.repr_of_rsapkey pk) plaintext
-    #if ideal
-    Pi.assume(CRE.EncryptedRSAPMS(pk,pv,pms,epms))
-    #endif
     epms
 
 //#begin-decrypt_int

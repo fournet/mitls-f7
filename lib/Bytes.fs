@@ -77,6 +77,8 @@ let rec assoc2_1 (f1,f2) l =
       
 // MK what is the right mem function?
 let mem x l = List.exists (fun y -> x = y) l
+let map f l = List.map f l
+
 #endif
 let listLength (l:'a list) = l.Length
 let listHead (l:'a list) = l.Head
