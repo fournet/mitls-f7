@@ -223,7 +223,7 @@ definition !si. SafeHS_SI(si) <=>
       StrongHS(si)
    /\ HonestPMSData(si.pmsData)
 // /\ ? pms. EncryptedRSAPMS(PK(si.serverID),pms,EncOMS(pmsData)) /\ HonestRSAPMS(pms) //MK: \/ DH branch ...
-// /\ ClientCommittedCS(si.csrands,CS(si)) /\ ServerCommittedCS(si.csrands,CS(si) 
+// /\ ClientCommittedCS(si.csrands,CS(si)) /\ ServerCommittedCS(si.csrands,CS(si)) 
 
 //MK I think we need a separate SafeMS_SI to idealize the finished message
 definition !si. SafeMS_SI(si) <=> 
