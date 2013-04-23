@@ -6,7 +6,7 @@ open TLSConstants
 open TLSPRF
 open TLSInfo
 
-//MK: type rsamsindex = RSAKey.pk * ProtocolVersion * rsapms * bytes
+//MK: type rsamsindex = RSAKey.pk * ProtocolVersion * rsapms * bytes //abstract indices vs csrands alone
 //let rsamsF (si:SessionInfo):rsamsindex = failwith "not efficiently implementable"
 type msindex = { b:bytes } //MK: RSAMSIndex of rsamsindex | DHMSIndex of dhmsindex
 let msF (si:SessionInfo):msindex = failwith "not efficiently implementable"
