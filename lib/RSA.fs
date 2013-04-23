@@ -28,7 +28,7 @@ open RSAKey
 
 #if ideal
 // We maintain a log to look up ideal_pms values using dummy_pms values.
-type entry = (pk * ProtocolVersion * bytes) *  CRE.rsapms
+type entry = pk * ProtocolVersion * bytes *  CRE.rsapms
 let log = ref []
 #endif
 
@@ -37,10 +37,10 @@ let encrypt pk pv pms =
     let plaintext = 
     #if ideal
     //MK Here we rely on every pms being encrypted only once. 
-    //MK Otherwise we would have to story dummy_pms values to maintain consistency.
+    //MK Otherwise we would have to reuse dummy_pms values to maintain consistency.
       if (* MK redundant RSAKey.honest pk  && *) CRE.honestRSAPMS pk pv pms then
         let dummy_pms = versionBytes pv @| random 46
-        log := ((pk,pv,dummy_pms),pms)::!log
+        log := (pk,pv,dummy_pms,pms)::!log
         dummy_pms
       else
     #endif
@@ -79,12 +79,11 @@ let decrypt_int dk si cv cvCheck encPMS =
 //#end-decrypt_int
 
 #if ideal
-let rec pmsassoc (i:(RSAKey.pk * ProtocolVersion * bytes)) (pmss:((RSAKey.pk * ProtocolVersion * bytes) * CRE.rsapms) list) = 
-    let (pk,pv,dummy_pms)=i in
+let rec pmsassoc (pk:RSAKey.pk) (pv:ProtocolVersion) (dummy_pms:bytes) (pmss:(RSAKey.pk * ProtocolVersion * bytes * CRE.rsapms) list) = 
     match pmss with 
     | [] -> None 
-    | ((pk',pv',dummy_pms'),ideal_pms)::mss' when pk=pk' && pv=pv' && dummy_pms=dummy_pms' -> Some(ideal_pms) 
-    | _::mss' -> pmsassoc i mss'
+    | (pk',pv',dummy_pms',ideal_pms)::mss' when pk=pk' && pv=pv' && dummy_pms=dummy_pms' -> Some(ideal_pms) 
+    | _::mss' -> pmsassoc pk pv dummy_pms mss'
 #endif
 
 let decrypt (sk:RSAKey.sk) si cv check_client_version_in_pms_for_old_tls encPMS =
@@ -94,7 +93,7 @@ let decrypt (sk:RSAKey.sk) si cv check_client_version_in_pms_for_old_tls encPMS 
         let pmsb = decrypt_int sk si cv check_client_version_in_pms_for_old_tls encPMS in
         //#begin-ideal2
         #if ideal
-        match pmsassoc (pk,cv,pmsb) !log with
+        match pmsassoc pk cv pmsb !log with
           | Some(ideal_pms) -> ideal_pms
           | None            -> 
         #endif

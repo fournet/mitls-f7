@@ -17,7 +17,7 @@ type rsarepr = (;48)lbytes
 //CF we considered indexing it by cv & refining with ?b. it = VersionBytes(cv) @| b  
 
 // concrete PMS --> MS derivation.
-private val prfMS: si:SessionInfo {not SafeHS_SI(si)} -> p:bytes -> (;si) PRF.masterSecret
+private val extractMS: si:SessionInfo {not SafeHS_SI(si)} -> p:bytes -> (;si) PRF.masterSecret
 
 //#begin-abstractionRSA
 private type rsaseed = {seed:rsarepr} 

@@ -10,7 +10,7 @@ open TLSConstants
 open TLSInfo
 
 // For concrete security, see also 
-// On the Security of RSA Encryption in TLS
+// "On the Security of RSA Encryption in TLS",
 // Jakob Jonsson and Burton S. Kaliski Jr.
 // http://www.iacr.org/archive/crypto2002/24420127/24420127.pdf   
 
@@ -33,21 +33,15 @@ val decrypt:
 // The rest of the interface is internal to RSA.fs
 // CF TODO where do we require/use that cv_check be used everywhere with Honest keys? 
 
-// projection functions (we could also flatten more)
-private function val Fst: 'a -> 'b
-private function val Snd: 'a -> 'b
-private definition !e1,e2,e3. Fst((e1,e2,e3)) = e1
-private definition !e1,e2,e3. Snd((e1,e2,e3)) = e2
-
 // Ideally, we add an indirection from a fresh dummy pms to the ideal pms (before encryption)
 // and we maintain a table to undo it (after concrete decryption)
 
-(* private *) type entry = i:(pk:pk * cv:ProtocolVersion * (;48) lbytes) * (;Fst(i),Snd(i)) CRE.rsapms
+(* private *) type entry = pk:pk * cv:ProtocolVersion * (;48) lbytes * (;pk,cv) CRE.rsapms
 private val log: entry list ref 
 private val pmsassoc: 
-  i:(pk:RSAKey.pk * pv:ProtocolVersion * bytes) -> 
-  (i':(pk':RSAKey.pk * pv':ProtocolVersion * bytes) * (;Fst(i'),Snd(i'))CRE.rsapms) list -> 
-  (;Fst(i),Snd(i))CRE.rsapms option
+  pk:RSAKey.pk -> pv:ProtocolVersion -> dummy_pms:bytes -> 
+  (pk':RSAKey.pk * pv':ProtocolVersion * bytes * (;pk',pv')CRE.rsapms) list -> 
+  (;pk,pv)CRE.rsapms option
 
 // Concrete decryption with TLS-specific countermeasures against 
 // protocol regression, Bleichenbacher, and related timing attacks
