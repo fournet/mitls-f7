@@ -54,6 +54,7 @@ assume DualRole(Server) = Client
 type random = (;32) lbytes 
 type crand = random
 type srand = random
+type csrands = (;64) lbytes
 //CF 04-09 the randoms are not just bytes; where do we rely on collision-resistance?
 
 // SessionInfo and epoch: Session and Connection level public immutable data.
@@ -89,7 +90,7 @@ type SessionInfo = {
 // for sessionID, the empty bytes [||] represents the absence of ID,
 // that is, the session is not resumable. 
 
-val csrands: si:SessionInfo -> b:bytes {b=si.init_crand @| si.init_srand}
+val csrands: si:SessionInfo -> b:csrands {b=si.init_crand @| si.init_srand}
 
 private type preEpoch =
   | InitEpoch of writer:Role

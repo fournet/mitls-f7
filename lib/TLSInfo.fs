@@ -14,6 +14,7 @@ type Role = preRole
 type random = bytes
 type crand = random
 type srand = random
+type csrands = bytes
 
 type pmsData =
     | PMSUnset

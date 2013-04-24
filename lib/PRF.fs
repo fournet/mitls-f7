@@ -8,7 +8,7 @@ open TLSInfo
 
 //MK: type rsamsindex = RSAKey.pk * ProtocolVersion * rsapms * bytes //abstract indices vs csrands alone
 //let rsamsF (si:SessionInfo):rsamsindex = failwith "not efficiently implementable"
-type msindex = { b:bytes } //MK: RSAMSIndex of rsamsindex | DHMSIndex of dhmsindex
+type msindex = { csr:csrands; pmsdata: pmsData; hashAlg: macAlg option} //MK: RSAMSIndex of rsamsindex | DHMSIndex of dhmsindex
 let msF (si:SessionInfo):msindex = failwith "not efficiently implementable"
 
 type repr = bytes
@@ -110,16 +110,14 @@ let rec keysassoc
 let keyGen ci ms =
     //#begin-ideal1
     #if ideal
-    //CF "honest" is not the right predicate; we should use PRED := safeHS.
-    //CF for typechecking against StAE, we PRED s.t. Auth => Pred.
-    //CF for applying the prf assumption, we need to decided depending *only* on the session 
-    //MK should this be safeMS_SI?
+    //CF for typechecking against StAE, we need Auth => SafeHS_SI. 
+    //CF for applying the prf assumption, we need to decide depending *only* on the session 
     if safeHS_SI (epochSI(ci.id_in)) 
     then 
         let (e1,e2) = epochs ci
-//        match tryFind (fun (e1',e2',ms',_,_) -> e1=e1' && e2=e2' && ms=ms') !keyslog with
         match keysassoc e1 e2 ms (epochCSRands e1) !keyslog with //add new csrand
-        | Some(e) -> e //CF: not typing: (cWrite,cRead) -> (cWrite,cRead)
+        | Some(r,w) -> (r,w) //CF: not typing: (cWrite,cRead) -> (cWrite,cRead) 
+          //MK: the order of r and w seems mixed up
         | None                    -> 
             let (myWrite,peerRead) = StatefulLHAE.GEN ci.id_out
             let (peerWrite,myRead) = StatefulLHAE.GEN ci.id_in 
