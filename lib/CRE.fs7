@@ -6,8 +6,6 @@ open TLSInfo
 
 val todo: string -> 'a { false }
 
-//CF consider splitting the file into two, for RSA and for DH
-
 (** RSA ciphersuites **) 
 
 // In this file RSA refers to any crypto materials used for the RSA KEX. 
