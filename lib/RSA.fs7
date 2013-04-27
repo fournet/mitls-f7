@@ -1,13 +1,14 @@
 ﻿module RSA
 
 // RSA encryption & decryption of the PMS
-// we currently exclude RSA keys used both for signing and decryption
 
 open Bytes
 open Error
-open RSAKey
 open TLSConstants
 open TLSInfo
+open RSAKey
+
+// We currently exclude RSA keys used both for signing and decryption
 
 // For concrete security, see also 
 // "On the Security of RSA Encryption in TLS",
@@ -31,26 +32,26 @@ val decrypt:
   
 
 // The rest of the interface is internal to RSA.fs
-// CF TODO where do we require/use that cv_check be used everywhere with Honest keys? 
+// TODO where do we require/use that cv_check be used everywhere with Honest keys?
+// TODO explain that letting the adversary choose further strengthen our RSA assumption. 
 
 // Ideally, we add an indirection from a fresh dummy pms to the ideal pms (before encryption)
 // and we maintain a table to undo it (after concrete decryption)
 
-(* private *) type entry = pk:pk * cv:ProtocolVersion * (;48) lbytes * (;pk,cv) CRE.rsapms
+type entry = pk:pk * cv:ProtocolVersion * CRE.rsarepr * (;pk,cv) CRE.rsapms
 private val log: entry list ref 
-private val pmsassoc: 
-  pk:RSAKey.pk -> pv:ProtocolVersion -> dummy_pms:bytes -> 
-  (pk':RSAKey.pk * pv':ProtocolVersion * bytes * (;pk',pv')CRE.rsapms) list -> 
-  (;pk,pv)CRE.rsapms option
+private val assoc: 
+  pk:RSAKey.pk -> pv:ProtocolVersion -> dummy_pms:bytes -> entry list -> (;pk,pv)CRE.rsapms option
 
 // Concrete decryption with TLS-specific countermeasures against 
 // protocol regression, Bleichenbacher, and related timing attacks
-private val decrypt_int: 
+private val real_decrypt: 
   sk -> si:SessionInfo -> 
   cv:ProtocolVersion -> (* highest client version *) 
   cv_check:bool -> (* flag whether we should check protocol version in old TLS versions *)
   ct:bytes -> (* encrypted PMS *)
   pmsb:CRE.rsarepr { cv_check=true => ?b. pmsb= VersionBytes(cv) @| b} (* No Result type: in case of error, we return a fresh random PMS *)
+
 
 
 (* CF 

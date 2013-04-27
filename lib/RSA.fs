@@ -4,41 +4,42 @@ open Bytes
 open Error
 open TLSConstants
 open TLSInfo
+open RSAKey
+
 (*  RSAKey manages RSA encryption keys. 
     Conceptually RSAKey and RSA are one module. 
     They are separated only to manage module dependencies. 
-    NO module besides RSA MUST call RSAKey.repr_of_rsaskey!
- *)
-
-open RSAKey
+    Except for RSA, no module should call RSAKey.repr_of_rsaskey. *)
 
 (*  Idealization strategy: to make sure that in the ideal world
-    no information about the (ideal) pre-master secret (pms) value is leaked, we encrypt a dummy pms 
-    instead of the real pms. The ideal pms is stored into a table during
+    no information about the (ideal) pre-master secret (pms) value is leaked, 
+    we encrypt a dummy pms instead of the real pms. 
+    The ideal pms is stored into a table during
     idealized encryption and read from the table during idealized decryption.
-    As usual this is only done when the cryptography warrants idealization.
+    This is only done when the cryptography warrants idealization,
+    as indicated by CRE.honestRSAPMS.
     
     Taken on its own our assumption would be somewhat related to 
     RCCA security: http://eprint.iacr.org/2003/174.pdf. This would however still be 
     too strong an assumption for PKCS1. We weaken the assumption by allowing any attacker to access
     the RSA module only through the CRE module. This has two effects:
 
-    i) ideal PMS are sampled rather than chosen by the adversary.
-    ii) only the hash values of PMS are made available to the adversary.
-
- *)  
+     i) ideal PMS are sampled rather than chosen by the adversary.
+    ii) only the hash values of PMS are made available to the adversary. *)  
 
 #if ideal
-// We maintain a log to look up ideal_pms values using dummy_pms values.
-type entry = pk * ProtocolVersion * bytes *  CRE.rsapms
+// We maintain a table from dummy_pms to ideal_pms.
+// (the protocolVersion can also be extracted from dummy_pms)
+type entry = pk * ProtocolVersion * CRE.rsarepr *  CRE.rsapms
 let log = ref []
 #endif
 
 (*  Encrypts a pms value under a particular key and for a proposed client version.
-    We require that every ideal pms is encrypted only once. 
+    We require that every ideal pms be encrypted only once
+    (in TLS, by the client immediately after generation).
     Otherwise we would require a stronger cryptographic assumption.
-    The ideal functionality would change to reuse the corresponding dummy_pms value 
-    for reused ideal pms.
+    The ideal functionality would change to reuse the corresponding 
+    dummy_pms value for reused ideal pms.
  *)
 let encrypt pk cv pms =
     //#begin-ideal1
@@ -61,7 +62,7 @@ let encrypt pk cv pms =
 (*  Decrypts a ciphertext concretely to obtain a pms value. 
     This can be either a real or a dummy pms.
 
-    The code includes several heuristic countermeasures:
+    The code implements several heuristic countermeasures:
     1)  a fake pms (!= dummy pms) is created in advance, 
         to be returned instead of errors
     2)  the pms value is used to 'authenticate the ClientHello.client_version 
@@ -80,8 +81,8 @@ let encrypt pk cv pms =
        configuration option to disable the check.  
 *)
 
-//#begin-decrypt_int
-let decrypt_int dk si cv cvCheck ciphertext =
+//#begin-real_decrypt
+let real_decrypt dk si cv cvCheck ciphertext =
   (* Security measures described in RFC 5246, section 7.4.7.1 *)
   (* 1. Generate 46 random bytes, for fake PMS except client version *)
   let fakepms = random 46 in
@@ -104,14 +105,14 @@ let decrypt_int dk si cv cvCheck ciphertext =
     | _  -> 
         (* 3. in case of decryption length error, continue with fake PMS *) 
         expected @| fakepms
-//#end-decrypt_int
+//#end-real_decrypt
 
 #if ideal
-let rec pmsassoc (pk:RSAKey.pk) (cv:ProtocolVersion) (dummy_pms:bytes) (pmss:(RSAKey.pk * ProtocolVersion * bytes * CRE.rsapms) list) = 
+let rec assoc (pk:RSAKey.pk) (cv:ProtocolVersion) (dummy_pms:bytes) (pmss:entry list) = 
     match pmss with 
     | [] -> None 
     | (pk',cv',dummy_pms',ideal_pms)::mss' when pk=pk' && cv=cv' && dummy_pms=dummy_pms' -> Some(ideal_pms) 
-    | _::mss' -> pmsassoc pk cv dummy_pms mss'
+    | _::mss' -> assoc pk cv dummy_pms mss'
 #endif
 
 (* Decrypts a ciphertext either in the real world or the ideal world to obtain a pms value. 
@@ -123,10 +124,10 @@ let decrypt (sk:RSAKey.sk) si cv check_client_version_in_pms_for_old_tls encPMS 
     match Cert.get_chain_public_encryption_key si.serverID with
     | Error(x,y)  -> unexpected (perror __SOURCE_FILE__ __LINE__ "The server identity should contain a valid certificate")
     | Correct(pk) ->
-        let pmsb = decrypt_int sk si cv check_client_version_in_pms_for_old_tls encPMS in
+        let pmsb = real_decrypt sk si cv check_client_version_in_pms_for_old_tls encPMS in
         //#begin-ideal2
         #if ideal
-        match pmsassoc pk cv pmsb !log with
+        match assoc pk cv pmsb !log with
           | Some(ideal_pms) -> ideal_pms
           | None            -> 
         #endif
