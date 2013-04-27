@@ -1,30 +1,32 @@
 module RSA
 
-// CF The check_client_... flag is included in the CRE-RSA assumption, 
-// CF which seens even stronger if the adversary can choose the flag value.
-(* MK 
-
-   See http://tools.ietf.org/html/rfc5246#section-7.4.7.1
-   
-   The version number in the PreMasterSecret is the version
-   offered by the client in the ClientHello.client_version, not the
-   version negotiated for the connection.  This feature is designed to
-   prevent rollback attacks.  
-
-   Client implementations MUST always send the correct version number in
-   PreMasterSecret.  If ClientHello.client_version is TLS 1.1 or higher,
-   server implementations MUST check the version number as described in
-   the note below.  If the version number is TLS 1.0 or earlier, server
-   implementations SHOULD check the version number, but MAY have a
-   configuration option to disable the check.  
-
-*)
-
 open Bytes
 open Error
 open TLSConstants
 open TLSInfo
+(*  RSAKey manages RSA encryption keys. 
+    Conceptually RSAKey and RSA are one module. 
+    They are separated only to manage module dependencies. 
+    NO module besides RSA MUST call RSAKey.repr_of_rsaskey!
+ *)
+
 open RSAKey
+
+(*  Idealization strategy: to make sure that in the ideal world
+    no information about the (ideal) pre-master secret (pms) value is leaked, we encrypt a dummy pms 
+    instead of the real pms. The ideal pms is stored into a table during
+    idealized encryption and read from the table during idealized decryption.
+    As usual this is only done when the cryptography warrants idealization.
+    
+    Taken on its own our assumption would be somewhat related to 
+    RCCA security: http://eprint.iacr.org/2003/174.pdf. This would however still be 
+    too strong an assumption for PKCS1. We weaken the assumption by allowing any attacker to access
+    the RSA module only through the CRE module. This has two effects:
+
+    i) ideal PMS are sampled rather than chosen by the adversary.
+    ii) only the hash values of PMS are made available to the adversary.
+
+ *)  
 
 #if ideal
 // We maintain a log to look up ideal_pms values using dummy_pms values.
@@ -32,34 +34,60 @@ type entry = pk * ProtocolVersion * bytes *  CRE.rsapms
 let log = ref []
 #endif
 
-let encrypt pk pv pms =
+(*  Encrypts a pms value under a particular key and for a proposed client version.
+    We require that every ideal pms is encrypted only once. 
+    Otherwise we would require a stronger cryptographic assumption.
+    The ideal functionality would change to reuse the corresponding dummy_pms value 
+    for reused ideal pms.
+ *)
+let encrypt pk cv pms =
     //#begin-ideal1
     let plaintext = 
     #if ideal
-    //MK Here we rely on every pms being encrypted only once. 
-    //MK Otherwise we would have to reuse dummy_pms values to maintain consistency.
-      if (* MK redundant RSAKey.honest pk  && *) CRE.honestRSAPMS pk pv pms then
-        let dummy_pms = versionBytes pv @| random 46
-        log := (pk,pv,dummy_pms,pms)::!log
+      if CRE.honestRSAPMS pk cv pms then
+        let dummy_pms = versionBytes cv @| random 46
+        log := (pk,cv,dummy_pms,pms)::!log
         dummy_pms
       else
     #endif
-        CRE.leakRSA pk pv pms       
+        CRE.leakRSA pk cv pms       
     //#end-ideal1
-    let epms = CoreACiphers.encrypt_pkcs1 (RSAKey.repr_of_rsapkey pk) plaintext
+    let ciphertext = CoreACiphers.encrypt_pkcs1 (RSAKey.repr_of_rsapkey pk) plaintext
     #if ideal
-    Pi.assume(CRE.EncryptedRSAPMS(pk,pv,pms,epms))
+    Pi.assume(CRE.EncryptedRSAPMS(pk,cv,pms,ciphertext))
     #endif
-    epms
+    ciphertext
+
+(*  Decrypts a ciphertext concretely to obtain a pms value. 
+    This can be either a real or a dummy pms.
+
+    The code includes several heuristic countermeasures:
+    1)  a fake pms (!= dummy pms) is created in advance, 
+        to be returned instead of errors
+    2)  the pms value is used to 'authenticate the ClientHello.client_version 
+        See http://tools.ietf.org/html/rfc5246#section-7.4.7.1
+   
+        The version number in the PreMasterSecret is the version
+        offered by the client in the ClientHello.client_version, not the
+        version negotiated for the connection.  This feature is designed to
+        prevent rollback attacks.  
+
+       Client implementations MUST always send the correct version number in
+       PreMasterSecret.  If ClientHello.client_version is TLS 1.1 or higher,
+       server implementations MUST check the version number as described in
+       the note below.  If the version number is TLS 1.0 or earlier, server
+       implementations SHOULD check the version number, but MAY have a
+       configuration option to disable the check.  
+*)
 
 //#begin-decrypt_int
-let decrypt_int dk si cv cvCheck encPMS =
+let decrypt_int dk si cv cvCheck ciphertext =
   (* Security measures described in RFC 5246, section 7.4.7.1 *)
   (* 1. Generate 46 random bytes, for fake PMS except client version *)
   let fakepms = random 46 in
   let expected = versionBytes cv in
   (* 2. Decrypt the message to recover plaintext *)
-  match CoreACiphers.decrypt_pkcs1 (RSAKey.repr_of_rsaskey dk) encPMS with
+  match CoreACiphers.decrypt_pkcs1 (RSAKey.repr_of_rsaskey dk) ciphertext with
     | Some pms when length pms = 48 ->
         let (clVB,postPMS) = split pms 2 in
         match si.protocol_version with
@@ -79,12 +107,17 @@ let decrypt_int dk si cv cvCheck encPMS =
 //#end-decrypt_int
 
 #if ideal
-let rec pmsassoc (pk:RSAKey.pk) (pv:ProtocolVersion) (dummy_pms:bytes) (pmss:(RSAKey.pk * ProtocolVersion * bytes * CRE.rsapms) list) = 
+let rec pmsassoc (pk:RSAKey.pk) (cv:ProtocolVersion) (dummy_pms:bytes) (pmss:(RSAKey.pk * ProtocolVersion * bytes * CRE.rsapms) list) = 
     match pmss with 
     | [] -> None 
-    | (pk',pv',dummy_pms',ideal_pms)::mss' when pk=pk' && pv=pv' && dummy_pms=dummy_pms' -> Some(ideal_pms) 
-    | _::mss' -> pmsassoc pk pv dummy_pms mss'
+    | (pk',cv',dummy_pms',ideal_pms)::mss' when pk=pk' && cv=cv' && dummy_pms=dummy_pms' -> Some(ideal_pms) 
+    | _::mss' -> pmsassoc pk cv dummy_pms mss'
 #endif
+
+(* Decrypts a ciphertext either in the real world or the ideal world to obtain a pms value. 
+   This can be either a real or an ideal pms. An ideal pms is decrypted by first decrypting 
+   its dummy_pms and then doing a table lookup.
+   *)
 
 let decrypt (sk:RSAKey.sk) si cv check_client_version_in_pms_for_old_tls encPMS =
     match Cert.get_chain_public_encryption_key si.serverID with
