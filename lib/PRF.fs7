@@ -2,7 +2,9 @@ module PRF
 
 // This module implements the PRFs keyed by master secrets, 
 // for two purposes: MACing the verifyData and deriving the connection keys. 
-// (CRE independently implements PRFs keyed by pre master secrets.)
+// (CRE independently implements extraction.
+// TLS using the same hash functin based techniques for this, 
+// i.e. PRFs keyed by pre master secrets.)
 
 open Bytes
 open TLSConstants
@@ -27,9 +29,10 @@ type msindex = {
   //CF not an option!? 
   //CF unless we remove pmsdata, the same safe instance may have multiple indexes; use PMS instead? 
   } 
-val msF: SessionInfo -> msindex
+val msF: SessionInfo -> msindex //MK: Should be called MsF then?
 //TODO: logically define this function.
 //TODO: avoid in code: do we really want to decrypt? 
+//MK: Maybe have a function msF: pms -> SessionInfo -> msindex
 
 private type (;i:msindex) ms = {bytes: repr}
 
@@ -50,8 +53,8 @@ type (;si:SessionInfo) masterSecret = (;msF(si)) ms
 
 val sample: si:SessionInfo -> (;si)masterSecret 
 //#begin-coerce
+//the precondition of coerce excludes both idealizations.
 val coerce: si:SessionInfo {not SafeMS_SI(si)} -> repr -> (;si)masterSecret 
-//TODO adjust the precondition; should exclude both idealizations.
 //#end-coerce
 
 

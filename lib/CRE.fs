@@ -138,7 +138,7 @@ let honestDHPMS (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) pm
   | ConcreteDHPMS(s) -> false 
 
 // We maintain a log for looking up good ms values using their pms values
-type dhentry = p * g * elt * elt * dhpms * bytes * SessionInfo * PRF.masterSecret
+type dhentry = p * g * elt * elt * dhpms * bytes * PRF.masterSecret
 
 let dhlog = ref []
 
@@ -156,11 +156,11 @@ let coerceDH (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) b = C
 
 #if ideal
 
-let rec dhassoc (p:p) (g:g) (gx:elt) (gy:elt) (pms:dhpms)  (csr:bytes)  (si:SessionInfo) (mss:dhentry list): PRF.masterSecret option = 
+let rec dhassoc (p:p) (g:g) (gx:elt) (gy:elt) (pms:dhpms)  (csr:bytes) (mss:dhentry list): PRF.masterSecret option = 
     match mss with 
     | [] -> None 
-    | (p',g',gx',gy',pms',csr',_,ms)::mss' when p=p' && g=g' && gx=gx' && gy=gy' && pms=pms' && csr=csr' -> Some(ms) 
-    | _::mss' -> dhassoc p g gx gy pms csr si mss'
+    | (p',g',gx',gy',pms',csr',ms)::mss' when p=p' && g=g' && gx=gx' && gy=gy' && pms=pms' && csr=csr' -> Some(ms) 
+    | _::mss' -> dhassoc p g gx gy pms csr mss'
 
 #endif
 
@@ -169,11 +169,11 @@ let extractDHE (si:SessionInfo) (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy
     //#begin-ideal 
     #if ideal
     | IdealDHPMS(s) -> 
-        match dhassoc p g gx gy pms (csrands si) si !dhlog with
+        match dhassoc p g gx gy pms (csrands si) !dhlog with
            | Some(ms) -> ms
            | None -> 
                  let ms=PRF.sample si 
-                 dhlog := (p, g, gx, gy, pms, csrands si, si, ms)::!dhlog;
+                 dhlog := (p, g, gx, gy, pms, csrands si, ms)::!dhlog;
                  ms 
     #endif
     //#end-ideal

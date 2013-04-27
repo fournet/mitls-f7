@@ -5,7 +5,7 @@
 
 include ../Makefile.config
 
-f7 = ../../../../bin/f7-fix.exe
+f7 = ../../../../bin/f7.exe
 
 lib7      = ../../../lib/fs7-interfaces/
 libperv   = $(lib7)pervasives.fs7 $(lib7)tuples.fs7

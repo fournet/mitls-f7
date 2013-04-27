@@ -21,13 +21,6 @@ type masterSecret = ms
 type keysentry = (epoch * epoch * masterSecret * bytes * StatefulLHAE.reader * StatefulLHAE.writer) 
 let keyslog = ref []
 
-(* MK deprecated, use predicated and functions from TLSInfo
-let corrupted = ref []
-let strong (si:SessionInfo) = true  
-let corrupt si = memr !corrupted si 
-let honest si = if corrupt si then false else true
-*)
-
 let sample (si:SessionInfo)   = {bytes = random 48}
 
 //#begin-coerce
