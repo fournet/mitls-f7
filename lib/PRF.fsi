@@ -11,13 +11,14 @@ type masterSecret = ms
 val sample: SessionInfo -> masterSecret
 #endif
 
-val keyGen: ConnectionInfo -> masterSecret -> StatefulLHAE.writer * StatefulLHAE.reader
-
-val makeVerifyData:  SessionInfo -> Role -> masterSecret -> bytes -> bytes 
-val checkVerifyData: SessionInfo -> Role -> masterSecret -> bytes -> bytes -> bool
-
-val ssl_certificate_verify: SessionInfo -> masterSecret -> TLSConstants.sigAlg -> bytes -> bytes
-
 //#begin-coerce
 val coerce: SessionInfo -> repr -> masterSecret
 //#end-coerce
+
+val keyGen: ConnectionInfo -> masterSecret -> StatefulLHAE.writer * StatefulLHAE.reader
+
+val makeVerifyData:  SessionInfo -> masterSecret -> Role -> bytes -> bytes 
+val checkVerifyData: SessionInfo -> masterSecret -> Role -> bytes -> bytes -> bool
+
+val ssl_certificate_verify: SessionInfo -> masterSecret -> TLSConstants.sigAlg -> bytes -> bytes
+

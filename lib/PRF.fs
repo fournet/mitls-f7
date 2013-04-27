@@ -28,7 +28,14 @@ let corrupt si = memr !corrupted si
 let honest si = if corrupt si then false else true
 *)
 
-let sample (si:SessionInfo) = {bytes = random 48}
+let sample (si:SessionInfo)   = {bytes = random 48}
+
+//#begin-coerce
+let coerce (si:SessionInfo) b = {bytes = b}
+//#end-coerce
+
+
+(** Key Derivation **) 
 
 // we normalize the pair to use as a shared index; 
 // this function could also live in TLSInfo
@@ -37,7 +44,6 @@ let epochs (ci:ConnectionInfo) =
   then (ci.id_in, ci.id_out)
   else (ci.id_out, ci.id_in) 
 #endif
-
 
 let keyGen_int ci (ms:masterSecret) =
     let si = epochSI(ci.id_in) in
@@ -107,7 +113,6 @@ let rec keysassoc
     | (e1',e2',ms',ecsr',r',w')::ks' -> keysassoc e1 e2 ms ecsr ks'
 #endif
 
-
 let keyGen ci ms =
     //#begin-ideal1
     #if ideal
@@ -130,15 +135,27 @@ let keyGen ci ms =
         keyGen_int ci ms
 
 
+(** VerifyData **) 
+
 type text = bytes
 type tag = bytes
-type entry = SessionInfo * tag * Role * text
-let log : entry list ref = ref []
 
-let makeVerifyData si role (ms:masterSecret) data =
+#if ideal
+type entry = SessionInfo * Role * text
+let log : entry list ref = ref []
+// TODO use tight index instead of SessionInfo
+
+let rec mem (si:SessionInfo) (r:Role) (t:text) (es:entry list) = 
+  match es with
+  | [] -> false 
+  | (si',role,text)::es when si=si' && r=role && text=t -> true
+  | (si',role,text)::es -> mem si r t es
+#endif
+
+// our concrete, agile MAC function
+let private verifyData (si:SessionInfo) (ms:masterSecret) (role:Role) (data:text) =
   let pv = si.protocol_version in
-  let tag : tag =
-    match pv with 
+  match pv with 
     | SSL_3p0           ->
         match role with
         | Client -> ssl_verifyData ms.bytes ssl_sender_client data
@@ -152,29 +169,27 @@ let makeVerifyData si role (ms:masterSecret) data =
         match role with
         | Client -> tls12VerifyData cs ms.bytes tls_sender_client data
         | Server -> tls12VerifyData cs ms.bytes tls_sender_server data
+
+let makeVerifyData si (ms:masterSecret) role data =
+  let tag = verifyData si ms role data in
   #if ideal
   if safeMS_SI si then
-    log := (si,tag,role,data)::!log ;
+    log := (si,role,data)::!log ;
   #endif
   tag
 
-let rec ftmem (si:SessionInfo) (r:Role) (t:text) (es:entry list) = 
-  match es with
-  | [] -> false 
-  | (si',tag',role,text)::es when si=si' && r=role && text=t -> true
-  | (si',tag',role,text)::es -> ftmem si r t es
-
-let checkVerifyData si role ms data tag =
-  let computed = makeVerifyData si role ms data //CF this can't typecheck. 
+let checkVerifyData si ms role data tag =
+  let computed = verifyData si ms role data
   equalBytes tag computed
   //#begin-ideal2
   #if ideal
   && // ideally, we return "false" when concrete 
      // verification suceeeds but shouldn't according to the log 
     ( safeMS_SI si = false ||
-      ftmem si role data !log ) //MK: (TLSInfo.csrands si)
+      mem si role data !log ) //MK: (TLSInfo.csrands si)
   //#end-ideal2
   #endif
+
 
 let ssl_certificate_verify (si:SessionInfo) ms (algs:sigAlg) log =
   match algs with
@@ -182,10 +197,3 @@ let ssl_certificate_verify (si:SessionInfo) ms (algs:sigAlg) log =
   | SA_DSA -> ssl_certificate_verify ms.bytes log SHA
   | _      -> unexpected "[ssl_certificate_verify] invoked on a wrong signature algorithm"
 
-//#begin-coerce
-let coerce (si:SessionInfo) b = 
-  //#if ideal
-  //corrupted := si::!corrupted;
-  //#endif 
-  {bytes = b}
-//#end-coerce
