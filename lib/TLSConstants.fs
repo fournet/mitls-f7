@@ -31,7 +31,7 @@ type hashAlg =
 
 type macAlg =
     | MA_HMAC of hashAlg
-    | MA_SSLKHASH of hashAlg
+    | MA_SSLKHASH of hashAlg // MD5(SHA1(...))
 
 type sigAlg = 
   | SA_RSA

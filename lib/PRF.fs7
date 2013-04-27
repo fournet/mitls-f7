@@ -19,25 +19,35 @@ open StatefulLHAE
 type repr = (;48)lbytes
 //#begin-abstraction
 
+// We need descriptors for the algorithm keyed by PMS and MS (named "PRF" in TLS)
+// Given pv and cs, and except for SSL3, 
+// the same algorithm is used for extraction, key derivation, and verifyData
+// TODO migrate to TLSPRF? adapt the code there
+type prfAlg // can't be folded back to the sums in TLSConstants; we need to use it in TLSPRF too. 
+  | TLS_1p2 of hashAlg // typically SHA256 but may depend on CS
+  | TLS_1p01           // MD5 xor SHA1
+  | SSL3_nested        // MD5(SHA1(...)) for extraction and keygen
+  | SSL3_concat        // MD5 @| SHA1    for VerifyData tags
+
+
 // precise index for master secrets is a function of session info (involving pmsdata decryption)
 //CF we cannot use just csr, because of MiTM forwarding honest nonces
-type msindex = { 
+type msIndex = { 
   // We record the parameters used to derive this MS: 
-  csr:csrands;            // the nonces  
-  pmsdata: pmsData;       // public data that determine the pms  
-  hashAlg: macAlg option; // the PMS-PRF algorithm
-  //CF not an option!? 
-  //CF unless we remove pmsdata, the same safe instance may have multiple indexes; use PMS instead? 
-  } 
-val msF: SessionInfo -> msindex //MK: Should be called MsF then?
+  pms   : pk:RSAKey.pk * cv:ProtocolVersion * (;pk,cv) rsapms  // the pms and its indexes  
+  csr   : csrands                                              // the nonces  
+  creAlg: prfAlg                                               // the PMS-PRF algorithm
+  }
+   
+function val MsI: SessionInfo -> msIndex 
 //TODO: logically define this function.
 //TODO: avoid in code: do we really want to decrypt? 
 //MK: Maybe have a function msF: pms -> SessionInfo -> msindex
 
-private type (;i:msindex) ms = {bytes: repr}
+private type (;i:msIndex) ms = {bytes: repr}
 
 // This index additionally records the *local* session info.
-type (;si:SessionInfo) masterSecret = (;msF(si)) ms 
+type (;si:SessionInfo) masterSecret = (;MsI(si)) ms 
 //#end-abstraction
 
 // We have two notions of conditional safety (logically defined in TLSInfo.fs7)
@@ -76,7 +86,7 @@ private ask !ki,mac.
 
 (** Key derivation **) 
 
-private val keyGen_int: 
+private val real_keyGen: 
   ci:ConnectionInfo{
       EpochSI(ci.id_in)=EpochSI(ci.id_out) /\ 
       IsSuccEpoch(ci.id_in) /\ IsSuccEpoch(ci.id_out) /\ 
@@ -90,9 +100,17 @@ type keysentry = (e:epoch * e':epoch * ms:(;EpochSI(e)) masterSecret * bytes * (
 private val keyslog: keysentry list ref 
 val keysassoc: e:epoch -> e':epoch -> ms:(;EpochSI(e)) masterSecret -> bytes -> keysentry list -> ((;e)StatefulLHAE.reader * (;e')StatefulLHAE.writer) option
 
-val keyGen: ci:ConnectionInfo{IsSuccEpoch(ci.id_in)} -> (;EpochSI(ci.id_out))masterSecret -> 
-  ( w:(;ci.id_out)StatefulLHAE.writer * 
-    r:(;ci.id_in) StatefulLHAE.reader ) 
+// Ideally, the server commits to using at most 
+// (an extension of) this si for keyGen with matching (si.cr,si.sr)
+// We could enforce commitments by adding a post-condition to keyCommit  
+// and a matching pre-condition to the server-side keyGen.
+
+val keyCommit: 
+  ci:ConnectionInfo{IsSuccEpoch(ci.id_in) -> unit
+
+val keyGen: 
+  ci:ConnectionInfo{IsSuccEpoch(ci.id_in)} -> (;EpochSI(ci.id_out))masterSecret -> 
+  ( w:(;ci.id_out)StatefulLHAE.writer * r:(;ci.id_in) StatefulLHAE.reader ) 
   { StatefulLHAE.History(ci.id_out,WriterState,w) = StatefulPlain.EmptyHistory(ci.id_out) /\
     StatefulLHAE.History(ci.id_out,ReaderState,r) = StatefulPlain.EmptyHistory(ci.id_in)}
 

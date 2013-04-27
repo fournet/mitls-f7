@@ -38,7 +38,7 @@ let epochs (ci:ConnectionInfo) =
   else (ci.id_out, ci.id_in) 
 #endif
 
-let keyGen_int ci (ms:masterSecret) =
+let real_keyGen ci (ms:masterSecret) =
     let si = epochSI(ci.id_in) in
     let pv = si.protocol_version in
     let cs = si.cipher_suite in
@@ -125,7 +125,7 @@ let keyGen ci ms =
     else 
     //#end-ideal1
     #endif
-        keyGen_int ci ms
+        real_keyGen ci ms
 
 
 (** VerifyData **) 
