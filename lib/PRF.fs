@@ -17,18 +17,20 @@ type repr = bytes
 type ms = { bytes: repr }
 type masterSecret = ms
 
-#if ideal
-type keysentry = (epoch * epoch * masterSecret * bytes * StatefulLHAE.reader * StatefulLHAE.writer) 
-let keyslog = ref []
-
-let sample (si:SessionInfo)   = {bytes = random 48}
-
 //#begin-coerce
 let coerce (si:SessionInfo) b = {bytes = b}
 //#end-coerce
 
+#if ideal
+let sample (si:SessionInfo)   = {bytes = random 48}
+#endif
+
 
 (** Key Derivation **) 
+
+#if ideal
+type keysentry = (epoch * epoch * masterSecret * bytes * StatefulLHAE.reader * StatefulLHAE.writer) 
+let keyslog = ref []
 
 // we normalize the pair to use as a shared index; 
 // this function could also live in TLSInfo

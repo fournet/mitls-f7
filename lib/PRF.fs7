@@ -23,7 +23,7 @@ type repr = (;48)lbytes
 // Given pv and cs, and except for SSL3, 
 // the same algorithm is used for extraction, key derivation, and verifyData
 // TODO migrate to TLSPRF? adapt the code there
-type prfAlg // can't be folded back to the sums in TLSConstants; we need to use it in TLSPRF too. 
+type prfAlg = // can't be folded back to the sums in TLSConstants; we need to use it in TLSPRF too. 
   | TLS_1p2 of hashAlg // typically SHA256 but may depend on CS
   | TLS_1p01           // MD5 xor SHA1
   | SSL3_nested        // MD5(SHA1(...)) for extraction and keygen
@@ -34,9 +34,9 @@ type prfAlg // can't be folded back to the sums in TLSConstants; we need to use 
 //CF we cannot use just csr, because of MiTM forwarding honest nonces
 type msIndex = { 
   // We record the parameters used to derive this MS: 
-  pms   : pk:RSAKey.pk * cv:ProtocolVersion * (;pk,cv) rsapms  // the pms and its indexes  
-  csr   : csrands                                              // the nonces  
-  creAlg: prfAlg                                               // the PMS-PRF algorithm
+  pms   : (pk:RSAKey.pk * cv:ProtocolVersion * (;pk,cv) rsapms); // the pms and its indexes  
+  csr   : csrands;                                               // the nonces  
+  creAlg: prfAlg;                                                // the PMS-PRF algorithm
   }
    
 function val MsI: SessionInfo -> msIndex 
@@ -106,7 +106,7 @@ val keysassoc: e:epoch -> e':epoch -> ms:(;EpochSI(e)) masterSecret -> bytes -> 
 // and a matching pre-condition to the server-side keyGen.
 
 val keyCommit: 
-  ci:ConnectionInfo{IsSuccEpoch(ci.id_in) -> unit
+  ci:ConnectionInfo{IsSuccEpoch(ci.id_in)} -> unit
 
 val keyGen: 
   ci:ConnectionInfo{IsSuccEpoch(ci.id_in)} -> (;EpochSI(ci.id_out))masterSecret -> 
