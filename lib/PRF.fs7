@@ -18,9 +18,12 @@ type repr = (;48)lbytes
 //#begin-abstraction
 //CF the index records the *local* session info --- this is not precise.
 
-
-type msindex
+// precise index for master secrets is a function of session info (involving pmsdata decryption)
+//CF could we use just csr? unclear as a MiTM can forward honest nonces
+//CF we should avoid pmsdata to get precision for safe indexes. 
+type msindex = { csr:csrands; pmsdata: pmsData; hashAlg: macAlg option} 
 val msF: SessionInfo -> msindex
+//CF TODO: logically define this function.
 
 private type (;i:msindex) ms = {bytes: repr}
 type (;si:SessionInfo) masterSecret = (;msF(si)) ms 

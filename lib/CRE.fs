@@ -10,10 +10,10 @@ open DHGroup
 
 // internal
 let extractMS sinfo pmsBytes: PRF.masterSecret =
-    let cv = sinfo.protocol_version in
+    let pv = sinfo.protocol_version in
     let cs = sinfo.cipher_suite in
     let data = csrands sinfo in
-    let res = prf cv cs pmsBytes tls_master_secret data 48 in
+    let res = prf pv cs pmsBytes tls_master_secret data 48 in
     PRF.coerce sinfo res
 
 type rsarepr = bytes
