@@ -34,6 +34,7 @@ let extractMS sinfo pmsBytes: PRF.masterSecret =
 type rsarepr = bytes
 (*private*) type rsaseed = {seed: rsarepr}
 
+// To ideally avoid collisions concerns between Honest and Coerced pms we use a sum type. 
 type rsapms = 
 #if ideal 
   | IdealRSAPMS of rsaseed 
@@ -70,9 +71,13 @@ let leakRSA (pk:RSAKey.pk) (cv:ProtocolVersion) pms =
   #endif
   | ConcreteRSAPMS(b) -> b 
 
-(*  Idealization strategy: to guarantee that in ideal world mastersecrets are completely random
+(*  Idealization strategy: to guarantee that in ideal world mastersecrets (ms) are completely random
+    extractRSA samples a ms at radom when called first on arguments pk,cv,pms,csrands si. 
     
+    When called on the same values again, the corresponding master secret is retrieved from a secret log. 
 
+    This is done only for pms for which honestRSAPMS is true. Note that in this way many idealized master 
+    secrets can be derived from the same pms.
  *)
 
 
@@ -102,8 +107,7 @@ let extractRSA si (cv:ProtocolVersion) pms =
             match (Cert.get_chain_public_encryption_key si.serverID) with 
             | Correct(pk) -> pk
             | _           -> unexpected "server must have an ID"    
-        //We assoc on pk, cv, pms and scrands implicitly relying on 
-        //the absence of collisions between ideal RSAPMSs and csrands.
+        //We assoc on pk, cv, pms and csrands 
         match rsaassoc pk cv pms (csrands si) !rsalog with 
         | Some(ms) -> ms
         | None -> 
@@ -113,24 +117,14 @@ let extractRSA si (cv:ProtocolVersion) pms =
   #endif  
   | ConcreteRSAPMS(s) -> todo "SafeMS_SI ==> HonestRSAPMS"; extractMS si s
 
+
 // The trusted setup for Diffie-Hellman computations
 open DHGroup
 
 type dhrepr = bytes
 (*private*) type dhseed = {seed: dhrepr}
 
-(* CF
-   We need a predicate 'HonestDHPMS', and its ideal boolean function `honestDHPMS' 
-
-   To ideally avoid collisions concerns between Honest and Coerced pms, 
-   we could discard this log, and use instead a sum type of rsapms, e.g.
-   type  rsapms = 
-   | IdealDHPMS    of dhseed 
-   | ConcreteDHPMS of dhrepr
-
-MK honestDHPMS is used in two idealization steps
-*) 
-
+// To ideally avoid collisions concerns between Honest and Coerced pms we use a sum type.
 type dhpms = 
 #if ideal 
   | IdealDHPMS of dhseed 
@@ -144,7 +138,6 @@ let honestDHPMS (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) pm
   | ConcreteDHPMS(s) -> false 
 
 // We maintain a log for looking up good ms values using their pms values
-
 type dhentry = p * g * elt * elt * dhpms * bytes * SessionInfo * PRF.masterSecret
 
 let dhlog = ref []
