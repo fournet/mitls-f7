@@ -185,7 +185,7 @@ class FS7Deps(object):
         for (i, fsp) in enumerate(included + [fsproj]):
             wext = ['.fs', '.fsi', '.fs7'] if i == len(included) else ['.fsi']
             for name in fsp.files:
-                modules  = set()
+                modules = set()
                 for ext in wext:
                     contents = srcfiles[name.lower() + ext][0]
                     contents = open(os.path.join(fsp.srcdir, contents), 'r').read()
@@ -202,6 +202,8 @@ class FS7Deps(object):
                         else:
                             for m in re.finditer(r'(\w+?)\.\w+', line):
                                 modules.add(m.group(1).lower())
+                if name.lower() in modules:
+                    modules.remove(name.lower())
 
                 alldeps[name.lower()] = modules.intersection(lowfiles)
 
