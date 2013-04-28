@@ -24,20 +24,19 @@ type repr = (;48)lbytes
 // the same algorithm is used for extraction, key derivation, and verifyData
 // TODO migrate to TLSPRF? adapt the code there
 type prfAlg = // can't be folded back to the sums in TLSConstants; we need to use it in TLSPRF too. 
-  | PRF_TLS_1p2 of macAlg // typically SHA256 but may depend on CS
+  | PRF_TLS_1p2 of macAlg  // typically SHA256 but may depend on CS
   | PRF_TLS_1p01           // MD5 xor SHA1
   | PRF_SSL3_nested        // MD5(SHA1(...)) for extraction and keygen
   | PRF_SSL3_concat        // MD5 @| SHA1    for VerifyData tags
 
 val prfAlgOf: SessionInfo -> prfAlg
 
-// precise index for master secrets is a function of session info (involving pmsdata decryption)
-//CF we cannot use just csr, because of MiTM forwarding honest nonces
-
-type msIndex =  // We record the parameters used to derive this MS: 
-  pms   : PMS.pms * // the pms and its indexes  
-  csr   : csrands *                                               // the nonces  
-  creAlg: prfAlg                                                 // the PMS-PRF algorithm
+// Precise index for master secrets is a function of session info (involving pmsdata decryption)
+type msIndex =        // We record the parameters used to derive this MS: 
+  pms   : PMS.pms *   // the pms and its indexes  
+  csr   : csrands *   // the nonces  
+  creAlg: prfAlg      // the PMS-PRF algorithm
+//CF: we cannot use just csr, because of MiTM forwarding honest nonces
    
 function val MsI: SessionInfo -> msIndex 
 //TODO: logically define this function.
@@ -174,22 +173,6 @@ val ssl_certificate_verify:
 
 
 private val epochs:ConnectionInfo -> epoch * epoch
-
-
-
-
-
-///CF attic, to be deleted soon...
-//CF Markulf, what to do with those?  
-(*MK SHOULD BE:
-private type (;pms:Pms,csr:csrands) protoMasterSecret = { bytes: repr }
-
-private type (;si:SessionInfo) masterSecret = {
-  protoms    : (;(;GetPMS(si),si.csrands) protoMasterSecret;         
-}
-
-val changeMasterSecret: si:SessionInfo -> (;GetPMS(si),si.csrands) protoMasterSecret{?ki. EpochSI(ki)=si /\ Complete(ki,..)} -> (;si) masterSecret
-*)
 
 (* MK !! causes logical inconsistency
 function val Epochs: 'a -> 'b

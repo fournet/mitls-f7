@@ -66,7 +66,9 @@ open DHGroup
 type dhrepr = bytes
 
 private type dhseed = {seed:dhrepr} // treated abstractly almost everywhere in this file
-private type (;p:p, g:(;p) g, gx:(;p) elt, gy:(;p) elt) dhpms =   
+// - dhpms, treated abstractly outside this module & CRE
+//   so that we can control their usage for the DH-PMS assumption.
+type (;p:p, g:(;p) g, gx:(;p) elt, gy:(;p) elt) dhpms =   
    | IdealDHPMS    of dhseed 
    | ConcreteDHPMS of dhrepr
 

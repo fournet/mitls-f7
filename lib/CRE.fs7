@@ -32,12 +32,12 @@ val extractRSA:
 open DHGroup
 
 //CF actually a private type
-type dhentry = p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * pms:(;p,g,gx,gy) dhpms * csr:csrands * pa:prfAlg * ms:(;(DHPMS(pms),csr,pa)) PRF.masterSecret
+type dhentry = p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * pms:(;p,g,gx,gy) dhpms * csr:csrands * pa:prfAlg * ms:(;(DHPMS(g,p,gx,gy,pms),csr,pa)) PRF.ms
 private val dhlog: dhentry list ref 
 
 val dhassoc: p:p -> g:(;p) g -> gx:(;p) elt -> gy:(;p) elt -> pms:(;p,g,gx,gy) dhpms -> csr:csrands -> pa:prfAlg -> 
-             (p':p * g':(;p') g * gx':(;p') elt * gy':(;p') elt * pms':(;p',g',gx',gy') dhpms * csr':csrands * pa':prfAlg * (;(DHPMS(pms'),csr',pa')) PRF.masterSecret) list -> 
-             (;(DHPMS(pms),csr,pa)) PRF.masterSecret option
+             (p':p * g':(;p') g * gx':(;p') elt * gy':(;p') elt * pms':(;p',g',gx',gy') dhpms * csr':csrands * pa':prfAlg * (;(DHPMS(p',g',gx',gy',pms'),csr',pa')) PRF.ms) list -> 
+             (;(DHPMS(p,g,gx,gy,pms),csr,pa)) PRF.ms option
 
 // AP: Don't we really want *any* link between si and (g,p,gx,gy)?
 val extractDHE:
