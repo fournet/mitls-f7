@@ -16,7 +16,9 @@ type msIndex =
   csrands *                                          
   prfAlg  
    
+#if ideal
 val safeMS_msIndex: msIndex -> bool  
+#endif
 
 type repr = bytes
 type ms

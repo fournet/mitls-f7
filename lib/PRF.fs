@@ -25,13 +25,15 @@ type msIndex =  PMS.pms * // the pms and its indexes
                 csrands * // the nonces  
                 prfAlg  
 
+#if ideal
 let strongPrfAlg (pa:prfAlg) = true
+
 let safeMS_msIndex (msI:msIndex) =
     let (pms,csrands,prfAlg) = msI
     match pms with
     | PMS.RSAPMS(pk,cv,rsapms) -> PMS.honestRSAPMS pk cv rsapms && strongPrfAlg prfAlg
     | PMS.DHPMS(p,g,gx,gy,dhpms) -> PMS.honestDHPMS p g gx gy dhpms && strongPrfAlg prfAlg
-
+#endif
 
 type repr = bytes
 
