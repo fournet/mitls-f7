@@ -15,8 +15,8 @@ type TLStream(s:System.IO.Stream, options, b, ?own) =
 
     let own = defaultArg own true
 
-    let mutable inbuf  : bytes = [||]
-    let mutable outbuf : bytes = [||]
+    let mutable inbuf  : bytes = empty_bytes
+    let mutable outbuf : bytes = empty_bytes
     let mutable closed : bool  = true
 
     let doMsg_o conn b =
@@ -72,7 +72,7 @@ type TLStream(s:System.IO.Stream, options, b, ?own) =
             match adOpt with
             | None -> raise (IOException(sprintf "TLS-HS: Internal error: %A" err))
             | Some ad -> raise (IOException(sprintf "TLS-HS: Sent fatal alert: %A %A" ad err))
-        | TLS.Close ns -> closed <- true; (conn,[||]) // This is a closed connection, should not be used!
+        | TLS.Close ns -> closed <- true; (conn,empty_bytes) // This is a closed connection, should not be used!
         | TLS.Fatal ad -> raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
         | TLS.Warning (conn,ad) -> raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
         | TLS.CertQuery (conn,q,advice) ->
@@ -82,14 +82,14 @@ type TLStream(s:System.IO.Stream, options, b, ?own) =
                     match adOpt with
                     | None -> raise (IOException(sprintf "TLS-HS: Internal error: %A" err))
                     | Some ad -> raise (IOException(sprintf "TLS-HS: Sent fatal alert: %A %A" ad err))
-                | TLS.Close ns -> closed <- true; (conn,[||]) // This is a closed connection, should not be used!
+                | TLS.Close ns -> closed <- true; (conn,empty_bytes) // This is a closed connection, should not be used!
                 | TLS.Fatal ad -> raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
                 | TLS.Warning (conn,ad) -> raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
                 | TLS.CertQuery (conn,q,advice) -> raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate twice"))
                 | TLS.Handshaken conn -> wrapRead conn
                 | TLS.Read (conn,msg) ->
                     let read = undoMsg_i conn msg in
-                    if equalBytes read [||] then
+                    if equalBytes read empty_bytes then
                         // The other party sent some empty fragment. Let's read more.
                         wrapRead conn
                     else
@@ -101,7 +101,7 @@ type TLStream(s:System.IO.Stream, options, b, ?own) =
         | TLS.Handshaken conn -> wrapRead conn
         | TLS.Read (conn,msg) ->
             let read = undoMsg_i conn msg in
-            if equalBytes read [||] then
+            if equalBytes read empty_bytes then
                 // The other party sent some empty fragment. Let's read more.
                 wrapRead conn
             else
@@ -148,36 +148,36 @@ type TLStream(s:System.IO.Stream, options, b, ?own) =
     override this.Seek(i,o)         = raise (NotSupportedException())
 
     override this.Flush() =
-        if not (equalBytes outbuf [||]) then
+        if not (equalBytes outbuf empty_bytes) then
             let msgO = doMsg_o conn outbuf
             conn <- wrapWrite conn msgO
-            outbuf <- [||]
+            outbuf <- empty_bytes
 
     override this.Read(buffer, offset, count) =
         let data =
-            if equalBytes inbuf [||] then
+            if equalBytes inbuf empty_bytes then
                 (* Read from the socket, and possibly buffer some data *)
                 let (c,data) = wrapRead conn
-                    // Fixme: is data is [||] we should set conn to "null" (which we cannot)
+                    // Fixme: is data is empty_bytes we should set conn to "null" (which we cannot)
                 conn <- c
                 data
             else (* Use the buffer *)
                 let tmp = inbuf in
-                inbuf <- [||]
+                inbuf <- empty_bytes
                 tmp
         let l = length data in
         if l <= count then
-            Array.blit data 0 buffer offset l
+            Array.blit (cbytes data) 0 buffer offset l
             l
         else
             let (recv,newBuf) = split data count in
-            Array.blit recv 0 buffer offset count
+            Array.blit (cbytes recv) 0 buffer offset count
             inbuf <- newBuf
             count
 
     override this.Write(buffer,offset,count) =
         let data = createBytes count 0 in
-        Array.blit buffer offset data 0 count
+        Array.blit buffer offset (cbytes data) 0 count
         outbuf <- data
         this.Flush ()
 
