@@ -13,7 +13,7 @@ type cipher = b:bytes{Length(b) <= max_TLSCipher_fragment_length}
 
 (* MK 
 type keyindex
-val keyF: epoch -> keyindex
+val KeyF: epoch -> keyindex
 
 private type (;ki:keyindex) secretLHAEKey =
     | MtEK of ka:(;ki)MAC.key * ke:(;ki)ENC.state // {MtEKey(ki,(ka,ke))}

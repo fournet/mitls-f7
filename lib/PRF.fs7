@@ -24,25 +24,27 @@ type repr = (;48)lbytes
 // the same algorithm is used for extraction, key derivation, and verifyData
 // TODO migrate to TLSPRF? adapt the code there
 type prfAlg = // can't be folded back to the sums in TLSConstants; we need to use it in TLSPRF too. 
-  | TLS_1p2 of hashAlg // typically SHA256 but may depend on CS
-  | TLS_1p01           // MD5 xor SHA1
-  | SSL3_nested        // MD5(SHA1(...)) for extraction and keygen
-  | SSL3_concat        // MD5 @| SHA1    for VerifyData tags
+  | PRF_TLS_1p2 of macAlg // typically SHA256 but may depend on CS
+  | PRF_TLS_1p01           // MD5 xor SHA1
+  | PRF_SSL3_nested        // MD5(SHA1(...)) for extraction and keygen
+  | PRF_SSL3_concat        // MD5 @| SHA1    for VerifyData tags
 
+val prfAlgOf: SessionInfo -> prfAlg
 
 // precise index for master secrets is a function of session info (involving pmsdata decryption)
 //CF we cannot use just csr, because of MiTM forwarding honest nonces
-type msIndex = { 
-  // We record the parameters used to derive this MS: 
-  pms   : (pk:RSAKey.pk * cv:ProtocolVersion * (;pk,cv) PMS.rsapms); // the pms and its indexes  
-  csr   : csrands;                                               // the nonces  
-  creAlg: prfAlg;                                                // the PMS-PRF algorithm
-  }
+
+type msIndex =  // We record the parameters used to derive this MS: 
+  pms   : PMS.pms * // the pms and its indexes  
+  csr   : csrands *                                               // the nonces  
+  creAlg: prfAlg                                                 // the PMS-PRF algorithm
    
 function val MsI: SessionInfo -> msIndex 
 //TODO: logically define this function.
 //TODO: avoid in code: do we really want to decrypt? 
 //MK: Maybe have a function msF: pms -> SessionInfo -> msindex
+
+val safeMS_msIndex: msIndex -> bool
 
 private type (;i:msIndex) ms = {bytes: repr}
 

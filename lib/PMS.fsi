@@ -4,6 +4,7 @@ open Bytes
 open TLSConstants
 open TLSInfo
 open Error
+open DHGroup
 
 //CF some of those types are private to PMS & CRE
 
@@ -34,6 +35,10 @@ val genRSA: RSAKey.pk -> TLSConstants.ProtocolVersion -> rsapms
 val coerceRSA: RSAKey.pk -> ProtocolVersion -> rsarepr -> rsapms
 val leakRSA: RSAKey.pk -> ProtocolVersion -> rsapms -> rsarepr
 
+#if ideal
+val honestDHPMS: p -> g -> elt -> elt -> dhpms -> bool 
+#endif
+
 val sampleDH: DHGroup.p -> DHGroup.g -> DHGroup.elt -> DHGroup.elt -> dhpms
 
 val coerceDH: DHGroup.p -> DHGroup.g -> DHGroup.elt -> DHGroup.elt -> DHGroup.elt -> dhpms
@@ -47,3 +52,6 @@ val coerceDH: DHGroup.p -> DHGroup.g -> DHGroup.elt -> DHGroup.elt -> DHGroup.el
 
 //TODO SSL 3 specific encoding function for certificate verify
 
+type pms = 
+  | RSAPMS of RSAKey.pk * ProtocolVersion * rsapms
+  | DHPMS of p * g * elt * elt * dhpms

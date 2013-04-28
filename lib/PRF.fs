@@ -9,8 +9,29 @@ open TLSInfo
 //MK: type rsamsindex = RSAKey.pk * ProtocolVersion * rsapms * bytes //abstract indices vs csrands alone
 //let rsamsF (si:SessionInfo):rsamsindex = failwith "not efficiently implementable"
 
-type msindex = { csr:csrands; pmsdata: pmsData; hashAlg: macAlg option} //MK: RSAMSIndex of rsamsindex | DHMSIndex of dhmsindex
-let msF (si:SessionInfo):msindex = failwith "not efficiently implementable"
+type prfAlg = // can't be folded back to the sums in TLSConstants; we need to use it in TLSPRF too. 
+  | PRF_TLS_1p2 of macAlg // typically SHA256 but may depend on CS
+  | PRF_TLS_1p01           // MD5 xor SHA1
+  | PRF_SSL3_nested        // MD5(SHA1(...)) for extraction and keygen
+  | PRF_SSL3_concat        // MD5 @| SHA1    for VerifyData tags
+
+let prfAlgOf (si:TLSInfo.SessionInfo) =
+  match si.protocol_version with
+  | SSL_3p0           -> PRF_SSL3_nested 
+  | TLS_1p0 | TLS_1p1 -> PRF_TLS_1p01
+  | TLS_1p2           -> PRF_TLS_1p2(prfMacAlg_of_ciphersuite si.cipher_suite) 
+
+type msIndex =  PMS.pms * // the pms and its indexes  
+                csrands * // the nonces  
+                prfAlg  
+
+let strongPrfAlg (pa:prfAlg) = true
+let safeMS_msIndex (msI:msIndex) =
+    let (pms,csrands,prfAlg) = msI
+    match pms with
+    | PMS.RSAPMS(pk,cv,rsapms) -> PMS.honestRSAPMS pk cv rsapms && strongPrfAlg prfAlg
+    | PMS.DHPMS(p,g,gx,gy,dhpms) -> PMS.honestDHPMS p g gx gy dhpms && strongPrfAlg prfAlg
+
 
 type repr = bytes
 
@@ -107,6 +128,13 @@ let rec keysassoc
     | (e1',e2',ms',ecsr',r',w')::ks' when ms=ms' && ecsr=ecsr' -> Some((r',w')) //CF not correctly indexed!?
     | (e1',e2',ms',ecsr',r',w')::ks' -> keysassoc e1 e2 ms ecsr ks'
 #endif
+
+let keyCommit (ci:ConnectionInfo):unit = 
+    #if ideal
+    failwith "unimplemented"
+    #else
+    ()
+    #endif
 
 let keyGen ci ms =
     //#begin-ideal1

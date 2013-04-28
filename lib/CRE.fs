@@ -46,34 +46,58 @@ let extractMS sinfo pmsBytes: PRF.masterSecret =
 let todo s = failwith s 
 
 // We maintain a log for looking up good ms values using their pms values
-type rsaentry = RSAKey.pk * ProtocolVersion * rsapms * bytes * PRF.ms
+type rsaentry = RSAKey.pk * ProtocolVersion * rsapms * bytes * PRF.prfAlg * PRF.ms
 
 let rsalog = ref []
 
-let rec rsaassoc (pk:RSAKey.pk) (cv:ProtocolVersion) (pms:rsapms)  (csr:bytes) (mss:rsaentry list): PRF.ms option = 
+let rec rsaassoc (pk:RSAKey.pk) (cv:ProtocolVersion) (pms:rsapms)  (csr:bytes) (pa:PRF.prfAlg) (mss:rsaentry list): PRF.ms option = 
     match mss with 
     | [] -> None 
-    | (pk',cv',pms',csr',ms)::mss' when pk=pk' && cv=cv' && pms=pms' && csr=csr' -> Some(ms) 
-    | _::mss' -> rsaassoc pk cv pms csr mss'
+    | (pk',cv',pms',csr',pa', ms)::mss' when pk=pk' && cv=cv' && pms=pms' && csr=csr' && pa=pa' -> Some(ms) 
+    | _::mss' -> rsaassoc pk cv pms csr pa mss'
 
 #else
 let todo s = ()
 #endif
 
+(*private*) 
+let accessRSAPMS (pk:RSAKey.pk) (cv:ProtocolVersion) pms = 
+  match pms with 
+  #if ideal
+  | IdealRSAPMS(b) -> b.seed
+  #endif
+  | ConcreteRSAPMS(b) -> b 
+
+let extractRSA_new si (cv:ProtocolVersion) pms: PRF.masterSecret = 
+    let pk = 
+        match (Cert.get_chain_public_encryption_key si.serverID) with 
+        | Correct(pk) -> pk
+        | _           -> unexpected "server must have an ID"    
+    if PRF.safeMS_msIndex (RSAPMS(pk,cv,pms), csrands si, PRF.prfAlgOf si) then
+        //We assoc on pk, cv, pms,  csrands, and prfAlg
+        match rsaassoc pk cv pms (csrands si) (PRF.prfAlgOf si) !rsalog with 
+        | Some(ms) -> ms
+        | None -> 
+                 let ms = PRF.sample si 
+                 rsalog := (pk,cv,pms,csrands si, PRF.prfAlgOf si, ms)::!rsalog
+                 ms
+    else
+         todo "SafeMS_SI ==> SafeMS_msIndex"; extractMS si (accessRSAPMS pk cv pms)
+
 let extractRSA si (cv:ProtocolVersion) pms = 
   match pms with
   #if ideal
-  | IdealRSAPMS(s) (* TODO: when StrongCRE(creAlg si); otherwise extractMS si s *) ->
+  | IdealRSAPMS(s) (* TODO: when StrongCRE(prfAlg si); otherwise extractMS si s *) ->
         let pk = 
             match (Cert.get_chain_public_encryption_key si.serverID) with 
             | Correct(pk) -> pk
             | _           -> unexpected "server must have an ID"    
         //We assoc on pk, cv, pms and csrands 
-        match rsaassoc pk cv pms (csrands si) !rsalog with 
+        match rsaassoc pk cv pms (csrands si) (PRF.prfAlgOf si) !rsalog with 
         | Some(ms) -> ms
         | None -> 
                  let ms = PRF.sample si 
-                 rsalog := (pk,cv,pms,csrands si,ms)::!rsalog
+                 rsalog := (pk,cv,pms,csrands si, PRF.prfAlgOf si, ms)::!rsalog
                  ms
   #endif  
   | ConcreteRSAPMS(s) -> todo "SafeMS_SI ==> HonestRSAPMS"; extractMS si s
@@ -84,7 +108,7 @@ open DHGroup
 
 #if ideal
 // We maintain a log for looking up good ms values using their pms values
-type dhentry = p * g * elt * elt * dhpms * bytes * PRF.masterSecret
+type dhentry = p * g * elt * elt * dhpms * csrands * PRF.prfAlg * PRF.masterSecret
 let dhlog = ref []
 #endif
 
@@ -100,11 +124,11 @@ let coerceDH (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) b = C
 
 #if ideal
 
-let rec dhassoc (p:p) (g:g) (gx:elt) (gy:elt) (pms:dhpms)  (csr:bytes) (mss:dhentry list): PRF.masterSecret option = 
+let rec dhassoc (p:p) (g:g) (gx:elt) (gy:elt) (pms:dhpms)  (csr:csrands) (pa:PRF.prfAlg) (mss:dhentry list): PRF.masterSecret option = 
     match mss with 
     | [] -> None 
-    | (p',g',gx',gy',pms',csr',ms)::mss' when p=p' && g=g' && gx=gx' && gy=gy' && pms=pms' && csr=csr' -> Some(ms) 
-    | _::mss' -> dhassoc p g gx gy pms csr mss'
+    | (p',g',gx',gy',pms',csr',pa',ms)::mss' when p=p' && g=g' && gx=gx' && gy=gy' && pms=pms' && csr=csr' && pa'=pa-> Some(ms) 
+    | _::mss' -> dhassoc p g gx gy pms csr pa mss'
 
 #endif
 
@@ -113,11 +137,11 @@ let extractDHE (si:SessionInfo) (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy
     //#begin-ideal 
     #if ideal
     | IdealDHPMS(s) -> 
-        match dhassoc p g gx gy pms (csrands si) !dhlog with
+        match dhassoc p g gx gy pms (csrands si) (PRF.prfAlgOf si) !dhlog with
            | Some(ms) -> ms
            | None -> 
                  let ms=PRF.sample si 
-                 dhlog := (p, g, gx, gy, pms, csrands si, ms)::!dhlog;
+                 dhlog := (p, g, gx, gy, pms, csrands si, PRF.prfAlgOf si, ms)::!dhlog;
                  ms 
     #endif
     //#end-ideal

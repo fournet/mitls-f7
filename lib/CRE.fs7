@@ -4,6 +4,7 @@ open Bytes
 open TLSConstants
 open TLSInfo
 open PMS
+open PRF
 
 // concrete PMS --> MS derivation.
 private val extractMS: si:SessionInfo {not SafeHS_SI(si)} -> p:bytes -> (;si) PRF.masterSecret
@@ -11,13 +12,13 @@ private val extractMS: si:SessionInfo {not SafeHS_SI(si)} -> p:bytes -> (;si) PR
 (** RSA ciphersuites **) 
 
 //CF actually a private type 
-type rsaentry = pk:RSAKey.pk * cv:ProtocolVersion * (;pk,cv)rsapms * csr:bytes * si:SessionInfo * ms:(;si) PRF.masterSecret
+type rsaentry = pk:RSAKey.pk * cv:ProtocolVersion * pms:(;pk,cv)rsapms * csr:bytes * pa:prfAlg * ms:(;(RSAPMS(pk,cv,pms),csr,pa)) ms
 private val rsalog: rsaentry list ref 
 
 private val rsaassoc: 
-    pk:RSAKey.pk -> cv:ProtocolVersion -> (;pk,cv)rsapms -> csr:bytes -> si:SessionInfo -> 
-    (pk':RSAKey.pk * cv':ProtocolVersion * (;pk',cv')rsapms * csr':bytes * si':SessionInfo * ms':(;si') PRF.masterSecret) list -> 
-	ms:(;si) PRF.masterSecret option
+    pk:RSAKey.pk -> cv:ProtocolVersion -> pms:(;pk,cv)rsapms -> csr:bytes -> pa:prfAlg-> 
+    (pk':RSAKey.pk * cv':ProtocolVersion * pms':(;pk',cv')rsapms * csr':bytes * pa':prfAlg * ms':(;(RSAPMS(pk,cv,pms'),csr',pa')) ms) list -> 
+	ms:(;(RSAPMS(pk,cv,pms),csr,pa)) ms option
 
 val extractRSA:
     si:SessionInfo ->
@@ -31,12 +32,12 @@ val extractRSA:
 open DHGroup
 
 //CF actually a private type
-type dhentry = p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * (;p,g,gx,gy) dhpms * bytes * si:SessionInfo * ms:(;si) PRF.masterSecret
+type dhentry = p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * pms:(;p,g,gx,gy) dhpms * csr:csrands * pa:prfAlg * ms:(;(DHPMS(pms),csr,pa)) PRF.masterSecret
 private val dhlog: dhentry list ref 
 
-val dhassoc: p:p -> g:(;p) g -> gx:(;p) elt -> gy:(;p) elt -> (;p,g,gx,gy) dhpms -> csr:bytes -> si:SessionInfo -> 
-             (p':p * g':(;p') g * gx':(;p') elt * gy':(;p') elt * (;p',g',gx',gy') dhpms * csr':bytes * si':SessionInfo * (;si') PRF.masterSecret) list -> 
-             (;si) PRF.masterSecret option
+val dhassoc: p:p -> g:(;p) g -> gx:(;p) elt -> gy:(;p) elt -> pms:(;p,g,gx,gy) dhpms -> csr:csrands -> pa:prfAlg -> 
+             (p':p * g':(;p') g * gx':(;p') elt * gy':(;p') elt * pms':(;p',g',gx',gy') dhpms * csr':csrands * pa':prfAlg * (;(DHPMS(pms'),csr',pa')) PRF.masterSecret) list -> 
+             (;(DHPMS(pms),csr,pa)) PRF.masterSecret option
 
 // AP: Don't we really want *any* link between si and (g,p,gx,gy)?
 val extractDHE:

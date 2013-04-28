@@ -48,6 +48,7 @@ let leakRSA (pk:RSAKey.pk) (cv:ProtocolVersion) pms =
   | ConcreteRSAPMS(b) -> b 
 
 
+
 // The trusted setup for Diffie-Hellman computations
 open DHGroup
 
@@ -77,3 +78,7 @@ let sampleDH p g (gx:DHGroup.elt) (gy:DHGroup.elt) =
     #endif
 
 let coerceDH (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) b = ConcreteDHPMS(b) 
+
+type pms = 
+  | RSAPMS of RSAKey.pk * ProtocolVersion * rsapms
+  | DHPMS of p * g * elt * elt * dhpms

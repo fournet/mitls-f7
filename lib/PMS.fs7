@@ -70,6 +70,8 @@ private type (;p:p, g:(;p) g, gx:(;p) elt, gy:(;p) elt) dhpms =
    | IdealDHPMS    of dhseed 
    | ConcreteDHPMS of dhrepr
 
+
+
 predicate HonestDHPMS of p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * (;p,g,gx,gy) dhpms
 
 private definition !p,g,gx,gy,pms. HonestDHPMS(p,g,gx,gy,pms) <=> ?s. pms = IdealDHPMS(s)
@@ -80,3 +82,7 @@ val sampleDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt ->  (;p,g,gx,gy) dhpm
 val coerceDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt {not SafeDHPMS(p,g,gx,gy)}-> (;p)elt -> (;p,g,gx,gy) dhpms
 //#end-abstractionDH
 
+
+type pms = 
+  | RSAPMS of pk:RSAKey.pk * cv:ProtocolVersion * (;pk,cv)rsapms
+  | DHPMS of p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * (;p,g,gx,gy) dhpms
