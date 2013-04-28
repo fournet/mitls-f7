@@ -2,12 +2,97 @@
 
 type nat = int
 type cbytes = byte[]
+
+
+#if optimize_bytes
+
+type bytes = {
+    bl: byte[] list;
+    max:int;
+    length: int;
+    index: int;
+    }
+
+let rec getByte (bl:byte[] list) (i:int) = 
+    match bl with
+     [] -> failwith "getByte: array out of bounds" 
+   | h::t when i >= h.Length -> getByte t (i-h.Length)
+   | h::t -> Array.get h i
+        
+let rec getByte2 (bl: byte[] list) i : byte*byte = match bl with
+        [] -> failwith "array out of bounds" 
+       |h::t when i >= h.Length -> getByte2 t (i - h.Length)
+       |h::t when h.Length - i >= 2 -> Array.get h i, Array.get h (i+1)
+       |h1::h2::t when h1.Length - i = 1 && h2.Length > 0 -> Array.get h1 i, Array.get h2 0
+       | _ -> failwith "getByte2: array out of bounds"        
+       
+
+let rec getBytes (bl:byte[] list) i n  = match bl with
+        [] -> if n > 0 then failwith "getBytes: array out of bounds" else [||]
+       |h::t -> 
+        if i >= h.Length 
+        then getBytes t (i-h.Length) n  
+        else let curr = h.Length - i in
+             if curr >= n
+             then Array.sub h i n 
+             else Array.append (Array.sub h i curr) (getBytes 0 (n-curr) t)
+
+let cbyte (b:bytes) = if b.length = 1 then getByte b.bl b.index else failwith "cbyte: expected an array of length 1"
+let cbyte2 (b:bytes) = if b.length = 2 then getByte2 b.bl b.index else failwith "cbyte2: expected an array of length 2"
+
+let cbytes (b:bytes) =     
+    if b.length = b.max && b.index = 0 then Array.concat b.bl
+    else getBytes b.bl b.index b.length 
+
+let abytes (ba:byte[]) = 
+    {bl = [ba]; length = ba.Length; index = 0; max = ba.Length}
+let abytes_max (ba:byte[]) (max:int) =
+    let arr = Array.zeroCreate max in
+    (for i in 0 .. ba.Length do Array.set arr i ba.[0]); 
+    {bl = [arr]; length = ba.Length; index = 0; max = ba.Length}
+
+let abyte (ba:byte) = 
+    {bl = [[|ba|]]; length = 1; index = 0; max = 1}
+let abyte2 (ba1:byte,ba2:byte) = 
+    {bl = [[|ba1;ba2|]]; length = 2; index = 0; max = 2}
+
+let (@|) (a:bytes) (b:bytes) =
+    if a.length + a.index = a.max && b.index = 0 then
+      {bl = a.bl @ b.bl;
+       length = a.length + b.length;
+       index = a.index;
+       max = a.max + b.max}
+    else
+      {bl = [Array.append (cbytes a) (cbytes b)];
+       length = a.length + b.length;
+       index = 0;
+       max = a.length + b.length}
+
+let split (b:bytes) i : bytes * bytes =
+    {bl = b.bl;
+     length = i;
+     index = b.index;
+     max = b.max},
+    {bl = b.bl;
+     length = b.length - i;
+     index = b.index + i;
+     max = b.max}
+let length (d:bytes) = d.length
+let empty_bytes = {bl = []; length = 0; index = 0; max = 0}
+
+let createBytes len (value:int) : bytes =
+    try abytes (Array.create len (byte value))
+    with :? System.OverflowException -> failwith "Default integer for createBytes was greater than max_value"
+
+#else
+
+
+(* Original implementation of bytes *)
 type bytes = {b:byte[]}
 let length (d:bytes) = (d.b).Length
-type lbytes = bytes
-
 let empty_bytes = {b = [||]}
 let abytes (b:byte[]) = {b=b}
+let abytes_max b = abytes b
 let abyte (b:byte) = {b=[|b|]}
 let abyte2 (b1,b2) = {b=[|b1;b2|]}
 let cbytes (b:bytes) = b.b
@@ -17,6 +102,15 @@ let cbyte2 (b:bytes) = if length b = 2 then (b.b.[0],b.b.[1]) else failwith "cby
 let createBytes len (value:int) : bytes =
     try abytes (Array.create len (byte value))
     with :? System.OverflowException -> failwith "Default integer for createBytes was greater than max_value"
+
+let (@|) (a:bytes) (b:bytes) = abytes(Array.append (cbytes a) (cbytes b))
+let split (b:bytes) i : bytes * bytes = 
+  abytes (Array.sub (cbytes b) 0 i),
+  abytes (Array.sub (cbytes b) i ((length b) - i))
+
+#endif
+
+type lbytes = bytes
 
 let bytes_of_int nb i =
   let rec put_bytes bb lb n =
@@ -33,13 +127,13 @@ let bytes_of_int nb i =
     abytes(put_bytes b nb i)
 
 let int_of_bytes (b:bytes) : int =
-    List.fold (fun x y -> 256 * x + y) 0 (List.map (int) (Array.toList b.b))
+    List.fold (fun x y -> 256 * x + y) 0 (List.map (int) (Array.toList (cbytes b)))
 
 //@ Constant time comparison (to mitigate timing attacks)
 //@ The number of byte comparisons depends only on the lengths of both arrays.
 let equalBytes (b1:bytes) (b2:bytes) =
     length b1 = length b2 && 
-    Array.fold2 (fun ok x y -> x = y && ok) true b1.b b2.b
+    Array.fold2 (fun ok x y -> x = y && ok) true (cbytes b1) (cbytes b2)
 
 let xor s1 s2 nb =
   let s1 = cbytes s1 in
@@ -54,15 +148,11 @@ let xor s1 s2 nb =
     abytes res
 
 
-let (@|) (a:bytes) (b:bytes) = abytes(Array.append (cbytes a) (cbytes b))
-let split (b:bytes) i : bytes * bytes = 
-  abytes (Array.sub (cbytes b) 0 i),
-  abytes (Array.sub (cbytes b) i ((length b) - i))
+
 let split2 (b:bytes) i j : bytes * bytes * bytes =
-  let b = cbytes b in
-  abytes (Array.sub b 0 i),
-  abytes (Array.sub b i j),
-  abytes (Array.sub b (i+j) (b.Length-(i+j)))
+  let b1,b2 = split b i in
+  let b2a,b2b = split b2 j in
+  (b1,b2a,b2b)
  
 let utf8 (x:string) : bytes = abytes (System.Text.Encoding.UTF8.GetBytes x)
 let iutf8 (x:bytes) : string = System.Text.Encoding.UTF8.GetString (cbytes x)
