@@ -33,7 +33,7 @@ private val zeros: r:range -> (;r)rbytes
 
 val payload: e:succEpoch -> r:range -> ad:(;e)LHAEPlain.adata -> 
   f:(;e,ad,r)LHAEPlain.plain ->
-  b:(;r) rbytes{ Safe(e) \/ b = LHAEPlain.Payload(e,ad,r,f) }
+  b:(;r) rbytes{ Safe(e) \/ B(b) = LHAEPlain.Payload(e,B(ad),r,f) }
 
 // the MACed bytes, i.e. ad @| 2-byte length of payload @| payload 
 //CF should ask some injectivity
@@ -42,7 +42,7 @@ function val MACPlain : 'a * 'b * 'c * 'd -> 'e
 private definition !e,r,ad,f. MACPlain(e,r,ad,f) = ad @| VLBytes(2,LHAEPlain.Payload(e,ad,r,f))
 val macPlain: e:succEpoch -> r:range -> 
   ad:(;e)LHAEPlain.adata -> 
-  f:(;e,ad,r)LHAEPlain.plain -> b:bytes{ Safe(e) \/ b = MACPlain(e,r,ad,f) }
+  f:(;e,ad,r)LHAEPlain.plain -> b:bytes{ Safe(e) \/ B(b) = MACPlain(e,r,B(ad),f) }
 
 predicate val Decoded: 'e * 'a * 'b -> bool
 
@@ -124,7 +124,7 @@ val repr:  e:succEpoch{not Safe(e)} ->
 //CF this was too weak: no constraint on f! patched
 private assume !e,pl. MAC.Msg(e,pl) <=>
      (Safe(e) \/ (?ad,r,f. Length(ad) = 8 + StatefulPlain.ADLength(e) /\
-	  pl = MACPlain(e,r,ad,f)))
+	  B(pl) = MACPlain(e,r,B(ad),f)))
 
 //CF Comments:
 //CF 

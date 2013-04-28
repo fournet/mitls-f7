@@ -22,8 +22,8 @@ val extendHistory: epoch -> adata -> history -> range -> fragment -> history
 
 
 val makeAD: epoch -> ContentType -> adata
-val RecordPlainToStAEPlain: epoch -> ContentType -> TLSFragment.history -> history -> range -> TLSFragment.plain -> plain
-val StAEPlainToRecordPlain: epoch -> ContentType -> TLSFragment.history -> history -> range -> plain -> TLSFragment.plain
+val RecordPlainToStAEPlain: epoch -> ContentType -> adata -> TLSFragment.history -> history -> range -> TLSFragment.plain -> plain
+val StAEPlainToRecordPlain: epoch -> ContentType -> adata -> TLSFragment.history -> history -> range -> plain -> TLSFragment.plain
 
 #if ideal
 val widen: epoch -> adata -> range -> fragment -> fragment

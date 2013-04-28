@@ -78,8 +78,8 @@ let tk_repr (e : epoch) (s : stream) (u : username) (tk : token) : delta =
     let tkgood  = tk_good  tk
     let tkbytes = tk_bytes tk
 
-    let der = DER.Sequence [DER.Utf8String u; DER.Bool tkgood; DER.Bytes tkbytes]
-    let der = DER.encode der
+    let der = DER.Sequence [DER.Utf8String u; DER.Bool tkgood; DER.Bytes (cbytes tkbytes)]
+    let der = abytes (DER.encode der)
 
     if Bytes.length der > MaxTkReprLen then
         Error.unexpected "PwToken.tk_repr: token too large"
@@ -90,20 +90,21 @@ let tk_repr (e : epoch) (s : stream) (u : username) (tk : token) : delta =
 let tk_plain (e : epoch) (s : stream) (r : range) (delta : delta) : (username * token) option =
     let data =
 #if verify
-        [||]
+        empty_bytes
 #else
         DataStream.deltaRepr e s r delta
 #endif
     in
-        match DER.decode data with
+        match DER.decode (cbytes data) with
         | Some (Sequence [Utf8String u; Bool tkgood; Bytes tkbytes]) ->
+            let tkbytes = abytes tkbytes in
             let token = if tkgood then GToken tkbytes else BToken tkbytes in
                 Some (u, token)
         | _ -> None
 
 // ------------------------------------------------------------------------
 let rp_repr (e : epoch) (s : stream) (b : bool) : delta =
-    let bytes = DER.encode (DER.Bool b)
+    let bytes = abytes (DER.encode (DER.Bool b))
 
     if Bytes.length bytes > MaxTkReprLen then
         Error.unexpected "PwToken.rp_repr: token too large"
@@ -114,11 +115,11 @@ let rp_repr (e : epoch) (s : stream) (b : bool) : delta =
 let rp_plain (e : epoch) (s : stream) (r : range) (d : delta) : bool =
     let data =
 #if verify
-        [||]
+        empty_bytes
 #else
         DataStream.deltaRepr e s r d
 #endif
     in
-        match DER.decode data with
+        match DER.decode (cbytes data) with
         | Some (DER.Bool b) -> b
         | _ -> false

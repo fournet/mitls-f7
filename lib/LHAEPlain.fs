@@ -12,7 +12,9 @@ let makeAD (e:epoch) ((seqn,h):StatefulPlain.history) ad =
   bn @| ad
 
 // We statically know that ad is big enough
-let parseAD (e:epoch) ad = let (sn,ad) = Bytes.split ad 8 in ad
+let parseAD (e:epoch) ad = 
+  let (snb,ad) = Bytes.split ad 8 in
+    ad
 
 type fragment = {contents:StatefulPlain.fragment}
 type plain = fragment
@@ -32,8 +34,10 @@ let reprFragment (e:epoch) (ad:adata) (rg:range) p =
 
 let repr e ad rg p = reprFragment e ad rg p
 
-let StatefulPlainToLHAEPlain (e:epoch) (h:StatefulPlain.history) (ad:adata) (r:range) f = {contents = f}
-let LHAEPlainToStatefulPlain (e:epoch) (h:StatefulPlain.history) (ad:adata) (r:range) f = f.contents
+let StatefulPlainToLHAEPlain (e:epoch) (h:StatefulPlain.history) 
+    (ad:StatefulPlain.adata) (ad':adata) (r:range) f = {contents = f}
+let LHAEPlainToStatefulPlain (e:epoch) (h:StatefulPlain.history) 
+    (ad:StatefulPlain.adata) (ad':adata) (r:range) f = f.contents
 
 #if ideal
 let widen e ad r f =

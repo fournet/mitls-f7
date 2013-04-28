@@ -5,8 +5,6 @@
 
 include ../Makefile.config
 
-f7 = ../../../../bin/f7.exe
-
 lib7      = ../../../lib/fs7-interfaces/
 libperv   = $(lib7)pervasives.fs7 $(lib7)tuples.fs7
 lperv     = -pervasives $(lib7)pervasives.fs7 -tuples $(lib7)tuples.fs7
@@ -76,199 +74,199 @@ regen:
 Error.tc7: $(libperv) $(libfs7)  Error.fs7 Error.fs Error.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts Error  Error.fs7 Error.fs
+	$(monoexe) $(f7) $(f7flags) -scripts Error  Error.fs7 Error.fs | tee $@
 	@touch $@
 
 Bytes.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi Bytes.fs7 Bytes.fs Bytes.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts Bytes ../CoreCrypto/CoreRandom.fsi Bytes.fs7 Bytes.fs
+	$(monoexe) $(f7) $(f7flags) -scripts Bytes ../CoreCrypto/CoreRandom.fsi Bytes.fs7 Bytes.fs | tee $@
 	@touch $@
 
 Nonce.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi Bytes.fs7 Nonce.fs7 Nonce.fs Nonce.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts Nonce ../CoreCrypto/CoreRandom.fsi Bytes.fs7 Nonce.fs7 Nonce.fs
+	$(monoexe) $(f7) $(f7flags) -scripts Nonce ../CoreCrypto/CoreRandom.fsi Bytes.fs7 Nonce.fs7 Nonce.fs | tee $@
 	@touch $@
 
 DER.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi Bytes.fs7 DER.fs7 DER.fs DER.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts DER ../CoreCrypto/CoreRandom.fsi Bytes.fs7 DER.fs7 DER.fs
+	$(monoexe) $(f7) $(f7flags) -scripts DER ../CoreCrypto/CoreRandom.fsi Bytes.fs7 DER.fs7 DER.fs | tee $@
 	@touch $@
 
 Tcp.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi Error.fs7 Bytes.fs7 Tcp.fs7 Tcp.fs Tcp.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts Tcp ../CoreCrypto/CoreRandom.fsi Error.fs7 Bytes.fs7 Tcp.fs7 Tcp.fs
+	$(monoexe) $(f7) $(f7flags) -scripts Tcp ../CoreCrypto/CoreRandom.fsi Error.fs7 Bytes.fs7 Tcp.fs7 Tcp.fs | tee $@
 	@touch $@
 
 TLSConstants.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 TLSConstants.fs TLSConstants.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts TLSConstants ../CoreCrypto/CoreRandom.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 TLSConstants.fs
+	$(monoexe) $(f7) $(f7flags) -scripts TLSConstants ../CoreCrypto/CoreRandom.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 TLSConstants.fs | tee $@
 	@touch $@
 
-RSAKey.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreACiphers.fsi Bytes.fs7 RSAKey.fs7 RSAKey.fs RSAKey.fs7
+RSAKey.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreACiphers.fsi Bytes.fs7 RSAKey.fs7 RSAKey.fs RSAKey.fs7 | tee $@
 	@echo 
 	@echo Lemma $@
 	$(monoexe) $(f7) $(f7flags) -scripts RSAKey ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreACiphers.fsi Bytes.fs7 RSAKey.fs7 RSAKey.fs
 	@touch $@
 
-DHGroup.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreDH.fsi Bytes.fs7 DHGroup.fs7 DHGroup.fs DHGroup.fs7
+DHGroup.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreDH.fsi Bytes.fs7 DHGroup.fs7 DHGroup.fs DHGroup.fs7 | tee $@
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts DHGroup ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreDH.fsi Bytes.fs7 DHGroup.fs7 DHGroup.fs
+	$(monoexe) $(f7) $(f7flags) -scripts DHGroup ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreDH.fsi Bytes.fs7 DHGroup.fs7 DHGroup.fs | tee $@
 	@touch $@
 
-HASH.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreHash.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 HASH.fs7 HASH.fs HASH.fs7
+HASH.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreHash.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 HASH.fs7 HASH.fs HASH.fs7 | tee $@
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts HASH ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreHash.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 HASH.fs7 HASH.fs
+	$(monoexe) $(f7) $(f7flags) -scripts HASH ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreHash.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 HASH.fs7 HASH.fs | tee $@
 	@touch $@
 
-HMAC.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreHMac.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 HASH.fs7 HMAC.fs7 HMAC.fs HMAC.fs7
+HMAC.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreHMac.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 HASH.fs7 HMAC.fs7 HMAC.fs HMAC.fs7 | tee $@
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts HMAC ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreHMac.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 HASH.fs7 HMAC.fs7 HMAC.fs
+	$(monoexe) $(f7) $(f7flags) -scripts HMAC ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreHMac.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 HASH.fs7 HMAC.fs7 HMAC.fs | tee $@
 	@touch $@
 
 TLSPRF.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreHMac.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 HASH.fs7 HMAC.fs7 TLSPRF.fs7 TLSPRF.fs TLSPRF.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts TLSPRF ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreHMac.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 HASH.fs7 HMAC.fs7 TLSPRF.fs7 TLSPRF.fs
+	$(monoexe) $(f7) $(f7flags) -scripts TLSPRF ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreHMac.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 HASH.fs7 HMAC.fs7 TLSPRF.fs7 TLSPRF.fs | tee $@
 	@touch $@
 
 Sig.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreSig.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 HASH.fs7 Sig.fs7 Sig.fs Sig.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts Sig ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreSig.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 HASH.fs7 Sig.fs7 Sig.fs
+	$(monoexe) $(f7) $(f7flags) -scripts Sig ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreSig.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 HASH.fs7 Sig.fs7 Sig.fs | tee $@
 	@touch $@
 
 Cert.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 HASH.fs7 Sig.fs7 Cert.fs7 Cert.fs Cert.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts Cert ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 HASH.fs7 Sig.fs7 Cert.fs7 Cert.fs
+	$(monoexe) $(f7) $(f7flags) -scripts Cert ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 HASH.fs7 Sig.fs7 Cert.fs7 Cert.fs | tee $@
 	@touch $@
 
 TLSInfo.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 TLSInfo.fs TLSInfo.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts TLSInfo ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 TLSInfo.fs
+	$(monoexe) $(f7) $(f7flags) -scripts TLSInfo ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 TLSInfo.fs | tee $@
 	@touch $@
 
 Range.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 Range.fs Range.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts Range ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 Range.fs
+	$(monoexe) $(f7) $(f7flags) -scripts Range ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 Range.fs | tee $@
 	@touch $@
 
 DataStream.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 DataStream.fs DataStream.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts DataStream ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 DataStream.fs
+	$(monoexe) $(f7) $(f7flags) -scripts DataStream ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 DataStream.fs | tee $@
 	@touch $@
 
 AppFragment.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 AppFragment.fs AppFragment.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts AppFragment ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 AppFragment.fs
+	$(monoexe) $(f7) $(f7flags) -scripts AppFragment ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 AppFragment.fs | tee $@
 	@touch $@
 
 HSFragment.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 HSFragment.fs7 HSFragment.fs HSFragment.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts HSFragment ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 HSFragment.fs7 HSFragment.fs
+	$(monoexe) $(f7) $(f7flags) -scripts HSFragment ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 HSFragment.fs7 HSFragment.fs | tee $@
 	@touch $@
 
 TLSFragment.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 TLSFragment.fs TLSFragment.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts TLSFragment ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 TLSFragment.fs
+	$(monoexe) $(f7) $(f7flags) -scripts TLSFragment ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 TLSFragment.fs | tee $@
 	@touch $@
 
 StatefulPlain.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 StatefulPlain.fs StatefulPlain.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts StatefulPlain ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 StatefulPlain.fs
+	$(monoexe) $(f7) $(f7flags) -scripts StatefulPlain ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 StatefulPlain.fs | tee $@
 	@touch $@
 
 LHAEPlain.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 LHAEPlain.fs LHAEPlain.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts LHAEPlain ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 LHAEPlain.fs
+	$(monoexe) $(f7) $(f7flags) -scripts LHAEPlain ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 LHAEPlain.fs | tee $@
 	@touch $@
 
 MAC_SHA256.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 MAC_SHA256.fs7 MAC_SHA256.fs MAC_SHA256.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts MAC_SHA256 ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 MAC_SHA256.fs7 MAC_SHA256.fs
+	$(monoexe) $(f7) $(f7flags) -scripts MAC_SHA256 ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 MAC_SHA256.fs7 MAC_SHA256.fs | tee $@
 	@touch $@
 
 MAC_SHA1.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 MAC_SHA1.fs7 MAC_SHA1.fs MAC_SHA1.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts MAC_SHA1 ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 MAC_SHA1.fs7 MAC_SHA1.fs
+	$(monoexe) $(f7) $(f7flags) -scripts MAC_SHA1 ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 MAC_SHA1.fs7 MAC_SHA1.fs | tee $@
 	@touch $@
 
 MAC.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 MAC.fs MAC.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts MAC ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 MAC.fs
+	$(monoexe) $(f7) $(f7flags) -scripts MAC ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 MAC.fs | tee $@
 	@touch $@
 
 Encode.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 Encode.fs Encode.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts Encode ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 Encode.fs
+	$(monoexe) $(f7) $(f7flags) -scripts Encode ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 Encode.fs | tee $@
 	@touch $@
 
 ENC_RC4.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC_RC4.fs7 ENC_RC4.fs ENC_RC4.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts ENC_RC4 ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC_RC4.fs7 ENC_RC4.fs
+	$(monoexe) $(f7) $(f7flags) -scripts ENC_RC4 ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC_RC4.fs7 ENC_RC4.fs | tee $@
 	@touch $@
 
 ENC.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC.fs7 ENC.fs ENC.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts ENC ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC.fs7 ENC.fs
+	$(monoexe) $(f7) $(f7flags) -scripts ENC ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC.fs7 ENC.fs | tee $@
 	@touch $@
 
 LHAE.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC.fs7 LHAE.fs7 LHAE.fs LHAE.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts LHAE ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC.fs7 LHAE.fs7 LHAE.fs
+	$(monoexe) $(f7) $(f7flags) -scripts LHAE ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC.fs7 LHAE.fs7 LHAE.fs | tee $@
 	@touch $@
 
 StatefulLHAE.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC.fs7 LHAE.fs7 StatefulLHAE.fs7 StatefulLHAE.fs StatefulLHAE.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts StatefulLHAE ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC.fs7 LHAE.fs7 StatefulLHAE.fs7 StatefulLHAE.fs
+	$(monoexe) $(f7) $(f7flags) -scripts StatefulLHAE ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC.fs7 LHAE.fs7 StatefulLHAE.fs7 StatefulLHAE.fs | tee $@
 	@touch $@
 
 Record.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 Tcp.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC.fs7 LHAE.fs7 StatefulLHAE.fs7 Record.fs7 Record.fs Record.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts Record ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 Tcp.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC.fs7 LHAE.fs7 StatefulLHAE.fs7 Record.fs7 Record.fs
+	$(monoexe) $(f7) $(f7flags) --verbose -scripts Record ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 Tcp.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC.fs7 LHAE.fs7 StatefulLHAE.fs7 Record.fs7 Record.fs | tee $@
 	@touch $@
 
 Alert.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 HSFragment.fs7 Alert.fs7 Alert.fs Alert.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts Alert ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 HSFragment.fs7 Alert.fs7 Alert.fs
+	$(monoexe) $(f7) $(f7flags) -scripts Alert ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 HSFragment.fs7 Alert.fs7 Alert.fs | tee $@
 	@touch $@
 
 PRF.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 TLSPRF.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC.fs7 LHAE.fs7 StatefulLHAE.fs7 PRF.fs7 PRF.fs PRF.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts PRF ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 TLSPRF.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC.fs7 LHAE.fs7 StatefulLHAE.fs7 PRF.fs7 PRF.fs
+	$(monoexe) $(f7) $(f7flags) -scripts PRF ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 TLSPRF.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC.fs7 LHAE.fs7 StatefulLHAE.fs7 PRF.fs7 PRF.fs | tee $@
 	@touch $@
 
 CRE.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 TLSPRF.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC.fs7 LHAE.fs7 StatefulLHAE.fs7 PRF.fs7 CRE.fs7 CRE.fs CRE.fs7
 	@echo 
 	@echo Lemma $@
-	$(monoexe) $(f7) $(f7flags) -scripts CRE ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 TLSPRF.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC.fs7 LHAE.fs7 StatefulLHAE.fs7 PRF.fs7 CRE.fs7 CRE.fs
+	$(monoexe) $(f7) $(f7flags) -scripts CRE ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 TLSPRF.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC.fs7 LHAE.fs7 StatefulLHAE.fs7 PRF.fs7 CRE.fs7 CRE.fs | tee $@
 	@touch $@
 
 DH.tc7: $(libperv) $(libfs7) ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi Error.fs7 Bytes.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 TLSPRF.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC.fs7 LHAE.fs7 StatefulLHAE.fs7 PRF.fs7 CRE.fs7 DH.fs7 DH.fs DH.fs7

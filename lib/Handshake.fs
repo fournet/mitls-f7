@@ -30,29 +30,29 @@ type HandshakeType =
 
 let htBytes t =
     match t with
-    | HT_hello_request       -> [|  0uy |] 
-    | HT_client_hello        -> [|  1uy |]
-    | HT_server_hello        -> [|  2uy |]
-    | HT_certificate         -> [| 11uy |]
-    | HT_server_key_exchange -> [| 12uy |]
-    | HT_certificate_request -> [| 13uy |]
-    | HT_server_hello_done   -> [| 14uy |]
-    | HT_certificate_verify  -> [| 15uy |]
-    | HT_client_key_exchange -> [| 16uy |]
-    | HT_finished            -> [| 20uy |]
+    | HT_hello_request       -> abyte   0uy  
+    | HT_client_hello        -> abyte   1uy 
+    | HT_server_hello        -> abyte   2uy 
+    | HT_certificate         -> abyte  11uy 
+    | HT_server_key_exchange -> abyte  12uy 
+    | HT_certificate_request -> abyte  13uy 
+    | HT_server_hello_done   -> abyte  14uy 
+    | HT_certificate_verify  -> abyte  15uy 
+    | HT_client_key_exchange -> abyte  16uy 
+    | HT_finished            -> abyte  20uy 
 
 let parseHt (b:bytes) = 
-    match b with
-    | [|  0uy |] -> correct(HT_hello_request      )
-    | [|  1uy |] -> correct(HT_client_hello       )
-    | [|  2uy |] -> correct(HT_server_hello       )
-    | [| 11uy |] -> correct(HT_certificate        )
-    | [| 12uy |] -> correct(HT_server_key_exchange)
-    | [| 13uy |] -> correct(HT_certificate_request)
-    | [| 14uy |] -> correct(HT_server_hello_done  )
-    | [| 15uy |] -> correct(HT_certificate_verify )
-    | [| 16uy |] -> correct(HT_client_key_exchange)
-    | [| 20uy |] -> correct(HT_finished           )
+    match cbyte b with
+    |   0uy  -> correct(HT_hello_request      )
+    |   1uy  -> correct(HT_client_hello       )
+    |   2uy  -> correct(HT_server_hello       )
+    |  11uy  -> correct(HT_certificate        )
+    |  12uy  -> correct(HT_server_key_exchange)
+    |  13uy  -> correct(HT_certificate_request)
+    |  14uy  -> correct(HT_server_hello_done  )
+    |  15uy  -> correct(HT_certificate_verify )
+    |  16uy  -> correct(HT_client_key_exchange)
+    |  20uy  -> correct(HT_finished           )
     | _   -> let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_decode_error, reason)
 
 /// Handshake message format 
@@ -86,7 +86,7 @@ let parseMessage buf =
 type unsafe = Unsafe of epoch
 #endif
 let makeFragment ki b =
-    let (b0,rem) = if length b < fragmentLength then (b,[||])
+    let (b0,rem) = if length b < fragmentLength then (b,empty_bytes)
                    else Bytes.split b fragmentLength
     let r0 = (length b0, length b0) in
     let f = HSFragment.fragmentPlain ki r0 b0 in
@@ -195,14 +195,14 @@ let parseServerHello data =
         else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
-let helloRequestBytes = messageBytes HT_hello_request [||]
+let helloRequestBytes = messageBytes HT_hello_request empty_bytes
 
-let CCSBytes = [| 1uy |]
+let CCSBytes = abyte 1uy 
 
 
 (** A.4.2 Server Authentication and Key Exchange Messages *)
 
-let serverHelloDoneBytes = messageBytes HT_server_hello_done [||] 
+let serverHelloDoneBytes = messageBytes HT_server_hello_done empty_bytes 
 
 let serverCertificateBytes cl = messageBytes HT_certificate (Cert.certificateListBytes cl)
 
@@ -227,7 +227,7 @@ let sigHashAlgBytesVersion version cs =
             let defaults = default_sigHashAlg version cs in
             let res = sigHashAlgListBytes defaults in
             vlbytes 2 res
-        | TLS_1p1 | TLS_1p0 | SSL_3p0 -> [||]
+        | TLS_1p1 | TLS_1p0 | SSL_3p0 -> empty_bytes
 
 let parseSigHashAlgVersion version data =
     match version with
@@ -344,7 +344,7 @@ let parseClientKEXExplicit_DH p data =
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 // Unused until we don't support DH ciphersuites.
-let clientKEXImplicitBytes_DH = messageBytes HT_client_key_exchange [||]
+let clientKEXImplicitBytes_DH = messageBytes HT_client_key_exchange empty_bytes
 // Unused until we don't support DH ciphersuites.
 let parseClientKEXImplicit_DH data =
     if length data = 0 then
@@ -443,7 +443,7 @@ let parseServerKeyExchange_DH_anon payload =
     match parseDHEParams payload with
     | Error(x,y) -> Error(x,y)
     | Correct(p,g,y,rem) ->
-        if equalBytes rem [||] then
+        if equalBytes rem empty_bytes then
             correct(p,g,y)
         else
             Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
@@ -481,7 +481,7 @@ let certificateVerifyCheck si ms algs log payload =
         match si.protocol_version with
         | TLS_1p2 | TLS_1p1 | TLS_1p0 ->
             match Cert.get_chain_public_signing_key si.clientID alg with
-            | Error(x,y) -> (false,[||])
+            | Error(x,y) -> (false,empty_bytes)
             | Correct(vkey) ->
                 let res = Sig.verify alg vkey log signature in
                 (res,signature)
@@ -490,11 +490,11 @@ let certificateVerifyCheck si ms algs log payload =
             let alg = (sigAlg,NULL) in
             let expected = PRF.ssl_certificate_verify si ms sigAlg log in
             match Cert.get_chain_public_signing_key si.clientID alg with
-            | Error(x,y) -> (false,[||])
+            | Error(x,y) -> (false,empty_bytes)
             | Correct(vkey) ->
                 let res = Sig.verify alg vkey expected signature in
                 (res,signature)
-    | Error(x,y) -> (false,[||])
+    | Error(x,y) -> (false,empty_bytes)
 
 // State machine begins
 
@@ -603,30 +603,30 @@ type nextState = hs_state
 
 let init (role:Role) poptions =
     (* Start a new session without resumption, as the first epoch on this connection. *)
-    let sid = [||] in
+    let sid = empty_bytes in
     let rand = Nonce.mkHelloRandom() in
     match role with
     | Client -> 
         let ci = initConnection role rand in
         Pi.assume (Configure(Client,ci.id_in,poptions));
-        let ext = extensionsBytes poptions.safe_renegotiation [||] in
+        let ext = extensionsBytes poptions.safe_renegotiation empty_bytes in
         let cHelloBytes = clientHelloBytes poptions rand sid ext in
         let sdb = SessionDB.create poptions in 
         (ci,{hs_outgoing = cHelloBytes;
-                     hs_incoming = [||];
+                     hs_incoming = empty_bytes;
                      poptions = poptions;
                      sDB = sdb;
-                     pstate = PSClient (ServerHello (rand, sid, [||], [||], cHelloBytes))
+                     pstate = PSClient (ServerHello (rand, sid, empty_bytes, empty_bytes, cHelloBytes))
             })
     | Server ->
         let ci = initConnection role rand in
         Pi.assume (Configure(Client,ci.id_in,poptions));
         let sdb = SessionDB.create poptions in 
-        (ci,{hs_outgoing = [||]
-             hs_incoming = [||]
+        (ci,{hs_outgoing = empty_bytes
+             hs_incoming = empty_bytes
              poptions = poptions
              sDB = sdb
-             pstate = PSServer (ClientHello([||],[||]))
+             pstate = PSServer (ClientHello(empty_bytes,empty_bytes))
             })
 
 let resume next_sid poptions =
@@ -640,19 +640,19 @@ let resume next_sid poptions =
     | Some (retrieved) ->
     let (retrievedSinfo,retrievedMS) = retrieved in
     match retrievedSinfo.sessionID with
-    | [||] -> unexpected "[resume] a resumed session should always have a valid sessionID"
+    | xx when xx = empty_bytes -> unexpected "[resume] a resumed session should always have a valid sessionID"
     | sid ->
     let rand = Nonce.mkHelloRandom () in
     let ci = initConnection Client rand in
     Pi.assume (Configure(Server,ci.id_in,poptions));
-    let ext = extensionsBytes poptions.safe_renegotiation [||]
+    let ext = extensionsBytes poptions.safe_renegotiation empty_bytes
     let cHelloBytes = clientHelloBytes poptions rand sid ext in
     let sdb = SessionDB.create poptions
     (ci,{hs_outgoing = cHelloBytes
-         hs_incoming = [||]
+         hs_incoming = empty_bytes
          poptions = poptions
          sDB = sdb
-         pstate = PSClient (ServerHello (rand, sid, [||], [||], cHelloBytes))
+         pstate = PSClient (ServerHello (rand, sid, empty_bytes, empty_bytes, cHelloBytes))
         })
 
 let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
@@ -663,13 +663,13 @@ let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
         match cstate with
         | ClientIdle(cvd,svd) ->
             let rand = Nonce.mkHelloRandom () in
-            let sid = [||] in
+            let sid = empty_bytes in
             let ext = extensionsBytes ops.safe_renegotiation cvd in
             let cHelloBytes = clientHelloBytes ops rand sid ext in
             Pi.assume (Configure(Client,ci.id_in,ops));
             let sdb = SessionDB.create ops
             (true,{hs_outgoing = cHelloBytes
-                   hs_incoming = [||]
+                   hs_incoming = empty_bytes
                    poptions = ops
                    sDB = sdb
                    pstate = PSClient (ServerHello (rand, sid, cvd,svd, cHelloBytes))
@@ -686,7 +686,7 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     let si = epochSI(ci.id_out) in // or equivalently ci.id_in
     let sidOp = si.sessionID in
     match sidOp with
-    | [||] -> (* Non resumable session, let's do a full handshake *)
+    | xx when xx = empty_bytes -> (* Non resumable session, let's do a full handshake *)
         rehandshake ci state ops
     | sid ->
         let sDB = SessionDB.create ops in
@@ -705,7 +705,7 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
                     Pi.assume (Configure(Client,ci.id_in,ops));
                     let cHelloBytes = clientHelloBytes ops rand sid ext in
                     (true,{hs_outgoing = cHelloBytes
-                           hs_incoming = [||]
+                           hs_incoming = empty_bytes
                            poptions = ops
                            sDB = sDB
                            pstate = PSClient (ServerHello (rand, sid, cvd, svd, cHelloBytes))
@@ -723,7 +723,7 @@ let request (ci:ConnectionInfo) (state:hs_state) (ops:config) =
             let sdb = SessionDB.create ops
             (* Put HelloRequest in outgoing buffer (and do not log it), and move to the ClientHello state (so that we don't send HelloRequest again) *)
             (true, { hs_outgoing = helloRequestBytes
-                     hs_incoming = [||]
+                     hs_incoming = empty_bytes
                      poptions = ops
                      sDB = sdb
                      pstate = PSServer(ClientHello(cvd,svd))
@@ -742,7 +742,7 @@ let invalidateSession ci state =
     else
         let si = epochSI(ci.id_in) // FIXME: which epoch to choose? Here it matters since they could be mis-aligned
         match si.sessionID with
-        | [||] -> state
+        | xx when xx = empty_bytes -> state
         | sid ->
             let hint = getPrincipal ci state
             let sdb = SessionDB.remove state.sDB sid ci.role hint in
@@ -767,7 +767,7 @@ let check_negotiation (r:Role) (si:SessionInfo) (c:config) =
 
 let next_fragment ci state =
     match state.hs_outgoing with
-    | [||] ->
+    | xx when xx = empty_bytes ->
         match state.pstate with
         | PSClient(cstate) ->
             match cstate with
@@ -837,7 +837,7 @@ let next_fragment ci state =
     | outBuf ->
         let (rg,f,remBuf) = makeFragment ci.id_out outBuf in
         match remBuf with
-        | [||] ->
+        | xx when xx = empty_bytes ->
             match state.pstate with
             | PSClient(cstate) ->
                 match cstate with
@@ -856,7 +856,7 @@ let next_fragment ci state =
             | PSServer(sstate) ->
                 match sstate with
                 | ServerWritingFinished(si,ms,e,cvd,svd) ->
-                    if equalBytes si.sessionID [||] then
+                    if equalBytes si.sessionID empty_bytes then
                       check_negotiation Server si state.poptions;
                       OutComplete(rg,f,
                                   {state with hs_outgoing = remBuf
@@ -910,20 +910,20 @@ let getCertificateBytes (si:SessionInfo) (cert_req:(Cert.chain * Sig.alg * Sig.s
     | None when si.client_auth = true -> clientCertBytes,[]
     | Some x when si.client_auth = true -> 
         let (certList,_,_) = x in clientCertBytes,certList
-    | _ when si.client_auth = false -> [||],[]
+    | _ when si.client_auth = false -> empty_bytes,[]
 
 let getCertificateVerifyBytes (si:SessionInfo) (ms:PRF.masterSecret) (cert_req:(Cert.chain * Sig.alg * Sig.skey) option) (l:log) =
   match cert_req with
     | None when si.client_auth = true ->
         (* We sent an empty Certificate message, so no certificate verify message at all *)
-        [||]
+        empty_bytes
     | Some(x) when si.client_auth = true ->
         let (certList,algs,skey) = x in
           let (mex,_) = makeCertificateVerifyBytes si ms algs skey l in
           mex
     | _ when si.client_auth = false -> 
         (* No client certificate ==> no certificateVerify message *)
-        [||]
+        empty_bytes
   
 
 let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) (cert_req:Cert.sign_cert) (log:log) : (hs_state * SessionInfo * PRF.masterSecret * log) Result =
@@ -959,21 +959,21 @@ let sessionInfoCertBytesAuth (si:SessionInfo) (cert_req:Cert.sign_cert)=
      | Some(x) -> 
          let (certList,_,_) = x in 
          ({si with clientID = certList},cb)
-  else (si,[||])
+  else (si,empty_bytes)
 
 let certificateVerifyBytesAuth (si:SessionInfo) (ms:PRF.masterSecret) (cert_req:Cert.sign_cert) (log:bytes) = 
         if si.client_auth then
             match cert_req with
             | None ->
                 (* We sent an empty Certificate message, so no certificate verify message at all *)
-                [||]
+                empty_bytes
             | Some(x) -> 
                 let (certList,algs,skey) = x in
                 let (mex,_) = makeCertificateVerifyBytes si ms algs skey log in
                 mex
         else
             (* No client certificate ==> no certificateVerify message *)
-            [||]
+            empty_bytes
 
 let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) (cert_req:Cert.sign_cert) (p:DHGroup.p) (g:DHGroup.g) (sy:DHGroup.elt) (log:log) : (hs_state * SessionInfo * PRF.masterSecret * log) Result =
 (* KB #if avoid
@@ -1141,7 +1141,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     else
                         // RFC Sec 7.4.1.4: with no safe renegotiation, we never send extensions; if the server sent any extension
                         // we MUST abort the handshake with unsupported_extension fatal alter (handled by the dispatcher)
-                        if (equalBytes sh_neg_extensions [||]) = false
+                        if (equalBytes sh_neg_extensions empty_bytes) = false
                         then Error(AD_unsupported_extension, perror __SOURCE_FILE__ __LINE__ "The server gave an unknown extension")
                         else let unitVal = () in correct (unitVal)
                   match safe_reneg_result with
@@ -1154,7 +1154,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     | Correct _ ->
                         // Log the received message.
                         (* Check whether we asked for resumption *)
-                        if equalBytes sid [||] then
+                        if equalBytes sid empty_bytes then
                             (* we did not request resumption, do a full handshake *)
                             (* define the sinfo we're going to establish *)
                             let next_pstate = on_serverHello_full ci crand log to_log shello in
@@ -1361,7 +1361,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
         | HT_server_hello_done ->
             match cState with
             | CertificateRequestRSA(si,log) ->
-                if equalBytes payload [||] then     
+                if equalBytes payload empty_bytes then     
                     (* Log the received packet *)
                     let log = log @| to_log in
 
@@ -1375,7 +1375,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 else
                     InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
             | ServerHelloDoneRSA(si,skey,log) ->
-                if equalBytes payload [||] then
+                if equalBytes payload empty_bytes then
                     (* Log the received packet *)
                     let log = log @| to_log in
 
@@ -1389,7 +1389,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 else
                     InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
             | CertificateRequestDHE(si,p,g,y,log) | ServerHelloDoneDH_anon(si,p,g,y,log) ->
-                if equalBytes payload [||] then
+                if equalBytes payload empty_bytes then
                     (* Log the received packet *)
                     let log = log @| to_log in
 
@@ -1403,7 +1403,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 else
                     InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
             | ServerHelloDoneDHE(si,skey,p,g,y,log) ->
-                if equalBytes payload [||] then
+                if equalBytes payload empty_bytes then
                     (* Log the received packet *)
                     let log = log @| to_log in
 
@@ -1424,7 +1424,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             | ServerFinished(si,ms,e,cvd,log) ->
                 if PRF.checkVerifyData si ms Server log payload then
                     let sDB = 
-                        if equalBytes si.sessionID [||] then state.sDB
+                        if equalBytes si.sessionID empty_bytes then state.sDB
                         else SessionDB.insert state.sDB si.sessionID Client state.poptions.server_name (si,ms)
                     check_negotiation Client si state.poptions;
                     InComplete({state with pstate = PSClient(ClientIdle(cvd,payload)); sDB = sDB})
@@ -1653,7 +1653,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 match extRes with
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(state) ->
-                    if equalBytes ch_session_id [||] 
+                    if equalBytes ch_session_id empty_bytes 
                     then 
                         (* Client asked for a full handshake *)
                         match startServerFull ci state cHello cvd svd log with 

@@ -19,12 +19,12 @@ let ssl_prf secret seed nb =
   let gen_label (i:int) = new System.String(char((int 'A')+i),i+1) in
   let rec apply_prf res n = 
     if n > nb then 
-      Array.sub res 0 nb
+      let r,_ = split res nb in r
     else
         let step1 = ssl_prf_int secret (gen_label (n/16)) seed in
         apply_prf (res @| step1) (n+16)
   in
-  apply_prf [||]  0
+  apply_prf empty_bytes  0
 
 let ssl_verifyData ms ssl_sender data =
   let mm = data @| ssl_sender @| ms in
@@ -47,15 +47,6 @@ let ssl_certificate_verify ms log hashAlg =
 
 (* TLS 1.0 and 1.1 *)
 
-let xor s1 s2 nb =
-  if Array.length s1 < nb || Array.length s2 < nb then
-    Error.unexpected "[xor] arrays too short"
-  else
-    let res = Array.zeroCreate nb in  
-    for i=0 to nb-1 do
-      res.[i] <- byte (int s1.[i] ^^^ int s2.[i])
-    done;
-    res
 
 let rec p_hash_int alg secret seed len it aPrev acc =
   let aCur = MAC alg secret aPrev in
@@ -71,13 +62,12 @@ let rec p_hash_int alg secret seed len it aPrev acc =
 let p_hash alg secret seed len =
   let hs = macSize alg in
   let it = (len/hs)+1 in
-  p_hash_int alg secret seed len it seed [||]
+  p_hash_int alg secret seed len it seed empty_bytes
 
 let tls_prf secret label seed len =
-  let l_s = Array.length secret in
+  let l_s = length secret in
   let l_s1 = (l_s+1)/2 in
-  let secret1 = Array.sub secret 0 l_s1 in
-  let secret2 = Array.sub secret (l_s-l_s1) l_s1 in
+  let secret1,secret2 = split secret l_s1 in
   let newseed = (utf8 label) @| seed in
   let hmd5 = p_hash (MA_HMAC(MD5)) secret1 newseed len in
   let hsha1 = p_hash (MA_HMAC(SHA)) secret2 newseed len in

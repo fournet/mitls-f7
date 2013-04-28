@@ -76,11 +76,12 @@ let recordPacketOut ki conn pv rg ct fragment =
     | (false,SomeState(history,state)) ->
         let ad = StatefulPlain.makeAD ki ct in
         let sh = StatefulLHAE.history ki StatefulLHAE.WriterState state in
-        let aeadF = StatefulPlain.RecordPlainToStAEPlain ki ct history sh rg fragment in
+        let aeadF = StatefulPlain.RecordPlainToStAEPlain ki ct ad history sh rg fragment in
         let (state,payload) = StatefulLHAE.encrypt ki state ad rg aeadF in
         let history = TLSFragment.extendHistory ki ct history rg fragment in
         let packet = makePacket ct pv payload in
-        (SomeState(history,state),packet)
+        (SomeState(history,state),
+         packet)
     | _ -> unexpected "[recordPacketOut] Incompatible ciphersuite and key type"
     
 
@@ -135,7 +136,7 @@ let recordPacketIn ki conn headPayload =
         | Correct (decrRes) ->
             let (newState, rg, plain) = decrRes in
             let oldH = StatefulLHAE.history ki StatefulLHAE.ReaderState state in
-            let msg = StatefulPlain.StAEPlainToRecordPlain ki ct history oldH rg plain in
+            let msg = StatefulPlain.StAEPlainToRecordPlain ki ct ad history oldH rg plain in
             let history = TLSFragment.extendHistory ki ct history rg msg in
             let st' = someState ki StatefulLHAE.ReaderState history newState in
             correct(st',ct,pv,rg,msg)

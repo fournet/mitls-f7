@@ -6,50 +6,64 @@
 (* TODO partial verification; restructuring e.g. for list operations *) 
 
 type nat = n:int {0 <= n} // a convenient abbreviation 
-type bytes = byte array
+type cbytes = byte array
+type bytes
+function val B: bytes -> byte array
+val empty_bytes: (b:bytes){B(b) = [||]}
+val abytes: b:byte array -> a:bytes{B(a) = b}
+val abyte: b:byte -> a:bytes{B(a) = [| b |]}
+val abyte2: b:(byte*byte) -> a:bytes{!b1,b2. b = (b1,b2) => B(a) = [| b1;b2 |]}
+
+val cbytes: a:bytes -> b:byte array{B(a) = b}
+val cbyte: a:bytes -> b:byte{B(a) = [| b |]}
+val cbyte2: a:bytes -> (b1:byte*b2:byte){B(a) = [| b1;b2 |]}
 
 (* Lengths for arrays and lists *)
 
+function val BLength: byte array -> int 
 function val Length: bytes -> int 
-val length: b:bytes -> l:nat {Length(b) = l}
 // lengths distribute over concatenations
-assume !x:bytes, y:bytes. Length(x @| y) = Length(x) + Length(y)
+assume !x, y. BLength(x @| y) = BLength(x) + BLength(y)
+assume !x. Length(x) = BLength(B(x))
+val length: b:bytes -> l:nat {Length(b) = l}
 
 type (;l:nat) lbytes = b:bytes {Length(b) = l}
 
 function val ListLength: 'a list -> nat
 assume ListLength(op_Nil()) = 0
 assume !x,y. ListLength(op_ColonColon(x,y)) = 1 + ListLength(y)
-assume !l. Length(array_of_list(l)) = ListLength(l)
+assume !l. BLength(array_of_list(l)) = ListLength(l)
 
 val createBytes: l:int -> v:int { 0 <= v /\ v < 256 } -> (;l) lbytes
 
 val equalBytes: b0:bytes -> b1:bytes -> 
-  r:bool {(r = true /\ b0 = b1) \/ (r = false /\ b0 <> b1)}
+  r:bool {(r = true /\ B(b0) = B(b1)) \/ (r = false /\ B(b0) <> B(b1))}
+val xor: b0:bytes -> b1:bytes -> nb:nat -> b3:bytes{Length(b3) = nb}
 
 (* Array concatenation (append) *)
 (* we use the infix operator @| both concretely and in formulas *)
 
-val op_AtBar: b1:bytes -> b2:bytes -> b:bytes{b = b1 @| b2}
-//val append: b1:bytes -> b2:bytes -> b:bytes{b = b1 @| b2}
+val op_AtBar: b1:bytes -> b2:bytes -> b:bytes{B(b) = B(b1) @| B(b2)}
+
 
 val split:
   b:bytes -> i:nat{Length(b) >= i} ->
-  b1:bytes * b2:bytes { Length(b1) = i /\ b = b1 @| b2 }
+  b1:bytes * b2:bytes { Length(b1) = i /\ B(b) = B(b1) @| B(b2) }
 
 val split2: b:bytes -> i:nat -> j:nat  {Length(b) >= i+j} ->
-  b1:bytes * b2:bytes * b3:bytes { Length(b1)=i /\ Length(b2)=j /\ b = b1 @| b2 @| b3}
+  b1:bytes * b2:bytes * b3:bytes { Length(b1)=i /\ Length(b2)=j /\ 
+      B(b) = B(b1) @| B(b2) @| B(b3)}
 
 // empty array is an identity for append
-// assume !x. [||] @| x = x
+// assume !x. empty_bytes @| x = x
 assume !x. x @| [||] = x
 
 // append is injective when using fixed lengths.
 assume !b1,b2,c1,c2. 
-  (b1 @| b2 = c1 @| c2 /\ Length(b1)=Length(c1)) => (b1=c1 /\ b2=c2)   
+  (b1 @| b2 = c1 @| c2 /\ BLength(b1)=BLength(c1)) => (b1=c1 /\ b2=c2)   
 
 assume !b1,b2,c1,c2. 
-  (b1 @| b2 = c1 @| c2 /\ Length(b2)=Length(c2)) => (b1=c1 /\ b2=c2)   
+  (b1 @| b2 = c1 @| c2 /\ BLength(b2)=BLength(c2)) => (b1=c1 /\ b2=c2)   
 
 // append is associative
 assume !b1,b2,b3. (b1 @| b2) @| b3 = b1 @| (b2 @| b3)

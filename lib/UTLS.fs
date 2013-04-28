@@ -93,16 +93,16 @@ let canwrite (fd : int) : int =
 (* ------------------------------------------------------------------------ *)
 let read (fd : int) : int * bytes =
     match connection_of_fd fd with
-    | None -> (EI_BADHANDLE, [||])
+    | None -> (EI_BADHANDLE, empty_bytes)
 
     | Some c ->
         match TLS.read c.conn with
         | TLS.ReadError (_, _) ->
-            (EI_READERROR, [||])
+            (EI_READERROR, empty_bytes)
 
         | TLS.Close _ ->
             unbind_fd fd
-            (EI_CLOSE, [||])
+            (EI_CLOSE, empty_bytes)
 
         | TLS.Fatal e ->
             unbind_fd fd
@@ -114,15 +114,15 @@ let read (fd : int) : int * bytes =
 
         | TLS.CertQuery (conn, q, advice) ->
             let _ = update_fd_connection fd c.canwrite conn in
-                (EI_CERTQUERY, [||])
+                (EI_CERTQUERY, empty_bytes)
 
         | TLS.Handshaken conn ->
             let _ = update_fd_connection fd true conn in
-                (EI_HANDSHAKEN, [||])
+                (EI_HANDSHAKEN, empty_bytes)
 
         | TLS.Read (conn, (rg, m)) ->
 #if verify
-            let plain = [||] in
+            let plain = empty_bytes in
 #else
             let plain =
                 DataStream.deltaRepr
@@ -134,7 +134,7 @@ let read (fd : int) : int * bytes =
 
         | TLS.DontWrite conn ->
             let _ = update_fd_connection fd false conn in
-                (EI_DONTWRITE, [||])
+                (EI_DONTWRITE, empty_bytes)
 
 (* ------------------------------------------------------------------------ *)
 let mkDelta (conn : Connection) (bytes : bytes) : delta =
@@ -163,7 +163,7 @@ let write (fd : fd) (bytes : bytes) : int =
                     let _ = update_fd_connection fd true conn in
                     let rem =
 #if verify
-                        [||]
+                        empty_bytes
 #else
                         DataStream.deltaRepr
                             (Dispatch.getEpochOut conn) (TLS.getOutStream conn) r m

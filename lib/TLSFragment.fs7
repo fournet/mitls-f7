@@ -15,7 +15,7 @@ private type (;e:epoch,ct:ContentType,rg:range) fragment =
     | FAlert     of f:(;e,rg)HSFragment.fragment {ct=Alert}
     | FAppData   of f:(;e,rg)AppFragment.fragment{ct=Application_data}
 
-function val Payload: e:epoch * ct:ContentType * r:range * (;e,ct,r)fragment -> 'a // (;r)rbytes
+function val Payload: e:epoch * ct:ContentType * r:range * (;e,ct,r)fragment -> cbytes
 private definition !e,r,f. Payload(e,Handshake,         r,FHandshake(f)) = HSFragment.Payload(e,r,f)
 private definition !e,r,f. Payload(e,Change_cipher_spec,r,FCCS(f))       = HSFragment.Payload(e,r,f)
 private definition !e,r,f. Payload(e,Alert,             r,FAlert(f))     = HSFragment.Payload(e,r,f)
@@ -61,13 +61,13 @@ val extendHistory: e:epoch -> ct:ContentType -> ss:(;e)history -> r:range ->
   f:(;e,ct,ss,r)plain -> ss':(;e)history{ss' = ExtendHistory(e,ct,ss,r,f)}
 
 val plain: e:epoch{not Auth(e)} -> ct:ContentType -> h: (;e) history -> rg:range ->
-  b:(;rg)rbytes -> p:(;e,ct,h,rg)plain {b = Payload(e,ct,rg,p)}
+  b:(;rg)rbytes -> p:(;e,ct,h,rg)plain {B(b) = Payload(e,ct,rg,p)}
 
 val reprFragment: e:epoch{not Safe(e)} -> ct:ContentType -> rg:range ->
-  f:(;e,ct,rg)fragment -> b:(;rg)rbytes{b = Payload(e,ct,rg,f)}
+  f:(;e,ct,rg)fragment -> b:(;rg)rbytes{B(b) = Payload(e,ct,rg,f)}
 
 val repr: e:epoch{not Safe(e)} -> ct:ContentType -> h: (;e) history -> rg:range ->
-  p:(;e,ct,h,rg)plain -> b:(;rg)rbytes{b = Payload(e,ct,rg,p)}
+  p:(;e,ct,h,rg)plain -> b:(;rg)rbytes{B(b) = Payload(e,ct,rg,p)}
 
 val widen: e:succEpoch -> ct:ContentType -> 
   r0:range -> 

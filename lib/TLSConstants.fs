@@ -42,32 +42,32 @@ type sigHashAlg   = sigAlg * hashAlg
 
 let sigAlgBytes sa =
     match sa with
-    | SA_RSA   -> [|1uy|]
-    | SA_DSA   -> [|2uy|]
-    | SA_ECDSA -> [|3uy|]
+    | SA_RSA   -> (abyte 1uy)
+    | SA_DSA   -> (abyte 2uy)
+    | SA_ECDSA -> (abyte 3uy)
 
 let parseSigAlg b =
-    match b with
-    | [|1uy|] -> correct SA_RSA
-    | [|2uy|] -> correct SA_DSA
-    | [|3uy|] -> correct SA_ECDSA
+    match cbyte b with
+    | (1uy) -> correct SA_RSA
+    | (2uy) -> correct SA_DSA
+    | (3uy) -> correct SA_ECDSA
     | _ -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let hashAlgBytes ha =
     match ha with
-    | MD5     -> [|1uy|]
-    | SHA     -> [|2uy|]
-    | SHA256  -> [|4uy|]
-    | SHA384  -> [|5uy|]
+    | MD5     -> (abyte 1uy)
+    | SHA     -> (abyte 2uy)
+    | SHA256  -> (abyte 4uy)
+    | SHA384  -> (abyte 5uy)
     | NULL    -> unexpected "[macAlgBytes] Cannot enode NULL hash alg."
     | MD5SHA1 -> unexpected "[macAlgBytes] Cannot enode MD5SHA1 hash alg."
 
 let parseHashAlg b =
-    match b with
-    | [|1uy|] -> correct MD5   
-    | [|2uy|] -> correct SHA   
-    | [|4uy|] -> correct SHA256
-    | [|5uy|] -> correct SHA384
+    match cbyte b with
+    | (1uy) -> correct MD5   
+    | (2uy) -> correct SHA   
+    | (4uy) -> correct SHA256
+    | (5uy) -> correct SHA384
     | _ -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 type aeadAlg =
@@ -129,8 +129,8 @@ let ssl_pad1_md5  = createBytes 48 0x36
 let ssl_pad2_md5  = createBytes 48 0x5c
 let ssl_pad1_sha1 = createBytes 40 0x36
 let ssl_pad2_sha1 = createBytes 40 0x5c
-let ssl_sender_client = [|0x43uy; 0x4Cuy; 0x4Euy; 0x54uy|]
-let ssl_sender_server = [|0x53uy; 0x52uy; 0x56uy; 0x52uy|]
+let ssl_sender_client = abytes [|0x43uy; 0x4Cuy; 0x4Euy; 0x54uy|]
+let ssl_sender_server = abytes [|0x53uy; 0x52uy; 0x56uy; 0x52uy|]
 let tls_sender_client = "client finished"
 let tls_sender_server = "server finished"
 let tls_master_secret = "master secret"
@@ -184,8 +184,8 @@ type Compression =
     | NullCompression
 
 let parseCompression b =
-    match b with
-    | [|0uy|] -> correct(NullCompression)
+    match cbyte b with
+    | 0uy -> correct(NullCompression)
     | _       -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 // Ignore compression methods we don't understand. This is a departure
@@ -204,12 +204,12 @@ let rec parseCompressions b =
 
 let compressionBytes (comp:Compression) = 
     match comp with
-    | NullCompression -> [|0uy|]
+    | NullCompression -> abyte 0uy
 
 let rec compressionMethodsBytes cs =
    match cs with
    | c::cs -> compressionBytes c @| compressionMethodsBytes cs
-   | []    -> [||] 
+   | []    -> empty_bytes 
 
 type PreProtocolVersion =
     | SSL_3p0
@@ -220,17 +220,17 @@ type ProtocolVersion = PreProtocolVersion
 
 let versionBytes pv =
     match pv with
-    | SSL_3p0 -> [| 3uy; 0uy |]
-    | TLS_1p0 -> [| 3uy; 1uy |]
-    | TLS_1p1 -> [| 3uy; 2uy |]
-    | TLS_1p2 -> [| 3uy; 3uy |]
+    | SSL_3p0 -> abyte2 ( 3uy, 0uy)
+    | TLS_1p0 -> abyte2 ( 3uy, 1uy)
+    | TLS_1p1 -> abyte2 ( 3uy, 2uy )
+    | TLS_1p2 -> abyte2 ( 3uy, 3uy )
 
 let parseVersion (v:bytes) =
-    match v with
-    | [| 3uy; 0uy |] -> correct(SSL_3p0)
-    | [| 3uy; 1uy |] -> correct(TLS_1p0)
-    | [| 3uy; 2uy |] -> correct(TLS_1p1)
-    | [| 3uy; 3uy |] -> correct(TLS_1p2)
+    match cbyte2 v with
+    | (3uy, 0uy) -> correct(SSL_3p0)
+    | ( 3uy, 1uy ) -> correct(TLS_1p0)
+    | ( 3uy, 2uy ) -> correct(TLS_1p1)
+    | ( 3uy, 3uy ) -> correct(TLS_1p2)
     | _ -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let minPV (a:ProtocolVersion) (b:ProtocolVersion) =
@@ -260,104 +260,104 @@ let isNullCipherSuite cs =
 
 let cipherSuiteBytes cs = 
     match cs with
-    | NullCipherSuite                                     -> [| 0x00uy; 0x00uy |]
+    | NullCipherSuite                                     -> abyte2 ( 0x00uy, 0x00uy )
                                                       
-    | OnlyMACCipherSuite (RSA, MD5)                       -> [| 0x00uy; 0x01uy |]
-    | OnlyMACCipherSuite (RSA, SHA)                       -> [| 0x00uy; 0x02uy |]
-    | OnlyMACCipherSuite (RSA, SHA256)                    -> [| 0x00uy; 0x3Buy |]
-    | CipherSuite (RSA, CS_MtE (RC4_128, MD5))            -> [| 0x00uy; 0x04uy |]
-    | CipherSuite (RSA, CS_MtE (RC4_128, SHA))            -> [| 0x00uy; 0x05uy |]
-    | CipherSuite (RSA, CS_MtE (TDES_EDE_CBC, SHA))       -> [| 0x00uy; 0x0Auy |]
-    | CipherSuite (RSA, CS_MtE (AES_128_CBC, SHA))        -> [| 0x00uy; 0x2Fuy |]
-    | CipherSuite (RSA, CS_MtE (AES_256_CBC, SHA))        -> [| 0x00uy; 0x35uy |]
-    | CipherSuite (RSA, CS_MtE (AES_128_CBC, SHA256))     -> [| 0x00uy; 0x3Cuy |]
-    | CipherSuite (RSA, CS_MtE (AES_256_CBC, SHA256))     -> [| 0x00uy; 0x3Duy |]
+    | OnlyMACCipherSuite (RSA, MD5)                       -> abyte2 ( 0x00uy, 0x01uy )
+    | OnlyMACCipherSuite (RSA, SHA)                       -> abyte2 ( 0x00uy, 0x02uy )
+    | OnlyMACCipherSuite (RSA, SHA256)                    -> abyte2 ( 0x00uy, 0x3Buy )
+    | CipherSuite (RSA, CS_MtE (RC4_128, MD5))            -> abyte2 ( 0x00uy, 0x04uy )
+    | CipherSuite (RSA, CS_MtE (RC4_128, SHA))            -> abyte2 ( 0x00uy, 0x05uy )
+    | CipherSuite (RSA, CS_MtE (TDES_EDE_CBC, SHA))       -> abyte2 ( 0x00uy, 0x0Auy )
+    | CipherSuite (RSA, CS_MtE (AES_128_CBC, SHA))        -> abyte2 ( 0x00uy, 0x2Fuy )
+    | CipherSuite (RSA, CS_MtE (AES_256_CBC, SHA))        -> abyte2 ( 0x00uy, 0x35uy )
+    | CipherSuite (RSA, CS_MtE (AES_128_CBC, SHA256))     -> abyte2 ( 0x00uy, 0x3Cuy )
+    | CipherSuite (RSA, CS_MtE (AES_256_CBC, SHA256))     -> abyte2 ( 0x00uy, 0x3Duy )
 
-    | CipherSuite (DH_DSS,  CS_MtE (TDES_EDE_CBC, SHA))   -> [| 0x00uy; 0x0Duy |]
-    | CipherSuite (DH_RSA,  CS_MtE (TDES_EDE_CBC, SHA))   -> [| 0x00uy; 0x10uy |]
-    | CipherSuite (DHE_DSS, CS_MtE (TDES_EDE_CBC, SHA))   -> [| 0x00uy; 0x13uy |]
-    | CipherSuite (DHE_RSA, CS_MtE (TDES_EDE_CBC, SHA))   -> [| 0x00uy; 0x16uy |]
-    | CipherSuite (DH_DSS,  CS_MtE (AES_128_CBC, SHA))    -> [| 0x00uy; 0x30uy |]
-    | CipherSuite (DH_RSA,  CS_MtE (AES_128_CBC, SHA))    -> [| 0x00uy; 0x31uy |]
-    | CipherSuite (DHE_DSS, CS_MtE (AES_128_CBC, SHA))    -> [| 0x00uy; 0x32uy |]
-    | CipherSuite (DHE_RSA, CS_MtE (AES_128_CBC, SHA))    -> [| 0x00uy; 0x33uy |]
-    | CipherSuite (DH_DSS,  CS_MtE (AES_256_CBC, SHA))    -> [| 0x00uy; 0x36uy |]
-    | CipherSuite (DH_RSA,  CS_MtE (AES_256_CBC, SHA))    -> [| 0x00uy; 0x37uy |]
-    | CipherSuite (DHE_DSS, CS_MtE (AES_256_CBC, SHA))    -> [| 0x00uy; 0x38uy |]
-    | CipherSuite (DHE_RSA, CS_MtE (AES_256_CBC, SHA))    -> [| 0x00uy; 0x39uy |]
-    | CipherSuite (DH_DSS,  CS_MtE (AES_128_CBC, SHA256)) -> [| 0x00uy; 0x3Euy |]
-    | CipherSuite (DH_RSA,  CS_MtE (AES_128_CBC, SHA256)) -> [| 0x00uy; 0x3Fuy |]
-    | CipherSuite (DHE_DSS, CS_MtE (AES_128_CBC, SHA256)) -> [| 0x00uy; 0x40uy |]
-    | CipherSuite (DHE_RSA, CS_MtE (AES_128_CBC, SHA256)) -> [| 0x00uy; 0x67uy |]
-    | CipherSuite (DH_DSS,  CS_MtE (AES_256_CBC, SHA256)) -> [| 0x00uy; 0x68uy |]
-    | CipherSuite (DH_RSA,  CS_MtE (AES_256_CBC, SHA256)) -> [| 0x00uy; 0x69uy |]
-    | CipherSuite (DHE_DSS, CS_MtE (AES_256_CBC, SHA256)) -> [| 0x00uy; 0x6Auy |]
-    | CipherSuite (DHE_RSA, CS_MtE (AES_256_CBC, SHA256)) -> [| 0x00uy; 0x6Buy |]
+    | CipherSuite (DH_DSS,  CS_MtE (TDES_EDE_CBC, SHA))   -> abyte2 ( 0x00uy, 0x0Duy )
+    | CipherSuite (DH_RSA,  CS_MtE (TDES_EDE_CBC, SHA))   -> abyte2 ( 0x00uy, 0x10uy )
+    | CipherSuite (DHE_DSS, CS_MtE (TDES_EDE_CBC, SHA))   -> abyte2 ( 0x00uy, 0x13uy )
+    | CipherSuite (DHE_RSA, CS_MtE (TDES_EDE_CBC, SHA))   -> abyte2 ( 0x00uy, 0x16uy )
+    | CipherSuite (DH_DSS,  CS_MtE (AES_128_CBC, SHA))    -> abyte2 ( 0x00uy, 0x30uy )
+    | CipherSuite (DH_RSA,  CS_MtE (AES_128_CBC, SHA))    -> abyte2 ( 0x00uy, 0x31uy )
+    | CipherSuite (DHE_DSS, CS_MtE (AES_128_CBC, SHA))    -> abyte2 ( 0x00uy, 0x32uy )
+    | CipherSuite (DHE_RSA, CS_MtE (AES_128_CBC, SHA))    -> abyte2 ( 0x00uy, 0x33uy )
+    | CipherSuite (DH_DSS,  CS_MtE (AES_256_CBC, SHA))    -> abyte2 ( 0x00uy, 0x36uy )
+    | CipherSuite (DH_RSA,  CS_MtE (AES_256_CBC, SHA))    -> abyte2 ( 0x00uy, 0x37uy )
+    | CipherSuite (DHE_DSS, CS_MtE (AES_256_CBC, SHA))    -> abyte2 ( 0x00uy, 0x38uy )
+    | CipherSuite (DHE_RSA, CS_MtE (AES_256_CBC, SHA))    -> abyte2 ( 0x00uy, 0x39uy )
+    | CipherSuite (DH_DSS,  CS_MtE (AES_128_CBC, SHA256)) -> abyte2 ( 0x00uy, 0x3Euy )
+    | CipherSuite (DH_RSA,  CS_MtE (AES_128_CBC, SHA256)) -> abyte2 ( 0x00uy, 0x3Fuy )
+    | CipherSuite (DHE_DSS, CS_MtE (AES_128_CBC, SHA256)) -> abyte2 ( 0x00uy, 0x40uy )
+    | CipherSuite (DHE_RSA, CS_MtE (AES_128_CBC, SHA256)) -> abyte2 ( 0x00uy, 0x67uy )
+    | CipherSuite (DH_DSS,  CS_MtE (AES_256_CBC, SHA256)) -> abyte2 ( 0x00uy, 0x68uy )
+    | CipherSuite (DH_RSA,  CS_MtE (AES_256_CBC, SHA256)) -> abyte2 ( 0x00uy, 0x69uy )
+    | CipherSuite (DHE_DSS, CS_MtE (AES_256_CBC, SHA256)) -> abyte2 ( 0x00uy, 0x6Auy )
+    | CipherSuite (DHE_RSA, CS_MtE (AES_256_CBC, SHA256)) -> abyte2 ( 0x00uy, 0x6Buy )
 
-    | CipherSuite (DH_anon, CS_MtE (RC4_128, MD5))        -> [| 0x00uy; 0x18uy |]
-    | CipherSuite (DH_anon, CS_MtE (TDES_EDE_CBC, SHA))   -> [| 0x00uy; 0x1Buy |]
-    | CipherSuite (DH_anon, CS_MtE (AES_128_CBC, SHA))    -> [| 0x00uy; 0x34uy |]
-    | CipherSuite (DH_anon, CS_MtE (AES_256_CBC, SHA))    -> [| 0x00uy; 0x3Auy |]
-    | CipherSuite (DH_anon, CS_MtE (AES_128_CBC, SHA256)) -> [| 0x00uy; 0x6Cuy |]
-    | CipherSuite (DH_anon, CS_MtE (AES_256_CBC, SHA256)) -> [| 0x00uy; 0x6Duy |]
+    | CipherSuite (DH_anon, CS_MtE (RC4_128, MD5))        -> abyte2 ( 0x00uy, 0x18uy )
+    | CipherSuite (DH_anon, CS_MtE (TDES_EDE_CBC, SHA))   -> abyte2 ( 0x00uy, 0x1Buy )
+    | CipherSuite (DH_anon, CS_MtE (AES_128_CBC, SHA))    -> abyte2 ( 0x00uy, 0x34uy )
+    | CipherSuite (DH_anon, CS_MtE (AES_256_CBC, SHA))    -> abyte2 ( 0x00uy, 0x3Auy )
+    | CipherSuite (DH_anon, CS_MtE (AES_128_CBC, SHA256)) -> abyte2 ( 0x00uy, 0x6Cuy )
+    | CipherSuite (DH_anon, CS_MtE (AES_256_CBC, SHA256)) -> abyte2 ( 0x00uy, 0x6Duy )
 
-    | SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV)            -> [| 0x00uy; 0xFFuy |]
+    | SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV)            -> abyte2 ( 0x00uy, 0xFFuy )
 
 (* KB: Must define known cipher suites as a predicate before typechecking the following: *)
     | _ -> unexpected "[cipherSuiteBytes] invoked on an unknown ciphersuite"
 
 let parseCipherSuite b = 
-    match b with
-    | [| 0x00uy; 0x00uy |] -> correct(NullCipherSuite)
+    match cbyte2 b with
+    | ( 0x00uy, 0x00uy ) -> correct(NullCipherSuite)
    
-    | [| 0x00uy; 0x01uy |] -> correct(OnlyMACCipherSuite (RSA, MD5))
-    | [| 0x00uy; 0x02uy |] -> correct(OnlyMACCipherSuite (RSA, SHA))
-    | [| 0x00uy; 0x3Buy |] -> correct(OnlyMACCipherSuite (RSA, SHA256))
+    | ( 0x00uy, 0x01uy ) -> correct(OnlyMACCipherSuite (RSA, MD5))
+    | ( 0x00uy, 0x02uy ) -> correct(OnlyMACCipherSuite (RSA, SHA))
+    | ( 0x00uy, 0x3Buy ) -> correct(OnlyMACCipherSuite (RSA, SHA256))
 
-    | [| 0x00uy; 0x04uy |] -> correct(CipherSuite (    RSA, CS_MtE (     RC4_128, MD5)))
-    | [| 0x00uy; 0x05uy |] -> correct(CipherSuite (    RSA, CS_MtE (     RC4_128, SHA)))
-    | [| 0x00uy; 0x0Auy |] -> correct(CipherSuite (    RSA, CS_MtE (TDES_EDE_CBC, SHA)))
-    | [| 0x00uy; 0x2Fuy |] -> correct(CipherSuite (    RSA, CS_MtE ( AES_128_CBC, SHA)))
-    | [| 0x00uy; 0x35uy |] -> correct(CipherSuite (    RSA, CS_MtE ( AES_256_CBC, SHA)))
-    | [| 0x00uy; 0x3Cuy |] -> correct(CipherSuite (    RSA, CS_MtE ( AES_128_CBC, SHA256)))
-    | [| 0x00uy; 0x3Duy |] -> correct(CipherSuite (    RSA, CS_MtE ( AES_256_CBC, SHA256)))
+    | ( 0x00uy, 0x04uy ) -> correct(CipherSuite (    RSA, CS_MtE (     RC4_128, MD5)))
+    | ( 0x00uy, 0x05uy ) -> correct(CipherSuite (    RSA, CS_MtE (     RC4_128, SHA)))
+    | ( 0x00uy, 0x0Auy ) -> correct(CipherSuite (    RSA, CS_MtE (TDES_EDE_CBC, SHA)))
+    | ( 0x00uy, 0x2Fuy ) -> correct(CipherSuite (    RSA, CS_MtE ( AES_128_CBC, SHA)))
+    | ( 0x00uy, 0x35uy ) -> correct(CipherSuite (    RSA, CS_MtE ( AES_256_CBC, SHA)))
+    | ( 0x00uy, 0x3Cuy ) -> correct(CipherSuite (    RSA, CS_MtE ( AES_128_CBC, SHA256)))
+    | ( 0x00uy, 0x3Duy ) -> correct(CipherSuite (    RSA, CS_MtE ( AES_256_CBC, SHA256)))
 
-    | [| 0x00uy; 0x0Duy |] -> correct(CipherSuite ( DH_DSS, CS_MtE (TDES_EDE_CBC, SHA)))
-    | [| 0x00uy; 0x10uy |] -> correct(CipherSuite ( DH_RSA, CS_MtE (TDES_EDE_CBC, SHA)))
-    | [| 0x00uy; 0x13uy |] -> correct(CipherSuite (DHE_DSS, CS_MtE (TDES_EDE_CBC, SHA)))
-    | [| 0x00uy; 0x16uy |] -> correct(CipherSuite (DHE_RSA, CS_MtE (TDES_EDE_CBC, SHA)))
-    | [| 0x00uy; 0x30uy |] -> correct(CipherSuite ( DH_DSS, CS_MtE ( AES_128_CBC, SHA)))
-    | [| 0x00uy; 0x31uy |] -> correct(CipherSuite ( DH_RSA, CS_MtE ( AES_128_CBC, SHA)))
-    | [| 0x00uy; 0x32uy |] -> correct(CipherSuite (DHE_DSS, CS_MtE ( AES_128_CBC, SHA)))
-    | [| 0x00uy; 0x33uy |] -> correct(CipherSuite (DHE_RSA, CS_MtE ( AES_128_CBC, SHA)))
-    | [| 0x00uy; 0x36uy |] -> correct(CipherSuite ( DH_DSS, CS_MtE ( AES_256_CBC, SHA)))
-    | [| 0x00uy; 0x37uy |] -> correct(CipherSuite ( DH_RSA, CS_MtE ( AES_256_CBC, SHA)))
-    | [| 0x00uy; 0x38uy |] -> correct(CipherSuite (DHE_DSS, CS_MtE ( AES_256_CBC, SHA)))
-    | [| 0x00uy; 0x39uy |] -> correct(CipherSuite (DHE_RSA, CS_MtE ( AES_256_CBC, SHA)))
-    | [| 0x00uy; 0x3Euy |] -> correct(CipherSuite ( DH_DSS, CS_MtE ( AES_128_CBC, SHA256)))
-    | [| 0x00uy; 0x3Fuy |] -> correct(CipherSuite ( DH_RSA, CS_MtE ( AES_128_CBC, SHA256)))
-    | [| 0x00uy; 0x40uy |] -> correct(CipherSuite (DHE_DSS, CS_MtE ( AES_128_CBC, SHA256)))
-    | [| 0x00uy; 0x67uy |] -> correct(CipherSuite (DHE_RSA, CS_MtE ( AES_128_CBC, SHA256)))
-    | [| 0x00uy; 0x68uy |] -> correct(CipherSuite ( DH_DSS, CS_MtE ( AES_256_CBC, SHA256)))
-    | [| 0x00uy; 0x69uy |] -> correct(CipherSuite ( DH_RSA, CS_MtE ( AES_256_CBC, SHA256)))
-    | [| 0x00uy; 0x6Auy |] -> correct(CipherSuite (DHE_DSS, CS_MtE ( AES_256_CBC, SHA256)))
-    | [| 0x00uy; 0x6Buy |] -> correct(CipherSuite (DHE_RSA, CS_MtE ( AES_256_CBC, SHA256)))
+    | ( 0x00uy, 0x0Duy ) -> correct(CipherSuite ( DH_DSS, CS_MtE (TDES_EDE_CBC, SHA)))
+    | ( 0x00uy, 0x10uy ) -> correct(CipherSuite ( DH_RSA, CS_MtE (TDES_EDE_CBC, SHA)))
+    | ( 0x00uy, 0x13uy ) -> correct(CipherSuite (DHE_DSS, CS_MtE (TDES_EDE_CBC, SHA)))
+    | ( 0x00uy, 0x16uy ) -> correct(CipherSuite (DHE_RSA, CS_MtE (TDES_EDE_CBC, SHA)))
+    | ( 0x00uy, 0x30uy ) -> correct(CipherSuite ( DH_DSS, CS_MtE ( AES_128_CBC, SHA)))
+    | ( 0x00uy, 0x31uy ) -> correct(CipherSuite ( DH_RSA, CS_MtE ( AES_128_CBC, SHA)))
+    | ( 0x00uy, 0x32uy ) -> correct(CipherSuite (DHE_DSS, CS_MtE ( AES_128_CBC, SHA)))
+    | ( 0x00uy, 0x33uy ) -> correct(CipherSuite (DHE_RSA, CS_MtE ( AES_128_CBC, SHA)))
+    | ( 0x00uy, 0x36uy ) -> correct(CipherSuite ( DH_DSS, CS_MtE ( AES_256_CBC, SHA)))
+    | ( 0x00uy, 0x37uy ) -> correct(CipherSuite ( DH_RSA, CS_MtE ( AES_256_CBC, SHA)))
+    | ( 0x00uy, 0x38uy ) -> correct(CipherSuite (DHE_DSS, CS_MtE ( AES_256_CBC, SHA)))
+    | ( 0x00uy, 0x39uy ) -> correct(CipherSuite (DHE_RSA, CS_MtE ( AES_256_CBC, SHA)))
+    | ( 0x00uy, 0x3Euy ) -> correct(CipherSuite ( DH_DSS, CS_MtE ( AES_128_CBC, SHA256)))
+    | ( 0x00uy, 0x3Fuy ) -> correct(CipherSuite ( DH_RSA, CS_MtE ( AES_128_CBC, SHA256)))
+    | ( 0x00uy, 0x40uy ) -> correct(CipherSuite (DHE_DSS, CS_MtE ( AES_128_CBC, SHA256)))
+    | ( 0x00uy, 0x67uy ) -> correct(CipherSuite (DHE_RSA, CS_MtE ( AES_128_CBC, SHA256)))
+    | ( 0x00uy, 0x68uy ) -> correct(CipherSuite ( DH_DSS, CS_MtE ( AES_256_CBC, SHA256)))
+    | ( 0x00uy, 0x69uy ) -> correct(CipherSuite ( DH_RSA, CS_MtE ( AES_256_CBC, SHA256)))
+    | ( 0x00uy, 0x6Auy ) -> correct(CipherSuite (DHE_DSS, CS_MtE ( AES_256_CBC, SHA256)))
+    | ( 0x00uy, 0x6Buy ) -> correct(CipherSuite (DHE_RSA, CS_MtE ( AES_256_CBC, SHA256)))
 
-    | [| 0x00uy; 0x18uy |] -> correct(CipherSuite (DH_anon, CS_MtE (     RC4_128, MD5)))
-    | [| 0x00uy; 0x1Buy |] -> correct(CipherSuite (DH_anon, CS_MtE (TDES_EDE_CBC, SHA)))
-    | [| 0x00uy; 0x34uy |] -> correct(CipherSuite (DH_anon, CS_MtE ( AES_128_CBC, SHA)))
-    | [| 0x00uy; 0x3Auy |] -> correct(CipherSuite (DH_anon, CS_MtE ( AES_256_CBC, SHA)))
-    | [| 0x00uy; 0x6Cuy |] -> correct(CipherSuite (DH_anon, CS_MtE ( AES_128_CBC, SHA256)))
-    | [| 0x00uy; 0x6Duy |] -> correct(CipherSuite (DH_anon, CS_MtE ( AES_256_CBC, SHA256)))
+    | ( 0x00uy, 0x18uy ) -> correct(CipherSuite (DH_anon, CS_MtE (     RC4_128, MD5)))
+    | ( 0x00uy, 0x1Buy ) -> correct(CipherSuite (DH_anon, CS_MtE (TDES_EDE_CBC, SHA)))
+    | ( 0x00uy, 0x34uy ) -> correct(CipherSuite (DH_anon, CS_MtE ( AES_128_CBC, SHA)))
+    | ( 0x00uy, 0x3Auy ) -> correct(CipherSuite (DH_anon, CS_MtE ( AES_256_CBC, SHA)))
+    | ( 0x00uy, 0x6Cuy ) -> correct(CipherSuite (DH_anon, CS_MtE ( AES_128_CBC, SHA256)))
+    | ( 0x00uy, 0x6Duy ) -> correct(CipherSuite (DH_anon, CS_MtE ( AES_256_CBC, SHA256)))
 
-    | [| 0x00uy; 0xFFuy |] -> correct(SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV))
+    | ( 0x00uy, 0xFFuy ) -> correct(SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV))
 
     | _ -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 
 let consCipherSuites (cs:cipherSuite) (css:cipherSuites) = cs::css
 
-// called by the server handshake; 
+// called by the server handshake;     
 // ciphersuites that we do not understand are parsed,
 // but not added to the list, and thus will be ignored by the server
 let rec parseCipherSuites b:cipherSuites Result =
@@ -375,7 +375,7 @@ let rec parseCipherSuites b:cipherSuites Result =
 
 let rec cipherSuitesBytes css =
     match css with 
-    | [] -> [||] 
+    | [] -> empty_bytes 
     | cs::css -> cipherSuiteBytes cs @| 
                  cipherSuitesBytes css
     
@@ -646,17 +646,17 @@ type ContentType = preContentType
 
 let ctBytes ct =
     match ct with
-    | Change_cipher_spec -> [|20uy|]
-    | Alert              -> [|21uy|]
-    | Handshake          -> [|22uy|]
-    | Application_data   -> [|23uy|]
+    | Change_cipher_spec -> abyte (20uy)
+    | Alert              -> abyte (21uy)
+    | Handshake          -> abyte (22uy)
+    | Application_data   -> abyte (23uy)
 
 let parseCT b =
-    match b with 
-    | [|20uy|] -> correct(Change_cipher_spec)
-    | [|21uy|] -> correct(Alert)
-    | [|22uy|] -> correct(Handshake)
-    | [|23uy|] -> correct(Application_data)
+    match cbyte b with 
+    | (20uy) -> correct(Change_cipher_spec)
+    | (21uy) -> correct(Alert)
+    | (22uy) -> correct(Handshake)
+    | (23uy) -> correct(Application_data)
     | _        -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let CTtoString = function
@@ -710,22 +710,22 @@ type certType =
 
 let certTypeBytes ct =
     match ct with
-    | RSA_sign     -> [|1uy|]
-    | DSA_sign     -> [|2uy|]
-    | RSA_fixed_dh -> [|3uy|]
-    | DSA_fixed_dh -> [|4uy|]
+    | RSA_sign     -> abyte (1uy)
+    | DSA_sign     -> abyte (2uy)
+    | RSA_fixed_dh -> abyte (3uy)
+    | DSA_fixed_dh -> abyte (4uy)
 
 let parseCertType b =
-    match b with
-    | [|1uy|] -> Correct(RSA_sign)
-    | [|2uy|] -> Correct(DSA_sign)
-    | [|3uy|] -> Correct(RSA_fixed_dh)
-    | [|4uy|] -> Correct(DSA_fixed_dh)
+    match cbyte b with
+    | (1uy) -> Correct(RSA_sign)
+    | (2uy) -> Correct(DSA_sign)
+    | (3uy) -> Correct(RSA_fixed_dh)
+    | (4uy) -> Correct(DSA_fixed_dh)
     | _ -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let rec certificateTypeListBytes ctl =
     match ctl with
-    | [] -> [||]
+    | [] -> empty_bytes
     | h::t ->
         let ct = certTypeBytes h in
         ct @| certificateTypeListBytes t
@@ -756,7 +756,7 @@ let defaultCertTypes sign cs =
 
 let rec distinguishedNameListBytes names =
     match names with
-    | [] -> [||]
+    | [] -> empty_bytes
     | h::t ->
         let name = vlbytes 2 (utf8 h) in
         name @| distinguishedNameListBytes t

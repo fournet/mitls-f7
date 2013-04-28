@@ -5,6 +5,7 @@ open TLSConstants
 open TLSInfo
 open Range
 
+type cadata = cbytes
 type adata = bytes
 
 let makeAD e ct =
@@ -70,9 +71,9 @@ let reprFragment (e:epoch) (ad:adata) (r:range) (f:plain) =
     TLSFragment.reprFragment e ct r x
 let repr e (h:history) ad r f = reprFragment e ad r f
 
-let RecordPlainToStAEPlain (e:epoch) (ct:ContentType) (ss:TLSFragment.history) (st:history) (rg:range) f = {contents = f}
+let RecordPlainToStAEPlain (e:epoch) (ct:ContentType) (ad:adata) (ss:TLSFragment.history) (st:history) (rg:range) f = {contents = f}
 
-let StAEPlainToRecordPlain (e:epoch) (ct:ContentType) (ss:TLSFragment.history) (st:history) (rg:range) f = f.contents
+let StAEPlainToRecordPlain (e:epoch) (ct:ContentType) (ad:adata) (ss:TLSFragment.history) (st:history) (rg:range) f = f.contents
 
 #if ideal
 let widen e ad r f =

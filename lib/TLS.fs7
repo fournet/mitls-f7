@@ -44,7 +44,7 @@ type (;c:Connection) ioresult_i =
 	/\ Rnd(c') = Rnd(c)
 	/\ Config(c') = Config(c)
 	/\ ConnectionEpochIn(c) = Pred(ConnectionEpochIn(c'))
-	/\ Bytes_i(c') = [||]
+	/\ Bytes_i(c') = empty_bytes
 	/\ EvClose(CnInfo(c).id_in, Bytes_i(c))
 	/\ Handshake.Complete(CnInfo(c'),Config(c'))
 	/\ (
@@ -54,7 +54,7 @@ type (;c:Connection) ioresult_i =
 		)
 		\/
 		(Handshake.EvSentFinishedFirst(CnInfo(c'),false) /\
-			  Bytes_o(c') = [||]
+			  Bytes_o(c') = empty_bytes
 		   /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
 		)
 	   )
@@ -71,7 +71,7 @@ type (;c:Connection) ioresult_i =
 	/\ Config(c') = Config(c)
 	/\ ConnectionEpochIn(c') = ConnectionEpochIn(c)
 	/\ Bytes_i(c') = Bytes_i(c)
-	/\ Bytes_o(c') = [||]
+	/\ Bytes_o(c') = empty_bytes
 	/\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
     }
     
@@ -95,7 +95,7 @@ type (;c:Connection,d:(;ConnectionEpochOut(c),CnStream_o(c)) msg_o) ioresult_o =
      /\ Config(c') = Config(c)
 	 /\ ConnectionEpochIn(c') = ConnectionEpochIn(c)
      /\ Bytes_i(c') = Bytes_i(c)
-	 /\ Bytes_o(c') = [||]
+	 /\ Bytes_o(c') = empty_bytes
 	 /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
 	}
 

@@ -121,7 +121,7 @@ let recvMsg = fun conn ->
                     Some (conn, buffer)
                     
     in
-        doit conn [||]
+        doit conn empty_bytes
 
 let doclient (request : string) =
     let ns      = Tcp.connect "127.0.0.1" 5000 in

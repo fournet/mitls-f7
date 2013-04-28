@@ -45,7 +45,7 @@ let connect addr port =
 
 let rec read_acc (N ns) nbytes prev =
     if nbytes = 0 then
-        Correct (prev)
+        Correct (abytes prev)
     else
         try
             let buf = Array.zeroCreate nbytes in
@@ -60,13 +60,14 @@ let rec read_acc (N ns) nbytes prev =
 
 let read (N ns) nbytes =
     try
-        read_acc (N ns) nbytes (Array.zeroCreate 0)
+        (read_acc (N ns) nbytes (Array.zeroCreate 0))
     with
         | _ -> Error (AD_internal_error, perror __SOURCE_FILE__ __LINE__ "TCP connection closed")
 
 
 let write (N ns) content =
     try
+        let content = cbytes content in
         Correct (ns.Write (content, 0, content.Length))
     with
         | _ -> Error (AD_internal_error, perror __SOURCE_FILE__ __LINE__ "TCP connection closed")

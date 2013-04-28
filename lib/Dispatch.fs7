@@ -125,8 +125,8 @@ private definition !c,r,d.
 function val CnBuf_o: c:Connection -> (r:range * (;ConnectionEpochOut(c),r)AppFragment.fragment * (;ConnectionEpochOut(c))DataStream.stream) option
 private definition !id,s. CnBuf_o(Conn(id,s)) = AppData.AppOutBuf(id,s.appdata)
 
-function val Bytes_i: Connection -> bytes
-function val Bytes_o: Connection -> bytes
+function val Bytes_i: Connection -> cbytes
+function val Bytes_o: Connection -> cbytes
 private definition !c. Bytes_i(c) = DataStream.StreamBytes(ConnectionEpochIn (c), CnStream_i(c))
 private definition !c. Bytes_o(c) = DataStream.StreamBytes(ConnectionEpochOut(c), CnStream_o(c))
 
@@ -159,8 +159,8 @@ predicate Extend   of c:Connection * c':Connection
 predicate Extend_o of c:Connection * c':Connection * (;ConnectionEpochOut(c),CnStream_o(c)) msg_o
 predicate Extend_i of c:Connection * c':Connection * (;ConnectionEpochIn (c),CnStream_i(c)) msg_i
 
-function val MsgOBytes: c:Connection * (;ConnectionEpochOut(c),CnStream_o(c)) msg_o -> bytes
-function val MsgIBytes: c:Connection * (;ConnectionEpochIn (c),CnStream_i(c)) msg_i -> bytes
+function val MsgOBytes: c:Connection * (;ConnectionEpochOut(c),CnStream_o(c)) msg_o -> cbytes
+function val MsgIBytes: c:Connection * (;ConnectionEpochIn (c),CnStream_i(c)) msg_i -> cbytes
 private definition !c,r,d.
 	MsgOBytes(c,(r,d)) = DataStream.Payload(ConnectionEpochOut(c),CnStream_o(c),r,d)
 
@@ -237,7 +237,7 @@ definition !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo)  <=>
 			/\ Rnd(c') = Rnd(c)
 			/\ Config(c') = Config(c)
 			/\ ConnectionEpochIn(c) = Pred(ConnectionEpochIn(c'))
-			/\ Bytes_i(c') = [||]
+			/\ Bytes_i(c') = empty_bytes
 			/\ EvClose(CnInfo(c).id_in, Bytes_i(c))
 			/\ Handshake.Complete(CnInfo(c'),Config(c'))
 			/\ (
@@ -247,7 +247,7 @@ definition !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo)  <=>
 			    )
 				\/
 				(  Handshake.EvSentFinishedFirst(CnInfo(c'),false)
-				   /\ Bytes_o(c') = [||]
+				   /\ Bytes_o(c') = empty_bytes
 				   /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
 				)
 			   )
@@ -260,7 +260,7 @@ definition !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo)  <=>
 			 /\ Config(c') = Config(c)
 			 /\ ConnectionEpochIn(c') = ConnectionEpochIn(c)
 			 /\ Bytes_i(c') = Bytes_i(c)
-			 /\ Bytes_o(c') = [||]
+			 /\ Bytes_o(c') = empty_bytes
 			 /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))                                                                                                                                                         
 		   )
 		 ) \/
@@ -284,7 +284,7 @@ definition !c,c',ro,mo. IOResult_i(c,c',ro,mo) <=>
 		/\ Rnd(c') = Rnd(c)
 		/\ Config(c') = Config(c)
 		/\ ConnectionEpochIn(c) = Pred(ConnectionEpochIn(c'))
-		/\ Bytes_i(c') = [||]
+		/\ Bytes_i(c') = empty_bytes
 		/\ EvClose(CnInfo(c).id_in, Bytes_i(c))
 
 		/\ Handshake.Complete(CnInfo(c'),Config(c'))
@@ -296,7 +296,7 @@ definition !c,c',ro,mo. IOResult_i(c,c',ro,mo) <=>
 			)
 			\/
 			(Handshake.EvSentFinishedFirst(CnInfo(c'),false) /\
-				  Bytes_o(c') = [||]
+				  Bytes_o(c') = empty_bytes
 			   /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
 			)
 		   )
@@ -311,7 +311,7 @@ definition !c,c',ro,mo. IOResult_i(c,c',ro,mo) <=>
 			 /\ Config(c') = Config(c)
 			 /\ ConnectionEpochIn(c') = ConnectionEpochIn(c)
 			 /\ Bytes_i(c') = Bytes_i(c)
-			 /\ Bytes_o(c') = [||]
+			 /\ Bytes_o(c') = empty_bytes
 			 /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))                                                                                                     
 		   )
 	) \/
@@ -321,7 +321,7 @@ definition !c,c',ro,mo. IOResult_i(c,c',ro,mo) <=>
 			/\ Rnd(c') = Rnd(c)
 			/\ Config(c') = Config(c)
 			/\ ConnectionEpochIn(c) = Pred(ConnectionEpochIn(c'))
-			/\ Bytes_i(c') = [||]
+			/\ Bytes_i(c') = empty_bytes
 			/\ EvClose(CnInfo(c).id_in, Bytes_i(c))
 
 			/\ Handshake.Complete(CnInfo(c'),Config(c'))
@@ -333,7 +333,7 @@ definition !c,c',ro,mo. IOResult_i(c,c',ro,mo) <=>
 				)
 				\/
 				(Handshake.EvSentFinishedFirst(CnInfo(c'),false) /\
-					  Bytes_o(c') = [||]
+					  Bytes_o(c') = empty_bytes
 				   /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
 				)
 			   )
@@ -455,7 +455,7 @@ private val readOne: c:Connection{CnBuf_o(c) = None} ->
 		/\ Rnd(c') = Rnd(c)
 		/\ Config(c') = Config(c)
 		/\ ConnectionEpochIn(c) = Pred(ConnectionEpochIn(c'))
-		/\ Bytes_i(c') = [||]
+		/\ Bytes_i(c') = empty_bytes
 		/\ EvClose(CnInfo(c).id_in, Bytes_i(c))
 		/\ Bytes_o(c') = Bytes_o(c)
 		/\ ConnectionEpochOut(c') = ConnectionEpochOut(c) ) \/
@@ -504,7 +504,7 @@ private val writeOne: c:Connection -> r:range -> f:(;ConnectionEpochOut(c),r)App
 			NextCn(c,c')) \/
 		(wo = WriteAgainFinishing /\
 			Bytes_i(c') = Bytes_i(c) /\
-			Bytes_o(c') = [||] /\
+			Bytes_o(c') = empty_bytes /\
 			CnBuf_o(c') = None /\
 			Config(c) = Config(c') /\
 			Role(c) = Role(c') /\
@@ -532,7 +532,7 @@ private val writeAllClosing: c:Connection{CnBuf_o(c) = None} -> wo:writeOutcome 
 	(wo = SentClose /\ (Auth(ConnectionEpochIn(c)) => EvClose(CnInfo(c).id_in,Bytes_i(c))) )
 	}
 
-private val writeAllFinishing: c:Connection{CnBuf_o(c) = None /\ Bytes_o(c) = [||]} ->
+private val writeAllFinishing: c:Connection{CnBuf_o(c) = None /\ Bytes_o(c) = empty_bytes} ->
 	r:range -> f:(;ConnectionEpochOut(c),r)AppFragment.fragment ->
 	s:(;ConnectionEpochOut(c))DataStream.stream ->
 	wo:writeOutcome * c':(;c)nextCn{
@@ -541,7 +541,7 @@ private val writeAllFinishing: c:Connection{CnBuf_o(c) = None /\ Bytes_o(c) = [|
 		(wo = SentClose) \/
 		(wo = WMustRead /\
 			Bytes_i(c') = Bytes_i(c) /\
-			Bytes_o(c') = [||])
+			Bytes_o(c') = empty_bytes)
 	}
 
 // Transitivity of NextCn
@@ -565,7 +565,7 @@ private val writeAllTop: c:Connection -> r:range -> f:(;ConnectionEpochOut(c),r)
 			CnBuf_o(c') = None) \/
 		(wo = WMustRead /\
 			Bytes_i(c') = Bytes_i(c) /\
-			Bytes_o(c') = [||] /\
+			Bytes_o(c') = empty_bytes /\
 			Config(c) = Config(c') /\
 			Role(c) = Role(c') /\
 			Rnd(c) = Rnd(c') /\

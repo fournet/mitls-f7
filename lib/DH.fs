@@ -18,13 +18,13 @@ let honest gx = exists (fun el-> el = gx) !honest_log
 #endif
 
 let private pp (pg:CoreKeys.dhparams) : p * g = 
-    let dhparams = pg.p, pg.g
+    let dhparams = abytes pg.p, abytes pg.g
     #if ideal
     goodPP_log := dhparams ::!goodPP_log
     #endif
     dhparams
     
-let private dhparams p g: CoreKeys.dhparams = { p = p; g = g }
+let private dhparams p g: CoreKeys.dhparams = { p = cbytes p; g = cbytes g }
 
 let gen_pp()     = pp (CoreDH.gen_params())
      
@@ -33,12 +33,12 @@ let default_pp() = pp (CoreDH.load_default_params())
 let genKey p g: elt * secret =
     let ((x, _), (e, _)) = CoreDH.gen_key (dhparams p g)
     #if ideal
-    honest_log := e::!honest_log
+    honest_log := (abytes e)::!honest_log
     #endif
-    (e, Key x)
+    (abytes e, Key (abytes x))
 
 let exp p g (gx:elt) (gy:elt) (Key x) : CRE.dhpms =
-    let pms = CoreDH.agreement (dhparams p g) x gy in
+    let pms = abytes (CoreDH.agreement (dhparams p g) (cbytes x) (cbytes gy)) in
     //#begin-ideal
     #if ideal
     if honest gy && honest gx && goodPP (p,g) 

@@ -1,13 +1,21 @@
 ﻿module Bytes
 
 type nat = int
-type bytes = byte[]
-
-let length (d:bytes) = d.Length
+type cbytes = byte[]
+type bytes = {b:byte[]}
+let length (d:bytes) = (d.b).Length
 type lbytes = bytes
 
+let empty_bytes = {b = [||]}
+let abytes (b:byte[]) = {b=b}
+let abyte (b:byte) = {b=[|b|]}
+let abyte2 (b1,b2) = {b=[|b1;b2|]}
+let cbytes (b:bytes) = b.b
+let cbyte (b:bytes) = if length b = 1 then b.b.[0] else failwith "cbyte invoked on bytes of length <> 1"
+let cbyte2 (b:bytes) = if length b = 2 then (b.b.[0],b.b.[1]) else failwith "cbyte invoked on bytes of length <> 2"
+
 let createBytes len (value:int) : bytes =
-    try Array.create len (byte value)
+    try abytes (Array.create len (byte value))
     with :? System.OverflowException -> failwith "Default integer for createBytes was greater than max_value"
 
 let bytes_of_int nb i =
@@ -22,28 +30,42 @@ let bytes_of_int nb i =
       end
   in
   let b = Array.zeroCreate nb in
-    put_bytes b nb i
+    abytes(put_bytes b nb i)
 
 let int_of_bytes (b:bytes) : int =
-    List.fold (fun x y -> 256 * x + y) 0 (List.map (int) (Array.toList b))
+    List.fold (fun x y -> 256 * x + y) 0 (List.map (int) (Array.toList b.b))
 
 //@ Constant time comparison (to mitigate timing attacks)
 //@ The number of byte comparisons depends only on the lengths of both arrays.
 let equalBytes (b1:bytes) (b2:bytes) =
     length b1 = length b2 && 
-    Array.fold2 (fun ok x y -> x = y && ok) true b1 b2
+    Array.fold2 (fun ok x y -> x = y && ok) true b1.b b2.b
 
-let (@|) (a:bytes) (b:bytes) = Array.append a b
+let xor s1 s2 nb =
+  let s1 = cbytes s1 in
+  let s2 = cbytes s2 in
+  if Array.length s1 < nb || Array.length s2 < nb then
+    Error.unexpected "[xor] arrays too short"
+  else
+    let res = Array.zeroCreate nb in  
+    for i=0 to nb-1 do
+      res.[i] <- byte (int s1.[i] ^^^ int s2.[i])
+    done;
+    abytes res
+
+
+let (@|) (a:bytes) (b:bytes) = abytes(Array.append (cbytes a) (cbytes b))
 let split (b:bytes) i : bytes * bytes = 
-  Array.sub b 0 i,
-  Array.sub b i (b.Length-i)
+  abytes (Array.sub (cbytes b) 0 i),
+  abytes (Array.sub (cbytes b) i ((length b) - i))
 let split2 (b:bytes) i j : bytes * bytes * bytes =
-  Array.sub b 0 i,
-  Array.sub b i j,
-  Array.sub b (i+j) (b.Length-(i+j))
+  let b = cbytes b in
+  abytes (Array.sub b 0 i),
+  abytes (Array.sub b i j),
+  abytes (Array.sub b (i+j) (b.Length-(i+j)))
  
-let utf8 (x:string) : bytes = System.Text.Encoding.UTF8.GetBytes x
-let iutf8 (x:bytes) : string = System.Text.Encoding.UTF8.GetString x
+let utf8 (x:string) : bytes = abytes (System.Text.Encoding.UTF8.GetBytes x)
+let iutf8 (x:bytes) : string = System.Text.Encoding.UTF8.GetString (cbytes x)
 
 (* Time spans *)
 type DateTime = DT of System.DateTime
@@ -88,4 +110,4 @@ let isSome (l:'a option) =
       Some(x) -> true
     | None -> false
 
-let random (n:nat) = CoreRandom.random n
+let random (n:nat) = abytes (CoreRandom.random n)

@@ -38,7 +38,7 @@ type cipher = LHAE.cipher
 let encrypt (ki:epoch) (w:writer) (ad0:adata) (r:range) (f:plain) =
   let h = w.history in
   let ad = LHAEPlain.makeAD ki h ad0 in
-  let p = LHAEPlain.StatefulPlainToLHAEPlain ki h ad0 r f in
+  let p = LHAEPlain.StatefulPlainToLHAEPlain ki h ad0 ad r f in
   let k,c = LHAE.encrypt ki w.key ad r p in
   let h = extendHistory ki ad0 h r f in
   let w = {key = k; history = h} in
@@ -51,7 +51,7 @@ let decrypt (ki:epoch) (r:reader) (ad0:adata) (e:cipher) =
   match res with
     | Correct x ->
           let (k,rg,p) = x 
-          let f = LHAEPlain.LHAEPlainToStatefulPlain ki h ad0 rg p 
+          let f = LHAEPlain.LHAEPlainToStatefulPlain ki h ad0 ad rg p 
           let h = extendHistory ki ad0 h rg f 
           let r' = {history = h; key = k}
           correct ((r',rg,f))

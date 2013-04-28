@@ -41,7 +41,8 @@ val recordPacketOut: ki:epoch ->
                      rg:range -> ct:ContentType -> 
                      f:(;ki,ct,History(ki,StatefulLHAE.WriterState,ss),rg) TLSFragment.plain ->
                      (ss':(;ki) sendState * wire:bytes){
-						Auth(ki) => (History(ki,StatefulLHAE.WriterState,ss') = TLSFragment.ExtendHistory(ki,ct,History(ki,StatefulLHAE.WriterState,ss),rg,f))}
+						Auth(ki) => (History(ki,StatefulLHAE.WriterState,ss') = 
+                                                             TLSFragment.ExtendHistory(ki,ct,History(ki,StatefulLHAE.WriterState,ss),rg,f))}
  
 val recordPacketIn : ki:epoch ->
                      rs:(;ki) recvState -> 

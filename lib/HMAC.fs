@@ -29,11 +29,13 @@ let sslKeyedHashVerify alg key data expected =
 (* Parametric keyed hash *)
 
 let HMAC alg key data =
+    let key = cbytes key in
+    let data = cbytes data in
     match alg with
-    | MD5     -> CoreHMac.md5    key data
-    | SHA     -> CoreHMac.sha1   key data
-    | SHA256  -> CoreHMac.sha256 key data
-    | SHA384  -> CoreHMac.sha384 key data
+    | MD5     -> abytes(CoreHMac.md5    key data)
+    | SHA     -> abytes(CoreHMac.sha1   key data)
+    | SHA256  -> abytes(CoreHMac.sha256 key data)
+    | SHA384  -> abytes(CoreHMac.sha384 key data)
     | NULL    -> Error.unexpected "[HMAC] Invalid hash (NULL) for HMAC"
     | MD5SHA1 -> Error.unexpected "[HMAC] Invalid hash (MD5SHA1) for HMAC"
 

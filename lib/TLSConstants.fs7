@@ -112,22 +112,22 @@ predicate CRE_RSA of ProtocolVersion * macAlg
 
 (* TODO: use uniform naming convention, e.g. length implements Length; make more defs private *)
 
-function val SigAlgBytes: sigAlg -> bytes
+function val SigAlgBytes: sigAlg -> cbytes
 private definition !s.
            (SigAlgBytes(SA_RSA) = [|1uy|]) /\
            (SigAlgBytes(SA_DSA) = [|2uy|]) /\
            (SigAlgBytes(SA_ECDSA) = [|3uy|])
 
-val sigAlgBytes: s:sigAlg -> b:bytes{b=SigAlgBytes(s)}
-val parseSigAlg: b:bytes -> (s:sigAlg{b=SigAlgBytes(s)}) Result
-function val HashAlgBytes: hashAlg -> bytes
+val sigAlgBytes: s:sigAlg -> b:bytes{B(b)=SigAlgBytes(s)}
+val parseSigAlg: b:bytes -> (s:sigAlg{B(b)=SigAlgBytes(s)}) Result
+function val HashAlgBytes: hashAlg -> cbytes
 definition HashAlgBytes(MD5) = [|1uy|] /\
        HashAlgBytes(SHA) = [|2uy|] /\
        HashAlgBytes(SHA256) = [|4uy|] /\
        HashAlgBytes(SHA384) = [|5uy|] 
  
-val hashAlgBytes: h:hashAlg -> b:bytes{b=HashAlgBytes(h)}
-val parseHashAlg: b:bytes -> (h:hashAlg{b=HashAlgBytes(h)}) Result
+val hashAlgBytes: h:hashAlg -> b:bytes{B(b)=HashAlgBytes(h)}
+val parseHashAlg: b:bytes -> (h:hashAlg{B(b)=HashAlgBytes(h)}) Result
 
 function val EncKeySize: encAlg -> nat
 assume !x. EncKeySize(x) >= 0
@@ -229,11 +229,11 @@ type cipherSuites = cipherSuite list
 type Compression =
     | NullCompression
 
-function val CompressionBytes: Compression -> bytes
+function val CompressionBytes: Compression -> cbytes
 private definition CompressionBytes(NullCompression) = [| 0uy |]
 
 predicate ContainsCompressions of Compression list * Compression list
-function val CompressionsBytes: Compression list -> bytes
+function val CompressionsBytes: Compression list -> cbytes
 
 private assume CompressionsBytes([]) = [||] /\ 
   (!h,t. CompressionsBytes(h::t) = CompressionBytes(h) @| CompressionsBytes(t))
@@ -242,22 +242,22 @@ private assume !cl. ContainsCompressions(cl,cl) /\
    (!h,t,cl. ContainsCompressions(t,cl) => ContainsCompressions(h::t,cl)) /\
    (!h,t,h',t'. ContainsCompressions(t,t') => ContainsCompressions(h::t,h'::t'))
 
-val compressionBytes: c:Compression -> b:bytes{CompressionBytes(c) = b}
-val compressionMethodsBytes: cl:Compression list -> b:bytes{b = CompressionsBytes(cl)}
-val parseCompression: b:bytes -> (c:Compression{b=CompressionBytes(c)}) Result
-val parseCompressions: b:bytes -> cl:Compression list{?cl'. b = CompressionsBytes(cl') /\ ContainsCompressions(cl',cl)}
+val compressionBytes: c:Compression -> b:bytes{CompressionBytes(c) = B(b)}
+val compressionMethodsBytes: cl:Compression list -> b:bytes{B(b) = CompressionsBytes(cl)}
+val parseCompression: b:bytes -> (c:Compression{B(b)=CompressionBytes(c)}) Result
+val parseCompressions: b:bytes -> cl:Compression list{?cl'. B(b) = CompressionsBytes(cl') /\ ContainsCompressions(cl',cl)}
 
 
 
-function val VersionBytes: ProtocolVersion -> b:bytes
-assume !p. Length(VersionBytes(p)) = 2
+function val VersionBytes: ProtocolVersion -> b:cbytes
+assume !p. BLength(VersionBytes(p)) = 2
 private assume VersionBytes(SSL_3p0) = [| 3uy; 0uy |]
 private assume VersionBytes(TLS_1p0) = [| 3uy; 1uy |]
 private assume VersionBytes(TLS_1p1) = [| 3uy; 2uy |]
 private assume VersionBytes(TLS_1p2) = [| 3uy; 3uy |]
 
-val versionBytes: pv:ProtocolVersion -> b:bytes{Length(b) = 2 /\ b = VersionBytes(pv)}
-val parseVersion: b:bytes{Length(b) = 2} -> (pv:ProtocolVersion{ b= VersionBytes(pv)}) Result
+val versionBytes: pv:ProtocolVersion -> b:bytes{Length(b) = 2 /\ B(b) = VersionBytes(pv)}
+val parseVersion: b:bytes{Length(b) = 2} -> (pv:ProtocolVersion{ B(b)= VersionBytes(pv)}) Result
 val minPV: a:ProtocolVersion -> b:ProtocolVersion -> c:ProtocolVersion
 //CF what's this refinement?? adjust on demand
 //CF {(a < b /\ c = a) \/ (a >= b /\ c = b)}
@@ -338,7 +338,7 @@ val encAlg_of_ciphersuite: cs:cipherSuite -> pv:ProtocolVersion -> c:encAlg{c = 
 val sigAlg_of_ciphersuite: cs:cipherSuite -> s:sigAlg{s = CipherSuiteSigAlg(cs)}
 
 predicate KnownCipherSuite of cipherSuite 
-function val CipherSuiteBytes: cipherSuite -> bytes 
+function val CipherSuiteBytes: cipherSuite -> cbytes
 
 private assume !cs. KnownCipherSuite(cs) <=>
        (cs = NullCipherSuite)                                     
@@ -407,7 +407,7 @@ private assume
     /\ CipherSuiteBytes(SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV))         = [| 0x00uy; 0xFFuy |]
 
 
-function val CipherSuitesBytes: cipherSuites -> bytes
+function val CipherSuitesBytes: cipherSuites -> cbytes
 private definition !cs,b. (b = CipherSuitesBytes(cs)) <=> 
    ((cs = [] /\ b = [||]) \/
     (?h,t. cs = h::t /\ b = CipherSuiteBytes(h) @| CipherSuitesBytes(t)))
@@ -438,19 +438,19 @@ ask !b1,b2,cs. (Length(b1) = 2 /\ ContainsCipherSuite(b2,cs)) => ContainsCipherS
 assume !b1,b2,l. (Length(b1) = 2 /\ ContainsCipherSuites(b2,l)) => ContainsCipherSuites(b1 @| b2, l)
 *)
 //CF function val ParseCipherSuites: bytes -> cipherSuites
-//CF private assume !b. (b = [||] /\ ParseCipherSuites(b) = []) \/
+//CF private assume !b. (b = empty_bytes /\ ParseCipherSuites(b) = []) \/
 //CF 		(?b1,b2,c. b = b1 @| b2 /\ Length(b1) = 2 /\ b1 = CipherSuiteBytes(c) /\ ParseCiphersuites(b) = c::ParseCipherSuites(b2)) /\
 //CF 		(?b1,b2. b = b1 @| b2 /\ Length(b1) = 2 /\ (!c. b1 <> CipherSuiteBytes(c)) /\ ParseCiphersuites(b) = ParseCipherSuites(b2))
 
 private val consCipherSuites: cs:cipherSuite -> css:cipherSuites -> css':cipherSuites{css' = cs::css}
 
-val cipherSuiteBytes: c:cipherSuite -> b:bytes{Length(b)=2 /\ b = CipherSuiteBytes(c)}
-val parseCipherSuite: b:bytes{Length(b)=2} -> (c:cipherSuite{b = CipherSuiteBytes(c)}) Result
+val cipherSuiteBytes: c:cipherSuite -> b:bytes{Length(b)=2 /\ B(b) = CipherSuiteBytes(c)}
+val parseCipherSuite: b:bytes{Length(b)=2} -> (c:cipherSuite{B(b) = CipherSuiteBytes(c)}) Result
 
 // this parsing function may fail if b has the wrong length,
 // or if we were strict on unknown ciphersuites
-val parseCipherSuites: b:bytes -> (css:cipherSuites {?csl. b = CipherSuitesBytes(csl) /\ ContainsCipherSuites(csl,css)}) Result
-val cipherSuitesBytes: css:cipherSuites -> b:bytes {b = CipherSuitesBytes(css)}
+val parseCipherSuites: b:bytes -> (css:cipherSuites {?csl. B(b) = CipherSuitesBytes(csl) /\ ContainsCipherSuites(csl,css)}) Result
+val cipherSuitesBytes: css:cipherSuites -> b:bytes {B(b) = CipherSuitesBytes(css)}
 
 val mkIntTriple: (nat * nat * nat) -> (nat * nat * nat)
 
@@ -558,35 +558,35 @@ type ContentType = ct:preContentType
 val bytes_of_seq: sn:nat -> b:bytes{Length(b) = 8 /\ b = IntBytes(8,sn)}
 val seq_of_bytes: b:bytes{Length(b)=8} -> sn:nat{b = IntBytes(8,sn)}
 
-function val CTBytes: ContentType -> bytes
+function val CTBytes: ContentType -> cbytes
 
-assume !c. Length(CTBytes(c)) = 1
+assume !c. BLength(CTBytes(c)) = 1
 
 private definition CTBytes(Change_cipher_spec) = [|20uy|]
 private definition CTBytes(Alert)              = [|21uy|]
 private definition CTBytes(Handshake)          = [|22uy|]
 private definition CTBytes(Application_data)   = [|23uy|]
 
-val ctBytes: ct:ContentType -> b:bytes{b=CTBytes(ct)}
-val parseCT: b:bytes {Length(b)=1} -> (ct:ContentType{b=CTBytes(ct)}) Result
+val ctBytes: ct:ContentType -> b:bytes{B(b)=CTBytes(ct)}
+val parseCT: b:bytes {Length(b)=1} -> (ct:ContentType{B(b)=CTBytes(ct)}) Result
 val CTtoString: ContentType -> string
 
 // binary format for length-prefixed bytes;
 // the integer is the length of the prefix (1,2, 3 or 4 for TLS)
 
-function val VLBytes: (nat * bytes) -> bytes 
-private definition !i,b. VLBytes(i,b) = IntBytes(i,Length(b)) @| b
-val vlbytes: l:nat -> b:bytes -> r:bytes {r=VLBytes(l,b)} 
+function val VLBytes: (nat * cbytes) -> cbytes
+private definition !i,b. VLBytes(i,b) = B(IntBytes(i,BLength(b))) @| b
+val vlbytes: l:nat -> b:bytes -> r:bytes {B(r)=VLBytes(l,B(b))} 
 val vlsplit: 
   l:nat{l<=8} -> b:bytes{Length(b)>=l} ->
-  ( b1:bytes * b2:bytes {b = VLBytes(l,b1) @| b2}) Result
+  ( b1:bytes * b2:bytes {B(b) = VLBytes(l,B(b1)) @| B(b2)}) Result
 
 val vlparse: 
   l:nat{l<=8} -> b:bytes{Length(b)>=l} -> 
-  ( r:bytes { b = VLBytes(l,r) }) Result
+  ( r:bytes { B(b) = VLBytes(l,B(r)) }) Result
 
 // nice to have, not used so far.
-ask !i,b. Length(VLBytes(i,b)) = i + Length(b)
+ask !i,b. BLength(VLBytes(i,b)) = i + BLength(b)
 
 // relies on associativity
 ask !i,b1,b2,c1,c2. 
@@ -599,40 +599,40 @@ type certType =
     | RSA_fixed_dh
     | DSA_fixed_dh
 
-function val CertTypeBytes: certType -> bytes
+function val CertTypeBytes: certType -> cbytes
 private definition CertTypeBytes(RSA_sign)     = [|1uy|]
 private definition CertTypeBytes(DSA_sign)     = [|2uy|]
 private definition CertTypeBytes(RSA_fixed_dh) = [|3uy|]
 private definition CertTypeBytes(DSA_fixed_dh) = [|4uy|]
 
-val certTypeBytes: ct:certType -> b:bytes{b=CertTypeBytes(ct)}
-val parseCertType: b:bytes -> (ct:certType {b=CertTypeBytes(ct)}) Result
+val certTypeBytes: ct:certType -> b:bytes{B(b)=CertTypeBytes(ct)}
+val parseCertType: b:bytes -> (ct:certType {B(b)=CertTypeBytes(ct)}) Result
 
-function val CertTypesBytes: certType list -> bytes
+function val CertTypesBytes: certType list -> cbytes
 private definition !h,t.
 	CertTypesBytes([]) = [||] /\
 	CertTypesBytes(h::t) = CertTypeBytes(h) @| CertTypesBytes(t)
 
 val certificateTypeListBytes: ctl:certType list ->
-	b:bytes{b=CertTypesBytes(ctl)}
+	b:bytes{B(b)=CertTypesBytes(ctl)}
 val parseCertificateTypeList: b:bytes ->
-	(ctl:certType list{b = CertTypesBytes(ctl)}) Result
+	(ctl:certType list{B(b) = CertTypesBytes(ctl)}) Result
 
 function val DefaultCertTypes: bool * cipherSuite -> certType list
 val defaultCertTypes: sign:bool -> cs:cipherSuite -> ctl:certType list{ctl=DefaultCertTypes(sign,cs)}
 
-function val DistinguishedNameListBytes: string list -> bytes
+function val DistinguishedNameListBytes: string list -> cbytes
 private definition !h,t.
 	DistinguishedNameListBytes([]) = [||] /\
-	DistinguishedNameListBytes(h::t) = VLBytes(2,Utf8(h)) @| DistinguishedNameListBytes(t)
-function val DistinguishedNamesBytes: string list -> bytes
+	DistinguishedNameListBytes(h::t) = VLBytes(2,B(Utf8(h))) @| DistinguishedNameListBytes(t)
+function val DistinguishedNamesBytes: string list -> cbytes
 private definition !l.
 	DistinguishedNamesBytes(l) = VLBytes(2,DistinguishedNameListBytes(l))
 
-val distinguishedNameListBytes: n:string list -> b:bytes{b=DistinguishedNamesBytes(n)}
+val distinguishedNameListBytes: n:string list -> b:bytes{B(b)=DistinguishedNamesBytes(n)}
 val parseDistinguishedNameList: b:bytes -> s:string list ->
 	(res:string list{
 		(* ?l. res = l @ s /\ b = DistinguishedNameListBytes(l) *)
-		s = [] => b = DistinguishedNameListBytes(res)
+		s = [] => B(b) = DistinguishedNameListBytes(res)
 	}) Result
 

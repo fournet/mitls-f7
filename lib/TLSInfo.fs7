@@ -38,7 +38,7 @@ open TLSConstants
 type sessionID = b:bytes {Length(b) <= 32}
 // "An arbitrary byte sequence chosen by the server 
 // to identify an active or resumable session state."
-// We treat [||] as the absence of identifier.
+// We treat empty_bytes as the absence of identifier.
 
 type preRole =
 	| Client
@@ -87,10 +87,10 @@ type SessionInfo = {
 // for certificates, the empty list represents the absence of identity 
 // (possibly refusing to present requested certs) 
 //   
-// for sessionID, the empty bytes [||] represents the absence of ID,
+// for sessionID, the empty bytes empty_bytes represents the absence of ID,
 // that is, the session is not resumable. 
 
-val csrands: si:SessionInfo -> b:csrands {b=si.init_crand @| si.init_srand}
+val csrands: si:SessionInfo -> b:csrands {B(b)=B(si.init_crand) @| B(si.init_srand)}
 
 private type preEpoch =
   | InitEpoch of writer:Role
@@ -120,9 +120,9 @@ private definition !b1,b2,si,pe. EpochCRand(SuccEpoch(b1,b2,si,pe)) = b1
 val isInitEpoch: e:epoch -> b:bool{(b = true /\ IsInitEpoch(e)) \/ (b = false /\ IsSuccEpoch(e))}
 val epochSI: e:succEpoch -> si:SessionInfo{si = EpochSI(e)}
 
-val epochSRand: e:succEpoch -> b:crand{b = EpochSRand(e)}
-val epochCRand: e:succEpoch -> b:srand{b = EpochCRand(e)}
-val epochCSRands: e:succEpoch -> b:bytes{b = EpochCRand(e) @| EpochSRand(e)}
+val epochSRand: e:succEpoch -> b:crand{B(b) = B(EpochSRand(e))}
+val epochCRand: e:succEpoch -> b:srand{B(b) = B(EpochCRand(e))}
+val epochCSRands: e:succEpoch -> b:bytes{B(b) = B(EpochCRand(e)) @| B(EpochSRand(e))}
 
 type ConnectionInfo =
 	{ role: Role;

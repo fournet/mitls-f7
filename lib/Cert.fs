@@ -119,7 +119,7 @@ let x509_chain (x509 : X509Certificate2) = (* FIX: Is certs. store must be opene
 
 (* ------------------------------------------------------------------------ *)
 let x509_export_public (x509 : X509Certificate2) : bytes =
-    x509.Export(X509ContentType.Cert)
+    abytes (x509.Export(X509ContentType.Cert))
 
 (* ------------------------------------------------------------------------ *)
 let x509_is_for_signing (x509 : X509Certificate2) =
@@ -192,7 +192,7 @@ let for_key_encryption (sigkeyalgs : Sig.alg list) (h : hint) =
                     let chain = x509_chain x509 in
 
                     if Seq.forall (x509_check_key_sig_alg_one sigkeyalgs) chain then
-                        Some (chain |> List.map x509_export_public, RSAKey.create_rsaskey (sm, se))
+                        Some (chain |> List.map x509_export_public, RSAKey.create_rsaskey (abytes sm, abytes se))
                     else
                         None
                 | _ -> None
@@ -204,12 +204,12 @@ let for_key_encryption (sigkeyalgs : Sig.alg list) (h : hint) =
 (* ------------------------------------------------------------------------ *)
 let is_for_signing (c : cert) =
     try
-        x509_is_for_signing (new X509Certificate2(c))
+        x509_is_for_signing (new X509Certificate2(cbytes c))
     with :? CryptographicException -> false
 
 let is_for_key_encryption (c : cert) =
     try
-        x509_is_for_key_encryption (new X509Certificate2(c))
+        x509_is_for_key_encryption (new X509Certificate2(cbytes c))
     with :? CryptographicException -> false
 
 (* ------------------------------------------------------------------------ *)
@@ -222,7 +222,7 @@ let is_chain_for_key_encryption (chain : chain) =
 (* ------------------------------------------------------------------------ *)
 let get_public_signing_key (c : cert) ((siga, _) as a : Sig.alg) : Sig.pkey Result =
     try
-        let x509 = new X509Certificate2(c) in
+        let x509 = new X509Certificate2(cbytes c) in
             if x509_is_for_signing x509 then
                 match siga, x509_to_public_key x509 with
                 | SA_RSA, Some (CoreSig.PK_RSA (sm, se) as k) -> Correct (Sig.create_pkey a k)
@@ -234,10 +234,10 @@ let get_public_signing_key (c : cert) ((siga, _) as a : Sig.alg) : Sig.pkey Resu
 
 let get_public_encryption_key (c : cert) : RSAKey.pk Result =
     try
-        let x509 = new X509Certificate2(c) in
+        let x509 = new X509Certificate2(cbytes c) in
             if x509_is_for_key_encryption x509 then
                 match x509_to_public_key x509 with
-                | Some (CoreSig.PK_RSA(pm, pe)) -> Correct (RSAKey.create_rsapkey (pm, pe))
+                | Some (CoreSig.PK_RSA(pm, pe)) -> Correct (RSAKey.create_rsapkey (abytes pm, abytes pe))
                 | _ -> Error(AD_unsupported_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate uses unknown key")
             else
                 Error(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate is not for key encipherment")
@@ -260,7 +260,7 @@ let get_chain_key_algorithm (chain : chain) =
     | []     -> None
     | c :: _ ->
         try
-            let x509 = new X509Certificate2(c) in
+            let x509 = new X509Certificate2(cbytes c) in
                 match x509.GetKeyAlgorithm () with
                 | x when x = OID_RSAEncryption   -> Some SA_RSA
                 | x when x = OID_DSASignatureKey -> Some SA_DSA
@@ -298,8 +298,8 @@ let validate_cert_chain (sigkeyalgs : Sig.alg list) (chain : chain) =
     | []           -> false
     | c :: issuers ->
         try
-            let c       = new X509Certificate2(c) in
-            let issuers = List.map (fun (c : cert) -> new X509Certificate2(c)) chain in
+            let c       = new X509Certificate2(cbytes c) in
+            let issuers = List.map (fun (c : cert) -> new X509Certificate2(cbytes c)) chain in
                 Seq.forall (x509_check_key_sig_alg_one sigkeyalgs) (c :: issuers)
                 && validate_x509_chain c issuers
 
@@ -308,7 +308,7 @@ let validate_cert_chain (sigkeyalgs : Sig.alg list) (chain : chain) =
 
 (* ------------------------------------------------------------------------ *)
 let get_hint (chain : chain) =
-    let chain = List.map (fun (c : cert) -> new X509Certificate2(c)) chain in
+    let chain = List.map (fun (c : cert) -> new X509Certificate2(cbytes c)) chain in
 
     match chain with
     | []     -> None
@@ -320,11 +320,11 @@ let consCertificateBytes c a =
     cert @| a
 
 let certificateListBytes certs =
-    let unfolded = Bytes.foldBack consCertificateBytes certs [||] in
+    let unfolded = Bytes.foldBack consCertificateBytes certs empty_bytes in
     vlbytes 3 unfolded
 
 let rec parseCertificateList toProcess list =
-    if equalBytes toProcess [||] then
+    if equalBytes toProcess empty_bytes then
         correct(list)
     else
         if length toProcess >= 3 then

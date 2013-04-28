@@ -9,11 +9,11 @@ type extensionType =
 
 let extensionTypeBytes hExt =
     match hExt with
-    | HExt_renegotiation_info -> [|0xFFuy; 0x01uy|]
+    | HExt_renegotiation_info -> abyte2 (0xFFuy, 0x01uy)
 
 let parseExtensionType b =
-    match b with
-    | [|0xFFuy; 0x01uy|] -> correct(HExt_renegotiation_info)
+    match cbyte2 b with
+    | (0xFFuy, 0x01uy) -> correct(HExt_renegotiation_info)
     | _                  -> let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_decode_error, reason)
 
 let isExtensionType et (ext:extensionType * bytes) =
@@ -67,7 +67,7 @@ let extensionsBytes safeRenegoEnabled verifyData =
         vlbytes 2 renInfo
     else
         (* We are sending no extensions at all *)
-        [||]
+        empty_bytes
 
 let parseExtensions data =
     match length data with
@@ -97,7 +97,7 @@ let check_reneg_info payload expected =
 
 let checkClientRenegotiationInfoExtension (ren_ext_list:(extensionType * bytes) list) ch_cipher_suites expected =
     let has_SCSV = contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV ch_cipher_suites in
-    if equalBytes expected [||] 
+    if equalBytes expected empty_bytes 
     then  
         (* First handshake *)
         if listLength ren_ext_list = 0 
@@ -153,7 +153,7 @@ let parseSigHashAlg b =
 
 let rec sigHashAlgListBytes algL =
     match algL with
-    | [] -> [||]
+    | [] -> empty_bytes
     | h::t ->
         let oneItem = sigHashAlgBytes h in
         oneItem @| sigHashAlgListBytes t

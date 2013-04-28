@@ -443,7 +443,7 @@ let recv (Conn(id,c)) =
 let ghostFragment e = 
     let s = DataStream.init e in
     let r = (0,0) in
-    let d = DataStream.createDelta e s r [||] in
+    let d = DataStream.createDelta e s r empty_bytes in
     let f,ns = AppFragment.fragment e s r d in
     r,f,ns
 

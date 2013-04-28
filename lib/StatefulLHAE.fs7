@@ -87,7 +87,9 @@ type cipher = LHAE.cipher
 
 predicate ENCrypted of e:epoch * h:(;e)StatefulPlain.history * ad:(;e)StatefulPlain.adata * cipher
 private definition !e,h,ad,c. 
-  ENCrypted(e,h,ad,c) <=> LHAE.ENCrypted(e,LHAEPlain.MakeAD(e,h,ad),c)
+  ENCrypted(e,h,ad,c) <=> 
+  (?ad'. B(ad') = LHAEPlain.MakeAD(e,h,B(ad)) /\ 
+         LHAE.ENCrypted(e,ad',c))
 
 val encrypt: ki:succEpoch -> 
   wr:(;ki) writer -> 

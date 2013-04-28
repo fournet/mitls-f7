@@ -11,15 +11,15 @@ assume !ki,s,r,f. Sent(ki,s,r,f) (*KB No Handshake/Alert/CCS Authentication *)
 
 type (;e:epoch,s:(;e)stream,r:range)plain = f:(;e,r)fragment{Auth(e) => Sent(e,s,r,f)}
 
-function val Payload: e:epoch * r:range * (;e,r)fragment -> 'a // (;r)rbytes
-private definition !e,r,f. Payload(e,r,f) = f.frag
+function val Payload: e:epoch * r:range * (;e,r)fragment -> cbytes
+private definition !e,r,f. Payload(e,r,f) = B(f.frag)
 
 function val EmptyStream: e:epoch -> (;e)stream
 private definition !e. EmptyStream(e) = {sb = []}
 val init: e:epoch -> s:(;e)stream{s = EmptyStream(e)}
 
-val fragmentPlain: ki:epoch -> r:range -> b:(;r) rbytes -> f:(;ki,EmptyStream(ki),r) plain{b = Payload(ki,r,f)}
-val fragmentRepr:  ki:epoch -> r:range -> f:(;ki,r) fragment -> b:(;r) rbytes{b = Payload(ki,r,f)}
+val fragmentPlain: ki:epoch -> r:range -> b:(;r) rbytes -> f:(;ki,EmptyStream(ki),r) plain{B(b) = Payload(ki,r,f)}
+val fragmentRepr:  ki:epoch -> r:range -> f:(;ki,r) fragment -> b:(;r) rbytes{B(b) = Payload(ki,r,f)}
 
 //AP Unless the two streams are the same, this functions breaks the streaming
 //AP authentication property (which we currently don't prove for HS/CCS/Alert) 

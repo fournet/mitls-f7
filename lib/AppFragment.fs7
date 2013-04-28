@@ -13,7 +13,7 @@ predicate DeltaFragment of ki:epoch * s:(;ki) stream * r:range * (;ki,s,r)delta
 private type (;ki:epoch,r:range) fragment = 
   {frag: (s:(;ki)stream * d:(;ki,s,r) delta{ Auth(ki) => DeltaFragment(ki,s,r,d)}) }
 
-function val Payload: e:epoch * r:range * (;e,r)fragment -> 'a // (;r)rbytes
+function val Payload: e:epoch * r:range * (;e,r)fragment -> cbytes
 private definition !e,r,s,d. Payload(e,r,{frag = (s,d)}) = DataStream.Payload(e,s,r,d)
 
 (* AP FIXME: next definition is wrong. It should be
@@ -55,8 +55,8 @@ val delta': ki:epoch -> s:(;ki) stream -> r:range ->
   f:(;ki,r) fragment{not Auth(ki)} -> 
   d:(;ki,s,r) delta * s':(;ki) stream{s' = ExtendStreamDelta(ki,s,r,d)}
 
-val plain: ki:epoch{not Auth(ki)} -> r:range -> b:(;r) rbytes -> f:(;ki,r) fragment{b = Payload(ki,r,f)}
-val repr:  ki:epoch{not Safe(ki)} -> r:range -> f:(;ki,r) fragment -> b:(;r) rbytes{b = Payload(ki,r,f)}
+val plain: ki:epoch{not Auth(ki)} -> r:range -> b:(;r) rbytes -> f:(;ki,r) fragment{B(b) = Payload(ki,r,f)}
+val repr:  ki:epoch{not Safe(ki)} -> r:range -> f:(;ki,r) fragment -> b:(;r) rbytes{B(b) = Payload(ki,r,f)}
 
 // We use this function for ideal decryption by table lookup,
 // as the range after decryption is usually wider than the one used for encryption.

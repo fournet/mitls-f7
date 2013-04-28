@@ -53,7 +53,7 @@ let bytes_of_key (k : SessionIndex) =
     let m  = new MemoryStream () in
         bf.Serialize(m, k); m.ToArray ()
 
-let key_of_bytes (k : bytes) =
+let key_of_bytes (k : byte[]) =
     let bf = new BinaryFormatter () in
     let m  = new MemoryStream(k) in
     
@@ -64,7 +64,7 @@ let bytes_of_value (k : StorableSession * DateTime) =
     let m  = new MemoryStream () in
         bf.Serialize(m, k); m.ToArray ()
 
-let value_of_bytes (k : bytes) =
+let value_of_bytes (k : byte[]) =
     let bf = new BinaryFormatter () in
     let m  = new MemoryStream(k) in
     

@@ -87,19 +87,20 @@ let sign (a: alg) (sk: skey) (t: text): sigv =
         #endif
 
     let signature =
+        
         match khash with
-        | NULL    -> CoreSig.sign None                     kparams t
-        | MD5     -> CoreSig.sign (Some CoreSig.SH_MD5)    kparams t
-        | SHA     -> CoreSig.sign (Some CoreSig.SH_SHA1  ) kparams t
-        | SHA256  -> CoreSig.sign (Some CoreSig.SH_SHA256) kparams t
-        | SHA384  -> CoreSig.sign (Some CoreSig.SH_SHA384) kparams t
+        | NULL    -> CoreSig.sign None                     kparams (cbytes t)
+        | MD5     -> CoreSig.sign (Some CoreSig.SH_MD5)    kparams (cbytes t)
+        | SHA     -> CoreSig.sign (Some CoreSig.SH_SHA1  ) kparams (cbytes t)
+        | SHA256  -> CoreSig.sign (Some CoreSig.SH_SHA256) kparams (cbytes t)
+        | SHA384  -> CoreSig.sign (Some CoreSig.SH_SHA384) kparams (cbytes t)
         | MD5SHA1 ->
             let t = HASH.hash MD5SHA1 t in
-            CoreSig.sign None kparams t
+            CoreSig.sign None kparams (cbytes t)
     #if ideal
     log := (a, pk_of sk, t)::!log
     #endif
-    signature
+    abytes signature
 
 (* ------------------------------------------------------------------------ *)
 let verify (a : alg) (pk : pkey) (t : text) (s : sigv) =
@@ -124,6 +125,9 @@ let verify (a : alg) (pk : pkey) (t : text) (s : sigv) =
         #endif
 
     let result =
+        let t' = t in
+        let t = cbytes t in
+        let s = cbytes s in
         match khash with
         | NULL    -> CoreSig.verify None                     kparams t s
         | MD5     -> CoreSig.verify (Some CoreSig.SH_MD5)    kparams t s
@@ -131,8 +135,8 @@ let verify (a : alg) (pk : pkey) (t : text) (s : sigv) =
         | SHA256  -> CoreSig.verify (Some CoreSig.SH_SHA256) kparams t s
         | SHA384  -> CoreSig.verify (Some CoreSig.SH_SHA384) kparams t s
         | MD5SHA1 ->
-            let t = HASH.hash MD5SHA1 t in
-            CoreSig.verify None kparams t s
+            let t = HASH.hash MD5SHA1 t' in
+            CoreSig.verify None kparams (cbytes t') s
     #if ideal //#begin-idealization
     let result = if strong a && honest a pk  
                     then result && memr !log (a,pk,t)
