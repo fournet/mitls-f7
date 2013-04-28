@@ -34,7 +34,7 @@ type prfAlg = // can't be folded back to the sums in TLSConstants; we need to us
 //CF we cannot use just csr, because of MiTM forwarding honest nonces
 type msIndex = { 
   // We record the parameters used to derive this MS: 
-  pms   : (pk:RSAKey.pk * cv:ProtocolVersion * (;pk,cv) rsapms); // the pms and its indexes  
+  pms   : (pk:RSAKey.pk * cv:ProtocolVersion * (;pk,cv) PMS.rsapms); // the pms and its indexes  
   csr   : csrands;                                               // the nonces  
   creAlg: prfAlg;                                                // the PMS-PRF algorithm
   }
@@ -96,6 +96,7 @@ private val real_keyGen:
 //      { StatefulLHAE.History(ci.id_out,WriterState,w) = StatefulPlain.EmptyHistory(ci.id_out) /\
 //        StatefulLHAE.History(ci.id_out,ReaderState,r) = StatefulPlain.EmptyHistory(ci.id_in)}
 
+// TODO: adapt to use StAE's tight indexes instead of epochs.
 type keysentry = (e:epoch * e':epoch * ms:(;EpochSI(e)) masterSecret * bytes * (;e)StatefulLHAE.reader * (;e')StatefulLHAE.writer) 
 private val keyslog: keysentry list ref 
 val keysassoc: e:epoch -> e':epoch -> ms:(;EpochSI(e)) masterSecret -> bytes -> keysentry list -> ((;e)StatefulLHAE.reader * (;e')StatefulLHAE.writer) option

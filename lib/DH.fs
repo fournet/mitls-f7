@@ -37,7 +37,7 @@ let genKey p g: elt * secret =
     #endif
     (abytes e, Key (abytes x))
 
-let exp p g (gx:elt) (gy:elt) (Key x) : CRE.dhpms =
+let exp p g (gx:elt) (gy:elt) (Key x) : PMS.dhpms =
     let pms = abytes (CoreDH.agreement (dhparams p g) (cbytes x) (cbytes gy)) in
     //#begin-ideal
     #if ideal
@@ -47,11 +47,11 @@ let exp p g (gx:elt) (gy:elt) (Key x) : CRE.dhpms =
       match tryFind (fun el -> fst el=(gx,gy)) !log with
       | Some(_,pms) -> pms
       | None -> 
-                 let pms=CRE.sampleDH p g gx gy
+                 let pms=PMS.sampleDH p g gx gy
                  log := ((gx,gy),pms)::!log;
                  pms 
-    else CRE.coerceDH p g gx gy pms
+    else PMS.coerceDH p g gx gy pms
     //#end-ideal 
     #else
-    CRE.coerceDH p g gx gy pms
+    PMS.coerceDH p g gx gy pms
     #endif

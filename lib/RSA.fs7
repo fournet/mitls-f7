@@ -16,15 +16,15 @@ open RSAKey
 // http://www.iacr.org/archive/crypto2002/24420127/24420127.pdf   
 
 val encrypt: 
-  pk:pk -> cv:ProtocolVersion -> pms:(;pk,cv) CRE.rsapms -> 
-  b:bytes {CRE.EncryptedRSAPMS(pk,cv,pms,b)}
+  pk:pk -> cv:ProtocolVersion -> pms:(;pk,cv) PMS.rsapms -> 
+  b:bytes {PMS.EncryptedRSAPMS(pk,cv,pms,b)}
 
 val decrypt: 
   sk -> si:SessionInfo -> 
   cv:ProtocolVersion -> (* highest client version *) 
   bool -> (* flag whether we should check protocol version in old TLS versions *)
   bytes -> (* encrypted PMS *)
-  (;Cert.RSAPKCert(si.serverID),cv) CRE.rsapms (* no Result type: instead of an error, we return a fresh random PMS *)
+  (;Cert.RSAPKCert(si.serverID),cv) PMS.rsapms (* no Result type: instead of an error, we return a fresh random PMS *)
 
 // This is not just plain RSA_PKCS1 decryption.
 // We put in place timing attack countermeasures.
@@ -38,10 +38,10 @@ val decrypt:
 // Ideally, we add an indirection from a fresh dummy pms to the ideal pms (before encryption)
 // and we maintain a table to undo it (after concrete decryption)
 
-type entry = pk:pk * cv:ProtocolVersion * CRE.rsarepr * (;pk,cv) CRE.rsapms
+type entry = pk:pk * cv:ProtocolVersion * PMS.rsarepr * (;pk,cv) PMS.rsapms
 private val log: entry list ref 
 private val assoc: 
-  pk:RSAKey.pk -> pv:ProtocolVersion -> dummy_pms:bytes -> entry list -> (;pk,pv)CRE.rsapms option
+  pk:RSAKey.pk -> pv:ProtocolVersion -> dummy_pms:bytes -> entry list -> (;pk,pv)PMS.rsapms option
 
 // Concrete decryption with TLS-specific countermeasures against 
 // protocol regression, Bleichenbacher, and related timing attacks
@@ -50,7 +50,7 @@ private val real_decrypt:
   cv:ProtocolVersion -> (* highest client version *) 
   cv_check:bool -> (* flag whether we should check protocol version in old TLS versions *)
   ct:bytes -> (* encrypted PMS *)
-  pmsb:CRE.rsarepr { cv_check=true => ?b. pmsb= VersionBytes(cv) @| b} (* No Result type: in case of error, we return a fresh random PMS *)
+  pmsb:PMS.rsarepr { cv_check=true => ?b. pmsb= VersionBytes(cv) @| b} (* No Result type: in case of error, we return a fresh random PMS *)
 
 
 

@@ -227,6 +227,9 @@
     <None Include="Alert.fs7" />
     <Compile Include="Alert.fsi" />
     <Compile Include="Alert.fs" />
+    <None Include="PMS.fs7" />
+    <Compile Include="PMS.fsi" />
+    <Compile Include="PMS.fs" />
     <None Include="PRF.fs7" />
     <Compile Include="PRF.fsi" />
     <Compile Include="PRF.fs" />

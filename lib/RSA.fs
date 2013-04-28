@@ -17,7 +17,7 @@ open RSAKey
     The ideal pms is stored into a table during
     idealized encryption and read from the table during idealized decryption.
     This is only done when the cryptography warrants idealization,
-    as indicated by CRE.honestRSAPMS.
+    as indicated by PMS.honestRSAPMS.
     
     Taken on its own our assumption would be somewhat related to 
     RCCA security: http://eprint.iacr.org/2003/174.pdf. This would however still be 
@@ -30,7 +30,7 @@ open RSAKey
 #if ideal
 // We maintain a table from dummy_pms to ideal_pms.
 // (the protocolVersion can also be extracted from dummy_pms)
-type entry = pk * ProtocolVersion * CRE.rsarepr *  CRE.rsapms
+type entry = pk * ProtocolVersion * PMS.rsarepr *  PMS.rsapms
 let log = ref []
 #endif
 
@@ -45,17 +45,17 @@ let encrypt pk cv pms =
     //#begin-ideal1
     let plaintext = 
     #if ideal
-      if CRE.honestRSAPMS pk cv pms then
+      if PMS.honestRSAPMS pk cv pms then
         let dummy_pms = versionBytes cv @| random 46
         log := (pk,cv,dummy_pms,pms)::!log
         dummy_pms
       else
     #endif
-        CRE.leakRSA pk cv pms       
+        PMS.leakRSA pk cv pms       
     //#end-ideal1
     let ciphertext = abytes (CoreACiphers.encrypt_pkcs1 (RSAKey.repr_of_rsapkey pk) (cbytes plaintext))
     #if ideal
-    Pi.assume(CRE.EncryptedRSAPMS(pk,cv,pms,ciphertext))
+    Pi.assume(PMS.EncryptedRSAPMS(pk,cv,pms,ciphertext))
     #endif
     ciphertext
 
@@ -131,6 +131,6 @@ let decrypt (sk:RSAKey.sk) si cv check_client_version_in_pms_for_old_tls encPMS 
           | Some(ideal_pms) -> ideal_pms
           | None            -> 
         #endif
-            CRE.coerceRSA pk cv pmsb
+            PMS.coerceRSA pk cv pmsb
         //#end-ideal2
         

@@ -5,7 +5,7 @@ open TLSConstants
 open TLSInfo
 open TLSPRF
 open Error
-
+open PMS
 
 (*  extractMS is internal and extracts entropy from both rsapms and dhpms bytes 
 
@@ -31,45 +31,6 @@ let extractMS sinfo pmsBytes: PRF.masterSecret =
     let res = prf pv cs pmsBytes tls_master_secret data 48 in
     PRF.coerce sinfo res
 
-type rsarepr = bytes
-(*private*) type rsaseed = {seed: rsarepr}
-
-// To ideally avoid collisions concerns between Honest and Coerced pms we use a sum type. 
-type rsapms = 
-#if ideal 
-  | IdealRSAPMS of rsaseed 
-#endif
-  | ConcreteRSAPMS of rsarepr
-
-#if ideal
-//this predicate is used in RSA.encrypt to record the event that rsapms got encrypted
-type predicates = EncryptedRSAPMS of RSAKey.pk * ProtocolVersion * rsapms * bytes
-
-//this function is used to determine whether idealization should be performed
-let honestRSAPMS (pk:RSAKey.pk) (cv:TLSConstants.ProtocolVersion) pms = 
-  match pms with 
-  | IdealRSAPMS(s)    -> true
-  | ConcreteRSAPMS(s) -> false
-#endif 
-
-let genRSA (pk:RSAKey.pk) (vc:ProtocolVersion): rsapms = 
-    let verBytes = TLSConstants.versionBytes vc in
-    let rnd = random 46 in
-    let pms = verBytes @| rnd in
-    #if ideal
-      if RSAKey.honest pk then 
-        IdealRSAPMS({seed=pms}) 
-      else 
-    #endif
-        ConcreteRSAPMS(pms)  
-
-let coerceRSA (pk:RSAKey.pk) (cv:ProtocolVersion) b = ConcreteRSAPMS(b)
-let leakRSA (pk:RSAKey.pk) (cv:ProtocolVersion) pms = 
-  match pms with 
-  #if ideal
-  | IdealRSAPMS(_) -> Error.unexpected "pms is dishonest" //MK changed to unexpected from unreachable
-  #endif
-  | ConcreteRSAPMS(b) -> b 
 
 (*  Idealization strategy: to guarantee that in ideal world mastersecrets (ms) are completely random
     extractRSA samples a ms at radom when called first on arguments pk,cv,pms,csrands si. 
@@ -121,27 +82,10 @@ let extractRSA si (cv:ProtocolVersion) pms =
 // The trusted setup for Diffie-Hellman computations
 open DHGroup
 
-type dhrepr = bytes
-(*private*) type dhseed = {seed: dhrepr}
-
-// To ideally avoid collisions concerns between Honest and Coerced pms we use a sum type.
-type dhpms = 
-#if ideal 
-  | IdealDHPMS of dhseed 
-#endif
-  | ConcreteDHPMS of dhrepr
-
 #if ideal
-let honestDHPMS (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) pms = 
-  match pms with 
-  | IdealDHPMS(s)    -> true
-  | ConcreteDHPMS(s) -> false 
-
 // We maintain a log for looking up good ms values using their pms values
 type dhentry = p * g * elt * elt * dhpms * bytes * PRF.masterSecret
-
 let dhlog = ref []
-
 #endif
 
 let sampleDH p g (gx:DHGroup.elt) (gy:DHGroup.elt) = 

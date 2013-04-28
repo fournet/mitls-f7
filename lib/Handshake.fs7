@@ -186,13 +186,13 @@ val parseEncpmsVersion: pv:ProtocolVersion -> b:bytes ->
 // For the next two functions, the returned encpms is a ghost variable used to
 // avoid an existential.
 val clientKEXBytes_RSA: si:SessionInfo -> c:config ->
-	((b:bytes * pmsdata:TLSInfo.pmsData * pms:(;Cert.RSAPKCert(si.serverID),c.maxVer)CRE.rsapms){
+	((b:bytes * pmsdata:TLSInfo.pmsData * pms:(;Cert.RSAPKCert(si.serverID),c.maxVer)PMS.rsapms){
            ?encpms. pmsdata = RSAPMS(Cert.RSAPKCert(si.serverID),c.maxVer,encpms) /\
 		b=ClientKeyExchangeMsg_RSA(si.protocol_version,encpms)
 		}) Result
 val parseClientKEX_RSA: si:SessionInfo -> RSAKey.sk -> pv:ProtocolVersion -> config -> b:bytes ->
 	((pmsdata:TLSInfo.pmsData * 
-         (;Cert.RSAPKCert(si.serverID),pv)CRE.rsapms){
+         (;Cert.RSAPKCert(si.serverID),pv)PMS.rsapms){
            ?encpms. pmsdata = RSAPMS(Cert.RSAPKCert(si.serverID),pv,encpms) /\
      	            ClientKeyExchangeMsg_RSA(si.protocol_version,encpms) = MessageBytes(HT_client_key_exchange,b)
 	}) Result

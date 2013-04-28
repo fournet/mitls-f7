@@ -311,7 +311,7 @@ let clientKEXBytes_RSA si config =
         match Cert.get_chain_public_encryption_key si.serverID with
         | Error(x,y) -> Error(x,y)
         | Correct(pubKey) ->
-            let pms = CRE.genRSA pubKey config.maxVer in
+            let pms = PMS.genRSA pubKey config.maxVer in
             let encpms = RSA.encrypt pubKey config.maxVer pms in
             let nencpms = encpmsBytesVersion si.protocol_version encpms in
             let mex = messageBytes HT_client_key_exchange nencpms in
