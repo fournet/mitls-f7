@@ -135,7 +135,11 @@ type CoreCrypto () =
                 try
                     ignore (CoreCrypto.LoadProvider (name))
                 with CannotLoadProvider _ ->
+#if DEBUG
                     fprintfn stderr "cannot load crypto provider `%s'" name
+#else
+                    ()
+#endif
             in
                 Array.iter register1 providers
         in
