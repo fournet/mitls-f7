@@ -29,11 +29,6 @@ val length: b:bytes -> l:nat {Length(b) = l}
 
 type (;l:nat) lbytes = b:bytes {Length(b) = l}
 
-function val ListLength: 'a list -> nat
-assume ListLength(op_Nil()) = 0
-assume !x,y. ListLength(op_ColonColon(x,y)) = 1 + ListLength(y)
-assume !l. BLength(array_of_list(l)) = ListLength(l)
-
 val createBytes: l:int -> v:int { 0 <= v /\ v < 256 } -> (;l) lbytes
 
 val equalBytes: b0:bytes -> b1:bytes -> 
@@ -99,23 +94,6 @@ val iutf8: b:bytes -> s:string { b = Utf8(s) }
 
 // utf8 is injective
 assume !x:string, y:string. ( Utf8(x)=Utf8(y) => x = y )
-
-(* List operations *)
-
-// TODO usage? 
-function val Unfold: bytes * bytes list -> bytes
-function val UnfoldBack: bytes list * bytes -> bytes
-val fold:     (bytes -> bytes -> bytes) -> s:bytes -> bl:bytes list -> b:bytes{b=Unfold(s,bl)}
-val foldBack: (bytes -> bytes -> bytes) -> bl:bytes list -> s:bytes -> b:bytes{b=UnfoldBack(bl,s)}
-val filter: ('a -> bool) -> 'a list -> 'a list
-val exists: ('a -> bool) -> 'a list -> bool // CF Used parametrically in HS.
-val memr: 'a list -> 'a -> bool 
-val choose: ('a -> 'b option) -> 'a list -> 'b list // CF Not used parametrically in HS, but types are not defined here.
-val tryFind: ('a -> bool) -> 'a list -> 'a option
-val listLength: l:('a list) -> len:nat{ListLength(l)=len}
-val listHead: l:('a list){ListLength(l) > 0} -> 'a
-val find: ('a -> bool) -> 'a list -> 'a
-val map: ('a -> 'b) -> 'a list -> 'b list
 
 (* random bytes generation *)
 

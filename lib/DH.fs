@@ -13,8 +13,8 @@ type secret = Key of bytes
 let goodPP_log = ref []
 let honest_log = ref []
 let log = ref []
-let goodPP dhparams =  exists (fun el-> el = dhparams) !goodPP_log
-let honest gx = exists (fun el-> el = gx) !honest_log 
+let goodPP dhparams =  List.exists (fun el-> el = dhparams) !goodPP_log
+let honest gx = List.exists (fun el-> el = gx) !honest_log 
 #endif
 
 let private pp (pg:CoreKeys.dhparams) : p * g = 
@@ -44,7 +44,7 @@ let exp p g (gx:elt) (gy:elt) (Key x) : PMS.dhpms =
     if honest gy && honest gx && goodPP (p,g) 
     then 
     //MK should use assoc here
-      match tryFind (fun el -> fst el=(gx,gy)) !log with
+      match List.tryFind (fun el -> fst el=(gx,gy)) !log with
       | Some(_,pms) -> pms
       | None -> 
                  let pms=PMS.sampleDH p g gx gy

@@ -143,6 +143,9 @@
     <None Include="Bytes.fs7" />
     <Compile Include="Bytes.fsi" />
     <Compile Include="Bytes.fs" />
+    <None Include="List.fs7" />
+    <Compile Include="List.fsi" />
+    <Compile Include="List.fs" />
     <None Include="Tcp.fs7" />
     <Compile Include="Tcp.fsi" />
     <Compile Include="Tcp.fs" />

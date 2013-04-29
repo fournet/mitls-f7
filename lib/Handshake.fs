@@ -305,7 +305,7 @@ let parseEncpmsVersion version data =
         else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let clientKEXBytes_RSA si config =
-    if listLength si.serverID = 0 then
+    if List.listLength si.serverID = 0 then
         unexpected "[clientKEXBytes_RSA] Server certificate should always be present with a RSA signing cipher suite."
     else
         match Cert.get_chain_public_encryption_key si.serverID with
@@ -319,7 +319,7 @@ let clientKEXBytes_RSA si config =
             correct(mex,pmsdata,pms)
 
 let parseClientKEX_RSA si skey cv config data =
-    if listLength si.serverID = 0 then
+    if List.listLength si.serverID = 0 then
         unexpected "[parseClientKEX_RSA] when the ciphersuite can encrypt the PMS, the server certificate should always be set"
     else
         match parseEncpmsVersion si.protocol_version data with
@@ -379,12 +379,12 @@ let parseDigitallySigned expectedAlgs payload pv =
                 else Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "")
         else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
     | SSL_3p0 | TLS_1p0 | TLS_1p1 ->
-        if listLength expectedAlgs = 1 then
+        if List.listLength expectedAlgs = 1 then
             if length payload >= 2 then
                 match vlparse 2 payload with
                 | Error(x,y) -> Error(x,y)
                 | Correct(sign) ->
-                correct(listHead expectedAlgs,sign)
+                correct(List.listHead expectedAlgs,sign)
             else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
         else unexpected "[parseDigitallySigned] invoked with invalid SignatureAndHash algorithms"
 
@@ -1106,7 +1106,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                   else
                   // Check that the negotiated ciphersuite is in the proposed list.
                   // Note: if resuming a session, we still have to check that this ciphersuite is the expected one!
-                  if  (Bytes.memr state.poptions.ciphersuites sh_cipher_suite) = false
+                  if  (List.memr state.poptions.ciphersuites sh_cipher_suite) = false
                   then 
 (* KB #if avoid
                   failwith "does not typecheck for some silly reason"
@@ -1115,7 +1115,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
 (* KB #endif*)
                   else
                   // Check that the compression method is in the proposed list.
-                  if (Bytes.memr state.poptions.compressions sh_compression_method) = false
+                  if (List.memr state.poptions.compressions sh_compression_method) = false
                   then 
 (* KB #if avoid
                   failwith "does not typecheck for some silly reason"
@@ -1481,7 +1481,7 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs cvd svd
     let ext = extensionsBytes state.poptions.safe_renegotiation renInfo in
     let serverHelloB = serverHelloBytes si si.init_srand ext in
     let keyAlgs = sigHashAlg_bySigList certAlgs [sigAlg_of_ciphersuite si.cipher_suite] in
-    if listLength keyAlgs = 0 then
+    if List.listLength keyAlgs = 0 then
         Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "The client provided inconsistent signature algorithms and ciphersuites")
     else
     match Cert.for_signing certAlgs state.poptions.server_name keyAlgs with
@@ -1559,7 +1559,7 @@ let prepare_server_output_full ci state si cv cvd svd log =
 
 // The server "negotiates" its first proposal included in the client's proposal
 let negotiate cList sList =
-    Bytes.tryFind (fun s -> Bytes.exists (fun c -> c = s) cList) sList
+    List.tryFind (fun s -> List.exists (fun c -> c = s) cList) sList
 
 let prepare_server_output_resumption ci state crand si ms cvd svd log =
     let srand = Nonce.mkHelloRandom () in
@@ -1668,8 +1668,8 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         | Some sentry -> 
                             let (storedSinfo,storedMS)  = sentry in
                             if geqPV ch_client_version storedSinfo.protocol_version
-                              && Bytes.memr ch_cipher_suites storedSinfo.cipher_suite
-                              && Bytes.memr ch_compression_methods storedSinfo.compression 
+                              && List.memr ch_cipher_suites storedSinfo.cipher_suite
+                              && List.memr ch_compression_methods storedSinfo.compression 
                             then
                               (* Proceed with resumption *)
                               let state = prepare_server_output_resumption ci state ch_random storedSinfo storedMS cvd svd log in

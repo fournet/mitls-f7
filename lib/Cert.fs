@@ -320,7 +320,7 @@ let consCertificateBytes c a =
     cert @| a
 
 let certificateListBytes certs =
-    let unfolded = Bytes.foldBack consCertificateBytes certs empty_bytes in
+    let unfolded = List.foldBack consCertificateBytes certs empty_bytes in
     vlbytes 3 unfolded
 
 let rec parseCertificateList toProcess list =

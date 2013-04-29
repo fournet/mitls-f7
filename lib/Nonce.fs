@@ -15,7 +15,7 @@ let rec mkHelloRandom(): bytes =
     let Cr = timestamp() @| random 28
     //#begin-idealization
     #if ideal
-    if memr !log Cr then 
+    if List.memr !log Cr then 
         mkHelloRandom () // we formally retry to exclude collisions.
     else 
         log := Cr::!log

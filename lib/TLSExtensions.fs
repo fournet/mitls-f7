@@ -82,8 +82,8 @@ let parseExtensions data =
             | Correct(extList) ->
                 (* Check there is at most one renegotiation_info extension *)
                 // FIXME: Currently only working for renegotiation extension. Check that each extension appears only once
-                let ren_ext_list = Bytes.filter (isExtensionType HExt_renegotiation_info) extList in
-                if listLength ren_ext_list > 1 then
+                let ren_ext_list = List.filter (isExtensionType HExt_renegotiation_info) extList in
+                if List.listLength ren_ext_list > 1 then
                     Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Same extension received more than once")
                 else
                     correct(ren_ext_list)
@@ -100,30 +100,30 @@ let checkClientRenegotiationInfoExtension (ren_ext_list:(extensionType * bytes) 
     if equalBytes expected empty_bytes 
     then  
         (* First handshake *)
-        if listLength ren_ext_list = 0 
+        if List.listLength ren_ext_list = 0 
         then has_SCSV
             (* either client gave SCSV and no extension; this is OK for first handshake *)
             (* or the client doesn't support this extension and we fail *)
         else
-            let ren_ext = listHead ren_ext_list in
+            let ren_ext = List.listHead ren_ext_list in
             let (extType,payload) = ren_ext in
             check_reneg_info payload expected
     else
         (* Not first handshake *)
-        if has_SCSV || (listLength ren_ext_list = 0) then false
+        if has_SCSV || (List.listLength ren_ext_list = 0) then false
         else
-            let ren_ext = listHead ren_ext_list in
+            let ren_ext = List.listHead ren_ext_list in
             let (extType,payload) = ren_ext in
             check_reneg_info payload expected
 
 let inspect_ServerHello_extensions (extList:(extensionType * bytes) list) expected =
     // FIXME: Only works for renegotiation info at the moment
     (* We expect to find exactly one extension *)
-    match listLength extList with
+    match List.listLength extList with
     | 0 -> Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Not enough extensions given")
     | x when x <> 1 -> Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Too many extensions given")
     | _ ->
-        let (extType,payload) = listHead extList in
+        let (extType,payload) = List.listHead extList in
         match extType with
         | HExt_renegotiation_info ->
             (* Check its content *)
@@ -193,10 +193,10 @@ let default_sigHashAlg pv cs =
     default_sigHashAlg_fromSig pv (sigAlg_of_ciphersuite cs)
 
 let sigHashAlg_contains (algList:Sig.alg list) (alg:Sig.alg) =
-    Bytes.exists (fun a -> a = alg) algList
+    List.exists (fun a -> a = alg) algList
 
 let sigHashAlg_bySigList (algList:Sig.alg list) (sigAlgList:sigAlg list):Sig.alg list =
-    Bytes.choose (fun alg -> let (sigA,_) = alg in if (Bytes.exists (fun a -> a = sigA) sigAlgList) then Some(alg) else None) algList
+    List.choose (fun alg -> let (sigA,_) = alg in if (List.exists (fun a -> a = sigA) sigAlgList) then Some(alg) else None) algList
 
 let cert_type_to_SigHashAlg ct pv =
     match ct with

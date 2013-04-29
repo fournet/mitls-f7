@@ -157,39 +157,4 @@ let split2 (b:bytes) i j : bytes * bytes * bytes =
 let utf8 (x:string) : bytes = abytes (System.Text.Encoding.UTF8.GetBytes x)
 let iutf8 (x:bytes) : string = System.Text.Encoding.UTF8.GetString (cbytes x)
 
-(* List operation functions. Currently only used by the Handshake. *)
-let fold (op: bytes-> bytes-> bytes) state data = List.fold op state data
-let filter f l = List.filter f l
-let foldBack (f:bytes -> bytes -> bytes) bl s = List.foldBack f bl s
-let exists f l = List.exists f l
-let memr l x = List.exists (fun y -> x = y) l
-let choose f l = List.choose f l
-let tryFind f l = List.tryFind f l
-#if ideal
-let find f l = List.find f l
-// MK what is the right assoc function? 
-let rec assoc f l =
-    match l with
-      | (f',l')::_ when f=f' -> Some (f)
-      | _::l                   -> assoc f l
-      | []                       -> None
-let rec assoc2_1 (f1,f2) l =
-    match l with
-      | (f1',f2',v)::_ when f1=f1' && f2=f2' -> Some (v)
-      | _::l                   -> assoc2_1 (f1,f2) l
-      | []                       -> None
-      
-// MK what is the right mem function?
-let mem x l = List.exists (fun y -> x = y) l
-let map f l = List.map f l
-
-#endif
-let listLength (l:'a list) = l.Length
-let listHead (l:'a list) = l.Head
-
-let isSome (l:'a option) = 
-  match l with
-      Some(x) -> true
-    | None -> false
-
 let random (n:nat) = abytes (CoreRandom.random n)

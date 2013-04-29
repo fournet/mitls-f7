@@ -57,10 +57,10 @@ let rec pk_of_log sk hll =
 *)
 
 let pk_of (sk:skey) =  
-    let _,_,pk = (find (fun (_,sk',_) -> sk=sk') !honest_log )  
+    let _,_,pk = (List.find (fun (_,sk',_) -> sk=sk') !honest_log )  
     pk
 
-let honest a pk = exists (fun (a',_,pk') -> a=a' && pk=pk') !honest_log 
+let honest a pk = List.exists (fun (a',_,pk') -> a=a' && pk=pk') !honest_log 
 let strong a = if a=(SA_DSA ,SHA384) then true else false
 #endif
 
@@ -139,7 +139,7 @@ let verify (a : alg) (pk : pkey) (t : text) (s : sigv) =
             CoreSig.verify None kparams (cbytes t) s
     #if ideal //#begin-idealization
     let result = if strong a && honest a pk  
-                    then result && memr !log (a,pk,t)
+                    then result && List.memr !log (a,pk,t)
                     else result 
     #endif //#end-idealization
     result
