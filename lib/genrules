@@ -102,7 +102,9 @@ clean:
 	rm -f *.smp *.tc7
 
 regen:
-	./genrules -I ../CoreCrypto/CoreCrypto.fsproj lib.fsproj > Makefile
+	./genrules -I ../CoreCrypto/CoreCrypto.fsproj lib.fsproj > Makefile.tls-lib.$$ \\
+	  || { rm -f Makefile.tls-lib.$$; false; }
+	mv Makefile.tls-lib.$$ Makefile
 ''' % dict(fs7default = ' '.join([x + '.tc7' for x in FS7DEFAULT]))
 
 # --------------------------------------------------------------------
