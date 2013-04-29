@@ -5,6 +5,7 @@
    but we trust its System.Data.SQLite implementation *)
 
 open Bytes
+open Date
 open TLSInfo
 
 predicate Authorize of Role * SessionInfo

@@ -8,8 +8,7 @@ let log = ref []
 
 open System
 
-let dawn = new System.DateTime(1970, 1, 1)
-let timestamp () = bytes_of_int 4 ((int32) (DateTime.UtcNow - dawn).TotalSeconds)
+let timestamp () = bytes_of_int 4 (Date.secondsFromDawn ())
 
 
 let rec mkHelloRandom(): bytes =

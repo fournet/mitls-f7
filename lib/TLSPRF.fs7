@@ -7,7 +7,7 @@ open Bytes
 open TLSConstants
 
 (* Verify data *)
-val ssl_verifyData : bytes -> bytes  -> bytes -> (;12)lbytes
+val ssl_verifyData : bytes -> bytes  -> bytes -> (;36)lbytes
 val tls_verifyData : bytes -> string -> bytes -> (;12)lbytes
 val tls12VerifyData: cipherSuite -> bytes -> string -> bytes -> bytes
 

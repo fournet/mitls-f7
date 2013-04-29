@@ -36,7 +36,7 @@ let tlsoptions sessionDBDir serverName clientName = {
     TLSInfo.client_name = match clientName with | None -> "" | Some(name) -> name
 
     TLSInfo.sessionDBFileName = Path.Combine(sessionDBDir, "sessionDBFile.bin")
-    TLSInfo.sessionDBExpiry = Bytes.newTimeSpan 1 0 0 0 (* one day *)
+    TLSInfo.sessionDBExpiry = Date.newTimeSpan 1 0 0 0 (* one day *)
 }
 
 type options = {

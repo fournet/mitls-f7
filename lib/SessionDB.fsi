@@ -1,6 +1,7 @@
 ﻿module SessionDB
 
 open TLSInfo
+open Date
 
 //CF type SessionIndex = sessionID * Role * Cert.hint
 //CF flattened for simpler refinements 

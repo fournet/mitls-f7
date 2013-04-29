@@ -33,6 +33,7 @@
 *)
 
 open Bytes
+open Date
 open TLSConstants
 
 type sessionID = b:bytes {Length(b) <= 32}

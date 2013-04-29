@@ -100,15 +100,6 @@ val iutf8: b:bytes -> s:string { b = Utf8(s) }
 // utf8 is injective
 assume !x:string, y:string. ( Utf8(x)=Utf8(y) => x = y )
 
-(* Time spans *)
-
-type DateTime
-type TimeSpan
-val now: unit -> DateTime
-val newTimeSpan: nat -> nat -> nat -> nat -> TimeSpan
-val addTimeSpan: DateTime -> TimeSpan -> DateTime
-val greaterDateTime: DateTime -> DateTime -> bool
-
 (* List operations *)
 
 // TODO usage? 

@@ -2,6 +2,7 @@
 
 open Bytes
 open TLSInfo
+open Date
 
 (* ------------------------------------------------------------------------------- *)
 type StorableSession = SessionInfo * PRF.masterSecret
@@ -36,7 +37,7 @@ open System.Runtime.Serialization.Formatters.Binary
 
 type t = {
     filename: string;
-    expiry: Bytes.TimeSpan;
+    expiry: TimeSpan;
 }
 
 (* ------------------------------------------------------------------------------- *)
@@ -97,9 +98,9 @@ let select self sid role hint =
 
     let select (db : DB.db) =
         let filter_record ((sinfo, ts) : StorableSession * _) =
-            let expires = Bytes.addTimeSpan ts self.expiry in
+            let expires = addTimeSpan ts self.expiry in
 
-            if Bytes.greaterDateTime expires (Bytes.now()) then
+            if greaterDateTime expires (now()) then
                 Some sinfo
             else
                 ignore (DB.remove db key);
@@ -123,7 +124,7 @@ let insert self sid role hint value =
     let insert (db : DB.db) =
         match DB.get db key with
         | Some _ -> ()
-        | None   -> DB.put db key (bytes_of_value (value, Bytes.now ())) in
+        | None   -> DB.put db key (bytes_of_value (value, now ())) in
     let db = DB.opendb self.filename in
     try
         DB.tx db insert; self

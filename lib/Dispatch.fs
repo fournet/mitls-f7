@@ -481,7 +481,7 @@ let rec writeAllTop conn ghr ghf ghs =
     | (WAppDataDone,conn) -> (WAppDataDone,conn)
     | (WriteAgainFinishing,conn) ->
         let (Conn(id,s)) = conn in
-        writeAllFinishing (Conn(id,s)) ghr ghf ghs
+        writeAllFinishing conn ghr ghf ghs
     | (WriteAgain,conn) ->
         let (Conn(id,s)) = conn in
         writeAllTop (Conn(id,s)) ghr ghf ghs

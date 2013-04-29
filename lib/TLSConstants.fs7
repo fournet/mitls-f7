@@ -464,7 +464,7 @@ definition !a,mac,alg.
 	( a = MtE(CBC_Stale(alg),mac)
 	 => KeyDerivationIVSize_AEAlg(a)= BlockSize(alg) )
 
-ask !mac. TLSConstants.KeyDerivationIVSize_AEAlg(MtE(Stream_RC4_128,mac))=0
+ask !mac. KeyDerivationIVSize_AEAlg(MtE(Stream_RC4_128,mac))=0
 
 
 //MK This function needs to be further annotated to make PRF typecheck.  
@@ -474,7 +474,7 @@ function val KeyExtensionLength: ProtocolVersion * cipherSuite -> nat
 
 (* MK switched from this to a partial definition style recommended by AP
 definition !cs,pv,mac,enc,cipher,n. KeyExtensionLength(pv,cs)=n <=>
-    ( CipherSuiteAuthEncAlg(cs,pv) = TLSConstants.MACOnly(mac) => n = 2*TLSConstants.MacKeySize(mac) ) /\ 
+    ( CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) => n = 2*MacKeySize(mac) ) /\ 
     ( CipherSuiteAuthEncAlg(cs,pv) = MtE(Stream_RC4_128,mac)  => n = 2* ( MacKeySize(mac) + EncKeySize(Stream_RC4_128) ) ) /\
     ( CipherSuiteAuthEncAlg(cs,pv) = MtE(enc,mac) => enc=CBC_Fresh(cipher) /\ n = 2*( MacKeySize(mac) + EncKeySize(enc) ) )
 *)

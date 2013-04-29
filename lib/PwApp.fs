@@ -44,7 +44,7 @@ let config (servname : string) = {
     TLSInfo.client_name = ""
 
     TLSInfo.sessionDBFileName = "sessionDBFile.bin"
-    TLSInfo.sessionDBExpiry = Bytes.newTimeSpan 1 0 0 0 (* one day *)
+    TLSInfo.sessionDBExpiry = Date.newTimeSpan 1 0 0 0 (* one day *)
 }
 
 // ------------------------------------------------------------------------

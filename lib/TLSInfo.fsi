@@ -1,6 +1,7 @@
 ﻿module TLSInfo
 
 open Bytes
+open Date
 open TLSConstants
 
 
