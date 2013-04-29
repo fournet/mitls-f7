@@ -136,7 +136,7 @@ let verify (a : alg) (pk : pkey) (t : text) (s : sigv) =
         | SHA384  -> CoreSig.verify (Some CoreSig.SH_SHA384) kparams t s
         | MD5SHA1 ->
             let t = HASH.hash MD5SHA1 t' in
-            CoreSig.verify None kparams (cbytes t') s
+            CoreSig.verify None kparams (cbytes t) s
     #if ideal //#begin-idealization
     let result = if strong a && honest a pk  
                     then result && memr !log (a,pk,t)
