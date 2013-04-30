@@ -24,7 +24,7 @@ val decrypt:
   cv:ProtocolVersion -> (* highest client version *) 
   bool -> (* flag whether we should check protocol version in old TLS versions *)
   bytes -> (* encrypted PMS *)
-  (;Cert.RSAPKCert(si.serverID),cv) PMS.rsapms (* no Result type: instead of an error, we return a fresh random PMS *)
+  (;Cert.RSAPKCert(si.serverID),cv) PMS.rsapms (* no Result type: instead of an error, we return a fresh Nonce.random PMS *)
 
 // This is not just plain RSA_PKCS1 decryption.
 // We put in place timing attack countermeasures.
@@ -50,7 +50,7 @@ private val real_decrypt:
   cv:ProtocolVersion -> (* highest client version *) 
   cv_check:bool -> (* flag whether we should check protocol version in old TLS versions *)
   ct:bytes -> (* encrypted PMS *)
-  pmsb:PMS.rsarepr { cv_check=true => ?b. pmsb= VersionBytes(cv) @| b} (* No Result type: in case of error, we return a fresh random PMS *)
+  pmsb:PMS.rsarepr { cv_check=true => ?b. pmsb= VersionBytes(cv) @| b} (* No Result type: in case of error, we return a fresh Nonce.random PMS *)
 
 
 
@@ -63,7 +63,7 @@ private val real_decrypt:
  
  let sk, pk = keyGen() // sk is private  
  
- let sample v = v @| random 46
+ let sample v = v @| Nonce.random 46
  
  let compliantClient a v Cr Sr = 
    // a determines the prf algorithm 

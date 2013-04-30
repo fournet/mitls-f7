@@ -4,6 +4,8 @@
 
 open Bytes
 
+val random: n:nat -> (;n)lbytes
+
 val mkHelloRandom: unit -> b:(;32)lbytes
 
 private val log: (;32) lbytes list ref 

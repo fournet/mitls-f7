@@ -95,6 +95,3 @@ val iutf8: b:bytes -> s:string { b = Utf8(s) }
 // utf8 is injective
 assume !x:string, y:string. ( Utf8(x)=Utf8(y) => x = y )
 
-(* random bytes generation *)
-
-val random: n:nat -> b:bytes {Length(b)=n}

@@ -31,5 +31,3 @@ val split2: bytes -> int -> int -> (bytes * bytes * bytes)
 (* strings *)
 val utf8: string -> bytes
 val iutf8: bytes -> string
-
-val random: nat -> bytes

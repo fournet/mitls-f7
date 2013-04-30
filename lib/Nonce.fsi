@@ -2,7 +2,5 @@
 
 open Bytes
 
-#if false
-val mkRandom: int -> bytes
-#endif
+val random: nat -> bytes
 val mkHelloRandom: unit -> bytes

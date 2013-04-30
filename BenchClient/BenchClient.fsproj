@@ -70,6 +70,11 @@
       <Project>{db787d27-c33e-4d14-bf2c-b92cbdbf0c54}</Project>
       <Private>True</Private>
     </ProjectReference>
+    <ProjectReference Include="..\Platform\Platform.fsproj">
+      <Name>Platform</Name>
+      <Project>{408e6f53-363a-4c58-9808-84a0b526324b}</Project>
+      <Private>True</Private>
+    </ProjectReference>
     <ProjectReference Include="..\TLSharp\TLSharp.fsproj">
       <Name>TLSharp</Name>
       <Project>{bdba21eb-cb44-435b-bf9a-c9393ad2a613}</Project>

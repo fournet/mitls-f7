@@ -45,7 +45,7 @@ let coerce (si:SessionInfo) b = {bytes = b}
 //#end-coerce
 
 #if ideal
-let sample (si:SessionInfo)   = {bytes = random 48}
+let sample (si:SessionInfo)   = {bytes = Nonce.random 48}
 #endif
 
 

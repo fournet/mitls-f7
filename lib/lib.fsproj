@@ -134,21 +134,6 @@
     <Content Include="README.txt" />
     <Content Include="CodeReview.txt" />
     <Compile Include="pi.fs" />
-    <None Include="Error.fs7" />
-    <Compile Include="Error.fsi" />
-    <Compile Include="Error.fs" />
-    <None Include="Date.fs7" />
-    <Compile Include="Date.fsi" />
-    <Compile Include="Date.fs" />
-    <None Include="Bytes.fs7" />
-    <Compile Include="Bytes.fsi" />
-    <Compile Include="Bytes.fs" />
-    <None Include="List.fs7" />
-    <Compile Include="List.fsi" />
-    <Compile Include="List.fs" />
-    <None Include="Tcp.fs7" />
-    <Compile Include="Tcp.fsi" />
-    <Compile Include="Tcp.fs" />
     <None Include="Nonce.fs7" />
     <Compile Include="Nonce.fsi" />
     <Compile Include="Nonce.fs" />
@@ -296,6 +281,11 @@
     <ProjectReference Include="..\DB\DB.fsproj">
       <Name>DB</Name>
       <Project>{cad78b05-0adc-433b-954b-1f31fc6477f6}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\Platform\Platform.fsproj">
+      <Name>Platform</Name>
+      <Project>{408e6f53-363a-4c58-9808-84a0b526324b}</Project>
       <Private>True</Private>
     </ProjectReference>
   </ItemGroup>

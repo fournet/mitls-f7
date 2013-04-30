@@ -30,7 +30,7 @@ let honestRSAPMS (pk:RSAKey.pk) (cv:TLSConstants.ProtocolVersion) pms =
 
 let genRSA (pk:RSAKey.pk) (vc:ProtocolVersion): rsapms = 
     let verBytes = TLSConstants.versionBytes vc in
-    let rnd = random 46 in
+    let rnd = Nonce.random 46 in
     let pms = verBytes @| rnd in
     #if ideal
       if RSAKey.honest pk then 

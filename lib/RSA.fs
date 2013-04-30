@@ -46,7 +46,7 @@ let encrypt pk cv pms =
     let plaintext = 
     #if ideal
       if PMS.honestRSAPMS pk cv pms then
-        let dummy_pms = versionBytes cv @| random 46
+        let dummy_pms = versionBytes cv @| Nonce.random 46
         log := (pk,cv,dummy_pms,pms)::!log
         dummy_pms
       else
@@ -85,7 +85,7 @@ let encrypt pk cv pms =
 let real_decrypt dk si cv cvCheck ciphertext =
   (* Security measures described in RFC 5246, section 7.4.7.1 *)
   (* 1. Generate 46 random bytes, for fake PMS except client version *)
-  let fakepms = random 46 in
+  let fakepms = Nonce.random 46 in
   let expected = versionBytes cv in
   (* 2. Decrypt the message to recover plaintext *)
   match Option.map abytes (CoreACiphers.decrypt_pkcs1 (RSAKey.repr_of_rsaskey dk) (cbytes ciphertext)) with

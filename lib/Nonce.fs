@@ -10,6 +10,7 @@ open System
 
 let timestamp () = bytes_of_int 4 (Date.secondsFromDawn ())
 
+let random (n:nat) = abytes (CoreRandom.random n)
 
 let rec mkHelloRandom(): bytes =
     let Cr = timestamp() @| random 28

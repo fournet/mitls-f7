@@ -40,15 +40,15 @@ let GENOne ki =
     let alg = encAlg_of_ciphersuite si.cipher_suite si.protocol_version in
     match alg with
     | Stream_RC4_128 ->
-        let k = random (encKeySize alg) in
+        let k = Nonce.random (encKeySize alg) in
         let key = {k = k} in
         StreamCipher({skey = key; sstate = CoreCiphers.rc4create (cbytes k)})
     | CBC_Stale(cbc) ->
-        let key = {k = random (encKeySize alg)}
-        let iv = SomeIV(random (blockSize cbc))
+        let key = {k = Nonce.random (encKeySize alg)}
+        let iv = SomeIV(Nonce.random (blockSize cbc))
         BlockCipher ({key = key; iv = iv})
     | CBC_Fresh(_) ->
-        let key = {k = random (encKeySize alg)}
+        let key = {k = Nonce.random (encKeySize alg)}
         let iv = NoIV
         BlockCipher ({key = key; iv = iv})
 
@@ -111,7 +111,7 @@ let ENC_int ki s tlen d =
         | SomeIV(b) -> unexpected "[ENC] Wrong combination of cipher algorithm and state"
         | NoIV   ->
             let ivl = blockSize alg in
-            let iv = random ivl in
+            let iv = Nonce.random ivl in
             let cipher = cbcenc alg s.key.k iv d
             let res = iv @| cipher in
             if length res <> tlen || tlen > max_TLSCipher_fragment_length then

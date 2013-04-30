@@ -76,7 +76,7 @@ let GEN ki =
     else                   
     #endif
     let a = macAlg_of_ciphersuite si.cipher_suite si.protocol_version in
-    KeyNoAuth(random (macKeySize (a)))
+    KeyNoAuth(Nonce.random (macKeySize (a)))
 
 let COERCE (ki:epoch) k = KeyNoAuth(k)  
 let LEAK (ki:epoch) k = 
