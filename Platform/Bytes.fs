@@ -47,7 +47,7 @@ type bytes =
     length: int;
     index: int;
     } 
-    override x.Equals(y) = (match y with :? bytes as y -> equalCBytes (getBytes x.bl x.index x.length) (getBytes y.bl y.index y.length) | _ -> false)
+    override x.Equals(y) = (match y with :? bytes as y -> (getBytes x.bl x.index x.length) = (getBytes y.bl y.index y.length) | _ -> false)
     override x.GetHashCode() = hash (getBytes x.bl x.index x.length)
 
 
