@@ -35,7 +35,7 @@ let rec getBytes (bl:byte[] list) i n  = match bl with
         else let curr = h.Length - i in
              if curr >= n
              then Array.sub h i n 
-             else Array.append (Array.sub h i curr) (getBytes 0 (n-curr) t)
+             else Array.append (Array.sub h i curr) (getBytes t 0 (n-curr))
 
 let cbyte (b:bytes) = if b.length = 1 then getByte b.bl b.index else failwith "cbyte: expected an array of length 1"
 let cbyte2 (b:bytes) = if b.length = 2 then getByte2 b.bl b.index else failwith "cbyte2: expected an array of length 2"
@@ -85,7 +85,7 @@ let createBytes len (value:int) : bytes =
     with :? System.OverflowException -> failwith "Default integer for createBytes was greater than max_value"
 
 #else
-
+//#if false
 
 (* Original implementation of bytes *)
 type bytes = {b:byte[]}
