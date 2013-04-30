@@ -1,5 +1,7 @@
 ﻿module List
 
+open Bytes
+
 function val ListLength: 'a list -> nat
 assume ListLength(op_Nil()) = 0
 assume !x,y. ListLength(op_ColonColon(x,y)) = 1 + ListLength(y)

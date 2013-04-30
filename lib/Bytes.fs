@@ -127,7 +127,7 @@ let bytes_of_int nb i =
     abytes(put_bytes b nb i)
 
 let int_of_bytes (b:bytes) : int =
-    List.fold (fun x y -> 256 * x + y) 0 (List.map (int) (Array.toList (cbytes b)))
+    Microsoft.FSharp.Collections.List.fold (fun x y -> 256 * x + y) 0 (Microsoft.FSharp.Collections.List.map (int) (Array.toList (cbytes b)))
 
 //@ Constant time comparison (to mitigate timing attacks)
 //@ The number of byte comparisons depends only on the lengths of both arrays.
