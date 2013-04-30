@@ -19,17 +19,19 @@ let rec getByte (bl:byte[] list) (i:int) =
    | h::t when i >= h.Length -> getByte t (i-h.Length)
    | h::t -> Array.get h i
         
-let rec getByte2 (bl: byte[] list) i : byte*byte = match bl with
-        [] -> failwith "array out of bounds" 
-       |h::t when i >= h.Length -> getByte2 t (i - h.Length)
-       |h::t when h.Length - i >= 2 -> Array.get h i, Array.get h (i+1)
-       |h1::h2::t when h1.Length - i = 1 && h2.Length > 0 -> Array.get h1 i, Array.get h2 0
-       | _ -> failwith "getByte2: array out of bounds"        
+let rec getByte2 (bl: byte[] list) i : byte*byte = 
+    match bl with
+     [] -> failwith "array out of bounds" 
+   | h::t when i >= h.Length -> getByte2 t (i - h.Length)
+   | h::t when h.Length - i >= 2 -> Array.get h i, Array.get h (i+1)
+   | h1::h2::t when h1.Length - i = 1 && h2.Length > 0 -> Array.get h1 i, Array.get h2 0
+   | _ -> failwith "getByte2: array out of bounds"        
        
 
-let rec getBytes (bl:byte[] list) i n  = match bl with
-        [] -> if n > 0 then failwith "getBytes: array out of bounds" else [||]
-       |h::t -> 
+let rec getBytes (bl:byte[] list) i n  = 
+    match bl with
+     [] -> if n > 0 then failwith "getBytes: array out of bounds" else [||]
+   | h::t -> 
         if i >= h.Length 
         then getBytes t (i-h.Length) n  
         else let curr = h.Length - i in
