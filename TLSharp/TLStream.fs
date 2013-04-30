@@ -176,9 +176,10 @@ type TLStream(s:System.IO.Stream, options, b, ?own) =
             count
 
     override this.Write(buffer,offset,count) =
-        let data = createBytes count 0 in
-        Array.blit buffer offset (cbytes data) 0 count
-        outbuf <- data
+        let data = Array.create count (byte 0) in
+        Array.blit buffer offset data 0 count
+        let b = abytes data in
+        outbuf <- b
         this.Flush ()
 
     override this.Close() =

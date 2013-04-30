@@ -448,7 +448,7 @@ let parseServerKeyExchange_DH_anon payload =
     match parseDHEParams payload with
     | Error(x,y) -> Error(x,y)
     | Correct(p,g,y,rem) ->
-        if equalBytes rem empty_bytes then
+        if length  rem = 0 then
             correct(p,g,y)
         else
             Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
@@ -691,7 +691,7 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     let si = epochSI(ci.id_out) in // or equivalently ci.id_in
     let sidOp = si.sessionID in
     match sidOp with
-    | xx when xx = empty_bytes -> (* Non resumable session, let's do a full handshake *)
+    | xx when length xx = 0 -> (* Non resumable session, let's do a full handshake *)
         rehandshake ci state ops
     | sid ->
         let sDB = SessionDB.create ops in
@@ -747,7 +747,7 @@ let invalidateSession ci state =
     else
         let si = epochSI(ci.id_in) // FIXME: which epoch to choose? Here it matters since they could be mis-aligned
         match si.sessionID with
-        | xx when xx = empty_bytes -> state
+        | xx when length xx = 0 -> state
         | sid ->
             let hint = getPrincipal ci state
             let sdb = SessionDB.remove state.sDB sid ci.role hint in
@@ -772,7 +772,7 @@ let check_negotiation (r:Role) (si:SessionInfo) (c:config) =
 
 let next_fragment ci state =
     match state.hs_outgoing with
-    | xx when xx = empty_bytes ->
+    | xx when length xx = 0 ->
         match state.pstate with
         | PSClient(cstate) ->
             match cstate with
@@ -842,7 +842,7 @@ let next_fragment ci state =
     | outBuf ->
         let (rg,f,remBuf) = makeFragment ci.id_out outBuf in
         match remBuf with
-        | xx when xx = empty_bytes ->
+        | xx when length xx = 0 ->
             match state.pstate with
             | PSClient(cstate) ->
                 match cstate with
@@ -861,7 +861,7 @@ let next_fragment ci state =
             | PSServer(sstate) ->
                 match sstate with
                 | ServerWritingFinished(si,ms,e,cvd,svd) ->
-                    if equalBytes si.sessionID empty_bytes then
+                    if length si.sessionID = 0 then
                       check_negotiation Server si state.poptions;
                       OutComplete(rg,f,
                                   {state with hs_outgoing = remBuf
@@ -1146,7 +1146,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     else
                         // RFC Sec 7.4.1.4: with no safe renegotiation, we never send extensions; if the server sent any extension
                         // we MUST abort the handshake with unsupported_extension fatal alter (handled by the dispatcher)
-                        if (equalBytes sh_neg_extensions empty_bytes) = false
+                        if (length sh_neg_extensions = 0) = false
                         then Error(AD_unsupported_extension, perror __SOURCE_FILE__ __LINE__ "The server gave an unknown extension")
                         else let unitVal = () in correct (unitVal)
                   match safe_reneg_result with
@@ -1159,7 +1159,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     | Correct _ ->
                         // Log the received message.
                         (* Check whether we asked for resumption *)
-                        if equalBytes sid empty_bytes then
+                        if length sid = 0 then
                             (* we did not request resumption, do a full handshake *)
                             (* define the sinfo we're going to establish *)
                             let next_pstate = on_serverHello_full ci crand log to_log shello in
@@ -1366,7 +1366,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
         | HT_server_hello_done ->
             match cState with
             | CertificateRequestRSA(si,log) ->
-                if equalBytes payload empty_bytes then     
+                if length payload = 0 then     
                     (* Log the received packet *)
                     let log = log @| to_log in
 
@@ -1380,7 +1380,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 else
                     InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
             | ServerHelloDoneRSA(si,skey,log) ->
-                if equalBytes payload empty_bytes then
+                if length payload = 0 then
                     (* Log the received packet *)
                     let log = log @| to_log in
 
@@ -1394,7 +1394,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 else
                     InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
             | CertificateRequestDHE(si,p,g,y,log) | ServerHelloDoneDH_anon(si,p,g,y,log) ->
-                if equalBytes payload empty_bytes then
+                if length payload = 0 then
                     (* Log the received packet *)
                     let log = log @| to_log in
 
@@ -1408,7 +1408,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 else
                     InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
             | ServerHelloDoneDHE(si,skey,p,g,y,log) ->
-                if equalBytes payload empty_bytes then
+                if length  payload = 0 then
                     (* Log the received packet *)
                     let log = log @| to_log in
 
@@ -1429,7 +1429,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             | ServerFinished(si,ms,e,cvd,log) ->
                 if PRF.checkVerifyData si ms Server log payload then
                     let sDB = 
-                        if equalBytes si.sessionID empty_bytes then state.sDB
+                        if length  si.sessionID = 0 then state.sDB
                         else SessionDB.insert state.sDB si.sessionID Client state.poptions.server_name (si,ms)
                     check_negotiation Client si state.poptions;
                     InComplete({state with pstate = PSClient(ClientIdle(cvd,payload)); sDB = sDB})
@@ -1658,7 +1658,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 match extRes with
                 | Error(x,y) -> InError(x,y,state)
                 | Correct(state) ->
-                    if equalBytes ch_session_id empty_bytes 
+                    if length  ch_session_id = 0 
                     then 
                         (* Client asked for a full handshake *)
                         match startServerFull ci state cHello cvd svd log with 

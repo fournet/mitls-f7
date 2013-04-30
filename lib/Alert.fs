@@ -132,7 +132,7 @@ let send_alert (ci:ConnectionInfo) state alertDesc =
     (* Note: we only support sending one alert in the whole protocol execution
        (because we'll tell dispatch an alert has been sent when the buffer gets empty)
        So we only add an alert on an empty buffer (we don't enqueue more alerts) *)
-    if equalBytes state.al_outgoing empty_bytes then
+    if length  state.al_outgoing = 0 then
         {state with al_outgoing = alertBytes alertDesc}
     else
         state (* Just ignore the request *)
@@ -157,7 +157,7 @@ let next_fragment ci state =
         let ((r0,df),rem) = makeFragment ci.id_out d in
         let state = {state with al_outgoing = rem} in
         match rem with
-        | x when x = empty_bytes ->
+        | x when length x = 0 ->
             // FIXME: This hack is not even working, because if we do one-bye fragmentation parseAlert fails!
             match parseAlert d with
             | Error(x,y) -> unexpected ("[next_fragment] This invocation of parseAlertDescription should never fail")
@@ -183,7 +183,7 @@ let recv_fragment (ci:ConnectionInfo) state (r:range) (f:HSFragment.fragment) =
     // FIXME: we should accept further data after a warning alert! (Parsing sequences of messages in Handshake style)
     let fragment = HSFragment.fragmentRepr ci.id_in r f in
     match state.al_incoming with
-    | x when x = empty_bytes ->
+    | x when length x = 0 ->
         (* Empty buffer *)
         match length fragment with
         | 0 -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Empty alert fragments are invalid")
@@ -212,7 +212,7 @@ let recv_fragment (ci:ConnectionInfo) state (r:range) (f:HSFragment.fragment) =
                     let res = handle_alert ci state alert in
                     correct(res)
 
-let is_incoming_empty (c:ConnectionInfo) s = equalBytes s.al_incoming empty_bytes
+let is_incoming_empty (c:ConnectionInfo) s = length s.al_incoming = 0
 
 let reset_incoming (c:ConnectionInfo) s (nc:ConnectionInfo) =
     {s with al_incoming = empty_bytes}
