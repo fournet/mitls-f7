@@ -5,14 +5,6 @@ type cbytes = byte[]
 
 
 #if optimize_bytes
-
-type bytes = {
-    bl: byte[] list;
-    max:int;
-    length: int;
-    index: int;
-    }
-
 let rec getByte (bl:byte[] list) (i:int) = 
     match bl with
      [] -> failwith "getByte: array out of bounds" 
@@ -39,6 +31,25 @@ let rec getBytes (bl:byte[] list) i n  =
              then Array.sub h i n 
              else Array.append (Array.sub h i curr) (getBytes t 0 (n-curr))
 
+//@ Constant time comparison (to mitigate timing attacks)
+//@ The number of byte comparisons depends only on the lengths of both arrays.
+let equalCBytes (b1:byte[]) (b2:byte[]) =
+    b1.Length = b2.Length && 
+    Array.fold2 (fun ok x y -> x = y && ok) true (b1) (b2)
+
+
+[<CustomEquality;NoComparison>]
+type bytes = 
+    {
+    bl: byte[] list;
+    max:int;
+    length: int;
+    index: int;
+    } 
+    override x.Equals(y) = (match y with :? bytes as y -> equalCBytes (getBytes x.bl x.index x.length) (getBytes y.bl y.index y.length) | _ -> false)
+    override x.GetHashCode() = hash (getBytes x.bl x.index x.length)
+
+
 let cbyte (b:bytes) = if b.length = 1 then getByte b.bl b.index else failwith "cbyte: expected an array of length 1"
 let cbyte2 (b:bytes) = if b.length = 2 then getByte2 b.bl b.index else failwith "cbyte2: expected an array of length 2"
 
@@ -62,7 +73,7 @@ let (@|) (a:bytes) (b:bytes) =
     if a.length + a.index = a.max && b.index = 0 then
       {bl = a.bl @ b.bl;
        length = a.length + b.length;
-       index = a.index;
+       index = a.index;  
        max = a.max + b.max}
     else
       {bl = [Array.append (cbytes a) (cbytes b)];
@@ -90,7 +101,12 @@ let createBytes len (value:int) : bytes =
 //#if false
 
 (* Original implementation of bytes *)
-type bytes = {b:byte[]}
+[<CustomEquality;NoComparison>]
+type bytes = 
+     {b:byte[]}
+     override x.Equals(y) = (match y with :? bytes as y -> x.b = y.b | _ -> false)
+     override x.GetHashCode() = hash x
+      
 let length (d:bytes) = (d.b).Length
 let empty_bytes = {b = [||]}
 let abytes (b:byte[]) = {b=b}

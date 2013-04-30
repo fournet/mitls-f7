@@ -645,7 +645,7 @@ let resume next_sid poptions =
     | Some (retrieved) ->
     let (retrievedSinfo,retrievedMS) = retrieved in
     match retrievedSinfo.sessionID with
-    | xx when xx = empty_bytes -> unexpected "[resume] a resumed session should always have a valid sessionID"
+    | xx when length xx = 0 -> unexpected "[resume] a resumed session should always have a valid sessionID"
     | sid ->
     let rand = Nonce.mkHelloRandom () in
     let ci = initConnection Client rand in

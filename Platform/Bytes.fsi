@@ -2,6 +2,7 @@
 
 type nat = int 
 type cbytes = byte[]
+[<NoComparison>]
 type bytes
 type lbytes = bytes
 val empty_bytes: bytes

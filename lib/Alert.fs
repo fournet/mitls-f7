@@ -151,7 +151,7 @@ let makeFragment ki b =
 
 let next_fragment ci state =
     match state.al_outgoing with
-    | x when x = empty_bytes ->
+    | x when length x = 0 ->
         (EmptyALFrag, state)
     | d ->
         let ((r0,df),rem) = makeFragment ci.id_out d in
