@@ -71,10 +71,10 @@ let tlsconfig options isserver = {
 }
 
 (* ------------------------------------------------------------------------ *)
-let server (listener : Sockets.TcpListener) config =
+let server once (listener : Sockets.TcpListener) config =
     let buffer = Array.create block 0uy in
 
-    while true do
+    let rec do1 () =
         use socket = listener.AcceptTcpClient () in
 
         try
@@ -86,10 +86,13 @@ let server (listener : Sockets.TcpListener) config =
                 done
         with e ->
             printfn "%A" e
-    done
+
+        if not once then do1 ()
+    in
+        do1 ()
 
 (* ------------------------------------------------------------------------ *)
-let entry () =
+let entry once =
     let certname =
         unnull "rsa.cert-01.mitls.org"
             (Environment.GetEnvironmentVariable ("CERTNAME"))
@@ -101,8 +104,10 @@ let entry () =
 
     let listener = new Sockets.TcpListener(IPAddress.Loopback, 5000) in
     listener.Start ();
-    server listener (tlsconfig options true)
+    server once listener (tlsconfig options true)
 
 (* ------------------------------------------------------------------------ *)
-let _ =
-    entry ()
+[<EntryPoint>]
+let main _ =
+    entry false; 0
+

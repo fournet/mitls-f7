@@ -150,5 +150,6 @@ let entry () =
         printfn "%s: %.2f MiB/s" ciphersuite (rate / (1024. * 1024.))
 
 (* ------------------------------------------------------------------------ *)
-let _ =
-    entry ()
+[<EntryPoint>]
+let main _ =
+    entry (); 0

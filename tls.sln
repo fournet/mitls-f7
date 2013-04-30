@@ -23,6 +23,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenSSL", "OpenSSL\OpenSSL.
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Platform", "Platform\Platform.fsproj", "{408E6F53-363A-4C58-9808-84A0B526324B}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "AutoBench", "AutoBench\AutoBench.fsproj", "{2CE2CB44-953C-414F-BA55-BF45AD43D530}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -286,6 +288,28 @@ Global
 		{408E6F53-363A-4C58-9808-84A0B526324B}.Release|Win32.ActiveCfg = Release|Any CPU
 		{408E6F53-363A-4C58-9808-84A0B526324B}.Release|x64.ActiveCfg = Release|Any CPU
 		{408E6F53-363A-4C58-9808-84A0B526324B}.Release|x86.ActiveCfg = Release|Any CPU
+		{2CE2CB44-953C-414F-BA55-BF45AD43D530}.Debug|Any CPU.ActiveCfg = Debug|x86
+		{2CE2CB44-953C-414F-BA55-BF45AD43D530}.Debug|Mixed Platforms.ActiveCfg = Debug|x86
+		{2CE2CB44-953C-414F-BA55-BF45AD43D530}.Debug|Mixed Platforms.Build.0 = Debug|x86
+		{2CE2CB44-953C-414F-BA55-BF45AD43D530}.Debug|Win32.ActiveCfg = Debug|x86
+		{2CE2CB44-953C-414F-BA55-BF45AD43D530}.Debug|x64.ActiveCfg = Debug|x86
+		{2CE2CB44-953C-414F-BA55-BF45AD43D530}.Debug|x86.ActiveCfg = Debug|x86
+		{2CE2CB44-953C-414F-BA55-BF45AD43D530}.Debug|x86.Build.0 = Debug|x86
+		{2CE2CB44-953C-414F-BA55-BF45AD43D530}.Ideal|Any CPU.ActiveCfg = Release|x86
+		{2CE2CB44-953C-414F-BA55-BF45AD43D530}.Ideal|Mixed Platforms.ActiveCfg = Release|x86
+		{2CE2CB44-953C-414F-BA55-BF45AD43D530}.Ideal|Mixed Platforms.Build.0 = Release|x86
+		{2CE2CB44-953C-414F-BA55-BF45AD43D530}.Ideal|Win32.ActiveCfg = Release|x86
+		{2CE2CB44-953C-414F-BA55-BF45AD43D530}.Ideal|x64.ActiveCfg = Release|x86
+		{2CE2CB44-953C-414F-BA55-BF45AD43D530}.Ideal|x86.ActiveCfg = Release|x86
+		{2CE2CB44-953C-414F-BA55-BF45AD43D530}.Ideal|x86.Build.0 = Release|x86
+		{2CE2CB44-953C-414F-BA55-BF45AD43D530}.Release|Any CPU.ActiveCfg = Release|x86
+		{2CE2CB44-953C-414F-BA55-BF45AD43D530}.Release|Any CPU.Build.0 = Release|x86
+		{2CE2CB44-953C-414F-BA55-BF45AD43D530}.Release|Mixed Platforms.ActiveCfg = Release|x86
+		{2CE2CB44-953C-414F-BA55-BF45AD43D530}.Release|Mixed Platforms.Build.0 = Release|x86
+		{2CE2CB44-953C-414F-BA55-BF45AD43D530}.Release|Win32.ActiveCfg = Release|x86
+		{2CE2CB44-953C-414F-BA55-BF45AD43D530}.Release|x64.ActiveCfg = Release|x86
+		{2CE2CB44-953C-414F-BA55-BF45AD43D530}.Release|x86.ActiveCfg = Release|x86
+		{2CE2CB44-953C-414F-BA55-BF45AD43D530}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
