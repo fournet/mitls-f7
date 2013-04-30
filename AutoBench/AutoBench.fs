@@ -1,6 +1,6 @@
 ﻿(* ------------------------------------------------------------------------ *)
 let entry () =
-    let server = async { BenchServer.entry true }
+    let server = async { BenchServer.entry true }   
     let client = async {
         do! Async.Sleep 3000
         BenchClient.entry ()
