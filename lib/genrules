@@ -8,10 +8,7 @@ MSBUILD = 'http://schemas.microsoft.com/developer/msbuild/2003'
 
 FS7DEFAULT = [
   'Error',
-#  'TLSConstants',
   'TLSInfo',
-#  'Range',
-#  'Sig',
   'DataStream',
   'Alert',
   'AppFragment',
@@ -42,7 +39,7 @@ include ../Makefile.config
 lib7      = ../../../lib/fs7-interfaces/
 libperv   = $(lib7)pervasives.fs7 $(lib7)tuples.fs7
 lperv     = -pervasives $(lib7)pervasives.fs7 -tuples $(lib7)tuples.fs7
-libfs7    = $(lib7)pi.fs7 $(lib7)formulas.fs7 ../Platform/Error.fs7 ../Platform/Date.fs7 ../Platform/Bytes.fs7 ../Platform/List.fs7 ../Platform/Tcp.fs7
+libfs7    = $(lib7)pi.fs7 $(lib7)formulas.fs7
 f7timeout = 5
 f7defs    = avoid verify ideal
 
@@ -102,8 +99,11 @@ clean:
 	rm -f *.smp *.tc7
 
 regen:
-	./genrules -I ../CoreCrypto/CoreCrypto.fsproj lib.fsproj > Makefile.tls-lib.$$ \\
-	  || { rm -f Makefile.tls-lib.$$; false; }
+	./genrules \\
+	  -I ../CoreCrypto/CoreCrypto.fsproj \\
+	  -I ../Platform/Platform.fsproj \\
+	    lib.fsproj > Makefile.tls-lib.$$ \\
+	|| { rm -f Makefile.tls-lib.$$; false; }
 	mv Makefile.tls-lib.$$ Makefile
 ''' % dict(fs7default = ' '.join([x + '.tc7' for x in FS7DEFAULT]))
 
@@ -127,7 +127,7 @@ def _options(args):
                       action  = 'append',
                       default = [],
                       metavar = 'FSPROJ',
-                      help    = 'Add project contents for FSI')
+                      help    = 'Add project contents for FSI/FS7')
 
     options, args = parser.parse_args(args)
 
@@ -172,23 +172,28 @@ class FS7Deps(object):
     def by_parsing(fsproj, included):
         srcfiles = dict()
         lowfiles = []
+        infsproj = []
 
         for (i, fsp) in enumerate(included + [fsproj]):
-            wext  = ['.fs', '.fsi', '.fs7'] if i == len(included) else ['.fsi']
-            files = os.listdir(fsp.srcdir)
-            files = [x for x in files if \
+            wext   = ['.fs', '.fs7', '.fsi'] if i == len(included) else ['.fs7', '.fsi']
+            files  = os.listdir(fsp.srcdir)
+            files  = [x for x in files if \
                          os.path.splitext(x)[1].lower() in  wext]
-            files = [(x.lower(), (x, fsp.srcdir)) for x in files]
+            files  = [(x.lower(), (x, fsp.srcdir)) for x in files]
             srcfiles.update(dict(files))
             lowfiles.extend([x.lower() for x in fsp.files])
+            if i == len(included):
+                infsproj.extend([x.lower() for x in fsp.files])
 
         alldeps  = dict()
 
         for (i, fsp) in enumerate(included + [fsproj]):
-            wext = ['.fs', '.fsi', '.fs7'] if i == len(included) else ['.fsi']
+            wext = ['.fs', '.fs7', '.fsi'] if i == len(included) else ['.fs7', '.fsi']
             for name in fsp.files:
                 modules = set()
                 for ext in wext:
+                    if (name.lower() + ext) not in srcfiles:
+                        continue
                     contents = srcfiles[name.lower() + ext][0]
                     contents = open(os.path.join(fsp.srcdir, contents), 'r').read()
                     contents = re.sub(r'\(\*(?:.|\r|\n)*?\*\)', '', contents, 0)
@@ -216,7 +221,7 @@ class FS7Deps(object):
         # Reorder using user ordering
         for name in alldeps.iterkeys():
             alldeps[name] = [x for x in lowfiles if x in alldeps[name]]
-        alldeps = [(x, alldeps[x]) for x in lowfiles \
+        alldeps = [(x, alldeps[x]) for x in infsproj \
                        if x in alldeps and (x + '.fs7') in srcfiles]
 
         # Go back to FS name (with correct case)
