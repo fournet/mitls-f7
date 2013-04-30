@@ -1,8 +1,8 @@
 # -*- Makefile -*-
 
 src    :=
-deps   := ../bin/Platform.dll ../bin/BouncyCastle.Crypto.dll ../bin/OpenSSL.dll
-target  = ../bin/CoreCrypto.dll
+deps   :=
+target  = ../bin/Platform.dll
 
 include ../Makefile.config
 
@@ -16,10 +16,10 @@ dist:
 make.in: Makefile.config
 	@true
 
-Makefile.config: CoreCrypto.fsproj
+Makefile.config: Platform.fsproj
 	-if [ -f $< ]; then ../scripts/makegen -o $@ $<; fi
 
-CoreCrypto.fsproj:
+Platform.fsproj:
 
 include Makefile.config
 
