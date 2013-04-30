@@ -87,11 +87,15 @@ let parseMessage buf =
 type unsafe = Unsafe of epoch
 #endif
 let makeFragment ki b =
-    let (b0,rem) = if length b < fragmentLength then (b,empty_bytes)
-                   else Bytes.split b fragmentLength
-    let r0 = (length b0, length b0) in
-    let f = HSFragment.fragmentPlain ki r0 b0 in
-    (r0,f,rem)
+    if length b < fragmentLength then
+      let r0 = (length b, length b) in
+      let f = HSFragment.fragmentPlain ki r0 b in
+      (r0,f,empty_bytes)
+    else 
+      let (b0,rem) = Bytes.split b fragmentLength in
+      let r0 = (length b0, length b0) in
+      let f = HSFragment.fragmentPlain ki r0 b0 in
+      (r0,f,rem)
 
 // we could use something more general for parsing lists, e.g.
 // let rec parseList parseOne b =

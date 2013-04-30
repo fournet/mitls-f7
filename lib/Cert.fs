@@ -38,16 +38,16 @@ let x509_to_public_key (x509 : X509Certificate2) =
     | x when x = OID_RSAEncryption ->
         try
             let pkey = (x509.PublicKey.Key :?> RSA).ExportParameters(false) in
-                Some (CoreSig.PK_RSA (pkey.Modulus, pkey.Exponent))
+                Some (CoreSig.PK_RSA (abytes pkey.Modulus, abytes pkey.Exponent))
         with :? CryptographicException -> None
 
     | x when x = OID_DSASignatureKey ->
         try
             let pkey = (x509.PublicKey.Key :?> DSA).ExportParameters(false) in
             let dsaparams : CoreKeys.dsaparams =
-                { p = pkey.P; q = pkey.Q; g = pkey.G }
+                { p = abytes pkey.P; q = abytes pkey.Q; g = abytes pkey.G }
             in
-                Some (CoreSig.PK_DSA (pkey.Y, dsaparams))
+                Some (CoreSig.PK_DSA (abytes pkey.Y, dsaparams))
         with :? CryptographicException -> None
 
     | _ -> None
@@ -57,16 +57,16 @@ let x509_to_secret_key (x509 : X509Certificate2) =
     | x when x = OID_RSAEncryption ->
         try
             let skey = (x509.PrivateKey :?> RSA).ExportParameters(true) in
-                Some (CoreSig.SK_RSA (skey.Modulus, skey.D))
+                Some (CoreSig.SK_RSA (abytes skey.Modulus, abytes skey.D))
         with :? CryptographicException -> None
 
     | x when x = OID_DSASignatureKey ->
         try
             let skey = (x509.PrivateKey :?> DSA).ExportParameters(true) in
             let dsaparams : CoreKeys.dsaparams =
-                { p = skey.P; q = skey.Q; g = skey.G }
+                { p = abytes skey.P; q = abytes skey.Q; g = abytes skey.G }
             in
-                Some (CoreSig.SK_DSA (skey.X, dsaparams))
+                Some (CoreSig.SK_DSA (abytes skey.X, dsaparams))
         with :? CryptographicException -> None
 
     | _ -> None
@@ -193,7 +193,7 @@ let for_key_encryption (sigkeyalgs : Sig.alg list) (h : hint) =
                     let chain = x509_chain x509 in
 
                     if Seq.forall (x509_check_key_sig_alg_one sigkeyalgs) chain then
-                        Some (chain |> List.map x509_export_public, RSAKey.create_rsaskey (abytes sm, abytes se))
+                        Some (chain |> List.map x509_export_public, RSAKey.create_rsaskey (sm, se))
                     else
                         None
                 | _ -> None
@@ -238,7 +238,7 @@ let get_public_encryption_key (c : cert) : RSAKey.pk Result =
         let x509 = new X509Certificate2(cbytes c) in
             if x509_is_for_key_encryption x509 then
                 match x509_to_public_key x509 with
-                | Some (CoreSig.PK_RSA(pm, pe)) -> Correct (RSAKey.create_rsapkey (abytes pm, abytes pe))
+                | Some (CoreSig.PK_RSA(pm, pe)) -> Correct (RSAKey.create_rsapkey (pm, pe))
                 | _ -> Error(AD_unsupported_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate uses unknown key")
             else
                 Error(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate is not for key encipherment")

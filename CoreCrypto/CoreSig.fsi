@@ -1,4 +1,5 @@
 ﻿module CoreSig
+open Bytes
 
 (* ------------------------------------------------------------------------ *)
 type sighash =
@@ -24,8 +25,8 @@ val sigalg_of_skey : sigskey -> sigalg
 val sigalg_of_pkey : sigpkey -> sigalg
 
 (* ------------------------------------------------------------------------ *)
-type text = byte array
-type sigv = byte array
+type text = bytes
+type sigv = bytes
 
 val gen    : sigalg -> sigpkey * sigskey
 val sign   : sighash option -> sigskey -> text -> sigv

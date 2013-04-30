@@ -54,7 +54,7 @@ let encrypt pk cv pms =
     #endif
         PMS.leakRSA pk cv pms       
     //#end-ideal1
-    let ciphertext = abytes (CoreACiphers.encrypt_pkcs1 (RSAKey.repr_of_rsapkey pk) (cbytes plaintext))
+    let ciphertext = (CoreACiphers.encrypt_pkcs1 (RSAKey.repr_of_rsapkey pk) (plaintext))
     #if ideal
     Pi.assume(PMS.EncryptedRSAPMS(pk,cv,pms,ciphertext))
     #endif
@@ -89,7 +89,7 @@ let real_decrypt dk si cv cvCheck ciphertext =
   let fakepms = Nonce.random 46 in
   let expected = versionBytes cv in
   (* 2. Decrypt the message to recover plaintext *)
-  match Option.map abytes (CoreACiphers.decrypt_pkcs1 (RSAKey.repr_of_rsaskey dk) (cbytes ciphertext)) with
+  match CoreACiphers.decrypt_pkcs1 (RSAKey.repr_of_rsaskey dk) (ciphertext) with
     | Some pms when length pms = 48 ->
         let (clVB,postPMS) = split pms 2 in
         match si.protocol_version with

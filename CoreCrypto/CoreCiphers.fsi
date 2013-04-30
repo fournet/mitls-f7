@@ -1,15 +1,16 @@
 ﻿module CoreCiphers
+open Bytes
 
-type key = byte array
-type iv  = byte array
+type key = bytes
+type iv  = bytes
 
-val aes_cbc_encrypt : key -> iv -> byte array -> byte array
-val aes_cbc_decrypt : key -> iv -> byte array -> byte array
+val aes_cbc_encrypt : key -> iv -> bytes -> bytes
+val aes_cbc_decrypt : key -> iv -> bytes -> bytes
 
-val des3_cbc_encrypt : key -> iv -> byte array -> byte array
-val des3_cbc_decrypt : key -> iv -> byte array -> byte array
+val des3_cbc_encrypt : key -> iv -> bytes -> bytes
+val des3_cbc_decrypt : key -> iv -> bytes -> bytes
 
 type rc4engine
 
 val rc4create  : key -> rc4engine
-val rc4process : rc4engine -> byte array -> byte array
+val rc4process : rc4engine -> bytes -> bytes

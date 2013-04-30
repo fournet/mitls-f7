@@ -43,7 +43,7 @@ let GENOne ki =
     | Stream_RC4_128 ->
         let k = Nonce.random (encKeySize alg) in
         let key = {k = k} in
-        StreamCipher({skey = key; sstate = CoreCiphers.rc4create (cbytes k)})
+        StreamCipher({skey = key; sstate = CoreCiphers.rc4create (k)})
     | CBC_Stale(cbc) ->
         let key = {k = Nonce.random (encKeySize alg)}
         let iv = SomeIV(Nonce.random (blockSize cbc))
@@ -62,7 +62,7 @@ let COERCE (ki:epoch) k iv =
     match alg with
     | Stream_RC4_128 ->
         let key = {k = k} in
-        StreamCipher({skey = key; sstate = CoreCiphers.rc4create (cbytes k)})
+        StreamCipher({skey = key; sstate = CoreCiphers.rc4create (k)})
     | CBC_Stale(_) ->
         BlockCipher ({key = {k=k}; iv = SomeIV(iv)})
     | CBC_Fresh(_) ->
@@ -81,12 +81,9 @@ let LEAK (ki:epoch) s =
         ss.skey.k,empty_bytes
 
 let cbcenc alg k iv d =
-    let k = cbytes k in
-    let iv = cbytes iv in
-    let d = cbytes d in
     match alg with
-    | TDES_EDE -> abytes (CoreCiphers.des3_cbc_encrypt k iv d)
-    | AES_128 | AES_256  -> abytes (CoreCiphers.aes_cbc_encrypt  k iv d)
+    | TDES_EDE -> (CoreCiphers.des3_cbc_encrypt k iv d)
+    | AES_128 | AES_256  -> (CoreCiphers.aes_cbc_encrypt  k iv d)
 
 (* Parametric ENC/DEC functions *)
 let ENC_int ki s tlen d =
@@ -123,7 +120,7 @@ let ENC_int ki s tlen d =
                 let s = {s with iv = NoIV} in
                 (BlockCipher(s), res)
     | StreamCipher(s), Stream_RC4_128 ->
-        let cipher = abytes (CoreCiphers.rc4process s.sstate (cbytes d)) in
+        let cipher = (CoreCiphers.rc4process s.sstate (d)) in
         if length cipher <> tlen || tlen > max_TLSCipher_fragment_length then
                 // unexpected, because it is enforced statically by the
                 // CompatibleLength predicate
@@ -156,12 +153,9 @@ let ENC ki s ad rg data =
       ENC_int ki s tlen d
 
 let cbcdec alg k iv e =
-    let k = cbytes k in
-    let iv = cbytes iv in
-    let e = cbytes e in
     match alg with
-    | TDES_EDE -> abytes (CoreCiphers.des3_cbc_decrypt k iv e)
-    | AES_128 | AES_256  -> abytes (CoreCiphers.aes_cbc_decrypt k iv e)
+    | TDES_EDE -> (CoreCiphers.des3_cbc_decrypt k iv e)
+    | AES_128 | AES_256  -> (CoreCiphers.aes_cbc_decrypt k iv e)
 
 let DEC_int ki s cipher =
     let si = epochSI(ki) in
@@ -186,7 +180,7 @@ let DEC_int ki s cipher =
             let s = {s with iv = NoIV} in
             (BlockCipher(s), data)
     | StreamCipher(s), Stream_RC4_128 ->
-        let data = abytes (CoreCiphers.rc4process s.sstate (cbytes cipher))
+        let data = (CoreCiphers.rc4process s.sstate (cipher))
         (StreamCipher(s),data)
     | _,_ -> unexpected "[DEC] Wrong combination of cipher algorithm and state"
 
