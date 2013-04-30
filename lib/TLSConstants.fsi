@@ -2,6 +2,7 @@
 
 open Bytes
 open Error
+open TLSError
 
 (* Not abstract, but meant to be used only by crypto modules and CipherSuites *)
 

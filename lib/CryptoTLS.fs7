@@ -1,7 +1,8 @@
 ﻿module CryptoTLS
 
 open Data
-open Error_handling
+open Error
+open TLSError_handling
 open Crypto
 
 predicate type keyedHashPreds =

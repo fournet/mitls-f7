@@ -134,6 +134,9 @@
     <Content Include="README.txt" />
     <Content Include="CodeReview.txt" />
     <Compile Include="pi.fs" />
+    <None Include="TLSError.fs7" />
+    <Compile Include="TLSError.fsi" />
+    <Compile Include="TLSError.fs" />
     <None Include="Nonce.fs7" />
     <Compile Include="Nonce.fsi" />
     <Compile Include="Nonce.fs" />

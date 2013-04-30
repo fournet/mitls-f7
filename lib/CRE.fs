@@ -5,6 +5,7 @@ open TLSConstants
 open TLSInfo
 open TLSPRF
 open Error
+open TLSError
 open PMS
 
 (*  extractMS is internal and extracts entropy from both rsapms and dhpms bytes 

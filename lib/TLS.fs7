@@ -1,6 +1,7 @@
 module TLS
 
 open Error
+open TLSError
 open Bytes
 open TLSInfo 
 open DataStream (* application-specific module *) 

@@ -4,6 +4,7 @@ open Bytes
 open TLSConstants
 open TLSInfo
 open Error
+open TLSError
 open PMS
 
 val extractRSA: SessionInfo -> ProtocolVersion -> rsapms -> PRF.masterSecret

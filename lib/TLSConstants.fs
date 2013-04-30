@@ -2,6 +2,7 @@
 
 open Bytes
 open Error
+open TLSError
 
 type kexAlg =
     | RSA

@@ -39,7 +39,7 @@ let noexn = fun cb ->
     try cb () with _ -> ()
 
 (* ------------------------------------------------------------------------ *)
-let unerror (x : 'a Error.Result) =
+let unerror (x : 'a TLSError.Result) =
     match x with
     | Error.Error   _ -> failwith "Utils.unerror"
     | Error.Correct x -> x

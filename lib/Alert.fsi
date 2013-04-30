@@ -1,6 +1,7 @@
 ﻿module Alert
 
 open Error
+open TLSError
 open TLSInfo
 open Range
 

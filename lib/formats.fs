@@ -2,6 +2,7 @@ module Formats
 
 open Bytes
 open Error
+open TLSError
 
 type preContentType =
     | Change_cipher_spec

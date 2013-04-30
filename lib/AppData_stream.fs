@@ -2,7 +2,8 @@
 
 open Data
 open Record
-open Error_handling
+open Error
+open TLSError_handling
 open TLSInfo
 open Formats
 open Stream

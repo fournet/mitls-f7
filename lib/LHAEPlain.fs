@@ -1,6 +1,7 @@
 module LHAEPlain
 open Bytes
 open Error
+open TLSError
 open TLSConstants
 open TLSInfo
 open Range

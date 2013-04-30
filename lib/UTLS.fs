@@ -5,6 +5,7 @@
 (* ------------------------------------------------------------------------ *)
 open Bytes
 open Error
+open TLSError
 open DataStream
 open Dispatch
 open TLSInfo

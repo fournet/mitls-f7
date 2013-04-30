@@ -3,6 +3,7 @@ open TLSConstants
 open TLSInfo
 open Bytes
 open Error
+open TLSError
 open Range
 
 let min (a:nat) (b:nat) =

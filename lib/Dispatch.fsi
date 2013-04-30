@@ -4,6 +4,7 @@ open Bytes
 open TLSConstants
 open Tcp
 open Error
+open TLSError
 open Record
 open Handshake
 open TLSInfo

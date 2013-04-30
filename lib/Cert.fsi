@@ -2,6 +2,7 @@
 
 open Bytes
 open Error
+open TLSError
 
 type hint = string (* hostname CN *)
 type cert = bytes  (* public part of a certificate *)

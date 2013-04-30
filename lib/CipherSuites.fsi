@@ -3,6 +3,7 @@
 open Bytes
 open TLSConstants
 open Error
+open TLSError
 
 type cipherSuite
 

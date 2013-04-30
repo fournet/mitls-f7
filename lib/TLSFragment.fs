@@ -1,6 +1,7 @@
 ﻿module TLSFragment
 
 open Error
+open TLSError
 open Bytes
 open TLSInfo
 open TLSConstants

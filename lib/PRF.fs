@@ -1,6 +1,7 @@
 module PRF
 
 open Error
+open TLSError
 open Bytes
 open TLSConstants
 open TLSPRF

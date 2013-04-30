@@ -4,7 +4,8 @@ open Data
 open Sessions
 open Formats
 open Record
-open Error_handling
+open Error
+open TLSError_handling
 open Stream 
 open AppCommon
 open Bytearray

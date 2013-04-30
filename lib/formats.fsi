@@ -2,6 +2,7 @@ module Formats
 
 open Bytes
 open Error
+open TLSError
 
 (* val split_at_most: bytes -> int -> (bytes * bytes) *)
 

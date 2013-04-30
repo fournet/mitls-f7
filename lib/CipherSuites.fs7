@@ -3,6 +3,7 @@ module CipherSuites
 open Bytes
 open TLSConstants
 open Error
+open TLSError
 
 (*** Following RFC5246 A.5 *)
 

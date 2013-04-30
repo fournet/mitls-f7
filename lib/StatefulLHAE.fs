@@ -4,6 +4,7 @@ module StatefulLHAE
 
 open Bytes
 open Error
+open TLSError
 open TLSInfo
 open StatefulPlain
 open Range

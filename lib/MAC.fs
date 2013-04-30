@@ -5,6 +5,7 @@ open TLSConstants
 
 open TLSInfo
 open Error
+open TLSError
 
 type text = bytes
 type tag = bytes

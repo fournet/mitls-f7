@@ -1,7 +1,8 @@
 module Tcp
 
 open Data
-open Error_handling
+open Error
+open TLSError_handling
 
 type NetworkStream = N of unit
 type TcpListener = T of unit

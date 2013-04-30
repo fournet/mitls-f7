@@ -6,6 +6,7 @@
 
 open Bytes
 open Error
+open TLSError
 
 type PreProtocolVersion =
     | SSL_3p0   

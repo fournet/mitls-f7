@@ -2,6 +2,7 @@ module ENC
 
 open Bytes
 open Error
+open TLSError
 open TLSConstants
 open TLSInfo
 open Range

@@ -2,6 +2,7 @@ module RSA
 
 open Bytes
 open Error
+open TLSError
 open TLSConstants
 open TLSInfo
 open RSAKey

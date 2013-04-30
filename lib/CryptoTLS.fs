@@ -1,7 +1,8 @@
 ﻿module CryptoTLS
 
 open Data
-open Error_handling
+open Error
+open TLSError_handling
 
 let symkey b = Crypto.symkey b
 let symkeytobytes s = Crypto.symkeytobytes s

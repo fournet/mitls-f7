@@ -9,6 +9,7 @@ open Encode
 open TLSInfo
 open TLSConstants
 open Error
+open TLSError
 open Range
 
 (* CF (to be deleted)

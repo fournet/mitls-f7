@@ -51,18 +51,18 @@ let rec read_acc (N ns) nbytes prev =
             let buf = Array.zeroCreate nbytes in
             let read = ns.Read (buf, 0, nbytes) in
             if read = 0 then
-                Error(AD_internal_error,"TCP connection closed")
+                Error(perror __SOURCE_FILE__ __LINE__ "TCP connection closed")
             else
                 let rem = nbytes - read in
                 read_acc (N ns) rem (Array.append prev (Array.sub buf 0 read))
         with
-            | _ -> Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "TCP connection closed")
+            | _ -> Error(perror __SOURCE_FILE__ __LINE__ "TCP connection closed")
 
 let read (N ns) nbytes =
     try
         (read_acc (N ns) nbytes (Array.zeroCreate 0))
     with
-        | _ -> Error (AD_internal_error, perror __SOURCE_FILE__ __LINE__ "TCP connection closed")
+        | _ -> Error (perror __SOURCE_FILE__ __LINE__ "TCP connection closed")
 
 
 let write (N ns) content =
@@ -70,7 +70,7 @@ let write (N ns) content =
         let content = cbytes content in
         Correct (ns.Write (content, 0, content.Length))
     with
-        | _ -> Error (AD_internal_error, perror __SOURCE_FILE__ __LINE__ "TCP connection closed")
+        | _ -> Error (perror __SOURCE_FILE__ __LINE__ "TCP connection closed")
 
 let close (N ns) =
     ns.Close()

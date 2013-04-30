@@ -9,6 +9,7 @@ open System.Security.Cryptography.X509Certificates
 open Bytes
 open TLSConstants
 open Error
+open TLSError
 
 (* ------------------------------------------------------------------------ *)
 type hint = string

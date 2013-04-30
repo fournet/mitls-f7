@@ -4,6 +4,7 @@ open Bytes
 open Tcp
 open TLSConstants
 open Error
+open TLSError
 open TLSInfo
 open Range
 

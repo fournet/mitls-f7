@@ -2,6 +2,7 @@ module DataStream
 open TLSInfo
 open Bytes
 open Error
+open TLSError
 open Range
 
 val splitRange: epoch -> range -> range * range

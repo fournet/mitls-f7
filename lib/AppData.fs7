@@ -3,6 +3,7 @@ module AppData
 open TLSInfo
 open Bytes
 open Error
+open TLSError
 open DataStream
 open Range
 

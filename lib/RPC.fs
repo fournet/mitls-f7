@@ -3,6 +3,7 @@
 open Bytes
 open TLSInfo
 open Error
+open TLSError
 open Range
 open Dispatch
 open TLS

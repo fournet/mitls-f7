@@ -4,6 +4,7 @@ module Cert
 
 open Bytes
 open Error
+open TLSError
 open TLSConstants
 
 type hint = string

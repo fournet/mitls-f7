@@ -6,7 +6,8 @@ module AppData
 
 open Data
 open Record
-open Error_handling
+open Error
+open TLSError_handling
 open TLSInfo
 open TLSPlain
 

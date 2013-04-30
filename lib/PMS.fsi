@@ -4,6 +4,7 @@ open Bytes
 open TLSConstants
 open TLSInfo
 open Error
+open TLSError
 open DHGroup
 
 //CF some of those types are private to PMS & CRE

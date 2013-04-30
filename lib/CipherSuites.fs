@@ -3,6 +3,7 @@
 open Bytes
 open TLSConstants
 open Error
+open TLSError
 
 // By now, we only support one SCSV, but there exist others.
 type SCSVsuite =

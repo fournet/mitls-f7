@@ -5,6 +5,7 @@ open TLSConstants
 //open Record
 open Tcp
 open Error
+open TLSError
 open Handshake
 open Alert
 open TLSInfo
@@ -185,7 +186,7 @@ let send ns e write pv rg ct frag =
     let (conn,data) = res in
     let dState = {write with conn = conn} in
     match Tcp.write ns data with
-    | Error(x,y) -> Error(x,y)
+    | Error(x) -> Error(AD_internal_error,x)
     | Correct(_) -> correct(dState)
 
 (* which fragment should we send next? *)
@@ -409,13 +410,13 @@ let writeOne (Conn(id,c)) (ghr:range) (ghf:AppFragment.fragment) (ghs:DataStream
 
 let recv (Conn(id,c)) =
     match Tcp.read c.ns 5 with // read & parse the header
-    | Error (x,y) -> Error(x,y)
+    | Error (x) -> Error(AD_internal_error,x)
     | Correct header ->
         match Record.headerLength header with
         | Error(x,y) -> Error(x,y)
         | Correct(len) ->
         match Tcp.read c.ns len with // read & process the payload
-            | Error (x,y) -> Error(x,y)
+            | Error (x) -> Error(AD_internal_error,x)
             | Correct payload ->
                 let c_read = c.read in
                 let c_read_conn = c_read.conn in

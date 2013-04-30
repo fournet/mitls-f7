@@ -5,7 +5,8 @@ open Bytearray
 open CryptoTLS
 open Tcp
 open Formats
-open Error_handling
+open Error
+open TLSError_handling
 open Sessions
 
 type CipherState = 

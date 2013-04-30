@@ -1,5 +1,6 @@
 module TLS // excerpts for the paper
 open Error
+open TLSError
 open Bytes
 open DataStream
 open AppDataStream
