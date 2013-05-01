@@ -32,7 +32,7 @@ type prfAlg = // can't be folded back to the sums in TLSConstants; we need to us
   | PRF_SSL3_concat        // MD5 @| SHA1    for VerifyData tags
 *)
 
-val prfAlgOf: SessionInfo -> prfAlg
+val prfAlg: SessionInfo -> prfAlg
 
 // Precise index for master secrets is a function of session info (involving pmsdata decryption)
 type msIndex =        // We record the parameters used to derive this MS: 
