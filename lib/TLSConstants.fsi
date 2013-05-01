@@ -76,12 +76,6 @@ val ssl_pad1_md5: bytes
 val ssl_pad2_md5: bytes
 val ssl_pad1_sha1: bytes
 val ssl_pad2_sha1: bytes
-val ssl_sender_client: bytes
-val ssl_sender_server: bytes
-val tls_sender_client: string
-val tls_sender_server: string
-val tls_master_secret: string
-val tls_key_expansion: string
 
 type cipherSuite
 
@@ -104,6 +98,9 @@ val isDHCipherSuite: cipherSuite -> bool
 val isDHECipherSuite: cipherSuite -> bool
 val isRSACipherSuite: cipherSuite -> bool
 val contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV: cipherSuites -> bool
+
+type prfAlg = ProtocolVersion * cipherSuite
+
 val verifyDataLen_of_ciphersuite: cipherSuite -> nat
 val prfMacAlg_of_ciphersuite: cipherSuite -> macAlg
 val verifyDataHashAlg_of_ciphersuite: cipherSuite -> hashAlg

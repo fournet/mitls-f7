@@ -1,15 +1,10 @@
 module PRF
 
 open Bytes
+open TLSConstants
 open TLSInfo
 
-type prfAlg = 
-  | PRF_TLS_1p2 of TLSConstants.macAlg 
-  | PRF_TLS_1p01           
-  | PRF_SSL3_nested        
-  | PRF_SSL3_concat   
-
-val prfAlgOf: SessionInfo -> prfAlg  
+val prfAlg: SessionInfo -> prfAlg  
  
 type msIndex =  
   PMS.pms * 
@@ -22,7 +17,12 @@ val safeMS_msIndex: msIndex -> bool
 
 type repr = bytes
 type ms
+
+#if ideal
+type masterSecret = msIndex * ms
+#else
 type masterSecret = ms
+#endif
 
 #if ideal
 val sample: SessionInfo -> masterSecret

@@ -155,9 +155,6 @@
     <None Include="HMAC.fs7" />
     <Compile Include="HMAC.fsi" />
     <Compile Include="HMAC.fs" />
-    <None Include="TLSPRF.fs7" />
-    <Compile Include="TLSPRF.fsi" />
-    <Compile Include="TLSPRF.fs" />
     <None Include="Sig.fs7" />
     <Compile Include="Sig.fsi" />
     <Compile Include="Sig.fs" />
@@ -167,6 +164,9 @@
     <None Include="TLSInfo.fs7" />
     <Compile Include="TLSInfo.fsi" />
     <Compile Include="TLSInfo.fs" />
+    <None Include="TLSPRF.fs7" />
+    <Compile Include="TLSPRF.fsi" />
+    <Compile Include="TLSPRF.fs" />
     <None Include="Range.fs7" />
     <Compile Include="Range.fsi" />
     <Compile Include="Range.fs" />

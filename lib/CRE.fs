@@ -29,20 +29,20 @@ open PMS
 
 *)
 
-let extractMS sinfo pmsBytes: PRF.masterSecret =
+let extractMS sinfo pmsBytes : PRF.masterSecret =
     let pv = sinfo.protocol_version in
     let cs = sinfo.cipher_suite in
     let data = csrands sinfo in
-    let res = prf pv cs pmsBytes tls_master_secret data 48 in
+    let res = extract (pv,cs) pmsBytes data 48 in
     PRF.coerce sinfo res
 
 
 (*  Idealization strategy: to guarantee that in ideal world mastersecrets (ms) are completely random
-    extractRSA samples a ms at radom when called first on arguments pk,cv,pms,csrands si, prfAlgOf si. 
+    extractRSA samples a ms at radom when called first on arguments pk,cv,pms,csrands si, prfAlg si. 
     
     When called on the same values again, the corresponding master secret is retrieved from a secret log. 
 
-    This is done only for pms for which honestRSAPMS is true and (prfAlgOf si) is strong.
+    This is done only for pms for which honestRSAPMS is true and (prfAlg si) is strong.
     Note that in this way many idealized master secrets can be derived from the same pms.
  *)
 
@@ -51,11 +51,11 @@ let extractMS sinfo pmsBytes: PRF.masterSecret =
 let todo s = failwith s 
 
 // We maintain a log for looking up good ms values using their msIndex
-type rsaentry = RSAKey.pk * ProtocolVersion * rsapms * bytes * PRF.prfAlg * PRF.ms
+type rsaentry = RSAKey.pk * ProtocolVersion * rsapms * bytes * prfAlg * PRF.ms
 
 let rsalog = ref []
 
-let rec rsaassoc (pk:RSAKey.pk) (cv:ProtocolVersion) (pms:rsapms)  (csr:bytes) (pa:PRF.prfAlg) (mss:rsaentry list): PRF.ms option = 
+let rec rsaassoc (pk:RSAKey.pk) (cv:ProtocolVersion) (pms:rsapms)  (csr:bytes) (pa:prfAlg) (mss:rsaentry list): PRF.ms option = 
     match mss with 
     | [] -> None 
     | (pk',cv',pms',csr',pa', ms)::mss' when pk=pk' && cv=cv' && pms=pms' && csr=csr' && pa=pa' -> Some(ms) 
@@ -79,14 +79,14 @@ let extractRSA_new si (cv:ProtocolVersion) pms: PRF.masterSecret =
         | Correct(pk) -> pk
         | _           -> unexpected "server must have an ID"    
     #if ideal
-    let i = RSAPMS(pk,cv,pms), csrands si, PRF.prfAlgOf si
+    let i = RSAPMS(pk,cv,pms), csrands si, PRF.prfAlg si
     if PRF.safeMS_msIndex i then
         //We assoc on pk, cv, pms,  csrands, and prfAlg
-        match rsaassoc pk cv pms (csrands si) (PRF.prfAlgOf si) !rsalog with 
+        match rsaassoc pk cv pms (csrands si) (PRF.prfAlg si) !rsalog with 
         | Some(ms) -> ms
         | None -> 
                  let ms = PRF.sample si 
-                 rsalog := (pk,cv,pms,csrands si, PRF.prfAlgOf si, ms)::!rsalog
+                 rsalog := (pk,cv,pms,csrands si, PRF.prfAlg si, ms)::!rsalog
                  ms
     else
         todo "SafeMS_SI ==> SafeMS_msIndex"; extractMS si (accessRSAPMS pk cv pms)
@@ -103,11 +103,11 @@ let extractRSA si (cv:ProtocolVersion) pms =
             | Correct(pk) -> pk
             | _           -> unexpected "server must have an ID"    
         //We assoc on pk, cv, pms and csrands 
-        match rsaassoc pk cv pms (csrands si) (PRF.prfAlgOf si) !rsalog with 
+        match rsaassoc pk cv pms (csrands si) (PRF.prfAlg si) !rsalog with 
         | Some(ms) -> ms
         | None -> 
                  let ms = PRF.sample si 
-                 rsalog := (pk,cv,pms,csrands si, PRF.prfAlgOf si, ms)::!rsalog
+                 rsalog := (pk,cv,pms,csrands si, PRF.prfAlg si, ms)::!rsalog
                  ms
   #endif  
   | ConcreteRSAPMS(s) -> todo "SafeMS_SI ==> HonestRSAPMS"; extractMS si s
@@ -148,11 +148,11 @@ let extractDHE (si:SessionInfo) (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy
     //#begin-ideal 
     #if ideal
     | IdealDHPMS(s) -> 
-        match dhassoc p g gx gy pms (csrands si) (PRF.prfAlgOf si) !dhlog with
+        match dhassoc p g gx gy pms (csrands si) (PRF.prfAlg si) !dhlog with
            | Some(ms) -> ms
            | None -> 
                  let ms=PRF.sample si 
-                 dhlog := (p, g, gx, gy, pms, csrands si, PRF.prfAlgOf si, ms)::!dhlog;
+                 dhlog := (p, g, gx, gy, pms, csrands si, PRF.prfAlg si, ms)::!dhlog;
                  ms 
     #endif
     //#end-ideal

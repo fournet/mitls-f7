@@ -5,14 +5,11 @@ module TLSPRF
 
 open Bytes
 open TLSConstants
+open TLSInfo
 
-(* Verify data *)
-val ssl_verifyData : bytes -> bytes  -> bytes -> (;36)lbytes
-val tls_verifyData : bytes -> string -> bytes -> (;12)lbytes
-val tls12VerifyData: cipherSuite -> bytes -> string -> bytes -> bytes
-
-(* PRF *)
-val prf: ProtocolVersion -> cipherSuite -> bytes -> string -> bytes -> l:nat -> (;l)lbytes
+val verifyData: prfAlg -> bytes -> role -> bytes -> bytes 
+val extract: prfAlg -> bytes -> bytes -> l:nat -> (;l)lbytes
+val kdf: prfAlg -> bytes -> string -> bytes -> l:nat -> (;l)lbytes
 
 (* SSL-specific certificate verify *)
 val ssl_certificate_verify: bytes -> bytes -> hashAlg -> bytes

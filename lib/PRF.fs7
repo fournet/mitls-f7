@@ -19,15 +19,18 @@ open StatefulLHAE
 type repr = (;48)lbytes
 //#begin-abstraction
 
+(* TODO migrated to TLSConstants, postponed
 // We need descriptors for the algorithm keyed by PMS and MS (named "PRF" in TLS)
 // Given pv and cs, and except for SSL3, 
 // the same algorithm is used for extraction, key derivation, and verifyData
 // TODO migrate to TLSPRF? adapt the code there
+// TODO write 3x spec & function from pv,cs to prfAlg
 type prfAlg = // can't be folded back to the sums in TLSConstants; we need to use it in TLSPRF too. 
   | PRF_TLS_1p2 of macAlg  // typically SHA256 but may depend on CS
   | PRF_TLS_1p01           // MD5 xor SHA1
   | PRF_SSL3_nested        // MD5(SHA1(...)) for extraction and keygen
   | PRF_SSL3_concat        // MD5 @| SHA1    for VerifyData tags
+*)
 
 val prfAlgOf: SessionInfo -> prfAlg
 
@@ -48,7 +51,9 @@ val safeMS_msIndex: msIndex -> bool
 private type (;i:msIndex) ms = {bytes: repr}
 
 // This index additionally records the *local* session info.
-type (;si:SessionInfo) masterSecret = (;MsI(si)) ms 
+type (;si:SessionInfo) masterSecret = i:msIndex * (;i) ms {i = MsI(si)}
+//CF was: type (;si:SessionInfo) masterSecret = (;MsI(si)) ms 
+
 //#end-abstraction
 
 // We have two notions of conditional safety (logically defined in TLSInfo.fs7)
@@ -132,21 +137,21 @@ val keyGen:
 // whereas we have a stronger PRF assumption.
 // TODO reduction from joint MAC & KDF to PRF. 
 
-// Some verbatim handshake message log...
+// Some verbatim handshake message log as text...
 // MACed into tags (with a fixed, irrelevant length) 
 
 type text = bytes
 type tag = bytes
 
 // Abstract predicate authenticated by the Finished messages.
-//CF we used to index it by epoch, now by SessionInfo, but this is still too wide:
-//CF the first index should be F(si), keeping only the pms, pv, and nonces.
-predicate VerifyData of SessionInfo * Role * text
+// (privately defined in Handshake.fs7)
+//CF we used to index it by epoch, then by SessionInfo, now by MsI(si) 
+predicate VerifyData of msIndex * Role * text
 
 // role & text are jointly authenticated
-type entry = si:SessionInfo * r:Role * t:text {VerifyData(si,r,t)}
+type entry = i:msIndex * r:Role * t:text {VerifyData(i,r,t)}
 private val log: entry list ref
-private val mem: si:SessionInfo -> r:Role -> t:text -> entry list -> b:bool{ b=true => VerifyData(si,r,t) }
+private val mem: i:msIndex -> r:Role -> t:text -> entry list -> b:bool{ b=true => VerifyData(i,r,t) }
 //private val cons: si:SessionInfo -> tag -> r:Role -> t:text {VerifyData(si,r,t)} -> entry list -> entry list
 
 private val verifyData: si:SessionInfo -> (;si) masterSecret -> r:Role -> t:text -> tag 
@@ -154,14 +159,14 @@ private val verifyData: si:SessionInfo -> (;si) masterSecret -> r:Role -> t:text
 (* MACing *)
 val makeVerifyData: 
   si:SessionInfo -> (;si) masterSecret -> 
-  r:Role -> t:text{VerifyData(si,r,t)} -> 
+  r:Role -> t:text{VerifyData(MsI(si),r,t)} -> 
   tag (* length depends on cs, 12 by default *)
 
 (* MAC verifying *)
 val checkVerifyData: 
   si:SessionInfo -> (;si) masterSecret ->
   r:Role -> t:text -> tag:tag (* the expected value *) ->
-  b:bool{(b = true /\ SafeHS_SI(si)) => VerifyData(si,r,t)} 
+  b:bool{(b = true /\ SafeHS_SI(si)) => VerifyData(MsI(si),r,t)} 
   
 
 (** ad hoc SSL3-only function; untrusted. **) 
@@ -170,6 +175,8 @@ val checkVerifyData:
 val ssl_certificate_verify: 
   si:SessionInfo -> (;si)masterSecret ->
   TLSConstants.sigAlg -> bytes -> bytes
+
+
 
 
 private val epochs:ConnectionInfo -> epoch * epoch

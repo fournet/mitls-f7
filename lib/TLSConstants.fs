@@ -130,12 +130,6 @@ let ssl_pad1_md5  = createBytes 48 0x36
 let ssl_pad2_md5  = createBytes 48 0x5c
 let ssl_pad1_sha1 = createBytes 40 0x36
 let ssl_pad2_sha1 = createBytes 40 0x5c
-let ssl_sender_client = abytes [|0x43uy; 0x4Cuy; 0x4Euy; 0x54uy|]
-let ssl_sender_server = abytes [|0x53uy; 0x52uy; 0x56uy; 0x52uy|]
-let tls_sender_client = "client finished"
-let tls_sender_server = "server finished"
-let tls_master_secret = "master secret"
-let tls_key_expansion = "key expansion"
 
 (* ------------------------------------------------------------------------ *)
 (* Key parameters *)
@@ -434,6 +428,8 @@ let contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV (css: cipherSuite list) =
     List.exists (fun cs -> cs = SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV) ) css
 //KB #endif
 
+
+type prfAlg = ProtocolVersion * cipherSuite
 
 let verifyDataLen_of_ciphersuite (cs:cipherSuite) =
     (* Only to be invoked with TLS 1.2 (hardcoded in previous versions *)
