@@ -62,6 +62,8 @@
     <Compile Include="CoreSig.fs" />
     <Compile Include="CoreDH.fsi" />
     <Compile Include="CoreDH.fs" />
+    <Compile Include="DER.fsi" />
+    <Compile Include="DER.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\OpenSSL\OpenSSL.csproj">

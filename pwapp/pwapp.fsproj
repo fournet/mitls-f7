@@ -39,12 +39,23 @@
   <Import Project="$(MSBuildExtensionsPath32)\FSharp\1.0\Microsoft.FSharp.Targets" Condition="!Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
   <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft F#\v4.0\Microsoft.FSharp.Targets" Condition=" Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
   <ItemGroup>
+    <Compile Include="PwToken.fsi" />
+    <Compile Include="PwToken.fs" />
+    <None Include="PwToken.fs7" />
+    <Compile Include="PwApp.fsi" />
+    <Compile Include="PwApp.fs" />
+    <None Include="PwApp.fs7" />
     <Compile Include="PwAppRun.fs" />
     <None Include="App.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Platform\Platform.fsproj">
+      <Name>Platform</Name>
+      <Project>{408e6f53-363a-4c58-9808-84a0b526324b}</Project>
+      <Private>True</Private>
+    </ProjectReference>
     <Reference Include="mscorlib" />
     <Reference Include="FSharp.Core" />
     <Reference Include="System" />

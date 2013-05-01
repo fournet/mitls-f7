@@ -7,7 +7,7 @@ open Org.BouncyCastle.Asn1
 // ------------------------------------------------------------------------
 type dervalue =
     | Bool       of bool
-    | Bytes      of byte[]
+    | Bytes      of Bytes.bytes
     | Utf8String of string
     | Sequence   of dervalue list
 
@@ -28,8 +28,8 @@ let get_asn1_object (bytes : byte[]) : Asn1Object =
 
 // ------------------------------------------------------------------------
 let rec encode_r = function
-    | Bytes      bytes  -> (new DerOctetString(bytes)           :> Asn1Encodable)
-    | Utf8String string -> (new DerUtf8String (string)          :> Asn1Encodable)
+    | Bytes      bytes  -> (new DerOctetString(Bytes.cbytes bytes)  :> Asn1Encodable)
+    | Utf8String string -> (new DerUtf8String (string) :> Asn1Encodable)
 
     | Bool  b -> 
         let b = if b then 0xffuy else 0x00uy in
@@ -41,7 +41,7 @@ let rec encode_r = function
     
 let encode (x : dervalue) =
     try
-        (encode_r x).GetDerEncoded()
+        Bytes.abytes ((encode_r x).GetDerEncoded())
     with _ ->
         raise DerEncodingFailure
 
@@ -49,14 +49,14 @@ let encode (x : dervalue) =
 let rec decode_r (o : Asn1Encodable) : dervalue  =
     match o with
     | (:? DerBoolean     as o) -> Bool       (o.IsTrue)
-    | (:? DerOctetString as o) -> Bytes      (o.GetOctets())
+    | (:? DerOctetString as o) -> Bytes      (Bytes.abytes (o.GetOctets()))
     | (:? DerUtf8String  as o) -> Utf8String (o.GetString())
     | (:? DerSequence    as o) -> Sequence   ((Seq.cast o) |> Seq.map decode_r |> Seq.toList)
     | _                        -> raise DerDecodingFailure
 
-let decode (bytes : byte[]) : dervalue option =
+let decode (bytes : Bytes.bytes) : dervalue option =
     try
-        let obj = get_asn1_object bytes in
+        let obj = get_asn1_object (Bytes.cbytes bytes) in
             Some (decode_r obj)
     with _ ->
         None

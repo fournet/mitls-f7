@@ -140,9 +140,6 @@
     <None Include="Nonce.fs7" />
     <Compile Include="Nonce.fsi" />
     <Compile Include="Nonce.fs" />
-    <None Include="DER.fs7" />
-    <Compile Include="DER.fsi" />
-    <Compile Include="DER.fs" />
     <None Include="TLSConstants.fs7" />
     <Compile Include="TLSConstants.fsi" />
     <Compile Include="TLSConstants.fs" />
@@ -256,12 +253,6 @@
     <Compile Include="TLS.fs" />
     <Compile Include="RPC.fsi" />
     <Compile Include="RPC.fs" />
-    <None Include="PwToken.fs7" />
-    <Compile Include="PwToken.fsi" />
-    <Compile Include="PwToken.fs" />
-    <None Include="PwApp.fs7" />
-    <Compile Include="PwApp.fsi" />
-    <Compile Include="PwApp.fs" />
     <None Include="UTLS.fs7" />
     <Compile Include="UTLS.fsi" />
     <Compile Include="UTLS.fs" />
