@@ -20,7 +20,7 @@ module Internal =
     let wrap (cb : unit -> 'a) =
         try  cb ()
         with exn ->
-            Console.Error.WriteLine(exn.Message);
+            fprintfn stderr "DBError: %s" exn.Message;
             raise (DBError (exn.ToString()))
 
     let opendb (filename : string) =
