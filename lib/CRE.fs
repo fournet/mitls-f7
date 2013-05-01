@@ -75,11 +75,12 @@ let accessRSAPMS (pk:RSAKey.pk) (cv:ProtocolVersion) pms =
 
 let extractRSA_new si (cv:ProtocolVersion) pms: PRF.masterSecret = 
     let pk = 
-        match (Cert.get_chain_public_encryption_key si.serverID) with 
+        match Cert.get_chain_public_encryption_key si.serverID with 
         | Correct(pk) -> pk
         | _           -> unexpected "server must have an ID"    
     #if ideal
-    if PRF.safeMS_msIndex (RSAPMS(pk,cv,pms), csrands si, PRF.prfAlgOf si) then
+    let i = RSAPMS(pk,cv,pms), csrands si, PRF.prfAlgOf si
+    if PRF.safeMS_msIndex i then
         //We assoc on pk, cv, pms,  csrands, and prfAlg
         match rsaassoc pk cv pms (csrands si) (PRF.prfAlgOf si) !rsalog with 
         | Some(ms) -> ms
