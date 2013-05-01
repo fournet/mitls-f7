@@ -28,7 +28,7 @@ type dState = {
     disp: dispatchState;
     conn: Record.ConnectionState;
     }
-
+     
 type preGlobalState = {
   (* abstract protocol states for HS/CCS, AL, and AD *)
   handshake: Handshake.hs_state;
