@@ -7,7 +7,6 @@ import sys, os, re, time, json, xml.etree.ElementTree as etree
 MSBUILD = 'http://schemas.microsoft.com/developer/msbuild/2003'
 
 FS7DEFAULT = [
-  'Error',
   'TLSInfo',
   'DataStream',
   'Alert',
