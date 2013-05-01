@@ -31,8 +31,6 @@ FS7DEFAULT = [
   'UTLS',
 ]
 
-FS7APPS = [ 'PwToken', 'PwApp' ]
-
 MKHEADER = '''\
 include ../Makefile.config
 
@@ -62,7 +60,7 @@ default: %(fs7default)s
 # trusted: these files are not supposed to be verified, but we rely on
 # their .fs7 files for verification:
 #
-#   Base: Bytes DER Tcp Range
+#   Base: all modules in the Platform project
 #
 #   CoreCrypto wrappers: RSAKeys DHGroup HASH HMAC TLSPRF
 #
@@ -100,8 +98,8 @@ clean:
 
 regen:
 	./genrules \\
-	  -I ../CoreCrypto/CoreCrypto.fsproj \\
 	  -I ../Platform/Platform.fsproj \\
+	  -I ../CoreCrypto/CoreCrypto.fsproj \\
 	    lib.fsproj > Makefile.tls-lib.$$ \\
 	|| { rm -f Makefile.tls-lib.$$; false; }
 	mv Makefile.tls-lib.$$ Makefile
@@ -212,11 +210,13 @@ class FS7Deps(object):
                 if name.lower() in modules:
                     modules.remove(name.lower())
 
-                alldeps[name.lower()] = modules.intersection(lowfiles)
+                alldeps[name.lower()] = list(modules.intersection(lowfiles))
 
         for name in topoiter(alldeps):
-            for d in set(alldeps[name]): # copy
-                alldeps[name].update(alldeps[d])
+            for d in alldeps[name][:]: # copy
+                for x in alldeps[d]:
+                    if x not in alldeps[name]:
+                        alldeps[name].insert(0, x)
 
         # Reorder using user ordering
         for name in alldeps.iterkeys():
