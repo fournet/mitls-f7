@@ -12,4 +12,4 @@ val extract:    prfAlg -> bytes -> bytes -> l:nat -> (;l)lbytes
 val kdf:        prfAlg -> bytes -> bytes -> l:nat -> (;l)lbytes
 
 (* SSL-specific certificate verify *)
-val ssl_certificate_verify: bytes -> bytes -> hashAlg -> bytes
+val verifyCertificate: a:hashAlg{ a = MD5 \/ a = SHA }-> bytes -> bytes -> bytes

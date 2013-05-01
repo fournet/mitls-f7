@@ -41,7 +41,7 @@ let ssl_verifyData ms role data =
   let outer_sha1 = hash SHA (ms @| ssl_pad2_sha1 @| inner_sha1) in
   outer_md5 @| outer_sha1
 
-let ssl_certificate_verify ms log hashAlg =
+let ssl_verifyCertificate hashAlg ms log  =
   let (pad1,pad2) =
       match hashAlg with
       | SHA -> (ssl_pad1_sha1, ssl_pad2_sha1)

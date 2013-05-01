@@ -10,4 +10,4 @@ val kdf: prfAlg -> bytes -> bytes -> int -> bytes
 
 (* SSL-specific certificate verify *)
 
-val ssl_certificate_verify: bytes -> bytes -> hashAlg -> bytes
+val ssl_verifyCertificate: hashAlg -> bytes -> bytes -> bytes

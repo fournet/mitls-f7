@@ -277,7 +277,7 @@ let checkVerifyData si ms role data tag =
 let ssl_certificate_verify (si:SessionInfo) ms (algs:sigAlg) log =
   let s = leak si ms
   match algs with
-  | SA_RSA -> TLSPRF.ssl_certificate_verify s log MD5 @| TLSPRF.ssl_certificate_verify s log SHA
-  | SA_DSA -> TLSPRF.ssl_certificate_verify s log SHA
+  | SA_RSA -> TLSPRF.ssl_verifyCertificate MD5 s log @| TLSPRF.ssl_verifyCertificate SHA s log 
+  | SA_DSA -> TLSPRF.ssl_verifyCertificate SHA s log 
   | _      -> unexpected "[ssl_certificate_verify] invoked on a wrong signature algorithm"
 
