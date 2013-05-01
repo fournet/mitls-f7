@@ -1,12 +1,12 @@
 ﻿module PMS 
 
-(* Split from CRE *) 
+(* pre-master-secrets, for RSA-based and DH-based key exchanges *) 
+(* (this used to be part of CRE) *)
 
 open Bytes
 open TLSConstants
 open TLSInfo
 
-val todo: string -> 'a { false }
 
 (** RSA ciphersuites **) 
 
@@ -26,37 +26,40 @@ private type rsaseed = {seed:rsarepr}
 //   so that we can control their usage for the RSA-PMS assumption.
 
 type (;pk:RSAKey.pk, cv:ProtocolVersion) rsapms = 
-   | IdealRSAPMS    of rsaseed // used only ideally & for abstract pms values 
+   | IdealRSAPMS    of s:rsaseed {SafeRSAPMS(pk,cv)} // used only ideally & for abstract pms values 
    | ConcreteRSAPMS of rsarepr
-// pattern matching is used in this module & CRE only for specifying ideal code
+// pattern matching is used in this module & in CRE only for specifying ideal code
 // so we also define ideal predicate & test for the module users:
 predicate HonestRSAPMS of pk:RSAKey.pk * cv:ProtocolVersion * (;pk,cv)rsapms
 private definition !pk,cv,pms. 
-  HonestRSAPMS(pk,cv,pms) <=> ?s. pms = IdealRSAPMS(s)
+  HonestRSAPMS(pk,cv,pms) <=> (SafeRSAPMS(pk,cv) /\ ?s. pms = IdealRSAPMS(s))
 
 ask !pk,cv,s. not(HonestRSAPMS(pk,cv,ConcreteRSAPMS(s)))
 
-val honestRSAPMS: pk:RSAKey.pk -> cv:ProtocolVersion -> pms: (;pk,cv) rsapms -> b:bool { b=true <=> HonestRSAPMS(pk,cv,pms) } 
+val honestRSAPMS: pk:RSAKey.pk -> cv:ProtocolVersion -> pms: (;pk,cv) rsapms -> 
+  b:bool { b=true <=> HonestRSAPMS(pk,cv,pms) } 
 
 //CF UNUSED. to be deleted.
 // abstract postcondition of RSA encryption (event) 
 predicate EncryptedRSAPMS of pk:RSAKey.pk * cv:ProtocolVersion * (;pk,cv)rsapms * bytes
 
-//CF we may get it as a runtime invariant, attached as a refinement of rsapms.
-private theorem !pk,cv,pms. 
+//CF see SafeRSAPMS in TLSInfo
+//CF we get it as a runtime invariant, from the refinement of IdeaRSAPMS
+private ask !pk,cv,pms. 
   HonestRSAPMS(pk,cv,pms) => SafeRSAPMS(pk,cv) 
 
-val genRSA: pk:RSAKey.pk -> cv:ProtocolVersion -> pms:(;pk,cv)rsapms
-{ HonestRSAKey(pk) => HonestRSAPMS(pk,cv,pms) } 
+val genRSA: pk:RSAKey.pk -> cv:ProtocolVersion -> 
+  pms:(;pk,cv)rsapms { SafeRSAPMS(pk,cv) <=> HonestRSAPMS(pk,cv,pms) } 
 
 val coerceRSA: pk:RSAKey.pk -> cv:ProtocolVersion -> rsarepr -> (;pk,cv)rsapms
-// unrestricted, but we don't get an HonestRSAPMS
+// unrestricted; we actually always get a ConcreteRSAPMS
 
 val leakRSA: 
   pk:RSAKey.pk -> cv:ProtocolVersion -> 
   pms:(;pk,cv)rsapms {not HonestRSAPMS(pk,cv,pms)} -> rsarepr
 // used for concrete RSA encryption 
 //#end-abstractionRSA
+
 
 
 open DHGroup
@@ -85,6 +88,12 @@ val coerceDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt {not SafeDHPMS(p,g,gx
 //#end-abstractionDH
 
 
+// multiplexing the PMS representations
+
 type pms = 
   | RSAPMS of pk:RSAKey.pk * cv:ProtocolVersion * (;pk,cv)rsapms
   | DHPMS of p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * (;p,g,gx,gy) dhpms
+
+//TODO consider adding HonestPMS as HonestRSAPMS \/ HonestDHPMS.
+
+//CF val todo: string -> 'a { false }
