@@ -778,7 +778,7 @@ let next_fragment ci state =
             match cstate with
             | ClientWritingCCS (si,ms,log) ->
                 let next_ci = getNextEpochs ci si si.init_crand si.init_srand in
-                let (writer,reader) = PRF.keyGen next_ci ms in
+                let (reader,writer) = PRF.keyGenClient next_ci ms in
                 Pi.assume (SentCCS(Client,next_ci.id_out));
                 //CF now passing si, instead of next_ci.id_out
                 //CF but the precondition should be on F(si)
@@ -1188,7 +1188,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                     if si.cipher_suite = sh_cipher_suite then
                                         if si.compression = sh_compression_method then
                                             let next_ci = getNextEpochs ci si crand sh_random in
-                                            let (writer,reader) = PRF.keyGen next_ci ms in
+                                            let (reader,writer) = PRF.keyGenClient next_ci ms in
                                             let nout = next_ci.id_out in
                                             let nin = next_ci.id_in in
                                             recv_fragment_client ci 
@@ -1574,7 +1574,7 @@ let prepare_server_output_resumption ci state crand si ms cvd svd log =
 
     let log = log @| sHelloB
     let next_ci = getNextEpochs ci si crand srand in
-    let (writer,reader) = PRF.keyGen next_ci ms in
+    let (reader,writer) = PRF.keyGen next_ci ms in
     {state with hs_outgoing = sHelloB
                 pstate = PSServer(ServerWritingCCSResume(next_ci.id_out,writer,
                                                          next_ci.id_in,reader,
@@ -1870,7 +1870,7 @@ let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:range) (fragment:HSFragmen
             match sState with
             | ClientCCS(si,ms,log) ->
                 let next_ci = getNextEpochs ci si si.init_crand si.init_srand in
-                let (writer,reader) = PRF.keyGen next_ci ms in
+                let (reader,writer) = PRF.keyGenServer next_ci ms in
                 let ci = {ci with id_in = next_ci.id_in} in
                 InCCSAck(ci,reader,{state with pstate = PSServer(ClientFinished(si,ms,next_ci.id_out,writer,log))})
             | ClientCCSResume(e,r,svd,ms,log) ->

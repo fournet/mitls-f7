@@ -128,7 +128,7 @@ val epochSI: e:succEpoch -> si:SessionInfo{si = EpochSI(e)}
 
 val epochSRand: e:succEpoch -> b:crand{B(b) = B(EpochSRand(e))}
 val epochCRand: e:succEpoch -> b:srand{B(b) = B(EpochCRand(e))}
-val epochCSRands: e:succEpoch -> b:bytes{B(b) = B(EpochCRand(e)) @| B(EpochSRand(e))}
+val epochCSRands: e:succEpoch -> b:csrands{B(b) = B(EpochCRand(e)) @| B(EpochSRand(e))}
 
 type ConnectionInfo =
 	{ role: Role;

@@ -86,42 +86,24 @@ val coerce: si:SessionInfo {not SafeMS_SI(si)} -> PMS.pms -> repr -> (;si)master
 //#end-coerce
 
 
-//ask from LHAE.fs7 repeated here to help Z3
-private ask !ki,si,enc,mac. 
-     TLSConstants.CipherSuiteAuthEncAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = TLSConstants.MACOnly(mac) 
-  => LHAE.LHAEKeySize(ki) = TLSConstants.MacKeySize(mac)
-
-private ask !cs,pv,mac. 
-     CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) 
-  => KeyExtensionLength(pv,cs) = MacKeySize(mac)+MacKeySize(mac)
-private ask !cs,pv,mac. 
-     CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) 
-  => LHAE.LHAEKeySize_AEAlg(MACOnly(mac)) = TLSConstants.MacKeySize(mac)
-private ask !ki,mac. 
-     CipherSuiteAuthEncAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = MACOnly(mac) 
-  => LHAE.LHAEKeySize(ki) = TLSConstants.MacKeySize(mac)
-
-
 (** Key derivation **) 
 
 private val clientWriter: r:Role -> rw:rw {(r = Client /\ rw = Writer) \/ (r = Server /\ rw = Reader)}  
 private val clientReader: r:Role -> rw:rw {(r = Client /\ rw = Reader) \/ (r = Server /\ rw = Writer)}  
 
+//CF not sure this is right, and why it was not on real_keyGen. Commenting out for now
+type (;ci:ConnectionInfo) derived =  
+  ( r:(;ci.id_in) StatefulLHAE.reader * w:(;ci.id_out)StatefulLHAE.writer ) 
+//  { StatefulLHAE.History(ci.id_out,Reader,r) = StatefulPlain.EmptyHistory(ci.id_in) /\
+//	StatefulLHAE.History(ci.id_out,Writer,w) = StatefulPlain.EmptyHistory(ci.id_out) }
+
 private val real_keyGen: 
   ci:ConnectionInfo{
-      EpochSI(ci.id_in)=EpochSI(ci.id_out) /\ 
+      EpochSI(ci.id_in)=EpochSI(ci.id_out) (* needed as we compute on id_in only *) /\ 
       IsSuccEpoch(ci.id_in) /\ IsSuccEpoch(ci.id_out) /\ 
-      not Auth(ci.id_in) /\ not Auth(ci.id_out)} ->  
-  (;EpochSI(ci.id_out))masterSecret ->
-  ( w:(;ci.id_out)StatefulLHAE.writer * r:(;ci.id_in) StatefulLHAE.reader ) 
-//      { StatefulLHAE.History(ci.id_out,Writer,w) = StatefulPlain.EmptyHistory(ci.id_out) /\
-//        StatefulLHAE.History(ci.id_out,Reader,r) = StatefulPlain.EmptyHistory(ci.id_in)}
-
-//CF not sure this is right
-type (;ci:ConnectionInfo) derived =  
-  ( w:(;ci.id_out)StatefulLHAE.writer * r:(;ci.id_in) StatefulLHAE.reader ) 
-  { StatefulLHAE.History(ci.id_out,Writer,w) = StatefulPlain.EmptyHistory(ci.id_out) /\
-    StatefulLHAE.History(ci.id_out,Reader,r) = StatefulPlain.EmptyHistory(ci.id_in)}
+	  not Auth(ci.id_in) /\ not Auth(ci.id_out)
+	  } ->  
+  (;EpochSI(ci.id_out))masterSecret -> (;ci) derived 
 
 // TODO 
 type aeAlg = int 
@@ -138,20 +120,30 @@ val ci_aeAlg: ConnectionInfo -> aeAlg
 // The state machine has an implicit Init state as the csr has not been used yet by any
 // honest client or server, and otherwise records its state in a table indexed by csr. 
 // Generating a fresh CR or a SR guarantees that we are initially in that state
+//
+// Note that we use CR @| SR, rather than SR @| CR as in the raw KDF call. 
+
+type event = Waste of ConnectionInfo // with a csr in the Wasted state
+private theorem !ci. Waste(ci) => ((not Auth(ci.id_in)) /\ (not Auth(ci.id_out))) 
+
 type (;csr: csrands) state =
   | Init
   | Committed of aeAlg
   // The server has committed to using at most this algorithmn with this csr.
-  // ---> 
+  // --------> 
   | Derived of aeAlg * msIndex * ci:ConnectionInfo * (;ci) derived
-  // the client has derived keys for both roles, with the same algorithm, recording those for the server. 
-  // --->
+  // the client has ideally derived keys for both roles,
+  // with the same algorithm, recording those for the server. 
+  // --only-->
   | Done 
   // the server has also derived keys (retrieving those recorded, or generating others).
+  // or he may have failed because of an aeAlg mismatch.
   // No action allowed from this point. 
 
   // In all other cases, we reach a stable state such that we never idealize. 
+  // We won't have SafeHS for this csr. 
   | Wasted
+
 
 type kdentry = csr:csrands * (;csr) state 
 val kdlog : kdentry list ref  
@@ -166,9 +158,15 @@ val update: csr:csrands -> (;csr) state -> kdentry  list -> kdentry list
 val keyCommit: csrands -> aeAlg -> unit 
 
 val keyGenClient: 
-  ci:ConnectionInfo{IsSuccEpoch(ci.id_in)} -> (;EpochSI(ci.id_out))masterSecret -> (;ci) derived   
+  ci:ConnectionInfo{
+      EpochSI(ci.id_in)=EpochSI(ci.id_out) /\ 
+      IsSuccEpoch(ci.id_in) /\ IsSuccEpoch(ci.id_out)} -> 
+  (;EpochSI(ci.id_out))masterSecret -> (;ci) derived   
 val keyGenServer: 
-  ci:ConnectionInfo{IsSuccEpoch(ci.id_in)} -> (;EpochSI(ci.id_out))masterSecret -> (;ci) derived
+  ci:ConnectionInfo{
+      EpochSI(ci.id_in)=EpochSI(ci.id_out) /\ 
+      IsSuccEpoch(ci.id_in) /\ IsSuccEpoch(ci.id_out)} -> 
+  (;EpochSI(ci.id_out))masterSecret -> (;ci) derived
 
 (* typing the keys log for the ideal functionality *)
 //private type entry = (ems:(e12:(epoch * epoch) * (;Fst(e12))masterSecret) * 
@@ -204,17 +202,17 @@ private val mem: i:msIndex -> r:Role -> t:text -> entry list -> b:bool{ b=true =
 
 private val verifyData: si:SessionInfo -> (;si) masterSecret -> r:Role -> t:text -> tag 
 
-(* MACing *)
+// MACing 
 val makeVerifyData: 
   si:SessionInfo -> (;si) masterSecret -> 
   r:Role -> t:text{VerifyData(MsI(si),r,t)} -> 
   tag (* length depends on cs, 12 by default *)
 
-(* MAC verifying *)
+// MAC verifying 
 val checkVerifyData: 
   si:SessionInfo -> (;si) masterSecret ->
   r:Role -> t:text -> tag:tag (* the expected value *) ->
-  b:bool{(b = true /\ SafeHS_SI(si)) => VerifyData(MsI(si),r,t)} 
+  b:bool{(b = true /\ SafeMS_SI(si)) => VerifyData(MsI(si),r,t)} 
   
 
 (** ad hoc SSL3-only function; untrusted. **) 
@@ -225,9 +223,9 @@ val ssl_certificate_verify:
   TLSConstants.sigAlg -> bytes -> bytes
 
 
+//CF =============================== only comments below
 
-
-private val epochs:ConnectionInfo -> epoch * epoch
+//private val epochs:ConnectionInfo -> epoch * epoch
 
 (* MK !! causes logical inconsistency
 function val Epochs: 'a -> 'b
@@ -238,3 +236,21 @@ private definition !ci,r,e_in,e_out.
 	 Epochs(ci) = (ci.id_out,ci.id_in) )
 *)
 //MK ask !si, si'. SafeHS_SI(si) /\ SafeHS_SI(si') /\ si.csrands=si.csrands => CS(si)=CS(si')
+
+
+(* CF
+// ask from LHAE.fs7 repeated here to help Z3 type real_key_Gen; apparently not needed anymore
+private ask !ki,si,enc,mac. 
+     TLSConstants.CipherSuiteAuthEncAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = TLSConstants.MACOnly(mac) 
+  => LHAE.LHAEKeySize(ki) = TLSConstants.MacKeySize(mac)
+
+private ask !cs,pv,mac. 
+     CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) 
+  => KeyExtensionLength(pv,cs) = MacKeySize(mac)+MacKeySize(mac)
+private ask !cs,pv,mac. 
+     CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) 
+  => LHAE.LHAEKeySize_AEAlg(MACOnly(mac)) = TLSConstants.MacKeySize(mac)
+private ask !ki,mac. 
+     CipherSuiteAuthEncAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = MACOnly(mac) 
+  => LHAE.LHAEKeySize(ki) = TLSConstants.MacKeySize(mac)
+*)

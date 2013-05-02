@@ -100,11 +100,11 @@ let real_keyGen ci (ms:masterSecret) =
         let ck,sk = split b macKeySize 
         match ci.role with 
         | Client -> 
-            (StatefulLHAE.COERCE ci.id_out Writer ck,
-             StatefulLHAE.COERCE ci.id_in  Reader sk)
+            (StatefulLHAE.COERCE ci.id_in  Reader sk,
+             StatefulLHAE.COERCE ci.id_out Writer ck)
         | Server -> 
-            (StatefulLHAE.COERCE ci.id_out Writer sk,
-             StatefulLHAE.COERCE ci.id_in  Reader ck)
+            (StatefulLHAE.COERCE ci.id_in  Reader ck,
+             StatefulLHAE.COERCE ci.id_out Writer sk)
     | MtE(encAlg,macAlg) ->
         let macKeySize = macKeySize macAlg in
         let encKeySize = encKeySize encAlg in
@@ -118,11 +118,11 @@ let real_keyGen ci (ms:masterSecret) =
             let sk = (smkb @| sekb) in
             match ci.role with 
             | Client -> 
-                (StatefulLHAE.COERCE ci.id_out Writer ck,
-                 StatefulLHAE.COERCE ci.id_in  Reader sk)
+                (StatefulLHAE.COERCE ci.id_in  Reader sk,
+                 StatefulLHAE.COERCE ci.id_out Writer ck)
             | Server -> 
-                (StatefulLHAE.COERCE ci.id_out Writer sk,
-                 StatefulLHAE.COERCE ci.id_in  Reader ck)
+                (StatefulLHAE.COERCE ci.id_in  Reader ck,
+                 StatefulLHAE.COERCE ci.id_out Writer sk)
         | CBC_Stale(alg) ->
             let cmkb, b = split b macKeySize in
             let smkb, b = split b macKeySize in
@@ -134,22 +134,22 @@ let real_keyGen ci (ms:masterSecret) =
             let sk = (smkb @| sekb @| sivb) in
             match ci.role with 
             | Client -> 
-                (StatefulLHAE.COERCE ci.id_out Writer ck,
-                 StatefulLHAE.COERCE ci.id_in  Reader sk)
+                (StatefulLHAE.COERCE ci.id_in  Reader sk,
+                 StatefulLHAE.COERCE ci.id_out Writer ck)
             | Server -> 
-                (StatefulLHAE.COERCE ci.id_out Writer sk,
-                 StatefulLHAE.COERCE ci.id_in  Reader ck)
+                (StatefulLHAE.COERCE ci.id_in  Reader ck,
+                 StatefulLHAE.COERCE ci.id_out Writer sk)
     | _ -> Error.unexpected "[keyGen] invoked on unsupported ciphersuite"
 
-#if ideal
 //CF ?
+//#if ideal
 // we normalize the pair to use as a shared index; 
 // this function could also live in TLSInfo
-let epochs (ci:ConnectionInfo) = 
-  if ci.role = Client 
-  then (ci.id_in, ci.id_out)
-  else (ci.id_out, ci.id_in) 
-#endif
+//let epochs (ci:ConnectionInfo) = 
+//  if ci.role = Client 
+//  then (ci.id_in, ci.id_out)
+//  else (ci.id_out, ci.id_in) 
+//#endif
 
 
 // Calls to keyCommit and keyGen1 are treated as internal events of PRF. 
@@ -186,13 +186,14 @@ definition SafeHS(e) <=>
 // This enables us to prove Complete, roughly as currently defined:
 //   Complete <=> (HonestPMS /\ StrongHS => SafeHS)
 
-type derived = StatefulLHAE.writer * StatefulLHAE.reader 
+type derived = StatefulLHAE.reader * StatefulLHAE.writer 
 
 // TODO 
 type aeAlg = int 
 let ci_aeAlg (ci:ConnectionInfo) = 1 
 
 #if ideal
+type event = Waste of ConnectionInfo
 type state =
   | Init
   | Committed of aeAlg
@@ -231,28 +232,30 @@ let keyCommit (csr:csrands) (a:aeAlg) : unit =
 
 let keyGenClient ci ms =
     #if ideal
-    let (e1,e2) = epochs ci
-    let csr = epochCSRands e1 
+    let csr = epochCSRands ci.id_in
     let (msi,ms') = ms 
     match read csr !kdlog with
     | Committed(a) when a = ci_aeAlg ci (* && honestMS && StrongKDF *) ->  // safeHS_SI (epochSI(ci.id_in)) 
         // we idealize the key derivation
-        let (myWrite,peerRead) = StatefulLHAE.GEN ci.id_out
-        let (peerWrite,myRead) = StatefulLHAE.GEN ci.id_in 
-        kdlog := update csr (Derived(a,msi,ci,(peerWrite,peerRead))) !kdlog;
-        (myWrite,myRead)
+        let (myRead,peerWrite) = StatefulLHAE.GEN ci.id_in 
+        let (peerRead,myWrite) = StatefulLHAE.GEN ci.id_out
+        //TODO we need to flip the index or the refinement
+        let ci' = { id_in = ci.id_out ; id_out = ci.id_in; id_rand = ci.id_rand; role = Server }
+        let peer = peerRead,peerWrite
+        kdlog := update csr (Derived(a,msi,ci',(peerRead,peerWrite))) !kdlog;
+        (myRead,myWrite)
     | _  ->
-        kdlog := update csr Wasted !kdlog; 
+        Pi.assume(Waste(ci));
+        kdlog := update csr Wasted !kdlog;
     #endif
         real_keyGen ci ms 
 
 let keyGenServer ci ms =
     #if ideal
-    let (e1,e2) = epochs ci
-    let csr = epochCSRands e1 
+    let csr = epochCSRands ci.id_in
     match read csr !kdlog with  
     | Derived(a,msi,ci',mine) ->
-        let (myWrite,myRead) = mine
+        let (myRead,myWrite) = mine
         // TODO we can't have matching epochs. 
         // by typing, we should know that a matches ci 
         kdlog := update csr Done !kdlog
@@ -261,10 +264,11 @@ let keyGenServer ci ms =
             (myRead,myWrite) // we benefit from the client's idealization
         else
             // we generate our own ideal keys; they will lead to a verifyData mismatch
-            let (myWrite,peerRead) = StatefulLHAE.GEN ci.id_out
-            let (peerWrite,myRead) = StatefulLHAE.GEN ci.id_in 
-            (myWrite,myRead)
+            let (myRead,peerWrite) = StatefulLHAE.GEN ci.id_in 
+            let (peerRead,myWrite) = StatefulLHAE.GEN ci.id_out
+            (myRead,myWrite)
     | _ -> 
+        Pi.assume(Waste(ci));
         kdlog := update csr Wasted !kdlog; 
     #endif
         real_keyGen ci ms
@@ -324,17 +328,21 @@ let makeVerifyData si (ms:masterSecret) role data =
 
 let checkVerifyData si ms role data tag =
   let computed = verifyData si ms role data
+  #if ideal
+  let (msi,s) = ms
+  #endif
   equalBytes tag computed
   //#begin-ideal2
   #if ideal
   && // ideally, we return "false" when concrete 
      // verification suceeeds but shouldn't according to the log 
     ( safeMS_SI si = false ||
-      let (msi,s) = ms
-      mem msi role data !log ) //MK: (TLSInfo.csrands si)
+      mem msi role data !log ) //MK: (TLSInfo.csrands si) CF:?
   //#end-ideal2
   #endif
 
+
+(** ad hoc SSL3-only **)
 
 let ssl_certificate_verify (si:SessionInfo) ms (algs:sigAlg) log =
   let s = leak si ms
