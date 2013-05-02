@@ -25,7 +25,9 @@ open StatefulLHAE
 type repr = (;48)lbytes
 //#begin-abstraction
 
-(* TODO migrated to TLSConstants, postponed
+(* TODO 
+We currently use a loose prfAlg. 
+we may migrate prfAlg to a tigher enumeration, as outlined below
 // We need descriptors for the algorithm keyed by PMS and MS (named "PRF" in TLS)
 // Given pv and cs, and except for SSL3, 
 // the same algorithm is used for extraction, key derivation, and verifyData
@@ -41,28 +43,26 @@ type prfAlg = // can't be folded back to the sums in TLSConstants; we need to us
 val prfAlg: SessionInfo -> prfAlg
 
 // Precise index for master secrets is a function of session info (involving pmsdata decryption)
+// CF We cannot use just csr, because of MiTM forwarding honest nonces
 type msIndex =        // We record the parameters used to derive this MS: 
   pms   : PMS.pms *   // the pms and its indexes  
   csr   : csrands *   // the nonces  
   creAlg: prfAlg      // the PMS-PRF algorithm
-//CF: we cannot use just csr, because of MiTM forwarding honest nonces
    
 function val MsI: SessionInfo -> msIndex 
 //TODO: logically define this function.
 //TODO: avoid in code: do we really want to decrypt? 
 //MK: Maybe have a function msF: pms -> SessionInfo -> msindex
-
-//TODO actually define MsI
 val msi: si:SessionInfo -> pms:PMS.pms -> i:msIndex { i = MsI(si) }
 
-// safety of the MS (not necessarily its usage)
+// CF safety of the MS (not necessarily its usage). Not refined yet
 val safeMS_msIndex: msIndex -> bool
 
 private type (;i:msIndex) ms = {bytes: repr}
 
 // This index additionally records the *local* session info.
 type (;si:SessionInfo) masterSecret = i:msIndex * (;i) ms {i = MsI(si)}
-//CF was: type (;si:SessionInfo) masterSecret = (;MsI(si)) ms 
+// CF cumbersome... was: type (;si:SessionInfo) masterSecret = (;MsI(si)) ms 
 
 val masterSecret: si:SessionInfo -> i:msIndex {i = MsI(si)} -> (;i)ms -> (;si) masterSecret
 //#end-abstraction
@@ -78,7 +78,7 @@ val masterSecret: si:SessionInfo -> i:msIndex {i = MsI(si)} -> (;i)ms -> (;si) m
 
 (** Master secrets are either ideally sampled or concretely derived & coerced *) 
 
-val leak: si:SessionInfo -> (;si) masterSecret -> repr
+private val leak: si:SessionInfo -> (;si) masterSecret -> repr
 val sample: si:SessionInfo -> PMS.pms -> (;si)masterSecret 
 //#begin-coerce
 //the precondition of coerce excludes both idealizations.
@@ -88,10 +88,10 @@ val coerce: si:SessionInfo {not SafeMS_SI(si)} -> PMS.pms -> repr -> (;si)master
 
 (** Key derivation **) 
 
-private val clientWriter: r:Role -> rw:rw {(r = Client /\ rw = Writer) \/ (r = Server /\ rw = Reader)}  
-private val clientReader: r:Role -> rw:rw {(r = Client /\ rw = Reader) \/ (r = Server /\ rw = Writer)}  
+//private val clientWriter: r:Role -> rw:rw {(r = Client /\ rw = Writer) \/ (r = Server /\ rw = Reader)}  
+//private val clientReader: r:Role -> rw:rw {(r = Client /\ rw = Reader) \/ (r = Server /\ rw = Writer)}  
 
-//CF not sure this is right, and why it was not on real_keyGen. Commenting out for now
+//CF not sure the refinement is right, and why it was not on real_keyGen. Commenting out for now
 type (;ci:ConnectionInfo) derived =  
   ( r:(;ci.id_in) StatefulLHAE.reader * w:(;ci.id_out)StatefulLHAE.writer ) 
 //  { StatefulLHAE.History(ci.id_out,Reader,r) = StatefulPlain.EmptyHistory(ci.id_in) /\
@@ -101,15 +101,13 @@ private val real_keyGen:
   ci:ConnectionInfo{
       EpochSI(ci.id_in)=EpochSI(ci.id_out) (* needed as we compute on id_in only *) /\ 
       IsSuccEpoch(ci.id_in) /\ IsSuccEpoch(ci.id_out) /\ 
-	  not Auth(ci.id_in) /\ not Auth(ci.id_out)
+	  not Auth(ci.id_in) /\ not Auth(ci.id_out) (* needed to coerce to StatefulLHAE *)
 	  } ->  
   (;EpochSI(ci.id_out))masterSecret -> (;ci) derived 
 
-// TODO 
+// TODO we need to reindex StatefulLHAE.
 type aeAlg = int 
 val ci_aeAlg: ConnectionInfo -> aeAlg
-
-// TODO we need to reindex StatefulLHAE. For now passing extra epochs.
 
 // USAGE RESTRICTION:
 // For each CSR, 
@@ -122,6 +120,13 @@ val ci_aeAlg: ConnectionInfo -> aeAlg
 // Generating a fresh CR or a SR guarantees that we are initially in that state
 //
 // Note that we use CR @| SR, rather than SR @| CR as in the raw KDF call. 
+
+// Calls to keyCommit and keyGenClient are treated as internal events of PRF. 
+// SafeKDF specifically enables us to assume consistent algorithms for StAE.
+// (otherwise we would need some custom joint assumptions for StAE)
+// 
+// predicate val SafeKDF: csr -> bool
+// definition SafeKDF(csr) <=> ?pv,cs. KeyCommit(csr,pv,cs) /\ KeyGen1(csr,pv,cs)  
 
 type event = Waste of ConnectionInfo // with a csr in the Wasted state
 private theorem !ci. Waste(ci) => ((not Auth(ci.id_in)) /\ (not Auth(ci.id_out))) 
@@ -168,9 +173,36 @@ val keyGenServer:
       IsSuccEpoch(ci.id_in) /\ IsSuccEpoch(ci.id_out)} -> 
   (;EpochSI(ci.id_out))masterSecret -> (;ci) derived
 
-(* typing the keys log for the ideal functionality *)
-//private type entry = (ems:(e12:(epoch * epoch) * (;Fst(e12))masterSecret) * 
-//                   ((;Fst(Fst(ems)),Reader)state * (;Snd(Fst(ems)),Writer)state)) 
+
+
+(* CF
+// --- summary of our discussion on Apr 29, towards typechecking the HS.
+
+// re: session
+definition HonestMS( (pms, csr, creAlg) as msi ) <=>
+  HonestPMS(pms) /\ StrongCRE(creAlg) // joint assumption  
+
+// re: connection
+// this predicate controls StAE idealization
+// (relative to StAE's algorithmic strength)
+// it is ideally used much before it can be proved as the HS completes.
+
+definition SafeHS(e) <=> 
+     SafeKDF(e.csr "the connection's csr") /\ 
+     StrongKDF(e.kdfAlg) /\ 
+     HonestMS(MsI(e))
+
+// In HS, we have 
+// - KeyGen1  (e.csr, e.pv, e.cs) is a precondition to the event ClientSentCCS(e)
+// - KeyCommit(e.csr, e.pv, e.cs) is a precondition to the event ServerSentCCS(e)
+// - HonestMS /\ StrongVD are sufficient to guarantee 
+//   matching ClientSentCCS(e) and ServerSentCCS(e), hence getting 
+//   (1) SafeKDF, and 
+//   (2) e is the only wide index associated with StAEIndex(e)       
+//
+// This enables us to prove Complete, roughly as currently defined:
+//   Complete <=> (HonestPMS /\ StrongHS => SafeHS)
+*)
 
 
 

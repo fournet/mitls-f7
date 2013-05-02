@@ -1574,7 +1574,7 @@ let prepare_server_output_resumption ci state crand si ms cvd svd log =
 
     let log = log @| sHelloB
     let next_ci = getNextEpochs ci si crand srand in
-    let (reader,writer) = PRF.keyGen next_ci ms in
+    let (reader,writer) = PRF.keyGenServer next_ci ms in
     {state with hs_outgoing = sHelloB
                 pstate = PSServer(ServerWritingCCSResume(next_ci.id_out,writer,
                                                          next_ci.id_in,reader,

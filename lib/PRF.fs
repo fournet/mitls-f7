@@ -1,20 +1,8 @@
 module PRF
 
-//open Error
-//open TLSError
 open Bytes
 open TLSConstants
 open TLSInfo
-
-//MK: type rsamsindex = RSAKey.pk * ProtocolVersion * rsapms * bytes //abstract indices vs csrands alone
-//let rsamsF (si:SessionInfo):rsamsindex = failwith "not efficiently implementable"
-
-(* TODO we may migrate prfAlg to a tigher enumeration, as outlined below
-  | PRF_TLS_1p2 of macAlg // typically SHA256 but may depend on CS
-  | PRF_TLS_1p01           // MD5 xor SHA1
-  | PRF_SSL3_nested        // MD5(SHA1(...)) for extraction and keygen
-  | PRF_SSL3_concat        // MD5 @| SHA1    for VerifyData tags
-*)
 
 let prfAlg (si:TLSInfo.SessionInfo) = si.protocol_version, si.cipher_suite
 (* TODO
@@ -26,16 +14,15 @@ let prfAlg (si:TLSInfo.SessionInfo) = si.protocol_version, si.cipher_suite
 
 type msIndex =  PMS.pms * // the pms and its indexes  
                 csrands * // the nonces  
-                prfAlg  
+                prfAlg
 
-//CF misses a definition of MsI to typecheck
+//CF ERROR: misses a definition of MsI to typecheck
 let msi (si:SessionInfo) (pms:PMS.pms) = 
   (pms, csrands si, prfAlg si) 
 
 #if ideal
-// TODO
+// TODO failing to typecheck, not sure why.
 // let strongPrfAlg (pa:prfAlg) = true
-
 let safeMS_msIndex (msi:msIndex) : bool =
     failwith "todo: failing to typecheck?!"
 (*
@@ -48,7 +35,6 @@ let safeMS_msIndex (msi:msIndex) : bool =
 #endif
 
 type repr = bytes
-
 type ms = { bytes: repr }
 #if ideal
 type masterSecret = msIndex * ms
@@ -58,8 +44,8 @@ type masterSecret = ms
 let masterSecret si msi ms = ms
 #endif
 
-// used internally for calling concrete TLSPRF
-let leak (si:SessionInfo) (ms:masterSecret) = 
+// used for calling concrete TLSPRF
+let private leak (si:SessionInfo) (ms:masterSecret) = 
 #if ideal
   let (msi,ms) = ms
 #endif
@@ -83,6 +69,8 @@ let clientReader = function
   | Client -> Reader 
   | Server -> Writer
 *)
+
+// This code is complex because we need to reshuffle the raw key materials  
 
 let real_keyGen ci (ms:masterSecret) =
     let si = epochSI(ci.id_in) in
@@ -141,55 +129,10 @@ let real_keyGen ci (ms:masterSecret) =
                  StatefulLHAE.COERCE ci.id_out Writer sk)
     | _ -> Error.unexpected "[keyGen] invoked on unsupported ciphersuite"
 
-//CF ?
-//#if ideal
-// we normalize the pair to use as a shared index; 
-// this function could also live in TLSInfo
-//let epochs (ci:ConnectionInfo) = 
-//  if ci.role = Client 
-//  then (ci.id_in, ci.id_out)
-//  else (ci.id_out, ci.id_in) 
-//#endif
-
-
-// Calls to keyCommit and keyGen1 are treated as internal events of PRF. 
-// SafeKDF specifically enables us to assume consistent algorithms for StAE.
-// (otherwise we would not custom joint assumptions within StAE)
- 
-(*
-predicate val SafeKDF: csr -> bool
-definition SafeKDF(csr) <=> ?pv,cs. KeyCommit(csr,pv,cs) /\ KeyGen1(csr,pv,cs)  
-
-// re: session
-definition HonestMS( (pms, csr, creAlg) as msi ) <=>
-  HonestPMS(pms) /\ StrongCRE(creAlg) // joint assumption  
-
-// re: connection
-// this predicate controls StAE idealization
-// (relative to StAE's algorithmic strength)
-// it is ideally used much before it can be proved as the HS completes.
-
-definition SafeHS(e) <=> 
-     SafeKDF(e.csr "the connection's csr") /\ 
-     StrongKDF(e.kdfAlg) /\ 
-     HonestMS(MsI(e))
-*)
-
-// In HS, we have 
-// - KeyGen1  (e.csr, e.pv, e.cs) is a precondition to the event ClientSentCCS(e)
-// - KeyCommit(e.csr, e.pv, e.cs) is a precondition to the event ServerSentCCS(e)
-// - HonestMS /\ StrongVD are sufficient to guarantee 
-//   matching ClientSentCCS(e) and ServerSentCCS(e), hence getting 
-//   (1) SafeKDF, and 
-//   (2) e is the only wide index associated with StAEIndex(e)       
-//
-// This enables us to prove Complete, roughly as currently defined:
-//   Complete <=> (HonestPMS /\ StrongHS => SafeHS)
 
 type derived = StatefulLHAE.reader * StatefulLHAE.writer 
 
-// TODO 
-type aeAlg = int 
+type aeAlg = int // CF todo in StatefulLHAE
 let ci_aeAlg (ci:ConnectionInfo) = 1 
 
 #if ideal
@@ -259,8 +202,9 @@ let keyGenServer ci ms =
         // TODO we can't have matching epochs. 
         // by typing, we should know that a matches ci 
         kdlog := update csr Done !kdlog
-        if true //failwith "ms matches msi" 
+        if false // failwith "ms matches msi" 
         then  
+            //CF ERROR we need a tighter index to typecheck the key reuse.
             (myRead,myWrite) // we benefit from the client's idealization
         else
             // we generate our own ideal keys; they will lead to a verifyData mismatch
@@ -282,7 +226,6 @@ type tag = bytes
 #if ideal
 type entry = msIndex * Role * text
 let log : entry list ref = ref []
-// TODO use tight index instead of SessionInfo
 
 let rec mem (i:msIndex) (r:Role) (t:text) (es:entry list) = 
   match es with
@@ -291,7 +234,7 @@ let rec mem (i:msIndex) (r:Role) (t:text) (es:entry list) =
   | (i',role,text)::es -> mem i r t es
 #endif
 
-let verifyData si ms role data = 
+let private verifyData si ms role data = 
   TLSPRF.verifyData (prfAlg si) (leak si ms) role data
 
 let makeVerifyData si (ms:masterSecret) role data =
@@ -311,10 +254,9 @@ let checkVerifyData si ms role data tag =
   equalBytes tag computed
   //#begin-ideal2
   #if ideal
-  && // ideally, we return "false" when concrete 
-     // verification suceeeds but shouldn't according to the log 
-    ( safeMS_SI si = false ||
-      mem msi role data !log ) //MK: (TLSInfo.csrands si) CF:?
+  // we return "false" when concrete verification
+  // succeeds but shouldn't according to the log 
+  && ( safeMS_SI si = false || mem msi role data !log ) //MK: (TLSInfo.csrands si) CF:?
   //#end-ideal2
   #endif
 
@@ -328,3 +270,14 @@ let ssl_certificate_verify (si:SessionInfo) ms (algs:sigAlg) log =
   | SA_DSA -> TLSPRF.ssl_verifyCertificate SHA s log 
   | _      -> Error.unexpected "[ssl_certificate_verify] invoked on a wrong signature algorithm"
 
+
+
+//CF ?
+//#if ideal
+// we normalize the pair to use as a shared index; 
+// this function could also live in TLSInfo
+//let epochs (ci:ConnectionInfo) = 
+//  if ci.role = Client 
+//  then (ci.id_in, ci.id_out)
+//  else (ci.id_out, ci.id_in) 
+//#endif
