@@ -32,7 +32,11 @@ val sample: SessionInfo -> PMS.pms -> masterSecret
 val coerce: SessionInfo -> PMS.pms -> repr -> masterSecret
 //#end-coerce
 
-val keyGen: ConnectionInfo -> masterSecret -> StatefulLHAE.writer * StatefulLHAE.reader
+type aeAlg = int
+
+val keyCommit: csrands -> aeAlg -> unit
+val keyGenClient: ConnectionInfo -> masterSecret -> StatefulLHAE.writer * StatefulLHAE.reader
+val keyGenServer: ConnectionInfo -> masterSecret -> StatefulLHAE.writer * StatefulLHAE.reader
 
 val makeVerifyData:  SessionInfo -> masterSecret -> Role -> bytes -> bytes 
 val checkVerifyData: SessionInfo -> masterSecret -> Role -> bytes -> bytes -> bool

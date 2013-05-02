@@ -13,4 +13,4 @@ val kdf:        prfAlg -> bytes -> bytes -> l:nat -> (;l)lbytes
 
 (* SSL-specific certificate verify *)
 
-val verifyCertificate: a:hashAlg{ a = MD5 \/ a = SHA }-> bytes -> bytes -> bytes
+val ssl_verifyCertificate: a:hashAlg{ a = MD5 \/ a = SHA }-> bytes -> bytes -> bytes

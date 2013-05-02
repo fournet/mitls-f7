@@ -28,26 +28,23 @@ type msIndex =  PMS.pms * // the pms and its indexes
                 csrands * // the nonces  
                 prfAlg  
 
+//CF misses a definition of MsI to typecheck
 let msi (si:SessionInfo) (pms:PMS.pms) = 
-  pms, si.init_crand @| si.init_srand, (si.protocol_version,si.cipher_suite)
-
-let masterSecret msi ms = 
-#if ideal
-  (msi,ms)
-#else 
-  ms
-#endif
+  (pms, csrands si, prfAlg si) 
 
 #if ideal
 // TODO
-let strongPrfAlg (pa:prfAlg) = true
+// let strongPrfAlg (pa:prfAlg) = true
 
-let safeMS_msIndex (msI:msIndex) =
-    let (pms,csrands,prfAlg) = msI
+let safeMS_msIndex (msi:msIndex) : bool =
+    failwith "todo: failing to typecheck?!"
+(*
+    let (pms',csrands,prfAlg) = msi
     strongPrfAlg prfAlg && 
-    match pms with
+    match pms' with
     | PMS.RSAPMS(pk,cv,rsapms)   -> PMS.honestRSAPMS pk cv rsapms   
     | PMS.DHPMS(p,g,gx,gy,dhpms) -> PMS.honestDHPMS p g gx gy dhpms 
+*)
 #endif
 
 type repr = bytes
@@ -55,8 +52,10 @@ type repr = bytes
 type ms = { bytes: repr }
 #if ideal
 type masterSecret = msIndex * ms
+let masterSecret (si:SessionInfo) (msi:msIndex) (ms:ms) = (msi,ms)
 #else
 type masterSecret = ms
+let masterSecret si msi ms = ms
 #endif
 
 // used internally for calling concrete TLSPRF
@@ -66,28 +65,23 @@ let leak (si:SessionInfo) (ms:masterSecret) =
 #endif
   ms.bytes
 
-//#begin-coerce
-let coerce (si:SessionInfo) pms b = masterSecret (msi si pms) {bytes = b}
-//#end-coerce
+let coerce (si:SessionInfo) pms b = masterSecret si (msi si pms) {bytes = b}
 
 #if ideal
-let sample (si:SessionInfo) pms = masterSecret (msi si pms) {bytes = Nonce.random 48}
+let sample (si:SessionInfo) pms = masterSecret si (msi si pms) {bytes = Nonce.random 48}
 #endif
 
 
 (** Key Derivation **) 
 
-#if ideal
-type keysentry = (epoch * epoch * masterSecret * bytes * StatefulLHAE.reader * StatefulLHAE.writer) 
-let keyslog = ref []
-
-// we normalize the pair to use as a shared index; 
-// this function could also live in TLSInfo
-let epochs (ci:ConnectionInfo) = 
-  if ci.role = Client 
-  then (ci.id_in, ci.id_out)
-  else (ci.id_out, ci.id_in) 
-#endif
+(* CF those do not provide useful refinements below :(
+let clientWriter = function 
+  | Client -> Writer 
+  | Server -> Reader
+let clientReader = function
+  | Client -> Reader 
+  | Server -> Writer
+*)
 
 let real_keyGen ci (ms:masterSecret) =
     let si = epochSI(ci.id_in) in
@@ -104,10 +98,10 @@ let real_keyGen ci (ms:masterSecret) =
         let macKeySize = macKeySize macAlg in
         let ck,sk = split b macKeySize 
         match ci.role with 
-        | Client ->
+        | Client -> 
             (StatefulLHAE.COERCE ci.id_out Writer ck,
              StatefulLHAE.COERCE ci.id_in  Reader sk)
-        | Server ->
+        | Server -> 
             (StatefulLHAE.COERCE ci.id_out Writer sk,
              StatefulLHAE.COERCE ci.id_in  Reader ck)
     | MtE(encAlg,macAlg) ->
@@ -122,39 +116,38 @@ let real_keyGen ci (ms:masterSecret) =
             let ck = (cmkb @| cekb) in
             let sk = (smkb @| sekb) in
             match ci.role with 
-            | Client ->
+            | Client -> 
                 (StatefulLHAE.COERCE ci.id_out Writer ck,
                  StatefulLHAE.COERCE ci.id_in  Reader sk)
-            | Server ->
+            | Server -> 
                 (StatefulLHAE.COERCE ci.id_out Writer sk,
                  StatefulLHAE.COERCE ci.id_in  Reader ck)
         | CBC_Stale(alg) ->
-            let ivsize = blockSize alg
             let cmkb, b = split b macKeySize in
             let smkb, b = split b macKeySize in
             let cekb, b = split b encKeySize in
-            let sekb, b = split b encKeySize in
+            let sekb, b = split b encKeySize in 
+            let ivsize = blockSize alg
             let civb, sivb = split b ivsize in
             let ck = (cmkb @| cekb @| civb) in
             let sk = (smkb @| sekb @| sivb) in
             match ci.role with 
-            | Client ->
+            | Client -> 
                 (StatefulLHAE.COERCE ci.id_out Writer ck,
                  StatefulLHAE.COERCE ci.id_in  Reader sk)
-            | Server ->
+            | Server -> 
                 (StatefulLHAE.COERCE ci.id_out Writer sk,
                  StatefulLHAE.COERCE ci.id_in  Reader ck)
-    | _ -> unexpected "[keyGen] invoked on unsupported ciphersuite"
-
+    | _ -> Error.unexpected "[keyGen] invoked on unsupported ciphersuite"
 
 #if ideal
-let rec keysassoc
-  (e1:epoch) (e2:epoch) (ms:masterSecret) (ecsr: bytes) (ks:keysentry list): 
-  (StatefulLHAE.reader * StatefulLHAE.writer) option = 
-    match ks with 
-    | [] -> None 
-    | (e1',e2',ms',ecsr',r',w')::ks' when ms=ms' && ecsr=ecsr' -> Some((r',w')) //CF not correctly indexed!?
-    | (e1',e2',ms',ecsr',r',w')::ks' -> keysassoc e1 e2 ms ecsr ks'
+//CF ?
+// we normalize the pair to use as a shared index; 
+// this function could also live in TLSInfo
+let epochs (ci:ConnectionInfo) = 
+  if ci.role = Client 
+  then (ci.id_in, ci.id_out)
+  else (ci.id_out, ci.id_in) 
 #endif
 
 
@@ -192,35 +185,88 @@ definition SafeHS(e) <=>
 // This enables us to prove Complete, roughly as currently defined:
 //   Complete <=> (HonestPMS /\ StrongHS => SafeHS)
 
-let keyCommit (ci:ConnectionInfo):unit = 
-    #if ideal
-    failwith "log into a table that msi will be used at most with those pv,cs on the second keyGen"
-    #else
-    ()
-    #endif
 
-let keyGen1 ci ms =
+// TODO 
+type aeAlg = int 
+let ci_aeAlg (ci:ConnectionInfo) = 1 
+
+#if ideal
+type state =
+  | Init
+  | Committed of aeAlg
+  | Derived of aeAlg * msIndex * epoch * StatefulLHAE.reader * epoch * StatefulLHAE.writer 
+  | Done 
+  | Wasted
+
+type kdentry = csrands * state 
+let kdlog : kdentry list ref = ref [] 
+
+let rec read csr (entries: kdentry list)  = 
+  match entries with
+  | []                                 -> Init 
+  | (csr', s)::entries when csr = csr' -> s
+  | (csr', s)::entries                 -> read csr entries
+
+let rec update csr s (entries: kdentry list) = 
+  match entries with 
+  | []                                  -> [(csr,s)]
+  | (csr', s')::entries when csr = csr' -> (csr,s)   :: entries 
+  | (csr', s')::entries                 -> (csr', s'):: update csr s entries
+#endif
+
+//CF We could statically enforce the state machine.
+
+let keyCommit (csr:csrands) (a:aeAlg) : unit = 
+  #if ideal
+  match read csr !kdlog with 
+  | Init -> kdlog := update csr (Committed(a)) !kdlog
+  | _    -> Error.unexpected "prevented by freshness of the server random"
+  #else
+  ()
+  #endif
+
+//CF We could merge the two keyGen.
+
+let keyGenClient ci ms =
     #if ideal
-    if failwith "honestMS && StrongKDF && the table records matching pv,cs for this msi" // safeHS_SI (epochSI(ci.id_in)) 
-    then 
-        let (e1,e2) = epochs ci
+    let (e1,e2) = epochs ci
+    let csr = epochCSRands e1 
+    let (msi,ms') = ms 
+    match read csr !kdlog with
+    | Committed(a) when a = ci_aeAlg ci (* && honestMS && StrongKDF *) ->  // safeHS_SI (epochSI(ci.id_in)) 
+        // we idealize the key derivation
         let (myWrite,peerRead) = StatefulLHAE.GEN ci.id_out
         let (peerWrite,myRead) = StatefulLHAE.GEN ci.id_in 
-        keyslog := (msi,pv,cs,peerWrite,peerRead)::!keyslog; // the semantics of SafeKDF
+        kdlog := update csr (Derived(a,msi,e2,peerWrite,e1,peerRead)) !kdlog;
         (myWrite,myRead)
-    else 
+    | _  ->
+        kdlog := update csr Wasted !kdlog; 
     #endif
-        real_keyGen ci ms
+        real_keyGen ci ms 
 
-let keyGen2 ci ms =
+let keyGenServer ci ms =
     #if ideal
-    match keysassoc msi pv cs with 
-    | Some(myRead,myWrite) -> (myRead,myWrite) 
-    | None ->
+    let (e1,e2) = epochs ci
+    let csr = epochCSRands e1 
+    match read csr !kdlog with  
+    | Derived(a,msi,e1',myWrite,e2',myRead) ->
+        // TODO we can't have matching epochs. 
+        // by typing, we should know that a matches ci 
+        kdlog := update csr Done !kdlog
+        if failwith "ms matches msi" 
+        then  
+            (myRead,myWrite) // we benefit from the client's idealization
+        else
+            // we generate our own ideal keys; they will lead to a verifyData mismatch
+            let (myWrite,peerRead) = StatefulLHAE.GEN ci.id_out
+            let (peerWrite,myRead) = StatefulLHAE.GEN ci.id_in 
+            (myWrite,myRead)
+    | _ -> 
+        kdlog := update csr Wasted !kdlog; 
     #endif
         real_keyGen ci ms
 
-
+(* was:
 let keyGen ci ms =
     //#begin-ideal1
     #if ideal
@@ -241,6 +287,7 @@ let keyGen ci ms =
     //#end-ideal1
     #endif
         real_keyGen ci ms
+*)
 
 
 (** VerifyData **) 
@@ -291,5 +338,5 @@ let ssl_certificate_verify (si:SessionInfo) ms (algs:sigAlg) log =
   match algs with
   | SA_RSA -> TLSPRF.ssl_verifyCertificate MD5 s log @| TLSPRF.ssl_verifyCertificate SHA s log 
   | SA_DSA -> TLSPRF.ssl_verifyCertificate SHA s log 
-  | _      -> unexpected "[ssl_certificate_verify] invoked on a wrong signature algorithm"
+  | _      -> Error.unexpected "[ssl_certificate_verify] invoked on a wrong signature algorithm"
 

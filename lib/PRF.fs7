@@ -6,6 +6,12 @@ module PRF
 // TLS using the same hash functin based techniques for this, 
 // i.e. PRFs keyed by pre master secrets.)
 
+// CF We currently perform several successive steps with a single #ideal
+// CF - a crypto-agile PRF assumption on kdf + verifyData 
+// CF - a lossless "reverse inlining" of StAE.GEN (at consistent CSRs)
+// CF - a reduction from PRF to INT-CMA, with a loss due to tag collisions only. 
+// CF We may consider splitting this file accordingly. 
+ 
 open Bytes
 open TLSConstants
 open TLSInfo
@@ -46,6 +52,9 @@ function val MsI: SessionInfo -> msIndex
 //TODO: avoid in code: do we really want to decrypt? 
 //MK: Maybe have a function msF: pms -> SessionInfo -> msindex
 
+//TODO actually define MsI
+val msi: si:SessionInfo -> pms:PMS.pms -> i:msIndex { i = MsI(si) }
+
 // safety of the MS (not necessarily its usage)
 val safeMS_msIndex: msIndex -> bool
 
@@ -55,6 +64,7 @@ private type (;i:msIndex) ms = {bytes: repr}
 type (;si:SessionInfo) masterSecret = i:msIndex * (;i) ms {i = MsI(si)}
 //CF was: type (;si:SessionInfo) masterSecret = (;MsI(si)) ms 
 
+val masterSecret: si:SessionInfo -> i:msIndex {i = MsI(si)} -> (;i)ms -> (;si) masterSecret
 //#end-abstraction
 
 // We have two notions of conditional safety (logically defined in TLSInfo.fs7)
@@ -68,10 +78,11 @@ type (;si:SessionInfo) masterSecret = i:msIndex * (;i) ms {i = MsI(si)}
 
 (** Master secrets are either ideally sampled or concretely derived & coerced *) 
 
-val sample: si:SessionInfo -> (;si)masterSecret 
+val leak: si:SessionInfo -> (;si) masterSecret -> repr
+val sample: si:SessionInfo -> PMS.pms -> (;si)masterSecret 
 //#begin-coerce
 //the precondition of coerce excludes both idealizations.
-val coerce: si:SessionInfo {not SafeMS_SI(si)} -> repr -> (;si)masterSecret 
+val coerce: si:SessionInfo {not SafeMS_SI(si)} -> PMS.pms -> repr -> (;si)masterSecret 
 //#end-coerce
 
 
@@ -93,6 +104,9 @@ private ask !ki,mac.
 
 (** Key derivation **) 
 
+private val clientWriter: r:Role -> rw:rw {(r = Client /\ rw = Writer) \/ (r = Server /\ rw = Reader)}  
+private val clientReader: r:Role -> rw:rw {(r = Client /\ rw = Reader) \/ (r = Server /\ rw = Writer)}  
+
 private val real_keyGen: 
   ci:ConnectionInfo{
       EpochSI(ci.id_in)=EpochSI(ci.id_out) /\ 
@@ -103,20 +117,56 @@ private val real_keyGen:
 //      { StatefulLHAE.History(ci.id_out,Writer,w) = StatefulPlain.EmptyHistory(ci.id_out) /\
 //        StatefulLHAE.History(ci.id_out,Reader,r) = StatefulPlain.EmptyHistory(ci.id_in)}
 
-// TODO: adapt to use StAE's tight indexes instead of epochs.
-type keysentry = (e:epoch * e':epoch * ms:(;EpochSI(e)) masterSecret * bytes * (;e)StatefulLHAE.reader * (;e')StatefulLHAE.writer) 
-private val keyslog: keysentry list ref 
-val keysassoc: e:epoch -> e':epoch -> ms:(;EpochSI(e)) masterSecret -> bytes -> keysentry list -> ((;e)StatefulLHAE.reader * (;e')StatefulLHAE.writer) option
+
+// TODO 
+type aeAlg = int 
+val ci_aeAlg: ConnectionInfo -> aeAlg
+
+// TODO we need to reindex StatefulLHAE. For now passing extra epochs.
+
+// USAGE RESTRICTION:
+// For each CSR, 
+// - the server linearly calls keyCommit csr a then keyGen Server csr a ...
+// - the client linearly calls keyGen Client csr a 
+// - an ideal state machine (below) keeps track of both, to condition KDF idealization.
+// 
+// The state machine has an implicit Init state as the csr has not been used yet by any
+// honest client or server, and otherwise records its state in a table indexed by csr. 
+// Generating a fresh CR or a SR guarantees that we are initially in that state
+type (;csr: csrands) state =
+  | Init
+  | Committed of aeAlg
+  // The server has committed to using at most this algorithmn with this csr.
+  // ---> 
+  | Derived of aeAlg * msIndex * eS:epoch * (;eS) StatefulLHAE.writer * eC:epoch * (;eC) StatefulLHAE.reader 
+  // the client has derived keys for both roles, with the same algorithm, recording those for the server. 
+  // --->
+  | Done 
+  // the server has also derived keys (retrieving those recorded, or generating others).
+  // No action allowed from this point. 
+
+  // In all other cases, we reach a stable state such that we never idealize. 
+  | Wasted
+
+type kdentry = csr:csrands * (;csr) state 
+val kdlog : kdentry list ref  
+val read: csr:csrands -> kdentry list -> (;csr) state 
+val update: csr:csrands -> (;csr) state -> kdentry  list -> kdentry list  
 
 // Ideally, the server commits to using at most 
 // (an extension of) this si for keyGen with matching (si.cr,si.sr)
 // We could enforce commitments by adding a post-condition to keyCommit  
 // and a matching pre-condition to the server-side keyGen.
 
-val keyCommit: 
-  ci:ConnectionInfo{IsSuccEpoch(ci.id_in)} -> unit
+val keyCommit: csrands -> aeAlg -> unit 
 
-val keyGen: 
+val keyGenClient: 
+  ci:ConnectionInfo{IsSuccEpoch(ci.id_in)} -> (;EpochSI(ci.id_out))masterSecret -> 
+  ( w:(;ci.id_out)StatefulLHAE.writer * r:(;ci.id_in) StatefulLHAE.reader ) 
+  { StatefulLHAE.History(ci.id_out,Writer,w) = StatefulPlain.EmptyHistory(ci.id_out) /\
+    StatefulLHAE.History(ci.id_out,Reader,r) = StatefulPlain.EmptyHistory(ci.id_in)}
+
+val keyGenServer: 
   ci:ConnectionInfo{IsSuccEpoch(ci.id_in)} -> (;EpochSI(ci.id_out))masterSecret -> 
   ( w:(;ci.id_out)StatefulLHAE.writer * r:(;ci.id_in) StatefulLHAE.reader ) 
   { StatefulLHAE.History(ci.id_out,Writer,w) = StatefulPlain.EmptyHistory(ci.id_out) /\
@@ -125,7 +175,6 @@ val keyGen:
 (* typing the keys log for the ideal functionality *)
 //private type entry = (ems:(e12:(epoch * epoch) * (;Fst(e12))masterSecret) * 
 //                   ((;Fst(Fst(ems)),Reader)state * (;Snd(Fst(ems)),Writer)state)) 
-//private val log: entry list ref 
 
 
 
