@@ -259,7 +259,7 @@ let keyGenServer ci ms =
         // TODO we can't have matching epochs. 
         // by typing, we should know that a matches ci 
         kdlog := update csr Done !kdlog
-        if failwith "ms matches msi" 
+        if true //failwith "ms matches msi" 
         then  
             (myRead,myWrite) // we benefit from the client's idealization
         else
@@ -272,29 +272,6 @@ let keyGenServer ci ms =
         kdlog := update csr Wasted !kdlog; 
     #endif
         real_keyGen ci ms
-
-(* was:
-let keyGen ci ms =
-    //#begin-ideal1
-    #if ideal
-    //CF for typechecking against StAE, we need Auth => SafeHS_SI. 
-    //CF for applying the prf assumption, we need to decide depending *only* on the session 
-    if safeHS_SI (epochSI(ci.id_in)) //TODO fix to safeKDF
-    then 
-        let (e1,e2) = epochs ci
-        match keysassoc e1 e2 ms (epochCSRands e1) !keyslog with //add new csrand
-        | Some(r,w) -> (r,w) //CF: not typing: (cWrite,cRead) -> (cWrite,cRead) 
-          //MK: the order of r and w seems mixed up
-        | None                    -> 
-            let (myWrite,peerRead) = StatefulLHAE.GEN ci.id_out
-            let (peerWrite,myRead) = StatefulLHAE.GEN ci.id_in 
-            keyslog := (e1,e2,ms,epochCSRands e1, peerWrite,peerRead)::!keyslog;
-            (myWrite,myRead)
-    else 
-    //#end-ideal1
-    #endif
-        real_keyGen ci ms
-*)
 
 
 (** VerifyData **) 
