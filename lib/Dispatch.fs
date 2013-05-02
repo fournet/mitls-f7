@@ -85,8 +85,8 @@ let init ns role poptions =
     let (ci,hs) = hsInitRes in
     let id_in = ci.id_in in
     let id_out = ci.id_out in
-    let recv = Record.nullConnState id_in StatefulLHAE.ReaderState in
-    let send = Record.nullConnState id_out StatefulLHAE.WriterState in
+    let recv = Record.nullConnState id_in Reader in
+    let send = Record.nullConnState id_out Writer in
     let read_state = {disp = Init; conn = recv} in
     let write_state = {disp = Init; conn = send} in
     let al = Alert.init ci in
@@ -102,9 +102,9 @@ let init ns role poptions =
 let resume ns sid ops =
     (* Only client side, can never be server side *)
     let (ci,hs) = Handshake.resume sid ops in
-    let send = Record.nullConnState ci.id_out StatefulLHAE.WriterState in
+    let send = Record.nullConnState ci.id_out Writer in
     let write_state = {disp = Init; conn = send} in
-    let recv = Record.nullConnState ci.id_in  StatefulLHAE.ReaderState in
+    let recv = Record.nullConnState ci.id_in  Reader in
     let read_state = {disp = Init; conn = recv} in
     let al = Alert.init ci in
     let app = AppData.init ci in
@@ -214,7 +214,7 @@ let writeOne (Conn(id,c)) (ghr:range) (ghf:AppFragment.fragment) (ghs:DataStream
                         (* we send some data fragment *)
                         let id_out = id.id_out in
                         let c_write_conn = c_write.conn
-                        let history = Record.history id_out StatefulLHAE.WriterState c_write_conn in
+                        let history = Record.history id_out Writer c_write_conn in
                         let frag = TLSFragment.AppPlainToRecordPlain id_out history tlen f
                         let pv = pickSendPV (Conn(id,c)) in
                         let resSend = send c.ns id_out c_write pv tlen Application_data frag in
@@ -232,11 +232,11 @@ let writeOne (Conn(id,c)) (ghr:range) (ghf:AppFragment.fragment) (ghs:DataStream
 
           //#begin-alertAttackSend
           | Handshake.OutCCS(rg,ccs,nextID,nextWrite,new_hs_state) ->
-                    let nextWCS = Record.initConnState nextID.id_out StatefulLHAE.WriterState nextWrite in
+                    let nextWCS = Record.initConnState nextID.id_out Writer nextWrite in
                     (* we send a (complete) CCS fragment *)
                     match c_write.disp with
                     | FirstHandshake(_) | Open ->
-                        let history = Record.history id.id_out StatefulLHAE.WriterState c_write.conn in
+                        let history = Record.history id.id_out Writer c_write.conn in
                         let es = HSFragment.init id.id_out in
                         let hs = TLSFragment.ccsHistory id.id_out history in
                         let ccs = HSFragment.reStream id.id_out es rg ccs hs in 
@@ -265,7 +265,7 @@ let writeOne (Conn(id,c)) (ghr:range) (ghf:AppFragment.fragment) (ghs:DataStream
                       (* we send some handshake fragment *)
                       match c_write.disp with
                       | Init | FirstHandshake(_) | Finishing | Open ->
-                          let history = Record.history id.id_out StatefulLHAE.WriterState c_write.conn in
+                          let history = Record.history id.id_out Writer c_write.conn in
                           let es = HSFragment.init id.id_out in
                           let hs = TLSFragment.handshakeHistory id.id_out history in
                           let f = HSFragment.reStream id.id_out es rg f hs in
@@ -286,7 +286,7 @@ let writeOne (Conn(id,c)) (ghr:range) (ghf:AppFragment.fragment) (ghs:DataStream
                 match c_write.disp with
                 | Finishing ->
                     (* Send the last fragment *)
-                    let history = Record.history id.id_out StatefulLHAE.WriterState c_write.conn in
+                    let history = Record.history id.id_out Writer c_write.conn in
                     let es = HSFragment.init id.id_out in
                     let hs = TLSFragment.handshakeHistory id.id_out history in
                     let lastFrag = HSFragment.reStream id.id_out es rg lastFrag hs in
@@ -308,7 +308,7 @@ let writeOne (Conn(id,c)) (ghr:range) (ghf:AppFragment.fragment) (ghs:DataStream
                 match c_write.disp with
                 | Finishing ->
                     (* Send the last fragment *)
-                    let history = Record.history id.id_out StatefulLHAE.WriterState c_write.conn in
+                    let history = Record.history id.id_out Writer c_write.conn in
                     let es = HSFragment.init id.id_out in
                     let hs = TLSFragment.handshakeHistory id.id_out history in
                     let lastFrag = HSFragment.reStream id.id_out es rg lastFrag hs in
@@ -337,7 +337,7 @@ let writeOne (Conn(id,c)) (ghr:range) (ghf:AppFragment.fragment) (ghs:DataStream
       | (Alert.ALFrag(tlen,f),new_al_state) ->
         match c_write.disp with
         | Init | FirstHandshake(_) | Open | Closing(_,_) ->
-            let history = Record.history id.id_out StatefulLHAE.WriterState c_write.conn in
+            let history = Record.history id.id_out Writer c_write.conn in
             let es = HSFragment.init id.id_out in
             let hs = TLSFragment.alertHistory id.id_out history in
             let f = HSFragment.reStream id.id_out es tlen f hs in
@@ -359,7 +359,7 @@ let writeOne (Conn(id,c)) (ghr:range) (ghf:AppFragment.fragment) (ghs:DataStream
         match c_write.disp with
         | Init | FirstHandshake(_) | Open | Closing(_,_) ->
             (* We're sending a fatal alert. Send it, then close both sending and receiving sides *)
-            let history = Record.history id.id_out StatefulLHAE.WriterState c_write.conn in
+            let history = Record.history id.id_out Writer c_write.conn in
             let es = HSFragment.init id.id_out in
             let hs = TLSFragment.alertHistory id.id_out history in
             let f = HSFragment.reStream id.id_out es tlen f hs in
@@ -385,7 +385,7 @@ let writeOne (Conn(id,c)) (ghr:range) (ghf:AppFragment.fragment) (ghs:DataStream
             (* We're sending a close_notify alert. Send it, then only close our sending side.
                If we already received the other close notify, then reading is already closed,
                otherwise we wait to read it, then close. But do not close here. *)
-            let history = Record.history id.id_out StatefulLHAE.WriterState c_write.conn in
+            let history = Record.history id.id_out Writer c_write.conn in
             let es = HSFragment.init id.id_out in
             let hs = TLSFragment.alertHistory id.id_out history in
             let f = HSFragment.reStream id.id_out es tlen f hs in
@@ -571,7 +571,7 @@ let readOne (Conn(id,c)) =
     | Correct(received) -> 
         let (c_recv,ct,rg,frag) = received in 
         let c_read = c.read in
-        let history = Record.history id.id_in StatefulLHAE.ReaderState c_read.conn in
+        let history = Record.history id.id_in Reader c_read.conn in
         let c_read = {c_read with conn = c_recv} in
         let c = {c with read = c_read} in
           match c_read.disp with
@@ -598,7 +598,7 @@ let readOne (Conn(id,c)) =
                                * never concatenate buffers of different epochs. But it is nicer to abort the
                                * session if some buffers are not in the expected state. *)
                               if Alert.is_incoming_empty id c.alert then
-                                  let nextRCS = Record.initConnState nextID.id_in StatefulLHAE.ReaderState nextR in
+                                  let nextRCS = Record.initConnState nextID.id_in Reader nextR in
                                   let new_read = {c_read with disp = Finishing; conn = nextRCS} in
                                   let new_ad = AppData.reset_incoming id c.appdata nextID in
                                   let new_al = Alert.reset_incoming id c.alert nextID in

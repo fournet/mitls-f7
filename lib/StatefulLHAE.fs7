@@ -39,10 +39,6 @@ Theorems:
 
 //CF 12/2: do we need pre/post on ciphertext lengths?
 
-type rw =
-	| ReaderState 
-	| WriterState
-
 //AP: We need the following invariant: StateID(e,LHAE.LHAEKey) = SeqNum(e,StatefulPlain.history)
 private type (;ki:epoch,rw:rw) state = {
   key    : (;ki) LHAE.LHAEKey;         // possibly stateful
@@ -65,8 +61,8 @@ val changeState: ki:epoch -> rw:rw -> (;EpochSI(ki),rw) protostate{Complete(ki,.
 function val History: e:epoch * rw:rw * (;e,rw)state -> 'a //(;e)StatefulPlain.history
 private definition !e,rw,s. History(e,rw,s) = s.history
 
-type (;ki:epoch) reader = r:(;ki,ReaderState) state
-type (;ki:epoch) writer = w:(;ki,WriterState) state
+type (;ki:epoch) reader = r:(;ki,Reader) state
+type (;ki:epoch) writer = w:(;ki,Writer) state
 
 val GEN:    ki:succEpoch{Safe(ki)}     -> (;ki)reader * (;ki)writer
 val COERCE: ki:succEpoch{not Auth(ki)} -> rw:rw -> b:bytes{Length(b)=LHAE.LHAEKeySize(ki)} -> (;ki,rw)state
@@ -96,23 +92,23 @@ val encrypt: ki:succEpoch ->
   wr:(;ki) writer -> 
   ad:(;ki) StatefulPlain.adata ->
   rg:range ->
-  f: (;ki,ad,History(ki,WriterState,wr),rg) StatefulPlain.plain ->
+  f: (;ki,ad,History(ki,Writer,wr),rg) StatefulPlain.plain ->
   (wr':(;ki) writer * c:cipher){
-    History(ki,WriterState,wr') = 
-      StatefulPlain.ExtendHistory(ki,ad,History(ki,WriterState,wr),rg,f)
-/\    (Safe(ki) => ENCrypted(ki,History(ki,WriterState,wr),ad,c))} 
+    History(ki,Writer,wr') = 
+      StatefulPlain.ExtendHistory(ki,ad,History(ki,Writer,wr),rg,f)
+/\    (Safe(ki) => ENCrypted(ki,History(ki,Writer,wr),ad,c))} 
 
 val decrypt: ki:succEpoch -> 
   rd:(;ki) reader -> 
   ad:(;ki) StatefulPlain.adata ->
   c:cipher ->
-  res:((;ki) reader * rg:range * (;ki,ad,History(ki,ReaderState,rd),rg) StatefulPlain.plain) Result
+  res:((;ki) reader * rg:range * (;ki,ad,History(ki,Reader,rd),rg) StatefulPlain.plain) Result
   { !nrd,rg,f. res = Correct((nrd,rg,f)) => 
-               (   History(ki,ReaderState,nrd) = 
-                   StatefulPlain.ExtendHistory(ki,ad,History(ki,ReaderState,rd),rg,f) /\
+               (   History(ki,Reader,nrd) = 
+                   StatefulPlain.ExtendHistory(ki,ad,History(ki,Reader,rd),rg,f) /\
                    rg = CipherRangeClass(ki,Length(c)) /\
  	         (Safe(ki) =>
-				( (!nrd,rg,f. res = Correct((nrd,rg,f)) => ENCrypted(ki,History(ki,ReaderState,rd),ad,c)) // /\
+				( (!nrd,rg,f. res = Correct((nrd,rg,f)) => ENCrypted(ki,History(ki,Reader,rd),ad,c)) // /\
 				//  (!rg,p. ENCrypted(ki,rd,ad,rg,StatefulPlain.Payload(ki,ad,rg,p),c) => (?nrd,rg. res = Correct((nrd,rg,p))))
 				)
 			 ) ) }

@@ -8,9 +8,6 @@ open Range
 
 open StatefulPlain 
 
-type rw =
-    | ReaderState
-    | WriterState
 type state
 type reader = state
 type writer = state
@@ -24,5 +21,4 @@ val history: epoch -> rw -> state -> history
 type cipher = ENC.cipher
 
 val encrypt: epoch -> writer ->  adata -> range -> plain -> (writer * cipher)
-
 val decrypt: epoch -> reader ->  adata -> cipher -> (reader * range * plain) Result

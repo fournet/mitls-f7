@@ -46,6 +46,7 @@ function val MsI: SessionInfo -> msIndex
 //TODO: avoid in code: do we really want to decrypt? 
 //MK: Maybe have a function msF: pms -> SessionInfo -> msindex
 
+// safety of the MS (not necessarily its usage)
 val safeMS_msIndex: msIndex -> bool
 
 private type (;i:msIndex) ms = {bytes: repr}
@@ -99,8 +100,8 @@ private val real_keyGen:
       not Auth(ci.id_in) /\ not Auth(ci.id_out)} ->  
   (;EpochSI(ci.id_out))masterSecret ->
   ( w:(;ci.id_out)StatefulLHAE.writer * r:(;ci.id_in) StatefulLHAE.reader ) 
-//      { StatefulLHAE.History(ci.id_out,WriterState,w) = StatefulPlain.EmptyHistory(ci.id_out) /\
-//        StatefulLHAE.History(ci.id_out,ReaderState,r) = StatefulPlain.EmptyHistory(ci.id_in)}
+//      { StatefulLHAE.History(ci.id_out,Writer,w) = StatefulPlain.EmptyHistory(ci.id_out) /\
+//        StatefulLHAE.History(ci.id_out,Reader,r) = StatefulPlain.EmptyHistory(ci.id_in)}
 
 // TODO: adapt to use StAE's tight indexes instead of epochs.
 type keysentry = (e:epoch * e':epoch * ms:(;EpochSI(e)) masterSecret * bytes * (;e)StatefulLHAE.reader * (;e')StatefulLHAE.writer) 
@@ -118,12 +119,12 @@ val keyCommit:
 val keyGen: 
   ci:ConnectionInfo{IsSuccEpoch(ci.id_in)} -> (;EpochSI(ci.id_out))masterSecret -> 
   ( w:(;ci.id_out)StatefulLHAE.writer * r:(;ci.id_in) StatefulLHAE.reader ) 
-  { StatefulLHAE.History(ci.id_out,WriterState,w) = StatefulPlain.EmptyHistory(ci.id_out) /\
-    StatefulLHAE.History(ci.id_out,ReaderState,r) = StatefulPlain.EmptyHistory(ci.id_in)}
+  { StatefulLHAE.History(ci.id_out,Writer,w) = StatefulPlain.EmptyHistory(ci.id_out) /\
+    StatefulLHAE.History(ci.id_out,Reader,r) = StatefulPlain.EmptyHistory(ci.id_in)}
 
 (* typing the keys log for the ideal functionality *)
 //private type entry = (ems:(e12:(epoch * epoch) * (;Fst(e12))masterSecret) * 
-//                   ((;Fst(Fst(ems)),ReaderState)state * (;Snd(Fst(ems)),WriterState)state)) 
+//                   ((;Fst(Fst(ems)),Reader)state * (;Snd(Fst(ems)),Writer)state)) 
 //private val log: entry list ref 
 
 

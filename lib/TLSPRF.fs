@@ -59,7 +59,7 @@ let rec p_hash_int alg secret seed len it aPrev acc =
   let pCur = MAC alg secret (aCur @| seed) in
   if it = 1 then
     let hs = macSize alg in
-    let r = len%hs in
+    let r = len % hs in
     let (pCur,_) = split pCur r in
     acc @| pCur
   else
@@ -75,7 +75,7 @@ let tls_prf secret label seed len =
   let l_s1 = (l_s+1)/2 in
   let secret1,secret2 = split secret l_s1 in
   let newseed = label @| seed in
-  let hmd5 = p_hash (MA_HMAC(MD5)) secret1 newseed len in
+  let hmd5  = p_hash (MA_HMAC(MD5)) secret1 newseed len in
   let hsha1 = p_hash (MA_HMAC(SHA)) secret2 newseed len in
   xor hmd5 hsha1 len
 
@@ -92,8 +92,6 @@ let tls_verifyData ms role data =
   tls_prf ms (tls_finished_label role) (md5hash @| sha1hash) 12
 
 (* TLS 1.2 *)
-
-(* internal, shared between the two functions below *)
 
 let tls12prf cs ms label data len =
   let prfMacAlg = prfMacAlg_of_ciphersuite cs in

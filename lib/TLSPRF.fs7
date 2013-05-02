@@ -1,7 +1,7 @@
 module TLSPRF
 
 (* Concrete (bytes -> bytes) PRF algorithms for TLS; trusted. *)
-(* Used by CRE and PRF *) 
+(* Used by CRE for extracting MS, by PRF for verifyData and key derivation *) 
 
 open Bytes
 open TLSConstants
@@ -12,4 +12,5 @@ val extract:    prfAlg -> bytes -> bytes -> l:nat -> (;l)lbytes
 val kdf:        prfAlg -> bytes -> bytes -> l:nat -> (;l)lbytes
 
 (* SSL-specific certificate verify *)
+
 val verifyCertificate: a:hashAlg{ a = MD5 \/ a = SHA }-> bytes -> bytes -> bytes

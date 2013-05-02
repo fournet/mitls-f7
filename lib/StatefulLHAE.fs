@@ -9,10 +9,6 @@ open TLSInfo
 open StatefulPlain
 open Range
 
-type rw =
-    | ReaderState
-    | WriterState
-
 type state = { 
   key: LHAE.LHAEKey; 
   history: history   

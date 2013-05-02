@@ -36,6 +36,11 @@ open Bytes
 open Date
 open TLSConstants
 
+// polarity for reading and writing, e.g. for stateful encryption
+type rw =
+    | Reader
+    | Writer
+
 type sessionID = b:bytes {Length(b) <= 32}
 // "An arbitrary byte sequence chosen by the server 
 // to identify an active or resumable session state."

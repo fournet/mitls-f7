@@ -1,11 +1,10 @@
 module PRF
 
-open Error
-open TLSError
+//open Error
+//open TLSError
 open Bytes
 open TLSConstants
 open TLSInfo
-//open TLSPRF
 
 //MK: type rsamsindex = RSAKey.pk * ProtocolVersion * rsapms * bytes //abstract indices vs csrands alone
 //let rsamsF (si:SessionInfo):rsamsindex = failwith "not efficiently implementable"
@@ -29,14 +28,26 @@ type msIndex =  PMS.pms * // the pms and its indexes
                 csrands * // the nonces  
                 prfAlg  
 
+let msi (si:SessionInfo) (pms:PMS.pms) = 
+  pms, si.init_crand @| si.init_srand, (si.protocol_version,si.cipher_suite)
+
+let masterSecret msi ms = 
 #if ideal
+  (msi,ms)
+#else 
+  ms
+#endif
+
+#if ideal
+// TODO
 let strongPrfAlg (pa:prfAlg) = true
 
 let safeMS_msIndex (msI:msIndex) =
     let (pms,csrands,prfAlg) = msI
+    strongPrfAlg prfAlg && 
     match pms with
-    | PMS.RSAPMS(pk,cv,rsapms) -> PMS.honestRSAPMS pk cv rsapms && strongPrfAlg prfAlg
-    | PMS.DHPMS(p,g,gx,gy,dhpms) -> PMS.honestDHPMS p g gx gy dhpms && strongPrfAlg prfAlg
+    | PMS.RSAPMS(pk,cv,rsapms)   -> PMS.honestRSAPMS pk cv rsapms   
+    | PMS.DHPMS(p,g,gx,gy,dhpms) -> PMS.honestDHPMS p g gx gy dhpms 
 #endif
 
 type repr = bytes
@@ -48,18 +59,19 @@ type masterSecret = msIndex * ms
 type masterSecret = ms
 #endif
 
+// used internally for calling concrete TLSPRF
 let leak (si:SessionInfo) (ms:masterSecret) = 
 #if ideal
-  let msi,ms = ms
+  let (msi,ms) = ms
 #endif
   ms.bytes
 
 //#begin-coerce
-let coerce (si:SessionInfo) b = {bytes = b}
+let coerce (si:SessionInfo) pms b = masterSecret (msi si pms) {bytes = b}
 //#end-coerce
 
 #if ideal
-let sample (si:SessionInfo)   = {bytes = Nonce.random 48}
+let sample (si:SessionInfo) pms = masterSecret (msi si pms) {bytes = Nonce.random 48}
 #endif
 
 
@@ -93,11 +105,11 @@ let real_keyGen ci (ms:masterSecret) =
         let ck,sk = split b macKeySize 
         match ci.role with 
         | Client ->
-            (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState ck,
-             StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState sk)
+            (StatefulLHAE.COERCE ci.id_out Writer ck,
+             StatefulLHAE.COERCE ci.id_in  Reader sk)
         | Server ->
-            (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState sk,
-             StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState ck)
+            (StatefulLHAE.COERCE ci.id_out Writer sk,
+             StatefulLHAE.COERCE ci.id_in  Reader ck)
     | MtE(encAlg,macAlg) ->
         let macKeySize = macKeySize macAlg in
         let encKeySize = encKeySize encAlg in
@@ -111,11 +123,11 @@ let real_keyGen ci (ms:masterSecret) =
             let sk = (smkb @| sekb) in
             match ci.role with 
             | Client ->
-                (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState ck,
-                 StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState sk)
+                (StatefulLHAE.COERCE ci.id_out Writer ck,
+                 StatefulLHAE.COERCE ci.id_in  Reader sk)
             | Server ->
-                (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState sk,
-                 StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState ck)
+                (StatefulLHAE.COERCE ci.id_out Writer sk,
+                 StatefulLHAE.COERCE ci.id_in  Reader ck)
         | CBC_Stale(alg) ->
             let ivsize = blockSize alg
             let cmkb, b = split b macKeySize in
@@ -127,11 +139,11 @@ let real_keyGen ci (ms:masterSecret) =
             let sk = (smkb @| sekb @| sivb) in
             match ci.role with 
             | Client ->
-                (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState ck,
-                 StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState sk)
+                (StatefulLHAE.COERCE ci.id_out Writer ck,
+                 StatefulLHAE.COERCE ci.id_in  Reader sk)
             | Server ->
-                (StatefulLHAE.COERCE ci.id_out StatefulLHAE.WriterState sk,
-                 StatefulLHAE.COERCE ci.id_in  StatefulLHAE.ReaderState ck)
+                (StatefulLHAE.COERCE ci.id_out Writer sk,
+                 StatefulLHAE.COERCE ci.id_in  Reader ck)
     | _ -> unexpected "[keyGen] invoked on unsupported ciphersuite"
 
 

@@ -4,6 +4,9 @@ open Bytes
 open Date
 open TLSConstants
 
+type rw =
+    | Reader
+    | Writer
 
 type sessionID = bytes
 type preRole =

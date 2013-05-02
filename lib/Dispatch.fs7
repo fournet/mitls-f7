@@ -30,7 +30,7 @@ private definition !e,d. IsDispatchState(e,d) <=>
 
 type (;e:epoch)dispatchState = d:predispatchState{IsDispatchState(e,d)}
 
-private type (;e:epoch,rw:StatefulLHAE.rw) dState = {
+private type (;e:epoch,rw:rw) dState = {
     disp: (;e)dispatchState;
     conn: (;e,rw)Record.ConnectionState;
     }
@@ -43,8 +43,8 @@ private type (;id:ConnectionInfo) preGlobalState = {
   appdata  : (;id) AppData.app_state;    
 
   (* connection state for reading and writing *)
-  read  : (;id.id_in, StatefulLHAE.ReaderState) dState;
-  write : (;id.id_out,StatefulLHAE.WriterState) dState;
+  read  : (;id.id_in, Reader) dState;
+  write : (;id.id_out,Writer) dState;
   (* The actual socket *)
   ns: Tcp.NetworkStream;
   }
@@ -57,18 +57,18 @@ type (;id:ConnectionInfo) globalState = gs:(;id) preGlobalState{GState(id,gs)}
 private definition !ci,gs. GState(ci,gs)  <=>
   ( (Auth(ci.id_out) =>
 		(
-		AppData.AppOutStream(ci,gs.appdata) = TLSFragment.AppDataHistory(ci.id_out,Record.History(ci.id_out,StatefulLHAE.WriterState,gs.write.conn)) //AP /\
-		//AP Handshake.HSOutStream(ci,gs.handshake) = TLSFragment.HandshakeHistory(ci.id_out,Record.History(ci.id_out,StatefulLHAE.WriterState,gs.write.conn)) /\
-		//AP Handshake.CCSOutStream(ci,gs.handshake) = TLSFragment.CCSHistory(ci.id_out,Record.History(ci.id_out,StatefulLHAE.WriterState,gs.write.conn)) /\
-		//AP Alert.AlOutStream(ci,gs.alert) = TLSFragment.AlertHistory(ci.id_out,Record.History(ci.id_out,StatefulLHAE.WriterState,gs.write.conn))
+		AppData.AppOutStream(ci,gs.appdata) = TLSFragment.AppDataHistory(ci.id_out,Record.History(ci.id_out,Writer,gs.write.conn)) //AP /\
+		//AP Handshake.HSOutStream(ci,gs.handshake) = TLSFragment.HandshakeHistory(ci.id_out,Record.History(ci.id_out,Writer,gs.write.conn)) /\
+		//AP Handshake.CCSOutStream(ci,gs.handshake) = TLSFragment.CCSHistory(ci.id_out,Record.History(ci.id_out,Writer,gs.write.conn)) /\
+		//AP Alert.AlOutStream(ci,gs.alert) = TLSFragment.AlertHistory(ci.id_out,Record.History(ci.id_out,Writer,gs.write.conn))
 		)
 	) /\
     (Auth(ci.id_in)  =>
 		(
-		AppData.AppInStream(ci,gs.appdata)  = TLSFragment.AppDataHistory(ci.id_in,Record.History(ci.id_in,StatefulLHAE.ReaderState,gs.read.conn)) //AP /\
-		//AP Handshake.HSInStream(ci,gs.handshake) = TLSFragment.HandshakeHistory(ci.id_in,Record.History(ci.id_in,StatefulLHAE.ReaderState,gs.read.conn)) /\
-		//AP Handshake.CCSInStream(ci,gs.handshake) = TLSFragment.CCSHistory(ci.id_in,Record.History(ci.id_in,StatefulLHAE.ReaderState,gs.read.conn)) /\
-		//AP Alert.AlInStream(ci,gs.alert) = TLSFragment.AlertHistory(ci.id_in,Record.History(ci.id_in,StatefulLHAE.ReaderState,gs.read.conn))
+		AppData.AppInStream(ci,gs.appdata)  = TLSFragment.AppDataHistory(ci.id_in,Record.History(ci.id_in,Reader,gs.read.conn)) //AP /\
+		//AP Handshake.HSInStream(ci,gs.handshake) = TLSFragment.HandshakeHistory(ci.id_in,Record.History(ci.id_in,Reader,gs.read.conn)) /\
+		//AP Handshake.CCSInStream(ci,gs.handshake) = TLSFragment.CCSHistory(ci.id_in,Record.History(ci.id_in,Reader,gs.read.conn)) /\
+		//AP Alert.AlInStream(ci,gs.alert) = TLSFragment.AlertHistory(ci.id_in,Record.History(ci.id_in,Reader,gs.read.conn))
 		)
 	)
   )
@@ -106,9 +106,9 @@ function val ConnectionSIIn: Connection -> SessionInfo
 private definition !id,s. ConnectionSIIn(Conn(id,s)) = EpochSI(id.id_in)
 
 function val ConnectionInHistory: c:Connection -> (;ConnectionEpochIn(c))TLSFragment.history
-private definition !id,s. ConnectionInHistory(Conn(id,s)) = Record.History(id.id_in,StatefulLHAE.ReaderState,s.read.conn)
+private definition !id,s. ConnectionInHistory(Conn(id,s)) = Record.History(id.id_in,Reader,s.read.conn)
 function val ConnectionOutHistory: c:Connection -> (;ConnectionEpochOut(c))TLSFragment.history
-private definition !id,s. ConnectionOutHistory(Conn(id,s)) = Record.History(id.id_out,StatefulLHAE.WriterState,s.write.conn)
+private definition !id,s. ConnectionOutHistory(Conn(id,s)) = Record.History(id.id_out,Writer,s.write.conn)
 
 function val CnStream_i: c:Connection -> (;ConnectionEpochIn (c)) DataStream.stream
 function val CnStream_o: c:Connection -> (;ConnectionEpochOut(c)) DataStream.stream
@@ -420,16 +420,16 @@ private val abortWithAlert: c:Connection -> alertDescription -> s:string ->
 
 private val getReason: predispatchState -> string
 
-private val send: Tcp.NetworkStream -> e:epoch -> w:(;e,StatefulLHAE.WriterState)dState ->
+private val send: Tcp.NetworkStream -> e:epoch -> w:(;e,Writer)dState ->
 	TLSConstants.ProtocolVersion -> rg:range -> ct:TLSConstants.ContentType ->
-	f:(;e,ct,Record.History(e,StatefulLHAE.WriterState,w.conn),rg)TLSFragment.plain ->
-	(w':(;e,StatefulLHAE.WriterState) dState{w.disp = w'.disp /\
+	f:(;e,ct,Record.History(e,Writer,w.conn),rg)TLSFragment.plain ->
+	(w':(;e,Writer) dState{w.disp = w'.disp /\
 		(Auth(e) =>
-            Record.History(e,StatefulLHAE.WriterState,w'.conn) = TLSFragment.ExtendHistory(e,ct,Record.History(e,StatefulLHAE.WriterState,w.conn),rg,f) )
+            Record.History(e,Writer,w'.conn) = TLSFragment.ExtendHistory(e,ct,Record.History(e,Writer,w.conn),rg,f) )
 	}) Result
                                                                                                                                                                 
 private val recv: c:Connection ->
-	((;ConnectionEpochIn(c),StatefulLHAE.ReaderState) Record.ConnectionState *
+	((;ConnectionEpochIn(c),Reader) Record.ConnectionState *
 	 ct:TLSConstants.ContentType * r:range * 
          (;ConnectionEpochIn(c),ct,ConnectionInHistory(c),r)TLSFragment.plain) Result
 

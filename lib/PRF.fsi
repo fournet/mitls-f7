@@ -25,11 +25,11 @@ type masterSecret = ms
 #endif
 
 #if ideal
-val sample: SessionInfo -> masterSecret
+val sample: SessionInfo -> PMS.pms -> masterSecret
 #endif
 
 //#begin-coerce
-val coerce: SessionInfo -> repr -> masterSecret
+val coerce: SessionInfo -> PMS.pms -> repr -> masterSecret
 //#end-coerce
 
 val keyGen: ConnectionInfo -> masterSecret -> StatefulLHAE.writer * StatefulLHAE.reader
