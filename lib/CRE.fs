@@ -84,17 +84,20 @@ let extractRSA si (cv:ProtocolVersion) pms: PRF.masterSecret =
     if PRF.safeMS_msIndex i then *)
     if safeMS_SI si then
         //We assoc on pk, cv, pms,  csrands, and prfAlg
-        match rsaassoc pk cv pms (csrands si) (PRF.prfAlg si) !rsalog with 
+        match rsaassoc pk cv pms (csrands si) (PRF.prfAlg si) [] with //!rsalog with 
         | Some(ms) -> PRF.masterSecret si (PRF.msi si (RSAPMS(pk,cv,pms))) ms
         | None -> 
-                 let (i,ms) = PRF.sample si (RSAPMS(pk,cv,pms))
+                 let masterSecret = PRF.sample si (RSAPMS(pk,cv,pms))
+                 let _,ms = masterSecret
                  rsalog := (pk,cv,pms,csrands si, PRF.prfAlg si, ms)::!rsalog;
-                 PRF.masterSecret si i ms
+                 masterSecret
+                 
     else
         extractMS si (RSAPMS(pk, cv, pms)) (accessRSAPMS pk cv pms)
     #else
     extractMS si (RSAPMS(pk, cv, pms)) (accessRSAPMS pk cv pms)
     #endif
+
 (* MK: does not support bad algorithms in agility yet
 let extractRSA si (cv:ProtocolVersion) pms = 
   let pk = 
