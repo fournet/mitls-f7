@@ -87,13 +87,15 @@ let extractRSA si (cv:ProtocolVersion) pms: PRF.masterSecret =
         let csr = csrands si
         let pa = PRF.prfAlg si
         match rsaassoc pk cv pms csr pa !rsalog with 
-        | Some(ms) -> PRF.masterSecret si (PRF.msi si (RSAPMS(pk,cv,pms))) ms
+        | Some(ms) -> 
+                let i = PRF.msi si (RSAPMS(pk,cv,pms))
+                PRF.masterSecret si i ms //MK: tried also(RSAPMS(pk,cv,pms),csr,pa) ms
         | None -> 
-                 let masterSecret = PRF.sample si (RSAPMS(pk,cv,pms))
-                 let _,ms = masterSecret
-                 let csr = csrands si
-                 rsalog := (pk,cv,pms,csr, PRF.prfAlg si, ms)::!rsalog;
-                 masterSecret
+                let masterSecret = PRF.sample si (RSAPMS(pk,cv,pms))
+                let _,ms = masterSecret
+                let csr = csrands si
+                rsalog := (pk,cv,pms,csr, PRF.prfAlg si, ms)::!rsalog;
+                masterSecret
                  
     else
         extractMS si (RSAPMS(pk, cv, pms)) (accessRSAPMS pk cv pms)

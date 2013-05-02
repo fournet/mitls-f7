@@ -15,12 +15,12 @@ private val extractMS: si:SessionInfo {not SafeMS_SI(si)} -> pms -> p:bytes -> (
 (** RSA ciphersuites **) 
 
 //CF actually a private type 
-type rsaentry = pk:RSAKey.pk * cv:ProtocolVersion * pms:(;pk,cv)rsapms * csr:bytes * pa:prfAlg * ms:(;(RSAPMS(pk,cv,pms),csr,pa)) ms
+type rsaentry = pk:RSAKey.pk * cv:ProtocolVersion * pms:(;pk,cv)rsapms * csr:csrands * pa:prfAlg * ms:(;(RSAPMS(pk,cv,pms),csr,pa)) ms
 private val rsalog: rsaentry list ref 
 
 private val rsaassoc: 
-    pk:RSAKey.pk -> cv:ProtocolVersion -> pms:(;pk,cv)rsapms -> csr:bytes -> pa:prfAlg-> 
-    (pk':RSAKey.pk * cv':ProtocolVersion * pms':(;pk',cv')rsapms * csr':bytes * pa':prfAlg * ms':(;(RSAPMS(pk,cv,pms'),csr',pa')) ms) list -> 
+    pk:RSAKey.pk -> cv:ProtocolVersion -> pms:(;pk,cv)rsapms -> csr:csrands -> pa:prfAlg-> 
+    (pk':RSAKey.pk * cv':ProtocolVersion * pms':(;pk',cv')rsapms * csr':bytes * pa':prfAlg * ms':(;(RSAPMS(pk',cv',pms'),csr',pa')) ms) list -> 
 	ms:(;(RSAPMS(pk,cv,pms),csr,pa)) ms option
 
 // CF what for?
