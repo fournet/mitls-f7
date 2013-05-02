@@ -84,12 +84,15 @@ let extractRSA si (cv:ProtocolVersion) pms: PRF.masterSecret =
     if PRF.safeMS_msIndex i then *)
     if safeMS_SI si then
         //We assoc on pk, cv, pms,  csrands, and prfAlg
-        match rsaassoc pk cv pms (csrands si) (PRF.prfAlg si) [] with //!rsalog with 
+        let csr = csrands si
+        let pa = PRF.prfAlg si
+        match rsaassoc pk cv pms csr pa !rsalog with 
         | Some(ms) -> PRF.masterSecret si (PRF.msi si (RSAPMS(pk,cv,pms))) ms
         | None -> 
                  let masterSecret = PRF.sample si (RSAPMS(pk,cv,pms))
                  let _,ms = masterSecret
-                 rsalog := (pk,cv,pms,csrands si, PRF.prfAlg si, ms)::!rsalog;
+                 let csr = csrands si
+                 rsalog := (pk,cv,pms,csr, PRF.prfAlg si, ms)::!rsalog;
                  masterSecret
                  
     else

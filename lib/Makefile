@@ -13,7 +13,7 @@ f7timeout = 5
 f7defs    = avoid verify ideal
 
 # removed --verbose for automated testing
-override f7flags += --verbose \
+override f7flags += \
   -timeout $(f7timeout) $(patsubst %,--define %,$(f7defs)) \
   -nokindcheck $(lperv) $(libfs7)
 
@@ -261,6 +261,13 @@ CRE.tc7: $(libperv) $(libfs7) ../Platform/Error.fs7 ../Platform/Date.fs7 ../Plat
 	@echo Lemma $@
 	$(monoexe) $(f7) $(f7flags) -scripts CRE ../Platform/Error.fs7 ../Platform/Date.fs7 ../Platform/Bytes.fs7 ../Platform/List.fs7 ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi TLSError.fs7 Nonce.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 TLSPRF.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC.fs7 LHAE.fs7 StatefulLHAE.fs7 PMS.fs7 PRF.fs7 CRE.fs7 CRE.fs
 	@touch $@
+
+CRE.tc7d: $(libperv) $(libfs7) ../Platform/Error.fs7 ../Platform/Date.fs7 ../Platform/Bytes.fs7 ../Platform/List.fs7 ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi TLSError.fs7 Nonce.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 TLSPRF.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC.fs7 LHAE.fs7 StatefulLHAE.fs7 PMS.fs7 PRF.fs7 CRE.fs7 CRE.fs CRE.fs7
+	@echo 
+	@echo Lemma $@
+	$(monoexe) $(f7) $(f7flags) --verbose -scripts CRE ../Platform/Error.fs7 ../Platform/Date.fs7 ../Platform/Bytes.fs7 ../Platform/List.fs7 ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreCiphers.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreHMac.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi TLSError.fs7 Nonce.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 HMAC.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 TLSPRF.fs7 Range.fs7 DataStream.fs7 AppFragment.fs7 HSFragment.fs7 TLSFragment.fs7 StatefulPlain.fs7 LHAEPlain.fs7 MAC_SHA256.fs7 MAC_SHA1.fs7 MAC.fs7 Encode.fs7 ENC.fs7 LHAE.fs7 StatefulLHAE.fs7 PMS.fs7 PRF.fs7 CRE.fs7 CRE.fs
+	@touch $@
+
 
 DH.tc7: $(libperv) $(libfs7) ../Platform/Error.fs7 ../Platform/Date.fs7 ../Platform/Bytes.fs7 ../Platform/List.fs7 ../CoreCrypto/CoreRandom.fsi ../CoreCrypto/CoreKeys.fsi ../CoreCrypto/CoreHash.fsi ../CoreCrypto/CoreACiphers.fsi ../CoreCrypto/CoreSig.fsi ../CoreCrypto/CoreDH.fsi TLSError.fs7 Nonce.fs7 TLSConstants.fs7 RSAKey.fs7 DHGroup.fs7 HASH.fs7 Sig.fs7 Cert.fs7 TLSInfo.fs7 PMS.fs7 DH.fs7 DH.fs DH.fs7
 	@echo 
