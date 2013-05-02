@@ -26,15 +26,14 @@ open PMS
 
     If we use them as seeds there may be some relations to non-malleable extractors:
     https://www.cs.nyu.edu/~dodis/ps/it-aka.pdf,
-    we are however in the computational setting.
-
-*)
+    we are however in the computational setting.   
+ *)
 
 let extractMS sinfo pms pmsBytes : PRF.masterSecret =
     let pv = sinfo.protocol_version in
     let cs = sinfo.cipher_suite in
     let data = csrands sinfo in
-    let res = extract (pv,cs) pmsBytes data 48 in
+    let res: PRF.repr = extract (pv,cs) pmsBytes data 48 in
     PRF.coerce sinfo pms res
 
 
@@ -96,7 +95,6 @@ let extractRSA si (cv:ProtocolVersion) pms: PRF.masterSecret =
     #else
     extractMS si (RSAPMS(pk, cv, pms)) (accessRSAPMS pk cv pms)
     #endif
-
 (* MK: does not support bad algorithms in agility yet
 let extractRSA si (cv:ProtocolVersion) pms = 
   let pk = 

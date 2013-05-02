@@ -6,6 +6,9 @@ open TLSInfo
 open PMS
 open PRF
 
+//CF temporary
+private val todo: string -> unit { false } 
+
 // concrete PMS --> MS derivation.
 private val extractMS: si:SessionInfo {not SafeMS_SI(si)} -> pms -> p:bytes -> (;si) PRF.masterSecret
 
@@ -20,8 +23,8 @@ private val rsaassoc:
     (pk':RSAKey.pk * cv':ProtocolVersion * pms':(;pk',cv')rsapms * csr':bytes * pa':prfAlg * ms':(;(RSAPMS(pk,cv,pms'),csr',pa')) ms) list -> 
 	ms:(;(RSAPMS(pk,cv,pms),csr,pa)) ms option
 
-(*private*)
-private val accessRSAPMS: pk:RSAKey.pk -> cv:ProtocolVersion -> pms:(;pk,cv)rsapms -> bytes
+// CF what for?
+private val accessRSAPMS: pk:RSAKey.pk -> cv:ProtocolVersion -> (;pk,cv) rsapms -> rsarepr
 
 val extractRSA:
     si:SessionInfo ->
