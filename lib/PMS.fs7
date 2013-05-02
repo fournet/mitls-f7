@@ -17,7 +17,8 @@ type rsarepr = (;48)lbytes
 //CF we considered indexing it by cv & refining with ?b. it = VersionBytes(cv) @| b  
 
 //#begin-abstractionRSA
-private type rsaseed = {seed:rsarepr} 
+(* private , only shared with CRE *) 
+type rsaseed = {seed:rsarepr} 
 
 // We have two layers of abstraction:
 // - rsaseed, treated abstractly almost everywhere in this module & CRE 
@@ -68,7 +69,8 @@ open DHGroup
 
 type dhrepr = bytes
 
-private type dhseed = {seed:dhrepr} // treated abstractly almost everywhere in this file
+(* private , only shared with CRE *)  
+type dhseed = {seed:dhrepr} // treated abstractly almost everywhere in this file
 // - dhpms, treated abstractly outside this module & CRE
 //   so that we can control their usage for the DH-PMS assumption.
 type (;p:p, g:(;p) g, gx:(;p) elt, gy:(;p) elt) dhpms =   

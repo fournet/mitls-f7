@@ -49,7 +49,7 @@ let extractMS sinfo pms pmsBytes : PRF.masterSecret =
 
 
 #if ideal
-let todo s = failwith s 
+//MK: no longer needed let todo s = failwith s 
 
 // We maintain a log for looking up good ms values using their msIndex
 type rsaentry = RSAKey.pk * ProtocolVersion * rsapms * bytes * prfAlg * PRF.ms
@@ -63,14 +63,14 @@ let rec rsaassoc (pk:RSAKey.pk) (cv:ProtocolVersion) (pms:rsapms)  (csr:bytes) (
     | _::mss' -> rsaassoc pk cv pms csr pa mss'
 
 #else
-let todo s = ()
+//MK: let todo s = ()
 #endif
 
 (*private*) 
 let accessRSAPMS (pk:RSAKey.pk) (cv:ProtocolVersion) pms = 
   match pms with 
   #if ideal
-  | IdealRSAPMS(b) -> b.seed
+  | IdealRSAPMS(s) -> s.seed
   #endif
   | ConcreteRSAPMS(b) -> b 
 
@@ -80,17 +80,19 @@ let extractRSA si (cv:ProtocolVersion) pms: PRF.masterSecret =
         | Correct(pk) -> pk
         | _           -> unexpected "server must have an ID"    
     #if ideal
-    let i = RSAPMS(pk,cv,pms), csrands si, PRF.prfAlg si
-    if PRF.safeMS_msIndex i then
+    (* MK: the following should be made consistent with safeMS_SI
+    let i = PRF.msi si (RSAPMS(pk,cv,pms))
+    if PRF.safeMS_msIndex i then *)
+    if safeMS_SI si then
         //We assoc on pk, cv, pms,  csrands, and prfAlg
         match rsaassoc pk cv pms (csrands si) (PRF.prfAlg si) !rsalog with 
         | Some(ms) -> PRF.masterSecret si (PRF.msi si (RSAPMS(pk,cv,pms))) ms
         | None -> 
                  let (i,ms) = PRF.sample si (RSAPMS(pk,cv,pms))
                  rsalog := (pk,cv,pms,csrands si, PRF.prfAlg si, ms)::!rsalog;
-                 PRF.masterSecret si (PRF.msi si (RSAPMS(pk,cv,pms))) ms
+                 PRF.masterSecret si i ms
     else
-        todo "SafeMS_SI ==> SafeMS_msIndex"; extractMS si (RSAPMS(pk, cv, pms)) (accessRSAPMS pk cv pms)
+        extractMS si (RSAPMS(pk, cv, pms)) (accessRSAPMS pk cv pms)
     #else
     extractMS si (RSAPMS(pk, cv, pms)) (accessRSAPMS pk cv pms)
     #endif
@@ -146,7 +148,7 @@ let rec dhassoc (p:p) (g:g) (gx:elt) (gy:elt) (pms:dhpms)  (csr:csrands) (pa:prf
 
 #endif
 
-(* MK does not support bad algorithms in agility yet *)
+(* MK does not support bad algorithms in agility yet 
 let extractDHE (si:SessionInfo) (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) (pms:dhpms): PRF.masterSecret =
     match pms with
     //#begin-ideal 
@@ -161,4 +163,29 @@ let extractDHE (si:SessionInfo) (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy
     #endif
     //#end-ideal
     | ConcreteDHPMS(s) -> todo "SafeHS_SI ==> HonestDHPMS"; extractMS si (DHPMS(p,g,gx,gy,pms)) s
+*)
+
+(*private*) 
+let accessDHPMS (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) (pms:dhpms) = 
+  match pms with 
+  #if ideal
+  | IdealDHPMS(b) -> b.seed
+  #endif
+  | ConcreteDHPMS(b) -> b 
+
    
+let extractDHE (si:SessionInfo) (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) (pms:dhpms): PRF.masterSecret =  
+    #if ideal
+    if safeMS_SI si then
+        //We assoc on pk, cv, pms,  csrands, and prfAlg
+         match dhassoc p g gx gy pms (csrands si) (PRF.prfAlg si) !dhlog with
+           | Some(ms) -> (PRF.masterSecret si (PRF.msi si (DHPMS(p,g,gx,gy,pms))) ms)
+           | None -> 
+                 let i,ms=PRF.sample si (DHPMS(p,g,gx,gy,pms))
+                 dhlog := (p, g, gx, gy, pms, csrands si, PRF.prfAlg si, ms)::!dhlog;
+                 PRF.masterSecret si i ms
+    else
+        extractMS si (DHPMS(p,g,gx,gy,pms)) (accessDHPMS p g gx gy pms)
+    #else
+    extractMS si (DHPMS(p,g,gx,gy,pms)) (accessDHPMS p g gx gy pms)
+    #endif

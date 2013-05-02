@@ -7,7 +7,7 @@ open PMS
 open PRF
 
 // concrete PMS --> MS derivation.
-private val extractMS: si:SessionInfo {not SafeHS_SI(si)} -> p:bytes -> (;si) PRF.masterSecret
+private val extractMS: si:SessionInfo {not SafeMS_SI(si)} -> pms -> p:bytes -> (;si) PRF.masterSecret
 
 (** RSA ciphersuites **) 
 
@@ -19,6 +19,9 @@ private val rsaassoc:
     pk:RSAKey.pk -> cv:ProtocolVersion -> pms:(;pk,cv)rsapms -> csr:bytes -> pa:prfAlg-> 
     (pk':RSAKey.pk * cv':ProtocolVersion * pms':(;pk',cv')rsapms * csr':bytes * pa':prfAlg * ms':(;(RSAPMS(pk,cv,pms'),csr',pa')) ms) list -> 
 	ms:(;(RSAPMS(pk,cv,pms),csr,pa)) ms option
+
+(*private*)
+private val accessRSAPMS: pk:RSAKey.pk -> cv:ProtocolVersion -> pms:(;pk,cv)rsapms -> bytes
 
 val extractRSA:
     si:SessionInfo ->
@@ -39,7 +42,9 @@ val dhassoc: p:p -> g:(;p) g -> gx:(;p) elt -> gy:(;p) elt -> pms:(;p,g,gx,gy) d
              (p':p * g':(;p') g * gx':(;p') elt * gy':(;p') elt * pms':(;p',g',gx',gy') dhpms * csr':csrands * pa':prfAlg * (;(DHPMS(p',g',gx',gy',pms'),csr',pa')) PRF.ms) list -> 
              (;(DHPMS(p,g,gx,gy,pms),csr,pa)) PRF.ms option
 
-// AP: Don't we really want *any* link between si and (g,p,gx,gy)?
+private val accessDHPMS: p:DHGroup.p -> g:(;p)DHGroup.g -> gx:(;p)DHGroup.elt -> gy:(;p)DHGroup.elt ->
+    pms: (;p,g,gx,gy)dhpms -> bytes
+
 val extractDHE:
     si:SessionInfo ->
     p:DHGroup.p -> g:(;p)DHGroup.g -> gx:(;p)DHGroup.elt -> gy:(;p)DHGroup.elt ->
