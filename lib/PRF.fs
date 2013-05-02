@@ -75,6 +75,7 @@ let sample (si:SessionInfo) pms = masterSecret si (msi si pms) {bytes = Nonce.ra
 (** Key Derivation **) 
 
 (* CF those do not provide useful refinements below :(
+      similarly factoring out code below breaks length computations. 
 let clientWriter = function 
   | Client -> Writer 
   | Server -> Reader
@@ -185,6 +186,7 @@ definition SafeHS(e) <=>
 // This enables us to prove Complete, roughly as currently defined:
 //   Complete <=> (HonestPMS /\ StrongHS => SafeHS)
 
+type derived = StatefulLHAE.writer * StatefulLHAE.reader 
 
 // TODO 
 type aeAlg = int 
@@ -194,7 +196,7 @@ let ci_aeAlg (ci:ConnectionInfo) = 1
 type state =
   | Init
   | Committed of aeAlg
-  | Derived of aeAlg * msIndex * epoch * StatefulLHAE.reader * epoch * StatefulLHAE.writer 
+  | Derived of aeAlg * msIndex * ConnectionInfo * derived
   | Done 
   | Wasted
 
@@ -237,7 +239,7 @@ let keyGenClient ci ms =
         // we idealize the key derivation
         let (myWrite,peerRead) = StatefulLHAE.GEN ci.id_out
         let (peerWrite,myRead) = StatefulLHAE.GEN ci.id_in 
-        kdlog := update csr (Derived(a,msi,e2,peerWrite,e1,peerRead)) !kdlog;
+        kdlog := update csr (Derived(a,msi,ci,(peerWrite,peerRead))) !kdlog;
         (myWrite,myRead)
     | _  ->
         kdlog := update csr Wasted !kdlog; 
@@ -249,7 +251,8 @@ let keyGenServer ci ms =
     let (e1,e2) = epochs ci
     let csr = epochCSRands e1 
     match read csr !kdlog with  
-    | Derived(a,msi,e1',myWrite,e2',myRead) ->
+    | Derived(a,msi,ci',mine) ->
+        let (myWrite,myRead) = mine
         // TODO we can't have matching epochs. 
         // by typing, we should know that a matches ci 
         kdlog := update csr Done !kdlog

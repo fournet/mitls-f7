@@ -117,6 +117,11 @@ private val real_keyGen:
 //      { StatefulLHAE.History(ci.id_out,Writer,w) = StatefulPlain.EmptyHistory(ci.id_out) /\
 //        StatefulLHAE.History(ci.id_out,Reader,r) = StatefulPlain.EmptyHistory(ci.id_in)}
 
+//CF not sure this is right
+type (;ci:ConnectionInfo) derived =  
+  ( w:(;ci.id_out)StatefulLHAE.writer * r:(;ci.id_in) StatefulLHAE.reader ) 
+  { StatefulLHAE.History(ci.id_out,Writer,w) = StatefulPlain.EmptyHistory(ci.id_out) /\
+    StatefulLHAE.History(ci.id_out,Reader,r) = StatefulPlain.EmptyHistory(ci.id_in)}
 
 // TODO 
 type aeAlg = int 
@@ -138,7 +143,7 @@ type (;csr: csrands) state =
   | Committed of aeAlg
   // The server has committed to using at most this algorithmn with this csr.
   // ---> 
-  | Derived of aeAlg * msIndex * eS:epoch * (;eS) StatefulLHAE.writer * eC:epoch * (;eC) StatefulLHAE.reader 
+  | Derived of aeAlg * msIndex * ci:ConnectionInfo * (;ci) derived
   // the client has derived keys for both roles, with the same algorithm, recording those for the server. 
   // --->
   | Done 
@@ -161,16 +166,9 @@ val update: csr:csrands -> (;csr) state -> kdentry  list -> kdentry list
 val keyCommit: csrands -> aeAlg -> unit 
 
 val keyGenClient: 
-  ci:ConnectionInfo{IsSuccEpoch(ci.id_in)} -> (;EpochSI(ci.id_out))masterSecret -> 
-  ( w:(;ci.id_out)StatefulLHAE.writer * r:(;ci.id_in) StatefulLHAE.reader ) 
-  { StatefulLHAE.History(ci.id_out,Writer,w) = StatefulPlain.EmptyHistory(ci.id_out) /\
-    StatefulLHAE.History(ci.id_out,Reader,r) = StatefulPlain.EmptyHistory(ci.id_in)}
-
+  ci:ConnectionInfo{IsSuccEpoch(ci.id_in)} -> (;EpochSI(ci.id_out))masterSecret -> (;ci) derived   
 val keyGenServer: 
-  ci:ConnectionInfo{IsSuccEpoch(ci.id_in)} -> (;EpochSI(ci.id_out))masterSecret -> 
-  ( w:(;ci.id_out)StatefulLHAE.writer * r:(;ci.id_in) StatefulLHAE.reader ) 
-  { StatefulLHAE.History(ci.id_out,Writer,w) = StatefulPlain.EmptyHistory(ci.id_out) /\
-    StatefulLHAE.History(ci.id_out,Reader,r) = StatefulPlain.EmptyHistory(ci.id_in)}
+  ci:ConnectionInfo{IsSuccEpoch(ci.id_in)} -> (;EpochSI(ci.id_out))masterSecret -> (;ci) derived
 
 (* typing the keys log for the ideal functionality *)
 //private type entry = (ems:(e12:(epoch * epoch) * (;Fst(e12))masterSecret) * 
