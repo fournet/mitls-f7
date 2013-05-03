@@ -30,86 +30,6 @@ FS7DEFAULT = [
   'UTLS',
 ]
 
-MLIDEFAULT = [
-  'TLSError',
-  'Nonce',
-  'TLSConstants',
-  'RSAKey',
-  'DHGroup',
-  'HASH',
-  'HMAC',
-  'Sig',
-  'Cert',
-  'TLSInfo',
-  'TLSPRF',
-  'Range',
-  'DataStream',
-  'AppFragment',
-  'HSFragment',
-  'TLSFragment',
-  'StatefulPlain',
-  'LHAEPlain',
-  'MAC_SHA256',
-  'MAC_SHA1',
-  'MAC',
-  'Encode',
-  'LHAE',
-  'StatefulLHAE',
-  'Record',
-  'Alert',
-  'AppData',
-  'PMS',
-  'PRF',
-  'CRE',
-  'DH',
-  'RSA',
-  'SessionDB',
-  'TLSExtensions',
-  'Handshake',
-  'Dispatch',
-  'TLS',
-  'UTLS',
-]
-
-MLDEFAULT = [
-  'TLSError',
-  'Nonce',
-  'TLSConstants',
-  'RSAKey',
-  'DHGroup',
-  'HASH',
-  'HMAC',
-  'Sig',
-  'TLSInfo',
-  'TLSPRF',
-  'Range',
-  'DataStream',
-  'AppFragment',
-  'HSFragment',
-  'TLSFragment',
-  'StatefulPlain',
-  'LHAEPlain',
-  'MAC_SHA256',
-  'MAC_SHA1',
-  'MAC',
-  'Encode',
-  'LHAE',
-  'StatefulLHAE',
-  'Record',
-  'Alert',
-  'AppData',
-  'PMS',
-  'PRF',
-  'CRE',
-  'DH',
-  'RSA',
-  'TLSExtensions',
-  'Handshake',
-  'Dispatch',
-  'TLS',
-  'UTLS',
-]
-
 MKHEADER = '''\
 include ../Makefile.config
 
@@ -119,8 +39,7 @@ lperv     = -pervasives $(lib7)pervasives.fs7 -tuples $(lib7)tuples.fs7
 libfs7    = $(lib7)pi.fs7 $(lib7)formulas.fs7
 f7timeout = 5
 f7defs    = avoid verify ideal
-fs2sept   = ../../../../bin/fs2sept.exe
-fs2septflags = --define verify
+
 # removed --verbose for automated testing
 override f7flags += \\
   -timeout $(f7timeout) $(patsubst %%,--define %%,$(f7defs)) \\
@@ -133,8 +52,7 @@ xunit ?= xunit.xml
 -include Makefile.tc7
 
 # default verification targets 
-default: %(fs7default)s 
-ocaml: %(mldefault)s %(mlidefault)s
+default: %(fs7default)s
 
 #==Categories of .fs7 files==
 #
@@ -184,7 +102,7 @@ regen:
 	    lib.fsproj > Makefile.tls-lib.$$ \\
 	|| { rm -f Makefile.tls-lib.$$; false; }
 	mv Makefile.tls-lib.$$ Makefile
-''' % dict(fs7default = ' '.join([x + '.tc7' for x in FS7DEFAULT]),mldefault = ' '.join([x + '.ml' for x in MLDEFAULT]),mlidefault = ' '.join([x + '.mli' for x in MLIDEFAULT]))
+''' % dict(fs7default = ' '.join([x + '.tc7' for x in FS7DEFAULT]))
 
 # --------------------------------------------------------------------
 class Object(object):
@@ -346,8 +264,6 @@ def _main():
     fs7deps    = FS7Deps.by_parsing(fsproj, fsprojs_ext)
     fs7deps_m  = dict(fs7deps)
     fs7default = [x for (x, _) in fs7deps if x in FS7DEFAULT]
-    mldefault = [x for (x, _) in fs7deps if x in MLDEFAULT]
-    mlidefault = [x for (x, _) in fs7deps if x in MLIDEFAULT]
 
     if options.mode == 'makefile':
         print "# -*- Makefile -*-"
@@ -364,14 +280,6 @@ def _main():
             print '\t@echo Lemma $@'
             print '\t$(monoexe) $(f7) $(f7flags) -scripts %(name)s %(deps)s %(name)s.fs7 %(name)s.fs' % fargs
             print '\t@touch $@'
-            print
-            print '%(name)s.mli: $(libperv) $(libfs7) %(deps)s %(name)s.fs7' % fargs
-            print '\t@echo '
-            print '\t$(fs2sept) $(fs2septflags) $(libfs7) %(deps)s %(name)s.fs7 > ocaml/%(name)s.mli' % fargs
-            print
-            print '%(name)s.ml: $(libperv) $(libfs7) %(deps)s %(name)s.fs7 %(name)s.fs' % fargs
-            print '\t@echo '
-            print '\t$(fs2sept) $(fs2septflags) $(libfs7) %(deps)s %(name)s.fs7  %(name)s.fs > ocaml/%(name)s.ml' % fargs
             print
         print 'check-xunit: clean'
         print '\t../scripts/xunit-tc7 --xunit=$(xunit) %s' % (' '.join(fs7default),)
