@@ -411,20 +411,20 @@ let writeOne (Conn(id,c)) (ghr:range) (ghf:AppFragment.fragment) (ghs:DataStream
 
 let recv (Conn(id,c)) =
     match Tcp.read c.ns 5 with // read & parse the header
-    | Error (x) -> Error(AD_internal_error,x)
+    | Error x -> Error(AD_internal_error,x)
     | Correct header ->
         match Record.headerLength header with
-        | Error(x,y) -> Error(x,y)
+        | Error x -> Error(x)
         | Correct(len) ->
         match Tcp.read c.ns len with // read & process the payload
-            | Error (x) -> Error(AD_internal_error,x)
+            | Error x -> Error(AD_internal_error,x)
             | Correct payload ->
                 let c_read = c.read in
                 let c_read_conn = c_read.conn in
                 let hp = header @| payload in 
                 let recpkt = Record.recordPacketIn id.id_in c_read_conn hp in
                 match recpkt with
-                | Error(x,y) -> Error(x,y)
+                | Error(x) -> Error(x)
                 | Correct(pack) -> 
                     let (c_recv,ct,pv,tl,f) = pack in
                     match c.read.disp with
@@ -546,7 +546,8 @@ let handleHandshakeOutcome (Conn(id,c)) hsRes =
                         match moveToOpenState (Conn(id,c)) with
                         | Correct(c) -> 
                             (RHSDone, Conn(id,c))
-                        | Error(x,y) -> 
+                        | Error(z) -> 
+                            let (x,y) = z in
                             let closing = abortWithAlert (Conn(id,c)) x y in
                             let wo,conn = writeAllClosing closing in
                             WriteOutcome(wo),conn
@@ -565,7 +566,8 @@ let handleHandshakeOutcome (Conn(id,c)) hsRes =
 (* we have received, decrypted, and verified a record (ct,f); what to do? *)
 let readOne (Conn(id,c)) =
   match recv (Conn(id,c)) with
-    | Error(x,y) ->
+    | Error z ->
+        let (x,y) = z in
         let closing = abortWithAlert (Conn(id,c)) x y in
         let wo,conn = writeAllClosing closing in
         WriteOutcome(wo),conn
