@@ -11,7 +11,7 @@ FS7DEFAULT = [
   'Nonce',
   'HASH',
   'HMAC',
-  'DHGRoup',
+  'DHGroup',
   'TLSInfo',
   'DataStream',
   'Alert',
