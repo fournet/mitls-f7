@@ -174,7 +174,7 @@ private definition !a. MacKeySize(MA_SSLKHASH(a)) = HashSize(a)
 
 val macKeySize: a:macAlg -> l:nat{l=MacKeySize(a)}
 val macSize:    a:macAlg -> l:nat{l=MacKeySize(a)}
-private val hashSize:   a:hashAlg -> l:nat{l=HashSize(a)}
+val hashSize:   a:hashAlg -> l:nat{l=HashSize(a)}
 
 (* SSL/TLS Constants *)
 // TODO move those to HMAC? We don't care anywhere else
