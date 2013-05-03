@@ -68,6 +68,7 @@ val encKeySize: encAlg -> nat
 val blockSize: blockCipher -> nat
 val aeadKeySize: aeadAlg -> nat
 val aeadIVSize: aeadAlg -> nat
+val hashSize: hashAlg -> nat
 val macKeySize: macAlg -> nat
 val macSize: macAlg -> nat
 
