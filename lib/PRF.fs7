@@ -40,7 +40,10 @@ type prfAlg = // can't be folded back to the sums in TLSConstants; we need to us
   | PRF_SSL3_concat        // MD5 @| SHA1    for VerifyData tags
 *)
 
-val prfAlg: SessionInfo -> prfAlg
+function val PrfAlg: SessionInfo -> prfAlg
+definition !si,pv,cs. (pv,cs)=PrfAlg(si) <=> pv = si.protocol_version /\ cs=si.cipher_suite
+val prfAlg: si:SessionInfo -> pa:prfAlg {pa=PrfAlg(si)}
+
 
 // Precise index for master secrets is a function of session info (involving pmsdata decryption)
 // CF We cannot use just csr, because of MiTM forwarding honest nonces
@@ -50,10 +53,11 @@ type msIndex =        // We record the parameters used to derive this MS:
   creAlg: prfAlg      // the PMS-PRF algorithm
    
 function val MsI: SessionInfo -> msIndex 
+definition !pms,csr,pa,si. (pms,csr,pa)=MsI(si) => csr=CSRands(si) /\ pa=PrfAlg(si)
 //TODO: logically define this function.
 //TODO: avoid in code: do we really want to decrypt? 
 //MK: Maybe have a function msF: pms -> SessionInfo -> msindex
-val msi: si:SessionInfo -> pms:PMS.pms -> i:msIndex { i = MsI(si) }
+val msi: si:SessionInfo -> pms:PMS.pms -> i:msIndex {i=(pms,CSRands(si),PrfAlg(si) ) /\ i = MsI(si)  }
 
 // CF safety of the MS (not necessarily its usage). Not refined yet
 val safeMS_msIndex: msIndex -> bool
@@ -79,7 +83,7 @@ val masterSecret: si:SessionInfo -> i:msIndex {i = MsI(si)} -> (;i)ms -> (;si) m
 (** Master secrets are either ideally sampled or concretely derived & coerced *) 
 
 private val leak: si:SessionInfo -> (;si) masterSecret -> repr
-val sample: si:SessionInfo -> PMS.pms -> (;si)masterSecret 
+val sample: si:SessionInfo -> pms:PMS.pms -> (;si)masterSecret { (pms,CSRands(si),PrfAlg(si))=MsI(si) }
 //#begin-coerce
 //the precondition of coerce excludes both idealizations.
 val coerce: si:SessionInfo {not SafeMS_SI(si)} -> PMS.pms -> repr -> (;si)masterSecret 

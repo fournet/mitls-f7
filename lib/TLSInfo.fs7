@@ -96,7 +96,10 @@ type SessionInfo = {
 // for sessionID, the empty bytes empty_bytes represents the absence of ID,
 // that is, the session is not resumable. 
 
-val csrands: si:SessionInfo -> b:csrands {B(b)=B(si.init_crand) @| B(si.init_srand)}
+function val CSRands: SessionInfo -> csrands
+definition !si,csr. csr=CSRands(si) <=> B(csr)=B(si.init_crand) @| B(si.init_srand) 
+val csrands: si:SessionInfo -> csr:csrands {csr=CSRands(si)}
+
 
 private type preEpoch =
   | InitEpoch of writer:Role

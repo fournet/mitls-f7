@@ -38,7 +38,7 @@ val extractRSA:
 open DHGroup
 
 //CF actually a private type
-type dhentry = p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * pms:(;p,g,gx,gy) dhpms * csr:csrands * pa:prfAlg * ms:(;(DHPMS(g,p,gx,gy,pms),csr,pa)) PRF.ms
+type dhentry = p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * pms:(;p,g,gx,gy) dhpms * csr:csrands * pa:prfAlg * ms:(;(DHPMS(p,g,gx,gy,pms),csr,pa)) PRF.ms
 private val dhlog: dhentry list ref 
 
 val dhassoc: p:p -> g:(;p) g -> gx:(;p) elt -> gy:(;p) elt -> pms:(;p,g,gx,gy) dhpms -> csr:csrands -> pa:prfAlg -> 

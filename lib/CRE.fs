@@ -93,8 +93,7 @@ let extractRSA si (cv:ProtocolVersion) pms: PRF.masterSecret =
         | None -> 
                 let masterSecret = PRF.sample si (RSAPMS(pk,cv,pms))
                 let _,ms = masterSecret
-                let csr = csrands si
-                rsalog := (pk,cv,pms,csr, PRF.prfAlg si, ms)::!rsalog;
+                rsalog := (pk,cv,pms,csr, pa, ms)::!rsalog;
                 masterSecret
                  
     else
@@ -149,7 +148,7 @@ let coerceDH (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) b = C
 let rec dhassoc (p:p) (g:g) (gx:elt) (gy:elt) (pms:dhpms)  (csr:csrands) (pa:prfAlg) (mss:dhentry list): PRF.ms option = 
     match mss with 
     | [] -> None 
-    | (p',g',gx',gy',pms',csr',pa',ms)::mss' when p=p' && g=g' && gx=gx' && gy=gy' && pms=pms' && csr=csr' && pa'=pa-> Some(ms) 
+    | (p',g',gx',gy',pms',csr',pa',ms)::mss' when p=p' && g=g' && gx=gx' && gy=gy' && pms=pms' && csr=csr' && pa=pa'-> Some(ms) 
     | _::mss' -> dhassoc p g gx gy pms csr pa mss'
 
 #endif
@@ -184,12 +183,16 @@ let extractDHE (si:SessionInfo) (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy
     #if ideal
     if safeMS_SI si then
         //We assoc on pk, cv, pms,  csrands, and prfAlg
-         match dhassoc p g gx gy pms (csrands si) (PRF.prfAlg si) !dhlog with
-           | Some(ms) -> (PRF.masterSecret si (PRF.msi si (DHPMS(p,g,gx,gy,pms))) ms)
-           | None -> 
-                 let i,ms=PRF.sample si (DHPMS(p,g,gx,gy,pms))
-                 dhlog := (p, g, gx, gy, pms, csrands si, PRF.prfAlg si, ms)::!dhlog;
-                 PRF.masterSecret si i ms
+        let csr = csrands si
+        let pa = PRF.prfAlg si
+        match dhassoc p g gx gy pms csr pa !dhlog with
+        | Some(ms) -> 
+                let i = PRF.msi si (DHPMS(p,g,gx,gy,pms))
+                (PRF.masterSecret si i ms)
+        | None -> 
+                let i,ms=PRF.sample si (DHPMS(p,g,gx,gy,pms))
+                dhlog := (p, g, gx, gy, pms, csr, pa, ms)::!dhlog;
+                PRF.masterSecret si i ms
     else
         extractMS si (DHPMS(p,g,gx,gy,pms)) (accessDHPMS p g gx gy pms)
     #else
