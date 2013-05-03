@@ -12,15 +12,6 @@ open Error
 open TLSError
 open Range
 
-(* CF (to be deleted)
-// TLSConstant should define  
-predicate IND_CPA of succEpoch 
-val ind_cpa: e:succEpoch -> b:bool{ b = true <=> IND_CPA(e) }
-// actually depending only on pv and eAlg in cs
-// may be true for all version when trusting RC4 is IND CPA
-// may be true for TLS_1p2 when trusting the encAlg is IND CPA
-// false in all other cases
-*)
 
 // ciphers consist of one or more blocks of bytes.
 type cipher = b:bytes{Length(b) <= max_TLSCipher_fragment_length}

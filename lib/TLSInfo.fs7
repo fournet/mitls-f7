@@ -146,6 +146,49 @@ val nextEpoch: e:epoch -> c:crand -> s:srand -> si:SessionInfo ->
 	e':succEpoch{Pred(e') = e /\ EpochSI(e') = si /\
 			     EpochCRand(e') = c /\ EpochSRand(e') = s}
 
+
+(* SPECIFYING THE STRENGTH OF CRYPTO ALGORITHMS (SECURITY ASSUMPTIONS) *) 
+
+predicate StrongRSAPMS   of SessionInfo // MK was ProtocolVersion * kexAlg
+predicate StrongDHPMS    of SessionInfo // MK was ProtocolVersion * kexAlg
+           
+predicate StrongSig of SessionInfo
+definition !si. StrongSig(si) <=> Sig.Strong(CipherSuiteSigHashAlg(si.cipher_suite))
+
+predicate StrongCRE of SessionInfo
+// TODO: definition !si. StrongCRE(si) <=> CRE.Strong(si.protocol_version,CipherSuiteMACAlg(si.protocol_version,si.cipher_suite))
+
+predicate StrongPRF of SessionInfo
+// TODO: definition !si. StrongPRF(si) <=> PRF.Strong(si.protocol_version,CipherSuiteMACAlg(si.protocol_version,si.cipher_suite))
+
+// summarizing all assumptions needed for a strong handshake
+predicate StrongHS  of SessionInfo //CF * hashAlg for certs?
+definition !si. StrongHS(si) <=> 
+  ( (StrongRSAPMS(si) \/ StrongDHPMS(si)) /\ 
+    StrongSig(si) /\ 
+    StrongCRE(si) /\ StrongPRF(si) )
+
+predicate StrongAuthSI of SessionInfo
+predicate StrongAESI of SessionInfo
+predicate StrongAuth of epoch
+predicate StrongAE of epoch
+
+definition !si. StrongAuthSI(si) <=> 
+  (?e,m. CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(e,m) /\ 
+         INT_CMA_M(m))
+
+definition !si. StrongAESI(si) <=> 
+  (?e,m. CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(e,m) /\ 
+         IND_CPA(e) /\ 
+         INT_CMA_M(m) /\ 
+         INT_CTXT(MtE(e,m),si.protocol_version))
+
+definition !e. StrongAuth(e) <=> StrongAuthSI(EpochSI(e))
+definition !e. StrongAE(e)   <=> StrongAESI(EpochSI(e))
+
+
+(* SPECIFYING HONESTY (TRUST ASSUMPTIONS) *) 
+
 // Predicates specifying the honesty of keys and key material
 
 predicate HonestSig of a:sigHashAlg * (;a) Sig.pkey
@@ -168,84 +211,49 @@ assume !pd. HonestPMSData(pd) <=>
       ((?pk,pv,e. pd = RSAPMS(pk,pv,e) /\ HonestRSAPMSData(pk,pv,e)) \/
        (?p,g,gx,gy. pd = DHPMS(p,g,gx,gy) /\ HonestDHPMSData(p,g,gx,gy)))
 
-// Predicates specifying cryptographic assumptions on algorithms 
-predicate StrongAESI of SessionInfo
-predicate StrongAuthSI of SessionInfo
-predicate StrongAE of epoch
-predicate StrongAuth of epoch
-
-definition !e. StrongAE(e)   <=> StrongAESI(EpochSI(e))
-definition !e. StrongAuth(e) <=> StrongAuthSI(EpochSI(e))
-
-definition !si. StrongAESI(si)   <=> (?e,m. CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(e,m) /\ IND_CPA(e) /\ INT_CMA_M(m) /\ INT_CTXT(CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version),si.protocol_version))
-definition !si. StrongAuthSI(si) <=> (?e,m. CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(e,m) /\ INT_CMA_M(m))
-           
-predicate StrongSig of SessionInfo
-definition !si. StrongSig(si) <=> Sig.Strong(CipherSuiteSigHashAlg(si.cipher_suite))
-
-predicate StrongPRF of SessionInfo
-// TODO: definition !si. StrongPRF(si) <=> PRF.Strong(si.protocol_version,CipherSuiteMACAlg(si.protocol_version,si.cipher_suite))
-predicate StrongCRE of SessionInfo
-// TODO: definition !si. StrongCRE(si) <=> CRE.Strong(si.protocol_version,CipherSuiteMACAlg(si.protocol_version,si.cipher_suite))
-
-predicate StrongHS  of SessionInfo //CF * hashAlg for certs?
+(* SPECIFYING SAFETY *) 
 
 // ``These parameters can encrypt HonestRSAPMSs.''
 predicate SafeRSAPMS of RSAKey.pk * ProtocolVersion 
 
-
 //MK SafeDHPMS is much more specific involving the contributions to the pms. This is probably by necessity.
 predicate SafeDHPMS of p:DHGroup.p * (;p)DHGroup.g * (;p)DHGroup.elt * (;p)DHGroup.elt // The DH parameters, generator, and gx and gy values yield a good dhpms
 
-predicate StrongRSAPMS   of SessionInfo // MK was ProtocolVersion * kexAlg
-predicate StrongDHPMS    of SessionInfo // MK was ProtocolVersion * kexAlg
+// /\ ? pms. EncryptedRSAPMS(PK(si.serverID),pms,EncOMS(pmsData)) /\ HonestRSAPMS(pms) //MK: \/ DH branch ...
+// /\ ClientCommittedCS(si.csrands,CS(si)) /\ ServerCommittedCS(si.csrands,CS(si)) 
 
-
-definition !si. StrongHS(si) <=> 
-		      StrongSig(si)
-		   /\ StrongPRF(si) 
-           /\ StrongCRE(si)
-           /\ (StrongRSAPMS(si) \/
-	   	       StrongDHPMS(si))
-
-// Predicates specifying the security of TLS connections 
-predicate type cryptopreds = 
-| SafeSI  of SessionInfo // The session ciphersuite yields secrecy and integrity
-| AuthSI  of SessionInfo // The session ciphersuite yields integrity (not necessarily secrecy)
-| SafeHS_SI of SessionInfo // Good handshake for this sessioninfo
-| SafeMS_SI of SessionInfo // Good enough handshake for finished macking for this sessioninfo
-| SafeHS of epoch // Good handshake for this epoch
-| Safe   of epoch // The epoch parameters yield privacy & integrity
-| Auth   of epoch // The epoch parameters yield integrity (not necesarily privacy)
-
-definition !si. SafeSI(si) <=> 
-           SafeHS_SI(si) /\
-           StrongAESI(si)
-definition !si. AuthSI(si) <=> 
-           SafeHS_SI(si) /\    
-           StrongAuthSI(si)
+predicate SafeMS_SI of SessionInfo // Good enough handshake for finished macking for this sessioninfo
+predicate SafeHS_SI of SessionInfo // Good handshake for this sessioninfo
+predicate SafeHS of epoch // Good handshake for this epoch
 
 // MK This definition is too strong. 
 // MK StrongHS(si) /\ HonestPMSData(si.pmsData) => SafeHS_SI(si) but not the other way around.
 // MK SafeHS_SI(si) => ( ? pms, sk. StrongHS(si) /\ HonestPMS(pms) /\ pms=RSADecrypt(sk,id.pmsData) )
-
-definition !si. SafeHS_SI(si) <=> 
-      StrongHS(si)
-   /\ HonestPMSData(si.pmsData)
-// /\ ? pms. EncryptedRSAPMS(PK(si.serverID),pms,EncOMS(pmsData)) /\ HonestRSAPMS(pms) //MK: \/ DH branch ...
-// /\ ClientCommittedCS(si.csrands,CS(si)) /\ ServerCommittedCS(si.csrands,CS(si)) 
 
 //MK I think we need a separate SafeMS_SI to idealize the finished message
 definition !si. SafeMS_SI(si) <=> 
       StrongHS(si)
 //  /\ ? pms. EncryptedRSAPMS(PK(si.serverID),pms,EncOMS(pmsData)) /\ HonestRSAPMS(pms) //MK: \/ DH branch ...  
 
+definition !si. SafeHS_SI(si) <=> StrongHS(si) /\ HonestPMSData(si.pmsData)
+
 definition !id. SafeHS(id) <=> SafeHS_SI(EpochSI(id)) 
+
+// Predicates specifying the security of TLS connections 
+predicate type cryptopreds = 
+| SafeSI  of SessionInfo // The session ciphersuite yields secrecy and integrity
+| AuthSI  of SessionInfo // The session ciphersuite yields integrity (not necessarily secrecy)
+| Safe   of epoch // The epoch parameters yield privacy & integrity
+| Auth   of epoch // The epoch parameters yield integrity (not necesarily privacy)
+
+definition !si. SafeSI(si) <=> SafeHS_SI(si) /\ StrongAESI(si)
+definition !si. AuthSI(si) <=> SafeHS_SI(si) /\ StrongAuthSI(si)
 
 definition !e. Safe(e) <=> SafeSI(EpochSI(e))
 definition !e. Auth(e) <=> AuthSI(EpochSI(e))
 // Safety for epochs relies only on SessionInfo, but this would change if we introduce a finer model of compromise
 // E.g. if we allowed the attacker to compromise specific epochs
+
 
 // In the code of ideal implementations only,
 // we use F# functions that characterize the Safe and Auth predicates.
