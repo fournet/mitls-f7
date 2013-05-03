@@ -8,6 +8,7 @@ MSBUILD = 'http://schemas.microsoft.com/developer/msbuild/2003'
 
 FS7DEFAULT = [
   'TLSError',
+  'Nonce',
   'TLSInfo',
   'DataStream',
   'Alert',

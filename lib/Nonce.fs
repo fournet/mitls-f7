@@ -1,6 +1,7 @@
 ﻿module Nonce
 
 open Bytes
+open Error
 
 #if ideal
 let log = ref []
@@ -8,7 +9,11 @@ let log = ref []
 
 let timestamp () = bytes_of_int 4 (Date.secondsFromDawn ())
 
-let random (n:nat) = CoreRandom.random n
+let random (n:nat) = 
+  let r = CoreRandom.random n in
+  let l = length r in
+  if l = n then r 
+  else unexpected "CoreRandom.random returned incorrect number of bytes"
 
 let rec mkHelloRandom(): bytes =
     let Cr = timestamp() @| random 28
