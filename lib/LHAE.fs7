@@ -30,24 +30,18 @@ private type (;ki:epoch) LHAEKey =
     | MACOnlyK of (;ki) MAC.key
 (*  | GCM of ke:(;ki:AENC.state)  *)
 
-// TODO Define LHAEKeySize. 
-// TODO In the code, (LHAEKeySize * 2) is computed in TLSConstants.getKeyExtensionLength
-
 function val LHAEKeySize_AEAlg: a:authencAlg -> nat
 definition !a,enc,mac. 
 	(( a = MACOnly(mac) =>
 	  LHAEKeySize_AEAlg(a) = MacKeySize(mac) ) /\
 	 ( a = MtE(enc,mac) =>
 	  LHAEKeySize_AEAlg(a) = MacKeySize(mac) +
-					    EncKeySize(enc) +
-					    KeyDerivationIVSize_AEAlg(a) ))
+					         EncKeySize(enc) +
+		                     KeyDerivationIVSize_AEAlg(a) ))
 ask !cs,pv,mac. CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) => LHAEKeySize_AEAlg(MACOnly(mac)) = MacKeySize(mac)
 
-
-//MK rewrite in terms of LHAEKeySize_AEAlg
-
 function val LHAEKeySize: ki:epoch -> nat
-definition !ki. LHAEKeySize(ki)=LHAEKeySize_AEAlg(CipherSuiteAuthEncAlg((EpochSI(ki)).cipher_suite,(EpochSI(ki)).protocol_version))
+definition !ki. LHAEKeySize(ki) = LHAEKeySize_AEAlg(CipherSuiteAuthEncAlg((EpochSI(ki)).cipher_suite,(EpochSI(ki)).protocol_version))
 
 (*
 function val LHAEKeySize: ki:epoch -> nat

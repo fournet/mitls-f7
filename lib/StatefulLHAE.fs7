@@ -6,7 +6,6 @@ open Bytes
 open TLSInfo
 open Range
 
-
 (* MK
 
 Dependencies:
@@ -14,13 +13,11 @@ Dependencies:
    * StatefulPlain.plain of plaintext and
    * StatefulPlain.history of the current log of plaintexts.
 
-
 Usage: 
  * We assume that each encryption/decryption state is used at most once.
  * This condition is justified by inspecting uses of StatefulLHAE.encrypt 
    and StatefulLHAE.decrypt and verifying that the old encryption state is 
    discarded.
-
 
 Assumptions:
  * None
@@ -37,7 +34,6 @@ Theorems:
 
 *)
 
-//CF 12/2: do we need pre/post on ciphertext lengths?
 
 //AP: We need the following invariant: StateID(e,LHAE.LHAEKey) = SeqNum(e,StatefulPlain.history)
 private type (;ki:epoch,rw:rw) state = {
@@ -88,18 +84,17 @@ private definition !e,h,ad,c.
   (?ad'. B(ad') = LHAEPlain.MakeAD(e,h,B(ad)) /\ 
          LHAE.ENCrypted(e,ad',c))
 
-val encrypt: ki:succEpoch -> 
-  wr:(;ki) writer -> 
+val encrypt:
+  ki:succEpoch -> wr:(;ki) writer -> 
   ad:(;ki) StatefulPlain.adata ->
   rg:range ->
   f: (;ki,ad,History(ki,Writer,wr),rg) StatefulPlain.plain ->
-  (wr':(;ki) writer * c:cipher){
-    History(ki,Writer,wr') = 
-      StatefulPlain.ExtendHistory(ki,ad,History(ki,Writer,wr),rg,f)
-/\    (Safe(ki) => ENCrypted(ki,History(ki,Writer,wr),ad,c))} 
+  (wr':(;ki) writer * c:cipher)
+  {   History(ki,Writer,wr') = StatefulPlain.ExtendHistory(ki,ad,History(ki,Writer,wr),rg,f)
+  /\  (Safe(ki) => ENCrypted(ki,History(ki,Writer,wr),ad,c)) } 
 
-val decrypt: ki:succEpoch -> 
-  rd:(;ki) reader -> 
+val decrypt: 
+  ki:succEpoch -> rd:(;ki) reader -> 
   ad:(;ki) StatefulPlain.adata ->
   c:cipher ->
   res:((;ki) reader * rg:range * (;ki,ad,History(ki,Reader,rd),rg) StatefulPlain.plain) Result
@@ -113,6 +108,5 @@ val decrypt: ki:succEpoch ->
 				)
 			 ) ) }
 			 
-
 //CF 21/4: as stated, we need the resulting readers and writers to have explicitly-updated histories (irrespective of AUTH)
 //CF 21/4: can we return an option instead? Otherwise we may have to specify which errors can be returned.
