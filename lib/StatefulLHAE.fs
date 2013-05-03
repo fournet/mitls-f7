@@ -46,10 +46,10 @@ let decrypt (ki:epoch) (r:reader) (ad0:adata) (e:cipher) =
   let ad = LHAEPlain.makeAD ki h ad0 in
   let res = LHAE.decrypt ki r.key ad e in
   match res with
-    | Correct x ->
+    | Correct(x) ->
           let (k,rg,p) = x 
           let f = LHAEPlain.LHAEPlainToStatefulPlain ki h ad0 ad rg p 
           let h = extendHistory ki ad0 h rg f 
           let r' = {history = h; key = k}
           correct ((r',rg,f))
-    | Error (x,y) -> Error (x,y)
+    | Error(e) -> Error(e)
