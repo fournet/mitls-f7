@@ -160,7 +160,7 @@ let next_fragment ci state =
         | x when length x = 0 ->
             // FIXME: This hack is not even working, because if we do one-bye fragmentation parseAlert fails!
             match parseAlert d with
-            | Error(x,y) -> unexpected ("[next_fragment] This invocation of parseAlertDescription should never fail")
+            | Error z -> unexpected ("[next_fragment] This invocation of parseAlertDescription should never fail")
             | Correct(ad) ->
                 match ad with
                 | AD_close_notify -> (LastALCloseFrag(r0,df),state)
@@ -194,7 +194,7 @@ let recv_fragment (ci:ConnectionInfo) state (r:range) (f:HSFragment.fragment) =
                 Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "No more data are expected after an alert")
             else
                 match parseAlert al with
-                | Error(x,y) -> Error(x,y)
+                | Error z -> Error z 
                 | Correct(alert) -> let res = handle_alert ci state alert in correct(res)
     | inc ->
         match length fragment with
@@ -206,7 +206,7 @@ let recv_fragment (ci:ConnectionInfo) state (r:range) (f:HSFragment.fragment) =
             else
                 let bmsg = inc @| part2 in
                 match parseAlert bmsg with
-                | Error(x,y) -> Error(x,y)
+                | Error z -> Error z
                 | Correct(alert) ->
                     let state = {state with al_incoming = empty_bytes } in
                     let res = handle_alert ci state alert in

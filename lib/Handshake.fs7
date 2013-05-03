@@ -1103,7 +1103,7 @@ val prepare_server_output_full_RSA: ci:ConnectionInfo -> s:(;ci)hs_state -> si:S
           ?csid,cs,cm,ex. B(l) = ClientHelloMsg(pv,si.init_crand,csid,cs,cm,ex)
         }->
 	((s':(;ci)hs_state{Config(ci,s) = Config(ci,s')}) * ProtocolVersion) Result
-val prepare_server_output_full_DH: 'a -> 'b -> 'c -> 'd -> res:('e Result){?x,y. res = Error(x,y)}
+val prepare_server_output_full_DH: 'a -> 'b -> 'c -> 'd -> res:('e Result){?z. res = Error(z)}
 val prepare_server_output_full_DHE: ci:ConnectionInfo -> s:(;ci)hs_state -> SessionInfo ->
 	Sig.alg list -> cVerifyData -> sVerifyData -> log ->
 	((s':(;ci)hs_state{Config(ci,s) = Config(ci,s')}) * ProtocolVersion) Result

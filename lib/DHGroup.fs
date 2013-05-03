@@ -1,6 +1,7 @@
 module DHGroup
 
 open Bytes
+open CoreKeys
 
 type p   = bytes
 type elt = bytes 

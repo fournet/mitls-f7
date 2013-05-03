@@ -71,10 +71,10 @@ let parseMessage buf =
     else
         let (hstypeb,rem) = Bytes.split buf 1 in
         match parseHt hstypeb with
-        | Error(x,y) -> Error(x,y)
+        | Error z ->  Error z
         | Correct(hstype) ->
             match vlsplit 3 rem with
-            | Error(x,y) -> Correct(None) // not enough payload, try next time
+            | Error z -> Correct(None) // not enough payload, try next time
             | Correct(res) ->
                 let (payload,rem) = res in
                 let to_log = messageBytes hstype payload in
@@ -105,8 +105,8 @@ let makeFragment ki b =
 //     | Correct(x,b) -> 
 //         match parseList parseOne b with 
 //         | Correct(xs) -> correct(x::xs)
-//         | Error(x,y)  -> Error(x,y)
-//     | Error(x,y)      -> Error(x,y)
+//         | Error z -> Error z
+//     | Error z -> Error z
 
 
 (** A.4.1 Hello Messages *)
@@ -123,25 +123,25 @@ let parseClientHello data =
     if length data >= 34 then
         let (clVerBytes,cr,data) = split2 data 2 32 in
         match parseVersion clVerBytes with
-        | Error(x,y) -> Error(x,y)
+        | Error z -> Error z 
         | Correct(cv) ->
         if length data >= 1 then
             match vlsplit 1 data with
-            | Error(x,y) -> Error(x,y)
+            | Error z -> Error z
             | Correct (res) ->
             let (sid,data) = res in
             if length sid <= 32 then
                 if length data >= 2 then
                     match vlsplit 2 data with
-                    | Error(x,y) -> Error(x,y)
+                    | Error z -> Error z
                     | Correct (res) ->
                     let (clCiphsuitesBytes,data) = res in
                     match parseCipherSuites clCiphsuitesBytes with
-                    | Error(x,y) -> Error(x,y) 
+                    | Error(z) -> Error(z) 
                     | Correct (clientCipherSuites) ->
                     if length data >= 1 then
                         match vlsplit 1 data with
-                        | Error(x,y) -> Error(x,y)
+                        | Error(z) -> Error(z)
                         | Correct (res) ->
                         let (cmBytes,extensions) = res in
                         let cm = parseCompressions cmBytes
@@ -178,21 +178,21 @@ let parseServerHello data =
     if length data >= 34 then
         let (serverVerBytes,serverRandomBytes,data) = split2 data 2 32 
         match parseVersion serverVerBytes with
-        | Error(x,y) -> Error(x,y)
+        | Error z -> Error z
         | Correct(serverVer) ->
         if length data >= 1 then
             match vlsplit 1 data with
-            | Error(x,y) -> Error (x,y)
+            | Error z -> Error z
             | Correct (res) ->
             let (sid,data) = res in
             if length sid <= 32 then
                 if length data >= 3 then
                     let (csBytes,cmBytes,data) = split2 data 2 1 
                     match parseCipherSuite csBytes with
-                    | Error(x,y) -> Error(x,y)
+                    | Error(z) -> Error(z)
                     | Correct(cs) ->
                     match parseCompression cmBytes with
-                    | Error(x,y) -> Error(x,y)
+                    | Error(z) -> Error(z)
                     | Correct(cm) ->
                     correct(serverVer,serverRandomBytes,sid,cs,cm,data)
                 else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
@@ -222,7 +222,7 @@ let clientCertificateBytes (cs:(Cert.chain * Sig.alg * Sig.skey) option) =
 let parseClientOrServerCertificate data =
     if length data >= 3 then
         match vlparse 3 data with
-        | Error(x,y) -> Error(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ y)
+        | Error z -> let (x,y) = z in Error(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ y)
         | Correct (certList) -> Cert.parseCertificateList certList []
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
@@ -239,11 +239,11 @@ let parseSigHashAlgVersion version data =
     | TLS_1p2 ->
         if length data >= 2 then
             match vlsplit 2 data with
-            | Error(x,y) -> Error(x,y)
+            | Error(z) -> Error(z)
             | Correct (res) ->
             let (sigAlgsBytes,data) = res in
             match parseSigHashAlgList sigAlgsBytes with
-            | Error(x,y) -> Error(x,y)               
+            | Error(z) -> Error(z)               
             | Correct (sigAlgsList) -> correct (sigAlgsList,data)
         else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
     | TLS_1p1 | TLS_1p0 | SSL_3p0 ->
@@ -265,23 +265,23 @@ let certificateRequestBytes sign cs version =
 let parseCertificateRequest version data: (certType list * Sig.alg list * string list) Result =
     if length data >= 1 then
         match vlsplit 1 data with
-        | Error(x,y) -> Error(x,y)
+        | Error(z) -> Error(z)
         | Correct (res) ->
         let (certTypeListBytes,data) = res in
         match parseCertificateTypeList certTypeListBytes with
-        | Error(x,y) -> Error(x,y)
+        | Error(z) -> Error(z)
         | Correct(certTypeList) ->
         match parseSigHashAlgVersion version data with
-        | Error(x,y) -> Error(x,y)
+        | Error(z) -> Error(z)
         | Correct (res) ->
         let (sigAlgs,data) = res in
         if length data >= 2 then
             match vlparse 2 data with
-            | Error(x,y) -> Error(x,y)
+            | Error(z) -> Error(z)
             | Correct  (distNamesBytes) ->
             let el = [] in
             match parseDistinguishedNameList distNamesBytes el with
-            | Error(x,y) -> Error(x,y)
+            | Error(z) -> Error(z)
             | Correct (distNamesList) ->
             #if avoid 
             failwith "commenting out since we run out of memory"
@@ -306,7 +306,7 @@ let parseEncpmsVersion version data =
         if length data >= 2 then    
             match vlparse 2 data with
             | Correct (encPMS) -> correct(encPMS)
-            | Error(x,y) -> Error(x,y)
+            | Error(z) -> Error(z)
         else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let clientKEXBytes_RSA si config =
@@ -314,7 +314,7 @@ let clientKEXBytes_RSA si config =
         unexpected "[clientKEXBytes_RSA] Server certificate should always be present with a RSA signing cipher suite."
     else
         match Cert.get_chain_public_encryption_key si.serverID with
-        | Error(x,y) -> Error(x,y)
+        | Error(z) -> Error(z)
         | Correct(pubKey) ->
             let pms = PMS.genRSA pubKey config.maxVer in
             let encpms = RSA.encrypt pubKey config.maxVer pms in
@@ -332,7 +332,7 @@ let parseClientKEX_RSA si skey cv config data =
             let res = RSA.decrypt skey si cv config.check_client_version_in_pms_for_old_tls encPMS in
             let (Correct(pk)) = Cert.get_chain_public_encryption_key si.serverID in  
             correct(RSAPMS(pk,cv,encPMS),res)
-        | Error(x,y) -> Error(x,y)
+        | Error(z) -> Error(z)
 
 let clientKEXExplicitBytes_DH y =
     let yb = vlbytes 2 y in
@@ -341,7 +341,7 @@ let clientKEXExplicitBytes_DH y =
 let parseClientKEXExplicit_DH p data =
     if length data >= 2 then
         match vlparse 2 data with
-        | Error(x,y) -> Error(x,y)
+        | Error(z) -> Error(z)
         | Correct(y) ->
             match DHGroup.checkElement p y with
             | None -> Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid DH key received")
@@ -373,12 +373,12 @@ let parseDigitallySigned expectedAlgs payload pv =
         if length payload >= 2 then
             let (recvAlgsB,sign) = Bytes.split payload 2 in
             match parseSigHashAlg recvAlgsB with
-            | Error(x,y) -> Error(x,y)
+            | Error(z) -> Error(z)
             | Correct(recvAlgs) ->
                 if sigHashAlg_contains expectedAlgs recvAlgs then
                     if length sign >= 2 then
                         match vlparse 2 sign with
-                        | Error(x,y) -> Error(x,y)
+                        | Error(z) -> Error(z)
                         | Correct(sign) -> correct(recvAlgs,sign)
                     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
                 else Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "")
@@ -387,7 +387,7 @@ let parseDigitallySigned expectedAlgs payload pv =
         if List.listLength expectedAlgs = 1 then
             if length payload >= 2 then
                 match vlparse 2 payload with
-                | Error(x,y) -> Error(x,y)
+                | Error(z) -> Error(z)
                 | Correct(sign) ->
                 correct(List.listHead expectedAlgs,sign)
             else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
@@ -399,17 +399,17 @@ let dheParamBytes p g y = (vlbytes 2 p) @| (vlbytes 2 g) @| (vlbytes 2 y)
 let parseDHEParams payload =
     if length payload >= 2 then 
         match vlsplit 2 payload with
-        | Error(x,y) -> Error(x,y)
+        | Error(z) -> Error(z)
         | Correct(res) ->
         let (p,payload) = res in
         if length payload >= 2 then
             match vlsplit 2 payload with
-            | Error(x,y) -> Error(x,y)
+            | Error(z) -> Error(z)
             | Correct(res) ->
             let (g,payload) = res in
             if length payload >= 2 then
                 match vlsplit 2 payload with
-                | Error(x,y) -> Error(x,y)
+                | Error(z) -> Error(z)
                 | Correct(res) ->
                 let (y,payload) = res in
                 // Check g and y are valid elements
@@ -430,12 +430,12 @@ let serverKeyExchangeBytes_DHE dheb alg sign pv =
 
 let parseServerKeyExchange_DHE pv cs payload =
     match parseDHEParams payload with
-    | Error(x,y) -> Error(x,y)
+    | Error(z) -> Error(z)
     | Correct(res) ->
         let (p,g,y,payload) = res
         let allowedAlgs = default_sigHashAlg pv cs in
         match parseDigitallySigned allowedAlgs payload pv with
-        | Error(x,y) -> Error(x,y)
+        | Error(z) -> Error(z)
         | Correct(res) ->
             let (alg,signature) = res
             correct(p,g,y,alg,signature)
@@ -446,7 +446,7 @@ let serverKeyExchangeBytes_DH_anon p g y =
 
 let parseServerKeyExchange_DH_anon payload =
     match parseDHEParams payload with
-    | Error(x,y) -> Error(x,y)
+    | Error(z) -> Error(z)
     | Correct(p,g,y,rem) ->
         if length  rem = 0 then
             correct(p,g,y)
@@ -486,7 +486,7 @@ let certificateVerifyCheck si ms algs log payload =
         match si.protocol_version with
         | TLS_1p2 | TLS_1p1 | TLS_1p0 ->
             match Cert.get_chain_public_signing_key si.clientID alg with
-            | Error(x,y) -> (false,empty_bytes)
+            | Error(z) -> (false,empty_bytes)
             | Correct(vkey) ->
                 let res = Sig.verify alg vkey log signature in
                 (res,signature)
@@ -495,11 +495,11 @@ let certificateVerifyCheck si ms algs log payload =
             let alg = (sigAlg,NULL) in
             let expected = PRF.ssl_certificate_verify si ms sigAlg log in
             match Cert.get_chain_public_signing_key si.clientID alg with
-            | Error(x,y) -> (false,empty_bytes)
+            | Error(z) -> (false,empty_bytes)
             | Correct(vkey) ->
                 let res = Sig.verify alg vkey expected signature in
                 (res,signature)
-    | Error(x,y) -> (false,empty_bytes)
+    | Error(z) -> (false,empty_bytes)
 
 // State machine begins
 
@@ -937,7 +937,7 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:Sess
     let log = log @| clientCertBytes in
 
     match clientKEXBytes_RSA si state.poptions with
-    | Error(x,y) -> Error(x,y)
+    | Error(z) -> Error(z)
     | Correct(v) ->
     let (clientKEXBytes,pmsdata,pms)  = v in
 
@@ -1052,7 +1052,7 @@ let on_serverHello_full (ci:ConnectionInfo) crand log to_log (shello:ProtocolVer
 
 let parseMessageState (ci:ConnectionInfo) state = 
     match parseMessage state.hs_incoming with
-    | Error(x,y) -> Error(x,y)
+    | Error(z) -> Error(z)
     | Correct(res) ->
         match res with
         | None -> correct(None)
@@ -1065,7 +1065,7 @@ let parseMessageState (ci:ConnectionInfo) state =
 
 let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion:ProtocolVersion option) =
     match parseMessageState ci state with
-    | Error(x,y) -> InError(x,y,state)
+    | Error z -> let (x,y) = z in InError(x,y,state)
     | Correct(res) ->
       match res with
       | None ->
@@ -1094,7 +1094,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             match cState with
             | ServerHello (crand,sid,cvd,svd,log) ->
                 match parseServerHello payload with
-                | Error(x,y) -> InError(x,y,state)
+                | Error z -> let (x,y) = z in InError(x,y,state)
                 | Correct (shello) ->
                   let (sh_server_version,sh_random,sh_session_id,sh_cipher_suite,sh_compression_method,sh_neg_extensions) = shello
                   let pop = state.poptions
@@ -1130,7 +1130,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                   else
                   // Parse extensions
                   match parseExtensions sh_neg_extensions with
-                  | Error(x,y) -> 
+                  | Error z -> 
+                      let (x,y) = z in
 (* KB #if avoid
                       failwith "z3 error"
 #else *)
@@ -1150,7 +1151,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         then Error(AD_unsupported_extension, perror __SOURCE_FILE__ __LINE__ "The server gave an unknown extension")
                         else let unitVal = () in correct (unitVal)
                   match safe_reneg_result with
-                    | Error (x,y) -> 
+                    | Error z ->
+                        let (x,y) = z in
 (* KB #if avoid
                         failwith "z3 fails"
 #else *)
@@ -1230,7 +1232,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             // Most of the code in the branches is duplicated, but it helps for verification
             | ServerCertificateRSA (si,log) ->
                 match parseClientOrServerCertificate payload with
-                | Error(x,y) -> 
+                | Error z ->
+                    let (x,y) = z in
 (* KB #if avoid
                     failwith "z3 fails"
 #else *)
@@ -1253,7 +1256,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
 (* KB #endif*)
             | ServerCertificateDHE (si,log) ->
                 match parseClientOrServerCertificate payload with
-                | Error(x,y) -> 
+                | Error z ->
+                    let (x,y) = z in
 (* KB #if avoid
                         failwith "z3 fails"
 #else *)
@@ -1291,7 +1295,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             match cState with
             | ServerKeyExchangeDHE(si,log) ->
                 match parseServerKeyExchange_DHE si.protocol_version si.cipher_suite payload with
-                | Error(x,y) -> 
+                | Error z ->
+                    let (x,y) = z in
 (* KB #if avoid
                     failwith "z3 error"
 #else *)
@@ -1300,7 +1305,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Correct(v) ->
                     let (p,g,y,alg,signature) = v in
                     match Cert.get_chain_public_signing_key si.serverID alg with
-                    | Error(x,y) -> 
+                    | Error z ->
+                        let (x,y) = z in
 (* KB #if avoid
                         failwith "z3 error"
 #else *)
@@ -1319,7 +1325,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     
             | ServerKeyExchangeDH_anon(si,log) ->
                 match parseServerKeyExchange_DH_anon payload with
-                | Error(x,y) -> InError(x,y,state)
+                | Error z -> let (x,y) = z in InError(x,y,state)
                 | Correct(v) ->
                     let (p,g,y) = v in
                     let log = log @| to_log in
@@ -1337,7 +1343,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 (* Note: in next statement, use si, because the handshake runs according to the session we want to
                    establish, not the current one *)
                 match parseCertificateRequest si.protocol_version payload with
-                | Error(x,y) -> InError(x,y,state)
+                | Error z -> let (x,y) = z in  InError(x,y,state)
                 | Correct(v) ->
                 let (certType,alg,distNames) = v in
                 let client_cert = find_client_cert_sign certType alg distNames si.protocol_version state.poptions.client_name in
@@ -1353,7 +1359,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 (* Note: in next statement, use si, because the handshake runs according to the session we want to
                    establish, not the current one *)
                 match parseCertificateRequest si.protocol_version payload with
-                | Error(x,y) -> InError(x,y,state)
+                | Error(z) -> let (x,y) = z in  InError(x,y,state)
                 | Correct(v) ->
                 let (certType,alg,distNames) = v in
                 let client_cert = find_client_cert_sign certType alg distNames si.protocol_version state.poptions.client_name in
@@ -1371,7 +1377,9 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let log = log @| to_log in
 
                     match prepare_client_output_full_RSA ci state si None log with
-                    | Error (x,y) -> InError (x,y, state)
+                    | Error z -> 
+                        let (x,y) = z in 
+                        InError (x,y, state)
                     | Correct z ->
                         let (state,si,ms,log) = z in
                         recv_fragment_client ci
@@ -1385,7 +1393,9 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let log = log @| to_log in
 
                     match prepare_client_output_full_RSA ci state si skey log with
-                    | Error (x,y) -> InError (x,y, state)
+                    | Error z -> 
+                        let (x,y) = z in
+                        InError (x,y, state)
                     | Correct z ->
                         let (state,si,ms,log) = z in
                         recv_fragment_client ci 
@@ -1399,7 +1409,9 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let log = log @| to_log in
 
                     match prepare_client_output_full_DHE ci state si None p g y log with
-                    | Error (x,y) -> InError (x,y, state)
+                    | Error z ->
+                        let (x,y) = z in
+                        InError (x,y, state)
                     | Correct z ->
                         let (state,si,ms,log) = z in
                         recv_fragment_client ci 
@@ -1413,7 +1425,9 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let log = log @| to_log in
 
                     match prepare_client_output_full_DHE ci state si skey p g y log with
-                    | Error (x,y) -> InError (x,y, state)
+                    | Error z -> 
+                        let (x,y) = z in
+                        InError (x,y, state)
                     | Correct z ->
                         let (state,si,ms,log) = z in
                         recv_fragment_client ci 
@@ -1527,7 +1541,7 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs cvd svd
 
         (* ClientKeyExchangeDHE(si,p,g,x,log) should carry PP((p,g)) /\ ?gx. DHE.Exp((p,g),x,gx) *)
 
-let prepare_server_output_full_DH_anon (ci:ConnectionInfo) state si cvd svd log =
+let prepare_server_output_full_DH_anon (ci:ConnectionInfo) state si cvd svd log : (hs_state * ProtocolVersion) Result =
     let renInfo = cvd @| svd in
     let ext = extensionsBytes state.poptions.safe_renegotiation renInfo in
     let serverHelloB = serverHelloBytes si si.init_srand ext in
@@ -1620,7 +1634,7 @@ let startServerFull (ci:ConnectionInfo) state (cHello:ProtocolVersion * crand * 
 
 let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion:ProtocolVersion option) =
     match parseMessageState ci state with
-    | Error(x,y) -> InError(x,y,state)
+    | Error(z) -> let (x,y) = z in  InError(x,y,state)
     | Correct(res) ->
       match res with
       | None ->
@@ -1636,14 +1650,14 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             match sState with
             | ClientHello(cvd,svd) | ServerIdle(cvd,svd) ->
                 match parseClientHello payload with
-                | Error(x,y) -> InError(x,y,state)
+                | Error(z) -> let (x,y) = z in  InError(x,y,state)
                 | Correct (cHello) ->
                 let (ch_client_version,ch_random,ch_session_id,ch_cipher_suites,ch_compression_methods,ch_extensions) = cHello
                 (* Log the received message *)
                 let log = to_log in
                 (* handle extensions: for now only renegotiation_info *) (*CF? AP: we need to add support for the Signature Algorithm extension at least.*)
                 match parseExtensions ch_extensions with
-                | Error(x,y) -> InError(x,y,state)
+                | Error(z) -> let (x,y) = z in  InError(x,y,state)
                 | Correct(extList) ->
                 let extRes =
                     if state.poptions.safe_renegotiation then
@@ -1656,13 +1670,13 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         (* We can ignore the extension, if any *)
                         correct(state)
                 match extRes with
-                | Error(x,y) -> InError(x,y,state)
+                | Error(z) -> let (x,y) = z in  InError(x,y,state)
                 | Correct(state) ->
                     if length  ch_session_id = 0 
                     then 
                         (* Client asked for a full handshake *)
                         match startServerFull ci state cHello cvd svd log with 
-                        | Error(x,y) -> InError(x,y,state)
+                        | Error(z) -> let (x,y) = z in  InError(x,y,state)
                         | Correct(v) -> 
                             let (state,pv) = v in 
                             let spv = somePV pv in
@@ -1682,18 +1696,18 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                             else 
                               match startServerFull ci state cHello cvd svd log with
                                 | Correct(v) -> let (state,pv) = v in recv_fragment_server ci state (somePV (pv))
-                                | Error(x,y) -> InError(x,y,state)
+                                | Error(z) -> let (x,y) = z in  InError(x,y,state)
                         | None ->
                               match startServerFull ci state cHello cvd svd log with
                                 | Correct(v) -> let (state,pv) = v in recv_fragment_server ci state (somePV (pv))
-                                | Error(x,y) -> InError(x,y,state)
+                                | Error(z) -> let (x,y) = z in  InError(x,y,state)
             | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "ClientHello arrived in the wrong state",state)
 
         | HT_certificate ->
             match sState with
             | ClientCertificateRSA (si,cv,sk,log) ->
                 match parseClientOrServerCertificate payload with
-                | Error(x,y) -> InError(x,y,state)
+                | Error(z) -> let (x,y) = z in  InError(x,y,state)
                 | Correct(certs) ->
                     if Cert.is_chain_for_signing certs then
                         let advice = Cert.validate_cert_chain (default_sigHashAlg si.protocol_version si.cipher_suite) certs in
@@ -1712,7 +1726,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             | ClientCertificateDHE (si,p,g,gx,x,log) ->
                 // Duplicated code from above.
                 match parseClientOrServerCertificate payload with
-                | Error(x,y) -> InError(x,y,state)
+                | Error(z) -> let (x,y) = z in  InError(x,y,state)
                 | Correct(certs) ->
                     if Cert.is_chain_for_signing certs then
                         let advice = Cert.validate_cert_chain (default_sigHashAlg si.protocol_version si.cipher_suite) certs in
@@ -1732,7 +1746,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             match sState with
             | ClientKeyExchangeRSA(si,cv,sk,log) ->
                 match parseClientKEX_RSA si sk cv state.poptions payload with
-                | Error(x,y) -> InError(x,y,state)
+                | Error(z) -> let (x,y) = z in  InError(x,y,state)
                 | Correct(res) ->
                     let (pmsdata,pms) = res in
                     let si = {si with pmsData = pmsdata} in
@@ -1755,7 +1769,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                           agreedVersion
             | ClientKeyExchangeDHE(si,p,g,gx,x,log) ->
                 match parseClientKEXExplicit_DH p payload with
-                | Error(x,y) -> InError(x,y,state)
+                | Error(z) -> let (x,y) = z in  InError(x,y,state)
                 | Correct(y) ->
                     let log = log @| to_log in
                     let si = {si with pmsData = DHPMS(p,g,y,gx)} in
@@ -1785,7 +1799,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
 #else
             | ClientKeyExchangeDH_anon(si,p,g,gx,x,log) ->
                 match parseClientKEXExplicit_DH p payload with
-                | Error(x,y) -> InError(x,y,state)
+                | Error(z) -> let (x,y) = z in  InError(x,y,state)
                 | Correct(y) ->
                     let log = log @| to_log in
                     let pms = DH.exp p g gx y x in

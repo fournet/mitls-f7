@@ -225,7 +225,7 @@ let writeOne (Conn(id,c)) (ghr:range) (ghf:AppFragment.fragment) (ghs:DataStream
                             (* Fairly, tell we're done, and we won't write more data *)
                             (WAppDataDone, Conn(id,c))
 
-                        | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
+                        | Error z -> let (x,y) = z in let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
                 | _ ->
                     // We are finishing a handshake. Force to read, so that we'll complete the handshake.
                     (WMustRead,Conn(id,c)) 
@@ -256,7 +256,7 @@ let writeOne (Conn(id,c)) (ghr:range) (ghf:AppFragment.fragment) (ghs:DataStream
                                              alert = new_al;
                                              appdata = new_ad} in 
                             (WriteAgainFinishing, Conn(nextID,c))
-                        | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
+                        | Error z -> let (x,y) = z in let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
                     | _ -> (* Internal error: send a fatal alert to the other side *)
                         let reason = perror __SOURCE_FILE__ __LINE__ "Sending CCS in wrong state" in
                         let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in (WriteAgain, closing) 
@@ -277,7 +277,7 @@ let writeOne (Conn(id,c)) (ghr:range) (ghf:AppFragment.fragment) (ghs:DataStream
                             let c = { c with handshake = new_hs_state;
                                              write  = new_write } in
                             (WriteAgain, Conn(id,c))
-                          | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
+                          | Error z -> let (x,y) = z in let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
                       | _ -> (* Internal error: send a fatal alert to the other side *)
                         let reason = perror __SOURCE_FILE__ __LINE__ "Sending handshake messages in wrong state" in
                         let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in (WriteAgain, closing) 
@@ -300,7 +300,7 @@ let writeOne (Conn(id,c)) (ghr:range) (ghf:AppFragment.fragment) (ghs:DataStream
                             let c = { c with handshake = new_hs_state;
                                              write     = c_write }
                             (WMustRead, Conn(id,c))
-                          | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
+                          | Error z -> let (x,y) = z in let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
                 | _ -> (* Internal error: send a fatal alert to the other side *)
                         let reason = perror __SOURCE_FILE__ __LINE__ "Sending handshake message in wrong state" in
                         let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in (WriteAgain, closing) 
@@ -330,7 +330,7 @@ let writeOne (Conn(id,c)) (ghr:range) (ghf:AppFragment.fragment) (ghs:DataStream
                             let closed = closeConnection (Conn(id,c)) in
                             let reason = perror __SOURCE_FILE__ __LINE__ "Invalid connection state" in
                             (WError(reason),closed) (* Unrecoverable error *)
-                    | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
+                    | Error z -> let (x,y) = z in let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
                 | _ -> (* Internal error: send a fatal alert to the other side *)
                         let reason = perror __SOURCE_FILE__ __LINE__ "Sending handshake message in wrong state" in
                         let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in (WriteAgain, closing) 
@@ -350,7 +350,7 @@ let writeOne (Conn(id,c)) (ghr:range) (ghf:AppFragment.fragment) (ghs:DataStream
                 let c = { c with alert   = new_al_state;
                                  write   = new_write }
                 (WriteAgain, Conn(id,c ))
-            | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
+            | Error z -> let (x,y) = z in let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
         | _ ->
             let closed = closeConnection (Conn(id,c)) in
             let reason = perror __SOURCE_FILE__ __LINE__ "Sending alert message in wrong state" in
@@ -374,7 +374,7 @@ let writeOne (Conn(id,c)) (ghr:range) (ghf:AppFragment.fragment) (ghs:DataStream
                 let closed = closeConnection (Conn(id,c)) in
                 let reason = getReason c_write.disp in
                 (SentFatal(ad,reason), closed)
-            | Error (x,y) -> let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
+            | Error z -> let (x,y) = z in let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
         | _ ->
             let closed = closeConnection (Conn(id,c)) in
             let reason = perror __SOURCE_FILE__ __LINE__ "Sending alert message in wrong state" in
@@ -400,7 +400,8 @@ let writeOne (Conn(id,c)) (ghr:range) (ghf:AppFragment.fragment) (ghs:DataStream
                                 write = new_write}
                 let closed = closeConnection (Conn(id,c)) in
                 (SentClose, Conn(id,c))
-            | Error (x,y) -> 
+            | Error z -> 
+                let (x,y) = z in
                 let closed = closeConnection (Conn(id,c)) in 
                   (WError(y),closed) (* Unrecoverable error *)
         | _ ->
@@ -643,7 +644,8 @@ let readOne (Conn(id,c)) =
                              (* A warning alert, we carry on. The user will decide what to do *)
                              let c = {c with alert = state}
                              (RWarning(ad), Conn(id,c))
-                          | Error (x,y) ->
+                          | Error z -> 
+                              let (x,y) = z in
                               let closing = abortWithAlert (Conn(id,c)) x y in
                               let wo,conn = writeAllClosing closing in
                               WriteOutcome(wo),conn
