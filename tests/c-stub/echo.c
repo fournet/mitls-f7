@@ -14,7 +14,8 @@
 #include "echo-server.h"
 
 /* -------------------------------------------------------------------- */
-#define REQOSSL 0x01000101L
+/* ------------ 0x0MNNFFPPSL ------------------------------------------ */
+#define REQOSSL 0x01000103fL    /* 1.0.1c FINAL */
 
 #if OPENSSL_VERSION_NUMBER < REQOSSL
 # error "invalid OpenSSL version number"
@@ -67,10 +68,15 @@ int main(int argc, char *argv[]) {
 
     int rr = 0;
 
+    if (argc-1 == 1 && strcmp(argv[1], "--info") == 0) {
+        printf("Using OpenSSL 0x%08lx\n", SSLeay());
+        return EXIT_SUCCESS;
+    }
+
     initialize_log4c();
 
     if (SSLeay() < REQOSSL) {
-        elog(LOG_FATAL, "OpenSSL version < 0x%.8lx (compiled with 0x%.8lx)",
+        elog(LOG_FATAL, "OpenSSL version < 0x%08lx (compiled with 0x%08lx)",
              SSLeay(), OPENSSL_VERSION_NUMBER);
         return EXIT_FAILURE;
     }
