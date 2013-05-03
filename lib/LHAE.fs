@@ -114,7 +114,7 @@ let decrypt' e key data cipher =
                 let (ke,plain) = ENC.DEC e ke data cipher in
                 let nk = mteKey e ka ke in
                 match Encode.verify e ka data rg plain with
-                | Error(x,y) -> Error(x,y)
+                | Error z -> Error z
                 | Correct(aeplain) -> correct(nk,rg,aeplain)
         | CBC_Stale(alg) | CBC_Fresh(alg) -> // block cipher
             let ivL = ivSize e in
@@ -128,7 +128,7 @@ let decrypt' e key data cipher =
                 let (ke,plain) = ENC.DEC e ke data cipher in
                 let nk = mteKey e ka ke in
                 match Encode.verify e ka data rg plain with
-                | Error(x,y) -> Error(x,y)
+                | Error z -> Error z
                 | Correct(aeplain) -> correct (nk,rg,aeplain)
     | (MACOnly macAlg ,MACOnlyK (ka)) ->
         let macSize = macSize macAlg in
@@ -138,7 +138,7 @@ let decrypt' e key data cipher =
             let rg = cipherRangeClass e cl in
             let plain = Encode.plain e data cl cipher in
             match Encode.verify e ka data rg plain with
-            | Error(x,y) -> Error(x,y)
+            | Error(z) -> Error(z)
             | Correct(aeplain) -> correct (key,rg,aeplain)
 //  | GCM (GCMKey) -> ... 
     | (_,_) -> unexpected "[decrypt'] incompatible ciphersuite-key given."
@@ -177,12 +177,13 @@ let encrypt e key data rg plain =
   #endif
   (key,cipher)
 
-let decrypt e (key: LHAEKey) data (cipher: bytes) =  
+let decrypt e (key: LHAEKey) data (cipher: bytes) = 
+  let err = (AD_bad_record_mac,"") in
   #if ideal_F
   if safe e then
     match cmem e data cipher !log with
     | Some _ -> decrypt' e key data cipher
-    | None   -> Error(AD_bad_record_mac, "")  
+    | None   -> Error err
   else
   #endif 
   #if ideal
@@ -194,7 +195,7 @@ let decrypt e (key: LHAEKey) data (cipher: bytes) =
        let tlen = length cipher in
        let rg' = cipherRangeClass e tlen in
        correct (key,rg',p')
-    | None   -> Error(AD_bad_record_mac, "")  
+    | None   -> Error err
   else
   #endif 
       decrypt' e key data cipher

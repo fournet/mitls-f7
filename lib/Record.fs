@@ -46,10 +46,10 @@ let parseHeader b =
     let (ct1,rem4) = split b 1 in
     let (pv2,len2) = split rem4 2 in 
     match parseCT ct1 with
-    | Error(x,y) -> Error(x,y)
+    | Error(z) -> Error(z)
     | Correct(ct) ->
     match TLSConstants.parseVersion pv2 with
-    | Error(x,y) -> Error(x,y)
+    | Error(z) -> Error(z)
     | Correct(pv) -> 
     let len = int_of_bytes len2 in
     if len <= 0 || len > max_TLSCipher_fragment_length then
@@ -113,14 +113,15 @@ let recordPacketOut2 conn clen ct fragment =
 let recordPacketIn ki conn headPayload =
     let (header,payload) = split headPayload 5 in
     match parseHeader header with
-    | Error(x,y) -> Error(x,y)
+    | Error(z) -> Error(z)
     | Correct (parsed) -> 
     let (ct,pv,plen) = parsed in
     // tlen is checked in headerLength, which is invoked by Dispatch
     // before invoking this function
     if length payload <> plen then
         let reason = perror __SOURCE_FILE__ __LINE__ "Wrong record packet size" in
-        Error(AD_illegal_parameter, reason)
+        let err = AD_illegal_parameter,reason in
+        Error err
     else
     let initEpoch = isInitEpoch ki in
     match (initEpoch,conn) with
@@ -133,7 +134,7 @@ let recordPacketIn ki conn headPayload =
         let ad = StatefulPlain.makeAD ki ct in
         let decr = StatefulLHAE.decrypt ki state ad payload in
         match decr with
-        | Error(x,y) -> Error(x,y)
+        | Error(z) -> Error(z)
         | Correct (decrRes) ->
             let (newState, rg, plain) = decrRes in
             let oldH = StatefulLHAE.history ki Reader state in
