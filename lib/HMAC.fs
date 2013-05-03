@@ -45,8 +45,18 @@ let HMACVERIFY alg key data expected =
 
 let MAC a k d =
     match a with
-    | MA_HMAC(alg) -> HMAC alg k d
-    | MA_SSLKHASH(alg) -> sslKeyedHash alg k d
+    | MA_HMAC(alg) -> 
+        let h = HMAC alg k d in 
+        let l = length h in
+        let exp = macSize a in
+          if l = exp then h 
+          else Error.unexpected "CoreHMac returned a MAC of unexpected size"
+    | MA_SSLKHASH(alg) -> 
+        let h = sslKeyedHash alg k d in
+        let l = length h in
+        let exp = macSize a in
+          if l = exp then h 
+          else Error.unexpected "sslKeyedHash returned a MAC of unexpected size"
 
 let MACVERIFY a k d t =
     match a with
