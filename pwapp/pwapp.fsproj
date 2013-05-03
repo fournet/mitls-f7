@@ -56,6 +56,9 @@
       <Project>{408e6f53-363a-4c58-9808-84a0b526324b}</Project>
       <Private>True</Private>
     </ProjectReference>
+    <Reference Include="FSharp.PowerPack">
+      <HintPath>..\3rdparty\FSharp.PowerPack.dll</HintPath>
+    </Reference>
     <Reference Include="mscorlib" />
     <Reference Include="FSharp.Core" />
     <Reference Include="System" />
@@ -73,14 +76,9 @@
     </ProjectReference>
   </ItemGroup>
   <PropertyGroup>
-    <PostBuildEvent>Copy $(ProjectDir)\..\DB\lib\$(PlatformName)\SQLite.Interop.dll $(TargetDir)
-Copy $(ProjectDir)\..\3rdparty\libeay32-$(PlatformName).dll $(TargetDir)\libeay32.dll</PostBuildEvent>
   </PropertyGroup>
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-	     Other similar extension points exist, see Microsoft.Common.targets.
-	<Target Name="BeforeBuild">
-	</Target>
-	<Target Name="AfterBuild">
-	</Target>
-	-->
+  <Target Name="AfterBuild">
+    <Copy SourceFiles="$(ProjectDir)\..\DB\lib\$(PlatformName)\SQLite.Interop.dll" DestinationFolder="$(OutDir)" />
+    <Copy SourceFiles="$(ProjectDir)\..\3rdparty\libeay32-$(PlatformName).dll" DestinationFolder="$(OutDir)" Condition="'$(OS)' == 'Windows_NT'" />
+  </Target>
 </Project>

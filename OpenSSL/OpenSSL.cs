@@ -8,7 +8,7 @@ namespace OpenSSL
     /* ---------------------------------------------------------------------- */
     public sealed class Config
     {
-#if mono
+#if __MonoCS__
         public const string DLL = @"libcrypto.so";
 #else
         public const string DLL = @"libeay32.dll";
@@ -71,7 +71,7 @@ namespace OpenSSL
     }
 
     /* ---------------------------------------------------------------------- */
-#if !mono
+#if !__MonoCS__
     [HostProtectionAttribute(MayLeakOnAbort=true)]
 #endif
     public sealed unsafe class MD : IDisposable
@@ -235,7 +235,7 @@ namespace OpenSSL
     }
 
     /* ---------------------------------------------------------------------- */
-#if !mono
+#if !__MonoCS__
     [HostProtectionAttribute(MayLeakOnAbort=true)]
 #endif
     public sealed unsafe class CIPHER  : IDisposable
@@ -401,7 +401,7 @@ namespace OpenSSL
     }
 
     /* ---------------------------------------------------------------------- */
-#if !mono
+#if !__MonoCS__
     [HostProtectionAttribute(MayLeakOnAbort=true)]
 #endif
     public sealed unsafe class SCIPHER  : IDisposable
