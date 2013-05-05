@@ -62,8 +62,6 @@ Questions:
     Another may be to return a ghost writer index ki', and use Complete => ki = ki'.
 	For instance, StatefulPlain might provide a re-indexing identity
 
-	A temporary patch may be to extend 
-
   - What is the purpose of the Safe => ... postconditons of encryp & decrypt? 
     whould it be Auth => ... ? why relying both on type abstraction and refinements? 
 
