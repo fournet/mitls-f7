@@ -88,24 +88,24 @@ val emptyHistory: e:epoch -> h:(;e)history{h = EmptyHistory(e)}
     
 private definition !e,h,r,f. ExtendHistory(e,TLSConstants.Handshake,h,r,FHandshake(f)) = 
 	 { handshake = HSFragment.Extend(e,HandshakeHistory(e,h),r,f);
-	   alert = AlertHistory(e,h);
-	   ccs = CCSHistory(e,h);
-	   appdata = AppDataHistory(e,h)}
+	   alert     = AlertHistory(e,h);
+	   ccs       = CCSHistory(e,h);
+	   appdata   = AppDataHistory(e,h)}
 private definition !e,h,r,f. ExtendHistory(e,TLSConstants.Alert,h,r,FAlert(f)) = 
 	 { handshake = HandshakeHistory(e,h);
-	   alert = HSFragment.Extend(e,AlertHistory(e,h),r,f);
-	   ccs = CCSHistory(e,h);
-	   appdata = AppDataHistory(e,h)}
+	   alert     = HSFragment.Extend(e,AlertHistory(e,h),r,f);
+	   ccs       = CCSHistory(e,h);
+	   appdata   = AppDataHistory(e,h)}
 private definition !e,h,r,f. ExtendHistory(e,TLSConstants.Change_cipher_spec,h,r,FCCS(f)) = 
 	 { handshake = HandshakeHistory(e,h);
-	   alert = AlertHistory(e,h);
-	   ccs = HSFragment.Extend(e,CCSHistory(e,h),r,f);
-	   appdata = AppDataHistory(e,h)}
+	   alert     = AlertHistory(e,h);
+	   ccs       = HSFragment.Extend(e,CCSHistory(e,h),r,f);
+	   appdata   = AppDataHistory(e,h)}
 private definition !e,h,r,f. ExtendHistory(e,TLSConstants.Application_data,h,r,FAppData(f)) = 
 	 { handshake = HandshakeHistory(e,h);
-	   alert = AlertHistory(e,h);
-	   ccs = CCSHistory(e,h);
-	   appdata = AppFragment.Extend(e,AppDataHistory(e,h),r,f)}
+	   alert     = AlertHistory(e,h);
+	   ccs       = CCSHistory(e,h);
+	   appdata   = AppFragment.Extend(e,AppDataHistory(e,h),r,f)}
 
 function val HandshakeRecordPlain: e:epoch * h:(;e)history * r:range * f:(;e,h,r)HSFragment.plain -> 'a //(;e,TLSConstants.Handshake,h,r)plain
 private definition !e,h,r,f. HandshakeRecordPlain(e,h,r,f) = FHandshake(f)

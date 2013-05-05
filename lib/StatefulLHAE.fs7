@@ -108,7 +108,7 @@ type (;ki:epoch) reader = r:(;ki,Reader) state
 type (;ki:epoch) writer = w:(;ki,Writer) state
 
 val GEN:    ki:succEpoch               -> (;ki)reader * (;ki)writer
-val COERCE: ki:succEpoch{not Auth(ki)} -> rw:rw -> b:bytes{Length(b)=LHAE.LHAEKeySize(ki)} -> (;ki,rw)state
+val COERCE: ki:succEpoch{not Auth(ki)} -> rw:rw -> b:bytes{Length(b)=LHAE.KeySize(ki)} -> (;ki,rw)state
 val LEAK:   ki:succEpoch{not Auth(ki)} -> rw:rw -> (;ki,rw)state -> b:bytes
 
 val history: ki:epoch -> rw:rw -> s:(;ki,rw) state -> h:(;ki)history{h=History(ki,rw,s)}

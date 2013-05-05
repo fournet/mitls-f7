@@ -75,7 +75,7 @@ type aeadAlg =
     | AES_128_GCM
     | AES_256_GCM
 
-type authencAlg = //for specification
+type aeAlg = //for specification
     | MACOnly of macAlg
     | MtE of encAlg * macAlg
     | AEAD of aeadAlg * macAlg // for the PRF
@@ -486,7 +486,7 @@ let encAlg_of_ciphersuite cs pv =
             | AES_256_CBC -> CBC_Fresh(AES_256)
     | _ -> unexpected "[encAlg_of_ciphersuite] inovked on an invalid ciphersuite"
 
-let authencAlg_of_ciphersuite cs pv =
+let aeAlg cs pv =
     match cs with
     | OnlyMACCipherSuite (_,alg) ->
         let mac = macAlg_of_ciphersuite cs pv in
@@ -495,7 +495,7 @@ let authencAlg_of_ciphersuite cs pv =
         let enc = encAlg_of_ciphersuite cs pv in
         let mac = macAlg_of_ciphersuite cs pv in
         MtE (enc,mac)
-    | _ -> unexpected "[authencAlg_of_ciphersuite] invoked on an invalid ciphersuite"
+    | _ -> unexpected "[aeAlg] invoked on an invalid ciphersuite"
 
 let mkIntTriple x:(int*int*int) = x
 

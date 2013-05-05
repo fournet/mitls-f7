@@ -19,7 +19,7 @@ type LHAEKey =
 
 let GEN e =
     let si = epochSI(e) in
-    let authEnc = authencAlg_of_ciphersuite si.cipher_suite si.protocol_version in
+    let authEnc = aeAlg si.cipher_suite si.protocol_version in
     match authEnc with
     | MACOnly _ ->
         let mk = MAC.GEN e
@@ -35,7 +35,7 @@ let COERCE e b =
     let si = epochSI(e) in
     let cs = si.cipher_suite in
     let pv = si.protocol_version in
-    let authEnc = authencAlg_of_ciphersuite cs pv in
+    let authEnc = aeAlg cs pv in
     match authEnc with
     | MACOnly _ -> 
       let mk = MAC.COERCE e b in
@@ -64,7 +64,7 @@ let encrypt' e key data rg plain =
     let si = epochSI(e) in
     let cs = si.cipher_suite in
     let pv = si.protocol_version in
-    let authEnc = authencAlg_of_ciphersuite cs pv in
+    let authEnc = aeAlg cs pv in
     match (authEnc,key) with
     | (MtE(encAlg,_), MtEK (ka,ke)) ->
         match encAlg with
@@ -99,7 +99,7 @@ let decrypt' e key data cipher =
     let si = epochSI(e) in
     let cs = si.cipher_suite in
     let pv = si.protocol_version in
-    let authEnc = authencAlg_of_ciphersuite cs pv in
+    let authEnc = aeAlg cs pv in
     match (authEnc,key) with
     | (MtE(encAlg,macAlg), MtEK (ka,ke)) ->
         let macSize = macSize macAlg in

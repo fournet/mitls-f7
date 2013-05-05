@@ -13,7 +13,7 @@ open TLSInfo
    - an abstract type of indexes (TLSInfo.epoch)
    - a function from indexes to MAC algorithms (macAlg_of_epoch) and its logical spec.
    - functions from MAC algorithms to their key-lengths and tag-lengths, and their logical specs.
-   - an function from indexes to booleans that indicates the safe indexes (safeMAC) and its logical spec;
+   - a function from indexes to booleans that indicates the safe indexes (safeMAC) and its logical spec;
      (this function is used only #if ideal)
    - an abstract predicate on indexes and message (Msg), 
      specifying the logical property authenticated by safe MACs. 

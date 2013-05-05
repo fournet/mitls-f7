@@ -110,7 +110,6 @@ private val real_keyGen:
   (;EpochSI(ci.id_out))masterSecret -> (;ci) derived 
 
 // TODO we need to reindex StatefulLHAE.
-type aeAlg = int 
 val ci_aeAlg: ConnectionInfo -> aeAlg
 
 // USAGE RESTRICTION:
@@ -278,15 +277,15 @@ private definition !ci,r,e_in,e_out.
 // ask from LHAE.fs7 repeated here to help Z3 type real_key_Gen; apparently not needed anymore
 private ask !ki,si,enc,mac. 
      TLSConstants.CipherSuiteAuthEncAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = TLSConstants.MACOnly(mac) 
-  => LHAE.LHAEKeySize(ki) = TLSConstants.MacKeySize(mac)
+  => LHAE.KeySize(ki) = TLSConstants.MacKeySize(mac)
 
 private ask !cs,pv,mac. 
      CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) 
   => KeyExtensionLength(pv,cs) = MacKeySize(mac)+MacKeySize(mac)
 private ask !cs,pv,mac. 
      CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) 
-  => LHAE.LHAEKeySize_AEAlg(MACOnly(mac)) = TLSConstants.MacKeySize(mac)
+  => LHAE.KeySize_AEAlg(MACOnly(mac)) = TLSConstants.MacKeySize(mac)
 private ask !ki,mac. 
      CipherSuiteAuthEncAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = MACOnly(mac) 
-  => LHAE.LHAEKeySize(ki) = TLSConstants.MacKeySize(mac)
+  => LHAE.KeySize(ki) = TLSConstants.MacKeySize(mac)
 *)

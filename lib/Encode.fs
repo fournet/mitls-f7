@@ -218,7 +218,7 @@ let plain (e:epoch) ad tlen b =
   let si = epochSI(e) in
   let cs = si.cipher_suite in
   let pv = si.protocol_version in
-  let authEnc = authencAlg_of_ciphersuite cs pv in
+  let authEnc = aeAlg cs pv in
   let rg = cipherRangeClass e tlen in
   match authEnc with
     | MtE(Stream_RC4_128,_) 
@@ -235,7 +235,7 @@ let repr (e:epoch) ad rg pl =
   let si = epochSI(e) in
   let cs = si.cipher_suite in
   let pv = si.protocol_version in
-  let authEnc = authencAlg_of_ciphersuite cs pv in
+  let authEnc = aeAlg cs pv in
   let lp = pl.plain in
   let tg = pl.tag in
   let tlen = targetLength e rg in

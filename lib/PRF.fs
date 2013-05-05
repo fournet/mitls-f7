@@ -81,7 +81,7 @@ let real_keyGen ci (ms:masterSecret) =
     let data = srand @| crand in
     let len = getKeyExtensionLength pv cs in
     let b = TLSPRF.kdf (pv,cs) (leak si ms) data len in
-    let authEnc = authencAlg_of_ciphersuite cs pv in
+    let authEnc = aeAlg cs pv in
     match authEnc with
     | MACOnly macAlg ->
         let macKeySize = macKeySize macAlg in
@@ -132,8 +132,9 @@ let real_keyGen ci (ms:masterSecret) =
 
 type derived = StatefulLHAE.reader * StatefulLHAE.writer 
 
-type aeAlg = int // CF todo in StatefulLHAE
-let ci_aeAlg (ci:ConnectionInfo) = 1 
+let ci_aeAlg (ci:ConnectionInfo) = 
+  let si = epochSI ci.id_in
+  aeAlg si.cipher_suite si.protocol_version 
 
 #if ideal
 type event = Waste of ConnectionInfo

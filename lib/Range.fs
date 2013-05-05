@@ -14,7 +14,7 @@ let rangeSum (l0,h0) (l1,h1) =
 
 let ivSize e =
     let si = epochSI(e) in
-    let authEnc = authencAlg_of_ciphersuite si.cipher_suite si.protocol_version in
+    let authEnc = aeAlg si.cipher_suite si.protocol_version in
     match authEnc with
     | MACOnly _ -> 0
     | MtE (encAlg,_) ->
@@ -28,7 +28,7 @@ let fixedPadSize (si:SessionInfo) = 1
     //AP if si.extended_record_padding then 2 else 1
 
 let maxPadSize si =
-    let authEnc = authencAlg_of_ciphersuite si.cipher_suite si.protocol_version in
+    let authEnc = aeAlg si.cipher_suite si.protocol_version in
     match authEnc with
     | MACOnly _ -> 0
     | MtE(enc,_) ->
@@ -45,7 +45,7 @@ let maxPadSize si =
 
 let blockAlignPadding e len =
     let si = epochSI(e) in
-    let authEnc = authencAlg_of_ciphersuite si.cipher_suite si.protocol_version in
+    let authEnc = aeAlg si.cipher_suite si.protocol_version in
     match authEnc with
     | MACOnly _ -> 0
     | MtE(enc,_) ->
