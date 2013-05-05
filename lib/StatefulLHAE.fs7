@@ -7,22 +7,70 @@ open TLSInfo
 open Range
 open StatefulPlain //CF added for lighter notations
 
-(* MK
+(* CF 
+   This module is parameterized by StatefulPlain, providing  
+   abstract types 'plain' for plaintext and 'history' for sequences of plaintexts
 
-Dependencies:
- * StatefulPlain: for the definition of abstract types:
-   * plain of plaintext and
-   * history of the current log of plaintexts.
+   The functionality is indexed by epochs, also treated abstractly, as follows:
 
-Usage: 
- * We assume that each encryption/decryption state is used at most once.
- * This condition is justified by inspecting uses of StatefulLHAE.encrypt 
-   and StatefulLHAE.decrypt and verifying that the old encryption state is 
-   discarded.
+   On each epoch, we can use:
+   - an (abstract, comparable) instance identifier
+     [Consisting of CSR, Role, plus the index of the derived key] 
+   - an AE algorithm 
+   - two idealization predicates Auth & Safe 
 
-Assumptions:
- * None
+   From this module's viewpoint, we can (linearly) re-index
+   as long as none of those are affected.
+   
+   Usage restrictions: 
+   1. Auth & Safe depend only on the instance & the algorithm strength
+      Auth must imply StrongAuth(alg), Safe must imply StrongAE(alg) 
+      [Hence the actual idealization parameter is just SafeHS.] 
+   
+   2. The user may call GEN at most once for every instance 
+      [This ensures that Auth readers & writers share the same algorithm] 
 
+   3. The user may encrypt (or decrypt) at most once with each state.
+      [This is currently enforced by code inspection.]
+
+We may define 
+
+type (;ki:epoch,rw:rw) state = (;I(ki),rw:rw) st 
+// this permits decryption at any epoch with matching I(ki)
+// this is inocuous because there is at most one such epoch.
+
+or hide it under a "re-indexing" function that enforces some of those restrictions.
+
+Questions: 
+
+  - SafeHS depend *only* on the instance identifier [right?] 
+    so signature verification etc are not taken into account:
+    they are just means to deduce SafeHS from application-level assumptions.
+
+    In particular, matching Finished is not usable to define safety.
+
+  - Intuitively, parametricity is not affected because of the agreement on epochs
+    between readers & writers plus the linearity assumption. 
+	How to make it formal? 
+	In the lookup table, as we decrypt, 
+	we will now get a value indexed by the writer's epoch, ki' or I(ki').
+
+    One possibility is to index plaintexts etc tightly, 
+    using I(ki), or even (CSR,Role), a rather large change that 
+	propagates to the main API.
+
+    Another may be to return a ghost writer index ki', and use Complete => ki = ki'.
+	For instance, StatefulPlain might provide a re-indexing identity
+
+	A temporary patch may be to extend 
+
+  - What is the purpose of the Safe => ... postconditons of encryp & decrypt? 
+    whould it be Auth => ... ? why relying both on type abstraction and refinements? 
+
+*)
+
+
+(* MK old? 
 Theorems:
  * (By Typing) The F# code for StatefulLHAE meets its F7 interface.
  * (Corollary) In safe epochs, the history, each plaintext, and LHAE keys are
@@ -38,8 +86,8 @@ Theorems:
 
 //AP: We need the following invariant: StateID(e,LHAE.LHAEKey) = SeqNum(e,history)
 private type (;ki:epoch,rw:rw) state = {
-  key    : (;ki) LHAE.LHAEKey;         // possibly stateful
-  history: (;ki) history // ghost state, except for the sequence number
+  key    : (;ki) LHAE.LHAEKey;  // possibly stateful
+  history: (;ki) history        // ghost state, except for the sequence number
 }
  
 (*KB SHOULD BE:
@@ -98,13 +146,13 @@ val decrypt:
   ki:succEpoch -> rd:(;ki) reader -> 
   ad:(;ki) adata ->
   c:cipher ->
-  res:((;ki) reader * rg:range * (;ki,ad,History(ki,Reader,rd),rg) plain) Result
-  { !nrd,rg,f. res = Correct((nrd,rg,f)) => 
+  r:((;ki) reader * rg:range * (;ki,ad,History(ki,Reader,rd),rg) plain) Result
+  { !nrd,rg,f. r = Correct((nrd,rg,f)) => 
                (   History(ki,Reader,nrd) = 
                    ExtendHistory(ki,ad,History(ki,Reader,rd),rg,f) /\
                    rg = CipherRangeClass(ki,Length(c)) /\
  	         (Safe(ki) =>
-				( (!nrd,rg,f. res = Correct((nrd,rg,f)) => ENCrypted(ki,History(ki,Reader,rd),ad,c)) // /\
+				( (!nrd,rg,f. r = Correct((nrd,rg,f)) => ENCrypted(ki,History(ki,Reader,rd),ad,c)) // /\
 				//  (!rg,p. ENCrypted(ki,rd,ad,rg,Payload(ki,ad,rg,p),c) => (?nrd,rg. res = Correct((nrd,rg,p))))
 				)
 			 ) ) }

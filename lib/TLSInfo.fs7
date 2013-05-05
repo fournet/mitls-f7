@@ -224,7 +224,7 @@ predicate SafeDHPMS of p:DHGroup.p * (;p)DHGroup.g * (;p)DHGroup.elt * (;p)DHGro
 
 predicate SafeMS_SI of SessionInfo // Good enough handshake for finished macking for this sessioninfo
 predicate SafeHS_SI of SessionInfo // Good handshake for this sessioninfo
-predicate SafeHS of epoch // Good handshake for this epoch
+predicate SafeHS of epoch          // Good handshake for this epoch
 
 // MK This definition is too strong. 
 // MK StrongHS(si) /\ HonestPMSData(si.pmsData) => SafeHS_SI(si) but not the other way around.
@@ -237,8 +237,6 @@ definition !si. SafeMS_SI(si) <=>
 
 definition !si. SafeHS_SI(si) <=> StrongHS(si) /\ HonestPMSData(si.pmsData)
 
-definition !id. SafeHS(id) <=> SafeHS_SI(EpochSI(id)) 
-
 // Predicates specifying the security of TLS connections 
 predicate type cryptopreds = 
 | SafeSI  of SessionInfo // The session ciphersuite yields secrecy and integrity
@@ -246,6 +244,7 @@ predicate type cryptopreds =
 | Safe   of epoch // The epoch parameters yield privacy & integrity
 | Auth   of epoch // The epoch parameters yield integrity (not necesarily privacy)
 
+definition !id. SafeHS(id) <=> SafeHS_SI(EpochSI(id)) 
 definition !si. SafeSI(si) <=> SafeHS_SI(si) /\ StrongAESI(si)
 definition !si. AuthSI(si) <=> SafeHS_SI(si) /\ StrongAuthSI(si)
 
