@@ -35,8 +35,8 @@ class Popen(subprocess.Popen):
                 if e.errno == errno.EINTR:
                     continue
                 else:
-
                     raise
+
     def _fo_write_no_intr(self, obj, data):
         """Like obj.write(), but retries on EINTR"""
         while True:
