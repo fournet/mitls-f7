@@ -10,9 +10,6 @@ class Object(object):
         self.__dict__.update(kw)
 
 # --------------------------------------------------------------------
-
-
-# --------------------------------------------------------------------
 OPENSSL_CIPHERS = {
     'TLS_RSA_WITH_NULL_MD5'               : 'NULL-MD5'               ,
     'TLS_RSA_WITH_NULL_SHA'               : 'NULL-SHA'               ,
@@ -242,6 +239,9 @@ def _main():
             pki      = parser.get(scenario, 'pki').strip() or None,
             options  = set(parser.get(scenario, 'options').split()) or [],
         )
+
+        if 'PKIBASE' in os.environ:
+            scendata.pki = os.path.join(os.environ['PKIBASE'], scendata.pki or '')
 
         try:
             scendata.modes = [VENDORS_MODE[x] for x in scendata.modes]
