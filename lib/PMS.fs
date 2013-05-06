@@ -29,7 +29,7 @@ let honestRSAPMS (pk:RSAKey.pk) (cv:TLSConstants.ProtocolVersion) pms =
 #endif 
 
 let genRSA (pk:RSAKey.pk) (vc:ProtocolVersion): rsapms = 
-    let verBytes = TLSConstants.versionBytes vc in
+    let verBytes = versionBytes vc in
     let rnd = Nonce.random 46 in
     let pms = verBytes @| rnd in
     #if ideal

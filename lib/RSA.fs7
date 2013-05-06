@@ -51,7 +51,7 @@ private val real_decrypt:
   cv:ProtocolVersion -> (* highest client version *) 
   cv_check:bool -> (* flag whether we should check protocol version in old TLS versions *)
   ct:bytes -> (* encrypted PMS *)
-  pmsb:PMS.rsarepr { cv_check=true => ?b. pmsb= VersionBytes(cv) @| b} (* No Result type: in case of error, we return a fresh Nonce.random PMS *)
+  pmsb:PMS.rsarepr { cv_check=true => ?b. B(pmsb) = VersionBytes(cv) @| b} (* No Result type: in case of error, we return a fresh Nonce.random PMS *)
 
 
 

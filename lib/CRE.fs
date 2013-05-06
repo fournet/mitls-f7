@@ -60,9 +60,6 @@ let rec rsaassoc (pk:RSAKey.pk) (cv:ProtocolVersion) (pms:rsapms)  (csr:bytes) (
     | [] -> None 
     | (pk',cv',pms',csr',pa', ms)::mss' when pk=pk' && cv=cv' && pms=pms' && csr=csr' && pa=pa' -> Some(ms) 
     | _::mss' -> rsaassoc pk cv pms csr pa mss'
-
-#else
-//MK: let todo s = ()
 #endif
 
 (*private*) 

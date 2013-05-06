@@ -6,9 +6,6 @@ open TLSInfo
 open PMS
 open PRF
 
-//CF temporary
-private val todo: string -> unit { false } 
-
 // concrete PMS --> MS derivation.
 private val extractMS: si:SessionInfo {not SafeMS_SI(si)} -> pms -> p:bytes -> (;si) PRF.masterSecret
 

@@ -245,3 +245,10 @@ let split2 (b:bytes) i j : bytes * bytes * bytes =
 let utf8 (x:string) : bytes = abytes (System.Text.Encoding.UTF8.GetBytes x)
 let iutf8 (x:bytes) : string = System.Text.Encoding.UTF8.GetString (cbytes x)
 
+let todo (s:string) : unit = 
+#if ideal
+  failwith s
+#else
+  ()
+#endif
+

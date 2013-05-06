@@ -54,7 +54,7 @@ let encrypt pk cv pms =
     #endif
         PMS.leakRSA pk cv pms       
     //#end-ideal1
-    let ciphertext = (CoreACiphers.encrypt_pkcs1 (RSAKey.repr_of_rsapkey pk) (plaintext))
+    let ciphertext = CoreACiphers.encrypt_pkcs1 (RSAKey.repr_of_rsapkey pk) plaintext
     #if ideal
     Pi.assume(PMS.EncryptedRSAPMS(pk,cv,pms,ciphertext))
     #endif
