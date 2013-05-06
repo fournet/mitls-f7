@@ -5,7 +5,7 @@ open TLSInfo
 
 type range = nat * nat (* length range *)
 type rbytes = bytes
-val rangeSum: range -> range -> range
+val sum: range -> range -> range
 
 val ivSize: epoch -> nat
 val fixedPadSize: SessionInfo -> nat

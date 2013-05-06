@@ -7,7 +7,7 @@ open TLSConstants
 type range = nat * nat 
 type rbytes = bytes 
 
-let rangeSum (l0,h0) (l1,h1) =
+let sum (l0,h0) (l1,h1) =
   let l = l0 + l1
   let h = h0 + h1
   (l,h)

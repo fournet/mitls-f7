@@ -40,8 +40,9 @@ type prfAlg = // can't be folded back to the sums in TLSConstants; we need to us
   | PRF_SSL3_concat        // MD5 @| SHA1    for VerifyData tags
 *)
 
+//CF relocate, e.g. to TLSInfo?
 function val PrfAlg: SessionInfo -> prfAlg
-ask !si,pv,cs. (pv,cs)=PrfAlg(si) <=> pv = si.protocol_version /\ cs=si.cipher_suite
+definition !si,pv,cs. (pv,cs)=PrfAlg(si) <=> pv = si.protocol_version /\ cs=si.cipher_suite
 val prfAlg: si:SessionInfo -> pa:prfAlg {pa=PrfAlg(si)}
 
 
@@ -53,11 +54,13 @@ type msIndex =        // We record the parameters used to derive this MS:
   creAlg: prfAlg      // the PMS-PRF algorithm
    
 function val MsI: SessionInfo -> msIndex 
-//definition !pms,csr,pa,si. (pms,csr,pa)=MsI(si) => csr=CSRands(si) /\ pa=PrfAlg(si)
 //TODO: logically define this function.
+//CF this def is not sufficient! 
+//CF definition !pms,csr,pa,si. (pms,csr,pa)=MsI(si) => csr=CSRands(si) /\ pa=PrfAlg(si)
 //TODO: avoid in code: do we really want to decrypt? 
 //MK: Maybe have a function msF: pms -> SessionInfo -> msindex
-val msi: si:SessionInfo -> pms:PMS.pms -> i:msIndex { i = MsI(si) /\ i=(pms,CSRands(si),PrfAlg(si)) }
+val msi: si:SessionInfo -> pms:PMS.pms -> i:msIndex 
+  { i = MsI(si) /\ i=(pms,CSRands(si),PrfAlg(si)) }
 
 // CF safety of the MS (not necessarily its usage). Not refined yet
 val safeMS_msIndex: msIndex -> bool

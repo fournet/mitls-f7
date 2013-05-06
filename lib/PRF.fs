@@ -20,6 +20,7 @@ type msIndex =  PMS.pms * // the pms and its indexes
 let msi (si:SessionInfo) (pms:PMS.pms) = 
   let csr = csrands si
   let pa = prfAlg si
+  todo "define MsI accordingly"
   (pms, csr, pa) 
 
 #if ideal
@@ -56,7 +57,9 @@ let private leak (si:SessionInfo) (ms:masterSecret) =
 let coerce (si:SessionInfo) pms b = masterSecret si (msi si pms) {bytes = b}
 
 #if ideal
-let sample (si:SessionInfo) pms = masterSecret si (msi si pms) {bytes = Nonce.random 48}
+let sample (si:SessionInfo) pms = 
+  let i = msi si pms
+  masterSecret si i {bytes = Nonce.random 48}
 #endif
 
 
@@ -135,7 +138,9 @@ let real_keyGen ci (ms:masterSecret) =
 type derived = StatefulLHAE.reader * StatefulLHAE.writer 
 
 let ci_aeAlg (ci:ConnectionInfo) = 
-  let si = epochSI ci.id_in
+  let si = 
+    todo "ci.id_in must be a succEpoch"
+    epochSI ci.id_in 
   aeAlg si.cipher_suite si.protocol_version 
 
 #if ideal
@@ -164,8 +169,6 @@ let rec update csr s (entries: kdentry list) =
 #endif
 
 //CF We could statically enforce the state machine.
-
-type aeAlg = int
 
 let keyCommit (csr:csrands) (a:aeAlg) : unit = 
   #if ideal

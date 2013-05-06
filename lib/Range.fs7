@@ -10,7 +10,7 @@ type range = low:nat * high:nat { low <= high }
 type (;r:range) rbytes = b:bytes { ?l,h. r = (l,h) /\ l <= Length(b) /\ Length(b) <= h }   
 function val Sum: range * range -> range
 definition !l0,h0,l1,h1. Sum((l0,h0),(l1,h1)) = (l0+l1,h0+h1)
-val rangeSum: r0:range -> r1:range -> r:range{r = Sum(r0,r1)}
+val sum: r0:range -> r1:range -> r:range{r = Sum(r0,r1)}
 
 predicate SubRange of range * range
 definition !l0,l1,h0,h1. SubRange((l0,h0),(l1,h1)) <=> l1 <= l0 && h0 <= h1
