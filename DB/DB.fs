@@ -3,7 +3,7 @@
 open System
 open System.Data
 
-#if mono
+#if __MonoSQL__
 open Mono.Data.Sqlite
 type SQLiteConnection = SqliteConnection
 #else

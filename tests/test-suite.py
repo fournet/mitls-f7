@@ -100,7 +100,7 @@ def _check_for_config(mode, config):
                 cipher = OPENSSL_CIPHERS[cipher]
 
             if mivendor:
-                pgm = '../bin/Echo.exe'
+                pgm = '../echo/bin/Release/echo.exe'
             else:
                 pgm = 'i686-pc-mingw32-echo.exe' if win32 else 'echo'
                 pgm = os.path.join('c-stub', pgm)

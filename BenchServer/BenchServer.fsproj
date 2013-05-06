@@ -75,8 +75,15 @@
   </ItemGroup>
   <PropertyGroup>
   </PropertyGroup>
-  <Target Name="AfterBuild">
+  <Target Name="AfterBuild" Condition="'$(OS)' == 'Windows_NT'">
     <Copy SourceFiles="$(ProjectDir)\..\DB\lib\$(PlatformName)\SQLite.Interop.dll" DestinationFolder="$(OutDir)" />
-    <Copy SourceFiles="$(ProjectDir)\..\3rdparty\libeay32-$(PlatformName).dll" DestinationFolder="$(OutDir)" Condition="'$(OS)' == 'Windows_NT'" />
+    <Copy SourceFiles="$(ProjectDir)\..\3rdparty\libeay32-$(PlatformName).dll" DestinationFolder="$(OutDir)" />
+  </Target>
+  <Target Name="AfterClean">
+    <CreateItem Include="$(OutDir)\*.dll;$(OutDir)\*.exe;$(OutDir)\*.mdb;$(OutDir)\*.pdb">
+      <Output ItemName="ToDel" TaskParameter="Include" />
+    </CreateItem>
+    <Delete Files="$(OutDir)\$(Name).XML" />
+    <Delete Files="@(ToDel)" />
   </Target>
 </Project>

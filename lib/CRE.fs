@@ -107,7 +107,7 @@ let extractRSA si (cv:ProtocolVersion) pms =
     | _           -> unexpected "server must have an ID"    
   match pms with
   #if ideal
-  | IdealRSAPMS(s) (* TODO: when StrongCRE(prfAlg si); otherwise extractMS si s *) ->
+  | IdealRSAPMS(s) // TODO: when StrongCRE(prfAlg si); otherwise extractMS si s ->
 
         //We assoc on pk, cv, pms and csrands 
         match rsaassoc pk cv pms (csrands si) (PRF.prfAlg si) !rsalog with 

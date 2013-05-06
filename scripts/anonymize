@@ -59,7 +59,7 @@ def filter_hashes(input, symbols):
         MODE_OF_KIND = dict(I = None, U = False, D = True)
 
         def ofname(name):
-            dfl  = 'I' if name == 'mono' else 'U'
+            dfl  = 'I' if re.search('^__.+__$', name) else 'U'
             kind = symbols.get(name, dfl)
             return Mode.MODE_OF_KIND[kind]
         ofname = staticmethod(ofname)
