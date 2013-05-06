@@ -181,6 +181,7 @@ let keyCommit (csr:csrands) (a:aeAlg) : unit =
 
 //CF We could merge the two keyGen.
 
+//MK Still needs work
 let keyGenClient ci ms =
     #if ideal
     let csr = epochCSRands ci.id_in
@@ -190,9 +191,9 @@ let keyGenClient ci ms =
         // we idealize the key derivation
         let (myRead,peerWrite) = StatefulLHAE.GEN ci.id_in 
         let (peerRead,myWrite) = StatefulLHAE.GEN ci.id_out
-        //TODO we need to flip the index or the refinement
+        //TODO we need to flip the index or the refinement //MK??
         let ci' = { id_in = ci.id_out ; id_out = ci.id_in; id_rand = ci.id_rand; role = Server }
-        let peer = peerRead,peerWrite
+        //MK unused: let peer = peerRead,peerWrite
         kdlog := update csr (Derived(a,msi,ci',(peerRead,peerWrite))) !kdlog;
         (myRead,myWrite)
     | _  ->
@@ -201,6 +202,7 @@ let keyGenClient ci ms =
     #endif
         real_keyGen ci ms 
 
+//MK still needs work
 let keyGenServer ci ms =
     #if ideal
     let csr = epochCSRands ci.id_in
@@ -249,7 +251,7 @@ let makeVerifyData si (ms:masterSecret) role data =
   let tag = verifyData si ms role data in
   #if ideal
   let (msi,s) = ms
-  if safeMS_SI si then
+  if safeMS_SI si then  //MK rename predicate and function
     log := (msi,role,data)::!log ;
   #endif
   tag
@@ -264,7 +266,7 @@ let checkVerifyData si ms role data tag =
   #if ideal
   // we return "false" when concrete verification
   // succeeds but shouldn't according to the log 
-  && ( safeMS_SI si = false || mem msi role data !log ) //MK: (TLSInfo.csrands si) CF:?
+  && ( safeMS_SI si = false || mem msi role data !log ) //MK: rename predicate and function
   //#end-ideal2
   #endif
 

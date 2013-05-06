@@ -3,7 +3,7 @@ module PRF
 // This module implements the PRFs keyed by master secrets, 
 // for two purposes: MACing the verifyData and deriving the connection keys. 
 // (CRE independently implements extraction.
-// TLS using the same hash functin based techniques for this, 
+// TLS uses the same hash function based techniques for this, 
 // i.e. PRFs keyed by pre master secrets.)
 
 // CF We currently perform several successive steps with a single #ideal
@@ -21,6 +21,11 @@ open StatefulLHAE
 // Compared with standard (non-tls) key derivation,
 // - the label is hardcoded & implicit; 
 // - the seed (crandom @| srandom) is retrieved from the epoch
+// MK: we use the concept of seed in very confusing ways. It appears in the RFC, 
+// MK: and I propose to continue using it in TLSPRF in the same way. 
+// MK: here (crandom @| srandom) is more like a context which guarantees that
+// MK: we do not generate the same keys for different sessions.
+// MK: in CRE we may indeed use seeds as used in the theory of extractors
 
 type repr = (;48)lbytes
 //#begin-abstraction
@@ -63,6 +68,7 @@ val msi: si:SessionInfo -> pms:PMS.pms -> i:msIndex
   { i = MsI(si) /\ i=(pms,CSRands(si),PrfAlg(si)) }
 
 // CF safety of the MS (not necessarily its usage). Not refined yet
+// MK rename to safeVD
 val safeMS_msIndex: msIndex -> bool
 
 private type (;i:msIndex) ms = {bytes: repr}
@@ -99,6 +105,8 @@ val coerce: si:SessionInfo {not SafeMS_SI(si)} -> PMS.pms -> repr -> (;si)master
 //private val clientReader: r:Role -> rw:rw {(r = Client /\ rw = Reader) \/ (r = Server /\ rw = Writer)}  
 
 //CF not sure the refinement is right, and why it was not on real_keyGen. Commenting out for now
+//MK It's probably right. I removed it from real_keyGen to get more meaningful typechecking errors during de bugging.
+//MK Was just copied over from keyGen. Should add it back.
 type (;ci:ConnectionInfo) derived =  
   ( r:(;ci.id_in) StatefulLHAE.reader * w:(;ci.id_out)StatefulLHAE.writer ) 
 //  { StatefulLHAE.History(ci.id_out,Reader,r) = StatefulPlain.EmptyHistory(ci.id_in) /\
@@ -110,15 +118,15 @@ private val real_keyGen:
       IsSuccEpoch(ci.id_in) /\ IsSuccEpoch(ci.id_out) /\ 
 	  not Auth(ci.id_in) /\ not Auth(ci.id_out) (* needed to coerce to StatefulLHAE *)
 	  } ->  
-  (;EpochSI(ci.id_out))masterSecret -> (;ci) derived 
+  (;EpochSI(ci.id_in))masterSecret -> (;ci) derived 
 
 // TODO we need to reindex StatefulLHAE.
 val ci_aeAlg: ConnectionInfo -> aeAlg
 
 // USAGE RESTRICTION:
 // For each CSR, 
-// - the server linearly calls keyCommit csr a then keyGen Server csr a ...
-// - the client linearly calls keyGen Client csr a 
+// - the server linearly calls "keyCommit csr a" then "keyGenServer csr a" ...
+// - the client linearly calls "keyGenClient csr a" 
 // - an ideal state machine (below) keeps track of both, to condition KDF idealization.
 // 
 // The state machine has an implicit Init state as the csr has not been used yet by any
@@ -129,10 +137,11 @@ val ci_aeAlg: ConnectionInfo -> aeAlg
 
 // Calls to keyCommit and keyGenClient are treated as internal events of PRF. 
 // SafeKDF specifically enables us to assume consistent algorithms for StAE.
-// (otherwise we would need some custom joint assumptions for StAE)
+// (otherwise we would need some custom joint/cross ciphersuite/agile assumptions for StAE)
 // 
 // predicate val SafeKDF: csr -> bool
-// definition SafeKDF(csr) <=> ?pv,cs. KeyCommit(csr,pv,cs) /\ KeyGen1(csr,pv,cs)  
+// definition SafeKDF(csr) <=> ?pv,cs. KeyCommit(csr,pv,cs) /\ KeyGenClient(csr,pv,cs)  
+// MK the above is deprecated? SafeKDF should be defined on msIndex
 
 type event = Waste of ConnectionInfo // with a csr in the Wasted state
 private theorem !ci. Waste(ci) => ((not Auth(ci.id_in)) /\ (not Auth(ci.id_out))) 
@@ -144,11 +153,12 @@ type (;csr: csrands) state =
   // --------> 
   | Derived of aeAlg * msIndex * ci:ConnectionInfo * (;ci) derived
   // the client has ideally derived keys for both roles,
-  // with the same algorithm, recording those for the server. 
+  // with the same algorithm, recording the keys for the server. 
   // --only-->
   | Done 
   // the server has also derived keys (retrieving those recorded, or generating others).
   // or he may have failed because of an aeAlg mismatch.
+  // MK what do you mean with "failed because of aeAlg msmatch?"
   // No action allowed from this point. 
 
   // In all other cases, we reach a stable state such that we never idealize. 
@@ -163,6 +173,8 @@ val update: csr:csrands -> (;csr) state -> kdentry  list -> kdentry list
 
 // Ideally, the server commits to using at most 
 // (an extension of) this si for keyGen with matching (si.cr,si.sr)
+// MK i.) should talk abut aeAlg, ii.) do we really mean si.init_crand and si.init_srand here
+// MK and not epochCSRands? 
 // We could enforce commitments by adding a post-condition to keyCommit  
 // and a matching pre-condition to the server-side keyGen.
 
@@ -194,12 +206,12 @@ definition HonestMS( (pms, csr, creAlg) as msi ) <=>
 // it is ideally used much before it can be proved as the HS completes.
 
 definition SafeHS(e) <=> 
-     SafeKDF(e.csr "the connection's csr") /\ 
+     SafeKDF(e.csr "the connection's csr") /\ //MK I woud prefer a different name for this predicate
      StrongKDF(e.kdfAlg) /\ 
      HonestMS(MsI(e))
 
 // In HS, we have 
-// - KeyGen1  (e.csr, e.pv, e.cs) is a precondition to the event ClientSentCCS(e)
+// - KeyGenClient  (e.csr, e.pv, e.cs) is a precondition to the event ClientSentCCS(e)
 // - KeyCommit(e.csr, e.pv, e.cs) is a precondition to the event ServerSentCCS(e)
 // - HonestMS /\ StrongVD are sufficient to guarantee 
 //   matching ClientSentCCS(e) and ServerSentCCS(e), hence getting 
