@@ -1,13 +1,16 @@
 #! /usr/bin/env python
 
 # --------------------------------------------------------------------
-import sys, os, time, socket, subprocess as sp, logging
+import sys, os, time, socket, xsubprocess as sp, logging
 import ConfigParser as cp, StringIO as sio, shutil, tempfile
 
 # --------------------------------------------------------------------
 class Object(object):
     def __init__(self, **kw):
         self.__dict__.update(kw)
+
+# --------------------------------------------------------------------
+
 
 # --------------------------------------------------------------------
 OPENSSL_CIPHERS = {
@@ -164,7 +167,7 @@ def _check_for_config(mode, config):
             INPUT = DATA + CRLN
 
         try:
-            contents = subpc.communicate(INPUT)[0].splitlines()
+            contents = subpc.communicate(INPUT, timeout = 3000)[0].splitlines()
         except (IOError, OSError), e:
             logging.error('Error while interacting with server: %s' % (e,))
             return False
