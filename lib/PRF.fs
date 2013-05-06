@@ -18,7 +18,9 @@ type msIndex =  PMS.pms * // the pms and its indexes
 
 //CF ERROR: misses a definition of MsI to typecheck
 let msi (si:SessionInfo) (pms:PMS.pms) = 
-  (pms, csrands si, prfAlg si) 
+  let csr = csrands si
+  let pa = prfAlg si
+  (pms, csr, pa) 
 
 #if ideal
 // TODO failing to typecheck, not sure why.
