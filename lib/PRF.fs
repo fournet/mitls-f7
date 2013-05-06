@@ -165,6 +165,8 @@ let rec update csr s (entries: kdentry list) =
 
 //CF We could statically enforce the state machine.
 
+type aeAlg = int
+
 let keyCommit (csr:csrands) (a:aeAlg) : unit = 
   #if ideal
   match read csr !kdlog with 
