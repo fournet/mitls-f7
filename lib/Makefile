@@ -9,7 +9,7 @@ lib7      = ../../../lib/fs7-interfaces/
 libperv   = $(lib7)pervasives.fs7 $(lib7)tuples.fs7
 lperv     = -pervasives $(lib7)pervasives.fs7 -tuples $(lib7)tuples.fs7
 libfs7    = $(lib7)pi.fs7 $(lib7)formulas.fs7
-f7timeout = 5
+f7timeout = 20
 f7defs    = avoid verify ideal
 
 # removed --verbose for automated testing

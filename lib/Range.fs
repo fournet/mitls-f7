@@ -54,8 +54,12 @@ let blockAlignPadding e len =
         | CBC_Stale(alg) | CBC_Fresh(alg) ->
             let bs = blockSize alg in
             let fp = fixedPadSize si in
-            let overflow = (len + fp) % bs //@ at least fp bytes of fixed padding
-            if overflow = 0 then fp else fp + bs - overflow 
+            let x = len + fp in
+            let overflow = x % bs //@ at least fp bytes of fixed padding
+            let y = bs - overflow in
+            if overflow = 0 
+            then fp 
+            else fp + y 
     | _ -> Error.unexpected "[maxPadSize] invoked on unsupported ciphersuite"
 
 //@ From plaintext range to ciphertext length 
@@ -92,11 +96,9 @@ let cipherRangeClass (e:epoch) tlen =
     else
         let min = max - maxPad in
         if min < 0 then
-            let rg = (0,max) in
-            rg
+            (0,max)
         else
-            let rg = (min,max) in
-            rg
+            (min,max)
 
 let rangeClass (e:epoch) (r:range) =
     let tlen = targetLength e r in
