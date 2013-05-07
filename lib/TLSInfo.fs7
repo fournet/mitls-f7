@@ -66,6 +66,12 @@ type csrands = (;64) lbytes
 // SessionInfo and epoch: Session and Connection level public immutable data.
 // Used for indexing
 
+private type pmsId = NoPmsId | SomePmsId of PMS.pms
+function val PmsId: PMS.pms -> pmsId
+private definition !pms. PmsId(pms) = SomePmsId(pms)
+val pmsId: pms:PMS.pms -> id:pmsId{ id = PmsId(pms) } 
+val noPmsId: pmsId
+
 type pmsData =
     | PMSUnset
     | RSAPMS of pk:RSAKey.pk * ProtocolVersion * encpms:bytes
@@ -82,6 +88,7 @@ type SessionInfo = {
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;
     compression: Compression;
+	pmsId: pmsId;
     pmsData: pmsData;
     client_auth: bool;
     clientID: Cert.cert list;
@@ -212,17 +219,6 @@ assume !pd. HonestPMSData(pd) <=>
        (?p,g,gx,gy. pd = DHPMS(p,g,gx,gy) /\ HonestDHPMSData(p,g,gx,gy)))
 
 (* SPECIFYING SAFETY *) 
-
-// ``These parameters can encrypt HonestRSAPMSs.''
-//CF unclear why we need this intermediate predicate
-predicate SafeRSAPMS of RSAKey.pk * ProtocolVersion 
-definition !pk,cv. SafeRSAPMS(pk,cv) <=> RSAKey.Honest(pk) 
-
-//MK SafeDHPMS is much more specific involving the contributions to the pms. This is probably by necessity.
-predicate SafeDHPMS of p:DHGroup.p * (;p)DHGroup.g * (;p)DHGroup.elt * (;p)DHGroup.elt // The DH parameters, generator, and gx and gy values yield a good dhpms
-
-// /\ ? pms. EncryptedRSAPMS(PK(si.serverID),pms,EncOMS(pmsData)) /\ HonestRSAPMS(pms) //MK: \/ DH branch ...
-// /\ ClientCommittedCS(si.csrands,CS(si)) /\ ServerCommittedCS(si.csrands,CS(si)) 
 
 predicate SafeMS_SI of SessionInfo // Good enough handshake for finished macking for this sessioninfo
 predicate SafeHS_SI of SessionInfo // Good handshake for this sessioninfo

@@ -7,11 +7,11 @@ open TLSInfo
 val prfAlg: SessionInfo -> prfAlg  
  
 type msIndex =  
-  PMS.pms * 
+  pmsId * 
   csrands *                                          
   prfAlg  
 
-val msi: SessionInfo -> PMS.pms -> msIndex
+val msi: SessionInfo -> msIndex
    
 #if ideal
 val safeMS_msIndex: msIndex -> bool  

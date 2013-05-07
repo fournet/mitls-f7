@@ -48,11 +48,14 @@ open StatefulPlain //CF added for lighter notations
 		    ensuring that Auth readers & writers share the same algorithm.
 			We believe this will be addressed within PRF. 
 			
-We may define 
 
-type (;ki:epoch,rw:rw) state = (;I(ki),rw:rw) st 
-// this permits decryption at any epoch with matching I(ki)
-// this is inocuous because there is at most one such epoch.
+  We may either define 
+
+  type (;ki:epoch,rw:rw) state = (;I(ki),rw:rw) st 
+  // this permits decryption at any epoch with matching I(ki)
+  // this is inocuous because there is at most one such epoch.
+
+  or systematically use aeIndex instead of epoch
 
 or hide it under a "re-indexing" function that enforces some of those restrictions.
 

@@ -939,13 +939,20 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:Sess
     match clientKEXBytes_RSA si state.poptions with
     | Error(z) -> Error(z)
     | Correct(v) ->
-    let (clientKEXBytes,pmsdata,pms)  = v in
+    let (clientKEXBytes,pmsdata,rsapms)  = v in
 
-    let si = {si with pmsData = pmsdata} in
-
+    //CF re-computing pk, as in clientKEXBytes; not great.
+    //CF we should problably inline or redefine clientKEXbytes
+    let pk = 
+        match Cert.get_chain_public_encryption_key si.serverID with 
+        | Correct(pk) -> pk
+        | _           -> unexpected "server must have an ID"    
+    let cv = state.poptions.maxVer in 
+    let pms = PMS.RSAPMS(pk,cv,rsapms)
+    let pmsid = pmsId pms
+    let si = {si with pmsId = pmsid; pmsData = pmsdata} in
     let log = log @| clientKEXBytes in
-    let pop = state.poptions in 
-    let ms = CRE.extractRSA si pop.maxVer pms in
+    let ms = CRE.extractRSA si cv rsapms in
     (* FIXME: here we should shred pms *)
     let certificateVerifyBytes = getCertificateVerifyBytes si ms cert_req log in
 
@@ -1034,6 +1041,7 @@ let on_serverHello_full (ci:ConnectionInfo) crand log to_log (shello:ProtocolVer
                compression = sh_compression_method
                init_crand = crand
                init_srand = sh_random
+               pmsId = noPmsId
                pmsData = PMSUnset
                extended_record_padding = false
                } in
@@ -1618,6 +1626,7 @@ let startServerFull (ci:ConnectionInfo) state (cHello:ProtocolVersion * crand * 
                            compression      = cm
                            init_crand       = ch_random
                            init_srand       = srand
+                           pmsId            = noPmsId
                            pmsData          = PMSUnset
                            extended_record_padding = false }
                 prepare_server_output_full ci state si ch_client_version cvd svd log

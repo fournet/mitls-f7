@@ -12,16 +12,15 @@ let prfAlg (si:TLSInfo.SessionInfo) = si.protocol_version, si.cipher_suite
   | TLS_1p2           -> PRF_TLS_1p2(prfMacAlg_of_ciphersuite si.cipher_suite) 
 *)
 
-type msIndex =  PMS.pms * // the pms and its indexes  
+type msIndex =  pmsId   * // the pms and its indexes  
                 csrands * // the nonces  
                 prfAlg
 
 //CF ERROR: misses a definition of MsI to typecheck
-let msi (si:SessionInfo) (pms:PMS.pms) = 
+let msi (si:SessionInfo) = 
   let csr = csrands si
   let pa = prfAlg si
-  todo "define MsI accordingly"
-  (pms, csr, pa) 
+  (si.pmsId, csr, pa) 
 
 #if ideal
 // TODO failing to typecheck, not sure why.
@@ -39,27 +38,18 @@ let safeMS_msIndex (msi:msIndex) : bool =
 
 type repr = bytes
 type ms = { bytes: repr }
-#if ideal
-type masterSecret = msIndex * ms
-let masterSecret (si:SessionInfo) (msi:msIndex) (ms:ms) = (msi,ms)
-#else
 type masterSecret = ms
-let masterSecret si msi ms = ms
-#endif
 
 // used for calling concrete TLSPRF
 let private leak (si:SessionInfo) (ms:masterSecret) = 
-#if ideal
-  let (msi,ms) = ms
-#endif
   ms.bytes
 
-let coerce (si:SessionInfo) pms b = masterSecret si (msi si pms) {bytes = b}
+let coerce (si:SessionInfo) pms b = {bytes = b}
 
 #if ideal
 let sample (si:SessionInfo) pms = 
-  let i = msi si pms
-  masterSecret si i {bytes = Nonce.random 48}
+  let i = msi pms
+  {bytes = Nonce.random 48}
 #endif
 
 
@@ -250,23 +240,19 @@ let private verifyData si ms role data =
 let makeVerifyData si (ms:masterSecret) role data =
   let tag = verifyData si ms role data in
   #if ideal
-  let (msi,s) = ms
   if safeMS_SI si then  //MK rename predicate and function
-    log := (msi,role,data)::!log ;
+    log := (msi si,role,data)::!log ;
   #endif
   tag
 
 let checkVerifyData si ms role data tag =
   let computed = verifyData si ms role data
-  #if ideal
-  let (msi,s) = ms
-  #endif
   equalBytes tag computed
   //#begin-ideal2
   #if ideal
   // we return "false" when concrete verification
   // succeeds but shouldn't according to the log 
-  && ( safeMS_SI si = false || mem msi role data !log ) //MK: rename predicate and function
+  && ( safeMS_SI si = false || mem (msi si) role data !log ) //MK: rename predicate and function
   //#end-ideal2
   #endif
 

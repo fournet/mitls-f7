@@ -20,6 +20,10 @@ type crand = random
 type srand = random
 type csrands = bytes
 
+type pmsId = NoPmsId | SomePmsId of PMS.pms
+let pmsId (pms:PMS.pms) = SomePmsId(pms)
+let noPmsId = NoPmsId
+
 type pmsData =
     | PMSUnset
     | RSAPMS of RSAKey.pk * ProtocolVersion * bytes
@@ -31,6 +35,7 @@ type SessionInfo = {
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;
     compression: Compression;
+    pmsId: pmsId;
     pmsData: pmsData;
     client_auth: bool;
     clientID: Cert.cert list;

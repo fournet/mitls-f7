@@ -27,6 +27,7 @@ val extractRSA:
     si:SessionInfo ->
 	cv:ProtocolVersion ->
     pms: (;Cert.RSAPKCert(si.serverID),cv) rsapms 
+	{ si.pmsId = PmsId(RSAPMS(Cert.RSAPKCert(si.serverID),cv,pms)) }
 	// { DecryptedPMS(si.pmsdata,pms)  } 
 	->
     (;si) PRF.masterSecret
@@ -50,3 +51,7 @@ val extractDHE:
     p:DHGroup.p -> g:(;p)DHGroup.g -> gx:(;p)DHGroup.elt -> gy:(;p)DHGroup.elt ->
     pms: (;p,g,gx,gy)dhpms ->
     (;si) PRF.masterSecret
+
+//TODO PmsId | DHPMS of p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * (;p,g,gx,gy) dhpms
+
+	 

@@ -5,10 +5,14 @@
 
 open Bytes
 open TLSConstants
-open TLSInfo
 
 
 (** RSA ciphersuites **) 
+
+// ``These parameters can encrypt HonestRSAPMSs.''
+//CF unclear why we need this intermediate predicate
+predicate SafeRSAPMS of RSAKey.pk * ProtocolVersion 
+definition !pk,cv. SafeRSAPMS(pk,cv) <=> RSAKey.Honest(pk) 
 
 // In this file RSA refers to any crypto materials used for the RSA KEX. 
 
@@ -64,6 +68,9 @@ val leakRSA:
 
 
 open DHGroup
+
+//MK SafeDHPMS is much more specific involving the contributions to the pms. This is probably by necessity.
+predicate SafeDHPMS of p:DHGroup.p * (;p)DHGroup.g * (;p)DHGroup.elt * (;p)DHGroup.elt // The DH parameters, generator, and gx and gy values yield a good dhpms
 
 //#begin-abstractionDH
 
