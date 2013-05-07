@@ -192,7 +192,7 @@ let rec parseCompressions b =
     then
         let (cmB,b) = split b 1 in
         match parseCompression cmB with
-        | Error(x,y) -> // skip this one
+        | Error(z) -> // skip this one
             parseCompressions b
         | Correct(cm) -> cm :: parseCompressions b
     else []
@@ -321,18 +321,22 @@ let parseCipherSuite b =
     | ( 0x00uy, 0x10uy ) -> correct(CipherSuite ( DH_RSA, CS_MtE (TDES_EDE_CBC, SHA)))
     | ( 0x00uy, 0x13uy ) -> correct(CipherSuite (DHE_DSS, CS_MtE (TDES_EDE_CBC, SHA)))
     | ( 0x00uy, 0x16uy ) -> correct(CipherSuite (DHE_RSA, CS_MtE (TDES_EDE_CBC, SHA)))
+
     | ( 0x00uy, 0x30uy ) -> correct(CipherSuite ( DH_DSS, CS_MtE ( AES_128_CBC, SHA)))
     | ( 0x00uy, 0x31uy ) -> correct(CipherSuite ( DH_RSA, CS_MtE ( AES_128_CBC, SHA)))
     | ( 0x00uy, 0x32uy ) -> correct(CipherSuite (DHE_DSS, CS_MtE ( AES_128_CBC, SHA)))
     | ( 0x00uy, 0x33uy ) -> correct(CipherSuite (DHE_RSA, CS_MtE ( AES_128_CBC, SHA)))
+
     | ( 0x00uy, 0x36uy ) -> correct(CipherSuite ( DH_DSS, CS_MtE ( AES_256_CBC, SHA)))
     | ( 0x00uy, 0x37uy ) -> correct(CipherSuite ( DH_RSA, CS_MtE ( AES_256_CBC, SHA)))
     | ( 0x00uy, 0x38uy ) -> correct(CipherSuite (DHE_DSS, CS_MtE ( AES_256_CBC, SHA)))
     | ( 0x00uy, 0x39uy ) -> correct(CipherSuite (DHE_RSA, CS_MtE ( AES_256_CBC, SHA)))
+
     | ( 0x00uy, 0x3Euy ) -> correct(CipherSuite ( DH_DSS, CS_MtE ( AES_128_CBC, SHA256)))
     | ( 0x00uy, 0x3Fuy ) -> correct(CipherSuite ( DH_RSA, CS_MtE ( AES_128_CBC, SHA256)))
     | ( 0x00uy, 0x40uy ) -> correct(CipherSuite (DHE_DSS, CS_MtE ( AES_128_CBC, SHA256)))
     | ( 0x00uy, 0x67uy ) -> correct(CipherSuite (DHE_RSA, CS_MtE ( AES_128_CBC, SHA256)))
+
     | ( 0x00uy, 0x68uy ) -> correct(CipherSuite ( DH_DSS, CS_MtE ( AES_256_CBC, SHA256)))
     | ( 0x00uy, 0x69uy ) -> correct(CipherSuite ( DH_RSA, CS_MtE ( AES_256_CBC, SHA256)))
     | ( 0x00uy, 0x6Auy ) -> correct(CipherSuite (DHE_DSS, CS_MtE ( AES_256_CBC, SHA256)))
@@ -361,10 +365,10 @@ let rec parseCipherSuites b:cipherSuites Result =
         match parseCipherSuites b1 with 
         | Correct(css) ->
             match parseCipherSuite b0 with
-            | Error(x,y) -> // ignore this cs
+            | Error(z) -> // ignore this cs
                 correct(css)
             | Correct(cs) -> let ncss = consCipherSuites cs css  in correct(ncss)
-        | Error(x,y) -> Error(x,y) 
+        | Error(z) -> Error(z) 
     else if length b = 0 then Correct([])
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
@@ -735,8 +739,8 @@ let rec parseCertificateTypeList data =
         | Correct(ct) ->
             match parseCertificateTypeList data with
             | Correct(ctList) -> Correct(ct :: ctList)
-            | Error(x,y) -> Error(x,y)
-        | Error(x,y) -> Error(x,y)
+            | Error(z) -> Error(z)
+        | Error(z) -> Error(z)
 
 let defaultCertTypes sign cs =
     if sign then
@@ -766,7 +770,7 @@ let rec parseDistinguishedNameList data res =
             Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
         else
             match vlsplit 2 data with
-            | Error(x,y) -> Error(x,y)
+            | Error(z) -> Error(z)
             | Correct (nameBytes,data) ->
             let name = iutf8 nameBytes in (* FIXME: I have no idea wat "X501 represented in DER-encoding format" (RFC 5246, page 54) is. I assume UTF8 will do. *)
             let res = name :: res in

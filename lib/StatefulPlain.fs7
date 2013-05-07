@@ -26,7 +26,7 @@ function val ParseAD: e:epoch * cbytes -> ContentType
 private definition !b,e,ct. ParseAD(e,ADBytes(e,ct)) = ct
 
 //CF why do we need to parse AD again? 
-val makeAD:  e:succEpoch -> ct:ContentType -> ad:(;e)adata{B(ad)=ADBytes(e,ct)}
+val makeAD:  e:succEpoch -> ct:ContentType -> ad:(;e)adata{B(ad)=ADBytes(e,ct) /\ ParseAD(e,B(ad)) = ct}
 private val parseAD: e:succEpoch -> ad:(;e)adata -> ct:ContentType{ParseAD(e,B(ad))=ct}
 
 private type (;e:epoch,ad:cbytes,r:range) fragment = {contents: (;e,ParseAD(e,ad),r)TLSFragment.fragment}
@@ -73,15 +73,15 @@ private definition !e,ct,r,f. StAEToRecord(e,ct,r,f) = f.contents
 function val Multiplexed: e:epoch * (;e) history -> 'b //(;e)TLSFragment.history
 definition !e. 
     Multiplexed(e,EmptyHistory(e)) = TLSFragment.EmptyHistory(e)
-definition !e,ad,sh,r,f. 
+definition !e,ad,sh,r,f,ct. 
     Multiplexed(e,ExtendHistory(e,ad,sh,r,f)) = 
     TLSFragment.ExtendHistory(e,ParseAD(e,B(ad)),
-                             Multiplexed(e,sh),
-                             r,StAEToRecord(e,ParseAD(e,B(ad)),r,f))
+                   Multiplexed(e,sh),
+                   r,StAEToRecord(e,ParseAD(e,B(ad)),r,f))
 (* CF delete?
 definition !e,ad,sh,sh',h,ct,r,f. 
   (sh' = ExtendHistory(e,ad,sh,r,f) /\
-   ct = ParseAD(e,B(ad)) /\
+   ct = ParseAD(e,B(ad)) /\ //ParseAD(e,B(ad)),
 //   B(ad) =  ADBytes(e,ct) /\
    h = Multiplexed(e,sh)) => 
   (Multiplexed(e,sh') = TLSFragment.ExtendHistory(e,ct,h,r,StAEToRecord(e,ct,r,f)))

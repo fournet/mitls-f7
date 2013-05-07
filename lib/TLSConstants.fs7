@@ -383,14 +383,33 @@ private assume
     /\ CipherSuiteBytes(CipherSuite (RSA, CS_MtE (AES_128_CBC, SHA256)))     = [| 0x00uy; 0x3Cuy |]
     /\ CipherSuiteBytes(CipherSuite (RSA, CS_MtE (AES_256_CBC, SHA256)))     = [| 0x00uy; 0x3Duy |]
 
-    /\ CipherSuiteBytes(CipherSuite (DHE_DSS, CS_MtE (TDES_EDE_CBC, SHA)))   = [| 0x00uy; 0x13uy |]
-    /\ CipherSuiteBytes(CipherSuite (DHE_RSA, CS_MtE (TDES_EDE_CBC, SHA)))   = [| 0x00uy; 0x16uy |]
+
+    /\ CipherSuiteBytes(CipherSuite (DH_DSS, CS_MtE (TDES_EDE_CBC, SHA)))    = [| 0x00uy; 0x0Duy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_RSA, CS_MtE (TDES_EDE_CBC, SHA)))    = [| 0x00uy; 0x10uy |]
+    /\ CipherSuiteBytes(CipherSuite (DHE_DSS, CS_MtE (TDES_EDE_CBC, SHA)))    = [| 0x00uy; 0x13uy |]
+    /\ CipherSuiteBytes(CipherSuite (DHE_RSA, CS_MtE (TDES_EDE_CBC, SHA)))    = [| 0x00uy; 0x16uy |]
+
+
+    /\ CipherSuiteBytes(CipherSuite (DH_DSS, CS_MtE (AES_128_CBC, SHA)))    = [| 0x00uy; 0x30uy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_RSA, CS_MtE (AES_128_CBC, SHA)))    = [| 0x00uy; 0x31uy |]
     /\ CipherSuiteBytes(CipherSuite (DHE_DSS, CS_MtE (AES_128_CBC, SHA)))    = [| 0x00uy; 0x32uy |]
     /\ CipherSuiteBytes(CipherSuite (DHE_RSA, CS_MtE (AES_128_CBC, SHA)))    = [| 0x00uy; 0x33uy |]
+
+
+    /\ CipherSuiteBytes(CipherSuite (DH_DSS, CS_MtE (AES_256_CBC, SHA)))    = [| 0x00uy; 0x36uy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_RSA, CS_MtE (AES_256_CBC, SHA)))    = [| 0x00uy; 0x37uy |]
     /\ CipherSuiteBytes(CipherSuite (DHE_DSS, CS_MtE (AES_256_CBC, SHA)))    = [| 0x00uy; 0x38uy |]
     /\ CipherSuiteBytes(CipherSuite (DHE_RSA, CS_MtE (AES_256_CBC, SHA)))    = [| 0x00uy; 0x39uy |]
+
+
+    /\ CipherSuiteBytes(CipherSuite (DH_DSS, CS_MtE (AES_128_CBC, SHA256))) = [| 0x00uy; 0x3Euy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_RSA, CS_MtE (AES_128_CBC, SHA256))) = [| 0x00uy; 0x3Fuy |]
     /\ CipherSuiteBytes(CipherSuite (DHE_DSS, CS_MtE (AES_128_CBC, SHA256))) = [| 0x00uy; 0x40uy |]
     /\ CipherSuiteBytes(CipherSuite (DHE_RSA, CS_MtE (AES_128_CBC, SHA256))) = [| 0x00uy; 0x67uy |]
+
+
+    /\ CipherSuiteBytes(CipherSuite (DH_DSS, CS_MtE (AES_256_CBC, SHA256))) = [| 0x00uy; 0x68uy |]
+    /\ CipherSuiteBytes(CipherSuite (DH_RSA, CS_MtE (AES_256_CBC, SHA256))) = [| 0x00uy; 0x69uy |]
     /\ CipherSuiteBytes(CipherSuite (DHE_DSS, CS_MtE (AES_256_CBC, SHA256))) = [| 0x00uy; 0x6Auy |]
     /\ CipherSuiteBytes(CipherSuite (DHE_RSA, CS_MtE (AES_256_CBC, SHA256))) = [| 0x00uy; 0x6Buy |]
 
@@ -586,7 +605,7 @@ val vlparse:
 ask !i,b. BLength(VLBytes(i,b)) = i + BLength(b)
 
 // relies on associativity
-ask !i,b1,b2,c1,c2. 
+theorem !i,b1,b2,c1,c2. 
   (VLBytes(i,b1) @| b2 = VLBytes(i,c1) @| c2) => (b1 = c1 /\ b2 = c2)
 
 // cert-type parsing / formatting
