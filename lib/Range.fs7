@@ -67,19 +67,20 @@ val minMaxPad: si:SessionInfo -> l:nat * h:nat{
 //AP type (;si:SessionInfo) rangeF = r:range{RangeFragment(si,r)}
 
 // Padding computations
+function val Modulus: int * int -> int //MK to be defined
 function val BlockAlignedPadding: epoch * nat -> nat
 definition !e,mac,alg,l.
 	(CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MACOnly(mac)  => BlockAlignedPadding(e,l) = 0 ) /\
 	(CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(Stream_RC4_128,mac)  => BlockAlignedPadding(e,l) = 0 ) /\
 	
-	(CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Fresh(alg),mac) /\ modulus(l + 1,BlockSize(alg)) = 0 =>  
+	(CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Fresh(alg),mac) /\ Modulus(l + 1,BlockSize(alg)) = 0 =>  
                                  BlockAlignedPadding(e,l) = 1) /\
-	(CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Stale(alg),mac) /\ modulus(l + 1,BlockSize(alg)) = 0 =>  
+	(CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Stale(alg),mac) /\ Modulus(l + 1,BlockSize(alg)) = 0 =>  
                                  BlockAlignedPadding(e,l) = 1) /\
-	(CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Fresh(alg),mac) /\ modulus(l + 1,BlockSize(alg)) <> 0 =>  
-                                 BlockAlignedPadding(e,l) = 1 + BlockSize(alg) - modulus(l + 1,BlockSize(alg))) /\
-	(CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Stale(alg),mac) /\ modulus(l + 1,BlockSize(alg)) <> 0 =>  
-                                 BlockAlignedPadding(e,l) = 1 + BlockSize(alg) - modulus(l + 1,BlockSize(alg)))
+	(CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Fresh(alg),mac) /\ Modulus(l + 1,BlockSize(alg)) <> 0 =>  
+                                 BlockAlignedPadding(e,l) = 1 + BlockSize(alg) - Modulus(l + 1,BlockSize(alg))) /\
+	(CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MtE(CBC_Stale(alg),mac) /\ Modulus(l + 1,BlockSize(alg)) <> 0 =>  
+                                 BlockAlignedPadding(e,l) = 1 + BlockSize(alg) - Modulus(l + 1,BlockSize(alg)))
 
 
 

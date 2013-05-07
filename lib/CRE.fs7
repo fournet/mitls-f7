@@ -12,13 +12,13 @@ private val extractMS: si:SessionInfo {not SafeMS_SI(si)} -> pms -> p:bytes -> (
 (** RSA ciphersuites **) 
 
 //CF actually a private type 
-type rsaentry = pk:RSAKey.pk * cv:ProtocolVersion * pms:(;pk,cv)rsapms * csr:csrands * pa:prfAlg * ms:(;(RSAPMS(pk,cv,pms),csr,pa)) ms
+type rsaentry = pk:RSAKey.pk * cv:ProtocolVersion * pms:(;pk,cv)rsapms * csr:csrands * pa:prfAlg * ms:(;(PmsId(RSAPMS(pk,cv,pms)),csr,pa)) ms
 private val rsalog: rsaentry list ref 
 
 private val rsaassoc: 
     pk:RSAKey.pk -> cv:ProtocolVersion -> pms:(;pk,cv)rsapms -> csr:csrands -> pa:prfAlg-> 
-    (pk':RSAKey.pk * cv':ProtocolVersion * pms':(;pk',cv')rsapms * csr':bytes * pa':prfAlg * ms':(;(RSAPMS(pk',cv',pms'),csr',pa')) ms) list -> 
-	ms:(;(RSAPMS(pk,cv,pms),csr,pa)) ms option
+    (pk':RSAKey.pk * cv':ProtocolVersion * pms':(;pk',cv')rsapms * csr':bytes * pa':prfAlg * ms':(;(PmsId(RSAPMS(pk',cv',pms')),csr',pa')) ms) list -> 
+	ms:(;(PmsId(RSAPMS(pk,cv,pms)),csr,pa)) ms option
 
 // CF what for?
 private val accessRSAPMS: pk:RSAKey.pk -> cv:ProtocolVersion -> (;pk,cv) rsapms -> rsarepr
@@ -36,12 +36,12 @@ val extractRSA:
 open DHGroup
 
 //CF actually a private type
-type dhentry = p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * pms:(;p,g,gx,gy) dhpms * csr:csrands * pa:prfAlg * ms:(;(DHPMS(p,g,gx,gy,pms),csr,pa)) PRF.ms
+type dhentry = p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * pms:(;p,g,gx,gy) dhpms * csr:csrands * pa:prfAlg * ms:(;(PmsId(DHPMS(p,g,gx,gy,pms)),csr,pa)) PRF.ms
 private val dhlog: dhentry list ref 
 
 val dhassoc: p:p -> g:(;p) g -> gx:(;p) elt -> gy:(;p) elt -> pms:(;p,g,gx,gy) dhpms -> csr:csrands -> pa:prfAlg -> 
-             (p':p * g':(;p') g * gx':(;p') elt * gy':(;p') elt * pms':(;p',g',gx',gy') dhpms * csr':csrands * pa':prfAlg * (;(DHPMS(p',g',gx',gy',pms'),csr',pa')) PRF.ms) list -> 
-             (;(DHPMS(p,g,gx,gy,pms),csr,pa)) PRF.ms option
+             (p':p * g':(;p') g * gx':(;p') elt * gy':(;p') elt * pms':(;p',g',gx',gy') dhpms * csr':csrands * pa':prfAlg * (;(PmsId(DHPMS(p',g',gx',gy',pms')),csr',pa')) PRF.ms) list -> 
+             (;(PmsId(DHPMS(p,g,gx,gy,pms)),csr,pa)) PRF.ms option
 
 private val accessDHPMS: p:DHGroup.p -> g:(;p)DHGroup.g -> gx:(;p)DHGroup.elt -> gy:(;p)DHGroup.elt ->
     pms: (;p,g,gx,gy)dhpms -> bytes
@@ -49,9 +49,10 @@ private val accessDHPMS: p:DHGroup.p -> g:(;p)DHGroup.g -> gx:(;p)DHGroup.elt ->
 val extractDHE:
     si:SessionInfo ->
     p:DHGroup.p -> g:(;p)DHGroup.g -> gx:(;p)DHGroup.elt -> gy:(;p)DHGroup.elt ->
-    pms: (;p,g,gx,gy)dhpms ->
+    pms: (;p,g,gx,gy)dhpms 
+	{ si.pmsId = PmsId(DHPMS(p,g,gx,gy,pms) ) }
+	->
     (;si) PRF.masterSecret
 
-//TODO PmsId | DHPMS of p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * (;p,g,gx,gy) dhpms
 
 	 

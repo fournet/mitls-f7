@@ -2,6 +2,7 @@ module DH
 
 open Bytes
 open DHGroup
+open CoreKeys
 
 type secret = Key of bytes 
 
@@ -17,8 +18,10 @@ let goodPP dhparams =  List.exists (fun el-> el = dhparams) !goodPP_log
 let honest gx = List.exists (fun el-> el = gx) !honest_log 
 #endif
 
-let private pp (pg:CoreKeys.dhparams) : p * g = 
-    let dhparams = pg.p, pg.g
+let private pp (pg:dhparams) : p * g =
+    let g=pg.g
+    let p=pg.p 
+    let dhparams = p, g
     #if ideal
     goodPP_log := dhparams ::!goodPP_log
     #endif

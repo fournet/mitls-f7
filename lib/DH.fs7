@@ -6,6 +6,7 @@ open DHGroup
 // "Strong" parameter generation used by compliant servers,
 // formally a precondition for signing them with an honest key.
 predicate val PP: p:p * g:(;p) g -> bool
+private val goodPP: p:p * g:(;p) g -> bool
 
 //#begin-abstraction
 type (;p:p,g:(;p)g,gx:(;p)elt) secret

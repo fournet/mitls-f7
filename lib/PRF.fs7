@@ -119,7 +119,7 @@ type (;csr: csrands) state =
   | Done 
   // the server has also derived keys (retrieving those recorded, or generating others).
   // or he may have failed because of an aeAlg mismatch.
-  // MK what do you mean with "failed because of aeAlg msmatch?"
+  // MK what do you mean with "failed because of aeAlg mismatch?"
   // No action allowed from this point. 
 
   // In all other cases, we reach a stable state such that we never idealize. 

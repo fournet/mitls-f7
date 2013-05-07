@@ -132,7 +132,7 @@ type msId =        // We record the parameters used to derive this MS:
   creAlg: prfAlg      // the PMS-PRF algorithm
    
 function val MsI: SessionInfo -> msId
-private definition !si. MsI(si) = (si.pmsId, CSRands(si), PrfAlg(si)) 
+definition !si. MsI(si) = (si.pmsId, CSRands(si), PrfAlg(si)) 
 val msi: si:SessionInfo -> i:msId { i = MsI(si) }
 
 
