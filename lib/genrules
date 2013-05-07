@@ -39,7 +39,7 @@ FS7DEFAULT = [
   'PRF',
   'CRE',
 # 'DH',
-# 'RSA',
+  'RSA',
   'SessionDB',
 # 'TLSExtensions',
   'Handshake',

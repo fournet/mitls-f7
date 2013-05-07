@@ -123,7 +123,7 @@ let rec assoc (pk:RSAKey.pk) (cv:ProtocolVersion) (dummy_pms:bytes) (pmss:entry 
 
 let decrypt (sk:RSAKey.sk) si cv check_client_version_in_pms_for_old_tls encPMS =
     match Cert.get_chain_public_encryption_key si.serverID with
-    | Error(x,y)  -> unexpected (perror __SOURCE_FILE__ __LINE__ "The server identity should contain a valid certificate")
+    | Error z  -> unexpected (perror __SOURCE_FILE__ __LINE__ "The server identity should contain a valid certificate")
     | Correct(pk) ->
         let pmsb = real_decrypt sk si cv check_client_version_in_pms_for_old_tls encPMS in
         //#begin-ideal2
