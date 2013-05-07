@@ -44,11 +44,11 @@ type masterSecret = ms
 let private leak (si:SessionInfo) (ms:masterSecret) = 
   ms.bytes
 
-let coerce (si:SessionInfo) pms b = {bytes = b}
+let coerce (si:SessionInfo) (pms:PMS.pms) b = {bytes = b}
 
 #if ideal
-let sample (si:SessionInfo) pms = 
-  let i = msi pms
+let sample (si:SessionInfo) (pms:PMS.pms) = 
+  let i = msi si
   {bytes = Nonce.random 48}
 #endif
 
@@ -175,7 +175,6 @@ let keyCommit (csr:csrands) (a:aeAlg) : unit =
 let keyGenClient ci ms =
     #if ideal
     let csr = epochCSRands ci.id_in
-    let (msi,ms') = ms 
     match read csr !kdlog with
     | Committed(a) when a = ci_aeAlg ci (* && honestMS && StrongKDF *) ->  // safeHS_SI (epochSI(ci.id_in)) 
         // we idealize the key derivation
@@ -184,6 +183,7 @@ let keyGenClient ci ms =
         //TODO we need to flip the index or the refinement //MK??
         let ci' = { id_in = ci.id_out ; id_out = ci.id_in; id_rand = ci.id_rand; role = Server }
         //MK unused: let peer = peerRead,peerWrite
+        let msi = msi (epochSI ci.id_in)
         kdlog := update csr (Derived(a,msi,ci',(peerRead,peerWrite))) !kdlog;
         (myRead,myWrite)
     | _  ->
@@ -241,7 +241,8 @@ let makeVerifyData si (ms:masterSecret) role data =
   let tag = verifyData si ms role data in
   #if ideal
   if safeMS_SI si then  //MK rename predicate and function
-    log := (msi si,role,data)::!log ;
+    let i = msi si
+    log := (i,role,data)::!log ;
   #endif
   tag
 

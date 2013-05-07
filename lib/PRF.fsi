@@ -19,13 +19,7 @@ val safeMS_msIndex: msIndex -> bool
 
 type repr = bytes
 type ms
-
-#if ideal
-type masterSecret = msIndex * ms
-val masterSecret: SessionInfo -> msIndex -> ms -> masterSecret
-#else
 type masterSecret = ms
-#endif
 
 #if ideal
 val sample: SessionInfo -> PMS.pms -> masterSecret

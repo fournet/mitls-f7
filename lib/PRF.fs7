@@ -71,7 +71,6 @@ private type (;i:msIndex) ms = {bytes: repr}
 // This index additionally records the *local* session info.
 type (;si:SessionInfo) masterSecret = (;MsI(si)) ms
 
-val masterSecret: si:SessionInfo -> i:msIndex {i = MsI(si)} -> (;i)ms -> (;si) masterSecret
 //#end-abstraction
 
 // We have two notions of conditional safety (logically defined in TLSInfo.fs7)
@@ -86,7 +85,7 @@ val masterSecret: si:SessionInfo -> i:msIndex {i = MsI(si)} -> (;i)ms -> (;si) m
 (** Master secrets are either ideally sampled or concretely derived & coerced *) 
 
 private val leak: si:SessionInfo -> (;si) masterSecret -> repr
-val sample: si:SessionInfo -> pms:PMS.pms -> (;si)masterSecret { (pms,CSRands(si),PrfAlg(si))=MsI(si) }
+val sample: si:SessionInfo -> pms:PMS.pms -> (;si)masterSecret
 //#begin-coerce
 //the precondition of coerce excludes both idealizations.
 val coerce: si:SessionInfo {not SafeMS_SI(si)} -> PMS.pms -> repr -> (;si)masterSecret 
