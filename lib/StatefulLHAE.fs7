@@ -11,28 +11,43 @@ open StatefulPlain //CF added for lighter notations
    This module is parameterized by StatefulPlain, providing  
    abstract types 'plain' for plaintext and 'history' for sequences of plaintexts
 
-   The functionality is indexed by epochs, also treated abstractly, as follows:
-
-   On each epoch, we can use:
-   - an (abstract, comparable) instance identifier
-     [Consisting of CSR, Role, plus the index of the derived key] 
-   - an AE algorithm 
+   The functionality is indexed by succEpochs, also treated abstractly.
+   (We pass those, rather than tight indexes, because tight indexes are ghost.)
+   
+   From each epoch, we can get:
+   - a (tight, abstract, comparable) instance identifier 
+     [consisting of the connection CSR, the Role, plus the MS index, plus the AE algorithm]
+   - the AE algorithm	  
    - two idealization predicates Auth & Safe 
 
    From this module's viewpoint, we can (linearly) re-index
    as long as none of those are affected.
    
    Usage restrictions: 
-   1. Auth & Safe depend only on the instance & the algorithm strength
-      Auth must imply StrongAuth(alg), Safe must imply StrongAE(alg) 
-      [Hence the actual idealization parameter is just SafeHS.] 
-   
-   2. The user may call GEN at most once for every instance 
-      [This ensures that Auth readers & writers share the same algorithm] 
+   1. aeAlg, Auth & Safe depend only on the tight index.
+   2. Auth must imply StrongAuth(alg), Safe must imply StrongAE(alg) 
+   3. The user may call GEN at most once for every tight index.
+   4. The user may encrypt (or decrypt) at most once from every state.
 
-   3. The user may encrypt (or decrypt) at most once with each state.
-      [This is currently enforced by code inspection.]
+   Notes: - TLSInfo defines Auth and Safe as SafeHS /\ Strong*, 
+            Hence the actual idealization parameter is just SafeHS.
+			A better name for it may be HonestStAE
 
+		  - Anyway, they do *not* depend on handshake completion,
+		    as the instance exists before Sig.verify and verifyData;
+			the late postconditions of Handshake are just means 
+			to deduce Auth/Safe from application-level predicates.
+
+          - This supposes we stick to epochs as wide indexes; 
+	        otherwise conditions 1 and 3 are simpler.
+          
+          - Conditions 3 and 4 is necessary at least for functional correctness.
+		    They are currently enforced by code inspection.
+
+          - PRF actually calls GEN at most once for every (CSR,Role).
+		    ensuring that Auth readers & writers share the same algorithm.
+			We believe this will be addressed within PRF. 
+			
 We may define 
 
 type (;ki:epoch,rw:rw) state = (;I(ki),rw:rw) st 
@@ -41,19 +56,13 @@ type (;ki:epoch,rw:rw) state = (;I(ki),rw:rw) st
 
 or hide it under a "re-indexing" function that enforces some of those restrictions.
 
-Questions: 
+  Questions: 
 
-  - SafeHS depend *only* on the instance identifier [right?] 
-    so signature verification etc are not taken into account:
-    they are just means to deduce SafeHS from application-level assumptions.
-
-    In particular, matching Finished is not usable to define safety.
-
-  - Intuitively, parametricity is not affected because of the agreement on epochs
-    between readers & writers plus the linearity assumption. 
-	How to make it formal? 
+  - Intuitively, parametricity is not affected by index tightening 
+    because of the agreement on epochs between readers & writers plus 
+	the linearity assumption. How to make it formal? 
 	In the lookup table, as we decrypt, 
-	we will now get a value indexed by the writer's epoch, ki' or I(ki').
+	we will now get a value indexed only by the writer's epoch, ki' or I(ki').
 
     One possibility is to index plaintexts etc tightly, 
     using I(ki), or even (CSR,Role), a rather large change that 
@@ -81,13 +90,14 @@ Theorems:
 
 *)
 
-
+//CF Old? 
 //AP: We need the following invariant: StateID(e,LHAE.LHAEKey) = SeqNum(e,history)
 private type (;ki:epoch,rw:rw) state = {
   key    : (;ki) LHAE.LHAEKey;  // possibly stateful
   history: (;ki) history        // ghost state, except for the sequence number
 }
  
+ //CF Old? 
 (*KB SHOULD BE:
 private type (;si:SessionInfo,rw:rw) protostate = {
   key    : (;(;si) PRF.masterSecret,cr:bytes,sr:bytes) LHAE.LHAEKey;         
