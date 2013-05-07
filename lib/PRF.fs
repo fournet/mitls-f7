@@ -4,28 +4,10 @@ open Bytes
 open TLSConstants
 open TLSInfo
 
-let prfAlg (si:TLSInfo.SessionInfo) = si.protocol_version, si.cipher_suite
-(* TODO
-  match si.protocol_version with
-  | SSL_3p0           -> PRF_SSL3_nested 
-  | TLS_1p0 | TLS_1p1 -> PRF_TLS_1p01
-  | TLS_1p2           -> PRF_TLS_1p2(prfMacAlg_of_ciphersuite si.cipher_suite) 
-*)
-
-type msIndex =  pmsId   * // the pms and its indexes  
-                csrands * // the nonces  
-                prfAlg
-
-//CF ERROR: misses a definition of MsI to typecheck
-let msi (si:SessionInfo) = 
-  let csr = csrands si
-  let pa = prfAlg si
-  (si.pmsId, csr, pa) 
-
 #if ideal
 // TODO failing to typecheck, not sure why.
 // let strongPrfAlg (pa:prfAlg) = true
-let safeMS_msIndex (msi:msIndex) : bool =
+let safeMS_msIndex (msi:msId) : bool =
     failwith "todo: failing to typecheck?!"
 (*
     let (pms',csrands,prfAlg) = msi
@@ -138,7 +120,7 @@ type event = Waste of ConnectionInfo
 type state =
   | Init
   | Committed of aeAlg
-  | Derived of aeAlg * msIndex * ConnectionInfo * derived
+  | Derived of aeAlg * msId * ConnectionInfo * derived
   | Done 
   | Wasted
 
@@ -224,10 +206,10 @@ type text = bytes
 type tag = bytes
 
 #if ideal
-type entry = msIndex * Role * text
+type entry = msId * Role * text
 let log : entry list ref = ref []
 
-let rec mem (i:msIndex) (r:Role) (t:text) (es:entry list) = 
+let rec mem (i:msId) (r:Role) (t:text) (es:entry list) = 
   match es with
   | [] -> false 
   | (i',role,text)::es when i=i' && r=role && text=t -> true

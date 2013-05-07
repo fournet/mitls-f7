@@ -50,7 +50,7 @@ let extractMS sinfo pms pmsBytes : PRF.masterSecret =
 #if ideal
 //MK: no longer needed let todo s = failwith s 
 
-// We maintain a log for looking up good ms values using their msIndex
+// We maintain a log for looking up good ms values using their msId
 type rsaentry = RSAKey.pk * ProtocolVersion * rsapms * bytes * prfAlg * PRF.ms
 
 let rsalog = ref []
@@ -82,16 +82,13 @@ let extractRSA si (cv:ProtocolVersion) pms: PRF.masterSecret =
     if safeMS_SI si then
         //We assoc on pk, cv, pms,  csrands, and prfAlg
         let csr = csrands si
-        let pa = PRF.prfAlg si
+        let pa = prfAlg si
         match rsaassoc pk cv pms csr pa !rsalog with 
-        | Some(ms) -> 
-                let i = PRF.msi si (RSAPMS(pk,cv,pms))
-                PRF.masterSecret si i ms //MK: tried also(RSAPMS(pk,cv,pms),csr,pa) ms
+        | Some(ms) -> ms
         | None -> 
-                let masterSecret = PRF.sample si (RSAPMS(pk,cv,pms))
-                let _,ms = masterSecret
+                let ms = PRF.sample si (RSAPMS(pk,cv,pms))
                 rsalog := (pk,cv,pms,csr, pa, ms)::!rsalog;
-                masterSecret
+                ms
                  
     else
         extractMS si (RSAPMS(pk, cv, pms)) (accessRSAPMS pk cv pms)
@@ -181,15 +178,15 @@ let extractDHE (si:SessionInfo) (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy
     if safeMS_SI si then
         //We assoc on pk, cv, pms,  csrands, and prfAlg
         let csr = csrands si
-        let pa = PRF.prfAlg si
+        let pa = prfAlg si
         match dhassoc p g gx gy pms csr pa !dhlog with
         | Some(ms) -> 
-                let i = PRF.msi si (DHPMS(p,g,gx,gy,pms))
-                (PRF.masterSecret si i ms)
+                // let i = msi si (DHPMS(p,g,gx,gy,pms))
+                ms
         | None -> 
-                let i,ms=PRF.sample si (DHPMS(p,g,gx,gy,pms))
+                let ms = PRF.sample si (DHPMS(p,g,gx,gy,pms))
                 dhlog := (p, g, gx, gy, pms, csr, pa, ms)::!dhlog;
-                PRF.masterSecret si i ms
+                ms
     else
         extractMS si (DHPMS(p,g,gx,gy,pms)) (accessDHPMS p g gx gy pms)
     #else

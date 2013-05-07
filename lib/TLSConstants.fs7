@@ -276,7 +276,24 @@ val isDHECipherSuite: cipherSuite -> bool
 val isRSACipherSuite: cipherSuite -> bool
 val contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV: cipherSuites -> bool
 
-type prfAlg = ProtocolVersion * cipherSuite 
+type prfAlg = ProtocolVersion * cipherSuite // TODO write supporting specs and functions
+type kdfAlg = ProtocolVersion * cipherSuite // TODO write supporting specs and functions
+
+(* TODO 
+We currently use a loose prfAlg. 
+we may migrate prfAlg to a tigher enumeration, as outlined below
+// We need descriptors for the algorithm keyed by PMS and MS (named "PRF" in TLS)
+// Given pv and cs, and except for SSL3, 
+// the same algorithm is used for extraction, key derivation, and verifyData
+// TODO migrate to TLSPRF? adapt the code there
+// TODO write 3x spec & function from pv,cs to prfAlg
+type prfAlg = // can't be folded back to the sums in TLSConstants; we need to use it in TLSPRF too. 
+  | PRF_TLS_1p2 of macAlg  // typically SHA256 but may depend on CS
+  | PRF_TLS_1p01           // MD5 xor SHA1
+  | PRF_SSL3_nested        // MD5(SHA1(...)) for extraction and keygen
+  | PRF_SSL3_concat        // MD5 @| SHA1    for VerifyData tags
+*)
+
 
 val verifyDataLen_of_ciphersuite: cipherSuite -> nat
 val prfMacAlg_of_ciphersuite: cipherSuite  -> macAlg

@@ -29,6 +29,11 @@ type pmsData =
     | RSAPMS of RSAKey.pk * ProtocolVersion * bytes
     | DHPMS  of DHGroup.p * DHGroup.g * DHGroup.elt * DHGroup.elt
 
+type msId = 
+  pmsId * 
+  csrands *                                          
+  prfAlg  
+
 type SessionInfo = {
     init_crand: crand;
     init_srand: srand;
@@ -46,6 +51,8 @@ type SessionInfo = {
     }
 
 val csrands: SessionInfo -> bytes
+val prfAlg: SessionInfo -> prfAlg  
+val msi: SessionInfo -> msId
 
 type preEpoch
 type epoch = preEpoch

@@ -41,11 +41,6 @@ type rw =
     | Reader
     | Writer
 
-type sessionID = b:bytes {Length(b) <= 32}
-// "An arbitrary byte sequence chosen by the server 
-// to identify an active or resumable session state."
-// We treat empty_bytes as the absence of identifier.
-
 type preRole =
 	| Client
 	| Server
@@ -54,7 +49,9 @@ function val DualRole: Role -> Role
 assume DualRole(Client) = Server
 assume DualRole(Server) = Client
 
+
 // Client/Server randomness (implemented in Nonce) 
+
 // their first 4 bytes give the local time, 
 // so that they are locally pairwise-distinct
 type random = (;32) lbytes 
@@ -63,8 +60,8 @@ type srand = random
 type csrands = (;64) lbytes
 //CF 04-09 the randoms are not just bytes; where do we rely on collision-resistance?
 
-// SessionInfo and epoch: Session and Connection level public immutable data.
-// Used for indexing
+
+// pre-master-secret index and encrypted data 
 
 private type pmsId = NoPmsId | SomePmsId of PMS.pms
 function val PmsId: PMS.pms -> pmsId
@@ -72,6 +69,7 @@ private definition !pms. PmsId(pms) = SomePmsId(pms)
 val pmsId: pms:PMS.pms -> id:pmsId{ id = PmsId(pms) } 
 val noPmsId: pmsId
 
+//CF unclear what its purpose is besides pmsId
 type pmsData =
     | PMSUnset
     | RSAPMS of pk:RSAKey.pk * ProtocolVersion * encpms:bytes
@@ -80,6 +78,14 @@ type pmsData =
 			      gy:(;p)DHGroup.elt (* Server *)
 
 function val EncPMS: pmsData -> bytes 
+
+
+// Session information (public immutable data)
+
+type sessionID = b:bytes {Length(b) <= 32}
+// "An arbitrary byte sequence chosen by the server 
+// to identify an active or resumable session state."
+// We treat empty_bytes as the absence of identifier.
 
 // TODO this is out of sync with the paper, on client_auth.
 type SessionInfo = {
@@ -107,6 +113,30 @@ function val CSRands: SessionInfo -> csrands
 definition !si,csr. csr=CSRands(si) <=> B(csr)=B(si.init_crand) @| B(si.init_srand) 
 val csrands: si:SessionInfo -> csr:csrands {csr=CSRands(si)}
 
+function val PrfAlg: SessionInfo -> prfAlg
+function val SIaeAlg: SessionInfo -> aeAlg
+function val KdfAlg: SessionInfo -> kdfAlg
+
+definition !si. SIaeAlg(si) = CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version)
+definition !si.  KdfAlg(si) = (si.protocol_version,si.cipher_suite)
+definition !si.  PrfAlg(si) = (si.protocol_version,si.cipher_suite)
+
+val prfAlg: si:SessionInfo -> a:prfAlg {a=PrfAlg(si)}
+
+// master-secret index (derived from the sessionID) 
+
+// CF We cannot use just csr, because of MiTM forwarding honest nonces
+type msId =        // We record the parameters used to derive this MS: 
+  pms   : pmsId *     // the pms and its indexes  
+  csr   : csrands *   // the nonces  
+  creAlg: prfAlg      // the PMS-PRF algorithm
+   
+function val MsI: SessionInfo -> msId
+private definition !si. MsI(si) = (si.pmsId, CSRands(si), PrfAlg(si)) 
+val msi: si:SessionInfo -> i:msId { i = MsI(si) }
+
+
+// Epoch descriptors (public immutable data)
 
 private type preEpoch =
   | InitEpoch of writer:Role
@@ -136,9 +166,17 @@ private definition !b1,b2,si,pe. EpochCRand(SuccEpoch(b1,b2,si,pe)) = b1
 val isInitEpoch: e:epoch -> b:bool{(b = true /\ IsInitEpoch(e)) \/ (b = false /\ IsSuccEpoch(e))}
 val epochSI: e:succEpoch -> si:SessionInfo{si = EpochSI(e)}
 
+function val EpochWriter: epoch -> Role
+definition !r. EpochWriter(InitEpoch(r)) = r 
+definition !r. EpochWriter(InitEpoch(r)) = r 
+definition !r,cr,sr,si,pred. EpochWriter(SuccEpoch(cr,sr,si,pred)) = EpochWriter(pred)
+
 val epochSRand: e:succEpoch -> b:crand{B(b) = B(EpochSRand(e))}
 val epochCRand: e:succEpoch -> b:srand{B(b) = B(EpochCRand(e))}
 val epochCSRands: e:succEpoch -> b:csrands{B(b) = B(EpochCRand(e)) @| B(EpochSRand(e))}
+
+
+// Connection information (public immutable data)
 
 type ConnectionInfo =
 	{ role: Role;
@@ -153,6 +191,27 @@ val nextEpoch: e:epoch -> c:crand -> s:srand -> si:SessionInfo ->
 	e':succEpoch{Pred(e') = e /\ EpochSI(e') = si /\
 			     EpochCRand(e') = c /\ EpochSRand(e') = s}
 
+
+// the tight index we use as an abstract parameter for StatefulAEAD et al
+type id = { 
+  // indexes and algorithms of the session used in the key derivation
+  msId   : msId;   // the index of the master secret used for key derivation
+  kdfAlg : prfAlg; // the KDF algorithm used for key derivation
+  aeAlg  : aeAlg;  // the authenticated-encryption algorithms
+
+  // epoch-specific parameters
+  csrConn: csrands;// the client-server random of the connection
+  writer : Role    // the role of the writer 
+  }
+
+function val Id: succEpoch -> id
+definition !e. Id(e) = 
+  { msId    = MsI(EpochSI(e)); 
+    kdfAlg  = KdfAlg(EpochSI(e));
+	aeAlg   = SIaeAlg(EpochSI(e));
+	csrConn = CSRands(EpochSI(e));
+	writer  = EpochWriter(e);
+ }
 
 (* SPECIFYING THE STRENGTH OF CRYPTO ALGORITHMS (SECURITY ASSUMPTIONS) *) 
 

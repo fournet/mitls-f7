@@ -20,14 +20,21 @@ type crand = random
 type srand = random
 type csrands = bytes
 
-type pmsId = NoPmsId | SomePmsId of PMS.pms
+type pmsId = 
+  | NoPmsId 
+  | SomePmsId of PMS.pms
 let pmsId (pms:PMS.pms) = SomePmsId(pms)
 let noPmsId = NoPmsId
 
 type pmsData =
-    | PMSUnset
-    | RSAPMS of RSAKey.pk * ProtocolVersion * bytes
-    | DHPMS  of DHGroup.p * DHGroup.g * DHGroup.elt * DHGroup.elt
+  | PMSUnset
+  | RSAPMS of RSAKey.pk * ProtocolVersion * bytes
+  | DHPMS  of DHGroup.p * DHGroup.g * DHGroup.elt * DHGroup.elt
+
+type msId = 
+  pmsId * 
+  csrands *                                          
+  prfAlg  
 
 type SessionInfo = {
     init_crand: crand;
@@ -47,6 +54,22 @@ type SessionInfo = {
 
 let csrands sinfo = 
     sinfo.init_crand @| sinfo.init_srand
+
+let prfAlg (si:SessionInfo) = 
+  si.protocol_version, si.cipher_suite
+(* TODO
+  match si.protocol_version with
+  | SSL_3p0           -> PRF_SSL3_nested 
+  | TLS_1p0 | TLS_1p1 -> PRF_TLS_1p01
+  | TLS_1p2           -> PRF_TLS_1p2(prfMacAlg_of_ciphersuite si.cipher_suite) 
+*)
+
+let msi (si:SessionInfo) = 
+  let csr = csrands si
+  let pa = prfAlg si
+  (si.pmsId, csr, pa) 
+
+
 
 type preEpoch =
     | InitEpoch of Role
@@ -94,6 +117,17 @@ let initConnection role rand =
 
 let nextEpoch epoch crand srand si =
     SuccEpoch (crand, srand, si, epoch )
+
+// the tight index we use as an abstract parameter for StatefulAEAD et al
+type id = { 
+  msId   : msId;    
+  kdfAlg : prfAlg; 
+  aeAlg  : aeAlg   
+  csrConn: csrands; 
+  writer : Role  
+  }
+
+
 
 // Application configuration
 type helloReqPolicy =

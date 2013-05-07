@@ -30,43 +30,11 @@ open StatefulLHAE
 type repr = (;48)lbytes
 //#begin-abstraction
 
-(* TODO 
-We currently use a loose prfAlg. 
-we may migrate prfAlg to a tigher enumeration, as outlined below
-// We need descriptors for the algorithm keyed by PMS and MS (named "PRF" in TLS)
-// Given pv and cs, and except for SSL3, 
-// the same algorithm is used for extraction, key derivation, and verifyData
-// TODO migrate to TLSPRF? adapt the code there
-// TODO write 3x spec & function from pv,cs to prfAlg
-type prfAlg = // can't be folded back to the sums in TLSConstants; we need to use it in TLSPRF too. 
-  | PRF_TLS_1p2 of macAlg  // typically SHA256 but may depend on CS
-  | PRF_TLS_1p01           // MD5 xor SHA1
-  | PRF_SSL3_nested        // MD5(SHA1(...)) for extraction and keygen
-  | PRF_SSL3_concat        // MD5 @| SHA1    for VerifyData tags
-*)
-
-//CF relocate, e.g. to TLSInfo?
-function val PrfAlg: SessionInfo -> prfAlg
-definition !si,pv,cs. (pv,cs)=PrfAlg(si) <=> pv = si.protocol_version /\ cs=si.cipher_suite
-val prfAlg: si:SessionInfo -> pa:prfAlg {pa=PrfAlg(si)}
-
-
-// Precise index for master secrets is a function of session info (involving pmsdata decryption)
-// CF We cannot use just csr, because of MiTM forwarding honest nonces
-type msIndex =        // We record the parameters used to derive this MS: 
-  pms   : pmsId *     // the pms and its indexes  
-  csr   : csrands *   // the nonces  
-  creAlg: prfAlg      // the PMS-PRF algorithm
-   
-function val MsI: SessionInfo -> msIndex
-private definition !si. MsI(si) = (si.pmsId, CSRands(si), PrfAlg(si)) 
-val msi: si:SessionInfo -> i:msIndex { i = MsI(si) }
-
 // CF safety of the MS (not necessarily its usage). Not refined yet
 // MK rename to safeVD
-val safeMS_msIndex: msIndex -> bool
+val safeMS_msIndex: msId -> bool
 
-private type (;i:msIndex) ms = {bytes: repr}
+private type (;i:msId) ms = {bytes: repr}
 
 // This index additionally records the *local* session info.
 type (;si:SessionInfo) masterSecret = (;MsI(si)) ms
@@ -134,7 +102,7 @@ val ci_aeAlg: ConnectionInfo -> aeAlg
 // 
 // predicate val SafeKDF: csr -> bool
 // definition SafeKDF(csr) <=> ?pv,cs. KeyCommit(csr,pv,cs) /\ KeyGenClient(csr,pv,cs)  
-// MK the above is deprecated? SafeKDF should be defined on msIndex
+// MK the above is deprecated? SafeKDF should be defined on msId
 
 type event = Waste of ConnectionInfo // with a csr in the Wasted state
 private theorem !ci. Waste(ci) => ((not Auth(ci.id_in)) /\ (not Auth(ci.id_out))) 
@@ -144,7 +112,7 @@ type (;csr: csrands) state =
   | Committed of aeAlg
   // The server has committed to using at most this algorithmn with this csr.
   // --------> 
-  | Derived of aeAlg * msIndex * ci:ConnectionInfo * (;ci) derived
+  | Derived of aeAlg * msId * ci:ConnectionInfo * (;ci) derived
   // the client has ideally derived keys for both roles,
   // with the same algorithm, recording the keys for the server. 
   // --only-->
@@ -235,12 +203,12 @@ type tag = bytes
 // Abstract predicate authenticated by the Finished messages.
 // (privately defined in Handshake.fs7)
 //CF we used to index it by epoch, then by SessionInfo, now by MsI(si) 
-predicate VerifyData of msIndex * Role * text
+predicate VerifyData of msId * Role * text
 
 // role & text are jointly authenticated
-type entry = i:msIndex * r:Role * t:text {VerifyData(i,r,t)}
+type entry = i:msId * r:Role * t:text {VerifyData(i,r,t)}
 private val log: entry list ref
-private val mem: i:msIndex -> r:Role -> t:text -> entry list -> b:bool{ b=true => VerifyData(i,r,t) }
+private val mem: i:msId -> r:Role -> t:text -> entry list -> b:bool{ b=true => VerifyData(i,r,t) }
 //private val cons: si:SessionInfo -> tag -> r:Role -> t:text {VerifyData(si,r,t)} -> entry list -> entry list
 
 private val verifyData: si:SessionInfo -> (;si) masterSecret -> r:Role -> t:text -> tag 

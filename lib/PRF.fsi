@@ -4,17 +4,10 @@ open Bytes
 open TLSConstants
 open TLSInfo
 
-val prfAlg: SessionInfo -> prfAlg  
- 
-type msIndex =  
-  pmsId * 
-  csrands *                                          
-  prfAlg  
 
-val msi: SessionInfo -> msIndex
    
 #if ideal
-val safeMS_msIndex: msIndex -> bool  
+val safeMS_msIndex: msId -> bool  
 #endif
 
 type repr = bytes
