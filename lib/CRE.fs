@@ -29,12 +29,22 @@ open PMS
     we are however in the computational setting.   
  *)
 
+(*
 let extractMS sinfo pms pmsBytes : PRF.masterSecret =
     let pv = sinfo.protocol_version in
     let cs = sinfo.cipher_suite in
     let data = csrands sinfo in
     let res: PRF.repr = extract (pv,cs) pmsBytes data 48 in
     PRF.coerce sinfo pms res
+    *)
+
+let extractMS si pmsBytes : PRF.masterSecret =
+    let pv = si.protocol_version in
+    let cs = si.cipher_suite in
+    let data = csrands si in
+    let ca = creAlg si in
+    let res: PRF.repr = extract' ca pmsBytes data 48 in
+    PRF.coerce si res
 
 
 (*  Idealization strategy: to guarantee that in ideal world mastersecrets (ms) are completely random
@@ -86,12 +96,12 @@ let extractRSA si (cv:ProtocolVersion) pms: PRF.masterSecret =
         match rsaassoc pk cv pms csr pa !rsalog with 
         | Some(ms) -> ms
         | None -> 
-                let ms = PRF.sample si (RSAPMS(pk,cv,pms))
+                let ms = PRF.sample si 
                 rsalog := (pk,cv,pms,csr, pa, ms)::!rsalog;
                 ms
                  
     else
-        extractMS si (RSAPMS(pk, cv, pms)) (accessRSAPMS pk cv pms)
+        extractMS si  (accessRSAPMS pk cv pms)
     #else
     extractMS si (RSAPMS(pk, cv, pms)) (accessRSAPMS pk cv pms)
     #endif
@@ -172,6 +182,11 @@ let accessDHPMS (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) (p
   #endif
   | ConcreteDHPMS(b) -> b 
 
+let accessPMS (pms:PMS.pms) =
+  match pms with
+  | PMS.RSAPMS(pk,cv,rsapms) ->  accessRSAPMS pk cv rsapms
+  | PMS.DHPMS(p,g,gx,gy,dhpms) -> accessDHPMS p g gx gy dhpms
+
    
 let extractDHE (si:SessionInfo) (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) (pms:dhpms): PRF.masterSecret =  
     #if ideal
@@ -184,11 +199,46 @@ let extractDHE (si:SessionInfo) (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy
                 // let i = msi si (DHPMS(p,g,gx,gy,pms))
                 ms
         | None -> 
-                let ms = PRF.sample si (DHPMS(p,g,gx,gy,pms))
+                let ms = PRF.sample si 
                 dhlog := (p, g, gx, gy, pms, csr, pa, ms)::!dhlog;
                 ms
     else
-        extractMS si (DHPMS(p,g,gx,gy,pms)) (accessDHPMS p g gx gy pms)
+        extractMS si (accessDHPMS p g gx gy pms)
     #else
     extractMS si (DHPMS(p,g,gx,gy,pms)) (accessDHPMS p g gx gy pms)
+    #endif
+
+
+#if ideal
+type entry = pmsId * csrands * creAlg * PRF.ms
+let log = ref []
+
+let rec assoc (pi:pmsId) (csr:bytes) (ca:creAlg) (mss:entry list): PRF.ms option = 
+    match mss with 
+    | [] -> None 
+    | (pi', csr',ca', ms)::mss' when pi=pi' && csr=csr' && ca=ca' -> Some(ms) 
+    | _::mss' -> assoc pi csr ca mss'
+
+#endif
+
+let extract si pms: PRF.masterSecret = 
+    #if ideal
+    (* MK: the following should be made consistent with safeMS_SI
+    let i = PRF.msi si (RSAPMS(pk,cv,pms))
+    if PRF.safeMS_msIndex i then *)
+    if safeMS_SI si then
+        //We assoc on pk, cv, pms,  csrands, and prfAlg
+        let pmsId = si.pmsId
+        let csr = csrands si
+        let ca = creAlg si
+        match assoc pmsId csr ca !log with 
+        | Some(ms) -> ms
+        | None -> 
+                let ms = PRF.sample si
+                log := (pmsId,csr, ca, ms)::!log;
+                ms            
+    else
+        extractMS si (accessPMS pms)
+    #else
+    extractMS si (accessPMS pms)
     #endif

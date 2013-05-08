@@ -432,8 +432,12 @@ let contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV (css: cipherSuite list) =
     List.memr css (SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV))
 //KB #endif
 
-
+type creAlg =  
+  | CRE_TLS_1p2 of macAlg  // typically SHA256 but may depend on CS
+  | CRE_TLS_1p01           // MD5 xor SHA1
+  | CRE_SSL3_nested        // MD5(SHA1(...)) for extraction and keygen
 type prfAlg = ProtocolVersion * cipherSuite
+type kdfAlg = ProtocolVersion * cipherSuite
 
 let verifyDataLen_of_ciphersuite (cs:cipherSuite) =
     (* Only to be invoked with TLS 1.2 (hardcoded in previous versions *)
@@ -446,7 +450,7 @@ let prfMacAlg_of_ciphersuite (cs:cipherSuite) =
    // | CipherSuite ( ECDH*, MtE (_,SHA384)) -> SHA384
     | CipherSuite ( _ , CS_MtE ( _ , _ )) -> MA_HMAC(SHA256)
     | CipherSuite ( _ , CS_AEAD ( _ , hAlg ))   -> MA_HMAC(hAlg)
-    | OnlyMACCipherSuite (_, hAlg) -> MA_HMAC(SHA256)
+    | OnlyMACCipherSuite (_, hAlg) -> MA_HMAC(SHA256) //MK should this be MA_HMAC(hAlg)?
     | NullCipherSuite         -> unexpected "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite" 
     | SCSV (_)                -> unexpected "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite" 
 

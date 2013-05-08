@@ -57,12 +57,16 @@ let csrands sinfo =
 
 let prfAlg (si:SessionInfo) = 
   si.protocol_version, si.cipher_suite
-(* TODO
+
+let kdfAlg (si:SessionInfo) = 
+  si.protocol_version, si.cipher_suite
+
+let creAlg (si:SessionInfo) =
   match si.protocol_version with
-  | SSL_3p0           -> PRF_SSL3_nested 
-  | TLS_1p0 | TLS_1p1 -> PRF_TLS_1p01
-  | TLS_1p2           -> PRF_TLS_1p2(prfMacAlg_of_ciphersuite si.cipher_suite) 
-*)
+  | SSL_3p0           -> CRE_SSL3_nested 
+  | TLS_1p0 | TLS_1p1 -> CRE_TLS_1p01
+  | TLS_1p2           -> CRE_TLS_1p2(prfMacAlg_of_ciphersuite si.cipher_suite) 
+
 
 let msi (si:SessionInfo) = 
   let csr = csrands si

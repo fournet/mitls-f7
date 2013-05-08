@@ -7,7 +7,7 @@ open PMS
 open PRF
 
 // concrete PMS --> MS derivation.
-private val extractMS: si:SessionInfo {not SafeMS_SI(si)} -> pms -> p:bytes -> (;si) PRF.masterSecret
+private val extractMS: si:SessionInfo {not SafeMS_SI(si)} -> p:bytes -> (;si) PRF.masterSecret
 
 (** RSA ciphersuites **) 
 
@@ -46,6 +46,8 @@ val dhassoc: p:p -> g:(;p) g -> gx:(;p) elt -> gy:(;p) elt -> pms:(;p,g,gx,gy) d
 private val accessDHPMS: p:DHGroup.p -> g:(;p)DHGroup.g -> gx:(;p)DHGroup.elt -> gy:(;p)DHGroup.elt ->
     pms: (;p,g,gx,gy)dhpms -> bytes
 
+private val accessPMS: pms -> bytes
+
 val extractDHE:
     si:SessionInfo ->
     p:DHGroup.p -> g:(;p)DHGroup.g -> gx:(;p)DHGroup.elt -> gy:(;p)DHGroup.elt ->
@@ -54,5 +56,15 @@ val extractDHE:
 	->
     (;si) PRF.masterSecret
 
+type entry = pi:pmsId * csr:csrands * ca:creAlg * ms:(;(pi,csr,ca)) ms
+private val log: entry list ref 
 
+val assoc: pi:pmsId -> csr:csrands -> ca:creAlg -> 
+             (pi':pmsId * csr':csrands * ca':creAlg * (;(pi',csr',ca')) PRF.ms) list -> 
+             (;(pi,csr,ca)) PRF.ms option
+
+val extract:
+    si:SessionInfo ->
+    pms: pms { si.pmsId = PmsId(pms) /\ (si.pmsId,csrands(si), creAlg(si))=MsI(si) } ->
+    (;si) PRF.masterSecret
 	 

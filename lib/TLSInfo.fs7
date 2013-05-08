@@ -114,14 +114,21 @@ definition !si,csr. csr=CSRands(si) <=> B(csr)=B(si.init_crand) @| B(si.init_sra
 val csrands: si:SessionInfo -> csr:csrands {csr=CSRands(si)}
 
 function val PrfAlg: SessionInfo -> prfAlg
+function val CreAlg: SessionInfo -> creAlg
 function val SIaeAlg: SessionInfo -> aeAlg
 function val KdfAlg: SessionInfo -> kdfAlg
 
 definition !si. SIaeAlg(si) = CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version)
 definition !si.  KdfAlg(si) = (si.protocol_version,si.cipher_suite)
+definition !si,ca.  ca=CreAlg(si) <=>	(si.protocol_version = SSL_3p0 /\ ca = CRE_SSL3_nested ) \/
+										(si.protocol_version = TLS_1p0 /\ ca = CRE_TLS_1p01    ) \/
+										(si.protocol_version = TLS_1p1 /\ ca = CRE_TLS_1p01    ) \/
+										(si.protocol_version = TLS_1p2 /\ ca = CRE_TLS_1p2( CiphersuitePrfMacAlg(si.cipher_suite) ) ) 
 definition !si.  PrfAlg(si) = (si.protocol_version,si.cipher_suite)
 
 val prfAlg: si:SessionInfo -> a:prfAlg {a=PrfAlg(si)}
+val creAlg: si:SessionInfo -> a:creAlg {a=CreAlg(si)}
+val kdfAlg: si:SessionInfo -> a:kdfAlg {a=KdfAlg(si)}
 
 // master-secret index (derived from the sessionID) 
 

@@ -52,6 +52,7 @@ type SessionInfo = {
 
 val csrands: SessionInfo -> bytes
 val prfAlg: SessionInfo -> prfAlg  
+val creAlg: SessionInfo -> creAlg  
 val msi: SessionInfo -> msId
 
 type preEpoch

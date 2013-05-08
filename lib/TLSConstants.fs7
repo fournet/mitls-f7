@@ -276,8 +276,7 @@ val isDHECipherSuite: cipherSuite -> bool
 val isRSACipherSuite: cipherSuite -> bool
 val contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV: cipherSuites -> bool
 
-type prfAlg = ProtocolVersion * cipherSuite // TODO write supporting specs and functions
-type kdfAlg = ProtocolVersion * cipherSuite // TODO write supporting specs and functions
+
 
 (* TODO 
 We currently use a loose prfAlg. 
@@ -296,8 +295,25 @@ type prfAlg = // can't be folded back to the sums in TLSConstants; we need to us
 
 
 val verifyDataLen_of_ciphersuite: cipherSuite -> nat
+
+function val CiphersuitePrfMacAlg: cipherSuite -> macAlg
+private definition 
+	(!a,b,c. CiphersuitePrfMacAlg( CipherSuite ( a , CS_MtE ( b , c )) )            = MA_HMAC(SHA256) ) /\
+    (!a,b, hAlg.   CiphersuitePrfMacAlg( CipherSuite ( a , CS_AEAD ( b , hAlg )) )  = MA_HMAC(hAlg)   ) /\
+    (!a, hAlg.     CiphersuitePrfMacAlg( OnlyMACCipherSuite (a, hAlg) )             = MA_HMAC(SHA256) ) 
+// MK  (              CiphersuitePrfMacAlg(NullCipherSuite)							= what to do with these missing cases?                           
+// MK  (!a,           CiphersuitePrfMacAlg(SCSV(a))              
+
+
 val prfMacAlg_of_ciphersuite: cipherSuite  -> macAlg
 val verifyDataHashAlg_of_ciphersuite: cs:cipherSuite -> hashAlg
+
+type creAlg =  
+  | CRE_TLS_1p2 of macAlg  // typically SHA256 but may depend on CS
+  | CRE_TLS_1p01           // MD5 xor SHA1
+  | CRE_SSL3_nested        // MD5(SHA1(...)) for extraction and keygen
+type prfAlg = ProtocolVersion * cipherSuite // TODO write supporting specs and functions
+type kdfAlg = ProtocolVersion * cipherSuite // TODO write supporting specs and functions
 
 function val TLSMACAlg: hashAlg   * ProtocolVersion -> macAlg
 function val TLSENCAlg: cipherAlg * ProtocolVersion -> encAlg

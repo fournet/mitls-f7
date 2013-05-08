@@ -100,6 +100,10 @@ val isDHECipherSuite: cipherSuite -> bool
 val isRSACipherSuite: cipherSuite -> bool
 val contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV: cipherSuites -> bool
 
+type creAlg =  
+  | CRE_TLS_1p2 of macAlg  // typically SHA256 but may depend on CS
+  | CRE_TLS_1p01           // MD5 xor SHA1
+  | CRE_SSL3_nested        // MD5(SHA1(...)) for extraction and keygen
 type prfAlg = ProtocolVersion * cipherSuite
 
 val verifyDataLen_of_ciphersuite: cipherSuite -> nat
