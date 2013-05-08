@@ -22,16 +22,10 @@ type repr = bytes
 type ms = { bytes: repr }
 type masterSecret = ms
 
-// used for calling concrete TLSPRF
-let private leak (si:SessionInfo) (ms:masterSecret) = 
-  ms.bytes
-
-let coerce (si:SessionInfo) (pms:PMS.pms) b = {bytes = b}
+let coerce (si:SessionInfo) b = {bytes = b}
 
 #if ideal
-let sample (si:SessionInfo) (pms:PMS.pms) = 
-  let i = msi si
-  {bytes = Nonce.random 48}
+let sample (si:SessionInfo)  = {bytes = Nonce.random 48}
 #endif
 
 
@@ -57,7 +51,7 @@ let real_keyGen ci (ms:masterSecret) =
     let crand = epochCRand ci.id_in in
     let data = srand @| crand in
     let len = getKeyExtensionLength pv cs in
-    let b = TLSPRF.kdf (pv,cs) (leak si ms) data len in
+    let b = TLSPRF.kdf (pv,cs) ms.bytes data len in
     let authEnc = aeAlg cs pv in
     match authEnc with
     | MACOnly macAlg ->
@@ -217,7 +211,7 @@ let rec mem (i:msId) (r:Role) (t:text) (es:entry list) =
 #endif
 
 let private verifyData si ms role data = 
-  TLSPRF.verifyData (prfAlg si) (leak si ms) role data
+  TLSPRF.verifyData (prfAlg si) ms.bytes role data
 
 let makeVerifyData si (ms:masterSecret) role data =
   let tag = verifyData si ms role data in
@@ -243,7 +237,7 @@ let checkVerifyData si ms role data tag =
 (** ad hoc SSL3-only **)
 
 let ssl_certificate_verify (si:SessionInfo) ms (algs:sigAlg) log =
-  let s = leak si ms
+  let s = ms.bytes
   match algs with
   | SA_RSA -> TLSPRF.ssl_verifyCertificate MD5 s log @| TLSPRF.ssl_verifyCertificate SHA s log 
   | SA_DSA -> TLSPRF.ssl_verifyCertificate SHA s log 

@@ -11,6 +11,7 @@ module PRF
 // CF - a lossless "reverse inlining" of StAE.GEN (at consistent CSRs)
 // CF - a reduction from PRF to INT-CMA, with a loss due to tag collisions only. 
 // CF We may consider splitting this file accordingly. 
+// CF but note that we still need an assumption covering all usages of MS.
  
 open Bytes
 open TLSConstants
@@ -37,6 +38,7 @@ val safeMS_msIndex: msId -> bool
 private type (;i:msId) ms = {bytes: repr}
 
 // This index additionally records the *local* session info.
+// CF consider using ms everywhere instead of masterSecret.
 type (;si:SessionInfo) masterSecret = (;MsI(si)) ms
 
 //#end-abstraction
@@ -50,13 +52,12 @@ type (;si:SessionInfo) masterSecret = (;MsI(si)) ms
 // - all safe connection keys generated so far, to share them with the second, matching ideal key derivation.
 
 
-(** Master secrets are either ideally sampled or concretely derived & coerced *) 
+(** Master secrets are either ideally sampled or concretely derived & coerced **) 
 
-private val leak: si:SessionInfo -> (;si) masterSecret -> repr
-val sample: si:SessionInfo -> pms:PMS.pms -> (;si)masterSecret
+val sample: si:SessionInfo -> (;si)masterSecret
 //#begin-coerce
 //the precondition of coerce excludes both idealizations.
-val coerce: si:SessionInfo {not SafeMS_SI(si)} -> PMS.pms -> repr -> (;si)masterSecret 
+val coerce: si:SessionInfo {not SafeMS_SI(si)} -> repr -> (;si)masterSecret 
 //#end-coerce
 
 
@@ -119,7 +120,7 @@ type (;csr: csrands) state =
   | Done 
   // the server has also derived keys (retrieving those recorded, or generating others).
   // or he may have failed because of an aeAlg mismatch.
-  // MK what do you mean with "failed because of aeAlg mismatch?"
+  // MK what do you mean with "failed because of aeAlg msmatch?"
   // No action allowed from this point. 
 
   // In all other cases, we reach a stable state such that we never idealize. 
