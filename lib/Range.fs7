@@ -71,6 +71,7 @@ val minMaxPad: si:SessionInfo -> l:nat * h:nat{
 
 // Padding computations
 
+private function val Modulus: int * int -> int //MK to be defined
 function val BlockAlignedPadding: epoch * nat -> nat
 definition !e,mac,alg,l.
 	(CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MACOnly(mac)  => BlockAlignedPadding(e,l) = 0 ) /\
