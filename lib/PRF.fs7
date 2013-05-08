@@ -44,7 +44,7 @@ type (;si:SessionInfo) masterSecret = (;MsI(si)) ms
 //#end-abstraction
 
 // We have two notions of conditional safety (logically defined in TLSInfo.fs7)
-// SafeMS_SI for Finished messages, when the pms is ideal and hashAlg is strong
+// SafeVerifyData for Finished messages, when the pms is ideal and hashAlg is strong
 // SafeHS_SI for Key derivation,    additionally requiring agreement on committed parameters.
 
 // Ideally, we maintain two logs
@@ -57,14 +57,11 @@ type (;si:SessionInfo) masterSecret = (;MsI(si)) ms
 val sample: si:SessionInfo -> (;si)masterSecret
 //#begin-coerce
 //the precondition of coerce excludes both idealizations.
-val coerce: si:SessionInfo {not SafeMS_SI(si)} -> repr -> (;si)masterSecret 
+val coerce: si:SessionInfo {not SafeVerifyData(si)} -> repr -> (;si)masterSecret 
 //#end-coerce
 
 
 (** Key derivation **) 
-
-//private val clientWriter: r:Role -> rw:rw {(r = Client /\ rw = Writer) \/ (r = Server /\ rw = Reader)}  
-//private val clientReader: r:Role -> rw:rw {(r = Client /\ rw = Reader) \/ (r = Server /\ rw = Writer)}  
 
 //CF not sure the refinement is right, and why it was not on real_keyGen. Commenting out for now
 //MK It's probably right. I removed it from real_keyGen to get more meaningful typechecking errors during de bugging.
@@ -73,6 +70,15 @@ type (;ci:ConnectionInfo) derived =
   ( r:(;ci.id_in) StatefulLHAE.reader * w:(;ci.id_out)StatefulLHAE.writer ) 
 //  { StatefulLHAE.History(ci.id_out,Reader,r) = StatefulPlain.EmptyHistory(ci.id_in) /\
 //	StatefulLHAE.History(ci.id_out,Writer,w) = StatefulPlain.EmptyHistory(ci.id_out) }
+
+private val deriveRawKeys: 
+  ci:ConnectionInfo{
+      EpochSI(ci.id_in)=EpochSI(ci.id_out) (* needed as we compute on id_in only *) /\ 
+      IsSuccEpoch(ci.id_in) /\ IsSuccEpoch(ci.id_out) /\ 
+	  not Auth(ci.id_in) /\ not Auth(ci.id_out) (* needed to coerce to StatefulLHAE *)
+	  } ->  
+  (;EpochSI(ci.id_in))masterSecret -> 
+  (;KeySize(ci.id_in)) lbytes * (;KeySize(ci.id_out)) lbytes 
 
 private val real_keyGen: 
   ci:ConnectionInfo{
@@ -147,12 +153,12 @@ val keyGenClient:
       EpochSI(ci.id_in)=EpochSI(ci.id_out) /\ 
       IsSuccEpoch(ci.id_in) /\ IsSuccEpoch(ci.id_out)} -> 
   (;EpochSI(ci.id_out))masterSecret -> (;ci) derived   
+
 val keyGenServer: 
   ci:ConnectionInfo{
       EpochSI(ci.id_in)=EpochSI(ci.id_out) /\ 
       IsSuccEpoch(ci.id_in) /\ IsSuccEpoch(ci.id_out)} -> 
   (;EpochSI(ci.id_out))masterSecret -> (;ci) derived
-
 
 
 (* CF
@@ -224,7 +230,7 @@ val makeVerifyData:
 val checkVerifyData: 
   si:SessionInfo -> (;si) masterSecret ->
   r:Role -> t:text -> tag:tag (* the expected value *) ->
-  b:bool{(b = true /\ SafeMS_SI(si)) => VerifyData(MsI(si),r,t)} 
+  b:bool{(b = true /\ SafeVerifyData(si)) => VerifyData(MsI(si),r,t)} 
   
 
 (** ad hoc SSL3-only function; untrusted. **) 
@@ -236,6 +242,10 @@ val ssl_certificate_verify:
 
 
 //CF =============================== only comments below
+
+//private val clientWriter: r:Role -> rw:rw {(r = Client /\ rw = Writer) \/ (r = Server /\ rw = Reader)}  
+//private val clientReader: r:Role -> rw:rw {(r = Client /\ rw = Reader) \/ (r = Server /\ rw = Writer)}  
+
 
 //private val epochs:ConnectionInfo -> epoch * epoch
 

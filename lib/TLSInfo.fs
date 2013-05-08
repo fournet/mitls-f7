@@ -65,7 +65,8 @@ let creAlg (si:SessionInfo) =
   match si.protocol_version with
   | SSL_3p0           -> CRE_SSL3_nested 
   | TLS_1p0 | TLS_1p1 -> CRE_TLS_1p01
-  | TLS_1p2           -> CRE_TLS_1p2(prfMacAlg_of_ciphersuite si.cipher_suite) 
+  | TLS_1p2           -> let ma = prfMacAlg_of_ciphersuite si.cipher_suite
+                         CRE_TLS_1p2(ma) 
 
 
 let msi (si:SessionInfo) = 

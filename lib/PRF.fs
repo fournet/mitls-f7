@@ -42,6 +42,46 @@ let clientReader = function
 *)
 
 // This code is complex because we need to reshuffle the raw key materials  
+let deriveRawKeys ci (ms:masterSecret) =
+    let si = epochSI(ci.id_in) in
+    let pv = si.protocol_version in
+    let cs = si.cipher_suite in
+    let srand = epochSRand ci.id_in in
+    let crand = epochCRand ci.id_in in
+    let data = srand @| crand in
+    let len = getKeyExtensionLength pv cs in
+    let b = TLSPRF.kdf (pv,cs) ms.bytes data len in
+    let authEnc = aeAlg cs pv in
+    match authEnc with
+    | MACOnly macAlg ->
+        let macKeySize = macKeySize macAlg in
+        let ck,sk = split b macKeySize 
+        (ck,sk) 
+    | MtE(encAlg,macAlg) ->
+        let macKeySize = macKeySize macAlg in
+        let encKeySize = encKeySize encAlg in
+        match encAlg with
+        | Stream_RC4_128 | CBC_Fresh(_) ->
+            let cmkb, b = split b macKeySize in
+            let smkb, b = split b macKeySize in
+            let cekb, b = split b encKeySize in
+            let sekb, b = split b encKeySize in 
+            let ck = (cmkb @| cekb) in
+            let sk = (smkb @| sekb) in
+            (ck,sk)
+        | CBC_Stale(alg) ->
+            let cmkb, b = split b macKeySize in
+            let smkb, b = split b macKeySize in
+            let cekb, b = split b encKeySize in
+            let sekb, b = split b encKeySize in 
+            let ivsize = blockSize alg
+            let civb, sivb = split b ivsize in
+            let ck = (cmkb @| cekb @| civb) in
+            let sk = (smkb @| sekb @| sivb) in
+            (ck,sk)
+    | _ -> Error.unexpected "[keyGen] invoked on unsupported ciphersuite"
+
+
 
 let real_keyGen ci (ms:masterSecret) =
     let si = epochSI(ci.id_in) in

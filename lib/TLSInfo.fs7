@@ -120,12 +120,10 @@ function val KdfAlg: SessionInfo -> kdfAlg
 
 definition !si. SIaeAlg(si) = CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version)
 definition !si.  KdfAlg(si) = (si.protocol_version,si.cipher_suite)
-definition !si,ca.  ca=CreAlg(si) <=>	(si.protocol_version = SSL_3p0 /\ ca = CRE_SSL3_nested ) \/
-										(si.protocol_version = TLS_1p0 /\ ca = CRE_TLS_1p01    ) \/
-										(si.protocol_version = TLS_1p1 /\ ca = CRE_TLS_1p01    ) \/
-										(si.protocol_version = TLS_1p2 /\ ca = CRE_TLS_1p2( CiphersuitePrfMacAlg(si.cipher_suite) ) ) 
-
-ask !si,ma. CreAlg(si)=CRE_TLS_1p2(ma) => CiphersuitePrfMacAlg(si.cipher_suite)=ma
+definition !si. (si.protocol_version = SSL_3p0 => CreAlg(si) = CRE_SSL3_nested ) /\
+				(si.protocol_version = TLS_1p0 => CreAlg(si) = CRE_TLS_1p01    ) /\
+				(si.protocol_version = TLS_1p1 => CreAlg(si) = CRE_TLS_1p01    ) /\
+				(si.protocol_version = TLS_1p2 => CreAlg(si) = CRE_TLS_1p2( CiphersuitePrfMacAlg(si.cipher_suite) ) )
 
 definition !si.  PrfAlg(si) = (si.protocol_version,si.cipher_suite)
 
@@ -295,7 +293,7 @@ predicate SafeMS_SI of SessionInfo // Good enough handshake for finished macking
 predicate SafeHS_SI of SessionInfo // Good handshake for this sessioninfo
 predicate SafeHS of epoch          // Good handshake for this epoch
 predicate SafeCRE of SessionInfo
-predicate SafeKEX of PMS.pms
+predicate SafeKEX of pmsId
 
 // MK This definition is too strong. 
 // MK StrongHS(si) /\ HonestPMSData(si.pmsData) => SafeHS_SI(si) but not the other way around.
