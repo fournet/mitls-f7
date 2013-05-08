@@ -62,23 +62,42 @@ type (;a:alg) sigv = bytes
 // TODO: how does the server control the choice of algorithms? For now hardcoded.
 
 //********************** Ideal Functionality for Signing *********************** 
-
+private type (;a:alg) pkey = {pkey : CoreSig.sigpkey * hashAlg }
 //#begin-abstraction
-type (;a:alg) skey
+private type (;a:alg) skey = {skey: CoreSig.sigskey * hashAlg; pub: (;a) pkey}
 //#end-abstraction
-type (;a:alg) pkey
 
 function val PK: 'a -> 'b // a:alg * (;a)skey -> vkey
+private definition !sk. PK(sk) = sk.pub
+
 predicate Msg of a:alg * (;a)pkey * text 
-predicate Honest of a:alg * (;a) pkey
+predicate type pred = Honest of a:alg * (;a) pkey
 predicate Strong of alg
+private definition !a. Strong(a) <=> (a = (SA_DSA,SHA384))
 
 val gen:     a:alg -> pk:(;a) pkey * sk:(;a) skey { pk = PK(sk) }
 val sign:    a:alg -> sk:(;a) skey -> t:text{Msg(a,PK(sk),t)} -> (;a) sigv
 val verify:  a:alg -> pk:(;a) pkey -> t:text -> m:(;a) sigv -> 
   b:bool {(b=true /\ Strong(a) /\ Honest(a,pk)) => Msg(a,pk,t)}
 
-// MK bot used: val pkey:    a:alg -> CoreSig.sigpkey -> p:(;a) pkey
+type honest_entry = (a:alg * sk:(;a)skey * pk:(;a)pkey{Honest(a,pk) /\ pk = PK(sk)})
+private val honest_log: (honest_entry list) ref
+private val has_pk: a:alg -> pk:(;a)pkey -> 
+          (honest_entry list) -> b:bool{(b = true => Honest(a,pk))}
+(*
+private val find_pk: a:alg -> sk:(;a)skey -> (pk:(;a)pkey{pk = PK(sk) /\ Honest(a,pk)}) option
+*)
+val pk_of: a:alg -> sk:(;a) skey -> pk:(;a) pkey{pk = PK(sk)}
+val honest: a:alg -> pk: (;a) pkey -> b:bool{(b = true /\ Honest(a,pk)) \/ (b=false /\ not Honest(a,pk))}
+val strong: a:alg -> b:bool{(b = true /\ Strong(a)) \/ (b = false /\ not Strong(a))}
+
+private val consHonestLog: a:alg -> sk:(;a)skey -> pk:(;a) pkey{Honest(a,pk) /\ pk = PK(sk)} -> (honest_entry list) -> honest_entry list
+
+type entry = (a:alg * pk:(;a) pkey * t:text){ Msg(a,pk,t) }
+private val log: entry list ref
+private val consLog: a:alg -> pk:(;a) pkey -> t:text {Msg(a,pk,t)} -> entry list -> entry list
+private val has_mac: a:alg -> pk:(;a) pkey -> t:text -> entry list -> b:bool{b = true => Msg(a,pk,t)}
+// MK not used: val pkey:    a:alg -> CoreSig.sigpkey -> p:(;a) pkey
 // MK not used: val pkey_repr:  a:alg -> p:(;a) pkey -> CoreSig.sigpkey 
 
 val coerce:  a:alg -> p:(;a) pkey{not Honest(a,p)} -> CoreSig.sigskey -> s:(;a)skey{p = PK(s)}

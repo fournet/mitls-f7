@@ -70,8 +70,9 @@ val minMaxPad: si:SessionInfo -> l:nat * h:nat{
 //AP type (;si:SessionInfo) rangeF = r:range{RangeFragment(si,r)}
 
 // Padding computations
-
-private function val Modulus: int * int -> int //MK to be defined
+function val Modulus: int * int -> int
+//private definition !x,y. Modulus(x,y) = bop_Modulus(x,y)
+ 
 function val BlockAlignedPadding: epoch * nat -> nat
 definition !e,mac,alg,l.
 	(CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MACOnly(mac)  => BlockAlignedPadding(e,l) = 0 ) /\
