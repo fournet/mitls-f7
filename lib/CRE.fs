@@ -6,6 +6,8 @@ open TLSInfo
 open TLSPRF
 open Error
 open TLSError
+// The trusted setup for Diffie-Hellman computations
+open DHGroup
 open PMS
 
 (*  extractMS is internal and extracts entropy from both rsapms and dhpms bytes 
@@ -58,8 +60,6 @@ let accessRSAPMS (pk:RSAKey.pk) (cv:ProtocolVersion) pms =
   #endif
   | ConcreteRSAPMS(b) -> b 
 
-// The trusted setup for Diffie-Hellman computations
-open DHGroup
 
 (*private*) 
 let accessDHPMS (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) (pms:dhpms) = 
