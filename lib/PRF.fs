@@ -22,12 +22,11 @@ type repr = bytes
 type ms = { bytes: repr }
 type masterSecret = ms
 
-let coerce (si:SessionInfo) b = {bytes = b}
-
 #if ideal
-let sample (si:SessionInfo)  = {bytes = Nonce.random 48}
+let sample (i:msId) = {bytes = Nonce.random 48}
 #endif
 
+let coerce (i:msId) b = {bytes = b}
 
 (** Key Derivation **) 
 
@@ -81,65 +80,16 @@ let deriveRawKeys ci (ms:masterSecret) =
             (ck,sk)
     | _ -> Error.unexpected "[keyGen] invoked on unsupported ciphersuite"
 
-
-
-let real_keyGen ci (ms:masterSecret) =
-    let si = epochSI(ci.id_in) in
-    let pv = si.protocol_version in
-    let cs = si.cipher_suite in
-    let srand = epochSRand ci.id_in in
-    let crand = epochCRand ci.id_in in
-    let data = srand @| crand in
-    let len = getKeyExtensionLength pv cs in
-    let b = TLSPRF.kdf (pv,cs) ms.bytes data len in
-    let authEnc = aeAlg cs pv in
-    match authEnc with
-    | MACOnly macAlg ->
-        let macKeySize = macKeySize macAlg in
-        let ck,sk = split b macKeySize 
-        match ci.role with 
-        | Client -> 
-            (StatefulLHAE.COERCE ci.id_in  Reader sk,
-             StatefulLHAE.COERCE ci.id_out Writer ck)
-        | Server -> 
-            (StatefulLHAE.COERCE ci.id_in  Reader ck,
-             StatefulLHAE.COERCE ci.id_out Writer sk)
-    | MtE(encAlg,macAlg) ->
-        let macKeySize = macKeySize macAlg in
-        let encKeySize = encKeySize encAlg in
-        match encAlg with
-        | Stream_RC4_128 | CBC_Fresh(_) ->
-            let cmkb, b = split b macKeySize in
-            let smkb, b = split b macKeySize in
-            let cekb, b = split b encKeySize in
-            let sekb, b = split b encKeySize in 
-            let ck = (cmkb @| cekb) in
-            let sk = (smkb @| sekb) in
-            match ci.role with 
-            | Client -> 
-                (StatefulLHAE.COERCE ci.id_in  Reader sk,
-                 StatefulLHAE.COERCE ci.id_out Writer ck)
-            | Server -> 
-                (StatefulLHAE.COERCE ci.id_in  Reader ck,
-                 StatefulLHAE.COERCE ci.id_out Writer sk)
-        | CBC_Stale(alg) ->
-            let cmkb, b = split b macKeySize in
-            let smkb, b = split b macKeySize in
-            let cekb, b = split b encKeySize in
-            let sekb, b = split b encKeySize in 
-            let ivsize = blockSize alg
-            let civb, sivb = split b ivsize in
-            let ck = (cmkb @| cekb @| civb) in
-            let sk = (smkb @| sekb @| sivb) in
-            match ci.role with 
-            | Client -> 
-                (StatefulLHAE.COERCE ci.id_in  Reader sk,
-                 StatefulLHAE.COERCE ci.id_out Writer ck)
-            | Server -> 
-                (StatefulLHAE.COERCE ci.id_in  Reader ck,
-                 StatefulLHAE.COERCE ci.id_out Writer sk)
-    | _ -> Error.unexpected "[keyGen] invoked on unsupported ciphersuite"
-
+let deriveKeys ci (ms:masterSecret) =
+    // at this step, we should idealize if SafeMS 
+    let (ck,sk) = deriveRawKeys ci ms
+    match ci.role with 
+    | Client -> 
+         StatefulLHAE.COERCE ci.id_in  Reader sk,
+         StatefulLHAE.COERCE ci.id_out Writer ck
+    | Server -> 
+         StatefulLHAE.COERCE ci.id_in  Reader ck,
+         StatefulLHAE.COERCE ci.id_out Writer sk
 
 type derived = StatefulLHAE.reader * StatefulLHAE.writer 
 
@@ -206,7 +156,7 @@ let keyGenClient ci ms =
         Pi.assume(Waste(ci));
         kdlog := update csr Wasted !kdlog;
     #endif
-        real_keyGen ci ms 
+        deriveKeys ci ms 
 
 //MK still needs work
 let keyGenServer ci ms =
@@ -231,7 +181,7 @@ let keyGenServer ci ms =
         Pi.assume(Waste(ci));
         kdlog := update csr Wasted !kdlog; 
     #endif
-        real_keyGen ci ms
+        deriveKeys ci ms
 
 
 (** VerifyData **) 
@@ -256,7 +206,7 @@ let private verifyData si ms role data =
 let makeVerifyData si (ms:masterSecret) role data =
   let tag = verifyData si ms role data in
   #if ideal
-  if safeMS_SI si then  //MK rename predicate and function
+  if safePRF si then  //MK rename predicate and function
     let i = msi si
     log := (i,role,data)::!log ;
   #endif
@@ -269,7 +219,7 @@ let checkVerifyData si ms role data tag =
   #if ideal
   // we return "false" when concrete verification
   // succeeds but shouldn't according to the log 
-  && ( safeMS_SI si = false || mem (msi si) role data !log ) //MK: rename predicate and function
+  && ( safePRF si = false || mem (msi si) role data !log ) //MK: rename predicate and function
   //#end-ideal2
   #endif
 

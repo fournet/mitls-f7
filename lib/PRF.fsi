@@ -15,11 +15,11 @@ type ms
 type masterSecret = ms
 
 #if ideal
-val sample: SessionInfo -> masterSecret
+val sample: msId -> ms
 #endif
 
 //#begin-coerce
-val coerce: SessionInfo -> repr -> masterSecret
+val coerce: msId -> repr -> masterSecret
 //#end-coerce
 
 val keyCommit: csrands -> aeAlg -> unit

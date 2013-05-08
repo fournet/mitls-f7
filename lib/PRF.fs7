@@ -43,9 +43,9 @@ type (;si:SessionInfo) masterSecret = (;MsI(si)) ms
 
 //#end-abstraction
 
-// We have two notions of conditional safety (logically defined in TLSInfo.fs7)
-// SafeVerifyData for Finished messages, when the pms is ideal and hashAlg is strong
-// SafeHS_SI for Key derivation,    additionally requiring agreement on committed parameters.
+// We have a double notion of conditional safety (logically defined in TLSInfo.fs7)
+// SafePRF, both for Finished messages, when the pms is ideal and hashAlg is strong
+// and for Key derivation, additionally requiring agreement on committed parameters.
 
 // Ideally, we maintain two logs
 // - all authentic Finished messages so far, to filter out forgeries in their "MAC verify". 
@@ -54,17 +54,17 @@ type (;si:SessionInfo) masterSecret = (;MsI(si)) ms
 
 (** Master secrets are either ideally sampled or concretely derived & coerced **) 
 
-val sample: si:SessionInfo -> (;si)masterSecret
+val sample: i:msId -> (;i)ms
 //#begin-coerce
 //the precondition of coerce excludes both idealizations.
-val coerce: si:SessionInfo {not SafeVerifyData(si)} -> repr -> (;si)masterSecret 
+val coerce: i:msId {not HonestMS(i)} -> repr -> (;i)ms 
 //#end-coerce
 
 
 (** Key derivation **) 
 
-//CF not sure the refinement is right, and why it was not on real_keyGen. Commenting out for now
-//MK It's probably right. I removed it from real_keyGen to get more meaningful typechecking errors during de bugging.
+//CF not sure the refinement is right, and why it was not on deriveKeys. Commenting out for now
+//MK It's probably right. I removed it from deriveKeys to get more meaningful typechecking errors during de bugging.
 //MK Was just copied over from keyGen. Should add it back.
 type (;ci:ConnectionInfo) derived =  
   ( r:(;ci.id_in) StatefulLHAE.reader * w:(;ci.id_out)StatefulLHAE.writer ) 
@@ -78,9 +78,9 @@ private val deriveRawKeys:
 	  not Auth(ci.id_in) /\ not Auth(ci.id_out) (* needed to coerce to StatefulLHAE *)
 	  } ->  
   (;EpochSI(ci.id_in))masterSecret -> 
-  (;KeySize(ci.id_in)) lbytes * (;KeySize(ci.id_out)) lbytes 
+  (;LHAE.KeySize(ci.id_in)) lbytes * (;LHAE.KeySize(ci.id_out)) lbytes 
 
-private val real_keyGen: 
+private val deriveKeys: 
   ci:ConnectionInfo{
       EpochSI(ci.id_in)=EpochSI(ci.id_out) (* needed as we compute on id_in only *) /\ 
       IsSuccEpoch(ci.id_in) /\ IsSuccEpoch(ci.id_out) /\ 
@@ -164,7 +164,7 @@ val keyGenServer:
 (* CF
 // --- summary of our discussion on Apr 29, towards typechecking the HS.
 
-// re: session
+// re: session [migrated to TLSInfo]
 definition HonestMS( (pms, csr, creAlg) as msi ) <=>
   HonestPMS(pms) /\ StrongCRE(creAlg) // joint assumption  
 
@@ -230,7 +230,7 @@ val makeVerifyData:
 val checkVerifyData: 
   si:SessionInfo -> (;si) masterSecret ->
   r:Role -> t:text -> tag:tag (* the expected value *) ->
-  b:bool{(b = true /\ SafeVerifyData(si)) => VerifyData(MsI(si),r,t)} 
+  b:bool{(b = true /\ SafePRF(si)) => VerifyData(MsI(si),r,t)} 
   
 
 (** ad hoc SSL3-only function; untrusted. **) 

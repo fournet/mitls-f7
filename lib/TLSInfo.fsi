@@ -120,7 +120,7 @@ val safe: epoch -> bool
 val safeHS: epoch -> bool
 val safeCRE: SessionInfo -> bool 
 val safeHS_SI: SessionInfo -> bool
-val safeMS_SI: SessionInfo -> bool
+val safePRF: SessionInfo -> bool
 val auth: epoch -> bool
 val safeMAC: epoch -> bool
 val safeENC: epoch -> bool

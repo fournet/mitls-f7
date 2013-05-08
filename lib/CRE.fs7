@@ -7,30 +7,62 @@ open PMS
 open PRF
 
 // concrete PMS --> MS derivation.
-private val extractMS: si:SessionInfo {not SafeMS_SI(si)} -> p:bytes -> (;si) PRF.masterSecret
+private val extractMS: si:SessionInfo {not HonestMS(MsI(si))} -> p:bytes -> (;si) PRF.masterSecret
 
 (** RSA ciphersuites **) 
+
+//CF actually a private type 
+type rsaentry = pk:RSAKey.pk * cv:ProtocolVersion * pms:(;pk,cv)rsapms * csr:csrands * pa:prfAlg * ms:(;(PmsId(RSAPMS(pk,cv,pms)),csr,pa)) ms
+private val rsalog: rsaentry list ref 
+
+private val rsaassoc: 
+    pk:RSAKey.pk -> cv:ProtocolVersion -> pms:(;pk,cv)rsapms -> csr:csrands -> pa:prfAlg-> 
+    (pk':RSAKey.pk * cv':ProtocolVersion * pms':(;pk',cv')rsapms * csr':bytes * pa':prfAlg * ms':(;(PmsId(RSAPMS(pk',cv',pms')),csr',pa')) ms) list -> 
+	ms:(;(PmsId(RSAPMS(pk,cv,pms)),csr,pa)) ms option
 
 // CF what for?
 private val accessRSAPMS: pk:RSAKey.pk -> cv:ProtocolVersion -> (;pk,cv) rsapms -> rsarepr
 
+val extractRSA:
+    si:SessionInfo ->
+	cv:ProtocolVersion ->
+    pms: (;Cert.RSAPKCert(si.serverID),cv) rsapms 
+	{ si.pmsId = PmsId(RSAPMS(Cert.RSAPKCert(si.serverID),cv,pms)) }
+	// { DecryptedPMS(si.pmsdata,pms)  } 
+	->
+    (;si) PRF.masterSecret
+
+
 open DHGroup
+
+//CF actually a private type
+type dhentry = p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * pms:(;p,g,gx,gy) dhpms * csr:csrands * pa:prfAlg * ms:(;(PmsId(DHPMS(p,g,gx,gy,pms)),csr,pa)) PRF.ms
+private val dhlog: dhentry list ref 
+
+val dhassoc: p:p -> g:(;p) g -> gx:(;p) elt -> gy:(;p) elt -> pms:(;p,g,gx,gy) dhpms -> csr:csrands -> pa:prfAlg -> 
+             (p':p * g':(;p') g * gx':(;p') elt * gy':(;p') elt * pms':(;p',g',gx',gy') dhpms * csr':csrands * pa':prfAlg * (;(PmsId(DHPMS(p',g',gx',gy',pms')),csr',pa')) PRF.ms) list -> 
+             (;(PmsId(DHPMS(p,g,gx,gy,pms)),csr,pa)) PRF.ms option
 
 private val accessDHPMS: p:DHGroup.p -> g:(;p)DHGroup.g -> gx:(;p)DHGroup.elt -> gy:(;p)DHGroup.elt ->
     pms: (;p,g,gx,gy)dhpms -> bytes
 
 private val accessPMS: pms -> bytes
 
-//CF actually a private type 
-type entry = pi:pmsId * csr:csrands * ca:creAlg * ms:(;(pi,csr,ca)) ms
+val extractDHE:
+    si:SessionInfo ->
+    p:DHGroup.p -> g:(;p)DHGroup.g -> gx:(;p)DHGroup.elt -> gy:(;p)DHGroup.elt ->
+    pms: (;p,g,gx,gy)dhpms 
+	{ si.pmsId = PmsId(DHPMS(p,g,gx,gy,pms) ) }
+	->
+    (;si) PRF.masterSecret
+
+type entry = i:msId * (;i) ms
 private val log: entry list ref 
 
-val assoc: pi:pmsId -> csr:csrands -> ca:creAlg -> 
-             (pi':pmsId * csr':csrands * ca':creAlg * (;(pi',csr',ca')) PRF.ms) list -> 
-             (;(pi,csr,ca)) PRF.ms option
+private val assoc: i:msId -> entry list -> (;i) PRF.ms option
 
 val extract:
     si:SessionInfo ->
-    pms: pms { si.pmsId = PmsId(pms) /\ (si.pmsId,csrands(si), creAlg(si))=MsI(si) } ->
+	pms: pms { si.pmsId = PmsId(pms) } ->
     (;si) PRF.masterSecret
 	 

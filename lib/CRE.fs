@@ -35,8 +35,9 @@ let extractMS si pmsBytes : PRF.masterSecret =
     let cs = si.cipher_suite in
     let data = csrands si in
     let ca = creAlg si in
-    let res: PRF.repr = extract' ca pmsBytes data 48 in
-    PRF.coerce si res
+    let res = extract' ca pmsBytes data 48 in
+    let i = msi si
+    PRF.coerce i res
 
 
 (*  Idealization strategy: to guarantee that in ideal world mastersecrets (ms) are completely random
@@ -75,35 +76,31 @@ let accessPMS (pms:PMS.pms) =
 
 #if ideal
 // We maintain a log for looking up good ms values using their msId
-type entry = pmsId * csrands * creAlg * PRF.ms
+//CF we could use instead entry = msId * PRF.ms
+type entry = msId * PRF.ms
 let log = ref []
 
-let rec assoc (pi:pmsId) (csr:bytes) (ca:creAlg) (mss:entry list): PRF.ms option = 
-    match mss with 
-    | [] -> None 
-    | (pi', csr',ca', ms)::mss' when pi=pi' && csr=csr' && ca=ca' -> Some(ms) 
-    | _::mss' -> assoc pi csr ca mss'
+let rec assoc (i:msId) entries: PRF.ms option = 
+    match entries with 
+    | []                      -> None 
+    | (i', ms)::entries when i = i' -> Some(ms) 
+    | _::entries              -> assoc i entries
 
 #endif
 
 let extract si pms: PRF.masterSecret = 
     #if ideal
-    (* MK: the following should be made consistent with safeMS_SI
+    (* MK: the following should be made consistent with safePRF
     let i = PRF.msi si (RSAPMS(pk,cv,pms))
     if PRF.safeMS_msIndex i then *)
     if safeCRE si then
-        //We assoc on pk, cv, pms,  csrands, and prfAlg
-        let pmsId = si.pmsId
-        let csr = csrands si
-        let ca = creAlg si
-        match assoc pmsId csr ca !log with 
+        let i = msi si 
+        match assoc i !log with 
         | Some(ms) -> ms
         | None -> 
-                let ms = PRF.sample si
-                log := (pmsId,csr, ca, ms)::!log;
+                let ms = PRF.sample i
+                log := (i, ms)::!log;
                 ms            
     else
-        extractMS si (accessPMS pms)
-    #else
-    extractMS si (accessPMS pms)
     #endif
+        extractMS si (accessPMS pms)
