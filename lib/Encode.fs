@@ -132,7 +132,8 @@ let decodeNoPad e (ad:LHAEPlain.adata) rg tlen pl =
         Error.unexpected "[decodeNoPad] wrong target length given as input argument."
     else
     let si = epochSI(e) in
-    let maclen = macSize (macAlg_of_ciphersuite si.cipher_suite si.protocol_version) in
+    let macAlg = macAlg_of_ciphersuite si.cipher_suite si.protocol_version in
+    let maclen = macSize macAlg in
     let payloadLen = plainLen - maclen in
     let (frag,tag) = Bytes.split pl payloadLen in
     let aeadF = LHAEPlain.plain e ad rg frag in

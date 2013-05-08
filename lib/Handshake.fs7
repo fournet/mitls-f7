@@ -77,8 +77,8 @@ definition !cv,clRdm,sid,cls,cm,ext,b.
 val clientHelloBytes: c:config -> cr:random -> sid:sessionID -> ext:bytes -> m:bytes{B(m) = ClientHelloMsg(c.maxVer,cr,sid,c.ciphersuites,c.compressions,ext)}
 val parseClientHello: m:bytes -> 
 	( pv:ProtocolVersion * cr:crand * sid:sessionID * cs:cipherSuites * cm:Compression list * ext:bytes
-	  {?cs',cm'. MessageBytes(HT_client_hello,B(m)) = ClientHelloMsg(pv,cr,sid,cs',cm',ext)
-              /\ ContainsCipherSuites(cs',cs) /\ ContainsCompressions(cm',cm)}) Result
+	  {?cs',cm'. MessageBytes(HT_client_hello,B(m)) = ClientHelloMsg(pv,cr,sid,cs',cm',ext)}
+//KB TODO? /\ ContainsCipherSuites(cs',cs) /\ ContainsCompressions(cm',cm)}) Result
 
 function val ServerHelloMsg: (ProtocolVersion * random * sessionID * cipherSuite * Compression * bytes) -> cbytes
 private definition !pv,sr,sid,cs,cm,ext.
@@ -225,7 +225,7 @@ val digitallySignedBytes: a:Sig.alg -> p:bytes -> pv:ProtocolVersion ->
 val parseDigitallySigned: al:Sig.alg list -> b:bytes -> pv:ProtocolVersion ->
 	((a:Sig.alg * p:bytes){
 		B(b) = DigitallySignedBytes(a,p,pv)
-		// /\ SigHashAlgContains(al,a)
+		//KB TODO? /\ SigHashAlgContains(al,a)
 	}) Result
 
 function val DHEParamBytes: bytes * bytes * bytes -> cbytes

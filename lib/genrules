@@ -14,7 +14,7 @@ FS7DEFAULT = [
   'HASH',
   'HMAC',
   'DHGroup',
-# 'TLSConstants',
+  'TLSConstants',
 # 'Sig',
   'TLSInfo',
 # 'Range',

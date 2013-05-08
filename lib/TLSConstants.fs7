@@ -168,8 +168,8 @@ private definition HashSize(MD5SHA1)     = 36
 
 function val MacKeySize: macAlg -> nat
 assume !x. MacKeySize(x) >= 0
-private definition !a. MacKeySize(MA_HMAC(a)) = HashSize(a)
-private definition !a. MacKeySize(MA_SSLKHASH(a)) = HashSize(a)
+definition !a. MacKeySize(MA_HMAC(a)) = HashSize(a)
+definition !a. MacKeySize(MA_SSLKHASH(a)) = HashSize(a)
 
 
 val macKeySize: a:macAlg -> l:nat{l=MacKeySize(a)}
@@ -239,7 +239,7 @@ private assume !cl. ContainsCompressions(cl,cl) /\
 val compressionBytes: c:Compression -> b:bytes{CompressionBytes(c) = B(b)}
 val compressionMethodsBytes: cl:Compression list -> b:bytes{B(b) = CompressionsBytes(cl)}
 val parseCompression: b:bytes -> (c:Compression{B(b)=CompressionBytes(c)}) Result
-val parseCompressions: b:bytes -> cl:Compression list{?cl'. B(b) = CompressionsBytes(cl') /\ ContainsCompressions(cl',cl)}
+val parseCompressions: b:bytes -> cl:Compression list//{?cl'. B(b) = CompressionsBytes(cl') /\ ContainsCompressions(cl',cl)}
 
 
 
@@ -305,11 +305,6 @@ function val TLSENCAlg: cipherAlg * ProtocolVersion -> encAlg
 private definition !mac. TLSMACAlg(mac,SSL_3p0) = MA_SSLKHASH(mac)
 private definition !mac. TLSMACAlg(mac,TLS_1p0) = MA_HMAC(mac)
 private definition !mac. TLSMACAlg(mac,TLS_1p1) = MA_HMAC(mac)
-private definition !mac. TLSMACAlg(mac,TLS_1p1) = MA_HMAC(mac)
-
-private definition !mac. TLSMACAlg(mac,SSL_3p0) = MA_SSLKHASH(mac)
-private definition !mac. TLSMACAlg(mac,TLS_1p0) = MA_HMAC(mac)
-private definition !mac. TLSMACAlg(mac,TLS_1p1) = MA_HMAC(mac)
 private definition !mac. TLSMACAlg(mac,TLS_1p2) = MA_HMAC(mac)
 
 private definition !pv. TLSENCAlg(RC4_128,pv) = Stream_RC4_128
@@ -327,6 +322,15 @@ private definition TLSENCAlg(AES_256_CBC, TLS_1p1) = CBC_Fresh(AES_256)
 private definition TLSENCAlg(AES_256_CBC, TLS_1p2) = CBC_Fresh(AES_256)
 
 function val CipherSuiteSigAlg: cipherSuite -> sigAlg
+private definition 
+   (!a. CipherSuiteSigAlg(CipherSuite(RSA, a)) = SA_RSA) /\
+   (!a. CipherSuiteSigAlg(OnlyMACCipherSuite(RSA, a)) = SA_RSA) /\
+   (!a. CipherSuiteSigAlg(CipherSuite(DHE_RSA, a)) = SA_RSA) /\
+   (!a. CipherSuiteSigAlg(CipherSuite(DH_RSA, a)) = SA_RSA) /\
+   (!a. CipherSuiteSigAlg(CipherSuite(DHE_DSS, a)) = SA_DSA) /\
+   (!a. CipherSuiteSigAlg(CipherSuite(DH_DSS, a)) = SA_DSA)
+
+
 function val CipherSuiteSigHashAlg: cipherSuite -> sigHashAlg
 function val CipherSuiteMACAlg: cipherSuite * ProtocolVersion -> macAlg
 function val CipherSuiteENCAlg: cipherSuite * ProtocolVersion -> encAlg
@@ -345,6 +349,8 @@ assume !cs,pv,mac,enc.
 assume !cs,pv,mac,enc.
         CipherSuiteAuthEncAlg(cs,pv) = MtE(enc,mac) => CipherSuiteENCAlg(cs,pv) = enc
 
+private val tlsEncAlg: c:cipherAlg -> pv:ProtocolVersion -> e:encAlg{e = TLSENCAlg(c,pv)}
+private val tlsMacAlg: c:hashAlg -> pv:ProtocolVersion -> e:macAlg{e = TLSMACAlg(c,pv)}
 
 val aeAlg: cs:cipherSuite -> pv:ProtocolVersion -> a:aeAlg{a = CipherSuiteAuthEncAlg(cs,pv)}
 val macAlg_of_ciphersuite: cs:cipherSuite -> pv:ProtocolVersion -> h:macAlg{h = CipherSuiteMACAlg(cs,pv)}
@@ -441,9 +447,9 @@ private assume
 
 
 function val CipherSuitesBytes: cipherSuites -> cbytes
-private definition !cs,b. (b = CipherSuitesBytes(cs)) <=> 
-   ((cs = [] /\ b = [||]) \/
-    (?h,t. cs = h::t /\ b = CipherSuiteBytes(h) @| CipherSuitesBytes(t)))
+private definition 
+   (CipherSuitesBytes([]) = [||]) /\
+   (!h,t. CipherSuitesBytes(h::t) = CipherSuiteBytes(h) @| CipherSuitesBytes(t))
 
 predicate ContainsCipherSuite of cipherSuites * cipherSuite
 private definition !b,cs. ContainsCipherSuite(b,cs) <=> 
@@ -482,22 +488,19 @@ val parseCipherSuite: b:bytes{Length(b)=2} -> (c:cipherSuite{B(b) = CipherSuiteB
 
 // this parsing function may fail if b has the wrong length,
 // or if we were strict on unknown ciphersuites
-val parseCipherSuites: b:bytes -> (css:cipherSuites {?csl. B(b) = CipherSuitesBytes(csl) /\ ContainsCipherSuites(csl,css)}) Result
+val parseCipherSuites: b:bytes -> (css:cipherSuites
+//KB TODO? {?csl. B(b) = CipherSuitesBytes(csl) /\ ContainsCipherSuites(csl,css)}) 
+)Result
 val cipherSuitesBytes: css:cipherSuites -> b:bytes {B(b) = CipherSuitesBytes(css)}
 
 val mkIntTriple: (nat * nat * nat) -> (nat * nat * nat)
 
 function val KeyDerivationIVSize_AEAlg: aeAlg -> nat
-definition !a.
-	( (?mac. a = MACOnly(mac)) \/
-	  (?mac. a = MtE(Stream_RC4_128,mac)) \/
-	  (?mac,alg. a = MtE(CBC_Fresh(alg),mac) ))
-	 => KeyDerivationIVSize_AEAlg(a) = 0  
-definition !a,mac,alg.
-	( a = MtE(CBC_Stale(alg),mac)
-	 => KeyDerivationIVSize_AEAlg(a)= BlockSize(alg) )
+definition (!mac. KeyDerivationIVSize_AEAlg(MACOnly(mac)) = 0) /\
+           (!mac. KeyDerivationIVSize_AEAlg(MtE(Stream_RC4_128,mac)) = 0) /\
+           (!enc,mac. KeyDerivationIVSize_AEAlg(MtE(CBC_Fresh(enc),mac)) = 0) /\
+           (!enc,mac. KeyDerivationIVSize_AEAlg(MtE(CBC_Stale(enc),mac)) = BlockSize(enc))
 
-ask !mac. KeyDerivationIVSize_AEAlg(MtE(Stream_RC4_128,mac))=0
 
 
 //MK This function needs to be further annotated to make PRF typecheck.  
@@ -512,24 +515,29 @@ definition !cs,pv,mac,enc,cipher,n. KeyExtensionLength(pv,cs)=n <=>
     ( CipherSuiteAuthEncAlg(cs,pv) = MtE(enc,mac) => enc=CBC_Fresh(cipher) /\ n = 2*( MacKeySize(mac) + EncKeySize(enc) ) )
 *)
 
-definition !cs,pv,mac. 
-	(( CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) => 
-		KeyExtensionLength(pv,cs) = 2*MacKeySize(mac) ))  
-		
-(* private definition !cs,pv,mac,cipher. 
-    ( CipherSuiteAuthEncAlg(cs,pv) = MtE(Stream_RC4_128,mac)  => KeyExtensionLength(pv,cs) = 2* ( MacKeySize(mac) + EncKeySize(Stream_RC4_128) ) ) /\
-    ( CipherSuiteAuthEncAlg(cs,pv) = MtE(CBC_Fresh(cipher),mac) => KeyExtensionLength(pv,cs) = 2*( MacKeySize(mac) + EncKeySize(CBC_Fresh(cipher)) ) )
-} *)
+definition !cs,pv,cipher,mac. 
+  (CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) => 
+      KeyExtensionLength(pv,cs) = 2*MacKeySize(mac)) 
+
+(*/\
+  (CipherSuiteAuthEncAlg(cs,pv) = MtE(Stream_RC4_128,mac)  => 
+      KeyExtensionLength(pv,cs) = 2* ( MacKeySize(mac) + EncKeySize(Stream_RC4_128))) /\
+  (CipherSuiteAuthEncAlg(cs,pv) = MtE(CBC_Fresh(cipher),mac) => 
+      KeyExtensionLength(pv,cs) = 2*( MacKeySize(mac) + EncKeySize(CBC_Fresh(cipher))))
+*)
 
 definition !cs,pv,mac,enc.
     ( CipherSuiteAuthEncAlg(cs,pv) = MtE(enc,mac) =>
-		KeyExtensionLength(pv,cs) = 2*(MacKeySize(mac) +
-					    EncKeySize(enc) +
-					    KeyDerivationIVSize_AEAlg(CipherSuiteAuthEncAlg(cs,pv))) )
+		KeyExtensionLength(pv,cs) = 2*(EncKeySize(enc) +
+                                               MacKeySize(mac) +	
+				               KeyDerivationIVSize_AEAlg(CipherSuiteAuthEncAlg(cs,pv))) )
 
 
 ask !cs,pv,mac. CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) => KeyExtensionLength(pv,cs) = 2*MacKeySize(mac)
 ask !cs,pv,mac. CipherSuiteAuthEncAlg(cs,pv) = MtE(Stream_RC4_128,mac) => KeyExtensionLength(pv,cs) = 2* ( MacKeySize(mac) + EncKeySize(Stream_RC4_128) )
+
+ask !cs,pv,cipher,mac. CipherSuiteAuthEncAlg(cs,pv) =  MtE(CBC_Fresh(cipher),mac) => 
+      KeyExtensionLength(pv,cs) = 2*( EncKeySize(CBC_Fresh(cipher)) + MacKeySize(mac))
 
 
 
@@ -649,9 +657,20 @@ private definition !h,t.
 val certificateTypeListBytes: ctl:certType list ->
 	b:bytes{B(b)=CertTypesBytes(ctl)}
 val parseCertificateTypeList: b:bytes ->
-	(ctl:certType list{B(b) = CertTypesBytes(ctl)}) Result
+	(ctl:certType list{
+           //KB TODO? B(b) = CertTypesBytes(ctl)
+         }) Result
 
 function val DefaultCertTypes: bool * cipherSuite -> certType list
+private definition 
+           (!cs. CipherSuiteSigAlg(cs) = SA_RSA =>
+                 DefaultCertTypes(true,cs) = [RSA_sign]) /\
+           (!cs. CipherSuiteSigAlg(cs) = SA_DSA =>
+                 DefaultCertTypes(true,cs) = [DSA_sign]) /\
+           (!cs. CipherSuiteSigAlg(cs) = SA_RSA =>
+                 DefaultCertTypes(false,cs) = [RSA_fixed_dh]) /\
+           (!cs. CipherSuiteSigAlg(cs) = SA_DSA =>
+                 DefaultCertTypes(false,cs) = [DSA_fixed_dh])
 val defaultCertTypes: sign:bool -> cs:cipherSuite -> ctl:certType list{ctl=DefaultCertTypes(sign,cs)}
 
 function val DistinguishedNameListBytes: string list -> cbytes
@@ -662,10 +681,9 @@ function val DistinguishedNamesBytes: string list -> cbytes
 private definition !l.
 	DistinguishedNamesBytes(l) = VLBytes(2,DistinguishedNameListBytes(l))
 
-val distinguishedNameListBytes: n:string list -> b:bytes{B(b)=DistinguishedNamesBytes(n)}
+val distinguishedNameListBytes: n:string list -> b:bytes{B(b)=DistinguishedNameListBytes(n)}
 val parseDistinguishedNameList: b:bytes -> s:string list ->
 	(res:string list{
-		(* ?l. res = l @ s /\ b = DistinguishedNameListBytes(l) *)
-		s = [] => B(b) = DistinguishedNameListBytes(res)
+//KB TODO?		(* ?l. res = l @ s /\ b = DistinguishedNameListBytes(l) *)		s = [] => B(b) = DistinguishedNameListBytes(res)
 	}) Result
 

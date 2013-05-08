@@ -429,7 +429,7 @@ let contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV (css: cipherSuite list) =
     failwith "TODO: fix list library": bool
 #else
 *)
-    List.exists (fun cs -> cs = SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV) ) css
+    List.memr css (SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV))
 //KB #endif
 
 
@@ -464,60 +464,79 @@ let verifyDataHashAlg_of_ciphersuite (cs:cipherSuite) =
     | NullCipherSuite -> unexpected "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
     | SCSV (_)        -> unexpected "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
 
-let macAlg_of_ciphersuite cs pv =
-    match cs with
-    | CipherSuite (_, CS_MtE(_,alg)) | OnlyMACCipherSuite (_, alg) ->
-        match pv with
-        | SSL_3p0 -> MA_SSLKHASH(alg)
-        | TLS_1p0 | TLS_1p1 | TLS_1p2 -> MA_HMAC(alg)
-    | _ -> unexpected "[macAlg_of_ciphersuite] invoked on an invalid ciphersuite"
+let tlsMacAlg alg pv = 
+  match pv with
+    | SSL_3p0 -> MA_SSLKHASH(alg)
+    | TLS_1p0 | TLS_1p1 | TLS_1p2 -> MA_HMAC(alg)
+        
+let tlsEncAlg alg pv = 
+  match pv with
+    | SSL_3p0 | TLS_1p0 ->
+       (match alg with
+          | RC4_128 -> Stream_RC4_128
+          | TDES_EDE_CBC -> CBC_Stale(TDES_EDE)
+          | AES_128_CBC -> CBC_Stale(AES_128)
+          | AES_256_CBC -> CBC_Stale(AES_256))
+    | TLS_1p1 | TLS_1p2 ->
+       (match alg with
+          | RC4_128 -> Stream_RC4_128
+          | TDES_EDE_CBC -> CBC_Fresh(TDES_EDE)
+          | AES_128_CBC -> CBC_Fresh(AES_128)
+          | AES_256_CBC -> CBC_Fresh(AES_256))
 
-let encAlg_of_ciphersuite cs pv =
-    match cs with
-    | CipherSuite (_, CS_MtE(alg,_)) ->
-        match pv with
-        | SSL_3p0 | TLS_1p0 ->
-            match alg with
-            | RC4_128 -> Stream_RC4_128
-            | TDES_EDE_CBC -> CBC_Stale(TDES_EDE)
-            | AES_128_CBC -> CBC_Stale(AES_128)
-            | AES_256_CBC -> CBC_Stale(AES_256)
-        | TLS_1p1 | TLS_1p2 ->
-            match alg with
-            | RC4_128 -> Stream_RC4_128
-            | TDES_EDE_CBC -> CBC_Fresh(TDES_EDE)
-            | AES_128_CBC -> CBC_Fresh(AES_128)
-            | AES_256_CBC -> CBC_Fresh(AES_256)
-    | _ -> unexpected "[encAlg_of_ciphersuite] inovked on an invalid ciphersuite"
 
 let aeAlg cs pv =
     match cs with
     | OnlyMACCipherSuite (_,alg) ->
-        let mac = macAlg_of_ciphersuite cs pv in
+        let mac = tlsMacAlg alg pv in
         MACOnly mac
     | CipherSuite(_, CS_MtE(e,a)) ->
-        let enc = encAlg_of_ciphersuite cs pv in
-        let mac = macAlg_of_ciphersuite cs pv in
+        let enc = tlsEncAlg e pv in
+        let mac = tlsMacAlg a pv in
         MtE (enc,mac)
     | _ -> unexpected "[aeAlg] invoked on an invalid ciphersuite"
+
+
+let encAlg_of_ciphersuite cs pv =
+  let ae = aeAlg cs pv in
+    match ae with
+    | MtE(e,m) -> e 
+    | _ -> unexpected "[encAlg_of_ciphersuite] inovked on an invalid ciphersuite"
+
+let macAlg_of_ciphersuite cs pv =
+  let ae = aeAlg cs pv in
+    match ae with
+    | MtE(_,alg) | MACOnly alg -> alg
+    | _ -> unexpected "[macAlg_of_ciphersuite] invoked on an invalid ciphersuite"
+
 
 let mkIntTriple x:(int*int*int) = x
 
 let getKeyExtensionLength pv cs =
-    let (keySize, IVSize, hashSize ) =
-        match cs with
-        | CipherSuite (_, CS_MtE(cAlg, hAlg)) ->
-            let encAlg = encAlg_of_ciphersuite cs pv in
-            let macAlg = macAlg_of_ciphersuite cs pv in
-            match encAlg with
-            | Stream_RC4_128 | CBC_Fresh(_) -> mkIntTriple ((encKeySize encAlg), 0, (macKeySize macAlg))
-            | CBC_Stale(blockEnc) -> mkIntTriple ((encKeySize encAlg),(blockSize blockEnc),(macKeySize macAlg))
-        | CipherSuite (_, CS_AEAD(cAlg, hAlg)) -> ((aeadKeySize cAlg), (aeadIVSize cAlg), (macKeySize (MA_HMAC(hAlg))))
-        | OnlyMACCipherSuite (_,hAlg) ->
-            let macAlg = macAlg_of_ciphersuite cs pv in
-            (0,0,macKeySize macAlg)
+  let ae = aeAlg cs pv in
+      match ae with
+        | MtE(encAlg,macAlg) ->
+            let esize = encKeySize encAlg in
+            let msize = macKeySize macAlg in 
+              match encAlg with
+                | Stream_RC4_128 | CBC_Fresh(_) -> 
+                    2 * (esize + msize)
+                | CBC_Stale(blockEnc) -> 
+                    let bsize = blockSize blockEnc in
+                      2 * (esize + bsize + msize)
+        | MACOnly (macAlg) ->
+            let msize = macKeySize macAlg in 
+              2 * msize
+#if verify
+#else 
+(* AEAD currently not fully implemented or verified *)               
+        | AEAD(cAlg,macAlg) ->
+            let aksize = aeadKeySize cAlg in
+            let ivsize = aeadIVSize cAlg in
+            let msize = macKeySize macAlg in
+              2 * (aksize + ivsize + msize)
+#endif
         | _ -> unexpected "[getKeyExtensionLength] invoked on an invalid ciphersuite"
-    2 * (keySize + IVSize + hashSize)
 
 (* Not for verification, just to run the implementation. See TLSInfo.fs *)
 type cipherSuiteName =
@@ -732,7 +751,8 @@ let rec certificateTypeListBytes ctl =
         ct @| certificateTypeListBytes t
 
 let rec parseCertificateTypeList data =
-    if length data = 0 then let res = [] in correct(res)
+  let l = length data in
+    if l = 0 then correct([])
     else
         let (thisByte,data) = Bytes.split data 1 in
         match parseCertType thisByte with
@@ -743,13 +763,14 @@ let rec parseCertificateTypeList data =
         | Error(z) -> Error(z)
 
 let defaultCertTypes sign cs =
+  let alg = sigAlg_of_ciphersuite cs in
     if sign then
-        match sigAlg_of_ciphersuite cs with
+      match alg with
         | SA_RSA -> [RSA_sign]
         | SA_DSA -> [DSA_sign]
         | _ -> unexpected "[defaultCertTypes] invoked on an invalid ciphersuite"
     else 
-        match sigAlg_of_ciphersuite cs with
+      match alg with
         | SA_RSA -> [RSA_fixed_dh]
         | SA_DSA -> [DSA_fixed_dh]
         | _ -> unexpected "[defaultCertTypes] invoked on an invalid ciphersuite"
