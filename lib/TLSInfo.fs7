@@ -286,12 +286,14 @@ assume !pd. HonestPMSData(pd) <=>
        (?p,g,gx,gy. pd = DHPMS(p,g,gx,gy) /\ HonestDHPMSData(p,g,gx,gy)))
 
 predicate HonestPMS of pmsId
+predicate HonestMS of SessionInfo
 
 (* SPECIFYING SAFETY *) 
 
 predicate SafeMS_SI of SessionInfo // Good enough handshake for finished macking for this sessioninfo
 predicate SafeHS_SI of SessionInfo // Good handshake for this sessioninfo
 predicate SafeHS of epoch          // Good handshake for this epoch
+predicate SafePRF of SessionInfo
 predicate SafeCRE of SessionInfo
 predicate SafeKEX of pmsId
 
@@ -307,10 +309,16 @@ definition !si. SafeMS_SI(si) <=>
 
 definition !pk,cv,rsapms. SafeKEX(SomePmsId(PMS.RSAPMS(pk,cv,rsapms)))  <=> PMS.SafeRSA(pk,cv) 
 definition !p,g,gx,gy,dhpms. SafeKEX(SomePmsId(PMS.DHPMS(p,g,gx,gy,dhpms))) <=> PMS.SafeDH(p,g,gx,gy)
-definition !pmsId. HonestPMS(pmsId) <=> SafeKEX(pmsId)
 
-definition !si. SafeCRE(si) <=> HonestPMS(si.pmsId) /\ StrongCRE(si)
-definition !si. SafeHS_SI(si) <=> StrongHS(si) /\ HonestPMSData(si.pmsData)
+definition !pk,cv,rsapms. HonestPMS(SomePmsId(PMS.RSAPMS(pk,cv,rsapms))) <=> PMS.HonestRSAPMS(pk,cv,rsapms)
+definition !p,g,gx,gy,dhpms. HonestPMS(SomePmsId(PMS.DHPMS(p,g,gx,gy,dhpms))) <=> PMS.HonestDHPMS(p,g,gx,gy,dhpms)
+
+definition !si. SafeCRE(si) <=> HonestPMS(si.pmsId) /\ SafeKEX(pmsId) /\ StrongCRE(si)
+
+definition !si. HonestMS(si) <=> SafeCRE(si)
+definition !si. SafePRF(si) <=> HonestMS(si) /\ StrongPRF(si)
+
+definition !si. SafeHS_SI(si) <=> SafePRF(si) /\ StrongHS(si) 
 
 // Predicates specifying the security of TLS connections 
 predicate type cryptopreds = 
