@@ -124,6 +124,9 @@ definition !si,ca.  ca=CreAlg(si) <=>	(si.protocol_version = SSL_3p0 /\ ca = CRE
 										(si.protocol_version = TLS_1p0 /\ ca = CRE_TLS_1p01    ) \/
 										(si.protocol_version = TLS_1p1 /\ ca = CRE_TLS_1p01    ) \/
 										(si.protocol_version = TLS_1p2 /\ ca = CRE_TLS_1p2( CiphersuitePrfMacAlg(si.cipher_suite) ) ) 
+
+ask !si,ma. CreAlg(si)=CRE_TLS_1p2(ma) => CiphersuitePrfMacAlg(si.cipher_suite)=ma
+
 definition !si.  PrfAlg(si) = (si.protocol_version,si.cipher_suite)
 
 val prfAlg: si:SessionInfo -> a:prfAlg {a=PrfAlg(si)}
@@ -136,10 +139,10 @@ val kdfAlg: si:SessionInfo -> a:kdfAlg {a=KdfAlg(si)}
 type msId =        // We record the parameters used to derive this MS: 
   pms   : pmsId *     // the pms and its indexes  
   csr   : csrands *   // the nonces  
-  creAlg: prfAlg      // the PMS-PRF algorithm
+  creAlg: creAlg      // the PMS-PRF algorithm
    
 function val MsI: SessionInfo -> msId
-definition !si. MsI(si) = (si.pmsId, CSRands(si), PrfAlg(si)) 
+definition !si. MsI(si) = (si.pmsId, CSRands(si), CreAlg(si)) 
 val msi: si:SessionInfo -> i:msId { i = MsI(si) }
 
 
@@ -284,11 +287,15 @@ assume !pd. HonestPMSData(pd) <=>
       ((?pk,pv,e. pd = RSAPMS(pk,pv,e) /\ HonestRSAPMSData(pk,pv,e)) \/
        (?p,g,gx,gy. pd = DHPMS(p,g,gx,gy) /\ HonestDHPMSData(p,g,gx,gy)))
 
+predicate HonestPMS of pmsId
+
 (* SPECIFYING SAFETY *) 
 
 predicate SafeMS_SI of SessionInfo // Good enough handshake for finished macking for this sessioninfo
 predicate SafeHS_SI of SessionInfo // Good handshake for this sessioninfo
 predicate SafeHS of epoch          // Good handshake for this epoch
+predicate SafeCRE of SessionInfo
+predicate SafeKEX of PMS.pms
 
 // MK This definition is too strong. 
 // MK StrongHS(si) /\ HonestPMSData(si.pmsData) => SafeHS_SI(si) but not the other way around.
@@ -299,6 +306,12 @@ definition !si. SafeMS_SI(si) <=>
       StrongHS(si)
 //  /\ ? pms. EncryptedRSAPMS(PK(si.serverID),pms,EncOMS(pmsData)) /\ HonestRSAPMS(pms) //MK: \/ DH branch ...  
 
+
+definition !pk,cv,rsapms. SafeKEX(SomePmsId(PMS.RSAPMS(pk,cv,rsapms)))  <=> PMS.SafeRSA(pk,cv) 
+definition !p,g,gx,gy,dhpms. SafeKEX(SomePmsId(PMS.DHPMS(p,g,gx,gy,dhpms))) <=> PMS.SafeDH(p,g,gx,gy)
+definition !pmsId. HonestPMS(pmsId) <=> SafeKEX(pmsId)
+
+definition !si. SafeCRE(si) <=> HonestPMS(si.pmsId) /\ StrongCRE(si)
 definition !si. SafeHS_SI(si) <=> StrongHS(si) /\ HonestPMSData(si.pmsData)
 
 // Predicates specifying the security of TLS connections 
@@ -323,6 +336,7 @@ definition !e. Auth(e) <=> AuthSI(EpochSI(e))
 val safe: (e:epoch) -> b:bool { b = true <=> Safe(e) }
 val safeHS: (e:epoch) -> b:bool {b = true <=> SafeHS(e)}
 val safeHS_SI: (si:SessionInfo) -> b:bool {b = true <=> SafeHS_SI(si)}
+val safeCRE: (si:SessionInfo) -> b:bool { b=true <=> SafeCRE(si) }
 val safeMS_SI: (si:SessionInfo) -> b:bool {b = true <=> SafeMS_SI(si)} 
 //MK: safeMS_SI is used for idealization even if ciphersuites don't match.
 //MK: this is needed to guarantee security of finished message MACs
@@ -330,7 +344,7 @@ val auth :(e:epoch) -> b:bool {b = true <=> Auth(e)}
 val safeMAC: (e:epoch) -> b:bool {b = true <=> Auth(e)}
 val safeENC: (e:epoch) -> b:bool {b = true <=> Safe(e)}
 
-ask !e. Safe(e) => Auth(e) 
+ask !e. Safe(e) => Auth(e)
 
 ask !e,mac. CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MACOnly(mac) => not Safe(e)
 // AP: This should be invalid, as ciphersuite is a private type!!!

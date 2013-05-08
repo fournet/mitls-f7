@@ -32,7 +32,7 @@ type pmsData =
 type msId = 
   pmsId * 
   csrands *                                          
-  prfAlg  
+  creAlg  
 
 type SessionInfo = {
     init_crand: crand;
@@ -118,6 +118,7 @@ val fragmentLength: nat
 #if ideal
 val safe: epoch -> bool
 val safeHS: epoch -> bool
+val safeCRE: SessionInfo -> bool 
 val safeHS_SI: SessionInfo -> bool
 val safeMS_SI: SessionInfo -> bool
 val auth: epoch -> bool

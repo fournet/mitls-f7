@@ -11,8 +11,8 @@ open TLSConstants
 
 // ``These parameters can encrypt HonestRSAPMSs.''
 //CF unclear why we need this intermediate predicate
-predicate SafeRSAPMS of RSAKey.pk * ProtocolVersion 
-definition !pk,cv. SafeRSAPMS(pk,cv) <=> RSAKey.Honest(pk) 
+predicate SafeRSA of RSAKey.pk * ProtocolVersion 
+definition !pk,cv. SafeRSA(pk,cv) <=> RSAKey.Honest(pk) 
 
 // In this file RSA refers to any crypto materials used for the RSA KEX. 
 
@@ -31,13 +31,13 @@ type rsaseed = {seed:rsarepr}
 //   so that we can control their usage for the RSA-PMS assumption.
 
 type (;pk:RSAKey.pk, cv:ProtocolVersion) rsapms = 
-   | IdealRSAPMS    of s:rsaseed {SafeRSAPMS(pk,cv)} // used only ideally & for abstract pms values 
+   | IdealRSAPMS    of s:rsaseed {SafeRSA(pk,cv)} // used only ideally & for abstract pms values 
    | ConcreteRSAPMS of rsarepr
 // pattern matching is used in this module & in CRE only for specifying ideal code
 // so we also define ideal predicate & test for the module users:
 predicate HonestRSAPMS of pk:RSAKey.pk * cv:ProtocolVersion * (;pk,cv)rsapms
 private definition !pk,cv,pms. 
-  HonestRSAPMS(pk,cv,pms) <=> (SafeRSAPMS(pk,cv) /\ ?s. pms = IdealRSAPMS(s))
+  HonestRSAPMS(pk,cv,pms) <=> (SafeRSA(pk,cv) /\ ?s. pms = IdealRSAPMS(s))
 
 ask !pk,cv,s. not(HonestRSAPMS(pk,cv,ConcreteRSAPMS(s)))
 
@@ -48,13 +48,13 @@ val honestRSAPMS: pk:RSAKey.pk -> cv:ProtocolVersion -> pms: (;pk,cv) rsapms ->
 // abstract postcondition of RSA encryption (event) 
 predicate EncryptedRSAPMS of pk:RSAKey.pk * cv:ProtocolVersion * (;pk,cv)rsapms * bytes
 
-//CF see SafeRSAPMS in TLSInfo
+//CF see SafeRSA in TLSInfo
 //CF we get it as a runtime invariant, from the refinement of IdeaRSAPMS
 private ask !pk,cv,pms. 
-  HonestRSAPMS(pk,cv,pms) => SafeRSAPMS(pk,cv) 
+  HonestRSAPMS(pk,cv,pms) => SafeRSA(pk,cv) 
 
 val genRSA: pk:RSAKey.pk -> cv:ProtocolVersion -> 
-  pms:(;pk,cv)rsapms { SafeRSAPMS(pk,cv) <=> HonestRSAPMS(pk,cv,pms) } 
+  pms:(;pk,cv)rsapms { SafeRSA(pk,cv) <=> HonestRSAPMS(pk,cv,pms) } 
 
 val coerceRSA: pk:RSAKey.pk -> cv:ProtocolVersion -> rsarepr -> (;pk,cv)rsapms
 // unrestricted; we actually always get a ConcreteRSAPMS
@@ -69,8 +69,8 @@ val leakRSA:
 
 open DHGroup
 
-//MK SafeDHPMS is much more specific involving the contributions to the pms. This is probably by necessity.
-predicate SafeDHPMS of p:DHGroup.p * (;p)DHGroup.g * (;p)DHGroup.elt * (;p)DHGroup.elt // The DH parameters, generator, and gx and gy values yield a good dhpms
+//MK SafeDH is much more specific involving the contributions to the pms. This is probably by necessity.
+predicate SafeDH of p:DHGroup.p * (;p)DHGroup.g * (;p)DHGroup.elt * (;p)DHGroup.elt // The DH parameters, generator, and gx and gy values yield a good dhpms
 
 //#begin-abstractionDH
 
@@ -93,7 +93,7 @@ private definition !p,g,gx,gy,pms. HonestDHPMS(p,g,gx,gy,pms) <=> ?s. pms = Idea
 val honestDHPMS: p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt -> pms: (;p,g,gx,gy) dhpms -> b:bool { b=true <=> HonestDHPMS(p,g,gx,gy,pms) } 
 
 val sampleDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt ->  (;p,g,gx,gy) dhpms
-val coerceDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt {not SafeDHPMS(p,g,gx,gy)}-> (;p)elt -> (;p,g,gx,gy) dhpms
+val coerceDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt {not SafeDH(p,g,gx,gy)}-> (;p)elt -> (;p,g,gx,gy) dhpms
 //#end-abstractionDH
 
 

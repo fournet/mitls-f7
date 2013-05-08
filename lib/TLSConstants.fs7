@@ -301,11 +301,10 @@ private definition
 	(!a,b,c. CiphersuitePrfMacAlg( CipherSuite ( a , CS_MtE ( b , c )) )            = MA_HMAC(SHA256) ) /\
     (!a,b, hAlg.   CiphersuitePrfMacAlg( CipherSuite ( a , CS_AEAD ( b , hAlg )) )  = MA_HMAC(hAlg)   ) /\
     (!a, hAlg.     CiphersuitePrfMacAlg( OnlyMACCipherSuite (a, hAlg) )             = MA_HMAC(SHA256) ) 
-// MK  (              CiphersuitePrfMacAlg(NullCipherSuite)							= what to do with these missing cases?                           
-// MK  (!a,           CiphersuitePrfMacAlg(SCSV(a))              
+// MK what to do with missing cases?                           
 
 
-val prfMacAlg_of_ciphersuite: cipherSuite  -> macAlg
+val prfMacAlg_of_ciphersuite: cs:cipherSuite  -> ma:macAlg { ma=CiphersuitePrfMacAlg(cs) }
 val verifyDataHashAlg_of_ciphersuite: cs:cipherSuite -> hashAlg
 
 type creAlg =  

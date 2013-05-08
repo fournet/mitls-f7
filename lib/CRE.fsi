@@ -7,8 +7,7 @@ open Error
 open TLSError
 open PMS
 
-val extractRSA: SessionInfo -> ProtocolVersion -> rsapms -> PRF.masterSecret
-val extractDHE: SessionInfo -> DHGroup.p -> DHGroup.g -> DHGroup.elt -> DHGroup.elt -> dhpms -> PRF.masterSecret 
+val extract: SessionInfo -> pms -> PRF.masterSecret
 
 (* Used when generating key material from the MS. 
    The result must still be split into the various keys.

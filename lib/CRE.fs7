@@ -11,51 +11,17 @@ private val extractMS: si:SessionInfo {not SafeMS_SI(si)} -> p:bytes -> (;si) PR
 
 (** RSA ciphersuites **) 
 
-//CF actually a private type 
-type rsaentry = pk:RSAKey.pk * cv:ProtocolVersion * pms:(;pk,cv)rsapms * csr:csrands * pa:prfAlg * ms:(;(PmsId(RSAPMS(pk,cv,pms)),csr,pa)) ms
-private val rsalog: rsaentry list ref 
-
-private val rsaassoc: 
-    pk:RSAKey.pk -> cv:ProtocolVersion -> pms:(;pk,cv)rsapms -> csr:csrands -> pa:prfAlg-> 
-    (pk':RSAKey.pk * cv':ProtocolVersion * pms':(;pk',cv')rsapms * csr':bytes * pa':prfAlg * ms':(;(PmsId(RSAPMS(pk',cv',pms')),csr',pa')) ms) list -> 
-	ms:(;(PmsId(RSAPMS(pk,cv,pms)),csr,pa)) ms option
-
 // CF what for?
 private val accessRSAPMS: pk:RSAKey.pk -> cv:ProtocolVersion -> (;pk,cv) rsapms -> rsarepr
 
-val extractRSA:
-    si:SessionInfo ->
-	cv:ProtocolVersion ->
-    pms: (;Cert.RSAPKCert(si.serverID),cv) rsapms 
-	{ si.pmsId = PmsId(RSAPMS(Cert.RSAPKCert(si.serverID),cv,pms)) }
-	// { DecryptedPMS(si.pmsdata,pms)  } 
-	->
-    (;si) PRF.masterSecret
-
-
 open DHGroup
-
-//CF actually a private type
-type dhentry = p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * pms:(;p,g,gx,gy) dhpms * csr:csrands * pa:prfAlg * ms:(;(PmsId(DHPMS(p,g,gx,gy,pms)),csr,pa)) PRF.ms
-private val dhlog: dhentry list ref 
-
-val dhassoc: p:p -> g:(;p) g -> gx:(;p) elt -> gy:(;p) elt -> pms:(;p,g,gx,gy) dhpms -> csr:csrands -> pa:prfAlg -> 
-             (p':p * g':(;p') g * gx':(;p') elt * gy':(;p') elt * pms':(;p',g',gx',gy') dhpms * csr':csrands * pa':prfAlg * (;(PmsId(DHPMS(p',g',gx',gy',pms')),csr',pa')) PRF.ms) list -> 
-             (;(PmsId(DHPMS(p,g,gx,gy,pms)),csr,pa)) PRF.ms option
 
 private val accessDHPMS: p:DHGroup.p -> g:(;p)DHGroup.g -> gx:(;p)DHGroup.elt -> gy:(;p)DHGroup.elt ->
     pms: (;p,g,gx,gy)dhpms -> bytes
 
 private val accessPMS: pms -> bytes
 
-val extractDHE:
-    si:SessionInfo ->
-    p:DHGroup.p -> g:(;p)DHGroup.g -> gx:(;p)DHGroup.elt -> gy:(;p)DHGroup.elt ->
-    pms: (;p,g,gx,gy)dhpms 
-	{ si.pmsId = PmsId(DHPMS(p,g,gx,gy,pms) ) }
-	->
-    (;si) PRF.masterSecret
-
+//CF actually a private type 
 type entry = pi:pmsId * csr:csrands * ca:creAlg * ms:(;(pi,csr,ca)) ms
 private val log: entry list ref 
 
