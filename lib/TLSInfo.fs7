@@ -377,9 +377,9 @@ val safeHS: (e:epoch) -> b:bool { b = true <=> SafeHS(e)}
 val auth:    (e:epoch) -> b:bool {b = true <=> Auth(e)}
 
 //TODO split Auth and Safe, to have one id-based version for StAE et al
-val safe:   (i:id) -> b:bool { b = true <=> Safe(e)}
-val safeMAC: (i:id) -> b:bool {b = true <=> Auth(e)}
-val safeENC: (i:id) -> b:bool {b = true <=> Safe(e)}
+val safe:   (i:id) -> b:bool { b = true <=> Safe(i)}
+val safeMAC: (i:id) -> b:bool {b = true <=> Auth(i)}
+val safeENC: (i:id) -> b:bool {b = true <=> Safe(i)}
 //TODO confirm where to use safeENC vs safe.
 
 ask !e. Safe(e) => Auth(e)
