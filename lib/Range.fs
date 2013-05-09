@@ -12,9 +12,8 @@ let sum (l0,h0) (l1,h1) =
   let h = h0 + h1
   (l,h)
 
-let ivSize e =
-    let si = epochSI(e) in
-    let authEnc = aeAlg si.cipher_suite si.protocol_version in
+let ivSize (e:id) =
+    let authEnc = e.aeAlg
     match authEnc with
     | MACOnly _ -> 0
     | MtE (encAlg,_) ->
@@ -24,11 +23,11 @@ let ivSize e =
         | CBC_Fresh(alg) -> blockSize alg
     | AEAD (_,_) -> Error.unexpected "[ivSize] invoked on unsupported ciphersuite"
 
-let fixedPadSize (si:SessionInfo) = 1
-    //AP if si.extended_record_padding then 2 else 1
-
-let maxPadSize si =
-    let authEnc = aeAlg si.cipher_suite si.protocol_version in
+let fixedPadSize (id:id) = 1 
+    //AP if si.extended_record_padding then 2 else 1 //MK currently always extended_record_padding=false
+    
+let maxPadSize id =
+    let authEnc = id.aeAlg in
     match authEnc with
     | MACOnly _ -> 0
     | MtE(enc,_) ->
@@ -38,14 +37,13 @@ let maxPadSize si =
             match enc with
             | Stream_RC4_128 -> 0
             | CBC_Stale(alg) | CBC_Fresh(alg) ->
-                match si.protocol_version with
+                match pv_of_id id with
                 | SSL_3p0 -> blockSize alg
                 | TLS_1p0 | TLS_1p1 | TLS_1p2 -> 255
     | _ -> Error.unexpected "[maxPadSize] invoked on unsupported ciphersuite"
 
 let blockAlignPadding e len =
-    let si = epochSI(e) in
-    let authEnc = aeAlg si.cipher_suite si.protocol_version in
+    let authEnc = e.aeAlg in
     match authEnc with
     | MACOnly _ -> 0
     | MtE(enc,_) ->
@@ -53,7 +51,7 @@ let blockAlignPadding e len =
         | Stream_RC4_128 -> 0
         | CBC_Stale(alg) | CBC_Fresh(alg) ->
             let bs = blockSize alg in
-            let fp = fixedPadSize si in
+            let fp = fixedPadSize e in
             let x = len + fp in
             let overflow = x % bs //@ at least fp bytes of fixed padding
             let y = bs - overflow in
@@ -65,8 +63,8 @@ let blockAlignPadding e len =
 //@ From plaintext range to ciphertext length 
 let targetLength e (rg:range) =
     let (_,h) = rg in
-    let si = epochSI(e) in
-    let macLen = macSize (macAlg_of_ciphersuite si.cipher_suite si.protocol_version) in
+
+    let macLen = macSize (macAlg_of_id e) in
     let ivL = ivSize e in
     let prePad = h + macLen in
     let padLen = blockAlignPadding e prePad in
@@ -76,20 +74,19 @@ let targetLength e (rg:range) =
     else
         res
 
-let minMaxPad si =
-    let maxPad = maxPadSize si in
+let minMaxPad (i:id) =
+    let maxPad = maxPadSize i in
     if maxPad = 0 then
         (0,0)
     else
-        let fp = fixedPadSize si in
+        let fp = fixedPadSize i in
         (fp,maxPad) 
 
 //@ From ciphertext length to (maximal) plaintext range
-let cipherRangeClass (e:epoch) tlen =
-    let si = epochSI(e) in
-    let macSize = macSize (macAlg_of_ciphersuite si.cipher_suite si.protocol_version) in
+let cipherRangeClass (e:id) tlen =
+    let macSize = macSize (macAlg_of_id e) in
     let ivL = ivSize e in
-    let (minPad,maxPad) = minMaxPad si in
+    let (minPad,maxPad) = minMaxPad e in
     let max = tlen - ivL - macSize - minPad in
     if max < 0 then
         Error.unexpected "[cipherRangeClass] the given tlen should be of a valid ciphertext"
@@ -100,6 +97,6 @@ let cipherRangeClass (e:epoch) tlen =
         else
             (min,max)
 
-let rangeClass (e:epoch) (r:range) =
+let rangeClass (e:id) (r:range) =
     let tlen = targetLength e r in
     cipherRangeClass e tlen

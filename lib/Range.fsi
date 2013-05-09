@@ -7,9 +7,9 @@ type range = nat * nat (* length range *)
 type rbytes = bytes
 val sum: range -> range -> range
 
-val ivSize: epoch -> nat
-val fixedPadSize: SessionInfo -> nat
-val maxPadSize: SessionInfo -> nat
-val targetLength: epoch -> range -> nat
-val cipherRangeClass: epoch -> nat -> range
-val rangeClass: epoch -> range -> range
+val ivSize: id -> nat
+val fixedPadSize: id -> nat
+val maxPadSize: id -> nat
+val targetLength: id -> range -> nat
+val cipherRangeClass: id -> nat -> range
+val rangeClass: id -> range -> range

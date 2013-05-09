@@ -128,14 +128,15 @@ let nextEpoch epoch crand srand si =
 type id = { 
   msId   : msId;    
   kdfAlg : prfAlg; 
+  pv: ProtocolVersion; //Should be part of aeAlg 
   aeAlg  : aeAlg   
   csrConn: csrands; 
-  writer : Role  
+  writer : Role
   }
 
 let macAlg_of_id id = macAlg_of_aeAlg id.aeAlg
 let encAlg_of_id id = encAlg_of_aeAlg id.aeAlg
-let pv_of_id (id:id) =  TLS_1p2 //TODO MK fix
+let pv_of_id (id:id) =  id.pv //TODO MK fix
 
 // Application configuration
 type helloReqPolicy =
