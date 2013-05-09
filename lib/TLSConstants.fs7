@@ -367,20 +367,32 @@ private definition !kex,mac,pv.
 private definition !kex,enc,mac,pv.
 	CipherSuiteAuthEncAlg(CipherSuite(kex,CS_MtE(enc,mac)),pv) = MtE(TLSENCAlg(enc,pv),TLSMACAlg(mac,pv))
 
+
+function val AEMacAlg: aeAlg -> macAlg
+definition !mac. AEMacAlg(MACOnly(mac)) = mac      // MK use single definition instead
+definition !mac,enc. AEMacAlg(MtE(enc,mac)) = mac
+
+function val AEEncAlg: aeAlg -> encAlg
+definition !enc,mac. AEEncAlg(MtE(enc,mac)) = enc
+
+definition !cs,pv. CipherSuiteMACAlg(cs,pv) = AEMacAlg(CipherSuiteAuthEncAlg(cs,pv))
+definition !cs,pv. CipherSuiteENCAlg(cs,pv) = AEEncAlg(CipherSuiteAuthEncAlg(cs,pv))
+
 //CF status? 
-assume !cs,pv,mac.
+ask !cs,pv,mac.
         CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) => CipherSuiteMACAlg(cs,pv) = mac
-assume !cs,pv,mac,enc.
+ask !cs,pv,mac,enc.
         CipherSuiteAuthEncAlg(cs,pv) = MtE(enc,mac) => CipherSuiteMACAlg(cs,pv) = mac
-assume !cs,pv,mac,enc.
+ask !cs,pv,mac,enc.
         CipherSuiteAuthEncAlg(cs,pv) = MtE(enc,mac) => CipherSuiteENCAlg(cs,pv) = enc
+
 
 private val tlsEncAlg: c:cipherAlg -> pv:ProtocolVersion -> e:encAlg{e = TLSENCAlg(c,pv)}
 private val tlsMacAlg: c:hashAlg -> pv:ProtocolVersion -> e:macAlg{e = TLSMACAlg(c,pv)}
 
 val aeAlg: cs:cipherSuite -> pv:ProtocolVersion -> a:aeAlg{a = CipherSuiteAuthEncAlg(cs,pv)}
-val encAlg_of_aeAlg: a:aeAlg -> h:encAlg // TODO  spec
-val macAlg_of_aeAlg: a:aeAlg -> h:macAlg // TODO  spec
+val encAlg_of_aeAlg: a:aeAlg -> e:encAlg{e=AEEncAlg(a)}   
+val macAlg_of_aeAlg: a:aeAlg -> m:macAlg{m=AEMacAlg(a)}   
 val macAlg_of_ciphersuite: cs:cipherSuite -> pv:ProtocolVersion -> h:macAlg{h = CipherSuiteMACAlg(cs,pv)}
 val encAlg_of_ciphersuite: cs:cipherSuite -> pv:ProtocolVersion -> c:encAlg{c = CipherSuiteENCAlg(cs,pv)}
 val sigAlg_of_ciphersuite: cs:cipherSuite -> s:sigAlg{s = CipherSuiteSigAlg(cs)}

@@ -111,6 +111,7 @@ type prfAlg' =
 
 type creAlg = prfAlg'
 type prfAlg = ProtocolVersion * cipherSuite
+type kdfAlg = prfAlg
 
 val verifyDataLen_of_ciphersuite: cipherSuite -> nat
 val prfMacAlg_of_ciphersuite: cipherSuite -> macAlg

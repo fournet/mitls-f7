@@ -96,8 +96,8 @@ definition !e,l,h.
 		IVSize(e) + h + MacKeySize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) +
 		BlockAlignedPadding(e,h + MacKeySize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)))
 
-val targetLength: e:succEpoch -> r:range -> 
-  tlen:nat {tlen = TargetLength(e,r) /\ tlen <= max_TLSCipher_fragment_length}
+val targetLength: i:id -> r:range -> 
+  tlen:nat {tlen = TargetLength(i,r) /\ tlen <= max_TLSCipher_fragment_length}
 
 (*KB
 definition !e,tlen,alg,mac.

@@ -127,7 +127,7 @@ let nextEpoch epoch crand srand si =
 // the tight index we use as an abstract parameter for StatefulAEAD et al
 type id = { 
   msId   : msId;    
-  kdfAlg : prfAlg; 
+  kdfAlg : kdfAlg; 
   pv: ProtocolVersion; //Should be part of aeAlg 
   aeAlg  : aeAlg   
   csrConn: csrands; 
@@ -137,6 +137,7 @@ type id = {
 let macAlg_of_id id = macAlg_of_aeAlg id.aeAlg
 let encAlg_of_id id = encAlg_of_aeAlg id.aeAlg
 let pv_of_id (id:id) =  id.pv //TODO MK fix
+let kdfAlg_of_id (id:id) = id.kdfAlg
 
 // Application configuration
 type helloReqPolicy =
