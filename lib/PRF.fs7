@@ -157,11 +157,11 @@ val keyCommit: csrands -> ProtocolVersion -> aeAlg -> unit
 
 val keyGenClient: 
   rdId: id -> wrId: id { wrId = Swap(rdId) } ->
-  (;rdId.msi)ms -> (;rdId,wrId) derived   
+  (;rdId.msId)ms -> (;rdId,wrId) derived   
 
 val keyGenServer: 
-  rdId: id -> wrID: id { wrId = Swap(rdId) } ->
-  (;rdId.msi)ms -> (;rdId,wrId) derived
+  rdId: id -> wrId: id { wrId = Swap(rdId) } ->
+  (;rdId.msId)ms -> (;rdId,wrId) derived
 
 
 (* CF
