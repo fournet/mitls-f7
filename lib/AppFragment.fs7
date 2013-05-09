@@ -62,9 +62,9 @@ val repr:  ki:epoch{not Safe(ki)} -> r:range -> f:(;ki,r) fragment -> b:(;r) rby
 // as the range after decryption is usually wider than the one used for encryption.
 // (Note that by design the encryption ranges are *not* authenticated).
 val widen: e:succEpoch -> r0:range -> f0:(;e,r0)fragment -> 
-    f1:(;e,RangeClass(e,r0))fragment{
-    Payload(e,r0,f0) = Payload(e,RangeClass(e,r0),f1) /\
-    !s. Sent(e,s,r0,f0) => Sent(e,s,RangeClass(e,r0),f1)}
+    f1:(;e,RangeClass(Id(e),r0))fragment{
+    Payload(e,r0,f0) = Payload(e,RangeClass(Id(e),r0),f1) /\
+    !s. Sent(e,s,r0,f0) => Sent(e,s,RangeClass(Id(e),r0),f1)}
 
 //CF where do we use this theorem?
 // injectivity of data-fragment (follows from linearity of streams)

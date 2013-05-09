@@ -26,7 +26,7 @@ val fragmentRepr:  ki:epoch -> r:range -> f:(;ki,r) fragment -> b:(;r) rbytes{B(
 val reStream: e:epoch -> s:(;e)stream -> r:range -> p:(;e,s,r)plain -> s':(;e)stream ->
 	p':(;e,s',r)plain{Payload(e,r,p) = Payload(e,r,p')}
 
-val widen: e:epoch -> r0:range -> r1:range {r1 = RangeClass(e,r0)} -> 
+val widen: e:epoch -> r0:range -> r1:range {r1 = RangeClass(Id(e),r0)} -> 
     f0:(;e,r0)fragment -> f1:(;e,r1)fragment{Payload(e,r0,f0) = Payload(e,r1,f1) /\ !s. Sent(e,s,r0,f0) => Sent(e,s,r1,f1)}
 
 function val Extend: e:epoch * s:(;e)stream * r:range * (;e,r)fragment -> 'a // (;e)stream

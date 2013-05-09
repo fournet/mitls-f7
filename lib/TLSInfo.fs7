@@ -334,6 +334,7 @@ definition !e. Id(e) =
 	csrConn = CSRands(EpochSI(e));
 	writer  = EpochWriter(e);
  }
+val id: s:succEpoch -> i:id {Id(s)=i}
 
 function val MacAlg: id -> macAlg
 definition !id. MacAlg(id)=AEMacAlg(id.aeAlg)
@@ -357,7 +358,7 @@ val kdfAlg_of_id: id -> kdfAlg //TODO add and specify
 //MK: predicate HonestLTKey (See also Cert.fs7)
 
 predicate AuthI of id //CF instead of Auth when dealing with tight indexes 
-
+predicate SafeI of id
 
 (* SPECIFYING SAFETY *) 
 
@@ -402,7 +403,7 @@ val auth:    (e:epoch) -> b:bool {b = true <=> Auth(e)}
 //TODO started below, using AuthI and SafeI
 val safe:   (i:id) -> b:bool { b = true <=> Safe(i)}
 val safeMAC: (i:id) -> b:bool {b = true <=> AuthI(i)}
-val safeENC: (i:id) -> b:bool {b = true <=> Safe(i)}
+val safeENC: (i:id) -> b:bool {b = true <=> SafeI(i)}
 //TODO confirm where to use safeENC vs safe.
 
 ask !e. Safe(e) => Auth(e)

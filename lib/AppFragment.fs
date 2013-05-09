@@ -52,7 +52,7 @@ let repr ki r f =
 
 #if ideal
 let widen (e:epoch) (r0:range) (f0:fragment) =
-    let r1 = rangeClass e r0 in
+    let r1 = rangeClass (id e) r0 in
     let (s,d0) = f0.frag in
     let d1 = DataStream.widen e s r0 r1 d0 in
     let (f1,_) = fragment e s r1 d1 in

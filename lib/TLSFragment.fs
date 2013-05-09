@@ -90,7 +90,7 @@ let extendHistory (e:epoch) ct ss r frag =
 
 #if ideal
 let widen e ct r0 f0 =
-    let r1 = rangeClass e r0 in
+    let r1 = rangeClass (id e) r0 in
     match ct,f0 with
     | Handshake,FHandshake(f)      -> let f1 = HSFragment.widen e r0 r1 f in FHandshake(f1)
     | Alert,FAlert(f)              -> let f1 = HSFragment.widen e r0 r1 f in FAlert(f1)

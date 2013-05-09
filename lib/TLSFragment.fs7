@@ -72,10 +72,10 @@ val repr: e:epoch{not Safe(e)} -> ct:ContentType -> h: (;e) history -> rg:range 
 val widen: e:succEpoch -> ct:ContentType -> 
   r0:range -> 
   f0:(;e,ct,r0)fragment ->
-  f1:(;e,ct,RangeClass(e,r0))fragment{
-    Payload(e,ct,r0,f0) = Payload(e,ct,RangeClass(e,r0),f1) /\
+  f1:(;e,ct,RangeClass(Id(e),r0))fragment{
+    Payload(e,ct,r0,f0) = Payload(e,ct,RangeClass(Id(e),r0),f1) /\
     !h. RecordSent(e,ct,h,r0,f0) => 
-        RecordSent(e,ct,h,RangeClass(e,r0),f1)}
+        RecordSent(e,ct,h,RangeClass(Id(e),r0),f1)}
 
 function val EmptyHistory: e:epoch -> (;e)history
 private definition !e. EmptyHistory(e) = {
