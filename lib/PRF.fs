@@ -43,13 +43,14 @@ let keyExtensionLength id =
 
 
 // This code is complex because we need to reshuffle the raw key materials  
-let deriveRawKeys (i:id) (ms:masterSecret) =
+let deriveRawKeys (i:id) (ms:ms)  =
     // we swap the CR and SR for this derivation
     let crand, srand = split i.csrConn 32
     let data = srand @| crand in
     let ae = i.aeAlg in
+    let kdfa = kdfAlg_of_id i
     let len = keyExtensionLength i in
-    let b = TLSPRF.kdf (pv,cs) ms.bytes data len in
+    let b = TLSPRF.kdf kdfa ms.bytes data len in
     match ae with
     | MACOnly macAlg ->
         let macKeySize = macKeySize macAlg in
@@ -79,16 +80,16 @@ let deriveRawKeys (i:id) (ms:masterSecret) =
             (ck,sk)
     | _ -> Error.unexpected "[keyGen] invoked on unsupported ciphersuite"
 
-let deriveKeys ci (ms:masterSecret) =
+let deriveKeys rdId wrId (ms:masterSecret) role  =
     // at this step, we should idealize if SafeMS 
-    let (ck,sk) = deriveRawKeys ci ms
-    match ci.role with 
+    let (ck,sk) = deriveRawKeys rdId ms
+    match role with 
     | Client -> 
-         StatefulLHAE.COERCE ci.id_in  Reader sk,
-         StatefulLHAE.COERCE ci.id_out Writer ck
+         StatefulLHAE.COERCE rdId Reader sk,
+         StatefulLHAE.COERCE wrId Writer ck
     | Server -> 
-         StatefulLHAE.COERCE ci.id_in  Reader ck,
-         StatefulLHAE.COERCE ci.id_out Writer sk
+         StatefulLHAE.COERCE rdId Reader ck,
+         StatefulLHAE.COERCE wrId Writer sk
 
 type derived = StatefulLHAE.reader * StatefulLHAE.writer 
 

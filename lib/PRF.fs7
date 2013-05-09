@@ -60,21 +60,16 @@ val coerce: i:msId {not HonestMS(i)} -> repr -> (;i)ms
 (** Key derivation **) 
 
 function val KeyDerivationIVSize_AEAlg: aeAlg -> nat
-definition (!mac. KeyDerivationIVSize_AEAlg(MACOnly(mac)) = 0) /\
-           (!mac. KeyDerivationIVSize_AEAlg(MtE(Stream_RC4_128,mac)) = 0) /\
+definition (!mac.     KeyDerivationIVSize_AEAlg(MACOnly(mac))            = 0) /\
+           (!mac.     KeyDerivationIVSize_AEAlg(MtE(Stream_RC4_128,mac)) = 0) /\
            (!enc,mac. KeyDerivationIVSize_AEAlg(MtE(CBC_Fresh(enc),mac)) = 0) /\
            (!enc,mac. KeyDerivationIVSize_AEAlg(MtE(CBC_Stale(enc),mac)) = BlockSize(enc))
 
 function val KeyExtensionLength: aeAlg -> nat 
 
-definition !mac. 
-  KeyExtensionLength(MACOnly(mac)) = 2*MacKeySize(mac)
-
-definition !enc,mac. 
-  KeyExtensionLength(MtE(enc,mac)) = 2*(EncKeySize(enc) +
-                                        MacKeySize(mac) +	
-                                        KeyDerivationIVSize_AEAlg(CipherSuiteAuthEncAlg(cs,pv))) )
-
+definition (!mac.     KeyExtensionLength(MACOnly(mac)) = 2*MacKeySize(mac)) /\
+           (!enc,mac. KeyExtensionLength(MtE(enc,mac)) = 2*(EncKeySize(enc) + MacKeySize(mac) +	
+                                                            KeyDerivationIVSize_AEAlg(CipherSuiteAuthEncAlg(cs,pv))) )
 (*/\
   (CipherSuiteAuthEncAlg(cs,pv) = MtE(Stream_RC4_128,mac)  => 
       KeyExtensionLength(pv,cs) = 2* ( MacKeySize(mac) + EncKeySize(Stream_RC4_128))) /\
@@ -84,7 +79,6 @@ definition !enc,mac.
 
 ask !cs,pv,mac. CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) => KeyExtensionLength(pv,cs) = 2*MacKeySize(mac)
 ask !cs,pv,mac. CipherSuiteAuthEncAlg(cs,pv) = MtE(Stream_RC4_128,mac) => KeyExtensionLength(pv,cs) = 2* ( MacKeySize(mac) + EncKeySize(Stream_RC4_128) )
-
 ask !cs,pv,cipher,mac. CipherSuiteAuthEncAlg(cs,pv) =  MtE(CBC_Fresh(cipher),mac) => 
       KeyExtensionLength(pv,cs) = 2*( EncKeySize(CBC_Fresh(cipher)) + MacKeySize(mac))
 
