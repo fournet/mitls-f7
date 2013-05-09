@@ -336,8 +336,14 @@ definition !e. Id(e) =
 	writer  = EpochWriter(e);
  }
 
-val macAlg_of_id: id -> macAlg //TODO specify
-val encAlg_of_id: id -> encAlg //TODO specify
+function val MacAlg: id -> macAlg
+definition !id. MacAlg(id)=AEMacAlg(id.aeAlg)
+
+function val EncAlg: id -> encAlg
+definition !id. EncAlg(id)=AEEncAlg(id.aeAlg)
+
+val macAlg_of_id: i:id -> m:macAlg { MacAlg(i)=m } 
+val encAlg_of_id: i:id -> e:encAlg { EncAlg(i)=e } 
 
 function val PvOfId: i:id -> pv:ProtocolVersion
 definition !i. PvOfId(i)=i.pv
