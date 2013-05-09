@@ -80,7 +80,7 @@ private assume
 			  
 ask !e,alg. Auth(e) /\ alg = CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) =>
 	(alg = MAC_SHA256.a \/ alg = MAC_SHA1.a)
-
+	 
 type text = bytes
 predicate val Msg: id * text -> bool
 

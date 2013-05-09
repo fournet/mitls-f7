@@ -11,58 +11,50 @@ open TLSConstants
 type cipher = b:bytes{Length(b) <= max_TLSCipher_fragment_length}
 (* no need to be more precise on the length *)
 
-
-(* MK 
-type keyindex
-val KeyF: id -> keyindex
-
-private type (;ki:keyindex) secretLHAEKey =
-    | MtEK of ka:(;ki)MAC.key * ke:(;ki)ENC.state // {MtEKey(ki,(ka,ke))}
-    | MACOnlyK of (;ki) MAC.key
-//  | GCM of ke:(;ki:AENC.state)  
-
-
-type (e:id) LHAEKey = (;keyF(e)) secretLHAEKey
-*)
-
 private type (;ki:id) LHAEKey =
     | MtEK of ka:(;ki)MAC.key * ke:(;ki)ENC.state // {MtEKey(ki,(ka,ke))}
     | MACOnlyK of (;ki) MAC.key
 (*  | GCM of ke:(;ki:AENC.state)  *)
 
+
+function val KeyDerivationIVSize_AEAlg: aeAlg -> nat
+definition (!mac.     KeyDerivationIVSize_AEAlg(MACOnly(mac))            = 0) /\
+           (!mac.     KeyDerivationIVSize_AEAlg(MtE(Stream_RC4_128,mac)) = 0) /\
+           (!enc,mac. KeyDerivationIVSize_AEAlg(MtE(CBC_Fresh(enc),mac)) = 0) /\
+           (!enc,mac. KeyDerivationIVSize_AEAlg(MtE(CBC_Stale(enc),mac)) = BlockSize(enc))
+
 function val KeySize_AEAlg: a:aeAlg -> nat
 definition !a,enc,mac. 
-	(( a = MACOnly(mac) =>
-	  KeySize_AEAlg(a) = MacKeySize(mac) ) /\
-	 ( a = MtE(enc,mac) =>
-	  KeySize_AEAlg(a) = MacKeySize(mac) +
+	(( a = MACOnly(mac) => KeySize_AEAlg(a) = MacKeySize(mac) ) /\
+	 ( a = MtE(enc,mac) => KeySize_AEAlg(a) = MacKeySize(mac) +
 					         EncKeySize(enc) +
 		                     KeyDerivationIVSize_AEAlg(a) ))
-ask !cs,pv,mac. CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) => KeySize_AEAlg(MACOnly(mac)) = MacKeySize(mac)
 
 function val KeySize: ki:id -> nat
-definition !ki. KeySize(ki) = KeySize_AEAlg(CipherSuiteAuthEncAlg((EpochSI(ki)).cipher_suite,(EpochSI(ki)).protocol_version))
+definition !ki. KeySize(ki) = KeySize_AEAlg(ki.aeAlg)
 
-(*
-function val KeySize: ki:id -> nat
-definition !ki,si. si = EpochSI(ki) => 
-	KeySize(ki)=KeySize_AEAlg(CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version))
+//definition !ki,si. si = EpochSI(ki) => 
+//	KeySize(ki)=KeySize_AEAlg(CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version))
 
+//private definition !ki,si,enc,mac. si = EpochSI(ki) =>
+//	(( CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MACOnly(mac) =>
+//	  KeySize(ki) = MacKeySize(mac) ) /\
+//	 ( CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(enc,mac) =>
+//	  KeySize(ki) = MacKeySize(mac) +
+//					    EncKeySize(enc) +
+//					    Range.KeyDerivationIVSize(ki) ))
 
-private definition !ki,si,enc,mac. si = EpochSI(ki) =>
-	(( CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MACOnly(mac) =>
-	  KeySize(ki) = MacKeySize(mac) ) /\
-	 ( CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(enc,mac) =>
-	  KeySize(ki) = MacKeySize(mac) +
-					    EncKeySize(enc) +
-					    Range.KeyDerivationIVSize(ki) ))
-*)
+ask !cs,pv,mac. 
+  CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) => 
+  KeySize_AEAlg(MACOnly(mac)) = MacKeySize(mac)
 
-ask !ki,mac. CipherSuiteAuthEncAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = MACOnly(mac) =>
-	  KeySize(ki) = TLSConstants.MacKeySize(mac)
+ask !ki,mac. 
+  CipherSuiteAuthEncAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = MACOnly(mac) =>
+  KeySize(ki) = TLSConstants.MacKeySize(mac)
 
-ask !ki,si,enc,mac. CipherSuiteAuthEncAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = MtE(enc,mac) =>
-	  KeySize(ki) = MacKeySize(mac) + EncKeySize(enc) + Range.KeyDerivationIVSize(ki)
+ask !ki,si,enc,mac.
+  CipherSuiteAuthEncAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = MtE(enc,mac) =>
+  KeySize(ki) = MacKeySize(mac) + EncKeySize(enc) + Range.KeyDerivationIVSize(ki)
 
 
 //CF '13 who wrote this? when?

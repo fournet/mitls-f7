@@ -59,14 +59,8 @@ val coerce: i:msId {not HonestMS(i)} -> repr -> (;i)ms
 
 (** Key derivation **) 
 
-function val KeyDerivationIVSize_AEAlg: aeAlg -> nat
-definition (!mac.     KeyDerivationIVSize_AEAlg(MACOnly(mac))            = 0) /\
-           (!mac.     KeyDerivationIVSize_AEAlg(MtE(Stream_RC4_128,mac)) = 0) /\
-           (!enc,mac. KeyDerivationIVSize_AEAlg(MtE(CBC_Fresh(enc),mac)) = 0) /\
-           (!enc,mac. KeyDerivationIVSize_AEAlg(MtE(CBC_Stale(enc),mac)) = BlockSize(enc))
-
+//CF to be merged with LHAE? This is just twice LHAE.KeySize_AEAlg
 function val KeyExtensionLength: aeAlg -> nat 
-
 definition (!mac.     KeyExtensionLength(MACOnly(mac)) = 2*MacKeySize(mac)) /\
            (!enc,mac. KeyExtensionLength(MtE(enc,mac)) = 2*(EncKeySize(enc) + MacKeySize(mac) +	
                                                             KeyDerivationIVSize_AEAlg(CipherSuiteAuthEncAlg(cs,pv))) )
