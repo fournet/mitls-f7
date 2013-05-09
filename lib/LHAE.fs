@@ -120,12 +120,13 @@ let decrypt' e key data cipher =
                 match Encode.verify e ka data rg plain with
                 | Error z -> Error z
                 | Correct(aeplain) -> correct (nk,rg,aeplain)
-    | (MACOnly macAlg ,MACOnlyK (ka)) ->
+    | (MACOnly macAlg, MACOnlyK (ka)) ->
         let macSize = macSize macAlg in
         if cl < macSize then
             let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
         else
             let rg = cipherRangeClass e cl in
+            todo "freshly broken?";
             let plain = Encode.plain e data cl cipher in
             match Encode.verify e ka data rg plain with
             | Error(z) -> Error(z)

@@ -419,7 +419,7 @@ val safeENC: (i:id) -> b:bool {b = true <=> SafeI(i)}
 //TODO confirm where to use safeENC vs safe.
 
 ask !e. Safe(e) => Auth(e)
-ask !e. SafeI(e) => AuthI(e)
+ask !e. SafeI(e) => AuthI(e) // needed e.g. to leak Encryption keys when not Auth. 
 
 ask !e,mac. e.aeAlg  = MACOnly(mac) => not SafeI(e)
 // AP: This should be invalid, as ciphersuite is a private type!!!
