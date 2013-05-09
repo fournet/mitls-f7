@@ -334,8 +334,7 @@ definition !i:id. Swap(i)=
 	aeAlg   = i.aeAlg; 
 	csrConn = i.csrConn; 
 	writer  = DualRole(i.writer) }
-
-ask !i. Swap(Swap(i)) = i
+// ask !i. Swap(Swap(i)) = i
 
 function val Id: succEpoch -> id
 definition !e. Id(e) = 
@@ -420,6 +419,7 @@ val safeENC: (i:id) -> b:bool {b = true <=> SafeI(i)}
 //TODO confirm where to use safeENC vs safe.
 
 ask !e. Safe(e) => Auth(e)
+ask !e. SafeI(e) => AuthI(e)
 
 ask !e,mac. e.aeAlg  = MACOnly(mac) => not SafeI(e)
 // AP: This should be invalid, as ciphersuite is a private type!!!
