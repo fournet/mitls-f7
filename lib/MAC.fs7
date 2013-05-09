@@ -55,31 +55,26 @@ open TLSInfo
    after partial application of the algorithm name.
    (we keep using a single HMAC module just for convenience, with constants as their first "a" parameters) *)
 
-//MK TODO FIXME When do we mean MacSize and when MacKeySize?
-type (;ki:id) keyrepr = k:bytes {Length(k) = MacKeySize(CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version)) }
-type (;ki:id) tag     = m:bytes {Length(m) = MacKeySize(CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version))}
+//MK TODO FIXME When do we mean MacSize and when MacKeySize? CF: the two are confused for now.
+type (;i:id) keyrepr = k:bytes {Length(k) = MacKeySize(MacAlg(i))}
+type (;i:id) tag     = m:bytes {Length(m) = MacKeySize(MacAlg(i))}
 
 // Our type of keys has a separate constructor for each strong MAC algorithm,
 // so that each of their key types (MAC_SHA256.key) can be kept abstract at every Auth index when #ideal.
 // plus a default constructor for all other keys, concretely represented as fixed-length bytes.
 // (thus, when not #ideal, all keys are KeyNoAuth and the other constructors are not used.)
-private type (;ki:id) key = 
-  | KeyNoAuth of (k:(;ki) keyrepr { not(Auth(ki)) })
-  | Key_SHA256 of (k:(;ki) MAC_SHA256.key 
-    { Auth(ki) /\ 
-	  MAC_SHA256.a = CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) })
-  | Key_SHA1 of (k:(;ki) MAC_SHA1.key 
-    { Auth(ki) /\ 
-	  MAC_SHA1.a = CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) })
+private type (;i:id) key = 
+  | KeyNoAuth  of (k:(;i) keyrepr        { not(AuthI(i)) })
+  | Key_SHA256 of (k:(;i) MAC_SHA256.key { AuthI(i) /\ MacAlg(i) = MAC_SHA256.a })
+  | Key_SHA1   of (k:(;i) MAC_SHA1.key   { AuthI(i) /\ MacAlg(i) = MAC_SHA1.a   })
 
 // this assumption records the list of concrete MAC algorithms 
 // assumed to be INT-CMA (in this instance, just MAC_SHA256.a is)  
 private assume
-  !ki. Auth(ki) => (  CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = MAC_SHA256.a 
-                   \/ CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = MAC_SHA1.a )
+  !i:id. AuthI(i) => ( MacAlg(i) = MAC_SHA256.a 
+                   \/ MacAlg(i) = MAC_SHA1.a )
 			  
-ask !e,alg. Auth(e) /\ alg = CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) =>
-	(alg = MAC_SHA256.a \/ alg = MAC_SHA1.a)
+ask !i,alg. (AuthI(i) /\ alg = MacAlg(i)) => (alg = MAC_SHA256.a \/ alg = MAC_SHA1.a)
 	 
 type text = bytes
 predicate val Msg: id * text -> bool
@@ -87,27 +82,27 @@ predicate val Msg: id * text -> bool
 // We define the Msg predicate of each MAC_SHA256 as follows, 
 // logically multiplexing them to the Msg predicate of MAC (to be defined in turn by users of MAC) 
 private definition 
-  !ki,t. MAC_SHA256.Msg(ki,t) <=> 
-      (Msg(ki,t) /\ 
-	   Auth(ki) /\ 
-	   MAC_SHA256.a = CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version))
+  !i,t. MAC_SHA256.Msg(i,t) <=> 
+      (Msg(i,t) /\ 
+	   AuthI(i) /\ 
+	   MacAlg(i) = MAC_SHA256.a)
 private definition 
-  !ki,t. MAC_SHA1.Msg(ki,t) <=> 
-      (Msg(ki,t) /\ 
-	   Auth(ki) /\ 
-	   MAC_SHA1.a = CipherSuiteMACAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version))
+  !i,t. MAC_SHA1.Msg(i,t) <=> 
+      (Msg(i,t) /\ 
+	   AuthI(i) /\ 
+	   MacAlg(i) = MAC_SHA1.a)
 
-val Mac:    ki:id -> k:(;ki) key -> t:text{Msg(ki,t)} -> m:(;ki) tag
-val Verify: ki:id -> k:(;ki) key -> t:text -> m:(;ki) tag -> b:bool{ (b=true /\ Auth(ki)) => Msg(ki,t) }
+val Mac:    i:id -> k:(;i) key -> t:text{Msg(i,t)} -> m:(;i) tag
+val Verify: i:id -> k:(;i) key -> t:text -> m:(;i) tag -> b:bool{ (b=true /\ AuthI(i)) => Msg(i,t) }
 
-val GEN:    ki:id -> (;ki) key
-val LEAK:   ki:id {not(Auth(ki))} -> (;ki)key -> (;ki)keyrepr
-val COERCE: ki:id {not(Auth(ki))} -> (;ki)keyrepr -> (;ki)key
+val GEN:    i:id -> (;i) key
+val LEAK:   i:id {not(AuthI(i))} -> (;i)key -> (;i)keyrepr
+val COERCE: i:id {not(AuthI(i))} -> (;i)keyrepr -> (;i)key
 
 (* 
 // typing the log for an ideal functionality that 
 // directly specifies the security of MAC (not used anymore)
-private type entry = (ki:id * t:text * (;ki)tag){Msg(ki,t)}
+private type entry = (i:id * t:text * (;i)tag){Msg(i,t)}
 private val log: entry list ref
-private val tmem: ki:id -> t:text -> entry list -> b:bool{ b = true => Msg(ki,t) }
+private val tmem: i:id -> t:text -> entry list -> b:bool{ b = true => Msg(i,t) }
 *)

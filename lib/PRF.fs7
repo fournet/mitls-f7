@@ -93,8 +93,8 @@ private val deriveRawKeys:
 private val deriveKeys: 
   rdId:id -> wrId:id
   { rdId.aeAlg = rdID.aeAlg /\
-    not Auth(rdId) /\ 
-	not Auth(wrId) (* needed to coerce to StatefulLHAE *) } ->  
+    not AuthI(rdId) /\ 
+	not AuthI(wrId) (* needed to coerce to StatefulLHAE *) } ->  
   (;i.msi)ms -> (;rdId,wrId) derived 
 
 
@@ -119,7 +119,7 @@ private val deriveKeys:
 // MK the above is deprecated? SafeKDF should be defined on msId
 
 type event = Waste of ConnectionInfo // with a csr in the Wasted state
-private theorem !ci. Waste(ci) => ((not Auth(ci.id_in)) /\ (not Auth(ci.id_out))) 
+private theorem !i. Waste(i) => (not AuthI(i)) //CF TODO /\ (not AuthI(ci.id_out))) 
 
 type (;csr: csrands) state =
   | Init

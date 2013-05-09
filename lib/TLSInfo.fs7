@@ -356,6 +356,9 @@ val pv_of_id: i:id -> pv:ProtocolVersion {pv=PvOfId(i)} //TODO add and specify
 val kdfAlg_of_id: id -> kdfAlg //TODO add and specify
 //MK: predicate HonestLTKey (See also Cert.fs7)
 
+predicate AuthI of id //CF instead of Auth when dealing with tight indexes 
+
+
 (* SPECIFYING SAFETY *) 
 
 predicate SafeHS of epoch          // Safe handshake for this epoch //CF Avoid?
@@ -396,8 +399,9 @@ val safeHS: (e:epoch) -> b:bool { b = true <=> SafeHS(e)}
 val auth:    (e:epoch) -> b:bool {b = true <=> Auth(e)}
 
 //TODO split Auth and Safe, to have one id-based version for StAE et al
+//TODO started below, using AuthI and SafeI
 val safe:   (i:id) -> b:bool { b = true <=> Safe(i)}
-val safeMAC: (i:id) -> b:bool {b = true <=> Auth(i)}
+val safeMAC: (i:id) -> b:bool {b = true <=> AuthI(i)}
 val safeENC: (i:id) -> b:bool {b = true <=> Safe(i)}
 //TODO confirm where to use safeENC vs safe.
 

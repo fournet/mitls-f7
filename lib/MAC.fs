@@ -51,7 +51,7 @@ let Verify ki key data tag =
     match key with 
     | Key_SHA256(k) -> MAC_SHA256.Verify ki k data tag
     | Key_SHA1(k)   -> MAC_SHA1.Verify ki k data tag
-    | KeyNoAuth(k) -> HMAC.MACVERIFY a k data tag
+    | KeyNoAuth(k)  -> HMAC.MACVERIFY a k data tag
     // #if ideal 
     // // At safe indexes, we use the log to detect and correct verification errors
     // && if safeMAC ki

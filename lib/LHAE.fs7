@@ -44,18 +44,13 @@ definition !ki. KeySize(ki) = KeySize_AEAlg(ki.aeAlg)
 //					    EncKeySize(enc) +
 //					    Range.KeyDerivationIVSize(ki) ))
 
-ask !cs,pv,mac. 
-  CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) => 
-  KeySize_AEAlg(MACOnly(mac)) = MacKeySize(mac)
+ask !mac. KeySize_AEAlg(MACOnly(mac)) = MacKeySize(mac)
 
-ask !ki,mac. 
-  CipherSuiteAuthEncAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = MACOnly(mac) =>
-  KeySize(ki) = TLSConstants.MacKeySize(mac)
+ask !ki,mac. MacAlg(ki) = MACOnly(mac) => KeySize(ki) = TLSConstants.MacKeySize(mac)
 
-ask !ki,si,enc,mac.
-  CipherSuiteAuthEncAlg(EpochSI(ki).cipher_suite,EpochSI(ki).protocol_version) = MtE(enc,mac) =>
-  KeySize(ki) = MacKeySize(mac) + EncKeySize(enc) + Range.KeyDerivationIVSize(ki)
-
+ask !ki,enc,mac.
+  ki.aeAlg = MtE(enc,mac) =>
+  KeySize(ki) = MacKeySize(mac) + EncKeySize(enc) + KeyDerivationIVSize(ki)
 
 //CF '13 who wrote this? when?
 //MK I have a partial answer, for a different question, why?: it was needed for PRF verification, and 
