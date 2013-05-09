@@ -34,18 +34,18 @@ let COERCE e b =
     let a = e.aeAlg
     match a with
     | MACOnly _ -> 
-      let mk = MAC.COERCE e b in
-      MACOnlyK(mk)
+        let mk = MAC.COERCE e b in
+        MACOnlyK(mk)
     | MtE(encalg,macalg) ->
-      let macKeySize = macKeySize macalg in
-      let encKeySize = encKeySize encalg in
-      let (mkb,rest) = split b macKeySize in
-      let (ekb,ivb) = split rest encKeySize in
-      let mk = MAC.COERCE e mkb in
-      let ek = ENC.COERCE e ekb ivb in
-      MtEK(mk,ek)
+        let ms = macKeySize macalg in
+        let es = encKeySize encalg in
+        let (mkb,rest) = split b ms in
+        let (ekb,ivb) = split rest es in
+        let mk = MAC.COERCE e mkb in
+        let ek = ENC.COERCE e ekb ivb in
+        MtEK(mk,ek)
     | AEAD (_,_) -> 
-      unexpected "[COERCE] invoked on wrong ciphersuite"
+        unexpected "[COERCE] invoked on wrong ciphersuite"
 
 let LEAK e k =
     match k with

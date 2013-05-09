@@ -26,8 +26,9 @@ function val KeySize: a:aeAlg -> nat
 definition !mac.     KeySize(MACOnly(mac)) = MacKeySize(mac) 
 definition !enc,mac. KeySize(MtE(enc,mac)) = MacKeySize(mac) + EncKeySize(enc) + KeyDerivationIVSize(MtE(enc,mac))
 
-ask !mac. KeySize(MACOnly(mac)) = MacKeySize(mac)
-ask !ki,mac. MacAlg(ki) = MACOnly(mac) => KeySize(ki.aeAlg) = TLSConstants.MacKeySize(mac)
+//CF not clearly useful
+ask !ki,mac.     ki.aeAlg = MACOnly(mac) => KeySize(ki.aeAlg) = MacKeySize(mac)
+ask !ki,mac,enc. ki.aeAlg = MtE(enc,mac) => KeySize(ki.aeAlg) = MacKeySize(mac) + EncKeySize(enc) + KeyDerivationIVSize(MtE(enc,mac))
 
 //CF '13 who wrote this? when?
 //MK I have a partial answer, for a different question, why?: it was needed for PRF verification, and 
@@ -36,8 +37,8 @@ ask !ki,mac. MacAlg(ki) = MACOnly(mac) => KeySize(ki.aeAlg) = TLSConstants.MacKe
 //TODO ask !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) => KeySize(ki,ki) = MacKeySize(TLSConstants.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))
 
 val GEN:    ki:id     -> encryptor:(;ki)LHAEKey * decryptor:(;ki)LHAEKey
-val COERCE: ki:id{not Auth(ki)} -> b:bytes{Length(b) = KeySize(ki)} -> (;ki)LHAEKey
-val LEAK:   ki:id{not Auth(ki)} -> (;ki)LHAEKey -> b:bytes
+val COERCE: ki:id{not AuthI(ki)} -> b:bytes{Length(b) = KeySize(ki.aeAlg)} -> (;ki)LHAEKey
+val LEAK:   ki:id{not AuthI(ki)} -> (;ki)LHAEKey -> b:bytes
 
 private val mteKey: ki:id -> (;ki) MAC.key -> (;ki) ENC.state -> (;ki) LHAEKey
 

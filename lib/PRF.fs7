@@ -71,10 +71,12 @@ definition (!mac.     KeyExtensionLength(MACOnly(mac)) = 2*MacKeySize(mac)) /\
       KeyExtensionLength(pv,cs) = 2*( MacKeySize(mac) + EncKeySize(CBC_Fresh(cipher))))
 *)
 
+(*
 ask !cs,pv,mac. CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) => KeyExtensionLength(pv,cs) = 2*MacKeySize(mac)
 ask !cs,pv,mac. CipherSuiteAuthEncAlg(cs,pv) = MtE(Stream_RC4_128,mac) => KeyExtensionLength(pv,cs) = 2* ( MacKeySize(mac) + EncKeySize(Stream_RC4_128) )
 ask !cs,pv,cipher,mac. CipherSuiteAuthEncAlg(cs,pv) =  MtE(CBC_Fresh(cipher),mac) => 
       KeyExtensionLength(pv,cs) = 2*( EncKeySize(CBC_Fresh(cipher)) + MacKeySize(mac))
+*)
 
 val keyExtensionLength: ae:aeAlg -> n:nat { n=KeyExtensionLength(ae) }
 
@@ -84,18 +86,19 @@ val keyExtensionLength: ae:aeAlg -> n:nat { n=KeyExtensionLength(ae) }
 //MK Was just copied over from keyGen. Should add it back.
 type (;rdId:id,wrId:id) derived =  
   ( r:(;rdId) StatefulLHAE.reader * w:(;wrId)StatefulLHAE.writer ) 
+  { wrId = Swap(rdId) }
 //  { StatefulLHAE.History(ci.id_out,Reader,r) = StatefulPlain.EmptyHistory(ci.id_in) /\
 //	StatefulLHAE.History(ci.id_out,Writer,w) = StatefulPlain.EmptyHistory(ci.id_out) }
 
 private val deriveRawKeys: 
-  i: id -> (;i.msId)ms -> (;LHAE.KeySize(i)) lbytes * (;LHAE.KeySize(i)) lbytes 
+  i: id -> (;i.msId)ms -> (;LHAE.KeySize(i.aeAlg)) lbytes * (;LHAE.KeySize(i.aeAlg)) lbytes 
 
 private val deriveKeys: 
-  rdId:id -> wrId:id
-  { rdId.aeAlg = rdId.aeAlg /\
+  rdId:id -> wrId:id { 
+    wrId = Swap(rdId) /\ 
     not AuthI(rdId) /\ 
 	not AuthI(wrId) (* needed to coerce to StatefulLHAE *) } ->  
-  (;i.msId)ms -> (;rdId,wrId) derived 
+  (;rdId.msId)ms -> Role -> (;rdId,wrId) derived 
 
 
 // USAGE RESTRICTION:
@@ -118,8 +121,8 @@ private val deriveKeys:
 // definition SafeKDF(csr) <=> ?pv,cs. KeyCommit(csr,pv,cs) /\ KeyGenClient(csr,pv,cs)  
 // MK the above is deprecated? SafeKDF should be defined on msId
 
-type event = Waste of ConnectionInfo // with a csr in the Wasted state
-private theorem !i. Waste(i) => (not AuthI(i)) //CF TODO /\ (not AuthI(ci.id_out))) 
+type event = Waste of id // with a csr in the Wasted state
+private theorem !i. Waste(i) => (not AuthI(i) /\ not AuthI(Swap(i))) 
 
 type (;csr: csrands) state =
   | Init
@@ -155,11 +158,21 @@ val update: csr:csrands -> (;csr) state -> kdentry  list -> kdentry list
 
 val keyCommit: csrands -> ProtocolVersion -> aeAlg -> unit 
 
+//CF strange... 
+//CF no clue why it does not typecheck if we rename x,y to rdId,wrId.
+private val wrap:
+  x: id -> y: id { y = Swap(x) } -> 
+  r:(;y) StatefulLHAE.reader -> w:(;x)StatefulLHAE.writer -> 
+  (;y,x) derived   
+private val wrap2:
+  x: id -> y: id -> (;x,y) derived -> csr:csrands -> (;csr) state
+    
+
 val keyGenClient: 
   rdId: id -> wrId: id { wrId = Swap(rdId) } ->
   (;rdId.msId)ms -> (;rdId,wrId) derived   
 
-val keyGenServer: 
+val keyGenServer:  
   rdId: id -> wrId: id { wrId = Swap(rdId) } ->
   (;rdId.msId)ms -> (;rdId,wrId) derived
 
@@ -233,7 +246,7 @@ val makeVerifyData:
 val checkVerifyData: 
   si:SessionInfo -> (;si) masterSecret ->
   r:Role -> t:text -> tag:tag (* the expected value *) ->
-  b:bool{(b = true /\ SafePRF(si)) => VerifyData(MsI(si),r,t)} 
+  b:bool{(b = true /\ SafeVD(si)) => VerifyData(MsI(si),r,t)} 
   
 
 (** ad hoc SSL3-only function; untrusted. **) 
@@ -242,6 +255,9 @@ val checkVerifyData:
 val ssl_certificate_verify: 
   si:SessionInfo -> (;si)masterSecret ->
   TLSConstants.sigAlg -> bytes -> bytes
+
+
+
 
 
 //CF =============================== only comments below

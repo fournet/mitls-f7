@@ -16,8 +16,8 @@ let coerce (i:msId) b = {bytes = b}
 
 (** Key Derivation **) 
 
-let keyExtensionLength id =
-    match id.aeAlg with
+let keyExtensionLength aeAlg =
+    match aeAlg with
         | MtE(encAlg,macAlg) ->
             let esize = encKeySize encAlg in
             let msize = macKeySize macAlg in 
@@ -48,7 +48,7 @@ let deriveRawKeys (i:id) (ms:ms)  =
     let crand, srand = split i.csrConn 32
     let data = srand @| crand in
     let ae = i.aeAlg in
-    let len = keyExtensionLength i in
+    let len = keyExtensionLength ae in
     let b = TLSPRF.kdf i.kdfAlg ms.bytes data len in
     match ae with
     | MACOnly macAlg ->
@@ -128,6 +128,9 @@ let keyCommit (csr:csrands) (pv:ProtocolVersion) (a:aeAlg) : unit =
   ()
   #endif
 
+let wrap rdId wrId r w = (r,w)
+let wrap2 a b rw csr = Derived(a,b,rw)
+
 //CF We could merge the two keyGen.
 let keyGenClient (rdId:id) (wrId) ms =   
     #if ideal
@@ -139,8 +142,9 @@ let keyGenClient (rdId:id) (wrId) ms =
         // we idealize the key derivation
         let (myRead,peerWrite) = StatefulLHAE.GEN rdId 
         let (peerRead,myWrite) = StatefulLHAE.GEN wrId
-        let peer = (peerRead, peerWrite)
-        kdlog := update csr (Derived(wrId,rdId,peer)) !kdlog;
+        let peer = wrap rdId wrId peerRead peerWrite 
+        let state = wrap2 wrId rdId peer csr 
+        kdlog := update csr state !kdlog;
         (myRead,myWrite)
     | _  ->
         Pi.assume(Waste(rdId));
@@ -148,7 +152,6 @@ let keyGenClient (rdId:id) (wrId) ms =
     #endif
         deriveKeys rdId wrId ms Client
 
-//MK still needs work
 let keyGenServer (rdId:id) (wrId:id) ms =
     #if ideal
     let csr = rdId.csrConn
@@ -156,8 +159,9 @@ let keyGenServer (rdId:id) (wrId:id) ms =
     | Derived(wrId',rdId',derived) when safePRF(rdId)  ->
         // by typing the commitment, we know that rdId has matching csr pv aeAlg 
         kdlog := update csr Done !kdlog
-        if rdId.msId   = wrId'.msId   && 
-           rdId.kdfAlg = wrId'.kdfAlg 
+        if rdId = wrId'
+        //CF was, to be discussed: 
+        //CF if rdId.msId   = wrId'.msId &&  rdId.kdfAlg = wrId'.kdfAlg              
         then  
             derived // we benefit from the client's idealization
         else

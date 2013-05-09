@@ -39,8 +39,8 @@ type preRole =
 type Role = r:preRole{r = Client \/ r = Server}
 
 function val DualRole: Role -> Role
-assume DualRole(Client) = Server
-assume DualRole(Server) = Client
+definition DualRole(Client) = Server
+definition DualRole(Server) = Client
 
 // -------------------------------------------------------------------
 // Client/Server randomness (implemented in Nonce) 
@@ -328,12 +328,14 @@ type id = {
 
 function val Swap: id -> id
 definition !i:id. Swap(i)= 
-  { msId=i.msId; 
-    kdfAlg=i.kdfAlg; 
-	pv=i.pv; 
-	aeAlg=i.aeAlg; 
-	csrConn=i.csrConn; 
-	writer = DualRole(i.writer) }
+  { msId    = i.msId; 
+    kdfAlg  = i.kdfAlg; 
+	pv      = i.pv; 
+	aeAlg   = i.aeAlg; 
+	csrConn = i.csrConn; 
+	writer  = DualRole(i.writer) }
+
+ask !i. Swap(Swap(i)) = i
 
 function val Id: succEpoch -> id
 definition !e. Id(e) = 

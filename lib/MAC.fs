@@ -73,7 +73,7 @@ let GEN ki =
       | a                       -> unreachable "only strong algorithms provide safety"
     else                   
     #endif
-    KeyNoAuth(Nonce.random (macKeySize (a)))
+    KeyNoAuth(Nonce.random (macKeySize a))
 
 let COERCE (ki:id) k = KeyNoAuth(k)  
 let LEAK (ki:id) k = 
