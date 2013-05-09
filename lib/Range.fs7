@@ -103,7 +103,7 @@ definition !e,tlen,alg,mac.
               (x >= 255 => CipherRangeClass(e,tlen) = (x-255,x))))) /\
 	((e.aeAlg = MACOnly(mac) \/
 	  e.aeAlg = MtE(Stream_RC4_128,mac)) =>
-         (!x. x = tlen - IVSize(e) - MacKeySize(CipherSuiteMACAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version)) /\ x >= 0 =>
+         (!x. x = tlen - IVSize(e) - MacKeySize(MacAlg(e)) /\ x >= 0 =>
              CipherRangeClass(e,tlen) = (x,x)))
 *)
 

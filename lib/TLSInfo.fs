@@ -139,16 +139,16 @@ type id = {
   writer : Role
   }
 
-let id (e:succEpoch):id = failwith "should be as below, but doesn't typecheck"
-(* MK should be
-let id (e:succEpoch) = 
-    let si=epochSI(e)
-    let cs=si.cipher_suite
-    let pv=si.protocol_version
-    {msId = msi si; kdfAlg=kdfAlg si; pv=pv; aeAlg = aeAlg cs pv; csrConn = csrands si; writer=epochWriter e }
-*)
-
-
+let id (e:succEpoch):id = // failwith "should be as below, but doesn't typecheck"
+    let si     = epochSI e
+    let cs     = si.cipher_suite
+    let pv     = si.protocol_version
+    let msi    = msi si
+    let kdfAlg = kdfAlg si
+    let aeAlg  = aeAlg cs pv
+    let csr    = csrands si
+    let wr     = epochWriter e
+    {msId = msi; kdfAlg=kdfAlg; pv=pv; aeAlg = aeAlg; csrConn = csr; writer=wr }
 
 let idInv (i:id):succEpoch = failwith "requires a log, and pointless to implement anyway"
 

@@ -10,7 +10,7 @@ type cadata = cbytes
 type adata = bytes
 
 let makeAD (e:id) ct =
-    let pv = pv_of_id e
+    let pv   = pv_of_id e
     let bct  = ctBytes ct in
     let bver = versionBytes pv in
     if pv = SSL_3p0 
@@ -62,19 +62,22 @@ let extendHistory (e:id) d (sh:history) (r:range) f =
   res
 
 let plain (e:id) (h:history) (ad:adata) (r:range) (b:bytes) =
-    let h = TLSFragment.emptyHistory (idInv e) //CF Not Auth: we can pick any history
+    let ee = idInv e
+    let h = TLSFragment.emptyHistory ee //CF Not Auth: we can pick any history
     let ct = parseAD e ad in
-    {contents = TLSFragment.plain (idInv e) ct h r b}
+    {contents = TLSFragment.plain ee ct h r b}
 let reprFragment (e:id) (ad:adata) (r:range) (f:plain) =
+    let ee = idInv e
     let ct = parseAD e ad in
     let x = f.contents in
-    TLSFragment.reprFragment (idInv e) ct r x
+    TLSFragment.reprFragment ee ct r x
 let repr e (h:history) ad r f = reprFragment e ad r f
 
 #if ideal
 let widen e ad r f =
+    let ee = idInv e
     let ct = parseAD e ad in
-    let f1 = TLSFragment.widen (idInv e) ct r f.contents in
+    let f1 = TLSFragment.widen ee ct r f.contents in
     {contents = f1}
 #endif
 

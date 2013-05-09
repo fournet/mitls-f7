@@ -17,7 +17,7 @@ type plain =
      ok:    bool}
 
 #if ideal
-let zeros rg = let _,max = rg in createBytes max 0
+let zeros (rg:range) = let _,max = rg in createBytes max 0
 #endif
 
 let payload (e:id) (rg:range) ad f = 

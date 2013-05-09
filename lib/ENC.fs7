@@ -50,8 +50,8 @@ type (;ki:id)decryptor = (;ki)state
 private function val StateID: ki:id * (;ki)state -> int
 
 val GEN:    ki:id -> (e:(;ki)encryptor{StateID(ki,e)=0}) * (d:(;ki)decryptor{StateID(ki,d)=0})
-val LEAK:   ki:id{not Safe(ki)} -> (;ki)state -> key:bytes * iv:bytes
-val COERCE: ki:id{not Safe(ki)} -> key:bytes -> iv:bytes -> (;ki)state
+val LEAK:   ki:id{not SafeI(ki)} -> (;ki)state -> key:bytes * iv:bytes
+val COERCE: ki:id{not SafeI(ki)} -> key:bytes -> iv:bytes -> (;ki)state
 
 (* an abstract predicate recording all encryption results. *)
 predicate val ENCrypted:
@@ -62,11 +62,11 @@ predicate val ENCrypted:
 val ENC: ki:id -> s:(;ki) encryptor -> ad:(;ki)LHAEPlain.adata -> r:range ->
   p:(;ki,ad,r)plain -> 
   ( (s': (;ki) encryptor{StateID(ki,s') = StateID(ki,s)+1}) *
-    (c : cipher{(Safe(ki) => ENCrypted(ki,ad,c,p)) /\ Length(c)=TargetLength(ki,r)}) )
+    (c : cipher{(SafeI(ki) => ENCrypted(ki,ad,c,p)) /\ Length(c)=TargetLength(ki,r)}) )
 
 val DEC: ki:id -> s:(;ki) decryptor -> ad:(;ki)LHAEPlain.adata ->
   c:cipher
-  { (Safe(ki) => ?p'. ENCrypted(ki,ad,c,p')) /\ Length(c) >= MinTlen(ki) } -> 
+  { (SafeI(ki) => ?p'. ENCrypted(ki,ad,c,p')) /\ Length(c) >= MinTlen(ki) } -> 
   ( (s': (;ki) decryptor{StateID(ki,s') = StateID(ki,s)+1}) *
     (p : (;ki,ad,CipherRangeClass(ki,Length(c)))plain {!p'. ENCrypted(ki,ad,c,p') => p=p'}))
 

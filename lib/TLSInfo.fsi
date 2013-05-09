@@ -65,15 +65,15 @@ type id = {
   writer : Role  
   }
 
-val idInv: succEpoch -> id 
-val idInv: id -> succEpoch
-
 val macAlg_of_id: id -> macAlg
 val encAlg_of_id: id -> encAlg
 val pv_of_id: id -> ProtocolVersion
 
 type preEpoch
 type epoch = preEpoch
+
+val id: epoch -> id 
+val idInv: id -> epoch
 
 val isInitEpoch: epoch -> bool
 val epochSI: epoch -> SessionInfo

@@ -410,7 +410,7 @@ val safeENC: (i:id) -> b:bool {b = true <=> SafeI(i)}
 
 ask !e. Safe(e) => Auth(e)
 
-ask !e,mac. CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MACOnly(mac) => not Safe(e)
+ask !e,mac. e.aeAlg  = MACOnly(mac) => not SafeI(e)
 // AP: This should be invalid, as ciphersuite is a private type!!!
 // AP ask !e. CipherSuiteAuthEncAlg(EpochSI(e).cipher_suite,EpochSI(e).protocol_version) = MACOnly(mac) => 
 // AP   not (?kex,s. EpochSI(e).cipher_suite = CipherSuite(kex,s))
