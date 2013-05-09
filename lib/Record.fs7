@@ -6,13 +6,14 @@
 open Bytes
 open Error
 open TLSError
-open TLSInfo
 open TLSConstants
+open TLSInfo
 open Range
 
 private type (;ki:epoch,rw:rw) ConnectionState =
 	| NullState
-	| SomeState of h:(;ki)TLSFragment.history * st:(;ki,rw)StatefulLHAE.state{h = StatefulPlain.Multiplexed(ki,StatefulLHAE.History(ki,rw,st))}
+	| SomeState of h :(;ki)TLSFragment.history * st:(;ki,rw)StatefulLHAE.state
+	    {h = StatefulPlain.Multiplexed(ki,StatefulLHAE.History(ki,rw,st))}
 
 val someState: ki:epoch -> rw:rw -> h:(;ki) TLSFragment.history -> st: (;ki,rw) StatefulLHAE.state{h = StatefulPlain.Multiplexed(ki,StatefulLHAE.History(ki,rw,st))} -> cs:(;ki,rw) ConnectionState{cs = SomeState (h,st)}
 

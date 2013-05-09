@@ -59,6 +59,38 @@ val coerce: i:msId {not HonestMS(i)} -> repr -> (;i)ms
 
 (** Key derivation **) 
 
+function val KeyDerivationIVSize_AEAlg: aeAlg -> nat
+definition (!mac. KeyDerivationIVSize_AEAlg(MACOnly(mac)) = 0) /\
+           (!mac. KeyDerivationIVSize_AEAlg(MtE(Stream_RC4_128,mac)) = 0) /\
+           (!enc,mac. KeyDerivationIVSize_AEAlg(MtE(CBC_Fresh(enc),mac)) = 0) /\
+           (!enc,mac. KeyDerivationIVSize_AEAlg(MtE(CBC_Stale(enc),mac)) = BlockSize(enc))
+
+function val KeyExtensionLength: aeAlg -> nat 
+
+definition !mac. 
+  KeyExtensionLength(MACOnly(mac)) = 2*MacKeySize(mac)
+
+definition !enc,mac. 
+  KeyExtensionLength(MtE(enc,mac)) = 2*(EncKeySize(enc) +
+                                        MacKeySize(mac) +	
+                                        KeyDerivationIVSize_AEAlg(CipherSuiteAuthEncAlg(cs,pv))) )
+
+(*/\
+  (CipherSuiteAuthEncAlg(cs,pv) = MtE(Stream_RC4_128,mac)  => 
+      KeyExtensionLength(pv,cs) = 2* ( MacKeySize(mac) + EncKeySize(Stream_RC4_128))) /\
+  (CipherSuiteAuthEncAlg(cs,pv) = MtE(CBC_Fresh(cipher),mac) => 
+      KeyExtensionLength(pv,cs) = 2*( MacKeySize(mac) + EncKeySize(CBC_Fresh(cipher))))
+*)
+
+ask !cs,pv,mac. CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) => KeyExtensionLength(pv,cs) = 2*MacKeySize(mac)
+ask !cs,pv,mac. CipherSuiteAuthEncAlg(cs,pv) = MtE(Stream_RC4_128,mac) => KeyExtensionLength(pv,cs) = 2* ( MacKeySize(mac) + EncKeySize(Stream_RC4_128) )
+
+ask !cs,pv,cipher,mac. CipherSuiteAuthEncAlg(cs,pv) =  MtE(CBC_Fresh(cipher),mac) => 
+      KeyExtensionLength(pv,cs) = 2*( EncKeySize(CBC_Fresh(cipher)) + MacKeySize(mac))
+
+val keyExtensionLength: ae:aeAlg -> n:nat { n=KeyExtensionLength(ae) }
+
+
 //CF not sure the refinement is right, and why it was not on deriveKeys. Commenting out for now
 //MK It's probably right. I removed it from deriveKeys to get more meaningful typechecking errors during de bugging.
 //MK Was just copied over from keyGen. Should add it back.

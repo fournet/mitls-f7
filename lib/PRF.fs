@@ -16,28 +16,41 @@ let coerce (i:msId) b = {bytes = b}
 
 (** Key Derivation **) 
 
-(* CF those do not provide useful refinements below :(
-      similarly factoring out code below breaks length computations. 
-let clientWriter = function 
-  | Client -> Writer 
-  | Server -> Reader
-let clientReader = function
-  | Client -> Reader 
-  | Server -> Writer
-*)
+let keyExtensionLength id =
+    match id.aeAlg with
+        | MtE(encAlg,macAlg) ->
+            let esize = encKeySize encAlg in
+            let msize = macKeySize macAlg in 
+              match encAlg with
+                | Stream_RC4_128 | CBC_Fresh(_) -> 
+                    2 * (esize + msize)
+                | CBC_Stale(blockEnc) -> 
+                    let bsize = blockSize blockEnc in
+                      2 * (esize + bsize + msize)
+        | MACOnly (macAlg) ->
+            let msize = macKeySize macAlg in 
+              2 * msize
+#if verify
+#else 
+(* AEAD currently not fully implemented or verified *)               
+        | AEAD(cAlg,macAlg) ->
+            let aksize = aeadKeySize cAlg in
+            let ivsize = aeadIVSize cAlg in
+            let msize = macKeySize macAlg in
+              2 * (aksize + ivsize + msize)
+#endif
+        | _ -> Error.unexpected "[keyExtensionLength] invoked on an invalid ciphersuite"
+
 
 // This code is complex because we need to reshuffle the raw key materials  
-let deriveRawKeys ci (ms:masterSecret) =
-    let si = epochSI(ci.id_in) in
-    let pv = si.protocol_version in
-    let cs = si.cipher_suite in
-    let srand = epochSRand ci.id_in in
-    let crand = epochCRand ci.id_in in
+let deriveRawKeys (i:id) (ms:masterSecret) =
+    // we swap the CR and SR for this derivation
+    let crand, srand = split i.csrConn 32
     let data = srand @| crand in
-    let len = getKeyExtensionLength pv cs in
+    let ae = i.aeAlg in
+    let len = keyExtensionLength i in
     let b = TLSPRF.kdf (pv,cs) ms.bytes data len in
-    let authEnc = aeAlg cs pv in
-    match authEnc with
+    match ae with
     | MACOnly macAlg ->
         let macKeySize = macKeySize macAlg in
         let ck,sk = split b macKeySize 
@@ -228,3 +241,13 @@ let ssl_certificate_verify (si:SessionInfo) ms (algs:sigAlg) log =
 //  then (ci.id_in, ci.id_out)
 //  else (ci.id_out, ci.id_in) 
 //#endif
+
+(* CF those do not provide useful refinements  :(
+      similarly factoring out code below breaks length computations. 
+let clientWriter = function 
+  | Client -> Writer 
+  | Server -> Reader
+let clientReader = function
+  | Client -> Reader 
+  | Server -> Writer
+*)

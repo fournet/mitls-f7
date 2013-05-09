@@ -133,8 +133,6 @@ val parseCipherSuite: bytes -> cipherSuite Result
 val parseCipherSuites: bytes -> cipherSuites Result
 val cipherSuitesBytes: cipherSuites -> bytes
 
-val getKeyExtensionLength: ProtocolVersion -> cipherSuite -> nat
-
 (* Not for verification, just to run the implementation *)
 
 type cipherSuiteName =

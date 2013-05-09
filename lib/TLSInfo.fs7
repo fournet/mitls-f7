@@ -335,6 +335,7 @@ definition !e. Id(e) =
 val macAlg_of_id: id -> macAlg //TODO specify
 val encAlg_of_id: id -> encAlg //TODO specify
 val pv_of_id: id -> ProtocolVersion //TODO add and specify
+val kdfAlg_of_id: id -> kdfAlg //TODO add and specify
 //MK: predicate HonestLTKey (See also Cert.fs7)
 
 (* SPECIFYING SAFETY *) 

@@ -524,31 +524,6 @@ let macAlg_of_ciphersuite cs pv = macAlg_of_aeAlg (aeAlg cs pv)
 
 let mkIntTriple x:(int*int*int) = x
 
-let getKeyExtensionLength pv cs =
-  let ae = aeAlg cs pv in
-      match ae with
-        | MtE(encAlg,macAlg) ->
-            let esize = encKeySize encAlg in
-            let msize = macKeySize macAlg in 
-              match encAlg with
-                | Stream_RC4_128 | CBC_Fresh(_) -> 
-                    2 * (esize + msize)
-                | CBC_Stale(blockEnc) -> 
-                    let bsize = blockSize blockEnc in
-                      2 * (esize + bsize + msize)
-        | MACOnly (macAlg) ->
-            let msize = macKeySize macAlg in 
-              2 * msize
-#if verify
-#else 
-(* AEAD currently not fully implemented or verified *)               
-        | AEAD(cAlg,macAlg) ->
-            let aksize = aeadKeySize cAlg in
-            let ivsize = aeadIVSize cAlg in
-            let msize = macKeySize macAlg in
-              2 * (aksize + ivsize + msize)
-#endif
-        | _ -> unexpected "[getKeyExtensionLength] invoked on an invalid ciphersuite"
 
 (* Not for verification, just to run the implementation. See TLSInfo.fs *)
 type cipherSuiteName =

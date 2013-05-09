@@ -4,7 +4,6 @@ open Bytes
 open TLSConstants
 open TLSInfo
 
-
 type repr = bytes
 type ms
 type masterSecret = ms
