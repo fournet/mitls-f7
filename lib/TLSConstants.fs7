@@ -83,7 +83,7 @@ type aeadAlg =
 
 type aeAlg = // for specification of INT_CTXT predicate
     | MACOnly of macAlg
-    | MtE of encAlg * macAlg
+    | MtE of encAlg * macAlg // TODO MK later, add the protocol version
     | AEAD of aeadAlg * macAlg // macAlg is for the PRF
 
 predicate INT_CTXT of aeAlg * ProtocolVersion
@@ -379,6 +379,8 @@ private val tlsEncAlg: c:cipherAlg -> pv:ProtocolVersion -> e:encAlg{e = TLSENCA
 private val tlsMacAlg: c:hashAlg -> pv:ProtocolVersion -> e:macAlg{e = TLSMACAlg(c,pv)}
 
 val aeAlg: cs:cipherSuite -> pv:ProtocolVersion -> a:aeAlg{a = CipherSuiteAuthEncAlg(cs,pv)}
+val encAlg_of_aeAlg: a:aeAlg -> h:encAlg // TODO  spec
+val macAlg_of_aeAlg: a:aeAlg -> h:macAlg // TODO  spec
 val macAlg_of_ciphersuite: cs:cipherSuite -> pv:ProtocolVersion -> h:macAlg{h = CipherSuiteMACAlg(cs,pv)}
 val encAlg_of_ciphersuite: cs:cipherSuite -> pv:ProtocolVersion -> c:encAlg{c = CipherSuiteENCAlg(cs,pv)}
 val sigAlg_of_ciphersuite: cs:cipherSuite -> s:sigAlg{s = CipherSuiteSigAlg(cs)}

@@ -16,74 +16,74 @@ open Range
 // ciphers consist of one or more blocks of bytes.
 type cipher = b:bytes{Length(b) <= max_TLSCipher_fragment_length}
 
-private type (;ki:succEpoch) key = {k:bytes}
+private type (;ki:id) key = {k:bytes}
 
 //CF should actually be 
-//CF private type (;ki:succEpoch) key' = 
+//CF private type (;ki:id) key' = 
 //CF   | GoodKey_A of ideal_A.key 
 //CF   | GoodKey_B of ideal_B.key
 //CF   | BadKey_A 
 
 type iv = bytes //CF could specify its size
-private type (;ki:succEpoch) iv3 =
+private type (;ki:id) iv3 =
 	| SomeIV of iv // SSL_3p0 and TLS_1p0
 	| NoIV         // TLS_1p0 and TLS_1p2
 
-private type (;ki:succEpoch) blockState =
+private type (;ki:id) blockState =
     {key: (;ki)key;
      iv: (;ki)iv3}
-private type (;ki:succEpoch) streamState = 
+private type (;ki:id) streamState = 
     {skey: (;ki)key; // Ghost: Only stored so that we can LEAK it
      sstate: CoreCiphers.rc4engine}
 
-private type (;ki:succEpoch)state =	
+private type (;ki:id)state =	
     | BlockCipher of (;ki)blockState
     | StreamCipher of (;ki)streamState
 //MK was: {key: (;ki)key; iv: (;ki)iv3}
 
 //CF TODO we need to separate those two types!
-type (;ki:succEpoch)encryptor = (;ki)state
-type (;ki:succEpoch)decryptor = (;ki)state
+type (;ki:id)encryptor = (;ki)state
+type (;ki:id)decryptor = (;ki)state
 
 // We do not use the state, but an abstract ID over it, so that we can link
 // encryptor and decryptor states
-private function val StateID: ki:succEpoch * (;ki)state -> int
+private function val StateID: ki:id * (;ki)state -> int
 
-val GEN:    ki:succEpoch -> (e:(;ki)encryptor{StateID(ki,e)=0}) * (d:(;ki)decryptor{StateID(ki,d)=0})
-val LEAK:   ki:succEpoch{not Safe(ki)} -> (;ki)state -> key:bytes * iv:bytes
-val COERCE: ki:succEpoch{not Safe(ki)} -> key:bytes -> iv:bytes -> (;ki)state
+val GEN:    ki:id -> (e:(;ki)encryptor{StateID(ki,e)=0}) * (d:(;ki)decryptor{StateID(ki,d)=0})
+val LEAK:   ki:id{not Safe(ki)} -> (;ki)state -> key:bytes * iv:bytes
+val COERCE: ki:id{not Safe(ki)} -> key:bytes -> iv:bytes -> (;ki)state
 
 (* an abstract predicate recording all encryption results. *)
 predicate val ENCrypted:
-  (e:succEpoch * ad:(;e)LHAEPlain.adata * c:cipher * 'a) -> bool // p:(;e,ad,CipherRangeClass(e,Length(c))) plain
+  (e:id * ad:(;e)LHAEPlain.adata * c:cipher * 'a) -> bool // p:(;e,ad,CipherRangeClass(e,Length(c))) plain
 
 // TODO: We need to refine cipher before applying CPA
 //CF we miss a refinement synchronizing ad and s
-val ENC: ki:succEpoch -> s:(;ki) encryptor -> ad:(;ki)LHAEPlain.adata -> r:range ->
+val ENC: ki:id -> s:(;ki) encryptor -> ad:(;ki)LHAEPlain.adata -> r:range ->
   p:(;ki,ad,r)plain -> 
   ( (s': (;ki) encryptor{StateID(ki,s') = StateID(ki,s)+1}) *
     (c : cipher{(Safe(ki) => ENCrypted(ki,ad,c,p)) /\ Length(c)=TargetLength(ki,r)}) )
 
-val DEC: ki:succEpoch -> s:(;ki) decryptor -> ad:(;ki)LHAEPlain.adata ->
+val DEC: ki:id -> s:(;ki) decryptor -> ad:(;ki)LHAEPlain.adata ->
   c:cipher
   { (Safe(ki) => ?p'. ENCrypted(ki,ad,c,p')) /\ Length(c) >= MinTlen(ki) } -> 
   ( (s': (;ki) decryptor{StateID(ki,s') = StateID(ki,s)+1}) *
     (p : (;ki,ad,CipherRangeClass(ki,Length(c)))plain {!p'. ENCrypted(ki,ad,c,p') => p=p'}))
 
 type entry = 
-  (ki:succEpoch * ad:(;ki)LHAEPlain.adata * c:cipher * p:(;ki,ad,CipherRangeClass(ki,Length(c)))plain)
+  (ki:id * ad:(;ki)LHAEPlain.adata * c:cipher * p:(;ki,ad,CipherRangeClass(ki,Length(c)))plain)
   { ENCrypted(ki,ad,c,p) } 
 
 val log: entry list ref
-val cfind: e:succEpoch -> c:cipher -> xs: entry list ->
+val cfind: e:id -> c:cipher -> xs: entry list ->
 	(ad:(;e)LHAEPlain.adata * rg:range * (;e,ad,rg) Encode.plain)
 
 (* AP
-val ENC: ki:succEpoch -> s:(;ki) encryptor -> tlen:int -> p:(;ki,tlen) plain -> 
+val ENC: ki:id -> s:(;ki) encryptor -> tlen:int -> p:(;ki,tlen) plain -> 
   ( s':(;ki)encryptor *
    c:cipher{StateID(s') = StateID(s)+1 /\ ENCrypted(ki,tlen,StateID(s),p,c) /\ Length(c)=tlen})
 
-val DEC: ki:succEpoch -> s:(;ki) decryptor -> c:cipher -> 
+val DEC: ki:id -> s:(;ki) decryptor -> c:cipher -> 
   (s':(;ki)decryptor *
    p:(;ki,Length(c))plain{StateID(s') = StateID(s)+1 /\ !p'. ENCrypted(ki,Length(c),StateID(s),p',c) => p=p'})
 *)
@@ -91,7 +91,7 @@ val DEC: ki:succEpoch -> s:(;ki) decryptor -> c:cipher ->
 private val lastblock:  alg:blockCipher -> c:cipher {Length(c)>=BlockSize(alg)} -> bytes
 
 (* MK missing internal function declarations 
-private val GENOne: e:succEpoch -> (;e) state
+private val GENOne: e:id -> (;e) state
 private val cbcenc: blockCipher -> CoreCiphers.key -> CoreCiphers.iv -> bytes -> bytes 
-private val ENC_int: e:succEpoch -> (;e)encryptor -> int -> bytes -> (;e)encryptor * bytes
+private val ENC_int: e:id -> (;e)encryptor -> int -> bytes -> (;e)encryptor * bytes
 *)

@@ -509,18 +509,18 @@ let aeAlg cs pv =
     | _ -> unexpected "[aeAlg] invoked on an invalid ciphersuite"
 
 
-let encAlg_of_ciphersuite cs pv =
-  let ae = aeAlg cs pv in
-    match ae with
+let encAlg_of_aeAlg ae =
+  match ae with
     | MtE(e,m) -> e 
     | _ -> unexpected "[encAlg_of_ciphersuite] inovked on an invalid ciphersuite"
 
-let macAlg_of_ciphersuite cs pv =
-  let ae = aeAlg cs pv in
-    match ae with
+let macAlg_of_aeAlg ae =
+  match ae with
     | MtE(_,alg) | MACOnly alg -> alg
     | _ -> unexpected "[macAlg_of_ciphersuite] invoked on an invalid ciphersuite"
 
+let encAlg_of_ciphersuite cs pv = encAlg_of_aeAlg (aeAlg cs pv) 
+let macAlg_of_ciphersuite cs pv = macAlg_of_aeAlg (aeAlg cs pv)
 
 let mkIntTriple x:(int*int*int) = x
 

@@ -332,7 +332,9 @@ definition !e. Id(e) =
 	writer  = EpochWriter(e);
  }
 
-
+val macAlg_of_id: id -> macAlg //TODO specify
+val encAlg_of_id: id -> encAlg //TODO specify
+val pv_of_id: id -> ProtocolVersion //TODO add and specify
 //MK: predicate HonestLTKey (See also Cert.fs7)
 
 (* SPECIFYING SAFETY *) 
@@ -369,13 +371,16 @@ definition !e. Auth(e) <=> AuthSI(EpochSI(e))
 
 // In the code of ideal implementations only,
 // we use F# functions that characterize the Safe and Auth predicates.
-val safe:   (e:epoch) -> b:bool { b = true <=> Safe(e) }
 val safeHS: (e:epoch) -> b:bool { b = true <=> SafeHS(e)}
 //MK: safePRF is used for idealization even if ciphersuites don't match.
 //MK: this is needed to guarantee security of finished message MACs
 val auth:    (e:epoch) -> b:bool {b = true <=> Auth(e)}
-val safeMAC: (e:epoch) -> b:bool {b = true <=> Auth(e)}
-val safeENC: (e:epoch) -> b:bool {b = true <=> Safe(e)}
+
+//TODO split Auth and Safe, to have one id-based version for StAE et al
+val safe:   (i:id) -> b:bool { b = true <=> Safe(e)}
+val safeMAC: (i:id) -> b:bool {b = true <=> Auth(e)}
+val safeENC: (i:id) -> b:bool {b = true <=> Safe(e)}
+//TODO confirm where to use safeENC vs safe.
 
 ask !e. Safe(e) => Auth(e)
 

@@ -18,9 +18,8 @@ type LHAEKey =
 (*  | GCM of AENC.state  *)
 
 let GEN e =
-    let si = epochSI(e) in
-    let authEnc = aeAlg si.cipher_suite si.protocol_version in
-    match authEnc with
+    let a = e.aeAlg in
+    match a with
     | MACOnly _ ->
         let mk = MAC.GEN e
         (MACOnlyK(mk), MACOnlyK(mk))
@@ -32,11 +31,8 @@ let GEN e =
 
 let COERCE e b =
     // precondition: b is of the right length, so no need for a runtime checks here.
-    let si = epochSI(e) in
-    let cs = si.cipher_suite in
-    let pv = si.protocol_version in
-    let authEnc = aeAlg cs pv in
-    match authEnc with
+    let a = e.aeAlg
+    match a with
     | MACOnly _ -> 
       let mk = MAC.COERCE e b in
       MACOnlyK(mk)
@@ -60,11 +56,8 @@ let LEAK e k =
 
 (***** authenticated encryption *****)
 
-let encrypt' e key data rg plain =
-    let si = epochSI(e) in
-    let cs = si.cipher_suite in
-    let pv = si.protocol_version in
-    let authEnc = aeAlg cs pv in
+let encrypt' (e:id) key data rg plain =
+    let authEnc = e.aeAlg in
     match (authEnc,key) with
     | (MtE(encAlg,_), MtEK (ka,ke)) ->
         match encAlg with
@@ -91,15 +84,12 @@ let encrypt' e key data rg plain =
 //  | GCM (k) -> ... 
     | (_,_) -> unexpected "[encrypt'] incompatible ciphersuite-key given."
         
-let mteKey (e:epoch) ka ke = MtEK(ka,ke)
+let mteKey (e:id) ka ke = MtEK(ka,ke)
 
 let decrypt' e key data cipher =
     let cl = length cipher in
     // by typing, we know that cl <= max_TLSCipher_fragment_length
-    let si = epochSI(e) in
-    let cs = si.cipher_suite in
-    let pv = si.protocol_version in
-    let authEnc = aeAlg cs pv in
+    let authEnc = e.aeAlg in
     match (authEnc,key) with
     | (MtE(encAlg,macAlg), MtEK (ka,ke)) ->
         let macSize = macSize macAlg in
@@ -145,12 +135,12 @@ let decrypt' e key data cipher =
 
 #if ideal
 
-type preds = | ENCrypted of epoch * LHAEPlain.adata * range * LHAEPlain.plain * cipher
+type preds = | ENCrypted of id * LHAEPlain.adata * range * LHAEPlain.plain * cipher
 
-type entry = epoch * LHAEPlain.adata * range * LHAEPlain.plain * ENC.cipher
+type entry = id * LHAEPlain.adata * range * LHAEPlain.plain * ENC.cipher
 let log = ref ([]: entry list) // for defining the ideal functionality for CTXT
 
-let rec cmem (e:epoch) (ad:LHAEPlain.adata) (c:ENC.cipher) (xs: entry list) = 
+let rec cmem (e:id) (ad:LHAEPlain.adata) (c:ENC.cipher) (xs: entry list) = 
 #if verify
   failwith "specification only"
 #else
@@ -162,7 +152,7 @@ let rec cmem (e:epoch) (ad:LHAEPlain.adata) (c:ENC.cipher) (xs: entry list) =
 
 #endif
 
-let encrypt e key data rg plain = 
+let encrypt (e:id) key data rg plain = 
   let (key,cipher) = encrypt' e key data rg plain in
   #if ideal
   (* CF we do not log in all cases, as we do not have ENCrypted for MAC-only suites *)
@@ -177,7 +167,7 @@ let encrypt e key data rg plain =
   #endif
   (key,cipher)
 
-let decrypt e (key: LHAEKey) data (cipher: bytes) = 
+let decrypt (e:id) (key: LHAEKey) data (cipher: bytes) = 
   let err = (AD_bad_record_mac,"") in
   #if ideal_F
   if safe e then

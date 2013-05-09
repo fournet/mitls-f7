@@ -3,8 +3,8 @@
 (* This modules defines the range computations for length-hiding *) 
 
 open Bytes
-open TLSInfo
 open TLSConstants
+open TLSInfo
 
 type range = low:nat * high:nat { low <= high }
 type (;r:range) rbytes = b:bytes { ?l,h. r = (l,h) /\ l <= Length(b) /\ Length(b) <= h }   
@@ -15,6 +15,7 @@ val sum: r0:range -> r1:range -> r:range{r = Sum(r0,r1)}
 predicate SubRange of range * range
 definition !l0,l1,h0,h1. SubRange((l0,h0),(l1,h1)) <=> l1 <= l0 && h0 <= h1
 
+//TODO MK whole file from epopch to id 
 function val RangeClass: epoch * range -> range
 function val TargetLength: epoch * range -> nat
 function val CipherRangeClass: epoch * nat -> range

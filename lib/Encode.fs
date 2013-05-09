@@ -8,7 +8,7 @@ open TLSConstants
 open Range
 
 #if verify
-type preds = | CipherRange of epoch * range * nat
+type preds = | CipherRange of id * range * nat
 #endif
 
 type plain =
@@ -20,7 +20,7 @@ type plain =
 let zeros rg = let _,max = rg in createBytes max 0
 #endif
 
-let payload (e:epoch) (rg:range) ad f = 
+let payload (e:id) (rg:range) ad f = 
   // After applying CPA encryption for ENC, 
   // we access the fragment bytes only at unsafe indexes, and otherwise use some zeros
   #if ideal 
@@ -30,7 +30,7 @@ let payload (e:epoch) (rg:range) ad f =
   #endif
     LHAEPlain.repr e ad rg f 
 
-let macPlain (e:epoch) (rg:range) ad f =
+let macPlain (e:id) (rg:range) ad f =
     let b = payload e rg ad f
     ad @| vlbytes 2 b
 
@@ -42,6 +42,9 @@ let mac e k ad rg plain =
      ok = true
     }
 
+
+(* CF to avoid adding pv to aeAlg, we only use TLS1.2-style verify; to be discussed.
+ 
 let verify e k ad rg plain =
     let si = epochSI(e) in
     let pv = si.protocol_version in
@@ -92,10 +95,34 @@ let verify e k ad rg plain =
 #endif
            Error(AD_bad_record_mac,reason) 
 //#end-uniform_err
+*)
 
+let verify (e:id) k ad rg plain =
+    let f = plain.plain in
+    let text = macPlain e rg ad f in
+    let tag  = plain.tag in
+        (*@ We implement standard mitigation for padding oracles.
+            Still, we note a small timing leak here:
+            The time to verify the mac is linear in the plaintext length. *)
+        if MAC.Verify e k text tag then 
+          if plain.ok 
+            then correct f
+          else
+#if DEBUG
+              let reason = perror __SOURCE_FILE__ __LINE__ "" in 
+#else
+              let reason = "" in
+#endif
+              Error(AD_bad_record_mac,reason)
+        else
+#if DEBUG
+           let reason = perror __SOURCE_FILE__ __LINE__ "" in 
+#else
+           let reason = "" in
+#endif
+           Error(AD_bad_record_mac,reason) 
 
-
-let encodeNoPad (e:epoch) (tlen:nat) rg (ad:LHAEPlain.adata) data tag =
+let encodeNoPad (e:id) (tlen:nat) rg (ad:LHAEPlain.adata) data tag =
     let b = payload e rg ad data in
     let (_,h) = rg in
     if h <> length b then
@@ -109,7 +136,7 @@ let encodeNoPad (e:epoch) (tlen:nat) rg (ad:LHAEPlain.adata) data tag =
 
 let pad (p:int)  = createBytes p (p-1)
 
-let encode (e:epoch) (tlen:nat) rg (ad:LHAEPlain.adata) data tag =
+let encode (e:id) (tlen:nat) rg (ad:LHAEPlain.adata) data tag =
     let b = payload e rg ad data in
     let lb = length b in
     let lm = length tag in
@@ -125,14 +152,12 @@ let encode (e:epoch) (tlen:nat) rg (ad:LHAEPlain.adata) data tag =
     else
         unexpected "[encode] Internal error."
 
-
-let decodeNoPad e (ad:LHAEPlain.adata) rg tlen pl =
+let decodeNoPad (e:id) (ad:LHAEPlain.adata) rg tlen pl =
     let plainLen = length pl in
     if plainLen <> tlen then
         Error.unexpected "[decodeNoPad] wrong target length given as input argument."
     else
-    let si = epochSI(e) in
-    let macAlg = macAlg_of_ciphersuite si.cipher_suite si.protocol_version in
+    let macAlg = macAlg_of_id e in
     let maclen = macSize macAlg in
     let payloadLen = plainLen - maclen in
     let (frag,tag) = Bytes.split pl payloadLen in
@@ -141,17 +166,17 @@ let decodeNoPad e (ad:LHAEPlain.adata) rg tlen pl =
      tag = tag;
      ok = true}
 
-let decode e (ad:LHAEPlain.adata) rg (tlen:nat) pl =
-    let si = epochSI(e) in
-    let macSize = macSize (macAlg_of_ciphersuite si.cipher_suite si.protocol_version) in
+let decode (e:id) (ad:LHAEPlain.adata) rg (tlen:nat) pl =
+    let a = e.aeAlg
+    let macSize = macSize (macAlg_of_aeAlg a) in
     let pLen = length pl in
     let padLenStart = pLen - 1 in
     let (tmpdata, padlenb) = Bytes.split pl padLenStart in
     let padlen = int_of_bytes padlenb in
     let padstart = pLen - padlen - 1 in
     let macstart = pLen - macSize - padlen - 1 in
-    let alg = encAlg_of_ciphersuite si.cipher_suite si.protocol_version in
-    match alg with
+    let encAlg = encAlg_of_aeAlg a
+    match encAlg with
     | Stream_RC4_128 -> unreachable "[decode] invoked on stream cipher"
     | CBC_Stale(encAlg) | CBC_Fresh(encAlg) ->
     let bs = blockSize encAlg in
@@ -168,7 +193,7 @@ let decode e (ad:LHAEPlain.adata) rg (tlen:nat) pl =
         }
     else
         let (data_no_pad,pad) = split tmpdata padstart in
-        match si.protocol_version with
+        match pv_of_id e with
         | TLS_1p0 | TLS_1p1 | TLS_1p2 ->
             (*@ We note the small timing leak here.
                 The timing of the following two lines
@@ -215,11 +240,8 @@ let decode e (ad:LHAEPlain.adata) rg (tlen:nat) pl =
                     ok = false;
                 }
 
-let plain (e:epoch) ad tlen b = 
-  let si = epochSI(e) in
-  let cs = si.cipher_suite in
-  let pv = si.protocol_version in
-  let authEnc = aeAlg cs pv in
+let plain (e:id) ad tlen b = 
+  let authEnc = e.aeAlg
   let rg = cipherRangeClass e tlen in
   match authEnc with
     | MtE(Stream_RC4_128,_) 
@@ -232,11 +254,8 @@ let plain (e:epoch) ad tlen b =
 //  | GCM _ ->
     | _ -> unexpected "[Encode.plain] incompatible ciphersuite given."
 
-let repr (e:epoch) ad rg pl = 
-  let si = epochSI(e) in
-  let cs = si.cipher_suite in
-  let pv = si.protocol_version in
-  let authEnc = aeAlg cs pv in
+let repr (e:id) ad rg pl = 
+  let authEnc = e.aeAlg
   let lp = pl.plain in
   let tg = pl.tag in
   let tlen = targetLength e rg in

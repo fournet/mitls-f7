@@ -9,18 +9,16 @@ open Range
 type cadata = cbytes
 type adata = bytes
 
-let makeAD e ct =
-    let si = epochSI(e) in
-    let pv = si.protocol_version in
+let makeAD (e:id) ct =
+    let pv = pv_of_id e
     let bct  = ctBytes ct in
     let bver = versionBytes pv in
     if pv = SSL_3p0 
     then bct
     else bct @| bver
 
-let parseAD e ad =
-    let si = epochSI(e) in
-    let pv = si.protocol_version in
+let parseAD (e:id) ad =
+    let pv = pv_of_id e
     if pv = SSL_3p0 then
         match parseCT ad with
         | Error x -> unexpected "[parseAD] should never parse failing"
@@ -48,26 +46,26 @@ type history = (nat * prehistory)
 type plain = fragment
 
 //CF just for performance? justified because the history is ghost.
-let consHistory (e:epoch) (h:prehistory) (d:adata) (r:range) (f:fragment) =
+let consHistory (e:id) (h:prehistory) (d:adata) (r:range) (f:fragment) =
 #if ideal
     (d,r,f)::h
 #else
     h
 #endif
 
-let emptyHistory (e:epoch): history = (0,[])
-let extendHistory (e:epoch) d (sh:history) (r:range) f = 
+let emptyHistory (e:id): history = (0,[])
+let extendHistory (e:id) d (sh:history) (r:range) f = 
   let (seqn,h) = sh in
   let s' = seqn+1 in
   let nh = consHistory e h d r f in
   let res = (s',nh) in
   res
 
-let plain (e:epoch) (h:history) (ad:adata) (r:range) (b:bytes) =
+let plain (e:id) (h:history) (ad:adata) (r:range) (b:bytes) =
     let h = TLSFragment.emptyHistory e //CF Not Auth: we can pick any history
     let ct = parseAD e ad in
     {contents = TLSFragment.plain e ct h r b}
-let reprFragment (e:epoch) (ad:adata) (r:range) (f:plain) =
+let reprFragment (e:id) (ad:adata) (r:range) (f:plain) =
     let ct = parseAD e ad in
     let x = f.contents in
     TLSFragment.reprFragment e ct r x
@@ -80,5 +78,5 @@ let widen e ad r f =
     {contents = f1}
 #endif
 
-let RecordPlainToStAEPlain (e:epoch) (ct:ContentType) (ad:adata) (ss:TLSFragment.history) (st:history) (rg:range) f = {contents = f}
-let StAEPlainToRecordPlain (e:epoch) (ct:ContentType) (ad:adata) (ss:TLSFragment.history) (st:history) (rg:range) f = f.contents
+let RecordPlainToStAEPlain (e:id) (ct:ContentType) (ad:adata) (ss:TLSFragment.history) (st:history) (rg:range) f = {contents = f}
+let StAEPlainToRecordPlain (e:id) (ct:ContentType) (ad:adata) (ss:TLSFragment.history) (st:history) (rg:range) f = f.contents

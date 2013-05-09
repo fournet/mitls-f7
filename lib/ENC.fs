@@ -37,8 +37,7 @@ type encryptor = state
 type decryptor = state
 
 let GENOne ki =
-    let si = epochSI(ki) in
-    let alg = encAlg_of_ciphersuite si.cipher_suite si.protocol_version in
+    let alg = encAlg_of_id ki in
     match alg with
     | Stream_RC4_128 ->
         let k = Nonce.random (encKeySize alg) in
@@ -56,9 +55,8 @@ let GENOne ki =
 let GEN (ki) = 
     let k = GENOne ki in (k,k)
     
-let COERCE (ki:epoch) k iv =
-    let si = epochSI(ki) in
-    let alg = encAlg_of_ciphersuite si.cipher_suite si.protocol_version in
+let COERCE (ki:id) k iv =
+    let alg = encAlg_of_id ki in
     match alg with
     | Stream_RC4_128 ->
         let key = {k = k} in
@@ -69,7 +67,7 @@ let COERCE (ki:epoch) k iv =
         BlockCipher ({key = {k=k}; iv = NoIV})
 
 
-let LEAK (ki:epoch) s =
+let LEAK (ki:id) s =
     match s with
     | BlockCipher (bs) ->
         let iv =
@@ -87,9 +85,8 @@ let cbcenc alg k iv d =
 
 (* Parametric ENC/DEC functions *)
 let ENC_int ki s tlen d =
-    let si = epochSI(ki) in
-    let encAlg = encAlg_of_ciphersuite si.cipher_suite si.protocol_version in
-    match s,encAlg with
+    let alg = encAlg_of_id ki in
+    match s,alg with
     //#begin-ivStaleEnc
     | BlockCipher(s), CBC_Stale(alg) ->
         match s.iv with
@@ -130,16 +127,16 @@ let ENC_int ki s tlen d =
     | _, _ -> unexpected "[ENC] Wrong combination of cipher algorithm and state"
 
 #if ideal
-type entry = epoch * LHAEPlain.adata * cipher * Encode.plain
+type entry = id * LHAEPlain.adata * cipher * Encode.plain
 let log:entry list ref = ref []
-let rec cfind (e:epoch) (c:cipher) (xs: entry list) = 
+let rec cfind (e:id) (c:cipher) (xs: entry list) = 
   match xs with
       [] -> failwith "not found"
     | (e',ad,c',text)::res when e = e' && c = c' -> (ad,cipherRangeClass e (length c),text)
     | _::res -> cfind e c res
 #endif
 
-let ENC ki s ad rg data =
+let ENC (ki:id) s ad rg data =
     let tlen = targetLength ki rg in
   #if ideal
     if safeENC(ki) then
@@ -158,8 +155,7 @@ let cbcdec alg k iv e =
     | AES_128 | AES_256  -> (CoreCiphers.aes_cbc_decrypt k iv e)
 
 let DEC_int ki s cipher =
-    let si = epochSI(ki) in
-    let encAlg = encAlg_of_ciphersuite si.cipher_suite si.protocol_version in
+    let encAlg = encAlg_of_id ki in
     match s, encAlg with
     //#begin-ivStaleDec
     | BlockCipher(s), CBC_Stale(alg) ->

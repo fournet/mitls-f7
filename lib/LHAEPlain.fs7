@@ -10,36 +10,36 @@ open Range
 
 // We define payloads and additional data from those of StatefulPlain, 
 // adding an 8-byte sequence number to its additional data.
-type (;e:epoch) adata = (b:bytes){Length(b) = 8 + StatefulPlain.ADLength(e)}
+type (;e:id) adata = (b:bytes){Length(b) = 8 + StatefulPlain.ADLength(e)}
 
-function val MakeAD:  e:epoch * (;e)StatefulPlain.history * cbytes -> cbytes
+function val MakeAD:  e:id * (;e)StatefulPlain.history * cbytes -> cbytes
 private definition !e,h,ad. MakeAD(e,h,ad) = B(IntBytes(8,StatefulPlain.SeqN(e,h))) @| ad
-function val ParseAD: e:epoch * cbytes -> cbytes
+function val ParseAD: e:id * cbytes -> cbytes
 private definition !e,b,ad. BLength(b) = 8 => ParseAD(e,b@|ad) = ad
-function val SeqN: e:epoch * cbytes -> nat
+function val SeqN: e:id * cbytes -> nat
 private definition !e,sn,ad. SeqN(e,B(IntBytes(8,sn))@|ad) = sn
 
 ask !e,h,ad. ParseAD(e,MakeAD(e,h,ad)) = ad
 
-val makeAD:  e:epoch -> h:(;e)StatefulPlain.history -> ad:(;e)StatefulPlain.adata -> b:(;e)adata{B(b)=MakeAD(e,h,B(ad))}
-val parseAD: e:epoch -> b:(;e)adata -> 
+val makeAD:  e:id -> h:(;e)StatefulPlain.history -> ad:(;e)StatefulPlain.adata -> b:(;e)adata{B(b)=MakeAD(e,h,B(ad))}
+val parseAD: e:id -> b:(;e)adata -> 
   (ad:(;e)StatefulPlain.adata){B(ad) = ParseAD(e,B(b))}
 
-private type (;e:epoch,ad:cbytes,r:range)fragment = {contents: (;e,ParseAD(e,ad),r)StatefulPlain.fragment}
+private type (;e:id,ad:cbytes,r:range)fragment = {contents: (;e,ParseAD(e,ad),r)StatefulPlain.fragment}
 
-function val Payload: e:epoch * ad:cbytes * r:range * (;e,ad,r)fragment -> cbytes
+function val Payload: e:id * ad:cbytes * r:range * (;e,ad,r)fragment -> cbytes
 private definition !e,ad,r,f,b.
 	Payload(e,ad,r,f) = StatefulPlain.Payload(e,ParseAD(e,ad),r,f.contents)
 
-predicate LHAESent of e:epoch * ad:cbytes * r:range * (;e,ad,r)fragment
+predicate LHAESent of e:id * ad:cbytes * r:range * (;e,ad,r)fragment
 
-type (;e:epoch,ad:(;e)adata,r:range) plain = f:(;e,B(ad),r)fragment{ Auth(e) => LHAESent(e,B(ad),r,f) }
+type (;e:id,ad:(;e)adata,r:range) plain = f:(;e,B(ad),r)fragment{ Auth(e) => LHAESent(e,B(ad),r,f) }
 
-val plain: e:succEpoch{not Auth(e)} -> ad:(;e)adata -> r:range -> b:(;r)rbytes -> p:(;e,ad,r) plain {B(b) = Payload(e,B(ad),r,p)}
-val repr:  e:succEpoch{not Safe(e)} -> ad:(;e)adata -> r:range -> p:(;e,ad,r) plain -> b:(;r)rbytes {B(b) = Payload(e,B(ad),r,p)}
-private val reprFragment:  e:succEpoch{not Safe(e)} -> ad:(;e)adata -> r:range -> f:(;e,B(ad),r) fragment -> b:(;r)rbytes {B(b) = Payload(e,B(ad),r,f)}
+val plain: e:id{not Auth(e)} -> ad:(;e)adata -> r:range -> b:(;r)rbytes -> p:(;e,ad,r) plain {B(b) = Payload(e,B(ad),r,p)}
+val repr:  e:id{not Safe(e)} -> ad:(;e)adata -> r:range -> p:(;e,ad,r) plain -> b:(;r)rbytes {B(b) = Payload(e,B(ad),r,p)}
+private val reprFragment:  e:id{not Safe(e)} -> ad:(;e)adata -> r:range -> f:(;e,B(ad),r) fragment -> b:(;r)rbytes {B(b) = Payload(e,B(ad),r,f)}
 
-val widen: e:succEpoch -> ad:(;e)adata -> r:range -> 
+val widen: e:id -> ad:(;e)adata -> r:range -> 
   f:(;e,ad,r)plain -> 
   f':(;e,ad,RangeClass(e,r))plain{
     Payload(e,B(ad),r,f) = Payload(e,B(ad),RangeClass(e,r),f')}
@@ -67,14 +67,14 @@ ask !e,ad,h,h',ad',ad''. ad = MakeAD(e,h,ad') /\ ad = MakeAD(e,h',ad'') =>
 function val StAEToLHAE: 'a -> 'b // StatefulPlain.plain -> plain
 private definition !p. StAEToLHAE(p) = {contents = p}
 
-val StatefulPlainToLHAEPlain: e:epoch -> h:(;e)StatefulPlain.history -> 
+val StatefulPlainToLHAEPlain: e:id -> h:(;e)StatefulPlain.history -> 
   ad:(;e)StatefulPlain.adata -> 
   ad':(;e)adata{B(ad') = MakeAD(e,h,B(ad))} -> 
   r:range -> 
   f:(;e,ad,h,r)StatefulPlain.plain -> 
   p:(;e,ad',r)plain{p = StAEToLHAE(f)}
 
-val LHAEPlainToStatefulPlain: e:epoch -> h:(;e)StatefulPlain.history -> 
+val LHAEPlainToStatefulPlain: e:id -> h:(;e)StatefulPlain.history -> 
   ad:(;e)StatefulPlain.adata -> 
   ad':(;e)adata{B(ad') = MakeAD(e,h,B(ad))} -> 
   r:range ->

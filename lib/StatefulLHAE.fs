@@ -28,11 +28,11 @@ let COERCE ki (rw:rw) b =
   { key = k; history = h}
 let LEAK ki (rw:rw) s = LHAE.LEAK ki s.key
 
-let history (ki:epoch) (rw:rw) s = s.history
+let history (ki:id) (rw:rw) s = s.history
 
 type cipher = LHAE.cipher
 
-let encrypt (ki:epoch) (w:writer) (ad0:adata) (r:range) (f:plain) =
+let encrypt (ki:id) (w:writer) (ad0:adata) (r:range) (f:plain) =
   let h = w.history in
   let ad = LHAEPlain.makeAD ki h ad0 in
   let p = LHAEPlain.StatefulPlainToLHAEPlain ki h ad0 ad r f in
@@ -41,7 +41,7 @@ let encrypt (ki:epoch) (w:writer) (ad0:adata) (r:range) (f:plain) =
   let w = {key = k; history = h} in
   (w,c)
 
-let decrypt (ki:epoch) (r:reader) (ad0:adata) (e:cipher) =
+let decrypt (ki:id) (r:reader) (ad0:adata) (e:cipher) =
   let h = r.history in
   let ad = LHAEPlain.makeAD ki h ad0 in
   let res = LHAE.decrypt ki r.key ad e in

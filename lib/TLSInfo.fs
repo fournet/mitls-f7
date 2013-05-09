@@ -133,7 +133,9 @@ type id = {
   writer : Role  
   }
 
-
+let macAlg_of_id id = macAlg_of_aeAlg id.aeAlg
+let encAlg_of_id id = encAlg_of_aeAlg id.aeAlg
+let pv_of_id (id:id) =  TLS_1p2 //TODO MK fix
 
 // Application configuration
 type helloReqPolicy =
@@ -204,12 +206,13 @@ let honestPMS (pi:pmsId) : bool =
 let strongCRE (ca:creAlg) = failwith "spec only": bool
 
 // These functions are used only for specifying ideal implementations
-let safe (e:epoch) = failwith "spec only" : bool //CF Define in terms of strength and honesty
 let safeHS (e:epoch) = failwith "spec only": bool
 let safeHS_SI (e:SessionInfo) = failwith "spec only": bool
 let safeCRE (e:SessionInfo) = failwith "spec only": bool
 let safePRF (e:SessionInfo) = failwith "spec only": bool
 let auth (e:epoch) = failwith "spec only": bool
-let safeMAC (e:epoch) = failwith "spec only":bool
-let safeENC (e:epoch) = failwith "spec only":bool
+
+let safe (i:id) = failwith "spec only" : bool //CF Define in terms of strength and honesty
+let safeMAC (i:id) = failwith "spec only":bool
+let safeENC (i:id) = failwith "spec only":bool
 #endif

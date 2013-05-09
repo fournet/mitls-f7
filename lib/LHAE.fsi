@@ -11,11 +11,11 @@ type LHAEKey
 
 type cipher = bytes
 
-val GEN: epoch -> LHAEKey * LHAEKey
-val COERCE: epoch -> bytes -> LHAEKey
-val LEAK: epoch -> LHAEKey -> bytes
+val GEN: id -> LHAEKey * LHAEKey
+val COERCE: id -> bytes -> LHAEKey
+val LEAK: id -> LHAEKey -> bytes
 
-val encrypt: epoch -> LHAEKey -> adata -> 
+val encrypt: id -> LHAEKey -> adata -> 
              range -> plain -> (LHAEKey * cipher)
-val decrypt: epoch -> LHAEKey -> adata -> 
+val decrypt: id -> LHAEKey -> adata -> 
              cipher -> (LHAEKey * range * plain) Result

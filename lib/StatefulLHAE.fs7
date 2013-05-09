@@ -14,7 +14,7 @@ open StatefulPlain //CF added for lighter notations
    The functionality is indexed by succEpochs, also treated abstractly.
    (We pass those, rather than tight indexes, because tight indexes are ghost.)
    
-   From each epoch, we can get:
+   From each id, we can get:
    - a (tight, abstract, comparable) instance identifier 
      [consisting of the connection CSR, the Role, plus the MS index, plus the AE algorithm]
    - the AE algorithm	  
@@ -51,11 +51,11 @@ open StatefulPlain //CF added for lighter notations
 
   We may either define 
 
-  type (;ki:epoch,rw:rw) state = (;I(ki),rw:rw) st 
-  // this permits decryption at any epoch with matching I(ki)
-  // this is inocuous because there is at most one such epoch.
+  type (;ki:id,rw:rw) state = (;I(ki),rw:rw) st 
+  // this permits decryption at any id with matching I(ki)
+  // this is inocuous because there is at most one such id.
 
-  or systematically use aeIndex instead of epoch
+  or systematically use aeIndex instead of id
 
 or hide it under a "re-indexing" function that enforces some of those restrictions.
 
@@ -65,7 +65,7 @@ or hide it under a "re-indexing" function that enforces some of those restrictio
     because of the agreement on epochs between readers & writers plus 
 	the linearity assumption. How to make it formal? 
 	In the lookup table, as we decrypt, 
-	we will now get a value indexed only by the writer's epoch, ki' or I(ki').
+	we will now get a value indexed only by the writer's id, ki' or I(ki').
 
     One possibility is to index plaintexts etc tightly, 
     using I(ki), or even (CSR,Role), a rather large change that 
@@ -93,38 +93,23 @@ Theorems:
 
 *)
 
-//CF Old? 
-//AP: We need the following invariant: StateID(e,LHAE.LHAEKey) = SeqNum(e,history)
-private type (;ki:epoch,rw:rw) state = {
+private type (;ki:id,rw:rw) state = {
   key    : (;ki) LHAE.LHAEKey;  // possibly stateful
   history: (;ki) history        // ghost state, except for the sequence number
 }
  
- //CF Old? 
-(*KB SHOULD BE:
-private type (;si:SessionInfo,rw:rw) protostate = {
-  key    : (;(;si) PRF.masterSecret,cr:bytes,sr:bytes) LHAE.LHAEKey;         
-}
 
-private type (;ki:epoch,rw:rw) state = {
-  key    : (;(;EpochSI(ki)) PRF.masterSecret,cr:bytes,sr:bytes) LHAE.LHAEKey;         
-  history: (;ki) history; 
-}
-
-val changeState: ki:epoch -> rw:rw -> (;EpochSI(ki),rw) protostate{Complete(ki,..)} -> (;ki,rw) state
-*)
-
-function val History: e:epoch * rw:rw * (;e,rw)state -> 'a //(;e)history
+function val History: e:id * rw:rw * (;e,rw)state -> 'a //(;e)history
 private definition !e,rw,s. History(e,rw,s) = s.history
 
-type (;ki:epoch) reader = r:(;ki,Reader) state
-type (;ki:epoch) writer = w:(;ki,Writer) state
+type (;ki:id) reader = r:(;ki,Reader) state
+type (;ki:id) writer = w:(;ki,Writer) state
 
-val GEN:    ki:succEpoch               -> (;ki)reader * (;ki)writer
-val COERCE: ki:succEpoch{not Auth(ki)} -> rw:rw -> b:bytes{Length(b)=LHAE.KeySize(ki)} -> (;ki,rw)state
-val LEAK:   ki:succEpoch{not Auth(ki)} -> rw:rw -> (;ki,rw)state -> b:bytes
+val GEN:    ki:id               -> (;ki)reader * (;ki)writer
+val COERCE: ki:id{not Auth(ki)} -> rw:rw -> b:bytes{Length(b)=LHAE.KeySize(ki)} -> (;ki,rw)state
+val LEAK:   ki:id{not Auth(ki)} -> rw:rw -> (;ki,rw)state -> b:bytes
 
-val history: ki:epoch -> rw:rw -> s:(;ki,rw) state -> h:(;ki)history{h=History(ki,rw,s)}
+val history: ki:id -> rw:rw -> s:(;ki,rw) state -> h:(;ki)history{h=History(ki,rw,s)}
 
 // Ideally,
 // the writer maintains a table (ki, h, ad, range, fragment, cipher) {...} [details?]
@@ -138,14 +123,14 @@ val history: ki:epoch -> rw:rw -> s:(;ki,rw) state -> h:(;ki)history{h=History(k
 
 type cipher = LHAE.cipher
 
-predicate ENCrypted of e:epoch * h:(;e)history * ad:(;e)adata * cipher
+predicate ENCrypted of e:id * h:(;e)history * ad:(;e)adata * cipher
 private definition !e,h,ad,c. 
   ENCrypted(e,h,ad,c) <=> 
   (?ad'. B(ad') = LHAEPlain.MakeAD(e,h,B(ad)) /\ 
          LHAE.ENCrypted(e,ad',c))
 
 val encrypt:
-  ki:succEpoch -> wr:(;ki) writer -> 
+  ki:id -> wr:(;ki) writer -> 
   ad:(;ki) adata ->
   rg:range ->
   f: (;ki,ad,History(ki,Writer,wr),rg) plain ->
@@ -154,7 +139,7 @@ val encrypt:
   /\  (Safe(ki) => ENCrypted(ki,History(ki,Writer,wr),ad,c)) } 
 
 val decrypt: 
-  ki:succEpoch -> rd:(;ki) reader -> 
+  ki:id -> rd:(;ki) reader -> 
   ad:(;ki) adata ->
   c:cipher ->
   r:((;ki) reader * rg:range * (;ki,ad,History(ki,Reader,rd),rg) plain) Result

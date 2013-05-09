@@ -55,6 +55,19 @@ val prfAlg: SessionInfo -> prfAlg
 val creAlg: SessionInfo -> creAlg  
 val msi: SessionInfo -> msId
 
+type id = { 
+  // indexes and algorithms of the session used in the key derivation
+  msId   : msId;   // the index of the master secret used for key derivation
+  kdfAlg : prfAlg; // the KDF algorithm used for key derivation
+  aeAlg  : aeAlg;  // the authenticated-encryption algorithms
+  csrConn: csrands; 
+  writer : Role  
+  }
+
+val macAlg_of_id: id -> macAlg
+val encAlg_of_id: id -> encAlg
+val pv_of_id: id -> ProtocolVersion
+
 type preEpoch
 type epoch = preEpoch
 
@@ -118,12 +131,13 @@ val fragmentLength: nat
 #if ideal
 val honestPMS: pmsId -> bool
 
-val safe: epoch -> bool
 val safeHS: epoch -> bool
 val safeCRE: SessionInfo -> bool 
 val safeHS_SI: SessionInfo -> bool
 val safePRF: SessionInfo -> bool
 val auth: epoch -> bool
-val safeMAC: epoch -> bool
-val safeENC: epoch -> bool
+
+val safe: id -> bool
+val safeMAC: id -> bool
+val safeENC: id -> bool
 #endif

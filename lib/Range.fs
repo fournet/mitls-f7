@@ -1,8 +1,8 @@
 ﻿module Range
 
 open Bytes
-open TLSInfo
 open TLSConstants
+open TLSInfo
 
 type range = nat * nat 
 type rbytes = bytes 

@@ -117,6 +117,8 @@ val prfMacAlg_of_ciphersuite: cipherSuite -> macAlg
 val verifyDataHashAlg_of_ciphersuite: cipherSuite -> hashAlg
 
 val aeAlg: cipherSuite -> ProtocolVersion -> aeAlg
+val macAlg_of_aeAlg: aeAlg -> macAlg
+val encAlg_of_aeAlg: aeAlg -> encAlg
 val macAlg_of_ciphersuite: cipherSuite -> ProtocolVersion -> macAlg
 val encAlg_of_ciphersuite: cipherSuite -> ProtocolVersion -> encAlg
 val sigAlg_of_ciphersuite: cipherSuite -> sigAlg
