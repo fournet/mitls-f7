@@ -223,20 +223,23 @@ predicate StrongAESI of SessionInfo
 
 // safety of SessionInfo crypto processing
 
-predicate SafeCRE   of SessionInfo // Safe handshake for PMS-based extraction
-predicate SafePRF   of SessionInfo // Safe handshake for MS-based PRF and VerifyData
+predicate SafeCRE of SessionInfo // Safe handshake for PMS-based extraction
+predicate SafeVD  of SessionInfo // Safe handshake for MS-based VerifyData
+predicate SafePRF of id // Safe handshake for MS-based key derivation 
 
 definition !si. SafeCRE(si)   <=> HonestMS(MsI(si)) 
 //MK I would have expected HonestMS(MsI(si)) <=> SafeCRE(si)
-definition !si. SafePRF(si)   <=> HonestMS(MsI(si)) /\ StrongPRF(si)
+definition !si. SafePRF(i)   <=> HonestMS(i.msi) /\ StrongPRF(i.kdfAlg)
 
 predicate SafeHS_SI of SessionInfo // Safe handshake for this sessioninfo
 
 definition !si. SafeHS_SI(si) <=> SafePRF(si) /\ StrongHS(si) 
 
 val safeCRE:   (si:SessionInfo) -> b:bool { b=true <=> SafeCRE(si) }
-val safePRF:   (si:SessionInfo) -> b:bool { b=true <=> SafePRF(si) } 
+val safeVD:   (si:SessionInfo) -> b:bool { b=true <=> SafeVD(si) }
 val safeHS_SI: (si:SessionInfo) -> b:bool { b=true <=> SafeHS_SI(si)}
+
+val safePRF: (i:id) -> b:bool { b=true <=> SafePRF(i) } 
 
 // -------------------------------------------------------------------
 // Epoch descriptors (public immutable data)

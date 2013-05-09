@@ -88,30 +88,21 @@ val keyExtensionLength: ae:aeAlg -> n:nat { n=KeyExtensionLength(ae) }
 //CF not sure the refinement is right, and why it was not on deriveKeys. Commenting out for now
 //MK It's probably right. I removed it from deriveKeys to get more meaningful typechecking errors during de bugging.
 //MK Was just copied over from keyGen. Should add it back.
-type (;ci:ConnectionInfo) derived =  
-  ( r:(;ci.id_in) StatefulLHAE.reader * w:(;ci.id_out)StatefulLHAE.writer ) 
+type (;rdId:id,wrId:id) derived =  
+  ( r:(;rdID) StatefulLHAE.reader * w:(;wrId)StatefulLHAE.writer ) 
 //  { StatefulLHAE.History(ci.id_out,Reader,r) = StatefulPlain.EmptyHistory(ci.id_in) /\
 //	StatefulLHAE.History(ci.id_out,Writer,w) = StatefulPlain.EmptyHistory(ci.id_out) }
 
 private val deriveRawKeys: 
-  ci:ConnectionInfo{
-      EpochSI(ci.id_in)=EpochSI(ci.id_out) (* needed as we compute on id_in only *) /\ 
-      IsSuccEpoch(ci.id_in) /\ IsSuccEpoch(ci.id_out) /\ 
-	  not Auth(ci.id_in) /\ not Auth(ci.id_out) (* needed to coerce to StatefulLHAE *)
-	  } ->  
-  (;EpochSI(ci.id_in))masterSecret -> 
-  (;LHAE.KeySize(ci.id_in)) lbytes * (;LHAE.KeySize(ci.id_out)) lbytes 
+  i: id -> (;i.msi)ms -> (;LHAE.KeySize(i)) lbytes * (;LHAE.KeySize(i)) lbytes 
 
 private val deriveKeys: 
-  ci:ConnectionInfo{
-      EpochSI(ci.id_in)=EpochSI(ci.id_out) (* needed as we compute on id_in only *) /\ 
-      IsSuccEpoch(ci.id_in) /\ IsSuccEpoch(ci.id_out) /\ 
-	  not Auth(ci.id_in) /\ not Auth(ci.id_out) (* needed to coerce to StatefulLHAE *)
-	  } ->  
-  (;EpochSI(ci.id_in))masterSecret -> (;ci) derived 
+  rdId:id -> wrId:id
+  { rdId.aeAlg = rdID.aeAlg /\
+    not Auth(rdId) /\ 
+	not Auth(wrId) (* needed to coerce to StatefulLHAE *) } ->  
+  (;i.msi)ms -> (;rdId,wrId) derived 
 
-// TODO we need to reindex StatefulLHAE.
-val ci_aeAlg: ConnectionInfo -> aeAlg
 
 // USAGE RESTRICTION:
 // For each CSR, 
@@ -138,10 +129,10 @@ private theorem !ci. Waste(ci) => ((not Auth(ci.id_in)) /\ (not Auth(ci.id_out))
 
 type (;csr: csrands) state =
   | Init
-  | Committed of aeAlg
+  | Committed of ProtocolVersion * aeAlg
   // The server has committed to using at most this algorithmn with this csr.
   // --------> 
-  | Derived of aeAlg * msId * ci:ConnectionInfo * (;ci) derived
+  | Derived of rdId:id * wrId:id * (;rdId,wrId) derived
   // the client has ideally derived keys for both roles,
   // with the same algorithm, recording the keys for the server. 
   // --only-->
@@ -168,19 +159,15 @@ val update: csr:csrands -> (;csr) state -> kdentry  list -> kdentry list
 // We could enforce commitments by adding a post-condition to keyCommit  
 // and a matching pre-condition to the server-side keyGen.
 
-val keyCommit: csrands -> aeAlg -> unit 
+val keyCommit: csrands -> ProtocolVersion -> aeAlg -> unit 
 
 val keyGenClient: 
-  ci:ConnectionInfo{
-      EpochSI(ci.id_in)=EpochSI(ci.id_out) /\ 
-      IsSuccEpoch(ci.id_in) /\ IsSuccEpoch(ci.id_out)} -> 
-  (;EpochSI(ci.id_out))masterSecret -> (;ci) derived   
+  rdId: id -> wrId: id { wrId = Swap(rdId) } ->
+  (;rdId.msi)ms -> (;rdId,wrId) derived   
 
 val keyGenServer: 
-  ci:ConnectionInfo{
-      EpochSI(ci.id_in)=EpochSI(ci.id_out) /\ 
-      IsSuccEpoch(ci.id_in) /\ IsSuccEpoch(ci.id_out)} -> 
-  (;EpochSI(ci.id_out))masterSecret -> (;ci) derived
+  rdId: id -> wrID: id { wrId = Swap(rdId) } ->
+  (;rdId.msi)ms -> (;rdId,wrId) derived
 
 
 (* CF

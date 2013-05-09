@@ -134,10 +134,11 @@ val honestPMS: pmsId -> bool
 
 val safeHS: epoch -> bool
 val safeCRE: SessionInfo -> bool 
+val safeVD: SessionInfo -> bool
 val safeHS_SI: SessionInfo -> bool
-val safePRF: SessionInfo -> bool
 val auth: epoch -> bool
 
+val safePRF: id -> bool
 val safe: id -> bool
 val safeMAC: id -> bool
 val safeENC: id -> bool

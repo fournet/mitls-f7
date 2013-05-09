@@ -211,9 +211,10 @@ let strongCRE (ca:creAlg) = failwith "spec only": bool
 let safeHS (e:epoch) = failwith "spec only": bool
 let safeHS_SI (e:SessionInfo) = failwith "spec only": bool
 let safeCRE (e:SessionInfo) = failwith "spec only": bool
-let safePRF (e:SessionInfo) = failwith "spec only": bool
+let safeVD (e:SessionInfo) = failwith "spec only": bool
 let auth (e:epoch) = failwith "spec only": bool
 
+let safePRF (i:id) = failwith "spec only": bool
 let safe (i:id) = failwith "spec only" : bool //CF Define in terms of strength and honesty
 let safeMAC (i:id) = failwith "spec only":bool
 let safeENC (i:id) = failwith "spec only":bool

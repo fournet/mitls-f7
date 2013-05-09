@@ -48,9 +48,8 @@ let deriveRawKeys (i:id) (ms:ms)  =
     let crand, srand = split i.csrConn 32
     let data = srand @| crand in
     let ae = i.aeAlg in
-    let kdfa = kdfAlg_of_id i
     let len = keyExtensionLength i in
-    let b = TLSPRF.kdf kdfa ms.bytes data len in
+    let b = TLSPRF.kdf i.kdfAlg ms.bytes data len in
     match ae with
     | MACOnly macAlg ->
         let macKeySize = macKeySize macAlg in
@@ -93,18 +92,12 @@ let deriveKeys rdId wrId (ms:masterSecret) role  =
 
 type derived = StatefulLHAE.reader * StatefulLHAE.writer 
 
-let ci_aeAlg (ci:ConnectionInfo) = 
-  let si = 
-    todo "ci.id_in must be a succEpoch"
-    epochSI ci.id_in 
-  aeAlg si.cipher_suite si.protocol_version 
-
 #if ideal
-type event = Waste of ConnectionInfo
+type event = Waste of id 
 type state =
   | Init
-  | Committed of aeAlg
-  | Derived of aeAlg * msId * ConnectionInfo * derived
+  | Committed of ProtocolVersion * aeAlg
+  | Derived of id * id * derived
   | Done 
   | Wasted
 
@@ -126,60 +119,57 @@ let rec update csr s (entries: kdentry list) =
 
 //CF We could statically enforce the state machine.
 
-let keyCommit (csr:csrands) (a:aeAlg) : unit = 
+let keyCommit (csr:csrands) (pv:ProtocolVersion) (a:aeAlg) : unit = 
   #if ideal
   match read csr !kdlog with 
-  | Init -> kdlog := update csr (Committed(a)) !kdlog
+  | Init -> kdlog := update csr (Committed(pv,a)) !kdlog
   | _    -> Error.unexpected "prevented by freshness of the server random"
   #else
   ()
   #endif
 
 //CF We could merge the two keyGen.
-let keyGenClient ci ms =
+let keyGenClient (rdId:id) (wrId) ms =   
     #if ideal
-    let csr = epochCSRands ci.id_in
+    let pv = pv_of_id rdId
+    let aeAlg = rdId.aeAlg
+    let csr = rdId.csrConn
     match read csr !kdlog with
-    | Committed(a) when a = ci_aeAlg ci && safePRF(epochSI(ci.id_in)) -> 
+    | Committed(pv',aeAlg') when pv=pv' && aeAlg=aeAlg' && safePRF(rdId) -> 
         // we idealize the key derivation
-        let (myRead,peerWrite) = StatefulLHAE.GEN ci.id_in 
-        let (peerRead,myWrite) = StatefulLHAE.GEN ci.id_out
-        //TODO we need to flip the index or the refinement //MK??
-        let ci' = { id_in = ci.id_out ; id_out = ci.id_in; id_rand = ci.id_rand; role = Server }
-        //MK unused: let peer = peerRead,peerWrite
-        let msi = msi (epochSI ci.id_in)
-        kdlog := update csr (Derived(a,msi,ci',(peerRead,peerWrite))) !kdlog;
+        let (myRead,peerWrite) = StatefulLHAE.GEN rdId 
+        let (peerRead,myWrite) = StatefulLHAE.GEN wrId
+        let peer = (peerRead, peerWrite)
+        kdlog := update csr (Derived(wrId,rdId,peer)) !kdlog;
         (myRead,myWrite)
     | _  ->
-        Pi.assume(Waste(ci));
+        Pi.assume(Waste(rdId));
         kdlog := update csr Wasted !kdlog;
     #endif
-        deriveKeys ci ms 
+        deriveKeys rdId wrId ms Client
 
 //MK still needs work
-let keyGenServer ci ms =
+let keyGenServer (rdId:id) (wrId:id) ms =
     #if ideal
-    let csr = epochCSRands ci.id_in
+    let csr = rdId.csrConn
     match read csr !kdlog with  
-    | Derived(a,msi,ci',mine) when safePRF(epochSI(ci.id_in))  ->
-        let (myRead,myWrite) = mine
-        // TODO we can't have matching epochs. 
-        // by typing, we should know that a matches ci 
+    | Derived(wrId',rdId',derived) when safePRF(rdId)  ->
+        // by typing the commitment, we know that rdId has matching csr pv aeAlg 
         kdlog := update csr Done !kdlog
-        if TLSInfo.msi (epochSI ci.id_in) = msi // failwith "ms matches msi" 
+        if rdId.msId   = wrId'.msId   && 
+           rdId.kdfAlg = wrId'.kdfAlg 
         then  
-            //CF ERROR we need a tighter index to typecheck the key reuse.
-            (myRead,myWrite) // we benefit from the client's idealization
+            derived // we benefit from the client's idealization
         else
             // we generate our own ideal keys; they will lead to a verifyData mismatch
-            let (myRead,peerWrite) = StatefulLHAE.GEN ci.id_in 
-            let (peerRead,myWrite) = StatefulLHAE.GEN ci.id_out
+            let (myRead,peerWrite) = StatefulLHAE.GEN rdId 
+            let (peerRead,myWrite) = StatefulLHAE.GEN wrId
             (myRead,myWrite)
     | _ -> 
-        Pi.assume(Waste(ci));
+        Pi.assume(Waste(rdId));
         kdlog := update csr Wasted !kdlog; 
     #endif
-        deriveKeys ci ms
+        deriveKeys rdId wrId ms Server
 
 
 (** VerifyData **) 
@@ -204,7 +194,7 @@ let private verifyData si ms role data =
 let makeVerifyData si (ms:masterSecret) role data =
   let tag = verifyData si ms role data in
   #if ideal
-  if safePRF si then  //MK rename predicate and function
+  if safeVD si then  //MK rename predicate and function
     let i = msi si
     log := (i,role,data)::!log ;
   #endif
@@ -217,7 +207,7 @@ let checkVerifyData si ms role data tag =
   #if ideal
   // we return "false" when concrete verification
   // succeeds but shouldn't according to the log 
-  && ( safePRF si = false || mem (msi si) role data !log ) //MK: rename predicate and function
+  && ( safeVD si  = false || mem (msi si) role data !log ) //MK: rename predicate and function
   //#end-ideal2
   #endif
 
