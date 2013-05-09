@@ -279,6 +279,7 @@ function val EpochWriter: epoch -> Role
 definition !r. EpochWriter(InitEpoch(r)) = r 
 definition !r. EpochWriter(InitEpoch(r)) = r 
 definition !r,cr,sr,si,pred. EpochWriter(SuccEpoch(cr,sr,si,pred)) = EpochWriter(pred)
+val epochWriter: e:epoch -> r:Role {r=EpochWriter(e)}
 
 predicate StrongAuth of epoch
 predicate StrongAE of epoch
@@ -335,6 +336,7 @@ definition !e. Id(e) =
 	writer  = EpochWriter(e);
  }
 val id: s:succEpoch -> i:id {Id(s)=i}
+val idInv: i:id -> s:succEpoch {Id(s)=i}
 
 function val MacAlg: id -> macAlg
 definition !id. MacAlg(id)=AEMacAlg(id.aeAlg)

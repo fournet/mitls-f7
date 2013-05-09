@@ -124,6 +124,11 @@ let initConnection role rand =
 let nextEpoch epoch crand srand si =
     SuccEpoch (crand, srand, si, epoch )
 
+let rec epochWriter (e:epoch) =
+    match e with
+    | InitEpoch(r) -> r
+    | SuccEpoch(_,_,_, e') -> epochWriter e
+
 // the tight index we use as an abstract parameter for StatefulAEAD et al
 type id = { 
   msId   : msId;    
@@ -133,6 +138,19 @@ type id = {
   csrConn: csrands; 
   writer : Role
   }
+
+let id (e:succEpoch):id = failwith "should be as below, but doesn't typecheck"
+(* MK should be
+let id (e:succEpoch) = 
+    let si=epochSI(e)
+    let cs=si.cipher_suite
+    let pv=si.protocol_version
+    {msId = msi si; kdfAlg=kdfAlg si; pv=pv; aeAlg = aeAlg cs pv; csrConn = csrands si; writer=epochWriter e }
+*)
+
+
+
+let idInv (i:id):succEpoch = failwith "requires a log, and pointless to implement anyway"
 
 let macAlg_of_id id = macAlg_of_aeAlg id.aeAlg
 let encAlg_of_id id = encAlg_of_aeAlg id.aeAlg
