@@ -3,6 +3,7 @@
 open Bytes
 open Date
 open TLSConstants
+open PMS
 
 type rw =
     | Reader
@@ -193,6 +194,13 @@ let max_TLSCipher_fragment_length = max_TLSCompressed_fragment_length + 1024
 let fragmentLength = max_TLSPlaintext_fragment_length (*CF use e.g. 1 for testing *)
 
 #if ideal
+
+let honestPMS (pi:pmsId) : bool =
+    match pi with
+    | SomePmsId(PMS.RSAPMS(pk,cv,rsapms))   -> PMS.honestRSAPMS pk cv rsapms 
+    | SomePmsId(PMS.DHPMS(p,g,gx,gy,dhpms)) -> PMS.honestDHPMS p g gx gy dhpms 
+    | _ -> false
+
 // These functions are used only for specifying ideal implementations
 let safe (e:epoch) = failwith "spec only" : bool //CF Define in terms of strength and honesty
 let safeHS (e:epoch) = failwith "spec only": bool

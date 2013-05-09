@@ -69,6 +69,7 @@ let accessDHPMS (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) (p
   #endif
   | ConcreteDHPMS(b) -> b 
 
+(*private*) 
 let accessPMS (pms:PMS.pms) =
   match pms with
   | PMS.RSAPMS(pk,cv,rsapms) ->  accessRSAPMS pk cv rsapms
@@ -76,7 +77,6 @@ let accessPMS (pms:PMS.pms) =
 
 #if ideal
 // We maintain a log for looking up good ms values using their msId
-//CF we could use instead entry = msId * PRF.ms
 type entry = msId * PRF.ms
 let log = ref []
 
@@ -90,9 +90,7 @@ let rec assoc (i:msId) entries: PRF.ms option =
 
 let extract si pms: PRF.masterSecret = 
     #if ideal
-    (* MK: the following should be made consistent with safePRF
-    let i = PRF.msi si (RSAPMS(pk,cv,pms))
-    if PRF.safeMS_msIndex i then *)
+    //safeCRE si=true must be implied by HonestMS
     if safeCRE si then
         let i = msi si 
         match assoc i !log with 

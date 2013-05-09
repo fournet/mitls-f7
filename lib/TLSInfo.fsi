@@ -116,6 +116,8 @@ val max_TLSCipher_fragment_length: nat
 val fragmentLength: nat
 
 #if ideal
+val honestPMS: pmsId -> bool
+
 val safe: epoch -> bool
 val safeHS: epoch -> bool
 val safeCRE: SessionInfo -> bool 

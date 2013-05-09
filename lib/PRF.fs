@@ -4,20 +4,6 @@ open Bytes
 open TLSConstants
 open TLSInfo
 
-#if ideal
-// TODO failing to typecheck, not sure why.
-// let strongPrfAlg (pa:prfAlg) = true
-let safeMS_msIndex (msi:msId) : bool =
-    failwith "todo: failing to typecheck?!"
-(*
-    let (pms',csrands,prfAlg) = msi
-    strongPrfAlg prfAlg && 
-    match pms' with
-    | PMS.RSAPMS(pk,cv,rsapms)   -> PMS.honestRSAPMS pk cv rsapms   
-    | PMS.DHPMS(p,g,gx,gy,dhpms) -> PMS.honestDHPMS p g gx gy dhpms 
-*)
-#endif
-
 type repr = bytes
 type ms = { bytes: repr }
 type masterSecret = ms
@@ -136,13 +122,11 @@ let keyCommit (csr:csrands) (a:aeAlg) : unit =
   #endif
 
 //CF We could merge the two keyGen.
-
-//MK Still needs work
 let keyGenClient ci ms =
     #if ideal
     let csr = epochCSRands ci.id_in
     match read csr !kdlog with
-    | Committed(a) when a = ci_aeAlg ci (* && honestMS && StrongKDF *) ->  // safeHS_SI (epochSI(ci.id_in)) 
+    | Committed(a) when a = ci_aeAlg ci && safePRF(epochSI(ci.id_in)) -> 
         // we idealize the key derivation
         let (myRead,peerWrite) = StatefulLHAE.GEN ci.id_in 
         let (peerRead,myWrite) = StatefulLHAE.GEN ci.id_out
@@ -163,12 +147,12 @@ let keyGenServer ci ms =
     #if ideal
     let csr = epochCSRands ci.id_in
     match read csr !kdlog with  
-    | Derived(a,msi,ci',mine) ->
+    | Derived(a,msi,ci',mine) when safePRF(epochSI(ci.id_in))  ->
         let (myRead,myWrite) = mine
         // TODO we can't have matching epochs. 
         // by typing, we should know that a matches ci 
         kdlog := update csr Done !kdlog
-        if false // failwith "ms matches msi" 
+        if TLSInfo.msi (epochSI ci.id_in) = msi // failwith "ms matches msi" 
         then  
             //CF ERROR we need a tighter index to typecheck the key reuse.
             (myRead,myWrite) // we benefit from the client's idealization

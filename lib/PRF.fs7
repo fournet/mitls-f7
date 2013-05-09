@@ -31,10 +31,6 @@ open StatefulLHAE
 type repr = (;48)lbytes
 //#begin-abstraction
 
-// CF safety of the MS (not necessarily its usage). Not refined yet
-// MK rename to safeVD
-val safeMS_msIndex: msId -> bool
-
 private type (;i:msId) ms = {bytes: repr}
 
 // This index additionally records the *local* session info.

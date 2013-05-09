@@ -5,11 +5,6 @@ open TLSConstants
 open TLSInfo
 
 
-   
-#if ideal
-val safeMS_msIndex: msId -> bool  
-#endif
-
 type repr = bytes
 type ms
 type masterSecret = ms
