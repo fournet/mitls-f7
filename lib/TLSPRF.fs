@@ -120,19 +120,14 @@ let prf (pv,cs) secret (label:bytes) data len =
   | TLS_1p0 | TLS_1p1 -> tls_prf     secret label data len
   | TLS_1p2           -> tls12prf cs secret label data len
 
-let extract_label = utf8 "master secret"
-let kdf_label     = utf8 "key expansion" 
-
-
-
-
-
-let extract a secret data len = prf a secret extract_label data len
-
-let extract' a secret data len =
+let prf' a secret data len =
     match a with
-    | CRE_TLS_1p2(macAlg) -> tls12prf' macAlg secret extract_label data len  // typically SHA256 but may depend on CS
-    | CRE_TLS_1p01        -> tls_prf         secret extract_label data len  // MD5 xor SHA1
-    | CRE_SSL3_nested     -> ssl_prf         secret               data len  // MD5(SHA1(...)) for extraction and keygen
+    | CRE_TLS_1p2(label,macAlg) -> tls12prf' macAlg secret label data len  // typically SHA256 but may depend on CS
+    | CRE_TLS_1p01(label)       -> tls_prf          secret label data len  // MD5 xor SHA1
+    | CRE_SSL3_nested           -> ssl_prf          secret       data len  // MD5(SHA1(...)) for extraction and keygen
+
+//let extract a secret data len = prf a secret extract_label data len
+
+let extract a secret data len = prf' a secret data len
 
 let kdf     a secret data len = prf a secret kdf_label     data len

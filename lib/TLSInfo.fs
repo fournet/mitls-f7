@@ -65,9 +65,11 @@ let kdfAlg (si:SessionInfo) =
 let creAlg (si:SessionInfo) =
   match si.protocol_version with
   | SSL_3p0           -> CRE_SSL3_nested 
-  | TLS_1p0 | TLS_1p1 -> CRE_TLS_1p01
-  | TLS_1p2           -> let ma = prfMacAlg_of_ciphersuite si.cipher_suite
-                         CRE_TLS_1p2(ma) 
+  | TLS_1p0 | TLS_1p1 -> let l = extract_label
+                         CRE_TLS_1p01(l)
+  | TLS_1p2           -> let l = extract_label
+                         let ma = prfMacAlg_of_ciphersuite si.cipher_suite
+                         CRE_TLS_1p2(l,ma) 
 
 
 let msi (si:SessionInfo) = 
@@ -200,6 +202,8 @@ let honestPMS (pi:pmsId) : bool =
     | SomePmsId(PMS.RSAPMS(pk,cv,rsapms))   -> PMS.honestRSAPMS pk cv rsapms 
     | SomePmsId(PMS.DHPMS(p,g,gx,gy,dhpms)) -> PMS.honestDHPMS p g gx gy dhpms 
     | _ -> false
+
+let strongCRE (ca:creAlg) = failwith "spec only": bool
 
 // These functions are used only for specifying ideal implementations
 let safe (e:epoch) = failwith "spec only" : bool //CF Define in terms of strength and honesty

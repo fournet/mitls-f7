@@ -432,10 +432,18 @@ let contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV (css: cipherSuite list) =
     List.memr css (SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV))
 //KB #endif
 
-type creAlg =  
-  | CRE_TLS_1p2 of macAlg  // typically SHA256 but may depend on CS
-  | CRE_TLS_1p01           // MD5 xor SHA1
+type prflabel = bytes
+let extract_label = utf8 "master secret"
+let kdf_label     = utf8 "key expansion" 
+
+type prfAlg' =
   | CRE_SSL3_nested        // MD5(SHA1(...)) for extraction and keygen
+  | CRE_TLS_1p01 of prflabel          // MD5 xor SHA1
+  | CRE_TLS_1p2 of prflabel * macAlg  // typically SHA256 but may depend on CS
+
+
+type creAlg = prfAlg'
+ 
 type prfAlg = ProtocolVersion * cipherSuite
 type kdfAlg = ProtocolVersion * cipherSuite
 

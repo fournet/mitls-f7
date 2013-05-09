@@ -37,7 +37,7 @@ let extractMS si pmsBytes : PRF.masterSecret =
     let cs = si.cipher_suite in
     let data = csrands si in
     let ca = creAlg si in
-    let res = extract' ca pmsBytes data 48 in
+    let res = extract ca pmsBytes data 48 in
     let i = msi si
     PRF.coerce i res
 

@@ -126,6 +126,7 @@ type msId =        // We record the parameters used to derive this MS:
 // ``creAlg is a strong randomness extractor, despite all other creAlgs''
 // guarding idealization in CRE
 predicate StrongCRE of creAlg 
+val strongCRE: ca:creAlg -> b:bool {b=true <=> StrongCRE(ca)}
 
 // ``the MS at this index is abstractly generated and used within PRF''
 predicate HonestMS of msId 
@@ -179,9 +180,9 @@ function val KdfAlg:  SessionInfo -> kdfAlg
 function val SIaeAlg: SessionInfo -> aeAlg
 
 definition !si. (si.protocol_version = SSL_3p0 => CreAlg(si) = CRE_SSL3_nested ) /\
-				(si.protocol_version = TLS_1p0 => CreAlg(si) = CRE_TLS_1p01    ) /\
-				(si.protocol_version = TLS_1p1 => CreAlg(si) = CRE_TLS_1p01    ) /\
-				(si.protocol_version = TLS_1p2 => CreAlg(si) = CRE_TLS_1p2( CiphersuitePrfMacAlg(si.cipher_suite) ) )
+				(si.protocol_version = TLS_1p0 => CreAlg(si) = CRE_TLS_1p01(extract_label)    ) /\
+				(si.protocol_version = TLS_1p1 => CreAlg(si) = CRE_TLS_1p01(extract_label)    ) /\
+				(si.protocol_version = TLS_1p2 => CreAlg(si) = CRE_TLS_1p2(extract_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
 definition !si.  PrfAlg(si) = (si.protocol_version,si.cipher_suite)
 definition !si.  KdfAlg(si) = (si.protocol_version,si.cipher_suite)
 definition !si. SIaeAlg(si) = CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version)

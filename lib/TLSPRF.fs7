@@ -8,8 +8,7 @@ open TLSConstants
 open TLSInfo
 
 val verifyData: prfAlg -> bytes -> Role -> bytes -> bytes 
-val extract:    prfAlg -> bytes -> bytes -> l:nat -> (;l)lbytes
-val extract':   creAlg -> bytes -> bytes -> l:nat -> (;l)lbytes
+val extract:   creAlg -> bytes -> bytes -> l:nat -> (;l)lbytes
 val kdf:        prfAlg -> bytes -> bytes -> l:nat -> (;l)lbytes
 
 (* SSL-specific certificate verify *)
