@@ -85,12 +85,8 @@ definition !p,g,gx,gy,dhpms. HonestPMS(SomePmsId(PMS.DHPMS(p,g,gx,gy,dhpms))) <=
 
 val honestPMS: (pi:pmsId) -> b:bool {b=true => HonestPMS(pi)} //MK <= TODO currently can't typecheck other direction.
 
-//CF SafeKEX was a synonym of HonestPMS?
-//MK I think its only coincidental in the current PMS that HonestPMS implies SafeKEX. Lets keep it for discussions.
-//MK definition !pk,cv,rsapms.    SafeKEX(SomePmsId(PMS.RSAPMS(pk,cv,rsapms)))   <=> PMS.SafeRSA(pk,cv) 
-//MK definition !p,g,gx,gy,dhpms. SafeKEX(SomePmsId(PMS.DHPMS(p,g,gx,gy,dhpms))) <=> PMS.SafeDH(p,g,gx,gy)
-//MK Maybe a better name is StrongKEX? There is some relation to StrongRSAPMS and StrongDHPMS.
-//MK Both definitions probably need to be refined and changed.
+
+
 
 //CF unclear what its purpose is besides pmsId
 type pmsData =
@@ -128,15 +124,15 @@ type msId =        // We record the parameters used to derive this MS:
 predicate StrongCRE of creAlg 
 val strongCRE: ca:creAlg -> b:bool {b=true <=> StrongCRE(ca)}
 
-// ``The algorithms of si are strong for both KDF and VerifyData, despite all others''
-// guarding idealization in PRF
-predicate StrongPRF    of prfAlg
-// TODO: definition !si. StrongPRF(si) <=> PRF.Strong(si.protocol_version,CipherSuiteMACAlg(si.protocol_version,si.cipher_suite))
-
 // ``the MS at this index is abstractly generated and used within PRF''
 predicate HonestMS of msId 
 definition !pmsId,csr,creAlg. 
   HonestMS((pmsId,csr,creAlg)) <=> HonestPMS(pmsId) /\ StrongCRE(creAlg)
+
+
+predicate StrongKDF   of kdfAlg
+predicate StrongVD    of vdAlg
+
 //CF are we missing a correlation with csr? 
 //MK we don't allow leak, so every MS derived from an 
 //MK HonestPMS with strong CRE algorithms is honest?
@@ -179,9 +175,11 @@ val csrands: si:SessionInfo -> csr:csrands {csr=CSRands(si)}
 
 // Getting algorithms from SessionInfo
 
-function val CreAlg:  SessionInfo -> creAlg
+
 function val PrfAlg:  SessionInfo -> prfAlg
+function val CreAlg:  SessionInfo -> creAlg
 function val KdfAlg:  SessionInfo -> kdfAlg
+function val VdAlg:  SessionInfo -> vdAlg
 function val SIaeAlg: SessionInfo -> aeAlg
 
 definition !si. (si.protocol_version = SSL_3p0 => CreAlg(si) = CRE_SSL3_nested ) /\
@@ -190,11 +188,13 @@ definition !si. (si.protocol_version = SSL_3p0 => CreAlg(si) = CRE_SSL3_nested )
 				(si.protocol_version = TLS_1p2 => CreAlg(si) = CRE_TLS_1p2(extract_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
 definition !si.  PrfAlg(si) = (si.protocol_version,si.cipher_suite)
 definition !si.  KdfAlg(si) = (si.protocol_version,si.cipher_suite)
+definition !si.  VdAlg(si) = (si.protocol_version,si.cipher_suite)
 definition !si. SIaeAlg(si) = CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version)
 
 val prfAlg: si:SessionInfo -> a:prfAlg {a=PrfAlg(si)}
 val creAlg: si:SessionInfo -> a:creAlg {a=CreAlg(si)}
 val kdfAlg: si:SessionInfo -> a:kdfAlg {a=KdfAlg(si)}
+val vdAlg: si:SessionInfo -> a:vdAlg {a=VdAlg(si)}
 
 // Getting master-secret indexes out of SessionInfo
 
@@ -202,42 +202,65 @@ function val MsI: SessionInfo -> msId
 definition !si. MsI(si) = (si.pmsId, CSRands(si), CreAlg(si)) 
 val msi: si:SessionInfo -> i:msId { i = MsI(si) }
 
-// Strengths of SessionInfo algorithms
+// Strengths of Handshake algorithms defined on pmsId and SessionInfo
+// Here we consider the strength of the parameters in pmsId
 
-predicate StrongRSAPMS of SessionInfo // MK was ProtocolVersion * kexAlg
-predicate StrongDHPMS  of SessionInfo // MK was ProtocolVersion * kexAlg
+predicate StrongRSAKEX of pmsId 
+predicate StrongDHKEX  of pmsId 
+
+//CF SafeKEX was a synonym of HonestPMS?
+//MK I think it's only coincidental in the current PMS that HonestPMS implies SafeKEX. Lets keep it for discussions.
+definition !pk,cv,rsapms.    StrongRSAKEX(SomePmsId(PMS.RSAPMS(pk,cv,rsapms)))   <=> PMS.SafeRSA(pk,cv) 
+definition !p,g,gx,gy,dhpms.  StrongDHKEX(SomePmsId(PMS.DHPMS(p,g,gx,gy,dhpms))) <=> PMS.SafeDH(p,g,gx,gy)
+//MK They replace StrongRSAPMS and StrongDHPMS.
 
 predicate StrongSig    of SessionInfo
 definition !si. StrongSig(si) <=> Sig.Strong(CipherSuiteSigHashAlg(si.cipher_suite))
+
+
+// ``The algorithms of si are strong for both KDF and VerifyData, despite all others''
+// guarding idealization in PRF
+predicate StrongPRF of SessionInfo
+definition !si. StrongPRF(si) <=> StrongKDF(KdfAlg(si)) /\ StrongVD(VdAlg(si))
+
 
 // summarizing all assumptions needed for a strong handshake
 // CF is it a good idea?!
 predicate StrongHS  of SessionInfo //CF * hashAlg for certs?
 definition !si. StrongHS(si) <=> 
-  ( (StrongRSAPMS(si) \/ StrongDHPMS(si)) /\ 
+  ( (StrongRSAKEX(si.pmsId) \/ StrongDHKEX(si.pmsId)) /\ 
     StrongSig(si) /\ 
-    StrongCRE(CreAlg(si)) /\ StrongPRF(PrfAlg(si)) )
-
-predicate StrongAuthSI of SessionInfo
-predicate StrongAESI of SessionInfo
+    StrongCRE(CreAlg(si)) /\  StrongPRF(si) )
 
 // safety of SessionInfo crypto processing
 
 predicate SafeCRE of SessionInfo // Safe handshake for PMS-based extraction
-predicate SafeVD  of SessionInfo // Safe handshake for MS-based VerifyData
-
-definition !si. SafeCRE(si)   <=> HonestMS(MsI(si)) 
-//MK I would have expected HonestMS(MsI(si)) <=> SafeCRE(si)
-
-
-predicate SafeHS_SI of SessionInfo // Safe handshake for this sessioninfo
-
-// TODO recheck
-definition !si. SafeHS_SI(si) <=> SafeVD(si) /\ StrongHS(si) 
-
+definition !si. HonestMS(MsI(si)) <=> SafeCRE(si)    
 val safeCRE:   (si:SessionInfo) -> b:bool { b=true <=> SafeCRE(si) }
+
+predicate SafeVD  of SessionInfo // Safe handshake for MS-based VerifyData
+definition !si. SafeVD(si) <=> HonestMS(MsI(si)) /\ StrongVD(VdAlg(si))
 val safeVD:    (si:SessionInfo) -> b:bool { b=true <=> SafeVD(si) }
+
+
+// SafeHS depends on having an 'idealized' mastersecret, 
+// and performing both strong session key generation and finished message verification
+// both are implied by StrongHS
+predicate SafeHS_SI of SessionInfo // Safe handshake for this sessioninfo
+definition !si. SafeHS_SI(si) <=> HonestMS(MsI(si)) /\ StrongHS(si) 
 val safeHS_SI: (si:SessionInfo) -> b:bool { b=true <=> SafeHS_SI(si)}
+
+predicate StrongAuthSI of SessionInfo
+definition !si. StrongAuthSI(si) <=> 
+  (?e,m. CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(e,m) /\ 
+         INT_CMA_M(m))
+
+predicate StrongAESI of SessionInfo
+definition !si. StrongAESI(si) <=> 
+  (?e,m. CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(e,m) /\ 
+         IND_CPA(e) /\ 
+         INT_CMA_M(m) /\ 
+         INT_CTXT(MtE(e,m),si.protocol_version))
 
 
 // -------------------------------------------------------------------
@@ -284,16 +307,6 @@ val epochWriter: e:epoch -> r:Role {r=EpochWriter(e)}
 predicate StrongAuth of epoch
 predicate StrongAE of epoch
 
-definition !si. StrongAuthSI(si) <=> 
-  (?e,m. CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(e,m) /\ 
-         INT_CMA_M(m))
-
-definition !si. StrongAESI(si) <=> 
-  (?e,m. CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(e,m) /\ 
-         IND_CPA(e) /\ 
-         INT_CMA_M(m) /\ 
-         INT_CTXT(MtE(e,m),si.protocol_version))
-
 definition !e. StrongAuth(e) <=> StrongAuthSI(EpochSI(e))
 definition !e. StrongAE(e)   <=> StrongAESI(EpochSI(e))
 
@@ -333,10 +346,26 @@ definition !i:id. Swap(i)=
 	pv      = i.pv; 
 	aeAlg   = i.aeAlg; 
 	csrConn = i.csrConn; 
-	writer  = DualRole(i.writer) }
-// ask !i. Swap(Swap(i)) = i
+	writer  = DualRole(i.writer); }
 
+//MK fails, why? ask !i,i'.  Swap(i)=Swap(i') => i=i'
+ask !i:id. Swap(Swap(i)) = i
+
+function val SiId: SessionInfo * Role -> id
+definition !si:SessionInfo,writer:Role. SiId(si,writer) = 
+  { msId    = MsI(si); 
+    kdfAlg  = KdfAlg(si);
+	pv = si.protocol_version; //Should be part of aeAlg 
+	aeAlg   = SIaeAlg(si);
+	csrConn = CSRands(si);
+	writer  = writer;
+ }
+ 
 function val Id: succEpoch -> id
+
+definition !e. Id(e) = SiId(EpochSI(e),EpochWriter(e))
+
+(* MK old definition
 definition !e. Id(e) = 
   { msId    = MsI(EpochSI(e)); 
     kdfAlg  = KdfAlg(EpochSI(e));
@@ -345,6 +374,9 @@ definition !e. Id(e) =
 	csrConn = CSRands(EpochSI(e));
 	writer  = EpochWriter(e);
  }
+ *)
+
+
 val id: s:succEpoch -> i:id {Id(s)=i}
 val idInv: i:id -> s:succEpoch {Id(s)=i}
 
@@ -360,9 +392,9 @@ val encAlg_of_id: i:id -> e:encAlg { EncAlg(i)=e }
 function val PvOfId: i:id -> pv:ProtocolVersion
 definition !i. PvOfId(i)=i.pv
 
-predicate SafePRF of id // Safe handshake for MS-based key derivation 
-definition !i:id. SafePRF(i) <=> HonestMS(i.msId) /\ StrongPRF(i.kdfAlg)
-val safePRF: (i:id) -> b:bool { b=true <=> SafePRF(i) } 
+predicate SafeKDF of id // Safe handshake for MS-based key derivation 
+definition !i:id. SafeKDF(i) <=> HonestMS(i.msId) /\ StrongKDF(i.kdfAlg)
+val safePRF: (i:id) -> b:bool { b=true <=> SafeKDF(i) } 
 
 
 val pv_of_id: i:id -> pv:ProtocolVersion {pv=PvOfId(i)} //TODO add and specify
@@ -395,9 +427,14 @@ predicate type cryptopreds =
 | Safe   of epoch        // The epoch parameters yield privacy & integrity
 | Auth   of epoch        // The epoch parameters yield integrity (not necesarily privacy)
 
-definition !id. SafeHS(id) <=> SafeHS_SI(EpochSI(id)) 
+definition !id. SafeHS(id) <=> SafeHS_SI(EpochSI(id))
+
+definition !si,r:Role. AuthI(SiId(si,r)) <=> SafeHS_SI(si) /\ StrongAESI(si)
+definition !si,r:Role. SafeI(SiId(si,r)) <=> SafeHS_SI(si) /\ StrongAuthSI(si)
+ 
 definition !si. SafeSI(si) <=> SafeHS_SI(si) /\ StrongAESI(si)
 definition !si. AuthSI(si) <=> SafeHS_SI(si) /\ StrongAuthSI(si)
+
 
 definition !e. Safe(e) <=> SafeSI(EpochSI(e))
 definition !e. Auth(e) <=> AuthSI(EpochSI(e))
@@ -419,7 +456,6 @@ val safeENC: (i:id) -> b:bool {b = true <=> SafeI(i)}
 //TODO confirm where to use safeENC vs safe.
 
 ask !e. Safe(e) => Auth(e)
-ask !e. SafeI(e) => AuthI(e) // needed e.g. to leak Encryption keys when not Auth. 
 
 ask !e,mac. e.aeAlg  = MACOnly(mac) => not SafeI(e)
 // AP: This should be invalid, as ciphersuite is a private type!!!

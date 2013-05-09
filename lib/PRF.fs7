@@ -40,8 +40,8 @@ type (;si:SessionInfo) masterSecret = (;MsI(si)) ms
 //#end-abstraction
 
 // We have a double notion of conditional safety (logically defined in TLSInfo.fs7)
-// SafePRF, both for Finished messages, when the pms is ideal and hashAlg is strong
-// and for Key derivation, additionally requiring agreement on committed parameters.
+// SafeVD for Finished messages, when the pms is ideal and hashAlg is strong and
+// SafeKDF for Key derivation, additionally requiring agreement on committed parameters.
 
 // Ideally, we maintain two logs
 // - all authentic Finished messages so far, to filter out forgeries in their "MAC verify". 
@@ -180,16 +180,13 @@ val keyGenServer:
 (* CF
 // --- summary of our discussion on Apr 29, towards typechecking the HS.
 
-// re: session [migrated to TLSInfo]
-definition HonestMS( (pms, csr, creAlg) as msi ) <=>
-  HonestPMS(pms) /\ StrongCRE(creAlg) // joint assumption  
 
 // re: connection
 // this predicate controls StAE idealization
 // (relative to StAE's algorithmic strength)
 // it is ideally used much before it can be proved as the HS completes.
 
-definition SafeHS(e) <=> 
+definition SafeHS(si) <=> 
      SafeKDF(e.csr "the connection's csr") /\ //MK I woud prefer a different name for this predicate
      StrongKDF(e.kdfAlg) /\ 
      HonestMS(MsI(e))

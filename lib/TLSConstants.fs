@@ -446,6 +446,7 @@ type creAlg = prfAlg'
  
 type prfAlg = ProtocolVersion * cipherSuite
 type kdfAlg = ProtocolVersion * cipherSuite
+type vdAlg = ProtocolVersion * cipherSuite
 
 let verifyDataLen_of_ciphersuite (cs:cipherSuite) =
     (* Only to be invoked with TLS 1.2 (hardcoded in previous versions *)
