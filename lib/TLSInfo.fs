@@ -65,11 +65,9 @@ let kdfAlg (si:SessionInfo) =
 let creAlg (si:SessionInfo) =
   match si.protocol_version with
   | SSL_3p0           -> CRE_SSL3_nested 
-  | TLS_1p0 | TLS_1p1 -> let l = extract_label
-                         CRE_TLS_1p01(l)
-  | TLS_1p2           -> let l = extract_label
-                         let ma = prfMacAlg_of_ciphersuite si.cipher_suite
-                         CRE_TLS_1p2(l,ma) 
+  | TLS_1p0 | TLS_1p1 -> let x = CRE_TLS_1p01(extract_label) in x
+  | TLS_1p2           -> let ma = prfMacAlg_of_ciphersuite si.cipher_suite
+                         CRE_TLS_1p2(extract_label,ma) 
 
 
 let msi (si:SessionInfo) = 
