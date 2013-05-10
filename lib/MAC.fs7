@@ -70,11 +70,20 @@ private type (;i:id) key =
 
 // this assumption records the list of concrete MAC algorithms 
 // assumed to be INT-CMA (in this instance, just MAC_SHA256.a is)  
+
+//MK now defined in TLSConstants, but I understand the logic for defining it locally.
+//MK our verification everywhere else should be algorithms agnostic.
+private ask INT_CMA_M(MAC_SHA256.a)
+private ask INT_CMA_M(MAC_SHA1.a)
+
+//We bound the algorithms we consider to allow for verification of agility.
 private assume
   !i:id. AuthId(i) => ( MacAlg(i) = MAC_SHA256.a 
                    \/ MacAlg(i) = MAC_SHA1.a )
 			  
 ask !i,alg. (AuthId(i) /\ alg = MacAlg(i)) => (alg = MAC_SHA256.a \/ alg = MAC_SHA1.a)
+
+ask !i. AuthId(i) /\ not(MacAlg(i)=MAC_SHA256.a \/ MacAlg(i)=MAC_SHA1.a) => false
 	 
 type text = bytes
 predicate val Msg: id * text -> bool

@@ -65,8 +65,9 @@ let GEN ki =
     let a = macAlg_of_id ki in
     #if ideal
     // ideally, we separately keep track of "Auth" keys, 
-    // with an additional indirection to HMAFC  
-    if authId ki then 
+    // with an additional indirection to HMAC  
+    let authId = authId ki
+    if authId then 
       match a with 
       | a when a = MAC_SHA256.a -> Key_SHA256(MAC_SHA256.GEN ki)
       | a when a = MAC_SHA1.a   -> Key_SHA1(MAC_SHA1.GEN ki)
@@ -78,6 +79,6 @@ let GEN ki =
 let COERCE (ki:id) k = KeyNoAuth(k)  
 let LEAK (ki:id) k = 
     match k with 
-    | Key_SHA256(k) -> unreachable "since we have Auth"
-    | Key_SHA1(k)   -> unreachable "since we have Auth"
+    | Key_SHA256(k) -> unreachable "since we have not Auth"
+    | Key_SHA1(k)   -> unreachable "since we have not Auth"
     | KeyNoAuth(k)  -> k

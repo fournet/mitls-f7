@@ -55,6 +55,8 @@ type macAlg =
 
 predicate INT_CMA_M of macAlg  (* Strong algorithms for the INT-CMA game *) 
 // some reasonable cryptogaphic assumptions:
+assume INT_CMA_M(MA_HMAC(SHA256)) //used in MAC
+assume INT_CMA_M(MA_HMAC(SHA))
 // assume(INT_CMA_M(MA_HMAC(SHA)))
 // assume(INT_CMA_M(MA_HMAC(SHA256)))
 // assume(INT_CMA_M(MA_HMAC(SHA384)))

@@ -352,8 +352,9 @@ definition !i:id. Swap(i)=
 	csrConn = i.csrConn; 
 	writer  = DualRole(i.writer); }
 
-//MK fails, why? ask !i,i'.  Swap(i)=Swap(i') => i=i'
-ask !i:id. Swap(Swap(i)) = i
+//MK fails, why? 
+//ask !i,i'.  Swap(i)=Swap(i') => i=i'
+//ask !i:id. Swap(Swap(i)) = i
 
 function val SiId: SessionInfo * Role -> id
 definition !si:SessionInfo,writer:Role. SiId(si,writer) = 
@@ -393,15 +394,33 @@ val safeKDF: (i:id) -> b:bool { b=true <=> SafeKDF(i) }
 ask !si. not HonestMS(MsI(si)) => not SafeVD(si) /\ not SafeKDF(SiId(si,Server))
  
 
+// MK these are just exemplary?
+predicate StrongAuthId of id
+
+definition !id. StrongAuthId(id) <=> INT_CMA_M(MacAlg(id))
+
+//MK doesn't satisfy asks
+//ask !si,r:Role. StrongAuthId(SiId(si,r)) => StrongAuthSI(si) 
+
+//MK verifies
+ask !i:id,e,m. StrongAuthId(i) => INT_CMA_M(MacAlg(i))
+
 predicate AuthId of id //CF instead of Auth when dealing with tight indexes 
-definition !si,r:Role. AuthId(SiId(si,r)) <=> SafeHS_SI(si) /\ StrongAESI(si)
+definition !si:SessionInfo,r:Role.  AuthId(SiId(si,r)) <=> SafeHS_SI(si) /\ StrongAuthId(SiId(si,r))
 val authId: (i:id) -> b:bool {b = true <=> AuthId(i)}
 
+ask !si,r. AuthId(SiId(si,r)) => SafeHS_SI(si) 
+//MK seems obvious but doesn't verify
+ask !i:id. AuthId(i) => StrongAuthId(i)
+
+ask !i:id. AuthId(i) => INT_CMA_M(MacAlg(i))
+
 predicate SafeId of id
-definition !si,r:Role. SafeId(SiId(si,r)) <=> SafeHS_SI(si) /\ StrongAuthSI(si)
+definition !si,r:Role. SafeId(SiId(si,r)) <=> SafeHS_SI(si) /\ StrongAESI(si)
 val safeId : (i:id) -> b:bool {b = true <=> SafeId(i)}
 
-ask !e,mac. e.aeAlg  = MACOnly(mac) => not SafeId(e)
+// MK fails
+//ask !e,mac. e.aeAlg  = MACOnly(mac) => not SafeId(e)
 
 (* SPECIFYING SAFETY *) 
 
@@ -435,8 +454,8 @@ val auth:    (e:epoch) -> b:bool {b = true <=> Auth(e)}
 ask !e. Safe(e) => Auth(e)
 
 // so that TLS can exchange any traffic on the initial null connection
-// CF suspicious! MK changed into ask
-ask !e. IsInitEpoch(e) => not Auth(e)
+// CF suspicious! MK changed into ask, fails!
+//ask !e. IsInitEpoch(e) => not Auth(e)
 
 // -------------------------------------------------------------------
 // Application configuration options
