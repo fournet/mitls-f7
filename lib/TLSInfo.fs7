@@ -9,7 +9,7 @@ open Bytes
 open Date
 open TLSConstants
 
-(* 
+(* CF old:
 
 - We need to typecheck ideal code, so write all modules in the style
    #if ideal
@@ -28,7 +28,6 @@ open TLSConstants
 type rw =
     | Reader
     | Writer
-
 
 type preRole =
 	| Client
@@ -133,7 +132,7 @@ definition !pmsId,csr,creAlg.
 predicate StrongKDF   of kdfAlg
 predicate StrongVD    of vdAlg
 
-val noMsId: i:msId //{ not HonestMS(i) }
+val noMsId: i:msId { not HonestMS(i) }
 
 // -------------------------------------------------------------------
 // Session information (public immutable data)
@@ -437,9 +436,13 @@ val safeId : (i:id) -> b:bool {b = true <=> SafeId(i)}
 // re-indexing from epochs to ids
 
 function val Id: epoch -> id
+
 val noId: i:id { not AuthId(i) }
-ask not AuthId(noId)
+//TODO how to ask it !?!
+theorem not AuthId(noId)
+
 val id: s:epoch -> i:id {i=Id(s)}
+
 
 definition !e:epoch. IsInitEpoch(e) => Id(e) = noId
 definition !e:epoch. IsSuccEpoch(e) => Id(e) = SiId(EpochSI(e),EpochWriter(e))
