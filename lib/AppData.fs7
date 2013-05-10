@@ -101,10 +101,12 @@ val reset_outgoing: ci:ConnectionInfo -> s:(;ci)app_state ->
 	ci':ConnectionInfo{ci'.role = ci.role /\ ci'.id_in = ci.id_in} ->
 	s':(;ci')app_state{AppOutBuf(ci',s') = None /\ 
             AppOutStream(ci',s') = EmptyStream(ci'.id_out) /\
-            AppInStream(ci',s') = AppInStream(ci,s)}
+            AppInStream(ci',s') = AppInStream(ci,s) /\
+			AppInBuf(ci',s') = AppInBuf(ci,s)}
 val reset_incoming: ci:ConnectionInfo -> s:(;ci)app_state ->
 	ci':ConnectionInfo{ci'.role = ci.role /\ ci'.id_out = ci.id_out} ->
 	s':(;ci')app_state{AppInBuf(ci',s') = None /\ 
             AppInStream(ci',s') = EmptyStream(ci'.id_in) /\
-            AppOutStream(ci',s') = AppOutStream(ci,s)}
+            AppOutStream(ci',s') = AppOutStream(ci,s) /\
+			AppOutBuf(ci',s') = AppOutBuf(ci,s)}
 
