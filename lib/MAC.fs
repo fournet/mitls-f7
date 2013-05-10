@@ -54,7 +54,7 @@ let Verify ki key data tag =
     | KeyNoAuth(k)  -> HMAC.MACVERIFY a k data tag
     // #if ideal 
     // // At safe indexes, we use the log to detect and correct verification errors
-    // && if safeMAC ki
+    // && if authId ki
     //   then 
     //       tmem ki data !log
     //   else 
@@ -66,7 +66,7 @@ let GEN ki =
     #if ideal
     // ideally, we separately keep track of "Auth" keys, 
     // with an additional indirection to HMAFC  
-    if safeMAC ki then 
+    if authId ki then 
       match a with 
       | a when a = MAC_SHA256.a -> Key_SHA256(MAC_SHA256.GEN ki)
       | a when a = MAC_SHA1.a   -> Key_SHA1(MAC_SHA1.GEN ki)

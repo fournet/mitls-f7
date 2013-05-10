@@ -42,7 +42,7 @@ private val zeros: r:range -> (;r)rbytes
 
 val payload: e:id -> r:range -> ad:(;e)LHAEPlain.adata -> 
   f:(;e,ad,r)LHAEPlain.plain ->
-  b:(;r) rbytes{ SafeI(e) \/ B(b) = LHAEPlain.Payload(e,B(ad),r,f) }
+  b:(;r) rbytes{ SafeId(e) \/ B(b) = LHAEPlain.Payload(e,B(ad),r,f) }
 
 // the MACed bytes, i.e. ad @| 2-byte length of payload @| payload 
 //CF should ask some injectivity
@@ -51,7 +51,7 @@ function val MACPlain : 'a * 'b * 'c * 'd -> 'e
 private definition !e,r,ad,f. MACPlain(e,r,ad,f) = ad @| VLBytes(2,LHAEPlain.Payload(e,ad,r,f))
 val macPlain: e:id -> r:range -> 
   ad:(;e)LHAEPlain.adata -> 
-  f:(;e,ad,r)LHAEPlain.plain -> b:bytes{ SafeI(e) \/ B(b) = MACPlain(e,r,B(ad),f) }
+  f:(;e,ad,r)LHAEPlain.plain -> b:bytes{ SafeId(e) \/ B(b) = MACPlain(e,r,B(ad),f) }
 
 predicate val Decoded: 'e * 'a * 'b -> bool
 
@@ -70,7 +70,7 @@ val verify: e:id -> k:(;e) MAC.key ->
    will not fail for MACed values *)
 
 (* CF to verify the 3rd postcondition, we need something like
-   SafeI(e) => Version(e) = TLS_1p1 \/ Version(e) = TLS_1p2 \/ ps.ok = true 
+   SafeId(e) => Version(e) = TLS_1p1 \/ Version(e) = TLS_1p2 \/ ps.ok = true 
    
 *)
 
@@ -96,12 +96,12 @@ ask !e,tlen.
   (0,
    tlen - IVSize(e) - MacKeySize(MacAlg(e)) - 1)
 
-val encode: e:id{not SafeI(e) /\ (?alg,mac. e.aeAlg  = MtE(CBC_Stale(alg),mac) \/
+val encode: e:id{not SafeId(e) /\ (?alg,mac. e.aeAlg  = MtE(CBC_Stale(alg),mac) \/
 	  e.aeAlg  = MtE(CBC_Fresh(alg),mac))} -> 
     tlen:nat{tlen <= max_TLSCipher_fragment_length} -> rg:range{tlen = TargetLength(e,rg)} ->
 	ad:(;e) LHAEPlain.adata -> pl:(;e,ad,rg) LHAEPlain.plain -> tag:(;e) MAC.tag ->
 	(;PlainLength(e,tlen))lbytes
-val decode: e:id{not AuthI(e) /\ (?alg,mac. e.aeAlg  = MtE(CBC_Stale(alg),mac) \/
+val decode: e:id{not AuthId(e) /\ (?alg,mac. e.aeAlg  = MtE(CBC_Stale(alg),mac) \/
 	  e.aeAlg  = MtE(CBC_Fresh(alg),mac))} -> 
 	ad:(;e) LHAEPlain.adata -> rg:range ->
 	tlen:nat{tlen - IVSize(e) >= ( MacKeySize(MacAlg(e)) + 1) /\
@@ -122,12 +122,12 @@ ask !e,tlen.
 
 
 //CF why do we need "NoPad" variants again? 
-val encodeNoPad: e:id{not SafeI(e) /\ (?mac. e.aeAlg  = MACOnly(mac) \/
+val encodeNoPad: e:id{not SafeId(e) /\ (?mac. e.aeAlg  = MACOnly(mac) \/
 	  e.aeAlg  = MtE(Stream_RC4_128,mac))} ->
 	tlen:nat{tlen <= max_TLSCipher_fragment_length} -> rg:range{tlen = TargetLength(e,rg)} ->
 	ad:(;e) LHAEPlain.adata -> (;e,ad,rg) LHAEPlain.plain -> (;e) MAC.tag ->
 	(;PlainLength(e,tlen))lbytes
-val decodeNoPad: e:id{not AuthI(e) /\ (?mac. e.aeAlg  = MACOnly(mac) \/
+val decodeNoPad: e:id{not AuthId(e) /\ (?mac. e.aeAlg  = MACOnly(mac) \/
 	  e.aeAlg  = MtE(Stream_RC4_128,mac))} ->
 	ad:(;e) LHAEPlain.adata -> rg:range ->
 	tlen:nat{tlen >= MacKeySize(MacAlg(e)) /\
@@ -140,12 +140,12 @@ definition !id,mac.     id.aeAlg = MtE(Stream_RC4_128,mac) => MinTlen(id) = MacK
 definition !id,alg,mac. id.aeAlg = MtE(CBC_Fresh(alg),mac) => MinTlen(id) = IVSize(id) + MacKeySize(mac) + 1 
 definition !id,alg,mac. id.aeAlg = MtE(CBC_Stale(alg),mac) => MinTlen(id) = IVSize(id) + MacKeySize(mac) + 1
 
-val plain: e:id{not AuthI(e)} ->
+val plain: e:id{not AuthId(e)} ->
   ad:(;e)LHAEPlain.adata -> tlen:nat{tlen <= max_TLSCipher_fragment_length /\ tlen >= MinTlen(e)} ->
   (;PlainLength(e,tlen))lbytes ->
   (;e,ad,CipherRangeClass(e,tlen)) plain
 
-val repr:  e:id{not SafeI(e)} -> 
+val repr:  e:id{not SafeId(e)} -> 
   ad:(;e)LHAEPlain.adata -> rg:range -> //AP {rg is fRange}
   (;e,ad,rg) plain -> 
   (;PlainLength(e,TargetLength(e,rg)))lbytes{TargetLength(e,rg) <= max_TLSCipher_fragment_length}
@@ -156,7 +156,7 @@ val repr:  e:id{not SafeI(e)} ->
 
 //CF this was too weak: no constraint on f! patched
 private assume !e,pl. MAC.Msg(e,pl) <=>
-     (SafeI(e) \/ (?ad,r,f. Length(ad) = 8 + StatefulPlain.ADLength(e) /\
+     (SafeId(e) \/ (?ad,r,f. Length(ad) = 8 + StatefulPlain.ADLength(e) /\
 	  B(pl) = MACPlain(e,r,B(ad),f)))
 
 //CF Comments:

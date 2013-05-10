@@ -138,7 +138,7 @@ let keyGenClient (rdId:id) (wrId) ms =
     let aeAlg = rdId.aeAlg
     let csr = rdId.csrConn
     match read csr !kdlog with
-    | Committed(pv',aeAlg') when pv=pv' && aeAlg=aeAlg' && safePRF(rdId) -> 
+    | Committed(pv',aeAlg') when pv=pv' && aeAlg=aeAlg' && safeKDF(rdId) -> 
         // we idealize the key derivation
         let (myRead,peerWrite) = StatefulLHAE.GEN rdId 
         let (peerRead,myWrite) = StatefulLHAE.GEN wrId
@@ -156,12 +156,13 @@ let keyGenServer (rdId:id) (wrId:id) ms =
     #if ideal
     let csr = rdId.csrConn
     match read csr !kdlog with  
-    | Derived(wrId',rdId',derived) when safePRF(rdId)  ->
+    | Derived(wrId',rdId',derived) when safeKDF(rdId)  ->
         // by typing the commitment, we know that rdId has matching csr pv aeAlg 
         kdlog := update csr Done !kdlog
         if rdId = wrId'
         //CF was, to be discussed: 
-        //CF if rdId.msId   = wrId'.msId &&  rdId.kdfAlg = wrId'.kdfAlg              
+        //CF if rdId.msId   = wrId'.msId &&  rdId.kdfAlg = wrId'.kdfAlg 
+        //MK this looks so simple it may be just right! Maybe too good to be true?             
         then  
             derived // we benefit from the client's idealization
         else
@@ -193,7 +194,7 @@ let rec mem (i:msId) (r:Role) (t:text) (es:entry list) =
 #endif
 
 let private verifyData si ms role data = 
-  TLSPRF.verifyData (prfAlg si) ms.bytes role data
+  TLSPRF.verifyData (vdAlg si) ms.bytes role data
 
 let makeVerifyData si (ms:masterSecret) role data =
   let tag = verifyData si ms role data in
@@ -225,24 +226,3 @@ let ssl_certificate_verify (si:SessionInfo) ms (algs:sigAlg) log =
   | SA_DSA -> TLSPRF.ssl_verifyCertificate SHA s log 
   | _      -> Error.unexpected "[ssl_certificate_verify] invoked on a wrong signature algorithm"
 
-
-
-//CF ?
-//#if ideal
-// we normalize the pair to use as a shared index; 
-// this function could also live in TLSInfo
-//let epochs (ci:ConnectionInfo) = 
-//  if ci.role = Client 
-//  then (ci.id_in, ci.id_out)
-//  else (ci.id_out, ci.id_in) 
-//#endif
-
-(* CF those do not provide useful refinements  :(
-      similarly factoring out code below breaks length computations. 
-let clientWriter = function 
-  | Client -> Writer 
-  | Server -> Reader
-let clientReader = function
-  | Client -> Reader 
-  | Server -> Writer
-*)

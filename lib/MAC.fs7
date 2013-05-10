@@ -13,7 +13,7 @@ open TLSInfo
    - an abstract type of indexes (TLSInfo.id)
    - a function from indexes to MAC algorithms (macAlg_of_epoch) and its logical spec.
    - functions from MAC algorithms to their key-lengths and tag-lengths, and their logical specs.
-   - a function from indexes to booleans that indicates the safe indexes (safeMAC) and its logical spec;
+   - a function from indexes to booleans that indicates the safe indexes (authId) and its logical spec;
      (this function is used only #if ideal)
    - an abstract predicate on indexes and message (Msg), 
      specifying the logical property authenticated by safe MACs. 
@@ -64,17 +64,17 @@ type (;i:id) tag     = m:bytes {Length(m) = MacKeySize(MacAlg(i))}
 // plus a default constructor for all other keys, concretely represented as fixed-length bytes.
 // (thus, when not #ideal, all keys are KeyNoAuth and the other constructors are not used.)
 private type (;i:id) key = 
-  | KeyNoAuth  of (k:(;i) keyrepr        { not(AuthI(i)) })
-  | Key_SHA256 of (k:(;i) MAC_SHA256.key { AuthI(i) /\ MacAlg(i) = MAC_SHA256.a })
-  | Key_SHA1   of (k:(;i) MAC_SHA1.key   { AuthI(i) /\ MacAlg(i) = MAC_SHA1.a   })
+  | KeyNoAuth  of (k:(;i) keyrepr        { not(AuthId(i)) })
+  | Key_SHA256 of (k:(;i) MAC_SHA256.key { AuthId(i) /\ MacAlg(i) = MAC_SHA256.a })
+  | Key_SHA1   of (k:(;i) MAC_SHA1.key   { AuthId(i) /\ MacAlg(i) = MAC_SHA1.a   })
 
 // this assumption records the list of concrete MAC algorithms 
 // assumed to be INT-CMA (in this instance, just MAC_SHA256.a is)  
 private assume
-  !i:id. AuthI(i) => ( MacAlg(i) = MAC_SHA256.a 
+  !i:id. AuthId(i) => ( MacAlg(i) = MAC_SHA256.a 
                    \/ MacAlg(i) = MAC_SHA1.a )
 			  
-ask !i,alg. (AuthI(i) /\ alg = MacAlg(i)) => (alg = MAC_SHA256.a \/ alg = MAC_SHA1.a)
+ask !i,alg. (AuthId(i) /\ alg = MacAlg(i)) => (alg = MAC_SHA256.a \/ alg = MAC_SHA1.a)
 	 
 type text = bytes
 predicate val Msg: id * text -> bool
@@ -84,20 +84,20 @@ predicate val Msg: id * text -> bool
 private definition 
   !i,t. MAC_SHA256.Msg(i,t) <=> 
       (Msg(i,t) /\ 
-	   AuthI(i) /\ 
+	   AuthId(i) /\ 
 	   MacAlg(i) = MAC_SHA256.a)
 private definition 
   !i,t. MAC_SHA1.Msg(i,t) <=> 
       (Msg(i,t) /\ 
-	   AuthI(i) /\ 
+	   AuthId(i) /\ 
 	   MacAlg(i) = MAC_SHA1.a)
 
 val Mac:    i:id -> k:(;i) key -> t:text{Msg(i,t)} -> m:(;i) tag
-val Verify: i:id -> k:(;i) key -> t:text -> m:(;i) tag -> b:bool{ (b=true /\ AuthI(i)) => Msg(i,t) }
+val Verify: i:id -> k:(;i) key -> t:text -> m:(;i) tag -> b:bool{ (b=true /\ AuthId(i)) => Msg(i,t) }
 
 val GEN:    i:id -> (;i) key
-val LEAK:   i:id {not(AuthI(i))} -> (;i)key -> (;i)keyrepr
-val COERCE: i:id {not(AuthI(i))} -> (;i)keyrepr -> (;i)key
+val LEAK:   i:id {not(AuthId(i))} -> (;i)key -> (;i)keyrepr
+val COERCE: i:id {not(AuthId(i))} -> (;i)keyrepr -> (;i)key
 
 (* 
 // typing the log for an ideal functionality that 

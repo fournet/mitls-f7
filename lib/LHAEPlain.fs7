@@ -32,11 +32,11 @@ private definition !e,ad,r,f,b.
 
 predicate LHAESent of e:id * ad:cbytes * r:range * (;e,ad,r)fragment
 
-type (;e:id,ad:(;e)adata,r:range) plain = f:(;e,B(ad),r)fragment{ AuthI(e) => LHAESent(e,B(ad),r,f) }
+type (;e:id,ad:(;e)adata,r:range) plain = f:(;e,B(ad),r)fragment{ AuthId(e) => LHAESent(e,B(ad),r,f) }
 
-val plain: e:id{not AuthI(e)} -> ad:(;e)adata -> r:range -> b:(;r)rbytes -> p:(;e,ad,r) plain {B(b) = Payload(e,B(ad),r,p)}
-val repr:  e:id{not SafeI(e)} -> ad:(;e)adata -> r:range -> p:(;e,ad,r) plain -> b:(;r)rbytes {B(b) = Payload(e,B(ad),r,p)}
-private val reprFragment:  e:id{not SafeI(e)} -> ad:(;e)adata -> r:range -> f:(;e,B(ad),r) fragment -> b:(;r)rbytes {B(b) = Payload(e,B(ad),r,f)}
+val plain: e:id{not AuthId(e)} -> ad:(;e)adata -> r:range -> b:(;r)rbytes -> p:(;e,ad,r) plain {B(b) = Payload(e,B(ad),r,p)}
+val repr:  e:id{not SafeId(e)} -> ad:(;e)adata -> r:range -> p:(;e,ad,r) plain -> b:(;r)rbytes {B(b) = Payload(e,B(ad),r,p)}
+private val reprFragment:  e:id{not SafeId(e)} -> ad:(;e)adata -> r:range -> f:(;e,B(ad),r) fragment -> b:(;r)rbytes {B(b) = Payload(e,B(ad),r,f)}
 
 val widen: e:id -> ad:(;e)adata -> r:range -> 
   f:(;e,ad,r)plain -> 
@@ -50,7 +50,7 @@ private definition !e,lad,r,f.
                StatefulPlain.Sent(e,had,(sn,ph),r,f.contents))
 
 (* CF cut? 
-private ask !e,r,f,lad. (AuthI(e) /\ (?had,sn,ph. MakeAD(e,(sn,ph),had) = lad /\ StatefulPlain.Sent(e,had,(sn,ph),r,f.contents)) ) => 
+private ask !e,r,f,lad. (AuthId(e) /\ (?had,sn,ph. MakeAD(e,(sn,ph),had) = lad /\ StatefulPlain.Sent(e,had,(sn,ph),r,f.contents)) ) => 
                         (!had', sn', ph'. MakeAD(e,(sn',ph'),had') = lad /\ StatefulPlain.StAEHistory(e,ph') /\ StatefulPlain.HLength(e,ph') = sn' => StatefulPlain.Sent(e,had',(sn',ph'),r,f.contents))
 
 ask !e,ad,sn,ph,ad',r,x. (ad = MakeAD(e,(sn,ph),ad') /\ StatefulPlain.Sent(e,ad',(sn,ph),r,x.contents)) => LHAESent(e,ad,r,x)
@@ -58,7 +58,7 @@ ask !e,ad,sn,ph,ad',r,x. (ad = MakeAD(e,(sn,ph),ad') /\ StatefulPlain.Sent(e,ad'
 ask !e,ad,h,h',ad',ad''. ad = MakeAD(e,h,ad') /\ ad = MakeAD(e,h',ad'') => 
     (StatefulPlain.SeqN(e,h) = StatefulPlain.SeqN(e,h') /\ ad' = ad'')
 *)
-//CF ask !e,ad,ad',ad'',sn,h,h',r,f. AuthI(e) /\ StatefulPlain.Sent(e,ad',(sn,h),r,f) /\ StatefulPlain.StAEHistory(e,h') /\  HLength(e,h') = sn => h = h'
+//CF ask !e,ad,ad',ad'',sn,h,h',r,f. AuthId(e) /\ StatefulPlain.Sent(e,ad',(sn,h),r,f) /\ StatefulPlain.StAEHistory(e,h') /\  HLength(e,h') = sn => h = h'
 
 (* These coercions are used only in StatefulLHAE.fs; 
    they are not part of the "plain" interface to LHAE. *)

@@ -37,8 +37,8 @@ ask !ki,mac,enc. ki.aeAlg = MtE(enc,mac) => KeySize(ki.aeAlg) = MacKeySize(mac) 
 //TODO ask !ki. IsOnlyMACCiphersuite(EpochSI(ki).cipher_suite) => KeySize(ki,ki) = MacKeySize(TLSConstants.CipherSuiteMACAlg(EpochSI(ki).cipher_suite))
 
 val GEN:    ki:id     -> encryptor:(;ki)LHAEKey * decryptor:(;ki)LHAEKey
-val COERCE: ki:id{not AuthI(ki)} -> b:bytes{Length(b) = KeySize(ki.aeAlg)} -> (;ki)LHAEKey
-val LEAK:   ki:id{not AuthI(ki)} -> (;ki)LHAEKey -> b:bytes
+val COERCE: ki:id{not AuthId(ki)} -> b:bytes{Length(b) = KeySize(ki.aeAlg)} -> (;ki)LHAEKey
+val LEAK:   ki:id{not AuthId(ki)} -> (;ki)LHAEKey -> b:bytes
 
 private val mteKey: ki:id -> (;ki) MAC.key -> (;ki) ENC.state -> (;ki) LHAEKey
 
@@ -51,17 +51,17 @@ predicate ENCrypted of e:id * ad:(;e)LHAEPlain.adata * cipher
 private definition !e,ad,c.
   ENCrypted(e,ad,c) <=> ?p'. ENC.ENCrypted(e,ad,c,p')
 
-ask !e,ad,c. ( SafeI(e) => ENCrypted(e,ad,c) ) => (SafeI(e) => ?p. ENC.ENCrypted(e,ad,c,p))
+ask !e,ad,c. ( SafeId(e) => ENCrypted(e,ad,c) ) => (SafeId(e) => ?p. ENC.ENCrypted(e,ad,c,p))
 
 val encrypt': ki:id -> (;ki) LHAEKey -> ad:(;ki)LHAEPlain.adata ->
   rg:range -> p:(;ki,ad,rg) LHAEPlain.plain ->
   ((;ki) LHAEKey * c:cipher){Length(c) = TargetLength(ki,rg) /\         
-                             (SafeI(ki) => ENCrypted(ki,ad,c))}
+                             (SafeId(ki) => ENCrypted(ki,ad,c))}
 
 val encrypt : ki:id -> (;ki) LHAEKey -> ad:(;ki)LHAEPlain.adata ->
   rg:range -> p:(;ki,ad,rg) LHAEPlain.plain ->
   ((;ki) LHAEKey * c:cipher){Length(c) = TargetLength(ki,rg) /\
-                             (SafeI(ki) => ENCrypted(ki,ad,c))}
+                             (SafeId(ki) => ENCrypted(ki,ad,c))}
 
 type entry = 
   ki:id * ad:(;ki) LHAEPlain.adata * rg:range * 
@@ -77,7 +77,7 @@ theorem !ki,d,rg0,p0,rg1,p1,c. (ENCrypted(ki,d,rg0,p0,c) /\ ENCrypted(ki,d,rg1,p
 *)
 
 val decrypt': ki:id -> k:(;ki) LHAEKey -> ad:(;ki)LHAEPlain.adata ->
-  c:cipher{SafeI(ki) => ENCrypted(ki,ad,c)} -> res: 
+  c:cipher{SafeId(ki) => ENCrypted(ki,ad,c)} -> res: 
   ( ( 
     (;ki) LHAEKey *  
     rg:range * 
@@ -97,7 +97,7 @@ val decrypt: ki:id -> (;ki) LHAEKey -> ad:(;ki)LHAEPlain.adata ->
      {rg = CipherRangeClass(ki,Length(c))}
   ) Result
    {
-    (SafeI(ki) => 
+    (SafeId(ki) => 
         (   (!k,r,p. res = Correct((k,r,p)) => ENCrypted(ki,ad,c)) 
 	 /\ (ENCrypted(ki,ad,c) => (?p,k,r'. res = Correct((k,r',p))))
 		))}
@@ -140,10 +140,10 @@ ask INT_CTXT(pv,h,e) =>
 
 There are several ideal properties of AEAD:
 
-1. (When SafeI:) filter out any cipher that is not an honest encryption---a.k.a "INT-CTXT" 
+1. (When SafeId:) filter out any cipher that is not an honest encryption---a.k.a "INT-CTXT" 
                 implemented by #ideal_F in AEAD.fs
 
-2. (When SafeI:) additionally decrypt by table lookup---so that we can get plain secrecy by typing 
+2. (When SafeId:) additionally decrypt by table lookup---so that we can get plain secrecy by typing 
                 implemented by #ideal in AEAD.fs
 
 3. (When Auth:) filter out any (ki,plain,AD) forgery---aka "INT-PTXT" or "CMA"
@@ -151,14 +151,14 @@ There are several ideal properties of AEAD:
 
 For F7 clarity, we distinguish several verification steps (using flags/Makefile):
 
-1. (When SafeI, decryption correctness:) decryptions of honest ciphers always succeed, returning the plaintext
+1. (When SafeId, decryption correctness:) decryptions of honest ciphers always succeed, returning the plaintext
    Together with CTXT & our "at most one encryption per AD" assumption, this justifies moving from 1 to 2.
    We might also explain it with a "Decryption error oracle". 
 
-2. If we decrypt by table lookup, then, we implement parametric AEAD (to complete the SafeI proof)
+2. If we decrypt by table lookup, then, we implement parametric AEAD (to complete the SafeId proof)
    this essentially rely on CPA of the underlying encryption.
 
-3. (When Auth, irrespective of SafeI & CTXT:) AEAD is PTXT wrt to some user-defined Msg property.
+3. (When Auth, irrespective of SafeId & CTXT:) AEAD is PTXT wrt to some user-defined Msg property.
 
 We agreed that #if ideal refers to typechecking 2. 
 
@@ -168,12 +168,12 @@ The postcondition of decryption thus consists of
 (Auth(ki) => ((!p. (?r. res = Correct(ki,r,p)) 
                <=> ( ?c. CTXT(ki,ad,p,c))))
 /\
-// a stronger "SafeI" authentication property, which also yields Msg(ki,ad,p)
-(SafeI(ki) => ((!p. ( ?r. res = Correct(ki,r,p)) 
+// a stronger "SafeId" authentication property, which also yields Msg(ki,ad,p)
+(SafeId(ki) => ((!p. ( ?r. res = Correct(ki,r,p)) 
 		       <=> ( CTXT(ki,ad,p,c)))           
 /\
 // a functional property
-(SafeI(ki) => ?p. res = Correct((ki,Range(ki,c),p))) \/ res = Error(AD_bad_record_mac,"")
+(SafeId(ki) => ?p. res = Correct((ki,Range(ki,c),p))) \/ res = Error(AD_bad_record_mac,"")
 
 --- The sequence of games is 
 
@@ -198,7 +198,7 @@ The postcondition of decryption thus consists of
   
 (independently:)
 
-* CMA for Auth but not SafeI.   
+* CMA for Auth but not SafeId.   
 
 *)
 
@@ -206,7 +206,7 @@ The postcondition of decryption thus consists of
 //
 // plaintext integrity follows from abstraction:
 // - a precondition for coercing to  (;ki,rg,ad) plain is that ki is un-Auth
-// - a precondition for leaking from (;ki,rg,ad) plain is that ki is un-SafeI
+// - a precondition for leaking from (;ki,rg,ad) plain is that ki is un-SafeId
 //
 // additionally, the decryption refinement guarantees 
 // functional correctness & ciphertext integrity

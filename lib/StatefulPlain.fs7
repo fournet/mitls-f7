@@ -48,7 +48,7 @@ private definition !e,h,ad,r,f. HLength(e,(ad,r,f)::h) = HLength(e,h)+1
  
 predicate StAEHistory of e:id * (;e)prehistory
 
-type (;e:id)history = (sn:nat * ph:(;e)prehistory){sn = HLength(e,ph) /\ (AuthI(e) => StAEHistory(e,ph))}
+type (;e:id)history = (sn:nat * ph:(;e)prehistory){sn = HLength(e,ph) /\ (AuthId(e) => StAEHistory(e,ph))}
 function val SeqN: e:id * (;e)history -> nat
 definition !e,sn,h. SeqN(e,(sn,h)) = sn
 
@@ -96,16 +96,16 @@ private definition !e,ad,sh,r,f.
 //------------------------------------------------------------------------------------------------------
 
 type (;e:id,ad:(;e)adata,h:(;e)history,r:range) plain =
-	f:(;e,B(ad),r)fragment{AuthI(e) => Sent(e,B(ad),h,r,f)}
+	f:(;e,B(ad),r)fragment{AuthId(e) => Sent(e,B(ad),h,r,f)}
 
 val plain:
-  e:id{not AuthI(e)} -> h:(;e)history -> ad:(;e)adata -> r:range -> 
+  e:id{not AuthId(e)} -> h:(;e)history -> ad:(;e)adata -> r:range -> 
   b:(;r)rbytes -> p:(;e,ad,h,r) plain {B(b) = Payload(e,B(ad),r,p)}
 val repr:
-  e:id{not SafeI(e)} -> h:(;e)history -> ad:(;e)adata -> r:range ->
+  e:id{not SafeId(e)} -> h:(;e)history -> ad:(;e)adata -> r:range ->
   p:(;e,ad,h,r) plain -> b:(;r)rbytes {B(b) = Payload(e,B(ad),r,p)}
 val reprFragment: 
-  e:id{not SafeI(e)} -> ad:(;e)adata -> r:range ->
+  e:id{not SafeId(e)} -> ad:(;e)adata -> r:range ->
   f:(;e,B(ad),r) fragment -> b:(;r)rbytes {B(b) = Payload(e,B(ad),r,f)}
 
 val widen:
@@ -135,10 +135,10 @@ private val consHistory:
 //CF Sent grows linearly
 //CF assume !e.          Sent(e,(0,[]))
 //CF assume !e,h,ad,r,x. Sent(e,ExtendHistory(e,h,ad,r,x)) => Sent(e,h)
-//CF assume !e,ad,h,h',r,f. (AuthI(e) /\ Sent(e,ad,h,r,f) /\ Sent(e,ad,h',r,f) /\ SeqN(e,h) = SeqN(e,h')) => h = h'
+//CF assume !e,ad,h,h',r,f. (AuthId(e) /\ Sent(e,ad,h,r,f) /\ Sent(e,ad,h',r,f) /\ SeqN(e,h) = SeqN(e,h')) => h = h'
 
 //CF usage? 
-assume !e,ad,h,h',r,f. (AuthI(e) /\ StAEHistory(e,h) /\ StAEHistory(e,h') /\ HLength(e,h) = HLength(e,h')) => h = h'
+assume !e,ad,h,h',r,f. (AuthId(e) /\ StAEHistory(e,h) /\ StAEHistory(e,h') /\ HLength(e,h) = HLength(e,h')) => h = h'
 
 //CF usage? 
 val RecordPlainToStAEPlain: 

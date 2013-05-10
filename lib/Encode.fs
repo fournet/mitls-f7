@@ -24,7 +24,7 @@ let payload (e:id) (rg:range) ad f =
   // After applying CPA encryption for ENC, 
   // we access the fragment bytes only at unsafe indexes, and otherwise use some zeros
   #if ideal 
-  if safe e then 
+  if safeId  e then 
     zeros rg
   else
   #endif

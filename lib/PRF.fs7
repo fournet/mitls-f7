@@ -21,7 +21,7 @@ open StatefulLHAE
 // Master secrets are used to derive key materials. 
 // Compared with standard (non-tls) key derivation,
 // - the label is hardcoded & implicit; 
-// - the seed (crandom @| srandom) is retrieved from the epoch
+// - the context/seed, i.e. (crandom @| srandom), is retrieved from the epoch
 // MK: we use the concept of seed in very confusing ways. It appears in the RFC, 
 // MK: and I propose to continue using it in TLSPRF in the same way. 
 // MK: here (crandom @| srandom) is more like a context which guarantees that
@@ -29,14 +29,13 @@ open StatefulLHAE
 // MK: in CRE we may indeed use seeds as used in the theory of extractors
 
 type repr = (;48)lbytes
-//#begin-abstraction
 
+//#begin-abstraction
 private type (;i:msId) ms = {bytes: repr}
 
 // This index additionally records the *local* session info.
 // CF consider using ms everywhere instead of masterSecret.
 type (;si:SessionInfo) masterSecret = (;MsI(si)) ms
-
 //#end-abstraction
 
 // We have a double notion of conditional safety (logically defined in TLSInfo.fs7)
@@ -51,9 +50,15 @@ type (;si:SessionInfo) masterSecret = (;MsI(si)) ms
 (** Master secrets are either ideally sampled or concretely derived & coerced **) 
 
 val sample: i:msId -> (;i)ms
+
 //#begin-coerce
+
 //the precondition of coerce excludes both idealizations.
+
+// MK this is checked by the following ask in TLSInfo
+// MK   ask !si. not HonestMS(MsI(si)) => not SafeVD(SiId(si)) /\ not SafeKDF(i)
 val coerce: i:msId {not HonestMS(i)} -> repr -> (;i)ms 
+
 //#end-coerce
 
 
@@ -64,12 +69,6 @@ function val KeyExtensionLength: aeAlg -> nat
 definition (!mac.     KeyExtensionLength(MACOnly(mac)) = 2*MacKeySize(mac)) /\
            (!enc,mac. KeyExtensionLength(MtE(enc,mac)) = 2*(EncKeySize(enc) + MacKeySize(mac) +	
                                                             LHAE.KeyDerivationIVSize(MtE(enc,mac))) )
-(*/\
-  (CipherSuiteAuthEncAlg(cs,pv) = MtE(Stream_RC4_128,mac)  => 
-      KeyExtensionLength(pv,cs) = 2* ( MacKeySize(mac) + EncKeySize(Stream_RC4_128))) /\
-  (CipherSuiteAuthEncAlg(cs,pv) = MtE(CBC_Fresh(cipher),mac) => 
-      KeyExtensionLength(pv,cs) = 2*( MacKeySize(mac) + EncKeySize(CBC_Fresh(cipher))))
-*)
 
 (*
 ask !cs,pv,mac. CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) => KeyExtensionLength(pv,cs) = 2*MacKeySize(mac)
@@ -82,13 +81,13 @@ val keyExtensionLength: ae:aeAlg -> n:nat { n=KeyExtensionLength(ae) }
 
 
 //CF not sure the refinement is right, and why it was not on deriveKeys. Commenting out for now
-//MK It's probably right. I removed it from deriveKeys to get more meaningful typechecking errors during de bugging.
+//MK It's probably right. I removed it from deriveKeys to get more meaningful typechecking errors during debugging.
 //MK Was just copied over from keyGen. Should add it back.
 type (;rdId:id,wrId:id) derived =  
   ( r:(;rdId) StatefulLHAE.reader * w:(;wrId)StatefulLHAE.writer ) 
   { wrId = Swap(rdId) }
 //  { StatefulLHAE.History(ci.id_out,Reader,r) = StatefulPlain.EmptyHistory(ci.id_in) /\
-//	StatefulLHAE.History(ci.id_out,Writer,w) = StatefulPlain.EmptyHistory(ci.id_out) }
+//	  StatefulLHAE.History(ci.id_out,Writer,w) = StatefulPlain.EmptyHistory(ci.id_out) }
 
 private val deriveRawKeys: 
   i: id -> (;i.msId)ms -> (;LHAE.KeySize(i.aeAlg)) lbytes * (;LHAE.KeySize(i.aeAlg)) lbytes 
@@ -96,8 +95,8 @@ private val deriveRawKeys:
 private val deriveKeys: 
   rdId:id -> wrId:id { 
     wrId = Swap(rdId) /\ 
-    not AuthI(rdId) /\ 
-	not AuthI(wrId) (* needed to coerce to StatefulLHAE *) } ->  
+    not AuthId(rdId) /\ 
+	not AuthId(wrId) (* needed to coerce to StatefulLHAE *) } ->  
   (;rdId.msId)ms -> Role -> (;rdId,wrId) derived 
 
 
@@ -118,11 +117,11 @@ private val deriveKeys:
 // (otherwise we would need some custom joint/cross ciphersuite/agile assumptions for StAE)
 // 
 // predicate val SafeKDF: csr -> bool
-// definition SafeKDF(csr) <=> ?pv,cs. KeyCommit(csr,pv,cs) /\ KeyGenClient(csr,pv,cs)  
-// MK the above is deprecated? SafeKDF should be defined on msId
+// definition SafeKDF(id) <=> HonestMS(id.msId) /\ StrongKDF(id.kdfAlg) /\ 
+//                            KeyCommit(id.csrConn,id.pv,id.aeAlg) /\ KeyGenClient(id.csrConn,id.pv,id.aeAlg)  
 
 type event = Waste of id // with a csr in the Wasted state
-private theorem !i. Waste(i) => (not AuthI(i) /\ not AuthI(Swap(i))) 
+private theorem !i. Waste(i) => (not AuthId(i) /\ not AuthId(Swap(i))) 
 
 type (;csr: csrands) state =
   | Init
@@ -150,9 +149,10 @@ val read: csr:csrands -> kdentry list -> (;csr) state
 val update: csr:csrands -> (;csr) state -> kdentry  list -> kdentry list  
 
 // Ideally, the server commits to using at most 
-// (an extension of) this si for keyGen with matching (si.cr,si.sr)
-// MK i.) should talk abut aeAlg, ii.) do we really mean si.init_crand and si.init_srand here
+// an si with pv and aeAlg for keyGen with matching (si.cr,si.sr)
+// MK do we really mean si.init_crand and si.init_srand here?
 // MK and not epochCSRands? 
+
 // We could enforce commitments by adding a post-condition to keyCommit  
 // and a matching pre-condition to the server-side keyGen.
 
@@ -178,29 +178,27 @@ val keyGenServer:
 
 
 (* CF
-// --- summary of our discussion on Apr 29, towards typechecking the HS.
+ --- summary of our discussion on Apr 29, towards typechecking the HS.
 
+ The following predicate controls StAE idealization
+ (relative to StAE's algorithmic strength)
+ it is ideally used much before it can be proved as the HS completes.
 
-// re: connection
-// this predicate controls StAE idealization
-// (relative to StAE's algorithmic strength)
-// it is ideally used much before it can be proved as the HS completes.
+definition SafeHS(si) <=> !r:Role.
+     HonestMS(MsI(si)) /\
+     SafeKDF(SiId(id,r) /\ //MK should this include KeyCommit and KeyGenClient?
+     SafeVD(si)
 
-definition SafeHS(si) <=> 
-     SafeKDF(e.csr "the connection's csr") /\ //MK I woud prefer a different name for this predicate
-     StrongKDF(e.kdfAlg) /\ 
-     HonestMS(MsI(e))
+ In HS, we have 
+  - KeyGenClient(id.csrConn, id.pv, id.aeAlg) for id=Id(e) is a precondition to the event ClientSentCCS(e)
+  - KeyCommit(id.csrConn, id.pv, id.aeAlg)    for id=Id(e) is a precondition to the event ServerSentCCS(e)
+  - HonestMS /\ StrongVD are sufficient to guarantee 
+    matching ClientSentCCS(e) and ServerSentCCS(e), hence getting 
+     (1) SafeKDF, and 
+     (2) e is the only wide index associated with Id(e)       
 
-// In HS, we have 
-// - KeyGenClient  (e.csr, e.pv, e.cs) is a precondition to the event ClientSentCCS(e)
-// - KeyCommit(e.csr, e.pv, e.cs) is a precondition to the event ServerSentCCS(e)
-// - HonestMS /\ StrongVD are sufficient to guarantee 
-//   matching ClientSentCCS(e) and ServerSentCCS(e), hence getting 
-//   (1) SafeKDF, and 
-//   (2) e is the only wide index associated with StAEIndex(e)       
-//
-// This enables us to prove Complete, roughly as currently defined:
-//   Complete <=> (HonestPMS /\ StrongHS => SafeHS)
+    This enables us to prove Complete, roughly as currently defined:
+    Complete <=> (HonestPMS /\ StrongHS => SafeHS)
 *)
 
 
@@ -222,7 +220,7 @@ type tag = bytes
 
 // Abstract predicate authenticated by the Finished messages.
 // (privately defined in Handshake.fs7)
-//CF we used to index it by epoch, then by SessionInfo, now by MsI(si) 
+// CF we used to index it by epoch, then by SessionInfo, now by MsI(si) 
 predicate VerifyData of msId * Role * text
 
 // role & text are jointly authenticated
@@ -258,23 +256,6 @@ val ssl_certificate_verify:
 
 
 //CF =============================== only comments below
-
-//private val clientWriter: r:Role -> rw:rw {(r = Client /\ rw = Writer) \/ (r = Server /\ rw = Reader)}  
-//private val clientReader: r:Role -> rw:rw {(r = Client /\ rw = Reader) \/ (r = Server /\ rw = Writer)}  
-
-
-//private val epochs:ConnectionInfo -> epoch * epoch
-
-(* MK !! causes logical inconsistency
-function val Epochs: 'a -> 'b
-private definition !ci,r,e_in,e_out.
-	(ci = {role=Client;id_rand=r;id_in=e_in;id_out=e_out} /\
-	 Epochs(ci) = (ci.id_in,ci.id_out) ) \/
-	(ci = {role=Server;id_rand=r;id_in=e_in;id_out=e_out} /\
-	 Epochs(ci) = (ci.id_out,ci.id_in) )
-*)
-//MK ask !si, si'. SafeHS_SI(si) /\ SafeHS_SI(si') /\ si.csrands=si.csrands => CS(si)=CS(si')
-
 
 (* CF
 // ask from LHAE.fs7 repeated here to help Z3 type real_key_Gen; apparently not needed anymore

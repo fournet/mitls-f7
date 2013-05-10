@@ -106,8 +106,8 @@ type (;ki:id) reader = r:(;ki,Reader) state
 type (;ki:id) writer = w:(;ki,Writer) state
 
 val GEN:    ki:id               -> (;ki)reader * (;ki)writer
-val COERCE: ki:id{not AuthI(ki)} -> rw:rw -> b:bytes{Length(b)=LHAE.KeySize(ki.aeAlg)} -> (;ki,rw)state
-val LEAK:   ki:id{not AuthI(ki)} -> rw:rw -> (;ki,rw)state -> b:bytes
+val COERCE: ki:id{not AuthId(ki)} -> rw:rw -> b:bytes{Length(b)=LHAE.KeySize(ki.aeAlg)} -> (;ki,rw)state
+val LEAK:   ki:id{not AuthId(ki)} -> rw:rw -> (;ki,rw)state -> b:bytes
 
 val history: ki:id -> rw:rw -> s:(;ki,rw) state -> h:(;ki)history{h=History(ki,rw,s)}
 
@@ -136,7 +136,7 @@ val encrypt:
   f: (;ki,ad,History(ki,Writer,wr),rg) plain ->
   (wr':(;ki) writer * c:cipher)
   {   History(ki,Writer,wr') = ExtendHistory(ki,ad,History(ki,Writer,wr),rg,f)
-  /\  (SafeI(ki) => ENCrypted(ki,History(ki,Writer,wr),ad,c)) } 
+  /\  (SafeId(ki) => ENCrypted(ki,History(ki,Writer,wr),ad,c)) } 
 
 val decrypt: 
   ki:id -> rd:(;ki) reader -> 
@@ -147,7 +147,7 @@ val decrypt:
                (   History(ki,Reader,nrd) = 
                    ExtendHistory(ki,ad,History(ki,Reader,rd),rg,f) /\
                    rg = CipherRangeClass(ki,Length(c)) /\
- 	         (SafeI(ki) =>
+ 	         (SafeId(ki) =>
 				( (!nrd,rg,f. r = Correct((nrd,rg,f)) => ENCrypted(ki,History(ki,Reader,rd),ad,c)) // /\
 				//  (!rg,p. ENCrypted(ki,rd,ad,rg,Payload(ki,ad,rg,p),c) => (?nrd,rg. res = Correct((nrd,rg,p))))
 				)

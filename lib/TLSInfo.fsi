@@ -53,6 +53,8 @@ type SessionInfo = {
 val csrands: SessionInfo -> bytes
 val prfAlg: SessionInfo -> prfAlg  
 val creAlg: SessionInfo -> creAlg  
+val kdfAlg: SessionInfo -> kdfAlg 
+val vdAlg: SessionInfo -> vdAlg  
 val msi: SessionInfo -> msId
 
 type id = { 
@@ -141,8 +143,8 @@ val safeVD: SessionInfo -> bool
 val safeHS_SI: SessionInfo -> bool
 val auth: epoch -> bool
 
-val safePRF: id -> bool
-val safe: id -> bool
-val safeMAC: id -> bool
-val safeENC: id -> bool
+val safeKDF: id -> bool
+val safe: epoch -> bool
+val authId: id -> bool
+val safeId : id -> bool
 #endif
