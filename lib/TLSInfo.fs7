@@ -429,10 +429,7 @@ ask !i. AuthId(i) => Match(i) // sanity check; just by definition
 val authId: (i:id) -> b:bool {b = true <=> AuthId(i)}
 
 ask !i. AuthId(i) => SafeKDF(i) 
-//MK seems obvious but doesn't verify
-
 ask !i:id. AuthId(i) => StrongAuthId(i)
-
 ask !i:id. AuthId(i) => INT_CMA_M(MacAlg(i))
 
 predicate SafeId of id
