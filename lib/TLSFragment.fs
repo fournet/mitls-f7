@@ -33,12 +33,12 @@ let handshakeHistory (e:id) h = h.handshake
 let ccsHistory (e:id) h = h.ccs
 let alertHistory (e:id) h = h.alert
 
-let fragment i ct rg b = 
+let fragment ki ct rg b =  
     match ct with
-    | Handshake          -> FHandshake(HSFragment.fragmentPlain i rg b)
-    | Change_cipher_spec -> FCCS(HSFragment.fragmentPlain i rg b)
-    | Alert              -> FAlert(HSFragment.fragmentPlain i rg b)
-    | Application_data   -> FAppData(AppFragment.plain i rg b)
+    | Handshake          -> FHandshake(HSFragment.fragmentPlain ki rg b)
+    | Change_cipher_spec -> FCCS(HSFragment.fragmentPlain ki rg b)
+    | Alert              -> FAlert(HSFragment.fragmentPlain ki rg b)
+    | Application_data   -> FAppData(AppFragment.plain ki rg b)
 
 let plain ki (ct:ContentType) (h:history) (rg:range) b = 
       let i = id ki in

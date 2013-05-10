@@ -37,7 +37,7 @@ private definition !e,h. AlertHistory(e,h)     = h.alert
 private definition !e,h. CCSHistory(e,h)       = h.ccs
 private definition !e,h. AppDataHistory(e,h)   = h.appdata
 
-val handshakeHistory: e:id -> h:(;e)history -> s:(;e)HSFragment.stream{s = HandshakeHistory(e,h)}
+        val handshakeHistory: e:id -> h:(;e)history -> s:(;e)HSFragment.stream{s = HandshakeHistory(e,h)}
 val ccsHistory: e:id -> h:(;e)history -> s:(;e)HSFragment.stream{s = CCSHistory(e,h)}
 val alertHistory: e:id -> h:(;e)history -> s:(;e)HSFragment.stream{s = AlertHistory(e,h)}
 

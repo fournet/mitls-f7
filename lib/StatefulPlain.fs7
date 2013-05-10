@@ -33,7 +33,7 @@ private type (;e:id,ad:cbytes,r:range) fragment = {contents: (;e,ParseAD(e,ad),r
 
 function val Payload: e:id * ad:cbytes * r:range * (;e,ad,r)fragment -> cbytes
 private definition !e,ad,r,f.
-    Payload(Id(e),ad,r,f) = TLSFragment.Payload(Id(e),ParseAD(Id(e),ad),r,f.contents)
+    Payload(e,ad,r,f) = TLSFragment.Payload(e,ParseAD(e,ad),r,f.contents)
 //TODO review!
 
 (* We logically define the id history by induction on sent fragments. *)

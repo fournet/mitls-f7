@@ -37,10 +37,11 @@ let delta ki s r f =
 #endif
 
 let delta' ki s r f = 
+    let i = id ki in
     let (s',d) = f.frag in
-    let b = DataStream.deltaRepr ki s' r d in
-    let d = DataStream.deltaPlain ki s r b in
-    let s'' = append ki s r d in 
+    let b = DataStream.deltaRepr i s' r d in
+    let d = DataStream.deltaPlain i s r b in
+    let s'' = append i s r d in 
     (d,s'')
 
 let plain ki r b =

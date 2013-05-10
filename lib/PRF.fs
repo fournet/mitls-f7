@@ -92,14 +92,14 @@ let deriveKeys rdId wrId (ms:masterSecret) role  =
 
 type derived = StatefulLHAE.reader * StatefulLHAE.writer 
 
-#if ideal
-
 type state =
   | Init
   | Committed of ProtocolVersion * aeAlg
   | Derived of id * id * derived
 //  | Done 
 //  | Wasted
+
+#if ideal
 
 type event = Mismatch of id
 
@@ -117,12 +117,14 @@ let rec update csr s (entries: kdentry list) =
   | []                                  -> [(csr,s)]
   | (csr', s')::entries when csr = csr' -> (csr,s)   :: entries 
   | (csr', s')::entries                 -> (csr', s'):: update csr s entries
+
+//CF to circumvent an F7 limitation?
+let commit csr pv a = Committed(pv,a)
 #endif
 
 //CF We could statically enforce the state machine.
 
-//CF to circumvent an F7 limitation?
-let commit csr pv a = Committed(pv,a)
+
 
 let keyCommit (csr:csrands) (pv:ProtocolVersion) (a:aeAlg) : unit = 
   #if ideal

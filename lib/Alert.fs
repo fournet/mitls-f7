@@ -138,7 +138,8 @@ let send_alert (ci:ConnectionInfo) state alertDesc =
         state (* Just ignore the request *)
 
 // We implement locally fragmentation, not hiding any length
-let makeFragment ki b =
+let makeFragment e b =
+    let ki = id e in
     if length b < fragmentLength then
       let r0 = (length b, length b) in
       let f = HSFragment.fragmentPlain ki r0 b in
@@ -181,7 +182,8 @@ let handle_alert ci state alDesc =
 
 let recv_fragment (ci:ConnectionInfo) state (r:range) (f:HSFragment.fragment) =
     // FIXME: we should accept further data after a warning alert! (Parsing sequences of messages in Handshake style)
-    let fragment = HSFragment.fragmentRepr ci.id_in r f in
+    let ki = id ci.id_in in
+    let fragment = HSFragment.fragmentRepr ki r f in
     match state.al_incoming with
     | x when length x = 0 ->
         (* Empty buffer *)

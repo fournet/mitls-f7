@@ -778,14 +778,17 @@ let next_fragment ci state =
             match cstate with
             | ClientWritingCCS (si,ms,log) ->
                 let next_ci = getNextEpochs ci si si.init_crand si.init_srand in
-                let (reader,writer) = PRF.keyGenClient next_ci ms in
+                let nki_in = id next_ci.id_in in
+                let nki_out = id next_ci.id_out in
+                let (reader,writer) = PRF.keyGenClient nki_in nki_out ms in
                 Pi.assume (SentCCS(Client,next_ci.id_out));
                 //CF now passing si, instead of next_ci.id_out
                 //CF but the precondition should be on F(si)
                 let cvd = PRF.makeVerifyData si ms Client log in
                 let cFinished = messageBytes HT_finished cvd in
                 let log = log @| cFinished in
-                let (rg,f,_) = makeFragment ci.id_out CCSBytes in
+                let ki_out = id ci.id_out in
+                let (rg,f,_) = makeFragment ki_out CCSBytes in
                 let ci = {ci with id_out = next_ci.id_out} in 
 (* KB #if avoid 
                 failwith "commenting out since it does not typecheck"
@@ -798,7 +801,8 @@ let next_fragment ci state =
                 Pi.assume (SentCCS(Client,e));
                 let cvd = PRF.makeVerifyData (epochSI e) ms Client log in
                 let cFinished = messageBytes HT_finished cvd in
-                let (rg,f,_) = makeFragment ci.id_out CCSBytes in
+                let ki_out = id ci.id_out in
+                let (rg,f,_) = makeFragment ki_out CCSBytes in
                 let ci = {ci with id_out = e} in 
 (* KB #if avoid 
                 failwith "commenting out since it does not typecheck"
@@ -814,7 +818,8 @@ let next_fragment ci state =
                 Pi.assume (SentCCS(Server,e));
                 let svd = PRF.makeVerifyData si ms Server log in
                 let sFinished = messageBytes HT_finished svd in
-                let (rg,f,_) = makeFragment ci.id_out CCSBytes in
+                let ki_out = id ci.id_out in
+                let (rg,f,_) = makeFragment ki_out CCSBytes in
                 let ci = {ci with id_out = e} in
 (* KB #if avoid 
                 failwith "commenting out since it does not typecheck"
@@ -828,7 +833,8 @@ let next_fragment ci state =
                 let svd = PRF.makeVerifyData (epochSI we) ms Server log in
                 let sFinished = messageBytes HT_finished svd in
                 let log = log @| sFinished in
-                let (rg,f,_) = makeFragment ci.id_out CCSBytes in
+                let ki_out = id ci.id_out in
+                let (rg,f,_) = makeFragment ki_out CCSBytes in
                 let ci = {ci with id_out = we} in 
 (* KB #if avoid 
                 failwith "commenting out since it does not typecheck"
@@ -840,7 +846,8 @@ let next_fragment ci state =
 (* KB #endif*)
             | _ -> OutIdle(state)
     | outBuf ->
-        let (rg,f,remBuf) = makeFragment ci.id_out outBuf in
+        let ki_out = id ci.id_out in
+        let (rg,f,remBuf) = makeFragment ki_out outBuf in
         match remBuf with
         | xx when length xx = 0 ->
             match state.pstate with
@@ -1199,7 +1206,9 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                     if si.cipher_suite = sh_cipher_suite then
                                         if si.compression = sh_compression_method then
                                             let next_ci = getNextEpochs ci si crand sh_random in
-                                            let (reader,writer) = PRF.keyGenClient next_ci ms in
+                                            let nki_in = id next_ci.id_in in
+                                            let nki_out = id next_ci.id_out in
+                                            let (reader,writer) = PRF.keyGenClient nki_in nki_out ms in
                                             let nout = next_ci.id_out in
                                             let nin = next_ci.id_in in
                                             recv_fragment_client ci 
@@ -1597,7 +1606,9 @@ let prepare_server_output_resumption ci state crand si ms cvd svd log =
 
     let log = log @| sHelloB
     let next_ci = getNextEpochs ci si crand srand in
-    let (reader,writer) = PRF.keyGenServer next_ci ms in
+    let nki_in = id next_ci.id_in in
+    let nki_out = id next_ci.id_out in
+    let (reader,writer) = PRF.keyGenServer nki_in nki_out ms in
     {state with hs_outgoing = sHelloB
                 pstate = PSServer(ServerWritingCCSResume(next_ci.id_out,writer,
                                                          next_ci.id_in,reader,
@@ -1878,7 +1889,8 @@ let enqueue_fragment (ci:ConnectionInfo) state fragment =
 
 let recv_fragment ci (state:hs_state) (r:range) (fragment:HSFragment.fragment) =
     // FIXME: cleanup when Hs is ported to streams and deltas
-    let b = HSFragment.fragmentRepr ci.id_in r fragment in 
+    let ki_in = id ci.id_in in
+    let b = HSFragment.fragmentRepr ki_in r fragment in 
     if length b = 0 then
         // Empty HS fragment are not allowed
         InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Empty handshake fragment received",state)
@@ -1890,7 +1902,8 @@ let recv_fragment ci (state:hs_state) (r:range) (fragment:HSFragment.fragment) =
 
 let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:range) (fragment:HSFragment.fragment): incomingCCS =
     // FIXME: cleanup when Hs is ported to streams and deltas
-    let b = HSFragment.fragmentRepr ci.id_in r fragment in 
+    let ki_in = id ci.id_in in
+    let b = HSFragment.fragmentRepr ki_in r fragment in 
     if equalBytes b CCSBytes then  
         match state.pstate with
         | PSClient (cstate) -> // Check that we are in the right state (CCCS) 
@@ -1906,7 +1919,9 @@ let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:range) (fragment:HSFragmen
             match sState with
             | ClientCCS(si,ms,log) ->
                 let next_ci = getNextEpochs ci si si.init_crand si.init_srand in
-                let (reader,writer) = PRF.keyGenServer next_ci ms in
+                let nki_in = id next_ci.id_in in
+                let nki_out = id next_ci.id_out in
+                let (reader,writer) = PRF.keyGenServer nki_in nki_out ms in
                 let ci = {ci with id_in = next_ci.id_in} in
                 InCCSAck(ci,reader,{state with pstate = PSServer(ClientFinished(si,ms,next_ci.id_out,writer,log))})
             | ClientCCSResume(e,r,svd,ms,log) ->

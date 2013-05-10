@@ -42,6 +42,12 @@ type honest_entry = alg * skey * pkey
 let honest_log = ref ([]: honest_entry list)
 let log        = ref ([]: entry list)
 
+let rec has_mac (a : alg) (pk : pkey) (t : text) (l:entry list) = 
+  match l with
+      [] -> false
+    | (a',pk',t')::r when a = a' && pk = pk' && t = t' -> true
+    | h::r -> has_mac a pk t r
+
 (* MK assoc and pk_of_log are unused and assoc doesn't make any sense.
 let rec assoc hll pk =
     match hll with
@@ -125,11 +131,6 @@ let sign (a: alg) (sk: skey) (t: text): sigv =
     #endif
     signature
 
-let rec has_mac (a : alg) (pk : pkey) (t : text) (l:entry list) = 
-  match l with
-      [] -> false
-    | (a',pk',t')::r when a = a' && pk = pk' && t = t' -> true
-    | h::r -> has_mac a pk t r
 (* ------------------------------------------------------------------------ *)
 let verify (a : alg) (pk : pkey) (t : text) (s : sigv) =
     let asig, ahash = a in

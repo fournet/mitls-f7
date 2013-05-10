@@ -30,8 +30,10 @@ let outStream (c:ConnectionInfo) state =
     | SomeOBuf(s,_,_,_) -> s
 
 let init ci =
-  let in_s = DataStream.init ci.id_in in
-  let out_s = DataStream.init ci.id_out in
+  let ki_in = id ci.id_in in
+  let ki_out = id ci.id_out in
+  let in_s = DataStream.init ki_in in
+  let out_s = DataStream.init ki_out in
     {app_outgoing = (NoneOBuf(out_s));
      app_incoming = (NoneIBuf(in_s))
     }
@@ -78,13 +80,15 @@ let readAppData (c:ConnectionInfo) (a:app_state) =
 
 
 let reset_outgoing (ci:ConnectionInfo) (a:app_state) (nci:ConnectionInfo) = 
-  let out_s = DataStream.init nci.id_out in
+  let ki = id nci.id_out in
+  let out_s = DataStream.init ki in
     {a with 
        app_outgoing = NoneOBuf(out_s)
     }
 
 let reset_incoming (ci:ConnectionInfo) (a:app_state) (nci:ConnectionInfo) = 
-  let in_s = DataStream.init nci.id_in in
+  let ki = id nci.id_in in
+  let in_s = DataStream.init ki in
     {a with 
        app_incoming =  NoneIBuf(in_s)
     }

@@ -52,9 +52,9 @@ val delta: ki:succEpoch -> s:(;Id(ki)) stream -> r:range ->
   d:(;Id(ki),s,r) delta * s':(;Id(ki)) stream{s' = Extend(Id(ki),s,r,f)} //AP /\ FragOfDelta(ki,r,f,s,d)}
 
 //CF what for?
-val delta': ki:id -> s:(;ki) stream -> r:range -> 
-  f:(;ki,r) fragment{not AuthId(ki)} -> 
-  d:(;ki,s,r) delta * s':(;ki) stream{s' = ExtendStreamDelta(ki,s,r,d)}
+val delta': ki:epoch -> s:(;Id(ki)) stream -> r:range -> 
+  f:(;Id(ki),r) fragment{not AuthId(Id(ki))} -> 
+  d:(;Id(ki),s,r) delta * s':(;Id(ki)) stream{s' = ExtendStreamDelta(Id(ki),s,r,d)}
 
 val plain: ki:id{not AuthId(ki)} -> r:range -> b:(;r) rbytes -> 
   f:(;ki,r) fragment{B(b) = Payload(ki,r,f)}
