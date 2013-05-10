@@ -23,12 +23,12 @@ type TLStream(s:System.IO.Stream, options, b, ?own) =
         let ki = TLS.getEpochOut conn
         let s = TLS.getOutStream conn
         let l = length b
-        (l,l),DataStream.createDelta ki s (l,l) b
+        (l,l),DataStream.createDelta (TLSInfo.id ki) s (l,l) b
 
     let undoMsg_i conn (r,d) =
         let ki = TLS.getEpochIn conn
         let s = TLS.getInStream conn
-        DataStream.deltaRepr ki s r d
+        DataStream.deltaRepr (TLSInfo.id ki) s r d
 
     let rec doHS conn =
         match TLS.read conn with

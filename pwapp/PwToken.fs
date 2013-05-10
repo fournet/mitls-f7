@@ -84,7 +84,7 @@ let tk_repr (e : epoch) (s : stream) (u : username) (tk : token) : delta =
     if Bytes.length der > MaxTkReprLen then
         Error.unexpected "PwToken.tk_repr: token too large"
     else
-        DataStream.createDelta e s (0, MaxTkReprLen) der
+        DataStream.createDelta (TLSInfo.id e) s (0, MaxTkReprLen) der
 
 // ------------------------------------------------------------------------
 let tk_plain (e : epoch) (s : stream) (r : range) (delta : delta) : (username * token) option =
@@ -92,7 +92,7 @@ let tk_plain (e : epoch) (s : stream) (r : range) (delta : delta) : (username * 
 #if verify
         empty_bytes
 #else
-        DataStream.deltaRepr e s r delta
+        DataStream.deltaRepr (TLSInfo.id e) s r delta
 #endif
     in
         match DER.decode data with
@@ -109,7 +109,7 @@ let rp_repr (e : epoch) (s : stream) (b : bool) : delta =
     if Bytes.length bytes > MaxTkReprLen then
         Error.unexpected "PwToken.rp_repr: token too large"
     else
-        DataStream.createDelta e s (0, MaxTkReprLen) bytes
+        DataStream.createDelta (TLSInfo.id e) s (0, MaxTkReprLen) bytes
 
 // ------------------------------------------------------------------------
 let rp_plain (e : epoch) (s : stream) (r : range) (d : delta) : bool =
@@ -117,7 +117,7 @@ let rp_plain (e : epoch) (s : stream) (r : range) (d : delta) : bool =
 #if verify
         empty_bytes
 #else
-        DataStream.deltaRepr e s r d
+        DataStream.deltaRepr (TLSInfo.id e) s r d
 #endif
     in
         match DER.decode data with
