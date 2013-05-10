@@ -134,7 +134,7 @@ let nextEpoch epoch crand srand si =
 let rec epochWriter (e:epoch) =
     match e with
     | InitEpoch(r) -> r
-    | SuccEpoch(_,_,_, e') -> epochWriter e
+    | SuccEpoch(_,_,_, e') -> epochWriter e'
 
 // the tight index we use as an abstract parameter for StatefulAEAD et al
 type id = { 
