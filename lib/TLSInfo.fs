@@ -21,6 +21,8 @@ type crand = random
 type srand = random
 type csrands = bytes
 
+let noCsr:csrands = Nonce.random 64
+
 type pmsId = 
   | NoPmsId 
   | SomePmsId of PMS.pms
@@ -36,6 +38,8 @@ type msId =
   pmsId * 
   csrands *                                          
   creAlg  
+
+let noMsId = noPmsId, noCsr, CRE_SSL3_nested    
 
 type SessionInfo = {
     init_crand: crand;
@@ -139,9 +143,32 @@ type id = {
   pv: ProtocolVersion; //Should be part of aeAlg 
   aeAlg  : aeAlg   
   csrConn: csrands; 
-  writer : Role
+  writer : Role }
 
-let id (e:succEpoch):id = // failwith "should be as below, but doesn't typecheck"
+//let idInv (i:id):succEpoch = failwith "requires a log, and pointless to implement anyway"
+
+let macAlg_of_id id = macAlg_of_aeAlg id.aeAlg
+let encAlg_of_id id = encAlg_of_aeAlg id.aeAlg
+let pv_of_id (id:id) =  id.pv //TODO MK fix
+let kdfAlg_of_id (id:id) = id.kdfAlg
+
+type event =
+  | KeyCommit of    csrands * ProtocolVersion * aeAlg 
+  | KeyGenClient of csrands * ProtocolVersion * aeAlg 
+
+
+let noId: id = { 
+  msId = noMsId; 
+  kdfAlg=(SSL_3p0,nullCipherSuite); 
+  pv=SSL_3p0; 
+  aeAlg= MACOnly(MA_SSLKHASH(NULL)); 
+  csrConn = noCsr; 
+  writer=Client }
+
+let id e = 
+  if isInitEpoch e 
+  then noId 
+  else
     let si     = epochSI e
     let cs     = si.cipher_suite
     let pv     = si.protocol_version
@@ -152,18 +179,6 @@ let id (e:succEpoch):id = // failwith "should be as below, but doesn't typecheck
     let wr     = epochWriter e
     {msId = msi; kdfAlg=kdfAlg; pv=pv; aeAlg = aeAlg; csrConn = csr; writer=wr }
 
-let (noId: id) = { msId = noMsId; kdfAlg=(SSL_3p0,NullCipherSuite); pv=SSL_3p0; aeAlg= MACOnly(MA_SSLKHASH(NULL)); csrConn = Utf8(""); writer=Client }
-
-let idInv (i:id):succEpoch = failwith "requires a log, and pointless to implement anyway"
-
-let macAlg_of_id id = macAlg_of_aeAlg id.aeAlg
-let encAlg_of_id id = encAlg_of_aeAlg id.aeAlg
-let pv_of_id (id:id) =  id.pv //TODO MK fix
-let kdfAlg_of_id (id:id) = id.kdfAlg
-
-type event =
-  | KeyCommit of    csrands * ProtocolVersion * aeAlg 
-  | KeyGenClient of csrands * ProtocolVersion * aeAlg 
 
 // Application configuration
 type helloReqPolicy =

@@ -180,6 +180,7 @@ let keyGenServer (rdId:id) (wrId:id) ms =
     | Committed(pv',aeAlg') -> 
         // when SafeKDF, the client keyGens only on a fresh Ids,
         // hence we will never have AuthId(rdId) for this csr.
+        //CF tricky case; revisit at some point.
         Pi.assume(Mismatch(rdId));
         deriveKeys rdId wrId ms Server
     | Derived(wrId',rdId',derived) when safeKDF(rdId)  ->
@@ -201,6 +202,7 @@ let keyGenServer (rdId:id) (wrId:id) ms =
     #else
     deriveKeys rdId wrId ms Server
     #endif
+
 
 (** VerifyData **) 
 

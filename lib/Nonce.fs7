@@ -11,6 +11,7 @@ val mkHelloRandom: unit -> b:(;32)lbytes
 private val log: (;32) lbytes list ref 
 private val timestamp: unit -> (;4) lbytes
 
+val noCsr: (;64) lbytes
 // mkHelloRandom returns pairwise-distinct values
 // up to a negligible probability of collision
 

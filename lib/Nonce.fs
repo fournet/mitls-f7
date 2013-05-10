@@ -27,3 +27,5 @@ let rec mkHelloRandom(): bytes =
     #else //#end-idealization
     Cr
     #endif
+
+let noCsr = random 64
