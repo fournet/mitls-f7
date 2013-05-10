@@ -246,14 +246,6 @@ val safeVD:    (si:SessionInfo) -> b:bool { b=true <=> SafeVD(si) }
 //MK: this is needed to guarantee security of finished message MACs
 
 
-// SafeHS depends on having an 'idealized' mastersecret, 
-// and performing both strong session key generation and finished message verification
-// both are implied by StrongHS
-predicate SafeHS_SI of SessionInfo // Safe handshake for this sessioninfo
-definition !si. SafeHS_SI(si) <=> HonestMS(MsI(si)) /\ StrongHS(si) 
-val safeHS_SI: (si:SessionInfo) -> b:bool { b=true <=> SafeHS_SI(si)}
-
-
 predicate StrongAuthSI of SessionInfo
 definition !si. StrongAuthSI(si) <=> 
   (?e,m. CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(e,m) /\ INT_CMA_M(m))
@@ -398,7 +390,15 @@ definition !id:id. StrongAuthId(id) <=> INT_CMA_M(MacAlg(id))
 predicate StrongAEId of id
 definition !id:id. StrongAEId(id) <=> StrongAEAlg(id.pv,id.aeAlg)
 
-/// Safety is conditioned on ideal algorithm match (see PRF)
+
+
+(* SPECIFYING SAFETY *) 
+
+// In the code of ideal implementations only,
+// we use F# functions that characterize the Safe and Auth predicates.
+
+
+/// Safety of key derivation is conditioned on ideal algorithm match (see PRF)
 type event =
   | KeyCommit of    csrands * ProtocolVersion * aeAlg 
   | KeyGenClient of csrands * ProtocolVersion * aeAlg 
@@ -422,7 +422,6 @@ definition !i:id. Match(i) <=> KeyCommit(i.csrConn,i.pv,i.aeAlg) /\ KeyGenClient
 predicate AuthId of id
 definition !i.  
   AuthId(i) <=> SafeKDF(i) /\ Match(i) /\ StrongAuthId(i)
-// MK was !i. AuthId(SiId(si,r)) <=> SafeHS_SI(si) /\ StrongAuthId(SiId(si,r))
 
 ask !i. AuthId(i) => Match(i) // sanity check; just by definition
 
@@ -436,43 +435,49 @@ predicate SafeId of id
 definition !i. SafeId(i) <=> SafeKDF(i) /\ Match(i) /\ StrongAEId(i)
 val safeId : (i:id) -> b:bool {b = true <=> SafeId(i)}
 
-// MK fails
-//ask !e,mac. e.aeAlg  = MACOnly(mac) => not SafeId(e)
+// MK verifies
+ask !e,mac. e.aeAlg  = MACOnly(mac) => not SafeId(e)
 
-(* SPECIFYING SAFETY *) 
+(* GLOBAL SAFETY PROPERTIES *) 
 
-// In the code of ideal implementations only,
-// we use F# functions that characterize the Safe and Auth predicates.
+// SafeHS depends on having an 'idealized' mastersecret, 
+// and performing both strong session key generation and finished message verification
+// both are implied by StrongHS
+predicate SafeHS_SI of SessionInfo // Safe handshake for this sessioninfo
+definition !si. SafeHS_SI(si) <=> HonestPMS(si.pmsId) /\ StrongHS(si) 
+val safeHS_SI: (si:SessionInfo) -> b:bool { b=true <=> SafeHS_SI(si)}
 
 // Safety for epochs relies only on SessionInfo, but this would change if we introduce a finer model of compromise
 // E.g. if we allowed the attacker to compromise specific epochs
 
 predicate SafeHS of epoch          // Safe handshake for this epoch //CF Avoid?
 definition !id. SafeHS(id) <=> SafeHS_SI(EpochSI(id))
-
 val safeHS: (e:epoch) -> b:bool { b = true <=> SafeHS(e)}
 
 // Predicates specifying the security of TLS connections 
 
-predicate SafeSI  of SessionInfo // The session ciphersuite yields secrecy and integrity
-definition !si. SafeSI(si) <=> SafeHS_SI(si) /\ StrongAESI(si)
-
-predicate AuthSI  of SessionInfo // The session ciphersuite yields integrity (not necessarily secrecy)
-definition !si. AuthSI(si) <=> SafeHS_SI(si) /\ StrongAuthSI(si)
-
 predicate Safe   of epoch        // The epoch parameters yield privacy & integrity
-definition !e. Safe(e) <=> SafeSI(EpochSI(e))
+definition !e. Safe(e) <=> IsSuccEpoch(e) /\ SafeId(Id(e))
 val safe:   (e:epoch) -> b:bool { b = true <=> Safe(e)}
 
 predicate Auth   of epoch        // The epoch parameters yield integrity (not necesarily privacy)
-definition !e. Auth(e) <=> AuthSI(EpochSI(e))
+definition !e. Auth(e) <=> IsSuccEpoch(e) /\ AuthId(Id(e))
 val auth:    (e:epoch) -> b:bool {b = true <=> Auth(e)}
 
 ask !e. Safe(e) => Auth(e)
 
 // so that TLS can exchange any traffic on the initial null connection
-// CF suspicious! MK changed into ask, fails!
-//ask !e. IsInitEpoch(e) => not Auth(e)
+ask !e. IsInitEpoch(e) => not Auth(e)
+
+(* MK deprecated??
+predicate SafeSI  of SessionInfo // The session ciphersuite yields secrecy and integrity
+definition !si. SafeSI(si) <=> SafeHS_SI(si) /\ StrongAESI(si)
+
+predicate AuthSI  of SessionInfo // The session ciphersuite yields integrity (not necessarily secrecy)
+definition !si. AuthSI(si) <=> SafeHS_SI(si) /\ StrongAuthSI(si)
+*)
+
+
 
 // -------------------------------------------------------------------
 // Application configuration options

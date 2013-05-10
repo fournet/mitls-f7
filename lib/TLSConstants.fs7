@@ -102,6 +102,7 @@ definition !pv,ae. StrongAEAlg(pv,ae) <=>
          INT_CMA_M(m) /\ 
          INT_CTXT(pv,ae) )
 
+ask !ae,m,pv. ae=MACOnly(m) => not StrongAEAlg(pv,ae)
 
 // HS algorithms 
 
