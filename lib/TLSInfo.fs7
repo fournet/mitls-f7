@@ -412,30 +412,31 @@ theorem !csr,pv0,ae0,pv1,ae1.
 predicate Match of id 
 definition !i:id. Match(i) <=> KeyCommit(i.csrConn,i.pv,i.aeAlg) /\ KeyGenClient(i.csrConn,i.pv,i.aeAlg)
 
-//MK doesn't satisfy asks. CF usage?
-//ask !si,r:Role. StrongAuthId(SiId(si,r)) => StrongAuthSI(si) 
-//
+//MK verifies, but not other direction. CF usage?
+//     ask !si,r:Role. StrongAuthSI(si) => StrongAuthId(SiId(si,r))
+
 //MK verifies
-//MK ask !i:id,e,m. StrongAuthId(i) => INT_CMA_M(MacAlg(i))
+//MK   ask !i:id,e,m. StrongAuthId(i) => INT_CMA_M(MacAlg(i))
 
 // ``We are idealizing integrity for this id''
 predicate AuthId of id
 definition !i.  
-//  AuthId(SiId(si,r)) <=> SafeHS_SI(si) /\ StrongAuthId(SiId(si,r))
   AuthId(i) <=> SafeKDF(i) /\ Match(i) /\ StrongAuthId(i)
+// MK was !i. AuthId(SiId(si,r)) <=> SafeHS_SI(si) /\ StrongAuthId(SiId(si,r))
 
 ask !i. AuthId(i) => Match(i) // sanity check; just by definition
 
 val authId: (i:id) -> b:bool {b = true <=> AuthId(i)}
 
-ask !si,r. AuthId(SiId(si,r)) => SafeHS_SI(si) 
+ask !i. AuthId(i) => SafeKDF(i) 
 //MK seems obvious but doesn't verify
+
 ask !i:id. AuthId(i) => StrongAuthId(i)
 
 ask !i:id. AuthId(i) => INT_CMA_M(MacAlg(i))
 
 predicate SafeId of id
-definition !si,r:Role. SafeId(SiId(si,r)) <=> SafeHS_SI(si) /\ StrongAESI(si)
+definition !i. SafeId(i) <=> SafeHS_SI(si) /\ StrongAESI(si)
 val safeId : (i:id) -> b:bool {b = true <=> SafeId(i)}
 
 // MK fails

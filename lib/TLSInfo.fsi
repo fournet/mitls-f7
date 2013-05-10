@@ -71,6 +71,10 @@ val macAlg_of_id: id -> macAlg
 val encAlg_of_id: id -> encAlg
 val pv_of_id: id -> ProtocolVersion
 
+type event =
+  | KeyCommit of    csrands * ProtocolVersion * aeAlg 
+  | KeyGenClient of csrands * ProtocolVersion * aeAlg 
+
 type preEpoch
 type epoch = preEpoch
 

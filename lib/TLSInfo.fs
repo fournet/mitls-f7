@@ -160,6 +160,10 @@ let encAlg_of_id id = encAlg_of_aeAlg id.aeAlg
 let pv_of_id (id:id) =  id.pv //TODO MK fix
 let kdfAlg_of_id (id:id) = id.kdfAlg
 
+type event =
+  | KeyCommit of    csrands * ProtocolVersion * aeAlg 
+  | KeyGenClient of csrands * ProtocolVersion * aeAlg 
+
 // Application configuration
 type helloReqPolicy =
     | HRPIgnore
