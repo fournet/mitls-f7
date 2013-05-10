@@ -124,12 +124,6 @@ let macSize mac =
     match mac with
     | MA_HMAC(alg) | MA_SSLKHASH(alg) ->
         hashSize alg
-(* SSL/TLS constants *)
-
-let ssl_pad1_md5  = createBytes 48 0x36
-let ssl_pad2_md5  = createBytes 48 0x5c
-let ssl_pad1_sha1 = createBytes 40 0x36
-let ssl_pad2_sha1 = createBytes 40 0x5c
 
 (* ------------------------------------------------------------------------ *)
 (* Key parameters *)

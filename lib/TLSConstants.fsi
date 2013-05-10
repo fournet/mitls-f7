@@ -72,12 +72,6 @@ val hashSize: hashAlg -> nat
 val macKeySize: macAlg -> nat
 val macSize: macAlg -> nat
 
-(* SSL/TLS Constants *)
-val ssl_pad1_md5: bytes
-val ssl_pad2_md5: bytes
-val ssl_pad1_sha1: bytes
-val ssl_pad2_sha1: bytes
-
 type cipherSuite
 
 type cipherSuites = cipherSuite list

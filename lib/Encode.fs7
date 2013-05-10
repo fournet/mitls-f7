@@ -79,7 +79,8 @@ predicate val Encoded: 'e * 'a * 'b * 'c * 'd -> bool
 private val pad: l:int { 0 < l /\ l <= 256 } -> b:bytes{Length(b) = l}
 //CF we will need a more precise refinement for the MEE proof 
 
-ask !e,tlen. 
+// for typing decode
+private ask !e,tlen. 
   (((?alg,mac. e.aeAlg  = MtE(CBC_Stale(alg),mac)) \/
     (?alg,mac. e.aeAlg  = MtE(CBC_Fresh(alg),mac))) /\
   (tlen - IVSize(e) - MacKeySize(MacAlg(e)) - 1 > 255)) =>
@@ -87,7 +88,7 @@ ask !e,tlen.
   (tlen - IVSize(e) - MacKeySize(MacAlg(e)) - 1 - 255,
    tlen - IVSize(e) - MacKeySize(MacAlg(e)) - 1)
 
-ask !e,tlen. 
+private ask !e,tlen. 
   (((?alg,mac. e.aeAlg  = MtE(CBC_Stale(alg),mac)) \/
     (?alg,mac. e.aeAlg  = MtE(CBC_Fresh(alg),mac))) /\
   (tlen - IVSize(e) - MacKeySize(MacAlg(e)) - 1 >= 0) /\
@@ -111,15 +112,13 @@ val decode: e:id{not AuthId(e) /\ (?alg,mac. e.aeAlg  = MtE(CBC_Stale(alg),mac) 
 //AP with some 
 //AP private definition Decoded(e,ad,ps) <=> (Encoded(e,ad,ps.plain,ps.tag,p) => ps.ok = true)
 
-ask !e,tlen. 
+private ask !e,tlen. 
   (((?mac. e.aeAlg  = MACOnly(mac)) \/
    (?mac. e.aeAlg  = MtE(Stream_RC4_128,mac))) /\
   (tlen >= MacKeySize(MacAlg(e)))) => 
     CipherRangeClass(e,tlen) = 
     (tlen - MacKeySize(MacAlg(e)),
      tlen - MacKeySize(MacAlg(e)))
-
-
 
 //CF why do we need "NoPad" variants again? 
 val encodeNoPad: e:id{not SafeId(e) /\ (?mac. e.aeAlg  = MACOnly(mac) \/
@@ -155,7 +154,7 @@ val repr:  e:id{not SafeId(e)} ->
 //------------------------------------------------------------------------------------------------------
 
 //CF this was too weak: no constraint on f! patched
-private assume !e,pl. MAC.Msg(e,pl) <=>
+private definition !e,pl. MAC.Msg(e,pl) <=>
      (SafeId(e) \/ (?ad,r,f. Length(ad) = 8 + StatefulPlain.ADLength(e) /\
 	  B(pl) = MACPlain(e,r,B(ad),f)))
 
