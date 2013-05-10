@@ -191,7 +191,7 @@ let send ns e write pv rg ct frag =
 
 (* which fragment should we send next? *)
 (* we must send this fragment before restoring the connection invariant *)
-let writeOne (Conn(id,c)) (ghr:range) (ghf:AppFragment.fragment) (ghs:DataStream.stream) : writeOutcome * Connection =
+let writeOne (Conn(id,c)): writeOutcome * Connection =
   let c_write = c.write in
   match c_write.disp with
   | Closed -> let reason = perror __SOURCE_FILE__ __LINE__ "Trying to write on a closed connection" in (WError(reason), Conn(id,c))
@@ -324,7 +324,8 @@ let writeOne (Conn(id,c)) (ghr:range) (ghf:AppFragment.fragment) (ghs:DataStream
                         if epochSI(id.id_in) = epochSI(id.id_out) then
                             match moveToOpenState (Conn(id,c)) with
                             | Correct(c) -> (WHSDone,Conn(id,c))
-                            | Error(x,y) ->
+                            | Error z ->
+                                let (x,y) = z in
                                 let closing = abortWithAlert (Conn(id,c)) AD_internal_error y in (WriteAgain, closing)
                         else
                             let closed = closeConnection (Conn(id,c)) in
@@ -442,51 +443,40 @@ let recv (Conn(id,c)) =
                             Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Protocol version check failed")
                     | _ -> unexpected "[recv] invoked on a closed connection"
 
-let ghostFragment e = 
-    let s = DataStream.init e in
-    let r = (0,0) in
-    let d = DataStream.createDelta e s r empty_bytes in
-    let f,ns = AppFragment.fragment e s r d in
-    r,f,ns
-
 let rec writeAll (Conn(id,s)) =
-    let (ghr,ghf,ghs) = ghostFragment id.id_out in
-    match writeOne (Conn(id,s)) ghr ghf ghs with
+    match writeOne (Conn(id,s)) with
     | (WriteAgain,c) | (WriteAgainFinishing,c) -> writeAll c
     | other -> other
 
 let rec writeAllClosing (Conn(id,s)) =
-    let (ghr,ghf,ghs) = ghostFragment id.id_out in
-    match writeOne (Conn(id,s)) ghr ghf ghs with
+    match writeOne (Conn(id,s)) with
     | (WriteAgain,c) -> writeAllClosing c
     | (WError(x),conn) -> WError(x),conn
     | (SentClose,conn) -> SentClose,conn
     | (SentFatal(x,y),conn) -> SentFatal(x,y),conn
     | (_,_) -> unexpected "[writeAllClosing] writeOne returned wrong result"
 
-let rec writeAllFinishing conn ghr ghf ghs =
-    match writeOne conn ghr ghf ghs with
+let rec writeAllFinishing conn =
+    match writeOne conn with
     | (WError(x),conn) -> (WError(x), conn)
     | (SentFatal(x,y),conn) -> (SentFatal(x,y),conn)
     | (SentClose,conn) -> (SentClose,conn) 
     | (WriteAgain,conn) ->
         let (Conn(id,s)) = conn in
-        writeAllFinishing (Conn(id,s)) ghr ghf ghs
+        writeAllFinishing (Conn(id,s))
     | (WMustRead, conn) -> (WMustRead, conn)
     | (_,_) -> unexpected "[writeAllFinishing] writeOne returned wrong result"
 
-let rec writeAllTop conn ghr ghf ghs =
-    match writeOne conn ghr ghf ghs with
+let rec writeAllTop conn =
+    match writeOne conn with
     | (WError(x),conn) -> (WError(x), conn)
     | (SentFatal(x,y),conn) -> (SentFatal(x,y),conn)
     | (SentClose,conn) -> (SentClose,conn)
     | (WAppDataDone,conn) -> (WAppDataDone,conn)
     | (WriteAgainFinishing,conn) ->
-        let (Conn(id,s)) = conn in
-        writeAllFinishing conn ghr ghf ghs
+        writeAllFinishing conn
     | (WriteAgain,conn) ->
-        let (Conn(id,s)) = conn in
-        writeAllTop (Conn(id,s)) ghr ghf ghs
+        writeAllTop conn
     | (_,_) -> unexpected "[writeAllTop] writeOne returned wrong result"
 
 let handleHandshakeOutcome (Conn(id,c)) hsRes =
@@ -734,7 +724,7 @@ let write (Conn(id,s)) msg =
   let (r0,f0,ns,rdOpt) = res in
   let new_appdata = AppData.writeAppData id s.appdata r0 f0 ns in
   let s = {s with appdata = new_appdata} in 
-  let (outcome,Conn(id,s)) = writeAllTop (Conn(id,s)) r0 f0 ns in
+  let (outcome,Conn(id,s)) = writeAllTop (Conn(id,s)) in
   let new_appdata = AppData.clearOutBuf id s.appdata in
   let s = {s with appdata = new_appdata} in
   Conn(id,s),outcome,rdOpt

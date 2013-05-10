@@ -416,6 +416,7 @@ private val closeConnection: c:Connection-> c':(;c) nextCn{
 
 private val abortWithAlert: c:Connection -> alertDescription -> s:string ->
 	c':(;c)nextCn{CnState_o(c') = Closing(PickSendPV(c),s) /\ CnState_i(c') = Closed /\
+		CnStream_o(c') = CnStream_o(c) /\
 		Bytes_o(c') = Bytes_o(c) /\ Bytes_i(c') = Bytes_i(c) /\ CnBuf_o(c') = CnBuf_o(c)}
 
 private val getReason: predispatchState -> string
@@ -474,28 +475,29 @@ private val readOne: c:Connection{CnBuf_o(c) = None} ->
 		/\ (Auth(ConnectionEpochIn(c)) => EvWrite(CnInfo(c).id_in, Bytes_i(c'))) )
 	}
 
-private val writeOne: c:Connection -> r:range -> f:(;ConnectionEpochOut(c),r)AppFragment.fragment ->
-	s:(;ConnectionEpochOut(c))DataStream.stream{CnBuf_o(c) = None \/
-		(
+private val writeOne: c:Connection {
+	CnBuf_o(c) = None \/
+		(?r,f,s.
 			CnBuf_o(c) = Some((r,f,s)) /\
 			DataStream.StreamBytes(ConnectionEpochOut(c),s) =
 				DataStream.StreamBytes(ConnectionEpochOut(c),AppFragment.Extend(ConnectionEpochOut(c),CnStream_o(c),r,f))
-		)} ->
+		)
+	} ->
 	(wo:writeOutcome * c':Connection){
 		// Errors
 		(?s. wo = WError(s) /\ NextCn(c,c')) \/
 		(?ad,r. wo = SentFatal(ad,r) /\ NextCn(c,c')) \/
 		(wo = SentClose /\ NextCn(c,c')) \/
 		// Other events
-		(wo = WAppDataDone /\
+		(wo = WAppDataDone /\ CnBuf_o(c) = None /\
 			NextCn(c,c') /\
-			CnBuf_o(c) = None /\
 			Bytes_i(c') = Bytes_i(c) /\
 			Bytes_o(c') = Bytes_o(c) /\
 			CnBuf_o(c') = None) \/
-		(wo = WAppDataDone /\
+		(?r,f,s. wo = WAppDataDone /\ CnBuf_o(c) = Some((r,f,s)) /\
+				DataStream.StreamBytes(ConnectionEpochOut(c),s) =
+				DataStream.StreamBytes(ConnectionEpochOut(c),AppFragment.Extend(ConnectionEpochOut(c),CnStream_o(c),r,f)) /\
 			NextCn(c,c') /\
-			CnBuf_o(c) = Some((r,f,s)) /\
 			Bytes_i(c') = Bytes_i(c) /\
 			Bytes_o(c') = DataStream.StreamBytes(ConnectionEpochOut(c),s) /\
 			CnBuf_o(c') = None) \/
@@ -515,6 +517,7 @@ private val writeOne: c:Connection -> r:range -> f:(;ConnectionEpochOut(c),r)App
 		(wo = WriteAgain /\
 			NextCn(c,c') /\
 			CnBuf_o(c') = CnBuf_o(c) /\
+			CnStream_o(c') = CnStream_o(c) /\
 			Bytes_i(c') = Bytes_i(c) /\
 			Bytes_o(c') = Bytes_o(c)) \/
 		(wo = WHSDone /\
@@ -522,8 +525,6 @@ private val writeOne: c:Connection -> r:range -> f:(;ConnectionEpochOut(c),r)App
 			Bytes_o(c') = Bytes_o(c) /\
 			NextCn(c,c'))
 	}
-
-private val ghostFragment: e:epoch -> (r:range * (;e,r)AppFragment.fragment * (;e)DataStream.stream)
 
 private val writeAll: c:Connection{CnBuf_o(c) = None} -> wo:writeOutcome * c':Connection
 
@@ -534,8 +535,6 @@ private val writeAllClosing: c:Connection{CnBuf_o(c) = None} -> wo:writeOutcome 
 	}
 
 private val writeAllFinishing: c:Connection{CnBuf_o(c) = None /\ Bytes_o(c) = B(empty_bytes)} ->
-	r:range -> f:(;ConnectionEpochOut(c),r)AppFragment.fragment ->
-	s:(;ConnectionEpochOut(c))DataStream.stream ->
 	wo:writeOutcome * c':(;c)nextCn{
 		(?s. wo = WError(s)) \/
 		(?ad,r. wo = SentFatal(ad,r)) \/
@@ -548,19 +547,19 @@ private val writeAllFinishing: c:Connection{CnBuf_o(c) = None /\ Bytes_o(c) = B(
 // Transitivity of NextCn
 ask !c0,c1,c2. NextCn(c0,c1) /\ NextCn(c1,c2) => NextCn(c0,c2)
    
-private val writeAllTop: c:Connection -> r:range -> f:(;ConnectionEpochOut(c),r)AppFragment.fragment ->
-	s:(;ConnectionEpochOut(c))DataStream.stream{
-		CnBuf_o(c) = Some((r,f,s)) /\
+private val writeAllTop: c:Connection {
+	?r,f,s. CnBuf_o(c) = Some((r,f,s)) /\
 		DataStream.StreamBytes(ConnectionEpochOut(c),s) =
 			DataStream.StreamBytes(ConnectionEpochOut(c),AppFragment.Extend(ConnectionEpochOut(c),CnStream_o(c),r,f))
-	} ->
+	}->
 	wo:writeOutcome * c':Connection{
 		(?s. wo = WError(s)) \/
 		(?ad,r. wo = SentFatal(ad,r)) \/
 		(wo = SentClose) \/
-		(wo = WAppDataDone /\
+		(?r,f,s. wo = WAppDataDone /\ CnBuf_o(c) = Some((r,f,s)) /\
+			DataStream.StreamBytes(ConnectionEpochOut(c),s) =
+			DataStream.StreamBytes(ConnectionEpochOut(c),AppFragment.Extend(ConnectionEpochOut(c),CnStream_o(c),r,f)) /\
 			NextCn(c,c') /\
-			//CnBuf_o(c) = Some((r,f,s)) /\
 			Bytes_i(c') = Bytes_i(c) /\
 			Bytes_o(c') = DataStream.StreamBytes(ConnectionEpochOut(c),s) /\
 			CnBuf_o(c') = None) \/
