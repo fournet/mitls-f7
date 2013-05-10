@@ -4,10 +4,7 @@ open Bytes
 open TLSConstants
 open TLSInfo
 open TLSPRF
-open Error
-open TLSError
-// The trusted setup for Diffie-Hellman computations
-open DHGroup
+open DHGroup // The trusted setup for Diffie-Hellman computations
 open PMS
 
 (*  extractMS is internal and extracts entropy from both rsapms and dhpms bytes 
@@ -31,8 +28,7 @@ open PMS
     we are however in the computational setting.   
  *)
 
-
-let extractMS si pmsBytes : PRF.masterSecret =
+let private extractMS si pmsBytes : PRF.masterSecret =
     let pv = si.protocol_version in
     let cs = si.cipher_suite in
     let data = csrands si in
@@ -41,36 +37,29 @@ let extractMS si pmsBytes : PRF.masterSecret =
     let i = msi si
     PRF.coerce i res
 
-
 (*  Idealization strategy: to guarantee that in ideal world mastersecrets (ms) are completely random
-    extractRSA samples a ms at radom when called first on arguments pk,cv,pms,csrands si, prfAlg si. 
+    extractRSA samples a ms at random when called first on arguments pk,cv,pms,csrands si, prfAlg si. 
     
     When called on the same values again, the corresponding master secret is retrieved from a secret log. 
 
-    This is done only for pms for which honestRSAPMS is true and (prfAlg si) is strong.
-    Note that in this way many idealized master secrets can be derived from the same pms.
- *)
+    This is done only for pms for which honestRSAPMS is true and (crefAlg si) is strong.
+    Note that in this way many idealized master secrets can be derived from the same pms. *)
 
-
-(*private*) 
-let accessRSAPMS (pk:RSAKey.pk) (cv:ProtocolVersion) pms = 
+let private accessRSAPMS (pk:RSAKey.pk) (cv:ProtocolVersion) pms = 
   match pms with 
   #if ideal
   | IdealRSAPMS(s) -> s.seed
   #endif
   | ConcreteRSAPMS(b) -> b 
 
-
-(*private*) 
-let accessDHPMS (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) (pms:dhpms) = 
+let private accessDHPMS (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) (pms:dhpms) = 
   match pms with 
   #if ideal
   | IdealDHPMS(b) -> b.seed
   #endif
   | ConcreteDHPMS(b) -> b 
 
-(*private*) 
-let accessPMS (pms:PMS.pms) =
+let private accessPMS (pms:PMS.pms) =
   match pms with
   | PMS.RSAPMS(pk,cv,rsapms) ->  accessRSAPMS pk cv rsapms
   | PMS.DHPMS(p,g,gx,gy,dhpms) -> accessDHPMS p g gx gy dhpms
@@ -79,18 +68,15 @@ let accessPMS (pms:PMS.pms) =
 // We maintain a log for looking up good ms values using their msId
 type entry = msId * PRF.ms
 let log = ref []
-
 let rec assoc (i:msId) entries: PRF.ms option = 
     match entries with 
     | []                      -> None 
     | (i', ms)::entries when i = i' -> Some(ms) 
     | _::entries              -> assoc i entries
-
 #endif
 
 let extract si pms: PRF.masterSecret = 
     #if ideal
-    //safeCRE si=true must be implied by HonestMS
     if safeCRE si then
         let i = msi si 
         match assoc i !log with 

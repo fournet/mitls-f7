@@ -3,26 +3,22 @@
 open Bytes
 open TLSConstants
 open TLSInfo
-open DHGroup
 open PMS
 open PRF
 
 // concrete PMS --> MS derivation.
 
-private val accessRSAPMS: pk:RSAKey.pk -> cv:ProtocolVersion -> (;pk,cv) rsapms -> rsarepr
-private val accessDHPMS: p:DHGroup.p -> g:(;p)DHGroup.g -> gx:(;p)DHGroup.elt -> gy:(;p)DHGroup.elt ->
-    pms: (;p,g,gx,gy)dhpms -> bytes
-private val accessPMS: pms -> bytes
-
-type entry = i:msId * (;i) ms
-private val log: entry list ref 
-
-private val assoc: i:msId -> entry list -> (;i) PRF.ms option
-
-private val extractMS: si:SessionInfo {not HonestMS(MsI(si))} -> p:bytes -> (;si) PRF.masterSecret
-
 val extract:
     si:SessionInfo ->
 	pms: pms { si.pmsId = PmsId(pms) } ->
     (;si) PRF.masterSecret
-	 
+
+private val accessRSAPMS: pk:RSAKey.pk -> cv:ProtocolVersion -> (;pk,cv) rsapms -> rsarepr
+private val accessDHPMS: p:DHGroup.p -> g:(;p)DHGroup.g -> gx:(;p)DHGroup.elt -> gy:(;p)DHGroup.elt -> pms: (;p,g,gx,gy)dhpms -> bytes
+private val accessPMS: pms -> bytes
+
+type entry = i:msId * (;i) ms
+private val log: entry list ref 
+private val assoc: i:msId -> entry list -> (;i) PRF.ms option
+private val extractMS: si:SessionInfo {not HonestMS(MsI(si))} -> p:bytes -> (;si) PRF.masterSecret
+
