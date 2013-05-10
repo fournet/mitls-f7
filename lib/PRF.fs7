@@ -113,24 +113,29 @@ private val deriveKeys:
 //                            KeyCommit(id.csrConn,id.pv,id.aeAlg) /\ KeyGenClient(id.csrConn,id.pv,id.aeAlg)  
 
 
+// See comments in the code as we assume Mismatch;
+// we may also rely more finely on the log.
+type event = Mismatch of id 
+private theorem !id. Mismatch(id) => not AuthId(id)
+
 type (;csr: csrands) state =
   | Init
   | Committed of pv:ProtocolVersion * ae:aeAlg { KeyCommit(csr,pv,ae) }
   // The server has committed to using at most this algorithmn with this csr.
   // --------> 
-  | Derived of rdId:id * wrId:id * (;rdId,wrId) derived { Match(rdId)} // known, not used so far
+  | Derived of rdId:id * wrId:id * (;rdId,wrId) derived //CF { Match(rdId)} // known, not used here so far
   // the client has ideally derived keys for both roles,
   // with the same algorithm, recording the keys for the server. 
   // --only-->
-  | Done 
+  //| Done 
   // the server has also derived keys (retrieving those recorded, or generating others).
   // or he may have failed because of an aeAlg mismatch.
   // MK what do you mean with "failed because of aeAlg msmatch?"
   // No action allowed from this point. 
-
+  //
   // In all other cases, we reach a stable state such that we never idealize. 
   // We won't have SafeHS for this csr. 
-  | Wasted
+  //| Wasted
 
 
 type kdentry = csr:csrands * (;csr) state 
@@ -146,11 +151,10 @@ val update: csr:csrands -> (;csr) state -> kdentry  list -> kdentry list
 // We could enforce commitments by adding a post-condition to keyCommit  
 // and a matching pre-condition to the server-side keyGen.
 
-val keyCommit: 
-  csrConn:csrands -> pv:ProtocolVersion -> ae:aeAlg -> 
-  unit { KeyCommit(csrConn,pv,ae) } 
+//CF to circumvent F7 limitations.
+private val commit:  
+  csr:csrands -> pv:ProtocolVersion -> ae:aeAlg { KeyCommit(csr,pv,ae) } -> (;csr) state
 
-//CF strange... 
 //CF no clue why it does not typecheck if we rename x,y to rdId,wrId.
 private val wrap:
   x: id -> y: id { y = Swap(x) } -> 
@@ -158,7 +162,11 @@ private val wrap:
   (;y,x) derived   
 private val wrap2:
   x: id -> y: id -> (;x,y) derived -> csr:csrands -> (;csr) state
-    
+
+  
+val keyCommit: 
+  csrConn:csrands -> pv:ProtocolVersion -> ae:aeAlg -> 
+  unit { KeyCommit(csrConn,pv,ae) } 
 
 val keyGenClient: 
   rdId: id -> wrId: id { wrId = Swap(rdId) } ->

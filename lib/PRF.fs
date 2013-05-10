@@ -93,16 +93,15 @@ let deriveKeys rdId wrId (ms:masterSecret) role  =
 type derived = StatefulLHAE.reader * StatefulLHAE.writer 
 
 #if ideal
-type event =
-  | KeyCommit of csrands * ProtocolVersion * aeAlg 
-  | KeyGenClient of csrands * ProtocolVersion * aeAlg 
 
 type state =
   | Init
   | Committed of ProtocolVersion * aeAlg
   | Derived of id * id * derived
-  | Done 
-  | Wasted
+//  | Done 
+//  | Wasted
+
+type event = Mismatch of id
 
 type kdentry = csrands * state 
 let kdlog : kdentry list ref = ref [] 
@@ -122,20 +121,25 @@ let rec update csr s (entries: kdentry list) =
 
 //CF We could statically enforce the state machine.
 
+//CF to circumvent an F7 limitation?
+let commit csr pv a = Committed(pv,a)
+
 let keyCommit (csr:csrands) (pv:ProtocolVersion) (a:aeAlg) : unit = 
   #if ideal
   match read csr !kdlog with 
   | Init -> 
-      Pi.assume(KeyGenClient(csr,pv,a));
-      kdlog := update csr (Committed(pv,a)) !kdlog
-  | _    -> Error.unexpected "prevented by freshness of the server random"
+      Pi.assume(KeyCommit(csr,pv,a));
+      let state = commit csr pv a 
+      kdlog := update csr state !kdlog
+  | _    -> 
+      Error.unexpected "prevented by freshness of the server random"
   #else
   ()
   #endif
 
-let wrap rdId wrId r w = (r,w)
-let wrap2 a b rw csr = Derived(a,b,rw)
-
+let wrap (rdId:id) (wrId:id) r w = (r,w)
+let wrap2 (a:id) (b:id) rw csr = Derived(a,b,rw)
+  
 //CF We could merge the two keyGen.
 let keyGenClient (rdId:id) (wrId) ms =   
     #if ideal
@@ -144,8 +148,14 @@ let keyGenClient (rdId:id) (wrId) ms =
     let csr = rdId.csrConn
     Pi.assume(KeyGenClient(csr,pv,aeAlg));
     match read csr !kdlog with
+    | Init ->
+        // the server commits only on fresh SRs
+        // hence we will never have Match(csr)
+        Pi.assume(Mismatch(rdId));
+        deriveKeys rdId wrId ms Client
     | Committed(pv',aeAlg') when pv=pv' && aeAlg=aeAlg' && safeKDF(rdId) -> 
-        // we idealize the key derivation
+        // we idealize the key derivation;
+        // from this point AuthId and SafeId are fixed.
         let (myRead,peerWrite) = StatefulLHAE.GEN rdId 
         let (peerRead,myWrite) = StatefulLHAE.GEN wrId
         let peer = wrap rdId wrId peerRead peerWrite 
@@ -153,21 +163,27 @@ let keyGenClient (rdId:id) (wrId) ms =
         kdlog := update csr state !kdlog;
         (myRead,myWrite)
     | Committed(pv',aeAlg') -> 
-        todo "we should deduce here not Auth";
+        // we logically deduce not Auth for both indexes 
         deriveKeys rdId wrId ms Client
-    | _  ->
-        todo "we know the server will never commit";
-        kdlog := update csr Wasted !kdlog;
+    | Derived(_,_,_) ->
+        Error.unexpected "Excluded by usage restriction (affinity)"
+    #else
+    deriveKeys rdId wrId ms Client
     #endif
-        deriveKeys rdId wrId ms Client
 
 let keyGenServer (rdId:id) (wrId:id) ms =
     #if ideal
     let csr = rdId.csrConn
     match read csr !kdlog with  
+    | Init -> 
+        Error.unexpected "Excluded by usage restriction (affinity)"
+    | Committed(pv',aeAlg') -> 
+        // when SafeKDF, the client keyGens only on a fresh Ids,
+        // hence we will never have AuthId(rdId) for this csr.
+        Pi.assume(Mismatch(rdId));
+        deriveKeys rdId wrId ms Server
     | Derived(wrId',rdId',derived) when safeKDF(rdId)  ->
         // by typing the commitment, we know that rdId has matching csr pv aeAlg 
-        kdlog := update csr Done !kdlog
         if rdId = wrId'
         //CF was, to be discussed: 
         //CF if rdId.msId   = wrId'.msId &&  rdId.kdfAlg = wrId'.kdfAlg 
@@ -179,14 +195,12 @@ let keyGenServer (rdId:id) (wrId:id) ms =
             let (myRead,peerWrite) = StatefulLHAE.GEN rdId 
             let (peerRead,myWrite) = StatefulLHAE.GEN wrId
             (myRead,myWrite)
-    | Done -> 
-        Error.unexpected "Excluded by usage restriction (affinity)"
-    | _ -> 
-        //Pi.assume(Waste(csr));
-        kdlog := update csr Wasted !kdlog; 
-    #endif
+    | Derived(wrId',rdId',derived)  ->
+        // we logically deduce not Auth for both indexes
         deriveKeys rdId wrId ms Server
-
+    #else
+    deriveKeys rdId wrId ms Server
+    #endif
 
 (** VerifyData **) 
 
