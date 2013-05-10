@@ -113,8 +113,9 @@ private val deriveKeys:
 //                            KeyCommit(id.csrConn,id.pv,id.aeAlg) /\ KeyGenClient(id.csrConn,id.pv,id.aeAlg)  
 
 
-// See comments in the code as we assume Mismatch;
-// we may also rely more finely on the log.
+// See comments in the code as we assume Mismatch to reflect freshness assumptions.
+// we may also rely more finely on the log, to define Match 
+// more precisely as " KeyCommit ; KeyGenClient " with no KeyGenServer in-between.
 type event = Mismatch of id 
 private theorem !id. Mismatch(id) => not AuthId(id)
 
