@@ -93,7 +93,10 @@ let deriveKeys rdId wrId (ms:masterSecret) role  =
 type derived = StatefulLHAE.reader * StatefulLHAE.writer 
 
 #if ideal
-type event = Waste of id 
+type event =
+  | KeyCommit of csrands * ProtocolVersion * aeAlg 
+  | KeyGenClient of csrands * ProtocolVersion * aeAlg 
+
 type state =
   | Init
   | Committed of ProtocolVersion * aeAlg
@@ -137,6 +140,7 @@ let keyGenClient (rdId:id) (wrId) ms =
     let pv = pv_of_id rdId
     let aeAlg = rdId.aeAlg
     let csr = rdId.csrConn
+    Pi.assume(KeyGenClient(csr,pv,aeAlg));
     match read csr !kdlog with
     | Committed(pv',aeAlg') when pv=pv' && aeAlg=aeAlg' && safeKDF(rdId) -> 
         // we idealize the key derivation
@@ -146,8 +150,11 @@ let keyGenClient (rdId:id) (wrId) ms =
         let state = wrap2 wrId rdId peer csr 
         kdlog := update csr state !kdlog;
         (myRead,myWrite)
+    | Committed(pv',aeAlg') -> 
+        todo "we should deduce here not Auth";
+        deriveKeys rdId wrId ms Client
     | _  ->
-        Pi.assume(Waste(rdId));
+        todo "we know the server will never commit";
         kdlog := update csr Wasted !kdlog;
     #endif
         deriveKeys rdId wrId ms Client
@@ -170,8 +177,10 @@ let keyGenServer (rdId:id) (wrId:id) ms =
             let (myRead,peerWrite) = StatefulLHAE.GEN rdId 
             let (peerRead,myWrite) = StatefulLHAE.GEN wrId
             (myRead,myWrite)
+    | Done -> 
+        Error.unexpected "Excluded by usage restriction (affinity)"
     | _ -> 
-        Pi.assume(Waste(rdId));
+        //Pi.assume(Waste(csr));
         kdlog := update csr Wasted !kdlog; 
     #endif
         deriveKeys rdId wrId ms Server

@@ -225,13 +225,13 @@ definition !si. StrongPRF(si) <=> StrongKDF(KdfAlg(si)) /\ StrongVD(VdAlg(si))
 // MK guaranteeing the idealization of the complete module is useful
 
 // Summarizing all assumptions needed for a strong handshake
-// CF is it a good idea?!
-// MK what does it make a good or a bad idea?
-predicate StrongHS  of SessionInfo //CF * hashAlg for certs?
+// CF derived & to be used in the public API only
+predicate StrongHS of SessionInfo 
 definition !si. StrongHS(si) <=> 
-  ( (StrongRSAKEX(si.pmsId) \/ StrongDHKEX(si.pmsId)) /\ 
-    StrongSig(si) /\ 
-    StrongCRE(CreAlg(si)) /\  StrongPRF(si) )
+  (   (StrongRSAKEX(si.pmsId) \/ StrongDHKEX(si.pmsId)) /\ 
+      StrongCRE(CreAlg(si)) /\ 
+	  StrongPRF(si) /\ 
+	  StrongSig(si) ) //CF * hashAlg for certs?
 
 // safety of SessionInfo crypto processing
 
@@ -253,18 +253,16 @@ predicate SafeHS_SI of SessionInfo // Safe handshake for this sessioninfo
 definition !si. SafeHS_SI(si) <=> HonestMS(MsI(si)) /\ StrongHS(si) 
 val safeHS_SI: (si:SessionInfo) -> b:bool { b=true <=> SafeHS_SI(si)}
 
-// MK these are just exemplary?
+
 predicate StrongAuthSI of SessionInfo
 definition !si. StrongAuthSI(si) <=> 
-  (?e,m. CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(e,m) /\ 
-         INT_CMA_M(m))
+  (?e,m. CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(e,m) /\ INT_CMA_M(m))
 
 predicate StrongAESI of SessionInfo
 definition !si. StrongAESI(si) <=> 
-  (?e,m. CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version) = MtE(e,m) /\ 
-         IND_CPA(e) /\ 
-         INT_CMA_M(m) /\ 
-         INT_CTXT(MtE(e,m),si.protocol_version))
+                StrongAEAlg(si.protocol_version,CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version))
+
+
 
 
 // -------------------------------------------------------------------
@@ -393,20 +391,41 @@ val safeKDF: (i:id) -> b:bool { b=true <=> SafeKDF(i) }
 //not HonestMS(msi) excludes both idealizations in PRF.
 ask !si. not HonestMS(MsI(si)) => not SafeVD(si) /\ not SafeKDF(SiId(si,Server))
  
-
-// MK these are just exemplary?
+// ``The MAC algorithm of id is INT-CMA.''
 predicate StrongAuthId of id
+definition !id:id. StrongAuthId(id) <=> INT_CMA_M(MacAlg(id))
 
-definition !id. StrongAuthId(id) <=> INT_CMA_M(MacAlg(id))
+predicate StrongAEId of id
+definition !id:id. StrongAEId(id) <=> StrongAEAlg(id.pv,id.aeAlg)
 
-//MK doesn't satisfy asks
+/// Safety is conditioned on ideal algorithm match (see PRF)
+type event =
+  | KeyCommit of    csrands * ProtocolVersion * aeAlg 
+  | KeyGenClient of csrands * ProtocolVersion * aeAlg 
+
+// these two properties follow from the affine usage of keyCommit and keyGenClient
+theorem !csr,pv0,ae0,pv1,ae1. 
+  (KeyCommit(csr,pv0,ae0) /\ KeyCommit(csr,pv1,ae1)) => (pv0=pv1 /\ ae0 = ae1) 
+theorem !csr,pv0,ae0,pv1,ae1. 
+  (KeyGenClient(csr,pv0,ae0) /\ KeyGenClient(csr,pv1,ae1)) => (pv0=pv1 /\ ae0 = ae1) 
+
+predicate Match of id 
+definition !i:id. Match(i) <=> KeyCommit(i.csrConn,i.pv,i.aeAlg) /\ KeyGenClient(i.csrConn,i.pv,i.aeAlg)
+
+//MK doesn't satisfy asks. CF usage?
 //ask !si,r:Role. StrongAuthId(SiId(si,r)) => StrongAuthSI(si) 
-
+//
 //MK verifies
-ask !i:id,e,m. StrongAuthId(i) => INT_CMA_M(MacAlg(i))
+//MK ask !i:id,e,m. StrongAuthId(i) => INT_CMA_M(MacAlg(i))
 
-predicate AuthId of id //CF instead of Auth when dealing with tight indexes 
-definition !si:SessionInfo,r:Role.  AuthId(SiId(si,r)) <=> SafeHS_SI(si) /\ StrongAuthId(SiId(si,r))
+// ``We are idealizing integrity for this id''
+predicate AuthId of id
+definition !i.  
+//  AuthId(SiId(si,r)) <=> SafeHS_SI(si) /\ StrongAuthId(SiId(si,r))
+  AuthId(i) <=> SafeKDF(i) /\ Match(i) /\ StrongAuthId(i)
+
+ask !i. AuthId(i) => Match(i) // sanity check; just by definition
+
 val authId: (i:id) -> b:bool {b = true <=> AuthId(i)}
 
 ask !si,r. AuthId(SiId(si,r)) => SafeHS_SI(si) 

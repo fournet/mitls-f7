@@ -88,11 +88,22 @@ type aeAlg = // for specification of INT_CTXT predicate
     | MtE of encAlg * macAlg // TODO MK later, add the protocol version
     | AEAD of aeadAlg * macAlg // macAlg is for the PRF
 
-predicate INT_CTXT of aeAlg * ProtocolVersion
+predicate INT_CTXT of ProtocolVersion * aeAlg
 // some reasonable assumptions:
-// assume INT_CTXT(MtE(CBC_Fresh(AES_128_CBC),HMAC(SHA256)),TLS_1p2)
+// assume INT_CTXT(TLS_1p2,MtE(CBC_Fresh(AES_128_CBC),HMAC(SHA256)))
 // This follows from Paterson et al.
-// assume !e,m. PRF(m) /\ SPRP(e) => INT_CTXT(MtE(CBC_Fresh(e),m),TLS_1p2)
+// assume !e,m. PRF(m) /\ SPRP(e) => INT_CTXT(TLS_1p2,MtE(CBC_Fresh(e),m))
+
+//CF we omit StrongAuthAlg for now
+predicate StrongAEAlg of ProtocolVersion * aeAlg 
+definition !pv,ae. StrongAEAlg(pv,ae) <=> 
+  (?e,m. ae = MtE(e,m) /\ 
+         IND_CPA(e) /\ 
+         INT_CMA_M(m) /\ 
+         INT_CTXT(pv,ae) )
+
+
+// HS algorithms 
 
 type kexAlg =  (* all these kex have server auth & optional client auth, *)
                (* except for anon which has nothing *)
