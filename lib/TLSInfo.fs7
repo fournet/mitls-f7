@@ -116,6 +116,8 @@ type msId =        // We record the parameters used to derive this MS:
   csr   : csrands *   // the nonces  
   creAlg: creAlg      // the PMS-PRF algorithm
 
+val noMsId: msId
+
 // ``creAlg is a strong randomness extractor, despite all other creAlgs''
 // guarding idealization in CRE
 predicate StrongCRE of creAlg 
@@ -332,6 +334,8 @@ type id = {
   csrConn: csrands;// the client-server random of the connection
   writer : Role    // the role of the writer 
   }
+
+val noId: id
 
 function val Swap: id -> id
 definition !i:id. Swap(i)= 

@@ -140,7 +140,6 @@ type id = {
   aeAlg  : aeAlg   
   csrConn: csrands; 
   writer : Role
-  }
 
 let id (e:succEpoch):id = // failwith "should be as below, but doesn't typecheck"
     let si     = epochSI e
@@ -152,6 +151,8 @@ let id (e:succEpoch):id = // failwith "should be as below, but doesn't typecheck
     let csr    = csrands si
     let wr     = epochWriter e
     {msId = msi; kdfAlg=kdfAlg; pv=pv; aeAlg = aeAlg; csrConn = csr; writer=wr }
+
+let (noId: id) = { msId = noMsId; kdfAlg=(SSL_3p0,NullCipherSuite); pv=SSL_3p0; aeAlg= MACOnly(MA_SSLKHASH(NULL)); csrConn = Utf8(""); writer=Client }
 
 let idInv (i:id):succEpoch = failwith "requires a log, and pointless to implement anyway"
 
