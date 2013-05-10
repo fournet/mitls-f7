@@ -436,7 +436,7 @@ ask !i:id. AuthId(i) => StrongAuthId(i)
 ask !i:id. AuthId(i) => INT_CMA_M(MacAlg(i))
 
 predicate SafeId of id
-definition !i. SafeId(i) <=> SafeHS_SI(si) /\ StrongAESI(si)
+definition !i. SafeId(i) <=> SafeKDF(i) /\ Match(i) /\ StrongAESI(i)
 val safeId : (i:id) -> b:bool {b = true <=> SafeId(i)}
 
 // MK fails
