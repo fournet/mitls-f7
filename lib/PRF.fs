@@ -125,7 +125,9 @@ let rec update csr s (entries: kdentry list) =
 let keyCommit (csr:csrands) (pv:ProtocolVersion) (a:aeAlg) : unit = 
   #if ideal
   match read csr !kdlog with 
-  | Init -> kdlog := update csr (Committed(pv,a)) !kdlog
+  | Init -> 
+      Pi.assume(KeyGenClient(csr,pv,a));
+      kdlog := update csr (Committed(pv,a)) !kdlog
   | _    -> Error.unexpected "prevented by freshness of the server random"
   #else
   ()
