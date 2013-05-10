@@ -435,6 +435,9 @@ predicate SafeId of id
 definition !i. SafeId(i) <=> SafeKDF(i) /\ Match(i) /\ StrongAEId(i)
 val safeId : (i:id) -> b:bool {b = true <=> SafeId(i)}
 
+// KB: We need this, can we prove it?
+theorem !id. SafeId(id) => AuthId(id)
+theorem !e. IsInitEpoch(e) => not AuthId(Id(e))
 // MK verifies
 ask !e,mac. e.aeAlg  = MACOnly(mac) => not SafeId(e)
 

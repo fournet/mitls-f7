@@ -28,18 +28,18 @@ val splitRange: ki:succEpoch -> r:range -> (r0:range * r1:range){r = Sum(r0,r1)}
 // streams have no destructors, so they do not leak secrets
 // they are used abstractly by TLS, except that
 // their logical definition is needed for authentication in application code.
-private type (;ki:epoch) stream = {sb:bytes list}
+private type (;ki:id) stream = {sb:bytes list}
 
 // the implementation of this type is application-specific 
 // but it must provide the following functions to TLS
-private type (;ki:epoch, h:(;ki)stream, r:range) delta = {contents: (;r) rbytes}
+private type (;ki:id, h:(;ki)stream, r:range) delta = {contents: (;r) rbytes}
 
-function val Payload: e:epoch * s:(;e)stream * r:range * (;e,s,r)delta -> cbytes
+function val Payload: e:id * s:(;e)stream * r:range * (;e,s,r)delta -> cbytes
 private definition !e,s,r,d. Payload(e,s,r,d) = B(d.contents)
 
 ask !e,s,s',r,d. Payload(e,s,r,d) = Payload(e,s',r,d)
 
-function val EmptyStream: e:epoch -> (;e)stream 
+function val EmptyStream: e:id -> (;e)stream 
 private definition !e. EmptyStream(e) = {sb = []}
 
 function val ExtendStream: 'a * 'b * 'c * 'd -> 'e
@@ -48,7 +48,7 @@ private definition !ki,s,r,b. ExtendStream(ki,s,r,b) = {sb = b :: s.sb }
 function val ExtendStreamDelta: 'a * 'b * 'c * 'd -> 'e
 definition !ki,s,r,d. ExtendStreamDelta(ki,s,r,d) = ExtendStream(ki,s,r,Payload(ki,s,r,d))
 
-function val StreamBytes: e:epoch * (;e)stream -> cbytes
+function val StreamBytes: e:id * (;e)stream -> cbytes
 private definition !e,s,h,t.
  (s.sb = []   /\ StreamBytes(e,s) = [||]) \/
  (s.sb = h::t /\ StreamBytes(e,s) = (StreamBytes(e,{sb=t}) @| B(h)))
@@ -60,36 +60,36 @@ ask !e,s,r,b. StreamBytes(e,ExtendStream(e,s,r,b)) = ( StreamBytes(e,s) @| b )
 // used only by the application.
 // They are never called from TLS.
 val createDelta: 
-  ki:epoch -> s:(;ki) stream -> r:range -> 
+  ki:id -> s:(;ki) stream -> r:range -> 
   b:(;r) rbytes -> c: (;ki,s,r) delta  
 val deltaBytes: 
-  ki:epoch -> s:(;ki) stream -> r:range -> 
+  ki:id -> s:(;ki) stream -> r:range -> 
   c: (;ki,s,r) delta -> b:(;r) rbytes 
 
 //CF we need a better verification pattern for multi-user interfaces.
 //CF a cheap one is to use different names plus ifdefs in the .fsi
 
 // used by TLS
-val init: e:epoch -> s:(;e)stream{s=EmptyStream(e)}
+val init: e:id -> s:(;e)stream{s=EmptyStream(e)}
 val append: 
-  ki:epoch -> s: (;ki) stream -> r:range ->
+  ki:id -> s: (;ki) stream -> r:range ->
   d:(;ki,s,r) delta -> s':(;ki) stream{s' = ExtendStreamDelta(ki,s,r,d)}
 
 val deltaPlain: 
-  ki:epoch{not Auth(ki)} -> s:(;ki) stream -> r:range -> 
+  ki:id{not AuthId(ki)} -> s:(;ki) stream -> r:range -> 
   b:(;r) rbytes -> d: (;ki,s,r) delta {B(b) = Payload(ki,s,r,d)} 
 val deltaRepr: 
-  ki:epoch{not Safe(ki)} -> s:(;ki) stream -> r:range -> 
+  ki:id{not SafeId(ki)} -> s:(;ki) stream -> r:range -> 
   d: (;ki,s,r) delta -> b:(;r) rbytes{B(b) = Payload(ki,s,r,d)}
 
-val split: ki:epoch -> s:(;ki) stream -> 
+val split: ki:id -> s:(;ki) stream -> 
   r0:range -> r1:range -> d:(;ki,s,Sum(r0,r1)) delta -> 
   (d0:(;ki,s,r0) delta * d1:(;ki,ExtendStreamDelta(ki,s,r0,d0),r1) delta){
 	Payload(ki,s,Sum(r0,r1),d) =
 		Payload(ki,s,r0,d0) @| Payload(ki,ExtendStreamDelta(ki,s,r0,d0),r1,d1)
   }
 
-val widen: ki:epoch -> s:(;ki) stream -> 
+val widen: ki:id -> s:(;ki) stream -> 
   r0:range -> r1:range{SubRange(r0,r1)} -> d0:(;ki,s,r0) delta ->
   d1:(;ki,s,r1) delta{Payload(ki,s,r0,d0) = Payload(ki,s,r1,d1)}
 
@@ -98,10 +98,10 @@ val widen: ki:epoch -> s:(;ki) stream ->
 (*CF This would be the application interface: 
 
 val deltaPlain: 
-  ki:epoch -> s:(;ki) stream -> r:range -> 
+  ki:id -> s:(;ki) stream -> r:range -> 
   b:(;r) rbytes -> c: (;ki,s,r) delta  
 val deltaRepr: 
-  ki:epoch -> s:(;ki) stream -> r:range -> 
+  ki:id -> s:(;ki) stream -> r:range -> 
   c: (;ki,s,r) delta -> (;r) rbytes 
 
 *)

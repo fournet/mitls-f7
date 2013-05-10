@@ -62,15 +62,13 @@ let extendHistory (e:id) d (sh:history) (r:range) f =
   res
 
 let plain (e:id) (h:history) (ad:adata) (r:range) (b:bytes) =
-    let ee = idInv e
-    let h = TLSFragment.emptyHistory ee //CF Not Auth: we can pick any history
+    let h = TLSFragment.emptyHistory e //CF Not Auth: we can pick any history
     let ct = parseAD e ad in
-    {contents = TLSFragment.plain ee ct h r b}
+    {contents = TLSFragment.fragment e ct r b}
 let reprFragment (e:id) (ad:adata) (r:range) (f:plain) =
-    let ee = idInv e
     let ct = parseAD e ad in
     let x = f.contents in
-    TLSFragment.reprFragment ee ct r x
+    TLSFragment.reprFragment e ct r x
 let repr e (h:history) ad r f = reprFragment e ad r f
 
 #if ideal
@@ -81,5 +79,5 @@ let widen e ad r f =
     {contents = f1}
 #endif
 
-let RecordPlainToStAEPlain (e:id) (ct:ContentType) (ad:adata) (ss:TLSFragment.history) (st:history) (rg:range) f = {contents = f}
-let StAEPlainToRecordPlain (e:id) (ct:ContentType) (ad:adata) (ss:TLSFragment.history) (st:history) (rg:range) f = f.contents
+let RecordPlainToStAEPlain (e:epoch) (ct:ContentType) (ad:adata) (ss:TLSFragment.history) (st:history) (rg:range) f = {contents = f}
+let StAEPlainToRecordPlain (e:epoch) (ct:ContentType) (ad:adata) (ss:TLSFragment.history) (st:history) (rg:range) f = f.contents

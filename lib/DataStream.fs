@@ -62,24 +62,24 @@ let splitRange ki r =
 type stream = {sb: bytes list}
 type delta = {contents: rbytes}
 
-let createDelta (ki:epoch) (s:stream) (r:range) (b:bytes) = {contents = b}
-let deltaBytes  (ki:epoch) (s:stream) (r:range) (d:delta) = d.contents
-let deltaPlain  (ki:epoch) (s:stream) (r:range) (b:rbytes) = {contents = b}
-let deltaRepr   (ki:epoch) (s:stream) (r:range) (d:delta) = d.contents
+let createDelta (ki:id) (s:stream) (r:range) (b:bytes) = {contents = b}
+let deltaBytes  (ki:id) (s:stream) (r:range) (d:delta) = d.contents
+let deltaPlain  (ki:id) (s:stream) (r:range) (b:rbytes) = {contents = b}
+let deltaRepr   (ki:id) (s:stream) (r:range) (d:delta) = d.contents
 
 // ghost
-type es = EmptyStream of epoch
+type es = EmptyStream of id
 
-let init (ki:epoch) = {sb = []}
+let init (ki:id) = {sb = []}
 
-let append (ki:epoch) (s:stream) (r:range) (d:delta) =
+let append (ki:id) (s:stream) (r:range) (d:delta) =
 #if ideal
     {sb = d.contents :: s.sb}
 #else
     s
 #endif
 
-let split (ki:epoch) (s:stream)  (r0:range) (r1:range) (d:delta) = 
+let split (ki:id) (s:stream)  (r0:range) (r1:range) (d:delta) = 
   let (_,h0) = r0 in
   let (l1,_) = r1 in
   let len = length d.contents in
@@ -88,5 +88,5 @@ let split (ki:epoch) (s:stream)  (r0:range) (r1:range) (d:delta) =
   ({contents = sb0},{contents = sb1})
 
 #if ideal
-let widen (ki:epoch) (s:stream) (r0:range) (r1:range) (d:delta) = let b = d.contents in {contents = b}
+let widen (ki:id) (s:stream) (r0:range) (r1:range) (d:delta) = let b = d.contents in {contents = b}
 #endif

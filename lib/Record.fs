@@ -17,7 +17,8 @@ type sendState = ConnectionState
 type recvState = ConnectionState
 
 let initConnState (ki:epoch) (rw:rw) s = 
-  let eh = TLSFragment.emptyHistory ki in
+  let i = id ki in
+  let eh = TLSFragment.emptyHistory i in
   someState ki rw eh s
 
 let nullConnState (ki:epoch) (rw:rw) = NullState
@@ -70,15 +71,16 @@ let recordPacketOut ki conn pv rg ct fragment =
     let initEpoch = isInitEpoch ki in
     match (initEpoch, conn) with
     | (true,NullState) ->
-        let eh = TLSFragment.emptyHistory ki in
-        let payload = TLSFragment.repr ki ct eh rg fragment in
+        let i = id ki in // doesn't typechecke
+        let payload = TLSFragment.reprFragment i ct rg fragment in
         let packet = makePacket ct pv payload in
         (conn,packet)
     | (false,SomeState(history,state)) ->
-        let ad = StatefulPlain.makeAD ki ct in
-        let sh = StatefulLHAE.history ki Writer state in
+        let i = id ki in
+        let ad = StatefulPlain.makeAD i ct in
+        let sh = StatefulLHAE.history i Writer state in
         let aeadF = StatefulPlain.RecordPlainToStAEPlain ki ct ad history sh rg fragment in
-        let (state,payload) = StatefulLHAE.encrypt ki state ad rg aeadF in
+        let (state,payload) = StatefulLHAE.encrypt i state ad rg aeadF in
         let history = TLSFragment.extendHistory ki ct history rg fragment in
         let packet = makePacket ct pv payload in
         (SomeState(history,state),
@@ -127,17 +129,18 @@ let recordPacketIn ki conn headPayload =
     match (initEpoch,conn) with
     | (true,NullState) ->
         let rg = (plen,plen) in
-        let eh = TLSFragment.emptyHistory ki in
-        let msg = TLSFragment.plain ki ct eh rg payload in
+        let i = id ki in
+        let msg = TLSFragment.fragment i ct rg payload in
         correct(conn,ct,pv,rg,msg)
     | (false,SomeState(history,state)) ->
-        let ad = StatefulPlain.makeAD ki ct in
-        let decr = StatefulLHAE.decrypt ki state ad payload in
+        let i = id ki in
+        let ad = StatefulPlain.makeAD i ct in
+        let decr = StatefulLHAE.decrypt i state ad payload in
         match decr with
         | Error(z) -> Error(z)
         | Correct (decrRes) ->
             let (newState, rg, plain) = decrRes in
-            let oldH = StatefulLHAE.history ki Reader state in
+            let oldH = StatefulLHAE.history i Reader state in
             let msg = StatefulPlain.StAEPlainToRecordPlain ki ct ad history oldH rg plain in
             let history = TLSFragment.extendHistory ki ct history rg msg in
             let st' = someState ki Reader history newState in
@@ -146,6 +149,8 @@ let recordPacketIn ki conn headPayload =
 
 let history (e:epoch) (rw:rw) s =
     match s with
-    | NullState -> TLSFragment.emptyHistory e
+    | NullState -> 
+        let i = id e in
+        TLSFragment.emptyHistory i
     | SomeState(h,_) -> h
 
