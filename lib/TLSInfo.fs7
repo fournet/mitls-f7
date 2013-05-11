@@ -90,7 +90,8 @@ predicate StrongDHKEX  of pmsId
 definition !p,g,gx,gy,dhpms.  StrongDHKEX(SomePmsId(PMS.DHPMS(p,g,gx,gy,dhpms))) <=> PMS.SafeDH(p,g,gx,gy)
 //MK I think it's only coincidental in the current PMS that HonestPMS implies SafeKEX. Lets keep it for discussions.
 //MK They replace StrongRSAPMS and StrongDHPMS.
-//CF strange to go from Strong to Safe? 
+//CF strange to go from Strong to Safe?
+//MK Yes, that's historic. We should rename or delete. 
 
 // -------------------------------------------------------------------
 // public pmsData, used e.g. to represent anonymous clients
@@ -178,16 +179,18 @@ val csrands: si:SessionInfo -> csr:csrands {csr=CSRands(si)}
 
 // Getting algorithms from SessionInfo
 
+//MK not clear this function will be needed,maybe only to implement 
+//MK more specialized functions
+function val PrfAlg:  SessionInfo -> prfAlg
+definition !si.  PrfAlg(si) = (si.protocol_version,si.cipher_suite)
+val prfAlg: si:SessionInfo -> a:prfAlg {a=PrfAlg(si)}
+
 function val CreAlg:  SessionInfo -> creAlg
 definition !si. (si.protocol_version = SSL_3p0 => CreAlg(si) = CRE_SSL3_nested ) /\
 				(si.protocol_version = TLS_1p0 => CreAlg(si) = CRE_TLS_1p01(extract_label)    ) /\
 				(si.protocol_version = TLS_1p1 => CreAlg(si) = CRE_TLS_1p01(extract_label)    ) /\
 				(si.protocol_version = TLS_1p2 => CreAlg(si) = CRE_TLS_1p2(extract_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
 val creAlg: si:SessionInfo -> a:creAlg {a=CreAlg(si)}
-
-function val PrfAlg:  SessionInfo -> prfAlg
-definition !si.  PrfAlg(si) = (si.protocol_version,si.cipher_suite)
-val prfAlg: si:SessionInfo -> a:prfAlg {a=PrfAlg(si)}
 
 function val KdfAlg:  SessionInfo -> kdfAlg
 definition !si.  KdfAlg(si) = (si.protocol_version,si.cipher_suite)
@@ -258,8 +261,13 @@ private type preEpoch =
 
 predicate val IsInitEpoch: preEpoch -> bool
 predicate val IsSuccEpoch: preEpoch -> bool
-private definition !e. IsInitEpoch(e) <=> ?r. e = InitEpoch(r)
-private definition !e. IsSuccEpoch(e) <=> ?c,s,si,pe. e = SuccEpoch(c,s,si,pe)
+//MK fixes verification of epochWriter. Valid? Old:
+//MK   private definition !e. IsInitEpoch(e) <=> ?r. e = InitEpoch(r)
+//MK   private definition !e. IsSuccEpoch(e) <=> ?c,s,si,pe. e = SuccEpoch(c,s,si,pe)
+//MK with the following we might be able to prove that some e is IsSuccEpoch(e) though it is not a valid preEpoch
+//MK but that is also true for the existential version above.
+private definition !e:preEpoch,r:Role. IsInitEpoch(e) <=> e = InitEpoch(r)
+private definition !e:preEpoch,c:crand,s:srand,si:SessionInfo,pe:preEpoch. IsSuccEpoch(e) <=> e = SuccEpoch(c,s,si,pe)
 type epoch = e:preEpoch {IsInitEpoch(e) \/ IsSuccEpoch(e)}
 type succEpoch = e:preEpoch {IsSuccEpoch(e)}
 
@@ -310,7 +318,7 @@ val nextEpoch: e:epoch -> c:crand -> s:srand -> si:SessionInfo -> e':succEpoch
 
 // -------------------------------------------------------------------
 // indexing instances of AE --- an abstrac parameter for StatefulAEAD et al
-// we do not the more detailed epochs as their additional contents 
+// we do not use more detailed epochs as their additional contents 
 // is authenticated only once the handshake completes. 
 
 type id = { 
@@ -446,7 +454,7 @@ ask !e. IsInitEpoch(e) => not AuthId(Id(e))
 // both are implied by StrongHS
 
 predicate SafeHS_SI of SessionInfo // Safe handshake for this sessioninfo
-definition !si. SafeHS_SI(si) <=> HonestPMS(si.pmsId) /\ StrongHS(si) 
+definition !si. SafeHS_SI(si) <=> HonestPMS(si.pmsId) /\ ( ?r. Match(SiId(si,r)) ) /\ StrongHS(si) 
 val safeHS_SI: (si:SessionInfo) -> b:bool { b=true <=> SafeHS_SI(si)}
 
 // Safety for epochs relies only on SessionInfo, but this would change if we introduce a finer model of compromise
@@ -470,13 +478,6 @@ ask !e. Safe(e) => Auth(e)
 
 // so that TLS can exchange any traffic on the initial null connection
 ask !e. IsInitEpoch(e) => not Auth(e)
-
-// MK deprecated??
-// predicate SafeSI  of SessionInfo // The session ciphersuite yields secrecy and integrity
-// definition !si. SafeSI(si) <=> SafeHS_SI(si) /\ StrongAESI(si)
-//
-// predicate AuthSI  of SessionInfo // The session ciphersuite yields integrity (not necessarily secrecy)
-// definition !si. AuthSI(si) <=> SafeHS_SI(si) /\ StrongAuthSI(si)
 
 // -------------------------------------------------------------------
 // Application configuration options
