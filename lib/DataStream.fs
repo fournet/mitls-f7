@@ -16,7 +16,8 @@ let splitRange ki r =
     let si = epochSI(ki) in
     let cs = si.cipher_suite in
     let FS = TLSInfo.fragmentLength in
-    let PS = maxPadSize (id ki) in
+    let i = id ki
+    let PS = maxPadSize i in
     if PS = 0 then
         if l<>h then
             unexpected "[splitRange] Incompatible range provided"
