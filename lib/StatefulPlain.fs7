@@ -70,8 +70,8 @@ theorem !i,ad,sn,h,r,f.
 //----------------------------------------------------MK Everything until here is completely epoch free.
 
 //MK fragment erroneously indexed by epoch?!
-function val StAEToRecord: e:epoch * ct:ContentType * r:range * f:(;e,ADBytes(e,ct),r)fragment -> 'a // (;e,ct,r)TLSFragment.fragment
-private definition !e,ct,r,f. StAEToRecord(e,ct,r,f) = f.contents 
+function val StAEToRecord: i:id * ct:ContentType * r:range * f:(;i,ADBytes(i,ct),r)fragment -> 'a //(;i,ct,r)TLSFragment.fragment
+private definition !i,ct,r,f. StAEToRecord(i,ct,r,f) = f.contents 
 
 function val Multiplexed: e:epoch * (;Id(e)) history -> 'b //(;e)TLSFragment.history
 definition !e. 

@@ -1,5 +1,7 @@
 module AppData
 
+(* Implementing the AppData protocol. *) 
+
 open TLSInfo
 open Bytes
 open Error
