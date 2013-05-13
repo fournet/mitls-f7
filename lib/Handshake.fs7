@@ -1024,8 +1024,8 @@ type (;ci:ConnectionInfo, hs:(;ci) hs_state) outgoing =
   | OutIdle of s':(;ci,Config(ci,hs))nextState
   | OutSome of (rg:range * f:(;ci.id_out,HSFragment.EmptyStream(ci.id_out),rg)HSFragment.plain * s':(;ci,Config(ci,hs))nextState)
   | OutCCS of  (rg:range * f:(;ci.id_out,HSFragment.EmptyStream(ci.id_out),rg)HSFragment.plain * 
-               ci':ConnectionInfo * cs:(;ci'.id_out,Writer)StatefulLHAE.state * s':(;ci',Config(ci,hs))nextState)
-               { StatefulLHAE.History(ci'.id_out,Writer,cs) = StatefulPlain.EmptyHistory(ci'.id_out) /\ 
+               ci':ConnectionInfo * cs:(;Id(ci'.id_out),Writer)StatefulLHAE.state * s':(;ci',Config(ci,hs))nextState)
+               { StatefulLHAE.History(Id(ci'.id_out),Writer,cs) = StatefulPlain.EmptyHistory(Id(ci'.id_out)) /\ 
                  ci.id_out = Pred(ci'.id_out) /\ IsSuccEpoch(ci'.id_out) /\
                  ci.id_in = ci'.id_in /\
                  ci.role = ci'.role /\
