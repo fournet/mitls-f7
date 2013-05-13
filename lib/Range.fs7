@@ -60,10 +60,10 @@ val minMaxPad: i:id -> l:nat * h:nat{
 	 MaxPadSize(i,()) > 0 /\ l = 1 /\ h = MaxPadSize(i,())}
 
 //AP (* A range that can be conveyed in one fragment *)
-//AP predicate RangeFragment of SessionInfo * range
-//AP definition !si,l,h. RangeFragment(si,(l,h)) <=>
-//AP 	( h <= fragmentLength /\ h - l <= MaxPadSize(si,()))
-//AP type (;si:SessionInfo) rangeF = r:range{RangeFragment(si,r)}
+//AP predicate RangeFragment of id * range
+//AP definition !i,l,h. RangeFragment(i,(l,h)) <=>
+//AP 	( h <= fragmentLength /\ h - l <= MaxPadSize(i,()))
+//AP type (;i:id) rangeF = r:range{RangeFragment(i,r)}
 
 // Padding computations
 function val Modulus: int * int -> int
