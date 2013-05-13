@@ -52,11 +52,12 @@ val inStream:  ci:ConnectionInfo -> s:(;ci)app_state -> st:(;ci.id_in) stream{st
 val outStream: ci:ConnectionInfo -> s:(;ci)app_state -> st:(;ci.id_out)stream{st = AppOutStream(ci,s)}
 
 val init: ci:ConnectionInfo ->
-	s:(;ci)app_state{AppInBuf(ci,s) = None /\ AppOutBuf(ci,s) = None /\
-		AppInStream(ci,s) = EmptyStream(ci.id_in) /\ AppOutStream(ci,s) = EmptyStream(ci.id_out)}
+	s:(;ci)app_state{
+	    AppInBuf(ci,s)  = None /\ AppInStream(ci,s)  = EmptyStream(ci.id_in) /\ 
+		AppOutBuf(ci,s) = None /\ AppOutStream(ci,s) = EmptyStream(ci.id_out)}
 
 val writeAppData: ci:ConnectionInfo -> s:(;ci)app_state ->
-	r:range -> f:(;Id(ci.id_out),r)AppFragment.fragment{Auth(ci.id_out) => AppFragment.Sent(ci.id_out,AppOutStream(ci,s),r,f)} ->
+	r:range -> f:(;Id(ci.id_out),r) AppFragment.fragment{Auth(ci.id_out) => AppFragment.Sent(ci.id_out,AppOutStream(ci,s),r,f)} ->
 	st:(;ci.id_out)stream{st = AppFragment.Extend(ci.id_out,AppOutStream(ci,s),r,f)} ->
 	s':(;ci)app_state{AppOutBuf(ci,s') = Some((r,f,st)) /\
 		AppInBuf(ci,s') = AppInBuf(ci,s) /\

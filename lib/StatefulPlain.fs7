@@ -69,7 +69,6 @@ theorem !i,ad,sn,h,r,f.
 
 //----------------------------------------------------MK Everything until here is completely epoch free.
 
-//MK fragment erroneously indexed by epoch?!
 function val StAEToRecord: i:id * ct:ContentType * r:range * f:(;i,ADBytes(i,ct),r)fragment -> 'a //(;i,ct,r)TLSFragment.fragment
 private definition !i,ct,r,f. StAEToRecord(i,ct,r,f) = f.contents 
 
@@ -80,7 +79,7 @@ definition !e,ad,sh,r,f,ct.
     Multiplexed(e,ExtendHistory(Id(e),ad,sh,r,f)) = 
     TLSFragment.ExtendHistory(e,ParseAD(Id(e),B(ad)),
                    Multiplexed(e,sh),
-                   r,StAEToRecord(e,ParseAD(Id(e),B(ad)),r,f))
+                   r,StAEToRecord(Id(e),ParseAD(Id(e),B(ad)),r,f))
 (* CF delete?
 definition !e,ad,sh,sh',h,ct,r,f. 
   (sh' = ExtendHistory(e,ad,sh,r,f) /\
@@ -165,11 +164,11 @@ val RecordPlainToStAEPlain:
     st:(;Id(e)) history{h = Multiplexed(e,st)} -> 
     rg:range -> 
     f:(;e,ct,h,rg) TLSFragment.plain -> 
-    sf:(;Id(e),ad,st,rg) plain{f = StAEToRecord(e,ct,rg,sf)}
+    sf:(;Id(e),ad,st,rg) plain{f = StAEToRecord(Id(e),ct,rg,sf)}
 
 val StAEPlainToRecordPlain: 
     e:epoch -> ct:ContentType -> ad:(;Id(e))adata{B(ad) = ADBytes(Id(e),ct)} -> 
     h:(;e) TLSFragment.history ->
     st:(;Id(e)) history{h = Multiplexed(e,st)} -> rg:range -> 
     d:(;Id(e),ad,st,rg) plain ->
-    f:(;e,ct,h,rg) TLSFragment.plain{f=StAEToRecord(e,ct,rg,d)}
+    f:(;e,ct,h,rg) TLSFragment.plain{f=StAEToRecord(Id(e),ct,rg,d)}
