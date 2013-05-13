@@ -154,7 +154,12 @@ type id = {
 
 //let idInv (i:id):succEpoch = failwith "requires a log, and pointless to implement anyway"
 
-let unAuthIdInv (i:id):epoch = failwith "only creates epochs for bad ids"
+let unAuthIdInv (i:id):epoch = 
+#if verify
+    failwith "only creates epochs for bad ids"
+#else
+    InitEpoch (i.writer)
+#endif
 
 let macAlg_of_id id = macAlg_of_aeAlg id.aeAlg
 let encAlg_of_id id = encAlg_of_aeAlg id.aeAlg
