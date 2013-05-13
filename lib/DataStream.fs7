@@ -117,8 +117,6 @@ val deltaRepr:
 - we need something stronger than Auth, e.g. Auth /\ Complete.
 - document ghost status of some indexes (so that we can "fake" them)
 
-// AppData ??
-
 // DataStream   (provided by the application)
 
   private type (;e:epoch, h:(;e)stream, r:range) delta = {contents: (;r) rbytes}
@@ -140,6 +138,7 @@ val deltaRepr:
   type (;i:id,s:(;i)stream,r:range)plain = f:(;i,r)fragment{AuthId(i) => Sent(i,s,r,f)}
 
 // TLSFragment, multiplexing 4 protocols.
+// Record also does some packaging
 
   private type (;i:id,ct:ContentType,rg:range) fragment =
     | FHandshake of f:(;i,rg)HSFragment.fragment {ct=Handshake}

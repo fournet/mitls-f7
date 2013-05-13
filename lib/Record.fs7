@@ -12,7 +12,7 @@ open Range
 private type (;e:epoch,rw:rw) ConnectionState =
 	| NullState
 	| SomeState of h :(;e)TLSFragment.history * st:(;Id(e),rw)StatefulLHAE.state
-	   {h = StatefulPlain.Multiplexed(e,StatefulLHAE.History(Id(e),rw,st))}
+	              {h = StatefulPlain.Multiplexed(e,StatefulLHAE.History(Id(e),rw,st))}
 
 val someState:
   e:epoch -> rw:rw -> h:(;e) TLSFragment.history -> 
