@@ -49,8 +49,8 @@ ask !e,r,f,s,d. FragOfDelta(e,r,f,s,d) => Extend(e,s,r,f) = ExtendStreamDelta(e,
 
 val fragment: ki:epoch -> s:(;ki) stream -> r:range ->
   d:(;ki,s,r) delta -> 
-  (f:(;Id(ki),r) fragment * s':(;ki) stream){
-  Sent(ki,s,r,f) /\ s' = Extend(ki,s,r,f) /\ FragOfDelta(ki,r,f,s,d)}
+  f:(;Id(ki),r) fragment * s':(;ki) stream 
+  { Sent(ki,s,r,f) /\ s' = Extend(ki,s,r,f) /\ FragOfDelta(ki,r,f,s,d)}
 
 val delta: ki:epoch -> s:(;ki) stream -> r:range -> 
   f:(;Id(ki),r) fragment{Auth(ki) => Sent(ki,s,r,f)} -> 

@@ -367,7 +367,6 @@ function val EncAlg: id -> encAlg
 definition !id. EncAlg(id)=AEEncAlg(id.aeAlg)
 val encAlg_of_id: i:id -> e:encAlg { EncAlg(i)=e } 
 
-
 function val PvOfId: i:id -> pv:ProtocolVersion
 definition !i. PvOfId(i)=i.pv
 val pv_of_id: i:id -> pv:ProtocolVersion {pv=PvOfId(i)} 

@@ -4,19 +4,19 @@ open TLSInfo
 open Range
 open DataStream
 
-type fragment = {frag: epoch * stream * delta}
-#if verify
+#if ideal
 type fpred = DeltaFragment of epoch * stream * range * delta
 #endif
-type plain = fragment
 
+type fragment = {frag: epoch * stream * delta}
+type plain = fragment
 
 let fragment e s r d = 
     let i = id e in
     let f = {frag = e,s,d} in
-#if verify
+    #if ideal
     Pi.assume (DeltaFragment(e,s,r,d));
-#endif
+    #endif
     let s' = append e s r d in
     (f,s')
 
