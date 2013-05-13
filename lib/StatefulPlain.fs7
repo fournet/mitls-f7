@@ -80,14 +80,6 @@ definition !e,ad,sh,r,f,ct.
     TLSFragment.ExtendHistory(e,ParseAD(Id(e),B(ad)),
                    Multiplexed(e,sh),
                    r,StAEToRecord(Id(e),ParseAD(Id(e),B(ad)),r,f))
-(* CF delete?
-definition !e,ad,sh,sh',h,ct,r,f. 
-  (sh' = ExtendHistory(e,ad,sh,r,f) /\
-   ct = ParseAD(e,B(ad)) /\ //ParseAD(e,B(ad)),
-//   B(ad) =  ADBytes(e,ct) /\
-   h = Multiplexed(e,sh)) => 
-  (Multiplexed(e,sh') = TLSFragment.ExtendHistory(e,ct,h,r,StAEToRecord(e,ct,r,f)))
-  *)
 
 private definition !e,ad,sh,r,f. 
     Sent(Id(e),ad,sh,r,f) <=> 
@@ -112,22 +104,13 @@ val reprFragment:
   i:id{not SafeId(i)} -> ad:(;i)adata -> r:range ->
   f:(;i,B(ad),r) fragment -> b:(;r)rbytes {B(b) = Payload(i,B(ad),r,f)}
 
-(*
-val widen:
-  e:epoch -> ad:(;Id(e))adata -> r:range -> 
-  f:(;Id(e),B(ad),r) fragment -> 
-  f':(;Id(e),B(ad),RangeClass(Id(e),r)) fragment{
-    Payload(Id(e),B(ad),r,f) = Payload(Id(e),B(ad),RangeClass(Id(e),r),f') /\
-    !h. Sent(Id(e),B(ad),h,r,f) => Sent(Id(e),B(ad),h,RangeClass(Id(e),r),f')}
-*)
-
 val widen:
   i:id -> ad:(;i)adata -> r:range -> 
   f:(;i,B(ad),r) fragment -> 
   f':(;i,B(ad),RangeClass(i,r)) fragment{
     Payload(i,B(ad),r,f) = Payload(i,B(ad),RangeClass(i,r),f')}
 (* /\
-    !e',h. Sent(Id(e),B(ad),h,r,f) => Sent(Id(e'),B(ad),h,RangeClass(e,r),f')}
+    !h. Sent(i,B(ad),h,r,f) => Sent(i,B(ad),h,RangeClass(i,r),f')}
 *)
 //------------------------------------------------------------------------------------------------------
 // internal interface towards TLSFragment
@@ -154,7 +137,7 @@ private val consHistory:
 //CF usage? 
 assume !i,ad,h,h',r,f. (AuthId(i) /\ StAEHistory(i,h) /\ StAEHistory(i,h') /\ HLength(i,h) = HLength(i,h')) => h = h'
 
-//----------------------------------------------------MK Everything until here is epoch free since previous marker except for comments.
+//----------------------------------------------------MK Everything until here is epoch free since previous marker
 
 //CF usage? 
 val RecordPlainToStAEPlain: 
