@@ -15,7 +15,7 @@ open Range
 private val min: a:nat -> b:nat -> c:nat{(a<=b /\ c=a) \/ (a>b /\ c=b)}
 private val max: a:nat -> b:nat -> c:nat{(a>=b /\ c=a) \/ (a<b /\ c=b)}
 
-val splitRange: ki:succEpoch -> r:range -> (r0:range * r1:range){r = Sum(r0,r1)} 
+val splitRange: e:succEpoch -> r:range -> (r0:range * r1:range){r = Sum(r0,r1)} 
 //AP /\ RangeFragment(EpochSI(ki),r0)
 
 /// Bytestreams
@@ -110,3 +110,59 @@ val deltaRepr:
   c: (;ki,s,r) delta -> (;r) rbytes 
 
 *)
+
+
+(* CF notes on the "plaintext cascade"
+
+- we need something stronger than Auth, e.g. Auth /\ Complete.
+- document ghost status of some indexes (so that we can "fake" them)
+
+// AppData ??
+
+// DataStream   (provided by the application)
+
+  private type (;e:epoch, h:(;e)stream, r:range) delta = {contents: (;r) rbytes}
+
+// AppFragment  (s,d) re-indexing from epochs ot indexes. FIX COMMENTS.
+// we generate a dummy epoch, Ok. 
+
+- Extend is wrong: not a function.
+- Sent is too strong. As we decrypt, we only know ?e'. I(e) = I(e') /\ ... 
+
+  private type (;i:id,r:range) fragment = 
+    {frag: (e':epoch * s:(;e)stream * d:(;e',s,r) delta
+	       { i = Id(e') /\ (Auth(e') => DeltaFragment(e',s,r,d))}) }
+
+  type (;e:epoch,s:(;e)stream,r:range) plain = f:(;Id(e),r) fragment {Auth(e) => Sent(e,s,r,f)}
+
+// HSFragment, for the other payloads. BROKEN?
+
+  type (;i:id,s:(;i)stream,r:range)plain = f:(;i,r)fragment{AuthId(i) => Sent(i,s,r,f)}
+
+// TLSFragment, multiplexing 4 protocols.
+
+  private type (;i:id,ct:ContentType,rg:range) fragment =
+    | FHandshake of f:(;i,rg)HSFragment.fragment {ct=Handshake}
+    | FCCS       of f:(;i,rg)HSFragment.fragment {ct=Change_cipher_spec}
+    | FAlert     of f:(;i,rg)HSFragment.fragment {ct=Alert}
+    | FAppData   of f:(;i,rg)AppFragment.fragment{ct=Application_data}
+
+// StatefulPlain, for StatefulAEAD
+
+  private type (;i:id,ad:cbytes,r:range) fragment = 
+    {contents: (;i,ParseAD(e,ad),r)TLSFragment.fragment}
+
+// LHAEPlain, for LHAE
+
+  private type (;i:id,ad:cbytes,r:range) fragment = 
+    {contents: (;i,ParseAD(i,ad),r)StatefulPlain.fragment}
+
+// Encode, for ENC
+
+  private type (;i:id,ad:(;i)LHAEPlain.adata,rg:range) plain =
+	{ plain: (;i,ad,rg)LHAEPlain.plain;
+	  tag  : (;i)MAC.tag;
+	  ok   : b:bool { EncAlg(i) = Stream_RC4_128 => b = true }
+
+*) 
+

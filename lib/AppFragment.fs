@@ -47,10 +47,10 @@ let delta' ki s r f =
 *)
 
 let plain i r b =
-  let ki = TLSInfo.unAuthIdInv i in
-  let s = DataStream.init ki in
-  let d = DataStream.deltaPlain ki s r b in
-  {frag = (ki,s,d)}
+  let e = TLSInfo.unAuthIdInv i in
+  let s = DataStream.init e in
+  let d = DataStream.deltaPlain e s r b in
+  {frag = (e,s,d)}
 
 let repr (i:id) r f =
   let (ki',s,d) = f.frag in

@@ -10,12 +10,12 @@ open DataStream
 
 //CF an event recording the creation of any fragment, assumed in fragment. What for?
 predicate DeltaFragment of ki:epoch * s:(;ki) stream * r:range * (;ki,s,r)delta
+
 private type (;ki:id,r:range) fragment = 
   {frag: (e:epoch * s:(;e)stream * d:(;e,s,r) delta{ ki = Id(e) /\ (Auth(e) => DeltaFragment(e,s,r,d))}) }
 
 function val Payload: e:id * r:range * (;e,r)fragment -> cbytes
-private definition !e,r,s,d. Payload(Id(e),r,{frag = (e,s,d)}) = 
-                             DataStream.Payload(e,s,r,d)
+private definition !e,r,s,d. Payload(Id(e),r,{frag = (e,s,d)}) = DataStream.Payload(e,s,r,d)
 
 (* AP FIXME: next definition is wrong. It should be
    Extend(ki,s,r,{frag = (s,d)}) = ExtendStreamDelta(ki,s,r,d)
@@ -24,14 +24,14 @@ private definition !e,r,s,d. Payload(Id(e),r,{frag = (e,s,d)}) =
    KB: The definition below is intentional.
        The ghost epoch and stream inside the frag       
        are irrelevant, since we will prove they are
-       the same as the ones outside using Sent
+       the same as the ones outside using Sent.
+   CF: This definition seems too strong.
 *)
 
-function val Extend: 'a * 'b * 'c * 'd -> 'e
-private definition !ki,s,r,f,ki',s',d. 
-  f.frag = (ki',s',d) =>   
-  Extend(ki,s,r,f) = 
-  DataStream.ExtendStreamDelta(ki,s,r,d)
+function val Extend: epoch * 'b * range * 'd -> 'e
+private definition !e,s,r,f,e',s',d. 
+  f.frag = (e',s',d) =>   
+  Extend(e,s,r,f) = DataStream.ExtendStreamDelta(e,s,r,d)
 
 predicate FragOfDelta of e:epoch * r:range * (;Id(e),r)fragment * s:(;e)stream * (;e,s,r)delta
 private definition !e,r,f,s,d.
@@ -48,7 +48,7 @@ private definition !ki,s,r,f. Sent(ki,s,r,f) <=>
 
 ask !ki,s,r,f. Sent(ki,s,r,f) => (?d. f.frag = (ki,s,d))
 
-type (;e:epoch,s:(;e)stream,r:range)plain = f:(;Id(e),r) fragment{Auth(e) => Sent(e,s,r,f)}
+type (;e:epoch,s:(;e)stream,r:range) plain = f:(;Id(e),r) fragment{Auth(e) => Sent(e,s,r,f)}
 
 // range-based fragmentation 
 
@@ -68,10 +68,10 @@ val delta': ki:epoch -> s:(;Id(ki)) stream -> r:range ->
   d:(;Id(ki),s,r) delta * s':(;Id(ki)) stream{s' = ExtendStreamDelta(Id(ki),s,r,d)}
 *)
 
-val plain: ki:id{not AuthId(ki)} -> r:range -> b:(;r) rbytes -> 
-  f:(;ki,r) fragment{B(b) = Payload(ki,r,f)}
-val repr:  ki:id{not SafeId(ki)} -> r:range -> f:(;ki,r) fragment ->
-  b:(;r) rbytes{B(b) = Payload(ki,r,f)}
+val plain: ki:id{not AuthId(ki)} -> r:range -> 
+  b:(;r) rbytes -> f:(;ki,r) fragment{B(b) = Payload(ki,r,f)}
+val repr:  ki:id{not SafeId(ki)} -> r:range -> 
+  f:(;ki,r) fragment -> b:(;r) rbytes{B(b) = Payload(ki,r,f)}
 
 // We use this function for ideal decryption by table lookup,
 // as the range after decryption is usually wider than the one used for encryption.
