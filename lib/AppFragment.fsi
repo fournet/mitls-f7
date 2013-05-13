@@ -13,5 +13,5 @@ val plain: id -> range -> bytes -> fragment
 val repr:  id -> range -> fragment -> bytes
 
 #if ideal
-val widen: epoch -> range -> fragment -> fragment
+val widen: id -> range -> fragment -> fragment
 #endif
