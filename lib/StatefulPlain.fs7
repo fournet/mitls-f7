@@ -67,25 +67,7 @@ private definition !i,ad,sn,h,r,f.
 theorem !i,ad,sn,h,r,f.
     Sent(i,B(ad),(sn,h),r,f) => (StAEHistory(i,h) /\ HLength(i,h) = sn)
 
-//----------------------------------------------------MK Everything until here is completely epoch free.
 
-function val StAEToRecord: i:id * ct:ContentType * r:range * f:(;i,ADBytes(i,ct),r)fragment -> 'a //(;i,ct,r)TLSFragment.fragment
-private definition !i,ct,r,f. StAEToRecord(i,ct,r,f) = f.contents 
-
-function val Multiplexed: e:epoch * (;Id(e)) history -> 'b //(;e)TLSFragment.history
-definition !e. 
-    Multiplexed(e,EmptyHistory(Id(e))) = TLSFragment.EmptyHistory(e)
-definition !e,ad,sh,r,f,ct. 
-    Multiplexed(e,ExtendHistory(Id(e),ad,sh,r,f)) = 
-    TLSFragment.ExtendHistory(e,ParseAD(Id(e),B(ad)),
-                   Multiplexed(e,sh),
-                   r,StAEToRecord(Id(e),ParseAD(Id(e),B(ad)),r,f))
-
-private definition !e,ad,sh,r,f. 
-    Sent(Id(e),ad,sh,r,f) <=> 
-    TLSFragment.RecordSent(e,ParseAD(Id(e),ad),Multiplexed(e,sh),r,f.contents)
-
-//----------------------------------------------------MK End of epoch id mixture.
 
 //------------------------------------------------------------------------------------------------------
 // `Plain' interface towards StatefulLHAE, encapsulating TLS-specific headers and content types
@@ -137,7 +119,24 @@ private val consHistory:
 //CF usage? 
 assume !i,ad,h,h',r,f. (AuthId(i) /\ StAEHistory(i,h) /\ StAEHistory(i,h') /\ HLength(i,h) = HLength(i,h')) => h = h'
 
-//----------------------------------------------------MK Everything until here is epoch free since previous marker
+//MK---------------------------------------------------- Everything until here is epoch free
+
+
+function val StAEToRecord: i:id * ct:ContentType * r:range * f:(;i,ADBytes(i,ct),r)fragment -> 'a //(;i,ct,r)TLSFragment.fragment
+private definition !i,ct,r,f. StAEToRecord(i,ct,r,f) = f.contents 
+
+function val Multiplexed: e:epoch * (;Id(e)) history -> 'b //(;e)TLSFragment.history
+definition !e. 
+    Multiplexed(e,EmptyHistory(Id(e))) = TLSFragment.EmptyHistory(e)
+definition !e,ad,sh,r,f,ct. 
+    Multiplexed(e,ExtendHistory(Id(e),ad,sh,r,f)) = 
+    TLSFragment.ExtendHistory(e,ParseAD(Id(e),B(ad)),
+                   Multiplexed(e,sh),
+                   r,StAEToRecord(Id(e),ParseAD(Id(e),B(ad)),r,f))
+
+private definition !e,ad,sh,r,f. 
+    Sent(Id(e),ad,sh,r,f) <=> 
+    TLSFragment.RecordSent(e,ParseAD(Id(e),ad),Multiplexed(e,sh),r,f.contents)
 
 //CF usage? 
 val RecordPlainToStAEPlain: 
