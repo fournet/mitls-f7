@@ -16,8 +16,8 @@ include Makefile.config
 # --------------------------------------------------------------------
 all: build
 
-build = $(msbuild) /p:Configuration=$(1)
-clean = $(msbuild) /v:minimal /p:Configuration=$(1) /t:Clean
+build = $(msbuild) /p:Configuration=$(1) tls.sln
+clean = $(msbuild) /v:minimal /p:Configuration=$(1) /t:Clean tls.sln
 
 build:
 	$(call build,Release)
