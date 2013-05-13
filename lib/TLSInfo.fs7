@@ -257,7 +257,7 @@ private type preEpoch =
   | InitEpoch of writer:Role
   | SuccEpoch of crand * srand  (* the latest randoms     *)
                * si:SessionInfo
-               * pred:preEpoch 
+               * pred:preEpoch
 
 predicate val IsInitEpoch: preEpoch -> bool
 predicate val IsSuccEpoch: preEpoch -> bool
@@ -315,6 +315,9 @@ val initConnection: r:Role -> ra:random -> ci:ConnectionInfo
   { ci.role = r /\ ci.id_rand = ra /\ IsInitEpoch(ci.id_in) /\ IsInitEpoch(ci.id_out)}
 val nextEpoch: e:epoch -> c:crand -> s:srand -> si:SessionInfo -> e':succEpoch
   { Pred(e') = e /\ EpochSI(e') = si /\ EpochCRand(e') = c /\ EpochSRand(e') = s}
+
+val predEpoch: e:succEpoch -> e':epoch
+  { ?cr,sr,si. e = SuccEpoch(cr,sr,si,e') }
 
 // -------------------------------------------------------------------
 // indexing instances of AE --- an abstrac parameter for StatefulAEAD et al
@@ -442,7 +445,9 @@ definition !e:epoch. IsSuccEpoch(e) => Id(e) = SiId(EpochSI(e),EpochWriter(e))
 
 ask !wr:Role. Id(InitEpoch(wr)) = noId
 ask !wr:Role. not AuthId(Id(InitEpoch(wr)))
-//CF no! val idInv: i:id -> s:succEpoch {Id(s)=i}
+
+//KB maybe we don't need this, but it helps in AppFragment for now
+val unAuthIdInv: i:id{not AuthId(i)} -> s:epoch {Id(s) = i}
 
 ask !e. IsInitEpoch(e) => not AuthId(Id(e))
 
@@ -467,11 +472,11 @@ val safeHS: (e:epoch) -> b:bool { b = true <=> SafeHS(e)}
 // Predicates specifying the security of TLS connections 
 
 predicate Safe   of epoch        // The epoch parameters yield privacy & integrity
-definition !e. Safe(e) <=> IsSuccEpoch(e) /\ SafeId(Id(e))
+definition !e. Safe(e) <=> SafeId(Id(e))
 val safe:   (e:epoch) -> b:bool { b = true <=> Safe(e)}
 
 predicate Auth   of epoch        // The epoch parameters yield integrity (not necesarily privacy)
-definition !e. Auth(e) <=> IsSuccEpoch(e) /\ AuthId(Id(e))
+definition !e. Auth(e) <=> AuthId(Id(e))
 val auth:    (e:epoch) -> b:bool {b = true <=> Auth(e)}
 
 ask !e. Safe(e) => Auth(e)

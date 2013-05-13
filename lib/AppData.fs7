@@ -9,11 +9,11 @@ open Range
 
 private type (;ki:epoch) input_buffer =
 	| NoneIBuf of (;ki)stream
-	| SomeIBuf of h:(;ki) stream * r:range * f:(;ki,r)AppFragment.fragment
+	| SomeIBuf of h:(;ki) stream * r:range * f:(;Id(ki),r)AppFragment.fragment
 			{Auth(ki) => AppFragment.Sent(ki,h,r,f)}
 private type (;ki:epoch) output_buffer =
 	| NoneOBuf of (;ki)stream
-	| SomeOBuf of s:(;ki) stream * r:range * f:(;ki,r)AppFragment.fragment *
+	| SomeOBuf of s:(;ki) stream * r:range * f:(;Id(ki),r)AppFragment.fragment *
 				 s':(;ki)stream{s' = AppFragment.Extend(ki,s,r,f) /\
 				 (Auth(ki) => AppFragment.Sent(ki,s,r,f))}
 
@@ -54,7 +54,7 @@ val init: ci:ConnectionInfo ->
 		AppInStream(ci,s) = EmptyStream(ci.id_in) /\ AppOutStream(ci,s) = EmptyStream(ci.id_out)}
 
 val writeAppData: ci:ConnectionInfo -> s:(;ci)app_state ->
-	r:range -> f:(;ci.id_out,r)AppFragment.fragment{Auth(ci.id_out) => AppFragment.Sent(ci.id_out,AppOutStream(ci,s),r,f)} ->
+	r:range -> f:(;Id(ci.id_out),r)AppFragment.fragment{Auth(ci.id_out) => AppFragment.Sent(ci.id_out,AppOutStream(ci,s),r,f)} ->
 	st:(;ci.id_out)stream{st = AppFragment.Extend(ci.id_out,AppOutStream(ci,s),r,f)} ->
 	s':(;ci)app_state{AppOutBuf(ci,s') = Some((r,f,st)) /\
 		AppInBuf(ci,s') = AppInBuf(ci,s) /\
@@ -66,7 +66,7 @@ private val some: x:'a -> o:'a option{o = Some(x)}
 	
 val next_fragment: ci:ConnectionInfo{IsSuccEpoch(ci.id_out)} -> 
   s:(;ci)app_state ->
-  ro:((r:range * f:(;ci.id_out,r)AppFragment.fragment * s':(;ci)app_state)
+  ro:((r:range * f:(;Id(ci.id_out),r)AppFragment.fragment * s':(;ci)app_state)
 	{(Auth(ci.id_out) => AppFragment.Sent(ci.id_out,AppOutStream(ci,s),r,f) ) /\
 	  AppOutStream(ci,s') = AppFragment.Extend(ci.id_out,AppOutStream(ci,s),r,f) /\
 	  AppOutBuf(ci,s) = Some((r,f,AppFragment.Extend(ci.id_out,AppOutStream(ci,s),r,f))) /\
@@ -84,7 +84,7 @@ val clearOutBuf: ci:ConnectionInfo -> s:(;ci)app_state ->
 		}
 
 val recv_fragment: ci:ConnectionInfo -> s:(;ci)app_state -> r:range ->
-	f:(;ci.id_in,r)AppFragment.fragment{Auth(ci.id_in) =>
+	f:(;Id(ci.id_in),r)AppFragment.fragment{Auth(ci.id_in) =>
 		AppFragment.Sent(ci.id_in,AppInStream(ci,s),r,f)} ->
 	s':(;ci)app_state{AppInBuf(ci,s') = Some((r,f)) /\
 		AppOutStream(ci,s') = AppOutStream(ci,s) /\

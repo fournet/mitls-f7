@@ -127,7 +127,7 @@ let read (fd : int) : int * bytes =
 #else
             let plain =
                 DataStream.deltaRepr
-                    (id (Dispatch.getEpochIn conn)) (TLS.getInStream conn) rg m
+                    ((Dispatch.getEpochIn conn)) (TLS.getInStream conn) rg m
             in
 #endif
                 let _ = update_fd_connection fd c.canwrite conn in
@@ -143,7 +143,7 @@ let mkDelta (conn : Connection) (bytes : bytes) : delta =
     let st = TLS.getOutStream conn  in
     let rg = (Bytes.length bytes, Bytes.length bytes) in
     let i = id ki in
-        DataStream.createDelta i st rg bytes
+        DataStream.createDelta ki st rg bytes
 
 let write (fd : fd) (bytes : bytes) : int =
     match connection_of_fd fd with
@@ -168,7 +168,7 @@ let write (fd : fd) (bytes : bytes) : int =
                         empty_bytes
 #else
                         DataStream.deltaRepr
-                            (id (Dispatch.getEpochOut conn)) (TLS.getOutStream conn) r m
+                            ((Dispatch.getEpochOut conn)) (TLS.getOutStream conn) r m
 #endif
                     in
                         (Bytes.length bytes) - (Bytes.length rem)

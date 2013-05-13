@@ -112,7 +112,7 @@ let recvMsg = fun conn ->
           | Read       (conn, (r, d))    ->
                 let ki     = Dispatch.getEpochIn  conn in
                 let s      = TLS.getInStream conn in
-                let buffer = buffer @| (DataStream.deltaRepr (id ki) s r d) in
+                let buffer = buffer @| (DataStream.deltaRepr ki s r d) in
 
                 if Bytes.length buffer < 2+msglen then
                     doit conn buffer
@@ -138,7 +138,7 @@ let doclient (request : string) =
 
         let msg =
             DataStream.createDelta
-                (id (Dispatch.getEpochOut conn)) (TLS.getOutStream conn)
+                ((Dispatch.getEpochOut conn)) (TLS.getOutStream conn)
                 (Bytes.length request, Bytes.length request) request in
 
         match sendMsg conn (Bytes.length request, Bytes.length request) msg with
@@ -183,7 +183,7 @@ let doserver () =
 
                         let msg =
                             DataStream.createDelta
-                                (id (Dispatch.getEpochOut conn)) (TLS.getOutStream conn)
+                                ((Dispatch.getEpochOut conn)) (TLS.getOutStream conn)
                                 (Bytes.length response, Bytes.length response) response in
 
                         match sendMsg conn (Bytes.length response, Bytes.length response) msg with

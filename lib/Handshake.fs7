@@ -76,8 +76,7 @@ definition !cv,clRdm,sid,cls,cm,ext,b.
               
 val clientHelloBytes: c:config -> cr:random -> sid:sessionID -> ext:bytes -> m:bytes{B(m) = ClientHelloMsg(c.maxVer,cr,sid,c.ciphersuites,c.compressions,ext)}
 val parseClientHello: m:bytes -> 
-	( pv:ProtocolVersion * cr:crand * sid:sessionID * cs:cipherSuites * cm:Compression list * ext:bytes )
-	  {?cs',cm'. MessageBytes(HT_client_hello,B(m)) = ClientHelloMsg(pv,cr,sid,cs',cm',ext)}) Result
+	(pv:ProtocolVersion * cr:crand * sid:sessionID * cs:cipherSuites * cm:Compression list * ext:bytes{?cs',cm'. MessageBytes(HT_client_hello,B(m)) = ClientHelloMsg(pv,cr,sid,cs',cm',ext)}) Result
 //KB TODO? /\ ContainsCipherSuites(cs',cs) /\ ContainsCompressions(cm',cm)}) Result
 
 function val ServerHelloMsg: (ProtocolVersion * random * sessionID * cipherSuite * Compression * bytes) -> cbytes

@@ -79,6 +79,7 @@ type preEpoch
 type epoch = preEpoch
 
 val id: epoch -> id 
+val unAuthIdInv: id -> epoch
 
 val isInitEpoch: epoch -> bool
 val epochSI: epoch -> SessionInfo

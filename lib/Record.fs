@@ -18,7 +18,7 @@ type recvState = ConnectionState
 
 let initConnState (ki:epoch) (rw:rw) s = 
   let i = id ki in
-  let eh = TLSFragment.emptyHistory i in
+  let eh = TLSFragment.emptyHistory ki in
   someState ki rw eh s
 
 let nullConnState (ki:epoch) (rw:rw) = NullState
@@ -151,6 +151,6 @@ let history (e:epoch) (rw:rw) s =
     match s with
     | NullState -> 
         let i = id e in
-        TLSFragment.emptyHistory i
+        TLSFragment.emptyHistory e
     | SomeState(h,_) -> h
 

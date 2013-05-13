@@ -20,7 +20,8 @@ let makeAD (e:id) ct =
 let parseAD (e:id) ad =
     let pv = pv_of_id e
     if pv = SSL_3p0 then
-        match parseCT ad with
+        let pct = parseCT ad in
+        match pct with
         | Error x -> unexpected "[parseAD] should never parse failing"
         | Correct(ct) -> ct
     else
@@ -61,10 +62,11 @@ let extendHistory (e:id) d (sh:history) (r:range) f =
   let res = (s',nh) in
   res
 
-let plain (e:id) (h:history) (ad:adata) (r:range) (b:bytes) =
+let plain (i:id) (h:history) (ad:adata) (r:range) (b:bytes) =
+    let e = unAuthIdInv i in
     let h = TLSFragment.emptyHistory e //CF Not Auth: we can pick any history
-    let ct = parseAD e ad in
-    {contents = TLSFragment.fragment e ct r b}
+    let ct = parseAD i ad in
+    {contents = TLSFragment.fragment i ct r b}
 let reprFragment (e:id) (ad:adata) (r:range) (f:plain) =
     let ct = parseAD e ad in
     let x = f.contents in
@@ -72,10 +74,9 @@ let reprFragment (e:id) (ad:adata) (r:range) (f:plain) =
 let repr e (h:history) ad r f = reprFragment e ad r f
 
 #if ideal
-let widen e ad r f =
-    let ee = idInv e
-    let ct = parseAD e ad in
-    let f1 = TLSFragment.widen ee ct r f.contents in
+let widen i ad r f =
+    let ct = parseAD i ad in
+    let f1 = TLSFragment.widen i ct r f.contents in
     {contents = f1}
 #endif
 

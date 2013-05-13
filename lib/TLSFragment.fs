@@ -21,17 +21,18 @@ type history = {
   appdata:   DataStream.stream //CF AppData.stream;
 }
 
-let emptyHistory ki =
-    let es = HSFragment.init ki in
-    let ehApp = DataStream.init ki in
+let emptyHistory e =
+    let i = id e in
+    let es = HSFragment.init i in
+    let ehApp = DataStream.init e in
     { handshake = es;
       ccs = es;
       alert = es;
-      appdata = ehApp} in
+      appdata = ehApp} 
 
-let handshakeHistory (e:id) h = h.handshake
-let ccsHistory (e:id) h = h.ccs
-let alertHistory (e:id) h = h.alert
+let handshakeHistory (e:epoch) h = h.handshake
+let ccsHistory (e:epoch) h = h.ccs
+let alertHistory (e:epoch) h = h.alert
 
 let fragment ki ct rg b =  
     match ct with
@@ -100,8 +101,7 @@ let extendHistory (e:epoch) ct ss r frag =
     //CF unreachable too, but we'd need to list the other 12 cases to prove it. 
 
 #if ideal
-let widen e ct r0 f0 =
-    let i = id e in
+let widen i ct r0 f0 =
     let r1 = rangeClass i r0 in
     match ct,f0 with
     | Handshake,FHandshake(f)      -> let f1 = HSFragment.widen i r0 r1 f in 
@@ -110,7 +110,7 @@ let widen e ct r0 f0 =
                                       FAlert(f1)
     | Change_cipher_spec,FCCS(f)   -> let f1 = HSFragment.widen i r0 r1 f in
                                       FCCS(f1)
-    | Application_data,FAppData(f) -> let f1 = AppFragment.widen e r0 f in 
+    | Application_data,FAppData(f) -> let f1 = AppFragment.widen i r0 f in 
                                       FAppData(f1)
     | _,_                          -> unexpected "[widen] invoked on an invalid contenttype/fragment"
     //CF unreachable too

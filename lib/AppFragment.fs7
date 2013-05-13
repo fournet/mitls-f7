@@ -9,52 +9,64 @@ open DataStream
    predicates & functions to re-index with/without s. *) 
 
 //CF an event recording the creation of any fragment, assumed in fragment. What for?
-predicate DeltaFragment of ki:id * s:(;ki) stream * r:range * (;ki,s,r)delta
+predicate DeltaFragment of ki:epoch * s:(;ki) stream * r:range * (;ki,s,r)delta
 private type (;ki:id,r:range) fragment = 
-  {frag: (s:(;ki)stream * d:(;ki,s,r) delta{ AuthId(ki) => DeltaFragment(ki,s,r,d)}) }
+  {frag: (e:epoch * s:(;e)stream * d:(;e,s,r) delta{ ki = Id(e) /\ (Auth(e) => DeltaFragment(e,s,r,d))}) }
 
 function val Payload: e:id * r:range * (;e,r)fragment -> cbytes
-private definition !e,r,s,d. Payload(e,r,{frag = (s,d)}) = DataStream.Payload(e,s,r,d)
+private definition !e,r,s,d. Payload(Id(e),r,{frag = (e,s,d)}) = 
+                             DataStream.Payload(e,s,r,d)
 
 (* AP FIXME: next definition is wrong. It should be
    Extend(ki,s,r,{frag = (s,d)}) = ExtendStreamDelta(ki,s,r,d)
    Note there's no (s').
    Not doing it now as it breaks some functions.
+   KB: The definition below is intentional.
+       The ghost epoch and stream inside the frag       
+       are irrelevant, since we will prove they are
+       the same as the ones outside using Sent
 *)
-function val Extend: 'a * 'b * 'c * 'd -> 'e
-private definition !ki,s,r,s',d. 
-  Extend(ki,s,r,{frag = (s',d)}) = ExtendStreamDelta(ki,s,r,d)
 
-predicate FragOfDelta of e:id * r:range * (;e,r)fragment * s:(;e)stream * (;e,s,r)delta
+function val Extend: 'a * 'b * 'c * 'd -> 'e
+private definition !ki,s,r,f,ki',s',d. 
+  f.frag = (ki',s',d) =>   
+  Extend(ki,s,r,f) = 
+  DataStream.ExtendStreamDelta(ki,s,r,d)
+
+predicate FragOfDelta of e:epoch * r:range * (;Id(e),r)fragment * s:(;e)stream * (;e,s,r)delta
 private definition !e,r,f,s,d.
-	FragOfDelta(e,r,f,s,d) <=> f.frag = (s,d)
+	FragOfDelta(e,r,f,s,d) <=> f = {frag = (e,s,d)}
 
 ask !e,r,f,s,d. FragOfDelta(e,r,f,s,d) =>
-	Payload(e,r,f) = DataStream.Payload(e,s,r,d)
+	Payload(Id(e),r,f) = DataStream.Payload(e,s,r,d)
 ask !e,r,f,s,d. FragOfDelta(e,r,f,s,d) =>
  	Extend(e,s,r,f) = ExtendStreamDelta(e,s,r,d)
 
-predicate Sent of ki:epoch * (;Id(ki)) stream * r:range * (;Id(ki),r)fragment
+predicate Sent of ki:epoch * (;ki) stream * r:range * (;Id(ki),r)fragment
 private definition !ki,s,r,f. Sent(ki,s,r,f) <=> 
-  (?d,r. f.frag = (s,d) /\ DeltaFragment(Id(ki),s,r,d))
+  (?d,r. f.frag = (ki,s,d) /\ DeltaFragment(ki,s,r,d))
 
-type (;e:epoch,s:(;e)stream,r:range)plain = f:(;Id(e),r) fragment{AuthId(Id(e)) => Sent(e,s,r,f)}
+ask !ki,s,r,f. Sent(ki,s,r,f) => (?d. f.frag = (ki,s,d))
+
+type (;e:epoch,s:(;e)stream,r:range)plain = f:(;Id(e),r) fragment{Auth(e) => Sent(e,s,r,f)}
 
 // range-based fragmentation 
 
-val fragment: ki:succEpoch -> s:(;Id(ki)) stream -> r:range ->
-  d:(;Id(ki),s,r) delta -> 
-  (f:(;Id(ki),r) fragment * s':(;Id(ki)) stream){
-  Sent(ki,s,r,f) /\ s' = Extend(Id(ki),s,r,f) /\ FragOfDelta(Id(ki),r,f,s,d)}
+val fragment: ki:epoch -> s:(;ki) stream -> r:range ->
+  d:(;ki,s,r) delta -> 
+  (f:(;Id(ki),r) fragment * s':(;ki) stream){
+  Sent(ki,s,r,f) /\ s' = Extend(ki,s,r,f) /\ FragOfDelta(ki,r,f,s,d)}
 
-val delta: ki:succEpoch -> s:(;Id(ki)) stream -> r:range -> 
-  f:(;Id(ki),r) fragment{AuthId(Id(ki)) => Sent(ki,s,r,f)} -> 
-  d:(;Id(ki),s,r) delta * s':(;Id(ki)) stream{s' = Extend(Id(ki),s,r,f)} //AP /\ FragOfDelta(ki,r,f,s,d)}
+val delta: ki:epoch -> s:(;ki) stream -> r:range -> 
+  f:(;Id(ki),r) fragment{Auth(ki) => Sent(ki,s,r,f)} -> 
+  d:(;ki,s,r) delta * s':(;ki) stream{s' = Extend(ki,s,r,f)} 
 
+(*KB unused
 //CF what for?
 val delta': ki:epoch -> s:(;Id(ki)) stream -> r:range -> 
-  f:(;Id(ki),r) fragment{not AuthId(Id(ki))} -> 
+  f:(;Id(ki),r) fragment{not AuthId(ki)} -> 
   d:(;Id(ki),s,r) delta * s':(;Id(ki)) stream{s' = ExtendStreamDelta(Id(ki),s,r,d)}
+*)
 
 val plain: ki:id{not AuthId(ki)} -> r:range -> b:(;r) rbytes -> 
   f:(;ki,r) fragment{B(b) = Payload(ki,r,f)}
@@ -64,15 +76,18 @@ val repr:  ki:id{not SafeId(ki)} -> r:range -> f:(;ki,r) fragment ->
 // We use this function for ideal decryption by table lookup,
 // as the range after decryption is usually wider than the one used for encryption.
 // (Note that by design the encryption ranges are *not* authenticated).
-val widen: e:succEpoch -> r0:range -> f0:(;Id(e),r0)fragment -> 
-    f1:(;Id(e),RangeClass(Id(e),r0))fragment{
-    Payload(Id(e),r0,f0) = Payload(Id(e),RangeClass(Id(e),r0),f1) /\
-    !s. Sent(e,s,r0,f0) => Sent(e,s,RangeClass(Id(e),r0),f1)}
+val widen: ki:id -> r0:range -> f0:(;ki,r0)fragment -> 
+    f1:(;ki,RangeClass(ki,r0))fragment{
+    Payload(ki,r0,f0) = Payload(ki,RangeClass(ki,r0),f1) /\
+    !e,s. Sent(e,s,r0,f0) => Sent(e,s,RangeClass(ki,r0),f1)}
 
 //CF where do we use this theorem?
 // injectivity of data-fragment (follows from linearity of streams)
 private theorem !ki,s,r1,r2,f1,f2. 
-  DeltaFragment(ki,s,r1,f1) /\ DeltaFragment(ki,s,r2,f2) => (f1 = f2)
+  Auth(ki) /\ 
+  DeltaFragment(ki,s,r1,f1) /\ 
+  DeltaFragment(ki,s,r2,f2) => (f1 = f2)
+
 
 
  

@@ -12,23 +12,23 @@ open Range
 
 private type (;ki:epoch,rw:rw) ConnectionState =
 	| NullState
-	| SomeState of h :(;Id(ki))TLSFragment.history * st:(;Id(ki),rw)StatefulLHAE.state
-	   {h = StatefulPlain.Multiplexed(Id(ki),StatefulLHAE.History(Id(ki),rw,st))}
+	| SomeState of h :(;ki)TLSFragment.history * st:(;Id(ki),rw)StatefulLHAE.state
+	   {h = StatefulPlain.Multiplexed(ki,StatefulLHAE.History(Id(ki),rw,st))}
 
-val someState: ki:epoch -> rw:rw -> h:(;Id(ki)) TLSFragment.history -> st: (;Id(ki),rw) StatefulLHAE.state{h = StatefulPlain.Multiplexed(Id(ki),StatefulLHAE.History(Id(ki),rw,st))} -> cs:(;ki,rw) ConnectionState{cs = SomeState (h,st)}
+val someState: ki:epoch -> rw:rw -> h:(;ki) TLSFragment.history -> st: (;Id(ki),rw) StatefulLHAE.state{h = StatefulPlain.Multiplexed(ki,StatefulLHAE.History(Id(ki),rw,st))} -> cs:(;ki,rw) ConnectionState{cs = SomeState (h,st)}
 
 function val History: ki:epoch * rw:rw * (;ki,rw) ConnectionState -> 'a
 private definition !ki,rw,h,s. History(ki,rw,SomeState(h,s)) = h
-private definition !ki,rw,s.   History(ki,rw,NullState) = TLSFragment.EmptyHistory(Id(ki))
+private definition !ki,rw,s.   History(ki,rw,NullState) = TLSFragment.EmptyHistory(ki)
 
 type (;ki:epoch) sendState = (;ki,Writer) ConnectionState 
 type (;ki:epoch) recvState = (;ki,Reader) ConnectionState
 
 val initConnState: ki:succEpoch -> rw:rw ->
 	state:(;Id(ki),rw) StatefulLHAE.state{StatefulLHAE.History(Id(ki),rw,state) = StatefulPlain.EmptyHistory(Id(ki))} ->
-	cs:(;ki,rw) ConnectionState{History(ki,rw,cs) = TLSFragment.EmptyHistory(Id(ki))}
+	cs:(;ki,rw) ConnectionState{History(ki,rw,cs) = TLSFragment.EmptyHistory(ki)}
 val nullConnState: ki:epoch -> rw:rw ->
-	cs:(;ki,rw) ConnectionState{History(ki,rw,cs) = TLSFragment.EmptyHistory(Id(ki))}
+	cs:(;ki,rw) ConnectionState{History(ki,rw,cs) = TLSFragment.EmptyHistory(ki)}
 
 private val makePacket: ContentType -> ProtocolVersion -> bytes -> bytes
 
@@ -43,7 +43,7 @@ val recordPacketOut: ki:epoch ->
                      f:(;ki,ct,History(ki,Writer,ss),rg) TLSFragment.plain ->
                      (ss':(;ki) sendState * wire:bytes){
 						Auth(ki) => (History(ki,Writer,ss') = 
-                                                             TLSFragment.ExtendHistory(Id(ki),ct,History(ki,Writer,ss),rg,f))}
+                                                             TLSFragment.ExtendHistory(ki,ct,History(ki,Writer,ss),rg,f))}
  
 val recordPacketIn : ki:succEpoch ->
                      rs:(;ki) recvState -> 
@@ -53,12 +53,12 @@ val recordPacketIn : ki:succEpoch ->
                         rg:range * 
                         f:(;ki,ct,History(ki,Reader,rs),rg) TLSFragment.plain) Result{
                        !rs',ct,pv,rg,f. (res = Correct ((rs',ct,pv,rg,f)) /\ Auth(ki)) => 
-                         (History(ki,Reader,rs') = TLSFragment.ExtendHistory(Id(ki),ct,History(ki,Reader,rs),rg,f))}
+                         (History(ki,Reader,rs') = TLSFragment.ExtendHistory(ki,ct,History(ki,Reader,rs),rg,f))}
 
 
 
 val history: ki:epoch -> rw:rw -> s:(;ki,rw) ConnectionState ->
-	h:(;Id(ki))TLSFragment.history{h=History(ki,rw,s)}
+	h:(;ki)TLSFragment.history{h=History(ki,rw,s)}
 
 //TODO val historyStream: e:epoch -> st:(;e) ConnectionState -> 
 //TODO  ct:TLSConstants.ContentType -> s:(;e)stream{s=HistoryStream(e,ct,History(e,st))}

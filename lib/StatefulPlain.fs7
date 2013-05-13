@@ -19,8 +19,8 @@ type (;e:id) adata = (b:bytes){Length(b) = ADLength(e)}
 
 function val ADBytes: id * ContentType -> cbytes //(;e)StatefulPlain.adata
 private definition !e,ct.
-	(e.pv  = SSL_3p0  /\ ADBytes(e,ct) = CTBytes(ct) ) \/
-	(e.pv  <> SSL_3p0 /\ ADBytes(e,ct) = (CTBytes(ct) @| VersionBytes(e.pv )))
+	(PvOfId(e)  = SSL_3p0  => ADBytes(e,ct) = CTBytes(ct) ) /\
+	(PvOfId(e) <> SSL_3p0  => ADBytes(e,ct) = (CTBytes(ct) @| VersionBytes(e.pv )))
 
 function val ParseAD: e:id * cbytes -> ContentType
 private definition !b,e,ct. ParseAD(e,ADBytes(e,ct)) = ct
@@ -70,13 +70,13 @@ theorem !e,ad,sn,h,r,f.
 function val StAEToRecord: e:epoch * ct:ContentType * r:range * f:(;e,ADBytes(e,ct),r)fragment -> 'a // (;e,ct,r)TLSFragment.fragment
 private definition !e,ct,r,f. StAEToRecord(e,ct,r,f) = f.contents 
 
-function val Multiplexed: e:id * (;e) history -> 'b //(;e)TLSFragment.history
+function val Multiplexed: e:epoch * (;Id(e)) history -> 'b //(;e)TLSFragment.history
 definition !e. 
-    Multiplexed(Id(e),EmptyHistory(Id(e))) = TLSFragment.EmptyHistory(Id(e))
+    Multiplexed(e,EmptyHistory(Id(e))) = TLSFragment.EmptyHistory(e)
 definition !e,ad,sh,r,f,ct. 
-    Multiplexed(Id(e),ExtendHistory(Id(e),ad,sh,r,f)) = 
-    TLSFragment.ExtendHistory(Id(e),ParseAD(Id(e),B(ad)),
-                   Multiplexed(Id(e),sh),
+    Multiplexed(e,ExtendHistory(Id(e),ad,sh,r,f)) = 
+    TLSFragment.ExtendHistory(e,ParseAD(Id(e),B(ad)),
+                   Multiplexed(e,sh),
                    r,StAEToRecord(e,ParseAD(Id(e),B(ad)),r,f))
 (* CF delete?
 definition !e,ad,sh,sh',h,ct,r,f. 
@@ -89,7 +89,7 @@ definition !e,ad,sh,sh',h,ct,r,f.
 
 private definition !e,ad,sh,r,f. 
     Sent(Id(e),ad,sh,r,f) <=> 
-    TLSFragment.RecordSent(e,ParseAD(Id(e),ad),Multiplexed(Id(e),sh),r,f.contents)
+    TLSFragment.RecordSent(e,ParseAD(Id(e),ad),Multiplexed(e,sh),r,f.contents)
 
 //------------------------------------------------------------------------------------------------------
 // `Plain' interface towards StatefulLHAE, encapsulating TLS-specific headers and content types
@@ -108,13 +108,23 @@ val reprFragment:
   e:id{not SafeId(e)} -> ad:(;e)adata -> r:range ->
   f:(;e,B(ad),r) fragment -> b:(;r)rbytes {B(b) = Payload(e,B(ad),r,f)}
 
+(*
+val widen:
+  e:epoch -> ad:(;Id(e))adata -> r:range -> 
+  f:(;Id(e),B(ad),r) fragment -> 
+  f':(;Id(e),B(ad),RangeClass(Id(e),r)) fragment{
+    Payload(Id(e),B(ad),r,f) = Payload(Id(e),B(ad),RangeClass(Id(e),r),f') /\
+    !h. Sent(Id(e),B(ad),h,r,f) => Sent(Id(e),B(ad),h,RangeClass(Id(e),r),f')}
+*)
+
 val widen:
   e:id -> ad:(;e)adata -> r:range -> 
   f:(;e,B(ad),r) fragment -> 
   f':(;e,B(ad),RangeClass(e,r)) fragment{
-    Payload(e,B(ad),r,f) = Payload(e,B(ad),RangeClass(e,r),f') /\
-    !h. Sent(e,B(ad),h,r,f) => Sent(e,B(ad),h,RangeClass(e,r),f')}
-
+    Payload(e,B(ad),r,f) = Payload(e,B(ad),RangeClass(e,r),f')}
+(* /\
+    !e',h. Sent(Id(e),B(ad),h,r,f) => Sent(Id(e'),B(ad),h,RangeClass(e,r),f')}
+*)
 //------------------------------------------------------------------------------------------------------
 // internal interface towards TLSFragment
 //------------------------------------------------------------------------------------------------------
@@ -144,15 +154,15 @@ assume !e,ad,h,h',r,f. (AuthId(e) /\ StAEHistory(e,h) /\ StAEHistory(e,h') /\ HL
 val RecordPlainToStAEPlain: 
     e:epoch -> ct:ContentType -> 
     ad:(;Id(e))adata{B(ad) = ADBytes(Id(e),ct)}  -> 
-    h:(;Id(e)) TLSFragment.history ->
-    st:(;Id(e)) history{h = Multiplexed(Id(e),st)} -> 
+    h:(;e) TLSFragment.history ->
+    st:(;Id(e)) history{h = Multiplexed(e,st)} -> 
     rg:range -> 
     f:(;e,ct,h,rg) TLSFragment.plain -> 
     sf:(;Id(e),ad,st,rg) plain{f = StAEToRecord(e,ct,rg,sf)}
 
 val StAEPlainToRecordPlain: 
     e:epoch -> ct:ContentType -> ad:(;Id(e))adata{B(ad) = ADBytes(Id(e),ct)} -> 
-    h:(;Id(e)) TLSFragment.history ->
-    st:(;Id(e)) history{h = Multiplexed(Id(e),st)} -> rg:range -> 
+    h:(;e) TLSFragment.history ->
+    st:(;Id(e)) history{h = Multiplexed(e,st)} -> rg:range -> 
     d:(;Id(e),ad,st,rg) plain ->
     f:(;e,ct,h,rg) TLSFragment.plain{f=StAEToRecord(e,ct,rg,d)}

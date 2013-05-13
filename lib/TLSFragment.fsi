@@ -10,12 +10,12 @@ type history
 type fragment
 type plain = fragment
 
-val emptyHistory: id -> history
+val emptyHistory: epoch -> history
 val extendHistory: epoch -> ContentType -> history -> range -> fragment -> history
 
-val handshakeHistory: id -> history -> HSFragment.stream
-val ccsHistory: id -> history -> HSFragment.stream
-val alertHistory: id -> history -> HSFragment.stream
+val handshakeHistory: epoch -> history -> HSFragment.stream
+val ccsHistory: epoch -> history -> HSFragment.stream
+val alertHistory: epoch -> history -> HSFragment.stream
 
 val plain: epoch -> ContentType -> history -> range -> bytes -> plain
 val fragment: id -> ContentType -> range -> bytes -> fragment 
@@ -32,5 +32,5 @@ val RecordPlainToAlertPlain  : epoch -> history -> range -> plain -> HSFragment.
 val RecordPlainToAppPlain    : epoch -> history -> range -> plain -> AppFragment.plain
 
 #if ideal
-val widen: epoch -> ContentType -> range -> fragment -> fragment
+val widen: id -> ContentType -> range -> fragment -> fragment
 #endif

@@ -131,10 +131,17 @@ let initConnection role rand =
 let nextEpoch epoch crand srand si =
     SuccEpoch (crand, srand, si, epoch )
 
+let predEpoch (e:epoch) = 
+    match e with
+    | InitEpoch(r) -> failwith "no pred"
+    | SuccEpoch(_,_,_, e') -> e'
+
 let rec epochWriter (e:epoch) =
     match e with
     | InitEpoch(r) -> r
-    | SuccEpoch(_,_,_, e') -> epochWriter e'
+    | SuccEpoch(_,_,_,_) -> 
+        let pe = predEpoch e in
+          epochWriter pe
 
 // the tight index we use as an abstract parameter for StatefulAEAD et al
 type id = { 
@@ -146,6 +153,8 @@ type id = {
   writer : Role }
 
 //let idInv (i:id):succEpoch = failwith "requires a log, and pointless to implement anyway"
+
+let unAuthIdInv (i:id):epoch = failwith "only creates epochs for bad ids"
 
 let macAlg_of_id id = macAlg_of_aeAlg id.aeAlg
 let encAlg_of_id id = encAlg_of_aeAlg id.aeAlg
