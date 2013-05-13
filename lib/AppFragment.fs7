@@ -26,7 +26,7 @@ ask !e,s,r,f. Sent(e,s,r,f) => (?d. f.frag = (e,s,d))
 
 type (;e:epoch,s:(;e)stream,r:range) plain = f:(;Id(e),r) fragment{Auth(e) => Sent(e,s,r,f)}
 
-function val Payload: e:id * r:range * (;e,r)fragment -> cbytes
+function val Payload: i:id * r:range * (;i,r)fragment -> cbytes
 private definition !e,r,s,d. Payload(Id(e),r,{frag = (e,s,d)}) = DataStream.Payload(e,s,r,d)
 
 (* KB: The definition below is intentional.

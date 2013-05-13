@@ -9,17 +9,17 @@ open Range
 
 //CF are we still planning to define clones of HSFragment or not? 
 
-private type (;e:id,ct:ContentType,rg:range) fragment =
-    | FHandshake of f:(;e,rg)HSFragment.fragment {ct=Handshake}
-    | FCCS       of f:(;e,rg)HSFragment.fragment {ct=Change_cipher_spec}
-    | FAlert     of f:(;e,rg)HSFragment.fragment {ct=Alert}
-    | FAppData   of f:(;e,rg)AppFragment.fragment{ct=Application_data}
+private type (;i:id,ct:ContentType,rg:range) fragment =
+    | FHandshake of f:(;i,rg)HSFragment.fragment {ct=Handshake}
+    | FCCS       of f:(;i,rg)HSFragment.fragment {ct=Change_cipher_spec}
+    | FAlert     of f:(;i,rg)HSFragment.fragment {ct=Alert}
+    | FAppData   of f:(;i,rg)AppFragment.fragment{ct=Application_data}
 
-function val Payload: e:id * ct:ContentType * r:range * (;e,ct,r)fragment -> cbytes
-private definition !e,r,f. Payload(e,Handshake,         r,FHandshake(f)) = HSFragment.Payload(e,r,f)
-private definition !e,r,f. Payload(e,Change_cipher_spec,r,FCCS(f))       = HSFragment.Payload(e,r,f)
-private definition !e,r,f. Payload(e,Alert,             r,FAlert(f))     = HSFragment.Payload(e,r,f)
-private definition !e,r,f. Payload(e,Application_data,  r,FAppData(f))   = AppFragment.Payload(e,r,f)
+function val Payload: i:id * ct:ContentType * r:range * (;i,ct,r)fragment -> cbytes
+private definition !i,r,f. Payload(i,Handshake,         r,FHandshake(f)) = HSFragment.Payload(i,r,f)
+private definition !i,r,f. Payload(i,Change_cipher_spec,r,FCCS(f))       = HSFragment.Payload(i,r,f)
+private definition !i,r,f. Payload(i,Alert,             r,FAlert(f))     = HSFragment.Payload(i,r,f)
+private definition !i,r,f. Payload(i,Application_data,  r,FAppData(f))   = AppFragment.Payload(i,r,f)
 
 private type (;e:epoch) history = {
   handshake: (;Id(e)) HSFragment.stream;
@@ -41,7 +41,7 @@ val handshakeHistory: e:epoch -> h:(;e)history -> s:(;Id(e))HSFragment.stream{s 
 val ccsHistory: e:epoch -> h:(;e)history -> s:(;Id(e))HSFragment.stream{s = CCSHistory(e,h)}
 val alertHistory: e:epoch -> h:(;e)history -> s:(;Id(e))HSFragment.stream{s = AlertHistory(e,h)}
 
-predicate RecordSent of e:epoch * ct:ContentType * h:(;e) history * rg:range * (;e,ct,rg)fragment
+predicate RecordSent of e:epoch * ct:ContentType * h:(;e) history * rg:range * (;Id(e),ct,rg)fragment
 private definition !e,ct,h,rg,d.
   RecordSent(e,ct,h,rg,d) <=> ( 
     (?f. ct=Handshake          /\ d = FHandshake(f) /\ HSFragment.Sent(Id(e),HandshakeHistory(e,h),rg,f) ) \/
@@ -60,25 +60,25 @@ function val ExtendHistory: e:epoch * ct:ContentType * ss:(;e)history * r:range 
 val extendHistory: e:epoch -> ct:ContentType -> ss:(;e)history -> r:range ->
   f:(;e,ct,ss,r)plain -> ss':(;e)history{ss' = ExtendHistory(e,ct,ss,r,f)}
 
-val plain: e:epoch{not AuthId(Id(e))} -> ct:ContentType -> h: (;Id(e)) history -> rg:range ->
+val plain: e:epoch{not AuthId(Id(e))} -> ct:ContentType -> h: (;e) history -> rg:range ->
   b:(;rg)rbytes -> p:(;e,ct,h,rg)plain {B(b) = Payload(Id(e),ct,rg,p)}
 
-val fragment: e:id{not AuthId(e)} -> ct:ContentType -> rg:range ->
-  b:(;rg)rbytes -> p:(;e,ct,rg)fragment {B(b) = Payload(e,ct,rg,p)}
+val fragment: i:id{not AuthId(i)} -> ct:ContentType -> rg:range ->
+  b:(;rg)rbytes -> p:(;i,ct,rg)fragment {B(b) = Payload(i,ct,rg,p)}
 
-val reprFragment: e:id{not SafeId(e)} -> ct:ContentType -> rg:range ->
-  f:(;e,ct,rg)fragment -> b:(;rg)rbytes{B(b) = Payload(e,ct,rg,f)}
+val reprFragment: i:id{not SafeId(i)} -> ct:ContentType -> rg:range ->
+  f:(;i,ct,rg)fragment -> b:(;rg)rbytes{B(b) = Payload(i,ct,rg,f)}
 
-val repr: e:epoch{not SafeId(Id(e))} -> ct:ContentType -> h: (;Id(e)) history -> rg:range ->
+val repr: e:epoch{not SafeId(Id(e))} -> ct:ContentType -> h: (;e) history -> rg:range ->
   p:(;e,ct,h,rg)plain -> b:(;rg)rbytes{B(b) = Payload(Id(e),ct,rg,p)}
 
-val widen: e:id -> ct:ContentType -> 
+val widen: i:id -> ct:ContentType -> 
   r0:range -> 
-  f0:(;e,ct,r0)fragment ->
-  f1:(;e,ct,RangeClass(e,r0))fragment{
-    Payload(e,ct,r0,f0) = Payload(e,ct,RangeClass(e,r0),f1) /\
-    !ki,h. RecordSent(ki,ct,h,r0,f0) => 
-           RecordSent(ki,ct,h,RangeClass(e,r0),f1)}
+  f0:(;i,ct,r0)fragment ->
+  f1:(;i,ct,RangeClass(i,r0))fragment{
+    Payload(i,ct,r0,f0) = Payload(i,ct,RangeClass(i,r0),f1) /\
+    !e',h. RecordSent(e',ct,h,r0,f0) => 
+           RecordSent(e',ct,h,RangeClass(i,r0),f1)}
 
 
 function val EmptyHistory: e:epoch -> (;e)history
