@@ -10,16 +10,19 @@ open DataStream
 
 //CF an event recording every honest fragment creation, 
 //CF assumed in fragment and used to define Sent. 
-predicate DeltaFragment of ki:epoch * s:(;ki) stream * r:range * (;ki,s,r)delta
+//MK as it is used to define Sent below, maybe DeltaSent would be a better name?
+//MK could it be defined in DataStream? 
+//MK maybe not, would it be sufficient to have a Sent event for fragments?
+predicate DeltaFragment of e:epoch * s:(;e) stream * r:range * (;e,s,r)delta
 
-private type (;ki:id,r:range) fragment = 
-  {frag: (e:epoch * s:(;e)stream * d:(;e,s,r) delta{ ki = Id(e) /\ (Auth(e) => DeltaFragment(e,s,r,d))}) }
+private type (;i:id,r:range) fragment = 
+  {frag: (e:epoch * s:(;e)stream * d:(;e,s,r) delta{ i = Id(e) /\ (Auth(e) => DeltaFragment(e,s,r,d))}) }
 
-predicate Sent of ki:epoch * (;ki) stream * r:range * (;Id(ki),r)fragment
-private definition !ki,s,r,f. Sent(ki,s,r,f) <=> 
-  (?d,r. f.frag = (ki,s,d) /\ DeltaFragment(ki,s,r,d))
+predicate Sent of e:epoch * (;e) stream * r:range * (;Id(e),r)fragment
+private definition !e,s,r,f. Sent(e,s,r,f) <=> 
+  (?d,r. f.frag = (e,s,d) /\ DeltaFragment(e,s,r,d))
 
-ask !ki,s,r,f. Sent(ki,s,r,f) => (?d. f.frag = (ki,s,d))
+ask !e,s,r,f. Sent(e,s,r,f) => (?d. f.frag = (e,s,d))
 
 type (;e:epoch,s:(;e)stream,r:range) plain = f:(;Id(e),r) fragment{Auth(e) => Sent(e,s,r,f)}
 
@@ -47,22 +50,22 @@ private definition !e,r,f,s,d.
 ask !e,r,f,s,d. FragOfDelta(e,r,f,s,d) => Payload(Id(e),r,f) = DataStream.Payload(e,s,r,d)
 ask !e,r,f,s,d. FragOfDelta(e,r,f,s,d) => Extend(e,s,r,f) = ExtendStreamDelta(e,s,r,d)
 
-val fragment: ki:epoch -> s:(;ki) stream -> r:range ->
-  d:(;ki,s,r) delta -> 
-  f:(;Id(ki),r) fragment * s':(;ki) stream 
-  { Sent(ki,s,r,f) /\ s' = Extend(ki,s,r,f) /\ FragOfDelta(ki,r,f,s,d)}
+val fragment: e:epoch -> s:(;e) stream -> r:range ->
+  d:(;e,s,r) delta -> 
+  f:(;Id(e),r) fragment * s':(;e) stream 
+  { Sent(e,s,r,f) /\ s' = Extend(e,s,r,f) /\ FragOfDelta(e,r,f,s,d)}
 
-val delta: ki:epoch -> s:(;ki) stream -> r:range -> 
-  f:(;Id(ki),r) fragment{Auth(ki) => Sent(ki,s,r,f)} -> 
-  d:(;ki,s,r) delta * s':(;ki) stream{s' = Extend(ki,s,r,f)} 
+val delta: e:epoch -> s:(;e) stream -> r:range -> 
+  f:(;Id(e),r) fragment{Auth(e) => Sent(e,s,r,f)} -> 
+  d:(;e,s,r) delta * s':(;e) stream{s' = Extend(e,s,r,f)} 
 
 // conditional fragment abstraction 
 
-val plain: ki:id{not AuthId(ki)} -> r:range -> 
-  b:(;r) rbytes -> f:(;ki,r) fragment{B(b) = Payload(ki,r,f)}
+val plain: i:id{not AuthId(i)} -> r:range -> 
+  b:(;r) rbytes -> f:(;i,r) fragment{B(b) = Payload(i,r,f)}
 
-val repr:  ki:id{not SafeId(ki)} -> r:range -> 
-  f:(;ki,r) fragment -> b:(;r) rbytes{B(b) = Payload(ki,r,f)}
+val repr:  i:id{not SafeId(i)} -> r:range -> 
+  f:(;i,r) fragment -> b:(;r) rbytes{B(b) = Payload(i,r,f)}
 
 // We use this function for ideal decryption by table lookup,
 // as the range after decryption is usually wider than the one used for encryption.
@@ -76,10 +79,10 @@ val widen: i:id -> r0:range -> f0:(;i,r0)fragment ->
 
 (* CF unused...
 // injectivity of data-fragment (follows from linearity of streams)
-private theorem !ki,s,r1,r2,f1,f2. 
-  Auth(ki) /\ 
-  DeltaFragment(ki,s,r1,f1) /\ 
-  DeltaFragment(ki,s,r2,f2) => (f1 = f2)
+private theorem !e,s,r1,r2,f1,f2. 
+  Auth(e) /\ 
+  DeltaFragment(e,s,r1,f1) /\ 
+  DeltaFragment(e,s,r2,f2) => (f1 = f2)
 *)
 
 
