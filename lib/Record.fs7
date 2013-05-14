@@ -50,7 +50,7 @@ val recordPacketOut: e:epoch ->
                         Auth(e) => (History(e,Writer,s') = 
                         TLSFragment.ExtendHistory(e,ct,History(e,Writer,s),rg,f))}
  
-val recordPacketIn : e:succEpoch ->
+val recordPacketIn : e:epoch ->
                      s:(;e) recvState -> 
                      wire:bytes{Length(wire) >= 5} -> 
                      res:(s':(;e)recvState *
