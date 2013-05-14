@@ -139,6 +139,12 @@ definition !e,ad,sh,r,f,ct.
 //CF    Sent(Id(e),ad,sh,r,f) <=> 
 //CF    TLSFragment.RecordSent(e,ParseAD(Id(e),ad),Multiplexed(e,sh),r,f.contents)
 
+//CF temporary, until we derive it from event-based affinity.
+//CF and actually not sufficient...
+private ask !e,e',ad,h,r,d. 
+  Auth(e) /\ Id(e) = Id(e') /\ TLSFragment.RecordSent(e',ad,h,r,d)
+  => TLSFragment.RecordSent(e,ad,h,r,d)
+
 private definition !i,ad,sh,r,f. 
     Sent(i,ad,sh,r,f) <=>
 	?e. (i = Id(e) /\ 
