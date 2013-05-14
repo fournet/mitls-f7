@@ -158,22 +158,22 @@ For F7 clarity, we distinguish several verification steps (using flags/Makefile)
 2. If we decrypt by table lookup, then, we implement parametric AEAD (to complete the SafeId proof)
    this essentially rely on CPA of the underlying encryption.
 
-3. (When Auth, irrespective of SafeId & CTXT:) AEAD is PTXT wrt to some user-defined Msg property.
+3. (When AuthId, irrespective of SafeId & CTXT:) AEAD is PTXT wrt to some user-defined Msg property.
 
 We agreed that #if ideal refers to typechecking 2. 
 
 The postcondition of decryption thus consists of
 
-// proved in step 3, sufficient to retrieve Msg(ki,ad,p) as a predicate attached to the CTXT log
-(Auth(ki) => ((!p. (?r. res = Correct(ki,r,p)) 
-               <=> ( ?c. CTXT(ki,ad,p,c))))
+// proved in step 3, sufficient to retrieve Msg(i,ad,p) as a predicate attached to the CTXT log
+(AuthId(i) => ((!p. (?r. res = Correct(i,r,p)) 
+               <=> ( ?c. CTXT(i,ad,p,c))))
 /\
-// a stronger "SafeId" authentication property, which also yields Msg(ki,ad,p)
-(SafeId(ki) => ((!p. ( ?r. res = Correct(ki,r,p)) 
-		       <=> ( CTXT(ki,ad,p,c)))           
+// a stronger "SafeId" authentication property, which also yields Msg(i,ad,p)
+(SafeId(i) => ((!p. ( ?r. res = Correct(i,r,p)) 
+		       <=> ( CTXT(i,ad,p,c)))           
 /\
 // a functional property
-(SafeId(ki) => ?p. res = Correct((ki,Range(ki,c),p))) \/ res = Error(AD_bad_record_mac,"")
+(SafeId(i) => ?p. res = Correct((i,Range(i,c),p))) \/ res = Error(AD_bad_record_mac,"")
 
 --- The sequence of games is 
 
@@ -223,8 +223,8 @@ The postcondition of decryption thus consists of
 // how do we deal with corrupted peers? 
 // why do we have two cases? I propose instead:
 //
-// Auth(ki) => 
-// ( !p. res = Correct(CipherRange(ki,c),p) <=> CTXT(ki,ad,p,c) )
+// AuthId(i) => 
+// ( !p. res = Correct(CipherRange(i,c),p) <=> CTXT(i,ad,p,c) )
 //
 // We are still in-between encryptor/decryptor and keys, why? 
 // Are TLS 1.0 IVs now part of the mutable key? 

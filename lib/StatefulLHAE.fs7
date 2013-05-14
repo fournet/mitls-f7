@@ -112,14 +112,14 @@ val LEAK:   ki:id{not AuthId(ki)} -> rw:rw -> (;ki,rw)state -> b:bytes
 val history: ki:id -> rw:rw -> s:(;ki,rw) state -> h:(;ki)history{h=History(ki,rw,s)}
 
 // Ideally,
-// the writer maintains a table (ki, h, ad, range, fragment, cipher) {...} [details?]
-// when Safe(ki), the writer uses 0s instead of the actual fragment
-// when Auth(ki), the reader decrypts by table lookup
+// the writer maintains a table (i, h, ad, range, fragment, cipher) {...} [details?]
+// when SafeId(i), the writer uses 0s instead of the actual fragment
+// when AuthId(i), the reader decrypts by table lookup
 // turning forgeries into errors; retrieving the "right" history index; returning the concrete decrypted range
 
 //CF 21/4: ENCrypted is an event tracking written cipher fragments; not sure about details and contents ?!
 //CF e.g.    * the decrypted rg is NOT authenticated
-//CF         * the states are not necessarily synchronized; only the histories are when Auth(ki)
+//CF         * the states are not necessarily synchronized; only the histories are when AuthId(i)
 
 type cipher = LHAE.cipher
 
