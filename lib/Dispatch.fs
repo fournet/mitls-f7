@@ -72,7 +72,7 @@ type readOutcome =
     | RError of string (* internal *)
     | RAgain
     | RAgainFinishing
-    | RAppDataDone
+    | RAppDataDone of msg_i
     | RQuery of query * bool
     | RHSDone
     | RClose
@@ -651,9 +651,10 @@ let readOne (Conn(id,c)) =
 
                   | Application_data, Open ->
                       let f = TLSFragment.RecordPlainToAppPlain id.id_in history rg frag in
-                      let appstate = AppData.recv_fragment id c.appdata rg f in
+                      let (d,appstate) = AppData.recv_fragment id c.appdata rg f in
                       let c = {c with appdata = appstate} in
-                      (RAppDataDone, Conn(id, c))
+                      let res = (rg,d) in
+                      (RAppDataDone(res), Conn(id, c))
                   | _, _ ->
                       let reason = perror __SOURCE_FILE__ __LINE__ "Message type received in wrong state"
                       let closing = abortWithAlert (Conn(id,c)) AD_unexpected_message reason in
@@ -670,47 +671,40 @@ let rec read c =
         match outcome with
         | RAgain | RAgainFinishing | WriteOutcome(WMustRead) | WriteOutcome(WAppDataDone) ->
             read c 
-        | RAppDataDone ->    
-            // empty the appData internal buffer, and return its content to the user
-            let (Conn(id,conn)) = c in
-            match AppData.readAppData id conn.appdata with
-            | (Some(b),appState) ->
-                let conn = {conn with appdata = appState} in
-                let c = Conn(id,conn) in
-                c,RAppDataDone,Some(b)
-            | (None,_) -> unexpected "[read] When RAppDataDone, some data should have been read."
+        | RAppDataDone(msg) ->    
+            c,RAppDataDone(msg)
         | RQuery(q,adv) ->
-            c,RQuery(q,adv),None
+            c,RQuery(q,adv)
         | RHSDone ->
-            c,RHSDone,None
+            c,RHSDone
         | RClose ->
             let (Conn(id,conn)) = c in
             match conn.write.disp with
             | Closed ->
                 // we already sent a close_notify, tell the user it's over
-                c,RClose, None
+                c,RClose
             | _ ->
                 let (outcome,c) = writeAllClosing c in
                 match outcome with
                 | SentClose ->
                     // clean shoutdown
-                    c,RClose,None
+                    c,RClose
                 | SentFatal(ad,err) ->
-                    c,WriteOutcome(SentFatal(ad,err)),None
+                    c,WriteOutcome(SentFatal(ad,err))
                 | WError(err) ->
-                    c,RError(err),None
+                    c,RError(err)
                 | _ ->
-                    c,RError(perror __SOURCE_FILE__ __LINE__ ""),None // internal error
+                    c,RError(perror __SOURCE_FILE__ __LINE__ "") // internal error
         | RFatal(ad) ->
-            c,RFatal(ad),None
+            c,RFatal(ad)
         | RWarning(ad) ->
-            c,RWarning(ad),None
-        | WriteOutcome(wo) -> c,WriteOutcome(wo),None
-        | RError(err) -> c,RError(err),None
-    | SentClose -> c,WriteOutcome(SentClose),None
-    | WHSDone -> c,WriteOutcome(WHSDone),None
-    | SentFatal(ad,err) -> c,WriteOutcome(SentFatal(ad,err)),None
-    | WError(err) -> c,WriteOutcome(WError(err)),None
+            c,RWarning(ad)
+        | WriteOutcome(wo) -> c,WriteOutcome(wo)
+        | RError(err) -> c,RError(err)
+    | SentClose -> c,WriteOutcome(SentClose)
+    | WHSDone -> c,WriteOutcome(WHSDone)
+    | SentFatal(ad,err) -> c,WriteOutcome(SentFatal(ad,err))
+    | WError(err) -> c,WriteOutcome(WError(err))
     | WriteAgain | WriteAgainFinishing -> unexpected "[read] writeAll should never return WriteAgain"
 
 let msgWrite (Conn(id,c)) (rg,d) =
@@ -746,35 +740,35 @@ let authorize (Conn(id,c)) q =
     | RAgain | RAgainFinishing ->
         let res = read (Conn(id,c)) in
         res
-    | RAppDataDone ->    
+    | RAppDataDone(_) ->    
         unexpected "[authorize] App data should never be received"
     | RQuery(q,adv) ->
         unexpected "[authorize] A query should never be received"
     | RHSDone ->
-        (Conn(id,c)),RHSDone,None
+        (Conn(id,c)),RHSDone
     | RClose ->
         match c.write.disp with
         | Closed ->
             // we already sent a close_notify, tell the user it's over
-            (Conn(id,c)),RClose, None
+            (Conn(id,c)),RClose
         | _ ->
             let (outcome,c) = writeAll (Conn(id,c)) in
             match outcome with
             | SentClose ->
                 // clean shoutdown
-                c,RClose,None
+                c,RClose
             | SentFatal(ad,err) ->
-                c,WriteOutcome(SentFatal(ad,err)),None
+                c,WriteOutcome(SentFatal(ad,err))
             | WError(err) ->
-                c,RError(err),None
+                c,RError(err)
             | _ ->
-                c,RError(perror __SOURCE_FILE__ __LINE__ ""),None // internal error
+                c,RError(perror __SOURCE_FILE__ __LINE__ "") // internal error
     | RFatal(ad) ->
-        (Conn(id,c)),RFatal(ad),None
+        (Conn(id,c)),RFatal(ad)
     | RWarning(ad) ->
-        (Conn(id,c)),RWarning(ad),None
-    | WriteOutcome(wo) -> (Conn(id,c)),WriteOutcome(wo),None
-    | RError(err) -> (Conn(id,c)),RError(err),None
+        (Conn(id,c)),RWarning(ad)
+    | WriteOutcome(wo) -> (Conn(id,c)),WriteOutcome(wo)
+    | RError(err) -> (Conn(id,c)),RError(err)
 
 let refuse conn (q:query) =
     let reason = perror __SOURCE_FILE__ __LINE__ "Remote certificate could not be verified locally" in

@@ -50,12 +50,6 @@ private type (;id:ConnectionInfo) preGlobalState = {
   }
 //#end-gs
 
-function val AppInStreamBuf: ci:ConnectionInfo * (;ci)preGlobalState -> 'a //(;ci.id_in)stream
-private definition !id,s.
-	( AppData.AppInBuf(id,s.appdata) = None => AppInStreamBuf(id,s) = AppData.AppInStream(id,s.appdata) ) /\
-	( !r,f. AppData.AppInBuf(id,s.appdata) = Some((r,f)) =>
-		AppInStreamBuf(id,s) = AppFragment.Extend(id.id_in,AppData.AppInStream(id,s.appdata),r,f) )
-
 predicate GState of ci:ConnectionInfo * (;ci)preGlobalState
 type (;id:ConnectionInfo) globalState = gs:(;id) preGlobalState{GState(id,gs)}
 	
@@ -71,11 +65,11 @@ private definition !ci,gs. GState(ci,gs)  <=>
     (Auth(ci.id_in)  =>
 		( ( (?pv. gs.read.disp = Init \/ gs.read.disp = FirstHandshake(pv) \/
 		     gs.read.disp = Finishing \/ gs.read.disp = Finished \/ gs.read.disp = Open) /\
-			AppInStreamBuf(ci,gs)  = TLSFragment.AppDataHistory(ci.id_in,Record.History(ci.id_in,Reader,gs.read.conn))
+			AppData.AppInStream(ci,gs.appdata) = TLSFragment.AppDataHistory(ci.id_in,Record.History(ci.id_in,Reader,gs.read.conn))
 		  )
 		 \/
 			( (?pv,str. gs.read.disp = Closing(pv,str) \/ gs.read.disp = Closed) /\
-			  ( AppInStreamBuf(ci,gs)  = TLSFragment.AppDataHistory(ci.id_in,Record.History(ci.id_in,Reader,gs.read.conn)) \/
+			  ( AppData.AppInStream(ci,gs.appdata) = TLSFragment.AppDataHistory(ci.id_in,Record.History(ci.id_in,Reader,gs.read.conn)) \/
 			  (?r,f. AppFragment.Extend(ci.id_in,AppData.AppInStream(ci,gs.appdata),r,f) =
 					TLSFragment.AppDataHistory(ci.id_in,Record.History(ci.id_in,Reader,gs.read.conn))) )
 		)
@@ -140,8 +134,6 @@ private definition !c,r,d.
 
 function val CnBuf_o: c:Connection -> (r:range * (;ConnectionEpochOut(c),r)AppFragment.fragment * (;ConnectionEpochOut(c))DataStream.stream) option
 private definition !id,s. CnBuf_o(Conn(id,s)) = AppData.AppOutBuf(id,s.appdata)
-function val CnBuf_i: c:Connection -> (r:range * (;ConnectionEpochOut(c),r)AppFragment.fragment) option
-private definition !id,s. CnBuf_i(Conn(id,s)) = AppData.AppInBuf(id,s.appdata)
 
 function val Bytes_i: Connection -> cbytes
 function val Bytes_o: Connection -> cbytes
@@ -229,19 +221,19 @@ type writeOutcome =
     | SentFatal of alertDescription * string
     | SentClose
 
-type readOutcome =
+type (;c:Connection)readOutcome =
     | WriteOutcome of writeOutcome
     | RError of string 
     | RAgain (* More data to read *)
 	| RAgainFinishing (* More data to read, and the incoming epoch changed *)
-    | RAppDataDone (* No more data to read *)
+    | RAppDataDone of (;ConnectionEpochIn(c),CnStream_i(c))msg_i (* No more data to read *)
     | RQuery of query * bool
     | RHSDone
     | RClose
     | RFatal of alertDescription
     | RWarning of alertDescription
 
-predicate val IOResult_i : Connection * Connection * readOutcome * 'a -> bool
+predicate val IOResult_i : c:Connection * Connection * (;c)readOutcome -> bool
 predicate val IOResult_o : Connection * 'a * Connection * writeOutcome * 'b -> bool
 
 definition !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo)  <=>
@@ -289,7 +281,7 @@ definition !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo)  <=>
 		 (wo = SentClose ) 
 	)
 
-definition !c,c',ro,mo. IOResult_i(c,c',ro,mo) <=>
+definition !c,c',ro. IOResult_i(c,c',ro) <=>
    (
     // Cases needed by the top level interface
 	(ro = RClose /\ (Auth(ConnectionEpochIn(c)) => EvClose(CnInfo(c).id_in,Bytes_i(c)))) \/
@@ -320,7 +312,7 @@ definition !c,c',ro,mo. IOResult_i(c,c',ro,mo) <=>
 		   )
 	  )
 	) \/
-	(?m. ro = RAppDataDone /\ mo = Some(m) /\
+	(?m. ro = RAppDataDone(m) /\
 		Extend_i(c,c',m) /\ NextCn(c,c') /\ (Auth(ConnectionEpochIn(c)) => EvWrite(CnInfo(c).id_in, Bytes_i(c')))) \/
 	(ro = WriteOutcome(WMustRead) /\ 
 		   (
@@ -406,14 +398,13 @@ val full_shutdown:    c:Connection ->
 		}
 val half_shutdown: c:Connection{CnBuf_o(c) = None} -> unit
 
-private val moveToOpenState: c:Connection{CnBuf_i(c) = None} ->
+private val moveToOpenState: c:Connection ->
 	(gs:(;CnInfo(c))globalState{
 		gs.write.disp = Open /\ gs.read.disp = Open /\
 		Config(c) = Handshake.Config(CnInfo(c),gs.handshake) /\
 		Bytes_o(c) = DataStream.StreamBytes(ConnectionEpochOut(c),AppData.AppOutStream(CnInfo(c), gs.appdata)) /\
 		Bytes_i(c) = DataStream.StreamBytes(ConnectionEpochIn(c),AppData.AppInStream(CnInfo(c), gs.appdata)) /\
-		CnBuf_o(c) = AppData.AppOutBuf(CnInfo(c),gs.appdata) /\
-		CnBuf_i(c) = AppData.AppInBuf (CnInfo(c),gs.appdata)
+		CnBuf_o(c) = AppData.AppOutBuf(CnInfo(c),gs.appdata)
 	}) Result
 
 function val PickSendPV: Connection -> TLSConstants.ProtocolVersion
@@ -428,16 +419,16 @@ private definition !id,s.
 
 private val pickSendPV: c:Connection -> pv:TLSConstants.ProtocolVersion{pv = PickSendPV(c)}
 
-private val closeConnection: c:Connection{CnBuf_i(c) = None}-> c':(;c) nextCn{
+private val closeConnection: c:Connection-> c':(;c) nextCn{
 	CnState_o(c') = Closed /\ CnState_i(c') = Closed /\
 	Bytes_o(c') = Bytes_o(c) /\ Bytes_i(c') = Bytes_i(c) /\
-	CnBuf_o(c') = CnBuf_o(c) /\ CnBuf_i(c') = CnBuf_i(c)}
+	CnBuf_o(c') = CnBuf_o(c)}
 
-private val abortWithAlert: c:Connection{CnBuf_i(c) = None \/ ?r,f. CnBuf_i(c) = Some((r,f))} -> alertDescription -> s:string ->
+private val abortWithAlert: c:Connection -> alertDescription -> s:string ->
 	c':(;c)nextCn{CnState_o(c') = Closing(PickSendPV(c),s) /\ CnState_i(c') = Closed /\
 		CnStream_o(c') = CnStream_o(c) /\
 		Bytes_o(c') = Bytes_o(c) /\ Bytes_i(c') = Bytes_i(c) /\
-		CnBuf_o(c') = CnBuf_o(c) /\ CnBuf_i(c') = CnBuf_i(c)}
+		CnBuf_o(c') = CnBuf_o(c)}
 
 private val getReason: predispatchState -> string
 
@@ -455,7 +446,7 @@ private val recv: c:Connection ->
          (;ConnectionEpochIn(c),ct,ConnectionInHistory(c),r)TLSFragment.plain) Result
 
 private val readOne: c:Connection{CnBuf_o(c) = None} ->
-	ro:readOutcome * c':Connection{
+	ro:(;c)readOutcome * c':Connection{
 	// From writeAllClosing
 	(?ad,s. ro = WriteOutcome(SentFatal(ad,s)) /\ NextCn(c,c')) \/
 	(?s. ro = WriteOutcome(WError(s))  /\ NextCn(c,c')) \/
@@ -489,14 +480,13 @@ private val readOne: c:Connection{CnBuf_o(c) = None} ->
 		/\ Extend(c,c')
 		/\ NextCn(c,c')
 		/\ (Auth(ConnectionEpochIn(c)) => EvWarning(CnInfo(c).id_in,ad,Bytes_i(c))) ) \/
-	(?m. ro = RAppDataDone
+	(?m. ro = RAppDataDone(m)
 		/\ Extend_i(c,c',m)
 		/\ NextCn(c,c')
 		/\ (Auth(ConnectionEpochIn(c)) => EvWrite(CnInfo(c).id_in, Bytes_i(c'))) )
 	}
 
 private val writeOne: c:Connection {
-	CnBuf_i(c) = None /\
 	( CnBuf_o(c) = None \/
 		(?r,f,s.
 			CnBuf_o(c) = Some((r,f,s)) /\
@@ -506,7 +496,6 @@ private val writeOne: c:Connection {
 	)
 	} ->
 	(wo:writeOutcome * c':Connection){
-		CnBuf_i(c') = CnBuf_i(c) /\ ( 
 		// Errors
 		(?s. wo = WError(s) /\ NextCn(c,c')) \/
 		(?ad,r. wo = SentFatal(ad,r) /\ NextCn(c,c')) \/
@@ -547,18 +536,17 @@ private val writeOne: c:Connection {
 			Bytes_i(c') = Bytes_i(c) /\
 			Bytes_o(c') = Bytes_o(c) /\
 			NextCn(c,c'))
-	)
 	}
 
-private val writeAll: c:Connection{CnBuf_i(c) = None /\ CnBuf_o(c) = None} -> wo:writeOutcome * c':Connection
+private val writeAll: c:Connection{CnBuf_o(c) = None} -> wo:writeOutcome * c':Connection
 
-private val writeAllClosing: c:Connection{CnBuf_i(c) = None /\ CnBuf_o(c) = None} -> wo:writeOutcome * c':(;c)nextCn{
+private val writeAllClosing: c:Connection{CnBuf_o(c) = None} -> wo:writeOutcome * c':(;c)nextCn{
 	(?s. wo = WError(s)) \/
 	(?ad,r. wo = SentFatal(ad,r)) \/
 	(wo = SentClose /\ (Auth(ConnectionEpochIn(c)) => EvClose(CnInfo(c).id_in,Bytes_i(c))) )
 	}
 
-private val writeAllFinishing: c:Connection{CnBuf_i(c) = None /\ CnBuf_o(c) = None /\ Bytes_o(c) = B(empty_bytes)} ->
+private val writeAllFinishing: c:Connection{CnBuf_o(c) = None /\ Bytes_o(c) = B(empty_bytes)} ->
 	wo:writeOutcome * c':(;c)nextCn{
 		(?s. wo = WError(s)) \/
 		(?ad,r. wo = SentFatal(ad,r)) \/
@@ -572,7 +560,7 @@ private val writeAllFinishing: c:Connection{CnBuf_i(c) = None /\ CnBuf_o(c) = No
 ask !c0,c1,c2. NextCn(c0,c1) /\ NextCn(c1,c2) => NextCn(c0,c2)
    
 private val writeAllTop: c:Connection {
-	?r,f,s. CnBuf_o(c) = Some((r,f,s)) /\ CnBuf_i(c) = None /\
+	?r,f,s. CnBuf_o(c) = Some((r,f,s)) /\
 		DataStream.StreamBytes(ConnectionEpochOut(c),s) =
 			DataStream.StreamBytes(ConnectionEpochOut(c),AppFragment.Extend(ConnectionEpochOut(c),CnStream_o(c),r,f))
 	}->
@@ -598,7 +586,7 @@ private val writeAllTop: c:Connection {
 	}
 
 private val handleHandshakeOutcome: c:Connection{CnBuf_o(c) = None} -> (;CnInfo(c),Config(c))Handshake.incoming ->
-	(ro:readOutcome * c':(;c)nextCn){
+	(ro:(;c)readOutcome * c':(;c)nextCn){
 		(?ad,s. ro = WriteOutcome(SentFatal(ad,s))) \/
 		(?s. ro = WriteOutcome(WError(s))) \/
 		(ro = WriteOutcome(SentClose) /\ (Auth(ConnectionEpochIn(c)) => EvClose(CnInfo(c).id_in,Bytes_i(c))) ) \/
@@ -608,9 +596,9 @@ private val handleHandshakeOutcome: c:Connection{CnBuf_o(c) = None} -> (;CnInfo(
 	}
 
 val read: c:Connection -> 
-    (c':Connection  * ro:readOutcome * mo:(;ConnectionEpochIn(c),CnStream_i(c))msg_i option)
+    (c':Connection  * ro:(;c)readOutcome)
     {
-      IOResult_i(c,c',ro,mo)
+      IOResult_i(c,c',ro)
 	  /\ CnBuf_o(c') = CnBuf_o(c)
     }
 
@@ -620,26 +608,25 @@ val msgWrite: c:Connection{CanWrite(CnInfo(c))} -> m:(;ConnectionEpochOut(c),CnS
 	     m1:(;ConnectionEpochOut(c),s')msg_o option)
 	 {(!r,f,s'. res=(r,f,s',None) =>
 			(s' = AppFragment.Extend(ConnectionEpochOut(c),CnStream_o(c),r,f) /\
-			 MsgOBytes(c,m) = AppFragment.Payload(ConnectionEpochOut(c),r,f)) ) /\
+			 MsgOBytes(c,m) = AppFragment.Payload(Id(ConnectionEpochOut(c)),r,f)) ) /\
 	  (!r,f,s',r1,d1. res=(r,f,s',Some((r1,d1))) =>
 		(s' = AppFragment.Extend(ConnectionEpochOut(c),CnStream_o(c),r,f) /\
 		 MsgOBytes(c,m) =
-		  AppFragment.Payload(ConnectionEpochOut(c),r,f) @|
+		  AppFragment.Payload(Id(ConnectionEpochOut(c)),r,f) @|
 		  DataStream.Payload(ConnectionEpochOut(c),s',r1,d1) ))}
 
-val write: c:Connection{CanWrite(CnInfo(c)) /\ CnBuf_i(c) = None} ->
+val write: c:Connection{CanWrite(CnInfo(c))} ->
 	m:(;ConnectionEpochOut(c),CnStream_o(c))msg_o ->
 	(c':Connection* wo:writeOutcome * mo:(;ConnectionEpochOut(c'),CnStream_o(c'))msg_o option)
     {
       IOResult_o(c,m,c',wo,mo)
 	  /\ CnBuf_o(c') = None
-	  /\ CnBuf_i(c') = None
     }
 
 val authorize: c:Connection -> q:query -> 
-	(c':Connection  * ro:readOutcome * mo:(;ConnectionEpochIn(c'),CnStream_i(c'))msg_i option)
+	(c':Connection  * ro:(;c)readOutcome)
     {
-      IOResult_i(c,c',ro,mo)
+      IOResult_i(c,c',ro)
 	  /\ CnBuf_o(c') = CnBuf_o(c)
     }
 val refuse: c:Connection{CnBuf_o(c) = None} -> query -> unit

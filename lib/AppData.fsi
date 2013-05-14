@@ -17,8 +17,7 @@ val writeAppData:   ConnectionInfo -> app_state -> range -> AppFragment.fragment
 val next_fragment:  ConnectionInfo -> app_state -> (range * AppFragment.fragment * app_state) option
 val clearOutBuf:    ConnectionInfo -> app_state -> app_state
 
-val recv_fragment:  ConnectionInfo -> app_state -> range -> AppFragment.fragment -> app_state
-val readAppData:    ConnectionInfo -> app_state -> (range * delta) option * app_state
+val recv_fragment:  ConnectionInfo -> app_state -> range -> AppFragment.fragment -> delta * app_state
 
 val reset_incoming: ConnectionInfo -> app_state -> ConnectionInfo -> app_state
 val reset_outgoing: ConnectionInfo -> app_state -> ConnectionInfo -> app_state

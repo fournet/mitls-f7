@@ -46,7 +46,7 @@ type readOutcome =
     | RError of string (* internal *)
     | RAgain
     | RAgainFinishing
-    | RAppDataDone
+    | RAppDataDone of msg_i
     | RQuery of query * bool
     | RHSDone
     | RClose
@@ -54,9 +54,9 @@ type readOutcome =
     | RWarning of alertDescription (* The received alert *)
     
 val write: Connection -> msg_o -> Connection * writeOutcome * msg_o option
-val read:  Connection -> Connection * readOutcome * msg_i option
+val read:  Connection -> Connection * readOutcome
 
-val authorize: Connection -> query -> Connection * readOutcome * msg_i option
+val authorize: Connection -> query -> Connection * readOutcome
 val refuse:    Connection -> query -> unit
 
 val getEpochIn:   Connection -> epoch
