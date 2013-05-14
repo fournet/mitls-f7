@@ -1047,16 +1047,20 @@ type (;ci:ConnectionInfo,c:config)incoming =
   | InFinished of (;ci,c)nextState {EvSentFinishedFirst(ci,false)}
   | InComplete of (;ci,c)nextState {Complete(ci,c)}
   | InError of alertDescription * string * (;ci,c)nextState
-val recv_fragment: ci:ConnectionInfo -> s:(;ci)hs_state -> rg:range -> (;ci.id_in,rg)HSFragment.fragment -> 
+val recv_fragment: ci:ConnectionInfo -> s:(;ci)hs_state -> rg:range -> (;Id(ci.id_in),rg)HSFragment.fragment -> 
                    (;ci,Config(ci,s))incoming
 val authorize:     ci:ConnectionInfo -> s:(;ci)hs_state -> 
                    c:Cert.chain -> (;ci,Config(ci,s))incoming
 
 type (;ci:ConnectionInfo,c:config)incomingCCS =
-  | InCCSAck of ci':ConnectionInfo * (;ci'.id_in,Reader)StatefulLHAE.state * (;ci',c)nextState
-				{ci.id_out = ci'.id_out /\ ci.id_in = Pred(ci'.id_in)}
+  | InCCSAck of ci':ConnectionInfo * cs:(;Id(ci'.id_in),Reader)StatefulLHAE.state * (;ci',c)nextState
+				{StatefulLHAE.History(Id(ci'.id_in),Reader,cs) = StatefulPlain.EmptyHistory(Id(ci'.id_in)) /\
+				ci.id_out = ci'.id_out /\
+				ci.id_in = Pred(ci'.id_in) /\ IsSuccEpoch(ci'.id_in) /\
+				ci.role = ci'.role /\
+				ci.id_rand = ci'.id_rand}
   | InCCSError of alertDescription * string * (;ci,c)nextState
-val recv_ccs     : ci:ConnectionInfo -> s:(;ci)hs_state -> rg:range -> (;ci.id_in,rg)HSFragment.fragment -> 
+val recv_ccs     : ci:ConnectionInfo -> s:(;ci)hs_state -> rg:range -> (;Id(ci.id_in),rg)HSFragment.fragment -> 
                    (;ci,Config(ci,s))incomingCCS
 
 function val GetMinVersion: ci:ConnectionInfo * (;ci)hs_state -> ProtocolVersion

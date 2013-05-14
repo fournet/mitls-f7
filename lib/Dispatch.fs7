@@ -50,7 +50,7 @@ private type (;id:ConnectionInfo) preGlobalState = {
   }
 //#end-gs
 
-predicate GState of ci:ConnectionInfo * (;ci)preGlobalState
+predicate type cheat = | GState of ci:ConnectionInfo * (;ci)preGlobalState
 type (;id:ConnectionInfo) globalState = gs:(;id) preGlobalState{GState(id,gs)}
 	
 private definition !ci,gs. GState(ci,gs)  <=>
@@ -72,7 +72,7 @@ private definition !ci,gs. GState(ci,gs)  <=>
 			  ( AppData.AppInStream(ci,gs.appdata) = TLSFragment.AppDataHistory(ci.id_in,Record.History(ci.id_in,Reader,gs.read.conn)) \/
 			  (?r,f. AppFragment.Extend(ci.id_in,AppData.AppInStream(ci,gs.appdata),r,f) =
 					TLSFragment.AppDataHistory(ci.id_in,Record.History(ci.id_in,Reader,gs.read.conn))) )
-		)
+			)
 		
 		//AP /\
 		//AP Handshake.HSInStream(ci,gs.handshake) = TLSFragment.HandshakeHistory(ci.id_in,Record.History(ci.id_in,Reader,gs.read.conn)) /\
@@ -441,11 +441,19 @@ private val send: Tcp.NetworkStream -> e:epoch -> w:(;e,Writer)dState ->
 	}) Result
                                                                                                                                                                 
 private val recv: c:Connection ->
-	((;ConnectionEpochIn(c),Reader) Record.ConnectionState *
+	((cs:(;ConnectionEpochIn(c),Reader) Record.ConnectionState *
 	 ct:TLSConstants.ContentType * r:range * 
-         (;ConnectionEpochIn(c),ct,ConnectionInHistory(c),r)TLSFragment.plain) Result
+         p:(;ConnectionEpochIn(c),ct,ConnectionInHistory(c),r)TLSFragment.plain){
+			Auth(ConnectionEpochIn(c)) => 
+				Record.History(ConnectionEpochIn(c),Reader,cs) =
+					TLSFragment.ExtendHistory(ConnectionEpochIn(c),ct,ConnectionInHistory(c),r,p)
+		 }) Result
 
-private val readOne: c:Connection{CnBuf_o(c) = None} ->
+private val readOne: c:Connection{CnBuf_o(c) = None /\
+		(Auth(ConnectionEpochIn(c)) =>
+			CnStream_i(c) = TLSFragment.AppDataHistory(ConnectionEpochIn(c),ConnectionInHistory(c))
+		)
+	} ->
 	ro:(;c)readOutcome * c':Connection{
 	// From writeAllClosing
 	(?ad,s. ro = WriteOutcome(SentFatal(ad,s)) /\ NextCn(c,c')) \/

@@ -560,24 +560,30 @@ let handleHandshakeOutcome (Conn(id,c)) hsRes =
         let wo,conn = writeAllClosing closing in
         WriteOutcome(wo),conn
 
+type cheat = | GState of ConnectionInfo * globalState // FIXME
+
 (* we have received, decrypted, and verified a record (ct,f); what to do? *)
-let readOne (Conn(id,c)) =
-  match recv (Conn(id,c)) with
+let readOne (Conn(id,c0)) =
+  match recv (Conn(id,c0)) with
     | Error z ->
         let (x,y) = z in
-        let closing = abortWithAlert (Conn(id,c)) x y in
+        let closing = abortWithAlert (Conn(id,c0)) x y in
         let wo,conn = writeAllClosing closing in
         WriteOutcome(wo),conn
     | Correct(received) -> 
         let (c_recv,ct,rg,frag) = received in 
-        let c_read = c.read in
+        let c_read = c0.read in
         let history = Record.history id.id_in Reader c_read.conn in
         let c_read = {c_read with conn = c_recv} in
-        let c = {c with read = c_read} in
+        let c = {c0 with read = c_read} in
           match c_read.disp with
             | Closed ->
                 let reason = perror __SOURCE_FILE__ __LINE__ "Trying to read from a closed connection" in
-                let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in
+                #if verify
+                Pi.assume (GState(id,c)) // FIXME
+                #endif
+                let conn = (Conn(id,c)) in
+                let closing = abortWithAlert conn AD_internal_error reason in
                 let wo,conn = writeAllClosing closing in
                 WriteOutcome(wo),conn
             | _ ->
@@ -586,7 +592,11 @@ let readOne (Conn(id,c)) =
                       let c_hs = c.handshake in
                         let f = TLSFragment.RecordPlainToHSPlain id.id_in history rg frag in
                         let hsRes = Handshake.recv_fragment id c_hs rg f in
+                        #if verify
+                        failwith "todo"
+                        #else
                         handleHandshakeOutcome (Conn(id,c)) hsRes
+                        #endif
 
                   | (Change_cipher_spec, FirstHandshake(_)) | (Change_cipher_spec, Open) ->
                         let f = TLSFragment.RecordPlainToCCSPlain id.id_in history rg frag in
