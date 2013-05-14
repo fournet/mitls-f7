@@ -22,6 +22,8 @@ let fragment e s r d =
 
 let delta e s r f = 
     let (e',s',d) = f.frag in
+    //MK the following idealization is for reindexing. 
+    //MK if auth, then we can use the e' indexed d, and are guaranteed that s=s'
     #if ideal
     if auth e then
       // typechecking relies on proving that e = e' & s = s'. How? 

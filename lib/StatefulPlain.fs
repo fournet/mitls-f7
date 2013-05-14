@@ -80,5 +80,5 @@ let widen i ad r f =
     {contents = f1}
 #endif
 
-let RecordPlainToStAEPlain (e:epoch) (ct:ContentType) (ad:adata) (ss:TLSFragment.history) (st:history) (rg:range) f = {contents = f}
-let StAEPlainToRecordPlain (e:epoch) (ct:ContentType) (ad:adata) (ss:TLSFragment.history) (st:history) (rg:range) f = f.contents
+let RecordPlainToStAEPlain (e:epoch) (ct:ContentType) (ad:adata) (h:TLSFragment.history) (sh:history) (rg:range) f = {contents = f}
+let StAEPlainToRecordPlain (e:epoch) (ct:ContentType) (ad:adata) (h:TLSFragment.history) (sh:history) (rg:range) f = f.contents

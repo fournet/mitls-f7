@@ -11,17 +11,17 @@ type ConnectionState =
     | NullState
     | SomeState of TLSFragment.history * StatefulLHAE.state
 
-let someState (ki:epoch) (rw:rw) h s = SomeState(h,s)
+let someState (e:epoch) (rw:rw) h s = SomeState(h,s)
 
 type sendState = ConnectionState
 type recvState = ConnectionState
 
-let initConnState (ki:epoch) (rw:rw) s = 
-  let i = id ki in
-  let eh = TLSFragment.emptyHistory ki in
-  someState ki rw eh s
+let initConnState (e:epoch) (rw:rw) s = 
+  let i = id e in
+  let h = TLSFragment.emptyHistory e in
+  someState e rw h s
 
-let nullConnState (ki:epoch) (rw:rw) = NullState
+let nullConnState (e:epoch) (rw:rw) = NullState
 
 // packet format
 let makePacket ct ver data =
@@ -112,7 +112,7 @@ let recordPacketOut2 conn clen ct fragment =
     makePacket ct conn.local_pv payload 
 *)
 
-let recordPacketIn ki conn headPayload =
+let recordPacketIn e conn headPayload =
     let (header,payload) = split headPayload 5 in
     match parseHeader header with
     | Error(z) -> Error(z)
@@ -125,15 +125,15 @@ let recordPacketIn ki conn headPayload =
         let err = AD_illegal_parameter,reason in
         Error err
     else
-    let initEpoch = isInitEpoch ki in
+    let initEpoch = isInitEpoch e in
     match (initEpoch,conn) with
     | (true,NullState) ->
         let rg = (plen,plen) in
-        let i = id ki in
+        let i = id e in
         let msg = TLSFragment.fragment i ct rg payload in
         correct(conn,ct,pv,rg,msg)
     | (false,SomeState(history,state)) ->
-        let i = id ki in
+        let i = id e in
         let ad = StatefulPlain.makeAD i ct in
         let decr = StatefulLHAE.decrypt i state ad payload in
         match decr with
@@ -141,9 +141,9 @@ let recordPacketIn ki conn headPayload =
         | Correct (decrRes) ->
             let (newState, rg, plain) = decrRes in
             let oldH = StatefulLHAE.history i Reader state in
-            let msg = StatefulPlain.StAEPlainToRecordPlain ki ct ad history oldH rg plain in
-            let history = TLSFragment.extendHistory ki ct history rg msg in
-            let st' = someState ki Reader history newState in
+            let msg = StatefulPlain.StAEPlainToRecordPlain e ct ad history oldH rg plain in
+            let history = TLSFragment.extendHistory e ct history rg msg in
+            let st' = someState e Reader history newState in
             correct(st',ct,pv,rg,msg)
     | _ -> unexpected "[recordPacketIn] Incompatible ciphersuite and key type"
 
