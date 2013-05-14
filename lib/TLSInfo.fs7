@@ -389,6 +389,7 @@ ask !i:id. not HonestMS(i.msId) => not SafeKDF(i)
 type event = // produced by PRF, used once the handshake is Finished
   | KeyCommit of    csrands * ProtocolVersion * aeAlg 
   | KeyGenClient of csrands * ProtocolVersion * aeAlg 
+  | SentCCS of Role * epoch
 
 // These two injectivity properties follow from the affine usage of keyCommit and keyGenClient
 theorem !csr,pv0,ae0,pv1,ae1. 
@@ -471,11 +472,11 @@ val safeHS: (e:epoch) -> b:bool { b = true <=> SafeHS(e)}
 // Predicates specifying the security of TLS connections 
 
 predicate Safe   of epoch        // The epoch parameters yield privacy & integrity
-definition !e. Safe(e) <=> SafeId(Id(e))
+definition !e. Safe(e) <=> SafeId(Id(e)) /\ SentCCS(Server,e) /\ SentCCS(Client,e)
 val safe:   (e:epoch) -> b:bool { b = true <=> Safe(e)}
 
 predicate Auth   of epoch        // The epoch parameters yield integrity (not necesarily privacy)
-definition !e. Auth(e) <=> AuthId(Id(e))
+definition !e. Auth(e) <=> AuthId(Id(e)) /\ SentCCS(Server,e) /\ SentCCS(Client,e)
 val auth:    (e:epoch) -> b:bool {b = true <=> Auth(e)}
 
 ask !e. Safe(e) => Auth(e)

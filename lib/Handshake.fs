@@ -507,7 +507,6 @@ type events =
     Authorize of Role * SessionInfo
   | Configure of Role * epoch * config
   | EvSentFinishedFirst of ConnectionInfo * bool
-  | SentCCS of Role * epoch
   | Negotiated of Role * SessionInfo * config * config
 
 (* verify data authenticated by the Finished messages *)

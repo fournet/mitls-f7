@@ -812,13 +812,17 @@ private definition !s,r,b. PRF.VerifyData(s,r,b)
         SentCCS(Server,e) /\
         ServerLogBeforeServerFinishedResume(EpochSI(e),b)))
 
+predicate CompleteEpoch' of Role * epoch * config
+private definition !role, e. CompleteEpoch'(role,e) 
+  <=> SentCCS(role,e) /\ 
+      ( SafeVD(Id(e)) => SentCCS(DualRole(role),e) )
 
 private definition !role,e,cfg. 
   CompleteEpoch(role,e,cfg) 
 
   <=>
   ((StrongHS(EpochSI(e)) /\ HonestPMSData(EpochSI(e).pmsData) =>
-              (Authorize(Client,EpochSI(e)) /\
+              (Authorize(Client,EpochSI(e)) /\ //gives us Match
                Authorize(Server,EpochSI(e)) /\
                SentCCS(Client,e) /\
                SentCCS(Server,e) /\

@@ -75,7 +75,7 @@ ask !e,h,rg,f. HSFragment.Sent(Id(e),HandshakeHistory(e,h),rg,f) =>
 
 //MK I think that it should be Auth in the postcondition.
 type (;e:epoch,ct:ContentType,h:(;e)history,rg:range) plain = 
-  f:(;Id(e),ct,rg)fragment { Auth(e) => ?e'. RecordSent(e,ct,h,rg,f) }
+  f:(;Id(e),ct,rg)fragment { Auth(e) => RecordSent(e,ct,h,rg,f) }
   //MK { AuthId(Id(e)) => ?e'. Id(e')=Id(e) /\ RecordSent(e',ct,h,rg,f) }
 
 function val ExtendHistory: e:epoch * ct:ContentType * ss:(;e)history * r:range * (;e,ct,ss,r)plain -> 'a //(;e)history

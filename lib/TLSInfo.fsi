@@ -71,12 +71,14 @@ val macAlg_of_id: id -> macAlg
 val encAlg_of_id: id -> encAlg
 val pv_of_id: id -> ProtocolVersion
 
+type preEpoch
+type epoch = preEpoch
+
 type event =
   | KeyCommit of    csrands * ProtocolVersion * aeAlg 
   | KeyGenClient of csrands * ProtocolVersion * aeAlg 
+  | SentCCS of Role * epoch
 
-type preEpoch
-type epoch = preEpoch
 
 val id: epoch -> id 
 val unAuthIdInv: id -> epoch

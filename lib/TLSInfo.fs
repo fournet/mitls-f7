@@ -169,6 +169,7 @@ let kdfAlg_of_id (id:id) = id.kdfAlg
 type event =
   | KeyCommit of    csrands * ProtocolVersion * aeAlg 
   | KeyGenClient of csrands * ProtocolVersion * aeAlg 
+  | SentCCS of Role * epoch
 
 
 let noId: id = { 
