@@ -7,6 +7,27 @@ open TLSInfo
 open TLSConstants
 open Range
 
+(* CF [13/05/2013 21:18:54] KB on our current History design: 
+
+TLSFragment.history and its associated predicates are indexed by epoch 
+and not id only because they include the application datastream
+"DataStream.stream" which is indexed by epoch and not id.
+
+One way to clean this up would be to introduce an AppFragment.stream type
+that is indexed by ids (by hiding the DataStream's epoch parameter as a
+ghost element, as in AppFragment.fragment)
+
+StatefulPlain.History is the complete history of the TLS channel.
+Record then multiplexes this history into TLSFragment.history
+
+Since TLSFragment.history is fully determined by StatefulPlain.history 
+(see the logical function StatefulPlain.Multiplexed), we actually do not 
+need to maintain TLSFragment.history, but we still do in order to make our
+invariants in Dispatch easier to state.
+
+*)
+
+
 //CF are we still planning to define clones of HSFragment or not? 
 
 private type (;i:id,ct:ContentType,rg:range) fragment =

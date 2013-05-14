@@ -134,9 +134,16 @@ definition !e,ad,sh,r,f,ct.
                    Multiplexed(e,sh),
                    r,StAEToRecord(Id(e),ParseAD(Id(e),B(ad)),r,f))
 
-private definition !e,ad,sh,r,f. 
-    Sent(Id(e),ad,sh,r,f) <=> 
-    TLSFragment.RecordSent(e,ParseAD(Id(e),ad),Multiplexed(e,sh),r,f.contents)
+//CF was too strong
+//CF private definition !e,ad,sh,r,f. 
+//CF    Sent(Id(e),ad,sh,r,f) <=> 
+//CF    TLSFragment.RecordSent(e,ParseAD(Id(e),ad),Multiplexed(e,sh),r,f.contents)
+
+private definition !i,ad,sh,r,f. 
+    Sent(i,ad,sh,r,f) <=>
+	?e. (i = Id(e) /\ 
+	 	 TLSFragment.RecordSent(e,ParseAD(Id(e),ad),Multiplexed(e,sh),r,f.contents))
+
 
 //CF usage? 
 val RecordPlainToStAEPlain: 
