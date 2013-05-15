@@ -560,7 +560,9 @@ let handleHandshakeOutcome (Conn(id,c)) hsRes =
         let wo,conn = writeAllClosing closing in
         WriteOutcome(wo),conn
 
-type cheat = | GState of ConnectionInfo * globalState // FIXME
+#if verify
+type preds = | GState of ConnectionInfo * globalState
+#endif
 
 (* we have received, decrypted, and verified a record (ct,f); what to do? *)
 let readOne (Conn(id,c0)) =
@@ -576,6 +578,7 @@ let readOne (Conn(id,c0)) =
         let history = Record.history id.id_in Reader c_read.conn in
         let c_read = {c_read with conn = c_recv} in
         let c = {c0 with read = c_read} in
+        let c_read = c.read in
           match c_read.disp with
             | Closed ->
                 let reason = perror __SOURCE_FILE__ __LINE__ "Trying to read from a closed connection" in
@@ -592,11 +595,82 @@ let readOne (Conn(id,c0)) =
                       let c_hs = c.handshake in
                         let f = TLSFragment.RecordPlainToHSPlain id.id_in history rg frag in
                         let hsRes = Handshake.recv_fragment id c_hs rg f in
-                        #if verify
-                        failwith "todo"
-                        #else
-                        handleHandshakeOutcome (Conn(id,c)) hsRes
-                        #endif
+                        
+                        // AP: BEGIN: Inlined from handleHandshakeOutcome
+
+                        match hsRes with
+                        | Handshake.InAck(hs) ->
+                            let c = { c with handshake = hs} in
+                            RAgain, Conn(id,c)
+                        | Handshake.InVersionAgreed(hs,pv) ->
+                            match c_read.disp with
+                            | Init ->
+                                (* Then, also c_write must be in Init state. It means this is the very first, unprotected handshake,
+                                    and we just negotiated the version.
+                                    Set the negotiated version in the current sinfo (read and write side), 
+                                    and move to the FirstHandshake state, so that
+                                    protocol version will be properly checked *)
+                                let new_read = {c_read with disp = FirstHandshake(pv)} in
+                                let c_write = c.write in
+                                let new_write = {c_write with disp = FirstHandshake(pv)} in
+                                let c = {c with handshake = hs;
+                                                read = new_read;
+                                                write = new_write} in
+                                    (RAgain, Conn(id,c))
+                            | _ -> (* It means we are doing a re-negotiation. Don't alter the current version number, because it
+                                        is perfectly valid. It will be updated after the next CCS, along with all other session parameters *)
+                                let c = { c with handshake = hs} in
+                                    (RAgain, Conn(id, c))
+                        | Handshake.InQuery(query,advice,hs) ->
+                                let c = {c with handshake = hs} in
+                                    (RQuery(query,advice),Conn(id,c))
+                        | Handshake.InFinished(hs) ->
+                                (* Ensure we are in Finishing state *)
+                                match c_read.disp with
+                                    | Finishing ->
+                                        let c = {c with handshake = hs} in
+                                        (* FIXME Indeed, we should stop reading now!
+                                            (Because, except for false start implementations, the other side is now
+                                            waiting for us to send our finished message)
+                                            However, if we say RHSDone, the library will report an early completion of HS
+                                            (we still have to send our finished message).
+                                            So, here we say ReadAgain, which will anyway first flush our output buffers,
+                                            thus sending our finished message, and thus letting us get the WHSDone event.
+                                            I know, it's tricky and it sounds fishy, but that's the way it is now.*)
+                                        (RAgain,Conn(id,c))
+                                    | _ ->
+                                        let reason = perror __SOURCE_FILE__ __LINE__ "Finishing handshake in the wrong state" in
+                                        let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in
+                                        let wo,conn = writeAllClosing closing in
+                                        WriteOutcome(wo),conn
+                        | Handshake.InComplete(hs) ->
+                                let c = {c with handshake = hs} in
+                                (* Ensure we are in Finishing state *)
+                                    match c_read.disp with
+                                    | Finishing ->
+                                        (* Sanity check: in and out session infos should be the same *)
+                                        if epochSI(id.id_in) = epochSI(id.id_out) then
+                                            match moveToOpenState (Conn(id,c)) with
+                                            | Correct(c) -> 
+                                                (RHSDone, Conn(id,c))
+                                            | Error(z) -> 
+                                                let (x,y) = z in
+                                                let closing = abortWithAlert (Conn(id,c)) x y in
+                                                let wo,conn = writeAllClosing closing in
+                                                WriteOutcome(wo),conn
+                                        else let closed = closeConnection (Conn(id,c)) in (RError(perror __SOURCE_FILE__ __LINE__ "Invalid connection state"),closed) (* Unrecoverable error *)
+                                    | _ ->
+                                        let reason = perror __SOURCE_FILE__ __LINE__ "Invalid connection state" in
+                                        let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in
+                                        let wo,conn = writeAllClosing closing in
+                                        WriteOutcome(wo),conn
+                        | Handshake.InError(x,y,hs) ->
+                            let c = {c with handshake = hs} in
+                            let closing = abortWithAlert (Conn(id,c)) x y in
+                            let wo,conn = writeAllClosing closing in
+                            WriteOutcome(wo),conn
+
+                        // AP: END: Inlined from handleHandshakeOutcome
 
                   | (Change_cipher_spec, FirstHandshake(_)) | (Change_cipher_spec, Open) ->
                         let f = TLSFragment.RecordPlainToCCSPlain id.id_in history rg frag in
@@ -667,6 +741,9 @@ let readOne (Conn(id,c0)) =
                       (RAppDataDone(res), Conn(id, c))
                   | _, _ ->
                       let reason = perror __SOURCE_FILE__ __LINE__ "Message type received in wrong state"
+                      #if verify
+                      Pi.assume(GState(id,c))
+                      #endif
                       let closing = abortWithAlert (Conn(id,c)) AD_unexpected_message reason in
                       let wo,conn = writeAllClosing closing in
                       WriteOutcome(wo),conn

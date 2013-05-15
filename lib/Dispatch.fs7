@@ -50,7 +50,7 @@ private type (;id:ConnectionInfo) preGlobalState = {
   }
 //#end-gs
 
-predicate type cheat = | GState of ci:ConnectionInfo * (;ci)preGlobalState
+predicate type preds = | GState of ci:ConnectionInfo * (;ci)preGlobalState
 type (;id:ConnectionInfo) globalState = gs:(;id) preGlobalState{GState(id,gs)}
 	
 private definition !ci,gs. GState(ci,gs)  <=>
@@ -81,6 +81,29 @@ private definition !ci,gs. GState(ci,gs)  <=>
 		)
 	)
   )
+
+ask !ci,gs,r,p.
+TLSFragment.AppDataHistory(ci.id_in,Record.History(ci.id_in,Reader,gs.read.conn)) =
+TLSFragment.AppDataHistory(ci.id_in,
+	TLSFragment.ExtendHistory(ci.id_in,TLSConstants.Change_cipher_spec,
+	Record.History(ci.id_in,Reader,gs.read.conn),r,
+	TLSFragment.CCSRecordPlain(ci.id_in,Record.History(ci.id_in,Reader,gs.read.conn),r,p))
+)
+
+predicate UnchangedState of ci:ConnectionInfo * (;ci)globalState * (;ci)globalState
+private definition !ci,gs,gs'. UnchangedState(ci,gs,gs') <=>
+	//(gs.handshake = gs'.handshake) /\
+	//(gs.alert = gs'.alert) /\
+	(gs.appdata = gs'.appdata) /\
+	(gs.write = gs'.write) /\
+	(gs.read.disp = gs'.read.disp) /\
+	(Auth(ci.id_in) =>
+		TLSFragment.AppDataHistory(ci.id_in,Record.History(ci.id_in,Reader,gs.read.conn)) =
+		TLSFragment.AppDataHistory(ci.id_in,Record.History(ci.id_in,Reader,gs'.read.conn))
+	)
+
+ask !ci,gs,gs'. 
+	GState(ci,gs) /\ UnchangedState(ci,gs,gs') => GState(ci,gs')
 
 private type preConnection = Conn of (id:ConnectionInfo * (;id)globalState)
 predicate IsConnection of preConnection
@@ -148,6 +171,7 @@ predicate EvFatal      of epoch * alertDescription * cbytes
 private assume !e,b. EvClose(e,b)
 private assume !e,ad,b. EvWarning(e,ad,b)
 private assume !e,ad,b. EvFatal(e,ad,b)
+private assume !e,b. EvWrite(e,b)
 // Write records increasing prefixes of the stream, for each written data fragment, 
 // interleaved with warnings, ended by Fatal or Close [we may distinguish between two kinds of close too]
 // Write(i,p0), ..., Write(i,p0 @| ... @| pi), Warning(i,p0 @| ... @| pi), ..., Close(i, p0 @| ... @| pn)
@@ -173,6 +197,8 @@ function val MsgOBytes: c:Connection * (;ConnectionEpochOut(c),CnStream_o(c)) ms
 function val MsgIBytes: c:Connection * (;ConnectionEpochIn (c),CnStream_i(c)) msg_i -> cbytes
 private definition !c,r,d.
 	MsgOBytes(c,(r,d)) = DataStream.Payload(ConnectionEpochOut(c),CnStream_o(c),r,d)
+private definition !c,r,d.
+	MsgIBytes(c,(r,d)) = DataStream.Payload(ConnectionEpochIn(c), CnStream_i(c),r,d)
 
 predicate Split_o of
 	  c:Connection
@@ -190,10 +216,10 @@ private definition !c, c'.
 
 private definition !c, c', msg.
 	Extend_o(c, c', msg) <=>     Bytes_i(c') = Bytes_i(c)
-                              /\ Bytes_o(c') =  MsgOBytes(c, msg) @| Bytes_o(c)
+                              /\ Bytes_o(c') = Bytes_o(c) @| MsgOBytes(c, msg)
 
 private definition !c, c', msg. 
-	Extend_i(c, c', msg) <=>     Bytes_i(c') = MsgIBytes(c, msg) @| Bytes_i(c)
+	Extend_i(c, c', msg) <=>     Bytes_i(c') = Bytes_i(c) @| MsgIBytes(c, msg)
                               /\ Bytes_o(c') = Bytes_o(c)
 
 val networkStream: Connection -> Tcp.NetworkStream
@@ -449,11 +475,7 @@ private val recv: c:Connection ->
 					TLSFragment.ExtendHistory(ConnectionEpochIn(c),ct,ConnectionInHistory(c),r,p)
 		 }) Result
 
-private val readOne: c:Connection{CnBuf_o(c) = None /\
-		(Auth(ConnectionEpochIn(c)) =>
-			CnStream_i(c) = TLSFragment.AppDataHistory(ConnectionEpochIn(c),ConnectionInHistory(c))
-		)
-	} ->
+private val readOne: c:Connection{CnBuf_o(c) = None} ->
 	ro:(;c)readOutcome * c':Connection{
 	// From writeAllClosing
 	(?ad,s. ro = WriteOutcome(SentFatal(ad,s)) /\ NextCn(c,c')) \/
