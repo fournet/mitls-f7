@@ -831,10 +831,12 @@ private definition !s,r,b. PRF.VerifyData(s,r,b)
         SentCCS(Server,e) /\
         ServerLogBeforeServerFinishedResume(EpochSI(e),b)))
 
+(* AP: unused? Current declaration is not well typed
 predicate CompleteEpoch' of Role * epoch * config
 private definition !role, e. CompleteEpoch'(role,e) 
   <=> SentCCS(role,e) /\ 
       ( SafeVD(Id(e)) => SentCCS(DualRole(role),e) )
+*)
 
 private definition !role,e,cfg. 
   CompleteEpoch(role,e,cfg) 
