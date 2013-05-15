@@ -86,15 +86,16 @@ let parseMessage buf =
 #if verify
 type unsafe = Unsafe of epoch
 #endif
-let makeFragment ki b =
+let makeFragment ki b = 
+    let i = id ci.id_out in
     if length b < fragmentLength then
       let r0 = (length b, length b) in
-      let f = HSFragment.fragmentPlain ki r0 b in
+      let f = HSFragment.fragmentPlain i r0 b in
       (r0,f,empty_bytes)
     else 
       let (b0,rem) = Bytes.split b fragmentLength in
       let r0 = (length b0, length b0) in
-      let f = HSFragment.fragmentPlain ki r0 b0 in
+      let f = HSFragment.fragmentPlain i r0 b0 in
       (r0,f,rem)
 
 // we could use something more general for parsing lists, e.g.
@@ -786,7 +787,7 @@ let next_fragment ci state =
                 let cvd = PRF.makeVerifyData si ms Client log in
                 let cFinished = messageBytes HT_finished cvd in
                 let log = log @| cFinished in
-                let ki_out = id ci.id_out in
+                let ki_out = ci.id_out in
                 let (rg,f,_) = makeFragment ki_out CCSBytes in
                 let ci = {ci with id_out = next_ci.id_out} in 
 (* KB #if avoid 

@@ -141,14 +141,28 @@ definition !e,ad,sh,r,f,ct.
 
 //CF temporary, until we derive it from event-based affinity.
 //CF and actually not sufficient...
-private ask !e,e',ad,h,r,d. 
-  Auth(e) /\ Id(e) = Id(e') /\ TLSFragment.RecordSent(e',ad,h,r,d)
-  => TLSFragment.RecordSent(e,ad,h,r,d)
+
 
 private definition !i,ad,sh,r,f. 
     Sent(i,ad,sh,r,f) <=>
-	?e. (i = Id(e) /\ 
-	 	 TLSFragment.RecordSent(e,ParseAD(Id(e),ad),Multiplexed(e,sh),r,f.contents))
+	 (?e. i = Id(e) /\
+              TLSFragment.RecordSent(e,ParseAD(i,ad),Multiplexed(e,sh),r,f.contents))
+
+
+private assume !e,e',ad,sh,r,d. 
+       (Id(e) = Id(e') /\ 
+       (AuthId(Id(e)) => TLSFragment.RecordSent(e',ad,Multiplexed(e',sh),r,d))) =>
+       (AuthId(Id(e)) => TLSFragment.RecordSent(e,ad,Multiplexed(e,sh),r,d))
+
+
+private ask !e,ct,sh,r,f. 
+  (AuthId(Id(e)) => TLSFragment.RecordSent(e,ct,Multiplexed(e,sh),r,f.contents)) =>
+  (AuthId(Id(e)) => Sent(Id(e),ADBytes(Id(e),ct),sh,r,f))
+
+private ask !e,ad,sh,r,f. 
+  (AuthId(Id(e)) => Sent(Id(e),ad,sh,r,f)) =>
+  (AuthId(Id(e)) => TLSFragment.RecordSent(e,ParseAD(Id(e),ad),Multiplexed(e,sh),r,f.contents))
+
 
 
 //CF usage? 
@@ -166,4 +180,5 @@ val StAEPlainToRecordPlain:
     h:(;e) TLSFragment.history ->
     sh:(;Id(e)) history{h = Multiplexed(e,sh)} -> rg:range -> 
     d:(;Id(e),ad,sh,rg) plain ->                                       //MK has {AuthId(i) => Sent(i,B(ad),sh,rg,d)} refinement
-    f:(;e,ct,h,rg) TLSFragment.plain{f=StAEToRecord(Id(e),ct,rg,d)}    //MK has {Auth(e) => RecordSent(e,ct,h,rg,f) } refinement
+    f:(;e,ct,h,rg) TLSFragment.plain//{f=StAEToRecord(Id(e),ct,rg,d)}    //MK has {Auth(e) => RecordSent(e,ct,h,rg,f) } refinement
+

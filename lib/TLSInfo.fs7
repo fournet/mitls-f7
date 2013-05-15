@@ -477,17 +477,27 @@ val safeHS: (e:epoch) -> b:bool { b = true <=> SafeHS(e)}
 // Predicates specifying the security of TLS connections 
 
 predicate Safe   of epoch        // The epoch parameters yield privacy & integrity
-definition !e. Safe(e) <=> SafeId(Id(e)) /\ SentCCS(Server,e) /\ SentCCS(Client,e)
+definition !e. Safe(e) <=> (SafeId(Id(e)) /\ SentCCS(Server,e) /\ SentCCS(Client,e))
 val safe:   (e:epoch) -> b:bool { b = true <=> Safe(e)}
 
 predicate Auth   of epoch        // The epoch parameters yield integrity (not necesarily privacy)
-definition !e. Auth(e) <=> AuthId(Id(e)) /\ SentCCS(Server,e) /\ SentCCS(Client,e)
+definition !e. Auth(e) <=> (AuthId(Id(e)) /\ SentCCS(Server,e) /\ SentCCS(Client,e))
 val auth:    (e:epoch) -> b:bool {b = true <=> Auth(e)}
 
 ask !e. Safe(e) => Auth(e)
 
 // so that TLS can exchange any traffic on the initial null connection
 ask !e. IsInitEpoch(e) => not Auth(e)
+
+predicate Open of epoch
+private definition !e. Open(e) <=> (SentCCS(Client,e) /\ SentCCS(Server,e))
+ask !e. Open(e) => (AuthId(Id(e)) => Auth(e))
+ask !e. Open(e) => (SafeId(Id(e)) => Safe(e))
+ask !e. Auth(e) => Open(e)
+private assume !r,e,e'. SentCCS(r,e) /\ SentCCS(r,e') /\ Id(e) = Id(e') => e = e'
+ask !e,e'. Open(e) /\ Open(e') /\ Id(e) = Id(e') => e = e'
+type openEpoch = e:epoch {Open(e)}
+
 
 // -------------------------------------------------------------------
 // Application configuration options
