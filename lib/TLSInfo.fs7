@@ -266,15 +266,21 @@ predicate val IsSuccEpoch: preEpoch -> bool
 //MK   private definition !e. IsSuccEpoch(e) <=> ?c,s,si,pe. e = SuccEpoch(c,s,si,pe)
 //MK with the following we might be able to prove that some e is IsSuccEpoch(e) though it is not a valid preEpoch
 //MK but that is also true for the existential version above.
-private definition !e:preEpoch,r:Role. IsInitEpoch(e) <=> e = InitEpoch(r)
-private definition !e:preEpoch,c:crand,s:srand,si:SessionInfo,pe:preEpoch. IsSuccEpoch(e) <=> e = SuccEpoch(c,s,si,pe)
-type epoch = e:preEpoch {IsInitEpoch(e) \/ IsSuccEpoch(e)}
-type succEpoch = e:preEpoch {IsSuccEpoch(e)}
+private definition !e:preEpoch. IsInitEpoch(e) <=> (?r:Role. e = InitEpoch(r))
+private definition !e:preEpoch. 
+        IsSuccEpoch(e) <=> (?c:crand,s:srand,si:SessionInfo,pe:preEpoch. e = SuccEpoch(c,s,si,pe))
+function val Pred: preEpoch -> preEpoch
+private definition !cr,sr,si,pred. Pred(SuccEpoch(cr,sr,si,pred)) = pred
+
+predicate val IsValidEpoch: preEpoch -> bool 
+private definition !e. IsValidEpoch(e) <=> (IsInitEpoch(e) \/ 
+                                            (IsSuccEpoch(e) /\ IsValidEpoch(Pred(e))))
+
+type epoch = e:preEpoch {IsValidEpoch(e)}
+type succEpoch = e:epoch {IsSuccEpoch(e)}
 
 val isInitEpoch: e:epoch -> b:bool{(b = true /\ IsInitEpoch(e)) \/ (b = false /\ IsSuccEpoch(e))}
 
-function val Pred: succEpoch -> epoch
-private definition !cr,sr,si,pred. Pred(SuccEpoch(cr,sr,si,pred)) = pred
 
 function val EpochSI: succEpoch -> SessionInfo
 private definition !c,s,si,p. EpochSI(SuccEpoch(c,s,si,p)) = si
@@ -316,8 +322,7 @@ val initConnection: r:Role -> ra:random -> ci:ConnectionInfo
 val nextEpoch: e:epoch -> c:crand -> s:srand -> si:SessionInfo -> e':succEpoch
   { Pred(e') = e /\ EpochSI(e') = si /\ EpochCRand(e') = c /\ EpochSRand(e') = s}
 
-val predEpoch: e:succEpoch -> e':epoch
-  { ?cr,sr,si. e = SuccEpoch(cr,sr,si,e') }
+val predEpoch: e:succEpoch -> e':epoch{ e' = Pred(e)}
 
 // -------------------------------------------------------------------
 // indexing instances of AE --- an abstrac parameter for StatefulAEAD et al

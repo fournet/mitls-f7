@@ -133,8 +133,8 @@ let nextEpoch epoch crand srand si =
 
 let predEpoch (e:epoch) = 
     match e with
-    | InitEpoch(r) -> failwith "no pred"
     | SuccEpoch(_,_,_, e') -> e'
+    | InitEpoch(r) -> failwith "no pred"
 
 let rec epochWriter (e:epoch) =
     match e with
