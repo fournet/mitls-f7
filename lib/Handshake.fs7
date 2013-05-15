@@ -752,6 +752,25 @@ private definition !si,l.
     B(l) = B(l') @| ServerFinishedMsg(svd))
 
 
+(*KB Main injectivity theorems about the log.
+   To prove them we will need lemmas about the partial injectivity for 
+   each previous log predicate.
+   Note that these need to be extended to include cvd, svd for prev epoch and also client hello info for Negotiated.
+ *)
+theorem !si,si',t. ClientLogBeforeCertificateVerifyRSA_Auth(si,t) /\        
+                   ClientLogBeforeCertificateVerifyRSA_Auth(si',t) => si = si'
+theorem !si,si',t. ClientLogBeforeCertificateVerifyDHE_Auth(si,t) /\        
+                   ClientLogBeforeCertificateVerifyDHE_Auth(si',t) => si = si'
+theorem !si,si',t. ClientLogBeforeClientFinished(si,t) /\        
+                   ClientLogBeforeClientFinished(si',t) => si = si'
+theorem !si,si',t. ServerLogBeforeServerFinished(si,t) /\        
+                   ServerLogBeforeServerFinished(si',t) => si = si'
+theorem !si,si',t. ClientLogBeforeClientFinishedResume(si,t) /\        
+                   ClientLogBeforeClientFinishedResume(si',t) => si = si'
+theorem !si,si',t. ServerLogBeforeServerFinishedResume(si,t) /\        
+                   ServerLogBeforeServerFinishedResume(si',t) => si = si'
+
+
 predicate Configure of Role * epoch * config
 predicate Authorize of Role * SessionInfo
 // If the user Authorize, we can put the session in the DB
