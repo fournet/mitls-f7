@@ -58,7 +58,7 @@ private definition !e,s,h,t.
  (s.sb = h::t => StreamBytes(e,s) = (StreamBytes(e,{sb=t}) @| B(h)))
 
 ask !e. StreamBytes(e,EmptyStream(e)) = [||]
-ask !e,s,r,b. StreamBytes(e,ExtendStream(e,s,r,b)) = ( StreamBytes(e,s) @| b )
+ask !e,s,r,b. StreamBytes(e,ExtendStream(e,s,r,b)) = ( StreamBytes(e,s) @| B(b) )
 
 // The following two functions are 
 // used only by the application.
