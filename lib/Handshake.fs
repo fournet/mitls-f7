@@ -87,7 +87,7 @@ let parseMessage buf =
 type unsafe = Unsafe of epoch
 #endif
 let makeFragment ki b = 
-    let i = id ci.id_out in
+    let i = id ki in
     if length b < fragmentLength then
       let r0 = (length b, length b) in
       let f = HSFragment.fragmentPlain i r0 b in
@@ -801,7 +801,7 @@ let next_fragment ci state =
                 Pi.assume (SentCCS(Client,e));
                 let cvd = PRF.makeVerifyData (epochSI e) ms Client log in
                 let cFinished = messageBytes HT_finished cvd in
-                let ki_out = id ci.id_out in
+                let ki_out = ci.id_out in
                 let (rg,f,_) = makeFragment ki_out CCSBytes in
                 let ci = {ci with id_out = e} in 
 (* KB #if avoid 
@@ -818,7 +818,7 @@ let next_fragment ci state =
                 Pi.assume (SentCCS(Server,e));
                 let svd = PRF.makeVerifyData si ms Server log in
                 let sFinished = messageBytes HT_finished svd in
-                let ki_out = id ci.id_out in
+                let ki_out = ci.id_out in
                 let (rg,f,_) = makeFragment ki_out CCSBytes in
                 let ci = {ci with id_out = e} in
 (* KB #if avoid 
@@ -833,7 +833,7 @@ let next_fragment ci state =
                 let svd = PRF.makeVerifyData (epochSI we) ms Server log in
                 let sFinished = messageBytes HT_finished svd in
                 let log = log @| sFinished in
-                let ki_out = id ci.id_out in
+                let ki_out = ci.id_out in
                 let (rg,f,_) = makeFragment ki_out CCSBytes in
                 let ci = {ci with id_out = we} in 
 (* KB #if avoid 
@@ -846,7 +846,7 @@ let next_fragment ci state =
 (* KB #endif*)
             | _ -> OutIdle(state)
     | outBuf ->
-        let ki_out = id ci.id_out in
+        let ki_out = ci.id_out in
         let (rg,f,remBuf) = makeFragment ki_out outBuf in
         match remBuf with
         | xx when length xx = 0 ->
