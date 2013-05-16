@@ -57,7 +57,9 @@ val fragment: e:epoch -> s:(;e) stream -> r:range ->
   { Sent(e,s,r,f) /\ s' = Extend(e,s,r,f) /\ FragOfDelta(e,r,f,s,d)}
 
 val delta: e:openEpoch -> s:(;e) stream -> r:range -> 
-  f:(;Id(e),r) fragment{Auth(e) => Sent(e,s,r,f)} -> 
+  f:(;Id(e),r) fragment{Auth(e) => Sent(e,s,r,f) 
+						(*MK: /\ (?e',s',d'. f = {frag=(e',s',d')} 
+						      /\ not(Auth(e)) => not(Auth(e')) ) *)} -> 
   d:(;e,s,r) delta * s':(;e) stream{s' = Extend(e,s,r,f)} 
 
 // conditional fragment abstraction 

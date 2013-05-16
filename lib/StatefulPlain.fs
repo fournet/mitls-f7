@@ -67,11 +67,11 @@ let plain (i:id) (h:history) (ad:adata) (r:range) (b:bytes) =
     //CF cut: let h = TLSFragment.emptyHistory e //CF Not Auth: we can pick any history
     let ct = parseAD i ad in
     {contents = TLSFragment.fragment i ct r b}
-let reprFragment (e:id) (ad:adata) (r:range) (f:plain) =
-    let ct = parseAD e ad in
+let reprFragment (i:id) (ad:adata) (r:range) (f:plain) =
+    let ct = parseAD i ad in
     let x = f.contents in
-    TLSFragment.reprFragment e ct r x
-let repr e (h:history) ad r f = reprFragment e ad r f
+    TLSFragment.reprFragment i ct r x
+let repr i (h:history) ad r f = reprFragment i ad r f
 
 #if ideal
 let widen i ad r f =

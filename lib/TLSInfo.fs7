@@ -277,7 +277,7 @@ private definition !e. IsValidEpoch(e) <=> (IsInitEpoch(e) \/
                                             (IsSuccEpoch(e) /\ IsValidEpoch(Pred(e))))
 
 type epoch = e:preEpoch {IsValidEpoch(e)}
-type succEpoch = e:epoch {IsSuccEpoch(e)}
+type succEpoch = e:epoch {IsSuccEpoch(e) /\ IsValidEpoch(Pred(e))} //MK otherwise not every succEpoch is an epoch?
 
 val isInitEpoch: e:epoch -> b:bool{(b = true /\ IsInitEpoch(e)) \/ (b = false /\ IsSuccEpoch(e))}
 
@@ -485,6 +485,7 @@ definition !e. Auth(e) <=> (AuthId(Id(e)) /\ SentCCS(Server,e) /\ SentCCS(Client
 val auth:    (e:epoch) -> b:bool {b = true <=> Auth(e)}
 
 ask !e. Safe(e) => Auth(e)
+ask !e. not(Auth(e)) => not(Safe(e))
 
 // so that TLS can exchange any traffic on the initial null connection
 ask !e. IsInitEpoch(e) => not Auth(e)

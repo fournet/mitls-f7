@@ -34,26 +34,26 @@ let handshakeHistory (e:epoch) h = h.handshake
 let ccsHistory (e:epoch) h = h.ccs
 let alertHistory (e:epoch) h = h.alert
 
-let fragment ki ct rg b =  
+let fragment i ct rg b =  
     match ct with
-    | Handshake          -> FHandshake(HSFragment.fragmentPlain ki rg b)
-    | Change_cipher_spec -> FCCS(HSFragment.fragmentPlain ki rg b)
-    | Alert              -> FAlert(HSFragment.fragmentPlain ki rg b)
-    | Application_data   -> FAppData(AppFragment.plain ki rg b)
+    | Handshake          -> FHandshake(HSFragment.fragmentPlain i rg b)
+    | Change_cipher_spec -> FCCS(HSFragment.fragmentPlain i rg b)
+    | Alert              -> FAlert(HSFragment.fragmentPlain i rg b)
+    | Application_data   -> FAppData(AppFragment.plain i rg b)
 
-let plain ki (ct:ContentType) (h:history) (rg:range) b = 
-      let i = id ki in
+let plain e (ct:ContentType) (h:history) (rg:range) b = 
+      let i = id e in
         fragment i ct rg b 
 
-let reprFragment ki (ct:ContentType) (rg:range) frag =
+let reprFragment i (ct:ContentType) (rg:range) frag =
     match frag with
-    | FHandshake(f) -> HSFragment.fragmentRepr ki rg f
-    | FCCS(f)       -> HSFragment.fragmentRepr ki rg f
-    | FAlert(f)     -> HSFragment.fragmentRepr ki rg f
-    | FAppData(f)   -> AppFragment.repr ki rg f
+    | FHandshake(f) -> HSFragment.fragmentRepr i rg f
+    | FCCS(f)       -> HSFragment.fragmentRepr i rg f
+    | FAlert(f)     -> HSFragment.fragmentRepr i rg f
+    | FAppData(f)   -> AppFragment.repr i rg f
 
-let repr ki ct (h:history) rg frag = 
-  let i = id ki in
+let repr e ct (h:history) rg frag = 
+  let i = id e in
   reprFragment i ct rg frag
 
 let HSPlainToRecordPlain    (e:epoch) (h:history) (r:range) (f:HSFragment.plain) = FHandshake(f)

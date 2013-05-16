@@ -23,7 +23,8 @@ type plain = fragment
 let plain (e:id) (ad:adata) (rg:range) b =
     let ad = parseAD e ad in
     let h = StatefulPlain.emptyHistory e in
-    {contents = StatefulPlain.plain e h ad rg b}
+    let p = StatefulPlain.plain e h ad rg b
+    {contents =  p}
 
 let reprFragment (e:id) (ad:adata) (rg:range) p =
     let ad = parseAD e ad in
