@@ -89,6 +89,7 @@ type preEpoch =
     | SuccEpoch of crand * srand * SessionInfo * preEpoch
 type epoch = preEpoch
 type succEpoch = preEpoch
+type openEpoch = preEpoch
 
 let isInitEpoch e = 
     match e with
