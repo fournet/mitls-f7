@@ -167,7 +167,7 @@ namespace OpenSSL
 
     public enum CMode
     {
-        ECB, CBC
+        ECB, CBC, GCM
     }
 
     /* ---------------------------------------------------------------------- */
@@ -225,10 +225,16 @@ namespace OpenSSL
         public static extern EVP_CIPHER* EVP_aes_128_cbc();
 
         [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        public static extern EVP_CIPHER* EVP_aes_128_gcm();
+
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern EVP_CIPHER* EVP_aes_256_ecb();
 
         [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern EVP_CIPHER* EVP_aes_256_cbc();
+
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        public static extern EVP_CIPHER* EVP_aes_256_gcm();
 
         [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern EVP_CIPHER* EVP_rc4();
@@ -256,8 +262,10 @@ namespace OpenSSL
             _ciphers.Add(new Tuple<CType, CMode>(CType.DES3  , CMode.CBC), () => (IntPtr) _CIPHER.EVP_des_ede3_cbc());
             _ciphers.Add(new Tuple<CType, CMode>(CType.AES128, CMode.ECB), () => (IntPtr) _CIPHER.EVP_aes_128_ecb());
             _ciphers.Add(new Tuple<CType, CMode>(CType.AES128, CMode.CBC), () => (IntPtr) _CIPHER.EVP_aes_128_cbc());
+            _ciphers.Add(new Tuple<CType, CMode>(CType.AES128, CMode.CBC), () => (IntPtr) _CIPHER.EVP_aes_128_gcm());
             _ciphers.Add(new Tuple<CType, CMode>(CType.AES256, CMode.ECB), () => (IntPtr) _CIPHER.EVP_aes_256_ecb());
             _ciphers.Add(new Tuple<CType, CMode>(CType.AES256, CMode.CBC), () => (IntPtr) _CIPHER.EVP_aes_256_cbc());
+            _ciphers.Add(new Tuple<CType, CMode>(CType.AES256, CMode.CBC), () => (IntPtr) _CIPHER.EVP_aes_256_gcm());
         }
 
         public void Dispose()
@@ -499,6 +507,13 @@ namespace OpenSSL
         public string Name
         {
             get { return Enum.GetName(typeof(CType), this._type); }
+        }
+
+        public void ProcessN(byte[] b)
+        {
+            int olen = 0;
+            if (_CIPHER.EVP_CipherUpdate(this._handle, null, ref olen, b, b.Length) == 0)
+                throw new EVPException();
         }
 
         public byte[] Process(byte[] b)

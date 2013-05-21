@@ -73,10 +73,11 @@ type OSSLProvider () =
                 (OSSLMessageDigest.TypeOfName (name))
 
         member self.BlockCipher (d : direction) (c : cipher) (m : mode option) (k : key) =
-            let mode, iv =
+            let mode, iv, ad =
                 match m with
-                | None          -> (OpenSSL.CMode.ECB, None)
-                | Some (CBC iv) -> (OpenSSL.CMode.CBC, Some iv)
+                | None                -> (OpenSSL.CMode.ECB, None   , None   )
+                | Some (CBC iv)       -> (OpenSSL.CMode.CBC, Some iv, None   )
+                | Some (GCM (iv, ad)) -> (OpenSSL.CMode.GCM, Some iv, Some ad)
 
             let type_ =
                 match c with

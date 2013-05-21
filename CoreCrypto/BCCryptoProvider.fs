@@ -113,15 +113,21 @@ type BCProvider () =
             let icipher = icipher_of_cipher c in
             let icipher =
                 match m with
-                | None -> icipher
-                | Some (CBC iv) ->
-                    { create    = fun () -> new CbcBlockCipher(icipher.create ()) :> IBlockCipher;
-                      keyparams = fun k  -> new ParametersWithIV(icipher.keyparams k, iv) :> ICipherParameters; }
-            in
-                let engine = icipher.create () in
-                    engine.Init((d = ForEncryption), icipher.keyparams k);
-                    Some (new BCBlockCipher (d, engine) :> BlockCipher)
+                | None         -> Some icipher
+                | Some (GCM _) -> None
 
+                | Some (CBC iv) ->
+                    Some { create    = fun () -> new CbcBlockCipher(icipher.create ()) :> IBlockCipher;
+                           keyparams = fun k  -> new ParametersWithIV(icipher.keyparams k, iv) :> ICipherParameters; }
+            in
+
+            let engine_of_icipher (ic : BlockCipher.icipher) =
+                let engine = ic.create () in
+                    engine.Init((d = ForEncryption), ic.keyparams k);
+                    new BCBlockCipher (d, engine) :> BlockCipher
+            in
+                icipher |> Option.map engine_of_icipher
+ 
         member self.StreamCipher (d : direction) (c : scipher) (k : key) =
             let engine =
                 match c with

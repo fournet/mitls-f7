@@ -53,6 +53,8 @@ type CSPBlockCipher (name : string, direction : direction, engine : SymmetricAlg
                     plain
 
 (* ------------------------------------------------------------------------ *)
+type cspmode = ECB | CBC of iv
+
 type CSPProvider () =
     interface Provider with
         (* FIXME: exception ? *)
@@ -62,26 +64,32 @@ type CSPProvider () =
                 Some (new CSPMessageDigest (name, engine) :> MessageDigest)
 
         member self.BlockCipher (d : direction) (c : cipher) (m : mode option) (k : key) =
-            let name, engine =
-                match c with
-                | AES  -> "AES" , new AesCryptoServiceProvider       () :> SymmetricAlgorithm
-                | DES3 -> "3DES", new TripleDESCryptoServiceProvider () :> SymmetricAlgorithm
+            let of_csp_mode m =
+                let name, engine =
+                    match c with
+                    | AES  -> "AES" , new AesCryptoServiceProvider       () :> SymmetricAlgorithm
+                    | DES3 -> "3DES", new TripleDESCryptoServiceProvider () :> SymmetricAlgorithm
+                in
+                    engine.Padding <- PaddingMode.None;
+                    engine.KeySize <- 8 * k.Length;
+                    engine.Key     <- k;
+
+                    begin
+                        match m with
+                        | ECB ->
+                            engine.Mode <- CipherMode.ECB
+
+                        | CBC iv ->
+                            engine.Mode <- CipherMode.CBC;
+                            engine.IV   <- iv
+                    end;
+
+                    new CSPBlockCipher (name, d, engine) :> BlockCipher
             in
-                engine.Padding <- PaddingMode.None;
-                engine.KeySize <- 8 * k.Length;
-                engine.Key     <- k;
-
-                begin
-                    match m with
-                    | None ->
-                        engine.Mode <- CipherMode.ECB
-
-                    | Some (CBC iv) ->
-                        engine.Mode <- CipherMode.CBC;
-                        engine.IV   <- iv
-                end;
-
-                Some (new CSPBlockCipher (name, d, engine) :> BlockCipher)
+                match m with
+                | None               -> Some (of_csp_mode ECB)
+                | Some (mode.CBC iv) -> Some (of_csp_mode (CBC iv))
+                | Some (mode.GCM _ ) -> None
 
         member self.StreamCipher (d : direction) (c : scipher) (k : key) =
             None

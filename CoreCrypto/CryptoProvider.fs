@@ -5,8 +5,9 @@ open System
 open System.Reflection
 
 (* ------------------------------------------------------------------------ *)
-type key = byte[]
-type iv  = byte[]
+type key   = byte[]
+type iv    = byte[]
+type adata = byte[]
 
 (* ------------------------------------------------------------------------ *)
 type MessageDigest =
@@ -18,7 +19,7 @@ type MessageDigest =
 (* ------------------------------------------------------------------------ *)
 type direction = ForEncryption | ForDecryption
 type cipher    = AES | DES3
-type mode      = CBC of iv
+type mode      = CBC of iv | GCM of iv * adata
 
 type BlockCipher =
     interface

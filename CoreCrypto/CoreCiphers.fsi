@@ -1,11 +1,15 @@
 ﻿module CoreCiphers
 open Bytes
 
-type key = bytes
-type iv  = bytes
+type key   = bytes
+type iv    = bytes
+type adata = bytes
 
 val aes_cbc_encrypt : key -> iv -> bytes -> bytes
 val aes_cbc_decrypt : key -> iv -> bytes -> bytes
+
+val aes_gcm_encrypt : key -> iv -> adata -> bytes -> bytes
+val aes_gcm_decrypt : key -> iv -> adata -> bytes -> bytes
 
 val des3_cbc_encrypt : key -> iv -> bytes -> bytes
 val des3_cbc_decrypt : key -> iv -> bytes -> bytes
