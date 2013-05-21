@@ -19,9 +19,21 @@ type MessageDigest =
 (* ------------------------------------------------------------------------ *)
 type direction = ForEncryption | ForDecryption
 type cipher    = AES | DES3
-type mode      = CBC of iv | GCM of iv * adata
+type mode      = CBC of iv
 
 type BlockCipher =
+    interface
+        abstract Name      : string
+        abstract Direction : direction
+        abstract BlockSize : int
+        abstract Process   : byte[] -> byte[]
+    end
+
+(* ------------------------------------------------------------------------ *)
+type acipher = AES
+type amode   = GCM of iv * adata
+
+type AeadCipher =
     interface
         abstract Name      : string
         abstract Direction : direction
@@ -52,6 +64,9 @@ type Provider =
         abstract MessageDigest :
             string -> MessageDigest option
 
+        abstract AeadCipher :
+            direction -> acipher -> amode -> key -> AeadCipher option
+
         abstract BlockCipher :
             direction -> cipher -> mode option -> key -> BlockCipher option
 
@@ -66,8 +81,10 @@ type Provider =
 exception CannotLoadProvider of string
 exception NoMessageDigest    of string
 exception NoBlockCipher      of cipher * mode option
+exception NoAeadCipher       of acipher * amode
 exception NoStreamCipher     of scipher
 exception NoHMac             of string
+exception AEADFailure
 
 type CoreCrypto () =
     static let default_provider = "BCCryptoProvider.BCProvider"
@@ -87,6 +104,13 @@ type CoreCrypto () =
         let select (p : Provider) = p.MessageDigest name in
             match !providers |> List.tryPick select with
             | None   -> raise (NoMessageDigest name)
+            | Some x -> x
+
+    static member AeadCipher (d : direction) (c : acipher) (m : amode) (k : key) =
+        !config ();
+        let select (p : Provider) = p.AeadCipher d c m k in
+            match !providers |> List.tryPick select with
+            | None   -> raise (NoAeadCipher (c, m))
             | Some x -> x
 
     static member BlockCipher (d : direction) (c : cipher) (m : mode option) (k : key) =

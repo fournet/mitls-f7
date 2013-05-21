@@ -35,7 +35,55 @@ type OSSLBlockCipher (engine : OpenSSL.CIPHER) =
             | false -> ForDecryption
 
         member self.Process (b : byte[]) =
-            engine.Process(b)
+            let bsize = engine.BlockSize in
+
+            if (b.Length % bsize) <> 0 || b.Length = 0 then
+                raise (new ArgumentException("invalid data size"));
+            let output = Array.create (b.Length) 0uy in
+                let aout = engine.Process(b, 0, b.Length, output, 0) in
+                    assert (aout = output.Length);
+                    output
+
+(* ------------------------------------------------------------------------ *)
+type OSSLAeadCipher (engine : OpenSSL.CIPHER) =
+    interface AeadCipher with
+        member self.Name =
+            engine.Name
+
+        member self.BlockSize =
+            engine.BlockSize
+
+        member self.Direction =
+            match engine.ForEncryption with
+            | true  -> ForEncryption
+            | false -> ForDecryption
+
+        member self.Process (b : byte[]) =
+            let bsize = engine.BlockSize in
+
+            if (b.Length % bsize) <> 0 || b.Length = 0 then
+                raise (new ArgumentException("invalid data size"));
+
+            match engine.ForEncryption with
+            | true ->
+                let output = Array.create (b.Length + engine.BlockSize) 0uy
+                
+                try
+                    ignore (engine.Process(b, 0, b.Length, output, 0));
+                    ignore (engine.Final(output, b.Length));
+                    output
+                with :? OpenSSL.EVPException ->
+                    raise AEADFailure
+
+            | false ->
+                let output = Array.create (b.Length - engine.BlockSize) 0uy in
+
+                try
+                    ignore (engine.Process(b, 0, b.Length, output, 0));
+                    ignore (engine.Final(null, 0));
+                    output
+                with :? OpenSSL.EVPException ->
+                    raise AEADFailure
 
 (* ------------------------------------------------------------------------ *)
 type OSSLStreamCipher (engine : OpenSSL.SCIPHER) =
@@ -72,19 +120,41 @@ type OSSLProvider () =
                 (fun type_ -> new OSSLMessageDigest (new OpenSSL.MD(type_)) :> MessageDigest)
                 (OSSLMessageDigest.TypeOfName (name))
 
-        member self.BlockCipher (d : direction) (c : cipher) (m : mode option) (k : key) =
-            let mode, iv, ad =
-                match m with
-                | None                -> (OpenSSL.CMode.ECB, None   , None   )
-                | Some (CBC iv)       -> (OpenSSL.CMode.CBC, Some iv, None   )
-                | Some (GCM (iv, ad)) -> (OpenSSL.CMode.GCM, Some iv, Some ad)
+        member self.AeadCipher (d : direction) (c : acipher) (m : amode) (k : key) =
+            let (GCM (iv, ad)) = m in
 
             let type_ =
                 match c with
-                | DES3                          -> Some OpenSSL.CType.DES3
-                | AES when k.Length = (128 / 8) -> Some OpenSSL.CType.AES128
-                | AES when k.Length = (256 / 8) -> Some OpenSSL.CType.AES256
-                | _                             -> None
+                | acipher.AES when k.Length = (128 / 8) -> Some OpenSSL.CType.AES128
+                | acipher.AES when k.Length = (256 / 8) -> Some OpenSSL.CType.AES256
+                | _ -> None
+            in
+
+            try
+                match type_ with
+                | None       -> None
+                | Some type_ ->
+                    let engine = new OpenSSL.CIPHER (type_, OpenSSL.CMode.GCM, (d = ForEncryption)) in
+                        engine.Key <- k;
+                        engine.IV  <- iv;
+                        ignore (engine.Process(ad, 0, ad.Length, null, 0));
+                        Some (new OSSLAeadCipher(engine) :> AeadCipher)
+
+            with :? OpenSSL.EVPException -> None
+
+
+        member self.BlockCipher (d : direction) (c : cipher) (m : mode option) (k : key) =
+            let mode, iv =
+                match m with
+                | None          -> (OpenSSL.CMode.ECB, None   )
+                | Some (CBC iv) -> (OpenSSL.CMode.CBC, Some iv)
+
+            let type_ =
+                match c with
+                | cipher.DES3                          -> Some OpenSSL.CType.DES3
+                | cipher.AES when k.Length = (128 / 8) -> Some OpenSSL.CType.AES128
+                | cipher.AES when k.Length = (256 / 8) -> Some OpenSSL.CType.AES256
+                | _ -> None
             in
 
             try

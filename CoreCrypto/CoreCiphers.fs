@@ -17,14 +17,25 @@ let decrypt cipher omode key encrypted =
     let engine = CoreCrypto.BlockCipher ForDecryption cipher omode (cbytes key) in
         abytes (engine.Process (cbytes encrypted))
 
-let aes_cbc_encrypt key iv plain     = encrypt AES (Some (CBC (cbytes iv))) key plain
-let aes_cbc_decrypt key iv encrypted = decrypt AES (Some (CBC (cbytes iv))) key encrypted
-
-let aes_gcm_encrypt key ad iv plain     = encrypt AES (Some (GCM (cbytes iv, cbytes ad))) key plain
-let aes_gcm_decrypt key ad iv encrypted = decrypt AES (Some (GCM (cbytes iv, cbytes ad))) key encrypted
+let aes_cbc_encrypt key iv plain     = encrypt cipher.AES (Some (CBC (cbytes iv))) key plain
+let aes_cbc_decrypt key iv encrypted = decrypt cipher.AES (Some (CBC (cbytes iv))) key encrypted
 
 let des3_cbc_encrypt key iv plain     = encrypt DES3 (Some (CBC (cbytes iv))) key plain
 let des3_cbc_decrypt key iv encrypted = decrypt DES3 (Some (CBC (cbytes iv))) key encrypted
+
+let aes_gcm_encrypt key iv ad plain =
+    let acipher = acipher.AES
+    let amode   = GCM (cbytes iv, cbytes ad)
+    let engine  = CoreCrypto.AeadCipher ForEncryption acipher amode (cbytes key) in
+        abytes (engine.Process (cbytes plain))
+
+let aes_gcm_decrypt key (iv : iv) (ad : adata) plain =
+    let acipher = acipher.AES
+    let amode   = GCM (cbytes iv, cbytes ad)
+    let engine  = CoreCrypto.AeadCipher ForDecryption acipher amode (cbytes key) in
+        try
+            Some (abytes (engine.Process (cbytes plain)))
+        with AEADFailure -> None
 
 type rc4engine = RC4Engine of StreamCipher
 

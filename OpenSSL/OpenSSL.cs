@@ -195,6 +195,15 @@ namespace OpenSSL
         public static extern int EVP_CipherUpdate(EVP_CIPHER_CTX *handle, byte[] outbuf, ref int outlen, byte[] inbuf, int inlen);
         
         [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int EVP_CipherFinal_ex(EVP_CIPHER_CTX *handle, byte[] outbuf, ref int outlen, int enc);
+        
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int EVP_CipherUpdate(EVP_CIPHER_CTX *handle, IntPtr outbuf, ref int outlen, IntPtr inbuf, int inlen);
+        
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int EVP_CipherFinal_ex(EVP_CIPHER_CTX *handle, IntPtr outbuf, ref int outlen, int enc);
+
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern EVP_CIPHER* EVP_CIPHER_CTX_cipher(EVP_CIPHER_CTX *handle);
 
         [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
@@ -262,10 +271,10 @@ namespace OpenSSL
             _ciphers.Add(new Tuple<CType, CMode>(CType.DES3  , CMode.CBC), () => (IntPtr) _CIPHER.EVP_des_ede3_cbc());
             _ciphers.Add(new Tuple<CType, CMode>(CType.AES128, CMode.ECB), () => (IntPtr) _CIPHER.EVP_aes_128_ecb());
             _ciphers.Add(new Tuple<CType, CMode>(CType.AES128, CMode.CBC), () => (IntPtr) _CIPHER.EVP_aes_128_cbc());
-            _ciphers.Add(new Tuple<CType, CMode>(CType.AES128, CMode.CBC), () => (IntPtr) _CIPHER.EVP_aes_128_gcm());
+            _ciphers.Add(new Tuple<CType, CMode>(CType.AES128, CMode.GCM), () => (IntPtr) _CIPHER.EVP_aes_128_gcm());
             _ciphers.Add(new Tuple<CType, CMode>(CType.AES256, CMode.ECB), () => (IntPtr) _CIPHER.EVP_aes_256_ecb());
             _ciphers.Add(new Tuple<CType, CMode>(CType.AES256, CMode.CBC), () => (IntPtr) _CIPHER.EVP_aes_256_cbc());
-            _ciphers.Add(new Tuple<CType, CMode>(CType.AES256, CMode.CBC), () => (IntPtr) _CIPHER.EVP_aes_256_gcm());
+            _ciphers.Add(new Tuple<CType, CMode>(CType.AES256, CMode.GCM), () => (IntPtr) _CIPHER.EVP_aes_256_gcm());
         }
 
         public void Dispose()
@@ -384,21 +393,69 @@ namespace OpenSSL
             get { return Enum.GetName(typeof(CType), this._type); }
         }
 
-        public byte[] Process(byte[] b)
+        public int Process(byte[] ib, int ioff, int ilen, byte[] ob, int ooff)
         {
-            // We only support block aligned encryption / decryption
-            if (b.Length % this.BlockSize != 0)
+            if (ib == null)
+                throw new EVPException();
+            if (ioff < 0 || ioff >= ib.Length)
+                throw new EVPException();
+            if (ib.Length - ioff < ilen)
                 throw new EVPException();
 
-            byte[] aout   = new byte[b.Length];
-            int    outlen = aout.Length;
+            int olen = 0;
 
-            if (_CIPHER.EVP_CipherUpdate(this._handle, aout, ref outlen, b, b.Length) == 0)
-                throw new EVPException();
-            if (aout.Length != b.Length)
-                throw new EVPException();
+            if (ob == null) {
+                fixed (byte *ibp = ib) {
+                    IntPtr ip = new IntPtr(&ibp[ioff]);
+
+                    if (_CIPHER.EVP_CipherUpdate(this._handle, IntPtr.Zero, ref olen, ip, ilen) == 0)
+                        throw new EVPException();
+                }
+ 
+                return olen;
+            }
             
-            return aout;
+            if (ooff < 0 || ooff >= ob.Length)
+                throw new EVPException();
+
+            olen = ob.Length - ooff;
+
+            fixed (byte *obp = ob) {
+            fixed (byte *ibp = ib) {
+                IntPtr op = new IntPtr(&obp[ooff]);
+                IntPtr ip = new IntPtr(&ibp[ioff]);
+
+                if (_CIPHER.EVP_CipherUpdate(this._handle, op, ref olen, ip, ilen) == 0)
+                    throw new EVPException();
+            }
+            }
+
+            return olen;
+        }
+
+        public int Final(byte[] ob, int off)
+        {
+            int olen = 0;
+
+            if (ob == null) {
+                if (_CIPHER.EVP_CipherFinal_ex(this._handle, IntPtr.Zero, ref olen, -1) == 0)
+                    throw new EVPException();
+                return olen;
+            }
+
+            if (off < 0 || off >= ob.Length)
+                throw new EVPException();
+
+            olen = ob.Length - off;
+
+            fixed (byte *obp = ob) {
+                IntPtr p = new IntPtr(&obp[off]);
+
+                if (_CIPHER.EVP_CipherFinal_ex(this._handle, p, ref olen, -1) == 0)
+                    throw new EVPException();
+            }
+
+            return olen;
         }
     }
 
@@ -509,13 +566,6 @@ namespace OpenSSL
             get { return Enum.GetName(typeof(CType), this._type); }
         }
 
-        public void ProcessN(byte[] b)
-        {
-            int olen = 0;
-            if (_CIPHER.EVP_CipherUpdate(this._handle, null, ref olen, b, b.Length) == 0)
-                throw new EVPException();
-        }
-
         public byte[] Process(byte[] b)
         {
             byte[] aout   = new byte[b.Length];
@@ -523,13 +573,13 @@ namespace OpenSSL
 
             if (_CIPHER.EVP_CipherUpdate(this._handle, aout, ref outlen, b, b.Length) == 0)
                 throw new EVPException();
-            if (aout.Length != b.Length)
-                throw new EVPException();
+
+            if (outlen != aout.Length)
+                Array.Resize(ref aout, outlen);
             
             return aout;
         }
     }
-
 
     /* ---------------------------------------------------------------------- */
     internal sealed unsafe class _HMAC

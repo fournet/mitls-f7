@@ -104,21 +104,24 @@ type BCProvider () =
                     Some (new BCMessageDigest (engine) :> MessageDigest)
             with :? SecurityUtilityException -> None
 
+        member self.AeadCipher (d : direction) (c : acipher) (m : amode) (k : key) =
+            None
+
         member self.BlockCipher (d : direction) (c : cipher) (m : mode option) (k : key) =
             let icipher_of_cipher (cipher : cipher) =
                 match cipher with
-                | AES  -> BlockCipher.aes_icipher
-                | DES3 -> BlockCipher.des3_icipher
+                | cipher.AES  -> BlockCipher.aes_icipher
+                | cipher.DES3 -> BlockCipher.des3_icipher
 
             let icipher = icipher_of_cipher c in
             let icipher =
                 match m with
-                | None         -> Some icipher
-                | Some (GCM _) -> None
+                | None -> icipher
 
                 | Some (CBC iv) ->
-                    Some { create    = fun () -> new CbcBlockCipher(icipher.create ()) :> IBlockCipher;
-                           keyparams = fun k  -> new ParametersWithIV(icipher.keyparams k, iv) :> ICipherParameters; }
+                    { create    = fun () -> new CbcBlockCipher(icipher.create ()) :> IBlockCipher;
+                      keyparams = fun k  -> new ParametersWithIV(icipher.keyparams k, iv) :> ICipherParameters; }
+
             in
 
             let engine_of_icipher (ic : BlockCipher.icipher) =
@@ -126,7 +129,7 @@ type BCProvider () =
                     engine.Init((d = ForEncryption), ic.keyparams k);
                     new BCBlockCipher (d, engine) :> BlockCipher
             in
-                icipher |> Option.map engine_of_icipher
+                Some (icipher |> engine_of_icipher)
  
         member self.StreamCipher (d : direction) (c : scipher) (k : key) =
             let engine =
