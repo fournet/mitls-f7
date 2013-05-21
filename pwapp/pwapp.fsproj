@@ -76,7 +76,7 @@
   </PropertyGroup>
   <Target Name="AfterBuild" Condition="'$(OS)' == 'Windows_NT'">
     <Copy SourceFiles="$(ProjectDir)\..\DB\lib\$(PlatformName)\SQLite.Interop.dll" DestinationFolder="$(OutDir)" />
-    <Copy SourceFiles="$(ProjectDir)\..\3rdparty\libeay32-$(PlatformName).dll" DestinationFiles="$(OutDir)/libeay.dll" />
+    <Copy SourceFiles="$(ProjectDir)\..\3rdparty\libeay32-$(PlatformName).dll" DestinationFiles="$(OutDir)/libeay32.dll" />
   </Target>
   <Target Name="AfterClean">
     <CreateItem Include="$(OutDir)\*.dll;$(OutDir)\*.exe;$(OutDir)\*.mdb;$(OutDir)\*.pdb">
