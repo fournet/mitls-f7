@@ -23,11 +23,18 @@ private definition !i,ct.
 	(PvOfId(i) <> SSL_3p0  => ADBytes(i,ct) = (CTBytes(ct) @| VersionBytes(i.pv )))
 
 function val ParseAD: i:id * cbytes -> ContentType
-private definition !b,i,ct. ParseAD(i,ADBytes(i,ct)) = ct
+private definition !i,ct. ParseAD(i,ADBytes(i,ct)) = ct
+
+//private definition !i,b.
+//	(PvOfId(i)  = SSL_3p0  =>  ParseAD(i,b) = ParseCT(b)) /\
+//	(PvOfId(i) <> SSL_3p0 /\ b= prefix @| VersionBytes(i.pv) => ParseAD(i,b) = ParseCT(prefix) )
+	//ADBytes(i,ct) = (CTBytes(ct) @| VersionBytes(i.pv )))
 
 //CF why do we need to parse AD again? 
-val makeAD:  i:id -> ct:ContentType -> ad:(;i)adata{B(ad)=ADBytes(i,ct) /\ ParseAD(i,B(ad)) = ct}
-private val parseAD: i:id -> ad:(;i)adata -> ct:ContentType{ParseAD(i,B(ad))=ct}
+val makeAD:  i:id -> ct:ContentType -> ad:(;i)adata{B(ad)=ADBytes(i,ct)} //MK Strange see ask below /\ ParseAD(i,B(ad)) = ct
+private val parseAD: i:id -> ad:(;i)adata -> ct:ContentType{B(ad)=ADBytes(i,ct)} //MK /\ ParseAD(i,B(ad))=ct}
+
+ask !i,ct,ad. B(ad)=ADBytes(i,ct) => ParseAD(i,B(ad))=ct
 
 private type (;i:id,ad:cbytes,r:range) fragment = {contents: (;i,ParseAD(i,ad),r)TLSFragment.fragment}
 
@@ -90,10 +97,10 @@ val widen:
   i:id -> ad:(;i)adata -> r:range -> 
   f:(;i,B(ad),r) fragment -> 
   f':(;i,B(ad),RangeClass(i,r)) fragment{
-    Payload(i,B(ad),r,f) = Payload(i,B(ad),RangeClass(i,r),f')}
-(* /\
+    Payload(i,B(ad),r,f) = Payload(i,B(ad),RangeClass(i,r),f')
+    /\
     !h. Sent(i,B(ad),h,r,f) => Sent(i,B(ad),h,RangeClass(i,r),f')}
-*)
+
 //------------------------------------------------------------------------------------------------------
 // internal interface towards TLSFragment
 //------------------------------------------------------------------------------------------------------

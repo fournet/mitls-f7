@@ -34,6 +34,7 @@ let delta e s r f =
       //MK this requires that e' is not(Auth(e'))
       //MK this might be the case because we only use unAuthIdInv e' for not(Auth(e))
       //MK but could be hard to prove 
+      //MK this breaks typing as f.frag != (e',s',d')
       let raw = deltaRepr e' s' r d in
       let d' = deltaPlain e s r raw in
       let s'' = append e s r d' in

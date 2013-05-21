@@ -8,38 +8,38 @@ open Range
 
 type adata = bytes
 
-let makeAD (e:id) ((seqn,h):StatefulPlain.history) ad =
+let makeAD (i:id) ((seqn,h):StatefulPlain.history) ad =
     let bn = bytes_of_seq seqn in
     bn @| ad
 
 // We statically know that ad is big enough
-let parseAD (e:id) ad = 
+let parseAD (i:id) ad = 
     let (snb,ad) = Bytes.split ad 8 in
     ad
 
 type fragment = {contents:StatefulPlain.fragment}
 type plain = fragment
 
-let plain (e:id) (ad:adata) (rg:range) b =
-    let ad = parseAD e ad in
-    let h = StatefulPlain.emptyHistory e in
-    let p = StatefulPlain.plain e h ad rg b
+let plain (i:id) (ad:adata) (rg:range) b =
+    let ad = parseAD i ad in
+    let h = StatefulPlain.emptyHistory i in
+    let p = StatefulPlain.plain i h ad rg b
     {contents =  p}
 
-let reprFragment (e:id) (ad:adata) (rg:range) p =
-    let ad = parseAD e ad in
-    StatefulPlain.reprFragment e ad rg p.contents
+let reprFragment (i:id) (ad:adata) (rg:range) p =
+    let ad = parseAD i ad in
+    StatefulPlain.reprFragment i ad rg p.contents
 
-let repr e ad rg p = reprFragment e ad rg p
+let repr i ad rg p = reprFragment i ad rg p
 
-let StatefulPlainToLHAEPlain (e:id) (h:StatefulPlain.history) 
+let StatefulPlainToLHAEPlain (i:id) (h:StatefulPlain.history) 
     (ad:StatefulPlain.adata) (ad':adata) (r:range) f = {contents = f}
-let LHAEPlainToStatefulPlain (e:id) (h:StatefulPlain.history) 
+let LHAEPlainToStatefulPlain (i:id) (h:StatefulPlain.history) 
     (ad:StatefulPlain.adata) (ad':adata) (r:range) f = f.contents
 
 #if ideal
-let widen e ad r f =
-    let ad' = parseAD e ad in
-    let f' = StatefulPlain.widen e ad' r f.contents in
+let widen i ad r f =
+    let ad' = parseAD i ad in
+    let f' = StatefulPlain.widen i ad' r f.contents in
     {contents = f'}
 #endif

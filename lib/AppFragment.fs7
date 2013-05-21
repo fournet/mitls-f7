@@ -56,11 +56,13 @@ val fragment: e:epoch -> s:(;e) stream -> r:range ->
   f:(;Id(e),r) fragment * s':(;e) stream 
   { Sent(e,s,r,f) /\ s' = Extend(e,s,r,f) /\ FragOfDelta(e,r,f,s,d)}
 
+
+
 val delta: e:openEpoch -> s:(;e) stream -> r:range -> 
   f:(;Id(e),r) fragment{Auth(e) => Sent(e,s,r,f) 
 						(*MK: /\ (?e',s',d'. f = {frag=(e',s',d')} 
 						      /\ not(Auth(e)) => not(Auth(e')) ) *)} -> 
-  d:(;e,s,r) delta * s':(;e) stream{s' = Extend(e,s,r,f)} 
+  d:(;e,s,r) delta * s':(;e) stream{s' = Extend(e,s,r,f)} //MK does this only hold for Auth(e)?
 
 // conditional fragment abstraction 
 
@@ -77,7 +79,7 @@ val repr:  i:id{not SafeId(i)} -> r:range ->
 val widen: i:id -> r0:range -> f0:(;i,r0)fragment -> 
     f1:(;i,RangeClass(i,r0))fragment{
     Payload(i,r0,f0) = Payload(i,RangeClass(i,r0),f1) /\
-    !i',s. Sent(i',s,r0,f0) => Sent(i',s,RangeClass(i,r0),f1)}
+    !e,s. Sent(e,s,r0,f0) => Sent(e,s,RangeClass(i,r0),f1)}
 
 
 (* CF unused...

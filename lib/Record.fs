@@ -60,7 +60,7 @@ let parseHeader b =
 
 (* This replaces send. It's not called send, 
    since it doesn't send anything on the network *)
-let recordPacketOut ki conn pv rg ct fragment =
+let recordPacketOut e conn pv rg ct fragment =
     (* No need to deal with compression. It is handled internally by TLSPlain,
        when returning us the next (already compressed!) fragment *)
     (*TODO
@@ -68,20 +68,20 @@ let recordPacketOut ki conn pv rg ct fragment =
     | Error (x,y) -> Error (x,y)
     | Correct compressed ->
     *)
-    let initEpoch = isInitEpoch ki in
+    let initEpoch = isInitEpoch e in
     match (initEpoch, conn) with
     | (true,NullState) ->
-        let i = id ki in // doesn't typechecke
+        let i = id e in // doesn't typechecke
         let payload = TLSFragment.reprFragment i ct rg fragment in
         let packet = makePacket ct pv payload in
         (conn,packet)
     | (false,SomeState(history,state)) ->
-        let i = id ki in
+        let i = id e in
         let ad = StatefulPlain.makeAD i ct in
         let sh = StatefulLHAE.history i Writer state in
-        let aeadF = StatefulPlain.RecordPlainToStAEPlain ki ct ad history sh rg fragment in
+        let aeadF = StatefulPlain.RecordPlainToStAEPlain e ct ad history sh rg fragment in
         let (state,payload) = StatefulLHAE.encrypt i state ad rg aeadF in
-        let history = TLSFragment.extendHistory ki ct history rg fragment in
+        let history = TLSFragment.extendHistory e ct history rg fragment in
         let packet = makePacket ct pv payload in
         (SomeState(history,state),
          packet)
