@@ -4,9 +4,9 @@
 import sys, os, subprocess as sp
 
 # --------------------------------------------------------------------
-BIN = './openssl-client.exe'
+# BIN = './openssl-client.exe'
 # BIN = 'java -classpath "3rdparty/bcprov-ext-jdk15on-148.jar;jsse-client" JSSEClient'
-# BIN = '../../BenchClient/bin/Release/BenchClient.exe'
+BIN = '../../BenchClient/bin/Release/BenchClient.exe'
 # BIN = 'bc/BCClient/bin/Release/BCClient.exe'
 
 CONFIGS = [
