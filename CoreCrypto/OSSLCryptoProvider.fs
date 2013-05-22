@@ -45,13 +45,10 @@ type OSSLBlockCipher (engine : OpenSSL.CIPHER) =
                     output
 
 (* ------------------------------------------------------------------------ *)
-type OSSLAeadCipher (engine : OpenSSL.CIPHER) =
+type OSSLAeadCipher (bsize : int, engine : OpenSSL.CIPHER) =
     interface AeadCipher with
         member self.Name =
             engine.Name
-
-        member self.BlockSize =
-            engine.BlockSize
 
         member self.Direction =
             match engine.ForEncryption with
@@ -59,8 +56,6 @@ type OSSLAeadCipher (engine : OpenSSL.CIPHER) =
             | false -> ForDecryption
 
         member self.Process (b : byte[]) =
-            let bsize = engine.BlockSize in
-
             if (b.Length % bsize) <> 0 || b.Length = 0 then
                 raise (new ArgumentException("invalid data size"));
 
@@ -125,20 +120,20 @@ type OSSLProvider () =
 
             let type_ =
                 match c with
-                | acipher.AES when k.Length = (128 / 8) -> Some OpenSSL.CType.AES128
-                | acipher.AES when k.Length = (256 / 8) -> Some OpenSSL.CType.AES256
+                | acipher.AES when k.Length = (128 / 8) -> Some (OpenSSL.CType.AES128, 16)
+                | acipher.AES when k.Length = (256 / 8) -> Some (OpenSSL.CType.AES256, 32)
                 | _ -> None
             in
 
             try
                 match type_ with
-                | None       -> None
-                | Some type_ ->
+                | None -> None
+                | Some (type_, bs) ->
                     let engine = new OpenSSL.CIPHER (type_, OpenSSL.CMode.GCM, (d = ForEncryption)) in
                         engine.Key <- k;
                         engine.IV  <- iv;
                         ignore (engine.Process(ad, 0, ad.Length, null, 0));
-                        Some (new OSSLAeadCipher(engine) :> AeadCipher)
+                        Some (new OSSLAeadCipher(bs, engine) :> AeadCipher)
 
             with :? OpenSSL.EVPException -> None
 

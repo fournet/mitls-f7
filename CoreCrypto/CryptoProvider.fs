@@ -37,7 +37,6 @@ type AeadCipher =
     interface
         abstract Name      : string
         abstract Direction : direction
-        abstract BlockSize : int
         abstract Process   : byte[] -> byte[]
     end
 
