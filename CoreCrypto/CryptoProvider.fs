@@ -93,7 +93,7 @@ type CoreCrypto () =
     static let mutable config      = ref CoreCrypto.Config
 
     static member Register (provider : Provider) =
-        providers := provider :: !providers
+        providers := !providers @ [provider]
 
     static member Providers =
         Array.ofList !providers
