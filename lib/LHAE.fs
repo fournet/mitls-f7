@@ -15,7 +15,7 @@ type cipher = bytes
 type LHAEKey =
     | MtEK of MAC.key * ENC.state
     | MACOnlyK of MAC.key
-(*  | GCM of AENC.state  *)
+    | GCM of AEAD_GCM.state
 
 let GEN e =
     let a = e.aeAlg in
@@ -27,7 +27,9 @@ let GEN e =
         let mk = MAC.GEN e in
         let (ek,dk) = ENC.GEN e in
         (MtEK(mk,ek),MtEK(mk,dk))
-    | AEAD (_,_) -> unexpected "[GEN] invoked on unsupported ciphersuite"
+    | AEAD (_,_) -> 
+        let (ek,dk) = AEAD_GCM.GEN e in
+        GCM(ek),GCM(dk)
 
 let COERCE e b =
     // precondition: b is of the right length, so no need for a runtime checks here.
@@ -44,8 +46,12 @@ let COERCE e b =
         let mk = MAC.COERCE e mkb in
         let ek = ENC.COERCE e ekb ivb in
         MtEK(mk,ek)
-    | AEAD (_,_) -> 
-        unexpected "[COERCE] invoked on wrong ciphersuite"
+    | AEAD (encAlg,_) ->
+        let es = aeadKeySize encAlg in
+        let (ekb,ivb) = split b es in
+        let ek = AEAD_GCM.COERCE e ekb ivb in
+        GCM(ek)
+        
 
 let LEAK e k =
     match k with
@@ -53,6 +59,8 @@ let LEAK e k =
     | MtEK(mk,ek) ->
         let (k,iv) = ENC.LEAK e ek in
         MAC.LEAK e mk @| k @| iv
+    | GCM(s) ->
+        AEAD_GCM.LEAK e s
 
 (***** authenticated encryption *****)
 
@@ -81,7 +89,14 @@ let encrypt' (e:id) key data rg plain =
         else
             let r = Encode.repr e data rg plain in
             (key,r)
-//  | GCM (k) -> ... 
+    | (AEAD(encAlg,_), GCM(gcmState)) ->
+        let (l,h) = rg in
+        if l <> h then
+            unexpected "[encrypt'] given an invalid input range"
+        else
+            let p = GCMPlain.prepare e data rg plain in
+            let (newState,res) = AEAD_GCM.ENC e gcmState data rg p in
+            (GCM(newState),res)
     | (_,_) -> unexpected "[encrypt'] incompatible ciphersuite-key given."
         
 let mteKey (e:id) ka ke = MtEK(ka,ke)
@@ -131,7 +146,17 @@ let decrypt' e key data cipher =
             match Encode.verify e ka data rg plain with
             | Error(z) -> Error(z)
             | Correct(aeplain) -> correct (key,rg,aeplain)
-//  | GCM (GCMKey) -> ... 
+    | (AEAD(encAlg,_), GCM(gcmState)) ->
+        let minLen = aeadRecordIVSize encAlg + aeadTagSize encAlg in
+        if cl < minLen then
+            let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
+        else
+            let rg = cipherRangeClass e cl in
+            match AEAD_GCM.DEC e gcmState data rg cipher with
+            | Error z -> Error z
+            | Correct (res) ->
+                let (newState,plain) = res in
+                correct (GCM(newState),rg, plain)
     | (_,_) -> unexpected "[decrypt'] incompatible ciphersuite-key given."
 
 #if ideal

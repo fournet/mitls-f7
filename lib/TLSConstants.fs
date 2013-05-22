@@ -99,9 +99,19 @@ let blockSize ciph =
 let aeadKeySize ciph =
     match ciph with
     | AES_128_GCM -> 16
-    | AES_256_GCM -> 16
+    | AES_256_GCM -> 32
 
 let aeadIVSize ciph =
+    match ciph with
+    | AES_128_GCM -> 4
+    | AES_256_GCM -> 4
+
+let aeadRecordIVSize ciph =
+    match ciph with
+    | AES_128_GCM -> 8
+    | AES_256_GCM -> 8
+
+let aeadTagSize ciph =
     match ciph with
     | AES_128_GCM -> 16
     | AES_256_GCM -> 16
@@ -290,6 +300,19 @@ let cipherSuiteBytes cs =
     | CipherSuite (DH_anon, CS_MtE (AES_128_CBC, SHA256)) -> abyte2 ( 0x00uy, 0x6Cuy )
     | CipherSuite (DH_anon, CS_MtE (AES_256_CBC, SHA256)) -> abyte2 ( 0x00uy, 0x6Duy )
 
+    | CipherSuite (RSA,     CS_AEAD(AES_128_GCM, SHA256)) -> abyte2( 0x00uy, 0x9Cuy )
+    | CipherSuite (RSA,     CS_AEAD(AES_256_GCM, SHA384)) -> abyte2( 0x00uy, 0x9Duy )
+    | CipherSuite (DHE_RSA, CS_AEAD(AES_128_GCM, SHA256)) -> abyte2( 0x00uy, 0x9Euy )
+    | CipherSuite (DHE_RSA, CS_AEAD(AES_256_GCM, SHA384)) -> abyte2( 0x00uy, 0x9Fuy )
+    | CipherSuite (DH_RSA,  CS_AEAD(AES_128_GCM, SHA256)) -> abyte2( 0x00uy, 0xA0uy )
+    | CipherSuite (DH_RSA,  CS_AEAD(AES_256_GCM, SHA384)) -> abyte2( 0x00uy, 0xA1uy )
+    | CipherSuite (DHE_DSS, CS_AEAD(AES_128_GCM, SHA256)) -> abyte2( 0x00uy, 0xA2uy )
+    | CipherSuite (DHE_DSS, CS_AEAD(AES_256_GCM, SHA384)) -> abyte2( 0x00uy, 0xA3uy )
+    | CipherSuite (DH_DSS,  CS_AEAD(AES_128_GCM, SHA256)) -> abyte2( 0x00uy, 0xA4uy )
+    | CipherSuite (DH_DSS,  CS_AEAD(AES_256_GCM, SHA384)) -> abyte2( 0x00uy, 0xA5uy )
+    | CipherSuite (DH_anon, CS_AEAD(AES_128_GCM, SHA256)) -> abyte2( 0x00uy, 0xA6uy )
+    | CipherSuite (DH_anon, CS_AEAD(AES_256_GCM, SHA384)) -> abyte2( 0x00uy, 0xA7uy )
+
     | SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV)            -> abyte2 ( 0x00uy, 0xFFuy )
 
 (* KB: Must define known cipher suites as a predicate before typechecking the following: *)
@@ -342,6 +365,19 @@ let parseCipherSuite b =
     | ( 0x00uy, 0x3Auy ) -> correct(CipherSuite (DH_anon, CS_MtE ( AES_256_CBC, SHA)))
     | ( 0x00uy, 0x6Cuy ) -> correct(CipherSuite (DH_anon, CS_MtE ( AES_128_CBC, SHA256)))
     | ( 0x00uy, 0x6Duy ) -> correct(CipherSuite (DH_anon, CS_MtE ( AES_256_CBC, SHA256)))
+
+    | ( 0x00uy, 0x9Cuy ) -> correct(CipherSuite (RSA,     CS_AEAD(AES_128_GCM, SHA256)))
+    | ( 0x00uy, 0x9Duy ) -> correct(CipherSuite (RSA,     CS_AEAD(AES_256_GCM, SHA384)))
+    | ( 0x00uy, 0x9Euy ) -> correct(CipherSuite (DHE_RSA, CS_AEAD(AES_128_GCM, SHA256)))
+    | ( 0x00uy, 0x9Fuy ) -> correct(CipherSuite (DHE_RSA, CS_AEAD(AES_256_GCM, SHA384)))
+    | ( 0x00uy, 0xA0uy ) -> correct(CipherSuite (DH_RSA,  CS_AEAD(AES_128_GCM, SHA256)))
+    | ( 0x00uy, 0xA1uy ) -> correct(CipherSuite (DH_RSA,  CS_AEAD(AES_256_GCM, SHA384)))
+    | ( 0x00uy, 0xA2uy ) -> correct(CipherSuite (DHE_DSS, CS_AEAD(AES_128_GCM, SHA256)))
+    | ( 0x00uy, 0xA3uy ) -> correct(CipherSuite (DHE_DSS, CS_AEAD(AES_256_GCM, SHA384)))
+    | ( 0x00uy, 0xA4uy ) -> correct(CipherSuite (DH_DSS,  CS_AEAD(AES_128_GCM, SHA256)))
+    | ( 0x00uy, 0xA5uy ) -> correct(CipherSuite (DH_DSS,  CS_AEAD(AES_256_GCM, SHA384)))
+    | ( 0x00uy, 0xA6uy ) -> correct(CipherSuite (DH_anon, CS_AEAD(AES_128_GCM, SHA256)))
+    | ( 0x00uy, 0xA7uy ) -> correct(CipherSuite (DH_anon, CS_AEAD(AES_256_GCM, SHA384)))
 
     | ( 0x00uy, 0xFFuy ) -> correct(SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV))
 
@@ -501,6 +537,9 @@ let aeAlg cs pv =
         let enc = tlsEncAlg e pv in
         let mac = tlsMacAlg a pv in
         MtE (enc,mac)
+    | CipherSuite(_, CS_AEAD(e,a)) ->
+        let mac = tlsMacAlg a pv in
+        AEAD(e,mac)
     | _ -> unexpected "[aeAlg] invoked on an invalid ciphersuite"
 
 
@@ -558,6 +597,19 @@ type cipherSuiteName =
     | TLS_DH_anon_WITH_AES_128_CBC_SHA256
     | TLS_DH_anon_WITH_AES_256_CBC_SHA256
 
+    | TLS_RSA_WITH_AES_128_GCM_SHA256    
+    | TLS_RSA_WITH_AES_256_GCM_SHA384    
+    | TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+    | TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
+    | TLS_DH_RSA_WITH_AES_128_GCM_SHA256 
+    | TLS_DH_RSA_WITH_AES_256_GCM_SHA384 
+    | TLS_DHE_DSS_WITH_AES_128_GCM_SHA256
+    | TLS_DHE_DSS_WITH_AES_256_GCM_SHA384
+    | TLS_DH_DSS_WITH_AES_128_GCM_SHA256 
+    | TLS_DH_DSS_WITH_AES_256_GCM_SHA384 
+    | TLS_DH_anon_WITH_AES_128_GCM_SHA256
+    | TLS_DH_anon_WITH_AES_256_GCM_SHA384
+
 
 
 let cipherSuites_of_nameList (nameList: cipherSuiteName list) =
@@ -603,6 +655,19 @@ let cipherSuites_of_nameList (nameList: cipherSuiteName list) =
         | TLS_DH_anon_WITH_AES_256_CBC_SHA       -> CipherSuite (DH_anon, CS_MtE (AES_256_CBC, SHA))
         | TLS_DH_anon_WITH_AES_128_CBC_SHA256    -> CipherSuite (DH_anon, CS_MtE (AES_128_CBC, SHA256))
         | TLS_DH_anon_WITH_AES_256_CBC_SHA256    -> CipherSuite (DH_anon, CS_MtE (AES_256_CBC, SHA256))
+
+        | TLS_RSA_WITH_AES_128_GCM_SHA256        -> CipherSuite (RSA,     CS_AEAD(AES_128_GCM, SHA256))
+        | TLS_RSA_WITH_AES_256_GCM_SHA384        -> CipherSuite (RSA,     CS_AEAD(AES_256_GCM, SHA384))
+        | TLS_DHE_RSA_WITH_AES_128_GCM_SHA256    -> CipherSuite (DHE_RSA, CS_AEAD(AES_128_GCM, SHA256))
+        | TLS_DHE_RSA_WITH_AES_256_GCM_SHA384    -> CipherSuite (DHE_RSA, CS_AEAD(AES_256_GCM, SHA384))
+        | TLS_DH_RSA_WITH_AES_128_GCM_SHA256     -> CipherSuite (DH_RSA,  CS_AEAD(AES_128_GCM, SHA256))
+        | TLS_DH_RSA_WITH_AES_256_GCM_SHA384     -> CipherSuite (DH_RSA,  CS_AEAD(AES_256_GCM, SHA384))
+        | TLS_DHE_DSS_WITH_AES_128_GCM_SHA256    -> CipherSuite (DHE_DSS, CS_AEAD(AES_128_GCM, SHA256))
+        | TLS_DHE_DSS_WITH_AES_256_GCM_SHA384    -> CipherSuite (DHE_DSS, CS_AEAD(AES_256_GCM, SHA384))
+        | TLS_DH_DSS_WITH_AES_128_GCM_SHA256     -> CipherSuite (DH_DSS,  CS_AEAD(AES_128_GCM, SHA256))
+        | TLS_DH_DSS_WITH_AES_256_GCM_SHA384     -> CipherSuite (DH_DSS,  CS_AEAD(AES_256_GCM, SHA384))
+        | TLS_DH_anon_WITH_AES_128_GCM_SHA256    -> CipherSuite (DH_anon, CS_AEAD(AES_128_GCM, SHA256))
+        | TLS_DH_anon_WITH_AES_256_GCM_SHA384    -> CipherSuite (DH_anon, CS_AEAD(AES_256_GCM, SHA384))
    ) nameList 
 //KB #endif
 
@@ -638,6 +703,19 @@ let name_of_cipherSuite cs =
     | CipherSuite (DH_anon, CS_MtE (AES_256_CBC, SHA))     ->  correct TLS_DH_anon_WITH_AES_256_CBC_SHA   
     | CipherSuite (DH_anon, CS_MtE (AES_128_CBC, SHA256))  ->  correct TLS_DH_anon_WITH_AES_128_CBC_SHA256
     | CipherSuite (DH_anon, CS_MtE (AES_256_CBC, SHA256))  ->  correct TLS_DH_anon_WITH_AES_256_CBC_SHA256
+
+    | CipherSuite (RSA,     CS_AEAD(AES_128_GCM, SHA256))  ->  correct TLS_RSA_WITH_AES_128_GCM_SHA256    
+    | CipherSuite (RSA,     CS_AEAD(AES_256_GCM, SHA384))  ->  correct TLS_RSA_WITH_AES_256_GCM_SHA384    
+    | CipherSuite (DHE_RSA, CS_AEAD(AES_128_GCM, SHA256))  ->  correct TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+    | CipherSuite (DHE_RSA, CS_AEAD(AES_256_GCM, SHA384))  ->  correct TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
+    | CipherSuite (DH_RSA,  CS_AEAD(AES_128_GCM, SHA256))  ->  correct TLS_DH_RSA_WITH_AES_128_GCM_SHA256 
+    | CipherSuite (DH_RSA,  CS_AEAD(AES_256_GCM, SHA384))  ->  correct TLS_DH_RSA_WITH_AES_256_GCM_SHA384 
+    | CipherSuite (DHE_DSS, CS_AEAD(AES_128_GCM, SHA256))  ->  correct TLS_DHE_DSS_WITH_AES_128_GCM_SHA256
+    | CipherSuite (DHE_DSS, CS_AEAD(AES_256_GCM, SHA384))  ->  correct TLS_DHE_DSS_WITH_AES_256_GCM_SHA384
+    | CipherSuite (DH_DSS,  CS_AEAD(AES_128_GCM, SHA256))  ->  correct TLS_DH_DSS_WITH_AES_128_GCM_SHA256 
+    | CipherSuite (DH_DSS,  CS_AEAD(AES_256_GCM, SHA384))  ->  correct TLS_DH_DSS_WITH_AES_256_GCM_SHA384 
+    | CipherSuite (DH_anon, CS_AEAD(AES_128_GCM, SHA256))  ->  correct TLS_DH_anon_WITH_AES_128_GCM_SHA256
+    | CipherSuite (DH_anon, CS_AEAD(AES_256_GCM, SHA384))  ->  correct TLS_DH_anon_WITH_AES_256_GCM_SHA384
 
     | _ -> Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invoked on a unknown ciphersuite")
 

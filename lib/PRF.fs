@@ -33,14 +33,11 @@ let keyExtensionLength aeAlg =
 #if verify
 #else 
 (* AEAD currently not fully implemented or verified *)               
-        | AEAD(cAlg,macAlg) ->
+        | AEAD(cAlg,_) ->
             let aksize = aeadKeySize cAlg in
             let ivsize = aeadIVSize cAlg in
-            let msize = macKeySize macAlg in
-              2 * (aksize + ivsize + msize)
+              2 * (aksize + ivsize)
 #endif
-        | _ -> Error.unexpected "[keyExtensionLength] invoked on an invalid ciphersuite"
-
 
 // This code is complex because we need to reshuffle the raw key materials  
 let deriveRawKeys (i:id) (ms:ms)  =
@@ -77,7 +74,15 @@ let deriveRawKeys (i:id) (ms:ms)  =
             let ck = (cmkb @| cekb @| civb) in
             let sk = (smkb @| sekb @| sivb) in
             (ck,sk)
-    | _ -> Error.unexpected "[keyGen] invoked on unsupported ciphersuite"
+    | AEAD(encAlg,prf) ->
+        let aksize = aeadKeySize encAlg in
+        let ivsize = aeadIVSize encAlg in
+        let cekb, b = split b aksize in
+        let sekb, b = split b aksize in
+        let civb, sivb = split b ivsize in
+        let ck = (cekb @| civb) in
+        let sk = (sekb @| sivb) in
+        (ck,sk)
 
 let deriveKeys rdId wrId (ms:masterSecret) role  =
     // at this step, we should idealize if SafeMS 

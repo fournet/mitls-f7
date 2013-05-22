@@ -68,6 +68,8 @@ val encKeySize: encAlg -> nat
 val blockSize: blockCipher -> nat
 val aeadKeySize: aeadAlg -> nat
 val aeadIVSize: aeadAlg -> nat
+val aeadRecordIVSize: aeadAlg -> nat
+val aeadTagSize: aeadAlg -> nat
 val hashSize: hashAlg -> nat
 val macKeySize: macAlg -> nat
 val macSize: macAlg -> nat
@@ -162,6 +164,19 @@ type cipherSuiteName =
     | TLS_DH_anon_WITH_AES_256_CBC_SHA  
     | TLS_DH_anon_WITH_AES_128_CBC_SHA256
     | TLS_DH_anon_WITH_AES_256_CBC_SHA256
+
+    | TLS_RSA_WITH_AES_128_GCM_SHA256    
+    | TLS_RSA_WITH_AES_256_GCM_SHA384    
+    | TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+    | TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
+    | TLS_DH_RSA_WITH_AES_128_GCM_SHA256 
+    | TLS_DH_RSA_WITH_AES_256_GCM_SHA384 
+    | TLS_DHE_DSS_WITH_AES_128_GCM_SHA256
+    | TLS_DHE_DSS_WITH_AES_256_GCM_SHA384
+    | TLS_DH_DSS_WITH_AES_128_GCM_SHA256 
+    | TLS_DH_DSS_WITH_AES_256_GCM_SHA384 
+    | TLS_DH_anon_WITH_AES_128_GCM_SHA256
+    | TLS_DH_anon_WITH_AES_256_GCM_SHA384
 
 val cipherSuites_of_nameList: cipherSuiteName list -> cipherSuites
 val name_of_cipherSuite: cipherSuite -> cipherSuiteName Result
