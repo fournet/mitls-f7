@@ -192,16 +192,22 @@ namespace OpenSSL
         public static extern int EVP_CIPHER_CTX_set_padding(EVP_CIPHER_CTX *handle, int padding);
         
         [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int EVP_CIPHER_CTX_ctrl(EVP_CIPHER_CTX *handle, int type, int arg, byte[] ptr);
+
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int EVP_CIPHER_CTX_ctrl(EVP_CIPHER_CTX *handle, int type, int arg, IntPtr ptr);
+
+        [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern int EVP_CipherUpdate(EVP_CIPHER_CTX *handle, byte[] outbuf, ref int outlen, byte[] inbuf, int inlen);
         
         [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
-        public static extern int EVP_CipherFinal_ex(EVP_CIPHER_CTX *handle, byte[] outbuf, ref int outlen, int enc);
+        public static extern int EVP_CipherFinal_ex(EVP_CIPHER_CTX *handle, byte[] outbuf, ref int outlen);
         
         [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern int EVP_CipherUpdate(EVP_CIPHER_CTX *handle, IntPtr outbuf, ref int outlen, IntPtr inbuf, int inlen);
         
         [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
-        public static extern int EVP_CipherFinal_ex(EVP_CIPHER_CTX *handle, IntPtr outbuf, ref int outlen, int enc);
+        public static extern int EVP_CipherFinal_ex(EVP_CIPHER_CTX *handle, IntPtr outbuf, ref int outlen);
 
         [DllImport(Config.DLL, CharSet = CharSet.None, CallingConvention = CallingConvention.Cdecl)]
         public static extern EVP_CIPHER* EVP_CIPHER_CTX_cipher(EVP_CIPHER_CTX *handle);
@@ -255,6 +261,12 @@ namespace OpenSSL
 #endif
     public sealed unsafe class CIPHER  : IDisposable
     {
+        public const int EVP_CTRL_GCM_SET_IVLEN    = 0x09;
+        public const int EVP_CTRL_GCM_GET_TAG      = 0x10;
+        public const int EVP_CTRL_GCM_SET_TAG      = 0x11;
+        public const int EVP_CTRL_GCM_SET_IV_FIXED = 0x12;
+        public const int EVP_CTRL_GCM_SET_IV_GEN   = 0x13;
+
         private EVP_CIPHER_CTX* _handle = null;
         private CType  _type;
         private CMode  _mode;
@@ -395,6 +407,8 @@ namespace OpenSSL
 
         public int Process(byte[] ib, int ioff, int ilen, byte[] ob, int ooff)
         {
+            int olen = 0;
+
             if (ib == null)
                 throw new EVPException();
             if (ioff < 0 || ioff >= ib.Length)
@@ -402,28 +416,17 @@ namespace OpenSSL
             if (ib.Length - ioff < ilen)
                 throw new EVPException();
 
-            int olen = 0;
-
-            if (ob == null) {
-                fixed (byte *ibp = ib) {
-                    IntPtr ip = new IntPtr(&ibp[ioff]);
-
-                    if (_CIPHER.EVP_CipherUpdate(this._handle, IntPtr.Zero, ref olen, ip, ilen) == 0)
-                        throw new EVPException();
-                }
- 
-                return olen;
-            }
-            
-            if (ooff < 0 || ooff >= ob.Length)
-                throw new EVPException();
-
-            olen = ob.Length - ooff;
+            if (ob != null) {
+                if (ooff < 0 || ooff >= ob.Length)
+                    throw new EVPException();
+                olen = ob.Length - ooff;
+            } else
+                ooff = 0;
 
             fixed (byte *obp = ob) {
             fixed (byte *ibp = ib) {
-                IntPtr op = new IntPtr(&obp[ooff]);
-                IntPtr ip = new IntPtr(&ibp[ioff]);
+                IntPtr op = new IntPtr(obp + ooff);
+                IntPtr ip = new IntPtr(ibp + ioff);
 
                 if (_CIPHER.EVP_CipherUpdate(this._handle, op, ref olen, ip, ilen) == 0)
                     throw new EVPException();
@@ -438,24 +441,39 @@ namespace OpenSSL
             int olen = 0;
 
             if (ob == null) {
-                if (_CIPHER.EVP_CipherFinal_ex(this._handle, IntPtr.Zero, ref olen, -1) == 0)
+                if (_CIPHER.EVP_CipherFinal_ex(this._handle, IntPtr.Zero, ref olen) == 0)
                     throw new EVPException();
                 return olen;
             }
 
-            if (off < 0 || off >= ob.Length)
-                throw new EVPException();
-
-            olen = ob.Length - off;
+            if (ob != null) {
+                if (off < 0 || off >= ob.Length)
+                    throw new EVPException();
+                olen = ob.Length - off;
+            } else
+                off = 0;
 
             fixed (byte *obp = ob) {
-                IntPtr p = new IntPtr(&obp[off]);
+                IntPtr p = new IntPtr(obp + off);
 
-                if (_CIPHER.EVP_CipherFinal_ex(this._handle, p, ref olen, -1) == 0)
+                if (_CIPHER.EVP_CipherFinal_ex(this._handle, p, ref olen) == 0)
                     throw new EVPException();
             }
 
             return olen;
+        }
+
+        public void CTRL(int type, int arg, byte[] ptr, int offset)
+        {
+            if (ptr == null)
+                offset = 0;
+
+            fixed (byte *p = ptr) {
+                IntPtr ip = new IntPtr(p + offset);
+
+                if (_CIPHER.EVP_CIPHER_CTX_ctrl(this._handle, type, arg, ip) == 0)
+                    throw new EVPException();
+            }
         }
     }
 
