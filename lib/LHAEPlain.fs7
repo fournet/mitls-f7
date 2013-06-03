@@ -27,7 +27,7 @@ val parseAD: i:id -> b:(;i)adata -> (ad:(;i)StatefulPlain.adata){B(ad) = ParseAD
 private type (;i:id,ad:cbytes,r:range)fragment = {contents: (;i,ParseAD(i,ad),r)StatefulPlain.fragment}
 
 function val Payload: i:id * ad:cbytes * r:range * (;i,ad,r)fragment -> cbytes
-private definition !i,ad,r,f,b.
+private definition !i,ad,r,f.
 	Payload(i,ad,r,f) = StatefulPlain.Payload(i,ParseAD(i,ad),r,f.contents)
 
 predicate LHAESent of i:id * ad:cbytes * r:range * (;i,ad,r)fragment
