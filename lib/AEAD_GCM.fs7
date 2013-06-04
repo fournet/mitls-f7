@@ -1,0 +1,31 @@
+﻿module AEAD_GCM
+
+open Bytes
+open Range
+open TLSInfo
+open Error
+open TLSError
+open TLSConstants
+
+type cipher = bytes
+private type (;i:id)key = {kb:bytes}
+private type (;i:id)iv = {ivb:bytes}
+type counter = nat
+
+//AP: This file is ready to support reader/writer separation, but LHAE is not (yet).
+private type (;i:id (* ,rw:rw *) )state = {key:(;i)key;
+              iv:(;i)iv;
+              counter:counter}
+
+type (;i:id)encryptor = (;i (* ,Writer *) )state
+type (;i:id)decryptor = (;i (* ,Reader *) )state
+
+val GEN: i:id -> (;i)encryptor * (;i)decryptor
+val COERCE: i:id{not AuthId(i)} -> (* rw:rw -> *) bytes -> bytes -> (;i)state
+val LEAK: i:id -> (;i) state -> bytes
+
+val ENC: i:id -> (;i)encryptor -> ad:(;i)LHAEPlain.adata -> r:range -> (;i,ad,r)GCMPlain.plain ->
+	(;i)encryptor * cipher
+
+val DEC: i:id -> (;i)decryptor -> ad:(;i)LHAEPlain.adata -> r:range -> cipher ->
+	(;i)decryptor * (;i,ad,r)LHAEPlain.plain) Result
