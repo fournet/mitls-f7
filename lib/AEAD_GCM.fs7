@@ -20,12 +20,23 @@ private type (;i:id (* ,rw:rw *) )state = {key:(;i)key;
 type (;i:id)encryptor = (;i (* ,Writer *) )state
 type (;i:id)decryptor = (;i (* ,Reader *) )state
 
+function val NextEncryptor: i:id * (;i)encryptor -> 'a //(;i)encryptor
+private definition !i,k,iv,c. NextEncryptor(i,{key=k;iv=iv;counter=c}) = {key=k;iv=iv;counter=c+1} 
+
 val GEN: i:id -> (;i)encryptor * (;i)decryptor
 val COERCE: i:id{not AuthId(i)} -> (* rw:rw -> *) bytes -> bytes -> (;i)state
-val LEAK: i:id -> (;i) state -> bytes
+val LEAK:   i:id{not AuthId(i)} -> (;i)state -> bytes
 
-val ENC: i:id -> (;i)encryptor -> ad:(;i)LHAEPlain.adata -> r:range -> (;i,ad,r)GCMPlain.plain ->
-	(;i)encryptor * cipher
+predicate val ENCrypted: i:id * ad:(;i)LHAEPlain.adata * cipher * 'a -> bool
 
-val DEC: i:id -> (;i)decryptor -> ad:(;i)LHAEPlain.adata -> r:range -> cipher ->
-	(;i)decryptor * (;i,ad,r)LHAEPlain.plain) Result
+val ENC: i:id -> e:(;i)encryptor -> ad:(;i)LHAEPlain.adata -> r:range -> p:(;i,ad,r)LHAEPlain.plain ->
+	(e':(;i)encryptor * c:cipher){e'=NextEncryptor(i,e) /\
+		SafeId(i) => ENCrypted(i,ad,c,p) /\
+		Length(c) = TargetLength(i,r)}
+
+val DEC: i:id -> (;i)decryptor -> ad:(;i)LHAEPlain.adata -> r:range -> c:cipher ->
+	res: (((;i)decryptor * p:(;i,ad,r)LHAEPlain.plain) Result)
+	{SafeId(i) =>
+		( (!d,p. res = Correct((d,p)) => ENCrypted(i,ad,c,p)) /\
+		  (?p. ENCrypted(i,ad,c,p) => ?d. res = Correct((d,p)))
+		)}

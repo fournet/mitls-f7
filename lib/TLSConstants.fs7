@@ -168,10 +168,29 @@ private definition !b. EncAlgBlockSize(CBC_Stale(b)) = BlockSize(b)
 private definition !b. EncAlgBlockSize(CBC_Fresh(b)) = BlockSize(b)
 private definition EncAlgBlockSize(Stream_RC4_128) = 0
 
-val aeadKeySize: aeadAlg -> nat
-val aeadIVSize: aeadAlg -> nat
-val aeadRecordIVSize: aeadAlg -> nat
-val aeadTagSize: aeadAlg -> nat
+function val AEADKeySize: aeadAlg -> nat
+assume !x. AEADKeySize(x) >= 0
+private definition AEADKeySize(AES_128_GCM) = 16
+private definition AEADKeySize(AES_256_GCM) = 32
+val aeadKeySize: a:aeadAlg -> n:nat{n=AEADKeySize(a)}
+
+function val AEADIVSize: aeadAlg -> nat
+assume !x. AEADIVSize(x) >= 0
+private definition AEADIVSize(AES_128_GCM) = 4
+private definition AEADIVSize(AES_256_GCM) = 4
+val aeadIVSize: a:aeadAlg -> n:nat{n=AEADIVSize(a)}
+
+function val AEADRecordIVSize: aeadAlg -> nat
+assume !x. AEADRecordIVSize(x) >= 0
+private definition AEADRecordIVSize(AES_128_GCM) = 8
+private definition AEADRecordIVSize(AES_256_GCM) = 8
+val aeadRecordIVSize: a:aeadAlg -> n:nat{n = AEADRecordIVSize(a)}
+
+function val AEADTagSize: aeadAlg -> nat
+assume !x. AEADTagSize(x) >= 0
+private definition AEADTagSize(AES_128_GCM) = 16
+private definition AEADTagSize(AES_256_GCM) = 16
+val aeadTagSize: a:aeadAlg -> n:nat{n = AEADTagSize(a)}
 
 //CF in TLS, hashes and MAC keys & tags have the same size, depending on hashAlg. 
 function val HashSize: hashAlg -> nat

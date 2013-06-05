@@ -41,8 +41,9 @@ val fixedPadSize: id:id -> l:nat{l=1}
 //AP (si.extended_record_padding = false /\ l=1)}
 
 function val MaxPadSize: i:id * unit -> nat //TODO MK fix spec
-private definition !i,mac,alg.
+private definition !i,mac,alg,aeAlg.
     (i.aeAlg = MACOnly(mac) 	        => MaxPadSize(i,()) = 0)  /\
+	(i.aeAlg = AEAD(aeAlg,mac)			=> MaxPadSize(i,()) = 0)  /\
     (i.aeAlg = MtE(Stream_RC4_128,mac) 	=> MaxPadSize(i,()) = 0 ) /\
     (i.aeAlg = MtE(CBC_Fresh(alg),mac) /\ (PvOfId(i) = TLS_1p0 \/ PvOfId(i) = TLS_1p1 \/ PvOfId(i) = TLS_1p2) 
 	                                    => MaxPadSize(i,()) = 255) /\
@@ -70,8 +71,9 @@ function val Modulus: int * int -> int
 //private definition !x,y. Modulus(x,y) = 0
  
 function val BlockAlignedPadding: id * nat -> nat
-definition !e,mac,alg,l.
-	(e.aeAlg = MACOnly(mac)  => BlockAlignedPadding(e,l) = 0 ) /\
+definition !e,mac,alg,aeAlg,l.
+	(e.aeAlg = MACOnly(mac)    => BlockAlignedPadding(e,l) = 0 ) /\
+	(e.aeAlg = AEAD(aeAlg,mac) => BlockAlignedPadding(e,l) = 0 ) /\
 	(e.aeAlg = MtE(Stream_RC4_128,mac) => BlockAlignedPadding(e,l) = 0 ) /\
 	(e.aeAlg = MtE(CBC_Fresh(alg),mac) /\ Modulus(l + 1,BlockSize(alg)) = 0 =>  
                                  BlockAlignedPadding(e,l) = 1) /\
@@ -86,10 +88,16 @@ definition !e,mac,alg,l.
 
 private val blockAlignPadding: e:id -> l:nat -> l':nat{l' = BlockAlignedPadding(e,l)}
 
-definition !e,l,h.
+definition !e,mac,alg,aeAlg,l,h.
+	( (e.aeAlg = MACOnly(mac) \/
+	   e.aeAlg = MtE(alg,mac)  ) =>
 	TargetLength(e,(l,h)) =
 		IVSize(e) + h + MacKeySize(MacAlg(e)) +
-		BlockAlignedPadding(e,h + MacKeySize(MacAlg(e)))
+		BlockAlignedPadding(e,h + MacKeySize(MacAlg(e))) ) /\
+	( e.aeAlg = AEAD(aeAlg,mac) =>
+	TargetLength(e,(l,h)) =
+		AEADRecordIVSize(aeAlg) + h + AEADTagSize(aeAlg)
+	)
 
 val targetLength: i:id -> r:range -> 
   tlen:nat {tlen = TargetLength(i,r) /\ tlen <= max_TLSCipher_fragment_length}
@@ -127,7 +135,11 @@ definition
 	(!e,tlen,mac,x. 
 	  e.aeAlg = MtE(Stream_RC4_128,mac) /\
           x = tlen - IVSize(e) - MacKeySize(mac) /\ x >= 0 =>
-             CipherRangeClass(e,tlen) = (x,x))
+             CipherRangeClass(e,tlen) = (x,x)) /\
+	(!e,tlen,aeAlg,mac,x.
+	  e.aeAlg = AEAD(aeAlg,mac) /\
+		  x = tlen - AEADRecordIVSize(aeAlg) - AEADTagSize(aeAlg) /\ x >= 0 =>
+			 CipherRangeClass(e,tlen) = (x,x))
 
 val cipherRangeClass: e:id -> 
   tlen:nat{tlen <= max_TLSCipher_fragment_length} -> 

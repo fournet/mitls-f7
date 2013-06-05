@@ -14,7 +14,7 @@ val GEN: id -> encryptor * decryptor
 val COERCE: id -> bytes -> bytes -> state
 val LEAK: id -> state -> bytes
 
-val ENC: id -> encryptor -> LHAEPlain.adata -> range -> GCMPlain.plain ->
+val ENC: id -> encryptor -> LHAEPlain.adata -> range -> LHAEPlain.plain ->
     (encryptor * bytes)
 
 val DEC: id -> decryptor -> LHAEPlain.adata -> range -> bytes ->

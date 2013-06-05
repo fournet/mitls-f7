@@ -94,8 +94,7 @@ let encrypt' (e:id) key data rg plain =
         if l <> h then
             unexpected "[encrypt'] given an invalid input range"
         else
-            let p = GCMPlain.prepare e data rg plain in
-            let (newState,res) = AEAD_GCM.ENC e gcmState data rg p in
+            let (newState,res) = AEAD_GCM.ENC e gcmState data rg plain in
             (GCM(newState),res)
     | (_,_) -> unexpected "[encrypt'] incompatible ciphersuite-key given."
         
