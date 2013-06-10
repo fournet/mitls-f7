@@ -38,6 +38,7 @@ val COERCE: i:id{not AuthId(i)} -> b:bytes{Length(b) = KeySize(i.aeAlg)} -> (;i)
 val LEAK:   i:id{not AuthId(i)} -> (;i)LHAEKey -> b:bytes
 
 private val mteKey: i:id -> (;i) MAC.key -> (;i) ENC.state -> (;i) LHAEKey
+private val gcmKey: i:id -> (;i) AEAD_GCM.state -> (;i)LHAEKey
 
 // We have two variants for encryption and decryption: 
 // the first (primed) is concrete; the second is idealized at safe indexes,
@@ -45,10 +46,19 @@ private val mteKey: i:id -> (;i) MAC.key -> (;i) ENC.state -> (;i) LHAEKey
 
 predicate ENCrypted of e:id * ad:(;e)LHAEPlain.adata * cipher
 
-private definition !e,ad,c.
-  ENCrypted(e,ad,c) <=> ?p'. (ENC.ENCrypted(e,ad,c,p') \/ AEAD_GCM.ENCrypted(e,ad,c,p'))
+private definition !e,ad,c,enc,aenc,mac.
+  (e.aeAlg = MtE(enc,mac) =>
+    (ENCrypted(e,ad,c) <=> ?p. ENC.ENCrypted(e,ad,c,p)) ) /\
+  (e.aeAlg = AEAD(aenc,mac) =>
+    (ENCrypted(e,ad,c) <=> ?p. AEAD_GCM.ENCrypted(e,ad,c,p)) )
 
-ask !e,ad,c. ( SafeId(e) => ENCrypted(e,ad,c) ) => (SafeId(e) => ?p. (ENC.ENCrypted(e,ad,c,p) \/ AEAD_GCM.ENCrypted(e,ad,c,p)))
+ask !e,enc,mac,ad,c.
+	e.aeAlg = MtE(enc,mac) /\ ( SafeId(e) => ENCrypted(e,ad,c) ) =>
+	(SafeId(e) => (?p. ENC.ENCrypted(e,ad,c,p)))
+
+ask !e,enc,mac,ad,c,p.
+	e.aeAlg = MtE(enc,mac) /\ ( SafeId(e) => ENC.ENCrypted(e,ad,c,p) ) =>
+	(SafeId(e) => ENCrypted(e,ad,c))
 
 val encrypt': i:id -> (;i) LHAEKey -> ad:(;i)LHAEPlain.adata ->
   rg:range -> p:(;i,ad,rg) LHAEPlain.plain ->

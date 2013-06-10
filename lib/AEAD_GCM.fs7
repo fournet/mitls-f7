@@ -7,7 +7,7 @@ open Error
 open TLSError
 open TLSConstants
 
-type cipher = bytes
+type cipher = b:bytes{Length(b) <= max_TLSCipher_fragment_length}
 private type (;i:id)key = {kb:bytes}
 private type (;i:id)iv = {ivb:bytes}
 type counter = nat
@@ -30,9 +30,9 @@ val LEAK:   i:id{not AuthId(i)} -> (;i)state -> bytes
 predicate val ENCrypted: i:id * ad:(;i)LHAEPlain.adata * cipher * 'a -> bool
 
 val ENC: i:id -> e:(;i)encryptor -> ad:(;i)LHAEPlain.adata -> r:range -> p:(;i,ad,r)LHAEPlain.plain ->
-	(e':(;i)encryptor * c:cipher){e'=NextEncryptor(i,e) /\
-		SafeId(i) => ENCrypted(i,ad,c,p) /\
-		Length(c) = TargetLength(i,r)}
+	( (e':(;i)encryptor{e'=NextEncryptor(i,e)}) *
+	  (c:cipher{(SafeId(i) => ENCrypted(i,ad,c,p)) /\
+			   Length(c) = TargetLength(i,r)}) )
 
 val DEC: i:id -> (;i)decryptor -> ad:(;i)LHAEPlain.adata -> r:range -> c:cipher ->
 	res: (((;i)decryptor * p:(;i,ad,r)LHAEPlain.plain) Result)

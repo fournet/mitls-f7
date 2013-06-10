@@ -99,6 +99,7 @@ let encrypt' (e:id) key data rg plain =
     | (_,_) -> unexpected "[encrypt'] incompatible ciphersuite-key given."
         
 let mteKey (e:id) ka ke = MtEK(ka,ke)
+let gcmKey (e:id) st = GCM(st)
 
 let decrypt' e key data cipher =
     let cl = length cipher in
@@ -155,7 +156,8 @@ let decrypt' e key data cipher =
             | Error z -> Error z
             | Correct (res) ->
                 let (newState,plain) = res in
-                correct (GCM(newState),rg, plain)
+                let nk = gcmKey e newState in
+                correct (nk,rg,plain)
     | (_,_) -> unexpected "[decrypt'] incompatible ciphersuite-key given."
 
 #if ideal

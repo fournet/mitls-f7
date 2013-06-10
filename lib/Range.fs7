@@ -89,15 +89,20 @@ definition !e,mac,alg,aeAlg,l.
 private val blockAlignPadding: e:id -> l:nat -> l':nat{l' = BlockAlignedPadding(e,l)}
 
 definition !e,mac,alg,aeAlg,l,h.
-	( (e.aeAlg = MACOnly(mac) \/
-	   e.aeAlg = MtE(alg,mac)  ) =>
-	TargetLength(e,(l,h)) =
-		IVSize(e) + h + MacKeySize(MacAlg(e)) +
-		BlockAlignedPadding(e,h + MacKeySize(MacAlg(e))) ) /\
-	( e.aeAlg = AEAD(aeAlg,mac) =>
-	TargetLength(e,(l,h)) =
-		AEADRecordIVSize(aeAlg) + h + AEADTagSize(aeAlg)
+	h >= 0 =>
+	(
+		( (e.aeAlg = MACOnly(mac) \/
+		   e.aeAlg = MtE(alg,mac)  ) =>
+		TargetLength(e,(l,h)) =
+			IVSize(e) + h + MacKeySize(MacAlg(e)) +
+			BlockAlignedPadding(e,h + MacKeySize(MacAlg(e))) ) /\
+		( e.aeAlg = AEAD(aeAlg,mac) =>
+		TargetLength(e,(l,h)) =
+			AEADRecordIVSize(aeAlg) + h + AEADTagSize(aeAlg)
+		)
 	)
+
+ask !e,l,h. h >= 0 => TargetLength(e,(l,h)) >= 0
 
 val targetLength: i:id -> r:range -> 
   tlen:nat {tlen = TargetLength(i,r) /\ tlen <= max_TLSCipher_fragment_length}
