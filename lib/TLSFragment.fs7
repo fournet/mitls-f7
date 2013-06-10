@@ -63,7 +63,7 @@ val ccsHistory: e:epoch -> h:(;e)history -> s:(;Id(e))HSFragment.stream{s = CCSH
 val alertHistory: e:epoch -> h:(;e)history -> s:(;Id(e))HSFragment.stream{s = AlertHistory(e,h)}
 
 predicate RecordSent of e:epoch * ct:ContentType * h:(;e) history * rg:range * (;Id(e),ct,rg)fragment
-definition !e,ct,h,rg,d.
+private definition !e,ct,h,rg,d.
   RecordSent(e,ct,h,rg,d) <=> ( 
     (?f. ct=Handshake          /\ d = FHandshake(f) /\ HSFragment.Sent(Id(e),HandshakeHistory(e,h),rg,f) ) \/
     (?f. ct=Change_cipher_spec /\ d = FCCS(f)       /\ HSFragment.Sent(Id(e),CCSHistory(e,h),rg,f) ) \/
