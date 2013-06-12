@@ -497,7 +497,7 @@ ask !e. Open(e) => (SafeId(Id(e)) => Safe(e))
 ask !e. Auth(e) => Open(e)
 private assume !r,e,e'. SentCCS(r,e) /\ SentCCS(r,e') /\ Id(e) = Id(e') => e = e'
 ask !e,e'. Open(e) /\ Open(e') /\ Id(e) = Id(e') => e = e'
-type openEpoch = e:epoch {Open(e)}
+//AP type openEpoch = e:succEpoch {Open(e)}
 
 
 // -------------------------------------------------------------------

@@ -35,9 +35,6 @@ let headerLength b =
     let (ct1,rem4) = split b 1  in
     let (pv2,len2) = split rem4 2 in
     let len = int_of_bytes len2 in
-    // With a precise int/byte model,
-    // no need to check len, since it's on 2 bytes and the max allowed value is 2^16.
-    // Here we do a runtime check to get the same property statically
     if len <= 0 || len > max_TLSCipher_fragment_length then
         Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Wrong fragment length")
     else

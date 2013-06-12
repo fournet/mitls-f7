@@ -26,7 +26,7 @@ private definition !e,d. IsDispatchState(e,d) <=>
 	(?pv,s.
 	(d = Init \/ d = FirstHandshake(pv) \/ d = Finishing \/ d = Finished \/
 	d = Open \/ d = Closing(pv,s) \/ d = Closed) /\
-	((d = Finishing \/ d = Finished \/ d = Open) => IsSuccEpoch(e)))
+	((d = Finishing \/ d = Finished \/ d = Open) => (IsSuccEpoch(e) /\ IsValidEpoch(e) /\ IsValidEpoch(Pred(e)) )))
 
 type (;e:epoch)dispatchState = d:predispatchState{IsDispatchState(e,d)}
 

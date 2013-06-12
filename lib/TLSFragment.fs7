@@ -30,7 +30,7 @@ invariants in Dispatch easier to state.
 
 //CF are we still planning to define clones of HSFragment or not? 
 
-private type (;i:id,ct:ContentType,rg:range) fragment =
+type (;i:id,ct:ContentType,rg:range) fragment =
     | FHandshake of f:(;i,rg)HSFragment.fragment {ct=Handshake}
     | FCCS       of f:(;i,rg)HSFragment.fragment {ct=Change_cipher_spec}
     | FAlert     of f:(;i,rg)HSFragment.fragment {ct=Alert}
@@ -63,7 +63,7 @@ val ccsHistory: e:epoch -> h:(;e)history -> s:(;Id(e))HSFragment.stream{s = CCSH
 val alertHistory: e:epoch -> h:(;e)history -> s:(;Id(e))HSFragment.stream{s = AlertHistory(e,h)}
 
 predicate RecordSent of e:epoch * ct:ContentType * h:(;e) history * rg:range * (;Id(e),ct,rg)fragment
-private definition !e,ct,h,rg,d.
+definition !e,ct,h,rg,d.
   RecordSent(e,ct,h,rg,d) <=> ( 
     (?f. ct=Handshake          /\ d = FHandshake(f) /\ HSFragment.Sent(Id(e),HandshakeHistory(e,h),rg,f) ) \/
     (?f. ct=Change_cipher_spec /\ d = FCCS(f)       /\ HSFragment.Sent(Id(e),CCSHistory(e,h),rg,f) ) \/
@@ -82,7 +82,7 @@ type (;e:epoch,ct:ContentType,h:(;e)history,rg:range) plain =
 
 function val ExtendHistory: e:epoch * ct:ContentType * ss:(;e)history * r:range * (;e,ct,ss,r)plain -> 'a //(;e)history
 
-val extendHistory: e:epoch -> ct:ContentType{ct=Application_data => Open(e)} -> ss:(;e)history -> r:range ->
+val extendHistory: e:epoch -> ct:ContentType{ct=Application_data => (AuthId(Id(e)) => Open(e))} -> ss:(;e)history -> r:range ->
   f:(;e,ct,ss,r)plain -> ss':(;e)history{ss' = ExtendHistory(e,ct,ss,r,f)}
 
 val plain: e:epoch{not AuthId(Id(e))} -> ct:ContentType -> h: (;e) history -> rg:range ->

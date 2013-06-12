@@ -58,7 +58,7 @@ val fragment: e:epoch -> s:(;e) stream -> r:range ->
 
 
 
-val delta: e:openEpoch -> s:(;e) stream -> r:range -> 
+val delta: e:epoch -> s:(;e) stream -> r:range -> 
   f:(;Id(e),r) fragment{Auth(e) => Sent(e,s,r,f) 
 						(*MK: /\ (?e',s',d'. f = {frag=(e',s',d')} 
 						      /\ not(Auth(e)) => not(Auth(e')) ) *)} -> 
