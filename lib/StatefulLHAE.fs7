@@ -142,6 +142,13 @@ val decrypt:
   ki:id -> rd:(;ki) reader -> 
   ad:(;ki) adata ->
   c:cipher ->
+  ((nrd:(;ki)reader * rg:range * p:(;ki,ad,History(ki,Reader,rd),rg) plain){
+	History(ki,Reader,nrd) = ExtendHistory(ki,ad,History(ki,Reader,rd),rg,p) /\
+	rg = CipherRangeClass(ki,Length(c)) /\
+	(SafeId(ki) => ENCrypted(ki,History(ki,Reader,rd),ad,c))
+  }) Result
+
+(* AP Older version, equivalent to the current one (?), but more difficult to typecheck
   r:((;ki) reader * rg:range * (;ki,ad,History(ki,Reader,rd),rg) plain) Result
   { !nrd,rg,f. r = Correct((nrd,rg,f)) => 
                (   History(ki,Reader,nrd) = 
@@ -152,6 +159,7 @@ val decrypt:
 				//  (!rg,p. ENCrypted(ki,rd,ad,rg,Payload(ki,ad,rg,p),c) => (?nrd,rg. res = Correct((nrd,rg,p))))
 				)
 			 ) ) }
+*)
 			 
 //CF 21/4: as stated, we need the resulting readers and writers to have explicitly-updated histories (irrespective of AUTH)
 //CF 21/4: can we return an option instead? Otherwise we may have to specify which errors can be returned.

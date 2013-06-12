@@ -187,5 +187,5 @@ val StAEPlainToRecordPlain:
     h:(;e) TLSFragment.history ->
     sh:(;Id(e)) history{h = Multiplexed(e,sh)} -> rg:range -> 
     d:(;Id(e),ad,sh,rg) plain ->                                       //MK has {AuthId(i) => Sent(i,B(ad),sh,rg,d)} refinement
-    f:(;e,ct,h,rg) TLSFragment.plain //FIXME {f=StAEToRecord(Id(e),ct,rg,d)}    //MK has {Auth(e) => RecordSent(e,ct,h,rg,f) } refinement
+    f:(;e,ct,h,rg) TLSFragment.plain{f=StAEToRecord(Id(e),ct,rg,d)}    //MK has {Auth(e) => RecordSent(e,ct,h,rg,f) } refinement
 

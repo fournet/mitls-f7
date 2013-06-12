@@ -31,15 +31,6 @@ let makePacket ct ver data =
     let bl   = bytes_of_int 2 l in
     bct @| bver @| bl @| data
 
-let headerLength b =
-    let (ct1,rem4) = split b 1  in
-    let (pv2,len2) = split rem4 2 in
-    let len = int_of_bytes len2 in
-    if len <= 0 || len > max_TLSCipher_fragment_length then
-        Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Wrong fragment length")
-    else
-        correct(len)
-
 let parseHeader b = 
     let (ct1,rem4) = split b 1 in
     let (pv2,len2) = split rem4 2 in 
@@ -109,26 +100,15 @@ let recordPacketOut2 conn clen ct fragment =
     makePacket ct conn.local_pv payload 
 *)
 
-let recordPacketIn e conn headPayload =
-    let (header,payload) = split headPayload 5 in
-    match parseHeader header with
-    | Error(z) -> Error(z)
-    | Correct (parsed) -> 
-    let (ct,pv,plen) = parsed in
-    // tlen is checked in headerLength, which is invoked by Dispatch
-    // before invoking this function
-    if length payload <> plen then
-        let reason = perror __SOURCE_FILE__ __LINE__ "Wrong record packet size" in
-        let err = AD_illegal_parameter,reason in
-        Error err
-    else
+let recordPacketIn e conn ct payload =
     let initEpoch = isInitEpoch e in
     match (initEpoch,conn) with
     | (true,NullState) ->
+        let plen = length payload in
         let rg = (plen,plen) in
         let i = id e in
         let msg = TLSFragment.fragment i ct rg payload in
-        correct(conn,ct,pv,rg,msg)
+        correct(conn,rg,msg)
     | (false,SomeState(history,state)) ->
         let i = id e in
         let ad = StatefulPlain.makeAD i ct in
@@ -141,7 +121,7 @@ let recordPacketIn e conn headPayload =
             let msg = StatefulPlain.StAEPlainToRecordPlain e ct ad history oldH rg plain in
             let history = TLSFragment.extendHistory e ct history rg msg in
             let st' = someState e Reader history newState in
-            correct(st',ct,pv,rg,msg)
+            correct(st',rg,msg)
     | _ -> unexpected "[recordPacketIn] Incompatible ciphersuite and key type"
 
 let history (e:epoch) (rw:rw) s =
