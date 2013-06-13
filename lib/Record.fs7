@@ -34,7 +34,7 @@ val nullConnState: e:epoch -> rw:rw ->
 
 private val makePacket: ContentType -> ProtocolVersion -> bytes -> bytes
 
-private val parseHeader: b:(;5)lbytes ->
+val parseHeader: b:(;5)lbytes ->
 	((ContentType * ProtocolVersion * n:nat){n>0 /\ n <= max_TLSCipher_fragment_length}) Result
 
 type (;e:epoch) sendState = (;e,Writer) ConnectionState 
@@ -52,11 +52,11 @@ val recordPacketIn : e:epoch ->
                      s:(;e) recvState ->
 					 ct:ContentType{ct=Application_data => (AuthId(Id(e)) => Open(e))} ->
                      wire:bytes{Length(wire) <= max_TLSCipher_fragment_length} -> 
-                     res:(s':(;e)recvState *
+                     ((s':(;e)recvState *
                         rg:range * 
-                        f:(;e,ct,History(e,Reader,s),rg) TLSFragment.plain) Result{
-                       !s',rg,f. (res = Correct ((s',rg,f)) /\ Auth(e)) => 
-                         (History(e,Reader,s') = TLSFragment.ExtendHistory(e,ct,History(e,Reader,s),rg,f))}
+                        f:(;e,ct,History(e,Reader,s),rg) TLSFragment.plain){
+							Auth(e) => History(e,Reader,s') = TLSFragment.ExtendHistory(e,ct,History(e,Reader,s),rg,f)
+						}) Result
 
 
 //TODO val historyStream: e:epoch -> st:(;e) ConnectionState -> 

@@ -308,8 +308,9 @@ let writeOne (Conn(id,c)): writeOutcome * Connection =
                         let reason = perror __SOURCE_FILE__ __LINE__ "Sending handshake message in wrong state" in
                         let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in (WriteAgain, closing) 
           | (Handshake.OutComplete(rg,lastFrag,new_hs_state)) ->
-                match c_write.disp with
-                | Finishing ->
+                let c_read = c.read in
+                match (c_write.disp, c_read.disp) with
+                | (Finishing, Finished) ->
                     (* Send the last fragment *)
                     let history = Record.history id.id_out Writer c_write.conn in
                     let ki = TLSInfo.id id.id_out in
@@ -485,7 +486,9 @@ let handleHandshakeOutcome (Conn(id,c)) hsRes =
             (* Ensure we are in Finishing state *)
             match c_read.disp with
                 | Finishing ->
-                    let c = {c with handshake = hs} in
+                    let c_read = {c_read with disp = Finished} in
+                    let c = {c with handshake = hs;
+                                    read = c_read} in
                     (* FIXME Indeed, we should stop reading now!
                         (Because, except for false start implementations, the other side is now
                         waiting for us to send our finished message)
@@ -502,25 +505,26 @@ let handleHandshakeOutcome (Conn(id,c)) hsRes =
                     WriteOutcome(wo),conn
     | Handshake.InComplete(hs) ->
             let c = {c with handshake = hs} in
-            (* Ensure we are in Finishing state *)
-                match c_read.disp with
-                | Finishing ->
-                    (* Sanity check: in and out session infos should be the same *)
-                    if epochSI(id.id_in) = epochSI(id.id_out) then
-                        match moveToOpenState (Conn(id,c)) with
-                        | Correct(c) -> 
-                            (RHSDone, Conn(id,c))
-                        | Error(z) -> 
-                            let (x,y) = z in
-                            let closing = abortWithAlert (Conn(id,c)) x y in
-                            let wo,conn = writeAllClosing closing in
-                            WriteOutcome(wo),conn
-                    else let closed = closeConnection (Conn(id,c)) in (RError(perror __SOURCE_FILE__ __LINE__ "Invalid connection state"),closed) (* Unrecoverable error *)
-                | _ ->
-                    let reason = perror __SOURCE_FILE__ __LINE__ "Invalid connection state" in
-                    let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in
-                    let wo,conn = writeAllClosing closing in
-                    WriteOutcome(wo),conn
+            (* Ensure we are in the correct state *)
+            let c_write = c.write in
+            match (c_read.disp, c_write.disp) with
+            | (Finishing, Finished) ->
+                (* Sanity check: in and out session infos should be the same *)
+                if epochSI(id.id_in) = epochSI(id.id_out) then
+                    match moveToOpenState (Conn(id,c)) with
+                    | Correct(c) -> 
+                        (RHSDone, Conn(id,c))
+                    | Error(z) -> 
+                        let (x,y) = z in
+                        let closing = abortWithAlert (Conn(id,c)) x y in
+                        let wo,conn = writeAllClosing closing in
+                        WriteOutcome(wo),conn
+                else let closed = closeConnection (Conn(id,c)) in (RError(perror __SOURCE_FILE__ __LINE__ "Invalid connection state"),closed) (* Unrecoverable error *)
+            | _ ->
+                let reason = perror __SOURCE_FILE__ __LINE__ "Invalid connection state" in
+                let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in
+                let wo,conn = writeAllClosing closing in
+                WriteOutcome(wo),conn
     | Handshake.InError(x,y,hs) ->
         let c = {c with handshake = hs} in
         let closing = abortWithAlert (Conn(id,c)) x y in
@@ -536,7 +540,8 @@ let getHeader (Conn(id,c)) =
         | Correct(res) ->
         let (ct,pv,len) = res in
         // check pv
-        match c.read.disp with
+        let c_read = c.read in
+        match c_read.disp with
         | Init -> correct(ct,len)
         | FirstHandshake(expPV) ->
             if pv = expPV then
@@ -645,7 +650,9 @@ let readOne (Conn(id,c0)) =
                                 (* Ensure we are in Finishing state *)
                                 match c_read.disp with
                                     | Finishing ->
-                                        let c = {c with handshake = hs} in
+                                        let c_read = {c_read with disp = Finished} in
+                                        let c = {c with handshake = hs;
+                                                        read = c_read} in
                                         (* FIXME Indeed, we should stop reading now!
                                             (Because, except for false start implementations, the other side is now
                                             waiting for us to send our finished message)
@@ -662,25 +669,26 @@ let readOne (Conn(id,c0)) =
                                         WriteOutcome(wo),conn
                         | Handshake.InComplete(hs) ->
                                 let c = {c with handshake = hs} in
-                                (* Ensure we are in Finishing state *)
-                                    match c_read.disp with
-                                    | Finishing ->
-                                        (* Sanity check: in and out session infos should be the same *)
-                                        if epochSI(id.id_in) = epochSI(id.id_out) then
-                                            match moveToOpenState (Conn(id,c)) with
-                                            | Correct(c) -> 
-                                                (RHSDone, Conn(id,c))
-                                            | Error(z) -> 
-                                                let (x,y) = z in
-                                                let closing = abortWithAlert (Conn(id,c)) x y in
-                                                let wo,conn = writeAllClosing closing in
-                                                WriteOutcome(wo),conn
-                                        else let closed = closeConnection (Conn(id,c)) in (RError(perror __SOURCE_FILE__ __LINE__ "Invalid connection state"),closed) (* Unrecoverable error *)
-                                    | _ ->
-                                        let reason = perror __SOURCE_FILE__ __LINE__ "Invalid connection state" in
-                                        let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in
-                                        let wo,conn = writeAllClosing closing in
-                                        WriteOutcome(wo),conn
+                                (* Ensure we are in the correct state *)
+                                let c_write = c.write in
+                                match (c_read.disp, c_write.disp) with
+                                | (Finishing, Finished) ->
+                                    (* Sanity check: in and out session infos should be the same *)
+                                    if epochSI(id.id_in) = epochSI(id.id_out) then
+                                        match moveToOpenState (Conn(id,c)) with
+                                        | Correct(c) -> 
+                                            (RHSDone, Conn(id,c))
+                                        | Error(z) -> 
+                                            let (x,y) = z in
+                                            let closing = abortWithAlert (Conn(id,c)) x y in
+                                            let wo,conn = writeAllClosing closing in
+                                            WriteOutcome(wo),conn
+                                    else let closed = closeConnection (Conn(id,c)) in (RError(perror __SOURCE_FILE__ __LINE__ "Invalid connection state"),closed) (* Unrecoverable error *)
+                                | _ ->
+                                    let reason = perror __SOURCE_FILE__ __LINE__ "Invalid connection state" in
+                                    let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in
+                                    let wo,conn = writeAllClosing closing in
+                                    WriteOutcome(wo),conn
                         | Handshake.InError(x,y,hs) ->
                             let c = {c with handshake = hs} in
                             let closing = abortWithAlert (Conn(id,c)) x y in

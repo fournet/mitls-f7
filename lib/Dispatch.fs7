@@ -26,7 +26,8 @@ private definition !e,d. IsDispatchState(e,d) <=>
 	(?pv,s.
 	(d = Init \/ d = FirstHandshake(pv) \/ d = Finishing \/ d = Finished \/
 	d = Open \/ d = Closing(pv,s) \/ d = Closed) /\
-	((d = Finishing \/ d = Finished \/ d = Open) => (IsSuccEpoch(e) /\ IsValidEpoch(e) /\ IsValidEpoch(Pred(e)) )))
+	((d = Finishing \/ d = Finished \/ d = Open) => (IsSuccEpoch(e) /\ IsValidEpoch(e) /\ IsValidEpoch(Pred(e))) ) /\
+	(d = Open => (AuthId(Id(e)) => TLSInfo.Open(e))) )
 
 type (;e:epoch)dispatchState = d:predispatchState{IsDispatchState(e,d)}
 
@@ -63,18 +64,8 @@ private definition !ci,gs. GState(ci,gs)  <=>
 		)
 	) /\
     (Auth(ci.id_in)  =>
-		( ( (?pv. gs.read.disp = Init \/ gs.read.disp = FirstHandshake(pv) \/
-		     gs.read.disp = Finishing \/ gs.read.disp = Finished \/ gs.read.disp = Open) /\
-			AppData.AppInStream(ci,gs.appdata) = TLSFragment.AppDataHistory(ci.id_in,Record.History(ci.id_in,Reader,gs.read.conn))
-		  )
-		 \/
-			( (?pv,str. gs.read.disp = Closing(pv,str) \/ gs.read.disp = Closed) /\
-			  ( AppData.AppInStream(ci,gs.appdata) = TLSFragment.AppDataHistory(ci.id_in,Record.History(ci.id_in,Reader,gs.read.conn)) \/
-			  (?r,f. AppFragment.Extend(ci.id_in,AppData.AppInStream(ci,gs.appdata),r,f) =
-					TLSFragment.AppDataHistory(ci.id_in,Record.History(ci.id_in,Reader,gs.read.conn))) )
-			)
-		
-		//AP /\
+		(
+		AppData.AppInStream(ci,gs.appdata) = TLSFragment.AppDataHistory(ci.id_in,Record.History(ci.id_in,Reader,gs.read.conn)) //AP /\
 		//AP Handshake.HSInStream(ci,gs.handshake) = TLSFragment.HandshakeHistory(ci.id_in,Record.History(ci.id_in,Reader,gs.read.conn)) /\
 		//AP Handshake.CCSInStream(ci,gs.handshake) = TLSFragment.CCSHistory(ci.id_in,Record.History(ci.id_in,Reader,gs.read.conn)) /\
 		//AP Alert.AlInStream(ci,gs.alert) = TLSFragment.AlertHistory(ci.id_in,Record.History(ci.id_in,Reader,gs.read.conn))
@@ -424,7 +415,10 @@ val full_shutdown:    c:Connection ->
 		}
 val half_shutdown: c:Connection{CnBuf_o(c) = None} -> unit
 
-private val moveToOpenState: c:Connection ->
+private val moveToOpenState: c:Connection{
+	( AuthId(Id(ConnectionEpochOut(c))) => TLSInfo.Open(ConnectionEpochOut(c)) ) /\
+	( AuthId(Id(ConnectionEpochIn(c) )) => TLSInfo.Open(ConnectionEpochIn(c) ) )
+	} ->
 	(gs:(;CnInfo(c))globalState{
 		gs.write.disp = Open /\ gs.read.disp = Open /\
 		Config(c) = Handshake.Config(CnInfo(c),gs.handshake) /\
@@ -459,7 +453,7 @@ private val abortWithAlert: c:Connection -> alertDescription -> s:string ->
 private val getReason: predispatchState -> string
 
 private val send: Tcp.NetworkStream -> e:epoch -> w:(;e,Writer)dState ->
-	ProtocolVersion -> rg:range -> ct:ContentType ->
+	ProtocolVersion -> rg:range -> ct:ContentType{ct=Application_data => (AuthId(Id(e)) => TLSInfo.Open(e))} ->
 	f:(;e,ct,Record.History(e,Writer,w.conn),rg)TLSFragment.plain ->
 	(w':(;e,Writer) dState{w.disp = w'.disp /\
 		(Auth(e) =>
@@ -467,9 +461,11 @@ private val send: Tcp.NetworkStream -> e:epoch -> w:(;e,Writer)dState ->
 	}) Result
                                                                                                                                                                 
 private val getHeader: c:Connection ->
-	((ct:ContentType * len:nat){len <= max_TLSCipher_fragment_length}) Result
+	((ct:ContentType * len:nat){len > 0 /\ len <= max_TLSCipher_fragment_length}) Result
 
-private val getFragment: c:Connection -> ct:ContentType -> len:nat{len <= max_TLSCipher_fragment_length} ->
+private val getFragment: c:Connection ->
+	ct:ContentType{ct=Application_data => (AuthId(Id(ConnectionEpochIn(c))) => TLSInfo.Open(ConnectionEpochIn(c)))} ->
+	len:nat{len > 0 /\ len <= max_TLSCipher_fragment_length} ->
 	((cs:(;ConnectionEpochIn(c),Reader) Record.ConnectionState *
 	  r:range * 
          p:(;ConnectionEpochIn(c),ct,ConnectionInHistory(c),r)TLSFragment.plain){
