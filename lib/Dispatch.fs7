@@ -85,7 +85,7 @@ private definition !ci,gs. GState(ci,gs)  <=>
 ask !ci,gs,r,p.
 TLSFragment.AppDataHistory(ci.id_in,Record.History(ci.id_in,Reader,gs.read.conn)) =
 TLSFragment.AppDataHistory(ci.id_in,
-	TLSFragment.ExtendHistory(ci.id_in,TLSConstants.Change_cipher_spec,
+	TLSFragment.ExtendHistory(ci.id_in,Change_cipher_spec,
 	Record.History(ci.id_in,Reader,gs.read.conn),r,
 	TLSFragment.CCSRecordPlain(ci.id_in,Record.History(ci.id_in,Reader,gs.read.conn),r,p))
 )
@@ -433,7 +433,7 @@ private val moveToOpenState: c:Connection ->
 		CnBuf_o(c) = AppData.AppOutBuf(CnInfo(c),gs.appdata)
 	}) Result
 
-function val PickSendPV: Connection -> TLSConstants.ProtocolVersion
+function val PickSendPV: Connection -> ProtocolVersion
 private definition !id,s.
 	( CnState_o(Conn(id,s)) = Init =>
 		PickSendPV(Conn(id,s)) = Handshake.GetMinVersion(id,s.handshake) ) /\
@@ -443,7 +443,7 @@ private definition !id,s.
 		PickSendPV(Conn(id,s)) = EpochSI(id.id_out).protocol_version)
 	
 
-private val pickSendPV: c:Connection -> pv:TLSConstants.ProtocolVersion{pv = PickSendPV(c)}
+private val pickSendPV: c:Connection -> pv:ProtocolVersion{pv = PickSendPV(c)}
 
 private val closeConnection: c:Connection-> c':(;c) nextCn{
 	CnState_o(c') = Closed /\ CnState_i(c') = Closed /\
@@ -459,16 +459,19 @@ private val abortWithAlert: c:Connection -> alertDescription -> s:string ->
 private val getReason: predispatchState -> string
 
 private val send: Tcp.NetworkStream -> e:epoch -> w:(;e,Writer)dState ->
-	TLSConstants.ProtocolVersion -> rg:range -> ct:TLSConstants.ContentType ->
+	ProtocolVersion -> rg:range -> ct:ContentType ->
 	f:(;e,ct,Record.History(e,Writer,w.conn),rg)TLSFragment.plain ->
 	(w':(;e,Writer) dState{w.disp = w'.disp /\
 		(Auth(e) =>
             Record.History(e,Writer,w'.conn) = TLSFragment.ExtendHistory(e,ct,Record.History(e,Writer,w.conn),rg,f) )
 	}) Result
                                                                                                                                                                 
-private val recv: c:Connection ->
+private val getHeader: c:Connection ->
+	((ct:ContentType * len:nat){len <= max_TLSCipher_fragment_length}) Result
+
+private val getFragment: c:Connection -> ct:ContentType -> len:nat{len <= max_TLSCipher_fragment_length} ->
 	((cs:(;ConnectionEpochIn(c),Reader) Record.ConnectionState *
-	 ct:TLSConstants.ContentType * r:range * 
+	  r:range * 
          p:(;ConnectionEpochIn(c),ct,ConnectionInHistory(c),r)TLSFragment.plain){
 			Auth(ConnectionEpochIn(c)) => 
 				Record.History(ConnectionEpochIn(c),Reader,cs) =

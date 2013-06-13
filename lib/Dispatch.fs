@@ -417,39 +417,6 @@ let writeOne (Conn(id,c)): writeOutcome * Connection =
             let reason = perror __SOURCE_FILE__ __LINE__ "Sending alert message in wrong state" in
             (WError(reason),closed) (* Unrecoverable error *)
 
-let recv (Conn(id,c)) =
-    match Tcp.read c.ns 5 with // read & parse the header
-    | Error x -> Error(AD_internal_error,x)
-    | Correct header ->
-        match Record.headerLength header with
-        | Error x -> Error(x)
-        | Correct(len) ->
-        match Tcp.read c.ns len with // read & process the payload
-            | Error x -> Error(AD_internal_error,x)
-            | Correct payload ->
-                let c_read = c.read in
-                let c_read_conn = c_read.conn in
-                let hp = header @| payload in 
-                let recpkt = Record.recordPacketIn id.id_in c_read_conn hp in
-                match recpkt with
-                | Error(x) -> Error(x)
-                | Correct(pack) -> 
-                    let (c_recv,ct,pv,tl,f) = pack in
-                    match c.read.disp with
-                    | Init -> correct(c_recv,ct,tl,f)
-                    | FirstHandshake(expPV) ->
-                        if pv = expPV then
-                            correct(c_recv,ct,tl,f)
-                        else
-                            Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Protocol version check failed")
-                    | Finishing | Finished | Open ->
-                        let si = epochSI(id.id_in) in
-                        if pv = si.protocol_version then
-                            correct(c_recv,ct,tl,f)
-                        else
-                            Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Protocol version check failed")
-                    | _ -> unexpected "[recv] invoked on a closed connection"
-
 let rec writeAll (Conn(id,s)) =
     match writeOne (Conn(id,s)) with
     | (WriteAgain,c) | (WriteAgainFinishing,c) -> writeAll c
@@ -560,43 +527,93 @@ let handleHandshakeOutcome (Conn(id,c)) hsRes =
         let wo,conn = writeAllClosing closing in
         WriteOutcome(wo),conn
 
-#if verify
-type preds = | GState of ConnectionInfo * globalState
-#endif
+let getHeader (Conn(id,c)) =
+    match Tcp.read c.ns 5 with // read & parse the header
+    | Error x -> Error(AD_internal_error,x)
+    | Correct header ->
+        match Record.parseHeader header with
+        | Error x -> Error(x)
+        | Correct(res) ->
+        let (ct,pv,len) = res in
+        // check pv
+        match c.read.disp with
+        | Init -> correct(ct,len)
+        | FirstHandshake(expPV) ->
+            if pv = expPV then
+                correct(ct,len)
+            else
+                Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Protocol version check failed")
+        | Finishing | Finished | Open ->
+            let si = epochSI(id.id_in) in
+            if pv = si.protocol_version then
+                correct(ct,len)
+            else
+                Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Protocol version check failed")
+        | _ -> unexpected "[recv] invoked on a closed connection"
+(*
+        match Tcp.read c.ns len with // read & process the payload
+            | Error x -> Error(AD_internal_error,x)
+            | Correct payload ->
+                let c_read = c.read in
+                let c_read_conn = c_read.conn in
+                let hp = header @| payload in 
+                let recpkt = Record.recordPacketIn id.id_in c_read_conn hp in
+                match recpkt with
+                | Error(x) -> Error(x)
+                | Correct(pack) -> 
+                    let (c_recv,ct,pv,tl,f) = pack in
+*)
+
+let getFragment (Conn(id,c)) ct len =
+    match Tcp.read c.ns len with
+    | Error x -> Error(AD_internal_error,x)
+    | Correct payload ->
+        let c_read = c.read in
+        let c_read_conn = c_read.conn in
+        Record.recordPacketIn id.id_in c_read_conn ct payload
 
 (* we have received, decrypted, and verified a record (ct,f); what to do? *)
 let readOne (Conn(id,c0)) =
-  match recv (Conn(id,c0)) with
-    | Error z ->
-        let (x,y) = z in
-        let closing = abortWithAlert (Conn(id,c0)) x y in
-        let wo,conn = writeAllClosing closing in
-        WriteOutcome(wo),conn
-    | Correct(received) -> 
-        let (c_recv,ct,rg,frag) = received in 
-        let c_read = c0.read in
-        let history = Record.history id.id_in Reader c_read.conn in
-        let c_read = {c_read with conn = c_recv} in
-        let c = {c0 with read = c_read} in
-        let c_read = c.read in
-          match c_read.disp with
-            | Closed ->
-                let reason = perror __SOURCE_FILE__ __LINE__ "Trying to read from a closed connection" in
-                #if verify
-                Pi.assume (GState(id,c)) // FIXME
-                #endif
-                let conn = (Conn(id,c)) in
-                let closing = abortWithAlert conn AD_internal_error reason in
+    let c_read = c0.read in
+    match c_read.disp with
+        | Closed ->
+            let reason = perror __SOURCE_FILE__ __LINE__ "Trying to read from a closed connection" in
+            let conn = (Conn(id,c0)) in
+            let closing = abortWithAlert conn AD_internal_error reason in
+            let wo,conn = writeAllClosing closing in
+            WriteOutcome(wo),conn
+        | _ ->
+            match getHeader (Conn(id,c0)) with
+            | Error z ->
+                let (x,y) = z in
+                let closing = abortWithAlert (Conn(id,c0)) x y in
                 let wo,conn = writeAllClosing closing in
                 WriteOutcome(wo),conn
-            | _ ->
+            | Correct(received) -> 
+                let (ct,len) = received in
+                // prepare some variables for later use
+                let c_read = c0.read in
+                let history = Record.history id.id_in Reader c_read.conn in
+                // The following pattern match
+                // also checks the received ct is suitable for the current state
                 match (ct,c_read.disp) with 
-                  | (Handshake, Init) | (Handshake, FirstHandshake(_)) | (Handshake, Finishing) | (Handshake, Open) ->
-                      let c_hs = c.handshake in
+                | (Handshake, Init) | (Handshake, FirstHandshake(_)) | (Handshake, Finishing) | (Handshake, Open) ->
+                    match getFragment (Conn(id,c0)) ct len with
+                    | Error z ->
+                        let (x,y) = z in
+                        let conn = (Conn(id,c0)) in
+                        let closing = abortWithAlert conn x y in
+                        let wo,conn = writeAllClosing closing in
+                        WriteOutcome(wo),conn
+                    | Correct recf ->
+                        let (c_recv,rg,frag) = recf in
+                        let c_read = {c_read with conn = c_recv} in
+                        let c = {c0 with read = c_read} in
+                        let c_hs = c.handshake in
                         let f = TLSFragment.RecordPlainToHSPlain id.id_in history rg frag in
                         let hsRes = Handshake.recv_fragment id c_hs rg f in
                         
-                        // AP: BEGIN: Inlined from handleHandshakeOutcome
+                    // AP: BEGIN: Inlined from handleHandshakeOutcome
 
                         match hsRes with
                         | Handshake.InAck(hs) ->
@@ -673,78 +690,108 @@ let readOne (Conn(id,c0)) =
                         // AP: END: Inlined from handleHandshakeOutcome
 
                   | (Change_cipher_spec, FirstHandshake(_)) | (Change_cipher_spec, Open) ->
-                        let f = TLSFragment.RecordPlainToCCSPlain id.id_in history rg frag in
-                        match Handshake.recv_ccs id c.handshake rg f with 
-                          //#begin-alertAttackRecv
-                          | InCCSAck(nextID,nextR,hs) ->
-                              (* We know statically that Handshake and Application data buffers are empty.
-                               * We check Alert. We are going to reset the Alert buffer anyway, so we
-                               * never concatenate buffers of different epochs. But it is nicer to abort the
-                               * session if some buffers are not in the expected state. *)
-                              if Alert.is_incoming_empty id c.alert then
-                                  let nextRCS = Record.initConnState nextID.id_in Reader nextR in
-                                  let new_read = {c_read with disp = Finishing; conn = nextRCS} in
-                                  let new_ad = AppData.reset_incoming id c.appdata nextID in
-                                  let new_al = Alert.reset_incoming id c.alert nextID in
-                                  let c = { c with read = new_read;
-                                                   appdata = new_ad;
-                                                   alert = new_al;
-                                                   handshake = hs;
-                                          }
-                                  (RAgainFinishing, Conn(nextID,c))
-                               else
-                                  let reason = perror __SOURCE_FILE__ __LINE__ "Changing epoch with non-empty buffers" in
-                                  let closing = abortWithAlert (Conn(id,c)) AD_handshake_failure reason in
+                        match getFragment (Conn(id,c0)) ct len with
+                        | Error z ->
+                            let (x,y) = z in
+                            let conn = (Conn(id,c0)) in
+                            let closing = abortWithAlert conn x y in
+                            let wo,conn = writeAllClosing closing in
+                            WriteOutcome(wo),conn
+                        | Correct recf ->
+                            let (c_recv,rg,frag) = recf in
+                            let c_read = {c_read with conn = c_recv} in
+                            let c = {c0 with read = c_read} in
+                            let f = TLSFragment.RecordPlainToCCSPlain id.id_in history rg frag in
+                            match Handshake.recv_ccs id c.handshake rg f with 
+                              //#begin-alertAttackRecv
+                              | InCCSAck(nextID,nextR,hs) ->
+                                  (* We know statically that Handshake and Application data buffers are empty.
+                                   * We check Alert. We are going to reset the Alert buffer anyway, so we
+                                   * never concatenate buffers of different epochs. But it is nicer to abort the
+                                   * session if some buffers are not in the expected state. *)
+                                  if Alert.is_incoming_empty id c.alert then
+                                      let nextRCS = Record.initConnState nextID.id_in Reader nextR in
+                                      let new_read = {c_read with disp = Finishing; conn = nextRCS} in
+                                      let new_ad = AppData.reset_incoming id c.appdata nextID in
+                                      let new_al = Alert.reset_incoming id c.alert nextID in
+                                      let c = { c with read = new_read;
+                                                       appdata = new_ad;
+                                                       alert = new_al;
+                                                       handshake = hs;
+                                              }
+                                      (RAgainFinishing, Conn(nextID,c))
+                                   else
+                                      let reason = perror __SOURCE_FILE__ __LINE__ "Changing epoch with non-empty buffers" in
+                                      let closing = abortWithAlert (Conn(id,c)) AD_handshake_failure reason in
+                                      let wo,conn = writeAllClosing closing in
+                                      WriteOutcome(wo),conn
+                              //#end-alertAttackRecv
+                              | InCCSError (x,y,hs) ->
+                                  let c = {c with handshake = hs} in
+                                  let closing = abortWithAlert (Conn(id,c)) x y in
                                   let wo,conn = writeAllClosing closing in
                                   WriteOutcome(wo),conn
-                          //#end-alertAttackRecv
-                          | InCCSError (x,y,hs) ->
-                              let c = {c with handshake = hs} in
-                              let closing = abortWithAlert (Conn(id,c)) x y in
-                              let wo,conn = writeAllClosing closing in
-                              WriteOutcome(wo),conn
 
                   | (Alert, Init) | (Alert, FirstHandshake(_)) | (Alert, Open) ->
-                        let f = TLSFragment.RecordPlainToAlertPlain id.id_in history rg frag in
-                        match Alert.recv_fragment id c.alert rg f with
-                          | Correct (Alert.ALAck(state)) ->
-                              let c = {c with alert = state} in
-                              (RAgain, Conn(id,c))
-                          | Correct (Alert.ALClose_notify (state)) ->
-                                 (* An outgoing close notify has already been buffered, if necessary *)
-                                 (* Only close the reading side of the connection *)
-                             let new_read = {c_read with disp = Closed} in
-                             let c = { c with read = new_read;
-                                              alert = state;
-                                     } in
-                             (RClose, Conn(id,c))
-                          | Correct (Alert.ALFatal (ad,state)) ->
-                               (* Other fatal alert, we close both sides of the connection *)
-                             let c = {c with alert = state}
-                             let closed = closeConnection (Conn(id,c)) in
-                             (RFatal(ad), closed)
-                          | Correct (Alert.ALWarning (ad,state)) ->
-                             (* A warning alert, we carry on. The user will decide what to do *)
-                             let c = {c with alert = state}
-                             (RWarning(ad), Conn(id,c))
-                          | Error z -> 
-                              let (x,y) = z in
-                              let closing = abortWithAlert (Conn(id,c)) x y in
-                              let wo,conn = writeAllClosing closing in
-                              WriteOutcome(wo),conn
+                        match getFragment (Conn(id,c0)) ct len with
+                        | Error z ->
+                            let (x,y) = z in
+                            let conn = (Conn(id,c0)) in
+                            let closing = abortWithAlert conn x y in
+                            let wo,conn = writeAllClosing closing in
+                            WriteOutcome(wo),conn
+                        | Correct recf ->
+                            let (c_recv,rg,frag) = recf in
+                            let c_read = {c_read with conn = c_recv} in
+                            let c = {c0 with read = c_read} in
+                            let f = TLSFragment.RecordPlainToAlertPlain id.id_in history rg frag in
+                            match Alert.recv_fragment id c.alert rg f with
+                              | Correct (Alert.ALAck(state)) ->
+                                  let c = {c with alert = state} in
+                                  (RAgain, Conn(id,c))
+                              | Correct (Alert.ALClose_notify (state)) ->
+                                     (* An outgoing close notify has already been buffered, if necessary *)
+                                     (* Only close the reading side of the connection *)
+                                 let new_read = {c_read with disp = Closed} in
+                                 let c = { c with read = new_read;
+                                                  alert = state;
+                                         } in
+                                 (RClose, Conn(id,c))
+                              | Correct (Alert.ALFatal (ad,state)) ->
+                                   (* Other fatal alert, we close both sides of the connection *)
+                                 let c = {c with alert = state}
+                                 let closed = closeConnection (Conn(id,c)) in
+                                 (RFatal(ad), closed)
+                              | Correct (Alert.ALWarning (ad,state)) ->
+                                 (* A warning alert, we carry on. The user will decide what to do *)
+                                 let c = {c with alert = state}
+                                 (RWarning(ad), Conn(id,c))
+                              | Error z -> 
+                                  let (x,y) = z in
+                                  let closing = abortWithAlert (Conn(id,c)) x y in
+                                  let wo,conn = writeAllClosing closing in
+                                  WriteOutcome(wo),conn
 
                   | Application_data, Open ->
-                      let f = TLSFragment.RecordPlainToAppPlain id.id_in history rg frag in
-                      let (d,appstate) = AppData.recv_fragment id c.appdata rg f in
-                      let c = {c with appdata = appstate} in
-                      let res = (rg,d) in
-                      (RAppDataDone(res), Conn(id, c))
+                    match getFragment (Conn(id,c0)) ct len with
+                    | Error z ->
+                        let (x,y) = z in
+                        let conn = (Conn(id,c0)) in
+                        let closing = abortWithAlert conn x y in
+                        let wo,conn = writeAllClosing closing in
+                        WriteOutcome(wo),conn
+                    | Correct recf ->
+                        let (c_recv,rg,frag) = recf in
+                        let c_read = {c_read with conn = c_recv} in
+                        let c = {c0 with read = c_read} in
+                        let f = TLSFragment.RecordPlainToAppPlain id.id_in history rg frag in
+                        let (d,appstate) = AppData.recv_fragment id c.appdata rg f in
+                        let c = {c with appdata = appstate} in
+                        let res = (rg,d) in
+                        (RAppDataDone(res), Conn(id, c))
                   | _, _ ->
                       let reason = perror __SOURCE_FILE__ __LINE__ "Message type received in wrong state"
-                      #if verify
-                      Pi.assume(GState(id,c))
-                      #endif
-                      let closing = abortWithAlert (Conn(id,c)) AD_unexpected_message reason in
+                      let closing = abortWithAlert (Conn(id,c0)) AD_unexpected_message reason in
                       let wo,conn = writeAllClosing closing in
                       WriteOutcome(wo),conn
 
