@@ -859,7 +859,8 @@ private definition !role,e,cfg.
    Especially interesting would be proving that the result is the "best possible" *)
 
 definition !ci,cfg. Complete(ci,cfg) <=>
-        ( IsSuccEpoch(ci.id_in) /\ IsSuccEpoch(ci.id_out) /\
+        ( IsSuccEpoch(ci.id_in)  /\ IsValidEpoch(ci.id_in)  /\ IsValidEpoch(Pred(ci.id_in))  /\
+		  IsSuccEpoch(ci.id_out) /\ IsValidEpoch(ci.id_out) /\ IsValidEpoch(Pred(ci.id_out)) /\
 		  EpochSI(ci.id_in) = EpochSI(ci.id_out) /\
           CompleteEpoch(ci.role,ci.id_in,cfg))
             

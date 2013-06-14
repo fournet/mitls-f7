@@ -875,42 +875,90 @@ let write (Conn(id,s)) msg =
 
 let authorize (Conn(id,c)) q =
     let hsRes = Handshake.authorize id c.handshake q in
-    let (outcome,(Conn(id,c))) = handleHandshakeOutcome (Conn(id,c)) hsRes in
-    // The following code is borrowed from read.
-    // It should be factored out, but this would create a double-recursive function, which we try to avoid.
-    match outcome with
-    | RAgain | RAgainFinishing ->
-        let res = read (Conn(id,c)) in
-        res
-    | RAppDataDone(_) ->    
-        unexpected "[authorize] App data should never be received"
-    | RQuery(q,adv) ->
+    let c_read = c.read in
+
+    // AP: BEGIN: Inlined from handleHandshakeOutcome
+
+    match hsRes with
+    | Handshake.InAck(hs) ->
+        let c = { c with handshake = hs} in
+        read (Conn(id,c))
+    | Handshake.InVersionAgreed(hs,pv) ->
+        match c_read.disp with
+        | Init ->
+            (* Then, also c_write must be in Init state. It means this is the very first, unprotected handshake,
+                and we just negotiated the version.
+                Set the negotiated version in the current sinfo (read and write side), 
+                and move to the FirstHandshake state, so that
+                protocol version will be properly checked *)
+            let new_read = {c_read with disp = FirstHandshake(pv)} in
+            let c_write = c.write in
+            let new_write = {c_write with disp = FirstHandshake(pv)} in
+            let c = {c with handshake = hs;
+                            read = new_read;
+                            write = new_write} in
+            let res = read (Conn(id,c)) in
+            res
+        | _ -> (* It means we are doing a re-negotiation. Don't alter the current version number, because it
+                    is perfectly valid. It will be updated after the next CCS, along with all other session parameters *)
+            let c = { c with handshake = hs} in
+            let res = read (Conn(id,c)) in
+            res
+    | Handshake.InQuery(query,advice,hs) ->
         unexpected "[authorize] A query should never be received"
-    | RHSDone ->
-        (Conn(id,c)),RHSDone
-    | RClose ->
-        match c.write.disp with
-        | Closed ->
-            // we already sent a close_notify, tell the user it's over
-            (Conn(id,c)),RClose
-        | _ ->
-            let (outcome,c) = writeAll (Conn(id,c)) in
-            match outcome with
-            | SentClose ->
-                // clean shoutdown
-                c,RClose
-            | SentFatal(ad,err) ->
-                c,WriteOutcome(SentFatal(ad,err))
-            | WError(err) ->
-                c,RError(err)
+    | Handshake.InFinished(hs) ->
+            (* Ensure we are in Finishing state *)
+            match c_read.disp with
+                | Finishing ->
+                    let c_read = {c_read with disp = Finished} in
+                    let c = {c with handshake = hs;
+                                    read = c_read} in
+                    (* FIXME Indeed, we should stop reading now!
+                        (Because, except for false start implementations, the other side is now
+                        waiting for us to send our finished message)
+                        However, if we say RHSDone, the library will report an early completion of HS
+                        (we still have to send our finished message).
+                        So, here we say ReadAgain, which will anyway first flush our output buffers,
+                        thus sending our finished message, and thus letting us get the WHSDone event.
+                        I know, it's tricky and it sounds fishy, but that's the way it is now.*)
+                    let res = read (Conn(id,c)) in
+                    res
+                | _ ->
+                    let reason = perror __SOURCE_FILE__ __LINE__ "Finishing handshake in the wrong state" in
+                    let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in
+                    let wo,conn = writeAllClosing closing in
+                    conn,WriteOutcome(wo)
+    | Handshake.InComplete(hs) ->
+            let c = {c with handshake = hs} in
+            (* Ensure we are in the correct state *)
+            let c_write = c.write in
+            match (c_read.disp, c_write.disp) with
+            | (Finishing, Finished) ->
+                (* Sanity check: in and out session infos should be the same *)
+                if epochSI(id.id_in) = epochSI(id.id_out) then
+                    match moveToOpenState (Conn(id,c)) with
+                    | Correct(c) -> 
+                        (Conn(id,c),RHSDone)
+                    | Error(z) -> 
+                        let (x,y) = z in
+                        let closing = abortWithAlert (Conn(id,c)) x y in
+                        let wo,conn = writeAllClosing closing in
+                        conn,WriteOutcome(wo)
+                else
+                    let closed = closeConnection (Conn(id,c)) in
+                    (closed,RError(perror __SOURCE_FILE__ __LINE__ "Invalid connection state")) (* Unrecoverable error *)
             | _ ->
-                c,RError(perror __SOURCE_FILE__ __LINE__ "") // internal error
-    | RFatal(ad) ->
-        (Conn(id,c)),RFatal(ad)
-    | RWarning(ad) ->
-        (Conn(id,c)),RWarning(ad)
-    | WriteOutcome(wo) -> (Conn(id,c)),WriteOutcome(wo)
-    | RError(err) -> (Conn(id,c)),RError(err)
+                let reason = perror __SOURCE_FILE__ __LINE__ "Invalid connection state" in
+                let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in
+                let wo,conn = writeAllClosing closing in
+                conn,WriteOutcome(wo)
+    | Handshake.InError(x,y,hs) ->
+        let c = {c with handshake = hs} in
+        let closing = abortWithAlert (Conn(id,c)) x y in
+        let wo,conn = writeAllClosing closing in
+        conn,WriteOutcome(wo)
+
+    // AP: END: Inlined from handleHandshakeOutcome
 
 let refuse conn (q:query) =
     let reason = perror __SOURCE_FILE__ __LINE__ "Remote certificate could not be verified locally" in
