@@ -515,6 +515,12 @@ private val readOne: c:Connection{CnBuf_o(c) = None} ->
 		/\ (Auth(ConnectionEpochIn(c)) => EvWrite(CnInfo(c).id_in, Bytes_i(c'))) )
 	}
 
+// ask !c,c',r,f.
+// 	Bytes_o(c') =
+// 				DataStream.StreamBytes(ConnectionEpochOut(c),AppFragment.Extend(ConnectionEpochOut(c),CnStream_o(c),r,f)) /\
+// 	Bytes_i(c') = Bytes_i(c) =>
+// 	Extend_o(c,c',f)
+
 private val writeOne: c:Connection {
 	( CnBuf_o(c) = None \/
 		(?r,f,s.
