@@ -99,7 +99,8 @@ ask !ci,gs,gs'.
 private type preConnection = Conn of (id:ConnectionInfo * (;id)globalState)
 predicate IsConnection of preConnection
 private definition !c. IsConnection(c) <=>
-	(?x1,x2,x3,x4,s. c  = Conn({id_in = x1; id_out = x2; id_rand = x3; role = x4},s))
+	(?x1,x2,x3,x4,s. c  = Conn({id_in = x1; id_out = x2; id_rand = x3; role = x4},s) /\
+	  IsValidEpoch(x1) /\ IsValidEpoch(x2))
  
 type Connection = c:preConnection{IsConnection(c)}
 
@@ -114,6 +115,8 @@ function val ConnectionEpochOut: Connection -> epoch
 private definition !id,s. ConnectionEpochOut(Conn(id,s)) = id.id_out
 function val ConnectionEpochIn:  Connection -> epoch
 private definition !id,s. ConnectionEpochIn(Conn(id,s))  = id.id_in
+
+ask !cn. IsConnection(cn) => (IsValidEpoch(ConnectionEpochIn(cn)) /\ IsValidEpoch(ConnectionEpochOut(cn)))
 
 function val CnState_o: c:Connection -> (;ConnectionEpochOut(c))dispatchState
 function val CnState_i: c:Connection -> (;ConnectionEpochIn(c)) dispatchState
@@ -238,19 +241,19 @@ type writeOutcome =
     | SentFatal of alertDescription * string
     | SentClose
 
-type (;c:Connection)readOutcome =
+type (;e:epoch,s:(;e)DataStream.stream)readOutcome =
     | WriteOutcome of writeOutcome
     | RError of string 
     | RAgain (* More data to read *)
 	| RAgainFinishing (* More data to read, and the incoming epoch changed *)
-    | RAppDataDone of (;ConnectionEpochIn(c),CnStream_i(c))msg_i (* No more data to read *)
+    | RAppDataDone of (;e,s)msg_i (* No more data to read *)
     | RQuery of query * bool
     | RHSDone
     | RClose
     | RFatal of alertDescription
     | RWarning of alertDescription
 
-predicate val IOResult_i : c:Connection * Connection * (;c)readOutcome -> bool
+predicate val IOResult_i : c:Connection * Connection * (;ConnectionEpochIn(c),CnStream_i(c))readOutcome -> bool
 predicate val IOResult_o : Connection * 'a * Connection * writeOutcome * 'b -> bool
 
 definition !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo)  <=>
@@ -377,6 +380,12 @@ definition !c,c',ro. IOResult_i(c,c',ro) <=>
    )
 
 
+private val sameID: c0:Connection -> c1:Connection ->
+	o0:(;ConnectionEpochIn(c0),CnStream_i(c0))readOutcome{IOResult_i(c0,c1,o0)} ->
+	c2:(;c0)nextCn{CnStream_i(c0) = CnStream_i(c2) /\
+				   CnStream_o(c0) = CnStream_o(c2)} ->
+	o1:(;ConnectionEpochIn(c2),CnStream_i(c2))readOutcome{o0 = o1 /\ IOResult_i(c2,c1,o1)}
+
 val init: Tcp.NetworkStream -> r:Role -> c:config -> (;r,c)nullCn
 
 val resume: Tcp.NetworkStream -> sessionID -> c:config -> (;Client,c)nullCn
@@ -475,7 +484,7 @@ private val getFragment: c:Connection ->
 		 }) Result
 
 private val readOne: c:Connection{CnBuf_o(c) = None} ->
-	ro:(;c)readOutcome * c':Connection{
+	ro:(;ConnectionEpochIn(c),CnStream_i(c))readOutcome * c':Connection{
 	// From writeAllClosing
 	(?ad,s. ro = WriteOutcome(SentFatal(ad,s)) /\ NextCn(c,c')) \/
 	(?s. ro = WriteOutcome(WError(s))  /\ NextCn(c,c')) \/
@@ -615,7 +624,7 @@ private val writeAllTop: c:Connection {
 	}
 
 private val handleHandshakeOutcome: c:Connection{CnBuf_o(c) = None} -> (;CnInfo(c),Config(c))Handshake.incoming ->
-	(ro:(;c)readOutcome * c':(;c)nextCn){
+	(ro:(;ConnectionEpochIn(c),CnStream_i(c))readOutcome * c':(;c)nextCn){
 		(?ad,s. ro = WriteOutcome(SentFatal(ad,s))) \/
 		(?s. ro = WriteOutcome(WError(s))) \/
 		(ro = WriteOutcome(SentClose) /\ (Auth(ConnectionEpochIn(c)) => EvClose(CnInfo(c).id_in,Bytes_i(c))) ) \/
@@ -625,7 +634,7 @@ private val handleHandshakeOutcome: c:Connection{CnBuf_o(c) = None} -> (;CnInfo(
 	}
 
 val read: c:Connection{CnBuf_o(c) = None} -> 
-    (c':Connection  * ro:(;c)readOutcome)
+    (c':Connection  * ro:(;ConnectionEpochIn(c),CnStream_i(c))readOutcome)
     {
       IOResult_i(c,c',ro)
 	  /\ CnBuf_o(c') = CnBuf_o(c)
@@ -653,7 +662,7 @@ val write: c:Connection{CanWrite(CnInfo(c))} ->
     }
 
 val authorize: c:Connection{CnBuf_o(c) = None} -> q:query -> 
-	(c':Connection  * ro:(;c)readOutcome)
+	(c':Connection  * ro:(;ConnectionEpochIn(c),CnStream_i(c))readOutcome)
     {
       IOResult_i(c,c',ro)
 	  /\ CnBuf_o(c') = CnBuf_o(c)

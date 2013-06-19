@@ -873,6 +873,19 @@ let write (Conn(id,s)) msg =
   let s = {s with appdata = new_appdata} in
   Conn(id,s),outcome,rdOpt
 
+let sameID (c0:Connection) (c1:Connection) res (c2:Connection) =
+    match res with
+    | WriteOutcome(x) -> WriteOutcome(x)
+    | RError(x) -> RError(x)
+    | RAgain -> RAgain
+    | RAgainFinishing -> RAgainFinishing
+    | RAppDataDone(x) -> RAppDataDone(x)
+    | RQuery(x,y) -> RQuery(x,y)
+    | RHSDone -> RHSDone
+    | RClose -> RClose
+    | RFatal(x) -> RFatal(x)
+    | RWarning(x) -> RWarning(x)
+
 let authorize (Conn(id,c)) q =
     let hsRes = Handshake.authorize id c.handshake q in
     let c_read = c.read in
@@ -881,8 +894,10 @@ let authorize (Conn(id,c)) q =
 
     match hsRes with
     | Handshake.InAck(hs) ->
-        let c = { c with handshake = hs} in
-        read (Conn(id,c))
+        let c1 = { c with handshake = hs} in
+        let (newConn,res) = read (Conn(id,c1)) in
+        let res = sameID (Conn(id,c1)) newConn res (Conn(id,c)) in
+        (newConn,res)
     | Handshake.InVersionAgreed(hs,pv) ->
         match c_read.disp with
         | Init ->
@@ -894,16 +909,18 @@ let authorize (Conn(id,c)) q =
             let new_read = {c_read with disp = FirstHandshake(pv)} in
             let c_write = c.write in
             let new_write = {c_write with disp = FirstHandshake(pv)} in
-            let c = {c with handshake = hs;
+            let c1 = {c with handshake = hs;
                             read = new_read;
                             write = new_write} in
-            let res = read (Conn(id,c)) in
-            res
+            let (newConn,res) = read (Conn(id,c1)) in
+            let res = sameID (Conn(id,c1)) newConn res (Conn(id,c)) in
+            (newConn,res)
         | _ -> (* It means we are doing a re-negotiation. Don't alter the current version number, because it
                     is perfectly valid. It will be updated after the next CCS, along with all other session parameters *)
-            let c = { c with handshake = hs} in
-            let res = read (Conn(id,c)) in
-            res
+            let c1 = { c with handshake = hs} in
+            let (newConn,res) = read (Conn(id,c1)) in
+            let res = sameID (Conn(id,c1)) newConn res (Conn(id,c)) in
+            (newConn,res)
     | Handshake.InQuery(query,advice,hs) ->
         unexpected "[authorize] A query should never be received"
     | Handshake.InFinished(hs) ->
@@ -911,7 +928,7 @@ let authorize (Conn(id,c)) q =
             match c_read.disp with
                 | Finishing ->
                     let c_read = {c_read with disp = Finished} in
-                    let c = {c with handshake = hs;
+                    let c1 = {c with handshake = hs;
                                     read = c_read} in
                     (* FIXME Indeed, we should stop reading now!
                         (Because, except for false start implementations, the other side is now
@@ -921,8 +938,9 @@ let authorize (Conn(id,c)) q =
                         So, here we say ReadAgain, which will anyway first flush our output buffers,
                         thus sending our finished message, and thus letting us get the WHSDone event.
                         I know, it's tricky and it sounds fishy, but that's the way it is now.*)
-                    let res = read (Conn(id,c)) in
-                    res
+                    let (newConn,res) = read (Conn(id,c1)) in
+                    let res = sameID (Conn(id,c1)) newConn res (Conn(id,c)) in
+                    (newConn,res)
                 | _ ->
                     let reason = perror __SOURCE_FILE__ __LINE__ "Finishing handshake in the wrong state" in
                     let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in
