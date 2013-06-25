@@ -36,13 +36,15 @@ let LEAK (id:id) s =
     (kb @| ivb)
 
 let ENC (id:id) state (adata:LHAEPlain.adata) (rg:range) p =
-    let plain = GCMPlain.prepare id adata rg p in
     let k = state.key in
     let ivb = state.iv.ivb in
     let cb = TLSConstants.bytes_of_seq state.counter in
     let iv = ivb @| cb in
-    // AP: If not ideal, the following two lines
-    let (ad,text) = GCMPlain.repr id adata rg plain in
+    // AP: If not ideal, the following lines
+    let text = LHAEPlain.repr id adata rg p in
+    let tLen = length text in
+    let tLenB = bytes_of_int 2 tLen in
+    let ad = adata @| tLenB in
     let cipher = CoreCiphers.aes_gcm_encrypt k.kb iv ad text in
     // AP: Else log encryption somewhere
     let cipher = cb @| cipher in

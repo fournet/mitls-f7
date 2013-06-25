@@ -209,9 +209,6 @@
     <None Include="ENC.fs7" />
     <Compile Include="ENC.fsi" />
     <Compile Include="ENC.fs" />
-    <None Include="GCMPlain.fs7" />
-    <Compile Include="GCMPlain.fsi" />
-    <Compile Include="GCMPlain.fs" />
     <None Include="AEAD_GCM.fs7" />
     <Compile Include="AEAD_GCM.fsi" />
     <Compile Include="AEAD_GCM.fs" />
