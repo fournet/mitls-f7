@@ -17,6 +17,9 @@ type LHAEKey =
     | MACOnlyK of MAC.key
     | GCM of AEAD_GCM.state
 
+type encryptor = LHAEKey
+type decryptor = LHAEKey
+
 let GEN e =
     let a = e.aeAlg in
     match a with
@@ -31,7 +34,7 @@ let GEN e =
         let (ek,dk) = AEAD_GCM.GEN e in
         GCM(ek),GCM(dk)
 
-let COERCE e b =
+let COERCE e rw b =
     // precondition: b is of the right length, so no need for a runtime checks here.
     let a = e.aeAlg
     match a with
@@ -44,23 +47,23 @@ let COERCE e b =
         let (mkb,rest) = split b ms in
         let (ekb,ivb) = split rest es in
         let mk = MAC.COERCE e mkb in
-        let ek = ENC.COERCE e ekb ivb in
+        let ek = ENC.COERCE e rw ekb ivb in
         MtEK(mk,ek)
     | AEAD (encAlg,_) ->
         let es = aeadKeySize encAlg in
         let (ekb,ivb) = split b es in
-        let ek = AEAD_GCM.COERCE e ekb ivb in
+        let ek = AEAD_GCM.COERCE e rw ekb ivb in
         GCM(ek)
         
 
-let LEAK e k =
+let LEAK e rw k =
     match k with
     | MACOnlyK(mk) -> MAC.LEAK e mk
     | MtEK(mk,ek) ->
-        let (k,iv) = ENC.LEAK e ek in
+        let (k,iv) = ENC.LEAK e rw ek in
         MAC.LEAK e mk @| k @| iv
     | GCM(s) ->
-        AEAD_GCM.LEAK e s
+        AEAD_GCM.LEAK e rw s
 
 (***** authenticated encryption *****)
 
@@ -98,8 +101,8 @@ let encrypt' (e:id) key data rg plain =
             (GCM(newState),res)
     | (_,_) -> unexpected "[encrypt'] incompatible ciphersuite-key given."
         
-let mteKey (e:id) ka ke = MtEK(ka,ke)
-let gcmKey (e:id) st = GCM(st)
+let mteKey (e:id) (rw:rw) ka ke = MtEK(ka,ke)
+let gcmKey (e:id) (rw:rw) st = GCM(st)
 
 let decrypt' e key data cipher =
     let cl = length cipher in
@@ -117,7 +120,7 @@ let decrypt' e key data cipher =
             else
                 let rg = cipherRangeClass e cl in
                 let (ke,plain) = ENC.DEC e ke data cipher in
-                let nk = mteKey e ka ke in
+                let nk = mteKey e Reader ka ke in
                 match Encode.verify e ka data rg plain with
                 | Error z -> Error z
                 | Correct(aeplain) -> correct(nk,rg,aeplain)
@@ -131,7 +134,7 @@ let decrypt' e key data cipher =
             else
                 let rg = cipherRangeClass e cl in
                 let (ke,plain) = ENC.DEC e ke data cipher in
-                let nk = mteKey e ka ke in
+                let nk = mteKey e Reader ka ke in
                 match Encode.verify e ka data rg plain with
                 | Error z -> Error z
                 | Correct(aeplain) -> correct (nk,rg,aeplain)
@@ -156,7 +159,7 @@ let decrypt' e key data cipher =
             | Error z -> Error z
             | Correct (res) ->
                 let (newState,plain) = res in
-                let nk = gcmKey e newState in
+                let nk = gcmKey e Reader newState in
                 correct (nk,rg,plain)
     | (_,_) -> unexpected "[decrypt'] incompatible ciphersuite-key given."
 

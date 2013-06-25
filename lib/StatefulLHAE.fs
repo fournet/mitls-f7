@@ -20,13 +20,13 @@ type writer = state
 let GEN ki =
   let w,r = LHAE.GEN ki in
   let h = emptyHistory ki in
-  ( { key = w; history = h},
-    { key = r; history = h})  
+  ( { key = r; history = h},
+    { key = w; history = h})  
 let COERCE ki (rw:rw) b =
-  let k  = LHAE.COERCE ki b in
+  let k  = LHAE.COERCE ki rw b in
   let h = emptyHistory ki in
   { key = k; history = h}
-let LEAK ki (rw:rw) s = LHAE.LEAK ki s.key
+let LEAK ki (rw:rw) s = LHAE.LEAK ki rw s.key
 
 let history (ki:id) (rw:rw) s = s.history
 

@@ -8,14 +8,16 @@ open LHAEPlain
 open Range
 
 type LHAEKey
+type encryptor = LHAEKey
+type decryptor = LHAEKey
 
 type cipher = bytes
 
-val GEN: id -> LHAEKey * LHAEKey
-val COERCE: id -> bytes -> LHAEKey
-val LEAK: id -> LHAEKey -> bytes
+val GEN: id -> encryptor * decryptor
+val COERCE: id -> rw -> bytes -> LHAEKey
+val LEAK: id -> rw -> LHAEKey -> bytes
 
-val encrypt: id -> LHAEKey -> adata -> 
-             range -> plain -> (LHAEKey * cipher)
-val decrypt: id -> LHAEKey -> adata -> 
-             cipher -> (LHAEKey * range * plain) Result
+val encrypt: id -> encryptor -> adata -> 
+             range -> plain -> (encryptor * cipher)
+val decrypt: id -> decryptor -> adata -> 
+             cipher -> (decryptor * range * plain) Result

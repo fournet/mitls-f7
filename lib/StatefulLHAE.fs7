@@ -94,7 +94,7 @@ Theorems:
 *)
 
 private type (;ki:id,rw:rw) state = {
-  key    : (;ki) LHAE.LHAEKey;  // possibly stateful
+  key    : (;ki,rw) LHAE.LHAEKey;  // possibly stateful
   history: (;ki) history        // ghost state, except for the sequence number
 }
  

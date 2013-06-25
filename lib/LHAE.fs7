@@ -11,10 +11,13 @@ open TLSConstants
 type cipher = b:bytes{Length(b) <= max_TLSCipher_fragment_length}
 (* no need to be more precise on the length *)
 
-private type (;i:id) LHAEKey =
-    | MtEK of ka:(;i)MAC.key * ke:(;i)ENC.state // {MtEKey(i,(ka,ke))}
+private type (;i:id,rw:rw) LHAEKey =
+    | MtEK of ka:(;i)MAC.key * ke:(;i,rw)ENC.state // {MtEKey(i,(ka,ke))}
     | MACOnlyK of (;i) MAC.key
-    | GCM of (;i)AEAD_GCM.state
+    | GCM of (;i,rw)AEAD_GCM.state
+
+type (;i:id)encryptor = (;i,Writer)LHAEKey
+type (;i:id)decryptor = (;i,Reader)LHAEKey
 
 function val KeyDerivationIVSize: aeAlg -> nat
 definition !mac.     KeyDerivationIVSize(MACOnly(mac))            = 0
@@ -33,12 +36,12 @@ ask !i,mac.     i.aeAlg = MACOnly(mac) => KeySize(i.aeAlg) = MacKeySize(mac)
 //MK strangely the following isn't needed for that
 //MK ask !i,mac,enc. i.aeAlg = MtE(enc,mac) => KeySize(i.aeAlg) = MacKeySize(mac) + EncKeySize(enc) + KeyDerivationIVSize(MtE(enc,mac))
 
-val GEN:    i:id     -> encryptor:(;i)LHAEKey * decryptor:(;i)LHAEKey
-val COERCE: i:id{not AuthId(i)} -> b:bytes{Length(b) = KeySize(i.aeAlg)} -> (;i)LHAEKey
-val LEAK:   i:id{not AuthId(i)} -> (;i)LHAEKey -> b:bytes
+val GEN:    i:id     -> (;i)encryptor * (;i)decryptor
+val COERCE: i:id{not AuthId(i)} -> rw:rw -> b:bytes{Length(b) = KeySize(i.aeAlg)} -> (;i,rw)LHAEKey
+val LEAK:   i:id{not AuthId(i)} -> rw:rw -> (;i,rw)LHAEKey -> b:bytes
 
-private val mteKey: i:id -> (;i) MAC.key -> (;i) ENC.state -> (;i) LHAEKey
-private val gcmKey: i:id -> (;i) AEAD_GCM.state -> (;i)LHAEKey
+private val mteKey: i:id -> rw:rw -> (;i) MAC.key -> (;i,rw) ENC.state -> (;i,rw) LHAEKey
+private val gcmKey: i:id -> rw:rw -> (;i,rw) AEAD_GCM.state -> (;i,rw)LHAEKey
 
 // We have two variants for encryption and decryption: 
 // the first (primed) is concrete; the second is idealized at safe indexes,
@@ -60,14 +63,14 @@ ask !e,enc,mac,ad,c,p.
 	e.aeAlg = MtE(enc,mac) /\ ( SafeId(e) => ENC.ENCrypted(e,ad,c,p) ) =>
 	(SafeId(e) => ENCrypted(e,ad,c))
 
-val encrypt': i:id -> (;i) LHAEKey -> ad:(;i)LHAEPlain.adata ->
+val encrypt': i:id -> (;i) encryptor -> ad:(;i)LHAEPlain.adata ->
   rg:range -> p:(;i,ad,rg) LHAEPlain.plain ->
-  ((;i) LHAEKey * c:cipher){Length(c) = TargetLength(i,rg) /\         
+  ((;i) encryptor * c:cipher){Length(c) = TargetLength(i,rg) /\         
                              (SafeId(i) => ENCrypted(i,ad,c))}
 
-val encrypt : i:id -> (;i) LHAEKey -> ad:(;i)LHAEPlain.adata ->
+val encrypt : i:id -> (;i) encryptor -> ad:(;i)LHAEPlain.adata ->
   rg:range -> p:(;i,ad,rg) LHAEPlain.plain ->
-  ((;i) LHAEKey * c:cipher){Length(c) = TargetLength(i,rg) /\
+  ((;i) encryptor * c:cipher){Length(c) = TargetLength(i,rg) /\
                              (SafeId(i) => ENCrypted(i,ad,c))}
 
 type entry = 
@@ -83,10 +86,10 @@ private val cmem: i:id -> ad:(;i)LHAEPlain.adata -> c:cipher ->
 theorem !i,d,rg0,p0,rg1,p1,c. (ENCrypted(i,d,rg0,p0,c) /\ ENCrypted(i,d,rg1,p1,c)) => p0 = p1
 *)
 
-val decrypt': i:id -> k:(;i) LHAEKey -> ad:(;i)LHAEPlain.adata ->
+val decrypt': i:id -> k:(;i) decryptor -> ad:(;i)LHAEPlain.adata ->
   c:cipher{SafeId(i) => ENCrypted(i,ad,c)} -> res: 
   ( ( 
-    (;i) LHAEKey *  
+    (;i) decryptor *  
     rg:range * 
     p:(;i,ad,rg) LHAEPlain.plain) {rg = CipherRangeClass(i,Length(c))} ) Result
 
@@ -98,9 +101,9 @@ val decrypt': i:id -> k:(;i) LHAEKey -> ad:(;i)LHAEPlain.adata ->
 //     /\ ENCrypted(e,Length(c),StateID(e,Encryptor(k)),p,c)  
 //   => ?k',r'. res = Correct((k',r',pl)) } 
 
-val decrypt: i:id -> (;i) LHAEKey -> ad:(;i)LHAEPlain.adata ->
+val decrypt: i:id -> (;i) decryptor -> ad:(;i)LHAEPlain.adata ->
   c:cipher -> res: 
-  ( ((;i) LHAEKey *  rg:range * (;i,ad,rg) LHAEPlain.plain)
+  ( ((;i) decryptor *  rg:range * (;i,ad,rg) LHAEPlain.plain)
      {rg = CipherRangeClass(i,Length(c))}
   ) Result
    {

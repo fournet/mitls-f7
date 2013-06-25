@@ -55,7 +55,7 @@ let GENOne ki =
 let GEN (ki) = 
     let k = GENOne ki in (k,k)
     
-let COERCE (ki:id) k iv =
+let COERCE (ki:id) (rw:rw) k iv =
     let alg = encAlg_of_id ki in
     match alg with
     | Stream_RC4_128 ->
@@ -67,7 +67,7 @@ let COERCE (ki:id) k iv =
         BlockCipher ({key = {k=k}; iv = NoIV})
 
 
-let LEAK (ki:id) s =
+let LEAK (ki:id) (rw:rw) s =
     match s with
     | BlockCipher (bs) ->
         let iv =

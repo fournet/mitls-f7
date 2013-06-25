@@ -21,14 +21,14 @@ type decryptor = state
 
 let GEN (ki:id) : encryptor * decryptor = failwith "verification only"
 
-let COERCE (ki:id) k iv =
+let COERCE (ki:id) (rw:rw) k iv =
     let key = {kb=k} in
     let iv = {ivb=iv} in
     {key = key;
      iv = iv;
      counter = 0}
 
-let LEAK (id:id) s =
+let LEAK (id:id) (rw:rw) s =
     let key = s.key in
     let kb = key.kb in
     let iv = s.iv in

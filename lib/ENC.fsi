@@ -8,8 +8,8 @@ type encryptor = state
 type decryptor = state
 
 val GEN:    id -> encryptor * decryptor
-val LEAK:   id -> state -> bytes * bytes
-val COERCE: id -> bytes -> bytes-> state
+val LEAK:   id -> rw -> state -> bytes * bytes
+val COERCE: id -> rw -> bytes -> bytes-> state
 
 type cipher = bytes
 

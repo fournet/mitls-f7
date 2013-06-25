@@ -11,8 +11,8 @@ type encryptor = state
 type decryptor = state
 
 val GEN: id -> encryptor * decryptor
-val COERCE: id -> bytes -> bytes -> state
-val LEAK: id -> state -> bytes
+val COERCE: id -> rw -> bytes -> bytes -> state
+val LEAK: id -> rw -> state -> bytes
 
 val ENC: id -> encryptor -> LHAEPlain.adata -> range -> LHAEPlain.plain ->
     (encryptor * bytes)
