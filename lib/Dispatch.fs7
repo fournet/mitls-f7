@@ -241,19 +241,19 @@ type writeOutcome =
     | SentFatal of alertDescription * string
     | SentClose
 
-type (;e:epoch,s:(;e)DataStream.stream)readOutcome =
+type (;c:Connection)readOutcome =
     | WriteOutcome of writeOutcome
     | RError of string 
     | RAgain (* More data to read *)
 	| RAgainFinishing (* More data to read, and the incoming epoch changed *)
-    | RAppDataDone of (;e,s)msg_i (* No more data to read *)
+    | RAppDataDone of (;ConnectionEpochIn(c),CnStream_i(c))msg_i (* No more data to read *)
     | RQuery of query * bool
     | RHSDone
     | RClose
     | RFatal of alertDescription
     | RWarning of alertDescription
 
-predicate val IOResult_i : c:Connection * Connection * (;ConnectionEpochIn(c),CnStream_i(c))readOutcome -> bool
+predicate val IOResult_i : c:Connection * Connection * (;c)readOutcome -> bool
 predicate val IOResult_o : Connection * 'a * Connection * writeOutcome * 'b -> bool
 
 definition !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo)  <=>
@@ -381,10 +381,10 @@ definition !c,c',ro. IOResult_i(c,c',ro) <=>
 
 
 private val sameID: c0:Connection -> c1:Connection ->
-	o0:(;ConnectionEpochIn(c0),CnStream_i(c0))readOutcome{IOResult_i(c0,c1,o0)} ->
+	o0:(;c0)readOutcome{IOResult_i(c0,c1,o0)} ->
 	c2:(;c0)nextCn{CnStream_i(c0) = CnStream_i(c2) /\
 				   CnStream_o(c0) = CnStream_o(c2)} ->
-	o1:(;ConnectionEpochIn(c2),CnStream_i(c2))readOutcome{o0 = o1 /\ IOResult_i(c2,c1,o1)}
+	o1:(;c2)readOutcome{o0 = o1 /\ IOResult_i(c2,c1,o1)}
 
 val init: Tcp.NetworkStream -> r:Role -> c:config -> (;r,c)nullCn
 
@@ -484,7 +484,7 @@ private val getFragment: c:Connection ->
 		 }) Result
 
 private val readOne: c:Connection{CnBuf_o(c) = None} ->
-	ro:(;ConnectionEpochIn(c),CnStream_i(c))readOutcome * c':Connection{
+	ro:(;c)readOutcome * c':Connection{
 	// From writeAllClosing
 	(?ad,s. ro = WriteOutcome(SentFatal(ad,s)) /\ NextCn(c,c')) \/
 	(?s. ro = WriteOutcome(WError(s))  /\ NextCn(c,c')) \/
@@ -535,9 +535,9 @@ private val writeOne: c:Connection {
 	} ->
 	(wo:writeOutcome * c':Connection){
 		// Errors
-		(?s. wo = WError(s) /\ NextCn(c,c')) \/
-		(?ad,r. wo = SentFatal(ad,r) /\ NextCn(c,c')) \/
-		(wo = SentClose /\ NextCn(c,c')) \/
+		(?s. wo = WError(s) /\ NextCn(c,c') /\ CnBuf_o(c') = CnBuf_o(c)) \/
+		(?ad,r. wo = SentFatal(ad,r) /\ NextCn(c,c') /\ CnBuf_o(c') = CnBuf_o(c)) \/
+		(wo = SentClose /\ NextCn(c,c') /\ CnBuf_o(c') = CnBuf_o(c)) \/
 		// Other events
 		(wo = WAppDataDone /\ CnBuf_o(c) = None /\
 			NextCn(c,c') /\
@@ -579,9 +579,10 @@ private val writeOne: c:Connection {
 private val writeAll: c:Connection{CnBuf_o(c) = None} -> wo:writeOutcome * c':Connection
 
 private val writeAllClosing: c:Connection{CnBuf_o(c) = None} -> wo:writeOutcome * c':(;c)nextCn{
-	(?s. wo = WError(s)) \/
-	(?ad,r. wo = SentFatal(ad,r)) \/
-	(wo = SentClose /\ (Auth(ConnectionEpochIn(c)) => EvClose(CnInfo(c).id_in,Bytes_i(c))) )
+	CnBuf_o(c') = CnBuf_o(c) /\
+	( (?s. wo = WError(s)) \/
+	  (?ad,r. wo = SentFatal(ad,r)) \/
+	  (wo = SentClose /\ (Auth(ConnectionEpochIn(c)) => EvClose(CnInfo(c).id_in,Bytes_i(c))) ) )
 	}
 
 private val writeAllFinishing: c:Connection{CnBuf_o(c) = None /\ Bytes_o(c) = B(empty_bytes)} ->
@@ -624,7 +625,7 @@ private val writeAllTop: c:Connection {
 	}
 
 private val handleHandshakeOutcome: c:Connection{CnBuf_o(c) = None} -> (;CnInfo(c),Config(c))Handshake.incoming ->
-	(ro:(;ConnectionEpochIn(c),CnStream_i(c))readOutcome * c':(;c)nextCn){
+	(ro:(;c)readOutcome * c':(;c)nextCn){
 		(?ad,s. ro = WriteOutcome(SentFatal(ad,s))) \/
 		(?s. ro = WriteOutcome(WError(s))) \/
 		(ro = WriteOutcome(SentClose) /\ (Auth(ConnectionEpochIn(c)) => EvClose(CnInfo(c).id_in,Bytes_i(c))) ) \/
@@ -634,7 +635,7 @@ private val handleHandshakeOutcome: c:Connection{CnBuf_o(c) = None} -> (;CnInfo(
 	}
 
 val read: c:Connection{CnBuf_o(c) = None} -> 
-    (c':Connection  * ro:(;ConnectionEpochIn(c),CnStream_i(c))readOutcome)
+    (c':Connection  * ro:(;c)readOutcome)
     {
       IOResult_i(c,c',ro)
 	  /\ CnBuf_o(c') = CnBuf_o(c)
@@ -662,7 +663,7 @@ val write: c:Connection{CanWrite(CnInfo(c))} ->
     }
 
 val authorize: c:Connection{CnBuf_o(c) = None} -> q:query -> 
-	(c':Connection  * ro:(;ConnectionEpochIn(c),CnStream_i(c))readOutcome)
+	(c':Connection  * ro:(;c)readOutcome)
     {
       IOResult_i(c,c',ro)
 	  /\ CnBuf_o(c') = CnBuf_o(c)

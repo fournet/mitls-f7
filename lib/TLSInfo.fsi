@@ -127,6 +127,7 @@ type config = {
 
     (* Common *)
     safe_renegotiation: bool
+    extended_padding: bool
     server_name: Cert.hint
     client_name: Cert.hint
 

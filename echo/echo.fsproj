@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -25,7 +25,7 @@
     <WarningLevel>3</WarningLevel>
     <PlatformTarget>x86</PlatformTarget>
     <DocumentationFile>bin\Debug\echo.XML</DocumentationFile>
-    <StartArguments>--address 127.0.0.1 --port 6000 --ciphers TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA --tlsversion SSL_3p0 --sessionDB-dir sessionDB --server-name dsa.cert-01.mitls.org</StartArguments>
+    <StartArguments>--address 127.0.0.1 --port 5556 --ciphers TLS_RSA_WITH_3DES_EDE_CBC_SHA --tlsversion TLS_1p0 --sessionDB-dir sessionDB --server-name cert-01.mitls.org --client</StartArguments>
     <StartWorkingDirectory>
     </StartWorkingDirectory>
   </PropertyGroup>
