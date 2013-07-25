@@ -1,7 +1,5 @@
 ﻿module TLSConstants
 
-// TODO not verifying for now.
-
 (* Identifiers and sizes for the TLS crypto algorithms *)
 
 open Bytes
@@ -24,8 +22,8 @@ type blockCipher =
     | AES_256
 
 type encAlg =
-	| CBC_Stale of blockCipher
-	| CBC_Fresh of blockCipher
+	| CBC_Stale of blockCipher (* prior last block as IV *)
+	| CBC_Fresh of blockCipher (* fresh IV *)
 	| Stream_RC4_128
 
 predicate IND_CPA of encAlg
@@ -39,6 +37,9 @@ predicate IND_CPA of encAlg
 // assume(IND_CPA(CBC_Stale(AES_256_CBC))) (see: http://www.isg.rhul.ac.uk/tls/ )
 //#end-cipherAssert
 
+
+(** Algorithms for the MAC module *) 
+
 type hashAlg =
     | NULL
     | MD5SHA1
@@ -46,8 +47,6 @@ type hashAlg =
     | SHA
     | SHA256
     | SHA384
-
-(** Algorithms for the MAC module *) 
 
 type macAlg =
 	| MA_HMAC of hashAlg
@@ -57,8 +56,6 @@ predicate INT_CMA_M of macAlg  (* Strong algorithms for the INT-CMA game *)
 // some reasonable cryptogaphic assumptions:
 assume INT_CMA_M(MA_HMAC(SHA256)) //used in MAC
 assume INT_CMA_M(MA_HMAC(SHA))
-// assume(INT_CMA_M(MA_HMAC(SHA)))
-// assume(INT_CMA_M(MA_HMAC(SHA256)))
 // assume(INT_CMA_M(MA_HMAC(SHA384)))
 
 (** Signing algorithms for the Sig module *) 
@@ -71,13 +68,15 @@ type sigAlg =
 type sigHashAlg   = sigAlg * hashAlg
 
 predicate INT_CMA_S of sigAlg * hashAlg * hashAlg list 
-// INT_CMA_S(s,h,hs) indicates that signing hashes using s,h is INT-CMA, 
-// even if we also sign hashes using s,h' in hs
-// (
+// INT_CMA_S(s,h,hs) indicates that signing hashes using (s,h) is INT-CMA, 
+// even if we also use the key to sign hashes using (s,h') where h' in hs
 //
 // some reasonable cryptographic assumptions:
 // assume(INT_CMA_S(SA_DSA,SHA,[SHA]))
 // assume(INT_CMA_S(SA_ECDSA,SHA,[SHA]))
+
+
+(** algorithms for the record protocol *) 
 
 type aeadAlg =
     | AES_128_GCM
@@ -104,7 +103,8 @@ definition !pv,ae. StrongAEAlg(pv,ae) <=>
 
 ask !ae,m,pv. ae=MACOnly(m) => not StrongAEAlg(pv,ae)
 
-// HS algorithms 
+
+(** algorithms for the Handshake *) 
 
 type kexAlg =  (* all these kex have server auth & optional client auth, *)
                (* except for anon which has nothing *)
@@ -121,6 +121,7 @@ predicate PRF of ProtocolVersion * macAlg
 predicate CRE_DH of ProtocolVersion * macAlg
 predicate CRE_RSA of ProtocolVersion * macAlg
 // In the paper, these are global assumptions. Here we get StrongHS even if one of them is false.
+
 
 (* With F7, we need to declare both logical functions for lengths, constants, etc
    and their concrete F# implementations, typechecked against these logical functions. *) 
