@@ -220,7 +220,6 @@ type config = {
 
     (* Common *)
     safe_renegotiation: bool
-    extended_padding: bool
     server_name: Cert.hint
     client_name: Cert.hint
             
@@ -243,7 +242,6 @@ let defaultConfig ={
     check_client_version_in_pms_for_old_tls = true
     
     safe_renegotiation = true
-    extended_padding = false
     server_name = "mitls.example.org"
     client_name = "client.example.org"
 
