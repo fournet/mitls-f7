@@ -60,7 +60,7 @@ let splitRange ki r =
                             let r1 = (0,h-l) in
                             (r0,r1)
 
-type stream = {sb: bytes list}
+type stream = {sb: cbytes list}
 type delta = {contents: rbytes}
 
 let createDelta (ki:epoch) (s:stream) (r:range) (b:bytes) = {contents = b}
@@ -75,7 +75,9 @@ let init (ki:epoch) = {sb = []}
 
 let append (ki:epoch) (s:stream) (r:range) (d:delta) =
 #if ideal
-    {sb = d.contents :: s.sb}
+    let dc = d.contents in
+    let c = cbytes dc in
+    {sb = c :: s.sb}
 #else
     s
 #endif

@@ -29,7 +29,7 @@ let delta e s r f =
       // typechecking relies on proving that e = e' & s = s'. How? 
       let s'' = append e s r d in
       (d,s'')
-    else
+    else       
       // we coerce d to the local epoch
       //MK this requires that e' is not(Auth(e'))
       //MK this might be the case because we only use unAuthIdInv e' for not(Auth(e))
@@ -44,7 +44,6 @@ let delta e s r f =
       let s'' = append e s r d in
       (d,s'')
     #endif
-
 let plain i r b =
   let e = TLSInfo.unAuthIdInv i in
   let s = DataStream.init e in

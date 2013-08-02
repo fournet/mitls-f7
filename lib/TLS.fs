@@ -44,8 +44,9 @@ let request c po = Dispatch.request c po
 let read ca = 
   let cb,outcome = Dispatch.read ca in 
     match outcome with
+      | RError(err) -> 
+          ReadError(None,err)
       | WriteOutcome(WError(err)) -> ReadError(None,err)
-      | RError(err) -> ReadError(None,err)
       | RAppDataDone(b) -> Read(cb,b)
       | RQuery(q,adv) -> CertQuery(cb,q,adv)
       | RHSDone -> Handshaken(cb)

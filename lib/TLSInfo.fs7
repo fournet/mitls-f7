@@ -66,7 +66,7 @@ definition !pk. HonestRSAKey(pk) <=> RSAKey.Honest(pk)
 
 private type pmsId = // we use pmsId as an opaque index to pms
     | NoPmsId 
-	| SomePmsId of PMS.pms
+    | SomePmsId of PMS.pms
 
 function val PmsId: PMS.pms -> pmsId
 private definition !pms. PmsId(pms) = SomePmsId(pms)
@@ -74,9 +74,9 @@ val pmsId: pms:PMS.pms -> id:pmsId{ id = PmsId(pms) }
 
 // ``this pms is honestly generated and used for extraction''
 predicate HonestPMS of pmsId 
-definition not HonestPMS(NoPmsId)
-definition !pk,cv,rsapms.    HonestPMS(PmsId(PMS.RSAPMS(pk,cv,rsapms)))   <=> PMS.HonestRSAPMS(pk,cv,rsapms)  
-definition !p,g,gx,gy,dhpms. HonestPMS(PmsId(PMS.DHPMS(p,g,gx,gy,dhpms))) <=> PMS.HonestDHPMS(p,g,gx,gy,dhpms) 
+private definition not HonestPMS(NoPmsId)
+private definition !pk,cv,rsapms.    HonestPMS(PmsId(PMS.RSAPMS(pk,cv,rsapms)))   <=> PMS.HonestRSAPMS(pk,cv,rsapms)  
+private definition !p,g,gx,gy,dhpms. HonestPMS(PmsId(PMS.DHPMS(p,g,gx,gy,dhpms))) <=> PMS.HonestDHPMS(p,g,gx,gy,dhpms) 
 val honestPMS: (pi:pmsId) -> b:bool {b=true => HonestPMS(pi)} //MK <= TODO currently can't typecheck other direction.
 val noPmsId: i:pmsId { not HonestPMS(i) } 
 
@@ -84,10 +84,10 @@ val noPmsId: i:pmsId { not HonestPMS(i) }
 
 // Here we consider the strength of the parameters in pmsId
 predicate StrongRSAKEX of pmsId 
-definition !pk,cv,rsapms.    StrongRSAKEX(SomePmsId(PMS.RSAPMS(pk,cv,rsapms)))   <=> PMS.SafeRSA(pk,cv) 
+private definition !pk,cv,rsapms.    StrongRSAKEX(SomePmsId(PMS.RSAPMS(pk,cv,rsapms)))   <=> PMS.SafeRSA(pk,cv) 
 
 predicate StrongDHKEX  of pmsId 
-definition !p,g,gx,gy,dhpms.  StrongDHKEX(SomePmsId(PMS.DHPMS(p,g,gx,gy,dhpms))) <=> PMS.SafeDH(p,g,gx,gy)
+private definition !p,g,gx,gy,dhpms.  StrongDHKEX(SomePmsId(PMS.DHPMS(p,g,gx,gy,dhpms))) <=> PMS.SafeDH(p,g,gx,gy)
 //MK I think it's only coincidental in the current PMS that HonestPMS implies SafeKEX. Lets keep it for discussions.
 //MK They replace StrongRSAPMS and StrongDHPMS.
 //CF strange to go from Strong to Safe?
@@ -134,8 +134,8 @@ type msId =        // We record the parameters used to derive this MS:
 
 // ``the MS at this index is abstractly generated and used within PRF''
 predicate HonestMS of msId 
-definition !pmsId,csr,creAlg. 
-  HonestMS((pmsId,csr,creAlg)) <=> HonestPMS(pmsId) /\ StrongCRE(creAlg)
+definition !msi. 
+  HonestMS(msi) <=> (?pmsId,csr,creAlg. msi = (pmsId,csr,creAlg) /\ HonestPMS(pmsId) /\ StrongCRE(creAlg))
 //CF are we missing a correlation with csr? 
 //MK we don't allow leak, so every MS derived from an 
 //MK HonestPMS with strong CRE algorithms is honest?
@@ -158,7 +158,7 @@ type SessionInfo = {
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;
     compression: Compression;
-	pmsId: pmsId;
+    pmsId: pmsId;
     pmsData: pmsData;
     client_auth: bool;
     clientID: Cert.cert list;
@@ -281,6 +281,11 @@ type succEpoch = e:epoch {IsSuccEpoch(e) /\ IsValidEpoch(Pred(e))} //MK otherwis
 
 val isInitEpoch: e:epoch -> b:bool{(b = true /\ IsInitEpoch(e)) \/ (b = false /\ IsSuccEpoch(e))}
 
+function val Peer: epoch -> epoch
+private definition       
+        (!r. Peer(InitEpoch(r)) = InitEpoch(DualRole(r))) /\
+        (!cr,sr,si,p. Peer(SuccEpoch(cr,sr,si,p)) = SuccEpoch(cr,sr,si,Peer(p)))
+        
 
 function val EpochSI: succEpoch -> SessionInfo
 private definition !c,s,si,p. EpochSI(SuccEpoch(c,s,si,p)) = si
@@ -448,13 +453,12 @@ val id: s:epoch -> i:id {i=Id(s)}
 definition !e:epoch. IsInitEpoch(e) => Id(e) = noId
 definition !e:epoch. IsSuccEpoch(e) => Id(e) = SiId(EpochSI(e),EpochWriter(e))
 
-ask !wr:Role. Id(InitEpoch(wr)) = noId
-ask !wr:Role. not AuthId(Id(InitEpoch(wr)))
+ask !e. IsInitEpoch(e) => Id(e) = noId
+ask !e. IsInitEpoch(e) => not AuthId(Id(e))
 
 //KB maybe we don't need this, but it helps in AppFragment for now
 val unAuthIdInv: i:id{not AuthId(i)} -> s:epoch {Id(s) = i}
 
-ask !e. IsInitEpoch(e) => not AuthId(Id(e))
 
 // -------------------------------------------------------------------------
 // GLOBAL SAFETY PROPERTIES 
@@ -476,12 +480,19 @@ val safeHS: (e:epoch) -> b:bool { b = true <=> SafeHS(e)}
 
 // Predicates specifying the security of TLS connections 
 
+predicate Open of epoch
+private definition !e. Open(e) <=> 
+                            (?r. (r = Client \/ r = Server) /\
+                                  SentCCS(r,e) /\ 
+                                  SentCCS(DualRole(r),Peer(e)))
+
+
 predicate Safe   of epoch        // The epoch parameters yield privacy & integrity
-definition !e. Safe(e) <=> (SafeId(Id(e)) /\ SentCCS(Server,e) /\ SentCCS(Client,e))
+definition !e. Safe(e) <=> (SafeId(Id(e)) /\ Open(e))
 val safe:   (e:epoch) -> b:bool { b = true <=> Safe(e)}
 
 predicate Auth   of epoch        // The epoch parameters yield integrity (not necesarily privacy)
-definition !e. Auth(e) <=> (AuthId(Id(e)) /\ SentCCS(Server,e) /\ SentCCS(Client,e))
+definition !e. Auth(e) <=> (AuthId(Id(e)) /\ Open(e))
 val auth:    (e:epoch) -> b:bool {b = true <=> Auth(e)}
 
 ask !e. Safe(e) => Auth(e)
@@ -490,11 +501,10 @@ ask !e. not(Auth(e)) => not(Safe(e))
 // so that TLS can exchange any traffic on the initial null connection
 ask !e. IsInitEpoch(e) => not Auth(e)
 
-predicate Open of epoch
-private definition !e. Open(e) <=> (SentCCS(Client,e) /\ SentCCS(Server,e))
 ask !e. Open(e) => (AuthId(Id(e)) => Auth(e))
 ask !e. Open(e) => (SafeId(Id(e)) => Safe(e))
 ask !e. Auth(e) => Open(e)
+
 private assume !r,e,e'. SentCCS(r,e) /\ SentCCS(r,e') /\ Id(e) = Id(e') => e = e'
 ask !e,e'. Open(e) /\ Open(e') /\ Id(e) = Id(e') => e = e'
 //AP type openEpoch = e:succEpoch {Open(e)}
