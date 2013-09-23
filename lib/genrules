@@ -116,7 +116,7 @@ default: %(fs7default)s
 # - MAC.tc7 typechecks
 
 clean:
-	rm -f *.smp *.tc7
+	rm -f *.smp *.tc7 *.why
 
 regen:
 	./genrules \\
