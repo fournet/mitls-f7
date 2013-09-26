@@ -189,6 +189,9 @@ let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     | PSServer (_) -> unexpected "[rehandshake] should only be invoked on client side connections."
 
 let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
+#if avoid
+  failwith "unverified for now"
+#else
     if isInitEpoch(ci.id_out) then
         unexpected "[rekey] should only be invoked on established connections."
     else
@@ -223,6 +226,7 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
                 | _ -> (* Handshake already ongoing, ignore this request *)
                     (false,state)
             | PSServer (_) -> unexpected "[rekey] should only be invoked on client side connections."
+#endif 
 
 let request (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     match state.pstate with
@@ -247,7 +251,8 @@ let getPrincipal ci state =
     | Server -> state.poptions.client_name
 
 let invalidateSession ci state =
-    if isInitEpoch(ci.id_in) then
+  let i = isInitEpoch(ci.id_in) in
+    if i = true then
         state
     else
         let si = epochSI(ci.id_in) // FIXME: which epoch to choose? Here it matters since they could be mis-aligned
@@ -459,7 +464,8 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:Sess
         match Cert.get_chain_public_encryption_key si.serverID with 
         | Correct(pk) -> pk
         | _           -> unexpected "server must have an ID"    
-    let cv = state.poptions.maxVer in 
+    let spop = state.poptions in         
+    let cv = spop.maxVer in 
     let pms = PMS.RSAPMS(pk,cv,rsapms)
     let pmsid = pmsId pms
     let si = {si with pmsId = pmsid; pmsData = pmsdata} in
@@ -514,14 +520,16 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
     let (cy,x) = DH.genKey p g in
     (* post: DHE.Exp((p,g),x,cy) *) 
 
-    let si = {si with pmsData = DHPMS(p,g,cy,sy)} in
+    let dhpms = DH.exp p g cy sy x in
+    let pms = PMS.DHPMS(p,g,cy,sy,dhpms) in
+    let si = {si with pmsData = DHPMS(p,g,cy,sy); 
+                      pmsId = pmsId pms} in
     (* si is now constant *)
 
     let clientKEXBytes = clientKEXExplicitBytes_DH cy in
     let log = log @| clientKEXBytes in
 
-    let dhpms = DH.exp p g cy sy x in
-    let pms = PMS.DHPMS(p,g,cy,sy,dhpms) in
+
     (* the post of this call is !sx,cy. PP((p,g) /\ DHE.Exp((p,g),x,cy)) /\ DHE.Exp((p,g),sx,sy) -> DHE.Secret((p,g),cy,sy) *)
     (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DHE.Secret((p,g),cy,sy) *) 
     let ms = CRE.extract si pms in
@@ -1016,7 +1024,11 @@ let prepare_server_output_full_RSA (ci:ConnectionInfo) state si cv calgs cvd svd
                     si.protocol_version)
 
 let prepare_server_output_full_DH ci state si log =
-    Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Unimplemented") // TODO
+#if avoid
+  failwith "not implemented full DH"
+#else
+  Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Unimplemented") // TODO
+#endif
 
 let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs cvd svd log =
     let renInfo = cvd @| svd in
@@ -1291,8 +1303,6 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     if si.client_auth then
 #if verify
                         Pi.expect(ServerLogBeforeClientCertificateVerifyRSA(si,log));
-                        Pi.expect(Authorize(Server,si));
-                        Pi.expect(ServerLogBeforeClientCertificateVerify(si,log));
 #endif
                         recv_fragment_server ci 
                           {state with pstate = PSServer(CertificateVerify(si,ms,log))} 

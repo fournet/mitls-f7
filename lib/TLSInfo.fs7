@@ -277,7 +277,7 @@ private definition !e. IsValidEpoch(e) <=> (IsInitEpoch(e) \/
                                             (IsSuccEpoch(e) /\ IsValidEpoch(Pred(e))))
 
 type epoch = e:preEpoch {IsValidEpoch(e)}
-type succEpoch = e:epoch {IsSuccEpoch(e) /\ IsValidEpoch(Pred(e))} //MK otherwise not every succEpoch is an epoch?
+type succEpoch = e:epoch {IsSuccEpoch(e)}
 
 val isInitEpoch: e:epoch -> b:bool{(b = true /\ IsInitEpoch(e)) \/ (b = false /\ IsSuccEpoch(e))}
 
@@ -314,18 +314,19 @@ definition !e. StrongAE(e)   <=> StrongAESI(EpochSI(e))
 // -------------------------------------------------------------------
 // Connection information (public immutable data)
 
-type ConnectionInfo =
+type preConnectionInfo =
 	{ role: Role;
 	  id_rand: random;
 	  id_in:  epoch;
       id_out: epoch}
+type ConnectionInfo = (p:preConnectionInfo){EpochWriter(p.id_in) = DualRole(EpochWriter(p.id_out))}
 
 val connectionRole: ci:ConnectionInfo -> r:Role{r = ci.role}
 
 val initConnection: r:Role -> ra:random -> ci:ConnectionInfo
   { ci.role = r /\ ci.id_rand = ra /\ IsInitEpoch(ci.id_in) /\ IsInitEpoch(ci.id_out)}
 val nextEpoch: e:epoch -> c:crand -> s:srand -> si:SessionInfo -> e':succEpoch
-  { Pred(e') = e /\ EpochSI(e') = si /\ EpochCRand(e') = c /\ EpochSRand(e') = s}
+  { Pred(e') = e /\ EpochSI(e') = si /\ EpochCRand(e') = c /\ EpochSRand(e') = s /\ EpochWriter(e') = EpochWriter(e)}
 
 val predEpoch: e:succEpoch -> e':epoch{ e' = Pred(e)}
 
@@ -481,7 +482,7 @@ val safeHS: (e:epoch) -> b:bool { b = true <=> SafeHS(e)}
 // Predicates specifying the security of TLS connections 
 
 predicate Open of epoch
-private definition !e. Open(e) <=> 
+definition !e. Open(e) <=> 
                             (?r. (r = Client \/ r = Server) /\
                                   SentCCS(r,e) /\ 
                                   SentCCS(DualRole(r),Peer(e)))

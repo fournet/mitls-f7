@@ -91,7 +91,7 @@ private definition !pv,sr,sid,cs,cm,ext.
 		)
 
 function val  SessionHelloParams: SessionInfo * unit -> (ProtocolVersion * cipherSuite * Compression)
-private definition !si. 
+definition !si. 
  SessionHelloParams(si,()) = (si.protocol_version,si.cipher_suite,si.compression)
 
 val serverHelloBytes: si:SessionInfo -> sr:random -> ext:bytes ->
@@ -393,9 +393,9 @@ predicate ServerLogBeforeClientCertificateVerifyRSA_NoAuth of SessionInfo * log
 private definition !si,pv,l.
   ServerLogBeforeClientCertificateVerifyRSA(si,l) <=>
   (?si',pv,l',encpms,pk. ServerLogBeforeClientKeyExchangeRSA(si',pv,l') /\
-      SessionHelloParams(si,()) = SessionHelloParams(si',()) /\
+     SessionHelloParams(si,()) = SessionHelloParams(si',()) /\ 
 (*      si'.pmsData = RSAPMS(pk,pv,encpms) /\ *)
-      B(l) = B(l') @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
+     B(l) = B(l') @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
 
 (*KB obsolete
 private definition !si,pv,l.
