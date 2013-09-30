@@ -101,15 +101,14 @@ definition !ci,cfg. Complete(ci,cfg) <=>
         ( IsSuccEpoch(ci.id_in)  /\ IsValidEpoch(ci.id_in)  /\ IsValidEpoch(Pred(ci.id_in))  /\
 		  IsSuccEpoch(ci.id_out) /\ IsValidEpoch(ci.id_out) /\ IsValidEpoch(Pred(ci.id_out)) /\
 		  EpochSI(ci.id_in) = EpochSI(ci.id_out) /\
-          CompleteEpoch(ci.role,ci.id_in,cfg))
-   
-(*         
+          CompleteEpoch(ci.role,ci.id_in,cfg) /\
+		  CompleteEpoch(ci.role,ci.id_out,cfg))
+         
 ask !ci,cfg. Complete(ci,cfg) =>
 	(
 		( AuthId(Id(ci.id_in))  => Open(ci.id_in ) ) /\
 		( AuthId(Id(ci.id_out)) => Open(ci.id_out) )
 	)
-*)
  
 type (;ci:ConnectionInfo) serverState =  (* note that the CertRequest bits are determined by the config *) 
                     (* we may omit some ProtocolVersion, mostly a ghost variable *)
