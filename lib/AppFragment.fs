@@ -8,7 +8,8 @@ open DataStream
 type fpred = DeltaFragment of epoch * stream * range * delta
 #endif
 
-type fragment = {frag: epoch * stream * delta}
+type preFragment = {frag: epoch * stream * delta}
+type fragment = preFragment
 type plain = fragment
 
 let fragment e s r d = 

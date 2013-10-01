@@ -478,7 +478,7 @@ let handleHandshakeOutcome (Conn(id,c)) hsRes =
             let c = {c with handshake = hs;
                             read = new_read;
                             write = new_write} in
-                (RAgain, Conn(id,c))
+            (RAgain, Conn(id,c))
         | _ -> (* It means we are doing a re-negotiation. Don't alter the current version number, because it
                     is perfectly valid. It will be updated after the next CCS, along with all other session parameters *)
             let c = { c with handshake = hs} in
@@ -801,7 +801,8 @@ let readOne (Conn(id,c0)) =
                         let c = {c with appdata = appstate} in
                         let res = (rg,d) in
                         (RAppDataDone(res), Conn(id, c))
-                  | _, _ ->
+                  | _, Closed | _, Closing(_,_) | _, Finished | _, Finishing | _, Init
+                  | _, FirstHandshake(_) ->
                       let reason = perror __SOURCE_FILE__ __LINE__ "Message type received in wrong state"
                       let closing = abortWithAlert (Conn(id,c0)) AD_unexpected_message reason in
                       let wo,conn = writeAllClosing closing in

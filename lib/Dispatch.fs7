@@ -23,11 +23,12 @@ private type predispatchState =
 
 predicate IsDispatchState of epoch * predispatchState
 private definition !e,d. IsDispatchState(e,d) <=>
-	(?pv,s.
-	(d = Init \/ d = FirstHandshake(pv) \/ d = Finishing \/ d = Finished \/
-	d = Open \/ d = Closing(pv,s) \/ d = Closed) /\
-	((d = Finishing \/ d = Finished \/ d = Open) => (IsSuccEpoch(e) /\ IsValidEpoch(e) /\ IsValidEpoch(Pred(e))) ) /\
-	(d = Open => (AuthId(Id(e)) => TLSInfo.Open(e))) )
+	(
+	(d = Init \/ (?pv. d = FirstHandshake(pv)) \/ d = Finishing \/ d = Finished \/
+	d = Open \/ (?pv,s. d = Closing(pv,s)) \/ d = Closed) /\
+	( (d = Finishing \/ d = Finished \/ d = Open) => (IsSuccEpoch(e) /\ IsValidEpoch(e) /\ IsValidEpoch(Pred(e))) ) /\
+	(d = Open => (AuthId(Id(e)) => TLSInfo.Open(e)))
+	)
 
 type (;e:epoch)dispatchState = d:predispatchState{IsDispatchState(e,d)}
 
@@ -532,7 +533,9 @@ private val readOne: c:Connection{CnBuf_o(c) = None} ->
 		/\ NextCn(c,c')
 		/\ (Auth(ConnectionEpochIn(c)) => EvWarning(CnInfo(c).id_in,ad,Bytes_i(c))) ) \/
 	(?m. ro = RAppDataDone(m)
-		/\ Extend_i(c,c',m)
+		/\ Bytes_o(c') = Bytes_o(c)
+		/\ Bytes_i(c') = Bytes_i(c) @| MsgIBytes(c,m)
+		(* /\ Extend_i(c,c',m) *)
 		/\ NextCn(c,c')
 		/\ (Auth(ConnectionEpochIn(c)) => EvWrite(CnInfo(c).id_in, Bytes_i(c'))) )
 	}
