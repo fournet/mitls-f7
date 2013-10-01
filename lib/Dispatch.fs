@@ -61,9 +61,10 @@ type writeOutcome =
     | WError of string (* internal *)
     | WriteAgain (* Possibly more data to send *)
     | WriteAgainFinishing (* Possibly more data to send, and the outgoing epoch changed *)
+    | WriteAgainClosing (* An alert must be sent before the connection is torn down *)
     | WAppDataDone (* No more data to send in the current state *)
-    | WHSDone
-    | WMustRead (* Read until completion of Handshake *)
+    | WriteFinished (* The finished message has been sent, but the handshake is not over *)
+    | WHSDone (* The handshake is complete *)
     | SentFatal of alertDescription * string (* The alert we sent *)
     | SentClose
 
@@ -227,8 +228,8 @@ let writeOne (Conn(id,c)): writeOutcome * Connection =
 
                         | Error z -> let (x,y) = z in let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
                 | _ ->
-                    // We are finishing a handshake. Force to read, so that we'll complete the handshake.
-                    (WMustRead,Conn(id,c)) 
+                    // We are finishing a handshake. Tell we're done, so that next read will complete the handshake.
+                    (WAppDataDone,Conn(id,c)) 
 
           //#begin-alertAttackSend
           | Handshake.OutCCS(rg,ccs,nextID,nextWrite,new_hs_state) ->
@@ -260,7 +261,7 @@ let writeOne (Conn(id,c)): writeOutcome * Connection =
                         | Error z -> let (x,y) = z in let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
                     | _ -> (* Internal error: send a fatal alert to the other side *)
                         let reason = perror __SOURCE_FILE__ __LINE__ "Sending CCS in wrong state" in
-                        let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in (WriteAgain, closing) 
+                        let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in (WriteAgainClosing, closing) 
           //#end-alertAttackSend
           | (Handshake.OutSome(rg,f,new_hs_state)) ->     
                       (* we send some handshake fragment *)
@@ -282,7 +283,7 @@ let writeOne (Conn(id,c)): writeOutcome * Connection =
                           | Error z -> let (x,y) = z in let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
                       | _ -> (* Internal error: send a fatal alert to the other side *)
                         let reason = perror __SOURCE_FILE__ __LINE__ "Sending handshake messages in wrong state" in
-                        let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in (WriteAgain, closing) 
+                        let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in (WriteAgainClosing, closing) 
           | (Handshake.OutFinished(rg,lastFrag,new_hs_state)) ->
                 (* check we are in finishing state *)
                 match c_write.disp with
@@ -302,11 +303,11 @@ let writeOne (Conn(id,c)): writeOutcome * Connection =
                             let c_write = {new_write with disp = Finished} in
                             let c = { c with handshake = new_hs_state;
                                              write     = c_write }
-                            (WMustRead, Conn(id,c))
+                            (WriteFinished, Conn(id,c))
                           | Error z -> let (x,y) = z in let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
                 | _ -> (* Internal error: send a fatal alert to the other side *)
                         let reason = perror __SOURCE_FILE__ __LINE__ "Sending handshake message in wrong state" in
-                        let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in (WriteAgain, closing) 
+                        let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in (WriteAgainClosing, closing) 
           | (Handshake.OutComplete(rg,lastFrag,new_hs_state)) ->
                 let c_read = c.read in
                 match (c_write.disp, c_read.disp) with
@@ -331,7 +332,7 @@ let writeOne (Conn(id,c)): writeOutcome * Connection =
                             | Correct(c) -> (WHSDone,Conn(id,c))
                             | Error z ->
                                 let (x,y) = z in
-                                let closing = abortWithAlert (Conn(id,c)) AD_internal_error y in (WriteAgain, closing)
+                                let closing = abortWithAlert (Conn(id,c)) AD_internal_error y in (WriteAgainClosing, closing)
                         else
                             let closed = closeConnection (Conn(id,c)) in
                             let reason = perror __SOURCE_FILE__ __LINE__ "Invalid connection state" in
@@ -339,7 +340,7 @@ let writeOne (Conn(id,c)): writeOutcome * Connection =
                     | Error z -> let (x,y) = z in let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
                 | _ -> (* Internal error: send a fatal alert to the other side *)
                         let reason = perror __SOURCE_FILE__ __LINE__ "Sending handshake message in wrong state" in
-                        let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in (WriteAgain, closing) 
+                        let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in (WriteAgainClosing, closing) 
       | (Alert.ALFrag(tlen,f),new_al_state) ->
         match c_write.disp with
         | Init | FirstHandshake(_) | Open | Closing(_,_) ->
@@ -435,11 +436,13 @@ let rec writeAllFinishing conn =
     match writeOne conn with
     | (WError(x),conn) -> (WError(x), conn)
     | (SentFatal(x,y),conn) -> (SentFatal(x,y),conn)
-    | (SentClose,conn) -> (SentClose,conn) 
+    | (SentClose,conn) -> (SentClose,conn)
+    | (WriteAgainClosing, conn) -> writeAllClosing conn
     | (WriteAgain,conn) ->
         let (Conn(id,s)) = conn in
         writeAllFinishing (Conn(id,s))
-    | (WMustRead, conn) -> (WMustRead, conn)
+    | (WriteFinished, conn) -> (WriteFinished, conn)
+    | (WHSDone,conn) -> (WHSDone,conn)
     | (_,_) -> unexpected "[writeAllFinishing] writeOne returned wrong result"
 
 let rec writeAllTop conn =
@@ -447,6 +450,7 @@ let rec writeAllTop conn =
     | (WError(x),conn) -> (WError(x), conn)
     | (SentFatal(x,y),conn) -> (SentFatal(x,y),conn)
     | (SentClose,conn) -> (SentClose,conn)
+    | (WriteAgainClosing,conn) -> writeAllClosing conn
     | (WAppDataDone,conn) -> (WAppDataDone,conn)
     | (WriteAgainFinishing,conn) ->
         writeAllFinishing conn
@@ -808,10 +812,10 @@ let rec read c =
     let unitVal = () in
     let (outcome,c) = writeAll c in
     match outcome with
-    | WAppDataDone | WMustRead ->
+    | WAppDataDone | WriteFinished ->
         let (outcome,c) = readOne c in
         match outcome with
-        | RAgain | RAgainFinishing | WriteOutcome(WMustRead) | WriteOutcome(WAppDataDone) ->
+        | RAgain | RAgainFinishing | WriteOutcome(WriteFinished) | WriteOutcome(WAppDataDone) ->
             read c 
         | RAppDataDone(msg) ->    
             c,RAppDataDone(msg)
@@ -847,7 +851,7 @@ let rec read c =
     | WHSDone -> c,WriteOutcome(WHSDone)
     | SentFatal(ad,err) -> c,WriteOutcome(SentFatal(ad,err))
     | WError(err) -> c,WriteOutcome(WError(err))
-    | WriteAgain | WriteAgainFinishing -> unexpected "[read] writeAll should never return WriteAgain"
+    | WriteAgain | WriteAgainFinishing | WriteAgainClosing -> unexpected "[read] writeAll should never return WriteAgain"
 
 let msgWrite (Conn(id,c)) (rg,d) =
   let (r0,r1) = DataStream.splitRange id.id_out rg in

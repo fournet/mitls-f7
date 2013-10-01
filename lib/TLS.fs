@@ -53,7 +53,7 @@ let read ca =
       | RClose -> Close (networkStream cb)
       | RFatal(ad) -> Fatal(ad)
       | RWarning(ad) -> Warning(cb,ad)
-      | WriteOutcome(WMustRead) -> DontWrite(cb)
+      | WriteOutcome(WriteFinished) -> DontWrite(cb)
       | WriteOutcome(WHSDone) -> Handshaken (cb)
       | WriteOutcome(SentFatal(ad,s)) -> ReadError(Some(ad),s)
       | WriteOutcome(SentClose) -> Close (networkStream cb)
@@ -75,7 +75,7 @@ let write c msg =
              able to prove that this case should never happen, and so use the
              unexpected function. *)
           WriteError(None, perror __SOURCE_FILE__ __LINE__ "Invalid dispatcher state. This is probably a bug, please report it")
-      | WMustRead ->
+      | WriteFinished ->
           MustRead(c)
       | SentClose ->
           (* A top-level write can never send a closure alert on its own.
@@ -84,7 +84,7 @@ let write c msg =
           WriteError(None, perror __SOURCE_FILE__ __LINE__ "Invalid dispatcher state. This is probably a bug, please report it")
       | SentFatal(ad,err) ->
           WriteError(Some(ad),err)
-      | WriteAgain | WriteAgainFinishing ->
+      | WriteAgain | WriteAgainFinishing | WriteAgainClosing ->
           unexpected "[write] writeAll should never ask to write again"
 
 
@@ -101,7 +101,7 @@ let authorize c q =
       | RClose -> Close (networkStream cb)
       | RFatal(ad) -> Fatal(ad)
       | RWarning(ad) -> Warning(cb,ad)
-      | WriteOutcome(WMustRead) -> DontWrite(cb)
+      | WriteOutcome(WriteFinished) -> DontWrite(cb)
       | WriteOutcome(WHSDone) -> Handshaken (cb)
       | WriteOutcome(SentFatal(ad,s)) -> ReadError(Some(ad),s)
       | WriteOutcome(SentClose) -> Close (networkStream cb)

@@ -35,9 +35,10 @@ type writeOutcome =
     | WError of string (* internal *)
     | WriteAgain (* Possibly more data to send *)
     | WriteAgainFinishing (* Possibly more data to send, and the outgoing epoch changed *)
+    | WriteAgainClosing (* An alert must be sent before the connection is torn down *)
     | WAppDataDone (* No more data to send in the current state *)
-    | WHSDone
-    | WMustRead (* Read until completion of Handshake *)
+    | WriteFinished (* The finished message has been sent, but the handshake is not over *)
+    | WHSDone (* The handshake is complete *)
     | SentFatal of alertDescription * string (* The alert that has been sent *)
     | SentClose
 
