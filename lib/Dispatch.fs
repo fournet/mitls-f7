@@ -419,11 +419,6 @@ let writeOne (Conn(id,c)): writeOutcome * Connection =
             let reason = perror __SOURCE_FILE__ __LINE__ "Sending alert message in wrong state" in
             (WError(reason),closed) (* Unrecoverable error *)
 
-let rec writeAll (Conn(id,s)) =
-    match writeOne (Conn(id,s)) with
-    | (WriteAgain,c) | (WriteAgainFinishing,c) -> writeAll c
-    | other -> other
-
 let rec writeAllClosing (Conn(id,s)) =
     match writeOne (Conn(id,s)) with
     | (WriteAgain,c) -> writeAllClosing c
@@ -808,16 +803,36 @@ let readOne (Conn(id,c0)) =
                       let wo,conn = writeAllClosing closing in
                       WriteOutcome(wo),conn
 
-let rec read c =
+let sameID (c0:Connection) (c1:Connection) res (c2:Connection) =
+    match res with
+    | WriteOutcome(x) -> WriteOutcome(x)
+    | RError(x) -> RError(x)
+    | RAgain -> RAgain
+    | RAgainFinishing -> RAgainFinishing
+    | RAppDataDone(x) -> RAppDataDone(x)
+    | RQuery(x,y) -> RQuery(x,y)
+    | RHSDone -> RHSDone
+    | RClose -> RClose
+    | RFatal(x) -> RFatal(x)
+    | RWarning(x) -> RWarning(x)
+
+let rec read' c =
     let orig = c in
     let unitVal = () in
-    let (outcome,c) = writeAll c in
+    let (outcome,c) = writeAllTop c in
     match outcome with
-    | WAppDataDone | WriteFinished ->
+    | SentClose -> c,WriteOutcome(SentClose)
+    | SentFatal(ad,err) -> c,WriteOutcome(SentFatal(ad,err))
+    | WError(err) -> c,WriteOutcome(WError(err))
+    | WriteAgain | WriteAgainFinishing | WriteAgainClosing -> unexpected "[read] writeAllTop should never return WriteAgain"
+    | WHSDone -> unexpected "[read] writeAllTop should never return handshake complete from read"
+    | WAppDataDone -> (* There was nothing to write *)
         let (outcome,c) = readOne c in
         match outcome with
-        | RAgain | RAgainFinishing | WriteOutcome(WriteFinished) | WriteOutcome(WAppDataDone) ->
-            read c 
+        | RAgain | RAgainFinishing ->
+            let (newConn,res) = read' c in
+            let res = sameID c newConn res orig in
+            newConn,res
         | RAppDataDone(msg) ->    
             c,RAppDataDone(msg)
         | RQuery(q,adv) ->
@@ -848,11 +863,57 @@ let rec read c =
             c,RWarning(ad)
         | WriteOutcome(wo) -> c,WriteOutcome(wo)
         | RError(err) -> c,RError(err)
-    | SentClose -> c,WriteOutcome(SentClose)
+        
+
+let rec read c =
+    let orig = c in
+    let unitVal = () in
+    let (outcome,c) = writeAllTop c in
+    match outcome with
+    | WAppDataDone
+    | WriteFinished ->
+        let (outcome,c) = readOne c in
+        match outcome with
+        | RAgain
+        | RAgainFinishing (* | WriteOutcome(WriteFinished) | WriteOutcome(WAppDataDone) *) ->
+            let (newConn,res) = read c in
+            let res = sameID c newConn res orig in
+            newConn,res
+        | RAppDataDone(msg) ->    
+            c,RAppDataDone(msg)
+        | RQuery(q,adv) ->
+            c,RQuery(q,adv)
+        | RHSDone ->
+            c,RHSDone
+        | RClose ->
+            let (Conn(id,conn)) = c in
+            match conn.write.disp with
+            | Closed ->
+                // we already sent a close_notify, tell the user it's over
+                c,RClose
+            | _ ->
+                let (outcome,c) = writeAllClosing c in
+                match outcome with
+                | SentClose ->
+                    // clean shoutdown
+                    c,RClose
+                | SentFatal(ad,err) ->
+                    c,WriteOutcome(SentFatal(ad,err))
+                | WError(err) ->
+                    c,RError(err)
+                | _ ->
+                    c,RError(perror __SOURCE_FILE__ __LINE__ "") // internal error
+        | RFatal(ad) ->
+            c,RFatal(ad)
+        | RWarning(ad) ->
+            c,RWarning(ad)
+        | WriteOutcome(wo) -> c,WriteOutcome(wo)
+        | RError(err) -> c,RError(err)
+(**)| SentClose -> c,WriteOutcome(SentClose)
     | WHSDone -> c,WriteOutcome(WHSDone)
-    | SentFatal(ad,err) -> c,WriteOutcome(SentFatal(ad,err))
-    | WError(err) -> c,WriteOutcome(WError(err))
-    | WriteAgain | WriteAgainFinishing | WriteAgainClosing -> unexpected "[read] writeAll should never return WriteAgain"
+(**)| SentFatal(ad,err) -> c,WriteOutcome(SentFatal(ad,err))
+(**)| WError(err) -> c,WriteOutcome(WError(err))
+(**)| WriteAgain | WriteAgainFinishing | WriteAgainClosing -> unexpected "[read] writeAll should never return WriteAgain"
 
 let msgWrite (Conn(id,c)) (rg,d) =
   let (r0,r1) = DataStream.splitRange id.id_out rg in
@@ -877,19 +938,6 @@ let write (Conn(id,s)) msg =
   let new_appdata = AppData.clearOutBuf id s.appdata in
   let s = {s with appdata = new_appdata} in
   Conn(id,s),outcome,rdOpt
-
-let sameID (c0:Connection) (c1:Connection) res (c2:Connection) =
-    match res with
-    | WriteOutcome(x) -> WriteOutcome(x)
-    | RError(x) -> RError(x)
-    | RAgain -> RAgain
-    | RAgainFinishing -> RAgainFinishing
-    | RAppDataDone(x) -> RAppDataDone(x)
-    | RQuery(x,y) -> RQuery(x,y)
-    | RHSDone -> RHSDone
-    | RClose -> RClose
-    | RFatal(x) -> RFatal(x)
-    | RWarning(x) -> RWarning(x)
 
 let authorize (Conn(id,c)) q =
     let hsRes = Handshake.authorize id c.handshake q in
@@ -986,7 +1034,7 @@ let authorize (Conn(id,c)) q =
 let refuse conn (q:query) =
     let reason = perror __SOURCE_FILE__ __LINE__ "Remote certificate could not be verified locally" in
     let conn = abortWithAlert conn AD_unknown_ca reason in
-    let _ = writeAll conn in
+    let _ = writeAllClosing conn in
     ()
 
 let full_shutdown (Conn(id,conn)) =
@@ -997,7 +1045,7 @@ let full_shutdown (Conn(id,conn)) =
 let half_shutdown (Conn(id,conn)) =
     let new_al = Alert.send_alert id conn.alert AD_close_notify in
     let conn = {conn with alert = new_al} in
-    let _ = writeAll (Conn(id,conn)) in
+    let _ = writeAllClosing (Conn(id,conn)) in
     ()
 
 let getEpochIn  (Conn(id,state)) = id.id_in
