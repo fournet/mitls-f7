@@ -68,6 +68,9 @@ let write c msg =
             match rdOpt with
               | None -> WriteComplete c
               | Some(rd) -> WritePartial (c,rd)
+      | WDone ->
+          (* We are in the open state, and providing some data to be sent, so only WAppDataDone can apply here *)
+          WriteError(None, perror __SOURCE_FILE__ __LINE__ "Invalid dispatcher state. This is probably a bug, please report it")
       | WHSDone ->
           (* A top-level write should never lead to HS completion.
              Currently, we report this as an internal error.

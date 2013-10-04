@@ -124,20 +124,8 @@ private function val CnState_i: c:Connection -> (;ConnectionEpochIn(c)) dispatch
 private definition !id,s. CnState_o(Conn(id,s)) = s.write.disp
 private definition !id,s. CnState_i(Conn(id,s)) = s.read.disp
 
-predicate OpenState_o of Connection
-private definition !c. OpenState_o(c) <=> CnState_o(c) = Open
-predicate NotOpenState_o of Connection
-private definition !c. NotOpenState_o(c) <=> (
-  CnState_o(c) = Init 			    \/
-  (?pv. CnState_o(c) = FirstHandshake(pv)) \/ 
-  CnState_o(c) = Finishing		    \/
-  CnState_o(c) = Finished		    \/
-  (?pv,s. CnState_o(c) = Closing(pv,s))	    \/
-  CnState_o(c) = Closed
-)
-
 predicate CanWrite of ConnectionInfo
-definition !c. CanWrite(CnInfo(c)) <=> (Handshake.Complete(CnInfo(c),Config(c)) /\ OpenState_o(c))
+definition !c. CanWrite(CnInfo(c)) <=> Handshake.Complete(CnInfo(c),Config(c))
 
 function val ConnectionSIOut: Connection -> SessionInfo
 private definition !id,s. ConnectionSIOut(Conn(id,s)) = EpochSI(id.id_out)
@@ -249,7 +237,8 @@ type writeOutcome =
     | WriteAgain (* Possibly more data to send *)
 	| WriteAgainFinishing (* Possibly more data to send, and the outgoing epoch changed *)
     | WriteAgainClosing (* An alert must be sent before the connection is torn down *)
-    | WAppDataDone (* No more data to send in the current state *)
+    | WDone (* No more data to send in the current state *)
+	| WAppDataDone (* App data have been sent, no more data to send *)
     | WriteFinished (* The finished message has been sent, but the handshake is not over *)
     | WHSDone (* The handshake is complete *)
     | SentFatal of alertDescription * string
@@ -262,6 +251,7 @@ type (;c:Connection)readOutcome =
 	| RAgainFinishing (* More data to read, and the incoming epoch changed *)
     | RAppDataDone of (;ConnectionEpochIn(c),CnStream_i(c))msg_i (* No more data to read *)
     | RQuery of query * bool
+	| RFinished
     | RHSDone
     | RClose
     | RFatal of alertDescription
@@ -503,17 +493,21 @@ private val readOne: c:Connection{CnBuf_o(c) = None} ->
 	(?ad,s. ro = WriteOutcome(SentFatal(ad,s)) /\ NextCn(c,c')) \/
 	(?s. ro = WriteOutcome(WError(s))  /\ NextCn(c,c')) \/
 	(ro = WriteOutcome(SentClose) /\ NextCn(c,c') /\ (Auth(ConnectionEpochIn(c)) => EvClose(CnInfo(c).id_in,Bytes_i(c))) ) \/
-	// From handleHandshakeOutcome
+	// Other cases
 	(ro = RAgain /\
 		  CnBuf_o(c') = CnBuf_o(c) /\
 		  Extend(c,c')) \/
 	((?q,a. ro = RQuery(q,a)) /\
 		  CnBuf_o(c') = CnBuf_o(c) /\
 		  Extend(c,c')) \/
+	(ro = RFinished /\
+		  CnBuf_o(c') = CnBuf_o(c) /\
+		  Extend(c,c') /\
+		  Handshake.EvSentFinishedFirst(CnInfo(c),false)) \/
 	(ro = RHSDone /\
 		  CnBuf_o(c') = CnBuf_o(c) /\
-		  Extend(c,c')) \/
-	// Other cases handled directly
+		  Extend(c,c') /\
+		  Handshake.EvSentFinishedFirst(CnInfo(c),true)) \/
 	(ro = RAgainFinishing
 		/\ CnBuf_o(c') = CnBuf_o(c)
 		/\ Role(c') = Role(c)
@@ -560,28 +554,23 @@ private val writeOne: c:Connection {BufInvariant(c)} ->
 			Extend(c,c') /\
 			CnBuf_o(c') = CnBuf_o(c)) \/
 		// Other events
-		(wo = WAppDataDone /\ CnBuf_o(c) = None /\
-			NextCn(c,c') /\
-			Extend(c,c') /\
-			CnBuf_o(c') = None) \/
-		(?r,f,s. wo = WAppDataDone /\ CnBuf_o(c) = Some((r,f,s)) /\ NotOpenState_o(c) /\
+		(wo = WDone /\
 			NextCn(c,c') /\
 			Extend(c,c') /\
 			CnBuf_o(c') = CnBuf_o(c)) \/
 		(?r,f,s,d. wo = WAppDataDone /\
 				MsgOBytes(c,(r,d)) = AppFragment.Payload(Id(ConnectionEpochOut(c)),r,f) /\ //AP: false, it's a split
-				CnBuf_o(c) = Some((r,f,s)) /\ OpenState_o(c) /\
+				CnBuf_o(c) = Some((r,f,s)) /\
 				DataStream.StreamBytes(ConnectionEpochOut(c),s) =
 				DataStream.StreamBytes(ConnectionEpochOut(c),AppFragment.Extend(ConnectionEpochOut(c),CnStream_o(c),r,f)) /\
 			NextCn(c,c') /\
-			(* Bytes_i(c') = Bytes_i(c) /\
-			Bytes_o(c') = DataStream.StreamBytes(ConnectionEpochOut(c),s) /\ *)
 			Extend_o(c,c',(r,d)) /\
 			CnBuf_o(c') = None) \/
 		(wo = WriteFinished /\
 			Extend(c,c') /\
 			NextCn(c,c') /\
-			CnBuf_o(c') = CnBuf_o(c)) \/
+			CnBuf_o(c') = CnBuf_o(c) /\
+			Handshake.EvSentFinishedFirst(CnInfo(c),true)) \/
 		(wo = WriteAgainFinishing /\
 			Bytes_i(c') = Bytes_i(c) /\
 			Bytes_o(c') = B(empty_bytes) /\
@@ -600,7 +589,8 @@ private val writeOne: c:Connection {BufInvariant(c)} ->
 		(wo = WHSDone /\
 			Extend(c,c') /\
 			NextCn(c,c') /\
-			CnBuf_o(c') = CnBuf_o(c))
+			CnBuf_o(c') = CnBuf_o(c) /\
+			Handshake.EvSentFinishedFirst(CnInfo(c),false) )
 	}
 
 private val writeAllClosing: c:Connection{BufInvariant(c)} -> wo:writeOutcome * c':(;c)nextCn{
@@ -621,10 +611,12 @@ private val writeAllFinishing: c:Connection{BufInvariant(c) /\ Bytes_o(c) = B(em
 		(wo = SentClose) \/
 		(wo = WriteFinished /\
 			Bytes_i(c') = Bytes_i(c) /\
-			Bytes_o(c') = B(empty_bytes)) \/
+			Bytes_o(c') = B(empty_bytes) /\
+			Handshake.EvSentFinishedFirst(CnInfo(c),true)) \/
 		(wo = WHSDone /\
 			Bytes_i(c') = Bytes_i(c) /\
-			Bytes_o(c') = B(empty_bytes))
+			Bytes_o(c') = B(empty_bytes) /\
+			Handshake.EvSentFinishedFirst(CnInfo(c),false))
 		)
 	}
 
@@ -639,17 +631,13 @@ private val writeAllTop: c:Connection {BufInvariant(c)}->
 			(CnBuf_o(c') = CnBuf_o(c) \/ CnBuf_o(c') = None)) \/
 		(wo = SentClose /\
 			(CnBuf_o(c') = CnBuf_o(c) \/ CnBuf_o(c') = None)) \/
-		(wo = WAppDataDone /\ CnBuf_o(c) = None /\
-			NextCn(c,c') /\
-			Extend(c,c') /\
-			CnBuf_o(c') = None) \/
-		(?r,f,s. wo = WAppDataDone /\ CnBuf_o(c) = Some((r,f,s)) /\ NotOpenState_o(c) /\
+		(wo = WDone /\
 			NextCn(c,c') /\
 			Extend(c,c') /\
 			CnBuf_o(c') = CnBuf_o(c)) \/
 		(?r,f,s,d. wo = WAppDataDone /\
 			MsgOBytes(c,(r,d)) = AppFragment.Payload(Id(ConnectionEpochOut(c)),r,f) /\ //AP: false, it's a split
-			CnBuf_o(c) = Some((r,f,s)) /\ OpenState_o(c) /\
+			CnBuf_o(c) = Some((r,f,s)) /\
 			DataStream.StreamBytes(ConnectionEpochOut(c),s) =
 			DataStream.StreamBytes(ConnectionEpochOut(c),AppFragment.Extend(ConnectionEpochOut(c),CnStream_o(c),r,f)) /\
 			NextCn(c,c') /\
@@ -663,7 +651,8 @@ private val writeAllTop: c:Connection {BufInvariant(c)}->
 			Role(c) = Role(c') /\
 			Rnd(c) = Rnd(c') /\
 			ConnectionEpochIn(c) = ConnectionEpochIn(c') /\
-			ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c')) ) \/
+			ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c')) /\
+			Handshake.EvSentFinishedFirst(CnInfo(c'),true)) \/
 		(wo = WHSDone /\
 			Bytes_i(c') = Bytes_i(c) /\
 			Bytes_o(c') = B(empty_bytes) /\
@@ -672,27 +661,14 @@ private val writeAllTop: c:Connection {BufInvariant(c)}->
 			Role(c) = Role(c') /\
 			Rnd(c) = Rnd(c') /\
 			ConnectionEpochIn(c) = ConnectionEpochIn(c') /\
-			ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c')) )
+			ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c')) /\
+			Handshake.EvSentFinishedFirst(CnInfo(c'),false))
 	}
 
-private val handleHandshakeOutcome: c:Connection{CnBuf_o(c) = None} -> (;CnInfo(c),Config(c))Handshake.incoming ->
-	(ro:(;c)readOutcome * c':(;c)nextCn){
-		(?ad,s. ro = WriteOutcome(SentFatal(ad,s))) \/
-		(?s. ro = WriteOutcome(WError(s))) \/
-		(ro = WriteOutcome(SentClose) /\ (Auth(ConnectionEpochIn(c)) => EvClose(CnInfo(c).id_in,Bytes_i(c))) ) \/
-		((ro = RAgain \/ (?q,a. ro = RQuery(q,a)) \/ ro = RHSDone) /\
-		  CnBuf_o(c') = CnBuf_o(c) /\
-		  Extend(c,c') )
-	}
+val readAllFinishing: c:Connection{CnBuf_o(c) = None} ->
+	(c':Connection * ro:(;c)readOutcome)
 
 val read: c:Connection{CnBuf_o(c) = None} -> 
-    (c':Connection  * ro:(;c)readOutcome)
-    {
-      IOResult_i(c,c',ro)
-	  /\ CnBuf_o(c') = CnBuf_o(c)
-    }
-
-val read': c:Connection{CnBuf_o(c) = None} -> 
     (c':Connection  * ro:(;c)readOutcome)
     {
       IOResult_i(c,c',ro)
