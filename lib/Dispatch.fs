@@ -721,46 +721,52 @@ let sameID (c0:Connection) (c1:Connection) res (c2:Connection) =
     | RFatal(x) -> RFatal(x)
     | RWarning(x) -> RWarning(x)
 
+let sameIDRAF (c0:Connection) (c1:Connection) res (c2:Connection) =
+    match res with
+    | WriteOutcome(x) -> WriteOutcome(x)
+    | RError(x) -> RError(x)
+    | RAgain -> RAgain
+    | RAgainFinishing -> RAgainFinishing
+    | RAppDataDone(x) -> RAppDataDone(x)
+    | RQuery(x,y) -> RQuery(x,y)
+    | RFinished -> RFinished
+    | RHSDone -> RHSDone
+    | RClose -> RClose
+    | RFatal(x) -> RFatal(x)
+    | RWarning(x) -> RWarning(x)
+
 let rec readAllFinishing c =
     let orig = c in
     let (outcome,c) = readOne c in
     match outcome with
-    | RAgain -> readAllFinishing c
+    | RAgain ->
+        let (newConn,ro) = readAllFinishing c in
+        let ro = sameIDRAF c newConn ro orig in
+        newConn,ro
     | RHSDone -> c,RHSDone
     | RFatal(ad) -> c,RFatal(ad)
     | RWarning(ad) -> c,RWarning(ad)
-    | RError(err) -> c,RError(err)
+    | RError(err) -> unexpected "[readAllFinishing] Read error can never be returned by read one"
     | RFinished ->
         let (outcome,c) = writeAllTop c in
         match outcome with
         | WHSDone -> c,WriteOutcome(WHSDone)
-        | SentFatal(x,y) -> c,WriteOutcome(SentFatal(x,y))
+        | SentFatal(x,y) -> unexpected "[readAllFinishing] There should be no way of sending a fatal alert after we validated the peer Finished message"
         | WError(x) -> c,WriteOutcome(WError(x))
-        | SentClose -> c,WriteOutcome(SentClose)
+        | SentClose ->unexpected "[readAllFinishing] There should be no way of sending a closure alert after we validated the peer Finished message"
         | _ -> unexpected "[readAllFinishing] writeAllTop should never return such write outcome"
     | RAgainFinishing | RAppDataDone(_) | RQuery(_,_) -> unexpected "[readAllFinishing] readOne returned wrong result"
     | WriteOutcome(SentFatal(x,y)) -> c,WriteOutcome(SentFatal(x,y))
     | WriteOutcome(WError(x)) -> c,WriteOutcome(WError(x))
-    | WriteOutcome(SentClose) -> c,WriteOutcome(SentClose)
-    | WriteOutcome(_) -> unexpected "[read] readOne should never return such write outcome"
-    | RClose ->
-        let (Conn(id,conn)) = c in
-        match conn.write.disp with
-        | Closed ->
-            // we already sent a close_notify, tell the user it's over
-            c,RClose
-        | _ ->
-            let (outcome,c) = writeAllClosing c in
-            match outcome with
-            | SentClose ->
-                // clean shoutdown
-                c,RClose
-            | SentFatal(ad,err) ->
-                c,WriteOutcome(SentFatal(ad,err))
-            | WError(err) ->
-                c,RError(err)
-            | _ ->
-                c,RError(perror __SOURCE_FILE__ __LINE__ "") // internal error
+    | WriteOutcome(_) -> unexpected "[readAllFinishing] readOne should never return such write outcome"
+    | WriteOutcome(SentClose) | RClose ->
+        (* These corner cases are underspecified in RFC 5246, and we handle them by tearing down the connection.
+           Sending our CCS already implicitly closed the previous epoch, and the new epoch is not open
+           yet, so there's nothing to close.
+           This is an inconsistent state of the protocol that should be explicitly forbidden by the RFC.
+         *)
+         let reason = perror __SOURCE_FILE__ __LINE__ "Trying to close an epoch after CCS has been sent, but before new epoch opened." in
+         c,RError(reason)
 
 let rec read c =
     let orig = c in
