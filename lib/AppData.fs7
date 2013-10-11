@@ -76,6 +76,7 @@ val recv_fragment: ci:ConnectionInfo -> s:(;ci)app_state -> r:range ->
 		AppFragment.Sent(ci.id_in,AppInStream(ci,s),r,f)} ->
 	(d:(;ci.id_in,AppInStream(ci,s),r)delta *
 	 s':(;ci)app_state){
+		AppOutBuf(ci,s') = AppOutBuf(ci,s) /\
 		AppOutStream(ci,s') = AppOutStream(ci,s) /\
 		AppInStream(ci,s') = AppFragment.Extend(ci.id_in,AppInStream(ci,s),r,f) /\
                 AppFragment.Payload(Id(ci.id_in),r,f) = DataStream.Payload(ci.id_in,AppInStream(ci,s),r,d)

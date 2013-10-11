@@ -721,6 +721,20 @@ let sameID (c0:Connection) (c1:Connection) res (c2:Connection) =
     | RFatal(x) -> RFatal(x)
     | RWarning(x) -> RWarning(x)
 
+let sameID2 (c0:Connection) (c1:Connection) res (c2:Connection) =
+    match res with
+    | WriteOutcome(x) -> WriteOutcome(x)
+    | RError(x) -> RError(x)
+    | RAgain -> RAgain
+    | RAgainFinishing -> RAgainFinishing
+    | RAppDataDone(x) -> RAppDataDone(x)
+    | RQuery(x,y) -> RQuery(x,y)
+    | RFinished -> RFinished
+    | RHSDone -> RHSDone
+    | RClose -> RClose
+    | RFatal(x) -> RFatal(x)
+    | RWarning(x) -> RWarning(x)
+
 let sameIDRAF (c0:Connection) (c1:Connection) res (c2:Connection) =
     match res with
     | WriteOutcome(x) -> WriteOutcome(x)
@@ -745,7 +759,6 @@ let rec readAllFinishing c =
         newConn,ro
     | RHSDone -> c,RHSDone
     | RFatal(ad) -> c,RFatal(ad)
-    | RWarning(ad) -> c,RWarning(ad)
     | RError(err) -> unexpected "[readAllFinishing] Read error can never be returned by read one"
     | RFinished ->
         let (outcome,c) = writeAllTop c in
@@ -759,18 +772,24 @@ let rec readAllFinishing c =
     | WriteOutcome(SentFatal(x,y)) -> c,WriteOutcome(SentFatal(x,y))
     | WriteOutcome(WError(x)) -> c,WriteOutcome(WError(x))
     | WriteOutcome(_) -> unexpected "[readAllFinishing] readOne should never return such write outcome"
-    | WriteOutcome(SentClose) | RClose ->
-        (* These corner cases are underspecified in RFC 5246, and we handle them by tearing down the connection.
-           Sending our CCS already implicitly closed the previous epoch, and the new epoch is not open
+    | WriteOutcome(SentClose)
+        (* This and the following two corner cases are underspecified in RFC 5246, and we handle them by tearing down the connection.
+           These are inconsistent states of the protocol that should be explicitly forbidden by the RFC.
+
+           In this case, sending our CCS already implicitly closed the previous sending epoch, and the new epoch is not open
            yet, so there's nothing to close.
-           This is an inconsistent state of the protocol that should be explicitly forbidden by the RFC.
          *)
+    | RClose
+        (* This is the dual case of the above: we received the CCS, which implicitly closed the receiving epoch,
+           and the new epoch is not open yet, so we cannot receive authenticated data, nor close this epoch.
+         *)
+    | RWarning(_) ->
+        (* Like in the case above, the receiving epoch is closed, so we cannot accept authenticated data. *)
          let reason = perror __SOURCE_FILE__ __LINE__ "Trying to close an epoch after CCS has been sent, but before new epoch opened." in
          c,RError(reason)
 
 let rec read c =
     let orig = c in
-    let unitVal = () in
     let (outcome,c) = writeAllTop c in
     match outcome with
     | SentClose -> c,WriteOutcome(SentClose)
@@ -788,7 +807,9 @@ let rec read c =
             let res = sameID c newConn res orig in
             newConn,res
         | RAgainFinishing ->
-            readAllFinishing c
+            let (newConn,res) = readAllFinishing c in
+            let res = sameID2 c newConn res orig in
+            newConn,res
         | RAppDataDone(msg) ->    
             c,RAppDataDone(msg)
         | RQuery(q,adv) ->
