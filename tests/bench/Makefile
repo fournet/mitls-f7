@@ -15,7 +15,7 @@ endif
 ifeq ($(buildtype), unix)
 ifeq ($(TARGET), mingw)
 EXE   = .exe
-CROSS = i686-pc-mingw32-
+CROSS = x86_64-w64-mingw32-
 else
 EXE   =
 CROSS =
