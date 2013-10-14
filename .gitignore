@@ -1,0 +1,6 @@
+pythonnet
+sessionDB
+
+*.tgz
+*.suo
+*.pyc
