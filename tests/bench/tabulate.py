@@ -19,7 +19,7 @@ CIPHERS = [
     ('TLS_DHE_DSS_WITH_AES_256_CBC_SHA256', ('DHE', 'AES256', 'SHA256')),
 ]
 
-NAMES = ('mitls', 'openssl', 'oracle-jsse-1.7', 'bc-dotnet')
+NAMES = ('mitls-bc', 'mitls-ossl', 'openssl', 'oracle-jsse-1.7')
 
 # --------------------------------------------------------------------
 def _main():
