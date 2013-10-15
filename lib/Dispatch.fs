@@ -410,7 +410,6 @@ let writeOne (Conn(id,c)): writeOutcome * Connection =
                 let new_write = {new_write with disp = Closed} in 
                 let c = {c with alert = new_al_state;
                                 write = new_write}
-                let closed = closeConnection (Conn(id,c)) in
                 (SentClose, Conn(id,c))
             | Error z -> 
                 let (x,y) = z in
