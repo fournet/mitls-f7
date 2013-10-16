@@ -90,11 +90,12 @@ val epochCRand: epoch -> crand
 val epochCSRands: epoch -> crand
 
 // Role is of the writer
-type ConnectionInfo =
+type preConnectionInfo =
     { role: Role;
       id_rand: random;
       id_in:  epoch;
       id_out: epoch}
+type ConnectionInfo = preConnectionInfo
 val connectionRole: ConnectionInfo -> Role
 
 val initConnection: Role -> bytes -> ConnectionInfo

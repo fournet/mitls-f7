@@ -114,11 +114,12 @@ let epochCRand e =
 let epochCSRands e =
     epochCRand e @| epochSRand e
 
-type ConnectionInfo = {
+type preConnectionInfo = {
     role: Role; // cached, could be retrieved from id_out
     id_rand: random; // our random
     id_in: epoch;
     id_out: epoch}
+type ConnectionInfo = preConnectionInfo
 
 let connectionRole ci = ci.role
 
@@ -181,8 +182,8 @@ let noId: id = {
   csrConn = noCsr; 
   writer=Client }
 
-let id e = 
-  if isInitEpoch e 
+let id e =
+  if isInitEpoch e
   then noId 
   else
     let si     = epochSI e
@@ -191,10 +192,9 @@ let id e =
     let msi    = msi si
     let kdfAlg = kdfAlg si
     let aeAlg  = aeAlg cs pv
-    let csr    = csrands si
+    let csr    = epochCSRands e
     let wr     = epochWriter e
     {msId = msi; kdfAlg=kdfAlg; pv=pv; aeAlg = aeAlg; csrConn = csr; writer=wr }
-
 
 // Application configuration
 type helloReqPolicy =

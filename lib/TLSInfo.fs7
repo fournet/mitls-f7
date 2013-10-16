@@ -452,7 +452,13 @@ theorem not AuthId(noId)
 function val Id: epoch -> id
 val id: s:epoch -> i:id {i=Id(s)}
 definition !e:epoch. IsInitEpoch(e) => Id(e) = noId
-definition !e:epoch. IsSuccEpoch(e) => Id(e) = SiId(EpochSI(e),EpochWriter(e))
+definition !e:epoch. IsSuccEpoch(e) => Id(e) =
+  { msId    = MsI(EpochSI(e)); 
+    kdfAlg  = KdfAlg(EpochSI(e));
+	pv      = EpochSI(e).protocol_version; // should be part of aeAlg 
+	aeAlg   = SIaeAlg(EpochSI(e));
+	csrConn = B(EpochCRand(e)) @| B(EpochSRand(e));
+	writer  = EpochWriter(e);  }
 
 ask !e. IsInitEpoch(e) => Id(e) = noId
 ask !e. IsInitEpoch(e) => not AuthId(Id(e))
@@ -507,7 +513,7 @@ ask !e. Open(e) => (SafeId(Id(e)) => Safe(e))
 ask !e. Auth(e) => Open(e)
 
 private assume !r,e,e'. SentCCS(r,e) /\ SentCCS(r,e') /\ Id(e) = Id(e') => e = e'
-ask !e,e'. Open(e) /\ Open(e') /\ Id(e) = Id(e') => e = e'
+//ask !e,e'. Open(e) /\ Open(e') /\ Id(e) = Id(e') => e = e'
 //AP type openEpoch = e:succEpoch {Open(e)}
 
 
