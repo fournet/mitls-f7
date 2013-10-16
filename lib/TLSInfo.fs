@@ -194,7 +194,12 @@ let id e =
     let aeAlg  = aeAlg cs pv
     let csr    = epochCSRands e
     let wr     = epochWriter e
-    {msId = msi; kdfAlg=kdfAlg; pv=pv; aeAlg = aeAlg; csrConn = csr; writer=wr }
+    {msId = msi; 
+     kdfAlg=kdfAlg; 
+     pv=pv; 
+     aeAlg = aeAlg; 
+     csrConn = csr; 
+     writer=wr }
 
 // Application configuration
 type helloReqPolicy =
