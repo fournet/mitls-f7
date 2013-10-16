@@ -15,9 +15,10 @@ type TLStream(s:System.IO.Stream, options, b, ?own) =
 
     let own = defaultArg own true
 
-    let mutable inbuf  : bytes = empty_bytes
-    let mutable outbuf : bytes = empty_bytes
-    let mutable closed : bool  = true
+    let mutable inbuf   : bytes = empty_bytes
+    let mutable outbuf  : bytes = empty_bytes
+    let mutable closed  : bool  = true
+    let mutable disposed: bool = false
 
     let doMsg_o conn b =
         let ki = TLS.getEpochOut conn
@@ -138,8 +139,8 @@ type TLStream(s:System.IO.Stream, options, b, ?own) =
             let epoch = TLS.getEpochIn conn in
             TLS.getSessionInfo epoch
 
-    override this.get_CanRead()     = true
-    override this.get_CanWrite()    = true
+    override this.get_CanRead()     = not closed
+    override this.get_CanWrite()    = not closed
     override this.get_CanSeek()     = false
     override this.get_Length()      = raise (NotSupportedException())
     override this.SetLength(i)      = raise (NotSupportedException())
@@ -148,34 +149,48 @@ type TLStream(s:System.IO.Stream, options, b, ?own) =
     override this.Seek(i,o)         = raise (NotSupportedException())
 
     override this.Flush() =
+        if disposed then
+            raise(ObjectDisposedException("Trying to write to a closed connection."))
+        if closed then
+            raise(IOException("Trying to write to a closed connection."))
         if not (equalBytes outbuf empty_bytes) then
             let msgO = doMsg_o conn outbuf
             conn <- wrapWrite conn msgO
             outbuf <- empty_bytes
 
     override this.Read(buffer, offset, count) =
-        let data =
-            if equalBytes inbuf empty_bytes then
-                (* Read from the socket, and possibly buffer some data *)
-                let (c,data) = wrapRead conn
-                    // Fixme: is data is empty_bytes we should set conn to "null" (which we cannot)
-                conn <- c
-                data
-            else (* Use the buffer *)
-                let tmp = inbuf in
-                inbuf <- empty_bytes
-                tmp
-        let l = length data in
-        if l <= count then
-            Array.blit (cbytes data) 0 buffer offset l
-            l
+        if disposed then
+            raise(ObjectDisposedException("Trying to read from a closed connection."))
         else
-            let (recv,newBuf) = split data count in
-            Array.blit (cbytes recv) 0 buffer offset count
-            inbuf <- newBuf
-            count
+            if closed then
+                0
+            else
+                let data =
+                    if equalBytes inbuf empty_bytes then
+                        (* Read from the socket, and possibly buffer some data *)
+                        let (c,data) = wrapRead conn
+                            // Fixme: is data is empty_bytes we should set conn to "null" (which we cannot)
+                        conn <- c
+                        data
+                    else (* Use the buffer *)
+                        let tmp = inbuf in
+                        inbuf <- empty_bytes
+                        tmp
+                let l = length data in
+                if l <= count then
+                    Array.blit (cbytes data) 0 buffer offset l
+                    l
+                else
+                    let (recv,newBuf) = split data count in
+                    Array.blit (cbytes recv) 0 buffer offset count
+                    inbuf <- newBuf
+                    count
 
     override this.Write(buffer,offset,count) =
+        if disposed then
+            raise(ObjectDisposedException("Trying to write to a closed connection."));
+        if closed then
+            raise(IOException("Trying to write to a closed connection."))
         let data = Array.create count (byte 0) in
         Array.blit buffer offset data 0 count
         let b = abytes data in
@@ -183,9 +198,10 @@ type TLStream(s:System.IO.Stream, options, b, ?own) =
         this.Flush ()
 
     override this.Close() =
-        this.Flush()
         if not closed then
+            this.Flush()
             TLS.half_shutdown conn
             closed <- true
         if own then
             s.Close()
+        disposed <- true
