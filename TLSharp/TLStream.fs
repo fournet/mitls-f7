@@ -139,14 +139,15 @@ type TLStream private (s:System.IO.Stream, options, b, ?own, ?sessionID) =
         doHS conn
 
     member self.GetSessionInfo () =
-        if closed || disposed then
-            raise (ObjectDisposedException("Trying to get SessionInfo on a closed connection."))
-        else
-            (* We could also pick the outgoing epoch.
-             * The user can only access an open connection, so epochs
-             * are synchronized. *)
-            let epoch = TLS.getEpochIn conn in
-            TLS.getSessionInfo epoch
+        if disposed then
+            raise (ObjectDisposedException("Trying to get SessionInfo on a disposed connection."))
+        if closed then
+            raise (IOException("Trying to get SessionInfo on a closed connection."))
+        (* We could also pick the outgoing epoch.
+            * The user can only access an open connection, so epochs
+            * are synchronized. *)
+        let epoch = TLS.getEpochIn conn in
+        TLS.getSessionInfo epoch
 
     member self.ReHandshake (?config) =
         let config = defaultArg config options
