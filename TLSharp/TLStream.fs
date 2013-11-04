@@ -10,7 +10,7 @@ type TLSBehavior =
     | TLSClient
     | TLSServer
 
-type TLStream private (s:System.IO.Stream, options, b, ?own, ?sessionID) =
+type TLStream (s:System.IO.Stream, options, b, ?own, ?sessionID) =
     inherit Stream()
 
     let own = defaultArg own true
