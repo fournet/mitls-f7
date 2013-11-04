@@ -10,7 +10,7 @@ type TLSBehavior =
     | TLSClient
     | TLSServer
 
-type TLStream(s:System.IO.Stream, options, b, ?own) =
+type TLStream private (s:System.IO.Stream, options, b, ?own, ?sessionID) =
     inherit Stream()
 
     let own = defaultArg own true
@@ -34,23 +34,25 @@ type TLStream(s:System.IO.Stream, options, b, ?own) =
     let rec doHS conn =
         match TLS.read conn with
         | TLS.ReadError (adOpt,err) ->
+            closed <- true
             match adOpt with
             | Some(ad) -> raise (IOException(sprintf "TLS-HS: Sent fatal alert: %A %A" ad err))
             | None     -> raise (IOException(sprintf "TLS-HS: Internal error: %A" err))
-        | TLS.Close ns -> raise (IOException(sprintf "TLS-HS: Connection closed during HS"))
-        | TLS.Fatal ad -> raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
-        | TLS.Warning (conn,ad) -> raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
+        | TLS.Close ns -> closed <- true; raise (IOException(sprintf "TLS-HS: Connection closed during HS"))
+        | TLS.Fatal ad -> closed <- true; raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
+        | TLS.Warning (conn,ad) -> closed <- true; raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
         | TLS.CertQuery (conn,q,advice) ->
             if advice then
                 match TLS.authorize conn q with
                 | TLS.ReadError (adOpt,err) ->
+                    closed <- true
                     match adOpt with
                     | Some(ad) -> raise (IOException(sprintf "TLS-HS: Sent fatal alert: %A %A" ad err))
                     | None     -> raise (IOException(sprintf "TLS-HS: Internal error: %A" err))
-                | TLS.Close ns -> raise (IOException(sprintf "TLS-HS: Connection closed during HS"))
-                | TLS.Fatal ad -> raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
-                | TLS.Warning (conn,ad) -> raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
-                | TLS.CertQuery (conn,q,advice) -> raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate twice"))
+                | TLS.Close ns -> closed <- true; raise (IOException(sprintf "TLS-HS: Connection closed during HS"))
+                | TLS.Fatal ad -> closed <- true; raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
+                | TLS.Warning (conn,ad) -> closed <- true; raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
+                | TLS.CertQuery (conn,q,advice) -> closed <- true; raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate twice"))
                 | TLS.Handshaken conn -> closed <- false; conn
                 | TLS.Read (conn,msg) ->
                     let b = undoMsg_i conn msg
@@ -59,6 +61,7 @@ type TLStream(s:System.IO.Stream, options, b, ?own) =
                 | TLS.DontWrite conn -> doHS conn
             else
                 TLS.refuse conn q
+                closed <- true
                 raise (IOException(sprintf "TLS-HS: Refusing untrusted certificate"))
         | TLS.Handshaken conn -> closed <- false; conn
         | TLS.Read (conn,msg) ->
@@ -70,24 +73,26 @@ type TLStream(s:System.IO.Stream, options, b, ?own) =
     let rec wrapRead conn =
         match TLS.read conn with
         | TLS.ReadError (adOpt,err) ->
+            closed <- true
             match adOpt with
             | None -> raise (IOException(sprintf "TLS-HS: Internal error: %A" err))
             | Some ad -> raise (IOException(sprintf "TLS-HS: Sent fatal alert: %A %A" ad err))
         | TLS.Close ns -> closed <- true; (conn,empty_bytes) // This is a closed connection, should not be used!
-        | TLS.Fatal ad -> raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
-        | TLS.Warning (conn,ad) -> raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
+        | TLS.Fatal ad -> closed <- true; raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
+        | TLS.Warning (conn,ad) -> closed <- true; raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
         | TLS.CertQuery (conn,q,advice) ->
             if advice then
                 match TLS.authorize conn q with
                 | TLS.ReadError (adOpt,err) ->
+                    closed <- true
                     match adOpt with
                     | None -> raise (IOException(sprintf "TLS-HS: Internal error: %A" err))
                     | Some ad -> raise (IOException(sprintf "TLS-HS: Sent fatal alert: %A %A" ad err))
                 | TLS.Close ns -> closed <- true; (conn,empty_bytes) // This is a closed connection, should not be used!
-                | TLS.Fatal ad -> raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
-                | TLS.Warning (conn,ad) -> raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
-                | TLS.CertQuery (conn,q,advice) -> raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate twice"))
-                | TLS.Handshaken conn -> wrapRead conn
+                | TLS.Fatal ad -> closed <- true; raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
+                | TLS.Warning (conn,ad) -> closed <- true; raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
+                | TLS.CertQuery (conn,q,advice) -> closed <- true; raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate twice"))
+                | TLS.Handshaken conn -> closed <- false; wrapRead conn
                 | TLS.Read (conn,msg) ->
                     let read = undoMsg_i conn msg in
                     if equalBytes read empty_bytes then
@@ -98,8 +103,9 @@ type TLStream(s:System.IO.Stream, options, b, ?own) =
                 | TLS.DontWrite conn -> wrapRead conn
             else
                 TLS.refuse conn q
+                closed <- true
                 raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate"))
-        | TLS.Handshaken conn -> wrapRead conn
+        | TLS.Handshaken conn -> closed <- false; wrapRead conn
         | TLS.Read (conn,msg) ->
             let read = undoMsg_i conn msg in
             if equalBytes read empty_bytes then
@@ -108,14 +114,6 @@ type TLStream(s:System.IO.Stream, options, b, ?own) =
             else
                 (conn,read)
         | TLS.DontWrite conn -> wrapRead conn
-
-    let mutable conn =
-        let tcpStream = Tcp.create s
-        let conn =
-            match b with
-            | TLSClient -> TLS.connect tcpStream options
-            | TLSServer -> TLS.accept_connected tcpStream options
-        doHS conn
 
     let rec wrapWrite conn msg =
         match TLS.write conn msg with
@@ -129,8 +127,19 @@ type TLStream(s:System.IO.Stream, options, b, ?own) =
             let conn = doHS conn
             wrapWrite conn msg
 
+    let mutable conn =
+        let tcpStream = Tcp.create s
+        let conn =
+            match b with
+            | TLSClient ->
+                match sessionID with
+                | None -> TLS.connect tcpStream options
+                | Some(id) -> TLS.resume tcpStream id options
+            | TLSServer -> TLS.accept_connected tcpStream options
+        doHS conn
+
     member self.GetSessionInfo () =
-        if closed then
+        if closed || disposed then
             raise (ObjectDisposedException("Trying to get SessionInfo on a closed connection."))
         else
             (* We could also pick the outgoing epoch.
@@ -138,6 +147,20 @@ type TLStream(s:System.IO.Stream, options, b, ?own) =
              * are synchronized. *)
             let epoch = TLS.getEpochIn conn in
             TLS.getSessionInfo epoch
+
+    member self.ReHandshake (?config) =
+        let config = defaultArg config options
+        if closed || disposed then
+            raise (ObjectDisposedException("Trying to rehandshake on a closed connection."))
+        let res = 
+            match b with
+            | TLSServer -> TLS.request conn config
+            | TLSClient -> TLS.rehandshake conn config
+        match res with
+            | (false,_) -> raise (IOException("Cannot rehandshake in current protocol state."))
+            | (_,c) ->
+                conn <- doHS c
+                self.GetSessionInfo()
 
     override this.get_CanRead()     = not closed
     override this.get_CanWrite()    = not closed
