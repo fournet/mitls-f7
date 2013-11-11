@@ -1,10 +1,7 @@
-﻿module miHTTPInstance
+﻿module MiHTTPInstanceDB
 
 open Bytes
+open MiHTTPChannel
 
-type instanceid = bytes
-type instance
-
-val create : string -> instance
-val find   : instanceid -> instance option
-val save   : instance -> unit
+val save    : channel -> unit
+val restore : channelid -> channel option

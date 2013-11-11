@@ -3,7 +3,8 @@ let hostname = "pierre-yves.strub.nu"
 
 (* ------------------------------------------------------------------------ *)
 let main () =
-    printfn "Hello World!"
+    let channel = MiHTTPChannel.create hostname in
+        printfn "Hello World!"
 
 (* ------------------------------------------------------------------------ *)
 let () = main ()

@@ -44,12 +44,12 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="miHTTPInstanceDB.fsi" />
-    <Compile Include="miHTTPInstanceDB.fs" />
     <Compile Include="miHTTPData.fsi" />
     <Compile Include="miHTTPData.fs" />
     <Compile Include="miHTTPChannel.fsi" />
     <Compile Include="miHTTPChannel.fs" />
+    <Compile Include="miHTTPInstanceDB.fsi" />
+    <Compile Include="miHTTPInstanceDB.fs" />
     <Compile Include="miHTTP.fs" />
   </ItemGroup>
   <ItemGroup>
@@ -71,11 +71,15 @@
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\FSharp\1.0\Microsoft.FSharp.Targets" Condition="!Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
   <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft F#\v4.0\Microsoft.FSharp.Targets" Condition=" Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-	     Other similar extension points exist, see Microsoft.Common.targets.
-	<Target Name="BeforeBuild">
-	</Target>
-	<Target Name="AfterBuild">
-	</Target>
-	-->
+  <Target Name="AfterBuild" Condition="'$(OS)' == 'Windows_NT'">
+    <Copy SourceFiles="$(ProjectDir)\..\DB\lib\$(PlatformName)\SQLite.Interop.dll" DestinationFolder="$(OutDir)" />
+    <Copy SourceFiles="$(ProjectDir)\..\3rdparty\libeay32-$(PlatformName).dll" DestinationFiles="$(OutDir)/libeay32.dll" />
+  </Target>
+  <Target Name="AfterClean">
+    <CreateItem Include="$(OutDir)\*.dll;$(OutDir)\*.exe;$(OutDir)\*.mdb;$(OutDir)\*.pdb">
+      <Output ItemName="ToDel" TaskParameter="Include" />
+    </CreateItem>
+    <Delete Files="$(OutDir)\$(Name).XML" />
+    <Delete Files="@(ToDel)" />
+  </Target>
 </Project>
