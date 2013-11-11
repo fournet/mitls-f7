@@ -19,20 +19,20 @@ type request = {
 }
 
 type status = {
-    current : document option;
-    waiting : request list;
+    current     : document option;
+    waiting     : request list;
+    credentials : string option;
 }
 
 type channel = {
     channelid   : cbytes;
     hostname    : string;
-    credentials : string option;
     connection  : TLS.Connection;
-    status      : status;
+    status      : status ref;
 }
 
 let initial_status =
-    { current = None; waiting = []; }
+    { current = None; waiting = []; credentials = None; }
 
 let default_config = {
     minVer = ProtocolVersion.TLS_1p0;
@@ -61,14 +61,13 @@ let create (host : string) =
 
     { channelid   = cid;
       hostname    = host;
-      credentials = None;
       connection  = c;
-      status      = initial_status; }
+      status      = ref initial_status; }
 
 let state_of_channel (c : channel) : cstate =
     { channelid   = Array.copy c.channelid;
       hostname    = c.hostname;
-      credentials = c.credentials; }
+      credentials = (!c.status).credentials; }
 
 let channel_of_state (s : cstate) : channel =
     failwith "TODO"

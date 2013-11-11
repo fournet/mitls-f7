@@ -18,6 +18,6 @@ val state_of_channel : channel -> cstate
 val channel_of_state : cstate -> channel
 
 (*
-val request : channel -> string -> channel
+val request : channel -> string -> unit
 val poll : channel -> document option * channel
 *)
