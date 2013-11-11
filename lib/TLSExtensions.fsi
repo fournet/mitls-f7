@@ -27,6 +27,8 @@ val checkServerRenegotiationInfoExtension: config -> serverExtension list -> cVe
 val checkClientResumptionInfoExtension:    config -> clientExtension list -> cVerifyData -> bool
 val checkServerResumptionInfoExtension:    config -> serverExtension list -> cVerifyData -> sVerifyData -> bool
 
+val hasExtendedMS: negotiatedExtensions -> bool
+
 // type extensionType
 //
 // val extensionsBytes: bool -> bytes -> bytes

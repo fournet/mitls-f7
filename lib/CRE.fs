@@ -3,7 +3,6 @@
 open Bytes
 open TLSConstants
 open TLSInfo
-open TLSPRF
 open DHGroup // The trusted setup for Diffie-Hellman computations
 open PMS
 
@@ -33,7 +32,7 @@ let private extractMS si pmsBytes : PRF.masterSecret =
     let cs = si.cipher_suite in
     let data = csrands si in
     let ca = creAlg si in
-    let res = extract ca pmsBytes data 48 in
+    let res = TLSPRF.extract ca pmsBytes data 48 in
     let i = msi si
     PRF.coerce i res
 
@@ -88,3 +87,14 @@ let extract si pms: PRF.masterSecret =
     else
     #endif
         extractMS si (accessPMS pms)
+
+type log = bytes
+
+let private extractMS_extended si pmsBytes log : PRF.masterSecret =
+    let ca = creAlg_extended si in
+    let res = TLSPRF.extract ca pmsBytes log 48 in
+    let i = msi si
+    PRF.coerce i res
+
+let extract_extended si pms log =
+    extractMS_extended si (accessPMS pms) log

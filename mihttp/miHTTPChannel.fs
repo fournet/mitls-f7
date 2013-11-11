@@ -46,6 +46,7 @@ let default_config = {
     check_client_version_in_pms_for_old_tls = false; (* ignored *)
 
     safe_renegotiation = false;
+    safe_resumption = false
     server_name = "";
     client_name = "";
 

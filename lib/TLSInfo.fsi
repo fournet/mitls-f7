@@ -25,7 +25,7 @@ type sVerifyData = bytes (* ServerFinished payload *)
 
 // Defined here to not depend on TLSExtension
 type negotiatedExtension =
-    | NE_VoidExtension // FIXME: delete as soon as another extension is implemented
+    | NE_extended_ms
 
 type negotiatedExtensions = negotiatedExtension list
 
@@ -62,7 +62,8 @@ type SessionInfo = {
 
 val csrands: SessionInfo -> bytes
 val prfAlg: SessionInfo -> prfAlg  
-val creAlg: SessionInfo -> creAlg  
+val creAlg: SessionInfo -> creAlg
+val creAlg_extended: SessionInfo -> creAlg  
 val kdfAlg: SessionInfo -> kdfAlg 
 val vdAlg: SessionInfo -> vdAlg  
 val msi: SessionInfo -> msId

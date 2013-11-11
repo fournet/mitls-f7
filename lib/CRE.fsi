@@ -7,5 +7,8 @@ open Error
 open TLSError
 open PMS
 
+type log = bytes
+
 val extract: SessionInfo -> pms -> PRF.masterSecret
+val extract_extended: SessionInfo -> pms -> log -> PRF.masterSecret
 

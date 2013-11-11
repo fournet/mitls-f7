@@ -464,6 +464,7 @@ let contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV (css: cipherSuite list) =
 
 type prflabel = bytes
 let extract_label = utf8 "master secret"
+let extended_extract_label = utf8 "extended master secret"
 let kdf_label     = utf8 "key expansion" 
 
 type prfAlg' =

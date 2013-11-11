@@ -335,8 +335,9 @@ private definition
 val prfMacAlg_of_ciphersuite: cs:cipherSuite  -> ma:macAlg { ma=CiphersuitePrfMacAlg(cs) }
 val verifyDataHashAlg_of_ciphersuite: cs:cipherSuite -> hashAlg
 
-type prflabel = b:bytes { b=Utf8("master secret") \/ b=Utf8("key expansion") }
+type prflabel = b:bytes { b=Utf8("master secret") \/ b=Utf8("extended master secret") \/ b=Utf8("key expansion") }
 val extract_label: l:prflabel {l=Utf8("master secret")}
+val extended_extract_label: l:prflabel {l=Utf8("extended master secret")}
 val kdf_label: l:prflabel {l=Utf8("key expansion")}
 //TODO Beware, those refinements are not visible. 
 

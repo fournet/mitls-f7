@@ -97,7 +97,8 @@ val isRSACipherSuite: cipherSuite -> bool
 val contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV: cipherSuites -> bool
 
 type prflabel = bytes
-val extract_label: prflabel 
+val extract_label: prflabel
+val extended_extract_label: prflabel
 val kdf_label: prflabel 
 
 type prfAlg' =  
