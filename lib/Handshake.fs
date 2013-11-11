@@ -147,14 +147,14 @@ let resume next_sid poptions =
     match SessionDB.select sDB next_sid Client poptions.server_name with
     | None -> init Client poptions
     | Some (retrieved) ->
-    let (retrievedSinfo,retrievedMS) = retrieved in
+    let (retrievedSinfo,retrievedMS,resumeCVD,resumeSVD) = retrieved in
     match retrievedSinfo.sessionID with
     | xx when length xx = 0 -> unexpected "[resume] a resumed session should always have a valid sessionID"
     | sid ->
     let rand = Nonce.mkHelloRandom () in
     let ci = initConnection Client rand in
     Pi.assume (Configure(Server,ci.id_in,poptions));
-    let extL = prepareClientExtensions poptions ci empty_bytes None //FIXME: when secure_resumption is implemented, change from None to Some(verifyData)
+    let extL = prepareClientExtensions poptions ci empty_bytes (Some(resumeCVD))
     let ext = clientExtensionsBytes extL
     let cHelloBytes = clientHelloBytes poptions rand sid ext in
     let sdb = SessionDB.create poptions
@@ -209,13 +209,13 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
         | None -> (* Maybe session expired, or was never stored. Let's not resume *)
             rehandshake ci state ops
         | Some s ->
-            let (retrievedSinfo,retrievedMS) = s
+            let (retrievedSinfo,retrievedMS,resumeCVD,resumeSVD) = s
             match state.pstate with
             | PSClient (cstate) ->
                 match cstate with
                 | ClientIdle(cvd,svd) ->
                     let rand = Nonce.mkHelloRandom () in
-                    let extL = prepareClientExtensions ops ci cvd None // FIXME: when safe_resumption is implemented, turn None into Some(verifyData)
+                    let extL = prepareClientExtensions ops ci cvd (Some(resumeCVD))
                     let ext = clientExtensionsBytes extL in
                     Pi.assume (Configure(Client,ci.id_in,ops));
                     let cHelloBytes = clientHelloBytes ops rand sid ext in
@@ -387,7 +387,7 @@ let next_fragment ci state =
                                               pstate = PSServer(ServerIdle(cvd,svd))})
 
                     else
-                      let sdb = SessionDB.insert state.sDB si.sessionID Server state.poptions.client_name (si,ms)
+                      let sdb = SessionDB.insert state.sDB si.sessionID Server state.poptions.client_name (si,ms,cvd,svd)
                       check_negotiation Server si state.poptions;
                       OutComplete(rg,f,
                                   {state with hs_outgoing = remBuf
@@ -700,23 +700,27 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                             InError(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "A session expried while it was being resumed",state)
 (* KB #endif*)
                         | Some(storable) ->
-                        let (si,ms) = storable in
+                        let (si,ms,resumeCVD,resumeSVD) = storable in
                         let log = log @| to_log in
                         (* Check that protocol version, ciphersuite and compression method are indeed the correct ones *)
                         if si.protocol_version = sh_server_version then
                             if si.cipher_suite = sh_cipher_suite then
                                 if si.compression = sh_compression_method then
-                                    let next_ci = getNextEpochs ci si crand sh_random in
-                                    let nki_in = id next_ci.id_in in
-                                    let nki_out = id next_ci.id_out in
-                                    let (reader,writer) = PRF.keyGenClient nki_in nki_out ms in
-                                    let nout = next_ci.id_out in
-                                    let nin = next_ci.id_in in
-                                    recv_fragment_client ci 
-                                        {state with pstate = PSClient(ServerCCSResume(nout,writer,
-                                                                                    nin,reader,
-                                                                                    ms,log))} 
-                                        (Some(sh_server_version))
+                                    (* Also check for resumption extension information *)
+                                    if checkServerResumptionInfoExtension pop sExtL resumeCVD resumeSVD then
+                                        let next_ci = getNextEpochs ci si crand sh_random in
+                                        let nki_in = id next_ci.id_in in
+                                        let nki_out = id next_ci.id_out in
+                                        let (reader,writer) = PRF.keyGenClient nki_in nki_out ms in
+                                        let nout = next_ci.id_out in
+                                        let nin = next_ci.id_in in
+                                        recv_fragment_client ci 
+                                            {state with pstate = PSClient(ServerCCSResume(nout,writer,
+                                                                                        nin,reader,
+                                                                                        ms,log))} 
+                                            (Some(sh_server_version))
+                                    else
+                                        InError(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Wrong resumption extension information provided",state)
                                 else 
 (* KB #if avoid
                                     failwith "z3 fails"
@@ -963,7 +967,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 if PRF.checkVerifyData si ms Server log payload then
                     let sDB = 
                         if length  si.sessionID = 0 then state.sDB
-                        else SessionDB.insert state.sDB si.sessionID Client state.poptions.server_name (si,ms)
+                        else SessionDB.insert state.sDB si.sessionID Client state.poptions.server_name (si,ms,cvd,payload)
                     check_negotiation Client si state.poptions;
                     InComplete({state with pstate = PSClient(ClientIdle(cvd,payload)); sDB = sDB})
                 else
@@ -1100,9 +1104,10 @@ let prepare_server_output_full ci state si cv sExtL log =
 let negotiate cList sList =
     List.tryFind (fun s -> List.exists (fun c -> c = s) cList) sList
 
-let prepare_server_output_resumption ci state crand cExtL si ms cvd svd log =
+let prepare_server_output_resumption ci state crand cExtL storedSession cvd svd log =
+    let (si,ms,resumeCVD,resumeSVD) = storedSession in
     let srand = Nonce.mkHelloRandom () in
-    let (sExtL,nExtL) = negotiateServerExtensions cExtL state.poptions ci (cvd,svd) None // FIXME: turn this to Some(verifyData) when secure_resumption is implemented
+    let (sExtL,nExtL) = negotiateServerExtensions cExtL state.poptions ci (cvd,svd) (Some(resumeCVD,resumeSVD))
     let ext = serverExtensionsBytes sExtL in
     let sHelloB = serverHelloBytes si srand ext in
 
@@ -1197,14 +1202,18 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                             (* Client asked for resumption, let's see if we can satisfy the request *)
                             match SessionDB.select state.sDB ch_session_id Server state.poptions.client_name with
                             | Some sentry -> 
-                                let (storedSinfo,storedMS)  = sentry in
+                                let (storedSinfo,_,resumeCVD,_)  = sentry in
                                 if geqPV ch_client_version storedSinfo.protocol_version
                                   && List.memr ch_cipher_suites storedSinfo.cipher_suite
                                   && List.memr ch_compression_methods storedSinfo.compression 
                                 then
-                                  (* Proceed with resumption *)
-                                  let state = prepare_server_output_resumption ci state ch_random cExtL storedSinfo storedMS cvd svd log in
-                                  recv_fragment_server ci state (somePV(storedSinfo.protocol_version))
+                                    // Check extended resumption information
+                                    if checkClientResumptionInfoExtension state.poptions cExtL resumeCVD then
+                                      (* Proceed with resumption *)
+                                      let state = prepare_server_output_resumption ci state ch_random cExtL sentry cvd svd log in
+                                      recv_fragment_server ci state (somePV(storedSinfo.protocol_version))
+                                    else
+                                        InError(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Wrong safe resumption data received", state)
                                 else 
                                   match startServerFull ci state cHello cExtL cvd svd log with
                                     | Correct(v) -> let (state,pv) = v in recv_fragment_server ci state (somePV (pv))

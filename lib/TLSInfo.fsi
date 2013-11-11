@@ -138,6 +138,7 @@ type config = {
 
     (* Common *)
     safe_renegotiation: bool
+    safe_resumption: bool
     server_name: Cert.hint
     client_name: Cert.hint
 

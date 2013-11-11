@@ -31,6 +31,7 @@ let config = {
     
     (* Common *)
     TLSInfo.safe_renegotiation = true
+    TLSInfo.safe_resumption = false
     TLSInfo.server_name = "RPC server"
     TLSInfo.client_name = "RPC client"
 

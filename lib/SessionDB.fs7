@@ -10,7 +10,7 @@ open TLSInfo
 
 predicate Authorize of Role * SessionInfo
 
-type (;sid:sessionID, r:Role) StorableSession = si:SessionInfo * (;si) PRF.masterSecret 
+type (;sid:sessionID, r:Role) StorableSession = si:SessionInfo * (;si) PRF.masterSecret * cVerifyData * sVerifyData
        { si.sessionID = sid /\ Authorize(r,si) }
 
 type SessionIndex = sessionID * Role * Cert.hint

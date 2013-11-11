@@ -40,6 +40,7 @@ let config (servname : string) = {
     
     (* Common *)
     TLSInfo.safe_renegotiation = true
+    TLSInfo.safe_resumption = false
     TLSInfo.server_name = servname
     TLSInfo.client_name = ""
 

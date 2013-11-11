@@ -35,6 +35,7 @@ let tlsoptions (options : options) = {
     TLSInfo.request_client_certificate = options.clientname.IsSome
     
     TLSInfo.safe_renegotiation = true
+    TLSInfo.safe_resumption = false
 
     TLSInfo.server_name = options.servername
     TLSInfo.client_name = match options.clientname with None -> "" | Some x -> x

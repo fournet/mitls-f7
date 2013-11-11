@@ -235,6 +235,7 @@ type config = {
 
     (* Common *)
     safe_renegotiation: bool
+    safe_resumption: bool
     server_name: Cert.hint
     client_name: Cert.hint
             
@@ -257,6 +258,7 @@ let defaultConfig ={
     check_client_version_in_pms_for_old_tls = true
     
     safe_renegotiation = true
+    safe_resumption = false // Turn to true if it gets standard
     server_name = "mitls.example.org"
     client_name = "client.example.org"
 

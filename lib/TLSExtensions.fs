@@ -9,41 +9,47 @@ open TLSInfo
 type clientExtension =
     | CE_renegotiation_info of cVerifyData
 //    | CE_server_name of Cert.hint list
-//    | CE_resumption_info
+    | CE_resumption_info of cVerifyData
 //    | CE_extended_ms
 //    | CE_extended_padding
 
 let sameClientExt a b =
     match a,b with
     | CE_renegotiation_info (_), CE_renegotiation_info (_) -> true
+    | CE_resumption_info (_), CE_resumption_info(_) -> true
+    | _,_ -> false
 
 type serverExtension =
     | SE_renegotiation_info of cVerifyData * sVerifyData
 //    | SE_server_name of Cert.hint
-//    | SE_resumption_info
+    | SE_resumption_info of cVerifyData * sVerifyData
 //    | SE_extended_ms
 //    | SE_extended_padding
 
 let sameServerExt a b =
     match a,b with
     | SE_renegotiation_info (_,_), SE_renegotiation_info (_,_) -> true
+    | SE_resumption_info (_,_), SE_resumption_info (_,_) -> true
+    | _,_ -> false
 
 let sameServerClientExt a b =
     match a,b with
     | SE_renegotiation_info (_,_), CE_renegotiation_info (_) -> true
+    | SE_resumption_info (_,_), CE_resumption_info (_) -> true
     | _,_ -> false
 
 let clientExtensionHeaderBytes ext =
     match ext with
     | CE_renegotiation_info(_) -> abyte2 (0xFFuy, 0x01uy)
 //    | CE_server_name (_)    -> abyte2 (0x00uy, 0x00uy)
-//    | CE_resumption_info    -> abyte2 (0xFFuy, 0xAAuy)
+    | CE_resumption_info (_)   -> abyte2 (0xFFuy, 0xAAuy)
 //    | CE_extended_ms        -> abyte2 (0xFFuy, 0xABuy)
 //    | CE_extended_padding   -> abyte2 (0xBBuy, 0x8Fuy)
 
 let clientExtensionPayloadBytes ext =
     match ext with
     | CE_renegotiation_info(cvd) -> vlbytes 1 cvd
+    | CE_resumption_info(cvd) -> vlbytes 1 cvd
 
 let clientExtensionBytes ext =
     let head = clientExtensionHeaderBytes ext in
@@ -66,6 +72,13 @@ let parseClientExtension head payload =
         | Error (x,y) -> Some(Error(x,y))
         | Correct(cvd) ->
             let res = CE_renegotiation_info (cvd) in
+            let res = correct res
+            Some(res)
+    | (0xFFuy, 0xAAuy) -> // resumption info
+        match vlparse 1 payload with
+        | Error (x,y) -> Some(Error(x,y))
+        | Correct(cvd) ->
+            let res = CE_resumption_info (cvd) in
             let res = correct res
             Some(res)
     | (_,_) -> None
@@ -120,9 +133,15 @@ let parseClientExtensions data ch_ciphers =
             | Correct(extL) -> parseClientSCSVs ch_ciphers extL
 
 let prepareClientExtensions cfg (conn:ConnectionInfo) renegoCVD (resumeCVDOpt:cVerifyData option) =
-    let res = [] in
-    if cfg.safe_renegotiation then
-        CE_renegotiation_info(renegoCVD) :: res
+    let res =
+        if cfg.safe_renegotiation then
+            [CE_renegotiation_info(renegoCVD)]
+        else
+            []
+    if cfg.safe_resumption then
+        match resumeCVDOpt with
+        | None -> res
+        | Some(resumeCVD) -> CE_resumption_info(resumeCVD) :: res
     else
         res
 
@@ -133,6 +152,7 @@ let serverToNegotiatedExtension cExtL (resuming:bool) res sExt : negotiatedExten
         if List.exists (sameServerClientExt sExt) cExtL then
             match sExt with
             | SE_renegotiation_info (_,_) -> correct (l)
+            | SE_resumption_info (_,_) -> correct (l)
         else
             Error(AD_handshake_failure,perror __SOURCE_FILE__ __LINE__ "Server provided an extension not given by the client")
 
@@ -148,13 +168,16 @@ let serverExtensionHeaderBytes ext =
     match ext with
     | SE_renegotiation_info (_,_) -> abyte2 (0xFFuy, 0x01uy)
  //   | SE_server_name (_)    -> abyte2 (0x00uy, 0x00uy)
- //   | SE_resumption_info    -> abyte2 (0xFFuy, 0xAAuy)
+    | SE_resumption_info (_,_)    -> abyte2 (0xFFuy, 0xAAuy)
  //   | SE_extended_ms        -> abyte2 (0xFFuy, 0xABuy)
  //   | SE_extended_padding   -> abyte2 (0xBBuy, 0x8Fuy)
 
 let serverExtensionPayloadBytes ext =
     match ext with
     | SE_renegotiation_info (cvd,svd) ->
+        let p = cvd @| svd in
+        vlbytes 1 p
+    | SE_resumption_info (cvd,svd) ->
         let p = cvd @| svd in
         vlbytes 1 p
 
@@ -181,6 +204,14 @@ let parseServerExtension head payload =
             let vdL = length vd in
             let (cvd,svd) = split vd (vdL/2) in
             let res = SE_renegotiation_info (cvd,svd) in
+            correct(res)
+    | (0xFFuy, 0xAAuy) -> // resumption info
+        match vlparse 1 payload with
+        | Error (x,y) -> Error(x,y)
+        | Correct(vd) ->
+            let vdL = length vd in
+            let (cvd,svd) = split vd (vdL/2) in
+            let res = SE_resumption_info (cvd,svd) in
             correct(res)
     | (_,_) ->
         // A server can never send an extension the client doesn't support
@@ -221,13 +252,18 @@ let parseServerExtensions data =
         | Error(x,y)    -> Error(x,y)
         | Correct(exts) -> parseServerExtensionList exts []
 
-let ClientToServerExtension (cfg:config) (conn:ConnectionInfo) ((cvd:cVerifyData),(svd:sVerifyData)) (resumeVDOpt:(cVerifyData * sVerifyData) option) cExt : serverExtension option=
+let ClientToServerExtension (cfg:config) (conn:ConnectionInfo) ((renegoCVD:cVerifyData),(renegoSVD:sVerifyData)) (resumeVDOpt:(cVerifyData * sVerifyData) option) cExt : serverExtension option=
     match cExt with
-    | CE_renegotiation_info (_) -> Some (SE_renegotiation_info (cvd,svd))
+    | CE_renegotiation_info (_) -> Some (SE_renegotiation_info (renegoCVD,renegoSVD))
+    | CE_resumption_info (_) ->
+        match resumeVDOpt with
+        | None -> None
+        | Some(resumeCVD,resumeSVD) -> Some (SE_resumption_info (resumeCVD,resumeSVD))
 
 let ClientToNegotiatedExtension (cfg:config) (conn:ConnectionInfo) ((cvd:cVerifyData),(svd:sVerifyData)) (resumeVDOpt:(cVerifyData * sVerifyData) option) cExt : negotiatedExtension option =
     match cExt with
     | CE_renegotiation_info (_) -> None
+    | CE_resumption_info (_) -> None
 
 let negotiateServerExtensions cExtL cfg conn (cvd,svd) resumeVDOpt =
     let server = List.choose (ClientToServerExtension cfg conn (cvd,svd) resumeVDOpt) cExtL
@@ -263,6 +299,34 @@ let isServerRenegotiationInfo e =
 let checkServerRenegotiationInfoExtension config (sExtL: serverExtension list) cVerifyData sVerifyData =
     if config.safe_renegotiation then
         match List.tryPick isServerRenegotiationInfo sExtL with
+        | None -> false
+        | Some(x) ->
+            let (cvd,svd) = x in
+            equalBytes (cvd @| svd) (cVerifyData @| sVerifyData)
+    else
+        true
+
+let isClientResumptionInfo e =
+    match e with
+    | CE_resumption_info(cvd) -> Some(cvd)
+    | _ -> None
+
+let checkClientResumptionInfoExtension config (cExtL: clientExtension list) cVerifyData =
+    if config.safe_resumption then
+        match List.tryPick isClientResumptionInfo cExtL with
+        | None -> false
+        | Some(payload) -> equalBytes payload cVerifyData
+    else
+        true
+
+let isServerResumptionInfo e =
+    match e with
+    | SE_resumption_info(cvd,svd) -> Some(cvd,svd)
+    | _ -> None
+
+let checkServerResumptionInfoExtension config (sExtL: serverExtension list) cVerifyData sVerifyData =
+    if config.safe_resumption then
+        match List.tryPick isServerResumptionInfo sExtL with
         | None -> false
         | Some(x) ->
             let (cvd,svd) = x in

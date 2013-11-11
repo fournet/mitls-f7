@@ -64,6 +64,7 @@ let tlsconfig options isserver = {
     TLSInfo.request_client_certificate = false
     
     TLSInfo.safe_renegotiation = true
+    TLSInfo.safe_resumption = false
 
     TLSInfo.server_name = options.certname;
     TLSInfo.client_name = ""
