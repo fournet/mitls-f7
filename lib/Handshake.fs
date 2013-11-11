@@ -449,6 +449,11 @@ let getCertificateVerifyBytes (si:SessionInfo) (ms:PRF.masterSecret) (cert_req:(
         (* No client certificate ==> no certificateVerify message *)
         empty_bytes
   
+let extract si pms log =
+    if hasExtendedMS si.extensions then
+        CRE.extract_extended si pms log
+    else
+        CRE.extract si pms
 
 let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) (cert_req:Cert.sign_cert) (log:log) : (hs_state * SessionInfo * PRF.masterSecret * log) Result =
     let clientCertBytes,certList = getCertificateBytes si cert_req in
@@ -472,11 +477,7 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:Sess
     let pmsid = pmsId pms
     let si = {si with pmsId = pmsid; pmsData = pmsdata} in
     let log = log @| clientKEXBytes in
-    let ms =
-        if hasExtendedMS si.extensions then
-            CRE.extract_extended si pms log
-        else
-            CRE.extract si pms
+    let ms = extract si pms log in
     (* FIXME: here we should shred pms *)
     let certificateVerifyBytes = getCertificateVerifyBytes si ms cert_req log in
 
@@ -538,11 +539,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
 
     (* the post of this call is !sx,cy. PP((p,g) /\ DHE.Exp((p,g),x,cy)) /\ DHE.Exp((p,g),sx,sy) -> DHE.Secret((p,g),cy,sy) *)
     (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DHE.Secret((p,g),cy,sy) *) 
-    let ms =
-        if hasExtendedMS si.extensions then
-            CRE.extract_extended si pms log
-        else
-            CRE.extract si pms
+    let ms = extract si pms log in
     (* the post of this call is !p,g,gx,gy. StrongHS(si) /\ DHE.Secret((p,g),gx,gy) -> PRFs.Secret(ms) *)  
     (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> PRFs.Secret(ms) *) 
 
@@ -1291,11 +1288,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let pmsid = pmsId pms
                     let si = {si with pmsId = pmsid; pmsData = pmsdata} in
                     let log = log @| to_log in
-                    let ms =
-                        if hasExtendedMS si.extensions then
-                            CRE.extract_extended si pms log
-                        else
-                            CRE.extract si pms
+                    let ms = extract si pms log in
                     (* TODO: we should shred the pms *)
                     (* move to new state *)
                     if si.client_auth then
@@ -1320,11 +1313,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     //MK We should also store the pmsId
                     let pms = PMS.DHPMS(p,g,y,gx,dhpms) in //MK is the order of y, gx right?
                     (* StrongHS(si) /\ DHE.Exp((p,g),?cx,y) -> DHE.Secret(pms) *)
-                    let ms =
-                        if hasExtendedMS si.extensions then
-                            CRE.extract_extended si pms log
-                        else
-                            CRE.extract si pms
+                    let ms = extract si pms log in
                     (* StrongHS(si) /\ DHE.Exp((p,g),?cx,y) -> PRFs.Secret(ms) *)
                     
                     (* TODO in e.g. DHE: we should shred the pms *)
@@ -1353,11 +1342,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     //MK why don't we store the pmsdata? We should also store the pmsId
                     let dhpms = DH.exp p g gx y x in
                     let pms = PMS.DHPMS(p,g,y,gx,dhpms) in //MK is the order of y, gx right?
-                    let ms =
-                        if hasExtendedMS si.extensions then
-                            CRE.extract_extended si pms log
-                        else
-                            CRE.extract si pms
+                    let ms = extract si pms log in
                     (* TODO: here we should shred pms *)
                     (* move to new state *)
                     recv_fragment_server ci 
