@@ -13,7 +13,6 @@ val cbytes: bytes -> byte[]
 val cbyte: bytes -> byte
 val cbyte2: bytes -> byte * byte 
 
-
 val createBytes: int -> int -> bytes
 
 val bytes_of_int: int -> int -> bytes
