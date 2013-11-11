@@ -20,6 +20,15 @@ type crand = random
 type srand = random
 type csrands = bytes
 
+type cVerifyData = bytes (* ClientFinished payload *)
+type sVerifyData = bytes (* ServerFinished payload *)
+
+// Defined here to not depend on TLSExtension
+type negotiatedExtension =
+    | NE_VoidExtension // FIXME: delete as soon as another extension is implemented
+
+type negotiatedExtensions = negotiatedExtension list
+
 type pmsId
 val pmsId: PMS.pms -> pmsId
 val noPmsId: pmsId
@@ -40,6 +49,7 @@ type SessionInfo = {
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;
     compression: Compression;
+    extensions: negotiatedExtensions;
     pmsId: pmsId;
     pmsData: pmsData;
     client_auth: bool;

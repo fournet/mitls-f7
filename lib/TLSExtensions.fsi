@@ -4,13 +4,33 @@ open Bytes
 open Error
 open TLSError
 open TLSConstants
+open TLSInfo
 
-type extensionType
+// Following types only used in handshake
+type clientExtension
+type serverExtension
 
-val extensionsBytes: bool -> bytes -> bytes
-val parseExtensions: bytes -> (extensionType * bytes) list Result
-val inspect_ServerHello_extensions: (extensionType * bytes) list -> bytes -> unit Result
-val checkClientRenegotiationInfoExtension: (extensionType * bytes) list -> TLSConstants.cipherSuites -> bytes -> bool
+// Client side
+val clientExtensionsBytes: clientExtension list -> bytes
+val prepareClientExtensions: config -> ConnectionInfo -> cVerifyData -> cVerifyData option -> clientExtension list
+val parseServerExtensions: bytes -> (serverExtension list) Result
+val negotiateClientExtensions: clientExtension list -> serverExtension list -> bool -> negotiatedExtensions Result
+
+// Server side
+val serverExtensionsBytes: serverExtension list -> bytes
+val negotiateServerExtensions: clientExtension list -> config -> ConnectionInfo -> (cVerifyData * sVerifyData) -> (cVerifyData * sVerifyData) option -> (serverExtension list * negotiatedExtensions)
+val parseClientExtensions: bytes -> cipherSuites -> (clientExtension list) Result
+
+// Extension-specific
+val checkClientRenegotiationInfoExtension: config -> clientExtension list -> cVerifyData -> bool
+val checkServerRenegotiationInfoExtension: config -> serverExtension list -> cVerifyData -> sVerifyData -> bool
+
+// type extensionType
+//
+// val extensionsBytes: bool -> bytes -> bytes
+// val parseExtensions: bytes -> (extensionType * bytes) list Result
+// val inspect_ServerHello_extensions: (extensionType * bytes) list -> bytes -> unit Result
+// val checkClientRenegotiationInfoExtension: (extensionType * bytes) list -> TLSConstants.cipherSuites -> bytes -> bool
 
 val sigHashAlgBytes: Sig.alg -> bytes
 val parseSigHashAlg: bytes -> Sig.alg Result

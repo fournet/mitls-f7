@@ -17,8 +17,6 @@ type events =
 
 (* verify data authenticated by the Finished messages *)
 type log = bytes         (* message payloads so far, to be eventually authenticated *) 
-type cVerifyData = bytes (* ClientFinished payload *)
-type sVerifyData = bytes (* ServerFinished payload *)
 
 // The constructor indicates either what we are doing locally or which peer message we are expecting, 
 
@@ -55,7 +53,7 @@ type serverState =  (* note that the CertRequest bits are determined by the conf
    (* the ProtocolVersion is the highest TLS version proposed by the client *)
 
 type clientState = 
-   | ServerHello                  of crand * sessionID (* * bytes for extensions? *) * cVerifyData * sVerifyData * log
+   | ServerHello                  of crand * sessionID * clientExtension list * cVerifyData * sVerifyData * log
 
    | ServerCertificateRSA         of SessionInfo * log
    | ClientCheckingCertificateRSA of SessionInfo * log * Cert.cert list * ProtocolVersion option * bytes
@@ -119,14 +117,15 @@ let init (role:Role) poptions =
     | Client -> 
         let ci = initConnection role rand in
         Pi.assume (Configure(Client,ci.id_in,poptions));
-        let ext = extensionsBytes poptions.safe_renegotiation empty_bytes in
+        let extL = prepareClientExtensions poptions ci empty_bytes None in
+        let ext = clientExtensionsBytes extL in
         let cHelloBytes = clientHelloBytes poptions rand sid ext in
         let sdb = SessionDB.create poptions in 
         (ci,{hs_outgoing = cHelloBytes;
                      hs_incoming = empty_bytes;
                      poptions = poptions;
                      sDB = sdb;
-                     pstate = PSClient (ServerHello (rand, sid, empty_bytes, empty_bytes, cHelloBytes))
+                     pstate = PSClient (ServerHello (rand, sid, extL, empty_bytes, empty_bytes, cHelloBytes))
             })
     | Server ->
         let ci = initConnection role rand in
@@ -155,14 +154,15 @@ let resume next_sid poptions =
     let rand = Nonce.mkHelloRandom () in
     let ci = initConnection Client rand in
     Pi.assume (Configure(Server,ci.id_in,poptions));
-    let ext = extensionsBytes poptions.safe_renegotiation empty_bytes
+    let extL = prepareClientExtensions poptions ci empty_bytes None //FIXME: when secure_resumption is implemented, change from None to Some(verifyData)
+    let ext = clientExtensionsBytes extL
     let cHelloBytes = clientHelloBytes poptions rand sid ext in
     let sdb = SessionDB.create poptions
     (ci,{hs_outgoing = cHelloBytes
          hs_incoming = empty_bytes
          poptions = poptions
          sDB = sdb
-         pstate = PSClient (ServerHello (rand, sid, empty_bytes, empty_bytes, cHelloBytes))
+         pstate = PSClient (ServerHello (rand, sid, extL, empty_bytes, empty_bytes, cHelloBytes))
         })
 
 let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
@@ -174,7 +174,8 @@ let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
         | ClientIdle(cvd,svd) ->
             let rand = Nonce.mkHelloRandom () in
             let sid = empty_bytes in
-            let ext = extensionsBytes ops.safe_renegotiation cvd in
+            let extL = prepareClientExtensions ops ci cvd None in
+            let ext = clientExtensionsBytes extL in
             let cHelloBytes = clientHelloBytes ops rand sid ext in
             Pi.assume (Configure(Client,ci.id_in,ops));
             let sdb = SessionDB.create ops
@@ -182,7 +183,7 @@ let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
                    hs_incoming = empty_bytes
                    poptions = ops
                    sDB = sdb
-                   pstate = PSClient (ServerHello (rand, sid, cvd,svd, cHelloBytes))
+                   pstate = PSClient (ServerHello (rand, sid, extL, cvd,svd, cHelloBytes))
                    })
         | _ -> (* handshake already happening, ignore this request *)
             (false,state)
@@ -214,14 +215,15 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
                 match cstate with
                 | ClientIdle(cvd,svd) ->
                     let rand = Nonce.mkHelloRandom () in
-                    let ext = extensionsBytes ops.safe_renegotiation cvd in
+                    let extL = prepareClientExtensions ops ci cvd None // FIXME: when safe_resumption is implemented, turn None into Some(verifyData)
+                    let ext = clientExtensionsBytes extL in
                     Pi.assume (Configure(Client,ci.id_in,ops));
                     let cHelloBytes = clientHelloBytes ops rand sid ext in
                     (true,{hs_outgoing = cHelloBytes
                            hs_incoming = empty_bytes
                            poptions = ops
                            sDB = sDB
-                           pstate = PSClient (ServerHello (rand, sid, cvd, svd, cHelloBytes))
+                           pstate = PSClient (ServerHello (rand, sid, extL, cvd, svd, cHelloBytes))
                            })
                 | _ -> (* Handshake already ongoing, ignore this request *)
                     (false,state)
@@ -550,7 +552,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
 (* #endif *)
 
  
-let on_serverHello_full (ci:ConnectionInfo) crand log to_log (shello:ProtocolVersion * srand * sessionID * cipherSuite * Compression * bytes) =
+let on_serverHello_full (ci:ConnectionInfo) crand log to_log (shello:ProtocolVersion * srand * sessionID * cipherSuite * Compression * bytes) extL =
     let log = log @| to_log in
     let (sh_server_version,sh_random,sh_session_id,sh_cipher_suite,sh_compression_method,sh_neg_extensions) = shello
     let si = { clientID = []
@@ -560,6 +562,7 @@ let on_serverHello_full (ci:ConnectionInfo) crand log to_log (shello:ProtocolVer
                protocol_version = sh_server_version
                cipher_suite = sh_cipher_suite
                compression = sh_compression_method
+               extensions = extL
                init_crand = crand
                init_srand = sh_random
                pmsId = noPmsId
@@ -621,7 +624,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
 
         | HT_server_hello ->
             match cState with
-            | ServerHello (crand,sid,cvd,svd,log) ->
+            | ServerHello (crand,sid,cExtL,cvd,svd,log) ->
                 match parseServerHello payload with
                 | Error z -> let (x,y) = z in InError(x,y,state)
                 | Correct (shello) ->
@@ -658,7 +661,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
 (* KB #endif*)
                   else
                   // Parse extensions
-                  match parseExtensions sh_neg_extensions with
+                  match parseServerExtensions sh_neg_extensions with
                   | Error z -> 
                       let (x,y) = z in
 (* KB #if avoid
@@ -666,92 +669,77 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
 #else *)
                       InError(x,y,state)
 (* KB #endif*)
-                  | Correct(extList) ->
+                  | Correct(sExtL) ->
                   // Handling of safe renegotiation //#begin-safe_renego
-                  let safe_reneg_result =
-                    if state.poptions.safe_renegotiation then
-                        let expected = cvd @| svd in
-                        inspect_ServerHello_extensions extList expected
-                        //#end-safe_renego
-                    else
-                        // RFC Sec 7.4.1.4: with no safe renegotiation, we never send extensions; if the server sent any extension
-                        // we MUST abort the handshake with unsupported_extension fatal alter (handled by the dispatcher)
-                        if (length sh_neg_extensions = 0) = false
-                        then Error(AD_unsupported_extension, perror __SOURCE_FILE__ __LINE__ "The server gave an unknown extension")
-                        else let unitVal = () in correct (unitVal)
-                  match safe_reneg_result with
-                    | Error z ->
-                        let (x,y) = z in
-(* KB #if avoid
-                        failwith "z3 fails"
-#else *)
-                        InError (x,y,state)
-(* KB #endif*)
-                    | Correct _ ->
-                        // Log the received message.
-                        (* Check whether we asked for resumption *)
-                        if length sid = 0 then
-                            (* we did not request resumption, do a full handshake *)
-                            (* define the sinfo we're going to establish *)
-                            let next_pstate = on_serverHello_full ci crand log to_log shello in
+                  if checkServerRenegotiationInfoExtension state.poptions sExtL cvd svd then
+                    //#end-safe_renego
+                    // Log the received message.
+                    (* Check whether we asked for resumption *)
+                    if (length sid = 0) || (not (equalBytes sid sh_session_id)) then
+                        (* we did not request resumption, or the server didn't accept it: do a full handshake *)
+                        (* define the sinfo we're going to establish *)
+                        match negotiateClientExtensions cExtL sExtL false (* Not resuming *) with
+                        | Error(x,y) -> InError(x,y,state)
+                        | Correct(nExtL) ->
+                            let next_pstate = on_serverHello_full ci crand log to_log shello nExtL in
 (* KB #if avoid
                             failwith ""
 #else *)
                             recv_fragment_client ci {state with pstate = next_pstate}  (Some sh_server_version)
 (* KB #endif*)
-                        else
-                            if equalBytes sid sh_session_id then (* use resumption *)
-                                (* Search for the session in our DB *)
-                                match SessionDB.select state.sDB sid Client state.poptions.server_name with
-                                | None ->
-                                    (* This can happen, although we checked for the session before starting the HS.
-                                       For example, the session may have expired between us sending client hello, and now. *)
+                    else
+                        (* use resumption *)
+                        (* Search for the session in our DB *)
+                        match SessionDB.select state.sDB sid Client state.poptions.server_name with
+                        | None ->
+                            (* This can happen, although we checked for the session before starting the HS.
+                                For example, the session may have expired between us sending client hello, and now. *)
+(* KB #if avoid
+                            failwith "z3 fails"
+#else *)
+                            InError(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "A session expried while it was being resumed",state)
+(* KB #endif*)
+                        | Some(storable) ->
+                        let (si,ms) = storable in
+                        let log = log @| to_log in
+                        (* Check that protocol version, ciphersuite and compression method are indeed the correct ones *)
+                        if si.protocol_version = sh_server_version then
+                            if si.cipher_suite = sh_cipher_suite then
+                                if si.compression = sh_compression_method then
+                                    let next_ci = getNextEpochs ci si crand sh_random in
+                                    let nki_in = id next_ci.id_in in
+                                    let nki_out = id next_ci.id_out in
+                                    let (reader,writer) = PRF.keyGenClient nki_in nki_out ms in
+                                    let nout = next_ci.id_out in
+                                    let nin = next_ci.id_in in
+                                    recv_fragment_client ci 
+                                        {state with pstate = PSClient(ServerCCSResume(nout,writer,
+                                                                                    nin,reader,
+                                                                                    ms,log))} 
+                                        (Some(sh_server_version))
+                                else 
 (* KB #if avoid
                                     failwith "z3 fails"
 #else *)
-                                    InError(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "A session expried while it was being resumed",state)
+                                    InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Compression method negotiation",state)
 (* KB #endif*)
-                                | Some(storable) ->
-                                let (si,ms) = storable in
-                                let log = log @| to_log in
-                                (* Check that protocol version, ciphersuite and compression method are indeed the correct ones *)
-                                if si.protocol_version = sh_server_version then
-                                    if si.cipher_suite = sh_cipher_suite then
-                                        if si.compression = sh_compression_method then
-                                            let next_ci = getNextEpochs ci si crand sh_random in
-                                            let nki_in = id next_ci.id_in in
-                                            let nki_out = id next_ci.id_out in
-                                            let (reader,writer) = PRF.keyGenClient nki_in nki_out ms in
-                                            let nout = next_ci.id_out in
-                                            let nin = next_ci.id_in in
-                                            recv_fragment_client ci 
-                                              {state with pstate = PSClient(ServerCCSResume(nout,writer,
-                                                                                            nin,reader,
-                                                                                            ms,log))} 
-                                              (Some(sh_server_version))
-                                        else 
+                            else 
 (* KB #if avoid
-                                          failwith "z3 fails"
-#else *)
-                                          InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Compression method negotiation",state)
-(* KB #endif*)
-                                    else 
-(* KB #if avoid
-                                      failwith "z3 fails"
+                                failwith "z3 fails"
 #else *)
 
-                                      InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Ciphersuite negotiation",state)
+                                InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Ciphersuite negotiation",state)
 (* KB #endif*)
-                                else 
+                        else 
 (* KB #if avoid
-                                  failwith "z3 fails"
+                            failwith "z3 fails"
 #else *)
-                                  InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Protocol version negotiation",state)
+                            InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Protocol version negotiation",state)
 (* KB #endif*)
-                            else (* server did not agree on resumption, do a full handshake *)
-                                (* define the sinfo we're going to establish *)
-                                let next_pstate = on_serverHello_full ci crand log to_log shello in
-                                recv_fragment_client ci {state with pstate = next_pstate} (Some(sh_server_version))
+                  else
+                    InError (AD_handshake_failure,perror __SOURCE_FILE__ __LINE__ "Wrong renegotiation information provided",state)
+(* KB #endif*)
+                    
             | _ -> 
 (* KB #if avoid
                 failwith "z3 fails"
@@ -992,9 +980,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
       (* Should never happen *)
       | PSServer(_) -> unexpected "[recv_fragment_client] should only be invoked when in client role."
 
-let prepare_server_output_full_RSA (ci:ConnectionInfo) state si cv calgs cvd svd log =
-    let renInfo = cvd @| svd in
-    let ext = extensionsBytes state.poptions.safe_renegotiation renInfo in
+let prepare_server_output_full_RSA (ci:ConnectionInfo) state si cv calgs sExtL log =
+    let ext = serverExtensionsBytes sExtL in
     let serverHelloB = serverHelloBytes si si.init_srand ext in
     match Cert.for_key_encryption calgs state.poptions.server_name with
     | None -> Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Could not find in the store a certificate for the negotiated ciphersuite")
@@ -1023,16 +1010,15 @@ let prepare_server_output_full_RSA (ci:ConnectionInfo) state si cv calgs cvd svd
                                pstate = ps},
                     si.protocol_version)
 
-let prepare_server_output_full_DH ci state si log =
+let prepare_server_output_full_DH ci state si sExtL log =
 #if avoid
   failwith "not implemented full DH"
 #else
   Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Unimplemented") // TODO
 #endif
 
-let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs cvd svd log =
-    let renInfo = cvd @| svd in
-    let ext = extensionsBytes state.poptions.safe_renegotiation renInfo in
+let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL log =
+    let ext = serverExtensionsBytes sExtL in
     let serverHelloB = serverHelloBytes si si.init_srand ext in
     let keyAlgs = sigHashAlg_bySigList certAlgs [sigAlg_of_ciphersuite si.cipher_suite] in
     if List.listLength keyAlgs = 0 then
@@ -1076,9 +1062,8 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs cvd svd
 
         (* ClientKeyExchangeDHE(si,p,g,x,log) should carry PP((p,g)) /\ ?gx. DHE.Exp((p,g),x,gx) *)
 
-let prepare_server_output_full_DH_anon (ci:ConnectionInfo) state si cvd svd log : (hs_state * ProtocolVersion) Result =
-    let renInfo = cvd @| svd in
-    let ext = extensionsBytes state.poptions.safe_renegotiation renInfo in
+let prepare_server_output_full_DH_anon (ci:ConnectionInfo) state si sExtL log : (hs_state * ProtocolVersion) Result =
+    let ext = serverExtensionsBytes sExtL in
     let serverHelloB = serverHelloBytes si si.init_srand ext in
     
     (* ServerKEyExchange *)
@@ -1095,19 +1080,19 @@ let prepare_server_output_full_DH_anon (ci:ConnectionInfo) state si cvd svd log 
                          pstate = ps},
              si.protocol_version)
 
-let prepare_server_output_full ci state si cv cvd svd log =
+let prepare_server_output_full ci state si cv sExtL log =
     if isAnonCipherSuite si.cipher_suite then
-        prepare_server_output_full_DH_anon ci state si cvd svd log
+        prepare_server_output_full_DH_anon ci state si sExtL log
     elif isDHCipherSuite si.cipher_suite then
-        prepare_server_output_full_DH ci state si log
+        prepare_server_output_full_DH ci state si sExtL log
     elif isDHECipherSuite si.cipher_suite then
         // Get the client supported SignatureAndHash algorithms. In TLS 1.2, this should be extracted from a client extension
         let calgs = default_sigHashAlg si.protocol_version si.cipher_suite in
-        prepare_server_output_full_DHE ci state si calgs cvd svd log
+        prepare_server_output_full_DHE ci state si calgs sExtL log
     elif isRSACipherSuite si.cipher_suite then
         // Get the client supported SignatureAndHash algorithms. In TLS 1.2, this should be extracted from a client extension
         let calgs = default_sigHashAlg si.protocol_version si.cipher_suite in
-        prepare_server_output_full_RSA ci state si cv calgs cvd svd log
+        prepare_server_output_full_RSA ci state si cv calgs sExtL log
     else
         unexpected "[prepare_server_output_full] unexpected ciphersuite"
 
@@ -1115,10 +1100,10 @@ let prepare_server_output_full ci state si cv cvd svd log =
 let negotiate cList sList =
     List.tryFind (fun s -> List.exists (fun c -> c = s) cList) sList
 
-let prepare_server_output_resumption ci state crand si ms cvd svd log =
+let prepare_server_output_resumption ci state crand cExtL si ms cvd svd log =
     let srand = Nonce.mkHelloRandom () in
-    let renInfo = cvd @| svd in
-    let ext = extensionsBytes state.poptions.safe_renegotiation renInfo in
+    let (sExtL,nExtL) = negotiateServerExtensions cExtL state.poptions ci (cvd,svd) None // FIXME: turn this to Some(verifyData) when secure_resumption is implemented
+    let ext = serverExtensionsBytes sExtL in
     let sHelloB = serverHelloBytes si srand ext in
 
     let log = log @| sHelloB
@@ -1131,9 +1116,10 @@ let prepare_server_output_resumption ci state crand si ms cvd svd log =
                                                          next_ci.id_in,reader,
                                                          ms,log))} 
 
-let startServerFull (ci:ConnectionInfo) state (cHello:ProtocolVersion * crand * sessionID * cipherSuites * Compression list * bytes) cvd svd log =  
+let startServerFull (ci:ConnectionInfo) state (cHello:ProtocolVersion * crand * sessionID * cipherSuites * Compression list * bytes) cExtL cvd svd log =  
     let (ch_client_version,ch_random,ch_session_id,ch_cipher_suites,ch_compression_methods,ch_extensions) = cHello in
     let cfg = state.poptions in
+    let (sExtL, nExtL) = negotiateServerExtensions cExtL cfg ci (cvd, svd) None
     // Negotiate the protocol parameters
     let version = minPV ch_client_version cfg.maxVer in
     if (geqPV version cfg.minVer) = false then
@@ -1153,12 +1139,13 @@ let startServerFull (ci:ConnectionInfo) state (cHello:ProtocolVersion * crand * 
                            protocol_version = version
                            cipher_suite     = cs
                            compression      = cm
+                           extensions       = nExtL
                            init_crand       = ch_random
                            init_srand       = srand
                            pmsId            = noPmsId
                            pmsData          = PMSUnset
                            extended_record_padding = false }
-                prepare_server_output_full ci state si ch_client_version cvd svd log
+                prepare_server_output_full ci state si ch_client_version sExtL log
             | None -> Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Compression method negotiation")
         | None ->     Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Ciphersuite negotiation")
 
@@ -1193,52 +1180,42 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 let (ch_client_version,ch_random,ch_session_id,ch_cipher_suites,ch_compression_methods,ch_extensions) = cHello
                 (* Log the received message *)
                 let log = to_log in
-                (* handle extensions: for now only renegotiation_info *) (*CF? AP: we need to add support for the Signature Algorithm extension at least.*)
-                match parseExtensions ch_extensions with
+                (* handle extensions *)
+                match parseClientExtensions ch_extensions ch_cipher_suites with
                 | Error(z) -> let (x,y) = z in  InError(x,y,state)
-                | Correct(extList) ->
-                let extRes =
-                    if state.poptions.safe_renegotiation then
-                        if checkClientRenegotiationInfoExtension extList ch_cipher_suites cvd then
-                            correct(state)
+                | Correct(cExtL) ->
+                    if checkClientRenegotiationInfoExtension state.poptions cExtL cvd then
+                        if length ch_session_id = 0 then
+                            (* Client asked for a full handshake *)
+                            match startServerFull ci state cHello cExtL cvd svd log with 
+                            | Error(z) -> let (x,y) = z in  InError(x,y,state)
+                            | Correct(v) -> 
+                                let (state,pv) = v in 
+                                let spv = somePV pv in
+                                  recv_fragment_server ci state spv
                         else
-                            (* We don't accept an insecure client *)
-                            Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Safe renegotiation not supported by the peer")
+                            (* Client asked for resumption, let's see if we can satisfy the request *)
+                            match SessionDB.select state.sDB ch_session_id Server state.poptions.client_name with
+                            | Some sentry -> 
+                                let (storedSinfo,storedMS)  = sentry in
+                                if geqPV ch_client_version storedSinfo.protocol_version
+                                  && List.memr ch_cipher_suites storedSinfo.cipher_suite
+                                  && List.memr ch_compression_methods storedSinfo.compression 
+                                then
+                                  (* Proceed with resumption *)
+                                  let state = prepare_server_output_resumption ci state ch_random cExtL storedSinfo storedMS cvd svd log in
+                                  recv_fragment_server ci state (somePV(storedSinfo.protocol_version))
+                                else 
+                                  match startServerFull ci state cHello cExtL cvd svd log with
+                                    | Correct(v) -> let (state,pv) = v in recv_fragment_server ci state (somePV (pv))
+                                    | Error(z) -> let (x,y) = z in  InError(x,y,state)
+                            | None ->
+                                  match startServerFull ci state cHello cExtL cvd svd log with
+                                    | Correct(v) -> let (state,pv) = v in recv_fragment_server ci state (somePV (pv))
+                                    | Error(z) -> let (x,y) = z in  InError(x,y,state)
                     else
-                        (* We can ignore the extension, if any *)
-                        correct(state)
-                match extRes with
-                | Error(z) -> let (x,y) = z in  InError(x,y,state)
-                | Correct(state) ->
-                    if length  ch_session_id = 0 
-                    then 
-                        (* Client asked for a full handshake *)
-                        match startServerFull ci state cHello cvd svd log with 
-                        | Error(z) -> let (x,y) = z in  InError(x,y,state)
-                        | Correct(v) -> 
-                            let (state,pv) = v in 
-                            let spv = somePV pv in
-                              recv_fragment_server ci state spv
-                    else
-                        (* Client asked for resumption, let's see if we can satisfy the request *)
-                        match SessionDB.select state.sDB ch_session_id Server state.poptions.client_name with
-                        | Some sentry -> 
-                            let (storedSinfo,storedMS)  = sentry in
-                            if geqPV ch_client_version storedSinfo.protocol_version
-                              && List.memr ch_cipher_suites storedSinfo.cipher_suite
-                              && List.memr ch_compression_methods storedSinfo.compression 
-                            then
-                              (* Proceed with resumption *)
-                              let state = prepare_server_output_resumption ci state ch_random storedSinfo storedMS cvd svd log in
-                              recv_fragment_server ci state (somePV(storedSinfo.protocol_version))
-                            else 
-                              match startServerFull ci state cHello cvd svd log with
-                                | Correct(v) -> let (state,pv) = v in recv_fragment_server ci state (somePV (pv))
-                                | Error(z) -> let (x,y) = z in  InError(x,y,state)
-                        | None ->
-                              match startServerFull ci state cHello cvd svd log with
-                                | Correct(v) -> let (state,pv) = v in recv_fragment_server ci state (somePV (pv))
-                                | Error(z) -> let (x,y) = z in  InError(x,y,state)
+                        (* We don't accept an insecure client *)
+                        InError(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Safe renegotiation not supported by the peer", state)
             | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "ClientHello arrived in the wrong state",state)
 
         | HT_certificate ->

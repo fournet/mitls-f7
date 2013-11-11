@@ -47,6 +47,15 @@ type srand = random
 type csrands = (;64) lbytes
 //CF 04-09 the randoms are not just bytes; where do we rely on collision-resistance?
 
+type cVerifyData = bytes (* ClientFinished payload *)
+type sVerifyData = bytes (* ServerFinished payload *)
+
+// Defined here to not depend on TLSExtension
+type negotiatedExtension =
+    | NE_VoidExtension // FIXME: delete as soon as another extension is implemented
+
+type negotiatedExtensions = negotiatedExtension list
+
 // -------------------------------------------------------------------
 // Predicates specifying the honesty of keys and key material (trust assumptions)
 
@@ -158,6 +167,7 @@ type SessionInfo = {
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;
     compression: Compression;
+	extensions: negotiatedExtensions;
     pmsId: pmsId;
     pmsData: pmsData;
     client_auth: bool;
