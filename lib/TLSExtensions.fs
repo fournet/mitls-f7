@@ -132,18 +132,12 @@ let parseClientExtensions data ch_ciphers =
             | Error(x,y) -> Error(x,y)
             | Correct(extL) -> parseClientSCSVs ch_ciphers extL
 
-let prepareClientExtensions cfg (conn:ConnectionInfo) renegoCVD (resumeCVDOpt:cVerifyData option) =
-    let res =
-        if cfg.safe_renegotiation then
-            [CE_renegotiation_info(renegoCVD)]
-        else
-            []
-    if cfg.safe_resumption then
-        match resumeCVDOpt with
+let prepareClientExtensions (cfg:config) (conn:ConnectionInfo) renegoCVD (resumeCVDOpt:cVerifyData option) =
+    (* Always send supported extensions. The configuration options will influence how strict the tests will be *)
+    let res = [CE_renegotiation_info(renegoCVD)]
+    match resumeCVDOpt with
         | None -> res
         | Some(resumeCVD) -> CE_resumption_info(resumeCVD) :: res
-    else
-        res
 
 let serverToNegotiatedExtension cExtL (resuming:bool) res sExt : negotiatedExtensions Result=
     match res with
@@ -276,20 +270,9 @@ let isClientRenegotiationInfo e =
     | _ -> None
 
 let checkClientRenegotiationInfoExtension config (cExtL: clientExtension list) cVerifyData =
-    if config.safe_renegotiation then
-        if equalBytes cVerifyData empty_bytes 
-        then  
-            (* First handshake *)
-            match List.tryPick isClientRenegotiationInfo cExtL with
-            | None -> false
-            | Some(payload) -> equalBytes payload cVerifyData
-        else
-            (* Not first handshake *)
-            match List.tryPick isClientRenegotiationInfo cExtL with
-            | None -> false
-            | Some(payload) -> equalBytes payload cVerifyData
-    else
-        true
+    match List.tryPick isClientRenegotiationInfo cExtL with
+    | None -> not (config.safe_renegotiation)
+    | Some(payload) -> equalBytes payload cVerifyData
 
 let isServerRenegotiationInfo e =
     match e with
@@ -297,14 +280,11 @@ let isServerRenegotiationInfo e =
     | _ -> None
 
 let checkServerRenegotiationInfoExtension config (sExtL: serverExtension list) cVerifyData sVerifyData =
-    if config.safe_renegotiation then
-        match List.tryPick isServerRenegotiationInfo sExtL with
-        | None -> false
-        | Some(x) ->
-            let (cvd,svd) = x in
-            equalBytes (cvd @| svd) (cVerifyData @| sVerifyData)
-    else
-        true
+    match List.tryPick isServerRenegotiationInfo sExtL with
+    | None -> not (config.safe_renegotiation)
+    | Some(x) ->
+        let (cvd,svd) = x in
+        equalBytes (cvd @| svd) (cVerifyData @| sVerifyData)
 
 let isClientResumptionInfo e =
     match e with
@@ -312,12 +292,9 @@ let isClientResumptionInfo e =
     | _ -> None
 
 let checkClientResumptionInfoExtension config (cExtL: clientExtension list) cVerifyData =
-    if config.safe_resumption then
-        match List.tryPick isClientResumptionInfo cExtL with
-        | None -> false
-        | Some(payload) -> equalBytes payload cVerifyData
-    else
-        true
+    match List.tryPick isClientResumptionInfo cExtL with
+    | None -> not (config.safe_resumption)
+    | Some(payload) -> equalBytes payload cVerifyData
 
 let isServerResumptionInfo e =
     match e with
@@ -325,14 +302,11 @@ let isServerResumptionInfo e =
     | _ -> None
 
 let checkServerResumptionInfoExtension config (sExtL: serverExtension list) cVerifyData sVerifyData =
-    if config.safe_resumption then
-        match List.tryPick isServerResumptionInfo sExtL with
-        | None -> false
-        | Some(x) ->
-            let (cvd,svd) = x in
-            equalBytes (cvd @| svd) (cVerifyData @| sVerifyData)
-    else
-        true
+    match List.tryPick isServerResumptionInfo sExtL with
+    | None -> not (config.safe_resumption)
+    | Some(x) ->
+        let (cvd,svd) = x in
+        equalBytes (cvd @| svd) (cVerifyData @| sVerifyData)
 
 (* SignatureAndHashAlgorithm parsing functions *)
 let sigHashAlgBytes alg =
