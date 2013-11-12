@@ -31,6 +31,9 @@ type channel = {
     status    : status ref;
 }
 
+type auth =
+| ACert of string
+
 let initial_status =
     { done_ = []; credentials = None; }
 
@@ -133,8 +136,22 @@ let rec wait_for_close conn =
     | Read (c, _)    -> Error.unexpected "app. data"
     | DontWrite c    -> wait_for_close c
 
-let dorequest (c : channel) (r : request) =
-    let config  = { default_config with server_name = c.hostname; } in
+let dorequest (c : channel) (a : auth option) (r : request) =
+    let upgrade () =
+        match a with
+        | None -> !c.status
+        | Some (ACert cn) ->
+            match (!c.status).credentials with
+            | None ->
+                c.status := { !c.status with credentials = Some cn; }
+                !c.status
+            | Some cn' ->
+                if cn <> cn' then Error.unexpected "inconsistent creds";
+                !c.status
+
+    let status  = MiHTTPWorker.critical c.lock upgrade () in
+    let cname   = match status.credentials with None -> "" | Some cn -> cn in
+    let config  = { default_config with server_name = c.hostname; client_name = cname; } in
     let conn    = Tcp.connect c.hostname 443 in
     let conn    = TLS.connect conn config in
     let document = MiHTTPData.create () in
@@ -166,9 +183,9 @@ let dorequest (c : channel) (r : request) =
             fprintfn stderr "valid document";
             MiHTTPWorker.critical c.lock adddoc ()
 
-let request (c : channel) (r : string) =
+let request (c : channel) (a : auth option) (r : string) =
     let r = { uri = r; } in
-    let f = (fun () -> dorequest c r) in
+    let f = (fun () -> dorequest c a r) in
     MiHTTPWorker.async f ()
 
 let poll (c : channel) =
