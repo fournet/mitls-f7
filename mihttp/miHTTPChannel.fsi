@@ -12,12 +12,9 @@ type cstate = {
     credentials : string option;
 }
 
-val create  : string -> channel
+val save_channel    : channel -> cstate
+val restore_channel : cstate -> channel
 
-val state_of_channel : channel -> cstate
-val channel_of_state : cstate -> channel
-
-(*
+val connect : string -> channel
 val request : channel -> string -> unit
-val poll : channel -> document option * channel
-*)
+val poll    : channel -> document option

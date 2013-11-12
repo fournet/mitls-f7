@@ -19,7 +19,7 @@ let cstate_of_bytes (x : cbytes) =
     bf.Deserialize(m) :?> cstate
 
 let save (c : channel) =
-    let state = state_of_channel c in
+    let state = save_channel c in
 
     let doit (db : DB.db) =
         ignore (DB.remove db state.channelid);
@@ -36,7 +36,7 @@ let restore (id : channelid) =
     let doit (db : DB.db) =
         DB.get db (cbytes id)
             |> Option.map (fun x -> cstate_of_bytes x)
-            |> Option.map MiHTTPChannel.channel_of_state    
+            |> Option.map MiHTTPChannel.restore_channel    
     in
 
     let db = DB.opendb dbname in
