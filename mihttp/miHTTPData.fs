@@ -79,6 +79,7 @@ let progress1 (d : document) (x : cbytes) =
         None
 
 let rec progress (d : document) (x : cbytes) =
+    fprintfn stderr "%s\n" (Bytes.iutf8 (abytes x))
     match progress1 d x with
     | None -> if blength x > 0 then Invalid else d
     | Some (d, x) -> progress d x
@@ -90,3 +91,11 @@ let finalize (d : document) =
 
 let push_delta (e : epoch) (s : stream) (r : range) (x : delta) (d : document) =
     progress d (cbytes (deltaBytes e s r x))
+
+let request (e : epoch) (s : stream) ((r1, r2) : range) (x : string) =
+    let request = sprintf "GET %s HTTP/1.0\r\n\r\n" x in
+    let request = utf8 request in
+    if x.Length < r1 || x.Length > r2 then
+        Error.unexpected "invalid range"
+    else
+        DataStream.createDelta e s (r1, r2) request

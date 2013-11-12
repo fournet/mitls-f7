@@ -17,4 +17,4 @@ val restore_channel : cstate -> channel
 
 val connect : string -> channel
 val request : channel -> string -> unit
-val poll    : channel -> document option
+val poll    : channel -> cdocument option

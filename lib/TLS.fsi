@@ -19,7 +19,7 @@ type ioresult_i =
     | Handshaken of Connection
     | Read      of nextCn * msg_i
     | DontWrite of Connection
-    
+
 type ioresult_o =
     | WriteError    of alertDescription option * string
     | WriteComplete of nextCn
