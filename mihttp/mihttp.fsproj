@@ -46,7 +46,11 @@
   <Import Project="$(MSBuildExtensionsPath32)\FSharp\1.0\Microsoft.FSharp.Targets" Condition="!Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
   <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft F#\v4.0\Microsoft.FSharp.Targets" Condition=" Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
   <ItemGroup>
-    <Compile Include="MiHTTPWorker.fsi" />
+    <Compile Include="miHTTPUtils.fsi" />
+    <Compile Include="miHTTPUtils.fs" />
+    <Compile Include="miHTTPCookie.fsi" />
+    <Compile Include="miHTTPCookie.fs" />
+    <Compile Include="miHTTPWorker.fsi" />
     <Compile Include="miHTTPWorker.fs" />
     <Compile Include="miHTTPData.fsi" />
     <Compile Include="miHTTPData.fs" />

@@ -6,6 +6,7 @@ open TLSInfo
 open TLS
 
 open MiHTTPData
+open MiHTTPCookie
 
 type channelid = bytes
 
@@ -22,6 +23,7 @@ type request = {
 type status = {
     done_       : cdocument list;
     credentials : string option;
+    cookies     : cookie list;
 }
 
 type channel = {
@@ -35,7 +37,7 @@ type auth =
 | ACert of string
 
 let initial_status =
-    { done_ = []; credentials = None; }
+    { done_ = []; credentials = None; cookies = []; }
 
 let default_config = {
     minVer = ProtocolVersion.TLS_1p0;
