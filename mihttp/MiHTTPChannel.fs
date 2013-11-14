@@ -40,8 +40,8 @@ let initial_status =
     { done_ = []; credentials = None; cookies = []; }
 
 let default_config = {
-    minVer = ProtocolVersion.TLS_1p0;
-    maxVer = ProtocolVersion.TLS_1p2;
+    minVer = TLS_1p0;
+    maxVer = TLS_1p2;
     ciphersuites = cipherSuites_of_nameList [ TLS_RSA_WITH_AES_128_CBC_SHA ];
     compressions = [ NullCompression ];
 
@@ -73,7 +73,7 @@ let create (host : string) =
     create_with_id cid host
 
 let save_channel (c : channel) : cstate =
-    { channelid   = Array.copy c.channelid;
+    { channelid   = c.channelid;
       hostname    = c.hostname;
       credentials = (!c.status).credentials; }
 
@@ -151,7 +151,11 @@ let dorequest (c : channel) (a : auth option) (r : request) =
                 if cn <> cn' then Error.unexpected "inconsistent creds";
                 !c.status
 
+#if verify
+    let status  = upgrade ()
+#else
     let status  = MiHTTPWorker.critical c.lock upgrade () in
+#endif
     let cname   = match status.credentials with None -> "" | Some cn -> cn in
     let config  = { default_config with server_name = c.hostname; client_name = cname; } in
     let conn    = Tcp.connect c.hostname 443 in
@@ -173,22 +177,35 @@ let dorequest (c : channel) (a : auth option) (r : request) =
     | None -> ()
     | Some conn ->
         let conn = TLS.full_shutdown conn in
-            ignore (wait_for_close conn)
+            let _  = wait_for_close conn in ()
 
     match d with
     | None ->
+#if verify
+        ()
+#else
         fprintfn stderr "invalid document"
+#endif
+
     | Some d ->
         let adddoc () =
             c.status := { !c.status with done_ = d :: (!c.status).done_; }
         in
+#if verify
+            adddoc ()
+#else
             fprintfn stderr "valid document";
             MiHTTPWorker.critical c.lock adddoc ()
+#endif
 
 let request (c : channel) (a : auth option) (r : string) =
     let r = { uri = r; } in
+#if verify
+    dorequest c a r
+#else
     let f = (fun () -> dorequest c a r) in
     MiHTTPWorker.async f ()
+#endif
 
 let poll (c : channel) =
     let poll () =
@@ -196,4 +213,8 @@ let poll (c : channel) =
         | [] -> None
         | d :: ds -> c.status := { !c.status with done_ = ds }; Some d
     in
+#if verify
+    poll ()
+#else
     MiHTTPWorker.critical c.lock poll ()
+#endif

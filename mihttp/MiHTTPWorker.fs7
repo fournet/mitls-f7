@@ -1,0 +1,5 @@
+﻿module MiHTTPWorker
+
+type lock
+
+val create_lock : unit -> lock

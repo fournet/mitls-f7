@@ -50,12 +50,16 @@
     <Delete Files="@(ToDel)" />
   </Target>
   <ItemGroup>
+    <None Include="MiHTTPUtils.fs7" />
     <Compile Include="MiHTTPUtils.fsi" />
     <Compile Include="MiHTTPUtils.fs" />
+    <None Include="MiHTTPCookie.fs7" />
     <Compile Include="MiHTTPCookie.fsi" />
     <Compile Include="MiHTTPCookie.fs" />
+    <None Include="MiHTTPWorker.fs7" />
     <Compile Include="MiHTTPWorker.fsi" />
     <Compile Include="MiHTTPWorker.fs" />
+    <None Include="MiHTTPData.fs7" />
     <Compile Include="MiHTTPData.fsi" />
     <Compile Include="MiHTTPData.fs" />
     <None Include="MiHTTPChannel.fs7" />
