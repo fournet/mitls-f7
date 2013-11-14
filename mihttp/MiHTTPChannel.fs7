@@ -11,24 +11,26 @@ open MiHTTPWorker
 open MiHTTPData
 
 type channelid = bytes
+type hostname  = string
 
-type hostname = string
+type channel_infos = {
+	channelid : channelid;
+	hostname  : hostname;
+}
 
-private type request = {
+private type (;ci:channel_infos) request = {
     uri : string;
 }
 
-private type status = {
-    done_       : cdocument list;
+private type (;ci:channel_infos) status = {
+    done_       : ((;ci) request * cdocument) list;
     credentials : string option;
     cookies     : cookie list;
 }
 
 private type channel = {
-    channelid : cbytes;
-    hostname  : hostname;
-    lock      : lock;
-    status    : status ref;
+	channel : infos:channel_infos * ((;infos) status) ref;
+	lock    : MiHTTPWorker.lock;
 }
 
 type auth =
@@ -40,9 +42,10 @@ type cstate = {
     c_credentials : string option;
 }
 
-function val chost : c:channel -> h:hostname{c.hostname = h}
+function val CInfos : channel -> channel_infos
+definition !i,s,l. CInfos({ channel = (i, s); lock = l; }) = i
 
-type (;h:hostname) rchannel = c:channel{c.hostname = h}
+type (;h:hostname) rchannel = c:channel{fst(c.channel).hostname = h}
 
 private val create_with_id : channelid -> h:hostname -> (;h) rchannel
 
@@ -59,7 +62,7 @@ private val get_cn_of_credentials :
 
 private val request_of_string : c:Connection -> string -> (;ConnectionEpochOut(c), CnStream_o(c)) Dispatch.msg_o
 
-private val add_cdocument_to_channel : channel -> cdocument -> unit
+private val add_cdocument_to_channel : c:channel -> (;c) request -> cdocument -> unit
 
 (* HTTPS connection established. We wait for the first HS *)
 private val wait_handshake : Connection -> c:Connection{CanWrite(CnInfo(c))}
@@ -78,16 +81,16 @@ private val full_read :
       * cdocument option
 
 (* Bind a channel to a hostname *)
-val connect : hostname -> channel
+val connect : h:hostname -> (;h) rchannel
 
 (* Upgrade credentials of a channel *)
-val upgrade_credentials : channel -> auth option -> status
+val upgrade_credentials : c:channel -> auth option -> (;CInfos(c)) status
 
 (* Worker function executing a request *)
-val dorequest : channel -> auth option -> request -> unit
+val dorequest : c:channel -> auth option -> (;c) request -> unit
 
 (* Worker function polling a response *)
-val dopoll : channel -> cdocument option
+val dopoll : c:channel -> ((;c) request * cdocument) option
 
 (* Saving/restoring a channel *)
 val save_channel : channel -> cstate
@@ -95,4 +98,4 @@ val restore_channel : cstate -> channel
 
 (* Top-level functions for requests/polling *)
 val request : channel -> auth option -> string -> unit
-val poll : channel -> cdocument option
+val poll : c:channel -> ((;c) request * cdocument) option

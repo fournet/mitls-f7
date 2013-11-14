@@ -14,7 +14,7 @@ let main args =
         let rec wait () =
             match MiHTTPChannel.poll channel with
             | None -> Async.RunSynchronously (Async.Sleep 500)
-            | Some (_, d) -> fprintfn stderr "%s\n" (Bytes.iutf8 (Bytes.abytes d))
+            | Some (_, (_, d)) -> fprintfn stderr "%s\n" (Bytes.iutf8 (Bytes.abytes d))
             wait ()
         in
             wait (); 0

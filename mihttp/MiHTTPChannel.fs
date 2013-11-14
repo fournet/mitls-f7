@@ -23,16 +23,19 @@ type request = {
 }
 
 type status = {
-    done_       : cdocument list;
+    done_       : (request * cdocument) list;
     credentials : string option;
     cookies     : cookie list;
 }
 
-type channel = {
-    channelid : cbytes;
+type channel_infos = {
+    channelid : bytes;
     hostname  : hostname;
-    lock      : MiHTTPWorker.lock;
-    status    : status ref;
+}
+
+type channel = {
+    channel : channel_infos * status ref;
+    lock    : MiHTTPWorker.lock;
 }
 
 type rchannel = channel
@@ -64,20 +67,20 @@ let create_config sname cname = {
 }
 
 let create_with_id (cid : channelid) (host : hostname) : channel =
-    let lock = MiHTTPWorker.create_lock () in
-    { channelid   = cbytes cid;
-      hostname    = host;
-      lock        = lock;
-      status      = ref initial_status; }
+    let lock  = MiHTTPWorker.create_lock () in
+    let infos = { channelid = cid; hostname = host; } in
+    { channel = (infos, ref initial_status);
+      lock    = lock; }
 
 let create (host : string) =
     let cid = Nonce.random 16 in
     create_with_id cid host
 
 let save_channel (c : channel) : cstate =
-    { c_channelid   = c.channelid;
-      c_hostname    = c.hostname;
-      c_credentials = (!c.status).credentials; }
+    let (infos, status) = c.channel in
+    { c_channelid   = cbytes infos.channelid;
+      c_hostname    = infos.hostname;
+      c_credentials = (!status).credentials; }
 
 let restore_channel (s : cstate) : channel =
     let conn = create_with_id (abytes s.c_channelid) s.c_hostname in
@@ -87,8 +90,9 @@ let restore_channel (s : cstate) : channel =
 let connect (h : hostname) =
     create h
 
-let chost (c : channel) =
-    c.hostname
+let cinfos (c : channel) =
+    let (infos, _) = c.channel in
+        infos
 
 let rec wait_handshake (c : TLS.Connection) : TLS.Connection =
     match TLS.read c with
@@ -133,16 +137,18 @@ let rec full_read conn d =
             full_read c d
 
 let upgrade_credentials (c : channel) (a : auth option) : status =
+    let (_, status) = c.channel in
+
     match a with
-    | None -> !c.status
+    | None -> !status
     | Some (ACert cn) ->
-        match (!c.status).credentials with
+        match (!status).credentials with
         | None ->
-            c.status := { !c.status with credentials = Some cn; }
-            !c.status
+            status := { !status with credentials = Some cn; }
+            !status
         | Some cn' ->
             if cn <> cn' then Error.unexpected "inconsistent creds";
-            !c.status
+            !status
 
 let request_of_string (conn : Connection) (r : request) =
     let epoch  = TLS.getEpochOut conn in
@@ -155,18 +161,21 @@ let get_cn_of_credentials (creds : string option) =
     | None    -> ""
     | Some cn -> cn
 
-let add_cdocument_to_channel (c : channel) (d : cdocument) =
-    c.status := { !c.status with done_ = d :: (!c.status).done_; }
+let add_cdocument_to_channel (c : channel) (r : request) (d : cdocument) =
+    let (_, status) = c.channel in
+        status := { !status with done_ = (r, d) :: (!status).done_; }
 
 let dorequest (c : channel) (a : auth option) (r : request) : unit =
+    let (infos, _) = c.channel in
+
 #if verify
     let status = upgrade_credentials c a
 #else
     let status = MiHTTPWorker.critical c.lock (fun () -> upgrade_credentials c a) () in
 #endif
     let cname    = get_cn_of_credentials status.credentials in
-    let config   = create_config c.hostname cname in
-    let conn     = Tcp.connect c.hostname 443 in
+    let config   = create_config infos.hostname cname in
+    let conn     = Tcp.connect infos.hostname 443 in
     let conn     = TLS.connect conn config in
     let document = MiHTTPData.create () in
     let conn     = wait_handshake conn in
@@ -178,10 +187,10 @@ let dorequest (c : channel) (a : auth option) (r : request) : unit =
     | None   -> ()
     | Some d ->
 #if verify
-            add_cdocument_to_channel c d
+            add_cdocument_to_channel c r d
 #else
             MiHTTPWorker.critical c.lock
-                (fun () -> add_cdocument_to_channel c d) ()
+                (fun () -> add_cdocument_to_channel c r d) ()
 #endif
 
 let request (c : channel) (a : auth option) (r : string) =
@@ -194,9 +203,11 @@ let request (c : channel) (a : auth option) (r : string) =
 #endif
 
 let dopoll (c : channel) =
-    match (!c.status).done_ with
+    let (_, status) = c.channel in
+
+    match (!status).done_ with
     | [] -> None
-    | d :: ds -> c.status := { !c.status with done_ = ds }; Some d
+    | d :: ds -> status := { !status with done_ = ds }; Some d
 
 let poll (c : channel) =
 #if verify
