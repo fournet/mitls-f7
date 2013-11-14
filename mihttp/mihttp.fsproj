@@ -46,19 +46,19 @@
   <Import Project="$(MSBuildExtensionsPath32)\FSharp\1.0\Microsoft.FSharp.Targets" Condition="!Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
   <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft F#\v4.0\Microsoft.FSharp.Targets" Condition=" Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
   <ItemGroup>
-    <Compile Include="miHTTPUtils.fsi" />
-    <Compile Include="miHTTPUtils.fs" />
-    <Compile Include="miHTTPCookie.fsi" />
-    <Compile Include="miHTTPCookie.fs" />
-    <Compile Include="miHTTPWorker.fsi" />
-    <Compile Include="miHTTPWorker.fs" />
-    <Compile Include="miHTTPData.fsi" />
-    <Compile Include="miHTTPData.fs" />
-    <Compile Include="miHTTPChannel.fsi" />
-    <Compile Include="miHTTPChannel.fs" />
-    <Compile Include="miHTTPInstanceDB.fsi" />
-    <Compile Include="miHTTPInstanceDB.fs" />
-    <Compile Include="miHTTP.fs" />
+    <Compile Include="MiHTTPUtils.fsi" />
+    <Compile Include="MiHTTPUtils.fs" />
+    <Compile Include="MiHTTPCookie.fsi" />
+    <Compile Include="MiHTTPCookie.fs" />
+    <Compile Include="MiHTTPWorker.fsi" />
+    <Compile Include="MiHTTPWorker.fs" />
+    <Compile Include="MiHTTPData.fsi" />
+    <Compile Include="MiHTTPData.fs" />
+    <Compile Include="MiHTTPChannel.fsi" />
+    <Compile Include="MiHTTPChannel.fs" />
+    <Compile Include="MiHTTPInstanceDB.fsi" />
+    <Compile Include="MiHTTPInstanceDB.fs" />
+    <Compile Include="MiHTTP.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DB\DB.fsproj">
