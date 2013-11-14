@@ -34,17 +34,21 @@
     <PlatformTarget>x86</PlatformTarget>
     <DocumentationFile>bin\Release\mihttp.XML</DocumentationFile>
   </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="FSharp.PowerPack, Version=2.0.0.0, Culture=neutral, PublicKeyToken=a19089b1c74d0809" />
-    <Reference Include="FSharp.PowerPack.Compatibility, Version=2.0.0.0, Culture=neutral, PublicKeyToken=a19089b1c74d0809" />
-    <Reference Include="mscorlib" />
-    <Reference Include="FSharp.Core" />
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Numerics" />
-  </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\FSharp\1.0\Microsoft.FSharp.Targets" Condition="!Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
   <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft F#\v4.0\Microsoft.FSharp.Targets" Condition=" Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
+  <PropertyGroup>
+  </PropertyGroup>
+  <Target Name="AfterBuild" Condition="'$(OS)' == 'Windows_NT'">
+    <Copy SourceFiles="$(ProjectDir)\..\DB\lib\$(PlatformName)\SQLite.Interop.dll" DestinationFolder="$(OutDir)" />
+    <Copy SourceFiles="$(ProjectDir)\..\3rdparty\libeay32-$(PlatformName).dll" DestinationFiles="$(OutDir)/libeay32.dll" />
+  </Target>
+  <Target Name="AfterClean">
+    <CreateItem Include="$(OutDir)\*.dll;$(OutDir)\*.exe;$(OutDir)\*.mdb;$(OutDir)\*.pdb">
+      <Output ItemName="ToDel" TaskParameter="Include" />
+    </CreateItem>
+    <Delete Files="$(OutDir)\$(Name).XML" />
+    <Delete Files="@(ToDel)" />
+  </Target>
   <ItemGroup>
     <Compile Include="MiHTTPUtils.fsi" />
     <Compile Include="MiHTTPUtils.fs" />
@@ -54,6 +58,7 @@
     <Compile Include="MiHTTPWorker.fs" />
     <Compile Include="MiHTTPData.fsi" />
     <Compile Include="MiHTTPData.fs" />
+    <None Include="MiHTTPChannel.fs7" />
     <Compile Include="MiHTTPChannel.fsi" />
     <Compile Include="MiHTTPChannel.fs" />
     <Compile Include="MiHTTPInstanceDB.fsi" />
@@ -61,6 +66,13 @@
     <Compile Include="MiHTTP.fs" />
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="FSharp.PowerPack, Version=2.0.0.0, Culture=neutral, PublicKeyToken=a19089b1c74d0809" />
+    <Reference Include="FSharp.PowerPack.Compatibility, Version=2.0.0.0, Culture=neutral, PublicKeyToken=a19089b1c74d0809" />
+    <Reference Include="mscorlib" />
+    <Reference Include="FSharp.Core" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Numerics" />
     <ProjectReference Include="..\DB\DB.fsproj">
       <Name>DB</Name>
       <Project>{cad78b05-0adc-433b-954b-1f31fc6477f6}</Project>
@@ -77,17 +89,4 @@
       <Private>True</Private>
     </ProjectReference>
   </ItemGroup>
-  <PropertyGroup>
-  </PropertyGroup>
-  <Target Name="AfterBuild" Condition="'$(OS)' == 'Windows_NT'">
-    <Copy SourceFiles="$(ProjectDir)\..\DB\lib\$(PlatformName)\SQLite.Interop.dll" DestinationFolder="$(OutDir)" />
-    <Copy SourceFiles="$(ProjectDir)\..\3rdparty\libeay32-$(PlatformName).dll" DestinationFiles="$(OutDir)/libeay32.dll" />
-  </Target>
-  <Target Name="AfterClean">
-    <CreateItem Include="$(OutDir)\*.dll;$(OutDir)\*.exe;$(OutDir)\*.mdb;$(OutDir)\*.pdb">
-      <Output ItemName="ToDel" TaskParameter="Include" />
-    </CreateItem>
-    <Delete Files="$(OutDir)\$(Name).XML" />
-    <Delete Files="@(ToDel)" />
-  </Target>
 </Project>

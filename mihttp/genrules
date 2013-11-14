@@ -181,16 +181,25 @@ class FS7Deps(object):
         return [_norm(x, y) for (x, y) in alldeps]
 
 # --------------------------------------------------------------------
+def undup(seq):
+    aout, seen = [], set()
+    for x in seq:
+        if x in seen: continue
+        aout.append(x); seen.add(x)
+    return aout 
+
+# --------------------------------------------------------------------
 def _files_of_fsproj(fsproj, pure = True):
-    wext = '.%s' % ('fs7' if pure else 'fsi',)
+    wext = ('.fs7',) if pure else ('.fs7', '.fsi')
 
     with open(fsproj, 'r') as stream:
         doc = etree.parse(stream)
 
     files  = doc.findall('.//{0}ItemGroup/*'.format('{%s}' % (MSBUILD,)))
     files  = [x.get('Include') for x in files if x.get('Include') is not None]
-    files  = [x for x in files if os.path.splitext(x)[1].lower() == wext]
+    files  = [x for x in files if os.path.splitext(x)[1].lower() in wext]
     files  = [os.path.splitext(x)[0] for x in files]
+    files  = undup(files)
     srcdir = os.path.dirname(fsproj) or os.path.curdir
 
     return Object(srcdir = srcdir, files = files)
