@@ -12,6 +12,6 @@ val create   : unit -> document
 val progress : document -> cbytes -> document
 val finalize : document -> cdocument option
 
-val push_delta : epoch -> stream -> range -> delta -> document -> document
+val push_delta : e:epoch -> s:(;e) stream -> r:range -> d:(;e,s,r) delta -> document -> document
 
-val request : epoch -> stream -> range -> string -> delta
+val request : e:epoch -> s:(;e) stream -> r:range -> string -> (;e,s,r) delta

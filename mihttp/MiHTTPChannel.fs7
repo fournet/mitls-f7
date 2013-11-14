@@ -1,3 +1,98 @@
 ﻿module MiHTTPChannel
 
+open Bytes
+open TLSInfo
 open TLSConstants
+open Dispatch
+open TLS
+
+open MiHTTPCookie
+open MiHTTPWorker
+open MiHTTPData
+
+type channelid = bytes
+
+type hostname = string
+
+private type request = {
+    uri : string;
+}
+
+private type status = {
+    done_       : cdocument list;
+    credentials : string option;
+    cookies     : cookie list;
+}
+
+private type channel = {
+    channelid : cbytes;
+    hostname  : hostname;
+    lock      : lock;
+    status    : status ref;
+}
+
+type auth =
+| ACert of string
+
+type cstate = {
+    c_channelid   : cbytes;
+    c_hostname    : hostname;
+    c_credentials : string option;
+}
+
+function val chost : c:channel -> h:hostname{c.hostname = h}
+
+type (;h:hostname) rchannel = c:channel{c.hostname = h}
+
+private val create_with_id : channelid -> h:hostname -> (;h) rchannel
+
+private val create_config : sname:string -> cname:string
+  -> c:config{c.server_name = sname /\ c.client_name = cname}
+
+private val create : h:hostname -> (;h) rchannel
+
+private val get_cn_of_credentials :
+  c:(string option) -> s:string{
+       (     c = None     => s = "")
+	/\ (!cn. c = Some(cn) => s = cn)
+  }
+
+private val request_of_string : c:Connection -> string -> (;ConnectionEpochOut(c), CnStream_o(c)) Dispatch.msg_o
+
+private val add_cdocument_to_channel : channel -> cdocument -> unit
+
+(* HTTPS connection established. We wait for the first HS *)
+private val wait_handshake : Connection -> c:Connection{CanWrite(CnInfo(c))}
+
+(* HTTPS connection established and handshaken. Send request *)
+private val full_write :
+     c:TLS.Connection{CanWrite(CnInfo(c))}
+  -> d:(;ConnectionEpochOut(c), CnStream_o(c)) Dispatch.msg_o
+  -> c':TLS.Connection{CanWrite(CnInfo(c'))}
+
+(* HTTPS request sent. Reading answer *)
+private val full_read :
+     c:TLS.Connection
+  -> d:document
+  -> (c':TLS.Connection{Auth(ConnectionEpochIn(c')) => EvClose(CnInfo(c').id_in, Bytes_i(c'))})
+      * cdocument option
+
+(* Bind a channel to a hostname *)
+val connect : hostname -> channel
+
+(* Upgrade credentials of a channel *)
+val upgrade_credentials : channel -> auth option -> status
+
+(* Worker function executing a request *)
+val dorequest : channel -> auth option -> request -> unit
+
+(* Worker function polling a response *)
+val dopoll : channel -> cdocument option
+
+(* Saving/restoring a channel *)
+val save_channel : channel -> cstate
+val restore_channel : cstate -> channel
+
+(* Top-level functions for requests/polling *)
+val request : channel -> auth option -> string -> unit
+val poll : channel -> cdocument option

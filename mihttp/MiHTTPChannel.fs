@@ -11,10 +11,12 @@ open MiHTTPCookie
 type channelid = bytes
 
 type cstate = {
-    channelid   : cbytes;
-    hostname    : string;
-    credentials : string option;
+    c_channelid   : cbytes;
+    c_hostname    : string;
+    c_credentials : string option;
 }
+
+type hostname = string
 
 type request = {
     uri : string;
@@ -28,10 +30,12 @@ type status = {
 
 type channel = {
     channelid : cbytes;
-    hostname  : string;
+    hostname  : hostname;
     lock      : MiHTTPWorker.lock;
     status    : status ref;
 }
+
+type rchannel = channel
 
 type auth =
 | ACert of string
@@ -39,7 +43,7 @@ type auth =
 let initial_status =
     { done_ = []; credentials = None; cookies = []; }
 
-let default_config = {
+let create_config sname cname = {
     minVer = TLS_1p0;
     maxVer = TLS_1p2;
     ciphersuites = cipherSuites_of_nameList [ TLS_RSA_WITH_AES_128_CBC_SHA ];
@@ -52,17 +56,15 @@ let default_config = {
 
     safe_renegotiation = true;
     safe_resumption = false;
-    server_name = "";
-    client_name = "";
+    server_name = sname;
+    client_name = cname;
 
     sessionDBFileName = "session-db.db";
     sessionDBExpiry   = Date.newTimeSpan 1 0 0 0 (* one day *);
 }
 
-let create_with_id (cid : channelid) (host : string) =
-    let config = { default_config with server_name = host } in
-    let lock   = MiHTTPWorker.create_lock () in
-
+let create_with_id (cid : channelid) (host : hostname) : channel =
+    let lock = MiHTTPWorker.create_lock () in
     { channelid   = cbytes cid;
       hostname    = host;
       lock        = lock;
@@ -73,129 +75,113 @@ let create (host : string) =
     create_with_id cid host
 
 let save_channel (c : channel) : cstate =
-    { channelid   = c.channelid;
-      hostname    = c.hostname;
-      credentials = (!c.status).credentials; }
+    { c_channelid   = c.channelid;
+      c_hostname    = c.hostname;
+      c_credentials = (!c.status).credentials; }
 
 let restore_channel (s : cstate) : channel =
-    let conn = create_with_id (abytes s.channelid) s.hostname in
-    conn.status := { !conn.status with credentials = s.credentials; }
+    let conn = create_with_id (abytes s.c_channelid) s.c_hostname in
+    (*conn.status := { !conn.status with credentials = s.credentials; }*)
     conn
 
-let connect (h : string) =
+let connect (h : hostname) =
     create h
 
-let rec wait_handshake c =
+let chost (c : channel) =
+    c.hostname
+
+let rec wait_handshake (c : TLS.Connection) : TLS.Connection =
     match TLS.read c with
-    | ReadError _         -> Error.unexpected "read error"
+    | ReadError (_, _)    -> Error.unexpected "read error"
     | Close _             -> Error.unexpected "connection closed"
     | Fatal _             -> Error.unexpected "fatal alert"
     | Warning (c, _)      -> wait_handshake c
     | CertQuery (c, q, b) ->
         match TLS.authorize c q with
-        | ReadError _    -> Error.unexpected "read error"
-        | Close _        -> Error.unexpected "connection closed"
-        | Fatal _        -> Error.unexpected "fatal alert"
-        | Warning (c, _) -> wait_handshake c
-        | CertQuery _    -> Error.unexpected "cert. query"
-        | Handshaken c   -> c
-        | Read _         -> Error.unexpected "app. data"
-        | DontWrite c    -> wait_handshake c
+        | ReadError (_, _)    -> Error.unexpected "read error"
+        | Close _             -> Error.unexpected "connection closed"
+        | Fatal _             -> Error.unexpected "fatal alert"
+        | Warning (c, _)      -> wait_handshake c
+        | CertQuery (_, _, _) -> Error.unexpected "cert. query"
+        | Handshaken c        -> c
+        | Read (_, _)         -> Error.unexpected "app. data"
+        | DontWrite c         -> wait_handshake c
     | Handshaken c -> c
-    | Read _       -> Error.unexpected "app. data"
-    | DontWrite c -> wait_handshake c
+    | Read (_, _)  -> Error.unexpected "app. data"
+    | DontWrite c  -> wait_handshake c
 
-let rec full_write conn rgd =
+let rec full_write (conn : TLS.Connection) rgd : TLS.Connection =
     match TLS.write conn rgd with
-    | WriteError _          -> Error.unexpected "write error"
+    | WriteError (_, _)     -> Error.unexpected "write error"
     | WriteComplete c       -> c
     | WritePartial (c, rgd) -> full_write c rgd
     | MustRead _            -> Error.unexpected "must-read"
 
 let rec full_read conn d =
     match TLS.read conn with
-    | ReadError _    -> Error.unexpected "read error"
-    | Close _        -> (None, MiHTTPData.finalize d)
-    | Fatal _        -> Error.unexpected "fatal alert"
-    | Warning (c, _) -> full_read c d
-    | CertQuery _    -> Error.unexpected "cert. query"
-    | Handshaken c   -> Error.unexpected "handshaken"
-    | DontWrite c    -> full_read c d
-    | Read (c, (rg, x)) ->
-        let epoch  = TLS.getEpochIn  c in
-        let stream = TLS.getInStream c in
+    | ReadError (_, _)    -> Error.unexpected "read error"
+    | Close _             -> (conn, MiHTTPData.finalize d)
+    | Fatal _             -> Error.unexpected "fatal alert"
+    | Warning (c, _)      -> full_read c d
+    | CertQuery (_, _, _) -> Error.unexpected "cert. query"
+    | Handshaken c        -> Error.unexpected "handshaken"
+    | DontWrite c         -> full_read c d
+    | Read (c, (rg, x))   ->
+        let epoch  = TLS.getEpochIn  conn in
+        let stream = TLS.getInStream conn in
         let d = MiHTTPData.push_delta epoch stream rg x d in    
             full_read c d
 
-let rec wait_for_close conn =
-    match TLS.read conn with
-    | ReadError _    -> Error.unexpected "read error"
-    | Close _        -> ()
-    | Fatal _        -> Error.unexpected "fatal alert"
-    | Warning (c, _) -> wait_for_close c
-    | CertQuery _    -> Error.unexpected "cert. query"
-    | Handshaken c   -> Error.unexpected "handshaken"
-    | Read (c, _)    -> Error.unexpected "app. data"
-    | DontWrite c    -> wait_for_close c
+let upgrade_credentials (c : channel) (a : auth option) : status =
+    match a with
+    | None -> !c.status
+    | Some (ACert cn) ->
+        match (!c.status).credentials with
+        | None ->
+            c.status := { !c.status with credentials = Some cn; }
+            !c.status
+        | Some cn' ->
+            if cn <> cn' then Error.unexpected "inconsistent creds";
+            !c.status
 
-let dorequest (c : channel) (a : auth option) (r : request) =
-    let upgrade () =
-        match a with
-        | None -> !c.status
-        | Some (ACert cn) ->
-            match (!c.status).credentials with
-            | None ->
-                c.status := { !c.status with credentials = Some cn; }
-                !c.status
-            | Some cn' ->
-                if cn <> cn' then Error.unexpected "inconsistent creds";
-                !c.status
+let request_of_string (conn : Connection) (r : request) =
+    let epoch  = TLS.getEpochOut conn in
+    let stream = TLS.getOutStream conn in
+    let range  = (0, 1024) in
+    (range, MiHTTPData.request epoch stream range r.uri) in
 
+let get_cn_of_credentials (creds : string option) =
+    match creds with
+    | None    -> ""
+    | Some cn -> cn
+
+let add_cdocument_to_channel (c : channel) (d : cdocument) =
+    c.status := { !c.status with done_ = d :: (!c.status).done_; }
+
+let dorequest (c : channel) (a : auth option) (r : request) : unit =
 #if verify
-    let status  = upgrade ()
+    let status = upgrade_credentials c a
 #else
-    let status  = MiHTTPWorker.critical c.lock upgrade () in
+    let status = MiHTTPWorker.critical c.lock (fun () -> upgrade_credentials c a) () in
 #endif
-    let cname   = match status.credentials with None -> "" | Some cn -> cn in
-    let config  = { default_config with server_name = c.hostname; client_name = cname; } in
-    let conn    = Tcp.connect c.hostname 443 in
-    let conn    = TLS.connect conn config in
+    let cname    = get_cn_of_credentials status.credentials in
+    let config   = create_config c.hostname cname in
+    let conn     = Tcp.connect c.hostname 443 in
+    let conn     = TLS.connect conn config in
     let document = MiHTTPData.create () in
-
-    let conn = wait_handshake conn in
-
-    let request =
-        let epoch  = TLS.getEpochOut conn in
-        let stream = TLS.getOutStream conn in
-        let range  = (0, 1024) in
-        (range, MiHTTPData.request epoch stream range r.uri) in
-
-    let conn = full_write conn request in
-    let conn, d = full_read conn (MiHTTPData.create ()) in
-
-    match conn with
-    | None -> ()
-    | Some conn ->
-        let conn = TLS.full_shutdown conn in
-            let _  = wait_for_close conn in ()
+    let conn     = wait_handshake conn in
+    let request  = request_of_string conn r in
+    let conn     = full_write conn request in
+    let conn, d  = full_read conn (MiHTTPData.create ()) in
 
     match d with
-    | None ->
-#if verify
-        ()
-#else
-        fprintfn stderr "invalid document"
-#endif
-
+    | None   -> ()
     | Some d ->
-        let adddoc () =
-            c.status := { !c.status with done_ = d :: (!c.status).done_; }
-        in
 #if verify
-            adddoc ()
+            add_cdocument_to_channel c d
 #else
-            fprintfn stderr "valid document";
-            MiHTTPWorker.critical c.lock adddoc ()
+            MiHTTPWorker.critical c.lock
+                (fun () -> add_cdocument_to_channel c d) ()
 #endif
 
 let request (c : channel) (a : auth option) (r : string) =
@@ -207,14 +193,14 @@ let request (c : channel) (a : auth option) (r : string) =
     MiHTTPWorker.async f ()
 #endif
 
+let dopoll (c : channel) =
+    match (!c.status).done_ with
+    | [] -> None
+    | d :: ds -> c.status := { !c.status with done_ = ds }; Some d
+
 let poll (c : channel) =
-    let poll () =
-        match (!c.status).done_ with
-        | [] -> None
-        | d :: ds -> c.status := { !c.status with done_ = ds }; Some d
-    in
 #if verify
-    poll ()
+    dopoll c
 #else
-    MiHTTPWorker.critical c.lock poll ()
+    MiHTTPWorker.critical c.lock dopoll c
 #endif

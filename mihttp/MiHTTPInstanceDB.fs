@@ -22,8 +22,8 @@ let save (c : channel) =
     let state = save_channel c in
 
     let doit (db : DB.db) =
-        ignore (DB.remove db state.channelid);
-        DB.put db state.channelid (bytes_of_cstate state)
+        ignore (DB.remove db state.c_channelid);
+        DB.put db state.c_channelid (bytes_of_cstate state)
     in
 
     let db = DB.opendb dbname in
