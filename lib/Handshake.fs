@@ -209,13 +209,13 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
         | None -> (* Maybe session expired, or was never stored. Let's not resume *)
             rehandshake ci state ops
         | Some s ->
-            let (retrievedSinfo,retrievedMS,resumeCVD,resumeSVD) = s
+            let (retrievedSinfo,retrievedMS) = s
             match state.pstate with
             | PSClient (cstate) ->
                 match cstate with
                 | ClientIdle(cvd,svd) ->
                     let rand = Nonce.mkHelloRandom () in
-                    let extL = prepareClientExtensions ops ci cvd (Some(resumeCVD))
+                    let extL = prepareClientExtensions ops ci cvd (Some(retrievedSinfo.session_hash))
                     let ext = clientExtensionsBytes extL in
                     Pi.assume (Configure(Client,ci.id_in,ops));
                     let cHelloBytes = clientHelloBytes ops rand sid ext in
@@ -387,7 +387,7 @@ let next_fragment ci state =
                                               pstate = PSServer(ServerIdle(cvd,svd))})
 
                     else
-                      let sdb = SessionDB.insert state.sDB si.sessionID Server state.poptions.client_name (si,ms,cvd,svd)
+                      let sdb = SessionDB.insert state.sDB si.sessionID Server state.poptions.client_name (si,ms)
                       check_negotiation Server si state.poptions;
                       OutComplete(rg,f,
                                   {state with hs_outgoing = remBuf
@@ -448,12 +448,20 @@ let getCertificateVerifyBytes (si:SessionInfo) (ms:PRF.masterSecret) (cert_req:(
     | _ when si.client_auth = false -> 
         (* No client certificate ==> no certificateVerify message *)
         empty_bytes
-  
+ 
+let installSessionHash si log =
+    let pv = si.protocol_version in
+    let cs = si.cipher_suite in
+    let alg = sessionHashAlg pv cs in
+    let sh = HASH.hash alg log in
+    {si with session_hash = sh}
+
 let extract si pms log =
+    let si = installSessionHash si log in
     if hasExtendedMS si.extensions then
-        CRE.extract_extended si pms log
+        si, CRE.extract_extended si pms
     else
-        CRE.extract si pms
+        si, CRE.extract si pms
 
 let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) (cert_req:Cert.sign_cert) (log:log) : (hs_state * SessionInfo * PRF.masterSecret * log) Result =
     let clientCertBytes,certList = getCertificateBytes si cert_req in
@@ -477,7 +485,7 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:Sess
     let pmsid = pmsId pms
     let si = {si with pmsId = pmsid; pmsData = pmsdata} in
     let log = log @| clientKEXBytes in
-    let ms = extract si pms log in
+    let (si,ms) = extract si pms log in
     (* FIXME: here we should shred pms *)
     let certificateVerifyBytes = getCertificateVerifyBytes si ms cert_req log in
 
@@ -531,7 +539,6 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
     let pms = PMS.DHPMS(p,g,cy,sy,dhpms) in
     let si = {si with pmsData = DHPMS(p,g,cy,sy); 
                       pmsId = pmsId pms} in
-    (* si is now constant *)
 
     let clientKEXBytes = clientKEXExplicitBytes_DH cy in
     let log = log @| clientKEXBytes in
@@ -539,9 +546,10 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
 
     (* the post of this call is !sx,cy. PP((p,g) /\ DHE.Exp((p,g),x,cy)) /\ DHE.Exp((p,g),sx,sy) -> DHE.Secret((p,g),cy,sy) *)
     (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DHE.Secret((p,g),cy,sy) *) 
-    let ms = extract si pms log in
+    let (si,ms) = extract si pms log in
     (* the post of this call is !p,g,gx,gy. StrongHS(si) /\ DHE.Secret((p,g),gx,gy) -> PRFs.Secret(ms) *)  
-    (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> PRFs.Secret(ms) *) 
+    (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> PRFs.Secret(ms) *)
+    (* si is now constant *)
 
     (*FIXME unclear what si guarantees for the ms; treated as an abstract index for now *)
 
@@ -570,6 +578,7 @@ let on_serverHello_full (ci:ConnectionInfo) crand log to_log (shello:ProtocolVer
                extensions = extL
                init_crand = crand
                init_srand = sh_random
+               session_hash = empty_bytes
                pmsId = noPmsId
                pmsData = PMSUnset
                extended_record_padding = false
@@ -705,14 +714,14 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                             InError(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "A session expried while it was being resumed",state)
 (* KB #endif*)
                         | Some(storable) ->
-                        let (si,ms,resumeCVD,resumeSVD) = storable in
+                        let (si,ms) = storable in
                         let log = log @| to_log in
                         (* Check that protocol version, ciphersuite and compression method are indeed the correct ones *)
                         if si.protocol_version = sh_server_version then
                             if si.cipher_suite = sh_cipher_suite then
                                 if si.compression = sh_compression_method then
                                     (* Also check for resumption extension information *)
-                                    if checkServerResumptionInfoExtension pop sExtL resumeCVD resumeSVD then
+                                    if checkServerResumptionInfoExtension pop sExtL si.session_hash then
                                         let next_ci = getNextEpochs ci si crand sh_random in
                                         let nki_in = id next_ci.id_in in
                                         let nki_out = id next_ci.id_out in
@@ -972,7 +981,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 if PRF.checkVerifyData si ms Server log payload then
                     let sDB = 
                         if length  si.sessionID = 0 then state.sDB
-                        else SessionDB.insert state.sDB si.sessionID Client state.poptions.server_name (si,ms,cvd,payload)
+                        else SessionDB.insert state.sDB si.sessionID Client state.poptions.server_name (si,ms)
                     check_negotiation Client si state.poptions;
                     InComplete({state with pstate = PSClient(ClientIdle(cvd,payload)); sDB = sDB})
                 else
@@ -1110,9 +1119,9 @@ let negotiate cList sList =
     List.tryFind (fun s -> List.exists (fun c -> c = s) cList) sList
 
 let prepare_server_output_resumption ci state crand cExtL storedSession cvd svd log =
-    let (si,ms,resumeCVD,resumeSVD) = storedSession in
+    let (si,ms) = storedSession in
     let srand = Nonce.mkHelloRandom () in
-    let (sExtL,nExtL) = negotiateServerExtensions cExtL state.poptions ci (cvd,svd) (Some(resumeCVD,resumeSVD))
+    let (sExtL,nExtL) = negotiateServerExtensions cExtL state.poptions ci (cvd,svd) (Some(si.session_hash))
     let ext = serverExtensionsBytes sExtL in
     let sHelloB = serverHelloBytes si srand ext in
 
@@ -1154,6 +1163,7 @@ let startServerFull (ci:ConnectionInfo) state (cHello:ProtocolVersion * crand * 
                            init_srand       = srand
                            pmsId            = noPmsId
                            pmsData          = PMSUnset
+                           session_hash     = empty_bytes
                            extended_record_padding = false }
                 prepare_server_output_full ci state si ch_client_version sExtL log
             | None -> Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Compression method negotiation")
@@ -1207,13 +1217,13 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                             (* Client asked for resumption, let's see if we can satisfy the request *)
                             match SessionDB.select state.sDB ch_session_id Server state.poptions.client_name with
                             | Some sentry -> 
-                                let (storedSinfo,_,resumeCVD,_)  = sentry in
+                                let (storedSinfo,_)  = sentry in
                                 if geqPV ch_client_version storedSinfo.protocol_version
                                   && List.memr ch_cipher_suites storedSinfo.cipher_suite
                                   && List.memr ch_compression_methods storedSinfo.compression 
                                 then
                                     // Check extended resumption information
-                                    if checkClientResumptionInfoExtension state.poptions cExtL resumeCVD then
+                                    if checkClientResumptionInfoExtension state.poptions cExtL storedSinfo.session_hash then
                                       (* Proceed with resumption *)
                                       let state = prepare_server_output_resumption ci state ch_random cExtL sentry cvd svd log in
                                       recv_fragment_server ci state (somePV(storedSinfo.protocol_version))
@@ -1288,7 +1298,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let pmsid = pmsId pms
                     let si = {si with pmsId = pmsid; pmsData = pmsdata} in
                     let log = log @| to_log in
-                    let ms = extract si pms log in
+                    let (si,ms) = extract si pms log in
                     (* TODO: we should shred the pms *)
                     (* move to new state *)
                     if si.client_auth then
@@ -1313,7 +1323,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     //MK We should also store the pmsId
                     let pms = PMS.DHPMS(p,g,y,gx,dhpms) in //MK is the order of y, gx right?
                     (* StrongHS(si) /\ DHE.Exp((p,g),?cx,y) -> DHE.Secret(pms) *)
-                    let ms = extract si pms log in
+                    let (si,ms) = extract si pms log in
                     (* StrongHS(si) /\ DHE.Exp((p,g),?cx,y) -> PRFs.Secret(ms) *)
                     
                     (* TODO in e.g. DHE: we should shred the pms *)
@@ -1342,7 +1352,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     //MK why don't we store the pmsdata? We should also store the pmsId
                     let dhpms = DH.exp p g gx y x in
                     let pms = PMS.DHPMS(p,g,y,gx,dhpms) in //MK is the order of y, gx right?
-                    let ms = extract si pms log in
+                    let (si,ms) = extract si pms log in
                     (* TODO: here we should shred pms *)
                     (* move to new state *)
                     recv_fragment_server ci 

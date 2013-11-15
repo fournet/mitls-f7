@@ -90,11 +90,12 @@ let extract si pms: PRF.masterSecret =
 
 type log = bytes
 
-let private extractMS_extended si pmsBytes log : PRF.masterSecret =
+let private extractMS_extended si pmsBytes : PRF.masterSecret =
     let ca = creAlg_extended si in
-    let res = TLSPRF.extract ca pmsBytes log 48 in
+    let sh = si.session_hash in
+    let res = TLSPRF.extract ca pmsBytes sh 48 in
     let i = msi si
     PRF.coerce i res
 
-let extract_extended si pms log =
-    extractMS_extended si (accessPMS pms) log
+let extract_extended si pms =
+    extractMS_extended si (accessPMS pms)
