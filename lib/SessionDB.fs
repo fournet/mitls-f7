@@ -5,7 +5,7 @@ open TLSInfo
 open Date
 
 (* ------------------------------------------------------------------------------- *)
-type StorableSession = SessionInfo * PRF.masterSecret * cVerifyData * sVerifyData
+type StorableSession = SessionInfo * PRF.masterSecret
 type SessionIndex = sessionID * Role * Cert.hint
 
 #if ideal

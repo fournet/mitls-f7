@@ -6,7 +6,7 @@ open Date
 //CF type SessionIndex = sessionID * Role * Cert.hint
 //CF flattened for simpler refinements 
 
-type StorableSession = SessionInfo * PRF.masterSecret * cVerifyData * sVerifyData
+type StorableSession = SessionInfo * PRF.masterSecret
 type SessionIndex = sessionID * Role * Cert.hint
 
 #if ideal

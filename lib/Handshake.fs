@@ -147,14 +147,14 @@ let resume next_sid poptions =
     match SessionDB.select sDB next_sid Client poptions.server_name with
     | None -> init Client poptions
     | Some (retrieved) ->
-    let (retrievedSinfo,retrievedMS,resumeCVD,resumeSVD) = retrieved in
+    let (retrievedSinfo,retrievedMS) = retrieved in
     match retrievedSinfo.sessionID with
     | xx when length xx = 0 -> unexpected "[resume] a resumed session should always have a valid sessionID"
     | sid ->
     let rand = Nonce.mkHelloRandom () in
     let ci = initConnection Client rand in
     Pi.assume (Configure(Server,ci.id_in,poptions));
-    let extL = prepareClientExtensions poptions ci empty_bytes (Some(resumeCVD))
+    let extL = prepareClientExtensions poptions ci empty_bytes (Some(retrievedSinfo.session_hash))
     let ext = clientExtensionsBytes extL
     let cHelloBytes = clientHelloBytes poptions rand sid ext in
     let sdb = SessionDB.create poptions

@@ -115,6 +115,8 @@ val verifyDataLen_of_ciphersuite: cipherSuite -> nat
 val prfMacAlg_of_ciphersuite: cipherSuite -> macAlg
 val verifyDataHashAlg_of_ciphersuite: cipherSuite -> hashAlg
 
+val sessionHashAlg: ProtocolVersion -> cipherSuite -> hashAlg
+
 val aeAlg: cipherSuite -> ProtocolVersion -> aeAlg
 val macAlg_of_aeAlg: aeAlg -> macAlg
 val encAlg_of_aeAlg: aeAlg -> encAlg

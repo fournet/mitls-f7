@@ -9,7 +9,7 @@ open TLSInfo
 type clientExtension =
     | CE_renegotiation_info of cVerifyData
 //    | CE_server_name of Cert.hint list
-    | CE_resumption_info of cVerifyData
+    | CE_resumption_info of sessionHash
     | CE_extended_ms
 //    | CE_extended_padding
 
@@ -23,21 +23,21 @@ let sameClientExt a b =
 type serverExtension =
     | SE_renegotiation_info of cVerifyData * sVerifyData
 //    | SE_server_name of Cert.hint
-    | SE_resumption_info of cVerifyData * sVerifyData
+    | SE_resumption_info of sessionHash
     | SE_extended_ms
 //    | SE_extended_padding
 
 let sameServerExt a b =
     match a,b with
     | SE_renegotiation_info (_,_), SE_renegotiation_info (_,_) -> true
-    | SE_resumption_info (_,_), SE_resumption_info (_,_) -> true
+    | SE_resumption_info (_), SE_resumption_info (_) -> true
     | SE_extended_ms, SE_extended_ms -> true
     | _,_ -> false
 
 let sameServerClientExt a b =
     match a,b with
     | SE_renegotiation_info (_,_), CE_renegotiation_info (_) -> true
-    | SE_resumption_info (_,_), CE_resumption_info (_) -> true
+    | SE_resumption_info (_), CE_resumption_info (_) -> true
     | SE_extended_ms, CE_extended_ms -> true
     | _,_ -> false
 
@@ -52,7 +52,7 @@ let clientExtensionHeaderBytes ext =
 let clientExtensionPayloadBytes ext =
     match ext with
     | CE_renegotiation_info(cvd) -> vlbytes 1 cvd
-    | CE_resumption_info(cvd) -> vlbytes 1 cvd
+    | CE_resumption_info(sh) -> vlbytes 2 sh
     | CE_extended_ms -> empty_bytes
 
 let clientExtensionBytes ext =
@@ -79,10 +79,10 @@ let parseClientExtension head payload =
             let res = correct res
             Some(res)
     | (0xFFuy, 0xAAuy) -> // resumption info
-        match vlparse 1 payload with
+        match vlparse 2 payload with
         | Error (x,y) -> Some(Error(x,y))
-        | Correct(cvd) ->
-            let res = CE_resumption_info (cvd) in
+        | Correct(sh) ->
+            let res = CE_resumption_info (sh) in
             let res = correct res
             Some(res)
     | (0xFFuy, 0xABuy) -> // extended_ms
@@ -141,12 +141,12 @@ let parseClientExtensions data ch_ciphers =
             | Error(x,y) -> Error(x,y)
             | Correct(extL) -> parseClientSCSVs ch_ciphers extL
 
-let prepareClientExtensions (cfg:config) (conn:ConnectionInfo) renegoCVD (resumeCVDOpt:cVerifyData option) =
+let prepareClientExtensions (cfg:config) (conn:ConnectionInfo) renegoCVD (resumeSHOpt:sessionHash option) =
     (* Always send supported extensions. The configuration options will influence how strict the tests will be *)
     let res = [CE_renegotiation_info(renegoCVD); CE_extended_ms]
-    match resumeCVDOpt with
+    match resumeSHOpt with
         | None -> res
-        | Some(resumeCVD) -> CE_resumption_info(resumeCVD) :: res
+        | Some(resumeSH) -> CE_resumption_info(resumeSH) :: res
 
 let serverToNegotiatedExtension cExtL (resuming:bool) res sExt : negotiatedExtensions Result=
     match res with
@@ -155,7 +155,7 @@ let serverToNegotiatedExtension cExtL (resuming:bool) res sExt : negotiatedExten
         if List.exists (sameServerClientExt sExt) cExtL then
             match sExt with
             | SE_renegotiation_info (_,_) -> correct (l)
-            | SE_resumption_info (_,_) ->
+            | SE_resumption_info (_) ->
                 if resuming then
                      correct (l)
                 else
@@ -180,7 +180,7 @@ let serverExtensionHeaderBytes ext =
     match ext with
     | SE_renegotiation_info (_,_) -> abyte2 (0xFFuy, 0x01uy)
  //   | SE_server_name (_)    -> abyte2 (0x00uy, 0x00uy)
-    | SE_resumption_info (_,_)    -> abyte2 (0xFFuy, 0xAAuy)
+    | SE_resumption_info (_)    -> abyte2 (0xFFuy, 0xAAuy)
     | SE_extended_ms              -> abyte2 (0xFFuy, 0xABuy)
  //   | SE_extended_padding   -> abyte2 (0xBBuy, 0x8Fuy)
 
@@ -189,9 +189,8 @@ let serverExtensionPayloadBytes ext =
     | SE_renegotiation_info (cvd,svd) ->
         let p = cvd @| svd in
         vlbytes 1 p
-    | SE_resumption_info (cvd,svd) ->
-        let p = cvd @| svd in
-        vlbytes 1 p
+    | SE_resumption_info (sh) ->
+        vlbytes 2 sh
     | SE_extended_ms -> empty_bytes
 
 let serverExtensionBytes ext =
@@ -219,12 +218,10 @@ let parseServerExtension head payload =
             let res = SE_renegotiation_info (cvd,svd) in
             correct(res)
     | (0xFFuy, 0xAAuy) -> // resumption info
-        match vlparse 1 payload with
+        match vlparse 2 payload with
         | Error (x,y) -> Error(x,y)
-        | Correct(vd) ->
-            let vdL = length vd in
-            let (cvd,svd) = split vd (vdL/2) in
-            let res = SE_resumption_info (cvd,svd) in
+        | Correct(sh) ->
+            let res = SE_resumption_info (sh) in
             correct(res)
     | (0xFFuy, 0xABuy) -> // extended master secret
         if equalBytes payload empty_bytes then
@@ -270,30 +267,30 @@ let parseServerExtensions data =
         | Error(x,y)    -> Error(x,y)
         | Correct(exts) -> parseServerExtensionList exts []
 
-let ClientToServerExtension (cfg:config) (conn:ConnectionInfo) ((renegoCVD:cVerifyData),(renegoSVD:sVerifyData)) (resumeVDOpt:(cVerifyData * sVerifyData) option) cExt : serverExtension option=
+let ClientToServerExtension (cfg:config) (conn:ConnectionInfo) ((renegoCVD:cVerifyData),(renegoSVD:sVerifyData)) (resumeSHOpt:sessionHash option) cExt : serverExtension option=
     match cExt with
     | CE_renegotiation_info (_) -> Some (SE_renegotiation_info (renegoCVD,renegoSVD))
     | CE_resumption_info (_) ->
-        match resumeVDOpt with
+        match resumeSHOpt with
         | None -> None
-        | Some(x) -> let (resumeCVD,resumeSVD) = x in Some (SE_resumption_info (resumeCVD,resumeSVD))
+        | Some(resumeSH) -> Some (SE_resumption_info (resumeSH))
     | CE_extended_ms ->
-        match resumeVDOpt with
+        match resumeSHOpt with
         | None -> Some(SE_extended_ms)
         | Some(_) -> None
 
-let ClientToNegotiatedExtension (cfg:config) (conn:ConnectionInfo) ((cvd:cVerifyData),(svd:sVerifyData)) (resumeVDOpt:(cVerifyData * sVerifyData) option) cExt : negotiatedExtension option =
+let ClientToNegotiatedExtension (cfg:config) (conn:ConnectionInfo) ((cvd:cVerifyData),(svd:sVerifyData)) (resumeSHOpt:sessionHash option) cExt : negotiatedExtension option =
     match cExt with
     | CE_renegotiation_info (_) -> None
     | CE_resumption_info (_) -> None
     | CE_extended_ms ->
-        match resumeVDOpt with
+        match resumeSHOpt with
         | None -> Some(NE_extended_ms)
         | Some(_) -> None
 
-let negotiateServerExtensions cExtL cfg conn (cvd,svd) resumeVDOpt =
-    let server = List.choose (ClientToServerExtension cfg conn (cvd,svd) resumeVDOpt) cExtL
-    let nego = List.choose (ClientToNegotiatedExtension cfg conn (cvd,svd) resumeVDOpt) cExtL
+let negotiateServerExtensions cExtL cfg conn (cvd,svd) resumeSHOpt =
+    let server = List.choose (ClientToServerExtension cfg conn (cvd,svd) resumeSHOpt) cExtL
+    let nego = List.choose (ClientToNegotiatedExtension cfg conn (cvd,svd) resumeSHOpt) cExtL
     (server,nego)
 
 let isClientRenegotiationInfo e =
@@ -323,22 +320,20 @@ let isClientResumptionInfo e =
     | CE_resumption_info(cvd) -> Some(cvd)
     | _ -> None
 
-let checkClientResumptionInfoExtension config (cExtL: clientExtension list) cVerifyData =
+let checkClientResumptionInfoExtension config (cExtL: clientExtension list) sh =
     match List.tryPick isClientResumptionInfo cExtL with
     | None -> not (config.safe_resumption)
-    | Some(payload) -> equalBytes payload cVerifyData
+    | Some(payload) -> equalBytes payload sh
 
 let isServerResumptionInfo e =
     match e with
-    | SE_resumption_info(cvd,svd) -> Some(cvd,svd)
+    | SE_resumption_info(sh) -> Some(sh)
     | _ -> None
 
-let checkServerResumptionInfoExtension config (sExtL: serverExtension list) cVerifyData sVerifyData =
+let checkServerResumptionInfoExtension config (sExtL: serverExtension list) sessionHash =
     match List.tryPick isServerResumptionInfo sExtL with
     | None -> not (config.safe_resumption)
-    | Some(x) ->
-        let (cvd,svd) = x in
-        equalBytes (cvd @| svd) (cVerifyData @| sVerifyData)
+    | Some(sh) -> equalBytes sh sessionHash
 
 let isExtendedMS e =
     match e with

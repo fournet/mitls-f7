@@ -508,6 +508,11 @@ let verifyDataHashAlg_of_ciphersuite (cs:cipherSuite) =
     | NullCipherSuite -> unexpected "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
     | SCSV (_)        -> unexpected "[verifyDataHashAlg_of_ciphersuite] invoked on an invalid ciphersuite"
 
+let sessionHashAlg pv cs =
+    match pv with
+    | SSL_3p0 | TLS_1p0 | TLS_1p1 -> MD5SHA1
+    | TLS_1p2 -> verifyDataHashAlg_of_ciphersuite cs
+
 let tlsMacAlg alg pv = 
   match pv with
     | SSL_3p0 -> MA_SSLKHASH(alg)

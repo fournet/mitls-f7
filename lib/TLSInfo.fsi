@@ -23,6 +23,8 @@ type csrands = bytes
 type cVerifyData = bytes (* ClientFinished payload *)
 type sVerifyData = bytes (* ServerFinished payload *)
 
+type sessionHash = bytes
+
 // Defined here to not depend on TLSExtension
 type negotiatedExtension =
     | NE_extended_ms
@@ -52,6 +54,7 @@ type SessionInfo = {
     extensions: negotiatedExtensions;
     pmsId: pmsId;
     pmsData: pmsData;
+    session_hash: sessionHash;
     client_auth: bool;
     clientID: Cert.cert list;
     serverID: Cert.cert list;
