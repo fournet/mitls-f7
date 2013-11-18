@@ -24,7 +24,7 @@ val parseClientExtensions: bytes -> cipherSuites -> (clientExtension list) Resul
 // Extension-specific
 val checkClientRenegotiationInfoExtension: config -> clientExtension list -> cVerifyData -> bool
 val checkServerRenegotiationInfoExtension: config -> serverExtension list -> cVerifyData -> sVerifyData -> bool
-val checkClientResumptionInfoExtension:    config -> clientExtension list -> sessionHash -> bool
+val checkClientResumptionInfoExtension:    config -> clientExtension list -> sessionHash -> bool option
 val checkServerResumptionInfoExtension:    config -> serverExtension list -> sessionHash -> bool
 
 val hasExtendedMS: negotiatedExtensions -> bool

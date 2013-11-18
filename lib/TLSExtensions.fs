@@ -320,10 +320,10 @@ let isClientResumptionInfo e =
     | CE_resumption_info(cvd) -> Some(cvd)
     | _ -> None
 
-let checkClientResumptionInfoExtension config (cExtL: clientExtension list) sh =
+let checkClientResumptionInfoExtension (config:config) (cExtL: clientExtension list) sh =
     match List.tryPick isClientResumptionInfo cExtL with
-    | None -> not (config.safe_resumption)
-    | Some(payload) -> equalBytes payload sh
+    | None -> None
+    | Some(payload) -> let res = equalBytes payload sh in Some(res)
 
 let isServerResumptionInfo e =
     match e with

@@ -1223,11 +1223,17 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                   && List.memr ch_compression_methods storedSinfo.compression 
                                 then
                                     // Check extended resumption information
-                                    if checkClientResumptionInfoExtension state.poptions cExtL storedSinfo.session_hash then
+                                    match checkClientResumptionInfoExtension state.poptions cExtL storedSinfo.session_hash with
+                                    | None ->
+                                        // Resumption extension not supported by client. Proceed with full handshake
+                                        match startServerFull ci state cHello cExtL cvd svd log with
+                                        | Correct(v) -> let (state,pv) = v in recv_fragment_server ci state (somePV (pv))
+                                        | Error(z) -> let (x,y) = z in InError(x,y,state)
+                                    | Some(true) ->
                                       (* Proceed with resumption *)
                                       let state = prepare_server_output_resumption ci state ch_random cExtL sentry cvd svd log in
                                       recv_fragment_server ci state (somePV(storedSinfo.protocol_version))
-                                    else
+                                    | Some(false) ->
                                         InError(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Wrong safe resumption data received", state)
                                 else 
                                   match startServerFull ci state cHello cExtL cvd svd log with

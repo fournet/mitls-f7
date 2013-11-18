@@ -238,6 +238,7 @@ type config = {
     (* Client side *)
     honourHelloReq: helloReqPolicy
     allowAnonCipherSuite: bool
+    safe_resumption: bool
     
     (* Server side *)
     request_client_certificate: bool
@@ -245,7 +246,6 @@ type config = {
 
     (* Common *)
     safe_renegotiation: bool
-    safe_resumption: bool
     server_name: Cert.hint
     client_name: Cert.hint
             
