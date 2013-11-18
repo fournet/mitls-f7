@@ -3,6 +3,7 @@ open Bytes
 open TLSConstants
 open TLSInfo
 open Range
+open TLSError
 
 type adata = bytes
 
@@ -12,7 +13,7 @@ type history  = (nat * prehistory)
 type plain = fragment
 
 //------------------------------------------------------------------------------
-val plain: id -> history -> adata -> range -> bytes -> plain
+val plain: id -> history -> adata -> range -> bytes -> plain Result
 val reprFragment:  id -> adata -> range -> fragment -> bytes
 val repr:  id -> history -> adata -> range -> plain -> bytes
 

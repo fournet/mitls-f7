@@ -66,8 +66,6 @@ type SessionInfo = {
     clientID: Cert.cert list;
     serverID: Cert.cert list;
     sessionID: sessionID;
-    // Extensions:
-    extended_record_padding: bool;
     }
 
 let csrands sinfo = 

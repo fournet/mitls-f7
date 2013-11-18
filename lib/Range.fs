@@ -23,23 +23,23 @@ let ivSize (e:id) =
         | CBC_Fresh(alg) -> blockSize alg
     | AEAD (_,_) -> Error.unexpected "[ivSize] invoked on wrong ciphersuite"
 
-let fixedPadSize (id:id) = 1 
-    //AP if si.extended_record_padding then 2 else 1 //MK currently always extended_record_padding=false
+let fixedPadSize id =
+    if id.extPad then 2 else 1
     
 let maxPadSize id =
-    let authEnc = id.aeAlg in
-    match authEnc with
-    | MACOnly _ | AEAD(_,_) -> 0
-    | MtE(enc,_) ->
-  // AP      if si.extended_record_padding then
-  // AP          fragmentLength
-  // AP      else
-            match enc with
-            | Stream_RC4_128 -> 0
-            | CBC_Stale(alg) | CBC_Fresh(alg) ->
-                match pv_of_id id with
-                | SSL_3p0 -> blockSize alg
-                | TLS_1p0 | TLS_1p1 | TLS_1p2 -> 255
+    if id.extPad then  
+        fragmentLength
+    else
+        let authEnc = id.aeAlg in
+        match authEnc with
+        | MACOnly _ | AEAD(_,_) -> 0
+        | MtE(enc,_) ->
+                match enc with
+                | Stream_RC4_128 -> 0
+                | CBC_Stale(alg) | CBC_Fresh(alg) ->
+                    match id.pv with
+                    | SSL_3p0 -> blockSize alg
+                    | TLS_1p0 | TLS_1p1 | TLS_1p2 -> 255
 
 let blockAlignPadding e len =
     let authEnc = e.aeAlg in
@@ -57,6 +57,18 @@ let blockAlignPadding e len =
             if overflow = 0 
             then fp 
             else fp + y 
+
+let alignedRange e (rg:range) =
+    let authEnc = e.aeAlg in
+    match authEnc with
+    | MACOnly _ | MtE(_,_) ->
+        let (l,h) = rg in
+        let macLen = macSize (macAlg_of_id e) in
+        let prePad = h + macLen in
+        let p = blockAlignPadding e prePad in
+        let fp = fixedPadSize e in
+        (l,h + p - fp)
+    | AEAD(_,_) -> rg
 
 //@ From plaintext range to ciphertext length 
 let targetLength e (rg:range) =
@@ -111,8 +123,16 @@ let cipherRangeClass (e:id) tlen =
     | AEAD(aeadAlg,_) ->
         let ivL = aeadRecordIVSize aeadAlg in
         let tagL = aeadTagSize aeadAlg in
-        let pLen = tlen - ivL - tagL in
-        (pLen,pLen)
+        let (minPad,maxPad) = minMaxPad e in
+        let max = tlen - ivL - tagL - minPad in
+        if max < 0 then
+            Error.unexpected "[cipherRangeClass] the given tlen should be of a valid ciphertext"
+        else
+            let min = max - maxPad in
+            if min < 0 then
+                (0,max)
+            else
+                (min,max)
 
 let rangeClass (e:id) (r:range) =
     let tlen = targetLength e r in

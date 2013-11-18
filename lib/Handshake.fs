@@ -1412,7 +1412,7 @@ let enqueue_fragment (ci:ConnectionInfo) state fragment =
 let recv_fragment ci (state:hs_state) (r:range) (fragment:HSFragment.fragment) =
     // FIXME: cleanup when Hs is ported to streams and deltas
     let ki_in = id ci.id_in in
-    let b = HSFragment.fragmentRepr ki_in r fragment in 
+    let b = HSFragment.userRepr ki_in r fragment in 
     if length b = 0 then
         // Empty HS fragment are not allowed
         InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Empty handshake fragment received",state)
@@ -1425,7 +1425,7 @@ let recv_fragment ci (state:hs_state) (r:range) (fragment:HSFragment.fragment) =
 let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:range) (fragment:HSFragment.fragment): incomingCCS =
     // FIXME: cleanup when Hs is ported to streams and deltas
     let ki_in = id ci.id_in in
-    let b = HSFragment.fragmentRepr ki_in r fragment in 
+    let b = HSFragment.userRepr ki_in r fragment in 
     if equalBytes b CCSBytes then  
         match state.pstate with
         | PSClient (cstate) -> // Check that we are in the right state (CCCS) 

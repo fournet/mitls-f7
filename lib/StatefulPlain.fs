@@ -66,7 +66,10 @@ let plain (i:id) (h:history) (ad:adata) (r:range) (b:bytes) =
     //CF cut: let i = unAuthIdInv i in
     //CF cut: let h = TLSFragment.emptyHistory i //CF Not Auth: we can pick any history
     let ct = parseAD i ad in
-    {contents = TLSFragment.fragment i ct r b}
+    match TLSFragment.fragment i ct r b with
+    | Error(x,y) -> Error(x,y)
+    | Correct(res) -> correct ({contents = res})
+
 let reprFragment (i:id) (ad:adata) (r:range) (f:plain) =
     let ct = parseAD i ad in
     let x = f.contents in

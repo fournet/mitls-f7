@@ -2,12 +2,13 @@ module LHAEPlain
 open Bytes
 open TLSInfo
 open Range
+open TLSError
 
 type adata = bytes
 type fragment
 type plain = fragment
 
-val plain: id -> adata -> range -> bytes -> plain
+val plain: id -> adata -> range -> bytes -> plain Result
 val repr:  id -> adata -> range -> plain -> bytes
 
 val makeAD: id -> StatefulPlain.history -> StatefulPlain.adata -> adata
