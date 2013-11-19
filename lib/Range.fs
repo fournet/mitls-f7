@@ -24,11 +24,21 @@ let ivSize (e:id) =
     | AEAD (_,_) -> Error.unexpected "[ivSize] invoked on wrong ciphersuite"
 
 let fixedPadSize id =
-    if TLSExtensions.hasExtendedPadding id.ext then 2 else 1
+    if TLSExtensions.hasExtendedPadding id.ext then
+        2
+    else
+        let authEnc = id.aeAlg in
+        match authEnc with
+        | MACOnly _ | AEAD(_,_) -> 0
+        | MtE(enc,_) ->
+            match enc with
+            | Stream_RC4_128 -> 0
+            | CBC_Stale(_) | CBC_Fresh(_) -> 1
+    
     
 let maxPadSize id =
     if TLSExtensions.hasExtendedPadding id.ext then  
-        fragmentLength
+        fragmentLength - fixedPadSize id
     else
         let authEnc = id.aeAlg in
         match authEnc with
@@ -53,34 +63,36 @@ let blockAlignPadding e len =
             let fp = fixedPadSize e in
             let x = len + fp in
             let overflow = x % bs //@ at least fp bytes of fixed padding
-            let y = bs - overflow in
             if overflow = 0 
-            then fp 
-            else fp + y 
+            then overflow 
+            else bs - overflow
 
 let alignedRange e (rg:range) =
     let authEnc = e.aeAlg in
     match authEnc with
-    | MACOnly _ | MtE(_,_) ->
+    | MtE(enc,mac) ->
+        match enc with
+        | Stream_RC4_128 -> rg
+        | CBC_Stale(_) | CBC_Fresh(_) ->
         let (l,h) = rg in
-        let macLen = macSize (macAlg_of_id e) in
+        let macLen = macSize mac in
         let prePad = h + macLen in
         let p = blockAlignPadding e prePad in
-        let fp = fixedPadSize e in
-        (l,h + p - fp)
-    | AEAD(_,_) -> rg
+        (l,h + p)
+    | MACOnly _ | AEAD(_,_) -> rg
 
 //@ From plaintext range to ciphertext length 
 let targetLength e (rg:range) =
     let (_,h) = rg in
+    let fp = fixedPadSize e in
     let authEnc = e.aeAlg in
     match authEnc with
-    | MACOnly _ | MtE(_,_) ->
-        let macLen = macSize (macAlg_of_id e) in
+    | MACOnly macAlg | MtE(_,macAlg) ->
+        let macLen = macSize macAlg in
         let ivL = ivSize e in
         let prePad = h + macLen in
         let padLen = blockAlignPadding e prePad in
-        let res = ivL + prePad + padLen in
+        let res = ivL + fp + prePad + padLen in
         if res > max_TLSCipher_fragment_length then
             Error.unexpected "[targetLength] given an invalid input range."
         else
@@ -88,7 +100,7 @@ let targetLength e (rg:range) =
     | AEAD(aeadAlg,_) ->
         let ivL = aeadRecordIVSize aeadAlg in
         let tagL = aeadTagSize aeadAlg in
-        let res = ivL + h + tagL in
+        let res = ivL + fp + h + tagL in
         if res > max_TLSCipher_fragment_length then
             Error.unexpected "[targetLength] given an invalid input range."
         else
