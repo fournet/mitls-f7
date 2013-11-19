@@ -191,9 +191,13 @@ type HttpClientHandler (server : HttpServer, peer : TcpClient) =
                 rawstream <- peer.GetStream ();
                 match server.Config.tlsoptions with
                 | None ->
+                    HttpLogger.Info "Plaintext connection"
                     stream <- rawstream
                 | Some tlsoptions ->
-                    stream <- new TLStream(rawstream, tlsoptions, TLSServer)
+                    let s = new TLStream(rawstream, tlsoptions, TLSServer)
+                    HttpLogger.Info
+                        (sprintf "Secure connection:\n%s" (s.GetSessionInfoString()))
+                    stream <- s
                 reader <- new HttpStreamReader(stream);
                 while self.ReadAndServeRequest () do () done
             with
