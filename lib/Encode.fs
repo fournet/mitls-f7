@@ -78,7 +78,7 @@ let encodeNoPad (e:id) (tlen:nat) rg (ad:LHAEPlain.adata) data tag =
         Error.unexpected "[encodeNoPad] invoked on an invalid range."
     else
     let payload = data @| tag
-    if length payload <> tlen then
+    if length payload <> (tlen - ivSize e) then
         Error.unexpected "[encodeNoPad] Internal error."
     else
         payload
@@ -103,7 +103,7 @@ let encode (e:id) (tlen:nat) rg (ad:LHAEPlain.adata) data tag =
 
 let decodeNoPad (e:id) (ad:LHAEPlain.adata) rg tlen pl =
     let plainLen = length pl in
-    if plainLen <> tlen then
+    if plainLen <> (tlen - ivSize e) then
         Error.unexpected "[decodeNoPad] wrong target length given as input argument."
     else
     let macAlg = macAlg_of_id e in
