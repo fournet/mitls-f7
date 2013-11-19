@@ -543,6 +543,7 @@ private assume !r,e,e'. SentCCS(r,e) /\ SentCCS(r,e') /\ Id(e) = Id(e') => e = e
 ask !e,e'. Open(e) /\ Open(e') /\ Id(e) = Id(e') => e = e'
 //AP type openEpoch = e:succEpoch {Open(e)}
 
+val sinfo_to_string: SessionInfo -> string
 
 // -------------------------------------------------------------------
 // Application configuration options

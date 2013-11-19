@@ -224,6 +224,32 @@ let id e =
      ext = ext;
      writer=wr }
 
+// Pretty printing
+let sinfo_to_string si =
+#if verify
+    ""
+#else
+    let sb = new System.Text.StringBuilder() in
+    let sb = sb.AppendLine("Session Information:") in
+    let sb = sb.AppendLine(Printf.sprintf "Protocol Version: %A" si.protocol_version) in
+    let sb = sb.AppendLine(Printf.sprintf "Ciphersuite: %A" (
+                            match name_of_cipherSuite si.cipher_suite with
+                            | Error.Error(_) -> failwith "Unknown ciphersuite"
+                            | Error.Correct(c) -> c)) in
+    let sb = sb.AppendLine(Printf.sprintf "Session ID: %s" (hexString si.sessionID)) in
+    let sb = sb.AppendLine(Printf.sprintf "Session Hash: %s" (hexString si.session_hash)) in
+    let sb = sb.AppendLine(Printf.sprintf "Server Identity: %s" (
+                            match Cert.get_hint si.serverID with
+                            | None -> "None"
+                            | Some(c) -> c)) in
+    let sb = sb.AppendLine(Printf.sprintf "Client Identity: %s" (
+                            match Cert.get_hint si.clientID with
+                            | None -> "None"
+                            | Some(c) -> c)) in
+    let sb = sb.AppendLine(Printf.sprintf "Extensions: %A" si.extensions) in
+    sb.ToString()
+#endif
+
 // Application configuration
 type helloReqPolicy =
     | HRPIgnore

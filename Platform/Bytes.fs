@@ -245,6 +245,11 @@ let split2 (b:bytes) i j : bytes * bytes * bytes =
 let utf8 (x:string) : bytes = abytes (System.Text.Encoding.UTF8.GetBytes x)
 let iutf8 (x:bytes) : string = System.Text.Encoding.UTF8.GetString (cbytes x)
 
+let hexString x =
+    (cbytes x)
+    |> Array.map (fun x -> System.String.Format("{0:X2}",x))
+    |> String.concat System.String.Empty
+
 let todo (s:string) : unit = 
 #if ideal
   failwith s

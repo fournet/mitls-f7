@@ -149,6 +149,10 @@ type TLStream (s:System.IO.Stream, options, b, ?own, ?sessionID) =
         let epoch = TLS.getEpochIn conn in
         TLS.getSessionInfo epoch
 
+    member self.GetSessionInfoString() =
+        let si = self.GetSessionInfo() in
+        TLSInfo.sinfo_to_string si
+
     member self.ReHandshake (?config) =
         let config = defaultArg config options
         if closed || disposed then

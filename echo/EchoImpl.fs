@@ -8,12 +8,13 @@ open System.Threading
 
 (* ------------------------------------------------------------------------ *)
 type options = {
-    ciphersuite : TLSConstants.cipherSuiteName list;
-    tlsversion  : TLSConstants.ProtocolVersion;
-    servername  : string;
-    clientname  : string option;
-    localaddr   : IPEndPoint;
-    sessiondir  : string;
+    ciphersuite   : TLSConstants.cipherSuiteName list;
+    tlsminversion : TLSConstants.ProtocolVersion;
+    tlsmaxversion : TLSConstants.ProtocolVersion;
+    servername    : string;
+    clientname    : string option;
+    localaddr     : IPEndPoint;
+    sessiondir    : string;
 }
 
 (* ------------------------------------------------------------------------ *)
@@ -22,8 +23,8 @@ let noexn = fun cb ->
 
 (* ------------------------------------------------------------------------ *)
 let tlsoptions (options : options) = {
-    TLSInfo.minVer = options.tlsversion
-    TLSInfo.maxVer = options.tlsversion
+    TLSInfo.minVer = options.tlsminversion
+    TLSInfo.maxVer = options.tlsmaxversion
 
     TLSInfo.ciphersuites = TLSConstants.cipherSuites_of_nameList options.ciphersuite
 
@@ -55,6 +56,8 @@ let client_handler ctxt (peer : Socket) = fun () ->
             use netstream = new NetworkStream (peer, false)
             use tlsstream = new TLStream.TLStream
                               (netstream, ctxt, TLStream.TLSServer, false)
+
+            Console.WriteLine((tlsstream.GetSessionInfoString()));
 
             let reader    = new StreamReader (tlsstream)
             let writer    = new StreamWriter (tlsstream)
@@ -109,6 +112,8 @@ let client (options : options) =
     socket.Connect(options.localaddr)
 
     use tlsstream = new TLStream.TLStream(socket.GetStream(), ctxt, TLStream.TLSClient)
+
+    Console.WriteLine((tlsstream.GetSessionInfoString()));
 
     let reader = new StreamReader (tlsstream)
     let writer = new StreamWriter (tlsstream)

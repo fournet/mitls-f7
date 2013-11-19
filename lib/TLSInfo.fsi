@@ -116,6 +116,7 @@ val initConnection: Role -> bytes -> ConnectionInfo
 val nextEpoch: epoch -> crand -> srand -> SessionInfo -> epoch
 //val dual_KeyInfo: epoch -> epoch
 
+val sinfo_to_string: SessionInfo -> string
 
 (* Application configuration options *) 
 
