@@ -140,7 +140,7 @@ let rec parseClientSCSVs ch_ciphers extL =
 
 let parseClientExtensions data ch_ciphers =
     match length data with
-    | 0 -> let el = [] in correct (el)
+    | 0 -> parseClientSCSVs ch_ciphers []
     | 1 -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
     | _ ->
         match vlparse 2 data with
