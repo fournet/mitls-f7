@@ -28,6 +28,7 @@ type sessionHash = bytes
 // Defined here to not depend on TLSExtension
 type negotiatedExtension =
     | NE_extended_ms
+    | NE_extended_padding
 
 type negotiatedExtensions = negotiatedExtension list
 
@@ -75,7 +76,8 @@ type id = {
   kdfAlg : kdfAlg; // the KDF algorithm used for key derivation
   pv: ProtocolVersion; //Should be part of aeAlg 
   aeAlg  : aeAlg;  // the authenticated-encryption algorithms
-  csrConn: csrands; 
+  csrConn: csrands;
+  ext: negotiatedExtensions;
   writer : Role  
   }
 

@@ -29,6 +29,7 @@ type sessionHash = bytes
 // Defined here to not depend on TLSExtension
 type negotiatedExtension =
     | NE_extended_ms
+    | NE_extended_padding
 
 type negotiatedExtensions = negotiatedExtension list
 
@@ -169,7 +170,8 @@ type id = {
   kdfAlg : kdfAlg; 
   pv: ProtocolVersion; //Should be part of aeAlg 
   aeAlg  : aeAlg   
-  csrConn: csrands; 
+  csrConn: csrands;
+  ext: negotiatedExtensions;
   writer : Role }
 
 //let idInv (i:id):succEpoch = failwith "requires a log, and pointless to implement anyway"
@@ -197,7 +199,8 @@ let noId: id = {
   kdfAlg=(SSL_3p0,nullCipherSuite); 
   pv=SSL_3p0; 
   aeAlg= MACOnly(MA_SSLKHASH(NULL)); 
-  csrConn = noCsr; 
+  csrConn = noCsr;
+  ext = [];
   writer=Client }
 
 let id e =
@@ -211,12 +214,14 @@ let id e =
     let kdfAlg = kdfAlg si
     let aeAlg  = aeAlg cs pv
     let csr    = epochCSRands e
+    let ext    = si.extensions
     let wr     = epochWriter e
     {msId = msi; 
      kdfAlg=kdfAlg; 
      pv=pv; 
      aeAlg = aeAlg; 
-     csrConn = csr; 
+     csrConn = csr;
+     ext = ext;
      writer=wr }
 
 // Application configuration

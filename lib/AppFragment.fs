@@ -50,7 +50,7 @@ let delta e s r f =
 let plain i r b =
   let e = TLSInfo.unAuthIdInv i in
   let s = DataStream.init e in
-  if i.extPad then
+  if TLSExtensions.hasExtendedPadding i.ext then
       match TLSConstants.vlsplit 2 b with
       | Error(x,y) -> Error(x,y)
       | Correct(res) ->
@@ -66,7 +66,7 @@ let plain i r b =
 let repr (i:id) r f =
   let (e',s,d) = f.frag in
   let b = DataStream.deltaRepr e' s r d in
-  if i.extPad then
+  if TLSExtensions.hasExtendedPadding i.ext then
     let r = alignedRange i r in
     let (_,h) = r in
     let plen = h - (length b) in

@@ -28,6 +28,7 @@ val checkClientResumptionInfoExtension:    config -> clientExtension list -> ses
 val checkServerResumptionInfoExtension:    config -> serverExtension list -> sessionHash -> bool
 
 val hasExtendedMS: negotiatedExtensions -> bool
+val hasExtendedPadding: negotiatedExtensions -> bool
 
 // type extensionType
 //

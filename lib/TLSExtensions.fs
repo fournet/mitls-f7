@@ -11,13 +11,14 @@ type clientExtension =
 //    | CE_server_name of Cert.hint list
     | CE_resumption_info of sessionHash
     | CE_extended_ms
-//    | CE_extended_padding
+    | CE_extended_padding
 
 let sameClientExt a b =
     match a,b with
     | CE_renegotiation_info (_), CE_renegotiation_info (_) -> true
     | CE_resumption_info (_), CE_resumption_info(_) -> true
     | CE_extended_ms, CE_extended_ms -> true
+    | CE_extended_padding, CE_extended_padding -> true
     | _,_ -> false
 
 type serverExtension =
@@ -25,13 +26,14 @@ type serverExtension =
 //    | SE_server_name of Cert.hint
     | SE_resumption_info of sessionHash
     | SE_extended_ms
-//    | SE_extended_padding
+    | SE_extended_padding
 
 let sameServerExt a b =
     match a,b with
     | SE_renegotiation_info (_,_), SE_renegotiation_info (_,_) -> true
     | SE_resumption_info (_), SE_resumption_info (_) -> true
     | SE_extended_ms, SE_extended_ms -> true
+    | SE_extended_padding, SE_extended_padding -> true
     | _,_ -> false
 
 let sameServerClientExt a b =
@@ -39,21 +41,23 @@ let sameServerClientExt a b =
     | SE_renegotiation_info (_,_), CE_renegotiation_info (_) -> true
     | SE_resumption_info (_), CE_resumption_info (_) -> true
     | SE_extended_ms, CE_extended_ms -> true
+    | SE_extended_padding, CE_extended_padding -> true
     | _,_ -> false
 
 let clientExtensionHeaderBytes ext =
     match ext with
     | CE_renegotiation_info(_) -> abyte2 (0xFFuy, 0x01uy)
-//    | CE_server_name (_)    -> abyte2 (0x00uy, 0x00uy)
+//    | CE_server_name (_)     -> abyte2 (0x00uy, 0x00uy)
     | CE_resumption_info (_)   -> abyte2 (0xFFuy, 0xAAuy)
     | CE_extended_ms           -> abyte2 (0xFFuy, 0xABuy)
-//    | CE_extended_padding   -> abyte2 (0xBBuy, 0x8Fuy)
+    | CE_extended_padding      -> abyte2 (0xBBuy, 0x8Fuy)
 
 let clientExtensionPayloadBytes ext =
     match ext with
     | CE_renegotiation_info(cvd) -> vlbytes 1 cvd
     | CE_resumption_info(sh) -> vlbytes 2 sh
     | CE_extended_ms -> empty_bytes
+    | CE_extended_padding -> empty_bytes
 
 let clientExtensionBytes ext =
     let head = clientExtensionHeaderBytes ext in
@@ -90,6 +94,11 @@ let parseClientExtension head payload =
             Some(correct (CE_extended_ms))
         else
             Some(Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid data for extended master secret extension"))
+    | (0xBBuy, 0x8Fuy) -> // extended_padding
+        if equalBytes payload empty_bytes then
+            Some(correct (CE_extended_padding))
+        else
+            Some(Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid data for extended padding extension"))
     | (_,_) -> None
 
 let addOnceClient ext list =
@@ -143,7 +152,7 @@ let parseClientExtensions data ch_ciphers =
 
 let prepareClientExtensions (cfg:config) (conn:ConnectionInfo) renegoCVD (resumeSHOpt:sessionHash option) =
     (* Always send supported extensions. The configuration options will influence how strict the tests will be *)
-    let res = [CE_renegotiation_info(renegoCVD); CE_extended_ms]
+    let res = [CE_renegotiation_info(renegoCVD); CE_extended_ms; CE_extended_padding]
     match resumeSHOpt with
         | None -> res
         | Some(resumeSH) -> CE_resumption_info(resumeSH) :: res
@@ -165,6 +174,11 @@ let serverToNegotiatedExtension cExtL (resuming:bool) res sExt : negotiatedExten
                     Error(AD_handshake_failure,perror __SOURCE_FILE__ __LINE__ "Server provided extended master secret in a resuming handshake")
                 else
                     correct(NE_extended_ms::l)
+            | SE_extended_padding ->
+                if resuming then
+                    Error(AD_handshake_failure,perror __SOURCE_FILE__ __LINE__ "Server provided extended padding in a resuming handshake")
+                else
+                    correct(NE_extended_padding::l)
         else
             Error(AD_handshake_failure,perror __SOURCE_FILE__ __LINE__ "Server provided an extension not given by the client")
 
@@ -179,10 +193,10 @@ let negotiateClientExtensions (cExtL:clientExtension list) (sExtL:serverExtensio
 let serverExtensionHeaderBytes ext =
     match ext with
     | SE_renegotiation_info (_,_) -> abyte2 (0xFFuy, 0x01uy)
- //   | SE_server_name (_)    -> abyte2 (0x00uy, 0x00uy)
-    | SE_resumption_info (_)    -> abyte2 (0xFFuy, 0xAAuy)
+ //   | SE_server_name (_)        -> abyte2 (0x00uy, 0x00uy)
+    | SE_resumption_info (_)      -> abyte2 (0xFFuy, 0xAAuy)
     | SE_extended_ms              -> abyte2 (0xFFuy, 0xABuy)
- //   | SE_extended_padding   -> abyte2 (0xBBuy, 0x8Fuy)
+    | SE_extended_padding         -> abyte2 (0xBBuy, 0x8Fuy)
 
 let serverExtensionPayloadBytes ext =
     match ext with
@@ -192,6 +206,7 @@ let serverExtensionPayloadBytes ext =
     | SE_resumption_info (sh) ->
         vlbytes 2 sh
     | SE_extended_ms -> empty_bytes
+    | SE_extended_padding -> empty_bytes
 
 let serverExtensionBytes ext =
     let head = serverExtensionHeaderBytes ext in
@@ -228,6 +243,11 @@ let parseServerExtension head payload =
             correct(SE_extended_ms)
         else
             Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid data for extended master secret extension")
+    | (0xBBuy, 0x8Fuy) -> // extended padding
+        if equalBytes payload empty_bytes then
+            correct(SE_extended_padding)
+        else
+            Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid data for extended padding extension")
     | (_,_) ->
         // A server can never send an extension the client doesn't support
         Error(AD_unsupported_extension, perror __SOURCE_FILE__ __LINE__ "Server provided an unsupported extesion")
@@ -278,6 +298,10 @@ let ClientToServerExtension (cfg:config) (conn:ConnectionInfo) ((renegoCVD:cVeri
         match resumeSHOpt with
         | None -> Some(SE_extended_ms)
         | Some(_) -> None
+    | CE_extended_padding ->
+        match resumeSHOpt with
+        | None -> Some(SE_extended_padding)
+        | Some(_) -> None
 
 let ClientToNegotiatedExtension (cfg:config) (conn:ConnectionInfo) ((cvd:cVerifyData),(svd:sVerifyData)) (resumeSHOpt:sessionHash option) cExt : negotiatedExtension option =
     match cExt with
@@ -286,6 +310,10 @@ let ClientToNegotiatedExtension (cfg:config) (conn:ConnectionInfo) ((cvd:cVerify
     | CE_extended_ms ->
         match resumeSHOpt with
         | None -> Some(NE_extended_ms)
+        | Some(_) -> None
+    | CE_extended_padding ->
+        match resumeSHOpt with
+        | None -> Some(NE_extended_padding)
         | Some(_) -> None
 
 let negotiateServerExtensions cExtL cfg conn (cvd,svd) resumeSHOpt =
@@ -342,6 +370,14 @@ let isExtendedMS e =
 
 let hasExtendedMS extL =
     List.exists isExtendedMS extL
+
+let isExtendedPadding e =
+    match e with
+    | NE_extended_padding -> true
+    | _ -> false
+
+let hasExtendedPadding extL =
+    List.exists isExtendedPadding extL
 
 (* SignatureAndHashAlgorithm parsing functions *)
 let sigHashAlgBytes alg =

@@ -55,6 +55,7 @@ type sessionHash = bytes
 // Defined here to not depend on TLSExtension
 type negotiatedExtension =
     | NE_extended_ms
+	| NE_extended_padding
 
 type negotiatedExtensions = negotiatedExtension list
 
@@ -365,6 +366,7 @@ type id = {
   aeAlg  : aeAlg;           // the authenticated-encryption algorithms
   // epoch-specific parameters
   csrConn: csrands;         // the client-server random of the connection
+  ext: negotiatedExtensions; // the extensions negotiated for the current session
   writer : Role             // the role of the writer 
   }
 
@@ -374,7 +376,8 @@ definition !i:id. Swap(i)=
     kdfAlg  = i.kdfAlg; 
 	pv      = i.pv; 
 	aeAlg   = i.aeAlg; 
-	csrConn = i.csrConn; 
+	csrConn = i.csrConn;
+	ext     = i.ext;
 	writer  = DualRole(i.writer); }
 
 //MK fails, why? 
@@ -388,6 +391,7 @@ definition !si:SessionInfo,writer:Role. SiId(si,writer) =
 	pv      = si.protocol_version; // should be part of aeAlg 
 	aeAlg   = SIaeAlg(si);
 	csrConn = CSRands(si);
+	ext		= si.extensions;
 	writer  = writer;  }
 
 // accessing concrete algoritms out of the abstract index.
@@ -480,6 +484,7 @@ definition !e:epoch. IsSuccEpoch(e) => Id(e) =
 	pv      = EpochSI(e).protocol_version; // should be part of aeAlg 
 	aeAlg   = SIaeAlg(EpochSI(e));
 	csrConn = EpochCSRands(e);
+	ext		= EpochSI(e).extensions;
 	writer  = EpochWriter(e);  }
 
 ask !e. IsInitEpoch(e) => Id(e) = noId

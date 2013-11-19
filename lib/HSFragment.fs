@@ -12,8 +12,8 @@ type plain = fragment
 let userPlain (id:id) (r:range) b = {frag = b}
 let userRepr  (id:id) (r:range) f = f.frag
 
-let fragmentPlain (ki:id) (r:range) b =
-    if ki.extPad then
+let fragmentPlain (id:id) (r:range) b =
+    if TLSExtensions.hasExtendedPadding id.ext then
         match TLSConstants.vlsplit 2 b with
         | Error(x,y) -> Error(x,y)
         | Correct(res) ->
@@ -22,10 +22,10 @@ let fragmentPlain (ki:id) (r:range) b =
     else
         correct ({frag = b})
 
-let fragmentRepr (ki:id) (r:range) f =
+let fragmentRepr (id:id) (r:range) f =
     let b = f.frag in
-    if ki.extPad then
-        let r = alignedRange ki r in
+    if TLSExtensions.hasExtendedPadding id.ext then
+        let r = alignedRange id r in
         let (_,h) = r in
         let plen = h - (length b) in
         let pad = createBytes plen 0 in

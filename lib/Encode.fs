@@ -74,7 +74,7 @@ let verify (e:id) k ad rg plain =
 let encodeNoPad (e:id) (tlen:nat) rg (ad:LHAEPlain.adata) data tag =
     //let b = payload e rg ad data in
     let (_,h) = rg in
-    if (not e.extPad) && h <> length data then
+    if (not (TLSExtensions.hasExtendedPadding e.ext)) && h <> length data then
         Error.unexpected "[encodeNoPad] invoked on an invalid range."
     else
     let payload = data @| tag
@@ -198,7 +198,7 @@ let plain (e:id) ad tlen b =
         decodeNoPad e ad rg tlen b 
     | MtE(CBC_Stale(_),_) 
     | MtE(CBC_Fresh(_),_) ->
-        if e.extPad then
+        if TLSExtensions.hasExtendedPadding e.ext then
             decodeNoPad e ad rg tlen b
         else
             decode e ad rg tlen b
@@ -217,7 +217,7 @@ let repr (e:id) ad rg pl =
         encodeNoPad e tlen rg ad lp tg
     | MtE(CBC_Stale(_),_) 
     | MtE(CBC_Fresh(_),_) ->
-        if e.extPad then
+        if TLSExtensions.hasExtendedPadding e.ext then
             encodeNoPad e tlen rg ad lp tg
         else
             encode e tlen rg ad lp tg
