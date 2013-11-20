@@ -5,6 +5,34 @@ open Error
 open TLSError
 open TLSConstants
 
+(* AP: New interface: to be proved *)
+
+// Following types only used in handshake
+type clientExtension
+type serverExtension
+
+// Client side
+val clientExtensionsBytes: clientExtension list -> bytes
+val prepareClientExtensions: config -> ConnectionInfo -> cVerifyData -> sessionHash option -> clientExtension list
+val parseServerExtensions: bytes -> (serverExtension list) Result
+val negotiateClientExtensions: clientExtension list -> serverExtension list -> bool -> negotiatedExtensions Result
+
+// Server side
+val serverExtensionsBytes: serverExtension list -> bytes
+val negotiateServerExtensions: clientExtension list -> config -> ConnectionInfo -> (cVerifyData * sVerifyData) -> sessionHash option -> (serverExtension list * negotiatedExtensions)
+val parseClientExtensions: bytes -> cipherSuites -> (clientExtension list) Result
+
+// Extension-specific
+val checkClientRenegotiationInfoExtension: config -> clientExtension list -> cVerifyData -> bool
+val checkServerRenegotiationInfoExtension: config -> serverExtension list -> cVerifyData -> sVerifyData -> bool
+val checkClientResumptionInfoExtension:    config -> clientExtension list -> sessionHash -> bool option
+val checkServerResumptionInfoExtension:    config -> serverExtension list -> sessionHash -> bool
+
+val hasExtendedMS: negotiatedExtensions -> bool
+predicate HasExtendedPadding of id
+val hasExtendedPadding: id:id -> b:bool{b = true <=> HasExtendedPadding(id)}
+
+(* AP: OLD Interface
 type extensionType =
     | HExt_renegotiation_info
 
@@ -46,6 +74,8 @@ val parseExtensions: b:bytes -> (res:(extensionType * bytes) list
 
 val check_reneg_info: got:bytes -> exp:bytes ->
 	b:bool{b=true => (?d. B(got) = VLBytes(1,d) /\ exp = d)}
+
+*)
 
 // TODO: That's tricky. There's a hidden invariant on whether we are in the first, or subsequent handshake.
 val checkClientRenegotiationInfoExtension:

@@ -225,7 +225,7 @@ let id e =
      writer=wr }
 
 // Pretty printing
-let sinfo_to_string si =
+let sinfo_to_string (si:SessionInfo) =
 #if verify
     ""
 #else

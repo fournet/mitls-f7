@@ -24,7 +24,7 @@ let ivSize (e:id) =
     | AEAD (_,_) -> Error.unexpected "[ivSize] invoked on wrong ciphersuite"
 
 let fixedPadSize id =
-    if TLSExtensions.hasExtendedPadding id.ext then
+    if TLSExtensions.hasExtendedPadding id then
         2
     else
         let authEnc = id.aeAlg in
@@ -37,7 +37,7 @@ let fixedPadSize id =
     
     
 let maxPadSize id =
-    if TLSExtensions.hasExtendedPadding id.ext then  
+    if TLSExtensions.hasExtendedPadding id then  
         fragmentLength - fixedPadSize id
     else
         let authEnc = id.aeAlg in

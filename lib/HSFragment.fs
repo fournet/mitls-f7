@@ -13,7 +13,7 @@ let userPlain (id:id) (r:range) b = {frag = b}
 let userRepr  (id:id) (r:range) f = f.frag
 
 let fragmentPlain (id:id) (r:range) b =
-    if TLSExtensions.hasExtendedPadding id.ext then
+    if TLSExtensions.hasExtendedPadding id then
         match TLSConstants.vlsplit 2 b with
         | Error(x,y) -> Error(x,y)
         | Correct(res) ->
@@ -24,7 +24,7 @@ let fragmentPlain (id:id) (r:range) b =
 
 let fragmentRepr (id:id) (r:range) f =
     let b = f.frag in
-    if TLSExtensions.hasExtendedPadding id.ext then
+    if TLSExtensions.hasExtendedPadding id then
         let r = alignedRange id r in
         let (_,h) = r in
         let plen = h - (length b) in

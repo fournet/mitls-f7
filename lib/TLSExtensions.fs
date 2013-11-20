@@ -376,8 +376,8 @@ let isExtendedPadding e =
     | NE_extended_padding -> true
     | _ -> false
 
-let hasExtendedPadding extL =
-    List.exists isExtendedPadding extL
+let hasExtendedPadding id =
+    List.exists isExtendedPadding id.ext
 
 (* SignatureAndHashAlgorithm parsing functions *)
 let sigHashAlgBytes alg =
