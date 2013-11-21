@@ -52,7 +52,7 @@ function val MACPlain : 'a * 'b * 'c * 'd -> 'e
 private definition !e,r,ad,b. MACPlain(e,r,ad,b) = ad @| VLBytes(2,b)
 val macPlain: e:id -> r:range -> 
   ad:(;e)LHAEPlain.adata -> 
-  b:(;r)rbytes -> b':bytes{ SafeId(e) \/ B(b') = MACPlain(e,r,B(ad),b) }
+  b:(;r)rbytes -> b':bytes{ SafeId(e) \/ B(b') = MACPlain(e,r,B(ad),B(b)) }
 
 predicate val Decoded: 'e * 'a * 'b -> bool
 

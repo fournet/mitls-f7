@@ -85,7 +85,7 @@ let encodeNoPad (e:id) (tlen:nat) (rg:range) (ad:LHAEPlain.adata) data tag =
 
 let pad (p:int)  = createBytes p (p-1)
 
-let encode (e:id) (tlen:nat) rg (ad:LHAEPlain.adata) data tag =
+let encode (e:id) (tlen:nat) (rg:range) (ad:LHAEPlain.adata) data tag =
     //let b = payload e rg ad data in
     let lb = length data in
     let lm = length tag in
