@@ -5,6 +5,7 @@
 open Bytes
 open TLSConstants
 open TLSInfo
+open TLSExtensions
 
 type range = low:nat * high:nat { low <= high }
 type (;r:range) rbytes = b:bytes { ?l,h. r = (l,h) /\ l <= Length(b) /\ Length(b) <= h }   
@@ -46,7 +47,7 @@ private definition !i,mac,alg,aeAlg.
 		  (i.aeAlg = MtE(CBC_Fresh(alg),mac) => FixedPadSize(i,())=1 )		
 		)
 	)
-val fixedPadSize: id:id -> l:nat{l=FixedPadSize(i,())}
+val fixedPadSize: id:id -> l:nat{l=FixedPadSize(id,())}
 
 function val MaxPadSize: i:id * unit -> nat //TODO MK fix spec
 private definition !i,mac,alg,aeAlg.

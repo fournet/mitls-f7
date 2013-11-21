@@ -71,7 +71,7 @@ let verify (e:id) k ad rg plain =
 #endif
            Error(AD_bad_record_mac,reason) 
 
-let encodeNoPad (e:id) (tlen:nat) rg (ad:LHAEPlain.adata) data tag =
+let encodeNoPad (e:id) (tlen:nat) (rg:range) (ad:LHAEPlain.adata) data tag =
     //let b = payload e rg ad data in
     let (_,h) = rg in
     if (not (TLSExtensions.hasExtendedPadding e)) && h <> length data then
@@ -101,7 +101,7 @@ let encode (e:id) (tlen:nat) rg (ad:LHAEPlain.adata) data tag =
     else
         unexpected "[encode] Internal error."
 
-let decodeNoPad (e:id) (ad:LHAEPlain.adata) rg tlen pl =
+let decodeNoPad (e:id) (ad:LHAEPlain.adata) (rg:range) tlen pl =
     let plainLen = length pl in
     if plainLen <> (tlen - ivSize e) then
         Error.unexpected "[decodeNoPad] wrong target length given as input argument."
@@ -115,7 +115,7 @@ let decodeNoPad (e:id) (ad:LHAEPlain.adata) rg tlen pl =
      tag = tag;
      ok = true}
 
-let decode (e:id) (ad:LHAEPlain.adata) rg (tlen:nat) pl =
+let decode (e:id) (ad:LHAEPlain.adata) (rg:range) (tlen:nat) pl =
     let a = e.aeAlg
     let macSize = macSize (macAlg_of_aeAlg a) in
     let pLen = length pl in
@@ -134,7 +134,7 @@ let decode (e:id) (ad:LHAEPlain.adata) rg (tlen:nat) pl =
         (*@ Following TLS1.1 we fail later (see RFC5246 6.2.3.2 Implementation Note) *)
         let macstart = pLen - macSize - 1 in
         let (frag,tag) = split tmpdata macstart in
-        let (l,h) = rg in
+        //let (l,h) = rg in
         //let aeadF = LHAEPlain.plain e ad rg frag in
         { plain = frag;
             tag = tag;
@@ -152,7 +152,7 @@ let decode (e:id) (ad:LHAEPlain.adata) rg (tlen:nat) pl =
             let expected = createBytes padlen padlen in
             if equalBytes expected pad then
                 let (frag,tag) = split data_no_pad macstart in
-                let (l,h) = rg in
+                //let (l,h) = rg in
                 //let aeadF = LHAEPlain.plain e ad rg frag in
                 { plain = frag;
                     tag = tag;
@@ -161,7 +161,7 @@ let decode (e:id) (ad:LHAEPlain.adata) rg (tlen:nat) pl =
             else
                 let macstart = pLen - macSize - 1 in
                 let (frag,tag) = split tmpdata macstart in
-                let (l,h) = rg in
+                //let (l,h) = rg in
                 //let aeadF = LHAEPlain.plain e ad rg frag in
                 { plain = frag;
                     tag = tag;
@@ -173,7 +173,7 @@ let decode (e:id) (ad:LHAEPlain.adata) rg (tlen:nat) pl =
                 (See sec 5.2.3.2 of SSL 3 draft). Enforce this check. *)
             if padlen < bs then
                 let (frag,tag) = split data_no_pad macstart in
-                let (l,h) = rg in
+                //let (l,h) = rg in
                 //let aeadF = LHAEPlain.plain e ad rg frag in
                 { plain = frag;
                     tag = tag;
@@ -182,7 +182,7 @@ let decode (e:id) (ad:LHAEPlain.adata) rg (tlen:nat) pl =
             else
                 let macstart = pLen - macSize - 1 in
                 let (frag,tag) = split tmpdata macstart in
-                let (l,h) = rg in
+                //let (l,h) = rg in
                 //let aeadF = LHAEPlain.plain e ad rg frag in
                 { plain = frag;
                     tag = tag;

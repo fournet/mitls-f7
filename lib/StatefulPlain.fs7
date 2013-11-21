@@ -5,6 +5,7 @@ module StatefulPlain
 open Bytes
 open TLSConstants
 open TLSInfo
+open TLSError
 open Range
 
 (* The authenticated record header includes the content type + the protocol version if > SSL3. *)
@@ -85,7 +86,7 @@ type (;i:id,ad:(;i)adata,h:(;i)history,r:range) plain =
 
 val plain:
   i:id{not AuthId(i)} -> h:(;i)history -> ad:(;i)adata -> r:range -> 
-  b:(;r)rbytes -> p:(;i,ad,h,r) plain {B(b) = Payload(i,B(ad),r,p)}
+  b:(;r)rbytes -> (p:(;i,ad,h,r) plain {B(b) = Payload(i,B(ad),r,p)}) Result
 val repr:
   i:id{not SafeId(i)} -> h:(;i)history -> ad:(;i)adata -> r:range ->
   p:(;i,ad,h,r) plain -> b:(;r)rbytes {B(b) = Payload(i,B(ad),r,p)}

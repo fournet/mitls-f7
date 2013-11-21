@@ -1,6 +1,9 @@
 module HSFragment
 open Bytes
 open TLSInfo
+open TLSError
+open TLSExtensions
+open TLSConstants
 open Range
 
 private type (;i:id,r:range) fragment = {frag: (;r)rbytes}
@@ -12,13 +15,17 @@ assume !i,s,r,f. Sent(i,s,r,f) (*KB No Handshake/Alert/CCS Authentication *)
 type (;i:id,s:(;i)stream,r:range)plain = f:(;i,r)fragment{AuthId(i) => Sent(i,s,r,f)}
 
 function val Payload: i:id * r:range * (;i,r)fragment -> cbytes
-private definition !i,r,f. Payload(i,r,f) = B(f.frag)
+private definition !i,r,f.
+	(HasExtendedPadding(i) =>
+		?p. Payload(i,r,f) = VLBytes(2,p) @| B(f.frag) ) /\
+	(not HasExtendedPadding(i) =>
+		Payload(i,r,f) = B(f.frag))
 
 function val EmptyStream: i:id -> (;i)stream
 private definition !i. EmptyStream(i) = {sb = []}
 val init: i:id -> s:(;i)stream{s = EmptyStream(i)}
 
-val fragmentPlain: i:id -> r:range -> b:(;r) rbytes -> f:(;i,EmptyStream(i),r) plain{B(b) = Payload(i,r,f)}
+val fragmentPlain: i:id -> r:range -> b:(;r) rbytes -> (f:(;i,EmptyStream(i),r) plain{B(b) = Payload(i,r,f)}) Result
 val fragmentRepr:  i:id -> r:range -> f:(;i,r) fragment -> b:(;r) rbytes{B(b) = Payload(i,r,f)}
 
 //AP Unless the two streams are the same, this functions breaks the streaming

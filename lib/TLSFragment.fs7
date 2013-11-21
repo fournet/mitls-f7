@@ -3,6 +3,7 @@
 (* Multiplexing the 4 content types used by TLS (a bit tedious) *) 
 
 open Bytes
+open TLSError
 open TLSInfo
 open TLSConstants
 open Range
@@ -87,10 +88,10 @@ val extendHistory: e:epoch -> ct:ContentType{ct=Application_data => (AuthId(Id(e
   f:(;e,ct,ss,r)plain -> ss':(;e)history{ss' = ExtendHistory(e,ct,ss,r,f)}
 
 val plain: e:epoch{not AuthId(Id(e))} -> ct:ContentType -> h: (;e) history -> rg:range ->
-  b:(;rg)rbytes -> p:(;e,ct,h,rg)plain {B(b) = Payload(Id(e),ct,rg,p)}
+  b:(;rg)rbytes -> (p:(;e,ct,h,rg)plain {B(b) = Payload(Id(e),ct,rg,p)}) Result
 
 val fragment: i:id{not AuthId(i)} -> ct:ContentType -> rg:range ->
-  b:(;rg)rbytes -> p:(;i,ct,rg)fragment {B(b) = Payload(i,ct,rg,p)}
+  b:(;rg)rbytes -> (p:(;i,ct,rg)fragment {B(b) = Payload(i,ct,rg,p)}) Result
 
 val reprFragment: i:id{not SafeId(i)} -> ct:ContentType -> rg:range ->
   f:(;i,ct,rg)fragment -> b:(;rg)rbytes{B(b) = Payload(i,ct,rg,f)}

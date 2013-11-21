@@ -4,6 +4,7 @@ open Bytes
 open Error
 open TLSError
 open TLSConstants
+open TLSInfo
 
 (* AP: New interface: to be proved *)
 
@@ -75,8 +76,6 @@ val parseExtensions: b:bytes -> (res:(extensionType * bytes) list
 val check_reneg_info: got:bytes -> exp:bytes ->
 	b:bool{b=true => (?d. B(got) = VLBytes(1,d) /\ exp = d)}
 
-*)
-
 // TODO: That's tricky. There's a hidden invariant on whether we are in the first, or subsequent handshake.
 val checkClientRenegotiationInfoExtension:
 	(extensionType * bytes) list -> cipherSuites -> bytes -> bool
@@ -85,6 +84,8 @@ val checkClientRenegotiationInfoExtension:
 val inspect_ServerHello_extensions:
 	(extensionType * bytes) list -> bytes ->
 		unit Result
+
+*)
 
 (* SignatureAndHashAlgorithm parsing functions *)
 function val SigHashAlgBytes: 'a (*TODO Sig.alg, can't use because it's a pair *) -> cbytes
