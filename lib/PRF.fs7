@@ -126,7 +126,7 @@ type (;csr: csrands) state =
   // --------> 
   | Derived of rdId:id * wrId:id * (;rdId,wrId) derived //CF { Match(rdId)} // known, not used here so far
   // the client has ideally derived keys for both roles,
-  // with the same algorithm, recording the keys for the server. 
+  // with matching algorithm, recording the keys for the server. 
   // --only-->
   //| Done 
   // the server has also derived keys (retrieving those recorded, or generating others).
