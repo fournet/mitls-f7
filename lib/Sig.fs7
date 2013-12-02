@@ -9,7 +9,7 @@ open TLSConstants
    We verify TLS security relative to those *combinations* of algorithms
    that provide CMA-security, as specified in this interface. 
    However, none of them are CMA-secure in the standard model under an 
-   assumption weaker than "This scheme is secure".
+   assumption much weaker than "This scheme is secure".
 
    This interface is adapted from the one described in CCS'11:
 
