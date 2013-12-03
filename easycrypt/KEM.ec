@@ -1444,23 +1444,153 @@ proof.
  qed.
 
  (** RCCA2 -> NR *)
- declare module C : NR_PCA.Adversary {NR_PCA.NR_PCA}.
+ local module C(PCO:NR_PCA.Oracles) = {
+  var m : (hash * (pms * label), ms) map
+  var d : (label, (ms * version * hash * ciphertext)) map
+
+  module O = {
+   fun extract(p:hash, s:pms * label) : ms = {
+     var k : ms;
+     var pms : pms;
+     var t : label;
+     (pms, t) = s;
+     if (!in_dom (p, (pms, t)) m) {
+       if (find_ext NR_PCA.NR_PCA.sk d p pms t) {
+         k = let (ms, pv, h, c) = proj d.[t] in ms;
+       }
+       else k = $Outer_KEM.key;
+       m.[(p, (pms, t))] = k;
+     }
+     else {
+       k = proj m.[(p, (pms, t))];
+     }
+     return k;
+   }
+
+   fun dec(p:version * hash, t:label, c:ciphertext) : ms option = {
+     var pv : version;
+     var h : hash;
+     var k : ms;
+     var maybe_k : ms option = None;
+     if (!mem t V.labels /\ mem p P) { 
+       V.labels = add t V.labels;
+       (pv, h) = p;
+       if (!(V.guess /\ (pv, h) = p' /\ t = V.t /\ V.c = c)) {
+         if (find_dec NR_PCA.NR_PCA.sk m pv c h t) {
+           k = proj m.[(h, (decrypt NR_PCA.NR_PCA.sk pv c, t))];
+         }
+         else {
+           k = $Outer_KEM.key;
+         }
+         d.[t] = (k, pv, h, c);
+         maybe_k = if (!mem k V.keys) then Some k else None;
+       }
+     }
+     return maybe_k;
+   }
+  }
+  
+  module A = A(O, O)
+  
+  fun choose(pk:pkey) : version = {
+    var t : label;
+    V.init();
+    m = Core.empty;
+    d = Core.empty;
+    V.t = A.choose(pk);
+    return (fst p');
+  }
+
+  fun guess(c:ciphertext) : version * ciphertext = {
+    var pms : pms;
+    var k0, k1 : ms;
+    var b' : bool;
+    V.c = c;
+    k0 = $Outer_KEM.key;
+    k1 = $Outer_KEM.key;
+    V.keys = add k0 (add k1 V.keys);
+    V.guess = true;
+    b' = A.guess(c, k0);
+    return let (k, pv, h, c) = proj d.[V.t] in (pv, c);
+  }
+ }.
+ 
+ local equiv RCCA2_NR :
+  RCCA2.main ~ NR_PCA.NR_PCA(PMS_KEM, C).main :
+  true ==> 
+  (let (k, pv, h, c) = proj RCCA2.d.[V.t] in
+    c <> V.c /\ decrypt V.sk pv c = V.pms){1} => res{2}.
+ proof.
+  fun.
+  (* Workaround to swap PMS_KEM.enc *)
+  transitivity {1} {
+   PMS_KEM.init();
+   (pk, V.sk) = PMS_KEM.keygen();
+   V.init();
+   RCCA2.m = Core.empty;
+   RCCA2.d = Core.empty;
+   V.t = RCCA2.A.choose(pk);
+   (V.pms, V.c) = PMS_KEM.enc((), pk, fst p');
+   k0 = $Outer_KEM.key;
+   k1 = $Outer_KEM.key;
+   V.guess = true;
+   V.keys = add k0 (add k1 V.keys);
+   b' = RCCA2.A.guess(V.c, k0);
+  }
+  (true ==> ={glob V, RCCA2.m, RCCA2.d})
+  (true ==> 
+   (let (k, pv, h, c) = proj RCCA2.d.[V.t] in
+    c <> V.c /\ decrypt V.sk pv c = V.pms){1} => (c <> c' /\ k' = k){2}) => //.
+  call (_: ={glob V, RCCA2.m, RCCA2.d}).
+   by fun; eqobs_in.
+   by fun; eqobs_in.
+   wp; rnd; rnd; simplify.
+   admit (* swap{1} 6 1 *).
+  (*********************************)
+  inline NR_PCA.NR_PCA(PMS_KEM, C).A.choose NR_PCA.NR_PCA(PMS_KEM, C).A.guess.
+  wp; seq 6 7 : (={pk, glob A, V.keys, V.labels, V.guess, V.t, V.c} /\ 
+   V.sk{1} = NR_PCA.NR_PCA.sk{2} /\ 
+   RCCA2.m{1} = C.m{2} /\ RCCA2.d{1} = C.d{2}).
+   call (_: ={V.keys, V.labels, V.guess, V.t, V.c} /\
+    V.sk{1} = NR_PCA.NR_PCA.sk{2} /\ RCCA2.m{1} = C.m{2} /\ RCCA2.d{1} = C.d{2}).
+    by fun; eqobs_in.
+    by fun; eqobs_in.
+   inline V.init; wp; call (_:true); wp; call (_:true); skip; progress.
+
+   seq 6 9 : (={b', pk, glob A, V.keys, V.labels, V.guess, V.t, V.c} /\
+    V.sk{1} = NR_PCA.NR_PCA.sk{2} /\ 
+    V.c{1} = c{2} /\ V.pms{1} = k{2} /\
+    (decrypt V.sk (fst p') V.c = V.pms){1} /\
+    RCCA2.m{1} = C.m{2} /\ RCCA2.d{1} = C.d{2}). 
+   call (_: ={V.keys, V.labels, V.guess, V.t, V.c} /\
+    V.sk{1} = NR_PCA.NR_PCA.sk{2} /\ RCCA2.m{1} = C.m{2} /\ RCCA2.d{1} = C.d{2}).
+    by fun; eqobs_in.
+    by fun; eqobs_in.
+
+   wp; rnd; rnd; wp.
+   exists * V.sk{1}, pk{1}; elim *; intros sk pk.
+   call (enc_spec_rel sk pk (fst p')).
+   wp; skip; progress; smt.
+
+   sp; wp; exists * NR_PCA.NR_PCA.sk{2}, t'{2}, c'{2}; elim *; intros sk pv c.
+   call{2} (dec_spec sk pv c).
+   by skip; progress; smt.
+ qed.
 
  local lemma Pr_RCCA2_NR : forall &m,
    Pr[RCCA2.main() @ &m : let (k, pv, h, c) = proj RCCA2.d.[V.t] in
       c <> V.c /\ decrypt V.sk pv c = V.pms] <=
    Pr[NR_PCA.NR_PCA(PMS_KEM, C).main() @ &m : res].
  proof.
-  admit.
- (*
   by intros &m; equiv_deno RCCA2_NR.
- *)
  qed.
 
  (** Conclusion **)
  lemma Conclusion : forall &m,
-   exists (B <: OW_PCA.Adversary) 
+   exists (B <: OW_PCA.Adversary) (C <: NR_PCA.Adversary),
+(*        (B <: OW_PCA.Adversary {OW_PCA.OW_PCA) 
           (C <: NR_PCA.Adversary {NR_PCA.NR_PCA}),
+*)
     Pr[RCCA(KEM(RO_KEF, PMS_KEM), A(RO_KEF)).main() @ &m : res] - 1%r / 2%r <=
     Pr[OW_PCA.OW_PCA(PMS_KEM, B).main() @ &m : res] +
     Pr[NR_PCA.NR_PCA(PMS_KEM, C).main() @ &m : res].
