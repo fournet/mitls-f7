@@ -11,7 +11,7 @@ open TLSInfo
 predicate Authorize of Role * SessionInfo
 
 type (;sid:sessionID, r:Role) StorableSession = si:SessionInfo * (;si) PRF.masterSecret
-       { si.sessionID = sid /\ Authorize(r,si) }
+  { si.sessionID = sid /\ Authorize(r,si) }
 
 type SessionIndex = sessionID * Role * Cert.hint
 type entry = sid:sessionID * r:Role *  Cert.hint * (;sid,r) StorableSession 
@@ -24,3 +24,42 @@ val remove: t -> sid:sessionID -> r:Role -> Cert.hint -> t
 
 // Useful for the user of miTLS
 val getAllStoredIDs: t -> SessionIndex list
+
+(* proposed patch for tickets: 
+
+type ticket = bytes // constraints on size? 
+
+type (;sid:sessionID, r:Role) StorableSession = 
+     si:SessionInfo 
+   * (;si) PRF.masterSecret
+   * o:(ticketCipher option) { Authorize(r,si) } /\
+                               (o = None => si.sessionID = sid) /\  
+                               (r = Server => o = None) }  
+
+// As suggested in RFC 5077, our client generates a random sid when the server provides a ticket,
+// so that the client app can use it to trigger the resumption (ignoring whether ticketed or not)
+
+// The sid is not a unique index so, from the client viewpoint, using an sid does not necessarily
+// guarantee that the resulting epoch has the same parameters as the original session.
+// For instance, the server/adversay may have reused the sid.
+// As usual, the client should check the resulting epoch index.
+
+// TAKE 2: we will index our database with client-random | server-random instead of this poor sid. 
+// we need not reflect it in the sessionInfo either; we might have a boolean flagging possible resumption. 
+
+
+val noSid
+val newKey: unit -> keyName // no need for formal corruption?
+
+val sessionTicket: keyName -> (;noSid,Server) StorableSession -> ticket
+val ticketSession: ticket -> keyName * (;noSid,Server) StorableSession
+
+private val keys = AE.key list 
+
+// parsed; note that the IV and MAC are integrated into AE ciphers.
+
+private type ticketContents = {
+	keyName : bytes
+	cipher  : bytes }
+
+*)
