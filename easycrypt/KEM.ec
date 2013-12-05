@@ -61,6 +61,12 @@ theory Agile_Labeled_KEM.
 
  axiom lossless_key : Distr.weight key = 1%r.
 
+ (* Decryption is functional *)
+ op decrypt : parameter -> skey -> label -> ciphertext -> key.
+
+ (* TODO: keep abstract *)
+ pred keypair (pk:pkey, sk:skey) = true.
+
  module type KEM = {
   fun init() : unit {*}
   fun keygen() : pkey * skey
@@ -339,27 +345,24 @@ section.
  (* PMS_KEM is stateless *)
  axiom stateless_pms_kem : forall (x y:glob PMS_KEM), x = y.
 
- (* Decryption si functional *)
- op decrypt : skey -> version -> ciphertext -> pms.
-
  (* Crucial *)
  axiom dec_injective_pv : forall sk pv1 pv2 c,
-   decrypt sk pv1 c = decrypt sk pv2 c => pv1 = pv2.
+   decrypt () sk pv1 c = decrypt () sk pv2 c => pv1 = pv2.
 
- (* TODO: add relation between pk and sk *)
- axiom enc_spec_rel : forall (sk:skey) (_pk:pkey) (_pv:version),
+ axiom enc_spec_rel : forall (pk:pkey) (sk:skey) (t:version),
    equiv [ PMS_KEM.enc ~ PMS_KEM.enc :
-    pk{1} = _pk /\ t{1} = _pv /\ ={pk, t} ==>
-    ={res} /\ let (pms, c) = res{1} in decrypt sk _pv c = pms].
+    pk{1} = pk /\ t{1} = t /\ ={pk, t} /\ keypair pk sk ==>
+    ={res} /\ let (k, c) = res{1} in decrypt () sk t c = k ].
 
- axiom dec_spec_rel : forall (_sk:skey) (_pv:version) (_c:ciphertext),
+ axiom dec_spec_rel : forall (sk:skey) (t:version) (c:ciphertext),
    equiv [ PMS_KEM.dec ~ PMS_KEM.dec :
-    sk{1} = _sk /\ t{1} = _pv /\ c{1} = _c /\ ={sk, t, c} ==>
-    ={res} /\ res{1} = decrypt _sk _pv _c ].
+    sk{1} = sk /\ t{1} = t /\ c{1} = c /\ ={sk, t, c} ==>
+    ={res} /\ res{1} = decrypt () sk t c ].
 
- axiom dec_spec : forall (_sk:skey) (_pv:version) (_c:ciphertext),
+ axiom dec_spec : forall (_sk:skey) (_t:version) (_c:ciphertext),
    bd_hoare [ PMS_KEM.dec : 
-    sk = _sk /\ t = _pv /\ c = _c ==> res = decrypt _sk _pv _c ] = 1%r.
+    sk = _sk /\ t = _t /\ c = _c ==> 
+    res = decrypt () _sk _t _c ] = 1%r.
 
  local module MS_KEM = KEM(RO_KEF, PMS_KEM).
 
@@ -468,7 +471,7 @@ section.
    eq_except RO_KEF.m{1} RCCA1.m{2} (snd p', (V.pms, V.t)){2} /\
    in_dom (snd p', (V.pms, V.t)){2} RO_KEF.m{1} /\
    mem (proj RO_KEF.m{1}.[(snd p', (V.pms, V.t))]){2} V.keys{2} /\
-   decrypt V.sk{2} (fst p') V.c{2} = V.pms{2}
+   decrypt () V.sk{2} (fst p') V.c{2} = V.pms{2}
    ==>
    !RCCA1.abort{2} =>
     ={res} /\
@@ -479,7 +482,7 @@ section.
     eq_except RO_KEF.m{1} RCCA1.m{2} (snd p', (V.pms, V.t)){2} /\
     in_dom (snd p', (V.pms, V.t)){2} RO_KEF.m{1} /\
     mem (proj RO_KEF.m{1}.[(snd p', (V.pms, V.t))]){2} V.keys{2} /\
-    decrypt V.sk{2} (fst p') V.c{2} = V.pms{2}.
+    decrypt () V.sk{2} (fst p') V.c{2} = V.pms{2}.
  proof.
   fun.
    sp; case RCCA1.abort{2}.
@@ -498,7 +501,7 @@ section.
     wp; skip; progress.
     cut W : 
       (p, (pms, t)){2} <>
-      (snd p', (decrypt V.sk (fst p') V.c, V.t)){2} by smt.
+      (snd p', (decrypt () V.sk (fst p') V.c, V.t)){2} by smt.
     by generalize H1; rewrite eq_except_def; smt.
  qed.
 
@@ -513,7 +516,7 @@ section.
    eq_except RO_KEF.m{1} RCCA1.m{2} (snd p', (V.pms, V.t)){2} /\
    in_dom (snd p', (V.pms, V.t)){2} RO_KEF.m{1} /\
    mem (proj RO_KEF.m{1}.[(snd p', (V.pms, V.t))]){2} V.keys{2} /\
-   decrypt V.sk{2} (fst p') V.c{2} = V.pms{2}
+   decrypt () V.sk{2} (fst p') V.c{2} = V.pms{2}
    ==>
    !RCCA1.abort{2} =>
     ={res} /\
@@ -524,13 +527,13 @@ section.
     eq_except RO_KEF.m{1} RCCA1.m{2} (snd p', (V.pms, V.t)){2} /\
     in_dom (snd p', (V.pms, V.t)){2} RO_KEF.m{1} /\
     mem (proj RO_KEF.m{1}.[(snd p', (V.pms, V.t))]){2} V.keys{2} /\
-    decrypt V.sk{2} (fst p') V.c{2} = V.pms{2}.
-proof.
+    decrypt () V.sk{2} (fst p') V.c{2} = V.pms{2}.
+ proof.
   fun.
   sp; if => //.  
   wp; inline KEM(RO_KEF, PMS_KEM).dec.
   seq 7 3 : 
-   ((decrypt RCCA.sk pv c0 = pms){1} /\
+   ((decrypt () RCCA.sk pv c0 = pms){1} /\
     maybe_k{1} = None /\
     sk{1} = RCCA.sk{1} /\ c0{1} = c{2} /\ t0{1} = t{2} /\
     ={maybe_k, pms, pv, h, p, t, c} /\
@@ -542,7 +545,7 @@ proof.
     eq_except RO_KEF.m{1} RCCA1.m{2} (snd p', (V.pms, V.t)){2} /\
     in_dom (snd p', (V.pms, V.t)){2} RO_KEF.m{1} /\
     mem (proj RO_KEF.m{1}.[(snd p', (V.pms, V.t))]){2} V.keys{2} /\
-    decrypt V.sk{2} (fst p') V.c{2} = V.pms{2}).
+    decrypt () V.sk{2} (fst p') V.c{2} = V.pms{2}).
    sp; exists * sk{1}, pv{1}, c0{1}; elim *; intros sk pv c.
    by call (dec_spec_rel sk pv c); wp.
 
@@ -561,15 +564,15 @@ proof.
     wp; sp; if.
      progress; try smt.
      cut W :
-      (snd p', (decrypt V.sk (fst p') V.c, V.t)){2} <>
-      (h, (decrypt V.sk pv c, t)){2}; smt.
+      (snd p', (decrypt () V.sk (fst p') V.c, V.t)){2} <>
+      (h, (decrypt () V.sk pv c, t)){2}; smt.
 
      by rnd; skip; progress; smt.
     
      skip; progress.
      cut W :
-      (snd p', (decrypt V.sk (fst p') V.c, V.t)){2} <>
-      (h, (decrypt V.sk pv c, t)){2} by smt.
+      (snd p', (decrypt () V.sk (fst p') V.c, V.t)){2} <>
+      (h, (decrypt () V.sk pv c, t)){2} by smt.
      by generalize H1; rewrite eq_except_def; smt.
 
    wp; sp; if{1}.
@@ -609,7 +612,7 @@ proof.
    RCCA.sk{1} = V.sk{2} /\
    RCCA.keys{1} = V.keys{2} /\
    RCCA.labels{1} = V.labels{2} /\
-   decrypt V.sk{2} (fst p') V.c{2} = V.pms{2} /\
+   decrypt () V.sk{2} (fst p') V.c{2} = V.pms{2} /\
    (forall t,
     in_dom (snd p', (V.pms, t)) RCCA1.m => 
     RCCA1.abort \/ mem t V.labels){2}
@@ -621,7 +624,7 @@ proof.
     RCCA.sk{1} = V.sk{2} /\
     RCCA.keys{1} = V.keys{2} /\
     RCCA.labels{1} = V.labels{2} /\
-    decrypt V.sk{2} (fst p') V.c{2} = V.pms{2} /\
+    decrypt () V.sk{2} (fst p') V.c{2} = V.pms{2} /\
     (forall t,
      in_dom (snd p', (V.pms, t)) RCCA1.m => 
      RCCA1.abort \/ mem t V.labels){2}.
@@ -643,7 +646,7 @@ proof.
    RCCA.sk{1} = V.sk{2} /\
    RCCA.keys{1} = V.keys{2} /\
    RCCA.labels{1} = V.labels{2} /\
-   (decrypt V.sk (fst p') V.c = V.pms){2} /\
+   (decrypt () V.sk (fst p') V.c = V.pms){2} /\
    (forall t,
     in_dom (snd p', (V.pms, t)) RCCA1.m => 
     RCCA1.abort \/ mem t V.labels){2}
@@ -655,7 +658,7 @@ proof.
     RCCA.sk{1} = V.sk{2} /\
     RCCA.keys{1} = V.keys{2} /\
     RCCA.labels{1} = V.labels{2} /\
-    (decrypt V.sk (fst p') V.c = V.pms){2} /\
+    (decrypt () V.sk (fst p') V.c = V.pms){2} /\
     (forall t,
      in_dom (snd p', (V.pms, t)) RCCA1.m => 
      RCCA1.abort \/ mem t V.labels){2}.
@@ -667,7 +670,7 @@ proof.
     (!RCCA1.abort{2} /\
      !V.guess{2} /\
      ={maybe_k, pms, p, t, c} /\
-     (pms = decrypt V.sk pv c){2} /\
+     (pms = decrypt () V.sk pv c){2} /\
      (pv{2}, h{2}) = p{2} /\
      t0{1} = t{1} /\
      p0{1} = p{1} /\
@@ -680,7 +683,7 @@ proof.
      RCCA.sk{1} = V.sk{2} /\
      RCCA.keys{1} = V.keys{2} /\
      RCCA.labels{1} = V.labels{2} /\
-     (decrypt V.sk (fst p') V.c = V.pms){2} /\
+     (decrypt () V.sk (fst p') V.c = V.pms){2} /\
      (forall t,
      in_dom (snd p', (V.pms, t)) RCCA1.m => 
      RCCA1.abort \/ mem t V.labels){2}).
@@ -742,7 +745,7 @@ proof.
      RCCA.sk{1} = V.sk{2} /\
      RCCA.keys{1} = V.keys{2} /\
      RCCA.labels{1} = V.labels{2} /\
-     (decrypt V.sk (fst p') V.c = V.pms){2} /\
+     (decrypt () V.sk (fst p') V.c = V.pms){2} /\
      (forall t,
       in_dom (snd p', (V.pms, t)) RCCA1.m => mem t V.labels){2})).
    wp; rnd; simplify.
@@ -752,7 +755,7 @@ proof.
     RCCA.sk{1} = V.sk{2} /\
     RCCA.keys{1} = V.keys{2} /\
     RCCA.labels{1} = V.labels{2} /\
-    (decrypt V.sk (fst p') V.c = V.pms){2} /\
+    (decrypt () V.sk (fst p') V.c = V.pms){2} /\
     (forall t,
      in_dom (snd p', (V.pms, t)) RCCA1.m => 
      RCCA1.abort \/ mem t V.labels){2}).
@@ -767,7 +770,7 @@ proof.
   inline MS_KEM.init RO_KEF.init MS_KEM.keygen.
   wp; call (_:true); wp; call (_:true); skip; progress.
   exists * V.sk{2}, pk{2}; elim *; intros sk pk.
-  call (enc_spec_rel sk pk (fst p')).
+  call (enc_spec_rel pk sk (fst p')).
   by inline V.init; wp; skip; progress; smt.
 
   inline RO_KEF.extract; wp; sp.
@@ -797,7 +800,7 @@ proof.
     eq_except RO_KEF.m{1} RCCA1.m{2} (snd p', (V.pms, V.t)){2} /\
     in_dom (snd p', (V.pms, V.t)){2} RO_KEF.m{1} /\
     mem (proj RO_KEF.m{1}.[(snd p', (V.pms, V.t))]){2} V.keys{2} /\
-    decrypt V.sk{2} (fst p') V.c{2} = V.pms{2}).
+    decrypt () V.sk{2} (fst p') V.c{2} = V.pms{2}).
    by apply lossless_guess.
    by apply RCCA_RCCA1_dec_upto.
    by progress; apply RCCA_lossless_dec.
@@ -875,11 +878,11 @@ proof.
  (** RCCA1 -> RCCA2 **)
 
  op find_dec sk (m:(hash * (pms * label), ms) map) pv c h t = 
-  in_dom (h, (decrypt sk pv c, t)) m.
+  in_dom (h, (decrypt () sk pv c, t)) m.
 
  op find_ext sk (d:(label, (ms * version * hash * ciphertext)) map) h pms t = 
   in_dom t d /\ 
-  let (k, pv, h', c) = proj d.[t] in h = h' /\ decrypt sk pv c = pms.
+  let (k, pv, h', c) = proj d.[t] in h = h' /\ decrypt () sk pv c = pms.
 
  local module RCCA2 = {
   var m : (hash * (pms * label), ms) map
@@ -914,7 +917,7 @@ proof.
        (pv, h) = p;
        if (!(V.guess /\ (pv, h) = p' /\ t = V.t /\ V.c = c)) {
          if (find_dec V.sk m pv c h t) {
-           k = proj m.[(h, (decrypt V.sk pv c, t))];
+           k = proj m.[(h, (decrypt () V.sk pv c, t))];
          }
          else {
            k = $Outer_KEM.key;
@@ -954,19 +957,19 @@ proof.
    ={p, s} /\ 
    ={glob V} /\
    (V.guess{1} => ={V.t}) /\
-   (decrypt V.sk (fst p') V.c = V.pms){2} /\ 
+   (decrypt () V.sk (fst p') V.c = V.pms){2} /\ 
    (RCCA1.abort{1} =>
     (exists t, in_dom (snd p', (V.pms, t)) RCCA2.m \/
     (V.guess /\ in_dom V.t RCCA2.d /\
      let (k, pv, h, c) = proj RCCA2.d.[V.t] in
-      c <> V.c /\ decrypt V.sk pv c = V.pms)){2}) /\
+      c <> V.c /\ decrypt () V.sk pv c = V.pms)){2}) /\
    (forall t, in_dom t RCCA2.d => mem t V.labels){2} /\
    (forall h pms t, 
     (in_dom (h, (pms, t)) RCCA1.m{1} <=>
     (in_dom (h, (pms, t)) RCCA2.m{2} \/
      (in_dom t RCCA2.d{2} /\ 
       let (k, pv, h', c) = proj RCCA2.d{2}.[t] in 
-       h = h' /\ decrypt V.sk{2} pv c = pms)))) /\
+       h = h' /\ decrypt () V.sk{2} pv c = pms)))) /\
    (forall h pms t, 
     (in_dom (h, (pms, t)) RCCA1.m{1} => 
      in_dom (h, (pms, t)) RCCA2.m{2} => 
@@ -980,19 +983,19 @@ proof.
    ={res} /\
    ={glob V} /\
    (V.guess{1} => ={V.t}) /\
-   (decrypt V.sk (fst p') V.c = V.pms){2} /\ 
+   (decrypt () V.sk (fst p') V.c = V.pms){2} /\ 
    (RCCA1.abort{1} =>
     (exists t, in_dom (snd p', (V.pms, t)) RCCA2.m \/
     (V.guess /\ in_dom V.t RCCA2.d /\
      let (k, pv, h, c) = proj RCCA2.d.[V.t] in
-      c <> V.c /\ decrypt V.sk pv c = V.pms)){2}) /\
+      c <> V.c /\ decrypt () V.sk pv c = V.pms)){2}) /\
    (forall t, in_dom t RCCA2.d => mem t V.labels){2} /\
    (forall h pms t, 
     (in_dom (h, (pms, t)) RCCA1.m{1} <=>
     (in_dom (h, (pms, t)) RCCA2.m{2} \/
      (in_dom t RCCA2.d{2} /\ 
       let (k, pv, h', c) = proj RCCA2.d{2}.[t] in 
-       h = h' /\ decrypt V.sk{2} pv c = pms)))) /\
+       h = h' /\ decrypt () V.sk{2} pv c = pms)))) /\
    (forall h pms t, 
     (in_dom (h, (pms, t)) RCCA1.m{1} => 
      in_dom (h, (pms, t)) RCCA2.m{2} => 
@@ -1021,7 +1024,7 @@ proof.
 
     cut W := H1 h pms0 t0. 
     case (in_dom (h, (pms0, t0)) RCCA1.m{1}); first by smt.
-    by intros ?; left; smt.
+     intros ?; left; smt.
 
     elim H8; clear H8; intros ?.
      by case (in_dom (h, (pms0, t0)) RCCA2.m{2}); smt.
@@ -1066,19 +1069,19 @@ proof.
    ={p, t, c} /\ 
    ={glob V} /\
    (V.guess{1} => ={V.t}) /\
-   (decrypt V.sk (fst p') V.c = V.pms){2} /\ 
+   (decrypt () V.sk (fst p') V.c = V.pms){2} /\ 
    (RCCA1.abort{1} =>
     (exists t, in_dom (snd p', (V.pms, t)) RCCA2.m \/
     (V.guess /\ in_dom V.t RCCA2.d /\
      let (k, pv, h, c) = proj RCCA2.d.[V.t] in
-      c <> V.c /\ decrypt V.sk pv c = V.pms)){2}) /\
+      c <> V.c /\ decrypt () V.sk pv c = V.pms)){2}) /\
    (forall t, in_dom t RCCA2.d => mem t V.labels){2} /\
    (forall h pms t, 
     (in_dom (h, (pms, t)) RCCA1.m{1} <=>
     (in_dom (h, (pms, t)) RCCA2.m{2} \/
      (in_dom t RCCA2.d{2} /\ 
       let (k, pv, h', c) = proj RCCA2.d{2}.[t] in 
-       h = h' /\ decrypt V.sk{2} pv c = pms)))) /\
+       h = h' /\ decrypt () V.sk{2} pv c = pms)))) /\
    (forall h pms t, 
     (in_dom (h, (pms, t)) RCCA1.m{1} => 
      in_dom (h, (pms, t)) RCCA2.m{2} => 
@@ -1092,19 +1095,19 @@ proof.
    ={res} /\
    ={glob V} /\
    (V.guess{1} => ={V.t}) /\
-   (decrypt V.sk (fst p') V.c = V.pms){2} /\ 
+   (decrypt () V.sk (fst p') V.c = V.pms){2} /\ 
    (RCCA1.abort{1} =>
     (exists t, in_dom (snd p', (V.pms, t)) RCCA2.m \/
     (V.guess /\ in_dom V.t RCCA2.d /\
      let (k, pv, h, c) = proj RCCA2.d.[V.t] in
-      c <> V.c /\ decrypt V.sk pv c = V.pms)){2}) /\
+      c <> V.c /\ decrypt () V.sk pv c = V.pms)){2}) /\
    (forall t, in_dom t RCCA2.d => mem t V.labels){2} /\
    (forall h pms t, 
     (in_dom (h, (pms, t)) RCCA1.m{1} <=>
     (in_dom (h, (pms, t)) RCCA2.m{2} \/
      (in_dom t RCCA2.d{2} /\ 
       let (k, pv, h', c) = proj RCCA2.d{2}.[t] in 
-       h = h' /\ decrypt V.sk{2} pv c = pms)))) /\
+       h = h' /\ decrypt () V.sk{2} pv c = pms)))) /\
    (forall h pms t, 
     (in_dom (h, (pms, t)) RCCA1.m{1} => 
      in_dom (h, (pms, t)) RCCA2.m{2} => 
@@ -1119,7 +1122,7 @@ proof.
   wp; sp; if => //.
   inline{1} RCCA1.O.extract.
   seq 3 2 :
-   ((pms = decrypt V.sk pv c){1} /\
+   ((pms = decrypt () V.sk pv c){1} /\
     (pv{2}, h{2}) = p{2} /\
     mem t{1} V.labels{1} /\
     mem p{1} P /\
@@ -1128,19 +1131,19 @@ proof.
     maybe_k{1} = None /\
     ={maybe_k, p, t, c, glob V} /\
    (V.guess{1} => ={V.t}) /\
-   (decrypt V.sk (fst p') V.c = V.pms){2} /\ 
+   (decrypt () V.sk (fst p') V.c = V.pms){2} /\ 
    (RCCA1.abort{1} =>
     (exists t, in_dom (snd p', (V.pms, t)) RCCA2.m \/
     (V.guess /\ in_dom V.t RCCA2.d /\
      let (k, pv, h, c) = proj RCCA2.d.[V.t] in
-      c <> V.c /\ decrypt V.sk pv c = V.pms)){2}) /\
+      c <> V.c /\ decrypt () V.sk pv c = V.pms)){2}) /\
    (forall t, in_dom t RCCA2.d => mem t V.labels){2} /\
    (forall h pms t, 
     (in_dom (h, (pms, t)) RCCA1.m{1} <=>
     (in_dom (h, (pms, t)) RCCA2.m{2} \/
      (in_dom t RCCA2.d{2} /\ 
       let (k, pv, h', c) = proj RCCA2.d{2}.[t] in 
-       h = h' /\ decrypt V.sk{2} pv c = pms)))) /\
+       h = h' /\ decrypt () V.sk{2} pv c = pms)))) /\
    (forall h pms t, 
     (in_dom (h, (pms, t)) RCCA1.m{1} => 
      in_dom (h, (pms, t)) RCCA2.m{2} => 
@@ -1173,7 +1176,7 @@ proof.
      intros ?;
      cut Z : 
        (h0, (pms0, t0)) =
-       (h{2}, (decrypt V.sk{2} pv{2} c{2}, t{2})) by smt.
+       (h{2}, (decrypt () V.sk{2} pv{2} c{2}, t{2})) by smt.
      by smt.
 
      elim H13; clear H13; intros ?; first by smt.
@@ -1184,14 +1187,14 @@ proof.
       rewrite H4.
       cut L : (in_dom t0 RCCA2.d{2} /\
         let (k0, pv0, h', c0) = proj RCCA2.d{2}.[t0] in
-        h0 = h' /\ decrypt V.sk{2} pv0 c0 = pms0).
+        h0 = h' /\ decrypt () V.sk{2} pv0 c0 = pms0).
       split; first by smt.
       by generalize H13; rewrite /_.[_] Core.get_setN; smt.
      
       by smt.
    
      by smt.
-     by case ((h, (decrypt V.sk pv c, t)){2} = (h0, (pms0, t0))); smt.
+     by case ((h, (decrypt () V.sk pv c, t)){2} = (h0, (pms0, t0))); smt.
    
    (* the same *)
    rcondt{2} 1; first by intros &1; skip; intros &2; progress; smt.
@@ -1211,7 +1214,7 @@ proof.
     elim H9; clear H9; first by smt.
     case (t0 = t{2}); first by smt.
     intros ? [? ?].
-    case ((h, (decrypt V.sk pv c, t)){2} = (h0, (pms0, t0))); first by smt.
+    case ((h, (decrypt () V.sk pv c, t)){2} = (h0, (pms0, t0))); first by smt.
     intros ?; rewrite H4; right; split; first by smt.
     by generalize H11; rewrite /_.[_] Core.get_setN; smt.
 
@@ -1225,26 +1228,26 @@ proof.
     (exists t, in_dom (snd p', (V.pms, t)) RCCA2.m){2} \/
     (in_dom V.t RCCA2.d /\
      let (k, pv, h, c) = proj RCCA2.d.[V.t] in
-      c <> V.c /\ decrypt V.sk pv c = V.pms){2}.
+      c <> V.c /\ decrypt () V.sk pv c = V.pms){2}.
  proof.
   fun.
   rnd{1}.
   call (_:
    ={glob V} /\
    (V.guess{1} => ={V.t}) /\
-   (decrypt V.sk (fst p') V.c = V.pms){2} /\ 
+   (decrypt () V.sk (fst p') V.c = V.pms){2} /\ 
    (RCCA1.abort{1} =>
     (exists t, in_dom (snd p', (V.pms, t)) RCCA2.m \/
     (V.guess /\ in_dom V.t RCCA2.d /\
      let (k, pv, h, c) = proj RCCA2.d.[V.t] in
-      c <> V.c /\ decrypt V.sk pv c = V.pms)){2}) /\
+      c <> V.c /\ decrypt () V.sk pv c = V.pms)){2}) /\
    (forall t, in_dom t RCCA2.d => mem t V.labels){2} /\
    (forall h pms t, 
     (in_dom (h, (pms, t)) RCCA1.m{1} <=>
     (in_dom (h, (pms, t)) RCCA2.m{2} \/
      (in_dom t RCCA2.d{2} /\ 
       let (k, pv, h', c) = proj RCCA2.d{2}.[t] in 
-       h = h' /\ decrypt V.sk{2} pv c = pms)))) /\
+       h = h' /\ decrypt () V.sk{2} pv c = pms)))) /\
    (forall h pms t, 
     (in_dom (h, (pms, t)) RCCA1.m{1} => 
      in_dom (h, (pms, t)) RCCA2.m{2} => 
@@ -1260,19 +1263,19 @@ proof.
   call (_:
    ={glob V} /\
    (V.guess{1} => ={V.t}) /\
-   (decrypt V.sk (fst p') V.c = V.pms){2} /\ 
+   (decrypt () V.sk (fst p') V.c = V.pms){2} /\ 
    (RCCA1.abort{1} =>
     (exists t, in_dom (snd p', (V.pms, t)) RCCA2.m \/
     (V.guess /\ in_dom V.t RCCA2.d /\
      let (k, pv, h, c) = proj RCCA2.d.[V.t] in
-      c <> V.c /\ decrypt V.sk pv c = V.pms)){2}) /\
+      c <> V.c /\ decrypt () V.sk pv c = V.pms)){2}) /\
    (forall t, in_dom t RCCA2.d => mem t V.labels){2} /\
    (forall h pms t, 
     (in_dom (h, (pms, t)) RCCA1.m{1} <=>
     (in_dom (h, (pms, t)) RCCA2.m{2} \/
      (in_dom t RCCA2.d{2} /\ 
       let (k, pv, h', c) = proj RCCA2.d{2}.[t] in 
-       h = h' /\ decrypt V.sk{2} pv c = pms)))) /\
+       h = h' /\ decrypt () V.sk{2} pv c = pms)))) /\
    (forall h pms t, 
     (in_dom (h, (pms, t)) RCCA1.m{1} => 
      in_dom (h, (pms, t)) RCCA2.m{2} => 
@@ -1286,7 +1289,7 @@ proof.
    by apply RCCA1_RCCA2_extract. 
   seq 2 2 : (={pk, V.sk}); first by eqobs_in.
   exists * pk{1}, V.sk{1}; elim *; intros pk sk.
-  call (enc_spec_rel sk pk (fst p')).
+  call (enc_spec_rel pk sk (fst p')).
   by inline V.init; wp; skip; progress; smt.
  qed.
 
@@ -1294,14 +1297,14 @@ proof.
    Pr[RCCA1.main() @ &m : RCCA1.abort] <=
    Pr[RCCA2.main() @ &m : exists t, in_dom (snd p', (V.pms, t)) RCCA2.m] +  
    Pr[RCCA2.main() @ &m : let (k, pv, h, c) = proj RCCA2.d.[V.t] in
-      c <> V.c /\ decrypt V.sk pv c = V.pms].
+      c <> V.c /\ decrypt () V.sk pv c = V.pms].
  proof.
   intros &m.
   apply (Trans _ 
    Pr[RCCA2.main() @ &m : 
     (exists t, in_dom (snd p', (V.pms, t)) RCCA2.m) \/
     let (k, pv, h, c) = proj RCCA2.d.[V.t] in
-     c <> V.c /\ decrypt V.sk pv c = V.pms]).
+     c <> V.c /\ decrypt () V.sk pv c = V.pms]).
   equiv_deno RCCA1_RCCA2; smt.  
   rewrite Pr mu_or.
   cut X : forall (x y z:real), 0%r <= z => x <= y => x - z <= y by smt.
@@ -1310,24 +1313,64 @@ proof.
 
 
  (** RCCA2 -> OW_PCA **)
- 
- op find_pms : skey -> (hash * (pms * label), ms) map -> version -> ciphertext -> pms.
-
- axiom find_pms_spec : forall sk m pv c h t,
-  in_dom (h, (decrypt sk pv c, t)) m => find_pms sk m pv c = decrypt sk pv c.
 
  local module B(PCO:OW_PCA.Oracles) = {
   var m : (hash * (pms * label), ms) map
   var d : (label, (ms * version * hash * ciphertext)) map
+
+  (* Private procedures *)
+  fun find(pv:version, c:ciphertext, h:hash, t:label) : pms option = {
+    var h' : hash;
+    var s : pms * label;
+    var pms : pms;
+    var t' : label;
+    var found : bool;
+    var q : (hash * (pms * label)) set;
+    var maybe_pms : pms option = None;
+    q = dom(m);
+    while (q <> FSet.empty /\ maybe_pms = None) {
+      (h',  s) = pick q;
+      q = rm (h', s) q;
+      (pms, t') = s;
+      found = PCO.check((), pms, pv, c);
+      maybe_pms = if found /\ h = h' /\ t = t' then Some pms else None; 
+    }
+    return maybe_pms;
+  }
+
+  fun find_any(pv:version, c:ciphertext) : pms option = {
+    var h' : hash;
+    var s : pms * label;
+    var pms : pms;
+    var t' : label;
+    var found : bool;
+    var q : (hash * (pms * label)) set;
+    var maybe_pms : pms option = None;
+    q = dom(m);
+    while (q <> FSet.empty /\ maybe_pms = None) {
+      (h',  s) = pick q;
+      q = rm (h', s) q;
+      (pms, t') = s;
+      found = PCO.check((), pms, pv, c);
+      maybe_pms = if found then Some pms else None; 
+    }
+    return maybe_pms;
+  }
 
   module O = {
    fun extract(p:hash, s:pms * label) : ms = {
      var k : ms;
      var pms : pms;
      var t : label;
+     var pv : version;
+     var h : hash;
+     var c : ciphertext;
+     var found : bool;
      (pms, t) = s;
      if (!in_dom (p, (pms, t)) m) {
-       if (find_ext OW_PCA.OW_PCA.sk d p pms t) {
+       (k, pv, h, c) = proj d.[t];
+       found = PCO.check((), pms, pv, c);
+       if (in_dom t d /\ p = h /\ found) {
          k = let (ms, pv, h, c) = proj d.[t] in ms;
        }
        else k = $Outer_KEM.key;
@@ -1343,13 +1386,15 @@ proof.
      var pv : version;
      var h : hash;
      var k : ms;
+     var maybe_pms : pms option;
      var maybe_k : ms option = None;
      if (!mem t V.labels /\ mem p P) { 
        V.labels = add t V.labels;
        (pv, h) = p;
        if (!(V.guess /\ (pv, h) = p' /\ t = V.t /\ V.c = c)) {
-         if (find_dec OW_PCA.OW_PCA.sk m pv c h t) {
-           k = proj m.[(h, (decrypt OW_PCA.OW_PCA.sk pv c, t))];
+         maybe_pms = find(pv, c, h, t);
+         if (maybe_pms <> None) {
+           k = proj m.[(h, (proj maybe_pms, t))];
          }
          else {
            k = $Outer_KEM.key;
@@ -1374,7 +1419,7 @@ proof.
   }
 
   fun guess(c:ciphertext) : pms = {
-    var pms : pms;
+    var maybe_pms : pms option;
     var k0, k1 : ms;
     var b' : bool;
     V.c = c;
@@ -1383,9 +1428,116 @@ proof.
     V.keys = add k0 (add k1 V.keys);
     V.guess = true;
     b' = A.guess(c, k0);
-    return find_pms OW_PCA.OW_PCA.sk m (fst p') c;
+    maybe_pms = find_any(fst p', c);
+    return proj maybe_pms;
   }
  }.
+
+ local lemma check_spec : forall _p _k _t _c,
+   bd_hoare 
+   [ OW_PCA.OW_PCA(PMS_KEM, B).O.check : 
+     p = _p /\ k = _k /\ t = _t /\ c = _c ==>
+    res <=> _k = decrypt _p OW_PCA.OW_PCA.sk _t _c ] = 1%r.
+ proof.
+  progress; fun.
+  exists * OW_PCA.OW_PCA.sk; elim *; intros sk.
+  by call (dec_spec sk _t _c); skip; progress; smt.
+ qed.
+
+ local lemma find_any_spec : forall (_pv:version) (_c:ciphertext),
+   bd_hoare 
+   [ B(OW_PCA.OW_PCA(PMS_KEM, B).O).find_any : 
+     pv = _pv /\ c = _c ==> 
+     let pms = decrypt () OW_PCA.OW_PCA.sk _pv _c in
+      ((exists h t, in_dom (h, (pms, t)) B.m) <=> res = Some pms) /\
+      (res <> None => res = Some pms)] = 1%r.
+ proof.
+  progress; fun; sp.
+  while  
+   (let pms = decrypt () OW_PCA.OW_PCA.sk pv c in
+    (forall x, mem x q => in_dom x B.m) /\
+    (forall x, 
+     in_dom x B.m => !mem x q => maybe_pms = None => pms <> fst (snd x)) /\
+    (maybe_pms <> None =>
+     (exists h t, in_dom (h, (pms, t)) B.m) /\ maybe_pms = Some pms))
+   (card q).
+   intros z; sp; wp. 
+   exists * pms, pv, c; elim *; intros pms pv c.
+   by call (check_spec () pms pv c); skip; progress; smt. 
+  by wp; skip; progress; smt.
+ qed.
+
+ local lemma find_spec : forall (_pv:version) (_c:ciphertext) (_h:hash) (_t:label),
+   bd_hoare 
+   [ B(OW_PCA.OW_PCA(PMS_KEM, B).O).find : 
+     pv = _pv /\ c = _c /\ h = _h /\ t = _t ==> 
+     let pms = decrypt () OW_PCA.OW_PCA.sk _pv _c in
+      (in_dom (_h, (pms, _t)) B.m <=> res = Some pms) /\
+      (res <> None => res = Some pms) ] = 1%r.
+ proof.
+  progress; fun; sp.
+  while  
+   (let pms = decrypt () OW_PCA.OW_PCA.sk pv c in
+    (forall x, mem x q => in_dom x B.m) /\
+    (forall x, 
+     in_dom x B.m => !mem x q => maybe_pms = None => x <> (h, (pms, t))) /\
+    (maybe_pms <> None => 
+     in_dom (h, (pms, t)) B.m /\ maybe_pms = Some pms /\ h = h' /\  t = t'))
+   (card q).
+   intros z; sp; wp. 
+   exists * pms, pv, c; elim *; intros pms pv c.
+   by call (check_spec () pms pv c); skip; progress; smt. 
+  by wp; skip; progress; smt.
+ qed.
+
+ local equiv RCCA2_OW_extract : 
+   RCCA2.O.extract ~ B(OW_PCA.OW_PCA(PMS_KEM, B).O).O.extract :
+   ={p, s} /\ ={V.keys, V.labels, V.guess, V.t, V.c} /\
+   V.sk{1} = OW_PCA.OW_PCA.sk{2} /\ RCCA2.m{1} = B.m{2} /\ RCCA2.d{1} = B.d{2} 
+   ==>
+   ={res} /\ ={V.keys, V.labels, V.guess, V.t, V.c} /\
+   V.sk{1} = OW_PCA.OW_PCA.sk{2} /\ RCCA2.m{1} = B.m{2} /\ RCCA2.d{1} = B.d{2}. 
+ proof.
+  fun.
+  sp; if => //.
+   seq 0 2 : 
+    (={pms, t, p, s, V.keys, V.labels, V.guess, V.t, V.c} /\
+     V.sk{1} = OW_PCA.OW_PCA.sk{2} /\ RCCA2.m{1} = B.m{2} /\ RCCA2.d{1} = B.d{2} /\
+     ((find_ext V.sk RCCA2.d p pms t){1} <=> 
+      (in_dom t B.d /\ p = h /\ found){2})).
+    sp; exists * pms{2}, pv{2}, c{2}; elim *; intros pms pv c.
+    by call{2} (check_spec () pms pv c); skip; progress; smt.
+    by if => //; wp; try rnd; skip; progress.
+   by wp.
+ qed.
+
+ local equiv RCCA2_OW_dec : 
+   RCCA2.O.dec ~ B(OW_PCA.OW_PCA(PMS_KEM, B).O).O.dec :
+   ={p, t, c} /\ ={V.keys, V.labels, V.guess, V.t, V.c} /\
+   V.sk{1} = OW_PCA.OW_PCA.sk{2} /\ RCCA2.m{1} = B.m{2} /\ RCCA2.d{1} = B.d{2} 
+   ==>
+   ={res} /\ ={V.keys, V.labels, V.guess, V.t, V.c} /\
+   V.sk{1} = OW_PCA.OW_PCA.sk{2} /\ RCCA2.m{1} = B.m{2} /\ RCCA2.d{1} = B.d{2}. 
+ proof.
+  fun.
+  sp; if => //.
+  sp; if => //.
+  seq 0 1 :    
+   (maybe_k{1} = None /\
+    ={maybe_k, pv, h, p, t, c, V.labels, V.keys, V.guess, V.t, V.c} /\
+    V.sk{1} = OW_PCA.OW_PCA.sk{2} /\
+    RCCA2.m{1} = B.m{2} /\ RCCA2.d{1} = B.d{2} /\
+    !(V.guess /\ (pv, h) = p' /\ t = V.t /\ V.c = c){1} /\
+    ((find_dec V.sk RCCA2.m pv c h t){1} <=> maybe_pms{2} <> None) /\
+    (maybe_pms <> None => 
+     maybe_pms = Some (decrypt () OW_PCA.OW_PCA.sk pv c)){2}).
+   sp; exists * pv{2}, c{2}, h{2}, t{2}; elim *; intros pv c h t.
+   by call{2} (find_spec pv c h t); skip; progress; smt.
+
+   if => //.
+    by wp; skip; smt.
+    by wp; rnd.
+ qed.
  
  local equiv RCCA2_OW :
   RCCA2.main ~ OW_PCA.OW_PCA(PMS_KEM, B).main :
@@ -1413,7 +1565,7 @@ proof.
    by fun; eqobs_in.
    by fun; eqobs_in.
    wp; rnd; rnd; simplify.
-   admit (* swap{1} 6 1 *).
+   admit (* swap{1} 6 1, but technically dec 'uses' V.c *).
   (*********************************)
   inline OW_PCA.OW_PCA(PMS_KEM, B).A.choose OW_PCA.OW_PCA(PMS_KEM, B).A.guess.
   wp; seq 6 7 : (={pk, glob A, V.keys, V.labels, V.guess, V.t, V.c} /\ 
@@ -1421,18 +1573,33 @@ proof.
    RCCA2.m{1} = B.m{2} /\ RCCA2.d{1} = B.d{2}).
    call (_: ={V.keys, V.labels, V.guess, V.t, V.c} /\
     V.sk{1} = OW_PCA.OW_PCA.sk{2} /\ RCCA2.m{1} = B.m{2} /\ RCCA2.d{1} = B.d{2}).
-    by fun; eqobs_in.
-    by fun; eqobs_in.
-   inline V.init; wp; call (_:true); wp; call (_:true); skip; progress.
+    by apply RCCA2_OW_dec.
+    by apply RCCA2_OW_extract.
+   by inline V.init; wp; call (_:true); wp; call (_:true).
 
-   call (_: ={V.keys, V.labels, V.guess, V.t, V.c} /\
-    V.sk{1} = OW_PCA.OW_PCA.sk{2} /\ RCCA2.m{1} = B.m{2} /\ RCCA2.d{1} = B.d{2}).
-    by fun; eqobs_in.
-    by fun; eqobs_in.
-
-   wp; rnd; rnd; wp.
+   seq 1 2 :
+    (={pk, glob A, V.keys, V.labels, V.guess, V.t} /\
+     (decrypt () V.sk (fst p') V.c = V.pms){1} /\
+     V.pms{1} = k{2} /\ V.c{1} = c{2} /\
+     V.sk{1} = OW_PCA.OW_PCA.sk{2} /\ 
+     RCCA2.m{1} = B.m{2} /\ RCCA2.d{1} = B.d{2}).
    exists * V.sk{1}, pk{1}; elim *; intros sk pk.
-   call (enc_spec_rel sk pk (fst p')).
+   by call (enc_spec_rel pk sk (fst p')); wp; skip; smt.
+ 
+   seq 5 7 : (={pk, glob A, V.keys, V.labels, V.guess, V.t, V.c} /\ 
+    V.sk{1} = OW_PCA.OW_PCA.sk{2} /\ 
+    V.pms{1} = k{2} /\
+    (decrypt () V.sk (fst p') V.c = V.pms){1} /\
+    V.pms{1} = k{2} /\ V.c{1} = c0{2} /\
+    RCCA2.m{1} = B.m{2} /\ RCCA2.d{1} = B.d{2}).
+    call (_: ={V.keys, V.labels, V.guess, V.t, V.c} /\
+     V.sk{1} = OW_PCA.OW_PCA.sk{2} /\ RCCA2.m{1} = B.m{2} /\ RCCA2.d{1} = B.d{2}).
+     by apply RCCA2_OW_dec.
+     by apply RCCA2_OW_extract.
+    by wp; rnd; rnd; wp; skip.
+
+   exists * c0{2}; elim *; intros c.
+   call{2} (find_any_spec (fst p') c).
    by wp; skip; progress; smt.
  qed.
 
@@ -1443,19 +1610,66 @@ proof.
   by intros &m; equiv_deno RCCA2_OW.
  qed.
 
+
  (** RCCA2 -> NR *)
+
  local module C(PCO:NR_PCA.Oracles) = {
   var m : (hash * (pms * label), ms) map
   var d : (label, (ms * version * hash * ciphertext)) map
+
+  (* Private procedures *)
+  fun find(pv:version, c:ciphertext, h:hash, t:label) : pms option = {
+    var h' : hash;
+    var s : pms * label;
+    var pms : pms;
+    var t' : label;
+    var found : bool;
+    var q : (hash * (pms * label)) set;
+    var maybe_pms : pms option = None;
+    q = dom(m);
+    while (q <> FSet.empty /\ maybe_pms = None) {
+      (h',  s) = pick q;
+      q = rm (h', s) q;
+      (pms, t') = s;
+      found = PCO.check((), pms, pv, c);
+      maybe_pms = if found /\ h = h' /\ t = t' then Some pms else None; 
+    }
+    return maybe_pms;
+  }
+
+  fun find_any(pv:version, c:ciphertext) : pms option = {
+    var h' : hash;
+    var s : pms * label;
+    var pms : pms;
+    var t' : label;
+    var found : bool;
+    var q : (hash * (pms * label)) set;
+    var maybe_pms : pms option = None;
+    q = dom(m);
+    while (q <> FSet.empty /\ maybe_pms = None) {
+      (h',  s) = pick q;
+      q = rm (h', s) q;
+      (pms, t') = s;
+      found = PCO.check((), pms, pv, c);
+      maybe_pms = if found then Some pms else None; 
+    }
+    return maybe_pms;
+  }
 
   module O = {
    fun extract(p:hash, s:pms * label) : ms = {
      var k : ms;
      var pms : pms;
      var t : label;
+     var pv : version;
+     var h : hash;
+     var c : ciphertext;
+     var found : bool;
      (pms, t) = s;
      if (!in_dom (p, (pms, t)) m) {
-       if (find_ext NR_PCA.NR_PCA.sk d p pms t) {
+       (k, pv, h, c) = proj d.[t];
+       found = PCO.check((), pms, pv, c);
+       if (in_dom t d /\ p = h /\ found) {
          k = let (ms, pv, h, c) = proj d.[t] in ms;
        }
        else k = $Outer_KEM.key;
@@ -1471,13 +1685,15 @@ proof.
      var pv : version;
      var h : hash;
      var k : ms;
+     var maybe_pms : pms option;
      var maybe_k : ms option = None;
      if (!mem t V.labels /\ mem p P) { 
        V.labels = add t V.labels;
        (pv, h) = p;
        if (!(V.guess /\ (pv, h) = p' /\ t = V.t /\ V.c = c)) {
-         if (find_dec NR_PCA.NR_PCA.sk m pv c h t) {
-           k = proj m.[(h, (decrypt NR_PCA.NR_PCA.sk pv c, t))];
+         maybe_pms = find(pv, c, h, t);
+         if (maybe_pms <> None) {
+           k = proj m.[(h, (proj maybe_pms, t))];
          }
          else {
            k = $Outer_KEM.key;
@@ -1514,12 +1730,118 @@ proof.
     return let (k, pv, h, c) = proj d.[V.t] in (pv, c);
   }
  }.
+
+ local lemma check_spec' : forall _p _k _t _c,
+   bd_hoare 
+   [ NR_PCA.NR_PCA(PMS_KEM, C).O.check : 
+     p = _p /\ k = _k /\ t = _t /\ c = _c ==>
+    res <=> _k = decrypt _p NR_PCA.NR_PCA.sk _t _c ] = 1%r.
+ proof.
+  progress; fun.
+  exists * NR_PCA.NR_PCA.sk; elim *; intros sk.
+  by call (dec_spec sk _t _c); skip; progress; smt.
+ qed.
+
+ local lemma find_any_spec' : forall (_pv:version) (_c:ciphertext),
+   bd_hoare 
+   [ C(NR_PCA.NR_PCA(PMS_KEM, C).O).find_any : 
+     pv = _pv /\ c = _c ==> 
+     let pms = decrypt () NR_PCA.NR_PCA.sk _pv _c in
+      ((exists h t, in_dom (h, (pms, t)) C.m) <=> res = Some pms) /\
+      (res <> None => res = Some pms)] = 1%r.
+ proof.
+  progress; fun; sp.
+  while  
+   (let pms = decrypt () NR_PCA.NR_PCA.sk pv c in
+    (forall x, mem x q => in_dom x C.m) /\
+    (forall x, 
+     in_dom x C.m => !mem x q => maybe_pms = None => pms <> fst (snd x)) /\
+    (maybe_pms <> None =>
+     (exists h t, in_dom (h, (pms, t)) C.m) /\ maybe_pms = Some pms))
+   (card q).
+   intros z; sp; wp. 
+   exists * pms, pv, c; elim *; intros pms pv c.
+   by call (check_spec' () pms pv c); skip; progress; smt. 
+  by wp; skip; progress; smt.
+ qed.
+
+ local lemma find_spec' : forall (_pv:version) (_c:ciphertext) (_h:hash) (_t:label),
+   bd_hoare 
+   [ C(NR_PCA.NR_PCA(PMS_KEM, C).O).find : 
+     pv = _pv /\ c = _c /\ h = _h /\ t = _t ==> 
+     let pms = decrypt () NR_PCA.NR_PCA.sk _pv _c in
+      (in_dom (_h, (pms, _t)) C.m <=> res = Some pms) /\
+      (res <> None => res = Some pms) ] = 1%r.
+ proof.
+  progress; fun; sp.
+  while  
+   (let pms = decrypt () NR_PCA.NR_PCA.sk pv c in
+    (forall x, mem x q => in_dom x C.m) /\
+    (forall x, 
+     in_dom x C.m => !mem x q => maybe_pms = None => x <> (h, (pms, t))) /\
+    (maybe_pms <> None => 
+     in_dom (h, (pms, t)) C.m /\ maybe_pms = Some pms /\ h = h' /\  t = t'))
+   (card q).
+   intros z; sp; wp. 
+   exists * pms, pv, c; elim *; intros pms pv c.
+   by call (check_spec' () pms pv c); skip; progress; smt. 
+  by wp; skip; progress; smt.
+ qed.
+
+ local equiv RCCA2_NR_extract : 
+   RCCA2.O.extract ~ C(NR_PCA.NR_PCA(PMS_KEM, C).O).O.extract :
+   ={p, s} /\ ={V.keys, V.labels, V.guess, V.t, V.c} /\
+   V.sk{1} = NR_PCA.NR_PCA.sk{2} /\ RCCA2.m{1} = C.m{2} /\ RCCA2.d{1} = C.d{2} 
+   ==>
+   ={res} /\ ={V.keys, V.labels, V.guess, V.t, V.c} /\
+   V.sk{1} = NR_PCA.NR_PCA.sk{2} /\ RCCA2.m{1} = C.m{2} /\ RCCA2.d{1} = C.d{2}. 
+ proof.
+  fun.
+  sp; if => //.
+   seq 0 2 : 
+    (={pms, t, p, s, V.keys, V.labels, V.guess, V.t, V.c} /\
+     V.sk{1} = NR_PCA.NR_PCA.sk{2} /\ RCCA2.m{1} = C.m{2} /\ RCCA2.d{1} = C.d{2} /\
+     ((find_ext V.sk RCCA2.d p pms t){1} <=> 
+      (in_dom t C.d /\ p = h /\ found){2})).
+    sp; exists * pms{2}, pv{2}, c{2}; elim *; intros pms pv c.
+    by call{2} (check_spec' () pms pv c); skip; progress; smt.
+    by if => //; wp; try rnd; skip; progress.
+   by wp.
+ qed.
+
+ local equiv RCCA2_NR_dec : 
+   RCCA2.O.dec ~ C(NR_PCA.NR_PCA(PMS_KEM, C).O).O.dec :
+   ={p, t, c} /\ ={V.keys, V.labels, V.guess, V.t, V.c} /\
+   V.sk{1} = NR_PCA.NR_PCA.sk{2} /\ RCCA2.m{1} = C.m{2} /\ RCCA2.d{1} = C.d{2} 
+   ==>
+   ={res} /\ ={V.keys, V.labels, V.guess, V.t, V.c} /\
+   V.sk{1} = NR_PCA.NR_PCA.sk{2} /\ RCCA2.m{1} = C.m{2} /\ RCCA2.d{1} = C.d{2}. 
+ proof.
+  fun.
+  sp; if => //.
+  sp; if => //.
+  seq 0 1 :    
+   (maybe_k{1} = None /\
+    ={maybe_k, pv, h, p, t, c, V.labels, V.keys, V.guess, V.t, V.c} /\
+    V.sk{1} = NR_PCA.NR_PCA.sk{2} /\
+    RCCA2.m{1} = C.m{2} /\ RCCA2.d{1} = C.d{2} /\
+    !(V.guess /\ (pv, h) = p' /\ t = V.t /\ V.c = c){1} /\
+    ((find_dec V.sk RCCA2.m pv c h t){1} <=> maybe_pms{2} <> None) /\
+    (maybe_pms <> None => 
+     maybe_pms = Some (decrypt () NR_PCA.NR_PCA.sk pv c)){2}).
+   sp; exists * pv{2}, c{2}, h{2}, t{2}; elim *; intros pv c h t.
+   by call{2} (find_spec' pv c h t); skip; progress; smt.
+
+   if => //.
+    by wp; skip; smt.
+    by wp; rnd.
+ qed.
  
  local equiv RCCA2_NR :
   RCCA2.main ~ NR_PCA.NR_PCA(PMS_KEM, C).main :
   true ==> 
   (let (k, pv, h, c) = proj RCCA2.d.[V.t] in
-    c <> V.c /\ decrypt V.sk pv c = V.pms){1} => res{2}.
+    c <> V.c /\ decrypt () V.sk pv c = V.pms){1} => res{2}.
  proof.
   fun.
   (* Workaround to swap PMS_KEM.enc *)
@@ -1540,12 +1862,12 @@ proof.
   (true ==> ={glob V, RCCA2.m, RCCA2.d})
   (true ==> 
    (let (k, pv, h, c) = proj RCCA2.d.[V.t] in
-    c <> V.c /\ decrypt V.sk pv c = V.pms){1} => (c <> c' /\ k' = k){2}) => //.
+    c <> V.c /\ decrypt () V.sk pv c = V.pms){1} => (c <> c' /\ k' = k){2}) => //.
   call (_: ={glob V, RCCA2.m, RCCA2.d}).
    by fun; eqobs_in.
    by fun; eqobs_in.
    wp; rnd; rnd; simplify.
-   admit (* swap{1} 6 1 *).
+   admit (* swap{1} 6 1, but technically dec 'uses' V.c *).
   (*********************************)
   inline NR_PCA.NR_PCA(PMS_KEM, C).A.choose NR_PCA.NR_PCA(PMS_KEM, C).A.guess.
   wp; seq 6 7 : (={pk, glob A, V.keys, V.labels, V.guess, V.t, V.c} /\ 
@@ -1553,23 +1875,23 @@ proof.
    RCCA2.m{1} = C.m{2} /\ RCCA2.d{1} = C.d{2}).
    call (_: ={V.keys, V.labels, V.guess, V.t, V.c} /\
     V.sk{1} = NR_PCA.NR_PCA.sk{2} /\ RCCA2.m{1} = C.m{2} /\ RCCA2.d{1} = C.d{2}).
-    by fun; eqobs_in.
-    by fun; eqobs_in.
+    by apply RCCA2_NR_dec.
+    by apply RCCA2_NR_extract.
    inline V.init; wp; call (_:true); wp; call (_:true); skip; progress.
 
    seq 6 9 : (={b', pk, glob A, V.keys, V.labels, V.guess, V.t, V.c} /\
     V.sk{1} = NR_PCA.NR_PCA.sk{2} /\ 
     V.c{1} = c{2} /\ V.pms{1} = k{2} /\
-    (decrypt V.sk (fst p') V.c = V.pms){1} /\
+    (decrypt () V.sk (fst p') V.c = V.pms){1} /\
     RCCA2.m{1} = C.m{2} /\ RCCA2.d{1} = C.d{2}). 
    call (_: ={V.keys, V.labels, V.guess, V.t, V.c} /\
     V.sk{1} = NR_PCA.NR_PCA.sk{2} /\ RCCA2.m{1} = C.m{2} /\ RCCA2.d{1} = C.d{2}).
-    by fun; eqobs_in.
-    by fun; eqobs_in.
+    by apply RCCA2_NR_dec.
+    by apply RCCA2_NR_extract.
 
    wp; rnd; rnd; wp.
    exists * V.sk{1}, pk{1}; elim *; intros sk pk.
-   call (enc_spec_rel sk pk (fst p')).
+   call (enc_spec_rel pk sk (fst p')).
    wp; skip; progress; smt.
 
    sp; wp; exists * NR_PCA.NR_PCA.sk{2}, t'{2}, c'{2}; elim *; intros sk pv c.
@@ -1579,7 +1901,7 @@ proof.
 
  local lemma Pr_RCCA2_NR : forall &m,
    Pr[RCCA2.main() @ &m : let (k, pv, h, c) = proj RCCA2.d.[V.t] in
-      c <> V.c /\ decrypt V.sk pv c = V.pms] <=
+      c <> V.c /\ decrypt () V.sk pv c = V.pms] <=
    Pr[NR_PCA.NR_PCA(PMS_KEM, C).main() @ &m : res].
  proof.
   by intros &m; equiv_deno RCCA2_NR.
@@ -1587,10 +1909,8 @@ proof.
 
  (** Conclusion **)
  lemma Conclusion : forall &m,
-   exists (B <: OW_PCA.Adversary) (C <: NR_PCA.Adversary),
-(*        (B <: OW_PCA.Adversary {OW_PCA.OW_PCA) 
+   exists (B <: OW_PCA.Adversary {OW_PCA.OW_PCA}) 
           (C <: NR_PCA.Adversary {NR_PCA.NR_PCA}),
-*)
     Pr[RCCA(KEM(RO_KEF, PMS_KEM), A(RO_KEF)).main() @ &m : res] - 1%r / 2%r <=
     Pr[OW_PCA.OW_PCA(PMS_KEM, B).main() @ &m : res] +
     Pr[NR_PCA.NR_PCA(PMS_KEM, C).main() @ &m : res].
@@ -1604,7 +1924,7 @@ proof.
    apply (Trans _
     (Pr[RCCA2.main() @ &m : exists t, in_dom (snd p', (V.pms, t)) RCCA2.m] +  
      Pr[RCCA2.main() @ &m : let (k, pv, h, c) = proj RCCA2.d.[V.t] in
-       c <> V.c /\ decrypt V.sk pv c = V.pms])).
+       c <> V.c /\ decrypt () V.sk pv c = V.pms])).
     by apply (Pr_RCCA1_RCCA2 &m).
     apply addleM.
      by apply (Pr_RCCA2_OW &m).
