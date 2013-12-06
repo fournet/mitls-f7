@@ -49,7 +49,7 @@ module Option =
         | Some x -> None
 
 (* ------------------------------------------------------------------------------- *)
-let bytes_of_key (k : SessionIndex) =
+let bytes_of_key (k : byte[] * Role * string) =
     let bf = new BinaryFormatter () in
     let m  = new MemoryStream () in
         bf.Serialize(m, k); m.ToArray ()
@@ -83,7 +83,7 @@ let create poptions =
 
 (* ------------------------------------------------------------------------------- *)
 let remove self sid role hint =
-    let key = bytes_of_key (sid,role,hint) in
+    let key = bytes_of_key (Bytes.cbytes sid,role,hint) in
     let db  = DB.opendb self.filename in
 
     try
@@ -94,7 +94,7 @@ let remove self sid role hint =
 
 (* ------------------------------------------------------------------------------- *)
 let select self sid role hint =
-    let key = bytes_of_key (sid,role,hint) in
+    let key = bytes_of_key (Bytes.cbytes sid,role,hint) in
 
     let select (db : DB.db) =
         let filter_record ((sinfo, ts) : StorableSession * _) =
@@ -120,7 +120,7 @@ let select self sid role hint =
 
 (* ------------------------------------------------------------------------------- *)
 let insert self sid role hint value =
-    let key = bytes_of_key (sid,role,hint) in
+    let key = bytes_of_key (Bytes.cbytes sid,role,hint) in
     let insert (db : DB.db) =
         match DB.get db key with
         | Some _ -> ()

@@ -38,6 +38,7 @@ val hasExtendedPadding: id -> bool
 // val checkClientRenegotiationInfoExtension: (extensionType * bytes) list -> TLSConstants.cipherSuites -> bytes -> bool
 
 //CF what are those doing here? relocate? 
+//AP Partially relocate to TLSConstants, partially implement the mandatory signature extension, and embed them there. Maybe TODO before v1.0?
 val sigHashAlgBytes: Sig.alg -> bytes
 val parseSigHashAlg: bytes -> Sig.alg Result
 val sigHashAlgListBytes: Sig.alg list -> bytes

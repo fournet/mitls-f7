@@ -310,11 +310,15 @@ private definition !c,s,si,p. EpochSI(SuccEpoch(c,s,si,p)) = si
 
 function val EpochSRand: succEpoch -> bytes
 function val EpochCRand: succEpoch -> bytes
+function val EpochCSRands: succEpoch -> bytes
 private definition !b1,b2,si,pe. EpochSRand(SuccEpoch(b1,b2,si,pe)) = b2
 private definition !b1,b2,si,pe. EpochCRand(SuccEpoch(b1,b2,si,pe)) = b1
+private definition !csr,e. csr = EpochCSRands(e) <=>
+                       B(csr) = 
+                       B(EpochCRand(e)) @| B(EpochSRand(e))
 val epochSRand:   e:succEpoch -> b:crand{B(b)   = B(EpochSRand(e))}
 val epochCRand:   e:succEpoch -> b:srand{B(b)   = B(EpochCRand(e))}
-val epochCSRands: e:succEpoch -> b:csrands{B(b) = B(EpochCRand(e)) @| B(EpochSRand(e))}
+val epochCSRands: e:succEpoch -> b:csrands{b = EpochCSRands(e)}
 
 val epochSI: e:succEpoch -> si:SessionInfo{si = EpochSI(e)}
 
