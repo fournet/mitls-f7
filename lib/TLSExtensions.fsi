@@ -11,15 +11,15 @@ type clientExtension
 type serverExtension
 
 // Client side
-val clientExtensionsBytes: clientExtension list -> bytes
 val prepareClientExtensions: config -> ConnectionInfo -> cVerifyData -> sessionHash option -> clientExtension list
+val clientExtensionsBytes: clientExtension list -> bytes
 val parseServerExtensions: bytes -> (serverExtension list) Result
 val negotiateClientExtensions: clientExtension list -> serverExtension list -> bool -> negotiatedExtensions Result
 
 // Server side
-val serverExtensionsBytes: serverExtension list -> bytes
-val negotiateServerExtensions: clientExtension list -> config -> ConnectionInfo -> (cVerifyData * sVerifyData) -> sessionHash option -> (serverExtension list * negotiatedExtensions)
 val parseClientExtensions: bytes -> cipherSuites -> (clientExtension list) Result
+val negotiateServerExtensions: clientExtension list -> config -> ConnectionInfo -> (cVerifyData * sVerifyData) -> sessionHash option -> (serverExtension list * negotiatedExtensions)
+val serverExtensionsBytes: serverExtension list -> bytes
 
 // Extension-specific
 val checkClientRenegotiationInfoExtension: config -> clientExtension list -> cVerifyData -> bool
@@ -37,6 +37,7 @@ val hasExtendedPadding: id -> bool
 // val inspect_ServerHello_extensions: (extensionType * bytes) list -> bytes -> unit Result
 // val checkClientRenegotiationInfoExtension: (extensionType * bytes) list -> TLSConstants.cipherSuites -> bytes -> bool
 
+//CF what are those doing here? relocate? 
 val sigHashAlgBytes: Sig.alg -> bytes
 val parseSigHashAlg: bytes -> Sig.alg Result
 val sigHashAlgListBytes: Sig.alg list -> bytes

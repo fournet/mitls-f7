@@ -7,6 +7,7 @@ open PMS
 open PRF
 
 // concrete PMS --> MS derivation.
+// this implements the KEF call in the "generic ms-KEM construction".
 
 type log = bytes
 

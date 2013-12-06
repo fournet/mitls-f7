@@ -11,7 +11,7 @@ open TLSInfo
 predicate Authorize of Role * SessionInfo
 
 type (;sid:sessionID, r:Role) StorableSession = si:SessionInfo * (;si) PRF.masterSecret
-  { si.sessionID = sid /\ Authorize(r,si) }
+  { si.sessionID = sid /\ Authorize(r,si) }...
 
 type SessionIndex = sessionID * Role * Cert.hint
 type entry = sid:sessionID * r:Role *  Cert.hint * (;sid,r) StorableSession 
@@ -32,9 +32,9 @@ type ticket = bytes // constraints on size?
 type (;sid:sessionID, r:Role) StorableSession = 
      si:SessionInfo 
    * (;si) PRF.masterSecret
-   * o:(ticketCipher option) { Authorize(r,si) } /\
-                               (o = None => si.sessionID = sid) /\  
-                               (r = Server => o = None) }  
+   * o:(ticket option) { Authorize(r,si) } /\
+                         (o = None => si.sessionID = sid) /\  
+                         (r = Server => o = None) }  
 
 // As suggested in RFC 5077, our client generates a random sid when the server provides a ticket,
 // so that the client app can use it to trigger the resumption (ignoring whether ticketed or not)
@@ -47,12 +47,15 @@ type (;sid:sessionID, r:Role) StorableSession =
 // TAKE 2: we will index our database with client-random | server-random instead of this poor sid. 
 // we need not reflect it in the sessionInfo either; we might have a boolean flagging possible resumption. 
 
-
 val noSid
-val newKey: unit -> keyName // no need for formal corruption?
 
+// server-only; in the database, we'll store some keys as well as some sessions.
+
+val newKey: t -> keyName // no need for formal corruption?
+val forget: t -> keyName -> unit 
+ 
 val sessionTicket: keyName -> (;noSid,Server) StorableSession -> ticket
-val ticketSession: ticket -> keyName * (;noSid,Server) StorableSession
+val ticketSession: ticket -> (keyName * (;noSid,Server) StorableSession) Result
 
 private val keys = AE.key list 
 

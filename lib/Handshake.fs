@@ -28,7 +28,7 @@ type serverState =  (* note that the CertRequest bits are determined by the conf
    | ServerCheckingCertificateRSA of SessionInfo * ProtocolVersion * RSAKey.sk * log * Cert.chain * bytes
    | ClientKeyExchangeRSA         of SessionInfo * ProtocolVersion * RSAKey.sk * log
 
-   | ClientCertificateDH         of SessionInfo * log
+   | ClientCertificateDH          of SessionInfo * log
    | ServerCheckingCertificateDH  of SessionInfo * log * bytes
    | ClientKeyExchangeDH          of SessionInfo * log 
 
@@ -520,7 +520,8 @@ let certificateVerifyBytesAuth (si:SessionInfo) (ms:PRF.masterSecret) (cert_req:
             (* No client certificate ==> no certificateVerify message *)
             empty_bytes
 
-let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) (cert_req:Cert.sign_cert) (p:DHGroup.p) (g:DHGroup.g) (sy:DHGroup.elt) (log:log) : (hs_state * SessionInfo * PRF.masterSecret * log) Result =
+let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) 
+  (cert_req:Cert.sign_cert) (p:DHGroup.p) (g:DHGroup.g) (sy:DHGroup.elt) (log:log) : (hs_state * SessionInfo * PRF.masterSecret * log) Result =
 (* KB #if avoid
     failwith "does not typecheck"
 #else *)
@@ -532,17 +533,17 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
 
     let log = log @| clientCertBytes
 
+    (* this implements ms-KEM(DH).enc with pk = (p,g,sy) and (pv,h,l) from si *) 
     let (cy,x) = DH.genKey p g in
     (* post: DHE.Exp((p,g),x,cy) *) 
-
     let dhpms = DH.exp p g cy sy x in
     let pms = PMS.DHPMS(p,g,cy,sy,dhpms) in
     let si = {si with pmsData = DHPMS(p,g,cy,sy); 
                       pmsId = pmsId pms} in
 
+
     let clientKEXBytes = clientKEXExplicitBytes_DH cy in
     let log = log @| clientKEXBytes in
-
 
     (* the post of this call is !sx,cy. PP((p,g) /\ DHE.Exp((p,g),x,cy)) /\ DHE.Exp((p,g),sx,sy) -> DHE.Secret((p,g),cy,sy) *)
     (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DHE.Secret((p,g),cy,sy) *) 
@@ -1007,7 +1008,7 @@ let prepare_server_output_full_RSA (ci:ConnectionInfo) state si cv calgs sExtL l
         (* update server identity in the sinfo *)
         let si = {si with serverID = c} in
         let certificateB = serverCertificateBytes c in
-        (* No ServerKEyExchange in RSA ciphersuites *)
+        (* No ServerKeyExchange in RSA ciphersuites *)
         (* Compute the next state of the server *)
         if si.client_auth then
           let certificateRequestB = certificateRequestBytes true si.cipher_suite si.protocol_version in // true: Ask for sign-capable certificates
@@ -1048,13 +1049,17 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL l
         (* set server identity in the session info *)
         let si = {si with serverID = c} in
         let certificateB = serverCertificateBytes c in
-        (* ServerKEyExchange *)
+
+        (* ServerKeyExchange *)
         let (p,g) = DH.default_pp () in
         let (y,x) = DH.genKey p g in
-        let dheb = dheParamBytes p g y in
-        let toSign = si.init_crand @| si.init_srand @| dheb in
+        //~ pms-KEM: ((p,g),y),(((p,g),y),x) = keygen_DHE() 
+
+        let dheB = dheParamBytes p g y in
+        let toSign = si.init_crand @| si.init_srand @| dheB in
         let sign = Sig.sign alg sk toSign in
-        let serverKEXB = serverKeyExchangeBytes_DHE dheb alg sign si.protocol_version in
+        let serverKEXB = serverKeyExchangeBytes_DHE dheB alg sign si.protocol_version in
+
         (* CertificateRequest *)
         if si.client_auth then
           let certificateRequestB = certificateRequestBytes true si.cipher_suite si.protocol_version in // true: Ask for sign-capable certificates
@@ -1101,7 +1106,7 @@ let prepare_server_output_full ci state si cv sExtL log =
     if isAnonCipherSuite si.cipher_suite then
         prepare_server_output_full_DH_anon ci state si sExtL log
     elif isDHCipherSuite si.cipher_suite then
-        prepare_server_output_full_DH ci state si sExtL log
+        prepare_server_output_full_DH      ci state si sExtL log
     elif isDHECipherSuite si.cipher_suite then
         // Get the client supported SignatureAndHash algorithms. In TLS 1.2, this should be extracted from a client extension
         let calgs = default_sigHashAlg si.protocol_version si.cipher_suite in
@@ -1321,11 +1326,17 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Error(z) -> let (x,y) = z in  InError(x,y,state)
                 | Correct(y) ->
                     let log = log @| to_log in
-                    let si = {si with pmsData = DHPMS(p,g,y,gx)} in //MK is the order of y, gx right?
+                    let si = {si with pmsData = DHPMS(p,g,y,gx)} in //MK is the order of y, gx right? CF:sort of, y is the client exponential.
                     (* from the local state, we know: PP((p,g)) /\ ?gx. DHE.Exp((p,g),x,gx) ; tweak the ?gx for genPMS. *)
+
+                    (* these 3 lines implement  ms-KEM(DH).dec where: 
+                       (pv,h,l) are included in si, sk is (((p,g),gx),x), c is y *)
+
+                    (* these 2 lines implement pms-KEM(DH).dec(pv?, sk, c) *)
                     let dhpms = DH.exp p g gx y x in
                     //MK We should also store the pmsId
                     let pms = PMS.DHPMS(p,g,y,gx,dhpms) in //MK is the order of y, gx right?
+
                     (* StrongHS(si) /\ DHE.Exp((p,g),?cx,y) -> DHE.Secret(pms) *)
                     let (si,ms) = extract si pms log in
                     (* StrongHS(si) /\ DHE.Exp((p,g),?cx,y) -> PRFs.Secret(ms) *)

@@ -133,12 +133,11 @@ let epochCRand e =
 let epochCSRands e =
     epochCRand e @| epochSRand e
 
-type preConnectionInfo = {
+type ConnectionInfo = {
     role: Role; // cached, could be retrieved from id_out
     id_rand: random; // our random
     id_in: epoch;
     id_out: epoch}
-type ConnectionInfo = preConnectionInfo
 
 let connectionRole ci = ci.role
 
@@ -203,8 +202,8 @@ let noId: id = {
   ext = [];
   writer=Client }
 
-let id e =
-  if isInitEpoch e
+let id e = 
+  if isInitEpoch e 
   then noId 
   else
     let si     = epochSI e
@@ -213,16 +212,16 @@ let id e =
     let msi    = msi si
     let kdfAlg = kdfAlg si
     let aeAlg  = aeAlg cs pv
-    let csr    = epochCSRands e
+    let csr    = csrands si
     let ext    = si.extensions
     let wr     = epochWriter e
-    {msId = msi; 
-     kdfAlg=kdfAlg; 
-     pv=pv; 
-     aeAlg = aeAlg; 
-     csrConn = csr;
-     ext = ext;
-     writer=wr }
+    { msId = msi; 
+      kdfAlg = kdfAlg; 
+      pv = pv; 
+      aeAlg = aeAlg; 
+      csrConn = csr;
+      ext = ext;
+      writer = wr }
 
 // Pretty printing
 let sinfo_to_string (si:SessionInfo) =
