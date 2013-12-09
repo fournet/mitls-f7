@@ -133,11 +133,12 @@ let epochCRand e =
 let epochCSRands e =
     epochCRand e @| epochSRand e
 
-type ConnectionInfo = {
+type preConnectionInfo = {
     role: Role; // cached, could be retrieved from id_out
     id_rand: random; // our random
     id_in: epoch;
     id_out: epoch}
+type ConnectionInfo = preConnectionInfo
 
 let connectionRole ci = ci.role
 
