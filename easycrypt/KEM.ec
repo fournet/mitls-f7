@@ -6,7 +6,6 @@
  * then the master secret KEM, seen as an agile labeled KEM, is
  * Indistinguishable under Replayable Chosen-Ciphertext Attacks in the
  * ROM for the underlying agile KEF.
- *
  *)
 
 require import Bool.
@@ -778,10 +777,11 @@ section.
           by progress; fun; sp; if; try rnd; skip; smt.
         wp; rnd; wp; if{1}.
           by rnd; skip; smt.
-          by rnd{2}; skip; smt.   
+          by rnd{2}; skip; smt.
         (* !abort *)
         case valid{1}.
           (* valid *)
+          (* REMARK: here is where the validity condition is used *)
           rcondt{1} 1; first by intros _; skip; smt.
           call (_:RCCA1.abort,
            keypair(V.pk, V.sk){2} /\
@@ -1661,7 +1661,14 @@ section.
   
   
   (** RCCA2 -> NR *)
-  
+
+  (* REMARK: the condition !mem t labels in the decryption oracle in
+   * the RCCA game could be dropped. A similar reduction to NR-PCA
+   * would work, but the map d would no longer be functional on t, and so
+   * the NR adversary would have to choose one decryption query for the
+   * challenge label at random, incurring a q_dec loss factor.
+   *)
+
   local module C(PCO:PCA.Oracle) = {
     module F = Find(PCO)
     module A = A(Find(PCO).O1, Find(PCO).O2)
