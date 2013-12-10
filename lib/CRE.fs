@@ -28,7 +28,6 @@ open PMS
  *)
 
 let private extractMS si pmsBytes : PRF.masterSecret =
-    let pv = si.protocol_version in
     let cs = si.cipher_suite in
     let data = csrands si in
     let ca = creAlg si in
