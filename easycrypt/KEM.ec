@@ -309,32 +309,44 @@ section.
   declare module PMS_KEM : Inner_KEM.KEM 
     {RO_KEF, RCCA, PCA.NR_PCA, PCA.OW_PCA}.
 
-  (* Assumptions about the Pre-master secret KEM *)
-  (* TODO: remove this *)
+  (* Assumptions on the Pre-master secret KEM *)
+
+  (* 
+   * REMARK: This can be weakened. It is enough to require that 
+   * PMS_KEM.enc and PMS_KEM.dec do not write shared global state
+   * (read-only shared state initialized by PMS_KEM.init and 
+   * PMS_KEM.keygen is fine).
+   *)
   axiom stateless_pms_kem : forall (x y:glob PMS_KEM), x = y.
-  
+
+  (* TODO: move these 3 operators to PMS_KEM *)
   op keypair : pkey * skey -> bool.
 
   op decrypt : skey -> version -> ciphertext -> pms.
-  
-  (* Crucial *)
-  axiom dec_injective_pv : forall sk pv1 pv2 c,
-    decrypt sk pv1 c = decrypt sk pv2 c => pv1 = pv2.
+
+  op same_key : pkey -> version -> version -> ciphertext -> bool.
+
+  (* 
+   * REMARK: The axiom previously used only holds for RSA:
+   *
+   * axiom nosmt dec_injective_pv : forall sk pv1 pv2 c,
+   * decrypt sk pv1 c = decrypt sk pv2 c => pv1 = pv2.
+   *
+   * For RSA, same_key pk pv1 pv2 c := pv1 = pv2
+   * For DH, same_key pk pv1 pv2 c := true
+   *)  
+  axiom nosmt same_key_spec : forall pk sk pv1 pv2 c,
+    keypair(pk, sk) =>
+    (same_key pk pv1 pv2 c <=> decrypt sk pv1 c = decrypt sk pv2 c).
 
   axiom keygen_spec_rel :
-    equiv [ PMS_KEM.keygen ~ PMS_KEM.keygen : 
-      true ==> ={res} /\ keypair res{1} ].
+    equiv [ PMS_KEM.keygen ~ PMS_KEM.keygen : true ==> ={res} /\ keypair res{1} ].
 
-  axiom enc_spec_rel : forall pk sk pv,
+  axiom enc_spec_rel : forall sk pk pv,
     equiv [ PMS_KEM.enc ~ PMS_KEM.enc :
       pk{1} = pk /\ t{1} = pv /\ ={pk, t} /\ keypair(pk, sk) ==>
       ={res} /\ let (k, c) = res{1} in decrypt sk pv c = k ].
 
-  axiom enc_spec : forall _sk _pk _pv,
-    bd_hoare [ PMS_KEM.enc :
-      pk = _pk /\ t = _pv /\ keypair(_pk, _sk) ==>
-      let (k, c) = res in decrypt _sk _pv c = k ] = 1%r.
- 
   axiom dec_spec : forall _sk _pv _c,
     bd_hoare [ PMS_KEM.dec :
       sk = _sk /\ t = _pv /\ c = _c ==> res = decrypt _sk _pv _c ] = 1%r.
@@ -432,11 +444,12 @@ section.
            MS_KEM.init RO_KEF.init MS_KEM.keygen.
     by wp; call keygen_spec_rel; wp; call (_:true).
     sp; exists * W.sk{1}, pk0{1}, pv{1}; elim *; intros sk pk pv.
-    by wp; call (enc_spec_rel pk sk pv); skip; progress; smt.
+    by wp; call (enc_spec_rel sk pk pv); skip; progress; smt.
   qed.
 
   (* Global variables in RCCA1 and RCCA2 *)
   local module V = {
+    var pk : pkey
     var sk : skey
     var keys : ms set
     var labels : label set
@@ -482,7 +495,7 @@ section.
           (pv, h) = p;
           pms = decrypt V.sk pv c;
           abort = abort \/ (V.guess /\ pms = V.pms /\ t = V.t /\ c <> V.c);
-          if (!(V.guess /\ (pv, h) = pp /\ t = V.t /\ c = V.c)) {
+          if (!(V.guess /\ same_key V.pk (fst pp) pv c /\ h = snd pp /\ t = V.t /\ c = V.c)) {
             if (!in_dom (h, (pms, t)) m) m.[(h, (pms, t))] = $key;
             k = proj m.[(h, (pms, t))];
             maybe_k = if (!mem k V.keys) then Some k else None;
@@ -497,14 +510,13 @@ section.
     fun main() : bool = {
      var b, b', valid : bool;
      var k0, k1 : ms;
-     var pk : pkey;
      PMS_KEM.init();
-     (pk, V.sk) = PMS_KEM.keygen();
+     (V.pk, V.sk) = PMS_KEM.keygen();
      V.init();
      m = Core.empty;
      abort = false;
-     (V.pms, V.c) = PMS_KEM.enc((), pk, fst pp);
-     V.t = A.choose(pk);
+     (V.pms, V.c) = PMS_KEM.enc((), V.pk, fst pp);
+     V.t = A.choose(V.pk);
      valid = !mem V.t V.labels;
      k0 = $key;
      k1 = $key;
@@ -521,6 +533,7 @@ section.
     RO_KEF.extract ~ RCCA1.O1.extract :
     !RCCA1.abort{2} /\
     ={p, s} /\
+    keypair(V.pk, V.sk){2} /\
     V.guess{2} /\
     W.sk{1} = V.sk{2} /\
     W.keys{1} = V.keys{2} /\
@@ -532,6 +545,7 @@ section.
     ==>
     !RCCA1.abort{2} =>
       ={res} /\
+      keypair(V.pk, V.sk){2} /\
       V.guess{2} /\
       W.sk{1} = V.sk{2} /\
       W.keys{1} = V.keys{2} /\
@@ -556,13 +570,14 @@ section.
         cut W : 
          (p, (pms, t)){2} <>
          (snd pp, (decrypt V.sk (fst pp) V.c, V.t)){2} by smt.
-        by generalize H1; rewrite eq_except_def; smt.
+        by generalize H2; rewrite eq_except_def; smt.
   qed.
   
   local equiv RCCA0_RCCA1_dec_upto :
     RCCA0.O.dec ~ RCCA1.O2.dec :
     !RCCA1.abort{2} /\
     ={p, t, c} /\
+    keypair(V.pk, V.sk){2} /\
     V.guess{2} /\
     W.sk{1} = V.sk{2} /\
     W.keys{1} = V.keys{2} /\
@@ -574,6 +589,7 @@ section.
     ==>
     !RCCA1.abort{2} =>
       ={res} /\
+      keypair(V.pk, V.sk){2} /\
       V.guess{2} /\
       W.sk{1} = V.sk{2} /\
       W.keys{1} = V.keys{2} /\
@@ -597,18 +613,18 @@ section.
       inline{1} RO_KEF.extract.
       if{2}.
         wp; sp; if.
-          by progress; cut W :
-            (snd pp, (decrypt V.sk (fst pp) V.c, V.t)){2} <>
-            (h, (decrypt V.sk pv c, t)){2}; smt.   
+          progress.
+          by smt.
+          by cut W := same_key_spec V.pk{2} V.sk{2} (fst pp) pv{2} c{2}; smt.
           by rnd; skip; progress; smt.    
         skip; progress.
-        cut W :
-         (snd pp, (decrypt V.sk (fst pp) V.c, V.t)){2} <>
-         (h, (decrypt V.sk pv c, t)){2} by smt.
-        by generalize H1; rewrite eq_except_def; smt.    
+        cut W := same_key_spec V.pk{2} V.sk{2} (fst pp) pv{2} c{2}.
+        by generalize H2; rewrite eq_except_def; smt.
     wp; sp; if{1}.
-      by rnd{1}; skip; smt.
-      by skip; smt.
+      by rnd{1}; skip; progress;
+        cut W := same_key_spec V.pk{2} V.sk{2} (fst pp) pv{2} V.c{2}; smt.
+      by skip; progress;
+        cut W := same_key_spec V.pk{2} V.sk{2} (fst pp) pv{2} V.c{2}; smt.
   qed.
   
   local lemma RCCA0_lossless_dec : islossless RCCA0.O.dec.
@@ -640,7 +656,8 @@ section.
   local equiv RCCA0_RCCA1_extract :
     RO_KEF.extract ~ RCCA1.O1.extract :
     !RCCA1.abort{2} /\
-    ={p, s} /\ 
+    ={p, s} /\
+    keypair(V.pk, V.sk){2} /\ 
     !V.guess{2} /\
     RO_KEF.m{1} = RCCA1.m{2} /\
     W.sk{1} = V.sk{2} /\
@@ -653,6 +670,7 @@ section.
     ==>
     !RCCA1.abort{2} =>
       ={res} /\ 
+      keypair(V.pk, V.sk){2} /\
       !V.guess{2} /\
       RO_KEF.m{1} = RCCA1.m{2} /\
       W.sk{1} = V.sk{2} /\
@@ -675,6 +693,7 @@ section.
     RCCA0.O.dec ~ RCCA1.O2.dec :
     !RCCA1.abort{2} /\
     ={p, t, c} /\ 
+    keypair(V.pk, V.sk){2} /\
     !V.guess{2} /\
     RO_KEF.m{1} = RCCA1.m{2} /\
     W.sk{1} = V.sk{2} /\
@@ -687,6 +706,7 @@ section.
     ==>
     !RCCA1.abort{2} =>
       ={res} /\ 
+      keypair(V.pk, V.sk){2} /\
       !V.guess{2} /\
       RO_KEF.m{1} = RCCA1.m{2} /\
       W.sk{1} = V.sk{2} /\
@@ -718,11 +738,13 @@ section.
      (={b} /\ pms{1} = V.pms{2} /\ c{1} = V.c{2} /\ (pv, h){1} = pp /\
       (!RCCA1.abort{2} =>
        ={glob A} /\ t{1} = V.t{2} /\ RO_KEF.m{1} = RCCA1.m{2} /\
+       keypair(V.pk, V.sk){2} /\
        W.sk{1} = V.sk{2} /\ W.keys{1} = V.keys{2} /\ W.labels{1} = V.labels{2} /\
        (decrypt V.sk (fst pp) V.c = V.pms){2} /\
        (forall t, in_dom (snd pp, (V.pms, t)) RCCA1.m => mem t V.labels){2})).
       rnd; simplify.
       call (_:RCCA1.abort,
+        keypair(V.pk, V.sk){2} /\
         !V.guess{2} /\ RO_KEF.m{1} = RCCA1.m{2} /\
         W.sk{1} = V.sk{2} /\ W.keys{1} = V.keys{2} /\ W.labels{1} = V.labels{2} /\
         (decrypt V.sk (fst pp) V.c = V.pms){2} /\
@@ -736,12 +758,12 @@ section.
       by progress; apply lossless_extract.
       by progress; fun; sp; if; try rnd; skip; smt. 
       seq 2 2 : 
-       (pk{1} = pk{2} /\ W.sk{1} = V.sk{2} /\ 
-        RO_KEF.m{1} = Core.empty /\ keypair(pk, W.sk){1}).
+       (pk{1} = V.pk{2} /\ W.sk{1} = V.sk{2} /\ keypair(V.pk, V.sk){2} /\
+        RO_KEF.m{1} = Core.empty).
         inline MS_KEM.init RO_KEF.init MS_KEM.keygen; wp.
         by call keygen_spec_rel; wp; call (_:true).
-        inline V.init; sp; exists * V.sk{2}, pk{2}; elim *; intros sk pk.
-        by call (enc_spec_rel pk sk (fst pp)); skip; smt.
+        inline V.init; sp; exists * V.sk{2}, V.pk{2}; elim *; intros sk pk.
+        by call (enc_spec_rel sk pk (fst pp)); skip; progress; smt.
 
       inline RO_KEF.extract; wp; sp.
       case RCCA1.abort{2}.
@@ -762,7 +784,8 @@ section.
           (* valid *)
           rcondt{1} 1; first by intros _; skip; smt.
           call (_:RCCA1.abort,
-           V.guess{2} /\
+           keypair(V.pk, V.sk){2} /\
+           V.guess{2} /\ 
            W.sk{1} = V.sk{2} /\ W.keys{1} = V.keys{2} /\ W.labels{1} = V.labels{2} /\
            eq_except RO_KEF.m{1} RCCA1.m{2} (snd pp, (V.pms, V.t)){2} /\
            in_dom (snd pp, (V.pms, V.t)){2} RO_KEF.m{1} /\
@@ -851,7 +874,7 @@ section.
         if (!mem t V.labels /\ mem p P) { 
           V.labels = add t V.labels;
           (pv, h) = p;
-          if (!(V.guess /\ (pv, h) = pp /\ t = V.t /\ V.c = c)) {
+          if (!(V.guess /\ same_key V.pk (fst pp) pv c /\ h = snd pp /\ t = V.t /\ V.c = c)) {
             if (in_dom (h, (decrypt V.sk pv c, t)) m) {
               k = proj m.[(h, (decrypt V.sk pv c, t))];
             }
@@ -869,14 +892,13 @@ section.
     fun main() : bool = {
       var b, b' : bool;
       var k0, k1 : ms;
-      var pk : pkey;
       PMS_KEM.init();
-      (pk, V.sk) = PMS_KEM.keygen();
+      (V.pk, V.sk) = PMS_KEM.keygen();
       V.init();
       m = Core.empty;
       d = Core.empty;
-      (V.pms, V.c) = PMS_KEM.enc((), pk, fst pp);
-      V.t = A.choose(pk);
+      (V.pms, V.c) = PMS_KEM.enc((), V.pk, fst pp);
+      V.t = A.choose(V.pk);
       k0 = $key;
       k1 = $key;
       V.guess = true;
@@ -1160,11 +1182,11 @@ section.
          let (k, pv, h', c) = proj RCCA2.d{2}.[t] in Some k))).
       by apply RCCA1_RCCA2_dec.
       by apply RCCA1_RCCA2_extract. 
-    seq 2 2 : (={pk, V.sk} /\ keypair(pk, V.sk){1}).
+    seq 2 2 : (={V.pk, V.sk} /\ keypair(V.pk, V.sk){1}).
       by call keygen_spec_rel; call (_:true); skip.
-      exists * pk{1}, V.sk{1}; elim *; intros pk sk.
-      call (enc_spec_rel pk sk (fst pp)).
-      by inline V.init; wp; skip; progress; smt.
+      exists * V.pk{1}, V.sk{1}; elim *; intros pk sk.
+      call (enc_spec_rel sk pk (fst pp)).
+      inline V.init; wp; skip; progress; smt.
   qed.
   
   local lemma Pr_RCCA1_RCCA2 : forall &m,
@@ -1190,6 +1212,7 @@ section.
   local module Find(PCO:PCA.Oracle) = {
     var m : (hash * (pms * label), ms) map
     var d : (label, (ms * version * hash * ciphertext)) map
+    var pk : pkey
   
     (* Private procedures *)
     fun find(pv:version, c:ciphertext, h:hash, t:label) : pms option = {
@@ -1264,7 +1287,7 @@ section.
         if (!mem t V.labels /\ mem p P) { 
           V.labels = add t V.labels;
           (pv, h) = p;
-          if (!(V.guess /\ (pv, h) = pp /\ t = V.t /\ V.c = c)) {
+          if (!(V.guess /\ same_key pk (fst pp) pv c /\ h = snd pp /\ t = V.t /\ V.c = c)) {
             maybe_pms = find(pv, c, h, t);
             if (maybe_pms <> None) k = proj m.[(h, (proj maybe_pms, t))];
             else k = $key;
@@ -1286,6 +1309,7 @@ section.
       V.init();
       Find.m = Core.empty;
       Find.d = Core.empty;
+      Find.pk = pk;
       V.t = A.choose(pk);
       return (fst pp);
     }
@@ -1361,7 +1385,7 @@ section.
       apply OW_PCA0_OW_PCA_check.
     by inline V.init; wp; call keygen_spec_rel; call (_:true).
     exists * PCA.V.sk{1}, pk{1}, t{1}; elim *; intros sk pk t.
-    by call (enc_spec_rel pk sk t).
+    by call (enc_spec_rel sk pk t).
   qed.
 
   local lemma check_spec : forall _k _t _c,
@@ -1424,12 +1448,14 @@ section.
   local equiv RCCA2_OW_extract : 
     RCCA2.O1.extract ~ Find(O).O1.extract :
     ={p, s} /\ ={V.keys, V.labels, V.guess, V.t, V.c} /\
+    V.pk{1} = Find.pk{2} /\
     V.sk{1} = PCA.V.sk{2} /\ 
     RCCA2.m{1} = Find.m{2} /\ 
     RCCA2.d{1} = Find.d{2} /\
     decrypt V.sk{1} (fst pp) V.c{1} = V.pms{1}
     ==>
     ={res} /\ ={V.keys, V.labels, V.guess, V.t, V.c} /\
+    V.pk{1} = Find.pk{2} /\
     V.sk{1} = PCA.V.sk{2} /\ 
     RCCA2.m{1} = Find.m{2} /\ 
     RCCA2.d{1} = Find.d{2} /\
@@ -1439,6 +1465,7 @@ section.
     sp; if => //.
       seq 0 2 : 
        (={pms, t, p, s, V.keys, V.labels, V.guess, V.t, V.c} /\
+        V.pk{1} = Find.pk{2} /\
         V.sk{1} = PCA.V.sk{2} /\ 
         RCCA2.m{1} = Find.m{2} /\ 
         RCCA2.d{1} = Find.d{2} /\
@@ -1456,12 +1483,14 @@ section.
   local equiv RCCA2_OW_dec : 
     RCCA2.O2.dec ~ Find(O).O2.dec :
     ={p, t, c} /\ ={V.keys, V.labels, V.guess, V.t, V.c} /\
+    V.pk{1} = Find.pk{2} /\
     V.sk{1} = PCA.V.sk{2} /\ 
     RCCA2.m{1} = Find.m{2} /\ 
     RCCA2.d{1} = Find.d{2} /\
     decrypt V.sk{1} (fst pp) V.c{1} = V.pms{1} 
     ==>
     ={res} /\ ={V.keys, V.labels, V.guess, V.t, V.c} /\
+    V.pk{1} = Find.pk{2} /\
     V.sk{1} = PCA.V.sk{2} /\ 
     RCCA2.m{1} = Find.m{2} /\ 
     RCCA2.d{1} = Find.d{2} /\
@@ -1473,11 +1502,12 @@ section.
     seq 0 1 :    
      (maybe_k{1} = None /\
       ={maybe_k, pv, h, p, t, c, V.labels, V.keys, V.guess, V.t, V.c} /\
+      V.pk{1} = Find.pk{2} /\
       V.sk{1} = PCA.V.sk{2} /\
       RCCA2.m{1} = Find.m{2} /\ 
       RCCA2.d{1} = Find.d{2} /\
       decrypt V.sk{1} (fst pp) V.c{1} = V.pms{1} /\
-      !(V.guess /\ (pv, h) = pp /\ t = V.t /\ V.c = c){1} /\
+      !(V.guess /\ same_key V.pk (fst pp) pv c /\ h = snd pp /\ t = V.t /\ V.c = c){1} /\
       ((in_dom (h, (decrypt V.sk pv c, t)) RCCA2.m){1} <=> 
        maybe_pms{2} <> None) /\
       (maybe_pms <> None => 
@@ -1492,12 +1522,14 @@ section.
   local equiv RCCA2_OW_extract_choose : 
     RCCA2.O1.extract ~ Find(O).O1.extract :
     ={p, s} /\ ={V.keys, V.labels, V.guess, V.t} /\ !V.guess{1} /\
+    V.pk{1} = Find.pk{2} /\
     V.sk{1} = PCA.V.sk{2} /\ 
     RCCA2.m{1} = Find.m{2} /\ 
     RCCA2.d{1} = Find.d{2} /\
     decrypt V.sk{1} (fst pp) V.c{1} = V.pms{1}
     ==>
     ={res} /\ ={V.keys, V.labels, V.guess, V.t} /\ !V.guess{1} /\
+    V.pk{1} = Find.pk{2} /\
     V.sk{1} = PCA.V.sk{2} /\ 
     RCCA2.m{1} = Find.m{2} /\ 
     RCCA2.d{1} = Find.d{2} /\
@@ -1508,6 +1540,7 @@ section.
       seq 0 2 : 
        (={pms, t, p, s, V.keys, V.labels, V.guess, V.t} /\ !V.guess{1} /\
         V.sk{1} = PCA.V.sk{2} /\ 
+        V.pk{1} = Find.pk{2} /\
         RCCA2.m{1} = Find.m{2} /\ 
         RCCA2.d{1} = Find.d{2} /\
         decrypt V.sk{1} (fst pp) V.c{1} = V.pms{1} /\ 
@@ -1525,6 +1558,7 @@ section.
     RCCA2.O2.dec ~ Find(O).O2.dec :
     ={p, t, c} /\ ={V.keys, V.labels, V.guess, V.t} /\
     !V.guess{1} /\
+    V.pk{1} = Find.pk{2} /\
     V.sk{1} = PCA.V.sk{2} /\ 
     RCCA2.m{1} = Find.m{2} /\ 
     RCCA2.d{1} = Find.d{2} /\
@@ -1532,6 +1566,7 @@ section.
     ==>
     ={res} /\ ={V.keys, V.labels, V.guess, V.t} /\
     !V.guess{1} /\
+    V.pk{1} = Find.pk{2} /\
     V.sk{1} = PCA.V.sk{2} /\ 
     RCCA2.m{1} = Find.m{2} /\ 
     RCCA2.d{1} = Find.d{2} /\
@@ -1544,11 +1579,12 @@ section.
      (maybe_k{1} = None /\
       ={maybe_k, pv, h, p, t, c, V.labels, V.keys, V.guess, V.t} /\
       !V.guess{1} /\
+      V.pk{1} = Find.pk{2} /\
       V.sk{1} = PCA.V.sk{2} /\
       RCCA2.m{1} = Find.m{2} /\ 
       RCCA2.d{1} = Find.d{2} /\
       decrypt V.sk{1} (fst pp) V.c{1} = V.pms{1} /\
-      !(V.guess /\ (pv, h) = pp /\ t = V.t /\ V.c = c){1} /\
+      !(V.guess /\ same_key V.pk (fst pp) pv c /\ h = snd pp /\ t = V.t /\ V.c = c){1} /\
       ((in_dom (h, (decrypt V.sk pv c, t)) RCCA2.m){1} <=> 
        maybe_pms{2} <> None) /\
       (maybe_pms <> None => 
@@ -1566,28 +1602,31 @@ section.
   proof.
    fun.
    inline OW_PCA0.B.choose OW_PCA0.B.guess.
-   swap{2} [4..7] -1; wp.
-   seq 6 7 :
-     (={pk, V.keys, V.labels, V.guess, V.t} /\ !V.guess{1} /\
+   swap{2} [4..8] -1; wp.
+   seq 6 8 :
+     (={V.keys, V.labels, V.guess, V.t} /\ !V.guess{1} /\
       RCCA2.m{1} = Find.m{2} /\ RCCA2.d{1} = Find.d{2} /\
-      V.sk{1} = PCA.V.sk{2} /\ pk0{2} = pk{2} /\
+      V.pk{1} = Find.pk{2} /\ V.sk{1} = PCA.V.sk{2} /\ 
+      pk0{2} = pk{2} /\ pk{2} = Find.pk{2} /\
       V.pms{1} = k{2} /\ V.c{1} = c{2} /\ 
       (decrypt V.sk (fst pp) V.c = V.pms){1}).
-   seq 5 6 : (={pk, V.keys, V.labels, V.guess, V.t} /\ !V.guess{1} /\
+   seq 5 6 : (={V.keys, V.labels, V.guess, V.t} /\ !V.guess{1} /\
       RCCA2.m{1} = Find.m{2} /\ RCCA2.d{1} = Find.d{2} /\
-      V.sk{1} = PCA.V.sk{2} /\ pk0{2} = pk{2} /\
-      keypair(pk, V.sk){1}).
+      V.sk{1} = PCA.V.sk{2} /\ pk0{2} = pk{2} /\ V.pk{1} = pk{2} /\
+      keypair(V.pk, V.sk){1}).
    by inline V.init; wp; call keygen_spec_rel; call (_:true).
-   exists * V.sk{1}, pk{1}; elim *; intros sk pk.
-   call (enc_spec_rel pk sk (fst pp)); wp; skip; progress; smt.
+   exists * V.sk{1}, V.pk{1}; elim *; intros sk pk.
+   call (enc_spec_rel sk pk (fst pp)); wp; skip; progress; smt.
 
-   seq 6 9 : (={pk, V.keys, V.labels, V.guess, V.t, V.c} /\
-    V.sk{1} = PCA.V.sk{2} /\ V.c{2} = c0{2} /\ pk0{2} = pk{2} /\
-    V.pms{1} = k{2} /\ 
+   seq 6 9 : (={V.keys, V.labels, V.guess, V.t, V.c} /\
+    V.pk{1} = Find.pk{2} /\ V.sk{1} = PCA.V.sk{2} /\ 
+    pk0{2} = pk{2} /\ pk{2} = Find.pk{2} /\
+    V.pms{1} = k{2} /\ V.c{2} = c0{2} /\ 
     RCCA2.m{1} = Find.m{2} /\ 
     RCCA2.d{1} = Find.d{2} /\
     (decrypt V.sk (fst pp) V.c = V.pms){1}).
    call (_: ={V.keys, V.labels, V.guess, V.t, V.c} /\
+    V.pk{1} = Find.pk{2} /\
     V.sk{1} = PCA.V.sk{2} /\ 
     RCCA2.m{1} = Find.m{2} /\ 
     RCCA2.d{1} = Find.d{2} /\
@@ -1596,6 +1635,7 @@ section.
      by apply RCCA2_OW_extract.
     wp; rnd; rnd; wp.
    call (_: ={V.keys, V.labels, V.guess, V.t} /\ !V.guess{1} /\
+    V.pk{1} = Find.pk{2} /\
     V.sk{1} = PCA.V.sk{2} /\ 
     RCCA2.m{1} = Find.m{2} /\ 
     RCCA2.d{1} = Find.d{2} /\
@@ -1631,6 +1671,7 @@ section.
       V.init();
       Find.m = Core.empty;
       Find.d = Core.empty;
+      Find.pk = pk;
       V.t = A.choose(pk);
       return (fst pp);
     }
@@ -1695,7 +1736,7 @@ section.
     by inline V.init; wp; call keygen_spec_rel; call (_:true).
     wp; rnd; rnd; wp.
     exists * PCA.V.sk{1}, pk{1}, t{1}; elim *; intros sk pk t.
-    by call (enc_spec_rel pk sk t); skip; progress; smt.
+    by call (enc_spec_rel sk pk t); skip; progress; smt.
   qed.
   
   local equiv RCCA2_NR :
@@ -1706,28 +1747,32 @@ section.
   proof.
    fun.
    inline NR_PCA0.C.choose NR_PCA0.C.guess.
-   swap{2} [4..7] -1; wp.
-   seq 6 7 :
-     (={pk, V.keys, V.labels, V.guess, V.t} /\ !V.guess{1} /\
+   swap{2} [4..8] -1; wp.
+   seq 6 8 :
+     (={V.keys, V.labels, V.guess, V.t} /\ !V.guess{1} /\
       RCCA2.m{1} = Find.m{2} /\ RCCA2.d{1} = Find.d{2} /\
-      V.sk{1} = PCA.V.sk{2} /\ pk0{2} = pk{2} /\
+      V.sk{1} = PCA.V.sk{2} /\ 
+      V.pk{1} = pk{2} /\ pk0{2} = pk{2} /\ pk{2} = Find.pk{2} /\
       V.pms{1} = k{2} /\ V.c{1} = c{2} /\ 
       (decrypt V.sk (fst pp) V.c = V.pms){1}).
-   seq 5 6 : (={pk, V.keys, V.labels, V.guess, V.t} /\ !V.guess{1} /\
+   seq 5 7 : (={V.keys, V.labels, V.guess, V.t} /\ !V.guess{1} /\
       RCCA2.m{1} = Find.m{2} /\ RCCA2.d{1} = Find.d{2} /\
-      V.sk{1} = PCA.V.sk{2} /\ pk0{2} = pk{2} /\
-      keypair(pk, V.sk){1}).
+      V.sk{1} = PCA.V.sk{2} /\ 
+      V.pk{1} = pk{2} /\ pk0{2} = pk{2} /\ pk{2} = Find.pk{2} /\
+      keypair(V.pk, V.sk){1}).
    by inline V.init; wp; call keygen_spec_rel; call (_:true).
-   exists * V.sk{1}, pk{1}; elim *; intros sk pk.
-   call (enc_spec_rel pk sk (fst pp)); wp; skip; progress; smt.
+   exists * V.sk{1}, V.pk{1}; elim *; intros sk pk.
+   call (enc_spec_rel sk pk (fst pp)); wp; skip; progress; smt.
 
-   seq 6 9 : (={pk, V.keys, V.labels, V.guess, V.t, V.c} /\
+   seq 6 9 : (={V.keys, V.labels, V.guess, V.t, V.c} /\
+    V.pk{1} = Find.pk{2} /\
     V.sk{1} = PCA.V.sk{2} /\ V.c{2} = c0{2} /\ c{2} = c0{2} /\ pk0{2} = pk{2} /\
     V.pms{1} = k{2} /\ 
     RCCA2.m{1} = Find.m{2} /\ 
     RCCA2.d{1} = Find.d{2} /\
     (decrypt V.sk (fst pp) V.c = V.pms){1}).
    call (_: ={V.keys, V.labels, V.guess, V.t, V.c} /\
+    V.pk{1} = Find.pk{2} /\
     V.sk{1} = PCA.V.sk{2} /\ 
     RCCA2.m{1} = Find.m{2} /\ 
     RCCA2.d{1} = Find.d{2} /\
@@ -1736,6 +1781,7 @@ section.
      by apply RCCA2_OW_extract.
     wp; rnd; rnd; wp.
    call (_: ={V.keys, V.labels, V.guess, V.t} /\ !V.guess{1} /\
+    V.pk{1} = Find.pk{2} /\
     V.sk{1} = PCA.V.sk{2} /\ 
     RCCA2.m{1} = Find.m{2} /\ 
     RCCA2.d{1} = Find.d{2} /\
