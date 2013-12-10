@@ -2,6 +2,7 @@
 
 open System
 open System.Data
+open System.IO
 
 #if __MonoSQL__
 open Mono.Data.Sqlite
@@ -24,6 +25,7 @@ module Internal =
             raise (DBError (exn.ToString()))
 
     let opendb (filename : string) =
+        ((new FileInfo(filename)).Directory).Create()
         let request = "CREATE TABLE IF NOT EXISTS map(key BLOB PRIMARY KEY, value BLOB NOT NULL)" in
         let urn     = String.Format("Data Source={0};Version=3", filename) in
         let db      = new SQLiteConnection(urn) in
