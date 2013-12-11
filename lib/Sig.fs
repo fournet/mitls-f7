@@ -5,8 +5,7 @@ open TLSConstants
 open CoreSig
 
 (* ------------------------------------------------------------------------ *)
-//MK: now defined in TLSConstants type alg   = sigAlg * hashAlg
-type alg = sigHashAlg
+type alg = sigHashAlg //defined in TLSConstants 
 
 type text = bytes
 type sigv = bytes 
@@ -14,12 +13,6 @@ type sigv = bytes
 (* ------------------------------------------------------------------------ *)
 type pkey = { pkey : sigpkey * hashAlg }
 type skey = { skey : sigskey * hashAlg; pub : pkey }
-
-// MK let create_skey (h : hashAlg) (p : CoreSig.sigskey) = { skey = (p, h) }
-
-
-// MK let repr_of_skey { skey = skey } = skey
-// MK let repr_of_pkey { pkey = pkey } = pkey
 
 let sigalg_of_skeyparams = function
     | CoreSig.SK_RSA _ -> SA_RSA
@@ -36,7 +29,7 @@ let sigalg_of_pkeyparams = function
 // CF We could also implement it on top of ideal non-agile Sigs.
 
 type entry = alg * pkey * text 
-// type entry = a:alg * pk:(;a) pk * t:text * s:(;a) sigv { Msg(a,pk,t) } 
+//in F7: type entry = a:alg * pk:(;a) pk * t:text * s:(;a) sigv { Msg(a,pk,t) } 
 
 type honest_entry = alg * skey * pkey
 let honest_log = ref ([]: honest_entry list)
@@ -47,29 +40,6 @@ let rec has_mac (a : alg) (pk : pkey) (t : text) (l:entry list) =
       [] -> false
     | (a',pk',t')::r when a = a' && pk = pk' && t = t' -> true
     | h::r -> has_mac a pk t r
-
-(* MK assoc and pk_of_log are unused and assoc doesn't make any sense.
-let rec assoc hll pk =
-    match hll with
-      | (pk',sk')::_ when pk=pk' -> Some () // MK !!
-      | _::hll                   -> assoc hll pk
-      | []                       -> None
-
-
-let rec pk_of_log sk hll =
-    match hll with
-        (pk',sk')::hll_tail when sk=sk' -> Some (pk')
-      | _::hll_tail -> pk_of_log sk hll_tail
-      | [] -> None
-*)
-
-(*
-let rec find_pk (a:alg) (sk:skey) (l:(alg * skey * pkey) list) = 
-    match l with
-        [] -> None
-      | (_,sk',pk)::t when sk = sk' -> Some pk
-      | (_,sk',pk)::t when sk <> sk' -> find_pk a sk t
-*)
 
 let rec has_pk (a:alg) (pk:pkey) (l:(alg * skey * pkey) list) = 
     match l with
@@ -83,7 +53,7 @@ let consLog a pk t log =  (a, pk, t)::log
 
 let honest (a:alg) (pk:pkey) : bool = 
 #if verify
-  failwith "only ideal implementation, unverified"
+  failwith "only used in ideal implementation, unverified"
 #else
   has_pk a pk (!honest_log)
 #endif
@@ -204,5 +174,4 @@ let create_pkey (a : alg) (p : CoreSig.sigpkey):pkey =
 let coerce (a:alg)  (p:pkey)  (csk:CoreSig.sigskey) : skey =
     let (_,ahash)=a in
     { skey = (csk, ahash); pub = p}
-    //MK create_skey ahash csk
 

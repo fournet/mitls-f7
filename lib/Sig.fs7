@@ -37,7 +37,7 @@ open TLSConstants
   
 // implements SignatureAndHashAlgorithm, with fewer values for hashAlg
 //MK: I don't understand this comment.
-type alg   = sigHashAlg //MK: now defined in TLSConstants.fs7: sigAlg * hashAlg
+type alg   = sigHashAlg //defined in TLSConstants.fs7: sigAlg * hashAlg
 
 type text = bytes
 type (;a:alg) sigv = bytes
@@ -58,7 +58,7 @@ type (;a:alg) sigv = bytes
 //     | ECDH_ECDSA | ECDHE_ECDSA                                      -> ECDSA in
 //   (a, SHA1)
 
-// TODO: how to extract & checks the algs from certs?
+// TODO: how to extract & check the algs from certs?
 // TODO: how does the server control the choice of algorithms? For now hardcoded.
 
 //********************** Ideal Functionality for Signing *********************** 
@@ -84,9 +84,7 @@ type honest_entry = (a:alg * sk:(;a)skey * pk:(;a)pkey{Honest(a,pk) /\ pk = PK(s
 private val honest_log: (honest_entry list) ref
 private val has_pk: a:alg -> pk:(;a)pkey -> 
           (honest_entry list) -> b:bool{(b = true => Honest(a,pk))}
-(*
-private val find_pk: a:alg -> sk:(;a)skey -> (pk:(;a)pkey{pk = PK(sk) /\ Honest(a,pk)}) option
-*)
+
 val pk_of: a:alg -> sk:(;a) skey -> pk:(;a) pkey{pk = PK(sk)}
 val honest: a:alg -> pk: (;a) pkey -> b:bool{(b = true /\ Honest(a,pk)) \/ (b=false /\ not Honest(a,pk))}
 val strong: a:alg -> b:bool{(b = true /\ Strong(a)) \/ (b = false /\ not Strong(a))}
@@ -97,8 +95,6 @@ type entry = (a:alg * pk:(;a) pkey * t:text){ Msg(a,pk,t) }
 private val log: entry list ref
 private val consLog: a:alg -> pk:(;a) pkey -> t:text {Msg(a,pk,t)} -> entry list -> entry list
 private val has_mac: a:alg -> pk:(;a) pkey -> t:text -> entry list -> b:bool{b = true => Msg(a,pk,t)}
-// MK not used: val pkey:    a:alg -> CoreSig.sigpkey -> p:(;a) pkey
-// MK not used: val pkey_repr:  a:alg -> p:(;a) pkey -> CoreSig.sigpkey 
 
 val coerce:  a:alg -> p:(;a) pkey{not Honest(a,p)} -> CoreSig.sigskey -> s:(;a)skey{p = PK(s)}
 val leak:    a:alg -> s:(;a) skey{not Honest(a,PK(s))} -> CoreSig.sigskey
@@ -106,3 +102,5 @@ val leak:    a:alg -> s:(;a) skey{not Honest(a,PK(s))} -> CoreSig.sigskey
 private val create_pkey: a:alg -> CoreSig.sigpkey -> (;a)pkey
 
 // TODO: adjust compromise model, connect it to Cert (mostly for the benefit of the adversary)
+// TODO: MK: our current implementation does not allow access to the gen function. 
+// TODO: All secret keys used in runs of our protocol are thus coerced keys and we thus don't have any safe instances
