@@ -37,13 +37,13 @@ private assume !r,si,si'. Authorize(Server,si) /\ SessionHelloParams(si,()) =
 private definition !a,k,t. Sig.Msg(a,k,t) 
   <=> ((?si,pk,pv,e. 
              ClientLogBeforeCertificateVerifyRSA_Auth(si,t) /\
-             si.pmsData = RSAPMS(pk,pv,e) /\
-             HonestRSAPMSData(pk,pv,e) /\
+             //MK: si.pmsData = RSAPMS(pk,pv,e) /\ //MK: say something about pmsId
+             //MK: HonestRSAPMSData(pk,pv,e) /\
              k = Cert.SigPKCert(si.clientID,a)) \/
         (?si,p,g,gx,gy. 
            ClientLogBeforeCertificateVerifyDHE_Auth(si,t) /\
-           si.pmsData = DHPMS(p,g,gx,gy) /\ (* PP should also be included in the following as a precondition *)
-           DH.HonestExponent(p,g,gy) => HonestDHPMSData(p,g,gx,gy) /\ 
+           //MK: si.pmsData = DHPMS(p,g,gx,gy) /\ (* PP(p) should also be included in the following as a precondition *)
+           //MK: DH.HonestExponent(p,g,gy) => HonestDHPMSData(p,g,gx,gy) /\  //MK: say something about pmsId
            k = Cert.SigPKCert(si.clientID,a)) \/
         (?si,p,g,gy. B(t) = B(si.init_crand) @| B(si.init_srand) @| 
            DHEParamBytes(p,g,gy) /\
@@ -87,13 +87,15 @@ private definition !role,e,cfg.
   ((AuthId(Id(e)) =>
               (Authorize(Client,EpochSI(e)) /\ //gives us Match
                Authorize(Server,EpochSI(e)) /\
-               Open(e))) /\
+               Open(e))) 
+   (* MK: /\  MK: say something about pmsId
    ((EpochSI(e).client_auth = true /\
      (?a. Sig.Honest(a,Cert.SigPKCert(EpochSI(e).clientID,a))) /\
      (?a. Sig.Honest(a,Cert.SigPKCert(EpochSI(e).serverID,a))) /\
      RSAKey.Honest(Cert.RSAPKCert(EpochSI(e).serverID))) 
-    => HonestPMSData(EpochSI(e).pmsData)))
-
+    => HonestPMSData(EpochSI(e).pmsData)) *)
+  )
+   
 (* Negotiated remains to be defined but it can be a nice global spec of what HS is meant to achieve.
    Especially interesting would be proving that the result is the "best possible" *)
 

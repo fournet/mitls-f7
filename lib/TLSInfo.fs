@@ -35,16 +35,35 @@ type negotiatedExtensions = negotiatedExtension list
 
 let noCsr:csrands = Nonce.random 64
 
+(* MK:
+We could and probably should have:
+
+    type pms' = i:index * (;i)pms
+
+For example 'type index=int'.
+
+When we generate a pms we choose a unique index i. Then pmsId could be defined as:
+
+    type pmsId = 
+        | NoPmsId
+        | SomePmsId of index
+    
+    let pmsId (i,pms) = SomePmsId(i)
+
+What we have below is only possible because F7 allows comparison of 
+values with an abstract type because of an implementation error.
+*)
 type pmsId = 
   | NoPmsId 
   | SomePmsId of PMS.pms
 let pmsId (pms:PMS.pms) = SomePmsId(pms)
 let noPmsId = NoPmsId
 
-type pmsData =
+(*type pmsData =
   | PMSUnset
   | RSAPMS of RSAKey.pk * ProtocolVersion * bytes
   | DHPMS  of DHGroup.p * DHGroup.g * DHGroup.elt * DHGroup.elt
+  *)
 
 type msId = 
   pmsId * 
@@ -61,7 +80,7 @@ type SessionInfo = {
     compression: Compression;
     extensions: negotiatedExtensions;
     pmsId: pmsId;
-    pmsData: pmsData;
+//    pmsData: pmsData;
     session_hash: sessionHash;
     client_auth: bool;
     clientID: Cert.cert list;

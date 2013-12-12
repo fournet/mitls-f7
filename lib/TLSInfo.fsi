@@ -36,10 +36,11 @@ type pmsId
 val pmsId: PMS.pms -> pmsId
 val noPmsId: pmsId
 
-type pmsData =
+(*type pmsData =
     | PMSUnset
     | RSAPMS of RSAKey.pk * ProtocolVersion * bytes
     | DHPMS  of DHGroup.p * DHGroup.g * DHGroup.elt * DHGroup.elt
+*)
 
 type msId = 
   pmsId * 
@@ -54,7 +55,7 @@ type SessionInfo = {
     compression: Compression;
     extensions: negotiatedExtensions;
     pmsId: pmsId;
-    pmsData: pmsData;
+    //pmsData: pmsData;
     session_hash: sessionHash;
     client_auth: bool;
     clientID: Cert.cert list;

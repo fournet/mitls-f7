@@ -16,8 +16,8 @@ type pkey
 
 val create_pkey: alg -> CoreSig.sigpkey -> pkey
 
-
-val sigalg_of_skeyparams : CoreSig.sigskey -> sigAlg
+//MK: why are these functions needed, alg is known from the index?
+val sigalg_of_skeyparams : CoreSig.sigskey -> sigAlg 
 val sigalg_of_pkeyparams : CoreSig.sigpkey -> sigAlg
 
 (* ------------------------------------------------------------------------ *)
