@@ -471,7 +471,7 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:Sess
     match clientKEXBytes_RSA si state.poptions with
     | Error(z) -> Error(z)
     | Correct(v) ->
-    let (clientKEXBytes(*,pmsdata*),rsapms)  = v in
+    let (clientKEXBytes,rsapms)  = v in
 
     //CF re-computing pk, as in clientKEXBytes; not great.
     //CF we should problably inline or redefine clientKEXbytes
@@ -483,7 +483,7 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:Sess
     let cv = spop.maxVer in 
     let pms = PMS.RSAPMS(pk,cv,rsapms)
     let pmsid = pmsId pms
-    let si = {si with pmsId = pmsid(*; pmsData = pmsdata*)} in
+    let si = {si with pmsId = pmsid} in
     let log = log @| clientKEXBytes in
     let (si,ms) = extract si pms log in
     (* FIXME: here we should shred pms *)
@@ -538,8 +538,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
     (* post: DHE.Exp((p,g),x,cy) *) 
     let dhpms = DH.exp p g cy sy x in
     let pms = PMS.DHPMS(p,g,cy,sy,dhpms) in
-    let si = {si with //pmsData = DHPMS(p,g,cy,sy); 
-                      pmsId = pmsId pms} in
+    let si = {si with pmsId = pmsId pms} in
 
 
     let clientKEXBytes = clientKEXExplicitBytes_DH cy in
@@ -581,7 +580,6 @@ let on_serverHello_full (ci:ConnectionInfo) crand log to_log (shello:ProtocolVer
                init_srand = sh_random
                session_hash = empty_bytes
                pmsId = noPmsId
-               //pmsData = PMSUnset
                } in
     (* If DH_ANON, go into the ServerKeyExchange state, else go to the Certificate state *)
     if isAnonCipherSuite sh_cipher_suite then
@@ -1166,7 +1164,6 @@ let startServerFull (ci:ConnectionInfo) state (cHello:ProtocolVersion * crand * 
                            init_crand       = ch_random
                            init_srand       = srand
                            pmsId            = noPmsId
-                           //pmsData          = PMSUnset
                            session_hash     = empty_bytes}
                 prepare_server_output_full ci state si ch_client_version sExtL log
             | None -> Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Compression method negotiation")
@@ -1295,8 +1292,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             | ClientKeyExchangeRSA(si,cv,sk,log) ->
                 match parseClientKEX_RSA si sk cv state.poptions payload with
                 | Error(z) -> let (x,y) = z in  InError(x,y,state)
-                | Correct(res) ->
-                    let rsapms (*(pmsdata,rsapms)*) = res in
+                | Correct(rsapms) ->
                     //CF re-computing pk, as in clientKEXBytes; not great.
                     //CF we should problably inline or redefine clientKEXbytes
                     let pk = 
@@ -1305,7 +1301,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         | _           -> unexpected "server must have an ID"    
                     let pms = PMS.RSAPMS(pk,cv,rsapms)
                     let pmsid = pmsId pms
-                    let si = {si with pmsId = pmsid (*; pmsData = pmsdata*)} in
+                    let si = {si with pmsId = pmsid} in
                     let log = log @| to_log in
                     let (si,ms) = extract si pms log in
                     (* TODO: we should shred the pms *)
@@ -1326,7 +1322,6 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Error(z) -> let (x,y) = z in  InError(x,y,state)
                 | Correct(y) ->
                     let log = log @| to_log in
-                    //let si = {si with pmsData = DHPMS(p,g,y,gx)} in //MK is the order of y, gx right? CF:sort of, y is the client exponential.
                     (* from the local state, we know: PP((p,g)) /\ ?gx. DHE.Exp((p,g),x,gx) ; tweak the ?gx for genPMS. *)
 
                     (* these 3 lines implement  ms-KEM(DH).dec where: 

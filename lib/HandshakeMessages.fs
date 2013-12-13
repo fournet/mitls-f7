@@ -320,9 +320,8 @@ let clientKEXBytes_RSA si config =
             let pms = PMS.genRSA pubKey config.maxVer in
             let encpms = RSA.encrypt pubKey config.maxVer pms in
             let nencpms = encpmsBytesVersion si.protocol_version encpms in
-            let mex = messageBytes HT_client_key_exchange nencpms in
-            //let pmsdata = RSAPMS(pubKey,config.maxVer,encpms) in                                                         
-            correct(mex(*,pmsdata*),pms)
+            let mex = messageBytes HT_client_key_exchange nencpms in                                                      
+            correct(mex,pms)
 
 let parseClientKEX_RSA si skey cv config data =
     if List.listLength si.serverID = 0 then

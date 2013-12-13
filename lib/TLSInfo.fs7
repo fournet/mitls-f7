@@ -106,28 +106,6 @@ private definition !p,g,gx,gy,dhpms.  StrongDHKEX(SomePmsId(PMS.DHPMS(p,g,gx,gy,
 //MK Yes, that's historic. We should rename or delete. 
 
 // -------------------------------------------------------------------
-// public pmsData, used e.g. to represent anonymous clients
-//CF unclear what its purpose is besides pmsId
-//type pmsData =
-//    | PMSUnset
-//    | RSAPMS of pk:RSAKey.pk * ProtocolVersion * encpms:bytes
-//    | DHPMS  of p:DHGroup.p * g:(;p)DHGroup.g *
-//		  	      gx:(;p)DHGroup.elt (* Client *) *
-//			      gy:(;p)DHGroup.elt (* Server *)
-//
-
-// To be defined 
-//predicate HonestRSAPMSData of pk:RSAKey.pk * pv:ProtocolVersion * encpms:bytes
-//predicate HonestDHPMSData of p:DHGroup.p * g:(;p)DHGroup.g *
-//		  	      gx:(;p)DHGroup.elt (* Client *) *
-//			      gy:(;p)DHGroup.elt (* Server *)
-
-//predicate HonestPMSData of pmsData
-//definition !pd. HonestPMSData(pd) <=>
-//      ((?pk,pv,e. pd = RSAPMS(pk,pv,e) /\ HonestRSAPMSData(pk,pv,e)) \/
-//       (?p,g,gx,gy. pd = DHPMS(p,g,gx,gy) /\ HonestDHPMSData(p,g,gx,gy)))
-
-// -------------------------------------------------------------------
 // master-secret indexes and their properties
 
 // ``creAlg is a strong randomness extractor, despite all other creAlgs''
@@ -173,7 +151,6 @@ type SessionInfo = {
     compression: Compression;
 	extensions: negotiatedExtensions;
     pmsId: pmsId;
-    //pmsData: pmsData;
 	session_hash: sessionHash;
     client_auth: bool;
     clientID: Cert.cert list;
