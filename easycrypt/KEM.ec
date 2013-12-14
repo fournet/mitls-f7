@@ -17,14 +17,12 @@ require import FMap.
 import FSet.
 import OptionGet.
 
-lemma eq_except_in_dom : 
-  forall (m1 m2:('a, 'b) map) (x y:'a),
-    eq_except m1 m2 x => x <> y => (in_dom y m1 <=> in_dom y m2) 
+lemma eq_except_in_dom (m1 m2:('a, 'b) map) (x y:'a) :
+  eq_except m1 m2 x => x <> y => (in_dom y m1 <=> in_dom y m2) 
 by [].
 
-lemma eq_except_set :
-  forall (m1 m2:('a, 'b) map) (x y:'a) (z:'b),
-    eq_except m1 m2 x => eq_except m1.[y <- z] m2.[y <- z] x 
+lemma eq_except_set (m1 m2:('a, 'b) map) (x y:'a) (z:'b) :
+  eq_except m1 m2 x => eq_except m1.[y <- z] m2.[y <- z] x 
 by [].
 
 
@@ -45,7 +43,6 @@ theory Agile_KEF.
   }.
 
 end Agile_KEF.
-
 
 theory Agile_Labeled_KEM.
   
