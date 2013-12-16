@@ -2144,7 +2144,7 @@ section.
   proof.
     by fun; wp; skip; smt.
   qed.
-  
+
   local lemma find_any_spec _pv _c :
     bd_hoare 
     [ Find(O).find_any : 
@@ -2156,35 +2156,34 @@ section.
   proof.
     fun; sp.
     while  
-     (let maybe = decrypt PCA.V.sk pv c in
-      (forall x, mem x q => in_dom x Find.m) /\
-      (forall x, 
-       in_dom x Find.m => !mem x q => maybe_pms = None => 
-       maybe <> Some (fst (snd x))) /\
-      (maybe_pms <> None =>
-       (exists h t, in_dom (h, (proj maybe, t)) Find.m) /\ maybe_pms = maybe))
+     ((forall x, mem x q => in_dom x Find.m) /\
+      let maybe = decrypt PCA.V.sk pv c in
+        (maybe_pms <> None => 
+         maybe_pms = maybe /\ maybe <> None /\ 
+         exists h t, in_dom (h, (proj maybe, t)) Find.m) /\
+        forall x, 
+          in_dom x Find.m => !mem x q => maybe_pms = None => 
+           maybe <> Some (fst (snd x)))
      (card q).
        intros z; sp; wp. 
        exists * pms, pv, c; elim *; intros pms pv c.
        call (check_spec pms pv c); skip; progress; smt. 
 
-    wp; skip; progress.
+    wp; skip; intros &1; progress => //.
       by smt.
       by smt.
-      by smt.
-      case (maybe_pms0 = None) => ?; last by smt.
-      subst.
-      cut : (q0 = FSet.empty) by smt => ?.
-      subst.
-      cut : forall h pms t,
-       in_dom (h, (pms, t)) Find.m{hr} =>
-       decrypt PCA.V.sk{hr} pv{hr} c{hr} <> Some pms by smt => ?.
-      cut : !exists (h : hash) (t : label),
-        in_dom (h, (proj (decrypt PCA.V.sk{hr} pv{hr} c{hr}), t)) Find.m{hr} /\
-        decrypt PCA.V.sk{hr} pv{hr} c{hr} <> None by smt.
-      by smt.
+      case (decrypt PCA.V.sk pv c = None){1} => ?.
+        by smt.
+        case (maybe_pms0 = None) => ?; last by smt.
+        cut : forall h pms t,
+          in_dom (h, (pms, t)) Find.m{1} =>
+          decrypt PCA.V.sk{1} pv{1} c{1} <> Some pms by smt => ?.
+        cut : !exists h t,
+          in_dom (h, (proj (decrypt PCA.V.sk{1} pv{1} c{1}), t)) Find.m{1} /\
+          decrypt PCA.V.sk{1} pv{1} c{1} <> None by smt.
+        by smt.
   qed.
-
+  
   local lemma find_spec _pv _c _h _t :
     bd_hoare 
     [ Find(O).find : 
@@ -2195,30 +2194,28 @@ section.
        else None ] = 1%r.
   proof.
     fun; sp.
-    case (decrypt PCA.V.sk pv c = Some (proj (decrypt PCA.V.sk pv c))). (* argh! *)
     while  
      ((forall x, mem x q => in_dom x Find.m) /\
-      let maybe = decrypt PCA.V.sk pv c in maybe <> None /\
-      (forall h_ pms_ t_, 
-       in_dom (h_, (pms_, t_)) Find.m => !mem (h_, (pms_, t_)) q =>
-       maybe_pms = None => h_ <> h \/ maybe <> Some pms_ \/ t_ <> t) /\
-      (maybe_pms <> None <=> maybe_pms = maybe) /\
-      (maybe_pms <> None =>
-       in_dom (h, (proj maybe, t)) Find.m /\ 
-       maybe_pms = Some pms /\ h = h' /\  t = t'))
+      let maybe = decrypt PCA.V.sk pv c in
+        (maybe_pms <> None => 
+         maybe_pms = maybe /\ maybe <> None /\ in_dom (h, (proj maybe, t)) Find.m) /\
+        forall h_ pms_ t_, 
+          in_dom (h_, (pms_, t_)) Find.m => 
+          !mem (h_, (pms_, t_)) q => 
+          maybe_pms = None => 
+          (h_, (maybe, t_)) <> (h, (Some pms_, t)))
      (card q).
-      intros z; sp; wp. 
-      exists * pms, pv, c; elim *; intros pms pv c.
-      call (check_spec pms pv c); skip; progress; smt.
-    wp; skip; progress => //; smt.
-
-    while  
-     (decrypt PCA.V.sk pv c = None /\ maybe_pms = None)
-     (card q).
-      intros z; sp; wp. 
+    intros z; sp; wp. 
       exists * pms, pv, c; elim *; intros pms pv c.
       by call (check_spec pms pv c); skip; progress; smt.
-      by skip; progress; smt.
+    wp; skip; intros &1; progress => //.
+      by smt.
+      by smt.
+      case (decrypt PCA.V.sk pv c = None){1} => ?.
+        by smt.
+        cut : (decrypt PCA.V.sk pv c = 
+               Some (proj (decrypt PCA.V.sk pv c))){1} by smt (* argh! *).
+        by smt.
   qed.
 
   local equiv RCCA4_Find_extract_guess : 
