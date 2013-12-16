@@ -6,6 +6,12 @@
  * then the master secret KEM, seen as an agile labeled KEM, is
  * Indistinguishable under Replayable Chosen-Ciphertext Attacks in the
  * ROM for the underlying agile KEF.
+ *
+ * The definition of the master secret KEM includes the countermeasure
+ * against padding-oracle attacks (aka Bleichenbecher attacks) used for
+ * RSA encryption with PKCS#1 padding: when decryption fails, a value for
+ * the master secret is computed anyway using a random pre-master secret.
+ *
  *)
 
 require import Bool.
@@ -19,6 +25,9 @@ require import RandomOracle.
 import Finite.
 import FSet.
 import OptionGet.
+
+(* Bare minimum *)
+prover "Alt-Ergo" "Z3".
 
 lemma eq_except_in_dom (m1 m2:('a, 'b) map) (x y:'a) :
   eq_except m1 m2 x => x <> y => (in_dom y m1 <=> in_dom y m2) 
@@ -281,11 +290,9 @@ module KEM(KEF:KEF.KEF, PMS_KEM:Inner_KEM.KEM) : Outer_KEM.KEM = {
     var h : hash;
     (pv, h) = p;
     maybe_pms = PMS_KEM.dec((), sk, pv, c);
-    if (maybe_pms = None) {
-      pms = $dpms;
-      ms = KEF.extract(h, (pms, t));
-    }
-    else ms = KEF.extract(h, (proj maybe_pms, t));
+    pms = $dpms;
+    pms = if maybe_pms = None then pms else proj maybe_pms;
+    ms = KEF.extract(h, (pms, t));
     return Some ms;
   }
 }.
@@ -337,7 +344,7 @@ section.
 
   axiom finite_pms : finite univ<:pms>.
 
-  (* TODO: maybe move the first 2 operators to PMS_KEM *)
+  (* TODO: maybe move the first 2 operators to PMS_KEM? *)
   op keypair : pkey * skey -> bool.
 
   op decrypt : skey -> version -> ciphertext -> pms option.
@@ -403,11 +410,9 @@ section.
           W.labels = add t W.labels;
           (pv, h) = p;
           maybe_pms = decrypt W.sk pv c;
-          if (maybe_pms = None) {
-            pms = $dpms;
-            k = RO_KEF.extract(h, (pms, t));
-          }
-          else k = RO_KEF.extract(h, (proj maybe_pms, t));
+          pms = $dpms;
+          pms = if maybe_pms = None then pms else proj maybe_pms;
+          k = RO_KEF.extract(h, (pms, t));
           maybe_k = if (!mem k W.keys) then Some k else None;
         }
         return maybe_k;
@@ -454,12 +459,9 @@ section.
       (maybe_pms = decrypt W.sk pv c){2} /\ (t0 = t){1}).
       exists * sk{1}, pv{1}, c0{1}; elim *; intros sk pv c.
       by call{1} (dec_spec sk pv c).
-    wp; rnd{1}.
-    if => //; wp.
-      call (_: ={glob W, glob RO_KEF}); first by eqobs_in.
-      by rnd; skip; progress; smt.
-      call (_: ={glob W, glob RO_KEF}); first by eqobs_in.
-      by skip; progress; smt.
+    wp; rnd{1}; wp.
+    call (_: ={glob W, glob RO_KEF}); first by eqobs_in.
+    by wp; rnd; skip; progress; smt.
   qed.    
 
   local equiv RCCA_RCCA0 : 
@@ -485,7 +487,7 @@ section.
   qed.
 
 
-  (* Lazy fake pms -> Eager fake pms *)
+  (* Distinguisher for transformation from lazy to eagerly sampled fake pms's *)
   local module D(Fake:LE.Types.ARO) : LE.Types.Dist(Fake) = {
     var m : (hash * (pms * label), ms) map
 
@@ -551,7 +553,7 @@ section.
     }
   }.
 
-  (* Here is where the condition !mem t labels is used *)
+  (* Here is where the condition !mem t labels in dec is used *)
   local equiv RCCA0_Lazy : 
    RCCA0.main ~ LE.Types.IND(LE.Lazy.RO, D).main : true ==> ={res}.
   proof.
@@ -562,7 +564,7 @@ section.
       ={glob W} /\ RO_KEF.m{1} = D.m{2} /\
       (forall t, in_dom t LE.Lazy.RO.m => mem t W.labels){2}).
     fun.
-      sp; if => //; sp; if => //; wp.
+      sp; if => //; sp; if{2}; wp.
       call (_: 
         ={glob W} /\ RO_KEF.m{1} = D.m{2} /\
         (forall t, in_dom t LE.Lazy.RO.m => mem t W.labels){2}).
@@ -572,7 +574,7 @@ section.
         ={glob W} /\ RO_KEF.m{1} = D.m{2} /\
         (forall t, in_dom t LE.Lazy.RO.m => mem t W.labels){2}).
       by sp; if => //; try rnd.
-      by skip; progress; smt.
+      by wp; rnd{1}; skip; progress; smt.
     by fun; sp; if => //; try rnd.
     wp; rnd; rnd.
     call (_: 
@@ -584,7 +586,7 @@ section.
       ={glob W} /\ RO_KEF.m{1} = D.m{2} /\
       (forall t, in_dom t LE.Lazy.RO.m => mem t W.labels){2}).
     fun.
-      sp; if => //; sp; if => //; wp.
+      sp; if => //; sp; if{2}; wp.
       call (_: 
         ={glob W} /\ RO_KEF.m{1} = D.m{2} /\
         (forall t, in_dom t LE.Lazy.RO.m => mem t W.labels){2}).
@@ -594,7 +596,7 @@ section.
         ={glob W} /\ RO_KEF.m{1} = D.m{2} /\
         (forall t, in_dom t LE.Lazy.RO.m => mem t W.labels){2}).
       by sp; if => //; try rnd.
-      by skip; progress; smt.
+      by wp; rnd{1}; skip; progress; smt.
     by fun; sp; if => //; try rnd.
     call (_: true); wp; call (_: true); wp; call (_: true); wp.
     by inline LE.Lazy.RO.init; wp; skip; progress; smt.
@@ -934,7 +936,7 @@ section.
 
      call (_: ={glob W} /\ RCCA1.fake{1} = RCCA2.fake{2}); wp.
      call (_:RCCA1.fake{1} = RCCA2.fake{2}).
-     eqobs_in; progress; smt.
+     eqobs_in; progress; apply stateless_pms_kem.
      call (_:true); wp.
      call (_:true ==> RCCA1.fake{1} = RCCA2.fake{2} /\
                       forall t, (in_dom t RCCA1.fake){1}).
@@ -945,7 +947,7 @@ section.
      by wp; skip; progress; smt.
      by wp; skip; progress; smt.
 
-     case ((RCCA2.fake.[t] = Some pms){2} \/
+     case ((proj RCCA2.fake.[t] = pms){2} \/
            exists h t, in_dom (h, (proj RCCA2.fake.[t], t)) RCCA2.m){2}.
      seq 1 1 : (exists h t, in_dom (h, (proj RCCA2.fake.[t], t)) RCCA2.m){2}.
      inline RCCA1.O1.extract RCCA2.O1.extract; wp; sp.      
@@ -953,26 +955,22 @@ section.
        rnd; skip; progress; elim H0 => ?.
          by exists h{2}, t{2}; smt.
          by smt.
-       rnd{1}; skip; progress; [smt | elim H0 => ?].
-         by exists h{2}, t{2}; smt.
-         by smt.
+       by rnd{1}; skip; progress; smt.
        rnd{2}; skip; progress; [smt | elim H0 => ?].
          by exists h{2}, t{2}; smt.
          by smt.
-       skip; progress; elim H0 => ?.
-         by exists h{2}, t{2}; smt.
-         by smt.
+       by skip; progress; smt.
      call (_:true, true,
       (exists h t, in_dom (h, (proj RCCA2.fake.[t], t)) RCCA2.m){2}).
         by apply lossless_guess.
         by exfalso; smt.
         (* by apply RCCA1_dec_preserves_bad. *)
-        intros &2 ?; fun; sp; if => //.
+        progress; fun; sp; if => //.
         wp; sp; inline RCCA1.O1.extract; if.
           by wp; sp; if => //; rnd; skip; smt.
           by wp; sp; if => //; rnd; skip; smt.
         (* by apply RCCA2_dec_preserves_bad. *)
-        intros &1; fun; sp; if => //.
+        progress; fun; sp; if => //.
         wp; sp; inline RCCA1.O1.extract; if.
           by rnd (lambda x, true); skip; progress; smt.
           inline RCCA2.O1.extract; wp; sp; if => //.
@@ -995,7 +993,7 @@ section.
        RCCA1.m{1}.[(h, (pms, t))] = RCCA2.m{2}.[(h, (pms, t))]).
      by apply lossless_guess.
      by apply RCCA1_RCCA2_dec.
-     intros &2 ?; fun; sp; if => //.
+     progress; fun; sp; if => //.
      wp; sp; inline RCCA1.O1.extract; if.
        by wp; sp; if => //; rnd; skip; smt.
        by wp; sp; if => //; rnd; skip; smt.
@@ -1007,82 +1005,29 @@ section.
        by rnd (lambda x, true); skip; progress; smt.
      by apply RCCA1_RCCA2_extract.
      by progress; fun; wp; sp; if; try rnd; skip; smt.
-     by intros _; fun; sp; if => //; rnd (lambda x, true); skip; progress; smt.
+     by progress; fun; sp; if => //; rnd (lambda x, true); skip; progress; smt.
     
      wp; rnd; rnd.
      inline RCCA1.O1.extract RCCA2.O1.extract; wp; sp.      
-     if => //.
-
-intros ? ? [? [? [? [? [? [? [? ?]]]]]]].       
-cut X : !(exists h t, in_dom (h, (proj RCCA2.fake{2}.[t], t)) RCCA2.m{2}) by smt.
-generalize H5; rewrite X => /= [? [? [? [? ?]]]].
-cut V : RCCA2.fake{2}.[t{2}] <> Some pms{2} by smt.
-cut : proj RCCA2.fake{2}.[t{2}] <> pms{2}.
-generalize V.
-cut W := H8 t{2} => ?; subst.
-generalize H11; rewrite /_.[_]; smt.
-intros ?; split; smt.
-
-rnd; skip; progress.
-smt.
-smt.
-smt.
-smt.
-smt.
-smt.
-smt.
-smt.
-
-cut X : !(exists h t, in_dom (h, (proj RCCA2.fake{2}.[t], t)) RCCA2.m{2}) by smt.
-generalize H; rewrite X => /=; progress.
-case ((h0, (proj RCCA2.fake{2}.[t1], t1)) = (h, (pms, t))){2} => ?; last by smt.
-cut V : RCCA2.fake{2}.[t1] <> Some pms{2} by smt.
-cut : proj RCCA2.fake{2}.[t{2}] <> pms{2}.
-generalize V.
-cut W := H t{2} => ?; subst.
-generalize H16; rewrite /_.[_]; smt.
-smt.
-
-
-        case ((h0, (pms1, t1)) = (h{1}, (pms{1}, t{1}))) => ?; first by smt.
-        cut W : (forall (h : hash) (pms : pms) (t : label),
-        ! pms = proj RCCA1.fake{1}.[t] =>
-        RCCA1.m{1}.[(h, (pms, t))] = RCCA2.m{2}.[(h, (pms, t))]) by smt.
-       cut V := W h0 pms1 t1; rewrite /_.[_] get_setN; smt.   
-       smt.
-
-skip; progress.
-smt.
-case bL{1} => ?; first by smt.
-congr.
-
-cut X : !(exists h t, in_dom (h, (proj RCCA2.fake{2}.[t], t)) RCCA2.m{2}) by smt.
-generalize H; rewrite X => /=; progress.
-cut V : RCCA2.fake{2}.[t{2}] <> Some pms{2} by smt.
-cut : proj RCCA2.fake{2}.[t{2}] <> pms{2}.
-generalize V.
-cut W := H t{2} => ?; subst.
-generalize H12; rewrite /_.[_]; smt.
-smt.
-
-smt.
-smt.
-smt.
-
-cut X : !(exists h t, in_dom (h, (proj RCCA2.fake{2}.[t], t)) RCCA2.m{2}) by smt.
-generalize H; rewrite X => /=; progress.
-cut V : RCCA2.fake{2}.[t{2}] <> Some pms{2} by smt.
-cut : proj RCCA2.fake{2}.[t{2}] <> pms{2}.
-generalize V.
-cut W := H t{2} => ?; subst.
-generalize H11; rewrite /_.[_]; smt.
-smt.
-
-smt.
-smt.
-smt.
-smt.
-smt.
+     if => //; first by progress; smt.
+       rnd; skip; progress; [smt | smt | smt | smt | smt | smt | smt | smt | | | ].   
+         cut X : !(exists h t, in_dom 
+           (h, (proj RCCA2.fake{2}.[t], t)) RCCA2.m{2}) by smt.
+         generalize H; rewrite X => /=; progress.
+         by smt.
+         cut X : !(exists h t, in_dom 
+           (h, (proj RCCA2.fake{2}.[t], t)) RCCA2.m{2}) by smt.
+         generalize H; rewrite X => /=; progress.
+         case ((h0, (pms1, t1)) = (h, (pms, t)){2}) => ?; first by smt.
+         by cut V := H14 h0 pms1 t1; smt.
+         cut X : !(exists h t, in_dom 
+           (h, (proj RCCA2.fake{2}.[t], t)) RCCA2.m{2}) by smt.
+         generalize H; rewrite X => /=; progress.
+         by smt.
+      skip; progress; [smt | smt | smt | smt | smt | smt | smt | smt | smt | smt | ].          cut X : !(exists h t, in_dom 
+           (h, (proj RCCA2.fake{2}.[t], t)) RCCA2.m{2}) by smt.
+         generalize H; rewrite X => /=; progress.
+         generalize H9; rewrite H10 => /=; progress.
   qed. 
 
   local lemma Pr_RCCA1_RCCA2 &m :
@@ -1093,14 +1038,18 @@ smt.
     apply (Trans _ 
      Pr[RCCA2.main() @ &m : res \/ 
       exists h t, in_dom (h, (proj RCCA2.fake.[t], t)) RCCA2.m]).
-      by equiv_deno RCCA1_RCCA2; smt.  
-      by rewrite Pr mu_or; smt.    
+    by equiv_deno RCCA1_RCCA2; smt.  
+    by rewrite Pr mu_or; smt.    
   qed.
 
+
+  (* Maximum number of queries to KEF extract oracle *)
+  (* TODO: enforce this in RCCA *)
   const qKEF : int.
 
   axiom qKEF_pos : 0 < qKEF.
 
+  (* Assuming that fake pms's are uniformly random to have a readable bound *)
   axiom dpms_uniform pms : Distr.mu_x dpms pms = 1%r / (card (toFSet univ<:pms>))%r.
 
   local lemma Pr_RCCA2 &m :
@@ -1108,11 +1057,19 @@ smt.
     qKEF%r / (card (toFSet univ<:pms>))%r.
   proof.
     bdhoare_deno 
-      (_:true ==> exists h t, in_dom (h, (proj RCCA2.fake.[t], t)) RCCA2.m) => //.
-    fun; swap 14.
-    inline RCCA2.sample.
-    admit. (* Too complicated to prove, but evident at this point *)
-    smt.
+      (_:true ==> exists h t, in_dom (h, (proj RCCA2.fake.[t], t)) RCCA2.m) => //;
+    last by smt.
+    fun; swap 14; inline RCCA2.sample.
+    (* Too complicated to prove, but evident at this point:
+     *
+     * dom(m) = { (h_1, pms_1, t_1), (h_2, pms_2, t_2) ... (h_q, pms_q, t_q) }
+     * q <= q_KEF
+     * 
+     * Pr[exists h t, (h, fake[t], t) in dom(m)] <= 
+     * sum_{t \in labels} sum_{i=1..q} Pr[fake[t] = pms_i /\ t = t_i] <=
+     * sum_{i=1..q} Pr[fake[t_i] = pms_i] = q / |pms| <= q_KEF / |pms|
+     *)
+    admit.
   qed.
 
   (* Global variables in RCCA3 and RCCA4 *)
@@ -1135,7 +1092,13 @@ smt.
       pms = pick FSet.empty;
     }
   }.
-  
+
+  (*
+   * This game "aborts" when the simulation fails, but still uses the PMS KEM
+   * secret key to detect when to abort and implement the simulation.
+   * However, all uses of the secret key for simulation could be implemented
+   * using a plaintext-checking oracle instead.
+   *)
   local module RCCA3 = {
     var m : (hash * (pms * label), ms) map
     var abort : bool
@@ -1569,7 +1532,15 @@ smt.
   qed.
   
   (** RCCA3 -> RCCA4 **)
-  
+
+  (*
+   * This game used two maps m and d to implement the simulation for
+   * the RCCA adversary A. If the simulation fails and the previous
+   * game aborts, then either the pms used to compute the challenge ciphertext
+   * can be obtained from map m using the plaintext-checking oracle, or else
+   * a randomization of the challenge ciphertext can be obtained by a direct
+   * lookup in d.
+   *)  
   local module RCCA4 = {
     var m : (hash * (pms * label), ms) map
     var d : (label, (ms * version * hash * ciphertext)) map
@@ -1979,6 +1950,12 @@ smt.
   
   
   (** RCCA4 -> OW_PCA **)
+
+  (* 
+   * This module implements auxiliary procedures used in the reduction
+   * to OW_PCA and NR_PCA, and the extract and decryption oracles (the
+   * same are used in both reductions).
+   *)
   local module Find(PCO:PCA.Oracle) = {
     var m : (hash * (pms * label), ms) map
     var d : (label, (ms * version * hash * ciphertext)) map
@@ -2069,7 +2046,8 @@ smt.
       }
     }
   }.
- 
+
+  (* Adversary used in the reduction to OW_PCA *)
   local module B(PCO:PCA.Oracle) = {  
     module F = Find(PCO)
     module A = A(Find(PCO).O1, Find(PCO).O2)
@@ -2464,13 +2442,18 @@ smt.
   
   (** RCCA4 -> NR *)
 
-  (* REMARK: the condition !mem t labels in the decryption oracle in
+  (* 
+   * REMARK: the remark below may not hold when using Bleichenbacher 
+   * countermeasure because the condition !mem t labels is used earlier.
+   *
+   * REMARK: the condition !mem t labels in the decryption oracle in
    * the RCCA game could be dropped. A similar reduction to NR-PCA
    * would work, but the map d would no longer be functional on t, and so
    * the NR adversary would have to choose one decryption query for the
    * challenge label at random, incurring a q_dec loss factor.
    *)
 
+  (* Adversary used in the reduction to NR_PCA *)
   local module C(PCO:PCA.Oracle) = {
     module F = Find(PCO)
     module A = A(Find(PCO).O1, Find(PCO).O2)
