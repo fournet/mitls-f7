@@ -71,6 +71,7 @@ let DEC (id:id) state (adata:LHAEPlain.adata) (rg:range) cipher =
         | None ->
            let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
         | Some(plain) ->
+#if TLSExt_extendedPadding
            if TLSExtensions.hasExtendedPadding id then
                match TLSConstants.vlsplit 2 plain with
                | Error(x,y) -> Error(AD_bad_record_mac, y)
@@ -79,6 +80,7 @@ let DEC (id:id) state (adata:LHAEPlain.adata) (rg:range) cipher =
                    let plain = LHAEPlain.plain id adata rg plain in
                    correct (state,plain)
            else
+#endif
                let plain = LHAEPlain.plain id adata rg plain in
                correct (state,plain)
     | _ -> unexpected "[DEC] invoked on wrong algorithm"

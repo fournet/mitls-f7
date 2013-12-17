@@ -75,7 +75,11 @@ let encrypt' (e:id) key data rg plain =
         | Stream_RC4_128 -> // stream cipher
             let plain   = Encode.mac e ka data rg plain in
             let (l,h) = rg in
-            if (not (TLSExtensions.hasExtendedPadding e)) && l <> h then
+            if
+#if TLSExt_extendedPadding
+                (not (TLSExtensions.hasExtendedPadding e)) &&
+#endif
+                l <> h then
                 unexpected "[encrypt'] given an invalid input range"
             else
                 let (ke,res) = ENC.ENC e ke data rg plain 
@@ -94,7 +98,11 @@ let encrypt' (e:id) key data rg plain =
             (key,r)
     | (AEAD(encAlg,_), GCM(gcmState)) ->
         let (l,h) = rg in
-        if (not (TLSExtensions.hasExtendedPadding e)) && l <> h then
+        if
+#if TLSExt_extendedPadding
+            (not (TLSExtensions.hasExtendedPadding e)) &&
+#endif
+            l <> h then
             unexpected "[encrypt'] given an invalid input range"
         else
             let (newState,res) = AEAD_GCM.ENC e gcmState data rg plain in

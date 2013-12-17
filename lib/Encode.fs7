@@ -137,8 +137,8 @@ val decodeNoPad: e:id{not AuthId(e) /\ (?mac. e.aeAlg  = MACOnly(mac) \/
 function val MinTlen: id -> nat
 definition !id,mac.     id.aeAlg = MACOnly(mac)            => MinTlen(id) = MacKeySize(mac)
 definition !id,mac.     id.aeAlg = MtE(Stream_RC4_128,mac) => MinTlen(id) = MacKeySize(mac) 
-definition !id,alg,mac. id.aeAlg = MtE(CBC_Fresh(alg),mac) => MinTlen(id) = IVSize(id) + MacKeySize(mac) + 1 
-definition !id,alg,mac. id.aeAlg = MtE(CBC_Stale(alg),mac) => MinTlen(id) = IVSize(id) + MacKeySize(mac) + 1
+definition !id,alg,mac. id.aeAlg = MtE(CBC_Fresh(alg),mac) => MinTlen(id) = IVSize(id) + MacKeySize(mac) + FixedPadSize(id,()) 
+definition !id,alg,mac. id.aeAlg = MtE(CBC_Stale(alg),mac) => MinTlen(id) = IVSize(id) + MacKeySize(mac) + FixedPadSize(id,())
 
 val plain: e:id{not AuthId(e)} ->
   ad:(;e)LHAEPlain.adata -> tlen:nat{tlen <= max_TLSCipher_fragment_length /\ tlen >= MinTlen(e)} ->

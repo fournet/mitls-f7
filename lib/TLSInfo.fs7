@@ -182,10 +182,10 @@ definition !si. (si.protocol_version = SSL_3p0 => CreAlg(si) = CRE_SSL3_nested )
 				(si.protocol_version = TLS_1p2 => CreAlg(si) = CRE_TLS_1p2(extract_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
 val creAlg: si:SessionInfo -> a:creAlg {a=CreAlg(si)}
 function val CreAlgExtended:  SessionInfo -> creAlg
-definition !si. (si.protocol_version = SSL_3p0 => CreAlg(si) = CRE_SSL3_nested ) /\
-				(si.protocol_version = TLS_1p0 => CreAlg(si) = CRE_TLS_1p01(extended_extract_label)    ) /\
-				(si.protocol_version = TLS_1p1 => CreAlg(si) = CRE_TLS_1p01(extended_extract_label)    ) /\
-				(si.protocol_version = TLS_1p2 => CreAlg(si) = CRE_TLS_1p2(extended_extract_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
+definition !si. (si.protocol_version = SSL_3p0 => CreAlgExtended(si) = CRE_SSL3_nested ) /\
+				(si.protocol_version = TLS_1p0 => CreAlgExtended(si) = CRE_TLS_1p01(extended_extract_label)    ) /\
+				(si.protocol_version = TLS_1p1 => CreAlgExtended(si) = CRE_TLS_1p01(extended_extract_label)    ) /\
+				(si.protocol_version = TLS_1p2 => CreAlgExtended(si) = CRE_TLS_1p2(extended_extract_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
 val creAlg_extended: si:SessionInfo -> a:creAlg {a=CreAlgExtended(si)}
 
 function val KdfAlg:  SessionInfo -> kdfAlg

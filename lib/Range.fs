@@ -24,9 +24,11 @@ let ivSize (e:id) =
     | AEAD (_,_) -> Error.unexpected "[ivSize] invoked on wrong ciphersuite"
 
 let fixedPadSize id =
+#if TLSExt_extendedPadding
     if TLSExtensions.hasExtendedPadding id then
         2
     else
+#endif
         let authEnc = id.aeAlg in
         match authEnc with
         | MACOnly _ | AEAD(_,_) -> 0
@@ -37,9 +39,11 @@ let fixedPadSize id =
     
     
 let maxPadSize id =
+#if TLSExt_extendedPadding
     if TLSExtensions.hasExtendedPadding id then  
         fragmentLength - fixedPadSize id
     else
+#endif
         let authEnc = id.aeAlg in
         match authEnc with
         | MACOnly _ | AEAD(_,_) -> 0
@@ -81,7 +85,8 @@ let alignedRange e (rg:range) =
         (l,h + p)
     | MACOnly _ | AEAD(_,_) -> rg
 
-let extendedPad id rg plen =
+let extendedPad (id:id) (rg:range) (plen:nat) =
+#if TLSExt_extendedPadding
     if TLSExtensions.hasExtendedPadding id then
         let rg = alignedRange id rg in
         let (_,h) = rg in
@@ -89,6 +94,7 @@ let extendedPad id rg plen =
         let pad = createBytes padlen 0 in
         TLSConstants.vlbytes 2 pad
     else
+#endif
         empty_bytes
 
 //@ From plaintext range to ciphertext length 

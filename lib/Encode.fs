@@ -46,7 +46,7 @@ let mac e k ad rg plain =
      ok = true
     }
 
-let verify (e:id) k ad rg plain =
+let verify (e:id) k ad rg plain : LHAEPlain.plain Result =
     let f = plain.plain in
     let text = macPlain e rg ad f in
     let tag  = plain.tag in
@@ -55,6 +55,7 @@ let verify (e:id) k ad rg plain =
             The time to verify the mac is linear in the plaintext length. *)
         if MAC.Verify e k text tag then 
           if plain.ok then
+#if TLSExt_extendedPadding
              if TLSExtensions.hasExtendedPadding e then
                 match TLSConstants.vlsplit 2 f with
                 | Error(x,y) ->
@@ -69,6 +70,7 @@ let verify (e:id) k ad rg plain =
                     let f = LHAEPlain.plain e ad rg f in
                     correct f
              else
+#endif
                 let f = LHAEPlain.plain e ad rg f in
                 correct f
           else
@@ -89,7 +91,11 @@ let verify (e:id) k ad rg plain =
 let encodeNoPad (e:id) (tlen:nat) (rg:range) (ad:LHAEPlain.adata) data tag =
     //let b = payload e rg ad data in
     let (_,h) = rg in
-    if (not (TLSExtensions.hasExtendedPadding e)) && h <> length data then
+    if
+#if TLSExt_extendedPadding
+        (not (TLSExtensions.hasExtendedPadding e)) &&
+#endif
+        h <> length data then
         Error.unexpected "[encodeNoPad] invoked on an invalid range."
     else
     let payload = data @| tag
@@ -213,9 +219,11 @@ let plain (e:id) ad tlen b =
         decodeNoPad e ad rg tlen b 
     | MtE(CBC_Stale(_),_) 
     | MtE(CBC_Fresh(_),_) ->
+#if TLSExt_extendedPadding
         if TLSExtensions.hasExtendedPadding e then
             decodeNoPad e ad rg tlen b
         else
+#endif
             decode e ad rg tlen b
 
 //  | GCM _ ->
@@ -232,9 +240,11 @@ let repr (e:id) ad rg pl =
         encodeNoPad e tlen rg ad lp tg
     | MtE(CBC_Stale(_),_) 
     | MtE(CBC_Fresh(_),_) ->
+#if TLSExt_extendedPadding
         if TLSExtensions.hasExtendedPadding e then
             encodeNoPad e tlen rg ad lp tg
         else
+#endif
             encode e tlen rg ad lp tg
 //  | GCM _ ->
     | _ -> unexpected "[Encode.repr] incompatible ciphersuite given."
