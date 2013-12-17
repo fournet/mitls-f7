@@ -97,4 +97,15 @@ let private extractMS_extended si pmsBytes : PRF.masterSecret =
     PRF.coerce i res
 
 let extract_extended si pms =
-    extractMS_extended si (accessPMS pms)
+    #if ideal
+    if safeCRE si then
+        let i = msi si 
+        match assoc i !log with 
+        | Some(ms) -> ms
+        | None -> 
+                let ms = PRF.sample i
+                log := (i, ms)::!log;
+                ms            
+    else
+    #endif
+        extractMS_extended si (accessPMS pms)
