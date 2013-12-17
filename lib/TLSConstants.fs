@@ -445,6 +445,11 @@ let isRSACipherSuite cs =
     | OnlyMACCipherSuite ( RSA, _ ) -> true
     | _ -> false
 
+let isOnlyMACCipherSuite cs =
+    match cs with
+    | OnlyMACCipherSuite (_,_) -> true
+    | _ -> false
+
 let sigAlg_of_ciphersuite cs =
     match cs with
     | CipherSuite ( RSA, _ ) | OnlyMACCipherSuite( RSA, _ ) (* | CipherSuite(ECDHE_RSA,_) *)

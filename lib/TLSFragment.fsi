@@ -4,7 +4,6 @@ open Bytes
 open TLSInfo
 open TLSConstants
 open Range
-open TLSError
 
 type history
 
@@ -18,8 +17,8 @@ val handshakeHistory: epoch -> history -> HSFragment.stream
 val ccsHistory: epoch -> history -> HSFragment.stream
 val alertHistory: epoch -> history -> HSFragment.stream
 
-val plain: epoch -> ContentType -> history -> range -> bytes -> plain Result
-val fragment: id -> ContentType -> range -> bytes -> fragment Result
+val plain: epoch -> ContentType -> history -> range -> bytes -> plain
+val fragment: id -> ContentType -> range -> bytes -> fragment 
 val reprFragment: id -> ContentType -> range -> fragment -> bytes
 val repr:  epoch -> ContentType -> history -> range -> plain -> bytes
 

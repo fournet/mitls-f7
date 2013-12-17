@@ -81,6 +81,16 @@ let alignedRange e (rg:range) =
         (l,h + p)
     | MACOnly _ | AEAD(_,_) -> rg
 
+let extendedPad id rg plen =
+    if TLSExtensions.hasExtendedPadding id then
+        let rg = alignedRange id rg in
+        let (_,h) = rg in
+        let padlen = h - plen in
+        let pad = createBytes padlen 0 in
+        TLSConstants.vlbytes 2 pad
+    else
+        empty_bytes
+
 //@ From plaintext range to ciphertext length 
 let targetLength e (rg:range) =
     let (_,h) = rg in

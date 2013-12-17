@@ -16,11 +16,11 @@ type serverExtension
 val clientExtensionsBytes: clientExtension list -> bytes
 val prepareClientExtensions: config -> ConnectionInfo -> cVerifyData -> sessionHash option -> clientExtension list
 val parseServerExtensions: bytes -> (serverExtension list) Result
-val negotiateClientExtensions: clientExtension list -> serverExtension list -> bool -> negotiatedExtensions Result
+val negotiateClientExtensions: clientExtension list -> serverExtension list -> bool -> cipherSuite -> negotiatedExtensions Result
 
 // Server side
 val serverExtensionsBytes: serverExtension list -> bytes
-val negotiateServerExtensions: clientExtension list -> config -> ConnectionInfo -> (cVerifyData * sVerifyData) -> sessionHash option -> (serverExtension list * negotiatedExtensions)
+val negotiateServerExtensions: clientExtension list -> config -> cipherSuite -> (cVerifyData * sVerifyData) -> sessionHash option -> (serverExtension list * negotiatedExtensions)
 val parseClientExtensions: bytes -> cipherSuites -> (clientExtension list) Result
 
 // Extension-specific

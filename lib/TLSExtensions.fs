@@ -157,7 +157,7 @@ let prepareClientExtensions (cfg:config) (conn:ConnectionInfo) renegoCVD (resume
         | None -> res
         | Some(resumeSH) -> CE_resumption_info(resumeSH) :: res
 
-let serverToNegotiatedExtension cExtL (resuming:bool) res sExt : negotiatedExtensions Result=
+let serverToNegotiatedExtension cExtL (resuming:bool) cs res sExt : negotiatedExtensions Result=
     match res with
     | Error(x,y) -> Error(x,y)
     | Correct(l) ->
@@ -178,12 +178,15 @@ let serverToNegotiatedExtension cExtL (resuming:bool) res sExt : negotiatedExten
                 if resuming then
                     Error(AD_handshake_failure,perror __SOURCE_FILE__ __LINE__ "Server provided extended padding in a resuming handshake")
                 else
-                    correct(NE_extended_padding::l)
+                    if isOnlyMACCipherSuite cs then
+                        Error(AD_handshake_failure,perror __SOURCE_FILE__ __LINE__ "Server provided extended padding for a MAC only ciphersuite")
+                    else
+                        correct(NE_extended_padding::l)
         else
             Error(AD_handshake_failure,perror __SOURCE_FILE__ __LINE__ "Server provided an extension not given by the client")
 
-let negotiateClientExtensions (cExtL:clientExtension list) (sExtL:serverExtension list) (resuming:bool) =
-    match Collections.List.fold (serverToNegotiatedExtension cExtL resuming) (correct []) sExtL with
+let negotiateClientExtensions (cExtL:clientExtension list) (sExtL:serverExtension list) (resuming:bool) cs =
+    match Collections.List.fold (serverToNegotiatedExtension cExtL resuming cs) (correct []) sExtL with
     | Error(x,y) -> Error(x,y)
     | Correct(l) ->
         // Client-side specific extension negotiation
@@ -287,7 +290,7 @@ let parseServerExtensions data =
         | Error(x,y)    -> Error(x,y)
         | Correct(exts) -> parseServerExtensionList exts []
 
-let ClientToServerExtension (cfg:config) (conn:ConnectionInfo) ((renegoCVD:cVerifyData),(renegoSVD:sVerifyData)) (resumeSHOpt:sessionHash option) cExt : serverExtension option=
+let ClientToServerExtension (cfg:config) cs ((renegoCVD:cVerifyData),(renegoSVD:sVerifyData)) (resumeSHOpt:sessionHash option) cExt : serverExtension option=
     match cExt with
     | CE_renegotiation_info (_) -> Some (SE_renegotiation_info (renegoCVD,renegoSVD))
     | CE_resumption_info (_) ->
@@ -300,10 +303,14 @@ let ClientToServerExtension (cfg:config) (conn:ConnectionInfo) ((renegoCVD:cVeri
         | Some(_) -> None
     | CE_extended_padding ->
         match resumeSHOpt with
-        | None -> Some(SE_extended_padding)
+        | None ->
+            if isOnlyMACCipherSuite cs then
+                None
+            else
+                Some(SE_extended_padding)
         | Some(_) -> None
 
-let ClientToNegotiatedExtension (cfg:config) (conn:ConnectionInfo) ((cvd:cVerifyData),(svd:sVerifyData)) (resumeSHOpt:sessionHash option) cExt : negotiatedExtension option =
+let ClientToNegotiatedExtension (cfg:config) cs ((cvd:cVerifyData),(svd:sVerifyData)) (resumeSHOpt:sessionHash option) cExt : negotiatedExtension option =
     match cExt with
     | CE_renegotiation_info (_) -> None
     | CE_resumption_info (_) -> None
@@ -313,12 +320,16 @@ let ClientToNegotiatedExtension (cfg:config) (conn:ConnectionInfo) ((cvd:cVerify
         | Some(_) -> None
     | CE_extended_padding ->
         match resumeSHOpt with
-        | None -> Some(NE_extended_padding)
+        | None ->
+            if isOnlyMACCipherSuite cs then
+                None
+            else
+                Some(NE_extended_padding)
         | Some(_) -> None
 
-let negotiateServerExtensions cExtL cfg conn (cvd,svd) resumeSHOpt =
-    let server = List.choose (ClientToServerExtension cfg conn (cvd,svd) resumeSHOpt) cExtL
-    let nego = List.choose (ClientToNegotiatedExtension cfg conn (cvd,svd) resumeSHOpt) cExtL
+let negotiateServerExtensions cExtL cfg cs (cvd,svd) resumeSHOpt =
+    let server = List.choose (ClientToServerExtension cfg cs (cvd,svd) resumeSHOpt) cExtL
+    let nego = List.choose (ClientToNegotiatedExtension cfg cs (cvd,svd) resumeSHOpt) cExtL
     (server,nego)
 
 let isClientRenegotiationInfo e =

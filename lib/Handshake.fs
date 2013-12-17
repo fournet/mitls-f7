@@ -690,7 +690,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     if (length sid = 0) || (not (equalBytes sid sh_session_id)) then
                         (* we did not request resumption, or the server didn't accept it: do a full handshake *)
                         (* define the sinfo we're going to establish *)
-                        match negotiateClientExtensions cExtL sExtL false (* Not resuming *) with
+                        match negotiateClientExtensions cExtL sExtL false (* Not resuming *) sh_cipher_suite with
                         | Error(x,y) -> InError(x,y,state)
                         | Correct(nExtL) ->
                             let next_pstate = on_serverHello_full ci crand log to_log shello nExtL in
@@ -1123,7 +1123,7 @@ let negotiate cList sList =
 let prepare_server_output_resumption ci state crand cExtL storedSession cvd svd log =
     let (si,ms) = storedSession in
     let srand = Nonce.mkHelloRandom () in
-    let (sExtL,nExtL) = negotiateServerExtensions cExtL state.poptions ci (cvd,svd) (Some(si.session_hash))
+    let (sExtL,nExtL) = negotiateServerExtensions cExtL state.poptions si.cipher_suite (cvd,svd) (Some(si.session_hash))
     let ext = serverExtensionsBytes sExtL in
     let sHelloB = serverHelloBytes si srand ext in
 
@@ -1140,7 +1140,6 @@ let prepare_server_output_resumption ci state crand cExtL storedSession cvd svd 
 let startServerFull (ci:ConnectionInfo) state (cHello:ProtocolVersion * crand * sessionID * cipherSuites * Compression list * bytes) cExtL cvd svd log =  
     let (ch_client_version,ch_random,ch_session_id,ch_cipher_suites,ch_compression_methods,ch_extensions) = cHello in
     let cfg = state.poptions in
-    let (sExtL, nExtL) = negotiateServerExtensions cExtL cfg ci (cvd, svd) None
     // Negotiate the protocol parameters
     let version = minPV ch_client_version cfg.maxVer in
     if (geqPV version cfg.minVer) = false then
@@ -1152,6 +1151,7 @@ let startServerFull (ci:ConnectionInfo) state (cHello:ProtocolVersion * crand * 
             | Some(cm) ->
                 let sid = Nonce.random 32 in
                 let srand = Nonce.mkHelloRandom () in
+                let (sExtL, nExtL) = negotiateServerExtensions cExtL cfg cs (cvd, svd) None
                 (* Fill in the session info we're establishing *)
                 let si = { clientID         = []
                            client_auth      = cfg.request_client_certificate
@@ -1418,7 +1418,7 @@ let enqueue_fragment (ci:ConnectionInfo) state fragment =
 let recv_fragment ci (state:hs_state) (r:range) (fragment:HSFragment.fragment) =
     // FIXME: cleanup when Hs is ported to streams and deltas
     let ki_in = id ci.id_in in
-    let b = HSFragment.userRepr ki_in r fragment in 
+    let b = HSFragment.fragmentRepr ki_in r fragment in 
     if length b = 0 then
         // Empty HS fragment are not allowed
         InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Empty handshake fragment received",state)
@@ -1431,7 +1431,7 @@ let recv_fragment ci (state:hs_state) (r:range) (fragment:HSFragment.fragment) =
 let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:range) (fragment:HSFragment.fragment): incomingCCS =
     // FIXME: cleanup when Hs is ported to streams and deltas
     let ki_in = id ci.id_in in
-    let b = HSFragment.userRepr ki_in r fragment in 
+    let b = HSFragment.fragmentRepr ki_in r fragment in 
     if equalBytes b CCSBytes then  
         match state.pstate with
         | PSClient (cstate) -> // Check that we are in the right state (CCCS) 

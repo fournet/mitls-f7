@@ -43,6 +43,9 @@ let ENC (id:id) state (adata:LHAEPlain.adata) (rg:range) p =
     // AP: If not ideal, the following lines
     let text = LHAEPlain.repr id adata rg p in
     let tLen = length text in
+    let extPad = extendedPad id rg tLen in
+    let text = extPad @| text in
+    let tLen = length text in
     let tLenB = bytes_of_int 2 tLen in
     let ad = adata @| tLenB in
     let cipher = CoreCiphers.aes_gcm_encrypt k.kb iv ad text in
@@ -67,10 +70,15 @@ let DEC (id:id) state (adata:LHAEPlain.adata) (rg:range) cipher =
         match CoreCiphers.aes_gcm_decrypt k.kb iv ad cipher with
         | None ->
            let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
-        | Some(plain) -> 
-           match LHAEPlain.plain id adata rg plain with
-           | Error(x,y) ->
-            // In extended_padding, padding check has failed
-            Error(x,y)
-           | Correct(plain) -> correct (state,plain)
+        | Some(plain) ->
+           if TLSExtensions.hasExtendedPadding id then
+               match TLSConstants.vlsplit 2 plain with
+               | Error(x,y) -> Error(AD_bad_record_mac, y)
+               | Correct(res) ->
+                   let (_,plain) = res in
+                   let plain = LHAEPlain.plain id adata rg plain in
+                   correct (state,plain)
+           else
+               let plain = LHAEPlain.plain id adata rg plain in
+               correct (state,plain)
     | _ -> unexpected "[DEC] invoked on wrong algorithm"

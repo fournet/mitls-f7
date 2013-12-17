@@ -104,6 +104,8 @@ val alignedRange: i:id -> rg:range ->
 	rg':range{!l,h. rg = (l,h) =>
 		rg' = (l,h + BlockAlignedPadding(i,h+MacKeySize(MacAlg(i)))) }
 
+val extendedPad: id -> range -> nat -> b:bytes{B(b) = [||]} // AP: withouth LH, always returns empty bytes
+
 definition !e,mac,alg,aeAlg,l,h.
 	h >= 0 =>
 	(

@@ -28,7 +28,11 @@ let payload (e:id) (rg:range) ad f =
     zeros rg
   else
   #endif
-    LHAEPlain.repr e ad rg f 
+    let p = LHAEPlain.repr e ad rg f in
+    let plen = length p in
+    let pad = extendedPad e rg plen in
+    pad @| p
+
 
 let macPlain (e:id) (rg:range) ad b =
     ad @| vlbytes 2 b
@@ -51,11 +55,22 @@ let verify (e:id) k ad rg plain =
             The time to verify the mac is linear in the plaintext length. *)
         if MAC.Verify e k text tag then 
           if plain.ok then
-              match LHAEPlain.plain e ad rg f with
-              | Error(x,y) ->
-                // In extended padding, pading check has failed
-                Error(x,y)
-              | Correct(frag) -> correct frag
+             if TLSExtensions.hasExtendedPadding e then
+                match TLSConstants.vlsplit 2 f with
+                | Error(x,y) ->
+#if DEBUG
+                    let reason = perror __SOURCE_FILE__ __LINE__ "" in
+#else
+                    let reason = "" in
+#endif
+                    Error(AD_bad_record_mac,reason)
+                | Correct(res) ->
+                    let (_,f) = res in
+                    let f = LHAEPlain.plain e ad rg f in
+                    correct f
+             else
+                let f = LHAEPlain.plain e ad rg f in
+                correct f
           else
 #if DEBUG
               let reason = perror __SOURCE_FILE__ __LINE__ "" in 
