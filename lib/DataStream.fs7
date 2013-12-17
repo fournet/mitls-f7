@@ -13,8 +13,8 @@ open Range
 /// Auxiliary functions for ranges
 
 private val min: a:nat -> b:nat -> c:nat{(a<=b /\ c=a) \/ (a>b /\ c=b)}
-private val max: a:nat -> b:nat -> c:nat{(a>=b /\ c=a) \/ (a<b /\ c=b)}
 
+val maxLHPad: id -> l:nat{l < fragmentLength} -> nat
 val splitRange: e:succEpoch -> r:range -> (r0:range * r1:range){r = Sum(r0,r1)} 
 //AP /\ RangeFragment(Id(e),r0)
 
