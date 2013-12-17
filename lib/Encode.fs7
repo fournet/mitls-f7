@@ -81,6 +81,7 @@ private val pad: l:int { 0 < l /\ l <= 256 } -> b:bytes{Length(b) = l}
 //CF we will need a more precise refinement for the MEE proof 
 
 // for typing decode
+(* AP
 private ask !e,tlen. 
   (((?alg,mac. e.aeAlg  = MtE(CBC_Stale(alg),mac)) \/
     (?alg,mac. e.aeAlg  = MtE(CBC_Fresh(alg),mac))) /\
@@ -88,6 +89,20 @@ private ask !e,tlen.
   CipherRangeClass(e,tlen) = 
   (tlen - IVSize(e) - MacKeySize(MacAlg(e)) - 1 - 255,
    tlen - IVSize(e) - MacKeySize(MacAlg(e)) - 1)
+*)
+
+private ask !e,tlen,alg,mac,x. 
+  e.aeAlg = MtE(CBC_Stale(alg),mac) /\
+  x = tlen - IVSize(e) - MacKeySize(mac) - 1 /\
+  x > 255 =>
+	CipherRangeClass(e,tlen) = (x - 255, x)
+
+private ask !e,alg,mac,tlen. 
+  e.aeAlg = MtE(CBC_Fresh(alg),mac) /\
+  (tlen - IVSize(e) - MacKeySize(mac) - 1 > 255) =>
+  CipherRangeClass(e,tlen) = 
+  (tlen - IVSize(e) - MacKeySize(mac) - 1 - 255,
+   tlen - IVSize(e) - MacKeySize(mac) - 1)
 
 private ask !e,tlen. 
   (((?alg,mac. e.aeAlg  = MtE(CBC_Stale(alg),mac)) \/
