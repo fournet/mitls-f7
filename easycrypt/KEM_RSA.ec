@@ -75,10 +75,8 @@ theory Agile_Labeled_KEM.
   
     const P : parameter set.
    
-    const pp : parameter.
-   
-    axiom pp_in_P : mem pp P.
-  
+    const pp : parameter. (* may be not in P *)
+     
     op key : key distr.
      
     module type Oracle = {
@@ -143,8 +141,6 @@ theory Agile_Labeled_KEM.
     const P : parameter set.
    
     const pp : parameter.
-   
-    axiom pp_in_P : mem pp P.
    
     module type Oracle = {
       fun check(p:parameter, k:key, t:label, c:ciphertext) : bool
@@ -2627,3 +2623,4 @@ section.
 end section.
 
 print axiom Conclusion.
+print module type Adversary.
