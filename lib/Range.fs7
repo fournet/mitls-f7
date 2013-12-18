@@ -112,7 +112,7 @@ val alignedRange: i:id -> rg:range ->
 	rg':range{!l,h. rg = (l,h) =>
 		rg' = (l,h + BlockAlignedPadding(i,h+MacKeySize(MacAlg(i)))) }
 
-val extendedPad: id -> range -> nat -> b:bytes{B(b) = [||]} // AP: withouth LH, always returns empty bytes
+val extendedPad: id -> range -> nat -> b:bytes //AP: Refine when LH
 
 definition !e,mac,alg,aeAlg,l,h.
 	h >= 0 =>
@@ -152,21 +152,25 @@ definition
             x = tlen - IVSize(e) - MacKeySize(mac) - 1 /\ 
             x >= 0 =>
              ((x < 255 /\ CipherRangeClass(e,tlen) = (0,x)) \/
-              (x >= 255 /\ CipherRangeClass(e,tlen) = (x-255,x)))) /\
+              (x >= 255 /\ CipherRangeClass(e,tlen) = (x-255,x))))
+definition
 	(!e,tlen,alg,mac,x. 
-	  e.aeAlg = MtE(CBC_Stale(alg),mac) /\
+		   e.aeAlg = MtE(CBC_Stale(alg),mac) /\
             x = tlen - IVSize(e) - MacKeySize(mac) - 1 /\ 
             x >= 0 =>
              ((x < 255 /\ CipherRangeClass(e,tlen) = (0,x)) \/
-              (x >= 255 /\ CipherRangeClass(e,tlen) = (x-255,x)))) /\
+              (x >= 255 /\ CipherRangeClass(e,tlen) = (x-255,x))))
+definition
 	(!e,tlen,mac,x. 
 	  e.aeAlg = MACOnly(mac) /\
           x = tlen - MacKeySize(mac) /\ 
-          x >= 0 => CipherRangeClass(e,tlen) = (x,x)) /\
+          x >= 0 => CipherRangeClass(e,tlen) = (x,x))
+definition
 	(!e,tlen,mac,x. 
 	  e.aeAlg = MtE(Stream_RC4_128,mac) /\
           x = tlen - IVSize(e) - MacKeySize(mac) /\ x >= 0 =>
-             CipherRangeClass(e,tlen) = (x,x)) /\
+             CipherRangeClass(e,tlen) = (x,x))
+definition
 	(!e,tlen,aeAlg,mac,x.
 	  e.aeAlg = AEAD(aeAlg,mac) /\
 		  x = tlen - AEADRecordIVSize(aeAlg) - AEADTagSize(aeAlg) /\ x >= 0 =>

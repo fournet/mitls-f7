@@ -73,6 +73,19 @@ let reprFragment (i:id) (ad:adata) (r:range) (f:plain) =
     TLSFragment.reprFragment i ct r x
 let repr i (h:history) ad r f = reprFragment i ad r f
 
+let makeExtPad (i:id) (ad:adata) (r:range) f =
+    let ct = parseAD i ad in
+    let p = f.contents in
+    let p = TLSFragment.makeExtPad i ct r p in
+    {contents = p}
+
+let parseExtPad (i:id) (ad:adata) (r:range) f =
+    let ct = parseAD i ad in
+    let p = f.contents in
+    match TLSFragment.parseExtPad i ct r p with
+    | Error(x) -> Error(x)
+    | Correct(p) -> correct ({contents = p})
+
 #if ideal
 let widen i ad r f =
     let ct = parseAD i ad in

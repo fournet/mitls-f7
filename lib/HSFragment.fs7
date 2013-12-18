@@ -2,6 +2,8 @@ module HSFragment
 open Bytes
 open TLSInfo
 open Range
+open Error
+open TLSError
 
 private type (;i:id,r:range) fragment = {frag: (;r)rbytes}
 private type (;i:id) stream = {sb:bytes list}
@@ -25,6 +27,9 @@ val fragmentRepr:  i:id -> r:range -> f:(;i,r) fragment -> b:(;r) rbytes{B(b) = 
 //AP authentication property (which we currently don't prove for HS/CCS/Alert) 
 val reStream: i:id -> s:(;i)stream -> r:range -> p:(;i,s,r)plain -> s':(;i)stream ->
 	p':(;i,s',r)plain{Payload(i,r,p) = Payload(i,r,p')}
+
+val makeExtPad:  i:id -> r:range -> f:(;i,r)fragment -> f':(;i,r)fragment{f=f'}
+val parseExtPad: i:id -> r:range -> f:(;i,r)fragment -> res:((f':(;i,r)fragment{f=f'}) Result){?f. res = Correct(f)}
 
 val widen: i:id -> r0:range -> r1:range {r1 = RangeClass(i,r0)} -> 
     f0:(;i,r0)fragment -> f1:(;i,r1)fragment{Payload(i,r0,f0) = Payload(i,r1,f1) /\ !s. Sent(i,s,r0,f0) => Sent(i,s,r1,f1)}

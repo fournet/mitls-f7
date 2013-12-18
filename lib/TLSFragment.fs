@@ -100,6 +100,34 @@ let extendHistory (e:epoch) ct ss r frag =
     | _,_                          -> unexpected "[extendHistory] invoked on an invalid contenttype/fragment"
     //CF unreachable too, but we'd need to list the other 12 cases to prove it. 
 
+let makeExtPad i ct r frag =
+    match ct,frag with
+    | Handshake,FHandshake(f)      -> let f = HSFragment.makeExtPad  i r f in FHandshake(f)
+    | Alert,FAlert(f)              -> let f = HSFragment.makeExtPad  i r f in FAlert(f)
+    | Change_cipher_spec,FCCS(f)   -> let f = HSFragment.makeExtPad  i r f in FCCS(f)
+    | Application_data,FAppData(f) -> let f = AppFragment.makeExtPad i r f in FAppData(f)
+    | _,_                          -> unexpected "[makeExtPad] invoked on an invalid contenttype/fragment"
+
+let parseExtPad i ct r frag : fragment Result =
+    match ct,frag with
+    | Handshake,FHandshake(f) ->
+        match HSFragment.parseExtPad i r f with
+        | Error(x) -> Error(x)
+        | Correct(f) -> Correct (FHandshake(f))
+    | Alert,FAlert(f) ->
+        match HSFragment.parseExtPad i r f with
+        | Error(x) -> Error(x)
+        | Correct(f) -> Correct (FAlert(f))
+    | Change_cipher_spec,FCCS(f) ->
+        match HSFragment.parseExtPad i r f with
+        | Error(x) -> Error(x)
+        | Correct(f) -> Correct (FCCS(f))
+    | Application_data,FAppData(f) ->
+        match AppFragment.parseExtPad i r f with
+        | Error(x) -> Error(x)
+        | Correct(f) -> Correct (FAppData(f))
+    | _,_ -> unexpected "[parseExtPad] invoked on an invalid contenttype/fragment"
+
 #if ideal
 let widen i ct r0 f0 =
     let r1 = rangeClass i r0 in

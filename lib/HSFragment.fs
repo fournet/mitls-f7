@@ -2,6 +2,8 @@ module HSFragment
 open Bytes
 open TLSInfo
 open Range
+open Error
+open TLSError
 
 type fragment = {frag: rbytes}
 type stream = {sb:bytes list}
@@ -19,6 +21,30 @@ let extend (e:id) (s:stream) (r:range) (f:fragment) =
 #endif
 
 let reStream (e:id) (s:stream) (r:range) (p:plain) (s':stream) = p
+
+let makeExtPad (i:id) (r:range) (p:plain) =
+#if TLSExt_extendedPadding
+    if TLSExtensions.hasExtendedPadding i then
+        let f = p.frag in
+        let len = length f in
+        let pad = extendedPad i r len in
+        {frag = pad@|f}
+    else
+#endif
+        p
+
+let parseExtPad (i:id) (r:range) (p:plain) : plain Result =
+#if TLSExt_extendedPadding
+    if TLSExtensions.hasExtendedPadding i then
+        let f = p.frag in
+        match TLSConstants.vlsplit 2 f with
+        | Error(x) -> Error(x)
+        | Correct(res) ->
+            let (_,f) = res in
+            correct ({frag = f})
+    else
+#endif
+        correct p
 
 #if ideal
 let widen (e:id) (r0:range) (r1:range) (f0:fragment) =

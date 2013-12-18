@@ -99,7 +99,7 @@
     <Optimize>False</Optimize>
     <Tailcalls>False</Tailcalls>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>TRACE;DEBUG</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;TLSExt_extendedPadding</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <DocumentationFile>
     </DocumentationFile>
@@ -112,11 +112,13 @@
     <Optimize>True</Optimize>
     <Tailcalls>True</Tailcalls>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>TRACE;TLSExt_extendedPadding</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <DocumentationFile>bin\Release\lib.XML</DocumentationFile>
     <NoWarn>62</NoWarn>
     <DebugSymbols>False</DebugSymbols>
+    <OtherFlags>
+    </OtherFlags>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Ideal|AnyCPU' ">
     <DebugSymbols>False</DebugSymbols>

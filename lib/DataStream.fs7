@@ -99,6 +99,9 @@ val widen: e:epoch -> s:(;e) stream ->
   r0:range -> r1:range{SubRange(r0,r1)} -> d0:(;e,s,r0) delta ->
   d1:(;e,s,r1) delta{Payload(e,s,r0,d0) = Payload(e,s,r1,d1)}
 
+val makeExtPad:  e:epoch -> s:(;e)stream -> r:range -> d:(;e,s,r)delta -> d':(;e,s,r)delta{d=d'}
+val parseExtPad: e:epoch -> s:(;e)stream -> r:range -> d:(;e,s,r)delta -> res:((d':(;e,s,r)delta{d=d'}) Result){?d. res = Correct(d)}
+
 //CF: We need linearity on the stream! 
 
 (*CF This would be the application interface: 

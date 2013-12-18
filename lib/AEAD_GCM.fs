@@ -40,11 +40,9 @@ let ENC (id:id) state (adata:LHAEPlain.adata) (rg:range) p =
     let ivb = state.iv.ivb in
     let cb = TLSConstants.bytes_of_seq state.counter in
     let iv = ivb @| cb in
+    let p = LHAEPlain.makeExtPad id adata rg p in
     // AP: If not ideal, the following lines
     let text = LHAEPlain.repr id adata rg p in
-    let tLen = length text in
-    let extPad = extendedPad id rg tLen in
-    let text = extPad @| text in
     let tLen = length text in
     let tLenB = bytes_of_int 2 tLen in
     let ad = adata @| tLenB in
@@ -69,18 +67,21 @@ let DEC (id:id) state (adata:LHAEPlain.adata) (rg:range) cipher =
         let k = state.key in
         match CoreCiphers.aes_gcm_decrypt k.kb iv ad cipher with
         | None ->
-           let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
-        | Some(plain) ->
-#if TLSExt_extendedPadding
-           if TLSExtensions.hasExtendedPadding id then
-               match TLSConstants.vlsplit 2 plain with
-               | Error(x,y) -> Error(AD_bad_record_mac, y)
-               | Correct(res) ->
-                   let (_,plain) = res in
-                   let plain = LHAEPlain.plain id adata rg plain in
-                   correct (state,plain)
-           else
+#if DEBUG
+           let reason = perror __SOURCE_FILE__ __LINE__ "" in
+#else
+           let reason = "" in
 #endif
-               let plain = LHAEPlain.plain id adata rg plain in
-               correct (state,plain)
+           Error(AD_bad_record_mac, reason)
+        | Some(plain) ->
+            let plain = LHAEPlain.plain id adata rg plain in
+            match LHAEPlain.parseExtPad id adata rg plain with
+            | Error(x) ->
+#if DEBUG
+                let reason = perror __SOURCE_FILE__ __LINE__ "" in
+#else
+                let reason = "" in
+#endif
+                Error(AD_bad_record_mac, reason)
+            | Correct(plain) -> correct (state,plain)
     | _ -> unexpected "[DEC] invoked on wrong algorithm"

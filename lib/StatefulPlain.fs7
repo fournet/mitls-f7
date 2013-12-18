@@ -5,6 +5,7 @@ module StatefulPlain
 open Bytes
 open TLSConstants
 open TLSInfo
+open Error
 open TLSError
 open Range
 
@@ -93,6 +94,9 @@ val repr:
 val reprFragment: 
   i:id{not SafeId(i)} -> ad:(;i)adata -> r:range ->
   f:(;i,B(ad),r) fragment -> b:(;r)rbytes {B(b) = Payload(i,B(ad),r,f)}
+
+val makeExtPad:  i:id -> ad:(;i)adata -> r:range -> f:(;i,B(ad),r)fragment -> f':(;i,B(ad),r)fragment{f=f'}
+val parseExtPad: i:id -> ad:(;i)adata -> r:range -> f:(;i,B(ad),r)fragment -> res:((f':(;i,B(ad),r)fragment{f=f'}) Result){?f. res = Correct(f)}
 
 val widen:
   i:id -> ad:(;i)adata -> r:range -> 

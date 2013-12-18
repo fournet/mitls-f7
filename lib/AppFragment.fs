@@ -3,6 +3,8 @@ open Bytes
 open TLSInfo
 open Range
 open DataStream
+open Error
+open TLSError
 
 #if ideal
 type fpred = DeltaFragment of epoch * stream * range * delta
@@ -55,6 +57,17 @@ let plain i r b =
 let repr (i:id) r f =
   let (e',s,d) = f.frag in
   DataStream.deltaRepr e' s r d
+
+let makeExtPad (i:id) r f =
+    let (e',s,d) = f.frag in
+    let d = DataStream.makeExtPad e' s r d in
+    {frag = (e',s,d)}
+
+let parseExtPad (i:id) r f =
+    let (e',s,d) = f.frag in
+    match DataStream.parseExtPad e' s r d with
+    | Error(x) -> Error(x)
+    | Correct(d) -> correct ({frag = (e',s,d)})
 
 #if ideal
 let widen (i:id) (r0:range) (f0:fragment) =

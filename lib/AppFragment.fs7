@@ -3,6 +3,8 @@ open Bytes
 open TLSInfo
 open Range
 open DataStream
+open Error
+open TLSError
 
 (* Application fragments are defined from DataStream as triples (e,s,d) 
    where e is an epoch, s is a stream, and d is a delta indexed by them. 
@@ -82,6 +84,9 @@ val plain: i:id{not AuthId(i)} -> r:range ->
 
 val repr:  i:id{not SafeId(i)} -> r:range -> 
   f:(;i,r) fragment -> b:(;r) rbytes{B(b) = Payload(i,r,f)}
+
+val makeExtPad:  i:id -> r:range -> f:(;i,r)fragment -> f':(;i,r)fragment{f'=f}
+val parseExtPad: i:id -> r:range -> f:(;i,r)fragment -> res:((f':(;i,r)fragment{f'=f}) Result){?f. res = Correct(f)}
 
 // We use this function for ideal decryption by table lookup,
 // as the range after decryption is usually wider than the one used for encryption.

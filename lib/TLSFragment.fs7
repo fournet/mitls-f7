@@ -7,6 +7,8 @@ open TLSError
 open TLSInfo
 open TLSConstants
 open Range
+open Error
+open TLSError
 
 (* CF [13/05/2013 21:18:54] KB on our current History design: 
 
@@ -207,3 +209,6 @@ val AppPlainToRecordPlain: e:epoch -> h:(;e)history -> r:range ->
 val RecordPlainToAppPlain: e:epoch -> h:(;e)history -> r:range -> 
   f:(;e,TLSConstants.Application_data,h,r) plain -> 
   d:(;e,AppDataHistory(e,h),r) AppFragment.plain{f = AppDataRecordPlain(e,h,r,d)}
+
+val makeExtPad:  i:id -> ct:ContentType -> r:range -> f:(;i,ct,r)fragment -> f':(;i,ct,r)fragment{f=f'}
+val parseExtPad: i:id -> ct:ContentType -> r:range -> f:(;i,ct,r)fragment -> res:((f':(;i,ct,r)fragment{f=f'}) Result){?f. res = Correct(f)}

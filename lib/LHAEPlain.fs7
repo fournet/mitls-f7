@@ -1,5 +1,6 @@
 module LHAEPlain
 open Bytes
+open Error
 open TLSError
 open TLSConstants
 open TLSInfo
@@ -49,6 +50,9 @@ private definition !i,lad,r,f.
   (?had,sn,ph. had = ParseAD(i,lad) /\ 
                sn = SeqN(i,lad) /\
                StatefulPlain.Sent(i,had,(sn,ph),r,f.contents))
+
+val makeExtPad:  id:id -> ad:(;id)adata -> r:range -> p:(;id,ad,r)plain -> p':(;id,ad,r)plain{p=p'}
+val parseExtPad: id:id -> ad:(;id)adata -> r:range -> p:(;id,ad,r)plain -> res:((p':(;id,ad,r)plain{p=p'}) Result){?p. res = Correct(p)}
 
 (* CF cut? 
 private ask !i,r,f,lad. (AuthId(i) /\ (?had,sn,ph. MakeAD(i,(sn,ph),had) = lad /\ StatefulPlain.Sent(i,had,(sn,ph),r,f.contents)) ) => 
