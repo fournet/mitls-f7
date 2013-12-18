@@ -89,32 +89,6 @@ let split (ki:epoch) (s:stream)  (r0:range) (r1:range) (d:delta) =
   let (sb0,sb1) = Bytes.split d.contents n in
   ({contents = sb0},{contents = sb1})
 
-let makeExtPad (e:epoch) (s:stream) (r:range) (d:delta) =
-#if TLSExt_extendedPadding
-    let id = id e in
-    if TLSExtensions.hasExtendedPadding id then
-        let p = d.contents in
-        let len = length p in
-        let pad = extendedPad id r len in
-        {contents = pad@|p}
-    else
-#endif
-        d
-
-let parseExtPad (e:epoch) (s:stream) (r:range) (d:delta): delta Result =
-#if TLSExt_extendedPadding
-    let id = id e in
-    if TLSExtensions.hasExtendedPadding id then
-        let p = d.contents in
-        match TLSConstants.vlsplit 2 p with
-        | Error(x) -> Error(x)
-        | Correct(res) ->
-            let (_,p) = res in
-            correct ({contents = p})
-    else
-#endif
-        correct d
-
 #if ideal
 let widen (ki:epoch) (s:stream) (r0:range) (r1:range) (d:delta) = let b = d.contents in {contents = b}
 #endif

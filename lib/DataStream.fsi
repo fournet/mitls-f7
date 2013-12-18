@@ -21,9 +21,6 @@ val split: epoch -> stream -> range -> range -> delta -> delta * delta
 val deltaPlain: epoch -> stream -> range -> rbytes -> delta
 val deltaRepr: epoch -> stream -> range -> delta -> rbytes
 
-val makeExtPad:  epoch -> stream -> range -> delta -> delta
-val parseExtPad: epoch -> stream -> range -> delta -> delta Result
-
 #if ideal
 val widen: epoch -> stream -> range -> range -> delta -> delta
 #endif
