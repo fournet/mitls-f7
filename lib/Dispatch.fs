@@ -905,48 +905,9 @@ let authorize (Conn(id,c)) q =
     | Handshake.InQuery(query,advice,hs) ->
         unexpected "[authorize] A query should never be received"
     | Handshake.InFinished(hs) ->
-            (* Ensure we are in Finishing state *)
-            match c_read.disp with
-                | Finishing ->
-                    let c_read = {c_read with disp = Finished} in
-                    let c1 = {c with handshake = hs;
-                                    read = c_read} in
-                    let (wo,conn) = writeAllTop (Conn(id,c1)) in
-                    match wo with
-                    | WHSDone -> conn,WriteOutcome(WHSDone)
-                    | WError(x) -> conn,WriteOutcome(WError(x))
-                    | SentClose -> conn,WriteOutcome(SentClose)
-                    | SentFatal (x,y) -> conn,WriteOutcome(SentFatal(x,y))
-                    | _ -> unexpected "[authorize] writeAllTop returned wrong result"
-                | _ ->
-                    let reason = perror __SOURCE_FILE__ __LINE__ "Finishing handshake in the wrong state" in
-                    let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in
-                    let wo,conn = writeAllClosing closing in
-                    conn,WriteOutcome(wo)
+        unexpected "[authorize] The finished message should never be received right after a query"
     | Handshake.InComplete(hs) ->
-            let c = {c with handshake = hs} in
-            (* Ensure we are in the correct state *)
-            let c_write = c.write in
-            match (c_read.disp, c_write.disp) with
-            | (Finishing, Finished) ->
-                (* Sanity check: in and out session infos should be the same *)
-                if epochSI(id.id_in) = epochSI(id.id_out) then
-                    match moveToOpenState (Conn(id,c)) with
-                    | Correct(c) -> 
-                        (Conn(id,c),RHSDone)
-                    | Error(z) -> 
-                        let (x,y) = z in
-                        let closing = abortWithAlert (Conn(id,c)) x y in
-                        let wo,conn = writeAllClosing closing in
-                        conn,WriteOutcome(wo)
-                else
-                    let closed = closeConnection (Conn(id,c)) in
-                    (closed,RError(perror __SOURCE_FILE__ __LINE__ "Invalid connection state")) (* Unrecoverable error *)
-            | _ ->
-                let reason = perror __SOURCE_FILE__ __LINE__ "Invalid connection state" in
-                let closing = abortWithAlert (Conn(id,c)) AD_internal_error reason in
-                let wo,conn = writeAllClosing closing in
-                conn,WriteOutcome(wo)
+        unexpected "[authorize] Handshake should never complete right after a query"
     | Handshake.InError(x,y,hs) ->
         let c = {c with handshake = hs} in
         let closing = abortWithAlert (Conn(id,c)) x y in
