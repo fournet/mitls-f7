@@ -194,7 +194,7 @@ let send ns e write pv rg ct frag =
 
 (* which fragment should we send next? *)
 (* we must send this fragment before restoring the connection invariant *)
-let writeOne (Conn(id,c)): writeOutcome * Connection =
+let writeOne (Conn(id,c)) (ghost: (range * DataStream.delta * AppFragment.plain * DataStream.stream) option): writeOutcome * Connection =
   let c_write = c.write in
   match c_write.disp with
   | Closed -> let reason = perror __SOURCE_FILE__ __LINE__ "Trying to write on a closed connection" in (WError(reason), Conn(id,c))
@@ -210,9 +210,9 @@ let writeOne (Conn(id,c)): writeOutcome * Connection =
                 match c_write.disp with
                 | Open ->
                     let app_state = c.appdata in
-                    match AppData.next_fragment id app_state with
-                    | None -> (WDone,Conn(id,c))
-                    | Some (next) ->
+                    match (AppData.next_fragment id app_state, ghost) with
+                    | None, None -> (WDone,Conn(id,c))
+                    | Some (next), Some(_) ->
                         let (tlen,f,new_app_state) = next in
                         (* we send some data fragment *)
                         let id_out = id.id_out in
@@ -229,6 +229,7 @@ let writeOne (Conn(id,c)): writeOutcome * Connection =
                             (WAppDataDone, Conn(id,c))
 
                         | Error z -> let (x,y) = z in let closed = closeConnection (Conn(id,c)) in (WError(y),closed) (* Unrecoverable error *)
+                    | _,_ -> unexpected "[writeOne] invoked with inconsisten arguments"
                 | _ ->
                     // We are finishing a handshake. Tell we're done, so that next read will complete the handshake.
                     (WDone,Conn(id,c)) 
@@ -421,7 +422,7 @@ let writeOne (Conn(id,c)): writeOutcome * Connection =
             (WError(reason),closed) (* Unrecoverable error *)
 
 let rec writeAllClosing (Conn(id,s)) =
-    match writeOne (Conn(id,s)) with
+    match writeOne (Conn(id,s)) None with
     | (WriteAgain,c) -> writeAllClosing c
     | (WError(x),conn) -> WError(x),conn
     | (SentClose,conn) -> SentClose,conn
@@ -429,7 +430,7 @@ let rec writeAllClosing (Conn(id,s)) =
     | (_,_) -> unexpected "[writeAllClosing] writeOne returned wrong result"
 
 let rec writeAllFinishing conn =
-    match writeOne conn with
+    match writeOne conn None with
     | (WError(x),conn) -> (WError(x), conn)
     | (SentFatal(x,y),conn) -> (SentFatal(x,y),conn)
     | (SentClose,conn) -> (SentClose,conn)
@@ -441,8 +442,8 @@ let rec writeAllFinishing conn =
     | (WHSDone,conn) -> (WHSDone,conn)
     | (_,_) -> unexpected "[writeAllFinishing] writeOne returned wrong result"
 
-let rec writeAllTop conn =
-    match writeOne conn with
+let rec writeAllTop conn (ghost: (range * DataStream.delta * AppFragment.plain * DataStream.stream) option) =
+    match writeOne conn ghost with
     | (WError(x),conn) -> (WError(x), conn)
     | (SentFatal(x,y),conn) -> (SentFatal(x,y),conn)
     | (SentClose,conn) -> (SentClose,conn)
@@ -452,7 +453,7 @@ let rec writeAllTop conn =
     | (WriteAgainFinishing,conn) ->
         writeAllFinishing conn
     | (WriteAgain,conn) ->
-        writeAllTop conn
+        writeAllTop conn ghost
     | (_,_) -> unexpected "[writeAllTop] writeOne returned wrong result"
 
 let getHeader (Conn(id,c)) =
@@ -760,7 +761,7 @@ let rec readAllFinishing c =
     | RFatal(ad) -> c,RFatal(ad)
     | RError(err) -> unexpected "[readAllFinishing] Read error can never be returned by read one"
     | RFinished ->
-        let (outcome,c) = writeAllTop c in
+        let (outcome,c) = writeAllTop c None in
         match outcome with
         | WHSDone -> c,WriteOutcome(WHSDone)
         | SentFatal(x,y) -> unexpected "[readAllFinishing] There should be no way of sending a fatal alert after we validated the peer Finished message"
@@ -789,7 +790,7 @@ let rec readAllFinishing c =
 
 let rec read c =
     let orig = c in
-    let (outcome,c) = writeAllTop c in
+    let (outcome,c) = writeAllTop c None in
     match outcome with
     | SentClose -> c,WriteOutcome(SentClose)
     | SentFatal(ad,err) -> c,WriteOutcome(SentFatal(ad,err))
@@ -861,14 +862,19 @@ let write (Conn(id,s)) msg =
   let res = msgWrite (Conn(id,s)) msg in
   let (r0,d0,f0,ns,rdOpt) = res in
   let new_appdata = AppData.writeAppData id s.appdata r0 f0 ns in
-  let s = {s with appdata = new_appdata} in 
-  let (outcome,Conn(id,s)) = writeAllTop (Conn(id,s)) in
+  let s = {s with appdata = new_appdata} in
+  let ghost = (r0,d0,f0,ns) in
+  let ghost = Some(ghost) in
+  let (outcome,Conn(id,s)) = writeAllTop (Conn(id,s)) ghost in
   let new_appdata = AppData.clearOutBuf id s.appdata in
   let s = {s with appdata = new_appdata} in
   match outcome with //AP: prune some options
   | WError (_) | SentFatal(_,_) -> Conn(id,s),outcome,None
   | WriteFinished -> Conn(id,s),outcome,None
-  | WAppDataDone -> Conn(id,s),outcome,rdOpt
+  | WAppDataDone ->
+    match rdOpt with
+    | None -> Conn(id,s),outcome,rdOpt
+    | Some(_) -> Conn(id,s),outcome,rdOpt
   | WriteAgain | WriteAgainFinishing | WriteAgainClosing
   | WDone | WHSDone | SentClose ->
     unexpected "[write] writeAllTop should never return this"
