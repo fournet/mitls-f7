@@ -205,9 +205,9 @@ predicate Split_o of
 	* (;ConnectionEpochOut(c),CnStream_o(c))msg_o
 	* c':Connection
 	* (;ConnectionEpochOut(c'),CnStream_o(c'))msg_o
-private definition !c,m,m0,c',m1.
-	Split_o(c,m,m0,c',m1) <=>
-		MsgOBytes(c,m) = MsgOBytes(c,m0) @| MsgOBytes(c',m1)
+private definition !c,m,r0,d0,c',r1,d1.
+	Split_o(c,m,(r0,d0),c',(r1,d1)) <=>
+		MsgOBytes(c,m) = MsgOBytes(c,(r0,d0)) @| MsgOBytes(c',(r1,d1))
 
 private definition !c, c'. 
 	Extend(c, c') <=>    Bytes_i(c') = Bytes_i(c)
@@ -284,8 +284,9 @@ definition !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo)  <=>
 	(
 		// Cases needed by the top level interface
 		(wo = WAppDataDone /\ mo = None /\ Extend_o(c,c',m) /\ NextCn(c,c')) \/
-        (wo = WAppDataDone /\ (?r0,d0,r',d'. mo = Some((r',d')) /\ Split_o(c,m,(r0,d0),c',(r',d'))
-			               /\ Extend_o(c,c',(r0,d0)) /\ NextCn(c,c'))) \/
+        (wo = WAppDataDone /\ (?r0,d0,r',d'. mo = Some((r',d'))
+						   /\ MsgOBytes(c,m) = MsgOBytes(c,(r0,d0)) @| MsgOBytes(c',(r',d'))
+						   (* /\ Split_o(c,m,(r0,d0),c',(r',d')) *)  )) \/
         (wo = WHSDone /\
 		  (
 			   Role(c') = Role(c)
