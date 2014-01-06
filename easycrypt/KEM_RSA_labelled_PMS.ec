@@ -104,7 +104,7 @@ theory Agile_Labeled_KEM.
           k = $key;
           maybe_k = if (maybe_k = None) then Some k else maybe_k;
           maybe_k = if (!mem (proj maybe_k) W.keys) then maybe_k else None;  
-      }
+        }
         return maybe_k;
       }
     }.
