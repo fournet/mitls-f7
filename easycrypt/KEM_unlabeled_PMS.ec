@@ -92,6 +92,8 @@ theory Agile_Labeled_KEM.
       var sk : skey
       var keys : key set
       var labels : label set
+      var guess : bool
+      var t : label
     }.
     
     module Wrap(KEM:KEM) : Oracle = {  
@@ -101,10 +103,10 @@ theory Agile_Labeled_KEM.
         if (!mem t W.labels /\ mem p P) { 
           W.labels = add t W.labels;
           maybe_k = KEM.dec(p, W.sk, t, c);
-          k = $key;
-          maybe_k = if (maybe_k = None) then Some k else maybe_k;
-          maybe_k = if (!mem (proj maybe_k) W.keys) then maybe_k else None;  
-        }
+          maybe_k = 
+           if (W.guess => !mem (proj maybe_k) W.keys \/ t <> W.t) 
+           then maybe_k else None;
+      }
         return maybe_k;
       }
     }.
@@ -117,18 +119,20 @@ theory Agile_Labeled_KEM.
         var b, b', valid : bool;
         var k0, k1 : key;
         var c : ciphertext;
-        var t : label;
         var pk : pkey;
         KEM.init();
         (pk, W.sk) = KEM.keygen();
         W.keys = FSet.empty;
         W.labels = FSet.empty;
-        t = A.choose(pk);
-        valid = !mem t W.labels; 
-        (k0, c) = KEM.enc(pp, pk, t);
+        W.t = pick FSet.empty;
+        W.guess = false;
+        W.t = A.choose(pk);
+        valid = !mem W.t W.labels; 
+        (k0, c) = KEM.enc(pp, pk, W.t);
         k1 = $key;
         b = ${0,1};
         W.keys = add k0 (add k1 W.keys);
+        W.guess = true;
         b' = A.guess(c, if b then k1 else k0);
         return (b = b' /\ valid);
       }
@@ -413,7 +417,8 @@ section.
           pms = $dpms;
           pms = if maybe_pms = None then pms else proj maybe_pms;
           k = RO_KEF.extract(h, (pms, t));
-          maybe_k = if (!mem k W.keys) then Some k else None;
+          maybe_k = if (W.guess => !mem k W.keys \/ t <> W.t) 
+                    then Some k else None;
         }
         return maybe_k;
       }
@@ -425,7 +430,6 @@ section.
       var b, b', valid : bool;
       var k0, k1 : ms;
       var c : ciphertext;
-      var t : label;
       var pk : pkey;
       var pv : version;
       var pms : pms;
@@ -434,14 +438,17 @@ section.
       (pk, W.sk) = MS_KEM.keygen();
       W.keys = FSet.empty;
       W.labels = FSet.empty;
+      W.t = pick FSet.empty;
+      W.guess = false;
       (pv, h) = pp;
       (pms, c) = PMS_KEM.enc(pv, pk, ());
-      t = A.choose(pk);
-      valid = !mem t W.labels;
-      k0 = RO_KEF.extract(h, (pms, t));
+      W.t = A.choose(pk);
+      valid = !mem W.t W.labels;
+      k0 = RO_KEF.extract(h, (pms, W.t));
       k1 = $key;
       b = ${0,1};
       W.keys = add k0 (add k1 W.keys);
+      W.guess = true;
       b' = A.guess(c, if b then k1 else k0);
       return (b = b' /\ valid);
     }
@@ -459,8 +466,7 @@ section.
       (maybe_pms = decrypt pv W.sk c){2} /\ (t0 = t){1}).
       exists * sk{1}, pv{1}, c0{1}; elim *; intros sk pv c.
       by call{1} (dec_spec sk pv c).
-    wp; rnd{1}; wp.
-    call (_: ={glob W, glob RO_KEF}); first by eqobs_in.
+    wp; call (_: ={glob W, glob RO_KEF}); first by eqobs_in.
     by wp; rnd; skip; progress; smt.
   qed.    
 
@@ -468,14 +474,14 @@ section.
     RCCA(MS_KEM, A(RO_KEF)).main ~ RCCA0.main : true ==> ={res}.
   proof.
     fun.
-    swap{2} [5..6] 1.
+    swap{2} 9 -2.
     call (_: ={glob W, glob RO_KEF}).
       by apply RCCA_RCCA0_dec.
       by fun; eqobs_in.
     inline KEM(RO_KEF, PMS_KEM).enc.
     wp; rnd; rnd; wp.
     call (_: ={glob W, glob RO_KEF}); first by eqobs_in.
-    seq 5 5 : (={t, pk, glob A, glob W, glob RO_KEF} /\ keypair(pk, W.sk){1}).
+    seq 7 7 : (={pk, glob A, glob W, glob RO_KEF} /\ keypair(pk, W.sk){1}).
     call (_: ={glob W, glob RO_KEF}).
       by apply RCCA_RCCA0_dec.
       by fun; eqobs_in.
@@ -518,7 +524,8 @@ section.
             k = O1.extract(h, (pms, t));
           }
           else k = O1.extract(h, (proj maybe_pms, t));
-          maybe_k = if (!mem k W.keys) then Some k else None;
+          maybe_k = if (W.guess => !mem k W.keys \/ t <> W.t) 
+                    then Some k else None;
         }
         return maybe_k;
       }
@@ -530,7 +537,6 @@ section.
       var b, b', valid : bool;
       var k0, k1 : ms;
       var c : ciphertext;
-      var t : label;
       var pk : pkey;
       var pv : version;
       var pms : pms;
@@ -539,15 +545,18 @@ section.
       (pk, W.sk) = MS_KEM.keygen();
       W.keys = FSet.empty;
       W.labels = FSet.empty;
+      W.t = pick FSet.empty;
+      W.guess = false;
       m = Core.empty;
       (pv, h) = pp;
       (pms, c) = PMS_KEM.enc(pv, pk, ());
-      t = A.choose(pk);
-      valid = !mem t W.labels;
-      k0 = O1.extract(h, (pms, t));
+      W.t = A.choose(pk);
+      valid = !mem W.t W.labels;
+      k0 = O1.extract(h, (pms, W.t));
       k1 = $key;
       b = ${0,1};
       W.keys = add k0 (add k1 W.keys);
+      W.guess = true;
       b' = A.guess(c, if b then k1 else k0);
       return (b = b' /\ valid);
     }
@@ -598,7 +607,7 @@ section.
       by sp; if => //; try rnd.
       by wp; rnd{1}; skip; progress; smt.
     by fun; sp; if => //; try rnd.
-    call (_: true); wp; call (_: true); wp; call (_: true); wp.
+    wp; call (_: true); wp; call (_: true); wp; call (_: true); wp.
     by inline LE.Lazy.RO.init; wp; skip; progress; smt.
   qed.
 
@@ -635,7 +644,8 @@ section.
             k = O1.extract(h, (pms, t));
           }
           else k = O1.extract(h, (proj maybe_pms, t));
-          maybe_k = if (!mem k W.keys) then Some k else None;
+          maybe_k = if (W.guess => !mem k W.keys \/ t <> W.t) 
+                    then Some k else None;
         }
         return maybe_k;
       }
@@ -658,7 +668,6 @@ section.
       var b, b', valid : bool;
       var k0, k1 : ms;
       var c : ciphertext;
-      var t : label;
       var pk : pkey;
       var pv : version;
       var pms : pms;
@@ -668,22 +677,25 @@ section.
       (pk, W.sk) = MS_KEM.keygen();
       W.keys = FSet.empty;
       W.labels = FSet.empty;
+      W.t = pick FSet.empty;
+      W.guess = false;
       m = Core.empty;
       (pv, h) = pp;
       (pms, c) = PMS_KEM.enc(pv, pk, ());
-      t = A.choose(pk);
-      valid = !mem t W.labels;
-      k0 = O1.extract(h, (pms, t));
+      W.t = A.choose(pk);
+      valid = !mem W.t W.labels;
+      k0 = O1.extract(h, (pms, W.t));
       k1 = $key;
       b = ${0,1};
       W.keys = add k0 (add k1 W.keys);
+      W.guess = true;
       b' = A.guess(c, if b then k1 else k0);
       return (b = b' /\ valid);
     }
   }.
 
- local equiv Eager_RCCA1 : 
-   LE.Types.IND(LE.Eager.RO, D).main ~ RCCA1.main : true ==> ={res}.
+  local equiv Eager_RCCA1 : 
+    LE.Types.IND(LE.Eager.RO, D).main ~ RCCA1.main : true ==> ={res}.
   proof.
     fun.
     inline LE.Types.IND(LE.Eager.RO, D).D.distinguish
@@ -717,7 +729,7 @@ section.
         ={glob W} /\ D.m{1} = RCCA1.m{2} /\ LE.Eager.RO.m{1} = RCCA1.fake{2}) => //.
       by sp; if => //; try rnd.
     by fun; sp; if => //; try rnd.
-    call (_: true); wp; call (_: true); wp; call (_: true); wp.
+    wp; call (_: true); wp; call (_: true); wp; call (_: true); wp.
     inline LE.Eager.RO.init RCCA1.sample; sp.
     while (work{1} = labels{2} /\ LE.Eager.RO.m{1} = RCCA1.fake{2}) => //.
     by wp; sp; rnd.
@@ -777,7 +789,8 @@ section.
           maybe_pms = decrypt pv W.sk c;
           if (maybe_pms = None) k = $key;
           else k = O1.extract(h, (proj maybe_pms, t));
-          maybe_k = if (!mem k W.keys) then Some k else None;
+          maybe_k = if (W.guess => !mem k W.keys \/ t <> W.t) 
+                    then Some k else None;
         }
         return maybe_k;
       }
@@ -800,7 +813,6 @@ section.
       var b, b', valid : bool;
       var k0, k1 : ms;
       var c : ciphertext;
-      var t : label;
       var pk : pkey;
       var pv : version;
       var pms : pms;
@@ -810,15 +822,18 @@ section.
       (pk, W.sk) = MS_KEM.keygen();
       W.keys = FSet.empty;
       W.labels = FSet.empty;
+      W.t = pick FSet.empty;
+      W.guess = false;
       m = Core.empty;
       (pv, h) = pp;
       (pms, c) = PMS_KEM.enc(pv, pk, ());
-      t = A.choose(pk);
-      valid = !mem t W.labels;
-      k0 = O1.extract(h, (pms, t));
+      W.t = A.choose(pk);
+      valid = !mem W.t W.labels;
+      k0 = O1.extract(h, (pms, W.t));
       k1 = $key;
       b = ${0,1};
       W.keys = add k0 (add k1 W.keys);
+      W.guess = true;
       b' = A.guess(c, if b then k1 else k0);
       return (b = b' /\ valid);
     }
@@ -901,9 +916,9 @@ section.
     !(exists h t, in_dom (h, (proj RCCA2.fake.[t], t)) RCCA2.m){2} => ={res}.
   proof.
     fun.
-    seq 10 10 :
+    seq 12 12 :
       (!(exists h t, in_dom (h, (proj RCCA2.fake.[t], t)) RCCA2.m){2} =>
-      ={glob W, glob A, pk, pv, h, pms, c, t, valid} /\ 
+      ={glob W, glob A, pk, pv, h, pms, c, valid} /\ 
       RCCA1.fake{1} = RCCA2.fake{2} /\
       (forall t, in_dom t RCCA1.fake){1} /\
       (forall h t, 
@@ -934,7 +949,7 @@ section.
      by progress; fun; wp; sp; if; try rnd; skip; smt.
      by intros _; fun; sp; if => //; rnd (lambda x, true); skip; progress; smt.
 
-     call (_: ={glob W} /\ RCCA1.fake{1} = RCCA2.fake{2}); wp.
+     wp; call (_: ={glob W} /\ RCCA1.fake{1} = RCCA2.fake{2}); wp.
      call (_:RCCA1.fake{1} = RCCA2.fake{2}).
      eqobs_in; progress; apply stateless_pms_kem.
      call (_:true); wp.
@@ -947,17 +962,17 @@ section.
      by wp; skip; progress; smt.
      by wp; skip; progress; smt.
 
-     case ((proj RCCA2.fake.[t] = pms){2} \/
+     case ((proj RCCA2.fake.[W.t] = pms){2} \/
            exists h t, in_dom (h, (proj RCCA2.fake.[t], t)) RCCA2.m){2}.
      seq 1 1 : (exists h t, in_dom (h, (proj RCCA2.fake.[t], t)) RCCA2.m){2}.
      inline RCCA1.O1.extract RCCA2.O1.extract; wp; sp.      
      if{1}; if{2}.
        rnd; skip; progress; elim H0 => ?.
-         by exists h{2}, t{2}; smt.
+         by exists h{2}, W.t{2}; smt.
          by smt.
        by rnd{1}; skip; progress; smt.
        rnd{2}; skip; progress; [smt | elim H0 => ?].
-         by exists h{2}, t{2}; smt.
+         by exists h{2}, W.t{2}; smt.
          by smt.
        by skip; progress; smt.
      call (_:true, true,
@@ -972,14 +987,14 @@ section.
         (* by apply RCCA2_dec_preserves_bad. *)
         progress; fun; sp; if => //.
         wp; sp; inline RCCA1.O1.extract; if.
-          by rnd (lambda x, true); skip; progress; smt.
+          by rnd; skip; progress; smt.
           inline RCCA2.O1.extract; wp; sp; if => //.
-          by rnd (lambda x, true); skip; progress; smt.
+          by rnd Fun.cpTrue; skip; progress; smt.
         by exfalso; smt.
         (* by apply RCCA1_extract_preserves_bad. *)
         by progress; fun; wp; sp; if; try rnd; skip; smt.
         (* by apply RCCA2_extract_preserves_bad. *)
-        by progress; fun; sp; if => //; rnd (lambda x, true); skip; progress; smt.
+        by progress; fun; sp; if => //; rnd Fun.cpTrue; skip; smt.
      wp; rnd; rnd; inline RCCA1.O1.extract RCCA2.O1.extract; wp; sp.      
      by skip; progress; smt. 
 
@@ -1000,17 +1015,17 @@ section.
      intros &1; fun.
      sp; if; wp; sp => //.
      if.  
-       by rnd (lambda x, true); skip; progress; smt.
+       by rnd ; skip; progress; smt.
        inline RCCA2.O1.extract; wp; sp; if => //.
-       by rnd (lambda x, true); skip; progress; smt.
+       by rnd Fun.cpTrue; skip; progress; smt.
      by apply RCCA1_RCCA2_extract.
      by progress; fun; wp; sp; if; try rnd; skip; smt.
-     by progress; fun; sp; if => //; rnd (lambda x, true); skip; progress; smt.
+     by progress; fun; sp; if => //; rnd Fun.cpTrue; skip; progress; smt.
     
      wp; rnd; rnd.
      inline RCCA1.O1.extract RCCA2.O1.extract; wp; sp.      
      if => //; first by progress; smt.
-       rnd; skip; progress; [smt | smt | smt | smt | smt | smt | smt | smt | | | ].   
+       rnd; skip; progress; [smt | smt | smt | smt | smt | smt | smt | smt | smt | | | ].
          cut X : !(exists h t, in_dom 
            (h, (proj RCCA2.fake{2}.[t], t)) RCCA2.m{2}) by smt.
          generalize H; rewrite X => /=; progress.
@@ -1018,16 +1033,17 @@ section.
          cut X : !(exists h t, in_dom 
            (h, (proj RCCA2.fake{2}.[t], t)) RCCA2.m{2}) by smt.
          generalize H; rewrite X => /=; progress.
-         case ((h0, (pms1, t1)) = (h, (pms, t)){2}) => ?; first by smt.
-         by cut V := H14 h0 pms1 t1; smt.
+         case ((h0, (pms1, t0)) = (h, (pms, W.t)){2}) => ?; first by smt.
+         by cut V := H14 h0 pms1 t0; smt.
          cut X : !(exists h t, in_dom 
            (h, (proj RCCA2.fake{2}.[t], t)) RCCA2.m{2}) by smt.
          generalize H; rewrite X => /=; progress.
          by smt.
-      skip; progress; [smt | smt | smt | smt | smt | smt | smt | smt | smt | smt | ].          cut X : !(exists h t, in_dom 
-           (h, (proj RCCA2.fake{2}.[t], t)) RCCA2.m{2}) by smt.
-         generalize H; rewrite X => /=; progress.
-         generalize H9; rewrite H10 => /=; progress.
+      skip; progress; [smt | smt | smt | smt | smt | smt | smt | smt | smt | smt | smt | ].          
+      cut X : !(exists h t, in_dom 
+        (h, (proj RCCA2.fake{2}.[t], t)) RCCA2.m{2}) by smt.
+        generalize H; rewrite X => /=; progress.
+        generalize H9; rewrite H10 => /=; progress.
   qed. 
 
   local lemma Pr_RCCA1_RCCA2 &m :
@@ -1135,7 +1151,8 @@ section.
               if (!in_dom (h, (pms, t)) m) m.[(h, (pms, t))] = $key;
               k = proj m.[(h, (pms, t))];
             }
-            maybe_k = if (!mem k V.keys) then Some k else None;
+            maybe_k = if (V.guess => !mem k V.keys \/ t <> V.t) 
+                      then Some k else None;
           }
         }
         return maybe_k;
@@ -1216,6 +1233,8 @@ section.
     W.sk{1} = V.sk{2} /\
     W.keys{1} = V.keys{2} /\
     W.labels{1} = V.labels{2} /\
+    W.t{1} = V.t{2} /\
+    W.guess{1} = V.guess{2} /\
     eq_except RCCA2.m{1} RCCA3.m{2} (snd pp, (V.pms, V.t)){2} /\
     in_dom (snd pp, (V.pms, V.t)){2} RCCA2.m{1} /\
     mem (proj RCCA2.m{1}.[(snd pp, (V.pms, V.t))]){2} V.keys{2} /\
@@ -1228,6 +1247,8 @@ section.
       W.sk{1} = V.sk{2} /\
       W.keys{1} = V.keys{2} /\
       W.labels{1} = V.labels{2} /\
+      W.t{1} = V.t{2} /\
+      W.guess{1} = V.guess{2} /\
       eq_except RCCA2.m{1} RCCA3.m{2} (snd pp, (V.pms, V.t)){2} /\
       in_dom (snd pp, (V.pms, V.t)){2} RCCA2.m{1} /\
       mem (proj RCCA2.m{1}.[(snd pp, (V.pms, V.t))]){2} V.keys{2} /\
@@ -1256,6 +1277,8 @@ section.
     W.sk{1} = V.sk{2} /\
     W.keys{1} = V.keys{2} /\
     W.labels{1} = V.labels{2} /\
+    W.t{1} = V.t{2} /\
+    W.guess{1} = V.guess{2} /\
     eq_except RCCA2.m{1} RCCA3.m{2} (snd pp, (V.pms, V.t)){2} /\
     in_dom (snd pp, (V.pms, V.t)){2} RCCA2.m{1} /\
     mem (proj RCCA2.m{1}.[(snd pp, (V.pms, V.t))]){2} V.keys{2} /\
@@ -1268,6 +1291,8 @@ section.
       W.sk{1} = V.sk{2} /\
       W.keys{1} = V.keys{2} /\
       W.labels{1} = V.labels{2} /\
+      W.t{1} = V.t{2} /\
+      W.guess{1} = V.guess{2} /\
       eq_except RCCA2.m{1} RCCA3.m{2} (snd pp, (V.pms, V.t)){2} /\
       in_dom (snd pp, (V.pms, V.t)){2} RCCA2.m{1} /\
       mem (proj RCCA2.m{1}.[(snd pp, (V.pms, V.t))]){2} V.keys{2} /\
@@ -1279,7 +1304,7 @@ section.
       (* aborts *)
       if{2}.
        if{1}; if{2}.
-         by wp; rnd.
+         by wp; rnd; skip; progress; smt.
          sp; if{2}; wp; try rnd; try rnd{1}; skip; progress; smt.
    
          call{1} (_:true ==> true); first by apply RCCA2_lossless_extract.
@@ -1295,10 +1320,9 @@ section.
       (* doesn't abort *)
       inline{1} RCCA2.O1.extract.
       if{2}.
-        if => //; first by wp; rnd; skip.
+        if => //; first by wp; rnd; skip; progress.
         wp; sp; if.
-          progress.
-          by smt.
+          progress; first by smt.
           cut W : (exists pms, decrypt pv V.sk c = Some pms){2} by smt.
           by cut V := same_key_spec V.pk{2} V.sk{2} (fst pp) pv{2} c{2}; smt.
           by rnd; skip; progress; smt.    
@@ -1326,6 +1350,8 @@ section.
     W.sk{1} = V.sk{2} /\
     W.keys{1} = V.keys{2} /\
     W.labels{1} = V.labels{2} /\
+    W.t{1} = V.t{2} /\
+    W.guess{1} = V.guess{2} /\
     decrypt (fst pp) V.sk{2} V.c{2} = Some V.pms{2} /\
     (forall t,
      in_dom (snd pp, (V.pms, t)) RCCA3.m => 
@@ -1339,6 +1365,8 @@ section.
       W.sk{1} = V.sk{2} /\
       W.keys{1} = V.keys{2} /\
       W.labels{1} = V.labels{2} /\
+      W.t{1} = V.t{2} /\
+      W.guess{1} = V.guess{2} /\
       decrypt (fst pp) V.sk{2} V.c{2} = Some V.pms{2} /\
       (forall t,
        in_dom (snd pp, (V.pms, t)) RCCA3.m => 
@@ -1362,6 +1390,8 @@ section.
     W.sk{1} = V.sk{2} /\
     W.keys{1} = V.keys{2} /\
     W.labels{1} = V.labels{2} /\
+    W.t{1} = V.t{2} /\
+    W.guess{1} = V.guess{2} /\
     (decrypt (fst pp) V.sk  V.c = Some V.pms){2} /\
     (forall t,
      in_dom (snd pp, (V.pms, t)) RCCA3.m => 
@@ -1375,6 +1405,8 @@ section.
       W.sk{1} = V.sk{2} /\
       W.keys{1} = V.keys{2} /\
       W.labels{1} = V.labels{2} /\
+      W.t{1} = V.t{2} /\
+      W.guess{1} = V.guess{2} /\
       (decrypt (fst pp) V.sk V.c = Some V.pms){2} /\
       (forall t,
        in_dom (snd pp, (V.pms, t)) RCCA3.m => 
@@ -1395,20 +1427,20 @@ section.
     RCCA2.main ~ RCCA3.main : true ==> !RCCA3.abort{2} => ={res}.
   proof.
     fun.
-    swap{1} 13 -3; swap{2} 14 -6.
-    seq 10 8 : 
+    swap{1} 15 -3; swap{2} 14 -6.
+    seq 12 8 : 
      (={b} /\ pms{1} = V.pms{2} /\ c{1} = V.c{2} /\ (pv, h){1} = pp /\
       (!RCCA3.abort{2} =>
-       ={glob A} /\ t{1} = V.t{2} /\ RCCA2.m{1} = RCCA3.m{2} /\
+       ={glob A} /\ W.t{1} = V.t{2} /\ RCCA2.m{1} = RCCA3.m{2} /\
        keypair(V.pk, V.sk){2} /\
-       W.sk{1} = V.sk{2} /\ W.keys{1} = V.keys{2} /\ W.labels{1} = V.labels{2} /\
+       W.sk{1} = V.sk{2} /\ W.keys{1} = V.keys{2} /\ W.labels{1} = V.labels{2} /\ W.guess{1} = V.guess{2} /\
        (decrypt (fst pp) V.sk V.c = Some V.pms){2} /\
        (forall t, in_dom (snd pp, (V.pms, t)) RCCA3.m => mem t V.labels){2})).
       rnd; simplify.
       call (_:RCCA3.abort,
         keypair(V.pk, V.sk){2} /\
         !V.guess{2} /\ RCCA2.m{1} = RCCA3.m{2} /\
-        W.sk{1} = V.sk{2} /\ W.keys{1} = V.keys{2} /\ W.labels{1} = V.labels{2} /\
+        W.sk{1} = V.sk{2} /\ W.keys{1} = V.keys{2} /\ W.labels{1} = V.labels{2} /\ W.t{1} = V.t{2} /\ W.guess{1} = V.guess{2} /\
         (decrypt (fst pp) V.sk V.c = Some V.pms){2} /\
         (forall t, in_dom (snd pp, (V.pms, t)) RCCA3.m => 
            RCCA3.abort \/ mem t V.labels){2}).
@@ -1452,7 +1484,7 @@ section.
           call (_:RCCA3.abort,
            keypair(V.pk, V.sk){2} /\
            V.guess{2} /\ 
-           W.sk{1} = V.sk{2} /\ W.keys{1} = V.keys{2} /\ W.labels{1} = V.labels{2} /\
+           W.sk{1} = V.sk{2} /\ W.keys{1} = V.keys{2} /\ W.labels{1} = V.labels{2} /\ W.t{1} = V.t{2} /\ W.guess{1} = V.guess{2} /\
            eq_except RCCA2.m{1} RCCA3.m{2} (snd pp, (V.pms, V.t)){2} /\
            in_dom (snd pp, (V.pms, V.t)){2} RCCA2.m{1} /\
            mem (proj RCCA2.m{1}.[(snd pp, (V.pms, V.t))]){2} V.keys{2} /\
@@ -1496,22 +1528,22 @@ section.
     Pr[RCCA2.main() @ &m : res] +
     Pr[RCCA2.main() @ &m : exists h t, in_dom (h, (proj RCCA2.fake.[t], t)) RCCA2.m].
   proof.
-   apply (Trans _ Pr[RCCA0.main() @ &m : res]).
-   equiv_deno RCCA_RCCA0 => //.
-   rewrite (Pr_RCCA0_RCCA1 &m).
-   apply (Trans _   
-    (Pr[RCCA2.main() @ &m : res] +
-     Pr[RCCA2.main() @ &m : exists h t, in_dom (h, (proj RCCA2.fake.[t], t)) RCCA2.m])).
-   apply (Pr_RCCA1_RCCA2 &m).
-   smt.    
+    apply (Trans _ Pr[RCCA0.main() @ &m : res]).
+    equiv_deno RCCA_RCCA0 => //.
+    rewrite (Pr_RCCA0_RCCA1 &m).
+    apply (Trans _   
+     (Pr[RCCA2.main() @ &m : res] +
+      Pr[RCCA2.main() @ &m : exists h t, in_dom (h, (proj RCCA2.fake.[t], t)) RCCA2.m])).
+    apply (Pr_RCCA1_RCCA2 &m).
+    smt.
   qed.
 
   local lemma Pr_RCCA2_RCCA3 &m :
     Pr[RCCA2.main() @ &m : res] <= 1%r / 2%r + Pr[RCCA3.main() @ &m : RCCA3.abort].
   proof.
-   apply (Trans _ Pr[RCCA3.main() @ &m : res \/ RCCA3.abort]).
-     by equiv_deno RCCA2_RCCA3; smt.  
-     by rewrite Pr mu_or; smt.
+    apply (Trans _ Pr[RCCA3.main() @ &m : res \/ RCCA3.abort]).
+      by equiv_deno RCCA2_RCCA3; smt.  
+      by rewrite Pr mu_or; smt.
   qed.
 
   local lemma Pr_RCCA_RCCA3 &m :
@@ -1581,7 +1613,8 @@ section.
             }
             else k = $key;
             d.[t] = (k, pv, h, c);
-            maybe_k = if (!mem k V.keys) then Some k else None;
+            maybe_k = if (V.guess => !mem k V.keys \/ t <> V.t) 
+                      then Some k else None;
           }
         }
         return maybe_k;
@@ -2040,7 +2073,8 @@ section.
             if (maybe_pms <> None) k = proj m.[(h, (proj maybe_pms, t))];
             else k = $key;
             d.[t] = (k, pv, h, c);
-            maybe_k = if (!mem k V.keys) then Some k else None;
+            maybe_k = if (V.guess => !mem k V.keys \/ t <> V.t) 
+                      then Some k else None;
           }
         }
         return maybe_k;
@@ -2422,8 +2456,7 @@ section.
     by equiv_deno RCCA4_OW_PCA0.
     by equiv_deno OW_PCA0_OW_PCA.
   qed.
-  
-  
+
   (** RCCA4 -> NR *)
 
   (* 
