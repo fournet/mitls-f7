@@ -106,7 +106,7 @@ theory Agile_Labeled_KEM.
           maybe_k = 
            if (W.guess => !mem (proj maybe_k) W.keys \/ t <> W.t) 
            then maybe_k else None;
-      }
+        }
         return maybe_k;
       }
     }.
@@ -348,30 +348,10 @@ section.
 
   axiom finite_pms : finite univ<:pms>.
 
-  (* TODO: maybe move the first 2 operators to PMS_KEM? *)
+  (* TODO: maybe move these 2 operators to PMS_KEM? *)
   op keypair : pkey * skey -> bool.
 
   op decrypt : version -> skey -> ciphertext -> pms option.
-
-  op same_key : pkey -> version -> version -> ciphertext -> bool.
-
-  (* 
-   * REMARK: The axiom previously used only holds for RSA:
-   *
-   * axiom nosmt dec_injective_pv sk pv1 pv2 c :
-   *   decrypt sk pv1 c = decrypt sk pv2 c => pv1 = pv2.
-   *
-   * For RSA, same_key pk pv1 pv2 c := pv1 = pv2
-   * For DH, same_key pk pv1 pv2 c := true
-   *)  
-  axiom same_key_spec pk sk pv1 pv2 c :
-    keypair(pk, sk) =>
-    (same_key pk pv1 pv2 c <=> decrypt pv1 sk c = decrypt pv2 sk c).
-
-  (* REMARK: this axiom is not needed
-  axiom dec_fail sk pv1 c :
-    decrypt pv1 sk c = None => forall pv2, decrypt pv2 sk c = None.
-  *)
 
   axiom keygen_spec_rel :
     equiv [ PMS_KEM.keygen ~ PMS_KEM.keygen : true ==> ={res} /\ keypair res{1} ].
@@ -399,7 +379,9 @@ section.
 
   (*
    * Swap call to PMS_KEM.enc with A.choose in main, so as to be able
-   * to abort when the challenge pms is queried to extract
+   * to abort when the challenge pms is queried to extract.
+   * In addition, inline definition of MS_KEM.dec in dec oracle, and 
+   * replace the call to PMS_KEM.dec with its functional spec decrypt.
    *)
   local module RCCA0 = {
     module O = {
@@ -1101,12 +1083,12 @@ section.
     (* Too complicated to prove, but evident at this point:
      *
      * dom(m) = { (pv_1, h_1, pms_1, t_1), ..., (h_q, pms_q, t_q) }
-     * q <= q_KEF
+     * q <= q_DEC + q_KEF
      * 
      * Pr[exists pv h t, (pv, h, fake[pv, t], t) in dom(m)] <= 
      * sum_{pv \in version, t \in labels} sum_{i=1..q} 
      *   Pr[fake[pv, t] = pms_i /\ pv = pv_i /\ t = t_i] <=
-     * sum_{i=1..q} Pr[fake[pv_i, t_i] = pms_i] = q / |pms| <= q_KEF / |pms|
+     * sum_{i=1..q} Pr[fake[pv_i, t_i] = pms_i] = q / |pms|
      *)
     admit.
   qed.
@@ -1167,7 +1149,7 @@ section.
           maybe_pms = decrypt pv V.sk c;
           abort = abort \/ 
            (V.guess /\ maybe_pms <> None /\ proj maybe_pms = V.pms /\ t = V.t /\ c <> V.c);
-          if (!(V.guess /\ same_key V.pk (fst pp) pv c /\ pv = fst pp /\ h = snd pp /\ t = V.t /\ c = V.c)) {
+          if (!(V.guess /\ p = pp /\ t = V.t /\ c = V.c)) {
             if (maybe_pms = None) k = $key;
             else {
               pms = proj maybe_pms;
@@ -1345,20 +1327,15 @@ section.
       if{2}.
         if => //; first by wp; rnd; skip; progress.
         wp; sp; if.
-          progress; first by smt.
-          cut W : (exists pms, decrypt pv V.sk c = Some pms){2} by smt.
-          by cut V := same_key_spec V.pk{2} V.sk{2} (fst pp) pv{2} c{2}; smt.
+          by smt.
           by rnd; skip; progress; smt.    
         skip; progress.
-        cut W := same_key_spec V.pk{2} V.sk{2} (fst pp) pv{2} c{2}.
-        cut X : (exists pms, decrypt pv V.sk c = Some pms){2} by smt.
         by generalize H2; rewrite eq_except_def; smt.
 
     if{1}; wp; sp.
       by exfalso; smt.
       if{1}.
-        rnd{1}; skip; progress;
-        cut W := same_key_spec V.pk{2} V.sk{2} (fst pp) pv{2} V.c{2}; smt.
+        by rnd{1}; skip; progress; smt.
       by skip; progress; smt.
   qed.
   
@@ -1628,7 +1605,7 @@ section.
         if (!mem t V.labels /\ mem p P) { 
           V.labels = add t V.labels;
           (pv, h) = p;
-          if (!(V.guess /\ same_key V.pk (fst pp) pv c /\ p = pp /\ t = V.t /\ V.c = c)) {
+          if (!(V.guess /\ p = pp /\ t = V.t /\ V.c = c)) {
             if (decrypt pv V.sk c <> None /\ 
                 in_dom ((pv, h), (proj (decrypt pv V.sk c), t)) m) {
               k = proj m.[((pv, h), (proj (decrypt pv V.sk c), t))];
@@ -2090,7 +2067,7 @@ section.
         if (!mem t V.labels /\ mem p P) { 
           V.labels = add t V.labels;
           (pv, h) = p;
-          if (!(V.guess /\ same_key pk (fst pp) pv c /\ p = pp /\ t = V.t /\ V.c = c)) {
+          if (!(V.guess /\ p = pp /\ t = V.t /\ V.c = c)) {
             maybe_pms = find(pv, c, h, t);
             if (maybe_pms <> None) k = proj m.[((pv, h), (proj maybe_pms, t))];
             else k = $key;
@@ -2327,7 +2304,7 @@ section.
       RCCA4.m{1} = Find.m{2} /\ 
       RCCA4.d{1} = Find.d{2} /\
       decrypt (fst pp) V.sk{1} V.c{1} = Some V.pms{1} /\
-      !(V.guess /\ same_key V.pk (fst pp) pv c /\ (pv,h) = pp /\ t = V.t /\ V.c = c){1} /\
+      !(V.guess /\ (pv,h) = pp /\ t = V.t /\ V.c = c){1} /\
       ((decrypt pv V.sk c <> None /\ 
        in_dom ((pv, h), (proj (decrypt pv V.sk c), t)) RCCA4.m){1} <=> 
        maybe_pms{2} <> None) /\
@@ -2406,7 +2383,7 @@ section.
       RCCA4.m{1} = Find.m{2} /\ 
       RCCA4.d{1} = Find.d{2} /\
       decrypt (fst pp) V.sk{1} V.c{1} = Some V.pms{1} /\
-      !(V.guess /\ same_key V.pk (fst pp) pv c /\ h = snd pp /\ t = V.t /\ V.c = c){1} /\
+      !(V.guess /\ p = pp /\ t = V.t /\ V.c = c){1} /\
       ((decrypt pv V.sk c <> None /\
         in_dom ((pv, h), (proj (decrypt pv V.sk c), t)) RCCA4.m){1} <=> 
        maybe_pms{2} <> None) /\
