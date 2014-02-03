@@ -9,7 +9,7 @@ open TLSConstants
 open TLSExtensions
 
 (* Message Predicates *)
-type HandshakeType =
+type PreHandshakeType =
     | HT_hello_request
     | HT_client_hello
     | HT_server_hello
@@ -20,6 +20,23 @@ type HandshakeType =
     | HT_certificate_verify
     | HT_client_key_exchange
     | HT_finished
+
+predicate IsHandshakeType of PreHandshakeType
+
+private definition
+  !ht. IsHandshakeType(ht) <=>
+    (ht = HT_hello_request \/
+     ht = HT_client_hello \/
+     ht = HT_server_hello \/
+     ht = HT_certificate \/
+     ht = HT_server_key_exchange \/
+     ht = HT_certificate_request \/
+     ht = HT_server_hello_done \/
+     ht = HT_certificate_verify \/
+     ht = HT_client_key_exchange \/
+     ht = HT_finished)
+
+type HandshakeType = h:PreHandshakeType{IsHandshakeType(h)}
 
 function val HTBytes: HandshakeType -> cbytes
 
@@ -44,6 +61,14 @@ val messageBytes: ht:HandshakeType -> x:bytes -> m:bytes{B(m) = MessageBytes(ht,
 val parseMessage: buf:bytes -> ((rem:bytes * ht:HandshakeType * x:bytes * to_log:bytes)
 				{B(buf) = B(to_log) @| B(rem) /\ 
                                  B(to_log) = MessageBytes(ht,B(x))}) option Result
+
+ask !ht. IsHandshakeType(ht) => BLength(HTBytes(ht)) = 1
+ask !ht,ht'. IsHandshakeType(ht) /\ IsHandshakeType(ht') => HTBytes(ht) = HTBytes(ht') => ht = ht'
+
+ask !ht,b,ht',b'.
+     IsHandshakeType(ht) /\ IsHandshakeType(ht')
+  => MessageBytes(ht,b) = MessageBytes(ht',b')
+  => (ht = ht' /\ b = b')
 
 // Next predicate to make sure we can make fragments
 predicate type unsafe = Unsafe of epoch
@@ -78,6 +103,12 @@ val parseClientHello: m:bytes ->
 	(pv:ProtocolVersion * cr:crand * sid:sessionID * cs:cipherSuites * cm:Compression list * ext:bytes{?cs',cm'. MessageBytes(HT_client_hello,B(m)) = ClientHelloMsg(pv,cr,sid,cs',cm',ext)}) Result
 //KB TODO? /\ ContainsCipherSuites(cs',cs) /\ ContainsCompressions(cm',cm)}) Result
 
+ask !pv,cr,s,cs,cm,ex,pv',cr',s',cs',cm',ex'.
+          IsProtocolVersion(pv) /\ IsProtocolVersion(pv')
+       => BLength(B(cr)) = BLength(B(cr'))
+       => ClientHelloMsg(pv,cr,s,cs,cm,ex) = ClientHelloMsg(pv',cr',s',cs',cm',ex')
+       => (pv = pv' /\ cr = cr' /\ s = s')
+
 function val ServerHelloMsg: (ProtocolVersion * random * sessionID * cipherSuite * Compression * bytes) -> cbytes
 private definition !pv,sr,sid,cs,cm,ext.
 	ServerHelloMsg(pv,sr,sid,cs,cm,ext) =
@@ -101,6 +132,11 @@ val parseServerHello: b:bytes ->
 	((pv:ProtocolVersion * sr:random * sid:sessionID * cs:cipherSuite * cm:Compression * ext:bytes)
 	 {MessageBytes(HT_server_hello,B(b)) = ServerHelloMsg(pv,sr,sid,cs,cm,ext)})
 	Result
+
+ask !pv,sr,sid,cs,cm,ext,pv',sr',sid',cs',cm',ext'.
+     IsProtocolVersion(pv) /\ IsProtocolVersion(pv')
+  => ServerHelloMsg(pv,sr,sid,cs,cm,ext) = ServerHelloMsg(pv',sr',sid',cs',cm',ext')
+  => pv = pv'
 
 val helloRequestBytes: b:bytes{B(b)=MessageBytes(HT_hello_request,[||])}
 val CCSBytes: b:bytes{B(b)=[|1uy|]}
@@ -314,15 +350,12 @@ private definition !si,pv,l.
           CertificateMsg(si.serverID) @|
           ServerHelloDoneMsg(empty_bytes))))
 
-ask !pv,cr,s,cs,cm,ex,pv',cr',s',cs',cm',ex'.
-    ClientHelloMsg(pv,cr,s,cs,cm,ex) = ClientHelloMsg(pv',cr',s',cs',cm',ex') => (pv = pv' /\ cr = cr')
-    
 predicate ServerLogBeforeClientCertificateDHE of SessionInfo * log
 predicate ServerLogBeforeClientCertificateDHE_Auth of SessionInfo * log 
 predicate ServerLogBeforeClientCertificateDHE_NoAuth of SessionInfo * log 
 
 private definition !si,pv,l.
-  ServerLogBeforeClientCertificateDHE_Auth(si,l) <=>
+  ServerLogBeforeClientCertificateDHE(si,l) <=>
   ((si.client_auth = true /\  ServerLogBeforeClientCertificateDHE_Auth(si,l)) \/
    (si.client_auth = false /\  ServerLogBeforeClientCertificateDHE_NoAuth(si,l)))
 

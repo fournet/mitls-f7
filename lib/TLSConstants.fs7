@@ -12,6 +12,12 @@ type PreProtocolVersion =
     | TLS_1p1   
     | TLS_1p2   
 
+predicate IsProtocolVersion of PreProtocolVersion
+
+definition
+  !p. IsProtocolVersion(p)
+    <=> (p = SSL_3p0 \/ p = TLS_1p0 \/ p = TLS_1p1 \/ p = TLS_1p2)
+
 type ProtocolVersion = p:PreProtocolVersion{p = SSL_3p0 \/ p = TLS_1p0 \/ p = TLS_1p1 \/ p = TLS_1p2}
 
 (* Not abstract, but meant to be used only by crypto modules and CipherSuites *)
@@ -277,6 +283,11 @@ private assume VersionBytes(SSL_3p0) = [| 3uy; 0uy |]
 private assume VersionBytes(TLS_1p0) = [| 3uy; 1uy |]
 private assume VersionBytes(TLS_1p1) = [| 3uy; 2uy |]
 private assume VersionBytes(TLS_1p2) = [| 3uy; 3uy |]
+
+ask !v,v'. IsProtocolVersion(v) /\ IsProtocolVersion(v') =>
+  VersionBytes(v) = VersionBytes(v') => v = v'
+
+ask !v. IsProtocolVersion(v) => BLength(VersionBytes(v)) = 2
 
 val versionBytes: pv:ProtocolVersion -> b:bytes{Length(b) = 2 /\ B(b) = VersionBytes(pv)}
 val parseVersion: b:bytes{Length(b) = 2} -> (pv:ProtocolVersion{ B(b)= VersionBytes(pv)}) Result
@@ -645,6 +656,9 @@ val CTtoString: ContentType -> string
 
 function val VLBytes: (nat * cbytes) -> cbytes
 private definition !i,b. VLBytes(i,b) = B(IntBytes(i,BLength(b))) @| b
+
+ask !i,b,b'. VLBytes(i,b) = VLBytes(i,b') => b = b'
+
 val vlbytes: l:nat -> b:bytes -> r:bytes {B(r)=VLBytes(l,B(b))} 
 val vlsplit: 
   l:nat{l<=8} -> b:bytes{Length(b)>=l} ->
@@ -655,7 +669,8 @@ val vlparse:
   ( r:bytes { B(b) = VLBytes(l,B(r)) }) Result
 
 // nice to have, not used so far.
-ask !i,b. BLength(VLBytes(i,b)) = i + BLength(b)
+// PYS: ask !i,b. BLength(VLBytes(i,b)) = i + BLength(b)
+assume !i,b. BLength(VLBytes(i,b)) = i + BLength(b)
 
 // relies on associativity
 theorem !i,b1,b2,c1,c2. 

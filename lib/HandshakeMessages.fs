@@ -17,7 +17,7 @@ open Range
 
 (*** Following RFC5246 A.4 *)
 
-type HandshakeType =
+type PreHandshakeType =
     | HT_hello_request
     | HT_client_hello
     | HT_server_hello
@@ -28,6 +28,8 @@ type HandshakeType =
     | HT_certificate_verify
     | HT_client_key_exchange
     | HT_finished
+
+type HandshakeType = PreHandshakeType
 
 let htBytes t =
     match t with
@@ -111,6 +113,12 @@ let makeFragment ki b =
 
 
 (** A.4.1 Hello Messages *)
+
+#if verify
+type log = bytes         (* message payloads so far, to be eventually authenticated *)
+type cVerifyData = bytes (* ClientFinished payload *)
+type sVerifyData = bytes (* ServerFinished payload *)
+#endif
 
 #if verify
 type chello = | ClientHelloMsg of (bytes * ProtocolVersion * random * sessionID * cipherSuites * Compression list * bytes)
