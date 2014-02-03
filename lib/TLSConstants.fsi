@@ -78,8 +78,9 @@ type cipherSuite
 
 type cipherSuites = cipherSuite list
 
-type Compression =
+type PreCompression =
     | NullCompression
+type Compression = PreCompression
 
 val versionBytes: ProtocolVersion -> bytes
 val parseVersion: bytes -> ProtocolVersion Result

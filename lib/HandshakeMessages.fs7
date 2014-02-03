@@ -62,6 +62,10 @@ val parseMessage: buf:bytes -> ((rem:bytes * ht:HandshakeType * x:bytes * to_log
 				{B(buf) = B(to_log) @| B(rem) /\ 
                                  B(to_log) = MessageBytes(ht,B(x))}) option Result
 
+ask !ht,b,b'. MessageBytes(ht,b) = MessageBytes(ht,b') => b = b'
+ask !ht,b,b',r,r'. MessageBytes(ht,b) @| r = MessageBytes(ht,b') @| r' => r = r'
+
+
 ask !ht. IsHandshakeType(ht) => BLength(HTBytes(ht)) = 1
 ask !ht,ht'. IsHandshakeType(ht) /\ IsHandshakeType(ht') => HTBytes(ht) = HTBytes(ht') => ht = ht'
 
@@ -103,11 +107,21 @@ val parseClientHello: m:bytes ->
 	(pv:ProtocolVersion * cr:crand * sid:sessionID * cs:cipherSuites * cm:Compression list * ext:bytes{?cs',cm'. MessageBytes(HT_client_hello,B(m)) = ClientHelloMsg(pv,cr,sid,cs',cm',ext)}) Result
 //KB TODO? /\ ContainsCipherSuites(cs',cs) /\ ContainsCompressions(cm',cm)}) Result
 
+// PYS: we don't invert CS, only it's length
 ask !pv,cr,s,cs,cm,ex,pv',cr',s',cs',cm',ex'.
           IsProtocolVersion(pv) /\ IsProtocolVersion(pv')
+	   => IsCompression(cm) /\ IsCompression(cm')
        => BLength(B(cr)) = BLength(B(cr'))
        => ClientHelloMsg(pv,cr,s,cs,cm,ex) = ClientHelloMsg(pv',cr',s',cs',cm',ex')
-       => (pv = pv' /\ cr = cr' /\ s = s')
+       => (pv = pv' /\ cr = cr' /\ s = s' /\ cm = cm' /\ ex = ex')
+
+ask !pv,cr,s,cs,cm,ex,pv',cr',s',cs',cm',ex'.
+	   ClientHelloMsg(pv,cr,s,cs,cm,ex) = ClientHelloMsg(pv',cr',s',cs',cm',ex')
+	=> Length(ClientHelloMsg(pv,cr,s,cs,cm,ex)) = Length(ClientHelloMsg(pv',cr',s',cs',cm',ex'))
+
+ask !pv,cr,s,cs,cm,ex,log,pv',cr',s',cs',cm',ex',log'.
+	   ClientHelloMsg(pv,cr,s,cs,cm,ex) @| log = ClientHelloMsg(pv',cr',s',cs',cm',ex') @| log'
+	=> log = log'
 
 function val ServerHelloMsg: (ProtocolVersion * random * sessionID * cipherSuite * Compression * bytes) -> cbytes
 private definition !pv,sr,sid,cs,cm,ext.
@@ -135,8 +149,18 @@ val parseServerHello: b:bytes ->
 
 ask !pv,sr,sid,cs,cm,ext,pv',sr',sid',cs',cm',ext'.
      IsProtocolVersion(pv) /\ IsProtocolVersion(pv')
+  => IsCompression(cm) /\ IsCompression(cm')
+  => BLength(B(sr)) = BLength(B(sr'))
   => ServerHelloMsg(pv,sr,sid,cs,cm,ext) = ServerHelloMsg(pv',sr',sid',cs',cm',ext')
-  => pv = pv'
+  => (pv = pv' /\ sr = sr' /\ sid = sid')
+
+ask !pv,sr,sid,cs,cm,ext,pv',sr',sid',cs',cm',ext'.
+	   ServerHelloMsg(pv,sr,sid,cs,cm,ext) = ServerHelloMsg(pv',sr',sid',cs',cm',ext')
+	=> BLength(ServerHelloMsg(pv,sr,sid,cs,cm,ext)) = BLength(ServerHelloMsg(pv',sr',sid',cs',cm',ext'))
+
+ask !pv,sr,sid,cs,cm,ext,log,pv',sr',sid',cs',cm',ext',log'.
+	   ServerHelloMsg(pv,sr,sid,cs,cm,ext) @| log = ServerHelloMsg(pv',sr',sid',cs',cm',ext') @| log'
+    => log = log'
 
 val helloRequestBytes: b:bytes{B(b)=MessageBytes(HT_hello_request,[||])}
 val CCSBytes: b:bytes{B(b)=[|1uy|]}

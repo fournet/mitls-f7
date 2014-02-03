@@ -179,8 +179,9 @@ type cipherSuite =
 
 type cipherSuites = cipherSuite list
 
-type Compression =
+type PreCompression =
     | NullCompression
+type Compression = PreCompression
 
 let parseCompression b =
     match cbyte b with

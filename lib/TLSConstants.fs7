@@ -254,8 +254,14 @@ type cipherSuite = // internal; kept abstract in the .fsi
 
 type cipherSuites = cipherSuite list
 
-type Compression =
+type PreCompression =
     | NullCompression
+
+predicate IsCompression of PreCompression
+
+definition !c. IsCompression(c) <=> (c = NullCompression)
+
+type Compression = c:PreCompression{IsCompression(c)}
 
 function val CompressionBytes: Compression -> cbytes
 private definition CompressionBytes(NullCompression) = [| 0uy |]
