@@ -826,14 +826,48 @@ private definition !si,l.
    Note that these need to be extended to include cvd, svd for prev epoch and also client hello info for Negotiated.
  *)
 theorem !si,si',t. ClientLogBeforeCertificateVerifyRSA_Auth(si,t) /\        
-                   ClientLogBeforeCertificateVerifyRSA_Auth(si',t) => si = si'
+                   ClientLogBeforeCertificateVerifyRSA_Auth(si',t) => 
+		   (MsI(si) = MsI(si'))
 theorem !si,si',t. ClientLogBeforeCertificateVerifyDHE_Auth(si,t) /\        
-                   ClientLogBeforeCertificateVerifyDHE_Auth(si',t) => si = si'
+                   ClientLogBeforeCertificateVerifyDHE_Auth(si',t) => 
+		   (MsI(si) = MsI(si'))
+
+theorem !si,si',t. ClientLogBeforeCertificateVerifyRSA_Auth(si,t) /\
+                   ClientLogBeforeCertificateVerifyDHE_Auth(si',t) => false
+theorem !si,t,cr,sr,p,g,gs. ClientLogBeforeCertificateVerifyRSA_Auth(si,t) /\
+	           Length(cr) = 32 /\ Length(sr) = 32 /\
+	           B(t) = B(cr) @| B(sr) @| DHEParamBytes(p,g,gs)  => false
+theorem !si,t,cr,sr,p,g,gs. ClientLogBeforeCertificateVerifyDHE_Auth(si,t) /\
+	           Length(cr) = 32 /\ Length(sr) = 32 /\
+	           B(t) = B(cr) @| B(sr) @| DHEParamBytes(p,g,gs)  => false
+
 theorem !si,si',t. ClientLogBeforeClientFinished(si,t) /\        
-                   ClientLogBeforeClientFinished(si',t) => si = si'
+                   ClientLogBeforeClientFinished(si',t) => 
+		   si = si'
 theorem !si,si',t. ServerLogBeforeServerFinished(si,t) /\        
-                   ServerLogBeforeServerFinished(si',t) => si = si'
+                   ServerLogBeforeServerFinished(si',t) => 
+		   si = si'
+
+
 theorem !si,si',t. ClientLogBeforeClientFinishedResume(si,t) /\        
-                   ClientLogBeforeClientFinishedResume(si',t) => si = si'
+                   ClientLogBeforeClientFinishedResume(si',t) => 
+		   si = si'
 theorem !si,si',t. ServerLogBeforeServerFinishedResume(si,t) /\        
-                   ServerLogBeforeServerFinishedResume(si',t) => si = si'
+                   ServerLogBeforeServerFinishedResume(si',t) => 
+		   si = si'
+
+
+theorem !si,si',t. ClientLogBeforeClientFinished(si,t) /\        
+	           ServerLogBeforeServerFinished(si',t)  => false
+theorem !si,si',t. ClientLogBeforeClientFinished(si,t) /\        
+	           ClientLogBeforeClientFinishedResume(si,t)  => false
+theorem !si,si',t. ClientLogBeforeClientFinished(si,t) /\        
+	           ServerLogBeforeServerFinishedResume(si,t)  => false
+theorem !si,si',t. ServerLogBeforeServerFinished(si,t) /\        
+	           ClientLogBeforeClientFinishedResume(si,t)  => false
+theorem !si,si',t. ClientLogBeforeClientFinished(si,t) /\        
+	           ServerLogBeforeServerFinishedResume(si,t)  => false
+theorem !si,si',t. ClientLogBeforeClientFinishedResume(si,t) /\        
+	           ServerLogBeforeServerFinishedResume(si,t)  => false
+
+
