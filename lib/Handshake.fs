@@ -189,7 +189,7 @@ let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
             (false,state)
     | PSServer (_) -> unexpected "[rehandshake] should only be invoked on client side connections."
 
-let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) =
+let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) : bool * hs_state =
 #if avoid
   failwith "unverified for now"
 #else
@@ -459,9 +459,34 @@ let installSessionHash si log =
 let extract si pms log =
     let si = installSessionHash si log in
     if hasExtendedMS si.extensions then
-        si, CRE.extract_extended si pms
+        si, KEF.extract_extended si pms
     else
-        si, CRE.extract si pms
+        si, KEF.extract si pms
+
+let clientKEXBytes_RSA si config =
+    if List.listLength si.serverID = 0 then
+        unexpected "[clientKEXBytes_RSA] Server certificate should always be present with a RSA signing cipher suite."
+    else
+        match Cert.get_chain_public_encryption_key si.serverID with
+        | Error(z) -> Error(z)
+        | Correct(pubKey) ->
+    (*KB: RSA-PMS-KEM (client) *)
+            let pms = PMS.genRSA pubKey config.maxVer in
+            let encpms = RSA.encrypt pubKey config.maxVer pms in
+            let mex = clientKeyExchangeBytes_RSA si encpms in                                        
+            correct(mex,pms)
+
+let parseClientKEX_RSA si skey cv config data =
+    if List.listLength si.serverID = 0 then
+        unexpected "[parseClientKEX_RSA] when the ciphersuite can encrypt the PMS, the server certificate should always be set"
+    else
+        let (Correct(pk)) = Cert.get_chain_public_encryption_key si.serverID in  
+        match parseClientKeyExchange_RSA si data with
+        | Correct(encPMS) ->
+    (*KB: RSA-PMS-KEM (server) *)
+            let res = RSA.decrypt skey si cv config.check_client_version_in_pms_for_old_tls encPMS in
+            correct((*RSAPMS(pk,cv,encPMS),*)res)
+        | Error(z) -> Error(z)
 
 let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) (cert_req:Cert.sign_cert) (log:log) : (hs_state * SessionInfo * PRF.masterSecret * log) Result =
     let clientCertBytes,certList = getCertificateBytes si cert_req in
@@ -481,11 +506,14 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:Sess
         | _           -> unexpected "server must have an ID"    
     let spop = state.poptions in         
     let cv = spop.maxVer in 
+
+    (*KB: RSA-MS-KEM (client) *)
     let pms = PMS.RSAPMS(pk,cv,rsapms)
     let pmsid = pmsId pms
     let si = {si with pmsId = pmsid} in
     let log = log @| clientKEXBytes in
     let (si,ms) = extract si pms log in
+
     (* FIXME: here we should shred pms *)
     let certificateVerifyBytes = getCertificateVerifyBytes si ms cert_req log in
 
@@ -534,19 +562,22 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
     let log = log @| clientCertBytes
 
     (* this implements ms-KEM(DH).enc with pk = (p,g,sy) and (pv,h,l) from si *) 
-    let (cy,x) = DH.genKey p g in
+    (*KB DH-PMS-KEM (client) *)
+    let (cy,y,dhpms) = DH.clientGenExp p g sy in
     (* post: DHE.Exp((p,g),x,cy) *) 
-    let dhpms = DH.exp p g cy sy x in
-    let pms = PMS.DHPMS(p,g,cy,sy,dhpms) in
-    let si = {si with pmsId = pmsId pms} in
-
 
     let clientKEXBytes = clientKEXExplicitBytes_DH cy in
     let log = log @| clientKEXBytes in
 
+    (*KB DH-MS-KEM *)
+    let pms = PMS.DHPMS(p,g,cy,sy,dhpms) in
+    let si = {si with pmsId = pmsId pms} in
+    let (si,ms) = extract si pms log in
+
+
+
     (* the post of this call is !sx,cy. PP((p,g) /\ DHE.Exp((p,g),x,cy)) /\ DHE.Exp((p,g),sx,sy) -> DHE.Secret((p,g),cy,sy) *)
     (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DHE.Secret((p,g),cy,sy) *) 
-    let (si,ms) = extract si pms log in
     (* the post of this call is !p,g,gx,gy. StrongHS(si) /\ DHE.Secret((p,g),gx,gy) -> PRFs.Secret(ms) *)  
     (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> PRFs.Secret(ms) *)
     (* si is now constant *)
@@ -1026,7 +1057,7 @@ let prepare_server_output_full_RSA (ci:ConnectionInfo) state si cv calgs sExtL l
                                pstate = ps},
                     si.protocol_version)
 
-let prepare_server_output_full_DH ci state si sExtL log =
+let prepare_server_output_full_DH ci state si sExtL log: 'f Result =
 #if avoid
   failwith "not implemented full DH"
 #else
@@ -1049,8 +1080,8 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL l
         let certificateB = serverCertificateBytes c in
 
         (* ServerKeyExchange *)
-        let (p,g) = DH.default_pp () in
-        let (y,x) = DH.genKey p g in
+        (*KB DH-PMS-KEM (server 1) *)
+        let (p,g,y,x) = DH.serverGen() in
         //~ pms-KEM: ((p,g),y),(((p,g),y),x) = keygen_DHE() 
 
         let dheB = dheParamBytes p g y in
@@ -1087,8 +1118,10 @@ let prepare_server_output_full_DH_anon (ci:ConnectionInfo) state si sExtL log : 
     let serverHelloB = serverHelloBytes si si.init_srand ext in
     
     (* ServerKEyExchange *)
-    let (p,g) = DH.default_pp () in
-    let (y,x) = DH.genKey p g in
+
+    (*KB DH-PMS-KEM (server 1) *)
+    let (p,g,y,x) = DH.serverGen() in
+
     let serverKEXB = serverKeyExchangeBytes_DH_anon p g y in
  
     let output = serverHelloB @|serverKEXB @| serverHelloDoneBytes in
@@ -1299,11 +1332,14 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         match Cert.get_chain_public_encryption_key si.serverID with 
                         | Correct(pk) -> pk
                         | _           -> unexpected "server must have an ID"    
+
+                (*KB: RSA-MS-KEM (server) *)
                     let pms = PMS.RSAPMS(pk,cv,rsapms)
                     let pmsid = pmsId pms
                     let si = {si with pmsId = pmsid} in
                     let log = log @| to_log in
                     let (si,ms) = extract si pms log in
+
                     (* TODO: we should shred the pms *)
                     (* move to new state *)
                     if si.client_auth then
@@ -1328,12 +1364,12 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                        (pv,h,l) are included in si, sk is (((p,g),gx),x), c is y *)
 
                     (* these 2 lines implement pms-KEM(DH).dec(pv?, sk, c) *)
-                    let dhpms = DH.exp p g gx y x in
+            (*KB DH-PMS-KEM (server 2) *)
+                    let dhpms = DH.serverExp p g gx y x in
 
+            (*KB DH-MS-KEM *)
                     let pms = PMS.DHPMS(p,g,y,gx,dhpms) in
-
                     let si = {si with pmsId = pmsId(pms)} in
-
                     (* StrongHS(si) /\ DHE.Exp((p,g),?cx,y) -> DHE.Secret(pms) *)
                     let (si,ms) = extract si pms log in
                     (* StrongHS(si) /\ DHE.Exp((p,g),?cx,y) -> PRFs.Secret(ms) *)
@@ -1362,7 +1398,10 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Correct(y) ->
                     let log = log @| to_log in
                     //MK We should also store the pmsId
-                    let dhpms = DH.exp p g gx y x in
+            (*KB DH-PMS-KEM (server 2) *)
+                    let dhpms = DH.serverExp p g gx y x in
+
+            (*KB DH-MS-KEM *)
                     let pms = PMS.DHPMS(p,g,y,gx,dhpms) in //MK is the order of y, gx right?
                     let (si,ms) = extract si pms log in
                     (* TODO: here we should shred pms *)

@@ -232,12 +232,12 @@
     <None Include="PRF.fs7" />
     <Compile Include="PRF.fsi" />
     <Compile Include="PRF.fs" />
-    <None Include="CRE.fs7" />
-    <Compile Include="CRE.fsi" />
-    <Compile Include="CRE.fs" />
     <None Include="DH.fs7" />
     <Compile Include="DH.fsi" />
     <Compile Include="DH.fs" />
+    <None Include="KEF.fs7" />
+    <Compile Include="KEF.fsi" />
+    <Compile Include="KEF.fs" />
     <None Include="RSA.fs7" />
     <Compile Include="RSA.fsi" />
     <Compile Include="RSA.fs" />

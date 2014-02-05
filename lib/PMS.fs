@@ -1,6 +1,6 @@
 ﻿module PMS 
 
-(* Split from CRE *) 
+(* Split from KEF *) 
 
 open Bytes
 open TLSConstants

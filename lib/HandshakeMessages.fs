@@ -318,29 +318,13 @@ let parseEncpmsVersion version data =
             | Error(z) -> Error(z)
         else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
-let clientKEXBytes_RSA si config =
-    if List.listLength si.serverID = 0 then
-        unexpected "[clientKEXBytes_RSA] Server certificate should always be present with a RSA signing cipher suite."
-    else
-        match Cert.get_chain_public_encryption_key si.serverID with
-        | Error(z) -> Error(z)
-        | Correct(pubKey) ->
-            let pms = PMS.genRSA pubKey config.maxVer in
-            let encpms = RSA.encrypt pubKey config.maxVer pms in
-            let nencpms = encpmsBytesVersion si.protocol_version encpms in
-            let mex = messageBytes HT_client_key_exchange nencpms in                                                      
-            correct(mex,pms)
+let clientKeyExchangeBytes_RSA si encpms =
+    let nencpms = encpmsBytesVersion si.protocol_version encpms in
+    let mex = messageBytes HT_client_key_exchange nencpms in                                     mex
 
-let parseClientKEX_RSA si skey cv config data =
-    if List.listLength si.serverID = 0 then
-        unexpected "[parseClientKEX_RSA] when the ciphersuite can encrypt the PMS, the server certificate should always be set"
-    else
-        match parseEncpmsVersion si.protocol_version data with
-        | Correct(encPMS) ->
-            let res = RSA.decrypt skey si cv config.check_client_version_in_pms_for_old_tls encPMS in
-            let (Correct(pk)) = Cert.get_chain_public_encryption_key si.serverID in  
-            correct((*RSAPMS(pk,cv,encPMS),*)res)
-        | Error(z) -> Error(z)
+let parseClientKeyExchange_RSA si data =
+    parseEncpmsVersion si.protocol_version data 
+
 
 let clientKEXExplicitBytes_DH y =
     let yb = vlbytes 2 y in

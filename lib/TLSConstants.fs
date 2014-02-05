@@ -46,7 +46,6 @@ let sigAlgBytes sa =
     | SA_RSA   -> (abyte 1uy)
     | SA_DSA   -> (abyte 2uy)
     | SA_ECDSA -> (abyte 3uy)
-
 let parseSigAlg b =
     match cbyte b with
     | (1uy) -> correct SA_RSA

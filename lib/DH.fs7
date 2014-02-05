@@ -24,4 +24,10 @@ val exp: p:p -> g:(;p)g -> gx:(;p) elt -> gy:(;p) elt -> x:(;p,g,gx) secret -> r
 //MK: { HonestExponent(p,g,gx)  /\ HonestExponent(p,g,gy) => 
 //MK:    TLSInfo.HonestDHPMSData(p,g,gx,gy) }
     
-    
+
+val serverGen: unit -> (p:p * g:(;p) g * gs:(;p) elt * (;p,g,gs) secret{HonestExponent(p,g,gs)})
+
+val clientGenExp: p:p -> g:(;p) g -> gs:(;p) elt -> (gc:(;p) elt * (;p,g,gc) secret * res:(;p,g,gs,gc) PMS.dhpms){HonestExponent(p,g,gc) /\ (HonestExponent(p,g,gs) => 
+    PMS.HonestDHPMS(p,g,gs,gc,res))}
+
+val serverExp: p:p -> g:(;p) g -> gs:(;p) elt{HonestExponent(p,g,gs)} -> gc:(;p) elt -> s:(;p,g,gs) secret -> res:(;p,g,gs,gc) PMS.dhpms{HonestExponent(p,g,gc) => PMS.HonestDHPMS(p,g,gs,gc,res)}

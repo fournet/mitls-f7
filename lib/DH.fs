@@ -58,3 +58,15 @@ let exp p g (gx:elt) (gy:elt) (Key x) : PMS.dhpms =
     #else
     PMS.coerceDH p g gx gy pms
     #endif
+
+let serverGen () = 
+    let (p,g) = default_pp() in
+    let (e,s) = genKey p g in 
+    (p,g,e,s)
+
+let clientGenExp p g gs = 
+    let (gc,c) = genKey p g in
+    (gc,c,exp p g gc gs c)
+
+let serverExp p g gs gc s = 
+    exp p g gs gc s

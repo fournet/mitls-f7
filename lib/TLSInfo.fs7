@@ -149,9 +149,9 @@ type SessionInfo = {
     protocol_version: ProtocolVersion;
     cipher_suite: cipherSuite;
     compression: Compression;
-	extensions: negotiatedExtensions;
+    extensions: negotiatedExtensions;
     pmsId: pmsId;
-	session_hash: sessionHash;
+    session_hash: sessionHash;
     client_auth: bool;
     clientID: Cert.cert list;
     serverID: Cert.cert list;
@@ -357,6 +357,8 @@ definition !i:id. Swap(i)=
 	ext     = i.ext;
 	writer  = DualRole(i.writer); }
 
+assume !x,y. x = DualRole(y) => y = DualRole(x)
+ask !x,y. x = Swap(y) => y = Swap(x)
 //MK fails, why? 
 //ask !i,i'.  Swap(i)=Swap(i') => i=i'
 //ask !i:id. Swap(Swap(i)) = i
@@ -461,7 +463,7 @@ definition !e:epoch. IsSuccEpoch(e) => Id(e) =
 	pv      = EpochSI(e).protocol_version; // should be part of aeAlg 
 	aeAlg   = SIaeAlg(EpochSI(e));
 	csrConn = EpochCSRands(e);
-	ext		= EpochSI(e).extensions;
+	ext	= EpochSI(e).extensions;
 	writer  = EpochWriter(e);  }
 
 ask !e. IsInitEpoch(e) => Id(e) = noId

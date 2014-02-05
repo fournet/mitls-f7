@@ -35,23 +35,22 @@ private assume !r,si,si'. Authorize(Server,si) /\ SessionHelloParams(si,()) =
   SessionHelloParams(si',()) /\ si'.serverID = si.serverID /\ si'.clientID = si.clientID /\ si'.client_auth = si.client_auth => Authorize(Server,si')
 
 private definition !a,k,t. Sig.Msg(a,k,t) 
-  <=> ((?si,pk,pv,e. 
+  <=> ((?si,pk,pv,r. 
              ClientLogBeforeCertificateVerifyRSA_Auth(si,t) /\
-             //MK: si.pmsData = RSAPMS(pk,pv,e) /\ //MK: say something about pmsId
-             //MK: HonestRSAPMSData(pk,pv,e) /\
+	     si.pmsId = PmsId(PMS.RSAPMS(pk,pv,r)) /\
+             HonestPMS(si.pmsId) /\
              k = Cert.SigPKCert(si.clientID,a)) \/
-        (?si,p,g,gx,gy. 
+        (?si,p,g,gc,gs,r. 
            ClientLogBeforeCertificateVerifyDHE_Auth(si,t) /\
-           //MK: si.pmsData = DHPMS(p,g,gx,gy) /\ (* PP(p) should also be included in the following as a precondition *)
-           //MK: DH.HonestExponent(p,g,gy) => HonestDHPMSData(p,g,gx,gy) /\  //MK: say something about pmsId
+	   si.pmsId = PmsId(PMS.DHPMS(p,g,gc,gs,r)) /\
+           DH.HonestExponent(p,g,gs) => HonestPMS(si.pmsId) /\  
            k = Cert.SigPKCert(si.clientID,a)) \/
-        (?si,p,g,gy. B(t) = B(si.init_crand) @| B(si.init_srand) @| 
-           DHEParamBytes(p,g,gy) /\
-           DH.HonestExponent(p,g,gy) /\ (* PP should also be included? *)
+        (?si,p,g,gs. B(t) = B(si.init_crand) @| B(si.init_srand) @| 
+           DHEParamBytes(p,g,gs) /\
+           DH.HonestExponent(p,g,gs) /\ 
            k = Cert.SigPKCert(si.serverID,a)))
 
 private definition !msi,r,b. PRF.VerifyData(msi,r,b) 
-
   <=> ((?e. msi = MsI(EpochSI(e)) /\
         r = Client /\
         Authorize(Client,EpochSI(e)) /\
@@ -82,35 +81,28 @@ private definition !role, e. CompleteEpoch'(role,e)
 
 private definition !role,e,cfg. 
   CompleteEpoch(role,e,cfg) 
-
   <=>
-  ((AuthId(Id(e)) =>
-              (Authorize(Client,EpochSI(e)) /\ //gives us Match
-               Authorize(Server,EpochSI(e)) /\
-               Open(e))) 
-   (* MK: /\  MK: say something about pmsId
-   ((EpochSI(e).client_auth = true /\
-     (?a. Sig.Honest(a,Cert.SigPKCert(EpochSI(e).clientID,a))) /\
-     (?a. Sig.Honest(a,Cert.SigPKCert(EpochSI(e).serverID,a))) /\
-     RSAKey.Honest(Cert.RSAPKCert(EpochSI(e).serverID))) 
-    => HonestPMSData(EpochSI(e).pmsData)) *)
-  )
-   
+  (IsSuccEpoch(e) /\ IsValidEpoch(e) /\ IsValidEpoch(Pred(e)) /\
+   (SafeVD(Id(e)) => Match(Id(e)) /\ 
+                     SentCCS(role,e) /\ 
+		     SentCCS(DualRole(role),Peer(e)) /\
+   (role = Client /\      
+    (?a. Sig.Honest(a,Cert.SigPKCert(EpochSI(e).serverID,a))) =>
+    HonestPMS(EpochSI(e).pmsId)) /\
+   (role = Server /\  EpochSI(e).client_auth = true /\    
+    (?a. Sig.Honest(a,Cert.SigPKCert(EpochSI(e).clientID,a))) =>
+    HonestPMS(EpochSI(e).pmsId))))
+
 (* Negotiated remains to be defined but it can be a nice global spec of what HS is meant to achieve.
    Especially interesting would be proving that the result is the "best possible" *)
 
 definition !ci,cfg. Complete(ci,cfg) <=>
-        ( IsSuccEpoch(ci.id_in)  /\ IsValidEpoch(ci.id_in)  /\ IsValidEpoch(Pred(ci.id_in))  /\
-		  IsSuccEpoch(ci.id_out) /\ IsValidEpoch(ci.id_out) /\ IsValidEpoch(Pred(ci.id_out)) /\
-		  EpochSI(ci.id_in) = EpochSI(ci.id_out) /\
+        ( EpochSI(ci.id_in) = EpochSI(ci.id_out) /\
+	  EpochCSRands(ci.id_in) = EpochCSRands(ci.id_out) /\
+	  EpochWriter(ci.id_in) = DualRole(EpochWriter(ci.id_out)) /\
           CompleteEpoch(ci.role,ci.id_in,cfg) /\
-		  CompleteEpoch(ci.role,ci.id_out,cfg))
+          CompleteEpoch(ci.role,ci.id_out,cfg))
          
-ask !ci,cfg. Complete(ci,cfg) =>
-	(
-		( AuthId(Id(ci.id_in))  => Open(ci.id_in ) ) /\
-		( AuthId(Id(ci.id_out)) => Open(ci.id_out) )
-	)
  
 type (;ci:ConnectionInfo) serverState =  (* note that the CertRequest bits are determined by the config *) 
                     (* we may omit some ProtocolVersion, mostly a ghost variable *)
@@ -162,7 +154,7 @@ type (;ci:ConnectionInfo) serverState =  (* note that the CertRequest bits are d
    (* the ProtocolVersion is the highest TLS version proposed by the client *)
 
 type (;ci:ConnectionInfo) clientState = 
-   | ServerHello                  of cr:crand * sid:sessionID (* * bytes for extensions? *) * cvd:cVerifyData * svd:sVerifyData * l:log{ClientLogBeforeServerHello(cr,l)}
+   | ServerHello                  of cr:crand * sid:sessionID * cl:(clientExtension list) * cvd:cVerifyData * svd:sVerifyData * l:log{ClientLogBeforeServerHello(cr,l)}
 
    | ServerCertificateRSA         of si:SessionInfo * l:log{ClientLogBeforeServerCertificate(si,l)}
    | ClientCheckingCertificateRSA of si:SessionInfo * l:log * ser:Cert.cert list * pv:ProtocolVersion option * b:bytes{ClientLogBeforeServerCertificate(si,l) /\ b = CertificateMsg(ser)}
@@ -287,7 +279,9 @@ val getNextEpochs: ci:ConnectionInfo -> si:SessionInfo -> crand -> srand -> ci':
     EpochSI(ci'.id_out) = si /\
     ci.id_out = Pred(ci'.id_out) /\
     ci.id_in = Pred(ci'.id_in) /\
-    ci.role = ci'.role
+    ci.role = ci'.role /\
+(*    Id(ci'.id_out) = Swap(Id(ci'.id_in)) /\*)
+    Id(ci'.id_in) = Swap(Id(ci'.id_out))
 }
 
 (*--- networkinterface *)
@@ -341,6 +335,19 @@ val getMinVersion: ci:ConnectionInfo -> s:(;ci)hs_state ->
 
 (* INTERNAL HS VERIFICATION (ALL THESE DEFS ARE PRIVATE) *)
 
+// For the next two functions, the returned encpms is a ghost variable used to
+// avoid an existential.
+val clientKEXBytes_RSA: si:SessionInfo -> c:config ->
+	((b:bytes * pms:(;Cert.RSAPKCert(si.serverID),c.maxVer)PMS.rsapms){
+           ?encpms. b=ClientKeyExchangeMsg_RSA(si.protocol_version,encpms)
+		}) Result
+
+val parseClientKEX_RSA: si:SessionInfo -> RSAKey.sk -> pv:ProtocolVersion -> config -> b:bytes ->
+	((
+         (;Cert.RSAPKCert(si.serverID),pv)PMS.rsapms){
+           ?encpms. ClientKeyExchangeMsg_RSA(si.protocol_version,encpms) = MessageBytes(HT_client_key_exchange,b)
+	}) Result
+
 val find_client_cert_sign: certType list -> Sig.alg list -> string list ->
 	ProtocolVersion -> Cert.hint -> Cert.sign_cert
 val getCertificateBytes: si:SessionInfo ->
@@ -367,6 +374,7 @@ val on_serverHello_full: ci:ConnectionInfo -> cr:crand -> l:log -> to_log:bytes 
          (pv:ProtocolVersion * sr:random * sid:sessionID * cs:cipherSuite * cm:Compression * ext:bytes){
          ClientLogBeforeServerHello(cr,l) /\
          to_log = ServerHelloMsg(pv,sr,sid,cs,cm,ext)} ->
+	 negotiatedExtensions ->
  	 (;ci) protoState
 val parseMessageState: ci:ConnectionInfo -> hs:(;ci)hs_state ->
 	(hs':(;ci)hs_state * ht:HandshakeType * pl:bytes * to_log:bytes{Config(ci,hs) = Config(ci,hs') /\
@@ -375,29 +383,29 @@ val recv_fragment_client: ci:ConnectionInfo -> s:(;ci)hs_state -> ProtocolVersio
 	(;ci,Config(ci,s))incoming
 
 val prepare_server_output_full_RSA: ci:ConnectionInfo -> s:(;ci)hs_state -> si:SessionInfo ->
-	pv:ProtocolVersion -> Sig.alg list -> cVerifyData -> sVerifyData -> l:log{
+	pv:ProtocolVersion -> Sig.alg list -> serverExtension list -> l:log{
           ?csid,cs,cm,ex. B(l) = ClientHelloMsg(pv,si.init_crand,csid,cs,cm,ex)
         }->
 	((s':(;ci)hs_state{Config(ci,s) = Config(ci,s')}) * ProtocolVersion) Result
-val prepare_server_output_full_DH: 'a -> 'b -> 'c -> 'd -> res:('e Result){?z. res = Error(z)}
+val prepare_server_output_full_DH: 'a -> 'b -> 'c -> 'd -> 'e -> res:('f Result){?z. res = Error(z)}
 val prepare_server_output_full_DHE: ci:ConnectionInfo -> s:(;ci)hs_state -> SessionInfo ->
-	Sig.alg list -> cVerifyData -> sVerifyData -> log ->
+	Sig.alg list -> serverExtension list -> log ->
 	((s':(;ci)hs_state{Config(ci,s) = Config(ci,s')}) * ProtocolVersion) Result
 val prepare_server_output_full_DH_anon: ci:ConnectionInfo -> s:(;ci)hs_state -> SessionInfo ->
-	cVerifyData -> sVerifyData -> log ->
+	serverExtension list -> log ->
 	((s':(;ci)hs_state{Config(ci,s) = Config(ci,s')}) * ProtocolVersion) Result
 val prepare_server_output_full: ci:ConnectionInfo -> s:(;ci)hs_state -> si:SessionInfo ->
-	pv:ProtocolVersion -> cVerifyData -> sVerifyData -> l:log{
+	pv:ProtocolVersion -> serverExtension list -> l:log{
           ?csid,cs,cm,ex. B(l) = ClientHelloMsg(pv,si.init_crand,csid,cs,cm,ex)
         } ->
 	((s':(;ci)hs_state{Config(ci,s) = Config(ci,s')}) * ProtocolVersion) Result
 val negotiate: 'a list -> 'a list -> 'a option
 val prepare_server_output_resumption: ci:ConnectionInfo -> s:(;ci)hs_state -> crand ->
-	si:SessionInfo -> (;si)PRF.masterSecret -> cVerifyData -> sVerifyData -> log ->
+	cl:clientExtension list -> (si:SessionInfo * (;si)PRF.masterSecret) -> cVerifyData -> sVerifyData -> log ->
 	s':(;ci)hs_state{Config(ci,s) = Config(ci,s')}
 val startServerFull: ci:ConnectionInfo -> s:(;ci)hs_state -> 
   ch:(ProtocolVersion * crand * sessionID * cipherSuites * Compression list * bytes) ->// CHello
-  cVerifyData -> sVerifyData -> 
+  clientExtension list -> cVerifyData -> sVerifyData -> 
   l:log{!pv,cr,sid,cs,cms,ex. ch = (pv,cr,sid,cs,cms,ex) =>
         (?cs',cm'. B(l) = ClientHelloMsg(pv,cr,sid,cs',cm',ex))} -> 
   ((s':(;ci)hs_state{Config(ci,s') = Config(ci,s)}) * ProtocolVersion) Result
