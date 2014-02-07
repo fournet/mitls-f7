@@ -76,9 +76,9 @@ private definition !role,e,cfg.
   CompleteEpoch(role,e,cfg) 
   <=>
   (IsSuccEpoch(e) /\ IsValidEpoch(e) /\ IsValidEpoch(Pred(e)) /\
-   (SafeVD(Id(e)) => Match(Id(e)) /\ 
-                     SentCCS(role,e) /\ 
-		     SentCCS(DualRole(role),Peer(e)) /\
+   (SafeVD(EpochSI(e)) => Match(Id(e)) /\ Open(e) /\
+(*                     SentCCS(role,e) /\ 
+		     SentCCS(DualRole(role),Peer(e)) /\ *)
    (role = Client /\      
     (?a. Sig.Honest(a,Cert.SigPKCert(EpochSI(e).serverID,a))) =>
     HonestPMS(EpochSI(e).pmsId)) /\
@@ -96,7 +96,16 @@ definition !ci,cfg. Complete(ci,cfg) <=>
           CompleteEpoch(ci.role,ci.id_in,cfg) /\
           CompleteEpoch(ci.role,ci.id_out,cfg))
          
- 
+
+ask !ci,cfg.
+	( Complete(ci,cfg) /\
+	  HonestMS(MsI(EpochSI(ci.id_in))) /\
+	  StrongVD(VdAlg(EpochSI(ci.id_in))) /\
+	  StrongKDF(KdfAlg(EpochSI(ci.id_in))) /\ (* or StrongPRF(EpochSI(ci.id_in)) *)
+	  StrongAuth(ci.id_in)
+	) =>
+		( AuthId(Id(ci.id_in)) => Open(ci.id_in) )
+
 type (;ci:ConnectionInfo) serverState =  (* note that the CertRequest bits are determined by the config *) 
                     (* we may omit some ProtocolVersion, mostly a ghost variable *)
    | ClientHello                  of cVerifyData * sVerifyData
