@@ -17,8 +17,6 @@ private definition !r,si. Authorize(r,si) => SessionDB.Authorize(r,si)
 // If we select a session from the DB, the user previously authorized it
 private theorem !r,si. SessionDB.Authorize(r,si) => Authorize(r,si)
 
-predicate SentCCS of Role * epoch (* CCS will be sent multiple times, 
-                                     one for each epoch *)
 predicate EvSentFinishedFirst of ConnectionInfo * bool
 predicate Negotiated of Role * SessionInfo * config * config
 predicate CompleteEpoch of Role * epoch * config
@@ -51,40 +49,58 @@ private definition !a,k,t. Sig.Msg(a,k,t)
            k = Cert.SigPKCert(si.serverID,a)))
 
 private definition !msi,r,b. PRF.VerifyData(msi,r,b) 
-  <=> ((?e. msi = MsI(EpochSI(e)) /\
+  <=> ((?si. msi = MsI(si) /\
         r = Client /\
-        Authorize(Client,EpochSI(e)) /\
-        SentCCS(Client,e) /\
-        ClientLogBeforeClientFinished(EpochSI(e),b)) \/
-       (?e. msi = MsI(EpochSI(e)) /\
+        SentCCS(Client,si.init_crand,si.init_srand,si) /\
+        ClientLogBeforeClientFinished(si,b)) \/
+       (?si. msi = MsI(si) /\
         r = Server /\
-        Authorize(Server,EpochSI(e)) /\
-        SentCCS(Server,e) /\
-        ServerLogBeforeServerFinished(EpochSI(e),b)) \/
-       (?e. msi = MsI(EpochSI(e)) /\
+        SentCCS(Server,si.init_crand,si.init_srand,si) /\
+        ServerLogBeforeServerFinished(si,b)) \/
+       (?si,si'. msi = MsI(si) /\
         r = Client /\
-        Authorize(Client,EpochSI(e)) /\
-        SentCCS(Client,e) /\
-        ClientLogBeforeClientFinishedResume(EpochSI(e),b)) \/
-       (?e. msi = MsI(EpochSI(e)) /\
+        SentCCS(Client,si'.init_crand,si'.init_srand,si) /\
+        si.sessionID = si'.sessionID /\
+        ClientLogBeforeClientFinishedResume(si',b)) \/
+       (?si,si'. msi = MsI(si) /\
         r = Server /\
-        Authorize(Server,EpochSI(e)) /\
-        SentCCS(Server,e) /\
-        ServerLogBeforeServerFinishedResume(EpochSI(e),b)))
+        SentCCS(Server,si'.init_crand,si'.init_srand,si) /\
+        si.sessionID = si'.sessionID /\
+        ServerLogBeforeServerFinishedResume(si',b)))
+
+ask !si,b. PRF.VerifyData(MsI(si),Client,b) /\
+    ClientLogBeforeClientFinished(si,b) => SentCCS(Client,si.init_crand,si.init_srand,si)
+
+ask !si,b. PRF.VerifyData(MsI(si),Server,b) /\
+    ServerLogBeforeServerFinished(si,b) => SentCCS(Server,si.init_crand,si.init_srand,si)
+
+assume !r,si,cr,sr,si'.
+       SentCCS(r,si.init_crand,si.init_srand,si) /\
+       SentCCS(r,cr,sr,si') /\
+       MsI(si) = MsI(si') => si = si'
+
+ask !si,si',b. PRF.VerifyData(MsI(si),Server,b) /\
+    SentCCS(Server,si.init_crand,si.init_srand,si) /\
+    ServerLogBeforeServerFinishedResume(si',b) 
+    => SentCCS(Server,si'.init_crand,si'.init_srand,si)
+
+ask !si,si',b. PRF.VerifyData(MsI(si),Server,b) /\
+    SentCCS(Client,si.init_crand,si.init_srand,si) /\
+    ClientLogBeforeClientFinishedResume(si',b) 
+    => SentCCS(Client,si'.init_crand,si'.init_srand,si)
+
 
 private definition !role,e,cfg. 
   CompleteEpoch(role,e,cfg) 
   <=>
   (IsSuccEpoch(e) /\ IsValidEpoch(e) /\ IsValidEpoch(Pred(e)) /\
-   (SafeVD(EpochSI(e)) => Match(Id(e)) /\ Open(e) /\
-(*                     SentCCS(role,e) /\ 
-		     SentCCS(DualRole(role),Peer(e)) /\ *)
+   (SafeVD(EpochSI(e)) => (Match(Id(e)) /\ Open(e))) /\
    (role = Client /\      
     (?a. Sig.Honest(a,Cert.SigPKCert(EpochSI(e).serverID,a))) =>
     HonestPMS(EpochSI(e).pmsId)) /\
    (role = Server /\  EpochSI(e).client_auth = true /\    
     (?a. Sig.Honest(a,Cert.SigPKCert(EpochSI(e).clientID,a))) =>
-    HonestPMS(EpochSI(e).pmsId))))
+    HonestPMS(EpochSI(e).pmsId)))
 
 (* Negotiated remains to be defined but it can be a nice global spec of what HS is meant to achieve.
    Especially interesting would be proving that the result is the "best possible" *)
@@ -96,15 +112,39 @@ definition !ci,cfg. Complete(ci,cfg) <=>
           CompleteEpoch(ci.role,ci.id_in,cfg) /\
           CompleteEpoch(ci.role,ci.id_out,cfg))
          
+ask !ci,cfg.	
+    Complete(ci,cfg) /\
+    HonestPMS(EpochSI(ci.id_in).pmsId) /\	
+    StrongCRE(CreAlg(EpochSI(ci.id_in))) /\
+    StrongVD(VdAlg(EpochSI(ci.id_in))) /\
+    StrongKDF(KdfAlg(EpochSI(ci.id_in))) /\
+    StrongAE(ci.id_in) => Safe(ci.id_in)
 
-ask !ci,cfg.
-	( Complete(ci,cfg) /\
-	  HonestMS(MsI(EpochSI(ci.id_in))) /\
-	  StrongVD(VdAlg(EpochSI(ci.id_in))) /\
-	  StrongKDF(KdfAlg(EpochSI(ci.id_in))) /\ (* or StrongPRF(EpochSI(ci.id_in)) *)
-	  StrongAuth(ci.id_in)
-	) =>
-		( AuthId(Id(ci.id_in)) => Open(ci.id_in) )
+ask !ci,cfg.	
+    Complete(ci,cfg) /\
+    HonestPMS(EpochSI(ci.id_in).pmsId) /\	
+    StrongCRE(CreAlg(EpochSI(ci.id_in))) /\
+    StrongVD(VdAlg(EpochSI(ci.id_in))) /\
+    StrongKDF(KdfAlg(EpochSI(ci.id_in))) /\
+    StrongAuth(ci.id_in) => Auth(ci.id_in)
+
+ask !ci,cfg.	
+    Complete(ci,cfg) /\
+    HonestPMS(EpochSI(ci.id_out).pmsId) /\	
+    StrongCRE(CreAlg(EpochSI(ci.id_out))) /\
+    StrongVD(VdAlg(EpochSI(ci.id_out))) /\
+    StrongKDF(KdfAlg(EpochSI(ci.id_out))) /\
+    StrongAE(ci.id_out) => Safe(ci.id_out)
+
+ask !ci,cfg.	
+    Complete(ci,cfg) /\
+    HonestPMS(EpochSI(ci.id_out).pmsId) /\	
+    StrongCRE(CreAlg(EpochSI(ci.id_out))) /\
+    StrongVD(VdAlg(EpochSI(ci.id_out))) /\
+    StrongKDF(KdfAlg(EpochSI(ci.id_out))) /\
+    StrongAuth(ci.id_out) => Auth(ci.id_out)
+
+ 
 
 type (;ci:ConnectionInfo) serverState =  (* note that the CertRequest bits are determined by the config *) 
                     (* we may omit some ProtocolVersion, mostly a ghost variable *)
@@ -180,7 +220,8 @@ type (;ci:ConnectionInfo) clientState =
    | ServerHelloDoneDH_anon of SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * log
 
    | ClientWritingCCS       of si:SessionInfo * (;si)PRF.masterSecret * l:log{ClientLogBeforeClientFinished(si,l) /\ Authorize(Client,si)}
-   | ServerCCS              of (si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * (;Id(e))StatefulLHAE.reader * cv:cVerifyData * l:log){ EpochSI(e)=si  /\ ClientLogBeforeServerFinished(si,l) /\
+   | ServerCCS              of (si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * (;Id(e))StatefulLHAE.reader * cv:cVerifyData * l:log){ 
+(*     	 EpochSI(e)=si  /\ ClientLogBeforeServerFinished(si,l) /\ *)
          ci.id_in = Pred(e) /\
          (* PRF.VerifyData(e,Client,cv) /\ *)
          Authorize(Client,si)}
@@ -192,11 +233,15 @@ type (;ci:ConnectionInfo) clientState =
 
    | ServerCCSResume        of (ew:succEpoch * (;Id(ew))StatefulLHAE.writer * er:succEpoch * (;Id(er))StatefulLHAE.reader * (;EpochSI(ew))PRF.masterSecret * l:log){EpochSI(ew)=EpochSI(er) /\ ci.id_in = Pred(er) /\ ClientLogBeforeServerFinishedResume(EpochSI(ew),l) /\ Authorize(Client,EpochSI(ew))}
    | ServerFinishedResume   of e:succEpoch * (;Id(e))StatefulLHAE.writer * (;EpochSI(e))PRF.masterSecret * l:log{ClientLogBeforeServerFinishedResume(EpochSI(e),l) /\ Authorize(Client,EpochSI(e))}
-   | ClientWritingCCSResume of e:succEpoch * w:(;Id(e))StatefulLHAE.writer * (;EpochSI(e))PRF.masterSecret * sv:sVerifyData * l:log{ClientLogBeforeClientFinishedResume(EpochSI(e),l) /\ (* PRF.VerifyData(e,Server,sv) /\ *)
-Authorize(Client,EpochSI(e)) /\
-ci.id_out = Pred(e) /\
-         StatefulLHAE.History(Id(e),Writer,w) = 
-         StatefulPlain.EmptyHistory(Id(e)) }
+   | ClientWritingCCSResume of e:succEpoch * w:(;Id(e))StatefulLHAE.writer * (;EpochSI(e))PRF.masterSecret * sv:sVerifyData * l:log{
+   (?si'. ClientLogBeforeClientFinishedResume(si',l) /\ 
+          si'.init_crand = EpochCRand(e) /\
+          si'.init_srand = EpochSRand(e) /\
+          si'.sessionID = EpochSI(e).sessionID ) /\
+   Authorize(Client,EpochSI(e)) /\
+   ci.id_out = Pred(e) /\
+   StatefulLHAE.History(Id(e),Writer,w) = 
+   StatefulPlain.EmptyHistory(Id(e)) }
    | ClientWritingFinishedResume of cVerifyData * sVerifyData
 
    | ClientIdle             of cVerifyData * sVerifyData
@@ -277,13 +322,14 @@ val invalidateSession: ci:ConnectionInfo -> s:(;ci)hs_state -> s':(;ci,Config(ci
 val getNextEpochs: ci:ConnectionInfo -> si:SessionInfo -> crand -> srand -> ci':ConnectionInfo{
     IsSuccEpoch(ci'.id_in) /\ 
     IsSuccEpoch(ci'.id_out) /\ 
+    EpochCSRands(ci'.id_in) = EpochCSRands(ci'.id_out) /\ 
     EpochSI(ci'.id_in) = si /\ 
     EpochSI(ci'.id_out) = si /\
     ci.id_out = Pred(ci'.id_out) /\
     ci.id_in = Pred(ci'.id_in) /\
-    ci.role = ci'.role /\
+    ci.role = ci'.role 
 (*    Id(ci'.id_out) = Swap(Id(ci'.id_in)) /\*)
-    Id(ci'.id_in) = Swap(Id(ci'.id_out))
+(*    Id(ci'.id_in) = Swap(Id(ci'.id_out)) *)
 }
 
 (*--- networkinterface *)
@@ -298,7 +344,7 @@ type (;ci:ConnectionInfo, hs:(;ci) hs_state) outgoing =
                  ci.id_out = Pred(ci'.id_out) /\ IsSuccEpoch(ci'.id_out) /\
                  ci.id_in = ci'.id_in /\
                  ci.role = ci'.role /\
-				 ci.id_rand = ci'.id_rand}
+		 ci.id_rand = ci'.id_rand}
   | OutFinished of (rg:range * f:(;Id(ci.id_out),HSFragment.EmptyStream(Id(ci.id_out)),rg)HSFragment.plain * s':(;ci,Config(ci,hs))nextState){
 				EvSentFinishedFirst(ci,true)}
   | OutComplete of (rg:range * f:(;Id(ci.id_out),HSFragment.EmptyStream(Id(ci.id_out)),rg)HSFragment.plain * s':(;ci,Config(ci,hs))nextState)
@@ -336,6 +382,10 @@ val getMinVersion: ci:ConnectionInfo -> s:(;ci)hs_state ->
 (*--- end *)
 
 (* INTERNAL HS VERIFICATION (ALL THESE DEFS ARE PRIVATE) *)
+val extract:
+    si:SessionInfo ->
+	pms: PMS.pms { si.pmsId = PmsId(pms) } -> bytes ->
+	(si':SessionInfo * (;si) PRF.masterSecret){si' = si}
 
 // For the next two functions, the returned encpms is a ghost variable used to
 // avoid an existential.

@@ -293,7 +293,9 @@ let next_fragment ci state =
                 let nki_in = id next_ci.id_in in
                 let nki_out = id next_ci.id_out in
                 let (reader,writer) = PRF.keyGenClient nki_in nki_out ms in
-                Pi.assume (SentCCS(Client,next_ci.id_out));
+                let cr' = si.init_crand in
+                let sr' = si.init_srand in
+                Pi.assume (SentCCS(Client,cr',sr',si));
                 //CF now passing si, instead of next_ci.id_out
                 //CF but the precondition should be on F(si)
                 let cvd = PRF.makeVerifyData si ms Client log in
@@ -310,8 +312,11 @@ let next_fragment ci state =
                                    pstate = PSClient(ServerCCS(si,ms,next_ci.id_in,reader,cvd,log))})
 (* KB #endif*)
             | ClientWritingCCSResume(e,w,ms,svd,log) ->
-                Pi.assume (SentCCS(Client,e));
-                let cvd = PRF.makeVerifyData (epochSI e) ms Client log in
+                let cr' = epochCRand(e) in
+                let sr' = epochSRand(e) in
+                let si' = epochSI(e) in
+                Pi.assume (SentCCS(Client,cr',sr',si'));
+                let cvd = PRF.makeVerifyData si' ms Client log in
                 let cFinished = messageBytes HT_finished cvd in
                 let ki_out = ci.id_out in
                 let (rg,f,_) = makeFragment ki_out CCSBytes in
@@ -327,7 +332,7 @@ let next_fragment ci state =
         | PSServer(sstate) ->
             match sstate with
             | ServerWritingCCS (si,ms,e,w,cvd,log) ->
-                Pi.assume (SentCCS(Server,e));
+                Pi.assume (SentCCS(Server,si.init_crand,si.init_srand,si));
                 let svd = PRF.makeVerifyData si ms Server log in
                 let sFinished = messageBytes HT_finished svd in
                 let ki_out = ci.id_out in
@@ -341,7 +346,10 @@ let next_fragment ci state =
                                    pstate = PSServer(ServerWritingFinished(si,ms,e,cvd,svd))})
 (* KB #endif*)
             | ServerWritingCCSResume(we,w,re,r,ms,log) ->
-                Pi.assume (SentCCS(Server,we));
+                let si' = epochSI(we) in
+                let cr' = epochCRand(we) in
+                let sr' = epochSRand(we) in
+                Pi.assume (SentCCS(Server,cr',sr',si'));
                 let svd = PRF.makeVerifyData (epochSI we) ms Server log in
                 let sFinished = messageBytes HT_finished svd in
                 let log = log @| sFinished in
@@ -448,20 +456,25 @@ let getCertificateVerifyBytes (si:SessionInfo) (ms:PRF.masterSecret) (cert_req:(
     | _ when si.client_auth = false -> 
         (* No client certificate ==> no certificateVerify message *)
         empty_bytes
- 
+
+#if TLSExt_sessionHash
 let installSessionHash si log =
     let pv = si.protocol_version in
     let cs = si.cipher_suite in
     let alg = sessionHashAlg pv cs in
     let sh = HASH.hash alg log in
     {si with session_hash = sh}
+#endif
 
-let extract si pms log =
+let extract si pms (log:bytes) =
+#if TLSExt_sessionHash
     let si = installSessionHash si log in
     if hasExtendedMS si.extensions then
         si, KEF.extract_extended si pms
     else
+#else
         si, KEF.extract si pms
+#endif
 
 let clientKEXBytes_RSA si config =
     if List.listLength si.serverID = 0 then

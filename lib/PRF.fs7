@@ -77,9 +77,11 @@ val keyExtensionLength: ae:aeAlg -> n:nat { n=KeyExtensionLength(ae) }
 //MK Was just copied over from keyGen. Should add it back.
 type (;rdId:id,wrId:id) derived =  
   ( r:(;rdId) StatefulLHAE.reader * w:(;wrId)StatefulLHAE.writer ) 
-  { wrId = Swap(rdId) }
-//  { StatefulLHAE.History(ci.id_out,Reader,r) = StatefulPlain.EmptyHistory(ci.id_in) /\
-//	  StatefulLHAE.History(ci.id_out,Writer,w) = StatefulPlain.EmptyHistory(ci.id_out) }
+  { wrId = Swap(rdId)  /\
+    StatefulLHAE.History(rdId,Reader,r) = 
+    StatefulPlain.EmptyHistory(rdId) /\
+    StatefulLHAE.History(wrId,Writer,w) = 
+    StatefulPlain.EmptyHistory(wrId) }
 
 private val deriveRawKeys: 
   i: id -> (;i.msId)ms -> (;LHAE.KeySize(i.aeAlg)) lbytes * (;LHAE.KeySize(i.aeAlg)) lbytes 

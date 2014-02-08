@@ -289,9 +289,9 @@ private definition !c,s,si,p. EpochSI(SuccEpoch(c,s,si,p)) = si
 function val EpochSRand: succEpoch -> bytes
 function val EpochCRand: succEpoch -> bytes
 function val EpochCSRands: succEpoch -> bytes
-private definition !b1,b2,si,pe. EpochSRand(SuccEpoch(b1,b2,si,pe)) = b2
-private definition !b1,b2,si,pe. EpochCRand(SuccEpoch(b1,b2,si,pe)) = b1
-private definition !csr,e. csr = EpochCSRands(e) <=>
+definition !b1,b2,si,pe. EpochSRand(SuccEpoch(b1,b2,si,pe)) = b2
+definition !b1,b2,si,pe. EpochCRand(SuccEpoch(b1,b2,si,pe)) = b1
+definition !csr,e. csr = EpochCSRands(e) <=>
                        B(csr) = 
                        B(EpochCRand(e)) @| B(EpochSRand(e))
 val epochSRand:   e:succEpoch -> b:crand{B(b)   = B(EpochSRand(e))}
@@ -319,7 +319,9 @@ type preConnectionInfo =
 	  id_rand: random;
 	  id_in:  epoch;
       id_out: epoch}
-type ConnectionInfo = (p:preConnectionInfo){EpochWriter(p.id_in) = DualRole(EpochWriter(p.id_out))}
+type ConnectionInfo = 
+     (p:preConnectionInfo){EpochWriter(p.id_out) = p.role /\
+                           EpochWriter(p.id_in) = DualRole(p.role)}
 
 val connectionRole: ci:ConnectionInfo -> r:Role{r = ci.role}
 
@@ -405,7 +407,7 @@ ask !i:id. not HonestMS(i.msId) => not SafeKDF(i)
 type event = // produced by PRF, used once the handshake is Finished
   | KeyCommit of    csrands * ProtocolVersion * aeAlg 
   | KeyGenClient of csrands * ProtocolVersion * aeAlg 
-  | SentCCS of Role * epoch
+  | SentCCS of Role * crand * srand * SessionInfo
 
 // These two injectivity properties follow from the affine usage of keyCommit and keyGenClient
 theorem !csr,pv0,ae0,pv1,ae1. 
@@ -460,11 +462,11 @@ definition !e:epoch. IsInitEpoch(e) => Id(e) = noId
 definition !e:epoch. IsSuccEpoch(e) => Id(e) =
   { msId    = MsI(EpochSI(e)); 
     kdfAlg  = KdfAlg(EpochSI(e));
-	pv      = EpochSI(e).protocol_version; // should be part of aeAlg 
-	aeAlg   = SIaeAlg(EpochSI(e));
-	csrConn = EpochCSRands(e);
-	ext	= EpochSI(e).extensions;
-	writer  = EpochWriter(e);  }
+    pv      = EpochSI(e).protocol_version; // should be part of aeAlg 
+    aeAlg   = SIaeAlg(EpochSI(e));
+    csrConn = EpochCSRands(e);
+    ext	= EpochSI(e).extensions;
+    writer  = EpochWriter(e);  }
 
 ask !e. IsInitEpoch(e) => Id(e) = noId
 ask !e. IsInitEpoch(e) => not AuthId(Id(e))
@@ -494,10 +496,9 @@ val safeHS: (e:epoch) -> b:bool { b = true <=> SafeHS(e)}
 // Predicates specifying the security of TLS connections 
 
 predicate Open of epoch
-definition !e. Open(e) <=> 
-                            (?r. (r = Client \/ r = Server) /\
-                                  SentCCS(r,e) /\ 
-                                  SentCCS(DualRole(r),Peer(e)))
+definition !e. Open(e) <=> (?r. (r = Client \/ r = Server) /\
+                            SentCCS(r,EpochCRand(e),EpochSRand(e),EpochSI(e)) /\ 
+                            SentCCS(DualRole(r),EpochCRand(e),EpochSRand(e),EpochSI(e)))
 
 
 predicate Safe   of epoch        // The epoch parameters yield privacy & integrity
@@ -518,7 +519,10 @@ ask !e. Open(e) => (AuthId(Id(e)) => Auth(e))
 ask !e. Open(e) => (SafeId(Id(e)) => Safe(e))
 ask !e. Auth(e) => Open(e)
 
-private assume !r,e,e'. SentCCS(r,e) /\ SentCCS(r,e') /\ Id(e) = Id(e') => e = e'
+//KB The following assume is dodgy. Only true with Reneg Indication. Remove if possible.
+private assume !r,e,e'. SentCCS(r,EpochCRand(e),EpochSRand(e),EpochSI(e)) /\ 
+	                SentCCS(r,EpochCRand(e'),EpochSRand(e'),EpochSI(e')) /\ 
+			Id(e) = Id(e') => e = e'
 ask !e,e'. Open(e) /\ Open(e') /\ Id(e) = Id(e') => e = e'
 //AP type openEpoch = e:succEpoch {Open(e)}
 
