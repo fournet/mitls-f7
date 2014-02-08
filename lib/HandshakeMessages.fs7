@@ -884,6 +884,29 @@ ask !ht,htd1,htd2,htd3,data1,data2,data3.
       HasHTMessage(ht, MessageBytes(htd1, data1) @| MessageBytes(htd2, data2) @| MessageBytes(htd3, data3))
   <=> (ht = htd1 \/ ht = htd2 \/ ht = htd3)
 
+//predicate ClientLogBeforeServerFinishedResume of SessionInfo * log 
+//private definition !si,l.
+//  ClientLogBeforeServerFinishedResume(si,l) <=>
+//  (?crand,cpv,csl,cml,ex1,ex2,ctl,sal,nl. 
+//    B(l) = (ClientHelloMsg(cpv,crand,si.sessionID,csl,cml,ex1)  @|
+//        (ServerHelloMsg(si.protocol_version,si.init_srand,si.sessionID,si.cipher_suite,si.compression,ex2))))
+
+//predicate ClientLogBeforeClientFinishedResume of SessionInfo * log 
+//private definition !si,l.
+//  ClientLogBeforeClientFinishedResume(si,l) <=>
+//  (?l',svd.   ClientLogBeforeServerFinishedResume(si,l') /\
+//    B(l) = B(l') @| ServerFinishedMsg(svd))
+
+ask !si,l.
+  ClientLogBeforeClientFinishedResume(si,l) =>
+  (?svd,crand,cpv,csl,cml,ex1,ex2,ctl,sal,nl. 
+    B(l) = 
+	     ClientHelloMsg(cpv,crand,si.sessionID,csl,cml,ex1)  @|
+         ServerHelloMsg(si.protocol_version,si.init_srand,si.sessionID,si.cipher_suite,si.compression,ex2) @|
+		 ServerFinishedMsg(svd))
+
+ask !si,t. ClientLogBeforeClientFinishedResume(si,t) => HasHTMessage(HT_certificate,t) => false
+
 theorem !si,si',t. ClientLogBeforeClientFinished(si,t) /\        
 	               ClientLogBeforeClientFinishedResume(si,t)  => false
 
