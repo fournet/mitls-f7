@@ -63,8 +63,6 @@ val parseMessage: buf:bytes -> ((rem:bytes * ht:HandshakeType * x:bytes * to_log
                                  B(to_log) = MessageBytes(ht,B(x))}) option Result
 
 ask !ht,b,b'. MessageBytes(ht,b) = MessageBytes(ht,b') => b = b'
-ask !ht,b,b',r,r'. MessageBytes(ht,b) @| r = MessageBytes(ht,b') @| r' => r = r'
-
 
 ask !ht. IsHandshakeType(ht) => BLength(HTBytes(ht)) = 1
 ask !ht,ht'. IsHandshakeType(ht) /\ IsHandshakeType(ht') => HTBytes(ht) = HTBytes(ht') => ht = ht'
@@ -137,10 +135,6 @@ ask !pv,cr,s,cs,cm,ex,pv',cr',s',cs',cm',ex'.
 	   ClientHelloMsg(pv,cr,s,cs,cm,ex) = ClientHelloMsg(pv',cr',s',cs',cm',ex')
 	=> BLength(ClientHelloMsg(pv,cr,s,cs,cm,ex)) = BLength(ClientHelloMsg(pv',cr',s',cs',cm',ex'))
 
-ask !pv,cr,s,cs,cm,ex,log,pv',cr',s',cs',cm',ex',log'.
-	   ClientHelloMsg(pv,cr,s,cs,cm,ex) @| log = ClientHelloMsg(pv',cr',s',cs',cm',ex') @| log'
-	=> log = log'
-
 function val ServerHelloMsg: (ProtocolVersion * random * sessionID * cipherSuite * Compression * bytes) -> cbytes
 private definition !pv,sr,sid,cs,cm,ext.
 	ServerHelloMsg(pv,sr,sid,cs,cm,ext) =
@@ -175,10 +169,6 @@ ask !pv,sr,sid,cs,cm,ext,pv',sr',sid',cs',cm',ext'.
 ask !pv,sr,sid,cs,cm,ext,pv',sr',sid',cs',cm',ext'.
 	   ServerHelloMsg(pv,sr,sid,cs,cm,ext) = ServerHelloMsg(pv',sr',sid',cs',cm',ext')
 	=> BLength(ServerHelloMsg(pv,sr,sid,cs,cm,ext)) = BLength(ServerHelloMsg(pv',sr',sid',cs',cm',ext'))
-
-ask !pv,sr,sid,cs,cm,ext,log,pv',sr',sid',cs',cm',ext',log'.
-	   ServerHelloMsg(pv,sr,sid,cs,cm,ext) @| log = ServerHelloMsg(pv',sr',sid',cs',cm',ext') @| log'
-    => log = log'
 
 val helloRequestBytes: b:bytes{B(b)=MessageBytes(HT_hello_request,[||])}
 val CCSBytes: b:bytes{B(b)=[|1uy|]}
@@ -875,12 +865,24 @@ theorem !si,si',t. ServerLogBeforeServerFinished(si,t) /\
 //                   ServerLogBeforeServerFinishedResume(si',t) => 
 //		   si = si'
 
-predicate HasHTMessage of HandshakeType * bytes
+predicate HasHTMessage of HandshakeType * cbytes
 
-definition !ht. HasHTMessage(ht, B(empty_bytes)) <=> false
-definition !ht,htd,data,l. HasHTMessage(ht, B(l) @| MessageBytes(htd,B(data))) <=> (ht = htd \/ HasHTMessage(ht,l))
+definition !ht. HasHTMessage(ht, [||]) <=> false
+definition !ht,htd,data,l. HasHTMessage(ht, l @| MessageBytes(htd,data)) <=> (ht = htd \/ HasHTMessage(ht,l))
 
-ask !ht,data. HasHTMessage(ht, MessageBytes(ht, B(data)))
+// I am a SMT solver, I can barely solve problems
+ask !htd,data. [||] @| MessageBytes(htd,data) = MessageBytes(htd,data)
+
+ask !ht,htd,data.
+      HasHTMessage(ht, MessageBytes(htd, data)) <=> (ht = htd)
+
+ask !ht,htd1,htd2,data1,data2.
+      HasHTMessage(ht, MessageBytes(htd1, data1) @| MessageBytes(htd2, data2))
+  <=> (ht = htd1 \/ ht = htd2)
+
+ask !ht,htd1,htd2,htd3,data1,data2,data3.
+      HasHTMessage(ht, MessageBytes(htd1, data1) @| MessageBytes(htd2, data2) @| MessageBytes(htd3, data3))
+  <=> (ht = htd1 \/ ht = htd2 \/ ht = htd3)
 
 theorem !si,si',t. ClientLogBeforeClientFinished(si,t) /\        
 	               ClientLogBeforeClientFinishedResume(si,t)  => false
