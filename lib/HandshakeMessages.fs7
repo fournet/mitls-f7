@@ -74,11 +74,24 @@ ask !ht,b,ht',b'.
   => MessageBytes(ht,b) = MessageBytes(ht',b')
   => (ht = ht' /\ b = b')
 
+val splitMessage: ht:HandshakeType -> m:bytes -> (r:bytes{B(m) = HTBytes(ht) @| B(r)}) Result
+
 // Next predicate to make sure we can make fragments
 predicate type unsafe = Unsafe of epoch
 private definition !ki. Unsafe(ki) <=> not Auth(ki)
 val makeFragment: ki:epoch -> b:bytes -> (r:range * (;Id(ki),HSFragment.EmptyStream(Id(ki)),r) HSFragment.plain * bytes)
 
+val popBytes: i:nat -> m:bytes -> (data:bytes * r:bytes{Length(data) = i /\ B(m) = B(data) @| B(r)}) Result
+val popVLBytes: i:nat{i <= 8} -> m:bytes -> (data:bytes * r:bytes{B(m) = VLBytes(i, B(data)) @| B(r)}) Result
+
+val popProtocolVersion: m:bytes -> (pv:ProtocolVersion * r:bytes{B(m) = VersionBytes(pv) @| B(r)}) Result
+val popClientRandom: m:bytes -> (cr:crand * r:bytes{B(m) = B(cr) @| B(r)}) Result
+val popSid: m:bytes -> (sid:sessionID * r:bytes{B(m) = VLBytes(1,B(sid)) @| B(r)}) Result
+val popCSBytes: m:bytes -> (cs:bytes * r:bytes{B(m) = VLBytes(2,B(cs)) @| B(r)}) Result
+val popCPBytes: m:bytes -> (cp:bytes * r:bytes{B(m) = VLBytes(1,B(cp)) @| B(r)}) Result
+
+val popCS: m:bytes -> (cs:cipherSuites * r:bytes{?csb. B(m) = VLBytes(2,CipherSuitesBytes(csb)) @| B(r)}) Result
+val popCP: m:bytes -> (cp:Compression list * r:bytes{?cpb. B(m) = VLBytes(1,CompressionsBytes(cpb)) @| B(r)}) Result
 
 (* verify data authenticated by the Finished messages *)
 type log = bytes         (* message payloads so far, to be eventually authenticated *) 
@@ -101,19 +114,24 @@ definition !cv,clRdm,sid,cls,cm,ext,b.
              VLBytes(1,CompressionsBytes(cm)) @| 
              B(ext))
 		)
-              
+
 val clientHelloBytes: c:config -> cr:random -> sid:sessionID -> ext:bytes -> m:bytes{B(m) = ClientHelloMsg(c.maxVer,cr,sid,c.ciphersuites,c.compressions,ext)}
+
+val parseClientHelloDumb: m:bytes ->
+	(pv:ProtocolVersion * cr:crand * sid:sessionID * cs:cipherSuites * cm:Compression list * ext:bytes
+	  {?cs',cm'. MessageBytes(HT_client_hello,B(m)) = ClientHelloMsg(pv,cr,sid,cs',cm',ext)}) Result
+
 val parseClientHello: m:bytes -> 
-	(pv:ProtocolVersion * cr:crand * sid:sessionID * cs:cipherSuites * cm:Compression list * ext:bytes{?cs',cm'. MessageBytes(HT_client_hello,B(m)) = ClientHelloMsg(pv,cr,sid,cs',cm',ext)}) Result
+	(pv:ProtocolVersion * cr:crand * sid:sessionID * cs:cipherSuites * cm:Compression list * ext:bytes
+	  {?cs',cm'. MessageBytes(HT_client_hello,B(m)) = ClientHelloMsg(pv,cr,sid,cs',cm',ext)}) Result
+
 //KB TODO? /\ ContainsCipherSuites(cs',cs) /\ ContainsCompressions(cm',cm)}) Result
 
-// PYS: we don't invert CS, only it's length
 ask !pv,cr,s,cs,cm,ex,pv',cr',s',cs',cm',ex'.
           IsProtocolVersion(pv) /\ IsProtocolVersion(pv')
-(*       => IsCompression(cm) /\ IsCompression(cm') *)
        => BLength(B(cr)) = BLength(B(cr'))
        => ClientHelloMsg(pv,cr,s,cs,cm,ex) = ClientHelloMsg(pv',cr',s',cs',cm',ex')
-       => (pv = pv' /\ cr = cr' /\ s = s' /\ cm = cm' /\ ex = ex')
+       => (pv = pv' /\ cr = cr' /\ s = s' /\ ex = ex')
 
 ask !pv,cr,s,cs,cm,ex,pv',cr',s',cs',cm',ex'.
 	   ClientHelloMsg(pv,cr,s,cs,cm,ex) = ClientHelloMsg(pv',cr',s',cs',cm',ex')
@@ -152,7 +170,7 @@ ask !pv,sr,sid,cs,cm,ext,pv',sr',sid',cs',cm',ext'.
   => IsCompression(cm) /\ IsCompression(cm')
   => BLength(B(sr)) = BLength(B(sr'))
   => ServerHelloMsg(pv,sr,sid,cs,cm,ext) = ServerHelloMsg(pv',sr',sid',cs',cm',ext')
-  => (pv = pv' /\ sr = sr' /\ sid = sid')
+  => (pv = pv' /\ sr = sr' /\ cm = cm' /\ sid = sid')
 
 ask !pv,sr,sid,cs,cm,ext,pv',sr',sid',cs',cm',ext'.
 	   ServerHelloMsg(pv,sr,sid,cs,cm,ext) = ServerHelloMsg(pv',sr',sid',cs',cm',ext')
@@ -194,13 +212,13 @@ private definition !ct,sa,dn.
 		MessageBytes(HT_certificate_request,
 		  VLBytes(1,CertTypesBytes(ct)) @|
 		  VLBytes(2,SigHashAlgsBytes(sa)) @|
-		  VLBytes(2,DistinguishedNamesBytes(dn)))
+		  VLBytes(2,DistinguishedNameListBytes(dn)))
 function val CertificateRequestTLS: certType list * string list -> cbytes
 private definition !ct,dn.
 	CertificateRequestTLS(ct,dn) =
 		MessageBytes(HT_certificate_request,
 		    VLBytes(1,CertTypesBytes(ct)) @| [||] @| 
-		    VLBytes(2,DistinguishedNamesBytes(dn)))
+		    VLBytes(2,DistinguishedNameListBytes(dn)))
 function val CertificateRequestMsg: ProtocolVersion * certType list * Sig.alg list * string list -> cbytes
 private definition !pv,ct,sa,dn.
 	(pv = TLS_1p2 => CertificateRequestMsg(pv,ct,sa,dn) = CertificateRequestTLS12(ct,sa,dn)) /\
@@ -208,8 +226,7 @@ private definition !pv,ct,sa,dn.
 
 val sigHashAlgBytesVersion: pv:ProtocolVersion -> cs:cipherSuite ->
 	b:bytes{(pv = TLS_1p2 => B(b)=VLBytes(2,SigHashAlgsBytes(DefaultSigHashAlgs(pv,cs)))) /\
-			((pv = TLS_1p1 \/ pv = TLS_1p0 \/ pv = SSL_3p0) =>
-				B(b) = [||])}
+			((pv = TLS_1p1 \/ pv = TLS_1p0 \/ pv = SSL_3p0) => B(b) = [||])}
 
 val parseSigHashAlgVersion: pv:ProtocolVersion -> b:bytes ->
 	((a:(Sig.alg list) * r:bytes){
@@ -233,22 +250,22 @@ private definition !pv,encpms,b.
 	(pv = SSL_3p0 => ClientKeyExchangeMsg_RSA(pv,encpms) = MessageBytes(HT_client_key_exchange,B(encpms)))
 
 val encpmsBytesVersion: pv:ProtocolVersion -> encpms:bytes ->
-	b:bytes{(pv = SSL_3p0 => b=encpms) /\
-		((pv = TLS_1p0 \/ pv = TLS_1p1 \/ pv = TLS_1p2) => b=VLBytes(2,encpms))}
+	b:bytes{ (pv = SSL_3p0 => B(b)=B(encpms)) /\
+		    ((pv = TLS_1p0 \/ pv = TLS_1p1 \/ pv = TLS_1p2) => B(b)=VLBytes(2,B(encpms)))}
 
 val parseEncpmsVersion: pv:ProtocolVersion -> b:bytes ->
 	(encpms:bytes{
-		(pv = SSL_3p0 => b=encpms) /\
-		((pv = TLS_1p0 \/ pv = TLS_1p1 \/ pv = TLS_1p2) => b = VLBytes(2,encpms))
+		 (pv = SSL_3p0 => B(b)=B(encpms)) /\
+		((pv = TLS_1p0 \/ pv = TLS_1p1 \/ pv = TLS_1p2) => B(b) = VLBytes(2,B(encpms)))
 	}) Result
 
 val clientKeyExchangeBytes_RSA: si:SessionInfo -> encpms:bytes ->
-    b:bytes{b = ClientKeyExchangeMsg_RSA(si.protocol_version,encpms)}
+    b:bytes{B(b) = ClientKeyExchangeMsg_RSA(si.protocol_version,encpms)}
 
 val parseClientKeyExchange_RSA: si:SessionInfo -> b:bytes ->
 	(encpms:bytes{
-		(si.protocol_version = SSL_3p0 => b=encpms) /\
-		((si.protocol_version = TLS_1p0 \/ si.protocol_version = TLS_1p1 \/ si.protocol_version = TLS_1p2) => b = VLBytes(2,encpms))
+		 (si.protocol_version = SSL_3p0 => B(b)=B(encpms)) /\
+		((si.protocol_version = TLS_1p0 \/ si.protocol_version = TLS_1p1 \/ si.protocol_version = TLS_1p2) => B(b) = VLBytes(2,B(encpms)))
 	}) Result
 
 
@@ -620,9 +637,10 @@ private definition
   (ServerLogBeforeServerFinishedRSA(si,l) \/
    ServerLogBeforeServerFinishedDHE(si,l))
 
-ask !si,si',l.  
-    ServerLogBeforeServerFinished(si,l) /\
-    ServerLogBeforeServerFinished(si',l) => (si.protocol_version = si'.protocol_version)
+// PYS: TODO
+// ask !si,si',l.  
+//    ServerLogBeforeServerFinished(si,l) /\
+//   ServerLogBeforeServerFinished(si',l) => (si.protocol_version = si'.protocol_version)
     
 predicate ClientLogBeforeServerHello of random * log 
 predicate ClientLogBeforeServerCertificate of SessionInfo * log 
@@ -769,7 +787,6 @@ private definition !si,pv,l.
          @| CertificateMsg(si.clientID)
          @| ClientKeyExchangeMsg_DHE(b))
 
-
 private definition !si,pv,l. 
   ClientLogBeforeClientFinishedDHE_NoAuth(si,l) <=>
   (?l',b. ClientLogBeforeServerHelloDoneDHE_NoAuth(si,l') /\
@@ -849,18 +866,27 @@ theorem !si,si',t. ServerLogBeforeServerFinished(si,t) /\
 		   si = si'
 
 
-theorem !si,si',t. ClientLogBeforeClientFinishedResume(si,t) /\        
-                   ClientLogBeforeClientFinishedResume(si',t) => 
-		   si = si'
-theorem !si,si',t. ServerLogBeforeServerFinishedResume(si,t) /\        
-                   ServerLogBeforeServerFinishedResume(si',t) => 
-		   si = si'
+// PYS: not provable
+//theorem !si,si',t. ClientLogBeforeClientFinishedResume(si,t) /\        
+//                   ClientLogBeforeClientFinishedResume(si',t) => 
+//		   si = si'
+//
+//theorem !si,si',t. ServerLogBeforeServerFinishedResume(si,t) /\        
+//                   ServerLogBeforeServerFinishedResume(si',t) => 
+//		   si = si'
 
+predicate HasHTMessage of HandshakeType * bytes
+
+definition !ht. HasHTMessage(ht, B(empty_bytes)) <=> false
+definition !ht,htd,data,l. HasHTMessage(ht, B(l) @| MessageBytes(htd,B(data))) <=> (ht = htd \/ HasHTMessage(ht,l))
+
+ask !ht,data. HasHTMessage(ht, MessageBytes(ht, B(data)))
+
+theorem !si,si',t. ClientLogBeforeClientFinished(si,t) /\        
+	               ClientLogBeforeClientFinishedResume(si,t)  => false
 
 theorem !si,si',t. ClientLogBeforeClientFinished(si,t) /\        
 	           ServerLogBeforeServerFinished(si',t)  => false
-theorem !si,si',t. ClientLogBeforeClientFinished(si,t) /\        
-	           ClientLogBeforeClientFinishedResume(si,t)  => false
 theorem !si,si',t. ClientLogBeforeClientFinished(si,t) /\        
 	           ServerLogBeforeServerFinishedResume(si,t)  => false
 theorem !si,si',t. ServerLogBeforeServerFinished(si,t) /\        
@@ -869,5 +895,3 @@ theorem !si,si',t. ClientLogBeforeClientFinished(si,t) /\
 	           ServerLogBeforeServerFinishedResume(si,t)  => false
 theorem !si,si',t. ClientLogBeforeClientFinishedResume(si,t) /\        
 	           ServerLogBeforeServerFinishedResume(si,t)  => false
-
-

@@ -112,6 +112,17 @@ let makeFragment ki b =
 //     | Error z -> Error z
 
 
+(** General message parsing *)
+let splitMessage ht data =
+  if length data >= 1 then
+    let (ht', pl) = split data 1 in
+        if htBytes ht = ht' then
+            Correct pl
+        else
+            Error (AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+  else
+    Error (AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+
 (** A.4.1 Hello Messages *)
 
 #if verify
@@ -128,6 +139,97 @@ type preds = ServerLogBeforeClientCertificateVerifyRSA of SessionInfo * bytes
             |ServerLogBeforeClientCertificateVerifyDHE of SessionInfo * bytes
             |ServerLogBeforeClientFinished of SessionInfo * bytes
 #endif
+
+#if verify
+let popBytes i data =
+    if length data >= i then
+        let (data, r) = split data i in
+            Correct (data, r)
+    else
+        Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")        
+
+let popVLBytes i data =
+    if length data >= i then
+        match vlsplit i data with
+        | Error z -> Error z
+        | Correct data -> let (data, r) = data in Correct (data, r)
+    else
+        Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+
+let popProtocolVersion data =
+    match popBytes 2 data with
+    | Error z -> Error z
+    | Correct data ->
+        let (pv, r) = data in
+            match parseVersion pv with
+            | Error z -> Error z
+            | Correct pv -> Correct (pv, r)
+
+let popClientRandom data = popBytes   32 data
+let popCSBytes      data = popVLBytes  2 data
+let popCPBytes      data = popVLBytes  1 data
+
+let popSid data =
+    match popVLBytes 1 data with
+    | Error z -> Error z
+    | Correct data ->
+        let (sid, data) = data in
+            if length sid <= 32 then
+                Correct (sid, data)
+            else
+                Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+
+let popCS data =
+    match popCSBytes data with
+    | Error z -> Error z
+    | Correct data ->
+        let (csb, r) = data in
+            match parseCipherSuites csb with
+            | Error z -> Error z
+            | Correct cs -> let aout = (cs, r) in Correct aout
+
+let popCP data =
+    match popCPBytes data with
+    | Error z -> Error z
+    | Correct data ->
+        let (cpb, r) = data in
+        let cp = parseCompressions cpb in
+            Correct (cp, r)
+
+let parseClientHelloDumb data =
+    (* Protocol version *)
+    match popProtocolVersion data with
+    | Error z -> Error z
+    | Correct data ->
+    let (pv, data) = data in
+
+    (* SessionID *)
+    match popClientRandom data with
+    | Error z -> Error z
+    | Correct data ->
+    let (cr, data) = data in
+
+    (* Client random *)
+    match popSid data with
+    | Error z -> Error z
+    | Correct data ->
+    let (sid, data) = data in
+
+    (* CipherSuites *)
+    match popCS data with
+    | Error z -> Error z
+    | Correct data ->
+    let (cs, data) = data in
+
+    (* Compression *)
+    match popCP data with
+    | Error z -> Error z
+    | Correct data ->
+    let (cp, data) = data in
+
+        Correct (pv,cr,sid,cs,cp,data)
+#endif
+
 let parseClientHello data =
     if length data >= 34 then
         let (clVerBytes,cr,data) = split2 data 2 32 in
@@ -320,11 +422,11 @@ let parseEncpmsVersion version data =
 
 let clientKeyExchangeBytes_RSA si encpms =
     let nencpms = encpmsBytesVersion si.protocol_version encpms in
-    let mex = messageBytes HT_client_key_exchange nencpms in                                     mex
+    let mex = messageBytes HT_client_key_exchange nencpms in
+        mex
 
 let parseClientKeyExchange_RSA si data =
     parseEncpmsVersion si.protocol_version data 
-
 
 let clientKEXExplicitBytes_DH y =
     let yb = vlbytes 2 y in

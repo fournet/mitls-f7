@@ -261,16 +261,22 @@ predicate IsCompression of PreCompression
 
 definition !c. IsCompression(c) <=> (c = NullCompression)
 
+predicate IsCompressions of PreCompression list
+
+definition IsCompressions([])
+definition !c,cs. IsCompression(c) /\ IsCompressions(cs) => IsCompressions(c::cs)
+
 type Compression = c:PreCompression{IsCompression(c)}
 
 function val CompressionBytes: Compression -> cbytes
-private definition CompressionBytes(NullCompression) = [| 0uy |]
+definition CompressionBytes(NullCompression) = [| 0uy |]
 
 predicate ContainsCompressions of Compression list * Compression list
 function val CompressionsBytes: Compression list -> cbytes
 
-private assume CompressionsBytes([]) = [||] /\ 
-  (!h,t. CompressionsBytes(h::t) = CompressionBytes(h) @| CompressionsBytes(t))
+assume CompressionsBytes([]) = [||]
+assume !h,t. CompressionsBytes(h::t) = CompressionBytes(h) @| CompressionsBytes(t)
+
 private assume !cl. ContainsCompressions(cl,cl) /\ 
    (!cl. ContainsCompressions(cl,[])) /\
    (!h,t,cl. ContainsCompressions(t,cl) => ContainsCompressions(h::t,cl)) /\
@@ -279,7 +285,7 @@ private assume !cl. ContainsCompressions(cl,cl) /\
 val compressionBytes: c:Compression -> b:bytes{CompressionBytes(c) = B(b)}
 val compressionMethodsBytes: cl:Compression list -> b:bytes{B(b) = CompressionsBytes(cl)}
 val parseCompression: b:bytes -> (c:Compression{B(b)=CompressionBytes(c)}) Result
-val parseCompressions: b:bytes -> cl:Compression list//{?cl'. B(b) = CompressionsBytes(cl') /\ ContainsCompressions(cl',cl)}
+val parseCompressions: b:bytes -> cl:Compression list{?cl'. B(b) = CompressionsBytes(cl')} // ContainsCompressions(cl',cl)}
 
 
 
@@ -568,9 +574,8 @@ val parseCipherSuite: b:bytes{Length(b)=2} -> (c:cipherSuite{B(b) = CipherSuiteB
 
 // this parsing function may fail if b has the wrong length,
 // or if we were strict on unknown ciphersuites
-val parseCipherSuites: b:bytes -> (css:cipherSuites
-//KB TODO? {?csl. B(b) = CipherSuitesBytes(csl) /\ ContainsCipherSuites(csl,css)}) 
-)Result
+val parseCipherSuites: b:bytes -> (css:cipherSuites{?csl. B(b) = CipherSuitesBytes(csl)}) Result
+//PYS TODO? ContainsCipherSuites(csl,css)
 val cipherSuitesBytes: css:cipherSuites -> b:bytes {B(b) = CipherSuitesBytes(css)}
 
 val mkIntTriple: (nat * nat * nat) -> (nat * nat * nat)
@@ -723,12 +728,11 @@ private definition
 val defaultCertTypes: sign:bool -> cs:cipherSuite -> ctl:certType list{ctl=DefaultCertTypes(sign,cs)}
 
 function val DistinguishedNameListBytes: string list -> cbytes
-private definition !h,t.
-	DistinguishedNameListBytes([]) = [||] /\
-	DistinguishedNameListBytes(h::t) = VLBytes(2,B(Utf8(h))) @| DistinguishedNameListBytes(t)
+definition DistinguishedNameListBytes([]) = [||]
+definition !h,t. DistinguishedNameListBytes(h::t) = VLBytes(2,B(Utf8(h))) @| DistinguishedNameListBytes(t)
+
 function val DistinguishedNamesBytes: string list -> cbytes
-private definition !l.
-	DistinguishedNamesBytes(l) = VLBytes(2,DistinguishedNameListBytes(l))
+private definition !l. DistinguishedNamesBytes(l) = VLBytes(2,DistinguishedNameListBytes(l))
 
 val distinguishedNameListBytes: n:string list -> b:bytes{B(b)=DistinguishedNameListBytes(n)}
 val parseDistinguishedNameList: b:bytes -> s:string list ->
