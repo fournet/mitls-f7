@@ -23,7 +23,7 @@ type PreHandshakeType =
 
 predicate IsHandshakeType of PreHandshakeType
 
-private definition
+definition
   !ht. IsHandshakeType(ht) <=>
     (ht = HT_hello_request \/
      ht = HT_client_hello \/
@@ -857,13 +857,13 @@ theorem !si,si',t. ServerLogBeforeServerFinished(si,t) /\
 
 
 // PYS: not provable
-//theorem !si,si',t. ClientLogBeforeClientFinishedResume(si,t) /\        
-//                   ClientLogBeforeClientFinishedResume(si',t) => 
-//		   si = si'
-//
-//theorem !si,si',t. ServerLogBeforeServerFinishedResume(si,t) /\        
-//                   ServerLogBeforeServerFinishedResume(si',t) => 
-//		   si = si'
+theorem !si,si',t. ClientLogBeforeClientFinishedResume(si,t) /\        
+                   ClientLogBeforeClientFinishedResume(si',t) => 
+		   (si.init_crand = si'.init_crand /\ si.init_srand = si'.init_srand)
+
+theorem !si,si',t. ServerLogBeforeServerFinishedResume(si,t) /\        
+                   ServerLogBeforeServerFinishedResume(si',t) => 
+		   (si.init_crand = si'.init_crand /\ si.init_srand = si'.init_srand)
 
 predicate HasHTMessage of HandshakeType * cbytes
 
@@ -908,15 +908,15 @@ ask !si,l.
 ask !si,t. ClientLogBeforeClientFinishedResume(si,t) => HasHTMessage(HT_certificate,t) => false
 
 theorem !si,si',t. ClientLogBeforeClientFinished(si,t) /\        
-	               ClientLogBeforeClientFinishedResume(si,t)  => false
+	               ClientLogBeforeClientFinishedResume(si',t)  => false
 
 theorem !si,si',t. ClientLogBeforeClientFinished(si,t) /\        
 	           ServerLogBeforeServerFinished(si',t)  => false
 theorem !si,si',t. ClientLogBeforeClientFinished(si,t) /\        
-	           ServerLogBeforeServerFinishedResume(si,t)  => false
+	           ServerLogBeforeServerFinishedResume(si',t)  => false
 theorem !si,si',t. ServerLogBeforeServerFinished(si,t) /\        
-	           ClientLogBeforeClientFinishedResume(si,t)  => false
-theorem !si,si',t. ClientLogBeforeClientFinished(si,t) /\        
-	           ServerLogBeforeServerFinishedResume(si,t)  => false
+	           ClientLogBeforeClientFinishedResume(si',t)  => false
+theorem !si,si',t. ServerLogBeforeServerFinished(si,t) /\        
+	           ServerLogBeforeServerFinishedResume(si',t)  => false
 theorem !si,si',t. ClientLogBeforeClientFinishedResume(si,t) /\        
-	           ServerLogBeforeServerFinishedResume(si,t)  => false
+	           ServerLogBeforeServerFinishedResume(si',t)  => false
