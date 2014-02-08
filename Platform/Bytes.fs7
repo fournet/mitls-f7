@@ -18,6 +18,8 @@ val cbytes: a:bytes -> b:byte array{B(a) = b}
 val cbyte: a:bytes -> b:byte{B(a) = [| b |]}
 val cbyte2: a:bytes -> (b1:byte*b2:byte){B(a) = [| b1;b2 |]}
 
+assume !b,b'. B(b) = B(b') => b = b'
+
 (* Lengths for arrays and lists *)
 
 function val BLength: byte array -> int 
@@ -51,7 +53,7 @@ val split2: b:bytes -> i:nat -> j:nat  {Length(b) >= i+j} ->
       B(b) = B(b1) @| B(b2) @| B(b3)}
 
 // empty array is an identity for append
-// assume !x. empty_bytes @| x = x
+assume !x. [||] @| x = x
 assume !x. x @| [||] = x
 
 // append is injective when using fixed lengths.
