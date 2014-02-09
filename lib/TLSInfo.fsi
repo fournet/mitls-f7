@@ -85,7 +85,7 @@ type epoch = preEpoch
 type event =
   | KeyCommit of    csrands * ProtocolVersion * aeAlg 
   | KeyGenClient of csrands * ProtocolVersion * aeAlg 
-  | SentCCS of Role * epoch
+  | SentCCS of Role * crand * srand * SessionInfo
 
 
 val id: epoch -> id 
