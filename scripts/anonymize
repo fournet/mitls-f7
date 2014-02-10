@@ -130,10 +130,15 @@ def _options(args):
                       help    = "set anonymisation mode [%s]" % (modes,),
                       default = 'full',
                       metavar = "MODE")
+    defhelp = dict(
+        D = 'define',
+        U = 'undefine',
+        I = 'include (keep)'
+    )
     for x in ("D", "U", "I"):
         parser.add_option("-%s" % (x,), None,
                           dest          = "symbols",
-                          help          = "define symbol SYMBOL (implied -P)",
+                          help          = "%s symbol SYMBOL (implies -P)" % (defhelp[x],),
                           action        = "callback",
                           callback      = osymbol,
                           callback_args = (x,),
