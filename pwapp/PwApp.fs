@@ -142,7 +142,7 @@ let rec handle_client_request (conn : Connection) =
             | Warning (conn,_) -> handle_client_request conn
             | CertQuery (_,_,_) -> None
             | Handshaken (conn) -> handle_client_request conn
-            | Read(conn,m) -> None // should never happen
+            | Read(conn,m) -> None // AP: should never happen
         else
             refuse conn q; None
     | Handshaken conn              -> handle_client_request conn

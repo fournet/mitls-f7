@@ -46,12 +46,12 @@ private val consCertificateBytes: c:bytes -> a:bytes ->
 	b:bytes{B(b)=VLBytes(3,c) @| a}
 
 function val CertificateListBytes: chain -> cbytes
-//private definition !bl. CertificateMsg(bl) = MessageBytes(HT_certificate,VLBytes(3,UnfoldBack(bl,empty_bytes)))
+//AP private definition !bl. CertificateMsg(bl) = MessageBytes(HT_certificate,VLBytes(3,UnfoldBack(bl,empty_bytes)))
 
 val certificateListBytes: cl:chain ->
 	b:bytes{B(b)=VLBytes(3,CertificateListBytes(cl))}
 val parseCertificateList: b:bytes -> acc:chain ->
-	(cl:chain{(* ?l. cl = l @ acc /\ b=CertificateListBytes(l) *)
+	(cl:chain{(* AP ?l. cl = l @ acc /\ b=CertificateListBytes(l) *)
 		acc = [] => B(b)=CertificateListBytes(cl)}) Result
 
 //AP: Commenting out to let typeckeching go through

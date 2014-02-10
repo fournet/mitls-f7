@@ -77,7 +77,7 @@ type TLStream (s:System.IO.Stream, options, b, ?own, ?sessionID) =
             match adOpt with
             | None -> raise (IOException(sprintf "TLS-HS: Internal error: %A" err))
             | Some ad -> raise (IOException(sprintf "TLS-HS: Sent fatal alert: %A %A" ad err))
-        | TLS.Close ns -> closed <- true; (conn,empty_bytes) // This is a closed connection, should not be used!
+        | TLS.Close ns -> closed <- true; (conn,empty_bytes) // AP: This is a closed connection, should not be used!
         | TLS.Fatal ad -> closed <- true; raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
         | TLS.Warning (conn,ad) -> closed <- true; raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
         | TLS.CertQuery (conn,q,advice) ->
@@ -88,7 +88,7 @@ type TLStream (s:System.IO.Stream, options, b, ?own, ?sessionID) =
                     match adOpt with
                     | None -> raise (IOException(sprintf "TLS-HS: Internal error: %A" err))
                     | Some ad -> raise (IOException(sprintf "TLS-HS: Sent fatal alert: %A %A" ad err))
-                | TLS.Close ns -> closed <- true; (conn,empty_bytes) // This is a closed connection, should not be used!
+                | TLS.Close ns -> closed <- true; (conn,empty_bytes) // AP: This is a closed connection, should not be used!
                 | TLS.Fatal ad -> closed <- true; raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
                 | TLS.Warning (conn,ad) -> closed <- true; raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
                 | TLS.CertQuery (conn,q,advice) -> closed <- true; raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate twice"))
@@ -144,8 +144,8 @@ type TLStream (s:System.IO.Stream, options, b, ?own, ?sessionID) =
         if closed then
             raise (IOException("Trying to get SessionInfo on a closed connection."))
         (* We could also pick the outgoing epoch.
-            * The user can only access an open connection, so epochs
-            * are synchronized. *)
+         * The user can only access an open connection, so epochs
+         * are synchronized. *)
         let epoch = TLS.getEpochIn conn in
         TLS.getSessionInfo epoch
 
@@ -197,7 +197,7 @@ type TLStream (s:System.IO.Stream, options, b, ?own, ?sessionID) =
                     if equalBytes inbuf empty_bytes then
                         (* Read from the socket, and possibly buffer some data *)
                         let (c,data) = wrapRead conn
-                            // Fixme: is data is empty_bytes we should set conn to "null" (which we cannot)
+                        // FIXME: if data is empty_bytes we should set conn to "null" (which we cannot)
                         conn <- c
                         data
                     else (* Use the buffer *)

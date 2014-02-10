@@ -10,12 +10,6 @@ open Microsoft.FSharp.Reflection
 type String with
     member self.UrlDecode () = HttpUtility.UrlDecode(self)
 
-(*
-type Option<'T> with
-    member self.oget = fun dfl ->
-        match self with None -> dfl | Some x -> x
-*)
-
 (* ------------------------------------------------------------------------ *)
 type Stream with
     member self.CopyTo (output : Stream, length : int64) : int64 =

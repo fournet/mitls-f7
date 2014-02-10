@@ -84,8 +84,8 @@ TLSFragment.AppDataHistory(ci.id_in,
 
 predicate UnchangedState of ci:ConnectionInfo * (;ci)globalState * (;ci)globalState
 private definition !ci,gs,gs'. UnchangedState(ci,gs,gs') <=>
-	//(gs.handshake = gs'.handshake) /\
-	//(gs.alert = gs'.alert) /\
+	// AP (gs.handshake = gs'.handshake) /\
+	// AP (gs.alert = gs'.alert) /\
 	(gs.appdata = gs'.appdata) /\
 	(gs.write = gs'.write) /\
 	(gs.read.disp = gs'.read.disp) /\
@@ -289,8 +289,8 @@ definition !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo)  <=>
 		// Cases needed by the top level interface
 		(wo = WAppDataDone /\ mo = None /\ Extend_o(c,c',m) /\ NextCn(c,c')) \/
         (wo = WAppDataDone /\ (?r0,d0,r',d'. mo = Some((r',d'))
-						   /\ MsgOBytes(c,m) = MsgOBytes(c,(r0,d0)) @| MsgOBytes(c',(r',d'))
-						   (* /\ Split_o(c,m,(r0,d0),c',(r',d')) *)  )) \/
+						   (* AP /\ MsgOBytes(c,m) = MsgOBytes(c,(r0,d0)) @| MsgOBytes(c',(r',d')) *)
+						   /\ Split_o(c,m,(r0,d0),c',(r',d')) )) \/
         (wo = WHSDone /\
 		  (
 			   Role(c') = Role(c)
@@ -316,8 +316,8 @@ definition !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo)  <=>
 			 /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))                                                                                                                                                         
 		   )
 		 ) \/
-		 // Cases needed by dispatch; in practice not giving any refinement,
-		 // just completing all the cases.
+		 // Cases needed by dispatch; in practice we don't need much
+		 // refinement in case of error
 		 (?err. wo = WError(err) ) \/
 		 (?ad,s. wo = SentFatal(ad,s) ) \/
 		 (wo = SentClose ) 
@@ -379,8 +379,8 @@ definition !c,c',ro. IOResult_i(c,c',ro) <=>
 	(?s. ro = WriteOutcome(WError(s)) ) \/
 	(ro = WriteOutcome(SentClose) /\ (Auth(ConnectionEpochIn(c)) => EvClose(CnInfo(c).id_in,Bytes_i(c)))
 	) \/
-	// Cases needed by dispatch; in practice not giving any refinement,
-	// just completing all the cases.
+	// Cases needed by dispatch; in practice we don't need much
+	// refinement in case of error
 	(?err. ro = RError(err))
    )
 

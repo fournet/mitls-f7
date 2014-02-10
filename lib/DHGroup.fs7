@@ -1,6 +1,6 @@
 module DHGroup
 
-(* Trusted: not typechecked *) 
+(* Idealized module *) 
 
 open Bytes
 

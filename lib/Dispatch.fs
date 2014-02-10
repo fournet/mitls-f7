@@ -2,7 +2,6 @@ module Dispatch
 
 open Bytes
 open TLSConstants
-//open Record
 open Tcp
 open Error
 open TLSError
@@ -10,14 +9,13 @@ open Handshake
 open Alert
 open TLSInfo
 open Range
-
-open TLSFragment // Required by F7, or deliver won't parse.
+open TLSFragment
 
 type predispatchState =
   | Init
   | FirstHandshake of TLSConstants.ProtocolVersion
   | Finishing
-  | Finished (* Only for Writing side, used to implement TLS False Start *)
+  | Finished (* Only for Writing side, useful if we were to allow TLS False Start *)
   | Open
   | Closing of ProtocolVersion * string
   | Closed
@@ -464,7 +462,6 @@ let getHeader (Conn(id,c)) =
         | Error x -> Error(x)
         | Correct(res) ->
         let (ct,pv,len) = res in
-        // check pv
         let c_read = c.read in
         match c_read.disp with
         | Init -> correct(ct,len)
@@ -538,8 +535,8 @@ let readOne (Conn(id,c0)) =
                         | Handshake.InVersionAgreed(hs,pv) ->
                             match c_read.disp with
                             | Init ->
-                                (* Then, also c_write must be in Init state. It means this is the very first, unprotected handshake,
-                                    and we just negotiated the version.
+                                (* Then, also c_write must be in Init state. It means this is the very first, unprotected,
+                                    handshake of the connection, and we just negotiated the version.
                                     Set the negotiated version in the current sinfo (read and write side), 
                                     and move to the FirstHandshake state, so that
                                     protocol version will be properly checked *)
@@ -878,7 +875,6 @@ let write (Conn(id,s)) msg =
   | WriteAgain | WriteAgainFinishing | WriteAgainClosing
   | WDone | WHSDone | SentClose ->
     unexpected "[write] writeAllTop should never return this"
-//  Conn(id,s),outcome,rdOpt
 
 let authorize (Conn(id,c)) q =
     let hsRes = Handshake.authorize id c.handshake q in
@@ -895,8 +891,8 @@ let authorize (Conn(id,c)) q =
     | Handshake.InVersionAgreed(hs,pv) ->
         match c_read.disp with
         | Init ->
-            (* Then, also c_write must be in Init state. It means this is the very first, unprotected handshake,
-                and we just negotiated the version.
+            (* Then, also c_write must be in Init state. It means this is the very first, unprotected,
+                handshake on the connection, and we just negotiated the version.
                 Set the negotiated version in the current sinfo (read and write side), 
                 and move to the FirstHandshake state, so that
                 protocol version will be properly checked *)

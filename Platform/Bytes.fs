@@ -169,7 +169,7 @@ let length (d:bytes) = d.length
 
 #else
 
-(* Original implementation of bytes *)
+(* AP: Original implementation of bytes *)
 [<CustomEquality;NoComparison>]
 type bytes = 
      {b:byte[]}

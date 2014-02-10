@@ -55,7 +55,7 @@ private definition !e,s,r,f,e',s',d.
 
 ask !e,r,f,s,d. (IsFragment(Id(e),r,f) /\ Payload(Id(e),r,f) = DataStream.Payload(e,s,r,d) ) => Extend(e,s,r,f) = DataStream.ExtendStreamDelta(e,s,r,d)
 
-(* No longer used:
+(* AP: No longer used:
 // conversion with application-level deltas 
 predicate FragOfDelta of e:epoch * r:range * (;Id(e),r)fragment * s:(;e)stream * (;e,s,r)delta
 private definition !e,r,f,s,d.

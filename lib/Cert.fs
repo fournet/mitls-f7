@@ -87,7 +87,7 @@ let x509_has_key_usage_flag strict flag (x509 : X509Certificate2) =
 
 (* ------------------------------------------------------------------------ *)
 let x509_check_key_sig_alg (sigkeyalg : Sig.alg) (x509 : X509Certificate2) =
-    match x509.SignatureAlgorithm with (* WARN: OID_MD5WithRSAEncryption is obsolete - removed *)
+    match x509.SignatureAlgorithm with (* AP: WARN: OID_MD5WithRSAEncryption is obsolete - removed *)
     | o when o.Value = OID_SHAWithRSAEncryption ->
          (* We are not strict, to comply with TLS < 1.2 *)
             sigkeyalg = (SA_RSA, MD5SHA1)
@@ -109,7 +109,7 @@ let x509_verify (x509 : X509Certificate2) =
         chain.Build(x509)
 
 (* ------------------------------------------------------------------------ *)
-let x509_chain (x509 : X509Certificate2) = (* FIX: Is certs. store must be opened ? *)
+let x509_chain (x509 : X509Certificate2) = (* FIXME: Is certs. store must be opened ? *)
     let chain = new X509Chain() in
         chain.ChainPolicy.RevocationMode <- X509RevocationMode.NoCheck;
         ignore (chain.Build(x509));
@@ -313,7 +313,7 @@ let get_hint (chain : chain) =
 
     match chain with
     | []     -> None
-    | c :: _ -> Some (c.GetNameInfo (X509NameType.SimpleName, false)) (* FIX *)
+    | c :: _ -> Some (c.GetNameInfo (X509NameType.SimpleName, false)) (* FIXME *)
 
 (* ---- TLS-specific encoding ---- *)
 let consCertificateBytes c a =

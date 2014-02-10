@@ -1,7 +1,7 @@
 ﻿module ENC
 
 (* Bulk encryption for TLS record, agile & assumed conditionally CPA with "Encode" for plaintexts *) 
-(* This module is trusted *)
+(* This module is idealized *)
 (* TODO write a well-typed ideal functionality; reduce it to its non-agile underlying algorithms, e.g. AES-CBC and GCM *) 
 
 open Bytes

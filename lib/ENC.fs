@@ -194,7 +194,7 @@ let DEC ki s ad cipher =
       (s,p')
 
 
-(* the SPRP game in F#, without indexing so far.
+(* TODO: the SPRP game in F#, without indexing so far.
    the adversary gets 
    enc: block -> block
    dec: block -> block 

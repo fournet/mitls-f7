@@ -209,8 +209,6 @@ let plain (e:id) ad tlen b =
         else
 #endif
             decode e ad rg tlen b
-
-//  | GCM _ ->
     | _ -> unexpected "[Encode.plain] incompatible ciphersuite given."
 
 let repr (e:id) ad rg pl = 
@@ -230,6 +228,5 @@ let repr (e:id) ad rg pl =
         else
 #endif
             encode e tlen rg ad lp tg
-//  | GCM _ ->
     | _ -> unexpected "[Encode.repr] incompatible ciphersuite given."
 

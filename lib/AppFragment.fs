@@ -29,7 +29,7 @@ let delta e s r f =
     //MK if auth, then we can use the e' indexed d, and are guaranteed that s=s'
     #if ideal
     if auth e then
-      // typechecking relies on proving that e = e' & s = s'. How? 
+      // TODO: typechecking relies on proving that e = e' & s = s'. How? 
       let s'' = append e s r d in
       (d,s'')
     else       
