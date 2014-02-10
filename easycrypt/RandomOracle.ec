@@ -1,11 +1,16 @@
-require import FMap. import OptionGet.
+(* Generic Eaager/Lazy transformation *)
+
+require import FMap. 
+import OptionGet.
 require import Distr.
 
 theory Types.
+
   type from.
   type to.
-
-  op dsample: from -> to distr. (* Distribution to use on the target type; it can be parameterized by the input *)
+ 
+  (* Distribution to use on the target type; it can be parameterized by the input *)
+  op dsample: from -> to distr. 
 
   (* A signature for random oracles from "from" to "to". *)
   module type Oracle =
@@ -31,9 +36,11 @@ theory Types.
       return b;
     }
   }.
+
 end Types.
 
 theory Lazy.
+
   type from.
   type to.
 
@@ -79,11 +86,13 @@ theory Lazy.
   equiv abstract_o:
     RO.o ~ RO.o: ={glob RO, x} ==> ={glob RO, res}
   by (fun; eqobs_in).
+
 end Lazy.
 
 theory Eager.
+
   require import ISet.
-    import Finite.
+  import Finite.
   require import FSet.
 
   type from.
@@ -149,11 +158,13 @@ theory Eager.
 
   equiv abstract_o: RO.o ~ RO.o: ={glob RO, x} ==> ={glob RO, res}
   by (fun; wp).
+
 end Eager.
 
 theory LazyEager.
+
   require import ISet.
-    import Finite.
+  import Finite.
   require import FSet.
 
   type from.
@@ -179,7 +190,7 @@ theory LazyEager.
     op dsample <- dsample.
 
   section.
-  (* Proof note: We may be missing losslessness assumptions on D *)
+
   declare module D:Dist {Lazy.RO,Eager.RO}.
 
   local module IND_Lazy = {
@@ -236,7 +247,7 @@ theory LazyEager.
     inline IND_Lazy.resample;
     while{2} (true) (card work{2}).
       intros=> &m z; wp; rnd; wp; skip; progress=> //; last smt.
-        by rewrite card_rm_in ?mem_pick //; smt. (* This should definitely be a lemma in FSet. *)
+        by rewrite card_rm_in ?mem_pick //; smt. 
     by wp; skip; progress=> //; smt.
   qed.
 
@@ -384,130 +395,5 @@ theory LazyEager.
   by equiv_deno (IND_Eager _).
   qed.
   end section.
+
 end LazyEager.
-
-theory Wrappers.
-  clone import Types.
-  clone Lazy with
-    type from = from,
-    type to = to,
-    op dsample = dsample.
-
-  module type WRO = {
-    fun init(qO:int): unit {*}
-    fun o(x:from): to
-  }.
-
-  module IND_b(H:WRO,D:Dist) = {
-    module D = D(H)
-
-    fun main(qO:int): bool = {
-      var b:bool;
-      H.init(qO);
-      b = D.distinguish();
-      return b;
-    }
-  }.
-
-  (** Budget-cutting wrapper *)
-  require import Int.
-  module Count(H:Oracle) = {
-    var qO:int
-    var qs:int
-
-    fun init(qO:int): unit = {
-      H.init();
-      Count.qO = qO;
-      qs = 0;
-    }
-
-    fun o(x:from): to = {
-      var r:to;
-      if (qs < qO)
-      {
-        qs = qs + 1;
-        r = H.o(x);
-      }
-      return r;
-    }
-  }.
-
-  import FSet.
-  import ISet.Finite.
-  lemma bound qO' (D <: Dist {Lazy.RO,Count}):
-    0 < qO' =>
-    (forall x, mu (dsample x) cpTrue = 1%r) =>
-    (forall (H <: ARO {D}), islossless H.o => islossless D(H).distinguish) =>
-    equiv [ IND(Lazy.RO,D).main ~ IND_b(Count(Lazy.RO),D).main:
-              qO{2} = qO' ==>
-              (Count.qs{2} < qO' =>
-                 ={res} /\
-                 size Lazy.RO.m{1} <= Count.qs{2}) ].
-  proof strict.
-  intros=> lt0_qO dsampleL DL; fun.
-  call (_: Count.qO <= Count.qs,
-           ={glob Lazy.RO} /\
-           Count.qO{2} = qO' /\
-           size Lazy.RO.m{1} <= Count.qs{2}).
-    (* H *)
-    fun; rcondt{2} 1; first intros=> &m; skip; progress=> //; smt.
-      inline Lazy.RO.o; wp; rnd; wp; skip; progress=> //; last smt.
-        by rewrite /size dom_set card_add_nin -/(in_dom _ _); last smt.
-    by intros=> _ _; apply Lazy.lossless_o.
-    by intros=> _; fun; if=> //; inline Lazy.RO.o; wp; rnd; wp; skip; smt.
-  inline Count(Lazy.RO).init; wp; call (_: true ==> ={glob Lazy.RO} /\ dom Lazy.RO.m{1} = FSet.empty)=> //;
-    first by fun; wp; skip; progress=> //; smt.
-  wp; skip; cut H1: ISet.empty<:from> == FSet.empty by smt; progress=> //.
-    by rewrite /size H card_empty.
-    by cut [eq_res _]:= H2 _; first smt.
-    by cut [_ [_ [fdom _]]]:= H2 _; first smt.
-  qed.
-
-(*
-  (** Query-tracking wrapper *)
-  require import Int.
-  module Index(H:Oracle) = {
-    var qs:(int,from) map
-    var qc:int
-
-    fun init(): unit = {
-      H.init();
-      qs = FMap.Core.empty;
-      qc = 0;
-    }
-
-    fun o(x:from): to = {
-      var r:to;
-      if (!in_rng x qs)
-      {
-        qs.[qc] = x;
-        qc = qc + 1;
-      }
-      r = H.o(x);
-      return r;
-    }
-  }.
-*)
-  (** Query-numbering wrapper *)
-  module Number(H:Oracle) = {
-    var qs:(from,int) map
-    var qc:int
-
-    fun init(): unit = {
-      H.init();
-      qs = FMap.Core.empty;
-      qc = 0;
-    }
-
-    fun o(x:from): to = {
-      var r:to;
-      if (!in_dom x qs)
-      {
-        qs.[x] = qc;
-        qc = qc + 1;
-      }
-      r = H.o(x);
-      return r;
-    }
-  }.
-end Wrappers.
