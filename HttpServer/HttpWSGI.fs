@@ -68,7 +68,7 @@ type WsgiHandler () =
         use lock   = new WsgiEngineLock () in
         use bridge = PythonEngine.ImportModule ("wsgibridge") in
         let error  = System.Console.Error in
-        let url    = sprintf "https://www.mitls.org/%s" request.path in (* FIXME *)
+        let url    = sprintf "https://%s/%s" config.servname request.path in
 
         let sinfo =
             try
