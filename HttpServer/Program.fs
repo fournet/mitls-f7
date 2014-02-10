@@ -64,7 +64,7 @@ let cmdparse = fun () ->
     let defaultPort = 2443
     let defaultRoot = "htdocs"
     let defaultCert = "sessionDB"
-    let defaultName = "cert-01.mitls.org"
+    let defaultName = "mitls.example.org"
     let defaultServ = "localhost"
     
     let options  = ref {
