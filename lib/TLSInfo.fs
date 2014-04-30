@@ -33,7 +33,7 @@ type negotiatedExtension =
 
 type negotiatedExtensions = negotiatedExtension list
 
-let noCsr:csrands = Nonce.random 64
+let noCsr:csrands = Nonce.random 64 //TODO should be Nonce.noCsr??
 
 (* MK:
 We could and probably should have:
@@ -201,8 +201,8 @@ let pv_of_id (id:id) =  id.pv //TODO MK fix
 let kdfAlg_of_id (id:id) = id.kdfAlg
 
 type event =
-  | KeyCommit of    csrands * ProtocolVersion * aeAlg 
-  | KeyGenClient of csrands * ProtocolVersion * aeAlg 
+  | KeyCommit of    csrands * ProtocolVersion * aeAlg * negotiatedExtensions
+  | KeyGenClient of csrands * ProtocolVersion * aeAlg * negotiatedExtensions
   | SentCCS of Role * crand * srand * SessionInfo
 
 

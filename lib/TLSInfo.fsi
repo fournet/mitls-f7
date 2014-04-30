@@ -83,8 +83,8 @@ type preEpoch
 type epoch = preEpoch
 
 type event =
-  | KeyCommit of    csrands * ProtocolVersion * aeAlg 
-  | KeyGenClient of csrands * ProtocolVersion * aeAlg 
+  | KeyCommit of    csrands * ProtocolVersion * aeAlg * negotiatedExtensions
+  | KeyGenClient of csrands * ProtocolVersion * aeAlg * negotiatedExtensions
   | SentCCS of Role * crand * srand * SessionInfo
 
 

@@ -105,8 +105,11 @@ private definition !e,rw,s. History(e,rw,s) = s.history
 type (;ki:id) reader = r:(;ki,Reader) state
 type (;ki:id) writer = w:(;ki,Writer) state
 
-val GEN:    ki:id               -> (;ki)reader * (;ki)writer
-val COERCE: ki:id{not AuthId(ki)} -> rw:rw -> b:bytes{Length(b)=LHAE.KeySize(ki.aeAlg)} -> (;ki,rw)state
+val GEN:    ki:id               -> r:(;ki)reader * w:(;ki)writer{History (ki, TLSInfo.Reader, r) = EmptyHistory (ki) /\ 
+																 History (ki, TLSInfo.Writer, w) = EmptyHistory (ki)}
+val COERCE: ki:id{not AuthId(ki)} -> rw:rw -> b:bytes{Length(b)=LHAE.KeySize(ki.aeAlg)} -> s:(;ki,rw)state{History(ki,rw,s) = EmptyHistory(ki)}
+
+
 val LEAK:   ki:id{not AuthId(ki)} -> rw:rw -> (;ki,rw)state -> b:bytes
 
 val history: ki:id -> rw:rw -> s:(;ki,rw) state -> h:(;ki)history{h=History(ki,rw,s)}

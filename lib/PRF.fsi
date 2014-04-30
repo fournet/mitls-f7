@@ -13,15 +13,15 @@ val sample: msId -> ms
 #endif
 
 //#begin-coerce
-val coerce: msId -> repr -> masterSecret
+val coerce: msId -> repr -> ms
 //#end-coerce
 
-val keyCommit: csrands -> ProtocolVersion -> aeAlg -> unit
-val keyGenClient: id -> id -> masterSecret -> StatefulLHAE.writer * StatefulLHAE.reader
-val keyGenServer: id -> id -> masterSecret -> StatefulLHAE.writer * StatefulLHAE.reader
+val keyCommit: csrands -> ProtocolVersion -> aeAlg -> negotiatedExtensions -> unit
+val keyGenClient: id -> id -> ms -> StatefulLHAE.writer * StatefulLHAE.reader
+val keyGenServer: id -> id -> ms -> StatefulLHAE.writer * StatefulLHAE.reader
 
-val makeVerifyData:  SessionInfo -> masterSecret -> Role -> bytes -> bytes 
-val checkVerifyData: SessionInfo -> masterSecret -> Role -> bytes -> bytes -> bool
+val makeVerifyData:  SessionInfo -> ms -> Role -> bytes -> bytes 
+val checkVerifyData: SessionInfo -> ms -> Role -> bytes -> bytes -> bool
 
-val ssl_certificate_verify: SessionInfo -> masterSecret -> TLSConstants.sigAlg -> bytes -> bytes
+val ssl_certificate_verify: SessionInfo -> ms -> TLSConstants.sigAlg -> bytes -> bytes
 

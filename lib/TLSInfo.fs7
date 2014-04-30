@@ -405,19 +405,19 @@ ask !i:id. not HonestMS(i.msId) => not SafeKDF(i)
 // Safety of key derivation depends on matching algorithms (see PRF)
 
 type event = // produced by PRF, used once the handshake is Finished
-  | KeyCommit of    csrands * ProtocolVersion * aeAlg 
-  | KeyGenClient of csrands * ProtocolVersion * aeAlg 
+  | KeyCommit of    csrands * ProtocolVersion * aeAlg * negotiatedExtensions
+  | KeyGenClient of csrands * ProtocolVersion * aeAlg * negotiatedExtensions
   | SentCCS of Role * crand * srand * SessionInfo
 
 // These two injectivity properties follow from the affine usage of keyCommit and keyGenClient
-theorem !csr,pv0,ae0,pv1,ae1. 
-  (KeyCommit(csr,pv0,ae0) /\ KeyCommit(csr,pv1,ae1)) => (pv0=pv1 /\ ae0 = ae1) 
-theorem !csr,pv0,ae0,pv1,ae1. 
-  (KeyGenClient(csr,pv0,ae0) /\ KeyGenClient(csr,pv1,ae1)) => (pv0=pv1 /\ ae0 = ae1) 
+theorem !csr,pv0,ae0,ext0,pv1,ae1,ext1. 
+  (KeyCommit(csr,pv0,ae0,ext0) /\ KeyCommit(csr,pv1,ae1,ext1)) => (pv0=pv1 /\ ae0 = ae1 /\ ext0=ext1) 
+theorem !csr,pv0,ae0,ext0,pv1,ae1,ext1. 
+  (KeyGenClient(csr,pv0,ae0,ext0) /\ KeyGenClient(csr,pv1,ae1,ext1)) => (pv0=pv1 /\ ae0 = ae1 /\ ext0=ext1) 
 
 // ``the honest participants of handshake with this csr use matching aeAlgs'' 
 predicate Match of id 
-definition !i:id. Match(i) <=> KeyCommit(i.csrConn,i.pv,i.aeAlg) /\ KeyGenClient(i.csrConn,i.pv,i.aeAlg)
+definition !i:id. Match(i) <=> KeyCommit(i.csrConn,i.pv,i.aeAlg,i.ext) /\ KeyGenClient(i.csrConn,i.pv,i.aeAlg,i.ext)
 
 // -----------------------------------------------------------------------
 // The two main safety properties for the record layer
@@ -465,7 +465,7 @@ definition !e:epoch. IsSuccEpoch(e) => Id(e) =
     pv      = EpochSI(e).protocol_version; // should be part of aeAlg 
     aeAlg   = SIaeAlg(EpochSI(e));
     csrConn = EpochCSRands(e);
-    ext	= EpochSI(e).extensions;
+    ext	= EpochSI(e).extensions; // should be part of aeAlg 
     writer  = EpochWriter(e);  }
 
 ask !e. IsInitEpoch(e) => Id(e) = noId

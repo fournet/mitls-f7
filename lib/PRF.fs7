@@ -2,31 +2,21 @@ module PRF
 
 // This module implements the PRFs keyed by master secrets, 
 // for two purposes: MACing the verifyData and deriving the connection keys. 
-// (CRE independently implements extraction.
-// TLS uses the same hash function based techniques for this, 
-// i.e. PRFs keyed by pre master secrets.)
-
-// CF We currently perform several successive steps with a single #ideal
-// CF - a crypto-agile PRF assumption on kdf + verifyData 
-// CF - a lossless "reverse inlining" of StAE.GEN (at consistent CSRs)
-// CF - a reduction from PRF to INT-CMA, with a loss due to tag collisions only. 
-// CF We may consider splitting this file accordingly. 
-// CF but note that we still need an assumption covering all usages of MS.
+// (KEF independently implements extraction. TLS uses the same hash function 
+//  based techniques for this,  i.e. PRFs keyed by pre master secrets.)
+//
+// We currently perform several successive steps with a single #ideal
+//  - a crypto-agile PRF assumption on kdf + verifyData 
+//  - a lossless "reverse inlining" of StAE.GEN (at consistent CSRs)
+//  - a reduction from PRF to INT-CMA, with a loss due to tag collisions only. 
+//
+// We may consider structuring this file accordingly, but note that the first 
+// step models a single assumption covering all usages of MS.
  
 open Bytes
 open TLSConstants
 open TLSInfo
 open StatefulLHAE
-
-// Master secrets are used to derive key materials. 
-// Compared with standard (non-tls) key derivation,
-// - the label is hardcoded & implicit; 
-// - the context/seed, i.e. (crandom @| srandom), is retrieved from the epoch
-// MK: we use the concept of seed in very confusing ways. It appears in the RFC, 
-// MK: and I propose to continue using it in TLSPRF in the same way. 
-// MK: here (crandom @| srandom) is more like a context which guarantees that
-// MK: we do not generate the same keys for different sessions.
-// MK: in CRE we may indeed use seeds as used in the theory of extractors
 
 type repr = (;48)lbytes
 
@@ -35,6 +25,7 @@ private type (;i:msId) ms = {bytes: repr}
 
 // This index additionally records the *local* session info.
 // CF consider using ms everywhere instead of masterSecret.
+// MK that should be quite easy, and I at least locally using only ms now.
 type (;si:SessionInfo) masterSecret = (;MsI(si)) ms
 //#end-abstraction
 
@@ -54,9 +45,9 @@ val sample: i:msId -> (;i)ms
 //#begin-coerce
 
 //the precondition of coerce excludes both idealizations.
-
-// MK this is checked by the following ask in TLSInfo
-// MK   ask !si. not HonestMS(MsI(si)) => not SafeVD(SiId(si)) /\ not SafeKDF(i)
+// this is checked by the following asks in TLSInfo
+//  ask !si:SessionInfo. not HonestMS(MsI(si)) => not SafeVD(si) 
+//  ask !i:id. not HonestMS(i.msId) => not SafeKDF(i) 
 val coerce: i:msId {not HonestMS(i)} -> repr -> (;i)ms 
 
 //#end-coerce
@@ -72,16 +63,25 @@ definition (!mac.     KeyExtensionLength(MACOnly(mac)) = 2*MacKeySize(mac)) /\
 
 val keyExtensionLength: ae:aeAlg -> n:nat { n=KeyExtensionLength(ae) }
 
-//CF not sure the refinement is right, and why it was not on deriveKeys. Commenting out for now
-//MK It's probably right. I removed it from deriveKeys to get more meaningful typechecking errors during debugging.
-//MK Was just copied over from keyGen. Should add it back.
+//CF not sure the refinement is right
 type (;rdId:id,wrId:id) derived =  
-  ( r:(;rdId) StatefulLHAE.reader * w:(;wrId)StatefulLHAE.writer ) 
-  { wrId = Swap(rdId)  /\
-    StatefulLHAE.History(rdId,Reader,r) = 
+  r:(;rdId) StatefulLHAE.reader * w:(;wrId)StatefulLHAE.writer
+  { wrId = Swap(rdId) /\  
+    StatefulLHAE.History(rdId,Reader,r) = //TODO add back history initialization
     StatefulPlain.EmptyHistory(rdId) /\
     StatefulLHAE.History(wrId,Writer,w) = 
-    StatefulPlain.EmptyHistory(wrId) }
+    StatefulPlain.EmptyHistory(wrId) 
+	}
+
+// Master secrets are used to derive key materials. 
+// Compared with standard (non-tls) key derivation,
+// - the label is hardcoded & implicit; 
+// - the context/seed, i.e. (crandom @| srandom), is retrieved from the id
+// MK: we use the concept of seed in very confusing ways. It appears in the RFC, 
+// MK: and I propose to continue using it in TLSPRF in the same way. 
+// MK: here (crandom @| srandom) is more like a context which guarantees that
+// MK: we do not generate the same keys for different sessions.
+// MK: in KEF we may indeed use seeds as used in the theory of extractors
 
 private val deriveRawKeys: 
   i: id -> (;i.msId)ms -> (;LHAE.KeySize(i.aeAlg)) lbytes * (;LHAE.KeySize(i.aeAlg)) lbytes 
@@ -112,7 +112,7 @@ private val deriveKeys:
 // 
 // predicate val SafeKDF: csr -> bool
 // definition SafeKDF(id) <=> HonestMS(id.msId) /\ StrongKDF(id.kdfAlg) /\ 
-//                            KeyCommit(id.csrConn,id.pv,id.aeAlg) /\ KeyGenClient(id.csrConn,id.pv,id.aeAlg)  
+//                            KeyCommit(id.csrConn,id.pv,id.aeAlg,id.ext) /\ KeyGenClient(id.csrConn,id.pv,id.aeAlg,id.ext)  
 
 
 // See comments in the code as we assume Mismatch to reflect freshness assumptions.
@@ -123,7 +123,7 @@ private theorem !id. Mismatch(id) => not AuthId(id)
 
 type (;csr: csrands) state =
   | Init
-  | Committed of pv:ProtocolVersion * ae:aeAlg { KeyCommit(csr,pv,ae) }
+  | Committed of pv:ProtocolVersion * ae:aeAlg * ext:negotiatedExtensions{ KeyCommit(csr,pv,ae, ext) }
   // The server has committed to using at most this algorithmn with this csr.
   // --------> 
   | Derived of rdId:id * wrId:id * (;rdId,wrId) derived //CF { Match(rdId)} // known, not used here so far
@@ -147,7 +147,7 @@ val read: csr:csrands -> kdentry list -> (;csr) state
 val update: csr:csrands -> (;csr) state -> kdentry  list -> kdentry list  
 
 // Ideally, the server commits to using at most 
-// an si with pv and aeAlg for keyGen with matching (si.cr,si.sr)
+// an si with pv, aeAlg and ext for keyGen with matching (si.cr,si.sr)
 // MK do we really mean si.init_crand and si.init_srand here?
 // MK and not epochCSRands? 
 
@@ -156,24 +156,26 @@ val update: csr:csrands -> (;csr) state -> kdentry  list -> kdentry list
 
 //CF to circumvent F7 limitations.
 private val commit:  
-  csr:csrands -> pv:ProtocolVersion -> ae:aeAlg { KeyCommit(csr,pv,ae) } -> (;csr) state
+  csr:csrands -> pv:ProtocolVersion -> ae:aeAlg -> ext:negotiatedExtensions { KeyCommit(csr,pv,ae,ext) } -> (;csr) state
 
 //CF no clue why it does not typecheck if we rename x,y to rdId,wrId.
 private val wrap:
   x: id -> y: id { y = Swap(x) } -> 
-  r:(;y) StatefulLHAE.reader -> w:(;x)StatefulLHAE.writer -> 
-  (;y,x) derived   
+  r:(;x)StatefulLHAE.reader{StatefulLHAE.History (x, TLSInfo.Reader, r) = StatefulPlain.EmptyHistory (x)} -> 
+  w:(;y)StatefulLHAE.writer{StatefulLHAE.History (y, TLSInfo.Writer, w) = StatefulPlain.EmptyHistory (y)} -> 
+  (;x,y) derived
+
 private val wrap2:
   x: id -> y: id -> (;x,y) derived -> csr:csrands -> (;csr) state
 
   
 val keyCommit: 
-  csrConn:csrands -> pv:ProtocolVersion -> ae:aeAlg -> 
-  unit { KeyCommit(csrConn,pv,ae) } 
+  csrConn:csrands -> pv:ProtocolVersion -> ae:aeAlg -> ext:negotiatedExtensions ->
+  unit { KeyCommit(csrConn,pv,ae,ext) } 
 
 val keyGenClient: 
   rdId: id -> wrId: id { wrId = Swap(rdId) } ->
-  (;rdId.msId)ms -> (;rdId,wrId) derived  { KeyGenClient(rdId.csrConn,rdId.pv,rdId.aeAlg) }
+  (;rdId.msId)ms -> (;rdId,wrId) derived  { KeyGenClient(rdId.csrConn,rdId.pv,rdId.aeAlg,rdId.ext) }
 
 val keyGenServer:  
   rdId: id -> wrId: id { wrId = Swap(rdId) } ->
@@ -193,8 +195,8 @@ definition SafeHS(si) <=> !r:Role.
      SafeVD(si)
 
  In HS, we have 
-  - KeyGenClient(id.csrConn, id.pv, id.aeAlg) for id=Id(e) is a precondition to the event ClientSentCCS(e)
-  - KeyCommit(id.csrConn, id.pv, id.aeAlg)    for id=Id(e) is a precondition to the event ServerSentCCS(e)
+  - KeyGenClient(id.csrConn, id.pv, id.aeAlg, id.ext) for id=Id(e) is a precondition to the event ClientSentCCS(e)
+  - KeyCommit(id.csrConn, id.pv, id.aeAlg, id.ext)    for id=Id(e) is a precondition to the event ServerSentCCS(e)
   - HonestMS /\ StrongVD are sufficient to guarantee 
     matching ClientSentCCS(e) and ServerSentCCS(e), hence getting 
      (1) SafeKDF, and 
@@ -232,17 +234,17 @@ private val log: entry list ref
 private val mem: i:msId -> r:Role -> t:text -> entry list -> b:bool{ b=true => VerifyData(i,r,t) }
 //private val cons: si:SessionInfo -> tag -> r:Role -> t:text {VerifyData(si,r,t)} -> entry list -> entry list
 
-private val verifyData: si:SessionInfo -> (;si) masterSecret -> r:Role -> t:text -> tag 
+private val verifyData: si:SessionInfo -> (;MsI(si)) ms -> r:Role -> t:text -> tag 
 
 // MACing 
 val makeVerifyData: 
-  si:SessionInfo -> (;si) masterSecret -> 
+  si:SessionInfo -> (;MsI(si)) ms -> 
   r:Role -> t:text{VerifyData(MsI(si),r,t)} -> 
   tag (* length depends on cs, 12 by default *)
 
 // MAC verifying 
 val checkVerifyData: 
-  si:SessionInfo -> (;si) masterSecret ->
+  si:SessionInfo -> (;MsI(si)) ms ->
   r:Role -> t:text -> tag:tag (* the expected value *) ->
   b:bool{(b = true /\ SafeVD(si)) => VerifyData(MsI(si),r,t)} 
   
@@ -251,7 +253,7 @@ val checkVerifyData:
 
 //CF we need to exclude calls to this function when SafeHS_SI(si)!
 val ssl_certificate_verify: 
-  si:SessionInfo -> (;si)masterSecret ->
+  si:SessionInfo -> (;MsI(si)) ms ->
   TLSConstants.sigAlg -> bytes -> bytes
 
 
