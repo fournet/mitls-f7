@@ -28,4 +28,4 @@ let rec mkHelloRandom(): bytes =
     Cr
     #endif
 
-let noCsr = random 64
+let noCsr = random 64 //TODO set to a constant value that has a negligible probability of being sampled instead, excluded it in idealization
