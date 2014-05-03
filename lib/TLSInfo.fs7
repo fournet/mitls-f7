@@ -391,16 +391,6 @@ val pv_of_id: i:id -> pv:ProtocolVersion {pv=PvOfId(i)}
 
 val kdfAlg_of_id: id -> kdfAlg //TODO add and specify
 
-// This index is safe for MS-based key derivation
-predicate SafeKDF of id 
-definition !i:id. SafeKDF(i) <=> HonestMS(i.msId) /\ StrongKDF(i.kdfAlg)
-val safeKDF: (i:id) -> b:bool { b=true <=> SafeKDF(i) }
-
-// HonestMS(msi) conditions both idealizations in PRF.
-ask !si:SessionInfo. not HonestMS(MsI(si)) => not SafeVD(si) 
-ask !i:id. not HonestMS(i.msId) => not SafeKDF(i) 
- 
-
 // -----------------------------------------------------------------------
 // Safety of key derivation depends on matching algorithms (see PRF)
 
@@ -419,6 +409,16 @@ theorem !csr,pv0,ae0,ext0,pv1,ae1,ext1.
 predicate Match of id 
 definition !i:id. Match(i) <=> KeyCommit(i.csrConn,i.pv,i.aeAlg,i.ext) /\ KeyGenClient(i.csrConn,i.pv,i.aeAlg,i.ext)
 
+// This index is safe for MS-based key derivation
+predicate SafeKDF of id 
+definition !i:id. SafeKDF(i) <=> HonestMS(i.msId) /\ StrongKDF(i.kdfAlg) /\ Match(i)
+val safeKDF: (i:id) -> b:bool { b=true <=> SafeKDF(i) }
+
+// HonestMS(msi) conditions both idealizations in PRF.
+ask !si:SessionInfo. not HonestMS(MsI(si)) => not SafeVD(si) 
+ask !i:id. not HonestMS(i.msId) => not SafeKDF(i)
+
+
 // -----------------------------------------------------------------------
 // The two main safety properties for the record layer
 
@@ -436,8 +436,8 @@ predicate SafeId of id
 val authId: (i:id) -> b:bool {b = true <=> AuthId(i)}
 val safeId : (i:id) -> b:bool {b = true <=> SafeId(i)}
 
-definition !i. AuthId(i) <=> SafeKDF(i) /\ Match(i) /\ StrongAuthId(i)
-definition !i. SafeId(i) <=> SafeKDF(i) /\ Match(i) /\ StrongAEId(i) 
+definition !i. AuthId(i) <=> SafeKDF(i) /\ StrongAuthId(i)
+definition !i. SafeId(i) <=> SafeKDF(i) /\ StrongAEId(i) 
 
 ask !i.     SafeId(i) => AuthId(i)
 ask !i,mac. i.aeAlg  = MACOnly(mac) => not SafeId(i)
