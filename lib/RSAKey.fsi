@@ -1,7 +1,7 @@
 ﻿module RSAKey
 
 type sk
-type pk
+type pk = { pk : CoreACiphers.pk }
 
 type modulus  = Bytes.bytes
 type exponent = Bytes.bytes

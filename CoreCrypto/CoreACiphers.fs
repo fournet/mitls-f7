@@ -3,6 +3,8 @@ open Bytes
 
 open Org.BouncyCastle.Math
 open Org.BouncyCastle.Crypto
+open Org.BouncyCastle.Security
+open Org.BouncyCastle.Crypto.Generators
 open Org.BouncyCastle.Crypto.Encodings
 open Org.BouncyCastle.Crypto.Engines
 open Org.BouncyCastle.Crypto.Parameters
@@ -15,6 +17,18 @@ type pk = RSAPKey of CoreKeys.rsapkey
 
 type plain = bytes
 type ctxt  = bytes
+
+//needs to be peer-reviewed and pen-tested
+let gen_key () : sk * pk =
+    let kparams  = new RsaKeyGenerationParameters(BigInteger("65537"),new SecureRandom(), 2048, 80) in
+    let kgen     = new RsaKeyPairGenerator() in
+        kgen.Init(kparams);
+        let kpair = kgen.GenerateKeyPair() in
+        let pkey  = (kpair.Public  :?> RsaKeyParameters ) in
+        let skey  = (kpair.Private :?> RsaPrivateCrtKeyParameters) in
+            (RSASKey(abytes (skey.Modulus.ToByteArrayUnsigned()), abytes(skey.Exponent.ToByteArrayUnsigned())), 
+             RSAPKey(abytes (pkey.Modulus.ToByteArrayUnsigned()), abytes(pkey.Exponent.ToByteArrayUnsigned()))
+            )
 
 let encrypt_pkcs1 (RSAPKey (m, e)) (plain : plain) =
     let m, e   = new BigInteger(1, cbytes m), 

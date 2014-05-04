@@ -8,8 +8,8 @@
 
 open Bytes
 
-type sk (* secret (decryption) key, abstract for honest keys *)
-type pk (* public (encryption) key, abstract but bytes are accessible *)
+private type sk = { sk : CoreACiphers.sk } (* secret (decryption) key, abstract for honest keys *)
+private type pk = { pk : CoreACiphers.pk } (* public (encryption) key, abstract but bytes are accessible *)
 
 type modulus  = bytes
 type exponent = bytes
@@ -19,11 +19,11 @@ type exponent = bytes
 predicate Honest of pk
 val honest: pk:pk -> b:bool {b=true <=> Honest(pk)}
 
+predicate type pred = SK_PK of sk * pk
 function val PK: sk -> pk
-val gen: unit -> p:pk * s:sk {p = PK(s)}
+private definition !sk,pk. pk=PK(sk) <=> SK_PK(sk,pk)
 
-//val pkey:      CoreACiphers.pk -> pk
-//val pkey_repr: pk -> CoreACiphers.pk
+val gen: unit -> p:pk * s:sk{p = PK(s)}
 
 val coerce: p:pk {not Honest(p)}     -> CoreACiphers.sk -> s:sk{p = PK(s)}
 
@@ -34,7 +34,7 @@ val coerce: p:pk {not Honest(p)}     -> CoreACiphers.sk -> s:sk{p = PK(s)}
 val repr_of_rsapkey : pk -> CoreACiphers.pk
 val repr_of_rsaskey : sk -> CoreACiphers.sk
 
-(* TODO: to be adjusted depending on the compromise model in Cert & renamed to ...of_repr
+// shouldn't be needed as representation of pk need not be private
 val create_rsapkey : modulus * exponent -> pk
+// should be replaced by coerce
 val create_rsaskey : modulus * exponent -> sk
-*)

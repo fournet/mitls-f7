@@ -18,6 +18,8 @@ predicate val Msg: id * text -> bool
 
 type tag = m:bytes {Length(m) = MacKeySize(a)}
 
+val GEN: 
+  ki:id -> (;ki) key
 val Mac:       
   ki:id -> (;ki) key -> 
   t:text {Msg(ki,t)} -> tag
@@ -25,8 +27,6 @@ val Verify:
   ki:id -> (;ki) key -> t:text -> 
   tag -> b:bool { b=true => Msg(ki,t) }
 
-val GEN: 
-  ki:id -> (;ki) key
 
 (* typing the log for the ideal functionality *)
  
