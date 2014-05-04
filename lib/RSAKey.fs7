@@ -1,7 +1,5 @@
 ﻿module RSAKey
 
-(* This module is not typechecked *)
-
 // This module defines RSA keys
 // but not their use for public-key encryption: see RSA
 // (We use two modules to break a circular dependency)
@@ -9,7 +7,7 @@
 open Bytes
 
 private type sk = { sk : CoreACiphers.sk } (* secret (decryption) key, abstract for honest keys *)
-private type pk = { pk : CoreACiphers.pk } (* public (encryption) key, abstract but bytes are accessible *)
+type pk = { pk : CoreACiphers.pk } (* public (encryption) key, bytes are accessible *)
 
 type modulus  = bytes
 type exponent = bytes
