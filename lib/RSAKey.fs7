@@ -12,17 +12,16 @@ type pk = { pk : CoreACiphers.pk } (* public (encryption) key, bytes are accessi
 type modulus  = bytes
 type exponent = bytes
 
-(* Used only for specification *)
-
+//marks honestly generated keys
 predicate Honest of pk
 val honest: pk:pk -> b:bool {b=true <=> Honest(pk)}
 
+//marks relationship between secret and public keys
 predicate type pred = SK_PK of sk * pk
 function val PK: sk -> pk
 private definition !sk,pk. pk=PK(sk) <=> SK_PK(sk,pk)
 
 val gen: unit -> p:pk * s:sk{p = PK(s)}
-
 val coerce: p:pk {not Honest(p)}     -> CoreACiphers.sk -> s:sk{p = PK(s)}
 
 //in a model with adversarially provided keys and static corruption leak is not essential
