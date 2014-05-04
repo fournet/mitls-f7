@@ -124,8 +124,8 @@ type kexAlg =  (* all these kex have server auth & optional client auth, *)
     | DH_anon // --> g^x ; <-- g^y then pms = g^xy ; secure only against passive adversaries
 
 predicate PRF of ProtocolVersion * macAlg
-predicate CRE_DH of ProtocolVersion * macAlg
-predicate CRE_RSA of ProtocolVersion * macAlg
+predicate KEF_DH of ProtocolVersion * macAlg
+predicate KEF_RSA of ProtocolVersion * macAlg
 // In the paper, these are global assumptions. Here we get StrongHS even if one of them is false.
 
 
@@ -367,17 +367,17 @@ val kdf_label: l:prflabel {l=Utf8("key expansion")}
 //TODO Beware, those refinements are not visible. 
 
 type prfAlg' =  
-  | CRE_SSL3_nested        // MD5(SHA1(...)) for extraction and keygen
-  | CRE_TLS_1p01 of prflabel          // MD5 xor SHA1
-  | CRE_TLS_1p2 of prflabel * macAlg  // typically SHA256 but may depend on CS
+  | KEF_SSL3_nested        // MD5(SHA1(...)) for extraction and keygen
+  | KEF_TLS_1p01 of prflabel          // MD5 xor SHA1
+  | KEF_TLS_1p2 of prflabel * macAlg  // typically SHA256 but may depend on CS
 
-type creAlg = pa:prfAlg' 
+type kefAlg = pa:prfAlg' 
 { 
-  pa=CRE_SSL3_nested \/ 
-  pa=CRE_TLS_1p01(extract_label) \/
-  pa=CRE_TLS_1p01(extended_extract_label) \/
-  (?ma. pa=CRE_TLS_1p2(extract_label,ma)) \/ 
-  (?ma. pa=CRE_TLS_1p2(extended_extract_label,ma)) }
+  pa=KEF_SSL3_nested \/ 
+  pa=KEF_TLS_1p01(extract_label) \/
+  pa=KEF_TLS_1p01(extended_extract_label) \/
+  (?ma. pa=KEF_TLS_1p2(extract_label,ma)) \/ 
+  (?ma. pa=KEF_TLS_1p2(extended_extract_label,ma)) }
 
 type prfAlg = ProtocolVersion * cipherSuite // TODO write supporting specs and functions
 type kdfAlg = ProtocolVersion * cipherSuite // TODO write supporting specs and functions

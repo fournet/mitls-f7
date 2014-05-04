@@ -142,7 +142,7 @@ definition !ci,cfg. Complete(ci,cfg) <=>
 ask !ci,cfg.	
     Complete(ci,cfg) /\
     HonestPMS(EpochSI(ci.id_in).pmsId) /\	
-    StrongCRE(CreAlg(EpochSI(ci.id_in))) /\
+    StrongKEF(KefAlg(EpochSI(ci.id_in))) /\
     StrongVD(VdAlg(EpochSI(ci.id_in))) /\
     StrongKDF(KdfAlg(EpochSI(ci.id_in))) /\
     StrongAE(ci.id_in) => Safe(ci.id_in)
@@ -150,7 +150,7 @@ ask !ci,cfg.
 ask !ci,cfg.	
     Complete(ci,cfg) /\
     HonestPMS(EpochSI(ci.id_in).pmsId) /\	
-    StrongCRE(CreAlg(EpochSI(ci.id_in))) /\
+    StrongKEF(KefAlg(EpochSI(ci.id_in))) /\
     StrongVD(VdAlg(EpochSI(ci.id_in))) /\
     StrongKDF(KdfAlg(EpochSI(ci.id_in))) /\
     StrongAuth(ci.id_in) => Auth(ci.id_in)
@@ -158,7 +158,7 @@ ask !ci,cfg.
 ask !ci,cfg.	
     Complete(ci,cfg) /\
     HonestPMS(EpochSI(ci.id_out).pmsId) /\	
-    StrongCRE(CreAlg(EpochSI(ci.id_out))) /\
+    StrongKEF(KefAlg(EpochSI(ci.id_out))) /\
     StrongVD(VdAlg(EpochSI(ci.id_out))) /\
     StrongKDF(KdfAlg(EpochSI(ci.id_out))) /\
     StrongAE(ci.id_out) => Safe(ci.id_out)
@@ -166,7 +166,7 @@ ask !ci,cfg.
 ask !ci,cfg.	
     Complete(ci,cfg) /\
     HonestPMS(EpochSI(ci.id_out).pmsId) /\	
-    StrongCRE(CreAlg(EpochSI(ci.id_out))) /\
+    StrongKEF(KefAlg(EpochSI(ci.id_out))) /\
     StrongVD(VdAlg(EpochSI(ci.id_out))) /\
     StrongKDF(KdfAlg(EpochSI(ci.id_out))) /\
     StrongAuth(ci.id_out) => Auth(ci.id_out)

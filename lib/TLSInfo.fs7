@@ -108,10 +108,10 @@ private definition !p,g,gx,gy,dhpms.  StrongDHKEX(SomePmsId(PMS.DHPMS(p,g,gx,gy,
 // -------------------------------------------------------------------
 // master-secret indexes and their properties
 
-// ``creAlg is a strong randomness extractor, despite all other creAlgs''
+// ``kefAlg is a strong randomness extractor, despite all other kefAlgs''
 // guarding idealization in KEF
-predicate StrongCRE of creAlg 
-val strongCRE: ca:creAlg -> b:bool {b=true <=> StrongCRE(ca)}
+predicate StrongKEF of kefAlg 
+val strongKEF: ca:kefAlg -> b:bool {b=true <=> StrongKEF(ca)}
 
 // guarding idealizations for KDF and VerifyData (see PRF.fs)
 predicate StrongKDF   of kdfAlg
@@ -120,13 +120,13 @@ predicate StrongVD    of vdAlg
 type msId =        // We record the parameters used to derive this MS: 
   pms   : pmsId *     // the pms and its indexes  
   csr   : csrands *   // the nonces  
-  creAlg: creAlg      // the PMS-PRF algorithm
+  kefAlg: kefAlg      // the PMS-PRF algorithm
 // CF We cannot use just csr, because of MiTM forwarding honest nonces
 
 // ``the MS at this index is abstractly generated and used within PRF''
 predicate HonestMS of msId 
 definition !msi. 
-  HonestMS(msi) <=> (?pmsId,csr,creAlg. msi = (pmsId,csr,creAlg) /\ HonestPMS(pmsId) /\ StrongCRE(creAlg))
+  HonestMS(msi) <=> (?pmsId,csr,kefAlg. msi = (pmsId,csr,kefAlg) /\ HonestPMS(pmsId) /\ StrongKEF(kefAlg))
 //CF are we missing a correlation with csr? 
 //MK we don't allow leak, so every MS derived from an 
 //MK HonestPMS with strong KEF algorithms is honest?
@@ -175,18 +175,18 @@ function val PrfAlg:  SessionInfo -> prfAlg
 definition !si.  PrfAlg(si) = (si.protocol_version,si.cipher_suite)
 val prfAlg: si:SessionInfo -> a:prfAlg {a=PrfAlg(si)}
 
-function val CreAlg:  SessionInfo -> creAlg
-definition !si. (si.protocol_version = SSL_3p0 => CreAlg(si) = CRE_SSL3_nested ) /\
-				(si.protocol_version = TLS_1p0 => CreAlg(si) = CRE_TLS_1p01(extract_label)    ) /\
-				(si.protocol_version = TLS_1p1 => CreAlg(si) = CRE_TLS_1p01(extract_label)    ) /\
-				(si.protocol_version = TLS_1p2 => CreAlg(si) = CRE_TLS_1p2(extract_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
-val creAlg: si:SessionInfo -> a:creAlg {a=CreAlg(si)}
-function val CreAlgExtended:  SessionInfo -> creAlg
-definition !si. (si.protocol_version = SSL_3p0 => CreAlgExtended(si) = CRE_SSL3_nested ) /\
-				(si.protocol_version = TLS_1p0 => CreAlgExtended(si) = CRE_TLS_1p01(extended_extract_label)    ) /\
-				(si.protocol_version = TLS_1p1 => CreAlgExtended(si) = CRE_TLS_1p01(extended_extract_label)    ) /\
-				(si.protocol_version = TLS_1p2 => CreAlgExtended(si) = CRE_TLS_1p2(extended_extract_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
-val creAlg_extended: si:SessionInfo -> a:creAlg {a=CreAlgExtended(si)}
+function val KefAlg:  SessionInfo -> kefAlg
+definition !si. (si.protocol_version = SSL_3p0 => KefAlg(si) = KEF_SSL3_nested ) /\
+				(si.protocol_version = TLS_1p0 => KefAlg(si) = KEF_TLS_1p01(extract_label)    ) /\
+				(si.protocol_version = TLS_1p1 => KefAlg(si) = KEF_TLS_1p01(extract_label)    ) /\
+				(si.protocol_version = TLS_1p2 => KefAlg(si) = KEF_TLS_1p2(extract_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
+val kefAlg: si:SessionInfo -> a:kefAlg {a=KefAlg(si)}
+function val KefAlgExtended:  SessionInfo -> kefAlg
+definition !si. (si.protocol_version = SSL_3p0 => KefAlgExtended(si) = KEF_SSL3_nested ) /\
+				(si.protocol_version = TLS_1p0 => KefAlgExtended(si) = KEF_TLS_1p01(extended_extract_label)    ) /\
+				(si.protocol_version = TLS_1p1 => KefAlgExtended(si) = KEF_TLS_1p01(extended_extract_label)    ) /\
+				(si.protocol_version = TLS_1p2 => KefAlgExtended(si) = KEF_TLS_1p2(extended_extract_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
+val kefAlg_extended: si:SessionInfo -> a:kefAlg {a=KefAlgExtended(si)}
 
 function val KdfAlg:  SessionInfo -> kdfAlg
 definition !si.  KdfAlg(si) = (si.protocol_version,si.cipher_suite)
@@ -202,7 +202,7 @@ definition !si. SIaeAlg(si) = CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_
 // Getting master-secret indexes out of SessionInfo
 
 function val MsI: SessionInfo -> msId
-definition !si. MsI(si) = (si.pmsId, CSRands(si), CreAlg(si)) 
+definition !si. MsI(si) = (si.pmsId, CSRands(si), KefAlg(si)) 
 val msi: si:SessionInfo -> i:msId { i = MsI(si) }
 
 // Strengths of Handshake algorithms 
@@ -222,7 +222,7 @@ definition !si. StrongPRF(si) <=> StrongKDF(KdfAlg(si)) /\ StrongVD(VdAlg(si))
 predicate StrongHS of SessionInfo 
 definition !si. StrongHS(si) <=> 
   (   (StrongRSAKEX(si.pmsId) \/ StrongDHKEX(si.pmsId)) /\ 
-      StrongCRE(CreAlg(si)) /\ 
+      StrongKEF(KefAlg(si)) /\ 
 	  StrongPRF(si) /\ 
 	  StrongSig(si) ) //CF * hashAlg for certs?
 

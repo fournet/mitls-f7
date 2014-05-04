@@ -62,9 +62,9 @@ let noPmsId = NoPmsId
 type msId = 
   pmsId * 
   csrands *                                          
-  creAlg  
+  kefAlg  
 
-let noMsId = noPmsId, noCsr, CRE_SSL3_nested    
+let noMsId = noPmsId, noCsr, KEF_SSL3_nested    
 
 type SessionInfo = {
     init_crand: crand;
@@ -87,19 +87,19 @@ let csrands sinfo =
 let prfAlg (si:SessionInfo) = 
   si.protocol_version, si.cipher_suite
 
-let creAlg (si:SessionInfo) =
+let kefAlg (si:SessionInfo) =
   match si.protocol_version with
-  | SSL_3p0           -> CRE_SSL3_nested 
-  | TLS_1p0 | TLS_1p1 -> let x = CRE_TLS_1p01(extract_label) in x
+  | SSL_3p0           -> KEF_SSL3_nested 
+  | TLS_1p0 | TLS_1p1 -> let x = KEF_TLS_1p01(extract_label) in x
   | TLS_1p2           -> let ma = prfMacAlg_of_ciphersuite si.cipher_suite
-                         CRE_TLS_1p2(extract_label,ma)
+                         KEF_TLS_1p2(extract_label,ma)
 
-let creAlg_extended (si:SessionInfo) =
+let kefAlg_extended (si:SessionInfo) =
   match si.protocol_version with
-  | SSL_3p0           -> CRE_SSL3_nested 
-  | TLS_1p0 | TLS_1p1 -> let x = CRE_TLS_1p01(extended_extract_label) in x
+  | SSL_3p0           -> KEF_SSL3_nested 
+  | TLS_1p0 | TLS_1p1 -> let x = KEF_TLS_1p01(extended_extract_label) in x
   | TLS_1p2           -> let ma = prfMacAlg_of_ciphersuite si.cipher_suite
-                         CRE_TLS_1p2(extended_extract_label,ma) 
+                         KEF_TLS_1p2(extended_extract_label,ma) 
 
 let kdfAlg (si:SessionInfo) = 
   si.protocol_version, si.cipher_suite
@@ -110,7 +110,7 @@ let vdAlg (si:SessionInfo) =
 
 let msi (si:SessionInfo) = 
   let csr = csrands si
-  let ca = creAlg si
+  let ca = kefAlg si
   (si.pmsId, csr, ca) 
 
 
@@ -330,7 +330,7 @@ let honestPMS (pi:pmsId) : bool =
     | SomePmsId(PMS.DHPMS(p,g,gx,gy,dhpms)) -> PMS.honestDHPMS p g gx gy dhpms 
     | _ -> false
 
-let strongCRE (ca:creAlg) = failwith "spec only": bool
+let strongKEF (ca:kefAlg) = failwith "spec only": bool
 
 // These functions are used only for specifying ideal implementations
 let safeHS (e:epoch) = failwith "spec only": bool

@@ -30,7 +30,7 @@ open PMS
 let private extractMS si pmsBytes : PRF.masterSecret =
     let cs = si.cipher_suite in
     let data = csrands si in
-    let ca = creAlg si in
+    let ca = kefAlg si in
     let res = TLSPRF.extract ca pmsBytes data 48 in
     let i = msi si
     PRF.coerce i res
@@ -40,7 +40,7 @@ let private extractMS si pmsBytes : PRF.masterSecret =
     
     When called on the same values again, the corresponding master secret is retrieved from a secret log. 
 
-    This is done only for pms for which honestRSAPMS is true and (crefAlg si) is strong.
+    This is done only for pms for which honestRSAPMS is true and (kefAlg si) is strong.
     Note that in this way many idealized master secrets can be derived from the same pms. *)
 
 let private accessRSAPMS (pk:RSAKey.pk) (cv:ProtocolVersion) pms = 
@@ -90,7 +90,7 @@ let extract si pms: PRF.masterSecret =
 type log = bytes
 
 let private extractMS_extended si pmsBytes : PRF.masterSecret =
-    let ca = creAlg_extended si in
+    let ca = kefAlg_extended si in
     let sh = si.session_hash in
     let res = TLSPRF.extract ca pmsBytes sh 48 in
     let i = msi si

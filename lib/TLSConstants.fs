@@ -473,12 +473,12 @@ let extended_extract_label = utf8 "extended master secret"
 let kdf_label     = utf8 "key expansion" 
 
 type prfAlg' =
-  | CRE_SSL3_nested        // MD5(SHA1(...)) for extraction and keygen
-  | CRE_TLS_1p01 of prflabel          // MD5 xor SHA1
-  | CRE_TLS_1p2 of prflabel * macAlg  // typically SHA256 but may depend on CS
+  | KEF_SSL3_nested        // MD5(SHA1(...)) for extraction and keygen
+  | KEF_TLS_1p01 of prflabel          // MD5 xor SHA1
+  | KEF_TLS_1p2 of prflabel * macAlg  // typically SHA256 but may depend on CS
 
 
-type creAlg = prfAlg'
+type kefAlg = prfAlg'
  
 type prfAlg = ProtocolVersion * cipherSuite
 type kdfAlg = ProtocolVersion * cipherSuite

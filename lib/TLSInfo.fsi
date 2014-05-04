@@ -39,7 +39,7 @@ val noPmsId: pmsId
 type msId = 
   pmsId * 
   csrands *                                          
-  creAlg  
+  kefAlg  
 
 type SessionInfo = {
     init_crand: crand;
@@ -58,8 +58,8 @@ type SessionInfo = {
 
 val csrands: SessionInfo -> bytes
 val prfAlg: SessionInfo -> prfAlg  
-val creAlg: SessionInfo -> creAlg
-val creAlg_extended: SessionInfo -> creAlg  
+val kefAlg: SessionInfo -> kefAlg
+val kefAlg_extended: SessionInfo -> kefAlg  
 val kdfAlg: SessionInfo -> kdfAlg 
 val vdAlg: SessionInfo -> vdAlg  
 val msi: SessionInfo -> msId
