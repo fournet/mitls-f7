@@ -92,7 +92,7 @@ private definition !p,g,gx,gy,pms. HonestDHPMS(p,g,gx,gy,pms) <=> ?s. pms = Idea
 
 val honestDHPMS: p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt -> pms: (;p,g,gx,gy) dhpms -> b:bool { b=true <=> HonestDHPMS(p,g,gx,gy,pms) } 
 
-val sampleDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt ->  (;p,g,gx,gy) dhpms
+val sampleDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt ->  pms:(;p,g,gx,gy) dhpms{HonestDHPMS(p,g,gx,gy,pms)}
 val coerceDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt {not SafeDH(p,g,gx,gy)}-> (;p)elt -> (;p,g,gx,gy) dhpms
 //#end-abstractionDH
 
