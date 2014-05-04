@@ -33,6 +33,7 @@ val decrypt:
   
 
 // The rest of the interface is internal to RSA.fs
+
 // TODO where do we require/use that cv_check be used everywhere with Honest keys?
 // TODO explain that letting the adversary choose further strengthen our RSA assumption. 
 
@@ -52,60 +53,3 @@ private val real_decrypt:
   cv_check:bool -> (* flag whether we should check protocol version in old TLS versions *)
   ct:bytes -> (* encrypted PMS *)
   pmsb:PMS.rsarepr { cv_check=true => ?b. B(pmsb) = VersionBytes(cv) @| b} (* No Result type: in case of error, we return a fresh Nonce.random PMS *)
-
-
-
-(* CF 
-
- Markulf: this is an old discussion of the joint RSAPMS assumption. 
- May still contain some interesting insights, but has mostly been rewritten by me in the techreport.
-
- Some draft assumption discussed with Markulf on 13/9/12
- 
- let sk, pk = keyGen() // sk is private  
- 
- let sample v = v @| Nonce.random 46
- 
- let compliantClient a v Cr Sr = 
-   // a determines the prf algorithm 
-   // check that Cr is used at most once; probably irrelevant 
-   let pms  = sample v
-   let pms0 = sample v
-   log := (pms0,pms)::!log
-   encrypt pk (if b then pms else pms0),
-   prf a (pms, Cr @| Sr)  
-     
- let decryptRO a v Cr Sr c =
-   // check that Sr is used at most once
-   let pms0 = 
-     let fake = sample v
-     match decrypt sk c with 
-     | pms0 when length pms0 = 48 -> let (_,r) = split (decrypt sk c) 2 in v @| r
-     | _                          -> fake 
-   let pms = 
-     match assoc !log pms0 with 
- 	| Some(pms) when b -> pms
- 	| None             -> pms0
-   prf a (pms, Cr @| Sr)
-    
-  The adversary get pk, compliantClient, decryptRO, and prf. Its goal is to guess b. 
-    
-  when b = 0, we have a simplification of concrete TLS
-  when b = 1, the protocol is parametric in "compliant" PMSs, so we get good session keys 
-              pms becomes abstract.    
-  Hopefully we can reduce it to RSA with an extra oracle:
- 
- let old_decryptRO a v Cr Sr c =
-   // check that Sr is used at most once 
-   let (_,r) = split (decrypt sk c) 2 
-   let pms0 = v @| r 
-   let pms = try assoc !log pms0 with not_found -> pms0
-   prf a (pms, Cr @| Sr)
-    
-    
- let ptxt plain cipher = (decrypt sk cipher = plain) // possibly after erasing some bytes 
-    
-  I am puzzled that we do not use the cipher-integrity guarantee provided by the ClientFinished check
-  informally, the adversary would need to extract the pms to forge a Finished for any related ciphertext  
-
-*)

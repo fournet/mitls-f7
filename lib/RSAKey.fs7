@@ -22,11 +22,13 @@ val honest: pk:pk -> b:bool {b=true <=> Honest(pk)}
 function val PK: sk -> pk
 val gen: unit -> p:pk * s:sk {p = PK(s)}
 
-val pkey:      CoreACiphers.pk -> pk
-val pkey_repr: pk -> CoreACiphers.pk
+//val pkey:      CoreACiphers.pk -> pk
+//val pkey_repr: pk -> CoreACiphers.pk
 
 val coerce: p:pk {not Honest(p)}     -> CoreACiphers.sk -> s:sk{p = PK(s)}
-val leak:   s:sk {not Honest(PK(s))} -> CoreACiphers.sk
+
+//in a model with adversarially provided keys and static corruption leak is not essential
+//val leak:   s:sk {not Honest(PK(s))} -> CoreACiphers.sk 
 
 // those are morally private, used only in RSA.fs
 val repr_of_rsapkey : pk -> CoreACiphers.pk
