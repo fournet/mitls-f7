@@ -9,10 +9,6 @@ type secret = Key of bytes
 #if ideal
 type honest_entry = (p * elt)
 type good_entry = (p * g)
-// We maintain 4 logs:
-// - a log DH parameters returned by pp
-// - a log of honest gx and gy values
-// - a log for looking up good pms values using gx and gy values
 let goodPP_log = ref([]: good_entry list)
 let honest_log = ref([]: honest_entry list)
 let log = ref []
@@ -49,7 +45,7 @@ let gen_pp()     = pp (CoreDH.gen_params())
      
 let default_pp() = pp (CoreDH.load_default_params())
 
-type predHE = HonestExponent of p * g * elt
+type predHE = HonestExponential of p * g * elt
 
 let genKey p g: elt * secret =
     let ((x, _), (ce, _)) = CoreDH.gen_key (DHGroup.dhparams p g)
@@ -61,7 +57,7 @@ let genKey p g: elt * secret =
     #if ideal
     #if verify
     Pi.assume(Elt(p,e));
-    Pi.assume(HonestExponent(p,g,e));
+    Pi.assume(HonestExponential(p,g,e));
     #else
     honest_log := (p,e)::!honest_log
     #endif
