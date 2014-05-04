@@ -23,7 +23,7 @@ open RSAKey
     Taken on its own our assumption would be somewhat related to 
     RCCA security: http://eprint.iacr.org/2003/174.pdf. This would however still be 
     too strong an assumption for PKCS1. We weaken the assumption by allowing any attacker to access
-    the RSA module only through the CRE module. This has two effects:
+    the RSA module only through the KEF module. This has two effects:
 
      i) ideal PMS are sampled rather than chosen by the adversary.
     ii) only the hash values of PMS are made available to the adversary. *)  

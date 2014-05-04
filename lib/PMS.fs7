@@ -1,7 +1,7 @@
 ﻿module PMS 
 
 (* pre-master-secrets, for RSA-based and DH-based key exchanges *) 
-(* (this used to be part of CRE) *)
+(* (this used to be part of KEF) *)
 
 open Bytes
 open TLSConstants
@@ -21,19 +21,19 @@ type rsarepr = (;48)lbytes
 //CF we considered indexing it by cv & refining with ?b. it = VersionBytes(cv) @| b  
 
 //#begin-abstractionRSA
-(* private , only shared with CRE *) 
+(* private , only shared with KEF *) 
 type rsaseed = {seed:rsarepr} 
 
 // We have two layers of abstraction:
-// - rsaseed, treated abstractly almost everywhere in this module & CRE 
+// - rsaseed, treated abstractly almost everywhere in this module & KEF 
 //   we could use a separate agile PRF module & assumption
-// - rsapms, treated abstractly outside this module & CRE
+// - rsapms, treated abstractly outside this module & KEF
 //   so that we can control their usage for the RSA-PMS assumption.
 
 type (;pk:RSAKey.pk, cv:ProtocolVersion) rsapms = 
    | IdealRSAPMS    of s:rsaseed {SafeRSA(pk,cv)} // used only ideally & for abstract pms values 
    | ConcreteRSAPMS of rsarepr
-// pattern matching is used in this module & in CRE only for specifying ideal code
+// pattern matching is used in this module & in KEF only for specifying ideal code
 // so we also define ideal predicate & test for the module users:
 predicate HonestRSAPMS of pk:RSAKey.pk * cv:ProtocolVersion * (;pk,cv)rsapms
 private definition !pk,cv,pms. 
@@ -76,9 +76,9 @@ predicate SafeDH of p:DHGroup.p * (;p)DHGroup.g * (;p)DHGroup.elt * (;p)DHGroup.
 
 type dhrepr = bytes
 
-(* private , only shared with CRE *)  
+(* private , only shared with KEF *)  
 type dhseed = {seed:dhrepr} // treated abstractly almost everywhere in this file
-// - dhpms, treated abstractly outside this module & CRE
+// - dhpms, treated abstractly outside this module & KEF
 //   so that we can control their usage for the DH-PMS assumption.
 type (;p:p, g:(;p) g, gx:(;p) elt, gy:(;p) elt) dhpms =   
    | IdealDHPMS    of dhseed 

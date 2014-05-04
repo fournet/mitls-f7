@@ -109,7 +109,7 @@ private definition !p,g,gx,gy,dhpms.  StrongDHKEX(SomePmsId(PMS.DHPMS(p,g,gx,gy,
 // master-secret indexes and their properties
 
 // ``creAlg is a strong randomness extractor, despite all other creAlgs''
-// guarding idealization in CRE
+// guarding idealization in KEF
 predicate StrongCRE of creAlg 
 val strongCRE: ca:creAlg -> b:bool {b=true <=> StrongCRE(ca)}
 
@@ -129,7 +129,7 @@ definition !msi.
   HonestMS(msi) <=> (?pmsId,csr,creAlg. msi = (pmsId,csr,creAlg) /\ HonestPMS(pmsId) /\ StrongCRE(creAlg))
 //CF are we missing a correlation with csr? 
 //MK we don't allow leak, so every MS derived from an 
-//MK HonestPMS with strong CRE algorithms is honest?
+//MK HonestPMS with strong KEF algorithms is honest?
 //MK More uniformally this would go through a definition of SafeCRE.
 
 val noMsId: i:msId { not HonestMS(i) }

@@ -1,7 +1,7 @@
 module TLSPRF
 
 (* Concrete (bytes -> bytes) PRF algorithms for TLS; trusted. *)
-(* Used by CRE for extracting MS, by PRF for verifyData and key derivation *) 
+(* Used by KEF for extracting MS, by PRF for verifyData and key derivation *) 
 
 open Bytes
 open TLSConstants

@@ -6,7 +6,7 @@ open Error
 open TLSError
 open DHGroup
 
-//CF some of those types are private to PMS & CRE
+//CF some of those types are private to PMS & KEF
 
 type rsarepr = bytes
 type rsaseed = {seed: rsarepr}
