@@ -27,11 +27,14 @@ val coerce: p:pk {not Honest(p)}     -> CoreACiphers.sk -> s:sk{p = PK(s)}
 //in a model with adversarially provided keys and static corruption leak is not essential
 //val leak:   s:sk {not Honest(PK(s))} -> CoreACiphers.sk 
 
-// those are morally private, used only in RSA.fs
+// shouldn't be needed as representation of pk need not be private
 val repr_of_rsapkey : pk -> CoreACiphers.pk
+
+// morally private, used only in RSA.fs
 val repr_of_rsaskey : sk -> CoreACiphers.sk
 
 // shouldn't be needed as representation of pk need not be private
 val create_rsapkey : modulus * exponent -> pk
-// should be replaced by coerce
-val create_rsaskey : modulus * exponent -> sk
+
+// replaced by coerce
+// val create_rsaskey : modulus * exponent -> sk

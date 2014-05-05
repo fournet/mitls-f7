@@ -10,8 +10,11 @@ type exponent = Bytes.bytes
 val honest: pk -> bool
 #endif
 
-val create_rsapkey : modulus * exponent -> pk
-val create_rsaskey : modulus * exponent -> sk
+val gen: unit -> pk * sk
+val coerce: pk -> CoreACiphers.sk -> sk
 
 val repr_of_rsapkey : pk -> CoreACiphers.pk
 val repr_of_rsaskey : sk -> CoreACiphers.sk
+
+val create_rsapkey : modulus * exponent -> pk
+//val create_rsaskey : modulus * exponent -> sk

@@ -20,7 +20,7 @@ private type (;p:p,g:(;p)g,gx:(;p)elt) secret = Key of bytes
 // - a log of DH parameters returned by pp
 // - a log of honest gx and gy values
 // - a log for looking up good pms values using gx and gy values
-type honest_entry = (p:p * (;p)elt)
+type honest_entry = (p:p  * g:(;p) g * (;p)elt)
 type good_entry = (p:p * (;p)g)
 type entry = p:p * g:(;p) g * gx:(;p)elt * gy:(;p)elt * pms:(;p, g, gx, gy) PMS.dhpms{PMS.HonestDHPMS(p,g,gx,gy,pms)}
 private val honest_log: (honest_entry list) ref

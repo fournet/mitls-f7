@@ -86,7 +86,9 @@ private val has_pk: a:alg -> pk:(;a)pkey ->
           (honest_entry list) -> b:bool{(b = true => Honest(a,pk))}
 
 val pk_of: a:alg -> sk:(;a) skey -> pk:(;a) pkey{pk = PK(sk)}
-val honest: a:alg -> pk: (;a) pkey -> b:bool{(b = true /\ Honest(a,pk)) \/ (b=false /\ not Honest(a,pk))}
+//val honest: a:alg -> pk: (;a) pkey -> b:bool{(b = true /\ Honest(a,pk)) \/ (b=false /\ not Honest(a,pk))}
+val honest: a:alg -> pk: (;a) pkey -> b:bool{b = true <=> Honest(a,pk)}
+
 val strong: a:alg -> b:bool{(b = true /\ Strong(a)) \/ (b = false /\ not Strong(a))}
 
 private val consHonestLog: a:alg -> sk:(;a)skey -> pk:(;a) pkey{Honest(a,pk) /\ pk = PK(sk)} -> (honest_entry list) -> honest_entry list
@@ -99,7 +101,7 @@ private val has_mac: a:alg -> pk:(;a) pkey -> t:text -> entry list -> b:bool{b =
 val coerce:  a:alg -> p:(;a) pkey{not Honest(a,p)} -> CoreSig.sigskey -> s:(;a)skey{p = PK(s)}
 val leak:    a:alg -> s:(;a) skey{not Honest(a,PK(s))} -> CoreSig.sigskey
 
-private val create_pkey: a:alg -> CoreSig.sigpkey -> (;a)pkey
+val create_pkey: a:alg -> CoreSig.sigpkey -> (;a)pkey
 
 // TODO: adjust compromise model, connect it to Cert (mostly for the benefit of the adversary)
 // TODO: MK: our current implementation does not allow access to the gen function. 

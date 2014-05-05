@@ -13,6 +13,7 @@ type sigv = bytes
 type skey
 type pkey
 
+val honest: alg -> pkey -> bool
 
 val create_pkey: alg -> CoreSig.sigpkey -> pkey
 

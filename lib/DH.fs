@@ -7,7 +7,7 @@ open CoreKeys
 type secret = Key of bytes 
 
 #if ideal
-type honest_entry = (p * elt)
+type honest_entry = (p * g * elt)
 type good_entry = (p * g)
 let goodPP_log = ref([]: good_entry list)
 let honest_log = ref([]: honest_entry list)
@@ -59,7 +59,7 @@ let genKey p g: elt * secret =
     Pi.assume(Elt(p,e));
     Pi.assume(HonestExponential(p,g,e));
     #else
-    honest_log := (p,e)::!honest_log
+    honest_log := (p,g,e)::!honest_log
     #endif
     #endif
     (e, Key (x))
@@ -91,7 +91,7 @@ let exp p g (gx:elt) (gy:elt) (Key x) : PMS.dhpms =
                  log := (p,g,gx,gy,pms)::!log;
                  pms 
     else 
-      Pi.assume(Elt(p,pms)); //use checkElement instead
+      Pi.assume(DHGroup.Elt(p,pms)); //use checkElement instead
       PMS.coerceDH p g gx gy pms
     //#end-ideal 
     #else

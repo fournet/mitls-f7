@@ -58,7 +58,8 @@ let honest (a:alg) (pk:pkey) : bool =
   has_pk a pk (!honest_log)
 #endif
 let strong a = if a=(SA_DSA ,SHA384) then true else false
-
+#else
+let honest (a:alg) (pk:pkey) : bool = false
 #endif
 
 (* ------------------------------------------------------------------------ *)

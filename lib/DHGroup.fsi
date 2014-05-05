@@ -2,6 +2,8 @@ module DHGroup
 
 open Bytes
 
+type preds = Elt of bytes * bytes
+
 type p = bytes
 type elt = bytes
 type g = elt
