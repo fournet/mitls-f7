@@ -8,7 +8,7 @@ open Error
 open TLSError
 open UntrustedCert
 open CoreSig
-open Sig
+//open Sig
 
 type chain = UntrustedCert.chain
 type hint = UntrustedCert.hint
@@ -28,19 +28,20 @@ let forall (test: (X509Certificate2 -> bool)) (chain : X509Certificate2 list) : 
 
 let for_signing (sigkeyalgs : Sig.alg list) (h : hint) (algs : Sig.alg list) =
     match (find_sigcert_and_alg sigkeyalgs h algs) with 
-    | Some(x509, (siga, hasha)) ->
+    | Some(cert_and_alg) ->
+        let x509, (siga, hasha) = cert_and_alg
         let alg = (siga, hasha)          
         match x509_to_secret_key x509, x509_to_public_key x509 with
         | Some skey, Some pkey ->
             let chain = x509_chain x509 in
 
             if forall (x509_check_key_sig_alg_one sigkeyalgs) chain then
-                let pk = create_pkey alg pkey
+                let pk = Sig.create_pkey alg pkey
                 #if ideal
-                if honest alg pk then
+                if Sig.honest alg pk then
                     None //loading of honest keys not implemented yet.
                 else
-                    let sk = coerce alg pk skey
+                    let sk = Sig.coerce alg pk skey
                     Some (x509list_to_chain chain, alg, sk)
                 #else
                 Some (x509list_to_chain chain, alg, Sig.coerce alg pk skey)
@@ -64,11 +65,20 @@ let for_key_encryption (sigkeyalgs : Sig.alg list) (h : hint) =
 
                     if forall (x509_check_key_sig_alg_one sigkeyalgs) chain then
                         let pk = (RSAKey.create_rsapkey (pm,pe))
-                        Some (x509list_to_chain chain, 
-                              RSAKey.coerce pk (CoreACiphers.RSASKey(sm, se)))
+                        #if ideal
+                        if RSAKey.honest pk then
+                            None //loading of honest keys not implemented yet.
+                        else
+                            let csk = (CoreACiphers.RSASKey(sm, se))
+                            let sk = RSAKey.coerce pk csk
+                            Some (x509list_to_chain chain, sk)
+                        #else
+                        Some (x509list_to_chain chain, RSAKey.coerce pk (CoreACiphers.RSASKey(sm, se)))
+                        #endif
                     else
                         None
-                | _,_ -> None
+                | None, _ -> None
+                | _, None -> None
             | None -> None
 
 (* ------------------------------------------------------------------------ *)

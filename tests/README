@@ -1,0 +1,9 @@
+Manual commands for running echo:
+
+../echo/bin/Release/echo.exe --address 127.0.0.1 --port 6000 --ciphers TLS_RSA_WITH_NULL_MD5 --tlsversion SSL_3p0 --sessionDB-dir "C:\cygwin\tmp\tmpfxxwFz\client" --server-name rsa.cert-01.mitls.org --client
+
+c-stub/i686-pc-mingw32-echo.exe --address 127.0.0.1 --port 6000 --ciphers NULL-MD5 --tlsversion SSL_3p0 --sessionDB-dir C:\cygwin\tmp\tmpkuHPkB\server --server-name rsa.cert-01.mitls.org --pki pki/rsa
+
+.NET may ask for elevated permissions. Added a few randomly. Here are some keywords to find the settings:
+
+Control Panel\Programs\Programs and Features\Turn Windows features on or off\Simple TCPIP services(i.e. echo,daytime etc) 
