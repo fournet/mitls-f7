@@ -175,7 +175,7 @@ let validate_x509_chain (sigkeyalgs : Sig.alg list) (x509 : X509Certificate2) (c
     match chain_to_x509list chain with
     | Some(x509list) ->
                 Seq.forall (x509_check_key_sig_alg_one sigkeyalgs) (x509 :: x509list)
-                && validate_x509list x509 x509list
+                && validate_x509list x509 (x509::x509list)
     | None -> false
 
 let is_for_signing (c : cert) =
