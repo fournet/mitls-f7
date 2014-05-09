@@ -25,7 +25,7 @@ val get_public_signing_key    : cert -> a:Sig.alg -> (;a)Sig.pkey Result
 val get_public_encryption_key : cert -> RSAKey.pk Result
 
 function val SigPKCert: cert list * a:Sig.alg -> 'a //(;a)Sig.pkey
-val get_chain_public_signing_key : c:chain -> a:Sig.alg -> (pk:(;a)Sig.pkey{pk=SigPKCert(c,a)}) Result
+val get_chain_public_signing_key : c:chain -> a:Sig.alg -> (pk:(;a)Sig.pkey{pk=SigPKCert(c,a)}) Result //MK define using events or in UntrustedCert??
 
 function val RSAPKCert: cert list -> RSAKey.pk
 val get_chain_public_encryption_key : c:chain -> (pk:RSAKey.pk{pk=RSAPKCert(c)}) Result
@@ -44,13 +44,14 @@ val validate_cert_chain : Sig.alg list -> chain -> bool
 (* ---- TLS-specific encoding ---- *)
 
 private val consCertificateBytes: c:bytes -> a:bytes ->
-	b:bytes{B(b)=VLBytes(3,c) @| a}
+	b:bytes{B(b)=VLBytes(3,B(c)) @| B(a)}
 
 function val CertificateListBytes: chain -> cbytes
 //AP private definition !bl. CertificateMsg(bl) = MessageBytes(HT_certificate,VLBytes(3,UnfoldBack(bl,empty_bytes)))
 
 val certificateListBytes: cl:chain ->
-	b:bytes{B(b)=VLBytes(3,CertificateListBytes(cl))}
+	b:bytes(*{B(b)=VLBytes(3,CertificateListBytes(cl))}*)
+
 val parseCertificateList: b:bytes -> acc:chain ->
 	(cl:chain{(* AP ?l. cl = l @ acc /\ b=CertificateListBytes(l) *)
 		acc = [] => B(b)=CertificateListBytes(cl)}) Result
