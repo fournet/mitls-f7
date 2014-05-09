@@ -472,9 +472,8 @@ let extract si pms (log:bytes) =
     if hasExtendedMS si.extensions then
         si, KEF.extract_extended si pms
     else
-#else
-        si, KEF.extract si pms
 #endif
+        si, KEF.extract si pms
 
 let clientKEXBytes_RSA si config =
     if List.listLength si.serverID = 0 then
