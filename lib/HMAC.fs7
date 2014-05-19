@@ -22,8 +22,8 @@ private val HMACVERIFY: hashAlg -> key -> data -> mac -> bool
 
 val MAC:       
   a:macAlg -> k:key {Length(k)=MacKeySize(a)} -> 
-  data -> t:mac {Length(t)=MacKeySize(a)} 
+  data -> t:mac {Length(t)=MacSize(a)} 
 val MACVERIFY: 
   a:macAlg -> k:key {Length(k)=MacKeySize(a)} -> 
-  data -> t:mac {Length(k)=MacKeySize(a)} -> bool
+  data -> t:mac {Length(k)=MacSize(a)} -> bool
 

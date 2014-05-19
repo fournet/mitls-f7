@@ -110,7 +110,7 @@ private val blockAlignPadding: e:id -> l:nat -> l':nat{l' = BlockAlignedPadding(
 
 val alignedRange: i:id -> rg:range ->
 	rg':range{!l,h. rg = (l,h) =>
-		rg' = (l,h + BlockAlignedPadding(i,h+MacKeySize(MacAlg(i)))) }
+		rg' = (l,h + BlockAlignedPadding(i,h+MacSize(MacAlg(i)))) }
 
 val extendedPad: id -> range -> nat -> b:bytes //AP: Refine when LH
 

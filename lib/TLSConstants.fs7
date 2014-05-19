@@ -199,7 +199,7 @@ private definition AEADTagSize(AES_128_GCM) = 16
 private definition AEADTagSize(AES_256_GCM) = 16
 val aeadTagSize: a:aeadAlg -> n:nat{n = AEADTagSize(a)}
 
-//CF in TLS, hashes and MAC keys & tags have the same size, depending on hashAlg. 
+//In TLS, hashes and MAC keys & tags have the same size, depending on hashAlg. 
 function val HashSize: hashAlg -> nat
 private assume !x. HashSize(x) >= 0
 private definition HashSize(MD5    )     = 16
@@ -213,9 +213,16 @@ assume !x. MacKeySize(x) >= 0
 definition !a. MacKeySize(MA_HMAC(a)) = HashSize(a)
 definition !a. MacKeySize(MA_SSLKHASH(a)) = HashSize(a)
 
-val macKeySize: a:macAlg -> l:nat{l=MacKeySize(a)}
-val macSize:    a:macAlg -> l:nat{l=MacKeySize(a)} //MK dubious
+function val MacSize: macAlg -> nat
+assume !x. MacSize(x) >= 0
+//It seems to be a common practice to make the MAC tag the 
+//same size as the MAC key, as both affect the security level. 
+//We use the MacSize predicate for extra clarity.
+definition !x. MacSize(x) = MacKeySize(x)
+
 val hashSize:   a:hashAlg -> l:nat{l=HashSize(a)}
+val macKeySize: a:macAlg -> l:nat{l=MacKeySize(a)}
+val macSize:    a:macAlg -> l:nat{l=MacSize(a)} 
 
 (* ------------------------------------------------------------------------ *)
 (* Key parameters *)
@@ -664,7 +671,7 @@ val parseCT: b:bytes {Length(b)=1} -> (ct:ContentType{B(b)=CTBytes(ct)}) Result
 val CTtoString: ContentType -> string
 
 // binary format for length-prefixed bytes;
-// the integer is the length of the prefix (1,2, 3 or 4 for TLS)
+// the integer is the length of the prefix (1, 2, 3 or 4 for TLS)
 
 function val VLBytes: (nat * cbytes) -> cbytes
 private definition !i,b. VLBytes(i,b) = B(IntBytes(i,BLength(b))) @| b

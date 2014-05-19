@@ -9,7 +9,6 @@ open TLSError
 open UntrustedCert
 open CoreSig
 open RSAKey
-//open Sig
 
 type chain = UntrustedCert.chain
 type hint = UntrustedCert.hint

@@ -16,7 +16,7 @@ private type (;ki:id) key = {k:(;ki) keyrepr}
 type text = bytes
 predicate val Msg: id * text -> bool
 
-type tag = m:bytes {Length(m) = MacKeySize(a)}
+type tag = m:bytes {Length(m) = MacSize(a)}
 
 val GEN: 
   ki:id -> (;ki) key

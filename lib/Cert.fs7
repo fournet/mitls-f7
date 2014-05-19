@@ -1,6 +1,6 @@
 module Cert 
 
-(* Trusted Key and Certificate Store *)
+(* Key and Certificate Store *)
 
 open Bytes
 open Error
@@ -32,8 +32,6 @@ val get_chain_public_encryption_key : c:chain -> (pk:RSAKey.pk{pk=RSAPKCert(c)})
 
 val is_chain_for_signing:        chain -> bool
 val is_chain_for_key_encryption: chain -> bool
-
-//val get_chain_key_algorithm : chain -> TLSConstants.sigAlg option
 
 function val CN: chain -> hint
 val get_hint: c:chain -> (cn:hint{cn=CN(c)}) option

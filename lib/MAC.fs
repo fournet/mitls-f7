@@ -11,14 +11,18 @@ type text = bytes
 type tag = bytes
 type keyrepr = bytes
 type key = 
-  | KeyNoAuth  of keyrepr
   | Key_SHA256 of MAC_SHA256.key
   | Key_SHA1   of MAC_SHA1.key
+  | KeyNoAuth  of keyrepr
  
 // We comment out an ideal variant that directly specifies that MAC 
 // is ideal at Auth indexes; we do not need that assumption anymore, 
 // as we now typecheck this module against plain INT-CMA MAC interfaces:
 // idealization now occurs within each of their implementations.
+//
+// We are still keeping the code, as we may at some point want to 
+// typecheck both the current idealized MAC module and the previous
+// ideal MAC module. 
 // 
 // #if ideal
 // type entry = id * text * tag
@@ -37,9 +41,10 @@ let Mac (ki:id) key data =
     // let tag = 
     // #endif
       match key with 
-        | KeyNoAuth(k)  -> HMAC.MAC a k data 
         | Key_SHA256(k) -> MAC_SHA256.Mac ki k data 
         | Key_SHA1(k)   -> MAC_SHA1.Mac ki k data 
+        | KeyNoAuth(k)  -> HMAC.MAC a k data 
+
     // #if ideal
     // // We log every authenticated texts, with their index and resulting tag
     // log := (ki, data, tag)::!log;
@@ -69,8 +74,10 @@ let GEN ki =
     let authId = authId ki
     if authId then 
       match a with 
-      | a when a = MAC_SHA256.a -> Key_SHA256(MAC_SHA256.GEN ki)
-      | a when a = MAC_SHA1.a   -> Key_SHA1(MAC_SHA1.GEN ki)
+      | MA_HMAC(SHA256) -> Key_SHA256(MAC_SHA256.GEN ki) //inlining to help the typechecker
+      | MA_HMAC(SHA)   -> Key_SHA1(MAC_SHA1.GEN ki)
+    //  | a when a = MAC_SHA256.a -> Key_SHA256(MAC_SHA256.GEN ki)
+    //  | a when a = MAC_SHA1.a   -> Key_SHA1(MAC_SHA1.GEN ki)
       | a                       -> unreachable "only strong algorithms provide safety"
     else                   
     #endif

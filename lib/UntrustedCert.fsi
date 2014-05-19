@@ -39,10 +39,13 @@ val chain_to_x509list: chain -> X509Certificate2 list option
 
 val x509list_to_chain: X509Certificate2 list -> chain
 
+(* First argument (Sig.alg list) gives the allowed signing alg. used for
+ * signing the keys of the chain.
+ *)
+
 val validate_x509_chain: Sig.alg list -> X509Certificate2 -> chain -> bool
 
 val validate_x509list: X509Certificate2 -> X509Certificate2 list -> bool
-
 
 val is_for_signing:        cert -> bool
 val is_for_key_encryption: cert -> bool
