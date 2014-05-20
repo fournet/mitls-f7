@@ -86,9 +86,7 @@ private val has_pk: a:alg -> pk:(;a)pkey ->
           (honest_entry list) -> b:bool{(b = true => Honest(a,pk))}
 
 val pk_of: a:alg -> sk:(;a) skey -> pk:(;a) pkey{pk = PK(sk)}
-//val honest: a:alg -> pk: (;a) pkey -> b:bool{(b = true /\ Honest(a,pk)) \/ (b=false /\ not Honest(a,pk))}
 val honest: a:alg -> pk: (;a) pkey -> b:bool{b = true <=> Honest(a,pk)}
-
 val strong: a:alg -> b:bool{(b = true /\ Strong(a)) \/ (b = false /\ not Strong(a))}
 
 private val consHonestLog: a:alg -> sk:(;a)skey -> pk:(;a) pkey{Honest(a,pk) /\ pk = PK(sk)} -> (honest_entry list) -> honest_entry list

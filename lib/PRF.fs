@@ -182,7 +182,7 @@ let keyGenClient (rdId:id) (wrId:id) ms =
         let state = wrap2 wrId rdId peer csr 
         kdlog := update csr state !kdlog;
         (myRead,myWrite)
-    | Committed(pv',aeAlg',ext') -> 
+    | Committed(pv',aeAlg',ext') ->
         // we logically deduce not Auth for both indexes 
         deriveKeys rdId wrId ms Client
     | Derived(_,_,_) ->

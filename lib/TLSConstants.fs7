@@ -120,7 +120,7 @@ type kexAlg =  (* all these kex have server auth & optional client auth, *)
     | DH_RSA  // idem with an RSA cert
     | DHE_DSS // <-- Certificate(DSA); ServerKeyExchange({Cr,Sr,p,g,g^y}signed); --> g^x then pms = g^xy 
 	          //CF reuse of exponentials?
-    | DHE_RSA
+    | DHE_RSA // idem with an RSA cert
     | DH_anon // --> g^x ; <-- g^y then pms = g^xy ; secure only against passive adversaries
 
 predicate PRF of ProtocolVersion * macAlg
@@ -360,7 +360,6 @@ private definition
 	(!a,b,c. CiphersuitePrfMacAlg( CipherSuite ( a , CS_MtE ( b , c )) )            = MA_HMAC(SHA256) ) /\
     (!a,b, hAlg.   CiphersuitePrfMacAlg( CipherSuite ( a , CS_AEAD ( b , hAlg )) )  = MA_HMAC(hAlg)   ) /\
     (!a, hAlg.     CiphersuitePrfMacAlg( OnlyMACCipherSuite (a, hAlg) )             = MA_HMAC(SHA256) ) 
-// MK what to do with missing cases?                           
 
 
 val prfMacAlg_of_ciphersuite: cs:cipherSuite  -> ma:macAlg { ma=CiphersuitePrfMacAlg(cs) }
@@ -373,18 +372,24 @@ val extended_extract_label: l:prflabel {l=Utf8("extended master secret")}
 val kdf_label: l:prflabel {l=Utf8("key expansion")}
 //TODO Beware, those refinements are not visible. 
 
-type prfAlg' =  
-  | KEF_SSL3_nested        // MD5(SHA1(...)) for extraction and keygen
-  | KEF_TLS_1p01 of prflabel          // MD5 xor SHA1
-  | KEF_TLS_1p2 of prflabel * macAlg  // typically SHA256 but may depend on CS
+type prePrfAlg =  
+  | PRF_SSL3_nested        // MD5(SHA1(...)) for extraction and keygen
+  | PRF_TLS_1p01 of prflabel          // MD5 xor SHA1
+  | PRF_TLS_1p2 of prflabel * macAlg  // typically SHA256 but may depend on CS
 
-type kefAlg = pa:prfAlg' 
+type kefAlg = pa:prePrfAlg
 { 
-  pa=KEF_SSL3_nested \/ 
-  pa=KEF_TLS_1p01(extract_label) \/
-  pa=KEF_TLS_1p01(extended_extract_label) \/
-  (?ma. pa=KEF_TLS_1p2(extract_label,ma)) \/ 
-  (?ma. pa=KEF_TLS_1p2(extended_extract_label,ma)) }
+  pa=PRF_SSL3_nested \/ 
+  pa=PRF_TLS_1p01(extract_label) \/
+  pa=PRF_TLS_1p01(extended_extract_label) \/
+  (?ma. pa=PRF_TLS_1p2(extract_label,ma)) \/ 
+  (?ma. pa=PRF_TLS_1p2(extended_extract_label,ma)) }
+
+type kdfAlg' = pa:prePrfAlg
+{
+  pa=PRF_SSL3_nested \/ 
+  pa=PRF_TLS_1p01(kdf_label) \/
+  (?ma. pa=PRF_TLS_1p2(kdf_label,ma))}
 
 type prfAlg = ProtocolVersion * cipherSuite // TODO write supporting specs and functions
 type kdfAlg = ProtocolVersion * cipherSuite // TODO write supporting specs and functions
@@ -582,7 +587,7 @@ val parseCipherSuite: b:bytes{Length(b)=2} -> (c:cipherSuite{B(b) = CipherSuiteB
 
 // this parsing function may fail if b has the wrong length,
 // or if we were strict on unknown ciphersuites
-val parseCipherSuites: b:bytes -> (css:cipherSuites{?csl. B(b) = CipherSuitesBytes(csl)}) Result
+val parseCipherSuites: b:bytes -> (css:cipherSuites{?csl. B(b)= CipherSuitesBytes(csl)}) Result //B(b) = B(b1) @| B(b2) =>
 //PYS TODO? ContainsCipherSuites(csl,css)
 val cipherSuitesBytes: css:cipherSuites -> b:bytes {B(b) = CipherSuitesBytes(css)}
 

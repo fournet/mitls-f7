@@ -114,7 +114,7 @@ predicate StrongKEF of kefAlg
 val strongKEF: ca:kefAlg -> b:bool {b=true <=> StrongKEF(ca)}
 
 // guarding idealizations for KDF and VerifyData (see PRF.fs)
-predicate StrongKDF   of kdfAlg
+predicate StrongKDF   of kdfAlg'
 predicate StrongVD    of vdAlg
 
 type msId =        // We record the parameters used to derive this MS: 
@@ -176,21 +176,36 @@ definition !si.  PrfAlg(si) = (si.protocol_version,si.cipher_suite)
 val prfAlg: si:SessionInfo -> a:prfAlg {a=PrfAlg(si)}
 
 function val KefAlg:  SessionInfo -> kefAlg
-definition !si. (si.protocol_version = SSL_3p0 => KefAlg(si) = KEF_SSL3_nested ) /\
-				(si.protocol_version = TLS_1p0 => KefAlg(si) = KEF_TLS_1p01(extract_label)    ) /\
-				(si.protocol_version = TLS_1p1 => KefAlg(si) = KEF_TLS_1p01(extract_label)    ) /\
-				(si.protocol_version = TLS_1p2 => KefAlg(si) = KEF_TLS_1p2(extract_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
+definition !si. (si.protocol_version = SSL_3p0 => KefAlg(si) = PRF_SSL3_nested ) /\
+				(si.protocol_version = TLS_1p0 => KefAlg(si) = PRF_TLS_1p01(extract_label)    ) /\
+				(si.protocol_version = TLS_1p1 => KefAlg(si) = PRF_TLS_1p01(extract_label)    ) /\
+				(si.protocol_version = TLS_1p2 => KefAlg(si) = PRF_TLS_1p2(extract_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
 val kefAlg: si:SessionInfo -> a:kefAlg {a=KefAlg(si)}
 function val KefAlgExtended:  SessionInfo -> kefAlg
-definition !si. (si.protocol_version = SSL_3p0 => KefAlgExtended(si) = KEF_SSL3_nested ) /\
-				(si.protocol_version = TLS_1p0 => KefAlgExtended(si) = KEF_TLS_1p01(extended_extract_label)    ) /\
-				(si.protocol_version = TLS_1p1 => KefAlgExtended(si) = KEF_TLS_1p01(extended_extract_label)    ) /\
-				(si.protocol_version = TLS_1p2 => KefAlgExtended(si) = KEF_TLS_1p2(extended_extract_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
+definition !si. (si.protocol_version = SSL_3p0 => KefAlgExtended(si) = PRF_SSL3_nested ) /\
+				(si.protocol_version = TLS_1p0 => KefAlgExtended(si) = PRF_TLS_1p01(extended_extract_label)    ) /\
+				(si.protocol_version = TLS_1p1 => KefAlgExtended(si) = PRF_TLS_1p01(extended_extract_label)    ) /\
+				(si.protocol_version = TLS_1p2 => KefAlgExtended(si) = PRF_TLS_1p2(extended_extract_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
 val kefAlg_extended: si:SessionInfo -> a:kefAlg {a=KefAlgExtended(si)}
+
+function val KdfAlg':  SessionInfo -> kdfAlg'
+definition !si. (si.protocol_version = SSL_3p0 => KdfAlg'(si) = PRF_SSL3_nested ) /\
+				(si.protocol_version = TLS_1p0 => KdfAlg'(si) = PRF_TLS_1p01(kdf_label)    ) /\
+				(si.protocol_version = TLS_1p1 => KdfAlg'(si) = PRF_TLS_1p01(kdf_label)    ) /\
+				(si.protocol_version = TLS_1p2 => KdfAlg'(si) = PRF_TLS_1p2(kdf_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
+val kdfAlg': si:SessionInfo -> a:kdfAlg' {a=KdfAlg'(si)}
 
 function val KdfAlg:  SessionInfo -> kdfAlg
 definition !si.  KdfAlg(si) = (si.protocol_version,si.cipher_suite)
 val kdfAlg: si:SessionInfo -> a:kdfAlg {a=KdfAlg(si)}
+
+function val KdfAlgToKdfAlg': kdfAlg -> kdfAlg'
+definition !pv,cs. (pv = SSL_3p0 => KdfAlgToKdfAlg'((pv,cs)) = PRF_SSL3_nested ) /\
+				   (pv = TLS_1p0 => KdfAlgToKdfAlg'((pv,cs)) = PRF_TLS_1p01(kdf_label)    ) /\
+				   (pv = TLS_1p1 => KdfAlgToKdfAlg'((pv,cs)) = PRF_TLS_1p01(kdf_label)    ) /\
+				   (pv = TLS_1p2 => KdfAlgToKdfAlg'((pv,cs)) = PRF_TLS_1p2(kdf_label,CiphersuitePrfMacAlg(cs) ) )
+
+val pvCs_to_kdfAlg: pvCs:kdfAlg -> a:kdfAlg'{KdfAlgToKdfAlg'(pvCs) = a}
 
 function val VdAlg:  SessionInfo -> vdAlg
 definition !si.  VdAlg(si) = (si.protocol_version,si.cipher_suite)
@@ -213,7 +228,7 @@ definition !si. StrongSig(si) <=> Sig.Strong(CipherSuiteSigHashAlg(si.cipher_sui
 // ``The algorithms of si are strong for both KDF and VerifyData, despite all others''
 // guarding idealization in PRF
 predicate StrongPRF of SessionInfo
-definition !si. StrongPRF(si) <=> StrongKDF(KdfAlg(si)) /\ StrongVD(VdAlg(si))
+definition !si. StrongPRF(si) <=> StrongKDF(KdfAlg'(si)) /\ StrongVD(VdAlg(si))
 // MK I think having this joint strenghth predicate 
 // MK guaranteeing the idealization of the complete module is useful
 
@@ -340,7 +355,7 @@ val predEpoch: e:succEpoch -> e':epoch{ e' = Pred(e)}
 type id = { 
   // indexes and algorithms of the session used in the key derivation
   msId   : msId;            // the index of the master secret used for key derivation
-  kdfAlg : kdfAlg;          // the KDF algorithm used for key derivation
+  kdfAlg : kdfAlg';          // the KDF algorithm used for key derivation
   pv     : ProtocolVersion; // should be part of aeAlg 
   aeAlg  : aeAlg;           // the authenticated-encryption algorithms
   // epoch-specific parameters
@@ -360,15 +375,17 @@ definition !i:id. Swap(i)=
 	writer  = DualRole(i.writer); }
 
 assume !x,y. x = DualRole(y) => y = DualRole(x)
-ask !x,y. x = Swap(y) => y = Swap(x)
-//MK fails, why? 
+
+//The following asks fail, because the fields of the record are not adequately restricted. 
+//Asks not strictly needed as we use indices in consistent order. 
+//ask !x,y. x = Swap(y) => y = Swap(x)
 //ask !i,i'.  Swap(i)=Swap(i') => i=i'
 //ask !i:id. Swap(Swap(i)) = i
 
 function val SiId: SessionInfo * Role -> id
 definition !si:SessionInfo,writer:Role. SiId(si,writer) = 
   { msId    = MsI(si); 
-    kdfAlg  = KdfAlg(si);
+    kdfAlg  = KdfAlg'(si);
 	pv      = si.protocol_version; // should be part of aeAlg 
 	aeAlg   = SIaeAlg(si);
 	csrConn = CSRands(si);
@@ -389,7 +406,7 @@ function val PvOfId: i:id -> pv:ProtocolVersion
 definition !i. PvOfId(i)=i.pv
 val pv_of_id: i:id -> pv:ProtocolVersion {pv=PvOfId(i)} 
 
-val kdfAlg_of_id: id -> kdfAlg //TODO add and specify
+val kdfAlg_of_id: id -> kdfAlg' //TODO add and specify
 
 // -----------------------------------------------------------------------
 // Safety of key derivation depends on matching algorithms (see PRF)
@@ -413,6 +430,9 @@ definition !i:id. Match(i) <=> KeyCommit(i.csrConn,i.pv,i.aeAlg,i.ext) /\ KeyGen
 predicate SafeKDF of id 
 definition !i:id. SafeKDF(i) <=> HonestMS(i.msId) /\ StrongKDF(i.kdfAlg) /\ Match(i)
 val safeKDF: (i:id) -> b:bool { b=true <=> SafeKDF(i) }
+
+// Needed for typechecking of PRF
+ask !i1,i2. i2 = Swap(i1) /\ not(SafeKDF(i1)) => not(SafeKDF(i2))
 
 // HonestMS(msi) conditions both idealizations in PRF.
 ask !si:SessionInfo. not HonestMS(MsI(si)) => not SafeVD(si) 
@@ -461,7 +481,7 @@ val id: s:epoch -> i:id {i=Id(s)}
 definition !e:epoch. IsInitEpoch(e) => Id(e) = noId
 definition !e:epoch. IsSuccEpoch(e) => Id(e) =
   { msId    = MsI(EpochSI(e)); 
-    kdfAlg  = KdfAlg(EpochSI(e));
+    kdfAlg  = KdfAlg'(EpochSI(e));
     pv      = EpochSI(e).protocol_version; // should be part of aeAlg 
     aeAlg   = SIaeAlg(EpochSI(e));
     csrConn = EpochCSRands(e);

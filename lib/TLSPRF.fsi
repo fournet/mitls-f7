@@ -6,7 +6,7 @@ open TLSInfo
 
 val verifyData: prfAlg -> bytes -> Role -> bytes -> bytes 
 val extract: kefAlg -> bytes -> bytes -> int -> bytes
-val kdf: prfAlg -> bytes -> bytes -> int -> bytes
+val kdf: kdfAlg' -> bytes -> bytes -> int -> bytes
 
 (* SSL-specific certificate verify *)
 

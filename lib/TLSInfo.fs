@@ -64,7 +64,7 @@ type msId =
   csrands *                                          
   kefAlg  
 
-let noMsId = noPmsId, noCsr, KEF_SSL3_nested    
+let noMsId = noPmsId, noCsr, PRF_SSL3_nested    
 
 type SessionInfo = {
     init_crand: crand;
@@ -89,17 +89,32 @@ let prfAlg (si:SessionInfo) =
 
 let kefAlg (si:SessionInfo) =
   match si.protocol_version with
-  | SSL_3p0           -> KEF_SSL3_nested 
-  | TLS_1p0 | TLS_1p1 -> let x = KEF_TLS_1p01(extract_label) in x
+  | SSL_3p0           -> PRF_SSL3_nested 
+  | TLS_1p0 | TLS_1p1 -> let x = PRF_TLS_1p01(extract_label) in x
   | TLS_1p2           -> let ma = prfMacAlg_of_ciphersuite si.cipher_suite
-                         KEF_TLS_1p2(extract_label,ma)
+                         PRF_TLS_1p2(extract_label,ma)
+
+let kdfAlg' (si:SessionInfo) =
+  match si.protocol_version with
+  | SSL_3p0           -> PRF_SSL3_nested 
+  | TLS_1p0 | TLS_1p1 -> let x = PRF_TLS_1p01(kdf_label) in x
+  | TLS_1p2           -> let ma = prfMacAlg_of_ciphersuite si.cipher_suite
+                         PRF_TLS_1p2(kdf_label,ma)
+
+let pvCs_to_kdfAlg(pvCs:kdfAlg) =
+    let pv,cs=pvCs 
+    match pv with
+    | SSL_3p0           -> PRF_SSL3_nested 
+    | TLS_1p0 | TLS_1p1 -> let x = PRF_TLS_1p01(kdf_label) in x
+    | TLS_1p2           -> let ma = prfMacAlg_of_ciphersuite cs
+                           PRF_TLS_1p2(kdf_label,ma)
 
 let kefAlg_extended (si:SessionInfo) =
   match si.protocol_version with
-  | SSL_3p0           -> KEF_SSL3_nested 
-  | TLS_1p0 | TLS_1p1 -> let x = KEF_TLS_1p01(extended_extract_label) in x
+  | SSL_3p0           -> PRF_SSL3_nested 
+  | TLS_1p0 | TLS_1p1 -> let x = PRF_TLS_1p01(extended_extract_label) in x
   | TLS_1p2           -> let ma = prfMacAlg_of_ciphersuite si.cipher_suite
-                         KEF_TLS_1p2(extended_extract_label,ma) 
+                         PRF_TLS_1p2(extended_extract_label,ma) 
 
 let kdfAlg (si:SessionInfo) = 
   si.protocol_version, si.cipher_suite
@@ -179,7 +194,7 @@ let rec epochWriter (e:epoch) =
 // the tight index we use as an abstract parameter for StatefulAEAD et al
 type id = { 
   msId   : msId;    
-  kdfAlg : kdfAlg; 
+  kdfAlg : kdfAlg'; 
   pv: ProtocolVersion; //Should be part of aeAlg 
   aeAlg  : aeAlg   
   csrConn: csrands;
@@ -208,7 +223,7 @@ type event =
 
 let noId: id = { 
   msId = noMsId; 
-  kdfAlg=(SSL_3p0,nullCipherSuite); 
+  kdfAlg=PRF_SSL3_nested; 
   pv=SSL_3p0; 
   aeAlg= MACOnly(MA_SSLKHASH(NULL)); 
   csrConn = noCsr;
@@ -223,7 +238,7 @@ let id e =
     let cs     = si.cipher_suite
     let pv     = si.protocol_version
     let msi    = msi si
-    let kdfAlg = kdfAlg si
+    let kdfAlg = kdfAlg' si
     let aeAlg  = aeAlg cs pv
     let csr    = epochCSRands e
     let ext    = si.extensions

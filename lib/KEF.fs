@@ -36,7 +36,7 @@ let private extractMS si pmsBytes : PRF.masterSecret =
     PRF.coerce i res
 
 (*  Idealization strategy: to guarantee that in ideal world mastersecrets (ms) are completely random
-    extractRSA samples a ms at random when called first on arguments pk,cv,pms,csrands si, prfAlg si. 
+    extractRSA samples a ms at random when called first on arguments pk,cv,pms,csrands si, kefAlg si. 
     
     When called on the same values again, the corresponding master secret is retrieved from a secret log. 
 

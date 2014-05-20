@@ -60,6 +60,7 @@ val csrands: SessionInfo -> bytes
 val prfAlg: SessionInfo -> prfAlg  
 val kefAlg: SessionInfo -> kefAlg
 val kefAlg_extended: SessionInfo -> kefAlg  
+val pvCs_to_kdfAlg: kdfAlg -> kdfAlg'
 val kdfAlg: SessionInfo -> kdfAlg 
 val vdAlg: SessionInfo -> vdAlg  
 val msi: SessionInfo -> msId
@@ -67,7 +68,7 @@ val msi: SessionInfo -> msId
 type id = { 
   // indexes and algorithms of the session used in the key derivation
   msId   : msId;   // the index of the master secret used for key derivation
-  kdfAlg : kdfAlg; // the KDF algorithm used for key derivation
+  kdfAlg : kdfAlg'; // the KDF algorithm used for key derivation
   pv: ProtocolVersion; //Should be part of aeAlg 
   aeAlg  : aeAlg;  // the authenticated-encryption algorithms
   csrConn: csrands;
