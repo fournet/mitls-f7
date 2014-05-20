@@ -4,9 +4,9 @@ open Bytes
 open TLSConstants
 open TLSInfo
 
-val verifyData: prfAlg -> bytes -> Role -> bytes -> bytes 
+val verifyData: vdAlg -> bytes -> Role -> bytes -> bytes 
 val extract: kefAlg -> bytes -> bytes -> int -> bytes
-val kdf: kdfAlg' -> bytes -> bytes -> int -> bytes
+val kdf: kdfAlg -> bytes -> bytes -> int -> bytes
 
 (* SSL-specific certificate verify *)
 

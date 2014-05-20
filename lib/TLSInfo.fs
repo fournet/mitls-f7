@@ -84,8 +84,6 @@ type SessionInfo = {
 let csrands sinfo = 
     sinfo.init_crand @| sinfo.init_srand
 
-let prfAlg (si:SessionInfo) = 
-  si.protocol_version, si.cipher_suite
 
 let kefAlg (si:SessionInfo) =
   match si.protocol_version with
@@ -94,14 +92,14 @@ let kefAlg (si:SessionInfo) =
   | TLS_1p2           -> let ma = prfMacAlg_of_ciphersuite si.cipher_suite
                          PRF_TLS_1p2(extract_label,ma)
 
-let kdfAlg' (si:SessionInfo) =
+let kdfAlg (si:SessionInfo) =
   match si.protocol_version with
   | SSL_3p0           -> PRF_SSL3_nested 
   | TLS_1p0 | TLS_1p1 -> let x = PRF_TLS_1p01(kdf_label) in x
   | TLS_1p2           -> let ma = prfMacAlg_of_ciphersuite si.cipher_suite
                          PRF_TLS_1p2(kdf_label,ma)
 
-let pvCs_to_kdfAlg(pvCs:kdfAlg) =
+let pvCs_to_vdAlg(pvCs:vdAlg) =
     let pv,cs=pvCs 
     match pv with
     | SSL_3p0           -> PRF_SSL3_nested 
@@ -115,9 +113,6 @@ let kefAlg_extended (si:SessionInfo) =
   | TLS_1p0 | TLS_1p1 -> let x = PRF_TLS_1p01(extended_extract_label) in x
   | TLS_1p2           -> let ma = prfMacAlg_of_ciphersuite si.cipher_suite
                          PRF_TLS_1p2(extended_extract_label,ma) 
-
-let kdfAlg (si:SessionInfo) = 
-  si.protocol_version, si.cipher_suite
 
 let vdAlg (si:SessionInfo) = 
   si.protocol_version, si.cipher_suite
@@ -194,7 +189,7 @@ let rec epochWriter (e:epoch) =
 // the tight index we use as an abstract parameter for StatefulAEAD et al
 type id = { 
   msId   : msId;    
-  kdfAlg : kdfAlg'; 
+  kdfAlg : kdfAlg; 
   pv: ProtocolVersion; //Should be part of aeAlg 
   aeAlg  : aeAlg   
   csrConn: csrands;
@@ -238,7 +233,7 @@ let id e =
     let cs     = si.cipher_suite
     let pv     = si.protocol_version
     let msi    = msi si
-    let kdfAlg = kdfAlg' si
+    let kdfAlg = kdfAlg si
     let aeAlg  = aeAlg cs pv
     let csr    = epochCSRands e
     let ext    = si.extensions

@@ -284,15 +284,19 @@ function val CompressionsBytes: Compression list -> cbytes
 assume CompressionsBytes([]) = [||]
 assume !h,t. CompressionsBytes(h::t) = CompressionBytes(h) @| CompressionsBytes(t)
 
+(* TODO This is in preparation of stricter post-conditions for parseCompressions. Currently unused.
 private assume !cl. ContainsCompressions(cl,cl) /\ 
    (!cl. ContainsCompressions(cl,[])) /\
    (!h,t,cl. ContainsCompressions(t,cl) => ContainsCompressions(h::t,cl)) /\
    (!h,t,h',t'. ContainsCompressions(t,t') => ContainsCompressions(h::t,h'::t'))
+*)
 
 val compressionBytes: c:Compression -> b:bytes{CompressionBytes(c) = B(b)}
 val compressionMethodsBytes: cl:Compression list -> b:bytes{B(b) = CompressionsBytes(cl)}
 val parseCompression: b:bytes -> (c:Compression{B(b)=CompressionBytes(c)}) Result
-val parseCompressions: b:bytes -> cl:Compression list (*{?cl'. B(b) = CompressionsBytes(cl')}*) // ContainsCompressions(cl',cl)}
+val parseCompressions: b:bytes -> cl:Compression list 
+// We do not guarantee anything about hte parsing of compression methods at the server
+// As invalid bytes are ignored B(b) = CompressionsBytes(cl) does not hold. 
 
 
 
@@ -311,10 +315,9 @@ ask !v. IsProtocolVersion(v) => BLength(VersionBytes(v)) = 2
 val versionBytes: pv:ProtocolVersion -> b:bytes{Length(b) = 2 /\ B(b) = VersionBytes(pv)}
 val parseVersion: b:bytes{Length(b) = 2} -> (pv:ProtocolVersion{ B(b)= VersionBytes(pv)}) Result
 val minPV: a:ProtocolVersion -> b:ProtocolVersion -> c:ProtocolVersion
-//CF what's this refinement?? adjust on demand
-//CF {(a < b /\ c = a) \/ (a >= b /\ c = b)}
 val geqPV: a:ProtocolVersion -> b:ProtocolVersion -> r:bool
 val somePV: a: ProtocolVersion -> b:ProtocolVersion option {b = Some(a)}
+
 (* FIXME: same duplication between logical and concrete function definitions, 
    already seen in TLSConstants. 
    CF: we could save a bit by not making cipherSuite abstract for F7.
@@ -337,20 +340,6 @@ val contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV: cipherSuites -> bool
 
 
 
-(* TODO 
-We currently use a loose prfAlg. 
-we may migrate prfAlg to a tigher enumeration, as outlined below
-// We need descriptors for the algorithm keyed by PMS and MS (named "PRF" in TLS)
-// Given pv and cs, and except for SSL3, 
-// the same algorithm is used for extraction, key derivation, and verifyData
-// TODO migrate to TLSPRF? adapt the code there
-// TODO write 3x spec & function from pv,cs to prfAlg
-type prfAlg = // can't be folded back to the sums in TLSConstants; we need to use it in TLSPRF too. 
-  | PRF_TLS_1p2 of macAlg  // typically SHA256 but may depend on CS
-  | PRF_TLS_1p01           // MD5 xor SHA1
-  | PRF_SSL3_nested        // MD5(SHA1(...)) for extraction and keygen
-  | PRF_SSL3_concat        // MD5 @| SHA1    for VerifyData tags
-*)
 
 
 val verifyDataLen_of_ciphersuite: cipherSuite -> nat
@@ -366,14 +355,25 @@ val prfMacAlg_of_ciphersuite: cs:cipherSuite  -> ma:macAlg { ma=CiphersuitePrfMa
 val verifyDataHashAlg_of_ciphersuite: cs:cipherSuite -> hashAlg
 val sessionHashAlg: ProtocolVersion -> cipherSuite -> hashAlg
 
+// Beware that these refinements are not visible and are not used by F7. 
+// This would become relevant if we wanted to prove domain separation for a jointly used function. 
+// For not we rely on the separation being performed correctly in trusted code for which we make separate
+// cryptographic assumptions. 
 type prflabel = b:bytes { b=Utf8("master secret") \/ b=Utf8("extended master secret") \/ b=Utf8("key expansion") }
 val extract_label: l:prflabel {l=Utf8("master secret")}
 val extended_extract_label: l:prflabel {l=Utf8("extended master secret")}
 val kdf_label: l:prflabel {l=Utf8("key expansion")}
-//TODO Beware, those refinements are not visible. 
+
+
+// We need descriptors for the algorithm keyed by PMS and MS (named "PRF" in TLS)
+// Given pv and cs, and except for SSL3, 
+// the same algorithm is used for extraction, key derivation, and verifyData
+// 
+// Specified here rather than in TLSPRF as these algorithm names are used in indexes
 
 type prePrfAlg =  
-  | PRF_SSL3_nested        // MD5(SHA1(...)) for extraction and keygen
+  | PRF_SSL3_nested         // MD5(SHA1(...)) for extraction and keygen
+  | PRF_SSL3_concat         // MD5 @| SHA1    for VerifyData tags
   | PRF_TLS_1p01 of prflabel          // MD5 xor SHA1
   | PRF_TLS_1p2 of prflabel * macAlg  // typically SHA256 but may depend on CS
 
@@ -385,14 +385,12 @@ type kefAlg = pa:prePrfAlg
   (?ma. pa=PRF_TLS_1p2(extract_label,ma)) \/ 
   (?ma. pa=PRF_TLS_1p2(extended_extract_label,ma)) }
 
-type kdfAlg' = pa:prePrfAlg
+type kdfAlg = pa:prePrfAlg
 {
   pa=PRF_SSL3_nested \/ 
   pa=PRF_TLS_1p01(kdf_label) \/
   (?ma. pa=PRF_TLS_1p2(kdf_label,ma))}
 
-type prfAlg = ProtocolVersion * cipherSuite // TODO write supporting specs and functions
-type kdfAlg = ProtocolVersion * cipherSuite // TODO write supporting specs and functions
 type vdAlg = ProtocolVersion * cipherSuite // TODO write supporting specs and functions
 
 
@@ -450,7 +448,7 @@ private definition !kex,ae,prf,pv.
 
 
 function val AEMacAlg: aeAlg -> macAlg
-definition !mac. AEMacAlg(MACOnly(mac)) = mac      // MK use single definition instead
+definition !mac. AEMacAlg(MACOnly(mac)) = mac     
 definition !mac,enc. AEMacAlg(MtE(enc,mac)) = mac
 
 function val AEEncAlg: aeAlg -> encAlg
@@ -459,7 +457,6 @@ definition !enc,mac. AEEncAlg(MtE(enc,mac)) = enc
 definition !cs,pv. CipherSuiteMACAlg(cs,pv) = AEMacAlg(CipherSuiteAuthEncAlg(cs,pv))
 definition !cs,pv. CipherSuiteENCAlg(cs,pv) = AEEncAlg(CipherSuiteAuthEncAlg(cs,pv))
 
-//CF status? 
 ask !cs,pv,mac.
         CipherSuiteAuthEncAlg(cs,pv) = MACOnly(mac) => CipherSuiteMACAlg(cs,pv) = mac
 ask !cs,pv,mac,enc.
@@ -550,6 +547,12 @@ private definition
    (CipherSuitesBytes([]) = [||]) /\
    (!h,t. CipherSuitesBytes(h::t) = CipherSuiteBytes(h) @| CipherSuitesBytes(t))
 
+
+
+
+(* TODO We currently do not rely on correct server side parsing of ciphersuites.
+
+old:
 predicate ContainsCipherSuite of cipherSuites * cipherSuite
 private definition !b,cs. ContainsCipherSuite(b,cs) <=> 
                 (?h,t. b = h::t /\ (h = cs \/ ContainsCipherSuite(t,cs)))
@@ -559,8 +562,8 @@ private definition !b,l. ContainsCipherSuites(b,l) <=>
   (l = [] \/
    (?h,t. l = h::t /\ ContainsCipherSuite(b,h) /\ ContainsCipherSuites(b,t)))
 
-
-(* CF 
+new by Cedric:
+ 
 predicate ContainsCipherSuite of bytes * cipherSuite
 private assume !b,cs. ContainsCipherSuite(b,cs) <=> 
                 (?b1,b2. b = b1 @| b2 /\ Length(b1) = 2 /\
@@ -574,11 +577,15 @@ private assume !b,l. ContainsCipherSuites(b,l) <=>
 ask !b1,b2,cs. (Length(b1) = 2 /\ ContainsCipherSuite(b2,cs)) => ContainsCipherSuite(b1 @| b2, cs)
 //requires induction
 assume !b1,b2,l. (Length(b1) = 2 /\ ContainsCipherSuites(b2,l)) => ContainsCipherSuites(b1 @| b2, l)
+
+another style by Cedric:
+
+function val ParseCipherSuites: bytes -> cipherSuites
+private assume !b. (b = empty_bytes /\ ParseCipherSuites(b) = []) \/
+ 		(?b1,b2,c. b = b1 @| b2 /\ Length(b1) = 2 /\ b1 = CipherSuiteBytes(c) /\ ParseCiphersuites(b) = c::ParseCipherSuites(b2)) /\
+ 		(?b1,b2. b = b1 @| b2 /\ Length(b1) = 2 /\ (!c. b1 <> CipherSuiteBytes(c)) /\ ParseCiphersuites(b) = ParseCipherSuites(b2))
+
 *)
-//CF function val ParseCipherSuites: bytes -> cipherSuites
-//CF private assume !b. (b = empty_bytes /\ ParseCipherSuites(b) = []) \/
-//CF 		(?b1,b2,c. b = b1 @| b2 /\ Length(b1) = 2 /\ b1 = CipherSuiteBytes(c) /\ ParseCiphersuites(b) = c::ParseCipherSuites(b2)) /\
-//CF 		(?b1,b2. b = b1 @| b2 /\ Length(b1) = 2 /\ (!c. b1 <> CipherSuiteBytes(c)) /\ ParseCiphersuites(b) = ParseCipherSuites(b2))
 
 private val consCipherSuites: cs:cipherSuite -> css:cipherSuites -> css':cipherSuites{css' = cs::css}
 
@@ -587,15 +594,17 @@ val parseCipherSuite: b:bytes{Length(b)=2} -> (c:cipherSuite{B(b) = CipherSuiteB
 
 // this parsing function may fail if b has the wrong length,
 // or if we were strict on unknown ciphersuites
-val parseCipherSuites: b:bytes -> (css:cipherSuites (*{?csl. B(b)= CipherSuitesBytes(csl)}*)) Result //B(b) = B(b1) @| B(b2) =>
-//PYS TODO? ContainsCipherSuites(csl,css)
+val parseCipherSuites: b:bytes -> (css:cipherSuites) Result
+// Similarly to compression methods we do not guarantee anything about the parsing of ciphersuites at the server
+// As invalid bytes are ignored B(b) = CipherSuitesBytes(css) may not hold. 
+
 val cipherSuitesBytes: css:cipherSuites -> b:bytes {B(b) = CipherSuitesBytes(css)}
 
 val mkIntTriple: (nat * nat * nat) -> (nat * nat * nat)
 
 
 
-(* CF Not for verification, just to run the implementation *)
+(* Not for verification, just to run the implementation *)
 
 type cipherSuiteName =
     | TLS_NULL_WITH_NULL_NULL            
@@ -651,10 +660,6 @@ type preContentType =
   | Handshake
   | Application_data
 
-(* FIXME: new version of F7 should infer this refinement automatically.
-   In other places I'm assuming F7 is already updated, but here I don't delete this
-   refinement until I get acknowledge that F7 is in fact updated. *)
-
 type ContentType = ct:preContentType
   {ct = Change_cipher_spec \/ ct = Alert \/
    ct = Handshake \/ ct = Application_data}
@@ -679,7 +684,7 @@ val CTtoString: ContentType -> string
 // the integer is the length of the prefix (1, 2, 3 or 4 for TLS)
 
 function val VLBytes: (nat * cbytes) -> cbytes
-private definition !i,b. VLBytes(i,b) = B(IntBytes(i,BLength(b))) @| b
+definition !i,b. VLBytes(i,b) = B(IntBytes(i,BLength(b))) @| b
 
 ask !i,b,b'. VLBytes(i,b) = VLBytes(i,b') => b = b'
 
@@ -692,9 +697,19 @@ val vlparse:
   l:nat{l<=8} -> b:bytes{Length(b)>=l} -> 
   ( r:bytes { B(b) = VLBytes(l,B(r)) }) Result
 
-// nice to have, not used so far.
-// PYS: ask !i,b. BLength(VLBytes(i,b)) = i + BLength(b)
-assume !i,b. BLength(VLBytes(i,b)) = i + BLength(b)
+// nice to have, not used so far. F7 needs a little help.
+
+// ask !i,b. BLength(VLBytes(i,b)) = BLength(B(IntBytes(i,BLength(b))) @| b)
+
+// ask !i,b. BLength(B(IntBytes(i,BLength(b))) @| b) = BLength(B(IntBytes(i,BLength(b)))) + BLength(b)
+
+// ask !i,b. BLength(B(IntBytes(i,BLength(b)))) + BLength(b) = Length(IntBytes(i,BLength(b))) + BLength(b)
+
+// ask !i,b. Length(IntBytes(i,BLength(b))) + BLength(b) = i + BLength(b)
+
+ask !i,b. BLength(B(IntBytes(i,BLength(b))) @| b) = i + BLength(b)
+
+ask !i,b. BLength(VLBytes(i,b)) = i + BLength(b)
 
 // relies on associativity
 theorem !i,b1,b2,c1,c2. 
