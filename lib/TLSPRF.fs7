@@ -7,7 +7,7 @@ open Bytes
 open TLSConstants
 open TLSInfo
 
-val verifyData: prfAlg -> bytes -> Role -> bytes -> bytes 
+val verifyData: vdAlg -> bytes -> Role -> bytes -> bytes 
 val extract:   kefAlg -> bytes -> bytes -> l:nat -> (;l)lbytes
 val kdf:        kdfAlg -> bytes -> bytes -> l:nat -> (;l)lbytes
 

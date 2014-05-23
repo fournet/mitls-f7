@@ -59,7 +59,6 @@ type SessionInfo = {
 val csrands: SessionInfo -> bytes
 val kefAlg: SessionInfo -> kefAlg
 val kefAlg_extended: SessionInfo -> kefAlg  
-val pvCs_to_vdAlg: vdAlg -> kdfAlg
 val vdAlg: SessionInfo -> vdAlg  
 val msi: SessionInfo -> msId
 

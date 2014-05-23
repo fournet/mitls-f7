@@ -99,14 +99,6 @@ let kdfAlg (si:SessionInfo) =
   | TLS_1p2           -> let ma = prfMacAlg_of_ciphersuite si.cipher_suite
                          PRF_TLS_1p2(kdf_label,ma)
 
-let pvCs_to_vdAlg(pvCs:vdAlg) =
-    let pv,cs=pvCs 
-    match pv with
-    | SSL_3p0           -> PRF_SSL3_nested 
-    | TLS_1p0 | TLS_1p1 -> let x = PRF_TLS_1p01(kdf_label) in x
-    | TLS_1p2           -> let ma = prfMacAlg_of_ciphersuite cs
-                           PRF_TLS_1p2(kdf_label,ma)
-
 let kefAlg_extended (si:SessionInfo) =
   match si.protocol_version with
   | SSL_3p0           -> PRF_SSL3_nested 

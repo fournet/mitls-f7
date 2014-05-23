@@ -169,11 +169,6 @@ val csrands: si:SessionInfo -> csr:csrands {csr=CSRands(si)}
 
 // Getting algorithms from SessionInfo
 
-//MK not clear this function will be needed,maybe only to implement 
-//MK more specialized functions
-function val PrfAlg:  SessionInfo -> prfAlg
-definition !si.  PrfAlg(si) = (si.protocol_version,si.cipher_suite)
-val prfAlg: si:SessionInfo -> a:prfAlg {a=PrfAlg(si)}
 
 function val KefAlg:  SessionInfo -> kefAlg
 definition !si. (si.protocol_version = SSL_3p0 => KefAlg(si) = PRF_SSL3_nested ) /\
@@ -188,24 +183,12 @@ definition !si. (si.protocol_version = SSL_3p0 => KefAlgExtended(si) = PRF_SSL3_
 				(si.protocol_version = TLS_1p2 => KefAlgExtended(si) = PRF_TLS_1p2(extended_extract_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
 val kefAlg_extended: si:SessionInfo -> a:kefAlg {a=KefAlgExtended(si)}
 
-function val KdfAlg':  SessionInfo -> kdfAlg
-definition !si. (si.protocol_version = SSL_3p0 => KdfAlg'(si) = PRF_SSL3_nested ) /\
-				(si.protocol_version = TLS_1p0 => KdfAlg'(si) = PRF_TLS_1p01(kdf_label)    ) /\
-				(si.protocol_version = TLS_1p1 => KdfAlg'(si) = PRF_TLS_1p01(kdf_label)    ) /\
-				(si.protocol_version = TLS_1p2 => KdfAlg'(si) = PRF_TLS_1p2(kdf_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
-val kdfAlg: si:SessionInfo -> a:kdfAlg {a=KdfAlg'(si)}
-
 function val KdfAlg:  SessionInfo -> kdfAlg
-definition !si.  KdfAlg(si) = (si.protocol_version,si.cipher_suite)
+definition !si. (si.protocol_version = SSL_3p0 => KdfAlg(si) = PRF_SSL3_nested ) /\
+				(si.protocol_version = TLS_1p0 => KdfAlg(si) = PRF_TLS_1p01(kdf_label)    ) /\
+				(si.protocol_version = TLS_1p1 => KdfAlg(si) = PRF_TLS_1p01(kdf_label)    ) /\
+				(si.protocol_version = TLS_1p2 => KdfAlg(si) = PRF_TLS_1p2(kdf_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
 val kdfAlg: si:SessionInfo -> a:kdfAlg {a=KdfAlg(si)}
-
-function val KdfAlgToKdfAlg': kdfAlg -> kdfAlg
-definition !pv,cs. (pv = SSL_3p0 => KdfAlgToKdfAlg'((pv,cs)) = PRF_SSL3_nested ) /\
-				   (pv = TLS_1p0 => KdfAlgToKdfAlg'((pv,cs)) = PRF_TLS_1p01(kdf_label)    ) /\
-				   (pv = TLS_1p1 => KdfAlgToKdfAlg'((pv,cs)) = PRF_TLS_1p01(kdf_label)    ) /\
-				   (pv = TLS_1p2 => KdfAlgToKdfAlg'((pv,cs)) = PRF_TLS_1p2(kdf_label,CiphersuitePrfMacAlg(cs) ) )
-
-val pvCs_to_kdfAlg: pvCs:kdfAlg -> a:kdfAlg{KdfAlgToKdfAlg'(pvCs) = a}
 
 function val VdAlg:  SessionInfo -> vdAlg
 definition !si.  VdAlg(si) = (si.protocol_version,si.cipher_suite)
@@ -228,7 +211,7 @@ definition !si. StrongSig(si) <=> Sig.Strong(CipherSuiteSigHashAlg(si.cipher_sui
 // ``The algorithms of si are strong for both KDF and VerifyData, despite all others''
 // guarding idealization in PRF
 predicate StrongPRF of SessionInfo
-definition !si. StrongPRF(si) <=> StrongKDF(KdfAlg'(si)) /\ StrongVD(VdAlg(si))
+definition !si. StrongPRF(si) <=> StrongKDF(KdfAlg(si)) /\ StrongVD(VdAlg(si))
 // MK I think having this joint strenghth predicate 
 // MK guaranteeing the idealization of the complete module is useful
 
@@ -385,7 +368,7 @@ assume !x,y. x = DualRole(y) => y = DualRole(x)
 function val SiId: SessionInfo * Role -> id
 definition !si:SessionInfo,writer:Role. SiId(si,writer) = 
   { msId    = MsI(si); 
-    kdfAlg  = KdfAlg'(si);
+    kdfAlg  = KdfAlg(si);
 	pv      = si.protocol_version; // should be part of aeAlg 
 	aeAlg   = SIaeAlg(si);
 	csrConn = CSRands(si);
@@ -481,7 +464,7 @@ val id: s:epoch -> i:id {i=Id(s)}
 definition !e:epoch. IsInitEpoch(e) => Id(e) = noId
 definition !e:epoch. IsSuccEpoch(e) => Id(e) =
   { msId    = MsI(EpochSI(e)); 
-    kdfAlg  = KdfAlg'(EpochSI(e));
+    kdfAlg  = KdfAlg(EpochSI(e));
     pv      = EpochSI(e).protocol_version; // should be part of aeAlg 
     aeAlg   = SIaeAlg(EpochSI(e));
     csrConn = EpochCSRands(e);
