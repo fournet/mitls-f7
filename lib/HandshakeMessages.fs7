@@ -905,7 +905,7 @@ ask !si,l.
          ServerHelloMsg(si.protocol_version,si.init_srand,si.sessionID,si.cipher_suite,si.compression,ex2) @|
 		 ServerFinishedMsg(svd))
 
-ask !si,t. ClientLogBeforeClientFinishedResume(si,t) => HasHTMessage(HT_certificate,t) => false
+ask !si,t. ClientLogBeforeClientFinishedResume(si,t) => HasHTMessage(HT_certificate,B(t)) => false
 
 theorem !si,si',t. ClientLogBeforeClientFinished(si,t) /\        
 	               ClientLogBeforeClientFinishedResume(si',t)  => false
