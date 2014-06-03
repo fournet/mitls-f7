@@ -118,7 +118,7 @@ ask !si,si',b. PRF.VerifyData(MsI(si),Server,b) /\
     => SentCCS(Client,si'.init_crand,si'.init_srand,si)
 
 
-private definition !role,e,cfg. 
+definition !role,e,cfg. 
   CompleteEpoch(role,e,cfg) 
   <=>
   (IsSuccEpoch(e) /\ IsValidEpoch(e) /\ IsValidEpoch(Pred(e)) /\
