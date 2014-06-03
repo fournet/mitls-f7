@@ -247,7 +247,7 @@ definition !si. StrongAESI(si) <=>
 // -------------------------------------------------------------------
 // Epoch descriptors (public immutable data)
 
-private type preEpoch =
+type preEpoch =
   | InitEpoch of writer:Role
   | SuccEpoch of crand * srand  (* the latest randoms     *)
                * si:SessionInfo
