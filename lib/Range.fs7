@@ -80,11 +80,11 @@ private definition !i,mac,alg,aeAlg.
 
 val maxPadSize: i:id -> l:nat{l = MaxPadSize(i,())}
 
-//AP (* A range that can be conveyed in one fragment *)
-//AP predicate RangeFragment of id * range
-//AP definition !i,l,h. RangeFragment(i,(l,h)) <=>
-//AP 	( h <= fragmentLength /\ h - l <= MaxPadSize(i,()))
-//AP type (;i:id) rangeF = r:range{RangeFragment(i,r)}
+(* A range that can be conveyed in one fragment *)
+predicate RangeFragment of id * range
+definition !i,l,h. RangeFragment(i,(l,h)) <=>
+	h <= fragmentLength
+//AP /\ h - l <= MaxPadSize(i,())
 
 // Padding computations
 function val Modulus: int * int -> int

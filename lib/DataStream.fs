@@ -55,9 +55,12 @@ let splitRange ki r =
         else
             let allPad = maxLHPad id l in
             let allPad = min allPad (h-l) in
-            let r0 = (l,l+allPad) in
-            let r1 = (0,h - (l+allPad)) in
-            (r0,r1)
+            if l+allPad > FS then
+                unexpected "[splitRange] Computing range over fragment size"
+            else
+                let r0 = (l,l+allPad) in
+                let r1 = (0,h - (l+allPad)) in
+                (r0,r1)
 
 type stream = {sb: cbytes list}
 type delta = {contents: rbytes}
