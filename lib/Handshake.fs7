@@ -47,7 +47,6 @@ private theorem !r,si. SessionDB.Authorize(r,si) => Authorize(r,si)
 
 predicate EvSentFinishedFirst of ConnectionInfo * bool
 predicate Negotiated of Role * SessionInfo * config * config
-predicate CompleteEpoch of Role * epoch * config
 predicate Complete of ConnectionInfo * config
 
 val check_negotiation: r:Role -> si:SessionInfo -> cfg:config -> unit{?cfg'. Negotiated(r,si,cfg,cfg')}
@@ -116,19 +115,6 @@ ask !si,si',b. PRF.VerifyData(MsI(si),Server,b) /\
     SentCCS(Client,si.init_crand,si.init_srand,si) /\
     ClientLogBeforeClientFinishedResume(si',b) 
     => SentCCS(Client,si'.init_crand,si'.init_srand,si)
-
-
-definition !role,e,cfg. 
-  CompleteEpoch(role,e,cfg) 
-  <=>
-  (IsSuccEpoch(e) /\ IsValidEpoch(e) /\ IsValidEpoch(Pred(e)) /\
-   (SafeVD(EpochSI(e)) => (Match(Id(e)) /\ Open(e))) /\
-   (role = Client /\      
-    (?a. Sig.Honest(a,Cert.SigPKCert(EpochSI(e).serverID,a))) =>
-    HonestPMS(EpochSI(e).pmsId)) /\
-   (role = Server /\  EpochSI(e).client_auth = true /\    
-    (?a. Sig.Honest(a,Cert.SigPKCert(EpochSI(e).clientID,a))) =>
-    HonestPMS(EpochSI(e).pmsId)))
 
 (* Negotiated remains to be defined but it can be a nice global spec of what HS is meant to achieve.
    Especially interesting would be proving that the result is the "best possible" *)

@@ -37,6 +37,44 @@ definition DualRole(Client) = Server
 definition DualRole(Server) = Client
 
 // -------------------------------------------------------------------
+// Application configuration options
+// TODO Consider repackaging client and server options 
+
+type helloReqPolicy =
+    | HRPIgnore
+    | HRPFull
+    | HRPResume
+
+type config = {
+    minVer: ProtocolVersion;
+    maxVer: ProtocolVersion;
+    ciphersuites: cipherSuites;
+    compressions: Compression list;
+
+    (* Handshake specific options *)
+
+    (* Client side *)
+    honourHelloReq: helloReqPolicy;
+    allowAnonCipherSuite: bool;
+	safe_resumption: bool;
+
+    (* Server side *)
+    request_client_certificate: bool;
+    check_client_version_in_pms_for_old_tls: bool;
+
+    (* Common *)
+    safe_renegotiation: bool;
+	server_name: Cert.hint;
+	client_name: Cert.hint;
+
+    (* Sessions database *)
+    sessionDBFileName: string;
+    sessionDBExpiry: TimeSpan 
+    }
+
+val defaultConfig: config
+
+// -------------------------------------------------------------------
 // Client/Server randomness (implemented in Nonce) 
 
 // their first 4 bytes give the local time, 
@@ -327,8 +365,8 @@ val initConnection: r:Role -> ra:random -> ci:ConnectionInfo
   { ci.role = r /\ ci.id_rand = ra /\ IsInitEpoch(ci.id_in) /\ IsInitEpoch(ci.id_out)}
 val nextEpoch: e:epoch -> c:crand -> s:srand -> si:SessionInfo -> e':succEpoch
   { Pred(e') = e /\ EpochSI(e') = si /\ EpochCRand(e') = c /\ EpochSRand(e') = s /\ EpochWriter(e') = EpochWriter(e)}
-
 val predEpoch: e:succEpoch -> e':epoch{ e' = Pred(e)}
+
 
 // -------------------------------------------------------------------
 // indexing instances of AE --- an abstrac parameter for StatefulAEAD et al
@@ -477,7 +515,6 @@ ask !e. IsInitEpoch(e) => not AuthId(Id(e))
 //KB maybe we don't need this, but it helps in AppFragment for now
 val unAuthIdInv: i:id{not AuthId(i)} -> s:epoch {Id(s) = i}
 
-
 // -------------------------------------------------------------------------
 // GLOBAL SAFETY PROPERTIES 
 
@@ -522,52 +559,26 @@ ask !e. Open(e) => (AuthId(Id(e)) => Auth(e))
 ask !e. Open(e) => (SafeId(Id(e)) => Safe(e))
 ask !e. Auth(e) => Open(e)
 
+predicate CompleteEpoch of Role * epoch * config
+definition !role,e,cfg. 
+  CompleteEpoch(role,e,cfg) 
+  <=>
+  (IsSuccEpoch(e) /\ IsValidEpoch(e) /\ IsValidEpoch(Pred(e)) /\
+   (SafeVD(EpochSI(e)) => (Match(Id(e)) /\ Open(e))) /\
+   (role = Client /\      
+    (?a. Sig.Honest(a,Cert.SigPKCert(EpochSI(e).serverID,a))) =>
+    HonestPMS(EpochSI(e).pmsId)) /\
+   (role = Server /\  EpochSI(e).client_auth = true /\    
+    (?a. Sig.Honest(a,Cert.SigPKCert(EpochSI(e).clientID,a))) =>
+    HonestPMS(EpochSI(e).pmsId)))
+
 //KB The following assume is dodgy. Only true with Reneg Indication. Remove if possible.
 private assume !r,e,e'. SentCCS(r,EpochCRand(e),EpochSRand(e),EpochSI(e)) /\ 
 	                SentCCS(r,EpochCRand(e'),EpochSRand(e'),EpochSI(e')) /\ 
 			Id(e) = Id(e') => e = e'
 ask !e,e'. Open(e) /\ Open(e') /\ Id(e) = Id(e') => e = e'
-//AP type openEpoch = e:succEpoch {Open(e)}
 
 val sinfo_to_string: SessionInfo -> string
-
-// -------------------------------------------------------------------
-// Application configuration options
-// TODO Consider repackaging client and server options 
-
-type helloReqPolicy =
-    | HRPIgnore
-    | HRPFull
-    | HRPResume
-
-type config = {
-    minVer: ProtocolVersion;
-    maxVer: ProtocolVersion;
-    ciphersuites: cipherSuites;
-    compressions: Compression list;
-
-    (* Handshake specific options *)
-
-    (* Client side *)
-    honourHelloReq: helloReqPolicy;
-    allowAnonCipherSuite: bool;
-	safe_resumption: bool;
-
-    (* Server side *)
-    request_client_certificate: bool;
-    check_client_version_in_pms_for_old_tls: bool;
-
-    (* Common *)
-    safe_renegotiation: bool;
-	server_name: Cert.hint;
-	client_name: Cert.hint;
-
-    (* Sessions database *)
-    sessionDBFileName: string;
-    sessionDBExpiry: TimeSpan 
-    }
-
-val defaultConfig: config
 
 //CF move those to TLSConstants? 
 private val max_TLSPlaintext_fragment_length: nat
