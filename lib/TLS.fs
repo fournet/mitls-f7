@@ -24,7 +24,6 @@ type ioresult_i =
 type ioresult_o =
     | WriteError    of alertDescription option * string
     | WriteComplete of nextCn
-    | WritePartial  of nextCn * msg_o
     | MustRead      of Connection
 
 let connect ns po = Dispatch.init ns Client po
@@ -61,13 +60,10 @@ let read ca =
       | _ -> ReadError(None, perror __SOURCE_FILE__ __LINE__ "Invalid dispatcher state. This is probably a bug, please report it")
 
 let write c msg =
-    let c,outcome,rdOpt = Dispatch.write c msg in
+    let c,outcome = Dispatch.write c msg in
     match outcome with
       | WError(err) -> WriteError(None,err)
-      | WAppDataDone ->
-            match rdOpt with
-              | None -> WriteComplete c
-              | Some(rd) -> WritePartial (c,rd)
+      | WAppDataDone -> WriteComplete c
       | WDone ->
           (* We are in the open state, and providing some data to be sent, so only WAppDataDone can apply here *)
           WriteError(None, perror __SOURCE_FILE__ __LINE__ "Invalid dispatcher state. This is probably a bug, please report it")

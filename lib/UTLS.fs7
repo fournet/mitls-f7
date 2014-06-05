@@ -66,8 +66,8 @@ private val update_fd_connection_r : fd -> b:bool -> c:Connection{CanWriteP(b, c
 private val update_fd_connection   : fd -> b:bool -> c:Connection{CanWriteP(b, c)} -> unit
 
 (* ------------------------------------------------------------------------ *)
-private val mkDelta : c:Connection -> b:bytes ->
-  (;ConnectionEpochOut(c), CnStream_o(c), (Length(b), Length(b))) delta
+private val mkDelta : c:Connection{CanWrite(CnInfo(c))} -> b:bytes ->
+  (;ConnectionEpochOut(c), CnStream_o(c)) msg_o
 
 (* ------------------------------------------------------------------------ *)
 val canwrite : fd -> int

@@ -114,12 +114,21 @@ let rec wait_handshake (c : TLS.Connection) : TLS.Connection =
     | Read (_, _)  -> Error.unexpected "app. data"
     | DontWrite c  -> wait_handshake c
 
-let rec full_write (conn : TLS.Connection) rgd : TLS.Connection =
-    match TLS.write conn rgd with
-    | WriteError (_, _)     -> Error.unexpected "write error"
-    | WriteComplete c       -> c
-    | WritePartial (c, rgd) -> full_write c rgd
-    | MustRead _            -> Error.unexpected "must-read"
+let rec full_write (conn : TLS.Connection) (rg,d) : TLS.Connection =
+    let e = TLS.getEpochOut conn in
+    let rg0,rg1 = DataStream.splitRange e rg in
+    if rg0 = rg then
+        match TLS.write conn (rg,d) with
+        | WriteError (_, _)     -> Error.unexpected "write error"
+        | WriteComplete c       -> c
+        | MustRead _            -> Error.unexpected "must-read"
+    else
+        let st = TLS.getOutStream conn in
+        let d0,d1 = DataStream.split e st rg0 rg1 d in
+        match TLS.write conn (rg0,d0) with
+        | WriteError (_, _)     -> Error.unexpected "write error"
+        | WriteComplete c       -> full_write c (rg1,d1)
+        | MustRead _            -> Error.unexpected "must-read"
 
 let rec full_read conn d =
     match TLS.read conn with

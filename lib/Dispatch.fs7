@@ -127,6 +127,9 @@ private definition !id,s. CnState_i(Conn(id,s)) = s.read.disp
 predicate CanWrite of ConnectionInfo
 definition !c. CanWrite(CnInfo(c)) <=> Handshake.Complete(CnInfo(c),Config(c))
 
+ask !c. ( IsConnection(c) /\ CanWrite(CnInfo(c)) ) =>
+	( IsSuccEpoch(ConnectionEpochOut(c)) /\ IsSuccEpoch(ConnectionEpochIn(c)) )
+
 function val ConnectionSIOut: Connection -> SessionInfo
 private definition !id,s. ConnectionSIOut(Conn(id,s)) = EpochSI(id.id_out)
 function val ConnectionSIIn: Connection -> SessionInfo
@@ -143,7 +146,7 @@ private definition !id, s. CnStream_i(Conn(id, s)) =  AppData.AppInStream(id, s.
 private definition !id, s. CnStream_o(Conn(id, s)) = AppData.AppOutStream(id, s.appdata)
 
 type (;e:epoch,s:(;e)DataStream.stream)msg_i = r:range * (;e,s,r)DataStream.delta
-type (;e:epoch,s:(;e)DataStream.stream)msg_o = r:range * (;e,s,r)DataStream.delta
+type (;e:epoch,s:(;e)DataStream.stream)msg_o = r:range * (;e,s,r)DataStream.delta {RangeFragment(Id(e),r)}
 
 function val ExtendStream_o: c:Connection * (;ConnectionEpochOut(c),CnStream_o(c))msg_o -> 'a //(;ConnectionEpochOut(c)) DataStream.stream
 private definition !c,r,d.
@@ -198,20 +201,6 @@ private definition !c,r,d.
 	MsgOBytes(c,(r,d)) = DataStream.Payload(ConnectionEpochOut(c),CnStream_o(c),r,d)
 private definition !c,r,d.
 	MsgIBytes(c,(r,d)) = DataStream.Payload(ConnectionEpochIn(c), CnStream_i(c),r,d)
-
-predicate Split_o of
-	  c:Connection
-	* (;ConnectionEpochOut(c),CnStream_o(c))msg_o
-	* (;ConnectionEpochOut(c),CnStream_o(c))msg_o
-	* c':Connection
-	* (;ConnectionEpochOut(c'),CnStream_o(c'))msg_o
-private definition !c,m,r0,d0,c',r1,d1.
-	Split_o(c,m,(r0,d0),c',(r1,d1)) <=>
-		MsgOBytes(c,m) = MsgOBytes(c,(r0,d0)) @| MsgOBytes(c',(r1,d1))
-
-ask !c,m,r0,d0,c',r',d'.
-    MsgOBytes(c,m) = MsgOBytes(c,(r0,d0)) @| MsgOBytes(c',(r',d')) =>
-    Split_o(c,m,(r0,d0),c',(r',d'))
 
 private definition !c, c'. 
 	Extend(c, c') <=>    Bytes_i(c') = Bytes_i(c)
@@ -282,15 +271,12 @@ type (;c:Connection)readOutcome =
     | RWarning of alertDescription
 
 predicate val IOResult_i : c:Connection * Connection * (;c)readOutcome -> bool
-predicate val IOResult_o : Connection * 'a * Connection * writeOutcome * 'b -> bool
+predicate val IOResult_o : Connection * 'a * Connection * writeOutcome -> bool
 
-definition !c,m,c',wo,mo. IOResult_o(c,m,c',wo,mo)  <=>
+definition !c,m,c',wo. IOResult_o(c,m,c',wo)  <=>
 	(
 		// Cases needed by the top level interface
-		(wo = WAppDataDone /\ mo = None /\ Extend_o(c,c',m) /\ NextCn(c,c')) \/
-        (wo = WAppDataDone /\ (?r0,d0,r',d'. mo = Some((r',d'))
-						   (* AP /\ MsgOBytes(c,m) = MsgOBytes(c,(r0,d0)) @| MsgOBytes(c',(r',d')) *)
-						   /\ Split_o(c,m,(r0,d0),c',(r',d')) )) \/
+		(wo = WAppDataDone /\ Extend_o(c,c',m) /\ NextCn(c,c')) \/
         (wo = WHSDone /\
 		  (
 			   Role(c') = Role(c)
@@ -743,29 +729,19 @@ val read: c:Connection{CnBuf_o(c) = None} ->
 val msgWrite: c:Connection{CanWrite(CnInfo(c))} -> m:(;ConnectionEpochOut(c),CnStream_o(c))msg_o ->
 	( (r:range * d:(;ConnectionEpochOut(c),CnStream_o(c),r)DataStream.delta *
 	   f:(;ConnectionEpochOut(c),CnStream_o(c),r)AppFragment.plain *
-	   s':(;ConnectionEpochOut(c))DataStream.stream *
-	   m1:(;ConnectionEpochOut(c),s')msg_o option){
+	   s':(;ConnectionEpochOut(c))DataStream.stream){
 			s' = AppFragment.Extend(ConnectionEpochOut(c),CnStream_o(c),r,f) /\
 			AppFragment.Payload(Id(ConnectionEpochOut(c)),r,f) =
 				DataStream.Payload(ConnectionEpochOut(c),CnStream_o(c),r,d) /\
-			(
-				(m1 = None /\
-				 MsgOBytes(c,m) = AppFragment.Payload(Id(ConnectionEpochOut(c)),r,f)
-				) \/
-				(?r1,d1. m1 = Some((r1,d1)) /\
-				 MsgOBytes(c,m) =
-					AppFragment.Payload(Id(ConnectionEpochOut(c)),r,f) @|
-					DataStream.Payload(ConnectionEpochOut(c),s',r1,d1)
-				)
-			)
+			MsgOBytes(c,m) = AppFragment.Payload(Id(ConnectionEpochOut(c)),r,f)
 	   }
 	)
 
 val write: c:Connection{CanWrite(CnInfo(c))} ->
 	m:(;ConnectionEpochOut(c),CnStream_o(c))msg_o ->
-	(c':Connection* wo:writeOutcome * mo:(;ConnectionEpochOut(c'),CnStream_o(c'))msg_o option)
+	(c':Connection* wo:writeOutcome)
     {
-      IOResult_o(c,m,c',wo,mo)
+      IOResult_o(c,m,c',wo)
 	  /\ CnBuf_o(c') = None
     }
 

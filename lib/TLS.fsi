@@ -23,7 +23,6 @@ type ioresult_i =
 type ioresult_o =
     | WriteError    of alertDescription option * string
     | WriteComplete of nextCn
-    | WritePartial  of nextCn * msg_o
     | MustRead      of Connection
 
 (* Event-driven interface *)

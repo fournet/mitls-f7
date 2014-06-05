@@ -138,12 +138,19 @@ let read (fd : int) : int * bytes =
                 (EI_DONTWRITE, empty_bytes)
 
 (* ------------------------------------------------------------------------ *)
-let mkDelta (conn : Connection) (bytes : bytes) : delta =
-    let ki = Dispatch.getEpochOut conn in
+let mkDelta (conn : Connection) (bytes : bytes) : msg_o =
+    let e = Dispatch.getEpochOut conn in
     let st = TLS.getOutStream conn  in
-    let rg = (Bytes.length bytes, Bytes.length bytes) in
-    let i = id ki in
-        DataStream.createDelta ki st rg bytes
+    let len = Bytes.length bytes in
+    let rg = (len,len) in
+    let d = DataStream.createDelta e st rg bytes in
+    if len <= fragmentLength then
+        (rg,d)
+    else
+        let (rg0,rg1) = DataStream.splitRange e rg in
+        let (d0,d1) = DataStream.split e st rg0 rg1 d in
+        (rg0,d0)
+        
 
 let write (fd : fd) (bytes : bytes) : int =
     match connection_of_fd fd with
@@ -152,26 +159,14 @@ let write (fd : fd) (bytes : bytes) : int =
         match hd.canwrite with
         | false -> Error.unexpected "[write] cannot write to FD"
         | true  ->
-            let delta = mkDelta hd.conn bytes in
-            let rg    = (Bytes.length bytes, Bytes.length bytes) in
-            let rgd   = (rg, delta) in
-                match TLS.write hd.conn rgd with
+            let msg = mkDelta hd.conn bytes in
+                match TLS.write hd.conn msg with
                 | TLS.WriteError (_, _) ->
                     unbind_fd fd; EI_WRITEERROR
                 | TLS.WriteComplete conn ->
                     let _ = update_fd_connection fd true conn in
-                        Bytes.length bytes
-                | TLS.WritePartial (conn, (r, m)) ->
-                    let _ = update_fd_connection fd true conn in
-                    let rem =
-#if verify
-                        empty_bytes
-#else
-                        DataStream.deltaRepr
-                            ((Dispatch.getEpochOut conn)) (TLS.getOutStream conn) r m
-#endif
-                    in
-                        (Bytes.length bytes) - (Bytes.length rem)
+                        let ((_,h),_) = msg in
+                        h
                 | TLS.MustRead conn ->
                     let _ = update_fd_connection fd false conn in
                         EI_MUSTREAD

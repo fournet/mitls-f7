@@ -115,14 +115,23 @@ type TLStream (s:System.IO.Stream, options, b, ?own, ?sessionID) =
                 (conn,read)
         | TLS.DontWrite conn -> wrapRead conn
 
-    let rec wrapWrite conn msg =
+    let rec wrapWrite conn (rg,d) =
+        let rg0,rg1 = DataStream.splitRange (TLS.getEpochOut conn) rg in
+        let msg,rem =
+            if rg0 = rg then
+                (rg,d),None
+            else
+                let d0,d1 = DataStream.split (TLS.getEpochOut conn) (TLS.getOutStream conn) rg0 rg1 d in
+                (rg0,d0),Some(rg1,d1)
         match TLS.write conn msg with
         | TLS.WriteError (adOpt,err) ->
             match adOpt with
             | None -> raise (IOException(sprintf "TLS-HS: Internal error: %A" err))
             | Some ad -> raise (IOException(sprintf "TLS-HS: Sent alert: %A %A" ad err))
-        | TLS.WriteComplete conn -> conn
-        | TLS.WritePartial (conn,msg) -> wrapWrite conn msg
+        | TLS.WriteComplete conn ->
+            match rem with
+            | None -> conn
+            | Some(msg) -> wrapWrite conn msg
         | TLS.MustRead conn ->
             let conn = doHS conn
             wrapWrite conn msg

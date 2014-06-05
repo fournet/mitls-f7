@@ -56,7 +56,7 @@ type readOutcome =
     | RFatal of alertDescription (* The received alert *)
     | RWarning of alertDescription (* The received alert *)
     
-val write: Connection -> msg_o -> Connection * writeOutcome * msg_o option
+val write: Connection -> msg_o -> Connection * writeOutcome
 val read:  Connection -> Connection * readOutcome
 
 val authorize: Connection -> query -> Connection * readOutcome

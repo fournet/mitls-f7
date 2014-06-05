@@ -60,7 +60,8 @@ private val get_cn_of_credentials :
 	/\ (!cn. c = Some(cn) => s = cn)
   }
 
-private val request_of_string : c:Connection -> string -> (;ConnectionEpochOut(c), CnStream_o(c)) Dispatch.msg_o
+private val request_of_string : c:Connection -> string ->
+	r:Range.range * (;ConnectionEpochOut(c),CnStream_o(c),r)DataStream.delta
 
 private val add_cdocument_to_channel : c:channel -> (;c) request -> cdocument -> unit
 
@@ -70,7 +71,7 @@ private val wait_handshake : Connection -> c:Connection{CanWrite(CnInfo(c))}
 (* HTTPS connection established and handshaken. Send request *)
 private val full_write :
      c:TLS.Connection{CanWrite(CnInfo(c))}
-  -> d:(;ConnectionEpochOut(c), CnStream_o(c)) Dispatch.msg_o
+  -> r:Range.range * (;ConnectionEpochOut(c),CnStream_o(c),r)DataStream.delta
   -> c':TLS.Connection{CanWrite(CnInfo(c'))}
 
 (* HTTPS request sent. Reading answer *)

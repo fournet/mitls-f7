@@ -92,6 +92,8 @@ let drain (c : Connection) =
     | Read       (c, _)         -> TLS.half_shutdown c; None
 
 let rec do_request (c : Connection) (u : username) (tk : token) =
+    if MaxTkReprLen > TLSInfo.fragmentLength then
+        Error.unexpected "Refusing to send token that doesn't fit in one fragment"
     let epoch  = TLS.getEpochOut c
     let stream = TLS.getOutStream c
     let rg     = (0, MaxTkReprLen)
@@ -99,7 +101,6 @@ let rec do_request (c : Connection) (u : username) (tk : token) =
 
     match TLS.write c (rg, delta) with
     | WriteError    (_, _) -> None
-    | WritePartial  (c, _) -> TLS.half_shutdown c; None
     | MustRead      c      -> (match drain c with Some c -> do_request c u tk | None -> None)
     | WriteComplete c      -> read_server_response c u tk
 
@@ -113,6 +114,8 @@ let request (servname : string)  (u : username) (tk : token) =
 
 // ------------------------------------------------------------------------
 let rec do_client_response (conn : Connection) (clientok : bool) =
+    if MaxTkReprLen > TLSInfo.fragmentLength then
+        Error.unexpected "Refusing to send token that doesn't fit in one fragment"
     let epoch  = TLS.getEpochOut conn in
     let stream = TLS.getOutStream conn in
     let rg     = (0, MaxTkReprLen)
@@ -120,7 +123,6 @@ let rec do_client_response (conn : Connection) (clientok : bool) =
 
         match TLS.write conn (rg, delta) with
         | WriteError    (_, _)    -> None
-        | WritePartial  (conn, _) -> TLS.half_shutdown conn; None
         | MustRead      conn      -> TLS.half_shutdown conn; None
         | WriteComplete conn      -> Some conn
 

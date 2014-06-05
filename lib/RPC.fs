@@ -82,10 +82,19 @@ let rec drainMeta = fun conn ->
         DRError (None,perror __SOURCE_FILE__ __LINE__ "Internal TLS error")
 
 let rec sendMsg = fun conn rg msg ->
-    match TLS.write conn (rg, msg) with
+    let rg0,rg1 = DataStream.splitRange (TLS.getEpochOut conn) rg in
+    let msg_o,rem =
+        if rg0 = rg then
+            msg,None
+        else
+            let msg0,msg1 = DataStream.split (TLS.getEpochOut conn) (TLS.getOutStream conn) rg0 rg1 msg in
+            msg0, Some(msg1)
+    match TLS.write conn (rg0, msg_o) with
     | WriteError    (ad,err)          -> None
-    | WriteComplete conn              -> Some conn
-    | WritePartial  (conn, (rg, msg)) -> sendMsg conn rg msg
+    | WriteComplete conn              ->
+        match rem with
+        | None -> Some conn
+        | Some(msg1) -> sendMsg conn rg1 msg1
     | MustRead      conn              ->
         match drainMeta conn with
         | DRError    _    -> None

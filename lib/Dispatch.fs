@@ -842,22 +842,13 @@ let rec read c =
         | RError(err) -> c,RError(err)
 
 let msgWrite (Conn(id,c)) (rg,d) =
-  let (r0,r1) = DataStream.splitRange id.id_out rg in
-  if r0 = rg then
     let outStr = AppData.outStream id c.appdata in
-    let (f,ns) = AppFragment.fragment id.id_out outStr r0 d 
-    (rg,d,f,ns,None)
-  else
-    let outStr = AppData.outStream id c.appdata in
-    let ki_out = TLSInfo.id id.id_out in
-    let (d0,d1) = DataStream.split id.id_out outStr r0 r1 d in
-    let (f,ns) = AppFragment.fragment id.id_out outStr r0 d0 in
-    let msg1 = (r1,d1) in
-    (r0,d0,f,ns,Some(msg1))
+    let (f,ns) = AppFragment.fragment id.id_out outStr rg d 
+    (rg,d,f,ns)
 
 let write (Conn(id,s)) msg =
   let res = msgWrite (Conn(id,s)) msg in
-  let (r0,d0,f0,ns,rdOpt) = res in
+  let (r0,d0,f0,ns) = res in
   let new_appdata = AppData.writeAppData id s.appdata r0 f0 ns in
   let s = {s with appdata = new_appdata} in
   let ghost = (r0,d0,f0,ns) in
@@ -866,12 +857,9 @@ let write (Conn(id,s)) msg =
   let new_appdata = AppData.clearOutBuf id s.appdata in
   let s = {s with appdata = new_appdata} in
   match outcome with //AP: prune some options
-  | WError (_) | SentFatal(_,_) -> Conn(id,s),outcome,None
-  | WriteFinished -> Conn(id,s),outcome,None
-  | WAppDataDone ->
-    match rdOpt with
-    | None -> Conn(id,s),outcome,rdOpt
-    | Some(_) -> Conn(id,s),outcome,rdOpt
+  | WError (_) | SentFatal(_,_) -> Conn(id,s),outcome
+  | WriteFinished -> Conn(id,s),outcome
+  | WAppDataDone -> Conn(id,s),outcome
   | WriteAgain | WriteAgainFinishing | WriteAgainClosing
   | WDone | WHSDone | SentClose ->
     unexpected "[write] writeAllTop should never return this"

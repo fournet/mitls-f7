@@ -85,11 +85,6 @@ type (;c:Connection,d:(;ConnectionEpochOut(c),CnStream_o(c)) msg_o) ioresult_o =
 | WriteComplete of c':(;c) nextCn {Extend_o(c,c',d)}
   // We wrote the message in full. appended to the output stream
 
-| WritePartial  of c':(;c) nextCn * d':(;ConnectionEpochOut(c'),CnStream_o(c')) msg_o {
-	?d0. Extend_o(c,c',d0) /\ Split_o(c, d, d0, c', d')
-  }
-  // We wrote a fragment of the message, appended to the output stream, and return the rest
-
 | MustRead of c':Connection {
 		Role(c') = Role(c) 
 	 /\ Rnd(c') = Rnd(c)
