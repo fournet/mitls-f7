@@ -71,10 +71,7 @@ val fragment: e:epoch -> s:(;e) stream -> r:range ->
   {Sent(e,s,r,f) /\ s' = Extend(e,s,r,f) /\ Payload(Id(e),r,f) = DataStream.Payload(e,s,r,d)}
 
 val delta: e:epoch -> s:(;e) stream -> r:range -> 
-  f:(;Id(e),r) fragment{AuthId(Id(e)) => Sent(e,s,r,f)} ->  
-  // Note: AuthId, not Auth, so Dispatch can only call delta in the Open state
-  // To make this more explicity, we could replace the above precondition by: 
-  // Open(e) /\ (Auth(e) => Sent(e,s,r,f)) 
+  f:(;Id(e),r) fragment{( Auth(e) => Sent(e,s,r,f) ) /\ TLSInfo.OpenState(e) } ->
   d:(;e,s,r) delta * s':(;e) stream{s' = Extend(e,s,r,f)  /\ Payload(Id(e),r,f) = DataStream.Payload(e,s,r,d)}
 
 // conditional fragment abstraction 

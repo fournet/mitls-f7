@@ -72,8 +72,9 @@ val clearOutBuf: ci:ConnectionInfo -> s:(;ci)app_state ->
 		}
 
 val recv_fragment: ci:ConnectionInfo -> s:(;ci)app_state -> r:range ->
-	f:(;Id(ci.id_in),r)AppFragment.fragment{AuthId(Id(ci.id_in)) =>
-		AppFragment.Sent(ci.id_in,AppInStream(ci,s),r,f)} ->
+	f:(;Id(ci.id_in),r)AppFragment.fragment{(Auth(ci.id_in) =>
+		AppFragment.Sent(ci.id_in,AppInStream(ci,s),r,f)) /\
+		TLSInfo.OpenState(ci.id_in)} ->
 	(d:(;ci.id_in,AppInStream(ci,s),r)delta *
 	 s':(;ci)app_state){
 		AppOutBuf(ci,s') = AppOutBuf(ci,s) /\

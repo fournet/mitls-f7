@@ -572,6 +572,10 @@ definition !role,e,cfg.
     (?a. Sig.Honest(a,Cert.SigPKCert(EpochSI(e).clientID,a))) =>
     HonestPMS(EpochSI(e).pmsId)))
 
+predicate OpenState of epoch
+definition !e.
+  OpenState(e) <=> (SafeVD(EpochSI(e)) => Open(e))
+
 //KB The following assume is dodgy. Only true with Reneg Indication. Remove if possible.
 private assume !r,e,e'. SentCCS(r,EpochCRand(e),EpochSRand(e),EpochSI(e)) /\ 
 	                SentCCS(r,EpochCRand(e'),EpochSRand(e'),EpochSI(e')) /\ 

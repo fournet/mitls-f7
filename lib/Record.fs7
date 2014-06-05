@@ -42,7 +42,7 @@ type (;e:epoch) recvState = (;e,Reader) ConnectionState
 
 val recordPacketOut: e:epoch -> 
                      s:(;e) sendState -> pv:ProtocolVersion ->
-                     rg:range -> ct:ContentType{ct=Application_data => (AuthId(Id(e)) => Open(e))} -> //MK required by TLSFragment.extendHistory
+                     rg:range -> ct:ContentType{ct=Application_data => OpenState(e)} -> //MK required by TLSFragment.extendHistory
                      f:(;e,ct,History(e,Writer,s),rg) TLSFragment.plain ->
                      (s':(;e) sendState * wire:bytes){
                         Auth(e) => (History(e,Writer,s') = 
@@ -50,7 +50,7 @@ val recordPacketOut: e:epoch ->
  
 val recordPacketIn : e:epoch ->
                      s:(;e) recvState ->
-					 ct:ContentType{ct=Application_data => (AuthId(Id(e)) => Open(e))} ->
+					 ct:ContentType{ct=Application_data => OpenState(e)} ->
                      wire:bytes{Length(wire) <= max_TLSCipher_fragment_length} -> 
                      ((s':(;e)recvState *
                         rg:range * 

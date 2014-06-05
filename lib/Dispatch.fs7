@@ -27,7 +27,7 @@ private definition !e,d. IsDispatchState(e,d) <=>
 	(d = Init \/ (?pv. d = FirstHandshake(pv)) \/ d = Finishing \/ d = Finished \/
 	d = Open \/ (?pv,s. d = Closing(pv,s)) \/ d = Closed) /\
 	( (d = Finishing \/ d = Finished \/ d = Open) => (IsSuccEpoch(e) /\ IsValidEpoch(e) /\ IsValidEpoch(Pred(e))) ) /\
-	(d = Open => (AuthId(Id(e)) => TLSInfo.Open(e)))
+	(d = Open => OpenState(e))
 	)
 
 type (;e:epoch)dispatchState = d:predispatchState{IsDispatchState(e,d)}
@@ -416,8 +416,8 @@ val full_shutdown:    c:Connection ->
 val half_shutdown: c:Connection{CnBuf_o(c) = None} -> unit
 
 private val moveToOpenState: c:Connection{
-	( AuthId(Id(ConnectionEpochOut(c))) => TLSInfo.Open(ConnectionEpochOut(c)) ) /\
-	( AuthId(Id(ConnectionEpochIn(c) )) => TLSInfo.Open(ConnectionEpochIn(c) ) )
+	( TLSInfo.OpenState(ConnectionEpochOut(c)) ) /\
+	( TLSInfo.OpenState(ConnectionEpochIn(c) ) )
 	} ->
 	(gs:(;CnInfo(c))globalState{
 		gs.write.disp = Open /\ gs.read.disp = Open /\
@@ -453,7 +453,7 @@ private val abortWithAlert: c:Connection -> alertDescription -> s:string ->
 private val getReason: predispatchState -> string
 
 private val send: Tcp.NetworkStream -> e:epoch -> w:(;e,Writer)dState ->
-	ProtocolVersion -> rg:range -> ct:ContentType{ct=Application_data => (AuthId(Id(e)) => TLSInfo.Open(e))} ->
+	ProtocolVersion -> rg:range -> ct:ContentType{ct=Application_data => TLSInfo.OpenState(e)} ->
 	f:(;e,ct,Record.History(e,Writer,w.conn),rg)TLSFragment.plain ->
 	(w':(;e,Writer) dState{w.disp = w'.disp /\
 		(Auth(e) =>
@@ -464,7 +464,7 @@ private val getHeader: c:Connection ->
 	((ct:ContentType * len:nat){len > 0 /\ len <= max_TLSCipher_fragment_length}) Result
 
 private val getFragment: c:Connection ->
-	ct:ContentType{ct=Application_data => (AuthId(Id(ConnectionEpochIn(c))) => TLSInfo.Open(ConnectionEpochIn(c)))} ->
+	ct:ContentType{ct=Application_data => TLSInfo.OpenState(ConnectionEpochIn(c))} ->
 	len:nat{len > 0 /\ len <= max_TLSCipher_fragment_length} ->
 	((cs:(;ConnectionEpochIn(c),Reader) Record.ConnectionState *
 	  r:range * 
