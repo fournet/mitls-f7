@@ -7,8 +7,8 @@ open TLSConstants
 
 (* TLS uses three signatures algorithms, together with hash algorithm.
    We verify TLS security relative to those *combinations* of algorithms
-   that provide CMA-security, as specified in this interface. 
-   However, none of them are CMA-secure in the standard model under an 
+   that provide agile CMA-security, as specified in this interface. 
+   However, none of them are known to be CMA-secure in the standard model under an 
    assumption much weaker than "This scheme is secure".
 
    This interface is adapted from the one described in CCS'11:
@@ -17,9 +17,7 @@ open TLSConstants
        code-based cryptographic verification. ACM Conference on Computer 
        and Communications Security 2011: 341-350
 
-   Its implementation is trusted, not verified. *)
-
-// CF we should verify its ideal implementation!?
+   Its ideal implementation is verified. *)
 
 (*********************** Cryptographic agility **************************** 
 

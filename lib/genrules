@@ -12,17 +12,18 @@ FS7DEFAULT = [
   'TLSError',
   'Nonce',
   'TLSConstants',
-# 'RSAKey',
+  'RSAKey',
   'DHGroup',
   'PMS',
   'HASH',
   'HMAC',
   'Sig',
-# 'Cert',
+# 'UntrustedCert',
+  'Cert',
   'TLSInfo',
 # 'TLSExtensions',
 # 'TLSPRF',
-# 'Range',
+  'Range',
   'DataStream',
   'AppFragment',
   'HSFragment',
@@ -41,8 +42,8 @@ FS7DEFAULT = [
   'Record',
   'Alert',
   'PRF',
-  'CRE',
-# 'DH',
+  'KEF',
+  'DH',
   'RSA',
   'SessionDB',
   'HandshakeMessages',
@@ -92,7 +93,7 @@ default: %(fs7default)s
 # idealizing: these are .fs7 files for .fs files with #ideal flags
 # this flag is used to define ideal variants of the modules
 #
-#   Sig MAC ENC LHAE PRF CRE RSA DH
+#   Sig MAC_SHA256 MAC_SHA1 ENC LHAE PRF KEF RSA DH
 #
 # the Makefile rules by default verify with --define ideal; additional
 # typing is needed for some modules: Encode and LHAE are typechecked
@@ -108,12 +109,12 @@ default: %(fs7default)s
 #   Dispatch, TLS, UTLS
 #
 # Current verification status:
-# - TLSConstants.tc7 fails on recently added list primitives.
+# - TLSConstants.tc7 typechecks, but there may still be issues with list primitives.
 # - Encode.tc7 fails on full correctness for decryption.
 # - Handshake.tc7 still fails outside TLS 1.2 for DHE and RSA.
 # - Dispatch.tc7 
-# - <idealizing modules>.tc7 mostly fail because of CoreCrypto dependencies, 
-# - MAC.tc7 typechecks
+# - <idealizing modules>.tc7 mostly typecheck, some fail because of CoreCrypto dependencies. 
+# - MAC.tc7 typechecks.
 
 clean:
 	rm -f *.smp *.tc7 *.why

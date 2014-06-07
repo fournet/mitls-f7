@@ -1,7 +1,5 @@
 ﻿module UntrustedCert
 
-//open System.Security.Cryptography.X509Certificates
-
 open Bytes
 open Error
 open TLSError

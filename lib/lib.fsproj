@@ -161,6 +161,7 @@
     <None Include="Sig.fs7" />
     <Compile Include="Sig.fsi" />
     <Compile Include="Sig.fs" />
+    <None Include="UntrustedCert.fs7" />
     <Compile Include="UntrustedCert.fsi" />
     <Compile Include="UntrustedCert.fs" />
     <None Include="Cert.fs7" />
@@ -264,6 +265,7 @@
     <Compile Include="UTLS.fsi" />
     <Compile Include="UTLS.fs" />
     <None Include="App.config" />
+    <None Include="Makefile" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="BouncyCastle.Crypto">
