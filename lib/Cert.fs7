@@ -27,6 +27,8 @@ val get_public_encryption_key : cert -> RSAKey.pk Result
 function val SigPKCert: cert list * a:Sig.alg -> 'a //(;a)Sig.pkey
 val get_chain_public_signing_key : c:chain -> a:Sig.alg -> (pk:(;a)Sig.pkey{pk=SigPKCert(c,a)}) Result //MK define using events or in UntrustedCert??
 
+val signing_gen:     a:Sig.alg -> pk:(;a) Sig.pkey {Sig.Honest(a,pk)}
+
 function val RSAPKCert: cert list -> RSAKey.pk
 val get_chain_public_encryption_key : c:chain -> (pk:RSAKey.pk{pk=RSAPKCert(c)}) Result
 

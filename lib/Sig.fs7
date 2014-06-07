@@ -1,7 +1,5 @@
 ﻿module Sig
 
-// TODO still many details to fix.
-
 open Bytes
 open TLSConstants
 
@@ -17,47 +15,45 @@ open TLSConstants
        code-based cryptographic verification. ACM Conference on Computer 
        and Communications Security 2011: 341-350
 
-   Its ideal implementation is verified. *)
-
-(*********************** Cryptographic agility **************************** 
+   Its ideal implementation is verified. 
+   
+   ********************** Cryptographic agility **************************** 
 
    note that the same key may be used with different hashes. 
    so we require some joint security assumption for them
 
-   TLS 1.2 provides explicit support for it:
-   [1.2] - Substantial cleanup to the client's and server's ability to
+   TLS 1.2 provides explicit support for it: http://tools.ietf.org/html/rfc5246#section-1.2
+         - Substantial cleanup to the client's and server's ability to
            specify which hash and signature algorithms they will accept.
            Note that this also relaxes some of the constraints on signature
            and hash algorithms from previous versions of TLS.
+
+   Summary of the extension logic for the client:
+    - specific to TLS 1.2
+    - cs indicates sigAlg but not hashAlg, but "this is historical"
+    - extension indicates supported algs (not necessarily following the cs)
+    - no extension == client supports exactly the default alg
+
+   let defaultAlg cs =
+     let a = 
+       match cs with 
+       | RSA | DH_RSA | DHE_RSA | RSA_PSK  | ECDH_RSA | ECDHE_RSA  -> RSA
+       | DH_DSS | DHE_DSS                                          -> DSA
+       | ECDH_ECDSA | ECDHE_ECDSA                                  -> ECDSA in
+     (a, SHA1)
+
+   from the viewpoint of cryptographic agility the relaxed constraints lead to 
+   stronger assumptions.  
 ***************************************************************************)
 
-// TODO: there is some adhocness processing of those algs left in Handshake.fs
-  
-// implements SignatureAndHashAlgorithm, with fewer values for hashAlg
-//MK: I don't understand this comment.
+// see SignatureAndHashAlgorithm
 type alg   = sigHashAlg //defined in TLSConstants.fs7: sigAlg * hashAlg
 
 type text = bytes
 type (;a:alg) sigv = bytes
-  // TODO: specify their size, 36 with RSA, 20 with DSA
+  // we could be more precise and specify their size, 36 with RSA, 20 with DSA
   // with TLS 1.2, this explicitly contains a; see DigitallySigned struct 
 
-// Summary of the extension logic for the client:
-// - specific to TLS 1.2
-// - cs indicates sigAlg but not hashAlg, but "this is historical"
-// - extension indicates supported algs (not necessarily following the cs)
-// - no extension == client supports exactly the default alg
-
-// let defaultAlg cs =
-//   let a = 
-//     match cs with 
-//     | RSA | DH_RSA | DHE_RSA | RSA_PSK (* | ECDH_RSA | ECDHE_RSA *) -> RSA
-//     | DH_DSS | DHE_DSS                                              -> DSA
-//     | ECDH_ECDSA | ECDHE_ECDSA                                      -> ECDSA in
-//   (a, SHA1)
-
-// TODO: how to extract & check the algs from certs?
-// TODO: how does the server control the choice of algorithms? For now hardcoded.
 
 //********************** Ideal Functionality for Signing *********************** 
 private type (;a:alg) pkey = {pkey : CoreSig.sigpkey * hashAlg }
@@ -73,7 +69,7 @@ predicate type pred = Honest of a:alg * (;a) pkey
 predicate Strong of alg
 private definition !a. Strong(a) <=> (a = (SA_DSA,SHA384))
 
-val gen:     a:alg -> pk:(;a) pkey * sk:(;a) skey { pk = PK(sk) }
+val gen:     a:alg -> pk:(;a) pkey * sk:(;a) skey { pk = PK(sk) /\ Honest(a,pk) }
 val sign:    a:alg -> sk:(;a) skey -> t:text{Msg(a,PK(sk),t)} -> (;a) sigv
 val verify:  a:alg -> pk:(;a) pkey -> t:text -> m:(;a) sigv -> 
   b:bool {(b=true /\ Strong(a) /\ Honest(a,pk)) => Msg(a,pk,t)}
@@ -99,6 +95,10 @@ val leak:    a:alg -> s:(;a) skey{not Honest(a,PK(s))} -> CoreSig.sigskey
 
 val create_pkey: a:alg -> CoreSig.sigpkey -> (;a)pkey
 
+
+// TODO: how to extract & check the algs from certs?
+// TODO: how does the server control the choice of algorithms? For now hardcoded.
+
 // TODO: adjust compromise model, connect it to Cert (mostly for the benefit of the adversary)
-// TODO: MK: our current implementation does not allow access to the gen function. 
-// TODO: All secret keys used in runs of our protocol are thus coerced keys and we thus don't have any safe instances
+// TODO: our current implementation does not allow access to the gen function. 
+// TODO: consequently all secret keys used in runs of our protocol are thus coerced keys and we thus don't have any safe instances

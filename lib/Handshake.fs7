@@ -1,6 +1,11 @@
 module Handshake
 
-(* CF
+(* 
+ MK. Comments about Handshake from other modules:
+ 
+ TODO from Sig.fs7: there is some adhocness processing of sigHashAlg, sigAlg, hashAlg left in Handshake.fs
+
+ CF
  --- summary of our discussion on Apr 29, towards typechecking the HS.
 
  MK. factually a bit outdated, but moved here from PRF to mark the 1 year anniversary. :)

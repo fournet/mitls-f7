@@ -128,6 +128,12 @@ let get_chain_public_encryption_key (chain : chain) =
     | c :: _ -> get_public_encryption_key c
 #endif
 
+let signing_gen (a:Sig.alg) : Sig.pkey = 
+    let pk,sk = Sig.gen a
+    pk
+
+//TODO MK the secret keys also need to be stored and used.
+
 (* ------------------------------------------------------------------------ *)
 
 
