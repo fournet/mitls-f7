@@ -46,7 +46,7 @@ val sample: i:msId -> (;i)ms
 
 //#begin-coerce
 
-//the precondition of coerce excludes both idealizations.
+// the precondition of coerce excludes both idealizations.
 // this is checked by the following asks in TLSInfo
 //  ask !si:SessionInfo. not HonestMS(MsI(si)) => not SafeVD(si) 
 //  ask !i:id. not HonestMS(i.msId) => not SafeKDF(i) 

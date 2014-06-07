@@ -264,7 +264,6 @@
     <Compile Include="UTLS.fsi" />
     <Compile Include="UTLS.fs" />
     <None Include="App.config" />
-    <Compile Include="Algorithms.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="BouncyCastle.Crypto">

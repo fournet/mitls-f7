@@ -198,7 +198,7 @@ let keyGenServer (rdId:id) (wrId:id) ms =
     | Init -> 
         Error.unexpected "Excluded by usage restriction (affinity)"
     | Committed(pv',aeAlg',ext') -> 
-        // when SafeKDF, the client keyGens only on a fresh Ids,
+        // when SafeKDF, the client keyGens only on fresh Ids,
         // hence we will never have AuthId(rdId) for this csr.
         //CF tricky case; revisit at some point.
         Pi.assume(Mismatch(rdId));
