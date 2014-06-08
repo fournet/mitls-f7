@@ -146,7 +146,6 @@ let wrap (rdId:id) (wrId:id) r w = (r,w)
 let wrap2 (a:id) (b:id) rw csr = Derived(a,b,rw)
 
 let deriveKeys rdId wrId (ms:masterSecret) role  =
-    // at this step, we should idealize if SafeMS //TODO I don't think so. 
     let (ck,sk) = deriveRawKeys rdId ms
     match role with 
     | Client -> 

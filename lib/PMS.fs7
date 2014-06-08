@@ -12,7 +12,7 @@ open TLSConstants
 // ``These parameters can encrypt HonestRSAPMSs.''
 //CF unclear why we need this intermediate predicate
 predicate SafeRSA of RSAKey.pk * ProtocolVersion 
-definition !pk,cv. SafeRSA(pk,cv) <=> RSAKey.Honest(pk) 
+definition !pk,cv. SafeRSA(pk,cv) <=> RSAKey.Honest(pk)
 
 // In this file RSA refers to any crypto materials used for the RSA KEX. 
 
@@ -46,10 +46,10 @@ val honestRSAPMS: pk:RSAKey.pk -> cv:ProtocolVersion -> pms: (;pk,cv) rsapms ->
 
 //CF UNUSED. to be deleted.
 // abstract postcondition of RSA encryption (event) 
-predicate EncryptedRSAPMS of pk:RSAKey.pk * cv:ProtocolVersion * (;pk,cv)rsapms * bytes
+// TODO MK delete: predicate EncryptedRSAPMS of pk:RSAKey.pk * cv:ProtocolVersion * (;pk,cv)rsapms * bytes
 
 //CF see SafeRSA in TLSInfo
-//CF we get it as a runtime invariant, from the refinement of IdeaRSAPMS
+//CF we get it as a runtime invariant, from the refinement of IdealRSAPMS
 private ask !pk,cv,pms. 
   HonestRSAPMS(pk,cv,pms) => SafeRSA(pk,cv) 
 
@@ -70,27 +70,27 @@ val leakRSA:
 open DHGroup
 
 //MK SafeDH is much more specific involving the contributions to the pms. This is probably by necessity.
-predicate SafeDH of p:DHGroup.p * (;p)DHGroup.g * (;p)DHGroup.elt * (;p)DHGroup.elt // The DH parameters, generator, and gx and gy values yield a good dhpms
-
+// The DH parameters, generator, and gx and gy values yield a good dhpms
+predicate SafeDH of p:DHGroup.p * (;p)DHGroup.g * (;p)DHGroup.elt * (;p)DHGroup.elt 
 //#begin-abstractionDH
 
 type dhrepr = bytes
 
 (* private , only shared with KEF *)  
 type dhseed = {seed:dhrepr} // treated abstractly almost everywhere in this file
+
 // - dhpms, treated abstractly outside this module & KEF
 //   so that we can control their usage for the DH-PMS assumption.
 type (;p:p, g:(;p) g, gx:(;p) elt, gy:(;p) elt) dhpms =   
    | IdealDHPMS    of dhseed 
    | ConcreteDHPMS of dhrepr
 
-
-
 predicate HonestDHPMS of p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * (;p,g,gx,gy) dhpms
 
 private definition !p,g,gx,gy,pms. HonestDHPMS(p,g,gx,gy,pms) <=> ?s. pms = IdealDHPMS(s)
 
-val honestDHPMS: p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt -> pms: (;p,g,gx,gy) dhpms -> b:bool { b=true <=> HonestDHPMS(p,g,gx,gy,pms) } 
+val honestDHPMS: p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt -> pms: (;p,g,gx,gy) dhpms 
+                     -> b:bool { b=true <=> HonestDHPMS(p,g,gx,gy,pms) } 
 
 val sampleDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt ->  pms:(;p,g,gx,gy) dhpms{HonestDHPMS(p,g,gx,gy,pms)}
 val coerceDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt {not SafeDH(p,g,gx,gy)}-> (;p)elt -> (;p,g,gx,gy) dhpms
@@ -98,11 +98,6 @@ val coerceDH:   p:p -> g:(;p)g -> gx:(;p)elt -> gy:(;p)elt {not SafeDH(p,g,gx,gy
 
 
 // multiplexing the PMS representations
-
 type pms = 
   | RSAPMS of pk:RSAKey.pk * cv:ProtocolVersion * (;pk,cv)rsapms
   | DHPMS of p:p * g:(;p) g * gx:(;p) elt * gy:(;p) elt * (;p,g,gx,gy) dhpms
-
-//TODO consider adding HonestPMS as HonestRSAPMS \/ HonestDHPMS.
-
-//CF val todo: string -> 'a { false }

@@ -18,7 +18,7 @@ open RSAKey
 
 val encrypt: 
   pk:pk -> cv:ProtocolVersion -> pms:(;pk,cv) PMS.rsapms -> 
-  b:bytes {PMS.EncryptedRSAPMS(pk,cv,pms,b)}
+  b:bytes //TODO delete {PMS.EncryptedRSAPMS(pk,cv,pms,b)}
 
 val decrypt: 
   sk -> si:SessionInfo -> 

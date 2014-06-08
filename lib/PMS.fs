@@ -18,7 +18,7 @@ type rsapms =
 
 #if ideal
 //this predicate is used in RSA.encrypt to record the event that rsapms got encrypted
-type predicates = EncryptedRSAPMS of RSAKey.pk * ProtocolVersion * rsapms * bytes
+// TODO MK delete: type predicates = EncryptedRSAPMS of RSAKey.pk * ProtocolVersion * rsapms * bytes
 
 //this function is used to determine whether idealization should be performed
 let honestRSAPMS (pk:RSAKey.pk) (cv:TLSConstants.ProtocolVersion) pms = 

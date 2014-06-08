@@ -139,7 +139,6 @@ private definition !pk,cv,rsapms.    StrongRSAKEX(SomePmsId(PMS.RSAPMS(pk,cv,rsa
 predicate StrongDHKEX  of pmsId 
 private definition !p,g,gx,gy,dhpms.  StrongDHKEX(SomePmsId(PMS.DHPMS(p,g,gx,gy,dhpms))) <=> PMS.SafeDH(p,g,gx,gy)
 //MK I think it's only coincidental in the current PMS that HonestPMS implies SafeKEX. Lets keep it for discussions.
-//MK They replace StrongRSAPMS and StrongDHPMS.
 //CF strange to go from Strong to Safe?
 //MK Yes, that's historic. We should rename or delete. 
 
