@@ -112,7 +112,7 @@ val certkey: c:certs -> o:pk option {o = CertKey(c)}
 //CF: - we do not provide concrete long-term key & cert generation 
 
 //MK: should we define pk as a sumtype of (;a)Sig.pkey and RSAKey.pk, rather than as bytes? 
-//MK: can we then define Honest in terms of HonestSig and HonestRSAKey?
+//MK: can we then define Honest in terms of Sig.Honest and RSAKey.Honest?
 //MK: should we plan ahead for static DH??
 
 *)

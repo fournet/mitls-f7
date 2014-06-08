@@ -97,19 +97,6 @@ type negotiatedExtension =
 
 type negotiatedExtensions = negotiatedExtension list
 
-// -------------------------------------------------------------------
-// Predicates specifying the honesty of keys and key material (trust assumptions)
-
-predicate HonestSig of a:sigHashAlg * (;a) Sig.pkey
-definition !a,k. HonestSig(a,k) <=> Sig.Honest(a,k)
-
-// ``The associated sk is used only by compliant TLS''
-predicate HonestRSAKey of RSAKey.pk
-definition !pk. HonestRSAKey(pk) <=> RSAKey.Honest(pk)
-
-//CF what is the merit of those indirections? 
-
-//MK: predicate HonestLTKey (See also Cert.fs7)
 
 // -------------------------------------------------------------------
 // pre-master-secret indexes 
@@ -133,11 +120,11 @@ val noPmsId: i:pmsId { not HonestPMS(i) }
 // Strengths of Handshake algorithms defined on pmsId
 
 // Here we consider the strength of the parameters in pmsId
-predicate StrongRSAKEX of pmsId 
-private definition !pk,cv,rsapms.    StrongRSAKEX(SomePmsId(PMS.RSAPMS(pk,cv,rsapms)))   <=> PMS.SafeRSA(pk,cv) 
+// TODO MK delete: predicate StrongRSAKEX of pmsId 
+// TODO MK delete: private definition !pk,cv,rsapms.    StrongRSAKEX(SomePmsId(PMS.RSAPMS(pk,cv,rsapms)))   <=> PMS.SafeRSA(pk,cv) 
 
-predicate StrongDHKEX  of pmsId 
-private definition !p,g,gx,gy,dhpms.  StrongDHKEX(SomePmsId(PMS.DHPMS(p,g,gx,gy,dhpms))) <=> PMS.SafeDH(p,g,gx,gy)
+// TODO MK delete: predicate StrongDHKEX  of pmsId 
+// TODO MK delete private definition !p,g,gx,gy,dhpms.  StrongDHKEX(SomePmsId(PMS.DHPMS(p,g,gx,gy,dhpms))) <=> PMS.SafeDH(p,g,gx,gy)
 //MK I think it's only coincidental in the current PMS that HonestPMS implies SafeKEX. Lets keep it for discussions.
 //CF strange to go from Strong to Safe?
 //MK Yes, that's historic. We should rename or delete. 
@@ -256,7 +243,7 @@ definition !si. StrongPRF(si) <=> StrongKDF(KdfAlg(si)) /\ StrongVD(VdAlg(si))
 // CF derived & to be used in the public API only
 predicate StrongHS of SessionInfo 
 definition !si. StrongHS(si) <=> 
-  (   (StrongRSAKEX(si.pmsId) \/ StrongDHKEX(si.pmsId)) /\ 
+  (  // TODO MK delete (subsumed by HonestPMS): (StrongRSAKEX(si.pmsId) \/ StrongDHKEX(si.pmsId)) /\ 
       StrongKEF(KefAlg(si)) /\ 
 	  StrongPRF(si) /\ 
 	  StrongSig(si) ) //CF * hashAlg for certs?
