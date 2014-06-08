@@ -12,7 +12,7 @@ type cipher = b:bytes{Length(b) <= max_TLSCipher_fragment_length}
 (* no need to be more precise on the length *)
 
 private type (;i:id,rw:rw) LHAEKey =
-    | MtEK of ka:(;i)MAC.key * ke:(;i,rw)ENC.state // {MtEKey(i,(ka,ke))}
+    | MtEK of ka:(;i)MAC.key * ke:(;i,rw)ENC.state
     | MACOnlyK of (;i) MAC.key
     | GCM of (;i,rw)AEAD_GCM.state
 
@@ -31,7 +31,7 @@ definition !mac.     KeySize(MACOnly(mac)) = MacKeySize(mac)
 definition !enc,mac. KeySize(MtE(enc,mac)) = MacKeySize(mac) + EncKeySize(enc) + KeyDerivationIVSize(MtE(enc,mac))
 definition !enc,prf. KeySize(AEAD(enc,prf)) = AEADKeySize(enc) + AEADIVSize(enc)
 
-//CF not clearly useful MK help typechecking LHAE.encrypt'
+//CF not clearly useful MK helps typechecking LHAE.encrypt'
 ask !i,mac.     i.aeAlg = MACOnly(mac) => KeySize(i.aeAlg) = MacKeySize(mac)
 //MK strangely the following isn't needed for that
 //MK ask !i,mac,enc. i.aeAlg = MtE(enc,mac) => KeySize(i.aeAlg) = MacKeySize(mac) + EncKeySize(enc) + KeyDerivationIVSize(MtE(enc,mac))
@@ -93,13 +93,15 @@ val decrypt': i:id -> k:(;i) decryptor -> ad:(;i)LHAEPlain.adata ->
     rg:range * 
     p:(;i,ad,rg) LHAEPlain.plain) {rg = CipherRangeClass(i,Length(c))} ) Result
 
-// { (* partial functional correctness when decrypting what we encrypted *)
-//   !pl,p,tag,rg.
-//	(    Length(c) = EncryptedLength(i,rg)
-//	  /\ MACed(e,ad,pl,tag) // nb Encode.MACed has extra args.
-//     /\ Encoded(e,ad,pl,tag,p) 
-//     /\ ENCrypted(e,Length(c),StateID(e,Encryptor(k)),p,c)  
-//   => ?k',r'. res = Correct((k',r',pl)) } 
+(* TODO MK seems outdated: partial functional correctness when decrypting what we encrypted  
+  { 
+   !pl,p,tag,rg.
+	(    Length(c) = EncryptedLength(i,rg)
+	  /\ MACed(e,ad,pl,tag) 
+     /\ Encoded(e,ad,pl,tag,p) 
+     /\ ENCrypted(e,Length(c),StateID(e,Encryptor(k)),c,p)  
+   => ?k',r'. res = Correct((k',r',pl)) } 
+*)
 
 val decrypt: i:id -> (;i) decryptor -> ad:(;i)LHAEPlain.adata ->
   c:cipher -> res: 
@@ -112,17 +114,17 @@ val decrypt: i:id -> (;i) decryptor -> ad:(;i)LHAEPlain.adata ->
 	 /\ (ENCrypted(i,ad,c) => (?p,k,r'. res = Correct((k,r',p))))
 		))}
 // The last two lines are equivalent to (but easier to verify than)
-// !p. CTXT(i,ad,p,c) <=> (?k,r. res = Correct((k,r,p)))
+// !p. ENC.ENCrypted(i,ad,c,p) <=> (?k,r. res = Correct((k,r,p)))
 
 
 
 
 (* CF 13-01-07 verification notes
 
-We need a full independent spec of StrongAE & StAE
+We need a full independent spec of StrongAEId & StrongAuthId
 something like the functions below and the corresponding logical specs.
 
-let strongAE pv cs = match cs with
+let strongAEId pv cs = match cs with
   | NullCipherSuite | SCSV of _ | OnlyMACCipherSuite(_,_) -> false 
   | CipherSuite(_,ea) ->
       match ea with 
@@ -131,7 +133,7 @@ let strongAE pv cs = match cs with
 							 int_ctxt pv hAlg eAlg 
 		| AEAD (_,_)      -> false // until we handle GCM 
 
-let strongAuth pv cs = match cs with
+let strongAuthId pv cs = match cs with
   | NullCipherSuite | SCSV of _ -> false 
   | OnlyMACCipherSuite(_,hAlg)  -> int_cma hAlg 
   | CipherSuite(_,ea) -> 
@@ -141,12 +143,12 @@ let strongAuth pv cs = match cs with
  
 and the corresponding logical specs such that, e.g.,
 
-ask !e. StrongAE(e) => StrongAuth(e)
+ask !i. StrongAEId(i) => StrongAuthId(i)
 ask INT_CTXT(pv,h,e) => 
      pv = TLS_1p2 
   \/ ?kex,hAlg. e = CipherSuite(kex,MtE(_,hAlg) && ... 
 
-(Note that we actually don't need full CMA when we have CTXT, but this is practically irrelevant.)  
+(Note that we actually don't need full CMA when we have INT-CTXT, but this is practically irrelevant.)  
 
 There are several ideal properties of AEAD:
 
@@ -162,33 +164,33 @@ There are several ideal properties of AEAD:
 For F7 clarity, we distinguish several verification steps (using flags/Makefile):
 
 1. (When SafeId, decryption correctness:) decryptions of honest ciphers always succeed, returning the plaintext
-   Together with CTXT & our "at most one encryption per AD" assumption, this justifies moving from 1 to 2.
+   Together with INT-CTXT & our "at most one encryption per AD" assumption, this justifies moving from 1 to 2.
    We might also explain it with a "Decryption error oracle". 
 
 2. If we decrypt by table lookup, then, we implement parametric AEAD (to complete the SafeId proof)
-   this essentially rely on CPA of the underlying encryption.
+   this essentially relies on CPA of the underlying encryption.
 
-3. (When AuthId, irrespective of SafeId & CTXT:) AEAD is PTXT wrt to some user-defined Msg property.
+3. (When AuthId, irrespective of SafeId & INT-CTXT:) AEAD is PTXT wrt to some user-defined Msg property.
 
 We agreed that #if ideal refers to typechecking 2. 
 
 The postcondition of decryption thus consists of
 
-// proved in step 3, sufficient to retrieve Msg(i,ad,p) as a predicate attached to the CTXT log
+// proved in step 3, sufficient to retrieve Msg(i,ad,p) as a predicate attached to the INT-CTXT log
 (AuthId(i) => ((!p. (?r. res = Correct(i,r,p)) 
-               <=> ( ?c. CTXT(i,ad,p,c))))
+               <=> ( ?c. INT-CTXT(i,ad,p,c))))
 /\
 // a stronger "SafeId" authentication property, which also yields Msg(i,ad,p)
 (SafeId(i) => ((!p. ( ?r. res = Correct(i,r,p)) 
-		       <=> ( CTXT(i,ad,p,c)))           
+		       <=> ( INT-CTXT(i,ad,p,c)))           
 /\
 // a functional property
 (SafeId(i) => ?p. res = Correct((i,Range(i,c),p))) \/ res = Error(AD_bad_record_mac,"")
 
 --- The sequence of games is 
 
-* indistinguishability of filtering out bad ciphers at safe indexes (by CTXT assumption) 
-  The joint CTXT assumption still has to be proved "by hand" for now, 
+* indistinguishability of filtering out bad ciphers at safe indexes (by INT-CTXT assumption) 
+  The joint INT-CTXT assumption still has to be proved "by hand" for now, 
   although the functional property above helps.
 
 * indistinguishability of decryption by lookup at safe indexes
@@ -221,10 +223,10 @@ The postcondition of decryption thus consists of
 // additionally, the decryption refinement guarantees 
 // functional correctness & ciphertext integrity
 // 
-// CTXT(i,ad,p,c) is a runtime event recorded by encrypt, stating
+// INT-CTXT(i,ad,p,c) is a runtime event recorded by encrypt, stating
 // "c is a correct encryption for i, ad, some rg, and p 
 //
-// the range for encryption is not recorded in CTXT,
+// the range for encryption is not recorded in INT-CTXT,
 // (as indeed only the secret length is authenticated, not the range).
 //
 // our interface is compatible with state for the underlying encryption
@@ -234,7 +236,7 @@ The postcondition of decryption thus consists of
 // why do we have two cases? I propose instead:
 //
 // AuthId(i) => 
-// ( !p. res = Correct(CipherRange(i,c),p) <=> CTXT(i,ad,p,c) )
+// ( !p. res = Correct(CipherRange(i,c),p) <=> INT-CTXT(i,ad,p,c) )
 //
 // We are still in-between encryptor/decryptor and keys, why? 
 // Are TLS 1.0 IVs now part of the mutable key? 

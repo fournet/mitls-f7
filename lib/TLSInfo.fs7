@@ -453,7 +453,7 @@ ask !i:id. not HonestMS(i.msId) => not SafeKDF(i)
 predicate StrongAuthId of id
 definition !id:id. StrongAuthId(id) <=> INT_CMA_M(MacAlg(id))
 
-// ``The AE algorithms are CPA and CTXT''
+// ``The AE algorithms are CPA and INT-CTXT''
 predicate StrongAEId of id
 definition !id:id. StrongAEId(id) <=> StrongAEAlg(id.pv,id.aeAlg)
 

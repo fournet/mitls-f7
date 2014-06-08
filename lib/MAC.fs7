@@ -23,7 +23,7 @@ open TLSInfo
    - we generate (or coerce) at most one key per index.
    - if an index is Auth, then its algorithm is computationally strong (INT-CMA).
 
-   Notes: - this interface deals with CMA, not the joint CTXT assumption (where we rely on PRF)  
+   Notes: - this interface deals with CMA, not the joint INT-CTXT assumption (where we rely on PRF)  
           - this multiplexing similarly applies to any keyed functionality.
 		  - concretely, we would get a bound depending on the quantitative usage of each strong algorithm 
 		  - pragmatically, we may e.g. assume INT-CMA for both variants of SHA2, but not for MD5 or SHA.

@@ -177,7 +177,7 @@ let decrypt' e key data cipher =
 type preds = | ENCrypted of id * LHAEPlain.adata * range * LHAEPlain.plain * cipher
 
 type entry = id * LHAEPlain.adata * range * LHAEPlain.plain * ENC.cipher
-let log = ref ([]: entry list) // for defining the ideal functionality for CTXT
+let log = ref ([]: entry list) // for defining the ideal functionality for INT-CTXT
 
 let rec cmem (e:id) (ad:LHAEPlain.adata) (c:ENC.cipher) (xs: entry list) = 
 #if verify
@@ -193,13 +193,13 @@ let rec cmem (e:id) (ad:LHAEPlain.adata) (c:ENC.cipher) (xs: entry list) =
 
 let encrypt (e:id) key data rg plain = 
   let (key,cipher) = encrypt' e key data rg plain in
-  #if ideal
-  (* CF we do not log in all cases, as we do not have ENCrypted for MAC-only suites *)
+  #if ideal_F
   if safeId  e then
     log := (e,data,rg,plain,cipher)::!log
   else ()
   #endif
-  #if ideal_F
+  #if ideal
+  (* CF we do not log in all cases, as we do not have ENCrypted for MAC-only suites *)
   if safeId  e then
     log := (e,data,rg,plain,cipher)::!log
   else ()
