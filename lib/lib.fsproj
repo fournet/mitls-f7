@@ -265,7 +265,7 @@
     <Compile Include="UTLS.fsi" />
     <Compile Include="UTLS.fs" />
     <None Include="App.config" />
-    <None Include="Makefile" />
+    <None Include="genrules" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="BouncyCastle.Crypto">
