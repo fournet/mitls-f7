@@ -8,6 +8,7 @@ type exponent = Bytes.bytes
 
 #if ideal
 val honest: pk -> bool
+val strong: TLSConstants.ProtocolVersion -> bool
 #endif
 
 val gen: unit -> pk * sk

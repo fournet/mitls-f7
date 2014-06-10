@@ -14,6 +14,7 @@ type pred = SK_PK of sk * pk
 // TODO just a placeholder for now.
 let honest_log = ref[]
 let honest (pk:pk): bool = failwith "only used in ideal implementation, unverified"
+let strong (pv:TLSConstants.ProtocolVersion): bool = failwith "only used in ideal implementation, unverified"
 #endif
 
 type modulus  = bytes

@@ -6,6 +6,8 @@ open Bytes
 
 type p = bytes // DH group order, actually a bignum
 
+
+
 // for public parameters and exchange values;
 // we use an abstract predicate to ensure that elements 
 // are bytes that have been correctly generated or checked,
@@ -15,6 +17,10 @@ predicate type preds = Elt of bytes * bytes
 type (;p:p) elt = b:bytes{ Elt(p,b) } 
  
 type (;p:p) g = (;p) elt  // for the group generator
+
+// marks "Strong" parameter generation used by compliant servers,
+// formally a precondition for signing them with an honest key.
+predicate type predPP = PP of p:p * g:(;p) g
 
 val dhparams: p:p -> (;p)g -> CoreKeys.dhparams
 val genElement: p:p -> g:(;p)g -> (;p)elt

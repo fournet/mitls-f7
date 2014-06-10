@@ -3,9 +3,7 @@ module DH
 open Bytes
 open DHGroup
 
-// marks "Strong" parameter generation used by compliant servers,
-// formally a precondition for signing them with an honest key.
-predicate type predPP = PP of p:p * g:(;p) g
+
 // marks "Honest" exponentials generated using genKey
 predicate type predHE = HonestExponential of p:p * g:(;p)g * gx:(;p)elt
 

@@ -26,7 +26,6 @@ type dhpms =
   | ConcreteDHPMS of dhrepr
 
 #if ideal
-// TODO MK delete: type predicates = EncryptedRSAPMS of RSAKey.pk * ProtocolVersion * rsapms * bytes
 val honestRSAPMS: RSAKey.pk -> TLSConstants.ProtocolVersion -> rsapms -> bool
 #endif
 

@@ -34,7 +34,7 @@ let pp (pg:dhparams) : p * g =
     #if ideal 
     #if verify
     Pi.assume(Elt(p,g));
-    Pi.assume(PP(p,g));
+    Pi.assume(DHGroup.PP(p,g));
     #else
     goodPP_log := ((p,g) ::!goodPP_log)
     #endif

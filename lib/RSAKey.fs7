@@ -16,6 +16,9 @@ type exponent = bytes
 predicate Honest of pk
 val honest: pk:pk -> b:bool {b=true <=> Honest(pk)}
 
+predicate Strong of TLSConstants.ProtocolVersion 
+val strong: pv:TLSConstants.ProtocolVersion  -> b:bool {b=true <=> Strong(pv)}
+
 //marks relationship between secret and public keys
 predicate type pred = SK_PK of sk * pk
 function val PK: sk -> pk

@@ -17,9 +17,6 @@ type rsapms =
   | ConcreteRSAPMS of rsarepr
 
 #if ideal
-//this predicate is used in RSA.encrypt to record the event that rsapms got encrypted
-// TODO MK delete: type predicates = EncryptedRSAPMS of RSAKey.pk * ProtocolVersion * rsapms * bytes
-
 //this function is used to determine whether idealization should be performed
 let honestRSAPMS (pk:RSAKey.pk) (cv:TLSConstants.ProtocolVersion) pms = 
   match pms with 
@@ -32,7 +29,7 @@ let genRSA (pk:RSAKey.pk) (vc:ProtocolVersion): rsapms =
     let rnd = Nonce.random 46 in
     let pms = verBytes @| rnd in
     #if ideal
-      if RSAKey.honest pk then 
+      if RSAKey.honest pk && RSAKey.strong vc then 
         IdealRSAPMS({seed=pms}) 
       else 
     #endif

@@ -12,7 +12,8 @@ open TLSConstants
 // ``These parameters can encrypt HonestRSAPMSs.''
 //CF unclear why we need this intermediate predicate
 predicate SafeRSA of RSAKey.pk * ProtocolVersion 
-definition !pk,cv. SafeRSA(pk,cv) <=> RSAKey.Honest(pk)
+definition !pk,cv. SafeRSA(pk,cv) <=> RSAKey.Honest(pk) /\ RSAKey.Strong(cv)
+
 
 // In this file RSA refers to any crypto materials used for the RSA KEX. 
 
@@ -43,10 +44,6 @@ ask !pk,cv,s. not(HonestRSAPMS(pk,cv,ConcreteRSAPMS(s)))
 
 val honestRSAPMS: pk:RSAKey.pk -> cv:ProtocolVersion -> pms: (;pk,cv) rsapms -> 
   b:bool { b=true <=> HonestRSAPMS(pk,cv,pms) } 
-
-//CF UNUSED. to be deleted.
-// abstract postcondition of RSA encryption (event) 
-// TODO MK delete: predicate EncryptedRSAPMS of pk:RSAKey.pk * cv:ProtocolVersion * (;pk,cv)rsapms * bytes
 
 //CF see SafeRSA in TLSInfo
 //CF we get it as a runtime invariant, from the refinement of IdealRSAPMS

@@ -55,11 +55,8 @@ let encrypt pk cv pms =
         PMS.leakRSA pk cv pms       
     //#end-ideal1
     let ciphertext = CoreACiphers.encrypt_pkcs1 (RSAKey.repr_of_rsapkey pk) plaintext
-    #if ideal
-// TODO MK delete:    Pi.assume(PMS.EncryptedRSAPMS(pk,cv,pms,ciphertext))
-    #endif
     ciphertext
-
+    
 (*  Decrypts a ciphertext concretely to obtain a pms value. 
     This can be either a real or a dummy pms.
 
