@@ -43,6 +43,7 @@ let gen_params () : dhparams =
 //TODO validation: also get q out using dhparams.Q
 
 (* ------------------------------------------------------------------------ *)
+//TODO validation: we should make sure dhparams has q set whenever possible. Its faster!!!
 let gen_key (dh : dhparams) : skey * pkey =
     let dhparams = new DHParameters(new BigInteger(1, cbytes dh.p), new BigInteger(1, cbytes dh.g)) in
     let kparams  = new DHKeyGenerationParameters(new SecureRandom(), dhparams) in
@@ -71,6 +72,7 @@ JhFd6fQhUYfiVyNuolP6z0FCZKrmLa9C6UgPLVTfEEOiW6KsCFh5uiCNYcINDZnb
 lInlgrHXG2tlv4/QNCXmXBQeUBkVM+4EXOl2ZciEvFv2zAlkUig/CUcLGo/OwsJV
 c8o7MMjRcCH7fDi4BIAzdEKdDYB7uEqnGJgn
 -----END DH PARAMETERS-----"
+//TODO validation add q to this blob.
 
 (* ------------------------------------------------------------------------ *)
 let save_params (stream : Stream) (dh : dhparams) =
@@ -109,6 +111,7 @@ let load_params (stream : Stream) : dhparams =
 
     { p = abytes (DerInteger.GetInstance(obj.Item(0)).PositiveValue.ToByteArrayUnsigned()) ;
       g = abytes (DerInteger.GetInstance(obj.Item(1)).PositiveValue.ToByteArrayUnsigned()) }
+      //TODO validation try to read also q, otherwise set it to None.
 
 let load_params_from_file (file : string) : dhparams option =
     let filestream = new FileStream(file, FileMode.Open, FileAccess.Read) in
