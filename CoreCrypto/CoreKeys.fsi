@@ -13,6 +13,7 @@ type dsapkey = bytes * dsaparams
 type dsaskey = bytes * dsaparams
 
 type dhparams = { p : bytes; g : bytes }
+//TODO validation ... q : bytes option }
 
 type dhpbytes = bytes
 type dhsbytes = bytes

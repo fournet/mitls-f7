@@ -24,6 +24,13 @@ let check_element (pbytes:bytes) (ebytes:bytes) =
     let e = new BigInteger(1,cbytes ebytes) in
     // check e in [2,p-1)
     ((e.CompareTo BigInteger.One) > 0) && ((e.CompareTo pm1) < 0)
+(* TODO validation (let the above boolean be result
+    let dhparams = load_default_params ()
+    if (dhparams.p=pbytes) // && dhparams.g=gbytes)
+        result && e^q = 1
+    else
+        result 
+ *)
 
 (* ------------------------------------------------------------------------ *)
 let gen_params () : dhparams =
@@ -33,6 +40,7 @@ let gen_params () : dhparams =
         let dhparams = generator.GenerateParameters() in
             { p = abytes (dhparams.P.ToByteArrayUnsigned());
               g = abytes (dhparams.G.ToByteArrayUnsigned()); }
+//TODO validation: also get q out using dhparams.Q
 
 (* ------------------------------------------------------------------------ *)
 let gen_key (dh : dhparams) : skey * pkey =

@@ -74,7 +74,7 @@ let rec assoc (p:p) (g:g) (gx:elt) (gy:elt) entries: PMS.dhpms option =
     | _::entries              -> assoc p g gx gy entries
 
 
-let safeDH (p:g) (g:g) (gx:elt) (gy:elt): bool = 
+let safeDH (p:p) (g:g) (gx:elt) (gy:elt): bool = 
     honest p g gx && honest p g gy && goodPP p g
     #endif
 

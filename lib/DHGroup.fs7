@@ -4,7 +4,8 @@ module DHGroup
 
 open Bytes
 
-type p = bytes // DH group order, actually a bignum
+type p = bytes // DH modulus, actually a bignum
+//MK we should also keep track of the sub-group order q.
 
 
 
@@ -24,4 +25,6 @@ predicate type predPP = PP of p:p * g:(;p) g
 
 val dhparams: p:p -> (;p)g -> CoreKeys.dhparams
 val genElement: p:p -> g:(;p)g -> (;p)elt
+
+//MK should take g, and ultimately also q as input.
 val checkElement: p:p -> b:bytes -> (b':(;p)elt{b=b'}) option
