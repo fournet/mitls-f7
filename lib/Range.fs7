@@ -29,23 +29,24 @@ definition
 	(!i,mac. i.aeAlg = MACOnly(mac) => IVSize(i) = 0) /\
 	(!i,mac. i.aeAlg = MtE(Stream_RC4_128,mac) => IVSize(i) = 0 ) /\ 
 	(!i,mac,alg. i.aeAlg = MtE(CBC_Stale(alg),mac) => IVSize(i) = 0 ) /\ 
-	(!i,mac,alg. i.aeAlg = MtE(CBC_Fresh(alg),mac) => IVSize(i)= BlockSize(alg))
+	(!i,mac,alg. i.aeAlg = MtE(CBC_Fresh(alg),mac) => IVSize(i) = BlockSize(alg)) /\
+	(!i,aealg,macalg. i.aeAlg = AEAD(aealg,macalg) => IVSize(i) = 0)
 
 ask !i. (?mac. i.aeAlg = MACOnly(mac) \/ i.aeAlg = MtE(Stream_RC4_128,mac)) => IVSize(i) = 0
 
 val ivSize: e:id -> l:nat{l=IVSize(e)}
 
 function val FixedPadSize: id * unit -> nat
-private definition !i,mac,alg,aeAlg.
+private definition
 	(* AP: for LH
 	(HasExtendedPadding(i) => FixedPadSize(i,())=2) /\
     (not HasExtendedPadding(i) => 
 	*)
-		( (i.aeAlg = MACOnly(mac)  => FixedPadSize(i,())=0 ) /\
-		  (i.aeAlg = AEAD(aeAlg,mac) => FixedPadSize(i,())=0 ) /\
-		  (i.aeAlg = MtE(Stream_RC4_128,mac) => FixedPadSize(i,())=0 ) /\
-		  (i.aeAlg = MtE(CBC_Stale(alg),mac) => FixedPadSize(i,())=1 ) /\
-		  (i.aeAlg = MtE(CBC_Fresh(alg),mac) => FixedPadSize(i,())=1 )		
+		( (!i,mac. i.aeAlg = MACOnly(mac)  => FixedPadSize(i,())=0 ) /\
+		  (!i,aeAlg,mac. i.aeAlg = AEAD(aeAlg,mac) => FixedPadSize(i,())=0 ) /\
+		  (!i,mac. i.aeAlg = MtE(Stream_RC4_128,mac) => FixedPadSize(i,())=0 ) /\
+		  (!i,alg,mac. i.aeAlg = MtE(CBC_Stale(alg),mac) => FixedPadSize(i,())=1 ) /\
+		  (!i,alg,mac. i.aeAlg = MtE(CBC_Fresh(alg),mac) => FixedPadSize(i,())=1 )		
 		)
 	(* AP: for LH
 	)
@@ -53,21 +54,23 @@ private definition !i,mac,alg,aeAlg.
 val fixedPadSize: id:id -> l:nat{l=FixedPadSize(id,())}
 
 function val MaxPadSize: i:id * unit -> nat //TODO MK fix spec
-private definition !i,mac,alg,aeAlg.
+private definition
 	(* AP: for LH
     (	not HasExtendedPadding(i) =>
 	*)
 		(
-		(i.aeAlg = MACOnly(mac) 	        => MaxPadSize(i,()) = 0)  /\
-		(i.aeAlg = AEAD(aeAlg,mac)			=> MaxPadSize(i,()) = 0)  /\
-		(i.aeAlg = MtE(Stream_RC4_128,mac) 	=> MaxPadSize(i,()) = 0 ) /\
-		(i.aeAlg = MtE(CBC_Fresh(alg),mac) /\ (PvOfId(i) = TLS_1p0 \/ PvOfId(i) = TLS_1p1 \/ PvOfId(i) = TLS_1p2) 
+		(!i,mac. i.aeAlg = MACOnly(mac) 	        => MaxPadSize(i,()) = 0)  /\
+		(!i,aeAlg,mac. i.aeAlg = AEAD(aeAlg,mac)	=> MaxPadSize(i,()) = 0)  /\
+		(!i,mac. i.aeAlg = MtE(Stream_RC4_128,mac) 	=> MaxPadSize(i,()) = 0 ) /\
+		(!i,alg,mac. i.aeAlg = MtE(CBC_Fresh(alg),mac)
+			/\ (PvOfId(i) = TLS_1p0 \/ PvOfId(i) = TLS_1p1 \/ PvOfId(i) = TLS_1p2) 
 											=> MaxPadSize(i,()) = 255) /\
-		(i.aeAlg = MtE(CBC_Stale(alg),mac) /\ (PvOfId(i) = TLS_1p0 \/ PvOfId(i) = TLS_1p1 \/ PvOfId(i) = TLS_1p2) 
+		(!i,alg,mac. i.aeAlg = MtE(CBC_Stale(alg),mac)
+			/\ (PvOfId(i) = TLS_1p0 \/ PvOfId(i) = TLS_1p1 \/ PvOfId(i) = TLS_1p2) 
 											=> MaxPadSize(i,()) = 255) /\
-		(i.aeAlg = MtE(CBC_Fresh(alg),mac) /\ PvOfId(i) = SSL_3p0
+		(!i,alg,mac. i.aeAlg = MtE(CBC_Fresh(alg),mac) /\ PvOfId(i) = SSL_3p0
 											=> MaxPadSize(i,()) = BlockSize(alg)) /\
-		(i.aeAlg = MtE(CBC_Stale(alg),mac) /\ PvOfId(i) = SSL_3p0
+		(!i,alg,mac. i.aeAlg = MtE(CBC_Stale(alg),mac) /\ PvOfId(i) = SSL_3p0
 											=> MaxPadSize(i,()) = BlockSize(alg))
 		)
 	(* AP: for LH
@@ -90,18 +93,18 @@ function val Modulus: int * int -> int
 //private definition !x,y. Modulus(x,y) = 0
  
 function val BlockAlignedPadding: id * nat -> nat
-definition !e,mac,alg,aeAlg,l.
-	(e.aeAlg = MACOnly(mac)    => BlockAlignedPadding(e,l) = 0 ) /\
-	(e.aeAlg = AEAD(aeAlg,mac) => BlockAlignedPadding(e,l) = 0 ) /\
-	(e.aeAlg = MtE(Stream_RC4_128,mac) => BlockAlignedPadding(e,l) = 0 ) /\
-	(e.aeAlg = MtE(CBC_Fresh(alg),mac) /\ Modulus(l + 1,BlockSize(alg)) = 0 =>  
-                                 BlockAlignedPadding(e,l) = 1) /\
-	(e.aeAlg = MtE(CBC_Stale(alg),mac) /\ Modulus(l + 1,BlockSize(alg)) = 0 =>  
-                                 BlockAlignedPadding(e,l) = 1) /\
-	(e.aeAlg = MtE(CBC_Fresh(alg),mac) /\ Modulus(l + 1,BlockSize(alg)) <> 0 =>  
-                                 BlockAlignedPadding(e,l) = 1 + BlockSize(alg) - Modulus(l + 1,BlockSize(alg))) /\
-	(e.aeAlg = MtE(CBC_Stale(alg),mac) /\ Modulus(l + 1,BlockSize(alg)) <> 0 =>  
-                                 BlockAlignedPadding(e,l) = 1 + BlockSize(alg) - Modulus(l + 1,BlockSize(alg)))
+definition
+	(!e,mac,l. e.aeAlg = MACOnly(mac)    => BlockAlignedPadding(e,l) = 0 ) /\
+	(!e,aeAlg,mac,l. e.aeAlg = AEAD(aeAlg,mac) => BlockAlignedPadding(e,l) = 0 ) /\
+	(!e,mac,l. e.aeAlg = MtE(Stream_RC4_128,mac) => BlockAlignedPadding(e,l) = 0 ) /\
+	(!e,alg,mac,l. e.aeAlg = MtE(CBC_Fresh(alg),mac) /\ Modulus(l + 1,BlockSize(alg)) = 0 =>  
+                                 BlockAlignedPadding(e,l) = 0) /\
+	(!e,alg,mac,l. e.aeAlg = MtE(CBC_Stale(alg),mac) /\ Modulus(l + 1,BlockSize(alg)) = 0 =>  
+                                 BlockAlignedPadding(e,l) = 0) /\
+	(!e,alg,mac,l. e.aeAlg = MtE(CBC_Fresh(alg),mac) /\ Modulus(l + 1,BlockSize(alg)) <> 0 =>  
+                                 BlockAlignedPadding(e,l) = BlockSize(alg) - Modulus(l + 1,BlockSize(alg))) /\
+	(!e,alg,mac,l. e.aeAlg = MtE(CBC_Stale(alg),mac) /\ Modulus(l + 1,BlockSize(alg)) <> 0 =>  
+                                 BlockAlignedPadding(e,l) = BlockSize(alg) - Modulus(l + 1,BlockSize(alg)))
 
 
 
