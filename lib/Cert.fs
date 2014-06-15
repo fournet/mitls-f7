@@ -67,7 +67,7 @@ let for_key_encryption (sigkeyalgs : Sig.alg list) (h : hint) =
 
                     if forall (x509_check_key_sig_alg_one sigkeyalgs) chain then
                         let pk = RSAKey.create_rsapkey (pmpe) in
-                        #if ideal
+                        #if ideal //MK this should be the same for both ideal and concrete
                         if RSAKey.honest pk then
                             None //loading of honest keys not implemented yet.
                         else
@@ -89,8 +89,8 @@ let get_public_signing_key (c : cert) ((siga, _) as a : Sig.alg) : Sig.pkey Resu
     | Some(x509) -> 
             if x509_is_for_signing x509 then
                 match siga, x509_to_public_key x509 with
-                | SA_RSA, Some (k) -> Correct (Sig.create_pkey a k) //MK was Some (CoreSig.PK_RSA (sm, se) as k)
-                | SA_DSA, Some (k) -> Correct (Sig.create_pkey a k) //MK was Some (CoreSig.PK_DSA (y, p  ) as k)
+                | SA_RSA, Some (k) -> Correct (Sig.create_pkey a k) 
+                | SA_DSA, Some (k) -> Correct (Sig.create_pkey a k) 
                 | _ -> Error(AD_unsupported_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate uses unknown signature algorithm or key")
             else
                 Error(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate is not for signing")
@@ -158,7 +158,7 @@ let get_hint (chain : chain) : hint option =
     | Some x509list ->    
         match x509list with
         | []     -> None
-        | c :: _ -> Some (get_name_info c) (* FIXME *)
+        | c :: _ -> Some (get_name_info c) (* FIXME *) //MK What needs fixing?
     | None -> None
 #endif
 
