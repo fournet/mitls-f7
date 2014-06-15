@@ -25,7 +25,7 @@ val remove: t -> sid:sessionID -> r:Role -> Cert.hint -> t
 // Useful for the user of miTLS
 val getAllStoredIDs: t -> SessionIndex list
 
-(* proposed patch for tickets: 
+(* TODO proposed patch for tickets: 
 
 type ticket = bytes // constraints on size? 
 
@@ -44,6 +44,7 @@ type (;sid:sessionID, r:Role) StorableSession =
 // For instance, the server/adversay may have reused the sid.
 // As usual, the client should check the resulting epoch index.
 
+// MK: why is this called TAKE 2?
 // TAKE 2: we will index our database with client-random | server-random instead of this poor sid. 
 // we need not reflect it in the sessionInfo either; we might have a boolean flagging possible resumption. 
 
