@@ -9,13 +9,14 @@ open PRF
 // concrete PMS --> MS derivation.
 // this implements the KEF call in the "generic ms-KEM construction".
 
-type log = bytes
+//MK unused? type log = bytes
 
 val extract:
     si:SessionInfo ->
 	pms: pms { si.pmsId = PmsId(pms) } ->
     (;si) PRF.masterSecret
 
+// MK in addition includes the si.session_hash in the extraction, unverified for now
 val extract_extended:
     si:SessionInfo ->
 	pms: pms { si.pmsId = PmsId(pms) } ->
@@ -25,9 +26,11 @@ private val accessRSAPMS: pk:RSAKey.pk -> cv:ProtocolVersion -> (;pk,cv) rsapms 
 private val accessDHPMS: p:DHGroup.p -> g:(;p)DHGroup.g -> gx:(;p)DHGroup.elt -> gy:(;p)DHGroup.elt -> pms: (;p,g,gx,gy)dhpms -> bytes
 private val accessPMS: pms -> bytes
 
+// log storing idealized master secrets
 type entry = i:msId * (;i) ms
 private val log: entry list ref 
 private val assoc: i:msId -> entry list -> (;i) PRF.ms option
+
+//internal functions performing concrete extraction
 private val extractMS: si:SessionInfo {not HonestMS(MsI(si))} -> p:bytes -> (;si) PRF.masterSecret
 private val extractMS_extended: si:SessionInfo {not HonestMS(MsI(si))} -> p:bytes -> (;si) PRF.masterSecret
-

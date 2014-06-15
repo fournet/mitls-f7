@@ -29,9 +29,9 @@ private val assoc: p:p -> g:(;p) g -> gx:(;p)elt -> gy:(;p)elt -> entry list -> 
 
 
 // the RFCs are vague about best practices for Diffie-Hellman parameter generation
-// we use default parameters
+// we use default parameters for which we store the order of the sub-group for ciphertext validation
 private val pp: CoreKeys.dhparams -> p:p * g:(;p)elt{PP(p,g)}
-val gen_pp:     unit -> p:p * g:(;p) g {PP(p,g)}
+val gen_pp:     unit -> p:p * g:(;p) g {PP(p,g)} //MK remove PP here as we cannot properly validae ciphertexts?
 val default_pp: unit -> p:p * g:(;p) g {PP(p,g)}
 
 

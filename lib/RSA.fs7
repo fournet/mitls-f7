@@ -20,21 +20,26 @@ val encrypt:
   pk:pk -> cv:ProtocolVersion -> pms:(;pk,cv) PMS.rsapms -> 
   b:bytes //TODO delete {PMS.EncryptedRSAPMS(pk,cv,pms,b)}
 
+// This is not just plain RSA_PKCS1 decryption.
+// We put in place protocol regression, Bleichenbacher and related timing attack countermeasures.
+// See RFC 5246, section 7.4.7.1
 val decrypt: 
   sk -> si:SessionInfo -> 
   cv:ProtocolVersion -> (* highest client version *) 
   bool -> (* flag whether we should check protocol version in old TLS versions *)
   bytes -> (* encrypted PMS *)
-  (;Cert.RSAPKCert(si.serverID),cv) PMS.rsapms (* no Result type: instead of an error, we return a fresh Nonce.random PMS *)
-
-// This is not just plain RSA_PKCS1 decryption.
-// We put in place timing attack countermeasures.
-// See RFC 5246, section 7.4.7.1
+  (;Cert.RSAPKCert(si.serverID),cv) PMS.rsapms 
   
+  (* no Result type: instead of an error, we return a fresh Nonce.random PMS 
+     here we deliberately differ from the presentation in http://eprint.iacr.org/2014/182 
+	 where the countermeasures are applied at the ms-KEM level 
+   *)
 
+  
 // The rest of the interface is internal to RSA.fs
 
 // TODO where do we require/use that cv_check be used everywhere with Honest keys?
+// MK we require it for compatibity with the Easycrypt proof
 // TODO explain that letting the adversary choose further strengthen our RSA assumption. 
 
 // Ideally, we add an indirection from a fresh dummy pms to the ideal pms (before encryption)
@@ -52,4 +57,5 @@ private val real_decrypt:
   cv:ProtocolVersion -> (* highest client version *) 
   cv_check:bool -> (* flag whether we should check protocol version in old TLS versions *)
   ct:bytes -> (* encrypted PMS *)
-  pmsb:PMS.rsarepr { cv_check=true => ?b. B(pmsb) = VersionBytes(cv) @| b} (* No Result type: in case of error, we return a fresh Nonce.random PMS *)
+  pmsb:PMS.rsarepr { cv_check=true => ?b. B(pmsb) = VersionBytes(cv) @| b} 
+  (* No Result type: in case of error, we return a fresh Nonce.random PMS *)

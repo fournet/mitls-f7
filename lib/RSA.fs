@@ -13,8 +13,9 @@ open RSAKey
     Except for RSA, no module should call RSAKey.repr_of_rsaskey. *)
 
 (*  Idealization strategy: to make sure that in the ideal world
-    no information about the (ideal) pre-master secret (pms) value is leaked, 
-    we encrypt a dummy pms instead of the real pms. 
+    no information about the (ideal) pre-master secret (pms) value 
+    is leaked, we encrypt a dummy pms instead of the real pms. 
+    
     The ideal pms is stored into a table during
     idealized encryption and read from the table during idealized decryption.
     This is only done when the cryptography warrants idealization,
@@ -22,8 +23,9 @@ open RSAKey
     
     Taken on its own our assumption would be somewhat related to 
     RCCA security: http://eprint.iacr.org/2003/174.pdf. This would however still be 
-    too strong an assumption for PKCS1. We weaken the assumption by allowing any attacker to access
-    the RSA module only through the KEF module. This has two effects:
+    too strong an assumption for PKCS1. We weaken the assumption by 
+    allowing any attacker to accessthe RSA module only through the 
+    KEF module. This has two effects:
 
      i) ideal PMS are sampled rather than chosen by the adversary.
     ii) only the hash values of PMS are made available to the adversary. *)  
@@ -35,9 +37,9 @@ type entry = pk * ProtocolVersion * PMS.rsarepr *  PMS.rsapms
 let log = ref []
 #endif
 
-(*  Encrypts a pms value under a particular key and for a proposed client version.
-    We require that every ideal pms be encrypted only once
-    (in TLS, by the client immediately after generation).
+(*  Encrypts a pms value under a particular key and for a proposed 
+    client version. We require that every ideal pms be encrypted 
+    only once (in TLS, by the client immediately after generation).
     Otherwise we would require a stronger cryptographic assumption.
     The ideal functionality would change to reuse the corresponding 
     dummy_pms value for reused ideal pms.
