@@ -36,7 +36,7 @@ type state =
 type encryptor = state
 type decryptor = state
 
-let GENOne ki =
+let GENOne ki : state =
     let alg = encAlg_of_id ki in
     match alg with
     | Stream_RC4_128 ->

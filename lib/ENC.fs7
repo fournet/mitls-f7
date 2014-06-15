@@ -88,7 +88,7 @@ val DEC: ki:id -> s:(;ki) decryptor -> c:cipher ->
 
 private val lastblock:  alg:blockCipher -> c:cipher {Length(c)>=BlockSize(alg)} -> bytes
 
-// MK missing internal function declarations 
-//private val GENOne: ki:id -> (;ki) state //TODO state should also have a role, but GENOne returns the state for both roles.
+// internal function declarations 
+//private val GENOne: i:id -> 'a //(;i) state //TODO state should also have a role, but GENOne returns the state for both roles.
 private val cbcenc: blockCipher -> CoreCiphers.key -> CoreCiphers.iv -> bytes -> bytes 
-//private val ENC_int: e:id -> (;e)encryptor -> int -> bytes -> (;e)encryptor * bytes
+//private val ENC_int: i:id -> (;i)encryptor -> int -> bytes -> (;i)encryptor * bytes
