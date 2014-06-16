@@ -8,12 +8,17 @@ open StatefulLHAE
 open TLSConstants
 open TLSExtensions
 
-(* Part 1: For each handshake message, irrespective of the context where it is used, 
-    we have one format predicate and two parsing/formatting functions, e.g.
-
-    MsgBytes
-    ParseMsg
+(* This file deals with the Handshake message formatting and parsing, and their log-based invariants. 
     
+    Part 1: For each handshake message, irrespective of the context where it is used, 
+    we have one format predicate and two formatting/parsing functions, e.g.
+
+    function val ClientHelloMsg: (ProtocolVersion * random * sessionID * cipherSuites * Compression list * bytes) -> cbytes
+
+    val clientHelloBytes: cr:random -> ...  -> m:bytes{B(m) = ClientHelloMsg(cr,...)}
+    val parseClientHello: m:bytes -> (cr:crand * ...  {?... . MessageBytes(HT_client_hello,B(m)) = ClientHelloMsg(cr,...}) Result
+    
+
     Part 2: Predicates only, relating the current log to the more
     abstract parameters in the session info. (We have many distinct
     predicates, grouped by disjunctions as we join paths in the state
