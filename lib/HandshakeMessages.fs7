@@ -8,6 +8,33 @@ open StatefulLHAE
 open TLSConstants
 open TLSExtensions
 
+(* Part 1: For each handshake message, irrespective of the context where it is used, 
+    we have one format predicate and to parsing/formaatting functions, e.g.
+
+    MsgBytes
+    ParseMsg
+    
+    Part 2: Predicates only, relating the current log to the more
+    abstract parameters in the session info. (We have many distinct
+    predicates, grouped by disjunctions as we join paths in the state
+    machine for the Handshake.)
+
+    We use them "inductively", to prove injectivity at selected places
+    in the state machine, as we sign & as we MAC for the finished
+    messages.
+
+    Those log predicates are of the form CurrentLogAtStateS(si : SessionInfo, log: bytes)
+
+ *)
+
+(*  CF we may extend those parameters, e.g. to mention the existence of
+    received parameters used to correctly build the session info. 
+*)
+
+
+we may agree on more parameters, by extending the session info. *) 
+
+
 (* Message Predicates *)
 type PreHandshakeType =
     | HT_hello_request
