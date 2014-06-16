@@ -20,9 +20,8 @@ open TLSConstants
    else 
    #endif
      .... COERCE ...
-  This requires concrete safe/auth/strong/honest functions 
-  
- *)
+  This requires concrete safe/auth/strong/honest functions **********)
+
 
 // -------------------------------------------------------------------
 // polarity for reading and writing, e.g. for stateful encryption
@@ -55,7 +54,7 @@ type config = {
     (* Client side *)
     honourHelloReq: helloReqPolicy;
     allowAnonCipherSuite: bool;
-	safe_resumption: bool;
+    safe_resumption: bool;
 
     (* Server side *)
     request_client_certificate: bool;
@@ -63,8 +62,8 @@ type config = {
 
     (* Common *)
     safe_renegotiation: bool;
-	server_name: Cert.hint;
-	client_name: Cert.hint;
+    server_name: Cert.hint;
+    client_name: Cert.hint;
 
     (* Sessions database *)
     sessionDBFileName: string;
@@ -82,20 +81,20 @@ type random = (;32) lbytes
 type crand = random
 type srand = random
 type csrands = (;64) lbytes
-//CF 04-09 the randoms are not just bytes; where do we rely on collision-resistance?
 
 type cVerifyData = bytes (* ClientFinished payload *)
 type sVerifyData = bytes (* ServerFinished payload *)
 
 type sessionHash = bytes
 
-// Defined here to not depend on TLSExtension
+// -------------------------------------------------------------------
+// We support these extensions, with session scopes
+// (defined here because TLSExtension is internal)
 type negotiatedExtension =
     | NE_extended_ms
     | NE_extended_padding
 
 type negotiatedExtensions = negotiatedExtension list
-
 
 // -------------------------------------------------------------------
 // pre-master-secret indexes 
@@ -120,7 +119,7 @@ val noPmsId: i:pmsId { not HonestPMS(i) }
 
 // Here we consider the strength of the parameters in pmsId
 predicate StrongKEX  of pmsId 
-private definition !p,g,gx,gy,dhpms.  StrongKEX(SomePmsId(PMS.DHPMS(p,g,gx,gy,dhpms))) <=> DHGroup.PP(p,g)
+private definition !p,g,gx,gy,dhpms. StrongKEX(SomePmsId(PMS.DHPMS(p,g,gx,gy,dhpms))) <=> DHGroup.PP(p,g)
 private definition !pk,cv,rsapms.    StrongKEX(SomePmsId(PMS.RSAPMS(pk,cv,rsapms)))   <=> RSAKey.Strong(cv)
 
 // -------------------------------------------------------------------
@@ -188,23 +187,26 @@ val csrands: si:SessionInfo -> csr:csrands {csr=CSRands(si)}
 // Getting algorithms from SessionInfo
 
 function val KefAlg:  SessionInfo -> kefAlg
-definition !si. (si.protocol_version = SSL_3p0 => KefAlg(si) = PRF_SSL3_nested ) /\
-				(si.protocol_version = TLS_1p0 => KefAlg(si) = PRF_TLS_1p01(extract_label)    ) /\
-				(si.protocol_version = TLS_1p1 => KefAlg(si) = PRF_TLS_1p01(extract_label)    ) /\
-				(si.protocol_version = TLS_1p2 => KefAlg(si) = PRF_TLS_1p2(extract_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
+definition !si. 
+    (si.protocol_version = SSL_3p0 => KefAlg(si) = PRF_SSL3_nested ) /\
+    (si.protocol_version = TLS_1p0 => KefAlg(si) = PRF_TLS_1p01(extract_label)    ) /\
+    (si.protocol_version = TLS_1p1 => KefAlg(si) = PRF_TLS_1p01(extract_label)    ) /\
+    (si.protocol_version = TLS_1p2 => KefAlg(si) = PRF_TLS_1p2(extract_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
 val kefAlg: si:SessionInfo -> a:kefAlg {a=KefAlg(si)}
 function val KefAlgExtended:  SessionInfo -> kefAlg
-definition !si. (si.protocol_version = SSL_3p0 => KefAlgExtended(si) = PRF_SSL3_nested ) /\
-				(si.protocol_version = TLS_1p0 => KefAlgExtended(si) = PRF_TLS_1p01(extended_extract_label)    ) /\
-				(si.protocol_version = TLS_1p1 => KefAlgExtended(si) = PRF_TLS_1p01(extended_extract_label)    ) /\
-				(si.protocol_version = TLS_1p2 => KefAlgExtended(si) = PRF_TLS_1p2(extended_extract_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
+definition !si.
+    (si.protocol_version = SSL_3p0 => KefAlgExtended(si) = PRF_SSL3_nested ) /\
+    (si.protocol_version = TLS_1p0 => KefAlgExtended(si) = PRF_TLS_1p01(extended_extract_label)    ) /\
+    (si.protocol_version = TLS_1p1 => KefAlgExtended(si) = PRF_TLS_1p01(extended_extract_label)    ) /\
+    (si.protocol_version = TLS_1p2 => KefAlgExtended(si) = PRF_TLS_1p2(extended_extract_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
 val kefAlg_extended: si:SessionInfo -> a:kefAlg {a=KefAlgExtended(si)}
 
 function val KdfAlg:  SessionInfo -> kdfAlg
-definition !si. (si.protocol_version = SSL_3p0 => KdfAlg(si) = PRF_SSL3_nested ) /\
-				(si.protocol_version = TLS_1p0 => KdfAlg(si) = PRF_TLS_1p01(kdf_label)    ) /\
-				(si.protocol_version = TLS_1p1 => KdfAlg(si) = PRF_TLS_1p01(kdf_label)    ) /\
-				(si.protocol_version = TLS_1p2 => KdfAlg(si) = PRF_TLS_1p2(kdf_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
+definition !si. 
+    (si.protocol_version = SSL_3p0 => KdfAlg(si) = PRF_SSL3_nested ) /\
+    (si.protocol_version = TLS_1p0 => KdfAlg(si) = PRF_TLS_1p01(kdf_label)    ) /\
+    (si.protocol_version = TLS_1p1 => KdfAlg(si) = PRF_TLS_1p01(kdf_label)    ) /\
+    (si.protocol_version = TLS_1p2 => KdfAlg(si) = PRF_TLS_1p2(kdf_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
 val kdfAlg: si:SessionInfo -> a:kdfAlg {a=KdfAlg(si)}
 
 function val VdAlg:  SessionInfo -> vdAlg
@@ -266,7 +268,7 @@ definition !si. StrongAESI(si) <=>
 
 type preEpoch =
   | InitEpoch of writer:Role
-  | SuccEpoch of crand * srand  (* the latest randoms     *)
+  | SuccEpoch of crand * srand  (* the latest randoms *)
                * si:SessionInfo
                * pred:preEpoch
 
@@ -294,8 +296,8 @@ val isInitEpoch: e:epoch -> b:bool{(b = true /\ IsInitEpoch(e)) \/ (b = false /\
 
 function val Peer: epoch -> epoch
 private definition       
-        (!r. Peer(InitEpoch(r)) = InitEpoch(DualRole(r))) /\
-        (!cr,sr,si,p. Peer(SuccEpoch(cr,sr,si,p)) = SuccEpoch(cr,sr,si,Peer(p)))
+    (!r.          Peer(InitEpoch(r))          = InitEpoch(DualRole(r))) /\
+    (!cr,sr,si,p. Peer(SuccEpoch(cr,sr,si,p)) = SuccEpoch(cr,sr,si,Peer(p)))
         
 
 function val EpochSI: succEpoch -> SessionInfo
@@ -346,7 +348,6 @@ val nextEpoch: e:epoch -> c:crand -> s:srand -> si:SessionInfo -> e':succEpoch
   { Pred(e') = e /\ EpochSI(e') = si /\ EpochCRand(e') = c /\ EpochSRand(e') = s /\ EpochWriter(e') = EpochWriter(e)}
 val predEpoch: e:succEpoch -> e':epoch{ e' = Pred(e)}
 
-
 // -------------------------------------------------------------------
 // indexing instances of AE --- an abstract parameter for StatefulAEAD et al
 // we do not use more detailed epochs as their additional contents 
@@ -368,16 +369,16 @@ function val Swap: id -> id
 definition !i:id. Swap(i)= 
   { msId    = i.msId; 
     kdfAlg  = i.kdfAlg; 
-	pv      = i.pv; 
-	aeAlg   = i.aeAlg; 
-	csrConn = i.csrConn;
-	ext     = i.ext;
-	writer  = DualRole(i.writer); }
+    pv      = i.pv; 
+    aeAlg   = i.aeAlg; 
+    csrConn = i.csrConn;
+    ext     = i.ext;
+    writer  = DualRole(i.writer) }
 
 assume !x,y. x = DualRole(y) => y = DualRole(x)
 
-//The following asks fail, because the fields of the record are not adequately restricted. 
-//Asks not strictly needed as we use indices in consistent order. 
+// The following asks fail, because the fields of the record are not adequately restricted. 
+// Asks not strictly needed as we use indices in consistent order. 
 //ask !x,y. x = Swap(y) => y = Swap(x)
 //ask !i,i'.  Swap(i)=Swap(i') => i=i'
 //ask !i:id. Swap(Swap(i)) = i
@@ -386,11 +387,11 @@ function val SiId: SessionInfo * Role -> id
 definition !si:SessionInfo,writer:Role. SiId(si,writer) = 
   { msId    = MsI(si); 
     kdfAlg  = KdfAlg(si);
-	pv      = si.protocol_version; // should be part of aeAlg 
-	aeAlg   = SIaeAlg(si);
-	csrConn = CSRands(si);
-	ext		= si.extensions;
-	writer  = writer;  }
+    pv      = si.protocol_version; // should be part of aeAlg 
+    aeAlg   = SIaeAlg(si);
+    csrConn = CSRands(si);
+    ext     = si.extensions;
+    writer  = writer;  }
 
 // accessing concrete algoritms out of the abstract index.
 

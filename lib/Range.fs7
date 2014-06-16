@@ -26,8 +26,8 @@ theorem !e,r. SubRange(r,RangeClass(e,r))
 
 function val IVSize: id -> nat
 definition 
-	(!i,mac. i.aeAlg = MACOnly(mac) => IVSize(i) = 0) /\
-	(!i,mac. i.aeAlg = MtE(Stream_RC4_128,mac) => IVSize(i) = 0 ) /\ 
+	(!i,mac.     i.aeAlg = MACOnly(mac)            => IVSize(i) = 0) /\
+	(!i,mac.     i.aeAlg = MtE(Stream_RC4_128,mac) => IVSize(i) = 0 ) /\ 
 	(!i,mac,alg. i.aeAlg = MtE(CBC_Stale(alg),mac) => IVSize(i) = 0 ) /\ 
 	(!i,mac,alg. i.aeAlg = MtE(CBC_Fresh(alg),mac) => IVSize(i) = BlockSize(alg)) /\
 	(!i,aealg,macalg. i.aeAlg = AEAD(aealg,macalg) => IVSize(i) = 0)
@@ -190,3 +190,4 @@ val rangeClass: e:id -> r0:range -> r1:range{r1 = RangeClass(e,r0)}
 
 //AP type (;e:id)frange = l:nat * h:nat{l<=h /\ TargetLength(e,rg) <= max_TLSCipher_fragment_length
 //AP									/\ h-l <= MaxPad(e)}
+
