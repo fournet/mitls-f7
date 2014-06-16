@@ -298,11 +298,14 @@ def _main():
         print MKHEADER
         print "# ----- BEGIN AUTO FS7 -----"
         for name, deps in fs7deps:
-            fargs = dict(name = name, mod = name.lower(), deps = ' '.join(deps))
+            fargs = dict(vname = re.sub('\W', '_', name),
+                         name  = name,
+                         mod   = name.lower(),
+                         deps  = ' '.join(deps))
             print '%(name)s.tc7: $(libperv) $(libfs7) %(deps)s %(name)s.fs7 %(name)s.fs %(name)s.fs7' % fargs
             print '\t@echo '
             print '\t@echo Lemma $@'
-            print '\t$(monoexe) $(f7) $(f7flags) -scripts %(name)s -why %(name)s.why %(deps)s %(name)s.fs7 %(name)s.fs | tee $@' % fargs
+            print '\t$(monoexe) $(f7) $(f7flags) $(f7flags_%(vname)s) -scripts %(name)s -why %(name)s.why %(deps)s %(name)s.fs7 %(name)s.fs | tee $@' % fargs
             print
         print 'check-xunit: clean'
         print '\t../scripts/xunit-tc7 --xunit=$(xunit) %s' % (' '.join(fs7default),)
