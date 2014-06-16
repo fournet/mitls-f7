@@ -724,7 +724,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         let (si,ms) = storable in
                         let log = log @| to_log in
                         (* Check that protocol version, ciphersuite and compression method are indeed the correct ones *)
-                        if si.sessionID = sh_session_id then
+                        (* AP if si.sessionID = sh_session_id then This should come as a post-condition from SessionDB.select *)
                           if si.protocol_version = sh_server_version then
                             if si.cipher_suite = sh_cipher_suite then
                                 if si.compression = sh_compression_method then
@@ -752,8 +752,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                 InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Ciphersuite negotiation",state)
                           else 
                               InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Protocol version negotiation",state)
-                        else 
-                            InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Session ID from DB mismatch",state)
+                        (*AP else 
+                            InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Session ID from DB mismatch",state) *)
                     else
                         (* we did not request resumption, or the server didn't accept it: do a full handshake *)
                         (* define the sinfo we're going to establish *)
@@ -859,8 +859,12 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 let client_cert = find_client_cert_sign certType alg distNames si.protocol_version state.poptions.client_name in
                 let si' = {si with client_auth = true} in
                 (* KB: Inserted another authorize here. We lack a mechanism for the client to refuse client auth! *)
+                (* AP: Client identity is fixed at protocol start. An empty identity will generate an empty certificate
+                   message, which means refusal of client auth. *)
                 Pi.assume (Authorize(Client,si));
+#if verify
                 Pi.assume (UpdatesClientAuth(si,si'));
+#endif
                 recv_fragment_client ci 
                   {state with pstate = PSClient(ServerHelloDoneRSA(si',client_cert,log))} 
                   agreedVersion
@@ -879,7 +883,9 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 let si' = {si with client_auth = true} in
                 (* KB: Inserted another authorize here. We lack a mechanism for the client to refuse client auth! *)
                 Pi.assume (Authorize(Client,si));
+#if verify
                 Pi.assume (UpdatesClientAuth(si,si'));
+#endif
                 recv_fragment_client ci 
                   {state with pstate = PSClient(ServerHelloDoneDHE(si',client_cert,p,g,y,log))} 
                   agreedVersion
@@ -895,7 +901,9 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let si' = {si with client_auth = false} in
 
                     (* Should be provable *)
+#if verify
                     Pi.assume (UpdatesClientAuth(si,si'));
+#endif
                     let prep = prepare_client_output_full_RSA ci state si' None log in
                     match prep with
                     | Error z -> 
@@ -934,7 +942,9 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let log = log @| to_log in
                     let si' = {si with client_auth = false} in
                     (* Should be provable *)
+#if verify
                     Pi.assume (UpdatesClientAuth(si,si'));
+#endif
 
                     match prepare_client_output_full_DHE ci state si' None p g y log with
                     | Error z ->
