@@ -9,7 +9,7 @@ open TLSConstants
 open TLSExtensions
 
 (* Part 1: For each handshake message, irrespective of the context where it is used, 
-    we have one format predicate and to parsing/formaatting functions, e.g.
+    we have one format predicate and two parsing/formatting functions, e.g.
 
     MsgBytes
     ParseMsg
@@ -29,10 +29,8 @@ open TLSExtensions
 
 (*  CF we may extend those parameters, e.g. to mention the existence of
     received parameters used to correctly build the session info. 
-*)
-
-
-we may agree on more parameters, by extending the session info. *) 
+   
+    We may agree on more parameters, by extending the session info. *) 
 
 
 (* Message Predicates *)
