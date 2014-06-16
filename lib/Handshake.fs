@@ -5,12 +5,12 @@ open Error
 open TLSError
 open TLSConstants
 open TLSExtensions
-open TLSInfo
 open Range
 open HandshakeMessages
 
 type events = 
     Authorize of Role * SessionInfo
+  | UpdatesClientAuth of SessionInfo * SessionInfo //TODO define predicate in Handshake.fs7
   | Configure of Role * epoch * config
   | EvSentFinishedFirst of ConnectionInfo * bool
   | Negotiated of Role * SessionInfo * config * config
@@ -1338,7 +1338,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                           {state with pstate = PSServer(ClientCCS(si,ms,log))} 
                           agreedVersion
             | ClientKeyExchangeDHE(si,p,g,gx,x,log) ->
-                match parseClientKEXExplicit_DH p payload with
+                match parseClientKEXExplicit_DH p g payload with
                 | Error(z) -> let (x,y) = z in  InError(x,y,state)
                 | Correct(y) ->
                     let log = log @| to_log in

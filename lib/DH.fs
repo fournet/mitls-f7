@@ -26,14 +26,14 @@ type predPP = PP of p * g
 let pp (pg:dhparams) : p * g =
     let p=pg.p
     //let pgg = pg.g
-    //let goption = DHGroup.checkElement p pgg
+    //let goption = DHGroup.checkElement p pgg pgg
     //let g = match goption with
     //        | None -> Error.unexpected("Invalid DH generator") //failwith "Invalid DH generator"
     //        | Some b -> b
     let g = pg.g
     #if ideal 
     #if verify
-    Pi.assume(Elt(p,g));
+    Pi.assume(Elt(p,g,g));
     Pi.assume(DHGroup.PP(p,g));
     #else
     goodPP_log := ((p,g) ::!goodPP_log)
@@ -49,14 +49,14 @@ type predHE = HonestExponential of p * g * elt
 
 let genKey p g: elt * secret =
     let ((x, _), (ce, _)) = CoreDH.gen_key (DHGroup.dhparams p g)
-    //let eoption = DHGroup.checkElement p ce
+    //let eoption = DHGroup.checkElement p g ce
     //let e = match eoption with
     //        | None -> Error.unexpected("Invalid DH generator") //failwith "Invalid DH generator"
     //        | Some b -> b
     let e=ce
     #if ideal
     #if verify
-    Pi.assume(Elt(p,e));
+    Pi.assume(Elt(p,g,e));
     Pi.assume(HonestExponential(p,g,e));
     #else
     honest_log := (p,g,e)::!honest_log
@@ -91,7 +91,7 @@ let exp p g (gx:elt) (gy:elt) (Key x) : PMS.dhpms =
                  log := (p,g,gx,gy,pms)::!log;
                  pms 
     else 
-      Pi.assume(DHGroup.Elt(p,pms)); //use checkElement instead
+      Pi.assume(DHGroup.Elt(p,g,pms)); //use checkElement instead
       PMS.coerceDH p g gx gy pms
     //#end-ideal 
     #else

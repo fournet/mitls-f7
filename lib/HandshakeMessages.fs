@@ -433,12 +433,12 @@ let clientKEXExplicitBytes_DH y =
     let yb = vlbytes 2 y in
     messageBytes HT_client_key_exchange yb
 
-let parseClientKEXExplicit_DH p data =
+let parseClientKEXExplicit_DH p g data =
     if length data >= 2 then
         match vlparse 2 data with
         | Error(z) -> Error(z)
         | Correct(y) ->
-            match DHGroup.checkElement p y with
+            match DHGroup.checkElement p g y with
             | None -> Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid DH key received")
             | Some(y) -> correct y
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
@@ -508,10 +508,10 @@ let parseDHEParams payload =
                 | Correct(res) ->
                 let (y,payload) = res in
                 // Check g and y are valid elements
-                match DHGroup.checkElement p g with
+                match DHGroup.checkElement p g g with
                 | None -> Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid DH parameter received")
                 | Some(g) ->
-                    match DHGroup.checkElement p y with
+                    match DHGroup.checkElement p g y with
                     | None -> Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid DH parameter received")
                     | Some(y) -> correct(p,g,y,payload)
             else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")

@@ -296,7 +296,7 @@ private definition !b.
 
 val clientKEXExplicitBytes_DH: gx:bytes ->
 	b:bytes{B(b) = ClientKeyExchangeMsg_DHE(gx)}
-val parseClientKEXExplicit_DH: p:DHGroup.p -> b:bytes ->
+val parseClientKEXExplicit_DH: p:DHGroup.p -> g:(;p)DHGroup.g -> b:bytes ->
 	(gx:(;p)DHGroup.elt{
 		MessageBytes(HT_client_key_exchange,B(b)) = 
                 ClientKeyExchangeMsg_DHE(gx)
