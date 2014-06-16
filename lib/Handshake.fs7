@@ -7,37 +7,37 @@ module Handshake
    Add elements from the epoch into log predicate: cr,sr,cvd,svd,role
 *)
 
-(* 
- MK. Comments about Handshake from other modules:
+(* 
+ MK. Comments about Handshake from other modules:
  
- TODO from Sig.fs7: there is some adhocness processing of sigHashAlg, sigAlg, hashAlg left in Handshake.fs
-
- CF
- --- summary of our discussion on Apr 29, towards typechecking the HS.
-
- MK. factually a bit outdated, but moved here from PRF to mark the 1 year anniversary. :)
-
- The following predicate controls StAE idealization
- (relative to StAE's algorithmic strength)
- it is ideally used much before it can be proved as the HS completes.
-
-From its definition in TLSInfo.fs7 we know that
-SafeHS_SI(si) <=> !r:Role.
-     HonestMS(MsI(si)) /\
-     SafeKDF(SiId(id,r) /\ 
-     SafeVD(si)
-
- In HS, we have 
-  - KeyGenClient(id.csrConn, id.pv, id.aeAlg, id.ext) for id=Id(e) is a precondition to the event ClientSentCCS(e)
-  - KeyCommit(id.csrConn, id.pv, id.aeAlg, id.ext)    for id=Id(e) is a precondition to the event ServerSentCCS(e)
-  - HonestMS /\ StrongVD are sufficient to guarantee 
-    matching ClientSentCCS(e) and ServerSentCCS(e), hence getting 
-     (1) SafeKDF, and 
-     (2) e is the only wide index associated with Id(e)       
-
-    This enables us to prove Complete, roughly as currently defined:
-    Complete <=> (HonestPMS /\ StrongHS => SafeHS)
-*)
+ TODO from Sig.fs7: there is some adhocness processing of sigHashAlg, sigAlg, hashAlg left in Handshake.fs
+
+ CF
+ --- summary of our discussion on Apr 29, towards typechecking the HS.
+
+ MK. factually a bit outdated, but moved here from PRF to mark the 1 year anniversary. :)
+
+ The following predicate controls StAE idealization
+ (relative to StAE's algorithmic strength)
+ it is ideally used much before it can be proved as the HS completes.
+
+From its definition in TLSInfo.fs7 we know that
+SafeHS_SI(si) <=> !r:Role.
+     HonestMS(MsI(si)) /\
+     SafeKDF(SiId(id,r) /\ 
+     SafeVD(si)
+
+ In HS, we have 
+  - KeyGenClient(id.csrConn, id.pv, id.aeAlg, id.ext) for id=Id(e) is a precondition to the event ClientSentCCS(e)
+  - KeyCommit(id.csrConn, id.pv, id.aeAlg, id.ext)    for id=Id(e) is a precondition to the event ServerSentCCS(e)
+  - HonestMS /\ StrongVD are sufficient to guarantee 
+    matching ClientSentCCS(e) and ServerSentCCS(e), hence getting 
+     (1) SafeKDF, and 
+     (2) e is the only wide index associated with Id(e)       
+
+    This enables us to prove Complete, roughly as currently defined:
+    Complete <=> (HonestPMS /\ StrongHS => SafeHS)
+*)
 
 
 open Bytes

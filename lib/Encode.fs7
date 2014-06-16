@@ -1,4 +1,4 @@
-﻿module Encode
+module Encode
 
 (* The "plain" file for CPA encryption (module ENC) *)
 (* provided by LHAE, implementing LHAEPlain @| MAC @| padding when using MtE *) 

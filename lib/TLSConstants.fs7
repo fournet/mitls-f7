@@ -1,4 +1,4 @@
-﻿module TLSConstants
+module TLSConstants
 
 (* Identifiers and sizes for the TLS crypto algorithms *)
 

@@ -1,4 +1,4 @@
-﻿module TLSInfo
+module TLSInfo
 
 open Bytes
 open Date
