@@ -35,9 +35,9 @@ type macAlg =
     | MA_SSLKHASH of hashAlg // MD5(SHA1(...))
 
 type sigAlg = 
-  | SA_RSA
-  | SA_DSA 
-  | SA_ECDSA
+    | SA_RSA
+    | SA_DSA 
+    | SA_ECDSA
 
 type sigHashAlg   = sigAlg * hashAlg
 
@@ -518,12 +518,12 @@ let sessionHashAlg pv cs =
     | TLS_1p2 -> verifyDataHashAlg_of_ciphersuite cs
 
 let tlsMacAlg alg pv = 
-  match pv with
+    match pv with
     | SSL_3p0 -> MA_SSLKHASH(alg)
     | TLS_1p0 | TLS_1p1 | TLS_1p2 -> MA_HMAC(alg)
         
 let tlsEncAlg alg pv = 
-  match pv with
+    match pv with
     | SSL_3p0 | TLS_1p0 ->
        (match alg with
           | RC4_128 -> Stream_RC4_128
@@ -554,12 +554,12 @@ let aeAlg cs pv =
 
 
 let encAlg_of_aeAlg ae =
-  match ae with
+    match ae with
     | MtE(e,m) -> e 
     | _ -> unexpected "[encAlg_of_ciphersuite] inovked on an invalid ciphersuite"
 
 let macAlg_of_aeAlg ae =
-  match ae with
+    match ae with
     | MACOnly(alg) -> alg
     | MtE(_,alg) -> alg
     | _ -> unexpected "[macAlg_of_ciphersuite] invoked on an invalid ciphersuite"
@@ -619,7 +619,6 @@ type cipherSuiteName =
     | TLS_DH_DSS_WITH_AES_256_GCM_SHA384 
     | TLS_DH_anon_WITH_AES_128_GCM_SHA256
     | TLS_DH_anon_WITH_AES_256_GCM_SHA384
-
 
 
 let cipherSuites_of_nameList (nameList: cipherSuiteName list) =

@@ -4,8 +4,6 @@ open Bytes
 open Error
 open TLSError
 
-(* Not abstract, but meant to be used only by crypto modules and CipherSuites *)
-
 type PreProtocolVersion =
     | SSL_3p0
     | TLS_1p0
@@ -44,9 +42,9 @@ type macAlg =
     | MA_SSLKHASH of hashAlg
 
 type sigAlg = 
-  | SA_RSA
-  | SA_DSA 
-  | SA_ECDSA
+    | SA_RSA
+    | SA_DSA 
+    | SA_ECDSA
 
 type sigHashAlg = sigAlg * hashAlg
 
@@ -78,8 +76,7 @@ type cipherSuite
 
 type cipherSuites = cipherSuite list
 
-type PreCompression =
-    | NullCompression
+type PreCompression = NullCompression
 type Compression = PreCompression
 
 val versionBytes: ProtocolVersion -> bytes
@@ -136,8 +133,6 @@ val parseCipherSuite: bytes -> cipherSuite Result
 val parseCipherSuites: bytes -> cipherSuites Result
 val cipherSuitesBytes: cipherSuites -> bytes
 
-(* Not for verification, just to run the implementation *)
-
 type cipherSuiteName =
     | TLS_NULL_WITH_NULL_NULL            
 
@@ -186,8 +181,6 @@ type cipherSuiteName =
 val cipherSuites_of_nameList: cipherSuiteName list -> cipherSuites
 val name_of_cipherSuite: cipherSuite -> cipherSuiteName Result
 
-(* val split_at_most: bytes -> nat -> (bytes * bytes) *)
-
 type preContentType =
     | Change_cipher_spec
     | Alert
@@ -205,8 +198,6 @@ val CTtoString: ContentType -> string
 val vlbytes: nat -> bytes -> bytes
 val vlsplit: nat -> bytes -> (bytes * bytes) Result
 val vlparse: nat -> bytes -> bytes Result
-
-//val splitList: bytes -> nat list -> bytes list
 
 type certType =
     | RSA_sign
