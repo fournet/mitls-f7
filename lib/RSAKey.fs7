@@ -27,7 +27,7 @@ private definition !sk,pk. pk=PK(sk) <=> SK_PK(sk,pk)
 val gen: unit -> p:pk * s:sk{p = PK(s)}
 val coerce: p:pk {not Honest(p)}     -> CoreACiphers.sk -> s:sk{p = PK(s)}
 
-//in a model with adversarially provided keys and static corruption leak is not essential
+//in a model with adversarially provided keys and static corruption, leak is not essential
 //val leak:   s:sk {not Honest(PK(s))} -> CoreACiphers.sk 
 
 // shouldn't be needed as representation of pk need not be private

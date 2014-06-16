@@ -375,10 +375,11 @@ val verifyDataHashAlg_of_ciphersuite: cs:cipherSuite -> hashAlg
 val sessionHashAlg: ProtocolVersion -> cipherSuite -> hashAlg
 
 // CF ?? 
-// Beware that these refinements are not visible and are not used by F7. 
-// This would become relevant if we wanted to prove domain separation for a jointly used function. 
-// For not we rely on the separation being performed correctly in trusted code for which we make separate
-// cryptographic assumptions. 
+// KB: Beware that these refinements are not visible and are not used by F7. 
+// MK: The uniqueness of the labels would become relevant if we wanted to prove domain 
+// MK: separation for the underlying PRF. 
+// MK: For now we rely on the separation being performed correctly in trusted code 
+// MK: for which we make separate cryptographic assumptions. 
 type prflabel = b:bytes { b=Utf8("master secret") \/ b=Utf8("extended master secret") \/ b=Utf8("key expansion") }
 val extract_label: l:prflabel {l=Utf8("master secret")}
 val extended_extract_label: l:prflabel {l=Utf8("extended master secret")}
