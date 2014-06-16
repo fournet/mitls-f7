@@ -259,6 +259,7 @@
     <None Include="TLS.fs7" />
     <Compile Include="TLS.fsi" />
     <Compile Include="TLS.fs" />
+    <None Include="RPC.fs7" />
     <Compile Include="RPC.fsi" />
     <Compile Include="RPC.fs" />
     <None Include="UTLS.fs7" />
