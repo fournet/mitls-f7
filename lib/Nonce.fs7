@@ -12,7 +12,6 @@ val mkHelloRandom: unit -> b:(;32)lbytes
 
 // TODO do we need more than that, e.g. no clash with prior adv nonces?
 // MK I don't think so, where would this appear in the proof?
-// TODO rename mkHelloRandom to fresh
 
 val noCsr: (;64) lbytes 
 // null value for indexing the initial epoch 

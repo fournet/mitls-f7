@@ -1,5 +1,7 @@
 module TLSError
 
+(* Symbolic names for TLS errors, processed in Alert [RFC, section 7.2] *) 
+
 type alertDescription = 
     | AD_close_notify
     | AD_unexpected_message

@@ -3,10 +3,6 @@
 open Bytes
 open Error
 
-#if ideal
-let log = ref []
-#endif
-
 let timestamp () = bytes_of_int 4 (Date.secondsFromDawn ())
 
 let random (n:nat) = 
@@ -14,6 +10,13 @@ let random (n:nat) =
   let l = length r in
   if l = n then r 
   else unexpected "CoreRandom.random returned incorrect number of bytes"
+
+
+let noCsr = random 64 // a constant value, with negligible probability of being sampled, excluded by idealization
+
+#if ideal
+let log = ref [noCsr]
+#endif
 
 let rec mkHelloRandom(): bytes =
     let Cr = timestamp() @| random 28
@@ -27,5 +30,3 @@ let rec mkHelloRandom(): bytes =
     #else //#end-idealization
     Cr
     #endif
-
-let noCsr = random 64 //TODO set to a constant value that has a negligible probability of being sampled instead, excluded it in idealization
