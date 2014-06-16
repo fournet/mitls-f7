@@ -30,7 +30,7 @@ LDFLAGS +=
 LIBS    += -lpthread \
 	$(shell $(PKGC)  --libs libevent) \
 	$(shell $(PKGC)  --libs libevent_openssl) \
-    $(shell $(PKGC)  --libs libssl) \
+	$(shell $(PKGC)  --libs libssl) \
 	$(shell $(LOG4C) --libs)
 
 ifeq ($(TARGET), mingw)
