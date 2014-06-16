@@ -138,6 +138,7 @@ type preds = ServerLogBeforeClientCertificateVerifyRSA of SessionInfo * bytes
             |ServerLogBeforeClientCertificateVerify of SessionInfo * bytes
             |ServerLogBeforeClientCertificateVerifyDHE of SessionInfo * bytes
             |ServerLogBeforeClientFinished of SessionInfo * bytes
+            |UpdatesClientAuth of SessionInfo * SessionInfo
 #endif
 
 #if verify

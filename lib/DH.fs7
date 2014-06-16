@@ -47,7 +47,7 @@ val genKey: p:p -> g: (;p) g -> gx:(;p) elt * (;p,g,gx) secret{HonestExponential
 val exp: p:p -> g:(;p)g -> gx:(;p) elt -> gy:(;p) elt -> x:(;p,g,gx) secret 
 			 -> res:(;p,g,gx,gy) PMS.dhpms { HonestExponential(p,g,gx)  /\ HonestExponential(p,g,gy) /\ PP(p,g) => PMS.HonestDHPMS(p,g,gx,gy,res) }
     
-val serverGen: unit -> (p:p * g:(;p) g * gs:(;p) elt * (;p,g,gs) secret{HonestExponential(p,g,gs)})
+val serverGen: unit -> (p:p * g:(;p) g * gs:(;p) elt * (;p,g,gs) secret{PP(p,g) /\ HonestExponential(p,g,gs)})
 
 val clientGenExp: p:p -> g:(;p) g -> gs:(;p) elt 
 				      -> (gc:(;p) elt * (;p,g,gc) secret * res:(;p,g,gc,gs) PMS.dhpms)

@@ -204,7 +204,7 @@ val helloRequestBytes: b:bytes{B(b)=MessageBytes(HT_hello_request,[||])}
 val CCSBytes: b:bytes{B(b)=[|1uy|]}
 
 function val ServerHelloDoneMsg: bytes -> cbytes
-private definition !x. ServerHelloDoneMsg(x) = MessageBytes(HT_server_hello_done,B(x))
+definition !x. ServerHelloDoneMsg(x) = MessageBytes(HT_server_hello_done,B(x))
 
 val serverHelloDoneBytes: b:bytes{B(b)=ServerHelloDoneMsg(empty_bytes)}
 
@@ -284,9 +284,8 @@ val clientKeyExchangeBytes_RSA: si:SessionInfo -> encpms:bytes ->
 
 val parseClientKeyExchange_RSA: si:SessionInfo -> b:bytes ->
 	(encpms:bytes{
-		 (si.protocol_version = SSL_3p0 => B(b)=B(encpms)) /\
-		((si.protocol_version = TLS_1p0 \/ si.protocol_version = TLS_1p1 \/ si.protocol_version = TLS_1p2) => B(b) = VLBytes(2,B(encpms)))
-	}) Result
+           ClientKeyExchangeMsg_RSA(si.protocol_version,encpms) = 
+	   MessageBytes(HT_client_key_exchange,B(b))}) Result
 
 
 function val ClientKeyExchangeMsg_DHE: bytes -> cbytes
@@ -352,7 +351,7 @@ val parseServerKeyExchange_DHE: pv:ProtocolVersion -> cs:cipherSuite ->
 function val ServerKeyExchangeMsg_DH_anon: bytes * bytes * bytes -> cbytes
 
 val serverKeyExchangeBytes_DH_anon: bytes -> bytes -> bytes -> bytes
-val parseServerKeyExchange_DH_anon: bytes -> (bytes * bytes * bytes) Result
+val parseServerKeyExchange_DH_anon: bytes -> (p:DHGroup.p * g:(;p)DHGroup.elt * y:(;p)DHGroup.elt) Result
 
 //function val CertificateVerifyMsg: si:SessionInfo * (;si)PRF.masterSecret * a:Sig.alg * Cert.chain * (;a)Sig.pkey * log -> bytes
 function val CertificateVerifyMsg: ProtocolVersion * Sig.alg * bytes -> cbytes
@@ -376,23 +375,23 @@ val certificateVerifyCheck: si:SessionInfo -> (;si)PRF.masterSecret -> al:Sig.al
 //function val ServerFinishedMsg: si:SessionInfo * (;si)PRF.masterSecret * log -> bytes
 function val ServerFinishedMsg: sVerifyData -> cbytes
 
-private definition !svd. ServerFinishedMsg(svd) = MessageBytes(HT_finished,B(svd))
+definition !svd. ServerFinishedMsg(svd) = MessageBytes(HT_finished,B(svd))
 
 //function val ClientFinishedMsg: si:SessionInfo * (;si)PRF.masterSecret * log -> bytes
 function val ClientFinishedMsg: cVerifyData -> cbytes
 
-private definition !svd. ClientFinishedMsg(svd) = MessageBytes(HT_finished,B(svd))
+definition !svd. ClientFinishedMsg(svd) = MessageBytes(HT_finished,B(svd))
 
 predicate ServerLogBeforeClientCertificateRSA of SessionInfo * ProtocolVersion * log
 predicate ServerLogBeforeClientCertificateRSA_Auth of SessionInfo * ProtocolVersion * log 
 predicate ServerLogBeforeClientCertificateRSA_NoAuth of SessionInfo * ProtocolVersion * log 
 
-private definition !si,pv,l.
+definition !si,pv,l.
   ServerLogBeforeClientCertificateRSA_Auth(si,pv,l) <=>
   ((si.client_auth = true /\  ServerLogBeforeClientCertificateRSA_Auth(si,pv,l)) \/
    (si.client_auth = false /\  ServerLogBeforeClientCertificateRSA_NoAuth(si,pv,l)))
 
-private definition !si,pv,l.
+definition !si,pv,l.
   ServerLogBeforeClientCertificateRSA_Auth(si,pv,l) <=>
   (?csl,cml,csess,ex1,ex2,ctl,sal,nl. 
     B(l) = (ClientHelloMsg(pv,si.init_crand,csess,csl,cml,ex1)  @|
@@ -401,7 +400,7 @@ private definition !si,pv,l.
          CertificateRequestMsg(si.protocol_version,ctl,sal,nl) @|
          ServerHelloDoneMsg(empty_bytes))))
 
-private definition !si,pv,l. 
+definition !si,pv,l. 
   ServerLogBeforeClientCertificateRSA_NoAuth(si,pv,l) <=>
   (?cs,cm,sess,ex1,ex2. 
      B(l) = (ClientHelloMsg(pv,si.init_crand,sess,cs,cm,ex1) @|
@@ -413,12 +412,12 @@ predicate ServerLogBeforeClientCertificateDHE of SessionInfo * log
 predicate ServerLogBeforeClientCertificateDHE_Auth of SessionInfo * log 
 predicate ServerLogBeforeClientCertificateDHE_NoAuth of SessionInfo * log 
 
-private definition !si,pv,l.
+definition !si,pv,l.
   ServerLogBeforeClientCertificateDHE(si,l) <=>
   ((si.client_auth = true /\  ServerLogBeforeClientCertificateDHE_Auth(si,l)) \/
    (si.client_auth = false /\  ServerLogBeforeClientCertificateDHE_NoAuth(si,l)))
 
-private definition !si,l.
+definition !si,l.
   ServerLogBeforeClientCertificateDHE_Auth(si,l) <=>
   (?crand,cpv,csl,cml,csess,ex1,ex2,ctl,sal,nl,p,g,y,a,sign. 
     B(l) = (ClientHelloMsg(cpv,crand,csess,csl,cml,ex1)  @|
@@ -428,7 +427,7 @@ private definition !si,l.
          CertificateRequestMsg(si.protocol_version,ctl,sal,nl) @|
          ServerHelloDoneMsg(empty_bytes))))
 
-private definition !si,l. 
+definition !si,l. 
   ServerLogBeforeClientCertificateDHE_NoAuth(si,l) <=>
   (?pv,cs,cm,sess,ex1,ex2,p,g,y,a,sign. 
      B(l) = (ClientHelloMsg(pv,si.init_crand,sess,cs,cm,ex1) @|
@@ -442,18 +441,18 @@ predicate ServerLogBeforeClientKeyExchangeRSA of SessionInfo * ProtocolVersion *
 predicate ServerLogBeforeClientKeyExchangeRSA_Auth of SessionInfo * ProtocolVersion * log 
 predicate ServerLogBeforeClientKeyExchangeRSA_NoAuth of SessionInfo * ProtocolVersion * log 
 
-private definition !si,pv,l.
+definition !si,pv,l.
   ServerLogBeforeClientKeyExchangeRSA(si,pv,l) <=>
   ((si.client_auth = true /\  ServerLogBeforeClientKeyExchangeRSA_Auth(si,pv,l)) \/
    (si.client_auth = false /\  ServerLogBeforeClientKeyExchangeRSA_NoAuth(si,pv,l)))
 
-private definition !si,pv,l.
+definition !si,pv,l.
   ServerLogBeforeClientKeyExchangeRSA_Auth(si,pv,l) <=>
   (?si',l'. ServerLogBeforeClientCertificateRSA_Auth(si',pv,l') /\
         SessionHelloParams(si,()) = SessionHelloParams(si',()) /\
         B(l) = B(l') @| CertificateMsg(si.clientID))
 
-private definition !si,pv,l.
+definition !si,pv,l.
   ServerLogBeforeClientKeyExchangeRSA_NoAuth(si,pv,l) <=>
   ServerLogBeforeClientCertificateRSA_NoAuth(si,pv,l)
 
@@ -461,18 +460,18 @@ predicate ServerLogBeforeClientKeyExchangeDHE of SessionInfo * log
 predicate ServerLogBeforeClientKeyExchangeDHE_Auth of SessionInfo * log 
 predicate ServerLogBeforeClientKeyExchangeDHE_NoAuth of SessionInfo * log 
 
-private definition !si,pv,l.
+definition !si,pv,l.
   ServerLogBeforeClientKeyExchangeDHE(si,l) <=>
   ((si.client_auth = true /\  ServerLogBeforeClientKeyExchangeDHE_Auth(si,l)) \/
    (si.client_auth = false /\  ServerLogBeforeClientKeyExchangeDHE_NoAuth(si,l)))
 
-private definition !si,pv,l.
+definition !si,pv,l.
   ServerLogBeforeClientKeyExchangeDHE_Auth(si,l) <=>
   (?si',l'. ServerLogBeforeClientCertificateDHE_Auth(si',l') /\
         SessionHelloParams(si,()) = SessionHelloParams(si',()) /\
         B(l) = B(l') @| CertificateMsg(si.clientID))
 
-private definition !si,pv,l.
+definition !si,pv,l.
   ServerLogBeforeClientKeyExchangeDHE_NoAuth(si,l) <=>
   ServerLogBeforeClientCertificateDHE_NoAuth(si,l)
 
@@ -480,7 +479,7 @@ predicate ServerLogBeforeClientCertificateVerifyRSA of SessionInfo * log
 predicate ServerLogBeforeClientCertificateVerifyRSA_Auth of SessionInfo * log 
 predicate ServerLogBeforeClientCertificateVerifyRSA_NoAuth of SessionInfo * log 
 
-private definition !si,pv,l.
+definition !si,pv,l.
   ServerLogBeforeClientCertificateVerifyRSA(si,l) <=>
   (?si',pv,l',encpms,pk. ServerLogBeforeClientKeyExchangeRSA(si',pv,l') /\
      SessionHelloParams(si,()) = SessionHelloParams(si',()) /\ 
@@ -488,12 +487,12 @@ private definition !si,pv,l.
      B(l) = B(l') @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
 
 (*KB obsolete
-private definition !si,pv,l.
+definition !si,pv,l.
   ServerLogBeforeClientCertificateVerifyRSA_Auth(si,l) <=>
   (?pv,l',encpms. ServerLogBeforeClientKeyExchangeRSA_Auth(si,pv,l') /\
       B(l) = B(l') @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
 
-private definition !si,pv,l.
+definition !si,pv,l.
   ServerLogBeforeClientCertificateVerifyRSA_NoAuth(si,l) <=>
   (?pv,l',encpms. ServerLogBeforeClientKeyExchangeRSA_NoAuth(si,pv,l') /\
       B(l) = B(l') @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
@@ -503,7 +502,7 @@ predicate ServerLogBeforeClientCertificateVerifyDHE of SessionInfo * log
 predicate ServerLogBeforeClientCertificateVerifyDHE_Auth of SessionInfo * log 
 predicate ServerLogBeforeClientCertificateVerifyDHE_NoAuth of SessionInfo * log 
 
-private definition !si,pv,l.
+definition !si,pv,l.
   ServerLogBeforeClientCertificateVerifyDHE(si,l) <=>
   (?si',d,l'. ServerLogBeforeClientKeyExchangeDHE(si',l') /\
         SessionHelloParams(si,()) = SessionHelloParams(si',()) /\
@@ -511,12 +510,12 @@ private definition !si,pv,l.
           B(l) = B(l') @| ClientKeyExchangeMsg_DHE(d))
 
 (*KB
-private definition !si,pv,l.
+definition !si,pv,l.
   ServerLogBeforeClientCertificateVerifyDHE_Auth(si,l) <=>
   (?d,l'. ServerLogBeforeClientKeyExchangeDHE_Auth(si,l') /\
           B(l) = B(l') @| ClientKeyExchangeMsg_DHE(d))
 
-private definition !si,pv,l.
+definition !si,pv,l.
   ServerLogBeforeClientCertificateVerifyDHE_NoAuth(si,l) <=>
   (?d,l'. ServerLogBeforeClientKeyExchangeDHE_NoAuth(si,l') /\
           B(l) = B(l') @| ClientKeyExchangeMsg_DHE(d))
@@ -524,15 +523,15 @@ private definition !si,pv,l.
 
 predicate ServerLogBeforeClientCertificateVerify of SessionInfo * log
 (*KB
-private definition 
+definition 
  !si,l. ServerLogBeforeClientCertificateVerify(si,l) <=>
   ((?a. si.cipher_suite = CipherSuite(RSA,a) /\ ServerLogBeforeClientCertificateVerifyRSA(si,l)) \/
 (?a. si.cipher_suite = CipherSuite(RSA,a) /\ ServerLogBeforeClientCertificateVerifyDHE(si,l)) \/
    (!a. si.cipher_suite <> CipherSuite(RSA,a) /\
         si.cipher_suite <> CipherSuite(DHE_RSA,a)))
 *)
-private definition 
- !si,l. ServerLogBeforeClientCertificateVerify(si,l) =>
+definition 
+ !si,l. ServerLogBeforeClientCertificateVerify(si,l) <=>
   (ServerLogBeforeClientCertificateVerifyRSA(si,l) \/
    ServerLogBeforeClientCertificateVerifyDHE(si,l))
 
@@ -553,17 +552,17 @@ predicate ServerLogBeforeClientFinishedRSA of SessionInfo * log
 predicate ServerLogBeforeClientFinishedRSA_Auth of SessionInfo * log 
 predicate ServerLogBeforeClientFinishedRSA_NoAuth of SessionInfo * log
 
-private definition !si,pv,l.
+definition !si,pv,l.
   ServerLogBeforeClientFinishedRSA(si,l) <=>
   ((si.client_auth = true (*KB /\  si.clientID <> []*) /\ ServerLogBeforeClientFinishedRSA_Auth(si,l)) \/
   ((si.client_auth = false (*KB \/  si.clientID = [] *)) /\ ServerLogBeforeClientFinishedRSA_NoAuth(si,l)))
 
-private definition !si,l.
+definition !si,l.
   ServerLogBeforeClientFinishedRSA_Auth(si,l) <=>
   (?l',a,sign. ServerLogBeforeClientCertificateVerifyRSA(si,l') /\
    (B(l) = B(l') @| CertificateVerifyMsg(si.protocol_version,a,sign)))
 
-private definition !si,l.
+definition !si,l.
   ServerLogBeforeClientFinishedRSA_NoAuth(si,l) <=>
   ServerLogBeforeClientCertificateVerifyRSA(si,l)
 
@@ -571,34 +570,34 @@ predicate ServerLogBeforeClientFinishedDHE of SessionInfo * log
 predicate ServerLogBeforeClientFinishedDHE_Auth of SessionInfo * log 
 predicate ServerLogBeforeClientFinishedDHE_NoAuth of SessionInfo * log
 
-private definition !si,pv,l.
+definition !si,pv,l.
   ServerLogBeforeClientFinishedDHE(si,l) <=>
   ((si.client_auth = true (*KB /\  si.clientID <> []*) /\ ServerLogBeforeClientFinishedDHE_Auth(si,l)) \/
    ((si.client_auth = false (*KB \/  si.clientID = [] *)) /\ ServerLogBeforeClientFinishedDHE_NoAuth(si,l)))
 
-private definition !si,l.
+definition !si,l.
   ServerLogBeforeClientFinishedDHE_Auth(si,l) <=>
   (?l',a,sign. ServerLogBeforeClientCertificateVerifyDHE(si,l') /\
    (B(l) = B(l') @| CertificateVerifyMsg(si.protocol_version,a,sign)))
 
-private definition !si,l.
+definition !si,l.
   ServerLogBeforeClientFinishedDHE_NoAuth(si,l) <=>
   ServerLogBeforeClientCertificateVerifyDHE(si,l)
 
 predicate ServerLogBeforeClientFinished of SessionInfo * log
 predicate ServerLogBeforeClientFinished_Auth of SessionInfo * log
 predicate ServerLogBeforeClientFinished_NoAuth of SessionInfo * log
-private definition 
+definition 
  !si,l. ServerLogBeforeClientFinished(si,l) <=>
   ((si.client_auth = true (*KB /\  si.clientID <> [] *) /\ ServerLogBeforeClientFinished_Auth(si,l)) \/
   ((si.client_auth = false  (*KB \/  si.clientID = [] *)) /\ ServerLogBeforeClientFinished_NoAuth(si,l)))
 
-private definition !si,l.
+definition !si,l.
   ServerLogBeforeClientFinished_Auth(si,l) <=>
   (?l',a,sign. ServerLogBeforeClientCertificateVerify(si,l') /\
    (B(l) = B(l') @| CertificateVerifyMsg(si.protocol_version,a,sign)))
 
-private definition !si,l.
+definition !si,l.
   ServerLogBeforeClientFinished_NoAuth(si,l) <=>
   ServerLogBeforeClientCertificateVerify(si,l)
 
@@ -607,17 +606,17 @@ predicate ServerLogBeforeServerFinishedRSA of SessionInfo * log
 predicate ServerLogBeforeServerFinishedRSA_Auth of SessionInfo * log 
 predicate ServerLogBeforeServerFinishedRSA_NoAuth of SessionInfo * log 
 
-private definition !si,pv,l.
+definition !si,pv,l.
   ServerLogBeforeServerFinishedRSA(si,l) <=>
   ((si.client_auth = true /\ ServerLogBeforeServerFinishedRSA_Auth(si,l)) \/
    (si.client_auth = false /\ ServerLogBeforeServerFinishedRSA_NoAuth(si,l)))
 
-private definition !si,l.
+definition !si,l.
   ServerLogBeforeServerFinishedRSA_Auth(si,l) <=>
   (?l',cvd. ServerLogBeforeClientFinishedRSA_Auth(si,l') /\
    (B(l) = B(l') @| ClientFinishedMsg(cvd)))
 
-private definition !si,l.
+definition !si,l.
   ServerLogBeforeServerFinishedRSA_NoAuth(si,l) <=>
   (?l',cvd. ServerLogBeforeClientFinishedRSA_NoAuth(si,l') /\
    (B(l) = B(l') @| ClientFinishedMsg(cvd)))
@@ -626,24 +625,24 @@ predicate ServerLogBeforeServerFinishedDHE of SessionInfo * log
 predicate ServerLogBeforeServerFinishedDHE_Auth of SessionInfo * log 
 predicate ServerLogBeforeServerFinishedDHE_NoAuth of SessionInfo * log 
 
-private definition !si,pv,l.
+definition !si,pv,l.
   ServerLogBeforeServerFinishedDHE(si,l) <=>
   ((si.client_auth = true /\ ServerLogBeforeServerFinishedDHE_Auth(si,l)) \/
    (si.client_auth = false /\ ServerLogBeforeServerFinishedDHE_NoAuth(si,l)))
 
-private definition !si,l.
+definition !si,l.
   ServerLogBeforeServerFinishedDHE_Auth(si,l) <=>
   (?l',cvd. ServerLogBeforeClientFinishedDHE_Auth(si,l') /\
    (B(l) = B(l') @| ClientFinishedMsg(cvd)))
 
-private definition !si,l.
+definition !si,l.
   ServerLogBeforeServerFinishedDHE_NoAuth(si,l) <=>
   (?l',cvd. ServerLogBeforeClientFinishedDHE_NoAuth(si,l') /\
    (B(l) = B(l') @| ClientFinishedMsg(cvd)))
 
 
 predicate ServerLogBeforeServerFinished of SessionInfo * log
-(* KB private definition 
+(* KB definition 
  !si,l. ServerLogBeforeServerFinished(si,l) <=>
   ((?a. si.cipher_suite = CipherSuite(RSA,a) /\ ServerLogBeforeServerFinishedRSA(si,l)) \/
    (?a. si.cipher_suite = CipherSuite(DHE_RSA,a) /\
@@ -652,7 +651,7 @@ predicate ServerLogBeforeServerFinished of SessionInfo * log
         si.cipher_suite <> CipherSuite(DHE_RSA,a)))
 *)
 
-private definition 
+definition 
  !si,l. ServerLogBeforeServerFinished(si,l) <=>
   (ServerLogBeforeServerFinishedRSA(si,l) \/
    ServerLogBeforeServerFinishedDHE(si,l))
@@ -665,14 +664,14 @@ private definition
 predicate ClientLogBeforeServerHello of random * log 
 predicate ClientLogBeforeServerCertificate of SessionInfo * log 
 
-private definition !cr,sid,l.
+definition !cr,sid,l.
   ClientLogBeforeServerHello(cr,l) <=>
   (?pv,csid,cs,cm,ex1. B(l) = ClientHelloMsg(pv,cr,sid,cs,cm,ex1))
 
 ask !pv,cs,cm,ex1,cr,sid,l. B(l) = ClientHelloMsg(pv,cr,sid,cs,cm,ex1) =>
       ClientLogBeforeServerHello(cr,l)
 
-private definition !si,l.
+definition !si,l.
   ClientLogBeforeServerCertificate(si,l) <=>
   (?l',cr,ex2. 
      ClientLogBeforeServerHello(cr,l') /\
@@ -680,76 +679,140 @@ private definition !si,l.
      ServerHelloMsg(si.protocol_version,si.init_srand,si.sessionID,si.cipher_suite,si.compression,ex2))
 
 predicate ClientLogBeforeCertificateRequestRSA of SessionInfo * log 
-private definition !si,pv,l. 
+definition !si,pv,l. 
   ClientLogBeforeCertificateRequestRSA(si,l) <=>
   (?l'. ClientLogBeforeServerCertificate(si,l') /\
      B(l) = B(l') @| CertificateMsg(si.serverID))
 
 predicate ClientLogBeforeServerKeyExchangeDHE of SessionInfo * log 
-private definition !si,pv,l. 
+definition !si,pv,l. 
   ClientLogBeforeServerKeyExchangeDHE(si,l) <=>
   (?l'. ClientLogBeforeServerCertificate(si,l') /\
      B(l) = B(l') @| CertificateMsg(si.serverID))
 
 predicate ClientLogBeforeCertificateRequestDHE of SessionInfo * log 
-private definition !si,pv,l. 
+definition !si,l. 
   ClientLogBeforeCertificateRequestDHE(si,l) <=>
-  (?l',p,g,y,a,sign. ClientLogBeforeServerKeyExchangeDHE(si,l') /\
+  (?l',p,g,y,a,pv,sign. ClientLogBeforeServerKeyExchangeDHE(si,l') /\
      B(l) = B(l') @| ServerKeyExchangeMsg_DHE(pv,p,g,y,a,sign))
+
+
+predicate UpdatesClientAuth of SessionInfo * SessionInfo
+definition !si,si'.
+   UpdatesClientAuth(si,si') <=>
+     (si'.init_crand = si.init_crand /\
+      si'.init_srand = si.init_srand /\
+      si'.protocol_version = si.protocol_version /\
+      si'.cipher_suite = si.cipher_suite /\
+      si'.compression = si.compression /\
+      si'.extensions = si.extensions /\
+      si'.pmsId = si.pmsId /\
+      si'.session_hash = si.session_hash /\
+      si'.clientID = si.clientID /\
+      si'.serverID = si.serverID /\
+      si'.sessionID = si.sessionID)
+
 
 predicate ClientLogBeforeServerHelloDoneRSA of SessionInfo * log 
 predicate ClientLogBeforeServerHelloDoneRSA_Auth of SessionInfo * log 
 predicate ClientLogBeforeServerHelloDoneRSA_NoAuth of SessionInfo * log 
 
-private definition !si,pv,l. 
+
+definition !si,pv,l. 
   ClientLogBeforeServerHelloDoneRSA(si,l) <=>
   ((si.client_auth = true /\ ClientLogBeforeServerHelloDoneRSA_Auth(si,l)) \/
    (si.client_auth = false /\ ClientLogBeforeServerHelloDoneRSA_NoAuth(si,l)))
 
-private definition !si,pv,l. 
+definition !si,l. 
   ClientLogBeforeServerHelloDoneRSA_Auth(si,l) <=>
-  (?l',ctl,sal,nl. ClientLogBeforeCertificateRequestRSA(si,l) /\
-     B(l) = CertificateRequestMsg(si.protocol_version,ctl,sal,nl))
+  (?si',l',ctl,sal,pv,nl. ClientLogBeforeCertificateRequestRSA(si',l') /\
+     UpdatesClientAuth(si',si) /\
+     B(l) = B(l') @| CertificateRequestMsg(pv,ctl,sal,nl))
 
-private definition !si,pv,l. 
+ask !si,l,si',l',pv,ctl,sal,nl. 
+    (si.client_auth = true /\ ClientLogBeforeCertificateRequestRSA(si',l') /\
+     UpdatesClientAuth(si',si) /\
+     B(l) = B(l') @| CertificateRequestMsg(pv,ctl,sal,nl)) =>
+     ClientLogBeforeServerHelloDoneRSA(si,l)
+     
+
+definition !si,l. 
   ClientLogBeforeServerHelloDoneRSA_NoAuth(si,l) <=>
   ClientLogBeforeCertificateRequestRSA(si,l)
+
+
+predicate ClientLogAfterServerHelloDoneRSA of SessionInfo * log 
+predicate ClientLogAfterServerHelloDoneRSA_Auth of SessionInfo * log 
+predicate ClientLogAfterServerHelloDoneRSA_NoAuth of SessionInfo * log 
+definition !si,pv,l. 
+  ClientLogAfterServerHelloDoneRSA(si,l) <=>
+  ((si.client_auth = true /\ ClientLogAfterServerHelloDoneRSA_Auth(si,l)) \/
+   (si.client_auth = false /\ ClientLogAfterServerHelloDoneRSA_NoAuth(si,l)))
+
+definition !si,l. 
+  ClientLogAfterServerHelloDoneRSA_Auth(si,l) <=>
+  (?l',b. ClientLogBeforeServerHelloDoneRSA_Auth(si,l') /\
+        B(l) = B(l') @| ServerHelloDoneMsg(b))
+definition !si,l. 
+  ClientLogAfterServerHelloDoneRSA_NoAuth(si,l) <=>
+  (?si',l',b. ClientLogBeforeCertificateRequestRSA(si',l') /\
+        UpdatesClientAuth(si',si) /\      
+        B(l) = B(l') @| ServerHelloDoneMsg(b))
 
 predicate ClientLogBeforeServerHelloDoneDHE of SessionInfo * log 
 predicate ClientLogBeforeServerHelloDoneDHE_Auth of SessionInfo * log 
 predicate ClientLogBeforeServerHelloDoneDHE_NoAuth of SessionInfo * log 
 
-private definition !si,pv,l. 
+definition !si,pv,l. 
   ClientLogBeforeServerHelloDoneDHE(si,l) <=>
   ((si.client_auth = true /\ ClientLogBeforeServerHelloDoneDHE_Auth(si,l)) \/
    (si.client_auth = false /\ ClientLogBeforeServerHelloDoneDHE_NoAuth(si,l)))
 
-private definition !si,pv,l. 
+definition !si,pv,l. 
   ClientLogBeforeServerHelloDoneDHE_Auth(si,l) <=>
-  (?l',ctl,sal,nl. ClientLogBeforeCertificateRequestDHE(si,l) /\
-     B(l) = CertificateRequestMsg(si.protocol_version,ctl,sal,nl))
+  (?si',l',pv,ctl,sal,nl. ClientLogBeforeCertificateRequestDHE(si',l') /\
+     UpdatesClientAuth(si',si) /\
+     B(l) = B(l') @| CertificateRequestMsg(pv,ctl,sal,nl))
 
-private definition !si,pv,l. 
+definition !si,pv,l. 
   ClientLogBeforeServerHelloDoneDHE_NoAuth(si,l) <=>
   ClientLogBeforeCertificateRequestDHE(si,l)
 
+
+predicate ClientLogAfterServerHelloDoneDHE of SessionInfo * log 
+predicate ClientLogAfterServerHelloDoneDHE_Auth of SessionInfo * log 
+predicate ClientLogAfterServerHelloDoneDHE_NoAuth of SessionInfo * log 
+definition !si,pv,l. 
+  ClientLogAfterServerHelloDoneDHE(si,l) <=>
+  ((si.client_auth = true /\ ClientLogAfterServerHelloDoneDHE_Auth(si,l)) \/
+   (si.client_auth = false /\ ClientLogAfterServerHelloDoneDHE_NoAuth(si,l)))
+
+definition !si,l. 
+  ClientLogAfterServerHelloDoneDHE_Auth(si,l) <=>
+  (?l',b. ClientLogBeforeServerHelloDoneDHE_Auth(si,l') /\
+        B(l) = B(l') @| ServerHelloDoneMsg(b))
+
+definition !si,l. 
+  ClientLogAfterServerHelloDoneDHE_NoAuth(si,l) <=>
+  (?si',l',b. ClientLogBeforeCertificateRequestDHE(si',l') /\
+        UpdatesClientAuth(si',si) /\      
+        B(l) = B(l') @| ServerHelloDoneMsg(b))
+
 predicate ClientLogBeforeCertificateVerifyRSA_Auth of SessionInfo * log 
 
-private definition !si,pv,l. 
+definition !si,pv,l. 
   ClientLogBeforeCertificateVerifyRSA_Auth(si,l) <=>
-  (?l',encpms. ClientLogBeforeServerHelloDoneRSA_Auth(si,l') /\
-     B(l) = B(l') @| ServerHelloDoneMsg(empty_bytes) 
-         @| CertificateMsg(si.clientID)
+  (?l',encpms. ClientLogAfterServerHelloDoneRSA_Auth(si,l') /\
+     B(l) = B(l') @| CertificateMsg(si.clientID)
          @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
 
 
 predicate ClientLogBeforeCertificateVerifyDHE_Auth of SessionInfo * log 
 
-private definition !si,pv,l. 
+definition !si,pv,l. 
   ClientLogBeforeCertificateVerifyDHE_Auth(si,l) <=>
-  (?l',b. ClientLogBeforeServerHelloDoneDHE_Auth(si,l') /\
-     B(l) = B(l') @| ServerHelloDoneMsg(empty_bytes) 
-         @| CertificateMsg(si.clientID)
+  (?l',b. ClientLogAfterServerHelloDoneDHE_Auth(si,l') /\
+     B(l) = B(l') @| CertificateMsg(si.clientID)
          @| ClientKeyExchangeMsg_DHE(b))
 
 
@@ -758,63 +821,61 @@ predicate ClientLogBeforeClientFinishedRSA_Auth of SessionInfo * log
 predicate ClientLogBeforeClientFinishedRSA_TryNoAuth of SessionInfo * log 
 predicate ClientLogBeforeClientFinishedRSA_NoAuth of SessionInfo * log 
 
-private definition !si,pv,l. 
+definition !si,pv,l. 
   ClientLogBeforeClientFinishedRSA(si,l) <=>
   ((si.client_auth = true /\ si.clientID <> [] /\ ClientLogBeforeClientFinishedRSA_Auth(si,l)) \/
    (si.client_auth = true /\ si.clientID = [] /\ ClientLogBeforeClientFinishedRSA_TryNoAuth(si,l)) \/
    (si.client_auth = false /\ ClientLogBeforeClientFinishedRSA_NoAuth(si,l)))
 
-private definition !si,pv,l. 
+definition !si,pv,l. 
   ClientLogBeforeClientFinishedRSA_Auth(si,l) <=>
   (?l',encpms,a,sign. ClientLogBeforeCertificateVerifyRSA_Auth(si,l') /\
      B(l) = B(l') @| CertificateVerifyMsg(si.protocol_version,a,sign)) // FIXME: ?k. sign = Sign(k,l'')
 
-private definition !si,pv,l. 
+definition !si,pv,l. 
   ClientLogBeforeClientFinishedRSA_TryNoAuth(si,l) <=>
-  (?l',l'',encpms. ClientLogBeforeServerHelloDoneRSA_Auth(si,l') /\
-     B(l) = B(l') @| ServerHelloDoneMsg(empty_bytes) 
-         @| CertificateMsg(si.clientID)
+  (?l',encpms. ClientLogAfterServerHelloDoneRSA_Auth(si,l') /\
+     B(l) = B(l') @| CertificateMsg(si.clientID)
          @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
 
 
-private definition !si,pv,l. 
+definition !si,pv,l. 
   ClientLogBeforeClientFinishedRSA_NoAuth(si,l) <=>
-  (?l',encpms. ClientLogBeforeServerHelloDoneRSA_NoAuth(si,l') /\
-     B(l) = B(l') @| ServerHelloDoneMsg(empty_bytes) 
-         @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
+  (?l',encpms. ClientLogAfterServerHelloDoneRSA_NoAuth(si,l') /\
+     B(l) = B(l') @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
 
 predicate ClientLogBeforeClientFinishedDHE of SessionInfo * log 
 predicate ClientLogBeforeClientFinishedDHE_Auth of SessionInfo * log 
 predicate ClientLogBeforeClientFinishedDHE_TryNoAuth of SessionInfo * log 
 predicate ClientLogBeforeClientFinishedDHE_NoAuth of SessionInfo * log 
 
-private definition !si,pv,l. 
+definition !si,pv,l. 
   ClientLogBeforeClientFinishedDHE(si,l) <=>
   ((si.client_auth = true /\ si.clientID <> [] /\ ClientLogBeforeClientFinishedDHE_Auth(si,l)) \/
    (si.client_auth = true /\ si.clientID = [] /\ ClientLogBeforeClientFinishedDHE_TryNoAuth(si,l)) \/
    (si.client_auth = false /\ ClientLogBeforeClientFinishedDHE_NoAuth(si,l)))
 
-private definition !si,pv,l. 
+definition !si,pv,l. 
   ClientLogBeforeClientFinishedDHE_Auth(si,l) <=>
   (?l',encpms,a,sign. ClientLogBeforeCertificateVerifyDHE_Auth(si,l') /\
      B(l) = B(l') @| 
             CertificateVerifyMsg(si.protocol_version,a,sign)) // FIXME: ?k. sign = Sign(k,l'')
 
-private definition !si,pv,l. 
+definition !si,pv,l. 
   ClientLogBeforeClientFinishedDHE_TryNoAuth(si,l) <=>
-  (?l',l'',b. ClientLogBeforeServerHelloDoneDHE_Auth(si,l') /\
-     B(l) = B(l') @| ServerHelloDoneMsg(empty_bytes) 
-         @| CertificateMsg(si.clientID)
+  (?l',l'',b. ClientLogAfterServerHelloDoneDHE_Auth(si,l') /\
+     B(l) = B(l') @| CertificateMsg(si.clientID)
          @| ClientKeyExchangeMsg_DHE(b))
 
-private definition !si,pv,l. 
+definition !si,pv,l. 
   ClientLogBeforeClientFinishedDHE_NoAuth(si,l) <=>
-  (?l',b. ClientLogBeforeServerHelloDoneDHE_NoAuth(si,l') /\
-     B(l) = B(l') @| ServerHelloDoneMsg(empty_bytes) 
-         @| ClientKeyExchangeMsg_DHE(b))
+  (?l',b. ClientLogAfterServerHelloDoneDHE_NoAuth(si,l') /\
+     B(l) = B(l') @| ClientKeyExchangeMsg_DHE(b))
 
 predicate ClientLogBeforeClientFinished of SessionInfo * log
-private definition 
+
+(* Was: Should be provable:
+definition 
  !si,l. ClientLogBeforeClientFinished(si,l) <=>
   ((?a. si.cipher_suite = CipherSuite(RSA,a) /\ 
        ClientLogBeforeClientFinishedRSA(si,l)) \/
@@ -822,36 +883,48 @@ private definition
        ClientLogBeforeClientFinishedDHE(si,l)) \/
    (!a. si.cipher_suite <> CipherSuite(RSA,a) /\
         si.cipher_suite <> CipherSuite(DHE_RSA,a)))
+*)
+definition 
+ !si,l. ClientLogBeforeClientFinished(si,l) <=>
+        (ClientLogBeforeClientFinishedRSA(si,l) \/
+         ClientLogBeforeClientFinishedDHE(si,l) \/
+        (!a. si.cipher_suite <> CipherSuite(RSA,a) /\
+         si.cipher_suite <> CipherSuite(DHE_RSA,a)))
+
 
 predicate ClientLogBeforeServerFinished of SessionInfo * log 
-private definition !si,l. 
+definition !si,l. 
   ClientLogBeforeServerFinished(si,l) <=>
   (?l',cvd. ClientLogBeforeClientFinished(si,l') /\
      B(l) = B(l') @| ClientFinishedMsg(cvd))
 
 
 predicate ServerLogBeforeServerFinishedResume of SessionInfo * log 
-private definition !si,l.
+definition !si,l.
   ServerLogBeforeServerFinishedResume(si,l) <=>
   (?crand,cpv,csl,cml,ex1,ex2,ctl,sal,nl. 
     B(l) = (ClientHelloMsg(cpv,crand,si.sessionID,csl,cml,ex1)  @|
         (ServerHelloMsg(si.protocol_version,si.init_srand,si.sessionID,si.cipher_suite,si.compression,ex2))))
 
 predicate ServerLogBeforeClientFinishedResume of SessionInfo * log 
-private definition !si,l.
+definition !si,l.
   ServerLogBeforeClientFinishedResume(si,l) <=>
   (?l',svd.   ServerLogBeforeServerFinishedResume(si,l') /\
     B(l) = B(l') @| ServerFinishedMsg(svd))
 
+
+(* KB: All these predicates must note all elements of the epoch except for the predecessor.
+   It may be worth defining a new type for the following: 
+   current_crand, current_srand, si, cvd, svd, role *)
 predicate ClientLogBeforeServerFinishedResume of SessionInfo * log 
-private definition !si,l.
+definition !si,l.
   ClientLogBeforeServerFinishedResume(si,l) <=>
-  (?crand,cpv,csl,cml,ex1,ex2,ctl,sal,nl. 
-    B(l) = (ClientHelloMsg(cpv,crand,si.sessionID,csl,cml,ex1)  @|
-        (ServerHelloMsg(si.protocol_version,si.init_srand,si.sessionID,si.cipher_suite,si.compression,ex2))))
+  (?l',cr,sr,ex2. ClientLogBeforeServerHello(cr,l')  /\
+    B(l) = B(l') @|
+           ServerHelloMsg(si.protocol_version,sr,si.sessionID,si.cipher_suite,si.compression,ex2))
 
 predicate ClientLogBeforeClientFinishedResume of SessionInfo * log 
-private definition !si,l.
+definition !si,l.
   ClientLogBeforeClientFinishedResume(si,l) <=>
   (?l',svd.   ClientLogBeforeServerFinishedResume(si,l') /\
     B(l) = B(l') @| ServerFinishedMsg(svd))
@@ -915,14 +988,14 @@ ask !ht,htd1,htd2,htd3,data1,data2,data3.
   <=> (ht = htd1 \/ ht = htd2 \/ ht = htd3)
 
 //predicate ClientLogBeforeServerFinishedResume of SessionInfo * log 
-//private definition !si,l.
+//definition !si,l.
 //  ClientLogBeforeServerFinishedResume(si,l) <=>
 //  (?crand,cpv,csl,cml,ex1,ex2,ctl,sal,nl. 
 //    B(l) = (ClientHelloMsg(cpv,crand,si.sessionID,csl,cml,ex1)  @|
 //        (ServerHelloMsg(si.protocol_version,si.init_srand,si.sessionID,si.cipher_suite,si.compression,ex2))))
 
 //predicate ClientLogBeforeClientFinishedResume of SessionInfo * log 
-//private definition !si,l.
+//definition !si,l.
 //  ClientLogBeforeClientFinishedResume(si,l) <=>
 //  (?l',svd.   ClientLogBeforeServerFinishedResume(si,l') /\
 //    B(l) = B(l') @| ServerFinishedMsg(svd))
@@ -931,15 +1004,16 @@ ask !si,l.
   ClientLogBeforeClientFinishedResume(si,l) =>
   (?svd,crand,cpv,csl,cml,ex1,ex2,ctl,sal,nl. 
     B(l) = 
-	     ClientHelloMsg(cpv,crand,si.sessionID,csl,cml,ex1)  @|
-         ServerHelloMsg(si.protocol_version,si.init_srand,si.sessionID,si.cipher_suite,si.compression,ex2) @|
-		 ServerFinishedMsg(svd))
+         (ClientHelloMsg(cpv,crand,si.sessionID,csl,cml,ex1)  @|
+          ServerHelloMsg(si.protocol_version,si.init_srand,si.sessionID,si.cipher_suite,si.compression,ex2) @|
+	  ServerFinishedMsg(svd)))
 
 ask !si,t. ClientLogBeforeClientFinishedResume(si,t) => HasHTMessage(HT_certificate,B(t)) => false
 
 theorem !si,si',t. ClientLogBeforeClientFinished(si,t) /\        
-	               ClientLogBeforeClientFinishedResume(si',t)  => false
+                   ClientLogBeforeClientFinishedResume(si',B(t))  => false
 
+(*
 theorem !si,si',t. ClientLogBeforeClientFinished(si,t) /\        
 	           ServerLogBeforeServerFinished(si',t)  => false
 theorem !si,si',t. ClientLogBeforeClientFinished(si,t) /\        
@@ -950,3 +1024,4 @@ theorem !si,si',t. ServerLogBeforeServerFinished(si,t) /\
 	           ServerLogBeforeServerFinishedResume(si',t)  => false
 theorem !si,si',t. ClientLogBeforeClientFinishedResume(si,t) /\        
 	           ServerLogBeforeServerFinishedResume(si',t)  => false
+*)
