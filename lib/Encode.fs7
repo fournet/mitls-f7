@@ -112,11 +112,15 @@ private ask !e,tlen.
   (0,
    tlen - IVSize(e) - MacKeySize(MacAlg(e)) - 1)
 
-val encode: e:id{not SafeId(e) /\ (?alg,mac. e.aeAlg  = MtE(CBC_Stale(alg),mac) \/
-	  e.aeAlg  = MtE(CBC_Fresh(alg),mac))} -> 
-    tlen:nat{tlen <= max_TLSCipher_fragment_length} -> rg:range{tlen = TargetLength(e,rg)} ->
-	ad:(;e) LHAEPlain.adata -> pl:(;e,ad,rg) LHAEPlain.plain -> tag:(;e) MAC.tag ->
-	(;PlainLength(e,tlen))lbytes
+val encode: 
+    e:id{not SafeId(e) /\ (?alg,mac. e.aeAlg  = MtE(CBC_Stale(alg),mac) \/ e.aeAlg  = MtE(CBC_Fresh(alg),mac))} -> 
+    tlen:nat{tlen <= max_TLSCipher_fragment_length} -> 
+    rg:range{tlen = TargetLength(e,rg)} ->
+    ad:(;e) LHAEPlain.adata -> 
+    pl:(;e,ad,rg) LHAEPlain.plain -> 
+    tag:(;e) MAC.tag ->
+    (;PlainLength(e,tlen))lbytes
+
 val decode: e:id{not AuthId(e) /\ (?alg,mac. e.aeAlg  = MtE(CBC_Stale(alg),mac) \/
 	  e.aeAlg  = MtE(CBC_Fresh(alg),mac))} -> 
 	ad:(;e) LHAEPlain.adata -> rg:range ->

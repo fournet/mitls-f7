@@ -4,6 +4,7 @@ open Bytes
 open Error
 open TLSError
 open TLSConstants
+open TLSInfo
 open TLSExtensions
 open Range
 open HandshakeMessages
@@ -1377,7 +1378,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
 #if verify
 #else
             | ClientKeyExchangeDH_anon(si,p,g,gx,x,log) ->
-                match parseClientKEXExplicit_DH p payload with
+                match parseClientKEXExplicit_DH p g payload with
                 | Error(z) -> let (x,y) = z in  InError(x,y,state)
                 | Correct(y) ->
                     let log = log @| to_log in

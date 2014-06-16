@@ -24,7 +24,7 @@ open TLSConstants
 
 
 // -------------------------------------------------------------------
-// polarity for reading and writing, e.g. for stateful encryption
+// Polarity for reading and writing, e.g. for stateful encryption
 type rw = Reader | Writer
 
 type preRole = Client | Server
@@ -84,7 +84,6 @@ type csrands = (;64) lbytes
 
 type cVerifyData = bytes (* ClientFinished payload *)
 type sVerifyData = bytes (* ServerFinished payload *)
-
 type sessionHash = bytes
 
 // -------------------------------------------------------------------
@@ -130,13 +129,13 @@ predicate StrongKEF of kefAlg
 val strongKEF: ca:kefAlg -> b:bool {b=true <=> StrongKEF(ca)}
 
 // guarding idealizations for KDF and VerifyData (see PRF.fs)
-predicate StrongKDF   of kdfAlg
-predicate StrongVD    of vdAlg
+predicate StrongKDF of kdfAlg
+predicate StrongVD  of vdAlg
 
-type msId =        // We record the parameters used to derive this MS: 
-  pms   : pmsId *     // the pms and its indexes  
-  csr   : csrands *   // the nonces  
-  kefAlg: kefAlg      // the PMS-PRF algorithm
+type msId =         // We record the parameters used to derive this MS: 
+  pms   : pmsId *   // the pms and its indexes  
+  csr   : csrands * // the nonces  
+  kefAlg: kefAlg    // the PMS-PRF algorithm
 // CF We cannot use just csr, because of MiTM forwarding honest nonces
 
 // ``the MS at this index is abstractly generated and used within PRF''
@@ -154,8 +153,8 @@ val noMsId: i:msId { not HonestMS(i) }
 // Session information (public immutable data)
 
 type sessionID = b:bytes {Length(b) <= 32}
-// "An arbitrary byte sequence chosen by the server 
-// to identify an active or resumable session state."
+// ``An arbitrary byte sequence chosen by the server 
+// to identify an active or resumable session state.''
 // We treat empty_bytes as the absence of identifier.
 
 // TODO this is out of sync with the paper, on client_auth.
@@ -171,7 +170,7 @@ type SessionInfo = {
     client_auth: bool;
     clientID: Cert.cert list;
     serverID: Cert.cert list;
-    sessionID: sessionID;
+    sessionID: sessionID
     }
 
 // for certificates, the empty list represents the absence of identity 
@@ -439,7 +438,6 @@ ask !i1,i2. i2 = Swap(i1) /\ not(SafeKDF(i1)) => not(SafeKDF(i2))
 ask !si:SessionInfo. not HonestMS(MsI(si)) => not SafeVD(si) 
 ask !i:id. not HonestMS(i.msId) => not SafeKDF(i)
 
-
 // -----------------------------------------------------------------------
 // The two main safety properties for the record layer
 
@@ -471,7 +469,7 @@ ask !i:id. AuthId(i) => INT_CMA_M(MacAlg(i))
 // ask !i:id,e,m. StrongAuthId(i) => INT_CMA_M(MacAlg(i))
 
 // -------------------------------------------------------------------------
-// re-indexing from epochs to ids
+// Re-indexing from epochs to ids
 
 val noId: i:id { not AuthId(i) }
 //TODO how to ask it !?!
@@ -496,20 +494,20 @@ ask !e. IsInitEpoch(e) => not AuthId(Id(e))
 val unAuthIdInv: i:id{not AuthId(i)} -> s:epoch {Id(s) = i}
 
 // -------------------------------------------------------------------------
-// GLOBAL SAFETY PROPERTIES 
+// Global safety properties 
 
-// SafeHS depends on having an 'idealized' mastersecret, 
+// Safety for handshakes depends on having an 'idealized' mastersecret, 
 // and performing both strong session key generation and finished message verification
-// both are implied by StrongHS
 
 predicate SafeHS_SI of SessionInfo // Safe handshake for this sessioninfo
 definition !si. SafeHS_SI(si) <=> HonestPMS(si.pmsId) /\ ( ?r. Match(SiId(si,r)) ) /\ StrongHS(si) 
 val safeHS_SI: (si:SessionInfo) -> b:bool { b=true <=> SafeHS_SI(si)}
 
-// Safety for epochs relies only on SessionInfo, but this would change if we introduce a finer model of compromise
-// E.g. if we allowed the attacker to compromise specific epochs
+// Safety for epochs relies only on SessionInfo.
+// This would change if we introduced a finer model of compromise
+// e.g. if we allowed the attacker to compromise specific epochs
 
-predicate SafeHS of epoch          // Safe handshake for this epoch //CF Avoid?
+predicate SafeHS of epoch          // Safe handshake for this epoch
 definition !id. SafeHS(id) <=> SafeHS_SI(EpochSI(id))
 val safeHS: (e:epoch) -> b:bool { b = true <=> SafeHS(e)}
 
