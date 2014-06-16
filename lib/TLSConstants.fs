@@ -1,4 +1,4 @@
-module TLSConstants
+﻿module TLSConstants
 
 open Bytes
 open Error

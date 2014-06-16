@@ -1,4 +1,4 @@
-module LHAEPlain
+﻿module LHAEPlain
 open Bytes
 open Error
 open TLSError

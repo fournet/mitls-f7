@@ -1,4 +1,4 @@
-module TLSInfo
+﻿module TLSInfo
 
 (* This module gathers the definitions of 
    public datatypes, parameters, and predicates for our TLS API.

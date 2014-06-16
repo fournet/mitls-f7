@@ -1,4 +1,4 @@
-module HttpEntryPoint
+﻿module HttpEntryPoint
 
 open System
 open System.IO

@@ -1,4 +1,4 @@
-module AppData
+﻿module AppData
 
 open TLSInfo
 open Bytes

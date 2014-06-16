@@ -1,4 +1,4 @@
-module DHGroup
+﻿module DHGroup
 
 open Bytes
 

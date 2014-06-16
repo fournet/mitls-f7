@@ -1,4 +1,4 @@
-module PRF
+﻿module PRF
 
 // The KDFMAC module uses the HMAC based pseudo-random function of TLS (HPRF) 
 // keyed by master secrets for two purposes: 

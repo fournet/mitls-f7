@@ -1,4 +1,4 @@
-module HSFragment
+﻿module HSFragment
 open Bytes
 open TLSInfo
 open Range

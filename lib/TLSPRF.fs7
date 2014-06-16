@@ -1,4 +1,4 @@
-module TLSPRF
+﻿module TLSPRF
 
 (* Concrete (bytes -> bytes) PRF algorithms for TLS; trusted. *)
 (* Used by KEF for extracting MS, by PRF for verifyData and key derivation *) 

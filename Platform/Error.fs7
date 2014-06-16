@@ -1,4 +1,4 @@
-module Error
+﻿module Error
 
 type ('a,'b) OptResult =
     | Error of 'a

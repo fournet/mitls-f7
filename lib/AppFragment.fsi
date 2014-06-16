@@ -1,4 +1,4 @@
-module AppFragment
+﻿module AppFragment
 open Bytes
 open TLSInfo
 open Range

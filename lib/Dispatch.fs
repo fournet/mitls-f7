@@ -1,4 +1,4 @@
-module Dispatch
+﻿module Dispatch
 
 open Bytes
 open TLSConstants

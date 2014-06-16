@@ -1,4 +1,4 @@
-(* Handshake protocol messages *) 
+﻿(* Handshake protocol messages *) 
 module HandshakeMessages
 
 open Bytes

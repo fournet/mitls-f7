@@ -1,4 +1,4 @@
-module StatefulLHAE
+﻿module StatefulLHAE
 
 // implemented using LHAE with a sequence number 
 

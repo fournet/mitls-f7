@@ -1,4 +1,4 @@
-module LHAEPlain
+﻿module LHAEPlain
 open Bytes
 open TLSInfo
 open Range

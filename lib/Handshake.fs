@@ -1,4 +1,4 @@
-module Handshake
+﻿module Handshake
 // State machine begins
 open Bytes
 open Error

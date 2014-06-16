@@ -1,4 +1,4 @@
-module HandshakeMessages
+﻿module HandshakeMessages
 open Bytes
 open Error
 open TLSError

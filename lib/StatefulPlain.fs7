@@ -1,4 +1,4 @@
-module StatefulPlain
+﻿module StatefulPlain
 
 (* 'plain' module for Stateful AEAD *) 
 

@@ -1,4 +1,4 @@
-module StatefulPlain
+﻿module StatefulPlain
 open Bytes
 open Error
 open TLSError

@@ -1,4 +1,4 @@
-module TLSError
+﻿module TLSError
 
 (* Symbolic names for TLS errors, processed in Alert [RFC, section 7.2] *) 
 

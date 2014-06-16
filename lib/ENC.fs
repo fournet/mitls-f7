@@ -1,4 +1,4 @@
-module ENC
+﻿module ENC
 
 open Bytes
 open Error

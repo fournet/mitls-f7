@@ -1,4 +1,4 @@
-module AEAD_GCM
+﻿module AEAD_GCM
 
 open Bytes
 open Range
