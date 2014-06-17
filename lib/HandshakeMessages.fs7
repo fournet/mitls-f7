@@ -297,7 +297,7 @@ private definition !b.
 val clientKEXExplicitBytes_DH: gx:bytes ->
 	b:bytes{B(b) = ClientKeyExchangeMsg_DHE(gx)}
 val parseClientKEXExplicit_DH: p:DHGroup.p -> g:(;p)DHGroup.g -> b:bytes ->
-	(gx:(;p)DHGroup.elt{
+	(gx:(;p,g)DHGroup.elt{
 		MessageBytes(HT_client_key_exchange,B(b)) = 
                 ClientKeyExchangeMsg_DHE(gx)
 	}) Result
@@ -327,7 +327,7 @@ private definition !p,g,y.
 val dheParamBytes: p:bytes -> g:bytes -> y:bytes ->
 	b:bytes{B(b) = DHEParamBytes(p,g,y)}
 val parseDHEParams: b:bytes -> 
- (p:DHGroup.p * g:(;p)DHGroup.elt * y:(;p)DHGroup.elt * rem:bytes {
+ (p:DHGroup.p * g:(;p)DHGroup.g * y:(;p,g)DHGroup.elt * rem:bytes {
 	B(b) = (DHEParamBytes(p,g,y) @| B(rem))
  }) Result
 
@@ -343,7 +343,7 @@ val serverKeyExchangeBytes_DHE: dheb:bytes{?p,g,y. B(dheb) = DHEParamBytes(p,g,y
 		B(b) = ServerKeyExchangeMsg_DHE(pv,p,g,y,a,sign)}
 val parseServerKeyExchange_DHE: pv:ProtocolVersion -> cs:cipherSuite -> 
 	b:bytes ->
-	((p:DHGroup.p * g:(;p)DHGroup.elt * y:(;p)DHGroup.elt * a:Sig.alg * sign:bytes){
+	((p:DHGroup.p * g:(;p)DHGroup.g * y:(;p,g)DHGroup.elt * a:Sig.alg * sign:bytes){
 	MessageBytes(HT_server_key_exchange,B(b)) =
 		ServerKeyExchangeMsg_DHE(pv,p,g,y,a,sign)
 	}) Result
@@ -351,7 +351,7 @@ val parseServerKeyExchange_DHE: pv:ProtocolVersion -> cs:cipherSuite ->
 function val ServerKeyExchangeMsg_DH_anon: bytes * bytes * bytes -> cbytes
 
 val serverKeyExchangeBytes_DH_anon: bytes -> bytes -> bytes -> bytes
-val parseServerKeyExchange_DH_anon: bytes -> (p:DHGroup.p * g:(;p)DHGroup.elt * y:(;p)DHGroup.elt) Result
+val parseServerKeyExchange_DH_anon: bytes -> (p:DHGroup.p * g:(;p)DHGroup.g * y:(;p,g)DHGroup.elt) Result
 
 //function val CertificateVerifyMsg: si:SessionInfo * (;si)PRF.masterSecret * a:Sig.alg * Cert.chain * (;a)Sig.pkey * log -> bytes
 function val CertificateVerifyMsg: ProtocolVersion * Sig.alg * bytes -> cbytes
@@ -899,34 +899,34 @@ definition !si,l.
      B(l) = B(l') @| ClientFinishedMsg(cvd))
 
 
-predicate ServerLogBeforeServerFinishedResume of SessionInfo * log 
-definition !si,l.
-  ServerLogBeforeServerFinishedResume(si,l) <=>
+predicate ServerLogBeforeServerFinishedResume of crand * srand * SessionInfo * log 
+definition !cr,sr,si,l.
+  ServerLogBeforeServerFinishedResume(cr,sr,si,l) <=>
   (?crand,cpv,csl,cml,ex1,ex2,ctl,sal,nl. 
-    B(l) = (ClientHelloMsg(cpv,crand,si.sessionID,csl,cml,ex1)  @|
-        (ServerHelloMsg(si.protocol_version,si.init_srand,si.sessionID,si.cipher_suite,si.compression,ex2))))
+    B(l) = (ClientHelloMsg(cpv,cr,si.sessionID,csl,cml,ex1)  @| 
+           (ServerHelloMsg(si.protocol_version,sr,si.sessionID,si.cipher_suite,si.compression,ex2))))
 
-predicate ServerLogBeforeClientFinishedResume of SessionInfo * log 
-definition !si,l.
-  ServerLogBeforeClientFinishedResume(si,l) <=>
-  (?l',svd.   ServerLogBeforeServerFinishedResume(si,l') /\
+predicate ServerLogBeforeClientFinishedResume of crand * srand * SessionInfo * log 
+definition !cr,sr,si,l.
+  ServerLogBeforeClientFinishedResume(cr,sr,si,l) <=>
+  (?l',svd.   ServerLogBeforeServerFinishedResume(cr,sr,si,l') /\
     B(l) = B(l') @| ServerFinishedMsg(svd))
 
 
 (* KB: All these predicates must note all elements of the epoch except for the predecessor.
    It may be worth defining a new type for the following: 
    current_crand, current_srand, si, cvd, svd, role *)
-predicate ClientLogBeforeServerFinishedResume of SessionInfo * log 
-definition !si,l.
-  ClientLogBeforeServerFinishedResume(si,l) <=>
-  (?l',cr,sr,ex2. ClientLogBeforeServerHello(cr,l')  /\
+predicate ClientLogBeforeServerFinishedResume of crand * srand * SessionInfo * log 
+definition !cr,sr,si,l.
+  ClientLogBeforeServerFinishedResume(cr,sr,si,l) <=>
+  (?l',ex2. ClientLogBeforeServerHello(cr,l')  /\
     B(l) = B(l') @|
            ServerHelloMsg(si.protocol_version,sr,si.sessionID,si.cipher_suite,si.compression,ex2))
 
-predicate ClientLogBeforeClientFinishedResume of SessionInfo * log 
-definition !si,l.
-  ClientLogBeforeClientFinishedResume(si,l) <=>
-  (?l',svd.   ClientLogBeforeServerFinishedResume(si,l') /\
+predicate ClientLogBeforeClientFinishedResume of crand * srand * SessionInfo * log 
+definition !cr,sr,si,l.
+  ClientLogBeforeClientFinishedResume(cr,sr,si,l) <=>
+  (?l',svd.   ClientLogBeforeServerFinishedResume(cr,sr,si,l') /\
     B(l) = B(l') @| ServerFinishedMsg(svd))
 
 
@@ -960,13 +960,13 @@ theorem !si,si',t. ServerLogBeforeServerFinished(si,t) /\
 
 
 // PYS: not provable
-theorem !si,si',t. ClientLogBeforeClientFinishedResume(si,t) /\        
-                   ClientLogBeforeClientFinishedResume(si',t) => 
-		   (si.init_crand = si'.init_crand /\ si.init_srand = si'.init_srand)
+theorem !cr,sr,si,cr',sr',si',t. ClientLogBeforeClientFinishedResume(cr,sr,si,t) /\        
+                     ClientLogBeforeClientFinishedResume(cr',sr',si',t) => 
+	  	     (cr = cr' /\ sr = sr'  /\ si.sessionID = si'.sessionID)
 
-theorem !si,si',t. ServerLogBeforeServerFinishedResume(si,t) /\        
-                   ServerLogBeforeServerFinishedResume(si',t) => 
-		   (si.init_crand = si'.init_crand /\ si.init_srand = si'.init_srand)
+theorem !cr,sr,si,cr',sr',si',t. ServerLogBeforeServerFinishedResume(cr,sr,si,t) /\        
+                   ServerLogBeforeServerFinishedResume(cr',sr',si',t) => 
+                   (cr = cr' /\ sr = sr' /\ si.sessionID = si'.sessionID )
 
 predicate HasHTMessage of HandshakeType * cbytes
 
@@ -1000,18 +1000,18 @@ ask !ht,htd1,htd2,htd3,data1,data2,data3.
 //  (?l',svd.   ClientLogBeforeServerFinishedResume(si,l') /\
 //    B(l) = B(l') @| ServerFinishedMsg(svd))
 
-ask !si,l.
-  ClientLogBeforeClientFinishedResume(si,l) =>
-  (?svd,crand,cpv,csl,cml,ex1,ex2,ctl,sal,nl. 
+ask !cr,sr,si,l.
+  ClientLogBeforeClientFinishedResume(cr,sr,si,l) =>
+  (?svd,cpv,csl,cml,ex1,ex2,ctl,sal,nl. 
     B(l) = 
-         (ClientHelloMsg(cpv,crand,si.sessionID,csl,cml,ex1)  @|
-          ServerHelloMsg(si.protocol_version,si.init_srand,si.sessionID,si.cipher_suite,si.compression,ex2) @|
+         (ClientHelloMsg(cpv,cr,si.sessionID,csl,cml,ex1)  @|
+          ServerHelloMsg(si.protocol_version,sr,si.sessionID,si.cipher_suite,si.compression,ex2) @|
 	  ServerFinishedMsg(svd)))
 
-ask !si,t. ClientLogBeforeClientFinishedResume(si,t) => HasHTMessage(HT_certificate,B(t)) => false
+ask !cr,sr,si,t. ClientLogBeforeClientFinishedResume(cr,sr,si,t) => HasHTMessage(HT_certificate,B(t)) => false
 
-theorem !si,si',t. ClientLogBeforeClientFinished(si,t) /\        
-                   ClientLogBeforeClientFinishedResume(si',B(t))  => false
+theorem !si,cr,sr,si',t. ClientLogBeforeClientFinished(si,t) /\        
+                   ClientLogBeforeClientFinishedResume(cr,sr,si',t)  => false
 
 (*
 theorem !si,si',t. ClientLogBeforeClientFinished(si,t) /\        

@@ -1,4 +1,4 @@
-﻿module KEF
+module KEF
 
 open Bytes
 open TLSConstants
@@ -23,7 +23,7 @@ val extract_extended:
     (;si) PRF.masterSecret
 
 private val accessRSAPMS: pk:RSAKey.pk -> cv:ProtocolVersion -> (;pk,cv) rsapms -> rsarepr
-private val accessDHPMS: p:DHGroup.p -> g:(;p)DHGroup.g -> gx:(;p)DHGroup.elt -> gy:(;p)DHGroup.elt -> pms: (;p,g,gx,gy)dhpms -> bytes
+private val accessDHPMS: p:DHGroup.p -> g:(;p)DHGroup.g -> gx:(;p,g)DHGroup.elt -> gy:(;p,g)DHGroup.elt -> pms: (;p,g,gx,gy)dhpms -> bytes
 private val accessPMS: pms -> bytes
 
 // log storing idealized master secrets

@@ -11,7 +11,6 @@ open HandshakeMessages
 
 type events = 
     Authorize of Role * SessionInfo
-  | UpdatesClientAuth of SessionInfo * SessionInfo //TODO define predicate in Handshake.fs7
   | Configure of Role * epoch * config
   | EvSentFinishedFirst of ConnectionInfo * bool
   | Negotiated of Role * SessionInfo * config * config

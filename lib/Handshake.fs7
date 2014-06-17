@@ -57,6 +57,7 @@ private definition !r,si. Authorize(r,si) => SessionDB.Authorize(r,si)
 // If we select a session from the DB, the user previously authorized it
 private theorem !r,si. SessionDB.Authorize(r,si) => Authorize(r,si)
 
+predicate UpdatesClientAuth of SessionInfo * SessionInfo
 predicate EvSentFinishedFirst of ConnectionInfo * bool
 predicate Negotiated of Role * SessionInfo * config * config
 predicate CompleteEpoch of Role * epoch
@@ -101,15 +102,16 @@ private definition !msi,r,b. PRF.VerifyData(msi,r,b)
         r = Server /\
         SentCCS(Server,si.init_crand,si.init_srand,si) /\
         ServerLogBeforeServerFinished(si,b)) \/
-       (?si,si'. msi = MsI(si) /\
+       (?si,cr,sr,si'. msi = MsI(si) /\
         r = Client /\
-        SentCCS(Client,si'.init_crand,si'.init_srand,si) /\
+        SentCCS(Client,cr,sr,si) /\
         si.sessionID = si'.sessionID /\
-        ClientLogBeforeClientFinishedResume(si',b)) \/
-       (?si,cr,sr. msi = MsI(si) /\
+        ClientLogBeforeClientFinishedResume(cr,sr,si',b)) \/
+       (?si,cr,sr,si'. msi = MsI(si) /\
         r = Server /\
         SentCCS(Server,cr,sr,si) /\
-        ServerLogBeforeServerFinishedResume(si,b)))
+        si.sessionID = si'.sessionID /\
+        ServerLogBeforeServerFinishedResume(cr,sr,si',b)))
 
 (*
 ask !si,b. PRF.VerifyData(MsI(si),Client,b) /\
@@ -138,8 +140,8 @@ ask !si,si',b. PRF.VerifyData(MsI(si),Server,b) /\
 
 *)
 
-definition !role,e,cfg. 
-  CompleteEpoch(role,e,cfg) 
+definition !role,e. 
+  CompleteEpoch(role,e) 
   <=>
   (IsSuccEpoch(e) /\ IsValidEpoch(e) /\ IsValidEpoch(Pred(e)) /\
    (SafeVD(EpochSI(e)) => (Match(Id(e)) /\ Open(e))) /\
@@ -205,18 +207,18 @@ type (;ci:ConnectionInfo) serverState =  (* note that the CertRequest bits are d
    | ServerCheckingCertificateDH  of si:SessionInfo * l:log * b:bytes
    | ClientKeyExchangeDH          of si:SessionInfo * l:log
 
-   | ClientCertificateDHE         of si:SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * (;p,g,gx)DH.secret * l:log{
+   | ClientCertificateDHE         of si:SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p,g)DHGroup.elt * (;p,g,gx)DH.secret * l:log{
        ServerLogBeforeClientCertificateDHE(si,l)}
     
-   | ServerCheckingCertificateDHE of si:SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * (;p,g,gx)DH.secret * l:log * c:Cert.chain * b:bytes{
+   | ServerCheckingCertificateDHE of si:SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p,g)DHGroup.elt * (;p,g,gx)DH.secret * l:log * c:Cert.chain * b:bytes{
        ServerLogBeforeClientCertificateDHE(si,l) /\
        B(b) = CertificateMsg(c)}
 
-   | ClientKeyExchangeDHE         of si:SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * (;p,g,gx)DH.secret * l:log{
+   | ClientKeyExchangeDHE         of si:SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p,g)DHGroup.elt * (;p,g,gx)DH.secret * l:log{ DHGroup.PP(p,g) /\ DH.HonestExponential(p,g,gx) /\
        ServerLogBeforeClientKeyExchangeDHE(si,l) /\ Authorize(Server,si)}
 
 
-   | ClientKeyExchangeDH_anon     of SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * (;p,g,gx)DH.secret * log
+   | ClientKeyExchangeDH_anon     of SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p,g)DHGroup.elt * (;p,g,gx)DH.secret * log
 
    | CertificateVerify            of (si:SessionInfo * (;si)PRF.masterSecret * l:log){si.client_auth = true /\ ServerLogBeforeClientCertificateVerify(si,l) /\ Authorize(Server,si)}
    | ClientCCS                    of (si:SessionInfo * (;si)PRF.masterSecret * l:log){ServerLogBeforeClientFinished(si,l) /\ Authorize(Server,si)}
@@ -239,9 +241,9 @@ type (;ci:ConnectionInfo) serverState =  (* note that the CertRequest bits are d
          (* PRF.VerifyData(e,Client,cv) /\ PRF.VerifyData(e,Server,sv) /\ *)
          Authorize(Server,si)}
 
-   | ServerWritingCCSResume       of (ew:succEpoch * w:(;Id(ew))StatefulLHAE.writer * er:succEpoch * (;Id(er))StatefulLHAE.reader * (;EpochSI(ew))PRF.masterSecret * l:log){EpochSI(ew)=EpochSI(er) /\ ServerLogBeforeServerFinishedResume(EpochSI(ew),l) /\ EpochWriter(ew) = ci.role /\ EpochWriter(er) = DualRole(ci.role) /\ Pred(ew) = ci.id_out /\ Pred(er) = ci.id_in /\ Authorize(Server,EpochSI(ew))
+   | ServerWritingCCSResume       of (ew:succEpoch * w:(;Id(ew))StatefulLHAE.writer * er:succEpoch * (;Id(er))StatefulLHAE.reader * (;EpochSI(ew))PRF.masterSecret * l:log){EpochSI(ew)=EpochSI(er) /\ ServerLogBeforeServerFinishedResume(EpochCRand(ew),EpochSRand(ew),EpochSI(ew),l) /\ EpochWriter(ew) = ci.role /\ EpochWriter(er) = DualRole(ci.role) /\ Pred(ew) = ci.id_out /\ Pred(er) = ci.id_in /\ Authorize(Server,EpochSI(ew))
 				 /\      StatefulLHAE.History(Id(ew),Writer,w) = StatefulPlain.EmptyHistory(Id(ew)) }
-   | ClientCCSResume              of e:succEpoch * (;Id(e))StatefulLHAE.reader * sVerifyData * (;EpochSI(e))PRF.masterSecret * l:log{ServerLogBeforeClientFinishedResume(EpochSI(e),l) /\ Pred(e) = ci.id_in /\ EpochWriter(e) = DualRole(ci.role) /\ Authorize(Server,EpochSI(e))}
+   | ClientCCSResume              of e:succEpoch * (;Id(e))StatefulLHAE.reader * sVerifyData * (;EpochSI(e))PRF.masterSecret * l:log{ServerLogBeforeClientFinishedResume(EpochCRand(e),EpochSRand(e),EpochSI(e),l) /\ Pred(e) = ci.id_in /\ EpochWriter(e) = DualRole(ci.role) /\ Authorize(Server,EpochSI(e))}
 (* check idin or idout?? *)
 
    | ClientFinishedResume         of si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * sv:sVerifyData * log{
@@ -270,11 +272,11 @@ type (;ci:ConnectionInfo) clientState =
    | ServerCertificateDHE         of si:SessionInfo * l:log{ClientLogBeforeServerCertificate(si,l)}
    | ClientCheckingCertificateDHE of si:SessionInfo * l:log * ProtocolVersion option * b:bytes{ClientLogBeforeServerCertificate(si,l) (* /\ b = CertificateMsg(ser) *) }
    | ServerKeyExchangeDHE         of si:SessionInfo * l:log{ClientLogBeforeServerKeyExchangeDHE(si,l) /\ Authorize(Client,si)}
-   | CertificateRequestDHE        of si:SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * l:log{ClientLogBeforeCertificateRequestDHE(si,l) /\ Authorize(Client,si)}
-   | ServerHelloDoneDHE           of si:SessionInfo * Cert.sign_cert * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * l:log{ClientLogBeforeServerHelloDoneDHE(si,l) /\ Authorize(Client,si)}
+   | CertificateRequestDHE        of si:SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p,g)DHGroup.elt * l:log{ClientLogBeforeCertificateRequestDHE(si,l) /\ Authorize(Client,si)}
+   | ServerHelloDoneDHE           of si:SessionInfo * Cert.sign_cert * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p,g)DHGroup.elt * l:log{ClientLogBeforeServerHelloDoneDHE(si,l) /\ Authorize(Client,si)}
 
    | ServerKeyExchangeDH_anon of SessionInfo * log (* Not supported yet *)
-   | ServerHelloDoneDH_anon of SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p)DHGroup.elt * log
+   | ServerHelloDoneDH_anon of SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p,g)DHGroup.elt * log
 
    | ClientWritingCCS       of si:SessionInfo * (;si)PRF.masterSecret * l:log{ClientLogBeforeClientFinished(si,l) /\ Authorize(Client,si)}
    | ServerCCS              of (si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * (;Id(e))StatefulLHAE.reader * cv:cVerifyData * l:log){ 
@@ -296,10 +298,10 @@ type (;ci:ConnectionInfo) clientState =
    | ServerCCSResume        of (ew:succEpoch * (;Id(ew))StatefulLHAE.writer * er:succEpoch * (;Id(er))StatefulLHAE.reader * (;EpochSI(ew))PRF.masterSecret * l:log){
      			    EpochSI(ew)=EpochSI(er) /\ 
 			    ci.id_in = Pred(er) /\ 
-			    ClientLogBeforeServerFinishedResume(EpochSI(ew),l) /\ 
+			    ClientLogBeforeServerFinishedResume(EpochCRand(ew),EpochSRand(ew),EpochSI(ew),l) /\ 
 			    Authorize(Client,EpochSI(ew))}
    | ServerFinishedResume   of e:succEpoch * w:(;Id(e))StatefulLHAE.writer * (;EpochSI(e))PRF.masterSecret * l:log{
-                                                                    ClientLogBeforeServerFinishedResume(EpochSI(e),l) /\ 
+                                                                    ClientLogBeforeServerFinishedResume(EpochCRand(e),EpochSRand(e),EpochSI(e),l) /\ 
                                                                     Pred(e) = ci.id_out /\
                                                                     EpochWriter(e) = ci.role /\
                                                                     IsSuccEpoch(ci.id_in) /\
@@ -310,7 +312,7 @@ type (;ci:ConnectionInfo) clientState =
                                                                     StatefulLHAE.History(Id(e),Writer,w) = StatefulPlain.EmptyHistory(Id(e))}
 
    | ClientWritingCCSResume of e:succEpoch * w:(;Id(e))StatefulLHAE.writer * (;EpochSI(e))PRF.masterSecret * sv:sVerifyData * l:log{
-          ClientLogBeforeClientFinishedResume(EpochSI(e),l) /\ 
+          ClientLogBeforeClientFinishedResume(EpochCRand(e),EpochSRand(e),EpochSI(e),l) /\ 
           Pred(e) = ci.id_out /\
           EpochWriter(e) = ci.role /\
           IsSuccEpoch(ci.id_in) /\
@@ -502,7 +504,7 @@ val prepare_client_output_full_RSA: ci:ConnectionInfo -> st:(;ci)hs_state ->
                 Config(ci,st) = Config(ci,st')}) Result
 val prepare_client_output_full_DHE: ci:ConnectionInfo -> st:(;ci)hs_state ->
 	si:SessionInfo -> (Cert.chain * a:Sig.alg * (;a)Sig.skey) option ->
-	p:DHGroup.p -> (;p)DHGroup.g -> (;p)DHGroup.elt -> 
+	p:DHGroup.p -> g:(;p)DHGroup.g -> (;p,g)DHGroup.elt -> 
         l:log{ClientLogAfterServerHelloDoneDHE(si,l) /\ Authorize(Client,si)} ->
 	(st':(;ci)hs_state * si':SessionInfo * (;si')PRF.masterSecret * 
          l':log{ClientLogBeforeClientFinishedDHE(si',l') /\ Authorize(Client,si') /\ Config(ci,st) = Config(ci,st')}) Result

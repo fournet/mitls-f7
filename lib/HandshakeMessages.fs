@@ -131,7 +131,6 @@ type cVerifyData = bytes (* ClientFinished payload *)
 type sVerifyData = bytes (* ServerFinished payload *)
 #endif
 
-#if verify
 type chello = | ClientHelloMsg of (bytes * ProtocolVersion * random * sessionID * cipherSuites * Compression list * bytes)
 
 type preds = ServerLogBeforeClientCertificateVerifyRSA of SessionInfo * bytes
@@ -139,7 +138,6 @@ type preds = ServerLogBeforeClientCertificateVerifyRSA of SessionInfo * bytes
             |ServerLogBeforeClientCertificateVerifyDHE of SessionInfo * bytes
             |ServerLogBeforeClientFinished of SessionInfo * bytes
             |UpdatesClientAuth of SessionInfo * SessionInfo
-#endif
 
 #if verify
 let popBytes i data =
