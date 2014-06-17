@@ -120,7 +120,7 @@ let init (role:Role) poptions =
     match role with
     | Client -> 
         let ci = initConnection role rand in
-        Pi.assume (Configure(Client,ci.id_in,poptions));
+        Pi.assume (Configure(Client,ci.id_in,poptions)); // ``The user starts a client in this config''
         let extL = prepareClientExtensions poptions ci empty_bytes None in
         let ext = clientExtensionsBytes extL in
         let cHelloBytes = clientHelloBytes poptions rand sid ext in
@@ -157,7 +157,7 @@ let resume next_sid poptions =
     | sid ->
     let rand = Nonce.mkHelloRandom () in
     let ci = initConnection Client rand in
-    Pi.assume (Configure(Server,ci.id_in,poptions));
+    Pi.assume (Configure(Server,ci.id_in,poptions)); // CF should be Client?? ``The user resumes a client in this config''
     let extL = prepareClientExtensions poptions ci empty_bytes (Some(retrievedSinfo.session_hash))
     let ext = clientExtensionsBytes extL
     let cHelloBytes = clientHelloBytes poptions rand sid ext in
@@ -284,7 +284,9 @@ type outgoing =
 
 let check_negotiation (r:Role) (si:SessionInfo) (c:config) = 
   Pi.assume (Negotiated(r,si,c,c)) (* FIXME: Dummy definition. 
-                                      Define valid negotiations *)
+                                      Define valid negotiations *) 
+  //CF ?? 
+
 
 let next_fragment ci state =
     match state.hs_outgoing with
@@ -299,7 +301,7 @@ let next_fragment ci state =
                 let (reader,writer) = PRF.keyGenClient nki_in nki_out ms in
                 let cr' = si.init_crand in
                 let sr' = si.init_srand in
-                Pi.assume (SentCCS(Client,cr',sr',si));
+                Pi.assume (SentCCS(Client,cr',sr',si)); // ``We send client CCS for si''
                 //CF now passing si, instead of next_ci.id_out
                 //CF but the precondition should be on F(si)
                 let cvd = PRF.makeVerifyData si ms Client log in
@@ -308,7 +310,7 @@ let next_fragment ci state =
                 let ki_out = ci.id_out in
                 let (rg,f,_) = makeFragment ki_out CCSBytes in
                 let ci = {ci with id_out = next_ci.id_out} in 
-                (* Should be provable from SentCCS *)
+                (* Should be provable from SentCCS *) //CF ??
                 Pi.assume (CompleteEpoch(ci.role,ci.id_out));
                 OutCCS(rg,f,ci,writer,
                        {state with hs_outgoing = cFinished 
@@ -318,7 +320,7 @@ let next_fragment ci state =
                 let cr' = epochCRand(e) in
                 let sr' = epochSRand(e) in
                 let si' = epochSI(e) in
-                Pi.assume (SentCCS(Client,cr',sr',si'));
+                Pi.assume (SentCCS(Client,cr',sr',si')); ``We send client CCS for the resumption''
                 let cvd = PRF.makeVerifyData si' ms Client log in
                 let cFinished = messageBytes HT_finished cvd in
                 let ki_out = ci.id_out in
@@ -332,7 +334,7 @@ let next_fragment ci state =
         | PSServer(sstate) ->
             match sstate with
             | ServerWritingCCS (si,ms,e,w,cvd,log) ->
-                Pi.assume (SentCCS(Server,si.init_crand,si.init_srand,si));
+                Pi.assume (SentCCS(Server,si.init_crand,si.init_srand,si)); // ``We send server CCS for si''
                 let svd = PRF.makeVerifyData si ms Server log in
                 let sFinished = messageBytes HT_finished svd in
                 let ki_out = ci.id_out in
@@ -346,7 +348,7 @@ let next_fragment ci state =
                 let si' = epochSI(we) in
                 let cr' = epochCRand(we) in
                 let sr' = epochSRand(we) in
-                Pi.assume (SentCCS(Server,cr',sr',si'));
+                Pi.assume (SentCCS(Server,cr',sr',si')); // ``We send server CCS for the resumption''
                 let svd = PRF.makeVerifyData si' ms Server log in
                 let sFinished = messageBytes HT_finished svd in
                 let log = log @| sFinished in
@@ -862,6 +864,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 (* KB: Inserted another authorize here. We lack a mechanism for the client to refuse client auth! *)
                 (* AP: Client identity is fixed at protocol start. An empty identity will generate an empty certificate
                    message, which means refusal of client auth. *)
+
+                // CF ??
                 Pi.assume (Authorize(Client,si));
 #if verify
                 Pi.assume (UpdatesClientAuth(si,si'));
@@ -1486,45 +1490,47 @@ let getMinVersion (ci:ConnectionInfo) state =
   let pop = state.poptions in
   pop.minVer
 
+// CF ?? the need for q, the Pi.assume, and code duplication
 let authorize (ci:ConnectionInfo) (state:hs_state) (q:Cert.chain) =
     let pstate = state.pstate in
     match pstate with
     | PSClient(cstate) ->
         match cstate with
         | ClientCheckingCertificateRSA(si,log,certs,agreedVersion,to_log) ->
+            // CF why logging certs for RSA and not DH? why letting the user change the cert??
             if certs = q then
               let log = log @| to_log in
               let si = {si with serverID = q} in
-              Pi.assume (Authorize(Client,si));
+              Pi.assume (Authorize(Client,si)); // ``The user authorizes q as peer serverID''
               recv_fragment_client ci 
                 {state with pstate = PSClient(CertificateRequestRSA(si,log))}
                 agreedVersion
             else unexpected "[authorize] invoked with different cert"
         | ClientCheckingCertificateDHE(si,log,agreedVersion,to_log) ->
-            let log = log @| to_log in
-            let si = {si with serverID = q} in
-            Pi.assume (Authorize(Client,si));
-            recv_fragment_client ci 
-              {state with pstate = PSClient(ServerKeyExchangeDHE(si,log))} 
-              agreedVersion
+              let log = log @| to_log in
+              let si = {si with serverID = q} in
+              Pi.assume (Authorize(Client,si)); // ``The user authorizes q as peer serverID''
+              recv_fragment_client ci 
+                {state with pstate = PSClient(ServerKeyExchangeDHE(si,log))} 
+                agreedVersion
         // | ClientCheckingCertificateDH -> TODO
         | _ -> unexpected "[authorize] invoked on the wrong state"
     | PSServer(sstate) ->
         match sstate with
         | ServerCheckingCertificateRSA(si,cv,sk,log,c,to_log) when c = q ->
-            let log = log @| to_log in
-            let si = {si with clientID = q} in
-             Pi.assume (Authorize(Server,si));
-            recv_fragment_server ci 
-              {state with pstate = PSServer(ClientKeyExchangeRSA(si,cv,sk,log))} 
-              None
+              let log = log @| to_log in
+              let si = {si with clientID = q} in
+              Pi.assume (Authorize(Server,si)); // ``The user authorizes q as peer clientID''
+              recv_fragment_server ci 
+                {state with pstate = PSServer(ClientKeyExchangeRSA(si,cv,sk,log))} 
+                None
         | ServerCheckingCertificateDHE(si,p,g,gx,x,log,c,to_log) when c = q ->
-            let log = log @| to_log in
-            let si = {si with clientID = q} in
-            Pi.assume (Authorize(Server,si));
-            recv_fragment_server ci 
-              {state with pstate = PSServer(ClientKeyExchangeDHE(si,p,g,gx,x,log))} 
-              None
+              let log = log @| to_log in
+              let si = {si with clientID = q} in
+              Pi.assume (Authorize(Server,si)); // ``The user authorizes q as peer clientID''
+              recv_fragment_server ci 
+                {state with pstate = PSServer(ClientKeyExchangeDHE(si,p,g,gx,x,log))} 
+                None
         // | ServerCheckingCertificateDH -> TODO
         | _ -> unexpected "[authorize] invoked on the wrong state"
 

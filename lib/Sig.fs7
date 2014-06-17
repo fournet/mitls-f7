@@ -6,8 +6,8 @@ open TLSConstants
 (* TLS uses three signatures algorithms, together with hash algorithm.
    We verify TLS security relative to those *combinations* of algorithms
    that provide agile CMA-security, as specified in this interface. 
-   However, none of them are known to be CMA-secure in the standard model under an 
-   assumption much weaker than "This scheme is secure".
+   However, none of them are known to be CMA-secure in the standard model 
+   under an assumption much weaker than "This scheme is secure".
 
    This interface is adapted from the one described in CCS'11:
 
@@ -44,18 +44,22 @@ open TLSConstants
 
    from the viewpoint of cryptographic agility the relaxed constraints lead to 
    stronger assumptions.  
-***************************************************************************)
+ ***************************************************************************)
 
 // see SignatureAndHashAlgorithm
-type alg   = sigHashAlg //defined in TLSConstants.fs7: sigAlg * hashAlg
+type alg   = sigHashAlg // defined as sigAlg * hashAlg in TLSConstants
 
 type text = bytes
 type (;a:alg) sigv = bytes
-  // we could be more precise and specify their size, 36 with RSA, 20 with DSA
-  // with TLS 1.2, this explicitly contains a; see DigitallySigned struct 
+  // we could be more precise and specify their size: 36 with RSA, 20 with DSA
+  // with TLS 1.2, the bytes explicitly contain a; see DigitallySigned struct 
 
 
 //********************** Ideal Functionality for Signing *********************** 
+
+predicate Strong of alg
+private definition !a. Strong(a) <=> (a = (SA_DSA,SHA384))
+
 private type (;a:alg) pkey = {pkey : CoreSig.sigpkey * hashAlg }
 //#begin-abstraction
 private type (;a:alg) skey = {skey: CoreSig.sigskey * hashAlg; pub: (;a) pkey}
@@ -64,24 +68,42 @@ private type (;a:alg) skey = {skey: CoreSig.sigskey * hashAlg; pub: (;a) pkey}
 function val PK: 'a -> 'b // a:alg * (;a)skey -> vkey
 private definition !sk. PK(sk) = sk.pub
 
-predicate Msg of a:alg * (;a)pkey * text 
-predicate type pred = Honest of a:alg * (;a) pkey
-predicate Strong of alg
-private definition !a. Strong(a) <=> (a = (SA_DSA,SHA384))
+// assumed by Sig.gen; not implying strong Strong(a)
+// intuitively, we may provision any other dishonest keys for the adversary
+predicate type pred = Honest of a:alg * (;a) pkey 
 
-val gen:     a:alg -> pk:(;a) pkey * sk:(;a) skey { pk = PK(sk) /\ Honest(a,pk) }
-val sign:    a:alg -> sk:(;a) skey -> t:text{Msg(a,PK(sk),t)} -> (;a) sigv
-val verify:  a:alg -> pk:(;a) pkey -> t:text -> m:(;a) sigv -> 
+val gen :    a:alg -> pk:(;a) pkey * sk:(;a) skey { pk = PK(sk) /\ Honest(a,pk) }
+val coerce:  a:alg -> p:(;a) pkey{not Honest(a,p)} -> CoreSig.sigskey -> s:(;a)skey{p = PK(s)}
+val leak:    a:alg -> s:(;a) skey{not Honest(a,PK(s))} -> CoreSig.sigskey
+val create_pkey: a:alg -> CoreSig.sigpkey -> (;a)pkey
+
+val pk_of:   a:alg -> sk:(;a) skey -> pk:(;a) pkey{pk = PK(sk)}
+val strong:  a:alg -> b:bool{(b = true /\ Strong(a)) \/ (b = false /\ not Strong(a))}
+val honest:  a:alg -> pk: (;a) pkey -> b:bool{b = true <=> Honest(a,pk)}
+
+// user-defined logical payload of signed texts
+predicate Msg of a:alg * (;a)pkey * text 
+
+val sign:   a:alg -> sk:(;a) skey -> t:text{Msg(a,PK(sk),t)} -> (;a) sigv
+val verify: a:alg -> pk:(;a) pkey -> t:text -> m:(;a) sigv -> 
   b:bool {(b=true /\ Strong(a) /\ Honest(a,pk)) => Msg(a,pk,t)}
+
+// CF leak & create_pkey are currently useless, would make sense only with a dynamic Honest predicate; cut?
+
+// MK how to extract & check the algs from certs?
+// MK how does the server control the choice of algorithms? For now hardcoded.
+// MK adjust compromise model, connect it to Cert (mostly for the benefit of the adversary)
+// MK our current implementation does not allow access to the gen function. 
+// MK consequently all secret keys used in runs of our protocol are thus coerced keys and we thus don't have any safe instances
+// CF these comments concern the (non)-usage of this interface, not the Sig module; relocate?
+
+
+//-------- the rest is internal to Sig.fs
 
 type honest_entry = (a:alg * sk:(;a)skey * pk:(;a)pkey{Honest(a,pk) /\ pk = PK(sk)})
 private val honest_log: (honest_entry list) ref
 private val has_pk: a:alg -> pk:(;a)pkey -> 
           (honest_entry list) -> b:bool{(b = true => Honest(a,pk))}
-
-val pk_of: a:alg -> sk:(;a) skey -> pk:(;a) pkey{pk = PK(sk)}
-val honest: a:alg -> pk: (;a) pkey -> b:bool{b = true <=> Honest(a,pk)}
-val strong: a:alg -> b:bool{(b = true /\ Strong(a)) \/ (b = false /\ not Strong(a))}
 
 private val consHonestLog: a:alg -> sk:(;a)skey -> pk:(;a) pkey{Honest(a,pk) /\ pk = PK(sk)} -> (honest_entry list) -> honest_entry list
 
@@ -90,15 +112,4 @@ private val log: entry list ref
 private val consLog: a:alg -> pk:(;a) pkey -> t:text {Msg(a,pk,t)} -> entry list -> entry list
 private val has_mac: a:alg -> pk:(;a) pkey -> t:text -> entry list -> b:bool{b = true => Msg(a,pk,t)}
 
-val coerce:  a:alg -> p:(;a) pkey{not Honest(a,p)} -> CoreSig.sigskey -> s:(;a)skey{p = PK(s)}
-val leak:    a:alg -> s:(;a) skey{not Honest(a,PK(s))} -> CoreSig.sigskey
 
-val create_pkey: a:alg -> CoreSig.sigpkey -> (;a)pkey
-
-
-// TODO: how to extract & check the algs from certs?
-// TODO: how does the server control the choice of algorithms? For now hardcoded.
-
-// TODO: adjust compromise model, connect it to Cert (mostly for the benefit of the adversary)
-// TODO: our current implementation does not allow access to the gen function. 
-// TODO: consequently all secret keys used in runs of our protocol are thus coerced keys and we thus don't have any safe instances

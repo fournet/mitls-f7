@@ -420,6 +420,7 @@ type event = // produced by PRF, used once the handshake is Finished
   | KeyGenClient of csrands * ProtocolVersion * aeAlg * negotiatedExtensions
   | SentCCS of Role * crand * srand * SessionInfo
 
+
 // These two injectivity properties follow from the affine usage of keyCommit and keyGenClient
 theorem !csr,pv0,ae0,ext0,pv1,ae1,ext1. 
   (KeyCommit(csr,pv0,ae0,ext0) /\ KeyCommit(csr,pv1,ae1,ext1)) => (pv0=pv1 /\ ae0 = ae1 /\ ext0=ext1) 
@@ -517,11 +518,10 @@ val safeHS: (e:epoch) -> b:bool { b = true <=> SafeHS(e)}
 
 // Predicates specifying the security of TLS connections 
 
-predicate Open of epoch
+predicate Open of epoch // The handshake is complete
 definition !e. Open(e) <=> (?r. (r = Client \/ r = Server) /\
                             SentCCS(r,EpochCRand(e),EpochSRand(e),EpochSI(e)) /\ 
                             SentCCS(DualRole(r),EpochCRand(e),EpochSRand(e),EpochSI(e)))
-
 
 predicate Safe   of epoch        // The epoch parameters yield privacy & integrity
 definition !e. Safe(e) <=> (SafeId(Id(e)) /\ Open(e))
