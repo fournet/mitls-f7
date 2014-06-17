@@ -10,16 +10,17 @@ open Range
 open HandshakeMessages
 
 type events = 
-    Authorize of Role * SessionInfo
-  | Configure of Role * epoch * config
-  | EvSentFinishedFirst of ConnectionInfo * bool
-  | Negotiated of Role * SessionInfo * config * config
-  | CompleteEpoch of Role * epoch // for testing
-  | Complete of ConnectionInfo   // for testing
+    | Authorize of Role * SessionInfo
+    | Configure of Role * epoch * config
+    | EvSentFinishedFirst of ConnectionInfo * bool
+    | Negotiated of Role * SessionInfo * config * config
+    | CompleteEpoch of Role * epoch // for testing
+    | Complete of ConnectionInfo    // for testing
   | LMsg of (Cert.chain * Sig.alg * Sig.skey) option * Sig.text
 
 (* verify data authenticated by the Finished messages *)
 type log = bytes         (* message payloads so far, to be eventually authenticated *) 
+//CF also defined in HandshakeMessages??
 
 // The constructor indicates either what we are doing locally or which peer message we are expecting, 
 
@@ -132,7 +133,7 @@ let init (role:Role) poptions =
             })
     | Server ->
         let ci = initConnection role rand in
-        Pi.assume (Configure(Client,ci.id_in,poptions));
+        Pi.assume (Configure(Client,ci.id_in,poptions)); // CF ?? Should be Server; appears useless too. 
         let sdb = SessionDB.create poptions in 
         (ci,{hs_outgoing = empty_bytes
              hs_incoming = empty_bytes

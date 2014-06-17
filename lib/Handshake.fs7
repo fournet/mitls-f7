@@ -39,7 +39,6 @@ SafeHS_SI(si) <=> !r:Role.
     Complete <=> (HonestPMS /\ StrongHS => SafeHS)
 *)
 
-
 open Bytes
 open Error
 open TLSError
@@ -50,18 +49,29 @@ open TLSConstants
 open TLSExtensions
 open HandshakeMessages
 
-predicate Configure of Role * epoch * config
+// ----------------------------------------------------------------------
+// Dynamically assumed events in the Handshake, reflecting user decisions
+
+predicate Configure of Role * epoch * config  
 predicate Authorize of Role * SessionInfo
+
 // If the user Authorize, we can put the session in the DB
 private definition !r,si. Authorize(r,si) => SessionDB.Authorize(r,si)
+
 // If we select a session from the DB, the user previously authorized it
 private theorem !r,si. SessionDB.Authorize(r,si) => Authorize(r,si)
 
-predicate UpdatesClientAuth of SessionInfo * SessionInfo
+//CF why this indirection to SessionDB? wrong direction? is it too early? 
+
+
+predicate UpdatesClientAuth of SessionInfo * SessionInfo 
 predicate EvSentFinishedFirst of ConnectionInfo * bool
-predicate Negotiated of Role * SessionInfo * config * config
+predicate Negotiated of Role * SessionInfo * config * config //CF dynamically assumed, why?
 predicate CompleteEpoch of Role * epoch
 predicate Complete of ConnectionInfo 
+
+// CF CompleteEpoch duplicating TLSInfo with different arity??
+// CF UpdatesClientAuth missing; LMsg declare below.
 
 val check_negotiation: r:Role -> si:SessionInfo -> cfg:config -> unit{?cfg'. Negotiated(r,si,cfg,cfg')}
 
@@ -193,7 +203,8 @@ ask !ci.
     StrongKDF(KdfAlg(EpochSI(ci.id_out))) /\
     StrongAuth(ci.id_out) => Auth(ci.id_out)
 
- 
+
+// The constructor indicates either what we are doing locally or which peer message we are expecting, 
 
 type (;ci:ConnectionInfo) serverState =  (* note that the CertRequest bits are determined by the config *) 
                     (* we may omit some ProtocolVersion, mostly a ghost variable *)

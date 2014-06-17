@@ -123,8 +123,9 @@ ask !ae,m,pv. ae=MACOnly(m) => not StrongAEAlg(pv,ae)
 
 (** algorithms for the Handshake *) 
 
-type kexAlg =  (* all these kex have server auth & optional client auth, *)
-               (* except for anon which has nothing *)
+// all these kex have server auth & optional client auth, 
+// except for anon which has none of them
+type kexAlg =  
     | RSA     // --> client-generated pms encrypted using server's public key
     | DH_DSS  // <-- Certificate(DSA containing g^y); --> g^x then pms = g^xy
     | DH_RSA  // idem with an RSA cert
@@ -137,7 +138,8 @@ predicate KEF_DH of ProtocolVersion * macAlg
 predicate KEF_RSA of ProtocolVersion * macAlg
 
 // In the crypto'14 paper, these are global assumptions.
-// Our code has extra agility: we get StrongHS for the rest even if one of them is false.
+// In our code, we have some extra key agility: 
+// we get StrongHS for the rest even if one of them is false.
 
 
 (* With F7, we need to declare both logical functions for lengths, constants, etc

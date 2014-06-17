@@ -1,5 +1,8 @@
 ﻿module TLSExtensions
 
+(* Formatting and parsing support for the protocol extensions
+   exchanged in the first two messages of the handshake *)
+
 open Bytes
 open Error
 open TLSError
@@ -8,7 +11,7 @@ open TLSInfo
 
 (* AP: New interface: to be proved *)
 
-// Following types only used in handshake
+// Following types used only in Handshake
 type clientExtension
 type serverExtension
 
@@ -23,13 +26,21 @@ val serverExtensionsBytes: serverExtension list -> bytes
 val negotiateServerExtensions: clientExtension list -> config -> cipherSuite -> (cVerifyData * sVerifyData) -> sessionHash option -> (serverExtension list * negotiatedExtensions)
 val parseClientExtensions: bytes -> cipherSuites -> (clientExtension list) Result
 
-// Extension-specific
+// ------------------------------------------------------
+// The rest is extension-specific
+
+// Secure Renegotiation Information
+
 val checkClientRenegotiationInfoExtension: config -> clientExtension list -> cVerifyData -> bool
 val checkServerRenegotiationInfoExtension: config -> serverExtension list -> cVerifyData -> sVerifyData -> bool
+
+// Secure Resumption Info (our proposal) 
+
 val checkClientResumptionInfoExtension:    config -> clientExtension list -> sessionHash -> bool option
 val checkServerResumptionInfoExtension:    config -> serverExtension list -> sessionHash -> bool
 
 val hasExtendedMS: negotiatedExtensions -> bool
+
 predicate HasExtendedPadding of id
 val hasExtendedPadding: id:id -> b:bool{b = true <=> HasExtendedPadding(id)}
 
@@ -87,7 +98,8 @@ val inspect_ServerHello_extensions:
 
 *)
 
-(* SignatureAndHashAlgorithm parsing functions *)
+// Signature and Hash Algorithms
+
 function val SigHashAlgBytes: 'a (*TODO Sig.alg, can't use because it's a pair *) -> cbytes
 private definition !s,h. SigHashAlgBytes((s,h)) = HashAlgBytes(s) @| SigAlgBytes(h)
 
@@ -97,8 +109,10 @@ val parseSigHashAlg: b:bytes -> (a:Sig.alg{B(b)=SigHashAlgBytes(a)}) Result
 function val SigHashAlgsBytes: Sig.alg list -> cbytes
 val sigHashAlgListBytes: al:Sig.alg list -> b:bytes{B(b)=SigHashAlgsBytes(al)}
 val parseSigHashAlgList: b:bytes -> (al:Sig.alg list{B(b)=SigHashAlgsBytes(al)}) Result
+
 function val DefaultSigHashAlgs: ProtocolVersion * cipherSuite -> Sig.alg list
 val default_sigHashAlg: pv:ProtocolVersion -> cs:cipherSuite -> al:Sig.alg list{al=DefaultSigHashAlgs(pv,cs)}
+
 val sigHashAlg_contains: Sig.alg list -> Sig.alg -> bool
 val cert_type_list_to_SigHashAlg: certType list -> ProtocolVersion -> Sig.alg list
 val cert_type_list_to_SigAlg: certType list -> sigAlg list
