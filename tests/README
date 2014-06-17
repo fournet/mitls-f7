@@ -8,7 +8,8 @@ This will create temporary certificates and install them into the Windows
 certificate store (or the Mono emulation), if they don't already exist.
 Then, the test suite will be ran.
 
-The test suite is a python script that requires the pythonw executable.
+The test suite is a python script that requires the pythonw executable,
+version 2.7 (it won't work with python 3).
 On Unix distributions, installing the python package is usually all you
 need to do.
 On Mac OS X, python should be already installed. Alternative versions can
