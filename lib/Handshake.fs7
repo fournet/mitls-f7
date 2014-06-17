@@ -454,6 +454,7 @@ val recv_fragment: ci:ConnectionInfo -> s:(;ci)hs_state -> rg:range -> (;Id(ci.i
                    (;ci,Config(ci,s))incoming
 val authorize:     ci:ConnectionInfo -> s:(;ci)hs_state -> 
                    c:Cert.chain -> (;ci,Config(ci,s))incoming
+// CF fix? as written, authorize provides no guarantees that c is related to ci before/after the call.
 
 type (;ci:ConnectionInfo,c:config)incomingCCS =
   | InCCSAck of ci':ConnectionInfo * cs:(;Id(ci'.id_in),Reader)StatefulLHAE.state * (;ci',c)nextState
