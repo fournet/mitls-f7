@@ -320,7 +320,7 @@ let next_fragment ci state =
                 let cr' = epochCRand(e) in
                 let sr' = epochSRand(e) in
                 let si' = epochSI(e) in
-                Pi.assume (SentCCS(Client,cr',sr',si')); ``We send client CCS for the resumption''
+                Pi.assume (SentCCS(Client,cr',sr',si')); // ``We send client CCS for the resumption''
                 let cvd = PRF.makeVerifyData si' ms Client log in
                 let cFinished = messageBytes HT_finished cvd in
                 let ki_out = ci.id_out in
