@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env pythonw
 
 # --------------------------------------------------------------------
 import sys, os, time, socket, random, xsubprocess as sp, logging

@@ -16,7 +16,8 @@ be obtained via brew.
 On Windows, you need the cygwin environment to run 'make'; however, you
 need the native Windows python distribution; python as provided by
 cygwin won't do. So, install python on Windows, then make sure the
-C:/Python27/pythonw.exe executable is in your cygwin path.
+C:/Python27/pythonw.exe executable is in your cygwin path (e.g. by
+adding C:/Python27 to your Windows Path environment variable).
 
 After some time, the temporary certificates expire, at which points all
 tests start failing. Run 'make clean' to remove all the temporary
