@@ -390,7 +390,7 @@ let isExtendedPadding e =
 let hasExtendedPadding id =
     List.exists isExtendedPadding id.ext
 
-(* SignatureAndHashAlgorithm parsing functions *)
+(* sigHashAlg parsing functions *)
 let sigHashAlgBytes alg =
     // pre: we're in TLS 1.2
     let (sign,hash) = alg in

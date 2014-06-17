@@ -46,14 +46,11 @@ open TLSConstants
    stronger assumptions.  
  ***************************************************************************)
 
-// see SignatureAndHashAlgorithm
 type alg   = sigHashAlg // defined as sigAlg * hashAlg in TLSConstants
 
 type text = bytes
 type (;a:alg) sigv = bytes
   // we could be more precise and specify their size: 36 with RSA, 20 with DSA
-  // with TLS 1.2, the bytes explicitly contain a; see DigitallySigned struct 
-
 
 //********************** Ideal Functionality for Signing *********************** 
 
