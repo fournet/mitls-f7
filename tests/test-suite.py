@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 # --------------------------------------------------------------------
-import sys, os, time, socket, xsubprocess as sp, logging
+import sys, os, time, socket, random, xsubprocess as sp, logging
 import ConfigParser as cp, StringIO as sio, shutil, tempfile
 
 # --------------------------------------------------------------------
@@ -140,8 +140,8 @@ def _check_for_config(mode, config):
             logging.error('Cannot start echo server: %s' % (e,))
             return False
 
-	logging.debug('Waiting echo server to settle up...')
-	time.sleep(1.5)
+    	logging.debug('Waiting echo server to settle up...')
+        time.sleep(1.5)
 
         logging.debug('Starting echo client [%s]' % (' '.join(c_command)))
 
@@ -178,7 +178,7 @@ def _check_for_config(mode, config):
             if subp is not None:
                 logging.debug('Waiting echo %s to shutdown...' % (who,))
                 try:
-                    subp.kill(); subp.wait()
+                    subp.terminate(); subp.kill(); subp.wait()
                 except OSError:
                     pass
                 
@@ -191,7 +191,7 @@ def _check_for_config(mode, config):
 # --------------------------------------------------------------------
 DEFAULTS = '''\
 [DEFAULT]
-bind     = 127.0.0.1:6000
+bind     = 127.0.0.1:?
 servname =
 modes    = MI_MI_TLS MI_C_TLS
 reneg    = False
@@ -257,6 +257,8 @@ def _main():
 
     if ':' in bind:
         bind = tuple(bind.split(':', 1))
+        if bind[1] == '?':
+            bind = (bind[0], random.randint(32768, 65535))
     else:
         bind = (bind, 6000)
 
