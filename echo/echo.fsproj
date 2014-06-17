@@ -38,7 +38,7 @@
     <WarningLevel>3</WarningLevel>
     <PlatformTarget>x86</PlatformTarget>
     <DocumentationFile>bin\Release\echo.XML</DocumentationFile>
-    <StartArguments>--address 127.0.0.1 --port 6000 --ciphers TLS_DHE_RSA_WITH_AES_128_CBC_SHA --tlsversion TLS_1p2 --sessionDB-dir sessionDBC --server-name rsa.cert-01.mitls.org --client</StartArguments>
+    <StartArguments>--address 127.0.0.1 --port 6000 --ciphers TLS_RSA_WITH_NULL_MD5 --tlsversion SSL_3p0 --sessionDB-dir C:\cygwin\tmp\tmphH2wDb\client --server-name rsa.cert-01.mitls.org --client</StartArguments>
     <StartWorkingDirectory>
     </StartWorkingDirectory>
   </PropertyGroup>

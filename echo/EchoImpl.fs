@@ -57,7 +57,7 @@ let client_handler ctxt (peer : Socket) = fun () ->
             use tlsstream = new TLStream.TLStream
                               (netstream, ctxt, TLStream.TLSServer, false)
 
-            Console.WriteLine((tlsstream.GetSessionInfoString()));
+            Console.Error.WriteLine((tlsstream.GetSessionInfoString()));
 
             let reader    = new StreamReader (tlsstream)
             let writer    = new StreamWriter (tlsstream)
@@ -113,7 +113,7 @@ let client (options : options) =
 
     use tlsstream = new TLStream.TLStream(socket.GetStream(), ctxt, TLStream.TLSClient)
 
-    Console.WriteLine((tlsstream.GetSessionInfoString()));
+    Console.Error.WriteLine((tlsstream.GetSessionInfoString()));
 
     let reader = new StreamReader (tlsstream)
     let writer = new StreamWriter (tlsstream)
