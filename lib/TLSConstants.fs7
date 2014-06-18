@@ -177,17 +177,19 @@ private definition EncKeySize(CBC_Fresh(AES_256))  = 32
 val encKeySize: a:encAlg -> l:nat{l=EncKeySize(a)}
 
 function val BlockSize: blockCipher -> nat
-assume !x. BlockSize(x) >= 0
+assume !x. BlockSize(x) > 0
 private definition BlockSize(TDES_EDE)	=  8
 private definition BlockSize(AES_128)	= 16
 private definition BlockSize(AES_256)	= 16
 val blockSize: a:blockCipher -> l:nat {l=BlockSize(a)}
 
+(* AP: Commenting out as it looks unused in 'lib'
 function val EncAlgBlockSize: encAlg -> nat
 assume !x. EncAlgBlockSize(x) >= 0
 private definition !b. EncAlgBlockSize(CBC_Stale(b)) = BlockSize(b)
 private definition !b. EncAlgBlockSize(CBC_Fresh(b)) = BlockSize(b)
 private definition EncAlgBlockSize(Stream_RC4_128) = 0
+*)
 
 function val AEADKeySize: aeadAlg -> nat
 assume !x. AEADKeySize(x) >= 0

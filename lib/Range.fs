@@ -41,7 +41,7 @@ let fixedPadSize id =
 let maxPadSize id =
 #if TLSExt_extendedPadding
     if TLSExtensions.hasExtendedPadding id then  
-        fragmentLength - fixedPadSize id
+        fragmentLength
     else
 #endif
         let authEnc = id.aeAlg in
@@ -53,57 +53,72 @@ let maxPadSize id =
                 | CBC_Stale(alg) | CBC_Fresh(alg) ->
                     match id.pv with
                     | SSL_3p0 -> blockSize alg
-                    | TLS_1p0 | TLS_1p1 | TLS_1p2 -> 255
+                    | TLS_1p0 | TLS_1p1 | TLS_1p2 -> 256
 
-let blockAlignPadding e len =
+let minimalPadding e len =
     let authEnc = e.aeAlg in
     match authEnc with
-    | MACOnly _ | AEAD(_,_) -> 0
+    | MACOnly _ | AEAD(_,_) -> fixedPadSize e
     | MtE(enc,_) ->
         match enc with
-        | Stream_RC4_128 -> 0
+        | Stream_RC4_128 -> fixedPadSize e
         | CBC_Stale(alg) | CBC_Fresh(alg) ->
             let bs = blockSize alg in
+            let lp = (len % bs) in 
+            let p = bs - lp in
+#if TLSExt_extendedPadding
             let fp = fixedPadSize e in
-            let x = len + fp in
-            let overflow = x % bs //@ at least fp bytes of fixed padding
-            if overflow = 0 
-            then overflow 
-            else bs - overflow
+            let p =
+                if p < fp then
+                    p + bs
+                else
+                    p in
+#endif
+            if p < 0 then
+                Error.unreachable ""
+            else p
 
+#if TLSExt_extendedPadding
 let alignedRange e (rg:range) =
+    let (l,h) = rg in
     let authEnc = e.aeAlg in
     match authEnc with
     | MtE(enc,mac) ->
         match enc with
-        | Stream_RC4_128 -> rg
+        | Stream_RC4_128 ->
+            let mp = minimalPadding e h in
+            (l,h+mp)
         | CBC_Stale(_) | CBC_Fresh(_) ->
         let (l,h) = rg in
         let macLen = macSize mac in
         let prePad = h + macLen in
-        let p = blockAlignPadding e prePad in
-        (l,h + p)
-    | MACOnly _ | AEAD(_,_) -> rg
+        let mp = minimalPadding e prePad in
+        (l,h+mp)
+    | MACOnly _ | AEAD(_,_) ->
+        let mp = minimalPadding e h in
+        (l,h+mp)
 
 let extendedPad (id:id) (rg:range) (plen:nat) =
     let rg = alignedRange id rg in
+    let fp = fixedPadSize id in
     let (_,h) = rg in
-    let padlen = h - plen in
+    let padlen = h - plen - fp in
     let pad = createBytes padlen 0 in
-    TLSConstants.vlbytes 2 pad
+    TLSConstants.vlbytes fp pad
+#endif
 
 //@ From plaintext range to ciphertext length 
 let targetLength e (rg:range) =
     let (_,h) = rg in
-    let fp = fixedPadSize e in
     let authEnc = e.aeAlg in
     match authEnc with
-    | MACOnly macAlg | MtE(_,macAlg) ->
+    | MACOnly macAlg | MtE(Stream_RC4_128,macAlg)
+    | MtE(CBC_Stale(_),macAlg) | MtE(CBC_Fresh(_),macAlg) ->
         let macLen = macSize macAlg in
         let ivL = ivSize e in
         let prePad = h + macLen in
-        let padLen = blockAlignPadding e prePad in
-        let res = ivL + fp + prePad + padLen in
+        let padLen = minimalPadding e prePad in
+        let res = ivL + prePad + padLen in
         if res > max_TLSCipher_fragment_length then
             Error.unexpected "[targetLength] given an invalid input range."
         else
@@ -111,7 +126,8 @@ let targetLength e (rg:range) =
     | AEAD(aeadAlg,_) ->
         let ivL = aeadRecordIVSize aeadAlg in
         let tagL = aeadTagSize aeadAlg in
-        let res = ivL + fp + h + tagL in
+        let fp = fixedPadSize e in // 0, by refinement
+        let res = ivL + h + fp + tagL in
         if res > max_TLSCipher_fragment_length then
             Error.unexpected "[targetLength] given an invalid input range."
         else
@@ -120,17 +136,15 @@ let targetLength e (rg:range) =
 
 let minMaxPad (i:id) =
     let maxPad = maxPadSize i in
-    if maxPad = 0 then
-        (0,0)
-    else
-        let fp = fixedPadSize i in
-        (fp,maxPad) 
+    let fp = fixedPadSize i in
+    (fp,maxPad) 
 
 //@ From ciphertext length to (maximal) plaintext range
 let cipherRangeClass (e:id) tlen =
     let authEnc = e.aeAlg in
     match authEnc with
-    | MACOnly _ | MtE(_,_) ->
+    | MACOnly _ | MtE(Stream_RC4_128,_)
+    | MtE(CBC_Fresh(_),_) | MtE(CBC_Stale(_),_) ->
         let macSize = macSize (macAlg_of_id e) in
         let ivL = ivSize e in
         let (minPad,maxPad) = minMaxPad e in
@@ -138,7 +152,7 @@ let cipherRangeClass (e:id) tlen =
         if max < 0 then
             Error.unexpected "[cipherRangeClass] the given tlen should be of a valid ciphertext"
         else
-            let min = max - maxPad in
+            let min = tlen - ivL - macSize - maxPad in
             if min < 0 then
                 (0,max)
             else
@@ -151,7 +165,7 @@ let cipherRangeClass (e:id) tlen =
         if max < 0 then
             Error.unexpected "[cipherRangeClass] the given tlen should be of a valid ciphertext"
         else
-            let min = max - maxPad in
+            let min = tlen - ivL - tagL - maxPad in
             if min < 0 then
                 (0,max)
             else

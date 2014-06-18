@@ -64,10 +64,10 @@ private definition
 		(!i,mac. i.aeAlg = MtE(Stream_RC4_128,mac) 	=> MaxPadSize(i,()) = 0 ) /\
 		(!i,alg,mac. i.aeAlg = MtE(CBC_Fresh(alg),mac)
 			/\ (PvOfId(i) = TLS_1p0 \/ PvOfId(i) = TLS_1p1 \/ PvOfId(i) = TLS_1p2) 
-											=> MaxPadSize(i,()) = 255) /\
+											=> MaxPadSize(i,()) = 256) /\
 		(!i,alg,mac. i.aeAlg = MtE(CBC_Stale(alg),mac)
 			/\ (PvOfId(i) = TLS_1p0 \/ PvOfId(i) = TLS_1p1 \/ PvOfId(i) = TLS_1p2) 
-											=> MaxPadSize(i,()) = 255) /\
+											=> MaxPadSize(i,()) = 256) /\
 		(!i,alg,mac. i.aeAlg = MtE(CBC_Fresh(alg),mac) /\ PvOfId(i) = SSL_3p0
 											=> MaxPadSize(i,()) = BlockSize(alg)) /\
 		(!i,alg,mac. i.aeAlg = MtE(CBC_Stale(alg),mac) /\ PvOfId(i) = SSL_3p0
@@ -76,7 +76,7 @@ private definition
 	(* AP: for LH
 	) /\
 	(	HasExtendedPadding(i) =>
-		MaxPadSize(i,()) = fragmentLength - 2
+		MaxPadSize(i,()) = fragmentLength
 	)
 	*)
 
@@ -88,100 +88,112 @@ definition !i,l,h. RangeFragment(i,(l,h)) <=>
 	h <= fragmentLength
 //AP /\ h - l <= MaxPadSize(i,())
 
-// Padding computations
-function val Modulus: int * int -> int
-//private definition !x,y. Modulus(x,y) = 0
- 
-function val BlockAlignedPadding: id * nat -> nat
-definition
-	(!e,mac,l. e.aeAlg = MACOnly(mac)    => BlockAlignedPadding(e,l) = 0 ) /\
-	(!e,aeAlg,mac,l. e.aeAlg = AEAD(aeAlg,mac) => BlockAlignedPadding(e,l) = 0 ) /\
-	(!e,mac,l. e.aeAlg = MtE(Stream_RC4_128,mac) => BlockAlignedPadding(e,l) = 0 ) /\
-	(!e,alg,mac,l. e.aeAlg = MtE(CBC_Fresh(alg),mac) /\ Modulus(l + 1,BlockSize(alg)) = 0 =>  
-                                 BlockAlignedPadding(e,l) = 0) /\
-	(!e,alg,mac,l. e.aeAlg = MtE(CBC_Stale(alg),mac) /\ Modulus(l + 1,BlockSize(alg)) = 0 =>  
-                                 BlockAlignedPadding(e,l) = 0) /\
-	(!e,alg,mac,l. e.aeAlg = MtE(CBC_Fresh(alg),mac) /\ Modulus(l + 1,BlockSize(alg)) <> 0 =>  
-                                 BlockAlignedPadding(e,l) = BlockSize(alg) - Modulus(l + 1,BlockSize(alg))) /\
-	(!e,alg,mac,l. e.aeAlg = MtE(CBC_Stale(alg),mac) /\ Modulus(l + 1,BlockSize(alg)) <> 0 =>  
-                                 BlockAlignedPadding(e,l) = BlockSize(alg) - Modulus(l + 1,BlockSize(alg)))
+function val MinimalPadding: id * nat -> nat
+private definition
+	(!e,mac,l. l>=0 /\ e.aeAlg = MACOnly(mac)    => MinimalPadding(e,l) = 0 ) /\
+	(!e,aeAlg,mac,l. l>=0 /\ e.aeAlg = AEAD(aeAlg,mac) => MinimalPadding(e,l) = 0 ) /\
+	(!e,mac,l. l>=0 /\ e.aeAlg = MtE(Stream_RC4_128,mac) => MinimalPadding(e,l) = 0 ) /\
+	(!e,alg,mac,l. l>=0 /\ e.aeAlg = MtE(CBC_Fresh(alg),mac) =>  
+                   MinimalPadding(e,l) = BlockSize(alg) - bop_Modulus(l,BlockSize(alg))) /\
+	(!e,alg,mac,l. l>=0 /\ e.aeAlg = MtE(CBC_Stale(alg),mac) =>  
+                   MinimalPadding(e,l) = BlockSize(alg) - bop_Modulus(l,BlockSize(alg)))
+
+ask !e,alg,mac,l.
+	( l >= 0 /\ (e.aeAlg = MtE(CBC_Fresh(alg),mac) \/ e.aeAlg = MtE(CBC_Stale(alg),mac)) ) =>
+	(MinimalPadding(e,l) > 0 /\ MinimalPadding(e,l) <= BlockSize(alg))
 
 
+private val minimalPadding: e:id -> l:nat -> l':nat{l' = MinimalPadding(e,l)}
 
-private val blockAlignPadding: e:id -> l:nat -> l':nat{l' = BlockAlignedPadding(e,l)}
-
-val alignedRange: i:id -> rg:range ->
-	rg':range{!l,h. rg = (l,h) =>
-		rg' = (l,h + BlockAlignedPadding(i,h+MacSize(MacAlg(i)))) }
-
-val extendedPad: id -> range -> nat -> b:bytes //AP: Refine when LH
-
-definition !e,mac,alg,aeAlg,l,h.
-	h >= 0 =>
-	(
-		( (e.aeAlg = MACOnly(mac) \/
-		   e.aeAlg = MtE(alg,mac)  ) =>
-		TargetLength(e,(l,h)) =
+definition !e,l,h,mac.
+	(h >= 0 /\ e.aeAlg = MACOnly(mac)) =>
+	TargetLength(e,(l,h)) =
 			IVSize(e) + h + MacKeySize(MacAlg(e)) +
-			BlockAlignedPadding(e,h + MacKeySize(MacAlg(e))) ) /\
-		( e.aeAlg = AEAD(aeAlg,mac) =>
-		TargetLength(e,(l,h)) =
-			AEADRecordIVSize(aeAlg) + h + AEADTagSize(aeAlg)
-		)
-	)
+			MinimalPadding(e,h + MacKeySize(MacAlg(e)))
 
-ask !e,l,h. h >= 0 => TargetLength(e,(l,h)) >= 0
+ask !e,l,h,mac.
+	(h >= 0 /\ e.aeAlg = MACOnly(mac)) =>
+	TargetLength(e,(l,h)) >= 0
+
+definition !e,l,h,mac,alg.
+	(h >= 0 /\ e.aeAlg = MtE(CBC_Fresh(alg),mac)) =>
+	TargetLength(e,(l,h)) =
+			IVSize(e) + h + MacKeySize(MacAlg(e)) +
+			MinimalPadding(e,h + MacKeySize(MacAlg(e)))
+
+definition !e,l,h,mac,alg.
+	(h >= 0 /\ e.aeAlg = MtE(CBC_Stale(alg),mac)) =>
+	TargetLength(e,(l,h)) =
+			IVSize(e) + h + MacKeySize(MacAlg(e)) +
+			MinimalPadding(e,h + MacKeySize(MacAlg(e)))
+
+definition !e,l,h,mac,alg.
+	(h >= 0 /\ e.aeAlg = MtE(Stream_RC4_128,mac)) =>
+	TargetLength(e,(l,h)) =
+			IVSize(e) + h + MacKeySize(MacAlg(e)) +
+			MinimalPadding(e,h + MacKeySize(MacAlg(e)))
+
+definition !e,l,h,mac,aeAlg.
+	(h >= 0 /\ e.aeAlg = AEAD(aeAlg,mac)) =>
+	TargetLength(e,(l,h)) =
+			AEADRecordIVSize(aeAlg) + h + AEADTagSize(aeAlg)
 
 val targetLength: i:id -> r:range -> 
   tlen:nat {tlen = TargetLength(i,r) /\ tlen <= max_TLSCipher_fragment_length}
 
-(*KB
-definition !e,tlen,alg,mac.
-	((e.aeAlg = MtE(CBC_Fresh(alg),mac) \/
-	  e.aeAlg = MtE(CBC_Stale(alg),mac)) =>
-         (!x. x = tlen - IVSize(e) - MacKeySize(MacAlg(e)) - 1 /\ x >= 0 =>
-             ((x < 255 => CipherRangeClass(e,tlen) = (0,x)) /\
-              (x >= 255 => CipherRangeClass(e,tlen) = (x-255,x))))) /\
-	((e.aeAlg = MACOnly(mac) \/
-	  e.aeAlg = MtE(Stream_RC4_128,mac)) =>
-         (!x. x = tlen - IVSize(e) - MacKeySize(MacAlg(e)) /\ x >= 0 =>
-             CipherRangeClass(e,tlen) = (x,x)))
-*)
-
-definition 
-	(!e,tlen,alg,mac,x. 
-           e.aeAlg = MtE(CBC_Fresh(alg),mac) /\ 
-            x = tlen - IVSize(e) - MacKeySize(mac) - 1 /\ 
-            x >= 0 =>
-             ((x < 255 /\ CipherRangeClass(e,tlen) = (0,x)) \/
-              (x >= 255 /\ CipherRangeClass(e,tlen) = (x-255,x))))
-definition
-	(!e,tlen,alg,mac,x. 
+private definition
+	(!e,tlen,alg,mac,x,y. 
+		   e.aeAlg = MtE(CBC_Fresh(alg),mac) /\
+            x = tlen - IVSize(e) - MacKeySize(mac) - FixedPadSize(e,()) /\
+			y = tlen - IVSize(e) - MacKeySize(mac) - MaxPadSize(e,()) /\
+            x >= 0 /\ y < 0 =>
+             CipherRangeClass(e,tlen) = (0,x))
+private definition
+	(!e,tlen,alg,mac,x,y. 
+		   e.aeAlg = MtE(CBC_Fresh(alg),mac) /\
+            x = tlen - IVSize(e) - MacKeySize(mac) - FixedPadSize(e,()) /\
+			y = tlen - IVSize(e) - MacKeySize(mac) - MaxPadSize(e,()) /\
+            x >= 0 /\ y >= 0 =>
+             CipherRangeClass(e,tlen) = (y,x))
+private definition
+	(!e,tlen,alg,mac,x,y. 
 		   e.aeAlg = MtE(CBC_Stale(alg),mac) /\
-            x = tlen - IVSize(e) - MacKeySize(mac) - 1 /\ 
+            x = tlen - IVSize(e) - MacKeySize(mac) - FixedPadSize(e,()) /\
+			y = tlen - IVSize(e) - MacKeySize(mac) - MaxPadSize(e,()) /\
             x >= 0 =>
-             ((x < 255 /\ CipherRangeClass(e,tlen) = (0,x)) \/
-              (x >= 255 /\ CipherRangeClass(e,tlen) = (x-255,x))))
-definition
-	(!e,tlen,mac,x. 
-	  e.aeAlg = MACOnly(mac) /\
-          x = tlen - MacKeySize(mac) /\ 
-          x >= 0 => CipherRangeClass(e,tlen) = (x,x))
-definition
-	(!e,tlen,mac,x. 
-	  e.aeAlg = MtE(Stream_RC4_128,mac) /\
-          x = tlen - IVSize(e) - MacKeySize(mac) /\ x >= 0 =>
-             CipherRangeClass(e,tlen) = (x,x))
-definition
-	(!e,tlen,aeAlg,mac,x.
+             ((y < 0 /\ CipherRangeClass(e,tlen) = (0,x)) \/
+              (y >= 0 /\ CipherRangeClass(e,tlen) = (y,x))))
+private definition
+	(!e,tlen,alg,mac,x,y. 
+		   e.aeAlg = MtE(Stream_RC4_128,mac) /\
+            x = tlen - IVSize(e) - MacKeySize(mac) - FixedPadSize(e,()) /\
+			y = tlen - IVSize(e) - MacKeySize(mac) - MaxPadSize(e,()) /\
+            x >= 0 =>
+             ((y < 0 /\ CipherRangeClass(e,tlen) = (0,x)) \/
+              (y >= 0 /\ CipherRangeClass(e,tlen) = (y,x))))
+private definition
+	(!e,tlen,mac,x,y. 
+		   e.aeAlg = MACOnly(mac) /\
+            x = tlen - IVSize(e) - MacKeySize(mac) - FixedPadSize(e,()) /\
+			y = tlen - IVSize(e) - MacKeySize(mac) - MaxPadSize(e,()) /\
+            x >= 0 =>
+             ((y < 0 /\ CipherRangeClass(e,tlen) = (0,x)) \/
+              (y >= 0 /\ CipherRangeClass(e,tlen) = (y,x))))
+private definition
+	(!e,tlen,aeAlg,mac,x,y.
 	  e.aeAlg = AEAD(aeAlg,mac) /\
-		  x = tlen - AEADRecordIVSize(aeAlg) - AEADTagSize(aeAlg) /\ x >= 0 =>
-			 CipherRangeClass(e,tlen) = (x,x))
+		x = tlen - AEADRecordIVSize(aeAlg) - AEADTagSize(aeAlg) - FixedPadSize(e,()) /\
+		y = tlen - AEADRecordIVSize(aeAlg) - AEADTagSize(aeAlg) - MaxPadSize(e,()) /\
+		x >= 0 =>
+			 ( (y < 0 /\ CipherRangeClass(e,tlen) = (0,x)) \/
+			   (y >= 0 /\ CipherRangeClass(e,tlen) = (y,x))
+			 ))
 
 val minMaxPad: i:id -> l:nat * h:nat{
-	(MaxPadSize(i,()) = 0 /\ l = 0 /\ h = 0 ) \/
-	 MaxPadSize(i,()) > 0 /\ l = FixedPadSize(i,()) /\ h = MaxPadSize(i,())}
+	l = FixedPadSize(i,()) /\ h = MaxPadSize(i,())}
 
+(* AP We miss at least the following: MaxPadSize(i) >= FixedPadSize(i)
+   Hard to prove in a non-typed logic, as you need to enumerate all the cases explictly *)
 val cipherRangeClass: e:id -> 
   tlen:nat{tlen <= max_TLSCipher_fragment_length} -> 
   r:range {r = CipherRangeClass(e,tlen)}
