@@ -99,7 +99,7 @@ private definition !a,k,t. Sig.Msg(a,k,t)
            DHGroup.PP(p,g) /\ DH.HonestExponential(p,g,gs) /\ 
            k = Cert.SigPKCert(si.serverID,a)))
 
-predicate LMsg of  (Cert.chain * a:Sig.alg * (;a)Sig.skey) option * log // for testing
+predicate LMsg of  (Cert.chain * a:Sig.alg * (;a)Sig.skey) option * log // CF only for testing, will go
 assume !cl,a,sk,l. LMsg(Some((cl,a,sk)),l) => Sig.Msg(a,Sig.PK(sk),l)
 
 

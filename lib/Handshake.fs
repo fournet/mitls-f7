@@ -1,4 +1,4 @@
-module Handshake
+﻿module Handshake
 // State machine begins
 open Bytes
 open Error
@@ -9,14 +9,24 @@ open TLSExtensions
 open Range
 open HandshakeMessages
 
+// the ``#if verify'' compilation is set for F7 typechecking but not F# compilation
+// it is used to isolate dynamic assumes and expects, which only affect the logic
+// and to elide code for ciphersuites we don't verify yet
+// CF could be improved later, eg to securely ignore them
+
+// CF ``#if avoid'' should disappear.
+// CF ``#if TLSExt_sessionHash'' and similar extension stull will be *erased* from v1 (and not documented)
+
 type events = 
     | Authorize of Role * SessionInfo
     | Configure of Role * epoch * config
     | EvSentFinishedFirst of ConnectionInfo * bool
     | Negotiated of Role * SessionInfo * config * config
-    | CompleteEpoch of Role * epoch // for testing
-    | Complete of ConnectionInfo    // for testing
-    | LMsg of (Cert.chain * Sig.alg * Sig.skey) option * Sig.text // for testing
+
+    // the next three predicates are never assumed, except for logical debugging
+    | CompleteEpoch of Role * epoch 
+    | Complete of ConnectionInfo
+    | LMsg of (Cert.chain * Sig.alg * Sig.skey) option * Sig.text 
 
 (* verify data authenticated by the Finished messages *)
 type log = bytes         (* message payloads so far, to be eventually authenticated *) 
@@ -310,8 +320,8 @@ let next_fragment ci state =
                 let ki_out = ci.id_out in
                 let (rg,f,_) = makeFragment ki_out CCSBytes in
                 let ci = {ci with id_out = next_ci.id_out} in 
-                (* Should be provable from SentCCS *) //CF ??
-                Pi.assume (CompleteEpoch(ci.role,ci.id_out));
+                (* Should be provable from SentCCS *)
+                Pi.assume (CompleteEpoch(ci.role,ci.id_out)); // CF should disappear!
                 OutCCS(rg,f,ci,writer,
                        {state with hs_outgoing = cFinished 
                                    pstate = PSClient(ServerCCS(si,ms,next_ci.id_in,reader,cvd,log))})
@@ -326,7 +336,11 @@ let next_fragment ci state =
                 let ki_out = ci.id_out in
                 let (rg,f,_) = makeFragment ki_out CCSBytes in
                 let ci = {ci with id_out = e} in 
+<<<<<<< .mine
+                Pi.assume (CompleteEpoch(ci.role,e)); // CF should disappear!
+=======
                 Pi.assume (CompleteEpoch(Client,e));
+>>>>>>> .r34417
                 OutCCS(rg,f,ci,w,
                        {state with hs_outgoing = cFinished
                                    pstate = PSClient(ClientWritingFinishedResume(cvd,svd))})
@@ -340,7 +354,7 @@ let next_fragment ci state =
                 let ki_out = ci.id_out in
                 let (rg,f,_) = makeFragment ki_out CCSBytes in
                 let ci = {ci with id_out = e} in
-                Pi.assume(CompleteEpoch(ci.role,e));
+                Pi.assume(CompleteEpoch(ci.role,e)); // CF should disappear! 
                 OutCCS(rg,f,ci,w,
                        {state with hs_outgoing = sFinished
                                    pstate = PSServer(ServerWritingFinished(si,ms,e,cvd,svd))})
@@ -527,7 +541,7 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:Sess
     let (si,ms) = extract si pms log in
 
     (* KB: need to prove Sig.Msg(a,PK(sk),log) here if cert_req = Some ((cl,a,sk)) *)
-    Pi.assume (LMsg(cert_req,log));
+    Pi.assume (LMsg(cert_req,log)); // CF should disappear
     (* FIXME: here we should shred pms *)
     let certificateVerifyBytes = getCertificateVerifyBytes si ms cert_req log in
 
@@ -598,7 +612,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
     (*FIXME DHE.zeroPMS si pms; *) 
 
     (* KB: need to prove Sig.Msg(a,PK(sk),log) here if cert_req = Some ((cl,a,sk)) *)
-    Pi.assume (LMsg(cert_req,log));
+    Pi.assume (LMsg(cert_req,log)); // CF should disappear
 
     let certificateVerifyBytes = certificateVerifyBytesAuth si ms cert_req log in
 
@@ -741,7 +755,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                         let nout = next_ci.id_out in
                                         let nin = next_ci.id_in in
                                         (* KB: the following should come from the sessiondb *)
-                                        Pi.assume (Authorize(Client,si));
+                                        Pi.assume (Authorize(Client,si)); // CF should disappear
                                         recv_fragment_client ci 
                                             {state with pstate = PSClient(ServerCCSResume(nout,writer,
                                                                                         nin,reader,
@@ -866,8 +880,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 (* AP: Client identity is fixed at protocol start. An empty identity will generate an empty certificate
                    message, which means refusal of client auth. *)
 
-                // CF ??
-                Pi.assume (Authorize(Client,si));
+                Pi.assume (Authorize(Client,si)); // CF should disappear
 #if verify
                 Pi.assume (UpdatesClientAuth(si,si'));
 #endif
@@ -888,7 +901,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 let client_cert = find_client_cert_sign certType alg distNames si.protocol_version state.poptions.client_name in
                 let si' = {si with client_auth = true} in
                 (* KB: Inserted another authorize here. We lack a mechanism for the client to refuse client auth! *)
-                Pi.assume (Authorize(Client,si));
+                Pi.assume (Authorize(Client,si)); 
 #if verify
                 Pi.assume (UpdatesClientAuth(si,si'));
 #endif
@@ -990,8 +1003,12 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         if length  si.sessionID = 0 then state.sDB
                         else SessionDB.insert state.sDB si.sessionID Client state.poptions.server_name (si,ms)
                     (* Should prove from checkVerifyData above *)
+<<<<<<< .mine
+                    Pi.assume (CompleteEpoch(Server,ci.id_in)); // CF should disappear
+=======
 #if verify                    
                     Pi.assume (CompleteEpoch(Server,ci.id_in));
+>>>>>>> .r34417
 #endif
                     check_negotiation Client si state.poptions;
                     InComplete({state with pstate = PSClient(ClientIdle(cvd,payload)); sDB = sDB})
@@ -1002,7 +1019,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 if PRF.checkVerifyData si ms Server log payload then
                     let log = log @| to_log in
                     (* Should prove from checkVerifyData above *)
-                    Pi.assume (CompleteEpoch(Server,ci.id_in));
+                    Pi.assume (CompleteEpoch(Server,ci.id_in)); // CF should disappear
                     InFinished({state with pstate = PSClient(ClientWritingCCSResume(e,w,ms,payload,log))})
                 else
                     InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "Verify data did not match",state)

@@ -527,7 +527,7 @@ predicate Safe   of epoch        // The epoch parameters yield privacy & integri
 definition !e. Safe(e) <=> (SafeId(Id(e)) /\ Open(e))
 val safe:   (e:epoch) -> b:bool { b = true <=> Safe(e)}
 
-predicate Auth   of epoch        // The epoch parameters yield integrity (not necesarily privacy)
+predicate Auth   of epoch        // The epoch parameters yield integrity (not necessarily privacy)
 definition !e. Auth(e) <=> (AuthId(Id(e)) /\ Open(e))
 val auth:    (e:epoch) -> b:bool {b = true <=> Auth(e)}
 
