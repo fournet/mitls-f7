@@ -336,11 +336,7 @@ let next_fragment ci state =
                 let ki_out = ci.id_out in
                 let (rg,f,_) = makeFragment ki_out CCSBytes in
                 let ci = {ci with id_out = e} in 
-<<<<<<< .mine
-                Pi.assume (CompleteEpoch(ci.role,e)); // CF should disappear!
-=======
-                Pi.assume (CompleteEpoch(Client,e));
->>>>>>> .r34417
+                Pi.assume (CompleteEpoch(Client,e)); // CF should disappear!
                 OutCCS(rg,f,ci,w,
                        {state with hs_outgoing = cFinished
                                    pstate = PSClient(ClientWritingFinishedResume(cvd,svd))})
@@ -1003,12 +999,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         if length  si.sessionID = 0 then state.sDB
                         else SessionDB.insert state.sDB si.sessionID Client state.poptions.server_name (si,ms)
                     (* Should prove from checkVerifyData above *)
-<<<<<<< .mine
-                    Pi.assume (CompleteEpoch(Server,ci.id_in)); // CF should disappear
-=======
 #if verify                    
-                    Pi.assume (CompleteEpoch(Server,ci.id_in));
->>>>>>> .r34417
+                    Pi.assume (CompleteEpoch(Server,ci.id_in)); // CF should disappear
 #endif
                     check_negotiation Client si state.poptions;
                     InComplete({state with pstate = PSClient(ClientIdle(cvd,payload)); sDB = sDB})
