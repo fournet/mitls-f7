@@ -49,7 +49,7 @@ type (;c:Connection) ioresult_i =
 	/\ ConnectionEpochIn(c) = Pred(ConnectionEpochIn(c'))
 	/\ Bytes_i(c') = B(empty_bytes)
 	/\ EvClose(CnInfo(c).id_in, Bytes_i(c))
-	/\ Handshake.Complete(CnInfo(c'),Config(c'))
+	/\ Handshake.Complete(CnInfo(c'))
 	/\ (
 		(Handshake.EvSentFinishedFirst(CnInfo(c'),true) /\
 			  Bytes_o(c') = Bytes_o(c)
