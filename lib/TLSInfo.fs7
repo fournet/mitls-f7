@@ -559,9 +559,9 @@ definition !e.
   OpenState(e) <=> (SafeVD(EpochSI(e)) => Open(e))
 
 //KB The following assume is dodgy. Only true with Reneg Indication. Remove if possible.
-private assume !r,e,e'. SentCCS(r,EpochCRand(e),EpochSRand(e),EpochSI(e)) /\ 
-	                SentCCS(r,EpochCRand(e'),EpochSRand(e'),EpochSI(e')) /\ 
-			Id(e) = Id(e') => e = e'
+private theorem !r,e,e'. SentCCS(r,EpochCRand(e),EpochSRand(e),EpochSI(e)) /\ 
+	                 SentCCS(r,EpochCRand(e'),EpochSRand(e'),EpochSI(e')) /\ 
+			 Id(e) = Id(e') => e = e'
 ask !e,e'. Open(e) /\ Open(e') /\ Id(e) = Id(e') => e = e'
 
 val sinfo_to_string: SessionInfo -> string

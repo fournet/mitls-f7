@@ -15,7 +15,7 @@ f7defs    = avoid verify ideal
 # removed --verbose for automated testing
 override f7flags += \
   -timeout $(f7timeout) $(patsubst %,--define %,$(f7defs)) \
-  -nokindcheck $(lperv) $(libfs7)
+  -nokindcheck $(lperv) $(libfs7) -checkonly Handshake.recv_ccs
 
 xunit ?= xunit.xml
 

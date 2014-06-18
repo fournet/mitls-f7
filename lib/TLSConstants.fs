@@ -5,7 +5,7 @@ open Error
 open TLSError
 
 type kexAlg =
-    | RSA
+    | RSA 
     | DH_DSS
     | DH_RSA
     | DHE_DSS

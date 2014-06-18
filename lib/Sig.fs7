@@ -81,8 +81,12 @@ val honest:  a:alg -> pk: (;a) pkey -> b:bool{b = true <=> Honest(a,pk)}
 // user-defined logical payload of signed texts
 predicate Msg of a:alg * (;a)pkey * text 
 
-val sign:   a:alg -> sk:(;a) skey -> t:text{Msg(a,PK(sk),t)} -> (;a) sigv
-val verify: a:alg -> pk:(;a) pkey -> t:text -> m:(;a) sigv -> 
+predicate Safe of a:alg * (;a) pkey
+definition !a,pk. Safe(a,pk) <=> (Strong(a) /\ Honest(a,pk))
+
+val gen:     a:alg -> pk:(;a) pkey * sk:(;a) skey { pk = PK(sk) /\ Honest(a,pk) }
+val sign:    a:alg -> sk:(;a) skey -> t:text{Msg(a,PK(sk),t)} -> (;a) sigv
+val verify:  a:alg -> pk:(;a) pkey -> t:text -> m:(;a) sigv -> 
   b:bool {(b=true /\ Strong(a) /\ Honest(a,pk)) => Msg(a,pk,t)}
 
 // CF leak & create_pkey are currently useless, would make sense only with a dynamic Honest predicate; cut?
