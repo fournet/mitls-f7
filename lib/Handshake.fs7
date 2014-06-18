@@ -152,10 +152,15 @@ definition !role,e.
   <=>
    (IsSuccEpoch(e) /\ IsValidEpoch(e) /\ IsValidEpoch(Pred(e)) /\
    (SafeVD(EpochSI(e))  => (Open(e) /\ Match(Id(e)))) /\
-   (!pk,pv,r. role = Client /\ EpochSI(e).pmsId = PmsId(PMS.RSAPMS(pk,pv,r)) /\ pk = Cert.RSAPKCert(EpochSI(e).serverID) /\ PMS.SafeRSA(pk,pv) => HonestPMS(EpochSI(e).pmsId)) /\
-   (!pk,pv,r,a. role = Server /\ EpochSI(e).client_auth = true /\ EpochSI(e).pmsId = PmsId(PMS.RSAPMS(pk,pv,r)) /\ pk = Cert.RSAPKCert(EpochSI(e).serverID) /\ PMS.SafeRSA(pk,pv) /\ Sig.Safe(a,Cert.SigPKCert(EpochSI(e).clientID,a))  => HonestPMS(EpochSI(e).pmsId)) /\
-   (!p,g,gc,gs,r,a. role = Client /\ EpochSI(e).pmsId = PmsId(PMS.DHPMS(p,g,gc,gs,r)) /\ Sig.Safe(a,Cert.SigPKCert(EpochSI(e).serverID,a)) => HonestPMS(EpochSI(e).pmsId)) /\
-   (!p,g,gc,gs,r,a. role = Server /\ EpochSI(e).pmsId = PmsId(PMS.DHPMS(p,g,gc,gs,r)) /\ Sig.Safe(a,Cert.SigPKCert(EpochSI(e).clientID,a)) => HonestPMS(EpochSI(e).pmsId)))
+   (!pk,pv,r. role = Client /\ EpochSI(e).pmsId = PmsId(PMS.RSAPMS(pk,pv,r)) /\ pk = Cert.RSAPKCert(EpochSI(e).serverID) /\ 
+              PMS.SafeRSA(pk,pv) => HonestPMS(EpochSI(e).pmsId)) /\
+   (!pk,pv,r,a. role = Server /\ EpochSI(e).client_auth = true /\ EpochSI(e).pmsId = PmsId(PMS.RSAPMS(pk,pv,r)) /\ 
+              pk = Cert.RSAPKCert(EpochSI(e).serverID) /\ PMS.SafeRSA(pk,pv) /\ Sig.Safe(a,Cert.SigPKCert(EpochSI(e).clientID,a))  
+              => HonestPMS(EpochSI(e).pmsId)) /\
+   (!p,g,gc,gs,r,a. role = Client /\ EpochSI(e).pmsId = PmsId(PMS.DHPMS(p,g,gc,gs,r)) /\ Sig.Safe(a,Cert.SigPKCert(EpochSI(e).serverID,a)) 
+              => HonestPMS(EpochSI(e).pmsId)) /\
+   (!p,g,gc,gs,r,a. role = Server /\ EpochSI(e).pmsId = PmsId(PMS.DHPMS(p,g,gc,gs,r)) /\ Sig.Safe(a,Cert.SigPKCert(EpochSI(e).clientID,a)) 
+              => HonestPMS(EpochSI(e).pmsId)))
 
 (* Negotiated remains to be defined but it can be a nice global spec of what HS is meant to achieve.
    Especially interesting would be proving that the result is the "best possible" *)
@@ -173,7 +178,8 @@ ask !ci.
     StrongKEF(KefAlg(EpochSI(ci.id_in))) /\
     StrongVD(VdAlg(EpochSI(ci.id_in))) /\
     StrongKDF(KdfAlg(EpochSI(ci.id_in))) /\
-    StrongAE(ci.id_in) => Safe(ci.id_in)
+    StrongAE(ci.id_in) 
+    => Safe(ci.id_in)
 
 ask !ci.	
     Complete(ci) /\
