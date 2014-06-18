@@ -541,6 +541,7 @@ ask !e. Open(e) => (AuthId(Id(e)) => Auth(e))
 ask !e. Open(e) => (SafeId(Id(e)) => Safe(e))
 ask !e. Auth(e) => Open(e)
 
+(*
 predicate CompleteEpoch of Role * epoch * config
 definition !role,e,cfg. 
   CompleteEpoch(role,e,cfg) 
@@ -553,6 +554,7 @@ definition !role,e,cfg.
    (role = Server /\  EpochSI(e).client_auth = true /\    
     (?a. Sig.Honest(a,Cert.SigPKCert(EpochSI(e).clientID,a))) =>
     HonestPMS(EpochSI(e).pmsId)))
+*)
 
 predicate OpenState of epoch
 definition !e.
