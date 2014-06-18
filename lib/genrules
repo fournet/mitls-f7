@@ -78,6 +78,8 @@ xunit ?= xunit.xml
 # default verification targets 
 default: %(fs7default)s
 
+#==Useful optons for make
+#
 #==Categories of .fs7 files==
 #
 # trusted: these files are not supposed to be verified, but we rely on
@@ -115,6 +117,10 @@ default: %(fs7default)s
 # - Dispatch.tc7 
 # - <idealizing modules>.tc7 mostly typecheck, some fail because of CoreCrypto dependencies. 
 # - MAC.tc7 typechecks.
+
+help:
+	@echo "make f7flags='myflags' <filename>.tc7"
+	@echo "make f7timeout=<int> <filename>.tc7"
 
 clean:
 	rm -f *.smp *.tc7 *.why
