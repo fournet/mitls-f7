@@ -67,7 +67,10 @@ private definition !sk. PK(sk) = sk.pub
 
 // assumed by Sig.gen; not implying strong Strong(a)
 // intuitively, we may provision any other dishonest keys for the adversary
-predicate type pred = Honest of a:alg * (;a) pkey 
+predicate type pred = Honest of a:alg * (;a) pkey
+
+predicate Safe of a:alg * (;a) pkey
+definition !a,pk. Safe(a,pk) <=> (Strong(a) /\ Honest(a,pk))
 
 val gen :    a:alg -> pk:(;a) pkey * sk:(;a) skey { pk = PK(sk) /\ Honest(a,pk) }
 val coerce:  a:alg -> p:(;a) pkey{not Honest(a,p)} -> CoreSig.sigskey -> s:(;a)skey{p = PK(s)}
@@ -81,10 +84,6 @@ val honest:  a:alg -> pk: (;a) pkey -> b:bool{b = true <=> Honest(a,pk)}
 // user-defined logical payload of signed texts
 predicate Msg of a:alg * (;a)pkey * text 
 
-predicate Safe of a:alg * (;a) pkey
-definition !a,pk. Safe(a,pk) <=> (Strong(a) /\ Honest(a,pk))
-
-val gen:     a:alg -> pk:(;a) pkey * sk:(;a) skey { pk = PK(sk) /\ Honest(a,pk) }
 val sign:    a:alg -> sk:(;a) skey -> t:text{Msg(a,PK(sk),t)} -> (;a) sigv
 val verify:  a:alg -> pk:(;a) pkey -> t:text -> m:(;a) sigv -> 
   b:bool {(b=true /\ Strong(a) /\ Honest(a,pk)) => Msg(a,pk,t)}

@@ -33,7 +33,7 @@ type negotiatedExtension =
 
 type negotiatedExtensions = negotiatedExtension list
 
-let noCsr:csrands = Nonce.random 64 //TODO should be Nonce.noCsr??
+let noCsr:csrands = Nonce.random 64 //TODO should be Nonce.noCsr but this does not tc.
 
 (* MK:
 We could and probably should have:

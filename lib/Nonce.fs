@@ -15,7 +15,7 @@ let random (n:nat) =
 let noCsr = random 64 // a constant value, with negligible probability of being sampled, excluded by idealization
 
 #if ideal
-let log = ref [noCsr]
+let log = ref []
 #endif
 
 let rec mkHelloRandom(): bytes =
