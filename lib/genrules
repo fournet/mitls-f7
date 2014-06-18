@@ -120,6 +120,8 @@ default: %(fs7default)s
 
 help:
 	@echo "make f7flags='myflags' <filename>.tc7"
+	@echo "make f7flags='-checkonly <Module_name>.<function_name>' <filename>.tc7: checks one function"
+	@echo "make f7flags='-help' <filename>.tc7: prints F7 flags"
 	@echo "make f7timeout=<int> <filename>.tc7"
 
 clean:
