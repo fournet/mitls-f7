@@ -66,7 +66,7 @@ let honestDHPMS (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) pm
 #endif
 
 let sampleDH p g (gx:DHGroup.elt) (gy:DHGroup.elt) = 
-    let gz = DHGroup.genElement p g in
+    let gz = DHGroup.genElement p g None in
     #if ideal
     IdealDHPMS({seed=gz}) 
     #else
