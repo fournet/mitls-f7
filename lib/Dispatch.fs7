@@ -125,7 +125,7 @@ private definition !id,s. CnState_o(Conn(id,s)) = s.write.disp
 private definition !id,s. CnState_i(Conn(id,s)) = s.read.disp
 
 predicate CanWrite of ConnectionInfo
-definition !c. CanWrite(CnInfo(c)) <=> Handshake.Complete(CnInfo(c),Config(c))
+definition !c. CanWrite(CnInfo(c)) <=> Handshake.Complete(CnInfo(c))
 
 ask !c. ( IsConnection(c) /\ CanWrite(CnInfo(c)) ) =>
 	( IsSuccEpoch(ConnectionEpochOut(c)) /\ IsSuccEpoch(ConnectionEpochIn(c)) )
@@ -285,7 +285,7 @@ definition !c,m,c',wo. IOResult_o(c,m,c',wo)  <=>
 			/\ ConnectionEpochIn(c) = Pred(ConnectionEpochIn(c'))
 			/\ Bytes_i(c') = B(empty_bytes)
 			/\ EvClose(CnInfo(c).id_in, Bytes_i(c))
-			/\ Handshake.Complete(CnInfo(c'),Config(c'))
+			/\ Handshake.Complete(CnInfo(c'))
 			/\ Handshake.EvSentFinishedFirst(CnInfo(c'),false)
 			/\ Bytes_o(c') = B(empty_bytes)
 			/\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
@@ -325,7 +325,7 @@ definition !c,c',ro. IOResult_i(c,c',ro) <=>
 		/\ Bytes_i(c') = B(empty_bytes)
 		/\ EvClose(CnInfo(c).id_in, Bytes_i(c))
 
-		/\ Handshake.Complete(CnInfo(c'),Config(c'))
+		/\ Handshake.Complete(CnInfo(c'))
 
 		/\ Handshake.EvSentFinishedFirst(CnInfo(c'),true)
 		/\ Bytes_o(c') = Bytes_o(c)
@@ -354,7 +354,7 @@ definition !c,c',ro. IOResult_i(c,c',ro) <=>
 			/\ Bytes_i(c') = B(empty_bytes)
 			/\ EvClose(CnInfo(c).id_in, Bytes_i(c))
 
-			/\ Handshake.Complete(CnInfo(c'),Config(c'))
+			/\ Handshake.Complete(CnInfo(c'))
 
 			/\ Handshake.EvSentFinishedFirst(CnInfo(c'),false)
 			/\ Bytes_o(c') = B(empty_bytes)
@@ -495,7 +495,7 @@ private val readOne: c:Connection{CnBuf_o(c) = None} ->
 	(ro = RHSDone /\
 		  NextCn(c,c') /\
 		  ExtendS(c,c') /\
-		  Handshake.Complete(CnInfo(c),Config(c)) /\
+		  Handshake.Complete(CnInfo(c)) /\
 		  Handshake.EvSentFinishedFirst(CnInfo(c),true)) \/
 	(ro = RAgainFinishing
 		/\ Role(c') = Role(c)
@@ -586,7 +586,7 @@ private val writeOne: c:Connection {BufInvariant(c)} ->
 			ExtendS(c,c') /\
 			NextCn(c,c') /\
 			CnBuf_o(c') = CnBuf_o(c) /\
-			Handshake.Complete(CnInfo(c),Config(c)) /\
+			Handshake.Complete(CnInfo(c)) /\
 			Handshake.EvSentFinishedFirst(CnInfo(c),false) )
 	}
 
@@ -611,7 +611,7 @@ private val writeAllFinishing: c:Connection{BufInvariant(c) /\ Bytes_o(c) = B(em
 			Handshake.EvSentFinishedFirst(CnInfo(c),true)) \/
 		(wo = WHSDone /\
 			ExtendS(c,c') /\
-			Handshake.Complete(CnInfo(c),Config(c)) /\
+			Handshake.Complete(CnInfo(c)) /\
 			Handshake.EvSentFinishedFirst(CnInfo(c),false))
 		)
 	}
@@ -665,7 +665,7 @@ private val writeAllTop: c:Connection {BufInvariant(c)} ->
 			Rnd(c) = Rnd(c') /\
 			ConnectionEpochIn(c) = ConnectionEpochIn(c') /\
 			ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c')) /\
-			Handshake.Complete(CnInfo(c'),Config(c')) /\
+			Handshake.Complete(CnInfo(c')) /\
 			Handshake.EvSentFinishedFirst(CnInfo(c'),false))
 	}
 
@@ -676,7 +676,7 @@ private definition !c,c',ro. ReadAllFinishing(c,c',ro) <=>
 	(ro = RHSDone /\
 		NextCn(c,c') /\
 		ExtendS(c,c') /\
-		Handshake.Complete(CnInfo(c'),Config(c')) /\
+		Handshake.Complete(CnInfo(c')) /\
 		Handshake.EvSentFinishedFirst(CnInfo(c),true) ) \/
 	(?ad. ro = RFatal(ad)
 		/\ NextCn(c,c')
@@ -693,7 +693,7 @@ private definition !c,c',ro. ReadAllFinishing(c,c',ro) <=>
 		Rnd(c) = Rnd(c') /\
 		ConnectionEpochIn(c) = ConnectionEpochIn(c') /\
 		ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c')) /\
-		Handshake.Complete(CnInfo(c'),Config(c')) /\
+		Handshake.Complete(CnInfo(c')) /\
 		Handshake.EvSentFinishedFirst(CnInfo(c'),false) )
 	)
 	)
