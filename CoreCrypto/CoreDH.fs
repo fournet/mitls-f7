@@ -177,7 +177,7 @@ let check_element (pbytes:bytes) (gbytes:bytes) (ebytes:bytes) =
     ((e.CompareTo BigInteger.One) > 0) && ((e.CompareTo pm1) < 0) &&
     // check that e is in a large subgroup 
     let dhparams = load_default_params () in
-    if (dhparams.p = pbytes && dhparams.g = gbytes) then
+    if (equalBytes dhparams.p pbytes && equalBytes dhparams.g gbytes) then
         // default parameters; q known and trusted
         match dhparams.q with
         | None -> Error.unexpected("DH.check_element: q not found in default DH parameters")
