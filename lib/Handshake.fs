@@ -23,10 +23,12 @@ type events =
     | EvSentFinishedFirst of ConnectionInfo * bool
     | Negotiated of Role * SessionInfo * config * config
 
-    // the next three predicates are never assumed, except for logical debugging
+     // the next three predicates are never assumed, except for logical debugging
     | CompleteEpoch of Role * epoch 
     | Complete of ConnectionInfo
-    | LMsg of (Cert.chain * Sig.alg * Sig.skey) option * Sig.text 
+    | LMsg of Sig.alg * Sig.skey * Sig.text 
+    | LClientFinishedResume of epoch * bytes // for testing
+    | Unreachable of unit // for testing
 
 (* verify data authenticated by the Finished messages *)
 type log = bytes         (* message payloads so far, to be eventually authenticated *) 
@@ -320,8 +322,6 @@ let next_fragment ci state =
                 let ki_out = ci.id_out in
                 let (rg,f,_) = makeFragment ki_out CCSBytes in
                 let ci = {ci with id_out = next_ci.id_out} in 
-                (* Should be provable from SentCCS *)
-                Pi.assume (CompleteEpoch(ci.role,ci.id_out)); // CF should disappear!
                 OutCCS(rg,f,ci,writer,
                        {state with hs_outgoing = cFinished 
                                    pstate = PSClient(ServerCCS(si,ms,next_ci.id_in,reader,cvd,log))})
@@ -336,7 +336,9 @@ let next_fragment ci state =
                 let ki_out = ci.id_out in
                 let (rg,f,_) = makeFragment ki_out CCSBytes in
                 let ci = {ci with id_out = e} in 
-                Pi.assume (CompleteEpoch(Client,e)); // CF should disappear!
+#if verify
+                Pi.assume (Complete(ci)); // CF should disappear!
+#endif
                 OutCCS(rg,f,ci,w,
                        {state with hs_outgoing = cFinished
                                    pstate = PSClient(ClientWritingFinishedResume(cvd,svd))})
@@ -350,7 +352,9 @@ let next_fragment ci state =
                 let ki_out = ci.id_out in
                 let (rg,f,_) = makeFragment ki_out CCSBytes in
                 let ci = {ci with id_out = e} in
-                Pi.assume(CompleteEpoch(ci.role,e)); // CF should disappear! 
+#if verify
+                Pi.assume(Complete(ci)); // CF should disappear! 
+#endif
                 OutCCS(rg,f,ci,w,
                        {state with hs_outgoing = sFinished
                                    pstate = PSServer(ServerWritingFinished(si,ms,e,cvd,svd))})
@@ -365,7 +369,6 @@ let next_fragment ci state =
                 let ki_out = ci.id_out in
                 let (rg,f,_) = makeFragment ki_out CCSBytes in
                 let ci = {ci with id_out = we} in 
-                Pi.assume(CompleteEpoch(ci.role,we));
                 OutCCS(rg,f,ci,w,
                        {state with hs_outgoing = sFinished
                                    pstate = PSServer(ClientCCSResume(re,r,svd,ms,log))})
@@ -388,7 +391,9 @@ let next_fragment ci state =
                     let si = epochSI ki_out in
                     let op = state.poptions in
                     check_negotiation Client si op;
+#if verify
                     Pi.assume(EvSentFinishedFirst(ci,false));
+#endif
                     OutComplete(rg,f,
                                 {state with hs_outgoing = remBuf
                                             pstate = PSClient(ClientIdle(cvd,svd))})
@@ -397,7 +402,9 @@ let next_fragment ci state =
             | PSServer(sstate) ->
                 match sstate with
                 | ServerWritingFinished(si,ms,e,cvd,svd) ->
+#if verify
                     Pi.assume(EvSentFinishedFirst(ci,false));
+#endif
                     if length si.sessionID = 0 then
                       check_negotiation Server si state.poptions;
                       OutComplete(rg,f,
@@ -446,6 +453,7 @@ let find_client_cert_sign certType certAlg (distName:string list) pv hint =
         let keyAlg = sigHashAlg_bySigList certAlg (cert_type_list_to_SigAlg certType) in
         Cert.for_signing certAlg hint keyAlg
 
+(*
 let getCertificateBytes (si:SessionInfo) (cert_req:(Cert.chain * Sig.alg * Sig.skey) option) = 
   let clientCertBytes = clientCertificateBytes cert_req in
   match cert_req with
@@ -466,6 +474,7 @@ let getCertificateVerifyBytes (si:SessionInfo) (ms:PRF.masterSecret) (cert_req:(
     | _ when si.client_auth = false -> 
         (* No client certificate ==> no certificateVerify message *)
         empty_bytes
+*)
 
 #if TLSExt_sessionHash
 let installSessionHash si log =
@@ -496,7 +505,7 @@ let clientKEXBytes_RSA si config =
             let pms = PMS.genRSA pubKey config.maxVer in
             let encpms = RSA.encrypt pubKey config.maxVer pms in
             let mex = clientKeyExchangeBytes_RSA si encpms in                                        
-            correct(mex,pms)
+            correct(pubKey,mex,pms)
 
 let parseClientKEX_RSA si skey cv config data =
     if List.listLength si.serverID = 0 then
@@ -507,47 +516,93 @@ let parseClientKEX_RSA si skey cv config data =
         | Correct(encPMS) ->
     (*KB: RSA-PMS-KEM (server) *)
             let res = RSA.decrypt skey si cv config.check_client_version_in_pms_for_old_tls encPMS in
-            correct((*RSAPMS(pk,cv,encPMS),*)res)
+            correct(pk,(*RSAPMS(pk,cv,encPMS),*)res)
         | Error(z) -> Error(z)
 
 let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) (cert_req:Cert.sign_cert) (log:log) : (hs_state * SessionInfo * PRF.masterSecret * log) Result =
-    let clientCertBytes,certList = getCertificateBytes si cert_req in
-    let si = {si with clientID = certList}
-    let log = log @| clientCertBytes in
+    match cert_req with
+    | _ when si.client_auth = false ->
+         let si = {si with clientID = []}
+         let cfg = state.poptions in 
+         match clientKEXBytes_RSA si cfg with
+         | Error(z) -> Error(z)
+         | Correct(v) ->
+           let (pk,clientKEXBytes,rsapms)  = v in
+           let cv = cfg.maxVer in 
+           (*KB: RSA-MS-KEM (client) *)
+           let pms = PMS.RSAPMS(pk,cv,rsapms)
+           let pmsid = pmsId pms
+           let si = {si with pmsId = pmsid} in
+           let log = log @| clientKEXBytes in
+           (* Enqueue current messages in output buffer *)
+           let to_send = clientKEXBytes in
+           let new_outgoing = state.hs_outgoing @| to_send in
+           let (si,ms) = extract si pms log in
+#if verify
+           Pi.expect (ClientLogBeforeClientFinishedRSA_NoAuth(si,log));
+#endif
+           correct ({state with hs_outgoing = new_outgoing},si,ms,log)
+    | None when si.client_auth = true ->
+         let clientCertBytes = clientCertificateBytes cert_req in
+         let si = {si with clientID = []}
+         let log = log @| clientCertBytes in
+         let cfg = state.poptions in 
+         match clientKEXBytes_RSA si cfg with
+         | Error(z) -> Error(z)
+         | Correct(v) ->
+           let (pk,clientKEXBytes,rsapms)  = v in
+           let cv = cfg.maxVer in 
+           (*KB: RSA-MS-KEM (client) *)
+           let pms = PMS.RSAPMS(pk,cv,rsapms)
+           let pmsid = pmsId pms
+           let si = {si with pmsId = pmsid} in
+           let log = log @| clientKEXBytes in
+           (* Enqueue current messages in output buffer *)
+           let to_send = clientCertBytes @| clientKEXBytes in
+           let new_outgoing = state.hs_outgoing @| to_send in
+           let (si,ms) = extract si pms log in
+#if verify
+           Pi.expect (ClientLogBeforeClientFinishedRSA_TryNoAuth(si,log));
+#endif
+           correct ({state with hs_outgoing = new_outgoing},si,ms,log)
+    | Some x when si.client_auth = true ->
+         let si_old = si in
+         let (certList,algs,skey) = x in
+         let clientCertBytes = clientCertificateBytes cert_req in
+         let si = {si with clientID = certList}
+         let log = log @| clientCertBytes in
+         let cfg = state.poptions in 
+         match clientKEXBytes_RSA si cfg with
+         | Error(z) -> Error(z)
+         | Correct(v) ->
+           let (pk,clientKEXBytes,rsapms)  = v in
+           let cv = cfg.maxVer in 
+           (*KB: RSA-MS-KEM (client) *)
+           let pms = PMS.RSAPMS(pk,cv,rsapms)
+           let pmsid = pmsId pms
+           let si = {si with pmsId = pmsid} in
+           let log = log @| clientKEXBytes in
+           let (si,ms) = extract si pms log in
 
-    match clientKEXBytes_RSA si state.poptions with
-    | Error(z) -> Error(z)
-    | Correct(v) ->
-    let (clientKEXBytes,rsapms)  = v in
+#if verify
+           (* KB: need to prove Sig.Msg(a,PK(sk),log) here if cert_req = Some ((cl,a,sk)) *)
+           Pi.expect (ClientLogBeforeCertificateVerifyRSA_Auth(si,log));
+#endif
+           (* FIXME: here we should shred pms *)
+           let (certificateVerifyBytes,_) = makeCertificateVerifyBytes si ms algs skey log in
+           let log = log @| certificateVerifyBytes in
+           
+           (* Enqueue current messages in output buffer *)
+           let to_send = clientCertBytes @| clientKEXBytes @| certificateVerifyBytes in
+           let new_outgoing = state.hs_outgoing @| to_send in
+#if verify
+           Pi.expect (UpdatesPmsClientID(si_old,si));
+           Pi.expect (ClientLogBeforeClientFinishedRSA_Auth(si,log));
+#endif
+           correct ({state with hs_outgoing = new_outgoing},si,ms,log)
 
-    //CF re-computing pk, as in clientKEXBytes; not great.
-    //CF we should problably inline or redefine clientKEXbytes
-    let pk = 
-        match Cert.get_chain_public_encryption_key si.serverID with 
-        | Correct(pk) -> pk
-        | _           -> unexpected "server must have an ID"    
-    let spop = state.poptions in         
-    let cv = spop.maxVer in 
 
-    (*KB: RSA-MS-KEM (client) *)
-    let pms = PMS.RSAPMS(pk,cv,rsapms)
-    let pmsid = pmsId pms
-    let si = {si with pmsId = pmsid} in
-    let log = log @| clientKEXBytes in
-    let (si,ms) = extract si pms log in
-
-    (* KB: need to prove Sig.Msg(a,PK(sk),log) here if cert_req = Some ((cl,a,sk)) *)
-    Pi.assume (LMsg(cert_req,log)); // CF should disappear
-    (* FIXME: here we should shred pms *)
-    let certificateVerifyBytes = getCertificateVerifyBytes si ms cert_req log in
-
-    let log = log @| certificateVerifyBytes in
-
-    (* Enqueue current messages in output buffer *)
-    let to_send = clientCertBytes @| clientKEXBytes @| certificateVerifyBytes in
-    let new_outgoing = state.hs_outgoing @| to_send in
-    correct ({state with hs_outgoing = new_outgoing},si,ms,log)
-
+(*
 let sessionInfoCertBytesAuth (si:SessionInfo) (cert_req:Cert.sign_cert)= 
   if si.client_auth then
     let cb = clientCertificateBytes cert_req in
@@ -558,6 +613,9 @@ let sessionInfoCertBytesAuth (si:SessionInfo) (cert_req:Cert.sign_cert)=
          ({si with clientID = certList},cb)
   else (si,empty_bytes)
 
+*)
+
+(*
 let certificateVerifyBytesAuth (si:SessionInfo) (ms:PRF.masterSecret) (cert_req:Cert.sign_cert) (log:bytes) = 
         if si.client_auth then
             match cert_req with
@@ -571,53 +629,134 @@ let certificateVerifyBytesAuth (si:SessionInfo) (ms:PRF.masterSecret) (cert_req:
         else
             (* No client certificate ==> no certificateVerify message *)
             empty_bytes
+*)
 
 let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) 
   (cert_req:Cert.sign_cert) (p:DHGroup.p) (g:DHGroup.g) (sy:DHGroup.elt) (log:log) : (hs_state * SessionInfo * PRF.masterSecret * log) Result =
     (* pre: Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DHGroup.PP((p,g)) /\ ServerDHE((p,g),sy,si.init_crand @| si.init_srand) *)
     (* moreover, by definition ServerDHE((p,g),sy,si.init_crand @| si.init_srand) implies ?sx.DHE.Exp((p,g),sx,sy) *)
     (*FIXME formally, the need for signing nonces is unclear *)
-    
-    let (si,clientCertBytes) = sessionInfoCertBytesAuth si cert_req in
 
-    let log = log @| clientCertBytes
+    match cert_req with
+    | Some x when si.client_auth = true ->
+         let si_old = si in
+         let (certList,algs,skey) = x in
+         let clientCertBytes = clientCertificateBytes cert_req in
+         let si = {si with clientID = certList}
+         let log = log @| clientCertBytes in
+         let cfg = state.poptions in 
 
-    (* this implements ms-KEM(DH).enc with pk = (p,g,sy) and (pv,h,l) from si *) 
-    (*KB DH-PMS-KEM (client) *)
-    let (cy,y,dhpms) = DH.clientGenExp p g sy in
-    (* post: DHE.Exp((p,g),x,cy) *) 
+         (* this implements ms-KEM(DH).enc with pk = (p,g,sy) and (pv,h,l) from si *) 
+         (*KB DH-PMS-KEM (client) *)
+         let (cy,y,dhpms) = DH.clientGenExp p g sy in
+         (* post: DHE.Exp((p,g),x,cy) *) 
 
-    let clientKEXBytes = clientKEXExplicitBytes_DH cy in
-    let log = log @| clientKEXBytes in
+         let clientKEXBytes = clientKEXExplicitBytes_DH cy in
+         let log = log @| clientKEXBytes in
 
-    (*KB DH-MS-KEM *)
-    let pms = PMS.DHPMS(p,g,cy,sy,dhpms) in
-    let si = {si with pmsId = pmsId pms} in
-    let (si,ms) = extract si pms log in
+         (*KB DH-MS-KEM *)
+         let pms = PMS.DHPMS(p,g,cy,sy,dhpms) in
+         let pmsid = pmsId pms
+         let si = {si with pmsId = pmsid} in
+         let (si,ms) = extract si pms log in
 
+         (* the post of this call is !sx,cy. PP((p,g) /\ DHE.Exp((p,g),cx,cy)) /\ DHE.Exp((p,g),sx,sy) -> DH.HonestExponential((p,g),cy,sy) *)
+         (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DH.HonestExponential((p,g),cy,sy) *) 
+         (* the post of this call is !p,g,gx,gy. StrongHS(si) /\ DH.HonestExponential((p,g),gx,gy) -> PRFs.Secret(ms) *)  
+         (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> PRFs.Secret(ms) *)
+         (* si is now constant *)
 
+         (*FIXME unclear what si guarantees for the ms; treated as an abstract index for now *)
+         (*FIXME DHE.zeroPMS si pms; *) 
 
-    (* the post of this call is !sx,cy. PP((p,g) /\ DHE.Exp((p,g),cx,cy)) /\ DHE.Exp((p,g),sx,sy) -> DH.HonestExponential((p,g),cy,sy) *)
-    (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DH.HonestExponential((p,g),cy,sy) *) 
-    (* the post of this call is !p,g,gx,gy. StrongHS(si) /\ DH.HonestExponential((p,g),gx,gy) -> PRFs.Secret(ms) *)  
-    (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> PRFs.Secret(ms) *)
-    (* si is now constant *)
+#if verify
+           (* KB: need to prove Sig.Msg(a,PK(sk),log) here if cert_req = Some ((cl,a,sk)) *)
+         Pi.expect (ClientLogBeforeCertificateVerifyDHE_Auth(si,log));
+#endif
 
-    (*FIXME unclear what si guarantees for the ms; treated as an abstract index for now *)
+         let (certificateVerifyBytes,_) = makeCertificateVerifyBytes si ms algs skey log in
 
-    (*FIXME DHE.zeroPMS si pms; *) 
+         let log = log @| certificateVerifyBytes in
 
-    (* KB: need to prove Sig.Msg(a,PK(sk),log) here if cert_req = Some ((cl,a,sk)) *)
-    Pi.assume (LMsg(cert_req,log)); // CF should disappear
+         let to_send = clientCertBytes @| clientKEXBytes @| certificateVerifyBytes in
+         let new_outgoing = state.hs_outgoing @| to_send in
+#if verify
+         Pi.expect (UpdatesPmsClientID(si_old,si));
+         Pi.expect (ClientLogBeforeClientFinishedDHE_Auth(si,log));
+#endif
+         correct ({state with hs_outgoing = new_outgoing},si,ms,log)
+    | None when si.client_auth = true ->
+         let si_old = si in
+         let clientCertBytes = clientCertificateBytes cert_req in
+         let si = {si with clientID = []}
+         let log = log @| clientCertBytes in
+         let cfg = state.poptions in 
 
-    let certificateVerifyBytes = certificateVerifyBytesAuth si ms cert_req log in
+         (* this implements ms-KEM(DH).enc with pk = (p,g,sy) and (pv,h,l) from si *) 
+         (*KB DH-PMS-KEM (client) *)
+         let (cy,y,dhpms) = DH.clientGenExp p g sy in
+         (* post: DHE.Exp((p,g),x,cy) *) 
 
-    let log = log @| certificateVerifyBytes in
+         let clientKEXBytes = clientKEXExplicitBytes_DH cy in
+         let log = log @| clientKEXBytes in
 
-    let to_send = clientCertBytes @| clientKEXBytes @| certificateVerifyBytes in
-    let new_outgoing = state.hs_outgoing @| to_send in
-    correct ({state with hs_outgoing = new_outgoing},si,ms,log)
-(* #endif *)
+         (*KB DH-MS-KEM *)
+         let pms = PMS.DHPMS(p,g,cy,sy,dhpms) in
+         let pmsid = pmsId pms
+         let si = {si with pmsId = pmsid} in
+         let (si,ms) = extract si pms log in
+
+         (* the post of this call is !sx,cy. PP((p,g) /\ DHE.Exp((p,g),cx,cy)) /\ DHE.Exp((p,g),sx,sy) -> DH.HonestExponential((p,g),cy,sy) *)
+         (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DH.HonestExponential((p,g),cy,sy) *) 
+         (* the post of this call is !p,g,gx,gy. StrongHS(si) /\ DH.HonestExponential((p,g),gx,gy) -> PRFs.Secret(ms) *)  
+         (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> PRFs.Secret(ms) *)
+         (* si is now constant *)
+
+         (*FIXME unclear what si guarantees for the ms; treated as an abstract index for now *)
+         (*FIXME DHE.zeroPMS si pms; *) 
+
+         let to_send = clientCertBytes @| clientKEXBytes in
+         let new_outgoing = state.hs_outgoing @| to_send in
+#if verify
+         Pi.expect (UpdatesPmsClientID(si_old,si));
+         Pi.expect (ClientLogBeforeClientFinishedDHE_TryNoAuth(si,log));
+#endif
+         correct ({state with hs_outgoing = new_outgoing},si,ms,log)
+    | _ when si.client_auth = false ->
+         let si_old = si in
+         let si = {si with clientID = []}
+         let cfg = state.poptions in 
+
+         (* this implements ms-KEM(DH).enc with pk = (p,g,sy) and (pv,h,l) from si *) 
+         (*KB DH-PMS-KEM (client) *)
+         let (cy,y,dhpms) = DH.clientGenExp p g sy in
+         (* post: DHE.Exp((p,g),x,cy) *) 
+
+         let clientKEXBytes = clientKEXExplicitBytes_DH cy in
+         let log = log @| clientKEXBytes in
+
+         (*KB DH-MS-KEM *)
+         let pms = PMS.DHPMS(p,g,cy,sy,dhpms) in
+         let pmsid = pmsId pms
+         let si = {si with pmsId = pmsid} in
+         let (si,ms) = extract si pms log in
+
+         (* the post of this call is !sx,cy. PP((p,g) /\ DHE.Exp((p,g),cx,cy)) /\ DHE.Exp((p,g),sx,sy) -> DH.HonestExponential((p,g),cy,sy) *)
+         (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DH.HonestExponential((p,g),cy,sy) *) 
+         (* the post of this call is !p,g,gx,gy. StrongHS(si) /\ DH.HonestExponential((p,g),gx,gy) -> PRFs.Secret(ms) *)  
+         (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> PRFs.Secret(ms) *)
+         (* si is now constant *)
+
+         (*FIXME unclear what si guarantees for the ms; treated as an abstract index for now *)
+         (*FIXME DHE.zeroPMS si pms; *) 
+
+         let to_send = clientKEXBytes in
+         let new_outgoing = state.hs_outgoing @| to_send in
+#if verify
+         Pi.expect (UpdatesPmsClientID(si_old,si));
+         Pi.expect (ClientLogBeforeClientFinishedDHE_NoAuth(si,log));
+#endif
+         correct ({state with hs_outgoing = new_outgoing},si,ms,log)
 
  
 let on_serverHello_full (ci:ConnectionInfo) crand log to_log (shello:ProtocolVersion * srand * sessionID * cipherSuite * Compression * bytes) extL =
@@ -729,7 +868,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     if (length sid > 0) && (equalBytes sid sh_session_id) then
                         (* use resumption *)
                         (* Search for the session in our DB *)
-                        match SessionDB.select state.sDB sid Client state.poptions.server_name with
+                        let sess = SessionDB.select state.sDB sid Client state.poptions.server_name in
+                        match sess with
                         | None ->
                             (* This can happen, although we checked for the session before starting the HS.
                                 For example, the session may have expired between us sending client hello, and now. *)
@@ -751,7 +891,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                         let nout = next_ci.id_out in
                                         let nin = next_ci.id_in in
                                         (* KB: the following should come from the sessiondb *)
-                                        Pi.assume (Authorize(Client,si)); // CF should disappear
+                                        Pi.expect (Authorize(Client,si)); // annotation 
                                         recv_fragment_client ci 
                                             {state with pstate = PSClient(ServerCCSResume(nout,writer,
                                                                                         nin,reader,
@@ -872,13 +1012,12 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 let (certType,alg,distNames) = v in
                 let client_cert = find_client_cert_sign certType alg distNames si.protocol_version state.poptions.client_name in
                 let si' = {si with client_auth = true} in
+
                 (* KB: Inserted another authorize here. We lack a mechanism for the client to refuse client auth! *)
                 (* AP: Client identity is fixed at protocol start. An empty identity will generate an empty certificate
                    message, which means refusal of client auth. *)
-
-                Pi.assume (Authorize(Client,si)); // CF should disappear
 #if verify
-                Pi.assume (UpdatesClientAuth(si,si'));
+                Pi.expect (UpdatesClientAuth(si,si'));
 #endif
                 recv_fragment_client ci 
                   {state with pstate = PSClient(ServerHelloDoneRSA(si',client_cert,log))} 
@@ -896,10 +1035,9 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 let (certType,alg,distNames) = v in
                 let client_cert = find_client_cert_sign certType alg distNames si.protocol_version state.poptions.client_name in
                 let si' = {si with client_auth = true} in
-                (* KB: Inserted another authorize here. We lack a mechanism for the client to refuse client auth! *)
-                Pi.assume (Authorize(Client,si)); 
+
 #if verify
-                Pi.assume (UpdatesClientAuth(si,si'));
+                Pi.expect (UpdatesClientAuth(si,si'));
 #endif
                 recv_fragment_client ci 
                   {state with pstate = PSClient(ServerHelloDoneDHE(si',client_cert,p,g,y,log))} 
@@ -917,7 +1055,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
 
                     (* Should be provable *)
 #if verify
-                    Pi.assume (UpdatesClientAuth(si,si'));
+                    Pi.expect (UpdatesClientAuth(si,si'));
 #endif
                     let prep = prepare_client_output_full_RSA ci state si' None log in
                     match prep with
@@ -958,7 +1096,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let si' = {si with client_auth = false} in
                     (* Should be provable *)
 #if verify
-                    Pi.assume (UpdatesClientAuth(si,si'));
+                    Pi.expect (UpdatesClientAuth(si,si'));
 #endif
 
                     match prepare_client_output_full_DHE ci state si' None p g y log with
@@ -996,11 +1134,11 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             | ServerFinished(si,ms,e,cvd,log) ->
                 if PRF.checkVerifyData si ms Server log payload then
                     let sDB = 
-                        if length  si.sessionID = 0 then state.sDB
+                        if length si.sessionID = 0 then state.sDB
                         else SessionDB.insert state.sDB si.sessionID Client state.poptions.server_name (si,ms)
                     (* Should prove from checkVerifyData above *)
 #if verify                    
-                    Pi.assume (CompleteEpoch(Server,ci.id_in)); // CF should disappear
+                    Pi.assume (Complete(ci)); // CF should disappear
 #endif
                     check_negotiation Client si state.poptions;
                     InComplete({state with pstate = PSClient(ClientIdle(cvd,payload)); sDB = sDB})
@@ -1008,10 +1146,12 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "Verify data did not match",state)
             | ServerFinishedResume(e,w,ms,log) ->
                 let si = epochSI ci.id_in in 
-                if PRF.checkVerifyData si ms Server log payload then
+                let check = PRF.checkVerifyData si ms Server log payload in
+                if check then
                     let log = log @| to_log in
-                    (* Should prove from checkVerifyData above *)
-                    Pi.assume (CompleteEpoch(Server,ci.id_in)); // CF should disappear
+#if verify
+                    Pi.expect(LClientFinishedResume(e,log)); 
+#endif                   
                     InFinished({state with pstate = PSClient(ClientWritingCCSResume(e,w,ms,payload,log))})
                 else
                     InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "Verify data did not match",state)
@@ -1046,6 +1186,9 @@ let prepare_server_output_full_RSA (ci:ConnectionInfo) state si cv calgs sExtL l
           let output = serverHelloB @| certificateB @| serverHelloDoneBytes in
           (* Log the output and put it into the output buffer *)
           let log = log @| output in
+#if verify
+          Pi.expect (ServerLogBeforeClientCertificateRSA_NoAuth(si,cv,log));
+#endif
           let ps = serverState ci (ClientKeyExchangeRSA(si,cv,sk,log)) in
           correct ({state with hs_outgoing = output
                                pstate = ps},
@@ -1065,10 +1208,11 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL l
     if List.listLength keyAlgs = 0 then
         Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "The client provided inconsistent signature algorithms and ciphersuites")
     else
-    match Cert.for_signing certAlgs state.poptions.server_name keyAlgs with
+    let cer = Cert.for_signing certAlgs state.poptions.server_name keyAlgs in
+    match cer with
     | None -> Error(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Could not find in the store a certificate for the negotiated ciphersuite")
-    | Some(x) ->
-        let (c,alg,sk) = x in
+    | Some(creq) ->
+        let (c,alg,sk) = creq in
         (* set server identity in the session info *)
         let si = {si with serverID = c} in
         let certificateB = serverCertificateBytes c in
@@ -1081,6 +1225,8 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL l
         let dheB = dheParamBytes p g y in
         let toSign = si.init_crand @| si.init_srand @| dheB in
         let sign = Sig.sign alg sk toSign in
+
+
         let serverKEXB = serverKeyExchangeBytes_DHE dheB alg sign si.protocol_version in
 
         (* CertificateRequest *)
@@ -1089,6 +1235,9 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL l
           let output = serverHelloB @| certificateB @| serverKEXB @| certificateRequestB @| serverHelloDoneBytes in
           (* Log the output and put it into the output buffer *)
           let log = log @| output in
+#if verify
+          Pi.expect (ServerLogBeforeClientCertificateDHE_Auth(si,log));          
+#endif
           let ps = serverState ci (ClientCertificateDHE(si,p,g,y,x,log)) in
         (* Compute the next state of the server *)
             correct (
@@ -1099,6 +1248,9 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL l
           let output = serverHelloB @| certificateB @| serverKEXB @| serverHelloDoneBytes in
           (* Log the output and put it into the output buffer *)
           let log = log @| output in
+#if verify
+          Pi.expect (ServerLogBeforeClientCertificateDHE_NoAuth(si,log));          
+#endif
           let ps = serverState ci (ClientKeyExchangeDHE(si,p,g,y,x,log)) in
             correct (
               {state with hs_outgoing = output
@@ -1107,7 +1259,10 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL l
 
         (* ClientKeyExchangeDHE(si,p,g,x,log) should carry PP((p,g)) /\ ?gx. DHE.Exp((p,g),x,gx) *)
 
-let prepare_server_output_full_DH_anon (ci:ConnectionInfo) state si sExtL log : (hs_state * ProtocolVersion) Result =
+let prepare_server_output_full_DH_anon (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) (sExtL:serverExtension list) (log:log) : (hs_state * ProtocolVersion) Result =
+#if verify
+    failwith "not verifying DH_anon"
+#else
     let ext = serverExtensionsBytes sExtL in
     let serverHelloB = serverHelloBytes si si.init_srand ext in
     
@@ -1126,6 +1281,7 @@ let prepare_server_output_full_DH_anon (ci:ConnectionInfo) state si sExtL log : 
     correct ({state with hs_outgoing = output
                          pstate = ps},
              si.protocol_version)
+#endif
 
 let prepare_server_output_full ci state si cv sExtL log =
     if isAnonCipherSuite si.cipher_suite then
@@ -1147,7 +1303,7 @@ let prepare_server_output_full ci state si cv sExtL log =
 let negotiate cList sList =
     List.tryFind (fun s -> List.exists (fun c -> c = s) cList) sList
 
-let prepare_server_output_resumption ci state crand cExtL storedSession cvd svd log =
+let prepare_server_output_resumption ci state crand cExtL (sid:sessionID) storedSession cvd svd log =
     let (si,ms) = storedSession in
     let srand = Nonce.mkHelloRandom () in
     let (sExtL,nExtL) = negotiateServerExtensions cExtL state.poptions si.cipher_suite (cvd,svd) (Some(si.session_hash))
@@ -1159,6 +1315,9 @@ let prepare_server_output_resumption ci state crand cExtL storedSession cvd svd 
     let nki_in = id next_ci.id_in in
     let nki_out = id next_ci.id_out in
     let (reader,writer) = PRF.keyGenServer nki_in nki_out ms in
+#if verify
+    Pi.expect (ServerLogBeforeServerFinishedResume(crand,srand,si,log));
+#endif
     {state with hs_outgoing = sHelloB
                 pstate = PSServer(ServerWritingCCSResume(next_ci.id_out,writer,
                                                          next_ci.id_in,reader,
@@ -1261,7 +1420,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
 #if TLSExt_sessionHash
                                     | Some(true) ->
                                       (* Proceed with resumption *)
-                                      let state = prepare_server_output_resumption ci state ch_random cExtL sentry cvd svd log in
+                                      let state = prepare_server_output_resumption ci state ch_random cExtL ch_session_id sentry cvd svd log in
                                       recv_fragment_server ci state (somePV(storedSinfo.protocol_version))
                                     | Some(false) ->
                                         InError(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Wrong safe resumption data received", state)
@@ -1323,14 +1482,8 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             | ClientKeyExchangeRSA(si,cv,sk,log) ->
                 match parseClientKEX_RSA si sk cv state.poptions payload with
                 | Error(z) -> let (x,y) = z in  InError(x,y,state)
-                | Correct(rsapms) ->
-                    //CF re-computing pk, as in clientKEXBytes; not great.
-                    //CF we should problably inline or redefine clientKEXbytes
-                    let pk = 
-                        match Cert.get_chain_public_encryption_key si.serverID with 
-                        | Correct(pk) -> pk
-                        | _           -> unexpected "server must have an ID"    
-
+                | Correct(x) ->
+                    let (pk,rsapms) = x in 
                 (*KB: RSA-MS-KEM (server) *)
                     let pms = PMS.RSAPMS(pk,cv,rsapms)
                     let pmsid = pmsId pms
@@ -1390,7 +1543,6 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     else
 #if verify
                         Pi.expect(ServerLogBeforeClientCertificateVerifyDHE(si,log));
-                        Pi.expect(Authorize(Server,si));
                         Pi.expect(ServerLogBeforeClientFinished_NoAuth(si,log));
 #endif
                         recv_fragment_server ci 
@@ -1440,14 +1592,18 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             match sState with
             | ClientFinished(si,ms,e,w,log) ->
                 if PRF.checkVerifyData si ms Client log payload then
-                    Pi.assume (CompleteEpoch(Client,ci.id_in)); //Should get from checkVerifyData above
                     let log = log @| to_log in
+#if verify
+                    Pi.expect(ServerLogBeforeServerFinished(si,log));
+#endif
                     InFinished({state with pstate = PSServer(ServerWritingCCS(si,ms,e,w,payload,log))})
                 else
                     InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "Verify data did not match",state)
             | ClientFinishedResume(si,ms,e,svd,log) ->
                 if PRF.checkVerifyData si ms Client log payload then
-                    Pi.assume (CompleteEpoch(Client,ci.id_in)); //Should get from checkVerifyData above
+#if verify
+                    Pi.assume (Complete(ci)); // CF Should disappear!
+#endif
                     check_negotiation Server si state.poptions;
                     InComplete({state with pstate = PSServer(ServerIdle(payload,svd))})                       
                 else
@@ -1523,7 +1679,7 @@ let authorize (ci:ConnectionInfo) (state:hs_state) (q:Cert.chain) =
               let si' = {si with serverID = certs} in
               Pi.assume (Authorize(Client,si')); // ``The user authorizes q as peer serverID''
 #if verify
-              Pi.assume (UpdatesServerID(si,si'));
+              Pi.expect (UpdatesServerID(si,si'));
 #endif
               recv_fragment_client ci 
                 {state with pstate = PSClient(CertificateRequestRSA(si',log))}
@@ -1545,7 +1701,7 @@ let authorize (ci:ConnectionInfo) (state:hs_state) (q:Cert.chain) =
             let si' = {si with clientID = q} in
             Pi.assume (Authorize(Server,si')); // ``The user authorizes q as peer clientID''
 #if verify
-            Pi.assume (UpdatesClientID(si,si'));
+            Pi.expect (UpdatesClientID(si,si'));
             Pi.expect (ServerLogBeforeClientKeyExchangeRSA_Auth(si',cv,log));
 #endif
             recv_fragment_server ci 
@@ -1557,7 +1713,7 @@ let authorize (ci:ConnectionInfo) (state:hs_state) (q:Cert.chain) =
             let si' = {si with clientID = q} in
             Pi.assume (Authorize(Server,si')); // ``The user authorizes q as peer clientID''
 #if verify
-            Pi.assume (UpdatesClientID(si,si'));
+            Pi.expect (UpdatesClientID(si,si'));
             Pi.expect (ServerLogBeforeClientKeyExchangeDHE_Auth(si',log));
 #endif
             recv_fragment_server ci 

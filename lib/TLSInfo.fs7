@@ -108,9 +108,9 @@ val pmsId: pms:PMS.pms -> id:pmsId{ id = PmsId(pms) }
 
 // ``this pms is honestly generated and used for extraction''
 predicate HonestPMS of pmsId 
-private definition not HonestPMS(NoPmsId)
-private definition !pk,cv,rsapms.    HonestPMS(PmsId(PMS.RSAPMS(pk,cv,rsapms)))   <=> PMS.HonestRSAPMS(pk,cv,rsapms)  
-private definition !p,g,gx,gy,dhpms. HonestPMS(PmsId(PMS.DHPMS(p,g,gx,gy,dhpms))) <=> PMS.HonestDHPMS(p,g,gx,gy,dhpms) 
+definition not HonestPMS(NoPmsId)
+definition !pk,cv,rsapms.    HonestPMS(PmsId(PMS.RSAPMS(pk,cv,rsapms)))   <=> PMS.HonestRSAPMS(pk,cv,rsapms)  
+definition !p,g,gx,gy,dhpms. HonestPMS(PmsId(PMS.DHPMS(p,g,gx,gy,dhpms))) <=> PMS.HonestDHPMS(p,g,gx,gy,dhpms) 
 val honestPMS: (pi:pmsId) -> b:bool {b=true => HonestPMS(pi)} 
 // MK <= TODO currently can't typecheck other direction.
 val noPmsId: i:pmsId { not HonestPMS(i) } 
