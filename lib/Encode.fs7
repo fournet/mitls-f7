@@ -80,39 +80,6 @@ predicate val Encoded: 'e * 'a * 'b * 'c * 'd -> bool
 private val pad: l:int { 0 < l /\ l <= 256 } -> b:bytes{Length(b) = l}
 //CF we will need a more precise refinement for the MEE proof 
 
-// for typing decode
-(* AP
-private ask !e,tlen. 
-  (((?alg,mac. e.aeAlg  = MtE(CBC_Stale(alg),mac)) \/
-    (?alg,mac. e.aeAlg  = MtE(CBC_Fresh(alg),mac))) /\
-  (tlen - IVSize(e) - MacKeySize(MacAlg(e)) - 1 > 255)) =>
-  CipherRangeClass(e,tlen) = 
-  (tlen - IVSize(e) - MacKeySize(MacAlg(e)) - 1 - 255,
-   tlen - IVSize(e) - MacKeySize(MacAlg(e)) - 1)
-
-
-private ask !e,tlen,alg,mac,x. 
-  e.aeAlg = MtE(CBC_Stale(alg),mac) /\
-  x = tlen - IVSize(e) - MacKeySize(mac) - 1 /\
-  x > 255 =>
-	CipherRangeClass(e,tlen) = (x - 255, x)
-
-private ask !e,tlen,alg,mac,x.
-  e.aeAlg = MtE(CBC_Fresh(alg),mac) /\
-  x = tlen - IVSize(e) - MacKeySize(mac) - 1 /\
-  x > 255 =>
-	CipherRangeClass(e,tlen) = (x - 255, x)
-
-private ask !e,tlen. 
-  (((?alg,mac. e.aeAlg  = MtE(CBC_Stale(alg),mac)) \/
-    (?alg,mac. e.aeAlg  = MtE(CBC_Fresh(alg),mac))) /\
-  (tlen - IVSize(e) - MacKeySize(MacAlg(e)) - 1 >= 0) /\
-  (tlen - IVSize(e) - MacKeySize(MacAlg(e)) - 1 <= 255)) =>
-  CipherRangeClass(e,tlen) = 
-  (0,
-   tlen - IVSize(e) - MacKeySize(MacAlg(e)) - 1)
-*)
-
 val encode: 
     e:id{not SafeId(e) /\ (?alg,mac. e.aeAlg  = MtE(CBC_Stale(alg),mac) \/ e.aeAlg  = MtE(CBC_Fresh(alg),mac))} -> 
     tlen:nat{tlen <= max_TLSCipher_fragment_length} -> 
@@ -126,22 +93,12 @@ val decode: e:id{not AuthId(e) /\ (?alg,mac. e.aeAlg  = MtE(CBC_Stale(alg),mac) 
 	  e.aeAlg  = MtE(CBC_Fresh(alg),mac))} -> 
 	ad:(;e) LHAEPlain.adata ->
 	rg:range ->
-	tlen:nat{tlen - IVSize(e) >= ( MacKeySize(MacAlg(e)) + 1) /\
+	tlen:nat{tlen - IVSize(e) >= ( MacKeySize(MacAlg(e)) + FixedPadSize(e,()) ) /\
 	rg = CipherRangeClass(e,tlen)} ->
 	(;PlainLength(e,tlen))lbytes ->
 	ps:(;e,ad,rg)plain//AP{ Decoded(e,ad,ps) }
 //AP with some 
 //AP private definition Decoded(e,ad,ps) <=> (Encoded(e,ad,ps.plain,ps.tag,p) => ps.ok = true)
-
-(*AP
-private ask !e,tlen. 
-  (((?mac. e.aeAlg  = MACOnly(mac)) \/
-   (?mac. e.aeAlg  = MtE(Stream_RC4_128,mac))) /\
-  (tlen >= MacKeySize(MacAlg(e)))) => 
-    CipherRangeClass(e,tlen) = 
-    (tlen - MacKeySize(MacAlg(e)),
-     tlen - MacKeySize(MacAlg(e)))
-*)
 
 //CF why do we need "NoPad" variants again?
 // AP We should merge the two.

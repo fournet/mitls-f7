@@ -8,7 +8,7 @@ open TLSInfo
 open TLSExtensions
 
 type range = low:nat * high:nat { low <= high }
-type (;r:range) rbytes = b:bytes { ?l,h. r = (l,h) /\ l <= Length(b) /\ Length(b) <= h }   
+type (;r:range) rbytes = b:bytes { ?l,h. r = (l,h) /\ l <= Length(b) /\ Length(b) <= h }
 function val Sum: range * range -> range
 definition !l0,h0,l1,h1. Sum((l0,h0),(l1,h1)) = (l0+l1,h0+h1)
 val sum: r0:range -> r1:range -> r:range{r = Sum(r0,r1)}
@@ -37,7 +37,7 @@ ask !i. (?mac. i.aeAlg = MACOnly(mac) \/ i.aeAlg = MtE(Stream_RC4_128,mac)) => I
 val ivSize: e:id -> l:nat{l=IVSize(e)}
 
 function val FixedPadSize: id * unit -> nat
-private definition
+definition
 	(* AP: for LH
 	(HasExtendedPadding(i) => FixedPadSize(i,())=2) /\
     (not HasExtendedPadding(i) => 
@@ -54,7 +54,7 @@ private definition
 val fixedPadSize: id:id -> l:nat{l=FixedPadSize(id,())}
 
 function val MaxPadSize: i:id * unit -> nat //TODO MK fix spec
-private definition
+definition
 	(* AP: for LH
     (	not HasExtendedPadding(i) =>
 	*)
@@ -141,13 +141,13 @@ definition !e,l,h,mac,aeAlg.
 val targetLength: i:id -> r:range -> 
   tlen:nat {tlen = TargetLength(i,r) /\ tlen <= max_TLSCipher_fragment_length}
 
-private definition
+definition
 	(!e,tlen,alg,mac.
 		   e.aeAlg = MtE(CBC_Fresh(alg),mac) /\
             tlen - IVSize(e) - MacKeySize(mac) - FixedPadSize(e,()) >= 0 /\
 			tlen - IVSize(e) - MacKeySize(mac) - MaxPadSize(e,()) < 0 =>
              CipherRangeClass(e,tlen) = (0,tlen - IVSize(e) - MacKeySize(mac) - FixedPadSize(e,())))
-private definition
+definition
 	(!e,tlen,alg,mac. 
 		   e.aeAlg = MtE(CBC_Fresh(alg),mac) /\
             tlen - IVSize(e) - MacKeySize(mac) - FixedPadSize(e,()) >= 0 /\
@@ -155,13 +155,13 @@ private definition
              CipherRangeClass(e,tlen) =
 				(tlen - IVSize(e) - MacKeySize(mac) - MaxPadSize(e,()),
 				 tlen - IVSize(e) - MacKeySize(mac) - FixedPadSize(e,())))
-private definition
+definition
 	(!e,tlen,alg,mac.
 		   e.aeAlg = MtE(CBC_Stale(alg),mac) /\
             tlen - IVSize(e) - MacKeySize(mac) - FixedPadSize(e,()) >= 0 /\
 			tlen - IVSize(e) - MacKeySize(mac) - MaxPadSize(e,()) < 0 =>
              CipherRangeClass(e,tlen) = (0,tlen - IVSize(e) - MacKeySize(mac) - FixedPadSize(e,())))
-private definition
+definition
 	(!e,tlen,alg,mac. 
 		   e.aeAlg = MtE(CBC_Stale(alg),mac) /\
             tlen - IVSize(e) - MacKeySize(mac) - FixedPadSize(e,()) >= 0 /\
@@ -197,13 +197,14 @@ private definition
 			   (y >= 0 /\ CipherRangeClass(e,tlen) = (y,x))
 			 ))
 
-(*AP: True, but probably not needed
 ask !e,tlen,mac.
-	e.aeAlg = MACOnly(mac) =>
-    tlen - IVSize(e) - MacKeySize(mac) - FixedPadSize(e,()) = tlen - MacKeySize(mac)
-ask !e,mac.
-	e.aeAlg = MACOnly(mac) => MacKeySize(mac) = MacKeySize(MacAlg(e))
-*)
+	e.aeAlg = MACOnly(mac) /\
+	tlen - IVSize(e) - MacKeySize(mac) - FixedPadSize(e,()) >= 0 =>
+	CipherRangeClass(e,tlen) = (tlen - MacKeySize(mac), tlen - MacKeySize(mac))
+ask !e,tlen,mac.
+	e.aeAlg = MtE(Stream_RC4_128,mac) /\
+	tlen - IVSize(e) - MacKeySize(mac) - FixedPadSize(e,()) >= 0 =>
+	CipherRangeClass(e,tlen) = (tlen - MacKeySize(mac), tlen - MacKeySize(mac))
 
 val minMaxPad: i:id -> l:nat * h:nat{
 	l = FixedPadSize(i,()) /\ h = MaxPadSize(i,())}

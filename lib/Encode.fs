@@ -7,10 +7,6 @@ open TLSInfo
 open TLSConstants
 open Range
 
-#if verify
-type preds = | CipherRange of id * range * nat
-#endif
-
 type plain =
     {plain: LHAEPlain.plain;
      tag:   MAC.tag;
@@ -114,7 +110,7 @@ let encode (e:id) (tlen:nat) (rg:range) (ad:LHAEPlain.adata) data tag =
 let decodeNoPad (e:id) (ad:LHAEPlain.adata) (rg:range) tlen pl =
     let plainLen = length pl in
     if plainLen <> (tlen - ivSize e) then
-        Error.unexpected "[decodeNoPad] wrong target length given as input argument."
+        Error.unreachable "[decodeNoPad] wrong target length given as input argument."
     else
     let macAlg = macAlg_of_id e in
     let maclen = macSize macAlg in
@@ -128,12 +124,13 @@ let decodeNoPad (e:id) (ad:LHAEPlain.adata) (rg:range) tlen pl =
 let decode (e:id) (ad:LHAEPlain.adata) (rg:range) (tlen:nat) pl =
     let a = e.aeAlg
     let macSize = macSize (macAlg_of_aeAlg a) in
+    let fp = fixedPadSize e in
     let pLen = length pl in
-    let padLenStart = pLen - 1 in
+    let padLenStart = pLen - fp in
     let (tmpdata, padlenb) = Bytes.split pl padLenStart in
     let padlen = int_of_bytes padlenb in
-    let padstart = pLen - padlen - 1 in
-    let macstart = pLen - macSize - padlen - 1 in
+    let padstart = pLen - padlen - fp in
+    let macstart = pLen - macSize - padlen - fp in
     let encAlg = encAlg_of_aeAlg a
     match encAlg with
     | Stream_RC4_128 -> unreachable "[decode] invoked on stream cipher"
@@ -142,7 +139,7 @@ let decode (e:id) (ad:LHAEPlain.adata) (rg:range) (tlen:nat) pl =
     if padstart < 0 || macstart < 0 then
         (*@ Evidently padding has been corrupted, or has been incorrectly generated *)
         (*@ Following TLS1.1 we fail later (see RFC5246 6.2.3.2 Implementation Note) *)
-        let macstart = pLen - macSize - 1 in
+        let macstart = pLen - macSize - fp in
         let (frag,tag) = split tmpdata macstart in
         let aeadF = LHAEPlain.plain e ad rg frag in
         { plain = aeadF;
@@ -167,7 +164,7 @@ let decode (e:id) (ad:LHAEPlain.adata) (rg:range) (tlen:nat) pl =
                     ok = true;
                 }
             else
-                let macstart = pLen - macSize - 1 in
+                let macstart = pLen - macSize - fp in
                 let (frag,tag) = split tmpdata macstart in
                 let aeadF = LHAEPlain.plain e ad rg frag in
                 { plain = aeadF;
@@ -186,7 +183,7 @@ let decode (e:id) (ad:LHAEPlain.adata) (rg:range) (tlen:nat) pl =
                     ok = true;
                 }
             else
-                let macstart = pLen - macSize - 1 in
+                let macstart = pLen - macSize - fp in
                 let (frag,tag) = split tmpdata macstart in
                 let aeadF = LHAEPlain.plain e ad rg frag in
                 { plain = aeadF;
