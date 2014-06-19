@@ -541,21 +541,6 @@ ask !e. Open(e) => (AuthId(Id(e)) => Auth(e))
 ask !e. Open(e) => (SafeId(Id(e)) => Safe(e))
 ask !e. Auth(e) => Open(e)
 
-(*
-predicate CompleteEpoch of Role * epoch * config
-definition !role,e,cfg. 
-  CompleteEpoch(role,e,cfg) 
-  <=>
-  (IsSuccEpoch(e) /\ IsValidEpoch(e) /\ IsValidEpoch(Pred(e)) /\
-   (SafeVD(EpochSI(e)) => (Match(Id(e)) /\ Open(e))) /\
-   (role = Client /\      
-    (?a. Sig.Honest(a,Cert.SigPKCert(EpochSI(e).serverID,a))) =>
-    HonestPMS(EpochSI(e).pmsId)) /\
-   (role = Server /\  EpochSI(e).client_auth = true /\    
-    (?a. Sig.Honest(a,Cert.SigPKCert(EpochSI(e).clientID,a))) =>
-    HonestPMS(EpochSI(e).pmsId)))
-*)
-
 predicate OpenState of epoch
 definition !e.
   OpenState(e) <=> (SafeVD(EpochSI(e)) => Open(e))
