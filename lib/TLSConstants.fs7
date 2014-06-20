@@ -4,7 +4,11 @@
    This file also declares those that are assumed to be strong 
    (such assumption are on both the algorithms and their implementation) *)
 
-// TODO large chunks of this file should be internal to TLS. 
+(* CF 14-06-20 this file is part of the public API; it should *not*
+               include random constants and internal formats.
+               post-v1, we will cut out "TLSFormat" with TLS internal
+               formatting stuff and possibly "Assumptions" with all
+               algorithmic strength assumptions. *)
 
 open Bytes
 open Error
@@ -378,12 +382,10 @@ val prfMacAlg_of_ciphersuite: cs:cipherSuite  -> ma:macAlg { ma=CiphersuitePrfMa
 val verifyDataHashAlg_of_ciphersuite: cs:cipherSuite -> hashAlg
 val sessionHashAlg: ProtocolVersion -> cipherSuite -> hashAlg
 
-// CF ?? 
 // KB: Beware that these refinements are not visible and are not used by F7. 
-// MK: The uniqueness of the labels would become relevant if we wanted to prove domain 
-// MK: separation for the underlying PRF. 
-// MK: For now we rely on the separation being performed correctly in trusted code 
-// MK: for which we make separate cryptographic assumptions. 
+// CF We rely on these labels being pairwise distinct to get domain separation 
+// CF for the underlying PRF; for now this is used only informally,
+// CF to justify separate crypto assumptions; these refinements are unused. 
 type prflabel = b:bytes { b=Utf8("master secret") \/ b=Utf8("extended master secret") \/ b=Utf8("key expansion") }
 val extract_label: l:prflabel {l=Utf8("master secret")}
 val extended_extract_label: l:prflabel {l=Utf8("extended master secret")}
