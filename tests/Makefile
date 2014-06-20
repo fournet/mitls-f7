@@ -26,7 +26,7 @@ all: pki.built
 	if [ "$(uname_O)" != "Cygwin" ]; then \
 	  $(MAKE) -C c-stub; \
 	fi
-	./test-suite.py
+	CYGWIN="$CYGWIN pipe_byte pipe_nooverlap" ./test-suite.py
 
 pki.built:
 	$(call pki,rsa)

@@ -1,4 +1,4 @@
-#! /usr/bin/env pythonw
+#! /usr/bin/env python
 
 # --------------------------------------------------------------------
 import sys, os, time, socket, random, xsubprocess as sp, logging
@@ -102,7 +102,7 @@ def _check_for_config(mode, config):
                 cipher = OPENSSL_CIPHERS[cipher]
 
             if mivendor:
-                pgm = '../echo/bin/Release/echo.exe'
+                pgm = '../echo/bin/Debug/echo.exe'
             else:
                 pgm = 'i686-pc-mingw32-echo.exe' if win32 else 'echo'
                 pgm = os.path.join('c-stub', pgm)
