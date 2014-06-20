@@ -36,7 +36,11 @@ type state =
 type encryptor = state
 type decryptor = state
 
+(*
 let GENOne ki : state =
+    #if verify
+    failwith "trusted for correctness"
+    #else
     let alg = encAlg_of_id ki in
     match alg with
     | Stream_RC4_128 ->
@@ -51,9 +55,31 @@ let GENOne ki : state =
         let key = {k = Nonce.random (encKeySize alg)}
         let iv = NoIV
         BlockCipher ({key = key; iv = iv})
+    #endif
+*)
 
-let GEN (ki) = 
-    let k = GENOne ki in (k,k)
+let streamCipher (ki:id) (r:rw) (s:streamState)  = StreamCipher(s)
+let blockCipher (ki:id) (r:rw) (s:blockState) = BlockCipher(s)
+
+let GEN (ki:id) : encryptor * decryptor = 
+    let alg = encAlg_of_id ki in
+    match alg with
+    | Stream_RC4_128 ->
+        let k = Nonce.random (encKeySize alg) in
+        let key = {k = k} in
+        streamCipher ki Writer ({skey = key; sstate = CoreCiphers.rc4create (k)}),
+        streamCipher ki Reader ({skey = key; sstate = CoreCiphers.rc4create (k)})
+    | CBC_Stale(cbc) ->
+        let key = {k = Nonce.random (encKeySize alg)} in
+        let iv = SomeIV(Nonce.random (blockSize cbc)) in
+        blockCipher ki Writer ({key = key; iv = iv}),
+        blockCipher ki Reader ({key = key; iv = iv})
+    | CBC_Fresh(_) ->
+        let key = {k = Nonce.random (encKeySize alg)} in
+        let iv = NoIV in
+        blockCipher ki Writer ({key = key; iv = iv}) ,
+        blockCipher ki Reader ({key = key; iv = iv}) 
+    //let k = GENOne ki in (k,k)
     
 let COERCE (ki:id) (rw:rw) k iv =
     let alg = encAlg_of_id ki in
@@ -70,11 +96,10 @@ let COERCE (ki:id) (rw:rw) k iv =
 let LEAK (ki:id) (rw:rw) s =
     match s with
     | BlockCipher (bs) ->
-        let iv =
-            match bs.iv with
-            | NoIV -> empty_bytes
-            | SomeIV(iv) -> iv
-        (bs.key.k,iv)
+        let bsiv = bs.iv in
+        match bsiv with
+            | NoIV -> (bs.key.k,empty_bytes)
+            | SomeIV(ivec) -> (bs.key.k,ivec)
     | StreamCipher (ss) ->
         ss.skey.k,empty_bytes
 
@@ -98,7 +123,8 @@ let ENC_int ki s tlen d =
                 // CompatibleLength predicate
                 unexpected "[ENC] Length of encrypted data do not match expected length"
             else
-                let s = {s with iv = SomeIV(lastblock alg cipher) } in
+                let lb = lastblock alg cipher in
+                let s = {s with iv = SomeIV(lb) } in
                 (BlockCipher(s), cipher)
     //#end-ivStaleEnc
     | BlockCipher(s), CBC_Fresh(alg) ->
@@ -127,14 +153,26 @@ let ENC_int ki s tlen d =
     | _, _ -> unexpected "[ENC] Wrong combination of cipher algorithm and state"
 
 #if ideal
-type entry = id * LHAEPlain.adata * cipher * Encode.plain
+type entry = id * LHAEPlain.adata * range * cipher * Encode.plain
 let log:entry list ref = ref []
-let rec cfind (e:id) (c:cipher) (xs: entry list) = 
+let rec cfind (e:id) (c:cipher) (xs: entry list) : (LHAEPlain.adata * range * Encode.plain) = 
+  //let (ad,rg,text) = 
   match xs with
-      [] -> failwith "not found"
-    | (e',ad,c',text)::res when e = e' && c = c' -> (ad,cipherRangeClass e (length c),text)
+    | [] -> failwith "not found"
+    | entry::res -> 
+        let (e',ad,rg, c',text)=entry
+        if e = e' && c = c' then
+            (ad,rg,text)
+        else cfind e c res
+        //let clength = length c in
+        //let rg = cipherRangeClass e clength in
     | _::res -> cfind e c res
+  //(ad,rg,text)
+
+let addtolog (e:entry) (l: entry list ref) =
+    e::!l
 #endif
+
 
 let ENC (ki:id) s ad rg data =
     let tlen = targetLength ki rg in
@@ -142,7 +180,7 @@ let ENC (ki:id) s ad rg data =
     if safeId (ki) then
       let d = createBytes tlen 0 in
       let (s,c) = ENC_int ki s tlen d in
-      log := (ki, ad, c, data)::!log;
+      log := addtolog (ki, ad, rg, c, data) log;
       (s,c)
     else
   #endif
