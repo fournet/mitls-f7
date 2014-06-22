@@ -307,13 +307,13 @@ let next_fragment ci state =
         | PSClient(cstate) ->
             match cstate with
             | ClientWritingCCS (si,ms,log) ->
-                let next_ci = getNextEpochs ci si si.init_crand si.init_srand in
-                let nki_in = id next_ci.id_in in
-                let nki_out = id next_ci.id_out in
-                let (reader,writer) = PRF.keyGenClient nki_in nki_out ms in
                 let cr' = si.init_crand in
                 let sr' = si.init_srand in
                 Pi.assume (SentCCS(Client,cr',sr',si)); // ``We send client CCS for si''
+                let next_ci = getNextEpochs ci si cr' sr' in
+                let nki_in = id next_ci.id_in in
+                let nki_out = id next_ci.id_out in
+                let (reader,writer) = PRF.keyGenClient nki_in nki_out ms in
                 //CF now passing si, instead of next_ci.id_out
                 //CF but the precondition should be on F(si)
                 let cvd = PRF.makeVerifyData si ms Client log in
@@ -569,7 +569,8 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:Sess
          let si_old = si in
          let (certList,algs,skey) = x in
          let clientCertBytes = clientCertificateBytes cert_req in
-         let si = {si with clientID = certList}
+         let si = {si with clientID = certList} in
+         let si = {si with clientSigAlg = algs} in
          let log = log @| clientCertBytes in
          let cfg = state.poptions in 
          match clientKEXBytes_RSA si cfg with
@@ -643,6 +644,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
          let (certList,algs,skey) = x in
          let clientCertBytes = clientCertificateBytes cert_req in
          let si = {si with clientID = certList}
+         let si = {si with clientSigAlg = algs}
          let log = log @| clientCertBytes in
          let cfg = state.poptions in 
 
@@ -763,6 +765,8 @@ let on_serverHello_full (ci:ConnectionInfo) crand log to_log (shello:ProtocolVer
     let log = log @| to_log in
     let (sh_server_version,sh_random,sh_session_id,sh_cipher_suite,sh_compression_method,sh_neg_extensions) = shello
     let si = { clientID = []
+               clientSigAlg = (SA_RSA,SHA)
+               serverSigAlg = (SA_RSA,SHA)
                client_auth = false
                serverID = []
                sessionID = sh_session_id
@@ -972,7 +976,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     InError(x,y,state)
                 | Correct(v) ->
                     let (p,g,y,alg,signature) = v in
-                    match Cert.get_chain_public_signing_key si.serverID alg with
+                    let vk = Cert.get_chain_public_signing_key si.serverID alg in
+                    match vk with
                     | Error z ->
                         let (x,y) = z in
                         InError(x,y,state)
@@ -980,6 +985,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let dheb = dheParamBytes p g y in
                     let expected = si.init_crand @| si.init_srand @| dheb in
                     if Sig.verify alg vkey expected signature then
+                        let si = {si with serverSigAlg = alg} in 
                         let log = log @| to_log in
                         recv_fragment_client ci 
                           {state with pstate = PSClient(CertificateRequestDHE(si,p,g,y,log))} 
@@ -1032,8 +1038,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 match parseCertificateRequest si.protocol_version payload with
                 | Error(z) -> let (x,y) = z in  InError(x,y,state)
                 | Correct(v) ->
-                let (certType,alg,distNames) = v in
-                let client_cert = find_client_cert_sign certType alg distNames si.protocol_version state.poptions.client_name in
+                let (certType,algs,distNames) = v in
+                let client_cert = find_client_cert_sign certType algs distNames si.protocol_version state.poptions.client_name in
                 let si' = {si with client_auth = true} in
 
 #if verify
@@ -1087,7 +1093,9 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
 #if verify
 #else
-            | ServerHelloDoneDH_anon(si,p,g,y,log) 
+            | ServerHelloDoneDH_anon(si,p,g,y,log)  ->
+                failwith "should be same as the following case?"
+              
 #endif
             | CertificateRequestDHE(si,p,g,y,log) ->
                 if length payload = 0 then
@@ -1099,7 +1107,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     Pi.expect (UpdatesClientAuth(si,si'));
 #endif
 
-                    match prepare_client_output_full_DHE ci state si' None p g y log with
+                    let dhe = prepare_client_output_full_DHE ci state si' None p g y log in
+                    match dhe with
                     | Error z ->
                         let (x,y) = z in
                         InError (x,y, state)
@@ -1215,6 +1224,7 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL l
         let (c,alg,sk) = creq in
         (* set server identity in the session info *)
         let si = {si with serverID = c} in
+        let si = {si with serverSigAlg = alg} in
         let certificateB = serverCertificateBytes c in
 
         (* ServerKeyExchange *)
@@ -1340,8 +1350,10 @@ let startServerFull (ci:ConnectionInfo) state (cHello:ProtocolVersion * crand * 
                 let (sExtL, nExtL) = negotiateServerExtensions cExtL cfg cs (cvd, svd) None
                 (* Fill in the session info we're establishing *)
                 let si = { clientID         = []
+                           clientSigAlg = (SA_RSA,SHA)
                            client_auth      = cfg.request_client_certificate
                            serverID         = []
+                           serverSigAlg = (SA_RSA,SHA)
                            sessionID        = sid
                            protocol_version = version
                            cipher_suite     = cs
@@ -1574,15 +1586,17 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             match sState with
             | CertificateVerify(si,ms,log) ->
                 let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, these are the same as we sent in CertificateRequest
-                let (verifyOK,_) = certificateVerifyCheck si ms allowedAlgs log payload in
+                let (verifyOK,a,_) = certificateVerifyCheck si ms allowedAlgs log payload in
                 if verifyOK then// payload then
+                    let si' = {si with clientSigAlg = a} in
                     let log = log @| to_log in  
 #if verify
-                        Pi.expect(ServerLogBeforeClientFinished(si,log));
-                        Pi.expect(Authorize(Server,si));
+                        Pi.expect(Authorize(Server,si'));
+                        Pi.expect(ServerLogBeforeClientFinished_Auth(si',log)); 
+                        Pi.expect(UpdatesClientSigAlg(si,si'));
 #endif
                     recv_fragment_server ci 
-                      {state with pstate = PSServer(ClientCCS(si,ms,log))} 
+                      {state with pstate = PSServer(ClientCCS(si',ms,log))}
                       agreedVersion
                 else  
                     InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "Certificate verify check failed",state)

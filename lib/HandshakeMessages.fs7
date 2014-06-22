@@ -365,8 +365,8 @@ val makeCertificateVerifyBytes: si:SessionInfo -> (;si)PRF.masterSecret -> a:Sig
 	  B(b) = CertificateVerifyMsg(si.protocol_version,a,sign)
 	}
 val certificateVerifyCheck: si:SessionInfo -> (;si)PRF.masterSecret -> al:Sig.alg list -> l:log -> payload:bytes ->
-	b:bool * sign:bytes{
-	  b = true => (?a.
+	b:bool * a:Sig.alg * sign:bytes{
+	  b = true => (
 		   MessageBytes(HT_certificate_verify,B(payload)) = CertificateVerifyMsg(si.protocol_version,a,sign)
 		/\ ((si.protocol_version <> SSL_3p0 /\ Sig.Strong(a) /\ Sig.Honest(a,Cert.SigPKCert(si.clientID,a))) =>
                     Sig.Msg(a,Cert.SigPKCert(si.clientID,a),l)))}
@@ -448,6 +448,7 @@ definition !si,si'.
       si'.extensions = si.extensions /\
       si'.session_hash = si.session_hash /\
       si'.serverID = si.serverID /\
+      si'.serverSigAlg = si.serverSigAlg /\
       si'.client_auth = si.client_auth /\
       si'.sessionID = si.sessionID)
 
@@ -463,10 +464,48 @@ definition !si,si'.
       si'.extensions = si.extensions /\
       si'.pmsId = si.pmsId /\
       si'.session_hash = si.session_hash /\
+      si'.clientSigAlg = si.clientSigAlg /\
       si'.serverID = si.serverID /\
+      si'.serverSigAlg = si.serverSigAlg /\
       si'.client_auth = si.client_auth /\
       si'.sessionID = si.sessionID)
 
+
+predicate UpdatesClientIDSigAlg of SessionInfo * SessionInfo
+definition !si,si'.
+   UpdatesClientIDSigAlg(si,si') <=>
+     (si'.init_crand = si.init_crand /\
+      si'.init_srand = si.init_srand /\
+      si'.protocol_version = si.protocol_version /\
+      si'.cipher_suite = si.cipher_suite /\
+      si'.compression = si.compression /\
+      si'.extensions = si.extensions /\
+      si'.pmsId = si.pmsId /\
+      si'.session_hash = si.session_hash /\
+      si'.serverID = si.serverID /\
+      si'.serverSigAlg = si.serverSigAlg /\
+      si'.client_auth = si.client_auth /\
+      si'.sessionID = si.sessionID)
+
+
+predicate UpdatesClientSigAlg of SessionInfo * SessionInfo
+definition !si,si'.
+   UpdatesClientSigAlg(si,si') <=>
+     (si'.init_crand = si.init_crand /\
+      si'.init_srand = si.init_srand /\
+      si'.protocol_version = si.protocol_version /\
+      si'.cipher_suite = si.cipher_suite /\
+      si'.compression = si.compression /\
+      si'.extensions = si.extensions /\
+      si'.pmsId = si.pmsId /\
+      si'.session_hash = si.session_hash /\
+      si'.clientID = si.clientID /\
+      si'.serverID = si.serverID /\
+      si'.serverSigAlg = si.serverSigAlg /\
+      si'.client_auth = si.client_auth /\
+      si'.sessionID = si.sessionID)
+
+ask !si,si'. UpdatesClientSigAlg(si,si') => MsI(si) = MsI(si')
 
 predicate ServerLogBeforeClientKeyExchangeRSA of SessionInfo * ProtocolVersion * log 
 predicate ServerLogBeforeClientKeyExchangeRSA_Auth of SessionInfo * ProtocolVersion * log 
@@ -590,7 +629,8 @@ definition !si,pv,l.
 
 definition !si,l.
   ServerLogBeforeClientFinishedRSA_Auth(si,l) <=>
-  (?l',a,sign. ServerLogBeforeClientCertificateVerifyRSA(si,l') /\
+  (?si',l',a,sign. ServerLogBeforeClientCertificateVerifyRSA(si',l') /\
+   UpdatesClientSigAlg(si',si) /\
    (B(l) = B(l') @| CertificateVerifyMsg(si.protocol_version,a,sign)))
 
 definition !si,l.
@@ -625,7 +665,8 @@ definition
 
 definition !si,l.
   ServerLogBeforeClientFinished_Auth(si,l) <=>
-  (?l',a,sign. ServerLogBeforeClientCertificateVerify(si,l') /\
+  (?si',l',a,sign. ServerLogBeforeClientCertificateVerify(si',l') /\
+   UpdatesClientSigAlg(si',si) /\
    (B(l) = B(l') @| CertificateVerifyMsg(si.protocol_version,a,sign)))
 
 definition !si,l.
@@ -709,6 +750,39 @@ definition !si,l.
      B(l) = B(l') @| 
      ServerHelloMsg(si.protocol_version,si.init_srand,si.sessionID,si.cipher_suite,si.compression,ex2))
 
+predicate UpdatesServerIDSigAlg of SessionInfo * SessionInfo
+definition !si,si'.
+   UpdatesServerIDSigAlg(si,si') <=>
+     (si'.init_crand = si.init_crand /\
+      si'.init_srand = si.init_srand /\
+      si'.protocol_version = si.protocol_version /\
+      si'.cipher_suite = si.cipher_suite /\
+      si'.compression = si.compression /\
+      si'.extensions = si.extensions /\
+      si'.pmsId = si.pmsId /\
+      si'.session_hash = si.session_hash /\
+      si'.clientID = si.clientID /\
+      si'.clientSigAlg = si.clientSigAlg /\
+      si'.client_auth = si.client_auth /\
+      si'.sessionID = si.sessionID)
+
+predicate UpdatesServerSigAlg of SessionInfo * SessionInfo
+definition !si,si'.
+   UpdatesServerSigAlg(si,si') <=>
+     (si'.init_crand = si.init_crand /\
+      si'.init_srand = si.init_srand /\
+      si'.protocol_version = si.protocol_version /\
+      si'.cipher_suite = si.cipher_suite /\
+      si'.compression = si.compression /\
+      si'.extensions = si.extensions /\
+      si'.pmsId = si.pmsId /\
+      si'.session_hash = si.session_hash /\
+      si'.clientID = si.clientID /\
+      si'.serverID = si.serverID /\
+      si'.clientSigAlg = si.clientSigAlg /\
+      si'.client_auth = si.client_auth /\
+      si'.sessionID = si.sessionID)
+
 predicate UpdatesServerID of SessionInfo * SessionInfo
 definition !si,si'.
    UpdatesServerID(si,si') <=>
@@ -721,6 +795,8 @@ definition !si,si'.
       si'.pmsId = si.pmsId /\
       si'.session_hash = si.session_hash /\
       si'.clientID = si.clientID /\
+      si'.serverSigAlg = si.serverSigAlg /\
+      si'.clientSigAlg = si.clientSigAlg /\
       si'.client_auth = si.client_auth /\
       si'.sessionID = si.sessionID)
 
@@ -742,7 +818,9 @@ definition !si,pv,l.
 predicate ClientLogBeforeCertificateRequestDHE of SessionInfo * log 
 definition !si,l. 
   ClientLogBeforeCertificateRequestDHE(si,l) <=>
-  (?l',p,g,y,a,pv,sign. ClientLogBeforeServerKeyExchangeDHE(si,l') /\
+  (?si',l',p,g,y,a,pv,sign. 
+     ClientLogBeforeServerKeyExchangeDHE(si',l') /\
+     UpdatesServerSigAlg(si',si) /\
      B(l) = B(l') @| ServerKeyExchangeMsg_DHE(pv,p,g,y,a,sign))
 
 
@@ -758,7 +836,9 @@ definition !si,si'.
       si'.pmsId = si.pmsId /\
       si'.session_hash = si.session_hash /\
       si'.clientID = si.clientID /\
+      si'.clientSigAlg = si.clientSigAlg /\
       si'.serverID = si.serverID /\
+      si'.serverSigAlg = si.serverSigAlg /\
       si'.sessionID = si.sessionID)
 
 predicate ClientLogBeforeServerHelloDoneRSA of SessionInfo * log 

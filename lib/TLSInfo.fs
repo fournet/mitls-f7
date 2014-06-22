@@ -77,7 +77,9 @@ type SessionInfo = {
     session_hash: sessionHash;
     client_auth: bool;
     clientID: Cert.cert list;
+    clientSigAlg: Sig.alg;
     serverID: Cert.cert list;
+    serverSigAlg: Sig.alg;
     sessionID: sessionID;
     }
 

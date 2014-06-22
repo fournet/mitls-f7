@@ -102,12 +102,12 @@ type negotiatedExtensions = negotiatedExtension list
 // -------------------------------------------------------------------
 // Pre Master Secret indexes 
 
-private type pmsId = // we use pmsId as an opaque index to pms
+type pmsId = // we use pmsId as an opaque index to pms
     | NoPmsId 
     | SomePmsId of PMS.pms
 
 function val PmsId: PMS.pms -> pmsId
-private definition !pms. PmsId(pms) = SomePmsId(pms)
+definition !pms. PmsId(pms) = SomePmsId(pms)
 val pmsId: pms:PMS.pms -> id:pmsId{ id = PmsId(pms) } 
 
 // ``this pms is honestly generated and used only for extraction''
@@ -176,7 +176,9 @@ type SessionInfo = {
     session_hash: sessionHash;
     client_auth: bool;
     clientID: Cert.cert list;
+    clientSigAlg: Sig.alg;
     serverID: Cert.cert list;
+    serverSigAlg: Sig.alg;
     sessionID: sessionID
     }
 

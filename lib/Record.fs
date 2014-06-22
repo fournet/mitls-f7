@@ -57,13 +57,13 @@ let recordPacketOut e conn pv rg ct fragment =
     | Correct compressed ->
     *)
     let initEpoch = isInitEpoch e in
-    match (initEpoch, conn) with
-    | (true,NullState) ->
+    match conn with
+    | NullState when initEpoch = true ->
         let i = id e in // doesn't typechecke
         let payload = TLSFragment.reprFragment i ct rg fragment in
         let packet = makePacket ct pv payload in
         (conn,packet)
-    | (false,SomeState(history,state)) ->
+    | SomeState(history,state) when initEpoch = false ->
         let i = id e in
         let ad = StatefulPlain.makeAD i ct in
         let sh = StatefulLHAE.history i Writer state in
@@ -102,14 +102,14 @@ let recordPacketOut2 conn clen ct fragment =
 
 let recordPacketIn e conn ct payload =
     let initEpoch = isInitEpoch e in
-    match (initEpoch,conn) with
-    | (true,NullState) ->
+    match conn with
+    | NullState when initEpoch ->
         let plen = length payload in
         let rg = (plen,plen) in
         let i = id e in
         let msg = TLSFragment.fragment i ct rg payload in
         correct(conn,rg,msg)
-    | (false,SomeState(history,state)) ->
+    | SomeState(history,state) when initEpoch = false ->
         let i = id e in
         let ad = StatefulPlain.makeAD i ct in
         let decr = StatefulLHAE.decrypt i state ad payload in

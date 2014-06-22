@@ -6,6 +6,14 @@
    Remove injected Pi.assume(LMsg(...)) for signature use
    Add elements from the epoch into log predicate: cr,sr,cvd,svd,role
    Added cr, sr into resumption log predicates. Need to add cvd, svd into all predicates.
+
+   Maybe rename SentCCS to EpochFinished? Just before makeVerifyData. Maybe add a new event after makeVerifyData.
+
+   Want to remove CompleteEpoch. Make Complete private. Use only asks.
+   Want to introduce special SentCCSResume
+   Want to introduce clientSigAlg and serverSigAlg in SessionInfo
+   Want to introduce vd_out and vd_in into ConnectionInfo: update when sending CCS, when receiving Finished
+   Introduce old and new vd into SentCCS and SentCCSResume
 *)
 
 (* 
@@ -108,7 +116,6 @@ private definition !a,k,t. Sig.Msg(a,k,t)
            )
 
 
-
 ask !si,pk,pv,r,t,a,k. 
            ClientLogBeforeCertificateVerifyRSA_Auth(si,t) 
          /\ si.pmsId = PmsId(PMS.RSAPMS(pk,pv,r)) 
@@ -131,6 +138,30 @@ ask !si,p,g,gs,a,k,t.
            DHGroup.PP(p,g) /\ DH.HonestExponential(p,g,gs) /\ 
            k = Cert.SigPKCert(si.serverID,a)
            => Sig.Msg(a,k,t)
+
+
+(*
+
+assume !si,si',p,g,gs,t. 
+           B(t) = B(si.init_crand) @| B(si.init_srand) @| DHEParamBytes(p,g,gs) /\
+           Length(si.init_crand) = 32 /\
+           Length(si.init_srand) = 32 /\
+           ClientLogBeforeCertificateVerifyRSA_Auth(si',t) => false
+
+assume !si,si',p,g,gs,t. 
+           B(t) = B(si.init_crand) @| B(si.init_srand) @| DHEParamBytes(p,g,gs) /\
+           Length(si.init_crand) = 32 /\
+           Length(si.init_srand) = 32 /\
+           ClientLogBeforeCertificateVerifyDHE_Auth(si',t) => false
+
+ask !si,p,g,gs,a,k,t. 
+           B(t) = B(si.init_crand) @| B(si.init_srand) @| DHEParamBytes(p,g,gs) /\
+           Length(si.init_crand) = 32 /\
+           Length(si.init_srand) = 32 /\
+           Sig.Msg(a,k,t) /\
+           k = Cert.SigPKCert(si.serverID,a) =>
+           (DHGroup.PP(p,g) /\ DH.HonestExponential(p,g,gs))
+*)
 
 
 predicate LMsg of  a:Sig.alg * (;a)Sig.skey * log // CF only for testing, will go
@@ -193,7 +224,8 @@ definition !role,e.
   <=>
    (IsSuccEpoch(e) /\ IsValidEpoch(e) /\ IsValidEpoch(Pred(e)) /\
    (SafeVD(EpochSI(e))  => (Open(e) /\ Match(Id(e)))) /\
-   (!pk,pv,r. role = Client /\ EpochSI(e).pmsId = PmsId(PMS.RSAPMS(pk,pv,r)) /\ pk = Cert.RSAPKCert(EpochSI(e).serverID) /\ 
+   (!pk,pv,r. role = Client /\ EpochSI(e).pmsId = PmsId(PMS.RSAPMS(pk,pv,r)) /\ 
+              pk = Cert.RSAPKCert(EpochSI(e).serverID) /\ 
               PMS.SafeRSA(pk,pv) => HonestPMS(EpochSI(e).pmsId)) /\
    (!pk,pv,r,a. role = Server /\ EpochSI(e).client_auth = true /\ EpochSI(e).pmsId = PmsId(PMS.RSAPMS(pk,pv,r)) /\ 
               pk = Cert.RSAPKCert(EpochSI(e).serverID) /\ PMS.SafeRSA(pk,pv) /\ Sig.Safe(a,Cert.SigPKCert(EpochSI(e).clientID,a))  
@@ -341,7 +373,6 @@ type (;ci:ConnectionInfo) serverState =  (* note that the CertRequest bits are d
    | ClientFinishedResume         of si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * sv:sVerifyData * l:log{
        EpochSI(e)=si /\ 
        e = ci.id_in /\
-       CompleteEpoch(Server,ci.id_out) /\
        EpochSI(e) = EpochSI(ci.id_out) /\
        B(EpochSRand(e)) = B(EpochSRand(ci.id_out)) /\
        B(EpochCRand(e)) = B(EpochCRand(ci.id_out)) /\
@@ -370,14 +401,23 @@ type (;ci:ConnectionInfo) clientState =
    | ServerCertificateDHE         of si:SessionInfo * l:log{ClientLogBeforeServerCertificate(si,l)} 
    | ClientCheckingCertificateDHE of si:SessionInfo * l:log * ser:Cert.chain * ProtocolVersion option * b:bytes{ClientLogBeforeServerCertificate(si,l) /\ B(b) = CertificateMsg(ser)}
    | ServerKeyExchangeDHE         of si:SessionInfo * l:log{si.serverID <> [] /\ ClientLogBeforeServerKeyExchangeDHE(si,l) /\ Authorize(Client,si)}
-   | CertificateRequestDHE        of si:SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p,g)DHGroup.elt * l:log{ClientLogBeforeCertificateRequestDHE(si,l) /\ Authorize(Client,si)}
-   | ServerHelloDoneDHE           of si:SessionInfo * Cert.sign_cert * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p,g)DHGroup.elt * l:log{ClientLogBeforeServerHelloDoneDHE(si,l) /\ Authorize(Client,si) /\ si.client_auth = true}
+   | CertificateRequestDHE        of si:SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p,g)DHGroup.elt * l:log{
+                                  (Sig.Safe(si.serverSigAlg,Cert.SigPKCert(si.serverID,si.serverSigAlg)) => (DHGroup.PP(p,g) /\ DH.HonestExponential(p,g,gx))) /\
+                                  ClientLogBeforeCertificateRequestDHE(si,l) /\ Authorize(Client,si)}
+   | ServerHelloDoneDHE           of si:SessionInfo * Cert.sign_cert * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p,g)DHGroup.elt * l:log{
+                                  (Sig.Safe(si.serverSigAlg,Cert.SigPKCert(si.serverID,si.serverSigAlg)) => (DHGroup.PP(p,g) /\ DH.HonestExponential(p,g,gx))) /\
+                                  ClientLogBeforeServerHelloDoneDHE(si,l) /\ Authorize(Client,si) /\ si.client_auth = true}
 
    | ServerKeyExchangeDH_anon of SessionInfo * log (* Not supported yet *)
    | ServerHelloDoneDH_anon of SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p,g)DHGroup.elt * log
 
-   | ClientWritingCCS       of si:SessionInfo * (;si)PRF.masterSecret * l:log{ClientLogBeforeClientFinished(si,l) /\ Authorize(Client,si)}
+   | ClientWritingCCS       of si:SessionInfo * (;si)PRF.masterSecret * l:log{
+                                  (!p,g,gc,gs,r. si.pmsId = PmsId(PMS.DHPMS(p,g,gc,gs,r)) /\
+                                                 Sig.Safe(si.serverSigAlg,Cert.SigPKCert(si.serverID,si.serverSigAlg)) => HonestPMS(si.pmsId)) /\
+                                  ClientLogBeforeClientFinished(si,l) /\ Authorize(Client,si)}
    | ServerCCS              of (si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * r:(;Id(e))StatefulLHAE.reader * cv:cVerifyData * l:log){ 
+         (!p,g,gc,gs,r. si.pmsId = PmsId(PMS.DHPMS(p,g,gc,gs,r)) /\ 
+                        Sig.Safe(si.serverSigAlg,Cert.SigPKCert(si.serverID,si.serverSigAlg)) => HonestPMS(si.pmsId)) /\
      	 EpochSI(e)=si  /\ 
          EpochWriter(e) = DualRole(ci.role) /\
          ClientLogBeforeServerFinished(si,l) /\ 
@@ -394,12 +434,15 @@ type (;ci:ConnectionInfo) clientState =
    | ServerFinished         of si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * cv:cVerifyData * l:log{ClientLogBeforeServerFinished(si,l) /\
                                                                                                                EpochSI(e)=si  /\ 
                                                                                                                IsSuccEpoch(ci.id_out) /\ IsSuccEpoch(ci.id_in) /\
-                                                                                                               CompleteEpoch(ci.role,ci.id_out) /\
                                                                                                                EpochSI(ci.id_in) = EpochSI(ci.id_out) /\
                                                                                                                B(EpochCRand(ci.id_in)) = B(EpochCRand(ci.id_out)) /\  
                                                                                                                B(EpochSRand(ci.id_in)) = B(EpochSRand(ci.id_out)) /\  
                                                                                                                // EvSentFinishedFirst(ci,true) /\
-                                                                                                               Authorize(Client,si)}
+                                                                                                               Authorize(Client,si) /\
+                                                                                                               (!a,p,g,gs,gc,r. si.pmsId = PmsId(PMS.DHPMS(p,g,gc,gs,r)) /\ 
+                                                                                                                             Sig.Safe(a,Cert.SigPKCert(si.serverID,a)) => HonestPMS(si.pmsId)) 
+
+                                                                                                                             }
 
    | ServerCCSResume        of (ew:succEpoch * w:(;Id(ew))StatefulLHAE.writer * er:succEpoch * r:(;Id(er))StatefulLHAE.reader * (;EpochSI(ew))PRF.masterSecret * l:log){
          NextEpochs(ci.id_in,ci.id_out,er,ew) /\
@@ -613,14 +656,19 @@ val prepare_client_output_full_RSA: ci:ConnectionInfo{ci.role = Client} -> st:(;
 	si:SessionInfo -> Cert.sign_cert -> 
         l:log{ClientLogAfterServerHelloDoneRSA(si,l) /\ Authorize(Client,si)} ->
 	(st':(;ci)hs_state * si':SessionInfo * (;si')PRF.masterSecret * 
-         l':log{ClientLogBeforeClientFinishedRSA(si',l') /\ Authorize(Client,si') /\ 
+         l':log{(UpdatesPmsClientID(si,si') /\
+               ?pv,r. si'.pmsId = PmsId(PMS.RSAPMS(Cert.RSAPKCert(si'.serverID),pv,r))) /\
+                ClientLogBeforeClientFinishedRSA(si',l') /\ Authorize(Client,si') /\ 
                 Config(ci,st) = Config(ci,st')}) Result
 val prepare_client_output_full_DHE: ci:ConnectionInfo{ci.role = Client} -> st:(;ci)hs_state ->
 	si:SessionInfo -> Cert.sign_cert ->
-	p:DHGroup.p -> g:(;p)DHGroup.g -> (;p,g)DHGroup.elt -> 
+	p:DHGroup.p -> g:(;p)DHGroup.g -> gs:(;p,g)DHGroup.elt -> 
         l:log{ClientLogAfterServerHelloDoneDHE(si,l) /\ Authorize(Client,si)} ->
 	(st':(;ci)hs_state * si':SessionInfo * (;si')PRF.masterSecret * 
-         l':log{ClientLogBeforeClientFinishedDHE(si',l') /\ Authorize(Client,si') /\ Config(ci,st) = Config(ci,st')}) Result
+         l':log{ UpdatesPmsClientID(si,si') /\
+                 (?gc,r. si'.pmsId = PmsId(PMS.DHPMS(p,g,gc,gs,r)) /\
+                         ((DH.HonestExponential(p,g,gs) /\ DHGroup.PP(p,g)) => HonestPMS(si'.pmsId))) /\
+                 ClientLogBeforeClientFinishedDHE(si',l') /\ Authorize(Client,si') /\ Config(ci,st) = Config(ci,st')}) Result
 
 val on_serverHello_full: ci:ConnectionInfo{ci.role = Client} -> cr:crand -> l:log -> to_log:bytes ->
          (pv:ProtocolVersion * sr:random * sid:sessionID * cs:cipherSuite * cm:Compression * ext:bytes){

@@ -179,21 +179,23 @@ let popSid data =
                 Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let popCS data =
-    match popCSBytes data with
+    let d = popCSBytes data in
+    match d with
     | Error z -> Error z
     | Correct data ->
         let (csb, r) = data in
             match parseCipherSuites csb with
             | Error z -> Error z
-            | Correct cs -> let aout = (cs, r) in Correct aout
+            | Correct cs -> let aout = (cs, r) in correct aout
 
 let popCP data =
-    match popCPBytes data with
+    let d = popCPBytes data in
+    match d with
     | Error z -> Error z
     | Correct data ->
         let (cpb, r) = data in
         let cp = parseCompressions cpb in
-            Correct (cp, r)
+            correct (cp, r)
 
 let parseClientHelloDumb data =
     (* Protocol version *)
@@ -579,17 +581,17 @@ let certificateVerifyCheck si ms algs log payload =
         match si.protocol_version with
         | TLS_1p2 | TLS_1p1 | TLS_1p0 ->
             match Cert.get_chain_public_signing_key si.clientID alg with
-            | Error(z) -> (false,empty_bytes)
+            | Error(z) -> (false,alg,empty_bytes)
             | Correct(vkey) ->
                 let res = Sig.verify alg vkey log signature in
-                (res,signature)
+                (res,alg,signature)
         | SSL_3p0 -> 
             let (sigAlg,_) = alg in
             let alg = (sigAlg,NULL) in
             let expected = PRF.ssl_certificate_verify si ms sigAlg log in
             match Cert.get_chain_public_signing_key si.clientID alg with
-            | Error(z) -> (false,empty_bytes)
+            | Error(z) -> (false,alg,empty_bytes)
             | Correct(vkey) ->
                 let res = Sig.verify alg vkey expected signature in
-                (res,signature)
-    | Error(z) -> (false,empty_bytes)
+                (res,alg,signature)
+    | Error(z) -> (false,(SA_RSA,SHA),empty_bytes)
