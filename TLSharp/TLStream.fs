@@ -53,7 +53,8 @@ type TLStream (s:System.IO.Stream, options, b, ?own, ?sessionID) =
                 | TLS.Fatal ad -> closed <- true; raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
                 | TLS.Warning (conn,ad) -> closed <- true; raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
                 | TLS.CertQuery (conn,q,advice) -> closed <- true; raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate twice"))
-                | TLS.Handshaken conn -> closed <- false; conn
+                | TLS.CompletedFirst conn
+                | TLS.CompletedSecond conn -> closed <- false; conn
                 | TLS.Read (conn,msg) ->
                     let b = undoMsg_i conn msg
                     inbuf <- inbuf @| b
@@ -63,7 +64,8 @@ type TLStream (s:System.IO.Stream, options, b, ?own, ?sessionID) =
                 TLS.refuse conn q
                 closed <- true
                 raise (IOException(sprintf "TLS-HS: Refusing untrusted certificate"))
-        | TLS.Handshaken conn -> closed <- false; conn
+        | TLS.CompletedFirst conn
+        | TLS.CompletedSecond conn -> closed <- false; conn
         | TLS.Read (conn,msg) ->
             let b = undoMsg_i conn msg
             inbuf <- inbuf @| b
@@ -92,7 +94,8 @@ type TLStream (s:System.IO.Stream, options, b, ?own, ?sessionID) =
                 | TLS.Fatal ad -> closed <- true; raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
                 | TLS.Warning (conn,ad) -> closed <- true; raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
                 | TLS.CertQuery (conn,q,advice) -> closed <- true; raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate twice"))
-                | TLS.Handshaken conn -> closed <- false; wrapRead conn
+                | TLS.CompletedFirst conn
+                | TLS.CompletedSecond conn -> closed <- false; wrapRead conn
                 | TLS.Read (conn,msg) ->
                     let read = undoMsg_i conn msg in
                     if equalBytes read empty_bytes then
@@ -105,7 +108,8 @@ type TLStream (s:System.IO.Stream, options, b, ?own, ?sessionID) =
                 TLS.refuse conn q
                 closed <- true
                 raise (IOException(sprintf "TLS-HS: Asked to authorize a certificate"))
-        | TLS.Handshaken conn -> closed <- false; wrapRead conn
+        | TLS.CompletedFirst conn
+        | TLS.CompletedSecond conn -> closed <- false; wrapRead conn
         | TLS.Read (conn,msg) ->
             let read = undoMsg_i conn msg in
             if equalBytes read empty_bytes then

@@ -17,7 +17,8 @@ type ioresult_i =
     | Fatal     of alertDescription
     | Warning   of nextCn * alertDescription 
     | CertQuery of nextCn * query * bool
-    | Handshaken of Connection
+    | CompletedFirst  of Connection
+    | CompletedSecond of Connection
     | Read      of nextCn * msg_i
     | DontWrite of Connection
 
@@ -48,12 +49,12 @@ let read ca =
       | WriteOutcome(WError(err)) -> ReadError(None,err)
       | RAppDataDone(b) -> Read(cb,b)
       | RQuery(q,adv) -> CertQuery(cb,q,adv)
-      | RHSDone -> Handshaken(cb)
+      | RHSDone -> CompletedFirst(cb)
       | RClose -> Close (networkStream cb)
       | RFatal(ad) -> Fatal(ad)
       | RWarning(ad) -> Warning(cb,ad)
       | WriteOutcome(WriteFinished) -> DontWrite(cb)
-      | WriteOutcome(WHSDone) -> Handshaken (cb)
+      | WriteOutcome(WHSDone) -> CompletedSecond(cb)
       | WriteOutcome(SentFatal(ad,s)) -> ReadError(Some(ad),s)
       | WriteOutcome(SentClose) -> Close (networkStream cb)
       | WriteOutcome(WriteAgain) -> unexpected "[read] Dispatch.read should never return WriteAgain"
@@ -96,12 +97,12 @@ let authorize c q =
     match outcome with
       | WriteOutcome(WError(err)) -> ReadError(None,err)
       | RError(err) -> ReadError(None,err)
-      | RHSDone -> Handshaken(cb)
+      | RHSDone -> CompletedFirst(cb)
       | RClose -> Close (networkStream cb)
       | RFatal(ad) -> Fatal(ad)
       | RWarning(ad) -> Warning(cb,ad)
       | WriteOutcome(WriteFinished) -> DontWrite(cb)
-      | WriteOutcome(WHSDone) -> Handshaken (cb)
+      | WriteOutcome(WHSDone) -> CompletedSecond(cb)
       | WriteOutcome(SentFatal(ad,s)) -> ReadError(Some(ad),s)
       | WriteOutcome(SentClose) -> Close (networkStream cb)
       | WriteOutcome(WriteAgain) -> unexpected "[read] Dispatch.read should never return WriteAgain"

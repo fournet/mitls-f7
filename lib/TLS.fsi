@@ -16,7 +16,8 @@ type ioresult_i =
     | Fatal     of alertDescription
     | Warning   of nextCn * alertDescription 
     | CertQuery of nextCn * query * bool
-    | Handshaken of Connection
+    | CompletedFirst  of Connection
+    | CompletedSecond of Connection
     | Read      of nextCn * msg_i
     | DontWrite of Connection
 

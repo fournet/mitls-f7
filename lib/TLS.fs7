@@ -42,7 +42,9 @@ type (;c:Connection) ioresult_i =
   // We received the peer certificates for the next epoch, to be authorized before proceeding.
   // "advice" is what the Windows certificate store said about this certificate.
 
-| Handshaken of c':Connection {
+| CompletedFirst of c':Connection {
+  // Handshake is completed, and we have already sent our finished message,
+  // so only the incoming epoch changes
        Role(c') = Role(c)
 	/\ Rnd(c') = Rnd(c)
 	/\ Config(c') = Config(c)
@@ -50,17 +52,22 @@ type (;c:Connection) ioresult_i =
 	/\ Bytes_i(c') = B(empty_bytes)
 	/\ EvClose(CnInfo(c).id_in, Bytes_i(c))
 	/\ Handshake.Complete(CnInfo(c'))
-	/\ (
-		(Handshake.EvSentFinishedFirst(CnInfo(c'),true) /\
-			  Bytes_o(c') = Bytes_o(c)
-		   /\ ConnectionEpochOut(c') = ConnectionEpochOut(c)
-		)
-		\/
-		(Handshake.EvSentFinishedFirst(CnInfo(c'),false) /\
-			  Bytes_o(c') = B(empty_bytes)
-		   /\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
-		)
-	   )
+	/\ Bytes_o(c') = Bytes_o(c)
+	/\ ConnectionEpochOut(c') = ConnectionEpochOut(c)
+	}
+
+| CompletedSecond of c':Connection {
+  // Handshake is completed, and we sent our finished message last,
+  // so all epochs change
+       Role(c') = Role(c)
+	/\ Rnd(c') = Rnd(c)
+	/\ Config(c') = Config(c)
+	/\ ConnectionEpochIn(c) = Pred(ConnectionEpochIn(c'))
+	/\ Bytes_i(c') = B(empty_bytes)
+	/\ EvClose(CnInfo(c).id_in, Bytes_i(c))
+	/\ Handshake.Complete(CnInfo(c'))
+	/\ Bytes_o(c') = B(empty_bytes)
+	/\ ConnectionEpochOut(c) = Pred(ConnectionEpochOut(c'))
 	}
 
 | Read of c':(;c) nextCn * d:(;ConnectionEpochIn(c),CnStream_i(c)) msg_i {

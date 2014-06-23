@@ -107,10 +107,12 @@ let rec wait_handshake (c : TLS.Connection) : TLS.Connection =
         | Fatal _             -> Error.unexpected "fatal alert"
         | Warning (c, _)      -> wait_handshake c
         | CertQuery (_, _, _) -> Error.unexpected "cert. query"
-        | Handshaken c        -> c
+        | CompletedFirst c
+        | CompletedSecond c   -> c
         | Read (_, _)         -> Error.unexpected "app. data"
         | DontWrite c         -> wait_handshake c
-    | Handshaken c -> c
+    | CompletedFirst c
+    | CompletedSecond c -> c
     | Read (_, _)  -> Error.unexpected "app. data"
     | DontWrite c  -> wait_handshake c
 
@@ -137,7 +139,8 @@ let rec full_read conn d =
     | Fatal _             -> Error.unexpected "fatal alert"
     | Warning (c, _)      -> full_read c d
     | CertQuery (_, _, _) -> Error.unexpected "cert. query"
-    | Handshaken c        -> Error.unexpected "handshaken"
+    | CompletedFirst c
+    | CompletedSecond c   -> Error.unexpected "complete"
     | DontWrite c         -> full_read c d
     | Read (c, (rg, x))   ->
         let epoch  = TLS.getEpochIn  conn in

@@ -117,7 +117,8 @@ let read (fd : int) : int * bytes =
             let _ = update_fd_connection fd c.canwrite conn in
                 (EI_CERTQUERY, empty_bytes)
 
-        | TLS.Handshaken conn ->
+        | TLS.CompletedFirst conn
+        | TLS.CompletedSecond conn ->
             let _ = update_fd_connection fd true conn in
                 (EI_HANDSHAKEN, empty_bytes)
 

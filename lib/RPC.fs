@@ -70,12 +70,14 @@ let rec drainMeta = fun conn ->
         | Close(s) -> DRClosed(s)
         | Fatal(e) -> DRError(Some(e),"")
         | Warning(conn,_) -> DRContinue conn
-        | Handshaken (conn) -> DRContinue conn
+        | CompletedFirst  (conn)
+        | CompletedSecond (conn) -> DRContinue conn
         | DontWrite conn -> drainMeta conn
         | _ -> DRError(None,perror __SOURCE_FILE__ __LINE__ "Internal TLS error")
     else
         refuse conn q; DRError(None,"")
-  | Handshaken conn              -> DRContinue conn
+  | CompletedFirst conn
+  | CompletedSecond conn         -> DRContinue conn
   | DontWrite  conn              -> drainMeta conn
   | Read       (conn, _)         ->
         ignore (TLS.full_shutdown conn)
@@ -112,12 +114,14 @@ let recvMsg = fun conn ->
             if advice then
                 match authorize conn q with
                 | Warning (conn,_)
-                | Handshaken conn
+                | CompletedFirst conn
+                | CompletedSecond conn
                 | DontWrite conn   -> doit conn buffer
                 | _ -> None
             else
                 refuse conn q; None
-          | Handshaken conn              -> doit conn buffer
+          | CompletedFirst conn
+          | CompletedSecond conn         -> doit conn buffer
           | DontWrite  conn              -> doit conn buffer
           | Read       (conn, (r, d))    ->
                 let ki     = Dispatch.getEpochIn  conn in

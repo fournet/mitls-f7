@@ -171,6 +171,7 @@ ask !e,h,h',r,f. h' = ExtendHistory(e,TLSConstants.Application_data,h,r,AppDataR
 
 ask !e,h,r,p. AppDataHistory(e,h) = AppDataHistory(e,ExtendHistory(e,TLSConstants.Handshake,h,r,HandshakeRecordPlain(e,h,r,p)))
 ask !e,h,r,p. AppDataHistory(e,h) = AppDataHistory(e,ExtendHistory(e,TLSConstants.Alert,h,r,AlertRecordPlain(e,h,r,p)))
+ask !e,h,r,p. AppDataHistory(e,h) = AppDataHistory(e,ExtendHistory(e,TLSConstants.Change_cipher_spec,h,r,CCSRecordPlain(e,h,r,p)))
 
 ask !e. HandshakeHistory(e,EmptyHistory(e)) = HSFragment.EmptyStream(Id(e))
 ask !e. AlertHistory(e,EmptyHistory(e))     = HSFragment.EmptyStream(Id(e))

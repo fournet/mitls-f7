@@ -57,7 +57,8 @@ let read_server_response (c : Connection) (u : username) (tk : token) =
     | DontWrite  conn              -> TLS.half_shutdown conn; None
     | Warning    (conn, _)         -> TLS.half_shutdown conn; None
     | CertQuery  (conn, _, _)      -> TLS.half_shutdown conn; None
-    | Handshaken conn              -> TLS.half_shutdown conn; None
+    | CompletedFirst conn
+    | CompletedSecond conn         -> TLS.half_shutdown conn; None
     | Read       (conn, m)         ->
         let epoch       = TLS.getEpochIn c
         let stream      = TLS.getInStream c
@@ -86,9 +87,11 @@ let drain (c : Connection) =
         | DontWrite (c) -> Some c
         | Warning (c,_) -> TLS.half_shutdown c; None
         | CertQuery (c,_,_) -> TLS.half_shutdown c; None
-        | Handshaken (c) -> Some c
+        | CompletedFirst (c)
+        | CompletedSecond (c) -> Some c
         | Read (c,_) -> TLS.half_shutdown c; None
-    | Handshaken c              -> Some c
+    | CompletedFirst c
+    | CompletedSecond c         -> Some c
     | Read       (c, _)         -> TLS.half_shutdown c; None
 
 let rec do_request (c : Connection) (u : username) (tk : token) =
@@ -143,11 +146,13 @@ let rec handle_client_request (conn : Connection) =
             | DontWrite (_) -> None
             | Warning (conn,_) -> handle_client_request conn
             | CertQuery (_,_,_) -> None
-            | Handshaken (conn) -> handle_client_request conn
+            | CompletedFirst (conn)
+            | CompletedSecond (conn) -> handle_client_request conn
             | Read(conn,m) -> None // AP: should never happen
         else
             refuse conn q; None
-    | Handshaken conn              -> handle_client_request conn
+    | CompletedFirst conn
+    | CompletedSecond conn         -> handle_client_request conn
     | Read       (conn, m)         ->
         let (r, d) = m in
         let epoch  = TLS.getEpochIn conn in
