@@ -65,6 +65,8 @@ private val request_of_string : c:Connection -> string ->
 
 private val add_cdocument_to_channel : c:channel -> (;c) request -> cdocument -> unit
 
+val cinfos: c:channel -> ci:channel_infos{ci = CInfos(c)}
+
 (* HTTPS connection established. We wait for the first HS *)
 private val wait_handshake : Connection -> c:Connection{CanWrite(CnInfo(c))}
 

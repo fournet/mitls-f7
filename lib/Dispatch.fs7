@@ -222,6 +222,9 @@ private definition !c, c', msg.
 	ExtendS_i(c, c', msg) <=>     CnStream_i(c') = ExtendStream_i(c, msg)
                                /\ CnStream_o(c') = CnStream_o(c)
 
+ask !c,c',r,d. ExtendS_o(c,c',(r,d)) =>
+	CnStream_o(c') = DataStream.ExtendStreamDelta(ConnectionEpochOut(c),CnStream_o(c),r,d)
+
 val networkStream: Connection -> Tcp.NetworkStream
 
 type (;r:Role,c:config) nullCn = conn:Connection {
@@ -268,7 +271,7 @@ predicate val IOResult_o : Connection * 'a * Connection * writeOutcome -> bool
 definition !c,m,c',wo. IOResult_o(c,m,c',wo)  <=>
 	(
 		// Cases needed by the top level interface
-		(wo = WAppDataDone /\ Extend_o(c,c',m) /\ NextCn(c,c')) \/
+		(wo = WAppDataDone /\ Extend_o(c,c',m) /\ ExtendS_o(c,c',m) /\ NextCn(c,c')) \/
         (wo = WHSDone /\
 		  (
 			   Role(c') = Role(c)
@@ -702,17 +705,6 @@ val read: c:Connection{CnBuf_o(c) = None} ->
       IOResult_i(c,c',ro)
 	  /\ CnBuf_o(c') = CnBuf_o(c)
     }
-
-val msgWrite: c:Connection{CanWrite(CnInfo(c))} -> m:(;ConnectionEpochOut(c),CnStream_o(c))msg_o ->
-	( (r:range * d:(;ConnectionEpochOut(c),CnStream_o(c),r)DataStream.delta *
-	   f:(;ConnectionEpochOut(c),CnStream_o(c),r)AppFragment.plain *
-	   s':(;ConnectionEpochOut(c))DataStream.stream){
-			s' = AppFragment.Extend(ConnectionEpochOut(c),CnStream_o(c),r,f) /\
-			AppFragment.Payload(Id(ConnectionEpochOut(c)),r,f) =
-				DataStream.Payload(ConnectionEpochOut(c),CnStream_o(c),r,d) /\
-			MsgOBytes(c,m) = AppFragment.Payload(Id(ConnectionEpochOut(c)),r,f)
-	   }
-	)
 
 val write: c:Connection{CanWrite(CnInfo(c))} ->
 	m:(;ConnectionEpochOut(c),CnStream_o(c))msg_o ->

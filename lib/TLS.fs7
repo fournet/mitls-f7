@@ -91,7 +91,7 @@ type (;c:Connection,d:(;ConnectionEpochOut(c),CnStream_o(c)) msg_o) ioresult_o =
   // we return the fatal alert we may have sent, if any,
   // or None in case of an internal error.
 
-| WriteComplete of c':(;c) nextCn {Extend_o(c,c',d)}
+| WriteComplete of c':(;c) nextCn {Extend_o(c,c',d) /\ ExtendS_o(c,c',d)}
   // We wrote the message in full. appended to the output stream
 
 | MustRead of c':Connection {

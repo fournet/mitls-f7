@@ -841,17 +841,12 @@ let rec read c =
         | WriteOutcome(_) -> unexpected "[read] readOne should never return such write outcome"
         | RError(err) -> c,RError(err)
 
-let msgWrite (Conn(id,c)) (rg,d) =
-    let outStr = AppData.outStream id c.appdata in
-    let (f,ns) = AppFragment.fragment id.id_out outStr rg d 
-    (rg,d,f,ns)
-
-let write (Conn(id,s)) msg =
-  let res = msgWrite (Conn(id,s)) msg in
-  let (r0,d0,f0,ns) = res in
-  let new_appdata = AppData.writeAppData id s.appdata r0 f0 ns in
+let write (Conn(id,s)) (rg,d) =
+  let outStr = AppData.outStream id s.appdata in
+  let (f,ns) = AppFragment.fragment id.id_out outStr rg d
+  let new_appdata = AppData.writeAppData id s.appdata rg f ns in
   let s = {s with appdata = new_appdata} in
-  let ghost = (r0,d0,f0,ns) in
+  let ghost = (rg,d,f,ns) in
   let ghost = Some(ghost) in
   let (outcome,Conn(id,s)) = writeAllTop (Conn(id,s)) ghost in
   let new_appdata = AppData.clearOutBuf id s.appdata in
