@@ -1,15 +1,15 @@
 ﻿module RPC
 
+open Bytes
+
 // Fixed-lengths requests and responses
 
 type principal = string
-type (;a:principal, b:principal) request {
-  Request(a,b,r) \/ Corrupt(a) \/ Corrupt(b)
-}
+type (;a:principal, b:principal) request
+// { Request(a,b,r) \/ Corrupt(a) \/ Corrupt(b) }
 
-type (;a:principal, b:principal, r:request) response {
-  (Request(a,b,r) /\ Response(a,b,r,s)) \/ Corrupt(a) \/ Corrupt(b)
-}
+type (;a:principal, b:principal, r:request) response
+// { (Request(a,b,r) /\ Response(a,b,r,s)) \/ Corrupt(a) \/ Corrupt(b) }
 
 val request: a:principal -> b:principal -> m:bytes -> r:(;a,b) request 
 val response: a:principal -> b:principal -> r:(;a,b) request -> s:(;a,b,r) response
@@ -26,7 +26,7 @@ val service:
   a:principal -> b:principal -> (bytes -> bytes (*pure*) ) -> 
   r:(;a,b) request -> s:(;a,b,r) response
 
-type (;i) plain 
+type (;i:index) plain
 
 val request_msg: i:index {Client(i)} -> (;Client(i),Server(i)) request -> (;i) plain 
 val msg_request: i:index {Client(i)} -> (;i) plain -> (;Client(i),Server(i)) request
