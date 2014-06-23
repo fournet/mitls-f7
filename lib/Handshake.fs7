@@ -219,7 +219,7 @@ assume !r,si,cr,sr,si'.
 
 (* KB: revisit this defn; its evolved many times *)
 
-definition !role,e. 
+private definition !role,e. 
   CompleteEpoch(role,e) 
   <=>
    (IsSuccEpoch(e) /\ IsValidEpoch(e) /\ IsValidEpoch(Pred(e)) /\
@@ -238,13 +238,24 @@ definition !role,e.
 (* Negotiated remains to be defined but it can be a nice global spec of what HS is meant to achieve.
    Especially interesting would be proving that the result is the "best possible" *)
 
-definition !ci. Complete(ci) <=>
+private definition !ci. Complete(ci) <=>
         ( EpochSI(ci.id_in) = EpochSI(ci.id_out) /\
           B(EpochCRand(ci.id_in)) = B(EpochCRand(ci.id_out)) /\
           B(EpochSRand(ci.id_in)) = B(EpochSRand(ci.id_out)) /\
           CompleteEpoch(DualRole(ci.role),ci.id_in) /\
           CompleteEpoch(ci.role,ci.id_out))
-         
+
+ask !ci. Complete(ci) =>
+	(
+	EpochSI(ci.id_in) = EpochSI(ci.id_out) /\
+	// Epoch In
+	IsSuccEpoch(ci.id_in) /\ IsValidEpoch(ci.id_in) /\ IsValidEpoch(Pred(ci.id_in)) /\
+	(SafeVD(EpochSI(ci.id_in)) => Open(ci.id_in)) /\
+	// Epoch Out
+	IsSuccEpoch(ci.id_out) /\ IsValidEpoch(ci.id_out) /\ IsValidEpoch(Pred(ci.id_out)) /\
+	(SafeVD(EpochSI(ci.id_out)) => Open(ci.id_out))
+	)
+
 ask !ci.	
     Complete(ci) /\
     HonestPMS(EpochSI(ci.id_in).pmsId) /\	  
