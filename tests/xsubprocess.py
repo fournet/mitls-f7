@@ -120,9 +120,9 @@ class Popen(subprocess.Popen):
 
             # All data exchanged.  Translate lists into strings.
             if stdout is not None:
-                stdout = stdout[0]
+                stdout = ''.join(stdout)
             if stderr is not None:
-                stderr = stderr[0]
+                stderr = ''.join(stderr)
 
             # Translate newlines, if requested.  We cannot let the file
             # object do the translation: It is based on stdio, which is
