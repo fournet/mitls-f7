@@ -1093,8 +1093,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
 #if verify
 #else
-            | ServerHelloDoneDH_anon(si,p,g,y,log)  ->
-                failwith "should be same as the following case?"
+            | ServerHelloDoneDH_anon(si,p,g,y,log)
               
 #endif
             | CertificateRequestDHE(si,p,g,y,log) ->
