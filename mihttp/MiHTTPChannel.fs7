@@ -45,7 +45,7 @@ type cstate = {
 function val CInfos : channel -> channel_infos
 definition !i,s,l. CInfos({ channel = (i, s); lock = l; }) = i
 
-type (;h:hostname) rchannel = c:channel{fst(c.channel).hostname = h}
+type (;h:hostname) rchannel = c:channel{CInfos(c).hostname = h}
 
 private val create_with_id : channelid -> h:hostname -> (;h) rchannel
 

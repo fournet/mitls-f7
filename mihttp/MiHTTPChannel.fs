@@ -69,7 +69,8 @@ let create_config sname cname = {
 let create_with_id (cid : channelid) (host : hostname) : channel =
     let lock  = MiHTTPWorker.create_lock () in
     let infos = { channelid = cid; hostname = host; } in
-    { channel = (infos, ref initial_status);
+    let is = ref initial_status in
+    { channel = (infos, is);
       lock    = lock; }
 
 let create (host : string) =
