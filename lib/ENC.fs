@@ -61,6 +61,9 @@ let GENOne ki : state =
 let streamCipher (ki:id) (r:rw) (s:streamState)  = StreamCipher(s)
 let blockCipher (ki:id) (r:rw) (s:blockState) = BlockCipher(s)
 
+let someIV (ki:id) (iv:iv) = SomeIV(iv)
+let noIV (ki:id) = NoIV
+
 let GEN (ki:id) : encryptor * decryptor = 
     let alg = encAlg_of_id ki in
     match alg with
@@ -71,12 +74,13 @@ let GEN (ki:id) : encryptor * decryptor =
         streamCipher ki Reader ({skey = key; sstate = CoreCiphers.rc4create (k)})
     | CBC_Stale(cbc) ->
         let key = {k = Nonce.random (encKeySize alg)} in
-        let iv = SomeIV(Nonce.random (blockSize cbc)) in
+        let ivRandom = Nonce.random (blockSize cbc) in
+        let iv = someIV ki ivRandom in
         blockCipher ki Writer ({key = key; iv = iv}),
         blockCipher ki Reader ({key = key; iv = iv})
     | CBC_Fresh(_) ->
         let key = {k = Nonce.random (encKeySize alg)} in
-        let iv = NoIV in
+        let iv = noIV ki in
         blockCipher ki Writer ({key = key; iv = iv}) ,
         blockCipher ki Reader ({key = key; iv = iv}) 
     //let k = GENOne ki in (k,k)
@@ -118,7 +122,8 @@ let ENC_int ki s tlen d =
         | NoIV -> unexpected "[ENC] Wrong combination of cipher algorithm and state"
         | SomeIV(iv) ->
             let cipher = cbcenc alg s.key.k iv d
-            if length cipher <> tlen || tlen > max_TLSCipher_fragment_length then
+            let cl = length cipher in
+            if cl <> tlen || tlen > max_TLSCipher_fragment_length then
                 // unexpected, because it is enforced statically by the
                 // CompatibleLength predicate
                 unexpected "[ENC] Length of encrypted data do not match expected length"
@@ -153,6 +158,8 @@ let ENC_int ki s tlen d =
     | _, _ -> unexpected "[ENC] Wrong combination of cipher algorithm and state"
 
 #if ideal
+type event =
+  | ENCrypted of id * LHAEPlain.adata * cipher * Encode.plain
 type entry = id * LHAEPlain.adata * range * cipher * Encode.plain
 let log:entry list ref = ref []
 let rec cfind (e:id) (c:cipher) (xs: entry list) : (LHAEPlain.adata * range * Encode.plain) = 
@@ -180,6 +187,11 @@ let ENC (ki:id) s ad rg data =
     if safeId (ki) then
       let d = createBytes tlen 0 in
       let (s,c) = ENC_int ki s tlen d in
+      //let l = length c
+      //let exp = TLSInfo.max_TLSCipher_fragment_length in
+      //  if l <= exp then c
+      //  else Error.unexpected "aes_gcm_encrypt returned a ciphertext of unexpected size"
+      Pi.assume (ENCrypted(ki,ad,c,data));
       log := addtolog (ki, ad, rg, c, data) log;
       (s,c)
     else
