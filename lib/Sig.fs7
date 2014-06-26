@@ -97,7 +97,6 @@ val verify:  a:alg -> pk:(;a) pkey -> t:text -> m:(;a) sigv ->
 // MK consequently all secret keys used in runs of our protocol are thus coerced keys and we thus don't have any safe instances
 // CF these comments concern the (non)-usage of this interface, not the Sig module; relocate?
 
-
 //-------- the rest is internal to Sig.fs
 
 type honest_entry = (a:alg * sk:(;a)skey * pk:(;a)pkey{Honest(a,pk) /\ pk = PK(sk)})

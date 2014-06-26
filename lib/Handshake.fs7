@@ -235,8 +235,13 @@ private definition !role,e.
    (!p,g,gc,gs,r,a. role = Server /\ EpochSI(e).pmsId = PmsId(PMS.DHPMS(p,g,gc,gs,r)) /\ Sig.Safe(a,Cert.SigPKCert(EpochSI(e).clientID,a)) 
               => HonestPMS(EpochSI(e).pmsId)))
 
+// Line 2 of the RHS is a local invariant
+// Line 3 yields agreement from verifying the peer Finished message
+// The rest provide verified safety from the long-term keys (for both roles, for RSA then DH)
+
 (* Negotiated remains to be defined but it can be a nice global spec of what HS is meant to achieve.
    Especially interesting would be proving that the result is the "best possible" *)
+// CF irrelevant here? status?
 
 private definition !ci. Complete(ci) <=>
         ( EpochSI(ci.id_in) = EpochSI(ci.id_out) /\
