@@ -24,7 +24,7 @@ val encrypt:
 // We put in place protocol regression, Bleichenbacher and related timing attack countermeasures.
 // See RFC 5246, section 7.4.7.1
 val decrypt: 
-  sk -> si:SessionInfo -> 
+  sk -> si:SessionInfo{si.serverID <> []} -> 
   cv:ProtocolVersion -> (* highest client version *) 
   bool -> (* flag whether we should check protocol version in old TLS versions *)
   bytes -> (* encrypted PMS *)

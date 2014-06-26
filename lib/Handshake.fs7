@@ -304,9 +304,9 @@ type (;ci:ConnectionInfo) serverState =  (* note that the CertRequest bits are d
                     (* we may omit some ProtocolVersion, mostly a ghost variable *)
    | ClientHello                  of cVerifyData * sVerifyData
 
-   | ClientCertificateRSA         of (si:SessionInfo * pv:ProtocolVersion * sk:RSAKey.sk * l:log){ServerLogBeforeClientCertificateRSA_Auth(si,pv,l) /\ si.client_auth = true}
-   | ServerCheckingCertificateRSA of (si:SessionInfo * pv:ProtocolVersion * sk:RSAKey.sk * l:log * certs:Cert.chain * b:bytes){ServerLogBeforeClientCertificateRSA_Auth(si,pv,l) /\ B(b) = CertificateMsg(certs) /\ si.client_auth = true }
-   | ClientKeyExchangeRSA         of (si:SessionInfo * pv:ProtocolVersion * sk:RSAKey.sk * l:log){ServerLogBeforeClientKeyExchangeRSA(si,pv,l) /\ (si.client_auth = true => Authorize(Server,si))}
+   | ClientCertificateRSA         of (si:SessionInfo * pv:ProtocolVersion * sk:RSAKey.sk * l:log){si.serverID <> [] /\ ServerLogBeforeClientCertificateRSA_Auth(si,pv,l) /\ si.client_auth = true}
+   | ServerCheckingCertificateRSA of (si:SessionInfo * pv:ProtocolVersion * sk:RSAKey.sk * l:log * certs:Cert.chain * b:bytes){si.serverID <> [] /\ ServerLogBeforeClientCertificateRSA_Auth(si,pv,l) /\ B(b) = CertificateMsg(certs) /\ si.client_auth = true }
+   | ClientKeyExchangeRSA         of (si:SessionInfo * pv:ProtocolVersion * sk:RSAKey.sk * l:log){si.serverID <> [] /\ ServerLogBeforeClientKeyExchangeRSA(si,pv,l) /\ (si.client_auth = true => Authorize(Server,si))}
 
    | ClientCertificateDH          of si:SessionInfo * l:log
    | ServerCheckingCertificateDH  of si:SessionInfo * l:log * b:bytes
@@ -640,7 +640,7 @@ val clientKEXBytes_RSA: si:SessionInfo -> c:config ->
            (?encpms. B(b)=ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
 		}) Result
 
-val parseClientKEX_RSA: si:SessionInfo -> RSAKey.sk -> pv:ProtocolVersion -> config -> b:bytes ->
+val parseClientKEX_RSA: si:SessionInfo{si.serverID <> []} -> RSAKey.sk -> pv:ProtocolVersion -> config -> b:bytes ->
 	(
          (pk:RSAKey.pk * (;pk,pv)PMS.rsapms){ pk = Cert.RSAPKCert(si.serverID) /\
            ?encpms. ClientKeyExchangeMsg_RSA(si.protocol_version,encpms) = MessageBytes(HT_client_key_exchange,B(b))
