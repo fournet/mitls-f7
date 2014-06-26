@@ -8,7 +8,7 @@ type lbytes = bytes
 val empty_bytes: bytes
 val abytes: byte[] -> bytes
 val abyte: byte -> bytes
-val abyte2: byte * byte -> bytes
+val abyte2: (byte * byte) -> bytes
 val cbytes: bytes -> byte[]
 val cbyte: bytes -> byte
 val cbyte2: bytes -> byte * byte 
