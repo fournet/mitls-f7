@@ -61,9 +61,10 @@ ifndef F7PATH
 $(error F7PATH is not set)
 endif
 ifeq ($(buildtype),cygwin)
-F7PATH_W = $(shell cygpath.exe -m $(F7PATH))
+F7PATH   := $(shell cygpath -u $$F7PATH)
+F7PATH_W := $(shell cygpath -m $(F7PATH))
 else
-F7PATH_W = $(F7PATH)
+F7PATH_W  = $(F7PATH)
 endif
 
 lib7      = $(F7PATH)/samples/lib/fs7-interfaces/
