@@ -10,3 +10,7 @@ tls-*.sdf
 *.tgz
 *.suo
 *.pyc
+
+*.tc7
+*.smp
+*.why
