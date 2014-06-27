@@ -151,34 +151,19 @@ let rec validate_x509list (c : X509Certificate2) (issuers : X509Certificate2 lis
             chain.ChainPolicy.ExtraStore.AddRange(List.toArray issuers);
             chain.ChainPolicy.RevocationMode <- X509RevocationMode.NoCheck;
 
-            let test = not (chain.Build(c));
-            
-            if test then
-                false
-            else
-                let eq_thumbprint (c1 : X509Certificate2) (c2 : X509Certificate2) =
-                    c1.Thumbprint = c2.Thumbprint
-                in
-                    let certschain =
-                        chain.ChainElements
-                            |> Seq.cast
-                            |> (Seq.map (fun (ce : X509ChainElement) -> ce.Certificate))
-                            |> Seq.toList
-                            
-                    in
-                        let result =
-                            (certschain.Length >= issuers.Length)
-                            && Seq.forall2 eq_thumbprint certschain issuers
-                        result
+            chain.Build(c)
     with :? CryptographicException -> false
 
 (* ------------------------------------------------------------------------ *)
 
-let validate_x509_chain (sigkeyalgs : Sig.alg list) (x509 : X509Certificate2) (chain : chain) =
+let validate_x509_chain (sigkeyalgs : Sig.alg list) (chain : chain) =
     match chain_to_x509list chain with
     | Some(x509list) ->
-                Seq.forall (x509_check_key_sig_alg_one sigkeyalgs) (x509 :: x509list)
-                && validate_x509list x509 (x509::x509list)
+        match x509list with
+        | [] -> false
+        | c::issuers ->
+                Seq.forall (x509_check_key_sig_alg_one sigkeyalgs) x509list
+                && validate_x509list c issuers
     | None -> false
 
 let is_for_signing (c : cert) =

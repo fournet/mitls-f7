@@ -41,7 +41,7 @@ val x509list_to_chain: X509Certificate2 list -> chain
  * signing the keys of the chain.
  *)
 
-val validate_x509_chain: Sig.alg list -> X509Certificate2 -> chain -> bool
+val validate_x509_chain: Sig.alg list -> chain -> bool
 
 val validate_x509list: X509Certificate2 -> X509Certificate2 list -> bool
 

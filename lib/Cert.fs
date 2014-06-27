@@ -139,14 +139,7 @@ let signing_gen (a:Sig.alg) : Sig.pkey =
 
 
 let validate_cert_chain (sigkeyalgs : Sig.alg list) (chain : chain) =
-    match chain with
-    | []           -> false
-    | c :: issuers ->
-        match cert_to_x509 c with 
-        | Some(x509) ->  
-            validate_x509_chain sigkeyalgs x509 issuers  
-        | None ->
-            false
+    validate_x509_chain sigkeyalgs chain  
 
 (* ------------------------------------------------------------------------ *)
 #if verify
