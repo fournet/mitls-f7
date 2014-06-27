@@ -10,7 +10,7 @@ type Value = bytes * bool
 type t
 
 val create: string -> t
-val select: t -> bytes -> bytes -> Value option
-val insert: t -> bytes -> bytes -> Value -> t
-val remove: t -> bytes -> bytes -> t
+val select: t -> Key -> Value option
+val insert: t -> Key -> Value -> t
+val remove: t -> Key -> t
 val keys  : t -> Key list

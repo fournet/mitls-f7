@@ -46,8 +46,8 @@ let create (filename:string) =
     self
 
 (* ------------------------------------------------------------------------------- *)
-let remove self p g =
-    let key = bytes_of_key (p,g) in
+let remove self key =
+    let key = bytes_of_key key in
   
     let db  = DB.opendb self.filename in
 
@@ -58,8 +58,8 @@ let remove self p g =
         DB.closedb db
 
 (* ------------------------------------------------------------------------------- *)
-let select self p g =
-    let key = bytes_of_key (p,g) in
+let select self key =
+    let key = bytes_of_key key in
 
     let select (db : DB.db) =
         DB.get db key
@@ -73,8 +73,8 @@ let select self p g =
         DB.closedb db
 
 (* ------------------------------------------------------------------------------- *)
-let insert self p g v =
-    let key = bytes_of_key (p,g) in
+let insert self key v =
+    let key = bytes_of_key key in
   
     let insert (db : DB.db) =
         match DB.get db key with

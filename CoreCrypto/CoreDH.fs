@@ -193,10 +193,10 @@ let dhDB = DHDB.create "dhparams-db.db"
 
 (* ------------------------------------------------------------------------ *)
 let check_params (pbytes:bytes) (gbytes:bytes) =
-    let p = new BigInteger(1, cbytes pbytes)
-    let g = new BigInteger(1, cbytes gbytes)
-    match DHDB.select dhDB pbytes gbytes with 
-    | None -> // unknown group  
+    match DHDB.select dhDB (pbytes, gbytes) with 
+    | None -> // unknown group
+        let p = new BigInteger(1, cbytes pbytes) in
+        let g = new BigInteger(1, cbytes gbytes) in
         // check g in [2,p-2]
         let pm1 = p.Subtract(BigInteger.One)
         if ((g.CompareTo BigInteger.One) > 0) && ((g.CompareTo pm1) < 0) then
@@ -204,13 +204,13 @@ let check_params (pbytes:bytes) (gbytes:bytes) =
             let q = pm1.Divide(BigInteger.Two)
             if p.IsProbablePrime(80) && q.IsProbablePrime(80) then 
                 let qbytes = abytes (q.ToByteArrayUnsigned())
-                ignore (DHDB.insert dhDB pbytes gbytes (qbytes, true))
+                ignore (DHDB.insert dhDB (pbytes, gbytes) (qbytes, true))
                 true
             else
-                // Error.unexpected "check_params: group with unknown order"
+                // group with unknown order
                 false
         else
-            // Error.unexpected "check_params: group with small order"
+            // "group with small order"
             false    
     | _ -> true // known group
  
@@ -219,16 +219,21 @@ let check_element (pbytes:bytes) (gbytes:bytes) (ebytes:bytes) =
     let e   = new BigInteger(1, cbytes ebytes)
     let pm1 = p.Subtract(BigInteger.One)
     // check e in [2,p-2]
-    ((e.CompareTo BigInteger.One) > 0) && ((e.CompareTo pm1) < 0) &&
-    // check if p is a safe prime or a prime with a known q
-    match DHDB.select dhDB pbytes gbytes with 
-    | Some(qbytes,true) ->  // known safe prime
-        true
-    | Some(qbytes,false) -> // known non-safe prime  
-        let q = new BigInteger(1, cbytes qbytes)
-        let r = e.ModPow(q, p)
-        // For OpenSSL-generated parameters order(g) = 2q, so e^q mod p = p-1
-        r.Equals(BigInteger.One) || r.Equals(pm1)
-    | None -> 
-        Error.unexpected "check_element: unknown DH group"
+    if ((e.CompareTo BigInteger.One) > 0) && ((e.CompareTo pm1) < 0) then
+        // check if p is a safe prime or a prime with a known q
+        match DHDB.select dhDB (pbytes, gbytes) with 
+        | Some(qbytes,true) ->  // known safe prime
+            true
+        | Some(qbytes,false) -> // known non-safe prime
+            let q = new BigInteger(1, cbytes qbytes)
+            let r = e.ModPow(q, p)
+            // For OpenSSL-generated parameters order(g) = 2q, so e^q mod p = p-1
+            r.Equals(BigInteger.One) || r.Equals(pm1)
+        | None -> 
+            // unknown DH group.
+            // Actually unreachable code, because:
+            // as a server, we always propose known groups;
+            // as a client, we always check the group.
+            false
+    else
         false
