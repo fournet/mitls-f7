@@ -5,10 +5,10 @@ open Bytes
 type p = bytes // DH modulus, actually a bignum
 type q = bytes // subgroup order
 
-// For public parameters and exchange values.
+// For public parameters and exchanged values.
 // We use an abstract predicate to ensure that elements 
 // are bytes that have been correctly generated or checked,
-// e.g. Elt(p,g,b) => Num(b) in [2..p-1] /\ order(b) = order(g)
+// e.g. Elt(p,g,b) => Num(b) in [2..p-1) /\ order(b) = order(g)
 
 predicate type preds = Elt of bytes * bytes * bytes
 
