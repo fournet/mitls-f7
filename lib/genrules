@@ -57,17 +57,30 @@ FS7DEFAULT = [
 MKHEADER = '''\
 include ../Makefile.config
 
-lib7      = ../../../lib/fs7-interfaces/
+ifndef F7PATH
+$(error F7PATH is not set)
+endif
+ifeq ($(buildtype),cygwin)
+F7PATH_W = $(shell cygpath.exe -m $(F7PATH))
+else
+F7PATH_W = $(F7PATH)
+endif
+
+lib7      = $(F7PATH)/samples/lib/fs7-interfaces/
 libperv   = $(lib7)pervasives.fs7 $(lib7)tuples.fs7
-lperv     = -pervasives $(lib7)pervasives.fs7 -tuples $(lib7)tuples.fs7
 libfs7    = $(lib7)pi.fs7 $(lib7)formulas.fs7
+lib7_w    = $(F7PATH_W)/samples/lib/fs7-interfaces/
+lperv     = -pervasives $(lib7_w)pervasives.fs7 -tuples $(lib7_w)tuples.fs7
+libfs7_w    = $(lib7_w)pi.fs7 $(lib7_w)formulas.fs7
 f7timeout = 5
 f7defs    = avoid verify ideal
 
+f7 = $(F7PATH)/bin/f7.exe
 # removed --verbose for automated testing
-override f7flags += \\
-  -timeout $(f7timeout) $(patsubst %%,--define %%,$(f7defs)) \\
-  -nokindcheck $(lperv) $(libfs7)
+override f7flags += \
+  -z3exe $(F7PATH_W)/bin/$(z3exe) \
+  -timeout $(f7timeout) $(patsubst %%,--define %%,$(f7defs)) \
+  -nokindcheck $(lperv) $(libfs7_w)
 
 xunit ?= xunit.xml
 
