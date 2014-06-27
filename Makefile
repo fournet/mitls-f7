@@ -10,7 +10,7 @@ TAR = tar --format=posix --owner=0 --group=0
 
 include Makefile.config
 
-.PHONY: all build make.in prepare-dist
+.PHONY: all build build-debug make.in prepare-dist
 .PHONY: do-dist-check dist dist-check
 
 # --------------------------------------------------------------------
@@ -21,6 +21,9 @@ clean = $(msbuild) /v:minimal /p:Configuration=$(1) /t:Clean tls.sln
 
 build:
 	$(call build,Release)
+
+build-debug:
+	$(call build,Debug)
 
 clean:
 	$(call clean,Release)
