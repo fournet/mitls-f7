@@ -1,5 +1,7 @@
 ﻿module CoreDH
+
 open Bytes
+
 (* ------------------------------------------------------------------------ *)
 open System
 open System.IO
@@ -106,6 +108,18 @@ c8o7MMjRcCH7fDi4BIAzdEKdDYB7uEqnGJgnAoGATloSd9tu23L7FsOj/ln9n25W
 RN8YWlYEdr7gnOKo5hs=
 -----END DH PARAMETERS-----"
 
+// 1024-bit MODP Group with 160-bit Prime Order Subgroup (RFC 5114)
+// p = q*j + 1, q is a 160-bit prime, order(g) = q
+let modp_1024 = "-----BEGIN DH PARAMETERS-----
+MIIBHwKBgQCxC4+WoIDgHd6S3l6uXVTsUsmfvPsGo8aaap3KUtI7YWBz4oZ1oj0Y
+mDjvHi7mUsAT7LSuqQYRIySXXDzUm4O/rMvdfZDEvXCYSI6cIZpzck7/1vrlZEc4
++qMaT/VbzMChUa9fDci0vUW/N982XBpl5oz9p21NpwjfH7K8LkpDcQKBgQCk0cvV
+w/00EmdlpELvuZkF+BBN0lisUH/WQGz/FCZtMSZv6h5cQVZLd35pD1UE8hMWAhe0
+sBuIal6RVH+eJ0n01/vX07mpLuGQnQ0iY/gKdqaiTAh6CR9THb8KAWm2oorWYqTR
+jnOvoy13nVkY0IvIhY9Nzvl8KiSFXm7rIrOy5QIVAPUYqoeBqN8nirpOfWS3y51J
+RiNT
+-----END DH PARAMETERS-----"
+
 (* ------------------------------------------------------------------------ *)
 let save_params (stream : Stream) (dh : dhparams) =
     let writer    = new PemWriter(new StreamWriter(stream)) in
@@ -124,6 +138,7 @@ let save_params (stream : Stream) (dh : dhparams) =
     writer.WriteObject(new PemObject(PEM_DH_PARAMETERS_HEADER, derparams.GetDerEncoded()));
     writer.Writer.Flush()
 
+(* ------------------------------------------------------------------------ *)
 let save_params_to_file (file : string) (dh : dhparams) =
     let filestream = new FileStream(file, FileMode.Create, FileAccess.Write) in
     try
@@ -134,6 +149,10 @@ let save_params_to_file (file : string) (dh : dhparams) =
             filestream.Close()
     with _ ->
         false
+
+(* ------------------------------------------------------------------------ *)
+let fromHex (s:string) : bytes =
+    abytes (BigInteger(1, Org.BouncyCastle.Utilities.Encoders.Hex.Decode(s)).ToByteArrayUnsigned())
 
 (* ------------------------------------------------------------------------ *)
 let load_params (stream : Stream) : dhparams =
@@ -152,6 +171,7 @@ let load_params (stream : Stream) : dhparams =
       g = abytes (DerInteger.GetInstance(obj.Item(1)).PositiveValue.ToByteArrayUnsigned()) ;
       q = if obj.Count > 2 then Some (abytes (DerInteger.GetInstance(obj.Item(2)).PositiveValue.ToByteArrayUnsigned())) else None }
 
+(* ------------------------------------------------------------------------ *)
 let load_params_from_file (file : string) : dhparams option =
     let filestream = new FileStream(file, FileMode.Open, FileAccess.Read) in
     try
@@ -169,28 +189,46 @@ let load_default_params () =
         failwith "cannot load default DH parameters"
 
 (* ------------------------------------------------------------------------ *)
+let dhDB = DHDB.create "dhparams-db.db"
+
+(* ------------------------------------------------------------------------ *)
+let check_params (pbytes:bytes) (gbytes:bytes) =
+    let p = new BigInteger(1, cbytes pbytes)
+    let g = new BigInteger(1, cbytes gbytes)
+    match DHDB.select dhDB pbytes gbytes with 
+    | None -> // unknown group  
+        // check g in [2,p-2]
+        let pm1 = p.Subtract(BigInteger.One)
+        if ((g.CompareTo BigInteger.One) > 0) && ((g.CompareTo pm1) < 0) then
+            // check if p is a safe prime, i.e. p = 2*q + 1 with prime q
+            let q = pm1.Divide(BigInteger.Two)
+            if p.IsProbablePrime(80) && q.IsProbablePrime(80) then 
+                let qbytes = abytes (q.ToByteArrayUnsigned())
+                ignore (DHDB.insert dhDB pbytes gbytes (qbytes, true))
+                true
+            else
+                // Error.unexpected "check_params: group with unknown order"
+                false
+        else
+            // Error.unexpected "check_params: group with small order"
+            false    
+    | _ -> true // known group
+ 
 let check_element (pbytes:bytes) (gbytes:bytes) (ebytes:bytes) =
-    let p   = new BigInteger(1, cbytes pbytes) in
-    let e   = new BigInteger(1, cbytes ebytes) in
-    let pm1 = p.Subtract(BigInteger.One) in
-    // check e in [2,p-1)
+    let p   = new BigInteger(1, cbytes pbytes)
+    let e   = new BigInteger(1, cbytes ebytes)
+    let pm1 = p.Subtract(BigInteger.One)
+    // check e in [2,p-2]
     ((e.CompareTo BigInteger.One) > 0) && ((e.CompareTo pm1) < 0) &&
-    // check that e is in a large subgroup 
-    let dhparams = load_default_params () in
-    if (equalBytes dhparams.p pbytes && equalBytes dhparams.g gbytes) then
-        // default parameters; q known and trusted
-        match dhparams.q with
-        | None -> Error.unexpected("DH.check_element: q not found in default DH parameters")
-        | Some(qbytes) ->
-            let q = new BigInteger(1, cbytes qbytes) in
-            // This test is not necessary if p is a safe prime
-            let r = e.ModPow(q, p) in
-            // For OpenSSL-generated parameters order(g) = 2q, so e^q mod p = p-1
-            (r.Equals(BigInteger.One) || r.Equals(pm1))
-    else
-       // check if p is a safe prime, i.e. p = 2q+1 with prime q
-       let q = pm1.Divide(BigInteger.Two) in
-       if p.IsProbablePrime(80) && q.IsProbablePrime(80) then true // p is a safe prime
-       else 
-         //TODO we should recompute q by factoring p-1 and check that e^q mod p = 1
-         true
+    // check if p is a safe prime or a prime with a known q
+    match DHDB.select dhDB pbytes gbytes with 
+    | Some(qbytes,true) ->  // known safe prime
+        true
+    | Some(qbytes,false) -> // known non-safe prime  
+        let q = new BigInteger(1, cbytes qbytes)
+        let r = e.ModPow(q, p)
+        // For OpenSSL-generated parameters order(g) = 2q, so e^q mod p = p-1
+        r.Equals(BigInteger.One) || r.Equals(pm1)
+    | None -> 
+        Error.unexpected "check_element: unknown DH group"
+        false

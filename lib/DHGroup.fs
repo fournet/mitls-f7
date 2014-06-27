@@ -19,6 +19,15 @@ let genElement p g q: elt =
 #endif
     e
 
+let checkParams (p:p) (g:g): elt option =
+    if CoreDH.check_params p g then
+#if verify
+        Pi.assume(Elt(p,g,g));
+#endif
+        Some(g)
+    else
+        None
+
 let checkElement (p:p) (g:g) (b:bytes): elt option =
     if CoreDH.check_element p g b then
 #if verify

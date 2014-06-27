@@ -507,12 +507,12 @@ let parseDHEParams payload =
                 | Error(z) -> Error(z)
                 | Correct(res) ->
                 let (y,payload) = res in
-                // Check g and y are valid elements
-                match DHGroup.checkElement p g g with
+                // Check params and validate y
+                match DHGroup.checkParams p g with
                 | None -> Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid DH parameter received")
                 | Some(g) ->
                     match DHGroup.checkElement p g y with
-                    | None -> Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid DH parameter received")
+                    | None -> Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid DH key received")
                     | Some(y) -> correct(p,g,y,payload)
             else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
         else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
