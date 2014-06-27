@@ -21,6 +21,9 @@ type skey = dhskey
 type pkey = dhpkey
 
 (* ------------------------------------------------------------------------ *)
+let dhDB = DHDB.create "dhparams-db.db"
+
+(* ------------------------------------------------------------------------ *)
 //SZ This generates parameters with a safe prime p and a randomly chosen g
 //SZ There is an efficiency gain in using small g, and OpenSSL uses g = 2 or 5
 let gen_params () : dhparams =
@@ -30,15 +33,15 @@ let gen_params () : dhparams =
         let dhparams = generator.GenerateParameters() in
             { p = abytes (dhparams.P.ToByteArrayUnsigned());
               g = abytes (dhparams.G.ToByteArrayUnsigned());
-              q = Some (abytes (dhparams.Q.ToByteArrayUnsigned())); }
+              q = abytes (dhparams.Q.ToByteArrayUnsigned()); }
 
 (* ------------------------------------------------------------------------ *)
-let gen_key (dh : dhparams) : skey * pkey =
-    let dhparams = 
-        match dh.q with
-          None    -> new DHParameters(new BigInteger(1, cbytes dh.p), new BigInteger(1, cbytes dh.g))
-        | Some(q) -> new DHParameters(new BigInteger(1, cbytes dh.p), new BigInteger(1, cbytes dh.g), new BigInteger(1, cbytes q))
-    in
+let gen_key p g : skey * pkey =
+    match DHDB.select dhDB (p,g) with
+    | None -> Error.unexpected "[gen_key]: should only be invoked on validated parameters"
+    | Some(q,_) ->
+    let dh = {p = p; g = g; q = q} in
+    let dhparams = new DHParameters(new BigInteger(1, cbytes p), new BigInteger(1, cbytes g), new BigInteger(1, cbytes q)) in
     let kparams  = new DHKeyGenerationParameters(new SecureRandom(), dhparams) in
     let kgen     = new DHKeyPairGenerator() in
         kgen.Init(kparams);
@@ -48,10 +51,10 @@ let gen_key (dh : dhparams) : skey * pkey =
             ((abytes (skey.X.ToByteArrayUnsigned()), dh), (abytes (pkey.Y.ToByteArrayUnsigned()), dh))
 
 (* ------------------------------------------------------------------------ *)
-let agreement (dh : dhparams) (x : dhsbytes) (y : dhpbytes) : bytes =
+let agreement p (x : dhsbytes) (y : dhpbytes) : bytes =
     let x = new BigInteger(1, cbytes x) in
     let y = new BigInteger(1, cbytes y) in
-    let p = new BigInteger(1, cbytes dh.p) in
+    let p = new BigInteger(1, cbytes p) in
         abytes (y.ModPow(x, p).ToByteArrayUnsigned())
 
 (* ------------------------------------------------------------------------ *)
@@ -124,16 +127,10 @@ RiNT
 let save_params (stream : Stream) (dh : dhparams) =
     let writer    = new PemWriter(new StreamWriter(stream)) in
     let derparams = 
-        match dh.q with
-          None -> 
-            new DerSequence([| new DerInteger(new BigInteger(1, cbytes dh.p)) :> Asn1Encodable;
-                               new DerInteger(new BigInteger(1, cbytes dh.g)) :> Asn1Encodable |])
-            :> Asn1Encodable
-        | Some(q) -> 
-            new DerSequence([| new DerInteger(new BigInteger(1, cbytes dh.p)) :> Asn1Encodable;
-                               new DerInteger(new BigInteger(1, cbytes dh.g)) :> Asn1Encodable;
-                               new DerInteger(new BigInteger(1, cbytes q)) :> Asn1Encodable |])
-            :> Asn1Encodable
+        new DerSequence([| new DerInteger(new BigInteger(1, cbytes dh.p)) :> Asn1Encodable;
+                           new DerInteger(new BigInteger(1, cbytes dh.g)) :> Asn1Encodable;
+                           new DerInteger(new BigInteger(1, cbytes dh.q)) :> Asn1Encodable |])
+        :> Asn1Encodable
         in
     writer.WriteObject(new PemObject(PEM_DH_PARAMETERS_HEADER, derparams.GetDerEncoded()));
     writer.Writer.Flush()
@@ -169,7 +166,7 @@ let load_params (stream : Stream) : dhparams =
 
     { p = abytes (DerInteger.GetInstance(obj.Item(0)).PositiveValue.ToByteArrayUnsigned()) ;
       g = abytes (DerInteger.GetInstance(obj.Item(1)).PositiveValue.ToByteArrayUnsigned()) ;
-      q = if obj.Count > 2 then Some (abytes (DerInteger.GetInstance(obj.Item(2)).PositiveValue.ToByteArrayUnsigned())) else None }
+      q = abytes (DerInteger.GetInstance(obj.Item(2)).PositiveValue.ToByteArrayUnsigned()) }
 
 (* ------------------------------------------------------------------------ *)
 let load_params_from_file (file : string) : dhparams option =
@@ -187,9 +184,6 @@ let load_default_params () =
         load_params (new MemoryStream(Encoding.ASCII.GetBytes(default_params), false))
     with _ ->
         failwith "cannot load default DH parameters"
-
-(* ------------------------------------------------------------------------ *)
-let dhDB = DHDB.create "dhparams-db.db"
 
 (* ------------------------------------------------------------------------ *)
 let check_params (pbytes:bytes) (gbytes:bytes) =

@@ -20,8 +20,8 @@ type (;p:p, g:(;p) g) elt = b:bytes{ Elt(p,g,b) }
 // formally a precondition for signing them with an honest key.
 predicate type predPP = PP of p:p * g:(;p) g
 
-val dhparams: p:p -> (;p) g -> q option -> CoreKeys.dhparams
-val genElement: p:p -> g:(;p) g -> q option -> (;p,g) elt
+val dhparams: p:p -> (;p) g -> q -> CoreKeys.dhparams
+val genElement: p:p -> g:(;p) g -> (;p,g) elt
 
 val checkParams: p:p -> g:bytes -> (g':(;p,g) elt {g = g'}) option
 val checkElement: p:p -> g:bytes -> b:bytes -> (b':(;p,g) elt {b = b'}) option

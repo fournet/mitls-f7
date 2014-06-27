@@ -12,8 +12,8 @@ type preds = Elt of p * g * elt
 
 let dhparams p g q: CoreKeys.dhparams = { p = p; g = g; q = q }
 
-let genElement p g q: elt =
-    let (_, (e, _)) = CoreDH.gen_key (dhparams p g q) in
+let genElement p g: elt =
+    let (_, (e, _)) = CoreDH.gen_key p g in
 #if verify
     Pi.assume (Elt(p,g,e));
 #endif

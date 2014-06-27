@@ -12,8 +12,8 @@ type pkey = dhpkey
 val check_params : bytes -> bytes -> bool
 val check_element: bytes -> bytes -> bytes -> bool
 val gen_params   : unit -> CoreKeys.dhparams
-val gen_key      : dhparams -> skey * pkey
-val agreement    : dhparams -> dhsbytes -> dhpbytes -> bytes
+val gen_key      : bytes -> bytes -> skey * pkey
+val agreement    : bytes -> dhsbytes -> dhpbytes -> bytes
 
 (* ------------------------------------------------------------------------ *)
 val save_params_to_file   : string -> dhparams -> bool
