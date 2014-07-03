@@ -229,14 +229,17 @@ type text = bytes
 type tag = bytes
 
 #if ideal
-type entry = msId * Role * text
+
+type eventVD = MakeVerifyData of msId * Role * text * tag
+
+type entry = msId * Role * text * tag
 let log : entry list ref = ref []
 
 let rec mem (i:msId) (r:Role) (t:text) (es:entry list) = 
   match es with
   | [] -> false 
-  | (i',role,text)::es when i=i' && r=role && text=t -> true
-  | (i',role,text)::es -> mem i r t es
+  | (i',role,text,_)::es when i=i' && r=role && text=t -> true
+  | (i',role,text,_)::es -> mem i r t es
 #endif
 
 let private verifyData si ms role data = 
@@ -245,9 +248,10 @@ let private verifyData si ms role data =
 let makeVerifyData si (ms:masterSecret) role data =
   let tag = verifyData si ms role data in
   #if ideal
-  if safeVD si then  //MK rename predicate and function
-    let i = msi si
-    log := (i,role,data)::!log ;
+  //if safeVD si then  //MK rename predicate and function
+  let i = msi si
+  log := (i,role,data,tag)::!log ;
+  Pi.assume(MakeVerifyData(i, role, data, tag));
   #endif
   tag
 

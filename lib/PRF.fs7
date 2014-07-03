@@ -193,8 +193,10 @@ type tag = bytes
 // (privately defined in Handshake.fs7)
 predicate VerifyData of msId * Role * text
 
+type eventVD = MakeVerifyData of msId * Role * text * tag
+
 // role & text are jointly authenticated
-type entry = i:msId * r:Role * t:text {VerifyData(i,r,t)}
+type entry = i:msId * r:Role * t:text * vd:tag {VerifyData(i,r,t)}
 private val log: entry list ref
 private val mem: i:msId -> r:Role -> t:text -> entry list -> b:bool{ b=true => VerifyData(i,r,t) }
 //private val cons: si:SessionInfo -> tag -> r:Role -> t:text {VerifyData(si,r,t)} -> entry list -> entry list
@@ -205,7 +207,10 @@ private val verifyData: si:SessionInfo -> (;MsI(si)) ms -> r:Role -> t:text -> t
 val makeVerifyData: 
   si:SessionInfo -> (;MsI(si)) ms -> 
   r:Role -> t:text{VerifyData(MsI(si),r,t)} -> 
-  tag (* length depends on cs, 12 by default *)
+  vd:tag {MakeVerifyData(MsI(si),r,t, vd)}
+  (* length depends on cs, 12 by default *)
+
+ theorem !m,r,t,vd,m',r',t'. MakeVerifyData(m,r,t,vd) /\ MakeVerifyData(m',r',t',vd) => (m=m'/\ r=r' /\ t=t')
 
 // MAC verification
 val checkVerifyData: 
