@@ -129,8 +129,7 @@ let ENC_int ki s tlen d =
                 unexpected "[ENC] Length of encrypted data do not match expected length"
             else
                 let lb = lastblock alg cipher in
-                let s = {s with iv = SomeIV(lb) } in
-                (BlockCipher(s), cipher)
+                (BlockCipher({s with iv = SomeIV(lb) } ), cipher)
     //#end-ivStaleEnc
     | BlockCipher(s), CBC_Fresh(alg) ->
         match s.iv with
@@ -145,8 +144,7 @@ let ENC_int ki s tlen d =
                 // CompatibleLength predicate
                 unexpected "[ENC] Length of encrypted data do not match expected length"
             else
-                let s = {s with iv = NoIV} in
-                (BlockCipher(s), res)
+                (BlockCipher({s with iv = NoIV}), res)
     | StreamCipher(s), Stream_RC4_128 ->
         let cipher = (CoreCiphers.rc4process s.sstate (d)) in
         if length cipher <> tlen || tlen > max_TLSCipher_fragment_length then
