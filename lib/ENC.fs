@@ -185,10 +185,11 @@ let ENC (ki:id) s ad rg data =
     if safeId (ki) then
       let d = createBytes tlen 0 in
       let (s,c) = ENC_int ki s tlen d in
-      //let l = length c
-      //let exp = TLSInfo.max_TLSCipher_fragment_length in
-      //  if l <= exp then c
-      //  else Error.unexpected "aes_gcm_encrypt returned a ciphertext of unexpected size"
+      let l = length c
+//      let c =
+//        let exp = TLSInfo.max_TLSCipher_fragment_length in
+//        if l <= exp then c
+//        else Error.unexpected "ENC returned a ciphertext of unexpected size"
       Pi.assume (ENCrypted(ki,ad,c,data));
       log := addtolog (ki, ad, rg, c, data) log;
       (s,c)

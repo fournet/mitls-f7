@@ -68,8 +68,11 @@ type event = ENCrypted of
 //CF we miss a refinement synchronizing ad and s
 val ENC: ki:id -> s:(;ki) encryptor -> ad:(;ki)LHAEPlain.adata -> r:range ->
   p:(;ki,ad,r)plain -> 
-  ( (s': (;ki) encryptor{StateID(ki,Writer,s') = StateID(ki,Writer,s)+1}) *
-    (c : cipher{(SafeId(ki) => ENCrypted(ki,ad,c,p)) /\ Length(c)=TargetLength(ki,r)}) )
+  ( (s': (;ki) encryptor {StateID(ki,Writer,s') = StateID(ki,Writer,s)+1}
+    ) *
+    (c : cipher {(SafeId(ki) => ENCrypted(ki,ad,c,p)) /\ Length(c)=TargetLength(ki,r)}
+    ) 
+  )
 
 val DEC: ki:id -> s:(;ki) decryptor -> ad:(;ki)LHAEPlain.adata ->
   c:cipher
@@ -104,4 +107,9 @@ private val lastblock:  alg:blockCipher -> c:cipher {Length(c)>=BlockSize(alg)} 
 // internal function declarations 
 private val GENOne: i:id -> 'a //(;i) state //TODO state should also have a role, but GENOne returns the state for both roles.
 private val cbcenc: blockCipher -> CoreCiphers.key -> CoreCiphers.iv -> bytes -> bytes 
-val ENC_int: i:id -> (;i)encryptor -> tlen:nat{!alg. EncAlg(i) = CBC_Stale(alg) => tlen>=BlockSize(alg)} -> bytes -> ( (;i)encryptor * c:cipher ){Length(c)=tlen}
+val ENC_int: i:id -> s:(;i)encryptor -> tlen:nat{!alg. EncAlg(i) = CBC_Stale(alg) => tlen>=BlockSize(alg)} -> bytes -> 
+( (s': (;i) encryptor //{StateID((i,Writer,s')) = StateID((i,Writer,s))+1}
+  ) * 
+  (c:cipher {Length(c)=tlen}
+  )  
+)
