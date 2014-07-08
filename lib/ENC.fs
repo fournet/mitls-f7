@@ -63,6 +63,7 @@ let blockCipher (ki:id) (r:rw) (s:blockState) = BlockCipher(s)
 
 let someIV (ki:id) (iv:iv) = SomeIV(iv)
 let noIV (ki:id) = NoIV
+let updateIV (i:id) (s:blockState) (iv:iv3) = {s with iv = iv}
 
 let GEN (ki:id) : encryptor * decryptor = 
     let alg = encAlg_of_id ki in
@@ -129,7 +130,9 @@ let ENC_int ki s tlen d =
                 unexpected "[ENC] Length of encrypted data do not match expected length"
             else
                 let lb = lastblock alg cipher in
-                (BlockCipher({s with iv = SomeIV(lb) } ), cipher)
+                let iv = someIV ki lb in
+                let s = updateIV ki s iv in
+                (BlockCipher(s), cipher)
     //#end-ivStaleEnc
     | BlockCipher(s), CBC_Fresh(alg) ->
         match s.iv with
@@ -144,7 +147,7 @@ let ENC_int ki s tlen d =
                 // CompatibleLength predicate
                 unexpected "[ENC] Length of encrypted data do not match expected length"
             else
-                (BlockCipher({s with iv = NoIV}), res)
+                (BlockCipher(s), res)
     | StreamCipher(s), Stream_RC4_128 ->
         let cipher = (CoreCiphers.rc4process s.sstate (d)) in
         if length cipher <> tlen || tlen > max_TLSCipher_fragment_length then
@@ -211,8 +214,9 @@ let DEC_int ki s cipher =
         match s.iv with
         | NoIV -> unexpected "[DEC] Wrong combination of cipher algorithm and state"
         | SomeIV(iv) ->
-            let data = cbcdec alg s.key.k iv cipher
-            let s = {s with iv = SomeIV(lastblock alg cipher)} in
+            let data = cbcdec alg s.key.k iv cipher in
+            let lb = lastblock alg cipher in
+            let s = updateIV ki s (SomeIV(lb)) in
             (BlockCipher(s), data)
     //#end-ivStaleDec
     | BlockCipher(s), CBC_Fresh(alg) ->
@@ -222,7 +226,6 @@ let DEC_int ki s cipher =
             let ivL = blockSize alg in
             let (iv,encrypted) = split cipher ivL in
             let data = cbcdec alg s.key.k iv encrypted in
-            let s = {s with iv = NoIV} in
             (BlockCipher(s), data)
     | StreamCipher(s), Stream_RC4_128 ->
         let data = (CoreCiphers.rc4process s.sstate (cipher))

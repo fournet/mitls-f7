@@ -39,6 +39,8 @@ private type (;ki:id) streamState =
     {skey: (;ki)key; // Ghost: Only stored so that we can LEAK it
      sstate: CoreCiphers.rc4engine}
 
+private val updateIV: i:id -> (;i)blockState -> (;i)iv3 -> (;i)blockState
+
 private type (;ki:id,rw:rw)state =	
     | BlockCipher of (;ki)blockState
     | StreamCipher of (;ki)streamState
