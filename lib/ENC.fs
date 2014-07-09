@@ -115,10 +115,10 @@ let cbcenc alg k iv d =
 
 (* Parametric ENC/DEC functions *)
 let ENC_int ki s tlen d =
-    let alg = encAlg_of_id ki in
+    let alg = ki.aeAlg in
     match s,alg with
     //#begin-ivStaleEnc
-    | BlockCipher(s), CBC_Stale(alg) ->
+    | BlockCipher(s), MtE(CBC_Stale(alg),_) ->
         match s.iv with
         | NoIV -> unexpected "[ENC] Wrong combination of cipher algorithm and state"
         | SomeIV(iv) ->
@@ -134,7 +134,7 @@ let ENC_int ki s tlen d =
                 let s = updateIV ki s iv in
                 (BlockCipher(s), cipher)
     //#end-ivStaleEnc
-    | BlockCipher(s), CBC_Fresh(alg) ->
+    | BlockCipher(s), MtE(CBC_Fresh(alg),_) ->
         match s.iv with
         | SomeIV(b) -> unexpected "[ENC] Wrong combination of cipher algorithm and state"
         | NoIV   ->
@@ -148,7 +148,7 @@ let ENC_int ki s tlen d =
                 unexpected "[ENC] Length of encrypted data do not match expected length"
             else
                 (BlockCipher(s), res)
-    | StreamCipher(s), Stream_RC4_128 ->
+    | StreamCipher(s), MtE(Stream_RC4_128,_) ->
         let cipher = (CoreCiphers.rc4process s.sstate (d)) in
         if length cipher <> tlen || tlen > max_TLSCipher_fragment_length then
                 // unexpected, because it is enforced statically by the

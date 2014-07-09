@@ -131,10 +131,6 @@ ask !e,l,h,mac,alg.
 	(h >= 0 /\ e.aeAlg = MtE(CBC_Stale(alg),mac)) =>
 	TargetLength(e,(l,h)) >= BlockSize(alg)
 
-ask !e,l,h,alg.
-	(h >= 0 /\ EncAlg(e)=CBC_Stale(alg)) =>
-	TargetLength(e,(l,h)) >= BlockSize(alg)
-
 definition !e,l,h,mac,alg.
 	(h >= 0 /\ e.aeAlg = MtE(Stream_RC4_128,mac)) =>
 	TargetLength(e,(l,h)) =

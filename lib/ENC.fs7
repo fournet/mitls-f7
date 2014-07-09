@@ -110,7 +110,7 @@ private val lastblock:  alg:blockCipher -> c:cipher {Length(c)>=BlockSize(alg)} 
 private val GENOne: i:id -> 'a //(;i) state //TODO state should also have a role, but GENOne returns the state for both roles.
 private val cbcenc: blockCipher -> CoreCiphers.key -> CoreCiphers.iv -> bytes -> bytes 
 private val cbcdec: blockCipher -> CoreCiphers.key -> CoreCiphers.iv -> bytes -> bytes
-val ENC_int: i:id -> s:(;i)encryptor -> tlen:nat{!alg. EncAlg(i) = CBC_Stale(alg) => tlen>=BlockSize(alg)} -> bytes -> 
+val ENC_int: i:id -> s:(;i)encryptor -> tlen:nat{!enc,mac. i.aeAlg = MtE(CBC_Stale(enc),mac) => tlen>=BlockSize(enc)} -> bytes -> 
 ( (s': (;i) encryptor {StateID(i,Writer,s') = StateID(i,Writer,s)+1}
   ) * 
   (c:cipher {Length(c)=tlen}
