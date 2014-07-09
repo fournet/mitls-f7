@@ -207,19 +207,27 @@ let cbcdec alg k iv e =
     | AES_128 | AES_256  -> (CoreCiphers.aes_cbc_decrypt k iv e)
 
 let DEC_int ki s cipher =
-    let encAlg = encAlg_of_id ki in
-    match s, encAlg with
+    let alg = ki.aeAlg in
+    //let encAlg = encAlg_of_id ki in
+    match s, alg with
     //#begin-ivStaleDec
-    | BlockCipher(s), CBC_Stale(alg) ->
+    | BlockCipher(s), MtE(CBC_Stale(alg),_) ->
         match s.iv with
         | NoIV -> unexpected "[DEC] Wrong combination of cipher algorithm and state"
         | SomeIV(iv) ->
             let data = cbcdec alg s.key.k iv cipher in
-            let lb = lastblock alg cipher in
-            let s = updateIV ki s (SomeIV(lb)) in
-            (BlockCipher(s), data)
+            let l = length cipher in 
+            if l > max_TLSCipher_fragment_length then
+                // unexpected, because it is enforced statically by the
+                // CompatibleLength predicate
+                unexpected "[DEC] Length of encrypted data do not match expected length"
+            else
+                let lb = lastblock alg cipher in
+                let iv = someIV ki lb in
+                let s = updateIV ki s iv in
+                (BlockCipher(s), data)
     //#end-ivStaleDec
-    | BlockCipher(s), CBC_Fresh(alg) ->
+    | BlockCipher(s), MtE(CBC_Fresh(alg),_) ->
         match s.iv with
         | SomeIV(_) -> unexpected "[DEC] Wrong combination of cipher algorithm and state"
         | NoIV ->
@@ -227,7 +235,7 @@ let DEC_int ki s cipher =
             let (iv,encrypted) = split cipher ivL in
             let data = cbcdec alg s.key.k iv encrypted in
             (BlockCipher(s), data)
-    | StreamCipher(s), Stream_RC4_128 ->
+    | StreamCipher(s), MtE(Stream_RC4_128,_) ->
         let data = (CoreCiphers.rc4process s.sstate (cipher))
         (StreamCipher(s),data)
     | _,_ -> unexpected "[DEC] Wrong combination of cipher algorithm and state"

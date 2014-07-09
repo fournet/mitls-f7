@@ -92,6 +92,7 @@ val log: entry list ref
 
 val cfind: e:id -> c:cipher -> xs: entry list -> (ad:(;e)LHAEPlain.adata * rg:range * (;e,ad,rg) Encode.plain)
 
+//MK is this outdated? Should do some cleanup.
 (* AP
 val ENC: ki:id -> s:(;ki) encryptor -> tlen:int -> p:(;ki,tlen) plain -> 
   ( s':(;ki)encryptor *
@@ -118,4 +119,6 @@ val ENC_int: i:id -> s:(;i)encryptor -> tlen:nat{!enc,mac. i.aeAlg = MtE(CBC_Sta
 )
 
 private val DEC_int: ki:id -> s:(;ki) decryptor -> ad:(;ki)LHAEPlain.adata ->
-  c:cipher -> (;ki) decryptor * bytes
+  c:cipher{Length(c) <= max_TLSCipher_fragment_length (*MK doesn't seem to have an effect *) 
+		   /\ (!enc,mac. ki.aeAlg = MtE(CBC_Stale(enc),mac) => Length(c)>=BlockSize(enc) ) } -> 
+  (;ki) decryptor * bytes
