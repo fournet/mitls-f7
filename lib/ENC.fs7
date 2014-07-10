@@ -78,7 +78,7 @@ val ENC: ki:id -> s:(;ki) encryptor -> ad:(;ki)LHAEPlain.adata -> r:range ->
 
 val DEC: ki:id -> s:(;ki) decryptor -> ad:(;ki)LHAEPlain.adata ->
   c:cipher
-  { (SafeId(ki) => ?p'. ENCrypted(ki,ad,c,p')) /\ Length(c) >= MinTlen(ki) } -> 
+  { (SafeId(ki) => ?p'. ENCrypted(ki,ad,c,p')) /\ Length(c) >= MinTlen(ki) /\ Length(c) <= max_TLSCipher_fragment_length } -> 
   ( (s': (;ki) decryptor{StateID(ki,Reader,s') = StateID(ki,Reader,s)+1}) *
     (p : (;ki,ad,CipherRangeClass(ki,Length(c)))plain {!p'. ENCrypted(ki,ad,c,p') => p=p'}))
 
@@ -92,6 +92,7 @@ val log: entry list ref
 
 val cfind: e:id -> c:cipher -> xs: entry list -> (ad:(;e)LHAEPlain.adata * rg:range * (;e,ad,rg) Encode.plain)
 
+//MK is this outdated? Should do some cleanup.
 (* AP
 val ENC: ki:id -> s:(;ki) encryptor -> tlen:int -> p:(;ki,tlen) plain -> 
   ( s':(;ki)encryptor *
@@ -107,9 +108,10 @@ val DEC: ki:id -> s:(;ki) decryptor -> c:cipher ->
 private val lastblock:  alg:blockCipher -> c:cipher {Length(c)>=BlockSize(alg)} -> bytes
 
 // internal function declarations 
-private val GENOne: i:id -> 'a //(;i) state //TODO state should also have a role, but GENOne returns the state for both roles.
+//private val GENOne: i:id -> 'a //(;i) state //TODO state should also have a role, but GENOne returns the state for both roles.
 private val cbcenc: blockCipher -> CoreCiphers.key -> CoreCiphers.iv -> bytes -> bytes 
 private val cbcdec: blockCipher -> CoreCiphers.key -> CoreCiphers.iv -> bytes -> bytes
+
 val ENC_int: i:id -> s:(;i)encryptor -> tlen:nat{!enc,mac. i.aeAlg = MtE(CBC_Stale(enc),mac) => tlen>=BlockSize(enc)} -> bytes -> 
 ( (s': (;i) encryptor {StateID(i,Writer,s') = StateID(i,Writer,s)+1}
   ) * 
@@ -117,5 +119,8 @@ val ENC_int: i:id -> s:(;i)encryptor -> tlen:nat{!enc,mac. i.aeAlg = MtE(CBC_Sta
   )  
 )
 
-private val DEC_int: ki:id -> s:(;ki) decryptor -> ad:(;ki)LHAEPlain.adata ->
-  c:cipher -> (;ki) decryptor * bytes
+//{Length(c) <= max_TLSCipher_fragment_length (*MK doesn't seem to have an effect *) 
+//		   /\ (!enc,mac. ki.aeAlg = MtE(CBC_Stale(enc),mac) => Length(c)>=BlockSize(enc) ) }
+private val DEC_int: ki:id -> s:(;ki) decryptor -> 
+					 c:cipher {Length(c) <= max_TLSCipher_fragment_length /\ (!enc,mac. ki.aeAlg = MtE(CBC_Stale(enc),mac) \/ ki.aeAlg = MtE(CBC_Fresh(enc),mac) => Length(c)>=BlockSize(enc)) } -> 
+					 (;ki) decryptor * bytes //MK removed: ad:(;ki)LHAEPlain.adata
