@@ -25,8 +25,8 @@
 static event_base_t *evb = NULL;
 
 /* -------------------------------------------------------------------- */
-const int zero = 0;
-const int one  = 1;
+const intptr_t zero = 0;
+const intptr_t one  = 1;
 
 /* -------------------------------------------------------------------- */
 static void* _entry (void *arg) {
