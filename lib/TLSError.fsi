@@ -33,4 +33,4 @@ type alertDescription =
     | AD_no_renegotiation
     | AD_unsupported_extension
 
-type 'a Result = (alertDescription * string,'a) Error.OptResult
+type Result<'a> = (alertDescription * string,'a) Error.OptResult

@@ -18,4 +18,4 @@ val ENC: id -> encryptor -> LHAEPlain.adata -> range -> LHAEPlain.plain ->
     (encryptor * bytes)
 
 val DEC: id -> decryptor -> LHAEPlain.adata -> range -> bytes ->
-    (decryptor * LHAEPlain.plain) Result
+    Result<(decryptor * LHAEPlain.plain)>

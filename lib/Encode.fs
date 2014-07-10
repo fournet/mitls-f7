@@ -40,7 +40,7 @@ let mac e k ad rg plain =
      ok = true
     }
 
-let verify (e:id) k ad rg plain : LHAEPlain.plain Result =
+let verify (e:id) k ad rg plain : Result<LHAEPlain.plain> =
     let f = plain.plain in
     let text = macPlain e rg ad f in
     let tag  = plain.tag in

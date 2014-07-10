@@ -28,7 +28,7 @@ val RecordPlainToStAEPlain: epoch -> ContentType -> adata -> TLSFragment.history
 val StAEPlainToRecordPlain: epoch -> ContentType -> adata -> TLSFragment.history -> history -> range -> plain -> TLSFragment.plain
 
 val makeExtPad:  id -> adata -> range -> fragment -> fragment
-val parseExtPad: id -> adata -> range -> fragment -> fragment Result
+val parseExtPad: id -> adata -> range -> fragment -> Result<fragment>
 
 #if ideal
 val widen: id -> adata -> range -> fragment -> fragment

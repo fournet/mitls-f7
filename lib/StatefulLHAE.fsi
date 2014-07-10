@@ -20,4 +20,4 @@ val history: id -> rw -> state -> history
 type cipher = LHAE.cipher
 
 val encrypt: id -> writer ->  adata -> range -> plain -> (writer * cipher)
-val decrypt: id -> reader ->  adata -> cipher -> (reader * range * plain) Result
+val decrypt: id -> reader ->  adata -> cipher -> Result<(reader * range * plain)>

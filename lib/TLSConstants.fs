@@ -389,7 +389,7 @@ let consCipherSuites (cs:cipherSuite) (css:cipherSuites) = cs::css
 // called by the server handshake;     
 // ciphersuites that we do not understand are parsed,
 // but not added to the list, and thus will be ignored by the server
-let rec parseCipherSuites b:cipherSuites Result =
+let rec parseCipherSuites b:Result<cipherSuites> =
     if length b > 1 then
         let (b0,b1) = split b 2 
         match parseCipherSuites b1 with 
@@ -764,14 +764,14 @@ let seq_of_bytes b = int_of_bytes b
 
 let vlbytes (lSize:int) b = bytes_of_int lSize (length b) @| b 
 
-let vlsplit lSize vlb : (bytes * bytes) Result = 
+let vlsplit lSize vlb : Result<(bytes * bytes)> = 
     let (vl,b) = split vlb lSize 
     let l = int_of_bytes vl
     if l <= length b 
     then correct(split b l) 
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
  
-let vlparse lSize vlb : bytes Result = 
+let vlparse lSize vlb : Result<bytes> = 
     let (vl,b) = split vlb lSize 
     let l = int_of_bytes vl
     if l = length b 

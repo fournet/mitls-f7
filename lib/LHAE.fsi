@@ -20,4 +20,4 @@ val LEAK: id -> rw -> LHAEKey -> bytes
 val encrypt: id -> encryptor -> adata -> 
              range -> plain -> (encryptor * cipher)
 val decrypt: id -> decryptor -> adata -> 
-             cipher -> (decryptor * range * plain) Result
+             cipher -> Result<(decryptor * range * plain)>

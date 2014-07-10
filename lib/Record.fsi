@@ -18,17 +18,17 @@ type recvState = ConnectionState
 val initConnState: epoch -> rw -> StatefulLHAE.state -> ConnectionState
 val nullConnState: epoch -> rw -> ConnectionState
 
-val parseHeader: bytes -> (ContentType * ProtocolVersion * nat) Result
+val parseHeader: bytes -> Result<(ContentType * ProtocolVersion * nat)>
 
 //CF do some uniform renaming, e.g. s/Out/Send/
 val recordPacketOut: epoch -> sendState -> ProtocolVersion -> range -> ContentType -> TLSFragment.fragment -> (sendState * bytes)
-val recordPacketIn : epoch -> recvState -> ContentType -> bytes -> (recvState * range * TLSFragment.fragment) Result
+val recordPacketIn : epoch -> recvState -> ContentType -> bytes -> Result<(recvState * range * TLSFragment.fragment)>
 
 val history: epoch -> rw -> ConnectionState -> TLSFragment.history
 
 //CF val historyStream: epoch -> ConnectionState -> ContentType -> DataStream.stream
 
-(*TODO val dataAvailable: recvState -> bool Result *)
+(*TODO val dataAvailable: recvState -> Result<bool> *)
 (*TODO val coherentrw: SessionInfo -> recvState -> sendState -> bool *)
 
 (*TODO ProtocolVersion: 

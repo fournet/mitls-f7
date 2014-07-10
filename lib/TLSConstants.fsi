@@ -58,9 +58,9 @@ type aeAlg =
     | AEAD of aeadAlg * macAlg
 
 val sigAlgBytes: sigAlg -> bytes
-val parseSigAlg: bytes -> sigAlg Result
+val parseSigAlg: bytes -> Result<sigAlg>
 val hashAlgBytes: hashAlg -> bytes
-val parseHashAlg: bytes -> hashAlg Result
+val parseHashAlg: bytes -> Result<hashAlg>
 
 val encKeySize: encAlg -> nat
 val blockSize: blockCipher -> nat
@@ -80,7 +80,7 @@ type PreCompression = NullCompression
 type Compression = PreCompression
 
 val versionBytes: ProtocolVersion -> bytes
-val parseVersion: bytes -> ProtocolVersion Result
+val parseVersion: bytes -> Result<ProtocolVersion>
 val minPV: ProtocolVersion -> ProtocolVersion -> ProtocolVersion
 val geqPV: ProtocolVersion -> ProtocolVersion -> bool
 val somePV: ProtocolVersion -> ProtocolVersion option
@@ -125,12 +125,12 @@ val sigAlg_of_ciphersuite: cipherSuite -> sigAlg
 
 val compressionBytes: Compression -> bytes
 val compressionMethodsBytes: list<Compression> -> bytes
-val parseCompression: bytes -> Compression Result
+val parseCompression: bytes -> Result<Compression>
 val parseCompressions: bytes -> list<Compression>
 
 val cipherSuiteBytes: cipherSuite -> bytes
-val parseCipherSuite: bytes -> cipherSuite Result
-val parseCipherSuites: bytes -> cipherSuites Result
+val parseCipherSuite: bytes -> Result<cipherSuite>
+val parseCipherSuites: bytes -> Result<cipherSuites>
 val cipherSuitesBytes: cipherSuites -> bytes
 
 type cipherSuiteName =
@@ -179,7 +179,7 @@ type cipherSuiteName =
     | TLS_DH_anon_WITH_AES_256_GCM_SHA384
 
 val cipherSuites_of_nameList: list<cipherSuiteName> -> cipherSuites
-val name_of_cipherSuite: cipherSuite -> cipherSuiteName Result
+val name_of_cipherSuite: cipherSuite -> Result<cipherSuiteName>
 
 type preContentType =
     | Change_cipher_spec
@@ -192,12 +192,12 @@ val bytes_of_seq: nat -> bytes
 val seq_of_bytes: bytes -> nat
 
 val ctBytes: ContentType -> bytes
-val parseCT: bytes -> ContentType Result
+val parseCT: bytes -> Result<ContentType>
 val CTtoString: ContentType -> string
 
 val vlbytes: nat -> bytes -> bytes
-val vlsplit: nat -> bytes -> (bytes * bytes) Result
-val vlparse: nat -> bytes -> bytes Result
+val vlsplit: nat -> bytes -> Result<(bytes * bytes)>
+val vlparse: nat -> bytes -> Result<bytes>
 
 type certType =
     | RSA_sign
@@ -206,9 +206,9 @@ type certType =
     | DSA_fixed_dh
 
 val certTypeBytes: certType -> bytes
-val parseCertType: bytes -> certType Result
+val parseCertType: bytes -> Result<certType>
 val certificateTypeListBytes: list<certType> -> bytes
-val parseCertificateTypeList: bytes -> list<certType> Result
+val parseCertificateTypeList: bytes -> Result<list<certType>>
 val defaultCertTypes: bool -> cipherSuite -> list<certType>
 val distinguishedNameListBytes: list<string> -> bytes
-val parseDistinguishedNameList: bytes -> list<string> -> list<string> Result
+val parseDistinguishedNameList: bytes -> list<string> -> Result<list<string>>

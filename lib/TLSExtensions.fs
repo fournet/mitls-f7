@@ -157,7 +157,7 @@ let prepareClientExtensions (cfg:config) (conn:ConnectionInfo) renegoCVD (resume
         | None -> res
         | Some(resumeSH) -> CE_resumption_info(resumeSH) :: res
 
-let serverToNegotiatedExtension cExtL (resuming:bool) cs res sExt : negotiatedExtensions Result=
+let serverToNegotiatedExtension cExtL (resuming:bool) cs res sExt : Result<negotiatedExtensions>=
     match res with
     | Error(x,y) -> Error(x,y)
     | Correct(l) ->
@@ -414,7 +414,7 @@ let rec sigHashAlgListBytes algL =
         let oneItem = sigHashAlgBytes h in
         oneItem @| sigHashAlgListBytes t
 
-let rec parseSigHashAlgList_int b : (list<Sig.alg> Result)=
+let rec parseSigHashAlgList_int b : (Result<list<Sig.alg>>)=
     if length b = 0 then correct([])
     elif length b = 1 then Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
     else

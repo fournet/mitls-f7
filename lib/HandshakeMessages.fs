@@ -374,7 +374,7 @@ let certificateRequestBytes sign cs version =
             @| distNames in
     messageBytes HT_certificate_request data
 
-let parseCertificateRequest version data: (list<certType> * list<Sig.alg> * list<string>) Result =
+let parseCertificateRequest version data: Result<(list<certType> * list<Sig.alg> * list<string>)> =
     if length data >= 1 then
         match vlsplit 1 data with
         | Error(z) -> Error(z)

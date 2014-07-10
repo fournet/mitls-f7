@@ -19,7 +19,7 @@ val init: id -> stream
 val reStream: id -> stream -> range -> plain -> stream -> plain
 
 val makeExtPad:  id -> range -> fragment -> fragment
-val parseExtPad: id -> range -> fragment -> fragment Result
+val parseExtPad: id -> range -> fragment -> Result<fragment>
 
 #if ideal
 val widen: id -> range -> range -> fragment -> fragment

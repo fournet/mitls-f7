@@ -519,7 +519,7 @@ let parseClientKEX_RSA si skey cv config data =
             correct(pk,(*RSAPMS(pk,cv,encPMS),*)res)
         | Error(z) -> Error(z)
 
-let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) (cert_req:Cert.sign_cert) (log:log) : (hs_state * SessionInfo * PRF.masterSecret * log) Result =
+let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) (cert_req:Cert.sign_cert) (log:log) : Result<(hs_state * SessionInfo * PRF.masterSecret * log)> =
     match cert_req with
     | _ when si.client_auth = false ->
          let si = {si with clientID = []}
@@ -636,7 +636,7 @@ let certificateVerifyBytesAuth (si:SessionInfo) (ms:PRF.masterSecret) (cert_req:
 *)
 
 let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) 
-  (cert_req:Cert.sign_cert) (p:DHGroup.p) (g:DHGroup.g) (sy:DHGroup.elt) (log:log) : (hs_state * SessionInfo * PRF.masterSecret * log) Result =
+  (cert_req:Cert.sign_cert) (p:DHGroup.p) (g:DHGroup.g) (sy:DHGroup.elt) (log:log) : Result<(hs_state * SessionInfo * PRF.masterSecret * log)> =
     (* pre: Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DHGroup.PP((p,g)) /\ ServerDHE((p,g),sy,si.init_crand @| si.init_srand) *)
     (* moreover, by definition ServerDHE((p,g),sy,si.init_crand @| si.init_srand) implies ?sx.DHE.Exp((p,g),sx,sy) *)
     (*FIXME formally, the need for signing nonces is unclear *)
@@ -1210,7 +1210,7 @@ let prepare_server_output_full_RSA (ci:ConnectionInfo) state si cv calgs sExtL l
                                pstate = ps},
                     si.protocol_version)
 
-let prepare_server_output_full_DH ci state si sExtL log: 'f Result =
+let prepare_server_output_full_DH ci state si sExtL log: Result<'f> =
 #if verify
   failwith "not implemented fixed DH"
 #else
@@ -1276,7 +1276,7 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL l
 
         (* ClientKeyExchangeDHE(si,p,g,x,log) should carry PP((p,g)) /\ ?gx. DHE.Exp((p,g),x,gx) *)
 
-let prepare_server_output_full_DH_anon (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) (sExtL:list<serverExtension>) (log:log) : (hs_state * ProtocolVersion) Result =
+let prepare_server_output_full_DH_anon (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) (sExtL:list<serverExtension>) (log:log) : Result<(hs_state * ProtocolVersion)> =
 #if verify
     failwith "not verifying DH_anon"
 #else

@@ -84,7 +84,7 @@ let for_key_encryption (sigkeyalgs : list<Sig.alg>) (h : hint) =
             | None -> None
 
 (* ------------------------------------------------------------------------ *)
-let get_public_signing_key (c : cert) ((siga, _) as a : Sig.alg) : Sig.pkey Result =
+let get_public_signing_key (c : cert) ((siga, _) as a : Sig.alg) : Result<Sig.pkey> =
     match cert_to_x509 c with 
     | Some(x509) -> 
             if x509_is_for_signing x509 then
@@ -96,7 +96,7 @@ let get_public_signing_key (c : cert) ((siga, _) as a : Sig.alg) : Sig.pkey Resu
                 Error(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Certificate is not for signing")
     | None -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
-let get_public_encryption_key (c : cert) : RSAKey.pk Result =
+let get_public_encryption_key (c : cert) : Result<RSAKey.pk> =
     match cert_to_x509 c with 
     | Some(x509) -> 
             if x509_is_for_key_encryption x509 then
@@ -110,10 +110,10 @@ let get_public_encryption_key (c : cert) : RSAKey.pk Result =
 (* ------------------------------------------------------------------------ *)
 
 #if verify
-let get_chain_public_signing_key (chain : chain) (a:Sig.alg) : Sig.pkey Result =
+let get_chain_public_signing_key (chain : chain) (a:Sig.alg) : Result<Sig.pkey> =
     failwith "unverified" 
 
-let get_chain_public_encryption_key (chain : chain) : RSAKey.pk Result=
+let get_chain_public_encryption_key (chain : chain) : Result<RSAKey.pk>=
     failwith "unverified" 
 
 #else
@@ -172,7 +172,7 @@ let consCertificateBytes c a =
 let certificateListBytes (certs: chain) : bytes = 
     failwith "unverified" 
 
-let parseCertificateList (toProcess:bytes) (list:chain) : chain Result = 
+let parseCertificateList (toProcess:bytes) (list:chain) : Result<chain> = 
     failwith "unverified" 
 #else
 let certificateListBytes certs =

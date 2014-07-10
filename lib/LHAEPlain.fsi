@@ -17,7 +17,7 @@ val StatefulPlainToLHAEPlain: id -> StatefulPlain.history -> StatefulPlain.adata
 val LHAEPlainToStatefulPlain: id -> StatefulPlain.history -> StatefulPlain.adata -> adata -> range -> plain -> StatefulPlain.plain
 
 val makeExtPad:  id -> adata -> range -> plain -> plain
-val parseExtPad: id -> adata -> range -> plain -> plain Result
+val parseExtPad: id -> adata -> range -> plain -> Result<plain>
 
 #if ideal
 val widen: id -> adata -> range -> fragment -> fragment

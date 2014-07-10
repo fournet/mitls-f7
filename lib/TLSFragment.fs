@@ -108,7 +108,7 @@ let makeExtPad i ct r frag =
     | Application_data,FAppData(f) -> let f = AppFragment.makeExtPad i r f in FAppData(f)
     | _,_                          -> unexpected "[makeExtPad] invoked on an invalid contenttype/fragment"
 
-let parseExtPad i ct r frag : fragment Result =
+let parseExtPad i ct r frag : Result<fragment> =
     match ct,frag with
     | Handshake,FHandshake(f) ->
         match HSFragment.parseExtPad i r f with

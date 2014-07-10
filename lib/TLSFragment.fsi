@@ -34,7 +34,7 @@ val RecordPlainToAlertPlain  : epoch -> history -> range -> plain -> HSFragment.
 val RecordPlainToAppPlain    : epoch -> history -> range -> plain -> AppFragment.plain
 
 val makeExtPad:  id -> ContentType -> range -> fragment -> fragment
-val parseExtPad: id -> ContentType -> range -> fragment -> fragment Result
+val parseExtPad: id -> ContentType -> range -> fragment -> Result<fragment>
 
 #if ideal
 val widen: id -> ContentType -> range -> fragment -> fragment

@@ -15,7 +15,7 @@ val plain: id -> range -> bytes -> fragment
 val repr:  id -> range -> fragment -> bytes
 
 val makeExtPad:  id -> range -> fragment -> fragment
-val parseExtPad: id -> range -> fragment -> fragment Result
+val parseExtPad: id -> range -> fragment -> Result<fragment>
 
 #if ideal
 val widen: id -> range -> fragment -> fragment
