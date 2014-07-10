@@ -511,13 +511,15 @@ let parseClientKEX_RSA si skey cv config data =
     if List.listLength si.serverID = 0 then
         unexpected "[parseClientKEX_RSA] when the ciphersuite can encrypt the PMS, the server certificate should always be set"
     else
-        let (Correct(pk)) = Cert.get_chain_public_encryption_key si.serverID in  
-        match parseClientKeyExchange_RSA si data with
-        | Correct(encPMS) ->
-    (*KB: RSA-PMS-KEM (server) *)
-            let res = RSA.decrypt skey si cv config.check_client_version_in_pms_for_old_tls encPMS in
-            correct(pk,(*RSAPMS(pk,cv,encPMS),*)res)
-        | Error(z) -> Error(z)
+        match Cert.get_chain_public_encryption_key si.serverID with
+        | Correct(pk) ->
+            match parseClientKeyExchange_RSA si data with
+            | Correct(encPMS) ->
+        (*KB: RSA-PMS-KEM (server) *)
+                let res = RSA.decrypt skey si cv config.check_client_version_in_pms_for_old_tls encPMS in
+                correct(pk,(*RSAPMS(pk,cv,encPMS),*)res)
+            | Error(z) -> Error(z)
+        | Error(x) -> Error(x)
 
 let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) (cert_req:Cert.sign_cert) (log:log) : Result<(hs_state * SessionInfo * PRF.masterSecret * log)> =
     match cert_req with
@@ -604,6 +606,7 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:Sess
            Pi.expect (ClientLogBeforeClientFinishedRSA_Auth(si,log));
 #endif
            correct ({state with hs_outgoing = new_outgoing},si,ms,log)
+    | _ -> Error.unexpected "[prepare_client_output_full_RSA] unreachable pattern match"
 
 
 (*
@@ -763,6 +766,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
          Pi.expect (ClientLogBeforeClientFinishedDHE_NoAuth(si,log));
 #endif
          correct ({state with hs_outgoing = new_outgoing},si,ms,log)
+    | _ -> Error.unexpected "[prepare_client_output_full_DHE] unreachable pattern match"
 
  
 let on_serverHello_full (ci:ConnectionInfo) crand log to_log (shello:ProtocolVersion * srand * sessionID * cipherSuite * Compression * bytes) extL =
