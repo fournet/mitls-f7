@@ -353,7 +353,7 @@ let next_fragment ci state =
                 let (rg,f,_) = makeFragment ki_out CCSBytes in
                 let ci = {ci with id_out = e} in
 #if verify
-                Pi.assume(Complete(ci)); // CF should disappear! 
+                Pi.expect(Complete(ci)); // CF should disappear! 
 #endif
                 OutCCS(rg,f,ci,w,
                        {state with hs_outgoing = sFinished
@@ -532,11 +532,11 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:Sess
            (*KB: RSA-MS-KEM (client) *)
            let pms = PMS.RSAPMS(pk,cv,rsapms)
            let pmsid = pmsId pms
-           let si = {si with pmsId = pmsid} in
            let log = log @| clientKEXBytes in
            (* Enqueue current messages in output buffer *)
            let to_send = clientKEXBytes in
            let new_outgoing = state.hs_outgoing @| to_send in
+           let si = {si with pmsId = pmsid} in
            let (si,ms) = extract si pms log in
 #if verify
            Pi.expect (ClientLogBeforeClientFinishedRSA_NoAuth(si,log));
@@ -544,6 +544,7 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:Sess
            correct ({state with hs_outgoing = new_outgoing},si,ms,log)
     | None when si.client_auth = true ->
          let clientCertBytes = clientCertificateBytes cert_req in
+         let si_old = si in
          let si = {si with clientID = []}
          let log = log @| clientCertBytes in
          let cfg = state.poptions in 
@@ -562,6 +563,7 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:Sess
            let new_outgoing = state.hs_outgoing @| to_send in
            let (si,ms) = extract si pms log in
 #if verify
+           Pi.expect (UpdatesPmsClientID(si_old,si));
            Pi.expect (ClientLogBeforeClientFinishedRSA_TryNoAuth(si,log));
 #endif
            correct ({state with hs_outgoing = new_outgoing},si,ms,log)
@@ -587,6 +589,7 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:Sess
 
 #if verify
            (* KB: need to prove Sig.Msg(a,PK(sk),log) here if cert_req = Some ((cl,a,sk)) *)
+           Pi.expect (UpdatesPmsClientID(si_old,si));
            Pi.expect (ClientLogBeforeCertificateVerifyRSA_Auth(si,log));
 #endif
            (* FIXME: here we should shred pms *)
@@ -673,6 +676,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
 
 #if verify
            (* KB: need to prove Sig.Msg(a,PK(sk),log) here if cert_req = Some ((cl,a,sk)) *)
+         Pi.expect (UpdatesPmsClientID(si_old,si));
          Pi.expect (ClientLogBeforeCertificateVerifyDHE_Auth(si,log));
 #endif
 
@@ -985,8 +989,12 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let dheb = dheParamBytes p g y in
                     let expected = si.init_crand @| si.init_srand @| dheb in
                     if Sig.verify alg vkey expected signature then
+                        let si_old = si in
                         let si = {si with serverSigAlg = alg} in 
                         let log = log @| to_log in
+#if verify
+                        Pi.expect(UpdatesServerSigAlg(si_old,si));
+#endif
                         recv_fragment_client ci 
                           {state with pstate = PSClient(CertificateRequestDHE(si,p,g,y,log))} 
                           agreedVersion
@@ -1146,7 +1154,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         else SessionDB.insert state.sDB si.sessionID Client state.poptions.server_name (si,ms)
                     (* Should prove from checkVerifyData above *)
 #if verify                    
-                    Pi.assume (Complete(ci)); // CF should disappear
+                    Pi.expect (Complete(ci)); // CF should disappear
 #endif
                     check_negotiation Client si state.poptions;
                     InComplete({state with pstate = PSClient(ClientIdle(cvd,payload)); sDB = sDB})
