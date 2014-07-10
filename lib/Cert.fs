@@ -20,13 +20,13 @@ type enc_cert  = (chain * RSAKey.sk) option
 (* ------------------------------------------------------------------------ *)
 
 #if verify
-let forall (test: (X509Certificate2 -> bool)) (chain : X509Certificate2 list) : bool = failwith "for specification purposes only, unverified" 
+let forall (test: (X509Certificate2 -> bool)) (chain : list<X509Certificate2>) : bool = failwith "for specification purposes only, unverified" 
 #else
-let forall (test: (X509Certificate2 -> bool)) (chain : X509Certificate2 list) : bool = Seq.forall test chain
+let forall (test: (X509Certificate2 -> bool)) (chain : list<X509Certificate2>) : bool = Seq.forall test chain
 #endif
 
 
-let for_signing (sigkeyalgs : Sig.alg list) (h : hint) (algs : Sig.alg list) =
+let for_signing (sigkeyalgs : list<Sig.alg>) (h : hint) (algs : list<Sig.alg>) =
     match (find_sigcert_and_alg sigkeyalgs h algs) with 
     | Some(cert_and_alg) ->
         let x509, (siga, hasha) = cert_and_alg
@@ -56,7 +56,7 @@ let for_signing (sigkeyalgs : Sig.alg list) (h : hint) (algs : Sig.alg list) =
 
 
 
-let for_key_encryption (sigkeyalgs : Sig.alg list) (h : hint) =
+let for_key_encryption (sigkeyalgs : list<Sig.alg>) (h : hint) =
             match (find_enccert sigkeyalgs h) with 
             | Some(x509) ->                     
                 match x509_to_secret_key x509, x509_to_public_key x509 with
@@ -138,7 +138,7 @@ let signing_gen (a:Sig.alg) : Sig.pkey =
 
 
 
-let validate_cert_chain (sigkeyalgs : Sig.alg list) (chain : chain) =
+let validate_cert_chain (sigkeyalgs : list<Sig.alg>) (chain : chain) =
     validate_x509_chain sigkeyalgs chain  
 
 (* ------------------------------------------------------------------------ *)
@@ -179,16 +179,16 @@ let certificateListBytes certs =
     let unfolded = List.foldBack consCertificateBytes certs empty_bytes in
     vlbytes 3 unfolded
 
-let rec parseCertificateList toProcess list =
+let rec parseCertificateList toProcess parsed =
     if equalBytes toProcess empty_bytes then
-        correct(list)
+        correct(parsed)
     else
         if length toProcess >= 3 then
             match vlsplit 3 toProcess with
             | Error(x,y) -> Error(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ y)
             | Correct (res) ->
                 let (nextCert,toProcess) = res in
-                let list = list @ [nextCert] in
-                parseCertificateList toProcess list
+                let parsed = parsed @ [nextCert] in
+                parseCertificateList toProcess parsed
         else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 #endif

@@ -33,8 +33,8 @@ let resume ns sid po = Dispatch.resume ns sid po
 let rehandshake c po = Dispatch.rehandshake c po
 let rekey c po = Dispatch.rekey c po
 
-let accept list po =
-    let ns = Tcp.accept list in
+let accept lt po =
+    let ns = Tcp.accept lt in
     Dispatch.init ns Server po
 let accept_connected ns po = Dispatch.init ns Server po
 

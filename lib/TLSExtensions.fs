@@ -8,7 +8,7 @@ open TLSInfo
 
 type clientExtension =
     | CE_renegotiation_info of cVerifyData
-//    | CE_server_name of Cert.hint list
+//    | CE_server_name of list<Cert.hint>
     | CE_resumption_info of sessionHash
     | CE_extended_ms
     | CE_extended_padding
@@ -101,16 +101,16 @@ let parseClientExtension head payload =
             Some(Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid data for extended padding extension"))
     | (_,_) -> None
 
-let addOnceClient ext list =
-    if List.exists (sameClientExt ext) list then
+let addOnceClient ext extList =
+    if List.exists (sameClientExt ext) extList then
         Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Same extension received more than once")
     else
-        let res = ext::list in
+        let res = ext::extList in
         correct(res)
 
-let rec parseClientExtensionList ext list =
+let rec parseClientExtensionList ext extList =
     match length ext with
-    | 0 -> correct (list)
+    | 0 -> correct (extList)
     | x when x < 4 ->
         (* This is a parsing error, or a malformed extension *)
         Error (AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
@@ -123,14 +123,14 @@ let rec parseClientExtensionList ext list =
                 match parseClientExtension extTypeBytes payload with
                 | None ->
                     (* Unknown extension, skip it *)
-                    parseClientExtensionList rem list
+                    parseClientExtensionList rem extList
                 | Some(res) ->
                     match res with
                     | Error(x,y) -> Error(x,y)
                     | Correct(ce) ->
-                        match addOnceClient ce list with
+                        match addOnceClient ce extList with
                         | Error(x,y) -> Error(x,y)
-                        | Correct(list) -> parseClientExtensionList rem list
+                        | Correct(extList) -> parseClientExtensionList rem extList
 
 let rec parseClientSCSVs ch_ciphers extL =
     if contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV ch_ciphers then
@@ -185,7 +185,7 @@ let serverToNegotiatedExtension cExtL (resuming:bool) cs res sExt : negotiatedEx
         else
             Error(AD_handshake_failure,perror __SOURCE_FILE__ __LINE__ "Server provided an extension not given by the client")
 
-let negotiateClientExtensions (cExtL:clientExtension list) (sExtL:serverExtension list) (resuming:bool) cs =
+let negotiateClientExtensions (cExtL:list<clientExtension>) (sExtL:list<serverExtension>) (resuming:bool) cs =
     match Collections.List.fold (serverToNegotiatedExtension cExtL resuming cs) (correct []) sExtL with
     | Error(x,y) -> Error(x,y)
     | Correct(l) ->
@@ -255,16 +255,16 @@ let parseServerExtension head payload =
         // A server can never send an extension the client doesn't support
         Error(AD_unsupported_extension, perror __SOURCE_FILE__ __LINE__ "Server provided an unsupported extesion")
 
-let addOnceServer ext list =
-    if List.exists (sameServerExt ext) list then
+let addOnceServer ext extList =
+    if List.exists (sameServerExt ext) extList then
         Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Same extension received more than once")
     else
-        let res = ext::list in
+        let res = ext::extList in
         correct(res)
 
-let rec parseServerExtensionList ext list =
+let rec parseServerExtensionList ext extList =
     match length ext with
-    | 0 -> correct (list)
+    | 0 -> correct (extList)
     | x when x < 4 ->
         (* This is a parsing error, or a malformed extension *)
         Error (AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
@@ -277,9 +277,9 @@ let rec parseServerExtensionList ext list =
                 match parseServerExtension extTypeBytes payload with
                 | Error(x,y) -> Error(x,y)
                 | Correct(ce) ->
-                    match addOnceServer ce list with
+                    match addOnceServer ce extList with
                     | Error(x,y) -> Error(x,y)
-                    | Correct(list) -> parseServerExtensionList rem list
+                    | Correct(extList) -> parseServerExtensionList rem extList
 
 let parseServerExtensions data =
     match length data with
@@ -337,7 +337,7 @@ let isClientRenegotiationInfo e =
     | CE_renegotiation_info(cvd) -> Some(cvd)
     | _ -> None
 
-let checkClientRenegotiationInfoExtension config (cExtL: clientExtension list) cVerifyData =
+let checkClientRenegotiationInfoExtension config (cExtL: list<clientExtension>) cVerifyData =
     match List.tryPick isClientRenegotiationInfo cExtL with
     | None -> not (config.safe_renegotiation)
     | Some(payload) -> equalBytes payload cVerifyData
@@ -347,7 +347,7 @@ let isServerRenegotiationInfo e =
     | SE_renegotiation_info (cvd,svd) -> Some((cvd,svd))
     | _ -> None
 
-let checkServerRenegotiationInfoExtension config (sExtL: serverExtension list) cVerifyData sVerifyData =
+let checkServerRenegotiationInfoExtension config (sExtL: list<serverExtension>) cVerifyData sVerifyData =
     match List.tryPick isServerRenegotiationInfo sExtL with
     | None -> not (config.safe_renegotiation)
     | Some(x) ->
@@ -359,7 +359,7 @@ let isClientResumptionInfo e =
     | CE_resumption_info(cvd) -> Some(cvd)
     | _ -> None
 
-let checkClientResumptionInfoExtension (config:config) (cExtL: clientExtension list) sh =
+let checkClientResumptionInfoExtension (config:config) (cExtL: list<clientExtension>) sh =
     match List.tryPick isClientResumptionInfo cExtL with
     | None -> None
     | Some(payload) -> let res = equalBytes payload sh in Some(res)
@@ -369,7 +369,7 @@ let isServerResumptionInfo e =
     | SE_resumption_info(sh) -> Some(sh)
     | _ -> None
 
-let checkServerResumptionInfoExtension config (sExtL: serverExtension list) sessionHash =
+let checkServerResumptionInfoExtension config (sExtL: list<serverExtension>) sessionHash =
     match List.tryPick isServerResumptionInfo sExtL with
     | None -> not (config.safe_resumption)
     | Some(sh) -> equalBytes sh sessionHash
@@ -414,7 +414,7 @@ let rec sigHashAlgListBytes algL =
         let oneItem = sigHashAlgBytes h in
         oneItem @| sigHashAlgListBytes t
 
-let rec parseSigHashAlgList_int b : (Sig.alg list Result)=
+let rec parseSigHashAlgList_int b : (list<Sig.alg> Result)=
     if length b = 0 then correct([])
     elif length b = 1 then Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
     else
@@ -448,10 +448,10 @@ let default_sigHashAlg_fromSig pv sigAlg=
 let default_sigHashAlg pv cs =
     default_sigHashAlg_fromSig pv (sigAlg_of_ciphersuite cs)
 
-let sigHashAlg_contains (algList:Sig.alg list) (alg:Sig.alg) =
+let sigHashAlg_contains (algList:list<Sig.alg>) (alg:Sig.alg) =
     List.exists (fun a -> a = alg) algList
 
-let sigHashAlg_bySigList (algList:Sig.alg list) (sigAlgList:sigAlg list):Sig.alg list =
+let sigHashAlg_bySigList (algList:list<Sig.alg>) (sigAlgList:list<sigAlg>):list<Sig.alg> =
     List.choose (fun alg -> let (sigA,_) = alg in if (List.exists (fun a -> a = sigA) sigAlgList) then Some(alg) else None) algList
 
 let cert_type_to_SigHashAlg ct pv =

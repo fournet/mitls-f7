@@ -131,7 +131,7 @@ type cVerifyData = bytes (* ClientFinished payload *)
 type sVerifyData = bytes (* ServerFinished payload *)
 #endif
 
-type chello = | ClientHelloMsg of (bytes * ProtocolVersion * random * sessionID * cipherSuites * Compression list * bytes)
+type chello = | ClientHelloMsg of (bytes * ProtocolVersion * random * sessionID * cipherSuites * list<Compression> * bytes)
 
 type preds = ServerLogBeforeClientCertificateVerifyRSA of SessionInfo * bytes
             |ServerLogBeforeClientCertificateVerify of SessionInfo * bytes
@@ -374,7 +374,7 @@ let certificateRequestBytes sign cs version =
             @| distNames in
     messageBytes HT_certificate_request data
 
-let parseCertificateRequest version data: (certType list * Sig.alg list * string list) Result =
+let parseCertificateRequest version data: (list<certType> * list<Sig.alg> * list<string>) Result =
     if length data >= 1 then
         match vlsplit 1 data with
         | Error(z) -> Error(z)

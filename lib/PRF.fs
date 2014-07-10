@@ -107,15 +107,15 @@ type state =
 type event = Mismatch of id
 
 type kdentry = csrands * state 
-let kdlog : kdentry list ref = ref [] 
+let kdlog : list<kdentry> ref = ref [] 
 
-let rec read csr (entries: kdentry list)  = 
+let rec read csr (entries: list<kdentry>)  = 
   match entries with
   | []                                 -> Init 
   | (csr', s)::entries when csr = csr' -> s
   | (csr', s)::entries                 -> read csr entries
 
-let rec update csr s (entries: kdentry list) = 
+let rec update csr s (entries: list<kdentry>) = 
   match entries with 
   | []                                  -> [(csr,s)]
   | (csr', s')::entries when csr = csr' -> (csr,s)   :: entries 
@@ -233,9 +233,9 @@ type tag = bytes
 type eventVD = MakeVerifyData of msId * Role * text * tag
 
 type entry = msId * Role * text * tag
-let log : entry list ref = ref []
+let log : list<entry> ref = ref []
 
-let rec mem (i:msId) (r:Role) (t:text) (es:entry list) = 
+let rec mem (i:msId) (r:Role) (t:text) (es:list<entry>) = 
   match es with
   | [] -> false 
   | (i',role,text,_)::es when i=i' && r=role && text=t -> true

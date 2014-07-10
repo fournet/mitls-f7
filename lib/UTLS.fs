@@ -39,7 +39,7 @@ type Phandleinfo = handleinfo
 let handleinfo_of_conn (c : Connection) : Phandleinfo =
     { conn = c; canwrite = false; }
 
-type fdmap = (fd * Phandleinfo) list
+type fdmap = list<(fd * Phandleinfo)>
 
 let fds = ref ([] : fdmap)
 let fdc = ref 0

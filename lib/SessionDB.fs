@@ -9,7 +9,7 @@ type StorableSession = SessionInfo * PRF.masterSecret
 type SessionIndex = sessionID * Role * Cert.hint
 #if ideal
 type entry = sessionID * Role * Cert.hint * StorableSession
-type t = entry list  
+type t = list<entry>  
 
 let create (c:config) : t = []
 

@@ -9,8 +9,8 @@ type secret = Key of bytes
 #if ideal
 type honest_entry = (p * g * elt)
 type good_entry = (p * g)
-let goodPP_log = ref([]: good_entry list)
-let honest_log = ref([]: honest_entry list)
+let goodPP_log = ref([]: list<good_entry>)
+let honest_log = ref([]: list<honest_entry>)
 let log = ref []
 #if verify
 let goodPP p g = failwith "only used in ideal implementation, unverified"

@@ -176,7 +176,7 @@ type cipherSuite =
     | OnlyMACCipherSuite of kexAlg * hashAlg
     | SCSV of SCSVsuite
 
-type cipherSuites = cipherSuite list
+type cipherSuites = list<cipherSuite>
 
 type PreCompression =
     | NullCompression
@@ -458,7 +458,7 @@ let sigAlg_of_ciphersuite cs =
     (* | CipherSuite(ECDHE_ECDSA,_) -> SA_ECDSA *)
     | _ -> unexpected "[sigAlg_of_ciphersuite] invoked on a worng ciphersuite"
 
-let contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV (css: cipherSuite list) =
+let contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV (css: list<cipherSuite>) =
 (* KB
 #if avoid
     failwith "TODO: fix list library": bool
@@ -621,7 +621,7 @@ type cipherSuiteName =
     | TLS_DH_anon_WITH_AES_256_GCM_SHA384
 
 
-let cipherSuites_of_nameList (nameList: cipherSuiteName list) =
+let cipherSuites_of_nameList (nameList: list<cipherSuiteName>) =
 (* KB
 #if avoid
    failwith "TODO: fix list library": cipherSuites
@@ -785,12 +785,12 @@ let split_at_most data len =
     else
         split data len
 
-let rec appendList (xl:bytes list) : bytes =
+let rec appendList (xl:list<bytes>) : bytes =
     match xl with
     | [] -> empty_bstr
     | h::t -> append h (appendList t)
 
-let rec splitList (b:bytes) (il:int list) : bytes list = 
+let rec splitList (b:bytes) (il:list<int>) : list<bytes> = 
     match il with
     | [] -> [b]
     | h::t -> let (x,y) = split b h in x::(splitList y t)

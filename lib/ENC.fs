@@ -161,8 +161,8 @@ let ENC_int ki s tlen d =
 type event =
   | ENCrypted of id * LHAEPlain.adata * cipher * Encode.plain
 type entry = id * LHAEPlain.adata * range * cipher * Encode.plain
-let log:entry list ref = ref []
-let rec cfind (e:id) (c:cipher) (xs: entry list) : (LHAEPlain.adata * range * Encode.plain) = 
+let log:list<entry> ref = ref []
+let rec cfind (e:id) (c:cipher) (xs: list<entry>) : (LHAEPlain.adata * range * Encode.plain) = 
   //let (ad,rg,text) = 
   match xs with
     | [] -> failwith "not found"
@@ -176,7 +176,7 @@ let rec cfind (e:id) (c:cipher) (xs: entry list) : (LHAEPlain.adata * range * En
     | _::res -> cfind e c res
   //(ad,rg,text)
 
-let addtolog (e:entry) (l: entry list ref) =
+let addtolog (e:entry) (l: list<entry> ref) =
     e::!l
 #endif
 
@@ -265,7 +265,7 @@ let k = mkRandom blocksize
 let qe = ref 0
 let qd = ref 0
 #if ideal
-let log = ref ([] : (block * block) list)
+let log = ref ([] : list<(block * block)>)
 let F p = 
   match findc !pcs p with 
   | Some(c) -> c // non-parametric; 

@@ -6,7 +6,7 @@ open Error
 open TLSError
 
 type fragment = {frag: rbytes}
-type stream = {sb:bytes list}
+type stream = {sb:list<bytes>}
 type plain = fragment
 
 let fragmentPlain (ki:id) (r:range) b = {frag = b}

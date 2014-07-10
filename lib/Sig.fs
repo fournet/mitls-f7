@@ -32,16 +32,16 @@ type entry = alg * pkey * text
 //in F7: type entry = a:alg * pk:(;a) pk * t:text * s:(;a) sigv { Msg(a,pk,t) } 
 
 type honest_entry = alg * skey * pkey
-let honest_log = ref ([]: honest_entry list)
-let log        = ref ([]: entry list)
+let honest_log = ref ([]: list<honest_entry>)
+let log        = ref ([]: list<entry>)
 
-let rec has_mac (a : alg) (pk : pkey) (t : text) (l:entry list) = 
+let rec has_mac (a : alg) (pk : pkey) (t : text) (l:list<entry>) = 
   match l with
       [] -> false
     | (a',pk',t')::r when a = a' && pk = pk' && t = t' -> true
     | h::r -> has_mac a pk t r
 
-let rec has_pk (a:alg) (pk:pkey) (l:(alg * skey * pkey) list) = 
+let rec has_pk (a:alg) (pk:pkey) (l:list<(alg * skey * pkey)>) = 
     match l with
         [] -> false
       | (a',_,pk')::t when a = a' && pk = pk' -> true

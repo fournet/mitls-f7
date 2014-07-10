@@ -11,7 +11,7 @@ type SessionIndex = sessionID * Role * Cert.hint
 
 #if ideal
 type entry = sessionID * Role * Cert.hint * StorableSession 
-type t = entry list 
+type t = list<entry> 
 #else
 type t
 #endif
@@ -21,4 +21,4 @@ val select: t -> sessionID -> Role -> Cert.hint -> StorableSession option
 val insert: t -> sessionID -> Role -> Cert.hint -> StorableSession -> t
 val remove: t -> sessionID -> Role -> Cert.hint -> t
 
-val getAllStoredIDs: t -> SessionIndex list
+val getAllStoredIDs: t -> list<SessionIndex>

@@ -30,7 +30,7 @@ type negotiatedExtension =
     | NE_extended_ms
     | NE_extended_padding
 
-type negotiatedExtensions = negotiatedExtension list
+type negotiatedExtensions = list<negotiatedExtension>
 
 type pmsId
 val pmsId: PMS.pms -> pmsId
@@ -51,9 +51,9 @@ type SessionInfo = {
     pmsId: pmsId;
     session_hash: sessionHash;
     client_auth: bool;
-    clientID: Cert.cert list;
+    clientID: list<Cert.cert>;
     clientSigAlg: Sig.alg;
-    serverID: Cert.cert list;
+    serverID: list<Cert.cert>;
     serverSigAlg: Sig.alg;
     sessionID: sessionID;
     }
@@ -123,7 +123,7 @@ type config = {
     minVer: ProtocolVersion
     maxVer: ProtocolVersion
     ciphersuites: cipherSuites
-    compressions: Compression list
+    compressions: list<Compression>
 
     (* Handshake specific options *)
     

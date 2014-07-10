@@ -177,9 +177,9 @@ let decrypt' e key data cipher =
 type preds = | ENCrypted of id * LHAEPlain.adata * range * LHAEPlain.plain * cipher
 
 type entry = id * LHAEPlain.adata * range * LHAEPlain.plain * ENC.cipher
-let log = ref ([]: entry list) // for defining the ideal functionality for INT-CTXT
+let log = ref ([]: list<entry>) // for defining the ideal functionality for INT-CTXT
 
-let rec cmem (e:id) (ad:LHAEPlain.adata) (c:ENC.cipher) (xs: entry list) = 
+let rec cmem (e:id) (ad:LHAEPlain.adata) (c:ENC.cipher) (xs: list<entry>) = 
 #if verify
   failwith "specification only"
 #else

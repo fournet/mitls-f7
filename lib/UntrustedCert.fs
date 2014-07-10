@@ -22,7 +22,7 @@ let OID_DSASignature            = "1.2.840.10040.4.3"
 type X509Certificate2 = System.Security.Cryptography.X509Certificates.X509Certificate2
 type hint = string
 type cert = bytes
-type chain = cert list
+type chain = list<cert>
 
 let x509_to_public_key (x509 : X509Certificate2) =
     match x509.GetKeyAlgorithm() with
@@ -99,7 +99,7 @@ let x509_check_key_sig_alg (sigkeyalg : Sig.alg) (x509 : X509Certificate2) =
         sigkeyalg = (SA_DSA, SHA)
     | _ -> false
 
-let x509_check_key_sig_alg_one (sigkeyalgs : Sig.alg list) (x509 : X509Certificate2) =
+let x509_check_key_sig_alg_one (sigkeyalgs : list<Sig.alg>) (x509 : X509Certificate2) =
     List.exists (fun a -> x509_check_key_sig_alg a x509) sigkeyalgs
 
 (* ------------------------------------------------------------------------ *)
@@ -142,10 +142,10 @@ let chain_to_x509list (chain : chain) =
         Some(List.map (fun (c : cert) -> new X509Certificate2(cbytes c)) chain)
     with :? CryptographicException -> None
 
-let x509list_to_chain (chain : X509Certificate2 list): chain  = List.map x509_export_public chain
+let x509list_to_chain (chain : list<X509Certificate2>): chain  = List.map x509_export_public chain
 
 
-let rec validate_x509list (c : X509Certificate2) (issuers : X509Certificate2 list) =
+let rec validate_x509list (c : X509Certificate2) (issuers : list<X509Certificate2>) =
     try
         let chain = new X509Chain () in
             chain.ChainPolicy.ExtraStore.AddRange(List.toArray issuers);
@@ -156,7 +156,7 @@ let rec validate_x509list (c : X509Certificate2) (issuers : X509Certificate2 lis
 
 (* ------------------------------------------------------------------------ *)
 
-let validate_x509_chain (sigkeyalgs : Sig.alg list) (chain : chain) =
+let validate_x509_chain (sigkeyalgs : list<Sig.alg>) (chain : chain) =
     match chain_to_x509list chain with
     | Some(x509list) ->
         match x509list with
@@ -176,7 +176,7 @@ let is_for_key_encryption (c : cert) =
         x509_is_for_key_encryption (new X509Certificate2(cbytes c))
     with :? CryptographicException -> false
 
-let find_sigcert_and_alg (sigkeyalgs : Sig.alg list) (h : hint) (algs : Sig.alg list) =
+let find_sigcert_and_alg (sigkeyalgs : list<Sig.alg>) (h : hint) (algs : list<Sig.alg>) =
     let store = new X509Store(StoreName.My, StoreLocation.CurrentUser) in
 
     store.Open(OpenFlags.ReadOnly ||| OpenFlags.OpenExistingOnly)
@@ -203,7 +203,7 @@ let find_sigcert_and_alg (sigkeyalgs : Sig.alg list) (h : hint) (algs : Sig.alg 
     finally
         store.Close()
 
-let find_enccert (sigkeyalgs : Sig.alg list) (h : hint) =
+let find_enccert (sigkeyalgs : list<Sig.alg>) (h : hint) =
     let store = new X509Store(StoreName.My, StoreLocation.CurrentUser) in
 
     store.Open(OpenFlags.ReadOnly ||| OpenFlags.OpenExistingOnly)

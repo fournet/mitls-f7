@@ -62,7 +62,7 @@ let splitRange ki r =
                 let r1 = (0,h - (l+allPad)) in
                 (r0,r1)
 
-type stream = {sb: cbytes list}
+type stream = {sb: list<cbytes>}
 type delta = {contents: rbytes}
 
 let createDelta (ki:epoch) (s:stream) (r:range) (b:bytes) = {contents = b}

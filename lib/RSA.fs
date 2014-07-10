@@ -108,7 +108,7 @@ let real_decrypt dk si cv cvCheck ciphertext =
 //#end-real_decrypt
 
 #if ideal
-let rec assoc (pk:RSAKey.pk) (cv:ProtocolVersion) (dummy_pms:bytes) (pmss:entry list) = 
+let rec assoc (pk:RSAKey.pk) (cv:ProtocolVersion) (dummy_pms:bytes) (pmss:list<entry>) = 
     match pmss with 
     | [] -> None 
     | (pk',cv',dummy_pms',ideal_pms)::mss' when pk=pk' && cv=cv' && dummy_pms=dummy_pms' -> Some(ideal_pms) 

@@ -15,14 +15,14 @@ val oid_of_keyalg: sigAlg -> string
 type X509Certificate2 = System.Security.Cryptography.X509Certificates.X509Certificate2
 type hint = string
 type cert = bytes
-type chain = cert list
+type chain = list<cert>
 
 val x509_is_for_signing: X509Certificate2 -> bool
 
 val x509_verify: X509Certificate2 -> bool
-val x509_chain: X509Certificate2 -> X509Certificate2 list
+val x509_chain: X509Certificate2 -> list<X509Certificate2>
 
-val x509_check_key_sig_alg_one: Sig.alg list -> X509Certificate2 -> bool
+val x509_check_key_sig_alg_one: list<Sig.alg> -> X509Certificate2 -> bool
 
 val x509_to_secret_key: X509Certificate2 -> CoreSig.sigskey option
 val x509_to_public_key: X509Certificate2 -> CoreSig.sigpkey option
@@ -33,23 +33,23 @@ val x509_export_public: X509Certificate2 -> bytes
 
 val cert_to_x509: cert -> X509Certificate2 option
 
-val chain_to_x509list: chain -> X509Certificate2 list option
+val chain_to_x509list: chain -> list<X509Certificate2> option
 
-val x509list_to_chain: X509Certificate2 list -> chain
+val x509list_to_chain: list<X509Certificate2> -> chain
 
-(* First argument (Sig.alg list) gives the allowed signing alg. used for
+(* First argument (list<Sig.alg>) gives the allowed signing alg. used for
  * signing the keys of the chain.
  *)
 
-val validate_x509_chain: Sig.alg list -> chain -> bool
+val validate_x509_chain: list<Sig.alg> -> chain -> bool
 
-val validate_x509list: X509Certificate2 -> X509Certificate2 list -> bool
+val validate_x509list: X509Certificate2 -> list<X509Certificate2> -> bool
 
 val is_for_signing:        cert -> bool
 val is_for_key_encryption: cert -> bool
 
-val find_sigcert_and_alg: Sig.alg list -> hint -> Sig.alg list -> (X509Certificate2 * Sig.alg) option
-val find_enccert: Sig.alg list -> hint -> X509Certificate2 option
+val find_sigcert_and_alg: list<Sig.alg> -> hint -> list<Sig.alg> -> (X509Certificate2 * Sig.alg) option
+val find_enccert: list<Sig.alg> -> hint -> X509Certificate2 option
 
 val get_chain_key_algorithm: chain -> sigAlg option
 

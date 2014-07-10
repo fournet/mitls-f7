@@ -10,7 +10,7 @@ open TLSError
 type adata = bytes
 
 type fragment
-type prehistory = (adata * range * fragment) list
+type prehistory = list<(adata * range * fragment)>
 type history  = (nat * prehistory)
 type plain = fragment
 

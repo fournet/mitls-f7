@@ -55,8 +55,8 @@ let ENC_int (id:id) state (adata:LHAEPlain.adata) (rg:range) text =
 
 #if ideal
 type entry = id * LHAEPlain.adata * cipher * range * LHAEPlain.plain
-let log:entry list ref = ref []
-let rec cfind (e:id) (c:cipher) (xs: entry list) = 
+let log:list<entry> ref = ref []
+let rec cfind (e:id) (c:cipher) (xs: list<entry>) = 
   match xs with
       [] -> failwith "not found"
     | (e',ad,c',rg,text)::res when e = e' && c = c' -> (ad,rg,text)

@@ -69,10 +69,10 @@ type serverState =  (* note that the CertRequest bits are determined by the conf
    (* the ProtocolVersion is the highest TLS version proposed by the client *)
 
 type clientState = 
-   | ServerHello                  of crand * sessionID * clientExtension list * cVerifyData * sVerifyData * log
+   | ServerHello                  of crand * sessionID * list<clientExtension> * cVerifyData * sVerifyData * log
 
    | ServerCertificateRSA         of SessionInfo * log
-   | ClientCheckingCertificateRSA of SessionInfo * log * Cert.cert list * ProtocolVersion option * bytes
+   | ClientCheckingCertificateRSA of SessionInfo * log * list<Cert.cert> * ProtocolVersion option * bytes
    | CertificateRequestRSA        of SessionInfo * log (* In fact, CertReq or SHelloDone will be accepted *)
    | ServerHelloDoneRSA           of SessionInfo * Cert.sign_cert * log
 
@@ -84,7 +84,7 @@ type clientState =
    | ServerHelloDoneDH            of SessionInfo * log
 
    | ServerCertificateDHE         of SessionInfo * log
-   | ClientCheckingCertificateDHE of SessionInfo * log * Cert.cert list * ProtocolVersion option * bytes
+   | ClientCheckingCertificateDHE of SessionInfo * log * list<Cert.cert> * ProtocolVersion option * bytes
    | ServerKeyExchangeDHE         of SessionInfo * log
    | CertificateRequestDHE        of SessionInfo * DHGroup.p * DHGroup.g * DHGroup.elt * log
    | ServerHelloDoneDHE           of SessionInfo * Cert.sign_cert * DHGroup.p * DHGroup.g * DHGroup.elt * log
@@ -443,7 +443,7 @@ type incomingCCS =
 
 
 /// ClientKeyExchange
-let find_client_cert_sign certType certAlg (distName:string list) pv hint =
+let find_client_cert_sign certType certAlg (distName:list<string>) pv hint =
     match pv with
     | TLS_1p2 ->
         let keyAlg = sigHashAlg_bySigList certAlg (cert_type_list_to_SigAlg certType) in
@@ -1276,7 +1276,7 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL l
 
         (* ClientKeyExchangeDHE(si,p,g,x,log) should carry PP((p,g)) /\ ?gx. DHE.Exp((p,g),x,gx) *)
 
-let prepare_server_output_full_DH_anon (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) (sExtL:serverExtension list) (log:log) : (hs_state * ProtocolVersion) Result =
+let prepare_server_output_full_DH_anon (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) (sExtL:list<serverExtension>) (log:log) : (hs_state * ProtocolVersion) Result =
 #if verify
     failwith "not verifying DH_anon"
 #else
@@ -1340,7 +1340,7 @@ let prepare_server_output_resumption ci state crand cExtL (sid:sessionID) stored
                                                          next_ci.id_in,reader,
                                                          ms,log))} 
 
-let startServerFull (ci:ConnectionInfo) state (cHello:ProtocolVersion * crand * sessionID * cipherSuites * Compression list * bytes) cExtL cvd svd log =  
+let startServerFull (ci:ConnectionInfo) state (cHello:ProtocolVersion * crand * sessionID * cipherSuites * list<Compression> * bytes) cExtL cvd svd log =  
     let (ch_client_version,ch_random,ch_session_id,ch_cipher_suites,ch_compression_methods,ch_extensions) = cHello in
     let cfg = state.poptions in
     // Negotiate the protocol parameters

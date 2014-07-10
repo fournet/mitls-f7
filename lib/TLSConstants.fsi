@@ -74,7 +74,7 @@ val macSize: macAlg -> nat
 
 type cipherSuite
 
-type cipherSuites = cipherSuite list
+type cipherSuites = list<cipherSuite>
 
 type PreCompression = NullCompression
 type Compression = PreCompression
@@ -124,9 +124,9 @@ val encAlg_of_ciphersuite: cipherSuite -> ProtocolVersion -> encAlg
 val sigAlg_of_ciphersuite: cipherSuite -> sigAlg
 
 val compressionBytes: Compression -> bytes
-val compressionMethodsBytes: Compression list -> bytes
+val compressionMethodsBytes: list<Compression> -> bytes
 val parseCompression: bytes -> Compression Result
-val parseCompressions: bytes -> Compression list
+val parseCompressions: bytes -> list<Compression>
 
 val cipherSuiteBytes: cipherSuite -> bytes
 val parseCipherSuite: bytes -> cipherSuite Result
@@ -178,7 +178,7 @@ type cipherSuiteName =
     | TLS_DH_anon_WITH_AES_128_GCM_SHA256
     | TLS_DH_anon_WITH_AES_256_GCM_SHA384
 
-val cipherSuites_of_nameList: cipherSuiteName list -> cipherSuites
+val cipherSuites_of_nameList: list<cipherSuiteName> -> cipherSuites
 val name_of_cipherSuite: cipherSuite -> cipherSuiteName Result
 
 type preContentType =
@@ -207,8 +207,8 @@ type certType =
 
 val certTypeBytes: certType -> bytes
 val parseCertType: bytes -> certType Result
-val certificateTypeListBytes: certType list -> bytes
-val parseCertificateTypeList: bytes -> certType list Result
-val defaultCertTypes: bool -> cipherSuite -> certType list
-val distinguishedNameListBytes: string list -> bytes
-val parseDistinguishedNameList: bytes -> string list -> string list Result
+val certificateTypeListBytes: list<certType> -> bytes
+val parseCertificateTypeList: bytes -> list<certType> Result
+val defaultCertTypes: bool -> cipherSuite -> list<certType>
+val distinguishedNameListBytes: list<string> -> bytes
+val parseDistinguishedNameList: bytes -> list<string> -> list<string> Result
