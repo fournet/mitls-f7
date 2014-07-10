@@ -932,7 +932,7 @@ definition !si,pv,l.
   ClientLogBeforeCertificateVerifyRSA_Auth(si,l) <=>
   (?si',l',encpms. ClientLogAfterServerHelloDoneRSA_Auth(si',l') /\
      UpdatesPmsClientID(si',si) /\
-     B(l) = B(l') @| CertificateMsg(si.clientID)
+     B(l) = (B(l') @| CertificateMsg(si.clientID))
          @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
 
 
@@ -942,7 +942,7 @@ definition !si,pv,l.
   ClientLogBeforeCertificateVerifyDHE_Auth(si,l) <=>
   (?si',l',b. ClientLogAfterServerHelloDoneDHE_Auth(si',l') /\
      UpdatesPmsClientID(si',si) /\
-     B(l) = B(l') @| CertificateMsg(si.clientID)
+     B(l) = (B(l') @| CertificateMsg(si.clientID))
          @| ClientKeyExchangeMsg_DHE(b))
 
 
@@ -961,15 +961,15 @@ definition !si,pv,l.
   ClientLogBeforeClientFinishedRSA_Auth(si,l) <=>
   (?si',l',encpms,a,sign. ClientLogAfterServerHelloDoneRSA_Auth(si',l') /\
      UpdatesPmsClientID(si',si) /\
-     B(l) = B(l') @| CertificateMsg(si.clientID)
-         @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms)
+     B(l) = ((B(l') @| CertificateMsg(si.clientID))
+         @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
          @| CertificateVerifyMsg(si.protocol_version,a,sign))
 
 definition !si,pv,l. 
   ClientLogBeforeClientFinishedRSA_TryNoAuth(si,l) <=>
   (?si',l',encpms. ClientLogAfterServerHelloDoneRSA_Auth(si',l') /\
      UpdatesPmsClientID(si',si) /\
-     B(l) = B(l') @| CertificateMsg(si.clientID)
+     B(l) = (B(l') @| CertificateMsg(si.clientID))
          @| ClientKeyExchangeMsg_RSA(si.protocol_version,encpms))
 
 
@@ -994,14 +994,14 @@ definition !si,pv,l.
   ClientLogBeforeClientFinishedDHE_Auth(si,l) <=>
   (?si',l',b,a,sign. ClientLogAfterServerHelloDoneDHE_Auth(si',l') /\
      UpdatesPmsClientID(si',si) /\
-     B(l) = B(l') @| CertificateMsg(si.clientID)
+     B(l) = (B(l') @| CertificateMsg(si.clientID))
             @| ClientKeyExchangeMsg_DHE(b) @| CertificateVerifyMsg(si.protocol_version,a,sign))
 
 definition !si,pv,l. 
   ClientLogBeforeClientFinishedDHE_TryNoAuth(si,l) <=>
   (?si',l',l'',b. ClientLogAfterServerHelloDoneDHE_Auth(si',l') /\
      UpdatesPmsClientID(si',si) /\
-     B(l) = B(l') @| CertificateMsg(si.clientID)
+     B(l) = (B(l') @| CertificateMsg(si.clientID))
          @| ClientKeyExchangeMsg_DHE(b))
 
 definition !si,pv,l. 
