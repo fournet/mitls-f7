@@ -68,8 +68,8 @@ let clientExtensionBytes ext =
     head @| payload
 
 let clientExtensionsBytes extL =
-    let extBL = List.map (fun e -> clientExtensionBytes e) extL
-    let extB = List.fold (fun s l -> s @| l) empty_bytes extBL
+    let extBL = List.map (fun e -> clientExtensionBytes e) extL in
+    let extB = List.fold (fun s l -> s @| l) empty_bytes extBL in
     if equalBytes extB empty_bytes then
         empty_bytes
     else
@@ -78,19 +78,19 @@ let clientExtensionsBytes extL =
 let parseClientExtension head payload =
     match cbyte2 head with
     | (0xFFuy, 0x01uy) -> // renegotiation info
-        match vlparse 1 payload with
+        (match vlparse 1 payload with
         | Error (x,y) -> Some(Error(x,y))
         | Correct(cvd) ->
             let res = CE_renegotiation_info (cvd) in
-            let res = correct res
-            Some(res)
+            let res = correct res in
+            Some(res))
     | (0xFFuy, 0xAAuy) -> // resumption info
-        match vlparse 2 payload with
+        (match vlparse 2 payload with
         | Error (x,y) -> Some(Error(x,y))
         | Correct(sh) ->
             let res = CE_resumption_info (sh) in
-            let res = correct res
-            Some(res)
+            let res = correct res in
+            Some(res))
     | (0xFFuy, 0xABuy) -> // extended_ms
         if equalBytes payload empty_bytes then
             Some(correct (CE_extended_ms))
@@ -154,7 +154,7 @@ let parseClientExtensions data ch_ciphers =
 
 let prepareClientExtensions (cfg:config) (conn:ConnectionInfo) renegoCVD (resumeSHOpt:option<sessionHash>) =
     (* Always send supported extensions. The configuration options will influence how strict the tests will be *)
-    let res = [CE_renegotiation_info(renegoCVD); CE_extended_ms; CE_extended_padding]
+    let res = [CE_renegotiation_info(renegoCVD); CE_extended_ms; CE_extended_padding] in
     match resumeSHOpt with
         | None -> res
         | Some(resumeSH) -> CE_resumption_info(resumeSH) :: res
@@ -220,8 +220,8 @@ let serverExtensionBytes ext =
     head @| payload
 
 let serverExtensionsBytes extL =
-    let extBL = List.map (fun e -> serverExtensionBytes e) extL
-    let extB = List.fold (fun s l -> s @| l) empty_bytes extBL
+    let extBL = List.map (fun e -> serverExtensionBytes e) extL in
+    let extB = List.fold (fun s l -> s @| l) empty_bytes extBL in
     if equalBytes extB empty_bytes then
         empty_bytes
     else
@@ -230,19 +230,19 @@ let serverExtensionsBytes extL =
 let parseServerExtension head payload =
     match cbyte2 head with
     | (0xFFuy, 0x01uy) -> // renegotiation info
-        match vlparse 1 payload with
+        (match vlparse 1 payload with
         | Error (x,y) -> Error(x,y)
         | Correct(vd) ->
             let vdL = length vd in
             let (cvd,svd) = split vd (vdL/2) in
             let res = SE_renegotiation_info (cvd,svd) in
-            correct(res)
+            correct(res))
     | (0xFFuy, 0xAAuy) -> // resumption info
-        match vlparse 2 payload with
+        (match vlparse 2 payload with
         | Error (x,y) -> Error(x,y)
         | Correct(sh) ->
             let res = SE_resumption_info (sh) in
-            correct(res)
+            correct(res))
     | (0xFFuy, 0xABuy) -> // extended master secret
         if equalBytes payload empty_bytes then
             correct(SE_extended_ms)
@@ -296,42 +296,42 @@ let ClientToServerExtension (cfg:config) cs ((renegoCVD:cVerifyData),(renegoSVD:
     match cExt with
     | CE_renegotiation_info (_) -> Some (SE_renegotiation_info (renegoCVD,renegoSVD))
     | CE_resumption_info (_) ->
-        match resumeSHOpt with
+        (match resumeSHOpt with
         | None -> None
-        | Some(resumeSH) -> Some (SE_resumption_info (resumeSH))
+        | Some(resumeSH) -> Some (SE_resumption_info (resumeSH)))
     | CE_extended_ms ->
-        match resumeSHOpt with
+        (match resumeSHOpt with
         | None -> Some(SE_extended_ms)
-        | Some(_) -> None
+        | Some(_) -> None)
     | CE_extended_padding ->
-        match resumeSHOpt with
+        (match resumeSHOpt with
         | None ->
             if isOnlyMACCipherSuite cs then
                 None
             else
                 Some(SE_extended_padding)
-        | Some(_) -> None
+        | Some(_) -> None)
 
 let ClientToNegotiatedExtension (cfg:config) cs ((cvd:cVerifyData),(svd:sVerifyData)) (resumeSHOpt:option<sessionHash>) cExt : option<negotiatedExtension> =
     match cExt with
     | CE_renegotiation_info (_) -> None
     | CE_resumption_info (_) -> None
     | CE_extended_ms ->
-        match resumeSHOpt with
+        (match resumeSHOpt with
         | None -> Some(NE_extended_ms)
-        | Some(_) -> None
+        | Some(_) -> None)
     | CE_extended_padding ->
-        match resumeSHOpt with
+        (match resumeSHOpt with
         | None ->
             if isOnlyMACCipherSuite cs then
                 None
             else
                 Some(NE_extended_padding)
-        | Some(_) -> None
+        | Some(_) -> None)
 
 let negotiateServerExtensions cExtL cfg cs (cvd,svd) resumeSHOpt =
-    let server = List.choose (ClientToServerExtension cfg cs (cvd,svd) resumeSHOpt) cExtL
-    let nego = List.choose (ClientToNegotiatedExtension cfg cs (cvd,svd) resumeSHOpt) cExtL
+    let server = List.choose (ClientToServerExtension cfg cs (cvd,svd) resumeSHOpt) cExtL in
+    let nego = List.choose (ClientToNegotiatedExtension cfg cs (cvd,svd) resumeSHOpt) cExtL in
     (server,nego)
 
 let isClientRenegotiationInfo e =

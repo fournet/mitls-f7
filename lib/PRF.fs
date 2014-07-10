@@ -44,7 +44,7 @@ let keyExtensionLength aeAlg =
 // This code is complex because we need to reshuffle the raw key materials  
 let deriveRawKeys (i:id) (ms:ms)  =
     // we swap the CR and SR for this derivation
-    let crand, srand = split i.csrConn 32
+    let crand, srand = split i.csrConn 32 in
     let data = srand @| crand in
     let ae = i.aeAlg in
     let len = keyExtensionLength ae in
@@ -52,12 +52,12 @@ let deriveRawKeys (i:id) (ms:ms)  =
     match ae with
     | MACOnly macAlg ->
         let macKeySize = macKeySize macAlg in
-        let ck,sk = split b macKeySize 
+        let ck,sk = split b macKeySize in
         (ck,sk) 
     | MtE(encAlg,macAlg) ->
         let macKeySize = macKeySize macAlg in
         let encKeySize = encKeySize encAlg in
-        match encAlg with
+        (match encAlg with
         | Stream_RC4_128 | CBC_Fresh(_) ->
             let cmkb, b = split b macKeySize in
             let smkb, b = split b macKeySize in
@@ -71,11 +71,11 @@ let deriveRawKeys (i:id) (ms:ms)  =
             let smkb, b = split b macKeySize in
             let cekb, b = split b encKeySize in
             let sekb, b = split b encKeySize in 
-            let ivsize = blockSize alg
+            let ivsize = blockSize alg in
             let civb, sivb = split b ivsize in
             let ck = (cmkb @| cekb @| civb) in
             let sk = (smkb @| sekb @| sivb) in
-            (ck,sk)
+            (ck,sk))
 #if verify
 #else 
 (* AEAD currently not fully implemented or verified *)

@@ -181,9 +181,9 @@ let is_for_key_encryption (c : cert) =
 let find_sigcert_and_alg (sigkeyalgs : list<Sig.alg>) (h : hint) (algs : list<Sig.alg>) =
     let store = new X509Store(StoreName.My, StoreLocation.CurrentUser) in
 
-    store.Open(OpenFlags.ReadOnly ||| OpenFlags.OpenExistingOnly)
+    store.Open(OpenFlags.ReadOnly ||| OpenFlags.OpenExistingOnly);
     try
-        try
+        (try
             let pick_wrt_req_alg (x509 : X509Certificate2) =
                     let testalg ((asig, _) : Sig.alg) =
                         x509.GetKeyAlgorithm() = oid_of_keyalg asig
@@ -201,14 +201,14 @@ let find_sigcert_and_alg (sigkeyalgs : list<Sig.alg>) (h : hint) (algs : list<Si
                             |> Seq.filter (fun (x509 : X509Certificate2) -> x509_verify x509)
                             |> Seq.filter (x509_check_key_sig_alg_one sigkeyalgs)
                             |> Seq.pick pick_wrt_req_alg)
-        with :? KeyNotFoundException -> None
+        with :? KeyNotFoundException -> None)
     finally
         store.Close()
 
 let find_enccert (sigkeyalgs : list<Sig.alg>) (h : hint) =
     let store = new X509Store(StoreName.My, StoreLocation.CurrentUser) in
 
-    store.Open(OpenFlags.ReadOnly ||| OpenFlags.OpenExistingOnly)
+    store.Open(OpenFlags.ReadOnly ||| OpenFlags.OpenExistingOnly);
     try
         try
             let x509 =

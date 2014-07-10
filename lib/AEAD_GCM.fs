@@ -52,7 +52,7 @@ let ENC_int (id:id) state (adata:LHAEPlain.adata) (rg:range) text =
     // AP: Else log encryption somewhere
     let cipher = cb @| cipher in
     let newCounter = state.counter + 1 in
-    let state = {state with counter = newCounter}
+    let state = {state with counter = newCounter} in
     (state,cipher)
 
 #if ideal
@@ -68,7 +68,7 @@ let rec cfind (e:id) (c:cipher) (xs: list<entry>) =
 let ENC (id:id) state adata rg p =
   #if ideal
     if safeId (id) then
-      let tlen = targetLength id rg
+      let tlen = targetLength id rg in
       let text = createBytes tlen 0 in
       let (s,c) = ENC_int id state adata rg text in
       log := (id, adata, c, rg, p)::!log;

@@ -11,7 +11,7 @@ open Range
 
 // FIXME: Port to deltas and streams!
 type pre_al_state = {
-  al_incoming: bytes (* incomplete incoming message *)
+  al_incoming: bytes; (* incomplete incoming message *)
   al_outgoing: bytes (* emptybstr if nothing to be sent *) 
 }
 

@@ -258,7 +258,7 @@ let parseClientHello data =
                         | Error(z) -> Error(z)
                         | Correct (res) ->
                         let (cmBytes,extensions) = res in
-                        let cm = parseCompressions cmBytes
+                        let cm = parseCompressions cmBytes in
                         correct(cv,cr,sid,clientCipherSuites,cm,extensions)
                     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
                 else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")

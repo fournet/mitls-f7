@@ -99,9 +99,10 @@ let sign (a: alg) (sk: skey) (t: text): sigv =
         | MD5SHA1 ->
             let t = HASH.hash MD5SHA1 t in
             CoreSig.sign None kparams (t)
+    in
     #if ideal
     let pk = pk_of a sk in
-    log := consLog a pk t (!log)
+    log := consLog a pk t (!log);
     #endif
     signature
 
@@ -118,37 +119,39 @@ let verify (a : alg) (pk : pkey) (t : text) (s : sigv) =
             (sprintf "Sig.verify: requested sig-hash = %A, but key requires %A"
                 ahash khash)
         #endif
-    if asig <> sigalg_of_pkeyparams kparams then
-        #if verify
-        Error.unexpected("Sig.verify")
-        #else
-        Error.unexpected
-            (sprintf "Sig.verify: requested sig-algo = %A, but key requires %A"
-                asig (sigalg_of_pkeyparams kparams))
-        #endif
-
-    let result =
-        match khash with
-        | NULL    -> CoreSig.verify None                     kparams t s
-        | MD5     -> CoreSig.verify (Some CoreSig.SH_MD5)    kparams t s
-        | SHA     -> CoreSig.verify (Some CoreSig.SH_SHA1  ) kparams t s
-        | SHA256  -> CoreSig.verify (Some CoreSig.SH_SHA256) kparams t s
-        | SHA384  -> CoreSig.verify (Some CoreSig.SH_SHA384) kparams t s
-        | MD5SHA1 ->
-            let t = HASH.hash MD5SHA1 t in
-            CoreSig.verify None kparams (t) s
-    #if ideal //#begin-idealization
-    let s = strong a in
-    let h = honest a pk in
-    if s then 
-      if h then 
-        let m  = has_mac a pk t !log in
-          if result then m
-          else false
-      else result
     else
-    #endif //#end-idealization
-    result
+        if asig <> sigalg_of_pkeyparams kparams then
+            #if verify
+            Error.unexpected("Sig.verify")
+            #else
+            Error.unexpected
+                (sprintf "Sig.verify: requested sig-algo = %A, but key requires %A"
+                    asig (sigalg_of_pkeyparams kparams))
+            #endif
+        else
+            let result =
+                match khash with
+                | NULL    -> CoreSig.verify None                     kparams t s
+                | MD5     -> CoreSig.verify (Some CoreSig.SH_MD5)    kparams t s
+                | SHA     -> CoreSig.verify (Some CoreSig.SH_SHA1  ) kparams t s
+                | SHA256  -> CoreSig.verify (Some CoreSig.SH_SHA256) kparams t s
+                | SHA384  -> CoreSig.verify (Some CoreSig.SH_SHA384) kparams t s
+                | MD5SHA1 ->
+                    let t = HASH.hash MD5SHA1 t in
+                    CoreSig.verify None kparams (t) s
+            in
+            #if ideal //#begin-idealization
+            let s = strong a in
+            let h = honest a pk in
+            if s then 
+              if h then 
+                let m  = has_mac a pk t !log in
+                  if result then m
+                  else false
+              else result
+            else
+            #endif //#end-idealization
+            result
 
 (* ------------------------------------------------------------------------ *)
 type pred = Honest of alg * pkey
@@ -159,16 +162,17 @@ let gen (a:alg) : pkey * skey =
         | SA_RSA -> CoreSig.gen CoreSig.CORE_SA_RSA
         | SA_DSA -> CoreSig.gen CoreSig.CORE_SA_DSA
         | _      -> Error.unexpected "[gen] invoked on unsupported algorithm"
+    in
     let p =    { pkey = (pkey, ahash) } in     
     let s =    { skey = (skey, ahash); pub = p } in
     #if ideal
     Pi.assume(Honest(a,p));  
-    honest_log := (a,s,p)::!honest_log
+    honest_log := (a,s,p)::!honest_log;
     #endif
     (p,s)
 
 let leak (a:alg) (s:skey) : CoreSig.sigskey = 
-    let (sk, ahash) = s.skey
+    let (sk, ahash) = s.skey in
     sk
 
 let create_pkey (a : alg) (p : CoreSig.sigpkey):pkey = 

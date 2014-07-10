@@ -17,9 +17,9 @@ type fragment =
 type plain = fragment
 
 type history = {
-  handshake: HSFragment.stream //CF Handshake.stream;
-  ccs:       HSFragment.stream //CF Handshake.stream;
-  alert:     HSFragment.stream //CF Alert.stream;
+  handshake: HSFragment.stream; //CF Handshake.stream;
+  ccs:       HSFragment.stream; //CF Handshake.stream;
+  alert:     HSFragment.stream; //CF Alert.stream;
   appdata:   DataStream.stream //CF AppData.stream;
 }
 
