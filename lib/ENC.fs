@@ -162,15 +162,15 @@ type event =
   | ENCrypted of id * LHAEPlain.adata * cipher * Encode.plain
 type entry = id * LHAEPlain.adata * range * cipher * Encode.plain
 let log: ref<list<entry>> = ref []
-let rec cfind (e:id) (c:cipher) (xs: list<entry>) : (LHAEPlain.adata * range * Encode.plain) = 
+let rec cfind (e:id) (ad:LHAEPlain.adata) (c:cipher) (xs: list<entry>) : (range * Encode.plain) = 
   //let (ad,rg,text) = 
   match xs with
     | [] -> failwith "not found"
     | entry::res -> 
-        let (e',ad,rg, c',text)=entry
-        if e = e' && c = c' then
-            (ad,rg,text)
-        else cfind e c res
+        let (e',ad',rg, c',text)=entry
+        if e = e' && c = c' && ad = ad' then
+            (rg,text)
+        else cfind e ad c res
         //let clength = length c in
         //let rg = cipherRangeClass e clength in
     // AP: unreachable | _::res -> cfind e c res
@@ -236,7 +236,8 @@ let DEC ki s ad cipher =
   #if ideal
     if safeId (ki) then
       let (s,p) = DEC_int ki s cipher in
-      let (ad',rg',p') = cfind ki cipher !log in
+      let (rg,p') = cfind ki ad cipher !log in
+      let p' = Encode.widen ki ad rg p' in
       (s,p')
     else
   #endif

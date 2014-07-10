@@ -181,7 +181,7 @@ let log = ref ([]: list<entry>) // for defining the ideal functionality for INT-
 
 let rec cmem (e:id) (ad:LHAEPlain.adata) (c:ENC.cipher) (xs: list<entry>) = 
 #if verify
-  failwith "specification only"
+  failwith "specification only" //MK seems pretty bad.
 #else
   match xs with
   | (e',ad',r,p,c')::_ when e=e' && ad=ad' && c=c' -> let x = (r,p) in Some x

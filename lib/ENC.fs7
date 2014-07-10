@@ -70,37 +70,40 @@ type event = ENCrypted of
 //CF we miss a refinement synchronizing ad and s
 val ENC: ki:id -> s:(;ki) encryptor -> ad:(;ki)LHAEPlain.adata -> r:range ->
   p:(;ki,ad,r)plain -> 
-  ( (s': (;ki) encryptor {StateID(ki,Writer,s') = StateID(ki,Writer,s)+1}
+  ( (s': (;ki) encryptor (*MK unspecified for now: {StateID(ki,Writer,s') = StateID(ki,Writer,s)+1} *)
     ) *
     (c : cipher {(SafeId(ki) => ENCrypted(ki,ad,c,p)) /\ Length(c)=TargetLength(ki,r)}
     ) 
   )
 
+//MK I don't see how we can prove this by typing.
+//ask !ki,ad,c,p,p'. ENCrypted(ki,ad,c,p) /\ ENCrypted(ki,ad,c,p') => p=p'
+
 val DEC: ki:id -> s:(;ki) decryptor -> ad:(;ki)LHAEPlain.adata ->
   c:cipher
   { (SafeId(ki) => ?p'. ENCrypted(ki,ad,c,p')) /\ Length(c) >= MinTlen(ki) /\ Length(c) <= max_TLSCipher_fragment_length } -> 
-  ( (s': (;ki) decryptor{StateID(ki,Reader,s') = StateID(ki,Reader,s)+1}) *
-    (p : (;ki,ad,CipherRangeClass(ki,Length(c)))plain {!p'. ENCrypted(ki,ad,c,p') => p=p'}))
+  ( (s': (;ki) decryptor (*MK unspecified for now: {StateID(ki,Reader,s') = StateID(ki,Reader,s)+1}*) )  *
+    (p : (;ki,ad,CipherRangeClass(ki,Length(c)))plain (*MK: ignoring this for now: {!p'. ENCrypted(ki,ad,c,p') => p=p'}*) ))
 
 type entry = 
   (ki:id * ad:(;ki)LHAEPlain.adata * rg:range * c:cipher * p:(;ki,ad,rg)plain)
-  { ENCrypted(ki,ad,c,p) } 
+  { ENCrypted(ki,ad,c,p) /\ Length(c) = TargetLength (ki, rg) } 
 
 val addtolog: e:entry -> l:entry list ref -> entry list
 
 val log: entry list ref
 
-val cfind: e:id -> c:cipher -> xs: entry list -> (ad:(;e)LHAEPlain.adata * rg:range * (;e,ad,rg) Encode.plain)
+val cfind: e:id -> ad:(;e)LHAEPlain.adata -> c:cipher -> xs: entry list -> (rg:range * p:(;e,ad,rg) Encode.plain){ENCrypted(e,ad,c,p) /\ Length(c) = TargetLength (e, rg)}
 
 //MK is this outdated? Should do some cleanup.
 (* AP
 val ENC: ki:id -> s:(;ki) encryptor -> tlen:int -> p:(;ki,tlen) plain -> 
   ( s':(;ki)encryptor *
-   c:cipher{StateID(s') = StateID(s)+1 /\ ENCrypted(ki,tlen,StateID(s),p,c) /\ Length(c)=tlen})
+   c:cipher{  StateID(s') = StateID(s)+1 /\  ENCrypted(ki,tlen,StateID(s),p,c) /\ Length(c)=tlen})
 
 val DEC: ki:id -> s:(;ki) decryptor -> c:cipher -> 
   (s':(;ki)decryptor *
-   p:(;ki,Length(c))plain{StateID(s') = StateID(s)+1 /\ !p'. ENCrypted(ki,Length(c),StateID(s),p',c) => p=p'})
+   p:(;ki,Length(c))plain{  StateID(s') = StateID(s)+1 /\  !p'. ENCrypted(ki,Length(c),StateID(s),p',c) => p=p'})
 *)
 
 
@@ -113,7 +116,7 @@ private val cbcenc: blockCipher -> CoreCiphers.key -> CoreCiphers.iv -> bytes ->
 private val cbcdec: blockCipher -> CoreCiphers.key -> CoreCiphers.iv -> bytes -> bytes
 
 val ENC_int: i:id -> s:(;i)encryptor -> tlen:nat{!enc,mac. i.aeAlg = MtE(CBC_Stale(enc),mac) => tlen>=BlockSize(enc)} -> bytes -> 
-( (s': (;i) encryptor {StateID(i,Writer,s') = StateID(i,Writer,s)+1}
+( (s': (;i) encryptor (*MK unspecified for now: {StateID(i,Writer,s') = StateID(i,Writer,s)+1} *)
   ) * 
   (c:cipher {Length(c)=tlen}
   )  
