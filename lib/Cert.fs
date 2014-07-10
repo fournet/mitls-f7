@@ -83,6 +83,7 @@ let for_key_encryption (sigkeyalgs : list<Sig.alg>) (h : hint) =
                         None
                 | None, _ -> None
                 | _, None -> None
+                | _, _ -> Error.unexpected "[for_key_encryption] unreachable pattern match"
             | None -> None
 
 (* ------------------------------------------------------------------------ *)

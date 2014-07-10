@@ -119,6 +119,7 @@ let DEC (id:id) state (adata:LHAEPlain.adata) (rg:range) cipher  =
       | Correct (s,p) ->
         let (ad',rg',p') = cfind id cipher !log in
         correct (s,p')
+      | Error(x) -> Error(x)
     else
   #endif
       DEC_int id state adata rg cipher

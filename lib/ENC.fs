@@ -175,7 +175,7 @@ let rec cfind (e:id) (c:cipher) (xs: list<entry>) : (LHAEPlain.adata * range * E
         else cfind e c res
         //let clength = length c in
         //let rg = cipherRangeClass e clength in
-    | _::res -> cfind e c res
+    // AP: unreachable | _::res -> cfind e c res
   //(ad,rg,text)
 
 let addtolog (e:entry) (l: ref<list<entry>>) =

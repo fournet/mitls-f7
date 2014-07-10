@@ -45,9 +45,10 @@ let rec has_mac (a : alg) (pk : pkey) (t : text) (l:list<entry>) =
 
 let rec has_pk (a:alg) (pk:pkey) (l:list<(alg * skey * pkey)>) = 
     match l with
-        [] -> false
+      | [] -> false
       | (a',_,pk')::t when a = a' && pk = pk' -> true
       | (a',_,pk')::t when a <> a' || pk <> pk' -> has_pk a pk t
+      | _ -> Error.unexpected "[has_pk] unreachable pattern match"
 
 let pk_of (a:alg) (sk:skey) =  sk.pub
 let consHonestLog a sk pk log =  (a, sk, pk)::log
