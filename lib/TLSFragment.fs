@@ -1,4 +1,6 @@
-﻿module TLSFragment
+﻿#light "off"
+
+module TLSFragment
 
 open Error
 open TLSError

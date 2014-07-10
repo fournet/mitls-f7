@@ -1,4 +1,6 @@
-﻿module KEF
+﻿#light "off"
+
+module KEF
 
 open Bytes
 open TLSConstants

@@ -1,4 +1,6 @@
-﻿module UTLS
+﻿#light "off"
+
+module UTLS
 
 // TODO: locking
 

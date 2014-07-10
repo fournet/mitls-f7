@@ -1,4 +1,6 @@
-﻿module Record
+﻿#light "off"
+
+module Record
 
 open Bytes
 open Error

@@ -1,4 +1,6 @@
-﻿module DataStream
+﻿#light "off"
+
+module DataStream
 open TLSConstants
 open TLSInfo
 open Bytes

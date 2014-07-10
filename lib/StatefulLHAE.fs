@@ -1,4 +1,6 @@
-﻿module StatefulLHAE
+﻿#light "off"
+
+module StatefulLHAE
 
 // implemented using LHAE with a sequence number 
 

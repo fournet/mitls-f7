@@ -1,4 +1,6 @@
-﻿module TLSInfo
+﻿#light "off"
+
+module TLSInfo
 
 open Bytes
 open Date

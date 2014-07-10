@@ -1,4 +1,6 @@
-﻿module RSA
+﻿#light "off"
+
+module RSA
 
 open Bytes
 open Error

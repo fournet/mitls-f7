@@ -1,4 +1,6 @@
-﻿module HASH
+﻿#light "off"
+
+module HASH
 
 open Bytes
 open TLSConstants

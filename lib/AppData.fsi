@@ -1,4 +1,6 @@
-﻿module AppData
+﻿#light "off"
+
+module AppData
 
 open TLSInfo
 open Bytes

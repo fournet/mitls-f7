@@ -1,4 +1,6 @@
-﻿module TLSConstants
+﻿#light "off"
+
+module TLSConstants
 
 open Bytes
 open Error

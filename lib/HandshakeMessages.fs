@@ -1,4 +1,6 @@
-﻿(* Handshake protocol messages *) 
+﻿#light "off"
+
+(* Handshake protocol messages *) 
 module HandshakeMessages
 
 open Bytes

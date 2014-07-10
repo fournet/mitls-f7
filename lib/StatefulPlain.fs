@@ -1,4 +1,6 @@
-﻿module StatefulPlain
+﻿#light "off"
+
+module StatefulPlain
 open Bytes
 open Error
 open TLSError

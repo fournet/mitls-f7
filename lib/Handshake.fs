@@ -1,4 +1,6 @@
-﻿module Handshake
+﻿#light "off"
+
+module Handshake
 // State machine begins
 open Bytes
 open Error

@@ -1,4 +1,6 @@
-﻿module TLSPRF
+﻿#light "off"
+
+module TLSPRF
 
 (* Low-level (bytes -> byte) PRF implementations for TLS *)
 

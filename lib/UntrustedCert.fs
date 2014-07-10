@@ -1,4 +1,6 @@
-﻿module UntrustedCert
+﻿#light "off"
+
+module UntrustedCert
 
 (* ------------------------------------------------------------------------ *)
 open System.Text

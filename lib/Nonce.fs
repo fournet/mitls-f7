@@ -1,4 +1,6 @@
-﻿module Nonce
+﻿#light "off"
+
+module Nonce
 
 open Bytes
 open Error

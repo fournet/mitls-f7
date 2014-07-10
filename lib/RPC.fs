@@ -1,4 +1,6 @@
-﻿module RPC
+﻿#light "off"
+
+module RPC
 
 open Bytes
 open TLSInfo

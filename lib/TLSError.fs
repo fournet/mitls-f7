@@ -1,4 +1,6 @@
-﻿module TLSError
+﻿#light "off"
+
+module TLSError
 
 type alertDescription = 
     | AD_close_notify

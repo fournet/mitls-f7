@@ -1,4 +1,6 @@
-﻿module TLSExtensions
+﻿#light "off"
+
+module TLSExtensions
 
 open Bytes
 open Error

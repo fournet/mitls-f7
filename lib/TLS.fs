@@ -1,4 +1,6 @@
-﻿module TLS
+﻿#light "off"
+
+module TLS
 
 open Bytes
 open Error

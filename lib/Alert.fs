@@ -1,4 +1,6 @@
-﻿module Alert
+﻿#light "off"
+
+module Alert
 
 open Bytes
 open Error
