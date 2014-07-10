@@ -125,6 +125,7 @@ let prf' a secret data len =
     | PRF_TLS_1p2(label,macAlg) -> tls12prf' macAlg secret label data len  // typically SHA256 but may depend on CS
     | PRF_TLS_1p01(label)       -> tls_prf          secret label data len  // MD5 xor SHA1
     | PRF_SSL3_nested           -> ssl_prf          secret       data len  // MD5(SHA1(...)) for extraction and keygen
+    | _ -> Error.unexpected "[prf'] unreachable pattern match"
 
 //let extract a secret data len = prf a secret extract_label data len
 
