@@ -107,7 +107,7 @@ type state =
 type event = Mismatch of id
 
 type kdentry = csrands * state 
-let kdlog : list<kdentry> ref = ref [] 
+let kdlog : ref<list<kdentry>> = ref [] 
 
 let rec read csr (entries: list<kdentry>)  = 
   match entries with
@@ -233,7 +233,7 @@ type tag = bytes
 type eventVD = MakeVerifyData of msId * Role * text * tag
 
 type entry = msId * Role * text * tag
-let log : list<entry> ref = ref []
+let log : ref<list<entry>> = ref []
 
 let rec mem (i:msId) (r:Role) (t:text) (es:list<entry>) = 
   match es with

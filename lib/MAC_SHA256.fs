@@ -16,7 +16,7 @@ let a = MA_HMAC(SHA256)
 
 #if ideal // We maintain a table of MACed plaintexts
 type entry = id * text * tag
-let log:list<entry> ref=ref []
+let log:ref<list<entry>> =ref []
 let rec tmem (e:id) (t:text) (xs: list<entry>) = 
   match xs with
       [] -> false

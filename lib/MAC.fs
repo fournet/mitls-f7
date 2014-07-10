@@ -26,7 +26,7 @@ type key =
 // 
 // #if ideal
 // type entry = id * text * tag
-// let log:list<entry> ref=ref []
+// let log:ref<list<entry>> =ref []
 // let rec tmem (e:id) (t:text) (xs: list<entry>) = 
 //  match xs with
 //      [] -> false

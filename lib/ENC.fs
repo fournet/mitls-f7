@@ -161,7 +161,7 @@ let ENC_int ki s tlen d =
 type event =
   | ENCrypted of id * LHAEPlain.adata * cipher * Encode.plain
 type entry = id * LHAEPlain.adata * range * cipher * Encode.plain
-let log:list<entry> ref = ref []
+let log: ref<list<entry>> = ref []
 let rec cfind (e:id) (c:cipher) (xs: list<entry>) : (LHAEPlain.adata * range * Encode.plain) = 
   //let (ad,rg,text) = 
   match xs with
@@ -176,7 +176,7 @@ let rec cfind (e:id) (c:cipher) (xs: list<entry>) : (LHAEPlain.adata * range * E
     | _::res -> cfind e c res
   //(ad,rg,text)
 
-let addtolog (e:entry) (l: list<entry> ref) =
+let addtolog (e:entry) (l: ref<list<entry>>) =
     e::!l
 #endif
 
