@@ -78,7 +78,7 @@ val ENC: ki:id -> s:(;ki) encryptor -> ad:(;ki)LHAEPlain.adata -> r:range ->
 
 val DEC: ki:id -> s:(;ki) decryptor -> ad:(;ki)LHAEPlain.adata ->
   c:cipher
-  { (SafeId(ki) => ?p'. ENCrypted(ki,ad,c,p')) /\ Length(c) >= MinTlen(ki) } -> 
+  { (SafeId(ki) => ?p'. ENCrypted(ki,ad,c,p')) /\ Length(c) >= MinTlen(ki) /\ Length(c) <= max_TLSCipher_fragment_length } -> 
   ( (s': (;ki) decryptor{StateID(ki,Reader,s') = StateID(ki,Reader,s)+1}) *
     (p : (;ki,ad,CipherRangeClass(ki,Length(c)))plain {!p'. ENCrypted(ki,ad,c,p') => p=p'}))
 
