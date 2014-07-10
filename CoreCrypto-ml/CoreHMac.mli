@@ -1,4 +1,3 @@
-﻿module CoreHMac
 open Bytes
 
 type engine
