@@ -72,19 +72,19 @@ type clientState =
    | ServerHello                  of crand * sessionID * list<clientExtension> * cVerifyData * sVerifyData * log
 
    | ServerCertificateRSA         of SessionInfo * log
-   | ClientCheckingCertificateRSA of SessionInfo * log * list<Cert.cert> * ProtocolVersion option * bytes
+   | ClientCheckingCertificateRSA of SessionInfo * log * list<Cert.cert> * option<ProtocolVersion> * bytes
    | CertificateRequestRSA        of SessionInfo * log (* In fact, CertReq or SHelloDone will be accepted *)
    | ServerHelloDoneRSA           of SessionInfo * Cert.sign_cert * log
 
    | ServerCertificateDH          of SessionInfo * log
-   | ClientCheckingCertificateDH  of SessionInfo * log * ProtocolVersion option * bytes
+   | ClientCheckingCertificateDH  of SessionInfo * log * option<ProtocolVersion> * bytes
    | CertificateRequestDH         of SessionInfo * log (* We pick our cert and store it in sessionInfo as soon as the server requests it.
                                                          We put None if we don't have such a certificate, and we know whether to send
                                                          the Certificate message or not based on the state when we receive the Finished message *)
    | ServerHelloDoneDH            of SessionInfo * log
 
    | ServerCertificateDHE         of SessionInfo * log
-   | ClientCheckingCertificateDHE of SessionInfo * log * list<Cert.cert> * ProtocolVersion option * bytes
+   | ClientCheckingCertificateDHE of SessionInfo * log * list<Cert.cert> * option<ProtocolVersion> * bytes
    | ServerKeyExchangeDHE         of SessionInfo * log
    | CertificateRequestDHE        of SessionInfo * DHGroup.p * DHGroup.g * DHGroup.elt * log
    | ServerHelloDoneDHE           of SessionInfo * Cert.sign_cert * DHGroup.p * DHGroup.g * DHGroup.elt * log
@@ -454,7 +454,7 @@ let find_client_cert_sign certType certAlg (distName:list<string>) pv hint =
         Cert.for_signing certAlg hint keyAlg
 
 (*
-let getCertificateBytes (si:SessionInfo) (cert_req:(Cert.chain * Sig.alg * Sig.skey) option) = 
+let getCertificateBytes (si:SessionInfo) (cert_req:option<(Cert.chain * Sig.alg * Sig.skey)>) = 
   let clientCertBytes = clientCertificateBytes cert_req in
   match cert_req with
     | None when si.client_auth = true -> clientCertBytes,[]
@@ -462,7 +462,7 @@ let getCertificateBytes (si:SessionInfo) (cert_req:(Cert.chain * Sig.alg * Sig.s
         let (certList,_,_) = x in clientCertBytes,certList
     | _ when si.client_auth = false -> empty_bytes,[]
 
-let getCertificateVerifyBytes (si:SessionInfo) (ms:PRF.masterSecret) (cert_req:(Cert.chain * Sig.alg * Sig.skey) option) (l:log) =
+let getCertificateVerifyBytes (si:SessionInfo) (ms:PRF.masterSecret) (cert_req:option<(Cert.chain * Sig.alg * Sig.skey)>) (l:log) =
   match cert_req with
     | None when si.client_auth = true ->
         (* We sent an empty Certificate message, so no certificate verify message at all *)
@@ -809,7 +809,7 @@ let parseMessageState (ci:ConnectionInfo) state =
              let res = Some(nx) in
              correct(res)
 
-let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion:ProtocolVersion option) =
+let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion:option<ProtocolVersion>) =
     match parseMessageState ci state with
     | Error z -> let (x,y) = z in InError(x,y,state)
     | Correct(res) ->
@@ -1382,7 +1382,7 @@ let startServerFull (ci:ConnectionInfo) state (cHello:ProtocolVersion * crand * 
 
 (*CF: we should rediscuss this monster pattern matching, factoring out some of it. *)
 
-let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion:ProtocolVersion option) =
+let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion:option<ProtocolVersion>) =
     match parseMessageState ci state with
     | Error(z) -> let (x,y) = z in  InError(x,y,state)
     | Correct(res) ->

@@ -23,7 +23,7 @@ let honest p g gx = List.exists (fun el-> el = (p,g,gx)) !honest_log
 
 type predPP = PP of p * g
 
-let pp (pg:dhparams) : p * g * (q option) =
+let pp (pg:dhparams) : p * g * (option<q>) =
     let p=pg.p
     //let pgg = pg.g
     //let goption = DHGroup.checkElement p pgg pgg
@@ -67,7 +67,7 @@ let genKey p g q: elt * secret =
 #if ideal
 // We maintain a log for looking up good ms values using their msId
 type entry = p* g * elt * elt * PMS.dhpms
-let rec assoc (p:p) (g:g) (gx:elt) (gy:elt) entries: PMS.dhpms option = 
+let rec assoc (p:p) (g:g) (gx:elt) (gy:elt) entries: option<PMS.dhpms> = 
     match entries with 
     | []                      -> None 
     | (p',g',gx',gy', pms)::entries when p = p' && g=g' && gx=gx' && gy=gy' -> Some(pms) 

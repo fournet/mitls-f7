@@ -14,8 +14,8 @@ type chain = UntrustedCert.chain
 type hint = UntrustedCert.hint
 type cert = UntrustedCert.cert 
 
-type sign_cert = (chain * Sig.alg * Sig.skey) option
-type enc_cert  = (chain * RSAKey.sk) option
+type sign_cert = option<(chain * Sig.alg * Sig.skey)>
+type enc_cert  = option<(chain * RSAKey.sk)>
 
 (* ------------------------------------------------------------------------ *)
 
@@ -143,10 +143,10 @@ let validate_cert_chain (sigkeyalgs : list<Sig.alg>) (chain : chain) =
 
 (* ------------------------------------------------------------------------ *)
 #if verify
-let get_hint (chain : chain) : hint option =
+let get_hint (chain : chain) : option<hint> =
     failwith "unverified" 
 #else
-let get_hint (chain : chain) : hint option =
+let get_hint (chain : chain) : option<hint> =
     match chain_to_x509list chain with
     | Some x509list ->    
         match x509list with

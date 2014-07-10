@@ -192,7 +192,7 @@ let send ns e write pv rg ct frag =
 
 (* which fragment should we send next? *)
 (* we must send this fragment before restoring the connection invariant *)
-let writeOne (Conn(id,c)) (ghost: (range * DataStream.delta * AppFragment.plain * DataStream.stream) option): writeOutcome * Connection =
+let writeOne (Conn(id,c)) (ghost: option<(range * DataStream.delta * AppFragment.plain * DataStream.stream)>): writeOutcome * Connection =
   let c_write = c.write in
   match c_write.disp with
   | Closed -> let reason = perror __SOURCE_FILE__ __LINE__ "Trying to write on a closed connection" in (WError(reason), Conn(id,c))
@@ -440,7 +440,7 @@ let rec writeAllFinishing conn =
     | (WHSDone,conn) -> (WHSDone,conn)
     | (_,_) -> unexpected "[writeAllFinishing] writeOne returned wrong result"
 
-let rec writeAllTop conn (ghost: (range * DataStream.delta * AppFragment.plain * DataStream.stream) option) =
+let rec writeAllTop conn (ghost: option<(range * DataStream.delta * AppFragment.plain * DataStream.stream)>) =
     match writeOne conn ghost with
     | (WError(x),conn) -> (WError(x), conn)
     | (SentFatal(x,y),conn) -> (SentFatal(x,y),conn)

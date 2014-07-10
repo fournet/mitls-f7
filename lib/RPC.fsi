@@ -1,3 +1,3 @@
 ﻿module RPC
-    val doclient : string -> string option
+    val doclient : string -> option<string>
     val doserver : unit -> bool

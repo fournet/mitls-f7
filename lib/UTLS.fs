@@ -63,13 +63,13 @@ let unbind_fd (fd : fd) : unit =
     fds := unbind_fd_r fd !fds
 
 (* ------------------------------------------------------------------------ *)
-let rec connection_of_fd_r (fd : fd) (fds : fdmap) : Phandleinfo option =
+let rec connection_of_fd_r (fd : fd) (fds : fdmap) : option<Phandleinfo> =
     match fds with
     | [] -> None
     | (h, hd) :: fds ->
         if fd = h then Some hd else connection_of_fd_r fd fds
 
-let connection_of_fd (fd : fd) : Phandleinfo option =
+let connection_of_fd (fd : fd) : option<Phandleinfo> =
     connection_of_fd_r fd !fds
 
 (* ------------------------------------------------------------------------ *)

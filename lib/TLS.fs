@@ -12,7 +12,7 @@ type nextCn = Connection
 
 // Outcomes for top-level functions
 type ioresult_i =
-    | ReadError of alertDescription option * string
+    | ReadError of option<alertDescription> * string
     | Close     of Tcp.NetworkStream
     | Fatal     of alertDescription
     | Warning   of nextCn * alertDescription 
@@ -23,7 +23,7 @@ type ioresult_i =
     | DontWrite of Connection
 
 type ioresult_o =
-    | WriteError    of alertDescription option * string
+    | WriteError    of option<alertDescription> * string
     | WriteComplete of nextCn
     | MustRead      of Connection
 

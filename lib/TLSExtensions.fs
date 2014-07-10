@@ -150,7 +150,7 @@ let parseClientExtensions data ch_ciphers =
             | Error(x,y) -> Error(x,y)
             | Correct(extL) -> parseClientSCSVs ch_ciphers extL
 
-let prepareClientExtensions (cfg:config) (conn:ConnectionInfo) renegoCVD (resumeSHOpt:sessionHash option) =
+let prepareClientExtensions (cfg:config) (conn:ConnectionInfo) renegoCVD (resumeSHOpt:option<sessionHash>) =
     (* Always send supported extensions. The configuration options will influence how strict the tests will be *)
     let res = [CE_renegotiation_info(renegoCVD); CE_extended_ms; CE_extended_padding]
     match resumeSHOpt with
@@ -290,7 +290,7 @@ let parseServerExtensions data =
         | Error(x,y)    -> Error(x,y)
         | Correct(exts) -> parseServerExtensionList exts []
 
-let ClientToServerExtension (cfg:config) cs ((renegoCVD:cVerifyData),(renegoSVD:sVerifyData)) (resumeSHOpt:sessionHash option) cExt : serverExtension option=
+let ClientToServerExtension (cfg:config) cs ((renegoCVD:cVerifyData),(renegoSVD:sVerifyData)) (resumeSHOpt:option<sessionHash>) cExt : option<serverExtension>=
     match cExt with
     | CE_renegotiation_info (_) -> Some (SE_renegotiation_info (renegoCVD,renegoSVD))
     | CE_resumption_info (_) ->
@@ -310,7 +310,7 @@ let ClientToServerExtension (cfg:config) cs ((renegoCVD:cVerifyData),(renegoSVD:
                 Some(SE_extended_padding)
         | Some(_) -> None
 
-let ClientToNegotiatedExtension (cfg:config) cs ((cvd:cVerifyData),(svd:sVerifyData)) (resumeSHOpt:sessionHash option) cExt : negotiatedExtension option =
+let ClientToNegotiatedExtension (cfg:config) cs ((cvd:cVerifyData),(svd:sVerifyData)) (resumeSHOpt:option<sessionHash>) cExt : option<negotiatedExtension> =
     match cExt with
     | CE_renegotiation_info (_) -> None
     | CE_resumption_info (_) -> None

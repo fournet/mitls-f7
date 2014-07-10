@@ -83,7 +83,7 @@ val versionBytes: ProtocolVersion -> bytes
 val parseVersion: bytes -> Result<ProtocolVersion>
 val minPV: ProtocolVersion -> ProtocolVersion -> ProtocolVersion
 val geqPV: ProtocolVersion -> ProtocolVersion -> bool
-val somePV: ProtocolVersion -> ProtocolVersion option
+val somePV: ProtocolVersion -> option<ProtocolVersion>
 
 val nullCipherSuite: cipherSuite
 val isNullCipherSuite: cipherSuite -> bool

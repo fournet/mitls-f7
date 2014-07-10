@@ -323,7 +323,7 @@ let serverHelloDoneBytes = messageBytes HT_server_hello_done empty_bytes
 
 let serverCertificateBytes cl = messageBytes HT_certificate (Cert.certificateListBytes cl)
 
-let clientCertificateBytes (cs:(Cert.chain * Sig.alg * Sig.skey) option) =
+let clientCertificateBytes (cs:option<(Cert.chain * Sig.alg * Sig.skey)>) =
     // TODO: move this match outside, and merge with serverCertificateBytes
     match cs with
     | None -> messageBytes HT_certificate (Cert.certificateListBytes [])

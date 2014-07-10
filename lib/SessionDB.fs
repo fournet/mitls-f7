@@ -42,7 +42,7 @@ type t = {
 
 (* ------------------------------------------------------------------------------- *)
 module Option =
-    let filter (f : 'a -> bool) (x : 'a option) =
+    let filter (f : 'a -> bool) (x : option<'a>) =
         match x with
         | None -> None
         | Some x when f x -> Some x

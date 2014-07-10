@@ -9,8 +9,8 @@ type hint = UntrustedCert.hint
 type cert = UntrustedCert.cert  
 
 type chain = UntrustedCert.chain
-type sign_cert = (chain * Sig.alg * Sig.skey) option
-type enc_cert  = (chain * RSAKey.sk) option
+type sign_cert = option<(chain * Sig.alg * Sig.skey)>
+type enc_cert  = option<(chain * RSAKey.sk)>
 
 val for_signing : list<Sig.alg> -> hint -> list<Sig.alg> -> sign_cert
 val for_key_encryption : list<Sig.alg> -> hint -> enc_cert
@@ -24,7 +24,7 @@ val get_chain_public_encryption_key : chain -> Result<RSAKey.pk>
 val is_chain_for_signing : chain -> bool
 val is_chain_for_key_encryption : chain -> bool
 
-val get_hint : chain -> hint option
+val get_hint : chain -> option<hint>
 val validate_cert_chain : list<Sig.alg> -> chain -> bool
 val parseCertificateList: bytes -> chain -> Result<chain>
 val certificateListBytes: chain -> bytes

@@ -24,16 +24,16 @@ val x509_chain: X509Certificate2 -> list<X509Certificate2>
 
 val x509_check_key_sig_alg_one: list<Sig.alg> -> X509Certificate2 -> bool
 
-val x509_to_secret_key: X509Certificate2 -> CoreSig.sigskey option
-val x509_to_public_key: X509Certificate2 -> CoreSig.sigpkey option
+val x509_to_secret_key: X509Certificate2 -> option<CoreSig.sigskey>
+val x509_to_public_key: X509Certificate2 -> option<CoreSig.sigpkey>
 
 val x509_is_for_key_encryption: X509Certificate2 -> bool
 
 val x509_export_public: X509Certificate2 -> bytes
 
-val cert_to_x509: cert -> X509Certificate2 option
+val cert_to_x509: cert -> option<X509Certificate2>
 
-val chain_to_x509list: chain -> list<X509Certificate2> option
+val chain_to_x509list: chain -> option<list<X509Certificate2>>
 
 val x509list_to_chain: list<X509Certificate2> -> chain
 
@@ -48,9 +48,9 @@ val validate_x509list: X509Certificate2 -> list<X509Certificate2> -> bool
 val is_for_signing:        cert -> bool
 val is_for_key_encryption: cert -> bool
 
-val find_sigcert_and_alg: list<Sig.alg> -> hint -> list<Sig.alg> -> (X509Certificate2 * Sig.alg) option
-val find_enccert: list<Sig.alg> -> hint -> X509Certificate2 option
+val find_sigcert_and_alg: list<Sig.alg> -> hint -> list<Sig.alg> -> option<(X509Certificate2 * Sig.alg)>
+val find_enccert: list<Sig.alg> -> hint -> option<X509Certificate2>
 
-val get_chain_key_algorithm: chain -> sigAlg option
+val get_chain_key_algorithm: chain -> option<sigAlg>
 
 val get_name_info: X509Certificate2 -> string

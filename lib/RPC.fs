@@ -53,7 +53,7 @@ let response_bytes nonce r = nonce @| (padmsg r)
 let service = fun r -> r
 
 type DrainResult =
-| DRError    of alertDescription option * string
+| DRError    of option<alertDescription> * string
 | DRClosed   of Tcp.NetworkStream
 | DRContinue of Connection
 

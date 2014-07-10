@@ -17,7 +17,7 @@ type t
 #endif
 
 val create: config -> t
-val select: t -> sessionID -> Role -> Cert.hint -> StorableSession option
+val select: t -> sessionID -> Role -> Cert.hint -> option<StorableSession>
 val insert: t -> sessionID -> Role -> Cert.hint -> StorableSession -> t
 val remove: t -> sessionID -> Role -> Cert.hint -> t
 

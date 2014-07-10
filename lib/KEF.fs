@@ -60,7 +60,7 @@ let private accessPMS (pms:PMS.pms) =
 // We maintain a log for looking up good ms values using their msId
 type entry = msId * PRF.ms
 let log = ref []
-let rec assoc (i:msId) entries: PRF.ms option = 
+let rec assoc (i:msId) entries: option<PRF.ms> = 
     match entries with 
     | []                      -> None 
     | (i', ms)::entries when i = i' -> Some(ms) 

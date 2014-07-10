@@ -19,7 +19,7 @@ let genElement p g q: elt =
 #endif
     e
 
-let checkElement (p:p) (g:g) (b:bytes): elt option =
+let checkElement (p:p) (g:g) (b:bytes): option<elt> =
     if CoreDH.check_element p g b then
 #if verify
         Pi.assume(Elt(p,g,b));
