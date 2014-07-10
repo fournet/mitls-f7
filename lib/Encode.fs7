@@ -120,6 +120,8 @@ definition !id,mac.     id.aeAlg = MtE(Stream_RC4_128,mac) => MinTlen(id) = MacK
 definition !id,alg,mac. id.aeAlg = MtE(CBC_Fresh(alg),mac) => MinTlen(id) = IVSize(id) + MacKeySize(mac) + FixedPadSize(id,()) 
 definition !id,alg,mac. id.aeAlg = MtE(CBC_Stale(alg),mac) => MinTlen(id) = IVSize(id) + MacKeySize(mac) + FixedPadSize(id,())
 
+ask !id,enc,mac. id.aeAlg = MtE(CBC_Stale(enc),mac) \/ id.aeAlg = MtE(CBC_Fresh(enc),mac) => MinTlen(id) >=BlockSize(enc)
+
 val plain: e:id{not AuthId(e)} ->
   ad:(;e)LHAEPlain.adata -> tlen:nat{tlen <= max_TLSCipher_fragment_length /\ tlen >= MinTlen(e)} ->
   (;PlainLength(e,tlen))lbytes ->
