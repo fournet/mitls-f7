@@ -214,7 +214,6 @@ let DEC_int (ki:id) (s:decryptor) cipher =
         | NoIV -> unexpected "[DEC] Wrong combination of cipher algorithm and state"
         | SomeIV(iv) ->
             let data = cbcdec alg s.key.k iv cipher in
-            let l = length cipher in 
             let lb = lastblock alg cipher in
             let siv = someIV ki lb in
             let s = updateIV ki s siv in
