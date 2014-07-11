@@ -82,7 +82,7 @@ let ENC (id:id) state adata rg p =
 let DEC_int (id:id) state (adata:LHAEPlain.adata) (rg:range) cipher =
     match id.aeAlg with
     | AEAD(aealg,_) ->
-        let recordIVLen = aeadRecordIVSize aealg in
+        (let recordIVLen = aeadRecordIVSize aealg in
         let (explicit,cipher) = split cipher recordIVLen in
         let ivb = state.iv.ivb in
         let iv = ivb @| explicit in
@@ -109,7 +109,7 @@ let DEC_int (id:id) state (adata:LHAEPlain.adata) (rg:range) cipher =
                 let reason = "" in
 #endif
                 Error(AD_bad_record_mac, reason)
-            | Correct(plain) -> correct (state,plain)
+            | Correct(plain) -> correct (state,plain))
     | _ -> unexpected "[DEC] invoked on wrong algorithm"
 
 let DEC (id:id) state (adata:LHAEPlain.adata) (rg:range) cipher  =

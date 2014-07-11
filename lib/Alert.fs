@@ -162,12 +162,12 @@ let next_fragment ci state =
         match rem with
         | x when length x = 0 ->
             // FIXME: This hack is not even working, because if we do one-bye fragmentation parseAlert fails!
-            match parseAlert d with
+            (match parseAlert d with
             | Error z -> unexpected ("[next_fragment] This invocation of parseAlertDescription should never fail")
             | Correct(ad) ->
                 match ad with
                 | AD_close_notify -> (LastALCloseFrag(r0,df),state)
-                | _ -> (LastALFrag(r0,df,ad),state)
+                | _ -> (LastALFrag(r0,df,ad),state))
         | _ -> (ALFrag(r0,df),state)
 
 let handle_alert ci state alDesc =
@@ -189,7 +189,7 @@ let recv_fragment (ci:ConnectionInfo) state (r:range) (f:HSFragment.fragment) =
     match state.al_incoming with
     | x when length x = 0 ->
         (* Empty buffer *)
-        match length fragment with
+        (match length fragment with
         | 0 -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Empty alert fragments are invalid")
         | 1 -> Correct (ALAck ({state with al_incoming = fragment})) (* Buffer this partial alert *)
         | _ -> (* Full alert received *)
@@ -199,9 +199,9 @@ let recv_fragment (ci:ConnectionInfo) state (r:range) (f:HSFragment.fragment) =
             else
                 match parseAlert al with
                 | Error z -> Error z 
-                | Correct(alert) -> let res = handle_alert ci state alert in correct(res)
+                | Correct(alert) -> let res = handle_alert ci state alert in correct(res))
     | inc ->
-        match length fragment with
+        (match length fragment with
         | 0 -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Empty alert fragments are invalid")
         | _ -> 
             let (part2,rem) = Bytes.split fragment 1 in
@@ -214,7 +214,7 @@ let recv_fragment (ci:ConnectionInfo) state (r:range) (f:HSFragment.fragment) =
                 | Correct(alert) ->
                     let state = {state with al_incoming = empty_bytes } in
                     let res = handle_alert ci state alert in
-                    correct(res)
+                    correct(res))
 
 let is_incoming_empty (c:ConnectionInfo) s = length s.al_incoming = 0
 

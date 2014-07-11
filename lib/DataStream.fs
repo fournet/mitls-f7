@@ -18,7 +18,7 @@ let maxLHPad id len =
     let authEnc = id.aeAlg in
     match authEnc with
     | MtE(encAlg,macAlg) ->
-        match encAlg with
+        (match encAlg with
         | Stream_RC4_128 -> thisPad
         | CBC_Stale(alg) | CBC_Fresh(alg) ->
             let BS = blockSize alg in
@@ -28,7 +28,7 @@ let maxLHPad id len =
             if overflow > thisPad then
                 thisPad
             else
-                thisPad - overflow
+                thisPad - overflow)
     | AEAD(_,_) ->
         thisPad
     | _ -> unexpected "[maxLHPad] invoked on an invalid ciphersuite"

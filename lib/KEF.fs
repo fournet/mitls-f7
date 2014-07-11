@@ -35,7 +35,7 @@ let private extractMS si pmsBytes : PRF.masterSecret =
     let data = csrands si in
     let ca = kefAlg si in
     let res = TLSPRF.extract ca pmsBytes data 48 in
-    let i = msi si
+    let i = msi si in
     PRF.coerce i res
 
 
@@ -86,13 +86,13 @@ let rec assoc (i:msId) entries: option<PRF.ms> =
 let extract si pms: PRF.masterSecret = 
     #if ideal
     if safeCRE si then
-        let i = msi si 
+        let i = msi si in
         match assoc i !log with 
         | Some(ms) -> ms
         | None -> 
-                let ms = PRF.sample i
-                log := (i, ms)::!log;
-                ms            
+                let ms = PRF.sample i in
+                (log := (i, ms)::!log;
+                ms)        
     else
     #endif
         extractMS si (accessPMS pms)
@@ -103,19 +103,19 @@ let private extractMS_extended si pmsBytes : PRF.masterSecret =
     let ca = kefAlg_extended si in
     let sh = si.session_hash in
     let res = TLSPRF.extract ca pmsBytes sh 48 in
-    let i = msi si
+    let i = msi si in
     PRF.coerce i res
 
 let extract_extended si pms =
     #if ideal
     if safeCRE si then
-        let i = msi si 
+        let i = msi si in
         match assoc i !log with 
         | Some(ms) -> ms
         | None -> 
-                let ms = PRF.sample i
-                log := (i, ms)::!log;
-                ms            
+                let ms = PRF.sample i in
+                (log := (i, ms)::!log;
+                ms)        
     else
     #endif
         extractMS_extended si (accessPMS pms)

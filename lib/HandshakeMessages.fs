@@ -282,7 +282,7 @@ let clientHelloBytes poptions crand session ext =
 
 let serverHelloBytes sinfo srand ext = 
     let verB = versionBytes sinfo.protocol_version in
-    let sidB = vlbytes 1 sinfo.sessionID
+    let sidB = vlbytes 1 sinfo.sessionID in
     let csB = cipherSuiteBytes sinfo.cipher_suite in
     let cmB = compressionBytes sinfo.compression in
     let data = verB @| srand @| sidB @| csB @| cmB @| ext in
@@ -290,28 +290,28 @@ let serverHelloBytes sinfo srand ext =
 
 let parseServerHello data =
     if length data >= 34 then
-        let (serverVerBytes,serverRandomBytes,data) = split2 data 2 32 
+        let (serverVerBytes,serverRandomBytes,data) = split2 data 2 32 in
         match parseVersion serverVerBytes with
         | Error z -> Error z
         | Correct(serverVer) ->
-        if length data >= 1 then
-            match vlsplit 1 data with
-            | Error z -> Error z
-            | Correct (res) ->
-            let (sid,data) = res in
-            if length sid <= 32 then
-                if length data >= 3 then
-                    let (csBytes,cmBytes,data) = split2 data 2 1 
-                    match parseCipherSuite csBytes with
-                    | Error(z) -> Error(z)
-                    | Correct(cs) ->
-                    match parseCompression cmBytes with
-                    | Error(z) -> Error(z)
-                    | Correct(cm) ->
-                    correct(serverVer,serverRandomBytes,sid,cs,cm,data)
-                else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+            if length data >= 1 then
+                match vlsplit 1 data with
+                | Error z -> Error z
+                | Correct (res) ->
+                    let (sid,data) = res in
+                    if length sid <= 32 then
+                        if length data >= 3 then
+                            let (csBytes,cmBytes,data) = split2 data 2 1 in
+                            match parseCipherSuite csBytes with
+                            | Error(z) -> Error(z)
+                            | Correct(cs) ->
+                                (match parseCompression cmBytes with
+                                | Error(z) -> Error(z)
+                                | Correct(cm) ->
+                                correct(serverVer,serverRandomBytes,sid,cs,cm,data))
+                        else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+                    else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
             else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
-        else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let helloRequestBytes = messageBytes HT_hello_request empty_bytes
@@ -529,13 +529,13 @@ let parseServerKeyExchange_DHE pv cs payload =
     match parseDHEParams payload with
     | Error(z) -> Error(z)
     | Correct(res) ->
-        let (p,g,y,payload) = res
+        let (p,g,y,payload) = res in
         let allowedAlgs = default_sigHashAlg pv cs in
-        match parseDigitallySigned allowedAlgs payload pv with
+        (match parseDigitallySigned allowedAlgs payload pv with
         | Error(z) -> Error(z)
         | Correct(res) ->
-            let (alg,signature) = res
-            correct(p,g,y,alg,signature)
+            let (alg,signature) = res in
+            correct(p,g,y,alg,signature))
 
 let serverKeyExchangeBytes_DH_anon p g y =
     let dehb = dheParamBytes p g y in
@@ -580,20 +580,20 @@ let certificateVerifyCheck si ms algs log payload =
     | Correct(res) ->
         let (alg,signature) = res in
         //let (alg,expected) =
-        match si.protocol_version with
+        (match si.protocol_version with
         | TLS_1p2 | TLS_1p1 | TLS_1p0 ->
-            match Cert.get_chain_public_signing_key si.clientID alg with
+            (match Cert.get_chain_public_signing_key si.clientID alg with
             | Error(z) -> (false,alg,empty_bytes)
             | Correct(vkey) ->
                 let res = Sig.verify alg vkey log signature in
-                (res,alg,signature)
+                (res,alg,signature))
         | SSL_3p0 -> 
             let (sigAlg,_) = alg in
             let alg = (sigAlg,NULL) in
             let expected = PRF.ssl_certificate_verify si ms sigAlg log in
-            match Cert.get_chain_public_signing_key si.clientID alg with
+            (match Cert.get_chain_public_signing_key si.clientID alg with
             | Error(z) -> (false,alg,empty_bytes)
             | Correct(vkey) ->
                 let res = Sig.verify alg vkey expected signature in
-                (res,alg,signature)
+                (res,alg,signature)))
     | Error(z) -> (false,(SA_RSA,SHA),empty_bytes)
