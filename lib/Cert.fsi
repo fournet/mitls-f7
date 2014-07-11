@@ -1,4 +1,6 @@
-﻿module Cert
+﻿#light "off"
+
+module Cert
 
 open Bytes
 open Error

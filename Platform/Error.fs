@@ -1,6 +1,6 @@
 ﻿module Error
 
-type ('a,'b) OptResult =
+type ('a,'b) optResult =
     | Error of 'a
     | Correct of 'b
 

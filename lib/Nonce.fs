@@ -1,4 +1,6 @@
-﻿module Nonce
+﻿#light "off"
+
+module Nonce
 
 open Bytes
 open Error
@@ -25,8 +27,8 @@ let rec mkHelloRandom(): bytes =
     if List.memr !log Cr then 
         mkHelloRandom () // we formally retry to exclude collisions.
     else 
-        log := Cr::!log
-        Cr
+        (log := Cr::!log;
+        Cr)
     #else //#end-idealization
     Cr
     #endif

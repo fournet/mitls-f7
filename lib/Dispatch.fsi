@@ -1,4 +1,6 @@
-﻿module Dispatch
+﻿#light "off"
+
+module Dispatch
 
 open Bytes
 open TLSConstants

@@ -1,4 +1,6 @@
-﻿module AppFragment
+﻿#light "off"
+
+module AppFragment
 open Bytes
 open TLSInfo
 open Range

@@ -1,4 +1,6 @@
-﻿module AEAD_GCM
+﻿#light "off"
+
+module AEAD_GCM
 
 open Bytes
 open TLSInfo

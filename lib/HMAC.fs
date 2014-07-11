@@ -1,4 +1,6 @@
-﻿module HMAC
+﻿#light "off"
+
+module HMAC
 
 open Bytes
 open TLSConstants

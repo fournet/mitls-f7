@@ -1,4 +1,6 @@
-﻿module MAC_SHA1
+﻿#light "off"
+
+module MAC_SHA1
 
 open Bytes
 open TLSConstants

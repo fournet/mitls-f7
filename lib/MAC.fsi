@@ -1,4 +1,6 @@
-﻿module MAC
+﻿#light "off"
+
+module MAC
 
 open Bytes
 open TLSConstants

@@ -25,6 +25,6 @@ val connect: string -> int -> NetworkStream
 
 (* Input/Output *)
 
-val read: NetworkStream -> int -> (string,bytes) OptResult
-val write: NetworkStream -> bytes -> (string,unit) OptResult
+val read: NetworkStream -> int -> (string,bytes) optResult
+val write: NetworkStream -> bytes -> (string,unit) optResult
 val close: NetworkStream -> unit

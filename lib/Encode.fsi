@@ -1,4 +1,6 @@
-﻿module Encode
+﻿#light "off"
+
+module Encode
 
 open Bytes
 open Error

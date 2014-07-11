@@ -1,4 +1,6 @@
-﻿module AppData
+﻿#light "off"
+
+module AppData
 
 open Error
 open TLSError
@@ -58,7 +60,7 @@ let clearOutBuf (c:ConnectionInfo) (a:app_state) =
 let recv_fragment (ci:ConnectionInfo)  (a:app_state)  (r:range) (f:AppFragment.fragment) =
     // pre: snd a.app_incoming = None
     let s = a.app_incoming in
-    let (d,ns) = AppFragment.delta ci.id_in s r f
+    let (d,ns) = AppFragment.delta ci.id_in s r f in
     let a = {a with app_incoming = ns} in
     (d,a)
 
