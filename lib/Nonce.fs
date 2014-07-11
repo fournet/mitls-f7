@@ -19,7 +19,7 @@ let log = ref []
 #endif
 
 let rec mkHelloRandom(): bytes =
-    let Cr = timestamp() in
+    let Cr = timestamp() @| random 28 in
     //#begin-idealization
     #if ideal
     if List.memr !log Cr then 
