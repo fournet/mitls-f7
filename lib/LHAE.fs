@@ -195,29 +195,29 @@ let rec cmem (e:id) (ad:LHAEPlain.adata) (c:ENC.cipher) (xs: list<entry>) =
 
 let encrypt (e:id) key data rg plain = 
   let (key,cipher) = encrypt' e key data rg plain in
-  #if ideal_F
+#if ideal_F
   if safeId  e then
     log := (e,data,rg,plain,cipher)::!log
   else ()
-  #endif
-  #if ideal
+#endif
+#if ideal
   (* CF we do not log in all cases, as we do not have ENCrypted for MAC-only suites *)
   if safeId  e then
     log := (e,data,rg,plain,cipher)::!log
   else ();
-  #endif
+#endif
   (key,cipher)
 
 let decrypt (e:id) (key: LHAEKey) data (cipher: bytes) = 
   let err = (AD_bad_record_mac,"") in
-  #if ideal_F
+#if ideal_F
   if safeId  e then
     match cmem e data cipher !log with
     | Some _ -> decrypt' e key data cipher
     | None   -> Error err
   else
-  #endif 
-  #if ideal
+#endif 
+#if ideal
   if safeId  e then
     match cmem e data cipher !log with
     | Some x -> 
@@ -228,5 +228,5 @@ let decrypt (e:id) (key: LHAEKey) data (cipher: bytes) =
        correct (key,rg',p')
     | None   -> Error err
   else
-  #endif 
+#endif 
       decrypt' e key data cipher

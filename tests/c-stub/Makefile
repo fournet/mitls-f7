@@ -39,28 +39,33 @@ endif
 
 SOURCES = \
 	echo-log.c     \
-	echo-log.h     \
 	echo-memory.c  \
-	echo-memory.h  \
 	echo-dlist.c   \
-	echo-dlist.h   \
 	echo-options.c \
-	echo-options.h \
 	echo-ssl.c     \
-	echo-ssl.h     \
 	echo-net.c     \
-	echo-net.h     \
 	echo-client.c  \
-	echo-client.h  \
 	echo-server.c  \
-	echo-server.h  \
 	echo.c
+
+HEADERS = \
+	echo-log.h     \
+	echo-memory.h  \
+	echo-dlist.h   \
+	echo-options.h \
+	echo-ssl.h     \
+	echo-net.h     \
+	echo-client.h  \
+	echo-server.h
 
 # --------------------------------------------------------------------
 all: $(CROSS)echo$(EXE)
 
-$(CROSS)echo$(EXE): $(SOURCES)
+$(CROSS)echo$(EXE): $(SOURCES:.c=.o)
 	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(LIBS)
 
+$(SOURCES:.c=.o): $(HEADER)
+
 clean:
+	rm -f $(SOURCES:.c=.o)
 	rm -f $(CROSS)echo$(EXE)

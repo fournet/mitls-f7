@@ -9,4 +9,5 @@
 /bench/openssl-server
 /bench/openssl-client
 *.bin
+*.o
 urandom
