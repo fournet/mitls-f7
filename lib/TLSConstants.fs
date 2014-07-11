@@ -459,13 +459,7 @@ let sigAlg_of_ciphersuite cs =
     | _ -> unexpected "[sigAlg_of_ciphersuite] invoked on a worng ciphersuite"
 
 let contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV (css: list<cipherSuite>) =
-(* KB
-#if avoid
-    failwith "TODO: fix list library": bool
-#else
-*)
     List.memr css (SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV))
-//KB #endif
 
 type prflabel = bytes
 let extract_label = utf8 "master secret"
@@ -622,11 +616,6 @@ type cipherSuiteName =
 
 
 let cipherSuites_of_nameList (nameList: list<cipherSuiteName>) =
-(* KB
-#if avoid
-   failwith "TODO: fix list library": cipherSuites
-#else
-*)
 #if ideal
    List.map (
 #else

@@ -135,7 +135,8 @@ let verify (a : alg) (pk : pkey) (t : text) (s : sigv) =
         | MD5SHA1 ->
             let t = HASH.hash MD5SHA1 t in
             CoreSig.verify None kparams (t) s
-    #if ideal //#begin-idealization
+    #if ideal 
+    //#begin-idealization
     let s = strong a in
     let h = honest a pk in
     if s then 
