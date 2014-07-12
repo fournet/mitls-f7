@@ -184,8 +184,12 @@ let addtolog (e:entry) (l: ref<list<entry>>) =
 let ENC (ki:id) s ad rg data =
     let tlen = targetLength ki rg in
   #if ideal
-    if safeId (ki) then
-      let d = createBytes tlen 0 in
+    let d = 
+      if safeId(ki) then
+        createBytes tlen 0
+      else
+        Encode.repr ki ad rg data  //MK we may have only plaintext integrity in this case
+    if authId (ki) then
       let (s,c) = ENC_int ki s tlen d in
       let l = length c
 //      let c =
@@ -193,7 +197,7 @@ let ENC (ki:id) s ad rg data =
 //        if l <= exp then c
 //        else Error.unexpected "ENC returned a ciphertext of unexpected size"
       Pi.assume (ENCrypted(ki,ad,c,data));
-      log := addtolog (ki, ad, rg, c, data) log;
+      log := addtolog (ki, ad, rg, c, data) log; 
       (s,c)
     else
   #endif
@@ -234,8 +238,9 @@ let DEC_int (ki:id) (s:decryptor) cipher =
 
 let DEC ki s ad cipher =
   #if ideal
-    if safeId (ki) then
+    if authId (ki) then
       let (s,p) = DEC_int ki s cipher in
+      //MK implement different find for plaintext integrity
       let (rg,p') = cfind ki ad cipher !log in
       let p' = Encode.widen ki ad rg p' in
       (s,p')

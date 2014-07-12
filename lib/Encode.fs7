@@ -128,9 +128,9 @@ definition !id,alg,mac. id.aeAlg = MtE(CBC_Stale(alg),mac) => MinTlen(id) = IVSi
 
 ask !id,enc,mac. id.aeAlg = MtE(CBC_Stale(enc),mac) \/ id.aeAlg = MtE(CBC_Fresh(enc),mac) => MinTlen(id) >=BlockSize(enc)
 
-val plain: e:id{not AuthId(e)} -> //MK chang AuthId to SafeId?
+val plain: e:id{not AuthId(e)} -> 
   ad:(;e)LHAEPlain.adata -> tlen:nat{tlen <= max_TLSCipher_fragment_length /\ tlen >= MinTlen(e)} ->
-  (;PlainLength(e,tlen))lbytes ->
+  bytes -> //MK seeing how far it would take me: (;PlainLength(e,tlen))lbytes ->
   (;e,ad,CipherRangeClass(e,tlen)) plain
 
 val repr:  e:id{not SafeId(e)} -> 
