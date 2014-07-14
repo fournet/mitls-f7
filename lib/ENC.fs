@@ -185,7 +185,7 @@ let ENC (ki:id) s ad rg data =
     let tlen = targetLength ki rg in
   #if ideal
     let d = 
-      if safeId(ki) then
+      if safeId(ki) then //MK Should we use Encode.payload here?
         createBytes tlen 0
       else
         Encode.repr ki ad rg data  //MK we may have only plaintext integrity in this case
