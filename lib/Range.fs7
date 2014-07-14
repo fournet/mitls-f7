@@ -36,6 +36,7 @@ ask !i. (?mac. i.aeAlg = MACOnly(mac) \/ i.aeAlg = MtE(Stream_RC4_128,mac)) => I
 
 val ivSize: e:id -> l:nat{l=IVSize(e)}
 
+// CF what does it mean? Pls document new ones... 
 function val FixedPadSize: id * unit -> nat
 definition
 	(* AP: for LH
