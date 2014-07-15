@@ -30,13 +30,14 @@ val splitRange: e:succEpoch -> r:range -> (r0:range * r1:range){r = Sum(r0,r1) /
 private type (;e:epoch) stream = {sb:cbytes list}
 
 // the implementation of this type is application-specific 
-// but it must provide the following functions to TLS
+// but it must provide a few functions to TLS, declared below.
 private type (;e:epoch, h:(;e)stream, r:range) delta = {contents: (;r) rbytes}
 
 function val Payload: e:epoch * s:(;e)stream * r:range * (;e,s,r)delta -> cbytes
 private definition !e,s,r,d. Payload(e,s,r,d) = B(d.contents)
 
-ask !e,e',s,s',r,r',d. Payload(e,s,r,d) = Payload(e',s',r',d)
+// CF enabling re-indexing too easily?
+// CF ask !e,e',s,s',r,r',d. Payload(e,s,r,d) = Payload(e',s',r',d)
 
 function val EmptyStream: e:epoch -> (;e)stream 
 private definition !e. EmptyStream(e) = {sb = []}
@@ -56,12 +57,12 @@ private definition
    (!e,s. (s.sb = []   => StreamBytes(e,s) = [||]) ) /\
    (!e,s,h,t. (s.sb = h::t => StreamBytes(e,s) = (StreamBytes(e,{sb=t}) @| h)) )
 
-ask !e. StreamBytes(e,EmptyStream(e)) = [||]
+ask !e.       StreamBytes(e,EmptyStream(e)) = [||]
 ask !e,s,r,b. StreamBytes(e,ExtendStream(e,s,r,b)) = ( StreamBytes(e,s) @| b )
 ask !e,s,r,d. StreamBytes(e,ExtendStreamDelta(e,s,r,d)) = ( StreamBytes(e,s) @| Payload(e,s,r,d) )
 
 // The following two functions are 
-// used only by the application.
+// used only by the application 
 // They are never called from TLS.
 val createDelta: 
   e:epoch -> s:(;e) stream -> r:range -> 
@@ -73,7 +74,7 @@ val deltaBytes:
 //CF we need a better verification pattern for multi-user interfaces.
 //CF a cheap one is to use different names plus ifdefs in the .fsi
 
-// used by TLS
+// These functions are used by TLS:
 val init: e:epoch -> s:(;e)stream{s=EmptyStream(e)}
 val append: 
   e:epoch -> s: (;e) stream -> r:range ->
@@ -100,18 +101,6 @@ val widen: e:epoch -> s:(;e) stream ->
 
 //CF: We need linearity on the stream! 
 
-(*CF This would be the application interface: 
-  MK This corresponds to createDelta and deltaBytes?
-
-val deltaPlain: 
-  e:epoch -> s:(;e) stream -> r:range -> 
-  b:(;r) rbytes -> c: (;e,s,r) delta  
-val deltaRepr: 
-  e:epoch -> s:(;e) stream -> r:range -> 
-  c: (;e,s,r) delta -> (;r) rbytes 
-
-*)
-
 
 (* CF notes on the "plaintext cascade"
 
@@ -122,7 +111,7 @@ val deltaRepr:
 
   private type (;e:epoch, h:(;e)stream, r:range) delta = {contents: (;r) rbytes}
 
-// AppFragment  (s,d) re-indexing from epochs ot indexes. FIX COMMENTS.
+// AppFragment  (s,d) re-indexing from epochs to indexes. FIX COMMENTS.
 // we generate a dummy epoch, Ok. 
 
 - Extend is wrong: not a function.
