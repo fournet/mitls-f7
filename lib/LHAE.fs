@@ -188,7 +188,6 @@ let rec cmem (e:id) (ad:LHAEPlain.adata) (c:ENC.cipher) (xs: list<entry>) =
   | _::xs                  -> cmem e ad c xs 
   | []                     -> None
 #endif
-
 #endif
 
 let encrypt (e:id) key data rg plain = 

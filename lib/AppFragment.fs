@@ -27,8 +27,7 @@ let check (e:epoch) (e':epoch) = ()
 
 let delta e s r f = 
     let (e',s',d) = f.frag in
-    //MK the following idealization is for reindexing. 
-    //MK if auth, then we can use the e' indexed d, and are guaranteed that s=s'
+    //MK the following idealization is reindexing. 
     #if ideal
     if auth e then
       // TODO: typechecking relies on proving that e = e' & s = s'. How? 
@@ -37,11 +36,7 @@ let delta e s r f =
       (d,s'')
     else       
       // we coerce d to the local epoch
-      //MK this requires that e' is not(Auth(e'))
-      //MK this might be the case because we only use unAuthIdInv e' for not(Auth(e))
-      //MK but could be hard to prove 
-      //MK this breaks typing as f.frag != (e',s',d')
-      //CF ?? 
+      //CF 14-07-15 ?? 
       //CF below, we can't prove not(Safe(e')).
       //CF from Id(e') = Id(e), we should get not(AuthId(Id(e')) => not(Auth(e')) => not(Safe(e'))
       let raw = deltaRepr e' s' r d in

@@ -23,10 +23,11 @@ private type (;e:id,ad:(;e)LHAEPlain.adata,rg:range) plain =
 	  (* true iff decoding succeeded; always true with RC4. *) }
 
 val widen: i:id -> ad:(;i)LHAEPlain.adata -> r:range -> 
-  f:(;i,ad,r)plain -> 
+  f :(;i,ad,r)plain -> 
   f':(;i,ad,CipherRangeClass(i,TargetLength(i,r))) plain 
     //{Payload(i,B(ad),r,f) = Payload(i,B(ad),RangeClass(i,r),f')}
-
+//CF Markulf, why commenting it out?
+//CF I don't see how we can use widen & get integrity without a stronger spec.
 
 function val PlainLength: id * nat -> nat
 definition !e,tlen. 
@@ -121,8 +122,8 @@ val decodeNoPad: e:id{not AuthId(e) /\ (?mac. e.aeAlg  = MACOnly(mac) \/
 function val MinTlen: id -> nat
 definition !id,mac.     id.aeAlg = MACOnly(mac)            => MinTlen(id) = MacKeySize(mac)
 definition !id,mac.     id.aeAlg = MtE(Stream_RC4_128,mac) => MinTlen(id) = MacKeySize(mac) 
-definition !id,alg,mac. id.aeAlg = MtE(CBC_Fresh(alg),mac) => MinTlen(id) = IVSize(id) + MacKeySize(mac) + FixedPadSize(id,()) 
-definition !id,alg,mac. id.aeAlg = MtE(CBC_Stale(alg),mac) => MinTlen(id) = IVSize(id) + MacKeySize(mac) + FixedPadSize(id,())
+definition !id,enc,mac. id.aeAlg = MtE(CBC_Fresh(enc),mac) => MinTlen(id) = IVSize(id) + MacKeySize(mac) + FixedPadSize(id,()) 
+definition !id,enc,mac. id.aeAlg = MtE(CBC_Stale(enc),mac) => MinTlen(id) = IVSize(id) + MacKeySize(mac) + FixedPadSize(id,())
 
 (*
 ask !id,enc,mac. 
@@ -136,6 +137,7 @@ ask !id,enc,mac.
 
 ask !id,enc,mac. 
     id.aeAlg = MtE(CBC_Fresh(enc),mac) => MinTlen(id) >= BlockSize(enc)
+
 
 val plain: e:id{not AuthId(e)} -> 
   ad:(;e)LHAEPlain.adata -> tlen:nat{tlen <= max_TLSCipher_fragment_length /\ tlen >= MinTlen(e)} ->
@@ -153,12 +155,12 @@ val repr:  e:id{not SafeId(e)} ->
 
 //CF this was too weak: no constraint on f! patched
 private definition !e,pl. MAC.Msg(e,pl) <=>
-     (SafeId(e) \/ (?ad,r,f. Length(ad) = 8 + StatefulPlain.ADLength(e) /\
-	  B(pl) = MACPlain(e,r,B(ad),f)))
+     (SafeId(e) \/ (?ad,r,f. Length(ad) = 8 + StatefulPlain.ADLength(e) 
+                          /\ B(pl) = MACPlain(e,r,B(ad),f))
 
 //CF Comments:
 //CF 
-//CF AP and CF agree: Encode is indexed by (e and) its public length after encoding (rathern than its range).
+//CF AP and CF agree: Encode is indexed by (e and) its public length after encoding (rather than its range).
 //CF We define function from:
 //CF - public length of ciphertext to public length of encoded plaintext (either identity, or minus iv length)
 //CF - from tlen to public range of decoded authenticated fragment

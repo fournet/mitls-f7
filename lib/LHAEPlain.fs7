@@ -12,6 +12,7 @@ open Range
 
 // We define payloads and additional data from those of StatefulPlain, 
 // adding an 8-byte sequence number to its additional data.
+
 type (;i:id) adata = (b:bytes){Length(b) = 8 + StatefulPlain.ADLength(i)}
 
 function val MakeAD:  i:id * (;i)StatefulPlain.history * cbytes -> cbytes
@@ -38,7 +39,8 @@ type (;i:id,ad:(;i)adata,r:range) plain = f:(;i,B(ad),r)fragment{ AuthId(i) => L
 
 val plain: i:id{not AuthId(i)} -> ad:(;i)adata -> r:range -> b:(;r)rbytes -> p:(;i,ad,r) plain {B(b) = Payload(i,B(ad),r,p)}
 val repr:  i:id{not SafeId(i)} -> ad:(;i)adata -> r:range -> p:(;i,ad,r) plain -> b:(;r)rbytes {B(b) = Payload(i,B(ad),r,p)}
-private val reprFragment:  i:id{not SafeId(i)} -> ad:(;i)adata -> r:range -> f:(;i,B(ad),r) fragment -> b:(;r)rbytes {B(b) = Payload(i,B(ad),r,f)}
+private val reprFragment:  
+           i:id{not SafeId(i)} -> ad:(;i)adata -> r:range -> f:(;i,B(ad),r) fragment -> b:(;r)rbytes {B(b) = Payload(i,B(ad),r,f)}
 
 val widen: i:id -> ad:(;i)adata -> r:range -> 
   f:(;i,ad,r)plain -> 
@@ -54,16 +56,6 @@ private definition !i,lad,r,f.
 val makeExtPad:  id:id -> ad:(;id)adata -> r:range -> p:(;id,ad,r)plain -> p':(;id,ad,r)plain{p=p'}
 val parseExtPad: id:id -> ad:(;id)adata -> r:range -> p:(;id,ad,r)plain -> res:((p':(;id,ad,r)plain{p=p'}) Result){?p. res = Correct(p)}
 
-(* CF cut? 
-private ask !i,r,f,lad. (AuthId(i) /\ (?had,sn,ph. MakeAD(i,(sn,ph),had) = lad /\ StatefulPlain.Sent(i,had,(sn,ph),r,f.contents)) ) => 
-                        (!had', sn', ph'. MakeAD(i,(sn',ph'),had') = lad /\ StatefulPlain.StAEHistory(i,ph') /\ StatefulPlain.HLength(i,ph') = sn' => StatefulPlain.Sent(i,had',(sn',ph'),r,f.contents))
-
-ask !i,ad,sn,ph,ad',r,x. (ad = MakeAD(i,(sn,ph),ad') /\ StatefulPlain.Sent(i,ad',(sn,ph),r,x.contents)) => LHAESent(i,ad,r,x)
-
-ask !i,ad,h,h',ad',ad''. ad = MakeAD(i,h,ad') /\ ad = MakeAD(i,h',ad'') => 
-    (StatefulPlain.SeqN(i,h) = StatefulPlain.SeqN(i,h') /\ ad' = ad'')
-*)
-//CF ask !i,ad,ad',ad'',sn,h,h',r,f. AuthId(i) /\ StatefulPlain.Sent(i,ad',(sn,h),r,f) /\ StatefulPlain.StAEHistory(i,h') /\  HLength(i,h') = sn => h = h'
 
 (* These coercions are used only in StatefulLHAE.fs; 
    they are not part of the "plain" interface to LHAE. *)
@@ -84,3 +76,18 @@ val LHAEPlainToStatefulPlain: i:id -> h:(;i)StatefulPlain.history ->
   r:range ->
   p:(;i,ad',r)plain -> 
   f:(;i,ad,h,r)StatefulPlain.plain{p = StAEToLHAE(f)}
+
+
+
+
+
+(* CF cut? 
+private ask !i,r,f,lad. (AuthId(i) /\ (?had,sn,ph. MakeAD(i,(sn,ph),had) = lad /\ StatefulPlain.Sent(i,had,(sn,ph),r,f.contents)) ) => 
+                        (!had', sn', ph'. MakeAD(i,(sn',ph'),had') = lad /\ StatefulPlain.StAEHistory(i,ph') /\ StatefulPlain.HLength(i,ph') = sn' => StatefulPlain.Sent(i,had',(sn',ph'),r,f.contents))
+
+ask !i,ad,sn,ph,ad',r,x. (ad = MakeAD(i,(sn,ph),ad') /\ StatefulPlain.Sent(i,ad',(sn,ph),r,x.contents)) => LHAESent(i,ad,r,x)
+
+ask !i,ad,h,h',ad',ad''. ad = MakeAD(i,h,ad') /\ ad = MakeAD(i,h',ad'') => 
+    (StatefulPlain.SeqN(i,h) = StatefulPlain.SeqN(i,h') /\ ad' = ad'')
+*)
+//CF ask !i,ad,ad',ad'',sn,h,h',r,f. AuthId(i) /\ StatefulPlain.Sent(i,ad',(sn,h),r,f) /\ StatefulPlain.StAEHistory(i,h') /\  HLength(i,h') = sn => h = h'
