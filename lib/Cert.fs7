@@ -65,15 +65,17 @@ val validate_cert_chain : Sig.alg list -> chain -> bool
 private val consCertificateBytes: c:bytes -> a:bytes ->
 	b:bytes{B(b)=VLBytes(3,B(c)) @| B(a)}
 
-function val CertificateListBytes: chain -> cbytes
+function val CertificateListBytes: cert list -> cbytes
 //AP private definition !bl. CertificateMsg(bl) = MessageBytes(HT_certificate,VLBytes(3,UnfoldBack(bl,empty_bytes)))
 
-val certificateListBytes: cl:chain ->
-	b:bytes(*{B(b)=VLBytes(3,CertificateListBytes(cl))}*)
+val certificateListBytes: cl:cert list ->
+	b:bytes{B(b)=VLBytes(3,CertificateListBytes(cl))}
 
-val parseCertificateList: b:bytes -> acc:chain ->
-	(cl:chain{(* AP ?l. cl = l @ acc /\ b=CertificateListBytes(l) *)
-		acc = [] => B(b)=CertificateListBytes(cl)}) Result
+val parseCertificateList: b:bytes -> (cl:cert list{B(b) = CertificateListBytes(cl)}) Result
+
+//AP next function still to be verified 
+val parseCertificateListInt: b:bytes -> acc:chain -> (cl:chain) Result
+
 
 //AP: Commenting out to let typeckeching go through
 

@@ -222,6 +222,8 @@ val checkVerifyData:
 
 (** ad hoc SSL3-only function; untrusted. **) 
 
+assume !si. si.protocol_version = SSL_3p0 => not StrongVD(VdAlg(si))
+
 //we exclude calls to this function when SafeHS_SI(si)!
 val ssl_certificate_verify: 
   si:SessionInfo{not SafeVD(si)} -> (;MsI(si)) ms ->

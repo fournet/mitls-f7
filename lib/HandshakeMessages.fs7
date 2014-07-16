@@ -118,8 +118,8 @@ val popSid: m:bytes -> (sid:sessionID * r:bytes{B(m) = VLBytes(1,B(sid)) @| B(r)
 val popCSBytes: m:bytes -> (cs:bytes * r:bytes{B(m) = VLBytes(2,B(cs)) @| B(r)}) Result
 val popCPBytes: m:bytes -> (cp:bytes * r:bytes{B(m) = VLBytes(1,B(cp)) @| B(r)}) Result
 
-val popCS: m:bytes -> (cs:cipherSuites * r:bytes{?csb. B(m) = VLBytes(2,CipherSuitesBytes(csb)) @| B(r)}) Result
-val popCP: m:bytes -> (cp:Compression list * r:bytes{?cpb. B(m) = VLBytes(1,CompressionsBytes(cpb)) @| B(r)}) Result
+val popCS: m:bytes -> (cs:cipherSuites * r:bytes{?csb. B(m) = VLBytes(2,B(csb)) @| B(r)}) Result
+val popCP: m:bytes -> (cp:Compression list * r:bytes{?cpb. B(m) = VLBytes(1,B(cpb)) @| B(r)}) Result
 
 (* verify data authenticated by the Finished messages *)
 type log = bytes         (* message payloads so far, to be eventually authenticated *) 
@@ -131,19 +131,20 @@ type sVerifyData = bytes (* ServerFinished payload *)
 // xBytes : a formatting function  
 // parseX : a parsing function (returning a Result, as parsing may fail)
 
-function val ClientHelloMsg: (ProtocolVersion * random * sessionID * cipherSuites * Compression list * bytes) -> cbytes
+function val ClientHelloMsg: (ProtocolVersion * random * sessionID * bytes * bytes * bytes) -> cbytes
 definition !cv,clRdm,sid,cls,cm,ext,b.
     ClientHelloMsg(cv,clRdm,sid,cls,cm,ext) =
    	    MessageBytes(HT_client_hello,
             (VersionBytes(cv) @| 
-             B(clRdm) @| 
-             VLBytes(1,B(sid)) @| 
-             VLBytes(2,CipherSuitesBytes(cls)) @| 
-             VLBytes(1,CompressionsBytes(cm)) @| 
-             B(ext))
-		)
+             (B(clRdm) @| 
+             (VLBytes(1,B(sid)) @| 
+             (VLBytes(2,cls) @| 
+             (VLBytes(1,cm) @| 
+              B(ext)))))
+            ))
 
-val clientHelloBytes: c:config -> cr:random -> sid:sessionID -> ext:bytes -> m:bytes{B(m) = ClientHelloMsg(c.maxVer,cr,sid,c.ciphersuites,c.compressions,ext)}
+val clientHelloBytes: c:config -> cr:random -> sid:sessionID -> ext:bytes -> 
+    m:bytes{B(m) = ClientHelloMsg(c.maxVer,cr,sid,CipherSuitesBytes(c.ciphersuites),CompressionsBytes(c.compressions),ext)}
 
 val parseClientHelloDumb: m:bytes ->
 	(pv:ProtocolVersion * cr:crand * sid:sessionID * cs:cipherSuites * cm:Compression list * ext:bytes
@@ -222,7 +223,7 @@ val clientCertificateBytes: clo: (Cert.chain * a:Sig.alg * (;a)Sig.skey) option 
 
 
 val parseClientOrServerCertificate: b:bytes ->
-	(bl:Cert.chain{
+	(bl:Cert.cert list{
 	  MessageBytes(HT_certificate,B(b)) = CertificateMsg(bl)
 	}) Result
 
@@ -364,7 +365,8 @@ val makeCertificateVerifyBytes: si:SessionInfo -> (;si)PRF.masterSecret -> a:Sig
 	b:bytes * sign:bytes{
 	  B(b) = CertificateVerifyMsg(si.protocol_version,a,sign)
 	}
-val certificateVerifyCheck: si:SessionInfo -> (;si)PRF.masterSecret -> al:Sig.alg list -> l:log -> payload:bytes ->
+val certificateVerifyCheck: si:SessionInfo{si.clientID <> []} -> 
+        (;si)PRF.masterSecret -> al:Sig.alg list -> l:log -> payload:bytes ->
 	b:bool * a:Sig.alg * sign:bytes{
 	  b = true => (
 		   MessageBytes(HT_certificate_verify,B(payload)) = CertificateVerifyMsg(si.protocol_version,a,sign)
@@ -505,7 +507,9 @@ definition !si,si'.
       si'.client_auth = si.client_auth /\
       si'.sessionID = si.sessionID)
 
+(*
 ask !si,si'. UpdatesClientSigAlg(si,si') => MsI(si) = MsI(si')
+*)
 
 predicate ServerLogBeforeClientKeyExchangeRSA of SessionInfo * ProtocolVersion * log 
 predicate ServerLogBeforeClientKeyExchangeRSA_Auth of SessionInfo * ProtocolVersion * log 
@@ -1146,6 +1150,7 @@ ask !ht,htd1,htd2,htd3,data1,data2,data3.
 //  (?l',svd.   ClientLogBeforeServerFinishedResume(si,l') /\
 //    B(l) = B(l') @| ServerFinishedMsg(svd))
 
+(*
 ask !cr,sr,si,l.
   ClientLogBeforeClientFinishedResume(cr,sr,si,l) =>
   (?svd,cpv,csl,cml,ex1,ex2,ctl,sal,nl. 
@@ -1153,6 +1158,7 @@ ask !cr,sr,si,l.
          (ClientHelloMsg(cpv,cr,si.sessionID,csl,cml,ex1)  @|
           ServerHelloMsg(si.protocol_version,sr,si.sessionID,si.cipher_suite,si.compression,ex2) @|
 	  ServerFinishedMsg(svd)))
+*)
 
 ask !cr,sr,si,t. ClientLogBeforeClientFinishedResume(cr,sr,si,t) => HasHTMessage(HT_certificate,B(t)) => false
 

@@ -180,7 +180,7 @@ let certificateListBytes certs =
     let unfolded = List.foldBack consCertificateBytes certs empty_bytes in
     vlbytes 3 unfolded
 
-let rec parseCertificateList toProcess parsed =
+let rec parseCertificateListInt toProcess parsed =
     if equalBytes toProcess empty_bytes then
         correct(parsed)
     else
@@ -192,4 +192,6 @@ let rec parseCertificateList toProcess parsed =
                 let parsed = parsed @ [nextCert] in
                 parseCertificateList toProcess parsed
         else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+
+let parseCertificateList toProcess = parseCertiticateListInt toProcess []
 #endif

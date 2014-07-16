@@ -259,7 +259,7 @@ definition !si. HonestMS(MsI(si)) <=> SafeCRE(si)
 val safeCRE: (si:SessionInfo) -> b:bool { b=true <=> SafeCRE(si) }
 
 predicate SafeVD  of SessionInfo // Safe handshake for MS-based VerifyData
-definition !si. SafeVD(si) <=> HonestMS(MsI(si)) /\ StrongVD(VdAlg(si))
+definition !si. SafeVD(si) <=> (HonestMS(MsI(si)) /\ StrongVD(VdAlg(si)))
 val safeVD:  (si:SessionInfo) -> b:bool { b=true <=> SafeVD(si) }
 //MK: safeVD is used for idealization even if ciphersuites don't match.
 //MK: this is needed to guarantee security of finished message MACs
