@@ -50,7 +50,7 @@ val recordPacketOut: e:epoch ->
  
 val recordPacketIn : e:epoch ->
                      s:(;e) recvState ->
-					 ct:ContentType{ct=Application_data => OpenState(e)} ->
+		     ct:ContentType{ct=Application_data => OpenState(e)} ->
                      wire:bytes{Length(wire) <= max_TLSCipher_fragment_length} -> 
                      ((s':(;e)recvState *
                         rg:range * 

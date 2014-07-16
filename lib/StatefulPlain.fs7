@@ -66,7 +66,33 @@ function val ExtendHistory: i:id * ad:(;i)adata * h:(;i) history * r:range * (;i
 private definition !i. EmptyHistory(i) = (0,[])
 private definition !i,n,h,d,r,f. ExtendHistory(i,d,(n,h),r,f) = (n+1,(d,r,f)::h)
 
+function val StAEToRecord: i:id * ct:ContentType * r:range * f:(;i,ADBytes(i,ct),r)fragment -> 'a //(;i,ct,r)TLSFragment.fragment
+private definition !i,ct,r,f. StAEToRecord(i,ct,r,f) = f.contents 
+
+function val Multiplexed: e:epoch * (;Id(e)) history -> 'b //(;e)TLSFragment.history
+definition !e. 
+    Multiplexed(e,EmptyHistory(Id(e))) = TLSFragment.EmptyHistory(e)
+definition !e,ad,sh,r,f,ct. 
+    Multiplexed(e,ExtendHistory(Id(e),ad,sh,r,f)) = 
+    TLSFragment.ExtendHistory(e,ParseAD(Id(e),B(ad)),
+                   Multiplexed(e,sh),
+                   r,StAEToRecord(Id(e),ParseAD(Id(e),B(ad)),r,f))
+
 predicate Sent of i:id * ad:cbytes *  h:(;i)history * r:range * (;i,ad,r)fragment
+
+//CF was too strong
+//CF private definition !e,ad,sh,r,f. 
+//CF    Sent(Id(e),ad,sh,r,f) <=> 
+//CF    TLSFragment.RecordSent(e,ParseAD(Id(e),ad),Multiplexed(e,sh),r,f.contents)
+
+//CF temporary, until we derive it from event-based affinity.
+//CF and actually not sufficient...
+
+private definition !i,ad,sh,r,f. 
+    Sent(i,ad,sh,r,f) <=>
+	 (?e. i = Id(e) /\
+              TLSFragment.RecordSent(e,ParseAD(i,ad),Multiplexed(e,sh),r,f.contents))
+
 
 private definition !i. StAEHistory(i,[])
 private definition !i,ad,sn,h,r,f. 
@@ -134,32 +160,8 @@ assume !i,ad,h,h',r,f. (AuthId(i) /\ StAEHistory(i,h) /\ StAEHistory(i,h') /\ HL
 //MK---------------------------------------------------- Everything until here is epoch free
 
 
-function val StAEToRecord: i:id * ct:ContentType * r:range * f:(;i,ADBytes(i,ct),r)fragment -> 'a //(;i,ct,r)TLSFragment.fragment
-private definition !i,ct,r,f. StAEToRecord(i,ct,r,f) = f.contents 
 
-function val Multiplexed: e:epoch * (;Id(e)) history -> 'b //(;e)TLSFragment.history
-definition !e. 
-    Multiplexed(e,EmptyHistory(Id(e))) = TLSFragment.EmptyHistory(e)
-definition !e,ad,sh,r,f,ct. 
-    Multiplexed(e,ExtendHistory(Id(e),ad,sh,r,f)) = 
-    TLSFragment.ExtendHistory(e,ParseAD(Id(e),B(ad)),
-                   Multiplexed(e,sh),
-                   r,StAEToRecord(Id(e),ParseAD(Id(e),B(ad)),r,f))
-
-//CF was too strong
-//CF private definition !e,ad,sh,r,f. 
-//CF    Sent(Id(e),ad,sh,r,f) <=> 
-//CF    TLSFragment.RecordSent(e,ParseAD(Id(e),ad),Multiplexed(e,sh),r,f.contents)
-
-//CF temporary, until we derive it from event-based affinity.
-//CF and actually not sufficient...
-
-
-private definition !i,ad,sh,r,f. 
-    Sent(i,ad,sh,r,f) <=>
-	 (?e. i = Id(e) /\
-              TLSFragment.RecordSent(e,ParseAD(i,ad),Multiplexed(e,sh),r,f.contents))
-
+(*
 // CF 14-07-15 ??
 private assume !e,e',ad,sh,r,d. 
        (Id(e) = Id(e') /\ 
@@ -174,7 +176,7 @@ private ask !e,ad,sh,r,f.
   (AuthId(Id(e)) => Sent(Id(e),ad,sh,r,f)) =>
   (AuthId(Id(e)) => TLSFragment.RecordSent(e,ParseAD(Id(e),ad),Multiplexed(e,sh),r,f.contents))
 
-
+*)
 
 //CF usage? 
 val RecordPlainToStAEPlain: 
@@ -187,7 +189,8 @@ val RecordPlainToStAEPlain:
     sf:(;Id(e),ad,sh,rg) plain{f = StAEToRecord(Id(e),ct,rg,sf)}
 
 val StAEPlainToRecordPlain: 
-    e:epoch -> ct:ContentType -> ad:(;Id(e))adata{B(ad) = ADBytes(Id(e),ct)} -> 
+    e:epoch -> ct:ContentType{ct = Application_data => OpenState(e)} -> 
+    ad:(;Id(e))adata{B(ad) = ADBytes(Id(e),ct)} -> 
     h:(;e) TLSFragment.history ->
     sh:(;Id(e)) history{h = Multiplexed(e,sh)} -> rg:range -> 
     d:(;Id(e),ad,sh,rg) plain ->                                       //MK has {AuthId(i) => Sent(i,B(ad),sh,rg,d)} refinement

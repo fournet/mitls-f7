@@ -156,7 +156,7 @@ val repr:  e:id{not SafeId(e)} ->
 //CF this was too weak: no constraint on f! patched
 private definition !e,pl. MAC.Msg(e,pl) <=>
      (SafeId(e) \/ (?ad,r,f. Length(ad) = 8 + StatefulPlain.ADLength(e) 
-                          /\ B(pl) = MACPlain(e,r,B(ad),f))
+                          /\ B(pl) = MACPlain(e,r,B(ad),f)))
 
 //CF Comments:
 //CF 

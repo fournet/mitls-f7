@@ -529,12 +529,19 @@ definition !e. Open(e) <=> (?r. (r = Client \/ r = Server) /\
                             SentCCS(r,EpochCRand(e),EpochSRand(e),EpochSI(e)) /\ 
                             SentCCS(DualRole(r),EpochCRand(e),EpochSRand(e),EpochSI(e)))
 
+predicate OpenState of epoch
+definition !e.
+  OpenState(e) <=> (?r. (r = Client \/ r = Server) /\
+                            SentCCS(r,EpochCRand(e),EpochSRand(e),EpochSI(e)) /\ 
+                            (SafeVD(EpochSI(e)) => SentCCS(DualRole(r),EpochCRand(e),EpochSRand(e),EpochSI(e))))
+
+
 predicate Safe   of epoch        // The epoch parameters yield privacy & integrity
-definition !e. Safe(e) <=> (SafeId(Id(e)) /\ Open(e))
+definition !e. Safe(e) <=> (SafeId(Id(e)) /\ OpenState(e))
 val safe:   (e:epoch) -> b:bool { b = true <=> Safe(e)}
 
 predicate Auth   of epoch        // The epoch parameters yield integrity (not necessarily privacy)
-definition !e. Auth(e) <=> (AuthId(Id(e)) /\ Open(e))
+definition !e. Auth(e) <=> (AuthId(Id(e)) /\ OpenState(e))
 val auth:    (e:epoch) -> b:bool {b = true <=> Auth(e)}
 
 ask !e. Safe(e) => Auth(e)
@@ -543,19 +550,17 @@ ask !e. not(Auth(e)) => not(Safe(e))
 // so that TLS can exchange any traffic on the initial null connection
 ask !e. IsInitEpoch(e) => not Auth(e)
 
-ask !e. Open(e) => (AuthId(Id(e)) => Auth(e))
-ask !e. Open(e) => (SafeId(Id(e)) => Safe(e))
-ask !e. Auth(e) => Open(e)
+ask !e. OpenState(e) => (AuthId(Id(e)) => Auth(e))
+ask !e. OpenState(e) => (SafeId(Id(e)) => Safe(e))
+ask !e. Auth(e) => OpenState(e)
 
-predicate OpenState of epoch
-definition !e.
-  OpenState(e) <=> (SafeVD(EpochSI(e)) => Open(e))
-
-//KB The following assume is dodgy. Only true with Reneg Indication. Remove if possible.
-private theorem !r,e,e'. SentCCS(r,EpochCRand(e),EpochSRand(e),EpochSI(e)) /\ 
-	                 SentCCS(r,EpochCRand(e'),EpochSRand(e'),EpochSI(e')) /\ 
-			 Id(e) = Id(e') => e = e'
-ask !e,e'. Open(e) /\ Open(e') /\ Id(e) = Id(e') => e = e'
+//KB The following is only true with Reneg indication, but is difficult to remove.
+//KB It is an artifact of the way we treat epochs that we cannot just authenticate the current epoch, we need to always authenticate the full chain
+//KB Maybe a refactor for v2 would be to separate our the current epoch and an optional predecessor
+private theorem !r,r',e,e'. SentCCS(r,EpochCRand(e),EpochSRand(e),EpochSI(e)) /\ 
+	                    SentCCS(r',EpochCRand(e'),EpochSRand(e'),EpochSI(e')) /\ 
+  			    Id(e) = Id(e') => e = e'
+ask !e,e'. OpenState(e) /\ OpenState(e') /\ Id(e) = Id(e') => e = e'
 
 val sinfo_to_string: SessionInfo -> string
 
