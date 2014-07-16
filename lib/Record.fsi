@@ -20,7 +20,7 @@ val nullConnState: epoch -> rw -> ConnectionState
 
 val parseHeader: bytes -> Result<(ContentType * ProtocolVersion * nat)>
 
-//CF do some uniform renaming, e.g. s/Out/Send/
+//CF postV1, do some uniform renaming, e.g. s/Out/Send/
 val recordPacketOut: epoch -> sendState -> ProtocolVersion -> range -> ContentType -> TLSFragment.fragment -> (sendState * bytes)
 val recordPacketIn : epoch -> recvState -> ContentType -> bytes -> Result<(recvState * range * TLSFragment.fragment)>
 

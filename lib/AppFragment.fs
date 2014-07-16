@@ -27,11 +27,11 @@ let check (e:epoch) (e':epoch) = ()
 
 let delta e s r f = 
     let (e',s',d) = f.frag in
-    //MK the following idealization is reindexing. 
+    // the following idealization is reindexing. 
     #if ideal
     if auth e then
-      // TODO: typechecking relies on proving that e = e' & s = s'. How? 
-      check e e'; // CF 14-07-15 how?
+      // typechecking relies on e = e' & s = s':
+      // they both follow from Auth(e), implying Sent(e,s,r,f) hence ?d. f.frag = (e,s,d) 
       let s'' = append e s r d in
       (d,s'')
     else       

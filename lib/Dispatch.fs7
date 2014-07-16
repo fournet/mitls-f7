@@ -23,12 +23,10 @@ private type predispatchState =
 
 predicate IsDispatchState of epoch * predispatchState
 private definition !e,d. IsDispatchState(e,d) <=>
-	(
-	(d = Init \/ (?pv. d = FirstHandshake(pv)) \/ d = Finishing \/ d = Finished \/
-	d = Open \/ (?pv,s. d = Closing(pv,s)) \/ d = Closed) /\
-	( (d = Finishing \/ d = Finished \/ d = Open) => (IsSuccEpoch(e) /\ IsValidEpoch(e) /\ IsValidEpoch(Pred(e))) ) /\
-	(d = Open => OpenState(e))
-	)
+  (   ( d = Init \/ (?pv. d = FirstHandshake(pv)) \/ d = Finishing \/ 
+        d = Finished \/ d = Open \/ (?pv,s. d = Closing(pv,s)) \/ d = Closed) 
+  /\  ( (d = Finishing \/ d = Finished \/ d = Open) => (IsSuccEpoch(e) /\ IsValidEpoch(e) /\ IsValidEpoch(Pred(e))))
+  /\  ( d = Open => OpenState(e)))
 
 type (;e:epoch)dispatchState = d:predispatchState{IsDispatchState(e,d)}
 
@@ -47,7 +45,8 @@ private type (;id:ConnectionInfo) preGlobalState = {
   (* connection state for reading and writing *)
   read  : (;id.id_in, Reader) dState;
   write : (;id.id_out,Writer) dState;
-  (* The actual socket *)
+
+  (* the actual socket *)
   ns: Tcp.NetworkStream;
   }
 //#end-gs
@@ -162,6 +161,7 @@ predicate EvWarning    of epoch * alertDescription * cbytes
 predicate EvClose      of epoch * cbytes
 predicate EvFatal      of epoch * alertDescription * cbytes
 // AP FIXME: Dummy definition of the above events, to let the state machine verification go through
+//CF 14-07-16 Indeed, this needs fixing
 private assume !e,b. EvClose(e,b)
 private assume !e,ad,b. EvWarning(e,ad,b)
 private assume !e,ad,b. EvFatal(e,ad,b)
@@ -366,9 +366,7 @@ private val sameID: c0:Connection -> c1:Connection ->
 	o1:(;c2)readOutcome{o0 = o1 /\ IOResult_i(c2,c1,o1)}
 
 val init: Tcp.NetworkStream -> r:Role -> c:config -> (;r,c)nullCn
-
 val resume: Tcp.NetworkStream -> sessionID -> c:config -> (;Client,c)nullCn
-
 val rehandshake: c:Connection -> conf:config ->
 	(b:bool * c':Connection) {
 		   Extend(c,c')
@@ -393,7 +391,6 @@ val request:     c:Connection -> conf:config ->
 		/\ (   (b = false /\ Config(c') = Config(c))
 			\/ (b = true  /\ Config(c') = conf    ))
 	}
-
 val full_shutdown:    c:Connection ->
 	c':Connection{ Config(c') = Config(c) /\ Role(c') = Role(c) /\
 	    Rnd(c') = Rnd(c) /\
@@ -426,7 +423,6 @@ private definition !id,s.
 	( (CnState_o(Conn(id,s)) = Finishing \/ CnState_o(Conn(id,s)) = Finished \/ CnState_o(Conn(id,s)) = Open ) =>
 		PickSendPV(Conn(id,s)) = EpochSI(id.id_out).protocol_version)
 	
-
 private val pickSendPV: c:Connection -> pv:ProtocolVersion{pv = PickSendPV(c)}
 
 private val closeConnection: c:Connection-> c':(;c) nextCn{
@@ -449,7 +445,7 @@ private val send: Tcp.NetworkStream -> e:epoch -> w:(;e,Writer)dState ->
 		(Auth(e) =>
             Record.History(e,Writer,w'.conn) = TLSFragment.ExtendHistory(e,ct,Record.History(e,Writer,w.conn),rg,f) )
 	}) Result
-                                                                                                                                                                
+
 private val getHeader: c:Connection ->
 	((ct:ContentType * len:nat){len > 0 /\ len <= max_TLSCipher_fragment_length}) Result
 

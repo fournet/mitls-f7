@@ -11,9 +11,9 @@ type state
 type reader = state
 type writer = state
 
-val GEN:    id -> reader * writer
-val COERCE: id -> rw -> bytes -> state
-val LEAK:   id -> rw -> state -> bytes
+val GEN:     id -> reader * writer
+val COERCE:  id -> rw -> bytes -> state
+val LEAK:    id -> rw -> state -> bytes
 
 val history: id -> rw -> state -> history
 

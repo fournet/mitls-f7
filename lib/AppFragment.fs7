@@ -12,9 +12,6 @@ open TLSError
 
 // an event recording every honest fragment creation, 
 // assumed in function fragment, and used to define Sent. 
-//MK as it is used to define Sent below, maybe DeltaSent would be a better name? 
-//MK could it be defined in DataStream? 
-//MK maybe not, would it be sufficient to have a Sent event for fragments?
 predicate DeltaFragment of e:epoch * s:(;e) stream * r:range * (;e,s,r)delta
 
 private type (;i:id,r:range) preFragment = 

@@ -120,10 +120,10 @@ val decodeNoPad: e:id{not AuthId(e) /\ (?mac. e.aeAlg  = MACOnly(mac) \/
 	(;e,ad,rg)plain
 
 function val MinTlen: id -> nat
-definition !id,mac.     id.aeAlg = MACOnly(mac)            => MinTlen(id) = MacKeySize(mac)
-definition !id,mac.     id.aeAlg = MtE(Stream_RC4_128,mac) => MinTlen(id) = MacKeySize(mac) 
-definition !id,enc,mac. id.aeAlg = MtE(CBC_Fresh(enc),mac) => MinTlen(id) = IVSize(id) + MacKeySize(mac) + FixedPadSize(id,()) 
-definition !id,enc,mac. id.aeAlg = MtE(CBC_Stale(enc),mac) => MinTlen(id) = IVSize(id) + MacKeySize(mac) + FixedPadSize(id,())
+definition !id,mac.     id.aeAlg = MACOnly(mac)            => MinTlen(id) = MacSize(mac)
+definition !id,mac.     id.aeAlg = MtE(Stream_RC4_128,mac) => MinTlen(id) = MacSize(mac) 
+definition !id,enc,mac. id.aeAlg = MtE(CBC_Fresh(enc),mac) => MinTlen(id) = IVSize(id) + MacSize(mac) + FixedPadSize(id,()) 
+definition !id,enc,mac. id.aeAlg = MtE(CBC_Stale(enc),mac) => MinTlen(id) = IVSize(id) + MacSize(mac) + FixedPadSize(id,())
 
 (*
 ask !id,enc,mac. 
@@ -131,7 +131,11 @@ ask !id,enc,mac.
     id.aeAlg = MtE(CBC_Fresh(enc),mac) ) => MinTlen(id) >= BlockSize(enc)
  *)
 
-//CF this one currently fails; its proof is by case analysis on MAC sizes.
+// This property is needed to prove the first ask below;
+// it follows by case analysis on all enc/mac algorithms of TLS (see TLSConstants.fs7)
+//CF 14-07-16 this should not be needed with F*'s typed ADTs
+private theorem !e,h. BlockSize(e) <= MacSize(h)
+
 ask !id,enc,mac. 
     id.aeAlg = MtE(CBC_Stale(enc),mac) => MinTlen(id) >= BlockSize(enc)
 
@@ -141,7 +145,7 @@ ask !id,enc,mac.
 
 val plain: e:id{not AuthId(e)} -> 
   ad:(;e)LHAEPlain.adata -> tlen:nat{tlen <= max_TLSCipher_fragment_length /\ tlen >= MinTlen(e)} ->
-  bytes -> //MK seeing how far it would take me: (;PlainLength(e,tlen))lbytes ->
+  (;PlainLength(e,tlen))lbytes ->
   (;e,ad,CipherRangeClass(e,tlen)) plain
 
 val repr:  e:id{not SafeId(e)} -> 

@@ -24,7 +24,7 @@ private type (;ki:id) key = {k:bytes}
 //CF   | GoodKey_B of ideal_B.key
 //CF   | BadKey_A 
 
-type iv = bytes //CF could specify its size
+type iv = bytes //CF could specify its size; 14-07-16 otherwise we can't control lengths
 private type (;ki:id) iv3 =
 	| SomeIV of iv // SSL_3p0 and TLS_1p0
 	| NoIV         // TLS_1p0 and TLS_1p2
@@ -55,8 +55,9 @@ private function val StateID: ki:id * rw:rw * (;ki,rw)state -> int
 val streamCipher: ki:id -> r:rw -> s:(;ki)streamState -> (;ki,r) state
 val blockCipher: ki:id -> r:rw -> s:(;ki)blockState -> (;ki,r) state
 
-//val GEN:    ki:id -> (e:(;ki)encryptor{StateID(ki,Writer,e)=0}) * (d:(;ki)decryptor{StateID(ki,Reader,d)=0})
-val GEN:    ki:id -> (e:(;ki)encryptor) * (d:(;ki)decryptor) //MK less refinements for testing
+//MK commented out unused refinement; was: 
+//MK val GEN:    ki:id -> (e:(;ki)encryptor{StateID(ki,Writer,e)=0}) * (d:(;ki)decryptor{StateID(ki,Reader,d)=0})
+val GEN:    ki:id -> (e:(;ki)encryptor) * (d:(;ki)decryptor) 
 val LEAK:   ki:id{not SafeId(ki)} -> rw:rw -> (;ki,rw)state -> key:bytes * iv:bytes
 val COERCE: ki:id{not SafeId(ki)} -> rw:rw -> key:bytes -> iv:bytes -> (;ki,rw)state
 
@@ -125,5 +126,8 @@ val ENC_int: i:id -> s:(;i)encryptor -> tlen:nat{!enc,mac. i.aeAlg = MtE(CBC_Sta
 //{Length(c) <= max_TLSCipher_fragment_length (*MK doesn't seem to have an effect *) 
 //		   /\ (!enc,mac. ki.aeAlg = MtE(CBC_Stale(enc),mac) => Length(c)>=BlockSize(enc) ) }
 private val DEC_int: ki:id -> s:(;ki) decryptor -> 
-					 c:cipher {Length(c) >= MinTlen(ki) /\ Length(c) <= max_TLSCipher_fragment_length /\ (!enc,mac. ki.aeAlg = MtE(CBC_Stale(enc),mac) \/ ki.aeAlg = MtE(CBC_Fresh(enc),mac) => Length(c)>=BlockSize(enc)) } -> 
-					 (;ki) decryptor * bytes //MK removed: ad:(;ki)LHAEPlain.adata
+    c:cipher {
+      Length(c) >= MinTlen(ki) /\ Length(c) <= max_TLSCipher_fragment_length /\ 
+      (!enc,mac. (ki.aeAlg = MtE(CBC_Stale(enc),mac) \/ ki.aeAlg = MtE(CBC_Fresh(enc),mac)) 
+              => Length(c)>=BlockSize(enc)) } -> 
+    (;ki) decryptor * (;PlainLength(ki,Length(c)))lbytes

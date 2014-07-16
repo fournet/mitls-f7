@@ -13,7 +13,6 @@ type state = {
   key: LHAE.LHAEKey; 
   history: history   
 }
-
 type reader = state
 type writer = state
 

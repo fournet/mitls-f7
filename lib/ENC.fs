@@ -206,8 +206,8 @@ let ENC (ki:id) s ad rg data =
 
 let cbcdec alg k iv e =
     match alg with
-    | TDES_EDE -> (CoreCiphers.des3_cbc_decrypt k iv e)
-    | AES_128 | AES_256  -> (CoreCiphers.aes_cbc_decrypt k iv e)
+    | TDES_EDE          -> CoreCiphers.des3_cbc_decrypt k iv e
+    | AES_128 | AES_256 -> CoreCiphers.aes_cbc_decrypt  k iv e
 
 let DEC_int (ki:id) (s:decryptor) cipher =
     let alg = ki.aeAlg in
