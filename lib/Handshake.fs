@@ -1525,7 +1525,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                           agreedVersion
                     else
 #if verify
-                        Pi.expect(ServerLogBeforeClientFinishedRSA_NoAuth(si,log));
+                        Pi.expect(ServerLogBeforeClientFinished_NoAuth(si,log));
 #endif
                         recv_fragment_server ci 
                           {state with pstate = PSServer(ClientCCS(si,ms,log))} 
