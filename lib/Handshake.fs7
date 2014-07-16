@@ -107,7 +107,7 @@ private definition !a,k,t. Sig.Msg(a,k,t)
 	   si.pmsId = PmsId(PMS.DHPMS(p,g,gc,gs,r)) /\
            (DHGroup.PP(p,g) /\ DH.HonestExponential(p,g,gs) => HonestPMS(si.pmsId)) /\  
            k = Cert.SigPKCert(si.clientID,a)) \/
-        (?si,p,g,gs. 
+        (?si,p,g,gs.                  
            B(t) = B(si.init_crand) @| B(si.init_srand) @| DHEParamBytes(p,g,gs) /\
            Length(si.init_crand) = 32 /\
            Length(si.init_srand) = 32 /\
@@ -139,18 +139,6 @@ ask !si,p,g,gs,a,k,t.
            k = Cert.SigPKCert(si.serverID,a)
            => Sig.Msg(a,k,t)
 
-
-assume !si,si',p,g,gs,t. 
-           B(t) = B(si.init_crand) @| B(si.init_srand) @| DHEParamBytes(p,g,gs) /\
-           Length(si.init_crand) = 32 /\
-           Length(si.init_srand) = 32 /\
-           ClientLogBeforeCertificateVerifyRSA_Auth(si',t) => false
-
-assume !si,si',p,g,gs,t. 
-           B(t) = B(si.init_crand) @| B(si.init_srand) @| DHEParamBytes(p,g,gs) /\
-           Length(si.init_crand) = 32 /\
-           Length(si.init_srand) = 32 /\
-           ClientLogBeforeCertificateVerifyDHE_Auth(si',t) => false
 
 ask !si,p,g,gs,a,k,t. 
            B(t) = B(si.init_crand) @| B(si.init_srand) @| DHEParamBytes(p,g,gs) /\
@@ -254,6 +242,7 @@ private definition !ci. Complete(ci) <=>
           B(EpochCRand(ci.id_in)) = B(EpochCRand(ci.id_out)) /\
           B(EpochSRand(ci.id_in)) = B(EpochSRand(ci.id_out)) /\
           IsSuccEpoch(ci.id_in) /\ IsSuccEpoch(ci.id_out) 
+/\        (ci.role = Client \/ ci.role = Server) 
 /\          SentCCS(ci.role,EpochCRand(ci.id_out),EpochSRand(ci.id_out),EpochSI(ci.id_out)) 
 /\
           (SafeVD(EpochSI(ci.id_in))  => SentCCS(DualRole(ci.role),EpochCRand(ci.id_in),EpochSRand(ci.id_in),EpochSI(ci.id_in))) 
