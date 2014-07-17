@@ -289,10 +289,11 @@ ask !ci. Complete(ci) =>
 	EpochSI(ci.id_in) = EpochSI(ci.id_out) /\
 	// Epoch In
 	IsSuccEpoch(ci.id_in) /\ 
+        OpenState(ci.id_in) /\
 	(SafeVD(EpochSI(ci.id_in)) => Open(ci.id_in)) /\
 	// Epoch Out
 	IsSuccEpoch(ci.id_out) /\ 
-	(SafeVD(EpochSI(ci.id_out)) => Open(ci.id_out))
+        OpenState(ci.id_out) 
 	)
 
 ask !ci.	

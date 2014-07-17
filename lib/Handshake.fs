@@ -1523,20 +1523,20 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
 
                     (* TODO: we should shred the pms *)
                     (* move to new state *)
-                    if si.client_auth then
+                    if si.client_auth then (
 #if verify
                         Pi.expect(ServerLogBeforeClientCertificateVerifyRSA(si,log));
 #endif
                         recv_fragment_server ci 
                           {state with pstate = PSServer(CertificateVerify(si,ms,log))} 
-                          agreedVersion
-                    else
+                          agreedVersion)
+                    else (
 #if verify
                         Pi.expect(ServerLogBeforeClientFinishedRSA_NoAuth(si,log));
 #endif
                         recv_fragment_server ci 
                           {state with pstate = PSServer(ClientCCS(si,ms,log))} 
-                          agreedVersion)
+                          agreedVersion))
             | ClientKeyExchangeDHE(si,p,g,gx,x,log) ->
                 (match parseClientKEXExplicit_DH p g payload with
                 | Error(z) -> let (x,y) = z in  InError(x,y,state)
@@ -1561,7 +1561,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     (* TODO in e.g. DHE: we should shred the pms *)
                     (* we rely on scopes & type safety to get forward secrecy*) 
                     (* move to new state *)
-                    if si.client_auth then
+                    if si.client_auth then (
 #if verify
                         Pi.expect(ServerLogBeforeClientCertificateVerifyDHE(si,log));
                         Pi.expect(Authorize(Server,si));
@@ -1569,15 +1569,15 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
 #endif
                         recv_fragment_server ci 
                           {state with pstate = PSServer(CertificateVerify(si,ms,log))} 
-                          agreedVersion
-                    else
+                          agreedVersion)
+                    else (
 #if verify
                         Pi.expect(ServerLogBeforeClientCertificateVerifyDHE(si,log));
                         Pi.expect(ServerLogBeforeClientFinished_NoAuth(si,log));
 #endif
                         recv_fragment_server ci 
                           {state with pstate = PSServer(ClientCCS(si,ms,log))}
-                          agreedVersion)
+                          agreedVersion))
 #if verify
 #else
             | ClientKeyExchangeDH_anon(si,p,g,gx,x,log) ->
