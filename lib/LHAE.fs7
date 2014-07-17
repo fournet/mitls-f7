@@ -1,5 +1,9 @@
 ﻿module LHAE
 
+(* Implements Length-Hiding Authenticated Encryption
+   for all "aeAlg" constructions: MtE, MacOnly, GCM;
+   used by StatefulLHAE, parameterized by LHAEPlain. *)
+
 open Bytes
 open Error
 open TLSError
@@ -39,7 +43,7 @@ ask !i,mac.     i.aeAlg = MACOnly(mac) => KeySize(i.aeAlg) = MacKeySize(mac)
 val GEN:    i:id     -> (;i)encryptor * (;i)decryptor
 val COERCE: i:id{not AuthId(i)} -> rw:rw -> b:bytes{Length(b) = KeySize(i.aeAlg)} -> (;i,rw)LHAEKey
 val LEAK:   i:id{not AuthId(i)} -> rw:rw -> (;i,rw)LHAEKey -> b:bytes
-
+ 
 private val mteKey: i:id -> rw:rw -> (;i) MAC.key -> (;i,rw) ENC.state -> (;i,rw) LHAEKey
 private val gcmKey: i:id -> rw:rw -> (;i,rw) AEAD_GCM.state -> (;i,rw)LHAEKey
 
@@ -81,6 +85,7 @@ private val cmem: i:id -> ad:(;i)LHAEPlain.adata -> c:cipher ->
   entry list -> res:(r:range * (;i,ad,r)LHAEPlain.plain) option { 
     ( !rg,p. res = Some ((rg,p)) => (ENCrypted(i,ad,c) /\ rg = CipherRangeClass(i,Length(c))) ) /\
 	( res = None => not ENCrypted(i,ad,c) )}
+//CF 14-07-17 we effectively assume this non-trivial postcondition; TODO.
 
 (*CF
 theorem !i,d,rg0,p0,rg1,p1,c. (ENCrypted(i,d,rg0,p0,c) /\ ENCrypted(i,d,rg1,p1,c)) => p0 = p1

@@ -36,7 +36,7 @@ type state =
 type encryptor = state
 type decryptor = state
 
-(*
+(* CF 14-07-17: reuse? 
 let GENOne ki : state =
     #if verify
     failwith "trusted for correctness"
@@ -95,7 +95,6 @@ let COERCE (ki:id) (rw:rw) k iv =
         BlockCipher ({key = {k=k}; iv = SomeIV(iv)})
     | CBC_Fresh(_) ->
         BlockCipher ({key = {k=k}; iv = NoIV})
-
 
 let LEAK (ki:id) (rw:rw) s =
     match s with
@@ -185,7 +184,7 @@ let ENC (ki:id) s ad rg data =
     let tlen = targetLength ki rg in
   #if ideal
     let d = 
-      if safeId(ki) then //MK Should we use Encode.payload here?
+      if safeId(ki) then //MK Should we use Encode.payload here? CF 14-07-17 ??
         createBytes tlen 0
       else
         Encode.repr ki ad rg data  //MK we may have only plaintext integrity in this case
