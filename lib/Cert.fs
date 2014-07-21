@@ -173,7 +173,7 @@ let consCertificateBytes c a =
 let certificateListBytes (certs: chain) : bytes = 
     failwith "unverified" 
 
-let parseCertificateList (toProcess:bytes) (list:chain) : Result<chain> = 
+let parseCertificateListInt (toProcess:bytes) (list:chain) : Result<chain> = 
     failwith "unverified" 
 #else
 let certificateListBytes certs =
@@ -190,8 +190,8 @@ let rec parseCertificateListInt toProcess parsed =
             | Correct (res) ->
                 let (nextCert,toProcess) = res in
                 let parsed = parsed @ [nextCert] in
-                parseCertificateList toProcess parsed
+                parseCertificateListInt toProcess parsed
         else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
-let parseCertificateList toProcess = parseCertiticateListInt toProcess []
+let parseCertificateList toProcess = parseCertificateListInt toProcess []
 #endif

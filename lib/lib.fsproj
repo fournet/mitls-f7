@@ -209,9 +209,6 @@
     <None Include="Encode.fs7" />
     <Compile Include="Encode.fsi" />
     <Compile Include="Encode.fs" />
-    <None Include="ENC_RC4.fs7" />
-    <Compile Include="ENC_RC4.fsi" />
-    <Compile Include="ENC_RC4.fs" />
     <None Include="ENC.fs7" />
     <Compile Include="ENC.fsi" />
     <Compile Include="ENC.fs" />
