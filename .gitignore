@@ -13,4 +13,4 @@ tls-*.sdf
 
 *.tc7
 *.smp
-*.why
+lib/*.why
