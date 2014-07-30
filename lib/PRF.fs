@@ -241,11 +241,11 @@ let rec mem (i:msId) (r:Role) (t:text) (es:list<entry>) =
   | (i',role,text,_)::es when i=i' && r=role && text=t -> true
   | (i',role,text,_)::es -> mem i r t es
 
-let rec assoc (i:msId) (r:Role) (t:text) (es:list<entry>) = 
+let rec assoc (r:Role) (vd:tag) (es:list<entry>) = 
   match es with
   | [] -> None 
-  | (i',role,text,tag)::es when i=i' && r=role && text=t -> Some(tag)
-  | (i',role,text,_)::es -> assoc i r t es
+  | (i',role,text,tag)::es when r=role && vd=tag -> Some(i',text)
+  | (i',role,text,_)::es -> assoc r vd es
 #endif
 
 let private verifyData si ms role data = 

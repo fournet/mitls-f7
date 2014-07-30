@@ -211,7 +211,8 @@ val makeVerifyData:
   vd:tag {MakeVerifyData(MsI(si),r,t, vd)}
   (* length depends on cs, 12 by default *)
 
-theorem !m,r,t,vd,m',r',t'. MakeVerifyData(m,r,t,vd) /\ MakeVerifyData(m',r',t',vd) => (m=m'/\ r=r' /\ t=t')
+//ask !m,r,t,vd,m',r',t'. MakeVerifyData(m,r,t,vd) /\ MakeVerifyData(m',r',t',vd) => (m=m'/\ r=r' /\ t=t')
+theorem !m,r,t,vd,m',t'. MakeVerifyData(m,r,t,vd) /\ MakeVerifyData(m',r,t',vd) => (m=m' /\ t=t')
 
 // MAC verification
 val checkVerifyData: 
