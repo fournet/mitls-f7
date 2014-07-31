@@ -199,7 +199,8 @@ type eventVD = MakeVerifyData of msId * Role * text * tag
 type entry = i:msId * r:Role * t:text * vd:tag {VerifyData(i,r,t) /\ MakeVerifyData(i,r,t,vd)}
 private val log: entry list ref
 private val mem: i:msId -> r:Role -> t:text -> entry list -> b:bool{ b=true => VerifyData(i,r,t) }
-private val assoc: i:msId -> r:Role -> t:text -> entry list -> vdo:tag option{!vd. vdo=Some(vd) => VerifyData(i,r,t) /\ MakeVerifyData(i,r,t,vd) }
+private val assoc: r:Role -> vd:tag -> entry list -> (i:msId * t:text{VerifyData(i,r,t) /\ MakeVerifyData(i,r,t,vd)}) option 
+//MK: old assoc 31/07/2014: private val assoc: i:msId -> r:Role -> t:text -> entry list -> vdo:tag option{!vd. vdo=Some(vd) => VerifyData(i,r,t) /\ MakeVerifyData(i,r,t,vd) }
 //private val cons: si:SessionInfo -> tag -> r:Role -> t:text {VerifyData(si,r,t)} -> entry list -> entry list
 
 private val verifyData: si:SessionInfo -> (;MsI(si)) ms -> r:Role -> t:text -> tag 

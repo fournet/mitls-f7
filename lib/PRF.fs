@@ -256,8 +256,9 @@ let makeVerifyData si (ms:masterSecret) role data =
   #if ideal
   //if safeVD si then  //MK rename predicate and function
   let i = msi si
-  let tagoption = assoc i role data !log
-  if tagoption<>None && tagoption<>Some(tag) then
+  let msdataoption = assoc role tag !log
+  let msdata = (i,data) in
+  if msdataoption<>None && msdataoption<>Some(msdata) then
     failwith "collision";
   else
     Pi.assume(MakeVerifyData(i, role, data, tag));
