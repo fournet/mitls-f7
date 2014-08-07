@@ -1,6 +1,6 @@
 ﻿#light "off"
 
-module ServerReadClientFirstFrag
+module HandleCH
 
 open Bytes
 open Error
@@ -9,6 +9,19 @@ open System.IO
 open TLS
 open TLSInfo
 open TLSConstants
+open TLSExtensions
+
+
+type FClientHello = {
+    pv: ProtocolVersion;
+    rand: Random;
+    sid: sessionID;
+    suites: list<cipherSuite>;
+    comp: list<Compression>;
+    ext: bytes;
+    payload: bytes;
+}
+
 
 type channel = {
     mutable record: Record.ConnectionState;
@@ -19,6 +32,7 @@ type state = {
     read_s: channel;
     write_s: channel;
 }
+
 
 
 let cfg = {
@@ -93,3 +107,4 @@ let run (address:string) (port:int) : unit =
     in
     printf "Input : %A\n" data_in;
     printf "Output : %A\n" data_out
+
