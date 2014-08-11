@@ -344,8 +344,8 @@
     locfile="../HandshakeMessages.why"
     loclnum="4628" loccnumb="5" loccnume="11"
     sum="7be5e663d1eb85448b3f3aee5b14912d"
-    proved="false"
-    expanded="false"
+    proved="true"
+    expanded="true"
     shape="fIav_HandshakeMessages__HasHTMessage_pav_HandshakeMessages__HT_certificateav_Bytes__BV3Iav_HandshakeMessages__ClientLogBeforeClientFinishedResume_pV0V1V2V3FFFF">
     <proof
      prover="0"
@@ -362,6 +362,15 @@
      obsolete="false"
      archived="false">
      <result status="timeout" time="5.00"/>
+    </proof>
+    <proof
+     prover="2"
+     timelimit="5"
+     memlimit="1000"
+     edited="HandshakeMessages_T_g15_gl_1.v"
+     obsolete="false"
+     archived="false">
+     <result status="valid" time="2.27"/>
     </proof>
     <proof
      prover="3"
