@@ -4029,17 +4029,17 @@ function v_PRF__log : top
 function v_PRF__mem : top
 (* declaring value PRF.assoc [C:\cygwin\home\Pierre-Yves\mitls\lib\PRF.fs7(202,8)] *)
 function v_PRF__assoc : top
-(* declaring value PRF.verifyData [C:\cygwin\home\Pierre-Yves\mitls\lib\PRF.fs7(205,8)] *)
+(* declaring value PRF.verifyData [C:\cygwin\home\Pierre-Yves\mitls\lib\PRF.fs7(206,8)] *)
 function v_PRF__verifyData : top
-(* declaring value PRF.makeVerifyData [C:\cygwin\home\Pierre-Yves\mitls\lib\PRF.fs7(208,0)] *)
+(* declaring value PRF.makeVerifyData [C:\cygwin\home\Pierre-Yves\mitls\lib\PRF.fs7(209,0)] *)
 function v_PRF__makeVerifyData : top
-(* assume (!m. (!r. (!t. (!vd. (!m'. (!r'. (!t'. PRF.MakeVerifyData(m, r, t, vd) /\ PRF.MakeVerifyData(m', r', t', vd) => m = m' /\ r = r' /\ t = t'))))))) [C:\cygwin\home\Pierre-Yves\mitls\lib\PRF.fs7(214,0)] *)
-axiom a1658_asm: (forall v_m:top. (forall v_r:top. (forall v_t:top. (forall v_vd:top. (forall v_m':top. (forall v_r':top. (forall v_t':top. (((v_PRF__MakeVerifyData_p v_m v_r v_t v_vd) /\ (v_PRF__MakeVerifyData_p v_m' v_r' v_t' v_vd)) -> ((v_m = v_m') /\ ((v_r = v_r') /\ (v_t = v_t')))))))))))
-(* declaring value PRF.checkVerifyData [C:\cygwin\home\Pierre-Yves\mitls\lib\PRF.fs7(217,0)] *)
+(* assume (!m. (!r. (!t. (!vd. (!m'. (!t'. PRF.MakeVerifyData(m, r, t, vd) /\ PRF.MakeVerifyData(m', r, t', vd) => m = m' /\ t = t')))))) [C:\cygwin\home\Pierre-Yves\mitls\lib\PRF.fs7(216,0)] *)
+axiom a1658_asm: (forall v_m:top. (forall v_r:top. (forall v_t:top. (forall v_vd:top. (forall v_m':top. (forall v_t':top. (((v_PRF__MakeVerifyData_p v_m v_r v_t v_vd) /\ (v_PRF__MakeVerifyData_p v_m' v_r v_t' v_vd)) -> ((v_m = v_m') /\ (v_t = v_t')))))))))
+(* declaring value PRF.checkVerifyData [C:\cygwin\home\Pierre-Yves\mitls\lib\PRF.fs7(219,0)] *)
 function v_PRF__checkVerifyData : top
-(* assume (!si. Tuples.Tup14.10 si = TLSConstants.SSL_3p0 () => not TLSInfo.StrongVD(TLSInfo.VdAlg (si))) [C:\cygwin\home\Pierre-Yves\mitls\lib\PRF.fs7(225,0)] *)
+(* assume (!si. Tuples.Tup14.10 si = TLSConstants.SSL_3p0 () => not TLSInfo.StrongVD(TLSInfo.VdAlg (si))) [C:\cygwin\home\Pierre-Yves\mitls\lib\PRF.fs7(227,0)] *)
 axiom a1659_asm: (forall v_si:top. (((v_Tuples__Tup14__10 v_si) = (v_TLSConstants__SSL_3p0 )) -> (not (v_TLSInfo__StrongVD_p (v_TLSInfo__VdAlg v_si)))))
-(* declaring value PRF.ssl_certificate_verify [C:\cygwin\home\Pierre-Yves\mitls\lib\PRF.fs7(228,0)] *)
+(* declaring value PRF.ssl_certificate_verify [C:\cygwin\home\Pierre-Yves\mitls\lib\PRF.fs7(230,0)] *)
 function v_PRF__ssl_certificate_verify : top
 (* declaring type HandshakeMessages.PreHandshakeType [C:\cygwin\home\Pierre-Yves\mitls\lib\HandshakeMessages.fs7(42,0)] *)
 predicate v_HandshakeMessages__HT_hello_request_p 
