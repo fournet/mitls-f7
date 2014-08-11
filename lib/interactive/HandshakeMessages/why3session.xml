@@ -214,12 +214,29 @@
     expanded="true"
     shape="av_HandshakeMessages__UpdatesClientSigAlg_pV0V1Iav_HandshakeMessages__ServerLogBeforeClientCertificateVerifyRSA_pV1V2Aav_HandshakeMessages__ClientLogBeforeCertificateVerifyRSA_Auth_pV0V2FFF">
     <proof
+     prover="0"
+     timelimit="5"
+     memlimit="1000"
+     obsolete="false"
+     archived="false">
+     <result status="timeout" time="5.00"/>
+    </proof>
+    <proof
      prover="1"
      timelimit="5"
      memlimit="1000"
      obsolete="false"
      archived="false">
      <result status="timeout" time="5.00"/>
+    </proof>
+    <proof
+     prover="2"
+     timelimit="5"
+     memlimit="1000"
+     edited="HandshakeMessages_T_g11_gl_1.v"
+     obsolete="true"
+     archived="false">
+     <undone/>
     </proof>
     <proof
      prover="3"
@@ -239,12 +256,29 @@
     expanded="true"
     shape="av_HandshakeMessages__UpdatesClientSigAlg_pV0V1Iav_HandshakeMessages__ServerLogBeforeClientCertificateVerifyDHE_pV1V2Aav_HandshakeMessages__ClientLogBeforeCertificateVerifyDHE_Auth_pV0V2FFF">
     <proof
+     prover="0"
+     timelimit="5"
+     memlimit="1000"
+     obsolete="false"
+     archived="false">
+     <result status="timeout" time="5.00"/>
+    </proof>
+    <proof
      prover="1"
      timelimit="5"
      memlimit="1000"
      obsolete="false"
      archived="false">
      <result status="timeout" time="4.99"/>
+    </proof>
+    <proof
+     prover="2"
+     timelimit="5"
+     memlimit="1000"
+     edited="HandshakeMessages_T_g12_gl_1.v"
+     obsolete="true"
+     archived="false">
+     <undone/>
     </proof>
     <proof
      prover="3"
@@ -261,7 +295,7 @@
     loclnum="4578" loccnumb="5" loccnume="11"
     sum="4495e608a3aa97a2565bc85f34302112"
     proved="false"
-    expanded="true"
+    expanded="false"
     shape="ainfix =V0V1Iav_HandshakeMessages__ServerLogBeforeClientFinished_pV1V2Aav_HandshakeMessages__ClientLogBeforeClientFinished_pV0V2FFF">
     <proof
      prover="1"
@@ -286,7 +320,7 @@
     loclnum="4583" loccnumb="5" loccnume="11"
     sum="b6615a3600d6da6d0c53f0e5d8e25631"
     proved="false"
-    expanded="true"
+    expanded="false"
     shape="ainfix =V0V1Iav_HandshakeMessages__ServerLogBeforeServerFinished_pV1V2Aav_HandshakeMessages__ClientLogBeforeServerFinished_pV0V2FFF">
     <proof
      prover="1"
@@ -311,7 +345,7 @@
     loclnum="4588" loccnumb="5" loccnume="11"
     sum="79fed5f7a362d4f331862d42938152db"
     proved="false"
-    expanded="true"
+    expanded="false"
     shape="ainfix =av_Tuples__Tup14__13V2av_Tuples__Tup14__13V5Aainfix =V1V4Aainfix =V0V3Iav_HandshakeMessages__ServerLogBeforeClientFinishedResume_pV3V4V5V6Aav_HandshakeMessages__ClientLogBeforeClientFinishedResume_pV0V1V2V6FFFFFFF">
     <proof
      prover="1"
@@ -336,7 +370,7 @@
     loclnum="4593" loccnumb="5" loccnume="11"
     sum="16bf648feaf732b730fc79af6e90ecde"
     proved="false"
-    expanded="true"
+    expanded="false"
     shape="ainfix =av_Tuples__Tup14__13V2av_Tuples__Tup14__13V5Aainfix =V1V4Aainfix =V0V3Iav_HandshakeMessages__ServerLogBeforeServerFinishedResume_pV3V4V5V6Aav_HandshakeMessages__ClientLogBeforeServerFinishedResume_pV0V1V2V6FFFFFFF">
     <proof
      prover="1"
@@ -381,12 +415,29 @@
     expanded="true"
     shape="fIav_HandshakeMessages__ServerLogBeforeClientCertificateVerifyDHE_pV1V2Aav_HandshakeMessages__ClientLogBeforeCertificateVerifyRSA_Auth_pV0V2FFF">
     <proof
+     prover="0"
+     timelimit="5"
+     memlimit="1000"
+     obsolete="false"
+     archived="false">
+     <result status="timeout" time="5.00"/>
+    </proof>
+    <proof
      prover="1"
      timelimit="5"
      memlimit="1000"
      obsolete="false"
      archived="false">
      <result status="timeout" time="5.00"/>
+    </proof>
+    <proof
+     prover="2"
+     timelimit="5"
+     memlimit="1000"
+     edited="HandshakeMessages_T_g18_gl_1.v"
+     obsolete="true"
+     archived="false">
+     <undone/>
     </proof>
     <proof
      prover="3"
@@ -405,6 +456,14 @@
     proved="false"
     expanded="true"
     shape="fIav_HandshakeMessages__ServerLogBeforeClientCertificateVerifyRSA_pV1V2Aav_HandshakeMessages__ClientLogBeforeCertificateVerifyDHE_Auth_pV0V2FFF">
+    <proof
+     prover="0"
+     timelimit="5"
+     memlimit="1000"
+     obsolete="false"
+     archived="false">
+     <result status="timeout" time="4.99"/>
+    </proof>
     <proof
      prover="1"
      timelimit="5"
