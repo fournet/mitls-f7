@@ -925,36 +925,34 @@ definition !cr,sr,si,l.
     B(l) = B(l') @| ServerFinishedMsg(svd))
 
 
-(*KB Main injectivity theorems about the log.
-   To prove them we will need lemmas about the partial injectivity for 
-   each previous log predicate.
-   Note that these need to be extended to include cvd, svd for prev epoch and also client hello info for Negotiated.
- *)
-theorem !si,si',t. ClientLogBeforeCertificateVerifyRSA_Auth(si,t) /\        
+(* -------------------------------------------------------------------- *)
+ask !si,si',t. ClientLogBeforeCertificateVerifyRSA_Auth(si,t) /\        
                    ServerLogBeforeClientCertificateVerifyRSA(si',t) => 
                    UpdatesClientSigAlg(si,si')
 
-theorem !si,si',t. ClientLogBeforeCertificateVerifyDHE_Auth(si,t) /\        
+ask !si,si',t. ClientLogBeforeCertificateVerifyDHE_Auth(si,t) /\        
                    ServerLogBeforeClientCertificateVerifyDHE(si',t) => 
                    UpdatesClientSigAlg(si,si')
 
-theorem !si,si',t. ClientLogBeforeClientFinished(si,t) /\        
+ask !si,si',t. ClientLogBeforeClientFinished(si,t) /\        
                    ServerLogBeforeClientFinished(si',t) => 
 		   si = si'
-theorem !si,si',t. ClientLogBeforeServerFinished(si,t) /\        
+
+ask !si,si',t. ClientLogBeforeServerFinished(si,t) /\        
                    ServerLogBeforeServerFinished(si',t) => 
 		   si = si'
 
-theorem !cr,sr,si,cr',sr',si',t. 
+ask !cr,sr,si,cr',sr',si',t. 
                    ClientLogBeforeClientFinishedResume(cr,sr,si,t) /\        
                    ServerLogBeforeClientFinishedResume(cr',sr',si',t) => 
 	  	   (cr = cr' /\ sr = sr'  /\ si.sessionID = si'.sessionID)
-theorem !cr,sr,si,cr',sr',si',t. 
+
+ask !cr,sr,si,cr',sr',si',t. 
                    ClientLogBeforeServerFinishedResume(cr,sr,si,t) /\        
                    ServerLogBeforeServerFinishedResume(cr',sr',si',t) => 
                    (cr = cr' /\ sr = sr' /\ si.sessionID = si'.sessionID )
 
-theorem !cr,sr,p,g,gs,cr',sr',p',g',gs',t. 
+ask !cr,sr,p,g,gs,cr',sr',p',g',gs',t. 
            B(t) = B(cr) @| B(sr) @| DHEParamBytes(p,g,gs) /\
            Length(cr) = 32 /\
            Length(sr) = 32 /\
@@ -963,51 +961,49 @@ theorem !cr,sr,p,g,gs,cr',sr',p',g',gs',t.
            Length(sr') = 32 =>
            (cr = cr' /\ sr = sr' /\ p = p' /\ g = g' /\ gs = gs')
            
-
 (* disjointness rules *)
-theorem !si,si',t. ClientLogBeforeCertificateVerifyRSA_Auth(si,t) /\
+ask !si,si',t. ClientLogBeforeCertificateVerifyRSA_Auth(si,t) /\
                    ServerLogBeforeClientCertificateVerifyDHE(si',t) => false
 
-theorem !si,si',t. ClientLogBeforeCertificateVerifyDHE_Auth(si,t) /\        
+ask !si,si',t. ClientLogBeforeCertificateVerifyDHE_Auth(si,t) /\        
                    ServerLogBeforeClientCertificateVerifyRSA(si',t) => false
 
-theorem !si,t,cr,sr,p,g,gs. ServerLogBeforeClientCertificateVerifyRSA(si,t) /\
+ask !si,t,cr,sr,p,g,gs. ServerLogBeforeClientCertificateVerifyRSA(si,t) /\
 	           Length(cr) = 32 /\ Length(sr) = 32 /\
 	           B(t) = B(cr) @| B(sr) @| DHEParamBytes(p,g,gs)  => false
 
-theorem !si,t,cr,sr,p,g,gs. ServerLogBeforeClientCertificateVerifyDHE(si,t) /\
+ask !si,t,cr,sr,p,g,gs. ServerLogBeforeClientCertificateVerifyDHE(si,t) /\
 	           Length(cr) = 32 /\ Length(sr) = 32 /\
 	           B(t) = B(cr) @| B(sr) @| DHEParamBytes(p,g,gs)  => false
 
-theorem !si,t,cr,sr,p,g,gs. ClientLogBeforeCertificateVerifyDHE_Auth(si,t) /\
+ask !si,t,cr,sr,p,g,gs. ClientLogBeforeCertificateVerifyDHE_Auth(si,t) /\
 	           Length(cr) = 32 /\ Length(sr) = 32 /\
 	           B(t) = B(cr) @| B(sr) @| DHEParamBytes(p,g,gs)  => false
 
-theorem !si,t,cr,sr,p,g,gs. ClientLogBeforeCertificateVerifyRSA_Auth(si,t) /\
+ask !si,t,cr,sr,p,g,gs. ClientLogBeforeCertificateVerifyRSA_Auth(si,t) /\
 	           Length(cr) = 32 /\ Length(sr) = 32 /\
 	           B(t) = B(cr) @| B(sr) @| DHEParamBytes(p,g,gs)  => false
 
 
-theorem !si,cr,sr,si',t. ClientLogBeforeClientFinished(si,t) /\        
+ask !si,cr,sr,si',t. ClientLogBeforeClientFinished(si,t) /\        
                    ServerLogBeforeClientFinishedResume(cr,sr,si',t)  => false
 
-theorem !si,cr,sr,si',t. ClientLogBeforeServerFinished(si,t) /\        
+ask !si,cr,sr,si',t. ClientLogBeforeServerFinished(si,t) /\        
                    ServerLogBeforeServerFinishedResume(cr,sr,si',t)  => false
 
-theorem !si,cr,sr,si',t. ServerLogBeforeClientFinished(si,t) /\        
+ask !si,cr,sr,si',t. ServerLogBeforeClientFinished(si,t) /\        
                    ClientLogBeforeClientFinishedResume(cr,sr,si',t)  => false
 
-theorem !si,cr,sr,si',t. ServerLogBeforeServerFinished(si,t) /\        
+ask !si,cr,sr,si',t. ServerLogBeforeServerFinished(si,t) /\        
                    ClientLogBeforeServerFinishedResume(cr,sr,si',t)  => false
 
-
-
+(* -------------------------------------------------------------------- *)
 predicate HasHTMessage of HandshakeType * cbytes
 
 definition !ht. HasHTMessage(ht, [||]) <=> false
 definition !ht,htd,data,l. HasHTMessage(ht, l @| MessageBytes(htd,data)) <=> (ht = htd \/ HasHTMessage(ht,l))
 
-// I am a SMT solver, I can barely solve problems
+(* -------------------------------------------------------------------- *)
 ask !htd,data. [||] @| MessageBytes(htd,data) = MessageBytes(htd,data)
 
 ask !ht,htd,data.
@@ -1018,34 +1014,11 @@ ask !ht,htd1,htd2,data1,data2.
   <=> (ht = htd1 \/ ht = htd2)
 
 ask !ht,htd1,htd2,htd3,data1,data2,data3.
-      HasHTMessage(ht, MessageBytes(htd1, data1) @| MessageBytes(htd2, data2) @| MessageBytes(htd3, data3))
+      HasHTMessage(ht,    MessageBytes(htd1, data1)
+                       @| MessageBytes(htd2, data2)
+                       @| MessageBytes(htd3, data3))
   <=> (ht = htd1 \/ ht = htd2 \/ ht = htd3)
 
-//predicate ClientLogBeforeServerFinishedResume of SessionInfo * log 
-//definition !si,l.
-//  ClientLogBeforeServerFinishedResume(si,l) <=>
-//  (?crand,cpv,csl,cml,ex1,ex2,ctl,sal,nl. 
-//    B(l) = (ClientHelloMsg(cpv,crand,si.sessionID,csl,cml,ex1)  @|
-//        (ServerHelloMsg(si.protocol_version,si.init_srand,si.sessionID,si.cipher_suite,si.compression,ex2))))
-
-//predicate ClientLogBeforeClientFinishedResume of SessionInfo * log 
-//definition !si,l.
-//  ClientLogBeforeClientFinishedResume(si,l) <=>
-//  (?l',svd.   ClientLogBeforeServerFinishedResume(si,l') /\
-//    B(l) = B(l') @| ServerFinishedMsg(svd))
-
-(*
-ask !cr,sr,si,l.
-  ClientLogBeforeClientFinishedResume(cr,sr,si,l) =>
-  (?svd,cpv,csl,cml,ex1,ex2,ctl,sal,nl. 
-    B(l) = 
-         (ClientHelloMsg(cpv,cr,si.sessionID,csl,cml,ex1)  @|
-          ServerHelloMsg(si.protocol_version,sr,si.sessionID,si.cipher_suite,si.compression,ex2) @|
-	  ServerFinishedMsg(svd)))
-*)
-
+(* -------------------------------------------------------------------- *)
 ask !cr,sr,si,t. ClientLogBeforeClientFinishedResume(cr,sr,si,t) => 
                  HasHTMessage(HT_certificate,B(t)) => false
-
-
-
