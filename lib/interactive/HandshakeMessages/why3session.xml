@@ -345,7 +345,7 @@
     loclnum="4628" loccnumb="5" loccnume="11"
     sum="7be5e663d1eb85448b3f3aee5b14912d"
     proved="true"
-    expanded="true"
+    expanded="false"
     shape="fIav_HandshakeMessages__HasHTMessage_pav_HandshakeMessages__HT_certificateav_Bytes__BV3Iav_HandshakeMessages__ClientLogBeforeClientFinishedResume_pV0V1V2V3FFFF">
     <proof
      prover="0"
@@ -943,19 +943,19 @@
     </proof>
     <proof
      prover="1"
-     timelimit="5"
-     memlimit="1000"
+     timelimit="30"
+     memlimit="2048"
      obsolete="false"
      archived="false">
      <result status="timeout" time="5.00"/>
     </proof>
     <proof
      prover="3"
-     timelimit="5"
-     memlimit="1000"
+     timelimit="30"
+     memlimit="4000"
      obsolete="false"
      archived="false">
-     <result status="timeout" time="5.03"/>
+     <result status="timeout" time="53.12"/>
     </proof>
    </goal>
    <goal
@@ -1112,19 +1112,19 @@
     </proof>
     <proof
      prover="1"
-     timelimit="5"
-     memlimit="1000"
+     timelimit="30"
+     memlimit="2048"
      obsolete="false"
      archived="false">
      <result status="timeout" time="5.00"/>
     </proof>
     <proof
      prover="3"
-     timelimit="5"
-     memlimit="1000"
+     timelimit="30"
+     memlimit="4000"
      obsolete="false"
      archived="false">
-     <result status="timeout" time="5.04"/>
+     <result status="timeout" time="30.11"/>
     </proof>
    </goal>
    <goal
@@ -1739,8 +1739,8 @@
     </proof>
     <proof
      prover="1"
-     timelimit="5"
-     memlimit="1000"
+     timelimit="30"
+     memlimit="2048"
      obsolete="false"
      archived="false">
      <result status="timeout" time="5.00"/>
@@ -2792,8 +2792,8 @@
     </proof>
     <proof
      prover="1"
-     timelimit="5"
-     memlimit="1000"
+     timelimit="30"
+     memlimit="2048"
      obsolete="false"
      archived="false">
      <result status="timeout" time="4.99"/>
@@ -4065,8 +4065,8 @@
     </proof>
     <proof
      prover="1"
-     timelimit="5"
-     memlimit="1000"
+     timelimit="30"
+     memlimit="2048"
      obsolete="false"
      archived="false">
      <result status="timeout" time="5.00"/>
