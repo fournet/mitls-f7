@@ -8562,16 +8562,63 @@ Axiom a1791_asm : forall (v_cr:Z), forall (v_sr:Z), forall (v_si:Z),
   ((v_Bytes__B v_l) = (v_Pervasives__bop_ArrayAppend (v_Bytes__B v_l')
   (v_HandshakeMessages__ServerFinishedMsg v_svd))).
 
+Axiom a1792_asm : forall (v_si:Z), forall (v_si':Z), forall (v_t:Z),
+  ((v_HandshakeMessages__ClientLogBeforeCertificateVerifyRSA_Auth_p v_si
+  v_t) /\ (v_HandshakeMessages__ServerLogBeforeClientCertificateVerifyRSA_p
+  v_si' v_t)) -> (v_HandshakeMessages__UpdatesClientSigAlg_p v_si v_si').
+
+Axiom a1793_asm : forall (v_si:Z), forall (v_si':Z), forall (v_t:Z),
+  ((v_HandshakeMessages__ClientLogBeforeCertificateVerifyDHE_Auth_p v_si
+  v_t) /\ (v_HandshakeMessages__ServerLogBeforeClientCertificateVerifyDHE_p
+  v_si' v_t)) -> (v_HandshakeMessages__UpdatesClientSigAlg_p v_si v_si').
+
+Axiom a1794_asm : forall (v_si:Z), forall (v_si':Z), forall (v_t:Z),
+  ((v_HandshakeMessages__ClientLogBeforeClientFinished_p v_si v_t) /\
+  (v_HandshakeMessages__ServerLogBeforeClientFinished_p v_si' v_t)) ->
+  (v_si = v_si').
+
+Axiom a1795_asm : forall (v_si:Z), forall (v_si':Z), forall (v_t:Z),
+  ((v_HandshakeMessages__ClientLogBeforeServerFinished_p v_si v_t) /\
+  (v_HandshakeMessages__ServerLogBeforeServerFinished_p v_si' v_t)) ->
+  (v_si = v_si').
+
+Axiom a1796_asm : forall (v_cr:Z), forall (v_sr:Z), forall (v_si:Z),
+  forall (v_cr':Z), forall (v_sr':Z), forall (v_si':Z), forall (v_t:Z),
+  ((v_HandshakeMessages__ClientLogBeforeClientFinishedResume_p v_cr v_sr v_si
+  v_t) /\ (v_HandshakeMessages__ServerLogBeforeClientFinishedResume_p v_cr'
+  v_sr' v_si' v_t)) -> ((v_cr = v_cr') /\ ((v_sr = v_sr') /\
+  ((v_Tuples__Tup14__13 v_si) = (v_Tuples__Tup14__13 v_si')))).
+
+Axiom a1797_asm : forall (v_cr:Z), forall (v_sr:Z), forall (v_si:Z),
+  forall (v_cr':Z), forall (v_sr':Z), forall (v_si':Z), forall (v_t:Z),
+  ((v_HandshakeMessages__ClientLogBeforeServerFinishedResume_p v_cr v_sr v_si
+  v_t) /\ (v_HandshakeMessages__ServerLogBeforeServerFinishedResume_p v_cr'
+  v_sr' v_si' v_t)) -> ((v_cr = v_cr') /\ ((v_sr = v_sr') /\
+  ((v_Tuples__Tup14__13 v_si) = (v_Tuples__Tup14__13 v_si')))).
+
+Axiom a1798_asm : forall (v_cr:Z), forall (v_sr:Z), forall (v_p:Z),
+  forall (v_g:Z), forall (v_gs:Z), forall (v_cr':Z), forall (v_sr':Z),
+  forall (v_p':Z), forall (v_g':Z), forall (v_gs':Z), forall (v_t:Z),
+  (((v_Bytes__B v_t) = (v_Pervasives__bop_ArrayAppend (v_Bytes__B v_cr)
+  (v_Pervasives__bop_ArrayAppend (v_Bytes__B v_sr)
+  (v_HandshakeMessages__DHEParamBytes v_p v_g v_gs)))) /\
+  (((v_Bytes__Length v_cr) = 32%Z) /\ (((v_Bytes__Length v_sr) = 32%Z) /\
+  (((v_Bytes__B v_t) = (v_Pervasives__bop_ArrayAppend (v_Bytes__B v_cr')
+  (v_Pervasives__bop_ArrayAppend (v_Bytes__B v_sr')
+  (v_HandshakeMessages__DHEParamBytes v_p' v_g' v_gs')))) /\
+  (((v_Bytes__Length v_cr') = 32%Z) /\
+  ((v_Bytes__Length v_sr') = 32%Z)))))) -> ((v_cr = v_cr') /\
+  ((v_sr = v_sr') /\ ((v_p = v_p') /\ ((v_g = v_g') /\ (v_gs = v_gs'))))).
+
 Require Import ssreflect eqtype ssrbool ssrnat.
 
 (* Why3 goal *)
-Theorem g11_gl : forall (v_si:Z), forall (v_si':Z), forall (v_t:Z),
-  (   (v_HandshakeMessages__ClientLogBeforeCertificateVerifyRSA_Auth_p  v_si v_t)
-   /\ (v_HandshakeMessages__ServerLogBeforeClientCertificateVerifyRSA_p v_si' v_t)) ->
-        (v_HandshakeMessages__UpdatesClientSigAlg_p v_si v_si').
+Theorem g18_gl : forall (v_si:Z), forall (v_si':Z), forall (v_t:Z),
+  ~ (   (v_HandshakeMessages__ClientLogBeforeCertificateVerifyRSA_Auth_p v_si v_t)
+     /\ (v_HandshakeMessages__ServerLogBeforeClientCertificateVerifyDHE_p v_si' v_t)).
 Proof.
-  move=> si1 si2 t [h1 h2].
-  move/a1776_asm: h1 => [si1'] [log1] [encpms].
+  move=> si1 si2 t [] /a1776_asm [si1'] [log1] [encpms] [_] [_] [_] h1.
+  move=> /a1755_asm [si2'] [log2] [p] [g] [gc] [gs] [r] [_] [_] [_].
+  rewrite h1 => {h1}.
 
 Qed.
-

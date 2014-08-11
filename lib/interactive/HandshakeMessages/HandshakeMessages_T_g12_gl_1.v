@@ -8562,16 +8562,52 @@ Axiom a1791_asm : forall (v_cr:Z), forall (v_sr:Z), forall (v_si:Z),
   ((v_Bytes__B v_l) = (v_Pervasives__bop_ArrayAppend (v_Bytes__B v_l')
   (v_HandshakeMessages__ServerFinishedMsg v_svd))).
 
+Axiom a1792_asm : forall (v_si:Z), forall (v_si':Z), forall (v_t:Z),
+  ((v_HandshakeMessages__ClientLogBeforeCertificateVerifyRSA_Auth_p v_si
+  v_t) /\ (v_HandshakeMessages__ServerLogBeforeClientCertificateVerifyRSA_p
+  v_si' v_t)) -> (v_HandshakeMessages__UpdatesClientSigAlg_p v_si v_si').
+
+(* -------------------------------------------------------------------- *)
 Require Import ssreflect eqtype ssrbool ssrnat.
 
+Lemma I_ClientKeyExchangeMsg_DHE (b1 b2 : int):
+    v_HandshakeMessages__ClientKeyExchangeMsg_DHE b1
+  = v_HandshakeMessages__ClientKeyExchangeMsg_DHE b2 -> b1 = b2.
+Proof. by rewrite !a1726_asm => /a1708_asm /a1452_asm /a80_asm. Qed.
+
+(*
+Lemma IL_ClientKeyExchangeMsg_DHE (l1 l2 : int) (b1 b2 : int):
+    v_Pervasives__bop_ArrayAppend l1 (v_HandshakeMessages__ClientKeyExchangeMsg_DHE b1)
+  = v_Pervasives__bop_ArrayAppend l2 (v_HandshakeMessages__ClientKeyExchangeMsg_DHE b2)
+      -> b1 = b2.
+Proof.
+  set m1 := (v_HandshakeMessages__ClientKeyExchangeMsg_DHE b1).
+  set m2 := (v_HandshakeMessages__ClientKeyExchangeMsg_DHE b2).
+  move=> h; case: (a88_asm l1 m1 l2 m2); first split=> //.
+*)
+
 (* Why3 goal *)
-Theorem g11_gl : forall (v_si:Z), forall (v_si':Z), forall (v_t:Z),
-  (   (v_HandshakeMessages__ClientLogBeforeCertificateVerifyRSA_Auth_p  v_si v_t)
-   /\ (v_HandshakeMessages__ServerLogBeforeClientCertificateVerifyRSA_p v_si' v_t)) ->
+Theorem g12_gl : forall (v_si:Z), forall (v_si':Z), forall (v_t:Z),
+  (   (v_HandshakeMessages__ClientLogBeforeCertificateVerifyDHE_Auth_p  v_si v_t)
+   /\ (v_HandshakeMessages__ServerLogBeforeClientCertificateVerifyDHE_p v_si' v_t)) ->
         (v_HandshakeMessages__UpdatesClientSigAlg_p v_si v_si').
 Proof.
-  move=> si1 si2 t [h1 h2].
-  move/a1776_asm: h1 => [si1'] [log1] [encpms].
+  move=> si1_1 si2_1 t [h1 h2].
+
+  (* Deconstructing first log *)
+  move/a1777_asm: h1 => [si1_2] [log1_1] [b] [h1] [si1_2_p4] [si1_1_2].
+  move/a1775_asm: h1 => [log1_2] [b'] [h1] -> {log1_1}.
+  move/a1772_asm: h1; rewrite si1_2_p4; case; last by case=> /a2_asm.
+  case=> _ /a1773_asm [si1_3] [log1_3] [pv] [ctl] [sal] [nl].
+  move=> [h1] [si1_2_3] -> {log1_2}; move/a1766_asm: h1.
+  move=> [si1_4] [log1_4] [p] [g] [y] [a] [pv'] [sign] [h1] [s1_3_4] -> {log1_3}.
+  move/a1765_asm: h1=> [s1_5] [log1_5] [h1] [s1_4_5] -> {log1_4}.
+  move/a1763_asm: h1=> [log1_6] [cr] [ex2] [h1] -> {log1_5}.
+  move/a1761_asm: h1=> /(_ 0%Z) [pv''] [cs] [cm] [ex1] -> {log1_6}.
+
+  (* Deconstructing second log *)
+  move/a1755_asm: h2 => [si2_2] [log2_2] [p2] [g2] [gc2] [gs2] [r2].
+  move=> [h2] [si2_1_2] [s2_2_p9] ->.
 
 Qed.
 
