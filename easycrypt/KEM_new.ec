@@ -437,26 +437,27 @@ section.
       maybe_k{1} = None /\
       (maybe_pms = decrypt pv W.sk c){2} /\ (t0 = t){1}).
       exists * sk{1}, pv{1}, c0{1}; elim *; intros sk pv c.
+      move=> LR LL.
       by call{1} (dec_spec sk pv c).
-    wp; call (_: ={glob W, glob RO_KEF}); first by eqobs_in.
+    wp; call (_: ={glob W, glob RO_KEF}); first by sim.
     by wp; rnd; skip; progress; smt.
   qed.    
 
   local equiv RCCA_RCCA0 : 
     RCCA(MS_KEM, A(RO_KEF)).main ~ RCCA0.main : true ==> ={res}.
   proof.
-    fun.
+    proc.
     swap{2} 9 -2.
     call (_: ={glob W, glob RO_KEF}).
       by apply RCCA_RCCA0_dec.
-      by fun; eqobs_in.
+      by proc; sim.
     inline KEM(RO_KEF, PMS_KEM).enc.
     wp; rnd; rnd; wp.
-    call (_: ={glob W, glob RO_KEF}); first by eqobs_in.
+    call (_: ={glob W, glob RO_KEF}); first by sim.
     seq 7 7 : (={pk, glob A, glob W, glob RO_KEF} /\ keypair(pk, W.sk){1}).
     call (_: ={glob W, glob RO_KEF}).
       by apply RCCA_RCCA0_dec.
-      by fun; eqobs_in.
+      by proc; sim.
     inline KEM(RO_KEF, PMS_KEM).init KEM(RO_KEF, PMS_KEM).keygen
            MS_KEM.init RO_KEF.init MS_KEM.keygen.
     by wp; call keygen_spec_rel; wp; call (_:true).
@@ -939,7 +940,7 @@ section.
 
      wp; call (_: ={glob W} /\ RCCA1.fake{1} = RCCA2.fake{2}); wp.
      call (_:RCCA1.fake{1} = RCCA2.fake{2}).
-     eqobs_in; progress; apply stateless_pms_kem.
+     sim; progress; apply stateless_pms_kem.
      call (_:true); wp.
      call (_:true ==> RCCA1.fake{1} = RCCA2.fake{2} /\
                       forall p, (in_dom p RCCA1.fake){1}).
@@ -2136,7 +2137,7 @@ section.
     fun.
     swap{1} 3 1.
     inline PCA.OW_PCA(PMS_KEM, B).A.guess OW_PCA0.B.guess.
-    eqobs_in (={glob PCA.V}) true : (={k,k',glob Find,glob PCA.V});
+    sim (={glob PCA.V}) true : (={k,k',glob Find,glob PCA.V});
       first by apply OW_PCA0_OW_PCA_check.
     seq 3 3 : (={pk, glob PCA.V, Find.pk} /\ keypair(pk, PCA.V.sk){2}).
     inline PCA.OW_PCA(PMS_KEM, B).A.choose OW_PCA0.B.choose.
@@ -2497,7 +2498,7 @@ section.
     swap{1} 3 1.
     inline PCA.NR_PCA(PMS_KEM, C).A.guess NR_PCA0.C.guess.
     call (_: ={glob Find, glob PCA.V}); wp.
-    eqobs_in true (={glob PCA.V}) : (={k,c,glob Find,glob PCA.V}).
+    sim true (={glob PCA.V}) : (={k,c,glob Find,glob PCA.V}).
     by apply OW_PCA0_OW_PCA_check.
     progress.
       by cut X : forall x, tt = x by smt; apply X.
