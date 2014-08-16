@@ -26,17 +26,17 @@ let openConnection (role:Role) (address:string) (port:int) =
 
 
 (* Run a full Handshake *)
-let fullHandshake (role:Role) (ns:NetworkStream) (st:state) (cfg:config) : NetworkStream * SessionInfo * FHSMessages =
+let fullHandshake (role:Role) (ns:NetworkStream) (st:state) (cfg:config) : SessionInfo * FHSMessages =
     
     let sms = nullFHSMessages in
     match role with
     | Client -> 
         let st,si,fch = FlexClientHello.sendClientHello ns st cfg in
         let st,si,fsh = FlexServerHello.recvServerHello ns st si in
-        (ns,si,sms)
+        (si,sms)
 
     | Server ->
         let sh = nullFServerHello in
         let st,si,fch = FlexClientHello.recvClientHello ns st in
         let st,si,fsh = FlexServerHello.sendServerHello ns st si sh in
-        (ns,si,sms)
+        (si,sms)

@@ -8,10 +8,34 @@ open Error
 open HandshakeMessages
 open TLSInfo
 open TLSConstants
+
 open FlexTypes
+open FlexFragment
 
 
-(* TODO : Receive HelloRequest message *)
+(* TODO : Since peer is not suppose to know if a HelloRequest will be received we have to have a Wait function *)
+
+
+(* (* Receive an expected HelloRequest message from the network stream *)
+let recvHelloRequest (ns:NetworkStream) (st:state) (cfg:config) =
+    
+    let ct,pv,len = parseFragmentHeader ns in
+
+        match getFragmentContent ns ct len st with
+        | Error (ad,x) -> failwith x
+        | Correct (rec_in,rg,frag)  ->
+            let read_s = {st.read_s with record = rec_in} in
+            let st = {st with read_s = read_s} in
+            let id = TLSInfo.id st.read_s.epoch in
+            let history = Record.history st.read_s.epoch Reader st.read_s.record in
+          
+            let f = TLSFragment.RecordPlainToHSPlain st.read_s.epoch history rg frag in
+            let b = HSFragment.fragmentRepr id rg f in 
+
+            match HandshakeMessages.parseH b with
+            | Error (ad,x) -> failwith x
+            | Correct (certC) -> 
+*)
 
 (* Send HelloRequest message to the network stream *)
 let sendHelloRequest (ns:NetworkStream) (st:state) (cfg:config) =

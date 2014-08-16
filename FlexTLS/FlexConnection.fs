@@ -17,7 +17,7 @@ let cfg = defaultConfig
 
 (* Initiate a connection either from Client or Server *)
 let init (ns:NetworkStream) (cfg:config) (role:Role) =
-    let (ci,_)      = Handshake.init role cfg in
+    let ci,hs_s      = Handshake.init role cfg in
     let record_s_in  = Record.nullConnState ci.id_in Reader in
     let record_s_out = Record.nullConnState ci.id_out Writer in
     { read_s  = { record = record_s_in ; epoch = ci.id_in;};

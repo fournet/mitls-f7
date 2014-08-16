@@ -15,6 +15,7 @@ let pv = TLS_1p2
 (* Keep track of the Record state and the associated Epoch of an I/O channel *)
 type channel = {
     record: Record.ConnectionState;
+    (* hs:     Handshake.hs_state; *)
     epoch:  TLSInfo.epoch;
 }
 
@@ -23,6 +24,11 @@ type state = {
     read_s: channel;
     write_s: channel;
     ns: Tcp.NetworkStream;
+}
+
+(* Record associated to a HelloRequest message *)
+type FHelloRequest = {
+    null_payload: bytes;
 }
 
 (* Record associated to a ClientHello message *)
@@ -47,14 +53,40 @@ type FServerHello = {
     payload: bytes;
 }
 
+(* Record associated to a Certificate message *)
+type FCertificate = {
+    chain: Cert.chain;
+}
+
+(* Record associated to a ServerKeyExchange message *)
+
+
+(* Record associated to a CertificateRequest message *)
+(* Record associated to a ServerHelloDone message *)
+(* Record associated to a CertificateVerify message *)
+(* Record associated to a ClientKeyExchange message *)
+(* Record associated to a Finished message *)
+
+
 (* Record associated with conservation of all HS messages *)
 type FHSMessages = {
+    helloRequest: FHelloRequest;
     clientHello: FClientHello;
     serverHello: FServerHello;
+    serverCertificate: FCertificate;
+    clientCertificate: FCertificate;
+    //serverKeyExchange: FServerKeyExchange;
+    //certificateRequest: FCertificateRequest;
+    //serverHelloDone: FServerHelloDone;
+    //certificateVerify: FCertificateVerify;
+    //clientKeyExchange: ClientKeyExchange;
+    //finished: Finished;
 }
 
 
-
+(* Define a null FHelloRequest record *)
+let nullFHelloRequest = {   null_payload = empty_bytes;
+                        }
 
 (* Define a null FClientHello record *)
 let nullFClientHello  = {   pv = pv;
@@ -77,9 +109,17 @@ let nullFServerHello  = {   pv = pv;
                             payload = empty_bytes;
                         }
 
+(* Define a null FCertificate record *)
+let nullFCertificate =  {   chain = [];
+                        }
+
+
 (* Define a null FHSMessages record *)
-let nullFHSMessages = {   clientHello = nullFClientHello;
+let nullFHSMessages = {   helloRequest = nullFHelloRequest;
+                          clientHello = nullFClientHello;
                           serverHello = nullFServerHello;
+                          clientCertificate = nullFCertificate;
+                          serverCertificate = nullFCertificate;
                       }
 
 

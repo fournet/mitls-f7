@@ -15,7 +15,7 @@ let _ =
     let ns,cfg,st = FlexTLS.openConnection Client "www.inria.fr" 443 in
 
     (* Ready for handshake using either the top-level API or the Flex|Message| methods *)
-    let ns,si,sms = FlexTLS.fullHandshake Client ns st cfg in   
+    let si,sms = FlexTLS.fullHandshake Client ns st cfg in   
 
     (* Ready for application data *)
     printf "Ready for application data !"

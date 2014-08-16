@@ -21,24 +21,21 @@ open FlexFragment
 (* Receive a ServerHello message from the network stream *)
 let recvServerHello (ns:NetworkStream) (st:state) (si:SessionInfo) : state * SessionInfo * FServerHello =
     
-    let ct,pv,len = parseHeader ns in
-    
-    let plaindata = 
-        match Tcp.read ns len with
-        | Error x         -> failwith "Tcp.read len bytes failed"
-        | Correct payload ->
-            Record.recordPacketIn st.read_s.epoch st.read_s.record ct payload
-    in
-    match plaindata with
-    | Error x                   -> failwith "Unable to parse plain data"
+    let ct,pv,len = parseFragmentHeader ns in
+
+    match getFragmentContent ns ct len st with
+    | Error _  -> failwith "Unable to parse fragment content"
     | Correct (rec_in,rg,frag)  ->
         let read_s = {st.read_s with record = rec_in} in
         let st = {st with read_s = read_s} in
         let id = TLSInfo.id st.read_s.epoch in
         let b = TLSFragment.reprFragment id ct rg frag in
-
-
+        let history = Record.history st.write_s.epoch Reader st.write_s.record in
+        let f = TLSFragment.RecordPlainToHSPlain st.write_s.epoch history rg frag in
         
+        (* let hs_frag = TLSFragment.reprFragment id ct rg frag in *)
+        let b = HSFragment.fragmentRepr id rg f in 
+
         match HandshakeMessages.parseServerHello b with
         | Error (ad,x) -> failwith x
         | Correct (pv,sr,sid,cs,cm,extensions) -> 
@@ -58,16 +55,9 @@ let recvServerHello (ns:NetworkStream) (st:state) (si:SessionInfo) : state * Ses
         
         
         
-        
-
-    
-    
-    
-
 (* Send a ServerHello message from the network stream *)
 let sendServerHello (ns:NetworkStream) (st:state) (si:SessionInfo) (sh:FServerHello) : state * SessionInfo * FServerHello =
     
-    (* TODO : Check if FServerHello is null or if user provided one *)
     let pv = sh.pv in
     let cs = sh.suite in
     let comp = sh.comp in
