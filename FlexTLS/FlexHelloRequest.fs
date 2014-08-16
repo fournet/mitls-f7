@@ -21,16 +21,11 @@ let recvHelloRequest (ns:NetworkStream) (st:state) (cfg:config) =
     
     let ct,pv,len = parseFragmentHeader ns in
 
-        match getFragmentContent ns ct len st with
-        | Error (ad,x) -> failwith x
-        | Correct (rec_in,rg,frag)  ->
-            let read_s = {st.read_s with record = rec_in} in
-            let st = {st with read_s = read_s} in
-            let id = TLSInfo.id st.read_s.epoch in
-            let history = Record.history st.read_s.epoch Reader st.read_s.record in
-          
-            let f = TLSFragment.RecordPlainToHSPlain st.read_s.epoch history rg frag in
-            let b = HSFragment.fragmentRepr id rg f in 
+    match getFragmentContent ns ct len st with
+    | Error (ad,x)  -> failwith x
+    | Correct (rec_in,rg,frag)  ->
+        let st,id = updateIncomingStateANDgetNewId st rec_in in
+        let b = getHSMessage st id ct rg frag in
 
             match HandshakeMessages.parseH b with
             | Error (ad,x) -> failwith x

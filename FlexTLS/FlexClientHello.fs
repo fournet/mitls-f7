@@ -74,45 +74,29 @@ let parseMessageState (ci:ConnectionInfo) state =
 let recvClientHello (ns:NetworkStream) (st:state) : state * SessionInfo * FClientHello =
     
     let ct,pv,len = parseFragmentHeader ns in
-    
+
     match getFragmentContent ns ct len st with
-    | Error (ad,x) -> failwith x
+    | Error (ad,x)  -> failwith x
     | Correct (rec_in,rg,frag)  ->
-        let read_s = {st.read_s with record = rec_in} in
-        let st = {st with read_s = read_s} in
-        let id = TLSInfo.id st.read_s.epoch in
-        let history = Record.history st.read_s.epoch Reader st.read_s.record in
+        let st,id = updateIncomingStateANDgetNewId st rec_in in
+        let b = getHSMessage st id ct rg frag in
         
-        (* let hs_frag = TLSFragment.reprFragment id ct rg frag in *)    
-  
-        let f = TLSFragment.RecordPlainToHSPlain st.read_s.epoch history rg frag in
-        let b = HSFragment.fragmentRepr id rg f in 
-        
-        (*
-        let hsstate = { state with hs_incoming = rem } in
-
-        let b = Handshake.recv_oneHSFragment 
-
-        match parseMessageState ci state with
-        | Error(err) -> failwith err
-        | Correct(state,hstype,payload,to_log) ->
-        *)
-            match HandshakeMessages.parseClientHello b with
-            | Error (ad,x) -> failwith x
-            | Correct (pv,cr,sid,clientCipherSuites,cm,extensions) -> 
-                let si  = { nullFSessionInfo with 
-                            init_crand = cr 
-                } in
-                let fch = { nullFClientHello with
-                            pv = pv;
-                            rand = cr;
-                            sid = sid;
-                            suites = clientCipherSuites;
-                            comps = cm;
-                            ext = extensions;
-                            payload = b;
-                } in
-                (st,si,fch)
+        match HandshakeMessages.parseClientHello b with
+        | Error (ad,x) -> failwith x
+        | Correct (pv,cr,sid,clientCipherSuites,cm,extensions) -> 
+            let si  = { nullFSessionInfo with 
+                        init_crand = cr 
+            } in
+            let fch = { nullFClientHello with
+                        pv = pv;
+                        rand = cr;
+                        sid = sid;
+                        suites = clientCipherSuites;
+                        comps = cm;
+                        ext = extensions;
+                        payload = b;
+            } in
+            (st,si,fch)
                                
 
  

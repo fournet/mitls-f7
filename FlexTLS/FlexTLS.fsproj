@@ -42,9 +42,14 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="FlexTypes.fs" />
+    <Compile Include="FlexConnection.fs" />
+    <Compile Include="FlexFragment.fs" />
+    <Compile Include="FlexHelloRequest.fs" />
+    <Compile Include="FlexClientHello.fs" />
+    <Compile Include="FlexServerHello.fs" />
+    <Compile Include="FlexCertificate.fs" />
     <Compile Include="FlexTLS.fs" />
-    <Compile Include="ClientHello.fs" />
-    <Compile Include="ServerReadClientFirstFrag.fs" />
     <Compile Include="Application.fs" />
   </ItemGroup>
   <ItemGroup>

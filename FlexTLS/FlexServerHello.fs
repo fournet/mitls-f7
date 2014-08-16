@@ -24,17 +24,10 @@ let recvServerHello (ns:NetworkStream) (st:state) (si:SessionInfo) : state * Ses
     let ct,pv,len = parseFragmentHeader ns in
 
     match getFragmentContent ns ct len st with
-    | Error _  -> failwith "Unable to parse fragment content"
+    | Error (ad,x)  -> failwith x
     | Correct (rec_in,rg,frag)  ->
-        let read_s = {st.read_s with record = rec_in} in
-        let st = {st with read_s = read_s} in
-        let id = TLSInfo.id st.read_s.epoch in
-        let b = TLSFragment.reprFragment id ct rg frag in
-        let history = Record.history st.write_s.epoch Reader st.write_s.record in
-        let f = TLSFragment.RecordPlainToHSPlain st.write_s.epoch history rg frag in
-        
-        (* let hs_frag = TLSFragment.reprFragment id ct rg frag in *)
-        let b = HSFragment.fragmentRepr id rg f in 
+        let st,id = updateIncomingStateANDgetNewId st rec_in in
+        let b = getHSMessage st id ct rg frag in
 
         match HandshakeMessages.parseServerHello b with
         | Error (ad,x) -> failwith x
