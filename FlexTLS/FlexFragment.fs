@@ -11,6 +11,16 @@ open TLSConstants
 open FlexTypes
 
 
+(* Update incoming record state *)
+let updateIncomingState (st:state) (incoming:Record.recvState) : state =
+    let read_s = {st.read_s with record = incoming} in
+    {st with read_s = read_s}
+
+(* Update outgoing record state *)
+let updateOutgoingState (st:state) (outgoing:Record.sendState) : state =
+    let write_s = {st.write_s with record = outgoing} in
+    {st with write_s = write_s}
+
 (* Take NS and read fragment Header to get ContentType, ProtocolVersion and Length of the fragment *)
 let parseFragmentHeader (ns:NetworkStream) : ContentType * ProtocolVersion * nat =
     match Tcp.read ns 5 with
@@ -19,17 +29,6 @@ let parseFragmentHeader (ns:NetworkStream) : ContentType * ProtocolVersion * nat
         match Record.parseHeader header with
         | Error x      -> failwith (sprintf "%A" x)
         | Correct(res) -> res
-
-(* Update incoming state *)
-let updateIncomingState (st:state) (incoming:Record.recvState) : state =
-    let read_s = {st.read_s with record = incoming} in
-    {st with read_s = read_s}
-
-
-(* Update outgoing state *)
-let updateOutgoingState (st:state) (outgoing:Record.sendState) : state =
-    let write_s = {st.write_s with record = outgoing} in
-    {st with write_s = write_s}
 
 (* Take NS and read the rest of the fragment, then parse to update state and return the rest as bytes *)
 let getFragmentContent (ns:NetworkStream) (ct:ContentType) (len:int) (st:state) : state * bytes = 
@@ -54,7 +53,7 @@ let parseHSMessageHeader (buf:bytes) : bytes * int =
     else    
         failwith "Buffer to small to have a HSMessage header inside"
 
-(* Get Handshake message payload from the buffer and returns it with the remainder of the buffer *)
+(* Split Handshake message payload from the buffer and returns it with the hstype, length, to_log and remainder of the buffer as bytes*)
 let splitHSMessage (buf:bytes) : bytes * bytes * bytes * bytes * bytes =
     let (hstypeb,rem) = Bytes.split buf 1 in
     let (lenb,rem2) = Bytes.split rem 3 in

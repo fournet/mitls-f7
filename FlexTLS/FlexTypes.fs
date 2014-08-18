@@ -62,6 +62,12 @@ type FCertificate = {
 
 
 (* Record associated to a CertificateRequest message *)
+(* TODO : complete this !!
+type FCertificateRequest = {
+    sign: bool;
+}
+*)
+
 (* Record associated to a ServerHelloDone message *)
 (* Record associated to a CertificateVerify message *)
 (* Record associated to a ClientKeyExchange message *)

@@ -10,10 +10,8 @@ open TLSInfo
 open FlexTypes
 open FlexFragment
 
-(* TODO : Below the client ID requires Cert.cert list but I give Cert.chain *)
 
-
-(* Receive a ServerHello message from the network stream *)
+(* Receive a Certificate message from the network stream *)
 let recvClientOrServerCertificate (role:Role) (ns:NetworkStream) (st:state) (si:SessionInfo) : state * SessionInfo * FCertificate =
     
     let ct,pv,len = parseFragmentHeader ns in
@@ -38,5 +36,6 @@ let recvClientOrServerCertificate (role:Role) (ns:NetworkStream) (st:state) (si:
             } in
             (st,si,cert)
 
-(* Send a ServerHello message from the network stream *)
-    
+(* Send a Certificate message to the network stream *)
+(* let sendClientOrServerCertificate (role:Role) (ns:NetworkStream) (st:state) (si:SessionInfo) : state * SessionInfo * FCertificate =
+    *)

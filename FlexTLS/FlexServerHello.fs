@@ -45,7 +45,7 @@ let recvServerHello (ns:NetworkStream) (st:state) (si:SessionInfo) : state * Ses
         
         
         
-(* Send a ServerHello message from the network stream *)
+(* Send a ServerHello message to the network stream *)
 let sendServerHello (ns:NetworkStream) (st:state) (si:SessionInfo) (sh:FServerHello) : state * SessionInfo * FServerHello =
     
     let pv = sh.pv in

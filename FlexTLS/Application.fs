@@ -18,4 +18,5 @@ let _ =
     let si,st,sms = FlexTLS.fullHandshake Client ns st cfg in   
 
     (* Ready for application data *)
-    printf "Ready for application data !"
+    printf "Ready for application data !\n";
+    System.Console.ReadLine()
