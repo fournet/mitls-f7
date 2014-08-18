@@ -55,7 +55,7 @@ let sendServerHello (ns:NetworkStream) (st:state) (si:SessionInfo) (sh:FServerHe
     let cs = sh.suite in
     let comp = sh.comp in
     let ext = sh.ext in
-    let sid = empty_bytes in
+    let sid = sh.sid in
     let sr = Nonce.mkHelloRandom() in
     let si =  { si with
                 protocol_version = pv;
