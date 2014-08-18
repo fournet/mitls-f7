@@ -74,29 +74,26 @@ let parseMessageState (ci:ConnectionInfo) state =
 let recvClientHello (ns:NetworkStream) (st:state) : state * SessionInfo * FClientHello =
     
     let ct,pv,len = parseFragmentHeader ns in
-
-    match getFragmentContent ns ct len st with
-    | Error (ad,x)  -> failwith x
-    | Correct (rec_in,rg,frag)  ->
-        let st,id = updateIncomingStateANDgetNewId st rec_in in
-        let b = getHSMessage st id ct rg frag in
+    let st,buf = getFragmentContent ns ct len st in
+    
+    let st,hstypeb,len,payload,to_log,rem = getHSMessage ns st buf in
         
-        match HandshakeMessages.parseClientHello b with
-        | Error (ad,x) -> failwith x
-        | Correct (pv,cr,sid,clientCipherSuites,cm,extensions) -> 
-            let si  = { nullFSessionInfo with 
-                        init_crand = cr 
-            } in
-            let fch = { nullFClientHello with
-                        pv = pv;
-                        rand = cr;
-                        sid = sid;
-                        suites = clientCipherSuites;
-                        comps = cm;
-                        ext = extensions;
-                        payload = b;
-            } in
-            (st,si,fch)
+    match HandshakeMessages.parseClientHello payload with
+    | Error (ad,x) -> failwith x
+    | Correct (pv,cr,sid,clientCipherSuites,cm,extensions) -> 
+        let si  = { nullFSessionInfo with 
+                    init_crand = cr 
+        } in
+        let fch = { nullFClientHello with
+                    pv = pv;
+                    rand = cr;
+                    sid = sid;
+                    suites = clientCipherSuites;
+                    comps = cm;
+                    ext = extensions;
+                    payload = payload;
+        } in
+        (st,si,fch)
                                
 
  

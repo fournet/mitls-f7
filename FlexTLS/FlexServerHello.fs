@@ -22,29 +22,26 @@ open FlexFragment
 let recvServerHello (ns:NetworkStream) (st:state) (si:SessionInfo) : state * SessionInfo * FServerHello =
     
     let ct,pv,len = parseFragmentHeader ns in
+    let st,buf = getFragmentContent ns ct len st in
+    
+    let st,hstypeb,len,payload,to_log,rem = getHSMessage ns st buf in
 
-    match getFragmentContent ns ct len st with
-    | Error (ad,x)  -> failwith x
-    | Correct (rec_in,rg,frag)  ->
-        let st,id = updateIncomingStateANDgetNewId st rec_in in
-        let b = getHSMessage st id ct rg frag in
-
-        match HandshakeMessages.parseServerHello b with
-        | Error (ad,x) -> failwith x
-        | Correct (pv,sr,sid,cs,cm,extensions) -> 
-            let si  = { si with 
-                        init_srand = sr
-            } in
-            let fsh = { nullFServerHello with 
-                        pv = pv;
-                        rand = sr;
-                        sid = sid;
-                        suite = cs;
-                        comp = cm;
-                        ext = extensions;
-                        payload = b;
-            } in
-            (st,si,fsh)
+    match HandshakeMessages.parseServerHello payload with
+    | Error (ad,x) -> failwith x
+    | Correct (pv,sr,sid,cs,cm,extensions) -> 
+        let si  = { si with 
+                    init_srand = sr
+        } in
+        let fsh = { nullFServerHello with 
+                    pv = pv;
+                    rand = sr;
+                    sid = sid;
+                    suite = cs;
+                    comp = cm;
+                    ext = extensions;
+                    payload = payload;
+        } in
+        (st,si,fsh)
         
         
         
