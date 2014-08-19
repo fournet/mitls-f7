@@ -49,6 +49,8 @@
     <Compile Include="FlexClientHello.fs" />
     <Compile Include="FlexServerHello.fs" />
     <Compile Include="FlexCertificate.fs" />
+    <Compile Include="FlexCertificateRequest.fs" />
+    <Compile Include="FlexServerHelloDone.fs" />
     <Compile Include="FlexTLS.fs" />
     <Compile Include="Application.fs" />
   </ItemGroup>
