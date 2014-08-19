@@ -22,7 +22,8 @@ let updateOutgoingState (st:state) (outgoing:Record.sendState) : state =
     {st with write_s = write_s}
 
 (* Take NS and read fragment Header to get ContentType, ProtocolVersion and Length of the fragment *)
-let parseFragmentHeader (ns:NetworkStream) : ContentType * ProtocolVersion * nat =
+let parseFragmentHeader (st:state) : ContentType * ProtocolVersion * nat =
+    let ns = st.ns in
     match Tcp.read ns 5 with
     | Error x        -> failwith "Tcp.read header 5 bytes failed"
     | Correct header ->
@@ -31,7 +32,8 @@ let parseFragmentHeader (ns:NetworkStream) : ContentType * ProtocolVersion * nat
         | Correct(res) -> res
 
 (* Take NS and read the rest of the fragment, then parse to update state and return the rest as bytes *)
-let getFragmentContent (ns:NetworkStream) (ct:ContentType) (len:int) (st:state) : state * bytes = 
+let getFragmentContent (st:state) (ct:ContentType) (len:int) : state * bytes = 
+    let ns = st.ns in
     match Tcp.read ns len with
     | Error x         -> failwith "Tcp.read len bytes failed"
     | Correct payload ->
@@ -67,25 +69,25 @@ let splitHSMessage (buf:bytes) : bytes * bytes * bytes * bytes * bytes =
                 (hstypeb,lenb,payload,to_log,rem)
 
 (* Get Handshake message from the fragments and return the state *)
-let rec getHSMessage (ns:NetworkStream) (st:state) (buf:bytes) : state * bytes * int * bytes * bytes * bytes =
-
+let rec getHSMessage (st:state) (buf:bytes) : state * bytes * int * bytes * bytes * bytes =
+    let ns = st.ns in
     if length buf < 4 then
-        let ct,pv,len = parseFragmentHeader ns in
+        let ct,pv,len = parseFragmentHeader st in
         match ct with
         | Handshake -> 
-            let st,b = getFragmentContent ns ct len st in
+            let st,b = getFragmentContent st ct len in
             let buf = buf @| b in
-            getHSMessage ns st buf
+            getHSMessage st buf
         | _ -> failwith "parseHSMessage : cannot parse HS message if content type is not Handshake"
     else
         let mt,len = parseHSMessageHeader buf in
         if length buf < len then 
-            let ct,pv,len = parseFragmentHeader ns in
+            let ct,pv,len = parseFragmentHeader st in
             match ct with
             | Handshake -> 
-                let st,b = getFragmentContent ns ct len st in
+                let st,b = getFragmentContent st ct len in
                 let buf = buf @| b in
-                getHSMessage ns st buf
+                getHSMessage st buf
             | _ -> failwith "parseHSMessage : cannot parse HS message if content type is not Handshake"
         else
             let (hstypeb,lenb,payload,to_log,rem) = splitHSMessage buf in

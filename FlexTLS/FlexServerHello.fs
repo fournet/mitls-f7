@@ -11,6 +11,7 @@ open TLS
 open TLSInfo
 open TLSConstants
 open TLSExtensions
+open HandshakeMessages
 
 open FlexTypes
 open FlexFragment
@@ -19,35 +20,40 @@ open FlexFragment
 
 
 (* Receive a ServerHello message from the network stream *)
-let recvServerHello (ns:NetworkStream) (st:state) (si:SessionInfo) : state * SessionInfo * FServerHello =
+let recvServerHello (st:state) (si:SessionInfo) : state * SessionInfo * FServerHello =
     
-    let ct,pv,len = parseFragmentHeader ns in
-    let st,buf = getFragmentContent ns ct len st in
+    let buf = st.read_s.buffer in
+    let st,hstypeb,len,payload,to_log,rem = getHSMessage st buf in
     
-    let st,hstypeb,len,payload,to_log,rem = getHSMessage ns st buf in
-
-    match HandshakeMessages.parseServerHello payload with
+    match parseHt hstypeb with
     | Error (ad,x) -> failwith x
-    | Correct (pv,sr,sid,cs,cm,extensions) -> 
-        let si  = { si with 
-                    init_srand = sr
-        } in
-        let fsh = { nullFServerHello with 
-                    pv = pv;
-                    rand = sr;
-                    sid = sid;
-                    suite = cs;
-                    comp = cm;
-                    ext = extensions;
-                    payload = payload;
-        } in
-        (st,si,fsh)
-        
+    | Correct(hst) ->
+        match hst with
+        | HT_server_hello  ->    
+            (match parseServerHello payload with
+            | Error (ad,x) -> failwith x
+            | Correct (pv,sr,sid,cs,cm,extensions) -> 
+                let si  = { si with 
+                            init_srand = sr
+                } in
+                let fsh = { nullFServerHello with 
+                            pv = pv;
+                            rand = sr;
+                            sid = sid;
+                            suite = cs;
+                            comp = cm;
+                            ext = extensions;
+                            payload = payload;
+                } in
+                (st,si,fsh)
+                )
+        | _ -> failwith "recvServerHello : message type should be HT_server_hello"
         
         
 (* Send a ServerHello message to the network stream *)
-let sendServerHello (ns:NetworkStream) (st:state) (si:SessionInfo) (sh:FServerHello) : state * SessionInfo * FServerHello =
+let sendServerHello (st:state) (si:SessionInfo) (sh:FServerHello) : state * SessionInfo * FServerHello =
     
+    let ns = st.ns in
     let pv = sh.pv in
     let cs = sh.suite in
     let comp = sh.comp in

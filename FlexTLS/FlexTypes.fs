@@ -15,8 +15,8 @@ let pv = TLS_1p2
 (* Keep track of the Record state and the associated Epoch of an I/O channel *)
 type channel = {
     record: Record.ConnectionState;
-    (* hs:     Handshake.hs_state; *)
     epoch:  TLSInfo.epoch;
+    buffer: bytes;
 }
 
 (* Global state of the application for Handshake and both input/output channels of a network stream *)
@@ -28,7 +28,7 @@ type state = {
 
 (* Record associated to a HelloRequest message *)
 type FHelloRequest = {
-    fhr_null_payload: bytes;
+    payload: bytes;
 }
 
 (* Record associated to a ClientHello message *)
@@ -59,18 +59,11 @@ type FCertificate = {
 }
 
 (* Record associated to a ServerKeyExchange message *)
-
-
 (* Record associated to a CertificateRequest message *)
-(* TODO : complete this !!
-type FCertificateRequest = {
-    sign: bool;
-}
-*)
 
 (* Record associated to a ServerHelloDone message *)
 type FServerHelloDone = {
-    fshd_null_payload: bytes;
+    payload: bytes;
 }
 
 (* Record associated to a CertificateVerify message *)
@@ -78,8 +71,9 @@ type FServerHelloDone = {
 
 (* Record associated to a Finished message *)
 type FFinished = {
-    verify_data:bytes;
+    payload:bytes;
 }
+
 
 (* Record associated with conservation of all HS messages *)
 type FHSMessages = {
@@ -99,41 +93,41 @@ type FHSMessages = {
 
 
 (* Define a null FHelloRequest record *)
-let nullFHelloRequest = {   fhr_null_payload = empty_bytes;
-                        }
+let nullFHelloRequest : FHelloRequest = {   payload = empty_bytes;
+                                        }
 
 (* Define a null FClientHello record *)
-let nullFClientHello  = {   pv = pv;
-                            rand = empty_bytes; 
-                            sid = empty_bytes;
-                            suites = [];
-                            comps = [];
-                            ext = empty_bytes;
-                            payload = empty_bytes;
-                        }
+let nullFClientHello : FClientHello = {   pv = pv;
+                                          rand = empty_bytes; 
+                                          sid = empty_bytes;
+                                          suites = [];
+                                          comps = [];
+                                          ext = empty_bytes;
+                                          payload = empty_bytes;
+                                      }
 
 
 (* Define a null FServerHello record *)
-let nullFServerHello  = {   pv = pv;
-                            rand = empty_bytes; 
-                            sid = empty_bytes;
-                            suite = nullCipherSuite;
-                            comp = NullCompression;
-                            ext = empty_bytes;
-                            payload = empty_bytes;
-                        }
+let nullFServerHello : FServerHello = {   pv = pv;
+                                          rand = empty_bytes; 
+                                          sid = empty_bytes;
+                                          suite = nullCipherSuite;
+                                          comp = NullCompression;
+                                          ext = empty_bytes;
+                                          payload = empty_bytes;
+                                      }
 
 (* Define a null FCertificate record *)
-let nullFCertificate =  {   chain = [];
-                        }
+let nullFCertificate : FCertificate = {   chain = [];
+                                      }
 
 (* Define a null FServerHelloDone record *)
-let nullFServerHelloDone =  {   fshd_null_payload = empty_bytes;
-                            }
+let nullFServerHelloDone : FServerHelloDone =  {   payload = empty_bytes;
+                                               }
 
 (* Define a null FFinished record *)
-let nullFFinished  = {   verify_data = empty_bytes;
-                     }
+let nullFFinished : FFinished = {   payload = empty_bytes;
+                                }
 
 (* Define a null FHSMessages record *)
 let nullFHSMessages = {   helloRequest = nullFHelloRequest;

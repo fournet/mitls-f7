@@ -7,6 +7,7 @@ open Bytes
 open Error
 open TLSInfo
 open TLSConstants
+open HandshakeMessages
 
 open FlexTypes
 open FlexFragment
@@ -15,33 +16,41 @@ open FlexFragment
 
 (*
 (* Receive a CertificateRequest message from the network stream *)
-let recvCertificateRequest (ns:NetworkStream) (st:state) (si:SessionInfo) : state * SessionInfo * FCertificateRequest =
+let recvCertificateRequest (st:state) (si:SessionInfo) : state * SessionInfo * FCertificateRequest =
     
-    let ct,pv,len = parseFragmentHeader ns in
-    let st,buf = getFragmentContent ns ct len st in
+    let buf = st.read_s.buffer in
+    let st,hstypeb,len,payload,to_log,rem = getHSMessage st buf in
     
-    let st,hstypeb,len,payload,to_log,rem = getHSMessage ns st buf in
-
-    match HandshakeMessages.parseCertificateRequest pv payload with
+    match parseHt hstypeb with
     | Error (ad,x) -> failwith x
-    | Correct (certC) -> 
-        let cert = { nullFCertificateRequest with sign = certC; } in
-        match role with
-        | Client ->
-            let si  = { si with 
-                        client_auth = true;
-                        clientID = certC;
-            } in
-            (st,si,cert)
-        | Server ->
-            let si  = { si with 
-                        serverID = certC;
-            } in
-            (st,si,cert)
+    | Correct(hst) ->
+        match hst with
+        | HT_certificate_request  ->  
+            (match HandshakeMessages.parseCertificateRequest pv payload with
+            | Error (ad,x) -> failwith x
+            | Correct (certC) -> 
+                let cert = { nullFCertificateRequest with sign = certC; } in
+                match role with
+                | Client ->
+                    let si  = { si with 
+                                client_auth = true;
+                                clientID = certC;
+                    } in
+                    (st,si,cert)
+                | Server ->
+                    let si  = { si with 
+                                serverID = certC;
+                    } in
+                    (st,si,cert)
+                    )
+        | _ -> failwith "recvCertificateRequest : message type should be HT_certificate_request"
+
 
 
 (* Send a CertificateRequest message to the network stream *)
-let sendCertificateRequest (ns:NetworkStream) (st:state) (si:SessionInfo) (fcr:FCertificateRequest): state * SessionInfo * FCertificateRequest =
+let sendCertificateRequest (st:state) (si:SessionInfo) (fcr:FCertificateRequest): state * SessionInfo * FCertificateRequest =
+    
+    let ns = st.ns in
     let pv = si.protocol_version in
     let cs = si.cipher_suite in
     let sign = fcr.sign in
@@ -58,5 +67,4 @@ let sendCertificateRequest (ns:NetworkStream) (st:state) (si:SessionInfo) (fcr:F
     match Tcp.write ns b with
     | Error(x) -> failwith x
     | Correct() -> (st,si,fcr)
-
 *)

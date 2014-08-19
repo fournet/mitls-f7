@@ -15,8 +15,8 @@ open FlexConnection
 
 
 
-(* Establish the TCP connection depending on the role and returning network stream, state and configuration *)
-let openConnection (role:Role) (address:string) (port:int) =
+(* Establish the TCP connection depending on the role and returning state (which includes the network stream) and configuration *)
+let openConnection (role:Role) (address:string) (port:int) : state * config =
     match role with
     | Client -> FlexConnection.clientOpenTcpConnection address port
     | Server -> FlexConnection.serverOpenTcpConnection address port
@@ -26,17 +26,17 @@ let openConnection (role:Role) (address:string) (port:int) =
 
 
 (* Run a full Handshake *)
-let fullHandshake (role:Role) (ns:NetworkStream) (st:state) (cfg:config) : SessionInfo * state * FHSMessages =
+let fullHandshake (role:Role) (st:state) (cfg:config) : SessionInfo * state * FHSMessages =
     
     let sms = nullFHSMessages in
     match role with
     | Client -> 
-        let st,si,fch = FlexClientHello.sendClientHello ns st cfg in
-        let st,si,fsh = FlexServerHello.recvServerHello ns st si in
+        let st,si,fch = FlexClientHello.sendClientHello st cfg in
+        let st,si,fsh = FlexServerHello.recvServerHello st si in
         (si,st,sms)
 
     | Server ->
         let sh = nullFServerHello in
-        let st,si,fch = FlexClientHello.recvClientHello ns st in
-        let st,si,fsh = FlexServerHello.sendServerHello ns st si sh in
+        let st,si,fch = FlexClientHello.recvClientHello st in
+        let st,si,fsh = FlexServerHello.sendServerHello st si sh in
         (si,st,sms)

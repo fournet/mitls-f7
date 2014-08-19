@@ -16,25 +16,28 @@ open FlexFragment
 
 
 (* Receive an expected HelloRequest message from the network stream *)
-let recvHelloRequest (ns:NetworkStream) (st:state) (cfg:config) : state * FHelloRequest = 
+let recvHelloRequest (st:state) (cfg:config) : state * FHelloRequest = 
     
-    let ct,pv,len = parseFragmentHeader ns in
-    let st,buf = getFragmentContent ns ct len st in
+    let buf = st.read_s.buffer in
+    let st,hstypeb,len,payload,to_log,rem = getHSMessage st buf in
     
-    let st,hstypeb,len,payload,to_log,rem = getHSMessage ns st buf in
-    match cbyte hstypeb with
-    | 0uy  ->         
-        if length payload <> 0 then
-            failwith "recvHelloRequest : payload has not length zero"
-        else
-            let fhr = {nullFHelloRequest with fhr_null_payload = payload} in
-            st,fhr
-    | _ -> failwith "recvHelloRequest : message is not of type HelloRequest"
+    match parseHt hstypeb with
+    | Error (ad,x) -> failwith x
+    | Correct(hst) ->
+        match hst with
+        | HT_hello_request  ->         
+            if length payload <> 0 then
+                failwith "recvHelloRequest : payload has not length zero"
+            else
+                let fhr = {nullFHelloRequest with payload = to_log} in
+                st,fhr
+        | _ -> failwith "recvHelloRequest : message is not of type HelloRequest"
 
 
 (* Send HelloRequest message to the network stream *)
-let sendHelloRequest (ns:NetworkStream) (st:state) (cfg:config) : state * FHelloRequest =
+let sendHelloRequest (st:state) (cfg:config) : state * FHelloRequest =
     
+    let ns = st.ns in
     let b = messageBytes HT_hello_request empty_bytes in
     let len = length b in
     let rg : Range.range = (len,len) in
@@ -45,7 +48,7 @@ let sendHelloRequest (ns:NetworkStream) (st:state) (cfg:config) : state * FHello
     let wst = {st.write_s with record = nst} in
     let st = {st with write_s = wst} in
 
-    let fhr = {nullFHelloRequest with fhr_null_payload = empty_bytes} in
+    let fhr = {nullFHelloRequest with payload = empty_bytes} in
 
     match Tcp.write ns b with
     | Error(x) -> failwith x
