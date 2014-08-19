@@ -28,7 +28,7 @@ type state = {
 
 (* Record associated to a HelloRequest message *)
 type FHelloRequest = {
-    null_payload: bytes;
+    fhr_null_payload: bytes;
 }
 
 (* Record associated to a ClientHello message *)
@@ -69,10 +69,17 @@ type FCertificateRequest = {
 *)
 
 (* Record associated to a ServerHelloDone message *)
+type FServerHelloDone = {
+    fshd_null_payload: bytes;
+}
+
 (* Record associated to a CertificateVerify message *)
 (* Record associated to a ClientKeyExchange message *)
-(* Record associated to a Finished message *)
 
+(* Record associated to a Finished message *)
+type FFinished = {
+    verify_data:bytes;
+}
 
 (* Record associated with conservation of all HS messages *)
 type FHSMessages = {
@@ -83,15 +90,16 @@ type FHSMessages = {
     clientCertificate: FCertificate;
     //serverKeyExchange: FServerKeyExchange;
     //certificateRequest: FCertificateRequest;
-    //serverHelloDone: FServerHelloDone;
+    serverHelloDone: FServerHelloDone;
     //certificateVerify: FCertificateVerify;
-    //clientKeyExchange: ClientKeyExchange;
-    //finished: Finished;
+    //clientKeyExchange: FClientKeyExchange;
+    clientFinished: FFinished;
+    serverFinished: FFinished
 }
 
 
 (* Define a null FHelloRequest record *)
-let nullFHelloRequest = {   null_payload = empty_bytes;
+let nullFHelloRequest = {   fhr_null_payload = empty_bytes;
                         }
 
 (* Define a null FClientHello record *)
@@ -119,6 +127,13 @@ let nullFServerHello  = {   pv = pv;
 let nullFCertificate =  {   chain = [];
                         }
 
+(* Define a null FServerHelloDone record *)
+let nullFServerHelloDone =  {   fshd_null_payload = empty_bytes;
+                            }
+
+(* Define a null FFinished record *)
+let nullFFinished  = {   verify_data = empty_bytes;
+                     }
 
 (* Define a null FHSMessages record *)
 let nullFHSMessages = {   helloRequest = nullFHelloRequest;
@@ -126,6 +141,10 @@ let nullFHSMessages = {   helloRequest = nullFHelloRequest;
                           serverHello = nullFServerHello;
                           clientCertificate = nullFCertificate;
                           serverCertificate = nullFCertificate;
+                          (* TODO : complete this *)
+                          serverHelloDone = nullFServerHelloDone;
+                          clientFinished = nullFFinished;
+                          serverFinished = nullFFinished;
                       }
 
 

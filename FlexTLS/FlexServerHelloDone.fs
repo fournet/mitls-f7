@@ -1,6 +1,6 @@
 ﻿#light "off"
 
-module FlexHelloRequest
+module FlexServerHelloDone
 
 open Tcp
 open Bytes
@@ -15,27 +15,27 @@ open FlexFragment
 
 
 
-(* Receive an expected HelloRequest message from the network stream *)
-let recvHelloRequest (ns:NetworkStream) (st:state) (cfg:config) : state * FHelloRequest = 
+(* Receive an expected ServerHelloDone message from the network stream *)
+let recvServerHelloDone (ns:NetworkStream) (st:state) (cfg:config) : state * FServerHelloDone = 
     
     let ct,pv,len = parseFragmentHeader ns in
     let st,buf = getFragmentContent ns ct len st in
     
     let st,hstypeb,len,payload,to_log,rem = getHSMessage ns st buf in
     match cbyte hstypeb with
-    | 0uy  ->         
+    | 14uy  ->         
         if length payload <> 0 then
-            failwith "recvHelloRequest : payload has not length zero"
+            failwith "recvServerHelloDone : payload has not length zero"
         else
-            let fhr = {nullFHelloRequest with fhr_null_payload = payload} in
-            st,fhr
-    | _ -> failwith "recvHelloRequest : message is not of type HelloRequest"
+            let fshd = {nullFServerHelloDone with fshd_null_payload = payload} in
+            st,fshd
+    | _ -> failwith "recvServerHelloDone : message is not of type ServerHelloDone"
 
 
-(* Send HelloRequest message to the network stream *)
-let sendHelloRequest (ns:NetworkStream) (st:state) (cfg:config) : state * FHelloRequest =
+(* Send ServerHelloDone message to the network stream *)
+let sendServerHelloDone (ns:NetworkStream) (st:state) (cfg:config) : state * FServerHelloDone =
     
-    let b = messageBytes HT_hello_request empty_bytes in
+    let b = messageBytes HT_server_hello_done empty_bytes in
     let len = length b in
     let rg : Range.range = (len,len) in
 
@@ -45,8 +45,8 @@ let sendHelloRequest (ns:NetworkStream) (st:state) (cfg:config) : state * FHello
     let wst = {st.write_s with record = nst} in
     let st = {st with write_s = wst} in
 
-    let fhr = {nullFHelloRequest with fhr_null_payload = empty_bytes} in
+    let fshd = {nullFServerHelloDone with fshd_null_payload = empty_bytes} in
 
     match Tcp.write ns b with
     | Error(x) -> failwith x
-    | Correct() -> st,fhr
+    | Correct() -> st,fshd

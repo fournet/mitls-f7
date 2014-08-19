@@ -15,60 +15,8 @@ open TLSExtensions
 open FlexTypes
 open FlexFragment
 
-(*
 
-let parseHt (b:bytes) = 
-    match cbyte b with
-    |   0uy  -> correct(HT_hello_request      )
-    |   1uy  -> correct(HT_client_hello       )
-    |   2uy  -> correct(HT_server_hello       )
-    |  11uy  -> correct(HT_certificate        )
-    |  12uy  -> correct(HT_server_key_exchange)
-    |  13uy  -> correct(HT_certificate_request)
-    |  14uy  -> correct(HT_server_hello_done  )
-    |  15uy  -> correct(HT_certificate_verify )
-    |  16uy  -> correct(HT_client_key_exchange)
-    |  20uy  -> correct(HT_finished           )
-    | _   -> let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_decode_error, reason)
 
-let messageBytes ht data =
-    let htb = htBytes ht in
-    let vldata = vlbytes 3 data in
-    htb @| vldata 
-
-let parseMessage buf =
-    (* Somewhat inefficient implementation:
-       we repeatedly parse the first 4 bytes of the incoming buffer until we have a complete message;
-       we then remove that message from the incoming buffer. *)
-    if length buf < 4 then Correct(None) (* not enough data to start parsing *)
-    else
-        let (hstypeb,rem) = Bytes.split buf 1 in
-        match parseHt hstypeb with
-        | Error z ->  Error z
-        | Correct(hstype) ->
-            match vlsplit 3 rem with
-            | Error z -> Correct(None) // not enough payload, try next time
-            | Correct(res) ->
-                let (payload,rem) = res in
-                let to_log = messageBytes hstype payload in
-                let res = (rem,hstype,payload,to_log) in
-                let res = Some(res) in
-                correct(res)
-
-let parseMessageState (ci:ConnectionInfo) state = 
-    match HandshakeMessages.parseMessage state with
-    | Error(z) -> Error(z)
-    | Correct(res) ->
-        match res with
-        | None -> correct(None)
-        | Some(x) -> 
-             let (rem,hstype,payload,to_log) = x in
-             let st_in = { read_s with hs_s = rem }
-             let state = { state with read_s = st_in } in
-             let nx = (state,hstype,payload,to_log) in
-             let res = Some(nx) in
-             correct(res)
- *)
 
 (* Receive a ClientHello message from the network stream *)
 let recvClientHello (ns:NetworkStream) (st:state) : state * SessionInfo * FClientHello =
