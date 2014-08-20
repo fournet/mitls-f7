@@ -1,14 +1,14 @@
 -*- outline-mode -*-
 
-This is a pre-release of miTLS, a verified reference implementation of
-the TLS security protocol.
+This is miTLS, a verified reference implementation of the TLS security
+protocol.
 
 * 1. Compilation
 
 To compile, usually running "make" from the top level directory is
 enough. (See below for prerequisites.)
 
-The produces executables are placed in the `bin' directory.
+The produced executables are placed in the `bin' directory.
 
 Each command line tool accepts a "--help" option that shows all the
 available command line options and their default values.
@@ -17,6 +17,9 @@ The following make targets are available:
 
 - build (default)
     compiles source code and puts executables in then bin directory
+
+- build-debug
+	compiles source code in debug mode
 
 - dist
     prepares a compressed archive that can be distributed
