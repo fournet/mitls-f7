@@ -8,9 +8,6 @@ open TLSInfo
 open TLSConstants
 
 
-(* Define prefered version for TLS *)
-let pv = TLS_1p2
-
 
 (* Keep track of the Record state and the associated Epoch of an I/O channel *)
 type channel = {
@@ -108,11 +105,11 @@ let nullFClientHello : FClientHello = {   pv = defaultConfig.maxVer;
 
 
 (* Define a null FServerHello record *)
-let nullFServerHello : FServerHello = {   pv = pv;
+let nullFServerHello : FServerHello = {   pv = defaultConfig.maxVer;
                                           rand = empty_bytes; 
                                           sid = empty_bytes;
-                                          suite = nullCipherSuite;
-                                          comp = NullCompression;
+                                          suite = defaultConfig.ciphersuites.Head;
+                                          comp = defaultConfig.compressions.Head;
                                           ext = empty_bytes;
                                           payload = empty_bytes;
                                       }
