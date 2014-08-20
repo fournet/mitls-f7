@@ -942,7 +942,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let (x,y) = z in
                     InError(x,y,state)
                 | Correct([]) ->
-                    InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Server sent empty certificate",state)
+                    InError(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Server sent empty certificate",state)
                 | Correct(certs) ->
                     let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, this is the same as we sent in our extension
                     if Cert.is_chain_for_key_encryption certs then
@@ -963,7 +963,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let (x,y) = z in
                     InError(x,y,state)
                 | Correct([]) ->
-                    InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Server sent empty certificate",state)
+                    InError(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Server sent empty certificate",state)
                 | Correct(certs) ->
                     let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, this is the same as we sent in our extension
                     if Cert.is_chain_for_signing certs then
@@ -1478,7 +1478,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 match parseClientOrServerCertificate payload with
                 | Error(z) -> let (x,y) = z in  InError(x,y,state)
                 | Correct([]) ->
-                    InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Client sent empty certificate",state)
+                    InError(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Client sent empty certificate",state)
                 | Correct(certs) ->
                     if Cert.is_chain_for_signing certs then
                         let advice = Cert.validate_cert_chain (default_sigHashAlg si.protocol_version si.cipher_suite) certs in
@@ -1499,7 +1499,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 match parseClientOrServerCertificate payload with
                 | Error(z) -> let (x,y) = z in  InError(x,y,state)
                 | Correct([]) ->
-                    InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Client sent empty certificate",state)
+                    InError(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Client sent empty certificate",state)
                 | Correct(certs) ->
                     if Cert.is_chain_for_signing certs then
                         let advice = Cert.validate_cert_chain (default_sigHashAlg si.protocol_version si.cipher_suite) certs in
