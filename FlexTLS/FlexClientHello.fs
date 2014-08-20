@@ -18,9 +18,12 @@ open FlexFragment
 
 
 
+
+(* Inference on user provided information *)
 let fillFClientHelloANDConfig (fch:FClientHello) (cfg:config) : FClientHello * config =
     
     (* pv = Is there some pv ? If no, check config maxVer *)
+    (* !!! BB !!! : There is a corner case when the user sets fch pv to default because it should have priority over cfg.maxVer *)
     let pv =
         match fch.pv = nullFClientHello.pv with
         | false -> fch.pv
@@ -106,7 +109,8 @@ type FlexClientHello =
                 | Correct (pv,cr,sid,clientCipherSuites,cm,extensions) -> 
                     let si  = { nullFSessionInfo with 
                                 init_crand = cr 
-                              } in
+                              } 
+                    in
                     let fch = { nullFClientHello with
                                 pv = pv;
                                 rand = cr;
@@ -115,7 +119,8 @@ type FlexClientHello =
                                 comps = cm;
                                 ext = extensions;
                                 payload = to_log;
-                              } in
+                              } 
+                    in
                     (st,si,fch)
                     )
             | _ -> failwith "recvClientHello : Message type should be HT_client_hello"
@@ -141,10 +146,7 @@ type FlexClientHello =
         let wst = {st.write_s with record = nst} in
         let st = {st with write_s = wst} in
 
-        let si  = { nullFSessionInfo with 
-                    init_crand = fch.rand
-        } in
-
+        let si  = { nullFSessionInfo with init_crand = fch.rand } in
         let fch = { fch with payload = b } in
 
         match Tcp.write ns b with

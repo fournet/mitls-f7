@@ -30,18 +30,22 @@ type FlexTLS =
 
 
     (* Run a full Handshake *)
-    static member fullHandshake (role:Role) (st:state) (cfg:config) : SessionInfo * state * FHSMessages =
+    static member fullHandshake (role:Role) (st:state) : SessionInfo * state * FHSMessages =
     
         let sms = nullFHSMessages in
         match role with
         | Client -> 
             let st,si,fch = FlexClientHello.send(st) in
-            let st,si,fsh = FlexServerHello.receive st si in
+            let st,si,fsh = FlexServerHello.receive(st)(si) in
+
+            let sms = {sms with clientHello = fch; serverHello = fsh} in
             (si,st,sms)
 
         | Server ->
             let sh = nullFServerHello in
-            let st,si,fch = FlexClientHello.receive st in
-            let st,si,fsh = FlexServerHello.send st si sh in
+            let st,si,fch = FlexClientHello.receive(st) in
+            let st,si,fsh = FlexServerHello.send(st,si) in
+
+            let sms = {sms with clientHello = fch; serverHello = fsh} in
             (si,st,sms)
     end
