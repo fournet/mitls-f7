@@ -78,25 +78,6 @@ let safeDH (p:p) (g:g) (gx:elt) (gy:elt): bool =
     honest p g gx && honest p g gy && goodPP p g
     #endif
 
-let exp p g (gx:elt) (gy:elt) (Key x) : PMS.dhpms =
-    let pms = (CoreDH.agreement (dhparams p g None) (x) (gy)) in
-    //#begin-ideal
-    #if ideal
-    if honest p g gx && honest p g gy && goodPP p g 
-    then 
-      match assoc p g gx gy !log with
-      | Some(pms) -> pms
-      | None -> 
-                 let pms=PMS.sampleDH p g gx gy
-                 log := (p,g,gx,gy,pms)::!log;
-                 pms 
-    else 
-      Pi.assume(DHGroup.Elt(p,g,pms)); //use checkElement instead
-      PMS.coerceDH p g gx gy pms
-    //#end-ideal 
-    #else
-    PMS.coerceDH p g gx gy pms
-    #endif
 
 let serverGen () = 
     let (p,g,q) = default_pp() in
@@ -104,9 +85,48 @@ let serverGen () =
     (p,g,e,s)
 
 let clientGenExp p g gs = 
-    let (gc,c) = genKey p g None in
-    let pms = exp p g gc gs c
-    (gc,c, pms)
+    let (gc, c) = genKey p g None in
+    let (Key ck) = c in
+    let pms = (CoreDH.agreement (dhparams p g None) (ck) (gs)) in
+    //#begin-ideal
+    #if ideal
+    if honest p g gs && honest p g gc && goodPP p g 
+    then 
+      match assoc p g gs gc !log with
+      | Some(pms) -> (gc,c,pms)
+      | None -> 
+                 let pms=PMS.sampleDH p g gs gc
+                 log := (p,g,gs,gc,pms)::!log;
+                 (gc,c,pms)
+    else 
+      Pi.assume(DHGroup.Elt(p,g,pms)); //use checkElement instead
+      let dpms = PMS.coerceDH p g gs gc pms in
+      (gc,c, dpms)
+    //#end-ideal 
+    #else
+    let dpms = PMS.coerceDH p g gs gc pms in
+    (gc,c, dpms)
+    #endif
 
-let serverExp p g gs gc s = 
-    exp p g gs gc s
+let serverExp p g gs gc sk = 
+    let (Key s) = sk in
+    let pms = (CoreDH.agreement (dhparams p g None) (s) (gc)) in
+    //#begin-ideal
+    #if ideal
+    if honest p g gs && honest p g gc && goodPP p g 
+    then 
+      match assoc p g gs gc !log with
+      | Some(pms) -> pms
+      | None -> 
+                 let pms=PMS.sampleDH p g gs gc in
+                 log := (p,g,gs,gc,pms)::!log;
+                 pms 
+    else 
+      Pi.assume(DHGroup.Elt(p,g,pms)); //use checkElement instead
+      let dpms = PMS.coerceDH p g gs gc pms in
+      dpms
+    //#end-ideal 
+    #else
+    let dpms = PMS.coerceDH p g gs gc pms in
+    dpms
+    #endif
