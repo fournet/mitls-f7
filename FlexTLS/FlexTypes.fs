@@ -97,11 +97,11 @@ let nullFHelloRequest : FHelloRequest = {   payload = empty_bytes;
                                         }
 
 (* Define a null FClientHello record *)
-let nullFClientHello : FClientHello = {   pv = pv;
+let nullFClientHello : FClientHello = {   pv = defaultConfig.maxVer;
                                           rand = empty_bytes; 
                                           sid = empty_bytes;
-                                          suites = [];
-                                          comps = [];
+                                          suites = defaultConfig.ciphersuites;
+                                          comps = defaultConfig.compressions;
                                           ext = empty_bytes;
                                           payload = empty_bytes;
                                       }

@@ -35,7 +35,7 @@ type FlexTLS =
         let sms = nullFHSMessages in
         match role with
         | Client -> 
-            let st,si,fch = FlexClientHello.send st cfg in
+            let st,si,fch = FlexClientHello.send(st) in
             let st,si,fsh = FlexServerHello.receive st si in
             (si,st,sms)
 
