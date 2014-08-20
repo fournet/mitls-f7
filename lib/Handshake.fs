@@ -337,7 +337,7 @@ let next_fragment ci state =
                 let (rg,f,_) = makeFragment ki_out CCSBytes in
                 let ci = {ci with id_out = e} in 
 #if verify
-                Pi.assume (Complete(ci)); // CF should disappear!
+                Pi.expect (Complete(ci)); // CF should disappear!
 #endif
                 OutCCS(rg,f,ci,w,
                        {state with hs_outgoing = cFinished
@@ -663,7 +663,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
          let log = log @| clientKEXBytes in
 
          (*KB DH-MS-KEM *)
-         let pms = PMS.DHPMS(p,g,cy,sy,dhpms) in
+         let pms = PMS.DHPMS(p,g,sy,cy,dhpms) in
          let pmsid = pmsId pms
          let si = {si with pmsId = pmsid} in
          let (si,ms) = extract si pms log in
@@ -710,7 +710,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
          let log = log @| clientKEXBytes in
 
          (*KB DH-MS-KEM *)
-         let pms = PMS.DHPMS(p,g,cy,sy,dhpms) in
+         let pms = PMS.DHPMS(p,g,sy,cy,dhpms) in
          let pmsid = pmsId pms
          let si = {si with pmsId = pmsid} in
          let (si,ms) = extract si pms log in
@@ -745,7 +745,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
          let log = log @| clientKEXBytes in
 
          (*KB DH-MS-KEM *)
-         let pms = PMS.DHPMS(p,g,cy,sy,dhpms) in
+         let pms = PMS.DHPMS(p,g,sy,cy,dhpms) in
          let pmsid = pmsId pms
          let si = {si with pmsId = pmsid} in
          let (si,ms) = extract si pms log in
@@ -941,6 +941,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Error z ->
                     let (x,y) = z in
                     InError(x,y,state)
+                | Correct([]) ->
+                    InError(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Server sent empty certificate",state)
                 | Correct(certs) ->
                     let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, this is the same as we sent in our extension
                     if Cert.is_chain_for_key_encryption certs then
@@ -960,6 +962,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Error z ->
                     let (x,y) = z in
                     InError(x,y,state)
+                | Correct([]) ->
+                    InError(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Server sent empty certificate",state)
                 | Correct(certs) ->
                     let allowedAlgs = default_sigHashAlg si.protocol_version si.cipher_suite in // In TLS 1.2, this is the same as we sent in our extension
                     if Cert.is_chain_for_signing certs then
@@ -1068,13 +1072,17 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 let pl = length payload in
                 if pl = 0 then     
                     (* Log the received packet *)
-                    let log = log @| to_log in
+                    let log' = log @| to_log in
                     let si' = {si with client_auth = false} in
 
                     (* Should be provable *)
 #if verify
                     Pi.expect (UpdatesClientAuth(si,si'));
+                    Pi.expect (Authorize(Client,si'));
+                    Pi.expect (ClientLogBeforeServerHelloDoneRSA_NoAuth(si',log));
+                    Pi.expect (ClientLogAfterServerHelloDoneRSA(si',log'));
 #endif
+                    let log = log' in
                     let prep = prepare_client_output_full_RSA ci state si' None log in
                     match prep with
                     | Error z -> 
@@ -1111,13 +1119,16 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             | CertificateRequestDHE(si,p,g,y,log) ->
                 if length payload = 0 then
                     (* Log the received packet *)
-                    let log = log @| to_log in
+                    let log' = log @| to_log in
                     let si' = {si with client_auth = false} in
                     (* Should be provable *)
 #if verify
                     Pi.expect (UpdatesClientAuth(si,si'));
+                    Pi.expect (Authorize(Client,si'));
+                    Pi.expect (ClientLogBeforeServerHelloDoneDHE_NoAuth(si',log));
+                    Pi.expect (ClientLogAfterServerHelloDoneDHE(si',log'));
 #endif
-
+                    let log = log' in
                     let dhe = prepare_client_output_full_DHE ci state si' None p g y log in
                     match dhe with
                     | Error z ->
@@ -1466,6 +1477,8 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             | ClientCertificateRSA (si,cv,sk,log) ->
                 match parseClientOrServerCertificate payload with
                 | Error(z) -> let (x,y) = z in  InError(x,y,state)
+                | Correct([]) ->
+                    InError(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Client sent empty certificate",state)
                 | Correct(certs) ->
                     if Cert.is_chain_for_signing certs then
                         let advice = Cert.validate_cert_chain (default_sigHashAlg si.protocol_version si.cipher_suite) certs in
@@ -1485,6 +1498,8 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 // Duplicated code from above.
                 match parseClientOrServerCertificate payload with
                 | Error(z) -> let (x,y) = z in  InError(x,y,state)
+                | Correct([]) ->
+                    InError(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Client sent empty certificate",state)
                 | Correct(certs) ->
                     if Cert.is_chain_for_signing certs then
                         let advice = Cert.validate_cert_chain (default_sigHashAlg si.protocol_version si.cipher_suite) certs in
@@ -1525,6 +1540,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                           agreedVersion
                     else
 #if verify
+                        Pi.expect(ServerLogBeforeClientCertificateVerifyRSA(si,log));
                         Pi.expect(ServerLogBeforeClientFinished_NoAuth(si,log));
 #endif
                         recv_fragment_server ci 
@@ -1546,7 +1562,12 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
 
             (*KB DH-MS-KEM *)
                     let pms = PMS.DHPMS(p,g,gx,y,dhpms) in
-                    let si = {si with pmsId = pmsId(pms)} in
+                    let si_old = si in
+                    let si = {si_old with pmsId = pmsId(pms)} in
+#if verify
+                    Pi.expect(UpdatesPmsID(si_old,si)); (*KB: to be removed*)
+
+#endif
                     (* StrongHS(si) /\ DHE.Exp((p,g),?cx,y) -> DHE.Secret(pms) *)
                     let (si,ms) = extract si pms log in
                     (* StrongHS(si) /\ DHE.Exp((p,g),?cx,y) -> PRFs.Secret(ms) *)
@@ -1556,8 +1577,9 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     (* move to new state *)
                     if si.client_auth then
 #if verify
-                        Pi.expect(ServerLogBeforeClientCertificateVerifyDHE(si,log));
                         Pi.expect(Authorize(Server,si));
+                        Pi.expect(UpdatesPmsID(si_old,si));
+                        Pi.expect(ServerLogBeforeClientCertificateVerifyDHE(si,log));
                         Pi.expect(ServerLogBeforeClientCertificateVerify(si,log));
 #endif
                         recv_fragment_server ci 
@@ -1583,7 +1605,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let dhpms = DH.serverExp p g gx y x in
 
             (*KB DH-MS-KEM *)
-                    let pms = PMS.DHPMS(p,g,y,gx,dhpms) in //MK is the order of y, gx right?
+                    let pms = PMS.DHPMS(p,g,gx,y,dhpms) in //MK is the order of y, gx right?
                     let (si,ms) = extract si pms log in
                     (* TODO: here we should shred pms *)
                     (* move to new state *)
@@ -1627,7 +1649,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             | ClientFinishedResume(si,ms,e,svd,log) ->
                 if PRF.checkVerifyData si ms Client log payload then
 #if verify
-                    Pi.assume (Complete(ci)); // CF Should disappear!
+                    Pi.expect (Complete(ci)); // CF Should disappear!
 #endif
                     check_negotiation Server si state.poptions;
                     InComplete({state with pstate = PSServer(ServerIdle(payload,svd))})                       
