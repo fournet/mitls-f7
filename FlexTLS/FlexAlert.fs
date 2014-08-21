@@ -11,11 +11,13 @@ open FlexFragment
 
 
 
+
 type FlexAlert = 
     class
     
     (* Receive an expected ServerHelloDone message from the network stream *)
     static member receive (st:state) : state * alertDescription =
+        
         FlexFragment.getAlertMessage(st)
 
     (*

@@ -19,6 +19,7 @@ type FlexCertificate =
 
     (* Receive a Certificate message from the network stream *)
     static member receive (role:Role) (st:state) (si:SessionInfo) : state * SessionInfo * FCertificate =
+        
         let st,hstype,payload,to_log = FlexFragment.getHSMessage(st) in
         match hstype with
         | HT_certificate  ->  

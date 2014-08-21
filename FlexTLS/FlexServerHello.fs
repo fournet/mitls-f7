@@ -55,6 +55,7 @@ type FlexServerHello =
 
     (* Receive a ServerHello message from the network stream *)
     static member receive (st:state) (si:SessionInfo) : state * SessionInfo * FServerHello =
+        
         let st,hstype,payload,to_log = FlexFragment.getHSMessage(st) in
         match hstype with
         | HT_server_hello  ->    
@@ -78,7 +79,7 @@ type FlexServerHello =
                             payload = to_log;
                 } in
                 (st,si,fsh)
-                )
+            )
         | _ -> failwith "recvServerHello : message type should be HT_server_hello"
         
         

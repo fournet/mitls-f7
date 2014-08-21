@@ -19,6 +19,7 @@ type FlexFinished =
 
     (* Receive an expected Finished message from the network stream *)
     static member receive (st:state) : state * FFinished = 
+        
         let st,hstype,payload,to_log = FlexFragment.getHSMessage(st) in
         match hstype with
         | HT_finished  -> 

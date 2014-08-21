@@ -14,11 +14,13 @@ open FlexFragment
 
 
 
+
 type FlexHelloRequest = 
     class
 
     (* Receive an expected HelloRequest message from the network stream *)
     static member receive (st:state) : state * FHelloRequest = 
+        
         let st,hstype,payload,to_log = FlexFragment.getHSMessage(st) in
         match hstype with
         | HT_hello_request  ->         

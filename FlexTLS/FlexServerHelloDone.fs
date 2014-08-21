@@ -14,11 +14,13 @@ open FlexFragment
 
 
 
+
 type FlexServerHelloDone = 
     class
 
     (* Receive an expected ServerHelloDone message from the network stream *)
     static member receive (st:state) : state * FServerHelloDone =
+        
         let st,hstype,payload,to_log = FlexFragment.getHSMessage(st) in
         match hstype with
         | HT_server_hello_done  -> 

@@ -10,6 +10,9 @@ open TLSConstants
 
 open FlexTypes
 
+
+
+
 (* Update incoming record state *)
 let updateIncomingRecord (st:state) (incoming:Record.recvState) : state =
     let read_s = {st.read_s with record = incoming} in
@@ -27,6 +30,9 @@ let updateIncomingAlertBuffer (st:state) buf: state =
 let updateOutgoingRecord (st:state) (outgoing:Record.sendState) : state =
     let write_s = {st.write_s with record = outgoing} in
     {st with write_s = write_s}
+
+
+
 
 type FlexFragment = 
     class

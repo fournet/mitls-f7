@@ -95,6 +95,7 @@ type FlexClientHello =
 
     (* Receive a ClientHello message from the network stream *)
     static member receive (st:state) : state * SessionInfo * FClientHello =
+        
         let st,hstype,payload,to_log = FlexFragment.getHSMessage(st) in
         match hstype with
         | HT_client_hello  ->    
@@ -116,7 +117,7 @@ type FlexClientHello =
                             } 
                 in
                 (st,si,fch)
-                )
+            )
         | _ -> failwith "recvClientHello : Message type should be HT_client_hello"
  
 
