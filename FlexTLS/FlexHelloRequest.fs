@@ -18,7 +18,7 @@ type FlexHelloRequest =
     class
 
     (* Receive an expected HelloRequest message from the network stream *)
-    static member receive (st:state) (cfg:config) : state * FHelloRequest = 
+    static member receive (st:state) : state * FHelloRequest = 
     
         let buf = st.read_s.buffer in
         let st,hstypeb,len,payload,to_log,rem = FlexFragment.getHSMessage st buf in
@@ -37,20 +37,20 @@ type FlexHelloRequest =
 
 
     (* Send HelloRequest message to the network stream *)
-    static member send (st:state) (cfg:config) : state * FHelloRequest =
+    static member send (st:state) (si:SessionInfo) : state * FHelloRequest =
     
         let ns = st.ns in
-        let b = messageBytes HT_hello_request empty_bytes in
-        let len = length b in
+        let msgb = messageBytes HT_hello_request empty_bytes in
+        let len = length msgb in
         let rg : Range.range = (len,len) in
 
         let id = TLSInfo.id st.write_s.epoch in
-        let frag_out = TLSFragment.fragment id Handshake rg b in
-        let (nst, b) = Record.recordPacketOut st.write_s.epoch st.write_s.record cfg.maxVer rg Handshake frag_out in
+        let frag_out = TLSFragment.fragment id Handshake rg msgb in
+        let nst,b = Record.recordPacketOut st.write_s.epoch st.write_s.record si.protocol_version rg Handshake frag_out in
         let wst = {st.write_s with record = nst} in
         let st = {st with write_s = wst} in
 
-        let fhr = {nullFHelloRequest with payload = empty_bytes} in
+        let fhr = {nullFHelloRequest with payload = b} in
 
         match Tcp.write ns b with
         | Error(x) -> failwith x
