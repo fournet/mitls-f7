@@ -15,21 +15,21 @@ open FlexTypes
 
 (* Update incoming record state *)
 let updateIncomingRecord (st:state) (incoming:Record.recvState) : state =
-    let read_s = {st.read_s with record = incoming} in
-    {st with read_s = read_s}
+    let read_s = {st.read with record = incoming} in
+    {st with read = read_s}
 
 let updateIncomingHSBuffer (st:state) buf: state =
-    let read_s = {st.read_s with hs_buffer = buf} in
-    {st with read_s = read_s}
+    let read_s = {st.read with hs_buffer = buf} in
+    {st with read = read_s}
 
 let updateIncomingAlertBuffer (st:state) buf: state =
-    let read_s = {st.read_s with alert_buffer = buf} in
-    {st with read_s = read_s}
+    let read_s = {st.read with alert_buffer = buf} in
+    {st with read = read_s}
 
 (* Update outgoing record state *)
 let updateOutgoingRecord (st:state) (outgoing:Record.sendState) : state =
-    let write_s = {st.write_s with record = outgoing} in
-    {st with write_s = write_s}
+    let write_s = {st.write with record = outgoing} in
+    {st with write = write_s}
 
 
 
@@ -53,11 +53,11 @@ type FlexFragment =
         match Tcp.read ns len with
         | Error x         -> failwith (perror __SOURCE_FILE__ __LINE__ x)
         | Correct payload ->
-            match Record.recordPacketIn st.read_s.epoch st.read_s.record ct payload with
+            match Record.recordPacketIn st.read.epoch st.read.record ct payload with
             | Error (ad,x)  -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct (rec_in,rg,frag)  ->
                 let st = updateIncomingRecord st rec_in in
-                let id = TLSInfo.id st.read_s.epoch in
+                let id = TLSInfo.id st.read.epoch in
                 let b = TLSFragment.reprFragment id ct rg frag in
                 (st,b)
 
@@ -82,7 +82,7 @@ type FlexFragment =
     (* Get Handshake message from the buffer and return the state *)
     static member getHSMessage st =
         let ns = st.ns in
-        let buf = st.read_s.hs_buffer in
+        let buf = st.read.hs_buffer in
         match FlexFragment.parseHSMessage buf with
         | Error(_) ->
             (let ct,pv,len = FlexFragment.parseFragmentHeader st in
@@ -100,7 +100,7 @@ type FlexFragment =
     (* Get Alert message from the buffer and return the state *)
     static member getAlertMessage st =
         let ns = st.ns in
-        let buf = st.read_s.alert_buffer in
+        let buf = st.read.alert_buffer in
         if length buf < 2 then
             let ct,pv,len = FlexFragment.parseFragmentHeader st in
             match ct with

@@ -97,11 +97,11 @@ type FlexServerHello =
         let len = length msgb in
         let rg : Range.range = (len,len) in
 
-        let id = TLSInfo.id st.write_s.epoch in
+        let id = TLSInfo.id st.write.epoch in
         let frag = TLSFragment.fragment id Handshake rg msgb in
-        let nst,b = Record.recordPacketOut st.write_s.epoch st.write_s.record fsh.pv rg Handshake frag in
-        let wst = {st.write_s with record = nst} in
-        let st = {st with write_s = wst} in
+        let nst,b = Record.recordPacketOut st.write.epoch st.write.record fsh.pv rg Handshake frag in
+        let wst = {st.write with record = nst} in
+        let st = {st with write = wst} in
    
         let fsh = { fsh with payload = b } in
 

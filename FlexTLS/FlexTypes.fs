@@ -20,8 +20,8 @@ type channel = {
 
 (* Global state of the application for Handshake and both input/output channels of a network stream *)
 type state = {
-    read_s: channel;
-    write_s: channel;
+    read: channel;
+    write: channel;
     ns: Tcp.NetworkStream;
 }
 
