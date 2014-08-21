@@ -33,9 +33,10 @@ type FlexHelloRequest =
 
 
     (* Send HelloRequest message to the network stream *)
-    static member send (st:state) (si:SessionInfo) : state * FHelloRequest =
+    static member send (st:state) (nsc:nextSecurityContext) : state * FHelloRequest =
     
         let ns = st.ns in
+        let si = nsc.si in
         let msgb = messageBytes HT_hello_request empty_bytes in
         let len = length msgb in
         let rg : Range.range = (len,len) in

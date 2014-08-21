@@ -94,7 +94,7 @@ type FlexClientHello =
     class
 
     (* Receive a ClientHello message from the network stream *)
-    static member receive (st:state) : state * SessionInfo * FClientHello =
+    static member receive (st:state) : state * nextSecurityContext * FClientHello =
         
         let st,hstype,payload,to_log = FlexFragment.getHSMessage(st) in
         match hstype with
@@ -106,6 +106,7 @@ type FlexClientHello =
                             init_crand = cr 
                             } 
                 in
+                let nsc = { nullNextSecurityContext with si = si } in
                 let fch = { nullFClientHello with
                             pv = pv;
                             rand = cr;
@@ -116,13 +117,13 @@ type FlexClientHello =
                             payload = to_log;
                             } 
                 in
-                (st,si,fch)
+                (st,nsc,fch)
             )
         | _ -> failwith "recvClientHello : Message type should be HT_client_hello"
  
 
     (* Send a ClientHello message to the network stream *)
-    static member send (st:state, ?ofch:FClientHello, ?ocfg:config) : state * SessionInfo * FClientHello =
+    static member send (st:state, ?ofch:FClientHello, ?ocfg:config) : state * nextSecurityContext * FClientHello =
 
         let ns = st.ns in
 
@@ -142,10 +143,11 @@ type FlexClientHello =
         let st = {st with write = wst} in
 
         let si  = { nullFSessionInfo with init_crand = fch.rand } in
+        let nsc = { nullNextSecurityContext with si = si } in
         let fch = { fch with payload = b } in
 
         match Tcp.write ns b with
         | Error(x) -> failwith x
-        | Correct() -> (st,si,fch)
+        | Correct() -> (st,nsc,fch)
     
     end

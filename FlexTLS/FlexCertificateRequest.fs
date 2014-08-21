@@ -20,8 +20,9 @@ type FlexCertificateRequest =
 
     (*
     (* Receive a CertificateRequest message from the network stream *)
-    let receive (st:state) (si:SessionInfo) : state * SessionInfo * FCertificateRequest =
+    let receive (st:state) (nsc:nextSecurityContext) : state * nextSecurityContext * FCertificateRequest =
     
+        let si = nsc.si in
         let buf = st.read_s.buffer in
         let st,hstypeb,len,payload,to_log,buf = FlexFragment.getHSMessage st buf in
     
@@ -42,21 +43,24 @@ type FlexCertificateRequest =
                                     client_auth = true;
                                     clientID = certC;
                         } in
-                        (st,si,cert)
+                        let nsc = { nsc with si = si } in
+                        (st,nsc,cert)
                     | Server ->
                         let si  = { si with 
                                     serverID = certC;
                         } in
-                        (st,si,cert)
+                        let nsc = { nsc with si = si } in
+                        (st,nsc,cert)
                         )
             | _ -> failwith "recvCertificateRequest : message type should be HT_certificate_request"
 
 
 
     (* Send a CertificateRequest message to the network stream *)
-    let send (st:state) (si:SessionInfo) (fcr:FCertificateRequest): state * SessionInfo * FCertificateRequest =
+    let send (st:state) (nsc:nextSecurityContext) (fcr:FCertificateRequest): state * nextSecurityContext * FCertificateRequest =
     
         let ns = st.ns in
+        let si = nsc.si in
         let pv = si.protocol_version in
         let cs = si.cipher_suite in
         let sign = fcr.sign in
@@ -70,9 +74,10 @@ type FlexCertificateRequest =
         let wst = {st.write_s with record = nst} in
         let st = {st with write_s = wst} in
 
+        let nsc = { nsc with si = si } in
         match Tcp.write ns b with
         | Error(x) -> failwith x
-        | Correct() -> (st,si,fcr)
+        | Correct() -> (st,nsc,fcr)
     *)
 
     end

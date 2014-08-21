@@ -35,10 +35,10 @@ type FlexFinished =
 
 
     (* Send Finished message to the network stream *)
-    static member send (st:state, si:SessionInfo, ?off:FFinished) : state * FFinished =
+    static member send (st:state, nsc:nextSecurityContext, ?off:FFinished) : state * FFinished =
     
         let ns = st.ns in
-
+        let si = nsc.si in
         let ff = defaultArg off nullFFinished in
 
         let msgb = messageBytes HT_finished ff.verify_data in

@@ -25,6 +25,11 @@ type state = {
     ns: Tcp.NetworkStream;
 }
 
+(* Next security context record used to generate a new channel epoch *)
+type nextSecurityContext = {
+    si: SessionInfo;
+}
+
 (* Record associated to a HelloRequest message *)
 type FHelloRequest = {
     payload: bytes;
@@ -156,3 +161,7 @@ let nullFSessionInfo = {    clientID = [];
                             session_hash = empty_bytes;
                             pmsId = noPmsId;
                        }
+
+(* Define a null nextSecurityContext record *)
+let nullNextSecurityContext = {   si = nullFSessionInfo
+                              }

@@ -54,8 +54,10 @@ type FlexServerHello =
     class
 
     (* Receive a ServerHello message from the network stream *)
-    static member receive (st:state) (si:SessionInfo) : state * SessionInfo * FServerHello =
+    static member receive (st:state, ?onsc:nextSecurityContext) : state * nextSecurityContext * FServerHello =
         
+        let nsc = defaultArg onsc nullNextSecurityContext in
+        let si = nsc.si in
         let st,hstype,payload,to_log = FlexFragment.getHSMessage(st) in
         match hstype with
         | HT_server_hello  ->    
@@ -69,6 +71,7 @@ type FlexServerHello =
                             cipher_suite = cs;
                             compression = cm;
                 } in
+                let nsc = { nullNextSecurityContext with si = si } in
                 let fsh = { nullFServerHello with 
                             pv = pv;
                             rand = sr;
@@ -78,18 +81,19 @@ type FlexServerHello =
                             ext = extensions;
                             payload = to_log;
                 } in
-                (st,si,fsh)
+                (st,nsc,fsh)
             )
         | _ -> failwith "recvServerHello : message type should be HT_server_hello"
         
         
     (* Send a ServerHello message to the network stream *)
-    static member send (st:state, ?osi:SessionInfo, ?ofsh:FServerHello) : state * SessionInfo * FServerHello =
+    static member send (st:state, ?onsc:nextSecurityContext, ?ofsh:FServerHello) : state * nextSecurityContext * FServerHello =
     
         let ns = st.ns in
 
         let fsh = defaultArg ofsh nullFServerHello in
-        let si = defaultArg osi nullFSessionInfo in
+        let nsc = defaultArg onsc nullNextSecurityContext in
+        let si = nsc.si in
 
         let fsh,si = fillFServerHelloANDSi fsh si in
 
@@ -103,10 +107,11 @@ type FlexServerHello =
         let wst = {st.write with record = nst} in
         let st = {st with write = wst} in
    
+        let nsc = { nullNextSecurityContext with si = si } in
         let fsh = { fsh with payload = b } in
 
         match Tcp.write ns b with
         | Error(x) -> failwith x
-        | Correct() -> (st,si,fsh)
+        | Correct() -> (st,nsc,fsh)
 
     end
