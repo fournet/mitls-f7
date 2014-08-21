@@ -23,7 +23,7 @@ type FlexCertificateRequest =
     let receive (st:state) (si:SessionInfo) : state * SessionInfo * FCertificateRequest =
     
         let buf = st.read_s.buffer in
-        let st,hstypeb,len,payload,to_log,rem = FlexFragment.getHSMessage st buf in
+        let st,hstypeb,len,payload,to_log,buf = FlexFragment.getHSMessage st buf in
     
         match parseHt hstypeb with
         | Error (ad,x) -> failwith x
@@ -34,6 +34,8 @@ type FlexCertificateRequest =
                 | Error (ad,x) -> failwith x
                 | Correct (certC) -> 
                     let cert = { nullFCertificateRequest with sign = certC; } in
+                    let read_s = {st.read_s with buffer = buf } in
+                    let st = {st with read_s = read_s } in
                     match role with
                     | Client ->
                         let si  = { si with 

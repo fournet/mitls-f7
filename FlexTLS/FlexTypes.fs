@@ -4,6 +4,7 @@ module FlexTypes
 
 open Bytes
 open System
+open TLSError
 open TLSInfo
 open TLSConstants
 
@@ -14,6 +15,7 @@ type channel = {
     record: Record.ConnectionState;
     epoch:  TLSInfo.epoch;
     buffer: bytes;
+    alert_buffer: bytes;
 }
 
 (* Global state of the application for Handshake and both input/output channels of a network stream *)
@@ -72,12 +74,6 @@ type FFinished = {
     payload: bytes;
 }
 
-(* Record associated to a Alert message *)
-type FAlert = {
-    payload:bytes;
-}
-
-
 (* Record associated with conservation of all HS messages *)
 type FHSMessages = {
     helloRequest: FHelloRequest;
@@ -92,12 +88,6 @@ type FHSMessages = {
     //clientKeyExchange: FClientKeyExchange;
     clientFinished: FFinished;
     serverFinished: FFinished
-}
-
-(* Record associated with conservation of all Alert messages *)
-type FAlertMessages = {
-    warnings: list<FAlert>;
-    fatal: FAlert;
 }
 
 (* Define a null FHelloRequest record *)
@@ -138,10 +128,6 @@ let nullFFinished : FFinished = {   verify_data = empty_bytes;
                                     payload = empty_bytes;
                                 }
 
-(* Define a null FAlert record *)
-let nullFAlert : FAlert = { payload = empty_bytes;
-                          }
-
 (* Define a null FHSMessages record *)
 let nullFHSMessages = {   helloRequest = nullFHelloRequest;
                           clientHello = nullFClientHello;
@@ -153,11 +139,6 @@ let nullFHSMessages = {   helloRequest = nullFHelloRequest;
                           clientFinished = nullFFinished;
                           serverFinished = nullFFinished;
                       }
-
-(* Define a null FAlertMessages record *)
-let nullFAlertMessages = {  warnings = [];
-                            fatal = nullFAlert;
-                         }
 
 (* Define a null SessionInfo record *)
 let nullFSessionInfo = {    clientID = [];

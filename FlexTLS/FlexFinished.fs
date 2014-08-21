@@ -21,7 +21,7 @@ type FlexFinished =
     static member receive (st:state) : state * FFinished = 
     
         let buf = st.read_s.buffer in
-        let st,hstypeb,len,payload,to_log,rem = FlexFragment.getHSMessage st buf in
+        let st,hstypeb,len,payload,to_log,buf = FlexFragment.getHSMessage st buf in
     
         match parseHt hstypeb with
         | Error (ad,x) -> failwith x
@@ -31,6 +31,8 @@ type FlexFinished =
                 if length payload <> 0 then
                     failwith "recvFinished : payload has not length zero"
                 else
+                    let read_s = {st.read_s with buffer = buf } in
+                    let st = {st with read_s = read_s } in
                     let ff = {  nullFFinished with
                                 verify_data = payload; 
                                 payload = to_log;

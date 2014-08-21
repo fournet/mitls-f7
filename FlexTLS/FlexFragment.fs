@@ -58,6 +58,22 @@ type FlexFragment =
         else    
             failwith "Buffer to small to have a HSMessage header inside"
 
+    (* Get Alert message from the buffer and return the state *)
+    static member getAlertMessage (st:state) (buf:bytes) : state * bytes * bytes =
+        let ns = st.ns in
+        if length buf < 2 then
+            let ct,pv,len = FlexFragment.parseFragmentHeader st in
+            match ct with
+            | Alert -> 
+                let st,b = FlexFragment.getFragmentContent st ct len in
+                let buf = buf @| b in
+                FlexFragment.getAlertMessage st buf
+            | _ -> failwith "getAlertMessage : cannot parse Alert message if content type is not Alert"
+        else
+            let alb,rem = Bytes.split buf 2 in
+            (st,alb,rem)
+            
+
     (* Split Handshake message payload from the buffer and returns it with the hstype, length, to_log and remainder of the buffer as bytes*)
     static member splitHSMessage (buf:bytes) : bytes * bytes * bytes * bytes * bytes =
         let (hstypeb,rem) = Bytes.split buf 1 in
@@ -71,7 +87,7 @@ type FlexFragment =
                     let to_log = hstypeb @| lenb @| payload in 
                     (hstypeb,lenb,payload,to_log,rem)
 
-    (* Get Handshake message from the fragments and return the state *)
+    (* Get Handshake message from the buffer and return the state *)
     static member getHSMessage (st:state) (buf:bytes) : state * bytes * int * bytes * bytes * bytes =
         let ns = st.ns in
         if length buf < 4 then

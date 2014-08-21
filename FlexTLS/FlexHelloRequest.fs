@@ -21,7 +21,7 @@ type FlexHelloRequest =
     static member receive (st:state) : state * FHelloRequest = 
     
         let buf = st.read_s.buffer in
-        let st,hstypeb,len,payload,to_log,rem = FlexFragment.getHSMessage st buf in
+        let st,hstypeb,len,payload,to_log,buf = FlexFragment.getHSMessage st buf in
     
         match parseHt hstypeb with
         | Error (ad,x) -> failwith x
@@ -31,6 +31,8 @@ type FlexHelloRequest =
                 if length payload <> 0 then
                     failwith "recvHelloRequest : payload has not length zero"
                 else
+                    let read_s = {st.read_s with buffer = buf } in
+                    let st = {st with read_s = read_s } in
                     let fhr = {nullFHelloRequest with payload = to_log} in
                     st,fhr
             | _ -> failwith "recvHelloRequest : message is not of type HelloRequest"
