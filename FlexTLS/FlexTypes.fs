@@ -68,6 +68,12 @@ type FServerHelloDone = {
 
 (* Record associated to a Finished message *)
 type FFinished = {
+    verify_data: bytes;
+    payload: bytes;
+}
+
+(* Record associated to a Alert message *)
+type FAlert = {
     payload:bytes;
 }
 
@@ -88,6 +94,11 @@ type FHSMessages = {
     serverFinished: FFinished
 }
 
+(* Record associated with conservation of all Alert messages *)
+type FAlertMessages = {
+    warnings: list<FAlert>;
+    fatal: FAlert;
+}
 
 (* Define a null FHelloRequest record *)
 let nullFHelloRequest : FHelloRequest = {   payload = empty_bytes;
@@ -123,8 +134,13 @@ let nullFServerHelloDone : FServerHelloDone =  {   payload = empty_bytes;
                                                }
 
 (* Define a null FFinished record *)
-let nullFFinished : FFinished = {   payload = empty_bytes;
+let nullFFinished : FFinished = {   verify_data = empty_bytes;
+                                    payload = empty_bytes;
                                 }
+
+(* Define a null FAlert record *)
+let nullFAlert : FAlert = { payload = empty_bytes;
+                          }
 
 (* Define a null FHSMessages record *)
 let nullFHSMessages = {   helloRequest = nullFHelloRequest;
@@ -138,6 +154,10 @@ let nullFHSMessages = {   helloRequest = nullFHelloRequest;
                           serverFinished = nullFFinished;
                       }
 
+(* Define a null FAlertMessages record *)
+let nullFAlertMessages = {  warnings = [];
+                            fatal = nullFAlert;
+                         }
 
 (* Define a null SessionInfo record *)
 let nullFSessionInfo = {    clientID = [];
