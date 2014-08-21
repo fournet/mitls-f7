@@ -10,17 +10,13 @@ open TLSConstants
 
 open FlexTypes
 
-
-
-(* Set default connection configuration *)
-let cfg = defaultConfig
-
+let defaultPort = 443
 
 type FlexConnection =
     class
 
     (* Initiate a connection either from Client or Server *)
-    static member init (role:Role) (ns:NetworkStream) (cfg:config) : state =
+    static member init (role:Role,ns:NetworkStream) : state =
         let rand = Nonce.mkHelloRandom() in
         let ci = TLSInfo.initConnection role rand in
         let record_s_in  = Record.nullConnState ci.id_in Reader in
@@ -31,29 +27,29 @@ type FlexConnection =
 
 
     (* Open a connection as a Server *)
-    static member serverOpenTcpConnection (address:string) (port:int) : state * config =
-    
+    static member serverOpenTcpConnection (address:string,?oport:int) : state * config =
+        let port = defaultArg oport defaultPort in
         let cfg = {
-            cfg with
+            defaultConfig with
                 server_name = address
         } in
 
         let l    = Tcp.listen address port in
         let ns   = Tcp.accept l in
-        let st = FlexConnection.init Server ns cfg in
+        let st = FlexConnection.init (Server, ns) in
         (st,cfg)
 
  
      (* Open a connection as a Client *)
-     static member clientOpenTcpConnection (address:string) (port:int) :  state * config =
-    
+     static member clientOpenTcpConnection (address:string,?oport:int) :  state * config =
+        let port = defaultArg oport defaultPort in
         let cfg = {
-            cfg with
+            defaultConfig with
                 server_name = address
         } in
 
         let ns = Tcp.connect address port in
-        let st = FlexConnection.init Client ns cfg in
+        let st = FlexConnection.init (Client, ns) in
         (st,cfg)
 
     end
