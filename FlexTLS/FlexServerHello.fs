@@ -56,7 +56,7 @@ type FlexServerHello =
     (* Receive a ServerHello message from the network stream *)
     static member receive (st:state) (si:SessionInfo) : state * SessionInfo * FServerHello =
     
-        let buf = st.read_s.buffer in
+        let buf = st.read_s.hs_buffer in
         let st,hstypeb,len,payload,to_log,buf = FlexFragment.getHSMessage st buf in
     
         match parseHt hstypeb with
@@ -67,7 +67,7 @@ type FlexServerHello =
                 (match parseServerHello payload with
                 | Error (ad,x) -> failwith x
                 | Correct (pv,sr,sid,cs,cm,extensions) -> 
-                    let read_s = {st.read_s with buffer = buf } in
+                    let read_s = {st.read_s with hs_buffer = buf } in
                     let st = {st with read_s = read_s } in
                     let si  = { si with 
                                 init_srand = sr;

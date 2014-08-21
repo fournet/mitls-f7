@@ -14,7 +14,7 @@ open TLSConstants
 type channel = {
     record: Record.ConnectionState;
     epoch:  TLSInfo.epoch;
-    buffer: bytes;
+    hs_buffer: bytes;
     alert_buffer: bytes;
 }
 

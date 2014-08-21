@@ -25,8 +25,8 @@ type FlexConnection =
         let ci = TLSInfo.initConnection role rand in
         let record_s_in  = Record.nullConnState ci.id_in Reader in
         let record_s_out = Record.nullConnState ci.id_out Writer in
-        { read_s  = { record = record_s_in ; epoch = ci.id_in; buffer = empty_bytes; alert_buffer = empty_bytes};
-          write_s = { record = record_s_out; epoch = ci.id_out; buffer = empty_bytes; alert_buffer = empty_bytes};
+        { read_s  = { record = record_s_in ; epoch = ci.id_in; hs_buffer = empty_bytes; alert_buffer = empty_bytes};
+          write_s = { record = record_s_out; epoch = ci.id_out; hs_buffer = empty_bytes; alert_buffer = empty_bytes};
           ns = ns }
 
 

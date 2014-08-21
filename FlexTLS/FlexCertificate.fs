@@ -20,7 +20,7 @@ type FlexCertificate =
     (* Receive a Certificate message from the network stream *)
     static member receive (role:Role) (st:state) (si:SessionInfo) : state * SessionInfo * FCertificate =
     
-        let buf = st.read_s.buffer in
+        let buf = st.read_s.hs_buffer in
         let st,hstypeb,len,payload,to_log,buf = FlexFragment.getHSMessage st buf in
     
         match parseHt hstypeb with
@@ -32,7 +32,7 @@ type FlexCertificate =
                 | Error (ad,x) -> failwith x
                 | Correct (certC) -> 
                     let cert = { nullFCertificate with chain = certC; } in
-                    let read_s = {st.read_s with buffer = buf } in
+                    let read_s = {st.read_s with hs_buffer = buf } in
                     let st = {st with read_s = read_s } in
                     match role with
                     | Client ->

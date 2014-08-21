@@ -96,7 +96,7 @@ type FlexClientHello =
     (* Receive a ClientHello message from the network stream *)
     static member receive (st:state) : state * SessionInfo * FClientHello =
     
-        let buf = st.read_s.buffer in
+        let buf = st.read_s.hs_buffer in
         let st,hstypeb,len,payload,to_log,buf = FlexFragment.getHSMessage st buf in
     
         match parseHt hstypeb with
@@ -107,7 +107,7 @@ type FlexClientHello =
                 (match parseClientHello payload with
                 | Error (ad,x) -> failwith x
                 | Correct (pv,cr,sid,clientCipherSuites,cm,extensions) -> 
-                    let read_s = {st.read_s with buffer = buf } in
+                    let read_s = {st.read_s with hs_buffer = buf } in
                     let st = {st with read_s = read_s } in
                     let si  = { nullFSessionInfo with 
                                 init_crand = cr 
