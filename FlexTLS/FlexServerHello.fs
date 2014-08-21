@@ -55,39 +55,31 @@ type FlexServerHello =
 
     (* Receive a ServerHello message from the network stream *)
     static member receive (st:state) (si:SessionInfo) : state * SessionInfo * FServerHello =
-    
-        let buf = st.read_s.hs_buffer in
-        let st,hstypeb,len,payload,to_log,buf = FlexFragment.getHSMessage st buf in
-    
-        match parseHt hstypeb with
-        | Error (ad,x) -> failwith x
-        | Correct(hst) ->
-            match hst with
-            | HT_server_hello  ->    
-                (match parseServerHello payload with
-                | Error (ad,x) -> failwith x
-                | Correct (pv,sr,sid,cs,cm,extensions) -> 
-                    let read_s = {st.read_s with hs_buffer = buf } in
-                    let st = {st with read_s = read_s } in
-                    let si  = { si with 
-                                init_srand = sr;
-                                protocol_version = pv;
-                                sessionID = sid;
-                                cipher_suite = cs;
-                                compression = cm;
-                    } in
-                    let fsh = { nullFServerHello with 
-                                pv = pv;
-                                rand = sr;
-                                sid = sid;
-                                suite = cs;
-                                comp = cm;
-                                ext = extensions;
-                                payload = to_log;
-                    } in
-                    (st,si,fsh)
-                    )
-            | _ -> failwith "recvServerHello : message type should be HT_server_hello"
+        let st,hstype,payload,to_log = FlexFragment.getHSMessage(st) in
+        match hstype with
+        | HT_server_hello  ->    
+            (match parseServerHello payload with
+            | Error (ad,x) -> failwith x
+            | Correct (pv,sr,sid,cs,cm,extensions) ->
+                let si  = { si with 
+                            init_srand = sr;
+                            protocol_version = pv;
+                            sessionID = sid;
+                            cipher_suite = cs;
+                            compression = cm;
+                } in
+                let fsh = { nullFServerHello with 
+                            pv = pv;
+                            rand = sr;
+                            sid = sid;
+                            suite = cs;
+                            comp = cm;
+                            ext = extensions;
+                            payload = to_log;
+                } in
+                (st,si,fsh)
+                )
+        | _ -> failwith "recvServerHello : message type should be HT_server_hello"
         
         
     (* Send a ServerHello message to the network stream *)

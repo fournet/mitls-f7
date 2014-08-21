@@ -95,37 +95,29 @@ type FlexClientHello =
 
     (* Receive a ClientHello message from the network stream *)
     static member receive (st:state) : state * SessionInfo * FClientHello =
-    
-        let buf = st.read_s.hs_buffer in
-        let st,hstypeb,len,payload,to_log,buf = FlexFragment.getHSMessage st buf in
-    
-        match parseHt hstypeb with
-        | Error (ad,x) -> failwith x
-        | Correct(hst) ->
-            match hst with
-            | HT_client_hello  ->    
-                (match parseClientHello payload with
-                | Error (ad,x) -> failwith x
-                | Correct (pv,cr,sid,clientCipherSuites,cm,extensions) -> 
-                    let read_s = {st.read_s with hs_buffer = buf } in
-                    let st = {st with read_s = read_s } in
-                    let si  = { nullFSessionInfo with 
-                                init_crand = cr 
-                              } 
-                    in
-                    let fch = { nullFClientHello with
-                                pv = pv;
-                                rand = cr;
-                                sid = sid;
-                                suites = clientCipherSuites;
-                                comps = cm;
-                                ext = extensions;
-                                payload = to_log;
-                              } 
-                    in
-                    (st,si,fch)
-                    )
-            | _ -> failwith "recvClientHello : Message type should be HT_client_hello"
+        let st,hstype,payload,to_log = FlexFragment.getHSMessage(st) in
+        match hstype with
+        | HT_client_hello  ->    
+            (match parseClientHello payload with
+            | Error (ad,x) -> failwith x
+            | Correct (pv,cr,sid,clientCipherSuites,cm,extensions) -> 
+                let si  = { nullFSessionInfo with 
+                            init_crand = cr 
+                            } 
+                in
+                let fch = { nullFClientHello with
+                            pv = pv;
+                            rand = cr;
+                            sid = sid;
+                            suites = clientCipherSuites;
+                            comps = cm;
+                            ext = extensions;
+                            payload = to_log;
+                            } 
+                in
+                (st,si,fch)
+                )
+        | _ -> failwith "recvClientHello : Message type should be HT_client_hello"
  
 
     (* Send a ClientHello message to the network stream *)

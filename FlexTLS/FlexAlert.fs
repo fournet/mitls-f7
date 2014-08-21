@@ -16,16 +16,7 @@ type FlexAlert =
     
     (* Receive an expected ServerHelloDone message from the network stream *)
     static member receive (st:state) : state * alertDescription =
-        
-        let abuf = st.read_s.alert_buffer in
-        let st,alb,abuf = FlexFragment.getAlertMessage st abuf in
-    
-        match Alert.parseAlert alb with
-        | Error(ad,x) -> failwith x
-        | Correct(aldt) -> 
-            let read_s = {st.read_s with alert_buffer = abuf } in
-            let st = {st with read_s = read_s } in
-            st,aldt
+        FlexFragment.getAlertMessage(st)
 
     (*
     (* Send ServerHelloDone message to the network stream *)

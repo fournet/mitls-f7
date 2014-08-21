@@ -18,24 +18,16 @@ type FlexServerHelloDone =
     class
 
     (* Receive an expected ServerHelloDone message from the network stream *)
-    static member receive (st:state) : state * FServerHelloDone = 
-    
-        let buf = st.read_s.hs_buffer in
-        let st,hstypeb,len,payload,to_log,buf = FlexFragment.getHSMessage st buf in
-    
-        match parseHt hstypeb with
-        | Error (ad,x) -> failwith x
-        | Correct(hst) ->
-            match hst with
-            | HT_server_hello_done  -> 
-                if length payload <> 0 then
-                    failwith "recvServerHelloDone : payload has not length zero"
-                else
-                    let read_s = {st.read_s with hs_buffer = buf } in
-                    let st = {st with read_s = read_s } in
-                    let fshd = {nullFServerHelloDone with payload = to_log} in
-                    st,fshd
-            | _ -> failwith "recvServerHelloDone : message type is not HT_server_hello_done"
+    static member receive (st:state) : state * FServerHelloDone =
+        let st,hstype,payload,to_log = FlexFragment.getHSMessage(st) in
+        match hstype with
+        | HT_server_hello_done  -> 
+            if length payload <> 0 then
+                failwith "recvServerHelloDone : payload has not length zero"
+            else
+                let fshd = {nullFServerHelloDone with payload = to_log} in
+                st,fshd
+        | _ -> failwith "recvServerHelloDone : message type is not HT_server_hello_done"
 
 
     (* Send ServerHelloDone message to the network stream *)
