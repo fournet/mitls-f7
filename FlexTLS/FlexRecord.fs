@@ -19,17 +19,21 @@ let updateIncomingRecord (st:state) (incoming:Record.recvState) : state =
     let read_s = {st.read with record = incoming} in
     {st with read = read_s}
 
-let updateIncomingHSBuffer (st:state) buf: state =
+let updateIncomingHSBuffer (st:state) (buf:bytes) : state =
     let read_s = {st.read with hs_buffer = buf} in
     {st with read = read_s}
 
-let updateIncomingAlertBuffer (st:state) buf: state =
+let updateIncomingAlertBuffer (st:state) (buf:bytes) : state =
     let read_s = {st.read with alert_buffer = buf} in
     {st with read = read_s}
 
 (* Update outgoing record state *)
 let updateOutgoingRecord (st:state) (outgoing:Record.sendState) : state =
     let write_s = {st.write with record = outgoing} in
+    {st with write = write_s}
+
+let updateOutgoingHSBuffer (st:state) (buf:bytes) : state =
+    let write_s = {st.write with hs_buffer = buf} in
     {st with write = write_s}
 
 (* Get fragment length depending on the fragmentation policy *)
@@ -42,6 +46,12 @@ let splitCTPayloadFP (b:bytes) (fp:fragmentationPolicy) : bytes * bytes =
     let len = System.Math.Min((length b),(fs_of_fp fp)) in
     Bytes.split b len
 
+(* Pick a buffer according to corresponding ContentType *)
+let pickCTBuffer (ch:channel) (ct:ContentType) : bytes = 
+    match ct with
+    | Handshake -> ch.hs_buffer
+    | Alert -> ch.alert_buffer
+    | _ -> failwith "Unsupported content type"
 
 
 
@@ -73,10 +83,11 @@ type FlexRecord =
                 (st,b)
 
     (* Send data over the network after encrypting a record depending on the fragmentation policy *)
-    static member send (ns:NetworkStream, e:epoch, k:Record.ConnectionState, ct:ContentType, payload:bytes, ?ofp:fragmentationPolicy) : Record.ConnectionState * bytes =
+    static member sendSpecific (ns:NetworkStream, e:epoch, k:Record.ConnectionState, ct:ContentType, payload:bytes, ?ofp:fragmentationPolicy) : Record.ConnectionState * bytes =
         
         let fp = defaultArg ofp defaultFragmentationPolicy in
         
+        (* TODO : Here the user cannot choose the ProtocolVersion if it is an initEpoch, default is set by force while it shouldn't be the case *)
         let pv = 
             if TLSInfo.isInitEpoch e then
                 defaultProtocolVersion
@@ -96,8 +107,19 @@ type FlexRecord =
         | Error x -> failwith x
         | Correct() -> 
             if rem = empty_bytes then
-                FlexRecord.send(ns,e,k,ct,rem,fp)
+                FlexRecord.sendSpecific(ns,e,k,ct,rem,fp)
             else
                 (k,rem)
+
+    (* Send 2 *)
+    static member send (st:state, ct:ContentType, ?ofp:fragmentationPolicy) : state =
+        
+        let fp = defaultArg ofp defaultFragmentationPolicy in
+
+        let payload = pickCTBuffer st.write ct in
+        let k,rem = FlexRecord.sendSpecific(st.ns,st.write.epoch,st.write.record,ct,payload,fp) in
+        let st = updateOutgoingHSBuffer st rem in
+        let st = updateOutgoingRecord st k in
+        (st)
 
     end
