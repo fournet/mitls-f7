@@ -9,7 +9,7 @@ open TLSInfo
 open HandshakeMessages
 
 open FlexTypes
-open FlexRecord
+open FlexHandshake
 
 
 (* TODO : Find another way to emmbed Role for FSessionInfo update *)
@@ -21,7 +21,7 @@ type FlexCertificate =
     static member receive (role:Role) (st:state) (nsc:nextSecurityContext) : state * nextSecurityContext * FCertificate =
         
         let si = nsc.si in
-        let st,hstype,payload,to_log = FlexRecord.getHSMessage(st) in
+        let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_certificate  ->  
             (match parseClientOrServerCertificate payload with

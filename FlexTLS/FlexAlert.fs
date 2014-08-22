@@ -2,10 +2,13 @@
 
 module FlexAlert
 
+open Bytes
 open Alert
 open Error
 open TLSInfo
 open TLSError
+open TLSConstants
+
 open FlexTypes
 open FlexRecord
 
@@ -18,7 +21,24 @@ type FlexAlert =
     (* Receive an expected ServerHelloDone message from the network stream *)
     static member receive (st:state) : state * alertDescription =
         
-        FlexRecord.getAlertMessage(st)
+        let ns = st.ns in
+        let buf = st.read.alert_buffer in
+        if length buf < 2 then
+            let ct,pv,len = FlexRecord.parseFragmentHeader st in
+            match ct with
+            | Alert -> 
+                let st,b = FlexRecord.getFragmentContent (st, ct, len) in
+                let buf = buf @| b in
+                let st = updateIncomingAlertBuffer st buf in
+                FlexAlert.receive st
+            | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "Unexpected content type")
+        else
+            let alb,rem = Bytes.split buf 2 in
+            match Alert.parseAlert alb with
+            | Error(ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
+            | Correct(ad) ->
+                let st = updateIncomingAlertBuffer st rem in
+                (st,ad)
 
     (*
     (* Send ServerHelloDone message to the network stream *)

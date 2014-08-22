@@ -14,7 +14,7 @@ open TLSExtensions
 open HandshakeMessages
 
 open FlexTypes
-open FlexRecord
+open FlexHandshake
 
 
 
@@ -96,7 +96,7 @@ type FlexClientHello =
     (* Receive a ClientHello message from the network stream *)
     static member receive (st:state) : state * nextSecurityContext * FClientHello =
         
-        let st,hstype,payload,to_log = FlexRecord.getHSMessage(st) in
+        let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_client_hello  ->    
             (match parseClientHello payload with
