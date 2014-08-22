@@ -9,6 +9,7 @@ open TLSInfo
 open TLSConstants
 
 open FlexTypes
+open FlexConstants
 open FlexConnection
 open FlexClientHello
 open FlexServerHello

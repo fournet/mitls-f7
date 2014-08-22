@@ -10,6 +10,7 @@ open TLSInfo
 open TLSConstants
 
 open FlexTypes
+open FlexConstants
 open FlexHandshake
 
 

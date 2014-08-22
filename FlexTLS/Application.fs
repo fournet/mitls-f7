@@ -4,8 +4,10 @@ module Application
 
 open TLSInfo
 open TLSConstants
-open FlexTypes
+
 open FlexTLS
+open FlexTypes
+open FlexConstants
 open FlexClientHello
 
 

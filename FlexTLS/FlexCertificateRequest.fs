@@ -10,6 +10,7 @@ open TLSConstants
 open HandshakeMessages
 
 open FlexTypes
+open FlexConstants
 open FlexRecord
 
 (* TODO : Complete FCertificateRequest type and nullFCertificateRequest constructor before continuing *)
