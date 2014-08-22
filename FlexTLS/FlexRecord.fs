@@ -36,6 +36,10 @@ let updateOutgoingHSBuffer (st:state) (buf:bytes) : state =
     let write_s = {st.write with hs_buffer = buf} in
     {st with write = write_s}
 
+let updateOutgoingAlertBuffer (st:state) (buf:bytes) : state =
+    let write_s = {st.write with alert_buffer = buf} in
+    {st with write = write_s}
+
 (* Get fragment length depending on the fragmentation policy *)
 let fs_of_fp fp =
     match fp with
