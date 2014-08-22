@@ -13,6 +13,7 @@ open FlexTypes
 open FlexConstants
 open FlexHandshake
 
+(* TODO : check when we should update the state with the next security context *)
 
 
 type FlexFinished = 
@@ -36,30 +37,15 @@ type FlexFinished =
 
 
     (* Send Finished message to the network stream *)
-    static member send (st:state, nsc:nextSecurityContext, ?off:FFinished) : state * FFinished =
+    static member send (st:state, ?off:FFinished, ?ofp:fragmentationPolicy) : state * FFinished =
     
-        let ns = st.ns in
-        let si = nsc.si in
+        (* TODO : check that ServerHelloDone doesn't update the nextSecurityContext *)
         let ff = defaultArg off nullFFinished in
-
-        let msgb = messageBytes HT_finished ff.verify_data in
-        let len = length msgb in
-        let rg : Range.range = (len,len) in
-
-        let id = TLSInfo.id st.write.epoch in
-        let frag = TLSFragment.fragment id Handshake rg msgb in
-        let nst,b = Record.recordPacketOut st.write.epoch st.write.record si.protocol_version rg Handshake frag in
-        let wst = {st.write with record = nst} in
-        let st = {st with write = wst} in
-
-        let ff = {  ff with 
-                    verify_data = msgb;
-                    payload = b;
-                 } in
-
-        match Tcp.write ns b with
-        | Error(x) -> failwith x
-        | Correct() -> st,ff
+        let fp = defaultArg ofp defaultFragmentationPolicy in
+        let st = FlexHandshake.send(st,HT_finished,ff.verify_data,fp) in
+        (* !!! BB !!! should be payload = payload but here we don't have it back, and message bytes *)
+        let ff = {nullFFinished with payload = empty_bytes} in
+        st,ff
 
     end
     

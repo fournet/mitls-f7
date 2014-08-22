@@ -88,10 +88,10 @@ type FlexServerHello =
         
         
     (* Send a ServerHello message to the network stream *)
-    static member send (st:state, ?onsc:nextSecurityContext, ?ofsh:FServerHello) : state * nextSecurityContext * FServerHello =
+    static member send (st:state, ?onsc:nextSecurityContext, ?ofsh:FServerHello, ?ofp:fragmentationPolicy) : state * nextSecurityContext * FServerHello =
     
         let ns = st.ns in
-
+        let fp = defaultArg ofp defaultFragmentationPolicy in
         let fsh = defaultArg ofsh nullFServerHello in
         let nsc = defaultArg onsc nullNextSecurityContext in
         let si = nsc.si in
@@ -99,20 +99,11 @@ type FlexServerHello =
         let fsh,si = fillFServerHelloANDSi fsh si in
 
         let msgb = HandshakeMessages.serverHelloBytes si fsh.rand fsh.ext in
-        let len = length msgb in
-        let rg : Range.range = (len,len) in
+        let st = FlexHandshake.send(st,HT_server_hello,msgb,fp) in
+        let nsc = { nsc with si = si } in
+        (* !!! BB !!! should be payload = payload but here we don't have it back, we only have access to the message bytes *)
+        let fsh = { fsh with payload = msgb } in
+        st,nsc,fsh
 
-        let id = TLSInfo.id st.write.epoch in
-        let frag = TLSFragment.fragment id Handshake rg msgb in
-        let nst,b = Record.recordPacketOut st.write.epoch st.write.record fsh.pv rg Handshake frag in
-        let wst = {st.write with record = nst} in
-        let st = {st with write = wst} in
-   
-        let nsc = { nullNextSecurityContext with si = si } in
-        let fsh = { fsh with payload = b } in
-
-        match Tcp.write ns b with
-        | Error(x) -> failwith x
-        | Correct() -> (st,nsc,fsh)
 
     end

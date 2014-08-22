@@ -124,31 +124,22 @@ type FlexClientHello =
  
 
     (* Send a ClientHello message to the network stream *)
-    static member send (st:state, ?ofch:FClientHello, ?ocfg:config) : state * nextSecurityContext * FClientHello =
+    static member send (st:state, ?ofch:FClientHello, ?ocfg:config, ?ofp:fragmentationPolicy) : state * nextSecurityContext * FClientHello =
 
         let ns = st.ns in
-
+        let fp = defaultArg ofp defaultFragmentationPolicy in
         let fch = defaultArg ofch nullFClientHello in
         let cfg = defaultArg ocfg defaultConfig in
         
         let fch,cfg = fillFClientHelloANDConfig fch cfg in
 
         let msgb = HandshakeMessages.clientHelloBytes cfg fch.rand fch.sid fch.ext in
-        let len = length msgb in
-        let rg : Range.range = (len,len) in
-
-        let id = TLSInfo.id st.write.epoch in
-        let frag = TLSFragment.fragment id Handshake rg msgb in
-        let (nst, b) = Record.recordPacketOut st.write.epoch st.write.record fch.pv rg Handshake frag in
-        let wst = {st.write with record = nst} in
-        let st = {st with write = wst} in
-
+        let st = FlexHandshake.send(st,HT_client_hello,msgb,fp) in
+        (* TODO : How should we deal with nextSecurityContext depending in IsInitEpoch ? *)
         let si  = { nullFSessionInfo with init_crand = fch.rand } in
         let nsc = { nullNextSecurityContext with si = si } in
-        let fch = { fch with payload = b } in
-
-        match Tcp.write ns b with
-        | Error(x) -> failwith x
-        | Correct() -> (st,nsc,fch)
+        (* !!! BB !!! should be payload = payload but here we don't have it back, we only have access to the message bytes *)
+        let fch = { fch with payload = msgb } in
+        st,nsc,fch
     
     end

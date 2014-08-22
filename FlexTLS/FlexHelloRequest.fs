@@ -34,24 +34,14 @@ type FlexHelloRequest =
 
 
     (* Send HelloRequest message to the network stream *)
-    static member send (st:state) (nsc:nextSecurityContext) : state * FHelloRequest =
+    static member send (st:state, ?ofp:fragmentationPolicy) : state * FHelloRequest =
     
+        let fp = defaultArg ofp defaultFragmentationPolicy in
         let ns = st.ns in
-        let si = nsc.si in
-        let msgb = messageBytes HT_hello_request empty_bytes in
-        let len = length msgb in
-        let rg : Range.range = (len,len) in
 
-        let id = TLSInfo.id st.write.epoch in
-        let frag_out = TLSFragment.fragment id Handshake rg msgb in
-        let nst,b = Record.recordPacketOut st.write.epoch st.write.record si.protocol_version rg Handshake frag_out in
-        let wst = {st.write with record = nst} in
-        let st = {st with write = wst} in
+        let st = FlexHandshake.send(st,HT_hello_request,empty_bytes,fp) in
+        (* TODO : fill in the FHelloRequest and return it *)
+        st,nullFHelloRequest
 
-        let fhr = {nullFHelloRequest with payload = b} in
-
-        match Tcp.write ns b with
-        | Error(x) -> failwith x
-        | Correct() -> st,fhr
     
     end
