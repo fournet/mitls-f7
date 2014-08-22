@@ -10,7 +10,7 @@ open TLSInfo
 open TLSConstants
 
 open FlexTypes
-open FlexFragment
+open FlexRecord
 
 
 
@@ -21,7 +21,7 @@ type FlexHelloRequest =
     (* Receive an expected HelloRequest message from the network stream *)
     static member receive (st:state) : state * FHelloRequest = 
         
-        let st,hstype,payload,to_log = FlexFragment.getHSMessage(st) in
+        let st,hstype,payload,to_log = FlexRecord.getHSMessage(st) in
         match hstype with
         | HT_hello_request  ->         
             if length payload <> 0 then

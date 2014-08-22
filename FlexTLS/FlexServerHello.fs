@@ -14,7 +14,7 @@ open TLSExtensions
 open HandshakeMessages
 
 open FlexTypes
-open FlexFragment
+open FlexRecord
 
 
 
@@ -58,7 +58,7 @@ type FlexServerHello =
         
         let nsc = defaultArg onsc nullNextSecurityContext in
         let si = nsc.si in
-        let st,hstype,payload,to_log = FlexFragment.getHSMessage(st) in
+        let st,hstype,payload,to_log = FlexRecord.getHSMessage(st) in
         match hstype with
         | HT_server_hello  ->    
             (match parseServerHello payload with

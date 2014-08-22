@@ -7,7 +7,7 @@ open Error
 open TLSInfo
 open TLSError
 open FlexTypes
-open FlexFragment
+open FlexRecord
 
 
 
@@ -18,7 +18,7 @@ type FlexAlert =
     (* Receive an expected ServerHelloDone message from the network stream *)
     static member receive (st:state) : state * alertDescription =
         
-        FlexFragment.getAlertMessage(st)
+        FlexRecord.getAlertMessage(st)
 
     (*
     (* Send ServerHelloDone message to the network stream *)

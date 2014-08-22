@@ -10,7 +10,7 @@ open TLSConstants
 open HandshakeMessages
 
 open FlexTypes
-open FlexFragment
+open FlexRecord
 
 
 
@@ -21,7 +21,7 @@ type FlexServerHelloDone =
     (* Receive an expected ServerHelloDone message from the network stream *)
     static member receive (st:state) : state * FServerHelloDone =
         
-        let st,hstype,payload,to_log = FlexFragment.getHSMessage(st) in
+        let st,hstype,payload,to_log = FlexRecord.getHSMessage(st) in
         match hstype with
         | HT_server_hello_done  -> 
             if length payload <> 0 then

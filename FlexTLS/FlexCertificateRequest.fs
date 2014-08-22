@@ -10,7 +10,7 @@ open TLSConstants
 open HandshakeMessages
 
 open FlexTypes
-open FlexFragment
+open FlexRecord
 
 (* TODO : Complete FCertificateRequest type and nullFCertificateRequest constructor before continuing *)
 
@@ -24,7 +24,7 @@ type FlexCertificateRequest =
     
         let si = nsc.si in
         let buf = st.read_s.buffer in
-        let st,hstypeb,len,payload,to_log,buf = FlexFragment.getHSMessage st buf in
+        let st,hstypeb,len,payload,to_log,buf = FlexRecord.getHSMessage st buf in
     
         match parseHt hstypeb with
         | Error (ad,x) -> failwith x

@@ -1,6 +1,6 @@
 ﻿#light "off"
 
-module FlexFragment
+module FlexRecord
 
 open Tcp
 open Bytes
@@ -34,7 +34,7 @@ let updateOutgoingRecord (st:state) (outgoing:Record.sendState) : state =
 
 
 
-type FlexFragment = 
+type FlexRecord = 
     class
 
     (* Read a record fragment header to get ContentType, ProtocolVersion and Length of the fragment *)
@@ -83,15 +83,15 @@ type FlexFragment =
     static member getHSMessage st =
         let ns = st.ns in
         let buf = st.read.hs_buffer in
-        match FlexFragment.parseHSMessage buf with
+        match FlexRecord.parseHSMessage buf with
         | Error(_) ->
-            (let ct,pv,len = FlexFragment.parseFragmentHeader st in
+            (let ct,pv,len = FlexRecord.parseFragmentHeader st in
             match ct with
             | Handshake -> 
-                let st,b = FlexFragment.getFragmentContent (st, ct, len) in
+                let st,b = FlexRecord.getFragmentContent (st, ct, len) in
                 let buf = buf @| b in
                 let st = updateIncomingHSBuffer st buf in
-                FlexFragment.getHSMessage st
+                FlexRecord.getHSMessage st
             | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "Unexpected content type"))
         | Correct(hst,payload,to_log,rem) ->
                 let st = updateIncomingHSBuffer st rem in
@@ -102,13 +102,13 @@ type FlexFragment =
         let ns = st.ns in
         let buf = st.read.alert_buffer in
         if length buf < 2 then
-            let ct,pv,len = FlexFragment.parseFragmentHeader st in
+            let ct,pv,len = FlexRecord.parseFragmentHeader st in
             match ct with
             | Alert -> 
-                let st,b = FlexFragment.getFragmentContent (st, ct, len) in
+                let st,b = FlexRecord.getFragmentContent (st, ct, len) in
                 let buf = buf @| b in
                 let st = updateIncomingAlertBuffer st buf in
-                FlexFragment.getAlertMessage st
+                FlexRecord.getAlertMessage st
             | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "Unexpected content type")
         else
             let alb,rem = Bytes.split buf 2 in
