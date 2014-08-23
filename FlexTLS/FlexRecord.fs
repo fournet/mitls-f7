@@ -111,9 +111,10 @@ type FlexRecord =
         | Error x -> failwith x
         | Correct() -> 
             if rem = empty_bytes then
-                FlexRecord.sendSpecific(ns,e,k,ct,rem,fp)
-            else
                 (k,rem)
+            else
+                FlexRecord.sendSpecific(ns,e,k,ct,rem,fp)
+                
 
     (* Send 2 *)
     static member send (st:state, ct:ContentType, ?ofp:fragmentationPolicy) : state =

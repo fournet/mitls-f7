@@ -63,7 +63,9 @@ type FlexHandshake =
     (* Send handshake message *)
     static member send (st:state, hstype:HandshakeType, msgPayload:bytes, ?ofp:fragmentationPolicy) : state =
         let fp = defaultArg ofp defaultFragmentationPolicy in
-        let payload = FlexHandshake.makeHeader(hstype,msgPayload) in
+        (* FIXME : HSMessageBytes invoke messageBytes that already prepend the Header to the msgPayload*)
+        (* let payload = FlexHandshake.makeHeader(hstype,msgPayload) in *)
+        let payload = msgPayload in
         let buf = st.write.hs_buffer @| payload in
         let st = FlexRecord.updateOutgoingHSBuffer st buf in
         FlexRecord.send(st,Handshake,fp)
