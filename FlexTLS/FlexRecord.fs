@@ -10,35 +10,10 @@ open TLSConstants
 
 open FlexTypes
 open FlexConstants
+open FlexState
 
 
 
-
-(* Update incoming record state *)
-let updateIncomingRecord (st:state) (incoming:Record.recvState) : state =
-    let read_s = {st.read with record = incoming} in
-    {st with read = read_s}
-
-let updateIncomingHSBuffer (st:state) (buf:bytes) : state =
-    let read_s = {st.read with hs_buffer = buf} in
-    {st with read = read_s}
-
-let updateIncomingAlertBuffer (st:state) (buf:bytes) : state =
-    let read_s = {st.read with alert_buffer = buf} in
-    {st with read = read_s}
-
-(* Update outgoing record state *)
-let updateOutgoingRecord (st:state) (outgoing:Record.sendState) : state =
-    let write_s = {st.write with record = outgoing} in
-    {st with write = write_s}
-
-let updateOutgoingHSBuffer (st:state) (buf:bytes) : state =
-    let write_s = {st.write with hs_buffer = buf} in
-    {st with write = write_s}
-
-let updateOutgoingAlertBuffer (st:state) (buf:bytes) : state =
-    let write_s = {st.write with alert_buffer = buf} in
-    {st with write = write_s}
 
 (* Get fragment length depending on the fragmentation policy *)
 let fs_of_fp fp =
@@ -81,7 +56,7 @@ type FlexRecord =
             match Record.recordPacketIn st.read.epoch st.read.record ct payload with
             | Error (ad,x)  -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct (rec_in,rg,frag)  ->
-                let st = updateIncomingRecord st rec_in in
+                let st = FlexState.updateIncomingRecord st rec_in in
                 let id = TLSInfo.id st.read.epoch in
                 let b = TLSFragment.reprFragment id ct rg frag in
                 (st,b)
@@ -110,21 +85,25 @@ type FlexRecord =
         match Tcp.write ns b with
         | Error x -> failwith x
         | Correct() -> 
-            if rem = empty_bytes then
-                (k,rem)
-            else
-                FlexRecord.sendSpecific(ns,e,k,ct,rem,fp)
+            match fp with
+            | All(fs) -> 
+                if rem = empty_bytes then
+                    (k,rem)
+                else
+                    FlexRecord.sendSpecific(ns,e,k,ct,rem,fp)
+            | One(fs) -> (k,rem)
+                
                 
 
-    (* Send 2 *)
+    (* Send genric method based on content type and state *)
     static member send (st:state, ct:ContentType, ?ofp:fragmentationPolicy) : state =
         
         let fp = defaultArg ofp defaultFragmentationPolicy in
 
         let payload = pickCTBuffer st.write ct in
         let k,rem = FlexRecord.sendSpecific(st.ns,st.write.epoch,st.write.record,ct,payload,fp) in
-        let st = updateOutgoingHSBuffer st rem in
-        let st = updateOutgoingRecord st k in
+        let st = FlexState.updateOutgoingHSBuffer st rem in
+        let st = FlexState.updateOutgoingRecord st k in
         (st)
 
     end

@@ -8,8 +8,9 @@ open TLSConstants
 open HandshakeMessages
 
 open FlexTypes
-open FlexRecord
 open FlexConstants
+open FlexState
+open FlexRecord
 
 
 
@@ -53,11 +54,11 @@ type FlexHandshake =
             | Handshake -> 
                 let st,b = FlexRecord.getFragmentContent (st, ct, len) in
                 let buf = buf @| b in
-                let st = updateIncomingHSBuffer st buf in
+                let st = FlexState.updateIncomingHSBuffer st buf in
                 FlexHandshake.getHSMessage st
             | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "Unexpected content type"))
         | Correct(hst,payload,to_log,rem) ->
-                let st = updateIncomingHSBuffer st rem in
+                let st = FlexState.updateIncomingHSBuffer st rem in
                 (st,hst,payload,to_log)
 
     (* Send handshake message *)
@@ -67,7 +68,7 @@ type FlexHandshake =
         (* let payload = FlexHandshake.makeHeader(hstype,msgPayload) in *)
         let payload = msgPayload in
         let buf = st.write.hs_buffer @| payload in
-        let st = FlexRecord.updateOutgoingHSBuffer st buf in
+        let st = FlexState.updateOutgoingHSBuffer st buf in
         FlexRecord.send(st,Handshake,fp)
 
     end

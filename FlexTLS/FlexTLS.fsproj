@@ -45,6 +45,7 @@
   <ItemGroup>
     <Compile Include="FlexTypes.fs" />
     <Compile Include="FlexConstants.fs" />
+    <Compile Include="FlexState.fs" />
     <Compile Include="FlexConnection.fs" />
     <Compile Include="FlexRecord.fs" />
     <Compile Include="FlexHandshake.fs" />

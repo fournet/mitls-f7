@@ -11,6 +11,7 @@ open TLSConstants
 
 open FlexTypes
 open FlexConstants
+open FlexState
 open FlexRecord
 
 
@@ -30,7 +31,7 @@ type FlexAlert =
             | Alert -> 
                 let st,b = FlexRecord.getFragmentContent (st, ct, len) in
                 let buf = buf @| b in
-                let st = updateIncomingAlertBuffer st buf in
+                let st = FlexState.updateIncomingAlertBuffer st buf in
                 FlexAlert.receive st
             | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "Unexpected content type")
         else
@@ -38,7 +39,7 @@ type FlexAlert =
             match Alert.parseAlert alb with
             | Error(ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct(ad) ->
-                let st = updateIncomingAlertBuffer st rem in
+                let st = FlexState.updateIncomingAlertBuffer st rem in
                 (st,ad)
 
     (* Send alert message *)
@@ -47,7 +48,7 @@ type FlexAlert =
         let msgPayload = defaultArg omsgPayload adPayload in
         let fp = defaultArg ofp defaultFragmentationPolicy in
         let buf = st.write.alert_buffer @| msgPayload in
-        let st = FlexRecord.updateOutgoingAlertBuffer st buf in
+        let st = FlexState.updateOutgoingAlertBuffer st buf in
         FlexRecord.send(st,Alert,fp)
     
     end
