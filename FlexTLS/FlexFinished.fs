@@ -13,7 +13,7 @@ open FlexTypes
 open FlexConstants
 open FlexHandshake
 
-(* TODO : check when we should update the state with the next security context *)
+// TODO : check when we should update the state with the next security context 
 
 
 type FlexFinished = 
@@ -39,11 +39,11 @@ type FlexFinished =
     (* Send Finished message to the network stream *)
     static member send (st:state, ?ff:FFinished, ?fp:fragmentationPolicy) : state * FFinished =
     
-        (* TODO : check that ServerHelloDone doesn't update the nextSecurityContext *)
+        // TODO : check that ServerHelloDone doesn't update the nextSecurityContext
         let ff = defaultArg ff nullFFinished in
         let fp = defaultArg fp defaultFragmentationPolicy in
         let st = FlexHandshake.send(st,HT_finished,ff.verify_data,fp) in
-        (* !!! BB !!! should be payload = payload but here we don't have it back, and message bytes *)
+        // FIXME : should be payload = payload but here we don't have it back, and message bytes
         let ff = {nullFFinished with payload = empty_bytes} in
         st,ff
 

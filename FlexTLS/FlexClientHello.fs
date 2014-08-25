@@ -25,7 +25,7 @@ open FlexHandshake
 let fillFClientHelloANDConfig (fch:FClientHello) (cfg:config) : FClientHello * config =
     
     (* pv = Is there some pv ? If no, check config maxVer *)
-    (* !!! BB !!! : There is a corner case when the user sets fch pv to default because it should have priority over cfg.maxVer *)
+    // FIXME : There is a corner case when the user sets fch pv to default because it should have priority over cfg.maxVer
     let pv =
         match fch.pv = nullFClientHello.pv with
         | false -> fch.pv
@@ -43,7 +43,7 @@ let fillFClientHelloANDConfig (fch:FClientHello) (cfg:config) : FClientHello * c
     let sid = fch.sid in
     
     (* suites = Is there some ? If no, check config *)
-    (* !!! BB !!! : There is a corner case when the user sets fch suites to default because it should have priority over cfg.ciphersuites *)
+    // FIXME : There is a corner case when the user sets fch suites to default because it should have priority over cfg.ciphersuites
     let suites =
         match fch.suites = nullFClientHello.suites with
         | false -> fch.suites
@@ -51,7 +51,7 @@ let fillFClientHelloANDConfig (fch:FClientHello) (cfg:config) : FClientHello * c
     in
 
     (* comps = Is there some ? If no, check config *)
-    (* !!! BB !!! : There is a corner case when the user sets fch comps to default because it should have priority over cfg.compressions *)
+    // FIXME : There is a corner case when the user sets fch comps to default because it should have priority over cfg.compressions
     let comps =
         match fch.comps = nullFClientHello.comps with
         | false -> fch.comps
@@ -147,10 +147,10 @@ type FlexClientHello =
 
         let msgb = HandshakeMessages.clientHelloBytes cfg fch.rand fch.sid fch.ext in
         let st = FlexHandshake.send(st,HT_client_hello,msgb,fp) in
-        (* TODO : How should we deal with nextSecurityContext depending in IsInitEpoch ? *)
+        // TODO : How should we deal with nextSecurityContext depending in IsInitEpoch ?
         let si  = { nullFSessionInfo with init_crand = fch.rand } in
         let nsc = { nullNextSecurityContext with si = si } in
-        (* !!! BB !!! should be payload = payload but here we don't have it back, we only have access to the message bytes *)
+        // FIXME : should be payload = payload but here we don't have it back, we only have access to the message bytes
         let fch = { fch with payload = msgb } in
         st,nsc,fch
     

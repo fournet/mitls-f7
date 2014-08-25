@@ -66,7 +66,7 @@ type FlexRecord =
         
         let fp = defaultArg fp defaultFragmentationPolicy in
         
-        (* TODO : Here the user cannot choose the ProtocolVersion if it is an initEpoch, default is set by force while it shouldn't be the case *)
+        // TODO : Here the user cannot choose the ProtocolVersion if it is an initEpoch, default is set by force while it shouldn't be the case
         let pv = 
             if TLSInfo.isInitEpoch e then
                 epoch_init_pv

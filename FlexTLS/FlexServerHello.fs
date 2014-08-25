@@ -113,7 +113,7 @@ type FlexServerHello =
         let msgb = HandshakeMessages.serverHelloBytes si fsh.rand fsh.ext in
         let st = FlexHandshake.send(st,HT_server_hello,msgb,fp) in
         let nsc = { nsc with si = si } in
-        (* !!! BB !!! should be payload = payload but here we don't have it back, we only have access to the message bytes *)
+        // FIXME : should be payload = payload but here we don't have it back, we only have access to the message bytes
         let fsh = { fsh with payload = msgb } in
         st,nsc,fsh
 

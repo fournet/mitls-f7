@@ -13,7 +13,7 @@ open FlexTypes
 open FlexConstants
 open FlexRecord
 
-(* TODO : Complete FCertificateRequest type and nullFCertificateRequest constructor before continuing *)
+// TODO : Complete FCertificateRequest type and nullFCertificateRequest constructor before continuing
 
 
 type FlexCertificateRequest =

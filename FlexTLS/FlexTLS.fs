@@ -28,8 +28,7 @@ type FlexTLS =
         | Client -> FlexConnection.clientOpenTcpConnection (address,cn,port)
         | Server -> FlexConnection.serverOpenTcpConnection (address,cn,port)
 
-    (* TODO : Create top-level functions here like doFullHandshake or doAbreviatedHandshake that
-              use the lower level functions of FlexClientHello, FlexServerHello ... etc... *)
+    // TODO : Create top-level functions here like doFullHandshake or doAbreviatedHandshake that use the lower level functions of FlexClientHello, FlexServerHello ... etc...
 
 
     (* Run a full Handshake *)
