@@ -25,10 +25,10 @@ let _ =
     let sms = nullFHSMessages in
 
     (* Establish a Tcp connection to a peer by listening or sending on a socket *)
-    let st,cfg = FlexTLS.openConnection (Client,"128.93.189.207","prosecco.fr",4433) in
+    let st,cfg = FlexTLS.openConnection (Client,"www.inria.fr") in
 
     (* Ready for handshake using either one of the top-level APIs or the Flex|Message| methods *)
-    let st = FlexAttacks.runAlertPlaintextAttack st in 
+    let st,nsc,sms = FlexTLS.fullHandshake Client st in 
 
     (* Ready for application data *)
     printf "Ready for application data !\n";
