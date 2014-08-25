@@ -43,10 +43,10 @@ type FlexAlert =
                 (st,ad)
 
     (* Send alert message *)
-    static member send (st:state, ad:alertDescription, ?omsgPayload:bytes, ?ofp:fragmentationPolicy) : state =
+    static member send (st:state, ad:alertDescription, ?msgPayload:bytes, ?fp:fragmentationPolicy) : state =
         let adPayload = alertBytes ad in
-        let msgPayload = defaultArg omsgPayload adPayload in
-        let fp = defaultArg ofp defaultFragmentationPolicy in
+        let msgPayload = defaultArg msgPayload adPayload in
+        let fp = defaultArg fp defaultFragmentationPolicy in
         let buf = st.write.alert_buffer @| msgPayload in
         let st = FlexState.updateOutgoingAlertBuffer st buf in
         FlexRecord.send(st,Alert,fp)

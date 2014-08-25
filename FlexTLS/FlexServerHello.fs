@@ -65,9 +65,9 @@ type FlexServerHello =
     class
 
     (* Receive a ServerHello message from the network stream *)
-    static member receive (st:state, ?onsc:nextSecurityContext) : state * nextSecurityContext * FServerHello =
+    static member receive (st:state, ?nsc:nextSecurityContext) : state * nextSecurityContext * FServerHello =
         
-        let nsc = defaultArg onsc nullNextSecurityContext in
+        let nsc = defaultArg nsc nullNextSecurityContext in
         let si = nsc.si in
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
@@ -99,12 +99,12 @@ type FlexServerHello =
         
         
     (* Send a ServerHello message to the network stream *)
-    static member send (st:state, ?onsc:nextSecurityContext, ?ofsh:FServerHello, ?ofp:fragmentationPolicy) : state * nextSecurityContext * FServerHello =
+    static member send (st:state, ?nsc:nextSecurityContext, ?fsh:FServerHello, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerHello =
     
         let ns = st.ns in
-        let fp = defaultArg ofp defaultFragmentationPolicy in
-        let fsh = defaultArg ofsh nullFServerHello in
-        let nsc = defaultArg onsc nullNextSecurityContext in
+        let fp = defaultArg fp defaultFragmentationPolicy in
+        let fsh = defaultArg fsh nullFServerHello in
+        let nsc = defaultArg nsc nullNextSecurityContext in
         let si = nsc.si in
 
         let fsh,si = fillFServerHelloANDSi fsh si in

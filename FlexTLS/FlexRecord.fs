@@ -48,7 +48,7 @@ type FlexRecord =
             | Correct(res) -> res
 
     (* Reads and decrypts a fragment. Return the updated (decryption) state and the decrypted plaintext *)
-    static member getFragmentContent (st:state,ct:ContentType,len:int) : state * bytes = 
+    static member getFragmentContent (st:state, ct:ContentType, len:int) : state * bytes = 
         let ns = st.ns in
         match Tcp.read ns len with
         | Error x         -> failwith (perror __SOURCE_FILE__ __LINE__ x)
@@ -62,9 +62,9 @@ type FlexRecord =
                 (st,b)
 
     (* Send data over the network after encrypting a record depending on the fragmentation policy *)
-    static member sendSpecific (ns:NetworkStream, e:epoch, k:Record.ConnectionState, ct:ContentType, payload:bytes, ?ofp:fragmentationPolicy) : Record.ConnectionState * bytes =
+    static member sendSpecific (ns:NetworkStream, e:epoch, k:Record.ConnectionState, ct:ContentType, payload:bytes, ?fp:fragmentationPolicy) : Record.ConnectionState * bytes =
         
-        let fp = defaultArg ofp defaultFragmentationPolicy in
+        let fp = defaultArg fp defaultFragmentationPolicy in
         
         (* TODO : Here the user cannot choose the ProtocolVersion if it is an initEpoch, default is set by force while it shouldn't be the case *)
         let pv = 
@@ -96,9 +96,9 @@ type FlexRecord =
                 
 
     (* Send genric method based on content type and state *)
-    static member send (st:state, ct:ContentType, ?ofp:fragmentationPolicy) : state =
+    static member send (st:state, ct:ContentType, ?fp:fragmentationPolicy) : state =
         
-        let fp = defaultArg ofp defaultFragmentationPolicy in
+        let fp = defaultArg fp defaultFragmentationPolicy in
 
         let payload = pickCTBuffer st.write ct in
         let k,rem = FlexRecord.sendSpecific(st.ns,st.write.epoch,st.write.record,ct,payload,fp) in

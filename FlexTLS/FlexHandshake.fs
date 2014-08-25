@@ -18,8 +18,8 @@ type FlexHandshake =
     class
 
     (* Make header bytes for a defined HandshakeType and prepend it to a content *)
-    static member makeHeader (hstype:HandshakeType, ?odata:bytes) : bytes =
-        let data = defaultArg odata empty_bytes in
+    static member makeHeader (hstype:HandshakeType, ?data:bytes) : bytes =
+        let data = defaultArg data empty_bytes in
         let htb = htBytes hstype in
         let vldata = vlbytes 3 data in
         htb @| vldata 
@@ -62,8 +62,8 @@ type FlexHandshake =
                 (st,hst,payload,to_log)
 
     (* Send handshake message *)
-    static member send (st:state, hstype:HandshakeType, msgPayload:bytes, ?ofp:fragmentationPolicy) : state =
-        let fp = defaultArg ofp defaultFragmentationPolicy in
+    static member send (st:state, hstype:HandshakeType, msgPayload:bytes, ?fp:fragmentationPolicy) : state =
+        let fp = defaultArg fp defaultFragmentationPolicy in
         (* FIXME : HSMessageBytes invoke messageBytes that already prepend the Header to the msgPayload*)
         (* let payload = FlexHandshake.makeHeader(hstype,msgPayload) in *)
         let payload = msgPayload in

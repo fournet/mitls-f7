@@ -34,9 +34,9 @@ type FlexHelloRequest =
 
 
     (* Send HelloRequest message to the network stream *)
-    static member send (st:state, ?ofp:fragmentationPolicy) : state * FHelloRequest =
+    static member send (st:state, ?fp:fragmentationPolicy) : state * FHelloRequest =
     
-        let fp = defaultArg ofp defaultFragmentationPolicy in
+        let fp = defaultArg fp defaultFragmentationPolicy in
         let ns = st.ns in
 
         let st = FlexHandshake.send(st,HT_hello_request,empty_bytes,fp) in

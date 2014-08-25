@@ -135,12 +135,12 @@ type FlexClientHello =
  
 
     (* Send a ClientHello message to the network stream *)
-    static member send (st:state, ?ofch:FClientHello, ?ocfg:config, ?ofp:fragmentationPolicy) : state * nextSecurityContext * FClientHello =
+    static member send (st:state, ?fch:FClientHello, ?cfg:config, ?fp:fragmentationPolicy) : state * nextSecurityContext * FClientHello =
 
         let ns = st.ns in
-        let fp = defaultArg ofp defaultFragmentationPolicy in
-        let fch = defaultArg ofch nullFClientHello in
-        let cfg = defaultArg ocfg defaultConfig in
+        let fp = defaultArg fp defaultFragmentationPolicy in
+        let fch = defaultArg fch nullFClientHello in
+        let cfg = defaultArg cfg defaultConfig in
         
         let fch,cfg = fillFClientHelloANDConfig fch cfg in
         let st = fillStateEpochInitPvIFIsEpochInit st fch in
