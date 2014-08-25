@@ -176,7 +176,10 @@ let certificateListBytes (certs: chain) : bytes =
     failwith "unverified" 
 
 let parseCertificateListInt (toProcess:bytes) (list:chain) : Result<chain> = 
-    failwith "unverified" 
+    failwith "unverified"
+
+let parseCertificateList (toProcess:bytes): Result<chain> =
+    failwith "unverified"
 #else
 let certificateListBytes certs =
     let unfolded = List.foldBack consCertificateBytes certs empty_bytes in

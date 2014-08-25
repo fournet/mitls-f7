@@ -11,6 +11,7 @@ type g   = bytes
 type q   = bytes
 
 type preds = Elt of p * g * elt
+type predPP = PP of p * g
 
 let dhparams p g q: CoreKeys.dhparams = { p = p; g = g; q = q }
 
@@ -23,9 +24,10 @@ let genElement p g q: elt =
 
 let checkElement (p:p) (g:g) (b:bytes): option<elt> =
     if CoreDH.check_element p g b then
+        (
 #if verify
         Pi.assume(Elt(p,g,b));
 #endif
-        Some(b)
+        Some(b))
     else
         None

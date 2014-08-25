@@ -9,10 +9,6 @@ open TLSInfo
 open TLSConstants
 open Range
 
-#if verify
-type preds = | CipherRange of id * range * nat
-#endif
-
 type plain
 val plain: id -> LHAEPlain.adata -> nat -> bytes -> plain
 val repr:  id -> LHAEPlain.adata -> range -> plain -> bytes

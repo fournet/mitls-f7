@@ -33,6 +33,7 @@ let keyExtensionLength aeAlg =
             let msize = macKeySize macAlg in 
             2 * msize
 #if verify
+        | AEAD(_,_) -> failwith "currently not fully implemented or verified"
 #else 
 (* AEAD currently not fully implemented or verified *)               
         | AEAD(cAlg,_) ->
@@ -77,6 +78,7 @@ let deriveRawKeys (i:id) (ms:ms)  =
             let sk = (smkb @| sekb @| sivb) in
             (ck,sk))
 #if verify
+        | AEAD(_,_) -> failwith "currently not fully implemented or verified"
 #else 
 (* AEAD currently not fully implemented or verified *)
     | AEAD(encAlg,prf) ->
@@ -258,13 +260,13 @@ let makeVerifyData si (ms:masterSecret) role data =
   #if ideal
   //if safeVD si then  //MK rename predicate and function
   let i = msi si in
-  let msdataoption = assoc role tag !log
+  let msdataoption = assoc role tag !log in
   let msdata = (i,data) in
   if msdataoption<>None && msdataoption<>Some(msdata) then
-    failwith "collision";
+    failwith "collision"
   else
     Pi.assume(MakeVerifyData(i, role, data, tag));
-    log := (i,role,data,tag)::!log
+    log := (i,role,data,tag)::!log;
   #endif
     tag
 

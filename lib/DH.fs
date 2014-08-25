@@ -97,13 +97,13 @@ let clientGenExp p g gs =
       match assoc p g gs gc !log with
       | Some(pms) -> (gc,c,pms)
       | None -> 
-                 let pms=PMS.sampleDH p g gs gc
+                 let pms=PMS.sampleDH p g gs gc in
                  log := (p,g,gs,gc,pms)::!log;
                  (gc,c,pms)
     else 
-      Pi.assume(DHGroup.Elt(p,g,pms)); //use checkElement instead
+      (Pi.assume(DHGroup.Elt(p,g,pms)); //use checkElement instead
       let dpms = PMS.coerceDH p g gs gc pms in
-      (gc,c, dpms)
+      (gc,c, dpms))
     //#end-ideal 
     #else
     let dpms = PMS.coerceDH p g gs gc pms in
@@ -124,9 +124,9 @@ let serverExp p g gs gc sk =
                  log := (p,g,gs,gc,pms)::!log;
                  pms
     else
-      Pi.assume(DHGroup.Elt(p,g,pms)); //use checkElement instead
+      (Pi.assume(DHGroup.Elt(p,g,pms)); //use checkElement instead
       let dpms = PMS.coerceDH p g gs gc pms in
-      dpms
+      dpms)
     //#end-ideal
     #else
     let dpms = PMS.coerceDH p g gs gc pms in

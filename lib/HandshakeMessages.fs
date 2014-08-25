@@ -135,11 +135,41 @@ type sVerifyData = bytes (* ServerFinished payload *)
 
 type chello = | ClientHelloMsg of (bytes * ProtocolVersion * random * sessionID * cipherSuites * list<Compression> * bytes)
 
-type preds = ServerLogBeforeClientCertificateVerifyRSA of SessionInfo * bytes
-            |ServerLogBeforeClientCertificateVerify of SessionInfo * bytes
-            |ServerLogBeforeClientCertificateVerifyDHE of SessionInfo * bytes
-            |ServerLogBeforeClientFinished of SessionInfo * bytes
-            |UpdatesClientAuth of SessionInfo * SessionInfo
+#if verify
+type preds =
+    | ServerLogBeforeClientCertificateVerifyRSA of SessionInfo * bytes
+    | ServerLogBeforeClientCertificateVerify of SessionInfo * bytes
+    | ServerLogBeforeClientCertificateVerifyDHE of SessionInfo * bytes
+    | ServerLogBeforeClientFinished of SessionInfo * bytes
+    | UpdatesClientAuth of SessionInfo * SessionInfo
+    | ClientLogBeforeClientFinishedRSA_NoAuth of SessionInfo * log
+    | UpdatesPmsClientID of SessionInfo * SessionInfo
+    | ClientLogBeforeCertificateVerifyRSA_Auth of SessionInfo * log
+    | ClientLogBeforeClientFinishedRSA_TryNoAuth of SessionInfo * log
+    | ClientLogBeforeClientFinishedRSA_Auth of SessionInfo * log
+    | ClientLogBeforeCertificateVerifyDHE_Auth of SessionInfo * log
+    | ClientLogBeforeClientFinishedDHE_Auth of SessionInfo * log
+    | ClientLogBeforeClientFinishedDHE_TryNoAuth of SessionInfo * log
+    | ClientLogBeforeClientFinishedDHE_NoAuth of SessionInfo * log
+    | UpdatesServerSigAlg of SessionInfo * SessionInfo
+    | ClientLogBeforeServerHelloDoneRSA_NoAuth of SessionInfo * log
+    | ClientLogAfterServerHelloDoneRSA of SessionInfo * log
+    | ClientLogBeforeServerHelloDoneDHE_NoAuth of SessionInfo * log
+    | ClientLogAfterServerHelloDoneDHE of SessionInfo * log
+    | UpdatesPmsID of SessionInfo * SessionInfo
+    | UpdatesClientID of SessionInfo * SessionInfo
+    | UpdatesServerID of SessionInfo * SessionInfo
+    | ServerLogBeforeClientFinished_NoAuth of SessionInfo * log
+    | ServerLogBeforeClientCertificateDHE_NoAuth of SessionInfo * log
+    | ServerLogBeforeClientFinished_Auth of SessionInfo * log
+    | UpdatesClientSigAlg of SessionInfo * SessionInfo
+    | ServerLogBeforeClientCertificateRSA_NoAuth of SessionInfo * ProtocolVersion * log
+    | ServerLogBeforeClientCertificateDHE_Auth of SessionInfo * log
+    | ServerLogBeforeServerFinishedResume of crand * srand * SessionInfo * log
+    | ServerLogBeforeServerFinished of SessionInfo * log
+    | ServerLogBeforeClientKeyExchangeRSA_Auth of SessionInfo * ProtocolVersion * log
+    | ServerLogBeforeClientKeyExchangeDHE_Auth of SessionInfo * log
+#endif
 
 #if verify
 let popBytes i data =
@@ -564,6 +594,7 @@ let makeCertificateVerifyBytes si (ms:PRF.masterSecret) alg skey data =
         let mex = messageBytes HT_certificate_verify payload in
         (mex,tag)
 #if verify
+    | SSL_3p0 -> failwith "To improve"
 #else
     | SSL_3p0 ->
         let (sigAlg,_) = alg in

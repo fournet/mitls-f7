@@ -168,7 +168,7 @@ let rec cfind (e:id) (ad:LHAEPlain.adata) (c:cipher) (xs: list<entry>) : (range 
   match xs with
     | [] -> failwith "not found"
     | entry::res -> 
-        let (e',ad',rg, c',text)=entry
+        let (e',ad',rg, c',text) = entry in
         if e = e' && c = c' && ad = ad' then
             (rg,text)
         else cfind e ad c res
@@ -190,6 +190,7 @@ let ENC (ki:id) s ad rg data =
         createBytes tlen 0
       else
         Encode.repr ki ad rg data  //MK we may have only plaintext integrity in this case
+    in
     if authId (ki) then
       let (s,c) = ENC_int ki s tlen d in
       let l = length c in
