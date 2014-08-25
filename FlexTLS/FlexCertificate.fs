@@ -13,7 +13,7 @@ open FlexConstants
 open FlexHandshake
 
 
-(* TODO : Find another way to emmbed Role for FSessionInfo update *)
+// TODO : Find another way to emmbed Role for FSessionInfo update
 
 type FlexCertificate = 
     class
