@@ -103,9 +103,9 @@
     <WarningLevel>3</WarningLevel>
     <DocumentationFile>
     </DocumentationFile>
-    <OtherFlags>--mlcompatibility</OtherFlags>
-    <NoWarn>
-    </NoWarn>
+    <OtherFlags>
+    </OtherFlags>
+    <NoWarn>62</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -115,10 +115,10 @@
     <DefineConstants>TRACE;TLSExt_extendedPadding; TLSExt_sessionHash</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <DocumentationFile>bin\Release\lib.XML</DocumentationFile>
-    <NoWarn>
-    </NoWarn>
+    <NoWarn>62</NoWarn>
     <DebugSymbols>False</DebugSymbols>
-    <OtherFlags>--mlcompatibility</OtherFlags>
+    <OtherFlags>
+    </OtherFlags>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Ideal|AnyCPU' ">
     <DebugSymbols>False</DebugSymbols>
@@ -127,8 +127,8 @@
     <Tailcalls>False</Tailcalls>
     <DebugType>none</DebugType>
     <DocumentationFile />
-    <DefineConstants>ideal</DefineConstants>
-    <OtherFlags>--mlcompatibility</OtherFlags>
+    <DefineConstants>ideal; verify</DefineConstants>
+    <OtherFlags />
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath32)\FSharp\1.0\Microsoft.FSharp.Targets" Condition="!Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
   <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft F#\v4.0\Microsoft.FSharp.Targets" Condition=" Exists('$(MSBuildBinPath)\Microsoft.Build.Tasks.v4.0.dll')" />
