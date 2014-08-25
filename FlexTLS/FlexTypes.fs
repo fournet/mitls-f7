@@ -20,6 +20,7 @@ type fragmentationPolicy =
 type channel = {
     record: Record.ConnectionState;
     epoch:  TLSInfo.epoch;
+    epoch_init_pv: ProtocolVersion;
     hs_buffer: bytes;
     alert_buffer: bytes;
 }

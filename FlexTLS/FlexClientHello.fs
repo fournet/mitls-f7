@@ -15,6 +15,7 @@ open HandshakeMessages
 
 open FlexTypes
 open FlexConstants
+open FlexState
 open FlexHandshake
 
 
@@ -88,6 +89,15 @@ let fillFClientHelloANDConfig (fch:FClientHello) (cfg:config) : FClientHello * c
     in
     (fch,cfg)
 
+(* Update channel's Epoch Init Protocol version to the one chosen by the user if we are in an InitEpoch, else do nothing *)
+let fillStateEpochInitPvIFIsEpochInit (st:state) (fch:FClientHello) : state =
+    if TLSInfo.isInitEpoch st.read.epoch then
+        let st = FlexState.updateIncomingRecordEpochInitPV st fch.pv in
+        let st = FlexState.updateOutgoingRecordEpochInitPV st fch.pv in
+        st
+    else
+        st
+
 
 
 
@@ -118,6 +128,7 @@ type FlexClientHello =
                             payload = to_log;
                             } 
                 in
+                let st = fillStateEpochInitPvIFIsEpochInit st fch in
                 (st,nsc,fch)
             )
         | _ -> failwith "recvClientHello : Message type should be HT_client_hello"
@@ -132,6 +143,7 @@ type FlexClientHello =
         let cfg = defaultArg ocfg defaultConfig in
         
         let fch,cfg = fillFClientHelloANDConfig fch cfg in
+        let st = fillStateEpochInitPvIFIsEpochInit st fch in
 
         let msgb = HandshakeMessages.clientHelloBytes cfg fch.rand fch.sid fch.ext in
         let st = FlexHandshake.send(st,HT_client_hello,msgb,fp) in

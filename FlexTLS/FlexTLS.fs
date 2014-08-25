@@ -21,11 +21,12 @@ type FlexTLS =
     class
 
     (* Establish the TCP connection depending on the role and returning state (which includes the network stream) and configuration *)
-    static member openConnection (role:Role,address:string,?oport:int) : state * config =
-        let port = defaultArg oport FlexConnection.defaultPort in
+    static member openConnection (role:Role, address:string, ?cn:string, ?port:int) : state * config =
+        let port = defaultArg port FlexConnection.defaultPort in
+        let cn = defaultArg cn address in
         match role with
-        | Client -> FlexConnection.clientOpenTcpConnection (address, port)
-        | Server -> FlexConnection.serverOpenTcpConnection (address, port)
+        | Client -> FlexConnection.clientOpenTcpConnection (address,cn,port)
+        | Server -> FlexConnection.serverOpenTcpConnection (address,cn,port)
 
     (* TODO : Create top-level functions here like doFullHandshake or doAbreviatedHandshake that
               use the lower level functions of FlexClientHello, FlexServerHello ... etc... *)
