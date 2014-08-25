@@ -1455,9 +1455,9 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                     | None ->
 #endif
                                         // Resumption extension not supported by client. Proceed with full handshake
-                                        match startServerFull ci state cHello cExtL cvd svd log with
+                                        (match startServerFull ci state cHello cExtL cvd svd log with
                                         | Correct(v) -> let (state,pv) = v in recv_fragment_server ci state (somePV (pv))
-                                        | Error(z) -> let (x,y) = z in InError(x,y,state)
+                                        | Error(z) -> let (x,y) = z in InError(x,y,state))
 #if TLSExt_sessionHash
                                     | Some(true) ->
                                       (* Proceed with resumption *)

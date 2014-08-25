@@ -86,7 +86,7 @@ let alignedRange e (rg:range) =
     let authEnc = e.aeAlg in
     match authEnc with
     | MtE(enc,mac) ->
-        match enc with
+        (match enc with
         | Stream_RC4_128 ->
             let mp = minimalPadding e h in
             (l,h+mp)
@@ -95,7 +95,7 @@ let alignedRange e (rg:range) =
         let macLen = macSize mac in
         let prePad = h + macLen in
         let mp = minimalPadding e prePad in
-        (l,h+mp)
+        (l,h+mp))
     | MACOnly _ | AEAD(_,_) ->
         let mp = minimalPadding e h in
         (l,h+mp)
