@@ -154,7 +154,10 @@ let pickSendPV (Conn(id,c)) =
     match c_write.disp with
     | Init -> getMinVersion id c.handshake
     | FirstHandshake(pv) | Closing(pv,_) -> pv
-    | Finishing | Finished | Open -> let id_out = id.id_out in let si = epochSI(id_out) in si.protocol_version
+    | Finishing | Finished | Open -> 
+        let id_out = id.id_out in 
+        let si = epochSI(id_out) in 
+        si.protocol_version
     | Closed -> unexpected "[pickSendPV] invoked on a Closed connection"
 
 let closeConnection (Conn(id,c)) =

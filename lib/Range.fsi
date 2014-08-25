@@ -5,7 +5,7 @@ module Range
 open Bytes
 open TLSInfo
 
-type range = nat * nat (* length range *)
+type range = nat * nat 
 type rbytes = bytes
 val sum: range -> range -> range
 

@@ -196,9 +196,11 @@ predicate VerifyData of msId * Role * text
 type eventVD = MakeVerifyData of msId * Role * text * tag
 
 // role & text are jointly authenticated
-type entry = i:msId * r:Role * t:text * vd:tag {VerifyData(i,r,t)}
+type entry = i:msId * r:Role * t:text * vd:tag {VerifyData(i,r,t) /\ MakeVerifyData(i,r,t,vd)}
 private val log: entry list ref
 private val mem: i:msId -> r:Role -> t:text -> entry list -> b:bool{ b=true => VerifyData(i,r,t) }
+private val assoc: r:Role -> vd:tag -> entry list -> (i:msId * t:text{VerifyData(i,r,t) /\ MakeVerifyData(i,r,t,vd)}) option 
+//MK: old assoc 31/07/2014: private val assoc: i:msId -> r:Role -> t:text -> entry list -> vdo:tag option{!vd. vdo=Some(vd) => VerifyData(i,r,t) /\ MakeVerifyData(i,r,t,vd) }
 //private val cons: si:SessionInfo -> tag -> r:Role -> t:text {VerifyData(si,r,t)} -> entry list -> entry list
 
 private val verifyData: si:SessionInfo -> (;MsI(si)) ms -> r:Role -> t:text -> tag 
@@ -210,7 +212,8 @@ val makeVerifyData:
   vd:tag {MakeVerifyData(MsI(si),r,t, vd)}
   (* length depends on cs, 12 by default *)
 
- theorem !m,r,t,vd,m',r',t'. MakeVerifyData(m,r,t,vd) /\ MakeVerifyData(m',r',t',vd) => (m=m'/\ r=r' /\ t=t')
+//ask !m,r,t,vd,m',r',t'. MakeVerifyData(m,r,t,vd) /\ MakeVerifyData(m',r',t',vd) => (m=m'/\ r=r' /\ t=t')
+theorem !m,r,t,vd,m',t'. MakeVerifyData(m,r,t,vd) /\ MakeVerifyData(m',r,t',vd) => (m=m' /\ t=t')
 
 // MAC verification
 val checkVerifyData: 
@@ -220,6 +223,8 @@ val checkVerifyData:
   
 
 (** ad hoc SSL3-only function; untrusted. **) 
+
+assume !si. si.protocol_version = SSL_3p0 => not StrongVD(VdAlg(si))
 
 //we exclude calls to this function when SafeHS_SI(si)!
 val ssl_certificate_verify: 

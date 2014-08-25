@@ -1,5 +1,11 @@
 ﻿module AEAD_GCM
 
+(* Implements AES-GCM as a concrete instance of "advanced" LHAE; 
+   we could similarly specify AES-CCM.
+   used by LHAE, parameterized by LHAEPlain. *)
+
+// CF 14-07-17 currently *not* typeckecked.
+
 open Bytes
 open Range
 open TLSInfo
@@ -32,24 +38,23 @@ type entry =
   (i:id * ad:(;i)LHAEPlain.adata * c:cipher * r:range * p:(;i,ad,r)LHAEPlain.plain)
   { ENCrypted(i,ad,c,p) } 
 
-val log: entry list ref
-val cfind: i:id -> c:cipher -> xs: entry list ->
-	(a:(;i)LHAEPlain.adata * r:range * (;i,a,r) LHAEPlain.plain)
+private val log: entry list ref
+private val cfind: i:id -> c:cipher -> xs: entry list ->
+  (a:(;i)LHAEPlain.adata * r:range * (;i,a,r) LHAEPlain.plain)
 
-val ENC_int: i:id -> e:(;i)encryptor -> ad:(;i)LHAEPlain.adata -> r:range -> bytes ->
-	( (e':(;i)encryptor{e'=NextEncryptor(i,e)}) *
-	  (c:cipher )) //{ Length(c) = TargetLength(i,r)}) )
+private val ENC_int: i:id -> e:(;i)encryptor -> ad:(;i)LHAEPlain.adata -> r:range -> bytes ->
+  ( (e':(;i)encryptor{e'=NextEncryptor(i,e)}) *
+    (c:cipher )) //{ Length(c) = TargetLength(i,r)}) )
 
 val ENC: i:id -> e:(;i)encryptor -> ad:(;i)LHAEPlain.adata -> r:range -> p:(;i,ad,r)LHAEPlain.plain ->
-	( (e':(;i)encryptor{e'=NextEncryptor(i,e)}) *
-	  (c:cipher{(SafeId(i) => ENCrypted(i,ad,c,p)) /\
-	             Length(c) = TargetLength(i,r)}) )
+  ( (e':(;i)encryptor{e'=NextEncryptor(i,e)}) *
+    (c:cipher{(SafeId(i) => ENCrypted(i,ad,c,p)) /\ Length(c) = TargetLength(i,r)}) )
 
-val DEC_int: i:id -> (;i)decryptor -> ad:(;i)LHAEPlain.adata -> r:range -> c:cipher ->
-	res: (((;i)decryptor * p:(;i,ad,r)LHAEPlain.plain) Result)
+private val DEC_int: i:id -> (;i)decryptor -> ad:(;i)LHAEPlain.adata -> r:range -> c:cipher ->
+  res: (((;i)decryptor * p:(;i,ad,r)LHAEPlain.plain) Result)
 
 val DEC: i:id -> (;i)decryptor -> ad:(;i)LHAEPlain.adata -> r:range -> c:cipher ->
-	res: (((;i)decryptor * p:(;i,ad,r)LHAEPlain.plain) Result)
+  res: (((;i)decryptor * p:(;i,ad,r)LHAEPlain.plain) Result)
 	{SafeId(i) =>
 		( (!d,p. res = Correct((d,p)) => ENCrypted(i,ad,c,p)) /\
 		  (?p. ENCrypted(i,ad,c,p) => ?d. res = Correct((d,p)))

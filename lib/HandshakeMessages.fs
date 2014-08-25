@@ -275,9 +275,9 @@ let clientHelloBytes poptions crand session ext =
     let csb = cipherSuitesBytes cs in
     let ccsuitesB  = vlbytes 2 csb in
     let cm = poptions.compressions in
-    let cmb = (compressionMethodsBytes cm) in
+    let cmb = compressionMethodsBytes cm in
     let ccompmethB = vlbytes 1 cmb in
-    let data = cVerB @| random @| csessB @| ccsuitesB @| ccompmethB @| ext in
+    let data = cVerB @| (random @| (csessB @| (ccsuitesB @| (ccompmethB @| ext)))) in
     messageBytes HT_client_hello data
 
 let serverHelloBytes sinfo srand ext = 
@@ -328,16 +328,17 @@ let serverCertificateBytes cl = messageBytes HT_certificate (Cert.certificateLis
 let clientCertificateBytes (cs:option<(Cert.chain * Sig.alg * Sig.skey)>) =
     // TODO: move this match outside, and merge with serverCertificateBytes
     match cs with
-    | None -> messageBytes HT_certificate (Cert.certificateListBytes [])
+    | None -> let clb = Cert.certificateListBytes [] in messageBytes HT_certificate clb
     | Some(v) ->
         let (certList,_,_) = v in
-        messageBytes HT_certificate (Cert.certificateListBytes certList)
+        let clb = Cert.certificateListBytes certList in
+        messageBytes HT_certificate clb
 
 let parseClientOrServerCertificate data =
     if length data >= 3 then
         match vlparse 3 data with
         | Error z -> let (x,y) = z in Error(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ y)
-        | Correct (certList) -> Cert.parseCertificateList certList []
+        | Correct (certList) -> Cert.parseCertificateList certList 
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let sigHashAlgBytesVersion version cs =
@@ -544,8 +545,9 @@ let serverKeyExchangeBytes_DH_anon p g y =
 let parseServerKeyExchange_DH_anon payload =
     match parseDHEParams payload with
     | Error(z) -> Error(z)
-    | Correct(p,g,y,rem) ->
-        if length  rem = 0 then
+    | Correct(z) ->
+        let (p,g,y,rem) = z in
+        if length rem = 0 then
             correct(p,g,y)
         else
             Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")

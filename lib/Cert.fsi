@@ -28,5 +28,5 @@ val is_chain_for_key_encryption : chain -> bool
 
 val get_hint : chain -> option<hint>
 val validate_cert_chain : list<Sig.alg> -> chain -> bool
-val parseCertificateList: bytes -> chain -> Result<chain>
+val parseCertificateList: bytes -> Result<chain>
 val certificateListBytes: chain -> bytes

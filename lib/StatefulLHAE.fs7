@@ -7,11 +7,12 @@ open TLSInfo
 open Range
 open StatefulPlain //CF added for lighter notations
 
-(* CF 
-   This module is parameterized by StatefulPlain, providing  
+(* This module is parameterized by StatefulPlain, providing  
    abstract types 'plain' for plaintext and 'history' for sequences of plaintexts
 
-   The functionality is indexed by succEpochs, also treated abstractly.
+   The functionality is indexed by succEpochs, also treated abstractly. *)
+
+(* CF
    (We pass those, rather than tight indexes, because tight indexes are ghost.)
    
    From each id, we can get:
@@ -49,15 +50,15 @@ open StatefulPlain //CF added for lighter notations
 			We believe this will be addressed within PRF. 
 			
 
-  We may either define 
+   We may either define 
 
-  type (;ki:id,rw:rw) state = (;I(ki),rw:rw) st 
-  // this permits decryption at any id with matching I(ki)
-  // this is inocuous because there is at most one such id.
+   type (;ki:id,rw:rw) state = (;I(ki),rw:rw) st 
+   // this permits decryption at any id with matching I(ki)
+   // this is inocuous because there is at most one such id.
 
-  or systematically use aeIndex instead of id
+   or systematically use aeIndex instead of id
 
-or hide it under a "re-indexing" function that enforces some of those restrictions.
+   or hide it under a "re-indexing" function that enforces some of those restrictions.
 
   Questions: 
 
@@ -95,21 +96,17 @@ Theorems:
 
 private type (;ki:id,rw:rw) state = {
   key    : (;ki,rw) LHAE.LHAEKey;  // possibly stateful
-  history: (;ki) history        // ghost state, except for the sequence number
+  history: (;ki) history           // ghost state, except for the sequence number
 }
- 
+type (;ki:id) reader = r:(;ki,Reader) state
+type (;ki:id) writer = w:(;ki,Writer) state
 
 function val History: e:id * rw:rw * (;e,rw)state -> 'a //(;e)history
 private definition !e,rw,s. History(e,rw,s) = s.history
 
-type (;ki:id) reader = r:(;ki,Reader) state
-type (;ki:id) writer = w:(;ki,Writer) state
-
 val GEN:    ki:id               -> r:(;ki)reader * w:(;ki)writer{History (ki, TLSInfo.Reader, r) = EmptyHistory (ki) /\ 
-																 History (ki, TLSInfo.Writer, w) = EmptyHistory (ki)}
+                                                                 History (ki, TLSInfo.Writer, w) = EmptyHistory (ki)}
 val COERCE: ki:id{not AuthId(ki)} -> rw:rw -> b:bytes{Length(b)=LHAE.KeySize(ki.aeAlg)} -> s:(;ki,rw)state{History(ki,rw,s) = EmptyHistory(ki)}
-
-
 val LEAK:   ki:id{not AuthId(ki)} -> rw:rw -> (;ki,rw)state -> b:bytes
 
 val history: ki:id -> rw:rw -> s:(;ki,rw) state -> h:(;ki)history{h=History(ki,rw,s)}
@@ -145,21 +142,21 @@ val decrypt:
   ki:id -> rd:(;ki) reader -> 
   ad:(;ki) adata ->
   c:cipher ->
-  ((nrd:(;ki)reader * rg:range * p:(;ki,ad,History(ki,Reader,rd),rg) plain){
-	History(ki,Reader,nrd) = ExtendHistory(ki,ad,History(ki,Reader,rd),rg,p) /\
+  ((rd':(;ki)reader * rg:range * p:(;ki,ad,History(ki,Reader,rd),rg) plain){
+	History(ki,Reader,rd') = ExtendHistory(ki,ad,History(ki,Reader,rd),rg,p) /\
 	rg = CipherRangeClass(ki,Length(c)) /\
 	(SafeId(ki) => ENCrypted(ki,History(ki,Reader,rd),ad,c))
   }) Result
 
 (* AP Older version, equivalent to the current one (?), but more difficult to typecheck
   r:((;ki) reader * rg:range * (;ki,ad,History(ki,Reader,rd),rg) plain) Result
-  { !nrd,rg,f. r = Correct((nrd,rg,f)) => 
-               (   History(ki,Reader,nrd) = 
+  { !rd',rg,f. r = Correct((rd',rg,f)) => 
+               (   History(ki,Reader,rd') = 
                    ExtendHistory(ki,ad,History(ki,Reader,rd),rg,f) /\
                    rg = CipherRangeClass(ki,Length(c)) /\
  	         (SafeId(ki) =>
-				( (!nrd,rg,f. r = Correct((nrd,rg,f)) => ENCrypted(ki,History(ki,Reader,rd),ad,c)) // /\
-				//  (!rg,p. ENCrypted(ki,rd,ad,rg,Payload(ki,ad,rg,p),c) => (?nrd,rg. res = Correct((nrd,rg,p))))
+				( (!rd',rg,f. r = Correct((rd',rg,f)) => ENCrypted(ki,History(ki,Reader,rd),ad,c)) // /\
+				//  (!rg,p. ENCrypted(ki,rd,ad,rg,Payload(ki,ad,rg,p),c) => (?rd',rg. res = Correct((rd',rg,p))))
 				)
 			 ) ) }
 *)

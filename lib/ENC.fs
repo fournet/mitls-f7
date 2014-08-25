@@ -38,7 +38,7 @@ type state =
 type encryptor = state
 type decryptor = state
 
-(*
+(* CF 14-07-17: reuse?
 let GENOne ki : state =
     #if verify
     failwith "trusted for correctness"
@@ -97,7 +97,6 @@ let COERCE (ki:id) (rw:rw) k iv =
         BlockCipher ({key = {k=k}; iv = SomeIV(iv)})
     | CBC_Fresh(_) ->
         BlockCipher ({key = {k=k}; iv = NoIV})
-
 
 let LEAK (ki:id) (rw:rw) s =
     match s with
@@ -164,15 +163,15 @@ type event =
   | ENCrypted of id * LHAEPlain.adata * cipher * Encode.plain
 type entry = id * LHAEPlain.adata * range * cipher * Encode.plain
 let log: ref<list<entry>> = ref []
-let rec cfind (e:id) (c:cipher) (xs: list<entry>) : (LHAEPlain.adata * range * Encode.plain) = 
+let rec cfind (e:id) (ad:LHAEPlain.adata) (c:cipher) (xs: list<entry>) : (range * Encode.plain) =
   //let (ad,rg,text) = 
   match xs with
     | [] -> failwith "not found"
     | entry::res -> 
-        let (e',ad,rg, c',text)=entry in
-        if e = e' && c = c' then
-            (ad,rg,text)
-        else cfind e c res
+        let (e',ad',rg, c',text)=entry
+        if e = e' && c = c' && ad = ad' then
+            (rg,text)
+        else cfind e ad c res
         //let clength = length c in
         //let rg = cipherRangeClass e clength in
     // AP: unreachable | _::res -> cfind e c res
@@ -186,8 +185,12 @@ let addtolog (e:entry) (l: ref<list<entry>>) =
 let ENC (ki:id) s ad rg data =
     let tlen = targetLength ki rg in
   #if ideal
-    if safeId (ki) then
-      let d = createBytes tlen 0 in
+    let d =
+      if safeId(ki) then //MK Should we use Encode.payload here? CF 14-07-17 ??
+        createBytes tlen 0
+      else
+        Encode.repr ki ad rg data  //MK we may have only plaintext integrity in this case
+    if authId (ki) then
       let (s,c) = ENC_int ki s tlen d in
       let l = length c in
 //      let c =
@@ -204,8 +207,8 @@ let ENC (ki:id) s ad rg data =
 
 let cbcdec alg k iv e =
     match alg with
-    | TDES_EDE -> (CoreCiphers.des3_cbc_decrypt k iv e)
-    | AES_128 | AES_256  -> (CoreCiphers.aes_cbc_decrypt k iv e)
+    | TDES_EDE          -> CoreCiphers.des3_cbc_decrypt k iv e
+    | AES_128 | AES_256 -> CoreCiphers.aes_cbc_decrypt  k iv e
 
 let DEC_int (ki:id) (s:decryptor) cipher =
     let alg = ki.aeAlg in
@@ -236,9 +239,11 @@ let DEC_int (ki:id) (s:decryptor) cipher =
 
 let DEC ki s ad cipher =
   #if ideal
-    if safeId (ki) then
+    if authId (ki) then
       let (s,p) = DEC_int ki s cipher in
-      let (ad',rg',p') = cfind ki cipher !log in
+      //MK implement different find for plaintext integrity
+      let (rg,p') = cfind ki ad cipher !log in
+      let p' = Encode.widen ki ad rg p' in
       (s,p')
     else
   #endif

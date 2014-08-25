@@ -19,3 +19,6 @@ val repr:  id -> LHAEPlain.adata -> range -> plain -> bytes
 
 val mac: id -> MAC.key -> LHAEPlain.adata -> range -> LHAEPlain.plain -> plain
 val verify: id -> MAC.key -> LHAEPlain.adata -> range -> plain -> Result<LHAEPlain.plain>
+#if ideal
+val widen: id -> LHAEPlain.adata -> range -> plain -> plain
+#endif

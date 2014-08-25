@@ -242,6 +242,12 @@ let rec mem (i:msId) (r:Role) (t:text) (es:list<entry>) =
   | [] -> false 
   | (i',role,text,_)::es when i=i' && r=role && text=t -> true
   | (i',role,text,_)::es -> mem i r t es
+
+let rec assoc (r:Role) (vd:tag) (es:list<entry>) =
+  match es with
+  | [] -> None
+  | (i',role,text,tag)::es when r=role && vd=tag -> Some(i',text)
+  | (i',role,text,_)::es -> assoc r vd es
 #endif
 
 let private verifyData si ms role data = 
@@ -252,10 +258,15 @@ let makeVerifyData si (ms:masterSecret) role data =
   #if ideal
   //if safeVD si then  //MK rename predicate and function
   let i = msi si in
-  log := (i,role,data,tag)::!log ;
-  Pi.assume(MakeVerifyData(i, role, data, tag));
+  let msdataoption = assoc role tag !log
+  let msdata = (i,data) in
+  if msdataoption<>None && msdataoption<>Some(msdata) then
+    failwith "collision";
+  else
+    Pi.assume(MakeVerifyData(i, role, data, tag));
+    log := (i,role,data,tag)::!log
   #endif
-  tag
+    tag
 
 let checkVerifyData si ms role data tag =
   let computed = verifyData si ms role data in

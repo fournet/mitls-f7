@@ -77,6 +77,7 @@ type es = EmptyStream of epoch
 
 let init (ki:epoch) = {sb = []}
 
+//CF 14-07-15 why this hack, just for performance?  
 let append (ki:epoch) (s:stream) (r:range) (d:delta) =
 #if ideal
     let dc = d.contents in

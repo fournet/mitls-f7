@@ -73,7 +73,7 @@ libfs7    = $(lib7)pi.fs7 $(lib7)formulas.fs7
 lib7_w    = $(F7PATH_W)/samples/lib/fs7-interfaces/
 lperv     = -pervasives $(lib7_w)pervasives.fs7 -tuples $(lib7_w)tuples.fs7
 libfs7_w    = $(lib7_w)pi.fs7 $(lib7_w)formulas.fs7
-f7timeout = 5
+f7timeout = 20
 f7defs    = avoid verify ideal
 
 f7 = $(F7PATH)/bin/f7.exe

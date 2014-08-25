@@ -104,10 +104,10 @@ private definition !a,k,t. Sig.Msg(a,k,t)
         ) \/
         (?si,p,g,gc,gs,r. 
            ClientLogBeforeCertificateVerifyDHE_Auth(si,t) /\
-	   si.pmsId = PmsId(PMS.DHPMS(p,g,gc,gs,r)) /\
+	   si.pmsId = PmsId(PMS.DHPMS(p,g,gs,gc,r)) /\
            (DHGroup.PP(p,g) /\ DH.HonestExponential(p,g,gs) => HonestPMS(si.pmsId)) /\  
            k = Cert.SigPKCert(si.clientID,a)) \/
-        (?si,p,g,gs. 
+        (?si,p,g,gs.                  
            B(t) = B(si.init_crand) @| B(si.init_srand) @| DHEParamBytes(p,g,gs) /\
            Length(si.init_crand) = 32 /\
            Length(si.init_srand) = 32 /\
@@ -126,7 +126,7 @@ ask !si,pk,pv,r,t,a,k.
 
 ask !si,p,g,gc,gs,r,a,k,t.
            ClientLogBeforeCertificateVerifyDHE_Auth(si,t) /\
-	   si.pmsId = PmsId(PMS.DHPMS(p,g,gc,gs,r)) /\
+	   si.pmsId = PmsId(PMS.DHPMS(p,g,gs,gc,r)) /\
            (DHGroup.PP(p,g) /\ DH.HonestExponential(p,g,gs) => HonestPMS(si.pmsId)) /\  
            k = Cert.SigPKCert(si.clientID,a)
            => Sig.Msg(a,k,t)
@@ -139,18 +139,6 @@ ask !si,p,g,gs,a,k,t.
            k = Cert.SigPKCert(si.serverID,a)
            => Sig.Msg(a,k,t)
 
-
-assume !si,si',p,g,gs,t. 
-           B(t) = B(si.init_crand) @| B(si.init_srand) @| DHEParamBytes(p,g,gs) /\
-           Length(si.init_crand) = 32 /\
-           Length(si.init_srand) = 32 /\
-           ClientLogBeforeCertificateVerifyRSA_Auth(si',t) => false
-
-assume !si,si',p,g,gs,t. 
-           B(t) = B(si.init_crand) @| B(si.init_srand) @| DHEParamBytes(p,g,gs) /\
-           Length(si.init_crand) = 32 /\
-           Length(si.init_srand) = 32 /\
-           ClientLogBeforeCertificateVerifyDHE_Auth(si',t) => false
 
 ask !si,p,g,gs,a,k,t. 
            B(t) = B(si.init_crand) @| B(si.init_srand) @| DHEParamBytes(p,g,gs) /\
@@ -227,9 +215,9 @@ private definition !role,e.
    (!pk,pv,r. role = Server /\ EpochSI(e).client_auth = true /\ EpochSI(e).pmsId = PmsId(PMS.RSAPMS(pk,pv,r)) /\ 
               pk = Cert.RSAPKCert(EpochSI(e).serverID) /\ PMS.SafeRSA(pk,pv) /\ Sig.Safe(EpochSI(e).clientSigAlg,Cert.SigPKCert(EpochSI(e).clientID,EpochSI(e).clientSigAlg))
               => HonestPMS(EpochSI(e).pmsId)) /\
-   (!p,g,gc,gs,r. role = Client /\ EpochSI(e).pmsId = PmsId(PMS.DHPMS(p,g,gc,gs,r)) /\ Sig.Safe(EpochSI(e).serverSigAlg,Cert.SigPKCert(EpochSI(e).serverID,EpochSI(e).serverSigAlg))
+   (!p,g,gc,gs,r. role = Client /\ EpochSI(e).pmsId = PmsId(PMS.DHPMS(p,g,gs,gc,r)) /\ Sig.Safe(EpochSI(e).serverSigAlg,Cert.SigPKCert(EpochSI(e).serverID,EpochSI(e).serverSigAlg))
               => HonestPMS(EpochSI(e).pmsId)) /\
-   (!p,g,gc,gs,r,a. role = Server /\ EpochSI(e).pmsId = PmsId(PMS.DHPMS(p,g,gc,gs,r)) /\ Sig.Safe(EpochSI(e).clientSigAlg,Cert.SigPKCert(EpochSI(e).clientID,EpochSI(e).clientSigAlg))
+   (!p,g,gc,gs,r,a. role = Server /\ EpochSI(e).pmsId = PmsId(PMS.DHPMS(p,g,gs,gc,r)) /\ Sig.Safe(EpochSI(e).clientSigAlg,Cert.SigPKCert(EpochSI(e).clientID,EpochSI(e).clientSigAlg))
               => HonestPMS(EpochSI(e).pmsId)))
 
 // Line 2 of the RHS is a local invariant
@@ -254,17 +242,18 @@ private definition !ci. Complete(ci) <=>
           B(EpochCRand(ci.id_in)) = B(EpochCRand(ci.id_out)) /\
           B(EpochSRand(ci.id_in)) = B(EpochSRand(ci.id_out)) /\
           IsSuccEpoch(ci.id_in) /\ IsSuccEpoch(ci.id_out) 
+/\        (ci.role = Client \/ ci.role = Server) 
 /\          SentCCS(ci.role,EpochCRand(ci.id_out),EpochSRand(ci.id_out),EpochSI(ci.id_out)) 
 /\
           (SafeVD(EpochSI(ci.id_in))  => SentCCS(DualRole(ci.role),EpochCRand(ci.id_in),EpochSRand(ci.id_in),EpochSI(ci.id_in))) 
-(*/\         ((ci.role = Client /\
+/\         ((ci.role = Client /\
            (!pks,pv,r. 
               pks = Cert.RSAPKCert(EpochSI(ci.id_in).serverID) /\ 
               EpochSI(ci.id_in).pmsId = PmsId(PMS.RSAPMS(pks,pv,r)) /\ 
               PMS.SafeRSA(pks,pv) => HonestPMS(EpochSI(ci.id_in).pmsId)) /\
            (!pks,p,g,gc,gs,r. 
               pks = Cert.SigPKCert(EpochSI(ci.id_in).serverID,EpochSI(ci.id_in).serverSigAlg) /\
-              EpochSI(ci.id_in).pmsId = PmsId(PMS.DHPMS(p,g,gc,gs,r)) /\ 
+              EpochSI(ci.id_in).pmsId = PmsId(PMS.DHPMS(p,g,gs,gc,r)) /\ 
               Sig.Safe(EpochSI(ci.id_in).serverSigAlg,pks)
               => HonestPMS(EpochSI(ci.id_in).pmsId))) \/
           (ci.role = Server /\
@@ -278,10 +267,10 @@ private definition !ci. Complete(ci) <=>
               => HonestPMS(EpochSI(ci.id_in).pmsId)) /\
            (!pkc,p,g,gc,gs,r. 
               pkc = Cert.SigPKCert(EpochSI(ci.id_in).clientID,EpochSI(ci.id_in).clientSigAlg) /\
-              EpochSI(ci.id_in).pmsId = PmsId(PMS.DHPMS(p,g,gc,gs,r)) /\ 
+              EpochSI(ci.id_in).pmsId = PmsId(PMS.DHPMS(p,g,gs,gc,r)) /\ 
               Sig.Safe(EpochSI(ci.id_in).clientSigAlg,pkc) 
               => HonestPMS(EpochSI(ci.id_in).pmsId))))
-*)
+
          )
 
 ask !ci. Complete(ci) =>
@@ -289,11 +278,10 @@ ask !ci. Complete(ci) =>
 	EpochSI(ci.id_in) = EpochSI(ci.id_out) /\
 	// Epoch In
 	IsSuccEpoch(ci.id_in) /\ 
-        OpenState(ci.id_in) /\
-	(SafeVD(EpochSI(ci.id_in)) => Open(ci.id_in)) /\
+	OpenState(ci.id_in) /\
 	// Epoch Out
 	IsSuccEpoch(ci.id_out) /\ 
-        OpenState(ci.id_out) 
+	OpenState(ci.id_out)
 	)
 
 ask !ci.	
@@ -334,7 +322,7 @@ ask !ci.
     StrongAuth(ci.id_out) => Auth(ci.id_out)
 
 //We get the following by applying preconditions to SentCCS
-assume !e. Open(e) => Match(Id(e))
+private assume !e. Open(e) => Match(Id(e))
 
 ask !ci. 
     Complete(ci) /\ 
@@ -370,7 +358,7 @@ type (;ci:ConnectionInfo) serverState =  (* note that the CertRequest bits are d
 
    | ClientCertificateRSA         of (si:SessionInfo * pv:ProtocolVersion * sk:RSAKey.sk * l:log){si.serverID <> [] /\ ServerLogBeforeClientCertificateRSA_Auth(si,pv,l) /\ si.client_auth = true}
    | ServerCheckingCertificateRSA of (si:SessionInfo * pv:ProtocolVersion * sk:RSAKey.sk * l:log * certs:Cert.chain * b:bytes){si.serverID <> [] /\ ServerLogBeforeClientCertificateRSA_Auth(si,pv,l) /\ B(b) = CertificateMsg(certs) /\ si.client_auth = true }
-   | ClientKeyExchangeRSA         of (si:SessionInfo * pv:ProtocolVersion * sk:RSAKey.sk * l:log){si.serverID <> [] /\ ServerLogBeforeClientKeyExchangeRSA(si,pv,l) /\ (si.client_auth = true => Authorize(Server,si))}
+   | ClientKeyExchangeRSA         of (si:SessionInfo * pv:ProtocolVersion * sk:RSAKey.sk * l:log){si.serverID <> [] /\ ServerLogBeforeClientKeyExchangeRSA(si,pv,l) /\ (si.client_auth = true => (si.clientID <> [] /\ Authorize(Server,si)))}
 
    | ClientCertificateDH          of si:SessionInfo * l:log
    | ServerCheckingCertificateDH  of si:SessionInfo * l:log * b:bytes
@@ -387,12 +375,12 @@ type (;ci:ConnectionInfo) serverState =  (* note that the CertRequest bits are d
 
    | ClientKeyExchangeDHE         of si:SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p,g)DHGroup.elt * (;p,g,gx)DH.secret * l:log{ 
        DHGroup.PP(p,g) /\ DH.HonestExponential(p,g,gx) /\
-       ServerLogBeforeClientKeyExchangeDHE(si,l) /\ (si.client_auth = true => Authorize(Server,si))}
+       ServerLogBeforeClientKeyExchangeDHE(si,l) /\ (si.client_auth = true => (si.clientID <> [] /\ Authorize(Server,si)))}
 
 
    | ClientKeyExchangeDH_anon     of SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p,g)DHGroup.elt * (;p,g,gx)DH.secret * log
 
-   | CertificateVerify            of (si:SessionInfo * (;si)PRF.masterSecret * l:log){si.client_auth = true /\ ServerLogBeforeClientCertificateVerify(si,l) /\ Authorize(Server,si)}
+   | CertificateVerify            of (si:SessionInfo * (;si)PRF.masterSecret * l:log){si.client_auth = true /\ si.clientID <> [] /\ ServerLogBeforeClientCertificateVerify(si,l) /\ Authorize(Server,si)}
    | ClientCCS                    of (si:SessionInfo * (;si)PRF.masterSecret * l:log){
                                        ServerLogBeforeClientFinished(si,l) /\ (si.client_auth = true => Authorize(Server,si))}
    | ClientFinished               of (si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * w:(;Id(e))StatefulLHAE.writer * l:log){
@@ -493,11 +481,11 @@ type (;ci:ConnectionInfo) clientState =
    | ServerHelloDoneDH_anon of SessionInfo * p:DHGroup.p * g:(;p)DHGroup.g * gx:(;p,g)DHGroup.elt * log
 
    | ClientWritingCCS       of si:SessionInfo * (;si)PRF.masterSecret * l:log{
-                                  (!p,g,gc,gs,r. si.pmsId = PmsId(PMS.DHPMS(p,g,gc,gs,r)) /\
+                                  (!p,g,gc,gs,r. si.pmsId = PmsId(PMS.DHPMS(p,g,gs,gc,r)) /\
                                                  Sig.Safe(si.serverSigAlg,Cert.SigPKCert(si.serverID,si.serverSigAlg)) => HonestPMS(si.pmsId)) /\
                                   ClientLogBeforeClientFinished(si,l) /\ Authorize(Client,si)}
    | ServerCCS              of (si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * r:(;Id(e))StatefulLHAE.reader * cv:cVerifyData * l:log){ 
-         (!p,g,gc,gs,r. si.pmsId = PmsId(PMS.DHPMS(p,g,gc,gs,r)) /\ 
+         (!p,g,gc,gs,r. si.pmsId = PmsId(PMS.DHPMS(p,g,gs,gc,r)) /\ 
                         Sig.Safe(si.serverSigAlg,Cert.SigPKCert(si.serverID,si.serverSigAlg)) => HonestPMS(si.pmsId)) /\
      	 EpochSI(e)=si  /\ 
          EpochWriter(e) = DualRole(ci.role) /\
@@ -526,7 +514,7 @@ type (;ci:ConnectionInfo) clientState =
                                                                                                                EpochSRand(ci.id_in) = si.init_srand /\  
                                                                                                                // EvSentFinishedFirst(ci,true) /\
                                                                                                                Authorize(Client,si) /\
-                                                                                                               (!p,g,gs,gc,r. si.pmsId = PmsId(PMS.DHPMS(p,g,gc,gs,r)) /\ 
+                                                                                                               (!p,g,gs,gc,r. si.pmsId = PmsId(PMS.DHPMS(p,g,gs,gc,r)) /\ 
                                                                                                                              Sig.Safe(EpochSI(ci.id_in).serverSigAlg,Cert.SigPKCert(si.serverID,EpochSI(ci.id_in).serverSigAlg)) => HonestPMS(si.pmsId)) 
 
                                                                                                                              }
@@ -753,7 +741,7 @@ val prepare_client_output_full_DHE: ci:ConnectionInfo{ci.role = Client} -> st:(;
         l:log{ClientLogAfterServerHelloDoneDHE(si,l) /\ Authorize(Client,si)} ->
 	(st':(;ci)hs_state * si':SessionInfo * (;si')PRF.masterSecret * 
          l':log{ UpdatesPmsClientID(si,si') /\
-                 (?gc,r. si'.pmsId = PmsId(PMS.DHPMS(p,g,gc,gs,r)) /\
+                 (?gc,r. si'.pmsId = PmsId(PMS.DHPMS(p,g,gs,gc,r)) /\
                          ((DH.HonestExponential(p,g,gs) /\ DHGroup.PP(p,g)) => HonestPMS(si'.pmsId))) /\
                  ClientLogBeforeClientFinishedDHE(si',l') /\ Authorize(Client,si') /\ Config(ci,st) = Config(ci,st')}) Result
 

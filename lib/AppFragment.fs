@@ -25,21 +25,22 @@ let fragment e s r d =
     let s' = append e s r d in
     (f,s')
 
+let check (e:epoch) (e':epoch) = ()
+
 let delta e s r f = 
     let (e',s',d) = f.frag in
-    //MK the following idealization is for reindexing. 
-    //MK if auth, then we can use the e' indexed d, and are guaranteed that s=s'
+    // the following idealization is reindexing. 
     #if ideal
     if auth e then
-      // TODO: typechecking relies on proving that e = e' & s = s'. How? 
+      // typechecking relies on e = e' & s = s':
+      // they both follow from Auth(e), implying Sent(e,s,r,f) hence ?d. f.frag = (e,s,d) 
       let s'' = append e s r d in
       (d,s'')
     else       
       // we coerce d to the local epoch
-      //MK this requires that e' is not(Auth(e'))
-      //MK this might be the case because we only use unAuthIdInv e' for not(Auth(e))
-      //MK but could be hard to prove 
-      //MK this breaks typing as f.frag != (e',s',d')
+      //CF 14-07-15 ?? 
+      //CF below, we can't prove not(Safe(e')).
+      //CF from Id(e') = Id(e), we should get not(AuthId(Id(e')) => not(Auth(e')) => not(Safe(e'))
       let raw = deltaRepr e' s' r d in
       let d' = deltaPlain e s r raw in
       let s'' = append e s r d' in
@@ -51,7 +52,7 @@ let delta e s r f =
     #endif
 
 let plain i r b =
-  let e = TLSInfo.unAuthIdInv i in
+  let e = TLSInfo.unAuthIdInv i in // CF review
   let s = DataStream.init e in
   let d = DataStream.deltaPlain e s r b in
   {frag = (e,s,d)}
@@ -71,7 +72,7 @@ let makeExtPad (i:id) (r:range) (f:fragment) =
         let len = length b in
         let pad = extendedPad i r len in
         let padded = pad@|b in
-        let d = DataStream.createDelta e' s r padded in
+        let d = DataStream.createDelta e' s r padded in //CF breaking abstraction
         {frag = (e',s,d)}
     else
 #endif
@@ -86,7 +87,7 @@ let parseExtPad (i:id) (r:range) (f:fragment) : Result<fragment> =
         | Error(x) -> Error(x)
         | Correct(res) ->
             let (_,b) = res in
-            let d = DataStream.createDelta e' s r b in
+            let d = DataStream.createDelta e' s r b in //CF breaking abstraction
             correct ({frag = (e',s,d)})
     else
 #endif

@@ -1,5 +1,9 @@
 ﻿module LHAE
 
+(* Implements Length-Hiding Authenticated Encryption
+   for all "aeAlg" constructions: MtE, MacOnly, GCM;
+   used by StatefulLHAE, parameterized by LHAEPlain. *)
+
 open Bytes
 open Error
 open TLSError
@@ -13,7 +17,7 @@ type cipher = b:bytes{Length(b) <= max_TLSCipher_fragment_length}
 
 private type (;i:id,rw:rw) LHAEKey =
     | MtEK of ka:(;i)MAC.key * ke:(;i,rw)ENC.state
-    | MACOnlyK of (;i) MAC.key
+    | MACOnlyK of (;i)MAC.key
     | GCM of (;i,rw)AEAD_GCM.state
 
 type (;i:id)encryptor = (;i,Writer)LHAEKey
@@ -27,8 +31,8 @@ definition !enc,mac. KeyDerivationIVSize(MtE(CBC_Stale(enc),mac)) = BlockSize(en
 assume !a. KeyDerivationIVSize(a) >= 0
 
 function val KeySize: a:aeAlg -> nat
-definition !mac.     KeySize(MACOnly(mac)) = MacKeySize(mac) 
-definition !enc,mac. KeySize(MtE(enc,mac)) = MacKeySize(mac) + EncKeySize(enc) + KeyDerivationIVSize(MtE(enc,mac))
+definition !mac.     KeySize(MACOnly(mac))  = MacKeySize(mac) 
+definition !enc,mac. KeySize(MtE(enc,mac))  = MacKeySize(mac) + EncKeySize(enc) + KeyDerivationIVSize(MtE(enc,mac))
 definition !enc,prf. KeySize(AEAD(enc,prf)) = AEADKeySize(enc) + AEADIVSize(enc)
 
 //CF not clearly useful MK helps typechecking LHAE.encrypt'
@@ -39,7 +43,7 @@ ask !i,mac.     i.aeAlg = MACOnly(mac) => KeySize(i.aeAlg) = MacKeySize(mac)
 val GEN:    i:id     -> (;i)encryptor * (;i)decryptor
 val COERCE: i:id{not AuthId(i)} -> rw:rw -> b:bytes{Length(b) = KeySize(i.aeAlg)} -> (;i,rw)LHAEKey
 val LEAK:   i:id{not AuthId(i)} -> rw:rw -> (;i,rw)LHAEKey -> b:bytes
-
+ 
 private val mteKey: i:id -> rw:rw -> (;i) MAC.key -> (;i,rw) ENC.state -> (;i,rw) LHAEKey
 private val gcmKey: i:id -> rw:rw -> (;i,rw) AEAD_GCM.state -> (;i,rw)LHAEKey
 
@@ -49,21 +53,21 @@ private val gcmKey: i:id -> rw:rw -> (;i,rw) AEAD_GCM.state -> (;i,rw)LHAEKey
 
 predicate ENCrypted of e:id * ad:(;e)LHAEPlain.adata * cipher
 
-private definition !e,ad,c,enc,aenc,mac.
-  (e.aeAlg = MtE(enc,mac) =>
-    (ENCrypted(e,ad,c) <=> ?p. ENC.ENCrypted(e,ad,c,p)) ) /\
-  (e.aeAlg = AEAD(aenc,mac) =>
-    (ENCrypted(e,ad,c) <=> ?p. AEAD_GCM.ENCrypted(e,ad,c,p)) )
+private definition !e,enc,mac,ad,c.
+  e.aeAlg = MtE(enc,mac)   => (ENCrypted(e,ad,c) <=> ?p. ENC.ENCrypted(e,ad,c,p)) 
+private definition !e,aenc,mac,ad,c.
+  e.aeAlg = AEAD(aenc,mac) => (ENCrypted(e,ad,c) <=> ?p. AEAD_GCM.ENCrypted(e,ad,c,p)) 
 
+//CF 14-07-16 usage?
 ask !e,enc,mac,ad,c.
-	e.aeAlg = MtE(enc,mac) /\ ( SafeId(e) => ENCrypted(e,ad,c) ) =>
-	(SafeId(e) => (?p. ENC.ENCrypted(e,ad,c,p)))
+  e.aeAlg = MtE(enc,mac) /\ ( SafeId(e) => ENCrypted(e,ad,c)) =>
+  (SafeId(e) => (?p. ENC.ENCrypted(e,ad,c,p)))
 
 ask !e,enc,mac,ad,c,p.
-	e.aeAlg = MtE(enc,mac) /\ ( SafeId(e) => ENC.ENCrypted(e,ad,c,p) ) =>
-	(SafeId(e) => ENCrypted(e,ad,c))
+  e.aeAlg = MtE(enc,mac) /\ ( SafeId(e) => ENC.ENCrypted(e,ad,c,p) ) =>
+  (SafeId(e) => ENCrypted(e,ad,c))
 
-val encrypt': i:id -> (;i) encryptor -> ad:(;i)LHAEPlain.adata ->
+private val encrypt': i:id -> (;i) encryptor -> ad:(;i)LHAEPlain.adata ->
   rg:range -> p:(;i,ad,rg) LHAEPlain.plain ->
   ((;i) encryptor * c:cipher){Length(c) = TargetLength(i,rg) /\         
                              (SafeId(i) => ENCrypted(i,ad,c))}
@@ -81,12 +85,13 @@ private val cmem: i:id -> ad:(;i)LHAEPlain.adata -> c:cipher ->
   entry list -> res:(r:range * (;i,ad,r)LHAEPlain.plain) option { 
     ( !rg,p. res = Some ((rg,p)) => (ENCrypted(i,ad,c) /\ rg = CipherRangeClass(i,Length(c))) ) /\
 	( res = None => not ENCrypted(i,ad,c) )}
+//CF 14-07-17 we effectively assume this non-trivial postcondition; TODO.
 
 (*CF
 theorem !i,d,rg0,p0,rg1,p1,c. (ENCrypted(i,d,rg0,p0,c) /\ ENCrypted(i,d,rg1,p1,c)) => p0 = p1
 *)
 
-val decrypt': i:id -> k:(;i) decryptor -> ad:(;i)LHAEPlain.adata ->
+private val decrypt': i:id -> k:(;i) decryptor -> ad:(;i)LHAEPlain.adata ->
   c:cipher{SafeId(i) => ENCrypted(i,ad,c)} -> res: 
   ( ( 
     (;i) decryptor *  

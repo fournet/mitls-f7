@@ -99,7 +99,7 @@
     <Optimize>False</Optimize>
     <Tailcalls>False</Tailcalls>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;TLSExt_extendedPadding</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;TLSExt_extendedPadding; TLSExt_sessionHash</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <DocumentationFile>
     </DocumentationFile>
@@ -112,7 +112,7 @@
     <Optimize>True</Optimize>
     <Tailcalls>True</Tailcalls>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE;TLSExt_extendedPadding</DefineConstants>
+    <DefineConstants>TRACE;TLSExt_extendedPadding; TLSExt_sessionHash</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <DocumentationFile>bin\Release\lib.XML</DocumentationFile>
     <NoWarn>
@@ -209,9 +209,6 @@
     <None Include="Encode.fs7" />
     <Compile Include="Encode.fsi" />
     <Compile Include="Encode.fs" />
-    <None Include="ENC_RC4.fs7" />
-    <Compile Include="ENC_RC4.fsi" />
-    <Compile Include="ENC_RC4.fs" />
     <None Include="ENC.fs7" />
     <Compile Include="ENC.fsi" />
     <Compile Include="ENC.fs" />

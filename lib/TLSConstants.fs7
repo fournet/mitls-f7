@@ -23,7 +23,6 @@ type PreProtocolVersion =
     | TLS_1p2   
 
 predicate IsProtocolVersion of PreProtocolVersion
-
 definition
   !p. IsProtocolVersion(p)
     <=> (p = SSL_3p0 \/ p = TLS_1p0 \/ p = TLS_1p1 \/ p = TLS_1p2)
@@ -231,7 +230,7 @@ val hashSize:   a:hashAlg -> l:nat{l=HashSize(a)}
 
 function val MacKeySize: macAlg -> nat
 assume !x. MacKeySize(x) >= 0
-definition !a. MacKeySize(MA_HMAC(a)) = HashSize(a)
+definition !a. MacKeySize(MA_HMAC(a))     = HashSize(a)
 definition !a. MacKeySize(MA_SSLKHASH(a)) = HashSize(a)
 val macKeySize: a:macAlg  -> l:nat{l=MacKeySize(a)}
 

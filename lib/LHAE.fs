@@ -155,7 +155,7 @@ let decrypt' e key data cipher =
             let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
         else
             let rg = cipherRangeClass e cl in
-            todo "freshly broken?";
+            //AP todo "freshly broken?";
             let plain = Encode.plain e data cl cipher in
             (match Encode.verify e ka data rg plain with
             | Error(z) -> Error(z)
@@ -183,14 +183,13 @@ let log = ref ([]: list<entry>) // for defining the ideal functionality for INT-
 
 let rec cmem (e:id) (ad:LHAEPlain.adata) (c:ENC.cipher) (xs: list<entry>) = 
 #if verify
-  failwith "specification only"
+  failwith "specification only" //MK seems pretty bad. CF 14-07-16 needs fixing
 #else
   match xs with
   | (e',ad',r,p,c')::_ when e=e' && ad=ad' && c=c' -> let x = (r,p) in Some x
   | _::xs                  -> cmem e ad c xs 
   | []                     -> None
 #endif
-
 #endif
 
 let encrypt (e:id) key data rg plain = 

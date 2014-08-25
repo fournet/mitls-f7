@@ -229,3 +229,10 @@ let repr (e:id) ad rg pl =
             encode e tlen rg ad lp tg
     | _ -> unexpected "[Encode.repr] incompatible ciphersuite given."
 
+#if ideal
+let widen i ad r f =
+    let p = LHAEPlain.widen i ad r f.plain in
+    {plain = p;
+     tag = f.tag;
+     ok = f.ok}
+#endif
