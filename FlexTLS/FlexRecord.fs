@@ -62,14 +62,14 @@ type FlexRecord =
                 (st,b)
 
     (* Send data over the network after encrypting a record depending on the fragmentation policy *)
-    static member sendSpecific (ns:NetworkStream, e:epoch, k:Record.ConnectionState, ct:ContentType, payload:bytes, ?fp:fragmentationPolicy) : Record.ConnectionState * bytes =
+    static member sendSpecific (ns:NetworkStream, e:epoch, epoch_init_pv:ProtocolVersion, k:Record.ConnectionState, ct:ContentType, payload:bytes, ?fp:fragmentationPolicy) : Record.ConnectionState * bytes =
         
         let fp = defaultArg fp defaultFragmentationPolicy in
         
         (* TODO : Here the user cannot choose the ProtocolVersion if it is an initEpoch, default is set by force while it shouldn't be the case *)
         let pv = 
             if TLSInfo.isInitEpoch e then
-                defaultProtocolVersion
+                epoch_init_pv
             else
                 let si = TLSInfo.epochSI e in
                 si.protocol_version
@@ -90,7 +90,7 @@ type FlexRecord =
                 if rem = empty_bytes then
                     (k,rem)
                 else
-                    FlexRecord.sendSpecific(ns,e,k,ct,rem,fp)
+                    FlexRecord.sendSpecific(ns,e,pv,k,ct,rem,fp)
             | One(fs) -> (k,rem)
                 
                 
@@ -101,7 +101,7 @@ type FlexRecord =
         let fp = defaultArg fp defaultFragmentationPolicy in
 
         let payload = pickCTBuffer st.write ct in
-        let k,rem = FlexRecord.sendSpecific(st.ns,st.write.epoch,st.write.record,ct,payload,fp) in
+        let k,rem = FlexRecord.sendSpecific(st.ns,st.write.epoch,st.write.epoch_init_pv,st.write.record,ct,payload,fp) in
         let st = FlexState.updateOutgoingHSBuffer st rem in
         let st = FlexState.updateOutgoingRecord st k in
         (st)
