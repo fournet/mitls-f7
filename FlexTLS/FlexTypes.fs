@@ -81,6 +81,11 @@ type FServerHelloDone = {
 (* Record associated to a CertificateVerify message *)
 (* Record associated to a ClientKeyExchange message *)
 
+(* Record associated to a ChangeCipherSpecs message *)
+type FChangeCipherSpecs = {
+    payload: bytes;
+}
+
 (* Record associated to a Finished message *)
 type FFinished = {
     verify_data: bytes;
@@ -99,6 +104,8 @@ type FHSMessages = {
     serverHelloDone: FServerHelloDone;
     //certificateVerify: FCertificateVerify;
     //clientKeyExchange: FClientKeyExchange;
+    clientChangeCipherSpecs: FChangeCipherSpecs;
+    serverChangeCipherSpecs: FChangeCipherSpecs;
     clientFinished: FFinished;
     serverFinished: FFinished
 }

@@ -13,6 +13,8 @@ open FlexConstants
 open FlexHandshake
 
 
+
+
 type FlexCertificate = 
     class
 
@@ -24,19 +26,19 @@ type FlexCertificate =
         | HT_certificate  ->  
             (match parseClientOrServerCertificate payload with
             | Error (ad,x) -> failwith x
-            | Correct (certC) -> 
-                let cert = { nullFCertificate with chain = certC; } in
+            | Correct (chain) -> 
+                let cert = { nullFCertificate with chain = chain; } in
                 match role with
                 | Client ->
                     let si  = { si with 
                                 client_auth = true;
-                                clientID = certC;
+                                clientID = chain;
                     } in
                     let nsc = { nsc with si = si } in
                     (st,nsc,cert)
                 | Server ->
                     let si  = { si with 
-                                serverID = certC;
+                                serverID = chain;
                     } in
                     let nsc = { nsc with si = si } in
                     (st,nsc,cert)
@@ -77,6 +79,5 @@ type FlexCertificate =
         let fp = defaultArg fp defaultFragmentationPolicy in
         let fcrt = {nullFCertificate with chain = chain} in
         FlexCertificate.send(st,role,fcrt=fcrt,nsc=nsc,fp=fp)
-
 
     end
