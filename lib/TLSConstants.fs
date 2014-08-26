@@ -1,4 +1,6 @@
-﻿module TLSConstants
+﻿#light "off"
+
+module TLSConstants
 
 open Bytes
 open Error
@@ -191,7 +193,7 @@ let parseCompression b =
 // from usual parsing, where we fail on unknown values, but that's how TLS
 // handles compression method lists.
 let rec parseCompressions b =
-    let l = length b
+    let l = length b in
     if l > 0 
     then
         let (cmB,b) = split b 1 in
@@ -391,13 +393,13 @@ let consCipherSuites (cs:cipherSuite) (css:cipherSuites) = cs::css
 // but not added to the list, and thus will be ignored by the server
 let rec parseCipherSuites b:Result<cipherSuites> =
     if length b > 1 then
-        let (b0,b1) = split b 2 
+        let (b0,b1) = split b 2 in
         match parseCipherSuites b1 with 
         | Correct(css) ->
-            match parseCipherSuite b0 with
+            (match parseCipherSuite b0 with
             | Error(z) -> // ignore this cs
                 correct(css)
-            | Correct(cs) -> let ncss = consCipherSuites cs css  in correct(ncss)
+            | Correct(cs) -> let ncss = consCipherSuites cs css  in correct(ncss))
         | Error(z) -> Error(z) 
     else if length b = 0 then Correct([])
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
@@ -459,13 +461,7 @@ let sigAlg_of_ciphersuite cs =
     | _ -> unexpected "[sigAlg_of_ciphersuite] invoked on a worng ciphersuite"
 
 let contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV (css: list<cipherSuite>) =
-(* KB
-#if avoid
-    failwith "TODO: fix list library": bool
-#else
-*)
     List.memr css (SCSV (TLS_EMPTY_RENEGOTIATION_INFO_SCSV))
-//KB #endif
 
 type prflabel = bytes
 let extract_label = utf8 "master secret"
@@ -565,10 +561,10 @@ let macAlg_of_aeAlg ae =
     | _ -> unexpected "[macAlg_of_ciphersuite] invoked on an invalid ciphersuite"
 
 let encAlg_of_ciphersuite cs pv = 
-    let a = aeAlg cs pv
+    let a = aeAlg cs pv in
     encAlg_of_aeAlg a 
 let macAlg_of_ciphersuite cs pv = 
-    let a = aeAlg cs pv
+    let a = aeAlg cs pv in
     macAlg_of_aeAlg a
 
 let mkIntTriple x:(int*int*int) = x
@@ -622,11 +618,6 @@ type cipherSuiteName =
 
 
 let cipherSuites_of_nameList (nameList: list<cipherSuiteName>) =
-(* KB
-#if avoid
-   failwith "TODO: fix list library": cipherSuites
-#else
-*)
 #if ideal
    List.map (
 #else
@@ -765,15 +756,15 @@ let seq_of_bytes b = int_of_bytes b
 let vlbytes (lSize:int) b = bytes_of_int lSize (length b) @| b 
 
 let vlsplit lSize vlb : Result<(bytes * bytes)> = 
-    let (vl,b) = split vlb lSize 
-    let l = int_of_bytes vl
+    let (vl,b) = split vlb lSize in
+    let l = int_of_bytes vl in
     if l <= length b 
     then correct(split b l) 
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
  
 let vlparse lSize vlb : Result<bytes> = 
-    let (vl,b) = split vlb lSize 
-    let l = int_of_bytes vl
+    let (vl,b) = split vlb lSize in
+    let l = int_of_bytes vl in
     if l = length b 
     then correct b 
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
@@ -831,9 +822,9 @@ let rec parseCertificateTypeList data =
         let (thisByte,data) = Bytes.split data 1 in
         match parseCertType thisByte with
         | Correct(ct) ->
-            match parseCertificateTypeList data with
+            (match parseCertificateTypeList data with
             | Correct(ctList) -> Correct(ct :: ctList)
-            | Error(z) -> Error(z)
+            | Error(z) -> Error(z))
         | Error(z) -> Error(z)
 
 let defaultCertTypes sign cs =

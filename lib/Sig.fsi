@@ -1,4 +1,6 @@
-﻿module Sig
+﻿#light "off"
+
+module Sig
 
 open Bytes
 open TLSConstants

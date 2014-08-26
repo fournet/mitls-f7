@@ -1,4 +1,6 @@
-﻿module DataStream
+﻿#light "off"
+
+module DataStream
 open TLSInfo
 open Bytes
 open Error

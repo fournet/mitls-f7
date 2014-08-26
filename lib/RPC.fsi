@@ -1,3 +1,5 @@
-﻿module RPC
+﻿#light "off"
+
+module RPC
     val doclient : string -> option<string>
     val doserver : unit -> bool

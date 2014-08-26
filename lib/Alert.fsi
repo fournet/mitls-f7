@@ -1,4 +1,6 @@
-﻿module Alert
+﻿#light "off"
+
+module Alert
 
 open Error
 open TLSError
@@ -23,6 +25,7 @@ type alert_reply =
     | ALClose_notify of state
 
 val alertBytes: alertDescription -> Bytes.bytes
+val parseAlert: Bytes.bytes -> Result<alertDescription>
 
 val init: ConnectionInfo -> state
 

@@ -1,4 +1,6 @@
-﻿module LHAEPlain
+﻿#light "off"
+
+module LHAEPlain
 open Bytes
 open Error
 open TLSError
@@ -23,7 +25,7 @@ type plain = fragment
 let plain (i:id) (ad:adata) (rg:range) b =
     let ad = parseAD i ad in
     let h = StatefulPlain.emptyHistory i in
-    let p = StatefulPlain.plain i h ad rg b
+    let p = StatefulPlain.plain i h ad rg b in
     {contents =  p}
 
 let reprFragment (i:id) (ad:adata) (rg:range) p =

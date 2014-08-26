@@ -1,4 +1,6 @@
-﻿module SessionDB
+﻿#light "off"
+
+module SessionDB
 
 open Bytes
 open TLSInfo
@@ -42,11 +44,13 @@ type t = {
 
 (* ------------------------------------------------------------------------------- *)
 module Option =
+    begin
     let filter (f : 'a -> bool) (x : option<'a>) =
         match x with
         | None -> None
         | Some x when f x -> Some x
         | Some x -> None
+    end
 
 (* ------------------------------------------------------------------------------- *)
 let bytes_of_key (k : byte[] * Role * string) =
@@ -76,9 +80,9 @@ let create poptions =
     let self = {
         filename = poptions.sessionDBFileName;
           expiry = poptions.sessionDBExpiry;
-    }
+    } in
 
-    DB.closedb (DB.opendb self.filename)
+    DB.closedb (DB.opendb self.filename);
     self
 
 (* ------------------------------------------------------------------------------- *)
@@ -103,13 +107,14 @@ let select self sid role hint =
             if greaterDateTime expires (now()) then
                 Some sinfo
             else
-                ignore (DB.remove db key);
-                None
+                (ignore (DB.remove db key);
+                None)
         in
 
         DB.get db key
             |> Option.map value_of_bytes
             |> Option.bind filter_record
+    in
 
     let db = DB.opendb self.filename in
 

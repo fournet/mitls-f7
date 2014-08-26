@@ -1,4 +1,6 @@
-﻿module TLSFragment
+﻿#light "off"
+
+module TLSFragment
 
 open Error
 open TLSError
@@ -15,9 +17,9 @@ type fragment =
 type plain = fragment
 
 type history = {
-  handshake: HSFragment.stream //CF Handshake.stream;
-  ccs:       HSFragment.stream //CF Handshake.stream;
-  alert:     HSFragment.stream //CF Alert.stream;
+  handshake: HSFragment.stream; //CF Handshake.stream;
+  ccs:       HSFragment.stream; //CF Handshake.stream;
+  alert:     HSFragment.stream; //CF Alert.stream;
   appdata:   DataStream.stream //CF AppData.stream;
 }
 
@@ -111,21 +113,21 @@ let makeExtPad i ct r frag =
 let parseExtPad i ct r frag : Result<fragment> =
     match ct,frag with
     | Handshake,FHandshake(f) ->
-        match HSFragment.parseExtPad i r f with
+        (match HSFragment.parseExtPad i r f with
         | Error(x) -> Error(x)
-        | Correct(f) -> Correct (FHandshake(f))
+        | Correct(f) -> Correct (FHandshake(f)))
     | Alert,FAlert(f) ->
-        match HSFragment.parseExtPad i r f with
+        (match HSFragment.parseExtPad i r f with
         | Error(x) -> Error(x)
-        | Correct(f) -> Correct (FAlert(f))
+        | Correct(f) -> Correct (FAlert(f)))
     | Change_cipher_spec,FCCS(f) ->
-        match HSFragment.parseExtPad i r f with
+        (match HSFragment.parseExtPad i r f with
         | Error(x) -> Error(x)
-        | Correct(f) -> Correct (FCCS(f))
+        | Correct(f) -> Correct (FCCS(f)))
     | Application_data,FAppData(f) ->
-        match AppFragment.parseExtPad i r f with
+        (match AppFragment.parseExtPad i r f with
         | Error(x) -> Error(x)
-        | Correct(f) -> Correct (FAppData(f))
+        | Correct(f) -> Correct (FAppData(f)))
     | _,_ -> unexpected "[parseExtPad] invoked on an invalid contenttype/fragment"
 
 #if ideal
