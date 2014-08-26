@@ -13,14 +13,11 @@ open FlexConstants
 open FlexHandshake
 
 
-// TODO : Find another way to emmbed Role for FSessionInfo update
-
 type FlexCertificate = 
     class
 
     (* Receive a Certificate message from the network stream *)
-    static member receive (role:Role) (st:state) (nsc:nextSecurityContext) : state * nextSecurityContext * FCertificate =
-        
+    static member receive (st:state) (role:Role) (nsc:nextSecurityContext) : state * nextSecurityContext * FCertificate =
         let si = nsc.si in
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
@@ -46,6 +43,40 @@ type FlexCertificate =
             )
         | _ -> failwith "recvCertificate : message type should be HT_certificate"
 
-    (* Send a Certificate message to the network stream *)
+    (* Send a Certificate message to the network stream using User provided chain of certificates *)
+    static member send (st:state, role:Role, ?nsc:nextSecurityContext, ?fcrt:FCertificate, ?fp:fragmentationPolicy) : state * nextSecurityContext * FCertificate =
+        let ns = st.ns in
+        let fp = defaultArg fp defaultFragmentationPolicy in
+        let fcrt = defaultArg fcrt nullFCertificate in
+        let nsc = defaultArg nsc nullNextSecurityContext in
+
+        let chain = fcrt.chain in
+        let si = nsc.si in
+        let msgb = HandshakeMessages.serverCertificateBytes chain in
+        let st = FlexHandshake.send(st,HT_client_hello,msgb,fp) in
+
+        // FIXME : Payload is set to msgb instead of to_log
+        let si =
+            match role with
+            | Client ->   { si with 
+                            clientID = chain;
+                            client_auth = true;
+                          }
+            | Server -> { si with serverID = chain }
+        in
+        let nsc = { nsc with si = si } in
+        let fcrt = { fcrt with 
+                        chain = chain;
+                        payload = msgb
+        } in
+        st,nsc,fcrt
+
+    (* Send a Certificate message with a Cert.chain provided by the user *)
+    static member send (st:state, role:Role, chain:Cert.chain, ?nsc:nextSecurityContext, ?fp:fragmentationPolicy) : state * nextSecurityContext * FCertificate =
+        let nsc = defaultArg nsc nullNextSecurityContext in
+        let fp = defaultArg fp defaultFragmentationPolicy in
+        let fcrt = {nullFCertificate with chain = chain} in
+        FlexCertificate.send(st,role,fcrt=fcrt,nsc=nsc,fp=fp)
+
 
     end

@@ -62,11 +62,8 @@ type FlexRecord =
                 (st,b)
 
     (* Send data over the network after encrypting a record depending on the fragmentation policy *)
-    static member sendSpecific (ns:NetworkStream, e:epoch, epoch_init_pv:ProtocolVersion, k:Record.ConnectionState, ct:ContentType, payload:bytes, ?fp:fragmentationPolicy) : Record.ConnectionState * bytes =
-        
+    static member send (ns:NetworkStream, e:epoch, epoch_init_pv:ProtocolVersion, k:Record.ConnectionState, ct:ContentType, payload:bytes, ?fp:fragmentationPolicy) : Record.ConnectionState * bytes =
         let fp = defaultArg fp defaultFragmentationPolicy in
-        
-        // TODO : Here the user cannot choose the ProtocolVersion if it is an initEpoch, default is set by force while it shouldn't be the case
         let pv = 
             if TLSInfo.isInitEpoch e then
                 epoch_init_pv
@@ -74,7 +71,6 @@ type FlexRecord =
                 let si = TLSInfo.epochSI e in
                 si.protocol_version
         in
-
         let msgb,rem = splitCTPayloadFP payload fp in
         let len = length msgb in
         let rg : Range.range = (len,len) in
@@ -90,18 +86,16 @@ type FlexRecord =
                 if rem = empty_bytes then
                     (k,rem)
                 else
-                    FlexRecord.sendSpecific(ns,e,pv,k,ct,rem,fp)
+                    FlexRecord.send(ns,e,pv,k,ct,rem,fp)
             | One(fs) -> (k,rem)
                 
                 
 
     (* Send genric method based on content type and state *)
     static member send (st:state, ct:ContentType, ?fp:fragmentationPolicy) : state =
-        
         let fp = defaultArg fp defaultFragmentationPolicy in
-
         let payload = pickCTBuffer st.write ct in
-        let k,rem = FlexRecord.sendSpecific(st.ns,st.write.epoch,st.write.epoch_init_pv,st.write.record,ct,payload,fp) in
+        let k,rem = FlexRecord.send(st.ns,st.write.epoch,st.write.epoch_init_pv,st.write.record,ct,payload,fp) in
         let st = FlexState.updateOutgoingHSBuffer st rem in
         let st = FlexState.updateOutgoingRecord st k in
         (st)

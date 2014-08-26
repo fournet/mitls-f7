@@ -67,6 +67,7 @@ type FServerHello = {
 (* Record associated to a Certificate message *)
 type FCertificate = {
     chain: Cert.chain;
+    payload: bytes;
 }
 
 (* Record associated to a ServerKeyExchange message *)

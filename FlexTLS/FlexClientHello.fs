@@ -23,7 +23,6 @@ open FlexHandshake
 
 (* Inference on user provided information *)
 let fillFClientHelloANDConfig (fch:FClientHello) (cfg:config) : FClientHello * config =
-    
     (* pv = Is there some pv ? If no, check config maxVer *)
     // FIXME : There is a corner case when the user sets fch pv to default because it should have priority over cfg.maxVer
     let pv =
@@ -106,7 +105,6 @@ type FlexClientHello =
 
     (* Receive a ClientHello message from the network stream *)
     static member receive (st:state) : state * nextSecurityContext * FClientHello =
-        
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_client_hello  ->    
@@ -136,7 +134,6 @@ type FlexClientHello =
 
     (* Send a ClientHello message to the network stream *)
     static member send (st:state, ?fch:FClientHello, ?cfg:config, ?fp:fragmentationPolicy) : state * nextSecurityContext * FClientHello =
-
         let ns = st.ns in
         let fp = defaultArg fp defaultFragmentationPolicy in
         let fch = defaultArg fch nullFClientHello in

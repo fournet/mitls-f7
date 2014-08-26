@@ -46,6 +46,7 @@ let nullFServerHello : FServerHello = {   pv = defaultConfig.maxVer;
 
 (* Define a null FCertificate record *)
 let nullFCertificate : FCertificate = {   chain = [];
+                                          payload = empty_bytes;
                                       }
 
 (* Define a null FServerHelloDone record *)
