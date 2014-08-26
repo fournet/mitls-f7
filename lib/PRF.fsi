@@ -1,4 +1,6 @@
-﻿module PRF
+﻿#light "off"
+
+module PRF
 
 open Bytes
 open TLSConstants

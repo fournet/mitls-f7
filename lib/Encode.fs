@@ -1,4 +1,6 @@
-﻿module Encode
+﻿#light "off"
+
+module Encode
 
 open Bytes
 open Error
@@ -83,7 +85,7 @@ let encodeNoPad (e:id) (tlen:nat) (rg:range) (ad:LHAEPlain.adata) data tag =
         h <> length b then
         Error.unexpected "[encodeNoPad] invoked on an invalid range."
     else
-    let payload = b @| tag
+    let payload = b @| tag in
     if length payload <> (tlen - ivSize e) then
         Error.unexpected "[encodeNoPad] Internal error."
     else
@@ -96,10 +98,10 @@ let encode (e:id) (tlen:nat) (rg:range) (ad:LHAEPlain.adata) data tag =
     let lb = length b in
     let lm = length tag in
     let ivL = ivSize e in
-    let pl = tlen - lb - lm - ivL
+    let pl = tlen - lb - lm - ivL in
     if pl > 0 && pl <= 256 then
         //CF here we miss refinements to prove 0 < pl <= 256
-        let payload = b @| tag @| pad pl
+        let payload = b @| tag @| pad pl in
         if length payload <> tlen - ivL then
             Error.unexpected "[encode] Internal error."
         else
@@ -122,7 +124,7 @@ let decodeNoPad (e:id) (ad:LHAEPlain.adata) (rg:range) tlen pl =
      ok = true}
 
 let decode (e:id) (ad:LHAEPlain.adata) (rg:range) (tlen:nat) pl =
-    let a = e.aeAlg
+    let a = e.aeAlg in
     let macSize = macSize (macAlg_of_aeAlg a) in
     let fp = fixedPadSize e in
     let pLen = length pl in
@@ -131,7 +133,7 @@ let decode (e:id) (ad:LHAEPlain.adata) (rg:range) (tlen:nat) pl =
     let padlen = int_of_bytes padlenb in
     let padstart = pLen - padlen - fp in
     let macstart = pLen - macSize - padlen - fp in
-    let encAlg = encAlg_of_aeAlg a
+    let encAlg = encAlg_of_aeAlg a in
     match encAlg with
     | Stream_RC4_128 -> unreachable "[decode] invoked on stream cipher"
     | CBC_Stale(encAlg) | CBC_Fresh(encAlg) ->
@@ -192,7 +194,7 @@ let decode (e:id) (ad:LHAEPlain.adata) (rg:range) (tlen:nat) pl =
                 }
 
 let plain (e:id) ad tlen b = 
-  let authEnc = e.aeAlg
+  let authEnc = e.aeAlg in
   let rg = cipherRangeClass e tlen in
   match authEnc with
     | MtE(Stream_RC4_128,_) 
@@ -209,7 +211,7 @@ let plain (e:id) ad tlen b =
     | _ -> unexpected "[Encode.plain] incompatible ciphersuite given."
 
 let repr (e:id) ad rg pl = 
-  let authEnc = e.aeAlg
+  let authEnc = e.aeAlg in
   let lp = pl.plain in
   let tg = pl.tag in
   let tlen = targetLength e rg in

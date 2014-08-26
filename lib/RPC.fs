@@ -1,4 +1,6 @@
-﻿module RPC
+﻿#light "off"
+
+module RPC
 
 open Bytes
 open TLSInfo
@@ -9,33 +11,33 @@ open Dispatch
 open TLS
 
 let config = {
-    TLSInfo.minVer = TLSConstants.SSL_3p0
-    TLSInfo.maxVer = TLSConstants.TLS_1p2
+    TLSInfo.minVer = TLSConstants.SSL_3p0;
+    TLSInfo.maxVer = TLSConstants.TLS_1p2;
 
     TLSInfo.ciphersuites =
         TLSConstants.cipherSuites_of_nameList [
             TLSConstants.TLS_RSA_WITH_AES_128_CBC_SHA256;
             TLSConstants.TLS_RSA_WITH_AES_128_CBC_SHA;
             TLSConstants.TLS_RSA_WITH_3DES_EDE_CBC_SHA;
-        ]
+        ];
 
-    TLSInfo.compressions = [ TLSConstants.NullCompression ]
+    TLSInfo.compressions = [ TLSConstants.NullCompression ];
 
     (* Client side *)
-    TLSInfo.honourHelloReq = TLSInfo.HRPResume
-    TLSInfo.allowAnonCipherSuite = false
+    TLSInfo.honourHelloReq = TLSInfo.HRPResume;
+    TLSInfo.allowAnonCipherSuite = false;
 
     (* Server side *)
-    TLSInfo.request_client_certificate = true
-    TLSInfo.check_client_version_in_pms_for_old_tls = true
+    TLSInfo.request_client_certificate = true;
+    TLSInfo.check_client_version_in_pms_for_old_tls = true;
     
     (* Common *)
-    TLSInfo.safe_renegotiation = true
-    TLSInfo.safe_resumption = false
-    TLSInfo.server_name = "RPC server"
-    TLSInfo.client_name = "RPC client"
+    TLSInfo.safe_renegotiation = true;
+    TLSInfo.safe_resumption = false;
+    TLSInfo.server_name = "RPC server";
+    TLSInfo.client_name = "RPC client";
 
-    TLSInfo.sessionDBFileName = "sessionDBFile.bin"
+    TLSInfo.sessionDBFileName = "sessionDBFile.bin";
     TLSInfo.sessionDBExpiry = Date.newTimeSpan 2 0 0 0 (* two days *)
 }
 
@@ -75,13 +77,13 @@ let rec drainMeta = fun conn ->
         | DontWrite conn -> drainMeta conn
         | _ -> DRError(None,perror __SOURCE_FILE__ __LINE__ "Internal TLS error")
     else
-        refuse conn q; DRError(None,"")
+        (refuse conn q; DRError(None,""))
   | CompletedFirst conn
   | CompletedSecond conn         -> DRContinue conn
   | DontWrite  conn              -> drainMeta conn
   | Read       (conn, _)         ->
-        ignore (TLS.full_shutdown conn)
-        DRError (None,perror __SOURCE_FILE__ __LINE__ "Internal TLS error")
+        (ignore (TLS.full_shutdown conn);
+        DRError (None,perror __SOURCE_FILE__ __LINE__ "Internal TLS error"))
 
 let rec sendMsg = fun conn rg msg ->
     let rg0,rg1 = DataStream.splitRange (TLS.getEpochOut conn) rg in
@@ -91,17 +93,18 @@ let rec sendMsg = fun conn rg msg ->
         else
             let msg0,msg1 = DataStream.split (TLS.getEpochOut conn) (TLS.getOutStream conn) rg0 rg1 msg in
             msg0, Some(msg1)
+    in
     match TLS.write conn (rg0, msg_o) with
     | WriteError    (ad,err)          -> None
     | WriteComplete conn              ->
-        match rem with
+        (match rem with
         | None -> Some conn
-        | Some(msg1) -> sendMsg conn rg1 msg1
+        | Some(msg1) -> sendMsg conn rg1 msg1)
     | MustRead      conn              ->
-        match drainMeta conn with
+        (match drainMeta conn with
         | DRError    _    -> None
         | DRClosed   _    -> None
-        | DRContinue conn -> sendMsg conn rg msg
+        | DRContinue conn -> sendMsg conn rg msg)
 
 let recvMsg = fun conn ->
     let rec doit = fun conn buffer ->
@@ -119,7 +122,7 @@ let recvMsg = fun conn ->
                 | DontWrite conn   -> doit conn buffer
                 | _ -> None
             else
-                refuse conn q; None
+                (refuse conn q; None)
           | CompletedFirst conn
           | CompletedSecond conn         -> doit conn buffer
           | DontWrite  conn              -> doit conn buffer
@@ -130,8 +133,8 @@ let recvMsg = fun conn ->
 
                 if Bytes.length buffer < 2+msglen then
                     doit conn buffer
-                elif Bytes.length buffer > 2+msglen then
-                    ignore (TLS.full_shutdown conn); None
+                else if Bytes.length buffer > 2+msglen then
+                    (ignore (TLS.full_shutdown conn); None)
                 else
                     Some (conn, buffer)
                     
@@ -157,7 +160,7 @@ let doclient (request : string) =
 
         match sendMsg conn (Bytes.length request, Bytes.length request) msg with
         | Some conn ->
-            match recvMsg conn with
+            (match recvMsg conn with
             | None -> None
             | Some (conn, response) ->
                 ignore (TLS.full_shutdown conn);
@@ -166,10 +169,10 @@ let doclient (request : string) =
                     None
                 else
                     let rnonce, response = Bytes.split response 2 in
-                        if Bytes.equalBytes nonce rnonce then
-                            Some (Bytes.iutf8 response)
-                        else
-                            None
+                    if Bytes.equalBytes nonce rnonce then
+                        Some (Bytes.iutf8 response)
+                    else
+                        None)
         | None -> None
 
 let doserver () =

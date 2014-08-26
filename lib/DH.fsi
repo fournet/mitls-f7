@@ -1,4 +1,6 @@
-﻿module DH
+﻿#light "off"
+
+module DH
 
 open Bytes
 open DHGroup

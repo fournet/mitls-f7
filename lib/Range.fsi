@@ -1,4 +1,6 @@
-﻿module Range
+﻿#light "off"
+
+module Range
 
 open Bytes
 open TLSInfo

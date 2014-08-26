@@ -1,4 +1,6 @@
-﻿module DHGroup
+﻿#light "off"
+
+module DHGroup
 
 open Bytes
 
@@ -8,6 +10,7 @@ type elt = bytes
 type g   = elt
 
 type preds = Elt of p * g * bytes
+type predPP = PP of p * g
 
 val genElement: p -> g -> option<q> -> elt
 val checkElement: p -> g -> bytes -> option<elt>

@@ -1,4 +1,6 @@
-﻿module SessionDB
+﻿#light "off"
+
+module SessionDB
 
 open TLSInfo
 open Date

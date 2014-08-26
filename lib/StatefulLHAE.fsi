@@ -1,4 +1,6 @@
-﻿module StatefulLHAE
+﻿#light "off"
+
+module StatefulLHAE
 
 open Bytes
 open Error
