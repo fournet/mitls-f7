@@ -1,4 +1,6 @@
-﻿module Nonce
+﻿#light "off"
+
+module Nonce
 
 open Bytes
 open Error
@@ -19,14 +21,14 @@ let log = ref []
 #endif
 
 let rec mkHelloRandom(): bytes =
-    let Cr = timestamp() @| random 28
+    let Cr = timestamp() @| random 28 in
     //#begin-idealization
     #if ideal
     if List.memr !log Cr then 
         mkHelloRandom () // we formally retry to exclude collisions.
     else 
-        log := Cr::!log
-        Cr
+        (log := Cr::!log;
+        Cr)
     #else //#end-idealization
     Cr
     #endif

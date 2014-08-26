@@ -1,4 +1,6 @@
-﻿module HSFragment
+﻿#light "off"
+
+module HSFragment
 open Bytes
 open TLSInfo
 open Range

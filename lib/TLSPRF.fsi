@@ -1,4 +1,6 @@
-﻿module TLSPRF
+﻿#light "off"
+
+module TLSPRF
 
 open Bytes
 open TLSConstants

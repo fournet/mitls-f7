@@ -1,4 +1,6 @@
-﻿module PMS
+﻿#light "off"
+
+module PMS
 
 open Bytes
 open TLSConstants

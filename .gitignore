@@ -15,4 +15,7 @@ tls-*.sdf
 *.smp
 *.bak
 
+Backup
+UpgradeLog.htm
+
 lib/*.why

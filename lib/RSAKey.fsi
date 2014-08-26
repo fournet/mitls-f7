@@ -1,4 +1,6 @@
-﻿module RSAKey
+﻿#light "off"
+
+module RSAKey
 
 type sk
 type pk = { pk : CoreACiphers.pk }

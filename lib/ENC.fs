@@ -1,4 +1,6 @@
-﻿module ENC
+﻿#light "off"
+
+module ENC
 
 open Bytes
 open Error
@@ -36,7 +38,7 @@ type state =
 type encryptor = state
 type decryptor = state
 
-(* CF 14-07-17: reuse? 
+(* CF 14-07-17: reuse?
 let GENOne ki : state =
     #if verify
     failwith "trusted for correctness"
@@ -100,9 +102,9 @@ let LEAK (ki:id) (rw:rw) s =
     match s with
     | BlockCipher (bs) ->
         let bsiv = bs.iv in
-        match bsiv with
+        (match bsiv with
             | NoIV -> (bs.key.k,empty_bytes)
-            | SomeIV(ivec) -> (bs.key.k,ivec)
+            | SomeIV(ivec) -> (bs.key.k,ivec))
     | StreamCipher (ss) ->
         ss.skey.k,empty_bytes
 
@@ -117,10 +119,10 @@ let ENC_int ki s tlen d =
     match s,alg with
     //#begin-ivStaleEnc
     | BlockCipher(s), MtE(CBC_Stale(alg),_) ->
-        match s.iv with
+        (match s.iv with
         | NoIV -> unexpected "[ENC] Wrong combination of cipher algorithm and state"
         | SomeIV(iv) ->
-            let cipher = cbcenc alg s.key.k iv d
+            let cipher = cbcenc alg s.key.k iv d in
             let cl = length cipher in
             if cl <> tlen || tlen > max_TLSCipher_fragment_length then
                 // unexpected, because it is enforced statically by the
@@ -130,22 +132,22 @@ let ENC_int ki s tlen d =
                 let lb = lastblock alg cipher in
                 let iv = someIV ki lb in
                 let s = updateIV ki s iv in
-                (BlockCipher(s), cipher)
+                (BlockCipher(s), cipher))
     //#end-ivStaleEnc
     | BlockCipher(s), MtE(CBC_Fresh(alg),_) ->
-        match s.iv with
+        (match s.iv with
         | SomeIV(b) -> unexpected "[ENC] Wrong combination of cipher algorithm and state"
         | NoIV   ->
             let ivl = blockSize alg in
             let iv = Nonce.random ivl in
-            let cipher = cbcenc alg s.key.k iv d
+            let cipher = cbcenc alg s.key.k iv d in
             let res = iv @| cipher in
             if length res <> tlen || tlen > max_TLSCipher_fragment_length then
                 // unexpected, because it is enforced statically by the
                 // CompatibleLength predicate
                 unexpected "[ENC] Length of encrypted data do not match expected length"
             else
-                (BlockCipher(s), res)
+                (BlockCipher(s), res))
     | StreamCipher(s), MtE(Stream_RC4_128,_) ->
         let cipher = (CoreCiphers.rc4process s.sstate (d)) in
         if length cipher <> tlen || tlen > max_TLSCipher_fragment_length then
@@ -161,12 +163,12 @@ type event =
   | ENCrypted of id * LHAEPlain.adata * cipher * Encode.plain
 type entry = id * LHAEPlain.adata * range * cipher * Encode.plain
 let log: ref<list<entry>> = ref []
-let rec cfind (e:id) (ad:LHAEPlain.adata) (c:cipher) (xs: list<entry>) : (range * Encode.plain) = 
+let rec cfind (e:id) (ad:LHAEPlain.adata) (c:cipher) (xs: list<entry>) : (range * Encode.plain) =
   //let (ad,rg,text) = 
   match xs with
     | [] -> failwith "not found"
     | entry::res -> 
-        let (e',ad',rg, c',text)=entry
+        let (e',ad',rg, c',text) = entry in
         if e = e' && c = c' && ad = ad' then
             (rg,text)
         else cfind e ad c res
@@ -183,20 +185,21 @@ let addtolog (e:entry) (l: ref<list<entry>>) =
 let ENC (ki:id) s ad rg data =
     let tlen = targetLength ki rg in
   #if ideal
-    let d = 
+    let d =
       if safeId(ki) then //MK Should we use Encode.payload here? CF 14-07-17 ??
         createBytes tlen 0
       else
         Encode.repr ki ad rg data  //MK we may have only plaintext integrity in this case
+    in
     if authId (ki) then
       let (s,c) = ENC_int ki s tlen d in
-      let l = length c
+      let l = length c in
 //      let c =
 //        let exp = TLSInfo.max_TLSCipher_fragment_length in
 //        if l <= exp then c
 //        else Error.unexpected "ENC returned a ciphertext of unexpected size"
       Pi.assume (ENCrypted(ki,ad,c,data));
-      log := addtolog (ki, ad, rg, c, data) log; 
+      log := addtolog (ki, ad, rg, c, data) log;
       (s,c)
     else
   #endif
@@ -213,25 +216,25 @@ let DEC_int (ki:id) (s:decryptor) cipher =
     match s, alg with
     //#begin-ivStaleDec
     | BlockCipher(s), MtE(CBC_Stale(alg),_) ->
-        match s.iv with
+        (match s.iv with
         | NoIV -> unexpected "[DEC] Wrong combination of cipher algorithm and state"
         | SomeIV(iv) ->
             let data = cbcdec alg s.key.k iv cipher in
             let lb = lastblock alg cipher in
             let siv = someIV ki lb in
             let s = updateIV ki s siv in
-            (BlockCipher(s), data)
+            (BlockCipher(s), data))
     //#end-ivStaleDec
     | BlockCipher(s), MtE(CBC_Fresh(alg),_) ->
-        match s.iv with
+        (match s.iv with
         | SomeIV(_) -> unexpected "[DEC] Wrong combination of cipher algorithm and state"
         | NoIV ->
             let ivL = blockSize alg in
             let (iv,encrypted) = split cipher ivL in
             let data = cbcdec alg s.key.k iv encrypted in
-            (BlockCipher(s), data)
+            (BlockCipher(s), data))
     | StreamCipher(s), MtE(Stream_RC4_128,_) ->
-        let data = (CoreCiphers.rc4process s.sstate (cipher))
+        let data = (CoreCiphers.rc4process s.sstate (cipher)) in
         (StreamCipher(s),data)
     | _,_ -> unexpected "[DEC] Wrong combination of cipher algorithm and state"
 

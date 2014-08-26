@@ -1,4 +1,6 @@
-﻿module ENC
+﻿#light "off"
+
+module ENC
 
 open Bytes
 open TLSInfo

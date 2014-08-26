@@ -1,4 +1,16 @@
 (*
+ * Copyright (c) 2014 MSR-INRIA Joint Center. All rights reserved.
+ * 
+ * This code is distributed under the terms for the CeCILL-B (version 1)
+ * license.
+ * 
+ * You should have received a copy of the CeCILL-B (version 1) license
+ * along with this program.  If not, see:
+ * 
+ *   http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.txt
+ *)
+
+(*
  * Proof of Theorem 1
  *
  * Theorem: if the pre-master secret KEM used in the TLS handshake is

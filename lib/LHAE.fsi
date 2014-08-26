@@ -1,4 +1,6 @@
-﻿module LHAE
+﻿#light "off"
+
+module LHAE
 
 open Bytes
 open Error

@@ -1,4 +1,6 @@
-﻿module LHAEPlain
+﻿#light "off"
+
+module LHAEPlain
 open Bytes
 open TLSInfo
 open Range

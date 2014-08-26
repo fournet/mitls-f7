@@ -1,4 +1,6 @@
-﻿(* Handshake protocol *) 
+﻿#light "off"
+
+(* Handshake protocol *) 
 module Handshake
 
 open Error
