@@ -21,7 +21,6 @@ type FlexServerHelloDone =
 
     (* Receive an expected ServerHelloDone message from the network stream *)
     static member receive (st:state) : state * FServerHelloDone =
-        
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_server_hello_done  -> 
@@ -35,7 +34,6 @@ type FlexServerHelloDone =
 
     (* Send ServerHelloDone message to the network stream *)
     static member send (st:state, ?fp:fragmentationPolicy) : state * FServerHelloDone =
-    
         // TODO : check that ServerHelloDone doesn't update the nextSecurityContext
         let fp = defaultArg fp defaultFragmentationPolicy in
         let st = FlexHandshake.send(st,HT_server_hello_done,empty_bytes,fp) in

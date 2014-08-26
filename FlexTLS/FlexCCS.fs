@@ -33,7 +33,7 @@ type FlexCCS =
         let fp = defaultArg fp defaultFragmentationPolicy in
         let nsc = defaultArg nsc nullNextSecurityContext in
         let payload = HandshakeMessages.CCSBytes in
-        (* TODO : Should we consider CCS part of the Handshake or not ?... *)
+        // TODO : Should we consider CCS part of the Handshake or not ?...
         (* Here I consider it is inside the handshake so I store it in the HS buffer *)
         let st = FlexState.updateOutgoingHSBuffer st payload in
         let st = FlexRecord.send(st,Handshake,fp) in

@@ -22,7 +22,6 @@ type FlexAlert =
     
     (* Receive an expected ServerHelloDone message from the network stream *)
     static member receive (st:state) : state * alertDescription =
-        
         let ns = st.ns in
         let buf = st.read.alert_buffer in
         if length buf < 2 then

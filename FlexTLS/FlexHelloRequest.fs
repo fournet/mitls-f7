@@ -21,7 +21,6 @@ type FlexHelloRequest =
 
     (* Receive an expected HelloRequest message from the network stream *)
     static member receive (st:state) : state * FHelloRequest = 
-        
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_hello_request  ->         
@@ -35,7 +34,6 @@ type FlexHelloRequest =
 
     (* Send HelloRequest message to the network stream *)
     static member send (st:state, ?fp:fragmentationPolicy) : state * FHelloRequest =
-    
         let fp = defaultArg fp defaultFragmentationPolicy in
         let ns = st.ns in
 
@@ -43,5 +41,4 @@ type FlexHelloRequest =
         // TODO : fill in the FHelloRequest and return it
         st,nullFHelloRequest
 
-    
     end

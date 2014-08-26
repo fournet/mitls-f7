@@ -21,7 +21,6 @@ type FlexFinished =
 
     (* Receive an expected Finished message from the network stream *)
     static member receive (st:state) : state * FFinished = 
-        
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_finished  -> 
@@ -35,10 +34,8 @@ type FlexFinished =
                 st,ff
         | _ -> failwith "recvFinished : message type is not HT_finished"
 
-
     (* Send Finished message to the network stream *)
     static member send (st:state, ?ff:FFinished, ?fp:fragmentationPolicy) : state * FFinished =
-    
         // TODO : check that ServerHelloDone doesn't update the nextSecurityContext
         let ff = defaultArg ff nullFFinished in
         let fp = defaultArg fp defaultFragmentationPolicy in
