@@ -1,6 +1,8 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 11.00
-# Visual Studio 2010
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.30723.0
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "lib", "lib\lib.fsproj", "{7283C0EF-3C40-495D-9969-79CB71B3AACC}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "TLSharp", "TLSharp\TLSharp.fsproj", "{BDBA21EB-CB44-435B-BF9A-C9393AD2A613}"
