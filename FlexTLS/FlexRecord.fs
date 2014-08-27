@@ -14,6 +14,7 @@ open FlexState
 
 
 
+let ccs_buffer = abytes [|1uy|]
 
 (* Get fragment length depending on the fragmentation policy *)
 let fs_of_fp fp =
@@ -30,6 +31,7 @@ let pickCTBuffer (ch:channel) (ct:ContentType) : bytes =
     match ct with
     | Handshake -> ch.hs_buffer
     | Alert -> ch.alert_buffer
+    | Change_cipher_spec -> ccs_buffer
     | _ -> failwith "Unsupported content type"
 
 
