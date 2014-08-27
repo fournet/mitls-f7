@@ -13,9 +13,6 @@ open FlexConstants
 open FlexState
 
 
-
-let ccs_buffer = abytes [|1uy|]
-
 (* Get fragment length depending on the fragmentation policy *)
 let fs_of_fp fp =
     match fp with
@@ -31,7 +28,6 @@ let pickCTBuffer (ch:channel) (ct:ContentType) : bytes =
     match ct with
     | Handshake -> ch.hs_buffer
     | Alert -> ch.alert_buffer
-    | Change_cipher_spec -> ccs_buffer
     | _ -> failwith "Unsupported content type"
 
 
@@ -74,11 +70,13 @@ type FlexRecord =
         (k,b)
 
     (* Send data over the network after encrypting a record depending on the fragmentation policy *)
-    static member send (ns:NetworkStream, e:epoch, epoch_init_pv:ProtocolVersion, k:Record.ConnectionState, ct:ContentType, payload:bytes, ?fp:fragmentationPolicy) : Record.ConnectionState * bytes =
+    static member send (ns:NetworkStream, e:epoch, k:Record.ConnectionState, ct:ContentType, payload:bytes, ?epoch_init_pv:ProtocolVersion, ?fp:fragmentationPolicy) : Record.ConnectionState * bytes =
         let fp = defaultArg fp defaultFragmentationPolicy in
         let pv = 
             if TLSInfo.isInitEpoch e then
-                epoch_init_pv
+                match epoch_init_pv with
+                | None -> failwith (perror __SOURCE_FILE__ __LINE__ "A protocol version value must be provided for the initial epoch")
+                | Some(pv) -> pv
             else
                 let si = TLSInfo.epochSI e in
                 si.protocol_version
@@ -93,7 +91,7 @@ type FlexRecord =
                 if rem = empty_bytes then
                     (k,rem)
                 else
-                    FlexRecord.send(ns,e,pv,k,ct,rem,fp)
+                    FlexRecord.send(ns,e,k,ct,rem,pv,fp)
             | One(fs) -> (k,rem)
                 
                 
@@ -102,7 +100,7 @@ type FlexRecord =
     static member send (st:state, ct:ContentType, ?fp:fragmentationPolicy) : state =
         let fp = defaultArg fp defaultFragmentationPolicy in
         let payload = pickCTBuffer st.write ct in
-        let k,rem = FlexRecord.send(st.ns,st.write.epoch,st.write.epoch_init_pv,st.write.record,ct,payload,fp) in
+        let k,rem = FlexRecord.send(st.ns,st.write.epoch,st.write.record,ct,payload,st.write.epoch_init_pv,fp) in
         let st = FlexState.updateOutgoingBuffer st ct rem in
         let st = FlexState.updateOutgoingRecord st k in
         (st)

@@ -55,6 +55,7 @@
     <Compile Include="FlexConnection.fs" />
     <Compile Include="FlexRecord.fs" />
     <Compile Include="FlexAlert.fs" />
+    <Compile Include="FlexCCS.fs" />
     <Compile Include="FlexHandshake.fs" />
     <Compile Include="FlexHelloRequest.fs" />
     <Compile Include="FlexClientHello.fs" />
@@ -62,7 +63,6 @@
     <Compile Include="FlexCertificate.fs" />
     <Compile Include="FlexCertificateRequest.fs" />
     <Compile Include="FlexServerHelloDone.fs" />
-    <Compile Include="FlexCCS.fs" />
     <Compile Include="FlexFinished.fs" />
     <Compile Include="FlexTLS.fs" />
     <Compile Include="FlexAttacks.fs" />

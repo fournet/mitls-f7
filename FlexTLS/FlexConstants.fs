@@ -63,7 +63,7 @@ let nullFServerHelloDone : FServerHelloDone =  {   payload = empty_bytes;
                                                }
 
 (* Define a null FChangeCipherSpecs record *)
-let nullFChangeCipherSpecs : FChangeCipherSpecs = { payload = empty_bytes;
+let nullFChangeCipherSpecs : FChangeCipherSpecs = { payload = HandshakeMessages.CCSBytes;
                                                   }
 
 (* Define a null FFinished record *)
