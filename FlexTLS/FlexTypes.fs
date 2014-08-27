@@ -72,6 +72,12 @@ type FCertificate = {
 
 (* Record associated to a ServerKeyExchange message *)
 (* Record associated to a CertificateRequest message *)
+type FCertificateRequest = {
+    chain: Cert.chain;
+    siglist: list<Sig.alg>;
+    text: list<string>;
+    payload: bytes;
+}
 
 (* Record associated to a ServerHelloDone message *)
 type FServerHelloDone = {
@@ -100,7 +106,7 @@ type FHSMessages = {
     serverCertificate: FCertificate;
     clientCertificate: FCertificate;
     //serverKeyExchange: FServerKeyExchange;
-    //certificateRequest: FCertificateRequest;
+    certificateRequest: FCertificateRequest;
     serverHelloDone: FServerHelloDone;
     //certificateVerify: FCertificateVerify;
     //clientKeyExchange: FClientKeyExchange;

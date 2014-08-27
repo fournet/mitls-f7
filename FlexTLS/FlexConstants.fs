@@ -49,10 +49,18 @@ let nullFCertificate : FCertificate = {   chain = [];
                                           payload = empty_bytes;
                                       }
 
+(* Define a null FCertificateRequest record *)
+let nullFCertificateRequest : FCertificateRequest = { chain = [];
+                                                      siglist = [];
+                                                      text = [];
+                                                      payload = empty_bytes;
+                                                    }
+
 (* Define a null FServerHelloDone record *)
 let nullFServerHelloDone : FServerHelloDone =  {   payload = empty_bytes;
                                                }
 
+(* Define a null FChangeCipherSpecs record *)
 let nullFChangeCipherSpecs : FChangeCipherSpecs = { payload = empty_bytes;
                                                   }
 
@@ -65,8 +73,9 @@ let nullFFinished : FFinished = {   verify_data = empty_bytes;
 let nullFHSMessages = {   helloRequest = nullFHelloRequest;
                           clientHello = nullFClientHello;
                           serverHello = nullFServerHello;
-                          clientCertificate = nullFCertificate;
                           serverCertificate = nullFCertificate;
+                          certificateRequest = nullFCertificateRequest;
+                          clientCertificate = nullFCertificate;
                           (* TODO : complete this *)
                           serverHelloDone = nullFServerHelloDone;
                           clientChangeCipherSpecs = nullFChangeCipherSpecs;
