@@ -18,6 +18,8 @@ val sample: msId -> ms
 val coerce: msId -> repr -> ms
 //#end-coerce
 
+val deriveKeys: id -> id -> ms -> Role -> StatefulLHAE.state * StatefulLHAE.state
+
 val keyCommit: csrands -> ProtocolVersion -> aeAlg -> negotiatedExtensions -> unit
 val keyGenClient: id -> id -> ms -> StatefulLHAE.writer * StatefulLHAE.reader
 val keyGenServer: id -> id -> ms -> StatefulLHAE.writer * StatefulLHAE.reader
