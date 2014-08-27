@@ -25,9 +25,9 @@ type FlexCertificate =
         match hstype with
         | HT_certificate  ->  
             (match parseClientOrServerCertificate payload with
-            | Error (ad,x) -> failwith x
+            | Error (ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct (chain) -> 
-                let cert = { nullFCertificate with chain = chain; } in
+                let cert : FCertificate = { chain = chain; payload = to_log } in
                 match role with
                 | Client ->
                     let si  = { si with 
@@ -43,7 +43,7 @@ type FlexCertificate =
                     let nsc = { nsc with si = si } in
                     (st,nsc,cert)
             )
-        | _ -> failwith "recvCertificate : message type should be HT_certificate"
+        | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message type should be HT_certificate")
 
     (* Send a Certificate message to the network stream using User provided chain of certificates *)
     static member send (st:state, role:Role, ?nsc:nextSecurityContext, ?fcrt:FCertificate, ?fp:fragmentationPolicy) : state * nextSecurityContext * FCertificate =
@@ -54,8 +54,9 @@ type FlexCertificate =
 
         let chain = fcrt.chain in
         let si = nsc.si in
+        // serverCertificateBytes actually works for both sides
         let payload = HandshakeMessages.serverCertificateBytes chain in
-        let st = FlexHandshake.send(st,HT_client_hello,payload,fp) in
+        let st = FlexHandshake.send(st,payload,fp) in
 
         let si =
             match role with
