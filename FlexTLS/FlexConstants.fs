@@ -51,9 +51,10 @@ let nullFCertificate : FCertificate = {   chain = [];
                                       }
 
 (* Define a null FCertificateRequest record *)
-let nullFCertificateRequest : FCertificateRequest = { chain = [];
-                                                      siglist = [];
-                                                      text = [];
+// FIXME: We may find better defaults for this, once CertificateRequest generation is improved
+let nullFCertificateRequest : FCertificateRequest = { certTypes = [RSA_sign; DSA_sign];
+                                                      sigAlgs = [];
+                                                      names = [];
                                                       payload = empty_bytes;
                                                     }
 

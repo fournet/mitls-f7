@@ -74,9 +74,9 @@ type FCertificate = {
 (* Record associated to a ServerKeyExchange message *)
 (* Record associated to a CertificateRequest message *)
 type FCertificateRequest = {
-    chain: Cert.chain;
-    siglist: list<Sig.alg>;
-    text: list<string>;
+    certTypes: list<certType>;
+    sigAlgs: list<Sig.alg>;
+    names: list<string>;
     payload: bytes;
 }
 
