@@ -36,7 +36,7 @@ type FlexServerHelloDone =
     static member send (st:state, ?fp:fragmentationPolicy) : state * FServerHelloDone =
         // TODO : check that ServerHelloDone doesn't update the nextSecurityContext
         let fp = defaultArg fp defaultFragmentationPolicy in
-        let st = FlexHandshake.send(st,HT_server_hello_done,empty_bytes,fp) in
+        let st = FlexHandshake.send(st,HandshakeMessages.serverHelloDoneBytes,fp) in
         let fshd = {nullFServerHelloDone with payload = empty_bytes} in
         st,fshd
 

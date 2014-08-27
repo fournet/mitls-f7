@@ -30,7 +30,7 @@ type FlexCertificateRequest =
         match hstype with
         | HT_certificate_request  ->  
             (match parseCertificateRequest pv payload with
-            | Error (ad,x) -> failwith x
+            | Error (ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct (chainl,salgs,list) -> 
                 // FIXME : certType list should be transformed as a Cert.chain and set to chain
                 let chain = [] in
@@ -50,7 +50,7 @@ type FlexCertificateRequest =
                     let nsc = { nsc with si = si } in
                     (st,nsc,cert)
             )
-        | _ -> failwith "recvCertificateRequest : message type should be HT_certificate_request"
+        | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message type should be HT_certificate_request")
 
 
     (*

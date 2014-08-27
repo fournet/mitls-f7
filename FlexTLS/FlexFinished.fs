@@ -36,14 +36,12 @@ type FlexFinished =
 
     (* Send Finished message to the network stream *)
     static member send (st:state, ?ff:FFinished, ?fp:fragmentationPolicy) : state * FFinished =
-        // TODO : check that ServerHelloDone doesn't update the nextSecurityContext
         let ff = defaultArg ff nullFFinished in
         let fp = defaultArg fp defaultFragmentationPolicy in
-        let st = FlexHandshake.send(st,HT_finished,ff.verify_data,fp) in
-        // TODO : Check if verify_data = payload and cleanup
-        let ff = { nullFFinished with
-                   verify_data = ff.verify_data;
-                   payload = ff.verify_data
+        let payload = HandshakeMessages.messageBytes HT_finished ff.verify_data in
+        let st = FlexHandshake.send(st,payload,fp) in
+        let ff = { verify_data = ff.verify_data;
+                   payload = payload
                  } in
         st,ff
 
