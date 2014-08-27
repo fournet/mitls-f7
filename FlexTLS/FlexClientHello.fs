@@ -76,8 +76,7 @@ let fillFClientHelloANDConfig (fch:FClientHello) (cfg:config) : FClientHello * c
     in
 
     (* Update fch with correct informations and sets payload to empty bytes *)
-    let fch = { nullFClientHello with
-                pv = pv;
+    let fch = { pv = pv;
                 rand = rand;
                 sid = sid;
                 suites = suites;
@@ -109,7 +108,7 @@ type FlexClientHello =
         match hstype with
         | HT_client_hello  ->    
             (match parseClientHello payload with
-            | Error (ad,x) -> failwith x
+            | Error (ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct (pv,cr,sid,clientCipherSuites,cm,extensions) -> 
                 let si  = { nullFSessionInfo with 
                             init_crand = cr 
@@ -129,7 +128,7 @@ type FlexClientHello =
                 let st = fillStateEpochInitPvIFIsEpochInit st fch in
                 (st,nsc,fch)
             )
-        | _ -> failwith "recvClientHello : Message type should be HT_client_hello"
+        | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "Message type should be HT_client_hello")
  
 
     (* Send a ClientHello message to the network stream *)
@@ -143,8 +142,8 @@ type FlexClientHello =
         let st = fillStateEpochInitPvIFIsEpochInit st fch in
 
         let payload = HandshakeMessages.clientHelloBytes cfg fch.rand fch.sid fch.ext in
-        let st = FlexHandshake.send(st,HT_client_hello,payload,fp) in
-        // TODO : How should we deal with nextSecurityContext depending in IsInitEpoch ?
+        let st = FlexHandshake.send(st,payload,fp) in
+        // TODO : How should we deal with nextSecurityContext depending on IsInitEpoch ?
         let si  = { nullFSessionInfo with init_crand = fch.rand } in
         let nsc = { nullNextSecurityContext with si = si } in
         let fch = { fch with payload = payload } in
