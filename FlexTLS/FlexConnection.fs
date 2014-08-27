@@ -12,10 +12,6 @@ open FlexTypes
 
 
 
-
-let defaultPort = 443
-
-
 type FlexConnection =
     class
 
@@ -32,7 +28,7 @@ type FlexConnection =
 
     (* Open a connection as a Server *)
     static member serverOpenTcpConnection (address:string, ?cn:string, ?port:int) : state * config =
-        let port = defaultArg port defaultPort in
+        let port = defaultArg port FlexConstants.defaultTCPPort in
         let cn = defaultArg cn address in
         let cfg = {
             defaultConfig with
@@ -47,7 +43,7 @@ type FlexConnection =
  
      (* Open a connection as a Client *)
      static member clientOpenTcpConnection (address:string, ?cn:string, ?port:int) :  state * config =
-        let port = defaultArg port defaultPort in
+        let port = defaultArg port FlexConstants.defaultTCPPort in
         let cn = defaultArg cn address in
         let cfg = {
             defaultConfig with

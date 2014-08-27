@@ -11,7 +11,8 @@ open TLSConstants
 open FlexTypes
 
 
-
+(* Default TCP port to connect to *)
+let defaultTCPPort = 443
 
 (* Define a default ProtocolVersion *)
 let defaultProtocolVersion = TLS_1p2
