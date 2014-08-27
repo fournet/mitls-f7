@@ -98,7 +98,7 @@ type FlexRecord =
         let fp = defaultArg fp defaultFragmentationPolicy in
         let payload = pickCTBuffer st.write ct in
         let k,rem = FlexRecord.send(st.ns,st.write.epoch,st.write.epoch_init_pv,st.write.record,ct,payload,fp) in
-        let st = FlexState.updateOutgoingHSBuffer st rem in
+        let st = FlexState.updateOutgoingBuffer st ct rem in
         let st = FlexState.updateOutgoingRecord st k in
         (st)
 

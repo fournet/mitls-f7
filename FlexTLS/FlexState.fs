@@ -26,6 +26,13 @@ type FlexState =
         let read_s = {st.read with alert_buffer = buf} in
         {st with read = read_s}
 
+    static member updateIncomingBuffer st ct buf =
+        match ct with
+        | TLSConstants.Alert -> FlexState.updateIncomingAlertBuffer st buf
+        | TLSConstants.Handshake -> FlexState.updateIncomingHSBuffer st buf
+        | TLSConstants.Change_cipher_spec -> st
+        | _ -> failwith (Error.perror __SOURCE_FILE__ __LINE__ "unsupported content type")
+
     (* Update outgoing state *)
     static member updateOutgoingRecord (st:state) (outgoing:Record.sendState) : state =
         let write_s = {st.write with record = outgoing} in
@@ -42,5 +49,12 @@ type FlexState =
     static member updateOutgoingAlertBuffer (st:state) (buf:bytes) : state =
         let write_s = {st.write with alert_buffer = buf} in
         {st with write = write_s}
+
+    static member updateOutgoingBuffer st ct buf =
+        match ct with
+        | TLSConstants.Alert -> FlexState.updateOutgoingAlertBuffer st buf
+        | TLSConstants.Handshake -> FlexState.updateOutgoingHSBuffer st buf
+        | TLSConstants.Change_cipher_spec -> st
+        | _ -> failwith (Error.perror __SOURCE_FILE__ __LINE__ "unsupported content type")
 
     end
