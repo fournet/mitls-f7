@@ -25,20 +25,19 @@ type FlexHelloRequest =
         match hstype with
         | HT_hello_request  ->         
             if length payload <> 0 then
-                failwith "recvHelloRequest : payload has not length zero"
+                failwith (perror __SOURCE_FILE__ __LINE__ "payload has not length zero")
             else
                 let fhr = {nullFHelloRequest with payload = to_log} in
                 st,fhr
-        | _ -> failwith "recvHelloRequest : message is not of type HelloRequest"
+        | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message is not of type HelloRequest")
 
 
     (* Send HelloRequest message to the network stream *)
     static member send (st:state, ?fp:fragmentationPolicy) : state * FHelloRequest =
         let fp = defaultArg fp defaultFragmentationPolicy in
         let ns = st.ns in
-
-        let st = FlexHandshake.send(st,HT_hello_request,empty_bytes,fp) in
-        // FIXME : fill in the FHelloRequest and return it
-        st,nullFHelloRequest
+        let payload = HandshakeMessages.messageBytes HT_hello_request empty_bytes in
+        let st = FlexHandshake.send(st,payload,fp) in
+        st,{payload = payload}
 
     end
