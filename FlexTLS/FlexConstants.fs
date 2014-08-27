@@ -104,5 +104,5 @@ let nullFSessionInfo = {    clientID = [];
 
 (* Define a null nextSecurityContext record *)
 let nullNextSecurityContext = {   si = nullFSessionInfo;
-                                  ms = empty_bytes;
+                                  ms = PRF.coerce (msi nullFSessionInfo) empty_bytes;
                               }
