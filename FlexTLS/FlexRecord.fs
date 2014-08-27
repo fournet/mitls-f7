@@ -63,6 +63,16 @@ type FlexRecord =
                 let b = TLSFragment.reprFragment id ct rg frag in
                 (st,b)
 
+    static member encrypt (e:epoch, pv:ProtocolVersion, k:Record.ConnectionState, ct:ContentType, payload:bytes) : Record.ConnectionState * bytes =
+        // pv is the protocol version set in the record header.
+        // For encrypting epochs, it'd better match the protocol version contained in the epoch, since the latter is used for the additional data
+        let len = length payload in
+        let rg : Range.range = (len,len) in
+        let id = TLSInfo.id e in
+        let frag = TLSFragment.fragment id ct rg payload in
+        let k,b = Record.recordPacketOut e k pv rg ct frag in
+        (k,b)
+
     (* Send data over the network after encrypting a record depending on the fragmentation policy *)
     static member send (ns:NetworkStream, e:epoch, epoch_init_pv:ProtocolVersion, k:Record.ConnectionState, ct:ContentType, payload:bytes, ?fp:fragmentationPolicy) : Record.ConnectionState * bytes =
         let fp = defaultArg fp defaultFragmentationPolicy in
@@ -74,12 +84,7 @@ type FlexRecord =
                 si.protocol_version
         in
         let msgb,rem = splitCTPayloadFP payload fp in
-        let len = length msgb in
-        let rg : Range.range = (len,len) in
-        let id = TLSInfo.id e in
-        let frag = TLSFragment.fragment id ct rg msgb in
-        let k,b = Record.recordPacketOut e k pv rg ct frag in
-
+        let k,b = FlexRecord.encrypt (e,pv,k,ct,msgb) in
         match Tcp.write ns b with
         | Error x -> failwith x
         | Correct() -> 
