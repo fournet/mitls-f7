@@ -22,7 +22,7 @@ type FlexTLS =
 
     (* Establish the TCP connection depending on the role and returning state (which includes the network stream) and configuration *)
     static member openConnection (role:Role, address:string, ?cn:string, ?port:int) : state * config =
-        let port = defaultArg port FlexConnection.defaultPort in
+        let port = defaultArg port FlexConstants.defaultTCPPort in
         let cn = defaultArg cn address in
         match role with
         | Client -> FlexConnection.clientOpenTcpConnection (address,cn,port)
