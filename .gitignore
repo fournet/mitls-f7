@@ -17,5 +17,6 @@ tls-*.sdf
 
 Backup
 UpgradeLog.htm
+tls.sln.ide
 
 lib/*.why
