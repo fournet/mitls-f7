@@ -37,10 +37,7 @@ type FlexServerHelloDone =
         // TODO : check that ServerHelloDone doesn't update the nextSecurityContext
         let fp = defaultArg fp defaultFragmentationPolicy in
         let st = FlexHandshake.send(st,HT_server_hello_done,empty_bytes,fp) in
-        // FIXME : should be payload = payload but here we don't have it back, and message bytes is empty 
         let fshd = {nullFServerHelloDone with payload = empty_bytes} in
         st,fshd
-
-
 
     end

@@ -54,10 +54,9 @@ type FlexCertificate =
 
         let chain = fcrt.chain in
         let si = nsc.si in
-        let msgb = HandshakeMessages.serverCertificateBytes chain in
-        let st = FlexHandshake.send(st,HT_client_hello,msgb,fp) in
+        let payload = HandshakeMessages.serverCertificateBytes chain in
+        let st = FlexHandshake.send(st,HT_client_hello,payload,fp) in
 
-        // FIXME : Payload is set to msgb instead of to_log
         let si =
             match role with
             | Client ->   { si with 
@@ -69,7 +68,7 @@ type FlexCertificate =
         let nsc = { nsc with si = si } in
         let fcrt = { fcrt with 
                         chain = chain;
-                        payload = msgb
+                        payload = payload
         } in
         st,nsc,fcrt
 

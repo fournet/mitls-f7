@@ -13,7 +13,7 @@ open FlexTypes
 open FlexConstants
 open FlexHandshake
 
-// TODO : check when we should update the state with the next security context 
+
 
 
 type FlexFinished = 
@@ -40,8 +40,11 @@ type FlexFinished =
         let ff = defaultArg ff nullFFinished in
         let fp = defaultArg fp defaultFragmentationPolicy in
         let st = FlexHandshake.send(st,HT_finished,ff.verify_data,fp) in
-        // FIXME : should be payload = payload but here we don't have it back, and message bytes
-        let ff = {nullFFinished with payload = empty_bytes} in
+        // TODO : Check if verify_data = payload and cleanup
+        let ff = { nullFFinished with
+                   verify_data = ff.verify_data;
+                   payload = ff.verify_data
+                 } in
         st,ff
 
     end

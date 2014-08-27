@@ -142,13 +142,12 @@ type FlexClientHello =
         let fch,cfg = fillFClientHelloANDConfig fch cfg in
         let st = fillStateEpochInitPvIFIsEpochInit st fch in
 
-        let msgb = HandshakeMessages.clientHelloBytes cfg fch.rand fch.sid fch.ext in
-        let st = FlexHandshake.send(st,HT_client_hello,msgb,fp) in
+        let payload = HandshakeMessages.clientHelloBytes cfg fch.rand fch.sid fch.ext in
+        let st = FlexHandshake.send(st,HT_client_hello,payload,fp) in
         // TODO : How should we deal with nextSecurityContext depending in IsInitEpoch ?
         let si  = { nullFSessionInfo with init_crand = fch.rand } in
         let nsc = { nullNextSecurityContext with si = si } in
-        // FIXME : should be payload = payload but here we don't have it back, we only have access to the message bytes
-        let fch = { fch with payload = msgb } in
+        let fch = { fch with payload = payload } in
         st,nsc,fch
     
     end

@@ -107,11 +107,10 @@ type FlexServerHello =
         let fsh,si = fillFServerHelloANDSi fsh si in
         let st = fillStateEpochInitPvIFIsEpochInit st fsh in
 
-        let msgb = HandshakeMessages.serverHelloBytes si fsh.rand fsh.ext in
-        let st = FlexHandshake.send(st,HT_server_hello,msgb,fp) in
+        let payload = HandshakeMessages.serverHelloBytes si fsh.rand fsh.ext in
+        let st = FlexHandshake.send(st,HT_server_hello,payload,fp) in
         let nsc = { nsc with si = si } in
-        // FIXME : should be payload = payload but here we don't have it back, we only have access to the message bytes
-        let fsh = { fsh with payload = msgb } in
+        let fsh = { fsh with payload = payload } in
         st,nsc,fsh
 
 

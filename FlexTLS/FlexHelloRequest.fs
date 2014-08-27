@@ -38,7 +38,7 @@ type FlexHelloRequest =
         let ns = st.ns in
 
         let st = FlexHandshake.send(st,HT_hello_request,empty_bytes,fp) in
-        // TODO : fill in the FHelloRequest and return it
+        // FIXME : fill in the FHelloRequest and return it
         st,nullFHelloRequest
 
     end
