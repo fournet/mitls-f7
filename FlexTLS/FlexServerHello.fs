@@ -71,7 +71,7 @@ type FlexServerHello =
         match hstype with
         | HT_server_hello  ->    
             (match parseServerHello payload with
-            | Error (ad,x) -> failwith x
+            | Error (ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct (pv,sr,sid,cs,cm,extensions) ->
                 let si  = { si with 
                             init_srand = sr;
@@ -80,9 +80,8 @@ type FlexServerHello =
                             cipher_suite = cs;
                             compression = cm;
                 } in
-                let nsc = { nullNextSecurityContext with si = si } in
-                let fsh = { nullFServerHello with 
-                            pv = pv;
+                let nsc = { nsc with si = si } in
+                let fsh = { pv = pv;
                             rand = sr;
                             sid = sid;
                             suite = cs;
@@ -93,7 +92,7 @@ type FlexServerHello =
                 let st = fillStateEpochInitPvIFIsEpochInit st fsh in
                 (st,nsc,fsh)
             )
-        | _ -> failwith "recvServerHello : message type should be HT_server_hello"
+        | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_server_hello")
         
         
     (* Send a ServerHello message to the network stream *)
@@ -105,13 +104,12 @@ type FlexServerHello =
         let si = nsc.si in
 
         let fsh,si = fillFServerHelloANDSi fsh si in
+        let nsc = { nsc with si = si } in
         let st = fillStateEpochInitPvIFIsEpochInit st fsh in
 
         let payload = HandshakeMessages.serverHelloBytes si fsh.rand fsh.ext in
-        let st = FlexHandshake.send(st,HT_server_hello,payload,fp) in
-        let nsc = { nsc with si = si } in
+        let st = FlexHandshake.send(st,payload,fp) in
         let fsh = { fsh with payload = payload } in
         st,nsc,fsh
-
 
     end
