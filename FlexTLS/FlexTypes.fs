@@ -35,6 +35,7 @@ type state = {
 (* Next security context record used to generate a new channel epoch *)
 type nextSecurityContext = {
     si: SessionInfo;
+    ms: PRF.masterSecret;
 }
 
 (* Record associated to a HelloRequest message *)

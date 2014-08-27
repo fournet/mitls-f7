@@ -103,5 +103,6 @@ let nullFSessionInfo = {    clientID = [];
                        }
 
 (* Define a null nextSecurityContext record *)
-let nullNextSecurityContext = {   si = nullFSessionInfo
+let nullNextSecurityContext = {   si = nullFSessionInfo;
+                                  ms = empty_bytes;
                               }
