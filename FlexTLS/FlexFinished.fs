@@ -34,9 +34,10 @@ type FlexFinished =
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message type is not HT_finished")
 
     (* Send Finished message to the network stream *)
-    static member send (st:state, ?ff:FFinished, ?fp:fragmentationPolicy) : state * FFinished =
+    static member send (st:state, ?verify_data:bytes, ?ff:FFinished, ?fp:fragmentationPolicy) : state * FFinished =
         let ff = defaultArg ff nullFFinished in
         let fp = defaultArg fp defaultFragmentationPolicy in
+        let verify_data = defaultArg verify_data ff.verify_data in            
         let payload = HandshakeMessages.messageBytes HT_finished ff.verify_data in
         let st = FlexHandshake.send(st,payload,fp) in
         let ff = { ff with
