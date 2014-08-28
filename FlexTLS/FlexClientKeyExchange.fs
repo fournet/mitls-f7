@@ -46,9 +46,9 @@ type FlexClientKeyExchange =
                             | None -> false,nullFClientHello.pv
                             | Some (fch) -> true,fch.pv
                         in
-                        let pmsb = RSA.decrypt sk si si.protocol_version check encPMS in
-                        let pms = PMS.leakRSA pk si.protocol_version pmsb in
-                        let nsc = { nsc with pms = pms} in
+                        let pmsa = RSA.decrypt sk si si.protocol_version check encPMS in
+                        let pmsb = PMS.leakRSA pk si.protocol_version pmsa in
+                        let nsc = { nsc with pms = pmsb} in
                         st,nsc,nullFClientKeyExchange
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_client_key_exchange")
