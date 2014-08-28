@@ -33,5 +33,5 @@ let _ =
     let st,sms = FlexTLS.fullHandshakeRSA Client st in 
 
     (* Ready for application data *)
-    printf "Ready for application data !\n";
+    printf "Yuppiiii! Ready for application data !\n";
     System.Console.ReadLine()

@@ -29,14 +29,14 @@ type FlexCertificate =
             | Correct (chain) -> 
                 let cert : FCertificate = { chain = chain; payload = to_log } in
                 match role with
-                | Client ->
+                | Server ->
                     let si  = { si with 
                                 client_auth = true;
                                 clientID = chain;
                     } in
                     let nsc = { nsc with si = si } in
                     (st,nsc,cert)
-                | Server ->
+                | Client ->
                     let si  = { si with 
                                 serverID = chain;
                     } in

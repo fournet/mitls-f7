@@ -28,8 +28,8 @@ type FlexCCS =
                     st,{payload = payload }
                 else
                     failwith (perror __SOURCE_FILE__ __LINE__ "Unexpected CCS content")
-            | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "Unexpected CCS length"))
-        | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "Unexpected content type")
+            | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected CCS length: %d" len)))
+        | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected content type: %A" ct))
 
     (* Send function for handshake ChangeCipherSpecs message *)
     static member send (st:state, ?fccs:FChangeCipherSpecs) : state * FChangeCipherSpecs =

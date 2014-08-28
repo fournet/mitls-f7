@@ -63,8 +63,9 @@ let nullFServerHelloDone : FServerHelloDone =  {   payload = empty_bytes;
                                                }
 
 (* Define a null FClientKeyExchange record *)
-let nullFClientKeyExchange : FClientKeyExchange = { payload = empty_bytes;
-                                                  }
+let nullFClientKeyExchange : FClientKeyExchangeRSA = { pms = empty_bytes;
+                                                       payload = empty_bytes;
+                                                     }
 
 (* Define a null FChangeCipherSpecs record *)
 let nullFChangeCipherSpecs : FChangeCipherSpecs = { payload = HandshakeMessages.CCSBytes;
