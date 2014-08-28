@@ -48,7 +48,11 @@ type FlexTLS =
             let st,fshd      = FlexServerHelloDone.receive(st) in
             let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(st,fch.pv,nsc.si,nsc=nsc) in
             let st,fccs      = FlexCCS.send(st) in
-            // TODO: Set the log, and compute verify_data (PRF or TLSPRF)
+            
+            let log = fch.payload @| fsh.payload @| fcert.payload @| fshd.payload @| fcke.payload @| fccs.payload in
+            let ms = PRF.coerce (msi nsc.si) nsc.ms in
+            let verify_data = PRF.makeVerifyData nsc.si ms role log in
+            
             let st,ff        = FlexFinished.send(st) in
             let st,sfccs     = FlexCCS.receive(st) in
             let st,sff       = FlexFinished.receive(st) in
@@ -75,7 +79,11 @@ type FlexTLS =
             let st,fccs      = FlexCCS.receive(st) in
             let st,ff        = FlexFinished.receive(st) in
             let st,sfccs     = FlexCCS.send(st) in
-            // TODO: Set the log, and compute verify_data (PRF or TLSPRF)
+
+            let log = fch.payload @| fsh.payload @| fcert.payload @| fshd.payload @| fcke.payload @| fccs.payload in
+            let ms = PRF.coerce (msi nsc.si) nsc.ms in
+            let verify_data = PRF.makeVerifyData nsc.si ms role log in
+
             let st,sff       = FlexFinished.send(st) in
             let sms = { sms with 
                         clientHello = fch; 

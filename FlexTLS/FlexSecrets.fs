@@ -15,7 +15,6 @@ type FlexSecrets =
 
     (* Use the PreMasterSecret to generate the MasterSecret *)
     static member pms_to_ms (pms:bytes) (si:SessionInfo) : bytes =
-        
         let apms = PMS.coerceDH empty_bytes empty_bytes empty_bytes empty_bytes pms in
         let pms =
             let eb = empty_bytes in
