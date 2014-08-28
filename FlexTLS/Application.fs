@@ -30,7 +30,7 @@ let _ =
     let st,cfg = FlexTLS.openConnection (Client,"www.inria.fr") in
 
     (* Ready for handshake using either one of the top-level APIs or the Flex|Message| methods *)
-    let st,nsc,sms = FlexTLS.fullHandshake Client st in 
+    let st,sms = FlexTLS.fullHandshakeRSA Client st in 
 
     (* Ready for application data *)
     printf "Ready for application data !\n";
