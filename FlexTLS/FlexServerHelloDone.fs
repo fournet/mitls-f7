@@ -25,19 +25,18 @@ type FlexServerHelloDone =
         match hstype with
         | HT_server_hello_done  -> 
             if length payload <> 0 then
-                failwith "recvServerHelloDone : payload has not length zero"
+                failwith (perror __SOURCE_FILE__ __LINE__ "payload has not length zero")
             else
-                let fshd = {nullFServerHelloDone with payload = to_log} in
+                let fshd: FServerHelloDone = {payload = to_log} in
                 st,fshd
-        | _ -> failwith "recvServerHelloDone : message type is not HT_server_hello_done"
+        | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message type is not HT_server_hello_done")
 
 
     (* Send ServerHelloDone message to the network stream *)
     static member send (st:state, ?fp:fragmentationPolicy) : state * FServerHelloDone =
-        // TODO : check that ServerHelloDone doesn't update the nextSecurityContext
         let fp = defaultArg fp defaultFragmentationPolicy in
         let st = FlexHandshake.send(st,HandshakeMessages.serverHelloDoneBytes,fp) in
-        let fshd = {nullFServerHelloDone with payload = empty_bytes} in
+        let fshd: FServerHelloDone = {payload = HandshakeMessages.serverHelloDoneBytes} in
         st,fshd
 
     end
