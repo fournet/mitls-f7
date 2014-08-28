@@ -57,6 +57,7 @@
     <Compile Include="FlexAlert.fs" />
     <Compile Include="FlexCCS.fs" />
     <Compile Include="FlexHandshake.fs" />
+    <Compile Include="FlexSecrets.fs" />
     <Compile Include="FlexHelloRequest.fs" />
     <Compile Include="FlexClientHello.fs" />
     <Compile Include="FlexServerHello.fs" />

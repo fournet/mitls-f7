@@ -44,15 +44,14 @@ type FlexTLS =
         | Client -> 
             let st,nsc,fch   = FlexClientHello.send(st) in
             let st,nsc,fsh   = FlexServerHello.receive(st,nsc) in
-            let st,nsc,fcert = FlexCertificate.receive st role nsc in
-            let st,fshd      = FlexServerHelloDone.receive st in
-            let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(st,nsc,fch.pv) in
-            // TODO: Set the MS (KEF or TLSPRF)
-            let st,fccs      = FlexCCS.send st in
+            let st,nsc,fcert = FlexCertificate.receive(st,role,nsc) in
+            let st,fshd      = FlexServerHelloDone.receive(st) in
+            let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(st,fch.pv,nsc.si,nsc=nsc) in
+            let st,fccs      = FlexCCS.send(st) in
             // TODO: Set the log, and compute verify_data (PRF or TLSPRF)
-            let st,ff        = FlexFinished.send st in
-            let st,sfccs     = FlexCCS.receive st in
-            let st,sff       = FlexFinished.receive st in
+            let st,ff        = FlexFinished.send(st) in
+            let st,sfccs     = FlexCCS.receive(st) in
+            let st,sff       = FlexFinished.receive(st) in
             let sms = { sms with 
                         clientHello = fch; 
                         serverHello = fsh;
@@ -71,12 +70,13 @@ type FlexTLS =
             let st,nsc,fch   = FlexClientHello.receive(st) in
             let st,nsc,fsh   = FlexServerHello.send(st,nsc) in
             let st,nsc,fcert = FlexCertificate.send(st,role,chain,nsc) in
-            let st,fshd      = FlexServerHelloDone.send st in
+            let st,fshd      = FlexServerHelloDone.send(st) in
             let st,nsc,fcke  = FlexClientKeyExchange.receiveRSA(st,nsc,fch.pv) in
-            let st,fccs      = FlexCCS.receive st in
-            let st,ff        = FlexFinished.receive st in
-            let st,sfccs     = FlexCCS.send st in
-            let st,sff       = FlexFinished.send st in
+            let st,fccs      = FlexCCS.receive(st) in
+            let st,ff        = FlexFinished.receive(st) in
+            let st,sfccs     = FlexCCS.send(st) in
+            // TODO: Set the log, and compute verify_data (PRF or TLSPRF)
+            let st,sff       = FlexFinished.send(st) in
             let sms = { sms with 
                         clientHello = fch; 
                         serverHello = fsh;
