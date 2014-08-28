@@ -49,17 +49,36 @@ type FlexClientKeyExchange =
                         let pmsa = RSA.decrypt sk si si.protocol_version check encPMS in
                         let pmsb = PMS.leakRSA pk si.protocol_version pmsa in
                         let nsc = { nsc with pms = pmsb} in
-                        st,nsc,nullFClientKeyExchange
+                        let fcke : FClientKeyExchange = {payload = payload } in
+                        st,nsc,fcke
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_client_key_exchange")
         
 
 
 
-    static member sendRSA (st:state, ?nsc:nextSecurityContext, ?fcke:FClientKeyExchange, ?fp:fragmentationPolicy) : state * nextSecurityContext * FClientKeyExchange =
+    static member sendRSA (st:state, ?nsc:nextSecurityContext, ?fch:FClientHello, ?fcke:FClientKeyExchange, ?fp:fragmentationPolicy) : state * nextSecurityContext * FClientKeyExchange =
         let nsc = defaultArg nsc nullNextSecurityContext in
         let fcke = defaultArg fcke nullFClientKeyExchange in
+        let fch = defaultArg fch nullFClientHello in
         let fp = defaultArg fp defaultFragmentationPolicy in
-        st,nsc,fcke
 
+        // TODO : Get values from user-provided FClientKeyExchange and use them
+
+        let si = nsc.si in
+
+        if List.listLength si.serverID = 0 then
+            failwith (perror __SOURCE_FILE__ __LINE__  "Server certificate should always be present with a RSA signing cipher suite.")
+        else
+            match Cert.get_chain_public_encryption_key si.serverID with
+            | Error(ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
+            | Correct(pk) ->
+                let pms = PMS.genRSA pk fch.pv in
+                let pmsb = PMS.leakRSA pk fch.pv pms in
+                let encpms = RSA.encrypt pk fch.pv pms in
+                let payload = clientKeyExchangeBytes_RSA si encpms in
+                let st = FlexHandshake.send(st,payload,fp) in
+                let nsc = {nsc with pms = pmsb } in
+                let fcke = { fcke with payload = payload } in
+                st,nsc,fcke
     end
