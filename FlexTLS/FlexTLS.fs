@@ -47,7 +47,9 @@ type FlexTLS =
             let st,nsc,fcert = FlexCertificate.receive st role nsc in
             let st,fshd      = FlexServerHelloDone.receive st in
             let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(st,nsc,fch.pv) in
+            // TODO: Set the MS (KEF or TLSPRF)
             let st,fccs      = FlexCCS.send st in
+            // TODO: Set the log, and compute verify_data (PRF or TLSPRF)
             let st,ff        = FlexFinished.send st in
             let st,sfccs     = FlexCCS.receive st in
             let st,sff       = FlexFinished.receive st in
