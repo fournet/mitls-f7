@@ -35,7 +35,8 @@ type state = {
 (* Next security context record used to generate a new channel epoch *)
 type nextSecurityContext = {
     si: SessionInfo;
-    ms: PRF.masterSecret;
+    pms: bytes;
+    ms: bytes;
 }
 
 (* Record associated to a HelloRequest message *)
@@ -87,6 +88,9 @@ type FServerHelloDone = {
 
 (* Record associated to a CertificateVerify message *)
 (* Record associated to a ClientKeyExchange message *)
+type FClientKeyExchange = {
+    payload:bytes;
+}
 
 (* Record associated to a ChangeCipherSpecs message *)
 type FChangeCipherSpecs = {
@@ -110,7 +114,7 @@ type FHSMessages = {
     certificateRequest: FCertificateRequest;
     serverHelloDone: FServerHelloDone;
     //certificateVerify: FCertificateVerify;
-    //clientKeyExchange: FClientKeyExchange;
+    clientKeyExchange: FClientKeyExchange;
     clientChangeCipherSpecs: FChangeCipherSpecs;
     serverChangeCipherSpecs: FChangeCipherSpecs;
     clientFinished: FFinished;

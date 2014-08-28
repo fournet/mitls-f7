@@ -62,6 +62,10 @@ let nullFCertificateRequest : FCertificateRequest = { certTypes = [RSA_sign; DSA
 let nullFServerHelloDone : FServerHelloDone =  {   payload = empty_bytes;
                                                }
 
+(* Define a null FClientKeyExchange record *)
+let nullFClientKeyExchange : FClientKeyExchange = { payload = empty_bytes;
+                                                  }
+
 (* Define a null FChangeCipherSpecs record *)
 let nullFChangeCipherSpecs : FChangeCipherSpecs = { payload = HandshakeMessages.CCSBytes;
                                                   }
@@ -80,6 +84,7 @@ let nullFHSMessages = {   helloRequest = nullFHelloRequest;
                           clientCertificate = nullFCertificate;
                           (* TODO : complete this *)
                           serverHelloDone = nullFServerHelloDone;
+                          clientKeyExchange = nullFClientKeyExchange;
                           clientChangeCipherSpecs = nullFChangeCipherSpecs;
                           serverChangeCipherSpecs = nullFChangeCipherSpecs;
                           clientFinished = nullFFinished;
@@ -105,5 +110,6 @@ let nullFSessionInfo = {    clientID = [];
 
 (* Define a null nextSecurityContext record *)
 let nullNextSecurityContext = {   si = nullFSessionInfo;
-                                  ms = PRF.coerce (msi nullFSessionInfo) empty_bytes;
+                                  pms = empty_bytes;
+                                  ms = empty_bytes;
                               }

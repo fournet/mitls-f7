@@ -44,8 +44,9 @@ type FlexState =
         | _ -> failwith (Error.perror __SOURCE_FILE__ __LINE__ "unsupported content type")
 
    static member updateIncomingWITHnextSecurityContext (st:state) (nsc:nextSecurityContext) (role:Role) : state * nextSecurityContext =
+        let ms = PRF.coerce (msi nsc.si) nsc.ms in
         let nextEpoch = TLSInfo.nextEpoch st.read.epoch nsc.si.init_crand nsc.si.init_srand nsc.si in
-        let nextRead,_ = PRF.deriveKeys (TLSInfo.id st.read.epoch) (TLSInfo.id st.write.epoch) nsc.ms role in
+        let nextRead,_ = PRF.deriveKeys (TLSInfo.id st.read.epoch) (TLSInfo.id st.write.epoch) ms role in
         let nextRecord = Record.initConnState nextEpoch TLSInfo.Reader nextRead in
         let st = FlexState.updateIncomingRecord st nextRecord in
         let st = FlexState.updateIncomingEpoch st nextEpoch in
@@ -80,8 +81,9 @@ type FlexState =
         | _ -> failwith (Error.perror __SOURCE_FILE__ __LINE__ "unsupported content type")
     
     static member updateOutgoingWITHnextSecurityContext (st:state) (nsc:nextSecurityContext) (role:Role) : state * nextSecurityContext =
+        let ms = PRF.coerce (msi nsc.si) nsc.ms in
         let nextEpoch = TLSInfo.nextEpoch st.write.epoch nsc.si.init_crand nsc.si.init_srand nsc.si in
-        let _,nextWrite = PRF.deriveKeys (TLSInfo.id st.read.epoch) (TLSInfo.id st.write.epoch) nsc.ms role in
+        let _,nextWrite = PRF.deriveKeys (TLSInfo.id st.read.epoch) (TLSInfo.id st.write.epoch) ms role in
         let nextRecord = Record.initConnState nextEpoch TLSInfo.Writer nextWrite in
         let st = FlexState.updateOutgoingRecord st nextRecord in
         let st = FlexState.updateOutgoingEpoch st nextEpoch in
