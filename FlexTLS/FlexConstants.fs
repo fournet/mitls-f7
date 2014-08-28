@@ -113,4 +113,5 @@ let nullFSessionInfo = {    clientID = [];
 let nullNextSecurityContext = {   si = nullFSessionInfo;
                                   pms = empty_bytes;
                                   ms = empty_bytes;
+                                  keys = empty_bytes,empty_bytes;
                               }

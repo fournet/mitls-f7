@@ -37,6 +37,7 @@ type nextSecurityContext = {
     si: SessionInfo;
     pms: bytes;
     ms: bytes;
+    keys: bytes * bytes;
 }
 
 (* Record associated to a HelloRequest message *)
