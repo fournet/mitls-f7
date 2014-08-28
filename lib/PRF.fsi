@@ -17,6 +17,7 @@ val sample: msId -> ms
 //#begin-coerce
 val coerce: msId -> repr -> ms
 //#end-coerce
+val leak: msId -> ms -> repr
 
 val deriveKeys: id -> id -> ms -> Role -> StatefulLHAE.state * StatefulLHAE.state
 

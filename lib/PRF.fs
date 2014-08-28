@@ -15,6 +15,7 @@ let sample (i:msId) = {bytes = Nonce.random 48}
 #endif
 
 let coerce (i:msId) b = {bytes = b}
+let leak (i:msId) ms = ms.bytes
 
 (** Key Derivation **) 
 
