@@ -19,7 +19,8 @@ type FlexCertificate =
     class
 
     (* Receive a Certificate message from the network stream *)
-    static member receive (st:state) (role:Role) (nsc:nextSecurityContext) : state * nextSecurityContext * FCertificate =
+    static member receive (st:state, role:Role, ?nsc:nextSecurityContext) : state * nextSecurityContext * FCertificate =
+        let nsc = defaultArg nsc nullNextSecurityContext in
         let si = nsc.si in
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
