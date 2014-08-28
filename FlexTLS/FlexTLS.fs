@@ -39,17 +39,18 @@ type FlexTLS =
     (* Run a full Handshake RSA *)
     static member fullHandshakeRSA (role:Role) (st:state) : state * FHSMessages =
         let sms = nullFHSMessages in
+        let chain = [] in
         match role with
         | Client -> 
             let st,nsc,fch   = FlexClientHello.send(st) in
             let st,nsc,fsh   = FlexServerHello.receive(st,nsc) in
-            let st,nsc,fcert = FlexCertificate.FlexCertificate.receive st role nsc in
-            let st,fshd      = FlexServerHelloDone.FlexServerHelloDone.receive st in
+            let st,nsc,fcert = FlexCertificate.receive st role nsc in
+            let st,fshd      = FlexServerHelloDone.receive st in
             let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
-            let st,fccs      = FlexCCS.FlexCCS.send st in
-            let st,ff        = FlexFinished.FlexFinished.send st in
-            let st,sfccs     = FlexCCS.FlexCCS.receive st in
-            let st,sff       = FlexFinished.FlexFinished.receive st in
+            let st,fccs      = FlexCCS.send st in
+            let st,ff        = FlexFinished.send st in
+            let st,sfccs     = FlexCCS.receive st in
+            let st,sff       = FlexFinished.receive st in
             let sms = { sms with 
                         clientHello = fch; 
                         serverHello = fsh;
@@ -65,8 +66,25 @@ type FlexTLS =
 
         | Server ->
             let sh = nullFServerHello in
-            let st,nsc,fch = FlexClientHello.receive(st) in
-            let st,nsc,fsh = FlexServerHello.send(st,nsc) in
-            let sms = {sms with clientHello = fch; serverHello = fsh} in
+            let st,nsc,fch   = FlexClientHello.receive(st) in
+            let st,nsc,fsh   = FlexServerHello.send(st,nsc) in
+            let st,nsc,fcert = FlexCertificate.send(st,role,chain,nsc) in
+            let st,fshd      = FlexServerHelloDone.send st in
+            let st,nsc,fcke  = FlexClientKeyExchange.receiveRSA(st,fch,nsc) in
+            let st,fccs      = FlexCCS.receive st in
+            let st,ff        = FlexFinished.receive st in
+            let st,sfccs     = FlexCCS.send st in
+            let st,sff       = FlexFinished.send st in
+            let sms = { sms with 
+                        clientHello = fch; 
+                        serverHello = fsh;
+                        serverCertificate = fcert;
+                        serverHelloDone = fshd;
+                        clientKeyExchange = fcke;
+                        clientChangeCipherSpecs = fccs;
+                        clientFinished = ff;
+                        serverChangeCipherSpecs = sfccs;
+                        serverFinished = sff;
+                        } in
             (st,sms)
     end
