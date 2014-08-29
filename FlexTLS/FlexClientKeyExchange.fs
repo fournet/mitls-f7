@@ -15,7 +15,7 @@ open FlexHandshake
 
 
 (* Algorithms for RSA ciphersuites *)
-let calgs_rsa = [(SA_RSA, MD5SHA1);(SA_RSA, SHA);(SA_RSA, NULL)]
+let calgs_rsa = [(SA_RSA, SHA256);(SA_RSA, MD5SHA1);(SA_RSA, SHA);(SA_RSA, NULL)]
 
 
 type FlexClientKeyExchange =
