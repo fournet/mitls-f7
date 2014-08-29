@@ -48,13 +48,14 @@ type FlexTLS =
             let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
             let st,fccs      = FlexCCS.send(st) in
             
+            // Start encrypting
             let st           = FlexState.updateOutgoingWITHnextSecurityContext st nsc in
             let log          = fch.payload @| fsh.payload @| fcert.payload @| fshd.payload @| fcke.payload in
-            let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.ms role log in
             
-            let st,fcf       = FlexFinished.send(st,verify_data) in
+            let st,fcf       = FlexFinished.send(st, logRoleNSC=(log,Client,nsc)) in
             let st,sfccs     = FlexCCS.receive(st) in
 
+            // Start decrypting
             let st           = FlexState.updateIncomingWITHnextSecurityContext st nsc in
             // let log       = log @| fcf.payload
 

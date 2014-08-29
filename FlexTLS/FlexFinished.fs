@@ -12,9 +12,7 @@ open HandshakeMessages
 open FlexTypes
 open FlexConstants
 open FlexHandshake
-
-
-
+open FlexSecrets
 
 type FlexFinished = 
     class
@@ -33,11 +31,21 @@ type FlexFinished =
                 st,ff
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message type is not HT_finished")
 
-    (* Send Finished message to the network stream *)
-    static member send (st:state, ?verify_data:bytes, ?ff:FFinished, ?fp:fragmentationPolicy) : state * FFinished =
-        let ff = defaultArg ff nullFFinished in
+    static member send (st:state, ff:FFinished, ?fp:fragmentationPolicy) : state * FFinished =
         let fp = defaultArg fp defaultFragmentationPolicy in
-        let verify_data = defaultArg verify_data ff.verify_data in            
+        FlexFinished.send(st,ff.verify_data,fp=fp)
+
+    (* Send Finished message to the network stream *)
+    static member send (st:state, ?verify_data:bytes, ?logRoleNSC:bytes * Role * nextSecurityContext, ?fp:fragmentationPolicy) : state * FFinished =
+        let fp = defaultArg fp defaultFragmentationPolicy in
+        let verify_data =
+            match logRoleNSC with
+            | Some(log,role,nsc) -> FlexSecrets.FlexSecrets.makeVerifyData nsc.si nsc.ms role log
+            | None ->
+                match verify_data with
+                | None -> failwith (perror __SOURCE_FILE__ __LINE__ "One of verify_data or (log, role, nextSecurityContext) must be provided")
+                | Some(vd) -> vd
+        in
         let payload = HandshakeMessages.messageBytes HT_finished verify_data in
         let st = FlexHandshake.send(st,payload,fp) in
         let ff = { verify_data = verify_data;
