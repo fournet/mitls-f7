@@ -80,7 +80,9 @@ type FlexServerHello =
                             cipher_suite = cs;
                             compression = cm;
                 } in
-                let nsc = { nsc with si = si } in
+                let nsc = { nsc with
+                                si = si;
+                                srand = sr } in
                 let fsh = { pv = pv;
                             rand = sr;
                             sid = sid;
@@ -104,7 +106,9 @@ type FlexServerHello =
         let si = nsc.si in
 
         let fsh,si = fillFServerHelloANDSi fsh si in
-        let nsc = { nsc with si = si } in
+        let nsc = { nsc with
+                      si = si;
+                      srand = fsh.rand } in
         let st = fillStateEpochInitPvIFIsEpochInit st fsh in
 
         let payload = HandshakeMessages.serverHelloBytes si fsh.rand fsh.ext in

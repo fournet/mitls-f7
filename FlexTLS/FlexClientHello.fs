@@ -114,7 +114,9 @@ type FlexClientHello =
                             init_crand = cr 
                             } 
                 in
-                let nsc = { nullNextSecurityContext with si = si } in
+                let nsc = { nullNextSecurityContext with
+                                si = si;
+                                crand = cr } in
                 let fch = { nullFClientHello with
                             pv = pv;
                             rand = cr;
@@ -145,7 +147,9 @@ type FlexClientHello =
         let st = FlexHandshake.send(st,payload,fp) in
         // TODO : How should we deal with nextSecurityContext depending on IsInitEpoch ?
         let si  = { nullFSessionInfo with init_crand = fch.rand } in
-        let nsc = { nullNextSecurityContext with si = si } in
+        let nsc = { nullNextSecurityContext with
+                        si = si;
+                        crand = fch.rand } in
         let fch = { fch with payload = payload } in
         st,nsc,fch
     

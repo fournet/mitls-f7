@@ -35,6 +35,8 @@ type state = {
 (* Next security context record used to generate a new channel epoch *)
 type nextSecurityContext = {
     si: SessionInfo;
+    crand: bytes;
+    srand: bytes;
     pms: bytes;
     ms: bytes;
     keys: bytes * bytes;
