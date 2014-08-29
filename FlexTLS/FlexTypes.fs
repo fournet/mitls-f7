@@ -32,14 +32,30 @@ type state = {
     ns: Tcp.NetworkStream;
 }
 
+type kexDH = 
+    { g:  bytes;
+      p:  bytes;
+      x:  bytes;
+      gx: bytes;
+      y:  bytes;
+      gy: bytes
+    }
+
+type kex =
+    | RSA
+    | DH of kexDH
+ // | ECDH of kexECDH // TODO
+
 (* Next security context record used to generate a new channel epoch *)
 type nextSecurityContext = {
     si: SessionInfo;
     crand: bytes;
     srand: bytes;
+    kex: kex;
     pms: bytes;
     ms: bytes;
     keys: bytes * bytes;
+       (* read  , write *)
 }
 
 (* Record associated to a HelloRequest message *)

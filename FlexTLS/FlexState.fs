@@ -4,7 +4,6 @@ module FlexState
 
 open Bytes
 open TLSInfo
-open TLSConstants
 
 open FlexTypes
 open FlexConstants
@@ -43,14 +42,14 @@ type FlexState =
         | TLSConstants.Change_cipher_spec -> st
         | _ -> failwith (Error.perror __SOURCE_FILE__ __LINE__ "unsupported content type")
 
-   static member updateIncomingWITHnextSecurityContext (st:state) (nsc:nextSecurityContext) (role:Role) : state * nextSecurityContext =
-        let ms = PRF.coerce (msi nsc.si) nsc.ms in
-        let nextEpoch = TLSInfo.nextEpoch st.read.epoch nsc.si.init_crand nsc.si.init_srand nsc.si in
-        let nextRead,_ = PRF.deriveKeys (TLSInfo.id st.read.epoch) (TLSInfo.id st.write.epoch) ms role in
-        let nextRecord = Record.initConnState nextEpoch TLSInfo.Reader nextRead in
+   static member updateIncomingWITHnextSecurityContext (st:state) (nsc:nextSecurityContext): state =
+        let nextEpoch = TLSInfo.nextEpoch st.read.epoch nsc.crand nsc.srand nsc.si in
+        let rk,_ = nsc.keys in
+        let ark = StatefulLHAE.COERCE (id nextEpoch) TLSInfo.Reader rk in
+        let nextRecord = Record.initConnState nextEpoch TLSInfo.Reader ark in
         let st = FlexState.updateIncomingRecord st nextRecord in
         let st = FlexState.updateIncomingEpoch st nextEpoch in
-        st,nullNextSecurityContext
+        st
 
     (* Update outgoing state *)
     static member updateOutgoingRecord (st:state) (outgoing:Record.sendState) : state =
@@ -80,13 +79,13 @@ type FlexState =
         | TLSConstants.Change_cipher_spec -> st
         | _ -> failwith (Error.perror __SOURCE_FILE__ __LINE__ "unsupported content type")
     
-    static member updateOutgoingWITHnextSecurityContext (st:state) (nsc:nextSecurityContext) (role:Role) : state * nextSecurityContext =
-        let ms = PRF.coerce (msi nsc.si) nsc.ms in
-        let nextEpoch = TLSInfo.nextEpoch st.write.epoch nsc.si.init_crand nsc.si.init_srand nsc.si in
-        let _,nextWrite = PRF.deriveKeys (TLSInfo.id st.read.epoch) (TLSInfo.id st.write.epoch) ms role in
-        let nextRecord = Record.initConnState nextEpoch TLSInfo.Writer nextWrite in
+    static member updateOutgoingWITHnextSecurityContext (st:state) (nsc:nextSecurityContext) : state =
+        let nextEpoch = TLSInfo.nextEpoch st.write.epoch nsc.crand nsc.srand nsc.si in
+        let _,wk = nsc.keys in
+        let awk = StatefulLHAE.COERCE (id nextEpoch) TLSInfo.Writer wk in
+        let nextRecord = Record.initConnState nextEpoch TLSInfo.Writer awk in
         let st = FlexState.updateOutgoingRecord st nextRecord in
         let st = FlexState.updateOutgoingEpoch st nextEpoch in
-        st,nullNextSecurityContext
+        st
       
     end

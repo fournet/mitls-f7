@@ -113,6 +113,7 @@ let nullFSessionInfo = {    clientID = [];
 let nullNextSecurityContext = {   si = nullFSessionInfo;
                                   crand = empty_bytes;
                                   srand = empty_bytes;
+                                  kex = RSA;
                                   pms = empty_bytes;
                                   ms = empty_bytes;
                                   keys = empty_bytes,empty_bytes;

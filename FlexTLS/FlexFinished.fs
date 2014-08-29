@@ -38,10 +38,9 @@ type FlexFinished =
         let ff = defaultArg ff nullFFinished in
         let fp = defaultArg fp defaultFragmentationPolicy in
         let verify_data = defaultArg verify_data ff.verify_data in            
-        let payload = HandshakeMessages.messageBytes HT_finished ff.verify_data in
+        let payload = HandshakeMessages.messageBytes HT_finished verify_data in
         let st = FlexHandshake.send(st,payload,fp) in
-        let ff = { ff with
-                   verify_data = verify_data;
+        let ff = { verify_data = verify_data;
                    payload = payload;
                  } in
         st,ff

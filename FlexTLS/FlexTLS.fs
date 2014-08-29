@@ -18,9 +18,8 @@ open FlexServerHelloDone
 open FlexClientKeyExchange
 open FlexCCS
 open FlexFinished
-
-
-
+open FlexState
+open FlexSecrets
 
 type FlexTLS =
     class
@@ -39,23 +38,27 @@ type FlexTLS =
     (* Run a full Handshake RSA *)
     static member fullHandshakeRSA (role:Role) (st:state) : state * FHSMessages =
         let sms = nullFHSMessages in
-        let chain = [] in
+        let chain = [] in // FIXME : how can we be a server with no certificate?
         match role with
         | Client -> 
             let st,nsc,fch   = FlexClientHello.send(st) in
             let st,nsc,fsh   = FlexServerHello.receive(st,nsc) in
             let st,nsc,fcert = FlexCertificate.receive(st,role,nsc) in
             let st,fshd      = FlexServerHelloDone.receive(st) in
-            let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(st,fch.pv,nsc.si,nsc=nsc) in
+            let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
             let st,fccs      = FlexCCS.send(st) in
             
-            let log          = fch.payload @| fsh.payload @| fcert.payload @| fshd.payload @| fcke.payload @| fccs.payload in
-            let ms           = PRF.coerce (msi nsc.si) nsc.ms in
-            let verify_data  = PRF.makeVerifyData nsc.si ms role log in
+            let st           = FlexState.updateOutgoingWITHnextSecurityContext st nsc in
+            let log          = fch.payload @| fsh.payload @| fcert.payload @| fshd.payload @| fcke.payload in
+            let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.ms role log in
             
-            let st,ff        = FlexFinished.send(st,verify_data) in
+            let st,fcf       = FlexFinished.send(st,verify_data) in
             let st,sfccs     = FlexCCS.receive(st) in
-            let st,sff       = FlexFinished.receive(st) in
+
+            let st           = FlexState.updateIncomingWITHnextSecurityContext st nsc in
+            // let log       = log @| fcf.payload
+
+            let st,fsf       = FlexFinished.receive(st) in
             let sms = { sms with 
                         clientHello = fch; 
                         serverHello = fsh;
@@ -63,9 +66,9 @@ type FlexTLS =
                         serverHelloDone = fshd;
                         clientKeyExchange = fcke;
                         clientChangeCipherSpecs = fccs;
-                        clientFinished = ff;
+                        clientFinished = fcf;
                         serverChangeCipherSpecs = sfccs;
-                        serverFinished = sff;
+                        serverFinished = fsf;
                         } in
             (st,sms)
 
