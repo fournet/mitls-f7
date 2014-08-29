@@ -11,6 +11,7 @@ open HandshakeMessages
 open FlexTypes
 open FlexConstants
 open FlexHandshake
+open FlexSecrets
 
 
 
@@ -68,8 +69,8 @@ type FlexClientKeyExchange =
                     | Some(c,sk) ->
                         let pmsa = RSA.decrypt sk si si.protocol_version check encPMS in
                         let pmsb : bytes = PMS.leakRSA pk si.protocol_version pmsa in
-                        let ms = FlexSecrets.FlexSecrets.pms_to_ms pmsb nsc.si in
-                        let keys = FlexSecrets.FlexSecrets.ms_to_keys st ms nsc.si Server in
+                        let ms = FlexSecrets.pms_to_ms pmsb nsc.si in
+                        let keys = FlexSecrets.ms_to_keys st ms nsc.si Server in
                         let nsc = { nsc with pms = pmsb; ms = ms; keys = keys } in
                         let fcke : FClientKeyExchangeRSA = {pms = pmsb; payload = to_log } in
                         st,nsc,fcke
