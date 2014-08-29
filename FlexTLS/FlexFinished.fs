@@ -41,7 +41,8 @@ type FlexFinished =
         let payload = HandshakeMessages.messageBytes HT_finished ff.verify_data in
         let st = FlexHandshake.send(st,payload,fp) in
         let ff = { ff with
-                   payload = payload
+                   verify_data = verify_data;
+                   payload = payload;
                  } in
         st,ff
 
