@@ -59,7 +59,9 @@ type FlexTLS =
             let st           = FlexState.updateIncomingWITHnextSecurityContext st nsc in
             // let log       = log @| fcf.payload
 
+            // Check that verify_data is correct
             let st,fsf       = FlexFinished.receive(st) in
+
             let sms = { sms with 
                         clientHello = fch; 
                         serverHello = fsh;
