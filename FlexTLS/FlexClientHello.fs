@@ -110,7 +110,7 @@ type FlexClientHello =
             (match parseClientHello payload with
             | Error (ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct (pv,cr,sid,clientCipherSuites,cm,extensions) -> 
-                let si  = { nullFSessionInfo with 
+                let si  = { nullSessionInfo with 
                             init_crand = cr 
                             } 
                 in
@@ -146,7 +146,7 @@ type FlexClientHello =
         let payload = HandshakeMessages.clientHelloBytes cfg fch.rand fch.sid fch.ext in
         let st = FlexHandshake.send(st,payload,fp) in
         // TODO : How should we deal with nextSecurityContext depending on IsInitEpoch ?
-        let si  = { nullFSessionInfo with init_crand = fch.rand } in
+        let si  = { nullSessionInfo with init_crand = fch.rand } in
         let nsc = { nullNextSecurityContext with
                         si = si;
                         crand = fch.rand } in

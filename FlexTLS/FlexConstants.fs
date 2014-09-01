@@ -20,6 +20,12 @@ let defaultProtocolVersion = TLS_1p2
 (* Define a default fragmentationPolicy *)
 let defaultFragmentationPolicy = All(fragmentLength)
 
+(* Algorithms for RSA ciphersuites *)
+let calgs_rsa = [(SA_RSA, SHA256);(SA_RSA, MD5SHA1);(SA_RSA, SHA);(SA_RSA, NULL)]
+
+
+
+
 (* Define a null FHelloRequest record *)
 let nullFHelloRequest : FHelloRequest = {   payload = empty_bytes;
                                         }
@@ -98,7 +104,7 @@ let nullFHSMessages = {   helloRequest = nullFHelloRequest;
                       }
 
 (* Define a null SessionInfo record *)
-let nullFSessionInfo = {    clientID = [];
+let nullSessionInfo = {    clientID = [];
                             clientSigAlg = (SA_RSA,SHA);
                             serverSigAlg = (SA_RSA,SHA);
                             client_auth = false;
@@ -115,7 +121,7 @@ let nullFSessionInfo = {    clientID = [];
                        }
 
 (* Define a null nextSecurityContext record *)
-let nullNextSecurityContext = {   si = nullFSessionInfo;
+let nullNextSecurityContext = {   si = nullSessionInfo;
                                   crand = empty_bytes;
                                   srand = empty_bytes;
                                   kex = RSA;

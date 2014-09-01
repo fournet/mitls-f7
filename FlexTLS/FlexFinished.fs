@@ -40,7 +40,7 @@ type FlexFinished =
         let fp = defaultArg fp defaultFragmentationPolicy in
         let verify_data =
             match logRoleNSC with
-            | Some(log,role,nsc) -> FlexSecrets.FlexSecrets.makeVerifyData nsc.si nsc.ms role log
+            | Some(log,role,nsc) -> FlexSecrets.makeVerifyData nsc.si nsc.ms role log
             | None ->
                 match verify_data with
                 | None -> failwith (perror __SOURCE_FILE__ __LINE__ "One of verify_data or (log, role, nextSecurityContext) must be provided")

@@ -15,9 +15,6 @@ open FlexSecrets
 
 
 
-(* Algorithms for RSA ciphersuites *)
-let calgs_rsa = [(SA_RSA, SHA256);(SA_RSA, MD5SHA1);(SA_RSA, SHA);(SA_RSA, NULL)]
-
 
 type FlexClientKeyExchange =
     class
@@ -59,7 +56,7 @@ type FlexClientKeyExchange =
             | Error(ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct(pk) -> pk
         in
-        let si = {nullFSessionInfo with serverID = certl; protocol_version = pv} in
+        let si = {nullSessionInfo with serverID = certl; protocol_version = pv} in
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_client_key_exchange  ->
@@ -105,7 +102,7 @@ type FlexClientKeyExchange =
             match Cert.get_chain_public_encryption_key certl with
             | Error(ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct(pk) ->
-                let si = {nullFSessionInfo with
+                let si = {nullSessionInfo with
                             protocol_version = pv;
                             serverID = certl} in
                 let pms,pmsb =
