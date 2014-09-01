@@ -32,7 +32,7 @@ type FlexAlert =
                 let buf = buf @| b in
                 let st = FlexState.updateIncomingAlertBuffer st buf in
                 FlexAlert.receive st
-            | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "Unexpected content type")
+            | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected content type: %A" ct))
         else
             let alb,rem = Bytes.split buf 2 in
             match Alert.parseAlert alb with
