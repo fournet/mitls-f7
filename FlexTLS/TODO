@@ -20,3 +20,11 @@
     are not set. So here we have to check the trade-off between nice interface and clever functionality.
 
 - Attack scenarios
+  - 3Shake
+  - Alert
+  - CCS Injection
+  - Client Hello Fragmentation
+  [- Renegotiation
+   - Heartbleed
+   - Lucky 13
+   - RC4]
