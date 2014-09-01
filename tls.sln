@@ -36,6 +36,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "mihttp", "mihttp\mihttp.fsp
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FlexTLS", "FlexTLS\FlexTLS.fsproj", "{C4E94BA9-DB5A-46C3-A0C1-C729B9F513C5}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FlexApps", "FlexApps\FlexApps.fsproj", "{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -370,6 +372,30 @@ Global
 		{C4E94BA9-DB5A-46C3-A0C1-C729B9F513C5}.Release|Win32.ActiveCfg = Release|Any CPU
 		{C4E94BA9-DB5A-46C3-A0C1-C729B9F513C5}.Release|x64.ActiveCfg = Release|Any CPU
 		{C4E94BA9-DB5A-46C3-A0C1-C729B9F513C5}.Release|x86.ActiveCfg = Release|Any CPU
+		{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}.Debug|Any CPU.ActiveCfg = Debug|x86
+		{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}.Debug|Mixed Platforms.ActiveCfg = Debug|x86
+		{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}.Debug|Mixed Platforms.Build.0 = Debug|x86
+		{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}.Debug|Win32.ActiveCfg = Debug|x86
+		{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}.Debug|Win32.Build.0 = Debug|x86
+		{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}.Debug|x64.ActiveCfg = Debug|x86
+		{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}.Debug|x86.ActiveCfg = Debug|x86
+		{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}.Debug|x86.Build.0 = Debug|x86
+		{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}.Ideal|Any CPU.ActiveCfg = Release|x86
+		{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}.Ideal|Mixed Platforms.ActiveCfg = Release|x86
+		{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}.Ideal|Mixed Platforms.Build.0 = Release|x86
+		{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}.Ideal|Win32.ActiveCfg = Release|x86
+		{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}.Ideal|Win32.Build.0 = Release|x86
+		{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}.Ideal|x64.ActiveCfg = Release|x86
+		{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}.Ideal|x86.ActiveCfg = Release|x86
+		{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}.Ideal|x86.Build.0 = Release|x86
+		{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}.Release|Any CPU.ActiveCfg = Release|x86
+		{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}.Release|Mixed Platforms.ActiveCfg = Release|x86
+		{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}.Release|Mixed Platforms.Build.0 = Release|x86
+		{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}.Release|Win32.ActiveCfg = Release|x86
+		{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}.Release|Win32.Build.0 = Release|x86
+		{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}.Release|x64.ActiveCfg = Release|x86
+		{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}.Release|x86.ActiveCfg = Release|x86
+		{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
