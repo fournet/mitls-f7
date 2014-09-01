@@ -58,8 +58,12 @@ let nullFCertificateRequest : FCertificateRequest = { certTypes = [RSA_sign; DSA
                                                       payload = empty_bytes;
                                                     }
 
+(* Define a null FCertificateVerify record *)
+let nullFCertificateVerify : FCertificateVerify = { payload = empty_bytes;
+                                                  }
+
 (* Define a null FServerHelloDone record *)
-let nullFServerHelloDone : FServerHelloDone =  {   payload = empty_bytes;
+let nullFServerHelloDone : FServerHelloDone =  { payload = empty_bytes;
                                                }
 
 (* Define a null FClientKeyExchange record *)
@@ -84,6 +88,7 @@ let nullFHSMessages = {   helloRequest = nullFHelloRequest;
                           certificateRequest = nullFCertificateRequest;
                           clientCertificate = nullFCertificate;
                           (* TODO : complete this *)
+                          certificateVerify = nullFCertificateVerify;
                           serverHelloDone = nullFServerHelloDone;
                           clientKeyExchange = nullFClientKeyExchange;
                           clientChangeCipherSpecs = nullFChangeCipherSpecs;
