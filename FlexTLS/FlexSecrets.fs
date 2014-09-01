@@ -34,9 +34,15 @@ type FlexSecrets =
         let wk = StatefulLHAE.LEAK (TLSInfo.id ew) TLSInfo.Writer awk in
         rk,wk
 
+    (* Make verify_data from log and necessary informations *)
     static member makeVerifyData (si:SessionInfo) (ms:bytes) (role:Role) (log:bytes) : bytes =
-        let ms = PRF.coerce (msi si) ms in
-        PRF.makeVerifyData si ms role log
+        let ams = FlexSecrets.ms_to_ams ms si in
+        PRF.makeVerifyData si ams role log
+
+    (* Get abstract typed master secret from bytes and session info *)
+    static member ms_to_ams (ms:bytes) (si:SessionInfo) : PRF.masterSecret = 
+        PRF.coerce (msi si) ms
+
 
     (* Fills un-set secret.
        For RSA: at least the PMS must be provided;
