@@ -42,7 +42,7 @@ type FlexState =
         | TLSConstants.Change_cipher_spec -> st
         | _ -> failwith (Error.perror __SOURCE_FILE__ __LINE__ "unsupported content type")
 
-   static member updateIncomingWITHnextSecurityContext (st:state) (nsc:nextSecurityContext): state =
+   static member installReadKeys (st:state) (nsc:nextSecurityContext): state =
         let nextEpoch = TLSInfo.nextEpoch st.read.epoch nsc.crand nsc.srand nsc.si in
         let rk,_ = nsc.keys in
         let ark = StatefulLHAE.COERCE (id nextEpoch) TLSInfo.Reader rk in
@@ -79,7 +79,7 @@ type FlexState =
         | TLSConstants.Change_cipher_spec -> st
         | _ -> failwith (Error.perror __SOURCE_FILE__ __LINE__ "unsupported content type")
     
-    static member updateOutgoingWITHnextSecurityContext (st:state) (nsc:nextSecurityContext) : state =
+    static member installWriteKeys (st:state) (nsc:nextSecurityContext) : state =
         let nextEpoch = TLSInfo.nextEpoch st.write.epoch nsc.crand nsc.srand nsc.si in
         let _,wk = nsc.keys in
         let awk = StatefulLHAE.COERCE (id nextEpoch) TLSInfo.Writer wk in
