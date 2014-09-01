@@ -106,6 +106,10 @@ type FServerHelloDone = {
 }
 
 (* Record associated to a CertificateVerify message *)
+type FCertificateVerify = {
+    payload: bytes;
+}
+
 (* Record associated to a ClientKeyExchange message *)
 type FClientKeyExchangeRSA = {
     pms:bytes;
@@ -133,7 +137,7 @@ type FHSMessages = {
     //serverKeyExchange: FServerKeyExchange;
     certificateRequest: FCertificateRequest;
     serverHelloDone: FServerHelloDone;
-    //certificateVerify: FCertificateVerify;
+    certificateVerify: FCertificateVerify;
     clientKeyExchange: FClientKeyExchangeRSA;
     clientChangeCipherSpecs: FChangeCipherSpecs;
     serverChangeCipherSpecs: FChangeCipherSpecs;
