@@ -49,14 +49,14 @@ type FlexTLS =
             let st,fccs      = FlexCCS.send(st) in
             
             // Start encrypting
-            let st           = FlexState.updateOutgoingWITHnextSecurityContext st nsc in
+            let st           = FlexState.installWriteKeys st nsc in
             let log          = fch.payload @| fsh.payload @| fcert.payload @| fshd.payload @| fcke.payload in
             
             let st,fcf       = FlexFinished.send(st, logRoleNSC=(log,Client,nsc)) in
             let st,sfccs     = FlexCCS.receive(st) in
 
             // Start decrypting
-            let st           = FlexState.updateIncomingWITHnextSecurityContext st nsc in
+            let st           = FlexState.installReadKeys st nsc in
             // let log       = log @| fcf.payload
 
             // Check that verify_data is correct
