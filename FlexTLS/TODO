@@ -7,6 +7,9 @@
 - DH support
   - Then, Client/Server DH scenarios
 
+- Resumption
+  - Nothing special to do at the FlexTLS library level?
+
 - Infer secret values when not set
   - Each function that requires a secret value to operate should try to generate it on the fly if the secret is not set.
     E.g.: makeVerifyData should use pms_to_ms if ms is not set
