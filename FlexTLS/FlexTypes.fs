@@ -23,6 +23,7 @@ type channel = {
     epoch_init_pv: ProtocolVersion;
     hs_buffer: bytes;
     alert_buffer: bytes;
+    appdata_buffer: bytes
 }
 
 (* Global state of the application for Handshake and both input/output channels of a network stream *)

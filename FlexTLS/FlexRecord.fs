@@ -28,6 +28,7 @@ let pickCTBuffer (ch:channel) (ct:ContentType) : bytes =
     match ct with
     | Handshake -> ch.hs_buffer
     | Alert -> ch.alert_buffer
+    | Application_data -> ch.appdata_buffer
     | _ -> failwith "Unsupported content type"
 
 

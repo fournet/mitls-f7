@@ -35,12 +35,16 @@ type FlexState =
         let read_s = {st.read with alert_buffer = buf} in
         {st with read = read_s}
 
+    static member updateIncomingAppDataBuffer (st:state) (buf:bytes) : state =
+        let read_s = {st.read with appdata_buffer = buf} in
+        {st with read = read_s}
+
     static member updateIncomingBuffer st ct buf =
         match ct with
         | TLSConstants.Alert -> FlexState.updateIncomingAlertBuffer st buf
         | TLSConstants.Handshake -> FlexState.updateIncomingHSBuffer st buf
+        | TLSConstants.Application_data -> FlexState.updateIncomingAppDataBuffer st buf
         | TLSConstants.Change_cipher_spec -> st
-        | _ -> failwith (Error.perror __SOURCE_FILE__ __LINE__ "unsupported content type")
 
    static member installReadKeys (st:state) (nsc:nextSecurityContext): state =
         let nextEpoch = TLSInfo.nextEpoch st.read.epoch nsc.crand nsc.srand nsc.si in
@@ -72,12 +76,16 @@ type FlexState =
         let write_s = {st.write with alert_buffer = buf} in
         {st with write = write_s}
 
+    static member updateOutgoingAppDataBuffer (st:state) (buf:bytes) : state =
+        let write_s = {st.write with appdata_buffer = buf} in
+        {st with write = write_s}
+
     static member updateOutgoingBuffer st ct buf =
         match ct with
         | TLSConstants.Alert -> FlexState.updateOutgoingAlertBuffer st buf
         | TLSConstants.Handshake -> FlexState.updateOutgoingHSBuffer st buf
+        | TLSConstants.Application_data -> FlexState.updateOutgoingAppDataBuffer st buf
         | TLSConstants.Change_cipher_spec -> st
-        | _ -> failwith (Error.perror __SOURCE_FILE__ __LINE__ "unsupported content type")
     
     static member installWriteKeys (st:state) (nsc:nextSecurityContext) : state =
         let nextEpoch = TLSInfo.nextEpoch st.write.epoch nsc.crand nsc.srand nsc.si in
