@@ -180,8 +180,10 @@ type cipherSuiteName =
     | TLS_DH_anon_WITH_AES_128_GCM_SHA256
     | TLS_DH_anon_WITH_AES_256_GCM_SHA384
 
+val cipherSuite_of_name: cipherSuiteName -> cipherSuite
 val cipherSuites_of_nameList: list<cipherSuiteName> -> cipherSuites
 val name_of_cipherSuite: cipherSuite -> Result<cipherSuiteName>
+val names_of_cipherSuites: cipherSuites -> Result<list<cipherSuiteName>>
 
 type preContentType =
     | Change_cipher_spec
