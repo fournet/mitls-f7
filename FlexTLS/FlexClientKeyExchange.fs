@@ -14,20 +14,33 @@ open FlexHandshake
 open FlexSecrets
 
 
-
+let defaultKey osk certl =
+    match osk with
+    | Some(sk) -> sk
+    | None ->
+        let hint = 
+            match Cert.get_hint certl with
+            | None -> failwith (perror __SOURCE_FILE__ __LINE__ "Please provide a certificate")
+            | Some(ch) -> ch
+        in
+        match Cert.for_key_encryption calgs_rsa hint with
+        | None -> failwith (perror __SOURCE_FILE__ __LINE__ "Please provide a certificate for which the private key is available")
+        | Some(c,sk) -> sk
 
 type FlexClientKeyExchange =
     class
 
     (* Receive ClientKeyExchange for RSA ciphersuites *)
-    static member receiveRSA (st:state, nsc:nextSecurityContext, fch:FClientHello, ?checkPV:bool) : state * nextSecurityContext * FClientKeyExchangeRSA =
+    static member receiveRSA (st:state, nsc:nextSecurityContext, fch:FClientHello, ?checkPV:bool, ?sk:RSAKey.sk) : state * nextSecurityContext * FClientKeyExchangeRSA =
         let checkPV = defaultArg checkPV true in
-        FlexClientKeyExchange.receiveRSA(st,nsc,fch.pv,checkPV)
+        let sk = defaultKey sk nsc.si.serverID in
+        FlexClientKeyExchange.receiveRSA(st,nsc,fch.pv,checkPV,sk)
 
     (* Typical version of receive RSA that takes pv from FClientHello *)
-    static member receiveRSA (st:state, nsc:nextSecurityContext, pv:ProtocolVersion, ?checkPV:bool) : state * nextSecurityContext * FClientKeyExchangeRSA =
+    static member receiveRSA (st:state, nsc:nextSecurityContext, pv:ProtocolVersion, ?checkPV:bool, ?sk:RSAKey.sk) : state * nextSecurityContext * FClientKeyExchangeRSA =
         let checkPV = defaultArg checkPV true in
-        let st,fcke = FlexClientKeyExchange.receiveRSA(st,nsc.si.serverID,pv,checkPV) in
+        let sk = defaultKey sk nsc.si.serverID in
+        let st,fcke = FlexClientKeyExchange.receiveRSA(st,nsc.si.serverID,pv,checkPV,sk) in
         let pms = fcke.pms in
         let ms = FlexSecrets.pms_to_ms nsc.si pms in
         let er = TLSInfo.nextEpoch st.read.epoch  nsc.crand nsc.srand nsc.si in
@@ -38,19 +51,9 @@ type FlexClientKeyExchange =
                     keys = keys} in
         st,nsc,fcke
 
-    (* Typical version of receive RSA that takes pv *)
-    static member receiveRSA (st:state, certl:list<Cert.cert>, pv:ProtocolVersion, ?checkPV:bool) : state * FClientKeyExchangeRSA =
+    static member receiveRSA (st:state, certl:list<Cert.cert>, pv:ProtocolVersion, ?checkPV:bool, ?sk:RSAKey.sk): state * FClientKeyExchangeRSA =
         let checkPV = defaultArg checkPV true in
-        let hint = 
-            match Cert.get_hint certl with
-            | None -> failwith (perror __SOURCE_FILE__ __LINE__ "Please provide a certificate")
-            | Some(ch) -> ch
-        in
-        let sk =
-            match Cert.for_key_encryption calgs_rsa hint with
-            | None -> failwith (perror __SOURCE_FILE__ __LINE__ "Please provide a certificate for which the private key is available")
-            | Some(c,sk) -> sk
-        in
+        let sk = defaultKey sk certl in
         let pk = 
             match Cert.get_public_encryption_key certl.Head with
             | Error(ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)

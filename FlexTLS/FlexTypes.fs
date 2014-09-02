@@ -69,7 +69,7 @@ type FClientHello = {
     pv: ProtocolVersion;
     rand: bytes;
     sid: bytes;
-    suites: cipherSuites;
+    suites: list<cipherSuiteName>;
     comps: list<Compression>;
     ext: bytes;
     payload: bytes;
@@ -80,7 +80,7 @@ type FServerHello = {
     pv: ProtocolVersion;
     rand: bytes;
     sid: bytes;
-    suite: cipherSuite;
+    suite: cipherSuiteName;
     comp: Compression;
     ext: bytes;
     payload: bytes;

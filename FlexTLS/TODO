@@ -1,5 +1,5 @@
 - Client-side authentication:
-  - Implement specific messages (CertificateVerify)
+  -X Implement specific messages (CertificateVerify)
   - RSA-based scenario
 
 - Server-side RSA scenario

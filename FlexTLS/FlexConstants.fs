@@ -4,6 +4,7 @@ module FlexConstants
 
 open Bytes
 open System
+open Error
 open TLSError
 open TLSInfo
 open TLSConstants
@@ -34,7 +35,9 @@ let nullFHelloRequest : FHelloRequest = {   payload = empty_bytes;
 let nullFClientHello : FClientHello = {   pv = defaultConfig.maxVer;
                                           rand = empty_bytes; 
                                           sid = empty_bytes;
-                                          suites = defaultConfig.ciphersuites;
+                                          suites = (match TLSConstants.names_of_cipherSuites defaultConfig.ciphersuites with
+                                            | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
+                                            | Correct(s) -> s);
                                           comps = defaultConfig.compressions;
                                           ext = empty_bytes;
                                           payload = empty_bytes;
@@ -45,7 +48,9 @@ let nullFClientHello : FClientHello = {   pv = defaultConfig.maxVer;
 let nullFServerHello : FServerHello = {   pv = defaultConfig.maxVer;
                                           rand = empty_bytes; 
                                           sid = empty_bytes;
-                                          suite = defaultConfig.ciphersuites.Head;
+                                          suite = (match TLSConstants.name_of_cipherSuite defaultConfig.ciphersuites.Head with
+                                            | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
+                                            | Correct(cs) -> cs);
                                           comp = defaultConfig.compressions.Head;
                                           ext = empty_bytes;
                                           payload = empty_bytes;

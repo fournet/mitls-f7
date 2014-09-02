@@ -41,7 +41,7 @@ let fillFServerHelloANDSi (fsh:FServerHello) (si:SessionInfo) : FServerHello * S
     let si = { si with
                protocol_version = fsh.pv;
                sessionID = fsh.sid;
-               cipher_suite = fsh.suite;
+               cipher_suite = TLSConstants.cipherSuite_of_name fsh.suite;
                compression = fsh.comp;
                init_srand = fsh.rand;
              } 
@@ -83,6 +83,10 @@ type FlexServerHello =
                 let nsc = { nsc with
                                 si = si;
                                 srand = sr } in
+                let cs = match TLSConstants.name_of_cipherSuite cs with
+                    | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
+                    | Correct(cs) -> cs
+                in
                 let fsh = { pv = pv;
                             rand = sr;
                             sid = sid;

@@ -46,7 +46,9 @@ let fillFClientHelloANDConfig (fch:FClientHello) (cfg:config) : FClientHello * c
     let suites =
         match fch.suites = nullFClientHello.suites with
         | false -> fch.suites
-        | true -> cfg.ciphersuites
+        | true -> (match TLSConstants.names_of_cipherSuites cfg.ciphersuites with
+            | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
+            | Correct(csl) -> csl)
     in
 
     (* comps = Is there some ? If no, check config *)
@@ -60,7 +62,7 @@ let fillFClientHelloANDConfig (fch:FClientHello) (cfg:config) : FClientHello * c
     (* Update cfg with correct informations *)
     let cfg = { cfg with 
                 maxVer = pv;
-                ciphersuites = suites;
+                ciphersuites = TLSConstants.cipherSuites_of_nameList suites;
                 compressions = comps;
               }
     in
@@ -117,11 +119,15 @@ type FlexClientHello =
                 let nsc = { nullNextSecurityContext with
                                 si = si;
                                 crand = cr } in
+                let suites = match TLSConstants.names_of_cipherSuites clientCipherSuites with
+                    | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
+                    | Correct(suites) -> suites
+                in
                 let fch = { nullFClientHello with
                             pv = pv;
                             rand = cr;
                             sid = sid;
-                            suites = clientCipherSuites;
+                            suites = suites;
                             comps = cm;
                             ext = extensions;
                             payload = to_log;
