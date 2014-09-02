@@ -13,7 +13,6 @@ open FlexState
 open FlexClientHello
 open FlexServerHello
 open FlexHandshake
-open FlexAttacks
 
 open Bytes
 open TLSError

