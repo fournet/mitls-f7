@@ -1257,10 +1257,10 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL l
 
         (* ServerKeyExchange *)
         (*KB DH-PMS-KEM (server 1) *)
-        let (p,g,y,x) = DH.serverGen() in
-        //~ pms-KEM: ((p,g),y),(((p,g),y),x) = keygen_DHE() 
+        let (p,g,gx,x) = DH.serverGen() in
+        //~ pms-KEM: ((p,g),gx),(((p,g),gx),x) = keygen_DHE() 
 
-        let dheB = dheParamBytes p g y in
+        let dheB = dheParamBytes p g gx in
         let toSign = si.init_crand @| si.init_srand @| dheB in
         let sign = Sig.sign alg sk toSign in
 
@@ -1276,7 +1276,7 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL l
 #if verify
           Pi.expect (ServerLogBeforeClientCertificateDHE_Auth(si,log));          
 #endif
-          let ps = serverState ci (ClientCertificateDHE(si,p,g,y,x,log)) in
+          let ps = serverState ci (ClientCertificateDHE(si,p,g,gx,x,log)) in
         (* Compute the next state of the server *)
             correct (
               {state with hs_outgoing = output;
@@ -1289,7 +1289,7 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL l
 #if verify
           Pi.expect (ServerLogBeforeClientCertificateDHE_NoAuth(si,log));          
 #endif
-          let ps = serverState ci (ClientKeyExchangeDHE(si,p,g,y,x,log)) in
+          let ps = serverState ci (ClientKeyExchangeDHE(si,p,g,gx,x,log)) in
             correct (
               {state with hs_outgoing = output;
                           pstate = ps},
