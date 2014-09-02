@@ -108,6 +108,8 @@ type FServerHelloDone = {
 
 (* Record associated to a CertificateVerify message *)
 type FCertificateVerify = {
+    sigAlg: Sig.alg;
+    signature: bytes;
     payload: bytes;
 }
 

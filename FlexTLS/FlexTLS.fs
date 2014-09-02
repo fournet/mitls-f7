@@ -178,7 +178,7 @@ type FlexTLS =
             // Client authentication
             let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
             let log          = fch.payload @| fsh.payload @| fcert.payload @| fcreq.payload @| fshd.payload @| fcertC.payload in
-            let st,fcver     = FlexCertificateVerify.receive(st) in
+            let st,fcver     = FlexCertificateVerify.receive(st,nsc.si.protocol_version,fcreq.sigAlgs) in
             if not (log = fcver.payload) then failwith "Log message received doesn't match" else
 
             let st,nsc,fcke  = FlexClientKeyExchange.receiveRSA(st,nsc,fch.pv) in

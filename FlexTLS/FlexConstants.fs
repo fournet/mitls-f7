@@ -65,7 +65,9 @@ let nullFCertificateRequest : FCertificateRequest = { certTypes = [RSA_sign; DSA
                                                     }
 
 (* Define a null FCertificateVerify record *)
-let nullFCertificateVerify : FCertificateVerify = { payload = empty_bytes;
+let nullFCertificateVerify : FCertificateVerify = { sigAlg = calgs_rsa.Head;
+                                                    signature = empty_bytes;
+                                                    payload = empty_bytes;
                                                   }
 
 (* Define a null FServerHelloDone record *)
