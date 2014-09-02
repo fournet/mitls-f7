@@ -176,7 +176,7 @@ let leak (a:alg) (s:skey) : CoreSig.sigskey =
     let (sk, ahash) = s.skey in
     sk
 
-let create_pkey (a : alg) (p : CoreSig.sigpkey):pkey = 
+let create_pkey (a : alg) (p : CoreSig.sigpkey) : pkey = 
     let (_,ahash)=a in
     { pkey = (p, ahash) }
 
