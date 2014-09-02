@@ -28,6 +28,7 @@
     <DocumentationFile>bin\Debug\FlexApps.XML</DocumentationFile>
     <Prefer32Bit>true</Prefer32Bit>
     <PlatformTarget>x86</PlatformTarget>
+    <NoWarn>62</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
     <DebugType>pdbonly</DebugType>
@@ -39,6 +40,7 @@
     <DocumentationFile>bin\Release\FlexApps.XML</DocumentationFile>
     <Prefer32Bit>false</Prefer32Bit>
     <PlatformTarget>x86</PlatformTarget>
+    <NoWarn>62</NoWarn>
   </PropertyGroup>
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '11.0'">
@@ -66,6 +68,7 @@
   </Target>
   <ItemGroup>
     <None Include="App.config" />
+    <Compile Include="AlertAttack.fs" />
     <Compile Include="Attacks.fs" />
   </ItemGroup>
   <ItemGroup>
