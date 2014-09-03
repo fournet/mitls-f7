@@ -80,6 +80,8 @@ let safeDH (p:p) (g:g) (gx:elt) (gy:elt): bool =
     honest p g gx && honest p g gy && goodPP p g
     #endif
 
+let leak   (p:p) (g:g) (gx:elt) (Key(b)) = b
+let coerce (p:p) (g:g) (gx:elt) b = Key(b)
 
 let serverGen () =
     let (p,g,q) = default_pp() in
