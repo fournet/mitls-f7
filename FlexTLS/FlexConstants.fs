@@ -22,8 +22,10 @@ let defaultProtocolVersion = TLS_1p2
 let defaultFragmentationPolicy = All(fragmentLength)
 
 (* Algorithms for RSA ciphersuites *)
-let calgs_rsa = [(SA_RSA, SHA256);(SA_RSA, MD5SHA1);(SA_RSA, SHA);(SA_RSA, NULL)]
+let calgs_RSA = [(SA_RSA, SHA256);(SA_RSA, MD5SHA1);(SA_RSA, SHA);(SA_RSA, NULL)]
 
+(* Algorithms for DHx ciphersuites *)
+let calgs_DHx = []
 
 
 
@@ -70,19 +72,31 @@ let nullFCertificateRequest : FCertificateRequest = { certTypes = [RSA_sign; DSA
                                                     }
 
 (* Define a null FCertificateVerify record *)
-let nullFCertificateVerify : FCertificateVerify = { sigAlg = calgs_rsa.Head;
+let nullFCertificateVerify : FCertificateVerify = { sigAlg = calgs_RSA.Head;
                                                     signature = empty_bytes;
                                                     payload = empty_bytes;
                                                   }
+
+(* Define a null FServerKeyExchange record for all DH key exchange mechanisms *)
+let nullFServerKeyExchangeDHx : FServerKeyExchangeDHx = { sigAlg = calgs_DHx.Head;
+                                                          signature = empty_bytes;
+                                                          kex = DH({x = empty_bytes; y = empty_bytes; g = empty_bytes; p = empty_bytes; gx = empty_bytes; gy = empty_bytes });
+                                                          payload = empty_bytes;
+                                                        }
 
 (* Define a null FServerHelloDone record *)
 let nullFServerHelloDone : FServerHelloDone =  { payload = empty_bytes;
                                                }
 
-(* Define a null FClientKeyExchange record *)
-let nullFClientKeyExchange : FClientKeyExchangeRSA = { pms = empty_bytes;
+(* Define a null FClientKeyExchange record for RSA *)
+let nullFClientKeyExchangeRSA : FClientKeyExchangeRSA = { pms = empty_bytes;
                                                        payload = empty_bytes;
                                                      }
+
+(* Define a null FClientKeyExchange record for DHx *)
+let nullFClientKeyExchangeDHx : FClientKeyExchangeDHx = { kex = DH({x = empty_bytes; y = empty_bytes; g = empty_bytes; p = empty_bytes; gx = empty_bytes; gy = empty_bytes });
+                                                          payload = empty_bytes;
+                                                        }
 
 (* Define a null FChangeCipherSpecs record *)
 let nullFChangeCipherSpecs : FChangeCipherSpecs = { payload = HandshakeMessages.CCSBytes;
@@ -100,10 +114,11 @@ let nullFHSMessages = {   helloRequest = nullFHelloRequest;
                           serverCertificate = nullFCertificate;
                           certificateRequest = nullFCertificateRequest;
                           clientCertificate = nullFCertificate;
-                          (* TODO : complete this *)
-                          certificateVerify = nullFCertificateVerify;
+                          serverKeyExchangeDHx = nullFServerKeyExchangeDHx;
                           serverHelloDone = nullFServerHelloDone;
-                          clientKeyExchange = nullFClientKeyExchange;
+                          certificateVerify = nullFCertificateVerify;
+                          clientKeyExchangeRSA = nullFClientKeyExchangeRSA;
+                          clientKeyExchangeDHx = nullFClientKeyExchangeDHx;
                           clientChangeCipherSpecs = nullFChangeCipherSpecs;
                           serverChangeCipherSpecs = nullFChangeCipherSpecs;
                           clientFinished = nullFFinished;

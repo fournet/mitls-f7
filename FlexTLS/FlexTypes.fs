@@ -33,6 +33,7 @@ type state = {
     ns: Tcp.NetworkStream;
 }
 
+(* DH key exchange parameters. Note that gx is in fact g^x mod p *)
 type kexDH = 
     { g:  bytes;
       p:  bytes;
@@ -42,6 +43,7 @@ type kexDH =
       gy: bytes
     }
 
+(* Key exchange records *)
 type kex =
     | RSA
     | DH of kexDH
@@ -93,6 +95,13 @@ type FCertificate = {
 }
 
 (* Record associated to a ServerKeyExchange message *)
+type FServerKeyExchangeDHx = {
+    sigAlg: Sig.alg;
+    signature: bytes;
+    kex: kex;
+    payload: bytes;
+}
+
 (* Record associated to a CertificateRequest message *)
 type FCertificateRequest = {
     certTypes: list<certType>;
@@ -119,6 +128,11 @@ type FClientKeyExchangeRSA = {
     payload:bytes;
 }
 
+type FClientKeyExchangeDHx = {
+    kex:kex;
+    payload:bytes;
+}
+
 (* Record associated to a ChangeCipherSpecs message *)
 type FChangeCipherSpecs = {
     payload: bytes;
@@ -137,11 +151,12 @@ type FHSMessages = {
     serverHello: FServerHello;
     serverCertificate: FCertificate;
     clientCertificate: FCertificate;
-    //serverKeyExchange: FServerKeyExchange;
+    serverKeyExchangeDHx: FServerKeyExchangeDHx;
     certificateRequest: FCertificateRequest;
     serverHelloDone: FServerHelloDone;
     certificateVerify: FCertificateVerify;
-    clientKeyExchange: FClientKeyExchangeRSA;
+    clientKeyExchangeRSA: FClientKeyExchangeRSA;
+    clientKeyExchangeDHx: FClientKeyExchangeDHx;
     clientChangeCipherSpecs: FChangeCipherSpecs;
     serverChangeCipherSpecs: FChangeCipherSpecs;
     clientFinished: FFinished;

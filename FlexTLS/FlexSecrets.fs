@@ -14,7 +14,12 @@ type FlexSecrets =
 
     // TODO: static member dh_to_pms kexDH    : bytes =
     // TODO: static member dh_to_pms g p x gy : bytes =
+    
 
+    (* Convert DH secret parameter from abstract type to concrete bytes *)
+    static member adh_to_dh (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (adh:DH.secret) : bytes =
+        DH.leak p g gx adh
+        
     (* Use the PreMasterSecret to generate the MasterSecret *)
     static member pms_to_ms (si:SessionInfo) (pms:bytes) : bytes =
         (* It doesn't really matter if we coerce to DH or RSA, as internally
