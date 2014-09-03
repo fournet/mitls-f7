@@ -25,7 +25,7 @@ let honest p g gx = List.exists (fun el-> el = (p,g,gx)) !honest_log
 
 type predPP = PP of p * g
 
-let pp (pg:dhparams) : p * g * (option<q>) =
+let pp (pg:dhparams) : p * g * q =
     let p=pg.p in
     //let pgg = pg.g
     //let goption = DHGroup.checkElement p pgg pgg
@@ -49,8 +49,8 @@ let default_pp() = pp (CoreDH.load_default_params())
 
 type predHE = HonestExponential of p * g * elt
 
-let genKey p g q: elt * secret =
-    let ((x, _), (ce, _)) = CoreDH.gen_key (DHGroup.dhparams p g q) in
+let genKey p g: elt * secret =
+    let ((x, _), (ce, _)) = CoreDH.gen_key p g in
     //let eoption = DHGroup.checkElement p g ce
     //let e = match eoption with
     //        | None -> Error.unexpected("Invalid DH generator") //failwith "Invalid DH generator"
@@ -85,11 +85,11 @@ let coerce (p:p) (g:g) (gx:elt) b = Key(b)
 
 let serverGen () =
     let (p,g,q) = default_pp() in
-    let (e,s) = genKey p g q in
+    let (e,s) = genKey p g in 
     (p,g,e,s)
 
 let clientGenExp p g gs =
-    let (gc, c) = genKey p g None in
+    let (gc,c) = genKey p g in
     let (Key ck) = c in
     let pms = (CoreDH.agreement (dhparams p g None) (ck) (gs)) in
     //#begin-ideal
