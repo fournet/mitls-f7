@@ -7,6 +7,9 @@ open DHGroup
 
 type secret
 
+val leak  : p -> g -> elt -> secret -> bytes
+val coerce: p -> g -> elt -> bytes -> secret
+
 //Restricting the interface to the minimum
 //val gen_pp     : unit -> p * g * (option<q>)
 //val default_pp : unit -> p * g * (option<q>)

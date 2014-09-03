@@ -42,6 +42,9 @@ ask !p,g,gx,gy. not PP(p,g) => not PMS.SafeDH(p,g,gx,gy)
 val safeDH: p:p -> g:(;p) g -> gx:(;p,g)elt -> gy:(;p,g)elt -> b:bool { b=true <=> PMS.SafeDH(p,g,gx,gy) }
 
 
+val leak  : p:p -> g:(;p) g -> gx:(;p,g)elt -> x:(;p,g,gx)secret{not HonestExponential(p,g,gx)} -> bytes
+val coerce: p:p -> g:(;p) g -> gx:(;p,g)elt{not HonestExponential(p,g,gx)} -> b:bytes -> x:(;p,g,gx)secret
+
 val genKey: p:p -> g:(;p) g -> q option -> gx:(;p,g) elt * (;p,g,gx) secret{HonestExponential(p,g,gx)}
 
     
