@@ -2,6 +2,9 @@
 
 module Application
 
+
+
+
 [<EntryPoint>]
 let main argv = 
     //AlertAttack.alertAttack "www.google.com";

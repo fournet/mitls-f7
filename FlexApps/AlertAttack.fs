@@ -20,8 +20,12 @@ open FlexSecrets
 open Bytes
 open TLSInfo
 
+
+
+
 let httpRequest host =
     sprintf "GET / HTTP/1.1\r\nHost: %s\r\nConnection: keep-alive\r\nCache-Control: max-age=0\r\n\r\n" host
+
 
 let alertAttack peer =
     // Connect to the server

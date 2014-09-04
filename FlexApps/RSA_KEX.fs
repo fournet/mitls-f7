@@ -24,6 +24,9 @@ open FlexFinished
 open FlexState
 open FlexSecrets
 
+
+
+
 (* Get the client certificate *)
 (* let chain,algs,skey =
     let hint = "*.prosecco.fr" in
@@ -31,6 +34,7 @@ open FlexSecrets
     | None -> failwith "Frack"
     | Some(c,a,s) -> c,a,s
 in *)
+
 
 type RSA_KEX =
     class
@@ -128,6 +132,7 @@ type RSA_KEX =
         let log    = log @| fC.payload in
         let _      = FlexFinished.send(st,logRoleNSC=(log,Server,nsc)) in
         ()
+
 
     (* Run a full Handshake RSA with both server and client authentication *)
     static member full_handshake_RSA_with_client_auth (role:Role) (st:state) (chain:Cert.chain) (salg:Sig.alg) (skey:Sig.skey) : state * FHSMessages =
