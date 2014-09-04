@@ -1,21 +1,19 @@
 ﻿module CoreDH
 
 open Bytes
+open Error
 open CoreKeys
 open DHDB
 
 (* ------------------------------------------------------------------------ *)
-type skey = dhskey
-type pkey = dhpkey
+val check_params : dhdb -> bytes -> bytes -> (string,dhdb*dhparams) optResult
+val check_element: dhparams -> bytes -> bool
+val gen_key      : dhparams -> dhskey * dhpkey
+// less efficient implementation, in case q is not available
+val gen_key_pg   : bytes -> bytes -> dhskey * dhpkey
+val agreement    : bytes -> dhskey -> dhpkey -> bytes
 
 (* ------------------------------------------------------------------------ *)
-val check_params : bytes -> bytes -> bool
-val check_element: bytes -> bytes -> bytes -> bool
-val gen_params   : unit -> CoreKeys.dhparams
-val gen_key      : bytes -> bytes -> skey * pkey
-val agreement    : bytes -> dhsbytes -> dhpbytes -> bytes
-
-(* ------------------------------------------------------------------------ *)
-val save_params_to_file   : string -> dhparams -> bool
-val load_params_from_file : string -> dhparams option
-val load_default_params   : unit -> dhparams
+// Throws exceptions in case of error
+// (file not found, parsing error, unsafe parameters...)
+val load_default_params   : string -> dhdb -> dhdb*dhparams

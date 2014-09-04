@@ -8,7 +8,7 @@ open Bytes
 type Key   = bytes * bytes
 type Value = bytes * bool
 
-type t = {
+type dhdb = {
     filename: string;
 }
 

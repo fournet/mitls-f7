@@ -4,39 +4,68 @@ module DHGroup
 
 open Bytes
 open CoreKeys
+open Error
+open TLSError
 
-type p   = bytes
-type elt = bytes 
-type g   = bytes
-type q   = bytes
+type elt = bytes
 
-type preds = Elt of p * g * elt
-type predPP = PP of p * g
+type preds = Elt of dhparams * elt
+type predPP = PP of dhparams
 
-let dhparams p g q: CoreKeys.dhparams = { p = p; g = g; q = q }
-
-let genElement p g: elt =
-    let (_, (e, _)) = CoreDH.gen_key p g in
+let goodPP_log = ref([]: list<dhparams>)
 #if verify
-    Pi.assume (Elt(p,g,e));
+let goodPP (dhp:dhparams) : bool = failwith "only used in ideal implementation, unverified"
+#else
+let goodPP dhp =  List.memr !goodPP_log dhp
+#endif
+
+let pp (dhp:dhparams) : dhparams =
+#if ideal
+#if verify
+    Pi.assume(PP(dhp));
+#else
+    goodPP_log := (dhp ::!goodPP_log);
+#endif
+#endif
+    dhp
+
+
+
+let genElement dhp: elt =
+    let (_, e) = CoreDH.gen_key dhp in
+#if verify
+    Pi.assume (Elt(dhp,e));
 #endif
     e
 
-let checkParams (p:p) (g:g): elt option =
-    if CoreDH.check_params p g then
-#if verify
-        Pi.assume(Elt(p,g,g));
+let checkParams dhdb p g =
+    match CoreDH.check_params dhdb p g with
+    | Error(x) -> Error(AD_insufficient_security,x)
+    | Correct(res) ->
+        let (dhdb,dhp) = res in
+#if ideal
+        let dhp = pp(dhp) in
+        let rp = dhp.p in
+        let rg = dhp.g in
+        if rp <> p || rg <> g then
+            failwith "Trusted code returned inconsitent value"
+        else
 #endif
-        Some(g)
-    else
-        None
+        correct (dhdb,dhp)
 
-let checkElement (p:p) (g:g) (b:bytes): option<elt> =
-    if CoreDH.check_element p g b then
+let checkElement dhp (b:bytes): option<elt> =
+    if CoreDH.check_element dhp b then
         (
 #if verify
-        Pi.assume(Elt(p,g,b));
+        Pi.assume(Elt(dhp,b));
 #endif
         Some(b))
     else
         None
+
+let defaultDHparams file dhdb =
+    let (dhdb,dhp) = CoreDH.load_default_params file dhdb in
+#if ideal
+    let dhp = pp(dhp) in
+#endif
+    (dhdb,dhp)

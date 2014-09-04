@@ -1,27 +1,34 @@
 ﻿module DHGroup
 
 open Bytes
+open DHDB
+open CoreKeys
+open TLSError
 
-type p = bytes // DH modulus, actually a bignum
-type q = bytes // subgroup order
+// Marks "Strong" parameter generation used by compliant servers,
+// formally a precondition for signing them with an honest key.
+predicate PP of dhparams
 
 // For public parameters and exchanged values.
 // We use an abstract predicate to ensure that elements 
 // are bytes that have been correctly generated or checked,
 // e.g. Elt(p,g,b) => Num(b) in [2..p-1) /\ order(b) = order(g)
 
-predicate type preds = Elt of bytes * bytes * bytes
+predicate Elt of dhparams * bytes
 
-type (;p:p) g = g:bytes{ Elt(p,g,g) } // for the group generator
+type (;dhp:dhparams) elt = b:bytes{ Elt(dhp,b) } 
 
-type (;p:p, g:(;p) g) elt = b:bytes{ Elt(p,g,b) } 
- 
-// Marks "Strong" parameter generation used by compliant servers,
-// formally a precondition for signing them with an honest key.
-predicate type predPP = PP of p:p * g:(;p) g
+theorem !dhp. PP(dhp) => Elt(dhp,dhp.g)
 
-val dhparams: p:p -> (;p) g -> q -> CoreKeys.dhparams
-val genElement: p:p -> g:(;p) g -> (;p,g) elt
+private val goodPP_log: (dhparams list) ref
+private val pp: dhp:dhparams ->
+	dhp':dhparams {dhp=dhp' /\ PP(dhp)}
+val goodPP: dhp:dhparams -> b:bool{b = true <=> PP(dhp)}
 
-val checkParams: p:p -> g:bytes -> (g':(;p,g) elt {g = g'}) option
-val checkElement: p:p -> g:bytes -> b:bytes -> (b':(;p,g) elt {b = b'}) option
+val genElement: dhp:dhparams -> (;dhp) elt
+val checkParams: dhdb -> p:bytes -> g:bytes ->
+	((dhdb * dhp:dhparams){PP(dhp) /\ dhp.p=p /\ dhp.g = g}) Result
+
+val checkElement: dhp:dhparams{PP(dhp)} -> b:bytes -> (b':(;dhp) elt {b = b'}) option
+
+val defaultDHparams: string -> dhdb -> ((dhdb * dhp:dhparams){PP(dhp)})

@@ -10,40 +10,14 @@ type secret = Key of bytes
 
 #if ideal
 type honest_entry = (p * g * elt)
-type good_entry = (p * g)
-let goodPP_log = ref([]: list<good_entry>)
 let honest_log = ref([]: list<honest_entry>)
 let log = ref []
 #if verify
-let goodPP p g = failwith "only used in ideal implementation, unverified"
 let honest p g gx = failwith "only used in ideal implementation, unverified"
 #else
-let goodPP p g =  List.exists (fun el-> el = (p,g)) !goodPP_log
 let honest p g gx = List.exists (fun el-> el = (p,g,gx)) !honest_log 
 #endif
 #endif
-
-type predPP = PP of p * g
-
-let pp (pg:dhparams) : p * g * q =
-    let p=pg.p in
-    //let pgg = pg.g
-    //let goption = DHGroup.checkElement p pgg pgg
-    //let g = match goption with
-    //        | None -> Error.unexpected("Invalid DH generator") //failwith "Invalid DH generator"
-    //        | Some b -> b
-    let g = pg.g in
-    #if ideal 
-    #if verify
-    Pi.assume(Elt(p,g,g));
-    Pi.assume(DHGroup.PP(p,g));
-    #else
-    goodPP_log := ((p,g) ::!goodPP_log);
-    #endif
-    #endif
-    (p,g,pg.q)
-    
-let gen_pp()     = pp (CoreDH.gen_params())
      
 let default_pp() = pp (CoreDH.load_default_params())
 
