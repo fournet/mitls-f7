@@ -9,17 +9,36 @@ open TLSInfo
 open FlexTypes
 open FlexConstants
 
+
+
+
 type FlexSecrets =
     class
-
-    // TODO: static member dh_to_pms kexDH    : bytes =
-    // TODO: static member dh_to_pms g p x gy : bytes =
-    
 
     (* Convert DH secret parameter from abstract type to concrete bytes *)
     static member adh_to_dh (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (adh:DH.secret) : bytes =
         DH.leak p g gx adh
-        
+       
+    (* Convert DH secret parameter from concrete bytes to an abstract type *)
+    static member dh_to_adh (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (dh:bytes) : DH.secret =
+        DH.coerce p g gx dh
+
+
+    (* Use the DH parameters to generate the PreMasterSecret *)
+    static member kex_to_pms (kexdh:kexDH) : bytes =
+        let g,p = kexdh.gp in
+        let x,gy = kexdh.x, kexdh.gy in
+        let dhp : CoreKeys.dhparams = {g = g; p = p; q=None} in
+        CoreDH.agreement dhp x gy 
+
+    (* Use the DH parameters to generate the PreMasterSecret *)
+    static member dh_to_pms (g:bytes) (p:bytes) (x:bytes) (gy:bytes) : bytes =
+        let dhp : CoreKeys.dhparams = {g = g; p = p; q=None} in
+        CoreDH.agreement dhp x gy 
+        //let dhpms = DH.serverExp p g gx gy x in
+        //let pms = PMS.DHPMS(p,g,gx,y,dhpms) in
+
+
     (* Use the PreMasterSecret to generate the MasterSecret *)
     static member pms_to_ms (si:SessionInfo) (pms:bytes) : bytes =
         (* It doesn't really matter if we coerce to DH or RSA, as internally
@@ -39,47 +58,39 @@ type FlexSecrets =
         let wk = StatefulLHAE.LEAK (TLSInfo.id ew) TLSInfo.Writer awk in
         rk,wk
 
-    (* Make verify_data from log and necessary informations *)
-    static member makeVerifyData (si:SessionInfo) (ms:bytes) (role:Role) (log:bytes) : bytes =
-        let ams = FlexSecrets.ms_to_ams ms si in
-        PRF.makeVerifyData si ams role log
 
     (* Get abstract typed master secret from bytes and session info *)
     static member ms_to_ams (ms:bytes) (si:SessionInfo) : PRF.masterSecret = 
         PRF.coerce (msi si) ms
 
+    (* Get abstract typed master secret from bytes and session info *)
+    static member ams_to_ms (ams:PRF.masterSecret) (si:SessionInfo) : bytes =
+        PRF.leak (msi si) ams
 
-    (* Fills un-set secret.
-       For RSA: at least the PMS must be provided;
-       For DHE: at least the DH parameters and keys must be provided *)
-    (* TODO, if we ever need it
-    static member fillNSCSecrets (nsc:nextSecurityContext) (role:Role): nextSecurityContext =
-        // set PMS
-        let nsc =
-            if nsc.pms = nullNextSecurityContext.pms then
-                match nsc.kex with
-                | RSA -> failwith (perror __SOURCE_FILE__ __LINE__ "For RSA, at least the PMS must be provided")
-                | DH(dhkex) -> failwith "TODO"
-            else
-                nsc
+
+    (* Make verify_data from log and necessary informations *)
+    static member makeVerifyData (si:SessionInfo) (ms:bytes) (role:Role) (log:bytes) : bytes =
+        let ams = FlexSecrets.ms_to_ams ms si in
+        PRF.makeVerifyData si ams role log
+
+
+    (* Generate secrets from the Key Exchange data and fill the next security context *)
+    static member fillSecrets (st:state, role:Role, nsc:nextSecurityContext, kex:kex, ?pms:bytes) : nextSecurityContext =
+
+        let er = TLSInfo.nextEpoch st.read.epoch  nsc.crand nsc.srand nsc.si in
+        let ew = TLSInfo.nextEpoch st.write.epoch nsc.crand nsc.srand nsc.si in
+
+        let pms_rsa = defaultArg pms empty_bytes in
+        let pms = 
+            match kex with
+            | RSA       -> pms_rsa
+            | DH(kexdh) -> FlexSecrets.kex_to_pms kexdh
         in
-        // set MS
-        let nsc =
-            if nsc.ms = nullNextSecurityContext.ms then
-                {nsc with ms = FlexSecrets.pms_to_ms nsc.si nsc.pms}
-            else
-                nsc
-        in
-        // set keys
-        let nsc =
-            if nsc.keys = nullNextSecurityContext.keys then
-                let er = TLSInfo.nextEpoch // I don't have the current epoch!!!
-                let keys = FlexSecrets.ms_to_keys er ew role nsc.ms in
-                {nsc with keys = keys}
-            else
-                nsc
-        in
-        nsc
-    *)
+
+        let ms = FlexSecrets.pms_to_ms nsc.si pms in
+        let keys = FlexSecrets.ms_to_keys er ew role ms in
+        
+        // Here the kex provided also updates the next security context
+        { nsc with pms = pms; ms = ms; keys = keys; kex = kex }
+
     end
-

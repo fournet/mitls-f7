@@ -29,6 +29,12 @@ let calgs_DHx = []
 
 
 
+
+(* Define a default DH key exchange parameters structure where x,gx are the local values and gy is the remote public value *)
+let nullKexDH = { gp = (let dhparams = CoreDH.load_default_params() in (dhparams.g,dhparams.p));
+                  x = empty_bytes; gx = empty_bytes; gy = empty_bytes;
+                }
+
 (* Define a null FHelloRequest record *)
 let nullFHelloRequest : FHelloRequest = {   payload = empty_bytes;
                                         }
@@ -80,7 +86,7 @@ let nullFCertificateVerify : FCertificateVerify = { sigAlg = calgs_RSA.Head;
 (* Define a null FServerKeyExchange record for all DH key exchange mechanisms *)
 let nullFServerKeyExchangeDHx : FServerKeyExchangeDHx = { sigAlg = calgs_DHx.Head;
                                                           signature = empty_bytes;
-                                                          kex = DH({x = empty_bytes; y = empty_bytes; g = empty_bytes; p = empty_bytes; gx = empty_bytes; gy = empty_bytes });
+                                                          kex = DH(nullKexDH);
                                                           payload = empty_bytes;
                                                         }
 
@@ -94,7 +100,7 @@ let nullFClientKeyExchangeRSA : FClientKeyExchangeRSA = { pms = empty_bytes;
                                                      }
 
 (* Define a null FClientKeyExchange record for DHx *)
-let nullFClientKeyExchangeDHx : FClientKeyExchangeDHx = { kex = DH({x = empty_bytes; y = empty_bytes; g = empty_bytes; p = empty_bytes; gx = empty_bytes; gy = empty_bytes });
+let nullFClientKeyExchangeDHx : FClientKeyExchangeDHx = { kex = DH(nullKexDH);
                                                           payload = empty_bytes;
                                                         }
 

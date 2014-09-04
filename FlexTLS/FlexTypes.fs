@@ -33,15 +33,13 @@ type state = {
     ns: Tcp.NetworkStream;
 }
 
-(* DH key exchange parameters. Note that gx is in fact g^x mod p *)
-type kexDH = 
-    { g:  bytes;
-      p:  bytes;
-      x:  bytes;
-      gx: bytes;
-      y:  bytes;
-      gy: bytes
-    }
+(* DH key exchange parameters where x,gx are the local values and gy is the remote public value. Note that gx is in fact g^x mod p *)
+type kexDH = { 
+    gp:  bytes * bytes;
+    x:  bytes;
+    gx: bytes;
+    gy: bytes
+}
 
 (* Key exchange records *)
 type kex =
