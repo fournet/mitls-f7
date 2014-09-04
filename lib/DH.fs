@@ -9,19 +9,17 @@ open CoreKeys
 type secret = Key of bytes 
 
 #if ideal
-type honest_entry = (p * g * elt)
+type honest_entry = (dhparams * elt)
 let honest_log = ref([]: list<honest_entry>)
 let log = ref []
 #if verify
-let honest p g gx = failwith "only used in ideal implementation, unverified"
+let honest dhp gx = failwith "only used in ideal implementation, unverified"
 #else
-let honest p g gx = List.exists (fun el-> el = (p,g,gx)) !honest_log 
+let honest dhp gx = List.exists (fun el-> el = (dhp,gx)) !honest_log 
 #endif
 #endif
-     
-let default_pp() = pp (CoreDH.load_default_params())
 
-type predHE = HonestExponential of p * g * elt
+type predHE = HonestExponential of dhparams * elt
 
 let genKey p g: elt * secret =
     let ((x, _), (ce, _)) = CoreDH.gen_key p g in
@@ -52,7 +50,7 @@ let rec assoc (p:p) (g:g) (gx:elt) (gy:elt) entries: option<PMS.dhpms> =
 //SZ Never used
 let safeDH (p:p) (g:g) (gx:elt) (gy:elt): bool = 
     honest p g gx && honest p g gy && goodPP p g
-    #endif
+#endif
 
 let leak   (p:p) (g:g) (gx:elt) (Key(b)) = b
 let coerce (p:p) (g:g) (gx:elt) b = Key(b)
