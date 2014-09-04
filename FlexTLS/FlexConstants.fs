@@ -84,7 +84,7 @@ let nullFCertificateVerify : FCertificateVerify = { sigAlg = calgs_RSA.Head;
                                                   }
 
 (* Define a null FServerKeyExchange record for all DH key exchange mechanisms *)
-let nullFServerKeyExchangeDHx : FServerKeyExchangeDHx = { sigAlg = calgs_DHx.Head;
+let nullFServerKeyExchangeDHx : FServerKeyExchange = { sigAlg = calgs_DHx.Head;
                                                           signature = empty_bytes;
                                                           kex = DH(nullKexDH);
                                                           payload = empty_bytes;
@@ -95,12 +95,12 @@ let nullFServerHelloDone : FServerHelloDone =  { payload = empty_bytes;
                                                }
 
 (* Define a null FClientKeyExchange record for RSA *)
-let nullFClientKeyExchangeRSA : FClientKeyExchangeRSA = { pms = empty_bytes;
-                                                       payload = empty_bytes;
-                                                     }
+let nullFClientKeyExchangeRSA : FClientKeyExchange = { kex = RSA(empty_bytes);
+                                                          payload = empty_bytes;
+                                                        }
 
 (* Define a null FClientKeyExchange record for DHx *)
-let nullFClientKeyExchangeDHx : FClientKeyExchangeDHx = { kex = DH(nullKexDH);
+let nullFClientKeyExchangeDHx : FClientKeyExchange = { kex = DH(nullKexDH);
                                                           payload = empty_bytes;
                                                         }
 
@@ -120,11 +120,10 @@ let nullFHSMessages = {   helloRequest = nullFHelloRequest;
                           serverCertificate = nullFCertificate;
                           certificateRequest = nullFCertificateRequest;
                           clientCertificate = nullFCertificate;
-                          serverKeyExchangeDHx = nullFServerKeyExchangeDHx;
+                          serverKeyExchange = nullFServerKeyExchangeDHx;
                           serverHelloDone = nullFServerHelloDone;
                           certificateVerify = nullFCertificateVerify;
-                          clientKeyExchangeRSA = nullFClientKeyExchangeRSA;
-                          clientKeyExchangeDHx = nullFClientKeyExchangeDHx;
+                          clientKeyExchange = nullFClientKeyExchangeRSA; //could be DHx
                           clientChangeCipherSpecs = nullFChangeCipherSpecs;
                           serverChangeCipherSpecs = nullFChangeCipherSpecs;
                           clientFinished = nullFFinished;
@@ -152,7 +151,7 @@ let nullSessionInfo = {    clientID = [];
 let nullNextSecurityContext = {   si = nullSessionInfo;
                                   crand = empty_bytes;
                                   srand = empty_bytes;
-                                  kex = RSA;
+                                  kex = RSA(empty_bytes);
                                   pms = empty_bytes;
                                   ms = empty_bytes;
                                   keys = empty_bytes,empty_bytes;

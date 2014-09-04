@@ -43,7 +43,7 @@ type kexDH = {
 
 (* Key exchange records *)
 type kex =
-    | RSA
+    | RSA of bytes
     | DH of kexDH
  // | ECDH of kexECDH // TODO
 
@@ -93,7 +93,7 @@ type FCertificate = {
 }
 
 (* Record associated to a ServerKeyExchange message *)
-type FServerKeyExchangeDHx = {
+type FServerKeyExchange = {
     sigAlg: Sig.alg;
     signature: bytes;
     kex: kex;
@@ -121,15 +121,11 @@ type FCertificateVerify = {
 }
 
 (* Record associated to a ClientKeyExchange message *)
-type FClientKeyExchangeRSA = {
-    pms:bytes;
-    payload:bytes;
-}
-
-type FClientKeyExchangeDHx = {
+type FClientKeyExchange = {
     kex:kex;
     payload:bytes;
 }
+
 
 (* Record associated to a ChangeCipherSpecs message *)
 type FChangeCipherSpecs = {
@@ -149,12 +145,11 @@ type FHSMessages = {
     serverHello: FServerHello;
     serverCertificate: FCertificate;
     clientCertificate: FCertificate;
-    serverKeyExchangeDHx: FServerKeyExchangeDHx;
+    serverKeyExchange: FServerKeyExchange;
     certificateRequest: FCertificateRequest;
     serverHelloDone: FServerHelloDone;
     certificateVerify: FCertificateVerify;
-    clientKeyExchangeRSA: FClientKeyExchangeRSA;
-    clientKeyExchangeDHx: FClientKeyExchangeDHx;
+    clientKeyExchange: FClientKeyExchange;
     clientChangeCipherSpecs: FChangeCipherSpecs;
     serverChangeCipherSpecs: FChangeCipherSpecs;
     clientFinished: FFinished;

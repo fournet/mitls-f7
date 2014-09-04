@@ -75,15 +75,14 @@ type FlexSecrets =
 
 
     (* Generate secrets from the Key Exchange data and fill the next security context *)
-    static member fillSecrets (st:state, role:Role, nsc:nextSecurityContext, kex:kex, ?pms:bytes) : nextSecurityContext =
+    static member fillSecrets (st:state, role:Role, nsc:nextSecurityContext, kex:kex) : nextSecurityContext =
 
         let er = TLSInfo.nextEpoch st.read.epoch  nsc.crand nsc.srand nsc.si in
         let ew = TLSInfo.nextEpoch st.write.epoch nsc.crand nsc.srand nsc.si in
 
-        let pms_rsa = defaultArg pms empty_bytes in
         let pms = 
             match kex with
-            | RSA       -> pms_rsa
+            | RSA(pms)  -> pms
             | DH(kexdh) -> FlexSecrets.kex_to_pms kexdh
         in
 

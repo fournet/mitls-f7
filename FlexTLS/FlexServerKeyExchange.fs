@@ -19,7 +19,7 @@ type FlexServerKeyExchange =
     class
 
     (* Receive DH ServerKeyExchange and check signature *)
-    static member receiveDHxANDcheckSignature (st:state, si:SessionInfo, sigAlg:Sig.alg, ?nsc:nextSecurityContext) : state * nextSecurityContext * FServerKeyExchangeDHx =
+    static member receiveDHxANDcheckSignature (st:state, si:SessionInfo, sigAlg:Sig.alg, ?nsc:nextSecurityContext) : state * nextSecurityContext * FServerKeyExchange =
         let nsc = defaultArg nsc nullNextSecurityContext in
         let st,nsc,fske = FlexServerKeyExchange.receiveDHx(st,si,nsc) in
         match Cert.get_chain_public_signing_key si.serverID sigAlg with
@@ -40,7 +40,7 @@ type FlexServerKeyExchange =
                         failwith (perror __SOURCE_FILE__ __LINE__  "message signature does not match the public key")
 
     (* Receive DH ServerKeyExchange *)
-    static member receiveDHx (st:state, si:SessionInfo, ?nsc:nextSecurityContext) : state * nextSecurityContext * FServerKeyExchangeDHx =
+    static member receiveDHx (st:state, si:SessionInfo, ?nsc:nextSecurityContext) : state * nextSecurityContext * FServerKeyExchange =
         let nsc = defaultArg nsc nullNextSecurityContext in
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
@@ -50,7 +50,7 @@ type FlexServerKeyExchange =
             | Correct (p,g,gy,alg,signature) ->
                 let kexdh = {gp = (g,p); x = empty_bytes; gx = empty_bytes; gy = gy} in
                 let nsc = { nsc with kex = DH(kexdh) } in
-                let fske : FServerKeyExchangeDHx = { kex = DH(kexdh); payload = to_log; sigAlg = alg; signature = signature } in
+                let fske : FServerKeyExchange = { kex = DH(kexdh); payload = to_log; sigAlg = alg; signature = signature } in
                 st,nsc,fske 
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_server_key_exchange")
@@ -58,7 +58,7 @@ type FlexServerKeyExchange =
 
     (* Send DH ServerKeyExchange overloaded with nextSecurityContext instead of kexdh *)
     (* Not sure this one is interesting ... *)
-    static member sendDHx (st:state, si:SessionInfo, sigAlg:Sig.alg, sigKey:Sig.skey, ?nsc:nextSecurityContext, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerKeyExchangeDHx =
+    static member sendDHx (st:state, si:SessionInfo, sigAlg:Sig.alg, sigKey:Sig.skey, ?nsc:nextSecurityContext, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerKeyExchange =
         let fp = defaultArg fp defaultFragmentationPolicy in
         let nsc = defaultArg nsc nullNextSecurityContext in
         let kexdh = 
@@ -69,7 +69,7 @@ type FlexServerKeyExchange =
         FlexServerKeyExchange.sendDHx(st, si, sigAlg, sigKey, kexdh, fp)
 
     (* Send DH ServerKeyExchange *)
-    static member sendDHx (st:state, si:SessionInfo, sigAlg:Sig.alg, sigKey:Sig.skey, ?kexdh:kexDH, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerKeyExchangeDHx =
+    static member sendDHx (st:state, si:SessionInfo, sigAlg:Sig.alg, sigKey:Sig.skey, ?kexdh:kexDH, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerKeyExchange =
         let (p,g,gx,x) = DH.serverGen() in
         let xB = FlexSecrets.adh_to_dh p g gx x in
         let defkexdh = {gp = (g,p); x = empty_bytes; gy = empty_bytes; gx = gx} in
