@@ -78,7 +78,7 @@ type RSA_KEX =
     static member server (listening_address:string, ?cn:string, ?port:int) : unit =
         let cn = defaultArg cn listening_address in
         let port = defaultArg port FlexConstants.defaultTCPPort in
-        match Cert.for_key_encryption FlexConstants.calgs_rsa cn with
+        match Cert.for_key_encryption FlexConstants.calgs_RSA cn with
         | None -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Private key not found for the given CN: %s" cn))
         | Some(chain,sk) -> RSA_KEX.server(listening_address,chain,sk,port)
 
