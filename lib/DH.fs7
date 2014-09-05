@@ -2,13 +2,10 @@
 
 open Bytes
 open DHGroup
-
-// marks "Honest" exponentials generated using genKey (or serverGen)
-predicate type predHE = HonestExponential of dhp:dhparams * gx:(;dhp) elt
-private val honest: dhp:dhparams -> e:(;dhp) elt -> b:bool{b = true <=> HonestExponential(dhp,e)}
+open CoreKeys
 
 //#begin-abstraction
-private type (dhp:dhparams, gx:(;dhp)elt) secret = Key of bytes 
+private type (;dhp:dhparams, gx:(;dhp)elt) secret = Key of bytes 
 //#end-abstraction
 
 // We maintain 2 logs:
@@ -18,22 +15,25 @@ private type (dhp:dhparams, gx:(;dhp)elt) secret = Key of bytes
 // Any parameters returned by the Core modules are taken from the trusted DHDB,
 // which only contains good parameters.
 
-type honest_entry = (dhp:dhparams * (;dhp) elt)
+// 1: log of honest gx and gy values
+type honest_entry = (dhp:dhparams * (;dhp) elt){PP(dhp)}
 private val honest_log: (honest_entry list) ref
 
-type entry = dhp:dhparams * gx:(;dhp) elt * gy:(;dhp) elt * pms:(;dhp.p, dhp.g, gx, gy) PMS.dhpms{PMS.HonestDHPMS(dhp.p,dhp.g,gx,gy,pms)}
-private val log: entry list ref 
+// marks "Honest" exponentials generated using genKey (or serverGen)
+predicate type predHE = HonestExponential of dhp:dhparams * gx:(;dhp) elt
+private val honest: dhp:dhparams -> e:(;dhp) elt -> b:bool{b = true <=> HonestExponential(dhp,e)}
 
-private val assoc: dhp:dhparams -> gx:(;dhp)elt -> gy:(;dhp)elt -> entry list -> pmsoption:(;dhp.p, dhp.g, gx, gy) PMS.dhpms option{!pms. pmsoption=Some(pms) => PMS.HonestDHPMS(dhp.p,dhp.g,gx,gy,pms)}
-
-
-definition !dhp,gx,gy. PMS.SafeDH(dhp.p,dhp.g,gx,gy) <=> HonestExponential(dhp,gx) /\ HonestExponential(dhp,gy) /\ PP(dhp)
+definition !dhp,gx,gy. PMS.SafeDH(dhp,gx,gy) <=> HonestExponential(dhp,gx) /\ HonestExponential(dhp,gy) /\ PP(dhp)
 //SZ Check if we can remove these queries; unless we want to keep them as documentation or sanity checks
-ask !dhp,gx,gy. not HonestExponential(dhp,gx) => not PMS.SafeDH(dhp.p,dhp.g,gx,gy)
-ask !dhp,gx,gy. not HonestExponential(dhp,gy) => not PMS.SafeDH(dhp.p,dhp.g,gx,gy) 
-ask !dhp,gx,gy. not PP(dhp) => not PMS.SafeDH(dhp.p,dhp.g,gx,gy) 
-val safeDH: dhp:dhparams -> gx:(;dhp)elt -> gy:(;dhp)elt -> b:bool { b=true <=> PMS.SafeDH(dhp.p,dhp.g,gx,gy) }
+ask !dhp,gx,gy. not HonestExponential(dhp,gx) => not PMS.SafeDH(dhp,gx,gy)
+ask !dhp,gx,gy. not HonestExponential(dhp,gy) => not PMS.SafeDH(dhp,gx,gy) 
+ask !dhp,gx,gy. not PP(dhp) => not PMS.SafeDH(dhp,gx,gy) 
+val safeDH: dhp:dhparams -> gx:(;dhp)elt -> gy:(;dhp)elt -> b:bool { b=true <=> PMS.SafeDH(dhp,gx,gy) }
 
+// 2: log for looking up honest pms values using gx and gy values
+type entry = dhp:dhparams * gx:(;dhp) elt * gy:(;dhp) elt * pms:(;dhp, gx, gy) PMS.dhpms{PMS.HonestDHPMS(dhp,gx,gy,pms)}
+private val log: entry list ref 
+private val assoc: dhp:dhparams -> gx:(;dhp)elt -> gy:(;dhp)elt -> entry list -> pmsoption:(;dhp, gx, gy) PMS.dhpms option{!pms. pmsoption=Some(pms) => PMS.HonestDHPMS(dhp,gx,gy,pms)}
 
 val leak  : dhp:dhparams -> gx:(;dhp)elt -> x:(;dhp,gx)secret{not HonestExponential(dhp,gx)} -> bytes
 val coerce: dhp:dhparams -> gx:(;dhp)elt{not HonestExponential(dhp,gx)} -> b:bytes -> x:(;dhp,gx)secret
@@ -41,11 +41,14 @@ val coerce: dhp:dhparams -> gx:(;dhp)elt{not HonestExponential(dhp,gx)} -> b:byt
 val genKey: dhp:dhparams -> gx:(;dhp)elt * (;dhp,gx) secret{HonestExponential(dhp,gx)}
 
     
-val serverGen: unit -> (p:p * g:(;p) g * gs:(;p,g) elt * (;p,g,gs) secret{PP(p,g) /\ HonestExponential(p,g,gs)})
+val serverGen: string -> DHDB.dhdb ->
+	(DHDB.dhdb * dhp:dhparams * gs:(;dhp) elt * (;dhp,gs) secret
+		{PP(dhp) /\ HonestExponential(dhp,gs)})
 
-val clientGenExp: p:p -> g:(;p) g -> gs:(;p,g) elt 
-				      -> (gc:(;p,g) elt * (;p,g,gc) secret * res:(;p,g,gs,gc) PMS.dhpms)
-					     {HonestExponential(p,g,gc) /\ ((HonestExponential(p,g,gs) /\ PP(p,g)) => PMS.HonestDHPMS(p,g,gs,gc,res))}
+val clientGenExp: dhp:dhparams{PP(dhp)} -> gs:(;dhp) elt 
+				      -> (gc:(;dhp) elt * res:(;dhp,gs,gc) PMS.dhpms)
+					     {HonestExponential(dhp,gc) /\
+							(HonestExponential(dhp,gs) => PMS.HonestDHPMS(dhp,gs,gc,res))}
 
-val serverExp: p:p -> g:(;p) g{PP(p,g)} -> gs:(;p,g) elt{HonestExponential(p,g,gs)} -> gc:(;p,g) elt -> s:(;p,g,gs) secret 
-				   -> res:(;p,g,gs,gc) PMS.dhpms{HonestExponential(p,g,gc) => PMS.HonestDHPMS(p,g,gs,gc,res)}
+val serverExp: dhp:dhparams{PP(dhp)} -> gs:(;dhp) elt{HonestExponential(dhp,gs)} -> gc:(;dhp) elt -> s:(;dhp,gs) secret 
+				   -> res:(;dhp,gs,gc) PMS.dhpms{HonestExponential(dhp,gc) => PMS.HonestDHPMS(dhp,gs,gc,res)}
