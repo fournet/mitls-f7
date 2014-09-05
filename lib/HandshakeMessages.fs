@@ -466,12 +466,12 @@ let clientKEXExplicitBytes_DH y =
     let yb = vlbytes 2 y in
     messageBytes HT_client_key_exchange yb
 
-let parseClientKEXExplicit_DH p g data =
+let parseClientKEXExplicit_DH dhp data =
     if length data >= 2 then
         match vlparse 2 data with
         | Error(z) -> Error(z)
         | Correct(y) ->
-            match DHGroup.checkElement p g y with
+            match DHGroup.checkElement dhp y with
             | None -> Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid DH key received")
             | Some(y) -> correct y
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
@@ -524,7 +524,7 @@ let parseDigitallySigned expectedAlgs payload pv =
 (* Server Key exchange *)
 
 let dheParamBytes p g y = (vlbytes 2 p) @| (vlbytes 2 g) @| (vlbytes 2 y)
-let parseDHEParams payload =
+let parseDHEParams dhdb payload =
     if length payload >= 2 then 
         match vlsplit 2 payload with
         | Error(z) -> Error(z)
@@ -541,12 +541,13 @@ let parseDHEParams payload =
                 | Correct(res) ->
                 let (y,payload) = res in
                 // Check params and validate y
-                match DHGroup.checkParams p g with
-                | None -> Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid DH parameter received")
-                | Some(g) ->
-                    match DHGroup.checkElement p g y with
+                match DHGroup.checkParams dhdb p g with
+                | Error(z) -> Error(z)
+                | Correct(res) ->
+                    let (dhdb,dhp) = res in
+                    match DHGroup.checkElement dhp y with
                     | None -> Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid DH key received")
-                    | Some(y) -> correct(p,g,y,payload)
+                    | Some(y) -> correct(dhdb,dhp,y,payload)
             else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
         else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
@@ -556,29 +557,29 @@ let serverKeyExchangeBytes_DHE dheb alg sign pv =
     let payload = dheb @| sign in
     messageBytes HT_server_key_exchange payload
 
-let parseServerKeyExchange_DHE pv cs payload =
-    match parseDHEParams payload with
+let parseServerKeyExchange_DHE dhdb pv cs payload =
+    match parseDHEParams dhdb payload with
     | Error(z) -> Error(z)
     | Correct(res) ->
-        let (p,g,y,payload) = res in
+        let (dhdb,dhp,y,payload) = res in
         let allowedAlgs = default_sigHashAlg pv cs in
         (match parseDigitallySigned allowedAlgs payload pv with
         | Error(z) -> Error(z)
         | Correct(res) ->
             let (alg,signature) = res in
-            correct(p,g,y,alg,signature))
+            correct(dhdb,dhp,y,alg,signature))
 
 let serverKeyExchangeBytes_DH_anon p g y =
     let dehb = dheParamBytes p g y in
     messageBytes HT_server_key_exchange dehb
 
-let parseServerKeyExchange_DH_anon payload =
-    match parseDHEParams payload with
+let parseServerKeyExchange_DH_anon dhdb payload =
+    match parseDHEParams dhdb payload with
     | Error(z) -> Error(z)
     | Correct(z) ->
-        let (p,g,y,rem) = z in
+        let (dhdb,dhp,y,rem) = z in
         if length rem = 0 then
-            correct(p,g,y)
+            correct(dhdb,dhp,y)
         else
             Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
