@@ -297,7 +297,7 @@ private definition !b.
 
 val clientKEXExplicitBytes_DH: gx:bytes ->
 	b:bytes{B(b) = ClientKeyExchangeMsg_DHE(gx)}
-val parseClientKEXExplicit_DH: dhp:CoreKeys.dhparams -> b:bytes ->
+val parseClientKEXExplicit_DH: dhp:CoreKeys.dhparams{DHGroup.PP(dhp)} -> b:bytes ->
 	(gx:(;dhp)DHGroup.elt{
 		MessageBytes(HT_client_key_exchange,B(b)) = 
                 ClientKeyExchangeMsg_DHE(gx)
@@ -655,9 +655,9 @@ predicate ServerLogBeforeClientCertificateVerifyDHE of SessionInfo * log
 
 definition !si,pv,l.
   ServerLogBeforeClientCertificateVerifyDHE(si,l) <=>
-  (?si',l',p,g,gc,gs,r,d. ServerLogBeforeClientKeyExchangeDHE(si',l') /\
+  (?si',l',dhp,gc,gs,r,d. ServerLogBeforeClientKeyExchangeDHE(si',l') /\
         UpdatesPmsID(si',si) /\
-        si.pmsId = PmsId(PMS.DHPMS(p,g,gs,gc,r)) /\
+        si.pmsId = PmsId(PMS.DHPMS(dhp,gs,gc,r)) /\
         B(l) = B(l') @| ClientKeyExchangeMsg_DHE(gc))
 
 predicate ServerLogBeforeClientCertificateVerify of SessionInfo * log
