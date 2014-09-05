@@ -118,8 +118,10 @@ type hs_state = {
   hs_outgoing    : bytes;                  (* outgoing data *)
   hs_incoming    : bytes;                  (* partial incoming HS message *)
   (* local configuration *)
-  poptions: config; 
+  poptions: config;
+  (* Session and DH DBs *)
   sDB: SessionDB.t;
+  dhdb: DHDB.dhdb;
   (* current handshake & session we are establishing *) 
   pstate: protoState;
 }
@@ -139,21 +141,25 @@ let init (role:Role) poptions =
         let extL = prepareClientExtensions poptions ci empty_bytes None in
         let ext = clientExtensionsBytes extL in
         let cHelloBytes = clientHelloBytes poptions rand sid ext in
-        let sdb = SessionDB.create poptions in 
+        let sdb = SessionDB.create poptions in
+        let dhdb = DHDB.create poptions.dhDBFileName in
         (ci,{hs_outgoing = cHelloBytes;
                      hs_incoming = empty_bytes;
                      poptions = poptions;
                      sDB = sdb;
+                     dhdb = dhdb;
                      pstate = PSClient (ServerHello (rand, sid, extL, empty_bytes, empty_bytes, cHelloBytes))
             })
     | Server ->
         let ci = initConnection role rand in
         Pi.assume (Configure(Server,ci.id_in,poptions)); // ``The user starts a server in this config''
         let sdb = SessionDB.create poptions in 
+        let dhdb = DHDB.create poptions.dhDBFileName in
         (ci,{hs_outgoing = empty_bytes;
              hs_incoming = empty_bytes;
              poptions = poptions;
              sDB = sdb;
+             dhdb = dhdb;
              pstate = PSServer (ClientHello(empty_bytes,empty_bytes))
             })
 
@@ -177,10 +183,12 @@ let resume next_sid poptions =
     let ext = clientExtensionsBytes extL in
     let cHelloBytes = clientHelloBytes poptions rand sid ext in
     let sdb = SessionDB.create poptions in
+    let dhdb = DHDB.create poptions.dhDBFileName in
     (ci,{hs_outgoing = cHelloBytes;
          hs_incoming = empty_bytes;
          poptions = poptions;
          sDB = sdb;
+         dhdb = dhdb;
          pstate = PSClient (ServerHello (rand, sid, extL, empty_bytes, empty_bytes, cHelloBytes))
         })
 
@@ -198,10 +206,12 @@ let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
             let cHelloBytes = clientHelloBytes ops rand sid ext in
             Pi.assume (Configure(Client,ci.id_in,ops)); // ``The user renegotiates a client in this config''
             let sdb = SessionDB.create ops in
+            let dhdb = DHDB.create ops.dhDBFileName in
             (true,{hs_outgoing = cHelloBytes;
                    hs_incoming = empty_bytes;
                    poptions = ops;
                    sDB = sdb;
+                   dhdb = dhdb;
                    pstate = PSClient (ServerHello (rand, sid, extL, cvd,svd, cHelloBytes))
                    }))
         | _ -> (* handshake already happening, ignore this request *)
@@ -238,10 +248,12 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) : bool * hs_state =
                     let ext = clientExtensionsBytes extL in
                     Pi.assume (Configure(Client,ci.id_in,ops)); // ``The user rekeys a client in this config''
                     let cHelloBytes = clientHelloBytes ops rand sid ext in
+                    let dhdb = DHDB.create ops.dhDBFileName in
                     (true,{hs_outgoing = cHelloBytes;
                            hs_incoming = empty_bytes;
                            poptions = ops;
                            sDB = sDB;
+                           dhdb = dhdb;
                            pstate = PSClient (ServerHello (rand, sid, extL, cvd, svd, cHelloBytes))
                            }))
                 | _ -> (* Handshake already ongoing, ignore this request *)
@@ -256,11 +268,13 @@ let request (ci:ConnectionInfo) (state:hs_state) (ops:config) =
         (match sstate with
         | ServerIdle(cvd,svd) ->
             let sdb = SessionDB.create ops in
+            let dhdb = DHDB.create ops.dhDBFileName in
             (* Put HelloRequest in outgoing buffer (and do not log it), and move to the ClientHello state (so that we don't send HelloRequest again) *)
             (true, { hs_outgoing = helloRequestBytes;
                      hs_incoming = empty_bytes;
                      poptions = ops;
                      sDB = sdb;
+                     dhdb = dhdb;
                      pstate = PSServer(ClientHello(cvd,svd))
                     })
         | _ -> (* Handshake already ongoing, ignore this request *)
@@ -988,12 +1002,13 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
         | HT_server_key_exchange ->
             (match cState with
             | ServerKeyExchangeDHE(si,log) ->
-                (match parseServerKeyExchange_DHE si.protocol_version si.cipher_suite payload with
+                (match parseServerKeyExchange_DHE state.dhdb si.protocol_version si.cipher_suite payload with
                 | Error z ->
                     let (x,y) = z in
                     InError(x,y,state)
                 | Correct(v) ->
-                    let (dhp,y,alg,signature) = v in
+                    let (dhdb,dhp,y,alg,signature) = v in
+                    let state = {state with dhdb = dhdb} in
                     let vk = Cert.get_chain_public_signing_key si.serverID alg in
                     match vk with
                     | Error z ->
@@ -1016,11 +1031,12 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                             InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "",state))
                     
             | ServerKeyExchangeDH_anon(si,log) ->
-                (match parseServerKeyExchange_DH_anon payload with
+                (match parseServerKeyExchange_DH_anon state.dhdb payload with
                 | Error z -> let (x,y) = z in InError(x,y,state)
                 | Correct(v) ->
-                    let (dhp,y) = v in
+                    let (dhdb,dhp,y) = v in
                     let log = log @| to_log in
+                    let state = {state with dhdb = dhdb} in
                     recv_fragment_client ci 
                       {state with pstate = PSClient(ServerHelloDoneDH_anon(si,dhp,y,log))} 
                       agreedVersion)
@@ -1258,8 +1274,10 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL l
 
         (* ServerKeyExchange *)
         (*KB DH-PMS-KEM (server 1) *)
-        let (dhdb,dhp,gx,x) = DH.serverGen default_params_filename dhdb in
-        //~ pms-KEM: (dhp,gx),((dhp,gx),x) = keygen_DHE() 
+        let dhparams_filename = state.poptions.dhDefaultGroupFileName in
+        let (dhdb,dhp,gx,x) = DH.serverGen dhparams_filename state.dhdb  in
+        //~ pms-KEM: (dhp,gx),((dhp,gx),x) = keygen_DHE()
+        let state = {state with dhdb = dhdb} in
 
         let dheB = dheParamBytes dhp.p dhp.g gx in
         let toSign = si.init_crand @| si.init_srand @| dheB in
@@ -1277,7 +1295,7 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL l
           Pi.expect (ServerLogBeforeClientCertificateDHE_Auth(si,log));          
 #endif
           let ps = serverState ci (ClientCertificateDHE(si,dhp,gx,x,log)) in
-        (* Compute the next state of the server *)
+          (* Compute the next state of the server *)
             correct (
               {state with hs_outgoing = output;
                           pstate = ps},
@@ -1295,8 +1313,6 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL l
                           pstate = ps},
                si.protocol_version)
 
-        (* ClientKeyExchangeDHE(si,dhp,x,log) should carry PP(dhp) /\ ?gx. DHE.Exp(dhp,x,gx) *)
-
 let prepare_server_output_full_DH_anon (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) (sExtL:list<serverExtension>) (log:log) : Result<(hs_state * ProtocolVersion)> =
 #if verify
     failwith "not verifying DH_anon"
@@ -1307,7 +1323,9 @@ let prepare_server_output_full_DH_anon (ci:ConnectionInfo) (state:hs_state) (si:
     (* ServerKEyExchange *)
 
     (*KB DH-PMS-KEM (server 1) *)
-    let (dhdb,dhp,y,x) = DH.serverGen default_params_filename dhdb in
+    let default_params_filename = state.poptions.dhDefaultGroupFileName in
+    let (dhdb,dhp,y,x) = DH.serverGen default_params_filename state.dhdb in
+    let state = {state with dhdb = dhdb} in
 
     let serverKEXB = serverKeyExchangeBytes_DH_anon dhp.p dhp.g y in
  
@@ -1554,7 +1572,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                           {state with pstate = PSServer(ClientCCS(si,ms,log))} 
                           agreedVersion))
             | ClientKeyExchangeDHE(si,dhp,gx,x,log) ->
-                (match parseClientKEXExplicit_DH dhp.p dhp.g payload with
+                (match parseClientKEXExplicit_DH dhp payload with
                 | Error(z) -> let (x,y) = z in  InError(x,y,state)
                 | Correct(y) ->
                     let log = log @| to_log in
@@ -1603,7 +1621,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
 #if verify
 #else
             | ClientKeyExchangeDH_anon(si,dhp,gx,x,log) ->
-                (match parseClientKEXExplicit_DH dhp.p dhp.g payload with
+                (match parseClientKEXExplicit_DH dhp payload with
                 | Error(z) -> let (x,y) = z in  InError(x,y,state)
                 | Correct(y) ->
                     let log = log @| to_log in

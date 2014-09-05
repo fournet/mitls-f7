@@ -380,7 +380,8 @@ type (;ci:ConnectionInfo) serverState =  (* note that the CertRequest bits are d
        ServerLogBeforeClientKeyExchangeDHE(si,l) /\ (si.client_auth = true => (si.clientID <> [] /\ Authorize(Server,si)))}
 
 
-   | ClientKeyExchangeDH_anon     of SessionInfo * dhp:dhparams * gx:(;dhp)DHGroup.elt * (;dhp,gx)DH.secret * log
+   | ClientKeyExchangeDH_anon     of SessionInfo * dhp:dhparams * gx:(;dhp)DHGroup.elt * (;dhp,gx)DH.secret * log{
+	   DHGroup.PP(dhp) /\ DH.HonestExponential(dhp,gx)}
 
    | CertificateVerify            of (si:SessionInfo * (;si)PRF.masterSecret * l:log){si.client_auth = true /\ si.clientID <> [] /\ ServerLogBeforeClientCertificateVerify(si,l) /\ Authorize(Server,si)}
    | ClientCCS                    of (si:SessionInfo * (;si)PRF.masterSecret * l:log){
@@ -473,14 +474,16 @@ type (;ci:ConnectionInfo) clientState =
    | ClientCheckingCertificateDHE of si:SessionInfo * l:log * ser:Cert.chain * ProtocolVersion option * b:bytes{ClientLogBeforeServerCertificate(si,l) /\ B(b) = CertificateMsg(ser)}
    | ServerKeyExchangeDHE         of si:SessionInfo * l:log{si.serverID <> [] /\ ClientLogBeforeServerKeyExchangeDHE(si,l) /\ Authorize(Client,si)}
    | CertificateRequestDHE        of si:SessionInfo * dhp:dhparams * gx:(;dhp)DHGroup.elt * l:log{
-                                  (Sig.Safe(si.serverSigAlg,Cert.SigPKCert(si.serverID,si.serverSigAlg)) => (DHGroup.PP(dhp) /\ DH.HonestExponential(dhp,gx))) /\
+								  DHGroup.PP(dhp) /\
+                                  (Sig.Safe(si.serverSigAlg,Cert.SigPKCert(si.serverID,si.serverSigAlg)) => (DH.HonestExponential(dhp,gx))) /\
                                   ClientLogBeforeCertificateRequestDHE(si,l) /\ Authorize(Client,si)}
    | ServerHelloDoneDHE           of si:SessionInfo * Cert.sign_cert * dhp:dhparams * gx:(;dhp)DHGroup.elt * l:log{
-                                  (Sig.Safe(si.serverSigAlg,Cert.SigPKCert(si.serverID,si.serverSigAlg)) => (DHGroup.PP(dhp) /\ DH.HonestExponential(dhp,gx))) /\
+							      DHGroup.PP(dhp) /\
+                                  (Sig.Safe(si.serverSigAlg,Cert.SigPKCert(si.serverID,si.serverSigAlg)) => (DH.HonestExponential(dhp,gx))) /\
                                   ClientLogBeforeServerHelloDoneDHE(si,l) /\ Authorize(Client,si) /\ si.client_auth = true}
 
    | ServerKeyExchangeDH_anon of SessionInfo * log (* Not supported yet *)
-   | ServerHelloDoneDH_anon of SessionInfo * dhp:dhparams * gx:(;dhp)DHGroup.elt * log
+   | ServerHelloDoneDH_anon of SessionInfo * dhp:dhparams * gx:(;dhp)DHGroup.elt * log{DHGroup.PP(dhp)}
 
    | ClientWritingCCS       of si:SessionInfo * (;si)PRF.masterSecret * l:log{
                                   (!dhp,gc,gs,r. si.pmsId = PmsId(PMS.DHPMS(dhp,gs,gc,r)) /\
@@ -570,7 +573,9 @@ private type (;ci:ConnectionInfo) hs_state = {
   hs_incoming    : bytes;                  (* partial incoming HS message *)
   (* local configuration *)
   poptions: config; 
+  (* Session and DH DBs *)
   sDB: SessionDB.t;
+  dhdb: DHDB.dhdb;
   (* current handshake & session we are establishing *) 
   pstate: (;ci) protoState;
 }
@@ -739,12 +744,12 @@ val prepare_client_output_full_RSA: ci:ConnectionInfo{ci.role = Client} -> st:(;
                 Config(ci,st) = Config(ci,st')}) Result
 val prepare_client_output_full_DHE: ci:ConnectionInfo{ci.role = Client} -> st:(;ci)hs_state ->
 	si:SessionInfo -> Cert.sign_cert ->
-	dhp:dhparams -> gs:(;dhp)DHGroup.elt -> 
+	dhp:dhparams{DHGroup.PP(dhp)} -> gs:(;dhp)DHGroup.elt -> 
         l:log{ClientLogAfterServerHelloDoneDHE(si,l) /\ Authorize(Client,si)} ->
 	(st':(;ci)hs_state * si':SessionInfo * (;si')PRF.masterSecret * 
          l':log{ UpdatesPmsClientID(si,si') /\
                  (?gc,r. si'.pmsId = PmsId(PMS.DHPMS(dhp,gs,gc,r)) /\
-                         ((DH.HonestExponential(dhp,gs) /\ DHGroup.PP(dhp)) => HonestPMS(si'.pmsId))) /\
+                         (DH.HonestExponential(dhp,gs) => HonestPMS(si'.pmsId))) /\
                  ClientLogBeforeClientFinishedDHE(si',l') /\ Authorize(Client,si') /\ Config(ci,st) = Config(ci,st')}) Result
 
 val on_serverHello_full: ci:ConnectionInfo{ci.role = Client} -> cr:crand -> l:log -> to_log:bytes ->
