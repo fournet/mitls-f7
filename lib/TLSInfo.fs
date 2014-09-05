@@ -298,7 +298,11 @@ type config = {
             
     (* Sessions database *)
     sessionDBFileName: string;
-    sessionDBExpiry: TimeSpan
+    sessionDBExpiry: TimeSpan;
+
+	(* DH groups database *)
+	dhDBFileName: string;
+	dhDefaultGroupFileName: string
     }
 
 let defaultConfig ={
@@ -320,7 +324,10 @@ let defaultConfig ={
     client_name = "client.example.org";
 
     sessionDBFileName = "sessionDBFile.bin";
-    sessionDBExpiry = newTimeSpan 1 0 0 0 (*@ one day, as suggested by the RFC *)
+    sessionDBExpiry = newTimeSpan 1 0 0 0; (*@ one day, as suggested by the RFC *)
+
+    dhDBFileName = "dhparams-db.bin";
+    dhDefaultGroupFileName = "defaultDH.pem"
     }
 
 let max_TLSPlaintext_fragment_length = 16384 (*@ 2^14 *)

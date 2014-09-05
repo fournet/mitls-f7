@@ -10,37 +10,6 @@ open Range
 open Dispatch
 open TLS
 
-let config = {
-    TLSInfo.minVer = TLSConstants.SSL_3p0;
-    TLSInfo.maxVer = TLSConstants.TLS_1p2;
-
-    TLSInfo.ciphersuites =
-        TLSConstants.cipherSuites_of_nameList [
-            TLSConstants.TLS_RSA_WITH_AES_128_CBC_SHA256;
-            TLSConstants.TLS_RSA_WITH_AES_128_CBC_SHA;
-            TLSConstants.TLS_RSA_WITH_3DES_EDE_CBC_SHA;
-        ];
-
-    TLSInfo.compressions = [ TLSConstants.NullCompression ];
-
-    (* Client side *)
-    TLSInfo.honourHelloReq = TLSInfo.HRPResume;
-    TLSInfo.allowAnonCipherSuite = false;
-
-    (* Server side *)
-    TLSInfo.request_client_certificate = true;
-    TLSInfo.check_client_version_in_pms_for_old_tls = true;
-    
-    (* Common *)
-    TLSInfo.safe_renegotiation = true;
-    TLSInfo.safe_resumption = false;
-    TLSInfo.server_name = "RPC server";
-    TLSInfo.client_name = "RPC client";
-
-    TLSInfo.sessionDBFileName = "sessionDBFile.bin";
-    TLSInfo.sessionDBExpiry = Date.newTimeSpan 2 0 0 0 (* two days *)
-}
-
 let msglen = 128
 
 let padmsg = fun r ->
@@ -143,7 +112,7 @@ let recvMsg = fun conn ->
 
 let doclient (request : string) =
     let ns      = Tcp.connect "127.0.0.1" 5000 in
-    let conn    = TLS.connect ns config in
+    let conn    = TLS.connect ns defaultConfig in
 
     match drainMeta conn with
     | DRError  _ -> None
@@ -182,7 +151,7 @@ let doserver () =
         let client = Tcp.accept ns in
 
         let result =
-            let conn = TLS.accept_connected client config in
+            let conn = TLS.accept_connected client defaultConfig in
 
             match drainMeta conn with
             | DRError  _ -> false
