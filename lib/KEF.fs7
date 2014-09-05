@@ -5,6 +5,7 @@ open TLSConstants
 open TLSInfo
 open PMS
 open PRF
+open CoreKeys
 
 // concrete PMS --> MS derivation.
 // this implements the KEF call in the "generic ms-KEM construction".
@@ -23,7 +24,7 @@ val extract_extended:
     (;si) PRF.masterSecret
 
 private val accessRSAPMS: pk:RSAKey.pk -> cv:ProtocolVersion -> (;pk,cv) rsapms -> rsarepr
-private val accessDHPMS: p:DHGroup.p -> g:(;p)DHGroup.g -> gx:(;p,g)DHGroup.elt -> gy:(;p,g)DHGroup.elt -> pms: (;p,g,gx,gy)dhpms -> bytes
+private val accessDHPMS: dhp:dhparams -> gx:(;dhp)DHGroup.elt -> gy:(;dhp)DHGroup.elt -> pms: (;dhp,gx,gy)dhpms -> bytes
 private val accessPMS: pms -> bytes
 
 // log storing idealized master secrets
