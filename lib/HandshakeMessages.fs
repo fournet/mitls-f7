@@ -548,6 +548,12 @@ let parseDHEParams dhdb payload =
                     match DHGroup.checkElement dhp y with
                     | None -> Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid DH key received")
                     | Some(y) ->
+#if verify
+                        // AP: The following give a funny error.
+                        // AP: We cannot prove the B(b) = ... postcondition,
+                        // AP: and this looks like linked to the following error.
+                        let p' = dhp.p in
+#endif
                         correct (dhdb,dhp,y,payload)
             else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
         else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
