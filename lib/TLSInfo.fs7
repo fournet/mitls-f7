@@ -124,7 +124,7 @@ val honestPMS: (pi:pmsId) -> b:bool {b=true => HonestPMS(pi)}
 
 // Here we consider the strength of the parameters in pmsId
 predicate StrongKEX  of pmsId 
-private definition !dhp,gx,gy,dhpms. StrongKEX(SomePmsId(PMS.DHPMS(dhp.p,dhp.g,gx,gy,dhpms))) <=> DHGroup.PP(dhp)
+private definition !dhp,gx,gy,dhpms. StrongKEX(SomePmsId(PMS.DHPMS(dhp,gx,gy,dhpms))) <=> DHGroup.PP(dhp)
 private definition !pk,cv,rsapms.    StrongKEX(SomePmsId(PMS.RSAPMS(pk,cv,rsapms)))   <=> RSAKey.Strong(cv)
 
 // -------------------------------------------------------------------
