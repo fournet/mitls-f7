@@ -41,14 +41,6 @@ import Option.
 (* Bare minimum *)
 prover "Alt-Ergo" "Z3".
 
-lemma eq_except_in_dom (m1 m2:('a, 'b) map) (x y:'a) :
-  eq_except m1 m2 x => x <> y => (in_dom y m1 <=> in_dom y m2) 
-by [].
-
-lemma eq_except_set (m1 m2:('a, 'b) map) (x y:'a) (z:'b) :
-  eq_except m1 m2 x => eq_except m1.[y <- z] m2.[y <- z] x 
-by [].
-
 theory Agile_KEF.
 
   type parameter.
@@ -733,14 +725,12 @@ section.
     finite univ<:'b> =>
     finite univ<:'a * 'b>.
   proof strict.
-  intros=> fA fB.
-  elim fA=> A eqA.
-  elim fB=> B eqB.
+  intros=> [A eqA] [B eqB].
   exists (FSet.Product.(**) A B)=> x.
   split=> Hx; last by apply mem_univ.
-  by rewrite -FSet.Product.mem_prod; smt.
+  by rewrite -FSet.Product.mem_prod -eqA -eqB !mem_univ //. 
   qed.
-  (**)
+  (***)
 
   local equiv RCCA0_RCCA1 : RCCA0.main ~ RCCA1.main : true ==> ={res}.
   proof.
