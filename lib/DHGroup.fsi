@@ -8,7 +8,10 @@ open TLSError
 
 type elt = bytes
 
+#if ideal
 val goodPP: dhparams -> bool
+type preds = Elt of dhparams * elt
+#endif
 
 val genElement  : dhparams -> elt
 val checkParams : DHDB.dhdb -> bytes -> bytes -> Result<(DHDB.dhdb * dhparams)>

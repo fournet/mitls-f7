@@ -9,6 +9,7 @@ open TLSError
 
 type elt = bytes
 
+#if ideal
 type preds = Elt of dhparams * elt
 type predPP = PP of dhparams
 
@@ -20,14 +21,13 @@ let goodPP dhp =  List.memr !goodPP_log dhp
 #endif
 
 let pp (dhp:dhparams) : dhparams =
-#if ideal
 #if verify
     Pi.assume(PP(dhp));
 #else
     goodPP_log := (dhp ::!goodPP_log);
 #endif
-#endif
     dhp
+#endif
 
 
 
