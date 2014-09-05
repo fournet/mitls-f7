@@ -333,7 +333,7 @@ let fragmentLength = max_TLSPlaintext_fragment_length (*CF use e.g. 1 for testin
 let honestPMS (pi:pmsId) : bool =
     match pi with
     | SomePmsId(PMS.RSAPMS(pk,cv,rsapms))   -> PMS.honestRSAPMS pk cv rsapms 
-    | SomePmsId(PMS.DHPMS(p,g,gx,gy,dhpms)) -> PMS.honestDHPMS p g gx gy dhpms 
+    | SomePmsId(PMS.DHPMS(dhp,gx,gy,dhpms)) -> PMS.honestDHPMS dhp gx gy dhpms 
     | _ -> false
 
 let strongKEF (ca:kefAlg) = failwith "spec only": bool
