@@ -3,6 +3,7 @@
 module Handshake
 // State machine begins
 open Bytes
+open CoreKeys
 open Error
 open TLSError
 open TLSConstants
@@ -50,11 +51,11 @@ type serverState =  (* note that the CertRequest bits are determined by the conf
    | ServerCheckingCertificateDH  of SessionInfo * log * bytes
    | ClientKeyExchangeDH          of SessionInfo * log 
 
-   | ClientCertificateDHE         of SessionInfo * DHGroup.p * DHGroup.g * DHGroup.elt * DH.secret * log
-   | ServerCheckingCertificateDHE of SessionInfo * DHGroup.p * DHGroup.g * DHGroup.elt * DH.secret * log * Cert.chain * bytes
-   | ClientKeyExchangeDHE         of SessionInfo * DHGroup.p * DHGroup.g * DHGroup.elt * DH.secret * log
+   | ClientCertificateDHE         of SessionInfo * dhparams * DHGroup.elt * DH.secret * log
+   | ServerCheckingCertificateDHE of SessionInfo * dhparams * DHGroup.elt * DH.secret * log * Cert.chain * bytes
+   | ClientKeyExchangeDHE         of SessionInfo * dhparams * DHGroup.elt * DH.secret * log
 
-   | ClientKeyExchangeDH_anon     of SessionInfo * DHGroup.p * DHGroup.g * DHGroup.elt * DH.secret * log
+   | ClientKeyExchangeDH_anon     of SessionInfo * dhparams * DHGroup.elt * DH.secret * log
 
    | CertificateVerify            of SessionInfo * PRF.masterSecret * log 
    | ClientCCS                    of SessionInfo * PRF.masterSecret * log
@@ -88,11 +89,11 @@ type clientState =
    | ServerCertificateDHE         of SessionInfo * log
    | ClientCheckingCertificateDHE of SessionInfo * log * list<Cert.cert> * option<ProtocolVersion> * bytes
    | ServerKeyExchangeDHE         of SessionInfo * log
-   | CertificateRequestDHE        of SessionInfo * DHGroup.p * DHGroup.g * DHGroup.elt * log
-   | ServerHelloDoneDHE           of SessionInfo * Cert.sign_cert * DHGroup.p * DHGroup.g * DHGroup.elt * log
+   | CertificateRequestDHE        of SessionInfo * dhparams * DHGroup.elt * log
+   | ServerHelloDoneDHE           of SessionInfo * Cert.sign_cert * dhparams * DHGroup.elt * log
 
    | ServerKeyExchangeDH_anon of SessionInfo * log (* Not supported yet *)
-   | ServerHelloDoneDH_anon of SessionInfo * DHGroup.p * DHGroup.g * DHGroup.elt * log
+   | ServerHelloDoneDH_anon of SessionInfo * dhparams * DHGroup.elt * log
 
    | ClientWritingCCS       of SessionInfo * PRF.masterSecret * log
    | ServerCCS              of SessionInfo * PRF.masterSecret * epoch * StatefulLHAE.reader * cVerifyData * log
@@ -644,9 +645,9 @@ let certificateVerifyBytesAuth (si:SessionInfo) (ms:PRF.masterSecret) (cert_req:
 *)
 
 let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) 
-  (cert_req:Cert.sign_cert) (p:DHGroup.p) (g:DHGroup.g) (sy:DHGroup.elt) (log:log) : Result<(hs_state * SessionInfo * PRF.masterSecret * log)> =
-    (* pre: Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DHGroup.PP((p,g)) /\ ServerDHE((p,g),sy,si.init_crand @| si.init_srand) *)
-    (* moreover, by definition ServerDHE((p,g),sy,si.init_crand @| si.init_srand) implies ?sx.DHE.Exp((p,g),sx,sy) *)
+  (cert_req:Cert.sign_cert) (dhp:dhparams) (sy:DHGroup.elt) (log:log) : Result<(hs_state * SessionInfo * PRF.masterSecret * log)> =
+    (* pre: Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DHGroup.PP(dhp) /\ ServerDHE(dhp,sy,si.init_crand @| si.init_srand) *)
+    (* moreover, by definition ServerDHE(dhp,sy,si.init_crand @| si.init_srand) implies ?sx.DHE.Exp(dhp,sx,sy) *)
     (*FIXME formally, the need for signing nonces is unclear *)
 
     match cert_req with
@@ -659,23 +660,23 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
          let log = log @| clientCertBytes in
          let cfg = state.poptions in 
 
-         (* this implements ms-KEM(DH).enc with pk = (p,g,sy) and (pv,h,l) from si *) 
+         (* this implements ms-KEM(DH).enc with pk = (dhp,sy) and (pv,h,l) from si *) 
          (*KB DH-PMS-KEM (client) *)
-         let (cy,y,dhpms) = DH.clientGenExp p g sy in
-         (* post: DHE.Exp((p,g),x,cy) *) 
+         let (cy,dhpms) = DH.clientGenExp dhp sy in
+         (* post: DHE.Exp(dhp,x,cy) *) 
 
          let clientKEXBytes = clientKEXExplicitBytes_DH cy in
          let log = log @| clientKEXBytes in
 
          (*KB DH-MS-KEM *)
-         let pms = PMS.DHPMS(p,g,sy,cy,dhpms) in
+         let pms = PMS.DHPMS(dhp,sy,cy,dhpms) in
          let pmsid = pmsId pms in
          let si = {si with pmsId = pmsid} in
          let (si,ms) = extract si pms log in
 
-         (* the post of this call is !sx,cy. PP((p,g) /\ DHE.Exp((p,g),cx,cy)) /\ DHE.Exp((p,g),sx,sy) -> DH.HonestExponential((p,g),cy,sy) *)
-         (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DH.HonestExponential((p,g),cy,sy) *) 
-         (* the post of this call is !p,g,gx,gy. StrongHS(si) /\ DH.HonestExponential((p,g),gx,gy) -> PRFs.Secret(ms) *)  
+         (* the post of this call is !sx,cy. PP(dhp) /\ DHE.Exp(dhp,cx,cy)) /\ DHE.Exp(dhp,sx,sy) -> DH.HonestExponential(dhp,cy,sy) *)
+         (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DH.HonestExponential(dhp,cy,sy) *) 
+         (* the post of this call is !dhp,gx,gy. StrongHS(si) /\ DH.HonestExponential(dhp,gx,gy) -> PRFs.Secret(ms) *)  
          (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> PRFs.Secret(ms) *)
          (* si is now constant *)
 
@@ -706,23 +707,23 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
          let log = log @| clientCertBytes in
          let cfg = state.poptions in 
 
-         (* this implements ms-KEM(DH).enc with pk = (p,g,sy) and (pv,h,l) from si *) 
+         (* this implements ms-KEM(DH).enc with pk = (dhp,sy) and (pv,h,l) from si *) 
          (*KB DH-PMS-KEM (client) *)
-         let (cy,y,dhpms) = DH.clientGenExp p g sy in
-         (* post: DHE.Exp((p,g),x,cy) *) 
+         let (cy,dhpms) = DH.clientGenExp dhp sy in
+         (* post: DHE.Exp(dhp,x,cy) *) 
 
          let clientKEXBytes = clientKEXExplicitBytes_DH cy in
          let log = log @| clientKEXBytes in
 
          (*KB DH-MS-KEM *)
-         let pms = PMS.DHPMS(p,g,sy,cy,dhpms) in
+         let pms = PMS.DHPMS(dhp,sy,cy,dhpms) in
          let pmsid = pmsId pms in
          let si = {si with pmsId = pmsid} in
          let (si,ms) = extract si pms log in
 
-         (* the post of this call is !sx,cy. PP((p,g) /\ DHE.Exp((p,g),cx,cy)) /\ DHE.Exp((p,g),sx,sy) -> DH.HonestExponential((p,g),cy,sy) *)
-         (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DH.HonestExponential((p,g),cy,sy) *) 
-         (* the post of this call is !p,g,gx,gy. StrongHS(si) /\ DH.HonestExponential((p,g),gx,gy) -> PRFs.Secret(ms) *)  
+         (* the post of this call is !sx,cy. PP(dhp) /\ DHE.Exp(dhp,cx,cy)) /\ DHE.Exp(dhp,sx,sy) -> DH.HonestExponential(dhp,cy,sy) *)
+         (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DH.HonestExponential(dhp,cy,sy) *) 
+         (* the post of this call is !dhp,gx,gy. StrongHS(si) /\ DH.HonestExponential(dhp,gx,gy) -> PRFs.Secret(ms) *)  
          (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> PRFs.Secret(ms) *)
          (* si is now constant *)
 
@@ -741,23 +742,23 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
          let si = {si with clientID = []} in
          let cfg = state.poptions in 
 
-         (* this implements ms-KEM(DH).enc with pk = (p,g,sy) and (pv,h,l) from si *) 
+         (* this implements ms-KEM(DH).enc with pk = (dhp,sy) and (pv,h,l) from si *) 
          (*KB DH-PMS-KEM (client) *)
-         let (cy,y,dhpms) = DH.clientGenExp p g sy in
-         (* post: DHE.Exp((p,g),x,cy) *) 
+         let (cy,dhpms) = DH.clientGenExp dhp sy in
+         (* post: DHE.Exp(dhp,x,cy) *) 
 
          let clientKEXBytes = clientKEXExplicitBytes_DH cy in
          let log = log @| clientKEXBytes in
 
          (*KB DH-MS-KEM *)
-         let pms = PMS.DHPMS(p,g,sy,cy,dhpms) in
+         let pms = PMS.DHPMS(dhp,sy,cy,dhpms) in
          let pmsid = pmsId pms in
          let si = {si with pmsId = pmsid} in
          let (si,ms) = extract si pms log in
 
-         (* the post of this call is !sx,cy. PP((p,g) /\ DHE.Exp((p,g),cx,cy)) /\ DHE.Exp((p,g),sx,sy) -> DH.HonestExponential((p,g),cy,sy) *)
-         (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DH.HonestExponential((p,g),cy,sy) *) 
-         (* the post of this call is !p,g,gx,gy. StrongHS(si) /\ DH.HonestExponential((p,g),gx,gy) -> PRFs.Secret(ms) *)  
+         (* the post of this call is !sx,cy. PP(dhp) /\ DHE.Exp(dhp,cx,cy)) /\ DHE.Exp(dhp,sx,sy) -> DH.HonestExponential(dhp,cy,sy) *)
+         (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> DH.HonestExponential(dhp,cy,sy) *) 
+         (* the post of this call is !dhp,gx,gy. StrongHS(si) /\ DH.HonestExponential(dhp,gx,gy) -> PRFs.Secret(ms) *)  
          (* thus we have Honest(verifyKey(si.server_id)) /\ StrongHS(si) -> PRFs.Secret(ms) *)
          (* si is now constant *)
 
@@ -992,14 +993,14 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let (x,y) = z in
                     InError(x,y,state)
                 | Correct(v) ->
-                    let (p,g,y,alg,signature) = v in
+                    let (dhp,y,alg,signature) = v in
                     let vk = Cert.get_chain_public_signing_key si.serverID alg in
                     match vk with
                     | Error z ->
                         let (x,y) = z in
                         InError(x,y,state)
                     | Correct(vkey) ->
-                        let dheb = dheParamBytes p g y in
+                        let dheb = dheParamBytes dhp.p dhp.g y in
                         let expected = si.init_crand @| si.init_srand @| dheb in
                         if Sig.verify alg vkey expected signature then
                             (let si_old = si in
@@ -1009,7 +1010,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                             Pi.expect(UpdatesServerSigAlg(si_old,si));
 #endif
                             recv_fragment_client ci 
-                              {state with pstate = PSClient(CertificateRequestDHE(si,p,g,y,log))} 
+                              {state with pstate = PSClient(CertificateRequestDHE(si,dhp,y,log))} 
                               agreedVersion)
                         else
                             InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "",state))
@@ -1018,10 +1019,10 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 (match parseServerKeyExchange_DH_anon payload with
                 | Error z -> let (x,y) = z in InError(x,y,state)
                 | Correct(v) ->
-                    let (p,g,y) = v in
+                    let (dhp,y) = v in
                     let log = log @| to_log in
                     recv_fragment_client ci 
-                      {state with pstate = PSClient(ServerHelloDoneDH_anon(si,p,g,y,log))} 
+                      {state with pstate = PSClient(ServerHelloDoneDH_anon(si,dhp,y,log))} 
                       agreedVersion)
             | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "ServerKeyExchange arrived in the wrong state",state))
 
@@ -1049,7 +1050,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     recv_fragment_client ci 
                       {state with pstate = PSClient(ServerHelloDoneRSA(si',client_cert,log))} 
                       agreedVersion)
-            | CertificateRequestDHE(si,p,g,y,log) ->
+            | CertificateRequestDHE(si,dhp,y,log) ->
                 // Duplicated code
                 (* Log the received packet *)
                 let log = log @| to_log in
@@ -1067,7 +1068,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     Pi.expect (UpdatesClientAuth(si,si'));
 #endif
                     recv_fragment_client ci 
-                      {state with pstate = PSClient(ServerHelloDoneDHE(si',client_cert,p,g,y,log))} 
+                      {state with pstate = PSClient(ServerHelloDoneDHE(si',client_cert,dhp,y,log))} 
                       agreedVersion)
             | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "CertificateRequest arrived in the wrong state",state))
 
@@ -1118,10 +1119,10 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
 #if verify
 #else
-            | ServerHelloDoneDH_anon(si,p,g,y,log)
+            | ServerHelloDoneDH_anon(si,dhp,y,log)
               
 #endif
-            | CertificateRequestDHE(si,p,g,y,log) ->
+            | CertificateRequestDHE(si,dhp,y,log) ->
                 if length payload = 0 then
                     (* Log the received packet *)
                     let log' = log @| to_log in
@@ -1134,7 +1135,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     Pi.expect (ClientLogAfterServerHelloDoneDHE(si',log'));
 #endif
                     let log = log' in
-                    let dhe = prepare_client_output_full_DHE ci state si' None p g y log in
+                    let dhe = prepare_client_output_full_DHE ci state si' None dhp y log in
                     match dhe with
                     | Error z ->
                         let (x,y) = z in
@@ -1146,12 +1147,12 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                           agreedVersion
                 else
                     InError(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "",state)
-            | ServerHelloDoneDHE(si,skey,p,g,y,log) ->
+            | ServerHelloDoneDHE(si,skey,dhp,y,log) ->
                 if length  payload = 0 then
                     (* Log the received packet *)
                     let log = log @| to_log in
 
-                    match prepare_client_output_full_DHE ci state si skey p g y log with
+                    match prepare_client_output_full_DHE ci state si skey dhp y log with
                     | Error z -> 
                         let (x,y) = z in
                         InError (x,y, state)
@@ -1257,14 +1258,13 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL l
 
         (* ServerKeyExchange *)
         (*KB DH-PMS-KEM (server 1) *)
-        let (p,g,gx,x) = DH.serverGen() in
-        //~ pms-KEM: ((p,g),gx),(((p,g),gx),x) = keygen_DHE() 
+        let (dhdb,dhp,gx,x) = DH.serverGen default_params_filename dhdb in
+        //~ pms-KEM: (dhp,gx),((dhp,gx),x) = keygen_DHE() 
 
-        let dheB = dheParamBytes p g gx in
+        let dheB = dheParamBytes dhp.p dhp.g gx in
         let toSign = si.init_crand @| si.init_srand @| dheB in
         let sign = Sig.sign alg sk toSign in
-
-
+        
         let serverKEXB = serverKeyExchangeBytes_DHE dheB alg sign si.protocol_version in
 
         (* CertificateRequest *)
@@ -1276,7 +1276,7 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL l
 #if verify
           Pi.expect (ServerLogBeforeClientCertificateDHE_Auth(si,log));          
 #endif
-          let ps = serverState ci (ClientCertificateDHE(si,p,g,gx,x,log)) in
+          let ps = serverState ci (ClientCertificateDHE(si,dhp,gx,x,log)) in
         (* Compute the next state of the server *)
             correct (
               {state with hs_outgoing = output;
@@ -1289,13 +1289,13 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL l
 #if verify
           Pi.expect (ServerLogBeforeClientCertificateDHE_NoAuth(si,log));          
 #endif
-          let ps = serverState ci (ClientKeyExchangeDHE(si,p,g,gx,x,log)) in
+          let ps = serverState ci (ClientKeyExchangeDHE(si,dhp,gx,x,log)) in
             correct (
               {state with hs_outgoing = output;
                           pstate = ps},
                si.protocol_version)
 
-        (* ClientKeyExchangeDHE(si,p,g,x,log) should carry PP((p,g)) /\ ?gx. DHE.Exp((p,g),x,gx) *)
+        (* ClientKeyExchangeDHE(si,dhp,x,log) should carry PP(dhp) /\ ?gx. DHE.Exp(dhp,x,gx) *)
 
 let prepare_server_output_full_DH_anon (ci:ConnectionInfo) (state:hs_state) (si:SessionInfo) (sExtL:list<serverExtension>) (log:log) : Result<(hs_state * ProtocolVersion)> =
 #if verify
@@ -1307,15 +1307,15 @@ let prepare_server_output_full_DH_anon (ci:ConnectionInfo) (state:hs_state) (si:
     (* ServerKEyExchange *)
 
     (*KB DH-PMS-KEM (server 1) *)
-    let (p,g,y,x) = DH.serverGen() in
+    let (dhdb,dhp,y,x) = DH.serverGen default_params_filename dhdb in
 
-    let serverKEXB = serverKeyExchangeBytes_DH_anon p g y in
+    let serverKEXB = serverKeyExchangeBytes_DH_anon dhp.p dhp.g y in
  
     let output = serverHelloB @|serverKEXB @| serverHelloDoneBytes in
     (* Log the output and put it into the output buffer *)
     let log = log @| output in
     (* Compute the next state of the server *)
-    let ps = serverState ci (ClientKeyExchangeDH_anon(si,p,g,y,x,log)) in
+    let ps = serverState ci (ClientKeyExchangeDH_anon(si,dhp,y,x,log)) in
     correct ({state with hs_outgoing = output;
                          pstate = ps},
              si.protocol_version)
@@ -1501,7 +1501,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                         {state with pstate = PSServer(ServerCheckingCertificateRSA(si,cv,sk,log,certs,to_log))})
                     else
                         InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Client sent wrong certificate type",state))
-            | ClientCertificateDHE (si,p,g,gx,x,log) ->
+            | ClientCertificateDHE (si,dhp,gx,x,log) ->
                 // Duplicated code from above.
                 (match parseClientOrServerCertificate payload with
                 | Error(z) -> let (x,y) = z in  InError(x,y,state)
@@ -1512,11 +1512,11 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         let advice = Cert.validate_cert_chain (default_sigHashAlg si.protocol_version si.cipher_suite) certs in
                         match Cert.get_hint certs with
                             | None -> 
-                                InQuery(certs,false,{state with pstate = PSServer(ServerCheckingCertificateDHE(si,p,g,gx,x,log,certs,to_log))})
+                                InQuery(certs,false,{state with pstate = PSServer(ServerCheckingCertificateDHE(si,dhp,gx,x,log,certs,to_log))})
                             | Some(name) when advice && (name = state.poptions.client_name) ->
-                                InQuery(certs,true,{state with pstate = PSServer(ServerCheckingCertificateDHE(si,p,g,gx,x,log,certs,to_log))})
+                                InQuery(certs,true,{state with pstate = PSServer(ServerCheckingCertificateDHE(si,dhp,gx,x,log,certs,to_log))})
                             | Some(name) -> 
-                                InQuery(certs,false,{state with pstate = PSServer(ServerCheckingCertificateDHE(si,p,g,gx,x,log,certs,to_log))})
+                                InQuery(certs,false,{state with pstate = PSServer(ServerCheckingCertificateDHE(si,dhp,gx,x,log,certs,to_log))})
                     else
                         InError(AD_bad_certificate_fatal, perror __SOURCE_FILE__ __LINE__ "Client sent wrong certificate type",state))
             | ClientCertificateDH  (si,log) -> (* TODO *) InError(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "Unimplemented",state)
@@ -1553,31 +1553,31 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         recv_fragment_server ci 
                           {state with pstate = PSServer(ClientCCS(si,ms,log))} 
                           agreedVersion))
-            | ClientKeyExchangeDHE(si,p,g,gx,x,log) ->
-                (match parseClientKEXExplicit_DH p g payload with
+            | ClientKeyExchangeDHE(si,dhp,gx,x,log) ->
+                (match parseClientKEXExplicit_DH dhp.p dhp.g payload with
                 | Error(z) -> let (x,y) = z in  InError(x,y,state)
                 | Correct(y) ->
                     let log = log @| to_log in
-                    (* from the local state, we know: PP((p,g)) /\ ?gx. DHE.Exp((p,g),x,gx) ; tweak the ?gx for genPMS. *)
+                    (* from the local state, we know: PP(dhp) /\ ?gx. DHE.Exp(dhp,x,gx) ; tweak the ?gx for genPMS. *)
 
                     (* these 3 lines implement  ms-KEM(DH).dec where: 
-                       (pv,h,l) are included in si, sk is (((p,g),gx),x), c is y *)
+                       (pv,h,l) are included in si, sk is ((dhp,gx),x), c is y *)
 
                     (* these 2 lines implement pms-KEM(DH).dec(pv?, sk, c) *)
             (*KB DH-PMS-KEM (server 2) *)
-                    let dhpms = DH.serverExp p g gx y x in
+                    let dhpms = DH.serverExp dhp gx y x in
 
             (*KB DH-MS-KEM *)
-                    let pms = PMS.DHPMS(p,g,gx,y,dhpms) in
+                    let pms = PMS.DHPMS(dhp,gx,y,dhpms) in
                     let si_old = si in
                     let si = {si_old with pmsId = pmsId(pms)} in
 #if verify
                     Pi.expect(UpdatesPmsID(si_old,si)); (*KB: to be removed*)
 
 #endif
-                    (* StrongHS(si) /\ DHE.Exp((p,g),?cx,y) -> DHE.Secret(pms) *)
+                    (* StrongHS(si) /\ DHE.Exp(dhp,?cx,y) -> DHE.Secret(pms) *)
                     let (si,ms) = extract si pms log in
-                    (* StrongHS(si) /\ DHE.Exp((p,g),?cx,y) -> PRFs.Secret(ms) *)
+                    (* StrongHS(si) /\ DHE.Exp(dhp,?cx,y) -> PRFs.Secret(ms) *)
                     
                     (* TODO in e.g. DHE: we should shred the pms *)
                     (* we rely on scopes & type safety to get forward secrecy*) 
@@ -1602,17 +1602,17 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                           agreedVersion))
 #if verify
 #else
-            | ClientKeyExchangeDH_anon(si,p,g,gx,x,log) ->
-                (match parseClientKEXExplicit_DH p g payload with
+            | ClientKeyExchangeDH_anon(si,dhp,gx,x,log) ->
+                (match parseClientKEXExplicit_DH dhp.p dhp.g payload with
                 | Error(z) -> let (x,y) = z in  InError(x,y,state)
                 | Correct(y) ->
                     let log = log @| to_log in
                     //MK We should also store the pmsId
             (*KB DH-PMS-KEM (server 2) *)
-                    let dhpms = DH.serverExp p g gx y x in
+                    let dhpms = DH.serverExp dhp gx y x in
 
             (*KB DH-MS-KEM *)
-                    let pms = PMS.DHPMS(p,g,gx,y,dhpms) in //MK is the order of y, gx right?
+                    let pms = PMS.DHPMS(dhp,gx,y,dhpms) in //MK is the order of y, gx right?
                     let (si,ms) = extract si pms log in
                     (* TODO: here we should shred pms *)
                     (* move to new state *)
@@ -1763,7 +1763,7 @@ let authorize (ci:ConnectionInfo) (state:hs_state) (q:Cert.chain) =
               {state with pstate = PSServer(ClientKeyExchangeRSA(si',cv,sk,log))} 
               None
 
-        | ServerCheckingCertificateDHE(si,p,g,gx,x,log,c,to_log) when c = q ->
+        | ServerCheckingCertificateDHE(si,dhp,gx,x,log,c,to_log) when c = q ->
             let log = log @| to_log in
             let si' = {si with clientID = q} in
             Pi.assume (Authorize(Server,si')); // ``The user authorizes q as peer clientID''
@@ -1772,7 +1772,7 @@ let authorize (ci:ConnectionInfo) (state:hs_state) (q:Cert.chain) =
             Pi.expect (ServerLogBeforeClientKeyExchangeDHE_Auth(si',log));
 #endif
             recv_fragment_server ci 
-              {state with pstate = PSServer(ClientKeyExchangeDHE(si',p,g,gx,x,log))} 
+              {state with pstate = PSServer(ClientKeyExchangeDHE(si',dhp,gx,x,log))} 
               None
         // | ServerCheckingCertificateDH -> TODO
         | _ -> unexpected "[authorize] invoked on the wrong state")
