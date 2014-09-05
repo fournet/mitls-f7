@@ -64,6 +64,9 @@ let create_config sname cname = {
 
     sessionDBFileName = "session-db.db";
     sessionDBExpiry   = Date.newTimeSpan 1 0 0 0 (* one day *);
+
+    TLSInfo.dhDBFileName = "dhparams-db.bin";
+    dhDefaultGroupFileName = "defaultDH.pem";
 }
 
 let create_with_id (cid : channelid) (host : hostname) : channel =
