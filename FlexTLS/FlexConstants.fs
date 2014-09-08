@@ -30,6 +30,24 @@ let calgs_DHx = []
 
 
 
+(* Redefine TLSConstants name parsing to handle SCSV ciphersuites *)
+let rec names_of_cipherSuites css =
+    match css with
+    | [] -> correct []
+    | h::t ->
+        let hl = h::[] in
+        if contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV hl then
+            match names_of_cipherSuites t with
+            | Error(x,y) -> Error(x,y)
+            | Correct(rem) -> correct(rem)
+        else
+            match name_of_cipherSuite h with
+            | Error(x,y) -> Error(x,y)
+            | Correct(n) ->
+                match names_of_cipherSuites t with
+                | Error(x,y) -> Error(x,y)
+                | Correct(rem) -> correct (n::rem)
+
 (* Define a default DH key exchange parameters structure where x,gx are the local values and gy is the remote public value *)
 let nullKexDH = { gp = (let dhparams = CoreDH.load_default_params() in (dhparams.g,dhparams.p));
                   x = empty_bytes; gx = empty_bytes; gy = empty_bytes;
@@ -43,7 +61,7 @@ let nullFHelloRequest : FHelloRequest = {   payload = empty_bytes;
 let nullFClientHello : FClientHello = {   pv = defaultConfig.maxVer;
                                           rand = empty_bytes; 
                                           sid = empty_bytes;
-                                          suites = (match TLSConstants.names_of_cipherSuites defaultConfig.ciphersuites with
+                                          suites = (match names_of_cipherSuites defaultConfig.ciphersuites with
                                             | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
                                             | Correct(s) -> s);
                                           comps = defaultConfig.compressions;
@@ -56,7 +74,7 @@ let nullFClientHello : FClientHello = {   pv = defaultConfig.maxVer;
 let nullFServerHello : FServerHello = {   pv = defaultConfig.maxVer;
                                           rand = empty_bytes; 
                                           sid = empty_bytes;
-                                          suite = (match TLSConstants.name_of_cipherSuite defaultConfig.ciphersuites.Head with
+                                          suite = (match name_of_cipherSuite defaultConfig.ciphersuites.Head with
                                             | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
                                             | Correct(cs) -> cs);
                                           comp = defaultConfig.compressions.Head;
@@ -156,3 +174,4 @@ let nullNextSecurityContext = {   si = nullSessionInfo;
                                   ms = empty_bytes;
                                   keys = empty_bytes,empty_bytes;
                               }
+
