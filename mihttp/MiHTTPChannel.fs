@@ -67,7 +67,7 @@ let create_config sname cname = {
 
     TLSInfo.dhDBFileName = "dhparams-db.bin";
     dhDefaultGroupFileName = "defaultDH.pem";
-    dhQMinLength = TLSInfo.defaultConfig.dhQMinLength
+    dhPMinLength = TLSInfo.defaultConfig.dhPMinLength
 }
 
 let create_with_id (cid : channelid) (host : hostname) : channel =

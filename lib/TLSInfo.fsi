@@ -150,7 +150,7 @@ type config = {
 	(* DH groups database *)
 	dhDBFileName: string;
 	dhDefaultGroupFileName: string;
-    dhQMinLength: nat
+    dhPMinLength: nat
     }
 
 val defaultConfig: config

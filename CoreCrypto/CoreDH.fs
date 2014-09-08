@@ -30,7 +30,7 @@ let check_params dhdb minSize (pbytes:bytes) (gbytes:bytes) =
             // check if p is a safe prime, i.e. p = 2*q + 1 with prime q
             let q = pm1.Divide(BigInteger.Two)
             if p.IsProbablePrime(80) && q.IsProbablePrime(80) then
-                if q.BitLength < minSize then
+                if p.BitLength < minSize then
                     Error(perror __SOURCE_FILE__ __LINE__ "Subgroup too small")
                 else
                     let qbytes = abytes (q.ToByteArrayUnsigned())

@@ -1002,7 +1002,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
         | HT_server_key_exchange ->
             (match cState with
             | ServerKeyExchangeDHE(si,log) ->
-                (match parseServerKeyExchange_DHE state.dhdb state.poptions.dhQMinLength si.protocol_version si.cipher_suite payload with
+                (match parseServerKeyExchange_DHE state.dhdb state.poptions.dhPMinLength si.protocol_version si.cipher_suite payload with
                 | Error z ->
                     let (x,y) = z in
                     InError(x,y,state)
@@ -1031,7 +1031,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                             InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "",state))
                     
             | ServerKeyExchangeDH_anon(si,log) ->
-                (match parseServerKeyExchange_DH_anon state.dhdb state.poptions.dhQMinLength payload with
+                (match parseServerKeyExchange_DH_anon state.dhdb state.poptions.dhPMinLength payload with
                 | Error z -> let (x,y) = z in InError(x,y,state)
                 | Correct(v) ->
                     let (dhdb,dhp,y) = v in
@@ -1275,7 +1275,7 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL l
         (* ServerKeyExchange *)
         (*KB DH-PMS-KEM (server 1) *)
         let dhparams_filename = state.poptions.dhDefaultGroupFileName in
-        let (dhdb,dhp,gx,x) = DH.serverGen dhparams_filename state.dhdb state.poptions.dhQMinLength  in
+        let (dhdb,dhp,gx,x) = DH.serverGen dhparams_filename state.dhdb state.poptions.dhPMinLength  in
         //~ pms-KEM: (dhp,gx),((dhp,gx),x) = keygen_DHE()
         let state = {state with dhdb = dhdb} in
 
