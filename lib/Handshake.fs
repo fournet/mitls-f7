@@ -1324,7 +1324,7 @@ let prepare_server_output_full_DH_anon (ci:ConnectionInfo) (state:hs_state) (si:
 
     (*KB DH-PMS-KEM (server 1) *)
     let default_params_filename = state.poptions.dhDefaultGroupFileName in
-    let (dhdb,dhp,y,x) = DH.serverGen default_params_filename state.dhdb state.poptions.dhQMinLength in
+    let (dhdb,dhp,y,x) = DH.serverGen default_params_filename state.dhdb state.poptions.dhPMinLength in
     let state = {state with dhdb = dhdb} in
 
     let serverKEXB = serverKeyExchangeBytes_DH_anon dhp.dhp dhp.dhg y in
