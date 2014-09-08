@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
-VisualStudioVersion = 12.0.30723.0
+VisualStudioVersion = 12.0.30501.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "lib", "lib\lib.fsproj", "{7283C0EF-3C40-495D-9969-79CB71B3AACC}"
 EndProject
@@ -33,6 +33,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "mihttp", "mihttp\mihttp.fsp
 		{408E6F53-363A-4C58-9808-84A0B526324B} = {408E6F53-363A-4C58-9808-84A0B526324B}
 		{7283C0EF-3C40-495D-9969-79CB71B3AACC} = {7283C0EF-3C40-495D-9969-79CB71B3AACC}
 	EndProjectSection
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "mipki", "mipki\mipki.fsproj", "{201F806C-BB54-480B-B65E-8F6E94A15DDA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -347,6 +349,27 @@ Global
 		{F5B505A7-EA88-45CC-A001-46D67077F382}.Release|x64.ActiveCfg = Release|x86
 		{F5B505A7-EA88-45CC-A001-46D67077F382}.Release|x86.ActiveCfg = Release|x86
 		{F5B505A7-EA88-45CC-A001-46D67077F382}.Release|x86.Build.0 = Release|x86
+		{201F806C-BB54-480B-B65E-8F6E94A15DDA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{201F806C-BB54-480B-B65E-8F6E94A15DDA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{201F806C-BB54-480B-B65E-8F6E94A15DDA}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
+		{201F806C-BB54-480B-B65E-8F6E94A15DDA}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
+		{201F806C-BB54-480B-B65E-8F6E94A15DDA}.Debug|Win32.ActiveCfg = Debug|Any CPU
+		{201F806C-BB54-480B-B65E-8F6E94A15DDA}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{201F806C-BB54-480B-B65E-8F6E94A15DDA}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{201F806C-BB54-480B-B65E-8F6E94A15DDA}.Ideal|Any CPU.ActiveCfg = Release|Any CPU
+		{201F806C-BB54-480B-B65E-8F6E94A15DDA}.Ideal|Any CPU.Build.0 = Release|Any CPU
+		{201F806C-BB54-480B-B65E-8F6E94A15DDA}.Ideal|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{201F806C-BB54-480B-B65E-8F6E94A15DDA}.Ideal|Mixed Platforms.Build.0 = Release|Any CPU
+		{201F806C-BB54-480B-B65E-8F6E94A15DDA}.Ideal|Win32.ActiveCfg = Release|Any CPU
+		{201F806C-BB54-480B-B65E-8F6E94A15DDA}.Ideal|x64.ActiveCfg = Release|Any CPU
+		{201F806C-BB54-480B-B65E-8F6E94A15DDA}.Ideal|x86.ActiveCfg = Release|Any CPU
+		{201F806C-BB54-480B-B65E-8F6E94A15DDA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{201F806C-BB54-480B-B65E-8F6E94A15DDA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{201F806C-BB54-480B-B65E-8F6E94A15DDA}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{201F806C-BB54-480B-B65E-8F6E94A15DDA}.Release|Mixed Platforms.Build.0 = Release|Any CPU
+		{201F806C-BB54-480B-B65E-8F6E94A15DDA}.Release|Win32.ActiveCfg = Release|Any CPU
+		{201F806C-BB54-480B-B65E-8F6E94A15DDA}.Release|x64.ActiveCfg = Release|Any CPU
+		{201F806C-BB54-480B-B65E-8F6E94A15DDA}.Release|x86.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
