@@ -302,7 +302,8 @@ type config = {
 
 	(* DH groups database *)
 	dhDBFileName: string;
-	dhDefaultGroupFileName: string
+	dhDefaultGroupFileName: string;
+    dhQMinLength: nat
     }
 
 let defaultConfig ={
@@ -327,7 +328,8 @@ let defaultConfig ={
     sessionDBExpiry = newTimeSpan 1 0 0 0; (*@ one day, as suggested by the RFC *)
 
     dhDBFileName = "dhparams-db.bin";
-    dhDefaultGroupFileName = "default-dh.pem"
+    dhDefaultGroupFileName = "default-dh.pem";
+    dhQMinLength = 1024
     }
 
 let max_TLSPlaintext_fragment_length = 16384 (*@ 2^14 *)

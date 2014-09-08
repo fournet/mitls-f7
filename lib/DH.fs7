@@ -41,7 +41,7 @@ val coerce: dhp:dhparams -> gx:(;dhp)elt{not HonestExponential(dhp,gx)} -> b:byt
 val genKey: dhp:dhparams -> gx:(;dhp)elt * (;dhp,gx) secret{HonestExponential(dhp,gx)}
 
     
-val serverGen: string -> DHDB.dhdb ->
+val serverGen: string -> DHDB.dhdb -> nat ->
 	(DHDB.dhdb * dhp:dhparams * gs:(;dhp) elt * (;dhp,gs) secret
 		{PP(dhp) /\ HonestExponential(dhp,gs)})
 

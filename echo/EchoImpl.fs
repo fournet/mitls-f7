@@ -47,6 +47,7 @@ let tlsoptions (options : options) = {
 
     TLSInfo.dhDBFileName = Path.Combine(options.dhdir, "dhparams-db.bin")
     TLSInfo.dhDefaultGroupFileName = Path.Combine(options.dhdir, "default-dh.pem")
+    TLSInfo.dhQMinLength = TLSInfo.defaultConfig.dhQMinLength
 }
 
 (* ------------------------------------------------------------------------ *)

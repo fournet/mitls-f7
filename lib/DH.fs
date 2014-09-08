@@ -53,8 +53,8 @@ let genKey dhp: elt * secret =
     #endif
     (e, Key (x))
 
-let serverGen filename dhdb =
-    let (dhdb,dhp) = defaultDHparams filename dhdb in
+let serverGen filename dhdb minSize =
+    let (dhdb,dhp) = defaultDHparams filename dhdb minSize in
     let (e,s) = genKey dhp in 
     (dhdb,dhp,e,s)
 

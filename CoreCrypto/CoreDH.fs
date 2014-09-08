@@ -19,7 +19,7 @@ open Org.BouncyCastle.Asn1
 open CoreKeys
 
 (* ------------------------------------------------------------------------ *)
-let check_params dhdb (pbytes:bytes) (gbytes:bytes) =
+let check_params dhdb minSize (pbytes:bytes) (gbytes:bytes) =
     match DHDB.select dhdb (pbytes, gbytes) with 
     | None -> // unknown group
         let p = new BigInteger(1, cbytes pbytes) in
@@ -29,10 +29,13 @@ let check_params dhdb (pbytes:bytes) (gbytes:bytes) =
         if ((g.CompareTo BigInteger.One) > 0) && ((g.CompareTo pm1) < 0) then
             // check if p is a safe prime, i.e. p = 2*q + 1 with prime q
             let q = pm1.Divide(BigInteger.Two)
-            if p.IsProbablePrime(80) && q.IsProbablePrime(80) then 
-                let qbytes = abytes (q.ToByteArrayUnsigned())
-                let dhdb = DHDB.insert dhdb (pbytes, gbytes) (qbytes, true) in
-                correct (dhdb,{dhp = pbytes; dhg = gbytes; dhq = qbytes; safe_prime = true})
+            if p.IsProbablePrime(80) && q.IsProbablePrime(80) then
+                if q.BitLength < minSize then
+                    Error(perror __SOURCE_FILE__ __LINE__ "Subgroup too small")
+                else
+                    let qbytes = abytes (q.ToByteArrayUnsigned())
+                    let dhdb = DHDB.insert dhdb (pbytes, gbytes) (qbytes, true) in
+                    correct (dhdb,{dhp = pbytes; dhg = gbytes; dhq = qbytes; safe_prime = true})
             else
                 Error (perror __SOURCE_FILE__ __LINE__ "Group with unknown order")
         else
@@ -111,9 +114,9 @@ let load_params_from_file (file : string) : bytes * bytes =
 
 
 (* ------------------------------------------------------------------------ *)
-let load_default_params pem_file dhdb =
+let load_default_params pem_file dhdb minSize =
     let p,g = load_params_from_file pem_file in
-    match check_params dhdb p g with
+    match check_params dhdb minSize p g with
     | Error(x) -> raise (new SecurityUtilityException(x))
     | Correct(res) -> res
 

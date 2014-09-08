@@ -328,7 +328,7 @@ private definition !p,g,y.
 		VLBytes(2,B(y))
 val dheParamBytes: p:bytes -> g:bytes -> y:bytes ->
 	b:bytes{B(b) = DHEParamBytes(p,g,y)}
-val parseDHEParams: DHDB.dhdb -> b:bytes -> 
+val parseDHEParams: DHDB.dhdb -> nat -> b:bytes -> 
  ((DHDB.dhdb * dhp:CoreKeys.dhparams * y:(;dhp)DHGroup.elt * rem:bytes) {
 	DHGroup.PP(dhp) /\ B(b) = (DHEParamBytes(dhp.dhp,dhp.dhg,y) @| B(rem))
  }) Result
@@ -343,7 +343,7 @@ val serverKeyExchangeBytes_DHE: dheb:bytes{?p,g,y. B(dheb) = DHEParamBytes(p,g,y
 	a:Sig.alg -> sign:bytes -> pv:ProtocolVersion ->
 	b:bytes{?p,g,y. B(dheb) = DHEParamBytes(p,g,y) /\
 		B(b) = ServerKeyExchangeMsg_DHE(pv,p,g,y,a,sign)}
-val parseServerKeyExchange_DHE: DHDB.dhdb -> pv:ProtocolVersion -> cs:cipherSuite -> 
+val parseServerKeyExchange_DHE: DHDB.dhdb -> nat -> pv:ProtocolVersion -> cs:cipherSuite -> 
 	b:bytes ->
 	((DHDB.dhdb * dhp:CoreKeys.dhparams * y:(;dhp)DHGroup.elt * a:Sig.alg * sign:bytes){
 	DHGroup.PP(dhp) /\
@@ -354,7 +354,7 @@ val parseServerKeyExchange_DHE: DHDB.dhdb -> pv:ProtocolVersion -> cs:cipherSuit
 function val ServerKeyExchangeMsg_DH_anon: bytes * bytes * bytes -> cbytes
 
 val serverKeyExchangeBytes_DH_anon: bytes -> bytes -> bytes -> bytes
-val parseServerKeyExchange_DH_anon: DHDB.dhdb -> bytes ->
+val parseServerKeyExchange_DH_anon: DHDB.dhdb -> nat -> bytes ->
 	((DHDB.dhdb * dhp:CoreKeys.dhparams * y:(;dhp)DHGroup.elt){DHGroup.PP(dhp)}) Result
 
 //function val CertificateVerifyMsg: si:SessionInfo * (;si)PRF.masterSecret * a:Sig.alg * Cert.chain * (;a)Sig.pkey * log -> bytes

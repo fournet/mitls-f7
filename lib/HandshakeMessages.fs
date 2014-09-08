@@ -525,7 +525,7 @@ let parseDigitallySigned expectedAlgs payload pv =
 (* Server Key exchange *)
 
 let dheParamBytes p g y = (vlbytes 2 p) @| (vlbytes 2 g) @| (vlbytes 2 y)
-let parseDHEParams dhdb payload =
+let parseDHEParams dhdb minSize payload =
     if length payload >= 2 then 
         match vlsplit 2 payload with
         | Error(z) -> Error(z)
@@ -542,7 +542,7 @@ let parseDHEParams dhdb payload =
                 | Correct(res) ->
                 let (y,payload) = res in
                 // Check params and validate y
-                match DHGroup.checkParams dhdb p g with
+                match DHGroup.checkParams dhdb minSize p g with
                 | Error(z) -> Error(z)
                 | Correct(res) ->
                     let (dhdb,dhp) = res in
@@ -565,8 +565,8 @@ let serverKeyExchangeBytes_DHE dheb alg sign pv =
     let payload = dheb @| sign in
     messageBytes HT_server_key_exchange payload
 
-let parseServerKeyExchange_DHE dhdb pv cs payload =
-    match parseDHEParams dhdb payload with
+let parseServerKeyExchange_DHE dhdb minSize pv cs payload =
+    match parseDHEParams dhdb minSize payload with
     | Error(z) -> Error(z)
     | Correct(res) ->
         let (dhdb,dhp,y,payload) = res in
@@ -581,8 +581,8 @@ let serverKeyExchangeBytes_DH_anon p g y =
     let dehb = dheParamBytes p g y in
     messageBytes HT_server_key_exchange dehb
 
-let parseServerKeyExchange_DH_anon dhdb payload =
-    match parseDHEParams dhdb payload with
+let parseServerKeyExchange_DH_anon dhdb minSize payload =
+    match parseDHEParams dhdb minSize payload with
     | Error(z) -> Error(z)
     | Correct(z) ->
         let (dhdb,dhp,y,rem) = z in

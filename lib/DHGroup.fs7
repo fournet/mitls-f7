@@ -26,9 +26,9 @@ private val pp: dhp:dhparams ->
 val goodPP: dhp:dhparams -> b:bool{b = true <=> PP(dhp)}
 
 val genElement: dhp:dhparams -> (;dhp) elt
-val checkParams: dhdb -> p:bytes -> g:bytes ->
+val checkParams: dhdb -> nat -> p:bytes -> g:bytes ->
 	((dhdb * dhp:dhparams){PP(dhp) /\ dhp.dhp=p /\ dhp.dhg = g}) Result
 
 val checkElement: dhp:dhparams{PP(dhp)} -> b:bytes -> (b':(;dhp) elt {b = b'}) option
 
-val defaultDHparams: string -> dhdb -> ((dhdb * dhp:dhparams){PP(dhp)})
+val defaultDHparams: string -> dhdb -> nat -> ((dhdb * dhp:dhparams){PP(dhp)})

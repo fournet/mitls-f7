@@ -38,8 +38,8 @@ let genElement dhp: elt =
 #endif
     e
 
-let checkParams dhdb p g =
-    match CoreDH.check_params dhdb p g with
+let checkParams dhdb minSize p g =
+    match CoreDH.check_params dhdb minSize p g with
     | Error(x) -> Error(AD_insufficient_security,x)
     | Correct(res) ->
         let (dhdb,dhp) = res in
@@ -63,8 +63,8 @@ let checkElement dhp (b:bytes): option<elt> =
     else
         None
 
-let defaultDHparams file dhdb =
-    let (dhdb,dhp) = CoreDH.load_default_params file dhdb in
+let defaultDHparams file dhdb minSize =
+    let (dhdb,dhp) = CoreDH.load_default_params file dhdb minSize in
 #if ideal
     let dhp = pp(dhp) in
 #endif

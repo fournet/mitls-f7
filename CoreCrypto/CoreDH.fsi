@@ -6,7 +6,7 @@ open CoreKeys
 open DHDB
 
 (* ------------------------------------------------------------------------ *)
-val check_params : dhdb -> bytes -> bytes -> (string,dhdb*dhparams) optResult
+val check_params : dhdb -> nat -> bytes -> bytes -> (string,dhdb*dhparams) optResult
 val check_element: dhparams -> bytes -> bool
 val gen_key      : dhparams -> dhskey * dhpkey
 // less efficient implementation, in case q is not available
@@ -16,4 +16,4 @@ val agreement    : bytes -> dhskey -> dhpkey -> bytes
 (* ------------------------------------------------------------------------ *)
 // Throws exceptions in case of error
 // (file not found, parsing error, unsafe parameters...)
-val load_default_params   : string -> dhdb -> dhdb*dhparams
+val load_default_params   : string -> dhdb -> nat -> dhdb*dhparams
