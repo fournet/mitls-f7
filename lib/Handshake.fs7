@@ -110,7 +110,7 @@ private definition !a,k,t. Sig.Msg(a,k,t)
            (DHGroup.PP(dhp) /\ DH.HonestExponential(dhp,gs) => HonestPMS(si.pmsId)) /\  
            k = Cert.SigPKCert(si.clientID,a)) \/
         (?si,dhp,gs.                  
-           B(t) = B(si.init_crand) @| B(si.init_srand) @| DHEParamBytes(dhp.p,dhp.g,gs) /\
+           B(t) = B(si.init_crand) @| B(si.init_srand) @| DHEParamBytes(dhp.dhp,dhp.dhg,gs) /\
            Length(si.init_crand) = 32 /\
            Length(si.init_srand) = 32 /\
            DHGroup.PP(dhp) /\ DH.HonestExponential(dhp,gs) /\ 
@@ -134,7 +134,7 @@ ask !si,dhp,gc,gs,r,a,k,t.
            => Sig.Msg(a,k,t)
 
 ask !si,dhp,gs,a,k,t. 
-           B(t) = B(si.init_crand) @| B(si.init_srand) @| DHEParamBytes(dhp.p,dhp.g,gs) /\
+           B(t) = B(si.init_crand) @| B(si.init_srand) @| DHEParamBytes(dhp.dhp,dhp.dhg,gs) /\
            Length(si.init_crand) = 32 /\
            Length(si.init_srand) = 32 /\
            DHGroup.PP(dhp) /\ DH.HonestExponential(dhp,gs) /\ 
@@ -143,7 +143,7 @@ ask !si,dhp,gs,a,k,t.
 
 
 ask !si,dhp,gs,a,k,t. 
-           B(t) = B(si.init_crand) @| B(si.init_srand) @| DHEParamBytes(dhp.p,dhp.g,gs) /\
+           B(t) = B(si.init_crand) @| B(si.init_srand) @| DHEParamBytes(dhp.dhp,dhp.dhg,gs) /\
            Length(si.init_crand) = 32 /\
            Length(si.init_srand) = 32 /\
            Sig.Msg(a,k,t) /\

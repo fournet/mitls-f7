@@ -4,6 +4,7 @@
 module HandshakeMessages
 
 open Bytes
+open CoreKeys
 open Error
 open TLSError
 open TLSConstants
@@ -552,7 +553,7 @@ let parseDHEParams dhdb payload =
                         // AP: The following give a funny error.
                         // AP: We cannot prove the B(b) = ... postcondition,
                         // AP: and this looks like linked to the following error.
-                        let p' = dhp.p in
+                        let p' = dhp.dhp in
 #endif
                         correct (dhdb,dhp,y,payload)
             else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")

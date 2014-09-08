@@ -32,16 +32,16 @@ let check_params dhdb (pbytes:bytes) (gbytes:bytes) =
             if p.IsProbablePrime(80) && q.IsProbablePrime(80) then 
                 let qbytes = abytes (q.ToByteArrayUnsigned())
                 let dhdb = DHDB.insert dhdb (pbytes, gbytes) (qbytes, true) in
-                correct (dhdb,{p = pbytes; g = gbytes; q = qbytes; safe_prime = true})
+                correct (dhdb,{dhp = pbytes; dhg = gbytes; dhq = qbytes; safe_prime = true})
             else
                 Error (perror __SOURCE_FILE__ __LINE__ "Group with unknown order")
         else
             Error (perror __SOURCE_FILE__ __LINE__ "Group with small order")
     | Some(qbytes,safe_prime) -> // known group
-        correct (dhdb,{p = pbytes; g = gbytes ; q = qbytes ; safe_prime = safe_prime})
+        correct (dhdb,{dhp = pbytes; dhg = gbytes ; dhq = qbytes ; safe_prime = safe_prime})
  
 let check_element dhp (ebytes:bytes) =
-    let p   = new BigInteger(1, cbytes dhp.p)
+    let p   = new BigInteger(1, cbytes dhp.dhp)
     let e   = new BigInteger(1, cbytes ebytes)
     let pm1 = p.Subtract(BigInteger.One)
     // check e in [2,p-2]
@@ -49,7 +49,7 @@ let check_element dhp (ebytes:bytes) =
         if dhp.safe_prime then
             true
         else
-            let q = new BigInteger(1, cbytes dhp.q)
+            let q = new BigInteger(1, cbytes dhp.dhq)
             let r = e.ModPow(q, p)
             // For OpenSSL-generated parameters order(g) = 2q, so e^q mod p = p-1
             r.Equals(BigInteger.One) || r.Equals(pm1)
@@ -68,7 +68,7 @@ let gen_key_int dhparams =
 
 let gen_key dhp: dhskey * dhpkey =
     // TODO: Other BC constructors for DHParameters could provide even better performances.
-    let dhparams = new DHParameters(new BigInteger(1, cbytes dhp.p), new BigInteger(1, cbytes dhp.g), new BigInteger(1, cbytes dhp.q)) in
+    let dhparams = new DHParameters(new BigInteger(1, cbytes dhp.dhp), new BigInteger(1, cbytes dhp.dhg), new BigInteger(1, cbytes dhp.dhq)) in
     gen_key_int dhparams
 
 let gen_key_pg p g =

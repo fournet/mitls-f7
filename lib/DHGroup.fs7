@@ -18,7 +18,7 @@ predicate Elt of dhparams * bytes
 
 type (;dhp:dhparams) elt = b:bytes{ Elt(dhp,b) } 
 
-theorem !dhp. PP(dhp) => Elt(dhp,dhp.g)
+theorem !dhp. PP(dhp) => Elt(dhp,dhp.dhg)
 
 private val goodPP_log: (dhparams list) ref
 private val pp: dhp:dhparams ->
@@ -27,7 +27,7 @@ val goodPP: dhp:dhparams -> b:bool{b = true <=> PP(dhp)}
 
 val genElement: dhp:dhparams -> (;dhp) elt
 val checkParams: dhdb -> p:bytes -> g:bytes ->
-	((dhdb * dhp:dhparams){PP(dhp) /\ dhp.p=p /\ dhp.g = g}) Result
+	((dhdb * dhp:dhparams){PP(dhp) /\ dhp.dhp=p /\ dhp.dhg = g}) Result
 
 val checkElement: dhp:dhparams{PP(dhp)} -> b:bytes -> (b':(;dhp) elt {b = b'}) option
 

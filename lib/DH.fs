@@ -61,7 +61,7 @@ let serverGen filename dhdb =
 let clientGenExp dhp gs =
     let (gc,c) = genKey dhp in
     let (Key ck) = c in
-    let p = dhp.p in
+    let p = dhp.dhp in
     let pms = CoreDH.agreement p ck gs in
     //#begin-ideal
     #if ideal
@@ -84,7 +84,7 @@ let clientGenExp dhp gs =
 
 let serverExp dhp gs gc sk =
     let (Key s) = sk in
-    let p = dhp.p in
+    let p = dhp.dhp in
     let pms = CoreDH.agreement p s gc in
     //#begin-ideal
     #if ideal

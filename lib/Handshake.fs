@@ -1015,7 +1015,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         let (x,y) = z in
                         InError(x,y,state)
                     | Correct(vkey) ->
-                        let dheb = dheParamBytes dhp.p dhp.g y in
+                        let dheb = dheParamBytes dhp.dhp dhp.dhg y in
                         let expected = si.init_crand @| si.init_srand @| dheb in
                         if Sig.verify alg vkey expected signature then
                             (let si_old = si in
@@ -1279,7 +1279,7 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL l
         //~ pms-KEM: (dhp,gx),((dhp,gx),x) = keygen_DHE()
         let state = {state with dhdb = dhdb} in
 
-        let dheB = dheParamBytes dhp.p dhp.g gx in
+        let dheB = dheParamBytes dhp.dhp dhp.dhg gx in
         let toSign = si.init_crand @| si.init_srand @| dheB in
         let sign = Sig.sign alg sk toSign in
         
@@ -1327,7 +1327,7 @@ let prepare_server_output_full_DH_anon (ci:ConnectionInfo) (state:hs_state) (si:
     let (dhdb,dhp,y,x) = DH.serverGen default_params_filename state.dhdb in
     let state = {state with dhdb = dhdb} in
 
-    let serverKEXB = serverKeyExchangeBytes_DH_anon dhp.p dhp.g y in
+    let serverKEXB = serverKeyExchangeBytes_DH_anon dhp.dhp dhp.dhg y in
  
     let output = serverHelloB @|serverKEXB @| serverHelloDoneBytes in
     (* Log the output and put it into the output buffer *)

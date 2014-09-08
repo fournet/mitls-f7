@@ -45,8 +45,8 @@ let checkParams dhdb p g =
         let (dhdb,dhp) = res in
 #if ideal
         let dhp = pp(dhp) in
-        let rp = dhp.p in
-        let rg = dhp.g in
+        let rp = dhp.dhp in
+        let rg = dhp.dhg in
         if rp <> p || rg <> g then
             failwith "Trusted code returned inconsitent value"
         else

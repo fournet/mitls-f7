@@ -16,7 +16,7 @@ type dsaskey = bytes * dsaparams
 
 (* DH *)
 // A DHDB entry
-type dhparams = { p : bytes; g : bytes; q : bytes; safe_prime: bool }
+type dhparams = { dhp : bytes; dhg : bytes; dhq : bytes; safe_prime: bool; }
 
 type dhpkey = bytes
 type dhskey = bytes

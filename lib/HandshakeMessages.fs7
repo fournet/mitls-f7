@@ -1,5 +1,6 @@
 ﻿module HandshakeMessages
 open Bytes
+open CoreKeys
 open Error
 open TLSError
 open TLSInfo
@@ -328,8 +329,8 @@ private definition !p,g,y.
 val dheParamBytes: p:bytes -> g:bytes -> y:bytes ->
 	b:bytes{B(b) = DHEParamBytes(p,g,y)}
 val parseDHEParams: DHDB.dhdb -> b:bytes -> 
- (DHDB.dhdb * dhp:CoreKeys.dhparams * y:(;dhp)DHGroup.elt * rem:bytes {
-	DHGroup.PP(dhp) /\ B(b) = (DHEParamBytes(dhp.p,dhp.g,y) @| B(rem))
+ ((DHDB.dhdb * dhp:CoreKeys.dhparams * y:(;dhp)DHGroup.elt * rem:bytes) {
+	DHGroup.PP(dhp) /\ B(b) = (DHEParamBytes(dhp.dhp,dhp.dhg,y) @| B(rem))
  }) Result
 
 function val ServerKeyExchangeMsg_DHE:  ProtocolVersion * p:bytes * g:bytes * y:bytes * Sig.alg * sign:bytes-> cbytes
@@ -347,7 +348,7 @@ val parseServerKeyExchange_DHE: DHDB.dhdb -> pv:ProtocolVersion -> cs:cipherSuit
 	((DHDB.dhdb * dhp:CoreKeys.dhparams * y:(;dhp)DHGroup.elt * a:Sig.alg * sign:bytes){
 	DHGroup.PP(dhp) /\
 	MessageBytes(HT_server_key_exchange,B(b)) =
-		ServerKeyExchangeMsg_DHE(pv,dhp.p,dhp.g,y,a,sign)
+		ServerKeyExchangeMsg_DHE(pv,dhp.dhp,dhp.dhg,y,a,sign)
 	}) Result
 
 function val ServerKeyExchangeMsg_DH_anon: bytes * bytes * bytes -> cbytes
