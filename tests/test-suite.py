@@ -92,6 +92,7 @@ def _check_for_config(mode, config):
             assert not (not mivendor and isclient)
 
             mysessiondir = os.path.join(sessiondir, 'client' if isclient else 'server')
+            dhdir        = os.path.join('..','data','dh')
             win32        = sys.platform.lower() in ('cygwin', 'win32')
             cipher       = config.cipher
 
@@ -112,7 +113,8 @@ def _check_for_config(mode, config):
                         '--port'         , str(config.address[1]),
                         '--ciphers'      , cipher,
                         '--tlsversion'   , config.version,
-                        '--sessionDB-dir', mysessiondir]
+                        '--sessionDB-dir', mysessiondir,
+                        '--dhDB-dir'     , dhdir]
 
             if config.servname is not None:
                 command += ['--server-name'  , config.servname,]
@@ -166,7 +168,7 @@ def _check_for_config(mode, config):
             INPUT = DATA + CRLN
 
         try:
-            contents = subpc.communicate(INPUT, timeout = 10)[0].splitlines()
+            contents = subpc.communicate(INPUT, timeout = 1)[0].splitlines()
         except (IOError, OSError), e:
             logging.error('Error while interacting with server: %s' % (e,))
             return False
