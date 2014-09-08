@@ -113,7 +113,7 @@ let load_params_from_file (file : string) : bytes * bytes =
 (* ------------------------------------------------------------------------ *)
 let load_default_params pem_file dhdb =
     let p,g = load_params_from_file pem_file in
-    match check_params dhdb g p with
+    match check_params dhdb p g with
     | Error(x) -> raise (new SecurityUtilityException(x))
     | Correct(res) -> res
 
