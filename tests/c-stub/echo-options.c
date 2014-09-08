@@ -21,6 +21,7 @@ enum {
     OPT_TLSVER  = 0x06,
     OPT_PKI     = 0x07,
     OPT_CLIENT  = 0x08,
+    OPT_DHDIR   = 0x09,
 };
 
 
@@ -34,6 +35,7 @@ static const struct option long_options[] = {
     {"tlsversion"   , required_argument, 0, OPT_TLSVER },
     {"pki"          , required_argument, 0, OPT_PKI    },
     {"client"       , no_argument      , 0, OPT_CLIENT },
+    {"dhDB-dir"     , required_argument, 0, OPT_DHDIR  },
     {NULL           , 0                , 0, 0          },
 };
 
@@ -45,6 +47,7 @@ int _options(int argc, char *argv[], options_t *options) {
     const char     *cname   = NULL;
     const char     *sname   = NULL;
     const char     *dbdir   = "sessionDB";
+    const char     *dhdir   = "dhDB";
     const char     *pki     = "pki";
     /*-*/ tlsver_t  tlsver  = TLS_1p0;
     /*-*/ int       client  = 0;
@@ -66,6 +69,7 @@ int _options(int argc, char *argv[], options_t *options) {
         case OPT_CNAME  : cname   = optarg; break ;
         case OPT_SNAME  : sname   = optarg; break ;
         case OPT_DBDIR  : dbdir   = optarg; break ;
+        case OPT_DHDIR  : dhdir   = optarg; break ;
         case OPT_PKI    : pki     = optarg; break ;
 
         case OPT_TLSVER:
