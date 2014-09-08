@@ -15,12 +15,21 @@ type predPP = PP of p * g
 
 let dhparams p g q: CoreKeys.dhparams = { p = p; g = g; q = q }
 
-let genElement p g q: elt =
-    let (_, (e, _)) = CoreDH.gen_key (dhparams p g q) in
+let genElement p g: elt =
+    let (_, (e, _)) = CoreDH.gen_key p g in
 #if verify
     Pi.assume (Elt(p,g,e));
 #endif
     e
+
+let checkParams (p:p) (g:g): elt option =
+    if CoreDH.check_params p g then
+#if verify
+        Pi.assume(Elt(p,g,g));
+#endif
+        Some(g)
+    else
+        None
 
 let checkElement (p:p) (g:g) (b:bytes): option<elt> =
     if CoreDH.check_element p g b then

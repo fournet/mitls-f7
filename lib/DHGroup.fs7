@@ -5,10 +5,10 @@ open Bytes
 type p = bytes // DH modulus, actually a bignum
 type q = bytes // subgroup order
 
-// For public parameters and exchange values.
+// For public parameters and exchanged values.
 // We use an abstract predicate to ensure that elements 
 // are bytes that have been correctly generated or checked,
-// e.g. Elt(p,g,b) => Num(b) in [2..p-1] /\ order(b) = order(g)
+// e.g. Elt(p,g,b) => Num(b) in [2..p-1) /\ order(b) = order(g)
 
 predicate type preds = Elt of bytes * bytes * bytes
 
@@ -20,7 +20,8 @@ type (;p:p, g:(;p) g) elt = b:bytes{ Elt(p,g,b) }
 // formally a precondition for signing them with an honest key.
 predicate type predPP = PP of p:p * g:(;p) g
 
-val dhparams: p:p -> (;p) g -> q option -> CoreKeys.dhparams
-val genElement: p:p -> g:(;p) g -> q option -> (;p,g) elt
+val dhparams: p:p -> (;p) g -> q -> CoreKeys.dhparams
+val genElement: p:p -> g:(;p) g -> (;p,g) elt
 
+val checkParams: p:p -> g:bytes -> (g':(;p,g) elt {g = g'}) option
 val checkElement: p:p -> g:bytes -> b:bytes -> (b':(;p,g) elt {b = b'}) option

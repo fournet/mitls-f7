@@ -29,9 +29,9 @@ private val assoc: p:p -> g:(;p) g -> gx:(;p,g)elt -> gy:(;p,g)elt -> entry list
 
 // RFCs are vague about best practices for Diffie-Hellman parameter generation
 // We use default parameters for which we store the order of the subgroup for ciphertext validation
-private val pp: CoreKeys.dhparams -> p:p * g:bytes * q option {Elt(p,g,g) /\ PP(p,g)}
-val gen_pp:     unit -> p:p * g:(;p) g * q option //SZ removed PP(p,g) post-condition; we currently can only do validation for fixed parameters
-val default_pp: unit -> p:p * g:(;p) g * q option {Elt(p,g,g) /\ PP(p,g)} 
+private val pp: CoreKeys.dhparams -> p:p * g:bytes * q {Elt(p,g,g) /\ PP(p,g)}
+val gen_pp:     unit -> p:p * g:(;p) g * q //SZ removed PP(p,g) post-condition; we currently can only do validation for fixed parameters
+val default_pp: unit -> p:p * g:(;p) g * q {Elt(p,g,g) /\ PP(p,g)} 
 
 
 definition !p,g,gx,gy. PMS.SafeDH(p,g,gx,gy) <=> HonestExponential(p,g,gx) /\ HonestExponential(p,g,gy) /\ PP(p,g)
@@ -42,7 +42,10 @@ ask !p,g,gx,gy. not PP(p,g) => not PMS.SafeDH(p,g,gx,gy)
 val safeDH: p:p -> g:(;p) g -> gx:(;p,g)elt -> gy:(;p,g)elt -> b:bool { b=true <=> PMS.SafeDH(p,g,gx,gy) }
 
 
-val genKey: p:p -> g:(;p) g -> q option -> gx:(;p,g) elt * (;p,g,gx) secret{HonestExponential(p,g,gx)}
+val leak  : p:p -> g:(;p) g -> gx:(;p,g)elt -> x:(;p,g,gx)secret{not HonestExponential(p,g,gx)} -> bytes
+val coerce: p:p -> g:(;p) g -> gx:(;p,g)elt{not HonestExponential(p,g,gx)} -> b:bytes -> x:(;p,g,gx)secret
+
+val genKey: p:p -> g:(;p) g -> gx:(;p,g) elt * (;p,g,gx) secret{HonestExponential(p,g,gx)}
 
     
 val serverGen: unit -> (p:p * g:(;p) g * gs:(;p,g) elt * (;p,g,gs) secret{PP(p,g) /\ HonestExponential(p,g,gs)})
