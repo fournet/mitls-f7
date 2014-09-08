@@ -327,7 +327,7 @@ let defaultConfig ={
     sessionDBExpiry = newTimeSpan 1 0 0 0; (*@ one day, as suggested by the RFC *)
 
     dhDBFileName = "dhparams-db.bin";
-    dhDefaultGroupFileName = "defaultDH.pem"
+    dhDefaultGroupFileName = "default-dh.pem"
     }
 
 let max_TLSPlaintext_fragment_length = 16384 (*@ 2^14 *)
