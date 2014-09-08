@@ -15,6 +15,7 @@ type options = {
     clientname    : string option;
     localaddr     : IPEndPoint;
     sessiondir    : string;
+    dhdir         : string;
 }
 
 (* ------------------------------------------------------------------------ *)
@@ -44,8 +45,8 @@ let tlsoptions (options : options) = {
     TLSInfo.sessionDBFileName = Path.Combine(options.sessiondir, "sessionDBFile.bin")
     TLSInfo.sessionDBExpiry   = Date.newTimeSpan 1 0 0 0 (* one day *)
 
-    TLSInfo.dhDBFileName = "dhparams-db.bin"
-    TLSInfo.dhDefaultGroupFileName = "defaultDH.pem"
+    TLSInfo.dhDBFileName = Path.Combine(options.dhdir, "dhparams-db.bin")
+    TLSInfo.dhDefaultGroupFileName = Path.Combine(options.dhdir, "default-dh.pem")
 }
 
 (* ------------------------------------------------------------------------ *)
